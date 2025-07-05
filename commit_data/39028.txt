@@ -9,6 +9,28 @@ Date:   Mon Dec 17 15:09:34 2018 -0800
     Change-Id: I419b74d06380113f4bd32b9aeb053c3be36208d5
     Reviewed-on: https://go-review.googlesource.com/c/154584
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  doc/go1.12.html | 10 ++++++++++
  1 file changed, 10 insertions(+)
+
+diff --git a/doc/go1.12.html b/doc/go1.12.html
+index 54ebed5142..66c37d5d1d 100644
+--- a/doc/go1.12.html
++++ b/doc/go1.12.html
+@@ -93,6 +93,16 @@ Go 1.13 will require macOS 10.11 El Capitan or later.
+   vet</code> should work with all supported versions of Go.
+ </p>
+ 
++<p>
++  As part of this change, the experimental <code>-shadow</code> option
++  is no longer available with <code>go vet</code>. Checking for
++  variable shadowing may now be done using
++  <pre>
++    go install golang.org/x/tools/go/analysis/passes/shadow/cmd/shadow
++    go vet -vettool=$(which shadow)
++  </pre>
++</p>
++
+ <h3 id="gocache">Build cache requirement</h3>
+ 
+ <p>

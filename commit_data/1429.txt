@@ -8,6 +8,23 @@ Date:   Wed Jan 7 10:35:43 2009 -0800
     DELTA=3  (1 added, 0 deleted, 2 changed)
     OCL=22195
     CL=22207
-
+---
  test/complit.go | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/test/complit.go b/test/complit.go
+index 82e38f41d1..d9b9488519 100644
+--- a/test/complit.go
++++ b/test/complit.go
+@@ -38,8 +38,9 @@ func main() {
+ 	if len(a1) != 3 { panic("a1") }
+ 	a2 := [10]int{1,2,3};
+ 	if len(a2) != 10 || cap(a2) != 10 { panic("a2") }
+-	//a3 := [10]int{1,2,3,};  // BUG: trailing commas not allowed
+-	//if len(a3) != 10 || a2[3] != 0 { panic("a3") }
++
++	a3 := [10]int{1,2,3,};
++	if len(a3) != 10 || a2[3] != 0 { panic("a3") }
+ 
+ 	var oai []int;
+ 	oai = []int{1,2,3};

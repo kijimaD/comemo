@@ -13,6 +13,20 @@ Date:   Thu Dec 15 18:00:12 2016 +0900
     Change-Id: Ie5de834d19c0aaeb4128a3ca655f6c4c9ae5e501
     Reviewed-on: https://go-review.googlesource.com/34435
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/ip.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/ip.go b/src/net/ip.go
+index 11518f05f4..4a7774ab38 100644
+--- a/src/net/ip.go
++++ b/src/net/ip.go
+@@ -90,7 +90,7 @@ func CIDRMask(ones, bits int) IPMask {
+ 
+ // Well-known IPv4 addresses
+ var (
+-	IPv4bcast     = IPv4(255, 255, 255, 255) // broadcast
++	IPv4bcast     = IPv4(255, 255, 255, 255) // limited broadcast
+ 	IPv4allsys    = IPv4(224, 0, 0, 1)       // all systems
+ 	IPv4allrouter = IPv4(224, 0, 0, 2)       // all routers
+ 	IPv4zero      = IPv4(0, 0, 0, 0)         // all zeros

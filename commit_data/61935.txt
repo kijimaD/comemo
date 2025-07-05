@@ -14,6 +14,20 @@ Date:   Wed Dec 18 16:19:24 2024 +0000
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Carlos Amedee <carlos@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/crypto/ecdsa/ecdsa.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/crypto/ecdsa/ecdsa.go b/src/crypto/ecdsa/ecdsa.go
+index 77727aaf96..0f9749975f 100644
+--- a/src/crypto/ecdsa/ecdsa.go
++++ b/src/crypto/ecdsa/ecdsa.go
+@@ -183,7 +183,7 @@ func GenerateKey(c elliptic.Curve, rand io.Reader) (*PrivateKey, error) {
+ }
+ 
+ func generateFIPS[P ecdsa.Point[P]](curve elliptic.Curve, c *ecdsa.Curve[P], rand io.Reader) (*PrivateKey, error) {
+-	if fips140only.Enabled && fips140only.ApprovedRandomReader(rand) {
++	if fips140only.Enabled && !fips140only.ApprovedRandomReader(rand) {
+ 		return nil, errors.New("crypto/ecdsa: only crypto/rand.Reader is allowed in FIPS 140-only mode")
+ 	}
+ 	privateKey, err := ecdsa.GenerateKey(c, rand)

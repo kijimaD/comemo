@@ -11,7 +11,7 @@ Date:   Wed Mar 6 16:14:07 2013 -0800
     R=adonovan
     CC=golang-dev
     https://golang.org/cl/7473043
-
+---
  src/pkg/go/types/check.go              |  22 ++--
  src/pkg/go/types/const.go              |  24 +++++
  src/pkg/go/types/expr.go               |  12 ++-
@@ -23,3 +23,511 @@ Date:   Wed Mar 6 16:14:07 2013 -0800
  src/pkg/go/types/testdata/expr3.src    |   3 +-
  src/pkg/go/types/universe.go           |   8 +-
  10 files changed, 133 insertions(+), 128 deletions(-)
+
+diff --git a/src/pkg/go/types/check.go b/src/pkg/go/types/check.go
+index 19f4c34d11..8d45d2ea81 100644
+--- a/src/pkg/go/types/check.go
++++ b/src/pkg/go/types/check.go
+@@ -202,20 +202,22 @@ func (check *checker) object(obj Object, cycleOk bool) {
+ 			return // already checked
+ 		}
+ 		// The obj.Val field for constants is initialized to its respective
+-		// iota value by the parser.
+-		// The object's fields can be in one of the following states:
+-		// Type != nil  =>  the constant value is Val
+-		// Type == nil  =>  the constant is not typechecked yet, and Val can be:
+-		// Val  is int  =>  Val is the value of iota for this declaration
+-		// Val  == nil  =>  the object's expression is being evaluated
+-		if obj.Val == nil {
+-			check.errorf(obj.GetPos(), "illegal cycle in initialization of %s", obj.Name)
++		// iota value (type int) by the parser.
++		// If the object's type is Typ[Invalid], the object value is ignored.
++		// If the object's type is valid, the object value must be a legal
++		// constant value; it may be nil to indicate that we don't know the
++		// value of the constant (e.g., in: "const x = float32("foo")" we
++		// know that x is a constant and has type float32, but we don't
++		// have a value due to the error in the conversion).
++		if obj.visited {
++			check.errorf(obj.GetPos(), "illegal cycle in initialization of constant %s", obj.Name)
+ 			obj.Type = Typ[Invalid]
+ 			return
+ 		}
++		obj.visited = true
+ 		spec := obj.spec
+ 		iota := obj.Val.(int)
+-		obj.Val = nil // mark obj as "visited" for cycle detection
++		obj.Val = nil // set to a valid (but unknown) constant value
+ 		// determine spec for type and initialization expressions
+ 		init := spec
+ 		if len(init.Values) == 0 {
+@@ -228,7 +230,7 @@ func (check *checker) object(obj Object, cycleOk bool) {
+ 			return // already checked
+ 		}
+ 		if obj.visited {
+-			check.errorf(obj.GetPos(), "illegal cycle in initialization of %s", obj.Name)
++			check.errorf(obj.GetPos(), "illegal cycle in initialization of variable %s", obj.Name)
+ 			obj.Type = Typ[Invalid]
+ 			return
+ 		}
+diff --git a/src/pkg/go/types/const.go b/src/pkg/go/types/const.go
+index 503652e75a..e8e86e4fb8 100644
+--- a/src/pkg/go/types/const.go
++++ b/src/pkg/go/types/const.go
+@@ -19,6 +19,7 @@ import (
+ 
+ // Representation of constant values.
+ //
++// invalid  ->  nil (i.e., we don't know the constant value; this can only happen in erroneous programs)
+ // bool     ->  bool (true, false)
+ // numeric  ->  int64, *big.Int, *big.Rat, Complex (ordered by increasing data structure "size")
+ // string   ->  string
+@@ -159,6 +160,8 @@ func makeStringConst(lit string) interface{} {
+ func toImagConst(x interface{}) interface{} {
+ 	var im *big.Rat
+ 	switch x := x.(type) {
++	case nil:
++		im = rat0
+ 	case int64:
+ 		im = big.NewRat(x, 1)
+ 	case *big.Int:
+@@ -184,6 +187,8 @@ func isZeroConst(x interface{}) bool {
+ //
+ func isNegConst(x interface{}) bool {
+ 	switch x := x.(type) {
++	case nil:
++		return false
+ 	case int64:
+ 		return x < 0
+ 	case *big.Int:
+@@ -200,6 +205,10 @@ func isNegConst(x interface{}) bool {
+ // of precision.
+ //
+ func isRepresentableConst(x interface{}, ctxt *Context, as BasicKind) bool {
++	if x == nil {
++		return true // avoid spurious errors
++	}
++
+ 	switch x := x.(type) {
+ 	case bool:
+ 		return as == Bool || as == UntypedBool
+@@ -387,6 +396,10 @@ func is63bit(x int64) bool {
+ 
+ // unaryOpConst returns the result of the constant evaluation op x where x is of the given type.
+ func unaryOpConst(x interface{}, ctxt *Context, op token.Token, typ *Basic) interface{} {
++	if x == nil {
++		return nil
++	}
++
+ 	switch op {
+ 	case token.ADD:
+ 		return x // nothing to do
+@@ -437,6 +450,10 @@ func unaryOpConst(x interface{}, ctxt *Context, op token.Token, typ *Basic) inte
+ // division. Division by zero leads to a run-time panic.
+ //
+ func binaryOpConst(x, y interface{}, op token.Token, typ *Basic) interface{} {
++	if x == nil || y == nil {
++		return nil
++	}
++
+ 	x, y = matchConst(x, y)
+ 
+ 	switch x := x.(type) {
+@@ -591,6 +608,9 @@ func binaryOpConst(x, y interface{}, op token.Token, typ *Basic) interface{} {
+ //
+ func shiftConst(x interface{}, s uint, op token.Token) interface{} {
+ 	switch x := x.(type) {
++	case nil:
++		return nil
++
+ 	case int64:
+ 		switch op {
+ 		case token.SHL:
+@@ -619,6 +639,10 @@ func shiftConst(x interface{}, s uint, op token.Token) interface{} {
+ // or NilType).
+ //
+ func compareConst(x, y interface{}, op token.Token) (z bool) {
++	if x == nil || y == nil {
++		return false
++	}
++
+ 	x, y = matchConst(x, y)
+ 
+ 	// x == y  =>  x == y
+diff --git a/src/pkg/go/types/expr.go b/src/pkg/go/types/expr.go
+index 86d782d483..3b0625239f 100644
+--- a/src/pkg/go/types/expr.go
++++ b/src/pkg/go/types/expr.go
+@@ -580,7 +580,11 @@ func (check *checker) binary(x *operand, lhs, rhs ast.Expr, op token.Token, iota
+ 	}
+ 
+ 	if !IsIdentical(x.typ, y.typ) {
+-		check.invalidOp(x.pos(), "mismatched types %s and %s", x.typ, y.typ)
++		// only report an error if we have valid types
++		// (otherwise we had an error reported elsewhere already)
++		if x.typ != Typ[Invalid] && y.typ != Typ[Invalid] {
++			check.invalidOp(x.pos(), "mismatched types %s and %s", x.typ, y.typ)
++		}
+ 		x.mode = invalid
+ 		return
+ 	}
+@@ -823,8 +827,8 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
+ 			check.errorf(e.Pos(), "use of package %s not in selector", obj.Name)
+ 			goto Error
+ 		case *Const:
+-			if obj.Val == nil {
+-				goto Error // cycle detected
++			if obj.Type == Typ[Invalid] {
++				goto Error
+ 			}
+ 			x.mode = constant
+ 			if obj == universeIota {
+@@ -834,7 +838,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
+ 				}
+ 				x.val = int64(iota)
+ 			} else {
+-				x.val = obj.Val
++				x.val = obj.Val // may be nil if we don't know the constant value
+ 			}
+ 		case *TypeName:
+ 			x.mode = typexpr
+diff --git a/src/pkg/go/types/objects.go b/src/pkg/go/types/objects.go
+index 02291d34c5..73301c6ca4 100644
+--- a/src/pkg/go/types/objects.go
++++ b/src/pkg/go/types/objects.go
+@@ -38,9 +38,10 @@ type Const struct {
+ 	Pkg  *Package
+ 	Name string
+ 	Type Type
+-	Val  interface{}
++	Val  interface{} // nil means unknown constant value due to type error
+ 
+-	spec *ast.ValueSpec
++	visited bool // for initialization cycle detection
++	spec    *ast.ValueSpec
+ }
+ 
+ // A TypeName represents a declared type.
+diff --git a/src/pkg/go/types/stmt.go b/src/pkg/go/types/stmt.go
+index 53c46a167c..44160659f5 100644
+--- a/src/pkg/go/types/stmt.go
++++ b/src/pkg/go/types/stmt.go
+@@ -35,149 +35,123 @@ func (check *checker) assignment(x *operand, to Type) bool {
+ }
+ 
+ // assign1to1 typechecks a single assignment of the form lhs = rhs (if rhs != nil),
+-// or lhs = x (if rhs == nil). If decl is set, the lhs operand must be an identifier.
+-// If its type is not set, it is deduced from the type or value of x. If lhs has a
+-// type it is used as a hint when evaluating rhs, if present.
++// or lhs = x (if rhs == nil). If decl is set, the lhs operand must be an identifier;
++// if its type is not set, it is deduced from the type of x or set to Typ[Invalid] in
++// case of an error.
+ //
+ func (check *checker) assign1to1(lhs, rhs ast.Expr, x *operand, decl bool, iota int) {
+-	ident, _ := lhs.(*ast.Ident)
++	// Start with rhs so we have an expression type
++	// for declarations with implicit type.
+ 	if x == nil {
+-		assert(rhs != nil)
+ 		x = new(operand)
+-	}
+-
+-	if ident != nil && ident.Name == "_" {
+-		// anything can be assigned to a blank identifier - check rhs only, if present
+-		if rhs != nil {
+-			check.expr(x, rhs, nil, iota)
++		check.expr(x, rhs, nil, iota)
++		// don't exit for declarations - we need the lhs obj first
++		if x.mode == invalid && !decl {
++			return
+ 		}
+-		return
+ 	}
++	// x.mode == valid || decl
++
++	// lhs may be an identifier
++	ident, _ := lhs.(*ast.Ident)
+ 
++	// regular assignment; we know x is valid
+ 	if !decl {
+-		// regular assignment - start with lhs to obtain a type hint
+-		// TODO(gri) clean this up - we don't need type hints anymore
++		// anything can be assigned to the blank identifier
++		if ident != nil && ident.Name == "_" {
++			return
++		}
++
+ 		var z operand
+ 		check.expr(&z, lhs, nil, -1)
+ 		if z.mode == invalid {
+-			z.typ = nil // so we can proceed with rhs
+-		}
+-
+-		if rhs != nil {
+-			check.expr(x, rhs, z.typ, -1)
+-			if x.mode == invalid {
+-				return
+-			}
+-		}
+-
+-		if x.mode == invalid || z.mode == invalid {
+ 			return
+ 		}
+ 
+-		if !check.assignment(x, z.typ) {
++		// TODO(gri) verify that all other z.mode values
++		//           that may appear here are legal
++		if z.mode == constant || !check.assignment(x, z.typ) {
+ 			if x.mode != invalid {
+ 				check.errorf(x.pos(), "cannot assign %s to %s", x, &z)
+ 			}
+-			return
+-		}
+-		if z.mode == constant {
+-			check.errorf(x.pos(), "cannot assign %s to %s", x, &z)
+ 		}
+ 		return
+ 	}
+ 
+-	// declaration - lhs must be an identifier
++	// declaration with initialization; lhs must be an identifier
+ 	if ident == nil {
+ 		check.errorf(lhs.Pos(), "cannot declare %s", lhs)
+ 		return
+ 	}
+ 
+-	// lhs may or may not be typed yet
+-	obj := check.lookup(ident)
++	// Determine typ of lhs: If the object doesn't have a type
++	// yet, determine it from the type of x; if x is invalid,
++	// set the object type to Typ[Invalid].
+ 	var typ Type
+-	if t := obj.GetType(); t != nil {
+-		typ = t
+-	}
++	obj := check.lookup(ident)
++	switch obj := obj.(type) {
++	default:
++		unreachable()
+ 
+-	if rhs != nil {
+-		check.expr(x, rhs, typ, iota)
+-		// continue even if x.mode == invalid
+-	}
++	case nil:
++		// TODO(gri) is this really unreachable?
++		unreachable()
+ 
+-	if typ == nil {
+-		// determine lhs type from rhs expression;
+-		// for variables, convert untyped types to
+-		// default types
+-		typ = Typ[Invalid]
+-		if x.mode != invalid {
+-			typ = x.typ
+-			if _, ok := obj.(*Var); ok && isUntyped(typ) {
+-				if x.isNil() {
+-					check.errorf(x.pos(), "use of untyped nil")
+-					x.mode = invalid
+-				} else {
++	case *Const:
++		typ = obj.Type // may already be Typ[Invalid]
++		if typ == nil {
++			typ = Typ[Invalid]
++			if x.mode != invalid {
++				typ = x.typ
++			}
++			obj.Type = typ
++		}
++
++	case *Var:
++		typ = obj.Type // may already be Typ[Invalid]
++		if typ == nil {
++			typ = Typ[Invalid]
++			if x.mode != invalid {
++				typ = x.typ
++				if isUntyped(typ) {
++					// convert untyped types to default types
++					if typ == Typ[UntypedNil] {
++						check.errorf(x.pos(), "use of untyped nil")
++						obj.Type = Typ[Invalid]
++						return
++					}
+ 					typ = defaultType(typ)
+ 				}
+ 			}
+-		}
+-		switch obj := obj.(type) {
+-		case *Const:
+-			obj.Type = typ
+-		case *Var:
+ 			obj.Type = typ
+-		default:
+-			unreachable()
+ 		}
+ 	}
+ 
+-	if x.mode != invalid {
+-		if !check.assignment(x, typ) {
+-			if x.mode != invalid {
+-				switch obj.(type) {
+-				case *Const:
+-					check.errorf(x.pos(), "cannot assign %s to variable of type %s", x, typ)
+-				case *Var:
+-					check.errorf(x.pos(), "cannot initialize constant of type %s with %s", typ, x)
+-				default:
+-					unreachable()
+-				}
+-				x.mode = invalid
++	// nothing else to check if we don't have a valid lhs or rhs
++	if typ == Typ[Invalid] || x.mode == invalid {
++		return
++	}
++
++	if !check.assignment(x, typ) {
++		if x.mode != invalid {
++			if x.typ != Typ[Invalid] && typ != Typ[Invalid] {
++				check.errorf(x.pos(), "cannot initialize %s (type %s) with %s", ident.Name, typ, x)
+ 			}
+ 		}
++		return
+ 	}
+ 
+ 	// for constants, set their value
+-	if obj, ok := obj.(*Const); ok {
+-		assert(obj.Val == nil)
+-		if x.mode != invalid {
+-			if x.mode == constant {
+-				if isConstType(x.typ) {
+-					obj.Val = x.val
+-				} else {
+-					check.errorf(x.pos(), "%s has invalid constant type", x)
+-				}
+-			} else {
+-				check.errorf(x.pos(), "%s is not constant", x)
+-			}
+-		}
+-		if obj.Val == nil {
+-			// set the constant to its type's zero value to reduce spurious errors
+-			switch typ := underlying(obj.Type); {
+-			case typ == Typ[Invalid]:
+-				// ignore
+-			case isBoolean(typ):
+-				obj.Val = false
+-			case isNumeric(typ):
+-				obj.Val = int64(0)
+-			case isString(typ):
+-				obj.Val = ""
+-			case hasNil(typ):
+-				obj.Val = nilConst
+-			default:
+-				// in all other cases just prevent use of the constant
+-				// TODO(gri) re-evaluate this code
+-				obj.Val = nilConst
++	if obj, _ := obj.(*Const); obj != nil {
++		obj.Val = nil // failure case: we don't know the constant value
++		if x.mode == constant {
++			if isConstType(x.typ) {
++				obj.Val = x.val
++			} else if x.typ != Typ[Invalid] {
++				check.errorf(x.pos(), "%s has invalid constant type", x)
+ 			}
++		} else if x.mode != invalid {
++			check.errorf(x.pos(), "%s is not constant", x)
+ 		}
+ 	}
+ }
+@@ -494,6 +468,7 @@ func (check *checker) stmt(s ast.Stmt) {
+ 		check.expr(&x, tag, nil, -1)
+ 
+ 		check.multipleDefaults(s.Body.List)
++		// TODO(gri) check also correct use of fallthrough
+ 		seen := make(map[interface{}]token.Pos)
+ 		for _, s := range s.Body.List {
+ 			clause, _ := s.(*ast.CaseClause)
+diff --git a/src/pkg/go/types/testdata/builtins.src b/src/pkg/go/types/testdata/builtins.src
+index c08c442ce3..6fe4655089 100644
+--- a/src/pkg/go/types/testdata/builtins.src
++++ b/src/pkg/go/types/testdata/builtins.src
+@@ -154,7 +154,6 @@ func _len() {
+ 	assert /* ERROR "failed" */ (n == 10)
+ 	var ch <-chan int
+ 	const nn = len /* ERROR "not constant" */ (hash[<-ch][len(t)])
+-	_ = nn // TODO(gri) remove this once unused constants get type-checked
+ 
+ 	// issue 4744
+ 	type T struct{ a [10]int }
+diff --git a/src/pkg/go/types/testdata/const0.src b/src/pkg/go/types/testdata/const0.src
+index a2ca344c78..788c6f51ad 100644
+--- a/src/pkg/go/types/testdata/const0.src
++++ b/src/pkg/go/types/testdata/const0.src
+@@ -111,8 +111,8 @@ const (
+ 	ti5 = ti0 /* ERROR "mismatched types" */ + ti1
+ 	ti6 = ti1 - ti1
+ 	ti7 = ti2 /* ERROR "mismatched types" */ * ti1
+-	//ti8 = ti3 / ti3 // TODO(gri) enable this
+-	//ti9 = ti3 % ti3 // TODO(gri) enable this
++	ti8 = ti3 / ti3
++	ti9 = ti3 % ti3
+ 
+ 	ti10 = 1 / 0 /* ERROR "division by zero" */
+ 	ti11 = ti1 / 0 /* ERROR "division by zero" */
+@@ -135,7 +135,7 @@ const (
+ 	tf5 = tf0 + tf1
+ 	tf6 = tf1 - tf1
+ 	tf7 = tf2 /* ERROR "mismatched types" */ * tf1
+-	// tf8 = tf3 / tf3 // TODO(gri) enable this
++	tf8 = tf3 / tf3
+ 	tf9 = tf3 /* ERROR "not defined" */ % tf3
+ 
+ 	tf10 = 1 / 0 /* ERROR "division by zero" */
+diff --git a/src/pkg/go/types/testdata/decls2a.src b/src/pkg/go/types/testdata/decls2a.src
+index 3867be7376..c15ac917d8 100644
+--- a/src/pkg/go/types/testdata/decls2a.src
++++ b/src/pkg/go/types/testdata/decls2a.src
+@@ -28,10 +28,9 @@ type T2 struct {
+ func (undeclared /* ERROR "undeclared" */) m() {}
+ func (x *undeclared /* ERROR "undeclared" */) m() {}
+ 
+-// TODO(gri) try to get rid of double error reporting here
+ func (pi /* ERROR "not a type" */) m1() {}
+ func (x pi /* ERROR "not a type" */) m2() {}
+-func (x *pi /* ERROR "not a type" */ ) m3() {} // TODO(gri) not closing the last /* comment crashes the system
++func (x *pi /* ERROR "not a type" */ ) m3() {}
+ 
+ // Blank types.
+ type _ struct { m int }
+diff --git a/src/pkg/go/types/testdata/expr3.src b/src/pkg/go/types/testdata/expr3.src
+index ff17f2eee4..f5963ca117 100644
+--- a/src/pkg/go/types/testdata/expr3.src
++++ b/src/pkg/go/types/testdata/expr3.src
+@@ -125,9 +125,10 @@ func shifts4() {
+ 	}
+ }
+ 
+-// TODO(gri) The error messages below depond on adjusting the spec
++// TODO(gri) The error messages below depend on adjusting the spec
+ //           to reflect what gc is doing at the moment (the spec
+ //           asks for run-time errors at the moment - see issue 4231).
++// TODO(gri) This has been fixed in the spec. Fix this.
+ //
+ func indexes() {
+ 	_ = 1 /* ERROR "cannot index" */ [0]
+diff --git a/src/pkg/go/types/universe.go b/src/pkg/go/types/universe.go
+index b218525c1c..cae18fab09 100644
+--- a/src/pkg/go/types/universe.go
++++ b/src/pkg/go/types/universe.go
+@@ -55,10 +55,10 @@ var aliases = [...]*Basic{
+ }
+ 
+ var predeclaredConstants = [...]*Const{
+-	{nil, "true", Typ[UntypedBool], true, nil},
+-	{nil, "false", Typ[UntypedBool], false, nil},
+-	{nil, "iota", Typ[UntypedInt], zeroConst, nil},
+-	{nil, "nil", Typ[UntypedNil], nilConst, nil},
++	{Name: "true", Type: Typ[UntypedBool], Val: true},
++	{Name: "false", Type: Typ[UntypedBool], Val: false},
++	{Name: "iota", Type: Typ[UntypedInt], Val: zeroConst},
++	{Name: "nil", Type: Typ[UntypedNil], Val: nilConst},
+ }
+ 
+ var predeclaredFunctions = [...]*builtin{

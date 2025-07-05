@@ -9,7 +9,7 @@ Date:   Mon Sep 14 21:03:53 2009 -0700
     DELTA=116  (61 added, 10 deleted, 45 changed)
     OCL=34620
     CL=34622
-
+---
  src/pkg/template/template.go      | 16 +++++++-------
  test/235.go                       |  1 -
  test/bigalg.go                    |  2 +-
@@ -68,3 +68,1013 @@ Date:   Mon Sep 14 21:03:53 2009 -0700
  test/switch.go                    | 46 +++++++++++++++++++--------------------
  test/test0.go                     |  2 ++
  57 files changed, 128 insertions(+), 77 deletions(-)
+
+diff --git a/src/pkg/template/template.go b/src/pkg/template/template.go
+index 46003b7671..4d77a54170 100644
+--- a/src/pkg/template/template.go
++++ b/src/pkg/template/template.go
+@@ -397,12 +397,12 @@ func (t *Template) newVariable(name_formatter string) (v *variableElement) {
+ 
+ 	// Is it in user-supplied map?
+ 	if t.fmap != nil {
+-		if fn, ok := t.fmap[formatter]; ok {
++		if _, ok := t.fmap[formatter]; ok {
+ 			return
+ 		}
+ 	}
+ 	// Is it in builtin map?
+-	if fn, ok := builtins[formatter]; ok {
++	if _, ok := builtins[formatter]; ok {
+ 		return
+ 	}
+ 	t.parseError("unknown formatter: %s", formatter);
+@@ -631,17 +631,17 @@ func (t *Template) writeVariable(v *variableElement, st *state) {
+ 	val := t.varValue(v.name, st).Interface();
+ 	// is it in user-supplied map?
+ 	if t.fmap != nil {
+-		if fn, ok := t.fmap[v.formatter]; ok {
+-			fn(st.wr, val, v.formatter);
++		if fn, ok := t.fmap[formatter]; ok {
++			fn(st.wr, val, formatter);
+ 			return;
+ 		}
+ 	}
+ 	// is it in builtin map?
+-	if fn, ok := builtins[v.formatter]; ok {
+-		fn(st.wr, val, v.formatter);
++	if fn, ok := builtins[formatter]; ok {
++		fn(st.wr, val, formatter);
+ 		return;
+ 	}
+-	t.execError(st, v.linenum, "missing formatter %s for variable %s", v.formatter, v.name)
++	t.execError(st, v.linenum, "missing formatter %s for variable %s", formatter, v.name)
+ }
+ 
+ // Execute element i.  Return next index to execute.
+@@ -796,7 +796,7 @@ func validDelim(d []byte) bool {
+ 	if len(d) == 0 {
+ 		return false
+ 	}
+-	for i, c := range d {
++	for _, c := range d {
+ 		if white(c) {
+ 			return false
+ 		}
+diff --git a/test/235.go b/test/235.go
+index fe3024c613..7507a3ef56 100644
+--- a/test/235.go
++++ b/test/235.go
+@@ -53,7 +53,6 @@ func main() {
+ 	}
+ 
+ 	for i := 0; i < len(OUT); i++ {
+-		t := min(xs);
+ 		for i := 0; i < n; i++ {
+ 			ins[i] <- x;
+ 		}
+diff --git a/test/bigalg.go b/test/bigalg.go
+index dba8cc4dd1..89ece01b98 100644
+--- a/test/bigalg.go
++++ b/test/bigalg.go
+@@ -22,7 +22,6 @@ var a = []int{ 1, 2, 3 }
+ var NIL []int;
+ 
+ func arraycmptest() {
+-	a1 := a;
+ 	if NIL != nil {
+ 		println("fail1:", NIL, "!= nil");
+ 	}
+@@ -112,6 +111,7 @@ func interfacetest() {
+ 	i = e;
+ 	e1 := i.(E);
+ 	// nothing to check; just verify it doesn't crash
++	_ = e1;
+ }
+ 
+ func main() {
+diff --git a/test/bugs/bug196.go b/test/bugs/bug196.go
+index 0aa055010a..b903079508 100644
+--- a/test/bugs/bug196.go
++++ b/test/bugs/bug196.go
+@@ -26,6 +26,8 @@ func xxx() {
+ 	xx, ok = i.(int);
+ 
+ 	a,b := multi();
++
++	_, _, _, _, _ = x, ok, xx, a, b;
+ }
+ 
+ func f() map[int]int {
+diff --git a/test/complit.go b/test/complit.go
+index d9b9488519..3d5a684693 100644
+--- a/test/complit.go
++++ b/test/complit.go
+@@ -46,7 +46,7 @@ func main() {
+ 	oai = []int{1,2,3};
+ 	if len(oai) != 3 { panic("oai") }
+ 
+-	at := [...]*T{&t, &t, &t};
++	at := [...]*T{&t, tp, &t};
+ 	if len(at) != 3 { panic("at") }
+ 
+ 	c := make(chan int);
+diff --git a/test/decl.go b/test/decl.go
+index c2919d32b0..273d0ecffc 100644
+--- a/test/decl.go
++++ b/test/decl.go
+@@ -30,8 +30,10 @@ func main() {
+ 		k := f1();
+ 		m, g, s := f3();
+ 		m, h, s := f3();
++		_, _, _, _, _, _, _, _, _ = i, f, s, j, k, m, g, s, h;
+ 	}
+ 	if x() != "3" {
+ 		println("x() failed");
+ 	}
++	_, _, _, _, _, _, _, _, _ = i, f, s, j, k, m, g, s, h;
+ }
+diff --git a/test/fixedbugs/bug008.go b/test/fixedbugs/bug008.go
+index 7e7c5ca796..2baead11e3 100644
+--- a/test/fixedbugs/bug008.go
++++ b/test/fixedbugs/bug008.go
+@@ -10,9 +10,9 @@ func main() {
+ 	i5 := 5;
+ 
+ 	switch {  // compiler crash fixable with 'switch true'
+-	case i5 < 5: dummy := 0;
+-	case i5 == 5: dummy := 0;
+-	case i5 > 5: dummy := 0;
++	case i5 < 5: dummy := 0; _ = dummy;
++	case i5 == 5: dummy := 0; _ = dummy;
++	case i5 > 5: dummy := 0; _ = dummy;
+ 	}
+ }
+ /*
+diff --git a/test/fixedbugs/bug009.go b/test/fixedbugs/bug009.go
+index f52cd84daa..ef8263bb24 100644
+--- a/test/fixedbugs/bug009.go
++++ b/test/fixedbugs/bug009.go
+@@ -8,7 +8,7 @@ package main
+ 
+ 
+ func main() {
+-	fired := false;
++	fired := false; _ = fired;
+ }
+ /*
+ bug9.go:5: defaultlit: unknown literal: LITERAL-B0 a(1)
+diff --git a/test/fixedbugs/bug011.go b/test/fixedbugs/bug011.go
+index 63673c0865..551adb77df 100644
+--- a/test/fixedbugs/bug011.go
++++ b/test/fixedbugs/bug011.go
+@@ -20,6 +20,7 @@ func main() {
+ 	t.x = 1;
+ 	t.y = 2;
+ 	r10 := t.m(1, 3.0);
++	_ = r10;
+ }
+ /*
+ bug11.go:16: fatal error: walktype: switch 1 unknown op CALLMETH l(16) <int32>INT32
+diff --git a/test/fixedbugs/bug012.go b/test/fixedbugs/bug012.go
+index 41d1bf627b..ffd5b55706 100644
+--- a/test/fixedbugs/bug012.go
++++ b/test/fixedbugs/bug012.go
+@@ -10,6 +10,7 @@ package main
+ func main() {
+ 	var u30 uint64 = 0;
+ 	var u31 uint64 = 1;
++	_, _ = u30, u31;
+ 	var u32 uint64 = 18446744073709551615;
+ 	var u33 uint64 = +18446744073709551615;
+ 	if u32 != (1<<64)-1 { panic("u32\n"); }
+diff --git a/test/fixedbugs/bug013.go b/test/fixedbugs/bug013.go
+index 33b532b2a3..4b106775c2 100644
+--- a/test/fixedbugs/bug013.go
++++ b/test/fixedbugs/bug013.go
+@@ -9,6 +9,7 @@ package main
+ func main() {
+ 	var cu0 uint16 = '\u1234';
+ 	var cU1 uint32 = '\U00101234';
++	_, _ = cu0, cU1;
+ }
+ /*
+ bug13.go:4: missing '
+diff --git a/test/fixedbugs/bug017.go b/test/fixedbugs/bug017.go
+index eedc6d7e23..fdc986d9de 100644
+--- a/test/fixedbugs/bug017.go
++++ b/test/fixedbugs/bug017.go
+@@ -8,6 +8,7 @@ package main
+ 
+ func main() {
+ 	var s2 string = "\a\b\f\n\r\t\v";  // \r is miscompiled
++	_ = s2;
+ }
+ /*
+ main.go.c: In function ‘main_main’:
+diff --git a/test/fixedbugs/bug023.go b/test/fixedbugs/bug023.go
+index cce8c4543e..b3d3d4a3c1 100644
+--- a/test/fixedbugs/bug023.go
++++ b/test/fixedbugs/bug023.go
+@@ -22,6 +22,7 @@ func (i *TInt) TypeName() string {
+ func main() {
+ 	var t Type;
+ 	t = nil;
++	_ = t;
+ }
+ 
+ /*
+diff --git a/test/fixedbugs/bug024.go b/test/fixedbugs/bug024.go
+index 0f4b2ca178..c7b17b7c09 100644
+--- a/test/fixedbugs/bug024.go
++++ b/test/fixedbugs/bug024.go
+@@ -12,6 +12,7 @@ func main() {
+ 	i = '\\';
+ 	var s string;
+ 	s = "\"";
++	_, _ = i, s;
+ }
+ /*
+ bug.go:5: unknown escape sequence: '
+diff --git a/test/fixedbugs/bug031.go b/test/fixedbugs/bug031.go
+index 061a89da83..acb4741e9f 100644
+--- a/test/fixedbugs/bug031.go
++++ b/test/fixedbugs/bug031.go
+@@ -23,6 +23,7 @@ prog := "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"+
+ "xxxxxxxx"+
+ "xxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+ ;
++_ = prog;
+ }
+ 
+ /* Segmentation fault */
+diff --git a/test/fixedbugs/bug053.go b/test/fixedbugs/bug053.go
+index 602b0a130f..c981403edc 100644
+--- a/test/fixedbugs/bug053.go
++++ b/test/fixedbugs/bug053.go
+@@ -8,4 +8,5 @@ package main
+ 
+ func main() {
+ 	var len int;	// len should not be a keyword - this doesn't compile
++	_ = len;
+ }
+diff --git a/test/fixedbugs/bug055.go b/test/fixedbugs/bug055.go
+index a8b1a6cd2b..3b6d864277 100644
+--- a/test/fixedbugs/bug055.go
++++ b/test/fixedbugs/bug055.go
+@@ -17,5 +17,6 @@ func main() {
+ 	i = 0;
+ 	type s2 int;
+ 	var k = func (a int) int { return a+1 }(3);
++	_, _ = j, k;
+ ro:
+ }
+diff --git a/test/fixedbugs/bug057.go b/test/fixedbugs/bug057.go
+index 3847dffb85..d5d0f1d620 100644
+--- a/test/fixedbugs/bug057.go
++++ b/test/fixedbugs/bug057.go
+@@ -16,6 +16,7 @@ func main() {
+ 	l1 := len(s);
+ 	var t T;
+ 	l2 := len(t.s);	// BUG: cannot take len() of a string field
++	_, _ = l1, l2;
+ }
+ 
+ /*
+diff --git a/test/fixedbugs/bug061.go b/test/fixedbugs/bug061.go
+index 1b78028c42..aedcf70fef 100644
+--- a/test/fixedbugs/bug061.go
++++ b/test/fixedbugs/bug061.go
+@@ -9,6 +9,7 @@ package main
+ func main() {
+ 	var s string;
+ 	s = "0000000000000000000000000000000000000000000000000000000000"[0:7];
++	_ = s;
+ }
+ 
+ /*
+diff --git a/test/fixedbugs/bug069.go b/test/fixedbugs/bug069.go
+index 950ba8e010..d6796cd72b 100644
+--- a/test/fixedbugs/bug069.go
++++ b/test/fixedbugs/bug069.go
+@@ -9,10 +9,12 @@ package main
+ func main(){
+ 	c := make(chan int);
+ 	ok := false;
+-	i := 0;
++	var i int;
+ 
+ 	i, ok = <-c;  // works
++	_, _ = i, ok;
+ 
+ 	ca := new([2]chan int);
+ 	i, ok = <-(ca[0]);  // fails: c.go:11: bad shape across assignment - cr=1 cl=2
++	_, _ = i, ok;
+ }
+diff --git a/test/fixedbugs/bug070.go b/test/fixedbugs/bug070.go
+index cdd5fc3748..6afdd467d9 100644
+--- a/test/fixedbugs/bug070.go
++++ b/test/fixedbugs/bug070.go
+@@ -7,7 +7,7 @@
+ package main
+ 
+ func main() {
+-	var i, j, k int;
++	var i, k int;
+ 	outer:
+ 	for k=0; k<2; k++ {
+ 		print("outer loop top k ", k, "\n");
+diff --git a/test/fixedbugs/bug071.go b/test/fixedbugs/bug071.go
+index 665a441bdb..a5003ffb97 100644
+--- a/test/fixedbugs/bug071.go
++++ b/test/fixedbugs/bug071.go
+@@ -19,4 +19,5 @@ type dch struct {
+ 
+ func dosplit(in *dch){
+ 	dat := <-in.dat;
++	_ = dat;
+ }
+diff --git a/test/fixedbugs/bug075.go b/test/fixedbugs/bug075.go
+index fceeef8cba..7aed13089d 100644
+--- a/test/fixedbugs/bug075.go
++++ b/test/fixedbugs/bug075.go
+@@ -13,4 +13,5 @@ func main() {
+ 	var x int;
+ 	var ok bool;
+ 	x, ok = t.m[0];  //bug075.go:11: bad shape across assignment - cr=1 cl=2
++	_, _ = x, ok;
+ }
+diff --git a/test/fixedbugs/bug077.go b/test/fixedbugs/bug077.go
+index ba6e3b77da..08028ab10f 100644
+--- a/test/fixedbugs/bug077.go
++++ b/test/fixedbugs/bug077.go
+@@ -9,4 +9,5 @@ package main
+ func main() {
+ 	var exit int;
+ exit:
++	_ = exit;
+ }
+diff --git a/test/fixedbugs/bug084.go b/test/fixedbugs/bug084.go
+index 2897593dcd..7556f8dc56 100644
+--- a/test/fixedbugs/bug084.go
++++ b/test/fixedbugs/bug084.go
+@@ -20,4 +20,5 @@ func main() {
+ 	c := make(chan string);
+ 	a := new(Service);
+ 	go a.Serve(1234);
++	_ = c;
+ }
+diff --git a/test/fixedbugs/bug087.go b/test/fixedbugs/bug087.go
+index 6b5e565163..4af8d976f8 100644
+--- a/test/fixedbugs/bug087.go
++++ b/test/fixedbugs/bug087.go
+@@ -10,6 +10,7 @@ const s string = "foo";
+ 
+ func main() {
+ 	i := len(s);  // should be legal to take len() of a constant
++	_ = i;
+ }
+ 
+ /*
+diff --git a/test/fixedbugs/bug088.dir/bug1.go b/test/fixedbugs/bug088.dir/bug1.go
+index 9cb60324d0..cadf0e698a 100644
+--- a/test/fixedbugs/bug088.dir/bug1.go
++++ b/test/fixedbugs/bug088.dir/bug1.go
+@@ -10,6 +10,7 @@ func main() {
+ 	a0 := P.V0();  // works
+ 	a1 := P.V1();  // works
+ 	a2, b2 := P.V2();  // doesn't work
++	_, _, _, _ = a0, a1, a2, b2;
+ }
+ 
+ /*
+diff --git a/test/fixedbugs/bug092.go b/test/fixedbugs/bug092.go
+index 8f18c38523..8f05c478f5 100644
+--- a/test/fixedbugs/bug092.go
++++ b/test/fixedbugs/bug092.go
+@@ -9,6 +9,7 @@ package main
+ func main() {
+ 	var a [1000] int64;  // this alone works
+ 	var b [10000] int64;  // this causes a runtime crash
++	_, _ = a, b;
+ }
+ 
+ /*
+diff --git a/test/fixedbugs/bug094.go b/test/fixedbugs/bug094.go
+index 5c5154e86f..2953eb28d3 100644
+--- a/test/fixedbugs/bug094.go
++++ b/test/fixedbugs/bug094.go
+@@ -13,6 +13,7 @@ func f0() {
+ 
+ func f1() {
+ 	x := 0;
++	_ = x;
+ }
+ 
+ 
+@@ -27,5 +28,5 @@ bug094.go:11: left side of := must be a name
+ bad top
+ .   LITERAL-I0 l(343)
+ bug094.go:11: fatal error: walktype: top=3 LITERAL
+-uetli:~/Source/go1/test/bugs gri$ 
++uetli:~/Source/go1/test/bugs gri$
+ */
+diff --git a/test/fixedbugs/bug096.go b/test/fixedbugs/bug096.go
+index 81d6c4aada..9be687a7bb 100644
+--- a/test/fixedbugs/bug096.go
++++ b/test/fixedbugs/bug096.go
+@@ -11,6 +11,7 @@ type A []int;
+ func main() {
+ 	a := &A{0};
+ 	b := &A{0, 1};
++	_, _ = a, b;
+ }
+ 
+ /*
+diff --git a/test/fixedbugs/bug098.go b/test/fixedbugs/bug098.go
+index 8e790a709a..1dad4d502a 100644
+--- a/test/fixedbugs/bug098.go
++++ b/test/fixedbugs/bug098.go
+@@ -12,6 +12,7 @@ type M map[int] int;
+ func main() {
+ 	var a *A = &A{0};
+ 	var m *M = &M{0 : 0};  // should be legal to use & here for consistency with other composite constructors (prev. line)
++	_, _ = a, m;
+ }
+ 
+ /*
+diff --git a/test/fixedbugs/bug129.go b/test/fixedbugs/bug129.go
+index 1097b1b69c..f9f6dd0313 100644
+--- a/test/fixedbugs/bug129.go
++++ b/test/fixedbugs/bug129.go
+@@ -7,5 +7,6 @@
+ package foo
+ import "fmt"
+ func f() {
+-	fmt := 1
++	fmt := 1;
++	_ = fmt;
+ }
+diff --git a/test/fixedbugs/bug135.go b/test/fixedbugs/bug135.go
+index 252aa87e66..470135ed43 100644
+--- a/test/fixedbugs/bug135.go
++++ b/test/fixedbugs/bug135.go
+@@ -15,4 +15,5 @@ func main() {
+ 	t := new(T);
+ 	var i interface {};
+ 	f, ok := i.(Foo);
++	_, _, _ = t, f, ok;
+ }
+diff --git a/test/fixedbugs/bug143.go b/test/fixedbugs/bug143.go
+index cb86310518..af96075066 100644
+--- a/test/fixedbugs/bug143.go
++++ b/test/fixedbugs/bug143.go
+@@ -29,7 +29,8 @@ func main() {
+ 	{
+ 		var x int;
+ 		var ok bool;
+-		x, ok = f()["key"]
++		x, ok = f()["key"];
++		_, _ = x, ok;
+ 	}
+ }
+ 
+diff --git a/test/fixedbugs/bug144.go b/test/fixedbugs/bug144.go
+index 916566ef0b..bab9a44029 100644
+--- a/test/fixedbugs/bug144.go
++++ b/test/fixedbugs/bug144.go
+@@ -10,6 +10,7 @@ const c = 1;
+ 
+ func main() {
+ 	c := 0;
++	_ = c;
+ }
+ 
+ /*
+diff --git a/test/fixedbugs/bug145.go b/test/fixedbugs/bug145.go
+index 0b41ab59c7..c59bcebd6e 100644
+--- a/test/fixedbugs/bug145.go
++++ b/test/fixedbugs/bug145.go
+@@ -9,7 +9,8 @@ package main
+ type t int
+ 
+ func main() {
+-	t := 0
++	t := 0;
++	_ = t;
+ }
+ 
+ /*
+diff --git a/test/fixedbugs/bug154.go b/test/fixedbugs/bug154.go
+index 66f7212b57..4371cc5ce9 100644
+--- a/test/fixedbugs/bug154.go
++++ b/test/fixedbugs/bug154.go
+@@ -17,6 +17,7 @@ func f0() string {
+ func f1() string {
+ 	const f = 3.141592;
+ 	x := float64(float32(f));  // appears to change the precision of f
++	_ = x;
+ 	return fmt.Sprintf("%v", float64(f));
+ }
+ 
+diff --git a/test/fixedbugs/bug179.go b/test/fixedbugs/bug179.go
+index 690b01265a..67548733ce 100644
+--- a/test/fixedbugs/bug179.go
++++ b/test/fixedbugs/bug179.go
+@@ -17,6 +17,7 @@ L:
+ 
+ L1:
+ 	x := 1;
++	_ = x;
+ 	for {
+ 		break L1;	// ERROR "L1"
+ 		continue L1;	// ERROR "L1"
+diff --git a/test/fixedbugs/bug187.go b/test/fixedbugs/bug187.go
+index 12389e797b..66aa5f024b 100644
+--- a/test/fixedbugs/bug187.go
++++ b/test/fixedbugs/bug187.go
+@@ -12,7 +12,6 @@ func main() {
+ 	// This bug doesn't arise with [...]int, or []interface{} or [3]interface{}.
+ 	a := [...]interface{} { 1, 2, 3 };
+ 	n := 1;
+-	bug := false;
+ 	for _, v := range a {
+ 		if v.(int) != n {
+ 			println("BUG:", n, v.(int));
+diff --git a/test/fixedbugs/bug202.go b/test/fixedbugs/bug202.go
+index 7e5cc7a3fd..2fc91b5208 100644
+--- a/test/fixedbugs/bug202.go
++++ b/test/fixedbugs/bug202.go
+@@ -6,11 +6,11 @@
+ 
+ package main
+ func f() {
+-		v := [...]string{"a", "b"};
++	v := [...]string{"a", "b"};
++	_ = v;
+ }
+ func main() {
+ 	f();
+ }
+ 
+ 
+- 
+\ No newline at end of file
+diff --git a/test/gc.go b/test/gc.go
+index df9d05e187..0b1dd63741 100644
+--- a/test/gc.go
++++ b/test/gc.go
+@@ -10,6 +10,7 @@ import "malloc"
+ 
+ func mk2() {
+ 	b := new([10000]byte);
++	_ = b;
+ //	println(b, "stored at", &b);
+ }
+ 
+diff --git a/test/gc1.go b/test/gc1.go
+index d746e9c623..eecc036fc7 100644
+--- a/test/gc1.go
++++ b/test/gc1.go
+@@ -9,5 +9,6 @@ package main
+ func main() {
+ 	for i := 0; i < 1000000; i++ {
+ 		x := new([100]byte);
++		_ = x;
+ 	}
+ }
+diff --git a/test/hashmap.go b/test/hashmap.go
+index 49007810c6..62943a713a 100755
+--- a/test/hashmap.go
++++ b/test/hashmap.go
+@@ -171,6 +171,7 @@ func main() {
+ 	var x1 *Number = MakeNumber(1001);
+ 	var x2 *Number = MakeNumber(2002);
+ 	var x3 *Number = MakeNumber(3003);
++	_, _, _ = x1, x2, x3;
+ 
+ 	// this doesn't work I think...
+ 	//hmap.Lookup(x1, true);
+diff --git a/test/if.go b/test/if.go
+index a2c840eb1a..c7f14c42a6 100644
+--- a/test/if.go
++++ b/test/if.go
+@@ -21,56 +21,57 @@ func main() {
+ 
+ 	count = 0;
+ 	if true {
+-		count = count + 1;	
++		count = count + 1;
+ 	}
+ 	assertequal(count, 1, "if true");
+ 
+ 	count = 0;
+ 	if false {
+-		count = count + 1;	
++		count = count + 1;
+ 	}
+ 	assertequal(count, 0, "if false");
+ 
+ 	count = 0;
+ 	if one := 1; true {
+-		count = count + one;	
++		count = count + one;
+ 	}
+ 	assertequal(count, 1, "if true one");
+ 
+ 	count = 0;
+ 	if one := 1; false {
+-		count = count + 1;	
++		count = count + 1;
++		_ = one;
+ 	}
+ 	assertequal(count, 0, "if false one");
+ 
+ 	count = 0;
+ 	if {
+-		count = count + 1;	
++		count = count + 1;
+ 	}
+ 	assertequal(count, 1, "if empty");
+ 
+ 	count = 0;
+ 	if one := 1; true {
+-		count = count + one;	
++		count = count + one;
+ 	}
+ 	assertequal(count, 1, "if empty one");
+ 
+ 	count = 0;
+ 	if i5 < i7 {
+-		count = count + 1;	
++		count = count + 1;
+ 	}
+ 	assertequal(count, 1, "if cond");
+ 
+ 	count = 0;
+ 	if true {
+-		count = count + 1;	
++		count = count + 1;
+ 	} else
+ 		count = count - 1;
+ 	assertequal(count, 1, "if else true");
+ 
+ 	count = 0;
+ 	if false {
+-		count = count + 1;	
++		count = count + 1;
+ 	} else
+ 		count = count - 1;
+ 	assertequal(count, -1, "if else false");
+@@ -78,7 +79,9 @@ func main() {
+ 	count = 0;
+ 	if t:=1; false {
+ 		count = count + 1;
+-		t := 7;	
++		_ = t;
++		t := 7;
++		_ = t;
+ 	} else
+ 		count = count - t;
+ 	assertequal(count, -1, "if else false var");
+@@ -87,8 +90,10 @@ func main() {
+ 	t := 1;
+ 	if false {
+ 		count = count + 1;
+-		t := 7;	
++		t := 7;
++		_ = t;
+ 	} else
+ 		count = count - t;
++	_ = t;
+ 	assertequal(count, -1, "if else false var outside");
+ }
+diff --git a/test/interface/convert.go b/test/interface/convert.go
+index f15f5ef0fb..bc219c72f5 100644
+--- a/test/interface/convert.go
++++ b/test/interface/convert.go
+@@ -102,8 +102,7 @@ func main() {
+ 	hello(t.String());
+ 
+ 	// I2T2 false
+-	var u1 U;
+-	u1, ok = s.(U);
++	_, ok = s.(U);
+ 	false(ok);
+ 
+ 	// I2I2 true
+diff --git a/test/interface/fail.go b/test/interface/fail.go
+index 0e0c4d3ca5..07bd865c89 100644
+--- a/test/interface/fail.go
++++ b/test/interface/fail.go
+@@ -18,6 +18,7 @@ func main() {
+ 	var e interface {};
+ 	e = s;
+ 	i = e.(I);
++	_ = i;
+ }
+ 
+ // hide S down here to avoid static warning
+diff --git a/test/interface/pointer.go b/test/interface/pointer.go
+index d94ec7cada..be24952ffb 100644
+--- a/test/interface/pointer.go
++++ b/test/interface/pointer.go
+@@ -30,7 +30,6 @@ func AddInst(Inst) *Inst {
+ }
+ 
+ func main() {
+-	re := new(Regexp);
+ 	print("call addinst\n");
+ 	var x Inst = AddInst(new(Start));	// ERROR "illegal|incompatible|is not"
+ 	print("return from  addinst\n");
+diff --git a/test/interface/receiver1.go b/test/interface/receiver1.go
+index 7f257a3baa..8ce96424e3 100644
+--- a/test/interface/receiver1.go
++++ b/test/interface/receiver1.go
+@@ -27,17 +27,23 @@ func main() {
+ 
+ 	v = t;
+ 	p = t;	// ERROR "is not|requires a pointer"
++	_, _= v, p;
+ 	v = &t;
+ 	p = &t;
++	_, _= v, p;
+ 
+ 	v = s;
+ 	p = s;	// ERROR "is not|requires a pointer"
++	_, _= v, p;
+ 	v = &s;
+ 	p = &s;
++	_, _= v, p;
+ 
+ 	v = sp;
+ 	p = sp;	// no error!
++	_, _= v, p;
+ 	v = &sp;
+ 	p = &sp;
++	_, _= v, p;
+ }
+ 
+diff --git a/test/ken/rob2.go b/test/ken/rob2.go
+index 0e18b3b8a0..518ba29807 100644
+--- a/test/ken/rob2.go
++++ b/test/ken/rob2.go
+@@ -149,7 +149,6 @@ func WhiteSpace(c int) bool
+ func NextToken()
+ {
+ 	var i, c int;
+-	var backslash bool;
+ 
+ 	tokenbuf[0] = nilchar;	// clear previous token
+ 	c = Get();
+@@ -222,8 +221,7 @@ func ParseList() *Slist
+ 
+ func atom(i int) *Slist	// BUG: uses tokenbuf; should take argument
+ {
+-	var h, length int;
+-	var slist, tail *Slist;
++	var slist *Slist;
+ 
+ 	slist = new(Slist);
+ 	if token == '0' {
+diff --git a/test/ken/robif.go b/test/ken/robif.go
+index 41d164cd5f..b6fe4e4330 100644
+--- a/test/ken/robif.go
++++ b/test/ken/robif.go
+@@ -21,56 +21,57 @@ func main() {
+ 
+ 	count = 0;
+ 	if true {
+-		count = count + 1;	
++		count = count + 1;
+ 	}
+ 	assertequal(count, 1, "if true");
+ 
+ 	count = 0;
+ 	if false {
+-		count = count + 1;	
++		count = count + 1;
+ 	}
+ 	assertequal(count, 0, "if false");
+ 
+ 	count = 0;
+ 	if one := 1; true {
+-		count = count + one;	
++		count = count + one;
+ 	}
+ 	assertequal(count, 1, "if true one");
+ 
+ 	count = 0;
+ 	if one := 1; false {
+-		count = count + 1;	
++		_ = one;
++		count = count + 1;
+ 	}
+ 	assertequal(count, 0, "if false one");
+ 
+ 	count = 0;
+ 	if {
+-		count = count + 1;	
++		count = count + 1;
+ 	}
+ 	assertequal(count, 1, "if empty");
+ 
+ 	count = 0;
+ 	if one := 1; {
+-		count = count + one;	
++		count = count + one;
+ 	}
+ 	assertequal(count, 1, "if empty one");
+ 
+ 	count = 0;
+ 	if i5 < i7 {
+-		count = count + 1;	
++		count = count + 1;
+ 	}
+ 	assertequal(count, 1, "if cond");
+ 
+ 	count = 0;
+ 	if true {
+-		count = count + 1;	
++		count = count + 1;
+ 	} else
+ 		count = count - 1;
+ 	assertequal(count, 1, "if else true");
+ 
+ 	count = 0;
+ 	if false {
+-		count = count + 1;	
++		count = count + 1;
+ 	} else
+ 		count = count - 1;
+ 	assertequal(count, -1, "if else false");
+@@ -78,7 +79,8 @@ func main() {
+ 	count = 0;
+ 	if t:=1; false {
+ 		count = count + 1;
+-		t := 7;	
++		t := 7;
++		_ = t;
+ 	} else
+ 		count = count - t;
+ 	assertequal(count, -1, "if else false var");
+@@ -87,7 +89,8 @@ func main() {
+ 	t := 1;
+ 	if false {
+ 		count = count + 1;
+-		t := 7;	
++		t := 7;
++		_ = t;
+ 	} else
+ 		count = count - t;
+ 	assertequal(count, -1, "if else false var outside");
+diff --git a/test/ken/simpvar.go b/test/ken/simpvar.go
+index 396ea7b4c9..70946bf70e 100644
+--- a/test/ken/simpvar.go
++++ b/test/ken/simpvar.go
+@@ -19,6 +19,7 @@ main()
+ 		var x int;
+ 		x = 25;
+ 		y = 25;
++		_ = x;
+ 	}
+ 	x = x+y;
+ 	if(x != 40) { panic(x); }
+diff --git a/test/literal.go b/test/literal.go
+index 00b7b73426..bd231eae22 100644
+--- a/test/literal.go
++++ b/test/literal.go
+@@ -108,6 +108,7 @@ func main() {
+ 	var u31 uint64 = 1;
+ 	var u32 uint64 = 18446744073709551615;
+ 	var u33 uint64 = +18446744073709551615;
++	_, _, _, _ = u30, u31, u32, u33;
+ 
+ 	// float
+ 	var f00 float = 3.14159;
+@@ -192,6 +193,7 @@ func main() {
+ 	assert(s1[4] == 0xc3, "s1-4");
+ 	assert(s1[5] == 0xb4, "s1-5");
+ 	var s2 string = "\a\b\f\n\r\t\v";
++	_, _ = s0, s2;
+ 
+ 	var s00 string = "\000";
+ 	var s01 string = "\007";
+diff --git a/test/method.go b/test/method.go
+index 6dba3d1781..43408fef94 100644
+--- a/test/method.go
++++ b/test/method.go
+@@ -33,7 +33,6 @@ func main() {
+ 	var ps *S1;
+ 	var i I;
+ 	var pi *I1;
+-	var t T;
+ 	var pt *T1;
+ 
+ 	if s.val() != 1 { panicln("s.val:", s.val()) }
+diff --git a/test/nil.go b/test/nil.go
+index 1aef54ba9b..d35309615e 100644
+--- a/test/nil.go
++++ b/test/nil.go
+@@ -32,4 +32,6 @@ func main() {
+ 	i = nil;
+ 	ta = make([]IN, 1);
+ 	ta[0] = nil;
++
++	_, _, _, _, _, _, _, _ = i, f, s, m, c, t, in, ta;
+ }
+diff --git a/test/stringrange.go b/test/stringrange.go
+index 5d5b3a3b8c..9215b95fa4 100644
+--- a/test/stringrange.go
++++ b/test/stringrange.go
+@@ -15,7 +15,6 @@ import (
+ func main() {
+ 	s := "\000\123\x00\xca\xFE\u0123\ubabe\U0000babe\U0010FFFFx";
+ 	expect := []int{ 0, 0123, 0, 0xFFFD, 0xFFFD, 0x123, 0xbabe, 0xbabe, 0x10FFFF, 'x' };
+-	var rune, size int;
+ 	offset := 0;
+ 	var i, c int;
+ 	ok := true;
+diff --git a/test/switch.go b/test/switch.go
+index f68542053f..835c90081f 100644
+--- a/test/switch.go
++++ b/test/switch.go
+@@ -73,37 +73,37 @@ func main() {
+ 	case 6:
+ 	case 7:
+ 	case 8:
+-	case 9: 
++	case 9:
+ 	default: assert(i5 == 5, "good");
+ 	}
+ 
+ 	switch i5 {
+-	case 0: dummy := 0; fallthrough;
+-	case 1: dummy := 0; fallthrough;
+-	case 2: dummy := 0; fallthrough;
+-	case 3: dummy := 0; fallthrough;
+-	case 4: dummy := 0; assert(false, "4");
+-	case 5: dummy := 0; fallthrough;
+-	case 6: dummy := 0; fallthrough;
+-	case 7: dummy := 0; fallthrough;
+-	case 8: dummy := 0; fallthrough;
+-	case 9: dummy := 0; fallthrough;
+-	default: dummy := 0; assert(i5 == 5, "good");
++	case 0: dummy := 0; _ = dummy; fallthrough;
++	case 1: dummy := 0; _ = dummy; fallthrough;
++	case 2: dummy := 0; _ = dummy; fallthrough;
++	case 3: dummy := 0; _ = dummy; fallthrough;
++	case 4: dummy := 0; _ = dummy; assert(false, "4");
++	case 5: dummy := 0; _ = dummy; fallthrough;
++	case 6: dummy := 0; _ = dummy; fallthrough;
++	case 7: dummy := 0; _ = dummy; fallthrough;
++	case 8: dummy := 0; _ = dummy; fallthrough;
++	case 9: dummy := 0; _ = dummy; fallthrough;
++	default: dummy := 0; _ = dummy; assert(i5 == 5, "good");
+ 	}
+ 
+ 	fired := false;
+ 	switch i5 {
+-	case 0: dummy := 0; fallthrough;  // tests scoping of cases
+-	case 1: dummy := 0; fallthrough;
+-	case 2: dummy := 0; fallthrough;
+-	case 3: dummy := 0; fallthrough;
+-	case 4: dummy := 0; assert(false, "4");
+-	case 5: dummy := 0; fallthrough;
+-	case 6: dummy := 0; fallthrough;
+-	case 7: dummy := 0; fallthrough;
+-	case 8: dummy := 0; fallthrough;
+-	case 9: dummy := 0; fallthrough;
+-	default: dummy := 0; fired = !fired; assert(i5 == 5, "good");
++	case 0: dummy := 0; _ = dummy; fallthrough;  // tests scoping of cases
++	case 1: dummy := 0; _ = dummy; fallthrough;
++	case 2: dummy := 0; _ = dummy; fallthrough;
++	case 3: dummy := 0; _ = dummy; fallthrough;
++	case 4: dummy := 0; _ = dummy; assert(false, "4");
++	case 5: dummy := 0; _ = dummy; fallthrough;
++	case 6: dummy := 0; _ = dummy; fallthrough;
++	case 7: dummy := 0; _ = dummy; fallthrough;
++	case 8: dummy := 0; _ = dummy; fallthrough;
++	case 9: dummy := 0; _ = dummy; fallthrough;
++	default: dummy := 0; _ = dummy; fired = !fired; assert(i5 == 5, "good");
+ 	}
+ 	assert(fired, "fired");
+ 
+diff --git a/test/test0.go b/test/test0.go
+index 9e2021485d..f42b12b3c5 100644
+--- a/test/test0.go
++++ b/test/test0.go
+@@ -58,12 +58,14 @@ func control_structs() {
+ 	var p *Point = new(Point).Initialize(2, 3);
+ 	i := p.Distance();
+ 	var f float = 0.3;
++	_ = f;
+ 	for {}
+ 	for {};
+ 	for j := 0; j < i; j++ {
+ 		if i == 0 {
+ 		} else i = 0;
+ 		var x float;
++		_ = x;
+ 	}
+ 	foo:	// a label
+ 	var j int;

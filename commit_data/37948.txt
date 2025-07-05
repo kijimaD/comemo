@@ -10,6 +10,18 @@ Date:   Sat Sep 15 17:06:08 2018 +0900
     Change-Id: Id2b9f2c9904390adb011dab357716ee8e2fe84fc
     Reviewed-on: https://go-review.googlesource.com/135516
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/sys_darwin.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/sys_darwin.go b/src/runtime/sys_darwin.go
+index 7efbef746c..9b0cc6f935 100644
+--- a/src/runtime/sys_darwin.go
++++ b/src/runtime/sys_darwin.go
+@@ -370,5 +370,5 @@ func closeonexec(fd int32) {
+ //go:cgo_import_dynamic libc_pthread_cond_signal pthread_cond_signal "/usr/lib/libSystem.B.dylib"
+ 
+ // Magic incantation to get libSystem actually dynamically linked.
+-// TODO: Why does the code require this?  See cmd/compile/internal/ld/go.go:210
++// TODO: Why does the code require this?  See cmd/link/internal/ld/go.go
+ //go:cgo_import_dynamic _ _ "/usr/lib/libSystem.B.dylib"

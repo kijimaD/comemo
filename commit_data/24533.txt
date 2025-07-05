@@ -21,6 +21,45 @@ Date:   Mon Aug 3 09:25:23 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/13043
     Reviewed-by: Rick Hudson <rlh@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/mgc.go | 20 ++++++++++++++++++++
  1 file changed, 20 insertions(+)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index de9f4f51fd..f308530c5c 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -145,6 +145,11 @@ const (
+ 	// bookkeeping will use a large amount of each stack.
+ 	firstStackBarrierOffset = 1024
+ 	debugStackBarrier       = false
++
++	// sweepMinHeapDistance is a lower bound on the heap distance
++	// (in bytes) reserved for concurrent sweeping between GC
++	// cycles. This will be scaled by gcpercent/100.
++	sweepMinHeapDistance = 1024 * 1024
+ )
+ 
+ // heapminimum is the minimum heap size at which to trigger GC.
+@@ -1489,6 +1494,21 @@ func gcMark(start_time int64) {
+ 	memstats.heap_marked = work.bytesMarked
+ 	memstats.heap_scan = uint64(gcController.scanWork)
+ 
++	minNextGC := memstats.heap_live + sweepMinHeapDistance*uint64(gcpercent)/100
++	if memstats.next_gc < minNextGC {
++		// The allocated heap is already past the trigger.
++		// This can happen if the triggerRatio is very low and
++		// the reachable heap estimate is less than the live
++		// heap size.
++		//
++		// Concurrent sweep happens in the heap growth from
++		// heap_live to next_gc, so bump next_gc up to ensure
++		// that concurrent sweep has some heap growth in which
++		// to perform sweeping before we start the next GC
++		// cycle.
++		memstats.next_gc = minNextGC
++	}
++
+ 	if trace.enabled {
+ 		traceHeapAlloc()
+ 		traceNextGC()

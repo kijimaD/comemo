@@ -7,6 +7,30 @@ Date:   Thu Jan 2 15:23:26 2020 -0500
     Change-Id: Icd92d115e5d7f00b2100598baf2522ebebcdb223
     Reviewed-on: https://go-review.googlesource.com/c/go/+/213125
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go1.14.html | 12 ++++++++++++
  1 file changed, 12 insertions(+)
+
+diff --git a/doc/go1.14.html b/doc/go1.14.html
+index 9c45c77129..6811868bc2 100644
+--- a/doc/go1.14.html
++++ b/doc/go1.14.html
+@@ -457,6 +457,18 @@ TODO
+ 
+ </dl><!-- signal -->
+ 
++<dl id="sync"><dt><a href="/pkg/sync/">sync</a></dt>
++  <dd>
++    <p><!-- CL 200577 -->
++      Unlocking a highly contended <code>Mutex</code> now directly
++      yields the CPU to the next goroutine waiting for
++      that <code>Mutex</code>. This significantly improves the
++      performance of highly contended mutexes on high CPU count
++      machines.
++    </p>
++
++</dl><!-- sync -->
++
+ <dl id="testing"><dt><a href="/pkg/testing/">testing</a></dt>
+   <dd>
+     <p><!-- CL 201359 -->

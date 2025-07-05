@@ -7,6 +7,29 @@ Date:   Thu May 17 11:19:19 2012 -0700
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/6217044
-
+---
  src/pkg/go/build/build.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/go/build/build.go b/src/pkg/go/build/build.go
+index ea2990ba94..dda4a13eb6 100644
+--- a/src/pkg/go/build/build.go
++++ b/src/pkg/go/build/build.go
+@@ -68,7 +68,7 @@ type Context struct {
+ 
+ 	// ReadDir returns a slice of os.FileInfo, sorted by Name,
+ 	// describing the content of the named directory.
+-	// If ReadDir is nil, Import uses io.ReadDir.
++	// If ReadDir is nil, Import uses ioutil.ReadDir.
+ 	ReadDir func(dir string) (fi []os.FileInfo, err error)
+ 
+ 	// OpenFile opens a file (not a directory) for reading.
+@@ -340,7 +340,7 @@ func (e *NoGoError) Error() string {
+ //	- files starting with _ or . (likely editor temporary files)
+ //	- files with build constraints not satisfied by the context
+ //
+-// If an error occurs, Import returns a non-nil error also returns a non-nil
++// If an error occurs, Import returns a non-nil error and a non-nil
+ // *Package containing partial information.
+ //
+ func (ctxt *Context) Import(path string, srcDir string, mode ImportMode) (*Package, error) {

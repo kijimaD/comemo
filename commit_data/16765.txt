@@ -9,7 +9,32 @@ Date:   Mon Jul 15 10:52:21 2013 +1000
     R=gobot
     CC=golang-dev
     https://golang.org/cl/11257043
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index e30e04a977..9be9cf10dd 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -20,6 +20,7 @@ Alex Jin <toalexjin@gmail.com>
+ Alexander Orlov <alexander.orlov@loxal.net>
+ Alexander Reece <awreece@gmail.com>
+ Alexander Surma <surma@surmair.de>
++Alexandre Normand <alexandre.normand@gmail.com>
+ Alexei Sholik <alcosholik@gmail.com>
+ Alexey Borzenkov <snaury@gmail.com>
+ Amir Mohammad Saied <amir@gluegadget.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 02df9092a2..3b80e050b7 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -47,6 +47,7 @@ Alex Jin <toalexjin@gmail.com>
+ Alexander Orlov <alexander.orlov@loxal.net>
+ Alexander Reece <awreece@gmail.com>
+ Alexander Surma <surma@surmair.de>
++Alexandre Normand <alexandre.normand@gmail.com>
+ Alexandru Moșoi <brtzsnr@gmail.com>
+ Alexei Sholik <alcosholik@gmail.com>
+ Alexey Borzenkov <snaury@gmail.com>

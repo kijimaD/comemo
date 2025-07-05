@@ -17,9 +17,104 @@ Date:   Wed Mar 23 01:20:11 2022 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/typecheck/expr.go |  4 ----
  src/cmd/compile/internal/typecheck/func.go | 12 ------------
  src/cmd/compile/internal/typecheck/subr.go |  3 ---
  src/cmd/compile/internal/types/size.go     | 13 +++++--------
  4 files changed, 5 insertions(+), 27 deletions(-)
+
+diff --git a/src/cmd/compile/internal/typecheck/expr.go b/src/cmd/compile/internal/typecheck/expr.go
+index 11e5268feb..e6adc05a65 100644
+--- a/src/cmd/compile/internal/typecheck/expr.go
++++ b/src/cmd/compile/internal/typecheck/expr.go
+@@ -58,10 +58,6 @@ func tcShift(n, l, r ir.Node) (ir.Node, ir.Node, *types.Type) {
+ 		base.Errorf("invalid operation: %v (shift count type %v, must be integer)", n, r.Type())
+ 		return l, r, nil
+ 	}
+-	if t.IsSigned() && !types.AllowsGoVersion(curpkg(), 1, 13) {
+-		base.ErrorfVers("go1.13", "invalid operation: %v (signed shift count type %v)", n, r.Type())
+-		return l, r, nil
+-	}
+ 	t = l.Type()
+ 	if t != nil && t.Kind() != types.TIDEAL && !t.IsInteger() {
+ 		base.Errorf("invalid operation: %v (shift of type %v)", n, t)
+diff --git a/src/cmd/compile/internal/typecheck/func.go b/src/cmd/compile/internal/typecheck/func.go
+index 298af2aeeb..6bfa7e6d83 100644
+--- a/src/cmd/compile/internal/typecheck/func.go
++++ b/src/cmd/compile/internal/typecheck/func.go
+@@ -903,12 +903,6 @@ func tcRecoverFP(n *ir.CallExpr) ir.Node {
+ 
+ // tcUnsafeAdd typechecks an OUNSAFEADD node.
+ func tcUnsafeAdd(n *ir.BinaryExpr) *ir.BinaryExpr {
+-	if !types.AllowsGoVersion(curpkg(), 1, 17) {
+-		base.ErrorfVers("go1.17", "unsafe.Add")
+-		n.SetType(nil)
+-		return n
+-	}
+-
+ 	n.X = AssignConv(Expr(n.X), types.Types[types.TUNSAFEPTR], "argument to unsafe.Add")
+ 	n.Y = DefaultLit(Expr(n.Y), types.Types[types.TINT])
+ 	if n.X.Type() == nil || n.Y.Type() == nil {
+@@ -925,12 +919,6 @@ func tcUnsafeAdd(n *ir.BinaryExpr) *ir.BinaryExpr {
+ 
+ // tcUnsafeSlice typechecks an OUNSAFESLICE node.
+ func tcUnsafeSlice(n *ir.BinaryExpr) *ir.BinaryExpr {
+-	if !types.AllowsGoVersion(curpkg(), 1, 17) {
+-		base.ErrorfVers("go1.17", "unsafe.Slice")
+-		n.SetType(nil)
+-		return n
+-	}
+-
+ 	n.X = Expr(n.X)
+ 	n.Y = Expr(n.Y)
+ 	if n.X.Type() == nil || n.Y.Type() == nil {
+diff --git a/src/cmd/compile/internal/typecheck/subr.go b/src/cmd/compile/internal/typecheck/subr.go
+index c3759e3e7b..4dd95475f0 100644
+--- a/src/cmd/compile/internal/typecheck/subr.go
++++ b/src/cmd/compile/internal/typecheck/subr.go
+@@ -585,9 +585,6 @@ func Convertop(srcConstant bool, src, dst *types.Type) (ir.Op, string) {
+ 	// They must have same element type.
+ 	if src.IsSlice() && dst.IsPtr() && dst.Elem().IsArray() &&
+ 		types.Identical(src.Elem(), dst.Elem().Elem()) {
+-		if !types.AllowsGoVersion(curpkg(), 1, 17) {
+-			return ir.OXXX, ":\n\tconversion of slices to array pointers only supported as of -lang=go1.17"
+-		}
+ 		return ir.OSLICE2ARRPTR, ""
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/types/size.go b/src/cmd/compile/internal/types/size.go
+index 6a3a1262f3..fc9907b85f 100644
+--- a/src/cmd/compile/internal/types/size.go
++++ b/src/cmd/compile/internal/types/size.go
+@@ -80,7 +80,7 @@ func expandiface(t *Type) {
+ 		switch prev := seen[m.Sym]; {
+ 		case prev == nil:
+ 			seen[m.Sym] = m
+-		case AllowsGoVersion(t.Pkg(), 1, 14) && !explicit && Identical(m.Type, prev.Type):
++		case !explicit && Identical(m.Type, prev.Type):
+ 			return
+ 		default:
+ 			base.ErrorfAt(m.Pos, "duplicate method %s", m.Sym.Name)
+@@ -127,17 +127,14 @@ func expandiface(t *Type) {
+ 		}
+ 
+ 		// In 1.18, embedded types can be anything. In Go 1.17, we disallow
+-		// embedding anything other than interfaces.
++		// embedding anything other than interfaces. This requirement was caught
++		// by types2 already, so allow non-interface here.
+ 		if !m.Type.IsInterface() {
+-			if AllowsGoVersion(t.Pkg(), 1, 18) {
+-				continue
+-			}
+-			base.FatalfAt(m.Pos, "interface contains embedded non-interface, non-union %v", m.Type)
++			continue
+ 		}
+ 
+ 		// Embedded interface: duplicate all methods
+-		// (including broken ones, if any) and add to t's
+-		// method set.
++		// and add to t's method set.
+ 		for _, t1 := range m.Type.AllMethods().Slice() {
+ 			f := NewField(m.Pos, t1.Sym, t1.Type)
+ 			addMethod(f, false)

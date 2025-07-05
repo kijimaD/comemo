@@ -7,6 +7,20 @@ Date:   Tue Nov 21 08:21:11 2017 +0100
     Change-Id: Ia302d9018690cd26890f874c70bd0c429a4b51f0
     Reviewed-on: https://go-review.googlesource.com/78975
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/port.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/port.go b/src/net/port.go
+index 9016a19831..32e7628619 100644
+--- a/src/net/port.go
++++ b/src/net/port.go
+@@ -4,7 +4,7 @@
+ 
+ package net
+ 
+-// parsePort parses service as a decimal interger and returns the
++// parsePort parses service as a decimal integer and returns the
+ // corresponding value as port. It is the caller's responsibility to
+ // parse service as a non-decimal integer when needsLookup is true.
+ //

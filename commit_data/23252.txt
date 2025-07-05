@@ -16,7 +16,36 @@ Date:   Fri May 1 15:33:08 2015 -0700
     Change-Id: I375621e6f5333c4d53f053a3c84a9af051711b7a
     Reviewed-on: https://go-review.googlesource.com/9651
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/text/template/parse/node.go       | 5 +++++
  src/text/template/parse/parse_test.go | 1 +
  2 files changed, 6 insertions(+)
+
+diff --git a/src/text/template/parse/node.go b/src/text/template/parse/node.go
+index 55c37f6dba..728181baae 100644
+--- a/src/text/template/parse/node.go
++++ b/src/text/template/parse/node.go
+@@ -592,6 +592,11 @@ func (t *Tree) newNumber(pos Pos, text string, typ itemType) (*NumberNode, error
+ 	} else {
+ 		f, err := strconv.ParseFloat(text, 64)
+ 		if err == nil {
++			// If we parsed it as a float but it looks like an integer,
++			// it's a huge number too large to fit in an int. Reject it.
++			if !strings.ContainsAny(text, ".eE") {
++				return nil, fmt.Errorf("integer overflow: %q", text)
++			}
+ 			n.IsFloat = true
+ 			n.Float64 = f
+ 			// If a floating-point extraction succeeded, extract the int if needed.
+diff --git a/src/text/template/parse/parse_test.go b/src/text/template/parse/parse_test.go
+index a2ca98b0b1..808f9a0b5e 100644
+--- a/src/text/template/parse/parse_test.go
++++ b/src/text/template/parse/parse_test.go
+@@ -69,6 +69,7 @@ var numberTests = []numberTest{
+ 	{text: "1+2."},
+ 	{text: "'x"},
+ 	{text: "'xx'"},
++	{text: "'433937734937734969526500969526500'"}, // Integer too large - issue 10634.
+ 	// Issue 8622 - 0xe parsed as floating point. Very embarrassing.
+ 	{"0xef", true, true, true, false, 0xef, 0xef, 0xef, 0},
+ }

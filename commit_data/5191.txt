@@ -15,7 +15,7 @@ Date:   Tue Mar 30 17:51:03 2010 -0700
     R=rsc, rsc1
     CC=golang-dev, mdakin
     https://golang.org/cl/824043
-
+---
  src/pkg/strings/strings.go      | 18 +++++++++++++++
  src/pkg/strings/strings_test.go | 22 ++++++++++++++++++
  src/pkg/unicode/Makefile        |  1 +
@@ -23,3 +23,232 @@ Date:   Tue Mar 30 17:51:03 2010 -0700
  src/pkg/unicode/letter.go       | 50 ++++++++++++++++++++++++++++++++++++-----
  src/pkg/unicode/letter_test.go  | 26 +++++++++++++++++++++
  6 files changed, 133 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/strings/strings.go b/src/pkg/strings/strings.go
+index 24aac10e9e..4268551374 100644
+--- a/src/pkg/strings/strings.go
++++ b/src/pkg/strings/strings.go
+@@ -291,6 +291,24 @@ func ToLower(s string) string { return Map(unicode.ToLower, s) }
+ // ToTitle returns a copy of the string s with all Unicode letters mapped to their title case.
+ func ToTitle(s string) string { return Map(unicode.ToTitle, s) }
+ 
++// ToUpperSpecial returns a copy of the string s with all Unicode letters mapped to their
++// upper case, giving priority to the special casing rules.
++func ToUpperSpecial(_case unicode.SpecialCase, s string) string {
++	return Map(func(r int) int { return _case.ToUpper(r) }, s)
++}
++
++// ToLowerSpecial returns a copy of the string s with all Unicode letters mapped to their
++// lower case, giving priority to the special casing rules.
++func ToLowerSpecial(_case unicode.SpecialCase, s string) string {
++	return Map(func(r int) int { return _case.ToLower(r) }, s)
++}
++
++// ToTitleSpecial returns a copy of the string s with all Unicode letters mapped to their
++// title case, giving priority to the special casing rules.
++func ToTitleSpecial(_case unicode.SpecialCase, s string) string {
++	return Map(func(r int) int { return _case.ToTitle(r) }, s)
++}
++
+ // Trim returns a slice of the string s, with all leading and trailing white space
+ // removed, as defined by Unicode.
+ func TrimSpace(s string) string {
+diff --git a/src/pkg/strings/strings_test.go b/src/pkg/strings/strings_test.go
+index fdf192db63..eeb64f1e8e 100644
+--- a/src/pkg/strings/strings_test.go
++++ b/src/pkg/strings/strings_test.go
+@@ -341,6 +341,28 @@ func TestToUpper(t *testing.T) { runStringTests(t, ToUpper, "ToUpper", upperTest
+ 
+ func TestToLower(t *testing.T) { runStringTests(t, ToLower, "ToLower", lowerTests) }
+ 
++func TestSpecialCase(t *testing.T) {
++	lower := "abcçdefgğhıijklmnoöprsştuüvyz"
++	upper := "ABCÇDEFGĞHIİJKLMNOÖPRSŞTUÜVYZ"
++	u := ToUpperSpecial(unicode.TurkishCase, upper)
++	if u != upper {
++		t.Errorf("Upper(upper) is %s not %s", u, upper)
++	}
++	u = ToUpperSpecial(unicode.TurkishCase, lower)
++	if u != upper {
++		t.Errorf("Upper(lower) is %s not %s", u, upper)
++	}
++	l := ToLowerSpecial(unicode.TurkishCase, lower)
++	if l != lower {
++		t.Errorf("Lower(lower) is %s not %s", l, lower)
++	}
++	l = ToLowerSpecial(unicode.TurkishCase, upper)
++	if l != lower {
++		t.Errorf("Lower(upper) is %s not %s", l, lower)
++	}
++}
++
++
+ func TestTrimSpace(t *testing.T) { runStringTests(t, TrimSpace, "TrimSpace", trimSpaceTests) }
+ 
+ func equal(m string, s1, s2 string, t *testing.T) bool {
+diff --git a/src/pkg/unicode/Makefile b/src/pkg/unicode/Makefile
+index ae9e3336bf..0728ec8813 100644
+--- a/src/pkg/unicode/Makefile
++++ b/src/pkg/unicode/Makefile
+@@ -6,6 +6,7 @@ include ../../Make.$(GOARCH)
+ 
+ TARG=unicode
+ GOFILES=\
++	casetables.go\
+ 	digit.go\
+ 	letter.go\
+ 	tables.go\
+diff --git a/src/pkg/unicode/casetables.go b/src/pkg/unicode/casetables.go
+new file mode 100644
+index 0000000000..66440705bf
+--- /dev/null
++++ b/src/pkg/unicode/casetables.go
+@@ -0,0 +1,21 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// TODO: This file contains the special casing rules for Turkish and Azeri only.
++// It should encompass all the languages with special casing rules
++// and be generated automatically, but that requires some API
++// development first.
++
++package unicode
++
++
++var TurkishCase = _TurkishCase
++var _TurkishCase = SpecialCase{
++	CaseRange{0x0049, 0x0049, d{0, 0x131 - 0x49, 0}},
++	CaseRange{0x0069, 0x0069, d{0x130 - 0x69, 0, 0x130 - 0x69}},
++	CaseRange{0x0130, 0x0130, d{0, 0x69 - 0x130, 0}},
++	CaseRange{0x0131, 0x0131, d{0x49 - 0x131, 0, 0x49 - 0x131}},
++}
++
++var AzeriCase = _TurkishCase
+diff --git a/src/pkg/unicode/letter.go b/src/pkg/unicode/letter.go
+index b13c870fe8..b3ae9ee6ec 100644
+--- a/src/pkg/unicode/letter.go
++++ b/src/pkg/unicode/letter.go
+@@ -19,7 +19,8 @@ type Range struct {
+ 	Stride int
+ }
+ 
+-// The representation of a range of Unicode code points for case conversion.
++// CaseRange represents a range of Unicode code points for simple (one
++// code point to one code point) case conversion.
+ // The range runs from Lo to Hi inclusive, with a fixed stride of 1.  Deltas
+ // are the number to add to the code point to reach the code point for a
+ // different case for that character.  They may be negative.  If zero, it
+@@ -34,6 +35,13 @@ type CaseRange struct {
+ 	Delta d
+ }
+ 
++// SpecialCase represents language-specific case mappings such as Turkish.
++// Methods of SpecialCase customize (by overriding) the standard mappings.
++type SpecialCase []CaseRange
++
++//BUG(r): Provide a mechanism for full case folding (those that involve
++// multiple runes in the input or output).
++
+ // Indices into the Delta arrays inside CaseRanges for case mapping.
+ const (
+ 	UpperCase = iota
+@@ -130,17 +138,17 @@ func IsSpace(rune int) bool {
+ 	return Is(White_Space, rune)
+ }
+ 
+-// To maps the rune to the specified case: UpperCase, LowerCase, or TitleCase.
+-func To(_case int, rune int) int {
++// to maps the rune using the specified case mapping.
++func to(_case int, rune int, caseRange []CaseRange) int {
+ 	if _case < 0 || MaxCase <= _case {
+ 		return ReplacementChar // as reasonable an error as any
+ 	}
+ 	// binary search over ranges
+ 	lo := 0
+-	hi := len(CaseRanges)
++	hi := len(caseRange)
+ 	for lo < hi {
+ 		m := lo + (hi-lo)/2
+-		r := CaseRanges[m]
++		r := caseRange[m]
+ 		if r.Lo <= rune && rune <= r.Hi {
+ 			delta := int(r.Delta[_case])
+ 			if delta > MaxRune {
+@@ -167,6 +175,11 @@ func To(_case int, rune int) int {
+ 	return rune
+ }
+ 
++// To maps the rune to the specified case: UpperCase, LowerCase, or TitleCase.
++func To(_case int, rune int) int {
++	return to(_case, rune, CaseRanges)
++}
++
+ // ToUpper maps the rune to upper case.
+ func ToUpper(rune int) int {
+ 	if rune < 0x80 { // quick ASCII check
+@@ -199,3 +212,30 @@ func ToTitle(rune int) int {
+ 	}
+ 	return To(TitleCase, rune)
+ }
++
++// ToUpper maps the rune to upper case giving priority to the special mapping.
++func (special SpecialCase) ToUpper(rune int) int {
++	r := to(UpperCase, rune, []CaseRange(special))
++	if r == rune {
++		r = ToUpper(rune)
++	}
++	return r
++}
++
++// ToTitlemaps the rune to upper case giving priority to the special mapping.
++func (special SpecialCase) ToTitle(rune int) int {
++	r := to(TitleCase, rune, []CaseRange(special))
++	if r == rune {
++		r = ToTitle(rune)
++	}
++	return r
++}
++
++// ToLower maps the rune to upper case giving priority to the special mapping.
++func (special SpecialCase) ToLower(rune int) int {
++	r := to(LowerCase, rune, []CaseRange(special))
++	if r == rune {
++		r = ToLower(rune)
++	}
++	return r
++}
+diff --git a/src/pkg/unicode/letter_test.go b/src/pkg/unicode/letter_test.go
+index f39fced665..294e79aa57 100644
+--- a/src/pkg/unicode/letter_test.go
++++ b/src/pkg/unicode/letter_test.go
+@@ -349,3 +349,29 @@ func TestLetterOptimizations(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestTurkishCase(t *testing.T) {
++	lower := []int("abcçdefgğhıijklmnoöprsştuüvyz")
++	upper := []int("ABCÇDEFGĞHIİJKLMNOÖPRSŞTUÜVYZ")
++	for i, l := range lower {
++		u := upper[i]
++		if TurkishCase.ToLower(l) != l {
++			t.Errorf("lower(U+%04X) is U+%04X not U+%04X", l, TurkishCase.ToLower(l), l)
++		}
++		if TurkishCase.ToUpper(u) != u {
++			t.Errorf("upper(U+%04X) is U+%04X not U+%04X", u, TurkishCase.ToUpper(u), u)
++		}
++		if TurkishCase.ToUpper(l) != u {
++			t.Errorf("upper(U+%04X) is U+%04X not U+%04X", l, TurkishCase.ToUpper(l), u)
++		}
++		if TurkishCase.ToLower(u) != l {
++			t.Errorf("lower(U+%04X) is U+%04X not U+%04X", u, TurkishCase.ToLower(l), l)
++		}
++		if TurkishCase.ToTitle(u) != u {
++			t.Errorf("title(U+%04X) is U+%04X not U+%04X", u, TurkishCase.ToTitle(u), u)
++		}
++		if TurkishCase.ToTitle(l) != u {
++			t.Errorf("title(U+%04X) is U+%04X not U+%04X", l, TurkishCase.ToTitle(l), u)
++		}
++	}
++}

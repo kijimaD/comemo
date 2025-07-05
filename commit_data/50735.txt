@@ -11,9 +11,62 @@ Date:   Mon Nov 8 08:05:24 2021 -0800
     Trust: Roland Shoemaker <roland@golang.org>
     Run-TryBot: Roland Shoemaker <roland@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/crypto/x509/internal/macos/corefoundation.go | 2 +-
  src/crypto/x509/internal/macos/corefoundation.s  | 2 +-
  src/crypto/x509/internal/macos/security.go       | 2 +-
  src/crypto/x509/internal/macos/security.s        | 2 +-
  4 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/crypto/x509/internal/macos/corefoundation.go b/src/crypto/x509/internal/macos/corefoundation.go
+index 07db5c7527..cda1d95d81 100644
+--- a/src/crypto/x509/internal/macos/corefoundation.go
++++ b/src/crypto/x509/internal/macos/corefoundation.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build darwin && !ios
++//go:build darwin
+ 
+ // Package macOS provides cgo-less wrappers for Core Foundation and
+ // Security.framework, similarly to how package syscall provides access to
+diff --git a/src/crypto/x509/internal/macos/corefoundation.s b/src/crypto/x509/internal/macos/corefoundation.s
+index e60bd8712d..d69f72f795 100644
+--- a/src/crypto/x509/internal/macos/corefoundation.s
++++ b/src/crypto/x509/internal/macos/corefoundation.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build darwin && !ios
++//go:build darwin
+ 
+ #include "textflag.h"
+ 
+diff --git a/src/crypto/x509/internal/macos/security.go b/src/crypto/x509/internal/macos/security.go
+index 2805076ccd..661844a805 100644
+--- a/src/crypto/x509/internal/macos/security.go
++++ b/src/crypto/x509/internal/macos/security.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build darwin && !ios
++//go:build darwin
+ 
+ package macOS
+ 
+diff --git a/src/crypto/x509/internal/macos/security.s b/src/crypto/x509/internal/macos/security.s
+index 77406a0553..cdef63f9f9 100644
+--- a/src/crypto/x509/internal/macos/security.s
++++ b/src/crypto/x509/internal/macos/security.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build darwin && !ios
++//go:build darwin
+ 
+ #include "textflag.h"
+ 

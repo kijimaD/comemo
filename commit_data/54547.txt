@@ -22,7 +22,71 @@ Date:   Mon Oct 31 15:42:13 2022 -0400
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/encoding/xml/read.go      | 12 ++++++++----
  src/encoding/xml/read_test.go |  7 ++++---
  2 files changed, 12 insertions(+), 7 deletions(-)
+
+diff --git a/src/encoding/xml/read.go b/src/encoding/xml/read.go
+index a6fb665458..c2f495581a 100644
+--- a/src/encoding/xml/read.go
++++ b/src/encoding/xml/read.go
+@@ -10,6 +10,7 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"reflect"
++	"runtime"
+ 	"strconv"
+ 	"strings"
+ )
+@@ -308,14 +309,17 @@ var (
+ 	textUnmarshalerType = reflect.TypeOf((*encoding.TextUnmarshaler)(nil)).Elem()
+ )
+ 
+-const maxUnmarshalDepth = 10000
++const (
++	maxUnmarshalDepth     = 10000
++	maxUnmarshalDepthWasm = 5000 // go.dev/issue/56498
++)
+ 
+-var errExeceededMaxUnmarshalDepth = errors.New("exceeded max depth")
++var errUnmarshalDepth = errors.New("exceeded max depth")
+ 
+ // Unmarshal a single XML element into val.
+ func (d *Decoder) unmarshal(val reflect.Value, start *StartElement, depth int) error {
+-	if depth >= maxUnmarshalDepth {
+-		return errExeceededMaxUnmarshalDepth
++	if depth >= maxUnmarshalDepth || runtime.GOARCH == "wasm" && depth >= maxUnmarshalDepthWasm {
++		return errUnmarshalDepth
+ 	}
+ 	// Find start element if we need it.
+ 	if start == nil {
+diff --git a/src/encoding/xml/read_test.go b/src/encoding/xml/read_test.go
+index 35385c6490..3e85fca5c6 100644
+--- a/src/encoding/xml/read_test.go
++++ b/src/encoding/xml/read_test.go
+@@ -9,6 +9,7 @@ import (
+ 	"errors"
+ 	"io"
+ 	"reflect"
++	"runtime"
+ 	"strings"
+ 	"testing"
+ 	"time"
+@@ -1105,13 +1106,13 @@ func TestCVE202228131(t *testing.T) {
+ 	err := Unmarshal(bytes.Repeat([]byte("<a>"), maxUnmarshalDepth+1), &n)
+ 	if err == nil {
+ 		t.Fatal("Unmarshal did not fail")
+-	} else if !errors.Is(err, errExeceededMaxUnmarshalDepth) {
+-		t.Fatalf("Unmarshal unexpected error: got %q, want %q", err, errExeceededMaxUnmarshalDepth)
++	} else if !errors.Is(err, errUnmarshalDepth) {
++		t.Fatalf("Unmarshal unexpected error: got %q, want %q", err, errUnmarshalDepth)
+ 	}
+ }
+ 
+ func TestCVE202230633(t *testing.T) {
+-	if testing.Short() {
++	if testing.Short() || runtime.GOARCH == "wasm" {
+ 		t.Skip("test requires significant memory")
+ 	}
+ 	defer func() {

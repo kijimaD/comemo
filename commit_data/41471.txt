@@ -11,6 +11,41 @@ Date:   Fri Oct 4 20:33:00 2019 +0000
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/bufio/bufio.go | 10 ++++------
  1 file changed, 4 insertions(+), 6 deletions(-)
+
+diff --git a/src/bufio/bufio.go b/src/bufio/bufio.go
+index 0f05d3b322..c29f233f08 100644
+--- a/src/bufio/bufio.go
++++ b/src/bufio/bufio.go
+@@ -432,6 +432,7 @@ func (b *Reader) ReadBytes(delim byte) ([]byte, error) {
+ 	var frag []byte
+ 	var full [][]byte
+ 	var err error
++	n := 0
+ 	for {
+ 		var e error
+ 		frag, e = b.ReadSlice(delim)
+@@ -447,18 +448,15 @@ func (b *Reader) ReadBytes(delim byte) ([]byte, error) {
+ 		buf := make([]byte, len(frag))
+ 		copy(buf, frag)
+ 		full = append(full, buf)
++		n += len(buf)
+ 	}
+ 
+-	// Allocate new buffer to hold the full pieces and the fragment.
+-	n := 0
+-	for i := range full {
+-		n += len(full[i])
+-	}
+ 	n += len(frag)
+ 
+-	// Copy full pieces and fragment in.
++	// Allocate new buffer to hold the full pieces and the fragment.
+ 	buf := make([]byte, n)
+ 	n = 0
++	// Copy full pieces and fragment in.
+ 	for i := range full {
+ 		n += copy(buf[n:], full[i])
+ 	}

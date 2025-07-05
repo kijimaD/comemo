@@ -13,7 +13,52 @@ Date:   Thu Aug 25 10:13:03 2022 +0800
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Run-TryBot: hopehook <hopehook@qq.com>
-
+---
  src/runtime/mstats.go   | 6 +++---
  src/runtime/runtime2.go | 2 +-
  2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/mstats.go b/src/runtime/mstats.go
+index 458350da02..d2a956deae 100644
+--- a/src/runtime/mstats.go
++++ b/src/runtime/mstats.go
+@@ -759,7 +759,7 @@ type consistentHeapStats struct {
+ //go:nosplit
+ func (m *consistentHeapStats) acquire() *heapStatsDelta {
+ 	if pp := getg().m.p.ptr(); pp != nil {
+-		seq := atomic.Xadd(&pp.statsSeq, 1)
++		seq := pp.statsSeq.Add(1)
+ 		if seq%2 == 0 {
+ 			// Should have been incremented to odd.
+ 			print("runtime: seq=", seq, "\n")
+@@ -788,7 +788,7 @@ func (m *consistentHeapStats) acquire() *heapStatsDelta {
+ //go:nosplit
+ func (m *consistentHeapStats) release() {
+ 	if pp := getg().m.p.ptr(); pp != nil {
+-		seq := atomic.Xadd(&pp.statsSeq, 1)
++		seq := pp.statsSeq.Add(1)
+ 		if seq%2 != 0 {
+ 			// Should have been incremented to even.
+ 			print("runtime: seq=", seq, "\n")
+@@ -862,7 +862,7 @@ func (m *consistentHeapStats) read(out *heapStatsDelta) {
+ 
+ 	for _, p := range allp {
+ 		// Spin until there are no more writers.
+-		for atomic.Load(&p.statsSeq)%2 != 0 {
++		for p.statsSeq.Load()%2 != 0 {
+ 		}
+ 	}
+ 
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 5e12ac73bc..2d6602071b 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -708,7 +708,7 @@ type p struct {
+ 
+ 	// statsSeq is a counter indicating whether this P is currently
+ 	// writing any stats. Its value is even when not, odd when it is.
+-	statsSeq uint32
++	statsSeq atomic.Uint32
+ 
+ 	// Lock for timers. We normally access the timers while running
+ 	// on this P, but the scheduler can also do it from a different P.

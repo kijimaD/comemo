@@ -39,7 +39,7 @@ Date:   Wed Aug 23 15:56:24 2017 -0700
     Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/archive/tar/common.go                      |  66 ++++++++------
  src/archive/tar/format.go                      | 115 ++++++++++++++++++-------
  src/archive/tar/reader.go                      |  45 ++++++++--
@@ -52,3 +52,1145 @@ Date:   Wed Aug 23 15:56:24 2017 -0700
  src/archive/tar/writer.go                      |  20 ++---
  src/archive/tar/writer_test.go                 |  14 +--
  11 files changed, 277 insertions(+), 154 deletions(-)
+
+diff --git a/src/archive/tar/common.go b/src/archive/tar/common.go
+index b5921fef23..89d3b099b1 100644
+--- a/src/archive/tar/common.go
++++ b/src/archive/tar/common.go
+@@ -5,11 +5,6 @@
+ // Package tar implements access to tar archives.
+ // It aims to cover most of the variations, including those produced
+ // by GNU and BSD tars.
+-//
+-// References:
+-//   http://www.freebsd.org/cgi/man.cgi?query=tar&sektion=5
+-//   http://www.gnu.org/software/tar/manual/html_node/Standard.html
+-//   http://pubs.opengroup.org/onlinepubs/9699919799/utilities/pax.html
+ package tar
+ 
+ import (
+@@ -76,13 +71,26 @@ type Header struct {
+ 	// SparseHoles represents a sequence of holes in a sparse file.
+ 	//
+ 	// A file is sparse if len(SparseHoles) > 0 or Typeflag is TypeGNUSparse.
++	// If TypeGNUSparse is set, then the format is GNU, otherwise
++	// the PAX format with GNU-specific record is used.
++	//
+ 	// A sparse file consists of fragments of data, intermixed with holes
+ 	// (described by this field). A hole is semantically a block of NUL-bytes,
+-	// but does not actually exist within the TAR file.
++	// but does not actually exist within the tar file.
+ 	// The logical size of the file stored in the Size field, while
+ 	// the holes must be sorted in ascending order,
+ 	// not overlap with each other, and not extend past the specified Size.
+ 	SparseHoles []SparseEntry
++
++	// Format specifies the format of the tar header.
++	//
++	// This is set by Reader.Next as a best-effort guess at the format.
++	// Since the Reader liberally reads some non-compliant files,
++	// it is possible for this to be FormatUnknown.
++	//
++	// When writing, if this is not FormatUnknown, then Writer.WriteHeader
++	// uses this as the format to encode the header.
++	Format Format
+ }
+ 
+ // SparseEntry represents a Length-sized fragment at Offset in the file.
+@@ -209,12 +217,12 @@ func (h *Header) FileInfo() os.FileInfo {
+ 
+ // allowedFormats determines which formats can be used. The value returned
+ // is the logical OR of multiple possible formats. If the value is
+-// formatUnknown, then the input Header cannot be encoded.
++// FormatUnknown, then the input Header cannot be encoded.
+ //
+ // As a by-product of checking the fields, this function returns paxHdrs, which
+ // contain all fields that could not be directly encoded.
+-func (h *Header) allowedFormats() (format int, paxHdrs map[string]string) {
+-	format = formatUSTAR | formatPAX | formatGNU
++func (h *Header) allowedFormats() (format Format, paxHdrs map[string]string) {
++	format = FormatUSTAR | FormatPAX | FormatGNU
+ 	paxHdrs = make(map[string]string)
+ 
+ 	verifyString := func(s string, size int, paxKey string) {
+@@ -224,15 +232,15 @@ func (h *Header) allowedFormats() (format int, paxHdrs map[string]string) {
+ 		tooLong := len(s) > size
+ 		allowLongGNU := paxKey == paxPath || paxKey == paxLinkpath
+ 		if hasNUL(s) || (tooLong && !allowLongGNU) {
+-			format &^= formatGNU // No GNU
++			format.mustNotBe(FormatGNU)
+ 		}
+ 		if !isASCII(s) || tooLong {
+ 			canSplitUSTAR := paxKey == paxPath
+ 			if _, _, ok := splitUSTARPath(s); !canSplitUSTAR || !ok {
+-				format &^= formatUSTAR // No USTAR
++				format.mustNotBe(FormatUSTAR)
+ 			}
+ 			if paxKey == paxNone {
+-				format &^= formatPAX // No PAX
++				format.mustNotBe(FormatPAX)
+ 			} else {
+ 				paxHdrs[paxKey] = s
+ 			}
+@@ -240,12 +248,12 @@ func (h *Header) allowedFormats() (format int, paxHdrs map[string]string) {
+ 	}
+ 	verifyNumeric := func(n int64, size int, paxKey string) {
+ 		if !fitsInBase256(size, n) {
+-			format &^= formatGNU // No GNU
++			format.mustNotBe(FormatGNU)
+ 		}
+ 		if !fitsInOctal(size, n) {
+-			format &^= formatUSTAR // No USTAR
++			format.mustNotBe(FormatUSTAR)
+ 			if paxKey == paxNone {
+-				format &^= formatPAX // No PAX
++				format.mustNotBe(FormatPAX)
+ 			} else {
+ 				paxHdrs[paxKey] = strconv.FormatInt(n, 10)
+ 			}
+@@ -258,12 +266,12 @@ func (h *Header) allowedFormats() (format int, paxHdrs map[string]string) {
+ 		needsNano := ts.Nanosecond() != 0
+ 		hasFieldUSTAR := paxKey == paxMtime
+ 		if !fitsInBase256(size, ts.Unix()) || needsNano {
+-			format &^= formatGNU // No GNU
++			format.mustNotBe(FormatGNU)
+ 		}
+ 		if !fitsInOctal(size, ts.Unix()) || needsNano || !hasFieldUSTAR {
+-			format &^= formatUSTAR // No USTAR
++			format.mustNotBe(FormatUSTAR)
+ 			if paxKey == paxNone {
+-				format &^= formatPAX // No PAX
++				format.mustNotBe(FormatPAX)
+ 			} else {
+ 				paxHdrs[paxKey] = formatPAXTime(ts)
+ 			}
+@@ -289,34 +297,40 @@ func (h *Header) allowedFormats() (format int, paxHdrs map[string]string) {
+ 	verifyTime(h.ChangeTime, len(gnu.ChangeTime()), paxCtime)
+ 
+ 	if !isHeaderOnlyType(h.Typeflag) && h.Size < 0 {
+-		return formatUnknown, nil
++		return FormatUnknown, nil
+ 	}
+ 	if len(h.Xattrs) > 0 {
+ 		for k, v := range h.Xattrs {
+ 			paxHdrs[paxXattr+k] = v
+ 		}
+-		format &= formatPAX // PAX only
++		format.mayOnlyBe(FormatPAX)
+ 	}
+ 	for k, v := range paxHdrs {
+ 		// Forbid empty values (which represent deletion) since usage of
+ 		// them are non-sensible without global PAX record support.
+ 		if !validPAXRecord(k, v) || v == "" {
+-			return formatUnknown, nil // Invalid PAX key
++			return FormatUnknown, nil // Invalid PAX key
+ 		}
+ 	}
+ 	if len(h.SparseHoles) > 0 || h.Typeflag == TypeGNUSparse {
+ 		if isHeaderOnlyType(h.Typeflag) {
+-			return formatUnknown, nil // Cannot have sparse data on header-only file
++			return FormatUnknown, nil // Cannot have sparse data on header-only file
+ 		}
+ 		if !validateSparseEntries(h.SparseHoles, h.Size) {
+-			return formatUnknown, nil
++			return FormatUnknown, nil
+ 		}
+ 		if h.Typeflag == TypeGNUSparse {
+-			format &= formatGNU // GNU only
++			format.mayOnlyBe(FormatGNU)
+ 		} else {
+-			format &^= formatGNU // No GNU
++			format.mustNotBe(FormatGNU)
++		}
++		format.mustNotBe(FormatUSTAR)
++	}
++	if wantFormat := h.Format; wantFormat != FormatUnknown {
++		if wantFormat.has(FormatPAX) {
++			wantFormat.mayBe(FormatUSTAR) // PAX implies USTAR allowed too
+ 		}
+-		format &^= formatUSTAR // No USTAR
++		format.mayOnlyBe(wantFormat) // Set union of formats allowed and format wanted
+ 	}
+ 	return format, paxHdrs
+ }
+diff --git a/src/archive/tar/format.go b/src/archive/tar/format.go
+index 72ff9c59a0..b07d706e59 100644
+--- a/src/archive/tar/format.go
++++ b/src/archive/tar/format.go
+@@ -4,38 +4,95 @@
+ 
+ package tar
+ 
++import "strings"
++
++type Format int
++
+ // Constants to identify various tar formats.
+ const (
+-	// The format is unknown.
+-	formatUnknown = (1 << iota) / 2 // Sequence of 0, 1, 2, 4, 8, etc...
++	// Deliberately hide the meaning of constants from public API.
++	_ Format = (1 << iota) / 4 // Sequence of 0, 0, 1, 2, 4, 8, etc...
++
++	// FormatUnknown indicates that the format is unknown.
++	FormatUnknown
+ 
+ 	// The format of the original Unix V7 tar tool prior to standardization.
+ 	formatV7
+ 
+-	// The old and new GNU formats, which are incompatible with USTAR.
+-	// This does cover the old GNU sparse extension.
+-	// This does not cover the GNU sparse extensions using PAX headers,
+-	// versions 0.0, 0.1, and 1.0; these fall under the PAX format.
+-	formatGNU
++	// FormatUSTAR represents the USTAR header format defined in POSIX.1-1988.
++	//
++	// While this format is compatible with most tar readers,
++	// the format has several limitations making it unsuitable for some usages.
++	// Most notably, it cannot support sparse files, files larger than 8GiB,
++	// filenames larger than 256 characters, and non-ASCII filenames.
++	//
++	// Reference:
++	//	http://pubs.opengroup.org/onlinepubs/9699919799/utilities/pax.html#tag_20_92_13_06
++	FormatUSTAR
++
++	// FormatPAX represents the PAX header format defined in POSIX.1-2001.
++	//
++	// PAX extends USTAR by writing a special file with Typeflag TypeXHeader
++	// preceding the original header. This file contains a set of key-value
++	// records, which are used to overcome USTAR's shortcomings.
++	//
++	// Some newer formats add their own extensions to PAX by defining their
++	// own keys and assigning certain semantic meaning to the associated values.
++	// For example, sparse file support in PAX is implemented using keys
++	// defined by the GNU manual (e.g., "GNU.sparse.map").
++	//
++	// Reference:
++	//	http://pubs.opengroup.org/onlinepubs/009695399/utilities/pax.html
++	FormatPAX
++
++	// FormatGNU represents the GNU header format.
++	//
++	// The GNU header format is older than the USTAR and PAX standards and
++	// is not compatible with them. The GNU format supports
++	// arbitrary file sizes, filenames of arbitrary encoding and length,
++	// sparse files, and other features.
++	//
++	// It is recommended that PAX be chosen over GNU unless the target
++	// application can only parse GNU formatted archives.
++	//
++	// Reference:
++	//	http://www.gnu.org/software/tar/manual/html_node/Standard.html
++	FormatGNU
+ 
+ 	// Schily's tar format, which is incompatible with USTAR.
+ 	// This does not cover STAR extensions to the PAX format; these fall under
+ 	// the PAX format.
+ 	formatSTAR
+ 
+-	// USTAR is the former standardization of tar defined in POSIX.1-1988.
+-	// This is incompatible with the GNU and STAR formats.
+-	formatUSTAR
+-
+-	// PAX is the latest standardization of tar defined in POSIX.1-2001.
+-	// This is an extension of USTAR and is "backwards compatible" with it.
+-	//
+-	// Some newer formats add their own extensions to PAX, such as GNU sparse
+-	// files and SCHILY extended attributes. Since they are backwards compatible
+-	// with PAX, they will be labelled as "PAX".
+-	formatPAX
++	formatMax
+ )
+ 
++func (f Format) has(f2 Format) bool   { return f&f2 != 0 }
++func (f *Format) mayBe(f2 Format)     { *f |= f2 }
++func (f *Format) mayOnlyBe(f2 Format) { *f &= f2 }
++func (f *Format) mustNotBe(f2 Format) { *f &^= f2 }
++
++var formatNames = map[Format]string{
++	formatV7: "V7", FormatUSTAR: "USTAR", FormatPAX: "PAX", FormatGNU: "GNU", formatSTAR: "STAR",
++}
++
++func (f Format) String() string {
++	var ss []string
++	for f2 := Format(1); f2 < formatMax; f2 <<= 1 {
++		if f.has(f2) {
++			ss = append(ss, formatNames[f2])
++		}
++	}
++	switch len(ss) {
++	case 0:
++		return "<unknown>"
++	case 1:
++		return ss[0]
++	default:
++		return "(" + strings.Join(ss, " | ") + ")"
++	}
++}
++
+ // Magics used to identify various formats.
+ const (
+ 	magicGNU, versionGNU     = "ustar ", " \x00"
+@@ -69,14 +126,14 @@ func (b *block) Sparse() sparseArray { return (sparseArray)(b[:]) }
+ 
+ // GetFormat checks that the block is a valid tar header based on the checksum.
+ // It then attempts to guess the specific format based on magic values.
+-// If the checksum fails, then formatUnknown is returned.
+-func (b *block) GetFormat() (format int) {
++// If the checksum fails, then FormatUnknown is returned.
++func (b *block) GetFormat() Format {
+ 	// Verify checksum.
+ 	var p parser
+ 	value := p.parseOctal(b.V7().Chksum())
+ 	chksum1, chksum2 := b.ComputeChecksum()
+ 	if p.err != nil || (value != chksum1 && value != chksum2) {
+-		return formatUnknown
++		return FormatUnknown
+ 	}
+ 
+ 	// Guess the magic values.
+@@ -87,9 +144,9 @@ func (b *block) GetFormat() (format int) {
+ 	case magic == magicUSTAR && trailer == trailerSTAR:
+ 		return formatSTAR
+ 	case magic == magicUSTAR:
+-		return formatUSTAR
++		return FormatUSTAR | FormatPAX
+ 	case magic == magicGNU && version == versionGNU:
+-		return formatGNU
++		return FormatGNU
+ 	default:
+ 		return formatV7
+ 	}
+@@ -97,19 +154,19 @@ func (b *block) GetFormat() (format int) {
+ 
+ // SetFormat writes the magic values necessary for specified format
+ // and then updates the checksum accordingly.
+-func (b *block) SetFormat(format int) {
++func (b *block) SetFormat(format Format) {
+ 	// Set the magic values.
+-	switch format {
+-	case formatV7:
++	switch {
++	case format.has(formatV7):
+ 		// Do nothing.
+-	case formatGNU:
++	case format.has(FormatGNU):
+ 		copy(b.GNU().Magic(), magicGNU)
+ 		copy(b.GNU().Version(), versionGNU)
+-	case formatSTAR:
++	case format.has(formatSTAR):
+ 		copy(b.STAR().Magic(), magicUSTAR)
+ 		copy(b.STAR().Version(), versionUSTAR)
+ 		copy(b.STAR().Trailer(), trailerSTAR)
+-	case formatUSTAR, formatPAX:
++	case format.has(FormatUSTAR | FormatPAX):
+ 		copy(b.USTAR().Magic(), magicUSTAR)
+ 		copy(b.USTAR().Version(), versionUSTAR)
+ 	default:
+diff --git a/src/archive/tar/reader.go b/src/archive/tar/reader.go
+index f33e2f526c..87732eca6d 100644
+--- a/src/archive/tar/reader.go
++++ b/src/archive/tar/reader.go
+@@ -64,6 +64,7 @@ func (tr *Reader) next() (*Header, error) {
+ 	// data that describes the next file. These meta data "files" should not
+ 	// normally be visible to the outside. As such, this loop iterates through
+ 	// one or more "header files" until it finds a "normal file".
++	format := FormatUSTAR | FormatPAX | FormatGNU
+ loop:
+ 	for {
+ 		// Discard the remainder of the file and any padding.
+@@ -82,16 +83,19 @@ loop:
+ 		if err := tr.handleRegularFile(hdr); err != nil {
+ 			return nil, err
+ 		}
++		format.mayOnlyBe(hdr.Format)
+ 
+ 		// Check for PAX/GNU special headers and files.
+ 		switch hdr.Typeflag {
+ 		case TypeXHeader:
++			format.mayOnlyBe(FormatPAX)
+ 			extHdrs, err = parsePAX(tr)
+ 			if err != nil {
+ 				return nil, err
+ 			}
+ 			continue loop // This is a meta header affecting the next header
+ 		case TypeGNULongName, TypeGNULongLink:
++			format.mayOnlyBe(FormatGNU)
+ 			realname, err := ioutil.ReadAll(tr)
+ 			if err != nil {
+ 				return nil, err
+@@ -131,6 +135,12 @@ loop:
+ 			if err := tr.handleSparseFile(hdr, rawHdr, extHdrs); err != nil {
+ 				return nil, err
+ 			}
++
++			// Set the final guess at the format.
++			if format.has(FormatUSTAR) && format.has(FormatPAX) {
++				format.mayOnlyBe(FormatUSTAR)
++			}
++			hdr.Format = format
+ 			return hdr, nil // This is a file, so stop
+ 		}
+ 	}
+@@ -197,6 +207,7 @@ func (tr *Reader) readGNUSparsePAXHeaders(hdr *Header, extHdrs map[string]string
+ 	default:
+ 		return nil, nil // Not a PAX format GNU sparse file.
+ 	}
++	hdr.Format.mayOnlyBe(FormatPAX)
+ 
+ 	// Update hdr from GNU sparse PAX headers.
+ 	if name := extHdrs[paxGNUSparseName]; name != "" {
+@@ -340,7 +351,7 @@ func (tr *Reader) readHeader() (*Header, *block, error) {
+ 
+ 	// Verify the header matches a known format.
+ 	format := tr.blk.GetFormat()
+-	if format == formatUnknown {
++	if format == FormatUnknown {
+ 		return nil, nil, ErrHeader
+ 	}
+ 
+@@ -349,14 +360,14 @@ func (tr *Reader) readHeader() (*Header, *block, error) {
+ 
+ 	// Unpack the V7 header.
+ 	v7 := tr.blk.V7()
++	hdr.Typeflag = v7.TypeFlag()[0]
+ 	hdr.Name = p.parseString(v7.Name())
++	hdr.Linkname = p.parseString(v7.LinkName())
++	hdr.Size = p.parseNumeric(v7.Size())
+ 	hdr.Mode = p.parseNumeric(v7.Mode())
+ 	hdr.Uid = int(p.parseNumeric(v7.UID()))
+ 	hdr.Gid = int(p.parseNumeric(v7.GID()))
+-	hdr.Size = p.parseNumeric(v7.Size())
+ 	hdr.ModTime = time.Unix(p.parseNumeric(v7.ModTime()), 0)
+-	hdr.Typeflag = v7.TypeFlag()[0]
+-	hdr.Linkname = p.parseString(v7.LinkName())
+ 
+ 	// Unpack format specific fields.
+ 	if format > formatV7 {
+@@ -367,16 +378,30 @@ func (tr *Reader) readHeader() (*Header, *block, error) {
+ 		hdr.Devminor = p.parseNumeric(ustar.DevMinor())
+ 
+ 		var prefix string
+-		switch format {
+-		case formatUSTAR:
++		switch {
++		case format.has(FormatUSTAR | FormatPAX):
++			hdr.Format = format
+ 			ustar := tr.blk.USTAR()
+ 			prefix = p.parseString(ustar.Prefix())
+-		case formatSTAR:
++
++			// For Format detection, check if block is properly formatted since
++			// the parser is more liberal than what USTAR actually permits.
++			notASCII := func(r rune) bool { return r >= 0x80 }
++			if bytes.IndexFunc(tr.blk[:], notASCII) >= 0 {
++				hdr.Format = FormatUnknown // Non-ASCII characters in block.
++			}
++			nul := func(b []byte) bool { return int(b[len(b)-1]) == 0 }
++			if !(nul(v7.Size()) && nul(v7.Mode()) && nul(v7.UID()) && nul(v7.GID()) &&
++				nul(v7.ModTime()) && nul(ustar.DevMajor()) && nul(ustar.DevMinor())) {
++				hdr.Format = FormatUnknown // Numeric fields must end in NUL
++			}
++		case format.has(formatSTAR):
+ 			star := tr.blk.STAR()
+ 			prefix = p.parseString(star.Prefix())
+ 			hdr.AccessTime = time.Unix(p.parseNumeric(star.AccessTime()), 0)
+ 			hdr.ChangeTime = time.Unix(p.parseNumeric(star.ChangeTime()), 0)
+-		case formatGNU:
++		case format.has(FormatGNU):
++			hdr.Format = format
+ 			var p2 parser
+ 			gnu := tr.blk.GNU()
+ 			if b := gnu.AccessTime(); b[0] != 0 {
+@@ -413,6 +438,7 @@ func (tr *Reader) readHeader() (*Header, *block, error) {
+ 				if s := p.parseString(ustar.Prefix()); isASCII(s) {
+ 					prefix = s
+ 				}
++				hdr.Format = FormatUnknown // Buggy file is not GNU
+ 			}
+ 		}
+ 		if len(prefix) > 0 {
+@@ -434,9 +460,10 @@ func (tr *Reader) readOldGNUSparseMap(hdr *Header, blk *block) (sparseDatas, err
+ 	// Make sure that the input format is GNU.
+ 	// Unfortunately, the STAR format also has a sparse header format that uses
+ 	// the same type flag but has a completely different layout.
+-	if blk.GetFormat() != formatGNU {
++	if blk.GetFormat() != FormatGNU {
+ 		return nil, ErrHeader
+ 	}
++	hdr.Format.mayOnlyBe(FormatGNU)
+ 
+ 	var p parser
+ 	hdr.Size = p.parseNumeric(blk.GNU().RealSize())
+diff --git a/src/archive/tar/reader_test.go b/src/archive/tar/reader_test.go
+index fb7dcfeece..c764baf39e 100644
+--- a/src/archive/tar/reader_test.go
++++ b/src/archive/tar/reader_test.go
+@@ -38,6 +38,7 @@ func TestReader(t *testing.T) {
+ 			Typeflag: '0',
+ 			Uname:    "dsymonds",
+ 			Gname:    "eng",
++			Format:   FormatGNU,
+ 		}, {
+ 			Name:     "small2.txt",
+ 			Mode:     0640,
+@@ -48,6 +49,7 @@ func TestReader(t *testing.T) {
+ 			Typeflag: '0',
+ 			Uname:    "dsymonds",
+ 			Gname:    "eng",
++			Format:   FormatGNU,
+ 		}},
+ 		chksums: []string{
+ 			"e38b27eaccb4391bdec553a7f3ae6b2f",
+@@ -85,6 +87,7 @@ func TestReader(t *testing.T) {
+ 				{172, 1}, {174, 1}, {176, 1}, {178, 1}, {180, 1}, {182, 1},
+ 				{184, 1}, {186, 1}, {188, 1}, {190, 10},
+ 			},
++			Format: FormatGNU,
+ 		}, {
+ 			Name:     "sparse-posix-0.0",
+ 			Mode:     420,
+@@ -115,6 +118,7 @@ func TestReader(t *testing.T) {
+ 				{172, 1}, {174, 1}, {176, 1}, {178, 1}, {180, 1}, {182, 1},
+ 				{184, 1}, {186, 1}, {188, 1}, {190, 10},
+ 			},
++			Format: FormatPAX,
+ 		}, {
+ 			Name:     "sparse-posix-0.1",
+ 			Mode:     420,
+@@ -145,6 +149,7 @@ func TestReader(t *testing.T) {
+ 				{172, 1}, {174, 1}, {176, 1}, {178, 1}, {180, 1}, {182, 1},
+ 				{184, 1}, {186, 1}, {188, 1}, {190, 10},
+ 			},
++			Format: FormatPAX,
+ 		}, {
+ 			Name:     "sparse-posix-1.0",
+ 			Mode:     420,
+@@ -175,6 +180,7 @@ func TestReader(t *testing.T) {
+ 				{172, 1}, {174, 1}, {176, 1}, {178, 1}, {180, 1}, {182, 1},
+ 				{184, 1}, {186, 1}, {188, 1}, {190, 10},
+ 			},
++			Format: FormatPAX,
+ 		}, {
+ 			Name:     "end",
+ 			Mode:     420,
+@@ -188,6 +194,7 @@ func TestReader(t *testing.T) {
+ 			Gname:    "david",
+ 			Devmajor: 0,
+ 			Devminor: 0,
++			Format:   FormatGNU,
+ 		}},
+ 		chksums: []string{
+ 			"6f53234398c2449fe67c1812d993012f",
+@@ -256,6 +263,7 @@ func TestReader(t *testing.T) {
+ 			ChangeTime: time.Unix(1350244992, 23960108),
+ 			AccessTime: time.Unix(1350244992, 23960108),
+ 			Typeflag:   TypeReg,
++			Format:     FormatPAX,
+ 		}, {
+ 			Name:       "a/b",
+ 			Mode:       0777,
+@@ -269,6 +277,7 @@ func TestReader(t *testing.T) {
+ 			AccessTime: time.Unix(1350266320, 910238425),
+ 			Typeflag:   TypeSymlink,
+ 			Linkname:   "123456789101112131415161718192021222324252627282930313233343536373839404142434445464748495051525354555657585960616263646566676869707172737475767778798081828384858687888990919293949596979899100",
++			Format:     FormatPAX,
+ 		}},
+ 	}, {
+ 		file: "testdata/pax-bad-hdr-file.tar",
+@@ -288,6 +297,7 @@ func TestReader(t *testing.T) {
+ 			Typeflag: '0',
+ 			Uname:    "joetsai",
+ 			Gname:    "eng",
++			Format:   FormatPAX,
+ 		}},
+ 		chksums: []string{
+ 			"0afb597b283fe61b5d4879669a350556",
+@@ -307,6 +317,7 @@ func TestReader(t *testing.T) {
+ 			Gname:    "eyefi",
+ 			Devmajor: 0,
+ 			Devminor: 0,
++			Format:   FormatGNU,
+ 		}},
+ 	}, {
+ 		file: "testdata/xattrs.tar",
+@@ -328,6 +339,7 @@ func TestReader(t *testing.T) {
+ 				// Interestingly, selinux encodes the terminating null inside the xattr
+ 				"security.selinux": "unconfined_u:object_r:default_t:s0\x00",
+ 			},
++			Format: FormatPAX,
+ 		}, {
+ 			Name:       "small2.txt",
+ 			Mode:       0644,
+@@ -343,6 +355,7 @@ func TestReader(t *testing.T) {
+ 			Xattrs: map[string]string{
+ 				"security.selinux": "unconfined_u:object_r:default_t:s0\x00",
+ 			},
++			Format: FormatPAX,
+ 		}},
+ 	}, {
+ 		// Matches the behavior of GNU, BSD, and STAR tar utilities.
+@@ -352,6 +365,7 @@ func TestReader(t *testing.T) {
+ 			Linkname: "GNU4/GNU4/long-linkpath-name",
+ 			ModTime:  time.Unix(0, 0),
+ 			Typeflag: '2',
++			Format:   FormatGNU,
+ 		}},
+ 	}, {
+ 		// GNU tar file with atime and ctime fields set.
+@@ -370,6 +384,7 @@ func TestReader(t *testing.T) {
+ 			Gname:      "dsnet",
+ 			AccessTime: time.Unix(1441974501, 0),
+ 			ChangeTime: time.Unix(1441973436, 0),
++			Format:     FormatGNU,
+ 		}, {
+ 			Name:       "test2/foo",
+ 			Mode:       33188,
+@@ -382,6 +397,7 @@ func TestReader(t *testing.T) {
+ 			Gname:      "dsnet",
+ 			AccessTime: time.Unix(1441974501, 0),
+ 			ChangeTime: time.Unix(1441973436, 0),
++			Format:     FormatGNU,
+ 		}, {
+ 			Name:        "test2/sparse",
+ 			Mode:        33188,
+@@ -395,6 +411,7 @@ func TestReader(t *testing.T) {
+ 			AccessTime:  time.Unix(1441991948, 0),
+ 			ChangeTime:  time.Unix(1441973436, 0),
+ 			SparseHoles: []SparseEntry{{0, 536870912}},
++			Format:      FormatGNU,
+ 		}},
+ 	}, {
+ 		// Matches the behavior of GNU and BSD tar utilities.
+@@ -404,6 +421,7 @@ func TestReader(t *testing.T) {
+ 			Linkname: "PAX4/PAX4/long-linkpath-name",
+ 			ModTime:  time.Unix(0, 0),
+ 			Typeflag: '2',
++			Format:   FormatPAX,
+ 		}},
+ 	}, {
+ 		// Both BSD and GNU tar truncate long names at first NUL even
+@@ -419,6 +437,7 @@ func TestReader(t *testing.T) {
+ 			Typeflag: '0',
+ 			Uname:    "rawr",
+ 			Gname:    "dsnet",
++			Format:   FormatGNU,
+ 		}},
+ 	}, {
+ 		// This archive was generated by Writer but is readable by both
+@@ -435,7 +454,7 @@ func TestReader(t *testing.T) {
+ 			Typeflag: '0',
+ 			Uname:    "☺",
+ 			Gname:    "⚹",
+-			Devminor: -1,
++			Format:   FormatGNU,
+ 		}},
+ 	}, {
+ 		// This archive was generated by Writer but is readable by both
+@@ -453,7 +472,7 @@ func TestReader(t *testing.T) {
+ 			Typeflag: '0',
+ 			Uname:    "rawr",
+ 			Gname:    "dsnet",
+-			Devminor: -1,
++			Format:   FormatGNU,
+ 		}},
+ 	}, {
+ 		// BSD tar v3.1.2 and GNU tar v1.27.1 both rejects PAX records
+@@ -499,6 +518,7 @@ func TestReader(t *testing.T) {
+ 			ModTime:  time.Unix(0, 0),
+ 			Devmajor: 1,
+ 			Devminor: 1,
++			Format:   FormatUSTAR,
+ 		}},
+ 	}, {
+ 		// Generated by Go, works on BSD tar v3.1.2 and GNU tar v.1.27.1.
+@@ -509,6 +529,7 @@ func TestReader(t *testing.T) {
+ 			Size:        1000,
+ 			ModTime:     time.Unix(0, 0),
+ 			SparseHoles: []SparseEntry{{Offset: 1000, Length: 0}},
++			Format:      FormatGNU,
+ 		}},
+ 	}, {
+ 		// Generated by Go, works on BSD tar v3.1.2 and GNU tar v.1.27.1.
+@@ -519,6 +540,7 @@ func TestReader(t *testing.T) {
+ 			Size:        1000,
+ 			ModTime:     time.Unix(0, 0),
+ 			SparseHoles: []SparseEntry{{Offset: 0, Length: 1000}},
++			Format:      FormatGNU,
+ 		}},
+ 	}, {
+ 		// Generated by Go, works on BSD tar v3.1.2 and GNU tar v.1.27.1.
+@@ -529,6 +551,7 @@ func TestReader(t *testing.T) {
+ 			Size:        1000,
+ 			ModTime:     time.Unix(0, 0),
+ 			SparseHoles: []SparseEntry{{Offset: 1000, Length: 0}},
++			Format:      FormatPAX,
+ 		}},
+ 	}, {
+ 		// Generated by Go, works on BSD tar v3.1.2 and GNU tar v.1.27.1.
+@@ -539,6 +562,7 @@ func TestReader(t *testing.T) {
+ 			Size:        1000,
+ 			ModTime:     time.Unix(0, 0),
+ 			SparseHoles: []SparseEntry{{Offset: 0, Length: 1000}},
++			Format:      FormatPAX,
+ 		}},
+ 	}}
+ 
+@@ -946,14 +970,14 @@ func TestReadOldGNUSparseMap(t *testing.T) {
+ 		return sps
+ 	}
+ 
+-	makeInput := func(format int, size string, sps ...string) (out []byte) {
++	makeInput := func(format Format, size string, sps ...string) (out []byte) {
+ 		// Write the initial GNU header.
+ 		var blk block
+ 		gnu := blk.GNU()
+ 		sparse := gnu.Sparse()
+ 		copy(gnu.RealSize(), size)
+ 		sps = populateSparseMap(sparse, sps)
+-		if format != formatUnknown {
++		if format != FormatUnknown {
+ 			blk.SetFormat(format)
+ 		}
+ 		out = append(out, blk[:]...)
+@@ -984,54 +1008,54 @@ func TestReadOldGNUSparseMap(t *testing.T) {
+ 		wantSize int64
+ 		wantErr  error
+ 	}{{
+-		input:   makeInput(formatUnknown, ""),
++		input:   makeInput(FormatUnknown, ""),
+ 		wantErr: ErrHeader,
+ 	}, {
+-		input:    makeInput(formatGNU, "1234", "fewa"),
++		input:    makeInput(FormatGNU, "1234", "fewa"),
+ 		wantSize: 01234,
+ 		wantErr:  ErrHeader,
+ 	}, {
+-		input:    makeInput(formatGNU, "0031"),
++		input:    makeInput(FormatGNU, "0031"),
+ 		wantSize: 031,
+ 	}, {
+-		input:   makeInput(formatGNU, "80"),
++		input:   makeInput(FormatGNU, "80"),
+ 		wantErr: ErrHeader,
+ 	}, {
+-		input: makeInput(formatGNU, "1234",
++		input: makeInput(FormatGNU, "1234",
+ 			makeSparseStrings(sparseDatas{{0, 0}, {1, 1}})...),
+ 		wantMap:  sparseDatas{{0, 0}, {1, 1}},
+ 		wantSize: 01234,
+ 	}, {
+-		input: makeInput(formatGNU, "1234",
++		input: makeInput(FormatGNU, "1234",
+ 			append(makeSparseStrings(sparseDatas{{0, 0}, {1, 1}}), []string{"", "blah"}...)...),
+ 		wantMap:  sparseDatas{{0, 0}, {1, 1}},
+ 		wantSize: 01234,
+ 	}, {
+-		input: makeInput(formatGNU, "3333",
++		input: makeInput(FormatGNU, "3333",
+ 			makeSparseStrings(sparseDatas{{0, 1}, {2, 1}, {4, 1}, {6, 1}})...),
+ 		wantMap:  sparseDatas{{0, 1}, {2, 1}, {4, 1}, {6, 1}},
+ 		wantSize: 03333,
+ 	}, {
+-		input: makeInput(formatGNU, "",
++		input: makeInput(FormatGNU, "",
+ 			append(append(
+ 				makeSparseStrings(sparseDatas{{0, 1}, {2, 1}}),
+ 				[]string{"", ""}...),
+ 				makeSparseStrings(sparseDatas{{4, 1}, {6, 1}})...)...),
+ 		wantMap: sparseDatas{{0, 1}, {2, 1}, {4, 1}, {6, 1}},
+ 	}, {
+-		input: makeInput(formatGNU, "",
++		input: makeInput(FormatGNU, "",
+ 			makeSparseStrings(sparseDatas{{0, 1}, {2, 1}, {4, 1}, {6, 1}, {8, 1}, {10, 1}})...)[:blockSize],
+ 		wantErr: io.ErrUnexpectedEOF,
+ 	}, {
+-		input: makeInput(formatGNU, "",
++		input: makeInput(FormatGNU, "",
+ 			makeSparseStrings(sparseDatas{{0, 1}, {2, 1}, {4, 1}, {6, 1}, {8, 1}, {10, 1}})...)[:3*blockSize/2],
+ 		wantErr: io.ErrUnexpectedEOF,
+ 	}, {
+-		input: makeInput(formatGNU, "",
++		input: makeInput(FormatGNU, "",
+ 			makeSparseStrings(sparseDatas{{0, 1}, {2, 1}, {4, 1}, {6, 1}, {8, 1}, {10, 1}})...),
+ 		wantMap: sparseDatas{{0, 1}, {2, 1}, {4, 1}, {6, 1}, {8, 1}, {10, 1}},
+ 	}, {
+-		input: makeInput(formatGNU, "",
++		input: makeInput(FormatGNU, "",
+ 			makeSparseStrings(sparseDatas{{10 << 30, 512}, {20 << 30, 512}})...),
+ 		wantMap: sparseDatas{{10 << 30, 512}, {20 << 30, 512}},
+ 	}}
+diff --git a/src/archive/tar/tar_test.go b/src/archive/tar/tar_test.go
+index 736f523b00..db83690976 100644
+--- a/src/archive/tar/tar_test.go
++++ b/src/archive/tar/tar_test.go
+@@ -230,6 +230,7 @@ func TestRoundTrip(t *testing.T) {
+ 		// and would otherwise break the round-trip check
+ 		// below.
+ 		ModTime: time.Now().AddDate(0, 0, 0).Round(1 * time.Second),
++		Format:  FormatPAX,
+ 	}
+ 	if err := tw.WriteHeader(hdr); err != nil {
+ 		t.Fatalf("tw.WriteHeader: %v", err)
+@@ -443,164 +444,164 @@ func TestHeaderRoundTrip(t *testing.T) {
+ }
+ 
+ func TestHeaderAllowedFormats(t *testing.T) {
+-	prettyFormat := func(f int) string {
+-		if f == formatUnknown {
+-			return "(formatUnknown)"
+-		}
+-		var fs []string
+-		if f&formatUSTAR > 0 {
+-			fs = append(fs, "formatUSTAR")
+-		}
+-		if f&formatPAX > 0 {
+-			fs = append(fs, "formatPAX")
+-		}
+-		if f&formatGNU > 0 {
+-			fs = append(fs, "formatGNU")
+-		}
+-		return "(" + strings.Join(fs, " | ") + ")"
+-	}
+-
+ 	vectors := []struct {
+ 		header  *Header           // Input header
+ 		paxHdrs map[string]string // Expected PAX headers that may be needed
+-		formats int               // Expected formats that can encode the header
++		formats Format            // Expected formats that can encode the header
+ 	}{{
+ 		header:  &Header{},
+-		formats: formatUSTAR | formatPAX | formatGNU,
++		formats: FormatUSTAR | FormatPAX | FormatGNU,
+ 	}, {
+ 		header:  &Header{Size: 077777777777},
+-		formats: formatUSTAR | formatPAX | formatGNU,
++		formats: FormatUSTAR | FormatPAX | FormatGNU,
++	}, {
++		header:  &Header{Size: 077777777777, Format: FormatUSTAR},
++		formats: FormatUSTAR,
++	}, {
++		header:  &Header{Size: 077777777777, Format: FormatPAX},
++		formats: FormatUSTAR | FormatPAX,
++	}, {
++		header:  &Header{Size: 077777777777, Format: FormatGNU},
++		formats: FormatGNU,
+ 	}, {
+ 		header:  &Header{Size: 077777777777 + 1},
+ 		paxHdrs: map[string]string{paxSize: "8589934592"},
+-		formats: formatPAX | formatGNU,
++		formats: FormatPAX | FormatGNU,
++	}, {
++		header:  &Header{Size: 077777777777 + 1, Format: FormatPAX},
++		paxHdrs: map[string]string{paxSize: "8589934592"},
++		formats: FormatPAX,
++	}, {
++		header:  &Header{Size: 077777777777 + 1, Format: FormatGNU},
++		paxHdrs: map[string]string{paxSize: "8589934592"},
++		formats: FormatGNU,
+ 	}, {
+ 		header:  &Header{Mode: 07777777},
+-		formats: formatUSTAR | formatPAX | formatGNU,
++		formats: FormatUSTAR | FormatPAX | FormatGNU,
+ 	}, {
+ 		header:  &Header{Mode: 07777777 + 1},
+-		formats: formatGNU,
++		formats: FormatGNU,
+ 	}, {
+ 		header:  &Header{Devmajor: -123},
+-		formats: formatGNU,
++		formats: FormatGNU,
+ 	}, {
+ 		header:  &Header{Devmajor: 1<<56 - 1},
+-		formats: formatGNU,
++		formats: FormatGNU,
+ 	}, {
+ 		header:  &Header{Devmajor: 1 << 56},
+-		formats: formatUnknown,
++		formats: FormatUnknown,
+ 	}, {
+ 		header:  &Header{Devmajor: -1 << 56},
+-		formats: formatGNU,
++		formats: FormatGNU,
+ 	}, {
+ 		header:  &Header{Devmajor: -1<<56 - 1},
+-		formats: formatUnknown,
++		formats: FormatUnknown,
+ 	}, {
+ 		header:  &Header{Name: "用戶名", Devmajor: -1 << 56},
+-		formats: formatGNU,
++		formats: FormatGNU,
+ 	}, {
+ 		header:  &Header{Size: math.MaxInt64},
+ 		paxHdrs: map[string]string{paxSize: "9223372036854775807"},
+-		formats: formatPAX | formatGNU,
++		formats: FormatPAX | FormatGNU,
+ 	}, {
+ 		header:  &Header{Size: math.MinInt64},
+ 		paxHdrs: map[string]string{paxSize: "-9223372036854775808"},
+-		formats: formatUnknown,
++		formats: FormatUnknown,
+ 	}, {
+ 		header:  &Header{Uname: "0123456789abcdef0123456789abcdef"},
+-		formats: formatUSTAR | formatPAX | formatGNU,
++		formats: FormatUSTAR | FormatPAX | FormatGNU,
+ 	}, {
+ 		header:  &Header{Uname: "0123456789abcdef0123456789abcdefx"},
+ 		paxHdrs: map[string]string{paxUname: "0123456789abcdef0123456789abcdefx"},
+-		formats: formatPAX,
++		formats: FormatPAX,
+ 	}, {
+ 		header:  &Header{Name: "foobar"},
+-		formats: formatUSTAR | formatPAX | formatGNU,
++		formats: FormatUSTAR | FormatPAX | FormatGNU,
+ 	}, {
+ 		header:  &Header{Name: strings.Repeat("a", nameSize)},
+-		formats: formatUSTAR | formatPAX | formatGNU,
++		formats: FormatUSTAR | FormatPAX | FormatGNU,
+ 	}, {
+ 		header:  &Header{Name: strings.Repeat("a", nameSize+1)},
+ 		paxHdrs: map[string]string{paxPath: strings.Repeat("a", nameSize+1)},
+-		formats: formatPAX | formatGNU,
++		formats: FormatPAX | FormatGNU,
+ 	}, {
+ 		header:  &Header{Linkname: "用戶名"},
+ 		paxHdrs: map[string]string{paxLinkpath: "用戶名"},
+-		formats: formatPAX | formatGNU,
++		formats: FormatPAX | FormatGNU,
+ 	}, {
+ 		header:  &Header{Linkname: strings.Repeat("用戶名\x00", nameSize)},
+ 		paxHdrs: map[string]string{paxLinkpath: strings.Repeat("用戶名\x00", nameSize)},
+-		formats: formatUnknown,
++		formats: FormatUnknown,
+ 	}, {
+ 		header:  &Header{Linkname: "\x00hello"},
+ 		paxHdrs: map[string]string{paxLinkpath: "\x00hello"},
+-		formats: formatUnknown,
++		formats: FormatUnknown,
+ 	}, {
+ 		header:  &Header{Uid: 07777777},
+-		formats: formatUSTAR | formatPAX | formatGNU,
++		formats: FormatUSTAR | FormatPAX | FormatGNU,
+ 	}, {
+ 		header:  &Header{Uid: 07777777 + 1},
+ 		paxHdrs: map[string]string{paxUid: "2097152"},
+-		formats: formatPAX | formatGNU,
++		formats: FormatPAX | FormatGNU,
+ 	}, {
+ 		header:  &Header{Xattrs: nil},
+-		formats: formatUSTAR | formatPAX | formatGNU,
++		formats: FormatUSTAR | FormatPAX | FormatGNU,
+ 	}, {
+ 		header:  &Header{Xattrs: map[string]string{"foo": "bar"}},
+ 		paxHdrs: map[string]string{paxXattr + "foo": "bar"},
+-		formats: formatPAX,
++		formats: FormatPAX,
+ 	}, {
+ 		header:  &Header{Xattrs: map[string]string{"用戶名": "\x00hello"}},
+ 		paxHdrs: map[string]string{paxXattr + "用戶名": "\x00hello"},
+-		formats: formatPAX,
++		formats: FormatPAX,
+ 	}, {
+ 		header:  &Header{Xattrs: map[string]string{"foo=bar": "baz"}},
+-		formats: formatUnknown,
++		formats: FormatUnknown,
+ 	}, {
+ 		header:  &Header{Xattrs: map[string]string{"foo": ""}},
+-		formats: formatUnknown,
++		formats: FormatUnknown,
+ 	}, {
+ 		header:  &Header{ModTime: time.Unix(0, 0)},
+-		formats: formatUSTAR | formatPAX | formatGNU,
++		formats: FormatUSTAR | FormatPAX | FormatGNU,
+ 	}, {
+ 		header:  &Header{ModTime: time.Unix(077777777777, 0)},
+-		formats: formatUSTAR | formatPAX | formatGNU,
++		formats: FormatUSTAR | FormatPAX | FormatGNU,
+ 	}, {
+ 		header:  &Header{ModTime: time.Unix(077777777777+1, 0)},
+ 		paxHdrs: map[string]string{paxMtime: "8589934592"},
+-		formats: formatPAX | formatGNU,
++		formats: FormatPAX | FormatGNU,
+ 	}, {
+ 		header:  &Header{ModTime: time.Unix(math.MaxInt64, 0)},
+ 		paxHdrs: map[string]string{paxMtime: "9223372036854775807"},
+-		formats: formatPAX | formatGNU,
++		formats: FormatPAX | FormatGNU,
+ 	}, {
+ 		header:  &Header{ModTime: time.Unix(-1, 0)},
+ 		paxHdrs: map[string]string{paxMtime: "-1"},
+-		formats: formatPAX | formatGNU,
++		formats: FormatPAX | FormatGNU,
+ 	}, {
+ 		header:  &Header{ModTime: time.Unix(-1, 500)},
+ 		paxHdrs: map[string]string{paxMtime: "-0.9999995"},
+-		formats: formatPAX,
++		formats: FormatPAX,
+ 	}, {
+ 		header:  &Header{AccessTime: time.Unix(0, 0)},
+ 		paxHdrs: map[string]string{paxAtime: "0"},
+-		formats: formatPAX | formatGNU,
++		formats: FormatPAX | FormatGNU,
+ 	}, {
+ 		header:  &Header{AccessTime: time.Unix(-123, 0)},
+ 		paxHdrs: map[string]string{paxAtime: "-123"},
+-		formats: formatPAX | formatGNU,
++		formats: FormatPAX | FormatGNU,
+ 	}, {
+ 		header:  &Header{ChangeTime: time.Unix(123, 456)},
+ 		paxHdrs: map[string]string{paxCtime: "123.000000456"},
+-		formats: formatPAX,
++		formats: FormatPAX,
+ 	}}
+ 
+ 	for i, v := range vectors {
+ 		formats, paxHdrs := v.header.allowedFormats()
+ 		if formats != v.formats {
+-			t.Errorf("test %d, allowedFormats(...): got %v, want %v", i, prettyFormat(formats), prettyFormat(v.formats))
++			t.Errorf("test %d, allowedFormats(...): got %v, want %v", i, formats, v.formats)
+ 		}
+-		if formats&formatPAX > 0 && !reflect.DeepEqual(paxHdrs, v.paxHdrs) && !(len(paxHdrs) == 0 && len(v.paxHdrs) == 0) {
++		if formats&FormatPAX > 0 && !reflect.DeepEqual(paxHdrs, v.paxHdrs) && !(len(paxHdrs) == 0 && len(v.paxHdrs) == 0) {
+ 			t.Errorf("test %d, allowedFormats(...):\ngot  %v\nwant %s", i, paxHdrs, v.paxHdrs)
+ 		}
+ 	}
+diff --git a/src/archive/tar/testdata/gnu-not-utf8.tar b/src/archive/tar/testdata/gnu-not-utf8.tar
+index 34b4c57771..81cec67d33 100644
+Binary files a/src/archive/tar/testdata/gnu-not-utf8.tar and b/src/archive/tar/testdata/gnu-not-utf8.tar differ
+diff --git a/src/archive/tar/testdata/gnu-utf8.tar b/src/archive/tar/testdata/gnu-utf8.tar
+index dde941c3ff..2c9c8079cf 100644
+Binary files a/src/archive/tar/testdata/gnu-utf8.tar and b/src/archive/tar/testdata/gnu-utf8.tar differ
+diff --git a/src/archive/tar/testdata/pax-pos-size-file.tar b/src/archive/tar/testdata/pax-pos-size-file.tar
+index aed9a8aa48..ea5ccf9164 100644
+Binary files a/src/archive/tar/testdata/pax-pos-size-file.tar and b/src/archive/tar/testdata/pax-pos-size-file.tar differ
+diff --git a/src/archive/tar/testdata/writer-big.tar b/src/archive/tar/testdata/writer-big.tar
+index 0dadee70c1..435dcbce6a 100644
+Binary files a/src/archive/tar/testdata/writer-big.tar and b/src/archive/tar/testdata/writer-big.tar differ
+diff --git a/src/archive/tar/writer.go b/src/archive/tar/writer.go
+index cc4701c627..765c85585d 100644
+--- a/src/archive/tar/writer.go
++++ b/src/archive/tar/writer.go
+@@ -73,13 +73,13 @@ func (tw *Writer) WriteHeader(hdr *Header) error {
+ 
+ 	tw.hdr = *hdr // Shallow copy of Header
+ 	switch allowedFormats, paxHdrs := tw.hdr.allowedFormats(); {
+-	case allowedFormats&formatUSTAR != 0:
++	case allowedFormats.has(FormatUSTAR):
+ 		tw.err = tw.writeUSTARHeader(&tw.hdr)
+ 		return tw.err
+-	case allowedFormats&formatPAX != 0:
++	case allowedFormats.has(FormatPAX):
+ 		tw.err = tw.writePAXHeader(&tw.hdr, paxHdrs)
+ 		return tw.err
+-	case allowedFormats&formatGNU != 0:
++	case allowedFormats.has(FormatGNU):
+ 		tw.err = tw.writeGNUHeader(&tw.hdr)
+ 		return tw.err
+ 	default:
+@@ -98,7 +98,7 @@ func (tw *Writer) writeUSTARHeader(hdr *Header) error {
+ 	var f formatter
+ 	blk := tw.templateV7Plus(hdr, f.formatString, f.formatOctal)
+ 	f.formatString(blk.USTAR().Prefix(), namePrefix)
+-	blk.SetFormat(formatUSTAR)
++	blk.SetFormat(FormatUSTAR)
+ 	if f.err != nil {
+ 		return f.err // Should never happen since header is validated
+ 	}
+@@ -162,7 +162,7 @@ func (tw *Writer) writePAXHeader(hdr *Header, paxHdrs map[string]string) error {
+ 		dir, file := path.Split(realName)
+ 		name := path.Join(dir, "PaxHeaders.0", file)
+ 		data := buf.String()
+-		if err := tw.writeRawFile(name, data, TypeXHeader, formatPAX); err != nil {
++		if err := tw.writeRawFile(name, data, TypeXHeader, FormatPAX); err != nil {
+ 			return err
+ 		}
+ 	}
+@@ -171,7 +171,7 @@ func (tw *Writer) writePAXHeader(hdr *Header, paxHdrs map[string]string) error {
+ 	var f formatter // Ignore errors since they are expected
+ 	fmtStr := func(b []byte, s string) { f.formatString(b, toASCII(s)) }
+ 	blk := tw.templateV7Plus(hdr, fmtStr, f.formatOctal)
+-	blk.SetFormat(formatPAX)
++	blk.SetFormat(FormatPAX)
+ 	if err := tw.writeRawHeader(blk, hdr.Size, hdr.Typeflag); err != nil {
+ 		return err
+ 	}
+@@ -192,13 +192,13 @@ func (tw *Writer) writeGNUHeader(hdr *Header) error {
+ 	const longName = "././@LongLink"
+ 	if len(hdr.Name) > nameSize {
+ 		data := hdr.Name + "\x00"
+-		if err := tw.writeRawFile(longName, data, TypeGNULongName, formatGNU); err != nil {
++		if err := tw.writeRawFile(longName, data, TypeGNULongName, FormatGNU); err != nil {
+ 			return err
+ 		}
+ 	}
+ 	if len(hdr.Linkname) > nameSize {
+ 		data := hdr.Linkname + "\x00"
+-		if err := tw.writeRawFile(longName, data, TypeGNULongLink, formatGNU); err != nil {
++		if err := tw.writeRawFile(longName, data, TypeGNULongLink, FormatGNU); err != nil {
+ 			return err
+ 		}
+ 	}
+@@ -248,7 +248,7 @@ func (tw *Writer) writeGNUHeader(hdr *Header) error {
+ 		f.formatNumeric(blk.V7().Size(), hdr.Size)
+ 		f.formatNumeric(blk.GNU().RealSize(), realSize)
+ 	}
+-	blk.SetFormat(formatGNU)
++	blk.SetFormat(FormatGNU)
+ 	if err := tw.writeRawHeader(blk, hdr.Size, hdr.Typeflag); err != nil {
+ 		return err
+ 	}
+@@ -305,7 +305,7 @@ func (tw *Writer) templateV7Plus(hdr *Header, fmtStr stringFormatter, fmtNum num
+ // writeRawFile writes a minimal file with the given name and flag type.
+ // It uses format to encode the header format and will write data as the body.
+ // It uses default values for all of the other fields (as BSD and GNU tar does).
+-func (tw *Writer) writeRawFile(name, data string, flag byte, format int) error {
++func (tw *Writer) writeRawFile(name, data string, flag byte, format Format) error {
+ 	tw.blk.Reset()
+ 
+ 	// Best effort for the filename.
+diff --git a/src/archive/tar/writer_test.go b/src/archive/tar/writer_test.go
+index def9c0110d..e636162b6a 100644
+--- a/src/archive/tar/writer_test.go
++++ b/src/archive/tar/writer_test.go
+@@ -137,7 +137,7 @@ func TestWriter(t *testing.T) {
+ 				Uname:    "dsymonds",
+ 				Gname:    "eng",
+ 				ModTime:  time.Unix(1254699560, 0),
+-				Devminor: -1, // Force use of GNU format
++				Format:   FormatGNU,
+ 			}, nil},
+ 		},
+ 	}, {
+@@ -239,10 +239,10 @@ func TestWriter(t *testing.T) {
+ 				Name:     "☺☻☹☺☻☹☺☻☹☺☻☹☺☻☹☺☻☹☺☻☹☺☻☹☺☻☹☺☻☹☺☻☹☺☻☹☺☻☹☺☻☹☺☻☹☺☻☹☺☻☹☺☻☹",
+ 				Mode:     0644,
+ 				Uid:      1000, Gid: 1000,
+-				Uname:    "☺",
+-				Gname:    "⚹",
+-				ModTime:  time.Unix(0, 0),
+-				Devminor: -1, // Force use of GNU format
++				Uname:   "☺",
++				Gname:   "⚹",
++				ModTime: time.Unix(0, 0),
++				Format:  FormatGNU,
+ 			}, nil},
+ 			testClose{nil},
+ 		},
+@@ -258,7 +258,7 @@ func TestWriter(t *testing.T) {
+ 				Uname:    "rawr",
+ 				Gname:    "dsnet",
+ 				ModTime:  time.Unix(0, 0),
+-				Devminor: -1, // Force use of GNU format
++				Format:   FormatGNU,
+ 			}, nil},
+ 			testClose{nil},
+ 		},
+@@ -882,7 +882,7 @@ func TestIssue12594(t *testing.T) {
+ 		if i := strings.IndexByte(prefix, 0); i >= 0 {
+ 			prefix = prefix[:i] // Truncate at the NUL terminator
+ 		}
+-		if blk.GetFormat() == formatGNU && len(prefix) > 0 && strings.HasPrefix(name, prefix) {
++		if blk.GetFormat() == FormatGNU && len(prefix) > 0 && strings.HasPrefix(name, prefix) {
+ 			t.Errorf("test %d, found prefix in GNU format: %s", i, prefix)
+ 		}
+ 

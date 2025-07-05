@@ -17,6 +17,21 @@ Date:   Wed Dec 1 16:33:33 2021 -0500
     Reviewed-by: Kirill Kolyshkin <kolyshkin@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  doc/go1.18.html | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/doc/go1.18.html b/doc/go1.18.html
+index a142115c22..b02bac13ba 100644
+--- a/doc/go1.18.html
++++ b/doc/go1.18.html
+@@ -402,7 +402,8 @@ proposal</a>.
+ <dl id="os/user"><dt><a href="/pkg/os/user/">os/user</a></dt>
+   <dd>
+     <p><!-- CL 330753 -->
+-      TODO: <a href="https://golang.org/cl/330753">https://golang.org/cl/330753</a>: implement go native GroupIds
++      <a href="/pkg/os/user#User.GroupIds"><code>User.GroupIds</code></a>.
++      now uses a Go native implementation when cgo is not available.
+     </p>
+   </dd>
+ </dl><!-- os/user -->

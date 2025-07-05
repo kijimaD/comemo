@@ -12,7 +12,73 @@ Date:   Fri Sep 2 11:06:58 2022 +0800
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/sync/once.go    | 14 +++++++-------
  test/inline_sync.go |  2 +-
  2 files changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/src/sync/once.go b/src/sync/once.go
+index b6399cfc3d..587eab0af9 100644
+--- a/src/sync/once.go
++++ b/src/sync/once.go
+@@ -16,13 +16,13 @@ import (
+ // the return from f “synchronizes before”
+ // the return from any call of once.Do(f).
+ type Once struct {
++	m Mutex
+ 	// done indicates whether the action has been performed.
+ 	// It is first in the struct because it is used in the hot path.
+ 	// The hot path is inlined at every call site.
+ 	// Placing done first allows more compact instructions on some architectures (amd64/386),
+ 	// and fewer instructions (to calculate offset) on other architectures.
+-	done uint32
+-	m    Mutex
++	done atomic.Bool
+ }
+ 
+ // Do calls the function f if and only if Do is being called for the
+@@ -48,7 +48,7 @@ type Once struct {
+ func (o *Once) Do(f func()) {
+ 	// Note: Here is an incorrect implementation of Do:
+ 	//
+-	//	if atomic.CompareAndSwapUint32(&o.done, 0, 1) {
++	//	if o.done.CompareAndSwap(false, true) {
+ 	//		f()
+ 	//	}
+ 	//
+@@ -58,9 +58,9 @@ func (o *Once) Do(f func()) {
+ 	// call f, and the second would return immediately, without
+ 	// waiting for the first's call to f to complete.
+ 	// This is why the slow path falls back to a mutex, and why
+-	// the atomic.StoreUint32 must be delayed until after f returns.
++	// the o.done.Store must be delayed until after f returns.
+ 
+-	if atomic.LoadUint32(&o.done) == 0 {
++	if !o.done.Load() {
+ 		// Outlined slow-path to allow inlining of the fast-path.
+ 		o.doSlow(f)
+ 	}
+@@ -69,8 +69,8 @@ func (o *Once) Do(f func()) {
+ func (o *Once) doSlow(f func()) {
+ 	o.m.Lock()
+ 	defer o.m.Unlock()
+-	if o.done == 0 {
+-		defer atomic.StoreUint32(&o.done, 1)
++	if !o.done.Load() {
++		defer o.done.Store(true)
+ 		f()
+ 	}
+ }
+diff --git a/test/inline_sync.go b/test/inline_sync.go
+index 30b436af41..d1ce5f521c 100644
+--- a/test/inline_sync.go
++++ b/test/inline_sync.go
+@@ -36,7 +36,7 @@ var once *sync.Once
+ 
+ func small7() { // ERROR "can inline small7"
+         // the Do fast path should be inlined
+-        once.Do(small5) // ERROR "inlining call to sync\.\(\*Once\)\.Do"
++        once.Do(small5) // ERROR "(inlining call to sync\.\(\*Once\)\.Do|inlining call to atomic\.\(\*Bool\)\.Load)"
+ }
+ 
+ var rwmutex *sync.RWMutex

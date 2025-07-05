@@ -12,7 +12,7 @@ Date:   Thu Aug 17 15:51:35 2017 +0100
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/bytes/bytes.go              | 55 +++++++++++++-------------
  src/debug/dwarf/type.go         | 75 ++++++++++++++++++------------------
  src/go/build/build.go           | 35 ++++++++---------
@@ -24,3 +24,739 @@ Date:   Thu Aug 17 15:51:35 2017 +0100
  src/runtime/stack.go            | 43 +++++++++++----------
  src/text/tabwriter/tabwriter.go | 85 +++++++++++++++++++++--------------------
  10 files changed, 298 insertions(+), 291 deletions(-)
+
+diff --git a/src/bytes/bytes.go b/src/bytes/bytes.go
+index 457e149410..446026233e 100644
+--- a/src/bytes/bytes.go
++++ b/src/bytes/bytes.go
+@@ -285,38 +285,39 @@ func Fields(s []byte) [][]byte {
+ 		wasSpace = isSpace
+ 	}
+ 
+-	if setBits < utf8.RuneSelf { // ASCII fast path
+-		a := make([][]byte, n)
+-		na := 0
+-		fieldStart := 0
+-		i := 0
+-		// Skip spaces in the front of the input.
+-		for i < len(s) && asciiSpace[s[i]] != 0 {
++	if setBits >= utf8.RuneSelf {
++		// Some runes in the input slice are not ASCII.
++		return FieldsFunc(s, unicode.IsSpace)
++	}
++
++	// ASCII fast path
++	a := make([][]byte, n)
++	na := 0
++	fieldStart := 0
++	i := 0
++	// Skip spaces in the front of the input.
++	for i < len(s) && asciiSpace[s[i]] != 0 {
++		i++
++	}
++	fieldStart = i
++	for i < len(s) {
++		if asciiSpace[s[i]] == 0 {
+ 			i++
++			continue
+ 		}
+-		fieldStart = i
+-		for i < len(s) {
+-			if asciiSpace[s[i]] == 0 {
+-				i++
+-				continue
+-			}
+-			a[na] = s[fieldStart:i]
+-			na++
++		a[na] = s[fieldStart:i]
++		na++
++		i++
++		// Skip spaces in between fields.
++		for i < len(s) && asciiSpace[s[i]] != 0 {
+ 			i++
+-			// Skip spaces in between fields.
+-			for i < len(s) && asciiSpace[s[i]] != 0 {
+-				i++
+-			}
+-			fieldStart = i
+ 		}
+-		if fieldStart < len(s) { // Last field might end at EOF.
+-			a[na] = s[fieldStart:]
+-		}
+-		return a
++		fieldStart = i
+ 	}
+-
+-	// Some runes in the input slice are not ASCII.
+-	return FieldsFunc(s, unicode.IsSpace)
++	if fieldStart < len(s) { // Last field might end at EOF.
++		a[na] = s[fieldStart:]
++	}
++	return a
+ }
+ 
+ // FieldsFunc interprets s as a sequence of UTF-8-encoded Unicode code points.
+diff --git a/src/debug/dwarf/type.go b/src/debug/dwarf/type.go
+index 9b39078a6f..72ef816cc2 100644
+--- a/src/debug/dwarf/type.go
++++ b/src/debug/dwarf/type.go
+@@ -514,48 +514,49 @@ func (d *Data) readType(name string, r typeReader, off Offset, typeCache map[Off
+ 		var lastFieldType *Type
+ 		var lastFieldBitOffset int64
+ 		for kid := next(); kid != nil; kid = next() {
+-			if kid.Tag == TagMember {
+-				f := new(StructField)
+-				if f.Type = typeOf(kid); err != nil {
++			if kid.Tag != TagMember {
++				continue
++			}
++			f := new(StructField)
++			if f.Type = typeOf(kid); err != nil {
++				goto Error
++			}
++			switch loc := kid.Val(AttrDataMemberLoc).(type) {
++			case []byte:
++				// TODO: Should have original compilation
++				// unit here, not unknownFormat.
++				b := makeBuf(d, unknownFormat{}, "location", 0, loc)
++				if b.uint8() != opPlusUconst {
++					err = DecodeError{name, kid.Offset, "unexpected opcode"}
+ 					goto Error
+ 				}
+-				switch loc := kid.Val(AttrDataMemberLoc).(type) {
+-				case []byte:
+-					// TODO: Should have original compilation
+-					// unit here, not unknownFormat.
+-					b := makeBuf(d, unknownFormat{}, "location", 0, loc)
+-					if b.uint8() != opPlusUconst {
+-						err = DecodeError{name, kid.Offset, "unexpected opcode"}
+-						goto Error
+-					}
+-					f.ByteOffset = int64(b.uint())
+-					if b.err != nil {
+-						err = b.err
+-						goto Error
+-					}
+-				case int64:
+-					f.ByteOffset = loc
++				f.ByteOffset = int64(b.uint())
++				if b.err != nil {
++					err = b.err
++					goto Error
+ 				}
++			case int64:
++				f.ByteOffset = loc
++			}
+ 
+-				haveBitOffset := false
+-				f.Name, _ = kid.Val(AttrName).(string)
+-				f.ByteSize, _ = kid.Val(AttrByteSize).(int64)
+-				f.BitOffset, haveBitOffset = kid.Val(AttrBitOffset).(int64)
+-				f.BitSize, _ = kid.Val(AttrBitSize).(int64)
+-				t.Field = append(t.Field, f)
+-
+-				bito := f.BitOffset
+-				if !haveBitOffset {
+-					bito = f.ByteOffset * 8
+-				}
+-				if bito == lastFieldBitOffset && t.Kind != "union" {
+-					// Last field was zero width. Fix array length.
+-					// (DWARF writes out 0-length arrays as if they were 1-length arrays.)
+-					zeroArray(lastFieldType)
+-				}
+-				lastFieldType = &f.Type
+-				lastFieldBitOffset = bito
++			haveBitOffset := false
++			f.Name, _ = kid.Val(AttrName).(string)
++			f.ByteSize, _ = kid.Val(AttrByteSize).(int64)
++			f.BitOffset, haveBitOffset = kid.Val(AttrBitOffset).(int64)
++			f.BitSize, _ = kid.Val(AttrBitSize).(int64)
++			t.Field = append(t.Field, f)
++
++			bito := f.BitOffset
++			if !haveBitOffset {
++				bito = f.ByteOffset * 8
++			}
++			if bito == lastFieldBitOffset && t.Kind != "union" {
++				// Last field was zero width. Fix array length.
++				// (DWARF writes out 0-length arrays as if they were 1-length arrays.)
++				zeroArray(lastFieldType)
+ 			}
++			lastFieldType = &f.Type
++			lastFieldBitOffset = bito
+ 		}
+ 		if t.Kind != "union" {
+ 			b, ok := e.Val(AttrByteSize).(int64)
+diff --git a/src/go/build/build.go b/src/go/build/build.go
+index fd89871d42..e9fd03cd8c 100644
+--- a/src/go/build/build.go
++++ b/src/go/build/build.go
+@@ -1195,25 +1195,26 @@ func (ctxt *Context) shouldBuild(content []byte, allTags map[string]bool, binary
+ 			p = p[len(p):]
+ 		}
+ 		line = bytes.TrimSpace(line)
+-		if bytes.HasPrefix(line, slashslash) {
+-			if bytes.Equal(line, binaryOnlyComment) {
+-				sawBinaryOnly = true
+-			}
+-			line = bytes.TrimSpace(line[len(slashslash):])
+-			if len(line) > 0 && line[0] == '+' {
+-				// Looks like a comment +line.
+-				f := strings.Fields(string(line))
+-				if f[0] == "+build" {
+-					ok := false
+-					for _, tok := range f[1:] {
+-						if ctxt.match(tok, allTags) {
+-							ok = true
+-						}
+-					}
+-					if !ok {
+-						allok = false
++		if !bytes.HasPrefix(line, slashslash) {
++			continue
++		}
++		if bytes.Equal(line, binaryOnlyComment) {
++			sawBinaryOnly = true
++		}
++		line = bytes.TrimSpace(line[len(slashslash):])
++		if len(line) > 0 && line[0] == '+' {
++			// Looks like a comment +line.
++			f := strings.Fields(string(line))
++			if f[0] == "+build" {
++				ok := false
++				for _, tok := range f[1:] {
++					if ctxt.match(tok, allTags) {
++						ok = true
+ 					}
+ 				}
++				if !ok {
++					allok = false
++				}
+ 			}
+ 		}
+ 	}
+diff --git a/src/go/types/call.go b/src/go/types/call.go
+index ffd9629777..345df66a8a 100644
+--- a/src/go/types/call.go
++++ b/src/go/types/call.go
+@@ -134,47 +134,46 @@ type getter func(x *operand, i int)
+ // the incoming getter with that i.
+ //
+ func unpack(get getter, n int, allowCommaOk bool) (getter, int, bool) {
+-	if n == 1 {
+-		// possibly result of an n-valued function call or comma,ok value
+-		var x0 operand
+-		get(&x0, 0)
+-		if x0.mode == invalid {
+-			return nil, 0, false
+-		}
++	if n != 1 {
++		// zero or multiple values
++		return get, n, false
++	}
++	// possibly result of an n-valued function call or comma,ok value
++	var x0 operand
++	get(&x0, 0)
++	if x0.mode == invalid {
++		return nil, 0, false
++	}
++
++	if t, ok := x0.typ.(*Tuple); ok {
++		// result of an n-valued function call
++		return func(x *operand, i int) {
++			x.mode = value
++			x.expr = x0.expr
++			x.typ = t.At(i).typ
++		}, t.Len(), false
++	}
+ 
+-		if t, ok := x0.typ.(*Tuple); ok {
+-			// result of an n-valued function call
++	if x0.mode == mapindex || x0.mode == commaok {
++		// comma-ok value
++		if allowCommaOk {
++			a := [2]Type{x0.typ, Typ[UntypedBool]}
+ 			return func(x *operand, i int) {
+ 				x.mode = value
+ 				x.expr = x0.expr
+-				x.typ = t.At(i).typ
+-			}, t.Len(), false
+-		}
+-
+-		if x0.mode == mapindex || x0.mode == commaok {
+-			// comma-ok value
+-			if allowCommaOk {
+-				a := [2]Type{x0.typ, Typ[UntypedBool]}
+-				return func(x *operand, i int) {
+-					x.mode = value
+-					x.expr = x0.expr
+-					x.typ = a[i]
+-				}, 2, true
+-			}
+-			x0.mode = value
++				x.typ = a[i]
++			}, 2, true
+ 		}
+-
+-		// single value
+-		return func(x *operand, i int) {
+-			if i != 0 {
+-				unreachable()
+-			}
+-			*x = x0
+-		}, 1, false
++		x0.mode = value
+ 	}
+ 
+-	// zero or multiple values
+-	return get, n, false
++	// single value
++	return func(x *operand, i int) {
++		if i != 0 {
++			unreachable()
++		}
++		*x = x0
++	}, 1, false
+ }
+ 
+ // arguments checks argument passing for the call with the given signature.
+diff --git a/src/math/expm1.go b/src/math/expm1.go
+index 7dd75a88f4..8e77398adc 100644
+--- a/src/math/expm1.go
++++ b/src/math/expm1.go
+@@ -205,33 +205,33 @@ func expm1(x float64) float64 {
+ 	r1 := 1 + hxs*(Q1+hxs*(Q2+hxs*(Q3+hxs*(Q4+hxs*Q5))))
+ 	t := 3 - r1*hfx
+ 	e := hxs * ((r1 - t) / (6.0 - x*t))
+-	if k != 0 {
+-		e = (x*(e-c) - c)
+-		e -= hxs
+-		switch {
+-		case k == -1:
+-			return 0.5*(x-e) - 0.5
+-		case k == 1:
+-			if x < -0.25 {
+-				return -2 * (e - (x + 0.5))
+-			}
+-			return 1 + 2*(x-e)
+-		case k <= -2 || k > 56: // suffice to return exp(x)-1
+-			y := 1 - (e - x)
+-			y = Float64frombits(Float64bits(y) + uint64(k)<<52) // add k to y's exponent
+-			return y - 1
+-		}
+-		if k < 20 {
+-			t := Float64frombits(0x3ff0000000000000 - (0x20000000000000 >> uint(k))) // t=1-2**-k
+-			y := t - (e - x)
+-			y = Float64frombits(Float64bits(y) + uint64(k)<<52) // add k to y's exponent
+-			return y
++	if k == 0 {
++		return x - (x*e - hxs) // c is 0
++	}
++	e = (x*(e-c) - c)
++	e -= hxs
++	switch {
++	case k == -1:
++		return 0.5*(x-e) - 0.5
++	case k == 1:
++		if x < -0.25 {
++			return -2 * (e - (x + 0.5))
+ 		}
+-		t := Float64frombits(uint64(0x3ff-k) << 52) // 2**-k
+-		y := x - (e + t)
+-		y++
++		return 1 + 2*(x-e)
++	case k <= -2 || k > 56: // suffice to return exp(x)-1
++		y := 1 - (e - x)
++		y = Float64frombits(Float64bits(y) + uint64(k)<<52) // add k to y's exponent
++		return y - 1
++	}
++	if k < 20 {
++		t := Float64frombits(0x3ff0000000000000 - (0x20000000000000 >> uint(k))) // t=1-2**-k
++		y := t - (e - x)
+ 		y = Float64frombits(Float64bits(y) + uint64(k)<<52) // add k to y's exponent
+ 		return y
+ 	}
+-	return x - (x*e - hxs) // c is 0
++	t = Float64frombits(uint64(0x3ff-k) << 52) // 2**-k
++	y := x - (e + t)
++	y++
++	y = Float64frombits(Float64bits(y) + uint64(k)<<52) // add k to y's exponent
++	return y
+ }
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index bf41125764..68f32aa01b 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -1129,34 +1129,35 @@ func scavengelist(list *mSpanList, now, limit uint64) uintptr {
+ 
+ 	var sumreleased uintptr
+ 	for s := list.first; s != nil; s = s.next {
+-		if (now-uint64(s.unusedsince)) > limit && s.npreleased != s.npages {
+-			start := s.base()
+-			end := start + s.npages<<_PageShift
+-			if physPageSize > _PageSize {
+-				// We can only release pages in
+-				// physPageSize blocks, so round start
+-				// and end in. (Otherwise, madvise
+-				// will round them *out* and release
+-				// more memory than we want.)
+-				start = (start + physPageSize - 1) &^ (physPageSize - 1)
+-				end &^= physPageSize - 1
+-				if end <= start {
+-					// start and end don't span a
+-					// whole physical page.
+-					continue
+-				}
+-			}
+-			len := end - start
+-
+-			released := len - (s.npreleased << _PageShift)
+-			if physPageSize > _PageSize && released == 0 {
++		if (now-uint64(s.unusedsince)) <= limit || s.npreleased == s.npages {
++			continue
++		}
++		start := s.base()
++		end := start + s.npages<<_PageShift
++		if physPageSize > _PageSize {
++			// We can only release pages in
++			// physPageSize blocks, so round start
++			// and end in. (Otherwise, madvise
++			// will round them *out* and release
++			// more memory than we want.)
++			start = (start + physPageSize - 1) &^ (physPageSize - 1)
++			end &^= physPageSize - 1
++			if end <= start {
++				// start and end don't span a
++				// whole physical page.
+ 				continue
+ 			}
+-			memstats.heap_released += uint64(released)
+-			sumreleased += released
+-			s.npreleased = len >> _PageShift
+-			sysUnused(unsafe.Pointer(start), len)
+ 		}
++		len := end - start
++
++		released := len - (s.npreleased << _PageShift)
++		if physPageSize > _PageSize && released == 0 {
++			continue
++		}
++		memstats.heap_released += uint64(released)
++		sumreleased += released
++		s.npreleased = len >> _PageShift
++		sysUnused(unsafe.Pointer(start), len)
+ 	}
+ 	return sumreleased
+ }
+diff --git a/src/runtime/os_linux.go b/src/runtime/os_linux.go
+index dac4de4985..83e35f4e27 100644
+--- a/src/runtime/os_linux.go
++++ b/src/runtime/os_linux.go
+@@ -208,45 +208,46 @@ func sysargs(argc int32, argv **byte) {
+ 
+ 	// now argv+n is auxv
+ 	auxv := (*[1 << 28]uintptr)(add(unsafe.Pointer(argv), uintptr(n)*sys.PtrSize))
+-	if sysauxv(auxv[:]) == 0 {
+-		// In some situations we don't get a loader-provided
+-		// auxv, such as when loaded as a library on Android.
+-		// Fall back to /proc/self/auxv.
+-		fd := open(&procAuxv[0], 0 /* O_RDONLY */, 0)
+-		if fd < 0 {
+-			// On Android, /proc/self/auxv might be unreadable (issue 9229), so we fallback to
+-			// try using mincore to detect the physical page size.
+-			// mincore should return EINVAL when address is not a multiple of system page size.
+-			const size = 256 << 10 // size of memory region to allocate
+-			p := mmap(nil, size, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_PRIVATE, -1, 0)
+-			if uintptr(p) < 4096 {
+-				return
+-			}
+-			var n uintptr
+-			for n = 4 << 10; n < size; n <<= 1 {
+-				err := mincore(unsafe.Pointer(uintptr(p)+n), 1, &addrspace_vec[0])
+-				if err == 0 {
+-					physPageSize = n
+-					break
+-				}
+-			}
+-			if physPageSize == 0 {
+-				physPageSize = size
+-			}
+-			munmap(p, size)
++	if sysauxv(auxv[:]) != 0 {
++		return
++	}
++	// In some situations we don't get a loader-provided
++	// auxv, such as when loaded as a library on Android.
++	// Fall back to /proc/self/auxv.
++	fd := open(&procAuxv[0], 0 /* O_RDONLY */, 0)
++	if fd < 0 {
++		// On Android, /proc/self/auxv might be unreadable (issue 9229), so we fallback to
++		// try using mincore to detect the physical page size.
++		// mincore should return EINVAL when address is not a multiple of system page size.
++		const size = 256 << 10 // size of memory region to allocate
++		p := mmap(nil, size, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_PRIVATE, -1, 0)
++		if uintptr(p) < 4096 {
+ 			return
+ 		}
+-		var buf [128]uintptr
+-		n := read(fd, noescape(unsafe.Pointer(&buf[0])), int32(unsafe.Sizeof(buf)))
+-		closefd(fd)
+-		if n < 0 {
+-			return
++		var n uintptr
++		for n = 4 << 10; n < size; n <<= 1 {
++			err := mincore(unsafe.Pointer(uintptr(p)+n), 1, &addrspace_vec[0])
++			if err == 0 {
++				physPageSize = n
++				break
++			}
++		}
++		if physPageSize == 0 {
++			physPageSize = size
+ 		}
+-		// Make sure buf is terminated, even if we didn't read
+-		// the whole file.
+-		buf[len(buf)-2] = _AT_NULL
+-		sysauxv(buf[:])
++		munmap(p, size)
++		return
++	}
++	var buf [128]uintptr
++	n = read(fd, noescape(unsafe.Pointer(&buf[0])), int32(unsafe.Sizeof(buf)))
++	closefd(fd)
++	if n < 0 {
++		return
+ 	}
++	// Make sure buf is terminated, even if we didn't read
++	// the whole file.
++	buf[len(buf)-2] = _AT_NULL
++	sysauxv(buf[:])
+ }
+ 
+ func sysauxv(auxv []uintptr) int {
+diff --git a/src/runtime/panic.go b/src/runtime/panic.go
+index 43bfdd7a1e..2a7acb7797 100644
+--- a/src/runtime/panic.go
++++ b/src/runtime/panic.go
+@@ -244,36 +244,37 @@ func freedefer(d *_defer) {
+ 		freedeferfn()
+ 	}
+ 	sc := deferclass(uintptr(d.siz))
+-	if sc < uintptr(len(p{}.deferpool)) {
+-		pp := getg().m.p.ptr()
+-		if len(pp.deferpool[sc]) == cap(pp.deferpool[sc]) {
+-			// Transfer half of local cache to the central cache.
+-			//
+-			// Take this slow path on the system stack so
+-			// we don't grow freedefer's stack.
+-			systemstack(func() {
+-				var first, last *_defer
+-				for len(pp.deferpool[sc]) > cap(pp.deferpool[sc])/2 {
+-					n := len(pp.deferpool[sc])
+-					d := pp.deferpool[sc][n-1]
+-					pp.deferpool[sc][n-1] = nil
+-					pp.deferpool[sc] = pp.deferpool[sc][:n-1]
+-					if first == nil {
+-						first = d
+-					} else {
+-						last.link = d
+-					}
+-					last = d
++	if sc >= uintptr(len(p{}.deferpool)) {
++		return
++	}
++	pp := getg().m.p.ptr()
++	if len(pp.deferpool[sc]) == cap(pp.deferpool[sc]) {
++		// Transfer half of local cache to the central cache.
++		//
++		// Take this slow path on the system stack so
++		// we don't grow freedefer's stack.
++		systemstack(func() {
++			var first, last *_defer
++			for len(pp.deferpool[sc]) > cap(pp.deferpool[sc])/2 {
++				n := len(pp.deferpool[sc])
++				d := pp.deferpool[sc][n-1]
++				pp.deferpool[sc][n-1] = nil
++				pp.deferpool[sc] = pp.deferpool[sc][:n-1]
++				if first == nil {
++					first = d
++				} else {
++					last.link = d
+ 				}
+-				lock(&sched.deferlock)
+-				last.link = sched.deferpool[sc]
+-				sched.deferpool[sc] = first
+-				unlock(&sched.deferlock)
+-			})
+-		}
+-		*d = _defer{}
+-		pp.deferpool[sc] = append(pp.deferpool[sc], d)
++				last = d
++			}
++			lock(&sched.deferlock)
++			last.link = sched.deferpool[sc]
++			sched.deferpool[sc] = first
++			unlock(&sched.deferlock)
++		})
+ 	}
++	*d = _defer{}
++	pp.deferpool[sc] = append(pp.deferpool[sc], d)
+ }
+ 
+ // Separate function so that it can split stack.
+diff --git a/src/runtime/stack.go b/src/runtime/stack.go
+index d353329a39..4e60e80863 100644
+--- a/src/runtime/stack.go
++++ b/src/runtime/stack.go
+@@ -578,29 +578,30 @@ func adjustpointers(scanp unsafe.Pointer, cbv *bitvector, adjinfo *adjustinfo, f
+ 		if stackDebug >= 4 {
+ 			print("        ", add(scanp, i*sys.PtrSize), ":", ptrnames[ptrbit(&bv, i)], ":", hex(*(*uintptr)(add(scanp, i*sys.PtrSize))), " # ", i, " ", bv.bytedata[i/8], "\n")
+ 		}
+-		if ptrbit(&bv, i) == 1 {
+-			pp := (*uintptr)(add(scanp, i*sys.PtrSize))
+-		retry:
+-			p := *pp
+-			if f.valid() && 0 < p && p < minLegalPointer && debug.invalidptr != 0 {
+-				// Looks like a junk value in a pointer slot.
+-				// Live analysis wrong?
+-				getg().m.traceback = 2
+-				print("runtime: bad pointer in frame ", funcname(f), " at ", pp, ": ", hex(p), "\n")
+-				throw("invalid pointer found on stack")
++		if ptrbit(&bv, i) != 1 {
++			continue
++		}
++		pp := (*uintptr)(add(scanp, i*sys.PtrSize))
++	retry:
++		p := *pp
++		if f.valid() && 0 < p && p < minLegalPointer && debug.invalidptr != 0 {
++			// Looks like a junk value in a pointer slot.
++			// Live analysis wrong?
++			getg().m.traceback = 2
++			print("runtime: bad pointer in frame ", funcname(f), " at ", pp, ": ", hex(p), "\n")
++			throw("invalid pointer found on stack")
++		}
++		if minp <= p && p < maxp {
++			if stackDebug >= 3 {
++				print("adjust ptr ", hex(p), " ", funcname(f), "\n")
+ 			}
+-			if minp <= p && p < maxp {
+-				if stackDebug >= 3 {
+-					print("adjust ptr ", hex(p), " ", funcname(f), "\n")
+-				}
+-				if useCAS {
+-					ppu := (*unsafe.Pointer)(unsafe.Pointer(pp))
+-					if !atomic.Casp1(ppu, unsafe.Pointer(p), unsafe.Pointer(p+delta)) {
+-						goto retry
+-					}
+-				} else {
+-					*pp = p + delta
++			if useCAS {
++				ppu := (*unsafe.Pointer)(unsafe.Pointer(pp))
++				if !atomic.Casp1(ppu, unsafe.Pointer(p), unsafe.Pointer(p+delta)) {
++					goto retry
+ 				}
++			} else {
++				*pp = p + delta
+ 			}
+ 		}
+ 	}
+diff --git a/src/text/tabwriter/tabwriter.go b/src/text/tabwriter/tabwriter.go
+index 752c9b8e9f..c17cef8bd9 100644
+--- a/src/text/tabwriter/tabwriter.go
++++ b/src/text/tabwriter/tabwriter.go
+@@ -333,52 +333,53 @@ func (b *Writer) format(pos0 int, line0, line1 int) (pos int) {
+ 	for this := line0; this < line1; this++ {
+ 		line := b.lines[this]
+ 
+-		if column < len(line)-1 {
+-			// cell exists in this column => this line
+-			// has more cells than the previous line
+-			// (the last cell per line is ignored because cells are
+-			// tab-terminated; the last cell per line describes the
+-			// text before the newline/formfeed and does not belong
+-			// to a column)
+-
+-			// print unprinted lines until beginning of block
+-			pos = b.writeLines(pos, line0, this)
+-			line0 = this
+-
+-			// column block begin
+-			width := b.minwidth // minimal column width
+-			discardable := true // true if all cells in this column are empty and "soft"
+-			for ; this < line1; this++ {
+-				line = b.lines[this]
+-				if column < len(line)-1 {
+-					// cell exists in this column
+-					c := line[column]
+-					// update width
+-					if w := c.width + b.padding; w > width {
+-						width = w
+-					}
+-					// update discardable
+-					if c.width > 0 || c.htab {
+-						discardable = false
+-					}
+-				} else {
+-					break
++		if column >= len(line)-1 {
++			continue
++		}
++		// cell exists in this column => this line
++		// has more cells than the previous line
++		// (the last cell per line is ignored because cells are
++		// tab-terminated; the last cell per line describes the
++		// text before the newline/formfeed and does not belong
++		// to a column)
++
++		// print unprinted lines until beginning of block
++		pos = b.writeLines(pos, line0, this)
++		line0 = this
++
++		// column block begin
++		width := b.minwidth // minimal column width
++		discardable := true // true if all cells in this column are empty and "soft"
++		for ; this < line1; this++ {
++			line = b.lines[this]
++			if column < len(line)-1 {
++				// cell exists in this column
++				c := line[column]
++				// update width
++				if w := c.width + b.padding; w > width {
++					width = w
+ 				}
++				// update discardable
++				if c.width > 0 || c.htab {
++					discardable = false
++				}
++			} else {
++				break
+ 			}
+-			// column block end
+-
+-			// discard empty columns if necessary
+-			if discardable && b.flags&DiscardEmptyColumns != 0 {
+-				width = 0
+-			}
++		}
++		// column block end
+ 
+-			// format and print all columns to the right of this column
+-			// (we know the widths of this column and all columns to the left)
+-			b.widths = append(b.widths, width) // push width
+-			pos = b.format(pos, line0, this)
+-			b.widths = b.widths[0 : len(b.widths)-1] // pop width
+-			line0 = this
++		// discard empty columns if necessary
++		if discardable && b.flags&DiscardEmptyColumns != 0 {
++			width = 0
+ 		}
++
++		// format and print all columns to the right of this column
++		// (we know the widths of this column and all columns to the left)
++		b.widths = append(b.widths, width) // push width
++		pos = b.format(pos, line0, this)
++		b.widths = b.widths[0 : len(b.widths)-1] // pop width
++		line0 = this
+ 	}
+ 
+ 	// print unprinted lines until end

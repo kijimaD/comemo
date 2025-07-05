@@ -14,7 +14,7 @@ Date:   Tue Mar 12 14:20:33 2024 +0100
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/internal/osinfo/os_windows.go            |  4 ++--
  src/internal/syscall/windows/mksyscall.go        |  2 +-
  src/internal/syscall/windows/version_windows.go  | 27 ++++++++++++++++--------
@@ -24,3 +24,199 @@ Date:   Tue Mar 12 14:20:33 2024 +0100
  src/syscall/syscall_windows.go                   |  1 -
  src/syscall/zsyscall_windows.go                  |  7 ------
  8 files changed, 44 insertions(+), 25 deletions(-)
+
+diff --git a/src/cmd/internal/osinfo/os_windows.go b/src/cmd/internal/osinfo/os_windows.go
+index 8ffe4f3f6d..228369ea22 100644
+--- a/src/cmd/internal/osinfo/os_windows.go
++++ b/src/cmd/internal/osinfo/os_windows.go
+@@ -14,6 +14,6 @@ import (
+ 
+ // Version returns the OS version name/number.
+ func Version() (string, error) {
+-	major, minor, patch := windows.RtlGetNtVersionNumbers()
+-	return fmt.Sprintf("%d.%d.%d", major, minor, patch), nil
++	info := windows.RtlGetVersion()
++	return fmt.Sprintf("%d.%d.%d", info.MajorVersion, info.MinorVersion, info.BuildNumber), nil
+ }
+diff --git a/src/internal/syscall/windows/mksyscall.go b/src/internal/syscall/windows/mksyscall.go
+index 81f08c627e..f97ab526f8 100644
+--- a/src/internal/syscall/windows/mksyscall.go
++++ b/src/internal/syscall/windows/mksyscall.go
+@@ -6,4 +6,4 @@
+ 
+ package windows
+ 
+-//go:generate go run ../../../syscall/mksyscall_windows.go -output zsyscall_windows.go syscall_windows.go security_windows.go psapi_windows.go symlink_windows.go
++//go:generate go run ../../../syscall/mksyscall_windows.go -output zsyscall_windows.go syscall_windows.go security_windows.go psapi_windows.go symlink_windows.go version_windows.go
+diff --git a/src/internal/syscall/windows/version_windows.go b/src/internal/syscall/windows/version_windows.go
+index 6da2d58549..ff21fc59e5 100644
+--- a/src/internal/syscall/windows/version_windows.go
++++ b/src/internal/syscall/windows/version_windows.go
+@@ -11,19 +11,28 @@ import (
+ 	"unsafe"
+ )
+ 
++// https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/wdm/ns-wdm-_osversioninfow
++type _OSVERSIONINFOW struct {
++	osVersionInfoSize uint32
++	majorVersion      uint32
++	minorVersion      uint32
++	buildNumber       uint32
++	platformId        uint32
++	csdVersion        [128]uint16
++}
++
++// According to documentation, RtlGetVersion function always succeeds.
++//sys	rtlGetVersion(info *_OSVERSIONINFOW) = ntdll.RtlGetVersion
++
+ // version retrieves the major, minor, and build version numbers
+-// of the current Windows OS from the RtlGetNtVersionNumbers API
+-// and parse the results properly.
++// of the current Windows OS from the RtlGetVersion API.
+ func version() (major, minor, build uint32) {
+-	rtlGetNtVersionNumbers(&major, &minor, &build)
+-	build &= 0x7fff
+-	return
++	info := _OSVERSIONINFOW{}
++	info.osVersionInfoSize = uint32(unsafe.Sizeof(info))
++	rtlGetVersion(&info)
++	return info.majorVersion, info.minorVersion, info.buildNumber
+ }
+ 
+-//go:linkname rtlGetNtVersionNumbers syscall.rtlGetNtVersionNumbers
+-//go:noescape
+-func rtlGetNtVersionNumbers(majorVersion *uint32, minorVersion *uint32, buildNumber *uint32)
+-
+ var (
+ 	supportTCPKeepAliveIdle     bool
+ 	supportTCPKeepAliveInterval bool
+diff --git a/src/internal/syscall/windows/zsyscall_windows.go b/src/internal/syscall/windows/zsyscall_windows.go
+index 7d3cd37b92..414ad2647d 100644
+--- a/src/internal/syscall/windows/zsyscall_windows.go
++++ b/src/internal/syscall/windows/zsyscall_windows.go
+@@ -42,6 +42,7 @@ var (
+ 	modiphlpapi         = syscall.NewLazyDLL(sysdll.Add("iphlpapi.dll"))
+ 	modkernel32         = syscall.NewLazyDLL(sysdll.Add("kernel32.dll"))
+ 	modnetapi32         = syscall.NewLazyDLL(sysdll.Add("netapi32.dll"))
++	modntdll            = syscall.NewLazyDLL(sysdll.Add("ntdll.dll"))
+ 	modpsapi            = syscall.NewLazyDLL(sysdll.Add("psapi.dll"))
+ 	moduserenv          = syscall.NewLazyDLL(sysdll.Add("userenv.dll"))
+ 	modws2_32           = syscall.NewLazyDLL(sysdll.Add("ws2_32.dll"))
+@@ -82,6 +83,7 @@ var (
+ 	procNetShareAdd                       = modnetapi32.NewProc("NetShareAdd")
+ 	procNetShareDel                       = modnetapi32.NewProc("NetShareDel")
+ 	procNetUserGetLocalGroups             = modnetapi32.NewProc("NetUserGetLocalGroups")
++	procRtlGetVersion                     = modntdll.NewProc("RtlGetVersion")
+ 	procGetProcessMemoryInfo              = modpsapi.NewProc("GetProcessMemoryInfo")
+ 	procCreateEnvironmentBlock            = moduserenv.NewProc("CreateEnvironmentBlock")
+ 	procDestroyEnvironmentBlock           = moduserenv.NewProc("DestroyEnvironmentBlock")
+@@ -391,6 +393,11 @@ func NetUserGetLocalGroups(serverName *uint16, userName *uint16, level uint32, f
+ 	return
+ }
+ 
++func rtlGetVersion(info *_OSVERSIONINFOW) {
++	syscall.Syscall(procRtlGetVersion.Addr(), 1, uintptr(unsafe.Pointer(info)), 0, 0)
++	return
++}
++
+ func GetProcessMemoryInfo(handle syscall.Handle, memCounters *PROCESS_MEMORY_COUNTERS, cb uint32) (err error) {
+ 	r1, _, e1 := syscall.Syscall(procGetProcessMemoryInfo.Addr(), 3, uintptr(handle), uintptr(unsafe.Pointer(memCounters)), uintptr(cb))
+ 	if r1 == 0 {
+diff --git a/src/runtime/defs_windows.go b/src/runtime/defs_windows.go
+index 2dbe144689..2f09afbe1f 100644
+--- a/src/runtime/defs_windows.go
++++ b/src/runtime/defs_windows.go
+@@ -89,3 +89,13 @@ type memoryBasicInformation struct {
+ 	protect           uint32
+ 	type_             uint32
+ }
++
++// https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/wdm/ns-wdm-_osversioninfow
++type _OSVERSIONINFOW struct {
++	osVersionInfoSize uint32
++	majorVersion      uint32
++	minorVersion      uint32
++	buildNumber       uint32
++	platformId        uint32
++	csdVersion        [128]uint16
++}
+diff --git a/src/runtime/os_windows.go b/src/runtime/os_windows.go
+index b5258bb57d..244ab23dad 100644
+--- a/src/runtime/os_windows.go
++++ b/src/runtime/os_windows.go
+@@ -135,7 +135,7 @@ var (
+ 	_NtAssociateWaitCompletionPacket stdFunction
+ 	_NtCancelWaitCompletionPacket    stdFunction
+ 	_RtlGetCurrentPeb                stdFunction
+-	_RtlGetNtVersionNumbers          stdFunction
++	_RtlGetVersion                   stdFunction
+ 
+ 	// These are from non-kernel32.dll, so we prefer to LoadLibraryEx them.
+ 	_timeBeginPeriod,
+@@ -268,7 +268,7 @@ func loadOptionalSyscalls() {
+ 		}
+ 	}
+ 	_RtlGetCurrentPeb = windowsFindfunc(n32, []byte("RtlGetCurrentPeb\000"))
+-	_RtlGetNtVersionNumbers = windowsFindfunc(n32, []byte("RtlGetNtVersionNumbers\000"))
++	_RtlGetVersion = windowsFindfunc(n32, []byte("RtlGetVersion\000"))
+ }
+ 
+ func monitorSuspendResume() {
+@@ -437,9 +437,10 @@ func initLongPathSupport() {
+ 	)
+ 
+ 	// Check that we're ≥ 10.0.15063.
+-	var maj, min, build uint32
+-	stdcall3(_RtlGetNtVersionNumbers, uintptr(unsafe.Pointer(&maj)), uintptr(unsafe.Pointer(&min)), uintptr(unsafe.Pointer(&build)))
+-	if maj < 10 || (maj == 10 && min == 0 && build&0xffff < 15063) {
++	info := _OSVERSIONINFOW{}
++	info.osVersionInfoSize = uint32(unsafe.Sizeof(info))
++	stdcall1(_RtlGetVersion, uintptr(unsafe.Pointer(&info)))
++	if info.majorVersion < 10 || (info.majorVersion == 10 && info.minorVersion == 0 && info.buildNumber < 15063) {
+ 		return
+ 	}
+ 
+diff --git a/src/syscall/syscall_windows.go b/src/syscall/syscall_windows.go
+index 59ce2b0206..d49ee522c4 100644
+--- a/src/syscall/syscall_windows.go
++++ b/src/syscall/syscall_windows.go
+@@ -233,7 +233,6 @@ func NewCallbackCDecl(fn any) uintptr {
+ //sys	FreeLibrary(handle Handle) (err error)
+ //sys	GetProcAddress(module Handle, procname string) (proc uintptr, err error)
+ //sys	GetVersion() (ver uint32, err error)
+-//sys	rtlGetNtVersionNumbers(majorVersion *uint32, minorVersion *uint32, buildNumber *uint32) = ntdll.RtlGetNtVersionNumbers
+ //sys	formatMessage(flags uint32, msgsrc uintptr, msgid uint32, langid uint32, buf []uint16, args *byte) (n uint32, err error) = FormatMessageW
+ //sys	ExitProcess(exitcode uint32)
+ //sys	CreateFile(name *uint16, access uint32, mode uint32, sa *SecurityAttributes, createmode uint32, attrs uint32, templatefile int32) (handle Handle, err error) [failretval==InvalidHandle] = CreateFileW
+diff --git a/src/syscall/zsyscall_windows.go b/src/syscall/zsyscall_windows.go
+index 630270812d..d8d8594a55 100644
+--- a/src/syscall/zsyscall_windows.go
++++ b/src/syscall/zsyscall_windows.go
+@@ -43,7 +43,6 @@ var (
+ 	modkernel32 = NewLazyDLL(sysdll.Add("kernel32.dll"))
+ 	modmswsock  = NewLazyDLL(sysdll.Add("mswsock.dll"))
+ 	modnetapi32 = NewLazyDLL(sysdll.Add("netapi32.dll"))
+-	modntdll    = NewLazyDLL(sysdll.Add("ntdll.dll"))
+ 	modsecur32  = NewLazyDLL(sysdll.Add("secur32.dll"))
+ 	modshell32  = NewLazyDLL(sysdll.Add("shell32.dll"))
+ 	moduserenv  = NewLazyDLL(sysdll.Add("userenv.dll"))
+@@ -168,7 +167,6 @@ var (
+ 	procNetApiBufferFree                   = modnetapi32.NewProc("NetApiBufferFree")
+ 	procNetGetJoinInformation              = modnetapi32.NewProc("NetGetJoinInformation")
+ 	procNetUserGetInfo                     = modnetapi32.NewProc("NetUserGetInfo")
+-	procRtlGetNtVersionNumbers             = modntdll.NewProc("RtlGetNtVersionNumbers")
+ 	procGetUserNameExW                     = modsecur32.NewProc("GetUserNameExW")
+ 	procTranslateNameW                     = modsecur32.NewProc("TranslateNameW")
+ 	procCommandLineToArgvW                 = modshell32.NewProc("CommandLineToArgvW")
+@@ -1212,11 +1210,6 @@ func NetUserGetInfo(serverName *uint16, userName *uint16, level uint32, buf **by
+ 	return
+ }
+ 
+-func rtlGetNtVersionNumbers(majorVersion *uint32, minorVersion *uint32, buildNumber *uint32) {
+-	Syscall(procRtlGetNtVersionNumbers.Addr(), 3, uintptr(unsafe.Pointer(majorVersion)), uintptr(unsafe.Pointer(minorVersion)), uintptr(unsafe.Pointer(buildNumber)))
+-	return
+-}
+-
+ func GetUserNameEx(nameFormat uint32, nameBuffre *uint16, nSize *uint32) (err error) {
+ 	r1, _, e1 := Syscall(procGetUserNameExW.Addr(), 3, uintptr(nameFormat), uintptr(unsafe.Pointer(nameBuffre)), uintptr(unsafe.Pointer(nSize)))
+ 	if r1&0xff == 0 {

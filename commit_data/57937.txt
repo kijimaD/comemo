@@ -18,7 +18,71 @@ Date:   Tue Sep 12 03:17:23 2023 -0700
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/compile/internal/dwarfgen/dwarf.go |  2 +-
  src/cmd/compile/internal/dwarfgen/dwinl.go | 17 +++--------------
  2 files changed, 4 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/compile/internal/dwarfgen/dwarf.go b/src/cmd/compile/internal/dwarfgen/dwarf.go
+index 4bb40bea8e..e9553d1185 100644
+--- a/src/cmd/compile/internal/dwarfgen/dwarf.go
++++ b/src/cmd/compile/internal/dwarfgen/dwarf.go
+@@ -323,7 +323,7 @@ func preInliningDcls(fnsym *obj.LSym) []*ir.Name {
+ 		c := n.Sym().Name[0]
+ 		// Avoid reporting "_" parameters, since if there are more than
+ 		// one, it can result in a collision later on, as in #23179.
+-		if unversion(n.Sym().Name) == "_" || c == '.' || n.Type().IsUntyped() {
++		if n.Sym().Name == "_" || c == '.' || n.Type().IsUntyped() {
+ 			continue
+ 		}
+ 		rdcl = append(rdcl, n)
+diff --git a/src/cmd/compile/internal/dwarfgen/dwinl.go b/src/cmd/compile/internal/dwarfgen/dwinl.go
+index 92f339d3c6..655e7c66ac 100644
+--- a/src/cmd/compile/internal/dwarfgen/dwinl.go
++++ b/src/cmd/compile/internal/dwarfgen/dwinl.go
+@@ -124,18 +124,16 @@ func assembleInlines(fnsym *obj.LSym, dwVars []*dwarf.Var) dwarf.InlCalls {
+ 		// caller.
+ 		synthCount := len(m)
+ 		for _, v := range sl {
+-			canonName := unversion(v.Name)
+ 			vp := varPos{
+-				DeclName: canonName,
++				DeclName: v.Name,
+ 				DeclFile: v.DeclFile,
+ 				DeclLine: v.DeclLine,
+ 				DeclCol:  v.DeclCol,
+ 			}
+-			synthesized := strings.HasPrefix(v.Name, "~r") || canonName == "_" || strings.HasPrefix(v.Name, "~b")
++			synthesized := strings.HasPrefix(v.Name, "~") || v.Name == "_"
+ 			if idx, found := m[vp]; found {
+ 				v.ChildIndex = int32(idx)
+ 				v.IsInAbstract = !synthesized
+-				v.Name = canonName
+ 			} else {
+ 				// Variable can't be found in the pre-inline dcl list.
+ 				// In the top-level case (ii=0) this can happen
+@@ -220,15 +218,6 @@ func AbstractFunc(fn *obj.LSym) {
+ 	base.Ctxt.DwarfAbstractFunc(ifn, fn)
+ }
+ 
+-// Undo any versioning performed when a name was written
+-// out as part of export data.
+-func unversion(name string) string {
+-	if i := strings.Index(name, "·"); i > 0 {
+-		name = name[:i]
+-	}
+-	return name
+-}
+-
+ // Given a function that was inlined as part of the compilation, dig
+ // up the pre-inlining DCL list for the function and create a map that
+ // supports lookup of pre-inline dcl index, based on variable
+@@ -241,7 +230,7 @@ func makePreinlineDclMap(fnsym *obj.LSym) map[varPos]int {
+ 	for i, n := range dcl {
+ 		pos := base.Ctxt.InnermostPos(n.Pos())
+ 		vp := varPos{
+-			DeclName: unversion(n.Sym().Name),
++			DeclName: n.Sym().Name,
+ 			DeclFile: pos.RelFilename(),
+ 			DeclLine: pos.RelLine(),
+ 			DeclCol:  pos.RelCol(),

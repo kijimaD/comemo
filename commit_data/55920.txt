@@ -17,7 +17,62 @@ Date:   Thu Mar 23 17:38:05 2023 -0700
     Auto-Submit: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
     Reviewed-by: Heschi Kreinick <heschi@google.com>
-
+---
  src/encoding/gob/dec_helpers.go |  1 +
  src/encoding/gob/decgen.go      | 22 ++++++++++++++++++++++
  2 files changed, 23 insertions(+)
+
+diff --git a/src/encoding/gob/dec_helpers.go b/src/encoding/gob/dec_helpers.go
+index 098ba7254a..44a74e2442 100644
+--- a/src/encoding/gob/dec_helpers.go
++++ b/src/encoding/gob/dec_helpers.go
+@@ -359,6 +359,7 @@ func decStringSlice(state *decoderState, v reflect.Value, length int, ovfl error
+ 			errorf("decoding string array or slice: length exceeds input size (%d elements)", length)
+ 		}
+ 		if i >= len(slice) {
++			// This is a slice that we only partially allocated.
+ 			growSlice(v, &slice, length)
+ 		}
+ 		u := state.decodeUint()
+diff --git a/src/encoding/gob/decgen.go b/src/encoding/gob/decgen.go
+index e40816eb86..27a30eaf61 100644
+--- a/src/encoding/gob/decgen.go
++++ b/src/encoding/gob/decgen.go
+@@ -180,6 +180,7 @@ func main() {
+ 		fmt.Fprintf(&b, arrayHelper, t.lower, t.upper)
+ 		fmt.Fprintf(&b, sliceHelper, t.lower, t.upper, t.decoder)
+ 	}
++	fmt.Fprintf(&b, trailer)
+ 	source, err := format.Source(b.Bytes())
+ 	if err != nil {
+ 		log.Fatal("source format error:", err)
+@@ -236,8 +237,29 @@ func dec%[2]sSlice(state *decoderState, v reflect.Value, length int, ovfl error)
+ 		if state.b.Len() == 0 {
+ 			errorf("decoding %[1]s array or slice: length exceeds input size (%%d elements)", length)
+ 		}
++		if i >= len(slice) {
++			// This is a slice that we only partially allocated.
++			growSlice(v, &slice, length)
++		}
+ 		%[3]s
+ 	}
+ 	return true
+ }
+ `
++
++const trailer = `
++// growSlice is called for a slice that we only partially allocated,
++// to grow it up to length.
++func growSlice[E any](v reflect.Value, ps *[]E, length int) {
++	var zero E
++	s := *ps
++	s = append(s, zero)
++	cp := cap(s)
++	if cp > length {
++		cp = length
++	}
++	s = s[:cp]
++	v.Set(reflect.ValueOf(s))
++	*ps = s
++}
++`

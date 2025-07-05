@@ -9,6 +9,25 @@ Date:   Thu Jul 15 15:22:51 2010 -0700
     R=ken2
     CC=golang-dev
     https://golang.org/cl/1674049
-
+---
  src/cmd/gc/walk.c | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 8b8096400e..50d2ba3ea1 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -281,6 +281,13 @@ walkdef(Node *n)
+ 		if(n->defn == N) {
+ 			if(n->etype != 0)	// like OPRINTN
+ 				break;
++			if(nerrors > 0) {
++				// Can have undefined variables in x := foo
++				// that make x have an n->ndefn == nil.
++				// If there are other errors anyway, don't
++				// bother adding to the noise.
++				break;
++			}
+ 			fatal("var without type, init: %S", n->sym);
+ 		}
+ 		if(n->defn->op == ONAME) {

@@ -15,7 +15,7 @@ Date:   Thu Mar 10 01:50:58 2016 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/compile/internal/gc/alg.go       |  2 +-
  src/cmd/compile/internal/gc/align.go     |  4 ++--
  src/cmd/compile/internal/gc/bexport.go   |  8 ++++----
@@ -31,3 +31,480 @@ Date:   Thu Mar 10 01:50:58 2016 -0800
  src/cmd/compile/internal/gc/typecheck.go | 10 +++++-----
  src/cmd/compile/internal/gc/walk.go      |  4 ++--
  14 files changed, 67 insertions(+), 46 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/alg.go b/src/cmd/compile/internal/gc/alg.go
+index f61d029946..4a080247d3 100644
+--- a/src/cmd/compile/internal/gc/alg.go
++++ b/src/cmd/compile/internal/gc/alg.go
+@@ -135,7 +135,7 @@ func algtype1(t *Type, bad **Type) int {
+ 		}
+ 
+ 		ret := AMEM
+-		for f := t.Type; f != nil; f = f.Down {
++		for f, it := IterFields(t); f != nil; f = it.Next() {
+ 			// All fields must be comparable.
+ 			a := algtype1(f.Type, bad)
+ 			if a == ANOEQ {
+diff --git a/src/cmd/compile/internal/gc/align.go b/src/cmd/compile/internal/gc/align.go
+index 3be095076f..2dc3f41212 100644
+--- a/src/cmd/compile/internal/gc/align.go
++++ b/src/cmd/compile/internal/gc/align.go
+@@ -19,7 +19,7 @@ func Rnd(o int64, r int64) int64 {
+ 
+ func offmod(t *Type) {
+ 	o := int32(0)
+-	for f := t.Type; f != nil; f = f.Down {
++	for f, it := IterFields(t); f != nil; f = it.Next() {
+ 		if f.Etype != TFIELD {
+ 			Fatalf("offmod: not TFIELD: %v", Tconv(f, obj.FmtLong))
+ 		}
+@@ -40,7 +40,7 @@ func widstruct(errtype *Type, t *Type, o int64, flag int) int64 {
+ 	}
+ 	lastzero := int64(0)
+ 	var w int64
+-	for f := t.Type; f != nil; f = f.Down {
++	for f, it := IterFields(t); f != nil; f = it.Next() {
+ 		if f.Etype != TFIELD {
+ 			Fatalf("widstruct: not TFIELD: %v", Tconv(f, obj.FmtLong))
+ 		}
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index b867000405..6bb14dea2f 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -465,7 +465,7 @@ func (p *exporter) typ(t *Type) {
+ 		// TODO(gri) Determine if they are already sorted
+ 		// in which case we can drop this step.
+ 		var methods []*Type
+-		for m := t.Method; m != nil; m = m.Down {
++		for m, it := IterMethods(t); m != nil; m = it.Next() {
+ 			methods = append(methods, m)
+ 		}
+ 		sort.Sort(methodbyname(methods))
+@@ -559,7 +559,7 @@ func (p *exporter) fieldList(t *Type) {
+ 	}
+ 
+ 	p.int(countfield(t))
+-	for f := t.Type; f != nil; f = f.Down {
++	for f, it := IterFields(t); f != nil; f = it.Next() {
+ 		p.field(f)
+ 		if p.trace && f.Down != nil {
+ 			p.tracef("\n")
+@@ -592,7 +592,7 @@ func (p *exporter) methodList(t *Type) {
+ 	}
+ 
+ 	p.int(countfield(t))
+-	for m := t.Type; m != nil; m = m.Down {
++	for m, it := IterFields(t); m != nil; m = it.Next() {
+ 		p.method(m)
+ 		if p.trace && m.Down != nil {
+ 			p.tracef("\n")
+@@ -657,7 +657,7 @@ func (p *exporter) paramList(params *Type) {
+ 		n = -n
+ 	}
+ 	p.int(n)
+-	for q := params.Type; q != nil; q = q.Down {
++	for q, it := IterFields(params); q != nil; q = it.Next() {
+ 		p.param(q, n)
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index 4b6333a38b..6f02914643 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -834,7 +834,7 @@ func tostruct0(t *Type, l []*Node) {
+ 		tp = &f.Down
+ 	}
+ 
+-	for f := t.Type; f != nil && !t.Broke; f = f.Down {
++	for f, it := IterFields(t); f != nil && !t.Broke; f = it.Next() {
+ 		if f.Broke {
+ 			t.Broke = true
+ 		}
+@@ -868,7 +868,7 @@ func tofunargs(l []*Node) *Type {
+ 		tp = &f.Down
+ 	}
+ 
+-	for f := t.Type; f != nil && !t.Broke; f = f.Down {
++	for f, it := IterFields(t); f != nil && !t.Broke; f = it.Next() {
+ 		if f.Broke {
+ 			t.Broke = true
+ 		}
+@@ -961,7 +961,7 @@ func tointerface0(t *Type, l []*Node) *Type {
+ 
+ 		if n.Left == nil && f.Type.Etype == TINTER {
+ 			// embedded interface, inline methods
+-			for t1 := f.Type.Type; t1 != nil; t1 = t1.Down {
++			for t1, it := IterFields(f.Type); t1 != nil; t1 = it.Next() {
+ 				f = typ(TFIELD)
+ 				f.Type = t1.Type
+ 				f.Broke = t1.Broke
+@@ -978,7 +978,7 @@ func tointerface0(t *Type, l []*Node) *Type {
+ 		}
+ 	}
+ 
+-	for f := t.Type; f != nil && !t.Broke; f = f.Down {
++	for f, it := IterFields(t); f != nil && !t.Broke; f = it.Next() {
+ 		if f.Broke {
+ 			t.Broke = true
+ 		}
+@@ -1357,7 +1357,7 @@ func addmethod(sf *Sym, t *Type, local bool, nointerface bool) {
+ 	}
+ 
+ 	if pa.Etype == TSTRUCT {
+-		for f := pa.Type; f != nil; f = f.Down {
++		for f, it := IterFields(pa); f != nil; f = it.Next() {
+ 			if f.Sym == sf {
+ 				Yyerror("type %v has both field and method named %v", pa, sf)
+ 				return
+@@ -1369,7 +1369,7 @@ func addmethod(sf *Sym, t *Type, local bool, nointerface bool) {
+ 	n.Type = t
+ 
+ 	var d *Type // last found
+-	for f := pa.Method; f != nil; f = f.Down {
++	for f, it := IterMethods(pa); f != nil; f = it.Next() {
+ 		d = f
+ 		if f.Etype != TFIELD {
+ 			Fatalf("addmethod: not TFIELD: %v", Tconv(f, obj.FmtLong))
+diff --git a/src/cmd/compile/internal/gc/export.go b/src/cmd/compile/internal/gc/export.go
+index 7c96817d43..9a1f1a6aaf 100644
+--- a/src/cmd/compile/internal/gc/export.go
++++ b/src/cmd/compile/internal/gc/export.go
+@@ -296,7 +296,7 @@ func dumpexporttype(t *Type) {
+ 	}
+ 
+ 	var m []*Type
+-	for f := t.Method; f != nil; f = f.Down {
++	for f, it := IterMethods(t); f != nil; f = it.Next() {
+ 		dumpexporttype(f)
+ 		m = append(m, f)
+ 	}
+@@ -584,7 +584,7 @@ func dumpasmhdr() {
+ 				break
+ 			}
+ 			fmt.Fprintf(b, "#define %s__size %d\n", t.Sym.Name, int(t.Width))
+-			for t = t.Type; t != nil; t = t.Down {
++			for t, it := IterFields(t); t != nil; t = it.Next() {
+ 				if !isblanksym(t.Sym) {
+ 					fmt.Fprintf(b, "#define %s_%s %d\n", n.Sym.Name, t.Sym.Name, int(t.Width))
+ 				}
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index 91c7ec863c..6d7a50a98b 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -585,7 +585,7 @@ func typefmt(t *Type, flag int) string {
+ 	case TINTER:
+ 		var buf bytes.Buffer
+ 		buf.WriteString("interface {")
+-		for t1 := t.Type; t1 != nil; t1 = t1.Down {
++		for t1, it := IterFields(t); t1 != nil; t1 = it.Next() {
+ 			buf.WriteString(" ")
+ 			switch {
+ 			case t1.Sym == nil:
+@@ -663,14 +663,14 @@ func typefmt(t *Type, flag int) string {
+ 		if t.Funarg {
+ 			buf.WriteString("(")
+ 			if fmtmode == FTypeId || fmtmode == FErr { // no argument names on function signature, and no "noescape"/"nosplit" tags
+-				for t1 := t.Type; t1 != nil; t1 = t1.Down {
++				for t1, it := IterFields(t); t1 != nil; t1 = it.Next() {
+ 					buf.WriteString(Tconv(t1, obj.FmtShort))
+ 					if t1.Down != nil {
+ 						buf.WriteString(", ")
+ 					}
+ 				}
+ 			} else {
+-				for t1 := t.Type; t1 != nil; t1 = t1.Down {
++				for t1, it := IterFields(t); t1 != nil; t1 = it.Next() {
+ 					buf.WriteString(Tconv(t1, 0))
+ 					if t1.Down != nil {
+ 						buf.WriteString(", ")
+@@ -680,7 +680,7 @@ func typefmt(t *Type, flag int) string {
+ 			buf.WriteString(")")
+ 		} else {
+ 			buf.WriteString("struct {")
+-			for t1 := t.Type; t1 != nil; t1 = t1.Down {
++			for t1, it := IterFields(t); t1 != nil; t1 = it.Next() {
+ 				buf.WriteString(" ")
+ 				buf.WriteString(Tconv(t1, obj.FmtLong))
+ 				if t1.Down != nil {
+diff --git a/src/cmd/compile/internal/gc/gen.go b/src/cmd/compile/internal/gc/gen.go
+index 3c991cf150..34d2f31d7c 100644
+--- a/src/cmd/compile/internal/gc/gen.go
++++ b/src/cmd/compile/internal/gc/gen.go
+@@ -1242,7 +1242,7 @@ func visitComponents(t *Type, startOffset int64, f func(elem *Type, elemOffset i
+ 			Fatalf("struct not at offset 0")
+ 		}
+ 
+-		for field := t.Type; field != nil; field = field.Down {
++		for field, it := IterFields(t); field != nil; field = it.Next() {
+ 			if field.Etype != TFIELD {
+ 				Fatalf("bad struct")
+ 			}
+diff --git a/src/cmd/compile/internal/gc/plive.go b/src/cmd/compile/internal/gc/plive.go
+index 52729613fc..683989a720 100644
+--- a/src/cmd/compile/internal/gc/plive.go
++++ b/src/cmd/compile/internal/gc/plive.go
+@@ -951,7 +951,7 @@ func onebitwalktype1(t *Type, xoffset *int64, bv Bvec) {
+ 	case TSTRUCT:
+ 		o := int64(0)
+ 		var fieldoffset int64
+-		for t1 := t.Type; t1 != nil; t1 = t1.Down {
++		for t1, it := IterFields(t); t1 != nil; t1 = it.Next() {
+ 			fieldoffset = t1.Width
+ 			*xoffset += fieldoffset - o
+ 			onebitwalktype1(t1.Type, xoffset, bv)
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index 0679853cec..306f7c7d36 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -299,7 +299,7 @@ func methods(t *Type) []*Sig {
+ 	// make list of methods for t,
+ 	// generating code if necessary.
+ 	var ms []*Sig
+-	for f := mt.Xmethod; f != nil; f = f.Down {
++	for f, it2 := IterAllMethods(mt); f != nil; f = it2.Next() {
+ 		if f.Etype != TFIELD {
+ 			Fatalf("methods: not field %v", f)
+ 		}
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index b86391826a..ff6a3f2a41 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -2634,7 +2634,7 @@ func canSSAType(t *Type) bool {
+ 		if countfield(t) > ssa.MaxStruct {
+ 			return false
+ 		}
+-		for t1 := t.Type; t1 != nil; t1 = t1.Down {
++		for t1, it := IterFields(t); t1 != nil; t1 = it.Next() {
+ 			if !canSSAType(t1.Type) {
+ 				return false
+ 			}
+@@ -5138,7 +5138,7 @@ func fieldIdx(n *Node) int64 {
+ 	}
+ 
+ 	var i int64
+-	for t1 := t.Type; t1 != nil; t1 = t1.Down {
++	for t1, it := IterFields(t); t1 != nil; t1 = it.Next() {
+ 		if t1.Etype != TFIELD {
+ 			panic("non-TFIELD in TSTRUCT")
+ 		}
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 84836d34ec..6c6816570d 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -1136,7 +1136,7 @@ func substAny(tp **Type, types *[]*Type) {
+ 			substAny(t.ResultsP(), types)
+ 
+ 		case TSTRUCT:
+-			for t = t.Type; t != nil; t = t.Down {
++			for t, it := IterFields(t); t != nil; t = it.Next() {
+ 				substAny(&t.Type, types)
+ 			}
+ 		}
+@@ -1219,7 +1219,7 @@ func deep(t *Type) *Type {
+ 		nt.Type = t.Type.Copy()
+ 		xt := nt.Type
+ 
+-		for t = t.Type; t != nil; t = t.Down {
++		for t, it := IterFields(t); t != nil; t = it.Next() {
+ 			xt.Type = deep(t.Type)
+ 			xt.Down = t.Down.Copy()
+ 			xt = xt.Down
+@@ -1588,7 +1588,7 @@ func lookdot0(s *Sym, t *Type, save **Type, ignorecase bool) int {
+ 
+ 	c := 0
+ 	if u.Etype == TSTRUCT || u.Etype == TINTER {
+-		for f := u.Type; f != nil; f = f.Down {
++		for f, it := IterFields(u); f != nil; f = it.Next() {
+ 			if f.Sym == s || (ignorecase && f.Type.Etype == TFUNC && f.Type.Thistuple > 0 && strings.EqualFold(f.Sym.Name, s.Name)) {
+ 				if save != nil {
+ 					*save = f
+@@ -1600,7 +1600,7 @@ func lookdot0(s *Sym, t *Type, save **Type, ignorecase bool) int {
+ 
+ 	u = methtype(t, 0)
+ 	if u != nil {
+-		for f := u.Method; f != nil; f = f.Down {
++		for f, it := IterMethods(u); f != nil; f = it.Next() {
+ 			if f.Embedded == 0 && (f.Sym == s || (ignorecase && strings.EqualFold(f.Sym.Name, s.Name))) {
+ 				if save != nil {
+ 					*save = f
+@@ -1645,7 +1645,7 @@ func adddot1(s *Sym, t *Type, d int, save **Type, ignorecase bool) (c int, more
+ 		goto out
+ 	}
+ 
+-	for f := u.Type; f != nil; f = f.Down {
++	for f, it := IterFields(u); f != nil; f = it.Next() {
+ 		if f.Embedded == 0 || f.Sym == nil {
+ 			continue
+ 		}
+@@ -1759,7 +1759,7 @@ func expand0(t *Type, followptr bool) {
+ 
+ 	if u.Etype == TINTER {
+ 		var sl *Symlink
+-		for f := u.Type; f != nil; f = f.Down {
++		for f, it := IterFields(u); f != nil; f = it.Next() {
+ 			if f.Sym.Flags&SymUniq != 0 {
+ 				continue
+ 			}
+@@ -1777,7 +1777,7 @@ func expand0(t *Type, followptr bool) {
+ 	u = methtype(t, 0)
+ 	if u != nil {
+ 		var sl *Symlink
+-		for f := u.Method; f != nil; f = f.Down {
++		for f, it := IterMethods(u); f != nil; f = it.Next() {
+ 			if f.Sym.Flags&SymUniq != 0 {
+ 				continue
+ 			}
+@@ -1811,7 +1811,7 @@ func expand1(t *Type, top, followptr bool) {
+ 		goto out
+ 	}
+ 
+-	for f := u.Type; f != nil; f = f.Down {
++	for f, it := IterFields(u); f != nil; f = it.Next() {
+ 		if f.Embedded == 0 {
+ 			continue
+ 		}
+@@ -1833,7 +1833,7 @@ func expandmeth(t *Type) {
+ 	// mark top-level method symbols
+ 	// so that expand1 doesn't consider them.
+ 	var f *Type
+-	for f = t.Method; f != nil; f = f.Down {
++	for f, it := IterMethods(t); f != nil; f = it.Next() {
+ 		f.Sym.Flags |= SymUniq
+ 	}
+ 
+@@ -1855,7 +1855,7 @@ func expandmeth(t *Type) {
+ 		}
+ 	}
+ 
+-	for f = t.Method; f != nil; f = f.Down {
++	for f, it := IterMethods(t); f != nil; f = it.Next() {
+ 		f.Sym.Flags &^= SymUniq
+ 	}
+ 
+@@ -2114,9 +2114,8 @@ func implements(t *Type, iface *Type, m **Type, samename **Type, ptr *int) bool
+ 	// and then do one loop.
+ 
+ 	if t.Etype == TINTER {
+-		var tm *Type
+-		for im := iface.Type; im != nil; im = im.Down {
+-			for tm = t.Type; tm != nil; tm = tm.Down {
++		for im, it := IterFields(iface); im != nil; im = it.Next() {
++			for tm, it2 := IterFields(t); tm != nil; tm = it2.Next() {
+ 				if tm.Sym == im.Sym {
+ 					if Eqtype(tm.Type, im.Type) {
+ 						goto found
+@@ -2146,7 +2145,7 @@ func implements(t *Type, iface *Type, m **Type, samename **Type, ptr *int) bool
+ 	var imtype *Type
+ 	var followptr bool
+ 	var rcvr *Type
+-	for im := iface.Type; im != nil; im = im.Down {
++	for im, it := IterFields(iface); im != nil; im = it.Next() {
+ 		if im.Broke {
+ 			continue
+ 		}
+diff --git a/src/cmd/compile/internal/gc/type.go b/src/cmd/compile/internal/gc/type.go
+index 54745453e3..8ba625dc86 100644
+--- a/src/cmd/compile/internal/gc/type.go
++++ b/src/cmd/compile/internal/gc/type.go
+@@ -200,7 +200,29 @@ func IterFields(t *Type) (*Type, Iter) {
+ 	if t.Etype != TSTRUCT && t.Etype != TINTER {
+ 		Fatalf("IterFields: type %v does not have fields", t)
+ 	}
+-	i := Iter{x: t.Type}
++	return RawIter(t.Type)
++}
++
++// IterMethods returns the first method in type t's method set
++// and an Iter value to continue iterating across the rest.
++// IterMethods does not include promoted methods.
++func IterMethods(t *Type) (*Type, Iter) {
++	// TODO(mdempsky): Validate t?
++	return RawIter(t.Method)
++}
++
++// IterAllMethods returns the first (possibly promoted) method in type t's
++// method set and an Iter value to continue iterating across the rest.
++func IterAllMethods(t *Type) (*Type, Iter) {
++	// TODO(mdempsky): Validate t?
++	return RawIter(t.Xmethod)
++}
++
++// RawIter returns field t and an Iter value to continue iterating across
++// its successor fields. Most code should instead use one of the IterXXX
++// functions above.
++func RawIter(t *Type) (*Type, Iter) {
++	i := Iter{x: t}
+ 	f := i.Next()
+ 	return f, i
+ }
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 45bb1607a1..fe2560e9f8 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -2372,7 +2372,7 @@ func twoarg(n *Node) bool {
+ 
+ func lookdot1(errnode *Node, s *Sym, t *Type, f *Type, dostrcmp int) *Type {
+ 	var r *Type
+-	for ; f != nil; f = f.Down {
++	for f, it := RawIter(f); f != nil; f = it.Next() {
+ 		if dostrcmp != 0 && f.Sym.Name == s.Name {
+ 			return f
+ 		}
+@@ -2577,7 +2577,7 @@ func nokeys(l Nodes) bool {
+ }
+ 
+ func hasddd(t *Type) bool {
+-	for tl := t.Type; tl != nil; tl = tl.Down {
++	for tl, it := IterFields(t); tl != nil; tl = it.Next() {
+ 		if tl.Isddd {
+ 			return true
+ 		}
+@@ -2590,7 +2590,7 @@ func hasddd(t *Type) bool {
+ // TODO decide if we want both (for semantic reasons)
+ func downcount(t *Type) int {
+ 	n := 0
+-	for tl := t.Type; tl != nil; tl = tl.Down {
++	for tl, it := IterFields(t); tl != nil; tl = it.Next() {
+ 		n++
+ 	}
+ 
+@@ -2629,7 +2629,7 @@ func typecheckaste(op Op, call *Node, isddd bool, tstruct *Type, nl Nodes, desc
+ 
+ 				tn := n.Type.Type
+ 				var why string
+-				for tl := tstruct.Type; tl != nil; tl = tl.Down {
++				for tl, it2 := IterFields(tstruct); tl != nil; tl = it2.Next() {
+ 					if tl.Isddd {
+ 						for ; tn != nil; tn = tn.Down {
+ 							if assignop(tn.Type, tl.Type.Type, &why) == 0 {
+@@ -2691,7 +2691,7 @@ func typecheckaste(op Op, call *Node, isddd bool, tstruct *Type, nl Nodes, desc
+ 	}
+ 
+ 	i = 0
+-	for tl := tstruct.Type; tl != nil; tl = tl.Down {
++	for tl, it := IterFields(tstruct); tl != nil; tl = it.Next() {
+ 		t = tl.Type
+ 		if tl.Isddd {
+ 			if isddd {
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 0825442a34..3c397dfc1b 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -3083,7 +3083,7 @@ func eqfor(t *Type, needsize *int) *Node {
+ 
+ func countfield(t *Type) int {
+ 	n := 0
+-	for t1 := t.Type; t1 != nil; t1 = t1.Down {
++	for t1, it := IterFields(t); t1 != nil; t1 = it.Next() {
+ 		n++
+ 	}
+ 	return n
+@@ -3234,7 +3234,7 @@ func walkcompare(np **Node, init *Nodes) {
+ 		// Inline comparisons.
+ 		var li *Node
+ 		var ri *Node
+-		for t1 := t.Type; t1 != nil; t1 = t1.Down {
++		for t1, it := IterFields(t); t1 != nil; t1 = it.Next() {
+ 			if isblanksym(t1.Sym) {
+ 				continue
+ 			}

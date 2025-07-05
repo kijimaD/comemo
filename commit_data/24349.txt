@@ -29,10 +29,129 @@ Date:   Fri Jul 24 11:28:12 2015 -0700
     Change-Id: I3c475bed1dd3335cc14e13309e11d23f0ed32c17
     Reviewed-on: https://go-review.googlesource.com/12654
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go             | 10 ++++-----
  src/cmd/compile/internal/ssa/config.go         |  6 ++----
  src/cmd/compile/internal/ssa/export_test.go    |  2 +-
  src/cmd/compile/internal/ssa/gen/generic.rules |  2 +-
  src/cmd/compile/internal/ssa/rewritegeneric.go | 28 +++++++++++---------------
  5 files changed, 21 insertions(+), 27 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 0ea5aa41f1..e7772a92bb 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -1922,12 +1922,12 @@ type ssaExport struct {
+ 	mustImplement bool
+ }
+ 
+-// StringSym returns a symbol (a *Sym wrapped in an interface) which
+-// is a global string constant containing s.
+-func (*ssaExport) StringSym(s string) interface{} {
++// StringData returns a symbol (a *Sym wrapped in an interface) which
++// is the data component of a global string constant containing s.
++func (*ssaExport) StringData(s string) interface{} {
+ 	// TODO: is idealstring correct?  It might not matter...
+-	hdr, _ := stringsym(s)
+-	return &ssa.ExternSymbol{Typ: idealstring, Sym: hdr}
++	_, data := stringsym(s)
++	return &ssa.ExternSymbol{Typ: idealstring, Sym: data}
+ }
+ 
+ // Log logs a message from the compiler.
+diff --git a/src/cmd/compile/internal/ssa/config.go b/src/cmd/compile/internal/ssa/config.go
+index 78e3295ed8..d3d2c66b7f 100644
+--- a/src/cmd/compile/internal/ssa/config.go
++++ b/src/cmd/compile/internal/ssa/config.go
+@@ -17,10 +17,8 @@ type Config struct {
+ }
+ 
+ type Frontend interface {
+-	// StringSym returns a symbol pointing to the given string.
+-	// Strings are laid out in read-only memory with one word of pointer,
+-	// one word of length, then the contents of the string.
+-	StringSym(string) interface{} // returns *gc.Sym
++	// StringData returns a symbol pointing to the given string's contents.
++	StringData(string) interface{} // returns *gc.Sym
+ 
+ 	// Log logs a message from the compiler.
+ 	Logf(string, ...interface{})
+diff --git a/src/cmd/compile/internal/ssa/export_test.go b/src/cmd/compile/internal/ssa/export_test.go
+index cec4abff56..d13729efbf 100644
+--- a/src/cmd/compile/internal/ssa/export_test.go
++++ b/src/cmd/compile/internal/ssa/export_test.go
+@@ -15,7 +15,7 @@ type DummyFrontend struct {
+ 	t testing.TB
+ }
+ 
+-func (DummyFrontend) StringSym(s string) interface{} {
++func (DummyFrontend) StringData(s string) interface{} {
+ 	return nil
+ }
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index 0b4d3b7886..492676d9b7 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -45,7 +45,7 @@
+ (Store dst (Load <t> src mem) mem) && t.Size() > 8 -> (Move [t.Size()] dst src mem)
+ 
+ // string ops
+-(Const <t> {s}) && t.IsString() -> (StringMake (OffPtr <TypeBytePtr> [2*config.PtrSize] (Addr <TypeBytePtr> {config.fe.StringSym(s.(string))} (SB <config.Uintptr>))) (Const <config.Uintptr> [int64(len(s.(string)))])) // TODO: ptr
++(Const <t> {s}) && t.IsString() -> (StringMake (Addr <TypeBytePtr> {config.fe.StringData(s.(string))} (SB <config.Uintptr>)) (Const <config.Uintptr> [int64(len(s.(string)))]))
+ (Load <t> ptr mem) && t.IsString() -> (StringMake (Load <TypeBytePtr> ptr mem) (Load <config.Uintptr> (OffPtr <TypeBytePtr> [config.PtrSize] ptr) mem))
+ (StringPtr (StringMake ptr _)) -> ptr
+ (StringLen (StringMake _ len)) -> len
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index 1095b85d91..66b6c1a7a5 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -102,36 +102,32 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
+ 	case OpConst:
+ 		// match: (Const <t> {s})
+ 		// cond: t.IsString()
+-		// result: (StringMake (OffPtr <TypeBytePtr> [2*config.PtrSize] (Addr <TypeBytePtr> {config.fe.StringSym(s.(string))} (SB <config.Uintptr>))) (Const <config.Uintptr> [int64(len(s.(string)))]))
++		// result: (StringMake (Addr <TypeBytePtr> {config.fe.StringData(s.(string))} (SB <config.Uintptr>)) (Const <config.Uintptr> [int64(len(s.(string)))]))
+ 		{
+ 			t := v.Type
+ 			s := v.Aux
+ 			if !(t.IsString()) {
+-				goto endedcb8bd24122d6a47bdc9b752460c344
++				goto enda6f250a3c775ae5a239ece8074b46cea
+ 			}
+ 			v.Op = OpStringMake
+ 			v.AuxInt = 0
+ 			v.Aux = nil
+ 			v.resetArgs()
+-			v0 := v.Block.NewValue0(v.Line, OpOffPtr, TypeInvalid)
++			v0 := v.Block.NewValue0(v.Line, OpAddr, TypeInvalid)
+ 			v0.Type = TypeBytePtr
+-			v0.AuxInt = 2 * config.PtrSize
+-			v1 := v.Block.NewValue0(v.Line, OpAddr, TypeInvalid)
+-			v1.Type = TypeBytePtr
+-			v1.Aux = config.fe.StringSym(s.(string))
+-			v2 := v.Block.NewValue0(v.Line, OpSB, TypeInvalid)
+-			v2.Type = config.Uintptr
+-			v1.AddArg(v2)
++			v0.Aux = config.fe.StringData(s.(string))
++			v1 := v.Block.NewValue0(v.Line, OpSB, TypeInvalid)
++			v1.Type = config.Uintptr
+ 			v0.AddArg(v1)
+ 			v.AddArg(v0)
+-			v3 := v.Block.NewValue0(v.Line, OpConst, TypeInvalid)
+-			v3.Type = config.Uintptr
+-			v3.AuxInt = int64(len(s.(string)))
+-			v.AddArg(v3)
++			v2 := v.Block.NewValue0(v.Line, OpConst, TypeInvalid)
++			v2.Type = config.Uintptr
++			v2.AuxInt = int64(len(s.(string)))
++			v.AddArg(v2)
+ 			return true
+ 		}
+-		goto endedcb8bd24122d6a47bdc9b752460c344
+-	endedcb8bd24122d6a47bdc9b752460c344:
++		goto enda6f250a3c775ae5a239ece8074b46cea
++	enda6f250a3c775ae5a239ece8074b46cea:
+ 		;
+ 	case OpIsInBounds:
+ 		// match: (IsInBounds (Const [c]) (Const [d]))

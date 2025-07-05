@@ -9,8 +9,159 @@ Date:   Thu Jan 19 01:24:01 2012 -0500
     R=r, dsymonds
     CC=golang-dev
     https://golang.org/cl/5559043
-
+---
  src/pkg/regexp/all_test.go      | 59 ++++++++++++++++++++++++++---------------
  src/pkg/regexp/regexp.go        | 23 ++++++++++++----
  src/pkg/regexp/syntax/regexp.go | 16 +++++++++++
  3 files changed, 71 insertions(+), 27 deletions(-)
+
+diff --git a/src/pkg/regexp/all_test.go b/src/pkg/regexp/all_test.go
+index e729510b51..107dfe37cc 100644
+--- a/src/pkg/regexp/all_test.go
++++ b/src/pkg/regexp/all_test.go
+@@ -289,30 +289,45 @@ func TestLiteralPrefix(t *testing.T) {
+ 	}
+ }
+ 
+-type numSubexpCase struct {
+-	input    string
+-	expected int
+-}
+-
+-var numSubexpCases = []numSubexpCase{
+-	{``, 0},
+-	{`.*`, 0},
+-	{`abba`, 0},
+-	{`ab(b)a`, 1},
+-	{`ab(.*)a`, 1},
+-	{`(.*)ab(.*)a`, 2},
+-	{`(.*)(ab)(.*)a`, 3},
+-	{`(.*)((a)b)(.*)a`, 4},
+-	{`(.*)(\(ab)(.*)a`, 3},
+-	{`(.*)(\(a\)b)(.*)a`, 3},
+-}
+-
+-func TestNumSubexp(t *testing.T) {
+-	for _, c := range numSubexpCases {
++type subexpCase struct {
++	input string
++	num   int
++	names []string
++}
++
++var subexpCases = []subexpCase{
++	{``, 0, nil},
++	{`.*`, 0, nil},
++	{`abba`, 0, nil},
++	{`ab(b)a`, 1, []string{"", ""}},
++	{`ab(.*)a`, 1, []string{"", ""}},
++	{`(.*)ab(.*)a`, 2, []string{"", "", ""}},
++	{`(.*)(ab)(.*)a`, 3, []string{"", "", "", ""}},
++	{`(.*)((a)b)(.*)a`, 4, []string{"", "", "", "", ""}},
++	{`(.*)(\(ab)(.*)a`, 3, []string{"", "", "", ""}},
++	{`(.*)(\(a\)b)(.*)a`, 3, []string{"", "", "", ""}},
++	{`(?P<foo>.*)(?P<bar>(a)b)(?P<foo>.*)a`, 4, []string{"", "foo", "bar", "", "foo"}},
++}
++
++func TestSubexp(t *testing.T) {
++	for _, c := range subexpCases {
+ 		re := MustCompile(c.input)
+ 		n := re.NumSubexp()
+-		if n != c.expected {
+-			t.Errorf("NumSubexp for %q returned %d, expected %d", c.input, n, c.expected)
++		if n != c.num {
++			t.Errorf("%q: NumSubexp = %d, want %d", c.input, n, c.num)
++			continue
++		}
++		names := re.SubexpNames()
++		if len(names) != 1+n {
++			t.Errorf("%q: len(SubexpNames) = %d, want %d", c.input, len(names), n)
++			continue
++		}
++		if c.names != nil {
++			for i := 0; i < 1+n; i++ {
++				if names[i] != c.names[i] {
++					t.Errorf("%q: SubexpNames[%d] = %q, want %q", c.input, i, names[i], c.names[i])
++				}
++			}
+ 		}
+ 	}
+ }
+diff --git a/src/pkg/regexp/regexp.go b/src/pkg/regexp/regexp.go
+index b0c6a0b1a1..c161acdfeb 100644
+--- a/src/pkg/regexp/regexp.go
++++ b/src/pkg/regexp/regexp.go
+@@ -85,6 +85,7 @@ type Regexp struct {
+ 	prefixRune     rune           // first rune in prefix
+ 	cond           syntax.EmptyOp // empty-width conditions required at start of match
+ 	numSubexp      int
++	subexpNames    []string
+ 	longest        bool
+ 
+ 	// cache of machines for running regexp
+@@ -140,17 +141,20 @@ func compile(expr string, mode syntax.Flags, longest bool) (*Regexp, error) {
+ 		return nil, err
+ 	}
+ 	maxCap := re.MaxCap()
++	capNames := re.CapNames()
++
+ 	re = re.Simplify()
+ 	prog, err := syntax.Compile(re)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+ 	regexp := &Regexp{
+-		expr:      expr,
+-		prog:      prog,
+-		numSubexp: maxCap,
+-		cond:      prog.StartCond(),
+-		longest:   longest,
++		expr:        expr,
++		prog:        prog,
++		numSubexp:   maxCap,
++		subexpNames: capNames,
++		cond:        prog.StartCond(),
++		longest:     longest,
+ 	}
+ 	regexp.prefix, regexp.prefixComplete = prog.Prefix()
+ 	if regexp.prefix != "" {
+@@ -223,6 +227,15 @@ func (re *Regexp) NumSubexp() int {
+ 	return re.numSubexp
+ }
+ 
++// SubexpNames returns the names of the parenthesized subexpressions
++// in this Regexp.  The name for the first sub-expression is names[1],
++// so that if m is a match slice, the name for m[i] is SubexpNames()[i].
++// Since the Regexp as a whole cannot be named, names[0] is always
++// the empty string.  The slice should not be modified.
++func (re *Regexp) SubexpNames() []string {
++	return re.subexpNames
++}
++
+ const endOfText rune = -1
+ 
+ // input abstracts different representations of the input text. It provides
+diff --git a/src/pkg/regexp/syntax/regexp.go b/src/pkg/regexp/syntax/regexp.go
+index adcfe29449..668a07764a 100644
+--- a/src/pkg/regexp/syntax/regexp.go
++++ b/src/pkg/regexp/syntax/regexp.go
+@@ -303,3 +303,19 @@ func (re *Regexp) MaxCap() int {
+ 	}
+ 	return m
+ }
++
++// CapNames walks the regexp to find the names of capturing groups.
++func (re *Regexp) CapNames() []string {
++	names := make([]string, re.MaxCap()+1)
++	re.capNames(names)
++	return names
++}
++
++func (re *Regexp) capNames(names []string) {
++	if re.Op == OpCapture {
++		names[re.Cap] = re.Name
++	}
++	for _, sub := range re.Sub {
++		sub.capNames(names)
++	}
++}

@@ -49,8 +49,264 @@ Date:   Fri Jun 19 17:04:56 2015 -0400
     Change-Id: I77b88f14631883a7d74b72d1cf19b0073d4f5473
     Reviewed-on: https://go-review.googlesource.com/11302
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/url/example_test.go | 15 +++++++++++
  src/net/url/url.go          | 55 ++++++++++++++++++++++++++++++++-----
  src/net/url/url_test.go     | 66 +++++++++++++++++++++++++++++++++++++++++----
  3 files changed, 124 insertions(+), 12 deletions(-)
+
+diff --git a/src/net/url/example_test.go b/src/net/url/example_test.go
+index af4ad0b532..7f2eb2c354 100644
+--- a/src/net/url/example_test.go
++++ b/src/net/url/example_test.go
+@@ -43,6 +43,21 @@ func ExampleURL() {
+ 	// Output: https://google.com/search?q=golang
+ }
+ 
++func ExampleURL_roundtrip() {
++	// Parse + String preserve the original encoding.
++	u, err := url.Parse("https://example.com/foo%2fbar")
++	if err != nil {
++		log.Fatal(err)
++	}
++	fmt.Println(u.Path)
++	fmt.Println(u.RawPath)
++	fmt.Println(u.String())
++	// Output:
++	// /foo/bar
++	// /foo%2fbar
++	// https://example.com/foo%2fbar
++}
++
+ func ExampleURL_opaque() {
+ 	// Sending a literal '%' in an HTTP request's Path
+ 	req := &http.Request{
+diff --git a/src/net/url/url.go b/src/net/url/url.go
+index 917dcb0bf9..c67a2fcf59 100644
+--- a/src/net/url/url.go
++++ b/src/net/url/url.go
+@@ -239,16 +239,24 @@ func escape(s string, mode encoding) string {
+ // Note that the Path field is stored in decoded form: /%47%6f%2f becomes /Go/.
+ // A consequence is that it is impossible to tell which slashes in the Path were
+ // slashes in the raw URL and which were %2f. This distinction is rarely important,
+-// but when it is a client must use other routines to parse the raw URL or construct
+-// the parsed URL. For example, an HTTP server can consult req.RequestURI, and
+-// an HTTP client can use URL{Host: "example.com", Opaque: "//example.com/Go%2f"}
+-// instead of URL{Host: "example.com", Path: "/Go/"}.
++// but when it is, code must not use Path directly.
++//
++// Go 1.5 introduced the RawPath field to hold the encoded form of Path.
++// The Parse function sets both Path and RawPath in the URL it returns,
++// and URL's String method uses RawPath if it is a valid encoding of Path,
++// by calling the EncodedPath method.
++//
++// In earlier versions of Go, the more indirect workarounds were that an
++// HTTP server could consult req.RequestURI and an HTTP client could
++// construct a URL struct directly and set the Opaque field instead of Path.
++// These still work as well.
+ type URL struct {
+ 	Scheme   string
+ 	Opaque   string    // encoded opaque data
+ 	User     *Userinfo // username and password information
+ 	Host     string    // host or host:port
+ 	Path     string
++	RawPath  string // encoded path hint (Go 1.5 and later only; see EscapedPath method)
+ 	RawQuery string // encoded query values, without '?'
+ 	Fragment string // fragment for references, without '#'
+ }
+@@ -417,6 +425,7 @@ func parse(rawurl string, viaRequest bool) (url *URL, err error) {
+ 			goto Error
+ 		}
+ 	}
++	url.RawPath = rest
+ 	if url.Path, err = unescape(rest, encodePath); err != nil {
+ 		goto Error
+ 	}
+@@ -501,6 +510,36 @@ func parseHost(host string) (string, error) {
+ 	return host, nil
+ }
+ 
++// EscapedPath returns the escaped form of u.Path.
++// In general there are multiple possible escaped forms of any path.
++// EscapedPath returns u.RawPath when it is a valid escaping of u.Path.
++// Otherwise EscapedPath ignores u.RawPath and computes an escaped
++// form on its own.
++// The String and RequestURI methods use EscapedPath to construct
++// their results.
++// In general, code should call EscapedPath instead of
++// reading u.RawPath directly.
++func (u *URL) EscapedPath() string {
++	if u.RawPath != "" && validEncodedPath(u.RawPath) {
++		p, err := unescape(u.RawPath, encodePath)
++		if err == nil && p == u.Path {
++			return u.RawPath
++		}
++	}
++	return escape(u.Path, encodePath)
++}
++
++// validEncodedPath reports whether s is a valid encoded path.
++// It must contain any bytes that require escaping during path encoding.
++func validEncodedPath(s string) bool {
++	for i := 0; i < len(s); i++ {
++		if s[i] != '%' && shouldEscape(s[i], encodePath) {
++			return false
++		}
++	}
++	return true
++}
++
+ // String reassembles the URL into a valid URL string.
+ // The general form of the result is one of:
+ //
+@@ -509,6 +548,7 @@ func parseHost(host string) (string, error) {
+ //
+ // If u.Opaque is non-empty, String uses the first form;
+ // otherwise it uses the second form.
++// To obtain the path, String uses u.EncodedPath().
+ //
+ // In the second form, the following rules apply:
+ //	- if u.Scheme is empty, scheme: is omitted.
+@@ -539,10 +579,11 @@ func (u *URL) String() string {
+ 				buf.WriteString(escape(h, encodeHost))
+ 			}
+ 		}
+-		if u.Path != "" && u.Path[0] != '/' && u.Host != "" {
++		path := u.EscapedPath()
++		if path != "" && path[0] != '/' && u.Host != "" {
+ 			buf.WriteByte('/')
+ 		}
+-		buf.WriteString(escape(u.Path, encodePath))
++		buf.WriteString(path)
+ 	}
+ 	if u.RawQuery != "" {
+ 		buf.WriteByte('?')
+@@ -764,7 +805,7 @@ func (u *URL) Query() Values {
+ func (u *URL) RequestURI() string {
+ 	result := u.Opaque
+ 	if result == "" {
+-		result = escape(u.Path, encodePath)
++		result = u.EscapedPath()
+ 		if result == "" {
+ 			result = "/"
+ 		}
+diff --git a/src/net/url/url_test.go b/src/net/url/url_test.go
+index a2a8fe0702..97ab7cc95a 100644
+--- a/src/net/url/url_test.go
++++ b/src/net/url/url_test.go
+@@ -13,7 +13,7 @@ import (
+ 
+ type URLTest struct {
+ 	in        string
+-	out       *URL
++	out       *URL   // expected parse; RawPath="" means same as Path
+ 	roundtrip string // expected result of reserializing the URL; empty means same as "in".
+ }
+ 
+@@ -41,11 +41,12 @@ var urltests = []URLTest{
+ 	{
+ 		"http://www.google.com/file%20one%26two",
+ 		&URL{
+-			Scheme: "http",
+-			Host:   "www.google.com",
+-			Path:   "/file one&two",
++			Scheme:  "http",
++			Host:    "www.google.com",
++			Path:    "/file one&two",
++			RawPath: "/file%20one%26two",
+ 		},
+-		"http://www.google.com/file%20one&two",
++		"",
+ 	},
+ 	// user
+ 	{
+@@ -98,6 +99,7 @@ var urltests = []URLTest{
+ 			Scheme:   "http",
+ 			Host:     "www.google.com",
+ 			Path:     "/a b",
++			RawPath:  "/a%20b",
+ 			RawQuery: "q=c+d",
+ 		},
+ 		"",
+@@ -369,6 +371,18 @@ var urltests = []URLTest{
+ 		},
+ 		"http://[fe80::1%25en01-._~]:8080/",
+ 	},
++	// alternate escapings of path survive round trip
++	{
++		"http://rest.rsc.io/foo%2fbar/baz%2Fquux?alt=media",
++		&URL{
++			Scheme:   "http",
++			Host:     "rest.rsc.io",
++			Path:     "/foo/bar/baz/quux",
++			RawPath:  "/foo%2fbar/baz%2Fquux",
++			RawQuery: "alt=media",
++		},
++		"",
++	},
+ }
+ 
+ // more useful string for debugging than fmt's struct printer
+@@ -391,6 +405,9 @@ func DoTest(t *testing.T, parse func(string) (*URL, error), name string, tests [
+ 			t.Errorf("%s(%q) returned error %s", name, tt.in, err)
+ 			continue
+ 		}
++		if tt.out.RawPath == "" {
++			tt.out.RawPath = tt.out.Path
++		}
+ 		if !reflect.DeepEqual(u, tt.out) {
+ 			t.Errorf("%s(%q):\n\thave %v\n\twant %v\n",
+ 				name, tt.in, ufmt(u), ufmt(tt.out))
+@@ -973,6 +990,25 @@ var requritests = []RequestURITest{
+ 		},
+ 		"http://other.example.com/%2F/%2F/",
+ 	},
++	// better fix for issue 4860
++	{
++		&URL{
++			Scheme:  "http",
++			Host:    "example.com",
++			Path:    "/////",
++			RawPath: "/%2F/%2F/",
++		},
++		"/%2F/%2F/",
++	},
++	{
++		&URL{
++			Scheme:  "http",
++			Host:    "example.com",
++			Path:    "/////",
++			RawPath: "/WRONG/", // ignored because doesn't match Path
++		},
++		"/////",
++	},
+ 	{
+ 		&URL{
+ 			Scheme:   "http",
+@@ -982,6 +1018,26 @@ var requritests = []RequestURITest{
+ 		},
+ 		"/a%20b?q=go+language",
+ 	},
++	{
++		&URL{
++			Scheme:   "http",
++			Host:     "example.com",
++			Path:     "/a b",
++			RawPath:  "/a b", // ignored because invalid
++			RawQuery: "q=go+language",
++		},
++		"/a%20b?q=go+language",
++	},
++	{
++		&URL{
++			Scheme:   "http",
++			Host:     "example.com",
++			Path:     "/a?b",
++			RawPath:  "/a?b", // ignored because invalid
++			RawQuery: "q=go+language",
++		},
++		"/a%3Fb?q=go+language",
++	},
+ 	{
+ 		&URL{
+ 			Scheme: "myschema",

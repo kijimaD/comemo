@@ -8,6 +8,20 @@ Date:   Wed Sep 17 14:09:44 2008 -0700
     DELTA=1  (0 added, 0 deleted, 1 changed)
     OCL=15444
     CL=15446
-
+---
  src/cmd/gc/go.y | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index 15b0b8bd54..dedef05d52 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -951,7 +951,7 @@ Atype:
+ 		$$->type = $3;
+ 		$$->chan = Crecv;
+ 	}
+-|	LCHAN LCOMM Atype  // not full Atype
++|	LCHAN LCOMM Atype  /* not full Atype */
+ 	{
+ 		$$ = typ(TCHAN);
+ 		$$->type = $3;

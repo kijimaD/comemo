@@ -13,7 +13,7 @@ Date:   Tue Mar 11 16:36:14 2014 +1100
     R=golang-codereviews, rsc
     CC=golang-codereviews
     https://golang.org/cl/41060044
-
+---
  src/pkg/syscall/mkall.sh                  |  37 +-
  src/pkg/syscall/mkall_windows.bat         |  21 +
  src/pkg/syscall/mkerrors_windows.sh       | 202 ---------
@@ -22,3 +22,1334 @@ Date:   Tue Mar 11 16:36:14 2014 +1100
  src/pkg/syscall/zsyscall_windows_386.go   |   2 +-
  src/pkg/syscall/zsyscall_windows_amd64.go |   2 +-
  7 files changed, 703 insertions(+), 556 deletions(-)
+
+diff --git a/src/pkg/syscall/mkall.sh b/src/pkg/syscall/mkall.sh
+index 57db0868c8..886db133cb 100755
+--- a/src/pkg/syscall/mkall.sh
++++ b/src/pkg/syscall/mkall.sh
+@@ -81,6 +81,8 @@ mkerrors="./mkerrors.sh"
+ zerrors="zerrors_$GOOSARCH.go"
+ mksysctl=""
+ zsysctl="zsysctl_$GOOSARCH.go"
++mksysnum=
++mktypes=
+ run="sh"
+ 
+ case "$1" in
+@@ -226,19 +228,10 @@ solaris_amd64)
+ 	mksysnum=
+ 	mktypes="GOARCH=$GOARCH go tool cgo -godefs"
+ 	;;
+-windows_386)
+-	mksyscall="./mksyscall_windows.pl -l32"
+-	mksysnum=
+-	mktypes=
+-	mkerrors="./mkerrors_windows.sh -m32"
+-	zerrors="zerrors_windows.go"
+-	;;
+-windows_amd64)
+-	mksyscall="./mksyscall_windows.pl"
+-	mksysnum=
+-	mktypes=
+-	mkerrors="./mkerrors_windows.sh -m32"
+-	zerrors="zerrors_windows.go"
++windows_*)
++	mksyscall=
++	mkerrors=
++	zerrors=
+ 	;;
+ *)
+ 	echo 'unrecognized $GOOS_$GOARCH: ' "$GOOSARCH" 1>&2
+@@ -248,17 +241,23 @@ esac
+ 
+ (
+ 	if [ -n "$mkerrors" ]; then echo "$mkerrors |gofmt >$zerrors"; fi
+-	syscall_goos="syscall_$GOOS.go"
+ 	case "$GOOS" in
+-	darwin | dragonfly | freebsd | netbsd | openbsd)
+-		syscall_goos="syscall_bsd.go $syscall_goos"
+-		;;
+ 	windows)
+-		syscall_goos="$syscall_goos security_windows.go"
++		echo "GOOS= GOARCH= go build mksyscall_windows.go"
++		echo "./mksyscall_windows syscall_windows.go security_windows.go syscall_$GOOSARCH.go |gofmt >zsyscall_$GOOSARCH.go"
++		echo "rm -f ./mksyscall_windows"
++		;;
++	*)
++		syscall_goos="syscall_$GOOS.go"
++		case "$GOOS" in
++		darwin | dragonfly | freebsd | netbsd | openbsd)
++			syscall_goos="syscall_bsd.go $syscall_goos"
++			;;
++		esac
++		if [ -n "$mksyscall" ]; then echo "$mksyscall $syscall_goos syscall_$GOOSARCH.go |gofmt >zsyscall_$GOOSARCH.go"; fi
+ 		;;
+ 	esac
+ 	if [ -n "$mksysctl" ]; then echo "$mksysctl |gofmt >$zsysctl"; fi
+-	if [ -n "$mksyscall" ]; then echo "$mksyscall $syscall_goos syscall_$GOOSARCH.go |gofmt >zsyscall_$GOOSARCH.go"; fi
+ 	if [ -n "$mksysnum" ]; then echo "$mksysnum |gofmt >zsysnum_$GOOSARCH.go"; fi
+ 	if [ -n "$mktypes" ]; then echo "$mktypes types_$GOOS.go |gofmt >ztypes_$GOOSARCH.go"; fi
+ ) | $run
+diff --git a/src/pkg/syscall/mkall_windows.bat b/src/pkg/syscall/mkall_windows.bat
+new file mode 100644
+index 0000000000..a4a3f16748
+--- /dev/null
++++ b/src/pkg/syscall/mkall_windows.bat
+@@ -0,0 +1,21 @@
++:: Copyright 2013 The Go Authors. All rights reserved.
++:: Use of this source code is governed by a BSD-style
++:: license that can be found in the LICENSE file.
++@echo off
++
++if exist mkall.sh goto dirok
++echo mkall_windows.bat must be run from src\pkg\syscall directory
++goto :end
++:dirok
++
++if "%1"=="386" goto :paramok
++if "%1"=="amd64" goto :paramok
++echo parameters must be 386 or amd64
++goto :end
++:paramok
++
++go build mksyscall_windows.go
++.\mksyscall_windows syscall_windows.go security_windows.go syscall_windows_%1.go |gofmt >zsyscall_windows_%1.go
++del mksyscall_windows.exe
++
++:end
+\ No newline at end of file
+diff --git a/src/pkg/syscall/mkerrors_windows.sh b/src/pkg/syscall/mkerrors_windows.sh
+deleted file mode 100755
+index 13badcd92e..0000000000
+--- a/src/pkg/syscall/mkerrors_windows.sh
++++ /dev/null
+@@ -1,202 +0,0 @@
+-#!/usr/bin/env bash
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-# Generate Go code listing errors and other #defined constant
+-# values (ENAMETOOLONG etc.), by asking the preprocessor
+-# about the definitions.
+-
+-unset LANG
+-export LC_ALL=C
+-export LC_CTYPE=C
+-
+-case "$GOARCH" in
+-arm)
+-	GCC=arm-gcc
+-	;;
+-*)
+-	GCC=gcc
+-	;;
+-esac
+-
+-uname=$(uname)
+-
+-includes_Linux='
+-#define _LARGEFILE_SOURCE
+-#define _LARGEFILE64_SOURCE
+-#define _FILE_OFFSET_BITS 64
+-#define _GNU_SOURCE
+-
+-#include <sys/types.h>
+-#include <sys/epoll.h>
+-#include <linux/ptrace.h>
+-#include <linux/wait.h>
+-'
+-
+-includes_Darwin='
+-#define __DARWIN_UNIX03 0
+-#define KERNEL
+-#define _DARWIN_USE_64_BIT_INODE
+-#include <sys/wait.h>
+-#include <sys/event.h>
+-'
+-
+-includes_FreeBSD='
+-#include <sys/wait.h>
+-#include <sys/event.h>
+-'
+-
+-includes='
+-#include <sys/types.h>
+-#include <fcntl.h>
+-#include <dirent.h>
+-#include <sys/socket.h>
+-#include <netinet/in.h>
+-#include <netinet/ip.h>
+-#include <netinet/ip6.h>
+-#include <netinet/tcp.h>
+-#include <errno.h>
+-#include <sys/signal.h>
+-#include <signal.h>
+-'
+-
+-ccflags=""
+-next=false
+-for i
+-do
+-	if $next; then
+-		ccflags="$ccflags $i"
+-		next=false
+-	elif [ "$i" = "-f" ]; then
+-		next=true
+-	fi
+-done
+-
+-# These are go errors that will be mapped directly to windows errors
+-goerrors='
+-ENOENT:ERROR_FILE_NOT_FOUND
+-ENOTDIR:ERROR_PATH_NOT_FOUND
+-'
+-
+-# Pull out just the error names for later.
+-i=$(
+-	for j in "$goerrors"
+-	do
+-		echo "$j"
+-	done |
+-	awk -F: '
+-		{ if (NR > 1) printf("|") }
+-		{ printf("%s", $1) }
+-	'
+-)
+-errors=$(
+-	echo '#include <errno.h>' | $GCC -x c - -E -dM $ccflags |
+-	awk '
+-		$1 != "#define" || $2 ~ /\(/ {next}
+-		$2 ~ /^('$i')$/ {next}
+-		$2 ~ /^E[A-Z0-9_]+$/ { print $2 }
+-		{next}
+-	' | sort
+-)
+-
+-echo '// mkerrors_windows.sh' "$@"
+-echo '// MACHINE GENERATED BY THE COMMAND ABOVE; DO NOT EDIT'
+-echo
+-echo 'package syscall'
+-
+-# Run C program to print error strings.
+-(
+-	/bin/echo "
+-#include <stdio.h>
+-#include <errno.h>
+-#include <ctype.h>
+-#include <string.h>
+-
+-#define nelem(x) (sizeof(x)/sizeof((x)[0]))
+-
+-enum { A = 'A', Z = 'Z', a = 'a', z = 'z' }; // avoid need for single quotes below
+-
+-struct {
+-	char *goname;
+-	char *winname;
+-} goerrors[] = {
+-"
+-	for i in $goerrors
+-	do
+-		j=`echo $i | cut -d: -f1`
+-		k=`echo $i | cut -d: -f2`
+-		echo '	{"'$j'", "'$k'"},'
+-	done
+-
+-	# Use /bin/echo to avoid builtin echo,
+-	# which interprets \n itself
+-	/bin/echo '
+-};
+-
+-struct {
+-	char *name;
+-	int value;
+-} errors[] = {
+-'
+-	for i in $errors
+-	do
+-		echo '	{"'$i'",' $i'},'
+-	done
+-
+-	# Use /bin/echo to avoid builtin echo,
+-	# which interprets \n itself
+-	/bin/echo '
+-};
+-
+-int
+-main(void)
+-{
+-	int i, e, iota = 1;
+-	char buf[1024];
+-
+-	printf("\n// Go names for Windows errors.\n");
+-	printf("const (\n");
+-	for(i=0; i<nelem(goerrors); i++) {
+-		printf("\t%s Errno = %s\n", goerrors[i].goname, goerrors[i].winname);
+-			
+-	}
+-	printf(")\n");
+-
+-	printf("\n// Windows reserves errors >= 1<<29 for application use.\n");
+-	printf("const APPLICATION_ERROR = 1 << 29\n");
+-
+-	printf("\n// Invented values to support what package os and others expects.\n");
+-	printf("const (\n");
+-	for(i=0; i<nelem(errors); i++) {
+-		printf("\t%s", errors[i].name);
+-		if(iota) {
+-			printf(" Errno = APPLICATION_ERROR + iota");
+-			iota = !iota;
+-		}
+-		printf("\n");
+-			
+-	}
+-	printf("\tEWINDOWS\n");
+-	printf(")\n");
+-
+-	printf("\n// Error strings for invented errors\n");
+-	printf("var errors = [...]string {\n");
+-	for(i=0; i<nelem(errors); i++) {
+-		e = errors[i].value;
+-		strcpy(buf, strerror(e));
+-		// lowercase first letter: Bad -> bad, but STREAM -> STREAM.
+-		if(A <= buf[0] && buf[0] <= Z && a <= buf[1] && buf[1] <= z)
+-			buf[0] += a - A;
+-		printf("\t%s - APPLICATION_ERROR: \"%s\",\n", errors[i].name, buf);
+-	next:;
+-	}
+-	printf("\tEWINDOWS - APPLICATION_ERROR: \"not supported by windows\",\n");
+-	printf("}\n\n");
+-	return 0;
+-}
+-
+-'
+-) >_errors.c
+-
+-$GCC $ccflags -static -o _errors _errors.c && $GORUN ./_errors && rm -f _errors.c _errors
+diff --git a/src/pkg/syscall/mksyscall_windows.go b/src/pkg/syscall/mksyscall_windows.go
+new file mode 100644
+index 0000000000..0fd1c3c05a
+--- /dev/null
++++ b/src/pkg/syscall/mksyscall_windows.go
+@@ -0,0 +1,662 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build ignore
++
++/*
++mksyscall_windows generates windows system call bodies
++
++It parses all files specified on command line containing function
++prototypes (like syscall_windows.go) and prints system call bodies
++to standard output.
++
++The prototypes are marked by lines beginning with "//sys" and read
++like func declarations if //sys is replaced by func, but:
++
++* The parameter lists must give a name for each argument. This
++  includes return parameters.
++
++* The parameter lists must give a type for each argument:
++  the (x, y, z int) shorthand is not allowed.
++
++* If the return parameter is an error number, it must be named err.
++
++* If go func name needs to be different from it's winapi dll name,
++  the winapi name could be specified at the end, after "=" sign, like
++  //sys LoadLibrary(libname string) (handle uint32, err error) = LoadLibraryA
++
++* Each function that returns err needs to supply a condition, that
++  return value of winapi will be tested against to detect failure.
++  This would set err to windows "last-error", otherwise it will be nil.
++  The value can be provided at end of //sys declaration, like
++  //sys LoadLibrary(libname string) (handle uint32, err error) [failretval==-1] = LoadLibraryA
++  and is [failretval==0] by default.
++
++Usage:
++	mksyscall_windows [flags] [path ...]
++
++The flags are:
++	-trace
++		Generate print statement after every syscall.
++*/
++package main
++
++import (
++	"bufio"
++	"errors"
++	"flag"
++	"fmt"
++	"io"
++	"log"
++	"os"
++	"strconv"
++	"strings"
++	"text/template"
++)
++
++var PrintTraceFlag = flag.Bool("trace", false, "generate print statement after every syscall")
++
++func trim(s string) string {
++	return strings.Trim(s, " \t")
++}
++
++// Param is function parameter
++type Param struct {
++	Name      string
++	Type      string
++	fn        *Fn
++	tmpVarIdx int
++}
++
++// tmpVar returns temp variable name that will be used to represent p during syscall.
++func (p *Param) tmpVar() string {
++	if p.tmpVarIdx < 0 {
++		p.tmpVarIdx = p.fn.curTmpVarIdx
++		p.fn.curTmpVarIdx++
++	}
++	return fmt.Sprintf("_p%d", p.tmpVarIdx)
++}
++
++// BoolTmpVarCode returns source code for bool temp variable.
++func (p *Param) BoolTmpVarCode() string {
++	const code = `var %s uint32
++	if %s {
++		%s = 1
++	} else {
++		%s = 0
++	}`
++	tmp := p.tmpVar()
++	return fmt.Sprintf(code, tmp, p.Name, tmp, tmp)
++}
++
++// SliceTmpVarCode returns source code for slice temp variable.
++func (p *Param) SliceTmpVarCode() string {
++	const code = `var %s *%s
++	if len(%s) > 0 {
++		%s = &%s[0]
++	}`
++	tmp := p.tmpVar()
++	return fmt.Sprintf(code, tmp, p.Type[2:], p.Name, tmp, p.Name)
++}
++
++// StringTmpVarCode returns source code for string temp variable.
++func (p *Param) StringTmpVarCode() string {
++	errvar := p.fn.Rets.ErrorVarName()
++	if errvar == "" {
++		errvar = "_"
++	}
++	tmp := p.tmpVar()
++	const code = `var %s %s
++	%s, %s = %s(%s)`
++	s := fmt.Sprintf(code, tmp, p.fn.StrconvType(), tmp, errvar, p.fn.StrconvFunc(), p.Name)
++	if errvar == "-" {
++		return s
++	}
++	const morecode = `
++	if %s != nil {
++		return
++	}`
++	return s + fmt.Sprintf(morecode, errvar)
++}
++
++// TmpVarCode returns source code for temp variable.
++func (p *Param) TmpVarCode() string {
++	switch {
++	case p.Type == "string":
++		return p.StringTmpVarCode()
++	case p.Type == "bool":
++		return p.BoolTmpVarCode()
++	case strings.HasPrefix(p.Type, "[]"):
++		return p.SliceTmpVarCode()
++	default:
++		return ""
++	}
++}
++
++// SyscallArgList returns source code fragments representing p parameter
++// in syscall. Slices are transated into 2 syscall parameters: pointer to
++// the first element and length.
++func (p *Param) SyscallArgList() []string {
++	var s string
++	switch {
++	case p.Type[0] == '*':
++		s = fmt.Sprintf("unsafe.Pointer(%s)", p.Name)
++	case p.Type == "string":
++		s = fmt.Sprintf("unsafe.Pointer(%s)", p.tmpVar())
++	case p.Type == "bool":
++		s = p.tmpVar()
++	case strings.HasPrefix(p.Type, "[]"):
++		return []string{
++			fmt.Sprintf("uintptr(unsafe.Pointer(%s))", p.tmpVar()),
++			fmt.Sprintf("uintptr(len(%s))", p.Name),
++		}
++	default:
++		s = p.Name
++	}
++	return []string{fmt.Sprintf("uintptr(%s)", s)}
++}
++
++// IsError determines if p parameter is used to return error.
++func (p *Param) IsError() bool {
++	return p.Name == "err" && p.Type == "error"
++}
++
++// join concatenates parameters ps into a string with sep separator.
++// Each parameter is converted into string by applying fn to it
++// before conversion.
++func join(ps []*Param, fn func(*Param) string, sep string) string {
++	if len(ps) == 0 {
++		return ""
++	}
++	a := make([]string, 0)
++	for _, p := range ps {
++		a = append(a, fn(p))
++	}
++	return strings.Join(a, sep)
++}
++
++// Rets describes function return parameters.
++type Rets struct {
++	Name         string
++	Type         string
++	ReturnsError bool
++	FailCond     string
++}
++
++// ErrorVarName returns error variable name for r.
++func (r *Rets) ErrorVarName() string {
++	if r.ReturnsError {
++		return "err"
++	}
++	if r.Type == "error" {
++		return r.Name
++	}
++	return ""
++}
++
++// ToParams converts r into slice of *Param.
++func (r *Rets) ToParams() []*Param {
++	ps := make([]*Param, 0)
++	if len(r.Name) > 0 {
++		ps = append(ps, &Param{Name: r.Name, Type: r.Type})
++	}
++	if r.ReturnsError {
++		ps = append(ps, &Param{Name: "err", Type: "error"})
++	}
++	return ps
++}
++
++// List returns source code of syscall return parameters.
++func (r *Rets) List() string {
++	s := join(r.ToParams(), func(p *Param) string { return p.Name + " " + p.Type }, ", ")
++	if len(s) > 0 {
++		s = "(" + s + ")"
++	}
++	return s
++}
++
++// PrintList returns source code of trace printing part correspondent
++// to syscall return values.
++func (r *Rets) PrintList() string {
++	return join(r.ToParams(), func(p *Param) string { return fmt.Sprintf(`"%s=", %s, `, p.Name, p.Name) }, `", ", `)
++}
++
++// SetReturnValuesCode returns source code that accepts syscall return values.
++func (r *Rets) SetReturnValuesCode() string {
++	if r.Name == "" && !r.ReturnsError {
++		return ""
++	}
++	retvar := "r0"
++	if r.Name == "" {
++		retvar = "r1"
++	}
++	errvar := "_"
++	if r.ReturnsError {
++		errvar = "e1"
++	}
++	return fmt.Sprintf("%s, _, %s := ", retvar, errvar)
++}
++
++func (r *Rets) useLongHandleErrorCode(retvar string) string {
++	const code = `if %s {
++		if e1 != 0 {
++			err = error(e1)
++		} else {
++			err = EINVAL
++		}
++	}`
++	cond := retvar + " == 0"
++	if r.FailCond != "" {
++		cond = strings.Replace(r.FailCond, "failretval", retvar, 1)
++	}
++	return fmt.Sprintf(code, cond)
++}
++
++// SetErrorCode returns source code that sets return parameters.
++func (r *Rets) SetErrorCode() string {
++	const code = `if r0 != 0 {
++		%s = Errno(r0)
++	}`
++	if r.Name == "" && !r.ReturnsError {
++		return ""
++	}
++	if r.Name == "" {
++		return r.useLongHandleErrorCode("r1")
++	}
++	if r.Type == "error" {
++		return fmt.Sprintf(code, r.Name)
++	}
++	s := ""
++	if r.Type[0] == '*' {
++		s = fmt.Sprintf("%s = (%s)(unsafe.Pointer(r0))", r.Name, r.Type)
++	} else {
++		s = fmt.Sprintf("%s = %s(r0)", r.Name, r.Type)
++	}
++	if !r.ReturnsError {
++		return s
++	}
++	return s + "\n\t" + r.useLongHandleErrorCode(r.Name)
++}
++
++// Fn describes syscall function.
++type Fn struct {
++	Name        string
++	Params      []*Param
++	Rets        *Rets
++	PrintTrace  bool
++	dllname     string
++	dllfuncname string
++	src         string
++	// TODO: get rid of this field and just use parameter index instead
++	curTmpVarIdx int // insure tmp variables have uniq names
++}
++
++// extractParams parses s to extract function parameters.
++func extractParams(s string, f *Fn) ([]*Param, error) {
++	s = trim(s)
++	if s == "" {
++		return nil, nil
++	}
++	a := strings.Split(s, ",")
++	ps := make([]*Param, len(a))
++	for i := range ps {
++		s2 := trim(a[i])
++		b := strings.Split(s2, " ")
++		if len(b) != 2 {
++			b = strings.Split(s2, "\t")
++			if len(b) != 2 {
++				return nil, errors.New("Could not extract function parameter from \"" + s2 + "\"")
++			}
++		}
++		ps[i] = &Param{
++			Name:      trim(b[0]),
++			Type:      trim(b[1]),
++			fn:        f,
++			tmpVarIdx: -1,
++		}
++	}
++	return ps, nil
++}
++
++// extractSection extracts text out of string s starting after start
++// and ending just before end. found return value will indicate success,
++// and prefix, body and sufix will contain correspondent parts of string s.
++func extractSection(s string, start, end rune) (prefix, body, suffix string, found bool) {
++	s = trim(s)
++	if strings.HasPrefix(s, string(start)) {
++		// no prefix
++		body = s[1:]
++	} else {
++		a := strings.SplitN(s, string(start), 2)
++		if len(a) != 2 {
++			return "", "", s, false
++		}
++		prefix = a[0]
++		body = a[1]
++	}
++	a := strings.SplitN(body, string(end), 2)
++	if len(a) != 2 {
++		return "", "", "", false
++	}
++	return prefix, a[0], a[1], true
++}
++
++// newFn parses string s and return created function Fn.
++func newFn(s string) (*Fn, error) {
++	s = trim(s)
++	f := &Fn{
++		Rets:       &Rets{},
++		src:        s,
++		PrintTrace: *PrintTraceFlag,
++	}
++	// function name and args
++	prefix, body, s, found := extractSection(s, '(', ')')
++	if !found || prefix == "" {
++		return nil, errors.New("Could not extract function name and parameters from \"" + f.src + "\"")
++	}
++	f.Name = prefix
++	var err error
++	f.Params, err = extractParams(body, f)
++	if err != nil {
++		return nil, err
++	}
++	// return values
++	_, body, s, found = extractSection(s, '(', ')')
++	if found {
++		r, err := extractParams(body, f)
++		if err != nil {
++			return nil, err
++		}
++		switch len(r) {
++		case 0:
++		case 1:
++			if r[0].IsError() {
++				f.Rets.ReturnsError = true
++			} else {
++				f.Rets.Name = r[0].Name
++				f.Rets.Type = r[0].Type
++			}
++		case 2:
++			if !r[1].IsError() {
++				return nil, errors.New("Only last windows error is allowed as second return value in \"" + f.src + "\"")
++			}
++			f.Rets.ReturnsError = true
++			f.Rets.Name = r[0].Name
++			f.Rets.Type = r[0].Type
++		default:
++			return nil, errors.New("Too many return values in \"" + f.src + "\"")
++		}
++	}
++	// fail condition
++	_, body, s, found = extractSection(s, '[', ']')
++	if found {
++		f.Rets.FailCond = body
++	}
++	// dll and dll function names
++	s = trim(s)
++	if s == "" {
++		return f, nil
++	}
++	if !strings.HasPrefix(s, "=") {
++		return nil, errors.New("Could not extract dll name from \"" + f.src + "\"")
++	}
++	s = trim(s[1:])
++	a := strings.Split(s, ".")
++	switch len(a) {
++	case 1:
++		f.dllfuncname = a[0]
++	case 2:
++		f.dllname = a[0]
++		f.dllfuncname = a[1]
++	default:
++		return nil, errors.New("Could not extract dll name from \"" + f.src + "\"")
++	}
++	return f, nil
++}
++
++// DLLName returns DLL name for function f.
++func (f *Fn) DLLName() string {
++	if f.dllname == "" {
++		return "kernel32"
++	}
++	return f.dllname
++}
++
++// DLLName returns DLL function name for function f.
++func (f *Fn) DLLFuncName() string {
++	if f.dllfuncname == "" {
++		return f.Name
++	}
++	return f.dllfuncname
++}
++
++// ParamList returns source code for function f parameters.
++func (f *Fn) ParamList() string {
++	return join(f.Params, func(p *Param) string { return p.Name + " " + p.Type }, ", ")
++}
++
++// ParamPrintList returns source code of trace printing part correspondent
++// to syscall input parameters.
++func (f *Fn) ParamPrintList() string {
++	return join(f.Params, func(p *Param) string { return fmt.Sprintf(`"%s=", %s, `, p.Name, p.Name) }, `", ", `)
++}
++
++// ParamCount return number of syscall parameters for function f.
++func (f *Fn) ParamCount() int {
++	n := 0
++	for _, p := range f.Params {
++		n += len(p.SyscallArgList())
++	}
++	return n
++}
++
++// SyscallParamCount determines which version of Syscall/Syscall6/Syscall9/...
++// to use. It returns parameter count for correspondent SyscallX function.
++func (f *Fn) SyscallParamCount() int {
++	n := f.ParamCount()
++	switch {
++	case n <= 3:
++		return 3
++	case n <= 6:
++		return 6
++	case n <= 9:
++		return 9
++	case n <= 12:
++		return 12
++	case n <= 15:
++		return 15
++	default:
++		panic("too many arguments to system call")
++	}
++}
++
++// Syscall determines which SyscallX function to use for function f.
++func (f *Fn) Syscall() string {
++	c := f.SyscallParamCount()
++	if c == 3 {
++		return "Syscall"
++	}
++	return "Syscall" + strconv.Itoa(c)
++}
++
++// SyscallParamList returns source code for SyscallX parameters for function f.
++func (f *Fn) SyscallParamList() string {
++	a := make([]string, 0)
++	for _, p := range f.Params {
++		a = append(a, p.SyscallArgList()...)
++	}
++	for len(a) < f.SyscallParamCount() {
++		a = append(a, "0")
++	}
++	return strings.Join(a, ", ")
++}
++
++// IsUTF16 is true, if f is W (utf16) function. It is false
++// for all A (ascii) functions.
++func (f *Fn) IsUTF16() bool {
++	s := f.DLLFuncName()
++	return s[len(s)-1] == 'W'
++}
++
++// StrconvFunc returns name of Go string to OS string function for f.
++func (f *Fn) StrconvFunc() string {
++	if f.IsUTF16() {
++		return "UTF16PtrFromString"
++	}
++	return "BytePtrFromString"
++}
++
++// StrconvType returns Go type name used for OS string for f.
++func (f *Fn) StrconvType() string {
++	if f.IsUTF16() {
++		return "*uint16"
++	}
++	return "*byte"
++}
++
++// Source files and functions.
++type Source struct {
++	Funcs []*Fn
++	Files []string
++}
++
++// ParseFiles parses files listed in fs and extracts all syscall
++// functions listed in  sys comments. It returns source files
++// and functions collection *Source if successful.
++func ParseFiles(fs []string) (*Source, error) {
++	src := &Source{
++		Funcs: make([]*Fn, 0),
++		Files: make([]string, 0),
++	}
++	for _, file := range fs {
++		if err := src.ParseFile(file); err != nil {
++			return nil, err
++		}
++	}
++	return src, nil
++}
++
++// DLLs return dll names for a source set src.
++func (src *Source) DLLs() []string {
++	uniq := make(map[string]bool)
++	r := make([]string, 0)
++	for _, f := range src.Funcs {
++		name := f.DLLName()
++		if _, found := uniq[name]; !found {
++			uniq[name] = true
++			r = append(r, name)
++		}
++	}
++	return r
++}
++
++// ParseFile adds adition file path to a source set src.
++func (src *Source) ParseFile(path string) error {
++	file, err := os.Open(path)
++	if err != nil {
++		return err
++	}
++	defer file.Close()
++
++	s := bufio.NewScanner(file)
++	for s.Scan() {
++		t := trim(s.Text())
++		if len(t) < 7 {
++			continue
++		}
++		if !strings.HasPrefix(t, "//sys") {
++			continue
++		}
++		t = t[5:]
++		if !(t[0] == ' ' || t[0] == '\t') {
++			continue
++		}
++		f, err := newFn(t[1:])
++		if err != nil {
++			return err
++		}
++		src.Funcs = append(src.Funcs, f)
++	}
++	if err := s.Err(); err != nil {
++		return err
++	}
++	src.Files = append(src.Files, path)
++	return nil
++}
++
++// Generate output source file from a source set src.
++func (src *Source) Generate(w io.Writer) error {
++	t := template.Must(template.New("main").Parse(srcTemplate))
++	err := t.Execute(w, src)
++	if err != nil {
++		return errors.New("Failed to execute template: " + err.Error())
++	}
++	return nil
++}
++
++func usage() {
++	fmt.Fprintf(os.Stderr, "usage: mksyscall_windows [flags] [path ...]\n")
++	flag.PrintDefaults()
++	os.Exit(1)
++}
++
++func main() {
++	flag.Usage = usage
++	flag.Parse()
++	if len(os.Args) <= 1 {
++		fmt.Fprintf(os.Stderr, "no files to parse provided\n")
++		usage()
++	}
++	src, err := ParseFiles(os.Args[1:])
++	if err != nil {
++		log.Fatal(err)
++	}
++	if err := src.Generate(os.Stdout); err != nil {
++		log.Fatal(err)
++	}
++}
++
++// TODO: use println instead to print in the folowing template
++const srcTemplate = `
++
++{{define "main"}}// go build mksyscall_windows.go && ./mksyscall_windows{{range .Files}} {{.}}{{end}}
++// MACHINE GENERATED BY THE COMMAND ABOVE; DO NOT EDIT
++
++package syscall
++
++import "unsafe"
++
++var (
++{{template "dlls" .}}
++{{template "funcnames" .}})
++{{range .Funcs}}{{template "funcbody" .}}{{end}}
++{{end}}
++
++{{/* help functions */}}
++
++{{define "dlls"}}{{range .DLLs}}	mod{{.}} = NewLazyDLL("{{.}}.dll")
++{{end}}{{end}}
++
++{{define "funcnames"}}{{range .Funcs}}	proc{{.DLLFuncName}} = mod{{.DLLName}}.NewProc("{{.DLLFuncName}}")
++{{end}}{{end}}
++
++{{define "funcbody"}}
++func {{.Name}}({{.ParamList}}) {{if .Rets.List}}{{.Rets.List}} {{end}}{
++{{template "tmpvars" .}}	{{template "syscall" .}}
++{{template "seterror" .}}{{template "printtrace" .}}	return
++}
++{{end}}
++
++{{define "tmpvars"}}{{range .Params}}{{if .TmpVarCode}}	{{.TmpVarCode}}
++{{end}}{{end}}{{end}}
++
++{{define "syscall"}}{{.Rets.SetReturnValuesCode}}{{.Syscall}}(proc{{.DLLFuncName}}.Addr(), {{.ParamCount}}, {{.SyscallParamList}}){{end}}
++
++{{define "seterror"}}{{if .Rets.SetErrorCode}}	{{.Rets.SetErrorCode}}
++{{end}}{{end}}
++
++{{define "printtrace"}}{{if .PrintTrace}}	print("SYSCALL: {{.Name}}(", {{.ParamPrintList}}") (", {{.Rets.PrintList}}")\n")
++{{end}}{{end}}
++
++`
+diff --git a/src/pkg/syscall/mksyscall_windows.pl b/src/pkg/syscall/mksyscall_windows.pl
+deleted file mode 100755
+index 65d6efc205..0000000000
+--- a/src/pkg/syscall/mksyscall_windows.pl
++++ /dev/null
+@@ -1,333 +0,0 @@
+-#!/usr/bin/env perl
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-# This program reads a file containing function prototypes
+-# (like syscall_darwin.go) and generates system call bodies.
+-# The prototypes are marked by lines beginning with "//sys"
+-# and read like func declarations if //sys is replaced by func, but:
+-#	* The parameter lists must give a name for each argument.
+-#	  This includes return parameters.
+-#	* The parameter lists must give a type for each argument:
+-#	  the (x, y, z int) shorthand is not allowed.
+-#	* If the return parameter is an error number, it must be named err.
+-#	* If go func name needs to be different from it's winapi dll name,
+-#	  the winapi name could be specified at the end, after "=" sign, like
+-#	  //sys LoadLibrary(libname string) (handle uint32, err error) = LoadLibraryA
+-#	* Each function that returns err needs to supply a condition,
+-#	  that return value of winapi will be tested against to
+-#	  detect failure. This would set err to windows "last-error",
+-#	  otherwise it will be nil. The value can be provided
+-#	  at end of //sys declaration, like
+-#	  //sys LoadLibrary(libname string) (handle uint32, err error) [failretval==-1] = LoadLibraryA
+-#	  and is [failretval==0] by default.
+-
+-use strict;
+-
+-my $cmdline = "mksyscall_windows.pl " . join(' ', @ARGV);
+-my $errors = 0;
+-my $_32bit = "";
+-
+-binmode STDOUT;
+-
+-if($ARGV[0] eq "-b32") {
+-	$_32bit = "big-endian";
+-	shift;
+-} elsif($ARGV[0] eq "-l32") {
+-	$_32bit = "little-endian";
+-	shift;
+-}
+-
+-if($ARGV[0] =~ /^-/) {
+-	print STDERR "usage: mksyscall_windows.pl [-b32 | -l32] [file ...]\n";
+-	exit 1;
+-}
+-
+-sub parseparamlist($) {
+-	my ($list) = @_;
+-	$list =~ s/^\s*//;
+-	$list =~ s/\s*$//;
+-	if($list eq "") {
+-		return ();
+-	}
+-	return split(/\s*,\s*/, $list);
+-}
+-
+-sub parseparam($) {
+-	my ($p) = @_;
+-	if($p !~ /^(\S*) (\S*)$/) {
+-		print STDERR "$ARGV:$.: malformed parameter: $p\n";
+-		$errors = 1;
+-		return ("xx", "int");
+-	}
+-	return ($1, $2);
+-}
+-
+-my $package = "";
+-my $text = "";
+-my $vars = "";
+-my $mods = "";
+-my $modnames = "";
+-while(<>) {
+-	chomp;
+-	s/\s+/ /g;
+-	s/^\s+//;
+-	s/\s+$//;
+-	$package = $1 if !$package && /^package (\S+)$/;
+-	next if !/^\/\/sys /;
+-
+-	my $syscalldot = "";
+-	$syscalldot = "syscall." if $package ne "syscall";
+-
+-	# Line must be of the form
+-	#	func Open(path string, mode int, perm int) (fd int, err error)
+-	# Split into name, in params, out params.
+-	if(!/^\/\/sys (\w+)\(([^()]*)\)\s*(?:\(([^()]+)\))?\s*(?:\[failretval(.*)\])?\s*(?:=\s*(?:(\w*)\.)?(\w*))?$/) {
+-		print STDERR "$ARGV:$.: malformed //sys declaration\n";
+-		$errors = 1;
+-		next;
+-	}
+-	my ($func, $in, $out, $failcond, $modname, $sysname) = ($1, $2, $3, $4, $5, $6);
+-
+-	# Split argument lists on comma.
+-	my @in = parseparamlist($in);
+-	my @out = parseparamlist($out);
+-
+-	# Dll file name.
+-	if($modname eq "") {
+-		$modname = "kernel32";
+-	}
+-	my $modvname = "mod$modname";
+-	if($modnames !~ /$modname/) {
+-		$modnames .= ".$modname";
+-		$mods .= "\t$modvname = ${syscalldot}NewLazyDLL(\"$modname.dll\")\n";
+-	}
+-
+-	# System call name.
+-	if($sysname eq "") {
+-		$sysname = "$func";
+-	}
+-
+-	# System call pointer variable name.
+-	my $sysvarname = "proc$sysname";
+-
+-	# Returned value when failed
+-	if($failcond eq "") {
+-		$failcond = "== 0";
+-	}
+-
+-	# Decide which version of api is used: ascii or unicode.
+-	my $strconvfunc = $sysname !~ /W$/ ? "BytePtrFromString" : "UTF16PtrFromString";
+-	my $strconvtype = $sysname !~ /W$/ ? "*byte" : "*uint16";
+-
+-	# Winapi proc address variable.
+-	$vars .= "\t$sysvarname = $modvname.NewProc(\"$sysname\")\n";
+-
+-	# Go function header.
+-	$out = join(', ', @out);
+-	if($out ne "") {
+-		$out = " ($out)";
+-	}
+-	if($text ne "") {
+-		$text .= "\n"
+-	}
+-	$text .= sprintf "func %s(%s)%s {\n", $func, join(', ', @in), $out;
+-
+-	# Check if err return available
+-	my $errvar = "";
+-	foreach my $p (@out) {
+-		my ($name, $type) = parseparam($p);
+-		if($type eq "error") {
+-			$errvar = $name;
+-			last;
+-		}
+-	}
+-
+-	# Prepare arguments to Syscall.
+-	my @args = ();
+-	my $n = 0;
+-	my @pin= ();
+-	foreach my $p (@in) {
+-		my ($name, $type) = parseparam($p);
+-		if($type =~ /^\*/) {
+-			push @args, "uintptr(unsafe.Pointer($name))";
+-		} elsif($type eq "string" && $errvar ne "") {
+-			$text .= "\tvar _p$n $strconvtype\n";
+-			$text .= "\t_p$n, $errvar = $strconvfunc($name)\n";
+-			$text .= "\tif $errvar != nil {\n\t\treturn\n\t}\n";
+-			push @args, "uintptr(unsafe.Pointer(_p$n))";
+-			$n++;
+-		} elsif($type eq "string") {
+-			print STDERR "$ARGV:$.: $func uses string arguments, but has no error return\n";
+-			$text .= "\tvar _p$n $strconvtype\n";
+-			$text .= "\t_p$n, _ = $strconvfunc($name)\n";
+-			push @args, "uintptr(unsafe.Pointer(_p$n))";
+-			$n++;
+-		} elsif($type =~ /^\[\](.*)/) {
+-			# Convert slice into pointer, length.
+-			# Have to be careful not to take address of &a[0] if len == 0:
+-			# pass nil in that case.
+-			$text .= "\tvar _p$n *$1\n";
+-			$text .= "\tif len($name) > 0 {\n\t\t_p$n = \&$name\[0]\n\t}\n";
+-			push @args, "uintptr(unsafe.Pointer(_p$n))", "uintptr(len($name))";
+-			$n++;
+-		} elsif($type eq "int64" && $_32bit ne "") {
+-			if($_32bit eq "big-endian") {
+-				push @args, "uintptr($name >> 32)", "uintptr($name)";
+-			} else {
+-				push @args, "uintptr($name)", "uintptr($name >> 32)";
+-			}
+-		} elsif($type eq "bool") {
+- 			$text .= "\tvar _p$n uint32\n";
+-			$text .= "\tif $name {\n\t\t_p$n = 1\n\t} else {\n\t\t_p$n = 0\n\t}\n";
+-			push @args, "uintptr(_p$n)";
+-			$n++;
+-		} else {
+-			push @args, "uintptr($name)";
+-		}
+-		push @pin, sprintf "\"%s=\", %s, ", $name, $name;
+-	}
+-	my $nargs = @args;
+-
+-	# Determine which form to use; pad args with zeros.
+-	my $asm = "${syscalldot}Syscall";
+-	if(@args <= 3) {
+-		while(@args < 3) {
+-			push @args, "0";
+-		}
+-	} elsif(@args <= 6) {
+-		$asm = "${syscalldot}Syscall6";
+-		while(@args < 6) {
+-			push @args, "0";
+-		}
+-	} elsif(@args <= 9) {
+-		$asm = "${syscalldot}Syscall9";
+-		while(@args < 9) {
+-			push @args, "0";
+-		}
+-	} elsif(@args <= 12) {
+-		$asm = "${syscalldot}Syscall12";
+-		while(@args < 12) {
+-			push @args, "0";
+-		}
+-	} elsif(@args <= 15) {
+-		$asm = "${syscalldot}Syscall15";
+-		while(@args < 15) {
+-			push @args, "0";
+-		}
+-	} else {
+-		print STDERR "$ARGV:$.: too many arguments to system call\n";
+-	}
+-
+-	# Actual call.
+-	my $args = join(', ', @args);
+-	my $call = "$asm($sysvarname.Addr(), $nargs, $args)";
+-
+-	# Assign return values.
+-	my $body = "";
+-	my $failexpr = "";
+-	my @ret = ("_", "_", "_");
+-	my @pout= ();
+-	for(my $i=0; $i<@out; $i++) {
+-		my $p = $out[$i];
+-		my ($name, $type) = parseparam($p);
+-		my $reg = "";
+-		if($name eq "err") {
+-			$reg = "e1";
+-			$ret[2] = $reg;
+-		} else {
+-			$reg = sprintf("r%d", $i);
+-			$ret[$i] = $reg;
+-		}
+-		if($type eq "bool") {
+-			$reg = "$reg != 0";
+-		}
+-		if($type eq "int64" && $_32bit ne "") {
+-			# 64-bit number in r1:r0 or r0:r1.
+-			if($i+2 > @out) {
+-				print STDERR "$ARGV:$.: not enough registers for int64 return\n";
+-			}
+-			if($_32bit eq "big-endian") {
+-				$reg = sprintf("int64(r%d)<<32 | int64(r%d)", $i, $i+1);
+-			} else {
+-				$reg = sprintf("int64(r%d)<<32 | int64(r%d)", $i+1, $i);
+-			}
+-			$ret[$i] = sprintf("r%d", $i);
+-			$ret[$i+1] = sprintf("r%d", $i+1);
+-		}
+-		my $rettype = $type;
+-		if($type =~ /^\*/) {
+-			$reg = "unsafe.Pointer($reg)";
+-			$rettype = "($rettype)";
+-		}
+-		if($i == 0) {
+-			if($type eq "bool") {
+-				$failexpr = "!$name";
+-			} elsif($name eq "err") {
+-				$ret[$i] = "r1";
+-				$failexpr = "r1 $failcond";
+-			} else {
+-				$failexpr = "$name $failcond";
+-			}
+-		}
+-		$failexpr =~ s/(=)([0-9A-Za-z\-+])/$1 $2/;  # gofmt compatible
+-		if($name eq "err") {
+-			# Set err to "last error" only if returned value indicate failure
+-			$body .= "\tif $failexpr {\n";
+-			$body .= "\t\tif $reg != 0 {\n";
+-			$body .= "\t\t\t$name = $type($reg)\n";
+-			$body .= "\t\t} else {\n";
+-			$body .= "\t\t\t$name = ${syscalldot}EINVAL\n";
+-			$body .= "\t\t}\n";
+-			$body .= "\t}\n";
+-		} elsif($rettype eq "error") {
+-			# Set $reg to "error" only if returned value indicate failure
+-			$body .= "\tif $reg != 0 {\n";
+-			$body .= "\t\t$name = ${syscalldot}Errno($reg)\n";
+-			$body .= "\t}\n";
+-		} else {
+-			$body .= "\t$name = $rettype($reg)\n";
+-		}
+-		push @pout, sprintf "\"%s=\", %s, ", $name, $name;
+-	}
+-	if ($ret[0] eq "_" && $ret[1] eq "_" && $ret[2] eq "_") {
+-		$text .= "\t$call\n";
+-	} else {
+-		$text .= "\t$ret[0], $ret[1], $ret[2] := $call\n";
+-	}
+-	$text .= $body;
+-	if(0) {
+-		$text .= sprintf 'print("SYSCALL: %s(", %s") (", %s")\n")%s', $func, join('", ", ', @pin), join('", ", ', @pout), "\n";
+-	}
+-
+-	$text .= "\treturn\n";
+-	$text .= "}\n";
+-}
+-
+-if($errors) {
+-	exit 1;
+-}
+-
+-print <<EOF;
+-// $cmdline
+-// MACHINE GENERATED BY THE COMMAND ABOVE; DO NOT EDIT
+-
+-package $package
+-
+-import "unsafe"
+-EOF
+-
+-print "import \"syscall\"\n" if $package ne "syscall";
+-
+-print <<EOF;
+-
+-var (
+-$mods
+-$vars
+-)
+-
+-$text
+-
+-EOF
+-exit 0;
+diff --git a/src/pkg/syscall/zsyscall_windows_386.go b/src/pkg/syscall/zsyscall_windows_386.go
+index 3cd12dd47f..e68ea5748b 100644
+--- a/src/pkg/syscall/zsyscall_windows_386.go
++++ b/src/pkg/syscall/zsyscall_windows_386.go
+@@ -1,4 +1,4 @@
+-// mksyscall_windows.pl -l32 syscall_windows.go security_windows.go syscall_windows_386.go
++// go build mksyscall_windows.go && ./mksyscall_windows syscall_windows.go security_windows.go syscall_windows_386.go
+ // MACHINE GENERATED BY THE COMMAND ABOVE; DO NOT EDIT
+ 
+ package syscall
+diff --git a/src/pkg/syscall/zsyscall_windows_amd64.go b/src/pkg/syscall/zsyscall_windows_amd64.go
+index d23c2311a0..049b5ecbaa 100644
+--- a/src/pkg/syscall/zsyscall_windows_amd64.go
++++ b/src/pkg/syscall/zsyscall_windows_amd64.go
+@@ -1,4 +1,4 @@
+-// mksyscall_windows.pl syscall_windows.go security_windows.go syscall_windows_amd64.go
++// go build mksyscall_windows.go && ./mksyscall_windows syscall_windows.go security_windows.go syscall_windows_amd64.go
+ // MACHINE GENERATED BY THE COMMAND ABOVE; DO NOT EDIT
+ 
+ package syscall

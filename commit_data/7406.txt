@@ -11,6 +11,20 @@ Date:   Tue Feb 8 23:50:23 2011 -0500
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/3989062
-
+---
  src/pkg/Makefile | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index 2ca68f3e93..619167ca43 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -187,7 +187,7 @@ NOBENCH=\
+ 
+ # Disable tests that depend on an external network.
+ ifeq ($(DISABLE_NET_TESTS),1)
+-NOTEST+=http net
++NOTEST+=http net syslog
+ endif
+ 
+ # Disable tests that windows cannot run yet.

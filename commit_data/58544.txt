@@ -15,9 +15,69 @@ Date:   Thu Oct 26 11:29:23 2023 -0500
     Reviewed-by: Than McIntosh <thanm@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-
+---
  src/cmd/internal/obj/ppc64/a.out.go    | 1 -
  src/cmd/internal/obj/ppc64/anames9.go  | 1 -
  src/cmd/internal/obj/ppc64/asm9.go     | 5 +----
  src/cmd/internal/obj/ppc64/asm_test.go | 1 -
  4 files changed, 1 insertion(+), 7 deletions(-)
+
+diff --git a/src/cmd/internal/obj/ppc64/a.out.go b/src/cmd/internal/obj/ppc64/a.out.go
+index 83ec76e0f1..13143f5beb 100644
+--- a/src/cmd/internal/obj/ppc64/a.out.go
++++ b/src/cmd/internal/obj/ppc64/a.out.go
+@@ -436,7 +436,6 @@ const (
+ 	C_LOREG    /* An $n+reg memory arg where n is a 32 bit signed offset */
+ 	C_XOREG    /* An reg+reg memory arg */
+ 	C_FPSCR    /* The fpscr register */
+-	C_XER      /* The xer, holds the carry bit */
+ 	C_LR       /* The link register */
+ 	C_CTR      /* The count register */
+ 	C_ANY      /* Any argument */
+diff --git a/src/cmd/internal/obj/ppc64/anames9.go b/src/cmd/internal/obj/ppc64/anames9.go
+index 0180358388..72d1f4915d 100644
+--- a/src/cmd/internal/obj/ppc64/anames9.go
++++ b/src/cmd/internal/obj/ppc64/anames9.go
+@@ -41,7 +41,6 @@ var cnames9 = []string{
+ 	"LOREG",
+ 	"XOREG",
+ 	"FPSCR",
+-	"XER",
+ 	"LR",
+ 	"CTR",
+ 	"ANY",
+diff --git a/src/cmd/internal/obj/ppc64/asm9.go b/src/cmd/internal/obj/ppc64/asm9.go
+index 9524f66ca4..4003e4af1e 100644
+--- a/src/cmd/internal/obj/ppc64/asm9.go
++++ b/src/cmd/internal/obj/ppc64/asm9.go
+@@ -892,9 +892,6 @@ func (c *ctxt9) aclassreg(reg int16) int {
+ 		case REG_LR:
+ 			return C_LR
+ 
+-		case REG_XER:
+-			return C_XER
+-
+ 		case REG_CTR:
+ 			return C_CTR
+ 		}
+@@ -1153,7 +1150,7 @@ func cmp(a int, b int) bool {
+ 	switch a {
+ 
+ 	case C_SPR:
+-		if b == C_LR || b == C_XER || b == C_CTR {
++		if b == C_LR || b == C_CTR {
+ 			return true
+ 		}
+ 
+diff --git a/src/cmd/internal/obj/ppc64/asm_test.go b/src/cmd/internal/obj/ppc64/asm_test.go
+index ed430edd91..7167a6a947 100644
+--- a/src/cmd/internal/obj/ppc64/asm_test.go
++++ b/src/cmd/internal/obj/ppc64/asm_test.go
+@@ -465,7 +465,6 @@ func TestAddrClassifier(t *testing.T) {
+ 		{obj.Addr{Type: obj.TYPE_REG, Reg: REG_CR1}, C_CREG},
+ 		{obj.Addr{Type: obj.TYPE_REG, Reg: REG_CR1SO}, C_CRBIT},
+ 		{obj.Addr{Type: obj.TYPE_REG, Reg: REG_SPR0}, C_SPR},
+-		{obj.Addr{Type: obj.TYPE_REG, Reg: REG_SPR0 + 1}, C_XER},
+ 		{obj.Addr{Type: obj.TYPE_REG, Reg: REG_SPR0 + 8}, C_LR},
+ 		{obj.Addr{Type: obj.TYPE_REG, Reg: REG_SPR0 + 9}, C_CTR},
+ 		{obj.Addr{Type: obj.TYPE_REG, Reg: REG_FPSCR}, C_FPSCR},

@@ -14,7 +14,7 @@ Date:   Thu May 23 10:47:36 2024 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/587855
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/compile/internal/types2/builtins.go  | 2 +-
  src/crypto/rsa/pss_test.go                   | 2 +-
  src/database/sql/sql_test.go                 | 4 ++--
@@ -30,3 +30,213 @@ Date:   Thu May 23 10:47:36 2024 -0400
  src/net/smtp/smtp_test.go                    | 4 ++--
  src/runtime/pprof/pprof_test.go              | 2 +-
  14 files changed, 18 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/builtins.go b/src/cmd/compile/internal/types2/builtins.go
+index 8b08e498f3..d176cf0967 100644
+--- a/src/cmd/compile/internal/types2/builtins.go
++++ b/src/cmd/compile/internal/types2/builtins.go
+@@ -533,7 +533,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 	case _Max, _Min:
+ 		// max(x, ...)
+ 		// min(x, ...)
+-		check.verifyVersionf(call.Fun, go1_21, quote(bin.name))
++		check.verifyVersionf(call.Fun, go1_21, "%s", quote(bin.name))
+ 
+ 		op := token.LSS
+ 		if id == _Max {
+diff --git a/src/crypto/rsa/pss_test.go b/src/crypto/rsa/pss_test.go
+index cf03e3cb7e..7e908d4389 100644
+--- a/src/crypto/rsa/pss_test.go
++++ b/src/crypto/rsa/pss_test.go
+@@ -160,7 +160,7 @@ func TestPSSGolden(t *testing.T) {
+ 				t.Error(err)
+ 			}
+ 		default:
+-			t.Fatalf("unknown marker: " + marker)
++			t.Fatalf("unknown marker: %s", marker)
+ 		}
+ 	}
+ }
+diff --git a/src/database/sql/sql_test.go b/src/database/sql/sql_test.go
+index 7dfc6434e0..ff65e877a5 100644
+--- a/src/database/sql/sql_test.go
++++ b/src/database/sql/sql_test.go
+@@ -1753,7 +1753,7 @@ func TestIssue6651(t *testing.T) {
+ 
+ 	want := "error in rows.Next"
+ 	rowsCursorNextHook = func(dest []driver.Value) error {
+-		return fmt.Errorf(want)
++		return errors.New(want)
+ 	}
+ 	defer func() { rowsCursorNextHook = nil }()
+ 
+@@ -1765,7 +1765,7 @@ func TestIssue6651(t *testing.T) {
+ 
+ 	want = "error in rows.Close"
+ 	setRowsCloseHook(func(rows *Rows, err *error) {
+-		*err = fmt.Errorf(want)
++		*err = errors.New(want)
+ 	})
+ 	defer setRowsCloseHook(nil)
+ 	err = db.QueryRow("SELECT|people|name|").Scan(&v)
+diff --git a/src/encoding/json/encode_test.go b/src/encoding/json/encode_test.go
+index 53259f4a9b..23a14d0b17 100644
+--- a/src/encoding/json/encode_test.go
++++ b/src/encoding/json/encode_test.go
+@@ -1168,7 +1168,7 @@ func TestMarshalUncommonFieldNames(t *testing.T) {
+ func TestMarshalerError(t *testing.T) {
+ 	s := "test variable"
+ 	st := reflect.TypeOf(s)
+-	errText := "json: test error"
++	const errText = "json: test error"
+ 
+ 	tests := []struct {
+ 		CaseName
+diff --git a/src/go/types/builtins.go b/src/go/types/builtins.go
+index b8963f3248..4761fbd6ef 100644
+--- a/src/go/types/builtins.go
++++ b/src/go/types/builtins.go
+@@ -536,7 +536,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 	case _Max, _Min:
+ 		// max(x, ...)
+ 		// min(x, ...)
+-		check.verifyVersionf(call.Fun, go1_21, quote(bin.name))
++		check.verifyVersionf(call.Fun, go1_21, "%s", quote(bin.name))
+ 
+ 		op := token.LSS
+ 		if id == _Max {
+diff --git a/src/go/types/typexpr.go b/src/go/types/typexpr.go
+index b31f8b33f6..dea6d31997 100644
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@ -488,7 +488,7 @@ func (check *Checker) instantiatedType(ix *typeparams.IndexExpr, def *TypeName)
+ 				if i < len(ix.Indices) {
+ 					pos = ix.Indices[i].Pos()
+ 				}
+-				check.softErrorf(atPos(pos), InvalidTypeArg, err.Error())
++				check.softErrorf(atPos(pos), InvalidTypeArg, "%v", err)
+ 			} else {
+ 				check.mono.recordInstance(check.pkg, ix.Pos(), inst.TypeParams().list(), inst.TypeArgs().list(), ix.Indices)
+ 			}
+diff --git a/src/internal/coverage/cfile/emitdata_test.go b/src/internal/coverage/cfile/emitdata_test.go
+index a6f2d99a17..c522048173 100644
+--- a/src/internal/coverage/cfile/emitdata_test.go
++++ b/src/internal/coverage/cfile/emitdata_test.go
+@@ -197,7 +197,7 @@ func testForSpecificFunctions(t *testing.T, dir string, want []string, avoid []s
+ 		}
+ 	}
+ 	if rval != "" {
+-		t.Logf("=-= begin output:\n" + output + "\n=-= end output\n")
++		t.Logf("=-= begin output:\n%s\n=-= end output\n", output)
+ 	}
+ 	return rval
+ }
+diff --git a/src/math/big/int_test.go b/src/math/big/int_test.go
+index 088bce09f9..f701652f1b 100644
+--- a/src/math/big/int_test.go
++++ b/src/math/big/int_test.go
+@@ -1909,7 +1909,7 @@ func TestFillBytes(t *testing.T) {
+ 		"0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+ 	} {
+ 		t.Run(n, func(t *testing.T) {
+-			t.Logf(n)
++			t.Log(n)
+ 			x, ok := new(Int).SetString(n, 0)
+ 			if !ok {
+ 				panic("invalid test entry")
+diff --git a/src/math/rand/rand_test.go b/src/math/rand/rand_test.go
+index 016cc69920..7906f29674 100644
+--- a/src/math/rand/rand_test.go
++++ b/src/math/rand/rand_test.go
+@@ -77,7 +77,7 @@ func checkSampleDistribution(t *testing.T, samples []float64, expected *statsRes
+ 	actual := getStatsResults(samples)
+ 	err := actual.checkSimilarDistribution(expected)
+ 	if err != nil {
+-		t.Errorf(err.Error())
++		t.Error(err)
+ 	}
+ }
+ 
+diff --git a/src/math/rand/v2/rand_test.go b/src/math/rand/v2/rand_test.go
+index e89ee29f60..65049cf44d 100644
+--- a/src/math/rand/v2/rand_test.go
++++ b/src/math/rand/v2/rand_test.go
+@@ -74,7 +74,7 @@ func checkSampleDistribution(t *testing.T, samples []float64, expected *statsRes
+ 	actual := getStatsResults(samples)
+ 	err := actual.checkSimilarDistribution(expected)
+ 	if err != nil {
+-		t.Errorf(err.Error())
++		t.Error(err)
+ 	}
+ }
+ 
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index 5014c24969..34b7d57f40 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -4743,11 +4743,11 @@ Host: foo
+ func TestHandlerFinishSkipBigContentLengthRead(t *testing.T) {
+ 	setParallel(t)
+ 	conn := newTestConn()
+-	conn.readBuf.Write([]byte(fmt.Sprintf(
++	conn.readBuf.WriteString(
+ 		"POST / HTTP/1.1\r\n" +
+ 			"Host: test\r\n" +
+ 			"Content-Length: 9999999999\r\n" +
+-			"\r\n" + strings.Repeat("a", 1<<20))))
++			"\r\n" + strings.Repeat("a", 1<<20))
+ 
+ 	ls := &oneConnListener{conn}
+ 	var inHandlerLen int
+diff --git a/src/net/smtp/smtp.go b/src/net/smtp/smtp.go
+index b7877936da..d750a2854c 100644
+--- a/src/net/smtp/smtp.go
++++ b/src/net/smtp/smtp.go
+@@ -206,7 +206,7 @@ func (c *Client) Auth(a Auth) error {
+ 	}
+ 	resp64 := make([]byte, encoding.EncodedLen(len(resp)))
+ 	encoding.Encode(resp64, resp)
+-	code, msg64, err := c.cmd(0, strings.TrimSpace(fmt.Sprintf("AUTH %s %s", mech, resp64)))
++	code, msg64, err := c.cmd(0, "%s", strings.TrimSpace(fmt.Sprintf("AUTH %s %s", mech, resp64)))
+ 	for err == nil {
+ 		var msg []byte
+ 		switch code {
+@@ -232,7 +232,7 @@ func (c *Client) Auth(a Auth) error {
+ 		}
+ 		resp64 = make([]byte, encoding.EncodedLen(len(resp)))
+ 		encoding.Encode(resp64, resp)
+-		code, msg64, err = c.cmd(0, string(resp64))
++		code, msg64, err = c.cmd(0, "%s", resp64)
+ 	}
+ 	return err
+ }
+diff --git a/src/net/smtp/smtp_test.go b/src/net/smtp/smtp_test.go
+index 259b10b93d..c91c99b1f5 100644
+--- a/src/net/smtp/smtp_test.go
++++ b/src/net/smtp/smtp_test.go
+@@ -772,10 +772,10 @@ func TestSendMail(t *testing.T) {
+ 
+ 		tc := textproto.NewConn(conn)
+ 		for i := 0; i < len(data) && data[i] != ""; i++ {
+-			tc.PrintfLine(data[i])
++			tc.PrintfLine("%s", data[i])
+ 			for len(data[i]) >= 4 && data[i][3] == '-' {
+ 				i++
+-				tc.PrintfLine(data[i])
++				tc.PrintfLine("%s", data[i])
+ 			}
+ 			if data[i] == "221 Goodbye" {
+ 				return
+diff --git a/src/runtime/pprof/pprof_test.go b/src/runtime/pprof/pprof_test.go
+index 512e07e491..09abbb31ae 100644
+--- a/src/runtime/pprof/pprof_test.go
++++ b/src/runtime/pprof/pprof_test.go
+@@ -1272,7 +1272,7 @@ func TestMutexProfile(t *testing.T) {
+ 		if ok, err := regexp.MatchString(r3, lines[5]); err != nil || !ok {
+ 			t.Errorf("%q didn't match %q", lines[5], r3)
+ 		}
+-		t.Logf(prof)
++		t.Log(prof)
+ 	})
+ 	t.Run("proto", func(t *testing.T) {
+ 		// proto format

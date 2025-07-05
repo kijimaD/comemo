@@ -7,7 +7,63 @@ Date:   Thu Aug 5 13:18:49 2010 +1000
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1892049
-
+---
  .hgtags                |  2 --
  doc/devel/release.html | 34 ++++++++++++++++++++++++++++++++++
  2 files changed, 34 insertions(+), 2 deletions(-)
+
+diff --git a/.hgtags b/.hgtags
+index 79e4bf03ba..e1499b20d1 100644
+--- a/.hgtags
++++ b/.hgtags
+@@ -25,5 +25,3 @@ f776656df34c009f2aad142bf7b34a778404acd1 release.2010-06-09
+ b761e0299e9bf66298778cf170b0f64216e3cf7d release.2010-07-01
+ 5992bf56aa72efcea87d8dff14985fc8fcc68575 release.2010-07-14
+ db904d88dc0ebf6ee5b55e44088915695c1223ee release.2010-07-29
+-db904d88dc0ebf6ee5b55e44088915695c1223ee release
+-
+diff --git a/doc/devel/release.html b/doc/devel/release.html
+index 8383ba8fa8..60ee91932d 100644
+--- a/doc/devel/release.html
++++ b/doc/devel/release.html
+@@ -5,6 +5,40 @@
+ <p>This page summarizes the changes between tagged releases of Go.
+ For full details, see the <a href="http://code.google.com/p/go/source/list">Mercurial change log</a>.</p>
+ 
++<h3 id="2010-08-04">2010-08-04</h3>
++
++<pre>
++This release includes a change to os.Open (and co.). The file permission
++argument has been changed to a uint32. Your code may require changes - a simple
++conversion operation at most.
++
++Other changes:
++* amd64: use segment memory for thread-local storage.
++* arm: add gdb support to android launcher script,
++        bugfixes (stack clobbering, indices),
++        disable another flaky test,
++        remove old qemu dependency from gotest.
++* bufio: introduce Peek.
++* bytes: added test case for explode with blank string (thanks Scott Lawrence).
++* cgo: correct multiple return value function invocations (thanks Christian Himpel).
++* crypto/x509: unwrap Subject Key Identifier (thanks Adam Langley).
++* gc: index bounds tests and other fixes.
++* gofmt/go/parser: strengthen syntax checks.
++* goinstall: check for error from exec.*Cmd.Wait() (thanks Alex Brainman).
++* image/png: use image-specific methods for checking opacity.
++* image: introduce Gray and Gray16 types,
++        remove the named colors except for Black and White.
++* json: object members must have a value (thanks Anthony Martin).
++* misc/vim: highlight misspelled words only in comments (thanks Christian Himpel).
++* os: Null device (thanks Peter Mundy).
++* runtime: do not fall through in SIGBUS/SIGSEGV.
++* strings: fix Split("", "", -1) (thanks Scott Lawrence).
++* syscall: make go errors not clash with windows errors (thanks Alex Brainman).
++* test/run: diff old new,
++* websocket: correct challenge response (thanks Tarmigan Casebolt),
++        fix bug involving spaces in header keys (thanks Bill Neubauer). 
++</pre>
++
+ <h3 id="2010-07-29">2010-07-29</h3>
+ 
+ <pre>

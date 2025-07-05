@@ -12,7 +12,77 @@ Date:   Tue Sep 22 01:17:01 2015 -0700
     Reviewed-by: Nigel Tao <nigeltao@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/compress/zlib/reader.go      |  9 +++++++++
  src/compress/zlib/reader_test.go | 24 ++++++++++++++++++++++++
  2 files changed, 33 insertions(+)
+
+diff --git a/src/compress/zlib/reader.go b/src/compress/zlib/reader.go
+index 816f1bf6bd..78ea7043bc 100644
+--- a/src/compress/zlib/reader.go
++++ b/src/compress/zlib/reader.go
+@@ -101,6 +101,9 @@ func (z *reader) Read(p []byte) (n int, err error) {
+ 
+ 	// Finished file; check checksum.
+ 	if _, err := io.ReadFull(z.r, z.scratch[0:4]); err != nil {
++		if err == io.EOF {
++			err = io.ErrUnexpectedEOF
++		}
+ 		z.err = err
+ 		return 0, err
+ 	}
+@@ -130,6 +133,9 @@ func (z *reader) Reset(r io.Reader, dict []byte) error {
+ 	}
+ 	_, err := io.ReadFull(z.r, z.scratch[0:2])
+ 	if err != nil {
++		if err == io.EOF {
++			err = io.ErrUnexpectedEOF
++		}
+ 		return err
+ 	}
+ 	h := uint(z.scratch[0])<<8 | uint(z.scratch[1])
+@@ -140,6 +146,9 @@ func (z *reader) Reset(r io.Reader, dict []byte) error {
+ 	if haveDict {
+ 		_, err = io.ReadFull(z.r, z.scratch[0:4])
+ 		if err != nil {
++			if err == io.EOF {
++				err = io.ErrUnexpectedEOF
++			}
+ 			return err
+ 		}
+ 		checksum := uint32(z.scratch[0])<<24 | uint32(z.scratch[1])<<16 | uint32(z.scratch[2])<<8 | uint32(z.scratch[3])
+diff --git a/src/compress/zlib/reader_test.go b/src/compress/zlib/reader_test.go
+index 218ccba141..449f4460bc 100644
+--- a/src/compress/zlib/reader_test.go
++++ b/src/compress/zlib/reader_test.go
+@@ -22,6 +22,30 @@ type zlibTest struct {
+ // http://www.zlib.net/zpipe.c
+ 
+ var zlibTests = []zlibTest{
++	{
++		"truncated empty",
++		"",
++		[]byte{},
++		nil,
++		io.ErrUnexpectedEOF,
++	},
++	{
++		"truncated dict",
++		"",
++		[]byte{0x78, 0xbb},
++		[]byte{0x00},
++		io.ErrUnexpectedEOF,
++	},
++	{
++		"truncated checksum",
++		"",
++		[]byte{0x78, 0xbb, 0x00, 0x01, 0x00, 0x01, 0xca, 0x48,
++			0xcd, 0xc9, 0xc9, 0xd7, 0x51, 0x28, 0xcf, 0x2f,
++			0xca, 0x49, 0x01, 0x04, 0x00, 0x00, 0xff, 0xff,
++		},
++		[]byte{0x00},
++		io.ErrUnexpectedEOF,
++	},
+ 	{
+ 		"empty",
+ 		"",

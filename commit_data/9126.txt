@@ -7,10 +7,144 @@ Date:   Tue Jul 19 14:02:23 2011 +1000
     R=golang-dev, mattn.jp, adg
     CC=golang-dev
     https://golang.org/cl/4746047
-
+---
  src/pkg/go/build/path.go              |  9 ++++++---
  src/pkg/path/filepath/path.go         |  2 +-
  src/pkg/path/filepath/path_plan9.go   |  9 +++++++--
  src/pkg/path/filepath/path_unix.go    |  9 +++++++--
  src/pkg/path/filepath/path_windows.go | 20 ++++++++++++++++----
  5 files changed, 37 insertions(+), 12 deletions(-)
+
+diff --git a/src/pkg/go/build/path.go b/src/pkg/go/build/path.go
+index e21dababd7..7c120d064c 100644
+--- a/src/pkg/go/build/path.go
++++ b/src/pkg/go/build/path.go
+@@ -10,7 +10,6 @@ import (
+ 	"os"
+ 	"path/filepath"
+ 	"runtime"
+-	"strings"
+ )
+ 
+ // Path is a validated list of Trees derived from $GOROOT and $GOPATH at init.
+@@ -96,7 +95,7 @@ func FindTree(path string) (tree *Tree, pkg string, err os.Error) {
+ 		}
+ 		for _, t := range Path {
+ 			tpath := t.SrcDir() + string(filepath.Separator)
+-			if !strings.HasPrefix(path, tpath) {
++			if !filepath.HasPrefix(path, tpath) {
+ 				continue
+ 			}
+ 			tree = t
+@@ -123,9 +122,13 @@ func FindTree(path string) (tree *Tree, pkg string, err os.Error) {
+ }
+ 
+ // isLocalPath returns whether the given path is local (/foo ./foo ../foo . ..)
++// Windows paths that starts with drive letter (c:\foo c:foo) are considered local.
+ func isLocalPath(s string) bool {
+ 	const sep = string(filepath.Separator)
+-	return strings.HasPrefix(s, sep) || strings.HasPrefix(s, "."+sep) || strings.HasPrefix(s, ".."+sep) || s == "." || s == ".."
++	return s == "." || s == ".." ||
++		filepath.HasPrefix(s, sep) ||
++		filepath.HasPrefix(s, "."+sep) || filepath.HasPrefix(s, ".."+sep) ||
++		filepath.VolumeName(s) != ""
+ }
+ 
+ var (
+diff --git a/src/pkg/path/filepath/path.go b/src/pkg/path/filepath/path.go
+index 28ad676c25..3d5b915c10 100644
+--- a/src/pkg/path/filepath/path.go
++++ b/src/pkg/path/filepath/path.go
+@@ -38,7 +38,7 @@ const (
+ // Getting Dot-Dot right,''
+ // http://plan9.bell-labs.com/sys/doc/lexnames.html
+ func Clean(path string) string {
+-	vol := volumeName(path)
++	vol := VolumeName(path)
+ 	path = path[len(vol):]
+ 	if path == "" {
+ 		return vol + "."
+diff --git a/src/pkg/path/filepath/path_plan9.go b/src/pkg/path/filepath/path_plan9.go
+index 47990e0fe0..17b873f1a9 100644
+--- a/src/pkg/path/filepath/path_plan9.go
++++ b/src/pkg/path/filepath/path_plan9.go
+@@ -11,8 +11,13 @@ func IsAbs(path string) bool {
+ 	return strings.HasPrefix(path, "/") || strings.HasPrefix(path, "#")
+ }
+ 
+-// volumeName returns the leading volume name on Windows.
++// VolumeName returns the leading volume name on Windows.
+ // It returns "" elsewhere
+-func volumeName(path string) string {
++func VolumeName(path string) string {
+ 	return ""
+ }
++
++// HasPrefix tests whether the path p begins with prefix.
++func HasPrefix(p, prefix string) bool {
++	return strings.HasPrefix(p, prefix)
++}
+diff --git a/src/pkg/path/filepath/path_unix.go b/src/pkg/path/filepath/path_unix.go
+index ea555fc0e1..b2a4151c1a 100644
+--- a/src/pkg/path/filepath/path_unix.go
++++ b/src/pkg/path/filepath/path_unix.go
+@@ -11,8 +11,13 @@ func IsAbs(path string) bool {
+ 	return strings.HasPrefix(path, "/")
+ }
+ 
+-// volumeName returns the leading volume name on Windows.
++// VolumeName returns the leading volume name on Windows.
+ // It returns "" elsewhere.
+-func volumeName(path string) string {
++func VolumeName(path string) string {
+ 	return ""
+ }
++
++// HasPrefix tests whether the path p begins with prefix.
++func HasPrefix(p, prefix string) bool {
++	return strings.HasPrefix(p, prefix)
++}
+diff --git a/src/pkg/path/filepath/path_windows.go b/src/pkg/path/filepath/path_windows.go
+index b7d18ee5a8..2535697fd9 100644
+--- a/src/pkg/path/filepath/path_windows.go
++++ b/src/pkg/path/filepath/path_windows.go
+@@ -4,9 +4,11 @@
+ 
+ package filepath
+ 
++import "strings"
++
+ // IsAbs returns true if the path is absolute.
+ func IsAbs(path string) (b bool) {
+-	v := volumeName(path)
++	v := VolumeName(path)
+ 	if v == "" {
+ 		return false
+ 	}
+@@ -17,9 +19,10 @@ func IsAbs(path string) (b bool) {
+ 	return path[0] == '/' || path[0] == '\\'
+ }
+ 
+-// volumeName return leading volume name.  
+-// If given "C:\foo\bar", return "C:" on windows.
+-func volumeName(path string) (v string) {
++// VolumeName returns leading volume name.  
++// Given "C:\foo\bar" it returns "C:" under windows.
++// On other platforms it returns "".
++func VolumeName(path string) (v string) {
+ 	if len(path) < 2 {
+ 		return ""
+ 	}
+@@ -32,3 +35,12 @@ func volumeName(path string) (v string) {
+ 	}
+ 	return ""
+ }
++
++// HasPrefix tests whether the path p begins with prefix.
++// It ignores case while comparing.
++func HasPrefix(p, prefix string) bool {
++	if strings.HasPrefix(p, prefix) {
++		return true
++	}
++	return strings.HasPrefix(strings.ToLower(p), strings.ToLower(prefix))
++}

@@ -11,9 +11,100 @@ Date:   Wed Oct 25 09:32:51 2017 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/alldocs.go             | 12 ++++++------
  src/cmd/go/internal/fix/fix.go    |  2 +-
  src/cmd/go/internal/fmtcmd/fmt.go |  2 +-
  src/cmd/go/internal/vet/vet.go    |  2 +-
  4 files changed, 9 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 7de7e36e25..7facbd45a2 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -18,8 +18,8 @@
+ // 	doc         show documentation for package or symbol
+ // 	env         print Go environment information
+ // 	bug         start a bug report
+-// 	fix         run go tool fix on packages
+-// 	fmt         run gofmt on package sources
++// 	fix         update packages to use new APIs
++// 	fmt         gofmt (reformat) package sources
+ // 	generate    generate Go files by processing source
+ // 	get         download and install packages and dependencies
+ // 	install     compile and install packages and dependencies
+@@ -28,7 +28,7 @@
+ // 	test        test packages
+ // 	tool        run specified go tool
+ // 	version     print Go version
+-// 	vet         run go tool vet on packages
++// 	vet         report likely mistakes in packages
+ //
+ // Use "go help [command]" for more information about a command.
+ //
+@@ -339,7 +339,7 @@
+ // The report includes useful system information.
+ //
+ //
+-// Run go tool fix on packages
++// Update packages to use new APIs
+ //
+ // Usage:
+ //
+@@ -355,7 +355,7 @@
+ // See also: go fmt, go vet.
+ //
+ //
+-// Run gofmt on package sources
++// Gofmt (reformat) package sources
+ //
+ // Usage:
+ //
+@@ -794,7 +794,7 @@
+ // Version prints the Go version, as reported by runtime.Version.
+ //
+ //
+-// Run go tool vet on packages
++// Report likely mistakes in packages
+ //
+ // Usage:
+ //
+diff --git a/src/cmd/go/internal/fix/fix.go b/src/cmd/go/internal/fix/fix.go
+index 81cf869a65..99c7ca51ac 100644
+--- a/src/cmd/go/internal/fix/fix.go
++++ b/src/cmd/go/internal/fix/fix.go
+@@ -15,7 +15,7 @@ import (
+ var CmdFix = &base.Command{
+ 	Run:       runFix,
+ 	UsageLine: "fix [packages]",
+-	Short:     "run go tool fix on packages",
++	Short:     "update packages to use new APIs",
+ 	Long: `
+ Fix runs the Go fix command on the packages named by the import paths.
+ 
+diff --git a/src/cmd/go/internal/fmtcmd/fmt.go b/src/cmd/go/internal/fmtcmd/fmt.go
+index 75e2fe39ce..2ff6dd5356 100644
+--- a/src/cmd/go/internal/fmtcmd/fmt.go
++++ b/src/cmd/go/internal/fmtcmd/fmt.go
+@@ -24,7 +24,7 @@ func init() {
+ var CmdFmt = &base.Command{
+ 	Run:       runFmt,
+ 	UsageLine: "fmt [-n] [-x] [packages]",
+-	Short:     "run gofmt on package sources",
++	Short:     "gofmt (reformat) package sources",
+ 	Long: `
+ Fmt runs the command 'gofmt -l -w' on the packages named
+ by the import paths. It prints the names of the files that are modified.
+diff --git a/src/cmd/go/internal/vet/vet.go b/src/cmd/go/internal/vet/vet.go
+index 79777817b4..f22dd29286 100644
+--- a/src/cmd/go/internal/vet/vet.go
++++ b/src/cmd/go/internal/vet/vet.go
+@@ -18,7 +18,7 @@ var CmdVet = &base.Command{
+ 	Run:         runVet,
+ 	CustomFlags: true,
+ 	UsageLine:   "vet [-n] [-x] [build flags] [vet flags] [packages]",
+-	Short:       "run go tool vet on packages",
++	Short:       "report likely mistakes in packages",
+ 	Long: `
+ Vet runs the Go vet command on the packages named by the import paths.
+ 

@@ -131,7 +131,7 @@ Date:   Fri Dec 2 13:55:25 2016 -0500
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/gc/bexport.go |  2 ++
  src/cmd/compile/internal/gc/bimport.go |  5 ++++-
  test/linkname.dir/linkname1.go         | 10 ++++++++++
@@ -139,3 +139,106 @@ Date:   Fri Dec 2 13:55:25 2016 -0500
  test/linkname.dir/linkname3.go         | 11 +++++++++++
  test/linkname.go                       | 15 +++++++++++++++
  6 files changed, 55 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index a8f5c3bda0..563e1fba48 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -1584,6 +1584,8 @@ func (p *exporter) sym(n *Node) {
+ 	if name != "_" {
+ 		p.pkg(s.Pkg)
+ 	}
++	// Fixes issue #18167.
++	p.string(s.Linkname)
+ }
+ 
+ func (p *exporter) bool(b bool) bool {
+diff --git a/src/cmd/compile/internal/gc/bimport.go b/src/cmd/compile/internal/gc/bimport.go
+index 752f65be42..e76d5ccfff 100644
+--- a/src/cmd/compile/internal/gc/bimport.go
++++ b/src/cmd/compile/internal/gc/bimport.go
+@@ -1185,7 +1185,10 @@ func (p *importer) sym() *Sym {
+ 	if name != "_" {
+ 		pkg = p.pkg()
+ 	}
+-	return pkg.Lookup(name)
++	linkname := p.string()
++	sym := pkg.Lookup(name)
++	sym.Linkname = linkname
++	return sym
+ }
+ 
+ func (p *importer) bool() bool {
+diff --git a/test/linkname.dir/linkname1.go b/test/linkname.dir/linkname1.go
+new file mode 100644
+index 0000000000..9c61522fcc
+--- /dev/null
++++ b/test/linkname.dir/linkname1.go
+@@ -0,0 +1,10 @@
++package x
++
++func indexByte(xs []byte, b byte) int { // ERROR "indexByte xs does not escape"
++	for i, x := range xs {
++		if x == b {
++			return i
++		}
++	}
++	return -1
++}
+diff --git a/test/linkname.dir/linkname2.go b/test/linkname.dir/linkname2.go
+new file mode 100644
+index 0000000000..5df4f50ff2
+--- /dev/null
++++ b/test/linkname.dir/linkname2.go
+@@ -0,0 +1,13 @@
++package y
++
++import _ "unsafe"
++
++//go:linkname byteIndex linkname1.indexByte
++func byteIndex(xs []byte, b byte) int
++
++func ContainsSlash(data []byte) bool { // ERROR "leaking param: data" "can inline ContainsSlash"
++	if byteIndex(data, '/') != -1 {
++		return true
++	}
++	return false
++}
+diff --git a/test/linkname.dir/linkname3.go b/test/linkname.dir/linkname3.go
+new file mode 100644
+index 0000000000..cbbd3a10ba
+--- /dev/null
++++ b/test/linkname.dir/linkname3.go
+@@ -0,0 +1,11 @@
++package main
++
++import _ "./linkname1"
++import "./linkname2"
++
++func main() { // ERROR "can inline main"
++	str := "hello/world"
++	bs := []byte(str)        // ERROR "\(\[\]byte\)\(str\) escapes to heap"
++	if y.ContainsSlash(bs) { // ERROR "inlining call to y.ContainsSlash"
++	}
++}
+diff --git a/test/linkname.go b/test/linkname.go
+new file mode 100644
+index 0000000000..c94a113c90
+--- /dev/null
++++ b/test/linkname.go
+@@ -0,0 +1,15 @@
++// errorcheckandrundir -0 -m -l=4
++
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Tests that linknames are included in export data (issue 18167).
++package ignored
++
++/*
++Without CL 33911, this test would fail with the following error:
++
++main.main: relocation target linkname2.byteIndex not defined
++main.main: undefined: "linkname2.byteIndex"
++*/

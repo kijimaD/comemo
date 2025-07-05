@@ -19,7 +19,7 @@ Date:   Mon Dec 21 22:27:01 2015 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
-
+---
  misc/cgo/test/cgo_unix_test.go    | 11 ++++++
  misc/cgo/test/sigaltstack.go      | 71 ++++++++++++++++++++++++++++++++++++
  src/runtime/signal1_unix.go       | 16 +++++++++
@@ -44,3 +44,1071 @@ Date:   Mon Dec 21 22:27:01 2015 -0800
  src/runtime/sys_openbsd_arm.s     | 41 +++++++++------------
  src/runtime/sys_solaris_amd64.s   |  2 ++
  23 files changed, 419 insertions(+), 327 deletions(-)
+
+diff --git a/misc/cgo/test/cgo_unix_test.go b/misc/cgo/test/cgo_unix_test.go
+new file mode 100644
+index 0000000000..5808e6edc8
+--- /dev/null
++++ b/misc/cgo/test/cgo_unix_test.go
+@@ -0,0 +1,11 @@
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !windows
++
++package cgotest
++
++import "testing"
++
++func TestSigaltstack(t *testing.T) { testSigaltstack(t) }
+diff --git a/misc/cgo/test/sigaltstack.go b/misc/cgo/test/sigaltstack.go
+new file mode 100644
+index 0000000000..54faa2a489
+--- /dev/null
++++ b/misc/cgo/test/sigaltstack.go
+@@ -0,0 +1,71 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !windows
++
++// Test that the Go runtime still works if C code changes the signal stack.
++
++package cgotest
++
++/*
++#include <signal.h>
++#include <stdio.h>
++#include <stdlib.h>
++#include <string.h>
++
++static stack_t oss;
++static char signalStack[SIGSTKSZ];
++
++static void changeSignalStack() {
++	stack_t ss;
++	memset(&ss, 0, sizeof ss);
++	ss.ss_sp = signalStack;
++	ss.ss_flags = 0;
++	ss.ss_size = SIGSTKSZ;
++	if (sigaltstack(&ss, &oss) < 0) {
++		perror("sigaltstack");
++		abort();
++	}
++}
++
++static void restoreSignalStack() {
++#if defined(__x86_64__) && defined(__APPLE__)
++	// The Darwin C library enforces a minimum that the kernel does not.
++	// This is OK since we allocated this much space in mpreinit,
++	// it was just removed from the buffer by stackalloc.
++	oss.ss_size = MINSIGSTKSZ;
++#endif
++	if (sigaltstack(&oss, NULL) < 0) {
++		perror("sigaltstack restore");
++		abort();
++	}
++}
++
++static int zero() {
++	return 0;
++}
++*/
++import "C"
++
++import (
++	"runtime"
++	"testing"
++)
++
++func testSigaltstack(t *testing.T) {
++	switch {
++	case runtime.GOOS == "solaris", runtime.GOOS == "darwin" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64"):
++		t.Skipf("switching signal stack not implemented on %s/s", runtime.GOOS, runtime.GOARCH)
++	}
++
++	C.changeSignalStack()
++	defer C.restoreSignalStack()
++	defer func() {
++		if recover() == nil {
++			t.Error("did not see expected panic")
++		}
++	}()
++	v := 1 / int(C.zero())
++	t.Errorf("unexpected success of division by zero == %d", v)
++}
+diff --git a/src/runtime/signal1_unix.go b/src/runtime/signal1_unix.go
+index 2a325bb9fc..3bb3ed8312 100644
+--- a/src/runtime/signal1_unix.go
++++ b/src/runtime/signal1_unix.go
+@@ -249,3 +249,19 @@ func ensureSigM() {
+ 		}
+ 	}()
+ }
++
++// This is called when we receive a signal when there is no signal stack.
++// This can only happen if non-Go code calls sigaltstack to disable the
++// signal stack.  This is called via cgocallback to establish a stack.
++func noSignalStack(sig uint32) {
++	println("signal", sig, "received on thread with no signal stack")
++	throw("non-Go code disabled sigaltstack")
++}
++
++// This is called if we receive a signal when there is a signal stack
++// but we are not on it.  This can only happen if non-Go code called
++// sigaction without setting the SS_ONSTACK flag.
++func sigNotOnStack(sig uint32) {
++	println("signal", sig, "received but handler not on signal stack")
++	throw("non-Go code set up signal handler without SA_ONSTACK flag")
++}
+diff --git a/src/runtime/signal2_unix.go b/src/runtime/signal2_unix.go
+index 0633a51900..490a69d56d 100644
+--- a/src/runtime/signal2_unix.go
++++ b/src/runtime/signal2_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin linux
++// +build darwin dragonfly freebsd linux netbsd openbsd
+ 
+ package runtime
+ 
+diff --git a/src/runtime/signal_darwin.go b/src/runtime/signal_darwin.go
+index e8ec162fda..142f4e24ce 100644
+--- a/src/runtime/signal_darwin.go
++++ b/src/runtime/signal_darwin.go
+@@ -61,6 +61,29 @@ func sigtrampgo(fn uintptr, infostyle, sig uint32, info *siginfo, ctx unsafe.Poi
+ 		sigreturn(ctx, infostyle)
+ 		return
+ 	}
++
++	// If some non-Go code called sigaltstack, adjust.
++	sp := uintptr(unsafe.Pointer(&sig))
++	if sp < g.m.gsignal.stack.lo || sp >= g.m.gsignal.stack.hi {
++		var st stackt
++		sigaltstack(nil, &st)
++		if st.ss_flags&_SS_DISABLE != 0 {
++			setg(nil)
++			cgocallback(unsafe.Pointer(funcPC(noSignalStack)), noescape(unsafe.Pointer(&sig)), unsafe.Sizeof(sig))
++		}
++		stsp := uintptr(unsafe.Pointer(st.ss_sp))
++		if sp < stsp || sp >= stsp+st.ss_size {
++			setg(nil)
++			cgocallback(unsafe.Pointer(funcPC(sigNotOnStack)), noescape(unsafe.Pointer(&sig)), unsafe.Sizeof(sig))
++		}
++		g.m.gsignal.stack.lo = stsp
++		g.m.gsignal.stack.hi = stsp + st.ss_size
++		g.m.gsignal.stackguard0 = stsp + _StackGuard
++		g.m.gsignal.stackguard1 = stsp + _StackGuard
++		g.m.gsignal.stackAlloc = st.ss_size
++		g.m.gsignal.stktopsp = getcallersp(unsafe.Pointer(&sig))
++	}
++
+ 	setg(g.m.gsignal)
+ 	sighandler(sig, info, ctx, g)
+ 	setg(g)
+diff --git a/src/runtime/signal_freebsd.go b/src/runtime/signal_freebsd.go
+index 1dbdb1bd97..bc167c7a9a 100644
+--- a/src/runtime/signal_freebsd.go
++++ b/src/runtime/signal_freebsd.go
+@@ -4,6 +4,8 @@
+ 
+ package runtime
+ 
++import "unsafe"
++
+ type sigTabT struct {
+ 	flags int32
+ 	name  string
+@@ -44,3 +46,41 @@ var sigtable = [...]sigTabT{
+ 	/* 31 */ {_SigNotify, "SIGUSR2: user-defined signal 2"},
+ 	/* 32 */ {_SigNotify, "SIGTHR: reserved"},
+ }
++
++//go:nosplit
++func sigtrampgo(sig uint32, info *siginfo, ctx unsafe.Pointer) {
++	if sigfwdgo(sig, info, ctx) {
++		return
++	}
++	g := getg()
++	if g == nil {
++		badsignal(uintptr(sig))
++		return
++	}
++
++	// If some non-Go code called sigaltstack, adjust.
++	sp := uintptr(unsafe.Pointer(&sig))
++	if sp < g.m.gsignal.stack.lo || sp >= g.m.gsignal.stack.hi {
++		var st stackt
++		sigaltstack(nil, &st)
++		if st.ss_flags&_SS_DISABLE != 0 {
++			setg(nil)
++			cgocallback(unsafe.Pointer(funcPC(noSignalStack)), noescape(unsafe.Pointer(&sig)), unsafe.Sizeof(sig))
++		}
++		stsp := uintptr(unsafe.Pointer(st.ss_sp))
++		if sp < stsp || sp >= stsp+st.ss_size {
++			setg(nil)
++			cgocallback(unsafe.Pointer(funcPC(sigNotOnStack)), noescape(unsafe.Pointer(&sig)), unsafe.Sizeof(sig))
++		}
++		g.m.gsignal.stack.lo = stsp
++		g.m.gsignal.stack.hi = stsp + st.ss_size
++		g.m.gsignal.stackguard0 = stsp + _StackGuard
++		g.m.gsignal.stackguard1 = stsp + _StackGuard
++		g.m.gsignal.stackAlloc = st.ss_size
++		g.m.gsignal.stktopsp = getcallersp(unsafe.Pointer(&sig))
++	}
++
++	setg(g.m.gsignal)
++	sighandler(sig, info, ctx, g)
++	setg(g)
++}
+diff --git a/src/runtime/signal_linux.go b/src/runtime/signal_linux.go
+deleted file mode 100644
+index 8199b6c4e2..0000000000
+--- a/src/runtime/signal_linux.go
++++ /dev/null
+@@ -1,23 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package runtime
+-
+-import "unsafe"
+-
+-// Continuation of the (assembly) sigtramp() logic.
+-//go:nosplit
+-func sigtrampgo(sig uint32, info *siginfo, ctx unsafe.Pointer) {
+-	if sigfwdgo(sig, info, ctx) {
+-		return
+-	}
+-	g := getg()
+-	if g == nil {
+-		badsignal(uintptr(sig))
+-		return
+-	}
+-	setg(g.m.gsignal)
+-	sighandler(sig, info, ctx, g)
+-	setg(g)
+-}
+diff --git a/src/runtime/signal_openbsd.go b/src/runtime/signal_openbsd.go
+index 78afc59efa..f724db9fcd 100644
+--- a/src/runtime/signal_openbsd.go
++++ b/src/runtime/signal_openbsd.go
+@@ -4,6 +4,8 @@
+ 
+ package runtime
+ 
++import "unsafe"
++
+ type sigTabT struct {
+ 	flags int32
+ 	name  string
+@@ -44,3 +46,41 @@ var sigtable = [...]sigTabT{
+ 	/* 31 */ {_SigNotify, "SIGUSR2: user-defined signal 2"},
+ 	/* 32 */ {_SigNotify, "SIGTHR: reserved"},
+ }
++
++//go:nosplit
++func sigtrampgo(sig uint32, info *siginfo, ctx unsafe.Pointer) {
++	if sigfwdgo(sig, info, ctx) {
++		return
++	}
++	g := getg()
++	if g == nil {
++		badsignal(uintptr(sig))
++		return
++	}
++
++	// If some non-Go code called sigaltstack, adjust.
++	sp := uintptr(unsafe.Pointer(&sig))
++	if sp < g.m.gsignal.stack.lo || sp >= g.m.gsignal.stack.hi {
++		var st stackt
++		sigaltstack(nil, &st)
++		if st.ss_flags&_SS_DISABLE != 0 {
++			setg(nil)
++			cgocallback(unsafe.Pointer(funcPC(noSignalStack)), noescape(unsafe.Pointer(&sig)), unsafe.Sizeof(sig))
++		}
++		stsp := uintptr(unsafe.Pointer(st.ss_sp))
++		if sp < stsp || sp >= stsp+st.ss_size {
++			setg(nil)
++			cgocallback(unsafe.Pointer(funcPC(sigNotOnStack)), noescape(unsafe.Pointer(&sig)), unsafe.Sizeof(sig))
++		}
++		g.m.gsignal.stack.lo = stsp
++		g.m.gsignal.stack.hi = stsp + st.ss_size
++		g.m.gsignal.stackguard0 = stsp + _StackGuard
++		g.m.gsignal.stackguard1 = stsp + _StackGuard
++		g.m.gsignal.stackAlloc = st.ss_size
++		g.m.gsignal.stktopsp = getcallersp(unsafe.Pointer(&sig))
++	}
++
++	setg(g.m.gsignal)
++	sighandler(sig, info, ctx, g)
++	setg(g)
++}
+diff --git a/src/runtime/signal_sigtramp.go b/src/runtime/signal_sigtramp.go
+new file mode 100644
+index 0000000000..5197a3d70b
+--- /dev/null
++++ b/src/runtime/signal_sigtramp.go
+@@ -0,0 +1,48 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build dragonfly linux netbsd
++
++package runtime
++
++import "unsafe"
++
++// Continuation of the (assembly) sigtramp() logic.
++//go:nosplit
++func sigtrampgo(sig uint32, info *siginfo, ctx unsafe.Pointer) {
++	if sigfwdgo(sig, info, ctx) {
++		return
++	}
++	g := getg()
++	if g == nil {
++		badsignal(uintptr(sig))
++		return
++	}
++
++	// If some non-Go code called sigaltstack, adjust.
++	sp := uintptr(unsafe.Pointer(&sig))
++	if sp < g.m.gsignal.stack.lo || sp >= g.m.gsignal.stack.hi {
++		var st sigaltstackt
++		sigaltstack(nil, &st)
++		if st.ss_flags&_SS_DISABLE != 0 {
++			setg(nil)
++			cgocallback(unsafe.Pointer(funcPC(noSignalStack)), noescape(unsafe.Pointer(&sig)), unsafe.Sizeof(sig))
++		}
++		stsp := uintptr(unsafe.Pointer(st.ss_sp))
++		if sp < stsp || sp >= stsp+st.ss_size {
++			setg(nil)
++			cgocallback(unsafe.Pointer(funcPC(sigNotOnStack)), noescape(unsafe.Pointer(&sig)), unsafe.Sizeof(sig))
++		}
++		g.m.gsignal.stack.lo = stsp
++		g.m.gsignal.stack.hi = stsp + st.ss_size
++		g.m.gsignal.stackguard0 = stsp + _StackGuard
++		g.m.gsignal.stackguard1 = stsp + _StackGuard
++		g.m.gsignal.stackAlloc = st.ss_size
++		g.m.gsignal.stktopsp = getcallersp(unsafe.Pointer(&sig))
++	}
++
++	setg(g.m.gsignal)
++	sighandler(sig, info, ctx, g)
++	setg(g)
++}
+diff --git a/src/runtime/sys_darwin_386.s b/src/runtime/sys_darwin_386.s
+index 87a9038041..c516ef2da8 100644
+--- a/src/runtime/sys_darwin_386.s
++++ b/src/runtime/sys_darwin_386.s
+@@ -242,53 +242,49 @@ TEXT runtime·sigaction(SB),NOSPLIT,$0
+ 	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+-// Sigtramp's job is to call the actual signal handler.
+-// It is called with the following arguments on the stack:
+-//	0(FP)	"return address" - ignored
+-//	4(FP)	actual handler
+-//	8(FP)	signal number
+-//	12(FP)	siginfo style
+-//	16(FP)	siginfo
+-//	20(FP)	context
+-TEXT runtime·sigtramp(SB),NOSPLIT,$40
+-	get_tls(CX)
+-	
+-	// check that g exists
+-	MOVL	g(CX), DI
+-	CMPL	DI, $0
+-	JNE	6(PC)
+-	MOVL	sig+8(FP), BX
+-	MOVL	BX, 0(SP)
+-	MOVL	$runtime·badsignal(SB), AX
++TEXT runtime·sigfwd(SB),NOSPLIT,$12-16
++	MOVL	sig+4(FP), AX
++	MOVL	AX, 0(SP)
++	MOVL	info+8(FP), AX
++	MOVL	AX, 4(SP)
++	MOVL	ctx+12(FP), AX
++	MOVL	AX, 8(SP)
++	MOVL	fn+0(FP), AX
+ 	CALL	AX
+-	JMP 	ret
+-
+-	// save g
+-	MOVL	DI, 20(SP)
++	RET
+ 
+-	// g = m->gsignal
+-	MOVL	g_m(DI), BP
+-	MOVL	m_gsignal(BP), BP
+-	MOVL	BP, g(CX)
++TEXT runtime·sigreturn(SB),NOSPLIT,$12-8
++	MOVL	ctx+0(FP), CX
++	MOVL	infostyle+4(FP), BX
++	MOVL	$0, 0(SP)	// "caller PC" - ignored
++	MOVL	CX, 4(SP)
++	MOVL	BX, 8(SP)
++	MOVL	$184, AX	// sigreturn(ucontext, infostyle)
++	INT	$0x80
++	MOVL	$0xf1, 0xf1  // crash
++	RET
+ 
+-	// copy arguments to sighandler
+-	MOVL	sig+8(FP), BX
++// Sigtramp's job is to call the actual signal handler.
++// It is called with the following arguments on the stack:
++//	0(SP)	"return address" - ignored
++//	4(SP)	actual handler
++//	8(SP)	signal number
++//	12(SP)	siginfo style
++//	16(SP)	siginfo
++//	20(SP)	context
++TEXT runtime·sigtramp(SB),NOSPLIT,$20
++	MOVL	fn+0(FP), BX
+ 	MOVL	BX, 0(SP)
+-	MOVL	info+12(FP), BX
++	MOVL	style+4(FP), BX
+ 	MOVL	BX, 4(SP)
+-	MOVL	context+16(FP), BX
++	MOVL	sig+8(FP), BX
+ 	MOVL	BX, 8(SP)
+-	MOVL	DI, 12(SP)
+-
+-	MOVL	handler+0(FP), BX
+-	CALL	BX
+-
+-	// restore g
+-	get_tls(CX)
+-	MOVL	20(SP), DI
+-	MOVL	DI, g(CX)
++	MOVL	info+12(FP), BX
++	MOVL	BX, 12(SP)
++	MOVL	context+16(FP), BX
++	MOVL	BX, 16(SP)
++	CALL	runtime·sigtrampgo(SB)
+ 
+-ret:
+ 	// call sigreturn
+ 	MOVL	context+16(FP), CX
+ 	MOVL	style+4(FP), BX
+diff --git a/src/runtime/sys_darwin_arm.s b/src/runtime/sys_darwin_arm.s
+index fdbb27826a..82a8db9914 100644
+--- a/src/runtime/sys_darwin_arm.s
++++ b/src/runtime/sys_darwin_arm.s
+@@ -194,6 +194,18 @@ TEXT runtime·nanotime(SB),NOSPLIT,$32
+ 	MOVW	R1, ret_hi+4(FP)
+ 	RET
+ 
++TEXT runtime·sigfwd(SB),NOSPLIT,$0-16
++	MOVW	sig+4(FP), R0
++	MOVW	info+8(FP), R1
++	MOVW	ctx+12(FP), R2
++	MOVW	fn+0(FP), R11
++	MOVW	R13, R4
++	SUB	$24, R13
++	BIC	$0x7, R13 // alignment for ELF ABI
++	BL	(R11)
++	MOVW	R4, R13
++	RET
++
+ // Sigtramp's job is to call the actual signal handler.
+ // It is called with the following arguments on the stack:
+ //	 LR  	"return address" - ignored
+diff --git a/src/runtime/sys_darwin_arm64.s b/src/runtime/sys_darwin_arm64.s
+index 145674d844..d0034d5a33 100644
+--- a/src/runtime/sys_darwin_arm64.s
++++ b/src/runtime/sys_darwin_arm64.s
+@@ -180,6 +180,14 @@ TEXT runtime·nanotime(SB),NOSPLIT,$40
+ 	MOVD	R0, ret+0(FP)
+ 	RET
+ 
++TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
++	MOVW	sig+8(FP), R0
++	MOVD	info+16(FP), R1
++	MOVD	ctx+24(FP), R2
++	MOVD	fn+0(FP), R11
++	BL	(R11)
++	RET
++
+ // Sigtramp's job is to call the actual signal handler.
+ // It is called with the following arguments on the stack:
+ //	LR	"return address" - ignored
+diff --git a/src/runtime/sys_dragonfly_amd64.s b/src/runtime/sys_dragonfly_amd64.s
+index 26c97848f2..d1b94e1bfd 100644
+--- a/src/runtime/sys_dragonfly_amd64.s
++++ b/src/runtime/sys_dragonfly_amd64.s
+@@ -187,37 +187,19 @@ TEXT runtime·sigaction(SB),NOSPLIT,$-8
+ 	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+-TEXT runtime·sigtramp(SB),NOSPLIT,$64
+-	get_tls(BX)
+-
+-	// check that g exists
+-	MOVQ	g(BX), R10
+-	CMPQ	R10, $0
+-	JNE	5(PC)
+-	MOVQ	DI, 0(SP)
+-	MOVQ	$runtime·badsignal(SB), AX
++TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
++	MOVL	sig+8(FP), DI
++	MOVQ	info+16(FP), SI
++	MOVQ	ctx+24(FP), DX
++	MOVQ	fn+0(FP), AX
+ 	CALL	AX
+ 	RET
+ 
+-	// save g
+-	MOVQ	R10, 40(SP)
+-	
+-	// g = m->signal
+-	MOVQ	g_m(R10), AX
+-	MOVQ	m_gsignal(AX), AX
+-	MOVQ	AX, g(BX)
+-	
++TEXT runtime·sigtramp(SB),NOSPLIT,$24
+ 	MOVQ	DI, 0(SP)
+ 	MOVQ	SI, 8(SP)
+ 	MOVQ	DX, 16(SP)
+-	MOVQ	R10, 24(SP)
+-
+-	CALL	runtime·sighandler(SB)
+-
+-	// restore g
+-	get_tls(BX)
+-	MOVQ	40(SP), R10
+-	MOVQ	R10, g(BX)
++	CALL	runtime·sigtrampgo(SB)
+ 	RET
+ 
+ TEXT runtime·mmap(SB),NOSPLIT,$0
+diff --git a/src/runtime/sys_freebsd_386.s b/src/runtime/sys_freebsd_386.s
+index 3aaeede6be..b37abcef95 100644
+--- a/src/runtime/sys_freebsd_386.s
++++ b/src/runtime/sys_freebsd_386.s
+@@ -207,44 +207,26 @@ TEXT runtime·sigaction(SB),NOSPLIT,$-4
+ 	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+-TEXT runtime·sigtramp(SB),NOSPLIT,$44
+-	get_tls(CX)
+-
+-	// check that g exists
+-	MOVL	g(CX), DI
+-	CMPL	DI, $0
+-	JNE	6(PC)
+-	MOVL	signo+0(FP), BX
+-	MOVL	BX, 0(SP)
+-	MOVL	$runtime·badsignal(SB), AX
++TEXT runtime·sigfwd(SB),NOSPLIT,$12-16
++	MOVL	sig+4(FP), AX
++	MOVL	AX, 0(SP)
++	MOVL	info+8(FP), AX
++	MOVL	AX, 4(SP)
++	MOVL	ctx+12(FP), AX
++	MOVL	AX, 8(SP)
++	MOVL	fn+0(FP), AX
+ 	CALL	AX
+-	JMP 	ret
+-
+-	// save g
+-	MOVL	DI, 20(SP)
+-	
+-	// g = m->gsignal
+-	MOVL	g_m(DI), BX
+-	MOVL	m_gsignal(BX), BX
+-	MOVL	BX, g(CX)
++	RET
+ 
+-	// copy arguments for call to sighandler
++TEXT runtime·sigtramp(SB),NOSPLIT,$12
+ 	MOVL	signo+0(FP), BX
+ 	MOVL	BX, 0(SP)
+ 	MOVL	info+4(FP), BX
+ 	MOVL	BX, 4(SP)
+ 	MOVL	context+8(FP), BX
+ 	MOVL	BX, 8(SP)
+-	MOVL	DI, 12(SP)
+-
+-	CALL	runtime·sighandler(SB)
+-
+-	// restore g
+-	get_tls(CX)
+-	MOVL	20(SP), BX
+-	MOVL	BX, g(CX)
++	CALL	runtime·sigtrampgo(SB)
+ 
+-ret:
+ 	// call sigreturn
+ 	MOVL	context+8(FP), AX
+ 	MOVL	$0, 0(SP)	// syscall gap
+diff --git a/src/runtime/sys_freebsd_amd64.s b/src/runtime/sys_freebsd_amd64.s
+index b1c67c7dfc..9700117d0f 100644
+--- a/src/runtime/sys_freebsd_amd64.s
++++ b/src/runtime/sys_freebsd_amd64.s
+@@ -183,37 +183,19 @@ TEXT runtime·sigaction(SB),NOSPLIT,$-8
+ 	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+-TEXT runtime·sigtramp(SB),NOSPLIT,$64
+-	get_tls(BX)
+-
+-	// check that g exists
+-	MOVQ	g(BX), R10
+-	CMPQ	R10, $0
+-	JNE	5(PC)
+-	MOVQ	DI, 0(SP)
+-	MOVQ	$runtime·badsignal(SB), AX
++TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
++	MOVL	sig+8(FP), DI
++	MOVQ	info+16(FP), SI
++	MOVQ	ctx+24(FP), DX
++	MOVQ	fn+0(FP), AX
+ 	CALL	AX
+ 	RET
+ 
+-	// save g
+-	MOVQ	R10, 40(SP)
+-	
+-	// g = m->signal
+-	MOVQ	g_m(R10), AX
+-	MOVQ	m_gsignal(AX), AX
+-	MOVQ	AX, g(BX)
+-	
++TEXT runtime·sigtramp(SB),NOSPLIT,$24
+ 	MOVQ	DI, 0(SP)
+ 	MOVQ	SI, 8(SP)
+ 	MOVQ	DX, 16(SP)
+-	MOVQ	R10, 24(SP)
+-
+-	CALL	runtime·sighandler(SB)
+-
+-	// restore g
+-	get_tls(BX)
+-	MOVQ	40(SP), R10
+-	MOVQ	R10, g(BX)
++	CALL	runtime·sigtrampgo(SB)
+ 	RET
+ 
+ TEXT runtime·mmap(SB),NOSPLIT,$0
+diff --git a/src/runtime/sys_freebsd_arm.s b/src/runtime/sys_freebsd_arm.s
+index b755ec70a8..e7dfb281d5 100644
+--- a/src/runtime/sys_freebsd_arm.s
++++ b/src/runtime/sys_freebsd_arm.s
+@@ -216,7 +216,7 @@ TEXT runtime·sigaction(SB),NOSPLIT,$-8
+ 	MOVW.CS R8, (R8)
+ 	RET
+ 
+-TEXT runtime·sigtramp(SB),NOSPLIT,$24
++TEXT runtime·sigtramp(SB),NOSPLIT,$12
+ 	// this might be called in external code context,
+ 	// where g is not set.
+ 	// first save R0, because runtime·load_g will clobber it
+@@ -225,30 +225,9 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$24
+ 	CMP 	$0, R0
+ 	BL.NE	runtime·load_g(SB)
+ 
+-	CMP $0, g
+-	BNE 4(PC)
+-	// signal number is already prepared in 4(R13)
+-	MOVW $runtime·badsignal(SB), R11
+-	BL (R11)
+-	RET
+-
+-	// save g
+-	MOVW g, R4
+-	MOVW g, 20(R13)
+-
+-	// g = m->signal
+-	MOVW g_m(g), R8
+-	MOVW m_gsignal(R8), g
+-
+-	// R0 is already saved
+-	MOVW R1, 8(R13) // info
+-	MOVW R2, 12(R13) // context
+-	MOVW R4, 16(R13) // oldg
+-
+-	BL runtime·sighandler(SB)
+-
+-	// restore g
+-	MOVW 20(R13), g
++	MOVW	R1, 8(R13)
++	MOVW	R2, 12(R13)
++	BL	runtime·sigtrampgo(SB)
+ 	RET
+ 
+ TEXT runtime·mmap(SB),NOSPLIT,$16
+@@ -300,6 +279,18 @@ TEXT runtime·sigaltstack(SB),NOSPLIT,$-8
+ 	MOVW.CS R8, (R8)
+ 	RET
+ 
++TEXT runtime·sigfwd(SB),NOSPLIT,$0-16
++	MOVW	sig+4(FP), R0
++	MOVW	info+8(FP), R1
++	MOVW	ctx+12(FP), R2
++	MOVW	fn+0(FP), R11
++	MOVW	R13, R4
++	SUB	$24, R13
++	BIC	$0x7, R13 // alignment for ELF ABI
++	BL	(R11)
++	MOVW	R4, R13
++	RET
++
+ TEXT runtime·usleep(SB),NOSPLIT,$16
+ 	MOVW usec+0(FP), R0
+ 	CALL runtime·usplitR0(SB)
+diff --git a/src/runtime/sys_netbsd_386.s b/src/runtime/sys_netbsd_386.s
+index 13b842840e..3b3c1095f0 100644
+--- a/src/runtime/sys_netbsd_386.s
++++ b/src/runtime/sys_netbsd_386.s
+@@ -215,42 +215,25 @@ TEXT runtime·sigaction(SB),NOSPLIT,$24
+ 	MOVL	$0xf1, 0xf1		// crash
+ 	RET
+ 
+-TEXT runtime·sigtramp(SB),NOSPLIT,$44
+-	get_tls(CX)
+-
+-	// check that g exists
+-	MOVL	g(CX), DI
+-	CMPL	DI, $0
+-	JNE	6(PC)
+-	MOVL	signo+0(FP), BX
+-	MOVL	BX, 0(SP)
+-	MOVL	$runtime·badsignal(SB), AX
++TEXT runtime·sigfwd(SB),NOSPLIT,$12-16
++	MOVL	sig+4(FP), AX
++	MOVL	AX, 0(SP)
++	MOVL	info+8(FP), AX
++	MOVL	AX, 4(SP)
++	MOVL	ctx+12(FP), AX
++	MOVL	AX, 8(SP)
++	MOVL	fn+0(FP), AX
+ 	CALL	AX
+ 	RET
+ 
+-	// save g
+-	MOVL	DI, 20(SP)
+-
+-	// g = m->gsignal
+-	MOVL	g_m(DI), BX
+-	MOVL	m_gsignal(BX), BX
+-	MOVL	BX, g(CX)
+-
+-	// copy arguments for call to sighandler
++TEXT runtime·sigtramp(SB),NOSPLIT,$12
+ 	MOVL	signo+0(FP), BX
+ 	MOVL	BX, 0(SP)
+ 	MOVL	info+4(FP), BX
+ 	MOVL	BX, 4(SP)
+ 	MOVL	context+8(FP), BX
+ 	MOVL	BX, 8(SP)
+-	MOVL	DI, 12(SP)
+-
+-	CALL	runtime·sighandler(SB)
+-
+-	// restore g
+-	get_tls(CX)
+-	MOVL	20(SP), BX
+-	MOVL	BX, g(CX)
++	CALL	runtime·sigtrampgo(SB)
+ 	RET
+ 
+ // int32 lwp_create(void *context, uintptr flags, void *lwpid);
+diff --git a/src/runtime/sys_netbsd_amd64.s b/src/runtime/sys_netbsd_amd64.s
+index d0640dbfac..35a1b5dd00 100644
+--- a/src/runtime/sys_netbsd_amd64.s
++++ b/src/runtime/sys_netbsd_amd64.s
+@@ -237,37 +237,19 @@ TEXT runtime·sigaction(SB),NOSPLIT,$-8
+ 	MOVL	$0xf1, 0xf1		// crash
+ 	RET
+ 
+-TEXT runtime·sigtramp(SB),NOSPLIT,$64
+-	get_tls(BX)
+-
+-	// check that g exists
+-	MOVQ	g(BX), R10
+-	CMPQ	R10, $0
+-	JNE	5(PC)
+-	MOVQ	DI, 0(SP)
+-	MOVQ	$runtime·badsignal(SB), AX
++TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
++	MOVL	sig+8(FP), DI
++	MOVQ	info+16(FP), SI
++	MOVQ	ctx+24(FP), DX
++	MOVQ	fn+0(FP), AX
+ 	CALL	AX
+ 	RET
+ 
+-	// save g
+-	MOVQ	R10, 40(SP)
+-
+-	// g = m->signal
+-	MOVQ	g_m(R10), AX
+-	MOVQ	m_gsignal(AX), AX
+-	MOVQ	AX, g(BX)
+-
+-	MOVQ	DI, 0(SP)
+-	MOVQ	SI, 8(SP)
+-	MOVQ	DX, 16(SP)
+-	MOVQ	R10, 24(SP)
+-
+-	CALL	runtime·sighandler(SB)
+-
+-	// restore g
+-	get_tls(BX)
+-	MOVQ	40(SP), R10
+-	MOVQ	R10, g(BX)
++TEXT runtime·sigtramp(SB),NOSPLIT,$24
++	MOVQ	DI, 0(SP)   // signum
++	MOVQ	SI, 8(SP)   // info
++	MOVQ	DX, 16(SP)  // ctx
++	CALL	runtime·sigtrampgo(SB)
+ 	RET
+ 
+ TEXT runtime·mmap(SB),NOSPLIT,$0
+diff --git a/src/runtime/sys_netbsd_arm.s b/src/runtime/sys_netbsd_arm.s
+index d6628848f7..3d3b65ffa9 100644
+--- a/src/runtime/sys_netbsd_arm.s
++++ b/src/runtime/sys_netbsd_arm.s
+@@ -213,7 +213,19 @@ TEXT runtime·sigaction(SB),NOSPLIT,$4
+ 	MOVW.CS R8, (R8)
+ 	RET
+ 
+-TEXT runtime·sigtramp(SB),NOSPLIT,$24
++TEXT runtime·sigfwd(SB),NOSPLIT,$0-16
++	MOVW	sig+4(FP), R0
++	MOVW	info+8(FP), R1
++	MOVW	ctx+12(FP), R2
++	MOVW	fn+0(FP), R11
++	MOVW	R13, R4
++	SUB	$24, R13
++	BIC	$0x7, R13 // alignment for ELF ABI
++	BL	(R11)
++	MOVW	R4, R13
++	RET
++
++TEXT runtime·sigtramp(SB),NOSPLIT,$12
+ 	// this might be called in external code context,
+ 	// where g is not set.
+ 	// first save R0, because runtime·load_g will clobber it
+@@ -222,30 +234,9 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$24
+ 	CMP 	$0, R0
+ 	BL.NE	runtime·load_g(SB)
+ 
+-	CMP $0, g
+-	BNE 4(PC)
+-	// signal number is already prepared in 4(R13)
+-	MOVW $runtime·badsignal(SB), R11
+-	BL (R11)
+-	RET
+-
+-	// save g
+-	MOVW g, R4
+-	MOVW g, 20(R13)
+-
+-	// g = m->signal
+-	MOVW g_m(g), R8
+-	MOVW m_gsignal(R8), g
+-
+-	// R0 is already saved
+-	MOVW R1, 8(R13) // info
+-	MOVW R2, 12(R13) // context
+-	MOVW R4, 16(R13) // gp
+-
+-	BL runtime·sighandler(SB)
+-
+-	// restore g
+-	MOVW 20(R13), g
++	MOVW	R1, 8(R13)
++	MOVW	R2, 12(R13)
++	BL	runtime·sigtrampgo(SB)
+ 	RET
+ 
+ TEXT runtime·mmap(SB),NOSPLIT,$12
+diff --git a/src/runtime/sys_openbsd_386.s b/src/runtime/sys_openbsd_386.s
+index bdf18d88f9..769b2f9455 100644
+--- a/src/runtime/sys_openbsd_386.s
++++ b/src/runtime/sys_openbsd_386.s
+@@ -195,44 +195,26 @@ TEXT runtime·sigprocmask(SB),NOSPLIT,$-4
+ 	MOVL	AX, ret+8(FP)
+ 	RET
+ 
+-TEXT runtime·sigtramp(SB),NOSPLIT,$44
+-	get_tls(CX)
+-
+-	// check that g exists
+-	MOVL	g(CX), DI
+-	CMPL	DI, $0
+-	JNE	6(PC)
+-	MOVL	signo+0(FP), BX
+-	MOVL	BX, 0(SP)
+-	MOVL	$runtime·badsignal(SB), AX
++TEXT runtime·sigfwd(SB),NOSPLIT,$12-16
++	MOVL	sig+4(FP), AX
++	MOVL	AX, 0(SP)
++	MOVL	info+8(FP), AX
++	MOVL	AX, 4(SP)
++	MOVL	ctx+12(FP), AX
++	MOVL	AX, 8(SP)
++	MOVL	fn+0(FP), AX
+ 	CALL	AX
+-	JMP 	ret
+-
+-	// save g
+-	MOVL	DI, 20(SP)
+-	
+-	// g = m->gsignal
+-	MOVL	g_m(DI), BX
+-	MOVL	m_gsignal(BX), BX
+-	MOVL	BX, g(CX)
++	RET
+ 
+-	// copy arguments for call to sighandler
++TEXT runtime·sigtramp(SB),NOSPLIT,$12
+ 	MOVL	signo+0(FP), BX
+ 	MOVL	BX, 0(SP)
+ 	MOVL	info+4(FP), BX
+ 	MOVL	BX, 4(SP)
+ 	MOVL	context+8(FP), BX
+ 	MOVL	BX, 8(SP)
+-	MOVL	DI, 12(SP)
+-
+-	CALL	runtime·sighandler(SB)
+-
+-	// restore g
+-	get_tls(CX)
+-	MOVL	20(SP), BX
+-	MOVL	BX, g(CX)
++	CALL	runtime·sigtrampgo(SB)
+ 
+-ret:
+ 	// call sigreturn
+ 	MOVL	context+8(FP), AX
+ 	MOVL	$0, 0(SP)		// syscall gap
+diff --git a/src/runtime/sys_openbsd_amd64.s b/src/runtime/sys_openbsd_amd64.s
+index 381354ea09..ed368babc0 100644
+--- a/src/runtime/sys_openbsd_amd64.s
++++ b/src/runtime/sys_openbsd_amd64.s
+@@ -228,37 +228,19 @@ TEXT runtime·sigprocmask(SB),NOSPLIT,$0
+ 	MOVL	AX, ret+8(FP)
+ 	RET
+ 
+-TEXT runtime·sigtramp(SB),NOSPLIT,$64
+-	get_tls(BX)
+-	
+-	// check that g exists
+-	MOVQ	g(BX), R10
+-	CMPQ	R10, $0
+-	JNE	5(PC)
+-	MOVQ	DI, 0(SP)
+-	MOVQ	$runtime·badsignal(SB), AX
++TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
++	MOVL	sig+8(FP), DI
++	MOVQ	info+16(FP), SI
++	MOVQ	ctx+24(FP), DX
++	MOVQ	fn+0(FP), AX
+ 	CALL	AX
+ 	RET
+ 
+-	// save g
+-	MOVQ	R10, 40(SP)
+-	
+-	// g = m->signal
+-	MOVQ	g_m(R10), AX
+-	MOVQ	m_gsignal(AX), AX
+-	MOVQ	AX, g(BX)
+-	
++TEXT runtime·sigtramp(SB),NOSPLIT,$24
+ 	MOVQ	DI, 0(SP)
+ 	MOVQ	SI, 8(SP)
+ 	MOVQ	DX, 16(SP)
+-	MOVQ	R10, 24(SP)
+-	
+-	CALL	runtime·sighandler(SB)
+-
+-	// restore g
+-	get_tls(BX)
+-	MOVQ	40(SP), R10
+-	MOVQ	R10, g(BX)
++	CALL	runtime·sigtrampgo(SB)
+ 	RET
+ 
+ TEXT runtime·mmap(SB),NOSPLIT,$0
+diff --git a/src/runtime/sys_openbsd_arm.s b/src/runtime/sys_openbsd_arm.s
+index 8c951e46d4..29e89710af 100644
+--- a/src/runtime/sys_openbsd_arm.s
++++ b/src/runtime/sys_openbsd_arm.s
+@@ -208,7 +208,19 @@ TEXT runtime·sigprocmask(SB),NOSPLIT,$0
+ 	MOVW	R0, ret+8(FP)
+ 	RET
+ 
+-TEXT runtime·sigtramp(SB),NOSPLIT,$24
++TEXT runtime·sigfwd(SB),NOSPLIT,$0-16
++	MOVW	sig+4(FP), R0
++	MOVW	info+8(FP), R1
++	MOVW	ctx+12(FP), R2
++	MOVW	fn+0(FP), R11
++	MOVW	R13, R4
++	SUB	$24, R13
++	BIC	$0x7, R13 // alignment for ELF ABI
++	BL	(R11)
++	MOVW	R4, R13
++	RET
++
++TEXT runtime·sigtramp(SB),NOSPLIT,$12
+ 	// If called from an external code context, g will not be set.
+ 	// Save R0, since runtime·load_g will clobber it.
+ 	MOVW	R0, 4(R13)		// signum
+@@ -216,30 +228,9 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$24
+ 	CMP	$0, R0
+ 	BL.NE	runtime·load_g(SB)
+ 
+-	CMP	$0, g
+-	BNE	4(PC)
+-	// Signal number saved in 4(R13).
+-	MOVW	runtime·badsignal(SB), R11
+-	BL	(R11)
+-	RET
+-
+-	// Save g.
+-	MOVW	g, R3
+-	MOVW	g, 20(R13)
+-
+-	// g = m->signal
+-	MOVW	g_m(g), R8
+-	MOVW	m_gsignal(R8), g
+-
+-	// R0 already saved.
+-	MOVW	R1, 8(R13)		// info
+-	MOVW	R2, 12(R13)		// context
+-	MOVW	R3, 16(R13)		// gp (original g)
+-
+-	BL	runtime·sighandler(SB)
+-
+-	// Restore g.
+-	MOVW	20(R13), g
++	MOVW	R1, 8(R13)
++	MOVW	R2, 12(R13)
++	BL	runtime·sigtrampgo(SB)
+ 	RET
+ 
+ // int32 tfork(void *param, uintptr psize, M *mp, G *gp, void (*fn)(void));
+diff --git a/src/runtime/sys_solaris_amd64.s b/src/runtime/sys_solaris_amd64.s
+index 179dfa305f..3a82674684 100644
+--- a/src/runtime/sys_solaris_amd64.s
++++ b/src/runtime/sys_solaris_amd64.s
+@@ -224,6 +224,8 @@ allgood:
+ 	MOVQ	m_gsignal(BP), BP
+ 	MOVQ	BP, g(BX)
+ 
++	// TODO: If current SP is not in gsignal.stack, then adjust.
++
+ 	// prepare call
+ 	MOVQ	DI, 0(SP)
+ 	MOVQ	SI, 8(SP)

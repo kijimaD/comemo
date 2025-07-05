@@ -20,7 +20,7 @@ Date:   Wed Mar 22 20:27:54 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/gen.go            |  8 ++++++++
  src/cmd/compile/internal/gc/pgen.go           |  3 ++-
  src/cmd/compile/internal/gc/ssa.go            | 10 +++++++---
@@ -32,3 +32,221 @@ Date:   Wed Mar 22 20:27:54 2017 -0700
  src/cmd/compile/internal/ssa/stackalloc.go    |  2 +-
  src/cmd/compile/internal/ssa/writebarrier.go  |  2 +-
  10 files changed, 35 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/gen.go b/src/cmd/compile/internal/gc/gen.go
+index 2e21b457d1..c6ef820f07 100644
+--- a/src/cmd/compile/internal/gc/gen.go
++++ b/src/cmd/compile/internal/gc/gen.go
+@@ -8,6 +8,7 @@ package gc
+ 
+ import (
+ 	"cmd/internal/obj"
++	"cmd/internal/src"
+ 	"fmt"
+ )
+ 
+@@ -219,3 +220,10 @@ func temp(t *Type) *Node {
+ 	n.Sym.Def.SetUsed(true)
+ 	return n.Orig
+ }
++
++func tempAt(pos src.XPos, curfn *Node, t *Type) *Node {
++	// TODO(mdempsky/josharian): Remove all reads and writes of lineno and Curfn.
++	lineno = pos
++	Curfn = curfn
++	return temp(t)
++}
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index be7d44a42f..c3030cb8eb 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -8,6 +8,7 @@ import (
+ 	"cmd/compile/internal/ssa"
+ 	"cmd/internal/dwarf"
+ 	"cmd/internal/obj"
++	"cmd/internal/src"
+ 	"cmd/internal/sys"
+ 	"fmt"
+ 	"sort"
+@@ -208,7 +209,7 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
+ 	}
+ 
+ 	if f.Config.NeedsFpScratch {
+-		scratchFpMem = temp(Types[TUINT64])
++		scratchFpMem = tempAt(src.NoXPos, s.curfn, Types[TUINT64])
+ 		scratchFpMem.SetUsed(scratchUsed)
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index e223607c66..5c932c786f 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -92,6 +92,7 @@ func buildssa(fn *Node) *ssa.Func {
+ 		curfn: fn,
+ 		log:   printssa,
+ 	}
++	s.curfn = fn
+ 
+ 	s.f = ssa.NewFunc(&fe)
+ 	s.config = ssaConfig
+@@ -203,6 +204,9 @@ type state struct {
+ 	// function we're building
+ 	f *ssa.Func
+ 
++	// Node for function
++	curfn *Node
++
+ 	// labels and labeled control flow nodes (OFOR, OFORUNTIL, OSWITCH, OSELECT) in f
+ 	labels       map[string]*ssaLabel
+ 	labeledNodes map[*Node]*ssaLabel
+@@ -4082,7 +4086,7 @@ func (s *state) dottype(n *Node, commaok bool) (res, resok *ssa.Value) {
+ 	if commaok && !canSSAType(n.Type) {
+ 		// unSSAable type, use temporary.
+ 		// TODO: get rid of some of these temporaries.
+-		tmp = temp(n.Type)
++		tmp = tempAt(n.Pos, s.curfn, n.Type)
+ 		addr = s.addr(tmp, false)
+ 		s.vars[&memVar] = s.newValue1A(ssa.OpVarDef, ssa.TypeMem, tmp, s.mem())
+ 	}
+@@ -4713,8 +4717,8 @@ func (e *ssafn) StringData(s string) interface{} {
+ 	return aux
+ }
+ 
+-func (e *ssafn) Auto(t ssa.Type) ssa.GCNode {
+-	n := temp(t.(*Type)) // Note: adds new auto to Curfn.Func.Dcl list
++func (e *ssafn) Auto(pos src.XPos, t ssa.Type) ssa.GCNode {
++	n := tempAt(pos, e.curfn, t.(*Type)) // Note: adds new auto to e.curfn.Func.Dcl list
+ 	return n
+ }
+ 
+diff --git a/src/cmd/compile/internal/ssa/config.go b/src/cmd/compile/internal/ssa/config.go
+index 2be01d7a6f..912fb16d8b 100644
+--- a/src/cmd/compile/internal/ssa/config.go
++++ b/src/cmd/compile/internal/ssa/config.go
+@@ -101,7 +101,7 @@ type Frontend interface {
+ 
+ 	// Auto returns a Node for an auto variable of the given type.
+ 	// The SSA compiler uses this function to allocate space for spills.
+-	Auto(Type) GCNode
++	Auto(src.XPos, Type) GCNode
+ 
+ 	// Given the name for a compound type, returns the name we should use
+ 	// for the parts of that compound type.
+diff --git a/src/cmd/compile/internal/ssa/export_test.go b/src/cmd/compile/internal/ssa/export_test.go
+index fd8d3617f2..c26df1b964 100644
+--- a/src/cmd/compile/internal/ssa/export_test.go
++++ b/src/cmd/compile/internal/ssa/export_test.go
+@@ -76,7 +76,7 @@ func (d *DummyAuto) String() string {
+ func (DummyFrontend) StringData(s string) interface{} {
+ 	return nil
+ }
+-func (DummyFrontend) Auto(t Type) GCNode {
++func (DummyFrontend) Auto(pos src.XPos, t Type) GCNode {
+ 	return &DummyAuto{t: t, s: "aDummyAuto"}
+ }
+ func (d DummyFrontend) SplitString(s LocalSlot) (LocalSlot, LocalSlot) {
+diff --git a/src/cmd/compile/internal/ssa/loop_test.go b/src/cmd/compile/internal/ssa/loop_test.go
+index b0f20be3ea..f891703e2f 100644
+--- a/src/cmd/compile/internal/ssa/loop_test.go
++++ b/src/cmd/compile/internal/ssa/loop_test.go
+@@ -5,6 +5,7 @@
+ package ssa
+ 
+ import (
++	"cmd/internal/src"
+ 	"testing"
+ )
+ 
+@@ -49,7 +50,7 @@ func TestLoopConditionS390X(t *testing.T) {
+ 			Valu("mem", OpInitMem, TypeMem, 0, nil),
+ 			Valu("SP", OpSP, TypeUInt64, 0, nil),
+ 			Valu("ret", OpAddr, TypeInt64Ptr, 0, nil, "SP"),
+-			Valu("N", OpArg, TypeInt64, 0, c.Frontend().Auto(TypeInt64)),
++			Valu("N", OpArg, TypeInt64, 0, c.Frontend().Auto(src.NoXPos, TypeInt64)),
+ 			Valu("starti", OpConst64, TypeInt64, 0, nil),
+ 			Valu("startsum", OpConst64, TypeInt64, 0, nil),
+ 			Goto("b1")),
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index 4e0c49f6ed..f934edfcac 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -2080,13 +2080,7 @@ func (e *edgeState) findRegFor(typ Type) Location {
+ 		return &e.s.registers[pickReg(x)]
+ 	}
+ 
+-	// No register is available. Allocate a temp location to spill a register to.
+-	// The type of the slot is immaterial - it will not be live across
+-	// any safepoint. Just use a type big enough to hold any register.
+-	typ = types.Int64
+-	t := LocalSlot{e.s.f.fe.Auto(typ), typ, 0}
+-	// TODO: reuse these slots.
+-
++	// No register is available.
+ 	// Pick a register to spill.
+ 	for _, vid := range e.cachedVals {
+ 		a := e.cache[vid]
+@@ -2094,6 +2088,11 @@ func (e *edgeState) findRegFor(typ Type) Location {
+ 			if r, ok := e.s.f.getHome(c.ID).(*Register); ok && m>>uint(r.num)&1 != 0 {
+ 				if !c.rematerializeable() {
+ 					x := e.p.NewValue1(c.Pos, OpStoreReg, c.Type, c)
++					// Allocate a temp location to spill a register to.
++					// The type of the slot is immaterial - it will not be live across
++					// any safepoint. Just use a type big enough to hold any register.
++					t := LocalSlot{e.s.f.fe.Auto(c.Pos, types.Int64), types.Int64, 0}
++					// TODO: reuse these slots.
+ 					e.set(t, vid, x, false, c.Pos)
+ 					if e.s.f.pass.debug > regDebug {
+ 						fmt.Printf("  SPILL %s->%s %s\n", r.Name(), t.Name(), x.LongString())
+diff --git a/src/cmd/compile/internal/ssa/regalloc_test.go b/src/cmd/compile/internal/ssa/regalloc_test.go
+index 19edaedb6a..3cbd164544 100644
+--- a/src/cmd/compile/internal/ssa/regalloc_test.go
++++ b/src/cmd/compile/internal/ssa/regalloc_test.go
+@@ -4,7 +4,10 @@
+ 
+ package ssa
+ 
+-import "testing"
++import (
++	"cmd/internal/src"
++	"testing"
++)
+ 
+ func TestLiveControlOps(t *testing.T) {
+ 	c := testConfig(t)
+@@ -39,8 +42,8 @@ func TestSpillWithLoop(t *testing.T) {
+ 	f := c.Fun("entry",
+ 		Bloc("entry",
+ 			Valu("mem", OpInitMem, TypeMem, 0, nil),
+-			Valu("ptr", OpArg, TypeInt64Ptr, 0, c.Frontend().Auto(TypeInt64)),
+-			Valu("cond", OpArg, TypeBool, 0, c.Frontend().Auto(TypeBool)),
++			Valu("ptr", OpArg, TypeInt64Ptr, 0, c.Frontend().Auto(src.NoXPos, TypeInt64)),
++			Valu("cond", OpArg, TypeBool, 0, c.Frontend().Auto(src.NoXPos, TypeBool)),
+ 			Valu("ld", OpAMD64MOVQload, TypeInt64, 0, nil, "ptr", "mem"), // this value needs a spill
+ 			Goto("loop"),
+ 		),
+diff --git a/src/cmd/compile/internal/ssa/stackalloc.go b/src/cmd/compile/internal/ssa/stackalloc.go
+index 6957c8f630..8caf50494e 100644
+--- a/src/cmd/compile/internal/ssa/stackalloc.go
++++ b/src/cmd/compile/internal/ssa/stackalloc.go
+@@ -246,7 +246,7 @@ func (s *stackAllocState) stackalloc() {
+ 			// If there is no unused stack slot, allocate a new one.
+ 			if i == len(locs) {
+ 				s.nAuto++
+-				locs = append(locs, LocalSlot{N: f.fe.Auto(v.Type), Type: v.Type, Off: 0})
++				locs = append(locs, LocalSlot{N: f.fe.Auto(v.Pos, v.Type), Type: v.Type, Off: 0})
+ 				locations[v.Type] = locs
+ 			}
+ 			// Use the stack variable at that index for v.
+diff --git a/src/cmd/compile/internal/ssa/writebarrier.go b/src/cmd/compile/internal/ssa/writebarrier.go
+index a8eac9f5eb..35be9a09d7 100644
+--- a/src/cmd/compile/internal/ssa/writebarrier.go
++++ b/src/cmd/compile/internal/ssa/writebarrier.go
+@@ -267,7 +267,7 @@ func wbcall(pos src.XPos, b *Block, fn *obj.LSym, typ interface{}, ptr, val, mem
+ 		// a function call). Marshaling the args to typedmemmove might clobber the
+ 		// value we're trying to move.
+ 		t := val.Type.ElemType()
+-		tmp = b.Func.fe.Auto(t)
++		tmp = b.Func.fe.Auto(val.Pos, t)
+ 		aux := &AutoSymbol{Typ: t, Node: tmp}
+ 		mem = b.NewValue1A(pos, OpVarDef, TypeMem, tmp, mem)
+ 		tmpaddr := b.NewValue1A(pos, OpAddr, t.PtrTo(), aux, sp)

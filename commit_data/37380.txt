@@ -9,8 +9,85 @@ Date:   Fri Jul 20 13:21:45 2018 +0700
     Change-Id: Icd8d6d55dc42adb5c8953787eec7eb29ba46b2aa
     Reviewed-on: https://go-review.googlesource.com/125215
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/cgo/testsanitizers/cc_test.go                 |  5 +++--
  src/cmd/go/internal/test/test.go                   | 17 +++++++++++------
  src/cmd/go/testdata/script/test_compile_binary.txt |  6 ++++++
  3 files changed, 20 insertions(+), 8 deletions(-)
+
+diff --git a/misc/cgo/testsanitizers/cc_test.go b/misc/cgo/testsanitizers/cc_test.go
+index 306844bdc8..f09ad52cee 100644
+--- a/misc/cgo/testsanitizers/cc_test.go
++++ b/misc/cgo/testsanitizers/cc_test.go
+@@ -381,12 +381,13 @@ func (c *config) checkRuntime() (skip bool, err error) {
+ 		return false, err
+ 	}
+ 	cmd.Args = append(cmd.Args, "-dM", "-E", "../../../src/runtime/cgo/libcgo.h")
++	cmdStr := strings.Join(cmd.Args, " ")
+ 	out, err := cmd.CombinedOutput()
+ 	if err != nil {
+-		return false, fmt.Errorf("%#q exited with %v\n%s", strings.Join(cmd.Args, " "), err, out)
++		return false, fmt.Errorf("%#q exited with %v\n%s", cmdStr, err, out)
+ 	}
+ 	if !bytes.Contains(out, []byte("#define CGO_TSAN")) {
+-		return true, fmt.Errorf("%#q did not define CGO_TSAN")
++		return true, fmt.Errorf("%#q did not define CGO_TSAN", cmdStr)
+ 	}
+ 	return false, nil
+ }
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index 80c99b7576..052c81e28c 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -892,8 +892,10 @@ func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, prin
+ 		}
+ 		runAction = installAction // make sure runAction != nil even if not running test
+ 	}
++	var vetRunAction *work.Action
+ 	if testC {
+ 		printAction = &work.Action{Mode: "test print (nop)", Package: p, Deps: []*work.Action{runAction}} // nop
++		vetRunAction = printAction
+ 	} else {
+ 		// run test
+ 		c := new(runCache)
+@@ -906,12 +908,7 @@ func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, prin
+ 			TryCache:   c.tryCache,
+ 			Objdir:     testDir,
+ 		}
+-		if len(ptest.GoFiles)+len(ptest.CgoFiles) > 0 {
+-			addTestVet(b, ptest, runAction, installAction)
+-		}
+-		if pxtest != nil {
+-			addTestVet(b, pxtest, runAction, installAction)
+-		}
++		vetRunAction = runAction
+ 		cleanAction = &work.Action{
+ 			Mode:       "test clean",
+ 			Func:       builderCleanTest,
+@@ -928,6 +925,14 @@ func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, prin
+ 			IgnoreFail: true, // print even if test failed
+ 		}
+ 	}
++
++	if len(ptest.GoFiles)+len(ptest.CgoFiles) > 0 {
++		addTestVet(b, ptest, vetRunAction, installAction)
++	}
++	if pxtest != nil {
++		addTestVet(b, pxtest, vetRunAction, installAction)
++	}
++
+ 	if installAction != nil {
+ 		if runAction != installAction {
+ 			installAction.Deps = append(installAction.Deps, runAction)
+diff --git a/src/cmd/go/testdata/script/test_compile_binary.txt b/src/cmd/go/testdata/script/test_compile_binary.txt
+new file mode 100644
+index 0000000000..6c01bc5729
+--- /dev/null
++++ b/src/cmd/go/testdata/script/test_compile_binary.txt
+@@ -0,0 +1,6 @@
++! go test -c compile_binary/...
++stderr 'build comment'
++
++-- compile_binary/foo_test.go --
++//+build foo
++package foo

@@ -10,7 +10,7 @@ Date:   Fri Sep 16 14:08:10 2016 -0700
     Reviewed-on: https://go-review.googlesource.com/29358
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Dave Cheney <dave@cheney.net>
-
+---
  src/cmd/compile/internal/amd64/galign.go  | 1 -
  src/cmd/compile/internal/arm/galign.go    | 1 -
  src/cmd/compile/internal/arm64/galign.go  | 1 -
@@ -20,3 +20,100 @@ Date:   Fri Sep 16 14:08:10 2016 -0700
  src/cmd/compile/internal/s390x/galign.go  | 1 -
  src/cmd/compile/internal/x86/galign.go    | 1 -
  8 files changed, 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/galign.go b/src/cmd/compile/internal/amd64/galign.go
+index 9d67812a92..bb3830bca5 100644
+--- a/src/cmd/compile/internal/amd64/galign.go
++++ b/src/cmd/compile/internal/amd64/galign.go
+@@ -19,7 +19,6 @@ func Init() {
+ 		leaptr = x86.ALEAL
+ 	}
+ 	gc.Thearch.REGSP = x86.REGSP
+-	gc.Thearch.REGCTXT = x86.REGCTXT
+ 	gc.Thearch.MAXWIDTH = 1 << 50
+ 
+ 	gc.Thearch.Defframe = defframe
+diff --git a/src/cmd/compile/internal/arm/galign.go b/src/cmd/compile/internal/arm/galign.go
+index 1533f6cf59..308b016026 100644
+--- a/src/cmd/compile/internal/arm/galign.go
++++ b/src/cmd/compile/internal/arm/galign.go
+@@ -13,7 +13,6 @@ import (
+ func Init() {
+ 	gc.Thearch.LinkArch = &arm.Linkarm
+ 	gc.Thearch.REGSP = arm.REGSP
+-	gc.Thearch.REGCTXT = arm.REGCTXT
+ 	gc.Thearch.MAXWIDTH = (1 << 32) - 1
+ 
+ 	gc.Thearch.Defframe = defframe
+diff --git a/src/cmd/compile/internal/arm64/galign.go b/src/cmd/compile/internal/arm64/galign.go
+index 587186f446..20a67e398d 100644
+--- a/src/cmd/compile/internal/arm64/galign.go
++++ b/src/cmd/compile/internal/arm64/galign.go
+@@ -13,7 +13,6 @@ import (
+ func Init() {
+ 	gc.Thearch.LinkArch = &arm64.Linkarm64
+ 	gc.Thearch.REGSP = arm64.REGSP
+-	gc.Thearch.REGCTXT = arm64.REGCTXT
+ 	gc.Thearch.MAXWIDTH = 1 << 50
+ 
+ 	gc.Thearch.Defframe = defframe
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index 15a179a566..d090e5cb95 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -346,7 +346,6 @@ type Arch struct {
+ 	LinkArch *obj.LinkArch
+ 
+ 	REGSP    int
+-	REGCTXT  int
+ 	MAXWIDTH int64
+ 
+ 	Defframe func(*obj.Prog)
+diff --git a/src/cmd/compile/internal/mips64/galign.go b/src/cmd/compile/internal/mips64/galign.go
+index 007938c096..4a36a4ce5b 100644
+--- a/src/cmd/compile/internal/mips64/galign.go
++++ b/src/cmd/compile/internal/mips64/galign.go
+@@ -17,7 +17,6 @@ func Init() {
+ 		gc.Thearch.LinkArch = &mips.Linkmips64le
+ 	}
+ 	gc.Thearch.REGSP = mips.REGSP
+-	gc.Thearch.REGCTXT = mips.REGCTXT
+ 	gc.Thearch.MAXWIDTH = 1 << 50
+ 
+ 	gc.Thearch.Defframe = defframe
+diff --git a/src/cmd/compile/internal/ppc64/galign.go b/src/cmd/compile/internal/ppc64/galign.go
+index 94d338ed6b..186aa2946a 100644
+--- a/src/cmd/compile/internal/ppc64/galign.go
++++ b/src/cmd/compile/internal/ppc64/galign.go
+@@ -16,7 +16,6 @@ func Init() {
+ 		gc.Thearch.LinkArch = &ppc64.Linkppc64le
+ 	}
+ 	gc.Thearch.REGSP = ppc64.REGSP
+-	gc.Thearch.REGCTXT = ppc64.REGCTXT
+ 	gc.Thearch.MAXWIDTH = 1 << 50
+ 
+ 	gc.Thearch.Defframe = defframe
+diff --git a/src/cmd/compile/internal/s390x/galign.go b/src/cmd/compile/internal/s390x/galign.go
+index eb2a51a46d..91b9ed0777 100644
+--- a/src/cmd/compile/internal/s390x/galign.go
++++ b/src/cmd/compile/internal/s390x/galign.go
+@@ -12,7 +12,6 @@ import (
+ func Init() {
+ 	gc.Thearch.LinkArch = &s390x.Links390x
+ 	gc.Thearch.REGSP = s390x.REGSP
+-	gc.Thearch.REGCTXT = s390x.REGCTXT
+ 	gc.Thearch.MAXWIDTH = 1 << 50
+ 
+ 	gc.Thearch.Defframe = defframe
+diff --git a/src/cmd/compile/internal/x86/galign.go b/src/cmd/compile/internal/x86/galign.go
+index 4b021b643a..edac6a002a 100644
+--- a/src/cmd/compile/internal/x86/galign.go
++++ b/src/cmd/compile/internal/x86/galign.go
+@@ -15,7 +15,6 @@ import (
+ func Init() {
+ 	gc.Thearch.LinkArch = &x86.Link386
+ 	gc.Thearch.REGSP = x86.REGSP
+-	gc.Thearch.REGCTXT = x86.REGCTXT
+ 	switch v := obj.GO386; v {
+ 	case "387":
+ 		gc.Thearch.Use387 = true

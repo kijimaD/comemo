@@ -11,6 +11,30 @@ Date:   Wed Apr 15 21:55:35 2020 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/internal/ld/data.go | 5 ++---
  1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index c04bac250b..3979880cf4 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -1444,7 +1444,6 @@ func (ctxt *Link) dodata() {
+ 	state.makeRelroForSharedLib(ctxt)
+ 
+ 	// Sort symbols.
+-	var dataMaxAlign [sym.SXREF]int32
+ 	var wg sync.WaitGroup
+ 	for symn := range state.data {
+ 		symn := sym.SymKind(symn)
+@@ -1459,8 +1458,8 @@ func (ctxt *Link) dodata() {
+ 	if ctxt.HeadType == objabi.Haix && ctxt.LinkMode == LinkExternal {
+ 		// These symbols must have the same alignment as their section.
+ 		// Otherwize, ld might change the layout of Go sections.
+-		ctxt.Syms.ROLookup("runtime.data", 0).Align = dataMaxAlign[sym.SDATA]
+-		ctxt.Syms.ROLookup("runtime.bss", 0).Align = dataMaxAlign[sym.SBSS]
++		ctxt.Syms.ROLookup("runtime.data", 0).Align = state.dataMaxAlign[sym.SDATA]
++		ctxt.Syms.ROLookup("runtime.bss", 0).Align = state.dataMaxAlign[sym.SBSS]
+ 	}
+ 
+ 	state.allocateSections(ctxt)

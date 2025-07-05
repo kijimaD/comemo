@@ -7,7 +7,48 @@ Date:   Thu Dec 10 12:54:30 2009 -0800
     R=gri
     CC=golang-dev
     https://golang.org/cl/173044
-
+---
  test/fixedbugs/bug125.go | 15 ---------------
  test/fixedbugs/bug166.go | 13 -------------
  2 files changed, 28 deletions(-)
+
+diff --git a/test/fixedbugs/bug125.go b/test/fixedbugs/bug125.go
+deleted file mode 100644
+index 5670ce028b..0000000000
+--- a/test/fixedbugs/bug125.go
++++ /dev/null
+@@ -1,15 +0,0 @@
+-// errchk $G $D/$F.go
+-
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-import (
+-	OS "os"  // should require semicolon here; this is no different from other decls
+-	IO "io"  // ERROR "missing|syntax"
+-)
+-
+-func main() {
+-}
+diff --git a/test/fixedbugs/bug166.go b/test/fixedbugs/bug166.go
+deleted file mode 100644
+index 81fe0808c5..0000000000
+--- a/test/fixedbugs/bug166.go
++++ /dev/null
+@@ -1,13 +0,0 @@
+-// errchk $G $D/$F.go
+-
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-import "os"
+-func fn() {
+-	var e os.Error
+-	if e == nil {		// ERROR "syntax error|expected ';'"
+-	}
+-}

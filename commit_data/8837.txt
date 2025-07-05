@@ -17,6 +17,21 @@ Date:   Fri Jun 24 00:29:59 2011 -0300
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/4634086
-
+---
  src/pkg/runtime/linux/mem.c | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/pkg/runtime/linux/mem.c b/src/pkg/runtime/linux/mem.c
+index 38ca7e4a0f..ad0fac6d3f 100644
+--- a/src/pkg/runtime/linux/mem.c
++++ b/src/pkg/runtime/linux/mem.c
+@@ -91,6 +91,9 @@ runtime·SysMap(void *v, uintptr n)
+ 		if(p != v && addrspace_free(v, n)) {
+ 			// On some systems, mmap ignores v without
+ 			// MAP_FIXED, so retry if the address space is free.
++			if(p > (void*)4096) {
++				runtime·munmap(p, n);
++			}
+ 			p = runtime·mmap(v, n, PROT_READ|PROT_WRITE|PROT_EXEC, MAP_ANON|MAP_FIXED|MAP_PRIVATE, -1, 0);
+ 		}
+ 		if(p == (void*)ENOMEM)

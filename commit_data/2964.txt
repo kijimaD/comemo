@@ -8,7 +8,7 @@ Date:   Wed Aug 12 18:16:24 2009 -0700
     R=ken
     OCL=33142
     CL=33146
-
+---
  src/cmd/6g/gg.h          |   6 +--
  src/cmd/6g/gobj.c        | 131 ++++++++++++++++++++++++++---------------------
  src/cmd/6g/gsubr.c       |   3 ++
@@ -19,3 +19,390 @@ Date:   Wed Aug 12 18:16:24 2009 -0700
  src/cmd/gc/lex.c         |   3 +-
  src/libmach_amd64/6obj.c |   3 ++
  9 files changed, 95 insertions(+), 71 deletions(-)
+
+diff --git a/src/cmd/6g/gg.h b/src/cmd/6g/gg.h
+index ce5f6c86cd..ca90762cf7 100644
+--- a/src/cmd/6g/gg.h
++++ b/src/cmd/6g/gg.h
+@@ -2,7 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-
+ #include <u.h>
+ #include <libc.h>
+ 
+@@ -22,6 +21,7 @@ struct	Addr
+ 	Prog*	branch;
+ 	char	sval[NSNAME];
+ 
++	Sym*	gotype;
+ 	Sym*	sym;
+ 	int	width;
+ 	uchar	type;
+@@ -107,8 +107,6 @@ int	conv2pt(Type*);
+ vlong	convvtox(vlong, int);
+ void	fnparam(Type*, int, int);
+ Prog*	gop(int, Node*, Node*, Node*);
+-void	setconst(Addr*, vlong);
+-void	setaddr(Addr*, Node*);
+ int	optoas(int, Type*);
+ void	ginit(void);
+ void	gclean(void);
+@@ -141,5 +139,5 @@ int	Rconv(Fmt*);
+ int	Yconv(Fmt*);
+ void	listinit(void);
+ 
+-void	zaddr(Biobuf*, Addr*, int);
++void	zaddr(Biobuf*, Addr*, int, int);
+ 
+diff --git a/src/cmd/6g/gobj.c b/src/cmd/6g/gobj.c
+index 9977b0ff15..e4f0a550d7 100644
+--- a/src/cmd/6g/gobj.c
++++ b/src/cmd/6g/gobj.c
+@@ -71,17 +71,17 @@ zhist(Biobuf *b, int line, vlong offset)
+ 	Bputc(b, line>>8);
+ 	Bputc(b, line>>16);
+ 	Bputc(b, line>>24);
+-	zaddr(b, &zprog.from, 0);
++	zaddr(b, &zprog.from, 0, 0);
+ 	a = zprog.to;
+ 	if(offset != 0) {
+ 		a.offset = offset;
+ 		a.type = D_CONST;
+ 	}
+-	zaddr(b, &a, 0);
++	zaddr(b, &a, 0, 0);
+ }
+ 
+ void
+-zaddr(Biobuf *b, Addr *a, int s)
++zaddr(Biobuf *b, Addr *a, int s, int gotype)
+ {
+ 	int32 l;
+ 	uint64 e;
+@@ -93,6 +93,8 @@ zaddr(Biobuf *b, Addr *a, int s)
+ 		t |= T_INDEX;
+ 	if(s != 0)
+ 		t |= T_SYM;
++	if(gotype != 0)
++		t |= T_GOTYPE;
+ 
+ 	switch(a->type) {
+ 
+@@ -165,22 +167,70 @@ zaddr(Biobuf *b, Addr *a, int s)
+ 	}
+ 	if(t & T_TYPE)
+ 		Bputc(b, a->type);
++	if(t & T_GOTYPE)
++		Bputc(b, gotype);
++}
++
++static struct {
++	struct { Sym *sym; short type; } h[NSYM];
++	int sym;
++} z;
++
++static void
++zsymreset(void)
++{
++	for(z.sym=0; z.sym<NSYM; z.sym++) {
++		z.h[z.sym].sym = S;
++		z.h[z.sym].type = 0;
++	}
++	z.sym = 1;
++}
++
++static int
++zsym(Sym *s, int t, int *new)
++{
++	int i;
++
++	*new = 0;
++	if(s == S)
++		return 0;
++
++	i = s->sym;
++	if(i < 0 || i >= NSYM)
++		i = 0;
++	if(z.h[i].type == t && z.h[i].sym == s)
++		return i;
++	i = z.sym;
++	s->sym = i;
++	zname(bout, s, t);
++	z.h[i].sym = s;
++	z.h[i].type = t;
++	if(++z.sym >= NSYM)
++		z.sym = 1;
++	*new = 1;
++	return i;
++}
++
++static int
++zsymaddr(Addr *a, int *new)
++{
++	int t;
++
++	t = a->type;
++	if(t == D_ADDR)
++		t = a->index;
++	return zsym(a->sym, t, new);
+ }
+ 
+ void
+ dumpfuncs(void)
+ {
+ 	Plist *pl;
+-	int sf, st, t, sym;
+-	struct { Sym *sym; short type; } h[NSYM];
++	int sf, st, gf, gt, new;
+ 	Sym *s;
+ 	Prog *p;
+ 
+-	for(sym=0; sym<NSYM; sym++) {
+-		h[sym].sym = S;
+-		h[sym].type = 0;
+-	}
+-	sym = 1;
++	zsymreset();
+ 
+ 	// fix up pc
+ 	pcloc = 0;
+@@ -205,61 +255,28 @@ dumpfuncs(void)
+ 		}
+ 
+ 		for(p=pl->firstpc; p!=P; p=p->link) {
+-		jackpot:
+-			sf = 0;
+-			s = p->from.sym;
+-			while(s != S) {
+-				sf = s->sym;
+-				if(sf < 0 || sf >= NSYM)
+-					sf = 0;
+-				t = p->from.type;
+-				if(t == D_ADDR)
+-					t = p->from.index;
+-				if(h[sf].type == t)
+-				if(h[sf].sym == s)
+-					break;
+-				s->sym = sym;
+-				zname(bout, s, t);
+-				h[sym].sym = s;
+-				h[sym].type = t;
+-				sf = sym;
+-				sym++;
+-				if(sym >= NSYM)
+-					sym = 1;
+-				break;
+-			}
+-			st = 0;
+-			s = p->to.sym;
+-			while(s != S) {
+-				st = s->sym;
+-				if(st < 0 || st >= NSYM)
+-					st = 0;
+-				t = p->to.type;
+-				if(t == D_ADDR)
+-					t = p->to.index;
+-				if(h[st].type == t)
+-				if(h[st].sym == s)
+-					break;
+-				s->sym = sym;
+-				zname(bout, s, t);
+-				h[sym].sym = s;
+-				h[sym].type = t;
+-				st = sym;
+-				sym++;
+-				if(sym >= NSYM)
+-					sym = 1;
+-				if(st == sf)
+-					goto jackpot;
++			for(;;) {
++				sf = zsymaddr(&p->from, &new);
++				gf = zsym(p->from.gotype, D_EXTERN, &new);
++				if(new && sf == gf)
++					continue;
++				st = zsymaddr(&p->to, &new);
++				if(new && (st == sf || st == gf))
++					continue;
++				gt = zsym(p->to.gotype, D_EXTERN, &new);
++				if(new && (gt == sf || gt == gf || gt == st))
++					continue;
+ 				break;
+ 			}
++
+ 			Bputc(bout, p->as);
+ 			Bputc(bout, p->as>>8);
+ 			Bputc(bout, p->lineno);
+ 			Bputc(bout, p->lineno>>8);
+ 			Bputc(bout, p->lineno>>16);
+ 			Bputc(bout, p->lineno>>24);
+-			zaddr(bout, &p->from, sf);
+-			zaddr(bout, &p->to, st);
++			zaddr(bout, &p->from, sf, gf);
++			zaddr(bout, &p->to, st, gt);
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/6g/gsubr.c b/src/cmd/6g/gsubr.c
+index c98642ee0d..434a90a802 100644
+--- a/src/cmd/6g/gsubr.c
++++ b/src/cmd/6g/gsubr.c
+@@ -882,6 +882,8 @@ naddr(Node *n, Addr *a)
+ 	a->scale = 0;
+ 	a->index = D_NONE;
+ 	a->type = D_NONE;
++	a->gotype = S;
++
+ 	if(n == N)
+ 		return;
+ 
+@@ -937,6 +939,7 @@ naddr(Node *n, Addr *a)
+ 		if(n->type != T) {
+ 			a->etype = simtype[n->type->etype];
+ 			a->width = n->type->width;
++		//	a->gotype = typename(n->type)->left->sym;
+ 		}
+ 		a->offset = n->xoffset;
+ 		a->sym = n->sym;
+diff --git a/src/cmd/6l/6.out.h b/src/cmd/6l/6.out.h
+index 292abd3a73..9ea12da08c 100644
+--- a/src/cmd/6l/6.out.h
++++ b/src/cmd/6l/6.out.h
+@@ -831,6 +831,7 @@ enum
+ 	T_SYM		= 1<<4,
+ 	T_SCONST	= 1<<5,
+ 	T_64		= 1<<6,
++	T_GOTYPE	= 1<<7,
+ 
+ 	REGARG		= -1,
+ 	REGRET		= D_AX,
+diff --git a/src/cmd/6l/l.h b/src/cmd/6l/l.h
+index 5d0d2a3216..3643eee211 100644
+--- a/src/cmd/6l/l.h
++++ b/src/cmd/6l/l.h
+@@ -71,6 +71,7 @@ struct	Adr
+ 	short	type;
+ 	char	index;
+ 	char	scale;
++	Sym*	gotype;
+ };
+ 
+ #define	offset	u0.u0offset
+diff --git a/src/cmd/6l/obj.c b/src/cmd/6l/obj.c
+index b6e1a96605..f3c12d7668 100644
+--- a/src/cmd/6l/obj.c
++++ b/src/cmd/6l/obj.c
+@@ -607,6 +607,8 @@ zaddr(Biobuf *f, Adr *a, Sym *h[])
+ 	}
+ 	if(t & T_TYPE)
+ 		a->type = Bgetc(f);
++	if(t & T_GOTYPE)
++		a->gotype = h[Bgetc(f)];
+ 	s = a->sym;
+ 	if(s == S)
+ 		return;
+@@ -635,7 +637,7 @@ zaddr(Biobuf *f, Adr *a, Sym *h[])
+ void
+ addlib(char *src, char *obj)
+ {
+-	char name[1024], pname[1024], comp[256], *p, *q;
++	char name[1024], pname[1024], comp[256], *p;
+ 	int i, search;
+ 
+ 	if(histfrogp <= 0)
+diff --git a/src/cmd/6l/span.c b/src/cmd/6l/span.c
+index 82a28de084..4a36b0e16e 100644
+--- a/src/cmd/6l/span.c
++++ b/src/cmd/6l/span.c
+@@ -213,7 +213,7 @@ asmsym(void)
+ 
+ 	s = lookup("etext", 0);
+ 	if(s->type == STEXT)
+-		putsymb(s->name, 'T', s->value, s->version, nil);
++		putsymb(s->name, 'T', s->value, s->version, 0);
+ 
+ 	for(h=0; h<NHASH; h++)
+ 		for(s=hash[h]; s!=S; s=s->link)
+@@ -231,7 +231,7 @@ asmsym(void)
+ 				continue;
+ 
+ 			case SFILE:
+-				putsymb(s->name, 'f', s->value, s->version, nil);
++				putsymb(s->name, 'f', s->value, s->version, 0);
+ 				continue;
+ 			}
+ 
+@@ -241,25 +241,25 @@ asmsym(void)
+ 		/* filenames first */
+ 		for(a=p->to.autom; a; a=a->link)
+ 			if(a->type == D_FILE)
+-				putsymb(a->asym->name, 'z', a->aoffset, 0, nil);
++				putsymb(a->asym->name, 'z', a->aoffset, 0, 0);
+ 			else
+ 			if(a->type == D_FILE1)
+-				putsymb(a->asym->name, 'Z', a->aoffset, 0, nil);
++				putsymb(a->asym->name, 'Z', a->aoffset, 0, 0);
+ 
+ 		if(s->type != STEXT)
+ 			continue;
+ 		putsymb(s->name, 'T', s->value, s->version, gotypefor(s->name));
+ 
+ 		/* frame, auto and param after */
+-		putsymb(".frame", 'm', p->to.offset+8, 0, nil);
++		putsymb(".frame", 'm', p->to.offset+8, 0, 0);
+ 
+ 		/* TODO(rsc): Add types for D_AUTO and D_PARAM */
+ 		for(a=p->to.autom; a; a=a->link)
+ 			if(a->type == D_AUTO)
+-				putsymb(a->asym->name, 'a', -a->aoffset, 0, nil);
++				putsymb(a->asym->name, 'a', -a->aoffset, 0, gotypefor(nil));
+ 			else
+ 			if(a->type == D_PARAM)
+-				putsymb(a->asym->name, 'p', a->aoffset, 0, nil);
++				putsymb(a->asym->name, 'p', a->aoffset, 0, gotypefor(nil));
+ 	}
+ 	if(debug['v'] || debug['n'])
+ 		Bprint(&bso, "symsize = %lud\n", symsize);
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index fddb17e98c..7440ef8b25 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -2,7 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-
+ #define		EXTERN
+ #include	"go.h"
+ #include	"y.tab.h"
+@@ -85,7 +84,7 @@ main(int argc, char *argv[])
+ 		curio.infile = infile;
+ 		curio.bin = Bopen(infile, OREAD);
+ 		if(curio.bin == nil)
+-			fatal("open%s: %r", infile);
++			fatal("open %s: %r", infile);
+ 		curio.peekc = 0;
+ 		curio.peekc1 = 0;
+ 
+diff --git a/src/libmach_amd64/6obj.c b/src/libmach_amd64/6obj.c
+index 27bd6915bb..306d444d32 100644
+--- a/src/libmach_amd64/6obj.c
++++ b/src/libmach_amd64/6obj.c
+@@ -41,6 +41,7 @@ struct Addr
+ {
+ 	char	sym;
+ 	char	flags;
++	char gotype;
+ };
+ static	Addr	addr(Biobuf*);
+ static	char	type2char(int);
+@@ -152,6 +153,8 @@ addr(Biobuf *bp)
+ 		if(a.sym > 0 && (t==D_PARAM || t==D_AUTO))
+ 			_offset(a.sym, off);
+ 	}
++	if(a.flags & T_GOTYPE)
++		a.gotype = Bgetc(bp);
+ 	return a;
+ }
+ 

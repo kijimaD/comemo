@@ -13,9 +13,106 @@ Date:   Tue Feb 28 11:41:16 2012 +1100
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5694098
-
+---
  src/cmd/fix/go1rename.go             |  6 ++++++
  src/cmd/fix/go1rename_test.go        |  4 ++++
  src/pkg/encoding/json/decode_test.go | 10 ----------
  src/pkg/encoding/json/encode.go      | 11 -----------
  4 files changed, 10 insertions(+), 21 deletions(-)
+
+diff --git a/src/cmd/fix/go1rename.go b/src/cmd/fix/go1rename.go
+index 2995880c30..4b666720b0 100644
+--- a/src/cmd/fix/go1rename.go
++++ b/src/cmd/fix/go1rename.go
+@@ -38,6 +38,12 @@ var go1renameReplace = []rename{
+ 		Old:       "*des.TripleDESCipher",
+ 		New:       "cipher.Block",
+ 	},
++	{
++		OldImport: "encoding/json",
++		NewImport: "",
++		Old:       "json.MarshalForHTML",
++		New:       "json.Marshal",
++	},
+ 	{
+ 		OldImport: "net/url",
+ 		NewImport: "",
+diff --git a/src/cmd/fix/go1rename_test.go b/src/cmd/fix/go1rename_test.go
+index 02eaea6a54..481ebea8e7 100644
+--- a/src/cmd/fix/go1rename_test.go
++++ b/src/cmd/fix/go1rename_test.go
+@@ -16,6 +16,7 @@ var go1renameTests = []testCase{
+ import (
+ 	"crypto/aes"
+ 	"crypto/des"
++	"encoding/json"
+ 	"net/url"
+ 	"os"
+ 	"runtime"
+@@ -25,6 +26,7 @@ var (
+ 	_ *aes.Cipher
+ 	_ *des.Cipher
+ 	_ *des.TripleDESCipher
++	_ = json.MarshalForHTML
+ 	_ = aes.New()
+ 	_ = url.Parse
+ 	_ = url.ParseWithReference
+@@ -39,6 +41,7 @@ var (
+ import (
+ 	"crypto/aes"
+ 	"crypto/cipher"
++	"encoding/json"
+ 	"net/url"
+ 	"runtime"
+ 	"syscall"
+@@ -48,6 +51,7 @@ var (
+ 	_ cipher.Block
+ 	_ cipher.Block
+ 	_ cipher.Block
++	_ = json.Marshal
+ 	_ = aes.New()
+ 	_ = url.Parse
+ 	_ = url.Parse
+diff --git a/src/pkg/encoding/json/decode_test.go b/src/pkg/encoding/json/decode_test.go
+index 0eec586a9b..d758758d97 100644
+--- a/src/pkg/encoding/json/decode_test.go
++++ b/src/pkg/encoding/json/decode_test.go
+@@ -239,16 +239,6 @@ func TestEscape(t *testing.T) {
+ 	}
+ }
+ 
+-func TestHTMLEscape(t *testing.T) {
+-	b, err := MarshalForHTML("foobarbaz<>&quux")
+-	if err != nil {
+-		t.Fatalf("MarshalForHTML error: %v", err)
+-	}
+-	if !bytes.Equal(b, []byte(`"foobarbaz\u003c\u003e\u0026quux"`)) {
+-		t.Fatalf("Unexpected encoding of \"<>&\": %s", b)
+-	}
+-}
+-
+ // WrongString is a struct that's misusing the ,string modifier.
+ type WrongString struct {
+ 	Message string `json:"result,string"`
+diff --git a/src/pkg/encoding/json/encode.go b/src/pkg/encoding/json/encode.go
+index 8a794b79bd..7f5deed94d 100644
+--- a/src/pkg/encoding/json/encode.go
++++ b/src/pkg/encoding/json/encode.go
+@@ -123,17 +123,6 @@ func MarshalIndent(v interface{}, prefix, indent string) ([]byte, error) {
+ 	return buf.Bytes(), nil
+ }
+ 
+-// MarshalForHTML is like Marshal but applies HTMLEscape to the output.
+-func MarshalForHTML(v interface{}) ([]byte, error) {
+-	b, err := Marshal(v)
+-	if err != nil {
+-		return nil, err
+-	}
+-	var buf bytes.Buffer
+-	HTMLEscape(&buf, b)
+-	return buf.Bytes(), nil
+-}
+-
+ // HTMLEscape appends to dst the JSON-encoded src with <, >, and &
+ // characters inside string literals changed to \u003c, \u003e, \u0026
+ // so that the JSON will be safe to embed inside HTML <script> tags.

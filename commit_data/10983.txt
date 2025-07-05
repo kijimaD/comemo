@@ -7,6 +7,20 @@ Date:   Fri Dec 23 09:46:30 2011 +1100
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5502064
-
+---
  src/pkg/go/build/path.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/go/build/path.go b/src/pkg/go/build/path.go
+index 5b4d9243e6..7a281800c2 100644
+--- a/src/pkg/go/build/path.go
++++ b/src/pkg/go/build/path.go
+@@ -57,7 +57,7 @@ func (t *Tree) PkgDir() string {
+ func (t *Tree) BinDir() string {
+ 	if t.Goroot {
+ 		if gobin := os.Getenv("GOBIN"); gobin != "" {
+-			return gobin
++			return filepath.Clean(gobin)
+ 		}
+ 	}
+ 	return filepath.Join(t.Path, "bin")

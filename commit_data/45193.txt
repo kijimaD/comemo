@@ -15,7 +15,199 @@ Date:   Fri May 22 14:40:50 2020 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/240598
     Trust: Russ Cox <rsc@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/go/build/build.go      |  21 ++++-----
  src/go/build/build_test.go | 113 +++++++++++++++++++++++++++++----------------
  2 files changed, 81 insertions(+), 53 deletions(-)
+
+diff --git a/src/go/build/build.go b/src/go/build/build.go
+index 13b5e202d1..86daf7c057 100644
+--- a/src/go/build/build.go
++++ b/src/go/build/build.go
+@@ -1371,8 +1371,8 @@ func (ctxt *Context) matchFile(dir, name string, allTags map[string]bool, binary
+ 	}
+ 
+ 	// Look for +build comments to accept or reject the file.
+-	var sawBinaryOnly bool
+-	if !ctxt.shouldBuild(data, allTags, &sawBinaryOnly) && !ctxt.UseAllFiles {
++	ok, sawBinaryOnly := ctxt.shouldBuild(data, allTags)
++	if !ok && !ctxt.UseAllFiles {
+ 		return
+ 	}
+ 
+@@ -1422,10 +1422,11 @@ var binaryOnlyComment = []byte("//go:binary-only-package")
+ //
+ // marks the file as applicable only on Windows and Linux.
+ //
+-// If shouldBuild finds a //go:binary-only-package comment in the file,
+-// it sets *binaryOnly to true. Otherwise it does not change *binaryOnly.
++// For each build tag it consults, shouldBuild sets allTags[tag] = true.
+ //
+-func (ctxt *Context) shouldBuild(content []byte, allTags map[string]bool, binaryOnly *bool) bool {
++// shouldBuild reports whether the file should be built
++// and whether a //go:binary-only-package comment was found.
++func (ctxt *Context) shouldBuild(content []byte, allTags map[string]bool) (shouldBuild bool, binaryOnly bool) {
+ 	sawBinaryOnly := false
+ 
+ 	// Pass 1. Identify leading run of // comments and blank lines,
+@@ -1452,7 +1453,7 @@ func (ctxt *Context) shouldBuild(content []byte, allTags map[string]bool, binary
+ 
+ 	// Pass 2.  Process each line in the run.
+ 	p = content
+-	allok := true
++	shouldBuild = true
+ 	for len(p) > 0 {
+ 		line := p
+ 		if i := bytes.IndexByte(line, '\n'); i >= 0 {
+@@ -1479,17 +1480,13 @@ func (ctxt *Context) shouldBuild(content []byte, allTags map[string]bool, binary
+ 					}
+ 				}
+ 				if !ok {
+-					allok = false
++					shouldBuild = false
+ 				}
+ 			}
+ 		}
+ 	}
+ 
+-	if binaryOnly != nil && sawBinaryOnly {
+-		*binaryOnly = true
+-	}
+-
+-	return allok
++	return shouldBuild, sawBinaryOnly
+ }
+ 
+ // saveCgo saves the information from the #cgo lines in the import "C" comment.
+diff --git a/src/go/build/build_test.go b/src/go/build/build_test.go
+index 2f2e80b5a8..cec5186a30 100644
+--- a/src/go/build/build_test.go
++++ b/src/go/build/build_test.go
+@@ -6,6 +6,7 @@ package build
+ 
+ import (
+ 	"flag"
++	"fmt"
+ 	"internal/testenv"
+ 	"io"
+ 	"io/ioutil"
+@@ -138,48 +139,78 @@ func TestLocalDirectory(t *testing.T) {
+ 	}
+ }
+ 
+-func TestShouldBuild(t *testing.T) {
+-	const file1 = "// +build tag1\n\n" +
+-		"package main\n"
+-	want1 := map[string]bool{"tag1": true}
+-
+-	const file2 = "// +build cgo\n\n" +
+-		"// This package implements parsing of tags like\n" +
+-		"// +build tag1\n" +
+-		"package build"
+-	want2 := map[string]bool{"cgo": true}
+-
+-	const file3 = "// Copyright The Go Authors.\n\n" +
+-		"package build\n\n" +
+-		"// shouldBuild checks tags given by lines of the form\n" +
+-		"// +build tag\n" +
+-		"func shouldBuild(content []byte)\n"
+-	want3 := map[string]bool{}
+-
+-	ctx := &Context{BuildTags: []string{"tag1"}}
+-	m := map[string]bool{}
+-	if !ctx.shouldBuild([]byte(file1), m, nil) {
+-		t.Errorf("shouldBuild(file1) = false, want true")
+-	}
+-	if !reflect.DeepEqual(m, want1) {
+-		t.Errorf("shouldBuild(file1) tags = %v, want %v", m, want1)
+-	}
+-
+-	m = map[string]bool{}
+-	if ctx.shouldBuild([]byte(file2), m, nil) {
+-		t.Errorf("shouldBuild(file2) = true, want false")
+-	}
+-	if !reflect.DeepEqual(m, want2) {
+-		t.Errorf("shouldBuild(file2) tags = %v, want %v", m, want2)
+-	}
++var shouldBuildTests = []struct {
++	content     string
++	tags        map[string]bool
++	binaryOnly  bool
++	shouldBuild bool
++}{
++	{
++		content: "// +build yes\n\n" +
++			"package main\n",
++		tags:        map[string]bool{"yes": true},
++		shouldBuild: true,
++	},
++	{
++		content: "// +build no yes\n\n" +
++			"package main\n",
++		tags:        map[string]bool{"yes": true, "no": true},
++		shouldBuild: true,
++	},
++	{
++		content: "// +build no,yes no\n\n" +
++			"package main\n",
++		tags:        map[string]bool{"yes": true, "no": true},
++		shouldBuild: false,
++	},
++	{
++		content: "// +build cgo\n\n" +
++			"// Copyright The Go Authors.\n\n" +
++			"// This package implements parsing of tags like\n" +
++			"// +build tag1\n" +
++			"package build",
++		tags:        map[string]bool{"cgo": true},
++		shouldBuild: false,
++	},
++	{
++		content: "// Copyright The Go Authors.\n\n" +
++			"package build\n\n" +
++			"// shouldBuild checks tags given by lines of the form\n" +
++			"// +build tag\n" +
++			"func shouldBuild(content []byte)\n",
++		tags:        map[string]bool{},
++		shouldBuild: true,
++	},
++	{
++		// too close to package line
++		content: "// +build yes\n" +
++			"package main\n",
++		tags:        map[string]bool{},
++		shouldBuild: true,
++	},
++	{
++		// too close to package line
++		content: "// +build no\n" +
++			"package main\n",
++		tags:        map[string]bool{},
++		shouldBuild: true,
++	},
++}
+ 
+-	m = map[string]bool{}
+-	ctx = &Context{BuildTags: nil}
+-	if !ctx.shouldBuild([]byte(file3), m, nil) {
+-		t.Errorf("shouldBuild(file3) = false, want true")
+-	}
+-	if !reflect.DeepEqual(m, want3) {
+-		t.Errorf("shouldBuild(file3) tags = %v, want %v", m, want3)
++func TestShouldBuild(t *testing.T) {
++	for i, tt := range shouldBuildTests {
++		t.Run(fmt.Sprint(i), func(t *testing.T) {
++			ctx := &Context{BuildTags: []string{"yes"}}
++			tags := map[string]bool{}
++			shouldBuild, binaryOnly := ctx.shouldBuild([]byte(tt.content), tags)
++			if shouldBuild != tt.shouldBuild || binaryOnly != tt.binaryOnly || !reflect.DeepEqual(tags, tt.tags) {
++				t.Errorf("mismatch:\n"+
++					"have shouldBuild=%v, binaryOnly=%v, tags=%v\n"+
++					"want shouldBuild=%v, binaryOnly=%v, tags=%v",
++					shouldBuild, binaryOnly, tags,
++					tt.shouldBuild, tt.binaryOnly, tt.tags)
++			}
++		})
+ 	}
+ }
+ 

@@ -16,6 +16,23 @@ Date:   Thu Nov 3 11:50:45 2016 +0100
     Change-Id: I95e8a163eeacf1ccd8ece7b650f16a0531c59709
     Reviewed-on: https://go-review.googlesource.com/32594
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/net/ipsock_plan9.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/net/ipsock_plan9.go b/src/net/ipsock_plan9.go
+index 7046a05f34..b7fd344c8a 100644
+--- a/src/net/ipsock_plan9.go
++++ b/src/net/ipsock_plan9.go
+@@ -119,6 +119,11 @@ func startPlan9(ctx context.Context, net string, addr Addr) (ctl *os.File, dest,
+ 		return
+ 	}
+ 
++	if port > 65535 {
++		err = InvalidAddrError("port should be < 65536")
++		return
++	}
++
+ 	clone, dest, err := queryCS1(ctx, proto, ip, port)
+ 	if err != nil {
+ 		return

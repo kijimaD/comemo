@@ -20,10 +20,93 @@ Date:   Thu Mar 10 23:41:56 2022 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/typecheck/iexport.go |  3 +++
  src/cmd/compile/internal/typecheck/iimport.go |  2 ++
  test/typeparam/issue51423.dir/a.go            | 17 +++++++++++++++++
  test/typeparam/issue51423.dir/b.go            | 11 +++++++++++
  test/typeparam/issue51423.go                  |  7 +++++++
  5 files changed, 40 insertions(+)
+
+diff --git a/src/cmd/compile/internal/typecheck/iexport.go b/src/cmd/compile/internal/typecheck/iexport.go
+index fe0c80ac58..341856ca46 100644
+--- a/src/cmd/compile/internal/typecheck/iexport.go
++++ b/src/cmd/compile/internal/typecheck/iexport.go
+@@ -1835,7 +1835,10 @@ func (w *exportWriter) expr(n ir.Node) {
+ 		n := n.(*ir.ClosureExpr)
+ 		w.op(ir.OCLOSURE)
+ 		w.pos(n.Pos())
++		old := w.currPkg
++		w.setPkg(n.Type().Pkg(), true)
+ 		w.signature(n.Type())
++		w.setPkg(old, true)
+ 
+ 		// Write out id for the Outer of each conditional variable. The
+ 		// conditional variable itself for this closure will be re-created
+diff --git a/src/cmd/compile/internal/typecheck/iimport.go b/src/cmd/compile/internal/typecheck/iimport.go
+index ef91f550a5..28a50605aa 100644
+--- a/src/cmd/compile/internal/typecheck/iimport.go
++++ b/src/cmd/compile/internal/typecheck/iimport.go
+@@ -1374,7 +1374,9 @@ func (r *importReader) node() ir.Node {
+ 	case ir.OCLOSURE:
+ 		//println("Importing CLOSURE")
+ 		pos := r.pos()
++		r.setPkg()
+ 		typ := r.signature(nil, nil)
++		r.setPkg()
+ 
+ 		// All the remaining code below is similar to (*noder).funcLit(), but
+ 		// with Dcls and ClosureVars lists already set up
+diff --git a/test/typeparam/issue51423.dir/a.go b/test/typeparam/issue51423.dir/a.go
+new file mode 100644
+index 0000000000..e824d0e165
+--- /dev/null
++++ b/test/typeparam/issue51423.dir/a.go
+@@ -0,0 +1,17 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++type Comparator[T any] func(v1, v2 T) int
++
++func CompareInt[T ~int](a, b T) int {
++	if a < b {
++		return -1
++	}
++	if a == b {
++		return 0
++	}
++	return 1
++}
+diff --git a/test/typeparam/issue51423.dir/b.go b/test/typeparam/issue51423.dir/b.go
+new file mode 100644
+index 0000000000..2bad19fbda
+--- /dev/null
++++ b/test/typeparam/issue51423.dir/b.go
+@@ -0,0 +1,11 @@
++package b
++
++import "./a"
++
++func C() a.Comparator[int] {
++	return a.CompareInt[int]
++}
++
++func main() {
++	_ = C()(1, 2)
++}
+diff --git a/test/typeparam/issue51423.go b/test/typeparam/issue51423.go
+new file mode 100644
+index 0000000000..8bb5c3e213
+--- /dev/null
++++ b/test/typeparam/issue51423.go
+@@ -0,0 +1,7 @@
++// compiledir
++
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ignored

@@ -7,6 +7,26 @@ Date:   Mon Mar 11 11:06:21 2013 +1100
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/7690043
-
+---
  misc/dashboard/app/build/init.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/misc/dashboard/app/build/init.go b/misc/dashboard/app/build/init.go
+index 85a766b9dd..505f96fc4c 100644
+--- a/misc/dashboard/app/build/init.go
++++ b/misc/dashboard/app/build/init.go
+@@ -20,12 +20,13 @@ var defaultPackages = []*Package{
+ 
+ // subRepos specifies the Go project sub-repositories.
+ var subRepos = []string{
++	"blog",
+ 	"codereview",
+ 	"crypto",
++	"exp",
+ 	"image",
+ 	"net",
+ 	"talks",
+-	"exp",
+ }
+ 
+ // Put subRepos into defaultPackages.

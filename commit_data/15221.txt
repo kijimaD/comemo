@@ -9,7 +9,78 @@ Date:   Wed Feb 13 19:23:28 2013 +1100
     R=dsymonds, dave
     CC=golang-dev
     https://golang.org/cl/7307101
-
+---
  src/pkg/archive/tar/common.go   |  2 ++
  src/pkg/archive/tar/tar_test.go | 27 +++++++++++++++++++++++++--
  2 files changed, 27 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/archive/tar/common.go b/src/pkg/archive/tar/common.go
+index c71f63cebc..e57c16ce95 100644
+--- a/src/pkg/archive/tar/common.go
++++ b/src/pkg/archive/tar/common.go
+@@ -79,6 +79,7 @@ const (
+ 
+ // FileInfoHeader creates a partially-populated Header from fi.
+ // If fi describes a symlink, FileInfoHeader records link as the link target.
++// If fi describes a directory, a slash is appended to the name.
+ func FileInfoHeader(fi os.FileInfo, link string) (*Header, error) {
+ 	if fi == nil {
+ 		return nil, errors.New("tar: FileInfo is nil")
+@@ -96,6 +97,7 @@ func FileInfoHeader(fi os.FileInfo, link string) (*Header, error) {
+ 	case fi.IsDir():
+ 		h.Typeflag = TypeDir
+ 		h.Mode |= c_ISDIR
++		h.Name += "/"
+ 	case fi.Mode()&os.ModeSymlink != 0:
+ 		h.Typeflag = TypeSymlink
+ 		h.Mode |= c_ISLNK
+diff --git a/src/pkg/archive/tar/tar_test.go b/src/pkg/archive/tar/tar_test.go
+index 7b190b6a8b..0a2db14a91 100644
+--- a/src/pkg/archive/tar/tar_test.go
++++ b/src/pkg/archive/tar/tar_test.go
+@@ -14,13 +14,13 @@ import (
+ )
+ 
+ func TestFileInfoHeader(t *testing.T) {
+-	fi, err := os.Lstat("testdata/small.txt")
++	fi, err := os.Stat("testdata/small.txt")
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+ 	h, err := FileInfoHeader(fi, "")
+ 	if err != nil {
+-		t.Fatalf("on small.txt: %v", err)
++		t.Fatalf("FileInfoHeader: %v", err)
+ 	}
+ 	if g, e := h.Name, "small.txt"; g != e {
+ 		t.Errorf("Name = %q; want %q", g, e)
+@@ -36,6 +36,29 @@ func TestFileInfoHeader(t *testing.T) {
+ 	}
+ }
+ 
++func TestFileInfoHeaderDir(t *testing.T) {
++	fi, err := os.Stat("testdata")
++	if err != nil {
++		t.Fatal(err)
++	}
++	h, err := FileInfoHeader(fi, "")
++	if err != nil {
++		t.Fatalf("FileInfoHeader: %v", err)
++	}
++	if g, e := h.Name, "testdata/"; g != e {
++		t.Errorf("Name = %q; want %q", g, e)
++	}
++	if g, e := h.Mode, int64(fi.Mode().Perm())|c_ISDIR; g != e {
++		t.Errorf("Mode = %#o; want %#o", g, e)
++	}
++	if g, e := h.Size, int64(0); g != e {
++		t.Errorf("Size = %v; want %v", g, e)
++	}
++	if g, e := h.ModTime, fi.ModTime(); !g.Equal(e) {
++		t.Errorf("ModTime = %v; want %v", g, e)
++	}
++}
++
+ func TestFileInfoHeaderSymlink(t *testing.T) {
+ 	h, err := FileInfoHeader(symlink{}, "some-target")
+ 	if err != nil {

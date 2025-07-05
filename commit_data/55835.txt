@@ -13,6 +13,21 @@ Date:   Thu Mar 16 10:20:23 2023 +0000
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Auto-Submit: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/typecheck/universe.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/typecheck/universe.go b/src/cmd/compile/internal/typecheck/universe.go
+index 6c6a504606..38e452ff2a 100644
+--- a/src/cmd/compile/internal/typecheck/universe.go
++++ b/src/cmd/compile/internal/typecheck/universe.go
+@@ -96,8 +96,8 @@ func InitUniverse() {
+ 	s = Lookup("_")
+ 	types.BlankSym = s
+ 	s.Def = NewName(s)
+-	ir.AsNode(s.Def).SetType(types.Types[types.TBLANK])
+ 	ir.BlankNode = ir.AsNode(s.Def)
++	ir.BlankNode.SetType(types.Types[types.TBLANK])
+ 	ir.BlankNode.SetTypecheck(1)
+ 
+ 	s = types.BuiltinPkg.Lookup("_")

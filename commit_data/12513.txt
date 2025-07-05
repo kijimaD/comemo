@@ -7,7 +7,35 @@ Date:   Thu Mar 8 17:31:20 2012 +1100
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5784048
-
+---
  doc/root.html | 2 --
  doc/style.css | 3 ---
  2 files changed, 5 deletions(-)
+
+diff --git a/doc/root.html b/doc/root.html
+index cf42ba318d..b2ce06ffb3 100644
+--- a/doc/root.html
++++ b/doc/root.html
+@@ -72,8 +72,6 @@ Linux, Mac OS X, Windows, and more.
+ 
+ <div style="clear: both;"></div>
+ 
+-<div id="plusoneRoot"><g:plusone annotation="none"></g:plusone></div>
+-
+ <script type="text/javascript" src="https://www.google.com/jsapi"></script>
+ <script type="text/javascript" src="/doc/play/playground.js"></script>
+ <script type="text/javascript">
+diff --git a/doc/style.css b/doc/style.css
+index a62dbc9517..1d8ccd0ead 100644
+--- a/doc/style.css
++++ b/doc/style.css
+@@ -145,9 +145,6 @@ div#topbar .container {
+ div#plusone {
+ 	float: right;
+ }
+-div#plusoneRoot {
+-	float: right;
+-}
+ 
+ div#copyright {
+ 	color: #666;

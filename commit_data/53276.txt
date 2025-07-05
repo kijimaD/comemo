@@ -16,7 +16,7 @@ Date:   Fri Aug 5 11:37:47 2022 +0200
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/cmd/compile/internal/typecheck/iimport.go |  3 +--
  src/cmd/internal/archive/archive.go           | 10 +++++-----
  src/cmd/link/internal/loader/loader.go        |  3 ++-
@@ -26,3 +26,272 @@ Date:   Fri Aug 5 11:37:47 2022 +0200
  src/net/sendfile_test.go                      |  2 +-
  src/testing/run_example_js.go                 |  2 +-
  8 files changed, 27 insertions(+), 27 deletions(-)
+
+diff --git a/src/cmd/compile/internal/typecheck/iimport.go b/src/cmd/compile/internal/typecheck/iimport.go
+index 51978de095..690daeed5e 100644
+--- a/src/cmd/compile/internal/typecheck/iimport.go
++++ b/src/cmd/compile/internal/typecheck/iimport.go
+@@ -13,7 +13,6 @@ import (
+ 	"go/constant"
+ 	"io"
+ 	"math/big"
+-	"os"
+ 	"strings"
+ 
+ 	"cmd/compile/internal/base"
+@@ -152,7 +151,7 @@ func ReadImports(pkg *types.Pkg, data string) {
+ 	whence, _ := ird.Seek(0, io.SeekCurrent)
+ 	stringData := data[whence : whence+sLen]
+ 	declData := data[whence+sLen : whence+sLen+dLen]
+-	ird.Seek(sLen+dLen, os.SEEK_CUR)
++	ird.Seek(sLen+dLen, io.SeekCurrent)
+ 
+ 	p := &iimporter{
+ 		exportVersion: version,
+diff --git a/src/cmd/internal/archive/archive.go b/src/cmd/internal/archive/archive.go
+index da1f293243..d2c4f69ef5 100644
+--- a/src/cmd/internal/archive/archive.go
++++ b/src/cmd/internal/archive/archive.go
+@@ -124,9 +124,9 @@ type objReader struct {
+ 
+ func (r *objReader) init(f *os.File) {
+ 	r.a = &Archive{f, nil}
+-	r.offset, _ = f.Seek(0, os.SEEK_CUR)
+-	r.limit, _ = f.Seek(0, os.SEEK_END)
+-	f.Seek(r.offset, os.SEEK_SET)
++	r.offset, _ = f.Seek(0, io.SeekCurrent)
++	r.limit, _ = f.Seek(0, io.SeekEnd)
++	f.Seek(r.offset, io.SeekStart)
+ 	r.b = bio.NewReader(f)
+ }
+ 
+@@ -227,7 +227,7 @@ func (r *objReader) skip(n int64) {
+ 		r.readFull(r.tmp[:n])
+ 	} else {
+ 		// Seek, giving up buffered data.
+-		r.b.MustSeek(r.offset+n, os.SEEK_SET)
++		r.b.MustSeek(r.offset+n, io.SeekStart)
+ 		r.offset += n
+ 	}
+ }
+@@ -435,7 +435,7 @@ func (r *objReader) parseObject(o *GoObj, size int64) error {
+ 
+ // AddEntry adds an entry to the end of a, with the content from r.
+ func (a *Archive) AddEntry(typ EntryType, name string, mtime int64, uid, gid int, mode os.FileMode, size int64, r io.Reader) {
+-	off, err := a.f.Seek(0, os.SEEK_END)
++	off, err := a.f.Seek(0, io.SeekEnd)
+ 	if err != nil {
+ 		log.Fatal(err)
+ 	}
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index 0cf9551fae..664f345ead 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -14,6 +14,7 @@ import (
+ 	"cmd/link/internal/sym"
+ 	"debug/elf"
+ 	"fmt"
++	"io"
+ 	"log"
+ 	"math/bits"
+ 	"os"
+@@ -2081,7 +2082,7 @@ func (l *Loader) Preload(localSymVersion int, f *bio.Reader, lib *sym.Library, u
+ 	l.addObj(lib.Pkg, or)
+ 
+ 	// The caller expects us consuming all the data
+-	f.MustSeek(length, os.SEEK_CUR)
++	f.MustSeek(length, io.SeekCurrent)
+ 
+ 	return r.Fingerprint()
+ }
+diff --git a/src/internal/pkgbits/decoder.go b/src/internal/pkgbits/decoder.go
+index b0150330d6..357e328a3b 100644
+--- a/src/internal/pkgbits/decoder.go
++++ b/src/internal/pkgbits/decoder.go
+@@ -95,7 +95,7 @@ func NewPkgDecoder(pkgPath, input string) PkgDecoder {
+ 	pr.elemEnds = make([]uint32, pr.elemEndsEnds[len(pr.elemEndsEnds)-1])
+ 	assert(binary.Read(r, binary.LittleEndian, pr.elemEnds[:]) == nil)
+ 
+-	pos, err := r.Seek(0, os.SEEK_CUR)
++	pos, err := r.Seek(0, io.SeekCurrent)
+ 	assert(err == nil)
+ 
+ 	pr.elemData = input[pos:]
+diff --git a/src/internal/xcoff/ar.go b/src/internal/xcoff/ar.go
+index 0fb410f7dd..2b432d5e10 100644
+--- a/src/internal/xcoff/ar.go
++++ b/src/internal/xcoff/ar.go
+@@ -123,7 +123,7 @@ func NewArchive(r io.ReaderAt) (*Archive, error) {
+ 	}
+ 
+ 	var fhdr bigarFileHeader
+-	if _, err := sr.Seek(0, os.SEEK_SET); err != nil {
++	if _, err := sr.Seek(0, io.SeekStart); err != nil {
+ 		return nil, err
+ 	}
+ 	if err := binary.Read(sr, binary.BigEndian, &fhdr); err != nil {
+@@ -151,7 +151,7 @@ func NewArchive(r io.ReaderAt) (*Archive, error) {
+ 		// The member header is normally 2 bytes larger. But it's easier
+ 		// to read the name if the header is read without _ar_nam.
+ 		// However, AIAFMAG must be read afterward.
+-		if _, err := sr.Seek(off, os.SEEK_SET); err != nil {
++		if _, err := sr.Seek(off, io.SeekStart); err != nil {
+ 			return nil, err
+ 		}
+ 
+@@ -183,7 +183,7 @@ func NewArchive(r io.ReaderAt) (*Archive, error) {
+ 		fileoff := off + AR_HSZ_BIG + namlen
+ 		if fileoff&1 != 0 {
+ 			fileoff++
+-			if _, err := sr.Seek(1, os.SEEK_CUR); err != nil {
++			if _, err := sr.Seek(1, io.SeekCurrent); err != nil {
+ 				return nil, err
+ 			}
+ 		}
+diff --git a/src/internal/xcoff/file.go b/src/internal/xcoff/file.go
+index 05e4fd555c..553103bdff 100644
+--- a/src/internal/xcoff/file.go
++++ b/src/internal/xcoff/file.go
+@@ -167,7 +167,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
+ 	f.TargetMachine = magic
+ 
+ 	// Read XCOFF file header
+-	if _, err := sr.Seek(0, os.SEEK_SET); err != nil {
++	if _, err := sr.Seek(0, io.SeekStart); err != nil {
+ 		return nil, err
+ 	}
+ 	var nscns uint16
+@@ -204,7 +204,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
+ 
+ 	// Read string table (located right after symbol table).
+ 	offset := symptr + uint64(nsyms)*SYMESZ
+-	if _, err := sr.Seek(int64(offset), os.SEEK_SET); err != nil {
++	if _, err := sr.Seek(int64(offset), io.SeekStart); err != nil {
+ 		return nil, err
+ 	}
+ 	// The first 4 bytes contain the length (in bytes).
+@@ -213,7 +213,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
+ 		return nil, err
+ 	}
+ 	if l > 4 {
+-		if _, err := sr.Seek(int64(offset), os.SEEK_SET); err != nil {
++		if _, err := sr.Seek(int64(offset), io.SeekStart); err != nil {
+ 			return nil, err
+ 		}
+ 		f.StringTable = make([]byte, l)
+@@ -223,7 +223,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
+ 	}
+ 
+ 	// Read section headers
+-	if _, err := sr.Seek(int64(hdrsz)+int64(opthdr), os.SEEK_SET); err != nil {
++	if _, err := sr.Seek(int64(hdrsz)+int64(opthdr), io.SeekStart); err != nil {
+ 		return nil, err
+ 	}
+ 	f.Sections = make([]*Section, nscns)
+@@ -269,7 +269,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
+ 	var idxToSym = make(map[int]*Symbol)
+ 
+ 	// Read symbol table
+-	if _, err := sr.Seek(int64(symptr), os.SEEK_SET); err != nil {
++	if _, err := sr.Seek(int64(symptr), io.SeekStart); err != nil {
+ 		return nil, err
+ 	}
+ 	f.Symbols = make([]*Symbol, 0)
+@@ -355,7 +355,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
+ 
+ 		// Read csect auxiliary entry (by convention, it is the last).
+ 		if !needAuxFcn {
+-			if _, err := sr.Seek(int64(numaux-1)*SYMESZ, os.SEEK_CUR); err != nil {
++			if _, err := sr.Seek(int64(numaux-1)*SYMESZ, io.SeekCurrent); err != nil {
+ 				return nil, err
+ 			}
+ 		}
+@@ -382,7 +382,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
+ 		f.Symbols = append(f.Symbols, sym)
+ 	skip:
+ 		i += numaux // Skip auxiliary entries
+-		if _, err := sr.Seek(int64(numaux)*SYMESZ, os.SEEK_CUR); err != nil {
++		if _, err := sr.Seek(int64(numaux)*SYMESZ, io.SeekCurrent); err != nil {
+ 			return nil, err
+ 		}
+ 	}
+@@ -397,7 +397,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
+ 		if sect.Relptr == 0 {
+ 			continue
+ 		}
+-		if _, err := sr.Seek(int64(sect.Relptr), os.SEEK_SET); err != nil {
++		if _, err := sr.Seek(int64(sect.Relptr), io.SeekStart); err != nil {
+ 			return nil, err
+ 		}
+ 		for i := uint32(0); i < sect.Nreloc; i++ {
+@@ -508,7 +508,7 @@ func (f *File) DWARF() (*dwarf.Data, error) {
+ // Library name pattern is either path/base/member or base/member
+ func (f *File) readImportIDs(s *Section) ([]string, error) {
+ 	// Read loader header
+-	if _, err := s.sr.Seek(0, os.SEEK_SET); err != nil {
++	if _, err := s.sr.Seek(0, io.SeekStart); err != nil {
+ 		return nil, err
+ 	}
+ 	var istlen uint32
+@@ -534,7 +534,7 @@ func (f *File) readImportIDs(s *Section) ([]string, error) {
+ 	}
+ 
+ 	// Read loader import file ID table
+-	if _, err := s.sr.Seek(int64(impoff), os.SEEK_SET); err != nil {
++	if _, err := s.sr.Seek(int64(impoff), io.SeekStart); err != nil {
+ 		return nil, err
+ 	}
+ 	table := make([]byte, istlen)
+@@ -577,7 +577,7 @@ func (f *File) ImportedSymbols() ([]ImportedSymbol, error) {
+ 		return nil, nil
+ 	}
+ 	// Read loader header
+-	if _, err := s.sr.Seek(0, os.SEEK_SET); err != nil {
++	if _, err := s.sr.Seek(0, io.SeekStart); err != nil {
+ 		return nil, err
+ 	}
+ 	var stlen uint32
+@@ -606,7 +606,7 @@ func (f *File) ImportedSymbols() ([]ImportedSymbol, error) {
+ 	}
+ 
+ 	// Read loader section string table
+-	if _, err := s.sr.Seek(int64(stoff), os.SEEK_SET); err != nil {
++	if _, err := s.sr.Seek(int64(stoff), io.SeekStart); err != nil {
+ 		return nil, err
+ 	}
+ 	st := make([]byte, stlen)
+@@ -621,7 +621,7 @@ func (f *File) ImportedSymbols() ([]ImportedSymbol, error) {
+ 	}
+ 
+ 	// Read loader symbol table
+-	if _, err := s.sr.Seek(int64(symoff), os.SEEK_SET); err != nil {
++	if _, err := s.sr.Seek(int64(symoff), io.SeekStart); err != nil {
+ 		return nil, err
+ 	}
+ 	all := make([]ImportedSymbol, 0)
+diff --git a/src/net/sendfile_test.go b/src/net/sendfile_test.go
+index 6edfb67dd7..969c022b00 100644
+--- a/src/net/sendfile_test.go
++++ b/src/net/sendfile_test.go
+@@ -175,7 +175,7 @@ func TestSendfileSeeked(t *testing.T) {
+ 				return
+ 			}
+ 			defer f.Close()
+-			if _, err := f.Seek(seekTo, os.SEEK_SET); err != nil {
++			if _, err := f.Seek(seekTo, io.SeekStart); err != nil {
+ 				errc <- err
+ 				return
+ 			}
+diff --git a/src/testing/run_example_js.go b/src/testing/run_example_js.go
+index adef9511fb..f3a11201a1 100644
+--- a/src/testing/run_example_js.go
++++ b/src/testing/run_example_js.go
+@@ -36,7 +36,7 @@ func runExample(eg InternalExample) (ok bool) {
+ 		// Restore stdout, get output and remove temporary file.
+ 		os.Stdout = stdout
+ 		var buf strings.Builder
+-		_, seekErr := f.Seek(0, os.SEEK_SET)
++		_, seekErr := f.Seek(0, io.SeekStart)
+ 		_, readErr := io.Copy(&buf, f)
+ 		out := buf.String()
+ 		f.Close()

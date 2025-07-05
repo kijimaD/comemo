@@ -23,9 +23,146 @@ Date:   Thu Oct 17 14:29:16 2019 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/builtin.go         |  2 +-
  src/cmd/compile/internal/gc/builtin/runtime.go |  2 +-
  src/cmd/compile/internal/gc/walk.go            | 34 ++++++++++++++++++++++----
  src/runtime/checkptr.go                        | 16 +++++++-----
  4 files changed, 41 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/builtin.go b/src/cmd/compile/internal/gc/builtin.go
+index ab65696a09..17c45cab15 100644
+--- a/src/cmd/compile/internal/gc/builtin.go
++++ b/src/cmd/compile/internal/gc/builtin.go
+@@ -312,7 +312,7 @@ func runtimeTypes() []*types.Type {
+ 	typs[117] = functype(nil, []*Node{anonfield(typs[23]), anonfield(typs[23])}, []*Node{anonfield(typs[23])})
+ 	typs[118] = functype(nil, []*Node{anonfield(typs[50])}, nil)
+ 	typs[119] = functype(nil, []*Node{anonfield(typs[50]), anonfield(typs[50])}, nil)
+-	typs[120] = functype(nil, []*Node{anonfield(typs[56]), anonfield(typs[1])}, nil)
++	typs[120] = functype(nil, []*Node{anonfield(typs[56]), anonfield(typs[1]), anonfield(typs[50])}, nil)
+ 	typs[121] = types.NewSlice(typs[56])
+ 	typs[122] = functype(nil, []*Node{anonfield(typs[56]), anonfield(typs[121])}, nil)
+ 	return typs[:]
+diff --git a/src/cmd/compile/internal/gc/builtin/runtime.go b/src/cmd/compile/internal/gc/builtin/runtime.go
+index 10a2241597..3fc82c2681 100644
+--- a/src/cmd/compile/internal/gc/builtin/runtime.go
++++ b/src/cmd/compile/internal/gc/builtin/runtime.go
+@@ -235,7 +235,7 @@ func racewriterange(addr, size uintptr)
+ func msanread(addr, size uintptr)
+ func msanwrite(addr, size uintptr)
+ 
+-func checkptrAlignment(unsafe.Pointer, *byte)
++func checkptrAlignment(unsafe.Pointer, *byte, uintptr)
+ func checkptrArithmetic(unsafe.Pointer, []unsafe.Pointer)
+ 
+ // architecture variants
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 8f6da25471..78de8114d0 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -953,7 +953,7 @@ opswitch:
+ 		n.Left = walkexpr(n.Left, init)
+ 		if n.Op == OCONVNOP && checkPtr(Curfn, 1) {
+ 			if n.Type.IsPtr() && n.Left.Type.Etype == TUNSAFEPTR { // unsafe.Pointer to *T
+-				n = walkCheckPtrAlignment(n, init)
++				n = walkCheckPtrAlignment(n, init, nil)
+ 				break
+ 			}
+ 			if n.Type.Etype == TUNSAFEPTR && n.Left.Type.Etype == TUINTPTR { // uintptr to unsafe.Pointer
+@@ -1120,7 +1120,12 @@ opswitch:
+ 		n.List.SetSecond(walkexpr(n.List.Second(), init))
+ 
+ 	case OSLICE, OSLICEARR, OSLICESTR, OSLICE3, OSLICE3ARR:
+-		n.Left = walkexpr(n.Left, init)
++		checkSlice := checkPtr(Curfn, 1) && n.Op == OSLICE3ARR && n.Left.Op == OCONVNOP && n.Left.Left.Type.Etype == TUNSAFEPTR
++		if checkSlice {
++			n.Left.Left = walkexpr(n.Left.Left, init)
++		} else {
++			n.Left = walkexpr(n.Left, init)
++		}
+ 		low, high, max := n.SliceBounds()
+ 		low = walkexpr(low, init)
+ 		if low != nil && isZero(low) {
+@@ -1130,6 +1135,9 @@ opswitch:
+ 		high = walkexpr(high, init)
+ 		max = walkexpr(max, init)
+ 		n.SetSliceBounds(low, high, max)
++		if checkSlice {
++			n.Left = walkCheckPtrAlignment(n.Left, init, max)
++		}
+ 		if n.Op.IsSlice3() {
+ 			if max != nil && max.Op == OCAP && samesafeexpr(n.Left, max.Left) {
+ 				// Reduce x[i:j:cap(x)] to x[i:j].
+@@ -3912,13 +3920,29 @@ func isRuneCount(n *Node) bool {
+ 	return Debug['N'] == 0 && !instrumenting && n.Op == OLEN && n.Left.Op == OSTR2RUNES
+ }
+ 
+-func walkCheckPtrAlignment(n *Node, init *Nodes) *Node {
+-	if n.Type.Elem().Alignment() == 1 && n.Type.Elem().Size() == 1 {
++func walkCheckPtrAlignment(n *Node, init *Nodes, count *Node) *Node {
++	if !n.Type.IsPtr() {
++		Fatalf("expected pointer type: %v", n.Type)
++	}
++	elem := n.Type.Elem()
++	if count != nil {
++		if !elem.IsArray() {
++			Fatalf("expected array type: %v", elem)
++		}
++		elem = elem.Elem()
++	}
++
++	size := elem.Size()
++	if elem.Alignment() == 1 && (size == 0 || size == 1 && count == nil) {
+ 		return n
+ 	}
+ 
++	if count == nil {
++		count = nodintconst(1)
++	}
++
+ 	n.Left = cheapexpr(n.Left, init)
+-	init.Append(mkcall("checkptrAlignment", nil, init, convnop(n.Left, types.Types[TUNSAFEPTR]), typename(n.Type.Elem())))
++	init.Append(mkcall("checkptrAlignment", nil, init, convnop(n.Left, types.Types[TUNSAFEPTR]), typename(elem), conv(count, types.Types[TUINTPTR])))
+ 	return n
+ }
+ 
+diff --git a/src/runtime/checkptr.go b/src/runtime/checkptr.go
+index a6d33c5af1..d1fc651509 100644
+--- a/src/runtime/checkptr.go
++++ b/src/runtime/checkptr.go
+@@ -9,18 +9,19 @@ import "unsafe"
+ type ptrAlign struct {
+ 	ptr  unsafe.Pointer
+ 	elem *_type
++	n    uintptr
+ }
+ 
+-func checkptrAlignment(p unsafe.Pointer, elem *_type) {
+-	// Check that (*T)(p) is appropriately aligned.
++func checkptrAlignment(p unsafe.Pointer, elem *_type, n uintptr) {
++	// Check that (*[n]elem)(p) is appropriately aligned.
+ 	// TODO(mdempsky): What about fieldAlign?
+ 	if uintptr(p)&(uintptr(elem.align)-1) != 0 {
+-		panic(ptrAlign{p, elem})
++		panic(ptrAlign{p, elem, n})
+ 	}
+ 
+-	// Check that (*T)(p) doesn't straddle multiple heap objects.
+-	if elem.size != 1 && checkptrBase(p) != checkptrBase(add(p, elem.size-1)) {
+-		panic(ptrAlign{p, elem})
++	// Check that (*[n]elem)(p) doesn't straddle multiple heap objects.
++	if size := n * elem.size; size > 1 && checkptrBase(p) != checkptrBase(add(p, size-1)) {
++		panic(ptrAlign{p, elem, n})
+ 	}
+ }
+ 
+@@ -34,6 +35,9 @@ func checkptrArithmetic(p unsafe.Pointer, originals []unsafe.Pointer) {
+ 		panic(ptrArith{p, originals})
+ 	}
+ 
++	// Check that if the computed pointer p points into a heap
++	// object, then one of the original pointers must have pointed
++	// into the same object.
+ 	base := checkptrBase(p)
+ 	if base == 0 {
+ 		return

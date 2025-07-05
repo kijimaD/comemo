@@ -21,7 +21,43 @@ Date:   Sat Mar 28 16:11:15 2020 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/226297
     Reviewed-by: Giovanni Bajo <rasky@develer.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/runtime/mpagealloc.go | 4 ++--
  src/runtime/mpagecache.go | 2 +-
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/mpagealloc.go b/src/runtime/mpagealloc.go
+index bb751f1f8e..60926fbebf 100644
+--- a/src/runtime/mpagealloc.go
++++ b/src/runtime/mpagealloc.go
+@@ -724,7 +724,7 @@ nextLevel:
+ 	// is what the final level represents.
+ 	ci := chunkIdx(i)
+ 	j, searchIdx := s.chunkOf(ci).find(npages, 0)
+-	if j < 0 {
++	if j == ^uint(0) {
+ 		// We couldn't find any space in this chunk despite the summaries telling
+ 		// us it should be there. There's likely a bug, so dump some state and throw.
+ 		sum := s.summary[len(s.summary)-1][i]
+@@ -766,7 +766,7 @@ func (s *pageAlloc) alloc(npages uintptr) (addr uintptr, scav uintptr) {
+ 		i := chunkIndex(s.searchAddr)
+ 		if max := s.summary[len(s.summary)-1][i].max(); max >= uint(npages) {
+ 			j, searchIdx := s.chunkOf(i).find(npages, chunkPageIndex(s.searchAddr))
+-			if j < 0 {
++			if j == ^uint(0) {
+ 				print("runtime: max = ", max, ", npages = ", npages, "\n")
+ 				print("runtime: searchIdx = ", chunkPageIndex(s.searchAddr), ", s.searchAddr = ", hex(s.searchAddr), "\n")
+ 				throw("bad summary data")
+diff --git a/src/runtime/mpagecache.go b/src/runtime/mpagecache.go
+index 9fc338bd8e..5b679d357d 100644
+--- a/src/runtime/mpagecache.go
++++ b/src/runtime/mpagecache.go
+@@ -115,7 +115,7 @@ func (s *pageAlloc) allocToCache() pageCache {
+ 		// Fast path: there's free pages at or near the searchAddr address.
+ 		chunk := s.chunkOf(ci)
+ 		j, _ := chunk.find(1, chunkPageIndex(s.searchAddr))
+-		if j < 0 {
++		if j == ^uint(0) {
+ 			throw("bad summary data")
+ 		}
+ 		c = pageCache{

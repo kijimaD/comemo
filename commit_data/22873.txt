@@ -9,6 +9,53 @@ Date:   Sat Apr 11 19:26:50 2015 -0400
     Change-Id: Ic5c6c0b2fdbb89f4579677e120a8f2dbf300e5b9
     Reviewed-on: https://go-review.googlesource.com/8820
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/log/syslog/syslog_test.go | 21 +++++++++++++++------
  1 file changed, 15 insertions(+), 6 deletions(-)
+
+diff --git a/src/log/syslog/syslog_test.go b/src/log/syslog/syslog_test.go
+index 7f7d7fd6d8..85aec536ab 100644
+--- a/src/log/syslog/syslog_test.go
++++ b/src/log/syslog/syslog_test.go
+@@ -121,8 +121,11 @@ func TestWithSimulated(t *testing.T) {
+ 	msg := "Test 123"
+ 	transport := []string{"unix", "unixgram", "udp", "tcp"}
+ 
+-	if runtime.GOOS == "darwin" && runtime.GOARCH == "arm" {
+-		transport = []string{"udp", "tcp"}
++	if runtime.GOOS == "darwin" {
++		switch runtime.GOARCH {
++		case "arm", "arm64":
++			transport = []string{"udp", "tcp"}
++		}
+ 	}
+ 
+ 	for _, tr := range transport {
+@@ -147,8 +150,11 @@ func TestWithSimulated(t *testing.T) {
+ }
+ 
+ func TestFlap(t *testing.T) {
+-	if runtime.GOOS == "darwin" && runtime.GOARCH == "arm" {
+-		t.Skipf("skipping on %s/%s", runtime.GOOS, runtime.GOARCH)
++	if runtime.GOOS == "darwin" {
++		switch runtime.GOARCH {
++		case "arm", "arm64":
++			t.Skipf("skipping on %s/%s", runtime.GOOS, runtime.GOARCH)
++		}
+ 	}
+ 
+ 	net := "unix"
+@@ -315,8 +321,11 @@ func TestConcurrentReconnect(t *testing.T) {
+ 	const N = 10
+ 	const M = 100
+ 	net := "unix"
+-	if runtime.GOOS == "darwin" && runtime.GOARCH == "arm" {
+-		net = "tcp"
++	if runtime.GOOS == "darwin" {
++		switch runtime.GOARCH {
++		case "arm", "arm64":
++			net = "tcp"
++		}
+ 	}
+ 	done := make(chan string, N*M)
+ 	addr, sock, srvWG := startServer(net, "", done)

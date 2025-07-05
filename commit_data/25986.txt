@@ -9,6 +9,42 @@ Date:   Tue Dec 8 02:48:10 2015 -0700
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/client_test.go | 16 ++++++++++++----
  1 file changed, 12 insertions(+), 4 deletions(-)
+
+diff --git a/src/net/http/client_test.go b/src/net/http/client_test.go
+index 09c71b7602..d463c15d53 100644
+--- a/src/net/http/client_test.go
++++ b/src/net/http/client_test.go
+@@ -1026,18 +1026,26 @@ func TestClientTimeout_Headers(t *testing.T) {
+ 	}
+ }
+ 
+-func TestClientRedirectEatsBody(t *testing.T) {
++func TestClientRedirectEatsBody_h1(t *testing.T) {
++	testClientRedirectEatsBody(t, false)
++}
++
++func TestClientRedirectEatsBody_h2(t *testing.T) {
++	testClientRedirectEatsBody(t, true)
++}
++
++func testClientRedirectEatsBody(t *testing.T, h2 bool) {
+ 	defer afterTest(t)
+ 	saw := make(chan string, 2)
+-	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
++	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
+ 		saw <- r.RemoteAddr
+ 		if r.URL.Path == "/" {
+ 			Redirect(w, r, "/foo", StatusFound) // which includes a body
+ 		}
+ 	}))
+-	defer ts.Close()
++	defer cst.close()
+ 
+-	res, err := Get(ts.URL)
++	res, err := cst.c.Get(cst.ts.URL)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}

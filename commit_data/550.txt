@@ -8,7 +8,7 @@ Date:   Fri Aug 29 13:21:00 2008 -0700
     DELTA=185  (59 added, 33 deleted, 93 changed)
     OCL=14655
     CL=14655
-
+---
  test/{fixedbugs => bugs}/bug020.go |   6 +-
  test/bugs/bug061.go                |   5 +
  test/fixedbugs/bug016.go           |   4 +-
@@ -16,3 +16,421 @@ Date:   Fri Aug 29 13:21:00 2008 -0700
  test/golden.out                    |  37 +++++--
  test/hashmap.go                    | 198 +++++++++++++++++++------------------
  6 files changed, 138 insertions(+), 112 deletions(-)
+
+diff --git a/test/fixedbugs/bug020.go b/test/bugs/bug020.go
+similarity index 66%
+rename from test/fixedbugs/bug020.go
+rename to test/bugs/bug020.go
+index b791f5d958..896bf5707c 100644
+--- a/test/fixedbugs/bug020.go
++++ b/test/bugs/bug020.go
+@@ -16,7 +16,7 @@ func main() {
+ }
+ 
+ /*
+-x.go :
+-main.go.c: In function ‘main_putint’:
+-main.go.c:41: error: syntax error before ‘)’ token
++uetli:~/Source/go1/test gri$ 6g bugs/bug020.go
++bugs/bug020.go:7: type of a structure field cannot be an open array
++bugs/bug020.go:7: fatal error: width of a dynamic array
+ */
+diff --git a/test/bugs/bug061.go b/test/bugs/bug061.go
+index 698f52c709..1b78028c42 100644
+--- a/test/bugs/bug061.go
++++ b/test/bugs/bug061.go
+@@ -10,3 +10,8 @@ func main() {
+ 	var s string;
+ 	s = "0000000000000000000000000000000000000000000000000000000000"[0:7];
+ }
++
++/*
++uetli:~/Source/go1/test/bugs gri$ 6g bug061.go
++Bus error
++*/
+diff --git a/test/fixedbugs/bug016.go b/test/fixedbugs/bug016.go
+index 3bb8692262..461bcf82ac 100644
+--- a/test/fixedbugs/bug016.go
++++ b/test/fixedbugs/bug016.go
+@@ -12,5 +12,7 @@ func main() {
+ }
+ 
+ /*
+-bug016.go:7: fatal error: optoas: no entry LSH-<int32>INT32
++ixedbugs/bug016.go:7: overflow converting constant to <uint32>UINT32
++fixedbugs/bug016.go:7: illegal types for operand: AS
++	(<int32>INT32)
+ */
+diff --git a/test/bugs/bug073.go b/test/fixedbugs/bug073.go
+similarity index 100%
+rename from test/bugs/bug073.go
+rename to test/fixedbugs/bug073.go
+diff --git a/test/golden.out b/test/golden.out
+index df2e9b4158..f3cac9ad69 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -46,6 +46,11 @@ abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz
+ =========== chan/nonblock.go
+ PASS
+ 
++=========== bugs/bug020.go
++bugs/bug020.go:7: type of a structure field cannot be an open array
++bugs/bug020.go:7: fatal error: width of a dynamic array
++BUG should compile
++
+ =========== bugs/bug026.go
+ sys·printstring: main·sigs_I: not defined
+ BUG: known to fail incorrectly
+@@ -88,10 +93,8 @@ bugs/bug048.go:7: illegal types for operand: CONV
+ BUG: known to fail incorrectly
+ 
+ =========== bugs/bug061.go
+-bugs/bug061.go:7: illegal types for operand: SLICE
+-bugs/bug061.go:7: illegal types for operand: AS
+-	(<string>*STRING)
+ BUG: known to fail incorrectly
++Bus error               $G $D/$F.go
+ 
+ =========== bugs/bug062.go
+ BUG: known to succeed incorrectly
+@@ -112,10 +115,10 @@ inner loop top i 0
+ do break
+ outer loop top k 1
+ k not zero
+-panic on line 310 PC=0x1362
++panic on line 342 PC=0x1362
+ 0x1362?zi
+-	main·main(1, 0, 1606414952, ...)
+-	main·main(0x1, 0x7fff5fbff268, 0x0, ...)
++	main·main(1, 0, 1606416392, ...)
++	main·main(0x1, 0x7fff5fbff808, 0x0, ...)
+ BUG: crashes
+ Trace/BPT trap          ./$A.out
+ 
+@@ -124,9 +127,6 @@ bugs/bug072.go:6: bug: undefined
+ BUG: compiler crashes after error message - Bus error
+ Bus error               $G $D/$F.go
+ 
+-=========== bugs/bug073.go
+-BUG: should not compile
+-
+ =========== bugs/bug074.go
+ BUG: compiler crashes - Bus error
+ Bus error               $G $D/$F.go
+@@ -191,6 +191,11 @@ BUG: compilation succeeds incorrectly
+ =========== fixedbugs/bug015.go
+ fixedbugs/bug015.go:7: overflow converting constant to <int64>INT64
+ 
++=========== fixedbugs/bug016.go
++fixedbugs/bug016.go:7: overflow converting constant to <uint32>UINT32
++fixedbugs/bug016.go:7: illegal types for operand: AS
++	(<int32>INT32)
++
+ =========== fixedbugs/bug025.go
+ fixedbugs/bug025.go:7: variable exported but not defined: Foo
+ 
+@@ -202,7 +207,7 @@ fixedbugs/bug035.go:7: var f redeclared in this block
+ 
+ =========== fixedbugs/bug037.go
+ fixedbugs/bug037.go:6: vlong: undefined
+-fixedbugs/bug037.go:6: fatal error: addvar: n=NAME-s G0 a(1) l(306) t=<T> nil
++fixedbugs/bug037.go:6: fatal error: addvar: n=NAME-s G0 a(1) l(338) t=<T> nil
+ 
+ =========== fixedbugs/bug039.go
+ fixedbugs/bug039.go:6: var x redeclared in this block
+@@ -217,3 +222,15 @@ fixedbugs/bug051.go:10: expression must be a constant
+ 
+ =========== fixedbugs/bug067.go
+ ok
++
++=========== fixedbugs/bug073.go
++fixedbugs/bug073.go:8: illegal types for operand: LSH
++	(<int32>INT32)
++	(<int32>INT32)
++fixedbugs/bug073.go:8: illegal types for operand: AS
++	(<int32>INT32)
++fixedbugs/bug073.go:9: illegal types for operand: RSH
++	(<int32>INT32)
++	(<int32>INT32)
++fixedbugs/bug073.go:9: illegal types for operand: AS
++	(<int32>INT32)
+diff --git a/test/hashmap.go b/test/hashmap.go
+index c384051fda..bf3001c7d6 100755
+--- a/test/hashmap.go
++++ b/test/hashmap.go
+@@ -10,9 +10,9 @@ package main
+ // Helper functions
+ 
+ func ASSERT(p bool) {
+-  if !p {
+-    // panic 0;
+-  }
++	if !p {
++		// panic 0;
++	}
+ }
+ 
+ 
+@@ -20,19 +20,19 @@ func ASSERT(p bool) {
+ // Implementation of the HashMap
+ 
+ type KeyType interface {
+-  Hash() uint32;
+-  Match(other *KeyType) bool
++	Hash() uint32;
++	Match(other *KeyType) bool
+ }
+ 
+ 
+ type ValueType interface {
+-  // empty interface
++	// empty interface
+ }
+ 
+ 
+ type Entry struct {
+-  key *KeyType;
+-  value *ValueType;
++	key *KeyType;
++	value *ValueType;
+ }
+ 
+ 
+@@ -40,50 +40,52 @@ type Entry struct {
+ //type Array array [1024] Entry;
+ 
+ type HashMap struct {
+-  map_ *[1024] Entry;
+-  log2_capacity_ uint32;
+-  occupancy_ uint32;
++	map_ *[1024] Entry;
++	log2_capacity_ uint32;
++	occupancy_ uint32;
+ }
+ 
+ 
+ func (m *HashMap) capacity() uint32 {
+-  return 1 << m.log2_capacity_;
++	// TODO we need to figure out how to determine the type of
++	// a shifted 'untyped' int so we can get rid of the conversion
++	return uint32(1) << m.log2_capacity_;
+ }
+ 
+ 
+ func (m *HashMap) Clear() {
+-  // Mark all entries as empty.
+-  var i uint32 = m.capacity() - 1;
+-  for i > 0 {
+-    m.map_[i].key = nil;
+-    i = i - 1
+-  }
+-  m.occupancy_ = 0
++	// Mark all entries as empty.
++	var i uint32 = m.capacity() - 1;
++	for i > 0 {
++		m.map_[i].key = nil;
++		i = i - 1
++	}
++	m.occupancy_ = 0
+ }
+ 
+ 
+ func (m *HashMap) Initialize (initial_log2_capacity uint32) {
+-  m.log2_capacity_ = initial_log2_capacity;
+-  m.map_ = new([1024] Entry);
+-  m.Clear();
++	m.log2_capacity_ = initial_log2_capacity;
++	m.map_ = new([1024] Entry);
++	m.Clear();
+ }
+ 
+ 
+ func (m *HashMap) Probe (key *KeyType) *Entry {
+-  ASSERT(key != nil);
++	ASSERT(key != nil);
+ 
+-  var i uint32 = key.Hash() % m.capacity();
+-  ASSERT(0 <= i && i < m.capacity());
+-  
+-  ASSERT(m.occupancy_ < m.capacity());  // guarantees loop termination
+-  for m.map_[i].key != nil && !m.map_[i].key.Match(key) {
+-    i++;
+-    if i >= m.capacity() {
+-      i = 0;
+-    }
+-  }
+-  
+-  return &m.map_[i];
++	var i uint32 = key.Hash() % m.capacity();
++	ASSERT(0 <= i && i < m.capacity());
++	
++	ASSERT(m.occupancy_ < m.capacity());	// guarantees loop termination
++	for m.map_[i].key != nil && !m.map_[i].key.Match(key) {
++		i++;
++		if i >= m.capacity() {
++			i = 0;
++		}
++	}
++	
++	return &m.map_[i];
+ }
+ 
+ 
+@@ -91,48 +93,48 @@ func (m *HashMap) Resize();
+ 
+ 
+ func (m *HashMap) Lookup (key *KeyType, insert bool) *Entry {
+-  // Find a matching entry.
+-  var p *Entry = m.Probe(key);
+-    if p.key != nil {
+-    return p;
+-  }
+-
+-  // No entry found; insert one if necessary.
+-  if insert {
+-    p.key = key;
+-    p.value = nil;
+-    m.occupancy_++;
+-  
+-    // Grow the map if we reached >= 80% occupancy.
+-    if m.occupancy_ + m.occupancy_/4 >= m.capacity() {
+-      m.Resize();
+-      p = m.Probe(key);
+-    }
+-    
+-    return p;
+-  }
+-
+-  // No entry found and none inserted.
+-  return nil;
++	// Find a matching entry.
++	var p *Entry = m.Probe(key);
++		if p.key != nil {
++		return p;
++	}
++
++	// No entry found; insert one if necessary.
++	if insert {
++		p.key = key;
++		p.value = nil;
++		m.occupancy_++;
++	
++		// Grow the map if we reached >= 80% occupancy.
++		if m.occupancy_ + m.occupancy_/4 >= m.capacity() {
++			m.Resize();
++			p = m.Probe(key);
++		}
++		
++		return p;
++	}
++
++	// No entry found and none inserted.
++	return nil;
+ }
+ 
+ 
+ func (m *HashMap) Resize() {
+-  var hmap *[1024] Entry = m.map_;
+-  var n uint32 = m.occupancy_;
+-  
+-  // Allocate a new map of twice the current size.
+-  m.Initialize(m.log2_capacity_ << 1);
+-  
+-  // Rehash all current entries.
+-  var i uint32 = 0;
+-  for n > 0 {
+-    if hmap[i].key != nil {
+-      m.Lookup(hmap[i].key, true).value = hmap[i].value;
+-      n = n - 1;
+-    }
+-    i++;
+-  }
++	var hmap *[1024] Entry = m.map_;
++	var n uint32 = m.occupancy_;
++	
++	// Allocate a new map of twice the current size.
++	m.Initialize(m.log2_capacity_ << 1);
++	
++	// Rehash all current entries.
++	var i uint32 = 0;
++	for n > 0 {
++		if hmap[i].key != nil {
++			m.Lookup(hmap[i].key, true).value = hmap[i].value;
++			n = n - 1;
++		}
++		i++;
++	}
+ }
+ 
+ 
+@@ -140,45 +142,45 @@ func (m *HashMap) Resize() {
+ // Test code
+ 
+ type Number struct {
+-  x uint32;
++	x uint32;
+ }
+ 
+ 
+ func (n *Number) Hash() uint32 {
+-  return n.x * 23;
++	return n.x * 23;
+ }
+ 
+ 
+ func (n *Number) Match(other *KeyType) bool {
+-  // var y *Number = other;
+-  // return n.x == y.x;
+-  return false;
++	// var y *Number = other;
++	// return n.x == y.x;
++	return false;
+ }
+ 
+ 
+ func MakeNumber (x uint32) *Number {
+-  var n *Number = new(Number);
+-  n.x = x;
+-  return n;
++	var n *Number = new(Number);
++	n.x = x;
++	return n;
+ }
+ 
+ 
+ func main() {
+-  //f unc (n int) int { return n + 1; }(1);
+-
+-  //print "HashMap - gri 2/8/2008\n";
+-  
+-  var hmap *HashMap = new(HashMap);
+-  hmap.Initialize(0);
+-  
+-  var x1 *Number = MakeNumber(1001);
+-  var x2 *Number = MakeNumber(2002);
+-  var x3 *Number = MakeNumber(3003);
+-  
+-  // this doesn't work I think...
+-  //hmap.Lookup(x1, true);
+-  //hmap.Lookup(x2, true);
+-  //hmap.Lookup(x3, true);
+-  
+-  //print "done\n";
++	//f unc (n int) int { return n + 1; }(1);
++
++	//print "HashMap - gri 2/8/2008\n";
++	
++	var hmap *HashMap = new(HashMap);
++	hmap.Initialize(0);
++	
++	var x1 *Number = MakeNumber(1001);
++	var x2 *Number = MakeNumber(2002);
++	var x3 *Number = MakeNumber(3003);
++	
++	// this doesn't work I think...
++	//hmap.Lookup(x1, true);
++	//hmap.Lookup(x2, true);
++	//hmap.Lookup(x3, true);
++	
++	//print "done\n";
+ }

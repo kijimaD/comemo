@@ -9,7 +9,61 @@ Date:   Tue Sep 25 13:01:27 2018 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/internal/modload/build.go  | 11 +++++------
  src/cmd/go/internal/modload/import.go |  5 +++--
  2 files changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/build.go b/src/cmd/go/internal/modload/build.go
+index 06636c4f4f..acee4a91e7 100644
+--- a/src/cmd/go/internal/modload/build.go
++++ b/src/cmd/go/internal/modload/build.go
+@@ -14,6 +14,7 @@ import (
+ 	"cmd/go/internal/search"
+ 	"encoding/hex"
+ 	"fmt"
++	"internal/goroot"
+ 	"os"
+ 	"path/filepath"
+ 	"strings"
+@@ -30,13 +31,11 @@ func isStandardImportPath(path string) bool {
+ 
+ func findStandardImportPath(path string) string {
+ 	if search.IsStandardImportPath(path) {
+-		dir := filepath.Join(cfg.GOROOT, "src", path)
+-		if _, err := os.Stat(dir); err == nil {
+-			return dir
++		if goroot.IsStandardPackage(cfg.GOROOT, cfg.BuildContext.Compiler, path) {
++			return filepath.Join(cfg.GOROOT, "src", path)
+ 		}
+-		dir = filepath.Join(cfg.GOROOT, "src/vendor", path)
+-		if _, err := os.Stat(dir); err == nil {
+-			return dir
++		if goroot.IsStandardPackage(cfg.GOROOT, cfg.BuildContext.Compiler, "vendor/"+path) {
++			return filepath.Join(cfg.GOROOT, "src/vendor", path)
+ 		}
+ 	}
+ 	return ""
+diff --git a/src/cmd/go/internal/modload/import.go b/src/cmd/go/internal/modload/import.go
+index 12d9407f6e..44c2a23726 100644
+--- a/src/cmd/go/internal/modload/import.go
++++ b/src/cmd/go/internal/modload/import.go
+@@ -9,6 +9,7 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"go/build"
++	"internal/goroot"
+ 	"os"
+ 	"path/filepath"
+ 	"strings"
+@@ -60,8 +61,8 @@ func Import(path string) (m module.Version, dir string, err error) {
+ 		if strings.HasPrefix(path, "golang_org/") {
+ 			return module.Version{}, filepath.Join(cfg.GOROOT, "src/vendor", path), nil
+ 		}
+-		dir := filepath.Join(cfg.GOROOT, "src", path)
+-		if _, err := os.Stat(dir); err == nil {
++		if goroot.IsStandardPackage(cfg.GOROOT, cfg.BuildContext.Compiler, path) {
++			dir := filepath.Join(cfg.GOROOT, "src", path)
+ 			return module.Version{}, dir, nil
+ 		}
+ 	}

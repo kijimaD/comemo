@@ -6,6 +6,16 @@ Date:   Tue Aug 5 12:00:14 2014 -0700
     
     CC=golang-codereviews
     https://golang.org/cl/116710043
-
+---
  doc/go1.4.txt | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/doc/go1.4.txt b/doc/go1.4.txt
+index d85bbd6206..87904ee7ea 100644
+--- a/doc/go1.4.txt
++++ b/doc/go1.4.txt
+@@ -15,3 +15,4 @@ syscall: Setuid, Setgid are disabled on linux platforms. On linux those syscalls
+ testing: add Coverage (CL 98150043)
+ text/scanner: add IsIdentRune field of Scanner. (CL 108030044)
+ time: use the micro symbol (µ (U+00B5)) to print microsecond duration (CL 105030046)
++encoding/asn1: optional elements with a default value will now only be omitted if they have that value (CL 86960045).

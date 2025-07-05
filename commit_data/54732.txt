@@ -17,8 +17,423 @@ Date:   Thu Nov 10 18:52:22 2022 +0000
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/net/conf.go      |  7 +---
  src/net/conf_test.go | 53 ++++++++++++++++++------------
  src/net/nss.go       | 92 +++++++++++++++++++++++++++++++++++++++++++++++++++-
  3 files changed, 125 insertions(+), 27 deletions(-)
+
+diff --git a/src/net/conf.go b/src/net/conf.go
+index b08bbc7d7a..6854f46658 100644
+--- a/src/net/conf.go
++++ b/src/net/conf.go
+@@ -29,7 +29,6 @@ type conf struct {
+ 	goos          string // the runtime.GOOS, to ease testing
+ 	dnsDebugLevel int
+ 
+-	nss    *nssConf
+ 	resolv *dnsConfig
+ }
+ 
+@@ -112,10 +111,6 @@ func initConfVal() {
+ 		return
+ 	}
+ 
+-	if runtime.GOOS != "openbsd" {
+-		confVal.nss = parseNSSConfFile("/etc/nsswitch.conf")
+-	}
+-
+ 	confVal.resolv = dnsReadConfig("/etc/resolv.conf")
+ 	if confVal.resolv.err != nil && !os.IsNotExist(confVal.resolv.err) &&
+ 		!os.IsPermission(confVal.resolv.err) {
+@@ -224,7 +219,7 @@ func (c *conf) hostLookupOrder(r *Resolver, hostname string) (ret hostLookupOrde
+ 		return fallbackOrder
+ 	}
+ 
+-	nss := c.nss
++	nss := getSystemNSS()
+ 	srcs := nss.sources["hosts"]
+ 	// If /etc/nsswitch.conf doesn't exist or doesn't specify any
+ 	// sources for "hosts", assume Go's DNS will work fine.
+diff --git a/src/net/conf_test.go b/src/net/conf_test.go
+index 5ae7055086..86fc4797b9 100644
+--- a/src/net/conf_test.go
++++ b/src/net/conf_test.go
+@@ -10,6 +10,7 @@ import (
+ 	"io/fs"
+ 	"strings"
+ 	"testing"
++	"time"
+ )
+ 
+ type nssHostTest struct {
+@@ -33,6 +34,7 @@ func TestConfHostLookupOrder(t *testing.T) {
+ 	tests := []struct {
+ 		name      string
+ 		c         *conf
++		nss       *nssConf
+ 		resolver  *Resolver
+ 		hostTests []nssHostTest
+ 	}{
+@@ -40,9 +42,9 @@ func TestConfHostLookupOrder(t *testing.T) {
+ 			name: "force",
+ 			c: &conf{
+ 				forceCgoLookupHost: true,
+-				nss:                nssStr("foo: bar"),
+ 				resolv:             defaultResolvConf,
+ 			},
++			nss: nssStr("foo: bar"),
+ 			hostTests: []nssHostTest{
+ 				{"foo.local", "myhostname", hostLookupCgo},
+ 				{"google.com", "myhostname", hostLookupCgo},
+@@ -52,9 +54,9 @@ func TestConfHostLookupOrder(t *testing.T) {
+ 			name: "netgo_dns_before_files",
+ 			c: &conf{
+ 				netGo:  true,
+-				nss:    nssStr("hosts: dns files"),
+ 				resolv: defaultResolvConf,
+ 			},
++			nss: nssStr("hosts: dns files"),
+ 			hostTests: []nssHostTest{
+ 				{"x.com", "myhostname", hostLookupDNSFiles},
+ 			},
+@@ -63,9 +65,9 @@ func TestConfHostLookupOrder(t *testing.T) {
+ 			name: "netgo_fallback_on_cgo",
+ 			c: &conf{
+ 				netGo:  true,
+-				nss:    nssStr("hosts: dns files something_custom"),
+ 				resolv: defaultResolvConf,
+ 			},
++			nss: nssStr("hosts: dns files something_custom"),
+ 			hostTests: []nssHostTest{
+ 				{"x.com", "myhostname", hostLookupFilesDNS},
+ 			},
+@@ -73,9 +75,9 @@ func TestConfHostLookupOrder(t *testing.T) {
+ 		{
+ 			name: "ubuntu_trusty_avahi",
+ 			c: &conf{
+-				nss:    nssStr("hosts: files mdns4_minimal [NOTFOUND=return] dns mdns4"),
+ 				resolv: defaultResolvConf,
+ 			},
++			nss: nssStr("hosts: files mdns4_minimal [NOTFOUND=return] dns mdns4"),
+ 			hostTests: []nssHostTest{
+ 				{"foo.local", "myhostname", hostLookupCgo},
+ 				{"foo.local.", "myhostname", hostLookupCgo},
+@@ -88,9 +90,9 @@ func TestConfHostLookupOrder(t *testing.T) {
+ 			name: "freebsdlinux_no_resolv_conf",
+ 			c: &conf{
+ 				goos:   "freebsd",
+-				nss:    nssStr("foo: bar"),
+ 				resolv: defaultResolvConf,
+ 			},
++			nss:       nssStr("foo: bar"),
+ 			hostTests: []nssHostTest{{"google.com", "myhostname", hostLookupFilesDNS}},
+ 		},
+ 		// On OpenBSD, no resolv.conf means no DNS.
+@@ -106,9 +108,9 @@ func TestConfHostLookupOrder(t *testing.T) {
+ 			name: "solaris_no_nsswitch",
+ 			c: &conf{
+ 				goos:   "solaris",
+-				nss:    &nssConf{err: fs.ErrNotExist},
+ 				resolv: defaultResolvConf,
+ 			},
++			nss:       &nssConf{err: fs.ErrNotExist},
+ 			hostTests: []nssHostTest{{"google.com", "myhostname", hostLookupCgo}},
+ 		},
+ 		{
+@@ -174,26 +176,26 @@ func TestConfHostLookupOrder(t *testing.T) {
+ 			name: "linux_no_nsswitch.conf",
+ 			c: &conf{
+ 				goos:   "linux",
+-				nss:    &nssConf{err: fs.ErrNotExist},
+ 				resolv: defaultResolvConf,
+ 			},
++			nss:       &nssConf{err: fs.ErrNotExist},
+ 			hostTests: []nssHostTest{{"google.com", "myhostname", hostLookupFilesDNS}},
+ 		},
+ 		{
+ 			name: "linux_empty_nsswitch.conf",
+ 			c: &conf{
+ 				goos:   "linux",
+-				nss:    nssStr(""),
+ 				resolv: defaultResolvConf,
+ 			},
++			nss:       nssStr(""),
+ 			hostTests: []nssHostTest{{"google.com", "myhostname", hostLookupFilesDNS}},
+ 		},
+ 		{
+ 			name: "files_mdns_dns",
+ 			c: &conf{
+-				nss:    nssStr("hosts: files mdns dns"),
+ 				resolv: defaultResolvConf,
+ 			},
++			nss: nssStr("hosts: files mdns dns"),
+ 			hostTests: []nssHostTest{
+ 				{"x.com", "myhostname", hostLookupFilesDNS},
+ 				{"x.local", "myhostname", hostLookupCgo},
+@@ -202,9 +204,9 @@ func TestConfHostLookupOrder(t *testing.T) {
+ 		{
+ 			name: "dns_special_hostnames",
+ 			c: &conf{
+-				nss:    nssStr("hosts: dns"),
+ 				resolv: defaultResolvConf,
+ 			},
++			nss: nssStr("hosts: dns"),
+ 			hostTests: []nssHostTest{
+ 				{"x.com", "myhostname", hostLookupDNS},
+ 				{"x\\.com", "myhostname", hostLookupCgo},     // punt on weird glibc escape
+@@ -214,10 +216,10 @@ func TestConfHostLookupOrder(t *testing.T) {
+ 		{
+ 			name: "mdns_allow",
+ 			c: &conf{
+-				nss:          nssStr("hosts: files mdns dns"),
+ 				resolv:       defaultResolvConf,
+ 				hasMDNSAllow: true,
+ 			},
++			nss: nssStr("hosts: files mdns dns"),
+ 			hostTests: []nssHostTest{
+ 				{"x.com", "myhostname", hostLookupCgo},
+ 				{"x.local", "myhostname", hostLookupCgo},
+@@ -226,9 +228,9 @@ func TestConfHostLookupOrder(t *testing.T) {
+ 		{
+ 			name: "files_dns",
+ 			c: &conf{
+-				nss:    nssStr("hosts: files dns"),
+ 				resolv: defaultResolvConf,
+ 			},
++			nss: nssStr("hosts: files dns"),
+ 			hostTests: []nssHostTest{
+ 				{"x.com", "myhostname", hostLookupFilesDNS},
+ 				{"x", "myhostname", hostLookupFilesDNS},
+@@ -238,9 +240,9 @@ func TestConfHostLookupOrder(t *testing.T) {
+ 		{
+ 			name: "dns_files",
+ 			c: &conf{
+-				nss:    nssStr("hosts: dns files"),
+ 				resolv: defaultResolvConf,
+ 			},
++			nss: nssStr("hosts: dns files"),
+ 			hostTests: []nssHostTest{
+ 				{"x.com", "myhostname", hostLookupDNSFiles},
+ 				{"x", "myhostname", hostLookupDNSFiles},
+@@ -250,9 +252,9 @@ func TestConfHostLookupOrder(t *testing.T) {
+ 		{
+ 			name: "something_custom",
+ 			c: &conf{
+-				nss:    nssStr("hosts: dns files something_custom"),
+ 				resolv: defaultResolvConf,
+ 			},
++			nss: nssStr("hosts: dns files something_custom"),
+ 			hostTests: []nssHostTest{
+ 				{"x.com", "myhostname", hostLookupCgo},
+ 			},
+@@ -260,9 +262,9 @@ func TestConfHostLookupOrder(t *testing.T) {
+ 		{
+ 			name: "myhostname",
+ 			c: &conf{
+-				nss:    nssStr("hosts: files dns myhostname"),
+ 				resolv: defaultResolvConf,
+ 			},
++			nss: nssStr("hosts: files dns myhostname"),
+ 			hostTests: []nssHostTest{
+ 				{"x.com", "myhostname", hostLookupFilesDNS},
+ 				{"myhostname", "myhostname", hostLookupCgo},
+@@ -286,9 +288,9 @@ func TestConfHostLookupOrder(t *testing.T) {
+ 		{
+ 			name: "ubuntu14.04.02",
+ 			c: &conf{
+-				nss:    nssStr("hosts: files myhostname mdns4_minimal [NOTFOUND=return] dns mdns4"),
+ 				resolv: defaultResolvConf,
+ 			},
++			nss: nssStr("hosts: files myhostname mdns4_minimal [NOTFOUND=return] dns mdns4"),
+ 			hostTests: []nssHostTest{
+ 				{"x.com", "myhostname", hostLookupFilesDNS},
+ 				{"somehostname", "myhostname", hostLookupFilesDNS},
+@@ -302,9 +304,9 @@ func TestConfHostLookupOrder(t *testing.T) {
+ 		{
+ 			name: "debian_squeeze",
+ 			c: &conf{
+-				nss:    nssStr("hosts: dns [success=return notfound=continue unavail=continue tryagain=continue] files [notfound=return]"),
+ 				resolv: defaultResolvConf,
+ 			},
++			nss: nssStr("hosts: dns [success=return notfound=continue unavail=continue tryagain=continue] files [notfound=return]"),
+ 			hostTests: []nssHostTest{
+ 				{"x.com", "myhostname", hostLookupDNSFiles},
+ 				{"somehostname", "myhostname", hostLookupDNSFiles},
+@@ -313,9 +315,9 @@ func TestConfHostLookupOrder(t *testing.T) {
+ 		{
+ 			name: "resolv.conf-unknown",
+ 			c: &conf{
+-				nss:    nssStr("foo: bar"),
+ 				resolv: &dnsConfig{servers: defaultNS, ndots: 1, timeout: 5, attempts: 2, unknownOpt: true},
+ 			},
++			nss:       nssStr("foo: bar"),
+ 			hostTests: []nssHostTest{{"google.com", "myhostname", hostLookupCgo}},
+ 		},
+ 		// Android should always use cgo.
+@@ -323,9 +325,9 @@ func TestConfHostLookupOrder(t *testing.T) {
+ 			name: "android",
+ 			c: &conf{
+ 				goos:   "android",
+-				nss:    nssStr(""),
+ 				resolv: defaultResolvConf,
+ 			},
++			nss: nssStr(""),
+ 			hostTests: []nssHostTest{
+ 				{"x.com", "myhostname", hostLookupCgo},
+ 			},
+@@ -338,9 +340,9 @@ func TestConfHostLookupOrder(t *testing.T) {
+ 				goos:               "darwin",
+ 				forceCgoLookupHost: true, // always true for darwin
+ 				resolv:             defaultResolvConf,
+-				nss:                nssStr(""),
+ 				netCgo:             true,
+ 			},
++			nss: nssStr(""),
+ 			hostTests: []nssHostTest{
+ 				{"localhost", "myhostname", hostLookupFilesDNS},
+ 			},
+@@ -349,10 +351,13 @@ func TestConfHostLookupOrder(t *testing.T) {
+ 
+ 	origGetHostname := getHostname
+ 	defer func() { getHostname = origGetHostname }()
++	defer setSystemNSS(getSystemNSS(), 0)
+ 
+ 	for _, tt := range tests {
++
+ 		for _, ht := range tt.hostTests {
+ 			getHostname = func() (string, error) { return ht.localhost, nil }
++			setSystemNSS(tt.nss, time.Hour)
+ 
+ 			gotOrder := tt.c.hostLookupOrder(tt.resolver, ht.host)
+ 			if gotOrder != ht.want {
+@@ -360,7 +365,15 @@ func TestConfHostLookupOrder(t *testing.T) {
+ 			}
+ 		}
+ 	}
++}
+ 
++func setSystemNSS(nss *nssConf, addDur time.Duration) {
++	nssConfig.mu.Lock()
++	nssConfig.nssConf = nss
++	nssConfig.mu.Unlock()
++	nssConfig.acquireSema()
++	nssConfig.lastChecked = time.Now().Add(addDur)
++	nssConfig.releaseSema()
+ }
+ 
+ func TestSystemConf(t *testing.T) {
+diff --git a/src/net/nss.go b/src/net/nss.go
+index c4c608fb61..ad4c18145e 100644
+--- a/src/net/nss.go
++++ b/src/net/nss.go
+@@ -9,10 +9,93 @@ import (
+ 	"internal/bytealg"
+ 	"io"
+ 	"os"
++	"sync"
++	"time"
+ )
+ 
++const (
++	nssConfigPath = "/etc/nsswitch.conf"
++)
++
++var nssConfig nsswitchConfig
++
++type nsswitchConfig struct {
++	initOnce sync.Once // guards init of nsswitchConfig
++
++	// ch is used as a semaphore that only allows one lookup at a
++	// time to recheck nsswitch.conf
++	ch          chan struct{} // guards lastChecked and modTime
++	lastChecked time.Time     // last time nsswitch.conf was checked
++
++	mu      sync.Mutex // protects nssConf
++	nssConf *nssConf
++}
++
++func getSystemNSS() *nssConf {
++	nssConfig.tryUpdate()
++	nssConfig.mu.Lock()
++	conf := nssConfig.nssConf
++	nssConfig.mu.Unlock()
++	return conf
++}
++
++// init initializes conf and is only called via conf.initOnce.
++func (conf *nsswitchConfig) init() {
++	conf.nssConf = parseNSSConfFile("/etc/nsswitch.conf")
++	conf.lastChecked = time.Now()
++	conf.ch = make(chan struct{}, 1)
++}
++
++// tryUpdate tries to update conf.
++func (conf *nsswitchConfig) tryUpdate() {
++	conf.initOnce.Do(conf.init)
++
++	// Ensure only one update at a time checks nsswitch.conf
++	if !conf.tryAcquireSema() {
++		return
++	}
++	defer conf.releaseSema()
++
++	now := time.Now()
++	if conf.lastChecked.After(now.Add(-5 * time.Second)) {
++		return
++	}
++	conf.lastChecked = now
++
++	var mtime time.Time
++	if fi, err := os.Stat(nssConfigPath); err == nil {
++		mtime = fi.ModTime()
++	}
++	if mtime.Equal(conf.nssConf.mtime) {
++		return
++	}
++
++	nssConf := parseNSSConfFile(nssConfigPath)
++	conf.mu.Lock()
++	conf.nssConf = nssConf
++	conf.mu.Unlock()
++}
++
++func (conf *nsswitchConfig) acquireSema() {
++	conf.ch <- struct{}{}
++}
++
++func (conf *nsswitchConfig) tryAcquireSema() bool {
++	select {
++	case conf.ch <- struct{}{}:
++		return true
++	default:
++		return false
++	}
++}
++
++func (conf *nsswitchConfig) releaseSema() {
++	<-conf.ch
++}
++
+ // nssConf represents the state of the machine's /etc/nsswitch.conf file.
+ type nssConf struct {
++	mtime   time.Time              // time of nsswitch.conf modification
+ 	err     error                  // any error encountered opening or parsing the file
+ 	sources map[string][]nssSource // keyed by database (e.g. "hosts")
+ }
+@@ -70,7 +153,14 @@ func parseNSSConfFile(file string) *nssConf {
+ 		return &nssConf{err: err}
+ 	}
+ 	defer f.Close()
+-	return parseNSSConf(f)
++	stat, err := f.Stat()
++	if err != nil {
++		return &nssConf{err: err}
++	}
++
++	conf := parseNSSConf(f)
++	conf.mtime = stat.ModTime()
++	return conf
+ }
+ 
+ func parseNSSConf(r io.Reader) *nssConf {

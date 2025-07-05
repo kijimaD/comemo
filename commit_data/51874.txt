@@ -22,6 +22,20 @@ Date:   Fri Mar 18 17:36:52 2022 +0800
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Fangrui Song <maskray@google.com>
-
+---
  src/cmd/link/internal/ld/dwarf.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/ld/dwarf.go b/src/cmd/link/internal/ld/dwarf.go
+index 289ebcb595..2e209d0c6b 100644
+--- a/src/cmd/link/internal/ld/dwarf.go
++++ b/src/cmd/link/internal/ld/dwarf.go
+@@ -2234,7 +2234,7 @@ func dwarfcompress(ctxt *Link) {
+ 				compressedSegName = ".zdebug_" + ldr.SymSect(s).Name[len(".debug_"):]
+ 			}
+ 			sect := addsection(ctxt.loader, ctxt.Arch, &Segdwarf, compressedSegName, 04)
+-			sect.Align = 1
++			sect.Align = int32(ctxt.Arch.Alignment)
+ 			sect.Length = uint64(len(z.compressed))
+ 			sect.Compressed = true
+ 			newSym := ldr.MakeSymbolBuilder(compressedSegName)

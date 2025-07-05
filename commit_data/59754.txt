@@ -18,7 +18,7 @@ Date:   Tue Feb 20 10:24:21 2024 -0500
     Reviewed-by: Robert Findley <rfindley@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  api/next/65772.txt                           |  1 +
  doc/next/6-stdlib/99-minor/go/types/65772.md |  4 ++++
  src/cmd/compile/internal/types2/object.go    | 22 +++++++++++++++++++++-
@@ -29,3 +29,191 @@ Date:   Tue Feb 20 10:24:21 2024 -0500
  src/go/types/resolver.go                     |  4 ++--
  src/go/types/subst.go                        |  2 +-
  9 files changed, 57 insertions(+), 12 deletions(-)
+
+diff --git a/api/next/65772.txt b/api/next/65772.txt
+new file mode 100644
+index 0000000000..1244df8dd3
+--- /dev/null
++++ b/api/next/65772.txt
+@@ -0,0 +1 @@
++pkg go/types, method (*Func) Signature() *Signature #65772
+diff --git a/doc/next/6-stdlib/99-minor/go/types/65772.md b/doc/next/6-stdlib/99-minor/go/types/65772.md
+new file mode 100644
+index 0000000000..33e949db3d
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/go/types/65772.md
+@@ -0,0 +1,4 @@
++The [`Func`](/go/types#Func) type, which represents a function or
++method symbol, now has a [`Signature`](/go/types#Func.Signature)
++method that returns the function's type, which is always a
++`Signature`.
+\ No newline at end of file
+diff --git a/src/cmd/compile/internal/types2/object.go b/src/cmd/compile/internal/types2/object.go
+index 776986f111..3026777cad 100644
+--- a/src/cmd/compile/internal/types2/object.go
++++ b/src/cmd/compile/internal/types2/object.go
+@@ -374,14 +374,34 @@ type Func struct {
+ // NewFunc returns a new function with the given signature, representing
+ // the function's type.
+ func NewFunc(pos syntax.Pos, pkg *Package, name string, sig *Signature) *Func {
+-	// don't store a (typed) nil signature
+ 	var typ Type
+ 	if sig != nil {
+ 		typ = sig
++	} else {
++		// Don't store a (typed) nil *Signature.
++		// We can't simply replace it with new(Signature) either,
++		// as this would violate object.{Type,color} invariants.
++		// TODO(adonovan): propose to disallow NewFunc with nil *Signature.
+ 	}
+ 	return &Func{object{nil, pos, pkg, name, typ, 0, colorFor(typ), nopos}, false, nil}
+ }
+ 
++// Signature returns the signature (type) of the function or method.
++func (obj *Func) Signature() *Signature {
++	if obj.typ != nil {
++		return obj.typ.(*Signature) // normal case
++	}
++	// No signature: Signature was called either:
++	// - within go/types, before a FuncDecl's initially
++	//   nil Func.Type was lazily populated, indicating
++	//   a types bug; or
++	// - by a client after NewFunc(..., nil),
++	//   which is arguably a client bug, but we need a
++	//   proposal to tighten NewFunc's precondition.
++	// For now, return a trivial signature.
++	return new(Signature)
++}
++
+ // FullName returns the package- or receiver-type-qualified name of
+ // function or method obj.
+ func (obj *Func) FullName() string {
+diff --git a/src/cmd/compile/internal/types2/subst.go b/src/cmd/compile/internal/types2/subst.go
+index fa636a1e1e..215d1f2d4f 100644
+--- a/src/cmd/compile/internal/types2/subst.go
++++ b/src/cmd/compile/internal/types2/subst.go
+@@ -421,7 +421,7 @@ func (subst *subster) termlist(in []*Term) (out []*Term, copied bool) {
+ func replaceRecvType(in []*Func, old, new Type) (out []*Func, copied bool) {
+ 	out = in
+ 	for i, method := range in {
+-		sig := method.Type().(*Signature)
++		sig := method.Signature()
+ 		if sig.recv != nil && sig.recv.Type() == old {
+ 			if !copied {
+ 				// Allocate a new methods slice before mutating for the first time.
+diff --git a/src/go/types/api_test.go b/src/go/types/api_test.go
+index 5bc4e8a61f..564bbc2423 100644
+--- a/src/go/types/api_test.go
++++ b/src/go/types/api_test.go
+@@ -2324,7 +2324,7 @@ func f(x int) { y := x; print(y) }
+ 				wantParent = false
+ 			}
+ 		case *Func:
+-			if obj.Type().(*Signature).Recv() != nil { // method
++			if obj.Signature().Recv() != nil { // method
+ 				wantParent = false
+ 			}
+ 		}
+@@ -2615,9 +2615,9 @@ func fn() {
+ 
+ 		// Methods and method fields
+ 		{"concreteMethod", lookup("t").(*Named).Method(0)},
+-		{"recv", lookup("t").(*Named).Method(0).Type().(*Signature).Recv()},
+-		{"mParam", lookup("t").(*Named).Method(0).Type().(*Signature).Params().At(0)},
+-		{"mResult", lookup("t").(*Named).Method(0).Type().(*Signature).Results().At(0)},
++		{"recv", lookup("t").(*Named).Method(0).Signature().Recv()},
++		{"mParam", lookup("t").(*Named).Method(0).Signature().Params().At(0)},
++		{"mResult", lookup("t").(*Named).Method(0).Signature().Results().At(0)},
+ 
+ 		// Interface methods
+ 		{"interfaceMethod", lookup("i").Underlying().(*Interface).Method(0)},
+diff --git a/src/go/types/issues_test.go b/src/go/types/issues_test.go
+index 4f4bf6f077..379d833bf2 100644
+--- a/src/go/types/issues_test.go
++++ b/src/go/types/issues_test.go
+@@ -115,7 +115,7 @@ type T struct{} // receiver type after method declaration
+ 	}
+ 
+ 	m := f.Decls[0].(*ast.FuncDecl)
+-	res1 := defs[m.Name].(*Func).Type().(*Signature).Results().At(0)
++	res1 := defs[m.Name].(*Func).Signature().Results().At(0)
+ 	res2 := defs[m.Type.Results.List[0].Names[0]].(*Var)
+ 
+ 	if res1 != res2 {
+@@ -369,7 +369,7 @@ func TestIssue28005(t *testing.T) {
+ 		// must match the method's name per the choice in the source file.
+ 		for i := 0; i < iface.NumMethods(); i++ {
+ 			m := iface.Method(i)
+-			recvName := m.Type().(*Signature).Recv().Type().(*Named).Obj().Name()
++			recvName := m.Signature().Recv().Type().(*Named).Obj().Name()
+ 			if recvName != m.Name() {
+ 				t.Errorf("perm %v: got recv %s; want %s", perm, recvName, m.Name())
+ 			}
+diff --git a/src/go/types/object.go b/src/go/types/object.go
+index 400b47ebe1..d564d37e7a 100644
+--- a/src/go/types/object.go
++++ b/src/go/types/object.go
+@@ -377,14 +377,34 @@ type Func struct {
+ // NewFunc returns a new function with the given signature, representing
+ // the function's type.
+ func NewFunc(pos token.Pos, pkg *Package, name string, sig *Signature) *Func {
+-	// don't store a (typed) nil signature
+ 	var typ Type
+ 	if sig != nil {
+ 		typ = sig
++	} else {
++		// Don't store a (typed) nil *Signature.
++		// We can't simply replace it with new(Signature) either,
++		// as this would violate object.{Type,color} invariants.
++		// TODO(adonovan): propose to disallow NewFunc with nil *Signature.
+ 	}
+ 	return &Func{object{nil, pos, pkg, name, typ, 0, colorFor(typ), nopos}, false, nil}
+ }
+ 
++// Signature returns the signature (type) of the function or method.
++func (obj *Func) Signature() *Signature {
++	if obj.typ != nil {
++		return obj.typ.(*Signature) // normal case
++	}
++	// No signature: Signature was called either:
++	// - within go/types, before a FuncDecl's initially
++	//   nil Func.Type was lazily populated, indicating
++	//   a types bug; or
++	// - by a client after NewFunc(..., nil),
++	//   which is arguably a client bug, but we need a
++	//   proposal to tighten NewFunc's precondition.
++	// For now, return a trivial signature.
++	return new(Signature)
++}
++
+ // FullName returns the package- or receiver-type-qualified name of
+ // function or method obj.
+ func (obj *Func) FullName() string {
+diff --git a/src/go/types/resolver.go b/src/go/types/resolver.go
+index f336057c53..918e18de3e 100644
+--- a/src/go/types/resolver.go
++++ b/src/go/types/resolver.go
+@@ -395,8 +395,8 @@ func (check *Checker) collectObjects() {
+ 				check.declarePkgObj(d.spec.Name, obj, &declInfo{file: fileScope, tdecl: d.spec})
+ 			case funcDecl:
+ 				name := d.decl.Name.Name
+-				obj := NewFunc(d.decl.Name.Pos(), pkg, name, nil)
+-				hasTParamError := false // avoid duplicate type parameter errors
++				obj := NewFunc(d.decl.Name.Pos(), pkg, name, nil) // signature set later
++				hasTParamError := false                           // avoid duplicate type parameter errors
+ 				if d.decl.Recv.NumFields() == 0 {
+ 					// regular function
+ 					if d.decl.Recv != nil {
+diff --git a/src/go/types/subst.go b/src/go/types/subst.go
+index 1d180abb65..a3ea16d9b9 100644
+--- a/src/go/types/subst.go
++++ b/src/go/types/subst.go
+@@ -424,7 +424,7 @@ func (subst *subster) termlist(in []*Term) (out []*Term, copied bool) {
+ func replaceRecvType(in []*Func, old, new Type) (out []*Func, copied bool) {
+ 	out = in
+ 	for i, method := range in {
+-		sig := method.Type().(*Signature)
++		sig := method.Signature()
+ 		if sig.recv != nil && sig.recv.Type() == old {
+ 			if !copied {
+ 				// Allocate a new methods slice before mutating for the first time.

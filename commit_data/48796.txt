@@ -13,9 +13,155 @@ Date:   Wed Jun 9 18:41:19 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/builtins.go | 12 +++++-------
  src/go/types/infer.go    | 15 +++++++++------
  src/go/types/subst.go    | 11 ++++++-----
  src/go/types/type.go     | 35 +++++++++--------------------------
  4 files changed, 29 insertions(+), 44 deletions(-)
+
+diff --git a/src/go/types/builtins.go b/src/go/types/builtins.go
+index 92807ed44a..cfaeab611b 100644
+--- a/src/go/types/builtins.go
++++ b/src/go/types/builtins.go
+@@ -768,14 +768,12 @@ func (check *Checker) applyTypeFunc(f func(Type) Type, x Type) Type {
+ 	if tp := asTypeParam(x); tp != nil {
+ 		// Test if t satisfies the requirements for the argument
+ 		// type and collect possible result types at the same time.
+-		// TODO(gri) This needs to consider the ~ information if we
+-		//           have a union type.
+ 		var rtypes []Type
+-		var tilde []bool
+-		if !tp.Bound().is(func(x Type) bool {
+-			if r := f(x); r != nil {
++		var tildes []bool
++		if !tp.Bound().is(func(typ Type, tilde bool) bool {
++			if r := f(typ); r != nil {
+ 				rtypes = append(rtypes, r)
+-				tilde = append(tilde, true)
++				tildes = append(tildes, tilde)
+ 				return true
+ 			}
+ 			return false
+@@ -786,7 +784,7 @@ func (check *Checker) applyTypeFunc(f func(Type) Type, x Type) Type {
+ 		// construct a suitable new type parameter
+ 		tpar := NewTypeName(token.NoPos, nil /* = Universe pkg */, "<type parameter>", nil)
+ 		ptyp := check.newTypeParam(tpar, 0, &emptyInterface) // assigns type to tpar as a side-effect
+-		tsum := newUnion(rtypes, tilde)
++		tsum := newUnion(rtypes, tildes)
+ 		ptyp.bound = &Interface{allMethods: markComplete, allTypes: tsum}
+ 
+ 		return ptyp
+diff --git a/src/go/types/infer.go b/src/go/types/infer.go
+index ddf02a3942..5a4f939bb1 100644
+--- a/src/go/types/infer.go
++++ b/src/go/types/infer.go
+@@ -323,7 +323,7 @@ func (w *tpWalker) isParameterized(typ Type) (res bool) {
+ 					return true
+ 				}
+ 			}
+-			return w.isParameterizedList(unpackType(t.allTypes))
++			return w.isParameterized(t.allTypes)
+ 		}
+ 
+ 		return t.iterate(func(t *Interface) bool {
+@@ -472,11 +472,14 @@ func (check *Checker) inferB(tparams []*TypeName, targs []Type, report bool) (ty
+ func (check *Checker) structuralType(constraint Type) Type {
+ 	if iface, _ := under(constraint).(*Interface); iface != nil {
+ 		check.completeInterface(token.NoPos, iface)
+-		types := unpackType(iface.allTypes)
+-		if len(types) == 1 {
+-			return types[0]
++		if u, _ := iface.allTypes.(*Union); u != nil {
++			if u.NumTerms() == 1 {
++				// TODO(gri) do we need to respect tilde?
++				return u.types[0]
++			}
++			return nil
+ 		}
+-		return nil
++		return iface.allTypes
+ 	}
+-	return constraint
++	return nil
+ }
+diff --git a/src/go/types/subst.go b/src/go/types/subst.go
+index 24108993ef..025eba0f8c 100644
+--- a/src/go/types/subst.go
++++ b/src/go/types/subst.go
+@@ -198,14 +198,15 @@ func (check *Checker) satisfies(pos token.Pos, targ Type, tpar *_TypeParam, smap
+ 			check.softErrorf(atPos(pos), _Todo, "%s does not satisfy %s (%s has no type constraints)", targ, tpar.bound, targ)
+ 			return false
+ 		}
+-		for _, t := range unpackType(targBound.allTypes) {
+-			if !iface.isSatisfiedBy(t) {
++		return iface.is(func(typ Type, tilde bool) bool {
++			// TODO(gri) incorporate tilde information!
++			if !iface.isSatisfiedBy(typ) {
+ 				// TODO(gri) match this error message with the one below (or vice versa)
+-				check.softErrorf(atPos(pos), 0, "%s does not satisfy %s (%s type constraint %s not found in %s)", targ, tpar.bound, targ, t, iface.allTypes)
++				check.softErrorf(atPos(pos), 0, "%s does not satisfy %s (%s type constraint %s not found in %s)", targ, tpar.bound, targ, typ, iface.allTypes)
+ 				return false
+ 			}
+-		}
+-		return false
++			return true
++		})
+ 	}
+ 
+ 	// Otherwise, targ's type or underlying type must also be one of the interface types listed, if any.
+diff --git a/src/go/types/type.go b/src/go/types/type.go
+index 8a4544e497..7429056865 100644
+--- a/src/go/types/type.go
++++ b/src/go/types/type.go
+@@ -266,29 +266,17 @@ type Interface struct {
+ 	obj Object // type declaration defining this interface; or nil (for better error messages)
+ }
+ 
+-// unpack unpacks a type into a list of types.
+-// TODO(gri) Try to eliminate the need for this function.
+-func unpackType(typ Type) []Type {
+-	if typ == nil {
+-		return nil
+-	}
+-	if u := asUnion(typ); u != nil {
+-		return u.types
+-	}
+-	return []Type{typ}
+-}
+-
+-// is reports whether interface t represents types that all satisfy pred.
+-func (t *Interface) is(pred func(Type) bool) bool {
+-	if t.allTypes == nil {
++// is reports whether interface t represents types that all satisfy f.
++func (t *Interface) is(f func(Type, bool) bool) bool {
++	switch t := t.allTypes.(type) {
++	case nil, *top:
++		// TODO(gri) should settle on top or nil to represent this case
+ 		return false // we must have at least one type! (was bug)
++	case *Union:
++		return t.is(func(typ Type, tilde bool) bool { return f(typ, tilde) })
++	default:
++		return f(t, false)
+ 	}
+-	for _, t := range unpackType(t.allTypes) {
+-		if !pred(t) {
+-			return false
+-		}
+-	}
+-	return true
+ }
+ 
+ // emptyInterface represents the empty (completed) interface
+@@ -824,11 +812,6 @@ func asSignature(t Type) *Signature {
+ 	return op
+ }
+ 
+-func asUnion(t Type) *Union {
+-	op, _ := optype(t).(*Union)
+-	return op
+-}
+-
+ func asInterface(t Type) *Interface {
+ 	op, _ := optype(t).(*Interface)
+ 	return op

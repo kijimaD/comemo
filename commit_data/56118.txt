@@ -30,8 +30,153 @@ Date:   Thu Apr 6 12:31:57 2023 +0000
     Reviewed-by: Michael Matloob <matloob@golang.org>
     Reviewed-by: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
     Auto-Submit: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/cache/cache.go      |  8 +++++---
  src/cmd/go/internal/cache/cache_test.go | 33 ++++++++++++++++++++++-----------
  src/cmd/go/internal/work/exec.go        |  6 +++++-
  3 files changed, 32 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/go/internal/cache/cache.go b/src/cmd/go/internal/cache/cache.go
+index c30d7c864b..baa516c468 100644
+--- a/src/cmd/go/internal/cache/cache.go
++++ b/src/cmd/go/internal/cache/cache.go
+@@ -306,7 +306,7 @@ func (c *Cache) used(file string) {
+ }
+ 
+ // Trim removes old cache entries that are likely not to be reused.
+-func (c *Cache) Trim() {
++func (c *Cache) Trim() error {
+ 	now := c.now()
+ 
+ 	// We maintain in dir/trim.txt the time of the last completed cache trim.
+@@ -320,7 +320,7 @@ func (c *Cache) Trim() {
+ 		if t, err := strconv.ParseInt(strings.TrimSpace(string(data)), 10, 64); err == nil {
+ 			lastTrim := time.Unix(t, 0)
+ 			if d := now.Sub(lastTrim); d < trimInterval && d > -mtimeInterval {
+-				return
++				return nil
+ 			}
+ 		}
+ 	}
+@@ -339,8 +339,10 @@ func (c *Cache) Trim() {
+ 	var b bytes.Buffer
+ 	fmt.Fprintf(&b, "%d", now.Unix())
+ 	if err := lockedfile.Write(filepath.Join(c.dir, "trim.txt"), &b, 0666); err != nil {
+-		return
++		return err
+ 	}
++
++	return nil
+ }
+ 
+ // trimSubdir trims a single cache subdirectory.
+diff --git a/src/cmd/go/internal/cache/cache_test.go b/src/cmd/go/internal/cache/cache_test.go
+index 36c73331c5..c422920c98 100644
+--- a/src/cmd/go/internal/cache/cache_test.go
++++ b/src/cmd/go/internal/cache/cache_test.go
+@@ -8,9 +8,9 @@ import (
+ 	"bytes"
+ 	"encoding/binary"
+ 	"fmt"
++	"internal/testenv"
+ 	"os"
+ 	"path/filepath"
+-	"runtime"
+ 	"testing"
+ 	"time"
+ )
+@@ -151,10 +151,6 @@ func dummyID(x int) [HashSize]byte {
+ }
+ 
+ func TestCacheTrim(t *testing.T) {
+-	if runtime.GOOS == "js" || runtime.GOOS == "wasip1" {
+-		t.Skip("file lock is unsupported on +" + runtime.GOOS)
+-	}
+-
+ 	dir, err := os.MkdirTemp("", "cachetest-")
+ 	if err != nil {
+ 		t.Fatal(err)
+@@ -206,7 +202,12 @@ func TestCacheTrim(t *testing.T) {
+ 	checkTime(fmt.Sprintf("%x-d", entry.OutputID), mtime2)
+ 
+ 	// Trim should leave everything alone: it's all too new.
+-	c.Trim()
++	if err := c.Trim(); err != nil {
++		if testenv.SyscallIsNotSupported(err) {
++			t.Skipf("skipping: Trim is unsupported (%v)", err)
++		}
++		t.Fatal(err)
++	}
+ 	if _, err := c.Get(id); err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -219,7 +220,9 @@ func TestCacheTrim(t *testing.T) {
+ 
+ 	// Trim less than a day later should not do any work at all.
+ 	now = start + 80000
+-	c.Trim()
++	if err := c.Trim(); err != nil {
++		t.Fatal(err)
++	}
+ 	if _, err := c.Get(id); err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -239,7 +242,9 @@ func TestCacheTrim(t *testing.T) {
+ 	// and we haven't looked at it since, so 5 days later it should be gone.
+ 	now += 5 * 86400
+ 	checkTime(fmt.Sprintf("%x-a", dummyID(2)), start)
+-	c.Trim()
++	if err := c.Trim(); err != nil {
++		t.Fatal(err)
++	}
+ 	if _, err := c.Get(id); err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -253,7 +258,9 @@ func TestCacheTrim(t *testing.T) {
+ 	// Check that another 5 days later it is still not gone,
+ 	// but check by using checkTime, which doesn't bring mtime forward.
+ 	now += 5 * 86400
+-	c.Trim()
++	if err := c.Trim(); err != nil {
++		t.Fatal(err)
++	}
+ 	checkTime(fmt.Sprintf("%x-a", id), mtime3)
+ 	checkTime(fmt.Sprintf("%x-d", entry.OutputID), mtime3)
+ 
+@@ -261,13 +268,17 @@ func TestCacheTrim(t *testing.T) {
+ 	// Even though the entry for id is now old enough to be trimmed,
+ 	// it gets a reprieve until the time comes for a new Trim scan.
+ 	now += 86400 / 2
+-	c.Trim()
++	if err := c.Trim(); err != nil {
++		t.Fatal(err)
++	}
+ 	checkTime(fmt.Sprintf("%x-a", id), mtime3)
+ 	checkTime(fmt.Sprintf("%x-d", entry.OutputID), mtime3)
+ 
+ 	// Another half a day later, Trim should actually run, and it should remove id.
+ 	now += 86400/2 + 1
+-	c.Trim()
++	if err := c.Trim(); err != nil {
++		t.Fatal(err)
++	}
+ 	if _, err := c.Get(dummyID(1)); err == nil {
+ 		t.Fatal("Trim did not remove dummyID(1)")
+ 	}
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 86738e233d..c42b9a126e 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -75,7 +75,11 @@ func (b *Builder) Do(ctx context.Context, root *Action) {
+ 	if !b.IsCmdList {
+ 		// If we're doing real work, take time at the end to trim the cache.
+ 		c := cache.Default()
+-		defer c.Trim()
++		defer func() {
++			if err := c.Trim(); err != nil {
++				base.Fatalf("go: failed to trim cache: %v", err)
++			}
++		}()
+ 	}
+ 
+ 	// Build list of all actions, assigning depth-first post-order priority.

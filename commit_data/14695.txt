@@ -11,8 +11,57 @@ Date:   Fri Dec 21 01:27:50 2012 +1100
     R=golang-dev, minux.ma, iant
     CC=golang-dev
     https://golang.org/cl/6846064
-
+---
  src/cmd/5l/asm.c | 5 ++++-
  src/cmd/6l/asm.c | 5 ++++-
  src/cmd/8l/asm.c | 5 ++++-
  3 files changed, 12 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/5l/asm.c b/src/cmd/5l/asm.c
+index a937650480..f62c927e24 100644
+--- a/src/cmd/5l/asm.c
++++ b/src/cmd/5l/asm.c
+@@ -1015,7 +1015,10 @@ asmb(void)
+ 			phsh(ph, sh);
+ 
+ 			// .tbss (optional) and TLS phdr
+-			if(tlsoffset != 0) {
++			// Do not emit PT_TLS for OpenBSD since ld.so(1) does
++			// not currently support it. This is handled
++			// appropriately in runtime/cgo.
++			if(tlsoffset != 0 && HEADTYPE != Hopenbsd) {
+ 				ph = newElfPhdr();
+ 				ph->type = PT_TLS;
+ 				ph->flags = PF_R;
+diff --git a/src/cmd/6l/asm.c b/src/cmd/6l/asm.c
+index 89ea86109f..b0ff15423a 100644
+--- a/src/cmd/6l/asm.c
++++ b/src/cmd/6l/asm.c
+@@ -1116,7 +1116,10 @@ asmb(void)
+ 			/*
+ 			 * Thread-local storage segment (really just size).
+ 			 */
+-			if(tlsoffset != 0) {
++			// Do not emit PT_TLS for OpenBSD since ld.so(1) does
++			// not currently support it. This is handled
++			// appropriately in runtime/cgo.
++			if(tlsoffset != 0 && HEADTYPE != Hopenbsd) {
+ 				ph = newElfPhdr();
+ 				ph->type = PT_TLS;
+ 				ph->flags = PF_R;
+diff --git a/src/cmd/8l/asm.c b/src/cmd/8l/asm.c
+index 3d3248f937..e83e4a8792 100644
+--- a/src/cmd/8l/asm.c
++++ b/src/cmd/8l/asm.c
+@@ -1179,7 +1179,10 @@ asmb(void)
+ 			/*
+ 			 * Thread-local storage segment (really just size).
+ 			 */
+-			if(tlsoffset != 0) {
++			// Do not emit PT_TLS for OpenBSD since ld.so(1) does
++			// not currently support it. This is handled
++			// appropriately in runtime/cgo.
++			if(tlsoffset != 0 && HEADTYPE != Hopenbsd) {
+ 				ph = newElfPhdr();
+ 				ph->type = PT_TLS;
+ 				ph->flags = PF_R;

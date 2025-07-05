@@ -9,6 +9,20 @@ Date:   Mon Nov 16 11:56:18 2009 -0800
     R=r
     CC=golang-dev
     https://golang.org/cl/155067
-
+---
  doc/effective_go.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/effective_go.html b/doc/effective_go.html
+index cd6ac53602..694f05d101 100644
+--- a/doc/effective_go.html
++++ b/doc/effective_go.html
+@@ -639,7 +639,7 @@ have the corresponding type in each clause.
+ <pre>
+ switch t := interfaceValue.(type) {
+ default:
+-	fmt.Printf("unexpected type %T", type);  // %T prints type
++	fmt.Printf("unexpected type %T", t);  // %T prints type
+ case bool:
+ 	fmt.Printf("boolean %t\n", t);
+ case int:

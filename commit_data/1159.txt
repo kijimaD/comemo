@@ -7,6 +7,39 @@ Date:   Tue Nov 18 15:29:10 2008 -0800
     R=rsc
     OCL=19496
     CL=19496
-
+---
  src/lib/testing.go | 26 ++++++++++++++++++++++++++
  1 file changed, 26 insertions(+)
+
+diff --git a/src/lib/testing.go b/src/lib/testing.go
+new file mode 100644
+index 0000000000..121baca888
+--- /dev/null
++++ b/src/lib/testing.go
+@@ -0,0 +1,26 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package testing
++
++export type Test struct {
++	name string;
++	f *() bool;
++}
++
++export func Main(tests *[]Test) {
++	ok := true;
++	for i := 0; i < len(tests); i++ {
++		ok1 := tests[i].f();
++		status := "FAIL";
++		if ok1 {
++			status = "PASS"
++		}
++		ok = ok && ok1;
++		println(status, tests[i].name);
++	}
++	if !ok {
++		sys.exit(1);
++	}
++}

@@ -12,7 +12,56 @@ Date:   Wed Mar 26 15:23:31 2014 -0700
     R=golang-codereviews, iant
     CC=golang-codereviews
     https://golang.org/cl/80780043
-
+---
  src/cmd/go/build.go  |  1 +
  src/cmd/go/test.bash | 25 +++++++++++++++++++++++++
  2 files changed, 26 insertions(+)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 6166410c6e..a21c873c85 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -1905,6 +1905,7 @@ func (tools gccgoToolchain) ld(b *builder, p *Package, out string, allactions []
+ 	ldflags = append(ldflags, afiles...)
+ 	ldflags = append(ldflags, sfiles...)
+ 	ldflags = append(ldflags, cgoldflags...)
++	ldflags = append(ldflags, p.CgoLDFLAGS...)
+ 	if usesCgo && goos == "linux" {
+ 		ldflags = append(ldflags, "-Wl,-E")
+ 	}
+diff --git a/src/cmd/go/test.bash b/src/cmd/go/test.bash
+index fe00df9e24..1091695b37 100755
+--- a/src/cmd/go/test.bash
++++ b/src/cmd/go/test.bash
+@@ -669,6 +669,31 @@ if ! ./testgo test -c -test.bench=XXX fmt; then
+ fi
+ rm -f fmt.test
+ 
++TEST 'Issue 7573: cmd/cgo: undefined reference when linking a C-library using gccgo'
++d=$(mktemp -d -t testgoXXX)
++export GOPATH=$d
++mkdir -p $d/src/cgoref
++ldflags="-L alibpath -lalib"
++echo "
++package main
++// #cgo LDFLAGS: $ldflags
++// void f(void) {}
++import \"C\"
++
++func main() { C.f() }
++" >$d/src/cgoref/cgoref.go
++go_cmds="$(./testgo build -n -compiler gccgo cgoref 2>&1 1>/dev/null)"
++ldflags_count="$(echo "$go_cmds" | egrep -c "^gccgo.*$(echo $ldflags | sed -e 's/-/\\-/g')" || true)"
++if [ "$ldflags_count" -lt 1 ]; then
++	echo "No Go-inline "#cgo LDFLAGS:" (\"$ldflags\") passed to gccgo linking stage."
++	ok=false
++fi
++rm -rf $d
++unset ldflags_count
++unset go_cmds
++unset ldflags
++unset GOPATH
++
+ # clean up
+ if $started; then stop; fi
+ rm -rf testdata/bin testdata/bin1

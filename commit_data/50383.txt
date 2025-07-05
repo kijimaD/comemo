@@ -17,7 +17,46 @@ Date:   Thu Oct 21 18:59:10 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/types2/interface.go | 8 ++++++++
  src/go/types/interface.go                    | 8 ++++++++
  2 files changed, 16 insertions(+)
+
+diff --git a/src/cmd/compile/internal/types2/interface.go b/src/cmd/compile/internal/types2/interface.go
+index 0704628dc6..048fcab024 100644
+--- a/src/cmd/compile/internal/types2/interface.go
++++ b/src/cmd/compile/internal/types2/interface.go
+@@ -54,6 +54,14 @@ func NewInterfaceType(methods []*Func, embeddeds []Type) *Interface {
+ 	return typ
+ }
+ 
++// MarkImplicit marks the interface t as implicit, meaning this interface
++// corresponds to a constraint literal such as ~T or A|B without explicit
++// interface embedding. MarkImplicit should be called before any concurrent use
++// of implicit interfaces.
++func (t *Interface) MarkImplicit() {
++	t.implicit = true
++}
++
+ // NumExplicitMethods returns the number of explicitly declared methods of interface t.
+ func (t *Interface) NumExplicitMethods() int { return len(t.methods) }
+ 
+diff --git a/src/go/types/interface.go b/src/go/types/interface.go
+index 2f4f10d45f..3d5573373f 100644
+--- a/src/go/types/interface.go
++++ b/src/go/types/interface.go
+@@ -73,6 +73,14 @@ func NewInterfaceType(methods []*Func, embeddeds []Type) *Interface {
+ 	return typ
+ }
+ 
++// MarkImplicit marks the interface t as implicit, meaning this interface
++// corresponds to a constraint literal such as ~T or A|B without explicit
++// interface embedding. MarkImplicit should be called before any concurrent use
++// of implicit interfaces.
++func (t *Interface) MarkImplicit() {
++	t.implicit = true
++}
++
+ // NumExplicitMethods returns the number of explicitly declared methods of interface t.
+ func (t *Interface) NumExplicitMethods() int { return len(t.methods) }
+ 

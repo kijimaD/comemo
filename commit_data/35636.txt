@@ -84,7 +84,77 @@ Date:   Tue Feb 20 17:16:19 2018 -0800
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/compile.go |  4 +---
  src/cmd/compile/internal/ssa/tighten.go | 17 ++++++++---------
  2 files changed, 9 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/compile.go b/src/cmd/compile/internal/ssa/compile.go
+index 0e06843c22..2edf1ba463 100644
+--- a/src/cmd/compile/internal/ssa/compile.go
++++ b/src/cmd/compile/internal/ssa/compile.go
+@@ -354,7 +354,6 @@ var passes = [...]pass{
+ 	{name: "writebarrier", fn: writebarrier, required: true}, // expand write barrier ops
+ 	{name: "insert resched checks", fn: insertLoopReschedChecks,
+ 		disabled: objabi.Preemptibleloops_enabled == 0}, // insert resched checks in loops.
+-	{name: "tighten", fn: tighten}, // move values closer to their uses
+ 	{name: "lower", fn: lower, required: true},
+ 	{name: "lowered cse", fn: cse},
+ 	{name: "elim unread autos", fn: elimUnreadAutos},
+@@ -362,6 +361,7 @@ var passes = [...]pass{
+ 	{name: "checkLower", fn: checkLower, required: true},
+ 	{name: "late phielim", fn: phielim},
+ 	{name: "late copyelim", fn: copyelim},
++	{name: "tighten", fn: tighten}, // move values closer to their uses
+ 	{name: "phi tighten", fn: phiTighten},
+ 	{name: "late deadcode", fn: deadcode},
+ 	{name: "critical", fn: critical, required: true}, // remove critical edges
+@@ -406,8 +406,6 @@ var passOrder = [...]constraint{
+ 	{"nilcheckelim", "fuse"},
+ 	// nilcheckelim relies on opt to rewrite user nil checks
+ 	{"opt", "nilcheckelim"},
+-	// tighten should happen before lowering to avoid splitting naturally paired instructions such as CMP/SET
+-	{"tighten", "lower"},
+ 	// tighten will be most effective when as many values have been removed as possible
+ 	{"generic deadcode", "tighten"},
+ 	{"generic cse", "tighten"},
+diff --git a/src/cmd/compile/internal/ssa/tighten.go b/src/cmd/compile/internal/ssa/tighten.go
+index 45cfb06a75..2dabeb8626 100644
+--- a/src/cmd/compile/internal/ssa/tighten.go
++++ b/src/cmd/compile/internal/ssa/tighten.go
+@@ -14,7 +14,11 @@ func tighten(f *Func) {
+ 	for _, b := range f.Blocks {
+ 		for _, v := range b.Values {
+ 			switch v.Op {
+-			case OpPhi, OpGetClosurePtr, OpArg, OpSelect0, OpSelect1:
++			case OpPhi, OpArg, OpSelect0, OpSelect1,
++				OpAMD64LoweredGetClosurePtr, Op386LoweredGetClosurePtr,
++				OpARMLoweredGetClosurePtr, OpARM64LoweredGetClosurePtr,
++				OpMIPSLoweredGetClosurePtr, OpMIPS64LoweredGetClosurePtr,
++				OpS390XLoweredGetClosurePtr, OpPPC64LoweredGetClosurePtr:
+ 				// Phis need to stay in their block.
+ 				// GetClosurePtr & Arg must stay in the entry block.
+ 				// Tuple selectors must stay with the tuple generator.
+@@ -28,19 +32,14 @@ func tighten(f *Func) {
+ 			// Count arguments which will need a register.
+ 			narg := 0
+ 			for _, a := range v.Args {
+-				switch a.Op {
+-				case OpConst8, OpConst16, OpConst32, OpConst64, OpAddr:
+-					// Probably foldable into v, don't count as an argument needing a register.
+-					// TODO: move tighten to a machine-dependent phase and use v.rematerializeable()?
+-				default:
++				if !a.rematerializeable() {
+ 					narg++
+ 				}
+ 			}
+-			if narg >= 2 && !v.Type.IsBoolean() {
++			if narg >= 2 && !v.Type.IsFlags() {
+ 				// Don't move values with more than one input, as that may
+ 				// increase register pressure.
+-				// We make an exception for boolean-typed values, as they will
+-				// likely be converted to flags, and we want flag generators
++				// We make an exception for flags, as we want flag generators
+ 				// moved next to uses (because we only have 1 flag register).
+ 				continue
+ 			}

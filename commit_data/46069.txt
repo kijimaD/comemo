@@ -15,7 +15,56 @@ Date:   Tue Dec 1 17:37:07 2020 -0500
     Run-TryBot: Katie Hockman <katie@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/testing/fuzz.go    | 7 ++++++-
  src/testing/testing.go | 6 ++++--
  2 files changed, 10 insertions(+), 3 deletions(-)
+
+diff --git a/src/testing/fuzz.go b/src/testing/fuzz.go
+index 100075ca2c..5f65f8a395 100644
+--- a/src/testing/fuzz.go
++++ b/src/testing/fuzz.go
+@@ -191,6 +191,9 @@ func (f *F) Fuzz(ff interface{}) {
+ }
+ 
+ func (f *F) report() {
++	if *isFuzzWorker {
++		return
++	}
+ 	if f.Failed() {
+ 		fmt.Fprintf(f.w, "--- FAIL: %s\n%s\n", f.name, f.result.String())
+ 	} else if f.chatty != nil {
+@@ -357,7 +360,9 @@ func runFuzzing(deps testDeps, fuzzTargets []InternalFuzzTarget) (ran, ok bool)
+ 	}
+ 	if Verbose() {
+ 		f.chatty = newChattyPrinter(f.w)
+-		f.chatty.Updatef(f.name, "--- FUZZ: %s\n", f.name)
++		if !*isFuzzWorker {
++			f.chatty.Updatef(f.name, "--- FUZZ: %s\n", f.name)
++		}
+ 	}
+ 	go f.runTarget(target.Fn)
+ 	<-f.signal
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index f44b7ca7a5..8b4f55215b 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -1441,14 +1441,16 @@ func (m *M) Run() (code int) {
+ 	if *matchFuzz != "" && !fuzzingRan {
+ 		fmt.Fprintln(os.Stderr, "testing: warning: no targets to fuzz")
+ 	}
+-	if !fuzzingOk {
++	if !fuzzingOk && !*isFuzzWorker {
+ 		fmt.Println("FAIL")
+ 		m.exitCode = 1
+ 		return
+ 	}
+ 
+-	fmt.Println("PASS")
+ 	m.exitCode = 0
++	if !*isFuzzWorker {
++		fmt.Println("PASS")
++	}
+ 	return
+ }
+ 

@@ -27,7 +27,7 @@ Date:   Thu Dec 3 13:32:11 2020 -0500
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/386.rules   |  1 +
  src/cmd/compile/internal/ssa/gen/PPC64.rules |  1 +
  src/cmd/compile/internal/ssa/gen/Wasm.rules  |  1 +
@@ -37,3 +37,161 @@ Date:   Thu Dec 3 13:32:11 2020 -0500
  src/cmd/compile/internal/wasm/ssa.go         |  6 ++++++
  test/fixedbugs/issue42944.go                 | 24 ++++++++++++++++++++++++
  8 files changed, 74 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/386.rules b/src/cmd/compile/internal/ssa/gen/386.rules
+index 537705c681..fbc12fd672 100644
+--- a/src/cmd/compile/internal/ssa/gen/386.rules
++++ b/src/cmd/compile/internal/ssa/gen/386.rules
+@@ -531,6 +531,7 @@
+ // fold ADDL into LEAL
+ (ADDLconst [c] (LEAL [d] {s} x)) && is32Bit(int64(c)+int64(d)) => (LEAL [c+d] {s} x)
+ (LEAL [c] {s} (ADDLconst [d] x)) && is32Bit(int64(c)+int64(d)) => (LEAL [c+d] {s} x)
++(ADDLconst [c] x:(SP)) => (LEAL [c] x) // so it is rematerializeable
+ (LEAL [c] {s} (ADDL x y)) && x.Op != OpSB && y.Op != OpSB => (LEAL1 [c] {s} x y)
+ (ADDL x (LEAL [c] {s} y)) && x.Op != OpSB && y.Op != OpSB => (LEAL1 [c] {s} x y)
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64.rules b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+index 31b186d167..c064046172 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64.rules
++++ b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+@@ -845,6 +845,7 @@
+ (SUB x (MOVDconst [c])) && is32Bit(-c) => (ADDconst [-c] x)
+ 
+ (ADDconst [c] (MOVDaddr [d] {sym} x)) && is32Bit(c+int64(d)) => (MOVDaddr [int32(c+int64(d))] {sym} x)
++(ADDconst [c] x:(SP)) && is32Bit(c) => (MOVDaddr [int32(c)] x) // so it is rematerializeable
+ 
+ (MULL(W|D) x (MOVDconst [c])) && is16Bit(c) => (MULL(W|D)const [int32(c)] x)
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/Wasm.rules b/src/cmd/compile/internal/ssa/gen/Wasm.rules
+index ea12c5d617..fc45cd3ed5 100644
+--- a/src/cmd/compile/internal/ssa/gen/Wasm.rules
++++ b/src/cmd/compile/internal/ssa/gen/Wasm.rules
+@@ -399,6 +399,7 @@
+ // folding offset into address
+ (I64AddConst [off] (LoweredAddr {sym} [off2] base)) && isU32Bit(off+int64(off2)) =>
+ 	(LoweredAddr {sym} [int32(off)+off2] base)
++(I64AddConst [off] x:(SP)) && isU32Bit(off) => (LoweredAddr [int32(off)] x) // so it is rematerializeable
+ 
+ // transforming readonly globals into constants
+ (I64Load [off] (LoweredAddr {sym} [off2] (SB)) _) && symIsRO(sym) && isU32Bit(off+int64(off2)) => (I64Const [int64(read64(sym, off+int64(off2), config.ctxt.Arch.ByteOrder))])
+diff --git a/src/cmd/compile/internal/ssa/rewrite386.go b/src/cmd/compile/internal/ssa/rewrite386.go
+index eca4817b9b..2acdccd568 100644
+--- a/src/cmd/compile/internal/ssa/rewrite386.go
++++ b/src/cmd/compile/internal/ssa/rewrite386.go
+@@ -1027,6 +1027,19 @@ func rewriteValue386_Op386ADDLconst(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (ADDLconst [c] x:(SP))
++	// result: (LEAL [c] x)
++	for {
++		c := auxIntToInt32(v.AuxInt)
++		x := v_0
++		if x.Op != OpSP {
++			break
++		}
++		v.reset(Op386LEAL)
++		v.AuxInt = int32ToAuxInt(c)
++		v.AddArg(x)
++		return true
++	}
+ 	// match: (ADDLconst [c] (LEAL1 [d] {s} x y))
+ 	// cond: is32Bit(int64(c)+int64(d))
+ 	// result: (LEAL1 [c+d] {s} x y)
+diff --git a/src/cmd/compile/internal/ssa/rewritePPC64.go b/src/cmd/compile/internal/ssa/rewritePPC64.go
+index 7d4cf73fd8..455f9b1388 100644
+--- a/src/cmd/compile/internal/ssa/rewritePPC64.go
++++ b/src/cmd/compile/internal/ssa/rewritePPC64.go
+@@ -4195,6 +4195,20 @@ func rewriteValuePPC64_OpPPC64ADDconst(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (ADDconst [c] x:(SP))
++	// cond: is32Bit(c)
++	// result: (MOVDaddr [int32(c)] x)
++	for {
++		c := auxIntToInt64(v.AuxInt)
++		x := v_0
++		if x.Op != OpSP || !(is32Bit(c)) {
++			break
++		}
++		v.reset(OpPPC64MOVDaddr)
++		v.AuxInt = int32ToAuxInt(int32(c))
++		v.AddArg(x)
++		return true
++	}
+ 	// match: (ADDconst [c] (SUBFCconst [d] x))
+ 	// cond: is32Bit(c+d)
+ 	// result: (SUBFCconst [c+d] x)
+diff --git a/src/cmd/compile/internal/ssa/rewriteWasm.go b/src/cmd/compile/internal/ssa/rewriteWasm.go
+index 52b6f6bfc7..c8ecefc736 100644
+--- a/src/cmd/compile/internal/ssa/rewriteWasm.go
++++ b/src/cmd/compile/internal/ssa/rewriteWasm.go
+@@ -3693,6 +3693,20 @@ func rewriteValueWasm_OpWasmI64AddConst(v *Value) bool {
+ 		v.AddArg(base)
+ 		return true
+ 	}
++	// match: (I64AddConst [off] x:(SP))
++	// cond: isU32Bit(off)
++	// result: (LoweredAddr [int32(off)] x)
++	for {
++		off := auxIntToInt64(v.AuxInt)
++		x := v_0
++		if x.Op != OpSP || !(isU32Bit(off)) {
++			break
++		}
++		v.reset(OpWasmLoweredAddr)
++		v.AuxInt = int32ToAuxInt(int32(off))
++		v.AddArg(x)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueWasm_OpWasmI64And(v *Value) bool {
+diff --git a/src/cmd/compile/internal/wasm/ssa.go b/src/cmd/compile/internal/wasm/ssa.go
+index a36fbca4e0..9c9f6edc5f 100644
+--- a/src/cmd/compile/internal/wasm/ssa.go
++++ b/src/cmd/compile/internal/wasm/ssa.go
+@@ -230,6 +230,12 @@ func ssaGenValueOnStack(s *gc.SSAGenState, v *ssa.Value, extend bool) {
+ 		}
+ 
+ 	case ssa.OpWasmLoweredAddr:
++		if v.Aux == nil { // address of off(SP), no symbol
++			getValue64(s, v.Args[0])
++			i64Const(s, v.AuxInt)
++			s.Prog(wasm.AI64Add)
++			break
++		}
+ 		p := s.Prog(wasm.AGet)
+ 		p.From.Type = obj.TYPE_ADDR
+ 		switch v.Aux.(type) {
+diff --git a/test/fixedbugs/issue42944.go b/test/fixedbugs/issue42944.go
+new file mode 100644
+index 0000000000..bb947bc609
+--- /dev/null
++++ b/test/fixedbugs/issue42944.go
+@@ -0,0 +1,24 @@
++// errorcheck -0 -live
++
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 42944: address of callee args area should only be short-lived
++// and never across a call.
++
++package p
++
++type T [10]int // trigger DUFFCOPY when passing by value, so it uses the address
++
++func F() {
++	var x T
++	var i int
++	for {
++		x = G(i) // no autotmp live at this and next calls
++		H(i, x)
++	}
++}
++
++func G(int) T
++func H(int, T)

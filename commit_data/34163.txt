@@ -20,10 +20,156 @@ Date:   Mon Aug 21 12:47:56 2017 +0300
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/asm/internal/asm/testdata/amd64enc.s   | 16 ++++++++--------
  src/cmd/asm/internal/asm/testdata/amd64error.s |  2 ++
  src/cmd/internal/obj/x86/a.out.go              |  1 +
  src/cmd/internal/obj/x86/anames.go             |  1 +
  src/cmd/internal/obj/x86/asm6.go               | 18 ++++++++++++++++++
  5 files changed, 30 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/amd64enc.s b/src/cmd/asm/internal/asm/testdata/amd64enc.s
+index cdc5cd115b..cc4d6658e9 100644
+--- a/src/cmd/asm/internal/asm/testdata/amd64enc.s
++++ b/src/cmd/asm/internal/asm/testdata/amd64enc.s
+@@ -1640,14 +1640,14 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
+ 	DPPS $7, X11, X11                       // 66450f3a40db07
+ 	EMMS                                    // 0f77
+ 	//TODO: ENTERQ $0x12, $0xf123           // c823f112
+-	//TODO: EXTRACTPS $7, X2, (BX)          // 660f3a171307
+-	//TODO: EXTRACTPS $7, X11, (BX)         // 66440f3a171b07
+-	//TODO: EXTRACTPS $7, X2, (R11)         // 66410f3a171307
+-	//TODO: EXTRACTPS $7, X11, (R11)        // 66450f3a171b07
+-	//TODO: EXTRACTPS $7, X2, DX            // 660f3a17d207
+-	//TODO: EXTRACTPS $7, X11, DX           // 66440f3a17da07
+-	//TODO: EXTRACTPS $7, X2, R11           // 66410f3a17d307
+-	//TODO: EXTRACTPS $7, X11, R11          // 66450f3a17db07
++	EXTRACTPS $0, X2, (BX)                  // 660f3a171300
++	EXTRACTPS $1, X11, (BX)                 // 66440f3a171b01
++	EXTRACTPS $2, X2, (R11)                 // 66410f3a171302
++	EXTRACTPS $3, X11, (R11)                // 66450f3a171b03
++	EXTRACTPS $3, X2, DX                    // 660f3a17d203
++	EXTRACTPS $2, X11, DX                   // 66440f3a17da02
++	EXTRACTPS $1, X2, R11                   // 66410f3a17d301
++	EXTRACTPS $0, X11, R11                  // 66450f3a17db00
+ 	F2XM1                                   // d9f0
+ 	FABS                                    // d9e1
+ 	FADDD F2, F0                            // d8c2
+diff --git a/src/cmd/asm/internal/asm/testdata/amd64error.s b/src/cmd/asm/internal/asm/testdata/amd64error.s
+index fe3ebecb43..2cb082dacc 100644
+--- a/src/cmd/asm/internal/asm/testdata/amd64error.s
++++ b/src/cmd/asm/internal/asm/testdata/amd64error.s
+@@ -5,4 +5,6 @@
+ TEXT errors(SB),$0
+ 	MOVL	foo<>(SB)(AX), AX	// ERROR "invalid instruction"
+ 	MOVL	(AX)(SP*1), AX		// ERROR "invalid instruction"
++	EXTRACTPS $4, X2, (BX)          // ERROR "invalid instruction"
++	EXTRACTPS $-1, X2, (BX)         // ERROR "invalid instruction"
+ 	RET
+diff --git a/src/cmd/internal/obj/x86/a.out.go b/src/cmd/internal/obj/x86/a.out.go
+index 4b37c39b8b..5cf13e193c 100644
+--- a/src/cmd/internal/obj/x86/a.out.go
++++ b/src/cmd/internal/obj/x86/a.out.go
+@@ -579,6 +579,7 @@ const (
+ 	ADPPD
+ 	ADPPS
+ 	AEMMS
++	AEXTRACTPS
+ 	AFXRSTOR
+ 	AFXRSTOR64
+ 	AFXSAVE
+diff --git a/src/cmd/internal/obj/x86/anames.go b/src/cmd/internal/obj/x86/anames.go
+index c58f7be4a3..272dab66b1 100644
+--- a/src/cmd/internal/obj/x86/anames.go
++++ b/src/cmd/internal/obj/x86/anames.go
+@@ -522,6 +522,7 @@ var Anames = []string{
+ 	"DPPD",
+ 	"DPPS",
+ 	"EMMS",
++	"EXTRACTPS",
+ 	"FXRSTOR",
+ 	"FXRSTOR64",
+ 	"FXSAVE",
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index e2d9d6f61f..85e94fbe37 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -86,6 +86,7 @@ const (
+ 	Ynone
+ 	Yi0 // $0
+ 	Yi1 // $1
++	Yu2 // $x, x fits in uint2
+ 	Yi8 // $x, x fits in int8
+ 	Yu8 // $x, x fits in uint8
+ 	Yu7 // $x, x in 0..127 (fits in both int8 and uint8)
+@@ -894,6 +895,10 @@ var ymmxmm0f38 = []ytab{
+ 	{Zlitm_r, 5, argList{Yxm, Yxr}},
+ }
+ 
++var yextractps = []ytab{
++	{Yu2, Yxr, Yml, Zibr_m, 2},
++}
++
+ /*
+  * You are doasm, holding in your hand a *obj.Prog with p.As set to, say,
+  * ACRC32, and p.From and p.To as operands (obj.Addr).  The linker scans optab
+@@ -1117,6 +1122,7 @@ var optab =
+ 	{ADPPD, yxshuf, Pq, [23]uint8{0x3a, 0x41, 0}},
+ 	{ADPPS, yxshuf, Pq, [23]uint8{0x3a, 0x40, 0}},
+ 	{AEMMS, ynone, Pm, [23]uint8{0x77}},
++	{AEXTRACTPS, yextractps, Pq, [23]uint8{0x3a, 0x17, 0}},
+ 	{AENTER, nil, 0, [23]uint8{}}, /* botch */
+ 	{AFXRSTOR, ysvrs_mo, Pm, [23]uint8{0xae, 01, 0xae, 01}},
+ 	{AFXSAVE, ysvrs_om, Pm, [23]uint8{0xae, 00, 0xae, 00}},
+@@ -2049,25 +2055,33 @@ func instinit(ctxt *obj.Link) {
+ 		ycover[i*Ymax+i] = 1
+ 	}
+ 
++	ycover[Yi0*Ymax+Yu2] = 1
++	ycover[Yi1*Ymax+Yu2] = 1
++
+ 	ycover[Yi0*Ymax+Yi8] = 1
+ 	ycover[Yi1*Ymax+Yi8] = 1
++	ycover[Yu2*Ymax+Yi8] = 1
+ 	ycover[Yu7*Ymax+Yi8] = 1
+ 
+ 	ycover[Yi0*Ymax+Yu7] = 1
+ 	ycover[Yi1*Ymax+Yu7] = 1
++	ycover[Yu2*Ymax+Yu7] = 1
+ 
+ 	ycover[Yi0*Ymax+Yu8] = 1
+ 	ycover[Yi1*Ymax+Yu8] = 1
++	ycover[Yu2*Ymax+Yu8] = 1
+ 	ycover[Yu7*Ymax+Yu8] = 1
+ 
+ 	ycover[Yi0*Ymax+Ys32] = 1
+ 	ycover[Yi1*Ymax+Ys32] = 1
++	ycover[Yu2*Ymax+Ys32] = 1
+ 	ycover[Yu7*Ymax+Ys32] = 1
+ 	ycover[Yu8*Ymax+Ys32] = 1
+ 	ycover[Yi8*Ymax+Ys32] = 1
+ 
+ 	ycover[Yi0*Ymax+Yi32] = 1
+ 	ycover[Yi1*Ymax+Yi32] = 1
++	ycover[Yu2*Ymax+Yi32] = 1
+ 	ycover[Yu7*Ymax+Yi32] = 1
+ 	ycover[Yu8*Ymax+Yi32] = 1
+ 	ycover[Yi8*Ymax+Yi32] = 1
+@@ -2076,6 +2090,7 @@ func instinit(ctxt *obj.Link) {
+ 	ycover[Yi0*Ymax+Yi64] = 1
+ 	ycover[Yi1*Ymax+Yi64] = 1
+ 	ycover[Yu7*Ymax+Yi64] = 1
++	ycover[Yu2*Ymax+Yi64] = 1
+ 	ycover[Yu8*Ymax+Yi64] = 1
+ 	ycover[Yi8*Ymax+Yi64] = 1
+ 	ycover[Ys32*Ymax+Yi64] = 1
+@@ -2406,6 +2421,9 @@ func oclass(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) int {
+ 		if v == 1 {
+ 			return Yi1
+ 		}
++		if v >= 0 && v <= 3 {
++			return Yu2
++		}
+ 		if v >= 0 && v <= 127 {
+ 			return Yu7
+ 		}

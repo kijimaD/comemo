@@ -10,6 +10,20 @@ Date:   Wed Sep 24 12:42:47 2014 -0700
     R=rsc, josharian
     CC=golang-codereviews
     https://golang.org/cl/149000043
-
+---
  src/run.bash | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/run.bash b/src/run.bash
+index d6e53304d8..4966cf1aa6 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -52,7 +52,7 @@ timeout_scale=1
+ [ "$GOARCH" == "arm" ] && timeout_scale=3
+ 
+ echo '# Testing packages.'
+-time go test std -short -timeout=$(expr 120 \* $timeout_scale)s
++time go test std -short -timeout=$(expr 120 \* $timeout_scale)s -gcflags "$GO_GCFLAGS"
+ echo
+ 
+ # We set GOMAXPROCS=2 in addition to -cpu=1,2,4 in order to test runtime bootstrap code,

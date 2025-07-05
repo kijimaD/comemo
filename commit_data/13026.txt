@@ -8,6 +8,28 @@ Date:   Fri May 4 18:26:16 2012 +0800
     R=golang-dev, dave, rsc
     CC=golang-dev
     https://golang.org/cl/5991066
-
+---
  src/cmd/cgo/gcc.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 98a847e6fa..93ecb3e3d0 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -730,13 +730,15 @@ func (p *Package) gccName() (ret string) {
+ 	return
+ }
+ 
+-// gccMachine returns the gcc -m flag to use, either "-m32" or "-m64".
++// gccMachine returns the gcc -m flag to use, either "-m32", "-m64" or "-marm".
+ func (p *Package) gccMachine() []string {
+ 	switch goarch {
+ 	case "amd64":
+ 		return []string{"-m64"}
+ 	case "386":
+ 		return []string{"-m32"}
++	case "arm":
++		return []string{"-marm"} // not thumb
+ 	}
+ 	return nil
+ }

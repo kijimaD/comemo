@@ -12,6 +12,20 @@ Date:   Mon Dec 2 15:47:31 2024 +0000
     Auto-Submit: Roland Shoemaker <roland@golang.org>
     Reviewed-by: Roland Shoemaker <roland@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/crypto/x509/x509.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/crypto/x509/x509.go b/src/crypto/x509/x509.go
+index f7ee1b511c..2283f6cac3 100644
+--- a/src/crypto/x509/x509.go
++++ b/src/crypto/x509/x509.go
+@@ -1694,7 +1694,7 @@ func CreateCertificate(rand io.Reader, template, parent *Certificate, pub, priv
+ 		}
+ 	}
+ 
+-	// RFC 5280 Section 4.1.2.2: serial number must positive
++	// RFC 5280 Section 4.1.2.2: serial number must be positive
+ 	//
+ 	// We _should_ also restrict serials to <= 20 octets, but it turns out a lot of people
+ 	// get this wrong, in part because the encoding can itself alter the length of the

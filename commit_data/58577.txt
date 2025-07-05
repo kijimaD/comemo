@@ -25,7 +25,98 @@ Date:   Mon Nov 20 15:20:58 2023 -0500
     Reviewed-by: Michael Matloob <matloob@golang.org>
     Auto-Submit: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/go/main.go                                  | 21 ++++++++++-----------
  .../testdata/script/goroot_executable_trimpath.txt  | 10 ++++++++++
  2 files changed, 20 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/go/main.go b/src/cmd/go/main.go
+index 7d4dedc1bb..d380aae489 100644
+--- a/src/cmd/go/main.go
++++ b/src/cmd/go/main.go
+@@ -16,7 +16,6 @@ import (
+ 	"log"
+ 	"os"
+ 	"path/filepath"
+-	"runtime"
+ 	rtrace "runtime/trace"
+ 	"slices"
+ 	"strings"
+@@ -107,10 +106,19 @@ func main() {
+ 		return
+ 	}
+ 
++	if cfg.GOROOT == "" {
++		fmt.Fprintf(os.Stderr, "go: cannot find GOROOT directory: 'go' binary is trimmed and GOROOT is not set\n")
++		os.Exit(2)
++	}
++	if fi, err := os.Stat(cfg.GOROOT); err != nil || !fi.IsDir() {
++		fmt.Fprintf(os.Stderr, "go: cannot find GOROOT directory: %v\n", cfg.GOROOT)
++		os.Exit(2)
++	}
++
+ 	// Diagnose common mistake: GOPATH==GOROOT.
+ 	// This setting is equivalent to not setting GOPATH at all,
+ 	// which is not what most people want when they do it.
+-	if gopath := cfg.BuildContext.GOPATH; filepath.Clean(gopath) == filepath.Clean(runtime.GOROOT()) {
++	if gopath := cfg.BuildContext.GOPATH; filepath.Clean(gopath) == filepath.Clean(cfg.GOROOT) {
+ 		fmt.Fprintf(os.Stderr, "warning: GOPATH set to GOROOT (%s) has no effect\n", gopath)
+ 	} else {
+ 		for _, p := range filepath.SplitList(gopath) {
+@@ -139,15 +147,6 @@ func main() {
+ 		}
+ 	}
+ 
+-	if cfg.GOROOT == "" {
+-		fmt.Fprintf(os.Stderr, "go: cannot find GOROOT directory: 'go' binary is trimmed and GOROOT is not set\n")
+-		os.Exit(2)
+-	}
+-	if fi, err := os.Stat(cfg.GOROOT); err != nil || !fi.IsDir() {
+-		fmt.Fprintf(os.Stderr, "go: cannot find GOROOT directory: %v\n", cfg.GOROOT)
+-		os.Exit(2)
+-	}
+-
+ 	cmd, used := lookupCmd(args)
+ 	cfg.CmdName = strings.Join(args[:used], " ")
+ 	if len(cmd.Commands) > 0 {
+diff --git a/src/cmd/go/testdata/script/goroot_executable_trimpath.txt b/src/cmd/go/testdata/script/goroot_executable_trimpath.txt
+index dc1e25e606..a3f0c39a83 100644
+--- a/src/cmd/go/testdata/script/goroot_executable_trimpath.txt
++++ b/src/cmd/go/testdata/script/goroot_executable_trimpath.txt
+@@ -29,12 +29,20 @@ wait
+ env TESTGOROOT=$GOROOT
+ env GOROOT=
+ 
++# Unset GOPATH and any variables that its default may be derived from,
++# so that we can check for a spurious warning.
++env GOPATH=
++env HOME=''
++env USERPROFILE=''
++env home=''
++
+ # Relocated Executable
+ # Since we built with -trimpath and the binary isn't installed in a
+ # normal-looking GOROOT, this command should fail.
+ 
+ ! exec $WORK/new/bin/go$GOEXE env GOROOT
+ stderr '^go: cannot find GOROOT directory: ''go'' binary is trimmed and GOROOT is not set$'
++! stderr 'GOPATH set to GOROOT'
+ 
+ # Cross-compiled binaries in cmd are installed to a ${GOOS}_${GOARCH} subdirectory,
+ # so we also want to try a copy there.
+@@ -44,6 +52,7 @@ stderr '^go: cannot find GOROOT directory: ''go'' binary is trimmed and GOROOT i
+ cp $WORK/new/bin/go$GOEXE $WORK/new/bin/${GOOS}_${GOARCH}/go$GOEXE
+ ! exec $WORK/new/bin/${GOOS}_${GOARCH}/go$GOEXE env GOROOT
+ stderr '^go: cannot find GOROOT directory: ''go'' binary is trimmed and GOROOT is not set$'
++! stderr 'GOPATH set to GOROOT'
+ 
+ # Relocated Tree:
+ # If the binary is sitting in a bin dir next to ../pkg/tool, that counts as a GOROOT,
+@@ -51,6 +60,7 @@ stderr '^go: cannot find GOROOT directory: ''go'' binary is trimmed and GOROOT i
+ mkdir $WORK/new/pkg/tool
+ exec $WORK/bin/check$GOEXE $WORK/new/bin/go$GOEXE $WORK/new
+ exec $WORK/bin/check$GOEXE $WORK/new/bin/${GOOS}_${GOARCH}/go$GOEXE $WORK/new
++! stderr 'GOPATH set to GOROOT'
+ 
+ -- check.go --
+ package main

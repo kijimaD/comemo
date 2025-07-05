@@ -12,7 +12,7 @@ Date:   Fri Apr 8 19:14:03 2016 +1000
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Dave Cheney <dave@cheney.net>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/bexport.go |   4 +-
  src/cmd/compile/internal/gc/go.go      |   4 +-
  src/cmd/compile/internal/gc/obj.go     |  16 ++--
@@ -28,3 +28,817 @@ Date:   Fri Apr 8 19:14:03 2016 +1000
  src/cmd/link/internal/ld/link.go       |   7 +-
  src/cmd/link/internal/ld/objfile.go    |   8 +-
  14 files changed, 154 insertions(+), 131 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index 909ff14982..bb0a34e67b 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -124,7 +124,7 @@ const exportVersion = "v0"
+ const exportInlined = true // default: true
+ 
+ type exporter struct {
+-	out      *bio.Buf
++	out      *bio.Writer
+ 	pkgIndex map[*Pkg]int
+ 	typIndex map[*Type]int
+ 	inlined  []*Func
+@@ -136,7 +136,7 @@ type exporter struct {
+ }
+ 
+ // export writes the exportlist for localpkg to out and returns the number of bytes written.
+-func export(out *bio.Buf, trace bool) int {
++func export(out *bio.Writer, trace bool) int {
+ 	p := exporter{
+ 		out:      out,
+ 		pkgIndex: make(map[*Pkg]int),
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index cd9db38fb4..ec7e219d95 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -133,7 +133,7 @@ var infile string
+ 
+ var outfile string
+ 
+-var bout *bio.Buf
++var bout *bio.Writer
+ 
+ var nerrors int
+ 
+@@ -288,7 +288,7 @@ var Ctxt *obj.Link
+ 
+ var writearchive int
+ 
+-var bstdout *bio.Buf
++var bstdout *bio.Writer
+ 
+ var Nacl bool
+ 
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index 3920e25224..23c8be645c 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -37,7 +37,7 @@ func dumpobj() {
+ 		bout.WriteString("!<arch>\n")
+ 		arhdr = [ArhdrSize]byte{}
+ 		bout.Write(arhdr[:])
+-		startobj = bio.Boffset(bout)
++		startobj = bout.Offset()
+ 	}
+ 
+ 	fmt.Fprintf(bout, "go object %s %s %s %s\n", obj.Getgoos(), obj.Getgoarch(), obj.Getgoversion(), obj.Expstring())
+@@ -45,19 +45,19 @@ func dumpobj() {
+ 
+ 	if writearchive != 0 {
+ 		bout.Flush()
+-		size := bio.Boffset(bout) - startobj
++		size := bout.Offset() - startobj
+ 		if size&1 != 0 {
+ 			bout.WriteByte(0)
+ 		}
+-		bio.Bseek(bout, startobj-ArhdrSize, 0)
++		bout.Seek(startobj-ArhdrSize, 0)
+ 		formathdr(arhdr[:], "__.PKGDEF", size)
+ 		bout.Write(arhdr[:])
+ 		bout.Flush()
+ 
+-		bio.Bseek(bout, startobj+size+(size&1), 0)
++		bout.Seek(startobj+size+(size&1), 0)
+ 		arhdr = [ArhdrSize]byte{}
+ 		bout.Write(arhdr[:])
+-		startobj = bio.Boffset(bout)
++		startobj = bout.Offset()
+ 		fmt.Fprintf(bout, "go object %s %s %s %s\n", obj.Getgoos(), obj.Getgoarch(), obj.Getgoversion(), obj.Expstring())
+ 	}
+ 
+@@ -92,11 +92,11 @@ func dumpobj() {
+ 
+ 	if writearchive != 0 {
+ 		bout.Flush()
+-		size := bio.Boffset(bout) - startobj
++		size := bout.Offset() - startobj
+ 		if size&1 != 0 {
+ 			bout.WriteByte(0)
+ 		}
+-		bio.Bseek(bout, startobj-ArhdrSize, 0)
++		bout.Seek(startobj-ArhdrSize, 0)
+ 		formathdr(arhdr[:], "_go_.o", size)
+ 		bout.Write(arhdr[:])
+ 	}
+@@ -133,7 +133,7 @@ func dumpglobls() {
+ 	funcsyms = nil
+ }
+ 
+-func Bputname(b *bio.Buf, s *obj.LSym) {
++func Bputname(b *bio.Writer, s *obj.LSym) {
+ 	b.WriteString(s.Name)
+ 	b.WriteByte(0)
+ }
+diff --git a/src/cmd/internal/bio/buf.go b/src/cmd/internal/bio/buf.go
+index a1df26ca9c..0bd4658cdd 100644
+--- a/src/cmd/internal/bio/buf.go
++++ b/src/cmd/internal/bio/buf.go
+@@ -14,94 +14,116 @@ import (
+ 
+ const EOF = -1
+ 
+-// Buf implements a seekable buffered I/O abstraction.
+-type Buf struct {
++// Reader implements a seekable buffered io.Reader.
++type Reader struct {
+ 	f *os.File
+ 	r *bufio.Reader
++}
++
++// Writer implements a seekable buffered io.Writer.
++type Writer struct {
++	f *os.File
+ 	w *bufio.Writer
+ }
+ 
+-func (b *Buf) Reader() *bufio.Reader { return b.r }
+-func (b *Buf) Writer() *bufio.Writer { return b.w }
++// Reader returns this Reader's underlying bufio.Reader.
++func (r *Reader) Reader() *bufio.Reader { return r.r }
+ 
+-func Create(name string) (*Buf, error) {
++// Writer returns this Writer's underlying bufio.Writer.
++func (w *Writer) Writer() *bufio.Writer { return w.w }
++
++// Create creates the file named name and returns a Writer
++// for that file.
++func Create(name string) (*Writer, error) {
+ 	f, err := os.Create(name)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	return &Buf{f: f, w: bufio.NewWriter(f)}, nil
++	return &Writer{f: f, w: bufio.NewWriter(f)}, nil
+ }
+ 
+-func Open(name string) (*Buf, error) {
++// Open returns a Reader for the file named name.
++func Open(name string) (*Reader, error) {
+ 	f, err := os.Open(name)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	return &Buf{f: f, r: bufio.NewReader(f)}, nil
++	return &Reader{f: f, r: bufio.NewReader(f)}, nil
+ }
+ 
+-func BufWriter(w io.Writer) *Buf {
+-	return &Buf{w: bufio.NewWriter(w)}
++// BufWriter returns a Writer on top of w.
++// TODO(dfc) remove this method and replace caller with bufio.Writer.
++func BufWriter(w io.Writer) *Writer {
++	return &Writer{w: bufio.NewWriter(w)}
+ }
+ 
+-func BufReader(r io.Reader) *Buf {
+-	return &Buf{r: bufio.NewReader(r)}
++// BufWriter returns a Reader on top of r.
++// TODO(dfc) remove this method and replace caller with bufio.Reader.
++func BufReader(r io.Reader) *Reader {
++	return &Reader{r: bufio.NewReader(r)}
+ }
+ 
+-func (b *Buf) Write(p []byte) (int, error) {
+-	return b.w.Write(p)
++func (w *Writer) Write(p []byte) (int, error) {
++	return w.w.Write(p)
+ }
+ 
+-func (b *Buf) WriteString(p string) (int, error) {
+-	return b.w.WriteString(p)
++func (w *Writer) WriteString(p string) (int, error) {
++	return w.w.WriteString(p)
+ }
+ 
+-func Bseek(b *Buf, offset int64, whence int) int64 {
+-	if b.w != nil {
+-		if err := b.w.Flush(); err != nil {
+-			log.Fatalf("writing output: %v", err)
+-		}
+-	} else if b.r != nil {
+-		if whence == 1 {
+-			offset -= int64(b.r.Buffered())
+-		}
++func (r *Reader) Seek(offset int64, whence int) int64 {
++	if whence == 1 {
++		offset -= int64(r.r.Buffered())
+ 	}
+-	off, err := b.f.Seek(offset, whence)
++	off, err := r.f.Seek(offset, whence)
+ 	if err != nil {
+ 		log.Fatalf("seeking in output: %v", err)
+ 	}
+-	if b.r != nil {
+-		b.r.Reset(b.f)
+-	}
++	r.r.Reset(r.f)
+ 	return off
+ }
+ 
+-func Boffset(b *Buf) int64 {
+-	if b.w != nil {
+-		if err := b.w.Flush(); err != nil {
+-			log.Fatalf("writing output: %v", err)
+-		}
++func (w *Writer) Seek(offset int64, whence int) int64 {
++	if err := w.w.Flush(); err != nil {
++		log.Fatalf("writing output: %v", err)
+ 	}
+-	off, err := b.f.Seek(0, 1)
++	off, err := w.f.Seek(offset, whence)
++	if err != nil {
++		log.Fatalf("seeking in output: %v", err)
++	}
++	return off
++}
++
++func (r *Reader) Offset() int64 {
++	off, err := r.f.Seek(0, 1)
+ 	if err != nil {
+ 		log.Fatalf("seeking in output [0, 1]: %v", err)
+ 	}
+-	if b.r != nil {
+-		off -= int64(b.r.Buffered())
++	off -= int64(r.r.Buffered())
++	return off
++}
++
++func (w *Writer) Offset() int64 {
++	if err := w.w.Flush(); err != nil {
++		log.Fatalf("writing output: %v", err)
++	}
++	off, err := w.f.Seek(0, 1)
++	if err != nil {
++		log.Fatalf("seeking in output [0, 1]: %v", err)
+ 	}
+ 	return off
+ }
+ 
+-func (b *Buf) Flush() error {
+-	return b.w.Flush()
++func (w *Writer) Flush() error {
++	return w.w.Flush()
+ }
+ 
+-func (b *Buf) WriteByte(c byte) error {
+-	return b.w.WriteByte(c)
++func (w *Writer) WriteByte(c byte) error {
++	return w.w.WriteByte(c)
+ }
+ 
+-func Bread(b *Buf, p []byte) int {
+-	n, err := io.ReadFull(b.r, p)
++func Bread(r *Reader, p []byte) int {
++	n, err := io.ReadFull(r.r, p)
+ 	if n == 0 {
+ 		if err != nil && err != io.EOF {
+ 			n = -1
+@@ -110,8 +132,8 @@ func Bread(b *Buf, p []byte) int {
+ 	return n
+ }
+ 
+-func Bgetc(b *Buf) int {
+-	c, err := b.r.ReadByte()
++func Bgetc(r *Reader) int {
++	c, err := r.r.ReadByte()
+ 	if err != nil {
+ 		if err != io.EOF {
+ 			log.Fatalf("reading input: %v", err)
+@@ -121,28 +143,29 @@ func Bgetc(b *Buf) int {
+ 	return int(c)
+ }
+ 
+-func (b *Buf) Read(p []byte) (int, error) {
+-	return b.r.Read(p)
++func (r *Reader) Read(p []byte) (int, error) {
++	return r.r.Read(p)
+ }
+ 
+-func (b *Buf) Peek(n int) ([]byte, error) {
+-	return b.r.Peek(n)
++func (r *Reader) Peek(n int) ([]byte, error) {
++	return r.r.Peek(n)
+ }
+ 
+-func Brdline(b *Buf, delim int) string {
+-	s, err := b.r.ReadBytes(byte(delim))
++func Brdline(r *Reader, delim int) string {
++	s, err := r.r.ReadBytes(byte(delim))
+ 	if err != nil {
+ 		log.Fatalf("reading input: %v", err)
+ 	}
+ 	return string(s)
+ }
+ 
+-func (b *Buf) Close() error {
+-	var err error
+-	if b.w != nil {
+-		err = b.w.Flush()
+-	}
+-	err1 := b.f.Close()
++func (r *Reader) Close() error {
++	return r.f.Close()
++}
++
++func (w *Writer) Close() error {
++	err := w.w.Flush()
++	err1 := w.f.Close()
+ 	if err == nil {
+ 		err = err1
+ 	}
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index 2c81ca2f08..c48c3d807f 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -629,7 +629,7 @@ type Link struct {
+ 	Flag_shared   int32
+ 	Flag_dynlink  bool
+ 	Flag_optimize bool
+-	Bso           *bio.Buf
++	Bso           *bio.Writer
+ 	Pathname      string
+ 	Goroot        string
+ 	Goroot_final  string
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index 405cbf446a..ed6d75eba3 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -121,7 +121,7 @@ import (
+ // The Go and C compilers, and the assembler, call writeobj to write
+ // out a Go object file. The linker does not call this; the linker
+ // does not write out object files.
+-func Writeobjdirect(ctxt *Link, b *bio.Buf) {
++func Writeobjdirect(ctxt *Link, b *bio.Writer) {
+ 	Flushplist(ctxt)
+ 	WriteObjFile(ctxt, b)
+ }
+@@ -374,7 +374,7 @@ func (w *objWriter) writeLengths() {
+ 	w.writeInt(int64(w.nFile))
+ }
+ 
+-func newObjWriter(ctxt *Link, b *bio.Buf) *objWriter {
++func newObjWriter(ctxt *Link, b *bio.Writer) *objWriter {
+ 	return &objWriter{
+ 		ctxt:    ctxt,
+ 		wr:      b.Writer(),
+@@ -383,7 +383,7 @@ func newObjWriter(ctxt *Link, b *bio.Buf) *objWriter {
+ 	}
+ }
+ 
+-func WriteObjFile(ctxt *Link, b *bio.Buf) {
++func WriteObjFile(ctxt *Link, b *bio.Writer) {
+ 	w := newObjWriter(ctxt, b)
+ 
+ 	// Magic header
+diff --git a/src/cmd/link/internal/ld/ar.go b/src/cmd/link/internal/ld/ar.go
+index 205773c7f8..6a0aeb121f 100644
+--- a/src/cmd/link/internal/ld/ar.go
++++ b/src/cmd/link/internal/ld/ar.go
+@@ -82,7 +82,7 @@ func hostArchive(name string) {
+ 	}
+ 
+ 	var arhdr ArHdr
+-	l := nextar(f, bio.Boffset(f), &arhdr)
++	l := nextar(f, f.Offset(), &arhdr)
+ 	if l <= 0 {
+ 		Exitf("%s missing armap", name)
+ 	}
+@@ -118,7 +118,7 @@ func hostArchive(name string) {
+ 			l = atolwhex(arhdr.size)
+ 
+ 			h := ldobj(f, "libgcc", l, pname, name, ArchiveObj)
+-			bio.Bseek(f, h.off, 0)
++			f.Seek(h.off, 0)
+ 			h.ld(f, h.pkg, h.length, h.pn)
+ 		}
+ 
+@@ -131,7 +131,7 @@ func hostArchive(name string) {
+ type archiveMap map[string]uint64
+ 
+ // readArmap reads the archive symbol map.
+-func readArmap(filename string, f *bio.Buf, arhdr ArHdr) archiveMap {
++func readArmap(filename string, f *bio.Reader, arhdr ArHdr) archiveMap {
+ 	is64 := arhdr.name == "/SYM64/"
+ 	wordSize := 4
+ 	if is64 {
+diff --git a/src/cmd/link/internal/ld/go.go b/src/cmd/link/internal/ld/go.go
+index 8bafaffd7c..5dad90dae6 100644
+--- a/src/cmd/link/internal/ld/go.go
++++ b/src/cmd/link/internal/ld/go.go
+@@ -27,7 +27,7 @@ func expandpkg(t0 string, pkg string) string {
+ //	once the dust settles, try to move some code to
+ //		libmach, so that other linkers and ar can share.
+ 
+-func ldpkg(f *bio.Buf, pkg string, length int64, filename string, whence int) {
++func ldpkg(f *bio.Reader, pkg string, length int64, filename string, whence int) {
+ 	var p0, p1 int
+ 
+ 	if Debug['g'] != 0 {
+diff --git a/src/cmd/link/internal/ld/ldelf.go b/src/cmd/link/internal/ld/ldelf.go
+index eafc6930d5..55884c07a2 100644
+--- a/src/cmd/link/internal/ld/ldelf.go
++++ b/src/cmd/link/internal/ld/ldelf.go
+@@ -268,7 +268,7 @@ type ElfSect struct {
+ }
+ 
+ type ElfObj struct {
+-	f         *bio.Buf
++	f         *bio.Reader
+ 	base      int64 // offset in f where ELF begins
+ 	length    int64 // length of ELF
+ 	is64      int
+@@ -447,13 +447,13 @@ func parseArmAttributes(e binary.ByteOrder, data []byte) {
+ 	}
+ }
+ 
+-func ldelf(f *bio.Buf, pkg string, length int64, pn string) {
++func ldelf(f *bio.Reader, pkg string, length int64, pn string) {
+ 	if Debug['v'] != 0 {
+ 		fmt.Fprintf(&Bso, "%5.2f ldelf %s\n", obj.Cputime(), pn)
+ 	}
+ 
+ 	Ctxt.IncVersion()
+-	base := int32(bio.Boffset(f))
++	base := f.Offset()
+ 
+ 	var add uint64
+ 	var e binary.ByteOrder
+@@ -601,7 +601,7 @@ func ldelf(f *bio.Buf, pkg string, length int64, pn string) {
+ 
+ 	elfobj.nsect = uint(elfobj.shnum)
+ 	for i := 0; uint(i) < elfobj.nsect; i++ {
+-		if bio.Bseek(f, int64(uint64(base)+elfobj.shoff+uint64(int64(i)*int64(elfobj.shentsize))), 0) < 0 {
++		if f.Seek(int64(uint64(base)+elfobj.shoff+uint64(int64(i)*int64(elfobj.shentsize))), 0) < 0 {
+ 			goto bad
+ 		}
+ 		sect = &elfobj.sect[i]
+@@ -987,7 +987,7 @@ func elfmap(elfobj *ElfObj, sect *ElfSect) (err error) {
+ 
+ 	sect.base = make([]byte, sect.size)
+ 	err = fmt.Errorf("short read")
+-	if bio.Bseek(elfobj.f, int64(uint64(elfobj.base)+sect.off), 0) < 0 || bio.Bread(elfobj.f, sect.base) != len(sect.base) {
++	if elfobj.f.Seek(int64(uint64(elfobj.base)+sect.off), 0) < 0 || bio.Bread(elfobj.f, sect.base) != len(sect.base) {
+ 		return err
+ 	}
+ 
+diff --git a/src/cmd/link/internal/ld/ldmacho.go b/src/cmd/link/internal/ld/ldmacho.go
+index 6376116d04..dffe6f69ce 100644
+--- a/src/cmd/link/internal/ld/ldmacho.go
++++ b/src/cmd/link/internal/ld/ldmacho.go
+@@ -43,7 +43,7 @@ const (
+ )
+ 
+ type LdMachoObj struct {
+-	f          *bio.Buf
++	f          *bio.Reader
+ 	base       int64 // off in f where Mach-O begins
+ 	length     int64 // length of Mach-O
+ 	is64       bool
+@@ -299,7 +299,7 @@ func macholoadrel(m *LdMachoObj, sect *LdMachoSect) int {
+ 	rel := make([]LdMachoRel, sect.nreloc)
+ 	n := int(sect.nreloc * 8)
+ 	buf := make([]byte, n)
+-	if bio.Bseek(m.f, m.base+int64(sect.reloff), 0) < 0 || bio.Bread(m.f, buf) != n {
++	if m.f.Seek(m.base+int64(sect.reloff), 0) < 0 || bio.Bread(m.f, buf) != n {
+ 		return -1
+ 	}
+ 	var p []byte
+@@ -345,7 +345,7 @@ func macholoaddsym(m *LdMachoObj, d *LdMachoDysymtab) int {
+ 	n := int(d.nindirectsyms)
+ 
+ 	p := make([]byte, n*4)
+-	if bio.Bseek(m.f, m.base+int64(d.indirectsymoff), 0) < 0 || bio.Bread(m.f, p) != len(p) {
++	if m.f.Seek(m.base+int64(d.indirectsymoff), 0) < 0 || bio.Bread(m.f, p) != len(p) {
+ 		return -1
+ 	}
+ 
+@@ -362,7 +362,7 @@ func macholoadsym(m *LdMachoObj, symtab *LdMachoSymtab) int {
+ 	}
+ 
+ 	strbuf := make([]byte, symtab.strsize)
+-	if bio.Bseek(m.f, m.base+int64(symtab.stroff), 0) < 0 || bio.Bread(m.f, strbuf) != len(strbuf) {
++	if m.f.Seek(m.base+int64(symtab.stroff), 0) < 0 || bio.Bread(m.f, strbuf) != len(strbuf) {
+ 		return -1
+ 	}
+ 
+@@ -372,7 +372,7 @@ func macholoadsym(m *LdMachoObj, symtab *LdMachoSymtab) int {
+ 	}
+ 	n := int(symtab.nsym * uint32(symsize))
+ 	symbuf := make([]byte, n)
+-	if bio.Bseek(m.f, m.base+int64(symtab.symoff), 0) < 0 || bio.Bread(m.f, symbuf) != len(symbuf) {
++	if m.f.Seek(m.base+int64(symtab.symoff), 0) < 0 || bio.Bread(m.f, symbuf) != len(symbuf) {
+ 		return -1
+ 	}
+ 	sym := make([]LdMachoSym, symtab.nsym)
+@@ -402,7 +402,7 @@ func macholoadsym(m *LdMachoObj, symtab *LdMachoSymtab) int {
+ 	return 0
+ }
+ 
+-func ldmacho(f *bio.Buf, pkg string, length int64, pn string) {
++func ldmacho(f *bio.Reader, pkg string, length int64, pn string) {
+ 	var err error
+ 	var j int
+ 	var is64 bool
+@@ -432,7 +432,7 @@ func ldmacho(f *bio.Buf, pkg string, length int64, pn string) {
+ 	var name string
+ 
+ 	Ctxt.IncVersion()
+-	base := bio.Boffset(f)
++	base := f.Offset()
+ 	if bio.Bread(f, hdr[:]) != len(hdr) {
+ 		goto bad
+ 	}
+@@ -557,7 +557,7 @@ func ldmacho(f *bio.Buf, pkg string, length int64, pn string) {
+ 	}
+ 
+ 	dat = make([]byte, c.seg.filesz)
+-	if bio.Bseek(f, m.base+int64(c.seg.fileoff), 0) < 0 || bio.Bread(f, dat) != len(dat) {
++	if f.Seek(m.base+int64(c.seg.fileoff), 0) < 0 || bio.Bread(f, dat) != len(dat) {
+ 		err = fmt.Errorf("cannot load object data: %v", err)
+ 		goto bad
+ 	}
+diff --git a/src/cmd/link/internal/ld/ldpe.go b/src/cmd/link/internal/ld/ldpe.go
+index e97e842e7f..ba5b928ea0 100644
+--- a/src/cmd/link/internal/ld/ldpe.go
++++ b/src/cmd/link/internal/ld/ldpe.go
+@@ -118,7 +118,7 @@ type PeSect struct {
+ }
+ 
+ type PeObj struct {
+-	f      *bio.Buf
++	f      *bio.Reader
+ 	name   string
+ 	base   uint32
+ 	sect   []PeSect
+@@ -129,14 +129,14 @@ type PeObj struct {
+ 	snames []byte
+ }
+ 
+-func ldpe(f *bio.Buf, pkg string, length int64, pn string) {
++func ldpe(f *bio.Reader, pkg string, length int64, pn string) {
+ 	if Debug['v'] != 0 {
+ 		fmt.Fprintf(&Bso, "%5.2f ldpe %s\n", obj.Cputime(), pn)
+ 	}
+ 
+ 	var sect *PeSect
+ 	Ctxt.IncVersion()
+-	base := int32(bio.Boffset(f))
++	base := f.Offset()
+ 
+ 	peobj := new(PeObj)
+ 	peobj.f = f
+@@ -174,14 +174,14 @@ func ldpe(f *bio.Buf, pkg string, length int64, pn string) {
+ 	// TODO return error if found .cormeta
+ 
+ 	// load string table
+-	bio.Bseek(f, int64(base)+int64(peobj.fh.PointerToSymbolTable)+int64(len(symbuf))*int64(peobj.fh.NumberOfSymbols), 0)
++	f.Seek(int64(base)+int64(peobj.fh.PointerToSymbolTable)+int64(len(symbuf))*int64(peobj.fh.NumberOfSymbols), 0)
+ 
+ 	if bio.Bread(f, symbuf[:4]) != 4 {
+ 		goto bad
+ 	}
+ 	l = Le32(symbuf[:])
+ 	peobj.snames = make([]byte, l)
+-	bio.Bseek(f, int64(base)+int64(peobj.fh.PointerToSymbolTable)+int64(len(symbuf))*int64(peobj.fh.NumberOfSymbols), 0)
++	f.Seek(int64(base)+int64(peobj.fh.PointerToSymbolTable)+int64(len(symbuf))*int64(peobj.fh.NumberOfSymbols), 0)
+ 	if bio.Bread(f, peobj.snames) != len(peobj.snames) {
+ 		goto bad
+ 	}
+@@ -202,9 +202,9 @@ func ldpe(f *bio.Buf, pkg string, length int64, pn string) {
+ 	peobj.pesym = make([]PeSym, peobj.fh.NumberOfSymbols)
+ 
+ 	peobj.npesym = uint(peobj.fh.NumberOfSymbols)
+-	bio.Bseek(f, int64(base)+int64(peobj.fh.PointerToSymbolTable), 0)
++	f.Seek(int64(base)+int64(peobj.fh.PointerToSymbolTable), 0)
+ 	for i := 0; uint32(i) < peobj.fh.NumberOfSymbols; i += numaux + 1 {
+-		bio.Bseek(f, int64(base)+int64(peobj.fh.PointerToSymbolTable)+int64(len(symbuf))*int64(i), 0)
++		f.Seek(int64(base)+int64(peobj.fh.PointerToSymbolTable)+int64(len(symbuf))*int64(i), 0)
+ 		if bio.Bread(f, symbuf[:]) != len(symbuf) {
+ 			goto bad
+ 		}
+@@ -290,7 +290,7 @@ func ldpe(f *bio.Buf, pkg string, length int64, pn string) {
+ 		}
+ 
+ 		r = make([]Reloc, rsect.sh.NumberOfRelocations)
+-		bio.Bseek(f, int64(peobj.base)+int64(rsect.sh.PointerToRelocations), 0)
++		f.Seek(int64(peobj.base)+int64(rsect.sh.PointerToRelocations), 0)
+ 		for j = 0; j < int(rsect.sh.NumberOfRelocations); j++ {
+ 			rp = &r[j]
+ 			if bio.Bread(f, symbuf[:10]) != 10 {
+@@ -466,7 +466,7 @@ func pemap(peobj *PeObj, sect *PeSect) int {
+ 	if sect.sh.PointerToRawData == 0 { // .bss doesn't have data in object file
+ 		return 0
+ 	}
+-	if bio.Bseek(peobj.f, int64(peobj.base)+int64(sect.sh.PointerToRawData), 0) < 0 || bio.Bread(peobj.f, sect.base) != len(sect.base) {
++	if peobj.f.Seek(int64(peobj.base)+int64(sect.sh.PointerToRawData), 0) < 0 || bio.Bread(peobj.f, sect.base) != len(sect.base) {
+ 		return -1
+ 	}
+ 
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 789eaef1a5..f8cc995c30 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -241,9 +241,10 @@ const (
+ var (
+ 	headstring string
+ 	// buffered output
+-	Bso bio.Buf
++	Bso bio.Writer
+ )
+ 
++// TODO(dfc) outBuf duplicates bio.Writer
+ type outBuf struct {
+ 	w   *bufio.Writer
+ 	f   *os.File
+@@ -739,11 +740,11 @@ func loadlib() {
+  * look for the next file in an archive.
+  * adapted from libmach.
+  */
+-func nextar(bp *bio.Buf, off int64, a *ArHdr) int64 {
++func nextar(bp *bio.Reader, off int64, a *ArHdr) int64 {
+ 	if off&1 != 0 {
+ 		off++
+ 	}
+-	bio.Bseek(bp, off, 0)
++	bp.Seek(off, 0)
+ 	buf := make([]byte, SAR_HDR)
+ 	if n := bio.Bread(bp, buf); n < len(buf) {
+ 		if n >= 0 {
+@@ -782,9 +783,9 @@ func objfile(lib *Library) {
+ 	magbuf := make([]byte, len(ARMAG))
+ 	if bio.Bread(f, magbuf) != len(magbuf) || !strings.HasPrefix(string(magbuf), ARMAG) {
+ 		/* load it as a regular file */
+-		l := bio.Bseek(f, 0, 2)
++		l := f.Seek(0, 2)
+ 
+-		bio.Bseek(f, 0, 0)
++		f.Seek(0, 0)
+ 		ldobj(f, pkg, l, lib.File, lib.File, FileObj)
+ 		f.Close()
+ 
+@@ -792,7 +793,7 @@ func objfile(lib *Library) {
+ 	}
+ 
+ 	/* process __.PKGDEF */
+-	off := bio.Boffset(f)
++	off := f.Offset()
+ 
+ 	var arhdr ArHdr
+ 	l := nextar(f, off, &arhdr)
+@@ -808,12 +809,12 @@ func objfile(lib *Library) {
+ 	}
+ 
+ 	if Buildmode == BuildmodeShared {
+-		before := bio.Boffset(f)
++		before := f.Offset()
+ 		pkgdefBytes := make([]byte, atolwhex(arhdr.size))
+ 		bio.Bread(f, pkgdefBytes)
+ 		hash := sha1.Sum(pkgdefBytes)
+ 		lib.hash = hash[:]
+-		bio.Bseek(f, before, 0)
++		f.Seek(before, 0)
+ 	}
+ 
+ 	off += l
+@@ -853,7 +854,7 @@ out:
+ }
+ 
+ type Hostobj struct {
+-	ld     func(*bio.Buf, string, int64, string)
++	ld     func(*bio.Reader, string, int64, string)
+ 	pkg    string
+ 	pn     string
+ 	file   string
+@@ -874,7 +875,7 @@ var internalpkg = []string{
+ 	"runtime/msan",
+ }
+ 
+-func ldhostobj(ld func(*bio.Buf, string, int64, string), f *bio.Buf, pkg string, length int64, pn string, file string) *Hostobj {
++func ldhostobj(ld func(*bio.Reader, string, int64, string), f *bio.Reader, pkg string, length int64, pn string, file string) *Hostobj {
+ 	isinternal := false
+ 	for i := 0; i < len(internalpkg); i++ {
+ 		if pkg == internalpkg[i] {
+@@ -905,24 +906,22 @@ func ldhostobj(ld func(*bio.Buf, string, int64, string), f *bio.Buf, pkg string,
+ 	h.pkg = pkg
+ 	h.pn = pn
+ 	h.file = file
+-	h.off = bio.Boffset(f)
++	h.off = f.Offset()
+ 	h.length = length
+ 	return h
+ }
+ 
+ func hostobjs() {
+-	var f *bio.Buf
+ 	var h *Hostobj
+ 
+ 	for i := 0; i < len(hostobj); i++ {
+ 		h = &hostobj[i]
+-		var err error
+-		f, err = bio.Open(h.file)
+-		if f == nil {
++		f, err := bio.Open(h.file)
++		if err != nil {
+ 			Exitf("cannot reopen %s: %v", h.pn, err)
+ 		}
+ 
+-		bio.Bseek(f, h.off, 0)
++		f.Seek(h.off, 0)
+ 		h.ld(f, h.pkg, h.length, h.pn)
+ 		f.Close()
+ 	}
+@@ -1266,15 +1265,15 @@ func hostlinkArchArgs() []string {
+ // ldobj loads an input object. If it is a host object (an object
+ // compiled by a non-Go compiler) it returns the Hostobj pointer. If
+ // it is a Go object, it returns nil.
+-func ldobj(f *bio.Buf, pkg string, length int64, pn string, file string, whence int) *Hostobj {
+-	eof := bio.Boffset(f) + length
++func ldobj(f *bio.Reader, pkg string, length int64, pn string, file string, whence int) *Hostobj {
++	eof := f.Offset() + length
+ 
+-	start := bio.Boffset(f)
++	start := f.Offset()
+ 	c1 := bio.Bgetc(f)
+ 	c2 := bio.Bgetc(f)
+ 	c3 := bio.Bgetc(f)
+ 	c4 := bio.Bgetc(f)
+-	bio.Bseek(f, start, 0)
++	f.Seek(start, 0)
+ 
+ 	magic := uint32(c1)<<24 | uint32(c2)<<16 | uint32(c3)<<8 | uint32(c4)
+ 	if magic == 0x7f454c46 { // \x7F E L F
+@@ -1334,7 +1333,7 @@ func ldobj(f *bio.Buf, pkg string, length int64, pn string, file string, whence
+ 	}
+ 
+ 	/* skip over exports and other info -- ends with \n!\n */
+-	import0 := bio.Boffset(f)
++	import0 := f.Offset()
+ 
+ 	c1 = '\n' // the last line ended in \n
+ 	c2 = bio.Bgetc(f)
+@@ -1349,13 +1348,13 @@ func ldobj(f *bio.Buf, pkg string, length int64, pn string, file string, whence
+ 		}
+ 	}
+ 
+-	import1 := bio.Boffset(f)
++	import1 := f.Offset()
+ 
+-	bio.Bseek(f, import0, 0)
++	f.Seek(import0, 0)
+ 	ldpkg(f, pkg, import1-import0-2, pn, whence) // -2 for !\n
+-	bio.Bseek(f, import1, 0)
++	f.Seek(import1, 0)
+ 
+-	LoadObjFile(Ctxt, f, pkg, eof-bio.Boffset(f), pn)
++	LoadObjFile(Ctxt, f, pkg, eof-f.Offset(), pn)
+ 	return nil
+ }
+ 
+diff --git a/src/cmd/link/internal/ld/link.go b/src/cmd/link/internal/ld/link.go
+index d3f9ed3703..cbcc979c85 100644
+--- a/src/cmd/link/internal/ld/link.go
++++ b/src/cmd/link/internal/ld/link.go
+@@ -165,9 +165,10 @@ type Link struct {
+ 	Headtype  int
+ 	Arch      *sys.Arch
+ 	Debugvlog int32
+-	Bso       *bio.Buf
+-	Windows   int32
+-	Goroot    string
++
++	Bso     *bio.Writer
++	Windows int32
++	Goroot  string
+ 
+ 	// Symbol lookup based on name and indexed by version.
+ 	Hash []map[string]*LSym
+diff --git a/src/cmd/link/internal/ld/objfile.go b/src/cmd/link/internal/ld/objfile.go
+index 6f177861f0..61a67cf94c 100644
+--- a/src/cmd/link/internal/ld/objfile.go
++++ b/src/cmd/link/internal/ld/objfile.go
+@@ -147,8 +147,8 @@ type objReader struct {
+ 	file        []*LSym
+ }
+ 
+-func LoadObjFile(ctxt *Link, f *bio.Buf, pkg string, length int64, pn string) {
+-	start := bio.Boffset(f)
++func LoadObjFile(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
++	start := f.Offset()
+ 	r := &objReader{
+ 		rd:     f.Reader(),
+ 		pkg:    pkg,
+@@ -157,8 +157,8 @@ func LoadObjFile(ctxt *Link, f *bio.Buf, pkg string, length int64, pn string) {
+ 		dupSym: &LSym{Name: ".dup"},
+ 	}
+ 	r.loadObjFile()
+-	if bio.Boffset(f) != start+length {
+-		log.Fatalf("%s: unexpected end at %d, want %d", pn, int64(bio.Boffset(f)), int64(start+length))
++	if f.Offset() != start+length {
++		log.Fatalf("%s: unexpected end at %d, want %d", pn, f.Offset(), start+length)
+ 	}
+ }
+ 

@@ -16,10 +16,144 @@ Date:   Thu Mar 3 18:21:37 2022 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/dist/build.go               | 37 +++++++++++++++++++++++++++++++++----
  src/cmd/go/alldocs.go               |  1 +
  src/cmd/go/internal/help/helpdoc.go |  1 +
  src/go/build/build.go               |  3 +++
  src/go/build/syslist.go             | 27 ++++++++++++++++++++++++---
  5 files changed, 62 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index ba09ce9a7b..4dfaf83ef7 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -976,12 +976,41 @@ func packagefile(pkg string) string {
+ 	return pathf("%s/pkg/%s_%s/%s.a", goroot, goos, goarch, pkg)
+ }
+ 
++// unixOS is the set of GOOS values matched by the "unix" build tag.
++// This is the same list as in go/build/syslist.go.
++var unixOS = map[string]bool{
++	"aix":       true,
++	"android":   true,
++	"darwin":    true,
++	"dragonfly": true,
++	"freebsd":   true,
++	"hurd":      true,
++	"illumos":   true,
++	"ios":       true,
++	"linux":     true,
++	"netbsd":    true,
++	"openbsd":   true,
++	"solaris":   true,
++}
++
+ // matchtag reports whether the tag matches this build.
+ func matchtag(tag string) bool {
+-	return tag == "gc" || tag == goos || tag == goarch || tag == "cmd_go_bootstrap" || tag == "go1.1" ||
+-		(goos == "android" && tag == "linux") ||
+-		(goos == "illumos" && tag == "solaris") ||
+-		(goos == "ios" && tag == "darwin")
++	switch tag {
++	case "gc", "cmd_go_bootstrap", "go1.1":
++		return true
++	case "linux":
++		return goos == "linux" || goos == "android"
++	case "solaris":
++		return goos == "solaris" || goos == "illumos"
++	case "darwin":
++		return goos == "darwin" || goos == "ios"
++	case goos, goarch:
++		return true
++	case "unix":
++		return unixOS[goos]
++	default:
++		return false
++	}
+ }
+ 
+ // shouldbuild reports whether we should build this file.
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 8410731a28..f9d78b59e3 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -1844,6 +1844,7 @@
+ // 	  GOOS environment variable.
+ // 	- the target architecture, as spelled by runtime.GOARCH, set with the
+ // 	  GOARCH environment variable.
++// 	- "unix", if GOOS is a Unix or Unix-like system.
+ // 	- the compiler being used, either "gc" or "gccgo"
+ // 	- "cgo", if the cgo command is supported (see CGO_ENABLED in
+ // 	  'go help environment').
+diff --git a/src/cmd/go/internal/help/helpdoc.go b/src/cmd/go/internal/help/helpdoc.go
+index 28ddaac8f1..36bc4f28b7 100644
+--- a/src/cmd/go/internal/help/helpdoc.go
++++ b/src/cmd/go/internal/help/helpdoc.go
+@@ -843,6 +843,7 @@ During a particular build, the following words are satisfied:
+ 	  GOOS environment variable.
+ 	- the target architecture, as spelled by runtime.GOARCH, set with the
+ 	  GOARCH environment variable.
++	- "unix", if GOOS is a Unix or Unix-like system.
+ 	- the compiler being used, either "gc" or "gccgo"
+ 	- "cgo", if the cgo command is supported (see CGO_ENABLED in
+ 	  'go help environment').
+diff --git a/src/go/build/build.go b/src/go/build/build.go
+index cacdbef4ee..df505312ce 100644
+--- a/src/go/build/build.go
++++ b/src/go/build/build.go
+@@ -1913,6 +1913,9 @@ func (ctxt *Context) matchTag(name string, allTags map[string]bool) bool {
+ 	if ctxt.GOOS == "ios" && name == "darwin" {
+ 		return true
+ 	}
++	if name == "unix" && unixOS[ctxt.GOOS] {
++		return true
++	}
+ 
+ 	// other tags
+ 	for _, tag := range ctxt.BuildTags {
+diff --git a/src/go/build/syslist.go b/src/go/build/syslist.go
+index 6b62b63042..ea67662c3e 100644
+--- a/src/go/build/syslist.go
++++ b/src/go/build/syslist.go
+@@ -4,9 +4,9 @@
+ 
+ package build
+ 
+-// Past, present, and future known GOOS and GOARCH values.
+-// Do not remove from this list, as these are used for go/build filename matching.
+-
++// knownOS is the list of past, present, and future known GOOS values.
++// Do not remove from this list, as it is used for filename matching.
++// If you add an entry to this list, look at unixOS, below.
+ var knownOS = map[string]bool{
+ 	"aix":       true,
+ 	"android":   true,
+@@ -26,6 +26,27 @@ var knownOS = map[string]bool{
+ 	"windows":   true,
+ 	"zos":       true,
+ }
++
++// unixOS is the set of GOOS values matched by the "unix" build tag.
++// This is not used for filename matching.
++// This list also appears in cmd/dist/build.go.
++var unixOS = map[string]bool{
++	"aix":       true,
++	"android":   true,
++	"darwin":    true,
++	"dragonfly": true,
++	"freebsd":   true,
++	"hurd":      true,
++	"illumos":   true,
++	"ios":       true,
++	"linux":     true,
++	"netbsd":    true,
++	"openbsd":   true,
++	"solaris":   true,
++}
++
++// knownArch is the list of past, present, and future known GOARCH values.
++// Do not remove from this list, as it is used for filename matching.
+ var knownArch = map[string]bool{
+ 	"386":         true,
+ 	"amd64":       true,

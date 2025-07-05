@@ -21,8 +21,88 @@ Date:   Thu Sep 17 21:38:42 2020 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/syntax.go |  2 +-
  src/cmd/compile/internal/gc/walk.go   |  1 +
  test/fixedbugs/issue24491a.go         | 26 ++++++++++++++++++++------
  3 files changed, 22 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index 14d2710da4..4aa2e230ce 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -716,7 +716,7 @@ const (
+ 	ODCLCONST // const pi = 3.14
+ 	ODCLTYPE  // type Int int or type Int = int
+ 
+-	ODELETE        // delete(Left, Right)
++	ODELETE        // delete(List)
+ 	ODOT           // Left.Sym (Left is of struct type)
+ 	ODOTPTR        // Left.Sym (Left is of pointer to struct type)
+ 	ODOTMETH       // Left.Sym (Left is non-interface, Right is method name)
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 2db352c8d5..933f16d9a0 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -3900,6 +3900,7 @@ func wrapCall(n *Node, init *Nodes) *Node {
+ 	if !isBuiltinCall {
+ 		call.Op = OCALL
+ 		call.Left = n.Left
++		call.SetIsDDD(n.IsDDD())
+ 	}
+ 	call.List.Set(args)
+ 	fn.Nbody.Set1(call)
+diff --git a/test/fixedbugs/issue24491a.go b/test/fixedbugs/issue24491a.go
+index 148134d187..3c595798b5 100644
+--- a/test/fixedbugs/issue24491a.go
++++ b/test/fixedbugs/issue24491a.go
+@@ -23,29 +23,43 @@ func setup() unsafe.Pointer {
+ 
+ //go:noinline
+ //go:uintptrescapes
+-func test(s string, p uintptr) int {
++func test(s string, p, q uintptr, rest ...uintptr) int {
+ 	runtime.GC()
++	runtime.GC()
++
+ 	if *(*string)(unsafe.Pointer(p)) != "ok" {
+-		panic(s + " return unexpected result")
++		panic(s + ": p failed")
++	}
++	if *(*string)(unsafe.Pointer(q)) != "ok" {
++		panic(s + ": q failed")
+ 	}
++	for _, r := range rest {
++		// TODO(mdempsky): Remove.
++		break
++
++		if *(*string)(unsafe.Pointer(r)) != "ok" {
++			panic(s + ": r[i] failed")
++		}
++	}
++
+ 	done <- true
+ 	return 0
+ }
+ 
+ //go:noinline
+ func f() int {
+-	return test("return", uintptr(setup()))
++	return test("return", uintptr(setup()), uintptr(setup()), uintptr(setup()), uintptr(setup()))
+ }
+ 
+ func main() {
+-	test("normal", uintptr(setup()))
++	test("normal", uintptr(setup()), uintptr(setup()), uintptr(setup()), uintptr(setup()))
+ 	<-done
+ 
+-	go test("go", uintptr(setup()))
++	go test("go", uintptr(setup()), uintptr(setup()), uintptr(setup()), uintptr(setup()))
+ 	<-done
+ 
+ 	func() {
+-		defer test("defer", uintptr(setup()))
++		defer test("defer", uintptr(setup()), uintptr(setup()), uintptr(setup()), uintptr(setup()))
+ 	}()
+ 	<-done
+ 

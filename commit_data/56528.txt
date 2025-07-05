@@ -19,9 +19,67 @@ Date:   Tue May 9 09:50:19 2023 -0400
     Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/cmd/dist/test.go                           | 4 ++--
  src/{ => cmd}/internal/testdir/testdir_test.go | 0
  test/README.md                                 | 4 ++--
  test/codegen/README                            | 2 +-
  4 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 48403bd434..8cd8abc19e 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -530,7 +530,7 @@ func (t *tester) registerTests() {
+ 	// registerStdTestSpecially tracks import paths in the standard library
+ 	// whose test registration happens in a special way.
+ 	registerStdTestSpecially := map[string]bool{
+-		"internal/testdir": true, // Registered at the bottom with sharding.
++		"cmd/internal/testdir": true, // Registered at the bottom with sharding.
+ 		// cgo tests are registered specially because they involve unusual build
+ 		// conditions and flags.
+ 		"cmd/cgo/internal/teststdio":      true,
+@@ -858,7 +858,7 @@ func (t *tester) registerTests() {
+ 				fmt.Sprintf("test:%d_%d", shard, nShards),
+ 				"../test",
+ 				&goTest{
+-					pkg:       "internal/testdir",
++					pkg:       "cmd/internal/testdir",
+ 					testFlags: []string{fmt.Sprintf("-shard=%d", shard), fmt.Sprintf("-shards=%d", nShards)},
+ 					runOnHost: true,
+ 				},
+diff --git a/src/internal/testdir/testdir_test.go b/src/cmd/internal/testdir/testdir_test.go
+similarity index 100%
+rename from src/internal/testdir/testdir_test.go
+rename to src/cmd/internal/testdir/testdir_test.go
+diff --git a/test/README.md b/test/README.md
+index 7e3948f947..1d37f2d5ca 100644
+--- a/test/README.md
++++ b/test/README.md
+@@ -4,11 +4,11 @@ They are run as part of all.bash.
+ 
+ To run just these tests, execute:
+ 
+-	../bin/go test internal/testdir
++	../bin/go test cmd/internal/testdir
+ 
+ To run just tests from specified files in this directory, execute:
+ 
+-	../bin/go test internal/testdir -run='Test/(file1.go|file2.go|...)'
++	../bin/go test cmd/internal/testdir -run='Test/(file1.go|file2.go|...)'
+ 
+ Standard library tests should be written as regular Go tests in the appropriate package.
+ 
+diff --git a/test/codegen/README b/test/codegen/README
+index 1d68780394..5a4684284b 100644
+--- a/test/codegen/README
++++ b/test/codegen/README
+@@ -21,7 +21,7 @@ GOARCH are enabled by default, and only on GOOS=linux.
+ To perform comprehensive tests for all the supported architectures
+ (even on a non-Linux system), one can run the following command:
+ 
+-  $ ../../bin/go test internal/testdir -run='Test/codegen' -all_codegen -v
++  $ ../../bin/go test cmd/internal/testdir -run='Test/codegen' -all_codegen -v
+ 
+ This is recommended after any change that affect the compiler's code.
+ 

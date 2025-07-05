@@ -13,7 +13,54 @@ Date:   Sat Jun 20 20:28:46 2015 +1000
     Change-Id: I124e7695e5d365e2b12524b541a9a4e6e0300fbc
     Reviewed-on: https://go-review.googlesource.com/11295
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/doc/doc_test.go     | 5 +++++
  src/cmd/doc/testdata/pkg.go | 5 +++++
  2 files changed, 10 insertions(+)
+
+diff --git a/src/cmd/doc/doc_test.go b/src/cmd/doc/doc_test.go
+index e0353508fe..b6eabb32dc 100644
+--- a/src/cmd/doc/doc_test.go
++++ b/src/cmd/doc/doc_test.go
+@@ -10,6 +10,7 @@ import (
+ 	"os"
+ 	"os/exec"
+ 	"regexp"
++	"runtime"
+ 	"testing"
+ )
+ 
+@@ -212,6 +213,7 @@ var tests = []test{
+ 			`Has unexported fields`,
+ 			`func \(ExportedType\) ExportedMethod\(a int\) bool`,
+ 			`const ExportedTypedConstant ExportedType = iota`, // Must include associated constant.
++			`func ExportedTypeConstructor\(\) \*ExportedType`, // Must include constructor.
+ 		},
+ 		[]string{
+ 			`unexportedField`,                // No unexported field.
+@@ -297,6 +299,9 @@ var tests = []test{
+ }
+ 
+ func TestDoc(t *testing.T) {
++	if runtime.GOOS == "darwin" && runtime.GOARCH == "arm64" {
++		t.Skip("TODO: on darwin/arm, test fails: no such package cmd/doc/testdata")
++	}
+ 	for _, test := range tests {
+ 		var b bytes.Buffer
+ 		var flagSet flag.FlagSet
+diff --git a/src/cmd/doc/testdata/pkg.go b/src/cmd/doc/testdata/pkg.go
+index ccc2ed64e0..013cdca679 100644
+--- a/src/cmd/doc/testdata/pkg.go
++++ b/src/cmd/doc/testdata/pkg.go
+@@ -66,6 +66,11 @@ const (
+ 	ExportedTypedConstant ExportedType = iota
+ )
+ 
++// Comment about constructor for exported type.
++func ExportedTypeConstructor() *ExportedType {
++	return nil
++}
++
+ const unexportedTypedConstant ExportedType = 1 // In a separate section to test -u.
+ 
+ // Comment about unexported type.

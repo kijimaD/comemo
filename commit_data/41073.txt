@@ -12,9 +12,88 @@ Date:   Sun Sep 1 12:29:41 2019 +0200
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/init.go      |  6 ------
  src/cmd/compile/internal/gc/universe.go  |  4 ----
  src/cmd/compile/internal/ssa/lca_test.go | 15 ---------------
  src/cmd/compile/internal/ssa/rewrite.go  |  5 -----
  4 files changed, 30 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/init.go b/src/cmd/compile/internal/gc/init.go
+index 26fd71d70c..bb894152c5 100644
+--- a/src/cmd/compile/internal/gc/init.go
++++ b/src/cmd/compile/internal/gc/init.go
+@@ -102,9 +102,3 @@ func fninit(n []*Node) {
+ 	// It's not quite read only, the state field must be modifiable.
+ 	ggloblsym(lsym, int32(ot), obj.NOPTR)
+ }
+-
+-func (n *Node) checkInitFuncSignature() {
+-	if n.Type.NumRecvs()+n.Type.NumParams()+n.Type.NumResults() > 0 {
+-		Fatalf("init function cannot have receiver, params, or results: %v (%v)", n, n.Type)
+-	}
+-}
+diff --git a/src/cmd/compile/internal/gc/universe.go b/src/cmd/compile/internal/gc/universe.go
+index 104c6bab23..b8260d6525 100644
+--- a/src/cmd/compile/internal/gc/universe.go
++++ b/src/cmd/compile/internal/gc/universe.go
+@@ -11,8 +11,6 @@ import "cmd/compile/internal/types"
+ // builtinpkg is a fake package that declares the universe block.
+ var builtinpkg *types.Pkg
+ 
+-var itable *types.Type // distinguished *byte
+-
+ var basicTypes = [...]struct {
+ 	name  string
+ 	etype types.EType
+@@ -361,8 +359,6 @@ func typeinit() {
+ 
+ 	dowidth(types.Types[TSTRING])
+ 	dowidth(types.Idealstring)
+-
+-	itable = types.NewPtr(types.Types[TUINT8])
+ }
+ 
+ func makeErrorInterface() *types.Type {
+diff --git a/src/cmd/compile/internal/ssa/lca_test.go b/src/cmd/compile/internal/ssa/lca_test.go
+index 8221dc466d..8c8920c740 100644
+--- a/src/cmd/compile/internal/ssa/lca_test.go
++++ b/src/cmd/compile/internal/ssa/lca_test.go
+@@ -6,21 +6,6 @@ package ssa
+ 
+ import "testing"
+ 
+-type lca interface {
+-	find(a, b *Block) *Block
+-}
+-
+-func lcaEqual(f *Func, lca1, lca2 lca) bool {
+-	for _, b := range f.Blocks {
+-		for _, c := range f.Blocks {
+-			if lca1.find(b, c) != lca2.find(b, c) {
+-				return false
+-			}
+-		}
+-	}
+-	return true
+-}
+-
+ func testLCAgen(t *testing.T, bg blockGen, size int) {
+ 	c := testConfig(t)
+ 	fun := c.Fun("entry", bg(size)...)
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index cd23fe87e5..22e17cb5da 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -474,11 +474,6 @@ func NeedsFixUp(v *Value) bool {
+ 	return v.AuxInt == 0
+ }
+ 
+-// i2f is used in rules for converting from an AuxInt to a float.
+-func i2f(i int64) float64 {
+-	return math.Float64frombits(uint64(i))
+-}
+-
+ // auxFrom64F encodes a float64 value so it can be stored in an AuxInt.
+ func auxFrom64F(f float64) int64 {
+ 	return int64(math.Float64bits(f))

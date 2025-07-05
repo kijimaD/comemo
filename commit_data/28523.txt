@@ -9,6 +9,20 @@ Date:   Tue May 31 22:30:37 2016 +0100
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/context/context.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/context/context.go b/src/context/context.go
+index 169db74f57..fc2a56ebff 100644
+--- a/src/context/context.go
++++ b/src/context/context.go
+@@ -107,7 +107,7 @@ type Context interface {
+ 	// collisions.
+ 	//
+ 	// Packages that define a Context key should provide type-safe accessors
+-	// for the values stores using that key:
++	// for the values stored using that key:
+ 	//
+ 	// 	// Package user defines a User type that's stored in Contexts.
+ 	// 	package user

@@ -9,6 +9,34 @@ Date:   Thu Dec 8 23:49:54 2016 +0000
     Change-Id: Iafba5aa0a0641cfe36351bb0e4b57f20257fdc4e
     Reviewed-on: https://go-review.googlesource.com/34210
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go1.8.html | 16 ++++++++++++++++
  1 file changed, 16 insertions(+)
+
+diff --git a/doc/go1.8.html b/doc/go1.8.html
+index 820a0b287a..4dc6b79bd6 100644
+--- a/doc/go1.8.html
++++ b/doc/go1.8.html
+@@ -1320,6 +1320,22 @@ crypto/x509: return error for missing SerialNumber (CL 27238)
+         to use IPv4 as a backup if it looks like IPv6 might be
+         failing.
+       </li>
++
++      <li> <!-- CL 31726 -->
++        The <a href="/pkg/net/http/#Transport"><code>Transport</code></a>
++        no longer reads a byte of a non-nil
++        <a href="/pkg/net/http/#Request.Body"><code>Request.Body</code></a>
++        when the
++        <a href="/pkg/net/http/#Request.ContentLength"><code>Request.ContentLength</code></a>
++        is zero to determine whether the <code>ContentLength</code>
++        is actually zero or just undefined.
++        To explicitly signal that a body has zero length,
++        either set it to <code>nil</code>, or set it to the new value
++        <a href="/pkg/net/http/#NoBody"><code>NoBody</code></a>.
++        The new <code>NoBody</code> value is intended for use by <code>Request</code>
++        constructor functions; it is used by
++        <a href="/pkg/net/http/#NewRequest"><code>NewRequest</code></a>.
++      </li>
+     </ul>
+ 
+   </dd>

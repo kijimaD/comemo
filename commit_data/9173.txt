@@ -8,9 +8,209 @@ Date:   Fri Jul 22 13:55:45 2011 +1000
     R=rsc, dsymonds, r
     CC=golang-dev
     https://golang.org/cl/4802051
-
+---
  src/pkg/exp/template/helper.go           | 96 ++++++++++++++++++++++++++------
  src/pkg/exp/template/set_test.go         | 42 ++++++++++++++
  src/pkg/exp/template/testdata/file1.tmpl |  2 +
  src/pkg/exp/template/testdata/file2.tmpl |  2 +
  4 files changed, 126 insertions(+), 16 deletions(-)
+
+diff --git a/src/pkg/exp/template/helper.go b/src/pkg/exp/template/helper.go
+index 558938272c..b0d9ca7339 100644
+--- a/src/pkg/exp/template/helper.go
++++ b/src/pkg/exp/template/helper.go
+@@ -7,6 +7,7 @@
+ package template
+ 
+ import (
++	"fmt"
+ 	"io/ioutil"
+ 	"os"
+ 	"path/filepath"
+@@ -65,34 +66,97 @@ func (s *Set) MustParse(text string) *Set {
+ 	return s
+ }
+ 
+-// ParseFile parses the named file into a set of named templates.
+-func (s *Set) ParseFile(filename string) os.Error {
+-	b, err := ioutil.ReadFile(filename)
+-	if err != nil {
+-		return err
++// ParseFile parses the named files into a set of named templates.
++// Each file must be parseable by itself. Parsing stops if an error is
++// encountered.
++func (s *Set) ParseFile(filenames ...string) os.Error {
++	for _, filename := range filenames {
++		b, err := ioutil.ReadFile(filename)
++		if err != nil {
++			return err
++		}
++		err = s.Parse(string(b))
++		if err != nil {
++			return err
++		}
+ 	}
+-	return s.Parse(string(b))
++	return nil
+ }
+ 
+ // MustParseFile parses the named file into a set of named templates.
+-// It panics if the file cannot be read or the set cannot be parsed.
+-func (s *Set) MustParseFile(filename string) *Set {
+-	if err := s.ParseFile(filename); err != nil {
++// Each file must be parseable by itself.
++// MustParseFile panics if any file cannot be read or parsed.
++func (s *Set) MustParseFile(filenames ...string) *Set {
++	err := s.ParseFile(filenames...)
++	if err != nil {
+ 		panic(err)
+ 	}
+ 	return s
+ }
+ 
+ // ParseSetFile creates a new Set and parses the set definition from the
+-// named file.
+-func ParseSetFile(filename string) (*Set, os.Error) {
++// named files. Each file must be individually parseable.
++func ParseSetFile(filenames ...string) (set *Set, err os.Error) {
+ 	s := new(Set)
+-	return s, s.ParseFile(filename)
++	var b []byte
++	for _, filename := range filenames {
++		b, err = ioutil.ReadFile(filename)
++		if err != nil {
++			return
++		}
++		err = s.Parse(string(b))
++		if err != nil {
++			return
++		}
++	}
++	return s, nil
+ }
+ 
+ // MustParseSetFile creates a new Set and parses the set definition from the
+-// named file.
+-// It panics if the file cannot be read or the set cannot be parsed.
+-func MustParseSetFile(filename string) *Set {
+-	return new(Set).MustParseFile(filename)
++// named files. Each file must be individually parseable.
++// MustParseSetFile panics if any file cannot be read or parsed.
++func MustParseSetFile(filenames ...string) *Set {
++	s, err := ParseSetFile(filenames...)
++	if err != nil {
++		panic(err)
++	}
++	return s
++}
++
++// ParseFiles parses the set definition from the files identified by the
++// pattern.  The pattern is processed by filepath.Glob and must match at
++// least one file.
++func (s *Set) ParseFiles(pattern string) os.Error {
++	filenames, err := filepath.Glob(pattern)
++	if err != nil {
++		return err
++	}
++	if len(filenames) == 0 {
++		return fmt.Errorf("pattern matches no files: %#q", pattern)
++	}
++	return s.ParseFile(filenames...)
++}
++
++// ParseSetFiles creates a new Set and parses the set definition from the
++// files identified by the pattern. The pattern is processed by filepath.Glob
++// and must match at least one file.
++func ParseSetFiles(pattern string) (*Set, os.Error) {
++	set := new(Set)
++	err := set.ParseFiles(pattern)
++	if err != nil {
++		return nil, err
++	}
++	return set, nil
++}
++
++// MustParseSetFiles creates a new Set and parses the set definition from the
++// files identified by the pattern. The pattern is processed by filepath.Glob.
++// MustParseSetFiles panics if the pattern is invalid or a matched file cannot be
++// read or parsed.
++func MustParseSetFiles(pattern string) *Set {
++	set, err := ParseSetFiles(pattern)
++	if err != nil {
++		panic(err)
++	}
++	return set
+ }
+diff --git a/src/pkg/exp/template/set_test.go b/src/pkg/exp/template/set_test.go
+index b28a352a34..202ed688f0 100644
+--- a/src/pkg/exp/template/set_test.go
++++ b/src/pkg/exp/template/set_test.go
+@@ -88,6 +88,7 @@ var setExecTests = []execTest{
+ 	{"testFunc .", `{{oneArg .}}`, "oneArg=joe", "joe", true},
+ }
+ 
++// These strings are also in testdata/*.
+ const setText1 = `
+ 	{{define "x"}}TEXT{{end}}
+ 	{{define "dotV"}}{{.V}}{{end}}
+@@ -111,3 +112,44 @@ func TestSetExecute(t *testing.T) {
+ 	}
+ 	testExecute(setExecTests, set, t)
+ }
++
++func TestSetParseFile(t *testing.T) {
++	set := new(Set)
++	err := set.ParseFile("DOES NOT EXIST")
++	if err == nil {
++		t.Error("expected error for non-existent file; got none")
++	}
++	err = set.ParseFile("testdata/file1.tmpl", "testdata/file2.tmpl")
++	if err != nil {
++		t.Fatalf("error parsing files: %v", err)
++	}
++	testExecute(setExecTests, set, t)
++}
++
++func TestParseSetFile(t *testing.T) {
++	set, err := ParseSetFile("DOES NOT EXIST")
++	if err == nil {
++		t.Error("expected error for non-existent file; got none")
++	}
++	set, err = ParseSetFile("testdata/file1.tmpl", "testdata/file2.tmpl")
++	if err != nil {
++		t.Fatalf("error parsing files: %v", err)
++	}
++	testExecute(setExecTests, set, t)
++}
++
++func TestParseSetFiles(t *testing.T) {
++	set, err := ParseSetFiles("NO SUCH FILE")
++	if err == nil {
++		t.Error("expected error for empty file list; got none")
++	}
++	set, err = ParseSetFiles("[x")
++	if err == nil {
++		t.Error("expected error for bad pattern; got none")
++	}
++	set, err = ParseSetFiles("testdata/*.tmpl")
++	if err != nil {
++		t.Fatalf("error parsing files: %v", err)
++	}
++	testExecute(setExecTests, set, t)
++}
+diff --git a/src/pkg/exp/template/testdata/file1.tmpl b/src/pkg/exp/template/testdata/file1.tmpl
+new file mode 100644
+index 0000000000..febf9d9f89
+--- /dev/null
++++ b/src/pkg/exp/template/testdata/file1.tmpl
+@@ -0,0 +1,2 @@
++{{define "x"}}TEXT{{end}}
++{{define "dotV"}}{{.V}}{{end}}
+diff --git a/src/pkg/exp/template/testdata/file2.tmpl b/src/pkg/exp/template/testdata/file2.tmpl
+new file mode 100644
+index 0000000000..39bf6fb9ee
+--- /dev/null
++++ b/src/pkg/exp/template/testdata/file2.tmpl
+@@ -0,0 +1,2 @@
++{{define "dot"}}{{.}}{{end}}
++{{define "nested"}}{{template "dot" .}}{{end}}

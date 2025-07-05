@@ -15,7 +15,40 @@ Date:   Wed Aug 23 16:52:37 2023 +0200
     Reviewed-by: Carlos Amedee <carlos@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/internal/syscall/windows/syscall_windows.go | 4 ----
  src/os/file_windows.go                          | 6 ------
  2 files changed, 10 deletions(-)
+
+diff --git a/src/internal/syscall/windows/syscall_windows.go b/src/internal/syscall/windows/syscall_windows.go
+index 68778e7764..ab4ad2ec64 100644
+--- a/src/internal/syscall/windows/syscall_windows.go
++++ b/src/internal/syscall/windows/syscall_windows.go
+@@ -365,10 +365,6 @@ const (
+ 
+ //sys	GetFinalPathNameByHandle(file syscall.Handle, filePath *uint16, filePathSize uint32, flags uint32) (n uint32, err error) = kernel32.GetFinalPathNameByHandleW
+ 
+-func LoadGetFinalPathNameByHandle() error {
+-	return procGetFinalPathNameByHandleW.Find()
+-}
+-
+ func ErrorLoadingGetTempPath2() error {
+ 	return procGetTempPath2W.Find()
+ }
+diff --git a/src/os/file_windows.go b/src/os/file_windows.go
+index c77d182fae..63d53a1df8 100644
+--- a/src/os/file_windows.go
++++ b/src/os/file_windows.go
+@@ -377,12 +377,6 @@ func normaliseLinkPath(path string) (string, error) {
+ 
+ 	// handle paths, like \??\Volume{abc}\...
+ 
+-	err := windows.LoadGetFinalPathNameByHandle()
+-	if err != nil {
+-		// we must be using old version of Windows
+-		return "", err
+-	}
+-
+ 	h, err := openSymlink(path)
+ 	if err != nil {
+ 		return "", err

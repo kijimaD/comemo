@@ -23,10 +23,93 @@ Date:   Mon Jan 19 11:45:48 2015 -0500
     Change-Id: I675c818b3a513c26bb91c6dba564c6ace3b7fcd4
     Reviewed-on: https://go-review.googlesource.com/3043
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/dist/build.go             |  1 +
  src/cmd/go/pkg.go                 |  1 +
  src/cmd/internal/obj/dummy.go     |  9 +++++++++
  src/cmd/internal/obj/x86/dummy.go |  9 +++++++++
  src/cmd/objwriter/main.go         | 22 ++++++++++++++++++++++
  5 files changed, 42 insertions(+)
+
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index 366612cdd1..eddc246cf2 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -356,6 +356,7 @@ var oldtool = []string{
+ // not be in release branches.
+ var unreleased = []string{
+ 	"src/cmd/link",
++	"src/cmd/objwriter",
+ 	"src/debug/goobj",
+ 	"src/old",
+ }
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index 23154f9120..ccecf6a867 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -398,6 +398,7 @@ var goTools = map[string]targetDir{
+ 	"cmd/link":                             toTool,
+ 	"cmd/nm":                               toTool,
+ 	"cmd/objdump":                          toTool,
++	"cmd/objwriter":                        toTool,
+ 	"cmd/pack":                             toTool,
+ 	"cmd/pprof":                            toTool,
+ 	"cmd/yacc":                             toTool,
+diff --git a/src/cmd/internal/obj/dummy.go b/src/cmd/internal/obj/dummy.go
+new file mode 100644
+index 0000000000..9f7df3a816
+--- /dev/null
++++ b/src/cmd/internal/obj/dummy.go
+@@ -0,0 +1,9 @@
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Dummy placeholder for the real obj package.
++
++package obj
++
++var Exported bool
+diff --git a/src/cmd/internal/obj/x86/dummy.go b/src/cmd/internal/obj/x86/dummy.go
+new file mode 100644
+index 0000000000..e790ef961e
+--- /dev/null
++++ b/src/cmd/internal/obj/x86/dummy.go
+@@ -0,0 +1,9 @@
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Dummy placeholder for the real obj package.
++
++package x86
++
++var Exported bool
+diff --git a/src/cmd/objwriter/main.go b/src/cmd/objwriter/main.go
+new file mode 100644
+index 0000000000..25a9def876
+--- /dev/null
++++ b/src/cmd/objwriter/main.go
+@@ -0,0 +1,22 @@
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Objwriter reads an object file description in an unspecified format
++// and writes a Go object file. It is invoked by parts of the toolchain
++// that have not yet been converted from C to Go and should not be
++// used otherwise.
++package main
++
++import "cmd/internal/obj"
++import (
++	"cmd/internal/obj/x86"
++)
++
++// TODO(rsc): Implement.
++// For now we just check that the objwriter binary is available to be run.
++
++func main() {
++	_ = obj.Exported
++	_ = x86.Exported
++}

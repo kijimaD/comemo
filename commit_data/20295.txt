@@ -39,9 +39,98 @@ Date:   Fri Aug 29 13:22:17 2014 -0400
     R=r, iant
     CC=golang-codereviews
     https://golang.org/cl/133220043
-
+---
  src/cmd/gc/builtin.c      | 13 +++++++------
  src/cmd/gc/runtime.go     |  1 +
  src/cmd/gc/walk.c         |  9 ++++++---
  src/pkg/runtime/print1.go |  7 +++++--
  4 files changed, 19 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/gc/builtin.c b/src/cmd/gc/builtin.c
+index eba9199544..c5bce2ead3 100644
+--- a/src/cmd/gc/builtin.c
++++ b/src/cmd/gc/builtin.c
+@@ -14,6 +14,7 @@ char *runtimeimport =
+ 	"func @\"\".printbool (? bool)\n"
+ 	"func @\"\".printfloat (? float64)\n"
+ 	"func @\"\".printint (? int64)\n"
++	"func @\"\".printhex (? uint64)\n"
+ 	"func @\"\".printuint (? uint64)\n"
+ 	"func @\"\".printcomplex (? complex128)\n"
+ 	"func @\"\".printstring (? string)\n"
+@@ -95,12 +96,12 @@ char *runtimeimport =
+ 	"func @\"\".makeslice (@\"\".typ·2 *byte, @\"\".nel·3 int64, @\"\".cap·4 int64) (@\"\".ary·1 []any)\n"
+ 	"func @\"\".growslice (@\"\".typ·2 *byte, @\"\".old·3 []any, @\"\".n·4 int64) (@\"\".ary·1 []any)\n"
+ 	"func @\"\".memmove (@\"\".to·1 *any, @\"\".frm·2 *any, @\"\".length·3 uintptr)\n"
+-	"func @\"\".memequal (@\"\".x·1 *any, @\"\".y·2 *any, @\"\".size·3 uintptr) (? bool)\n"
+-	"func @\"\".memequal8 (@\"\".x·1 *any, @\"\".y·2 *any, @\"\".size·3 uintptr) (? bool)\n"
+-	"func @\"\".memequal16 (@\"\".x·1 *any, @\"\".y·2 *any, @\"\".size·3 uintptr) (? bool)\n"
+-	"func @\"\".memequal32 (@\"\".x·1 *any, @\"\".y·2 *any, @\"\".size·3 uintptr) (? bool)\n"
+-	"func @\"\".memequal64 (@\"\".x·1 *any, @\"\".y·2 *any, @\"\".size·3 uintptr) (? bool)\n"
+-	"func @\"\".memequal128 (@\"\".x·1 *any, @\"\".y·2 *any, @\"\".size·3 uintptr) (? bool)\n"
++	"func @\"\".memequal (@\"\".x·2 *any, @\"\".y·3 *any, @\"\".size·4 uintptr) (? bool)\n"
++	"func @\"\".memequal8 (@\"\".x·2 *any, @\"\".y·3 *any, @\"\".size·4 uintptr) (? bool)\n"
++	"func @\"\".memequal16 (@\"\".x·2 *any, @\"\".y·3 *any, @\"\".size·4 uintptr) (? bool)\n"
++	"func @\"\".memequal32 (@\"\".x·2 *any, @\"\".y·3 *any, @\"\".size·4 uintptr) (? bool)\n"
++	"func @\"\".memequal64 (@\"\".x·2 *any, @\"\".y·3 *any, @\"\".size·4 uintptr) (? bool)\n"
++	"func @\"\".memequal128 (@\"\".x·2 *any, @\"\".y·3 *any, @\"\".size·4 uintptr) (? bool)\n"
+ 	"func @\"\".int64div (? int64, ? int64) (? int64)\n"
+ 	"func @\"\".uint64div (? uint64, ? uint64) (? uint64)\n"
+ 	"func @\"\".int64mod (? int64, ? int64) (? int64)\n"
+diff --git a/src/cmd/gc/runtime.go b/src/cmd/gc/runtime.go
+index 7617eddd60..646cb68aa9 100644
+--- a/src/cmd/gc/runtime.go
++++ b/src/cmd/gc/runtime.go
+@@ -26,6 +26,7 @@ func recover(*int32) interface{}
+ func printbool(bool)
+ func printfloat(float64)
+ func printint(int64)
++func printhex(uint64)
+ func printuint(uint64)
+ func printcomplex(complex128)
+ func printstring(string)
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index c251af660e..26d8011240 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -1837,9 +1837,12 @@ walkprint(Node *nn, NodeList **init, int defer)
+ 					t = types[TINT64];
+ 				}
+ 			} else {
+-				if(et == TUINT64)
+-					on = syslook("printuint", 0);
+-				else
++				if(et == TUINT64) {
++					if(t->sym->pkg == runtimepkg && strcmp(t->sym->name, "hex") == 0)
++						on = syslook("printhex", 0);
++					else
++						on = syslook("printuint", 0);
++				} else
+ 					on = syslook("printint", 0);
+ 			}
+ 		} else if(isfloat[et]) {
+diff --git a/src/pkg/runtime/print1.go b/src/pkg/runtime/print1.go
+index f19cc1da59..28faa7cbbb 100644
+--- a/src/pkg/runtime/print1.go
++++ b/src/pkg/runtime/print1.go
+@@ -6,6 +6,10 @@ package runtime
+ 
+ import "unsafe"
+ 
++// The compiler knows that a print of a value of this type
++// should use printhex instead of printuint (decimal).
++type hex uint64
++
+ //go:noescape
+ func gostring(*byte) string
+ 
+@@ -178,8 +182,7 @@ func vprintf(str string, arg unsafe.Pointer) {
+ }
+ 
+ func printpc(p unsafe.Pointer) {
+-	print("PC=")
+-	printhex(uint64(getcallerpc(p)))
++	print("PC=", hex(uintptr(p)))
+ }
+ 
+ func printbool(v bool) {

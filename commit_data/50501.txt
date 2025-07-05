@@ -16,6 +16,20 @@ Date:   Thu Oct 28 10:04:36 2021 +0800
     Reviewed-by: Rob Pike <r@golang.org>
     Run-TryBot: Meng Zhuo <mzh@golangcn.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/io/io.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/io/io.go b/src/io/io.go
+index ceac7ba7f8..5635392dfb 100644
+--- a/src/io/io.go
++++ b/src/io/io.go
+@@ -279,7 +279,7 @@ type ByteWriter interface {
+ 
+ // RuneReader is the interface that wraps the ReadRune method.
+ //
+-// ReadRune reads a single UTF-8 encoded Unicode character
++// ReadRune reads a single encoded Unicode character
+ // and returns the rune and its size in bytes. If no character is
+ // available, err will be set.
+ type RuneReader interface {

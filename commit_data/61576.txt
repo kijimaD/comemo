@@ -20,7 +20,7 @@ Date:   Mon Nov 4 12:56:04 2024 +0100
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Filippo Valsorda <filippo@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  .../sysrand}/internal/seccomp/seccomp_linux.go     |   0
  .../internal/seccomp/seccomp_unsupported.go        |   0
  src/crypto/internal/sysrand/rand.go                |  77 +++++++++++
@@ -39,3 +39,575 @@ Date:   Mon Nov 4 12:56:04 2024 +0100
  src/go/build/deps_test.go                          |   5 +-
  src/runtime/panic.go                               |   5 +
  17 files changed, 245 insertions(+), 84 deletions(-)
+
+diff --git a/src/crypto/rand/internal/seccomp/seccomp_linux.go b/src/crypto/internal/sysrand/internal/seccomp/seccomp_linux.go
+similarity index 100%
+rename from src/crypto/rand/internal/seccomp/seccomp_linux.go
+rename to src/crypto/internal/sysrand/internal/seccomp/seccomp_linux.go
+diff --git a/src/crypto/rand/internal/seccomp/seccomp_unsupported.go b/src/crypto/internal/sysrand/internal/seccomp/seccomp_unsupported.go
+similarity index 100%
+rename from src/crypto/rand/internal/seccomp/seccomp_unsupported.go
+rename to src/crypto/internal/sysrand/internal/seccomp/seccomp_unsupported.go
+diff --git a/src/crypto/internal/sysrand/rand.go b/src/crypto/internal/sysrand/rand.go
+new file mode 100644
+index 0000000000..034bf61715
+--- /dev/null
++++ b/src/crypto/internal/sysrand/rand.go
+@@ -0,0 +1,77 @@
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package rand provides cryptographically secure random bytes from the
++// operating system.
++package sysrand
++
++import (
++	"os"
++	"sync"
++	"sync/atomic"
++	"time"
++	_ "unsafe"
++)
++
++var firstUse atomic.Bool
++
++func warnBlocked() {
++	println("crypto/rand: blocked for 60 seconds waiting to read random data from the kernel")
++}
++
++// fatal is [runtime.fatal], pushed via linkname.
++//
++//go:linkname fatal
++func fatal(string)
++
++var testingOnlyFailRead bool
++
++// Read fills b with cryptographically secure random bytes from the operating
++// system. It always fills b entirely and crashes the program irrecoverably if
++// an error is encountered. The operating system APIs are documented to never
++// return an error on all but legacy Linux systems.
++func Read(b []byte) {
++	if firstUse.CompareAndSwap(false, true) {
++		// First use of randomness. Start timer to warn about
++		// being blocked on entropy not being available.
++		t := time.AfterFunc(time.Minute, warnBlocked)
++		defer t.Stop()
++	}
++	if err := read(b); err != nil || testingOnlyFailRead {
++		var errStr string
++		if !testingOnlyFailRead {
++			errStr = err.Error()
++		} else {
++			errStr = "testing simulated failure"
++		}
++		fatal("crypto/rand: failed to read random data (see https://go.dev/issue/66821): " + errStr)
++		panic("unreachable") // To be sure.
++	}
++}
++
++// The urandom fallback is only used on Linux kernels before 3.17 and on AIX.
++
++var urandomOnce sync.Once
++var urandomFile *os.File
++var urandomErr error
++
++func urandomRead(b []byte) error {
++	urandomOnce.Do(func() {
++		urandomFile, urandomErr = os.Open("/dev/urandom")
++	})
++	if urandomErr != nil {
++		return urandomErr
++	}
++	for len(b) > 0 {
++		n, err := urandomFile.Read(b)
++		// Note that we don't ignore EAGAIN because it should not be possible to
++		// hit for a blocking read from urandom, although there were
++		// unreproducible reports of it at https://go.dev/issue/9205.
++		if err != nil {
++			return err
++		}
++		b = b[n:]
++	}
++	return nil
++}
+diff --git a/src/crypto/rand/rand_aix.go b/src/crypto/internal/sysrand/rand_aix.go
+similarity index 93%
+rename from src/crypto/rand/rand_aix.go
+rename to src/crypto/internal/sysrand/rand_aix.go
+index 4cc080d8fc..52928b6d74 100644
+--- a/src/crypto/rand/rand_aix.go
++++ b/src/crypto/internal/sysrand/rand_aix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package rand
++package sysrand
+ 
+ func read(b []byte) error {
+ 	return urandomRead(b)
+diff --git a/src/crypto/rand/rand_arc4random.go b/src/crypto/internal/sysrand/rand_arc4random.go
+similarity index 97%
+rename from src/crypto/rand/rand_arc4random.go
+rename to src/crypto/internal/sysrand/rand_arc4random.go
+index f2e27004f8..aee97c4a84 100644
+--- a/src/crypto/rand/rand_arc4random.go
++++ b/src/crypto/internal/sysrand/rand_arc4random.go
+@@ -4,7 +4,7 @@
+ 
+ //go:build darwin || openbsd
+ 
+-package rand
++package sysrand
+ 
+ import "internal/syscall/unix"
+ 
+diff --git a/src/crypto/rand/rand_getrandom.go b/src/crypto/internal/sysrand/rand_getrandom.go
+similarity index 99%
+rename from src/crypto/rand/rand_getrandom.go
+rename to src/crypto/internal/sysrand/rand_getrandom.go
+index 26ba716100..11e9683a4f 100644
+--- a/src/crypto/rand/rand_getrandom.go
++++ b/src/crypto/internal/sysrand/rand_getrandom.go
+@@ -4,7 +4,7 @@
+ 
+ //go:build dragonfly || freebsd || linux || solaris
+ 
+-package rand
++package sysrand
+ 
+ import (
+ 	"errors"
+diff --git a/src/crypto/rand/rand_js.go b/src/crypto/internal/sysrand/rand_js.go
+similarity index 97%
+rename from src/crypto/rand/rand_js.go
+rename to src/crypto/internal/sysrand/rand_js.go
+index d45031a039..b9eb8e78ea 100644
+--- a/src/crypto/rand/rand_js.go
++++ b/src/crypto/internal/sysrand/rand_js.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package rand
++package sysrand
+ 
+ // The maximum buffer size for crypto.getRandomValues is 65536 bytes.
+ // https://developer.mozilla.org/en-US/docs/Web/API/Crypto/getRandomValues#exceptions
+diff --git a/src/crypto/rand/rand_linux_test.go b/src/crypto/internal/sysrand/rand_linux_test.go
+similarity index 95%
+rename from src/crypto/rand/rand_linux_test.go
+rename to src/crypto/internal/sysrand/rand_linux_test.go
+index 5238b458e5..417523c29d 100644
+--- a/src/crypto/rand/rand_linux_test.go
++++ b/src/crypto/internal/sysrand/rand_linux_test.go
+@@ -2,11 +2,11 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package rand_test
++package sysrand_test
+ 
+ import (
+ 	"bytes"
+-	"crypto/rand/internal/seccomp"
++	"crypto/internal/sysrand/internal/seccomp"
+ 	"internal/syscall/unix"
+ 	"internal/testenv"
+ 	"os"
+@@ -33,7 +33,6 @@ func TestNoGetrandom(t *testing.T) {
+ 		t.Skip("skipping test in short mode")
+ 	}
+ 	testenv.MustHaveExec(t)
+-	testenv.MustHaveCGO(t)
+ 
+ 	done := make(chan struct{})
+ 	go func() {
+diff --git a/src/crypto/rand/rand_netbsd.go b/src/crypto/internal/sysrand/rand_netbsd.go
+similarity index 97%
+rename from src/crypto/rand/rand_netbsd.go
+rename to src/crypto/internal/sysrand/rand_netbsd.go
+index b25d261e15..d203f1b4a4 100644
+--- a/src/crypto/rand/rand_netbsd.go
++++ b/src/crypto/internal/sysrand/rand_netbsd.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package rand
++package sysrand
+ 
+ import "internal/syscall/unix"
+ 
+diff --git a/src/crypto/rand/rand_plan9.go b/src/crypto/internal/sysrand/rand_plan9.go
+similarity index 98%
+rename from src/crypto/rand/rand_plan9.go
+rename to src/crypto/internal/sysrand/rand_plan9.go
+index a9b0b5857f..3dfd2e966d 100644
+--- a/src/crypto/rand/rand_plan9.go
++++ b/src/crypto/internal/sysrand/rand_plan9.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package rand
++package sysrand
+ 
+ import (
+ 	"internal/byteorder"
+diff --git a/src/crypto/internal/sysrand/rand_test.go b/src/crypto/internal/sysrand/rand_test.go
+new file mode 100644
+index 0000000000..41eee469c1
+--- /dev/null
++++ b/src/crypto/internal/sysrand/rand_test.go
+@@ -0,0 +1,142 @@
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package sysrand
++
++import (
++	"bytes"
++	"compress/flate"
++	"internal/asan"
++	"internal/msan"
++	"internal/race"
++	"internal/testenv"
++	"os"
++	"runtime"
++	"sync"
++	"testing"
++)
++
++func TestRead(t *testing.T) {
++	// 40MiB, more than the documented maximum of 32Mi-1 on Linux 32-bit.
++	b := make([]byte, 40<<20)
++	Read(b)
++
++	if testing.Short() {
++		b = b[len(b)-100_000:]
++	}
++
++	var z bytes.Buffer
++	f, _ := flate.NewWriter(&z, 5)
++	f.Write(b)
++	f.Close()
++	if z.Len() < len(b)*99/100 {
++		t.Fatalf("Compressed %d -> %d", len(b), z.Len())
++	}
++}
++
++func TestReadByteValues(t *testing.T) {
++	b := make([]byte, 1)
++	v := make(map[byte]bool)
++	for {
++		Read(b)
++		v[b[0]] = true
++		if len(v) == 256 {
++			break
++		}
++	}
++}
++
++func TestReadEmpty(t *testing.T) {
++	Read(make([]byte, 0))
++	Read(nil)
++}
++
++func TestConcurrentRead(t *testing.T) {
++	if testing.Short() {
++		t.Skip("skipping in short mode")
++	}
++	const N = 100
++	const M = 1000
++	var wg sync.WaitGroup
++	wg.Add(N)
++	for i := 0; i < N; i++ {
++		go func() {
++			defer wg.Done()
++			for i := 0; i < M; i++ {
++				b := make([]byte, 32)
++				Read(b)
++			}
++		}()
++	}
++	wg.Wait()
++}
++
++var sink byte
++
++func TestAllocations(t *testing.T) {
++	if race.Enabled || msan.Enabled || asan.Enabled {
++		t.Skip("urandomRead allocates under -race, -asan, and -msan")
++	}
++	if runtime.GOOS == "plan9" {
++		t.Skip("plan9 allocates")
++	}
++	testenv.SkipIfOptimizationOff(t)
++
++	n := int(testing.AllocsPerRun(10, func() {
++		buf := make([]byte, 32)
++		Read(buf)
++		sink ^= buf[0]
++	}))
++	if n > 0 {
++		t.Errorf("allocs = %d, want 0", n)
++	}
++}
++
++// TestNoUrandomFallback ensures the urandom fallback is not reached in
++// normal operations.
++func TestNoUrandomFallback(t *testing.T) {
++	expectFallback := false
++	if runtime.GOOS == "aix" {
++		// AIX always uses the urandom fallback.
++		expectFallback = true
++	}
++	if os.Getenv("GO_GETRANDOM_DISABLED") == "1" {
++		// We are testing the urandom fallback intentionally.
++		expectFallback = true
++	}
++	Read(make([]byte, 1))
++	if urandomFile != nil && !expectFallback {
++		t.Error("/dev/urandom fallback used unexpectedly")
++		t.Log("note: if this test fails, it may be because the system does not have getrandom(2)")
++	}
++	if urandomFile == nil && expectFallback {
++		t.Error("/dev/urandom fallback not used as expected")
++	}
++}
++
++func TestReadError(t *testing.T) {
++	if testing.Short() {
++		t.Skip("skipping test in short mode")
++	}
++	testenv.MustHaveExec(t)
++
++	// We run this test in a subprocess because it's expected to crash.
++	if os.Getenv("GO_TEST_READ_ERROR") == "1" {
++		testingOnlyFailRead = true
++		Read(make([]byte, 32))
++		t.Error("Read did not crash")
++		return
++	}
++
++	cmd := testenv.Command(t, os.Args[0], "-test.run=TestReadError")
++	cmd.Env = append(os.Environ(), "GO_TEST_READ_ERROR=1")
++	out, err := cmd.CombinedOutput()
++	if err == nil {
++		t.Error("subprocess succeeded unexpectedly")
++	}
++	exp := "fatal error: crypto/rand: failed to read random data"
++	if !bytes.Contains(out, []byte(exp)) {
++		t.Errorf("subprocess output does not contain %q: %s", exp, out)
++	}
++}
+diff --git a/src/crypto/rand/rand_wasip1.go b/src/crypto/internal/sysrand/rand_wasip1.go
+similarity index 97%
+rename from src/crypto/rand/rand_wasip1.go
+rename to src/crypto/internal/sysrand/rand_wasip1.go
+index 3ffc18d203..524df6d259 100644
+--- a/src/crypto/rand/rand_wasip1.go
++++ b/src/crypto/internal/sysrand/rand_wasip1.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package rand
++package sysrand
+ 
+ import "syscall"
+ 
+diff --git a/src/crypto/rand/rand_windows.go b/src/crypto/internal/sysrand/rand_windows.go
+similarity index 94%
+rename from src/crypto/rand/rand_windows.go
+rename to src/crypto/internal/sysrand/rand_windows.go
+index ef513ffca0..91f1490c15 100644
+--- a/src/crypto/rand/rand_windows.go
++++ b/src/crypto/internal/sysrand/rand_windows.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package rand
++package sysrand
+ 
+ import "internal/syscall/windows"
+ 
+diff --git a/src/crypto/rand/rand.go b/src/crypto/rand/rand.go
+index b3d0a7368f..08851d23d9 100644
+--- a/src/crypto/rand/rand.go
++++ b/src/crypto/rand/rand.go
+@@ -8,11 +8,8 @@ package rand
+ 
+ import (
+ 	"crypto/internal/boring"
++	"crypto/internal/sysrand"
+ 	"io"
+-	"os"
+-	"sync"
+-	"sync/atomic"
+-	"time"
+ 	_ "unsafe"
+ )
+ 
+@@ -36,26 +33,11 @@ func init() {
+ 	Reader = &reader{}
+ }
+ 
+-var firstUse atomic.Bool
+-
+-func warnBlocked() {
+-	println("crypto/rand: blocked for 60 seconds waiting to read random data from the kernel")
+-}
+-
+ type reader struct{}
+ 
+-// Read always returns len(b) or an error.
+ func (r *reader) Read(b []byte) (n int, err error) {
+ 	boring.Unreachable()
+-	if firstUse.CompareAndSwap(false, true) {
+-		// First use of randomness. Start timer to warn about
+-		// being blocked on entropy not being available.
+-		t := time.AfterFunc(time.Minute, warnBlocked)
+-		defer t.Stop()
+-	}
+-	if err := read(b); err != nil {
+-		return 0, err
+-	}
++	sysrand.Read(b)
+ 	return len(b), nil
+ }
+ 
+@@ -88,29 +70,3 @@ func Read(b []byte) (n int, err error) {
+ 	}
+ 	return len(b), nil
+ }
+-
+-// The urandom fallback is only used on Linux kernels before 3.17 and on AIX.
+-
+-var urandomOnce sync.Once
+-var urandomFile *os.File
+-var urandomErr error
+-
+-func urandomRead(b []byte) error {
+-	urandomOnce.Do(func() {
+-		urandomFile, urandomErr = os.Open("/dev/urandom")
+-	})
+-	if urandomErr != nil {
+-		return urandomErr
+-	}
+-	for len(b) > 0 {
+-		n, err := urandomFile.Read(b)
+-		// Note that we don't ignore EAGAIN because it should not be possible to
+-		// hit for a blocking read from urandom, although there were
+-		// unreproducible reports of it at https://go.dev/issue/9205.
+-		if err != nil {
+-			return err
+-		}
+-		b = b[n:]
+-	}
+-	return nil
+-}
+diff --git a/src/crypto/rand/rand_test.go b/src/crypto/rand/rand_test.go
+index 5cf0ad8ec1..5ddb9437b6 100644
+--- a/src/crypto/rand/rand_test.go
++++ b/src/crypto/rand/rand_test.go
+@@ -20,6 +20,10 @@ import (
+ 	"testing"
+ )
+ 
++// These tests are mostly duplicates of the tests in crypto/internal/sysrand,
++// and testing both the Reader and Read is pretty redundant when one calls the
++// other, but better safe than sorry.
++
+ func testReadAndReader(t *testing.T, f func(*testing.T, func([]byte) (int, error))) {
+ 	t.Run("Read", func(t *testing.T) {
+ 		f(t, Read)
+@@ -175,28 +179,6 @@ func TestAllocations(t *testing.T) {
+ 	}
+ }
+ 
+-// TestNoUrandomFallback ensures the urandom fallback is not reached in
+-// normal operations.
+-func TestNoUrandomFallback(t *testing.T) {
+-	expectFallback := false
+-	if runtime.GOOS == "aix" {
+-		// AIX always uses the urandom fallback.
+-		expectFallback = true
+-	}
+-	if os.Getenv("GO_GETRANDOM_DISABLED") == "1" {
+-		// We are testing the urandom fallback intentionally.
+-		expectFallback = true
+-	}
+-	Read(make([]byte, 1))
+-	if urandomFile != nil && !expectFallback {
+-		t.Error("/dev/urandom fallback used unexpectedly")
+-		t.Log("note: if this test fails, it may be because the system does not have getrandom(2)")
+-	}
+-	if urandomFile == nil && expectFallback {
+-		t.Error("/dev/urandom fallback not used as expected")
+-	}
+-}
+-
+ func TestReadError(t *testing.T) {
+ 	if testing.Short() {
+ 		t.Skip("skipping test in short mode")
+@@ -209,9 +191,8 @@ func TestReadError(t *testing.T) {
+ 		Reader = readerFunc(func([]byte) (int, error) {
+ 			return 0, errors.New("error")
+ 		})
+-		if _, err := Read(make([]byte, 32)); err == nil {
+-			t.Error("Read did not return error")
+-		}
++		Read(make([]byte, 32))
++		t.Error("Read did not crash")
+ 		return
+ 	}
+ 
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index bdb6b5a0d7..abff1be2ad 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -441,12 +441,13 @@ var depsRules = `
+ 	< net/mail;
+ 
+ 	STR < crypto/internal/impl;
++	OS < crypto/internal/sysrand;
+ 
+ 	# FIPS is the FIPS 140 module.
+ 	# It must not depend on external crypto packages.
+ 	# Internal packages imported by FIPS might need to retain
+ 	# backwards compatibility with older versions of the module.
+-	STR, crypto/internal/impl
++	STR, crypto/internal/impl, crypto/internal/sysrand
+ 	< crypto/internal/fips
+ 	< crypto/internal/fips/alias
+ 	< crypto/internal/fips/subtle
+@@ -666,7 +667,7 @@ var depsRules = `
+ 	< crypto/internal/cryptotest;
+ 
+ 	CGO, FMT
+-	< crypto/rand/internal/seccomp;
++	< crypto/internal/sysrand/internal/seccomp;
+ 
+ 	# v2 execution trace parser.
+ 	FMT
+diff --git a/src/runtime/panic.go b/src/runtime/panic.go
+index 7447854989..8e8ee8559a 100644
+--- a/src/runtime/panic.go
++++ b/src/runtime/panic.go
+@@ -1038,6 +1038,11 @@ func rand_fatal(s string) {
+ 	fatal(s)
+ }
+ 
++//go:linkname sysrand_fatal crypto/internal/sysrand.fatal
++func sysrand_fatal(s string) {
++	fatal(s)
++}
++
+ //go:linkname fips_fatal crypto/internal/fips.fatal
+ func fips_fatal(s string) {
+ 	fatal(s)

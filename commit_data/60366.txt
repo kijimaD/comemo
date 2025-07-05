@@ -16,8 +16,94 @@ Date:   Wed Jun 26 01:35:13 2024 +0800
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Jonathan Amsterdam <jba@google.com>
     Reviewed-by: Joedian Reid <joedian@google.com>
-
+---
  src/net/http/routing_tree_test.go |  5 ++---
  src/net/http/serve_test.go        | 16 ++++++++++++++++
  src/net/http/server.go            | 16 ++++------------
  3 files changed, 22 insertions(+), 15 deletions(-)
+
+diff --git a/src/net/http/routing_tree_test.go b/src/net/http/routing_tree_test.go
+index 7de6b19507..f3f216357d 100644
+--- a/src/net/http/routing_tree_test.go
++++ b/src/net/http/routing_tree_test.go
+@@ -7,6 +7,7 @@ package http
+ import (
+ 	"fmt"
+ 	"io"
++	"maps"
+ 	"strings"
+ 	"testing"
+ 
+@@ -261,9 +262,7 @@ func TestMatchingMethods(t *testing.T) {
+ 		t.Run(test.name, func(t *testing.T) {
+ 			ms := map[string]bool{}
+ 			test.tree.matchingMethods(test.host, test.path, ms)
+-			keys := mapKeys(ms)
+-			slices.Sort(keys)
+-			got := strings.Join(keys, ",")
++			got := strings.Join(slices.Sorted(maps.Keys(ms)), ",")
+ 			if got != test.want {
+ 				t.Errorf("got %s, want %s", got, test.want)
+ 			}
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index 3ec10c2f14..b2858ba8f2 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -613,6 +613,22 @@ func TestMuxNoSlashRedirectWithTrailingSlash(t *testing.T) {
+ 	}
+ }
+ 
++// Test that we don't attempt trailing-slash response 405 on a path that already has
++// a trailing slash.
++// See issue #67657.
++func TestMuxNoSlash405WithTrailingSlash(t *testing.T) {
++	mux := NewServeMux()
++	mux.HandleFunc("GET /{x}/", func(w ResponseWriter, r *Request) {
++		fmt.Fprintln(w, "ok")
++	})
++	w := httptest.NewRecorder()
++	req, _ := NewRequest("GET", "/", nil)
++	mux.ServeHTTP(w, req)
++	if g, w := w.Code, 404; g != w {
++		t.Errorf("got %d, want %d", g, w)
++	}
++}
++
+ func TestShouldRedirectConcurrency(t *testing.T) { run(t, testShouldRedirectConcurrency) }
+ func testShouldRedirectConcurrency(t *testing.T, mode testMode) {
+ 	mux := NewServeMux()
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index a5e98f1d95..1ff72a0455 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -16,6 +16,7 @@ import (
+ 	"internal/godebug"
+ 	"io"
+ 	"log"
++	"maps"
+ 	"math/rand"
+ 	"net"
+ 	"net/textproto"
+@@ -2721,19 +2722,10 @@ func (mux *ServeMux) matchingMethods(host, path string) []string {
+ 	ms := map[string]bool{}
+ 	mux.tree.matchingMethods(host, path, ms)
+ 	// matchOrRedirect will try appending a trailing slash if there is no match.
+-	mux.tree.matchingMethods(host, path+"/", ms)
+-	methods := mapKeys(ms)
+-	slices.Sort(methods)
+-	return methods
+-}
+-
+-// TODO(jba): replace with maps.Keys when it is defined.
+-func mapKeys[K comparable, V any](m map[K]V) []K {
+-	var ks []K
+-	for k := range m {
+-		ks = append(ks, k)
++	if !strings.HasSuffix(path, "/") {
++		mux.tree.matchingMethods(host, path+"/", ms)
+ 	}
+-	return ks
++	return slices.Sorted(maps.Keys(ms))
+ }
+ 
+ // ServeHTTP dispatches the request to the handler whose

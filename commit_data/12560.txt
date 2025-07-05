@@ -7,7 +7,34 @@ Date:   Mon Mar 12 12:04:45 2012 +0900
     R=golang-dev, bradfitz, minux.ma, rsc, bradfitz
     CC=golang-dev
     https://golang.org/cl/5787069
-
+---
  src/pkg/crypto/tls/root_test.go | 2 +-
  src/pkg/fmt/fmt_test.go         | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/crypto/tls/root_test.go b/src/pkg/crypto/tls/root_test.go
+index 8dcf74ea72..e61c218512 100644
+--- a/src/pkg/crypto/tls/root_test.go
++++ b/src/pkg/crypto/tls/root_test.go
+@@ -50,7 +50,7 @@ func TestCertHostnameVerifyWindows(t *testing.T) {
+ 		conn, err := Dial("tcp", addr+":443", cfg)
+ 		if err == nil {
+ 			conn.Close()
+-			t.Errorf("should fail to verify for example.com: %v", addr, err)
++			t.Errorf("should fail to verify for example.com: %v", addr)
+ 			continue
+ 		}
+ 		_, ok := err.(x509.HostnameError)
+diff --git a/src/pkg/fmt/fmt_test.go b/src/pkg/fmt/fmt_test.go
+index 8c5afccac5..758fc50d08 100644
+--- a/src/pkg/fmt/fmt_test.go
++++ b/src/pkg/fmt/fmt_test.go
+@@ -835,7 +835,7 @@ func TestIsSpace(t *testing.T) {
+ 	// IsSpace = isSpace is defined in export_test.go.
+ 	for i := rune(0); i <= unicode.MaxRune; i++ {
+ 		if IsSpace(i) != unicode.IsSpace(i) {
+-			t.Errorf("isSpace(%U) = %v, want %v", IsSpace(i), unicode.IsSpace(i))
++			t.Errorf("isSpace(%U) = %v, want %v", i, IsSpace(i), unicode.IsSpace(i))
+ 		}
+ 	}
+ }

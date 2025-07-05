@@ -20,6 +20,28 @@ Date:   Thu Feb 6 21:33:18 2025 +0000
     Auto-Submit: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/unicode/utf8/utf8_test.go | 10 ----------
  1 file changed, 10 deletions(-)
+
+diff --git a/src/unicode/utf8/utf8_test.go b/src/unicode/utf8/utf8_test.go
+index 69362d2cf1..865167731f 100644
+--- a/src/unicode/utf8/utf8_test.go
++++ b/src/unicode/utf8/utf8_test.go
+@@ -12,16 +12,6 @@ import (
+ 	. "unicode/utf8"
+ )
+ 
+-// Validate the constants redefined from unicode.
+-func init() {
+-	if MaxRune != unicode.MaxRune {
+-		panic("utf8.MaxRune is wrong")
+-	}
+-	if RuneError != unicode.ReplacementChar {
+-		panic("utf8.RuneError is wrong")
+-	}
+-}
+-
+ // Validate the constants redefined from unicode.
+ func TestConstants(t *testing.T) {
+ 	if MaxRune != unicode.MaxRune {

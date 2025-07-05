@@ -16,8 +16,56 @@ Date:   Wed Oct 28 10:52:02 2020 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/link/internal/ld/outbuf.go             | 9 ++++-----
  src/cmd/link/internal/ld/outbuf_mmap.go        | 2 +-
  src/cmd/link/internal/ld/outbuf_nofallocate.go | 4 +---
  3 files changed, 6 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/outbuf.go b/src/cmd/link/internal/ld/outbuf.go
+index d696a68088..fa4d183337 100644
+--- a/src/cmd/link/internal/ld/outbuf.go
++++ b/src/cmd/link/internal/ld/outbuf.go
+@@ -13,11 +13,10 @@ import (
+ 	"os"
+ )
+ 
+-// If fallocate is not supported on this platform, return this error.
+-// Note this is the same error returned by filesystems that don't support
+-// fallocate, and that is intentional. The error is ignored where needed, and
+-// OutBuf writes to heap memory.
+-const fallocateNotSupportedErr = "operation not supported"
++// If fallocate is not supported on this platform, return this error. The error
++// is ignored where needed, and OutBuf writes to heap memory.
++var errNoFallocate = errors.New("operation not supported")
++
+ const outbufMode = 0775
+ 
+ // OutBuf is a buffered file writer.
+diff --git a/src/cmd/link/internal/ld/outbuf_mmap.go b/src/cmd/link/internal/ld/outbuf_mmap.go
+index 53b14b09cc..807fe24375 100644
+--- a/src/cmd/link/internal/ld/outbuf_mmap.go
++++ b/src/cmd/link/internal/ld/outbuf_mmap.go
+@@ -28,7 +28,7 @@ func (out *OutBuf) Mmap(filesize uint64) (err error) {
+ 		// Some file systems do not support fallocate. We ignore that error as linking
+ 		// can still take place, but you might SIGBUS when you write to the mmapped
+ 		// area.
+-		if err.Error() != fallocateNotSupportedErr {
++		if err != syscall.ENOTSUP && err != syscall.EPERM && err != errNoFallocate {
+ 			return err
+ 		}
+ 	}
+diff --git a/src/cmd/link/internal/ld/outbuf_nofallocate.go b/src/cmd/link/internal/ld/outbuf_nofallocate.go
+index 51b4fe7aff..6bf96bcb2b 100644
+--- a/src/cmd/link/internal/ld/outbuf_nofallocate.go
++++ b/src/cmd/link/internal/ld/outbuf_nofallocate.go
+@@ -6,8 +6,6 @@
+ 
+ package ld
+ 
+-import "errors"
+-
+ func (out *OutBuf) fallocate(size uint64) error {
+-	return errors.New(fallocateNotSupportedErr)
++	return errNoFallocate
+ }

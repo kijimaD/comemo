@@ -16,7 +16,7 @@ Date:   Wed Jul 12 16:13:39 2023 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/511564
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/compile/internal/inline/inlheur/analyze.go |  35 +++--
  .../inline/inlheur/analyze_func_callsites.go       | 154 +++++++++++++++++++++
  .../compile/internal/inline/inlheur/callsite.go    | 115 +++++++++++++++
@@ -27,3 +27,1780 @@ Date:   Wed Jul 12 16:13:39 2023 -0400
  .../inline/inlheur/testdata/props/params.go        |  69 ++++++---
  .../inline/inlheur/testdata/props/returns.go       |  75 ++++++----
  9 files changed, 609 insertions(+), 114 deletions(-)
+
+diff --git a/src/cmd/compile/internal/inline/inlheur/analyze.go b/src/cmd/compile/internal/inline/inlheur/analyze.go
+index 3ae8a38eea..81aa7af41d 100644
+--- a/src/cmd/compile/internal/inline/inlheur/analyze.go
++++ b/src/cmd/compile/internal/inline/inlheur/analyze.go
+@@ -23,6 +23,7 @@ const (
+ 	debugTraceResults
+ 	debugTraceParams
+ 	debugTraceExprClassify
++	debugTraceCalls
+ )
+ 
+ // propAnalyzer interface is used for defining one or more analyzer
+@@ -40,13 +41,19 @@ type propAnalyzer interface {
+ 	setResults(fp *FuncProps)
+ }
+ 
+-// fnInlHeur contains inline heuristics state information about
+-// a specific Go function being analyzed/considered by the inliner.
++// fnInlHeur contains inline heuristics state information about a
++// specific Go function being analyzed/considered by the inliner. Note
++// that in addition to constructing a fnInlHeur object by analyzing a
++// specific *ir.Func, there is also code in the test harness
++// (funcprops_test.go) that builds up fnInlHeur's by reading in and
++// parsing a dump. This is the reason why we have file/fname/line
++// fields below instead of just an *ir.Func field.
+ type fnInlHeur struct {
+ 	fname string
+ 	file  string
+ 	line  uint
+ 	props *FuncProps
++	cstab CallSiteTab
+ }
+ 
+ var fpmap = map[*ir.Func]fnInlHeur{}
+@@ -55,13 +62,18 @@ func AnalyzeFunc(fn *ir.Func, canInline func(*ir.Func)) *FuncProps {
+ 	if fih, ok := fpmap[fn]; ok {
+ 		return fih.props
+ 	}
+-	fp := computeFuncProps(fn, canInline)
++	fp, fcstab := computeFuncProps(fn, canInline)
+ 	file, line := fnFileLine(fn)
+ 	entry := fnInlHeur{
+ 		fname: fn.Sym().Name,
+ 		file:  file,
+ 		line:  line,
+ 		props: fp,
++		cstab: fcstab,
++	}
++	// Merge this functions call sites into the package level table.
++	if err := cstab.merge(fcstab); err != nil {
++		base.FatalfAt(fn.Pos(), "%v", err)
+ 	}
+ 	fpmap[fn] = entry
+ 	return fp
+@@ -70,7 +82,7 @@ func AnalyzeFunc(fn *ir.Func, canInline func(*ir.Func)) *FuncProps {
+ // computeFuncProps examines the Go function 'fn' and computes for it
+ // a function "properties" object, to be used to drive inlining
+ // heuristics. See comments on the FuncProps type for more info.
+-func computeFuncProps(fn *ir.Func, canInline func(*ir.Func)) *FuncProps {
++func computeFuncProps(fn *ir.Func, canInline func(*ir.Func)) (*FuncProps, CallSiteTab) {
+ 	enableDebugTraceIfEnv()
+ 	if debugTrace&debugTraceFuncs != 0 {
+ 		fmt.Fprintf(os.Stderr, "=-= starting analysis of func %v:\n%+v\n",
+@@ -85,8 +97,10 @@ func computeFuncProps(fn *ir.Func, canInline func(*ir.Func)) *FuncProps {
+ 	for _, a := range analyzers {
+ 		a.setResults(fp)
+ 	}
++	// Now build up a partial table of callsites for this func.
++	cstab := computeCallSiteTable(fn)
+ 	disableDebugTrace()
+-	return fp
++	return fp, cstab
+ }
+ 
+ func runAnalyzersOnFunction(fn *ir.Func, analyzers []propAnalyzer) {
+@@ -164,7 +178,7 @@ func emitDumpToFile(dumpfile string) {
+ 		}
+ 		prevline = entry.line
+ 		atl := atline[entry.line]
+-		if err := dumpFnPreamble(outf, &entry, idx, atl); err != nil {
++		if err := dumpFnPreamble(outf, &entry, nil, idx, atl); err != nil {
+ 			base.Fatalf("function props dump: %v\n", err)
+ 		}
+ 	}
+@@ -211,11 +225,11 @@ func dumpFilePreamble(w io.Writer) {
+ 	fmt.Fprintf(w, "// %s\n", preambleDelimiter)
+ }
+ 
+-// dumpFilePreamble writes out a function-level preamble for a given
++// dumpFnPreamble writes out a function-level preamble for a given
+ // Go function as part of a function properties dump. See the
+ // README.txt file in testdata/props for more on the format of
+ // this preamble.
+-func dumpFnPreamble(w io.Writer, fih *fnInlHeur, idx, atl uint) error {
++func dumpFnPreamble(w io.Writer, fih *fnInlHeur, ecst encodedCallSiteTab, idx, atl uint) error {
+ 	fmt.Fprintf(w, "// %s %s %d %d %d\n",
+ 		fih.file, fih.fname, fih.line, idx, atl)
+ 	// emit props as comments, followed by delimiter
+@@ -224,7 +238,9 @@ func dumpFnPreamble(w io.Writer, fih *fnInlHeur, idx, atl uint) error {
+ 	if err != nil {
+ 		return fmt.Errorf("marshall error %v\n", err)
+ 	}
+-	fmt.Fprintf(w, "// %s\n// %s\n", string(data), fnDelimiter)
++	fmt.Fprintf(w, "// %s\n", string(data))
++	dumpCallSiteComments(w, fih.cstab, ecst)
++	fmt.Fprintf(w, "// %s\n", fnDelimiter)
+ 	return nil
+ }
+ 
+@@ -245,6 +261,7 @@ func sortFnInlHeurSlice(sl []fnInlHeur) []fnInlHeur {
+ const preambleDelimiter = "<endfilepreamble>"
+ const fnDelimiter = "<endfuncpreamble>"
+ const comDelimiter = "<endpropsdump>"
++const csDelimiter = "<endcallsites>"
+ 
+ // dumpBuffer stores up function properties dumps when
+ // "-d=dumpinlfuncprops=..." is in effect.
+diff --git a/src/cmd/compile/internal/inline/inlheur/analyze_func_callsites.go b/src/cmd/compile/internal/inline/inlheur/analyze_func_callsites.go
+new file mode 100644
+index 0000000000..e494d03e0a
+--- /dev/null
++++ b/src/cmd/compile/internal/inline/inlheur/analyze_func_callsites.go
+@@ -0,0 +1,154 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package inlheur
++
++import (
++	"cmd/compile/internal/ir"
++	"cmd/compile/internal/pgo"
++	"fmt"
++	"os"
++)
++
++type callSiteAnalyzer struct {
++	cstab  CallSiteTab
++	nstack []ir.Node
++}
++
++func makeCallSiteAnalyzer(fn *ir.Func) *callSiteAnalyzer {
++	return &callSiteAnalyzer{
++		cstab: make(CallSiteTab),
++	}
++}
++
++func computeCallSiteTable(fn *ir.Func) CallSiteTab {
++	if debugTrace&debugTraceCalls != 0 {
++		fmt.Fprintf(os.Stderr, "=-= making callsite table for func %v:\n",
++			fn.Sym().Name)
++	}
++	csa := makeCallSiteAnalyzer(fn)
++	var doNode func(ir.Node) bool
++	doNode = func(n ir.Node) bool {
++		csa.nodeVisitPre(n)
++		ir.DoChildren(n, doNode)
++		csa.nodeVisitPost(n)
++		return false
++	}
++	doNode(fn)
++	return csa.cstab
++}
++
++func (csa *callSiteAnalyzer) flagsForNode(call *ir.CallExpr) CSPropBits {
++	return 0
++}
++
++func (csa *callSiteAnalyzer) addCallSite(callee *ir.Func, call *ir.CallExpr) {
++	// FIXME: maybe bulk-allocate these?
++	cs := &CallSite{
++		Call:   call,
++		Callee: callee,
++		Assign: csa.containingAssignment(call),
++		Flags:  csa.flagsForNode(call),
++		Id:     uint(len(csa.cstab)),
++	}
++	if _, ok := csa.cstab[call]; ok {
++		fmt.Fprintf(os.Stderr, "*** cstab duplicate entry at: %s\n",
++			fmtFullPos(call.Pos()))
++		fmt.Fprintf(os.Stderr, "*** call: %+v\n", call)
++		panic("bad")
++	}
++	if debugTrace&debugTraceCalls != 0 {
++		fmt.Fprintf(os.Stderr, "=-= added callsite: callee=%s call=%v\n",
++			callee.Sym().Name, callee)
++	}
++
++	csa.cstab[call] = cs
++}
++
++func (csa *callSiteAnalyzer) nodeVisitPre(n ir.Node) {
++	switch n.Op() {
++	case ir.OCALLFUNC:
++		ce := n.(*ir.CallExpr)
++		callee := pgo.DirectCallee(ce.X)
++		if callee != nil && callee.Inl != nil {
++			csa.addCallSite(callee, ce)
++		}
++	}
++	csa.nstack = append(csa.nstack, n)
++}
++
++func (csa *callSiteAnalyzer) nodeVisitPost(n ir.Node) {
++	csa.nstack = csa.nstack[:len(csa.nstack)-1]
++}
++
++// containingAssignment returns the top-level assignment statement
++// for a statement level function call "n". Examples:
++//
++//	x := foo()
++//	x, y := bar(z, baz())
++//	if blah() { ...
++//
++// Here the top-level assignment statement for the foo() call is the
++// statement assigning to "x"; the top-level assignment for "bar()"
++// call is the assignment to x,y.   For the baz() and blah() calls,
++// there is no top level assignment statement.
++//
++// The unstated goal here is that we want to use the containing assignment
++// to establish a connection between a given call and the variables
++// to which its results/returns are being assigned.
++//
++// Note that for the "bar" command above, the front end sometimes
++// decomposes this into two assignments, the first one assigning the
++// call to a pair of auto-temps, then the second one assigning the
++// auto-temps to the user-visible vars. This helper will return the
++// second (outer) of these two.
++func (csa *callSiteAnalyzer) containingAssignment(n ir.Node) ir.Node {
++	parent := csa.nstack[len(csa.nstack)-1]
++
++	// assignsOnlyAutoTemps returns TRUE of the specified OAS2FUNC
++	// node assigns only auto-temps.
++	assignsOnlyAutoTemps := func(x ir.Node) bool {
++		alst := x.(*ir.AssignListStmt)
++		oa2init := alst.Init()
++		if len(oa2init) == 0 {
++			return false
++		}
++		for _, v := range oa2init {
++			d := v.(*ir.Decl)
++			if !ir.IsAutoTmp(d.X) {
++				return false
++			}
++		}
++		return true
++	}
++
++	// Simple case: x := foo()
++	if parent.Op() == ir.OAS {
++		return parent
++	}
++
++	// Multi-return case: x, y := bar()
++	if parent.Op() == ir.OAS2FUNC {
++		// Hack city: if the result vars are auto-temps, try looking
++		// for an outer assignment in the tree. The code shape we're
++		// looking for here is:
++		//
++		// OAS1({x,y},OCONVNOP(OAS2FUNC({auto1,auto2},OCALLFUNC(bar))))
++		//
++		if assignsOnlyAutoTemps(parent) {
++			par2 := csa.nstack[len(csa.nstack)-2]
++			if par2.Op() == ir.OAS2 {
++				return par2
++			}
++			if par2.Op() == ir.OCONVNOP {
++				par3 := csa.nstack[len(csa.nstack)-3]
++				if par3.Op() == ir.OAS2 {
++					return par3
++				}
++			}
++		}
++	}
++
++	return nil
++}
+diff --git a/src/cmd/compile/internal/inline/inlheur/callsite.go b/src/cmd/compile/internal/inline/inlheur/callsite.go
+new file mode 100644
+index 0000000000..5f8649a6d2
+--- /dev/null
++++ b/src/cmd/compile/internal/inline/inlheur/callsite.go
+@@ -0,0 +1,115 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package inlheur
++
++import (
++	"cmd/compile/internal/base"
++	"cmd/compile/internal/ir"
++	"cmd/internal/src"
++	"fmt"
++	"io"
++	"path/filepath"
++	"sort"
++	"strings"
++)
++
++// CallSite records useful information about a potentially inlinable
++// (direct) function call. "Callee" is the target of the call, "Call"
++// is the ir node corresponding to the call itself, "Assign" is
++// the top-level assignment statement containing the call (if the call
++// appears in the form of a top-level statement, e.g. "x := foo()"),
++// "Flags" contains properties of the call that might be useful for
++// making inlining decisions, "Score" is the final score assigned to
++// the site, and "Id" is a numeric ID for the site within its
++// containing function.
++type CallSite struct {
++	Callee *ir.Func
++	Call   *ir.CallExpr
++	Assign ir.Node
++	Flags  CSPropBits
++	Score  int
++	Id     uint
++}
++
++// CallSiteTab is a table of call sites, keyed by call expr.
++// Ideally it would be nice to key the table by src.XPos, but
++// this results in collisions for calls on very long lines (the
++// front end saturates column numbers at 255). We also wind up
++// with many calls that share the same auto-generated pos.
++type CallSiteTab map[*ir.CallExpr]*CallSite
++
++// Package-level table of callsites.
++var cstab = CallSiteTab{}
++
++type CSPropBits uint32
++
++const (
++	CallSiteInLoop CSPropBits = 1 << iota
++	CallSiteOnPanicPath
++	CallSiteInInitFunc
++)
++
++// encodedCallSiteTab is a table keyed by "encoded" callsite
++// (stringified src.XPos plus call site ID) mapping to a value of call
++// property bits.
++type encodedCallSiteTab map[string]CSPropBits
++
++func (cst CallSiteTab) merge(other CallSiteTab) error {
++	for k, v := range other {
++		if prev, ok := cst[k]; ok {
++			return fmt.Errorf("internal error: collision during call site table merge, fn=%s callsite=%s", prev.Callee.Sym().Name, fmtFullPos(prev.Call.Pos()))
++		}
++		cst[k] = v
++	}
++	return nil
++}
++
++func fmtFullPos(p src.XPos) string {
++	var sb strings.Builder
++	sep := ""
++	base.Ctxt.AllPos(p, func(pos src.Pos) {
++		fmt.Fprintf(&sb, sep)
++		sep = "|"
++		file := filepath.Base(pos.Filename())
++		fmt.Fprintf(&sb, "%s:%d:%d", file, pos.Line(), pos.Col())
++	})
++	return sb.String()
++}
++
++func encodeCallSiteKey(cs *CallSite) string {
++	var sb strings.Builder
++	// FIXME: rewrite line offsets relative to function start
++	sb.WriteString(fmtFullPos(cs.Call.Pos()))
++	fmt.Fprintf(&sb, "|%d", cs.Id)
++	return sb.String()
++}
++
++func buildEncodedCallSiteTab(tab CallSiteTab) encodedCallSiteTab {
++	r := make(encodedCallSiteTab)
++	for _, cs := range tab {
++		k := encodeCallSiteKey(cs)
++		r[k] = cs.Flags
++	}
++	return r
++}
++
++// dumpCallSiteComments emits comments into the dump file for the
++// callsites in the function of interest. If "ecst" is non-nil, we use
++// that, otherwise generated a fresh encodedCallSiteTab from "tab".
++func dumpCallSiteComments(w io.Writer, tab CallSiteTab, ecst encodedCallSiteTab) {
++	if ecst == nil {
++		ecst = buildEncodedCallSiteTab(tab)
++	}
++	tags := make([]string, 0, len(ecst))
++	for k := range ecst {
++		tags = append(tags, k)
++	}
++	sort.Strings(tags)
++	for _, s := range tags {
++		v := ecst[s]
++		fmt.Fprintf(w, "// callsite: %s flagstr %q flagval %d\n", s, v.String(), v)
++	}
++	fmt.Fprintf(w, "// %s\n", csDelimiter)
++}
+diff --git a/src/cmd/compile/internal/inline/inlheur/cspropbits_string.go b/src/cmd/compile/internal/inline/inlheur/cspropbits_string.go
+new file mode 100644
+index 0000000000..216f510c99
+--- /dev/null
++++ b/src/cmd/compile/internal/inline/inlheur/cspropbits_string.go
+@@ -0,0 +1,56 @@
++// Code generated by "stringer -bitset -type CSPropBits"; DO NOT EDIT.
++
++package inlheur
++
++import "strconv"
++import "bytes"
++
++func _() {
++	// An "invalid array index" compiler error signifies that the constant values have changed.
++	// Re-run the stringer command to generate them again.
++	var x [1]struct{}
++	_ = x[CallSiteInLoop-1]
++	_ = x[CallSiteOnPanicPath-2]
++	_ = x[CallSiteInInitFunc-4]
++}
++
++var _CSPropBits_value = [...]uint64{
++	0x1, /* CallSiteInLoop */
++	0x2, /* CallSiteOnPanicPath */
++	0x4, /* CallSiteInInitFunc */
++}
++
++const _CSPropBits_name = "CallSiteInLoopCallSiteOnPanicPathCallSiteInInitFunc"
++
++var _CSPropBits_index = [...]uint8{0, 14, 33, 51}
++
++func (i CSPropBits) String() string {
++	var b bytes.Buffer
++
++	remain := uint64(i)
++	seen := false
++
++	for k, v := range _CSPropBits_value {
++		x := _CSPropBits_name[_CSPropBits_index[k]:_CSPropBits_index[k+1]]
++		if v == 0 {
++			if i == 0 {
++				b.WriteString(x)
++				return b.String()
++			}
++			continue
++		}
++		if (v & remain) == v {
++			remain &^= v
++			x := _CSPropBits_name[_CSPropBits_index[k]:_CSPropBits_index[k+1]]
++			if seen {
++				b.WriteString("|")
++			}
++			seen = true
++			b.WriteString(x)
++		}
++	}
++	if remain == 0 {
++		return b.String()
++	}
++	return "CSPropBits(0x" + strconv.FormatInt(int64(i), 16) + ")"
++}
+diff --git a/src/cmd/compile/internal/inline/inlheur/funcprops_test.go b/src/cmd/compile/internal/inline/inlheur/funcprops_test.go
+index d5fa07ec40..52cc28e2fd 100644
+--- a/src/cmd/compile/internal/inline/inlheur/funcprops_test.go
++++ b/src/cmd/compile/internal/inline/inlheur/funcprops_test.go
+@@ -13,6 +13,7 @@ import (
+ 	"os"
+ 	"path/filepath"
+ 	"regexp"
++	"strconv"
+ 	"strings"
+ 	"testing"
+ 	"time"
+@@ -43,21 +44,21 @@ func TestFuncProperties(t *testing.T) {
+ 			t.Fatalf("dumping func props for %q: error %v", tc, err)
+ 		}
+ 		// Read in the newly generated dump.
+-		dentries, derr := readDump(t, dumpfile)
++		dentries, dcsites, derr := readDump(t, dumpfile)
+ 		if derr != nil {
+ 			t.Fatalf("reading func prop dump: %v", derr)
+ 		}
+ 		if *remasterflag {
+-			updateExpected(t, tc, dentries)
++			updateExpected(t, tc, dentries, dcsites)
+ 			continue
+ 		}
+ 		// Generate expected dump.
+-		epath, gerr := genExpected(td, tc)
+-		if gerr != nil {
+-			t.Fatalf("generating expected func prop dump: %v", gerr)
++		epath, egerr := genExpected(td, tc)
++		if egerr != nil {
++			t.Fatalf("generating expected func prop dump: %v", egerr)
+ 		}
+ 		// Read in the expected result entries.
+-		eentries, eerr := readDump(t, epath)
++		eentries, ecsites, eerr := readDump(t, epath)
+ 		if eerr != nil {
+ 			t.Fatalf("reading expected func prop dump: %v", eerr)
+ 		}
+@@ -66,6 +67,7 @@ func TestFuncProperties(t *testing.T) {
+ 		eidx := 0
+ 		for i := 0; i < n; i++ {
+ 			dentry := dentries[i]
++			dcst := dcsites[i]
+ 			if !interestingToCompare(dentry.fname) {
+ 				continue
+ 			}
+@@ -75,13 +77,14 @@ func TestFuncProperties(t *testing.T) {
+ 				continue
+ 			}
+ 			eentry := eentries[eidx]
++			ecst := ecsites[eidx]
+ 			eidx++
+ 			if dentry.fname != eentry.fname {
+ 				t.Errorf("got fn %q wanted %q, skipping checks",
+ 					dentry.fname, eentry.fname)
+ 				continue
+ 			}
+-			compareEntries(t, tc, &dentry, &eentry)
++			compareEntries(t, tc, &dentry, dcst, &eentry, ecst)
+ 		}
+ 	}
+ }
+@@ -94,7 +97,7 @@ func propBitsToString[T interface{ String() string }](sl []T) string {
+ 	return sb.String()
+ }
+ 
+-func compareEntries(t *testing.T, tc string, dentry *fnInlHeur, eentry *fnInlHeur) {
++func compareEntries(t *testing.T, tc string, dentry *fnInlHeur, dcsites encodedCallSiteTab, eentry *fnInlHeur, ecsites encodedCallSiteTab) {
+ 	dfp := dentry.props
+ 	efp := eentry.props
+ 	dfn := dentry.fname
+@@ -118,6 +121,25 @@ func compareEntries(t *testing.T, tc string, dentry *fnInlHeur, eentry *fnInlHeu
+ 		t.Errorf("testcase %q: Params mismatch for %q: got:\n%swant:\n%s",
+ 			tc, dfn, pgot, pwant)
+ 	}
++	// Compare call sites.
++	for k, ve := range ecsites {
++		if vd, ok := dcsites[k]; !ok {
++			t.Errorf("missing expected callsite %q in func %q",
++				dfn, k)
++			continue
++		} else {
++			if vd != ve {
++				t.Errorf("callsite %q in func %q: got %s want %s",
++					k, dfn, vd.String(), ve.String())
++			}
++		}
++	}
++	for k := range dcsites {
++		if _, ok := ecsites[k]; !ok {
++			t.Errorf("unexpected extra callsite %q in func %q",
++				dfn, k)
++		}
++	}
+ }
+ 
+ type dumpReader struct {
+@@ -132,10 +154,10 @@ type dumpReader struct {
+ // compiler. It breaks the dump down into separate sections
+ // by function, then deserializes each func section into a
+ // fnInlHeur object and returns a slice of those objects.
+-func readDump(t *testing.T, path string) ([]fnInlHeur, error) {
++func readDump(t *testing.T, path string) ([]fnInlHeur, []encodedCallSiteTab, error) {
+ 	content, err := os.ReadFile(path)
+ 	if err != nil {
+-		return nil, err
++		return nil, nil, err
+ 	}
+ 	dr := &dumpReader{
+ 		s:  bufio.NewScanner(strings.NewReader(string(content))),
+@@ -152,11 +174,12 @@ func readDump(t *testing.T, path string) ([]fnInlHeur, error) {
+ 		}
+ 	}
+ 	if !found {
+-		return nil, fmt.Errorf("malformed testcase file %s, missing preamble delimiter", path)
++		return nil, nil, fmt.Errorf("malformed testcase file %s, missing preamble delimiter", path)
+ 	}
+ 	res := []fnInlHeur{}
++	csres := []encodedCallSiteTab{}
+ 	for {
+-		dentry, err := dr.readEntry()
++		dentry, dcst, err := dr.readEntry()
+ 		if err != nil {
+ 			t.Fatalf("reading func prop dump: %v", err)
+ 		}
+@@ -164,8 +187,9 @@ func readDump(t *testing.T, path string) ([]fnInlHeur, error) {
+ 			break
+ 		}
+ 		res = append(res, dentry)
++		csres = append(csres, dcst)
+ 	}
+-	return res, nil
++	return res, csres, nil
+ }
+ 
+ func (dr *dumpReader) scan() bool {
+@@ -212,10 +236,11 @@ func (dr *dumpReader) readObjBlob(delim string) (string, error) {
+ // flag. It deserializes the json for the func properties and
+ // returns the resulting properties and function name. EOF is
+ // signaled by a nil FuncProps return (with no error
+-func (dr *dumpReader) readEntry() (fnInlHeur, error) {
++func (dr *dumpReader) readEntry() (fnInlHeur, encodedCallSiteTab, error) {
+ 	var fih fnInlHeur
++	var callsites encodedCallSiteTab
+ 	if !dr.scan() {
+-		return fih, nil
++		return fih, callsites, nil
+ 	}
+ 	// first line contains info about function: file/name/line
+ 	info := dr.curLine()
+@@ -223,7 +248,7 @@ func (dr *dumpReader) readEntry() (fnInlHeur, error) {
+ 	fih.file = chunks[0]
+ 	fih.fname = chunks[1]
+ 	if _, err := fmt.Sscanf(chunks[2], "%d", &fih.line); err != nil {
+-		return fih, err
++		return fih, callsites, fmt.Errorf("scanning line %q: %v", info, err)
+ 	}
+ 	// consume comments until and including delimiter
+ 	for {
+@@ -240,18 +265,45 @@ func (dr *dumpReader) readEntry() (fnInlHeur, error) {
+ 	line := dr.curLine()
+ 	fp := &FuncProps{}
+ 	if err := json.Unmarshal([]byte(line), fp); err != nil {
+-		return fih, err
++		return fih, callsites, err
+ 	}
+ 	fih.props = fp
+ 
+-	// Consume delimiter.
++	// Consume callsites.
++	callsites = make(encodedCallSiteTab)
++	for dr.scan() {
++		line := dr.curLine()
++		if line == csDelimiter {
++			break
++		}
++		// expected format: "// callsite: <expanded pos> flagstr <desc> flagval <flags>"
++		fields := strings.Fields(line)
++		if len(fields) != 6 {
++			return fih, nil, fmt.Errorf("malformed callsite %s line %d: %s",
++				dr.p, dr.ln, line)
++		}
++		if fields[2] != "flagstr" || fields[4] != "flagval" {
++			return fih, nil, fmt.Errorf("malformed callsite %s line %d: %s",
++				dr.p, dr.ln, line)
++		}
++		tag := fields[1]
++		flagstr := fields[5]
++		flags, err := strconv.Atoi(flagstr)
++		if err != nil {
++			return fih, nil, fmt.Errorf("bad flags val %s line %d: %q err=%v",
++				dr.p, dr.ln, line, err)
++		}
++		callsites[tag] = CSPropBits(flags)
++	}
++
++	// Consume function delimiter.
+ 	dr.scan()
+ 	line = dr.curLine()
+ 	if line != fnDelimiter {
+-		return fih, fmt.Errorf("malformed testcase file %q, missing delimiter %q", dr.p, fnDelimiter)
++		return fih, nil, fmt.Errorf("malformed testcase file %q, missing delimiter %q", dr.p, fnDelimiter)
+ 	}
+ 
+-	return fih, nil
++	return fih, callsites, nil
+ }
+ 
+ // gatherPropsDumpForFile builds the specified testcase 'testcase' from
+@@ -343,7 +395,7 @@ func mkUpexState(dentries []fnInlHeur) *upexState {
+ // generics, where you can have multiple functions that all share the
+ // same starting line. Currently we combine up all the dups and
+ // closures into the single pre-func comment.
+-func updateExpected(t *testing.T, testcase string, dentries []fnInlHeur) {
++func updateExpected(t *testing.T, testcase string, dentries []fnInlHeur, dcsites []encodedCallSiteTab) {
+ 	nd := len(dentries)
+ 
+ 	ues := mkUpexState(dentries)
+@@ -367,9 +419,10 @@ func updateExpected(t *testing.T, testcase string, dentries []fnInlHeur) {
+ 
+ 	clore := regexp.MustCompile(`.+\.func\d+[\.\d]*$`)
+ 
+-	emitFunc := func(e *fnInlHeur, instance, atl uint) {
++	emitFunc := func(e *fnInlHeur, dcsites encodedCallSiteTab,
++		instance, atl uint) {
+ 		var sb strings.Builder
+-		dumpFnPreamble(&sb, e, instance, atl)
++		dumpFnPreamble(&sb, e, dcsites, instance, atl)
+ 		ues.newgolines = append(ues.newgolines,
+ 			strings.Split(strings.TrimSpace(sb.String()), "\n")...)
+ 	}
+@@ -387,7 +440,7 @@ func updateExpected(t *testing.T, testcase string, dentries []fnInlHeur) {
+ 		atl := ues.atline[dentries[idx].line]
+ 		for k := uint(0); k < atl; k++ {
+ 			if emit {
+-				emitFunc(&dentries[idx], k, atl)
++				emitFunc(&dentries[idx], dcsites[idx], k, atl)
+ 			}
+ 			idx++
+ 		}
+@@ -400,7 +453,7 @@ func updateExpected(t *testing.T, testcase string, dentries []fnInlHeur) {
+ 			}
+ 			ncl++
+ 			if emit {
+-				emitFunc(&dentries[idx], 0, 1)
++				emitFunc(&dentries[idx], dcsites[idx], 0, 1)
+ 			}
+ 			idx++
+ 		}
+diff --git a/src/cmd/compile/internal/inline/inlheur/testdata/props/acrosscall.go b/src/cmd/compile/internal/inline/inlheur/testdata/props/acrosscall.go
+index 2296a086ca..aea83998e5 100644
+--- a/src/cmd/compile/internal/inline/inlheur/testdata/props/acrosscall.go
++++ b/src/cmd/compile/internal/inline/inlheur/testdata/props/acrosscall.go
+@@ -8,21 +8,25 @@
+ // <endfilepreamble>
+ package params
+ 
+-// acrosscall.go T_feeds_indirect_call_via_call_toplevel 17 0 1
++// acrosscall.go T_feeds_indirect_call_via_call_toplevel 19 0 1
+ // ParamFlags
+ //   0 ParamFeedsIndirectCall
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[8],"ResultFlags":[]}
++// callsite: acrosscall.go:20:12|0 flagstr "" flagval 0
++// <endcallsites>
+ // <endfuncpreamble>
+ func T_feeds_indirect_call_via_call_toplevel(f func(int)) {
+ 	callsparam(f)
+ }
+ 
+-// acrosscall.go T_feeds_indirect_call_via_call_conditional 27 0 1
++// acrosscall.go T_feeds_indirect_call_via_call_conditional 31 0 1
+ // ParamFlags
+ //   0 ParamMayFeedIndirectCall
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[16],"ResultFlags":[]}
++// callsite: acrosscall.go:33:13|0 flagstr "" flagval 0
++// <endcallsites>
+ // <endfuncpreamble>
+ func T_feeds_indirect_call_via_call_conditional(f func(int)) {
+ 	if G != 101 {
+@@ -30,31 +34,37 @@ func T_feeds_indirect_call_via_call_conditional(f func(int)) {
+ 	}
+ }
+ 
+-// acrosscall.go T_feeds_conditional_indirect_call_via_call_toplevel 39 0 1
++// acrosscall.go T_feeds_conditional_indirect_call_via_call_toplevel 45 0 1
+ // ParamFlags
+ //   0 ParamMayFeedIndirectCall
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[16],"ResultFlags":[]}
++// callsite: acrosscall.go:46:23|0 flagstr "" flagval 0
++// <endcallsites>
+ // <endfuncpreamble>
+ func T_feeds_conditional_indirect_call_via_call_toplevel(f func(int)) {
+ 	callsparamconditional(f)
+ }
+ 
+-// acrosscall.go T_feeds_if_via_call 49 0 1
++// acrosscall.go T_feeds_if_via_call 57 0 1
+ // ParamFlags
+ //   0 ParamFeedsIfOrSwitch
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[32],"ResultFlags":[]}
++// callsite: acrosscall.go:58:9|0 flagstr "" flagval 0
++// <endcallsites>
+ // <endfuncpreamble>
+ func T_feeds_if_via_call(x int) {
+ 	feedsif(x)
+ }
+ 
+-// acrosscall.go T_feeds_if_via_call_conditional 59 0 1
++// acrosscall.go T_feeds_if_via_call_conditional 69 0 1
+ // ParamFlags
+ //   0 ParamMayFeedIfOrSwitch
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[64],"ResultFlags":[]}
++// callsite: acrosscall.go:71:10|0 flagstr "" flagval 0
++// <endcallsites>
+ // <endfuncpreamble>
+ func T_feeds_if_via_call_conditional(x int) {
+ 	if G != 101 {
+@@ -62,22 +72,28 @@ func T_feeds_if_via_call_conditional(x int) {
+ 	}
+ }
+ 
+-// acrosscall.go T_feeds_conditional_if_via_call 71 0 1
++// acrosscall.go T_feeds_conditional_if_via_call 83 0 1
+ // ParamFlags
+ //   0 ParamMayFeedIfOrSwitch
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[64],"ResultFlags":[]}
++// callsite: acrosscall.go:84:20|0 flagstr "" flagval 0
++// <endcallsites>
+ // <endfuncpreamble>
+ func T_feeds_conditional_if_via_call(x int) {
+ 	feedsifconditional(x)
+ }
+ 
+-// acrosscall.go T_multifeeds 82 0 1
++// acrosscall.go T_multifeeds 98 0 1
+ // ParamFlags
+ //   0 ParamFeedsIndirectCall|ParamMayFeedIndirectCall
+ //   1 ParamFeedsIndirectCall
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[24,8],"ResultFlags":[]}
++// callsite: acrosscall.go:100:23|1 flagstr "" flagval 0
++// callsite: acrosscall.go:101:12|2 flagstr "" flagval 0
++// callsite: acrosscall.go:99:12|0 flagstr "" flagval 0
++// <endcallsites>
+ // <endfuncpreamble>
+ func T_multifeeds(f1, f2 func(int)) {
+ 	callsparam(f1)
+@@ -85,39 +101,47 @@ func T_multifeeds(f1, f2 func(int)) {
+ 	callsparam(f2)
+ }
+ 
+-// acrosscall.go T_acrosscall_returnsconstant 94 0 1
++// acrosscall.go T_acrosscall_returnsconstant 112 0 1
+ // ResultFlags
+ //   0 ResultAlwaysSameConstant
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[],"ResultFlags":[8]}
++// callsite: acrosscall.go:113:24|0 flagstr "" flagval 0
++// <endcallsites>
+ // <endfuncpreamble>
+ func T_acrosscall_returnsconstant() int {
+ 	return returnsconstant()
+ }
+ 
+-// acrosscall.go T_acrosscall_returnsmem 104 0 1
++// acrosscall.go T_acrosscall_returnsmem 124 0 1
+ // ResultFlags
+ //   0 ResultIsAllocatedMem
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[],"ResultFlags":[2]}
++// callsite: acrosscall.go:125:19|0 flagstr "" flagval 0
++// <endcallsites>
+ // <endfuncpreamble>
+ func T_acrosscall_returnsmem() *int {
+ 	return returnsmem()
+ }
+ 
+-// acrosscall.go T_acrosscall_returnscci 114 0 1
++// acrosscall.go T_acrosscall_returnscci 136 0 1
+ // ResultFlags
+ //   0 ResultIsConcreteTypeConvertedToInterface
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[],"ResultFlags":[4]}
++// callsite: acrosscall.go:137:19|0 flagstr "" flagval 0
++// <endcallsites>
+ // <endfuncpreamble>
+ func T_acrosscall_returnscci() I {
+ 	return returnscci()
+ }
+ 
+-// acrosscall.go T_acrosscall_multiret 122 0 1
++// acrosscall.go T_acrosscall_multiret 146 0 1
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[0],"ResultFlags":[0]}
++// callsite: acrosscall.go:148:25|0 flagstr "" flagval 0
++// <endcallsites>
+ // <endfuncpreamble>
+ func T_acrosscall_multiret(q int) int {
+ 	if q != G {
+@@ -126,9 +150,12 @@ func T_acrosscall_multiret(q int) int {
+ 	return 0
+ }
+ 
+-// acrosscall.go T_acrosscall_multiret2 133 0 1
++// acrosscall.go T_acrosscall_multiret2 160 0 1
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[0],"ResultFlags":[0]}
++// callsite: acrosscall.go:162:25|0 flagstr "" flagval 0
++// callsite: acrosscall.go:164:25|1 flagstr "" flagval 0
++// <endcallsites>
+ // <endfuncpreamble>
+ func T_acrosscall_multiret2(q int) int {
+ 	if q == G {
+diff --git a/src/cmd/compile/internal/inline/inlheur/testdata/props/funcflags.go b/src/cmd/compile/internal/inline/inlheur/testdata/props/funcflags.go
+index ae537b46e2..8366a499ed 100644
+--- a/src/cmd/compile/internal/inline/inlheur/testdata/props/funcflags.go
++++ b/src/cmd/compile/internal/inline/inlheur/testdata/props/funcflags.go
+@@ -11,21 +11,23 @@ package funcflags
+ 
+ import "os"
+ 
+-// funcflags.go T_simple 19 0 1
++// funcflags.go T_simple 20 0 1
+ // Flags FuncPropNeverReturns
+ // <endpropsdump>
+ // {"Flags":1,"ParamFlags":[],"ResultFlags":[]}
++// <endcallsites>
+ // <endfuncpreamble>
+ func T_simple() {
+ 	panic("bad")
+ }
+ 
+-// funcflags.go T_nested 30 0 1
++// funcflags.go T_nested 32 0 1
+ // Flags FuncPropNeverReturns
+ // ParamFlags
+ //   0 ParamFeedsIfOrSwitch
+ // <endpropsdump>
+ // {"Flags":1,"ParamFlags":[32],"ResultFlags":[]}
++// <endcallsites>
+ // <endfuncpreamble>
+ func T_nested(x int) {
+ 	if x < 10 {
+@@ -35,10 +37,11 @@ func T_nested(x int) {
+ 	}
+ }
+ 
+-// funcflags.go T_block1 43 0 1
++// funcflags.go T_block1 46 0 1
+ // Flags FuncPropNeverReturns
+ // <endpropsdump>
+ // {"Flags":1,"ParamFlags":[0],"ResultFlags":[]}
++// <endcallsites>
+ // <endfuncpreamble>
+ func T_block1(x int) {
+ 	panic("bad")
+@@ -47,11 +50,12 @@ func T_block1(x int) {
+ 	}
+ }
+ 
+-// funcflags.go T_block2 56 0 1
++// funcflags.go T_block2 60 0 1
+ // ParamFlags
+ //   0 ParamFeedsIfOrSwitch
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[32],"ResultFlags":[]}
++// <endcallsites>
+ // <endfuncpreamble>
+ func T_block2(x int) {
+ 	if x < 10 {
+@@ -60,12 +64,13 @@ func T_block2(x int) {
+ 	panic("bad")
+ }
+ 
+-// funcflags.go T_switches1 70 0 1
++// funcflags.go T_switches1 75 0 1
+ // Flags FuncPropNeverReturns
+ // ParamFlags
+ //   0 ParamFeedsIfOrSwitch
+ // <endpropsdump>
+ // {"Flags":1,"ParamFlags":[32],"ResultFlags":[]}
++// <endcallsites>
+ // <endfuncpreamble>
+ func T_switches1(x int) {
+ 	switch x {
+@@ -77,11 +82,12 @@ func T_switches1(x int) {
+ 	panic("whatev")
+ }
+ 
+-// funcflags.go T_switches1a 86 0 1
++// funcflags.go T_switches1a 92 0 1
+ // ParamFlags
+ //   0 ParamFeedsIfOrSwitch
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[32],"ResultFlags":[]}
++// <endcallsites>
+ // <endfuncpreamble>
+ func T_switches1a(x int) {
+ 	switch x {
+@@ -90,11 +96,12 @@ func T_switches1a(x int) {
+ 	}
+ }
+ 
+-// funcflags.go T_switches2 99 0 1
++// funcflags.go T_switches2 106 0 1
+ // ParamFlags
+ //   0 ParamFeedsIfOrSwitch
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[32],"ResultFlags":[]}
++// <endcallsites>
+ // <endfuncpreamble>
+ func T_switches2(x int) {
+ 	switch x {
+@@ -108,9 +115,10 @@ func T_switches2(x int) {
+ 	panic("whatev")
+ }
+ 
+-// funcflags.go T_switches3 115 0 1
++// funcflags.go T_switches3 123 0 1
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[0],"ResultFlags":[]}
++// <endcallsites>
+ // <endfuncpreamble>
+ func T_switches3(x interface{}) {
+ 	switch x.(type) {
+@@ -121,10 +129,11 @@ func T_switches3(x interface{}) {
+ 	}
+ }
+ 
+-// funcflags.go T_switches4 129 0 1
++// funcflags.go T_switches4 138 0 1
+ // Flags FuncPropNeverReturns
+ // <endpropsdump>
+ // {"Flags":1,"ParamFlags":[0],"ResultFlags":[]}
++// <endcallsites>
+ // <endfuncpreamble>
+ func T_switches4(x int) {
+ 	switch x {
+@@ -140,9 +149,10 @@ func T_switches4(x int) {
+ 	panic("whatev")
+ }
+ 
+-// funcflags.go T_recov 147 0 1
++// funcflags.go T_recov 157 0 1
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[0],"ResultFlags":[]}
++// <endcallsites>
+ // <endfuncpreamble>
+ func T_recov(x int) {
+ 	if x := recover(); x != nil {
+@@ -150,10 +160,12 @@ func T_recov(x int) {
+ 	}
+ }
+ 
+-// funcflags.go T_forloops1 158 0 1
++
++// funcflags.go T_forloops1 170 0 1
+ // Flags FuncPropNeverReturns
+ // <endpropsdump>
+ // {"Flags":1,"ParamFlags":[0],"ResultFlags":[]}
++// <endcallsites>
+ // <endfuncpreamble>
+ func T_forloops1(x int) {
+ 	for {
+@@ -161,9 +173,10 @@ func T_forloops1(x int) {
+ 	}
+ }
+ 
+-// funcflags.go T_forloops2 168 0 1
++// funcflags.go T_forloops2 181 0 1
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[0],"ResultFlags":[]}
++// <endcallsites>
+ // <endfuncpreamble>
+ func T_forloops2(x int) {
+ 	for {
+@@ -175,9 +188,11 @@ func T_forloops2(x int) {
+ 	}
+ }
+ 
+-// funcflags.go T_forloops3 182 0 1
++
++// funcflags.go T_forloops3 197 0 1
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[0],"ResultFlags":[]}
++// <endcallsites>
+ // <endfuncpreamble>
+ func T_forloops3(x int) {
+ 	for i := 0; i < 101; i++ {
+@@ -194,9 +209,11 @@ func T_forloops3(x int) {
+ 	panic("whatev")
+ }
+ 
+-// funcflags.go T_hasgotos 201 0 1
++
++// funcflags.go T_hasgotos 218 0 1
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[0,0],"ResultFlags":[]}
++// <endcallsites>
+ // <endfuncpreamble>
+ func T_hasgotos(x int, y int) {
+ 	{
+@@ -221,12 +238,13 @@ func T_hasgotos(x int, y int) {
+ 	}
+ }
+ 
+-// funcflags.go T_break_with_label 228 0 1
++// funcflags.go T_break_with_label 248 0 1
+ // ParamFlags
+ //   0 ParamMayFeedIfOrSwitch
+ //   1 ParamNoInfo
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[64,0],"ResultFlags":[]}
++// <endcallsites>
+ // <endfuncpreamble>
+ func T_break_with_label(x int, y int) {
+ 	// presence of break with label should pessimize this func
+@@ -242,12 +260,13 @@ lab1:
+ 	}
+ }
+ 
+-// funcflags.go T_callsexit 250 0 1
++// funcflags.go T_callsexit 271 0 1
+ // Flags FuncPropNeverReturns
+ // ParamFlags
+ //   0 ParamFeedsIfOrSwitch
+ // <endpropsdump>
+ // {"Flags":1,"ParamFlags":[32],"ResultFlags":[]}
++// <endcallsites>
+ // <endfuncpreamble>
+ func T_callsexit(x int) {
+ 	if x < 0 {
+@@ -256,9 +275,11 @@ func T_callsexit(x int) {
+ 	os.Exit(2)
+ }
+ 
+-// funcflags.go T_exitinexpr 262 0 1
++// funcflags.go T_exitinexpr 284 0 1
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[0],"ResultFlags":[]}
++// callsite: funcflags.go:289:18|0 flagstr "" flagval 0
++// <endcallsites>
+ // <endfuncpreamble>
+ func T_exitinexpr(x int) {
+ 	// This function does indeed unconditionally call exit, since the
+@@ -270,10 +291,11 @@ func T_exitinexpr(x int) {
+ 	}
+ }
+ 
+-// funcflags.go T_select_noreturn 278 0 1
++// funcflags.go T_select_noreturn 300 0 1
+ // Flags FuncPropNeverReturns
+ // <endpropsdump>
+ // {"Flags":1,"ParamFlags":[0,0,0],"ResultFlags":[]}
++// <endcallsites>
+ // <endfuncpreamble>
+ func T_select_noreturn(chi chan int, chf chan float32, p *int) {
+ 	rv := 0
+@@ -287,9 +309,10 @@ func T_select_noreturn(chi chan int, chf chan float32, p *int) {
+ 	panic("bad")
+ }
+ 
+-// funcflags.go T_select_mayreturn 295 0 1
++// funcflags.go T_select_mayreturn 317 0 1
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[0,0,0],"ResultFlags":[0]}
++// <endcallsites>
+ // <endfuncpreamble>
+ func T_select_mayreturn(chi chan int, chf chan float32, p *int) int {
+ 	rv := 0
+@@ -304,10 +327,12 @@ func T_select_mayreturn(chi chan int, chf chan float32, p *int) int {
+ 	panic("bad")
+ }
+ 
+-// funcflags.go T_calls_callsexit 291 0 1
++// funcflags.go T_calls_callsexit 337 0 1
+ // Flags FuncPropNeverReturns
+ // <endpropsdump>
+ // {"Flags":1,"ParamFlags":[0],"ResultFlags":[]}
++// callsite: funcflags.go:338:15|0 flagstr "" flagval 0
++// <endcallsites>
+ // <endfuncpreamble>
+ func T_calls_callsexit(x int) {
+ 	exprcallsexit(x)
+diff --git a/src/cmd/compile/internal/inline/inlheur/testdata/props/params.go b/src/cmd/compile/internal/inline/inlheur/testdata/props/params.go
+index 5ae931dac7..1d58b930e4 100644
+--- a/src/cmd/compile/internal/inline/inlheur/testdata/props/params.go
++++ b/src/cmd/compile/internal/inline/inlheur/testdata/props/params.go
+@@ -10,11 +10,12 @@ package params
+ 
+ import "os"
+ 
+-// params.go T_feeds_if_simple 19 0 1
++// params.go T_feeds_if_simple 20 0 1
+ // ParamFlags
+ //   0 ParamFeedsIfOrSwitch
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[32],"ResultFlags":[]}
++// <endcallsites>
+ // <endfuncpreamble>
+ func T_feeds_if_simple(x int) {
+ 	if x < 100 {
+@@ -23,12 +24,13 @@ func T_feeds_if_simple(x int) {
+ 	println(x)
+ }
+ 
+-// params.go T_feeds_if_nested 33 0 1
++// params.go T_feeds_if_nested 35 0 1
+ // ParamFlags
+ //   0 ParamMayFeedIfOrSwitch
+ //   1 ParamFeedsIfOrSwitch
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[64,32],"ResultFlags":[]}
++// <endcallsites>
+ // <endfuncpreamble>
+ func T_feeds_if_nested(x, y int) {
+ 	if y != 0 {
+@@ -39,11 +41,12 @@ func T_feeds_if_nested(x, y int) {
+ 	println(x)
+ }
+ 
+-// params.go T_feeds_if_pointer 48 0 1
++// params.go T_feeds_if_pointer 51 0 1
+ // ParamFlags
+ //   0 ParamFeedsIfOrSwitch
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[32],"ResultFlags":[]}
++// <endcallsites>
+ // <endfuncpreamble>
+ func T_feeds_if_pointer(xp *int) {
+ 	if xp != nil {
+@@ -52,12 +55,13 @@ func T_feeds_if_pointer(xp *int) {
+ 	println(xp)
+ }
+ 
+-// params.go T.T_feeds_if_simple_method 62 0 1
++// params.go T.T_feeds_if_simple_method 66 0 1
+ // ParamFlags
+ //   0 ParamFeedsIfOrSwitch
+ //   1 ParamFeedsIfOrSwitch
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[32,32],"ResultFlags":[]}
++// <endcallsites>
+ // <endfuncpreamble>
+ func (r T) T_feeds_if_simple_method(x int) {
+ 	if x < 100 {
+@@ -69,7 +73,7 @@ func (r T) T_feeds_if_simple_method(x int) {
+ 	println(x)
+ }
+ 
+-// params.go T_feeds_if_blanks 81 0 1
++// params.go T_feeds_if_blanks 86 0 1
+ // ParamFlags
+ //   0 ParamNoInfo
+ //   1 ParamFeedsIfOrSwitch
+@@ -77,6 +81,7 @@ func (r T) T_feeds_if_simple_method(x int) {
+ //   3 ParamNoInfo
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[0,32,0,0],"ResultFlags":[]}
++// <endcallsites>
+ // <endfuncpreamble>
+ func T_feeds_if_blanks(_ string, x int, _ bool, _ bool) {
+ 	// blanks ignored; from a props perspective "x" is param 0
+@@ -86,11 +91,12 @@ func T_feeds_if_blanks(_ string, x int, _ bool, _ bool) {
+ 	println(x)
+ }
+ 
+-// params.go T_feeds_if_with_copy 95 0 1
++// params.go T_feeds_if_with_copy 101 0 1
+ // ParamFlags
+ //   0 ParamFeedsIfOrSwitch
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[32],"ResultFlags":[]}
++// <endcallsites>
+ // <endfuncpreamble>
+ func T_feeds_if_with_copy(x int) {
+ 	// simple copy here -- we get this case
+@@ -101,9 +107,10 @@ func T_feeds_if_with_copy(x int) {
+ 	println(x)
+ }
+ 
+-// params.go T_feeds_if_with_copy_expr 108 0 1
++// params.go T_feeds_if_with_copy_expr 115 0 1
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[0],"ResultFlags":[]}
++// <endcallsites>
+ // <endfuncpreamble>
+ func T_feeds_if_with_copy_expr(x int) {
+ 	// this case (copy of expression) currently not handled.
+@@ -114,11 +121,12 @@ func T_feeds_if_with_copy_expr(x int) {
+ 	println(x)
+ }
+ 
+-// params.go T_feeds_switch 123 0 1
++// params.go T_feeds_switch 131 0 1
+ // ParamFlags
+ //   0 ParamFeedsIfOrSwitch
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[32],"ResultFlags":[]}
++// <endcallsites>
+ // <endfuncpreamble>
+ func T_feeds_switch(x int) {
+ 	switch x {
+@@ -130,9 +138,10 @@ func T_feeds_switch(x int) {
+ 	println(x)
+ }
+ 
+-// params.go T_feeds_if_toocomplex 137 0 1
++// params.go T_feeds_if_toocomplex 146 0 1
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[0,0],"ResultFlags":[]}
++// <endcallsites>
+ // <endfuncpreamble>
+ func T_feeds_if_toocomplex(x int, y int) {
+ 	// not handled at the moment; we only look for cases where
+@@ -144,9 +153,10 @@ func T_feeds_if_toocomplex(x int, y int) {
+ 	println(x + y)
+ }
+ 
+-// params.go T_feeds_if_redefined 151 0 1
++// params.go T_feeds_if_redefined 161 0 1
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[0],"ResultFlags":[]}
++// <endcallsites>
+ // <endfuncpreamble>
+ func T_feeds_if_redefined(x int) {
+ 	if x < G {
+@@ -157,9 +167,10 @@ func T_feeds_if_redefined(x int) {
+ 	}
+ }
+ 
+-// params.go T_feeds_if_redefined2 164 0 1
++// params.go T_feeds_if_redefined2 175 0 1
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[0],"ResultFlags":[]}
++// <endcallsites>
+ // <endfuncpreamble>
+ func T_feeds_if_redefined2(x int) {
+ 	// this currently classifies "x" as "no info", since the analysis we
+@@ -174,12 +185,13 @@ func T_feeds_if_redefined2(x int) {
+ 	}
+ }
+ 
+-// params.go T_feeds_multi_if 184 0 1
++// params.go T_feeds_multi_if 196 0 1
+ // ParamFlags
+ //   0 ParamFeedsIfOrSwitch
+ //   1 ParamNoInfo
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[32,0],"ResultFlags":[]}
++// <endcallsites>
+ // <endfuncpreamble>
+ func T_feeds_multi_if(x int, y int) {
+ 	// Here we have one "if" that is too complex (x < y) but one that is
+@@ -196,9 +208,10 @@ func T_feeds_multi_if(x int, y int) {
+ 	println(x + y)
+ }
+ 
+-// params.go T_feeds_if_redefined_indirectwrite 203 0 1
++// params.go T_feeds_if_redefined_indirectwrite 216 0 1
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[0],"ResultFlags":[]}
++// <endcallsites>
+ // <endfuncpreamble>
+ func T_feeds_if_redefined_indirectwrite(x int) {
+ 	ax := &x
+@@ -210,9 +223,10 @@ func T_feeds_if_redefined_indirectwrite(x int) {
+ 	}
+ }
+ 
+-// params.go T_feeds_if_redefined_indirectwrite_copy 217 0 1
++// params.go T_feeds_if_redefined_indirectwrite_copy 231 0 1
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[0],"ResultFlags":[]}
++// <endcallsites>
+ // <endfuncpreamble>
+ func T_feeds_if_redefined_indirectwrite_copy(x int) {
+ 	// we don't catch this case, "x" is marked as no info,
+@@ -227,11 +241,12 @@ func T_feeds_if_redefined_indirectwrite_copy(x int) {
+ 	}
+ }
+ 
+-// params.go T_feeds_if_expr1 236 0 1
++// params.go T_feeds_if_expr1 251 0 1
+ // ParamFlags
+ //   0 ParamFeedsIfOrSwitch
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[32],"ResultFlags":[]}
++// <endcallsites>
+ // <endfuncpreamble>
+ func T_feeds_if_expr1(x int) {
+ 	if x == 101 || x == 102 || x&0xf == 0 {
+@@ -239,9 +254,10 @@ func T_feeds_if_expr1(x int) {
+ 	}
+ }
+ 
+-// params.go T_feeds_if_expr2 246 0 1
++// params.go T_feeds_if_expr2 262 0 1
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[0],"ResultFlags":[]}
++// <endcallsites>
+ // <endfuncpreamble>
+ func T_feeds_if_expr2(x int) {
+ 	if (x*x)-(x+x)%x == 101 || x&0xf == 0 {
+@@ -249,9 +265,10 @@ func T_feeds_if_expr2(x int) {
+ 	}
+ }
+ 
+-// params.go T_feeds_if_expr3 256 0 1
++// params.go T_feeds_if_expr3 273 0 1
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[0],"ResultFlags":[]}
++// <endcallsites>
+ // <endfuncpreamble>
+ func T_feeds_if_expr3(x int) {
+ 	if x-(x&0x1)^378 > (1 - G) {
+@@ -259,9 +276,10 @@ func T_feeds_if_expr3(x int) {
+ 	}
+ }
+ 
+-// params.go T_feeds_if_shift_may_panic 266 0 1
++// params.go T_feeds_if_shift_may_panic 284 0 1
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[0],"ResultFlags":[0]}
++// <endcallsites>
+ // <endfuncpreamble>
+ func T_feeds_if_shift_may_panic(x int) *int {
+ 	// here if "x" is a constant like 2, we could simplify the "if",
+@@ -273,9 +291,10 @@ func T_feeds_if_shift_may_panic(x int) *int {
+ 	return &G
+ }
+ 
+-// params.go T_feeds_if_maybe_divide_by_zero 280 0 1
++// params.go T_feeds_if_maybe_divide_by_zero 299 0 1
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[0],"ResultFlags":[]}
++// <endcallsites>
+ // <endfuncpreamble>
+ func T_feeds_if_maybe_divide_by_zero(x int) {
+ 	if 99/x == 3 {
+@@ -284,11 +303,12 @@ func T_feeds_if_maybe_divide_by_zero(x int) {
+ 	println("blarg")
+ }
+ 
+-// params.go T_feeds_indcall 293 0 1
++// params.go T_feeds_indcall 313 0 1
+ // ParamFlags
+ //   0 ParamMayFeedIndirectCall
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[16],"ResultFlags":[]}
++// <endcallsites>
+ // <endfuncpreamble>
+ func T_feeds_indcall(x func()) {
+ 	if G != 20 {
+@@ -296,11 +316,12 @@ func T_feeds_indcall(x func()) {
+ 	}
+ }
+ 
+-// params.go T_feeds_indcall_and_if 305 0 1
++// params.go T_feeds_indcall_and_if 326 0 1
+ // ParamFlags
+ //   0 ParamMayFeedIndirectCall|ParamFeedsIfOrSwitch
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[48],"ResultFlags":[]}
++// <endcallsites>
+ // <endfuncpreamble>
+ func T_feeds_indcall_and_if(x func()) {
+ 	if x != nil {
+@@ -308,11 +329,12 @@ func T_feeds_indcall_and_if(x func()) {
+ 	}
+ }
+ 
+-// params.go T_feeds_indcall_with_copy 317 0 1
++// params.go T_feeds_indcall_with_copy 339 0 1
+ // ParamFlags
+ //   0 ParamFeedsIndirectCall
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[8],"ResultFlags":[]}
++// <endcallsites>
+ // <endfuncpreamble>
+ func T_feeds_indcall_with_copy(x func()) {
+ 	xx := x
+@@ -322,11 +344,12 @@ func T_feeds_indcall_with_copy(x func()) {
+ 	xx()
+ }
+ 
+-// params.go T_feeds_interface_method_call 331 0 1
++// params.go T_feeds_interface_method_call 354 0 1
+ // ParamFlags
+ //   0 ParamFeedsInterfaceMethodCall
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[2],"ResultFlags":[]}
++// <endcallsites>
+ // <endfuncpreamble>
+ func T_feeds_interface_method_call(i I) {
+ 	i.Blarg()
+diff --git a/src/cmd/compile/internal/inline/inlheur/testdata/props/returns.go b/src/cmd/compile/internal/inline/inlheur/testdata/props/returns.go
+index b13508807d..ef04516c09 100644
+--- a/src/cmd/compile/internal/inline/inlheur/testdata/props/returns.go
++++ b/src/cmd/compile/internal/inline/inlheur/testdata/props/returns.go
+@@ -11,23 +11,25 @@ package returns1
+ 
+ import "unsafe"
+ 
+-// returns.go T_simple_allocmem 20 0 1
++// returns.go T_simple_allocmem 21 0 1
+ // ResultFlags
+ //   0 ResultIsAllocatedMem
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[],"ResultFlags":[2]}
++// <endcallsites>
+ // <endfuncpreamble>
+ func T_simple_allocmem() *Bar {
+ 	return &Bar{}
+ }
+ 
+-// returns.go T_allocmem_two_returns 32 0 1
++// returns.go T_allocmem_two_returns 34 0 1
+ // ParamFlags
+ //   0 ParamFeedsIfOrSwitch
+ // ResultFlags
+ //   0 ResultIsAllocatedMem
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[32],"ResultFlags":[2]}
++// <endcallsites>
+ // <endfuncpreamble>
+ func T_allocmem_two_returns(x int) *Bar {
+ 	// multiple returns
+@@ -38,13 +40,14 @@ func T_allocmem_two_returns(x int) *Bar {
+ 	}
+ }
+ 
+-// returns.go T_allocmem_three_returns 49 0 1
++// returns.go T_allocmem_three_returns 52 0 1
+ // ParamFlags
+ //   0 ParamFeedsIfOrSwitch
+ // ResultFlags
+ //   0 ResultIsAllocatedMem
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[32],"ResultFlags":[2]}
++// <endcallsites>
+ // <endfuncpreamble>
+ func T_allocmem_three_returns(x int) []*Bar {
+ 	// more multiple returns
+@@ -59,22 +62,24 @@ func T_allocmem_three_returns(x int) []*Bar {
+ 	return make([]*Bar, 0, 10)
+ }
+ 
+-// returns.go T_return_nil 68 0 1
++// returns.go T_return_nil 72 0 1
+ // ResultFlags
+ //   0 ResultAlwaysSameConstant
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[],"ResultFlags":[8]}
++// <endcallsites>
+ // <endfuncpreamble>
+ func T_return_nil() *Bar {
+ 	// simple case: no alloc
+ 	return nil
+ }
+ 
+-// returns.go T_multi_return_nil 79 0 1
++// returns.go T_multi_return_nil 84 0 1
+ // ResultFlags
+ //   0 ResultAlwaysSameConstant
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[0,0],"ResultFlags":[8]}
++// <endcallsites>
+ // <endfuncpreamble>
+ func T_multi_return_nil(x, y bool) *Bar {
+ 	if x && y {
+@@ -83,11 +88,12 @@ func T_multi_return_nil(x, y bool) *Bar {
+ 	return nil
+ }
+ 
+-// returns.go T_multi_return_nil_anomoly 92 0 1
++// returns.go T_multi_return_nil_anomoly 98 0 1
+ // ResultFlags
+ //   0 ResultIsConcreteTypeConvertedToInterface
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[0,0],"ResultFlags":[4]}
++// <endcallsites>
+ // <endfuncpreamble>
+ func T_multi_return_nil_anomoly(x, y bool) Itf {
+ 	if x && y {
+@@ -98,9 +104,10 @@ func T_multi_return_nil_anomoly(x, y bool) Itf {
+ 	return barnil
+ }
+ 
+-// returns.go T_multi_return_some_nil 105 0 1
++// returns.go T_multi_return_some_nil 112 0 1
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[0,0],"ResultFlags":[0]}
++// <endcallsites>
+ // <endfuncpreamble>
+ func T_multi_return_some_nil(x, y bool) *Bar {
+ 	if x && y {
+@@ -110,11 +117,12 @@ func T_multi_return_some_nil(x, y bool) *Bar {
+ 	}
+ }
+ 
+-// returns.go T_mixed_returns 119 0 1
++// returns.go T_mixed_returns 127 0 1
+ // ParamFlags
+ //   0 ParamFeedsIfOrSwitch
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[32],"ResultFlags":[0]}
++// <endcallsites>
+ // <endfuncpreamble>
+ func T_mixed_returns(x int) *Bar {
+ 	// mix of alloc and non-alloc
+@@ -125,11 +133,12 @@ func T_mixed_returns(x int) *Bar {
+ 	}
+ }
+ 
+-// returns.go T_mixed_returns_slice 134 0 1
++// returns.go T_mixed_returns_slice 143 0 1
+ // ParamFlags
+ //   0 ParamFeedsIfOrSwitch
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[32],"ResultFlags":[0]}
++// <endcallsites>
+ // <endfuncpreamble>
+ func T_mixed_returns_slice(x int) []*Bar {
+ 	// mix of alloc and non-alloc
+@@ -145,7 +154,7 @@ func T_mixed_returns_slice(x int) []*Bar {
+ 	return ba[:]
+ }
+ 
+-// returns.go T_maps_and_channels 157 0 1
++// returns.go T_maps_and_channels 167 0 1
+ // ResultFlags
+ //   0 ResultNoInfo
+ //   1 ResultNoInfo
+@@ -153,17 +162,19 @@ func T_mixed_returns_slice(x int) []*Bar {
+ //   3 ResultAlwaysSameConstant
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[0,0],"ResultFlags":[0,0,0,8]}
++// <endcallsites>
+ // <endfuncpreamble>
+ func T_maps_and_channels(x int, b bool) (bool, map[int]int, chan bool, unsafe.Pointer) {
+ 	// maps and channels
+ 	return b, make(map[int]int), make(chan bool), nil
+ }
+ 
+-// returns.go T_assignment_to_named_returns 168 0 1
++// returns.go T_assignment_to_named_returns 179 0 1
+ // ParamFlags
+ //   0 ParamFeedsIfOrSwitch
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[32],"ResultFlags":[0,0]}
++// <endcallsites>
+ // <endfuncpreamble>
+ func T_assignment_to_named_returns(x int) (r1 *uint64, r2 *uint64) {
+ 	// assignments to named returns and then "return" not supported
+@@ -175,7 +186,7 @@ func T_assignment_to_named_returns(x int) (r1 *uint64, r2 *uint64) {
+ 	return
+ }
+ 
+-// returns.go T_named_returns_but_return_explicit_values 187 0 1
++// returns.go T_named_returns_but_return_explicit_values 199 0 1
+ // ParamFlags
+ //   0 ParamFeedsIfOrSwitch
+ // ResultFlags
+@@ -183,6 +194,7 @@ func T_assignment_to_named_returns(x int) (r1 *uint64, r2 *uint64) {
+ //   1 ResultIsAllocatedMem
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[32],"ResultFlags":[2,2]}
++// <endcallsites>
+ // <endfuncpreamble>
+ func T_named_returns_but_return_explicit_values(x int) (r1 *uint64, r2 *uint64) {
+ 	// named returns ok if all returns are non-empty
+@@ -194,21 +206,23 @@ func T_named_returns_but_return_explicit_values(x int) (r1 *uint64, r2 *uint64)
+ 	return rx1, rx2
+ }
+ 
+-// returns.go T_return_concrete_type_to_itf 203 0 1
++// returns.go T_return_concrete_type_to_itf 216 0 1
+ // ResultFlags
+ //   0 ResultIsConcreteTypeConvertedToInterface
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[0,0],"ResultFlags":[4]}
++// <endcallsites>
+ // <endfuncpreamble>
+ func T_return_concrete_type_to_itf(x, y int) Itf {
+ 	return &Bar{}
+ }
+ 
+-// returns.go T_return_concrete_type_to_itfwith_copy 213 0 1
++// returns.go T_return_concrete_type_to_itfwith_copy 227 0 1
+ // ResultFlags
+ //   0 ResultIsConcreteTypeConvertedToInterface
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[0,0],"ResultFlags":[4]}
++// <endcallsites>
+ // <endfuncpreamble>
+ func T_return_concrete_type_to_itfwith_copy(x, y int) Itf {
+ 	b := &Bar{}
+@@ -216,9 +230,10 @@ func T_return_concrete_type_to_itfwith_copy(x, y int) Itf {
+ 	return b
+ }
+ 
+-// returns.go T_return_concrete_type_to_itf_mixed 223 0 1
++// returns.go T_return_concrete_type_to_itf_mixed 238 0 1
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[0,0],"ResultFlags":[0]}
++// <endcallsites>
+ // <endfuncpreamble>
+ func T_return_concrete_type_to_itf_mixed(x, y int) Itf {
+ 	if x < y {
+@@ -228,11 +243,12 @@ func T_return_concrete_type_to_itf_mixed(x, y int) Itf {
+ 	return nil
+ }
+ 
+-// returns.go T_return_same_func 237 0 1
++// returns.go T_return_same_func 253 0 1
+ // ResultFlags
+ //   0 ResultAlwaysSameInlinableFunc
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[],"ResultFlags":[32]}
++// <endcallsites>
+ // <endfuncpreamble>
+ func T_return_same_func() func(int) int {
+ 	if G < 10 {
+@@ -242,9 +258,10 @@ func T_return_same_func() func(int) int {
+ 	}
+ }
+ 
+-// returns.go T_return_different_funcs 249 0 1
++// returns.go T_return_different_funcs 266 0 1
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[],"ResultFlags":[0]}
++// <endcallsites>
+ // <endfuncpreamble>
+ func T_return_different_funcs() func(int) int {
+ 	if G != 10 {
+@@ -254,15 +271,17 @@ func T_return_different_funcs() func(int) int {
+ 	}
+ }
+ 
+-// returns.go T_return_same_closure 267 0 1
++// returns.go T_return_same_closure 286 0 1
+ // ResultFlags
+ //   0 ResultAlwaysSameInlinableFunc
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[],"ResultFlags":[32]}
++// <endcallsites>
+ // <endfuncpreamble>
+-// returns.go T_return_same_closure.func1 268 0 1
++// returns.go T_return_same_closure.func1 287 0 1
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[0],"ResultFlags":[0]}
++// <endcallsites>
+ // <endfuncpreamble>
+ func T_return_same_closure() func(int) int {
+ 	p := func(q int) int { return q }
+@@ -273,19 +292,22 @@ func T_return_same_closure() func(int) int {
+ 	}
+ }
+ 
+-// returns.go T_return_different_closures 290 0 1
++// returns.go T_return_different_closures 312 0 1
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[],"ResultFlags":[0]}
++// <endcallsites>
+ // <endfuncpreamble>
+-// returns.go T_return_different_closures.func1 291 0 1
++// returns.go T_return_different_closures.func1 313 0 1
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[0],"ResultFlags":[0]}
++// <endcallsites>
+ // <endfuncpreamble>
+-// returns.go T_return_different_closures.func2 295 0 1
++// returns.go T_return_different_closures.func2 317 0 1
+ // ResultFlags
+ //   0 ResultAlwaysSameConstant
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[0],"ResultFlags":[8]}
++// <endcallsites>
+ // <endfuncpreamble>
+ func T_return_different_closures() func(int) int {
+ 	p := func(q int) int { return q }
+@@ -296,19 +318,22 @@ func T_return_different_closures() func(int) int {
+ 	}
+ }
+ 
+-// returns.go T_return_noninlinable 313 0 1
++// returns.go T_return_noninlinable 338 0 1
+ // ResultFlags
+ //   0 ResultAlwaysSameFunc
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[0],"ResultFlags":[16]}
++// <endcallsites>
+ // <endfuncpreamble>
+-// returns.go T_return_noninlinable.func1 314 0 1
++// returns.go T_return_noninlinable.func1 339 0 1
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[0],"ResultFlags":[0]}
++// <endcallsites>
+ // <endfuncpreamble>
+-// returns.go T_return_noninlinable.func1.1 315 0 1
++// returns.go T_return_noninlinable.func1.1 340 0 1
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[],"ResultFlags":[]}
++// <endcallsites>
+ // <endfuncpreamble>
+ func T_return_noninlinable(x int) func(int) int {
+ 	noti := func(q int) int {

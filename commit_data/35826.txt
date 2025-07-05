@@ -44,8 +44,403 @@ Date:   Thu Mar 1 14:23:46 2018 -0800
     Change-Id: I5518c825ad94443365c049a95677407b46ba55a1
     Reviewed-on: https://go-review.googlesource.com/97795
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/go/scanner/scanner.go      | 144 ++++++++++++++++++++++++++++++++---------
  src/go/scanner/scanner_test.go |  61 ++++++++++-------
  src/go/token/position.go       |  60 ++++++++++++-----
  3 files changed, 194 insertions(+), 71 deletions(-)
+
+diff --git a/src/go/scanner/scanner.go b/src/go/scanner/scanner.go
+index 5e0a4a4cec..83a6ca07fc 100644
+--- a/src/go/scanner/scanner.go
++++ b/src/go/scanner/scanner.go
+@@ -141,46 +141,26 @@ func (s *Scanner) error(offs int, msg string) {
+ 	s.ErrorCount++
+ }
+ 
+-var prefix = []byte("//line ")
+-
+-func (s *Scanner) interpretLineComment(text []byte) {
+-	if bytes.HasPrefix(text, prefix) {
+-		// get filename and line number, if any
+-		if i := bytes.LastIndex(text, []byte{':'}); i > 0 {
+-			if line, err := strconv.Atoi(string(text[i+1:])); err == nil && line > 0 {
+-				// valid //line filename:line comment
+-				filename := string(bytes.TrimSpace(text[len(prefix):i]))
+-				if filename != "" {
+-					filename = filepath.Clean(filename)
+-					if !filepath.IsAbs(filename) {
+-						// make filename relative to current directory
+-						filename = filepath.Join(s.dir, filename)
+-					}
+-				}
+-				// update scanner position
+-				s.file.AddLineInfo(s.lineOffset+len(text)+1, filename, line) // +len(text)+1 since comment applies to next line
+-			}
+-		}
+-	}
+-}
+-
+ func (s *Scanner) scanComment() string {
+ 	// initial '/' already consumed; s.ch == '/' || s.ch == '*'
+ 	offs := s.offset - 1 // position of initial '/'
+-	hasCR := false
++	next := -1           // position immediately following the comment; < 0 means invalid comment
++	numCR := 0
+ 
+ 	if s.ch == '/' {
+ 		//-style comment
++		// (the final '\n' is not considered part of the comment)
+ 		s.next()
+ 		for s.ch != '\n' && s.ch >= 0 {
+ 			if s.ch == '\r' {
+-				hasCR = true
++				numCR++
+ 			}
+ 			s.next()
+ 		}
+-		if offs == s.lineOffset {
+-			// comment starts at the beginning of the current line
+-			s.interpretLineComment(s.src[offs:s.offset])
++		// if we are at '\n', the position following the comment is afterwards
++		next = s.offset
++		if s.ch == '\n' {
++			next++
+ 		}
+ 		goto exit
+ 	}
+@@ -190,11 +170,12 @@ func (s *Scanner) scanComment() string {
+ 	for s.ch >= 0 {
+ 		ch := s.ch
+ 		if ch == '\r' {
+-			hasCR = true
++			numCR++
+ 		}
+ 		s.next()
+ 		if ch == '*' && s.ch == '/' {
+ 			s.next()
++			next = s.offset
+ 			goto exit
+ 		}
+ 	}
+@@ -203,13 +184,116 @@ func (s *Scanner) scanComment() string {
+ 
+ exit:
+ 	lit := s.src[offs:s.offset]
+-	if hasCR {
++
++	// On Windows, a (//-comment) line may end in "\r\n".
++	// Remove the final '\r' before analyzing the text for
++	// line directives (matching the compiler). Remove any
++	// other '\r' afterwards (matching the pre-existing be-
++	// havior of the scanner).
++	if numCR > 0 && len(lit) >= 2 && lit[1] == '/' && lit[len(lit)-1] == '\r' {
++		lit = lit[:len(lit)-1]
++		numCR--
++	}
++
++	// interpret line directives
++	// (//line directives must start at the beginning of the current line)
++	if next >= 0 /* implies valid comment */ && (lit[1] == '*' || offs == s.lineOffset) && bytes.HasPrefix(lit[2:], prefix) {
++		s.updateLineInfo(next, offs, lit)
++	}
++
++	if numCR > 0 {
+ 		lit = stripCR(lit, lit[1] == '*')
+ 	}
+ 
+ 	return string(lit)
+ }
+ 
++var prefix = []byte("line ")
++
++// updateLineInfo parses the incoming comment text at offset offs
++// as a line directive. If successful, it updates the line info table
++// for the position next per the line directive.
++func (s *Scanner) updateLineInfo(next, offs int, text []byte) {
++	// the existing code used to ignore incorrect line/column values
++	// TODO(gri) adjust once we agree on the directive syntax (issue #24183)
++	reportErrors := false
++
++	// extract comment text
++	if text[1] == '*' {
++		text = text[:len(text)-2] // lop off trailing "*/"
++	}
++	text = text[7:] // lop off leading "//line " or "/*line "
++	offs += 7
++
++	i, n, ok := trailingDigits(text)
++	if i == 0 {
++		return // ignore (not a line directive)
++	}
++	// i > 0
++
++	if !ok {
++		// text has a suffix :xxx but xxx is not a number
++		if reportErrors {
++			s.error(offs+i, "invalid line number: "+string(text[i:]))
++		}
++		return
++	}
++
++	var line, col int
++	i2, n2, ok2 := trailingDigits(text[:i-1])
++	if ok2 {
++		//line filename:line:col
++		i, i2 = i2, i
++		line, col = n2, n
++		if col == 0 {
++			if reportErrors {
++				s.error(offs+i2, "invalid column number: "+string(text[i2:]))
++			}
++			return
++		}
++		text = text[:i2-1] // lop off ":col"
++	} else {
++		//line filename:line
++		line = n
++	}
++
++	if line == 0 {
++		if reportErrors {
++			s.error(offs+i, "invalid line number: "+string(text[i:]))
++		}
++		return
++	}
++
++	// the existing code used to trim whitespace around filenames
++	// TODO(gri) adjust once we agree on the directive syntax (issue #24183)
++	filename := string(bytes.TrimSpace(text[:i-1])) // lop off ":line", and trim white space
++
++	// If we have a column (//line filename:line:col form),
++	// an empty filename means to use the previous filename.
++	if filename != "" {
++		filename = filepath.Clean(filename)
++		if !filepath.IsAbs(filename) {
++			// make filename relative to current directory
++			filename = filepath.Join(s.dir, filename)
++		}
++	} else if ok2 {
++		// use existing filename
++		filename = s.file.Position(s.file.Pos(offs)).Filename
++	}
++
++	s.file.AddLineColumnInfo(next, filename, line, col)
++}
++
++func trailingDigits(text []byte) (int, int, bool) {
++	i := bytes.LastIndexByte(text, ':') // look from right (Windows filenames may contain ':')
++	if i < 0 {
++		return 0, 0, false // no ":"
++	}
++	// i >= 0
++	n, err := strconv.ParseUint(string(text[i+1:]), 10, 0)
++	return i + 1, int(n), err == nil
++}
++
+ func (s *Scanner) findLineEnd() bool {
+ 	// initial '/' already consumed
+ 
+diff --git a/src/go/scanner/scanner_test.go b/src/go/scanner/scanner_test.go
+index f70d9322ac..7204c38537 100644
+--- a/src/go/scanner/scanner_test.go
++++ b/src/go/scanner/scanner_test.go
+@@ -503,39 +503,52 @@ func TestSemis(t *testing.T) {
+ }
+ 
+ type segment struct {
+-	srcline  string // a line of source text
+-	filename string // filename for current token
+-	line     int    // line number for current token
++	srcline      string // a line of source text
++	filename     string // filename for current token
++	line, column int    // line number for current token
+ }
+ 
+ var segments = []segment{
+ 	// exactly one token per line since the test consumes one token per segment
+-	{"  line1", filepath.Join("dir", "TestLineComments"), 1},
+-	{"\nline2", filepath.Join("dir", "TestLineComments"), 2},
+-	{"\nline3  //line File1.go:100", filepath.Join("dir", "TestLineComments"), 3}, // bad line comment, ignored
+-	{"\nline4", filepath.Join("dir", "TestLineComments"), 4},
+-	{"\n//line File1.go:100\n  line100", filepath.Join("dir", "File1.go"), 100},
+-	{"\n//line  \t :42\n  line1", "", 42},
+-	{"\n//line File2.go:200\n  line200", filepath.Join("dir", "File2.go"), 200},
+-	{"\n//line foo\t:42\n  line42", filepath.Join("dir", "foo"), 42},
+-	{"\n //line foo:42\n  line44", filepath.Join("dir", "foo"), 44},           // bad line comment, ignored
+-	{"\n//line foo 42\n  line46", filepath.Join("dir", "foo"), 46},            // bad line comment, ignored
+-	{"\n//line foo:42 extra text\n  line48", filepath.Join("dir", "foo"), 48}, // bad line comment, ignored
+-	{"\n//line ./foo:42\n  line42", filepath.Join("dir", "foo"), 42},
+-	{"\n//line a/b/c/File1.go:100\n  line100", filepath.Join("dir", "a", "b", "c", "File1.go"), 100},
++	{"  line1", filepath.Join("dir", "TestLineDirectives"), 1, 3},
++	{"\nline2", filepath.Join("dir", "TestLineDirectives"), 2, 1},
++	{"\nline3  //line File1.go:100", filepath.Join("dir", "TestLineDirectives"), 3, 1}, // bad line comment, ignored
++	{"\nline4", filepath.Join("dir", "TestLineDirectives"), 4, 1},
++	{"\n//line File1.go:100\n  line100", filepath.Join("dir", "File1.go"), 100, 0},
++	{"\n//line  \t :42\n  line1", "", 42, 0},
++	{"\n//line File2.go:200\n  line200", filepath.Join("dir", "File2.go"), 200, 0},
++	{"\n//line foo\t:42\n  line42", filepath.Join("dir", "foo"), 42, 0},
++	{"\n //line foo:42\n  line44", filepath.Join("dir", "foo"), 44, 0},           // bad line comment, ignored
++	{"\n//line foo 42\n  line46", filepath.Join("dir", "foo"), 46, 0},            // bad line comment, ignored
++	{"\n//line foo:42 extra text\n  line48", filepath.Join("dir", "foo"), 48, 0}, // bad line comment, ignored
++	{"\n//line ./foo:42\n  line42", filepath.Join("dir", "foo"), 42, 0},
++	{"\n//line a/b/c/File1.go:100\n  line100", filepath.Join("dir", "a", "b", "c", "File1.go"), 100, 0},
++
++	// tests for new line directive syntax
++	{"\n//line :100\na1", "", 100, 0}, // missing filename means empty filename
++	{"\n//line bar:100\nb1", filepath.Join("dir", "bar"), 100, 0},
++	{"\n//line :100:10\nc1", filepath.Join("dir", "bar"), 100, 10}, // missing filename means current filename
++	{"\n//line foo:100:10\nd1", filepath.Join("dir", "foo"), 100, 10},
++
++	{"\n/*line :100*/a2", "", 100, 0}, // missing filename means empty filename
++	{"\n/*line bar:100*/b2", filepath.Join("dir", "bar"), 100, 0},
++	{"\n/*line :100:10*/c2", filepath.Join("dir", "bar"), 100, 10}, // missing filename means current filename
++	{"\n/*line foo:100:10*/d2", filepath.Join("dir", "foo"), 100, 10},
++	{"\n/*line foo:100:10*/    e2", filepath.Join("dir", "foo"), 100, 14}, // line-directive relative column
++	{"\n/*line foo:100:10*/\n\nf2", filepath.Join("dir", "foo"), 102, 1},  // absolute column since on new line
+ }
+ 
+ var unixsegments = []segment{
+-	{"\n//line /bar:42\n  line42", "/bar", 42},
++	{"\n//line /bar:42\n  line42", "/bar", 42, 0},
+ }
+ 
+ var winsegments = []segment{
+-	{"\n//line c:\\bar:42\n  line42", "c:\\bar", 42},
+-	{"\n//line c:\\dir\\File1.go:100\n  line100", "c:\\dir\\File1.go", 100},
++	{"\n//line c:\\bar:42\n  line42", "c:\\bar", 42, 0},
++	{"\n//line c:\\dir\\File1.go:100\n  line100", "c:\\dir\\File1.go", 100, 0},
+ }
+ 
+-// Verify that comments of the form "//line filename:line" are interpreted correctly.
+-func TestLineComments(t *testing.T) {
++// Verify that line directives are interpreted correctly.
++func TestLineDirectives(t *testing.T) {
+ 	segs := segments
+ 	if runtime.GOOS == "windows" {
+ 		segs = append(segs, winsegments...)
+@@ -551,8 +564,8 @@ func TestLineComments(t *testing.T) {
+ 
+ 	// verify scan
+ 	var S Scanner
+-	file := fset.AddFile(filepath.Join("dir", "TestLineComments"), fset.Base(), len(src))
+-	S.Init(file, []byte(src), nil, dontInsertSemis)
++	file := fset.AddFile(filepath.Join("dir", "TestLineDirectives"), fset.Base(), len(src))
++	S.Init(file, []byte(src), func(pos token.Position, msg string) { t.Error(Error{pos, msg}) }, dontInsertSemis)
+ 	for _, s := range segs {
+ 		p, _, lit := S.Scan()
+ 		pos := file.Position(p)
+@@ -560,7 +573,7 @@ func TestLineComments(t *testing.T) {
+ 			Filename: s.filename,
+ 			Offset:   pos.Offset,
+ 			Line:     s.line,
+-			Column:   pos.Column,
++			Column:   s.column,
+ 		})
+ 	}
+ 
+diff --git a/src/go/token/position.go b/src/go/token/position.go
+index 88d74168a1..241133fe26 100644
+--- a/src/go/token/position.go
++++ b/src/go/token/position.go
+@@ -30,7 +30,9 @@ func (pos *Position) IsValid() bool { return pos.Line > 0 }
+ // String returns a string in one of several forms:
+ //
+ //	file:line:column    valid position with file name
++//	file:line           valid position with file name but no column (column == 0)
+ //	line:column         valid position without file name
++//	line                valid position without file name and no column (column == 0)
+ //	file                invalid position with file name
+ //	-                   invalid position without file name
+ //
+@@ -40,7 +42,10 @@ func (pos Position) String() string {
+ 		if s != "" {
+ 			s += ":"
+ 		}
+-		s += fmt.Sprintf("%d:%d", pos.Line, pos.Column)
++		s += fmt.Sprintf("%d", pos.Line)
++		if pos.Column != 0 {
++			s += fmt.Sprintf(":%d", pos.Column)
++		}
+ 	}
+ 	if s == "" {
+ 		s = "-"
+@@ -204,28 +209,36 @@ func (f *File) SetLinesForContent(content []byte) {
+ 	f.mutex.Unlock()
+ }
+ 
+-// A lineInfo object describes alternative file and line number
+-// information (such as provided via a //line comment in a .go
+-// file) for a given file offset.
++// A lineInfo object describes alternative file, line, and column
++// number information (such as provided via a //line directive)
++// for a given file offset.
+ type lineInfo struct {
+ 	// fields are exported to make them accessible to gob
+-	Offset   int
+-	Filename string
+-	Line     int
++	Offset       int
++	Filename     string
++	Line, Column int
+ }
+ 
+-// AddLineInfo adds alternative file and line number information for
+-// a given file offset. The offset must be larger than the offset for
+-// the previously added alternative line info and smaller than the
+-// file size; otherwise the information is ignored.
+-//
+-// AddLineInfo is typically used to register alternative position
+-// information for //line filename:line comments in source files.
++// AddLineInfo is like AddLineColumnInfo with a column = 1 argument.
++// It is here for backward-compatibility for code prior to Go 1.11.
+ //
+ func (f *File) AddLineInfo(offset int, filename string, line int) {
++	f.AddLineColumnInfo(offset, filename, line, 1)
++}
++
++// AddLineColumnInfo adds alternative file, line, and column number
++// information for a given file offset. The offset must be larger
++// than the offset for the previously added alternative line info
++// and smaller than the file size; otherwise the information is
++// ignored.
++//
++// AddLineColumnInfo is typically used to register alternative position
++// information for line directives such as //line filename:line:column.
++//
++func (f *File) AddLineColumnInfo(offset int, filename string, line, column int) {
+ 	f.mutex.Lock()
+ 	if i := len(f.infos); i == 0 || f.infos[i-1].Offset < offset && offset < f.size {
+-		f.infos = append(f.infos, lineInfo{offset, filename, line})
++		f.infos = append(f.infos, lineInfo{offset, filename, line, column})
+ 	}
+ 	f.mutex.Unlock()
+ }
+@@ -275,12 +288,25 @@ func (f *File) unpack(offset int, adjusted bool) (filename string, line, column
+ 		line, column = i+1, offset-f.lines[i]+1
+ 	}
+ 	if adjusted && len(f.infos) > 0 {
+-		// almost no files have extra line infos
++		// few files have extra line infos
+ 		if i := searchLineInfos(f.infos, offset); i >= 0 {
+ 			alt := &f.infos[i]
+ 			filename = alt.Filename
+ 			if i := searchInts(f.lines, alt.Offset); i >= 0 {
+-				line += alt.Line - i - 1
++				// i+1 is the line at which the alternative position was recorded
++				d := line - (i + 1) // line distance from alternative position base
++				line = alt.Line + d
++				if alt.Column == 0 {
++					// alternative column is unknown => relative column is unknown
++					// (the current specification for line directives requires
++					// this to apply until the next PosBase/line directive,
++					// not just until the new newline)
++					column = 0
++				} else if d == 0 {
++					// the alternative position base is on the current line
++					// => column is relative to alternative column
++					column = alt.Column + (offset - alt.Offset)
++				}
+ 			}
+ 		}
+ 	}

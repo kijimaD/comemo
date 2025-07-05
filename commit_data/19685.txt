@@ -8,7 +8,40 @@ Date:   Tue Jul 8 14:47:52 2014 -0400
     R=golang-codereviews, bradfitz, minux
     CC=golang-codereviews
     https://golang.org/cl/110400043
-
+---
  src/pkg/runtime/crash_test.go   | 5 +++--
  src/pkg/runtime/runtime_test.go | 5 +++--
  2 files changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/runtime/crash_test.go b/src/pkg/runtime/crash_test.go
+index b0277f293c..8552d2fe66 100644
+--- a/src/pkg/runtime/crash_test.go
++++ b/src/pkg/runtime/crash_test.go
+@@ -32,8 +32,9 @@ func testEnv(cmd *exec.Cmd) *exec.Cmd {
+ }
+ 
+ func executeTest(t *testing.T, templ string, data interface{}) string {
+-	if runtime.GOOS == "nacl" {
+-		t.Skip("skipping on nacl")
++	switch runtime.GOOS {
++	case "android", "nacl":
++		t.Skipf("skipping on %s", runtime.GOOS)
+ 	}
+ 
+ 	checkStaleRuntime(t)
+diff --git a/src/pkg/runtime/runtime_test.go b/src/pkg/runtime/runtime_test.go
+index a726f500d1..5e24e2570c 100644
+--- a/src/pkg/runtime/runtime_test.go
++++ b/src/pkg/runtime/runtime_test.go
+@@ -95,8 +95,9 @@ func BenchmarkDeferMany(b *testing.B) {
+ // The value reported will include the padding between runtime.gogo and the
+ // next function in memory. That's fine.
+ func TestRuntimeGogoBytes(t *testing.T) {
+-	if GOOS == "nacl" {
+-		t.Skip("skipping on nacl")
++	switch GOOS {
++	case "android", "nacl":
++		t.Skipf("skipping on %s", GOOS)
+ 	}
+ 
+ 	dir, err := ioutil.TempDir("", "go-build")

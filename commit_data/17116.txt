@@ -64,7 +64,7 @@ Date:   Fri Aug 9 06:43:17 2013 +0200
     R=rsc, dave, bradfitz
     CC=golang-dev
     https://golang.org/cl/12424043
-
+---
  src/cmd/5c/reg.c   |   4 +--
  src/cmd/5g/cgen.c  |  10 ++++++
  src/cmd/5g/ggen.c  |   9 ++++-
@@ -74,3 +74,456 @@ Date:   Fri Aug 9 06:43:17 2013 +0200
  src/cmd/5l/asm.c   |   2 ++
  src/cmd/5l/optab.c |   4 +--
  8 files changed, 136 insertions(+), 49 deletions(-)
+
+diff --git a/src/cmd/5c/reg.c b/src/cmd/5c/reg.c
+index c12bd4711d..3d67872b40 100644
+--- a/src/cmd/5c/reg.c
++++ b/src/cmd/5c/reg.c
+@@ -559,9 +559,9 @@ addmove(Reg *r, int bn, int rn, int f)
+ 
+ 	p1->as = AMOVW;
+ 	if(v->etype == TCHAR || v->etype == TUCHAR)
+-		p1->as = AMOVB;
++		p1->as = AMOVBS;
+ 	if(v->etype == TSHORT || v->etype == TUSHORT)
+-		p1->as = AMOVH;
++		p1->as = AMOVHS;
+ 	if(v->etype == TFLOAT)
+ 		p1->as = AMOVF;
+ 	if(v->etype == TDOUBLE)
+diff --git a/src/cmd/5g/cgen.c b/src/cmd/5g/cgen.c
+index 997eae7cfe..0c5700bb0c 100644
+--- a/src/cmd/5g/cgen.c
++++ b/src/cmd/5g/cgen.c
+@@ -466,6 +466,16 @@ abop:	// asymmetric binary
+ 		cgen(nl, &n1);
+ 	}
+ 	gins(a, &n2, &n1);
++	// Normalize result for types smaller than word.
++	if(n->type->width < widthptr) {
++		switch(n->op) {
++		case OADD:
++		case OSUB:
++		case OMUL:
++			gins(optoas(OAS, n->type), &n1, &n1);
++			break;
++		}
++	}
+ 	gmove(&n1, res);
+ 	regfree(&n1);
+ 	if(n2.op != OLITERAL)
+diff --git a/src/cmd/5g/ggen.c b/src/cmd/5g/ggen.c
+index 43354724dc..288c38588d 100644
+--- a/src/cmd/5g/ggen.c
++++ b/src/cmd/5g/ggen.c
+@@ -640,6 +640,8 @@ cgen_shift(int op, int bounded, Node *nl, Node *nr, Node *res)
+ 			gshift(AMOVW, &n2, SHIFT_LL, v, &n1);
+ 			gshift(AORR, &n2, SHIFT_LR, w-v, &n1);
+ 			regfree(&n2);
++			// Ensure sign/zero-extended result.
++			gins(optoas(OAS, nl->type), &n1, &n1);
+ 		}
+ 		gmove(&n1, res);
+ 		regfree(&n1);
+@@ -665,6 +667,8 @@ cgen_shift(int op, int bounded, Node *nl, Node *nr, Node *res)
+ 			else // OLSH
+ 				gshift(AMOVW, &n1, SHIFT_LL, sc, &n1);
+ 		}
++		if(w < 32 && op == OLSH)
++			gins(optoas(OAS, nl->type), &n1, &n1);
+ 		gmove(&n1, res);
+ 		regfree(&n1);
+ 		return;
+@@ -738,6 +742,9 @@ cgen_shift(int op, int bounded, Node *nl, Node *nr, Node *res)
+ 	regfree(&n3);
+ 
+ 	patch(p3, pc);
++	// Left-shift of smaller word must be sign/zero-extended.
++	if(w < 32 && op == OLSH)
++		gins(optoas(OAS, nl->type), &n2, &n2);
+ 	gmove(&n2, res);
+ 
+ 	regfree(&n1);
+@@ -798,7 +805,7 @@ clearfat(Node *nl)
+ 	}
+ 
+ 	while(c > 0) {
+-		p = gins(AMOVBU, &nz, &dst);
++		p = gins(AMOVB, &nz, &dst);
+ 		p->to.type = D_OREG;
+ 		p->to.offset = 1;
+  		p->scond |= C_PBIT;
+diff --git a/src/cmd/5g/gsubr.c b/src/cmd/5g/gsubr.c
+index 2f0009f36c..6f0a072ccc 100644
+--- a/src/cmd/5g/gsubr.c
++++ b/src/cmd/5g/gsubr.c
+@@ -706,16 +706,24 @@ gmove(Node *f, Node *t)
+ 	 * integer copy and truncate
+ 	 */
+ 	case CASE(TINT8, TINT8):	// same size
++		if(!ismem(f)) {
++			a = AMOVB;
++			break;
++		}
+ 	case CASE(TUINT8, TINT8):
+ 	case CASE(TINT16, TINT8):	// truncate
+ 	case CASE(TUINT16, TINT8):
+ 	case CASE(TINT32, TINT8):
+ 	case CASE(TUINT32, TINT8):
+-		a = AMOVB;
++		a = AMOVBS;
+ 		break;
+ 
+-	case CASE(TINT8, TUINT8):
+ 	case CASE(TUINT8, TUINT8):
++		if(!ismem(f)) {
++			a = AMOVB;
++			break;
++		}
++	case CASE(TINT8, TUINT8):
+ 	case CASE(TINT16, TUINT8):
+ 	case CASE(TUINT16, TUINT8):
+ 	case CASE(TINT32, TUINT8):
+@@ -725,7 +733,7 @@ gmove(Node *f, Node *t)
+ 
+ 	case CASE(TINT64, TINT8):	// truncate low word
+ 	case CASE(TUINT64, TINT8):
+-		a = AMOVB;
++		a = AMOVBS;
+ 		goto trunc64;
+ 
+ 	case CASE(TINT64, TUINT8):
+@@ -734,14 +742,22 @@ gmove(Node *f, Node *t)
+ 		goto trunc64;
+ 
+ 	case CASE(TINT16, TINT16):	// same size
++		if(!ismem(f)) {
++			a = AMOVH;
++			break;
++		}
+ 	case CASE(TUINT16, TINT16):
+ 	case CASE(TINT32, TINT16):	// truncate
+ 	case CASE(TUINT32, TINT16):
+-		a = AMOVH;
++		a = AMOVHS;
+ 		break;
+ 
+-	case CASE(TINT16, TUINT16):
+ 	case CASE(TUINT16, TUINT16):
++		if(!ismem(f)) {
++			a = AMOVH;
++			break;
++		}
++	case CASE(TINT16, TUINT16):
+ 	case CASE(TINT32, TUINT16):
+ 	case CASE(TUINT32, TUINT16):
+ 		a = AMOVHU;
+@@ -749,7 +765,7 @@ gmove(Node *f, Node *t)
+ 
+ 	case CASE(TINT64, TINT16):	// truncate low word
+ 	case CASE(TUINT64, TINT16):
+-		a = AMOVH;
++		a = AMOVHS;
+ 		goto trunc64;
+ 
+ 	case CASE(TINT64, TUINT16):
+@@ -801,7 +817,7 @@ gmove(Node *f, Node *t)
+ 	case CASE(TINT8, TUINT16):
+ 	case CASE(TINT8, TINT32):
+ 	case CASE(TINT8, TUINT32):
+-		a = AMOVB;
++		a = AMOVBS;
+ 		goto rdst;
+ 	case CASE(TINT8, TINT64):	// convert via int32
+ 	case CASE(TINT8, TUINT64):
+@@ -821,7 +837,7 @@ gmove(Node *f, Node *t)
+ 
+ 	case CASE(TINT16, TINT32):	// sign extend int16
+ 	case CASE(TINT16, TUINT32):
+-		a = AMOVH;
++		a = AMOVHS;
+ 		goto rdst;
+ 	case CASE(TINT16, TINT64):	// convert via int32
+ 	case CASE(TINT16, TUINT64):
+@@ -893,13 +909,13 @@ gmove(Node *f, Node *t)
+ 		ta = AMOVW;
+ 		switch(tt) {
+ 		case TINT8:
+-			ta = AMOVB;
++			ta = AMOVBS;
+ 			break;
+ 		case TUINT8:
+ 			ta = AMOVBU;
+ 			break;
+ 		case TINT16:
+-			ta = AMOVH;
++			ta = AMOVHS;
+ 			break;
+ 		case TUINT16:
+ 			ta = AMOVHU;
+@@ -940,13 +956,13 @@ gmove(Node *f, Node *t)
+ 		fa = AMOVW;
+ 		switch(ft) {
+ 		case TINT8:
+-			fa = AMOVB;
++			fa = AMOVBS;
+ 			break;
+ 		case TUINT8:
+ 			fa = AMOVBU;
+ 			break;
+ 		case TINT16:
+-			fa = AMOVH;
++			fa = AMOVHS;
+ 			break;
+ 		case TUINT16:
+ 			fa = AMOVHU;
+@@ -1189,7 +1205,7 @@ checkref(Node *n, int force)
+ 	m1.xoffset = 0;
+ 	m1.op = OINDREG;
+ 	m1.type = types[TUINT8];
+-	gins(AMOVBU, &m1, &m2);
++	gins(AMOVB, &m1, &m2);
+ 	regfree(&m2);
+ 	regfree(&m1);
+ }
+@@ -1575,16 +1591,19 @@ optoas(int op, Type *t)
+ 		break;
+ 
+ 	case CASE(OAS, TBOOL):
+-	case CASE(OAS, TINT8):
+ 		a = AMOVB;
+ 		break;
+ 
++	case CASE(OAS, TINT8):
++		a = AMOVBS;
++		break;
++
+ 	case CASE(OAS, TUINT8):
+ 		a = AMOVBU;
+ 		break;
+ 
+ 	case CASE(OAS, TINT16):
+-		a = AMOVH;
++		a = AMOVHS;
+ 		break;
+ 
+ 	case CASE(OAS, TUINT16):
+diff --git a/src/cmd/5g/peep.c b/src/cmd/5g/peep.c
+index 78785bfe25..b1db361164 100644
+--- a/src/cmd/5g/peep.c
++++ b/src/cmd/5g/peep.c
+@@ -35,8 +35,11 @@
+ #include "opt.h"
+ 
+ int	xtramodes(Reg*, Adr*);
++int	shortprop(Reg *r);
+ int	shiftprop(Reg *r);
+ void	constprop(Adr *c1, Adr *v1, Reg *r);
++
++Reg*	findpre(Reg *r, Adr *v);
+ void	predicate(void);
+ int	copyau1(Prog *p, Adr *v);
+ int	isdconst(Addr *a);
+@@ -45,10 +48,9 @@ void
+ peep(void)
+ {
+ 	Reg *r, *r1, *r2;
+-	Prog *p, *p1;
++	Prog *p;
+ 	int t;
+ 
+-	p1 = nil;
+ /*
+  * complete R structure
+  */
+@@ -101,6 +103,8 @@ loop1:
+ //			}
+ 			break;
+ 
++		case AMOVB:
++		case AMOVH:
+ 		case AMOVW:
+ 		case AMOVF:
+ 		case AMOVD:
+@@ -120,6 +124,16 @@ loop1:
+ 			}
+ 			break;
+ 
++		case AMOVHS:
++		case AMOVHU:
++		case AMOVBS:
++		case AMOVBU:
++			if(p->from.type == D_REG) {
++				if(shortprop(r))
++					t++;
++			}
++			break;
++
+ #ifdef NOTDEF
+ 			if(p->scond == C_SCOND_NONE)
+ 			if(regtyp(&p->to))
+@@ -133,7 +147,6 @@ loop1:
+ 	if(t)
+ 		goto loop1;
+ 
+-
+ 	for(r=firstr; r!=R; r=r->link) {
+ 		p = r->prog;
+ 		switch(p->as) {
+@@ -151,30 +164,6 @@ loop1:
+ 				p->reg = NREG;
+ 			}
+ 			break;
+-
+-		case AMOVH:
+-		case AMOVHS:
+-		case AMOVHU:
+-		case AMOVB:
+-		case AMOVBS:
+-		case AMOVBU:
+-			/*
+-			 * look for MOVB x,R; MOVB R,R
+-			 */
+-			r1 = r->link;
+-			if(p->to.type != D_REG)
+-				break;
+-			if(r1 == R)
+-				break;
+-			p1 = r1->prog;
+-			if(p1->as != p->as)
+-				break;
+-			if(p1->from.type != D_REG || p1->from.reg != p->to.reg)
+-				break;
+-			if(p1->to.type != D_REG || p1->to.reg != p->to.reg)
+-				break;
+-			excise(r1);
+-			break;
+ 		}
+ 	}
+ 
+@@ -393,6 +382,8 @@ subprop(Reg *r0)
+ 
+ 		case AMOVF:
+ 		case AMOVD:
++		case AMOVB:
++		case AMOVH:
+ 		case AMOVW:
+ 			if(p->to.type == v1->type)
+ 			if(p->to.reg == v1->reg)
+@@ -587,6 +578,64 @@ constprop(Adr *c1, Adr *v1, Reg *r)
+ 	}
+ }
+ 
++/*
++ * shortprop eliminates redundant zero/sign extensions.
++ *
++ *   MOVBS x, R
++ *   <no use R>
++ *   MOVBS R, R'
++ *
++ * changed to
++ *
++ *   MOVBS x, R
++ *   ...
++ *   MOVB  R, R' (compiled to mov)
++ *
++ * MOVBS above can be a MOVBS, MOVBU, MOVHS or MOVHU.
++ */
++int
++shortprop(Reg *r)
++{
++	Prog *p, *p1;
++	Reg *r1;
++
++	p = r->prog;
++	r1 = findpre(r, &p->from);
++	if(r1 == R)
++		return 0;
++
++	p1 = r1->prog;
++	if(p1->as == p->as) {
++		// Two consecutive extensions.
++		goto gotit;
++	}
++
++	if(p1->as == AMOVW && isdconst(&p1->from)
++	   && p1->from.offset >= 0 && p1->from.offset < 128) {
++		// Loaded an immediate.
++		goto gotit;
++	}
++
++	return 0;
++
++gotit:
++	if(debug['P'])
++		print("shortprop\n%P\n%P", p1, p);
++	switch(p->as) {
++	case AMOVBS:
++	case AMOVBU:
++		p->as = AMOVB;
++		break;
++	case AMOVHS:
++	case AMOVHU:
++		p->as = AMOVH;
++		break;
++	}
++	if(debug['P'])
++		print(" => %A\n", p->as);
++	return 1;
++}
++
+ /*
+  * ASLL x,y,w
+  * .. (not use w, not set x y w)
+diff --git a/src/cmd/5g/reg.c b/src/cmd/5g/reg.c
+index 3230ec33c8..0fa6c54b17 100644
+--- a/src/cmd/5g/reg.c
++++ b/src/cmd/5g/reg.c
+@@ -822,7 +822,7 @@ addmove(Reg *r, int bn, int rn, int f)
+ 		print("What is this %E\n", v->etype);
+ 
+ 	case TINT8:
+-		p1->as = AMOVB;
++		p1->as = AMOVBS;
+ 		break;
+ 	case TBOOL:
+ 	case TUINT8:
+@@ -830,7 +830,7 @@ addmove(Reg *r, int bn, int rn, int f)
+ 		p1->as = AMOVBU;
+ 		break;
+ 	case TINT16:
+-		p1->as = AMOVH;
++		p1->as = AMOVHS;
+ 		break;
+ 	case TUINT16:
+ 		p1->as = AMOVHU;
+diff --git a/src/cmd/5l/asm.c b/src/cmd/5l/asm.c
+index 92296b5bc9..28bb406829 100644
+--- a/src/cmd/5l/asm.c
++++ b/src/cmd/5l/asm.c
+@@ -1639,6 +1639,8 @@ oprrr(int a, int sc)
+ 	case ACMP:	return o | (0xa<<21) | (1<<20);
+ 	case ACMN:	return o | (0xb<<21) | (1<<20);
+ 	case AORR:	return o | (0xc<<21);
++	case AMOVB:
++	case AMOVH:
+ 	case AMOVW:	return o | (0xd<<21);
+ 	case ABIC:	return o | (0xe<<21);
+ 	case AMVN:	return o | (0xf<<21);
+diff --git a/src/cmd/5l/optab.c b/src/cmd/5l/optab.c
+index dfd93f31d1..dc9e5e99f8 100644
+--- a/src/cmd/5l/optab.c
++++ b/src/cmd/5l/optab.c
+@@ -94,10 +94,10 @@ Optab	optab[] =
+ 	{ AMVN,		C_LCON,	C_NONE,	C_REG,		13, 8, 0,	LFROM },
+ 	{ ACMP,		C_LCON,	C_REG,	C_NONE,		13, 8, 0,	LFROM },
+ 
+-	{ AMOVB,	C_REG,	C_NONE,	C_REG,		14, 8, 0 },
++	{ AMOVB,	C_REG,	C_NONE,	C_REG,		 1, 4, 0 },
+ 	{ AMOVBS,	C_REG,	C_NONE,	C_REG,		14, 8, 0 },
+ 	{ AMOVBU,	C_REG,	C_NONE,	C_REG,		58, 4, 0 },
+-	{ AMOVH,	C_REG,	C_NONE,	C_REG,		14, 8, 0 },
++	{ AMOVH,	C_REG,	C_NONE,	C_REG,		 1, 4, 0 },
+ 	{ AMOVHS,	C_REG,	C_NONE,	C_REG,		14, 8, 0 },
+ 	{ AMOVHU,	C_REG,	C_NONE,	C_REG,		14, 8, 0 },
+ 

@@ -9,9 +9,62 @@ Date:   Thu Jun 18 16:17:13 2020 +0300
     Run-TryBot: Martin Möhrmann <moehrmann@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  doc/progs/run.go                       | 2 +-
  src/cmd/cover/cover_test.go            | 2 +-
  src/cmd/go/internal/version/version.go | 2 +-
  src/runtime/mkpreempt.go               | 2 +-
  4 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/doc/progs/run.go b/doc/progs/run.go
+index baef3f79f9..8ac75cdcff 100644
+--- a/doc/progs/run.go
++++ b/doc/progs/run.go
+@@ -105,7 +105,7 @@ func test(tmpdir, file, want string) error {
+ 
+ 	// Canonicalize output.
+ 	out = bytes.TrimRight(out, "\n")
+-	out = bytes.Replace(out, []byte{'\n'}, []byte{' '}, -1)
++	out = bytes.ReplaceAll(out, []byte{'\n'}, []byte{' '})
+ 
+ 	// Check the result.
+ 	match, err := regexp.Match(want, out)
+diff --git a/src/cmd/cover/cover_test.go b/src/cmd/cover/cover_test.go
+index 8a56e39011..1c252e6e45 100644
+--- a/src/cmd/cover/cover_test.go
++++ b/src/cmd/cover/cover_test.go
+@@ -179,7 +179,7 @@ func TestCover(t *testing.T) {
+ 	}
+ 	lines := bytes.Split(file, []byte("\n"))
+ 	for i, line := range lines {
+-		lines[i] = bytes.Replace(line, []byte("LINE"), []byte(fmt.Sprint(i+1)), -1)
++		lines[i] = bytes.ReplaceAll(line, []byte("LINE"), []byte(fmt.Sprint(i+1)))
+ 	}
+ 
+ 	// Add a function that is not gofmt'ed. This used to cause a crash.
+diff --git a/src/cmd/go/internal/version/version.go b/src/cmd/go/internal/version/version.go
+index 056db7bf9e..c2de8d326d 100644
+--- a/src/cmd/go/internal/version/version.go
++++ b/src/cmd/go/internal/version/version.go
+@@ -138,7 +138,7 @@ func scanFile(file string, info os.FileInfo, mustPrint bool) {
+ 
+ 	fmt.Printf("%s: %s\n", file, vers)
+ 	if *versionM && mod != "" {
+-		fmt.Printf("\t%s\n", strings.Replace(mod[:len(mod)-1], "\n", "\n\t", -1))
++		fmt.Printf("\t%s\n", strings.ReplaceAll(mod[:len(mod)-1], "\n", "\n\t"))
+ 	}
+ }
+ 
+diff --git a/src/runtime/mkpreempt.go b/src/runtime/mkpreempt.go
+index 1fe77663b9..44dea22ef3 100644
+--- a/src/runtime/mkpreempt.go
++++ b/src/runtime/mkpreempt.go
+@@ -131,7 +131,7 @@ func header(arch string) {
+ 
+ func p(f string, args ...interface{}) {
+ 	fmted := fmt.Sprintf(f, args...)
+-	fmt.Fprintf(out, "\t%s\n", strings.Replace(fmted, "\n", "\n\t", -1))
++	fmt.Fprintf(out, "\t%s\n", strings.ReplaceAll(fmted, "\n", "\n\t"))
+ }
+ 
+ func label(l string) {

@@ -15,7 +15,60 @@ Date:   Wed Mar 2 20:31:20 2016 +0100
     Change-Id: I17ca9fc0bb8bf7648599df48e4785251bbc31e99
     Reviewed-on: https://go-review.googlesource.com/20098
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/fmt/fmt_test.go | 10 ++++++++++
  src/fmt/format.go   |  9 ++++-----
  2 files changed, 14 insertions(+), 5 deletions(-)
+
+diff --git a/src/fmt/fmt_test.go b/src/fmt/fmt_test.go
+index 0d0e313807..69141a156d 100644
+--- a/src/fmt/fmt_test.go
++++ b/src/fmt/fmt_test.go
+@@ -199,7 +199,9 @@ var fmtTests = []struct {
+ 	{"%08q", "abc", `000"abc"`},
+ 	{"%5s", "abcdefghijklmnopqrstuvwxyz", "abcdefghijklmnopqrstuvwxyz"},
+ 	{"%.5s", "abcdefghijklmnopqrstuvwxyz", "abcde"},
++	{"%.0s", "日本語日本語", ""},
+ 	{"%.5s", "日本語日本語", "日本語日本"},
++	{"%.10s", "日本語日本語", "日本語日本語"},
+ 	{"%.5s", []byte("日本語日本語"), "日本語日本"},
+ 	{"%.5q", "abcdefghijklmnopqrstuvwxyz", `"abcde"`},
+ 	{"%.5x", "abcdefghijklmnopqrstuvwxyz", `6162636465`},
+@@ -928,6 +930,14 @@ func BenchmarkSprintfString(b *testing.B) {
+ 	})
+ }
+ 
++func BenchmarkSprintfTruncateString(b *testing.B) {
++	b.RunParallel(func(pb *testing.PB) {
++		for pb.Next() {
++			Sprintf("%.3s", "日本語日本語日本語")
++		}
++	})
++}
++
+ func BenchmarkSprintfInt(b *testing.B) {
+ 	b.RunParallel(func(pb *testing.PB) {
+ 		for pb.Next() {
+diff --git a/src/fmt/format.go b/src/fmt/format.go
+index e49b8af967..302f82441d 100644
+--- a/src/fmt/format.go
++++ b/src/fmt/format.go
+@@ -282,14 +282,13 @@ func (f *fmt) integer(a int64, base uint64, signedness bool, digits string) {
+ 
+ // truncate truncates the string to the specified precision, if present.
+ func (f *fmt) truncate(s string) string {
+-	if f.precPresent && f.prec < utf8.RuneCountInString(s) {
++	if f.precPresent {
+ 		n := f.prec
+ 		for i := range s {
+-			if n == 0 {
+-				s = s[:i]
+-				break
+-			}
+ 			n--
++			if n < 0 {
++				return s[:i]
++			}
+ 		}
+ 	}
+ 	return s

@@ -13,6 +13,27 @@ Date:   Sat Sep 14 06:37:33 2024 +0700
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/unicode/utf8/utf8_test.go | 9 +++++++++
  1 file changed, 9 insertions(+)
+
+diff --git a/src/unicode/utf8/utf8_test.go b/src/unicode/utf8/utf8_test.go
+index 2adec97541..69362d2cf1 100644
+--- a/src/unicode/utf8/utf8_test.go
++++ b/src/unicode/utf8/utf8_test.go
+@@ -438,6 +438,15 @@ func TestRuneCount(t *testing.T) {
+ 	}
+ }
+ 
++func TestRuneCountNonASCIIAllocation(t *testing.T) {
++	if n := testing.AllocsPerRun(10, func() {
++		s := []byte("日本語日本語日本語日")
++		_ = RuneCount(s)
++	}); n > 0 {
++		t.Errorf("unexpected RuneCount allocation, got %v, want 0", n)
++	}
++}
++
+ type RuneLenTest struct {
+ 	r    rune
+ 	size int

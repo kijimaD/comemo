@@ -10,7 +10,53 @@ Date:   Wed Mar 15 16:44:36 2023 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Roland Shoemaker <roland@golang.org>
     Reviewed-by: Damien Neil <dneil@google.com>
-
+---
  src/internal/fuzz/fuzz.go   |  5 +++--
  src/internal/fuzz/worker.go | 10 ++++++++++
  2 files changed, 13 insertions(+), 2 deletions(-)
+
+diff --git a/src/internal/fuzz/fuzz.go b/src/internal/fuzz/fuzz.go
+index ca5f82a151..8024ffb2b8 100644
+--- a/src/internal/fuzz/fuzz.go
++++ b/src/internal/fuzz/fuzz.go
+@@ -322,7 +322,6 @@ func CoordinateFuzzing(ctx context.Context, opts CoordinateFuzzingOpts) (err err
+ 					if c.canMinimize() && result.canMinimize && c.crashMinimizing == nil {
+ 						// Send back to workers to find a smaller value that preserves
+ 						// at least one new coverage bit.
+-
+ 						c.queueForMinimization(result, keepCoverage)
+ 					} else {
+ 						// Update the coordinator's coverage mask and save the value.
+@@ -822,8 +821,10 @@ func (c *coordinator) refillInputQueue() {
+ func (c *coordinator) queueForMinimization(result fuzzResult, keepCoverage []byte) {
+ 	if shouldPrintDebugInfo() {
+ 		c.debugLogf(
+-			"queueing input for minimization, id: %s, crasher: %t",
++			"queueing input for minimization, id: %s, parent: %s, keepCoverage: %t, crasher: %t",
+ 			result.entry.Path,
++			result.entry.Parent,
++			keepCoverage,
+ 			result.crasherMsg != "",
+ 		)
+ 	}
+diff --git a/src/internal/fuzz/worker.go b/src/internal/fuzz/worker.go
+index 467c39bdc9..d40245a3f2 100644
+--- a/src/internal/fuzz/worker.go
++++ b/src/internal/fuzz/worker.go
+@@ -216,6 +216,16 @@ func (w *worker) coordinate(ctx context.Context) error {
+ 					result.crasherMsg = err.Error()
+ 				}
+ 			}
++			if shouldPrintDebugInfo() {
++				w.coordinator.debugLogf(
++					"input minimized, id: %s, original id: %s, crasher: %t, originally crasher: %t, minimizing took: %s",
++					result.entry.Path,
++					input.entry.Path,
++					result.crasherMsg != "",
++					input.crasherMsg != "",
++					result.totalDuration,
++				)
++			}
+ 			w.coordinator.resultC <- result
+ 		}
+ 	}

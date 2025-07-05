@@ -17,7 +17,7 @@ Date:   Tue Sep 10 14:41:20 2013 -0400
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/13427045
-
+---
  src/pkg/go/doc/doc_test.go               | 10 +++++++
  src/pkg/go/doc/reader.go                 |  2 +-
  src/pkg/go/doc/synopsis.go               | 12 ++++++---
@@ -30,3 +30,372 @@ Date:   Tue Sep 10 14:41:20 2013 -0400
  src/pkg/go/doc/testdata/bugpara.go       |  5 ++++
  src/pkg/go/doc/testdata/template.txt     |  4 +--
  11 files changed, 186 insertions(+), 45 deletions(-)
+
+diff --git a/src/pkg/go/doc/doc_test.go b/src/pkg/go/doc/doc_test.go
+index 8043038b4a..ad8ba5378f 100644
+--- a/src/pkg/go/doc/doc_test.go
++++ b/src/pkg/go/doc/doc_test.go
+@@ -32,6 +32,7 @@ func readTemplate(filename string) *template.Template {
+ 	t.Funcs(template.FuncMap{
+ 		"node":     nodeFmt,
+ 		"synopsis": synopsisFmt,
++		"indent":   indentFmt,
+ 	})
+ 	return template.Must(t.ParseFiles(filepath.Join(dataDir, filename)))
+ }
+@@ -55,6 +56,15 @@ func synopsisFmt(s string) string {
+ 	return "// " + strings.Replace(s, "\n", " ", -1)
+ }
+ 
++func indentFmt(indent, s string) string {
++	end := ""
++	if strings.HasSuffix(s, "\n") {
++		end = "\n"
++		s = s[:len(s)-1]
++	}
++	return indent + strings.Replace(s, "\n", "\n"+indent, -1) + end
++}
++
+ func isGoFile(fi os.FileInfo) bool {
+ 	name := fi.Name()
+ 	return !fi.IsDir() &&
+diff --git a/src/pkg/go/doc/reader.go b/src/pkg/go/doc/reader.go
+index 4fa6fd9d59..ed82c47cd9 100644
+--- a/src/pkg/go/doc/reader.go
++++ b/src/pkg/go/doc/reader.go
+@@ -414,7 +414,7 @@ func (r *reader) readNote(list []*ast.Comment) {
+ 		// We remove any formatting so that we don't
+ 		// get spurious line breaks/indentation when
+ 		// showing the TODO body.
+-		body := clean(text[m[1]:])
++		body := clean(text[m[1]:], keepNL)
+ 		if body != "" {
+ 			marker := text[m[2]:m[3]]
+ 			r.notes[marker] = append(r.notes[marker], &Note{
+diff --git a/src/pkg/go/doc/synopsis.go b/src/pkg/go/doc/synopsis.go
+index 2d18174393..d1ad86c741 100644
+--- a/src/pkg/go/doc/synopsis.go
++++ b/src/pkg/go/doc/synopsis.go
+@@ -27,14 +27,20 @@ func firstSentenceLen(s string) int {
+ 	return len(s)
+ }
+ 
++const (
++	keepNL = 1 << iota
++)
++
+ // clean replaces each sequence of space, \n, \r, or \t characters
+ // with a single space and removes any trailing and leading spaces.
+-func clean(s string) string {
++// If the keepNL flag is set, newline characters are passed through
++// instead of being change to spaces.
++func clean(s string, flags int) string {
+ 	var b []byte
+ 	p := byte(' ')
+ 	for i := 0; i < len(s); i++ {
+ 		q := s[i]
+-		if q == '\n' || q == '\r' || q == '\t' {
++		if (flags&keepNL) == 0 && q == '\n' || q == '\r' || q == '\t' {
+ 			q = ' '
+ 		}
+ 		if q != ' ' || p != ' ' {
+@@ -57,7 +63,7 @@ func clean(s string) string {
+ // is the empty string.
+ //
+ func Synopsis(s string) string {
+-	s = clean(s[0:firstSentenceLen(s)])
++	s = clean(s[0:firstSentenceLen(s)], 0)
+ 	for _, prefix := range IllegalPrefixes {
+ 		if strings.HasPrefix(strings.ToLower(s), prefix) {
+ 			return ""
+diff --git a/src/pkg/go/doc/testdata/a.0.golden b/src/pkg/go/doc/testdata/a.0.golden
+index cd98f4e0eb..7e680b80b4 100644
+--- a/src/pkg/go/doc/testdata/a.0.golden
++++ b/src/pkg/go/doc/testdata/a.0.golden
+@@ -9,24 +9,44 @@ FILENAMES
+ 	testdata/a1.go
+ 
+ BUGS .Bugs is now deprecated, please use .Notes instead
+-	// bug0
+-	// bug1
++	bug0
++
++	bug1
++
+ 
+ BUGS
+-	// bug0 (uid: uid)
+-	// bug1 (uid: uid)
++BUG(uid)	bug0
++
++BUG(uid)	bug1
++
+ 
+ NOTES
+-	// 1 of 4 - this is the first line of note 1 - note 1 continues on ... (uid: foo)
+-	// 2 of 4 (uid: foo)
+-	// 3 of 4 (uid: bar)
+-	// 4 of 4 - this is the last line of note 4 (uid: bar)
+-	// This note which contains a (parenthesized) subphrase must ... (uid: bam)
+-	// The ':' after the marker and uid is optional. (uid: xxx)
++NOTE(uid)	
++
++NOTE(foo)	1 of 4 - this is the first line of note 1
++	- note 1 continues on this 2nd line
++	- note 1 continues on this 3rd line
++
++NOTE(foo)	2 of 4
++
++NOTE(bar)	3 of 4
++
++NOTE(bar)	4 of 4
++	- this is the last line of note 4
++
++NOTE(bam)	This note which contains a (parenthesized) subphrase
++	 must appear in its entirety.
++
++NOTE(xxx)	The ':' after the marker and uid is optional.
++
+ 
+ SECBUGS
+-	// sec hole 0 need to fix asap (uid: uid)
++SECBUG(uid)	sec hole 0
++	need to fix asap
++
+ 
+ TODOS
+-	// todo0 (uid: uid)
+-	// todo1 (uid: uid)
++TODO(uid)	todo0
++
++TODO(uid)	todo1
++
+diff --git a/src/pkg/go/doc/testdata/a.1.golden b/src/pkg/go/doc/testdata/a.1.golden
+index cd98f4e0eb..7e680b80b4 100644
+--- a/src/pkg/go/doc/testdata/a.1.golden
++++ b/src/pkg/go/doc/testdata/a.1.golden
+@@ -9,24 +9,44 @@ FILENAMES
+ 	testdata/a1.go
+ 
+ BUGS .Bugs is now deprecated, please use .Notes instead
+-	// bug0
+-	// bug1
++	bug0
++
++	bug1
++
+ 
+ BUGS
+-	// bug0 (uid: uid)
+-	// bug1 (uid: uid)
++BUG(uid)	bug0
++
++BUG(uid)	bug1
++
+ 
+ NOTES
+-	// 1 of 4 - this is the first line of note 1 - note 1 continues on ... (uid: foo)
+-	// 2 of 4 (uid: foo)
+-	// 3 of 4 (uid: bar)
+-	// 4 of 4 - this is the last line of note 4 (uid: bar)
+-	// This note which contains a (parenthesized) subphrase must ... (uid: bam)
+-	// The ':' after the marker and uid is optional. (uid: xxx)
++NOTE(uid)	
++
++NOTE(foo)	1 of 4 - this is the first line of note 1
++	- note 1 continues on this 2nd line
++	- note 1 continues on this 3rd line
++
++NOTE(foo)	2 of 4
++
++NOTE(bar)	3 of 4
++
++NOTE(bar)	4 of 4
++	- this is the last line of note 4
++
++NOTE(bam)	This note which contains a (parenthesized) subphrase
++	 must appear in its entirety.
++
++NOTE(xxx)	The ':' after the marker and uid is optional.
++
+ 
+ SECBUGS
+-	// sec hole 0 need to fix asap (uid: uid)
++SECBUG(uid)	sec hole 0
++	need to fix asap
++
+ 
+ TODOS
+-	// todo0 (uid: uid)
+-	// todo1 (uid: uid)
++TODO(uid)	todo0
++
++TODO(uid)	todo1
++
+diff --git a/src/pkg/go/doc/testdata/a.2.golden b/src/pkg/go/doc/testdata/a.2.golden
+index cd98f4e0eb..7e680b80b4 100644
+--- a/src/pkg/go/doc/testdata/a.2.golden
++++ b/src/pkg/go/doc/testdata/a.2.golden
+@@ -9,24 +9,44 @@ FILENAMES
+ 	testdata/a1.go
+ 
+ BUGS .Bugs is now deprecated, please use .Notes instead
+-	// bug0
+-	// bug1
++	bug0
++
++	bug1
++
+ 
+ BUGS
+-	// bug0 (uid: uid)
+-	// bug1 (uid: uid)
++BUG(uid)	bug0
++
++BUG(uid)	bug1
++
+ 
+ NOTES
+-	// 1 of 4 - this is the first line of note 1 - note 1 continues on ... (uid: foo)
+-	// 2 of 4 (uid: foo)
+-	// 3 of 4 (uid: bar)
+-	// 4 of 4 - this is the last line of note 4 (uid: bar)
+-	// This note which contains a (parenthesized) subphrase must ... (uid: bam)
+-	// The ':' after the marker and uid is optional. (uid: xxx)
++NOTE(uid)	
++
++NOTE(foo)	1 of 4 - this is the first line of note 1
++	- note 1 continues on this 2nd line
++	- note 1 continues on this 3rd line
++
++NOTE(foo)	2 of 4
++
++NOTE(bar)	3 of 4
++
++NOTE(bar)	4 of 4
++	- this is the last line of note 4
++
++NOTE(bam)	This note which contains a (parenthesized) subphrase
++	 must appear in its entirety.
++
++NOTE(xxx)	The ':' after the marker and uid is optional.
++
+ 
+ SECBUGS
+-	// sec hole 0 need to fix asap (uid: uid)
++SECBUG(uid)	sec hole 0
++	need to fix asap
++
+ 
+ TODOS
+-	// todo0 (uid: uid)
+-	// todo1 (uid: uid)
++TODO(uid)	todo0
++
++TODO(uid)	todo1
++
+diff --git a/src/pkg/go/doc/testdata/bugpara.0.golden b/src/pkg/go/doc/testdata/bugpara.0.golden
+new file mode 100644
+index 0000000000..5804859501
+--- /dev/null
++++ b/src/pkg/go/doc/testdata/bugpara.0.golden
+@@ -0,0 +1,20 @@
++// 
++PACKAGE bugpara
++
++IMPORTPATH
++	testdata/bugpara
++
++FILENAMES
++	testdata/bugpara.go
++
++BUGS .Bugs is now deprecated, please use .Notes instead
++	Sometimes bugs have multiple paragraphs.
++	
++	Like this one.
++
++
++BUGS
++BUG(rsc)	Sometimes bugs have multiple paragraphs.
++	
++	Like this one.
++
+diff --git a/src/pkg/go/doc/testdata/bugpara.1.golden b/src/pkg/go/doc/testdata/bugpara.1.golden
+new file mode 100644
+index 0000000000..5804859501
+--- /dev/null
++++ b/src/pkg/go/doc/testdata/bugpara.1.golden
+@@ -0,0 +1,20 @@
++// 
++PACKAGE bugpara
++
++IMPORTPATH
++	testdata/bugpara
++
++FILENAMES
++	testdata/bugpara.go
++
++BUGS .Bugs is now deprecated, please use .Notes instead
++	Sometimes bugs have multiple paragraphs.
++	
++	Like this one.
++
++
++BUGS
++BUG(rsc)	Sometimes bugs have multiple paragraphs.
++	
++	Like this one.
++
+diff --git a/src/pkg/go/doc/testdata/bugpara.2.golden b/src/pkg/go/doc/testdata/bugpara.2.golden
+new file mode 100644
+index 0000000000..5804859501
+--- /dev/null
++++ b/src/pkg/go/doc/testdata/bugpara.2.golden
+@@ -0,0 +1,20 @@
++// 
++PACKAGE bugpara
++
++IMPORTPATH
++	testdata/bugpara
++
++FILENAMES
++	testdata/bugpara.go
++
++BUGS .Bugs is now deprecated, please use .Notes instead
++	Sometimes bugs have multiple paragraphs.
++	
++	Like this one.
++
++
++BUGS
++BUG(rsc)	Sometimes bugs have multiple paragraphs.
++	
++	Like this one.
++
+diff --git a/src/pkg/go/doc/testdata/bugpara.go b/src/pkg/go/doc/testdata/bugpara.go
+new file mode 100644
+index 0000000000..f5345a7975
+--- /dev/null
++++ b/src/pkg/go/doc/testdata/bugpara.go
+@@ -0,0 +1,5 @@
++package bugpara
++
++// BUG(rsc): Sometimes bugs have multiple paragraphs.
++//
++// Like this one.
+diff --git a/src/pkg/go/doc/testdata/template.txt b/src/pkg/go/doc/testdata/template.txt
+index 26482f7c24..1b07382611 100644
+--- a/src/pkg/go/doc/testdata/template.txt
++++ b/src/pkg/go/doc/testdata/template.txt
+@@ -61,8 +61,8 @@ TYPES
+ 
+ */}}{{with .Bugs}}
+ BUGS .Bugs is now deprecated, please use .Notes instead
+-{{range .}}	{{synopsis .}}
++{{range .}}{{indent "\t" .}}
+ {{end}}{{end}}{{with .Notes}}{{range $marker, $content := .}}
+ {{$marker}}S
+-{{range $content}}	{{synopsis .Body}} (uid: {{.UID}})
++{{range $content}}{{$marker}}({{.UID}}){{indent "\t" .Body}}
+ {{end}}{{end}}{{end}}
+\ No newline at end of file

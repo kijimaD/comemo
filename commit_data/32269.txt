@@ -12,6 +12,30 @@ Date:   Mon Apr 17 21:32:21 2017 +0200
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/syscall/syscall_unix_test.go | 8 ++++++--
  1 file changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/src/syscall/syscall_unix_test.go b/src/syscall/syscall_unix_test.go
+index 2f25d18bca..b1fe78deba 100644
+--- a/src/syscall/syscall_unix_test.go
++++ b/src/syscall/syscall_unix_test.go
+@@ -78,12 +78,16 @@ func TestFcntlFlock(t *testing.T) {
+ 	}
+ 	if os.Getenv("GO_WANT_HELPER_PROCESS") == "" {
+ 		// parent
+-		name := filepath.Join(os.TempDir(), "TestFcntlFlock")
++		tempDir, err := ioutil.TempDir("", "TestFcntlFlock")
++		if err != nil {
++			t.Fatalf("Failed to create temp dir: %v", err)
++		}
++		name := filepath.Join(tempDir, "TestFcntlFlock")
+ 		fd, err := syscall.Open(name, syscall.O_CREAT|syscall.O_RDWR|syscall.O_CLOEXEC, 0)
+ 		if err != nil {
+ 			t.Fatalf("Open failed: %v", err)
+ 		}
+-		defer syscall.Unlink(name)
++		defer os.RemoveAll(tempDir)
+ 		defer syscall.Close(fd)
+ 		if err := syscall.Ftruncate(fd, 1<<20); err != nil {
+ 			t.Fatalf("Ftruncate(1<<20) failed: %v", err)

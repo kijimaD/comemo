@@ -24,6 +24,20 @@ Date:   Sat Jun 20 06:29:18 2015 +0200
     Change-Id: Ia209ff5b57375b30f8db425454e80798908e8ff4
     Reviewed-on: https://go-review.googlesource.com/11281
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/testing/quick/quick.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/testing/quick/quick.go b/src/testing/quick/quick.go
+index 0e36810eb6..13c56cdf48 100644
+--- a/src/testing/quick/quick.go
++++ b/src/testing/quick/quick.go
+@@ -249,7 +249,7 @@ func Check(f interface{}, config *Config) (err error) {
+ 	}
+ 
+ 	if fType.NumOut() != 1 {
+-		err = SetupError("function returns more than one value.")
++		err = SetupError("function does not return one value")
+ 		return
+ 	}
+ 	if fType.Out(0).Kind() != reflect.Bool {

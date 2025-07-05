@@ -11,7 +11,7 @@ Date:   Thu Aug 25 16:02:57 2016 -0700
     Change-Id: Idf2d8f3e1255f71deba759e6e75e293afe4ab2ba
     Reviewed-on: https://go-review.googlesource.com/27813
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/amd64/prog.go         |   5 +
  src/cmd/compile/internal/amd64/ssa.go          |  45 +++-
  src/cmd/compile/internal/gc/ssa.go             |  43 +++
@@ -22,3 +22,934 @@ Date:   Thu Aug 25 16:02:57 2016 -0700
  src/cmd/compile/internal/ssa/opGen.go          | 146 +++++++++++
  src/cmd/compile/internal/ssa/rewriteAMD64.go   | 348 +++++++++++++++++++++++++
  9 files changed, 681 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/prog.go b/src/cmd/compile/internal/amd64/prog.go
+index 91b479be22..b8f6f0612d 100644
+--- a/src/cmd/compile/internal/amd64/prog.go
++++ b/src/cmd/compile/internal/amd64/prog.go
+@@ -78,6 +78,8 @@ var progtable = [x86.ALAST & obj.AMask]obj.ProgInfo{
+ 	x86.ACMPL & obj.AMask:      {Flags: gc.SizeL | gc.LeftRead | gc.RightRead | gc.SetCarry},
+ 	x86.ACMPQ & obj.AMask:      {Flags: gc.SizeQ | gc.LeftRead | gc.RightRead | gc.SetCarry},
+ 	x86.ACMPW & obj.AMask:      {Flags: gc.SizeW | gc.LeftRead | gc.RightRead | gc.SetCarry},
++	x86.ACMPXCHGL & obj.AMask:  {Flags: gc.SizeL | LeftRdwr | RightRdwr | gc.SetCarry},
++	x86.ACMPXCHGQ & obj.AMask:  {Flags: gc.SizeQ | LeftRdwr | RightRdwr | gc.SetCarry},
+ 	x86.ACOMISD & obj.AMask:    {Flags: gc.SizeD | gc.LeftRead | gc.RightRead | gc.SetCarry},
+ 	x86.ACOMISS & obj.AMask:    {Flags: gc.SizeF | gc.LeftRead | gc.RightRead | gc.SetCarry},
+ 	x86.ACVTSD2SL & obj.AMask:  {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv},
+@@ -136,6 +138,7 @@ var progtable = [x86.ALAST & obj.AMask]obj.ProgInfo{
+ 	x86.ALEAW & obj.AMask:      {Flags: gc.LeftAddr | gc.RightWrite},
+ 	x86.ALEAL & obj.AMask:      {Flags: gc.LeftAddr | gc.RightWrite},
+ 	x86.ALEAQ & obj.AMask:      {Flags: gc.LeftAddr | gc.RightWrite},
++	x86.ALOCK & obj.AMask:      {Flags: gc.OK},
+ 	x86.AMOVBLSX & obj.AMask:   {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv},
+ 	x86.AMOVBLZX & obj.AMask:   {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv},
+ 	x86.AMOVBQSX & obj.AMask:   {Flags: gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Conv},
+@@ -258,6 +261,8 @@ var progtable = [x86.ALAST & obj.AMask]obj.ProgInfo{
+ 	x86.ATESTW & obj.AMask:    {Flags: gc.SizeW | gc.LeftRead | gc.RightRead | gc.SetCarry},
+ 	x86.AUCOMISD & obj.AMask:  {Flags: gc.SizeD | gc.LeftRead | gc.RightRead},
+ 	x86.AUCOMISS & obj.AMask:  {Flags: gc.SizeF | gc.LeftRead | gc.RightRead},
++	x86.AXADDL & obj.AMask:    {Flags: gc.SizeL | LeftRdwr | RightRdwr | gc.KillCarry},
++	x86.AXADDQ & obj.AMask:    {Flags: gc.SizeQ | LeftRdwr | RightRdwr | gc.KillCarry},
+ 	x86.AXCHGB & obj.AMask:    {Flags: gc.SizeB | LeftRdwr | RightRdwr},
+ 	x86.AXCHGL & obj.AMask:    {Flags: gc.SizeL | LeftRdwr | RightRdwr},
+ 	x86.AXCHGQ & obj.AMask:    {Flags: gc.SizeQ | LeftRdwr | RightRdwr},
+diff --git a/src/cmd/compile/internal/amd64/ssa.go b/src/cmd/compile/internal/amd64/ssa.go
+index eed9b2e3d7..f1baf08129 100644
+--- a/src/cmd/compile/internal/amd64/ssa.go
++++ b/src/cmd/compile/internal/amd64/ssa.go
+@@ -936,13 +936,22 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 				ssa.OpAMD64MOVBQSXload, ssa.OpAMD64MOVWQSXload, ssa.OpAMD64MOVLQSXload,
+ 				ssa.OpAMD64MOVSSload, ssa.OpAMD64MOVSDload, ssa.OpAMD64MOVOload,
+ 				ssa.OpAMD64MOVSSstore, ssa.OpAMD64MOVSDstore, ssa.OpAMD64MOVOstore,
+-				ssa.OpAMD64MOVQatomicload, ssa.OpAMD64MOVLatomicload:
++				ssa.OpAMD64MOVQatomicload, ssa.OpAMD64MOVLatomicload,
++				ssa.OpAMD64CMPXCHGQlock, ssa.OpAMD64CMPXCHGLlock,
++				ssa.OpAMD64ANDBlock, ssa.OpAMD64ORBlock:
+ 				if w.Args[0] == v.Args[0] && w.Aux == nil && w.AuxInt >= 0 && w.AuxInt < minZeroPage {
+ 					if gc.Debug_checknil != 0 && int(v.Line) > 1 {
+ 						gc.Warnl(v.Line, "removed nil check")
+ 					}
+ 					return
+ 				}
++			case ssa.OpAMD64XCHGL, ssa.OpAMD64XCHGQ, ssa.OpAMD64XADDLlock, ssa.OpAMD64XADDQlock:
++				if w.Args[1] == v.Args[0] && w.Aux == nil && w.AuxInt >= 0 && w.AuxInt < minZeroPage {
++					if gc.Debug_checknil != 0 && int(v.Line) > 1 {
++						gc.Warnl(v.Line, "removed nil check")
++					}
++					return
++				}
+ 			case ssa.OpAMD64MOVQstoreconst, ssa.OpAMD64MOVLstoreconst, ssa.OpAMD64MOVWstoreconst, ssa.OpAMD64MOVBstoreconst:
+ 				off := ssa.ValAndOff(v.AuxInt).Off()
+ 				if w.Args[0] == v.Args[0] && w.Aux == nil && off >= 0 && off < minZeroPage {
+@@ -995,6 +1004,40 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.To.Type = obj.TYPE_MEM
+ 		p.To.Reg = gc.SSARegNum(v.Args[1])
+ 		gc.AddAux(&p.To, v)
++	case ssa.OpAMD64XADDLlock, ssa.OpAMD64XADDQlock:
++		r := gc.SSARegNum0(v)
++		if r != gc.SSARegNum(v.Args[0]) {
++			v.Fatalf("input[0] and output[0] not in same register %s", v.LongString())
++		}
++		gc.Prog(x86.ALOCK)
++		p := gc.Prog(v.Op.Asm())
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = r
++		p.To.Type = obj.TYPE_MEM
++		p.To.Reg = gc.SSARegNum(v.Args[1])
++		gc.AddAux(&p.To, v)
++	case ssa.OpAMD64CMPXCHGLlock, ssa.OpAMD64CMPXCHGQlock:
++		if gc.SSARegNum(v.Args[1]) != x86.REG_AX {
++			v.Fatalf("input[1] not in AX %s", v.LongString())
++		}
++		gc.Prog(x86.ALOCK)
++		p := gc.Prog(v.Op.Asm())
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = gc.SSARegNum(v.Args[2])
++		p.To.Type = obj.TYPE_MEM
++		p.To.Reg = gc.SSARegNum(v.Args[0])
++		gc.AddAux(&p.To, v)
++		p = gc.Prog(x86.ASETEQ)
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = gc.SSARegNum0(v)
++	case ssa.OpAMD64ANDBlock, ssa.OpAMD64ORBlock:
++		gc.Prog(x86.ALOCK)
++		p := gc.Prog(v.Op.Asm())
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = gc.SSARegNum(v.Args[1])
++		p.To.Type = obj.TYPE_MEM
++		p.To.Reg = gc.SSARegNum(v.Args[0])
++		gc.AddAux(&p.To, v)
+ 	default:
+ 		v.Unimplementedf("genValue not implemented: %s", v.LongString())
+ 	}
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 01701d99f2..2209152f48 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -462,6 +462,11 @@ func (s *state) newValue3I(op ssa.Op, t ssa.Type, aux int64, arg0, arg1, arg2 *s
+ 	return s.curBlock.NewValue3I(s.peekLine(), op, t, aux, arg0, arg1, arg2)
+ }
+ 
++// newValue4 adds a new value with four arguments to the current block.
++func (s *state) newValue4(op ssa.Op, t ssa.Type, arg0, arg1, arg2, arg3 *ssa.Value) *ssa.Value {
++	return s.curBlock.NewValue4(s.peekLine(), op, t, arg0, arg1, arg2, arg3)
++}
++
+ // entryNewValue0 adds a new value with no arguments to the entry block.
+ func (s *state) entryNewValue0(op ssa.Op, t ssa.Type) *ssa.Value {
+ 	return s.f.Entry.NewValue0(s.peekLine(), op, t)
+@@ -2554,6 +2559,14 @@ func isSSAIntrinsic(s *Sym) bool {
+ 			return true
+ 		case "Store", "Store64", "StorepNoWB", "Storeuintptr":
+ 			return true
++		case "Xchg", "Xchg64", "Xchguintptr":
++			return true
++		case "Xadd", "Xadd64", "Xaddint64", "Xadduintptr":
++			return true
++		case "Cas", "Cas64", "Casp1", "Casuintptr":
++			return true
++		case "And8", "Or8":
++			return true
+ 		}
+ 	}
+ 	return false
+@@ -2616,6 +2629,36 @@ func (s *state) intrinsicCall(n *Node) (ret *ssa.Value) {
+ 	case name == "StorepNoWB":
+ 		result = s.newValue3(ssa.OpAtomicStorePtrNoWB, ssa.TypeMem, s.intrinsicArg(n, 0), s.intrinsicArg(n, 1), s.mem())
+ 		s.vars[&memVar] = result
++	case name == "Xchg" || name == "Xchguintptr" && s.config.PtrSize == 4:
++		result = s.newValue3(ssa.OpAtomicExchange32, ssa.MakeTuple(Types[TUINT32], ssa.TypeMem), s.intrinsicArg(n, 0), s.intrinsicArg(n, 1), s.mem())
++		s.vars[&memVar] = s.newValue1(ssa.OpSelect1, ssa.TypeMem, result)
++		ret = s.newValue1(ssa.OpSelect0, Types[TUINT32], result)
++	case name == "Xchg64" || name == "Xchguintptr" && s.config.PtrSize == 8:
++		result = s.newValue3(ssa.OpAtomicExchange64, ssa.MakeTuple(Types[TUINT64], ssa.TypeMem), s.intrinsicArg(n, 0), s.intrinsicArg(n, 1), s.mem())
++		s.vars[&memVar] = s.newValue1(ssa.OpSelect1, ssa.TypeMem, result)
++		ret = s.newValue1(ssa.OpSelect0, Types[TUINT64], result)
++	case name == "Xadd" || name == "Xadduintptr" && s.config.PtrSize == 4:
++		result = s.newValue3(ssa.OpAtomicAdd32, ssa.MakeTuple(Types[TUINT32], ssa.TypeMem), s.intrinsicArg(n, 0), s.intrinsicArg(n, 1), s.mem())
++		s.vars[&memVar] = s.newValue1(ssa.OpSelect1, ssa.TypeMem, result)
++		ret = s.newValue1(ssa.OpSelect0, Types[TUINT32], result)
++	case name == "Xadd64" || name == "Xaddint64" || name == "Xadduintptr" && s.config.PtrSize == 8:
++		result = s.newValue3(ssa.OpAtomicAdd64, ssa.MakeTuple(Types[TUINT64], ssa.TypeMem), s.intrinsicArg(n, 0), s.intrinsicArg(n, 1), s.mem())
++		s.vars[&memVar] = s.newValue1(ssa.OpSelect1, ssa.TypeMem, result)
++		ret = s.newValue1(ssa.OpSelect0, Types[TUINT64], result)
++	case name == "Cas" || (name == "Casp1" || name == "Casuintptr") && s.config.PtrSize == 4:
++		result = s.newValue4(ssa.OpAtomicCompareAndSwap32, ssa.MakeTuple(Types[TBOOL], ssa.TypeMem), s.intrinsicArg(n, 0), s.intrinsicArg(n, 1), s.intrinsicArg(n, 2), s.mem())
++		s.vars[&memVar] = s.newValue1(ssa.OpSelect1, ssa.TypeMem, result)
++		ret = s.newValue1(ssa.OpSelect0, Types[TBOOL], result)
++	case name == "Cas64" || (name == "Casp1" || name == "Casuintptr") && s.config.PtrSize == 8:
++		result = s.newValue4(ssa.OpAtomicCompareAndSwap64, ssa.MakeTuple(Types[TBOOL], ssa.TypeMem), s.intrinsicArg(n, 0), s.intrinsicArg(n, 1), s.intrinsicArg(n, 2), s.mem())
++		s.vars[&memVar] = s.newValue1(ssa.OpSelect1, ssa.TypeMem, result)
++		ret = s.newValue1(ssa.OpSelect0, Types[TBOOL], result)
++	case name == "And8":
++		result = s.newValue3(ssa.OpAtomicAnd8, ssa.TypeMem, s.intrinsicArg(n, 0), s.intrinsicArg(n, 1), s.mem())
++		s.vars[&memVar] = result
++	case name == "Or8":
++		result = s.newValue3(ssa.OpAtomicOr8, ssa.TypeMem, s.intrinsicArg(n, 0), s.intrinsicArg(n, 1), s.mem())
++		s.vars[&memVar] = result
+ 	}
+ 	if result == nil {
+ 		Fatalf("Unknown special call: %v", n.Left.Sym)
+diff --git a/src/cmd/compile/internal/ssa/func.go b/src/cmd/compile/internal/ssa/func.go
+index 1d60bb606a..606d806c80 100644
+--- a/src/cmd/compile/internal/ssa/func.go
++++ b/src/cmd/compile/internal/ssa/func.go
+@@ -315,6 +315,18 @@ func (b *Block) NewValue3I(line int32, op Op, t Type, auxint int64, arg0, arg1,
+ 	return v
+ }
+ 
++// NewValue4 returns a new value in the block with four arguments and zero aux values.
++func (b *Block) NewValue4(line int32, op Op, t Type, arg0, arg1, arg2, arg3 *Value) *Value {
++	v := b.Func.newValue(op, t, b, line)
++	v.AuxInt = 0
++	v.Args = []*Value{arg0, arg1, arg2, arg3}
++	arg0.Uses++
++	arg1.Uses++
++	arg2.Uses++
++	arg3.Uses++
++	return v
++}
++
+ // constVal returns a constant value for c.
+ func (f *Func) constVal(line int32, op Op, t Type, c int64, setAux bool) *Value {
+ 	if f.constants == nil {
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index a412604b59..04e888c30a 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -477,6 +477,24 @@
+ (AtomicStorePtrNoWB ptr val mem) && config.PtrSize == 8 -> (Select1 (XCHGQ <MakeTuple(config.Frontend().TypeBytePtr(),TypeMem)> val ptr mem))
+ (AtomicStorePtrNoWB ptr val mem) && config.PtrSize == 4 -> (Select1 (XCHGL <MakeTuple(config.Frontend().TypeBytePtr(),TypeMem)> val ptr mem))
+ 
++// Atomic exchanges.
++(AtomicExchange32 ptr val mem) -> (XCHGL val ptr mem)
++(AtomicExchange64 ptr val mem) -> (XCHGQ val ptr mem)
++
++// Atomic adds.
++(Select0 <t> (AtomicAdd32 ptr val mem)) -> (ADDL (Select0 <t> (XADDLlock val ptr mem)) val)
++(Select1     (AtomicAdd32 ptr val mem)) ->       (Select1     (XADDLlock val ptr mem))
++(Select0 <t> (AtomicAdd64 ptr val mem)) -> (ADDQ (Select0 <t> (XADDQlock val ptr mem)) val)
++(Select1     (AtomicAdd64 ptr val mem)) ->       (Select1     (XADDQlock val ptr mem))
++
++// Atomic compare and swap.
++(AtomicCompareAndSwap32 ptr old new_ mem) -> (CMPXCHGLlock ptr old new_ mem)
++(AtomicCompareAndSwap64 ptr old new_ mem) -> (CMPXCHGQlock ptr old new_ mem)
++
++// Atomic memory updates.
++(AtomicAnd8 ptr val mem) -> (ANDBlock ptr val mem)
++(AtomicOr8 ptr val mem) -> (ORBlock ptr val mem)
++
+ // ***************************
+ // Above: lowering rules
+ // Below: optimizations
+@@ -1659,3 +1677,17 @@
+ 	(XCHGL [off1+off2] {sym} val ptr mem)
+ (XCHGL [off1] {sym1} val (LEAQ [off2] {sym2} ptr) mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) && ptr.Op != OpSB ->
+ 	(XCHGL [off1+off2] {mergeSym(sym1,sym2)} val ptr mem)
++
++// Merge ADDQconst into atomic adds.
++// TODO: merging LEAQ doesn't work, assembler doesn't like the resulting instructions.
++(XADDQlock [off1] {sym} val (ADDQconst [off2] ptr) mem) && is32Bit(off1+off2) ->
++	(XADDQlock [off1+off2] {sym} val ptr mem)
++(XADDLlock [off1] {sym} val (ADDQconst [off2] ptr) mem) && is32Bit(off1+off2) ->
++	(XADDLlock [off1+off2] {sym} val ptr mem)
++
++// Merge ADDQconst into atomic compare and swaps.
++// TODO: merging LEAQ doesn't work, assembler doesn't like the resulting instructions.
++(CMPXCHGQlock [off1] {sym} (ADDQconst [off2] ptr) old new_ mem) && is32Bit(off1+off2) ->
++	(CMPXCHGQlock [off1+off2] {sym} ptr old new_ mem)
++(CMPXCHGLlock [off1] {sym} (ADDQconst [off2] ptr) old new_ mem) && is32Bit(off1+off2) ->
++	(CMPXCHGLlock [off1+off2] {sym} ptr old new_ mem)
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+index f307850324..b08018826b 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+@@ -135,6 +135,7 @@ func init() {
+ 		gpstoreidx      = regInfo{inputs: []regMask{gpspsb, gpsp, gpsp, 0}}
+ 		gpstoreconstidx = regInfo{inputs: []regMask{gpspsb, gpsp, 0}}
+ 		gpstorexchg     = regInfo{inputs: []regMask{gp, gp, 0}, outputs: []regMask{gp}}
++		cmpxchg         = regInfo{inputs: []regMask{gp, ax, gp, 0}, outputs: []regMask{gp, 0}, clobbers: ax}
+ 
+ 		fp01    = regInfo{inputs: nil, outputs: fponly}
+ 		fp21    = regInfo{inputs: []regMask{fp, fp}, outputs: fponly}
+@@ -516,14 +517,46 @@ func init() {
+ 		// load from arg0+auxint+aux.  arg1=mem.
+ 		{name: "MOVLatomicload", argLength: 2, reg: gpload, asm: "MOVL", aux: "SymOff"},
+ 		{name: "MOVQatomicload", argLength: 2, reg: gpload, asm: "MOVQ", aux: "SymOff"},
+-		// Atomic stores.  We use XCHG to get the right memory ordering semantics.
+-		// These ops return a tuple of <old memory contents, memory>.  The old contents are
+-		// ignored for now but they are allocated to a register so that the argument register
+-		// is properly clobbered (together with resultInArg0).
++
++		// Atomic stores and exchanges.  Stores use XCHG to get the right memory ordering semantics.
+ 		// store arg0 to arg1+auxint+aux, arg2=mem.
++		// These ops return a tuple of <old contents of *(arg1+auxint+aux), memory>.
+ 		// Note: arg0 and arg1 are backwards compared to MOVLstore (to facilitate resultInArg0)!
+ 		{name: "XCHGL", argLength: 3, reg: gpstorexchg, asm: "XCHGL", aux: "SymOff", resultInArg0: true},
+ 		{name: "XCHGQ", argLength: 3, reg: gpstorexchg, asm: "XCHGQ", aux: "SymOff", resultInArg0: true},
++
++		// Atomic adds.
++		// *(arg1+auxint+aux) += arg0.  arg2=mem.
++		// Returns a tuple of <old contents of *(arg1+auxint+aux), memory>.
++		// Note: arg0 and arg1 are backwards compared to MOVLstore (to facilitate resultInArg0)!
++		{name: "XADDLlock", argLength: 3, reg: gpstorexchg, asm: "XADDL", typ: "(UInt32,Mem)", aux: "SymOff", resultInArg0: true},
++		{name: "XADDQlock", argLength: 3, reg: gpstorexchg, asm: "XADDQ", typ: "(UInt64,Mem)", aux: "SymOff", resultInArg0: true},
++
++		// Compare and swap.
++		// arg0 = pointer, arg1 = old value, arg2 = new value, arg3 = memory.
++		// if *(arg0+auxint+aux) == arg1 {
++		//   *(arg0+auxint+aux) = arg2
++		//   return (true, memory)
++		// } else {
++		//   return (false, memory)
++		// }
++		// Note that these instructions also return the old value in AX, but we ignore it.
++		// TODO: have these return flags instead of bool.  The current system generates:
++		//    CMPXCHGQ ...
++		//    SETEQ AX
++		//    CMPB  AX, $0
++		//    JNE ...
++		// instead of just
++		//    CMPXCHGQ ...
++		//    JEQ ...
++		// but we can't do that because memory-using ops can't generate flags yet
++		// (flagalloc wants to move flag-generating instructions around).
++		{name: "CMPXCHGLlock", argLength: 4, reg: cmpxchg, asm: "CMPXCHGL", aux: "SymOff"},
++		{name: "CMPXCHGQlock", argLength: 4, reg: cmpxchg, asm: "CMPXCHGQ", aux: "SymOff"},
++
++		// Atomic memory updates.
++		{name: "ANDBlock", argLength: 3, reg: gpstore, asm: "ANDB", aux: "SymOff"}, // *(arg0+auxint+aux) &= arg1
++		{name: "ORBlock", argLength: 3, reg: gpstore, asm: "ORB", aux: "SymOff"},   // *(arg0+auxint+aux) |= arg1
+ 	}
+ 
+ 	var AMD64blocks = []blockData{
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index dfa5ed6de3..1bdacb2413 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -445,12 +445,20 @@ var genericOps = []opData{
+ 	// Atomic loads return a new memory so that the loads are properly ordered
+ 	// with respect to other loads and stores.
+ 	// TODO: use for sync/atomic at some point.
+-	{name: "AtomicLoad32", argLength: 2, typ: "(UInt32,Mem)"},   // Load from arg0.  arg1=memory.  Returns loaded value and new memory.
+-	{name: "AtomicLoad64", argLength: 2, typ: "(UInt64,Mem)"},   // Load from arg0.  arg1=memory.  Returns loaded value and new memory.
+-	{name: "AtomicLoadPtr", argLength: 2, typ: "(BytePtr,Mem)"}, // Load from arg0.  arg1=memory.  Returns loaded value and new memory.
+-	{name: "AtomicStore32", argLength: 3, typ: "Mem"},           // Store arg1 to arg0.  arg2=memory.  Returns memory.
+-	{name: "AtomicStore64", argLength: 3, typ: "Mem"},           // Store arg1 to arg0.  arg2=memory.  Returns memory.
+-	{name: "AtomicStorePtrNoWB", argLength: 3, typ: "Mem"},      // Store arg1 to arg0.  arg2=memory.  Returns memory.
++	{name: "AtomicLoad32", argLength: 2, typ: "(UInt32,Mem)"},         // Load from arg0.  arg1=memory.  Returns loaded value and new memory.
++	{name: "AtomicLoad64", argLength: 2, typ: "(UInt64,Mem)"},         // Load from arg0.  arg1=memory.  Returns loaded value and new memory.
++	{name: "AtomicLoadPtr", argLength: 2, typ: "(BytePtr,Mem)"},       // Load from arg0.  arg1=memory.  Returns loaded value and new memory.
++	{name: "AtomicStore32", argLength: 3, typ: "Mem"},                 // Store arg1 to *arg0.  arg2=memory.  Returns memory.
++	{name: "AtomicStore64", argLength: 3, typ: "Mem"},                 // Store arg1 to *arg0.  arg2=memory.  Returns memory.
++	{name: "AtomicStorePtrNoWB", argLength: 3, typ: "Mem"},            // Store arg1 to *arg0.  arg2=memory.  Returns memory.
++	{name: "AtomicExchange32", argLength: 3, typ: "(UInt32,Mem)"},     // Store arg1 to *arg0.  arg2=memory.  Returns old contents of *arg0 and new memory.
++	{name: "AtomicExchange64", argLength: 3, typ: "(UInt64,Mem)"},     // Store arg1 to *arg0.  arg2=memory.  Returns old contents of *arg0 and new memory.
++	{name: "AtomicAdd32", argLength: 3, typ: "(UInt32,Mem)"},          // Do *arg0 += arg1.  arg2=memory.  Returns sum and new memory.
++	{name: "AtomicAdd64", argLength: 3, typ: "(UInt64,Mem)"},          // Do *arg0 += arg1.  arg2=memory.  Returns sum and new memory.
++	{name: "AtomicCompareAndSwap32", argLength: 4, typ: "(Bool,Mem)"}, // if *arg0==arg1, then set *arg0=arg2.  Returns true iff store happens and new memory.
++	{name: "AtomicCompareAndSwap64", argLength: 4, typ: "(Bool,Mem)"}, // if *arg0==arg1, then set *arg0=arg2.  Returns true iff store happens and new memory.
++	{name: "AtomicAnd8", argLength: 3, typ: "Mem"},                    // *arg0 &= arg1.  arg2=memory.  Returns memory.
++	{name: "AtomicOr8", argLength: 3, typ: "Mem"},                     // *arg0 |= arg1.  arg2=memory.  Returns memory.
+ }
+ 
+ //     kind           control    successors       implicit exit
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index f5ebaf467f..b36d8cc83f 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -590,6 +590,12 @@ const (
+ 	OpAMD64MOVQatomicload
+ 	OpAMD64XCHGL
+ 	OpAMD64XCHGQ
++	OpAMD64XADDLlock
++	OpAMD64XADDQlock
++	OpAMD64CMPXCHGLlock
++	OpAMD64CMPXCHGQlock
++	OpAMD64ANDBlock
++	OpAMD64ORBlock
+ 
+ 	OpARMADD
+ 	OpARMADDconst
+@@ -1501,6 +1507,14 @@ const (
+ 	OpAtomicStore32
+ 	OpAtomicStore64
+ 	OpAtomicStorePtrNoWB
++	OpAtomicExchange32
++	OpAtomicExchange64
++	OpAtomicAdd32
++	OpAtomicAdd64
++	OpAtomicCompareAndSwap32
++	OpAtomicCompareAndSwap64
++	OpAtomicAnd8
++	OpAtomicOr8
+ )
+ 
+ var opcodeTable = [...]opInfo{
+@@ -6859,6 +6873,98 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:         "XADDLlock",
++		auxType:      auxSymOff,
++		argLen:       3,
++		resultInArg0: true,
++		asm:          x86.AXADDL,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++			},
++			outputs: []outputInfo{
++				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++			},
++		},
++	},
++	{
++		name:         "XADDQlock",
++		auxType:      auxSymOff,
++		argLen:       3,
++		resultInArg0: true,
++		asm:          x86.AXADDQ,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++			},
++			outputs: []outputInfo{
++				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++			},
++		},
++	},
++	{
++		name:    "CMPXCHGLlock",
++		auxType: auxSymOff,
++		argLen:  4,
++		asm:     x86.ACMPXCHGL,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 1},     // AX
++				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{2, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++			},
++			clobbers: 1, // AX
++			outputs: []outputInfo{
++				{1, 0},
++				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++			},
++		},
++	},
++	{
++		name:    "CMPXCHGQlock",
++		auxType: auxSymOff,
++		argLen:  4,
++		asm:     x86.ACMPXCHGQ,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 1},     // AX
++				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{2, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++			},
++			clobbers: 1, // AX
++			outputs: []outputInfo{
++				{1, 0},
++				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++			},
++		},
++	},
++	{
++		name:    "ANDBlock",
++		auxType: auxSymOff,
++		argLen:  3,
++		asm:     x86.AANDB,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++		},
++	},
++	{
++		name:    "ORBlock",
++		auxType: auxSymOff,
++		argLen:  3,
++		asm:     x86.AORB,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++		},
++	},
+ 
+ 	{
+ 		name:        "ADD",
+@@ -16254,6 +16360,46 @@ var opcodeTable = [...]opInfo{
+ 		argLen:  3,
+ 		generic: true,
+ 	},
++	{
++		name:    "AtomicExchange32",
++		argLen:  3,
++		generic: true,
++	},
++	{
++		name:    "AtomicExchange64",
++		argLen:  3,
++		generic: true,
++	},
++	{
++		name:    "AtomicAdd32",
++		argLen:  3,
++		generic: true,
++	},
++	{
++		name:    "AtomicAdd64",
++		argLen:  3,
++		generic: true,
++	},
++	{
++		name:    "AtomicCompareAndSwap32",
++		argLen:  4,
++		generic: true,
++	},
++	{
++		name:    "AtomicCompareAndSwap64",
++		argLen:  4,
++		generic: true,
++	},
++	{
++		name:    "AtomicAnd8",
++		argLen:  3,
++		generic: true,
++	},
++	{
++		name:    "AtomicOr8",
++		argLen:  3,
++		generic: true,
++	},
+ }
+ 
+ func (o Op) Asm() obj.As    { return opcodeTable[o].asm }
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 05f01b2916..15d7cc6e7b 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -40,6 +40,10 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 		return rewriteValueAMD64_OpAMD64CMPW(v, config)
+ 	case OpAMD64CMPWconst:
+ 		return rewriteValueAMD64_OpAMD64CMPWconst(v, config)
++	case OpAMD64CMPXCHGLlock:
++		return rewriteValueAMD64_OpAMD64CMPXCHGLlock(v, config)
++	case OpAMD64CMPXCHGQlock:
++		return rewriteValueAMD64_OpAMD64CMPXCHGQlock(v, config)
+ 	case OpAMD64LEAL:
+ 		return rewriteValueAMD64_OpAMD64LEAL(v, config)
+ 	case OpAMD64LEAQ:
+@@ -260,6 +264,10 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 		return rewriteValueAMD64_OpAMD64SUBQ(v, config)
+ 	case OpAMD64SUBQconst:
+ 		return rewriteValueAMD64_OpAMD64SUBQconst(v, config)
++	case OpAMD64XADDLlock:
++		return rewriteValueAMD64_OpAMD64XADDLlock(v, config)
++	case OpAMD64XADDQlock:
++		return rewriteValueAMD64_OpAMD64XADDQlock(v, config)
+ 	case OpAMD64XCHGL:
+ 		return rewriteValueAMD64_OpAMD64XCHGL(v, config)
+ 	case OpAMD64XCHGQ:
+@@ -298,12 +306,24 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 		return rewriteValueAMD64_OpAnd8(v, config)
+ 	case OpAndB:
+ 		return rewriteValueAMD64_OpAndB(v, config)
++	case OpAtomicAnd8:
++		return rewriteValueAMD64_OpAtomicAnd8(v, config)
++	case OpAtomicCompareAndSwap32:
++		return rewriteValueAMD64_OpAtomicCompareAndSwap32(v, config)
++	case OpAtomicCompareAndSwap64:
++		return rewriteValueAMD64_OpAtomicCompareAndSwap64(v, config)
++	case OpAtomicExchange32:
++		return rewriteValueAMD64_OpAtomicExchange32(v, config)
++	case OpAtomicExchange64:
++		return rewriteValueAMD64_OpAtomicExchange64(v, config)
+ 	case OpAtomicLoad32:
+ 		return rewriteValueAMD64_OpAtomicLoad32(v, config)
+ 	case OpAtomicLoad64:
+ 		return rewriteValueAMD64_OpAtomicLoad64(v, config)
+ 	case OpAtomicLoadPtr:
+ 		return rewriteValueAMD64_OpAtomicLoadPtr(v, config)
++	case OpAtomicOr8:
++		return rewriteValueAMD64_OpAtomicOr8(v, config)
+ 	case OpAtomicStore32:
+ 		return rewriteValueAMD64_OpAtomicStore32(v, config)
+ 	case OpAtomicStore64:
+@@ -698,6 +718,10 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 		return rewriteValueAMD64_OpRsh8x64(v, config)
+ 	case OpRsh8x8:
+ 		return rewriteValueAMD64_OpRsh8x8(v, config)
++	case OpSelect0:
++		return rewriteValueAMD64_OpSelect0(v, config)
++	case OpSelect1:
++		return rewriteValueAMD64_OpSelect1(v, config)
+ 	case OpSignExt16to32:
+ 		return rewriteValueAMD64_OpSignExt16to32(v, config)
+ 	case OpSignExt16to64:
+@@ -2399,6 +2423,70 @@ func rewriteValueAMD64_OpAMD64CMPWconst(v *Value, config *Config) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueAMD64_OpAMD64CMPXCHGLlock(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (CMPXCHGLlock [off1] {sym} (ADDQconst [off2] ptr) old new_ mem)
++	// cond: is32Bit(off1+off2)
++	// result: (CMPXCHGLlock [off1+off2] {sym} ptr old new_ mem)
++	for {
++		off1 := v.AuxInt
++		sym := v.Aux
++		v_0 := v.Args[0]
++		if v_0.Op != OpAMD64ADDQconst {
++			break
++		}
++		off2 := v_0.AuxInt
++		ptr := v_0.Args[0]
++		old := v.Args[1]
++		new_ := v.Args[2]
++		mem := v.Args[3]
++		if !(is32Bit(off1 + off2)) {
++			break
++		}
++		v.reset(OpAMD64CMPXCHGLlock)
++		v.AuxInt = off1 + off2
++		v.Aux = sym
++		v.AddArg(ptr)
++		v.AddArg(old)
++		v.AddArg(new_)
++		v.AddArg(mem)
++		return true
++	}
++	return false
++}
++func rewriteValueAMD64_OpAMD64CMPXCHGQlock(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (CMPXCHGQlock [off1] {sym} (ADDQconst [off2] ptr) old new_ mem)
++	// cond: is32Bit(off1+off2)
++	// result: (CMPXCHGQlock [off1+off2] {sym} ptr old new_ mem)
++	for {
++		off1 := v.AuxInt
++		sym := v.Aux
++		v_0 := v.Args[0]
++		if v_0.Op != OpAMD64ADDQconst {
++			break
++		}
++		off2 := v_0.AuxInt
++		ptr := v_0.Args[0]
++		old := v.Args[1]
++		new_ := v.Args[2]
++		mem := v.Args[3]
++		if !(is32Bit(off1 + off2)) {
++			break
++		}
++		v.reset(OpAMD64CMPXCHGQlock)
++		v.AuxInt = off1 + off2
++		v.Aux = sym
++		v.AddArg(ptr)
++		v.AddArg(old)
++		v.AddArg(new_)
++		v.AddArg(mem)
++		return true
++	}
++	return false
++}
+ func rewriteValueAMD64_OpAMD64LEAL(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -12781,6 +12869,66 @@ func rewriteValueAMD64_OpAMD64SUBQconst(v *Value, config *Config) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueAMD64_OpAMD64XADDLlock(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (XADDLlock [off1] {sym} val (ADDQconst [off2] ptr) mem)
++	// cond: is32Bit(off1+off2)
++	// result: (XADDLlock [off1+off2] {sym} val ptr mem)
++	for {
++		off1 := v.AuxInt
++		sym := v.Aux
++		val := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpAMD64ADDQconst {
++			break
++		}
++		off2 := v_1.AuxInt
++		ptr := v_1.Args[0]
++		mem := v.Args[2]
++		if !(is32Bit(off1 + off2)) {
++			break
++		}
++		v.reset(OpAMD64XADDLlock)
++		v.AuxInt = off1 + off2
++		v.Aux = sym
++		v.AddArg(val)
++		v.AddArg(ptr)
++		v.AddArg(mem)
++		return true
++	}
++	return false
++}
++func rewriteValueAMD64_OpAMD64XADDQlock(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (XADDQlock [off1] {sym} val (ADDQconst [off2] ptr) mem)
++	// cond: is32Bit(off1+off2)
++	// result: (XADDQlock [off1+off2] {sym} val ptr mem)
++	for {
++		off1 := v.AuxInt
++		sym := v.Aux
++		val := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpAMD64ADDQconst {
++			break
++		}
++		off2 := v_1.AuxInt
++		ptr := v_1.Args[0]
++		mem := v.Args[2]
++		if !(is32Bit(off1 + off2)) {
++			break
++		}
++		v.reset(OpAMD64XADDQlock)
++		v.AuxInt = off1 + off2
++		v.Aux = sym
++		v.AddArg(val)
++		v.AddArg(ptr)
++		v.AddArg(mem)
++		return true
++	}
++	return false
++}
+ func rewriteValueAMD64_OpAMD64XCHGL(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -13321,6 +13469,95 @@ func rewriteValueAMD64_OpAndB(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueAMD64_OpAtomicAnd8(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (AtomicAnd8 ptr val mem)
++	// cond:
++	// result: (ANDBlock ptr val mem)
++	for {
++		ptr := v.Args[0]
++		val := v.Args[1]
++		mem := v.Args[2]
++		v.reset(OpAMD64ANDBlock)
++		v.AddArg(ptr)
++		v.AddArg(val)
++		v.AddArg(mem)
++		return true
++	}
++}
++func rewriteValueAMD64_OpAtomicCompareAndSwap32(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (AtomicCompareAndSwap32 ptr old new_ mem)
++	// cond:
++	// result: (CMPXCHGLlock ptr old new_ mem)
++	for {
++		ptr := v.Args[0]
++		old := v.Args[1]
++		new_ := v.Args[2]
++		mem := v.Args[3]
++		v.reset(OpAMD64CMPXCHGLlock)
++		v.AddArg(ptr)
++		v.AddArg(old)
++		v.AddArg(new_)
++		v.AddArg(mem)
++		return true
++	}
++}
++func rewriteValueAMD64_OpAtomicCompareAndSwap64(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (AtomicCompareAndSwap64 ptr old new_ mem)
++	// cond:
++	// result: (CMPXCHGQlock ptr old new_ mem)
++	for {
++		ptr := v.Args[0]
++		old := v.Args[1]
++		new_ := v.Args[2]
++		mem := v.Args[3]
++		v.reset(OpAMD64CMPXCHGQlock)
++		v.AddArg(ptr)
++		v.AddArg(old)
++		v.AddArg(new_)
++		v.AddArg(mem)
++		return true
++	}
++}
++func rewriteValueAMD64_OpAtomicExchange32(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (AtomicExchange32 ptr val mem)
++	// cond:
++	// result: (XCHGL val ptr mem)
++	for {
++		ptr := v.Args[0]
++		val := v.Args[1]
++		mem := v.Args[2]
++		v.reset(OpAMD64XCHGL)
++		v.AddArg(val)
++		v.AddArg(ptr)
++		v.AddArg(mem)
++		return true
++	}
++}
++func rewriteValueAMD64_OpAtomicExchange64(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (AtomicExchange64 ptr val mem)
++	// cond:
++	// result: (XCHGQ val ptr mem)
++	for {
++		ptr := v.Args[0]
++		val := v.Args[1]
++		mem := v.Args[2]
++		v.reset(OpAMD64XCHGQ)
++		v.AddArg(val)
++		v.AddArg(ptr)
++		v.AddArg(mem)
++		return true
++	}
++}
+ func rewriteValueAMD64_OpAtomicLoad32(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -13384,6 +13621,23 @@ func rewriteValueAMD64_OpAtomicLoadPtr(v *Value, config *Config) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueAMD64_OpAtomicOr8(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (AtomicOr8 ptr val mem)
++	// cond:
++	// result: (ORBlock ptr val mem)
++	for {
++		ptr := v.Args[0]
++		val := v.Args[1]
++		mem := v.Args[2]
++		v.reset(OpAMD64ORBlock)
++		v.AddArg(ptr)
++		v.AddArg(val)
++		v.AddArg(mem)
++		return true
++	}
++}
+ func rewriteValueAMD64_OpAtomicStore32(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -17550,6 +17804,100 @@ func rewriteValueAMD64_OpRsh8x8(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueAMD64_OpSelect0(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Select0 <t> (AtomicAdd32 ptr val mem))
++	// cond:
++	// result: (ADDL (Select0 <t> (XADDLlock val ptr mem)) val)
++	for {
++		t := v.Type
++		v_0 := v.Args[0]
++		if v_0.Op != OpAtomicAdd32 {
++			break
++		}
++		ptr := v_0.Args[0]
++		val := v_0.Args[1]
++		mem := v_0.Args[2]
++		v.reset(OpAMD64ADDL)
++		v0 := b.NewValue0(v.Line, OpSelect0, t)
++		v1 := b.NewValue0(v.Line, OpAMD64XADDLlock, MakeTuple(config.fe.TypeUInt32(), TypeMem))
++		v1.AddArg(val)
++		v1.AddArg(ptr)
++		v1.AddArg(mem)
++		v0.AddArg(v1)
++		v.AddArg(v0)
++		v.AddArg(val)
++		return true
++	}
++	// match: (Select0 <t> (AtomicAdd64 ptr val mem))
++	// cond:
++	// result: (ADDQ (Select0 <t> (XADDQlock val ptr mem)) val)
++	for {
++		t := v.Type
++		v_0 := v.Args[0]
++		if v_0.Op != OpAtomicAdd64 {
++			break
++		}
++		ptr := v_0.Args[0]
++		val := v_0.Args[1]
++		mem := v_0.Args[2]
++		v.reset(OpAMD64ADDQ)
++		v0 := b.NewValue0(v.Line, OpSelect0, t)
++		v1 := b.NewValue0(v.Line, OpAMD64XADDQlock, MakeTuple(config.fe.TypeUInt64(), TypeMem))
++		v1.AddArg(val)
++		v1.AddArg(ptr)
++		v1.AddArg(mem)
++		v0.AddArg(v1)
++		v.AddArg(v0)
++		v.AddArg(val)
++		return true
++	}
++	return false
++}
++func rewriteValueAMD64_OpSelect1(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Select1     (AtomicAdd32 ptr val mem))
++	// cond:
++	// result: (Select1     (XADDLlock val ptr mem))
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpAtomicAdd32 {
++			break
++		}
++		ptr := v_0.Args[0]
++		val := v_0.Args[1]
++		mem := v_0.Args[2]
++		v.reset(OpSelect1)
++		v0 := b.NewValue0(v.Line, OpAMD64XADDLlock, MakeTuple(config.fe.TypeUInt32(), TypeMem))
++		v0.AddArg(val)
++		v0.AddArg(ptr)
++		v0.AddArg(mem)
++		v.AddArg(v0)
++		return true
++	}
++	// match: (Select1     (AtomicAdd64 ptr val mem))
++	// cond:
++	// result: (Select1     (XADDQlock val ptr mem))
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpAtomicAdd64 {
++			break
++		}
++		ptr := v_0.Args[0]
++		val := v_0.Args[1]
++		mem := v_0.Args[2]
++		v.reset(OpSelect1)
++		v0 := b.NewValue0(v.Line, OpAMD64XADDQlock, MakeTuple(config.fe.TypeUInt64(), TypeMem))
++		v0.AddArg(val)
++		v0.AddArg(ptr)
++		v0.AddArg(mem)
++		v.AddArg(v0)
++		return true
++	}
++	return false
++}
+ func rewriteValueAMD64_OpSignExt16to32(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b

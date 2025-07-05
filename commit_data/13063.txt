@@ -12,8 +12,72 @@ Date:   Mon May 14 11:50:25 2012 -0700
     R=r, rsc
     CC=golang-dev
     https://golang.org/cl/6201063
-
+---
  api/go1.txt                         | 1 +
  src/pkg/regexp/syntax/parse.go      | 5 +++--
  src/pkg/regexp/syntax/parse_test.go | 8 ++++++++
  3 files changed, 12 insertions(+), 2 deletions(-)
+
+diff --git a/api/go1.txt b/api/go1.txt
+index e6bdd173e9..f12719fed6 100644
+--- a/api/go1.txt
++++ b/api/go1.txt
+@@ -5484,6 +5484,7 @@ pkg regexp/syntax, const ErrMissingBracket ErrorCode
+ pkg regexp/syntax, const ErrMissingParen ErrorCode
+ pkg regexp/syntax, const ErrMissingRepeatArgument ErrorCode
+ pkg regexp/syntax, const ErrTrailingBackslash ErrorCode
++pkg regexp/syntax, const ErrUnexpectedParen ErrorCode
+ pkg regexp/syntax, const FoldCase Flags
+ pkg regexp/syntax, const InstAlt InstOp
+ pkg regexp/syntax, const InstAltMatch InstOp
+diff --git a/src/pkg/regexp/syntax/parse.go b/src/pkg/regexp/syntax/parse.go
+index 2df7750251..74a9d6c30a 100644
+--- a/src/pkg/regexp/syntax/parse.go
++++ b/src/pkg/regexp/syntax/parse.go
+@@ -46,6 +46,7 @@ const (
+ 	ErrMissingParen          ErrorCode = "missing closing )"
+ 	ErrMissingRepeatArgument ErrorCode = "missing argument to repetition operator"
+ 	ErrTrailingBackslash     ErrorCode = "trailing backslash at end of expression"
++	ErrUnexpectedParen       ErrorCode = "unexpected )"
+ )
+ 
+ func (e ErrorCode) String() string {
+@@ -1168,13 +1169,13 @@ func (p *parser) parseRightParen() error {
+ 
+ 	n := len(p.stack)
+ 	if n < 2 {
+-		return &Error{ErrInternalError, ""}
++		return &Error{ErrUnexpectedParen, p.wholeRegexp}
+ 	}
+ 	re1 := p.stack[n-1]
+ 	re2 := p.stack[n-2]
+ 	p.stack = p.stack[:n-2]
+ 	if re2.Op != opLeftParen {
+-		return &Error{ErrMissingParen, p.wholeRegexp}
++		return &Error{ErrUnexpectedParen, p.wholeRegexp}
+ 	}
+ 	// Restore flags at time of paren.
+ 	p.flags = re2.Flags
+diff --git a/src/pkg/regexp/syntax/parse_test.go b/src/pkg/regexp/syntax/parse_test.go
+index c6e63392c9..81fd9dc013 100644
+--- a/src/pkg/regexp/syntax/parse_test.go
++++ b/src/pkg/regexp/syntax/parse_test.go
+@@ -441,10 +441,18 @@ var invalidRegexps = []string{
+ 	`(`,
+ 	`)`,
+ 	`(a`,
++	`a)`,
++	`(a))`,
+ 	`(a|b|`,
++	`a|b|)`,
++	`(a|b|))`,
+ 	`(a|b`,
++	`a|b)`,
++	`(a|b))`,
+ 	`[a-z`,
+ 	`([a-z)`,
++	`[a-z)`,
++	`([a-z]))`,
+ 	`x{1001}`,
+ 	`x{9876543210}`,
+ 	`x{2,1}`,

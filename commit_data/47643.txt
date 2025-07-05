@@ -16,7 +16,50 @@ Date:   Sat Mar 13 00:27:30 2021 +1030
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: Emmanuel Odeke <emmanuel@orijtech.com>
-
+---
  src/archive/zip/struct.go      |  8 +++-----
  src/archive/zip/writer_test.go | 12 ++++++++++++
  2 files changed, 15 insertions(+), 5 deletions(-)
+
+diff --git a/src/archive/zip/struct.go b/src/archive/zip/struct.go
+index 4dd29f35fa..3dc0c50122 100644
+--- a/src/archive/zip/struct.go
++++ b/src/archive/zip/struct.go
+@@ -341,11 +341,9 @@ func fileModeToUnixMode(mode fs.FileMode) uint32 {
+ 	case fs.ModeSocket:
+ 		m = s_IFSOCK
+ 	case fs.ModeDevice:
+-		if mode&fs.ModeCharDevice != 0 {
+-			m = s_IFCHR
+-		} else {
+-			m = s_IFBLK
+-		}
++		m = s_IFBLK
++	case fs.ModeDevice | fs.ModeCharDevice:
++		m = s_IFCHR
+ 	}
+ 	if mode&fs.ModeSetuid != 0 {
+ 		m |= s_ISUID
+diff --git a/src/archive/zip/writer_test.go b/src/archive/zip/writer_test.go
+index 5985144e5c..3fa8bef055 100644
+--- a/src/archive/zip/writer_test.go
++++ b/src/archive/zip/writer_test.go
+@@ -57,6 +57,18 @@ var writeTests = []WriteTest{
+ 		Method: Deflate,
+ 		Mode:   0755 | fs.ModeSymlink,
+ 	},
++	{
++		Name:   "device",
++		Data:   []byte("device file"),
++		Method: Deflate,
++		Mode:   0755 | fs.ModeDevice,
++	},
++	{
++		Name:   "chardevice",
++		Data:   []byte("char device file"),
++		Method: Deflate,
++		Mode:   0755 | fs.ModeDevice | fs.ModeCharDevice,
++	},
+ }
+ 
+ func TestWriter(t *testing.T) {

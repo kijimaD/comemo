@@ -10,7 +10,7 @@ Date:   Tue Sep 28 13:00:13 2010 -0400
     R=r, r2
     CC=golang-dev
     https://golang.org/cl/2258045
-
+---
  src/cmd/5l/asm.c         | 6 +++---
  src/cmd/6l/asm.c         | 8 ++++----
  src/cmd/8l/asm.c         | 6 +++---
@@ -20,3 +20,187 @@ Date:   Tue Sep 28 13:00:13 2010 -0400
  src/cmd/ld/macho.c       | 4 ++--
  src/libmach/executable.c | 6 ++++--
  8 files changed, 27 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/5l/asm.c b/src/cmd/5l/asm.c
+index 45e6e734fb..aeab60a684 100644
+--- a/src/cmd/5l/asm.c
++++ b/src/cmd/5l/asm.c
+@@ -482,7 +482,7 @@ asmb(void)
+ 	if(dlm){
+ 		char buf[8];
+ 
+-		write(cout, buf, INITDAT-textsize);
++		ewrite(cout, buf, INITDAT-textsize);
+ 		textsize = INITDAT;
+ 	}
+ 	for(t = 0; t < datsize; t += sizeof(buf)-100) {
+@@ -987,7 +987,7 @@ cflush(void)
+ 	/* no bug if cbc < 0 since obuf(cbuf) followed by ibuf in buf! */
+ 	n = sizeof(buf.cbuf) - cbc;
+ 	if(n)
+-		write(cout, buf.cbuf, n);
++		ewrite(cout, buf.cbuf, n);
+ 	cbp = buf.cbuf;
+ 	cbc = sizeof(buf.cbuf);
+ }
+@@ -1398,7 +1398,7 @@ datblk(int32 s, int32 n, int str)
+ 			break;
+ 		}
+ 	}
+-	write(cout, buf.dbuf, n);
++	ewrite(cout, buf.dbuf, n);
+ }
+ 
+ void
+diff --git a/src/cmd/6l/asm.c b/src/cmd/6l/asm.c
+index d46721568c..1502ad6602 100644
+--- a/src/cmd/6l/asm.c
++++ b/src/cmd/6l/asm.c
+@@ -575,7 +575,7 @@ asmb(void)
+ 	if(dlm){
+ 		char buf[8];
+ 
+-		write(cout, buf, INITDAT-textsize);
++		ewrite(cout, buf, INITDAT-textsize);
+ 		textsize = INITDAT;
+ 	}
+ 
+@@ -649,7 +649,7 @@ asmb(void)
+ 			cflush();
+ 			elfstro = seek(cout, 0, 1);
+ 			elfsymsize = elfstro - elfsymo;
+-			write(cout, elfstrdat, elfstrsize);
++			ewrite(cout, elfstrdat, elfstrsize);
+ 
+ 			if(debug['v'])
+ 			       Bprint(&bso, "%5.2f dwarf\n", cputime());
+@@ -938,7 +938,7 @@ cflush(void)
+ 
+ 	n = sizeof(buf.cbuf) - cbc;
+ 	if(n)
+-		write(cout, buf.cbuf, n);
++		ewrite(cout, buf.cbuf, n);
+ 	cbp = buf.cbuf;
+ 	cbc = sizeof(buf.cbuf);
+ }
+@@ -1208,7 +1208,7 @@ datblk(int32 s, int32 n)
+ 		}
+ 	}
+ 
+-	write(cout, buf.dbuf, n);
++	ewrite(cout, buf.dbuf, n);
+ 	if(!debug['a'])
+ 		return;
+ 
+diff --git a/src/cmd/8l/asm.c b/src/cmd/8l/asm.c
+index 0675b904b9..ec35d8d519 100644
+--- a/src/cmd/8l/asm.c
++++ b/src/cmd/8l/asm.c
+@@ -604,7 +604,7 @@ asmb(void)
+ 	if(dlm){
+ 		char buf[8];
+ 
+-		write(cout, buf, INITDAT-textsize);
++		ewrite(cout, buf, INITDAT-textsize);
+ 		textsize = INITDAT;
+ 	}
+ 
+@@ -1080,7 +1080,7 @@ cflush(void)
+ 
+ 	n = sizeof(buf.cbuf) - cbc;
+ 	if(n)
+-		write(cout, buf.cbuf, n);
++		ewrite(cout, buf.cbuf, n);
+ 	cbp = buf.cbuf;
+ 	cbc = sizeof(buf.cbuf);
+ }
+@@ -1213,7 +1213,7 @@ datblk(int32 s, int32 n, int32 rodata)
+ 		}
+ 	}
+ 
+-	write(cout, buf.dbuf, n);
++	ewrite(cout, buf.dbuf, n);
+ 	if(!debug['a'])
+ 		return;
+ 
+diff --git a/src/cmd/ld/elf.c b/src/cmd/ld/elf.c
+index 0ebdcf024c..4286349dbe 100644
+--- a/src/cmd/ld/elf.c
++++ b/src/cmd/ld/elf.c
+@@ -316,7 +316,7 @@ elfwriteinterp(void)
+ 
+ 	n = strlen(interp)+1;
+ 	seek(cout, ELFRESERVE-n, 0);
+-	write(cout, interp, n);
++	ewrite(cout, interp, n);
+ 	return n;
+ }
+ 
+diff --git a/src/cmd/ld/lib.c b/src/cmd/ld/lib.c
+index 0cdc6778fc..3e755d7f96 100644
+--- a/src/cmd/ld/lib.c
++++ b/src/cmd/ld/lib.c
+@@ -924,3 +924,12 @@ addsection(Segment *seg, char *name, int rwx)
+ 	*l = sect;
+ 	return sect;
+ }
++
++void
++ewrite(int fd, void *buf, int n)
++{
++	if(write(fd, buf, n) < 0) {
++		diag("write error: %r");
++		errorexit();
++	}
++}
+diff --git a/src/cmd/ld/lib.h b/src/cmd/ld/lib.h
+index 092161e14b..b828bed6ea 100644
+--- a/src/cmd/ld/lib.h
++++ b/src/cmd/ld/lib.h
+@@ -128,6 +128,7 @@ void	ldpkg(Biobuf*, char*, int64, char*, int);
+ void	mark(Sym *s);
+ char*	expandpkg(char*, char*);
+ void	deadcode(void);
++void	ewrite(int, void*, int);
+ 
+ int	pathchar(void);
+ void*	mal(uint32);
+diff --git a/src/cmd/ld/macho.c b/src/cmd/ld/macho.c
+index 407fb553d4..b3b1f8c497 100644
+--- a/src/cmd/ld/macho.c
++++ b/src/cmd/ld/macho.c
+@@ -430,8 +430,8 @@ domacholink(void)
+ 			}
+ 		}
+ 
+-		write(cout, linkdata, nlinkdata);
+-		write(cout, strtab, nstrtab);
++		ewrite(cout, linkdata, nlinkdata);
++		ewrite(cout, strtab, nstrtab);
+ 	}
+ 	return rnd(nlinkdata+nstrtab, INITRND);
+ }
+diff --git a/src/libmach/executable.c b/src/libmach/executable.c
+index 34da721519..98aae3e529 100644
+--- a/src/libmach/executable.c
++++ b/src/libmach/executable.c
+@@ -786,7 +786,8 @@ error:
+ 			goto done;
+ 		memset(buf, 0, sizeof buf);
+ 		seek(fd, sh[ep->shstrndx].offset, 0);
+-		read(fd, buf, sh[ep->shstrndx].size);
++		i = read(fd, buf, sh[ep->shstrndx].size);
++		USED(i);	// shut up ubuntu gcc
+ 
+ 		for(i = 0; i < ep->shnum; i++) {
+ 			if (strcmp(&buf[sh[i].name], ".gosymtab") == 0) {
+@@ -967,7 +968,8 @@ error:
+ 			goto done;
+ 		memset(buf, 0, sizeof buf);
+ 		seek(fd, sh[ep->shstrndx].offset, 0);
+-		read(fd, buf, sh[ep->shstrndx].size);
++		i = read(fd, buf, sh[ep->shstrndx].size);
++		USED(i);	// shut up ubuntu gcc
+ 
+ 		for(i = 0; i < ep->shnum; i++) {
+ 			if (strcmp(&buf[sh[i].name], ".gosymtab") == 0) {

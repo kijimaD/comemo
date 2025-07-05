@@ -11,6 +11,34 @@ Date:   Wed Dec 11 00:03:46 2013 +1100
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/30340043
-
+---
  src/pkg/syscall/route_bsd.go | 9 ++++++++-
  1 file changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/syscall/route_bsd.go b/src/pkg/syscall/route_bsd.go
+index 638073592d..48af587450 100644
+--- a/src/pkg/syscall/route_bsd.go
++++ b/src/pkg/syscall/route_bsd.go
+@@ -199,14 +199,21 @@ func (m *InterfaceAddrMessage) sockaddr() (sas []Sockaddr) {
+ // ParseRoutingMessage parses b as routing messages and returns the
+ // slice containing the RoutingMessage interfaces.
+ func ParseRoutingMessage(b []byte) (msgs []RoutingMessage, err error) {
++	msgCount := 0
+ 	for len(b) >= anyMessageLen {
++		msgCount++
+ 		any := (*anyMessage)(unsafe.Pointer(&b[0]))
+ 		if any.Version != RTM_VERSION {
+-			return nil, EINVAL
++			b = b[any.Msglen:]
++			continue
+ 		}
+ 		msgs = append(msgs, any.toRoutingMessage(b))
+ 		b = b[any.Msglen:]
+ 	}
++	// We failed to parse any of the messages - version mismatch?
++	if msgCount > 0 && len(msgs) == 0 {
++		return nil, EINVAL
++	}
+ 	return msgs, nil
+ }
+ 

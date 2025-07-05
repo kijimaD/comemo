@@ -7,10 +7,208 @@ Date:   Thu Jul 21 03:48:56 2011 -0300
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/4794046
-
+---
  src/cmd/5l/asm.c  | 14 ++++----------
  src/cmd/6l/asm.c  | 20 ++------------------
  src/cmd/8l/asm.c  | 30 ++++++++++++------------------
  src/cmd/ld/data.c |  2 +-
  src/cmd/ld/elf.c  | 27 +++++++++++++++++++++++++++
  5 files changed, 46 insertions(+), 47 deletions(-)
+
+diff --git a/src/cmd/5l/asm.c b/src/cmd/5l/asm.c
+index 8a60ff74a9..5b7f6f111d 100644
+--- a/src/cmd/5l/asm.c
++++ b/src/cmd/5l/asm.c
+@@ -185,14 +185,6 @@ doelf(void)
+ 		elfstr[ElfStrRelPlt] = addstring(shstrtab, ".rel.plt");
+ 		elfstr[ElfStrPlt] = addstring(shstrtab, ".plt");
+ 
+-		/* interpreter string */
+-		if(interpreter == nil)
+-			interpreter = linuxdynld;
+-		s = lookup(".interp", 0);
+-		s->type = SELFROSECT;
+-		s->reachable = 1;
+-		addstring(s, interpreter);
+-
+ 		/* dynamic symbol table - first entry all zeros */
+ 		s = lookup(".dynsym", 0);
+ 		s->type = SELFROSECT;
+@@ -492,7 +484,9 @@ asmb(void)
+ 			sh->type = SHT_PROGBITS;
+ 			sh->flags = SHF_ALLOC;
+ 			sh->addralign = 1;
+-			shsym(sh, lookup(".interp", 0));
++			if(interpreter == nil)
++				interpreter = linuxdynld;
++			elfinterp(sh, startva, interpreter);
+ 
+ 			ph = newElfPhdr();
+ 			ph->type = PT_INTERP;
+@@ -638,7 +632,7 @@ asmb(void)
+ 		a += elfwritephdrs();
+ 		a += elfwriteshdrs();
+ 		cflush();
+-		if(a > ELFRESERVE)	
++		if(a+elfwriteinterp() > ELFRESERVE)	
+ 			diag("ELFRESERVE too small: %d > %d", a, ELFRESERVE);
+ 		break;
+ 	}
+diff --git a/src/cmd/6l/asm.c b/src/cmd/6l/asm.c
+index fb088fd9ee..39ee2db54f 100644
+--- a/src/cmd/6l/asm.c
++++ b/src/cmd/6l/asm.c
+@@ -591,22 +591,6 @@ doelf(void)
+ 		elfstr[ElfStrGnuVersion] = addstring(shstrtab, ".gnu.version");
+ 		elfstr[ElfStrGnuVersionR] = addstring(shstrtab, ".gnu.version_r");
+ 
+-		/* interpreter string */
+-		if(interpreter == nil) {
+-			switch(HEADTYPE) {
+-			case Hlinux:
+-				interpreter = linuxdynld;
+-				break;
+-			case Hfreebsd:
+-				interpreter = freebsddynld;
+-				break;
+-			}
+-		}
+-		s = lookup(".interp", 0);
+-		s->type = SELFROSECT;
+-		s->reachable = 1;
+-		addstring(s, interpreter);
+-
+ 		/* dynamic symbol table - first entry all zeros */
+ 		s = lookup(".dynsym", 0);
+ 		s->type = SELFROSECT;
+@@ -909,7 +893,7 @@ asmb(void)
+ 					break;
+ 				}
+ 			}
+-			shsym(sh, lookup(".interp", 0));
++			elfinterp(sh, startva, interpreter);
+ 
+ 			ph = newElfPhdr();
+ 			ph->type = PT_INTERP;
+@@ -1088,7 +1072,7 @@ asmb(void)
+ 		a += elfwritephdrs();
+ 		a += elfwriteshdrs();
+ 		cflush();
+-		if(a > ELFRESERVE)	
++		if(a+elfwriteinterp() > ELFRESERVE)	
+ 			diag("ELFRESERVE too small: %d > %d", a, ELFRESERVE);
+ 		break;
+ 	case Hwindows:
+diff --git a/src/cmd/8l/asm.c b/src/cmd/8l/asm.c
+index 5d49628588..22abd80491 100644
+--- a/src/cmd/8l/asm.c
++++ b/src/cmd/8l/asm.c
+@@ -551,22 +551,6 @@ doelf(void)
+ 		elfstr[ElfStrGnuVersion] = addstring(shstrtab, ".gnu.version");
+ 		elfstr[ElfStrGnuVersionR] = addstring(shstrtab, ".gnu.version_r");
+ 
+-		/* interpreter string */
+-		if(interpreter == nil) {
+-			switch(HEADTYPE) {
+-			case Hlinux:
+-				interpreter = linuxdynld;
+-				break;
+-			case Hfreebsd:
+-				interpreter = freebsddynld;
+-				break;
+-			}
+-		}
+-		s = lookup(".interp", 0);
+-		s->type = SELFROSECT;
+-		s->reachable = 1;
+-		addstring(s, interpreter);
+-
+ 		/* dynamic symbol table - first entry all zeros */
+ 		s = lookup(".dynsym", 0);
+ 		s->type = SELFROSECT;
+@@ -964,7 +948,17 @@ asmb(void)
+ 			sh->type = SHT_PROGBITS;
+ 			sh->flags = SHF_ALLOC;
+ 			sh->addralign = 1;
+-			shsym(sh, lookup(".interp", 0));
++			if(interpreter == nil) {
++				switch(HEADTYPE) {
++				case Hlinux:
++					interpreter = linuxdynld;
++					break;
++				case Hfreebsd:
++					interpreter = freebsddynld;
++					break;
++				}
++			}
++			elfinterp(sh, startva, interpreter);
+ 
+ 			ph = newElfPhdr();
+ 			ph->type = PT_INTERP;
+@@ -1148,7 +1142,7 @@ asmb(void)
+ 		a += elfwritephdrs();
+ 		a += elfwriteshdrs();
+ 		cflush();
+-		if(a > ELFRESERVE)	
++		if(a+elfwriteinterp() > ELFRESERVE)	
+ 			diag("ELFRESERVE too small: %d > %d", a, ELFRESERVE);
+ 		break;
+ 
+diff --git a/src/cmd/ld/data.c b/src/cmd/ld/data.c
+index 5cf5f4d7a0..168f3e6d1c 100644
+--- a/src/cmd/ld/data.c
++++ b/src/cmd/ld/data.c
+@@ -871,7 +871,7 @@ dodata(void)
+ 
+ 	/* data */
+ 	sect = addsection(&segdata, ".data", 06);
+-	sect->vaddr = 0;
++	sect->vaddr = datsize;
+ 	for(; s != nil && s->type < SBSS; s = s->next) {
+ 		s->type = SDATA;
+ 		t = s->size;
+diff --git a/src/cmd/ld/elf.c b/src/cmd/ld/elf.c
+index 3fe8ba83a6..f9f9ef6b21 100644
+--- a/src/cmd/ld/elf.c
++++ b/src/cmd/ld/elf.c
+@@ -19,6 +19,7 @@ static	int	elf64;
+ static	ElfEhdr	hdr;
+ static	ElfPhdr	*phdr[NSECT];
+ static	ElfShdr	*shdr[NSECT];
++static	char	*interp;
+ 
+ typedef struct Elfstring Elfstring;
+ struct Elfstring
+@@ -303,6 +304,32 @@ elfwritedynentsymsize(Sym *s, int tag, Sym *t)
+ 	addsize(s, t);
+ }
+ 
++int
++elfwriteinterp(void)
++{
++	int n;
++
++	if(interp == nil)
++		return 0;
++
++	n = strlen(interp)+1;
++	cseek(ELFRESERVE-n);
++	cwrite(interp, n);
++	return n;
++}
++
++void
++elfinterp(ElfShdr *sh, uint64 startva, char *p)
++{
++	int n;
++
++	interp = p;
++	n = strlen(interp)+1;
++	sh->addr = startva + ELFRESERVE - n;
++	sh->off = ELFRESERVE - n;
++	sh->size = n;
++}
++
+ extern int nelfsym;
+ int elfverneed;
+ 

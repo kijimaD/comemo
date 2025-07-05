@@ -10,6 +10,23 @@ Date:   Tue Nov 24 22:52:37 2020 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/272930
     Trust: Russ Cox <rsc@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/go.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index e9ff5aeb13..d9b8f704a9 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -145,9 +145,10 @@ var (
+ 	okforcap   [NTYPE]bool
+ 	okforlen   [NTYPE]bool
+ 	okforarith [NTYPE]bool
+-	okforconst [NTYPE]bool
+ )
+ 
++var okforconst [NTYPE]bool
++
+ var (
+ 	okfor [OEND][]bool
+ 	iscmp [OEND]bool

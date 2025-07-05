@@ -13,7 +13,63 @@ Date:   Thu Mar 16 13:12:10 2023 +0100
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  .../lockedfile/internal/filelock/filelock_other.go |  2 +-
  .../lockedfile/internal/filelock/filelock_plan9.go | 36 ----------------------
  2 files changed, 1 insertion(+), 37 deletions(-)
+
+diff --git a/src/cmd/go/internal/lockedfile/internal/filelock/filelock_other.go b/src/cmd/go/internal/lockedfile/internal/filelock/filelock_other.go
+index c18dbdf850..7bdd62bd9b 100644
+--- a/src/cmd/go/internal/lockedfile/internal/filelock/filelock_other.go
++++ b/src/cmd/go/internal/lockedfile/internal/filelock/filelock_other.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !unix && !plan9 && !windows
++//go:build !unix && !windows
+ 
+ package filelock
+ 
+diff --git a/src/cmd/go/internal/lockedfile/internal/filelock/filelock_plan9.go b/src/cmd/go/internal/lockedfile/internal/filelock/filelock_plan9.go
+deleted file mode 100644
+index 54b2c946e0..0000000000
+--- a/src/cmd/go/internal/lockedfile/internal/filelock/filelock_plan9.go
++++ /dev/null
+@@ -1,36 +0,0 @@
+-// Copyright 2018 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build plan9
+-
+-package filelock
+-
+-import "io/fs"
+-
+-type lockType int8
+-
+-const (
+-	readLock = iota + 1
+-	writeLock
+-)
+-
+-func lock(f File, lt lockType) error {
+-	return &fs.PathError{
+-		Op:   lt.String(),
+-		Path: f.Name(),
+-		Err:  ErrNotSupported,
+-	}
+-}
+-
+-func unlock(f File) error {
+-	return &fs.PathError{
+-		Op:   "Unlock",
+-		Path: f.Name(),
+-		Err:  ErrNotSupported,
+-	}
+-}
+-
+-func isNotSupported(err error) bool {
+-	return err == ErrNotSupported
+-}

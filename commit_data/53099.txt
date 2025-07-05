@@ -13,6 +13,22 @@ Date:   Mon Jul 11 19:10:00 2022 +0200
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/syscall/exec_linux.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/syscall/exec_linux.go b/src/syscall/exec_linux.go
+index ede8247da9..554aad412d 100644
+--- a/src/syscall/exec_linux.go
++++ b/src/syscall/exec_linux.go
+@@ -43,8 +43,8 @@ type SysProcAttr struct {
+ 	// the descriptor of the controlling TTY.
+ 	// Unlike Setctty, in this case Ctty must be a descriptor
+ 	// number in the parent process.
+-	Foreground   bool
+-	Pgid         int            // Child's process group ID if Setpgid.
++	Foreground bool
++	Pgid       int // Child's process group ID if Setpgid.
+ 	// Pdeathsig, if non-zero, is a signal that the kernel will send to
+ 	// the child process when the creating thread dies. Note that the signal
+ 	// is sent on thread termination, which may happen before process termination.

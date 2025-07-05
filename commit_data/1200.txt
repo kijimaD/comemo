@@ -8,7 +8,65 @@ Date:   Wed Nov 19 18:43:04 2008 -0800
     DELTA=6  (0 added, 0 deleted, 6 changed)
     OCL=19662
     CL=19664
-
+---
  src/lib/strconv/testfp.go   | 8 ++++----
  src/lib/strconv/testftoa.go | 4 ++--
  2 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/lib/strconv/testfp.go b/src/lib/strconv/testfp.go
+index 6665a9c00d..1b60d3f770 100644
+--- a/src/lib/strconv/testfp.go
++++ b/src/lib/strconv/testfp.go
+@@ -118,7 +118,7 @@ export func TestFp(t *testing.T) {
+ 		}
+ 		a := strings.split(line, " ");
+ 		if len(a) != 4 {
+-			t.Errorf("testfp.txt:", lineno, ": wrong field count\n");
++			t.Error("testfp.txt:", lineno, ": wrong field count\n");
+ 			continue;
+ 		}
+ 		var s string;
+@@ -128,21 +128,21 @@ export func TestFp(t *testing.T) {
+ 			var ok bool;
+ 			v, ok = myatof64(a[2]);
+ 			if !ok {
+-				t.Errorf("testfp.txt:", lineno, ": cannot atof64 ", a[2]);
++				t.Error("testfp.txt:", lineno, ": cannot atof64 ", a[2]);
+ 				continue;
+ 			}
+ 			s = fmt.sprintf(a[1], v);
+ 		case "float32":
+ 			v1, ok := myatof32(a[2]);
+ 			if !ok {
+-				t.Errorf("testfp.txt:", lineno, ": cannot atof32 ", a[2]);
++				t.Error("testfp.txt:", lineno, ": cannot atof32 ", a[2]);
+ 				continue;
+ 			}
+ 			s = fmt.sprintf(a[1], v1);
+ 			v = float64(v1);
+ 		}
+ 		if s != a[3] {
+-			t.Errorf("testfp.txt:", lineno, ": ", a[0], " ", a[1], " ", a[2], " (", v, ") ",
++			t.Error("testfp.txt:", lineno, ": ", a[0], " ", a[1], " ", a[2], " (", v, ") ",
+ 				"want ", a[3], " got ", s, "\n");
+ 		}
+ //else print("testfp.txt:", lineno, ": worked! ", s, "\n");
+diff --git a/src/lib/strconv/testftoa.go b/src/lib/strconv/testftoa.go
+index c452eb2b70..a85a1a1160 100644
+--- a/src/lib/strconv/testftoa.go
++++ b/src/lib/strconv/testftoa.go
+@@ -98,12 +98,12 @@ export func TestFtoa(t *testing.T) {
+ 		test := &ftests[i];
+ 		s := strconv.ftoa64(test.f, test.fmt, test.prec);
+ 		if s != test.s {
+-			t.Errorf("test", test.f, string(test.fmt), test.prec, "want", test.s, "got", s);
++			t.Error("test", test.f, string(test.fmt), test.prec, "want", test.s, "got", s);
+ 		}
+ 		if float64(float32(test.f)) == test.f && test.fmt != 'b' {
+ 			s := strconv.ftoa32(float32(test.f), test.fmt, test.prec);
+ 			if s != test.s {
+-				t.Errorf("test32", test.f, string(test.fmt), test.prec, "want", test.s, "got", s);
++				t.Error("test32", test.f, string(test.fmt), test.prec, "want", test.s, "got", s);
+ 			}
+ 		}
+ 	}

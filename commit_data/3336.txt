@@ -8,9 +8,174 @@ Date:   Mon Sep 21 18:07:20 2009 -0700
     DELTA=89  (82 added, 5 deleted, 2 changed)
     OCL=34870
     CL=34870
-
+---
  src/pkg/go/printer/printer.go                 | 14 ++++++----
  src/pkg/go/printer/printer_test.go            |  1 +
  src/pkg/go/printer/testdata/statements.go     | 37 +++++++++++++++++++++++++++
  src/pkg/go/printer/testdata/statements.golden | 35 +++++++++++++++++++++++++
  4 files changed, 82 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/go/printer/printer.go b/src/pkg/go/printer/printer.go
+index 37bdc2349f..4fdb2af342 100644
+--- a/src/pkg/go/printer/printer.go
++++ b/src/pkg/go/printer/printer.go
+@@ -911,30 +911,37 @@ func (p *printer) switchBlock(s *ast.BlockStmt) {
+ 
+ 
+ func (p *printer) controlClause(isForStmt bool, init ast.Stmt, expr ast.Expr, post ast.Stmt) {
++	p.print(blank);
++	needsBlank := false;
+ 	if init == nil && post == nil {
+ 		// no semicolons required
+ 		if expr != nil {
+-			p.print(blank);
+ 			p.expr(expr);
++			needsBlank = true;
+ 		}
+ 	} else {
+ 		// all semicolons required
+ 		// (they are not separators, print them explicitly)
+-		p.print(blank);
+ 		if init != nil {
+ 			p.stmt(init);
+ 		}
+ 		p.print(token.SEMICOLON, blank);
+ 		if expr != nil {
+ 			p.expr(expr);
++			needsBlank = true;
+ 		}
+ 		if isForStmt {
+ 			p.print(token.SEMICOLON, blank);
++			needsBlank = false;
+ 			if post != nil {
+ 				p.stmt(post);
++				needsBlank = true;
+ 			}
+ 		}
+ 	}
++	if needsBlank {
++		p.print(blank);
++	}
+ }
+ 
+ 
+@@ -1007,7 +1014,6 @@ func (p *printer) stmt(stmt ast.Stmt) (optSemi bool) {
+ 	case *ast.IfStmt:
+ 		p.print(token.IF);
+ 		p.controlClause(false, s.Init, s.Cond, nil);
+-		p.print(blank);
+ 		p.block(s.Body);
+ 		optSemi = true;
+ 		if s.Else != nil {
+@@ -1028,7 +1034,6 @@ func (p *printer) stmt(stmt ast.Stmt) (optSemi bool) {
+ 	case *ast.SwitchStmt:
+ 		p.print(token.SWITCH);
+ 		p.controlClause(false, s.Init, s.Tag, nil);
+-		p.print(blank);
+ 		p.switchBlock(s.Body);
+ 		optSemi = true;
+ 
+@@ -1077,7 +1082,6 @@ func (p *printer) stmt(stmt ast.Stmt) (optSemi bool) {
+ 	case *ast.ForStmt:
+ 		p.print(token.FOR);
+ 		p.controlClause(true, s.Init, s.Cond, s.Post);
+-		p.print(blank);
+ 		p.block(s.Body);
+ 		optSemi = true;
+ 
+diff --git a/src/pkg/go/printer/printer_test.go b/src/pkg/go/printer/printer_test.go
+index b71c79124d..91e3f2ec35 100644
+--- a/src/pkg/go/printer/printer_test.go
++++ b/src/pkg/go/printer/printer_test.go
+@@ -103,6 +103,7 @@ var data = []entry{
+ 	entry{ "linebreaks.go", "linebreaks.golden", false },
+ 	entry{ "expressions.go", "expressions.golden", false },
+ 	entry{ "declarations.go", "declarations.golden", false },
++	entry{ "statements.go", "statements.golden", false },
+ }
+ 
+ 
+diff --git a/src/pkg/go/printer/testdata/statements.go b/src/pkg/go/printer/testdata/statements.go
+new file mode 100644
+index 0000000000..b568bbf7ab
+--- /dev/null
++++ b/src/pkg/go/printer/testdata/statements.go
+@@ -0,0 +1,37 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package statements
++
++var expr bool;
++
++func _() {
++	if {}
++	if expr{}
++	if _:=expr;{}
++	if _:=expr; expr {}
++}
++
++
++func _() {
++	switch {}
++	switch expr {}
++	switch _ := expr; {}
++	switch _ := expr; expr {}
++}
++
++
++func _() {
++	for{}
++	for expr {}
++	for;;{}  // TODO ok to lose the semicolons here?
++	for _ :=expr;; {}
++	for; expr;{}  // TODO ok to lose the semicolons here?
++	for; ; expr = false {}
++	for _ :=expr; expr; {}
++	for _ := expr;; expr=false {}
++	for;expr;expr =false {}
++	for _ := expr;expr;expr = false {}
++	for _ := range []int{} {}
++}
+diff --git a/src/pkg/go/printer/testdata/statements.golden b/src/pkg/go/printer/testdata/statements.golden
+new file mode 100644
+index 0000000000..93f1064d78
+--- /dev/null
++++ b/src/pkg/go/printer/testdata/statements.golden
+@@ -0,0 +1,35 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package statements
++
++var expr bool
++
++func _() {
++	if {}
++	if expr {}
++	if _ := expr; {}
++	if _ := expr; expr {}
++}
++
++func _() {
++	switch {}
++	switch expr {}
++	switch _ := expr; {}
++	switch _ := expr; expr {}
++}
++
++func _() {
++	for {}
++	for expr {}
++	for {}	// TODO ok to lose the semicolons here?
++	for _ := expr; ; {}
++	for expr {}	// TODO ok to lose the semicolons here?
++	for ; ; expr = false {}
++	for _ := expr; expr; {}
++	for _ := expr; ; expr = false {}
++	for ; expr; expr = false {}
++	for _ := expr; expr; expr = false {}
++	for _ := range []int{} {}
++}

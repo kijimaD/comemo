@@ -16,6 +16,19 @@ Date:   Mon Mar 25 00:52:53 2024 +0000
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
     Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/crypto/rand/rand_plan9.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/crypto/rand/rand_plan9.go b/src/crypto/rand/rand_plan9.go
+index 5d0af0959e..8db19157a7 100644
+--- a/src/crypto/rand/rand_plan9.go
++++ b/src/crypto/rand/rand_plan9.go
+@@ -44,6 +44,7 @@ func (r *reader) Read(b []byte) (n int, err error) {
+ 			r.seedErr = err
+ 			return
+ 		}
++		defer entropy.Close()
+ 		_, r.seedErr = io.ReadFull(entropy, r.key[:])
+ 	})
+ 	if r.seedErr != nil {

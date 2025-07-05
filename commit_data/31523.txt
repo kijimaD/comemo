@@ -13,7 +13,177 @@ Date:   Sat Feb 18 13:58:59 2017 -0800
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/generic.rules | 13 ++--
  src/cmd/compile/internal/ssa/rewritegeneric.go | 98 ++++++++++++++++++++++++++
  2 files changed, 104 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index ff096ff858..e0a12dcae5 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -81,13 +81,12 @@
+ (SignExt16to64 (Const16 [c])) -> (Const64 [int64( int16(c))])
+ (SignExt32to64 (Const32 [c])) -> (Const64 [int64( int32(c))])
+ 
+-// const negation is currently handled by frontend
+-//(Neg8 (Const8 [c])) -> (Const8 [-c])
+-//(Neg16 (Const16 [c])) -> (Const16 [-c])
+-//(Neg32 (Const32 [c])) -> (Const32 [-c])
+-//(Neg64 (Const64 [c])) -> (Const64 [-c])
+-//(Neg32F (Const32F [c])) -> (Const32F [f2i(-i2f(c))])
+-//(Neg64F (Const64F [c])) -> (Const64F [f2i(-i2f(c))])
++(Neg8   (Const8   [c])) -> (Const8   [int64( -int8(c))])
++(Neg16  (Const16  [c])) -> (Const16  [int64(-int16(c))])
++(Neg32  (Const32  [c])) -> (Const32  [int64(-int32(c))])
++(Neg64  (Const64  [c])) -> (Const64  [-c])
++(Neg32F (Const32F [c])) && i2f(c) != 0 -> (Const32F [f2i(-i2f(c))])
++(Neg64F (Const64F [c])) && i2f(c) != 0 -> (Const64F [f2i(-i2f(c))])
+ 
+ (Add8   (Const8 [c])   (Const8 [d]))   -> (Const8  [int64(int8(c+d))])
+ (Add16  (Const16 [c])  (Const16 [d]))  -> (Const16 [int64(int16(c+d))])
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index 2ce73857cb..57e258b029 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -228,8 +228,12 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
+ 		return rewriteValuegeneric_OpNeg16(v, config)
+ 	case OpNeg32:
+ 		return rewriteValuegeneric_OpNeg32(v, config)
++	case OpNeg32F:
++		return rewriteValuegeneric_OpNeg32F(v, config)
+ 	case OpNeg64:
+ 		return rewriteValuegeneric_OpNeg64(v, config)
++	case OpNeg64F:
++		return rewriteValuegeneric_OpNeg64F(v, config)
+ 	case OpNeg8:
+ 		return rewriteValuegeneric_OpNeg8(v, config)
+ 	case OpNeq16:
+@@ -7676,6 +7680,19 @@ func rewriteValuegeneric_OpMul8(v *Value, config *Config) bool {
+ func rewriteValuegeneric_OpNeg16(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
++	// match: (Neg16  (Const16  [c]))
++	// cond:
++	// result: (Const16  [int64(-int16(c))])
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpConst16 {
++			break
++		}
++		c := v_0.AuxInt
++		v.reset(OpConst16)
++		v.AuxInt = int64(-int16(c))
++		return true
++	}
+ 	// match: (Neg16 (Sub16 x y))
+ 	// cond:
+ 	// result: (Sub16 y x)
+@@ -7696,6 +7713,19 @@ func rewriteValuegeneric_OpNeg16(v *Value, config *Config) bool {
+ func rewriteValuegeneric_OpNeg32(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
++	// match: (Neg32  (Const32  [c]))
++	// cond:
++	// result: (Const32  [int64(-int32(c))])
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpConst32 {
++			break
++		}
++		c := v_0.AuxInt
++		v.reset(OpConst32)
++		v.AuxInt = int64(-int32(c))
++		return true
++	}
+ 	// match: (Neg32 (Sub32 x y))
+ 	// cond:
+ 	// result: (Sub32 y x)
+@@ -7713,9 +7743,43 @@ func rewriteValuegeneric_OpNeg32(v *Value, config *Config) bool {
+ 	}
+ 	return false
+ }
++func rewriteValuegeneric_OpNeg32F(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Neg32F (Const32F [c]))
++	// cond: i2f(c) != 0
++	// result: (Const32F [f2i(-i2f(c))])
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpConst32F {
++			break
++		}
++		c := v_0.AuxInt
++		if !(i2f(c) != 0) {
++			break
++		}
++		v.reset(OpConst32F)
++		v.AuxInt = f2i(-i2f(c))
++		return true
++	}
++	return false
++}
+ func rewriteValuegeneric_OpNeg64(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
++	// match: (Neg64  (Const64  [c]))
++	// cond:
++	// result: (Const64  [-c])
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpConst64 {
++			break
++		}
++		c := v_0.AuxInt
++		v.reset(OpConst64)
++		v.AuxInt = -c
++		return true
++	}
+ 	// match: (Neg64 (Sub64 x y))
+ 	// cond:
+ 	// result: (Sub64 y x)
+@@ -7733,9 +7797,43 @@ func rewriteValuegeneric_OpNeg64(v *Value, config *Config) bool {
+ 	}
+ 	return false
+ }
++func rewriteValuegeneric_OpNeg64F(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Neg64F (Const64F [c]))
++	// cond: i2f(c) != 0
++	// result: (Const64F [f2i(-i2f(c))])
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpConst64F {
++			break
++		}
++		c := v_0.AuxInt
++		if !(i2f(c) != 0) {
++			break
++		}
++		v.reset(OpConst64F)
++		v.AuxInt = f2i(-i2f(c))
++		return true
++	}
++	return false
++}
+ func rewriteValuegeneric_OpNeg8(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
++	// match: (Neg8   (Const8   [c]))
++	// cond:
++	// result: (Const8   [int64( -int8(c))])
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpConst8 {
++			break
++		}
++		c := v_0.AuxInt
++		v.reset(OpConst8)
++		v.AuxInt = int64(-int8(c))
++		return true
++	}
+ 	// match: (Neg8  (Sub8  x y))
+ 	// cond:
+ 	// result: (Sub8  y x)

@@ -14,7 +14,7 @@ Date:   Mon Dec 17 11:35:59 2012 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/6930053
-
+---
  src/pkg/exp/gotype/gotype_test.go     |  44 +++++-----
  src/pkg/exp/types/builtins.go         |   5 +-
  src/pkg/exp/types/const.go            | 110 ++++++++++++++++++-------
@@ -30,3 +30,919 @@ Date:   Mon Dec 17 11:35:59 2012 -0800
  src/pkg/exp/types/types.go            |  10 +--
  src/pkg/exp/types/types_test.go       |   2 +-
  14 files changed, 335 insertions(+), 129 deletions(-)
+
+diff --git a/src/pkg/exp/gotype/gotype_test.go b/src/pkg/exp/gotype/gotype_test.go
+index 8a90082206..59e2a88563 100644
+--- a/src/pkg/exp/gotype/gotype_test.go
++++ b/src/pkg/exp/gotype/gotype_test.go
+@@ -50,7 +50,7 @@ var tests = []string{
+ 
+ 	// directories
+ 	// Note: packages that don't typecheck yet are commented out
+-	// "archive/tar", // investigate
++	"archive/tar",
+ 	"archive/zip",
+ 
+ 	"bufio",
+@@ -77,13 +77,13 @@ var tests = []string{
+ 	"crypto/md5",
+ 	"crypto/rand",
+ 	"crypto/rc4",
+-	// "crypto/rsa", // investigate (GOARCH=386)
++	// "crypto/rsa", // src/pkg/crypto/rsa/pkcs1v15.go:21:27: undeclared name: io
+ 	"crypto/sha1",
+ 	"crypto/sha256",
+ 	"crypto/sha512",
+ 	"crypto/subtle",
+ 	"crypto/tls",
+-	// "crypto/x509", // investigate
++	// "crypto/x509", // src/pkg/crypto/x509/root.go:15:10: undeclared name: initSystemRoots
+ 	"crypto/x509/pkix",
+ 
+ 	"database/sql",
+@@ -117,7 +117,7 @@ var tests = []string{
+ 
+ 	"go/ast",
+ 	"go/build",
+-	// "go/doc", // variadic parameters don't work yet fully
++	"go/doc",
+ 	"go/format",
+ 	"go/parser",
+ 	"go/printer",
+@@ -125,7 +125,7 @@ var tests = []string{
+ 	"go/token",
+ 
+ 	"hash/adler32",
+-	// "hash/crc32", // investigate
++	"hash/crc32",
+ 	"hash/crc64",
+ 	"hash/fnv",
+ 
+@@ -139,54 +139,54 @@ var tests = []string{
+ 	"index/suffixarray",
+ 
+ 	"io",
+-	// "io/ioutil", // investigate
++	"io/ioutil",
+ 
+ 	"log",
+ 	"log/syslog",
+ 
+ 	"math",
+-	// "math/big", // investigate
++	"math/big",
+ 	"math/cmplx",
+ 	"math/rand",
+ 
+ 	"mime",
+ 	"mime/multipart",
+ 
+-	// "net", // depends on C files
++	// "net", // src/pkg/net/lookup_unix.go:56:20: undeclared name: cgoLookupHost
+ 	"net/http",
+ 	"net/http/cgi",
+-	// "net/http/fcgi", // investigate
++	"net/http/fcgi",
+ 	"net/http/httptest",
+ 	"net/http/httputil",
+-	// "net/http/pprof", // investigate
++	"net/http/pprof",
+ 	"net/mail",
+-	// "net/rpc", // investigate
++	"net/rpc",
+ 	"net/rpc/jsonrpc",
+ 	"net/smtp",
+ 	"net/textproto",
+ 	"net/url",
+ 
+-	// "path", // variadic parameters don't work yet fully
+-	// "path/filepath", // investigate
++	"path",
++	"path/filepath",
+ 
+-	// "reflect", // investigate
++	// "reflect", // unsafe.Sizeof must return size > 0 for pointer types
+ 
+ 	"regexp",
+ 	"regexp/syntax",
+ 
+ 	"runtime",
+-	// "runtime/cgo", // import "C"
++	"runtime/cgo",
+ 	"runtime/debug",
+ 	"runtime/pprof",
+ 
+ 	"sort",
+-	// "strconv", // investigate
++	// "strconv", // bug in switch case duplicate detection
+ 	"strings",
+ 
+-	// "sync", // platform-specific files
+-	// "sync/atomic", // platform-specific files
++	"sync",
++	"sync/atomic",
+ 
+-	// "syscall", // platform-specific files
++	"syscall",
+ 
+ 	"testing",
+ 	"testing/iotest",
+@@ -194,10 +194,10 @@ var tests = []string{
+ 
+ 	"text/scanner",
+ 	"text/tabwriter",
+-	// "text/template", // variadic parameters don't work yet fully
+-	// "text/template/parse", // variadic parameters don't work yet fully
++	"text/template",
++	"text/template/parse",
+ 
+-	// "time", // platform-specific files
++	// "time", // local const decls without initialization expressions
+ 	"unicode",
+ 	"unicode/utf16",
+ 	"unicode/utf8",
+diff --git a/src/pkg/exp/types/builtins.go b/src/pkg/exp/types/builtins.go
+index f86ae6ac38..ed636ee2a4 100644
+--- a/src/pkg/exp/types/builtins.go
++++ b/src/pkg/exp/types/builtins.go
+@@ -155,13 +155,14 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *builtin, iota
+ 			goto Error
+ 		}
+ 
++		typ := underlying(x.typ).(*Basic)
+ 		if x.mode == constant && y.mode == constant {
+-			x.val = binaryOpConst(x.val, toImagConst(y.val), token.ADD, false)
++			x.val = binaryOpConst(x.val, toImagConst(y.val), token.ADD, typ)
+ 		} else {
+ 			x.mode = value
+ 		}
+ 
+-		switch underlying(x.typ).(*Basic).Kind {
++		switch typ.Kind {
+ 		case Float32:
+ 			x.typ = Typ[Complex64]
+ 		case Float64:
+diff --git a/src/pkg/exp/types/const.go b/src/pkg/exp/types/const.go
+index cab6bbcbd0..d44c8fb61d 100644
+--- a/src/pkg/exp/types/const.go
++++ b/src/pkg/exp/types/const.go
+@@ -49,12 +49,17 @@ func (nilType) String() string {
+ 	return "nil"
+ }
+ 
+-// Frequently used constants.
++// Implementation-specific constants.
++// TODO(gri) These need to go elsewhere.
++const (
++	intBits = 32
++	ptrBits = 64
++)
++
++// Frequently used values.
+ var (
+-	zeroConst     = int64(0)
+-	oneConst      = int64(1)
+-	minusOneConst = int64(-1)
+-	nilConst      = nilType{}
++	nilConst  = nilType{}
++	zeroConst = int64(0)
+ )
+ 
+ // int64 bounds
+@@ -74,7 +79,7 @@ func normalizeIntConst(x *big.Int) interface{} {
+ }
+ 
+ // normalizeRatConst returns the smallest constant representation
+-// for the specific value of x; either an int64, *big.Int value,
++// for the specific value of x; either an int64, *big.Int,
+ // or *big.Rat value.
+ //
+ func normalizeRatConst(x *big.Rat) interface{} {
+@@ -84,15 +89,15 @@ func normalizeRatConst(x *big.Rat) interface{} {
+ 	return x
+ }
+ 
+-// normalizeComplexConst returns the smallest constant representation
+-// for the specific value of x; either an int64, *big.Int value, *big.Rat,
+-// or complex value.
++// newComplex returns the smallest constant representation
++// for the specific value re + im*i; either an int64, *big.Int,
++// *big.Rat, or complex value.
+ //
+-func normalizeComplexConst(x complex) interface{} {
+-	if x.im.Sign() == 0 {
+-		return normalizeRatConst(x.re)
++func newComplex(re, im *big.Rat) interface{} {
++	if im.Sign() == 0 {
++		return normalizeRatConst(re)
+ 	}
+-	return x
++	return complex{re, im}
+ }
+ 
+ // makeRuneConst returns the int64 code point for the rune literal
+@@ -140,7 +145,7 @@ func makeComplexConst(lit string) interface{} {
+ 	n := len(lit)
+ 	if n > 0 && lit[n-1] == 'i' {
+ 		if im, ok := new(big.Rat).SetString(lit[0 : n-1]); ok {
+-			return normalizeComplexConst(complex{big.NewRat(0, 1), im})
++			return newComplex(big.NewRat(0, 1), im)
+ 		}
+ 	}
+ 	return nil
+@@ -202,9 +207,6 @@ func isNegConst(x interface{}) bool {
+ // of precision.
+ //
+ func isRepresentableConst(x interface{}, as BasicKind) bool {
+-	const intBits = 32 // TODO(gri) implementation-specific constant
+-	const ptrBits = 64 // TODO(gri) implementation-specific constant
+-
+ 	switch x := x.(type) {
+ 	case bool:
+ 		return as == Bool || as == UntypedBool
+@@ -386,13 +388,71 @@ func is63bit(x int64) bool {
+ 	return -1<<62 <= x && x <= 1<<62-1
+ }
+ 
++// unaryOpConst returns the result of the constant evaluation op x where x is of the given type.
++func unaryOpConst(x interface{}, op token.Token, typ *Basic) interface{} {
++	switch op {
++	case token.ADD:
++		return x // nothing to do
++	case token.SUB:
++		switch x := x.(type) {
++		case int64:
++			if z := -x; z != x {
++				return z // no overflow
++			}
++			// overflow - need to convert to big.Int
++			return normalizeIntConst(new(big.Int).Neg(big.NewInt(x)))
++		case *big.Int:
++			return normalizeIntConst(new(big.Int).Neg(x))
++		case *big.Rat:
++			return normalizeRatConst(new(big.Rat).Neg(x))
++		case complex:
++			return newComplex(new(big.Rat).Neg(x.re), new(big.Rat).Neg(x.im))
++		}
++	case token.XOR:
++		var z big.Int
++		switch x := x.(type) {
++		case int64:
++			z.Not(big.NewInt(x))
++		case *big.Int:
++			z.Not(x)
++		default:
++			unreachable()
++		}
++		// For unsigned types, the result will be negative and
++		// thus "too large": We must limit the result size to
++		// the type's size.
++		if typ.Info&IsUnsigned != 0 {
++			s := uint(typ.Size) * 8
++			if s == 0 {
++				// platform-specific type
++				// TODO(gri) this needs to be factored out
++				switch typ.Kind {
++				case Uint:
++					s = intBits
++				case Uintptr:
++					s = ptrBits
++				default:
++					unreachable()
++				}
++			}
++			// z &^= (-1)<<s
++			z.AndNot(&z, new(big.Int).Lsh(big.NewInt(-1), s))
++		}
++		return normalizeIntConst(&z)
++	case token.NOT:
++		return !x.(bool)
++	}
++	unreachable()
++	return nil
++}
++
+ // binaryOpConst returns the result of the constant evaluation x op y;
+-// both operands must be of the same "kind" (boolean, numeric, or string).
+-// If intDiv is true, division (op == token.QUO) is using integer division
++// both operands must be of the same constant "kind" (boolean, numeric, or string).
++// If typ is an integer type, division (op == token.QUO) is using integer division
+ // (and the result is guaranteed to be integer) rather than floating-point
+ // division. Division by zero leads to a run-time panic.
+ //
+-func binaryOpConst(x, y interface{}, op token.Token, intDiv bool) interface{} {
++func binaryOpConst(x, y interface{}, op token.Token, typ *Basic) interface{} {
+ 	x, y = matchConst(x, y)
+ 
+ 	switch x := x.(type) {
+@@ -403,8 +463,6 @@ func binaryOpConst(x, y interface{}, op token.Token, intDiv bool) interface{} {
+ 			return x && y
+ 		case token.LOR:
+ 			return x || y
+-		default:
+-			unreachable()
+ 		}
+ 
+ 	case int64:
+@@ -431,7 +489,7 @@ func binaryOpConst(x, y interface{}, op token.Token, intDiv bool) interface{} {
+ 		case token.REM:
+ 			return x % y
+ 		case token.QUO:
+-			if intDiv {
++			if typ.Info&IsInteger != 0 {
+ 				return x / y
+ 			}
+ 			return normalizeRatConst(new(big.Rat).SetFrac(big.NewInt(x), big.NewInt(y)))
+@@ -443,8 +501,6 @@ func binaryOpConst(x, y interface{}, op token.Token, intDiv bool) interface{} {
+ 			return x ^ y
+ 		case token.AND_NOT:
+ 			return x &^ y
+-		default:
+-			unreachable()
+ 		}
+ 
+ 	case *big.Int:
+@@ -460,7 +516,7 @@ func binaryOpConst(x, y interface{}, op token.Token, intDiv bool) interface{} {
+ 		case token.REM:
+ 			z.Rem(x, y)
+ 		case token.QUO:
+-			if intDiv {
++			if typ.Info&IsInteger != 0 {
+ 				z.Quo(x, y)
+ 			} else {
+ 				return normalizeRatConst(new(big.Rat).SetFrac(x, y))
+@@ -533,7 +589,7 @@ func binaryOpConst(x, y interface{}, op token.Token, intDiv bool) interface{} {
+ 		default:
+ 			unreachable()
+ 		}
+-		return normalizeComplexConst(complex{&re, &im})
++		return newComplex(&re, &im)
+ 
+ 	case string:
+ 		if op == token.ADD {
+diff --git a/src/pkg/exp/types/errors.go b/src/pkg/exp/types/errors.go
+index 1a1659538a..b1b6436968 100644
+--- a/src/pkg/exp/types/errors.go
++++ b/src/pkg/exp/types/errors.go
+@@ -266,15 +266,8 @@ func writeType(buf *bytes.Buffer, typ Type) {
+ 		buf.WriteByte('*')
+ 		writeType(buf, t.Base)
+ 
+-	case *tuple:
+-		buf.WriteByte('(')
+-		for i, typ := range t.list {
+-			if i > 0 {
+-				buf.WriteString("; ")
+-			}
+-			writeType(buf, typ)
+-		}
+-		buf.WriteByte(')')
++	case *Result:
++		writeParams(buf, t.Values, false)
+ 
+ 	case *Signature:
+ 		buf.WriteString("func")
+diff --git a/src/pkg/exp/types/expr.go b/src/pkg/exp/types/expr.go
+index e1f627b98f..2f53bc085e 100644
+--- a/src/pkg/exp/types/expr.go
++++ b/src/pkg/exp/types/expr.go
+@@ -19,7 +19,6 @@ import (
+ // - at the moment, iota is passed around almost everywhere - in many places we know it cannot be used
+ 
+ // TODO(gri) API issues
+-// - clients need access to result type information (tuples)
+ // - clients need access to constant values
+ // - clients need access to built-in type information
+ 
+@@ -212,21 +211,11 @@ func (check *checker) unary(x *operand, op token.Token) {
+ 	}
+ 
+ 	if x.mode == constant {
+-		switch op {
+-		case token.ADD:
+-			// nothing to do
+-		case token.SUB:
+-			x.val = binaryOpConst(zeroConst, x.val, token.SUB, false)
+-		case token.XOR:
+-			x.val = binaryOpConst(minusOneConst, x.val, token.XOR, false)
+-		case token.NOT:
+-			x.val = !x.val.(bool)
+-		default:
+-			unreachable() // operators where checked by check.op
+-		}
++		typ := underlying(x.typ).(*Basic)
++		x.val = unaryOpConst(x.val, op, typ)
+ 		// Typed constants must be representable in
+ 		// their type after each constant operation.
+-		check.isRepresentable(x, underlying(x.typ).(*Basic))
++		check.isRepresentable(x, typ)
+ 		return
+ 	}
+ 
+@@ -304,6 +293,8 @@ func (check *checker) convertUntyped(x *operand, target Type) {
+ 		if !x.isNil() {
+ 			goto Error
+ 		}
++	default:
++		unreachable()
+ 	}
+ 
+ 	x.typ = target
+@@ -332,7 +323,7 @@ func (check *checker) comparison(x, y *operand, op token.Token) {
+ 	}
+ 
+ 	if !valid {
+-		check.invalidOp(x.pos(), "cannot compare %s and %s", x, y)
++		check.invalidOp(x.pos(), "cannot compare %s %s %s", x, op, y)
+ 		x.mode = invalid
+ 		return
+ 	}
+@@ -465,10 +456,11 @@ func (check *checker) binary(x, y *operand, op token.Token, hint Type) {
+ 	}
+ 
+ 	if x.mode == constant && y.mode == constant {
+-		x.val = binaryOpConst(x.val, y.val, op, isInteger(x.typ))
++		typ := underlying(x.typ).(*Basic)
++		x.val = binaryOpConst(x.val, y.val, op, typ)
+ 		// Typed constants must be representable in
+ 		// their type after each constant operation.
+-		check.isRepresentable(x, underlying(x.typ).(*Basic))
++		check.isRepresentable(x, typ)
+ 		return
+ 	}
+ 
+@@ -554,9 +546,15 @@ func (check *checker) indexedElts(elts []ast.Expr, typ Type, length int64, iota
+ 	return max
+ }
+ 
+-func (check *checker) argument(sig *Signature, i int, arg ast.Expr) {
++// argument typechecks passing an argument arg (if arg != nil) or
++// x (if arg == nil) to the i'th parameter of the given signature.
++// If passSlice is set, the argument is followed by ... in the call.
++//
++func (check *checker) argument(sig *Signature, i int, arg ast.Expr, x *operand, passSlice bool) {
++	// determine parameter
+ 	var par *ast.Object
+-	if n := len(sig.Params); i < n {
++	n := len(sig.Params)
++	if i < n {
+ 		par = sig.Params[i]
+ 	} else if sig.IsVariadic {
+ 		par = sig.Params[n-1]
+@@ -565,16 +563,32 @@ func (check *checker) argument(sig *Signature, i int, arg ast.Expr) {
+ 		return
+ 	}
+ 
+-	// TODO(gri) deal with ... last argument
+-	var z, x operand
++	// determine argument
++	var z operand
+ 	z.mode = variable
+-	z.expr = nil            // TODO(gri) can we do better here?
+-	z.typ = par.Type.(Type) // TODO(gri) should become something like checkObj(&z, ...) eventually
+-	check.expr(&x, arg, z.typ, -1)
++	z.expr = nil // TODO(gri) can we do better here? (for good error messages)
++	z.typ = par.Type.(Type)
++
++	if arg != nil {
++		check.expr(x, arg, z.typ, -1)
++	}
+ 	if x.mode == invalid {
+ 		return // ignore this argument
+ 	}
+-	check.assignOperand(&z, &x)
++
++	// check last argument of the form x...
++	if passSlice {
++		if i+1 != n {
++			check.errorf(x.pos(), "can only use ... with matching parameter")
++			return // ignore this argument
++		}
++		// spec: "If the final argument is assignable to a slice type []T,
++		// it may be passed unchanged as the value for a ...T parameter if
++		// the argument is followed by ..."
++		z.typ = &Slice{Elt: z.typ} // change final parameter type to []T
++	}
++
++	check.assignOperand(&z, x)
+ }
+ 
+ func (check *checker) recordType(x *operand) {
+@@ -1052,25 +1066,79 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
+ 			check.conversion(x, e, x.typ, iota)
+ 		} else if sig, ok := underlying(x.typ).(*Signature); ok {
+ 			// check parameters
+-			// TODO(gri)
+-			// - deal with single multi-valued function arguments: f(g())
+-			// - variadic functions only partially addressed
+-			for i, arg := range e.Args {
+-				check.argument(sig, i, arg)
++
++			// If we have a trailing ... at the end of the parameter
++			// list, the last argument must match the parameter type
++			// []T of a variadic function parameter x ...T.
++			passSlice := false
++			if e.Ellipsis.IsValid() {
++				if sig.IsVariadic {
++					passSlice = true
++				} else {
++					check.errorf(e.Ellipsis, "cannot use ... in call to %s", e.Fun)
++					// ok to continue
++				}
+ 			}
+ 
+-			// determine result
+-			x.mode = value
+-			if len(sig.Results) == 1 {
+-				x.typ = sig.Results[0].Type.(Type)
++			// If we have a single argument that is a function call
++			// we need to handle it separately. Determine if this
++			// is the case without checking the argument.
++			var call *ast.CallExpr
++			if len(e.Args) == 1 {
++				call, _ = unparen(e.Args[0]).(*ast.CallExpr)
++			}
++
++			n := 0 // parameter count
++			if call != nil {
++				// We have a single argument that is a function call.
++				check.expr(x, call, nil, -1)
++				if x.mode == invalid {
++					goto Error // TODO(gri): we can do better
++				}
++				if t, _ := x.typ.(*Result); t != nil {
++					// multiple result values
++					n = len(t.Values)
++					for i, obj := range t.Values {
++						x.mode = value
++						x.expr = nil // TODO(gri) can we do better here? (for good error messages)
++						x.typ = obj.Type.(Type)
++						check.argument(sig, i, nil, x, passSlice && i+1 == n)
++					}
++				} else {
++					// single result value
++					n = 1
++					check.argument(sig, 0, nil, x, passSlice)
++				}
++
+ 			} else {
+-				// TODO(gri) change Signature representation to use tuples,
+-				//           then this conversion is not required
+-				list := make([]Type, len(sig.Results))
+-				for i, obj := range sig.Results {
+-					list[i] = obj.Type.(Type)
++				// We don't have a single argument or it is not a function call.
++				n = len(e.Args)
++				for i, arg := range e.Args {
++					check.argument(sig, i, arg, x, passSlice && i+1 == n)
+ 				}
+-				x.typ = &tuple{list: list}
++			}
++
++			// determine if we have enough arguments
++			if sig.IsVariadic {
++				// a variadic function accepts an "empty"
++				// last argument: count one extra
++				n++
++			}
++			if n < len(sig.Params) {
++				check.errorf(e.Fun.Pos(), "too few arguments in call to %s", e.Fun)
++				// ok to continue
++			}
++
++			// determine result
++			switch len(sig.Results) {
++			case 0:
++				x.mode = novalue
++			case 1:
++				x.mode = value
++				x.typ = sig.Results[0].Type.(Type)
++			default:
++				x.mode = value
++				x.typ = &Result{Values: sig.Results}
+ 			}
+ 
+ 		} else if bin, ok := x.typ.(*builtin); ok {
+diff --git a/src/pkg/exp/types/operand.go b/src/pkg/exp/types/operand.go
+index 1a5e5172a8..f8ddd84b54 100644
+--- a/src/pkg/exp/types/operand.go
++++ b/src/pkg/exp/types/operand.go
+@@ -182,7 +182,14 @@ func (x *operand) isAssignable(T Type) bool {
+ 	if isUntyped(Vu) {
+ 		switch t := Tu.(type) {
+ 		case *Basic:
+-			return x.mode == constant && isRepresentableConst(x.val, t.Kind)
++			if x.mode == constant {
++				return isRepresentableConst(x.val, t.Kind)
++			}
++			// The result of a comparison is an untyped boolean,
++			// but may not be a constant.
++			if Vb, _ := Vu.(*Basic); Vb != nil {
++				return Vb.Kind == UntypedBool && isBoolean(Tu)
++			}
+ 		case *Interface:
+ 			return x.isNil() || len(t.Methods) == 0
+ 		case *Pointer, *Signature, *Slice, *Map, *Chan:
+diff --git a/src/pkg/exp/types/predicates.go b/src/pkg/exp/types/predicates.go
+index 2c1a99192a..ff6825ba3b 100644
+--- a/src/pkg/exp/types/predicates.go
++++ b/src/pkg/exp/types/predicates.go
+@@ -225,25 +225,28 @@ func deref(typ Type) Type {
+ }
+ 
+ // defaultType returns the default "typed" type for an "untyped" type;
+-// it returns the argument typ for all other types.
++// it returns the incoming type for all other types. If there is no
++// corresponding untyped type, the result is Typ[Invalid].
++//
+ func defaultType(typ Type) Type {
+ 	if t, ok := typ.(*Basic); ok {
+-		var k BasicKind
++		k := Invalid
+ 		switch t.Kind {
++		// case UntypedNil:
++		//      There is no default type for nil. For a good error message,
++		//      catch this case before calling this function.
+ 		case UntypedBool:
+ 			k = Bool
+-		case UntypedRune:
+-			k = Rune
+ 		case UntypedInt:
+ 			k = Int
++		case UntypedRune:
++			k = Rune
+ 		case UntypedFloat:
+ 			k = Float64
+ 		case UntypedComplex:
+ 			k = Complex128
+ 		case UntypedString:
+ 			k = String
+-		default:
+-			unreachable()
+ 		}
+ 		typ = Typ[k]
+ 	}
+diff --git a/src/pkg/exp/types/stmt.go b/src/pkg/exp/types/stmt.go
+index edad87f2e0..7f9d45eb98 100644
+--- a/src/pkg/exp/types/stmt.go
++++ b/src/pkg/exp/types/stmt.go
+@@ -12,9 +12,9 @@ import (
+ )
+ 
+ func (check *checker) assignOperand(z, x *operand) {
+-	if t, ok := x.typ.(*tuple); ok {
++	if t, ok := x.typ.(*Result); ok {
+ 		// TODO(gri) elsewhere we use "assignment count mismatch" (consolidate)
+-		check.errorf(x.pos(), "%d-valued expression %s used as single value", len(t.list), x)
++		check.errorf(x.pos(), "%d-valued expression %s used as single value", len(t.Values), x)
+ 		x.mode = invalid
+ 		return
+ 	}
+@@ -95,7 +95,12 @@ func (check *checker) assign1to1(lhs, rhs ast.Expr, x *operand, decl bool, iota
+ 		if x.mode != invalid {
+ 			typ = x.typ
+ 			if obj.Kind == ast.Var && isUntyped(typ) {
+-				typ = defaultType(typ)
++				if x.isNil() {
++					check.errorf(x.pos(), "use of untyped nil")
++					x.mode = invalid
++				} else {
++					typ = defaultType(typ)
++				}
+ 			}
+ 		}
+ 		obj.Type = typ
+@@ -177,12 +182,12 @@ func (check *checker) assignNtoM(lhs, rhs []ast.Expr, decl bool, iota int) {
+ 			return
+ 		}
+ 
+-		if t, ok := x.typ.(*tuple); ok && len(lhs) == len(t.list) {
++		if t, ok := x.typ.(*Result); ok && len(lhs) == len(t.Values) {
+ 			// function result
+ 			x.mode = value
+-			for i, typ := range t.list {
++			for i, obj := range t.Values {
+ 				x.expr = nil // TODO(gri) should do better here
+-				x.typ = typ
++				x.typ = obj.Type.(Type)
+ 				check.assign1to1(lhs[i], nil, &x, decl, iota)
+ 			}
+ 			return
+@@ -429,7 +434,7 @@ func (check *checker) stmt(s ast.Stmt) {
+ 		var x operand
+ 		tag := s.Tag
+ 		if tag == nil {
+-			// create true tag value and position it at the opening { of the switch
++			// use fake true tag value and position it at the opening { of the switch
+ 			tag = &ast.Ident{NamePos: s.Body.Lbrace, Name: "true", Obj: Universe.Lookup("true")}
+ 		}
+ 		check.expr(&x, tag, nil, -1)
+@@ -451,15 +456,15 @@ func (check *checker) stmt(s ast.Stmt) {
+ 					}
+ 					// If we have a constant case value, it must appear only
+ 					// once in the switch statement. Determine if there is a
+-					// duplicate entry, but only report an error there are no
+-					// other errors.
++					// duplicate entry, but only report an error if there are
++					// no other errors.
+ 					var dupl token.Pos
+ 					if y.mode == constant {
+ 						// TODO(gri) This code doesn't work correctly for
+ 						//           large integer, floating point, or
+ 						//           complex values - the respective struct
+-						//           comparison is shallow. Need to use a
+-						//           has function to index the seen map.
++						//           comparisons are shallow. Need to use a
++						//           hash function to index the map.
+ 						dupl = seen[y.val]
+ 						seen[y.val] = y.pos()
+ 					}
+@@ -475,7 +480,7 @@ func (check *checker) stmt(s ast.Stmt) {
+ 					}
+ 					check.comparison(&y, &x, token.EQL)
+ 					if y.mode != invalid && dupl.IsValid() {
+-						check.errorf(y.pos(), "%s is duplicate case in switch\n\tprevious case at %s",
++						check.errorf(y.pos(), "%s is duplicate case (previous at %s)",
+ 							&y, check.fset.Position(dupl))
+ 					}
+ 				}
+diff --git a/src/pkg/exp/types/testdata/decls1.src b/src/pkg/exp/types/testdata/decls1.src
+index be927091c1..3baed67505 100644
+--- a/src/pkg/exp/types/testdata/decls1.src
++++ b/src/pkg/exp/types/testdata/decls1.src
+@@ -46,7 +46,7 @@ var (
+ 	s14 = i << j /* ERROR "must be unsigned" */ 
+ 	s18 = math.Pi * 10.0
+ 	s19 = s1 /* ERROR "cannot call" */ ()
+- 	s20 = f0 /* ERROR "used as single value" */ ()
++ 	s20 = f0 /* ERROR "no value" */ ()
+ 	s21 = f6(1, s1, i)
+ 	s22 = f6(1, s1, uu /* ERROR "cannot assign" */ )
+ 	
+@@ -68,7 +68,7 @@ var (
+ 	t17 math /* ERROR "not a type" */ .Pi
+ 	t18 float64 = math.Pi * 10.0
+ 	t19 int = t1 /* ERROR "cannot call" */ ()
+-	t20 int = f0 /* ERROR "used as single value" */ ()
++	t20 int = f0 /* ERROR "no value" */ ()
+ )
+ 
+ // Various more complex expressions
+@@ -94,6 +94,7 @@ var (
+ 	v10 byte = 1024 /* ERROR "overflows" */
+ 	v11 = xx/yy*yy - xx
+ 	v12 = true && false
++	v13 = nil /* ERROR "use of untyped nil" */
+ )
+ 
+ // Multiple assignment expressions
+diff --git a/src/pkg/exp/types/testdata/expr0.src b/src/pkg/exp/types/testdata/expr0.src
+index 0ed314a95c..8b2eb04f29 100644
+--- a/src/pkg/exp/types/testdata/expr0.src
++++ b/src/pkg/exp/types/testdata/expr0.src
+@@ -63,6 +63,7 @@ var (
+ 	u16 = &u0
+ 	u17 = *u16
+ 	u18 = <-u16 /* ERROR "cannot receive" */
++	u19 = ^uint(0)
+ 
+ 	// float64
+ 	f0 = float64(1)
+@@ -131,5 +132,4 @@ var (
+ 	ch7 = <-ch
+ 	ch8 = <-rc
+ 	ch9 = <-sc /* ERROR "cannot receive" */
+-
+-)
+\ No newline at end of file
++)
+diff --git a/src/pkg/exp/types/testdata/expr2.src b/src/pkg/exp/types/testdata/expr2.src
+index 4bc2769651..674be4005d 100644
+--- a/src/pkg/exp/types/testdata/expr2.src
++++ b/src/pkg/exp/types/testdata/expr2.src
+@@ -6,6 +6,17 @@
+ 
+ package expr2
+ 
++func _bool() {
++	const t = true == true
++	const f = true == false
++	_ = t /* ERROR "cannot compare" */ < f
++	_ = 0 /* ERROR "cannot convert" */ == t
++	var b bool
++	var x, y float32
++	b = x < y
++	_ = struct{b bool}{x < y}
++}
++
+ // corner cases
+ var (
+ 	v0 = nil /* ERROR "cannot compare" */ == nil
+diff --git a/src/pkg/exp/types/testdata/expr3.src b/src/pkg/exp/types/testdata/expr3.src
+index a5ea4d2b82..35905c4972 100644
+--- a/src/pkg/exp/types/testdata/expr3.src
++++ b/src/pkg/exp/types/testdata/expr3.src
+@@ -286,3 +286,64 @@ func type_asserts() {
+ 	_ = t.(T2 /* ERROR "wrong type for method m" */ )
+ 	_ = t.(I2 /* ERROR "wrong type for method m" */ )
+ }
++
++func f0() {}
++func f1(x int) {}
++func f2(u float32, s string) {}
++func fs(s []byte) {}
++func fv(x ...int) {}
++func fi(x ... interface{}) {}
++
++func g0() {}
++func g1() int { return 0}
++func g2() (u float32, s string) { return }
++func gs() []byte { return nil }
++
++func _calls() {
++	var x int
++	var y float32
++	var s []int
++
++	f0()
++	_ = f0 /* ERROR "used as value" */ ()
++	f0(g0 /* ERROR "too many arguments" */ )
++
++	f1(0)
++	f1(x)
++	f1(10.0)
++	f1 /* ERROR "too few arguments" */ ()
++	f1(x, y /* ERROR "too many arguments" */ )
++	f1(s /* ERROR "cannot assign" */ )
++	f1(x ... /* ERROR "cannot use ..." */ )
++	f1(g0 /* ERROR "used as value" */ ())
++	f1(g1())
++	// f1(g2()) // TODO(gri) missing position in error message
++
++	f2 /* ERROR "too few arguments" */ ()
++	f2 /* ERROR "too few arguments" */ (3.14)
++	f2(3.14, "foo")
++	f2(x /* ERROR "cannot assign" */ , "foo")
++	f2(g0 /* ERROR "used as value" */ ())
++	f2 /* ERROR "too few arguments" */ (g1 /* ERROR "cannot assign" */ ())
++	f2(g2())
++
++	fs /* ERROR "too few arguments" */ ()
++	fs(g0 /* ERROR "used as value" */ ())
++	fs(g1 /* ERROR "cannot assign" */ ())
++	// fs(g2()) // TODO(gri) missing position in error message
++	fs(gs())
++
++	fv()
++	fv(1, 2.0, x)
++	fv(s /* ERROR "cannot assign" */ )
++	fv(s...)
++	fv(1, s /* ERROR "can only use ... with matching parameter" */ ...)
++	fv(gs /* ERROR "cannot assign" */ ())
++	fv(gs /* ERROR "cannot assign" */ ()...)
++
++	fi()
++	fi(1, 2.0, x, 3.14, "foo")
++	fi(g2())
++	fi(0, g2)
++	fi(0, g2 /* ERROR "2-valued expression" */ ())
++}
+\ No newline at end of file
+diff --git a/src/pkg/exp/types/types.go b/src/pkg/exp/types/types.go
+index 83a08266dd..6e4a98783e 100644
+--- a/src/pkg/exp/types/types.go
++++ b/src/pkg/exp/types/types.go
+@@ -141,15 +141,15 @@ type Pointer struct {
+ 	Base Type
+ }
+ 
+-// A tuple represents a multi-value function return.
+-// TODO(gri) use better name to avoid confusion (Go doesn't have tuples).
+-type tuple struct {
++// A Result represents a (multi-value) function call result.
++// TODO(gri) consider using an empty Result (Values == nil)
++//           as representation for the novalue operand mode.
++type Result struct {
+ 	implementsType
+-	list []Type
++	Values ObjList // Signature.Results of the function called
+ }
+ 
+ // A Signature represents a user-defined function type func(...) (...).
+-// TODO(gri) consider using "tuples" to represent parameters and results (see comment on tuples).
+ type Signature struct {
+ 	implementsType
+ 	Recv       *ast.Object // nil if not a method
+diff --git a/src/pkg/exp/types/types_test.go b/src/pkg/exp/types/types_test.go
+index 62ca19badc..361f63634e 100644
+--- a/src/pkg/exp/types/types_test.go
++++ b/src/pkg/exp/types/types_test.go
+@@ -155,7 +155,7 @@ var testExprs = []testEntry{
+ 	dup("-f(10, 20)"),
+ 	dup("f(x + y, +3.1415)"),
+ 	{"func(a, b int) {}", "(func literal)"},
+-	{"func(a, b int) []int {}()[x]", "(func literal)()[x]"},
++	{"func(a, b int) []int {}(1, 2)[x]", "(func literal)(1, 2)[x]"},
+ 	{"[]int{1, 2, 3}", "(composite literal)"},
+ 	{"[]int{1, 2, 3}[x:]", "(composite literal)[x:]"},
+ 	{"i.([]string)", "i.(...)"},

@@ -8,6 +8,20 @@ Date:   Mon Jul 27 10:59:59 2009 -0700
     DELTA=2  (2 added, 0 deleted, 0 changed)
     OCL=32214
     CL=32223
-
+---
  src/pkg/runtime/darwin/thread.c | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/pkg/runtime/darwin/thread.c b/src/pkg/runtime/darwin/thread.c
+index 2a6116c103..c394ab490e 100644
+--- a/src/pkg/runtime/darwin/thread.c
++++ b/src/pkg/runtime/darwin/thread.c
+@@ -409,6 +409,8 @@ mach_semdestroy(uint32 sem)
+ 	m.tx.semaphore.type = 0;
+ 
+ 	while((r = machcall(&m.tx.h, sizeof m, 0)) != 0){
++		if(r == KERN_ABORTED)	// interrupted
++			continue;
+ 		macherror(r, "semaphore_destroy");
+ 	}
+ }

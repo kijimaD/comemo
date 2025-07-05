@@ -12,6 +12,20 @@ Date:   Fri Aug 22 18:36:01 2014 +1000
     R=golang-codereviews, dvyukov
     CC=golang-codereviews
     https://golang.org/cl/132820044
-
+---
  misc/nacl/testzip.proto | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/misc/nacl/testzip.proto b/misc/nacl/testzip.proto
+index 29581dcfb3..89e1e1193a 100644
+--- a/misc/nacl/testzip.proto
++++ b/misc/nacl/testzip.proto
+@@ -14,6 +14,8 @@ go	src=..
+ 				objfile
+ 					objfile.go
+ 			gofmt
++				gofmt.go
++				gofmt_test.go
+ 				testdata
+ 					+
+ 			link

@@ -10,10 +10,76 @@ Date:   Fri Feb 25 18:51:48 2022 -0500
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/types2/infer.go | 2 +-
  src/cmd/compile/internal/types2/named.go | 2 +-
  src/go/types/api.go                      | 2 --
  src/go/types/infer.go                    | 2 +-
  src/go/types/named.go                    | 2 +-
  5 files changed, 4 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/infer.go b/src/cmd/compile/internal/types2/infer.go
+index e131077371..78fc35b72a 100644
+--- a/src/cmd/compile/internal/types2/infer.go
++++ b/src/cmd/compile/internal/types2/infer.go
+@@ -355,7 +355,7 @@ func typeParamsString(list []*TypeParam) string {
+ 	return b.String()
+ }
+ 
+-// IsParameterized reports whether typ contains any of the type parameters of tparams.
++// isParameterized reports whether typ contains any of the type parameters of tparams.
+ func isParameterized(tparams []*TypeParam, typ Type) bool {
+ 	w := tpWalker{
+ 		seen:    make(map[Type]bool),
+diff --git a/src/cmd/compile/internal/types2/named.go b/src/cmd/compile/internal/types2/named.go
+index 7b19aeb21f..89d24d4e0b 100644
+--- a/src/cmd/compile/internal/types2/named.go
++++ b/src/cmd/compile/internal/types2/named.go
+@@ -138,7 +138,7 @@ func (t *Named) Method(i int) *Func {
+ 	})
+ }
+ 
+-// instiateMethod instantiates the i'th method for an instantiated receiver.
++// instantiateMethod instantiates the i'th method for an instantiated receiver.
+ func (t *Named) instantiateMethod(i int) *Func {
+ 	assert(t.TypeArgs().Len() > 0) // t must be an instance
+ 
+diff --git a/src/go/types/api.go b/src/go/types/api.go
+index f2dcd104d8..2cbabb0a53 100644
+--- a/src/go/types/api.go
++++ b/src/go/types/api.go
+@@ -34,8 +34,6 @@ import (
+ 	"go/token"
+ )
+ 
+-const allowTypeLists = false
+-
+ // An Error describes a type-checking error; it implements the error interface.
+ // A "soft" error is an error that still permits a valid interpretation of a
+ // package (such as "unused variable"); "hard" errors may lead to unpredictable
+diff --git a/src/go/types/infer.go b/src/go/types/infer.go
+index 6bed55c270..32ec5495ee 100644
+--- a/src/go/types/infer.go
++++ b/src/go/types/infer.go
+@@ -354,7 +354,7 @@ func typeParamsString(list []*TypeParam) string {
+ 	return b.String()
+ }
+ 
+-// IsParameterized reports whether typ contains any of the type parameters of tparams.
++// isParameterized reports whether typ contains any of the type parameters of tparams.
+ func isParameterized(tparams []*TypeParam, typ Type) bool {
+ 	w := tpWalker{
+ 		seen:    make(map[Type]bool),
+diff --git a/src/go/types/named.go b/src/go/types/named.go
+index 4f855ece82..a0b94818f5 100644
+--- a/src/go/types/named.go
++++ b/src/go/types/named.go
+@@ -140,7 +140,7 @@ func (t *Named) Method(i int) *Func {
+ 	})
+ }
+ 
+-// instiateMethod instantiates the i'th method for an instantiated receiver.
++// instantiateMethod instantiates the i'th method for an instantiated receiver.
+ func (t *Named) instantiateMethod(i int) *Func {
+ 	assert(t.TypeArgs().Len() > 0) // t must be an instance
+ 

@@ -21,9 +21,113 @@ Date:   Thu Jan 14 12:29:16 2021 -0500
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/cgo/gcc.go                                 |  7 +++++++
  src/cmd/go/internal/work/exec.go                   |  9 +++++++-
  .../go/testdata/script/build_darwin_cc_arch.txt    | 24 ++++++++++++++++++++++
  src/cmd/link/internal/ld/lib.go                    | 11 ++++++++--
  4 files changed, 48 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 111a309eb5..b5e28e3254 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -1549,7 +1549,14 @@ func (p *Package) gccBaseCmd() []string {
+ func (p *Package) gccMachine() []string {
+ 	switch goarch {
+ 	case "amd64":
++		if goos == "darwin" {
++			return []string{"-arch", "x86_64", "-m64"}
++		}
+ 		return []string{"-m64"}
++	case "arm64":
++		if goos == "darwin" {
++			return []string{"-arch", "arm64"}
++		}
+ 	case "386":
+ 		return []string{"-m32"}
+ 	case "arm":
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index feb2299d40..af8b78e661 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -2435,7 +2435,7 @@ func (b *Builder) fcExe() []string {
+ func (b *Builder) compilerExe(envValue string, def string) []string {
+ 	compiler := strings.Fields(envValue)
+ 	if len(compiler) == 0 {
+-		compiler = []string{def}
++		compiler = strings.Fields(def)
+ 	}
+ 	return compiler
+ }
+@@ -2581,7 +2581,14 @@ func (b *Builder) gccArchArgs() []string {
+ 	case "386":
+ 		return []string{"-m32"}
+ 	case "amd64":
++		if cfg.Goos == "darwin" {
++			return []string{"-arch", "x86_64", "-m64"}
++		}
+ 		return []string{"-m64"}
++	case "arm64":
++		if cfg.Goos == "darwin" {
++			return []string{"-arch", "arm64"}
++		}
+ 	case "arm":
+ 		return []string{"-marm"} // not thumb
+ 	case "s390x":
+diff --git a/src/cmd/go/testdata/script/build_darwin_cc_arch.txt b/src/cmd/go/testdata/script/build_darwin_cc_arch.txt
+new file mode 100644
+index 0000000000..2b81b4cf80
+--- /dev/null
++++ b/src/cmd/go/testdata/script/build_darwin_cc_arch.txt
+@@ -0,0 +1,24 @@
++# Test that we pass -arch flag to C compiler on Darwin (issue 43692).
++
++[!darwin] skip
++[!cgo] skip
++
++# clear CC, in case user sets it
++env CC=
++
++env CGO_ENABLED=1
++
++env GOARCH=amd64
++go build -n -x c.go
++stderr 'clang.*-arch x86_64'
++
++env GOARCH=arm64
++go build -n -x c.go
++stderr 'clang.*-arch arm64'
++
++-- c.go --
++package main
++
++import "C"
++
++func main() {}
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index bf95745d8d..dd5e8ab2c5 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -1749,12 +1749,19 @@ func hostlinkArchArgs(arch *sys.Arch) []string {
+ 	switch arch.Family {
+ 	case sys.I386:
+ 		return []string{"-m32"}
+-	case sys.AMD64, sys.S390X:
++	case sys.AMD64:
++		if objabi.GOOS == "darwin" {
++			return []string{"-arch", "x86_64", "-m64"}
++		}
++		return []string{"-m64"}
++	case sys.S390X:
+ 		return []string{"-m64"}
+ 	case sys.ARM:
+ 		return []string{"-marm"}
+ 	case sys.ARM64:
+-		// nothing needed
++		if objabi.GOOS == "darwin" {
++			return []string{"-arch", "arm64"}
++		}
+ 	case sys.MIPS64:
+ 		return []string{"-mabi=64"}
+ 	case sys.MIPS:

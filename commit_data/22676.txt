@@ -11,7 +11,7 @@ Date:   Fri Mar 27 12:00:07 2015 -0700
     Change-Id: I238adf28680f875217827931a689ce7f19a9b371
     Reviewed-on: https://go-review.googlesource.com/8164
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/internal/gc/dcl.go      | 4 ++--
  src/cmd/internal/gc/export.go   | 2 +-
  src/cmd/internal/gc/go.go       | 6 +++---
@@ -19,3 +19,116 @@ Date:   Fri Mar 27 12:00:07 2015 -0700
  src/cmd/internal/gc/racewalk.go | 2 +-
  src/cmd/internal/gc/walk.go     | 4 ++--
  6 files changed, 11 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/internal/gc/dcl.go b/src/cmd/internal/gc/dcl.go
+index 846ec7d8f1..c8375dd477 100644
+--- a/src/cmd/internal/gc/dcl.go
++++ b/src/cmd/internal/gc/dcl.go
+@@ -165,7 +165,7 @@ var vargen int
+ 
+ var declare_typegen int
+ 
+-func declare(n *Node, ctxt int) {
++func declare(n *Node, ctxt uint8) {
+ 	if ctxt == PDISCARD {
+ 		return
+ 	}
+@@ -232,7 +232,7 @@ func declare(n *Node, ctxt int) {
+ 	autoexport(n, ctxt)
+ }
+ 
+-func addvar(n *Node, t *Type, ctxt int) {
++func addvar(n *Node, t *Type, ctxt uint8) {
+ 	if n == nil || n.Sym == nil || (n.Op != ONAME && n.Op != ONONAME) || t == nil {
+ 		Fatal("addvar: n=%v t=%v nil", Nconv(n, 0), Tconv(t, 0))
+ 	}
+diff --git a/src/cmd/internal/gc/export.go b/src/cmd/internal/gc/export.go
+index f950889101..76bb55ad4d 100644
+--- a/src/cmd/internal/gc/export.go
++++ b/src/cmd/internal/gc/export.go
+@@ -57,7 +57,7 @@ func exportedsym(sym *Sym) bool {
+ 	return sym.Pkg == localpkg && exportname(sym.Name)
+ }
+ 
+-func autoexport(n *Node, ctxt int) {
++func autoexport(n *Node, ctxt uint8) {
+ 	if n == nil || n.Sym == nil {
+ 		return
+ 	}
+diff --git a/src/cmd/internal/gc/go.go b/src/cmd/internal/gc/go.go
+index a6e525aba1..1abbfe41d0 100644
+--- a/src/cmd/internal/gc/go.go
++++ b/src/cmd/internal/gc/go.go
+@@ -333,7 +333,7 @@ const (
+ 
+ // declaration context
+ const (
+-	Pxxx      = iota
++	Pxxx      = uint8(iota)
+ 	PEXTERN   // global variable
+ 	PAUTO     // local variables
+ 	PPARAM    // input arguments
+@@ -343,7 +343,7 @@ const (
+ 
+ 	PDISCARD // discard during parse of duplicate import
+ 
+-	PHEAP = 1 << 7 // an extra bit to identify an escaped variable
++	PHEAP = uint8(1 << 7) // an extra bit to identify an escaped variable
+ )
+ 
+ const (
+@@ -594,7 +594,7 @@ var importlist *NodeList // imported functions and methods with inlinable bodies
+ 
+ var funcsyms *NodeList
+ 
+-var dclcontext int // PEXTERN/PAUTO
++var dclcontext uint8 // PEXTERN/PAUTO
+ 
+ var incannedimport int
+ 
+diff --git a/src/cmd/internal/gc/plive.go b/src/cmd/internal/gc/plive.go
+index 876f43e1a9..02863fb5e8 100644
+--- a/src/cmd/internal/gc/plive.go
++++ b/src/cmd/internal/gc/plive.go
+@@ -828,10 +828,10 @@ func checkparam(fn *Node, p *obj.Prog, n *Node) {
+ 		return
+ 	}
+ 	var a *Node
+-	var class int
++	var class uint8
+ 	for l := fn.Func.Dcl; l != nil; l = l.Next {
+ 		a = l.N
+-		class = int(a.Class) &^ PHEAP
++		class = a.Class &^ PHEAP
+ 		if a.Op == ONAME && (class == PPARAM || class == PPARAMOUT) && a == n {
+ 			return
+ 		}
+diff --git a/src/cmd/internal/gc/racewalk.go b/src/cmd/internal/gc/racewalk.go
+index 85225c3d83..4f7ed2d70d 100644
+--- a/src/cmd/internal/gc/racewalk.go
++++ b/src/cmd/internal/gc/racewalk.go
+@@ -492,7 +492,7 @@ func callinstr(np **Node, init **NodeList, wr int, skip int) bool {
+ 	if isartificial(b) {
+ 		return false
+ 	}
+-	class := int(b.Class)
++	class := b.Class
+ 
+ 	// BUG: we _may_ want to instrument PAUTO sometimes
+ 	// e.g. if we've got a local variable/method receiver
+diff --git a/src/cmd/internal/gc/walk.go b/src/cmd/internal/gc/walk.go
+index 03e79264e3..c10201aa2e 100644
+--- a/src/cmd/internal/gc/walk.go
++++ b/src/cmd/internal/gc/walk.go
+@@ -287,9 +287,9 @@ func walkstmt(np **Node) {
+ 			// so that reorder3 can fix up conflicts
+ 			var rl *NodeList
+ 
+-			var cl int
++			var cl uint8
+ 			for ll := Curfn.Func.Dcl; ll != nil; ll = ll.Next {
+-				cl = int(ll.N.Class) &^ PHEAP
++				cl = ll.N.Class &^ PHEAP
+ 				if cl == PAUTO {
+ 					break
+ 				}

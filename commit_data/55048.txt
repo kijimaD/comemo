@@ -10,6 +10,20 @@ Date:   Thu Dec 8 15:19:39 2022 +0900
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
     Run-TryBot: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/link/internal/amd64/obj.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/amd64/obj.go b/src/cmd/link/internal/amd64/obj.go
+index f46045bc9d..c5e2117f90 100644
+--- a/src/cmd/link/internal/amd64/obj.go
++++ b/src/cmd/link/internal/amd64/obj.go
+@@ -65,7 +65,7 @@ func Init() (*sys.Arch, ld.Arch) {
+ 		TLSIEtoLE:        tlsIEtoLE,
+ 
+ 		Linuxdynld:     "/lib64/ld-linux-x86-64.so.2",
+-		LinuxdynldMusl: "/lib/ld-musl-x84_64.so.1",
++		LinuxdynldMusl: "/lib/ld-musl-x86_64.so.1",
+ 		Freebsddynld:   "/libexec/ld-elf.so.1",
+ 		Openbsddynld:   "/usr/libexec/ld.so",
+ 		Netbsddynld:    "/libexec/ld.elf_so",

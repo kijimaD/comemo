@@ -8,7 +8,7 @@ Date:   Mon Aug 25 20:25:22 2014 +0400
     R=golang-codereviews, ruiu, rsc, daniel.morsing
     CC=golang-codereviews, khr
     https://golang.org/cl/123700044
-
+---
  src/pkg/runtime/mgc0.c      |  10 ++
  src/pkg/runtime/netpoll.goc |  15 ++
  src/pkg/runtime/runtime.h   |  33 -----
@@ -18,3 +18,771 @@ Date:   Mon Aug 25 20:25:22 2014 +0400
  src/pkg/syscall/net_nacl.go |   2 +-
  src/pkg/time/sleep.go       |   2 +-
  8 files changed, 302 insertions(+), 376 deletions(-)
+
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index ded41510c4..86470c182b 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -2130,3 +2130,13 @@ runtime·getgcmask(byte *p, Type *t, byte **mask, uintptr *len)
+ 		}
+ 	}
+ }
++
++void runtime·gc_unixnanotime(int64 *now);
++
++int64 runtime·unixnanotime(void)
++{
++	int64 now;
++
++	runtime·gc_unixnanotime(&now);
++	return now;
++}
+diff --git a/src/pkg/runtime/netpoll.goc b/src/pkg/runtime/netpoll.goc
+index e8ae84f127..46e0dfb330 100644
+--- a/src/pkg/runtime/netpoll.goc
++++ b/src/pkg/runtime/netpoll.goc
+@@ -39,6 +39,21 @@ enum
+ 	PollBlockSize	= 4*1024,
+ };
+ 
++// time.go defines the layout of this structure.
++// Keep in sync with time.go.
++typedef struct Timer Timer;
++struct Timer
++{
++	intgo	i;
++	int64	when;
++	int64	period;
++	FuncVal	*fv;
++	Eface	arg;
++};
++
++void	runtime·addtimer(Timer*);
++void	runtime·deltimer(Timer*);
++
+ struct PollDesc
+ {
+ 	PollDesc* link;	// in pollcache, protected by pollcache.Lock
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index d7709ae3c1..beafc76637 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -92,8 +92,6 @@ typedef	struct	Complex64	Complex64;
+ typedef	struct	Complex128	Complex128;
+ typedef	struct	LibCall		LibCall;
+ typedef	struct	WinCallbackContext	WinCallbackContext;
+-typedef	struct	Timers		Timers;
+-typedef	struct	Timer		Timer;
+ typedef	struct	GCStats		GCStats;
+ typedef	struct	LFNode		LFNode;
+ typedef	struct	ParFor		ParFor;
+@@ -519,35 +517,6 @@ enum {
+ };
+ #endif
+ 
+-struct	Timers
+-{
+-	Lock	lock;
+-	G	*timerproc;
+-	bool		sleeping;
+-	bool		rescheduling;
+-	Note	waitnote;
+-	Timer	**t;
+-	int32	len;
+-	int32	cap;
+-};
+-
+-// Package time knows the layout of this structure.
+-// If this struct changes, adjust ../time/sleep.go:/runtimeTimer.
+-// For GOOS=nacl, package syscall knows the layout of this structure.
+-// If this struct changes, adjust ../syscall/net_nacl.go:/runtimeTimer.
+-struct	Timer
+-{
+-	int32	i;	// heap index
+-
+-	// Timer wakes up at when, and then at when+period, ... (period > 0 only)
+-	// each time calling f(now, arg) in the timer goroutine, so f must be
+-	// a well-behaved function and not block.
+-	int64	when;
+-	int64	period;
+-	FuncVal	*fv;
+-	Eface	arg;
+-};
+-
+ // Lock-free stack node.
+ struct LFNode
+ {
+@@ -965,8 +934,6 @@ int64	runtime·cputicks(void);
+ int64	runtime·tickspersecond(void);
+ void	runtime·blockevent(int64, int32);
+ extern int64 runtime·blockprofilerate;
+-void	runtime·addtimer(Timer*);
+-bool	runtime·deltimer(Timer*);
+ G*	runtime·netpoll(bool);
+ void	runtime·netpollinit(void);
+ int32	runtime·netpollopen(uintptr, PollDesc*);
+diff --git a/src/pkg/runtime/thunk.s b/src/pkg/runtime/thunk.s
+index b54d9eded9..1f83438ef4 100644
+--- a/src/pkg/runtime/thunk.s
++++ b/src/pkg/runtime/thunk.s
+@@ -11,6 +11,18 @@
+ #define JMP B
+ #endif
+ 
++TEXT time·runtimeNano(SB),NOSPLIT,$0-0
++	JMP     runtime·gonanotime(SB)
++
++TEXT time·Sleep(SB),NOSPLIT,$0-0
++	JMP     runtime·timeSleep(SB)
++
++TEXT time·startTimer(SB),NOSPLIT,$0-0
++	JMP     runtime·startTimer(SB)
++
++TEXT time·stopTimer(SB),NOSPLIT,$0-0
++	JMP     runtime·stopTimer(SB)
++
+ TEXT sync·runtime_Syncsemacquire(SB),NOSPLIT,$0-0
+ 	JMP	runtime·syncsemacquire(SB)
+ 
+diff --git a/src/pkg/runtime/time.go b/src/pkg/runtime/time.go
+new file mode 100644
+index 0000000000..9430414cea
+--- /dev/null
++++ b/src/pkg/runtime/time.go
+@@ -0,0 +1,263 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Time-related runtime and pieces of package time.
++
++package runtime
++
++import "unsafe"
++
++// Package time knows the layout of this structure.
++// If this struct changes, adjust ../time/sleep.go:/runtimeTimer and netpoll.goc:/timer.
++// For GOOS=nacl, package syscall knows the layout of this structure.
++// If this struct changes, adjust ../syscall/net_nacl.go:/runtimeTimer.
++type timer struct {
++	i int // heap index
++
++	// Timer wakes up at when, and then at when+period, ... (period > 0 only)
++	// each time calling f(now, arg) in the timer goroutine, so f must be
++	// a well-behaved function and not block.
++	when   int64
++	period int64
++	f      func(interface{})
++	arg    interface{}
++}
++
++var timers struct {
++	lock         lock
++	gp           *g
++	created      bool
++	sleeping     bool
++	rescheduling bool
++	waitnote     note
++	t            []*timer
++}
++
++// Package time APIs.
++// Godoc uses the comments in package time, not these.
++
++// time.now is implemented in assembly.
++
++// Sleep puts the current goroutine to sleep for at least ns nanoseconds.
++func timeSleep(ns int64) {
++	if ns <= 0 {
++		return
++	}
++
++	t := new(timer)
++	t.when = gonanotime() + ns
++	t.f = goroutineReady
++	t.arg = getg()
++	golock(&timers.lock)
++	addtimerLocked(t)
++	goparkunlock(&timers.lock, "sleep")
++}
++
++// startTimer adds t to the timer heap.
++func startTimer(t *timer) {
++	if raceenabled {
++		racerelease(unsafe.Pointer(t))
++	}
++	addtimer(t)
++}
++
++// stopTimer removes t from the timer heap if it is there.
++// It returns true if t was removed, false if t wasn't even there.
++func stopTimer(t *timer) bool {
++	return deltimer(t)
++}
++
++// Go runtime.
++
++// Ready the goroutine arg.
++func goroutineReady(arg interface{}) {
++	goready(arg.(*g))
++}
++
++func addtimer(t *timer) {
++	golock(&timers.lock)
++	addtimerLocked(t)
++	gounlock(&timers.lock)
++}
++
++// Add a timer to the heap and start or kick the timer proc.
++// If the new timer is earlier than any of the others.
++// Timers are locked.
++func addtimerLocked(t *timer) {
++	// when must never be negative; otherwise timerproc will overflow
++	// during its delta calculation and never expire other runtime·timers.
++	if t.when < 0 {
++		t.when = 1<<63 - 1
++	}
++	t.i = len(timers.t)
++	timers.t = append(timers.t, t)
++	siftupTimer(t.i)
++	if t.i == 0 {
++		// siftup moved to top: new earliest deadline.
++		if timers.sleeping {
++			timers.sleeping = false
++			gonotewakeup(&timers.waitnote)
++		}
++		if timers.rescheduling {
++			timers.rescheduling = false
++			goready(timers.gp)
++		}
++	}
++	if !timers.created {
++		timers.created = true
++		go timerproc()
++	}
++}
++
++// Delete timer t from the heap.
++// Do not need to update the timerproc: if it wakes up early, no big deal.
++func deltimer(t *timer) bool {
++	// Dereference t so that any panic happens before the lock is held.
++	// Discard result, because t might be moving in the heap.
++	_ = t.i
++
++	golock(&timers.lock)
++	// t may not be registered anymore and may have
++	// a bogus i (typically 0, if generated by Go).
++	// Verify it before proceeding.
++	i := t.i
++	last := len(timers.t) - 1
++	if i < 0 || i > last || timers.t[i] != t {
++		gounlock(&timers.lock)
++		return false
++	}
++	if i != last {
++		timers.t[i] = timers.t[last]
++		timers.t[i].i = i
++	}
++	timers.t[last] = nil
++	timers.t = timers.t[:last]
++	if i != last {
++		siftupTimer(i)
++		siftdownTimer(i)
++	}
++	gounlock(&timers.lock)
++	return true
++}
++
++// Timerproc runs the time-driven events.
++// It sleeps until the next event in the timers heap.
++// If addtimer inserts a new earlier event, addtimer1 wakes timerproc early.
++func timerproc() {
++	timers.gp = getg()
++	timers.gp.issystem = 1
++	for {
++		golock(&timers.lock)
++		timers.sleeping = false
++		now := gonanotime()
++		delta := int64(-1)
++		for {
++			if len(timers.t) == 0 {
++				delta = -1
++				break
++			}
++			t := timers.t[0]
++			delta = t.when - now
++			if delta > 0 {
++				break
++			}
++			if t.period > 0 {
++				// leave in heap but adjust next time to fire
++				t.when += t.period * (1 + -delta/t.period)
++				siftdownTimer(0)
++			} else {
++				// remove from heap
++				last := len(timers.t) - 1
++				if last > 0 {
++					timers.t[0] = timers.t[last]
++					timers.t[0].i = 0
++				}
++				timers.t[last] = nil
++				timers.t = timers.t[:last]
++				if last > 0 {
++					siftdownTimer(0)
++				}
++				t.i = -1 // mark as removed
++			}
++			f := t.f
++			arg := t.arg
++			gounlock(&timers.lock)
++			if raceenabled {
++				raceacquire(unsafe.Pointer(t))
++			}
++			f(arg)
++			golock(&timers.lock)
++		}
++		if delta < 0 {
++			// No timers left - put goroutine to sleep.
++			timers.rescheduling = true
++			timers.gp.isbackground = 1
++			goparkunlock(&timers.lock, "timer goroutine (idle)")
++			timers.gp.isbackground = 0
++			continue
++		}
++		// At least one timer pending.  Sleep until then.
++		timers.sleeping = true
++		gonoteclear(&timers.waitnote)
++		gounlock(&timers.lock)
++		gonotetsleepg(&timers.waitnote, delta)
++	}
++}
++
++// Heap maintenance algorithms.
++
++func siftupTimer(i int) {
++	t := timers.t
++	when := t[i].when
++	tmp := t[i]
++	for i > 0 {
++		p := (i - 1) / 4 // parent
++		if when >= t[p].when {
++			break
++		}
++		t[i] = t[p]
++		t[i].i = i
++		t[p] = tmp
++		t[p].i = p
++		i = p
++	}
++}
++
++func siftdownTimer(i int) {
++	t := timers.t
++	n := len(t)
++	when := t[i].when
++	tmp := t[i]
++	for {
++		c := i*4 + 1 // left child
++		c3 := c + 2  // mid child
++		if c >= n {
++			break
++		}
++		w := t[c].when
++		if c+1 < n && t[c+1].when < w {
++			w = t[c+1].when
++			c++
++		}
++		if c3 < n {
++			w3 := t[c3].when
++			if c3+1 < n && t[c3+1].when < w3 {
++				w3 = t[c3+1].when
++				c3++
++			}
++			if w3 < w {
++				w = w3
++				c = c3
++			}
++		}
++		if w >= when {
++			break
++		}
++		t[i] = t[c]
++		t[i].i = i
++		t[c] = tmp
++		t[c].i = c
++		i = c
++	}
++}
+diff --git a/src/pkg/runtime/time.goc b/src/pkg/runtime/time.goc
+deleted file mode 100644
+index 1d6346233c..0000000000
+--- a/src/pkg/runtime/time.goc
++++ /dev/null
+@@ -1,341 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Time-related runtime and pieces of package time.
+-
+-package time
+-
+-#include "runtime.h"
+-#include "defs_GOOS_GOARCH.h"
+-#include "os_GOOS.h"
+-#include "arch_GOARCH.h"
+-#include "malloc.h"
+-#include "race.h"
+-
+-enum {
+-	debug = 0,
+-};
+-
+-static Timers timers;
+-static void addtimer(Timer*);
+-static void dumptimers(int8*);
+-
+-// nacl fake time support. 
+-int64 runtime·timens;
+-
+-// Package time APIs.
+-// Godoc uses the comments in package time, not these.
+-
+-// time.now is implemented in assembly.
+-
+-// runtimeNano returns the current value of the runtime clock in nanoseconds.
+-func runtimeNano() (ns int64) {
+-	ns = runtime·nanotime();
+-}
+-
+-// Sleep puts the current goroutine to sleep for at least ns nanoseconds.
+-func Sleep(ns int64) {
+-	runtime·tsleep(ns, runtime·gostringnocopy((byte*)"sleep"));
+-}
+-
+-// startTimer adds t to the timer heap.
+-func startTimer(t *Timer) {
+-	if(raceenabled)
+-		runtime·racerelease(t);
+-	runtime·addtimer(t);
+-}
+-
+-// stopTimer removes t from the timer heap if it is there.
+-// It returns true if t was removed, false if t wasn't even there.
+-func stopTimer(t *Timer) (stopped bool) {
+-	stopped = runtime·deltimer(t);
+-}
+-
+-// C runtime.
+-
+-void runtime·gc_unixnanotime(int64 *now);
+-
+-int64 runtime·unixnanotime(void)
+-{
+-	int64 now;
+-
+-	runtime·gc_unixnanotime(&now);
+-	return now;
+-}
+-
+-static void timerproc(void);
+-static void siftup(int32);
+-static void siftdown(int32);
+-
+-// Ready the goroutine e.data.
+-static void
+-ready(Eface e)
+-{
+-	runtime·ready(e.data);
+-}
+-
+-static FuncVal readyv = {(void(*)(void))ready};
+-
+-// Put the current goroutine to sleep for ns nanoseconds.
+-void
+-runtime·tsleep(int64 ns, String reason)
+-{
+-	Timer t;
+-
+-	if(ns <= 0)
+-		return;
+-
+-	t.when = runtime·nanotime() + ns;
+-	t.period = 0;
+-	t.fv = &readyv;
+-	t.arg.data = g;
+-	runtime·lock(&timers.lock);
+-	addtimer(&t);
+-	runtime·parkunlock(&timers.lock, reason);
+-}
+-
+-static FuncVal timerprocv = {timerproc};
+-
+-void
+-runtime·addtimer(Timer *t)
+-{
+-	runtime·lock(&timers.lock);
+-	addtimer(t);
+-	runtime·unlock(&timers.lock);
+-}
+-
+-// Add a timer to the heap and start or kick the timer proc
+-// if the new timer is earlier than any of the others.
+-static void
+-addtimer(Timer *t)
+-{
+-	int32 n;
+-	Timer **nt;
+-
+-	// when must never be negative; otherwise timerproc will overflow
+-	// during its delta calculation and never expire other timers.
+-	if(t->when < 0)
+-		t->when = (1LL<<63)-1;
+-
+-	if(timers.len >= timers.cap) {
+-		// Grow slice.
+-		n = 16;
+-		if(n <= timers.cap)
+-			n = timers.cap*3 / 2;
+-		nt = runtime·mallocgc(n*sizeof nt[0], nil, 0);
+-		runtime·memmove(nt, timers.t, timers.len*sizeof nt[0]);
+-		timers.t = nt;
+-		timers.cap = n;
+-	}
+-	t->i = timers.len++;
+-	timers.t[t->i] = t;
+-	siftup(t->i);
+-	if(t->i == 0) {
+-		// siftup moved to top: new earliest deadline.
+-		if(timers.sleeping) {
+-			timers.sleeping = false;
+-			runtime·notewakeup(&timers.waitnote);
+-		}
+-		if(timers.rescheduling) {
+-			timers.rescheduling = false;
+-			runtime·ready(timers.timerproc);
+-		}
+-	}
+-	if(timers.timerproc == nil) {
+-		timers.timerproc = runtime·newproc1(&timerprocv, nil, 0, 0, addtimer);
+-		timers.timerproc->issystem = true;
+-	}
+-	if(debug)
+-		dumptimers("addtimer");
+-}
+-
+-// Delete timer t from the heap.
+-// Do not need to update the timerproc:
+-// if it wakes up early, no big deal.
+-bool
+-runtime·deltimer(Timer *t)
+-{
+-	int32 i;
+-
+-	// Dereference t so that any panic happens before the lock is held.
+-	// Discard result, because t might be moving in the heap.
+-	i = t->i;
+-	USED(i);
+-
+-	runtime·lock(&timers.lock);
+-
+-	// t may not be registered anymore and may have
+-	// a bogus i (typically 0, if generated by Go).
+-	// Verify it before proceeding.
+-	i = t->i;
+-	if(i < 0 || i >= timers.len || timers.t[i] != t) {
+-		runtime·unlock(&timers.lock);
+-		return false;
+-	}
+-
+-	timers.len--;
+-	if(i == timers.len) {
+-		timers.t[i] = nil;
+-	} else {
+-		timers.t[i] = timers.t[timers.len];
+-		timers.t[timers.len] = nil;
+-		timers.t[i]->i = i;
+-		siftup(i);
+-		siftdown(i);
+-	}
+-	if(debug)
+-		dumptimers("deltimer");
+-	runtime·unlock(&timers.lock);
+-	return true;
+-}
+-
+-// Timerproc runs the time-driven events.
+-// It sleeps until the next event in the timers heap.
+-// If addtimer inserts a new earlier event, addtimer
+-// wakes timerproc early.
+-static void
+-timerproc(void)
+-{
+-	int64 delta, now;
+-	Timer *t;
+-	void (*f)(Eface);
+-	Eface arg;
+-
+-	for(;;) {
+-		runtime·lock(&timers.lock);
+-		timers.sleeping = false;
+-		now = runtime·nanotime();
+-		for(;;) {
+-			if(timers.len == 0) {
+-				delta = -1;
+-				break;
+-			}
+-			t = timers.t[0];
+-			delta = t->when - now;
+-			if(delta > 0)
+-				break;
+-			if(t->period > 0) {
+-				// leave in heap but adjust next time to fire
+-				t->when += t->period * (1 + -delta/t->period);
+-				siftdown(0);
+-			} else {
+-				// remove from heap
+-				timers.t[0] = timers.t[--timers.len];
+-				timers.t[0]->i = 0;
+-				siftdown(0);
+-				t->i = -1;  // mark as removed
+-			}
+-			f = (void*)t->fv->fn;
+-			arg = t->arg;
+-			runtime·unlock(&timers.lock);
+-			if(raceenabled)
+-				runtime·raceacquire(t);
+-			f(arg);
+-
+-			// clear f and arg to avoid leak while sleeping for next timer
+-			f = nil;
+-			USED(f);
+-			arg.type = nil;
+-			arg.data = nil;
+-			USED(&arg);
+-
+-			runtime·lock(&timers.lock);
+-		}
+-		if(delta < 0) {
+-			// No timers left - put goroutine to sleep.
+-			timers.rescheduling = true;
+-			g->isbackground = true;
+-			runtime·parkunlock(&timers.lock, runtime·gostringnocopy((byte*)"timer goroutine (idle)"));
+-			g->isbackground = false;
+-			continue;
+-		}
+-		// At least one timer pending.  Sleep until then.
+-		timers.sleeping = true;
+-		runtime·noteclear(&timers.waitnote);
+-		runtime·unlock(&timers.lock);
+-		runtime·notetsleepg(&timers.waitnote, delta);
+-	}
+-}
+-
+-// heap maintenance algorithms.
+-
+-static void
+-siftup(int32 i)
+-{
+-	int32 p;
+-	int64 when;
+-	Timer **t, *tmp;
+-
+-	t = timers.t;
+-	when = t[i]->when;
+-	tmp = t[i];
+-	while(i > 0) {
+-		p = (i-1)/4;  // parent
+-		if(when >= t[p]->when)
+-			break;
+-		t[i] = t[p];
+-		t[i]->i = i;
+-		t[p] = tmp;
+-		tmp->i = p;
+-		i = p;
+-	}
+-}
+-
+-static void
+-siftdown(int32 i)
+-{
+-	int32 c, c3, len;
+-	int64 when, w, w3;
+-	Timer **t, *tmp;
+-
+-	t = timers.t;
+-	len = timers.len;
+-	when = t[i]->when;
+-	tmp = t[i];
+-	for(;;) {
+-		c = i*4 + 1;  // left child
+-		c3 = c + 2;  // mid child
+-		if(c >= len) {
+-			break;
+-		}
+-		w = t[c]->when;
+-		if(c+1 < len && t[c+1]->when < w) {
+-			w = t[c+1]->when;
+-			c++;
+-		}
+-		if(c3 < len) {
+-			w3 = t[c3]->when;
+-			if(c3+1 < len && t[c3+1]->when < w3) {
+-				w3 = t[c3+1]->when;
+-				c3++;
+-			}
+-			if(w3 < w) {
+-				w = w3;
+-				c = c3;
+-			}
+-		}
+-		if(w >= when)
+-			break;
+-		t[i] = t[c];
+-		t[i]->i = i;
+-		t[c] = tmp;
+-		tmp->i = c;
+-		i = c;
+-	}
+-}
+-
+-static void
+-dumptimers(int8 *msg)
+-{
+-	Timer *t;
+-	int32 i;
+-
+-	runtime·printf("timers: %s\n", msg);
+-	for(i = 0; i < timers.len; i++) {
+-		t = timers.t[i];
+-		runtime·printf("\t%d\t%p:\ti %d when %D period %D fn %p\n",
+-				i, t, t->i, t->when, t->period, t->fv->fn);
+-	}
+-	runtime·printf("\n");
+-}
+diff --git a/src/pkg/syscall/net_nacl.go b/src/pkg/syscall/net_nacl.go
+index f85b2e1f72..07d52f4525 100644
+--- a/src/pkg/syscall/net_nacl.go
++++ b/src/pkg/syscall/net_nacl.go
+@@ -18,7 +18,7 @@ import (
+ // Really for use by package time, but we cannot import time here.
+ 
+ type runtimeTimer struct {
+-	i      int32
++	i      int
+ 	when   int64
+ 	period int64
+ 	f      func(interface{}) // NOTE: must not be closure
+diff --git a/src/pkg/time/sleep.go b/src/pkg/time/sleep.go
+index 0fd7c9328e..c7b019feb0 100644
+--- a/src/pkg/time/sleep.go
++++ b/src/pkg/time/sleep.go
+@@ -14,7 +14,7 @@ func runtimeNano() int64
+ // Interface to timers implemented in package runtime.
+ // Must be in sync with ../runtime/runtime.h:/^struct.Timer$
+ type runtimeTimer struct {
+-	i      int32
++	i      int
+ 	when   int64
+ 	period int64
+ 	f      func(interface{}) // NOTE: must not be closure

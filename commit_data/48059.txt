@@ -15,8 +15,99 @@ Date:   Wed Apr 14 12:33:51 2021 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/runtime/cgo/gcc_windows_arm64.c | 46 +++++++++++++++++++++++++++++++++++++
  src/runtime/rt0_windows_arm64.s     | 17 ++++++++++++++
  src/runtime/sys_windows_arm.s       |  2 +-
  3 files changed, 64 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/cgo/gcc_windows_arm64.c b/src/runtime/cgo/gcc_windows_arm64.c
+new file mode 100644
+index 0000000000..61ef094866
+--- /dev/null
++++ b/src/runtime/cgo/gcc_windows_arm64.c
+@@ -0,0 +1,46 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#define WIN32_LEAN_AND_MEAN
++#include <windows.h>
++#include <process.h>
++#include <stdlib.h>
++#include <stdio.h>
++#include <errno.h>
++#include "libcgo.h"
++#include "libcgo_windows.h"
++
++static void threadentry(void*);
++static void (*setg_gcc)(void*);
++
++void
++x_cgo_init(G *g, void (*setg)(void*))
++{
++	setg_gcc = setg;
++}
++
++void
++_cgo_sys_thread_start(ThreadStart *ts)
++{
++	uintptr_t thandle;
++
++	thandle = _beginthread(threadentry, 0, ts);
++	if(thandle == -1) {
++		fprintf(stderr, "runtime: failed to create new OS thread (%d)\n", errno);
++		abort();
++	}
++}
++
++extern void crosscall1(void (*fn)(void), void (*setg_gcc)(void*), void *g);
++
++static void
++threadentry(void *v)
++{
++	ThreadStart ts;
++
++	ts = *(ThreadStart*)v;
++	free(v);
++
++	crosscall1(ts.fn, setg_gcc, (void *)ts.g);
++}
+diff --git a/src/runtime/rt0_windows_arm64.s b/src/runtime/rt0_windows_arm64.s
+index 1e71a068d3..bad85c28ac 100644
+--- a/src/runtime/rt0_windows_arm64.s
++++ b/src/runtime/rt0_windows_arm64.s
+@@ -10,3 +10,20 @@
+ // kernel for an ordinary -buildmode=exe program.
+ TEXT _rt0_arm64_windows(SB),NOSPLIT|NOFRAME,$0
+ 	B	·rt0_go(SB)
++
++TEXT _rt0_arm64_windows_lib(SB),NOSPLIT|NOFRAME,$0
++	MOVD	$_rt0_arm64_windows_lib_go(SB), R0
++	MOVD	$0, R1
++	MOVD	_cgo_sys_thread_create(SB), R2
++	B	(R2)
++
++TEXT _rt0_arm64_windows_lib_go(SB),NOSPLIT|NOFRAME,$0
++	MOVD	$0, R0
++	MOVD	$0, R1
++	MOVD	$runtime·rt0_go(SB), R2
++	B	(R2)
++
++TEXT main(SB),NOSPLIT,$0
++	MOVD	$runtime·rt0_go(SB), R2
++	B	(R2)
++
+diff --git a/src/runtime/sys_windows_arm.s b/src/runtime/sys_windows_arm.s
+index 8073fc0198..6234203798 100644
+--- a/src/runtime/sys_windows_arm.s
++++ b/src/runtime/sys_windows_arm.s
+@@ -335,7 +335,7 @@ TEXT runtime·switchtothread(SB),NOSPLIT|NOFRAME,$0
+ TEXT ·publicationBarrier(SB),NOSPLIT|NOFRAME,$0-0
+ 	B	runtime·armPublicationBarrier(SB)
+ 
+-// never called (cgo not supported)
++// never called (this is a GOARM=7 platform)
+ TEXT runtime·read_tls_fallback(SB),NOSPLIT|NOFRAME,$0
+ 	MOVW	$0xabcd, R0
+ 	MOVW	R0, (R0)

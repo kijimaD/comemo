@@ -9,6 +9,33 @@ Date:   Fri Nov 16 14:43:23 2018 -0500
     Run-TryBot: Alan Donovan <adonovan@google.com>
     Reviewed-by: Michael Matloob <matloob@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/testdata/script/vet_asm.txt | 15 +++++++++++++++
  1 file changed, 15 insertions(+)
+
+diff --git a/src/cmd/go/testdata/script/vet_asm.txt b/src/cmd/go/testdata/script/vet_asm.txt
+index b7e1874b8c..807e2b76f5 100644
+--- a/src/cmd/go/testdata/script/vet_asm.txt
++++ b/src/cmd/go/testdata/script/vet_asm.txt
+@@ -5,6 +5,21 @@ env GOARCH=amd64
+ ! go vet -asmdecl a
+ stderr 'f: invalid MOVW of x'
+ 
++# -c flag shows context
++! go vet -c=2 -asmdecl a
++stderr '...invalid MOVW...'
++stderr '1	.*TEXT'
++stderr '2		MOVW'
++stderr '3		RET'
++stderr '4'
++
++# -json causes success, even with diagnostics and errors.
++go vet -json -asmdecl a
++stderr '"a": {'
++stderr   '"asmdecl":'
++stderr     '"posn": ".*asm.s:2:1",'
++stderr     '"message": ".*invalid MOVW.*"'
++
+ -- a/a.go --
+ package a
+ 

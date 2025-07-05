@@ -30,6 +30,19 @@ Date:   Tue Apr 14 08:16:51 2020 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/gc/sinit.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index 3a40d15acd..393211c2dd 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -217,6 +217,7 @@ func (s *InitSchedule) staticassign(l *Node, r *Node) bool {
+ 		// Init slice.
+ 		bound := r.Right.Int64()
+ 		ta := types.NewArray(r.Type.Elem(), bound)
++		ta.SetNoalg(true)
+ 		a := staticname(ta)
+ 		s.inittemps[r] = a
+ 		slicesym(l, a, bound)

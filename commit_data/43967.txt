@@ -47,9 +47,174 @@ Date:   Tue Nov 19 17:32:17 2019 +0000
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/mgc.go         |  5 -----
  src/runtime/mgcscavenge.go | 47 +++++++++++++++++++++++++++++++++-------------
  src/runtime/mgcsweep.go    | 26 +++++++++++++++++++++++++
  src/runtime/proc.go        |  4 ++++
  4 files changed, 64 insertions(+), 18 deletions(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 3c4d807bac..b3499516f6 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -236,8 +236,6 @@ func setGCPercent(in int32) (out int32) {
+ 		gcSetTriggerRatio(memstats.triggerRatio)
+ 		unlock(&mheap_.lock)
+ 	})
+-	// Pacing changed, so the scavenger should be awoken.
+-	wakeScavenger()
+ 
+ 	// If we just disabled GC, wait for any concurrent GC mark to
+ 	// finish so we always return with no GC running.
+@@ -1707,9 +1705,6 @@ func gcMarkTermination(nextTriggerRatio float64) {
+ 	// Update GC trigger and pacing for the next cycle.
+ 	gcSetTriggerRatio(nextTriggerRatio)
+ 
+-	// Pacing changed, so the scavenger should be awoken.
+-	wakeScavenger()
+-
+ 	// Update timing memstats
+ 	now := nanotime()
+ 	sec, nsec, _ := time_now()
+diff --git a/src/runtime/mgcscavenge.go b/src/runtime/mgcscavenge.go
+index 5ec1be3a22..1392136617 100644
+--- a/src/runtime/mgcscavenge.go
++++ b/src/runtime/mgcscavenge.go
+@@ -150,24 +150,39 @@ func gcPaceScavenger() {
+ 		return
+ 	}
+ 	mheap_.scavengeGoal = retainedGoal
+-	mheap_.pages.resetScavengeAddr()
+ }
+ 
+ // Sleep/wait state of the background scavenger.
+ var scavenge struct {
+-	lock   mutex
+-	g      *g
+-	parked bool
+-	timer  *timer
++	lock       mutex
++	g          *g
++	parked     bool
++	timer      *timer
++	sysmonWake uint32 // Set atomically.
+ }
+ 
+-// wakeScavenger unparks the scavenger if necessary. It must be called
+-// after any pacing update.
++// readyForScavenger signals sysmon to wake the scavenger because
++// there may be new work to do.
+ //
+-// mheap_.lock and scavenge.lock must not be held.
++// There may be a significant delay between when this function runs
++// and when the scavenger is kicked awake, but it may be safely invoked
++// in contexts where wakeScavenger is unsafe to call directly.
++func readyForScavenger() {
++	atomic.Store(&scavenge.sysmonWake, 1)
++}
++
++// wakeScavenger immediately unparks the scavenger if necessary.
++//
++// May run without a P, but it may allocate, so it must not be called
++// on any allocation path.
++//
++// mheap_.lock, scavenge.lock, and sched.lock must not be held.
+ func wakeScavenger() {
+ 	lock(&scavenge.lock)
+ 	if scavenge.parked {
++		// Notify sysmon that it shouldn't bother waking up the scavenger.
++		atomic.Store(&scavenge.sysmonWake, 0)
++
+ 		// Try to stop the timer but we don't really care if we succeed.
+ 		// It's possible that either a timer was never started, or that
+ 		// we're racing with it.
+@@ -183,9 +198,16 @@ func wakeScavenger() {
+ 		// scavenger at a "lower priority" but that's OK because it'll
+ 		// catch up on the work it missed when it does get scheduled.
+ 		scavenge.parked = false
+-		systemstack(func() {
+-			ready(scavenge.g, 0, false)
+-		})
++
++		// Ready the goroutine by injecting it. We use injectglist instead
++		// of ready or goready in order to allow us to run this function
++		// without a P. injectglist also avoids placing the goroutine in
++		// the current P's runnext slot, which is desireable to prevent
++		// the scavenger from interfering with user goroutine scheduling
++		// too much.
++		var list gList
++		list.push(scavenge.g)
++		injectglist(&list)
+ 	}
+ 	unlock(&scavenge.lock)
+ }
+@@ -402,8 +424,7 @@ func printScavTrace(released uintptr, forced bool) {
+ }
+ 
+ // resetScavengeAddr sets the scavenge start address to the top of the heap's
+-// address space. This should be called each time the scavenger's pacing
+-// changes.
++// address space. This should be called whenever the sweeper is done.
+ //
+ // s.mheapLock must be held.
+ func (s *pageAlloc) resetScavengeAddr() {
+diff --git a/src/runtime/mgcsweep.go b/src/runtime/mgcsweep.go
+index f99a6cc122..2f3bf1d1e9 100644
+--- a/src/runtime/mgcsweep.go
++++ b/src/runtime/mgcsweep.go
+@@ -145,6 +145,11 @@ func finishsweep_m() {
+ 		}
+ 	}
+ 
++	// Sweeping is done, so if the scavenger isn't already awake,
++	// wake it up. There's definitely work for it to do at this
++	// point.
++	wakeScavenger()
++
+ 	nextMarkBitArenaEpoch()
+ }
+ 
+@@ -241,6 +246,27 @@ func sweepone() uintptr {
+ 	// Decrement the number of active sweepers and if this is the
+ 	// last one print trace information.
+ 	if atomic.Xadd(&mheap_.sweepers, -1) == 0 && atomic.Load(&mheap_.sweepdone) != 0 {
++		// Since the sweeper is done, reset the scavenger's pointer
++		// into the heap and wake it if necessary.
++		//
++		// The scavenger is signaled by the last sweeper because once
++		// sweeping is done, we will definitely have useful work for
++		// the scavenger to do, since the scavenger only runs over the
++		// heap once per GC cyle. This update is not done during sweep
++		// termination because in some cases there may be a long delay
++		// between sweep done and sweep termination (e.g. not enough
++		// allocations to trigger a GC) which would be nice to fill in
++		// with scavenging work.
++		systemstack(func() {
++			lock(&mheap_.lock)
++			mheap_.pages.resetScavengeAddr()
++			unlock(&mheap_.lock)
++		})
++		// Since we might sweep in an allocation path, it's not possible
++		// for us to wake the scavenger directly via wakeScavenger, since
++		// it could allocate. Ask sysmon to do it for us instead.
++		readyForScavenger()
++
+ 		if debug.gcpacertrace > 0 {
+ 			print("pacer: sweep done at heap size ", memstats.heap_live>>20, "MB; allocated ", (memstats.heap_live-mheap_.sweepHeapLiveBasis)>>20, "MB during sweep; swept ", mheap_.pagesSwept, " pages at ", sweepRatio, " pages/byte\n")
+ 		}
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 9c2ec56c35..1d04c156d3 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -4633,6 +4633,10 @@ func sysmon() {
+ 			// Try to start an M to run them.
+ 			startm(nil, false)
+ 		}
++		if atomic.Load(&scavenge.sysmonWake) != 0 {
++			// Kick the scavenger awake if someone requested it.
++			wakeScavenger()
++		}
+ 		// retake P's blocked in syscalls
+ 		// and preempt long running G's
+ 		if retake(now) != 0 {

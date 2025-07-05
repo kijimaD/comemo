@@ -15,6 +15,20 @@ Date:   Wed Sep 22 14:59:42 2021 +0100
     Reviewed-by: Jay Conrod <jayconrod@google.com>
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/go/internal/imports/scan_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/imports/scan_test.go b/src/cmd/go/internal/imports/scan_test.go
+index 2d245ee787..7e69c56513 100644
+--- a/src/cmd/go/internal/imports/scan_test.go
++++ b/src/cmd/go/internal/imports/scan_test.go
+@@ -33,7 +33,7 @@ func TestScan(t *testing.T) {
+ 		}
+ 		if p == "net/http" {
+ 			// A test import but not an import
+-			t.Errorf("json reported as importing encoding/binary but does not")
++			t.Errorf("json reported as importing net/http but does not")
+ 		}
+ 	}
+ 	if !foundBase64 {

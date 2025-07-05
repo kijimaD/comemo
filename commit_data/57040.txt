@@ -20,7 +20,42 @@ Date:   Tue Jun 6 14:30:31 2023 -0700
     Reviewed-by: Robert Griesemer <gri@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
     Run-TryBot: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/unify.go | 6 +++++-
  src/go/types/unify.go                    | 6 +++++-
  2 files changed, 10 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/unify.go b/src/cmd/compile/internal/types2/unify.go
+index 10c4ec7632..48adc185c3 100644
+--- a/src/cmd/compile/internal/types2/unify.go
++++ b/src/cmd/compile/internal/types2/unify.go
+@@ -700,7 +700,11 @@ func (u *unifier) nify(x, y Type, mode unifyMode, p *ifacePair) (result bool) {
+ 				if traceInference {
+ 					u.tracef("core %s ≡ %s", x, y)
+ 				}
+-				return u.nify(cx, y, mode, p)
++				// If y is a defined type, it may not match against cx which
++				// is an underlying type (incl. int, string, etc.). Use assign
++				// mode here so that the unifier automatically takes under(y)
++				// if necessary.
++				return u.nify(cx, y, assign, p)
+ 			}
+ 		}
+ 		// x != y and there's nothing to do
+diff --git a/src/go/types/unify.go b/src/go/types/unify.go
+index d704a27f7c..3ecc80f161 100644
+--- a/src/go/types/unify.go
++++ b/src/go/types/unify.go
+@@ -702,7 +702,11 @@ func (u *unifier) nify(x, y Type, mode unifyMode, p *ifacePair) (result bool) {
+ 				if traceInference {
+ 					u.tracef("core %s ≡ %s", x, y)
+ 				}
+-				return u.nify(cx, y, mode, p)
++				// If y is a defined type, it may not match against cx which
++				// is an underlying type (incl. int, string, etc.). Use assign
++				// mode here so that the unifier automatically takes under(y)
++				// if necessary.
++				return u.nify(cx, y, assign, p)
+ 			}
+ 		}
+ 		// x != y and there's nothing to do

@@ -9,6 +9,21 @@ Date:   Wed Feb 8 14:24:04 2012 +1100
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/5641050
-
+---
  src/pkg/encoding/csv/reader.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/pkg/encoding/csv/reader.go b/src/pkg/encoding/csv/reader.go
+index ae0f567b9d..9aa398e58b 100644
+--- a/src/pkg/encoding/csv/reader.go
++++ b/src/pkg/encoding/csv/reader.go
+@@ -156,6 +156,9 @@ func (r *Reader) Read() (record []string, err error) {
+ 
+ // ReadAll reads all the remaining records from r.
+ // Each record is a slice of fields.
++// A successful call returns err == nil, not err == EOF. Because ReadAll is
++// defined to read until EOF, it does not treat end of file as an error to be
++// reported.
+ func (r *Reader) ReadAll() (records [][]string, err error) {
+ 	for {
+ 		record, err := r.Read()

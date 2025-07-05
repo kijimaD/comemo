@@ -9,6 +9,20 @@ Date:   Fri Dec 8 02:11:05 2017 -0800
     Run-TryBot: Caleb Spare <cespare@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/strings/builder.go | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/src/strings/builder.go b/src/strings/builder.go
+index 594f3db513..09ebb3d91b 100644
+--- a/src/strings/builder.go
++++ b/src/strings/builder.go
+@@ -28,8 +28,6 @@ func (b *Builder) Len() int { return len(b.buf) }
+ // Reset resets the Builder to be empty.
+ func (b *Builder) Reset() { b.buf = nil }
+ 
+-const maxInt = int(^uint(0) >> 1)
+-
+ // grow copies the buffer to a new, larger buffer so that there are at least n
+ // bytes of capacity beyond len(b.buf).
+ func (b *Builder) grow(n int) {

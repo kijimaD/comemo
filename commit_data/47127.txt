@@ -15,10 +15,265 @@ Date:   Wed Feb 24 18:24:45 2021 -0500
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go.mod                                     |   2 +-
  src/cmd/go.sum                                     |   4 +-
  .../go/testdata/script/mod_retract_fix_version.txt |  24 +++++
  src/cmd/vendor/golang.org/x/mod/modfile/rule.go    | 102 ++++++++++++++++-----
  src/cmd/vendor/modules.txt                         |   2 +-
  5 files changed, 109 insertions(+), 25 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index 3c90dca491..8ca3b982ee 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -6,7 +6,7 @@ require (
+ 	github.com/google/pprof v0.0.0-20201203190320-1bf35d6f28c2
+ 	golang.org/x/arch v0.0.0-20201008161808-52c3e6f60cff
+ 	golang.org/x/crypto v0.0.0-20201016220609-9e8e0b390897
+-	golang.org/x/mod v0.4.2-0.20210223202949-66f6d92cabd5
++	golang.org/x/mod v0.4.2-0.20210225160341-66bf157bf5bc
+ 	golang.org/x/sys v0.0.0-20210218145245-beda7e5e158e // indirect
+ 	golang.org/x/tools v0.1.1-0.20210220032852-2363391a5b2f
+ )
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index 498b92207f..7de27879f6 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -14,8 +14,8 @@ golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9/go.mod h1:LzIPMQfyMNhhGPh
+ golang.org/x/crypto v0.0.0-20201016220609-9e8e0b390897 h1:pLI5jrR7OSLijeIDcmRxNmw2api+jEfxLoykJVice/E=
+ golang.org/x/crypto v0.0.0-20201016220609-9e8e0b390897/go.mod h1:LzIPMQfyMNhhGPhUkYOs5KpL4U8rLKemX1yGLhDgUto=
+ golang.org/x/mod v0.4.1/go.mod h1:s0Qsj1ACt9ePp/hMypM3fl4fZqREWJwdYDEqhRiZZUA=
+-golang.org/x/mod v0.4.2-0.20210223202949-66f6d92cabd5 h1:ETedWdSKv0zHgSxvhXszxH25fCWwA6olYCPu9ehlVKs=
+-golang.org/x/mod v0.4.2-0.20210223202949-66f6d92cabd5/go.mod h1:s0Qsj1ACt9ePp/hMypM3fl4fZqREWJwdYDEqhRiZZUA=
++golang.org/x/mod v0.4.2-0.20210225160341-66bf157bf5bc h1:xQukuh0OD2SNSUK1CCBFATgHYx5ye75S/bAWEU/PT0E=
++golang.org/x/mod v0.4.2-0.20210225160341-66bf157bf5bc/go.mod h1:s0Qsj1ACt9ePp/hMypM3fl4fZqREWJwdYDEqhRiZZUA=
+ golang.org/x/net v0.0.0-20190404232315-eb5bcb51f2a3/go.mod h1:t9HGtf8HONx5eT2rtn7q6eTqICYqUVnKs3thJo3Qplg=
+ golang.org/x/net v0.0.0-20190620200207-3b0461eec859/go.mod h1:z5CRVTTTmAJ677TzLLGU+0bjPO0LkuOLi4/5GtJWs/s=
+ golang.org/x/net v0.0.0-20201021035429-f5854403a974/go.mod h1:sp8m0HH+o8qH0wwXwYZr8TS3Oi6o0r6Gce1SSxlDquU=
+diff --git a/src/cmd/go/testdata/script/mod_retract_fix_version.txt b/src/cmd/go/testdata/script/mod_retract_fix_version.txt
+new file mode 100644
+index 0000000000..f8099ec93e
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_retract_fix_version.txt
+@@ -0,0 +1,24 @@
++# retract must not be used without a module directive.
++! go list -m all
++stderr 'go.mod:3: no module directive found, so retract cannot be used$'
++
++# Commands that update go.mod should fix non-canonical versions in
++# retract directives.
++# Verifies #44494.
++go mod edit -module=rsc.io/quote/v2
++! go list -m all
++stderr '^go: updates to go.mod needed; to update it:\n\tgo mod tidy$'
++go mod tidy
++go list -m all
++cmp go.mod go.mod.want
++
++-- go.mod --
++go 1.16
++
++retract latest
++-- go.mod.want --
++go 1.16
++
++retract v2.0.1
++
++module rsc.io/quote/v2
+diff --git a/src/cmd/vendor/golang.org/x/mod/modfile/rule.go b/src/cmd/vendor/golang.org/x/mod/modfile/rule.go
+index 8fcf96b713..f8c9384985 100644
+--- a/src/cmd/vendor/golang.org/x/mod/modfile/rule.go
++++ b/src/cmd/vendor/golang.org/x/mod/modfile/rule.go
+@@ -125,6 +125,12 @@ func (f *File) AddComment(text string) {
+ 
+ type VersionFixer func(path, version string) (string, error)
+ 
++// errDontFix is returned by a VersionFixer to indicate the version should be
++// left alone, even if it's not canonical.
++var dontFixRetract VersionFixer = func(_, vers string) (string, error) {
++	return vers, nil
++}
++
+ // Parse parses the data, reported in errors as being from file,
+ // into a File struct. It applies fix, if non-nil, to canonicalize all module versions found.
+ func Parse(file string, data []byte, fix VersionFixer) (*File, error) {
+@@ -142,7 +148,7 @@ func ParseLax(file string, data []byte, fix VersionFixer) (*File, error) {
+ 	return parseToFile(file, data, fix, false)
+ }
+ 
+-func parseToFile(file string, data []byte, fix VersionFixer, strict bool) (*File, error) {
++func parseToFile(file string, data []byte, fix VersionFixer, strict bool) (parsed *File, err error) {
+ 	fs, err := parse(file, data)
+ 	if err != nil {
+ 		return nil, err
+@@ -150,8 +156,18 @@ func parseToFile(file string, data []byte, fix VersionFixer, strict bool) (*File
+ 	f := &File{
+ 		Syntax: fs,
+ 	}
+-
+ 	var errs ErrorList
++
++	// fix versions in retract directives after the file is parsed.
++	// We need the module path to fix versions, and it might be at the end.
++	defer func() {
++		oldLen := len(errs)
++		f.fixRetract(fix, &errs)
++		if len(errs) > oldLen {
++			parsed, err = nil, errs
++		}
++	}()
++
+ 	for _, x := range fs.Stmt {
+ 		switch x := x.(type) {
+ 		case *Line:
+@@ -370,7 +386,7 @@ func (f *File) add(errs *ErrorList, block *LineBlock, line *Line, verb string, a
+ 
+ 	case "retract":
+ 		rationale := parseRetractRationale(block, line)
+-		vi, err := parseVersionInterval(verb, &args, fix)
++		vi, err := parseVersionInterval(verb, "", &args, dontFixRetract)
+ 		if err != nil {
+ 			if strict {
+ 				wrapError(err)
+@@ -397,6 +413,47 @@ func (f *File) add(errs *ErrorList, block *LineBlock, line *Line, verb string, a
+ 	}
+ }
+ 
++// fixRetract applies fix to each retract directive in f, appending any errors
++// to errs.
++//
++// Most versions are fixed as we parse the file, but for retract directives,
++// the relevant module path is the one specified with the module directive,
++// and that might appear at the end of the file (or not at all).
++func (f *File) fixRetract(fix VersionFixer, errs *ErrorList) {
++	if fix == nil {
++		return
++	}
++	path := ""
++	if f.Module != nil {
++		path = f.Module.Mod.Path
++	}
++	var r *Retract
++	wrapError := func(err error) {
++		*errs = append(*errs, Error{
++			Filename: f.Syntax.Name,
++			Pos:      r.Syntax.Start,
++			Err:      err,
++		})
++	}
++
++	for _, r = range f.Retract {
++		if path == "" {
++			wrapError(errors.New("no module directive found, so retract cannot be used"))
++			return // only print the first one of these
++		}
++
++		args := r.Syntax.Token
++		if args[0] == "retract" {
++			args = args[1:]
++		}
++		vi, err := parseVersionInterval("retract", path, &args, fix)
++		if err != nil {
++			wrapError(err)
++		}
++		r.VersionInterval = vi
++	}
++}
++
+ // isIndirect reports whether line has a "// indirect" comment,
+ // meaning it is in go.mod only for its effect on indirect dependencies,
+ // so that it can be dropped entirely once the effective version of the
+@@ -491,13 +548,13 @@ func AutoQuote(s string) string {
+ 	return s
+ }
+ 
+-func parseVersionInterval(verb string, args *[]string, fix VersionFixer) (VersionInterval, error) {
++func parseVersionInterval(verb string, path string, args *[]string, fix VersionFixer) (VersionInterval, error) {
+ 	toks := *args
+ 	if len(toks) == 0 || toks[0] == "(" {
+ 		return VersionInterval{}, fmt.Errorf("expected '[' or version")
+ 	}
+ 	if toks[0] != "[" {
+-		v, err := parseVersion(verb, "", &toks[0], fix)
++		v, err := parseVersion(verb, path, &toks[0], fix)
+ 		if err != nil {
+ 			return VersionInterval{}, err
+ 		}
+@@ -509,7 +566,7 @@ func parseVersionInterval(verb string, args *[]string, fix VersionFixer) (Versio
+ 	if len(toks) == 0 {
+ 		return VersionInterval{}, fmt.Errorf("expected version after '['")
+ 	}
+-	low, err := parseVersion(verb, "", &toks[0], fix)
++	low, err := parseVersion(verb, path, &toks[0], fix)
+ 	if err != nil {
+ 		return VersionInterval{}, err
+ 	}
+@@ -523,7 +580,7 @@ func parseVersionInterval(verb string, args *[]string, fix VersionFixer) (Versio
+ 	if len(toks) == 0 {
+ 		return VersionInterval{}, fmt.Errorf("expected version after ','")
+ 	}
+-	high, err := parseVersion(verb, "", &toks[0], fix)
++	high, err := parseVersion(verb, path, &toks[0], fix)
+ 	if err != nil {
+ 		return VersionInterval{}, err
+ 	}
+@@ -631,8 +688,7 @@ func parseVersion(verb string, path string, s *string, fix VersionFixer) (string
+ 		}
+ 	}
+ 	if fix != nil {
+-		var err error
+-		t, err = fix(path, t)
++		fixed, err := fix(path, t)
+ 		if err != nil {
+ 			if err, ok := err.(*module.ModuleError); ok {
+ 				return "", &Error{
+@@ -643,19 +699,23 @@ func parseVersion(verb string, path string, s *string, fix VersionFixer) (string
+ 			}
+ 			return "", err
+ 		}
++		t = fixed
++	} else {
++		cv := module.CanonicalVersion(t)
++		if cv == "" {
++			return "", &Error{
++				Verb:    verb,
++				ModPath: path,
++				Err: &module.InvalidVersionError{
++					Version: t,
++					Err:     errors.New("must be of the form v1.2.3"),
++				},
++			}
++		}
++		t = cv
+ 	}
+-	if v := module.CanonicalVersion(t); v != "" {
+-		*s = v
+-		return *s, nil
+-	}
+-	return "", &Error{
+-		Verb:    verb,
+-		ModPath: path,
+-		Err: &module.InvalidVersionError{
+-			Version: t,
+-			Err:     errors.New("must be of the form v1.2.3"),
+-		},
+-	}
++	*s = t
++	return *s, nil
+ }
+ 
+ func modulePathMajor(path string) (string, error) {
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index 254cff70dd..03853007e0 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -28,7 +28,7 @@ golang.org/x/arch/x86/x86asm
+ golang.org/x/crypto/ed25519
+ golang.org/x/crypto/ed25519/internal/edwards25519
+ golang.org/x/crypto/ssh/terminal
+-# golang.org/x/mod v0.4.2-0.20210223202949-66f6d92cabd5
++# golang.org/x/mod v0.4.2-0.20210225160341-66bf157bf5bc
+ ## explicit
+ golang.org/x/mod/internal/lazyregexp
+ golang.org/x/mod/modfile

@@ -20,7 +20,7 @@ Date:   Tue Oct 17 16:30:36 2023 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/536396
     Reviewed-by: Russ Cox <rsc@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/go/internal/clean/clean.go     |  4 +-
  src/cmd/go/internal/load/pkg.go        |  2 +-
  src/cmd/go/internal/load/printer.go    | 74 ++++++++++++++++++++++++++++++++++
@@ -28,3 +28,224 @@ Date:   Tue Oct 17 16:30:36 2023 -0400
  src/cmd/go/internal/work/exec.go       |  3 +-
  src/cmd/go/internal/work/shell.go      | 36 +++++++++++------
  6 files changed, 104 insertions(+), 20 deletions(-)
+
+diff --git a/src/cmd/go/internal/clean/clean.go b/src/cmd/go/internal/clean/clean.go
+index 3b5924fe13..291ac8e5e9 100644
+--- a/src/cmd/go/internal/clean/clean.go
++++ b/src/cmd/go/internal/clean/clean.go
+@@ -150,7 +150,7 @@ func runClean(ctx context.Context, cmd *base.Command, args []string) {
+ 		}
+ 	}
+ 
+-	sh := work.NewShell("", fmt.Print)
++	sh := work.NewShell("", &load.TextPrinter{Writer: os.Stdout})
+ 
+ 	if cleanCache {
+ 		dir, _ := cache.DefaultDir()
+@@ -269,7 +269,7 @@ func clean(p *load.Package) {
+ 		return
+ 	}
+ 
+-	sh := work.NewShell("", fmt.Print)
++	sh := work.NewShell("", &load.TextPrinter{Writer: os.Stdout})
+ 
+ 	packageFile := map[string]bool{}
+ 	if p.Name != "main" {
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 1f222a5434..bdb7bc886e 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -3053,7 +3053,7 @@ func CheckPackageErrors(pkgs []*Package) {
+ 		all := PackageList(pkgs)
+ 		for _, p := range all {
+ 			if p.Error != nil {
+-				base.Errorf("%v", p.Error)
++				DefaultPrinter().Errorf(p, "%v", p.Error)
+ 			}
+ 		}
+ 	}
+diff --git a/src/cmd/go/internal/load/printer.go b/src/cmd/go/internal/load/printer.go
+new file mode 100644
+index 0000000000..7eee2b06c2
+--- /dev/null
++++ b/src/cmd/go/internal/load/printer.go
+@@ -0,0 +1,74 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package load
++
++import (
++	"cmd/go/internal/base"
++	"fmt"
++	"io"
++	"os"
++	"strings"
++	"sync"
++)
++
++// A Printer reports output about a Package.
++type Printer interface {
++	// Output reports output from building pkg. The arguments are of the form
++	// expected by fmt.Print.
++	//
++	// pkg may be nil if this output is not associated with the build of a
++	// particular package.
++	//
++	// The caller is responsible for checking if printing output is appropriate,
++	// for example by checking cfg.BuildN or cfg.BuildV.
++	Output(pkg *Package, args ...any)
++
++	// Errorf prints output in the form of `log.Errorf` and reports that
++	// building pkg failed.
++	//
++	// This ensures the output is terminated with a new line if there's any
++	// output, but does not do any other formatting. Callers should generally
++	// use a higher-level output abstraction, such as (*Shell).reportCmd.
++	//
++	// pkg may be nil if this output is not associated with the build of a
++	// particular package.
++	//
++	// This sets the process exit status to 1.
++	Errorf(pkg *Package, format string, args ...any)
++}
++
++// DefaultPrinter returns the default Printer.
++func DefaultPrinter() Printer {
++	return defaultPrinter()
++}
++
++var defaultPrinter = sync.OnceValue(func() Printer {
++	// TODO: This will return a JSON printer once that's an option.
++	return &TextPrinter{os.Stderr}
++})
++
++func ensureNewline(s string) string {
++	if s == "" {
++		return ""
++	}
++	if strings.HasSuffix(s, "\n") {
++		return s
++	}
++	return s + "\n"
++}
++
++// A TextPrinter emits text format output to Writer.
++type TextPrinter struct {
++	Writer io.Writer
++}
++
++func (p *TextPrinter) Output(_ *Package, args ...any) {
++	fmt.Fprint(p.Writer, args...)
++}
++
++func (p *TextPrinter) Errorf(_ *Package, format string, args ...any) {
++	fmt.Fprint(p.Writer, ensureNewline(fmt.Sprintf(format, args...)))
++	base.SetExitStatus(1)
++}
+diff --git a/src/cmd/go/internal/work/build_test.go b/src/cmd/go/internal/work/build_test.go
+index e8879c13e5..88221d66fb 100644
+--- a/src/cmd/go/internal/work/build_test.go
++++ b/src/cmd/go/internal/work/build_test.go
+@@ -5,7 +5,6 @@
+ package work
+ 
+ import (
+-	"fmt"
+ 	"internal/testenv"
+ 	"io/fs"
+ 	"os"
+@@ -226,9 +225,7 @@ func TestRespectSetgidDir(t *testing.T) {
+ 	// of `(*Shell).ShowCmd` afterwards as a sanity check.
+ 	cfg.BuildX = true
+ 	var cmdBuf strings.Builder
+-	sh := NewShell("", func(a ...any) (int, error) {
+-		return cmdBuf.WriteString(fmt.Sprint(a...))
+-	})
++	sh := NewShell("", &load.TextPrinter{Writer: &cmdBuf})
+ 
+ 	setgiddir := t.TempDir()
+ 
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 2447c289c8..1aaf50f1fb 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -173,7 +173,8 @@ func (b *Builder) Do(ctx context.Context, root *Action) {
+ 				if a.Package != nil && (!errors.As(err, &ipe) || ipe.ImportPath() != a.Package.ImportPath) {
+ 					err = fmt.Errorf("%s: %v", a.Package.ImportPath, err)
+ 				}
+-				base.Errorf("%s", err)
++				sh := b.Shell(a)
++				sh.Errorf("%s", err)
+ 			}
+ 			a.Failed = true
+ 		}
+diff --git a/src/cmd/go/internal/work/shell.go b/src/cmd/go/internal/work/shell.go
+index 6bbd73c05d..a14635489f 100644
+--- a/src/cmd/go/internal/work/shell.go
++++ b/src/cmd/go/internal/work/shell.go
+@@ -43,7 +43,7 @@ type shellShared struct {
+ 	workDir string // $WORK, immutable
+ 
+ 	printLock sync.Mutex
+-	printFunc func(args ...any) (int, error)
++	printer   load.Printer
+ 	scriptDir string // current directory in printed script
+ 
+ 	mkdirCache par.Cache[string, error] // a cache of created directories
+@@ -51,31 +51,43 @@ type shellShared struct {
+ 
+ // NewShell returns a new Shell.
+ //
+-// Shell will internally serialize calls to the print function.
+-// If print is nil, it defaults to printing to stderr.
+-func NewShell(workDir string, print func(a ...any) (int, error)) *Shell {
+-	if print == nil {
+-		print = func(a ...any) (int, error) {
+-			return fmt.Fprint(os.Stderr, a...)
+-		}
++// Shell will internally serialize calls to the printer.
++// If printer is nil, it uses load.DefaultPrinter.
++func NewShell(workDir string, printer load.Printer) *Shell {
++	if printer == nil {
++		printer = load.DefaultPrinter()
+ 	}
+ 	shared := &shellShared{
+-		workDir:   workDir,
+-		printFunc: print,
++		workDir: workDir,
++		printer: printer,
+ 	}
+ 	return &Shell{shellShared: shared}
+ }
+ 
++func (sh *Shell) pkg() *load.Package {
++	if sh.action == nil {
++		return nil
++	}
++	return sh.action.Package
++}
++
+ // Print emits a to this Shell's output stream, formatting it like fmt.Print.
+ // It is safe to call concurrently.
+ func (sh *Shell) Print(a ...any) {
+ 	sh.printLock.Lock()
+ 	defer sh.printLock.Unlock()
+-	sh.printFunc(a...)
++	sh.printer.Output(sh.pkg(), a...)
+ }
+ 
+ func (sh *Shell) printLocked(a ...any) {
+-	sh.printFunc(a...)
++	sh.printer.Output(sh.pkg(), a...)
++}
++
++// Errorf reports an error on sh's package and sets the process exit status to 1.
++func (sh *Shell) Errorf(format string, a ...any) {
++	sh.printLock.Lock()
++	defer sh.printLock.Unlock()
++	sh.printer.Errorf(sh.pkg(), format, a...)
+ }
+ 
+ // WithAction returns a Shell identical to sh, but bound to Action a.

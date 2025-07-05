@@ -9,7 +9,32 @@ Date:   Tue Apr 8 11:12:46 2014 -0400
     R=gobot
     CC=golang-codereviews
     https://golang.org/cl/85490043
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 43913d84e0..6979876c7c 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -24,6 +24,7 @@ Alexander Larsson <alexander.larsson@gmail.com>
+ Alexander Orlov <alexander.orlov@loxal.net>
+ Alexander Reece <awreece@gmail.com>
+ Alexander Surma <surma@surmair.de>
++Alexander Zhavnerchik <alex.vizor@gmail.com>
+ Alexandre Normand <alexandre.normand@gmail.com>
+ Alexei Sholik <alcosholik@gmail.com>
+ Alexey Borzenkov <snaury@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 73040fd30a..472a254e00 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -51,6 +51,7 @@ Alexander Larsson <alexander.larsson@gmail.com>
+ Alexander Orlov <alexander.orlov@loxal.net>
+ Alexander Reece <awreece@gmail.com>
+ Alexander Surma <surma@surmair.de>
++Alexander Zhavnerchik <alex.vizor@gmail.com>
+ Alexandre Normand <alexandre.normand@gmail.com>
+ Alexandru Moșoi <brtzsnr@gmail.com>
+ Alexei Sholik <alcosholik@gmail.com>

@@ -13,8 +13,106 @@ Date:   Tue Oct 31 16:13:21 2023 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/stmt.go       |  2 +-
  src/go/types/stmt.go                          |  2 +-
  src/internal/types/testdata/spec/range_int.go | 65 +++++++++++++++++++++++++++
  3 files changed, 67 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/stmt.go b/src/cmd/compile/internal/types2/stmt.go
+index 0797da19d4..fc13e9890f 100644
+--- a/src/cmd/compile/internal/types2/stmt.go
++++ b/src/cmd/compile/internal/types2/stmt.go
+@@ -994,7 +994,7 @@ func rangeKeyVal(typ Type) (key, val Type, cause string, isFunc, ok bool) {
+ 		if isString(typ) {
+ 			return Typ[Int], universeRune, "", false, true // use 'rune' name
+ 		}
+-		if buildcfg.Experiment.Range && isInteger(typ) {
++		if isInteger(typ) {
+ 			return orig, nil, "", false, true
+ 		}
+ 	case *Array:
+diff --git a/src/go/types/stmt.go b/src/go/types/stmt.go
+index 203205e19f..5363bb9870 100644
+--- a/src/go/types/stmt.go
++++ b/src/go/types/stmt.go
+@@ -979,7 +979,7 @@ func rangeKeyVal(typ Type) (key, val Type, cause string, isFunc, ok bool) {
+ 		if isString(typ) {
+ 			return Typ[Int], universeRune, "", false, true // use 'rune' name
+ 		}
+-		if buildcfg.Experiment.Range && isInteger(typ) {
++		if isInteger(typ) {
+ 			return orig, nil, "", false, true
+ 		}
+ 	case *Array:
+diff --git a/src/internal/types/testdata/spec/range_int.go b/src/internal/types/testdata/spec/range_int.go
+new file mode 100644
+index 0000000000..178f01bae7
+--- /dev/null
++++ b/src/internal/types/testdata/spec/range_int.go
+@@ -0,0 +1,65 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This is a subset of the tests in range.go for range over integers,
++// with extra tests, and without the need for -goexperiment=range.
++
++package p
++
++type MyInt int32
++
++func _() {
++	for range -1 {
++	}
++	for range 0 {
++	}
++	for range 1 {
++	}
++	for range uint8(1) {
++	}
++	for range int64(1) {
++	}
++	for range MyInt(1) {
++	}
++	for range 'x' {
++	}
++	for range 1.0 /* ERROR "cannot range over 1.0 (untyped float constant 1)" */ {
++	}
++
++	var i int
++	var mi MyInt
++	for i := range 10 {
++		_ = i
++	}
++	for i = range 10 {
++		_ = i
++	}
++	for i, j /* ERROR "range over 10 (untyped int constant) permits only one iteration variable" */ := range 10 {
++		_, _ = i, j
++	}
++	for i /* ERROR "cannot use i (value of type MyInt) as int value in assignment" */ = range MyInt(10) {
++		_ = i
++	}
++	for mi := range MyInt(10) {
++		_ = mi
++	}
++	for mi = range MyInt(10) {
++		_ = mi
++	}
++}
++
++func _[T int | string](x T) {
++	for range x /* ERROR "cannot range over x (variable of type T constrained by int | string): no core type" */ {
++	}
++}
++
++func _[T int | int64](x T) {
++	for range x /* ERROR "cannot range over x (variable of type T constrained by int | int64): no core type" */ {
++	}
++}
++
++func _[T ~int](x T) {
++	for range x { // ok
++	}
++}

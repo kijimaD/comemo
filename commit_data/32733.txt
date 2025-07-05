@@ -12,8 +12,87 @@ Date:   Mon May 22 11:20:34 2017 -0700
     Change-Id: Ie81d36279d717e330951b52f42dcee4b0025b9f0
     Reviewed-on: https://go-review.googlesource.com/43811
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/types/scope.go |  1 +
  src/cmd/compile/internal/types/sym.go   | 14 +++++++-------
  test/fixedbugs/issue20415.go            | 33 +++++++++++++++++++++++++++++++++
  3 files changed, 41 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types/scope.go b/src/cmd/compile/internal/types/scope.go
+index 64b1b18141..072b8089b0 100644
+--- a/src/cmd/compile/internal/types/scope.go
++++ b/src/cmd/compile/internal/types/scope.go
+@@ -22,6 +22,7 @@ func dcopy(a, b *Sym) {
+ 	a.Name = b.Name
+ 	a.Def = b.Def
+ 	a.Block = b.Block
++	a.Lastlineno = b.Lastlineno
+ }
+ 
+ func push() *Sym {
+diff --git a/src/cmd/compile/internal/types/sym.go b/src/cmd/compile/internal/types/sym.go
+index d9b6d92abe..f79b07b16c 100644
+--- a/src/cmd/compile/internal/types/sym.go
++++ b/src/cmd/compile/internal/types/sym.go
+@@ -18,15 +18,15 @@ import (
+ // allows using Sym pointer equality to test for Go identifier uniqueness when
+ // handling selector expressions.
+ type Sym struct {
+-	Importdef  *Pkg     // where imported definition was found
+-	Linkname   string   // link name
+-	Lastlineno src.XPos // last declaration for diagnostic
++	Importdef *Pkg   // where imported definition was found
++	Linkname  string // link name
+ 
+ 	// saved and restored by dcopy
+-	Pkg   *Pkg
+-	Name  string // object name
+-	Def   *Node  // definition: ONAME OTYPE OPACK or OLITERAL
+-	Block int32  // blocknumber to catch redeclaration
++	Pkg        *Pkg
++	Name       string   // object name
++	Def        *Node    // definition: ONAME OTYPE OPACK or OLITERAL
++	Block      int32    // blocknumber to catch redeclaration
++	Lastlineno src.XPos // last declaration for diagnostic
+ 
+ 	flags   bitset8
+ 	Label   *Node // corresponding label (ephemeral)
+diff --git a/test/fixedbugs/issue20415.go b/test/fixedbugs/issue20415.go
+new file mode 100644
+index 0000000000..6f2c342ce4
+--- /dev/null
++++ b/test/fixedbugs/issue20415.go
+@@ -0,0 +1,33 @@
++// errorcheck
++
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Make sure redeclaration errors report correct position.
++
++package p
++
++// 1
++var f byte
++
++var f interface{} // ERROR "previous declaration at issue20415.go:12"
++
++func _(f int) {
++}
++
++// 2
++var g byte
++
++func _(g int) {
++}
++
++var g interface{} // ERROR "previous declaration at issue20415.go:20"
++
++// 3
++func _(h int) {
++}
++
++var h byte
++
++var h interface{} // ERROR "previous declaration at issue20415.go:31"

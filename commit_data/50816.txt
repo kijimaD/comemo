@@ -12,7 +12,34 @@ Date:   Thu Nov 11 08:36:15 2021 -0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go1.17_spec.html | 2 +-
  doc/go_spec.html     | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go1.17_spec.html b/doc/go1.17_spec.html
+index 46eebb5713..0b374e7bfb 100644
+--- a/doc/go1.17_spec.html
++++ b/doc/go1.17_spec.html
+@@ -258,7 +258,7 @@ continue     for          import       return       var
+ 
+ <p>
+ The following character sequences represent <a href="#Operators">operators</a>
+-(including <a href="#assign_op">assignment operators</a>) and punctuation:
++(including <a href="#Assignments">assignment operators</a>) and punctuation:
+ </p>
+ <pre class="grammar">
+ +    &amp;     +=    &amp;=     &amp;&amp;    ==    !=    (    )
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 46eebb5713..0b374e7bfb 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -258,7 +258,7 @@ continue     for          import       return       var
+ 
+ <p>
+ The following character sequences represent <a href="#Operators">operators</a>
+-(including <a href="#assign_op">assignment operators</a>) and punctuation:
++(including <a href="#Assignments">assignment operators</a>) and punctuation:
+ </p>
+ <pre class="grammar">
+ +    &amp;     +=    &amp;=     &amp;&amp;    ==    !=    (    )

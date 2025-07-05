@@ -32,10 +32,329 @@ Date:   Fri Apr 1 18:15:24 2022 +0000
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/runtime/malloc.go      |  3 ++-
  src/runtime/mgc.go         |  4 +--
  src/runtime/mgcscavenge.go | 21 ++++++++-------
  src/runtime/mheap.go       | 35 ++++++++++---------------
  src/runtime/mstats.go      | 65 +++++++++++++++++++++++-----------------------
  5 files changed, 62 insertions(+), 66 deletions(-)
+
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index ae41da8764..30a2a5f289 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -565,7 +565,8 @@ func (h *mheap) sysAlloc(n uintptr) (v unsafe.Pointer, size uintptr) {
+ 	n = alignUp(n, heapArenaBytes)
+ 
+ 	// First, try the arena pre-reservation.
+-	v = h.arena.alloc(n, heapArenaBytes, &memstats.heap_sys)
++	// Newly-used mappings are considered released.
++	v = h.arena.alloc(n, heapArenaBytes, &memstats.heapReleased)
+ 	if v != nil {
+ 		size = n
+ 		goto mapped
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 75cd32ee6f..5c821d8da5 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -982,8 +982,8 @@ func gcMarkTermination() {
+ 		throw("gc done but gcphase != _GCoff")
+ 	}
+ 
+-	// Record heap_inuse for scavenger.
+-	memstats.last_heap_inuse = memstats.heap_inuse
++	// Record heapInUse for scavenger.
++	memstats.lastHeapInUse = memstats.heapInUse.load()
+ 
+ 	// Update GC trigger and pacing for the next cycle.
+ 	gcController.commit()
+diff --git a/src/runtime/mgcscavenge.go b/src/runtime/mgcscavenge.go
+index 1abdbf3a0d..2cbb2cbfb6 100644
+--- a/src/runtime/mgcscavenge.go
++++ b/src/runtime/mgcscavenge.go
+@@ -18,7 +18,7 @@
+ // application down to a goal.
+ //
+ // That goal is defined as:
+-//   (retainExtraPercent+100) / 100 * (heapGoal / lastHeapGoal) * last_heap_inuse
++//   (retainExtraPercent+100) / 100 * (heapGoal / lastHeapGoal) * lastHeapInUse
+ //
+ // Essentially, we wish to have the application's RSS track the heap goal, but
+ // the heap goal is defined in terms of bytes of objects, rather than pages like
+@@ -26,7 +26,7 @@
+ // spans. heapGoal / lastHeapGoal defines the ratio between the current heap goal
+ // and the last heap goal, which tells us by how much the heap is growing and
+ // shrinking. We estimate what the heap will grow to in terms of pages by taking
+-// this ratio and multiplying it by heap_inuse at the end of the last GC, which
++// this ratio and multiplying it by heapInUse at the end of the last GC, which
+ // allows us to account for this additional fragmentation. Note that this
+ // procedure makes the assumption that the degree of fragmentation won't change
+ // dramatically over the next GC cycle. Overestimating the amount of
+@@ -101,7 +101,7 @@ const (
+ 
+ // heapRetained returns an estimate of the current heap RSS.
+ func heapRetained() uint64 {
+-	return memstats.heap_sys.load() - atomic.Load64(&memstats.heap_released)
++	return memstats.heapInUse.load() + memstats.heapFree.load()
+ }
+ 
+ // gcPaceScavenger updates the scavenger's pacing, particularly
+@@ -130,7 +130,7 @@ func gcPaceScavenger(heapGoal, lastHeapGoal uint64) {
+ 	}
+ 	// Compute our scavenging goal.
+ 	goalRatio := float64(heapGoal) / float64(lastHeapGoal)
+-	retainedGoal := uint64(float64(memstats.last_heap_inuse) * goalRatio)
++	retainedGoal := uint64(float64(memstats.lastHeapInUse) * goalRatio)
+ 	// Add retainExtraPercent overhead to retainedGoal. This calculation
+ 	// looks strange but the purpose is to arrive at an integer division
+ 	// (e.g. if retainExtraPercent = 12.5, then we get a divisor of 8)
+@@ -143,11 +143,11 @@ func gcPaceScavenger(heapGoal, lastHeapGoal uint64) {
+ 	// Represents where we are now in the heap's contribution to RSS in bytes.
+ 	//
+ 	// Guaranteed to always be a multiple of physPageSize on systems where
+-	// physPageSize <= pageSize since we map heap_sys at a rate larger than
++	// physPageSize <= pageSize since we map new heap memory at a size larger than
+ 	// any physPageSize and released memory in multiples of the physPageSize.
+ 	//
+-	// However, certain functions recategorize heap_sys as other stats (e.g.
+-	// stack_sys) and this happens in multiples of pageSize, so on systems
++	// However, certain functions recategorize heap memory as other stats (e.g.
++	// stacks) and this happens in multiples of pageSize, so on systems
+ 	// where physPageSize > pageSize the calculations below will not be exact.
+ 	// Generally this is OK since we'll be off by at most one regular
+ 	// physical page.
+@@ -611,8 +611,8 @@ func printScavTrace(gen uint32, released uintptr, forced bool) {
+ 	printlock()
+ 	print("scav ", gen, " ",
+ 		released>>10, " KiB work, ",
+-		atomic.Load64(&memstats.heap_released)>>10, " KiB total, ",
+-		(atomic.Load64(&memstats.heap_inuse)*100)/heapRetained(), "% util",
++		memstats.heapReleased.load()>>10, " KiB total, ",
++		(memstats.heapInUse.load()*100)/heapRetained(), "% util",
+ 	)
+ 	if forced {
+ 		print(" (forced)")
+@@ -913,7 +913,8 @@ func (p *pageAlloc) scavengeRangeLocked(ci chunkIdx, base, npages uint) uintptr
+ 		// Update global accounting only when not in test, otherwise
+ 		// the runtime's accounting will be wrong.
+ 		nbytes := int64(npages) * pageSize
+-		atomic.Xadd64(&memstats.heap_released, nbytes)
++		memstats.heapReleased.add(nbytes)
++		memstats.heapFree.add(-nbytes)
+ 
+ 		// Update consistent accounting too.
+ 		stats := memstats.heapStats.acquire()
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index 49d1177005..fcdd24c16e 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -921,7 +921,7 @@ func (h *mheap) alloc(npages uintptr, spanclass spanClass) *mspan {
+ //
+ // allocManual adds the bytes used to *stat, which should be a
+ // memstats in-use field. Unlike allocations in the GC'd heap, the
+-// allocation does *not* count toward heap_inuse or heap_sys.
++// allocation does *not* count toward heapInUse.
+ //
+ // The memory backing the returned span may not be zeroed if
+ // span.needzero is set.
+@@ -1279,15 +1279,12 @@ HaveSpan:
+ 		// sysUsed all the pages that are actually available
+ 		// in the span since some of them might be scavenged.
+ 		sysUsed(unsafe.Pointer(base), nbytes, scav)
+-		atomic.Xadd64(&memstats.heap_released, -int64(scav))
++		memstats.heapReleased.add(-int64(scav))
+ 	}
+ 	// Update stats.
++	memstats.heapFree.add(-int64(nbytes - scav))
+ 	if typ == spanAllocHeap {
+-		atomic.Xadd64(&memstats.heap_inuse, int64(nbytes))
+-	}
+-	if typ.manual() {
+-		// Manually managed memory doesn't count toward heap_sys.
+-		memstats.heap_sys.add(-int64(nbytes))
++		memstats.heapInUse.add(int64(nbytes))
+ 	}
+ 	// Update consistent stats.
+ 	stats := memstats.heapStats.acquire()
+@@ -1359,7 +1356,8 @@ func (h *mheap) grow(npage uintptr) (uintptr, bool) {
+ 		// current arena, so we have to request the full ask.
+ 		av, asize := h.sysAlloc(ask)
+ 		if av == nil {
+-			print("runtime: out of memory: cannot allocate ", ask, "-byte block (", memstats.heap_sys, " in use)\n")
++			inUse := memstats.heapFree.load() + memstats.heapReleased.load() + memstats.heapInUse.load()
++			print("runtime: out of memory: cannot allocate ", ask, "-byte block (", inUse, " in use)\n")
+ 			return 0, false
+ 		}
+ 
+@@ -1375,9 +1373,8 @@ func (h *mheap) grow(npage uintptr) (uintptr, bool) {
+ 				// Transition this space from Reserved to Prepared and mark it
+ 				// as released since we'll be able to start using it after updating
+ 				// the page allocator and releasing the lock at any time.
+-				sysMap(unsafe.Pointer(h.curArena.base), size, &memstats.heap_sys)
++				sysMap(unsafe.Pointer(h.curArena.base), size, &memstats.heapReleased)
+ 				// Update stats.
+-				atomic.Xadd64(&memstats.heap_released, int64(size))
+ 				stats := memstats.heapStats.acquire()
+ 				atomic.Xaddint64(&stats.released, int64(size))
+ 				memstats.heapStats.release()
+@@ -1403,15 +1400,14 @@ func (h *mheap) grow(npage uintptr) (uintptr, bool) {
+ 	h.curArena.base = nBase
+ 
+ 	// Transition the space we're going to use from Reserved to Prepared.
+-	sysMap(unsafe.Pointer(v), nBase-v, &memstats.heap_sys)
+-
+-	// The memory just allocated counts as both released
+-	// and idle, even though it's not yet backed by spans.
+ 	//
+ 	// The allocation is always aligned to the heap arena
+ 	// size which is always > physPageSize, so its safe to
+-	// just add directly to heap_released.
+-	atomic.Xadd64(&memstats.heap_released, int64(nBase-v))
++	// just add directly to heapReleased.
++	sysMap(unsafe.Pointer(v), nBase-v, &memstats.heapReleased)
++
++	// The memory just allocated counts as both released
++	// and idle, even though it's not yet backed by spans.
+ 	stats := memstats.heapStats.acquire()
+ 	atomic.Xaddint64(&stats.released, int64(nBase-v))
+ 	memstats.heapStats.release()
+@@ -1488,12 +1484,9 @@ func (h *mheap) freeSpanLocked(s *mspan, typ spanAllocType) {
+ 	//
+ 	// Mirrors the code in allocSpan.
+ 	nbytes := s.npages * pageSize
++	memstats.heapFree.add(int64(nbytes))
+ 	if typ == spanAllocHeap {
+-		atomic.Xadd64(&memstats.heap_inuse, -int64(nbytes))
+-	}
+-	if typ.manual() {
+-		// Manually managed memory doesn't count toward heap_sys, so add it back.
+-		memstats.heap_sys.add(int64(nbytes))
++		memstats.heapInUse.add(-int64(nbytes))
+ 	}
+ 	// Update consistent stats.
+ 	stats := memstats.heapStats.acquire()
+diff --git a/src/runtime/mstats.go b/src/runtime/mstats.go
+index 0843775553..07abe24074 100644
+--- a/src/runtime/mstats.go
++++ b/src/runtime/mstats.go
+@@ -32,13 +32,13 @@ type mstats struct {
+ 	// provide the same consistency guarantees. They are used internally
+ 	// by the runtime.
+ 	//
+-	// Like MemStats, heap_sys and heap_inuse do not count memory
+-	// in manually-managed spans.
+-	heap_sys      sysMemStat    // virtual address space obtained from system for GC'd heap
+-	heap_inuse    uint64        // bytes in mSpanInUse spans
+-	heap_released uint64        // bytes released to the OS
+-	totalAlloc    atomic.Uint64 // total bytes allocated
+-	totalFree     atomic.Uint64 // total bytes freed
++	// Like MemStats, heapInUse does not count memory in manually-managed
++	// spans.
++	heapInUse    sysMemStat    // bytes in mSpanInUse spans
++	heapReleased sysMemStat    // bytes released to the OS
++	heapFree     sysMemStat    // bytes not in any span, but not released to the OS
++	totalAlloc   atomic.Uint64 // total bytes allocated
++	totalFree    atomic.Uint64 // total bytes freed
+ 
+ 	// Statistics about stacks.
+ 	stacks_sys sysMemStat // only counts newosproc0 stack in mstats; differs from MemStats.StackSys
+@@ -66,7 +66,7 @@ type mstats struct {
+ 	gc_cpu_fraction float64 // fraction of CPU time used by GC
+ 
+ 	last_gc_nanotime uint64 // last gc (monotonic time)
+-	last_heap_inuse  uint64 // heap_inuse at mark termination of the previous GC
++	lastHeapInUse    uint64 // heapInUse at mark termination of the previous GC
+ 
+ 	enablegc bool
+ 
+@@ -454,16 +454,17 @@ func readmemstats_m(stats *MemStats) {
+ 	gcWorkBufInUse := uint64(consStats.inWorkBufs)
+ 	gcProgPtrScalarBitsInUse := uint64(consStats.inPtrScalarBits)
+ 
+-	totalMapped := memstats.heap_sys.load() + memstats.stacks_sys.load() + memstats.mspan_sys.load() +
+-		memstats.mcache_sys.load() + memstats.buckhash_sys.load() + memstats.gcMiscSys.load() +
+-		memstats.other_sys.load() + stackInUse + gcWorkBufInUse + gcProgPtrScalarBitsInUse
++	totalMapped := memstats.heapInUse.load() + memstats.heapFree.load() + memstats.heapReleased.load() +
++		memstats.stacks_sys.load() + memstats.mspan_sys.load() + memstats.mcache_sys.load() +
++		memstats.buckhash_sys.load() + memstats.gcMiscSys.load() + memstats.other_sys.load() +
++		stackInUse + gcWorkBufInUse + gcProgPtrScalarBitsInUse
+ 
+ 	// The world is stopped, so the consistent stats (after aggregation)
+ 	// should be identical to some combination of memstats. In particular:
+ 	//
+-	// * memstats.heap_inuse == inHeap
+-	// * memstats.heap_released == released
+-	// * memstats.heap_sys - memstats.heap_released == committed - inStacks - inWorkBufs - inPtrScalarBits
++	// * memstats.heapInUse == inHeap
++	// * memstats.heapReleased == released
++	// * memstats.heapInUse + memstats.heapFree == committed - inStacks - inWorkBufs - inPtrScalarBits
+ 	// * memstats.totalAlloc == totalAlloc
+ 	// * memstats.totalFree == totalFree
+ 	//
+@@ -472,20 +473,20 @@ func readmemstats_m(stats *MemStats) {
+ 	// TODO(mknyszek): Maybe don't throw here. It would be bad if a
+ 	// bug in otherwise benign accounting caused the whole application
+ 	// to crash.
+-	if memstats.heap_inuse != uint64(consStats.inHeap) {
+-		print("runtime: heap_inuse=", memstats.heap_inuse, "\n")
++	if memstats.heapInUse.load() != uint64(consStats.inHeap) {
++		print("runtime: heapInUse=", memstats.heapInUse.load(), "\n")
+ 		print("runtime: consistent value=", consStats.inHeap, "\n")
+-		throw("heap_inuse and consistent stats are not equal")
++		throw("heapInUse and consistent stats are not equal")
+ 	}
+-	if memstats.heap_released != uint64(consStats.released) {
+-		print("runtime: heap_released=", memstats.heap_released, "\n")
++	if memstats.heapReleased.load() != uint64(consStats.released) {
++		print("runtime: heapReleased=", memstats.heapReleased.load(), "\n")
+ 		print("runtime: consistent value=", consStats.released, "\n")
+-		throw("heap_released and consistent stats are not equal")
++		throw("heapReleased and consistent stats are not equal")
+ 	}
+-	globalRetained := memstats.heap_sys.load() - memstats.heap_released
++	heapRetained := memstats.heapInUse.load() + memstats.heapFree.load()
+ 	consRetained := uint64(consStats.committed - consStats.inStacks - consStats.inWorkBufs - consStats.inPtrScalarBits)
+-	if globalRetained != consRetained {
+-		print("runtime: global value=", globalRetained, "\n")
++	if heapRetained != consRetained {
++		print("runtime: global value=", heapRetained, "\n")
+ 		print("runtime: consistent value=", consRetained, "\n")
+ 		throw("measures of the retained heap are not equal")
+ 	}
+@@ -518,7 +519,7 @@ func readmemstats_m(stats *MemStats) {
+ 	stats.Mallocs = nMalloc
+ 	stats.Frees = nFree
+ 	stats.HeapAlloc = totalAlloc - totalFree
+-	stats.HeapSys = memstats.heap_sys.load()
++	stats.HeapSys = memstats.heapInUse.load() + memstats.heapFree.load() + memstats.heapReleased.load()
+ 	// By definition, HeapIdle is memory that was mapped
+ 	// for the heap but is not currently used to hold heap
+ 	// objects. It also specifically is memory that can be
+@@ -526,18 +527,18 @@ func readmemstats_m(stats *MemStats) {
+ 	// is subtracted out of HeapSys before it makes that
+ 	// transition. Put another way:
+ 	//
+-	// heap_sys = bytes allocated from the OS for the heap - bytes ultimately used for non-heap purposes
+-	// heap_idle = bytes allocated from the OS for the heap - bytes ultimately used for any purpose
++	// HeapSys = bytes allocated from the OS for the heap - bytes ultimately used for non-heap purposes
++	// HeapIdle = bytes allocated from the OS for the heap - bytes ultimately used for any purpose
+ 	//
+ 	// or
+ 	//
+-	// heap_sys = sys - stacks_inuse - gcWorkBufInUse - gcProgPtrScalarBitsInUse
+-	// heap_idle = sys - stacks_inuse - gcWorkBufInUse - gcProgPtrScalarBitsInUse - heap_inuse
++	// HeapSys = sys - stacks_inuse - gcWorkBufInUse - gcProgPtrScalarBitsInUse
++	// HeapIdle = sys - stacks_inuse - gcWorkBufInUse - gcProgPtrScalarBitsInUse - heapInUse
+ 	//
+-	// => heap_idle = heap_sys - heap_inuse
+-	stats.HeapIdle = memstats.heap_sys.load() - memstats.heap_inuse
+-	stats.HeapInuse = memstats.heap_inuse
+-	stats.HeapReleased = memstats.heap_released
++	// => HeapIdle = HeapSys - heapInUse = heapFree + heapReleased
++	stats.HeapIdle = memstats.heapFree.load() + memstats.heapReleased.load()
++	stats.HeapInuse = memstats.heapInUse.load()
++	stats.HeapReleased = memstats.heapReleased.load()
+ 	stats.HeapObjects = nMalloc - nFree
+ 	stats.StackInuse = stackInUse
+ 	// memstats.stacks_sys is only memory mapped directly for OS stacks.

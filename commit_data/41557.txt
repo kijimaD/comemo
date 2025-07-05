@@ -15,7 +15,157 @@ Date:   Wed Dec 5 22:31:53 2018 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/mime/multipart/multipart.go      | 38 ++++++++++++++++-------
  src/mime/multipart/multipart_test.go | 60 ++++++++++++++++++++++++++++++++++++
  2 files changed, 87 insertions(+), 11 deletions(-)
+
+diff --git a/src/mime/multipart/multipart.go b/src/mime/multipart/multipart.go
+index a222409d3c..1750300fb5 100644
+--- a/src/mime/multipart/multipart.go
++++ b/src/mime/multipart/multipart.go
+@@ -36,11 +36,6 @@ type Part struct {
+ 	// The headers of the body, if any, with the keys canonicalized
+ 	// in the same fashion that the Go http.Request headers are.
+ 	// For example, "foo-bar" changes case to "Foo-Bar"
+-	//
+-	// As a special case, if the "Content-Transfer-Encoding" header
+-	// has a value of "quoted-printable", that header is instead
+-	// hidden from this map and the body is transparently decoded
+-	// during Read calls.
+ 	Header textproto.MIMEHeader
+ 
+ 	mr *Reader
+@@ -126,7 +121,7 @@ func (r *stickyErrorReader) Read(p []byte) (n int, _ error) {
+ 	return n, r.err
+ }
+ 
+-func newPart(mr *Reader) (*Part, error) {
++func newPart(mr *Reader, rawPart bool) (*Part, error) {
+ 	bp := &Part{
+ 		Header: make(map[string][]string),
+ 		mr:     mr,
+@@ -135,10 +130,14 @@ func newPart(mr *Reader) (*Part, error) {
+ 		return nil, err
+ 	}
+ 	bp.r = partReader{bp}
+-	const cte = "Content-Transfer-Encoding"
+-	if strings.EqualFold(bp.Header.Get(cte), "quoted-printable") {
+-		bp.Header.Del(cte)
+-		bp.r = quotedprintable.NewReader(bp.r)
++
++	// rawPart is used to switch between Part.NextPart and Part.NextRawPart.
++	if !rawPart {
++		const cte = "Content-Transfer-Encoding"
++		if strings.EqualFold(bp.Header.Get(cte), "quoted-printable") {
++			bp.Header.Del(cte)
++			bp.r = quotedprintable.NewReader(bp.r)
++		}
+ 	}
+ 	return bp, nil
+ }
+@@ -300,7 +299,24 @@ type Reader struct {
+ 
+ // NextPart returns the next part in the multipart or an error.
+ // When there are no more parts, the error io.EOF is returned.
++//
++// As a special case, if the "Content-Transfer-Encoding" header
++// has a value of "quoted-printable", that header is instead
++// hidden and the body is transparently decoded during Read calls.
+ func (r *Reader) NextPart() (*Part, error) {
++	return r.nextPart(false)
++}
++
++// NextRawPart returns the next part in the multipart or an error.
++// When there are no more parts, the error io.EOF is returned.
++//
++// Unlike NextPart, it does not have special handling for
++// "Content-Transfer-Encoding: quoted-printable".
++func (r *Reader) NextRawPart() (*Part, error) {
++	return r.nextPart(true)
++}
++
++func (r *Reader) nextPart(rawPart bool) (*Part, error) {
+ 	if r.currentPart != nil {
+ 		r.currentPart.Close()
+ 	}
+@@ -325,7 +341,7 @@ func (r *Reader) NextPart() (*Part, error) {
+ 
+ 		if r.isBoundaryDelimiterLine(line) {
+ 			r.partsRead++
+-			bp, err := newPart(r)
++			bp, err := newPart(r, rawPart)
+ 			if err != nil {
+ 				return nil, err
+ 			}
+diff --git a/src/mime/multipart/multipart_test.go b/src/mime/multipart/multipart_test.go
+index 5dc74b5ffe..b60c54a204 100644
+--- a/src/mime/multipart/multipart_test.go
++++ b/src/mime/multipart/multipart_test.go
+@@ -449,6 +449,66 @@ func testQuotedPrintableEncoding(t *testing.T, cte string) {
+ 	}
+ }
+ 
++func TestRawPart(t *testing.T) {
++	// https://github.com/golang/go/issues/29090
++
++	body := strings.Replace(`--0016e68ee29c5d515f04cedf6733
++Content-Type: text/plain; charset="utf-8"
++Content-Transfer-Encoding: quoted-printable
++
++<div dir=3D"ltr">Hello World.</div>
++--0016e68ee29c5d515f04cedf6733
++Content-Type: text/plain; charset="utf-8"
++Content-Transfer-Encoding: quoted-printable
++
++<div dir=3D"ltr">Hello World.</div>
++--0016e68ee29c5d515f04cedf6733--`, "\n", "\r\n", -1)
++
++	r := NewReader(strings.NewReader(body), "0016e68ee29c5d515f04cedf6733")
++
++	// This part is expected to be raw, bypassing the automatic handling
++	// of quoted-printable.
++	part, err := r.NextRawPart()
++	if err != nil {
++		t.Fatal(err)
++	}
++	if _, ok := part.Header["Content-Transfer-Encoding"]; !ok {
++		t.Errorf("missing Content-Transfer-Encoding")
++	}
++	var buf bytes.Buffer
++	_, err = io.Copy(&buf, part)
++	if err != nil {
++		t.Error(err)
++	}
++	got := buf.String()
++	// Data is still quoted-printable.
++	want := `<div dir=3D"ltr">Hello World.</div>`
++	if got != want {
++		t.Errorf("wrong part value:\n got: %q\nwant: %q", got, want)
++	}
++
++	// This part is expected to have automatic decoding of quoted-printable.
++	part, err = r.NextPart()
++	if err != nil {
++		t.Fatal(err)
++	}
++	if te, ok := part.Header["Content-Transfer-Encoding"]; ok {
++		t.Errorf("unexpected Content-Transfer-Encoding of %q", te)
++	}
++
++	buf.Reset()
++	_, err = io.Copy(&buf, part)
++	if err != nil {
++		t.Error(err)
++	}
++	got = buf.String()
++	// QP data has been decoded.
++	want = `<div dir="ltr">Hello World.</div>`
++	if got != want {
++		t.Errorf("wrong part value:\n got: %q\nwant: %q", got, want)
++	}
++}
++
+ // Test parsing an image attachment from gmail, which previously failed.
+ func TestNested(t *testing.T) {
+ 	// nested-mime is the body part of a multipart/mixed email

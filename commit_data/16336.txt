@@ -33,8 +33,81 @@ Date:   Sat May 18 15:28:27 2013 -0700
     R=nigeltao, bradfitz
     CC=golang-dev, raph
     https://golang.org/cl/9425046
-
+---
  src/pkg/compress/flate/copy.go      | 27 +++++++++++++++++++++------
  src/pkg/compress/flate/copy_test.go | 10 ++++++----
  src/pkg/compress/flate/inflate.go   |  2 +-
  3 files changed, 28 insertions(+), 11 deletions(-)
+
+diff --git a/src/pkg/compress/flate/copy.go b/src/pkg/compress/flate/copy.go
+index 06e5d2e66d..a3200a8f49 100644
+--- a/src/pkg/compress/flate/copy.go
++++ b/src/pkg/compress/flate/copy.go
+@@ -6,12 +6,27 @@ package flate
+ 
+ // forwardCopy is like the built-in copy function except that it always goes
+ // forward from the start, even if the dst and src overlap.
+-func forwardCopy(dst, src []byte) int {
+-	if len(src) > len(dst) {
+-		src = src[:len(dst)]
++// It is equivalent to:
++//   for i := 0; i < n; i++ {
++//     mem[dst+i] = mem[src+i]
++//   }
++func forwardCopy(mem []byte, dst, src, n int) {
++	if dst <= src {
++		copy(mem[dst:dst+n], mem[src:src+n])
++		return
+ 	}
+-	for i, x := range src {
+-		dst[i] = x
++	for {
++		if dst >= src+n {
++			copy(mem[dst:dst+n], mem[src:src+n])
++			return
++		}
++		// There is some forward overlap.  The destination
++		// will be filled with a repeated pattern of mem[src:src+k].
++		// We copy one instance of the pattern here, then repeat.
++		// Each time around this loop k will double.
++		k := dst - src
++		copy(mem[dst:dst+k], mem[src:src+k])
++		n -= k
++		dst += k
+ 	}
+-	return len(src)
+ }
+diff --git a/src/pkg/compress/flate/copy_test.go b/src/pkg/compress/flate/copy_test.go
+index a9281d446e..2011b1547c 100644
+--- a/src/pkg/compress/flate/copy_test.go
++++ b/src/pkg/compress/flate/copy_test.go
+@@ -30,10 +30,12 @@ func TestForwardCopy(t *testing.T) {
+ 	}
+ 	for _, tc := range testCases {
+ 		b := []byte("0123456789")
+-		dst := b[tc.dst0:tc.dst1]
+-		src := b[tc.src0:tc.src1]
+-		n := forwardCopy(dst, src)
+-		got := string(dst[:n])
++		n := tc.dst1 - tc.dst0
++		if tc.src1-tc.src0 < n {
++			n = tc.src1 - tc.src0
++		}
++		forwardCopy(b, tc.dst0, tc.src0, n)
++		got := string(b[tc.dst0 : tc.dst0+n])
+ 		if got != tc.want {
+ 			t.Errorf("dst=b[%d:%d], src=b[%d:%d]: got %q, want %q",
+ 				tc.dst0, tc.dst1, tc.src0, tc.src1, got, tc.want)
+diff --git a/src/pkg/compress/flate/inflate.go b/src/pkg/compress/flate/inflate.go
+index beca34b4d8..f529c9e7c2 100644
+--- a/src/pkg/compress/flate/inflate.go
++++ b/src/pkg/compress/flate/inflate.go
+@@ -511,7 +511,7 @@ func (f *decompressor) copyHist() bool {
+ 		if x := len(f.hist) - p; n > x {
+ 			n = x
+ 		}
+-		forwardCopy(f.hist[f.hp:f.hp+n], f.hist[p:p+n])
++		forwardCopy(f.hist[:], f.hp, p, n)
+ 		p += n
+ 		f.hp += n
+ 		f.copyLen -= n

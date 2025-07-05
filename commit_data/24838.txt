@@ -16,7 +16,36 @@ Date:   Thu Sep 3 15:24:53 2015 -0700
     Change-Id: I2881bebb8b16f6f8564412172774c79c2593c6c1
     Reviewed-on: https://go-review.googlesource.com/14258
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/hash/crc32/crc32.go | 3 ++-
  src/hash/crc64/crc64.go | 3 ++-
  2 files changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/hash/crc32/crc32.go b/src/hash/crc32/crc32.go
+index 234d929689..228cc0461c 100644
+--- a/src/hash/crc32/crc32.go
++++ b/src/hash/crc32/crc32.go
+@@ -61,7 +61,8 @@ type slicing8Table [8]Table
+ var iEEETable8 *slicing8Table
+ var iEEETable8Once sync.Once
+ 
+-// MakeTable returns the Table constructed from the specified polynomial.
++// MakeTable returns a Table constructed from the specified polynomial.
++// The contents of this Table must not be modified.
+ func MakeTable(poly uint32) *Table {
+ 	switch poly {
+ 	case IEEE:
+diff --git a/src/hash/crc64/crc64.go b/src/hash/crc64/crc64.go
+index 6925867988..b420a22562 100644
+--- a/src/hash/crc64/crc64.go
++++ b/src/hash/crc64/crc64.go
+@@ -24,7 +24,8 @@ const (
+ // Table is a 256-word table representing the polynomial for efficient processing.
+ type Table [256]uint64
+ 
+-// MakeTable returns the Table constructed from the specified polynomial.
++// MakeTable returns a Table constructed from the specified polynomial.
++// The contents of this Table must not be modified.
+ func MakeTable(poly uint64) *Table {
+ 	t := new(Table)
+ 	for i := 0; i < 256; i++ {

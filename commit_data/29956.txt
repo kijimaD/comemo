@@ -18,7 +18,66 @@ Date:   Tue Oct 18 11:47:42 2016 -0400
     Change-Id: I6af0eb987646bea47fcaf0a812db3496bab0f680
     Reviewed-on: https://go-review.googlesource.com/31357
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/internal/obj/ppc64/obj9.go |  8 +++++++-
  src/cmd/internal/obj/s390x/objz.go | 10 ++++++++--
  2 files changed, 15 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/internal/obj/ppc64/obj9.go b/src/cmd/internal/obj/ppc64/obj9.go
+index 0786870fe9..978007c396 100644
+--- a/src/cmd/internal/obj/ppc64/obj9.go
++++ b/src/cmd/internal/obj/ppc64/obj9.go
+@@ -457,7 +457,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 			aoffset = 0
+ 			autosize = int32(textstksiz)
+ 
+-			if p.Mark&LEAF != 0 && autosize == 0 && p.From3.Offset&obj.NOFRAME == 0 {
++			if p.Mark&LEAF != 0 && autosize == 0 {
+ 				// A leaf function with no locals has no frame.
+ 				p.From3.Offset |= obj.NOFRAME
+ 			}
+@@ -468,6 +468,12 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 				autosize += int32(ctxt.FixedFrameSize())
+ 			}
+ 
++			if p.Mark&LEAF != 0 && autosize < obj.StackSmall {
++				// A leaf function with a small stack can be marked
++				// NOSPLIT, avoiding a stack check.
++				p.From3.Offset |= obj.NOSPLIT
++			}
++
+ 			p.To.Offset = int64(autosize)
+ 
+ 			q = p
+diff --git a/src/cmd/internal/obj/s390x/objz.go b/src/cmd/internal/obj/s390x/objz.go
+index 941e1e8d10..179b5b1396 100644
+--- a/src/cmd/internal/obj/s390x/objz.go
++++ b/src/cmd/internal/obj/s390x/objz.go
+@@ -380,7 +380,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 		case obj.ATEXT:
+ 			autosize = int32(textstksiz)
+ 
+-			if p.Mark&LEAF != 0 && autosize == 0 && p.From3.Offset&obj.NOFRAME == 0 {
++			if p.Mark&LEAF != 0 && autosize == 0 {
+ 				// A leaf function with no locals has no frame.
+ 				p.From3.Offset |= obj.NOFRAME
+ 			}
+@@ -391,11 +391,17 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 				autosize += int32(ctxt.FixedFrameSize())
+ 			}
+ 
++			if p.Mark&LEAF != 0 && autosize < obj.StackSmall {
++				// A leaf function with a small stack can be marked
++				// NOSPLIT, avoiding a stack check.
++				p.From3.Offset |= obj.NOSPLIT
++			}
++
+ 			p.To.Offset = int64(autosize)
+ 
+ 			q = p
+ 
+-			if p.From3.Offset&obj.NOSPLIT == 0 && p.From3.Offset&obj.NOFRAME == 0 {
++			if p.From3.Offset&obj.NOSPLIT == 0 {
+ 				p, pPreempt = stacksplitPre(ctxt, p, autosize) // emit pre part of split check
+ 				pPre = p
+ 				wasSplit = true //need post part of split

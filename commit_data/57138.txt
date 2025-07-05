@@ -14,7 +14,44 @@ Date:   Mon Jun 26 13:52:37 2023 -0700
     Reviewed-by: Robert Findley <rfindley@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
     Run-TryBot: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/unify.go | 7 +++++--
  src/go/types/unify.go                    | 7 +++++--
  2 files changed, 10 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/unify.go b/src/cmd/compile/internal/types2/unify.go
+index 0f1423ff98..94830e94f7 100644
+--- a/src/cmd/compile/internal/types2/unify.go
++++ b/src/cmd/compile/internal/types2/unify.go
+@@ -410,8 +410,11 @@ func (u *unifier) nify(x, y Type, mode unifyMode, p *ifacePair) (result bool) {
+ 				// recorded an underlying type (go.dev/issue/43056).
+ 				// Either both types are interfaces, or neither type is.
+ 				// If both are interfaces, they have the same methods.
+-				// TODO(gri) We probably can do this only for inexact
+-				//           unification. Need to find a failure case.
++				//
++				// Note: Changing the recorded type for a type parameter to
++				// a defined type is only ok when unification is inexact.
++				// But in exact unification, if we have a match, x and y must
++				// be identical, so changing the recorded type for x is a no-op.
+ 				if yn {
+ 					u.set(px, y)
+ 				}
+diff --git a/src/go/types/unify.go b/src/go/types/unify.go
+index 1b1d875dad..bef851f423 100644
+--- a/src/go/types/unify.go
++++ b/src/go/types/unify.go
+@@ -412,8 +412,11 @@ func (u *unifier) nify(x, y Type, mode unifyMode, p *ifacePair) (result bool) {
+ 				// recorded an underlying type (go.dev/issue/43056).
+ 				// Either both types are interfaces, or neither type is.
+ 				// If both are interfaces, they have the same methods.
+-				// TODO(gri) We probably can do this only for inexact
+-				//           unification. Need to find a failure case.
++				//
++				// Note: Changing the recorded type for a type parameter to
++				// a defined type is only ok when unification is inexact.
++				// But in exact unification, if we have a match, x and y must
++				// be identical, so changing the recorded type for x is a no-op.
+ 				if yn {
+ 					u.set(px, y)
+ 				}

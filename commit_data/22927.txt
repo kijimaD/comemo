@@ -9,6 +9,33 @@ Date:   Tue Apr 14 10:22:23 2015 +0200
     Change-Id: I1dc2d0213e6a46f3609222d5460c1a54081e2471
     Reviewed-on: https://go-review.googlesource.com/8931
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/go/build/build.go | 10 +++++-----
  1 file changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/go/build/build.go b/src/go/build/build.go
+index 155156b9a5..902ab38e0b 100644
+--- a/src/go/build/build.go
++++ b/src/go/build/build.go
+@@ -466,16 +466,16 @@ func (ctxt *Context) Import(path string, srcDir string, mode ImportMode) (*Packa
+ 	var pkgtargetroot string
+ 	var pkga string
+ 	var pkgerr error
++	suffix := ""
++	if ctxt.InstallSuffix != "" {
++		suffix = "_" + ctxt.InstallSuffix
++	}
+ 	switch ctxt.Compiler {
+ 	case "gccgo":
+-		pkgtargetroot = "pkg/gccgo_" + ctxt.GOOS + "_" + ctxt.GOARCH
++		pkgtargetroot = "pkg/gccgo_" + ctxt.GOOS + "_" + ctxt.GOARCH + suffix
+ 		dir, elem := pathpkg.Split(p.ImportPath)
+ 		pkga = pkgtargetroot + "/" + dir + "lib" + elem + ".a"
+ 	case "gc":
+-		suffix := ""
+-		if ctxt.InstallSuffix != "" {
+-			suffix = "_" + ctxt.InstallSuffix
+-		}
+ 		pkgtargetroot = "pkg/" + ctxt.GOOS + "_" + ctxt.GOARCH + suffix
+ 		pkga = pkgtargetroot + "/" + p.ImportPath + ".a"
+ 	default:

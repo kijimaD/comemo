@@ -7,8 +7,239 @@ Date:   Fri Jul 2 13:00:18 2010 -0400
     R=r, adg, rsc
     CC=golang-dev
     https://golang.org/cl/1684051
-
+---
  src/pkg/crypto/tls/generate_cert.go | 79 +++++++++++++++++++++++++++++++++++++
  src/pkg/crypto/tls/tls.go           | 55 +++++++++++++++++++++++++-
  src/pkg/http/server.go              | 52 ++++++++++++++++++++++++
  3 files changed, 185 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/crypto/tls/generate_cert.go b/src/pkg/crypto/tls/generate_cert.go
+new file mode 100644
+index 0000000000..b760af1364
+--- /dev/null
++++ b/src/pkg/crypto/tls/generate_cert.go
+@@ -0,0 +1,79 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Generate a self-signed X.509 certificate for a TLS server. Outputs to
++// 'cert.pem' and 'key.pem' and will overwrite existing files.
++
++package main
++
++import (
++	"crypto/rsa"
++	"crypto/x509"
++	"encoding/pem"
++	"fmt"
++	"log"
++	"os"
++	"time"
++)
++
++func main() {
++	if len(os.Args) != 2 {
++		fmt.Printf("Usage: %s <hostname of server>\n", os.Args[0])
++		return
++	}
++
++	hostName := os.Args[1]
++
++	urandom, err := os.Open("/dev/urandom", os.O_RDONLY, 0)
++	if err != nil {
++		log.Crashf("failed to open /dev/urandom: %s\n", err)
++		return
++	}
++
++	log.Stdoutf("Generating RSA key\n")
++	priv, err := rsa.GenerateKey(urandom, 1024)
++	if err != nil {
++		log.Crashf("failed to generate private key: %s\n", err)
++		return
++	}
++
++	now := time.Seconds()
++
++	template := x509.Certificate{
++		SerialNumber: []byte{0},
++		Subject: x509.Name{
++			CommonName:   hostName,
++			Organization: "Acme Co",
++		},
++		NotBefore: time.SecondsToUTC(now - 300),
++		NotAfter:  time.SecondsToUTC(now + 86400*365), // valid for 1 year.
++
++		SubjectKeyId: []byte{1, 2, 3, 4},
++		KeyUsage:     x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
++	}
++
++	derBytes, err := x509.CreateCertificate(urandom, &template, &template, &priv.PublicKey, priv)
++	if err != nil {
++		log.Crashf("Failed to create certificate: %s", err)
++		return
++	}
++
++	certOut, err := os.Open("cert.pem", os.O_WRONLY|os.O_CREAT, 0644)
++	if err != nil {
++		log.Crashf("failed to open cert.pem for writing: %s\n", err)
++		return
++	}
++	pem.Encode(certOut, &pem.Block{Type: "CERTIFICATE", Bytes: derBytes})
++	certOut.Close()
++	log.Stdoutf("written cert.pem\n")
++
++	keyOut, err := os.Open("key.pem", os.O_WRONLY|os.O_CREAT, 0600)
++	if err != nil {
++		log.Crashf("failed to open key.pem for writing: %s\n", err)
++		return
++	}
++	pem.Encode(keyOut, &pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(priv)})
++	keyOut.Close()
++	log.Stdoutf("written key.pem\n")
++}
+diff --git a/src/pkg/crypto/tls/tls.go b/src/pkg/crypto/tls/tls.go
+index 1a5da3ac43..874f944555 100644
+--- a/src/pkg/crypto/tls/tls.go
++++ b/src/pkg/crypto/tls/tls.go
+@@ -6,8 +6,12 @@
+ package tls
+ 
+ import (
+-	"os"
++	"io/ioutil"
+ 	"net"
++	"os"
++	"encoding/pem"
++	"crypto/rsa"
++	"crypto/x509"
+ )
+ 
+ func Server(conn net.Conn, config *Config) *Conn {
+@@ -65,3 +69,52 @@ func Dial(network, laddr, raddr string) (net.Conn, os.Error) {
+ 	}
+ 	return Client(c, nil), nil
+ }
++
++// LoadX509KeyPair
++func LoadX509KeyPair(certFile string, keyFile string) (cert Certificate, err os.Error) {
++	certPEMBlock, err := ioutil.ReadFile(certFile)
++	if err != nil {
++		return
++	}
++
++	certDERBlock, _ := pem.Decode(certPEMBlock)
++	if certDERBlock == nil {
++		err = os.ErrorString("failed to parse certificate PEM data")
++		return
++	}
++
++	cert.Certificate = [][]byte{certDERBlock.Bytes}
++
++	keyPEMBlock, err := ioutil.ReadFile(keyFile)
++	if err != nil {
++		return
++	}
++
++	keyDERBlock, _ := pem.Decode(keyPEMBlock)
++	if keyDERBlock == nil {
++		err = os.ErrorString("failed to parse key PEM data")
++		return
++	}
++
++	key, err := x509.ParsePKCS1PrivateKey(keyDERBlock.Bytes)
++	if err != nil {
++		err = os.ErrorString("failed to parse key")
++		return
++	}
++
++	cert.PrivateKey = key
++
++	// We don't need to parse the public key for TLS, but we so do anyway
++	// to check that it looks sane and matches the private key.
++	x509Cert, err := x509.ParseCertificate(certDERBlock.Bytes)
++	if err != nil {
++		return
++	}
++
++	if x509Cert.PublicKeyAlgorithm != x509.RSA || x509Cert.PublicKey.(*rsa.PublicKey).N.Cmp(key.PublicKey.N) != 0 {
++		err = os.ErrorString("Private key does not match public key")
++		return
++	}
++
++	return
++}
+diff --git a/src/pkg/http/server.go b/src/pkg/http/server.go
+index 81ce98229a..75896af302 100644
+--- a/src/pkg/http/server.go
++++ b/src/pkg/http/server.go
+@@ -13,6 +13,8 @@ package http
+ 
+ import (
+ 	"bufio"
++	"crypto/rand"
++	"crypto/tls"
+ 	"fmt"
+ 	"io"
+ 	"log"
+@@ -21,6 +23,7 @@ import (
+ 	"path"
+ 	"strconv"
+ 	"strings"
++	"time"
+ )
+ 
+ // Errors introduced by the HTTP server.
+@@ -638,3 +641,52 @@ func ListenAndServe(addr string, handler Handler) os.Error {
+ 	l.Close()
+ 	return e
+ }
++
++// ListenAndServeTLS acts identically to ListenAndServe, expect that it
++// except HTTPS connections. Additionally, files containing a certificate and
++// matching private key for the server must be provided.
++//
++// A trivial example server is:
++//
++//	import (
++//		"http"
++//		"log"
++//	)
++//
++//	func handler(conn *http.Conn, req *http.Request) {
++//		conn.SetHeader("Content-Type", "text/plain")
++//		conn.Write([]byte("This is an example server.\n"))
++//	}
++//
++//	func main() {
++//		http.HandleFunc("/", handler)
++//		log.Stdoutf("About to listen on 10443. Go to https://127.0.0.1:10443/")
++//		err := http.ListenAndServe(":10443", "cert.pem", "key.pem", nil)
++//		if err != nil {
++//			log.Exit(err)
++//		}
++//	}
++//
++// One can use generate_cert.go in crypto/tls to generate cert.pem and key.pem.
++func ListenAndServeTLS(addr string, certFile string, keyFile string, handler Handler) os.Error {
++	config := &tls.Config{
++		Rand:       rand.Reader,
++		Time:       time.Seconds,
++		NextProtos: []string{"http/1.1"},
++	}
++
++	var err os.Error
++	config.Certificates = make([]tls.Certificate, 1)
++	config.Certificates[0], err = tls.LoadX509KeyPair(certFile, keyFile)
++	if err != nil {
++		return err
++	}
++
++	conn, err := net.Listen("tcp", addr)
++	if err != nil {
++		return err
++	}
++
++	tlsListener := tls.NewListener(conn, config)
++	return Serve(tlsListener, handler)
++}

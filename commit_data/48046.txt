@@ -21,7 +21,53 @@ Date:   Fri Apr 23 12:18:59 2021 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/walk/assign.go | 10 +++++++---
  test/fixedbugs/issue45706.go            |  9 +++++++++
  2 files changed, 16 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/walk/assign.go b/src/cmd/compile/internal/walk/assign.go
+index 3abf2a060c..6d697a53ae 100644
+--- a/src/cmd/compile/internal/walk/assign.go
++++ b/src/cmd/compile/internal/walk/assign.go
+@@ -322,6 +322,13 @@ func ascompatee(op ir.Op, nl, nr []ir.Node) []ir.Node {
+ 		// Save subexpressions needed on left side.
+ 		// Drill through non-dereferences.
+ 		for {
++			// If an expression has init statements, they must be evaluated
++			// before any of its saved sub-operands (#45706).
++			// TODO(mdempsky): Disallow init statements on lvalues.
++			init := ir.TakeInit(l)
++			walkStmtList(init)
++			early.Append(init...)
++
+ 			switch ll := l.(type) {
+ 			case *ir.IndexExpr:
+ 				if ll.X.Type().IsArray() {
+@@ -341,9 +348,6 @@ func ascompatee(op ir.Op, nl, nr []ir.Node) []ir.Node {
+ 			break
+ 		}
+ 
+-		walkStmtList(l.Init())
+-		early.Append(ir.TakeInit(l)...)
+-
+ 		var name *ir.Name
+ 		switch l.Op() {
+ 		default:
+diff --git a/test/fixedbugs/issue45706.go b/test/fixedbugs/issue45706.go
+index facf488b3d..6518dbf090 100644
+--- a/test/fixedbugs/issue45706.go
++++ b/test/fixedbugs/issue45706.go
+@@ -14,3 +14,12 @@ func g() {
+ 	for i, *(arr[f()]) = range []int{} {
+ 	}
+ }
++
++func h() {
++	var x int
++	var f func() int
++	var arr []int
++	var arr2 [][0]rune
++	for arr[x], arr2[arr[f()]][x] = range "" {
++	}
++}

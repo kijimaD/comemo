@@ -11,6 +11,28 @@ Date:   Mon Jul 1 17:27:19 2013 -0400
     R=golang-dev, dave, r
     CC=golang-dev
     https://golang.org/cl/10753044
-
+---
  src/pkg/sync/example_test.go | 7 ++++++-
  1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/sync/example_test.go b/src/pkg/sync/example_test.go
+index 031c87f03b..bdd3af6fed 100644
+--- a/src/pkg/sync/example_test.go
++++ b/src/pkg/sync/example_test.go
+@@ -6,10 +6,15 @@ package sync_test
+ 
+ import (
+ 	"fmt"
+-	"net/http"
+ 	"sync"
+ )
+ 
++type httpPkg struct{}
++
++func (httpPkg) Get(url string) {}
++
++var http httpPkg
++
+ // This example fetches several URLs concurrently,
+ // using a WaitGroup to block until all the fetches are complete.
+ func ExampleWaitGroup() {

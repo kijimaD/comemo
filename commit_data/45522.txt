@@ -16,6 +16,16 @@ Date:   Tue Oct 27 11:46:54 2020 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/265699
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/objset.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/types2/objset.go b/src/cmd/compile/internal/types2/objset.go
+index ef06315705..88ff0af9ca 100644
+--- a/src/cmd/compile/internal/types2/objset.go
++++ b/src/cmd/compile/internal/types2/objset.go
+@@ -1,4 +1,3 @@
+-// UNREVIEWED
+ // Copyright 2013 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.

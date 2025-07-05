@@ -22,7 +22,7 @@ Date:   Mon Nov 20 05:37:36 2023 +0000
     Auto-Submit: Michael Knyszek <mknyszek@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/cmd/trace/trace.go                    |   4 +-
  src/cmd/trace/v2/gen.go                   |  71 +++++++++++++++--
  src/cmd/trace/v2/goroutinegen.go          |   6 +-
@@ -32,3 +32,575 @@ Date:   Mon Nov 20 05:37:36 2023 +0000
  src/internal/trace/summary.go             |  12 ++-
  src/internal/trace/traceviewer/emitter.go | 122 +++++++++++++++++++++++++++---
  8 files changed, 249 insertions(+), 33 deletions(-)
+
+diff --git a/src/cmd/trace/trace.go b/src/cmd/trace/trace.go
+index 865bc612a9..438b8dd328 100644
+--- a/src/cmd/trace/trace.go
++++ b/src/cmd/trace/trace.go
+@@ -210,7 +210,6 @@ type SortIndexArg struct {
+ func generateTrace(params *traceParams, consumer traceviewer.TraceConsumer) error {
+ 	emitter := traceviewer.NewEmitter(
+ 		consumer,
+-		params.mode,
+ 		time.Duration(params.startTime),
+ 		time.Duration(params.endTime),
+ 	)
+@@ -565,8 +564,7 @@ func (ctx *traceContext) emitTask(task *taskDesc, sortIndex int) {
+ 	taskName := task.name
+ 	durationUsec := float64(task.lastTimestamp()-task.firstTimestamp()) / 1e3
+ 
+-	ctx.emitFooter(&format.Event{Name: "thread_name", Phase: "M", PID: format.TasksSection, TID: taskRow, Arg: &NameArg{fmt.Sprintf("T%d %s", task.id, taskName)}})
+-	ctx.emit(&format.Event{Name: "thread_sort_index", Phase: "M", PID: format.TasksSection, TID: taskRow, Arg: &SortIndexArg{sortIndex}})
++	ctx.emitter.Task(taskRow, taskName, sortIndex)
+ 	ts := float64(task.firstTimestamp()) / 1e3
+ 	sl := &format.Event{
+ 		Name:  taskName,
+diff --git a/src/cmd/trace/v2/gen.go b/src/cmd/trace/v2/gen.go
+index cf8960390c..ac20dd1131 100644
+--- a/src/cmd/trace/v2/gen.go
++++ b/src/cmd/trace/v2/gen.go
+@@ -5,6 +5,7 @@
+ package trace
+ 
+ import (
++	"fmt"
+ 	"internal/trace"
+ 	"internal/trace/traceviewer"
+ 	tracev2 "internal/trace/v2"
+@@ -31,11 +32,11 @@ type generator interface {
+ 	ProcTransition(ctx *traceContext, ev *tracev2.Event)
+ 
+ 	// Finish indicates the end of the trace and finalizes generation.
+-	Finish(ctx *traceContext, endTime tracev2.Time)
++	Finish(ctx *traceContext)
+ }
+ 
+ // runGenerator produces a trace into ctx by running the generator over the parsed trace.
+-func runGenerator(ctx *traceContext, g generator, parsed *parsedTrace) {
++func runGenerator(ctx *traceContext, g generator, parsed *parsedTrace, opts *genOpts) {
+ 	for i := range parsed.events {
+ 		ev := &parsed.events[i]
+ 
+@@ -70,7 +71,63 @@ func runGenerator(ctx *traceContext, g generator, parsed *parsedTrace) {
+ 			}
+ 		}
+ 	}
+-	g.Finish(ctx, parsed.events[len(parsed.events)-1].Time())
++	for i, task := range opts.tasks {
++		emitTask(ctx, task, i)
++	}
++	g.Finish(ctx)
++}
++
++// emitTask emits information about a task into the trace viewer's event stream.
++//
++// sortIndex sets the order in which this task will appear related to other tasks,
++// lowest first.
++func emitTask(ctx *traceContext, task *trace.UserTaskSummary, sortIndex int) {
++	// Collect information about the task.
++	var startStack, endStack tracev2.Stack
++	var startG, endG tracev2.GoID
++	startTime, endTime := ctx.startTime, ctx.endTime
++	if task.Start != nil {
++		startStack = task.Start.Stack()
++		startG = task.Start.Goroutine()
++		startTime = task.Start.Time()
++	}
++	if task.End != nil {
++		endStack = task.End.Stack()
++		endG = task.End.Goroutine()
++		endTime = task.End.Time()
++	}
++	arg := struct {
++		ID     uint64 `json:"id"`
++		StartG uint64 `json:"start_g,omitempty"`
++		EndG   uint64 `json:"end_g,omitempty"`
++	}{
++		ID:     uint64(task.ID),
++		StartG: uint64(startG),
++		EndG:   uint64(endG),
++	}
++
++	// Emit the task slice and notify the emitter of the task.
++	ctx.Task(uint64(task.ID), fmt.Sprintf("T%d %s", task.ID, task.Name), sortIndex)
++	ctx.TaskSlice(traceviewer.SliceEvent{
++		Name:     task.Name,
++		Ts:       ctx.elapsed(startTime),
++		Dur:      endTime.Sub(startTime),
++		Resource: uint64(task.ID),
++		Stack:    ctx.Stack(viewerFrames(startStack)),
++		EndStack: ctx.Stack(viewerFrames(endStack)),
++		Arg:      arg,
++	})
++	// Emit an arrow from the parent to the child.
++	if task.Parent != nil && task.Start != nil && task.Start.Kind() == tracev2.EventTaskBegin {
++		ctx.TaskArrow(traceviewer.ArrowEvent{
++			Name:         "newTask",
++			Start:        ctx.elapsed(task.Start.Time()),
++			End:          ctx.elapsed(task.Start.Time()),
++			FromResource: uint64(task.Parent.ID),
++			ToResource:   uint64(task.ID),
++			FromStack:    ctx.Stack(viewerFrames(task.Start.Stack())),
++		})
++	}
+ }
+ 
+ // Building blocks for generators.
+@@ -144,7 +201,7 @@ func (g *globalRangeGenerator) GlobalRange(ctx *traceContext, ev *tracev2.Event)
+ }
+ 
+ // Finish flushes any outstanding ranges at the end of the trace.
+-func (g *globalRangeGenerator) Finish(ctx *traceContext, endTime tracev2.Time) {
++func (g *globalRangeGenerator) Finish(ctx *traceContext) {
+ 	for name, ar := range g.ranges {
+ 		if !strings.Contains(name, "GC") {
+ 			continue
+@@ -152,7 +209,7 @@ func (g *globalRangeGenerator) Finish(ctx *traceContext, endTime tracev2.Time) {
+ 		ctx.Slice(traceviewer.SliceEvent{
+ 			Name:     name,
+ 			Ts:       ctx.elapsed(ar.time),
+-			Dur:      endTime.Sub(ar.time),
++			Dur:      ctx.endTime.Sub(ar.time),
+ 			Resource: trace.GCP,
+ 			Stack:    ctx.Stack(viewerFrames(ar.stack)),
+ 		})
+@@ -220,12 +277,12 @@ func (g *procRangeGenerator) ProcRange(ctx *traceContext, ev *tracev2.Event) {
+ }
+ 
+ // Finish flushes any outstanding ranges at the end of the trace.
+-func (g *procRangeGenerator) Finish(ctx *traceContext, endTime tracev2.Time) {
++func (g *procRangeGenerator) Finish(ctx *traceContext) {
+ 	for r, ar := range g.ranges {
+ 		ctx.Slice(traceviewer.SliceEvent{
+ 			Name:     r.Name,
+ 			Ts:       ctx.elapsed(ar.time),
+-			Dur:      endTime.Sub(ar.time),
++			Dur:      ctx.endTime.Sub(ar.time),
+ 			Resource: uint64(r.Scope.Proc()),
+ 			Stack:    ctx.Stack(viewerFrames(ar.stack)),
+ 		})
+diff --git a/src/cmd/trace/v2/goroutinegen.go b/src/cmd/trace/v2/goroutinegen.go
+index 4f466c0e61..eb1aea9bfa 100644
+--- a/src/cmd/trace/v2/goroutinegen.go
++++ b/src/cmd/trace/v2/goroutinegen.go
+@@ -143,15 +143,15 @@ func (g *goroutineGenerator) ProcTransition(ctx *traceContext, ev *tracev2.Event
+ 	// Not needed. All relevant information for goroutines can be derived from goroutine transitions.
+ }
+ 
+-func (g *goroutineGenerator) Finish(ctx *traceContext, endTime tracev2.Time) {
++func (g *goroutineGenerator) Finish(ctx *traceContext) {
+ 	ctx.SetResourceType("G")
+ 
+ 	// Finish off global ranges.
+-	g.globalRangeGenerator.Finish(ctx, endTime)
++	g.globalRangeGenerator.Finish(ctx)
+ 
+ 	// Finish off all the goroutine slices.
+ 	for id, gs := range g.gStates {
+-		gs.finish(endTime, ctx)
++		gs.finish(ctx)
+ 
+ 		// Tell the emitter about the goroutines we want to render.
+ 		ctx.Resource(uint64(id), gs.name())
+diff --git a/src/cmd/trace/v2/gstate.go b/src/cmd/trace/v2/gstate.go
+index c0c100c6d7..179981bc0c 100644
+--- a/src/cmd/trace/v2/gstate.go
++++ b/src/cmd/trace/v2/gstate.go
+@@ -305,10 +305,10 @@ func (gs *gState[R]) stop(ts tracev2.Time, stack tracev2.Stack, ctx *traceContex
+ // This must only be used once the trace has been fully processed and no
+ // further events will be processed. This method may leave the gState in
+ // an inconsistent state.
+-func (gs *gState[R]) finish(ts tracev2.Time, ctx *traceContext) {
++func (gs *gState[R]) finish(ctx *traceContext) {
+ 	if gs.executing != R(noResource) {
+-		gs.syscallEnd(ts, false, ctx)
+-		gs.stop(ts, tracev2.NoStack, ctx)
++		gs.syscallEnd(ctx.endTime, false, ctx)
++		gs.stop(ctx.endTime, tracev2.NoStack, ctx)
+ 	}
+ }
+ 
+diff --git a/src/cmd/trace/v2/jsontrace.go b/src/cmd/trace/v2/jsontrace.go
+index 681a8c1657..e628a6a5e7 100644
+--- a/src/cmd/trace/v2/jsontrace.go
++++ b/src/cmd/trace/v2/jsontrace.go
+@@ -5,9 +5,11 @@
+ package trace
+ 
+ import (
++	"cmp"
+ 	"log"
+ 	"math"
+ 	"net/http"
++	"slices"
+ 	"strconv"
+ 	"time"
+ 
+@@ -47,6 +49,50 @@ func JSONTraceHandler(parsed *parsedTrace) http.Handler {
+ 			}
+ 			opts.focusGoroutine = goid
+ 			opts.goroutines = trace.RelatedGoroutinesV2(parsed.events, goid)
++		} else if taskids := r.FormValue("focustask"); taskids != "" {
++			taskid, err := strconv.ParseUint(taskids, 10, 64)
++			if err != nil {
++				log.Printf("failed to parse focustask parameter %q: %v", taskids, err)
++				return
++			}
++			task, ok := parsed.summary.Tasks[tracev2.TaskID(taskid)]
++			if !ok || (task.Start == nil && task.End == nil) {
++				log.Printf("failed to find task with id %d", taskid)
++				return
++			}
++			opts.mode = traceviewer.ModeTaskOriented
++			if task.Start != nil {
++				opts.startTime = task.Start.Time().Sub(parsed.startTime())
++			} else { // The task started before the trace did.
++				opts.startTime = 0
++			}
++			if task.End != nil {
++				opts.endTime = task.End.Time().Sub(parsed.startTime())
++			} else { // The task didn't end.
++				opts.endTime = parsed.endTime().Sub(parsed.startTime())
++			}
++			opts.tasks = task.Descendents()
++			slices.SortStableFunc(opts.tasks, func(a, b *trace.UserTaskSummary) int {
++				aStart, bStart := parsed.startTime(), parsed.startTime()
++				if a.Start != nil {
++					aStart = a.Start.Time()
++				}
++				if b.Start != nil {
++					bStart = b.Start.Time()
++				}
++				if a.Start != b.Start {
++					return cmp.Compare(aStart, bStart)
++				}
++				// Break ties with the end time.
++				aEnd, bEnd := parsed.endTime(), parsed.endTime()
++				if a.End != nil {
++					aEnd = a.End.Time()
++				}
++				if b.End != nil {
++					bEnd = b.End.Time()
++				}
++				return cmp.Compare(aEnd, bEnd)
++			})
+ 		}
+ 
+ 		// Parse start and end options. Both or none must be present.
+@@ -79,6 +125,7 @@ func JSONTraceHandler(parsed *parsedTrace) http.Handler {
+ type traceContext struct {
+ 	*traceviewer.Emitter
+ 	startTime tracev2.Time
++	endTime   tracev2.Time
+ }
+ 
+ // elapsed returns the elapsed time between the trace time and the start time
+@@ -95,6 +142,7 @@ type genOpts struct {
+ 	// Used if mode != 0.
+ 	focusGoroutine tracev2.GoID
+ 	goroutines     map[tracev2.GoID]struct{} // Goroutines to be displayed for goroutine-oriented or task-oriented view. goroutines[0] is the main goroutine.
++	tasks          []*trace.UserTaskSummary
+ }
+ 
+ func defaultGenOpts() *genOpts {
+@@ -106,8 +154,9 @@ func defaultGenOpts() *genOpts {
+ 
+ func generateTrace(parsed *parsedTrace, opts *genOpts, c traceviewer.TraceConsumer) error {
+ 	ctx := &traceContext{
+-		Emitter:   traceviewer.NewEmitter(c, 0, opts.startTime, opts.endTime),
++		Emitter:   traceviewer.NewEmitter(c, opts.startTime, opts.endTime),
+ 		startTime: parsed.events[0].Time(),
++		endTime:   parsed.events[len(parsed.events)-1].Time(),
+ 	}
+ 	defer ctx.Flush()
+ 
+@@ -117,6 +166,6 @@ func generateTrace(parsed *parsedTrace, opts *genOpts, c traceviewer.TraceConsum
+ 	} else {
+ 		g = newProcGenerator()
+ 	}
+-	runGenerator(ctx, g, parsed)
++	runGenerator(ctx, g, parsed, opts)
+ 	return nil
+ }
+diff --git a/src/cmd/trace/v2/procgen.go b/src/cmd/trace/v2/procgen.go
+index a49f9ec632..30ed568dad 100644
+--- a/src/cmd/trace/v2/procgen.go
++++ b/src/cmd/trace/v2/procgen.go
+@@ -188,18 +188,18 @@ func (g *procGenerator) ProcTransition(ctx *traceContext, ev *tracev2.Event) {
+ 	}
+ }
+ 
+-func (g *procGenerator) Finish(ctx *traceContext, endTime tracev2.Time) {
++func (g *procGenerator) Finish(ctx *traceContext) {
+ 	ctx.SetResourceType("PROCS")
+ 
+ 	// Finish off ranges first. It doesn't really matter for the global ranges,
+ 	// but the proc ranges need to either be a subset of a goroutine slice or
+ 	// their own slice entirely. If the former, it needs to end first.
+-	g.procRangeGenerator.Finish(ctx, endTime)
+-	g.globalRangeGenerator.Finish(ctx, endTime)
++	g.procRangeGenerator.Finish(ctx)
++	g.globalRangeGenerator.Finish(ctx)
+ 
+ 	// Finish off all the goroutine slices.
+ 	for _, gs := range g.gStates {
+-		gs.finish(endTime, ctx)
++		gs.finish(ctx)
+ 	}
+ 
+ 	// Name all the procs to the emitter.
+diff --git a/src/internal/trace/summary.go b/src/internal/trace/summary.go
+index cf0cf9c109..9003385fc7 100644
+--- a/src/internal/trace/summary.go
++++ b/src/internal/trace/summary.go
+@@ -50,7 +50,7 @@ type UserTaskSummary struct {
+ 	// Task begin event. An EventTaskBegin event or nil.
+ 	Start *tracev2.Event
+ 
+-	// End end event. Normally EventTaskEnd event or nil,
++	// End end event. Normally EventTaskEnd event or nil.
+ 	End *tracev2.Event
+ 
+ 	// Logs is a list of tracev2.EventLog events associated with the task.
+@@ -69,6 +69,16 @@ func (s *UserTaskSummary) Complete() bool {
+ 	return s.Start != nil && s.End != nil
+ }
+ 
++// Descendents returns a slice consisting of itself (always the first task returned),
++// and the transitive closure of all of its children.
++func (s *UserTaskSummary) Descendents() []*UserTaskSummary {
++	descendents := []*UserTaskSummary{s}
++	for _, child := range s.Children {
++		descendents = append(descendents, child.Descendents()...)
++	}
++	return descendents
++}
++
+ // UserRegionSummary represents a region and goroutine execution stats
+ // while the region was active. (For v2 traces.)
+ type UserRegionSummary struct {
+diff --git a/src/internal/trace/traceviewer/emitter.go b/src/internal/trace/traceviewer/emitter.go
+index 95cb1f3271..2ceadf4c0e 100644
+--- a/src/internal/trace/traceviewer/emitter.go
++++ b/src/internal/trace/traceviewer/emitter.go
+@@ -286,22 +286,21 @@ const (
+ 
+ // NewEmitter returns a new Emitter that writes to c. The rangeStart and
+ // rangeEnd args are used for splitting large traces.
+-func NewEmitter(c TraceConsumer, mode Mode, rangeStart, rangeEnd time.Duration) *Emitter {
++func NewEmitter(c TraceConsumer, rangeStart, rangeEnd time.Duration) *Emitter {
+ 	c.ConsumeTimeUnit("ns")
+ 
+ 	return &Emitter{
+ 		c:          c,
+-		mode:       mode,
+ 		rangeStart: rangeStart,
+ 		rangeEnd:   rangeEnd,
+ 		frameTree:  frameNode{children: make(map[uint64]frameNode)},
+ 		resources:  make(map[uint64]string),
++		tasks:      make(map[uint64]task),
+ 	}
+ }
+ 
+ type Emitter struct {
+ 	c          TraceConsumer
+-	mode       Mode
+ 	rangeStart time.Duration
+ 	rangeEnd   time.Duration
+ 
+@@ -316,6 +315,12 @@ type Emitter struct {
+ 	resourceType                 string
+ 	resources                    map[uint64]string
+ 	focusResource                uint64
++	tasks                        map[uint64]task
++}
++
++type task struct {
++	name      string
++	sortIndex int
+ }
+ 
+ func (e *Emitter) Gomaxprocs(v uint64) {
+@@ -339,11 +344,23 @@ func (e *Emitter) SetResourceFilter(filter func(uint64) bool) {
+ 	e.filter = filter
+ }
+ 
++func (e *Emitter) Task(id uint64, name string, sortIndex int) {
++	e.tasks[id] = task{name, sortIndex}
++}
++
+ func (e *Emitter) Slice(s SliceEvent) {
+-	if !e.tsWithinRange(s.Ts) && !e.tsWithinRange(s.Ts+s.Dur) {
++	if e.filter != nil && !e.filter(s.Resource) {
+ 		return
+ 	}
+-	if e.filter != nil && !e.filter(s.Resource) {
++	e.slice(s, format.ProcsSection, "")
++}
++
++func (e *Emitter) TaskSlice(s SliceEvent) {
++	e.slice(s, format.TasksSection, pickTaskColor(s.Resource))
++}
++
++func (e *Emitter) slice(s SliceEvent, sectionID uint64, cname string) {
++	if !e.tsWithinRange(s.Ts) && !e.tsWithinRange(s.Ts+s.Dur) {
+ 		return
+ 	}
+ 	e.OptionalEvent(&format.Event{
+@@ -351,11 +368,14 @@ func (e *Emitter) Slice(s SliceEvent) {
+ 		Phase:    "X",
+ 		Time:     viewerTime(s.Ts),
+ 		Dur:      viewerTime(s.Dur),
++		PID:      sectionID,
+ 		TID:      s.Resource,
+ 		Stack:    s.Stack,
+ 		EndStack: s.EndStack,
+ 		Arg:      s.Arg,
++		Cname:    cname,
+ 	})
++
+ }
+ 
+ type SliceEvent struct {
+@@ -375,7 +395,6 @@ func (e *Emitter) Instant(i InstantEvent) {
+ 	if e.filter != nil && !e.filter(i.Resource) {
+ 		return
+ 	}
+-	// TODO(mknyszek): Handle ModeTaskOriented here. See cmd/trace.(*traceContext).emitInstant.
+ 	cname := ""
+ 	e.OptionalEvent(&format.Event{
+ 		Name:     i.Name,
+@@ -383,6 +402,7 @@ func (e *Emitter) Instant(i InstantEvent) {
+ 		Phase:    "I",
+ 		Scope:    "t",
+ 		Time:     viewerTime(i.Ts),
++		PID:      format.ProcsSection,
+ 		TID:      i.Resource,
+ 		Stack:    i.Stack,
+ 		Cname:    cname,
+@@ -400,18 +420,26 @@ type InstantEvent struct {
+ }
+ 
+ func (e *Emitter) Arrow(a ArrowEvent) {
+-	if !e.tsWithinRange(a.Start) || !e.tsWithinRange(a.End) {
++	if e.filter != nil && (!e.filter(a.FromResource) || !e.filter(a.ToResource)) {
+ 		return
+ 	}
+-	if e.filter != nil && (!e.filter(a.FromResource) || !e.filter(a.ToResource)) {
++	e.arrow(a, format.ProcsSection)
++}
++
++func (e *Emitter) TaskArrow(a ArrowEvent) {
++	e.arrow(a, format.TasksSection)
++}
++
++func (e *Emitter) arrow(a ArrowEvent, sectionID uint64) {
++	if !e.tsWithinRange(a.Start) || !e.tsWithinRange(a.End) {
+ 		return
+ 	}
+-	// TODO(mknyszek): Handle ModeTaskOriented here. See cmd/trace.(*traceContext).emitArrow.
+ 	e.arrowSeq++
+ 	e.OptionalEvent(&format.Event{
+ 		Name:  a.Name,
+ 		Phase: "s",
+ 		TID:   a.FromResource,
++		PID:   sectionID,
+ 		ID:    e.arrowSeq,
+ 		Time:  viewerTime(a.Start),
+ 		Stack: a.FromStack,
+@@ -420,6 +448,7 @@ func (e *Emitter) Arrow(a ArrowEvent) {
+ 		Name:  a.Name,
+ 		Phase: "t",
+ 		TID:   a.ToResource,
++		PID:   sectionID,
+ 		ID:    e.arrowSeq,
+ 		Time:  viewerTime(a.End),
+ 	})
+@@ -548,9 +577,13 @@ func (e *Emitter) OptionalEvent(ev *format.Event) {
+ 
+ func (e *Emitter) Flush() {
+ 	e.processMeta(format.StatsSection, "STATS", 0)
+-	if e.mode&ModeTaskOriented != 0 {
++
++	if len(e.tasks) != 0 {
+ 		e.processMeta(format.TasksSection, "TASKS", 1)
+ 	}
++	for id, task := range e.tasks {
++		e.threadMeta(format.TasksSection, id, task.name, task.sortIndex)
++	}
+ 
+ 	e.processMeta(format.ProcsSection, e.resourceType, 2)
+ 
+@@ -664,3 +697,72 @@ type frameNode struct {
+ 	id       int
+ 	children map[uint64]frameNode
+ }
++
++// Mapping from more reasonable color names to the reserved color names in
++// https://github.com/catapult-project/catapult/blob/master/tracing/tracing/base/color_scheme.html#L50
++// The chrome trace viewer allows only those as cname values.
++const (
++	colorLightMauve     = "thread_state_uninterruptible" // 182, 125, 143
++	colorOrange         = "thread_state_iowait"          // 255, 140, 0
++	colorSeafoamGreen   = "thread_state_running"         // 126, 200, 148
++	colorVistaBlue      = "thread_state_runnable"        // 133, 160, 210
++	colorTan            = "thread_state_unknown"         // 199, 155, 125
++	colorIrisBlue       = "background_memory_dump"       // 0, 180, 180
++	colorMidnightBlue   = "light_memory_dump"            // 0, 0, 180
++	colorDeepMagenta    = "detailed_memory_dump"         // 180, 0, 180
++	colorBlue           = "vsync_highlight_color"        // 0, 0, 255
++	colorGrey           = "generic_work"                 // 125, 125, 125
++	colorGreen          = "good"                         // 0, 125, 0
++	colorDarkGoldenrod  = "bad"                          // 180, 125, 0
++	colorPeach          = "terrible"                     // 180, 0, 0
++	colorBlack          = "black"                        // 0, 0, 0
++	colorLightGrey      = "grey"                         // 221, 221, 221
++	colorWhite          = "white"                        // 255, 255, 255
++	colorYellow         = "yellow"                       // 255, 255, 0
++	colorOlive          = "olive"                        // 100, 100, 0
++	colorCornflowerBlue = "rail_response"                // 67, 135, 253
++	colorSunsetOrange   = "rail_animation"               // 244, 74, 63
++	colorTangerine      = "rail_idle"                    // 238, 142, 0
++	colorShamrockGreen  = "rail_load"                    // 13, 168, 97
++	colorGreenishYellow = "startup"                      // 230, 230, 0
++	colorDarkGrey       = "heap_dump_stack_frame"        // 128, 128, 128
++	colorTawny          = "heap_dump_child_node_arrow"   // 204, 102, 0
++	colorLemon          = "cq_build_running"             // 255, 255, 119
++	colorLime           = "cq_build_passed"              // 153, 238, 102
++	colorPink           = "cq_build_failed"              // 238, 136, 136
++	colorSilver         = "cq_build_abandoned"           // 187, 187, 187
++	colorManzGreen      = "cq_build_attempt_runnig"      // 222, 222, 75
++	colorKellyGreen     = "cq_build_attempt_passed"      // 108, 218, 35
++	colorAnotherGrey    = "cq_build_attempt_failed"      // 187, 187, 187
++)
++
++var colorForTask = []string{
++	colorLightMauve,
++	colorOrange,
++	colorSeafoamGreen,
++	colorVistaBlue,
++	colorTan,
++	colorMidnightBlue,
++	colorIrisBlue,
++	colorDeepMagenta,
++	colorGreen,
++	colorDarkGoldenrod,
++	colorPeach,
++	colorOlive,
++	colorCornflowerBlue,
++	colorSunsetOrange,
++	colorTangerine,
++	colorShamrockGreen,
++	colorTawny,
++	colorLemon,
++	colorLime,
++	colorPink,
++	colorSilver,
++	colorManzGreen,
++	colorKellyGreen,
++}
++
++func pickTaskColor(id uint64) string {
++	idx := id % uint64(len(colorForTask))
++	return colorForTask[idx]
++}

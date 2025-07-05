@@ -10,8 +10,126 @@ Date:   Wed Oct 30 18:02:09 2019 -0400
     Run-TryBot: Katie Hockman <katie@golang.org>
     Reviewed-by: Katie Hockman <katie@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/crypto/tls/handshake_client_test.go | 22 ++++++++--------------
  src/crypto/tls/handshake_server_test.go | 30 ++++++++++++------------------
  src/crypto/tls/handshake_test.go        | 24 +++++++++++++++++++-----
  3 files changed, 39 insertions(+), 37 deletions(-)
+
+diff --git a/src/crypto/tls/handshake_client_test.go b/src/crypto/tls/handshake_client_test.go
+index 1b6b9a1074..d7b2db9347 100644
+--- a/src/crypto/tls/handshake_client_test.go
++++ b/src/crypto/tls/handshake_client_test.go
+@@ -499,21 +499,15 @@ func peekError(conn net.Conn) error {
+ }
+ 
+ func runClientTestForVersion(t *testing.T, template *clientTest, version, option string) {
+-	t.Run(version, func(t *testing.T) {
+-		// Make a deep copy of the template before going parallel.
+-		test := *template
+-		if template.config != nil {
+-			test.config = template.config.Clone()
+-		}
+-
+-		if !*update {
+-			t.Parallel()
+-		}
++	// Make a deep copy of the template before going parallel.
++	test := *template
++	if template.config != nil {
++		test.config = template.config.Clone()
++	}
++	test.name = version + "-" + test.name
++	test.args = append([]string{option}, test.args...)
+ 
+-		test.name = version + "-" + test.name
+-		test.args = append([]string{option}, test.args...)
+-		test.run(t, *update)
+-	})
++	runTestAndUpdateIfNeeded(t, version, test.run, false)
+ }
+ 
+ func runClientTestTLS10(t *testing.T, template *clientTest) {
+diff --git a/src/crypto/tls/handshake_server_test.go b/src/crypto/tls/handshake_server_test.go
+index e794ab8560..df1b2fa117 100644
+--- a/src/crypto/tls/handshake_server_test.go
++++ b/src/crypto/tls/handshake_server_test.go
+@@ -729,25 +729,19 @@ func (test *serverTest) run(t *testing.T, write bool) {
+ }
+ 
+ func runServerTestForVersion(t *testing.T, template *serverTest, version, option string) {
+-	t.Run(version, func(t *testing.T) {
+-		// Make a deep copy of the template before going parallel.
+-		test := *template
+-		if template.config != nil {
+-			test.config = template.config.Clone()
+-		}
+-
+-		if !*update && !template.wait {
+-			t.Parallel()
+-		}
++	// Make a deep copy of the template before going parallel.
++	test := *template
++	if template.config != nil {
++		test.config = template.config.Clone()
++	}
++	test.name = version + "-" + test.name
++	if len(test.command) == 0 {
++		test.command = defaultClientCommand
++	}
++	test.command = append([]string(nil), test.command...)
++	test.command = append(test.command, option)
+ 
+-		test.name = version + "-" + test.name
+-		if len(test.command) == 0 {
+-			test.command = defaultClientCommand
+-		}
+-		test.command = append([]string(nil), test.command...)
+-		test.command = append(test.command, option)
+-		test.run(t, *update)
+-	})
++	runTestAndUpdateIfNeeded(t, version, test.run, test.wait)
+ }
+ 
+ func runServerTestTLS10(t *testing.T, template *serverTest) {
+diff --git a/src/crypto/tls/handshake_test.go b/src/crypto/tls/handshake_test.go
+index 01c234e606..baf8adb16d 100644
+--- a/src/crypto/tls/handshake_test.go
++++ b/src/crypto/tls/handshake_test.go
+@@ -37,17 +37,31 @@ import (
+ // implementation.
+ //
+ // Tests can be updated by running them with the -update flag. This will cause
+-// the test files to be regenerated. Generally one should combine the -update
+-// flag with -test.run to updated a specific test. Since the reference
+-// implementation will always generate fresh random numbers, large parts of
+-// the reference connection will always change.
++// the test files for failing tests to be regenerated. Since the reference
++// implementation will always generate fresh random numbers, large parts of the
++// reference connection will always change.
+ 
+ var (
+-	update  = flag.Bool("update", false, "update golden files on disk")
++	update  = flag.Bool("update", false, "update golden files on failure")
+ 	fast    = flag.Bool("fast", false, "impose a quick, possibly flaky timeout on recorded tests")
+ 	keyFile = flag.String("keylog", "", "destination file for KeyLogWriter")
+ )
+ 
++func runTestAndUpdateIfNeeded(t *testing.T, name string, run func(t *testing.T, update bool), wait bool) {
++	success := t.Run(name, func(t *testing.T) {
++		if !*update && !wait {
++			t.Parallel()
++		}
++		run(t, false)
++	})
++
++	if !success && *update {
++		t.Run(name+"#update", func(t *testing.T) {
++			run(t, true)
++		})
++	}
++}
++
+ // checkOpenSSLVersion ensures that the version of OpenSSL looks reasonable
+ // before updating the test data.
+ func checkOpenSSLVersion() error {

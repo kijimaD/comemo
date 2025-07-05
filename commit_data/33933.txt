@@ -23,9 +23,348 @@ Date:   Thu Aug 31 12:52:04 2017 +0200
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/dist/build.go       | 32 +++++++++++++++----------------
  src/cmd/dist/main.go        |  4 ++--
  src/cmd/dist/sys_windows.go |  2 +-
  src/cmd/dist/util.go        | 46 ++++++++++++++++++++++-----------------------
  4 files changed, 42 insertions(+), 42 deletions(-)
+
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index ddfe22fa50..91a89063b4 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -95,7 +95,7 @@ func find(p string, l []string) int {
+ func xinit() {
+ 	b := os.Getenv("GOROOT")
+ 	if b == "" {
+-		fatal("$GOROOT must be set")
++		fatalf("$GOROOT must be set")
+ 	}
+ 	goroot = filepath.Clean(b)
+ 
+@@ -117,7 +117,7 @@ func xinit() {
+ 	}
+ 	goos = b
+ 	if find(goos, okgoos) < 0 {
+-		fatal("unknown $GOOS %s", goos)
++		fatalf("unknown $GOOS %s", goos)
+ 	}
+ 
+ 	b = os.Getenv("GOARM")
+@@ -137,7 +137,7 @@ func xinit() {
+ 	go386 = b
+ 
+ 	if p := pathf("%s/src/all.bash", goroot); !isfile(p) {
+-		fatal("$GOROOT is not set correctly or not exported\n"+
++		fatalf("$GOROOT is not set correctly or not exported\n"+
+ 			"\tGOROOT=%s\n"+
+ 			"\t%s does not exist", goroot, p)
+ 	}
+@@ -147,7 +147,7 @@ func xinit() {
+ 		gohostarch = b
+ 	}
+ 	if find(gohostarch, okgoarch) < 0 {
+-		fatal("unknown $GOHOSTARCH %s", gohostarch)
++		fatalf("unknown $GOHOSTARCH %s", gohostarch)
+ 	}
+ 
+ 	b = os.Getenv("GOARCH")
+@@ -156,13 +156,13 @@ func xinit() {
+ 	}
+ 	goarch = b
+ 	if find(goarch, okgoarch) < 0 {
+-		fatal("unknown $GOARCH %s", goarch)
++		fatalf("unknown $GOARCH %s", goarch)
+ 	}
+ 
+ 	b = os.Getenv("GO_EXTLINK_ENABLED")
+ 	if b != "" {
+ 		if b != "0" && b != "1" {
+-			fatal("unknown $GO_EXTLINK_ENABLED %s", b)
++			fatalf("unknown $GO_EXTLINK_ENABLED %s", b)
+ 		}
+ 		goextlinkenabled = b
+ 	}
+@@ -247,9 +247,9 @@ func chomp(s string) string {
+ }
+ 
+ func branchtag(branch string) (tag string, precise bool) {
+-	b := run(goroot, CheckExit, "git", "log", "--decorate=full", "--format=format:%d", "master.."+branch)
++	log := run(goroot, CheckExit, "git", "log", "--decorate=full", "--format=format:%d", "master.."+branch)
+ 	tag = branch
+-	for row, line := range strings.Split(b, "\n") {
++	for row, line := range strings.Split(log, "\n") {
+ 		// Each line is either blank, or looks like
+ 		//	  (tag: refs/tags/go1.4rc2, refs/remotes/origin/release-branch.go1.4, refs/heads/release-branch.go1.4)
+ 		// We need to find an element starting with refs/tags/.
+@@ -301,7 +301,7 @@ func findgoversion() string {
+ 
+ 	// Show a nicer error message if this isn't a Git repo.
+ 	if !isGitRepo() {
+-		fatal("FAILED: not a Git repo; must put a VERSION file in $GOROOT")
++		fatalf("FAILED: not a Git repo; must put a VERSION file in $GOROOT")
+ 	}
+ 
+ 	// Otherwise, use Git.
+@@ -448,7 +448,7 @@ func setup() {
+ 	if strings.HasPrefix(goversion, "release.") || (strings.HasPrefix(goversion, "go") && !strings.Contains(goversion, "beta")) {
+ 		for _, dir := range unreleased {
+ 			if p := pathf("%s/%s", goroot, dir); isdir(p) {
+-				fatal("%s should not exist in release build", p)
++				fatalf("%s should not exist in release build", p)
+ 			}
+ 		}
+ 	}
+@@ -666,7 +666,7 @@ func install(dir string) {
+ 		}
+ 		// Did not rebuild p.
+ 		if find(p, missing) >= 0 {
+-			fatal("missing file %s", p)
++			fatalf("missing file %s", p)
+ 		}
+ 	built:
+ 	}
+@@ -987,7 +987,7 @@ func cmdbootstrap() {
+ 	xflagparse(0)
+ 
+ 	if isdir(pathf("%s/src/pkg", goroot)) {
+-		fatal("\n\n"+
++		fatalf("\n\n"+
+ 			"The Go package sources have moved to $GOROOT/src.\n"+
+ 			"*** %s still exists. ***\n"+
+ 			"It probably contains stale files that may confuse the build.\n"+
+@@ -1127,7 +1127,7 @@ func checkCC() {
+ 		if len(output) > 0 {
+ 			outputHdr = "\nCommand output:\n\n"
+ 		}
+-		fatal("cannot invoke C compiler %q: %v\n\n"+
++		fatalf("cannot invoke C compiler %q: %v\n\n"+
+ 			"Go needs a system C compiler for use with cgo.\n"+
+ 			"To set a C compiler, set CC=the-compiler.\n"+
+ 			"To disable cgo, set CGO_ENABLED=0.\n%s%s", defaultcc, err, outputHdr, output)
+@@ -1143,7 +1143,7 @@ func defaulttarg() string {
+ 	src := pathf("%s/src/", goroot)
+ 	real_src := xrealwd(src)
+ 	if !strings.HasPrefix(pwd, real_src) {
+-		fatal("current directory %s is not under %s", pwd, real_src)
++		fatalf("current directory %s is not under %s", pwd, real_src)
+ 	}
+ 	pwd = pwd[len(real_src):]
+ 	// guard against xrealwd returning the directory without the trailing /
+@@ -1247,9 +1247,9 @@ func cmdlist() {
+ 	}
+ 	out, err := json.MarshalIndent(results, "", "\t")
+ 	if err != nil {
+-		fatal("json marshal error: %v", err)
++		fatalf("json marshal error: %v", err)
+ 	}
+ 	if _, err := os.Stdout.Write(out); err != nil {
+-		fatal("write failed: %v", err)
++		fatalf("write failed: %v", err)
+ 	}
+ }
+diff --git a/src/cmd/dist/main.go b/src/cmd/dist/main.go
+index 20c0b18735..a72a2607f9 100644
+--- a/src/cmd/dist/main.go
++++ b/src/cmd/dist/main.go
+@@ -76,7 +76,7 @@ func main() {
+ 	case "plan9":
+ 		gohostarch = os.Getenv("objtype")
+ 		if gohostarch == "" {
+-			fatal("$objtype is unset")
++			fatalf("$objtype is unset")
+ 		}
+ 	case "windows":
+ 		exe = ".exe"
+@@ -117,7 +117,7 @@ func main() {
+ 				gohostarch = "arm"
+ 			}
+ 		default:
+-			fatal("unknown architecture: %s", out)
++			fatalf("unknown architecture: %s", out)
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/dist/sys_windows.go b/src/cmd/dist/sys_windows.go
+index 05cb3e2979..6d1f82e093 100644
+--- a/src/cmd/dist/sys_windows.go
++++ b/src/cmd/dist/sys_windows.go
+@@ -44,6 +44,6 @@ func sysinit() {
+ 	case PROCESSOR_ARCHITECTURE_INTEL:
+ 		gohostarch = "386"
+ 	default:
+-		fatal("unknown processor architecture")
++		fatalf("unknown processor architecture")
+ 	}
+ }
+diff --git a/src/cmd/dist/util.go b/src/cmd/dist/util.go
+index 03405993f3..296b993de8 100644
+--- a/src/cmd/dist/util.go
++++ b/src/cmd/dist/util.go
+@@ -62,7 +62,7 @@ var outputLock sync.Mutex
+ // run runs the command line cmd in dir.
+ // If mode has ShowOutput set and Background unset, run passes cmd's output to
+ // stdout/stderr directly. Otherwise, run returns cmd's output as a string.
+-// If mode has CheckExit set and the command fails, run calls fatal.
++// If mode has CheckExit set and the command fails, run calls fatalf.
+ // If mode has Background set, this command is being run as a
+ // Background job. Only bgrun should use the Background mode,
+ // not other callers.
+@@ -97,11 +97,11 @@ func run(dir string, mode int, cmd ...string) string {
+ 		}
+ 		outputLock.Unlock()
+ 		if mode&Background != 0 {
+-			// Prevent fatal from waiting on our own goroutine's
++			// Prevent fatalf from waiting on our own goroutine's
+ 			// bghelper to exit:
+ 			bghelpers.Done()
+ 		}
+-		fatal("FAILED: %v: %v", strings.Join(cmd, " "), err)
++		fatalf("FAILED: %v: %v", strings.Join(cmd, " "), err)
+ 	}
+ 	if mode&ShowOutput != 0 {
+ 		outputLock.Lock()
+@@ -179,7 +179,7 @@ func bgwait(wg *sync.WaitGroup) {
+ func xgetwd() string {
+ 	wd, err := os.Getwd()
+ 	if err != nil {
+-		fatal("%s", err)
++		fatalf("%s", err)
+ 	}
+ 	return wd
+ }
+@@ -189,11 +189,11 @@ func xgetwd() string {
+ func xrealwd(path string) string {
+ 	old := xgetwd()
+ 	if err := os.Chdir(path); err != nil {
+-		fatal("chdir %s: %v", path, err)
++		fatalf("chdir %s: %v", path, err)
+ 	}
+ 	real := xgetwd()
+ 	if err := os.Chdir(old); err != nil {
+-		fatal("chdir %s: %v", old, err)
++		fatalf("chdir %s: %v", old, err)
+ 	}
+ 	return real
+ }
+@@ -223,7 +223,7 @@ func mtime(p string) time.Time {
+ func readfile(file string) string {
+ 	data, err := ioutil.ReadFile(file)
+ 	if err != nil {
+-		fatal("%v", err)
++		fatalf("%v", err)
+ 	}
+ 	return string(data)
+ }
+@@ -233,12 +233,12 @@ const (
+ 	writeSkipSame
+ )
+ 
+-// writefile writes b to the named file, creating it if needed.
++// writefile writes text to the named file, creating it if needed.
+ // if exec is non-zero, marks the file as executable.
+ // If the file already exists and has the expected content,
+ // it is not rewritten, to avoid changing the time stamp.
+-func writefile(b, file string, flag int) {
+-	new := []byte(b)
++func writefile(text, file string, flag int) {
++	new := []byte(text)
+ 	if flag&writeSkipSame != 0 {
+ 		old, err := ioutil.ReadFile(file)
+ 		if err == nil && bytes.Equal(old, new) {
+@@ -251,7 +251,7 @@ func writefile(b, file string, flag int) {
+ 	}
+ 	err := ioutil.WriteFile(file, new, mode)
+ 	if err != nil {
+-		fatal("%v", err)
++		fatalf("%v", err)
+ 	}
+ }
+ 
+@@ -259,7 +259,7 @@ func writefile(b, file string, flag int) {
+ func xmkdir(p string) {
+ 	err := os.Mkdir(p, 0777)
+ 	if err != nil {
+-		fatal("%v", err)
++		fatalf("%v", err)
+ 	}
+ }
+ 
+@@ -267,7 +267,7 @@ func xmkdir(p string) {
+ func xmkdirall(p string) {
+ 	err := os.MkdirAll(p, 0777)
+ 	if err != nil {
+-		fatal("%v", err)
++		fatalf("%v", err)
+ 	}
+ }
+ 
+@@ -292,12 +292,12 @@ func xremoveall(p string) {
+ func xreaddir(dir string) []string {
+ 	f, err := os.Open(dir)
+ 	if err != nil {
+-		fatal("%v", err)
++		fatalf("%v", err)
+ 	}
+ 	defer f.Close()
+ 	names, err := f.Readdirnames(-1)
+ 	if err != nil {
+-		fatal("reading %s: %v", dir, err)
++		fatalf("reading %s: %v", dir, err)
+ 	}
+ 	return names
+ }
+@@ -307,12 +307,12 @@ func xreaddir(dir string) []string {
+ func xreaddirfiles(dir string) []string {
+ 	f, err := os.Open(dir)
+ 	if err != nil {
+-		fatal("%v", err)
++		fatalf("%v", err)
+ 	}
+ 	defer f.Close()
+ 	infos, err := f.Readdir(-1)
+ 	if err != nil {
+-		fatal("reading %s: %v", dir, err)
++		fatalf("reading %s: %v", dir, err)
+ 	}
+ 	var names []string
+ 	for _, fi := range infos {
+@@ -328,13 +328,13 @@ func xreaddirfiles(dir string) []string {
+ func xworkdir() string {
+ 	name, err := ioutil.TempDir("", "go-tool-dist-")
+ 	if err != nil {
+-		fatal("%v", err)
++		fatalf("%v", err)
+ 	}
+ 	return name
+ }
+ 
+-// fatal prints an error message to standard error and exits.
+-func fatal(format string, args ...interface{}) {
++// fatalf prints an error message to standard error and exits.
++func fatalf(format string, args ...interface{}) {
+ 	fmt.Fprintf(os.Stderr, "go tool dist: %s\n", fmt.Sprintf(format, args...))
+ 
+ 	dieOnce.Do(func() { close(dying) })
+@@ -432,17 +432,17 @@ func elfIsLittleEndian(fn string) bool {
+ 	// debug/elf package.
+ 	file, err := os.Open(fn)
+ 	if err != nil {
+-		fatal("failed to open file to determine endianness: %v", err)
++		fatalf("failed to open file to determine endianness: %v", err)
+ 	}
+ 	defer file.Close()
+ 	var hdr [16]byte
+ 	if _, err := io.ReadFull(file, hdr[:]); err != nil {
+-		fatal("failed to read ELF header to determine endianness: %v", err)
++		fatalf("failed to read ELF header to determine endianness: %v", err)
+ 	}
+ 	// hdr[5] is EI_DATA byte, 1 is ELFDATA2LSB and 2 is ELFDATA2MSB
+ 	switch hdr[5] {
+ 	default:
+-		fatal("unknown ELF endianness of %s: EI_DATA = %d", fn, hdr[5])
++		fatalf("unknown ELF endianness of %s: EI_DATA = %d", fn, hdr[5])
+ 	case 1:
+ 		return true
+ 	case 2:

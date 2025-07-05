@@ -17,6 +17,43 @@ Date:   Wed May 2 12:10:24 2012 +1000
     R=golang-dev, qyzhai, minux.ma, rsc, iant, nigeltao
     CC=golang-dev
     https://golang.org/cl/6118049
-
+---
  src/pkg/bytes/asm_arm.s | 28 +++++++++++++++++++++++++++-
  1 file changed, 27 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/bytes/asm_arm.s b/src/pkg/bytes/asm_arm.s
+index bc8e00695c..e0170b3aad 100644
+--- a/src/pkg/bytes/asm_arm.s
++++ b/src/pkg/bytes/asm_arm.s
+@@ -27,4 +27,30 @@ _notfound:
+ 	RET
+ 
+ TEXT ·Equal(SB),7,$0
+-	B	·equalPortable(SB)
++	MOVW	alen+4(FP), R1
++	MOVW	blen+16(FP), R3
++	
++	CMP	R1, R3		// unequal lengths are not equal
++	B.NE	_notequal
++
++	MOVW	aptr+0(FP), R0
++	MOVW	bptr+12(FP), R2
++	ADD	R0, R1		// end
++
++_next:
++	CMP	R0, R1
++	B.EQ	_equal		// reached the end
++	MOVBU.P	1(R0), R4
++	MOVBU.P	1(R2), R5
++	CMP	R4, R5
++	B.EQ	_next
++
++_notequal:
++	MOVW	$0, R0
++	MOVW	R0, equal+24(FP)
++	RET
++
++_equal:
++	MOVW	$1, R0
++	MOVW	R0, equal+24(FP)
++	RET

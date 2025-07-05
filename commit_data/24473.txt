@@ -13,6 +13,50 @@ Date:   Thu Jul 30 14:53:44 2015 -0400
     Change-Id: Icba53fffa193423aab744c37f21ee893ce2ee3ac
     Reviewed-on: https://go-review.googlesource.com/12926
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/runtime/cgo/signal_darwin_arm64.s | 24 +++++++++++++++++++-----
  1 file changed, 19 insertions(+), 5 deletions(-)
+
+diff --git a/src/runtime/cgo/signal_darwin_arm64.s b/src/runtime/cgo/signal_darwin_arm64.s
+index 83062d4c75..75aefd4b95 100644
+--- a/src/runtime/cgo/signal_darwin_arm64.s
++++ b/src/runtime/cgo/signal_darwin_arm64.s
+@@ -18,8 +18,9 @@ TEXT ·panicmem(SB),NOSPLIT,$-8
+ 
+ 	// On a foreign thread.
+ 	// TODO(crawshaw): call badsignal
++	MOVD.W $0, -16(RSP)
+ 	MOVW $139, R1
+-	MOVW R1, (RSP)
++	MOVW R1, 8(RSP)
+ 	B    runtime·exit(SB)
+ 
+ ongothread:
+@@ -33,10 +34,23 @@ ongothread:
+ 	// To do this we call into runtime·setsigsegv, which sets the
+ 	// appropriate state inside the g object. We give it the faulting
+ 	// PC on the stack, then put it in the LR before calling sigpanic.
+-	STP.W (R1, R2), -16(RSP)
+-	BL runtime·setsigsegv(SB)
+-	LDP.P 16(RSP), (R1, R2)
+ 
++	// Build a 32-byte stack frame for us for this call.
++	// Saved LR (none available) is at the bottom,
++	// then the PC argument for setsigsegv, 
++	// then a copy of the LR for us to restore.
++	MOVD.W $0, -32(RSP)
+ 	MOVD R1, 8(RSP)
+-	MOVD R2, R30 // link register
++	MOVD R2, 16(RSP)
++	BL runtime·setsigsegv(SB)
++	MOVD 8(RSP), R1
++	MOVD 16(RSP), R2
++
++	// Build a 16-byte stack frame for the simulated
++	// call to sigpanic, by taking 16 bytes away from the
++	// 32-byte stack frame above.
++	// The saved LR in this frame is the LR at time of fault,
++	// and the LR on entry to sigpanic is the PC at time of fault.
++	MOVD.W R1, 16(RSP)
++	MOVD R2, R30
+ 	B runtime·sigpanic(SB)

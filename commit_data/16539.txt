@@ -7,6 +7,19 @@ Date:   Tue Jun 11 09:01:27 2013 -0700
     R=cshapiro, dvyukov, khr, rsc
     CC=golang-dev
     https://golang.org/cl/10005044
-
+---
  src/cmd/cc/pgen.c | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/cc/pgen.c b/src/cmd/cc/pgen.c
+index d5849dc315..628f858b63 100644
+--- a/src/cmd/cc/pgen.c
++++ b/src/cmd/cc/pgen.c
+@@ -85,6 +85,7 @@ codgen(Node *n, Node *nn)
+ 
+ 	p = gtext(n1->sym, stkoff);
+ 	sp = p;
++	gins(ALOCALS, Z, nodconst(stkoff));
+ 
+ 	/*
+ 	 * isolate first argument

@@ -16,7 +16,7 @@ Date:   Fri Jan 5 16:06:47 2018 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/internal/test2json/test2json.go            | 10 ++++++++--
  src/cmd/internal/test2json/testdata/bench.json     | 14 ++++++++++++++
  src/cmd/internal/test2json/testdata/bench.test     | 12 ++++++++++++
@@ -24,3 +24,137 @@ Date:   Fri Jan 5 16:06:47 2018 -0500
  src/cmd/internal/test2json/testdata/benchfail.test |  4 ++++
  src/cmd/test2json/main.go                          | 13 +++++++++++--
  6 files changed, 55 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/internal/test2json/test2json.go b/src/cmd/internal/test2json/test2json.go
+index a113c2e0ee..fa0708357b 100644
+--- a/src/cmd/internal/test2json/test2json.go
++++ b/src/cmd/internal/test2json/test2json.go
+@@ -140,6 +140,7 @@ var (
+ 		[]byte("--- PASS: "),
+ 		[]byte("--- FAIL: "),
+ 		[]byte("--- SKIP: "),
++		[]byte("--- BENCH: "),
+ 	}
+ 
+ 	fourSpace = []byte("    ")
+@@ -186,6 +187,7 @@ func (c *converter) handleInputLine(line []byte) {
+ 		// "--- PASS: "
+ 		// "--- FAIL: "
+ 		// "--- SKIP: "
++		// "--- BENCH: "
+ 		// but possibly indented.
+ 		for bytes.HasPrefix(line, fourSpace) {
+ 			line = line[4:]
+@@ -206,8 +208,12 @@ func (c *converter) handleInputLine(line []byte) {
+ 	}
+ 
+ 	// Parse out action and test name.
+-	action := strings.ToLower(strings.TrimSuffix(strings.TrimSpace(string(line[4:4+6])), ":"))
+-	name := strings.TrimSpace(string(line[4+6:]))
++	i := bytes.IndexByte(line, ':') + 1
++	if i == 0 {
++		i = len(updates[0])
++	}
++	action := strings.ToLower(strings.TrimSuffix(strings.TrimSpace(string(line[4:i])), ":"))
++	name := strings.TrimSpace(string(line[i:]))
+ 
+ 	e := &event{Action: action}
+ 	if line[0] == '-' { // PASS or FAIL report
+diff --git a/src/cmd/internal/test2json/testdata/bench.json b/src/cmd/internal/test2json/testdata/bench.json
+new file mode 100644
+index 0000000000..69e417eb14
+--- /dev/null
++++ b/src/cmd/internal/test2json/testdata/bench.json
+@@ -0,0 +1,14 @@
++{"Action":"output","Output":"goos: darwin\n"}
++{"Action":"output","Output":"goarch: 386\n"}
++{"Action":"output","Output":"BenchmarkFoo-8   \t2000000000\t         0.00 ns/op\n"}
++{"Action":"output","Test":"BenchmarkFoo-8","Output":"--- BENCH: BenchmarkFoo-8\n"}
++{"Action":"output","Test":"BenchmarkFoo-8","Output":"\tx_test.go:8: My benchmark\n"}
++{"Action":"output","Test":"BenchmarkFoo-8","Output":"\tx_test.go:8: My benchmark\n"}
++{"Action":"output","Test":"BenchmarkFoo-8","Output":"\tx_test.go:8: My benchmark\n"}
++{"Action":"output","Test":"BenchmarkFoo-8","Output":"\tx_test.go:8: My benchmark\n"}
++{"Action":"output","Test":"BenchmarkFoo-8","Output":"\tx_test.go:8: My benchmark\n"}
++{"Action":"output","Test":"BenchmarkFoo-8","Output":"\tx_test.go:8: My benchmark\n"}
++{"Action":"bench","Test":"BenchmarkFoo-8"}
++{"Action":"output","Output":"PASS\n"}
++{"Action":"output","Output":"ok  \tcommand-line-arguments\t0.009s\n"}
++{"Action":"pass"}
+diff --git a/src/cmd/internal/test2json/testdata/bench.test b/src/cmd/internal/test2json/testdata/bench.test
+new file mode 100644
+index 0000000000..453bd5928a
+--- /dev/null
++++ b/src/cmd/internal/test2json/testdata/bench.test
+@@ -0,0 +1,12 @@
++goos: darwin
++goarch: 386
++BenchmarkFoo-8   	2000000000	         0.00 ns/op
++--- BENCH: BenchmarkFoo-8
++	x_test.go:8: My benchmark
++	x_test.go:8: My benchmark
++	x_test.go:8: My benchmark
++	x_test.go:8: My benchmark
++	x_test.go:8: My benchmark
++	x_test.go:8: My benchmark
++PASS
++ok  	command-line-arguments	0.009s
+diff --git a/src/cmd/internal/test2json/testdata/benchfail.json b/src/cmd/internal/test2json/testdata/benchfail.json
+new file mode 100644
+index 0000000000..ad3ac9e179
+--- /dev/null
++++ b/src/cmd/internal/test2json/testdata/benchfail.json
+@@ -0,0 +1,6 @@
++{"Action":"output","Test":"BenchmarkFoo","Output":"--- FAIL: BenchmarkFoo\n"}
++{"Action":"output","Test":"BenchmarkFoo","Output":"\tx_test.go:8: My benchmark\n"}
++{"Action":"fail","Test":"BenchmarkFoo"}
++{"Action":"output","Output":"FAIL\n"}
++{"Action":"output","Output":"FAIL\tcommand-line-arguments\t0.008s\n"}
++{"Action":"fail"}
+diff --git a/src/cmd/internal/test2json/testdata/benchfail.test b/src/cmd/internal/test2json/testdata/benchfail.test
+new file mode 100644
+index 0000000000..538d957720
+--- /dev/null
++++ b/src/cmd/internal/test2json/testdata/benchfail.test
+@@ -0,0 +1,4 @@
++--- FAIL: BenchmarkFoo
++	x_test.go:8: My benchmark
++FAIL
++FAIL	command-line-arguments	0.008s
+diff --git a/src/cmd/test2json/main.go b/src/cmd/test2json/main.go
+index 7bdc867bbe..654c00a6df 100644
+--- a/src/cmd/test2json/main.go
++++ b/src/cmd/test2json/main.go
+@@ -45,7 +45,8 @@
+ //	pause  - the test has been paused
+ //	cont   - the test has continued running
+ //	pass   - the test passed
+-//	fail   - the test failed
++//	bench  - the benchmark printed log output but did not fail
++//	fail   - the test or benchmark failed
+ //	output - the test printed output
+ //
+ // The Package field, if present, specifies the package being tested.
+@@ -53,7 +54,7 @@
+ // different tests are interlaced; the Package field allows readers to
+ // separate them.
+ //
+-// The Test field, if present, specifies the test or example, or benchmark
++// The Test field, if present, specifies the test, example, or benchmark
+ // function that caused the event. Events for the overall package test
+ // do not set Test.
+ //
+@@ -67,6 +68,14 @@
+ // the concatenation of the Output fields of all output events is the exact
+ // output of the test execution.
+ //
++// When a benchmark runs, it typically produces a single line of output
++// giving timing results. That line is reported in an event with Action == "output"
++// and no Test field. If a benchmark logs output or reports a failure
++// (for example, by using b.Log or b.Error), that extra output is reported
++// as a sequence of events with Test set to the benchmark name, terminated
++// by a final event with Action == "bench" or "fail".
++// Benchmarks have no events with Action == "run", "pause", or "cont".
++//
+ package main
+ 
+ import (

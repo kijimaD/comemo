@@ -9,6 +9,17 @@ Date:   Wed Jan 13 21:33:33 2016 -0500
     Change-Id: I37d734c1241f3d72d8fe33dfdf79b573e5476b1f
     Reviewed-on: https://go-review.googlesource.com/18643
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/bootstrap.bash | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/bootstrap.bash b/src/bootstrap.bash
+index 1b5ba7c536..7947e84e3b 100755
+--- a/src/bootstrap.bash
++++ b/src/bootstrap.bash
+@@ -1,4 +1,4 @@
+-#!/bin/bash
++#!/usr/bin/env bash
+ # Copyright 2015 The Go Authors.  All rights reserved.
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.

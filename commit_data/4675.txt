@@ -7,7 +7,65 @@ Date:   Mon Jan 25 18:31:44 2010 -0800
     R=ken2
     CC=golang-dev
     https://golang.org/cl/193081
-
+---
  src/cmd/cc/lex.c   |  7 ++++---
  src/cmd/cc/lexbody | 13 +++++++------
  2 files changed, 11 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/cc/lex.c b/src/cmd/cc/lex.c
+index 857b15206f..fd4b0b87b2 100644
+--- a/src/cmd/cc/lex.c
++++ b/src/cmd/cc/lex.c
+@@ -196,7 +196,8 @@ compile(char *file, char **defs, int ndef)
+ 	int i, c, fd[2];
+ 	static int first = 1;
+ 
+-	ofile = strdup(file);
++	ofile = alloc(strlen(file)+10);
++	strcpy(ofile, file);
+ 	p = utfrrune(ofile, pathchar());
+ 	if(p) {
+ 		*p++ = 0;
+@@ -405,9 +406,9 @@ lookup(void)
+ 	int c, n;
+ 	char *r, *w;
+ 
+-	if(symb[0] == 0xc2 && symb[1] == 0xb7) {
++	if((uchar)symb[0] == 0xc2 && (uchar)symb[1] == 0xb7) {
+ 		// turn leading · into ""·
+-		memmove(symb+2, symb, w-symb);
++		memmove(symb+2, symb, strlen(symb)+1);
+ 		symb[0] = '"';
+ 		symb[1] = '"';
+ 	}
+diff --git a/src/cmd/cc/lexbody b/src/cmd/cc/lexbody
+index 7c726b3f5e..c6246e95ff 100644
+--- a/src/cmd/cc/lexbody
++++ b/src/cmd/cc/lexbody
+@@ -223,6 +223,13 @@ lookup(void)
+ 	int c, l;
+ 	char *r, *w;
+ 
++	if((uchar)symb[0] == 0xc2 && (uchar)symb[1] == 0xb7) {
++		// turn leading · into ""·
++		memmove(symb+2, symb, strlen(symb)+1);
++		symb[0] = '"';
++		symb[1] = '"';
++	}
++
+ 	// turn · into .
+ 	for(r=w=symb; *r; r++) {
+ 		if((uchar)*r == 0xc2 && (uchar)*(r+1) == 0xb7) {
+@@ -232,12 +239,6 @@ lookup(void)
+ 			*w++ = *r;
+ 	}
+ 	*w++ = '\0';
+-	if(symb[0] == '.') {
+-		// turn leading . into "".
+-		memmove(symb+2, symb, w-symb);
+-		symb[0] = '"';
+-		symb[1] = '"';
+-	}
+ 
+ 	h = 0;
+ 	for(p=symb; c = *p; p++)

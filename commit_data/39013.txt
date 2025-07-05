@@ -12,6 +12,38 @@ Date:   Fri Nov 23 15:16:18 2018 +0100
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/link/internal/ld/config.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/config.go b/src/cmd/link/internal/ld/config.go
+index 2f6dd7a7e2..60b6491859 100644
+--- a/src/cmd/link/internal/ld/config.go
++++ b/src/cmd/link/internal/ld/config.go
+@@ -248,7 +248,7 @@ func determineLinkMode(ctxt *Link) {
+ 			ctxt.LinkMode = LinkInternal
+ 		case "1":
+ 			if objabi.GOARCH == "ppc64" {
+-				Exitf("external linking requested via GO_EXTLINK_ENABLED but not supported for linux/ppc64")
++				Exitf("external linking requested via GO_EXTLINK_ENABLED but not supported for %s/ppc64", objabi.GOOS)
+ 			}
+ 			ctxt.LinkMode = LinkExternal
+ 		default:
+@@ -262,7 +262,7 @@ func determineLinkMode(ctxt *Link) {
+ 				ctxt.LinkMode = LinkInternal
+ 			}
+ 			if objabi.GOARCH == "ppc64" && ctxt.LinkMode == LinkExternal {
+-				Exitf("external linking is not supported for linux/ppc64")
++				Exitf("external linking is not supported for %s/ppc64", objabi.GOOS)
+ 			}
+ 		}
+ 	case LinkInternal:
+@@ -271,7 +271,7 @@ func determineLinkMode(ctxt *Link) {
+ 		}
+ 	case LinkExternal:
+ 		if objabi.GOARCH == "ppc64" {
+-			Exitf("external linking not supported for linux/ppc64")
++			Exitf("external linking not supported for %s/ppc64", objabi.GOOS)
+ 		}
+ 	}
+ }

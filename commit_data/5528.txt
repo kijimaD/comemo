@@ -7,6 +7,20 @@ Date:   Mon May 24 14:30:51 2010 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/1275042
-
+---
  src/libmach/executable.c | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/libmach/executable.c b/src/libmach/executable.c
+index 1455b100dd..34da721519 100644
+--- a/src/libmach/executable.c
++++ b/src/libmach/executable.c
+@@ -1177,6 +1177,8 @@ machdotout(int fd, Fhdr *fp, ExecHdr *hp)
+ 					goto bad;
+ 				}
+ 				sect++;
++				if (strcmp(sect->sectname, "__nl_symbol_ptr") == 0)
++					sect++;
+ 				if (strcmp(sect->sectname, "__bss") == 0) {
+ 					bsssize = swav(sect->size);
+ 				} else {

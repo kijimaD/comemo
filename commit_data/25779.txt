@@ -11,6 +11,19 @@ Date:   Fri Nov 20 12:03:07 2015 -0500
     Reviewed-by: Austin Clements <austin@google.com>
     Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/pprof/pprof_test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/runtime/pprof/pprof_test.go b/src/runtime/pprof/pprof_test.go
+index 2d8a187f83..ce10c219f6 100644
+--- a/src/runtime/pprof/pprof_test.go
++++ b/src/runtime/pprof/pprof_test.go
+@@ -332,6 +332,7 @@ func TestStackBarrierProfiling(t *testing.T) {
+ 	if !strings.Contains(os.Getenv("GODEBUG"), "gcstackbarrierall=1") {
+ 		// Re-execute this test with constant GC and stack
+ 		// barriers at every frame.
++		testenv.MustHaveExec(t)
+ 		cmd := exec.Command(os.Args[0], "-test.run=TestStackBarrierProfiling")
+ 		cmd.Env = append([]string{"GODEBUG=gcstackbarrierall=1", "GOGC=1"}, os.Environ()...)
+ 		if out, err := cmd.CombinedOutput(); err != nil {

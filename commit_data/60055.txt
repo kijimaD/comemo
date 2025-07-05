@@ -18,7 +18,99 @@ Date:   Fri May 17 19:59:31 2024 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/586555
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/cgo/internal/testplugin/plugin_test.go | 19 +++++++++++++++
  src/cmd/link/internal/ld/macho.go              | 32 +++++++++++++++-----------
  2 files changed, 37 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/cgo/internal/testplugin/plugin_test.go b/src/cmd/cgo/internal/testplugin/plugin_test.go
+index 1e32ff8a06..4900ada182 100644
+--- a/src/cmd/cgo/internal/testplugin/plugin_test.go
++++ b/src/cmd/cgo/internal/testplugin/plugin_test.go
+@@ -74,6 +74,7 @@ func testMain(m *testing.M) int {
+ 	}
+ 	defer os.RemoveAll(GOPATH)
+ 	tmpDir = GOPATH
++	fmt.Printf("TMPDIR=%s\n", tmpDir)
+ 
+ 	modRoot := filepath.Join(GOPATH, "src", "testplugin")
+ 	altRoot := filepath.Join(GOPATH, "alt", "src", "testplugin")
+@@ -395,3 +396,21 @@ func TestIssue62430(t *testing.T) {
+ 	goCmd(t, "build", "-o", "issue62430.exe", "./issue62430/main.go")
+ 	run(t, "./issue62430.exe")
+ }
++
++func TestTextSectionSplit(t *testing.T) {
++	globalSkip(t)
++	if runtime.GOOS != "darwin" || runtime.GOARCH != "arm64" {
++		t.Skipf("text section splitting is not done in %s/%s", runtime.GOOS, runtime.GOARCH)
++	}
++
++	// Use -ldflags=-debugtextsize=262144 to let the linker split text section
++	// at a smaller size threshold, so it actually splits for the test binary.
++	goCmd(nil, "build", "-ldflags=-debugtextsize=262144", "-o", "host-split.exe", "./host")
++	run(t, "./host-split.exe")
++
++	// Check that we did split text sections.
++	syms := goCmd(nil, "tool", "nm", "host-split.exe")
++	if !strings.Contains(syms, "runtime.text.1") {
++		t.Errorf("runtime.text.1 not found, text section not split?")
++	}
++}
+diff --git a/src/cmd/link/internal/ld/macho.go b/src/cmd/link/internal/ld/macho.go
+index 33d44a3bec..34624c25a9 100644
+--- a/src/cmd/link/internal/ld/macho.go
++++ b/src/cmd/link/internal/ld/macho.go
+@@ -195,12 +195,12 @@ const (
+ )
+ 
+ const (
+-	PLATFORM_MACOS		MachoPlatform = 1
+-	PLATFORM_IOS		MachoPlatform = 2
+-	PLATFORM_TVOS		MachoPlatform = 3
+-	PLATFORM_WATCHOS	MachoPlatform = 4
+-	PLATFORM_BRIDGEOS	MachoPlatform = 5
+-	PLATFORM_MACCATALYST	MachoPlatform = 6
++	PLATFORM_MACOS       MachoPlatform = 1
++	PLATFORM_IOS         MachoPlatform = 2
++	PLATFORM_TVOS        MachoPlatform = 3
++	PLATFORM_WATCHOS     MachoPlatform = 4
++	PLATFORM_BRIDGEOS    MachoPlatform = 5
++	PLATFORM_MACCATALYST MachoPlatform = 6
+ )
+ 
+ // rebase table opcode
+@@ -900,21 +900,25 @@ func collectmachosyms(ctxt *Link) {
+ 	// Add special runtime.text and runtime.etext symbols (which are local).
+ 	// We've already included this symbol in Textp on darwin if ctxt.DynlinkingGo().
+ 	// See data.go:/textaddress
++	// NOTE: runtime.text.N symbols (if we split text sections) are not added, though,
++	// so we handle them here.
+ 	if !*FlagS {
+ 		if !ctxt.DynlinkingGo() {
+ 			s := ldr.Lookup("runtime.text", 0)
+ 			if ldr.SymType(s) == sym.STEXT {
+ 				addsym(s)
+ 			}
+-			for n := range Segtext.Sections[1:] {
+-				s := ldr.Lookup(fmt.Sprintf("runtime.text.%d", n+1), 0)
+-				if s != 0 {
+-					addsym(s)
+-				} else {
+-					break
+-				}
++		}
++		for n := range Segtext.Sections[1:] {
++			s := ldr.Lookup(fmt.Sprintf("runtime.text.%d", n+1), 0)
++			if s != 0 {
++				addsym(s)
++			} else {
++				break
+ 			}
+-			s = ldr.Lookup("runtime.etext", 0)
++		}
++		if !ctxt.DynlinkingGo() {
++			s := ldr.Lookup("runtime.etext", 0)
+ 			if ldr.SymType(s) == sym.STEXT {
+ 				addsym(s)
+ 			}

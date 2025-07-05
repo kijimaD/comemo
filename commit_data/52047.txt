@@ -14,7 +14,38 @@ Date:   Thu Mar 31 14:34:32 2022 +0000
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: mzh <mzh@golangcn.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/asm/internal/asm/testdata/riscv64error.s | 4 ++++
  src/cmd/internal/obj/riscv/obj.go                | 5 +++++
  2 files changed, 9 insertions(+)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/riscv64error.s b/src/cmd/asm/internal/asm/testdata/riscv64error.s
+index 238552565b..d3e43e721d 100644
+--- a/src/cmd/asm/internal/asm/testdata/riscv64error.s
++++ b/src/cmd/asm/internal/asm/testdata/riscv64error.s
+@@ -22,5 +22,9 @@ TEXT errors(SB),$0
+ 	MOVBU	X5, (X6)			// ERROR "unsupported unsigned store"
+ 	MOVHU	X5, (X6)			// ERROR "unsupported unsigned store"
+ 	MOVWU	X5, (X6)			// ERROR "unsupported unsigned store"
++	MOVF	F0, F1, F2			// ERROR "illegal MOV instruction"
++	MOVD	F0, F1, F2			// ERROR "illegal MOV instruction"
++	MOV	X10, X11, X12			// ERROR "illegal MOV instruction"
++	MOVW	X10, X11, X12			// ERROR "illegal MOV instruction"
+ 
+ 	RET
+diff --git a/src/cmd/internal/obj/riscv/obj.go b/src/cmd/internal/obj/riscv/obj.go
+index 47dbfc0fed..61044b0531 100644
+--- a/src/cmd/internal/obj/riscv/obj.go
++++ b/src/cmd/internal/obj/riscv/obj.go
+@@ -1806,6 +1806,11 @@ func instructionsForMOV(p *obj.Prog) []*instruction {
+ 	ins := instructionForProg(p)
+ 	inss := []*instruction{ins}
+ 
++	if p.Reg != 0 {
++		p.Ctxt.Diag("%v: illegal MOV instruction", p)
++		return nil
++	}
++
+ 	switch {
+ 	case p.From.Type == obj.TYPE_CONST && p.To.Type == obj.TYPE_REG:
+ 		// Handle constant to register moves.

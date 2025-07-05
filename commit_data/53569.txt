@@ -13,6 +13,32 @@ Date:   Sun Aug 21 22:52:36 2022 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/walk/expr.go | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/walk/expr.go b/src/cmd/compile/internal/walk/expr.go
+index dfa82e7ec0..c80bc3d80b 100644
+--- a/src/cmd/compile/internal/walk/expr.go
++++ b/src/cmd/compile/internal/walk/expr.go
+@@ -545,8 +545,7 @@ func walkCall(n *ir.CallExpr, init *ir.Nodes) ir.Node {
+ 			var e ir.Node = ir.NewLinksymExpr(n.Pos(), fn.Sym().LinksymABI(abi), types.Types[types.TUINTPTR])
+ 			e = ir.NewAddrExpr(n.Pos(), e)
+ 			e.SetType(types.Types[types.TUINTPTR].PtrTo())
+-			e = ir.NewConvExpr(n.Pos(), ir.OCONVNOP, n.Type(), e)
+-			return e
++			return typecheck.Expr(ir.NewConvExpr(n.Pos(), ir.OCONVNOP, n.Type(), e))
+ 		}
+ 		// fn is not a defined function. It must be ABIInternal.
+ 		// Read the address from func value, i.e. *(*uintptr)(idata(fn)).
+@@ -556,8 +555,10 @@ func walkCall(n *ir.CallExpr, init *ir.Nodes) ir.Node {
+ 		arg = walkExpr(arg, init)
+ 		var e ir.Node = ir.NewUnaryExpr(n.Pos(), ir.OIDATA, arg)
+ 		e.SetType(n.Type().PtrTo())
++		e.SetTypecheck(1)
+ 		e = ir.NewStarExpr(n.Pos(), e)
+ 		e.SetType(n.Type())
++		e.SetTypecheck(1)
+ 		return e
+ 	}
+ 

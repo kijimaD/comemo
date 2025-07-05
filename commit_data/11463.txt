@@ -11,7 +11,7 @@ Date:   Mon Jan 30 22:59:10 2012 +1100
     R=paulo.jpinto, bradfitz, remyoudompheng, rsc
     CC=golang-dev
     https://golang.org/cl/5543069
-
+---
  src/buildscript/windows_386.sh            |   2 +-
  src/buildscript/windows_amd64.sh          |   2 +-
  src/pkg/os/user/Makefile                  |   7 +
@@ -27,3 +27,1212 @@ Date:   Mon Jan 30 22:59:10 2012 +1100
  src/pkg/syscall/zsyscall_windows_amd64.go | 160 ++++++++++++-
  src/pkg/syscall/ztypes_windows.go         |   5 +-
  14 files changed, 897 insertions(+), 35 deletions(-)
+
+diff --git a/src/buildscript/windows_386.sh b/src/buildscript/windows_386.sh
+index dc1f305b31..360c5aa343 100755
+--- a/src/buildscript/windows_386.sh
++++ b/src/buildscript/windows_386.sh
+@@ -244,7 +244,7 @@ cp "$WORK"/unicode/utf16.a "$GOROOT"/pkg/windows_386/unicode/utf16.a
+ 
+ mkdir -p "$WORK"/syscall/_obj/
+ cd "$GOROOT"/src/pkg/syscall
+-8g -o "$WORK"/syscall/_obj/_go_.8 -p syscall -I "$WORK" ./dll_windows.go ./env_windows.go ./exec_windows.go ./str.go ./syscall.go ./syscall_windows.go ./syscall_windows_386.go ./zerrors_windows.go ./zerrors_windows_386.go ./zsyscall_windows_386.go ./zsysnum_windows_386.go ./ztypes_windows.go ./ztypes_windows_386.go
++8g -o "$WORK"/syscall/_obj/_go_.8 -p syscall -I "$WORK" ./dll_windows.go ./env_windows.go ./exec_windows.go ./security_windows.go ./str.go ./syscall.go ./syscall_windows.go ./syscall_windows_386.go ./zerrors_windows.go ./zerrors_windows_386.go ./zsyscall_windows_386.go ./zsysnum_windows_386.go ./ztypes_windows.go ./ztypes_windows_386.go
+ 8a -I "$WORK"/syscall/_obj/ -o "$WORK"/syscall/_obj/asm_windows_386.8 -DGOOS_windows -DGOARCH_386 ./asm_windows_386.s
+ gopack grc "$WORK"/syscall.a "$WORK"/syscall/_obj/_go_.8 "$WORK"/syscall/_obj/asm_windows_386.8
+ cp "$WORK"/syscall.a "$GOROOT"/pkg/windows_386/syscall.a
+diff --git a/src/buildscript/windows_amd64.sh b/src/buildscript/windows_amd64.sh
+index 11487786f2..bf5cd048ca 100755
+--- a/src/buildscript/windows_amd64.sh
++++ b/src/buildscript/windows_amd64.sh
+@@ -243,7 +243,7 @@ cp "$WORK"/unicode/utf16.a "$GOROOT"/pkg/windows_amd64/unicode/utf16.a
+ 
+ mkdir -p "$WORK"/syscall/_obj/
+ cd "$GOROOT"/src/pkg/syscall
+-6g -o "$WORK"/syscall/_obj/_go_.6 -p syscall -I "$WORK" ./dll_windows.go ./env_windows.go ./exec_windows.go ./str.go ./syscall.go ./syscall_windows.go ./syscall_windows_amd64.go ./zerrors_windows.go ./zerrors_windows_amd64.go ./zsyscall_windows_amd64.go ./zsysnum_windows_amd64.go ./ztypes_windows.go ./ztypes_windows_amd64.go
++6g -o "$WORK"/syscall/_obj/_go_.6 -p syscall -I "$WORK" ./dll_windows.go ./env_windows.go ./exec_windows.go ./security_windows.go ./str.go ./syscall.go ./syscall_windows.go ./syscall_windows_amd64.go ./zerrors_windows.go ./zerrors_windows_amd64.go ./zsyscall_windows_amd64.go ./zsysnum_windows_amd64.go ./ztypes_windows.go ./ztypes_windows_amd64.go
+ 6a -I "$WORK"/syscall/_obj/ -o "$WORK"/syscall/_obj/asm_windows_amd64.6 -DGOOS_windows -DGOARCH_amd64 ./asm_windows_amd64.s
+ gopack grc "$WORK"/syscall.a "$WORK"/syscall/_obj/_go_.6 "$WORK"/syscall/_obj/asm_windows_amd64.6
+ cp "$WORK"/syscall.a "$GOROOT"/pkg/windows_amd64/syscall.a
+diff --git a/src/pkg/os/user/Makefile b/src/pkg/os/user/Makefile
+index aabb54995d..c3617c20fc 100644
+--- a/src/pkg/os/user/Makefile
++++ b/src/pkg/os/user/Makefile
+@@ -8,6 +8,9 @@ TARG=os/user
+ GOFILES=\
+ 	user.go\
+ 
++GOFILES_windows=\
++	lookup_windows.go
++
+ ifeq ($(CGO_ENABLED),1)
+ CGOFILES_linux=\
+ 	lookup_unix.go
+@@ -20,7 +23,11 @@ endif
+ ifneq ($(CGOFILES_$(GOOS)),)
+ CGOFILES+=$(CGOFILES_$(GOOS))
+ else
++ifneq ($(GOOS),windows)
+ GOFILES+=lookup_stubs.go
+ endif
++endif
++
++GOFILES+=$(GOFILES_$(GOOS))
+ 
+ include ../../../Make.pkg
+diff --git a/src/pkg/os/user/lookup_stubs.go b/src/pkg/os/user/lookup_stubs.go
+index 10f5170a9c..415f869f22 100644
+--- a/src/pkg/os/user/lookup_stubs.go
++++ b/src/pkg/os/user/lookup_stubs.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build !cgo windows
++// +build !cgo,!windows
+ 
+ package user
+ 
+@@ -11,10 +11,18 @@ import (
+ 	"runtime"
+ )
+ 
++func init() {
++	implemented = false
++}
++
++func Current() (*User, error) {
++	return nil, fmt.Errorf("user: Current not implemented on %s/%s", runtime.GOOS, runtime.GOARCH)
++}
++
+ func Lookup(username string) (*User, error) {
+ 	return nil, fmt.Errorf("user: Lookup not implemented on %s/%s", runtime.GOOS, runtime.GOARCH)
+ }
+ 
+-func LookupId(int) (*User, error) {
++func LookupId(string) (*User, error) {
+ 	return nil, fmt.Errorf("user: LookupId not implemented on %s/%s", runtime.GOOS, runtime.GOARCH)
+ }
+diff --git a/src/pkg/os/user/lookup_unix.go b/src/pkg/os/user/lookup_unix.go
+index 21c8346b2f..241957c333 100644
+--- a/src/pkg/os/user/lookup_unix.go
++++ b/src/pkg/os/user/lookup_unix.go
+@@ -10,6 +10,7 @@ package user
+ import (
+ 	"fmt"
+ 	"runtime"
++	"strconv"
+ 	"strings"
+ 	"syscall"
+ 	"unsafe"
+@@ -28,8 +29,9 @@ static int mygetpwuid_r(int uid, struct passwd *pwd,
+ */
+ import "C"
+ 
+-func init() {
+-	implemented = true
++// Current returns the current user. 
++func Current() (*User, error) {
++	return lookup(syscall.Getuid(), "", false)
+ }
+ 
+ // Lookup looks up a user by username. If the user cannot be found,
+@@ -40,8 +42,12 @@ func Lookup(username string) (*User, error) {
+ 
+ // LookupId looks up a user by userid. If the user cannot be found,
+ // the returned error is of type UnknownUserIdError.
+-func LookupId(uid int) (*User, error) {
+-	return lookup(uid, "", false)
++func LookupId(uid string) (*User, error) {
++	i, e := strconv.Atoi(uid)
++	if e != nil {
++		return nil, e
++	}
++	return lookup(i, "", false)
+ }
+ 
+ func lookup(uid int, username string, lookupByName bool) (*User, error) {
+@@ -94,8 +100,8 @@ func lookup(uid int, username string, lookupByName bool) (*User, error) {
+ 		}
+ 	}
+ 	u := &User{
+-		Uid:      int(pwd.pw_uid),
+-		Gid:      int(pwd.pw_gid),
++		Uid:      strconv.Itoa(int(pwd.pw_uid)),
++		Gid:      strconv.Itoa(int(pwd.pw_gid)),
+ 		Username: C.GoString(pwd.pw_name),
+ 		Name:     C.GoString(pwd.pw_gecos),
+ 		HomeDir:  C.GoString(pwd.pw_dir),
+diff --git a/src/pkg/os/user/lookup_windows.go b/src/pkg/os/user/lookup_windows.go
+new file mode 100644
+index 0000000000..9936871159
+--- /dev/null
++++ b/src/pkg/os/user/lookup_windows.go
+@@ -0,0 +1,117 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package user
++
++import (
++	"fmt"
++	"syscall"
++	"unsafe"
++)
++
++func lookupFullName(domain, username, domainAndUser string) (string, error) {
++	// try domain controller first
++	name, e := syscall.TranslateAccountName(domainAndUser,
++		syscall.NameSamCompatible, syscall.NameDisplay, 50)
++	if e != nil {
++		// domain lookup failed, perhaps this pc is not part of domain
++		d := syscall.StringToUTF16Ptr(domain)
++		u := syscall.StringToUTF16Ptr(username)
++		var p *byte
++		e := syscall.NetUserGetInfo(d, u, 10, &p)
++		if e != nil {
++			return "", e
++		}
++		defer syscall.NetApiBufferFree(p)
++		i := (*syscall.UserInfo10)(unsafe.Pointer(p))
++		if i.FullName == nil {
++			return "", nil
++		}
++		name = syscall.UTF16ToString((*[1024]uint16)(unsafe.Pointer(i.FullName))[:])
++	}
++	return name, nil
++}
++
++func newUser(usid *syscall.SID, gid, dir string) (*User, error) {
++	username, domain, t, e := usid.LookupAccount("")
++	if e != nil {
++		return nil, e
++	}
++	if t != syscall.SidTypeUser {
++		return nil, fmt.Errorf("user: should be user account type, not %d", t)
++	}
++	domainAndUser := domain + `\` + username
++	uid, e := usid.String()
++	if e != nil {
++		return nil, e
++	}
++	name, e := lookupFullName(domain, username, domainAndUser)
++	if e != nil {
++		return nil, e
++	}
++	u := &User{
++		Uid:      uid,
++		Gid:      gid,
++		Username: domainAndUser,
++		Name:     name,
++		HomeDir:  dir,
++	}
++	return u, nil
++}
++
++// Current returns the current user.
++func Current() (*User, error) {
++	t, e := syscall.OpenCurrentProcessToken()
++	if e != nil {
++		return nil, e
++	}
++	u, e := t.GetTokenUser()
++	if e != nil {
++		return nil, e
++	}
++	pg, e := t.GetTokenPrimaryGroup()
++	if e != nil {
++		return nil, e
++	}
++	gid, e := pg.PrimaryGroup.String()
++	if e != nil {
++		return nil, e
++	}
++	dir, e := t.GetUserProfileDirectory()
++	if e != nil {
++		return nil, e
++	}
++	return newUser(u.User.Sid, gid, dir)
++}
++
++// BUG(brainman): Lookup and LookupId functions do not set
++// Gid and HomeDir fields in the User struct returned on windows.
++
++func newUserFromSid(usid *syscall.SID) (*User, error) {
++	// TODO(brainman): do not know where to get gid and dir fields
++	gid := "unknown"
++	dir := "Unknown directory"
++	return newUser(usid, gid, dir)
++}
++
++// Lookup looks up a user by username.
++func Lookup(username string) (*User, error) {
++	sid, _, t, e := syscall.LookupSID("", username)
++	if e != nil {
++		return nil, e
++	}
++	if t != syscall.SidTypeUser {
++		return nil, fmt.Errorf("user: should be user account type, not %d", t)
++	}
++	return newUserFromSid(sid)
++}
++
++// LookupId looks up a user by userid.
++func LookupId(uid string) (*User, error) {
++	sid, e := syscall.StringToSid(uid)
++	if e != nil {
++		return nil, e
++	}
++	return newUserFromSid(sid)
++}
+diff --git a/src/pkg/os/user/user.go b/src/pkg/os/user/user.go
+index a019537776..841f2263f9 100644
+--- a/src/pkg/os/user/user.go
++++ b/src/pkg/os/user/user.go
+@@ -9,12 +9,16 @@ import (
+ 	"strconv"
+ )
+ 
+-var implemented = false // set to true by lookup_unix.go's init
++var implemented = true // set to false by lookup_stubs.go's init
+ 
+ // User represents a user account.
++//
++// On posix systems Uid and Gid contain a decimal number
++// representing uid and gid. On windows Uid and Gid
++// contain security identifier (SID) in a string format.
+ type User struct {
+-	Uid      int // user id
+-	Gid      int // primary group id
++	Uid      string // user id
++	Gid      string // primary group id
+ 	Username string
+ 	Name     string
+ 	HomeDir  string
+diff --git a/src/pkg/os/user/user_test.go b/src/pkg/os/user/user_test.go
+index f9f44af8a9..b812ebce79 100644
+--- a/src/pkg/os/user/user_test.go
++++ b/src/pkg/os/user/user_test.go
+@@ -6,9 +6,7 @@ package user
+ 
+ import (
+ 	"os"
+-	"reflect"
+ 	"runtime"
+-	"syscall"
+ 	"testing"
+ )
+ 
+@@ -18,7 +16,8 @@ func skip(t *testing.T) bool {
+ 		return true
+ 	}
+ 
+-	if runtime.GOOS == "linux" || runtime.GOOS == "freebsd" || runtime.GOOS == "darwin" {
++	switch runtime.GOOS {
++	case "linux", "freebsd", "darwin", "windows":
+ 		return false
+ 	}
+ 
+@@ -26,36 +25,75 @@ func skip(t *testing.T) bool {
+ 	return true
+ }
+ 
+-func TestLookup(t *testing.T) {
++func TestCurrent(t *testing.T) {
+ 	if skip(t) {
+ 		return
+ 	}
+ 
+-	// Test LookupId on the current user
+-	uid := syscall.Getuid()
+-	u, err := LookupId(uid)
++	u, err := Current()
+ 	if err != nil {
+-		t.Fatalf("LookupId: %v", err)
+-	}
+-	if e, g := uid, u.Uid; e != g {
+-		t.Errorf("expected Uid of %d; got %d", e, g)
++		t.Fatalf("Current: %v", err)
+ 	}
+ 	fi, err := os.Stat(u.HomeDir)
+ 	if err != nil || !fi.IsDir() {
+-		t.Errorf("expected a valid HomeDir; stat(%q): err=%v, IsDir=%v", u.HomeDir, err, fi.IsDir())
++		t.Errorf("expected a valid HomeDir; stat(%q): err=%v", u.HomeDir, err)
+ 	}
+ 	if u.Username == "" {
+ 		t.Fatalf("didn't get a username")
+ 	}
++}
++
++func compare(t *testing.T, want, got *User) {
++	if want.Uid != got.Uid {
++		t.Errorf("got Uid=%q; want %q", got.Uid, want.Uid)
++	}
++	if want.Username != got.Username {
++		t.Errorf("got Username=%q; want %q", got.Username, want.Username)
++	}
++	if want.Name != got.Name {
++		t.Errorf("got Name=%q; want %q", got.Name, want.Name)
++	}
++	// TODO(brainman): fix it once we know how.
++	if runtime.GOOS == "windows" {
++		t.Log("skipping Gid and HomeDir comparisons")
++		return
++	}
++	if want.Gid != got.Gid {
++		t.Errorf("got Gid=%q; want %q", got.Gid, want.Gid)
++	}
++	if want.HomeDir != got.HomeDir {
++		t.Errorf("got HomeDir=%q; want %q", got.HomeDir, want.HomeDir)
++	}
++}
++
++func TestLookup(t *testing.T) {
++	if skip(t) {
++		return
++	}
+ 
+-	// Test Lookup by username, using the username from LookupId
+-	un, err := Lookup(u.Username)
++	want, err := Current()
++	if err != nil {
++		t.Fatalf("Current: %v", err)
++	}
++	got, err := Lookup(want.Username)
+ 	if err != nil {
+ 		t.Fatalf("Lookup: %v", err)
+ 	}
+-	if !reflect.DeepEqual(u, un) {
+-		t.Errorf("Lookup by userid vs. name didn't match\n"+
+-			"LookupId(%d): %#v\n"+
+-			"Lookup(%q): %#v\n", uid, u, u.Username, un)
++	compare(t, want, got)
++}
++
++func TestLookupId(t *testing.T) {
++	if skip(t) {
++		return
++	}
++
++	want, err := Current()
++	if err != nil {
++		t.Fatalf("Current: %v", err)
++	}
++	got, err := LookupId(want.Uid)
++	if err != nil {
++		t.Fatalf("LookupId: %v", err)
+ 	}
++	compare(t, want, got)
+ }
+diff --git a/src/pkg/syscall/Makefile b/src/pkg/syscall/Makefile
+index 68a6cd45ad..8bee987eaa 100644
+--- a/src/pkg/syscall/Makefile
++++ b/src/pkg/syscall/Makefile
+@@ -75,9 +75,10 @@ GOFILES_plan9=\
+ 	exec_plan9.go\
+ 
+ GOFILES_windows=\
++	dll_windows.go\
+ 	env_windows.go\
+ 	exec_windows.go\
+-	dll_windows.go\
++	security_windows.go\
+ 	zerrors_windows.go\
+ 	ztypes_windows.go\
+ 
+diff --git a/src/pkg/syscall/mkall.sh b/src/pkg/syscall/mkall.sh
+index 5a25e2c5d6..4a3e432374 100755
+--- a/src/pkg/syscall/mkall.sh
++++ b/src/pkg/syscall/mkall.sh
+@@ -209,6 +209,9 @@ esac
+ 	darwin | freebsd | netbsd | openbsd)
+ 		syscall_goos="syscall_bsd.go $syscall_goos"
+ 		;;
++	windows)
++		syscall_goos="$syscall_goos security_windows.go"
++		;;
+ 	esac
+ 	if [ -n "$mksysctl" ]; then echo "$mksysctl |gofmt >$zsysctl"; fi
+ 	if [ -n "$mksyscall" ]; then echo "$mksyscall $syscall_goos syscall_$GOOSARCH.go |gofmt >zsyscall_$GOOSARCH.go"; fi
+diff --git a/src/pkg/syscall/security_windows.go b/src/pkg/syscall/security_windows.go
+new file mode 100644
+index 0000000000..bd40fe5867
+--- /dev/null
++++ b/src/pkg/syscall/security_windows.go
+@@ -0,0 +1,359 @@
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package syscall
++
++import (
++	"unsafe"
++)
++
++const (
++	STANDARD_RIGHTS_REQUIRED = 0xf0000
++	STANDARD_RIGHTS_READ     = 0x20000
++	STANDARD_RIGHTS_WRITE    = 0x20000
++	STANDARD_RIGHTS_EXECUTE  = 0x20000
++	STANDARD_RIGHTS_ALL      = 0x1F0000
++)
++
++const (
++	NameUnknown          = 0
++	NameFullyQualifiedDN = 1
++	NameSamCompatible    = 2
++	NameDisplay          = 3
++	NameUniqueId         = 6
++	NameCanonical        = 7
++	NameUserPrincipal    = 8
++	NameCanonicalEx      = 9
++	NameServicePrincipal = 10
++	NameDnsDomain        = 12
++)
++
++// This function returns 1 byte BOOLEAN rather than the 4 byte BOOL.
++// http://blogs.msdn.com/b/drnick/archive/2007/12/19/windows-and-upn-format-credentials.aspx
++//sys	TranslateName(accName *uint16, accNameFormat uint32, desiredNameFormat uint32, translatedName *uint16, nSize *uint32) (err error) [failretval&0xff==0] = secur32.TranslateNameW
++//sys	GetUserNameEx(nameFormat uint32, nameBuffre *uint16, nSize *uint32) (err error) [failretval&0xff==0] = secur32.GetUserNameExW
++
++// TranslateAccountName converts a directory service
++// object name from one format to another.
++func TranslateAccountName(username string, from, to uint32, initSize int) (string, error) {
++	u := StringToUTF16Ptr(username)
++	b := make([]uint16, 50)
++	n := uint32(len(b))
++	e := TranslateName(u, from, to, &b[0], &n)
++	if e != nil {
++		if e != ERROR_INSUFFICIENT_BUFFER {
++			return "", e
++		}
++		// make receive buffers of requested size and try again
++		b = make([]uint16, n)
++		e = TranslateName(u, from, to, &b[0], &n)
++		if e != nil {
++			return "", e
++		}
++	}
++	return UTF16ToString(b), nil
++}
++
++type UserInfo10 struct {
++	Name       *uint16
++	Comment    *uint16
++	UsrComment *uint16
++	FullName   *uint16
++}
++
++//sys	NetUserGetInfo(serverName *uint16, userName *uint16, level uint32, buf **byte) (neterr error) = netapi32.NetUserGetInfo
++//sys	NetApiBufferFree(buf *byte) (neterr error) = netapi32.NetApiBufferFree
++
++const (
++	// do not reorder
++	SidTypeUser = 1 << iota
++	SidTypeGroup
++	SidTypeDomain
++	SidTypeAlias
++	SidTypeWellKnownGroup
++	SidTypeDeletedAccount
++	SidTypeInvalid
++	SidTypeUnknown
++	SidTypeComputer
++	SidTypeLabel
++)
++
++//sys	LookupAccountSid(systemName *uint16, sid *SID, name *uint16, nameLen *uint32, refdDomainName *uint16, refdDomainNameLen *uint32, use *uint32) (err error) = advapi32.LookupAccountSidW
++//sys	LookupAccountName(systemName *uint16, accountName *uint16, sid *SID, sidLen *uint32, refdDomainName *uint16, refdDomainNameLen *uint32, use *uint32) (err error) = advapi32.LookupAccountNameW
++//sys	ConvertSidToStringSid(sid *SID, stringSid **uint16) (err error) = advapi32.ConvertSidToStringSidW
++//sys	ConvertStringSidToSid(stringSid *uint16, sid **SID) (err error) = advapi32.ConvertStringSidToSidW
++//sys	GetLengthSid(sid *SID) (len uint32) = advapi32.GetLengthSid
++//sys	CopySid(destSidLen uint32, destSid *SID, srcSid *SID) (err error) = advapi32.CopySid
++
++// The security identifier (SID) structure is a variable-length
++// structure used to uniquely identify users or groups.
++type SID struct{}
++
++// StringToSid converts a string-format security identifier
++// sid into a valid, functional sid.
++func StringToSid(s string) (*SID, error) {
++	var sid *SID
++	e := ConvertStringSidToSid(StringToUTF16Ptr(s), &sid)
++	if e != nil {
++		return nil, e
++	}
++	defer LocalFree((Handle)(unsafe.Pointer(sid)))
++	return sid.Copy()
++}
++
++// LookupSID retrieves a security identifier sid for the account
++// and the name of the domain on which the account was found.
++// System specify target computer to search.
++func LookupSID(system, account string) (sid *SID, domain string, accType uint32, err error) {
++	if len(account) == 0 {
++		return nil, "", 0, EINVAL
++	}
++	acc := StringToUTF16Ptr(account)
++	var sys *uint16
++	if len(system) > 0 {
++		sys = StringToUTF16Ptr(system)
++	}
++	db := make([]uint16, 50)
++	dn := uint32(len(db))
++	b := make([]byte, 50)
++	n := uint32(len(b))
++	sid = (*SID)(unsafe.Pointer(&b[0]))
++	e := LookupAccountName(sys, acc, sid, &n, &db[0], &dn, &accType)
++	if e != nil {
++		if e != ERROR_INSUFFICIENT_BUFFER {
++			return nil, "", 0, e
++		}
++		// make receive buffers of requested size and try again
++		b = make([]byte, n)
++		sid = (*SID)(unsafe.Pointer(&b[0]))
++		db = make([]uint16, dn)
++		e = LookupAccountName(sys, acc, sid, &n, &db[0], &dn, &accType)
++		if e != nil {
++			return nil, "", 0, e
++		}
++	}
++	return sid, UTF16ToString(db), accType, nil
++}
++
++// String converts sid to a string format
++// suitable for display, storage, or transmission.
++func (sid *SID) String() (string, error) {
++	var s *uint16
++	e := ConvertSidToStringSid(sid, &s)
++	if e != nil {
++		return "", e
++	}
++	defer LocalFree((Handle)(unsafe.Pointer(s)))
++	return UTF16ToString((*[256]uint16)(unsafe.Pointer(s))[:]), nil
++}
++
++// Len returns the length, in bytes, of a valid security identifier sid.
++func (sid *SID) Len() int {
++	return int(GetLengthSid(sid))
++}
++
++// Copy creates a duplicate of security identifier sid.
++func (sid *SID) Copy() (*SID, error) {
++	b := make([]byte, sid.Len())
++	sid2 := (*SID)(unsafe.Pointer(&b[0]))
++	e := CopySid(uint32(len(b)), sid2, sid)
++	if e != nil {
++		return nil, e
++	}
++	return sid2, nil
++}
++
++// LookupAccount retrieves the name of the account for this sid
++// and the name of the first domain on which this sid is found.
++// System specify target computer to search for.
++func (sid *SID) LookupAccount(system string) (account, domain string, accType uint32, err error) {
++	var sys *uint16
++	if len(system) > 0 {
++		sys = StringToUTF16Ptr(system)
++	}
++	b := make([]uint16, 50)
++	n := uint32(len(b))
++	db := make([]uint16, 50)
++	dn := uint32(len(db))
++	e := LookupAccountSid(sys, sid, &b[0], &n, &db[0], &dn, &accType)
++	if e != nil {
++		if e != ERROR_INSUFFICIENT_BUFFER {
++			return "", "", 0, e
++		}
++		// make receive buffers of requested size and try again
++		b = make([]uint16, n)
++		db = make([]uint16, dn)
++		e = LookupAccountSid(nil, sid, &b[0], &n, &db[0], &dn, &accType)
++		if e != nil {
++			return "", "", 0, e
++		}
++	}
++	return UTF16ToString(b), UTF16ToString(db), accType, nil
++}
++
++const (
++	// do not reorder
++	TOKEN_ASSIGN_PRIMARY = 1 << iota
++	TOKEN_DUPLICATE
++	TOKEN_IMPERSONATE
++	TOKEN_QUERY
++	TOKEN_QUERY_SOURCE
++	TOKEN_ADJUST_PRIVILEGES
++	TOKEN_ADJUST_GROUPS
++	TOKEN_ADJUST_DEFAULT
++
++	TOKEN_ALL_ACCESS = STANDARD_RIGHTS_REQUIRED |
++		TOKEN_ASSIGN_PRIMARY |
++		TOKEN_DUPLICATE |
++		TOKEN_IMPERSONATE |
++		TOKEN_QUERY |
++		TOKEN_QUERY_SOURCE |
++		TOKEN_ADJUST_PRIVILEGES |
++		TOKEN_ADJUST_GROUPS |
++		TOKEN_ADJUST_DEFAULT
++	TOKEN_READ  = STANDARD_RIGHTS_READ | TOKEN_QUERY
++	TOKEN_WRITE = STANDARD_RIGHTS_WRITE |
++		TOKEN_ADJUST_PRIVILEGES |
++		TOKEN_ADJUST_GROUPS |
++		TOKEN_ADJUST_DEFAULT
++	TOKEN_EXECUTE = STANDARD_RIGHTS_EXECUTE
++)
++
++const (
++	// do not reorder
++	TokenUser = 1 + iota
++	TokenGroups
++	TokenPrivileges
++	TokenOwner
++	TokenPrimaryGroup
++	TokenDefaultDacl
++	TokenSource
++	TokenType
++	TokenImpersonationLevel
++	TokenStatistics
++	TokenRestrictedSids
++	TokenSessionId
++	TokenGroupsAndPrivileges
++	TokenSessionReference
++	TokenSandBoxInert
++	TokenAuditPolicy
++	TokenOrigin
++	TokenElevationType
++	TokenLinkedToken
++	TokenElevation
++	TokenHasRestrictions
++	TokenAccessInformation
++	TokenVirtualizationAllowed
++	TokenVirtualizationEnabled
++	TokenIntegrityLevel
++	TokenUIAccess
++	TokenMandatoryPolicy
++	TokenLogonSid
++	MaxTokenInfoClass
++)
++
++type SIDAndAttributes struct {
++	Sid        *SID
++	Attributes uint32
++}
++
++type Tokenuser struct {
++	User SIDAndAttributes
++}
++
++type Tokenprimarygroup struct {
++	PrimaryGroup *SID
++}
++
++//sys	OpenProcessToken(h Handle, access uint32, token *Token) (err error) = advapi32.OpenProcessToken
++//sys	GetTokenInformation(t Token, infoClass uint32, info *byte, infoLen uint32, returnedLen *uint32) (err error) = advapi32.GetTokenInformation
++//sys	GetUserProfileDirectory(t Token, dir *uint16, dirLen *uint32) (err error) = userenv.GetUserProfileDirectoryW
++
++// An access token contains the security information for a logon session.
++// The system creates an access token when a user logs on, and every
++// process executed on behalf of the user has a copy of the token.
++// The token identifies the user, the user's groups, and the user's
++// privileges. The system uses the token to control access to securable
++// objects and to control the ability of the user to perform various
++// system-related operations on the local computer.
++type Token Handle
++
++// OpenCurrentProcessToken opens the access token
++// associated with current process.
++func OpenCurrentProcessToken() (Token, error) {
++	p, e := GetCurrentProcess()
++	if e != nil {
++		return 0, e
++	}
++	var t Token
++	e = OpenProcessToken(p, TOKEN_QUERY, &t)
++	if e != nil {
++		return 0, e
++	}
++	return t, nil
++}
++
++// Close releases access to access token.
++func (t Token) Close() error {
++	return CloseHandle(Handle(t))
++}
++
++// getInfo retrieves a specified type of information about an access token.
++func (t Token) getInfo(class uint32, initSize int) (unsafe.Pointer, error) {
++	b := make([]byte, initSize)
++	var n uint32
++	e := GetTokenInformation(t, class, &b[0], uint32(len(b)), &n)
++	if e != nil {
++		if e != ERROR_INSUFFICIENT_BUFFER {
++			return nil, e
++		}
++		// make receive buffers of requested size and try again
++		b = make([]byte, n)
++		e = GetTokenInformation(t, class, &b[0], uint32(len(b)), &n)
++		if e != nil {
++			return nil, e
++		}
++	}
++	return unsafe.Pointer(&b[0]), nil
++}
++
++// GetTokenUser retrieves access token t user account information.
++func (t Token) GetTokenUser() (*Tokenuser, error) {
++	i, e := t.getInfo(TokenUser, 50)
++	if e != nil {
++		return nil, e
++	}
++	return (*Tokenuser)(i), nil
++}
++
++// GetTokenPrimaryGroup retrieves access token t primary group information.
++// A pointer to a SID structure representing a group that will become
++// the primary group of any objects created by a process using this access token.
++func (t Token) GetTokenPrimaryGroup() (*Tokenprimarygroup, error) {
++	i, e := t.getInfo(TokenPrimaryGroup, 50)
++	if e != nil {
++		return nil, e
++	}
++	return (*Tokenprimarygroup)(i), nil
++}
++
++// GetUserProfileDirectory retrieves path to the
++// root directory of the access token t user's profile.
++func (t Token) GetUserProfileDirectory() (string, error) {
++	b := make([]uint16, 100)
++	n := uint32(len(b))
++	e := GetUserProfileDirectory(t, &b[0], &n)
++	if e != nil {
++		if e != ERROR_INSUFFICIENT_BUFFER {
++			return "", e
++		}
++		// make receive buffers of requested size and try again
++		b = make([]uint16, n)
++		e = GetUserProfileDirectory(t, &b[0], &n)
++		if e != nil {
++			return "", e
++		}
++	}
++	return UTF16ToString(b), nil
++}
+diff --git a/src/pkg/syscall/zsyscall_windows_386.go b/src/pkg/syscall/zsyscall_windows_386.go
+index 5550975c04..0209463e51 100644
+--- a/src/pkg/syscall/zsyscall_windows_386.go
++++ b/src/pkg/syscall/zsyscall_windows_386.go
+@@ -1,4 +1,4 @@
+-// mksyscall_windows.pl -l32 syscall_windows.go syscall_windows_386.go
++// mksyscall_windows.pl -l32 syscall_windows.go security_windows.go syscall_windows_386.go
+ // MACHINE GENERATED BY THE COMMAND ABOVE; DO NOT EDIT
+ 
+ package syscall
+@@ -14,6 +14,9 @@ var (
+ 	modws2_32   = NewLazyDLL("ws2_32.dll")
+ 	moddnsapi   = NewLazyDLL("dnsapi.dll")
+ 	modiphlpapi = NewLazyDLL("iphlpapi.dll")
++	modsecur32  = NewLazyDLL("secur32.dll")
++	modnetapi32 = NewLazyDLL("netapi32.dll")
++	moduserenv  = NewLazyDLL("userenv.dll")
+ 
+ 	procGetLastError                = modkernel32.NewProc("GetLastError")
+ 	procLoadLibraryW                = modkernel32.NewProc("LoadLibraryW")
+@@ -116,6 +119,19 @@ var (
+ 	procDnsRecordListFree           = moddnsapi.NewProc("DnsRecordListFree")
+ 	procGetIfEntry                  = modiphlpapi.NewProc("GetIfEntry")
+ 	procGetAdaptersInfo             = modiphlpapi.NewProc("GetAdaptersInfo")
++	procTranslateNameW              = modsecur32.NewProc("TranslateNameW")
++	procGetUserNameExW              = modsecur32.NewProc("GetUserNameExW")
++	procNetUserGetInfo              = modnetapi32.NewProc("NetUserGetInfo")
++	procNetApiBufferFree            = modnetapi32.NewProc("NetApiBufferFree")
++	procLookupAccountSidW           = modadvapi32.NewProc("LookupAccountSidW")
++	procLookupAccountNameW          = modadvapi32.NewProc("LookupAccountNameW")
++	procConvertSidToStringSidW      = modadvapi32.NewProc("ConvertSidToStringSidW")
++	procConvertStringSidToSidW      = modadvapi32.NewProc("ConvertStringSidToSidW")
++	procGetLengthSid                = modadvapi32.NewProc("GetLengthSid")
++	procCopySid                     = modadvapi32.NewProc("CopySid")
++	procOpenProcessToken            = modadvapi32.NewProc("OpenProcessToken")
++	procGetTokenInformation         = modadvapi32.NewProc("GetTokenInformation")
++	procGetUserProfileDirectoryW    = moduserenv.NewProc("GetUserProfileDirectoryW")
+ )
+ 
+ func GetLastError() (lasterr error) {
+@@ -1315,3 +1331,145 @@ func GetAdaptersInfo(ai *IpAdapterInfo, ol *uint32) (errcode error) {
+ 	}
+ 	return
+ }
++
++func TranslateName(accName *uint16, accNameFormat uint32, desiredNameFormat uint32, translatedName *uint16, nSize *uint32) (err error) {
++	r1, _, e1 := Syscall6(procTranslateNameW.Addr(), 5, uintptr(unsafe.Pointer(accName)), uintptr(accNameFormat), uintptr(desiredNameFormat), uintptr(unsafe.Pointer(translatedName)), uintptr(unsafe.Pointer(nSize)), 0)
++	if int(r1)&0xff == 0 {
++		if e1 != 0 {
++			err = error(e1)
++		} else {
++			err = EINVAL
++		}
++	}
++	return
++}
++
++func GetUserNameEx(nameFormat uint32, nameBuffre *uint16, nSize *uint32) (err error) {
++	r1, _, e1 := Syscall(procGetUserNameExW.Addr(), 3, uintptr(nameFormat), uintptr(unsafe.Pointer(nameBuffre)), uintptr(unsafe.Pointer(nSize)))
++	if int(r1)&0xff == 0 {
++		if e1 != 0 {
++			err = error(e1)
++		} else {
++			err = EINVAL
++		}
++	}
++	return
++}
++
++func NetUserGetInfo(serverName *uint16, userName *uint16, level uint32, buf **byte) (neterr error) {
++	r0, _, _ := Syscall6(procNetUserGetInfo.Addr(), 4, uintptr(unsafe.Pointer(serverName)), uintptr(unsafe.Pointer(userName)), uintptr(level), uintptr(unsafe.Pointer(buf)), 0, 0)
++	if r0 != 0 {
++		neterr = Errno(r0)
++	}
++	return
++}
++
++func NetApiBufferFree(buf *byte) (neterr error) {
++	r0, _, _ := Syscall(procNetApiBufferFree.Addr(), 1, uintptr(unsafe.Pointer(buf)), 0, 0)
++	if r0 != 0 {
++		neterr = Errno(r0)
++	}
++	return
++}
++
++func LookupAccountSid(systemName *uint16, sid *SID, name *uint16, nameLen *uint32, refdDomainName *uint16, refdDomainNameLen *uint32, use *uint32) (err error) {
++	r1, _, e1 := Syscall9(procLookupAccountSidW.Addr(), 7, uintptr(unsafe.Pointer(systemName)), uintptr(unsafe.Pointer(sid)), uintptr(unsafe.Pointer(name)), uintptr(unsafe.Pointer(nameLen)), uintptr(unsafe.Pointer(refdDomainName)), uintptr(unsafe.Pointer(refdDomainNameLen)), uintptr(unsafe.Pointer(use)), 0, 0)
++	if int(r1) == 0 {
++		if e1 != 0 {
++			err = error(e1)
++		} else {
++			err = EINVAL
++		}
++	}
++	return
++}
++
++func LookupAccountName(systemName *uint16, accountName *uint16, sid *SID, sidLen *uint32, refdDomainName *uint16, refdDomainNameLen *uint32, use *uint32) (err error) {
++	r1, _, e1 := Syscall9(procLookupAccountNameW.Addr(), 7, uintptr(unsafe.Pointer(systemName)), uintptr(unsafe.Pointer(accountName)), uintptr(unsafe.Pointer(sid)), uintptr(unsafe.Pointer(sidLen)), uintptr(unsafe.Pointer(refdDomainName)), uintptr(unsafe.Pointer(refdDomainNameLen)), uintptr(unsafe.Pointer(use)), 0, 0)
++	if int(r1) == 0 {
++		if e1 != 0 {
++			err = error(e1)
++		} else {
++			err = EINVAL
++		}
++	}
++	return
++}
++
++func ConvertSidToStringSid(sid *SID, stringSid **uint16) (err error) {
++	r1, _, e1 := Syscall(procConvertSidToStringSidW.Addr(), 2, uintptr(unsafe.Pointer(sid)), uintptr(unsafe.Pointer(stringSid)), 0)
++	if int(r1) == 0 {
++		if e1 != 0 {
++			err = error(e1)
++		} else {
++			err = EINVAL
++		}
++	}
++	return
++}
++
++func ConvertStringSidToSid(stringSid *uint16, sid **SID) (err error) {
++	r1, _, e1 := Syscall(procConvertStringSidToSidW.Addr(), 2, uintptr(unsafe.Pointer(stringSid)), uintptr(unsafe.Pointer(sid)), 0)
++	if int(r1) == 0 {
++		if e1 != 0 {
++			err = error(e1)
++		} else {
++			err = EINVAL
++		}
++	}
++	return
++}
++
++func GetLengthSid(sid *SID) (len uint32) {
++	r0, _, _ := Syscall(procGetLengthSid.Addr(), 1, uintptr(unsafe.Pointer(sid)), 0, 0)
++	len = uint32(r0)
++	return
++}
++
++func CopySid(destSidLen uint32, destSid *SID, srcSid *SID) (err error) {
++	r1, _, e1 := Syscall(procCopySid.Addr(), 3, uintptr(destSidLen), uintptr(unsafe.Pointer(destSid)), uintptr(unsafe.Pointer(srcSid)))
++	if int(r1) == 0 {
++		if e1 != 0 {
++			err = error(e1)
++		} else {
++			err = EINVAL
++		}
++	}
++	return
++}
++
++func OpenProcessToken(h Handle, access uint32, token *Token) (err error) {
++	r1, _, e1 := Syscall(procOpenProcessToken.Addr(), 3, uintptr(h), uintptr(access), uintptr(unsafe.Pointer(token)))
++	if int(r1) == 0 {
++		if e1 != 0 {
++			err = error(e1)
++		} else {
++			err = EINVAL
++		}
++	}
++	return
++}
++
++func GetTokenInformation(t Token, infoClass uint32, info *byte, infoLen uint32, returnedLen *uint32) (err error) {
++	r1, _, e1 := Syscall6(procGetTokenInformation.Addr(), 5, uintptr(t), uintptr(infoClass), uintptr(unsafe.Pointer(info)), uintptr(infoLen), uintptr(unsafe.Pointer(returnedLen)), 0)
++	if int(r1) == 0 {
++		if e1 != 0 {
++			err = error(e1)
++		} else {
++			err = EINVAL
++		}
++	}
++	return
++}
++
++func GetUserProfileDirectory(t Token, dir *uint16, dirLen *uint32) (err error) {
++	r1, _, e1 := Syscall(procGetUserProfileDirectoryW.Addr(), 3, uintptr(t), uintptr(unsafe.Pointer(dir)), uintptr(unsafe.Pointer(dirLen)))
++	if int(r1) == 0 {
++		if e1 != 0 {
++			err = error(e1)
++		} else {
++			err = EINVAL
++		}
++	}
++	return
++}
+diff --git a/src/pkg/syscall/zsyscall_windows_amd64.go b/src/pkg/syscall/zsyscall_windows_amd64.go
+index df1c4f0a81..95b8b36be2 100644
+--- a/src/pkg/syscall/zsyscall_windows_amd64.go
++++ b/src/pkg/syscall/zsyscall_windows_amd64.go
+@@ -1,4 +1,4 @@
+-// mksyscall_windows.pl syscall_windows.go syscall_windows_amd64.go
++// mksyscall_windows.pl syscall_windows.go security_windows.go syscall_windows_amd64.go
+ // MACHINE GENERATED BY THE COMMAND ABOVE; DO NOT EDIT
+ 
+ package syscall
+@@ -14,6 +14,9 @@ var (
+ 	modws2_32   = NewLazyDLL("ws2_32.dll")
+ 	moddnsapi   = NewLazyDLL("dnsapi.dll")
+ 	modiphlpapi = NewLazyDLL("iphlpapi.dll")
++	modsecur32  = NewLazyDLL("secur32.dll")
++	modnetapi32 = NewLazyDLL("netapi32.dll")
++	moduserenv  = NewLazyDLL("userenv.dll")
+ 
+ 	procGetLastError                = modkernel32.NewProc("GetLastError")
+ 	procLoadLibraryW                = modkernel32.NewProc("LoadLibraryW")
+@@ -116,6 +119,19 @@ var (
+ 	procDnsRecordListFree           = moddnsapi.NewProc("DnsRecordListFree")
+ 	procGetIfEntry                  = modiphlpapi.NewProc("GetIfEntry")
+ 	procGetAdaptersInfo             = modiphlpapi.NewProc("GetAdaptersInfo")
++	procTranslateNameW              = modsecur32.NewProc("TranslateNameW")
++	procGetUserNameExW              = modsecur32.NewProc("GetUserNameExW")
++	procNetUserGetInfo              = modnetapi32.NewProc("NetUserGetInfo")
++	procNetApiBufferFree            = modnetapi32.NewProc("NetApiBufferFree")
++	procLookupAccountSidW           = modadvapi32.NewProc("LookupAccountSidW")
++	procLookupAccountNameW          = modadvapi32.NewProc("LookupAccountNameW")
++	procConvertSidToStringSidW      = modadvapi32.NewProc("ConvertSidToStringSidW")
++	procConvertStringSidToSidW      = modadvapi32.NewProc("ConvertStringSidToSidW")
++	procGetLengthSid                = modadvapi32.NewProc("GetLengthSid")
++	procCopySid                     = modadvapi32.NewProc("CopySid")
++	procOpenProcessToken            = modadvapi32.NewProc("OpenProcessToken")
++	procGetTokenInformation         = modadvapi32.NewProc("GetTokenInformation")
++	procGetUserProfileDirectoryW    = moduserenv.NewProc("GetUserProfileDirectoryW")
+ )
+ 
+ func GetLastError() (lasterr error) {
+@@ -1315,3 +1331,145 @@ func GetAdaptersInfo(ai *IpAdapterInfo, ol *uint32) (errcode error) {
+ 	}
+ 	return
+ }
++
++func TranslateName(accName *uint16, accNameFormat uint32, desiredNameFormat uint32, translatedName *uint16, nSize *uint32) (err error) {
++	r1, _, e1 := Syscall6(procTranslateNameW.Addr(), 5, uintptr(unsafe.Pointer(accName)), uintptr(accNameFormat), uintptr(desiredNameFormat), uintptr(unsafe.Pointer(translatedName)), uintptr(unsafe.Pointer(nSize)), 0)
++	if int(r1)&0xff == 0 {
++		if e1 != 0 {
++			err = error(e1)
++		} else {
++			err = EINVAL
++		}
++	}
++	return
++}
++
++func GetUserNameEx(nameFormat uint32, nameBuffre *uint16, nSize *uint32) (err error) {
++	r1, _, e1 := Syscall(procGetUserNameExW.Addr(), 3, uintptr(nameFormat), uintptr(unsafe.Pointer(nameBuffre)), uintptr(unsafe.Pointer(nSize)))
++	if int(r1)&0xff == 0 {
++		if e1 != 0 {
++			err = error(e1)
++		} else {
++			err = EINVAL
++		}
++	}
++	return
++}
++
++func NetUserGetInfo(serverName *uint16, userName *uint16, level uint32, buf **byte) (neterr error) {
++	r0, _, _ := Syscall6(procNetUserGetInfo.Addr(), 4, uintptr(unsafe.Pointer(serverName)), uintptr(unsafe.Pointer(userName)), uintptr(level), uintptr(unsafe.Pointer(buf)), 0, 0)
++	if r0 != 0 {
++		neterr = Errno(r0)
++	}
++	return
++}
++
++func NetApiBufferFree(buf *byte) (neterr error) {
++	r0, _, _ := Syscall(procNetApiBufferFree.Addr(), 1, uintptr(unsafe.Pointer(buf)), 0, 0)
++	if r0 != 0 {
++		neterr = Errno(r0)
++	}
++	return
++}
++
++func LookupAccountSid(systemName *uint16, sid *SID, name *uint16, nameLen *uint32, refdDomainName *uint16, refdDomainNameLen *uint32, use *uint32) (err error) {
++	r1, _, e1 := Syscall9(procLookupAccountSidW.Addr(), 7, uintptr(unsafe.Pointer(systemName)), uintptr(unsafe.Pointer(sid)), uintptr(unsafe.Pointer(name)), uintptr(unsafe.Pointer(nameLen)), uintptr(unsafe.Pointer(refdDomainName)), uintptr(unsafe.Pointer(refdDomainNameLen)), uintptr(unsafe.Pointer(use)), 0, 0)
++	if int(r1) == 0 {
++		if e1 != 0 {
++			err = error(e1)
++		} else {
++			err = EINVAL
++		}
++	}
++	return
++}
++
++func LookupAccountName(systemName *uint16, accountName *uint16, sid *SID, sidLen *uint32, refdDomainName *uint16, refdDomainNameLen *uint32, use *uint32) (err error) {
++	r1, _, e1 := Syscall9(procLookupAccountNameW.Addr(), 7, uintptr(unsafe.Pointer(systemName)), uintptr(unsafe.Pointer(accountName)), uintptr(unsafe.Pointer(sid)), uintptr(unsafe.Pointer(sidLen)), uintptr(unsafe.Pointer(refdDomainName)), uintptr(unsafe.Pointer(refdDomainNameLen)), uintptr(unsafe.Pointer(use)), 0, 0)
++	if int(r1) == 0 {
++		if e1 != 0 {
++			err = error(e1)
++		} else {
++			err = EINVAL
++		}
++	}
++	return
++}
++
++func ConvertSidToStringSid(sid *SID, stringSid **uint16) (err error) {
++	r1, _, e1 := Syscall(procConvertSidToStringSidW.Addr(), 2, uintptr(unsafe.Pointer(sid)), uintptr(unsafe.Pointer(stringSid)), 0)
++	if int(r1) == 0 {
++		if e1 != 0 {
++			err = error(e1)
++		} else {
++			err = EINVAL
++		}
++	}
++	return
++}
++
++func ConvertStringSidToSid(stringSid *uint16, sid **SID) (err error) {
++	r1, _, e1 := Syscall(procConvertStringSidToSidW.Addr(), 2, uintptr(unsafe.Pointer(stringSid)), uintptr(unsafe.Pointer(sid)), 0)
++	if int(r1) == 0 {
++		if e1 != 0 {
++			err = error(e1)
++		} else {
++			err = EINVAL
++		}
++	}
++	return
++}
++
++func GetLengthSid(sid *SID) (len uint32) {
++	r0, _, _ := Syscall(procGetLengthSid.Addr(), 1, uintptr(unsafe.Pointer(sid)), 0, 0)
++	len = uint32(r0)
++	return
++}
++
++func CopySid(destSidLen uint32, destSid *SID, srcSid *SID) (err error) {
++	r1, _, e1 := Syscall(procCopySid.Addr(), 3, uintptr(destSidLen), uintptr(unsafe.Pointer(destSid)), uintptr(unsafe.Pointer(srcSid)))
++	if int(r1) == 0 {
++		if e1 != 0 {
++			err = error(e1)
++		} else {
++			err = EINVAL
++		}
++	}
++	return
++}
++
++func OpenProcessToken(h Handle, access uint32, token *Token) (err error) {
++	r1, _, e1 := Syscall(procOpenProcessToken.Addr(), 3, uintptr(h), uintptr(access), uintptr(unsafe.Pointer(token)))
++	if int(r1) == 0 {
++		if e1 != 0 {
++			err = error(e1)
++		} else {
++			err = EINVAL
++		}
++	}
++	return
++}
++
++func GetTokenInformation(t Token, infoClass uint32, info *byte, infoLen uint32, returnedLen *uint32) (err error) {
++	r1, _, e1 := Syscall6(procGetTokenInformation.Addr(), 5, uintptr(t), uintptr(infoClass), uintptr(unsafe.Pointer(info)), uintptr(infoLen), uintptr(unsafe.Pointer(returnedLen)), 0)
++	if int(r1) == 0 {
++		if e1 != 0 {
++			err = error(e1)
++		} else {
++			err = EINVAL
++		}
++	}
++	return
++}
++
++func GetUserProfileDirectory(t Token, dir *uint16, dirLen *uint32) (err error) {
++	r1, _, e1 := Syscall(procGetUserProfileDirectoryW.Addr(), 3, uintptr(t), uintptr(unsafe.Pointer(dir)), uintptr(unsafe.Pointer(dirLen)))
++	if int(r1) == 0 {
++		if e1 != 0 {
++			err = error(e1)
++		} else {
++			err = EINVAL
++		}
++	}
++	return
++}
+diff --git a/src/pkg/syscall/ztypes_windows.go b/src/pkg/syscall/ztypes_windows.go
+index a4840a8caa..1ebcab70f7 100644
+--- a/src/pkg/syscall/ztypes_windows.go
++++ b/src/pkg/syscall/ztypes_windows.go
+@@ -125,7 +125,6 @@ const (
+ 
+ 	CREATE_UNICODE_ENVIRONMENT = 0x00000400
+ 
+-	STANDARD_RIGHTS_READ      = 0x00020000
+ 	PROCESS_QUERY_INFORMATION = 0x00000400
+ 	SYNCHRONIZE               = 0x00100000
+ 
+@@ -143,6 +142,7 @@ const (
+ )
+ 
+ const (
++	// do not reorder
+ 	FILE_NOTIFY_CHANGE_FILE_NAME = 1 << iota
+ 	FILE_NOTIFY_CHANGE_DIR_NAME
+ 	FILE_NOTIFY_CHANGE_ATTRIBUTES
+@@ -153,6 +153,7 @@ const (
+ )
+ 
+ const (
++	// do not reorder
+ 	FILE_ACTION_ADDED = iota + 1
+ 	FILE_ACTION_REMOVED
+ 	FILE_ACTION_MODIFIED
+@@ -674,6 +675,7 @@ type CertContext struct {
+ }
+ 
+ const (
++	// do not reorder
+ 	HKEY_CLASSES_ROOT = 0x80000000 + iota
+ 	HKEY_CURRENT_USER
+ 	HKEY_LOCAL_MACHINE
+@@ -697,6 +699,7 @@ const (
+ )
+ 
+ const (
++	// do not reorder
+ 	REG_NONE = iota
+ 	REG_SZ
+ 	REG_EXPAND_SZ

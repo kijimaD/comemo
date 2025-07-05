@@ -22,6 +22,38 @@ Date:   Fri Aug 3 14:56:55 2018 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/mgcmark.go | 13 +++++++++++++
  1 file changed, 13 insertions(+)
+
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index f713841cfa..bf69172f6a 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -882,6 +882,13 @@ func gcDrain(gcw *gcWork, flags gcDrainFlags) {
+ 			b = gcw.tryGetFast()
+ 			if b == 0 {
+ 				b = gcw.tryGet()
++				if b == 0 {
++					// Flush the write barrier
++					// buffer; this may create
++					// more work.
++					wbBufFlush(nil, 0)
++					b = gcw.tryGet()
++				}
+ 			}
+ 		}
+ 		if b == 0 {
+@@ -963,6 +970,12 @@ func gcDrainN(gcw *gcWork, scanWork int64) int64 {
+ 		b := gcw.tryGetFast()
+ 		if b == 0 {
+ 			b = gcw.tryGet()
++			if b == 0 {
++				// Flush the write barrier buffer;
++				// this may create more work.
++				wbBufFlush(nil, 0)
++				b = gcw.tryGet()
++			}
+ 		}
+ 
+ 		if b == 0 {

@@ -5,9 +5,139 @@ Date:   Wed Jul 16 18:31:01 2008 -0700
     parameter in fn literals
     
     SVN=127695
-
+---
  src/cmd/6g/gen.c  |  4 +++-
  src/cmd/gc/dcl.c  | 30 +++++++++++++++---------------
  src/cmd/gc/go.h   |  3 ++-
  src/cmd/gc/walk.c |  2 --
  4 files changed, 20 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/6g/gen.c b/src/cmd/6g/gen.c
+index 3a6735cd62..764f35ee3d 100644
+--- a/src/cmd/6g/gen.c
++++ b/src/cmd/6g/gen.c
+@@ -102,7 +102,7 @@ allocparams(void)
+ 	 * parameters, is the offset in the
+ 	 * parameter list.
+ 	 */
+-	d = paramdcl->forw;;
++	d = curfn->type->param->forw;
+ 	t = funcfirst(&list, curfn->type);
+ 	while(t != T) {
+ 		if(d == D)
+@@ -117,6 +117,7 @@ allocparams(void)
+ 		if(n->class != PPARAM)
+ 			fatal("allocparams: this & in class %N %d", n, n->class);
+ 
++//print("assign %S %ld\n", n->sym, t->width);
+ 		n->xoffset = t->width;
+ 		d = d->forw;
+ 		t = funcnext(&list);
+@@ -127,6 +128,7 @@ allocparams(void)
+ 		if(t->nname != N && t->nname->sym->name[0] != '_') {
+ 			if(d == D)
+ 				fatal("allocparams: out nil");
++
+ 			if(d->op != ONAME) {
+ 				d = d->forw;
+ 				continue;
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index e37e953796..b3c74d7dd8 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -364,39 +364,39 @@ funchdr(Node *n)
+ }
+ 
+ void
+-funcargs(Type *t)
++funcargs(Type *ft)
+ {
+-	Type *n1;
++	Type *t;
+ 	Iter save;
+ 	int all;
+ 
+-	paramdcl = autodcl->back;	// base of arguments - see allocparams in gen.c
++	ft->param = autodcl->back;	// base of arguments - see allocparams in gen.c
+ 
+ 	// declare the this/in arguments
+-	n1 = funcfirst(&save, t);
+-	while(n1 != T) {
+-		if(n1->nname != N)
+-			addvar(n1->nname, n1->type, PPARAM);
+-		n1 = funcnext(&save);
++	t = funcfirst(&save, ft);
++	while(t != T) {
++		if(t->nname != N)
++			addvar(t->nname, t->type, PPARAM);
++		t = funcnext(&save);
+ 	}
+ 
+ 	// declare the outgoing arguments
+ 	all = 0;
+-	n1 = structfirst(&save, getoutarg(t));
+-	while(n1 != T) {
+-		if(n1->nname != N && n1->nname->sym->name[0] != '_') {
+-			addvar(n1->nname, n1->type, PPARAM);
++	t = structfirst(&save, getoutarg(ft));
++	while(t != T) {
++		if(t->nname != N && t->nname->sym->name[0] != '_') {
++			addvar(t->nname, t->type, PPARAM);
+ 			all |= 1;
+ 		} else
+ 			all |= 2;
+-		n1 = structnext(&save);
++		t = structnext(&save);
+ 	}
+ 	if(all == 3)
+ 		yyerror("output parameters are all named or not named");
+ 
+-	t->outnamed = 0;
++	ft->outnamed = 0;
+ 	if(all == 1)
+-		t->outnamed = 1;
++		ft->outnamed = 1;
+ }
+ 
+ /*
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index ed1f903e58..bf34727159 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -68,6 +68,7 @@ struct	Val
+ typedef	struct	Sym	Sym;
+ typedef	struct	Node	Node;
+ typedef	struct	Type	Type;
++typedef	struct	Dcl	Dcl;
+ 
+ struct	Type
+ {
+@@ -84,6 +85,7 @@ struct	Type
+ 
+ 	Sym*	sym;
+ 	long	vargen;		// unique name for OTYPE/ONAME
++	Dcl*	param;
+ 
+ 	// most nodes
+ 	Type*	type;
+@@ -173,7 +175,6 @@ struct	Sym
+ };
+ #define	S	((Sym*)0)
+ 
+-typedef	struct	Dcl	Dcl;
+ struct	Dcl
+ {
+ 	uchar	op;
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index ff217fbc9b..28774a5a28 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -1179,8 +1179,6 @@ prcompat(Node *n)
+ 
+ loop:
+ 	if(l == N) {
+-		if(r == N)
+-			return nod(OBAD, N, N);
+ 		walktype(r, Etop);
+ 		return r;
+ 	}

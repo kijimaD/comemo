@@ -9,7 +9,34 @@ Date:   Mon Apr 18 13:31:50 2016 +1000
     Change-Id: I8fea31507a5f83df8a86fb067f1b11d90133dc09
     Reviewed-on: https://go-review.googlesource.com/22180
     Reviewed-by: Chris Broadfoot <cbro@golang.org>
-
+---
  src/cmd/go/alldocs.go | 2 ++
  src/cmd/go/build.go   | 2 ++
  2 files changed, 4 insertions(+)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index ac975c0ab7..090b207db7 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -69,6 +69,8 @@ When compiling multiple packages or a single non-main package,
+ build compiles the packages but discards the resulting object,
+ serving only as a check that the packages can be built.
+ 
++When compiling packages, build ignores files that end in '_test.go'.
++
+ The -o flag, only allowed when compiling a single package,
+ forces build to write the resulting executable or object
+ to the named output file, instead of the default behavior described
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index c0de2e0695..0d01ee1f73 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -48,6 +48,8 @@ When compiling multiple packages or a single non-main package,
+ build compiles the packages but discards the resulting object,
+ serving only as a check that the packages can be built.
+ 
++When compiling packages, build ignores files that end in '_test.go'.
++
+ The -o flag, only allowed when compiling a single package,
+ forces build to write the resulting executable or object
+ to the named output file, instead of the default behavior described

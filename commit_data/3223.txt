@@ -9,7 +9,79 @@ Date:   Fri Sep 4 13:04:11 2009 -0700
     DELTA=45  (43 added, 0 deleted, 2 changed)
     OCL=34381
     CL=34398
-
+---
  test/literal.go           | 13 +++++++++++--
  usr/austin/eval/test.bash | 34 ++++++++++++++++++++++++++++++++++
  2 files changed, 45 insertions(+), 2 deletions(-)
+
+diff --git a/test/literal.go b/test/literal.go
+index 673a53c7df..00b7b73426 100644
+--- a/test/literal.go
++++ b/test/literal.go
+@@ -6,10 +6,15 @@
+ 
+ package main
+ 
++var nbad int
++
+ func assert(cond bool, msg string) {
+ 	if !cond {
+-		print("assertion fail: ", msg, "\n");
+-		panic(1);
++		if nbad == 0 {
++			print("BUG");
++		}
++		nbad++;
++		print(" ", msg);
+ 	}
+ }
+ 
+@@ -210,4 +215,8 @@ func main() {
+ 	assert(sj0 == sj1, "sj1");
+ 	assert(sj0 == sj2, "sj2");
+ 	assert(sj0 == sj3, "sj3");
++
++	if nbad > 0 {
++		println()
++	}
+ }
+diff --git a/usr/austin/eval/test.bash b/usr/austin/eval/test.bash
+new file mode 100755
+index 0000000000..81f4c3dd11
+--- /dev/null
++++ b/usr/austin/eval/test.bash
+@@ -0,0 +1,34 @@
++#!/bin/bash
++# Copyright 2009 The Go Authors.  All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++# Run the interpreter against all the Go test programs
++# that begin with the magic
++#	// $G $D/$F.go && $L $F.$A && ./$A.out
++# line and do not contain imports.
++
++set -e
++make
++6g main.go && 6l main.6
++(
++for i in $(egrep -l '// \$G (\$D/)?\$F\.go \&\& \$L \$F\.\$A && \./\$A\.out' $GOROOT/test/*.go $GOROOT/test/*/*.go)
++do
++	if grep '^import' $i >/dev/null 2>&1
++	then
++		true
++	else
++		if $GOROOT/usr/austin/eval/6.out -f $i >/tmp/out 2>&1 && ! test -s /tmp/out
++		then
++			echo PASS $i
++		else
++			echo FAIL $i
++			(
++				echo '>>> ' $i
++				cat /tmp/out
++				echo
++			) 1>&3
++		fi
++	fi
++done | (tee /dev/fd/2 | awk '{print $1}' | sort | uniq -c) 2>&1
++) 3>test.log

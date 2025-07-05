@@ -11,7 +11,7 @@ Date:   Tue Sep 2 14:33:33 2014 -0700
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/139080043
-
+---
  src/pkg/runtime/alg.go         |  4 ++--
  src/pkg/runtime/asm_386.s      |  2 +-
  src/pkg/runtime/asm_amd64.s    |  2 +-
@@ -23,3 +23,164 @@ Date:   Tue Sep 2 14:33:33 2014 -0700
  src/pkg/runtime/select.go      |  2 +-
  src/pkg/runtime/stubs.go       |  3 ---
  10 files changed, 10 insertions(+), 26 deletions(-)
+
+diff --git a/src/pkg/runtime/alg.go b/src/pkg/runtime/alg.go
+index 01fbc931e5..e9ed59503f 100644
+--- a/src/pkg/runtime/alg.go
++++ b/src/pkg/runtime/alg.go
+@@ -111,7 +111,7 @@ func f32hash(p unsafe.Pointer, s, h uintptr) uintptr {
+ 	case f == 0:
+ 		return c1 * (c0 ^ h) // +0, -0
+ 	case f != f:
+-		return c1 * (c0 ^ h ^ uintptr(fastrand2())) // any kind of NaN
++		return c1 * (c0 ^ h ^ uintptr(fastrand1())) // any kind of NaN
+ 	default:
+ 		return memhash(p, 4, h)
+ 	}
+@@ -123,7 +123,7 @@ func f64hash(p unsafe.Pointer, s, h uintptr) uintptr {
+ 	case f == 0:
+ 		return c1 * (c0 ^ h) // +0, -0
+ 	case f != f:
+-		return c1 * (c0 ^ h ^ uintptr(fastrand2())) // any kind of NaN
++		return c1 * (c0 ^ h ^ uintptr(fastrand1())) // any kind of NaN
+ 	default:
+ 		return memhash(p, 8, h)
+ 	}
+diff --git a/src/pkg/runtime/asm_386.s b/src/pkg/runtime/asm_386.s
+index 35805d63c6..681a1b6819 100644
+--- a/src/pkg/runtime/asm_386.s
++++ b/src/pkg/runtime/asm_386.s
+@@ -2283,7 +2283,7 @@ TEXT runtime·duffcopy(SB), NOSPLIT, $0-0
+ TEXT runtime·timenow(SB), NOSPLIT, $0-0
+ 	JMP	time·now(SB)
+ 
+-TEXT runtime·fastrand2(SB), NOSPLIT, $0-4
++TEXT runtime·fastrand1(SB), NOSPLIT, $0-4
+ 	get_tls(CX)
+ 	MOVL	g(CX), AX
+ 	MOVL	g_m(AX), AX
+diff --git a/src/pkg/runtime/asm_amd64.s b/src/pkg/runtime/asm_amd64.s
+index 07eec9ebb6..0121b7d865 100644
+--- a/src/pkg/runtime/asm_amd64.s
++++ b/src/pkg/runtime/asm_amd64.s
+@@ -2335,7 +2335,7 @@ TEXT runtime·duffcopy(SB), NOSPLIT, $0-0
+ TEXT runtime·timenow(SB), NOSPLIT, $0-0
+ 	JMP	time·now(SB)
+ 
+-TEXT runtime·fastrand2(SB), NOSPLIT, $0-4
++TEXT runtime·fastrand1(SB), NOSPLIT, $0-4
+ 	get_tls(CX)
+ 	MOVQ	g(CX), AX
+ 	MOVQ	g_m(AX), AX
+diff --git a/src/pkg/runtime/asm_amd64p32.s b/src/pkg/runtime/asm_amd64p32.s
+index 76a6dc2300..03cf9bd444 100644
+--- a/src/pkg/runtime/asm_amd64p32.s
++++ b/src/pkg/runtime/asm_amd64p32.s
+@@ -1208,7 +1208,7 @@ eqret:
+ TEXT runtime·timenow(SB), NOSPLIT, $0-0
+ 	JMP	time·now(SB)
+ 
+-TEXT runtime·fastrand2(SB), NOSPLIT, $0-4
++TEXT runtime·fastrand1(SB), NOSPLIT, $0-4
+ 	get_tls(CX)
+ 	MOVL	g(CX), AX
+ 	MOVL	g_m(AX), AX
+diff --git a/src/pkg/runtime/asm_arm.s b/src/pkg/runtime/asm_arm.s
+index 0e87df42b7..87ea974246 100644
+--- a/src/pkg/runtime/asm_arm.s
++++ b/src/pkg/runtime/asm_arm.s
+@@ -1259,7 +1259,7 @@ TEXT runtime·duffcopy(SB), NOSPLIT, $0-0
+ 	MOVW.P	R0, 4(R2)
+ 	RET
+ 
+-TEXT runtime·fastrand2(SB), NOSPLIT, $-4-4
++TEXT runtime·fastrand1(SB), NOSPLIT, $-4-4
+ 	MOVW	g_m(g), R1
+ 	MOVW	m_fastrand(R1), R0
+ 	ADD.S	R0, R0
+diff --git a/src/pkg/runtime/hashmap.go b/src/pkg/runtime/hashmap.go
+index 309e26db96..1bdceab8bb 100644
+--- a/src/pkg/runtime/hashmap.go
++++ b/src/pkg/runtime/hashmap.go
+@@ -219,7 +219,7 @@ func makemap(t *maptype, hint int64) *hmap {
+ 	h.count = 0
+ 	h.B = B
+ 	h.flags = 0
+-	h.hash0 = fastrand2()
++	h.hash0 = fastrand1()
+ 	h.buckets = buckets
+ 	h.oldbuckets = nil
+ 	h.nevacuate = 0
+@@ -568,7 +568,7 @@ func mapiterinit(t *maptype, h *hmap, it *hiter) {
+ 
+ 	// iterator state
+ 	it.bucket = 0
+-	it.offset = uint8(fastrand2() & (bucketCnt - 1))
++	it.offset = uint8(fastrand1() & (bucketCnt - 1))
+ 	it.done = false
+ 	it.bptr = nil
+ 
+diff --git a/src/pkg/runtime/malloc.go b/src/pkg/runtime/malloc.go
+index 5b1825a04c..84587a36d6 100644
+--- a/src/pkg/runtime/malloc.go
++++ b/src/pkg/runtime/malloc.go
+@@ -387,7 +387,7 @@ func profilealloc(mp *m, x unsafe.Pointer, size uintptr) {
+ 		if rate > 0x3fffffff { // make 2*rate not overflow
+ 			rate = 0x3fffffff
+ 		}
+-		next := int32(fastrand2()) % (2 * int32(rate))
++		next := int32(fastrand1()) % (2 * int32(rate))
+ 		// Subtract the "remainder" of the current allocation.
+ 		// Otherwise objects that are close in size to sampling rate
+ 		// will be under-sampled, because we consistently discard this remainder.
+diff --git a/src/pkg/runtime/runtime.c b/src/pkg/runtime/runtime.c
+index 8bef7dc076..d4999e7465 100644
+--- a/src/pkg/runtime/runtime.c
++++ b/src/pkg/runtime/runtime.c
+@@ -265,19 +265,6 @@ runtime·check(void)
+ 		runtime·throw("FixedStack is not power-of-2");
+ }
+ 
+-uint32
+-runtime·fastrand1(void)
+-{
+-	uint32 x;
+-
+-	x = g->m->fastrand;
+-	x += x;
+-	if(x & 0x80000000L)
+-		x ^= 0x88888eefUL;
+-	g->m->fastrand = x;
+-	return x;
+-}
+-
+ static Mutex ticksLock;
+ static int64 ticks;
+ 
+diff --git a/src/pkg/runtime/select.go b/src/pkg/runtime/select.go
+index 31976cd6f8..dbe0543bf7 100644
+--- a/src/pkg/runtime/select.go
++++ b/src/pkg/runtime/select.go
+@@ -226,7 +226,7 @@ func selectgoImpl(sel *_select) (uintptr, uint16) {
+ 	}
+ 	for i := 1; i < int(sel.ncase); i++ {
+ 		o := pollorder[i]
+-		j := int(fastrand2()) % (i + 1)
++		j := int(fastrand1()) % (i + 1)
+ 		pollorder[i] = pollorder[j]
+ 		pollorder[j] = o
+ 	}
+diff --git a/src/pkg/runtime/stubs.go b/src/pkg/runtime/stubs.go
+index 3106a1530e..cdcf4b3670 100644
+--- a/src/pkg/runtime/stubs.go
++++ b/src/pkg/runtime/stubs.go
+@@ -101,9 +101,6 @@ func racemalloc(p unsafe.Pointer, size uintptr)
+ //go:noescape
+ func memmove(to unsafe.Pointer, from unsafe.Pointer, n uintptr)
+ 
+-// in asm_*.s
+-func fastrand2() uint32
+-
+ const (
+ 	concurrentSweep = true
+ )

@@ -12,7 +12,56 @@ Date:   Thu Mar 12 14:35:37 2015 -0400
     Change-Id: I7d2b813d674c3e0a68f79d63bc5d5ec5bd4f87bb
     Reviewed-on: https://go-review.googlesource.com/7503
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/flag/flag.go      |  4 ++--
  src/flag/flag_test.go | 14 +++++++-------
  2 files changed, 9 insertions(+), 9 deletions(-)
+
+diff --git a/src/flag/flag.go b/src/flag/flag.go
+index bdbfa9edb8..92bad794ed 100644
+--- a/src/flag/flag.go
++++ b/src/flag/flag.go
+@@ -441,9 +441,9 @@ func (f *FlagSet) PrintDefaults() {
+ 		if len(s) <= 4 { // space, space, '-', 'x'.
+ 			s += "\t"
+ 		} else {
+-			// Three spaces before the tab triggers good alignment
++			// Four spaces before the tab triggers good alignment
+ 			// for both 4- and 8-space tab stops.
+-			s += "\n   \t"
++			s += "\n    \t"
+ 		}
+ 		s += usage
+ 		if !isZeroValue(flag.DefValue) {
+diff --git a/src/flag/flag_test.go b/src/flag/flag_test.go
+index d5425a8d79..e2319ec94c 100644
+--- a/src/flag/flag_test.go
++++ b/src/flag/flag_test.go
+@@ -380,20 +380,20 @@ func TestHelp(t *testing.T) {
+ 
+ const defaultOutput = `  -A	for bootstrapping, allow 'any' type
+   -Alongflagname
+-   	disable bounds checking
++    	disable bounds checking
+   -C	a boolean defaulting to true (default true)
+   -D path
+-   	set relative path for local imports
++    	set relative path for local imports
+   -F number
+-   	a non-zero number (default 2.7)
++    	a non-zero number (default 2.7)
+   -G float
+-   	a float that defaults to zero
++    	a float that defaults to zero
+   -N int
+-   	a non-zero int (default 27)
++    	a non-zero int (default 27)
+   -Z int
+-   	an int that defaults to zero
++    	an int that defaults to zero
+   -maxT timeout
+-   	set timeout for dial
++    	set timeout for dial
+ `
+ 
+ func TestPrintDefaults(t *testing.T) {

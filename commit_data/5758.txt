@@ -8,7 +8,7 @@ Date:   Thu Jul 1 14:08:14 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1704044
-
+---
  src/cmd/cgo/gcc.go              |  6 ++--
  src/cmd/godoc/godoc.go          |  4 +--
  src/cmd/godoc/index.go          |  2 +-
@@ -34,3 +34,652 @@ Date:   Thu Jul 1 14:08:14 2010 -0700
  src/pkg/template/template.go    |  2 +-
  src/pkg/unicode/maketables.go   |  6 ++--
  24 files changed, 123 insertions(+), 98 deletions(-)
+
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index bd64f0cb4b..5e12a66877 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -27,7 +27,7 @@ func (p *Prog) loadDebugInfo() {
+ 	b.WriteString(p.Preamble)
+ 	stdout := p.gccPostProc(b.Bytes())
+ 	defines := make(map[string]string)
+-	for _, line := range strings.Split(stdout, "\n", 0) {
++	for _, line := range strings.Split(stdout, "\n", -1) {
+ 		if len(line) < 9 || line[0:7] != "#define" {
+ 			continue
+ 		}
+@@ -110,7 +110,7 @@ func (p *Prog) loadDebugInfo() {
+ 	if stderr == "" {
+ 		fatal("gcc produced no output")
+ 	}
+-	for _, line := range strings.Split(stderr, "\n", 0) {
++	for _, line := range strings.Split(stderr, "\n", -1) {
+ 		if len(line) < 9 || line[0:9] != "cgo-test:" {
+ 			continue
+ 		}
+@@ -631,7 +631,7 @@ func (c *typeConv) Type(dtype dwarf.Type) *Type {
+ 			if ss, ok := cnameMap[s]; ok {
+ 				s = ss
+ 			}
+-			s = strings.Join(strings.Split(s, " ", 0), "") // strip spaces
++			s = strings.Join(strings.Split(s, " ", -1), "") // strip spaces
+ 			name := c.Ident("_C_" + s)
+ 			c.typedef[name.Name()] = t.Go
+ 			t.Go = name
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index 2e14b4b733..61c53e2c39 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -338,8 +338,8 @@ func (dir *Directory) lookupLocal(name string) *Directory {
+ 
+ // lookup looks for the *Directory for a given path, relative to dir.
+ func (dir *Directory) lookup(path string) *Directory {
+-	d := strings.Split(dir.Path, "/", 0)
+-	p := strings.Split(path, "/", 0)
++	d := strings.Split(dir.Path, "/", -1)
++	p := strings.Split(path, "/", -1)
+ 	i := 0
+ 	for i < len(d) {
+ 		if i >= len(p) || d[i] != p[i] {
+diff --git a/src/cmd/godoc/index.go b/src/cmd/godoc/index.go
+index 481519c66f..8745b8b0a2 100644
+--- a/src/cmd/godoc/index.go
++++ b/src/cmd/godoc/index.go
+@@ -709,7 +709,7 @@ func isIdentifier(s string) bool {
+ // identifier, Lookup returns a LookupResult, and a list of alternative
+ // spellings, if any. If the query syntax is wrong, illegal is set.
+ func (x *Index) Lookup(query string) (match *LookupResult, alt *AltWords, illegal bool) {
+-	ss := strings.Split(query, ".", 0)
++	ss := strings.Split(query, ".", -1)
+ 
+ 	// check query syntax
+ 	for _, s := range ss {
+diff --git a/src/cmd/godoc/mapping.go b/src/cmd/godoc/mapping.go
+index ed2483d8be..400f97e1f7 100644
+--- a/src/cmd/godoc/mapping.go
++++ b/src/cmd/godoc/mapping.go
+@@ -77,7 +77,7 @@ type mapping struct {
+ func (m *Mapping) Init(paths string) {
+ 	cwd, _ := os.Getwd() // ignore errors
+ 
+-	pathlist := strings.Split(paths, ":", 0)
++	pathlist := strings.Split(paths, ":", -1)
+ 
+ 	list := make([]mapping, len(pathlist))
+ 	n := 0 // number of mappings
+diff --git a/src/cmd/gofmt/rewrite.go b/src/cmd/gofmt/rewrite.go
+index 9c238fab20..a89146ca0e 100644
+--- a/src/cmd/gofmt/rewrite.go
++++ b/src/cmd/gofmt/rewrite.go
+@@ -21,7 +21,7 @@ func initRewrite() {
+ 	if *rewriteRule == "" {
+ 		return
+ 	}
+-	f := strings.Split(*rewriteRule, "->", 0)
++	f := strings.Split(*rewriteRule, "->", -1)
+ 	if len(f) != 2 {
+ 		fmt.Fprintf(os.Stderr, "rewrite rule must be of the form 'pattern -> replacement'\n")
+ 		os.Exit(2)
+diff --git a/src/cmd/hgpatch/main.go b/src/cmd/hgpatch/main.go
+index 89aebda552..f6ea36da85 100644
+--- a/src/cmd/hgpatch/main.go
++++ b/src/cmd/hgpatch/main.go
+@@ -283,7 +283,7 @@ func hgModified() ([]string, os.Error) {
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	return strings.Split(strings.TrimSpace(out), "\n", 0), nil
++	return strings.Split(strings.TrimSpace(out), "\n", -1), nil
+ }
+ 
+ // hgAdd adds name to the repository.
+diff --git a/src/pkg/asn1/common.go b/src/pkg/asn1/common.go
+index 894fc002ab..14fa304269 100644
+--- a/src/pkg/asn1/common.go
++++ b/src/pkg/asn1/common.go
+@@ -78,7 +78,7 @@ type fieldParameters struct {
+ // parseFieldParameters will parse it into a fieldParameters structure,
+ // ignoring unknown parts of the string.
+ func parseFieldParameters(str string) (ret fieldParameters) {
+-	for _, part := range strings.Split(str, ",", 0) {
++	for _, part := range strings.Split(str, ",", -1) {
+ 		switch {
+ 		case part == "optional":
+ 			ret.optional = true
+diff --git a/src/pkg/bytes/bytes.go b/src/pkg/bytes/bytes.go
+index 64292ef648..bcf7b8609b 100644
+--- a/src/pkg/bytes/bytes.go
++++ b/src/pkg/bytes/bytes.go
+@@ -154,10 +154,13 @@ func IndexAny(s []byte, chars string) int {
+ // Generic split: splits after each instance of sep,
+ // including sepSave bytes of sep in the subarrays.
+ func genSplit(s, sep []byte, sepSave, n int) [][]byte {
++	if n == 0 {
++		return nil
++	}
+ 	if len(sep) == 0 {
+ 		return explode(s, n)
+ 	}
+-	if n <= 0 {
++	if n < 0 {
+ 		n = Count(s, sep) + 1
+ 	}
+ 	c := sep[0]
+@@ -178,13 +181,15 @@ func genSplit(s, sep []byte, sepSave, n int) [][]byte {
+ 
+ // Split splits the array s around each instance of sep, returning an array of subarrays of s.
+ // If sep is empty, Split splits s after each UTF-8 sequence.
+-// If n > 0, Split splits s into at most n subarrays; the last subarray will contain an unsplit remainder.
++// If n >= 0, Split splits s into at most n subarrays; the last subarray will contain an unsplit remainder.
++// Thus if n == 0, the result will ne nil.
+ func Split(s, sep []byte, n int) [][]byte { return genSplit(s, sep, 0, n) }
+ 
+ // SplitAfter splits the array s after each instance of sep, returning an array of subarrays of s.
+ // If sep is empty, SplitAfter splits s after each UTF-8 sequence.
+-// If n > 0, SplitAfter splits s into at most n subarrays; the last subarray will contain an
++// If n >= 0, SplitAfter splits s into at most n subarrays; the last subarray will contain an
+ // unsplit remainder.
++// Thus if n == 0, the result will ne nil.
+ func SplitAfter(s, sep []byte, n int) [][]byte {
+ 	return genSplit(s, sep, len(sep), n)
+ }
+@@ -465,8 +470,11 @@ func Runes(s []byte) []int {
+ 
+ // Replace returns a copy of the slice s with the first n
+ // non-overlapping instances of old replaced by new.
+-// If n <= 0, there is no limit on the number of replacements.
++// If n < 0, there is no limit on the number of replacements.
+ func Replace(s, old, new []byte, n int) []byte {
++	if n == 0 {
++		return s // avoid allocation
++	}
+ 	// Compute number of replacements.
+ 	if m := Count(s, old); m == 0 {
+ 		return s // avoid allocation
+diff --git a/src/pkg/bytes/bytes_test.go b/src/pkg/bytes/bytes_test.go
+index 26ff2d16f3..8197543dcf 100644
+--- a/src/pkg/bytes/bytes_test.go
++++ b/src/pkg/bytes/bytes_test.go
+@@ -211,8 +211,8 @@ type ExplodeTest struct {
+ }
+ 
+ var explodetests = []ExplodeTest{
+-	ExplodeTest{abcd, 0, []string{"a", "b", "c", "d"}},
+-	ExplodeTest{faces, 0, []string{"☺", "☻", "☹"}},
++	ExplodeTest{abcd, -1, []string{"a", "b", "c", "d"}},
++	ExplodeTest{faces, -1, []string{"☺", "☻", "☹"}},
+ 	ExplodeTest{abcd, 2, []string{"a", "bcd"}},
+ }
+ 
+@@ -240,16 +240,16 @@ type SplitTest struct {
+ }
+ 
+ var splittests = []SplitTest{
+-	SplitTest{abcd, "a", 0, []string{"", "bcd"}},
+-	SplitTest{abcd, "z", 0, []string{"abcd"}},
+-	SplitTest{abcd, "", 0, []string{"a", "b", "c", "d"}},
+-	SplitTest{commas, ",", 0, []string{"1", "2", "3", "4"}},
+-	SplitTest{dots, "...", 0, []string{"1", ".2", ".3", ".4"}},
+-	SplitTest{faces, "☹", 0, []string{"☺☻", ""}},
+-	SplitTest{faces, "~", 0, []string{faces}},
+-	SplitTest{faces, "", 0, []string{"☺", "☻", "☹"}},
++	SplitTest{abcd, "a", 0, nil},
++	SplitTest{abcd, "a", -1, []string{"", "bcd"}},
++	SplitTest{abcd, "z", -1, []string{"abcd"}},
++	SplitTest{abcd, "", -1, []string{"a", "b", "c", "d"}},
++	SplitTest{commas, ",", -1, []string{"1", "2", "3", "4"}},
++	SplitTest{dots, "...", -1, []string{"1", ".2", ".3", ".4"}},
++	SplitTest{faces, "☹", -1, []string{"☺☻", ""}},
++	SplitTest{faces, "~", -1, []string{faces}},
++	SplitTest{faces, "", -1, []string{"☺", "☻", "☹"}},
+ 	SplitTest{"1 2 3 4", " ", 3, []string{"1", "2", "3 4"}},
+-	SplitTest{"1 2 3", " ", 3, []string{"1", "2", "3"}},
+ 	SplitTest{"1 2", " ", 3, []string{"1", "2"}},
+ 	SplitTest{"123", "", 2, []string{"1", "23"}},
+ 	SplitTest{"123", "", 17, []string{"1", "2", "3"}},
+@@ -263,6 +263,9 @@ func TestSplit(t *testing.T) {
+ 			t.Errorf(`Split(%q, %q, %d) = %v; want %v`, tt.s, tt.sep, tt.n, result, tt.a)
+ 			continue
+ 		}
++		if tt.n == 0 {
++			continue
++		}
+ 		s := Join(a, []byte(tt.sep))
+ 		if string(s) != tt.s {
+ 			t.Errorf(`Join(Split(%q, %q, %d), %q) = %q`, tt.s, tt.sep, tt.n, tt.sep, s)
+@@ -271,14 +274,14 @@ func TestSplit(t *testing.T) {
+ }
+ 
+ var splitaftertests = []SplitTest{
+-	SplitTest{abcd, "a", 0, []string{"a", "bcd"}},
+-	SplitTest{abcd, "z", 0, []string{"abcd"}},
+-	SplitTest{abcd, "", 0, []string{"a", "b", "c", "d"}},
+-	SplitTest{commas, ",", 0, []string{"1,", "2,", "3,", "4"}},
+-	SplitTest{dots, "...", 0, []string{"1...", ".2...", ".3...", ".4"}},
+-	SplitTest{faces, "☹", 0, []string{"☺☻☹", ""}},
+-	SplitTest{faces, "~", 0, []string{faces}},
+-	SplitTest{faces, "", 0, []string{"☺", "☻", "☹"}},
++	SplitTest{abcd, "a", -1, []string{"a", "bcd"}},
++	SplitTest{abcd, "z", -1, []string{"abcd"}},
++	SplitTest{abcd, "", -1, []string{"a", "b", "c", "d"}},
++	SplitTest{commas, ",", -1, []string{"1,", "2,", "3,", "4"}},
++	SplitTest{dots, "...", -1, []string{"1...", ".2...", ".3...", ".4"}},
++	SplitTest{faces, "☹", -1, []string{"☺☻☹", ""}},
++	SplitTest{faces, "~", -1, []string{faces}},
++	SplitTest{faces, "", -1, []string{"☺", "☻", "☹"}},
+ 	SplitTest{"1 2 3 4", " ", 3, []string{"1 ", "2 ", "3 4"}},
+ 	SplitTest{"1 2 3", " ", 3, []string{"1 ", "2 ", "3"}},
+ 	SplitTest{"1 2", " ", 3, []string{"1 ", "2"}},
+@@ -654,24 +657,25 @@ type ReplaceTest struct {
+ }
+ 
+ var ReplaceTests = []ReplaceTest{
+-	ReplaceTest{"hello", "l", "L", 0, "heLLo"},
+-	ReplaceTest{"hello", "x", "X", 0, "hello"},
+-	ReplaceTest{"", "x", "X", 0, ""},
+-	ReplaceTest{"radar", "r", "<r>", 0, "<r>ada<r>"},
+-	ReplaceTest{"", "", "<>", 0, "<>"},
+-	ReplaceTest{"banana", "a", "<>", 0, "b<>n<>n<>"},
++	ReplaceTest{"hello", "l", "L", 0, "hello"},
++	ReplaceTest{"hello", "l", "L", -1, "heLLo"},
++	ReplaceTest{"hello", "x", "X", -1, "hello"},
++	ReplaceTest{"", "x", "X", -1, ""},
++	ReplaceTest{"radar", "r", "<r>", -1, "<r>ada<r>"},
++	ReplaceTest{"", "", "<>", -1, "<>"},
++	ReplaceTest{"banana", "a", "<>", -1, "b<>n<>n<>"},
+ 	ReplaceTest{"banana", "a", "<>", 1, "b<>nana"},
+ 	ReplaceTest{"banana", "a", "<>", 1000, "b<>n<>n<>"},
+-	ReplaceTest{"banana", "an", "<>", 0, "b<><>a"},
+-	ReplaceTest{"banana", "ana", "<>", 0, "b<>na"},
+-	ReplaceTest{"banana", "", "<>", 0, "<>b<>a<>n<>a<>n<>a<>"},
++	ReplaceTest{"banana", "an", "<>", -1, "b<><>a"},
++	ReplaceTest{"banana", "ana", "<>", -1, "b<>na"},
++	ReplaceTest{"banana", "", "<>", -1, "<>b<>a<>n<>a<>n<>a<>"},
+ 	ReplaceTest{"banana", "", "<>", 10, "<>b<>a<>n<>a<>n<>a<>"},
+ 	ReplaceTest{"banana", "", "<>", 6, "<>b<>a<>n<>a<>n<>a"},
+ 	ReplaceTest{"banana", "", "<>", 5, "<>b<>a<>n<>a<>na"},
+ 	ReplaceTest{"banana", "", "<>", 1, "<>banana"},
+-	ReplaceTest{"banana", "a", "a", 0, "banana"},
++	ReplaceTest{"banana", "a", "a", -1, "banana"},
+ 	ReplaceTest{"banana", "a", "a", 1, "banana"},
+-	ReplaceTest{"☺☻☹", "", "<>", 0, "<>☺<>☻<>☹<>"},
++	ReplaceTest{"☺☻☹", "", "<>", -1, "<>☺<>☻<>☹<>"},
+ }
+ 
+ func TestReplace(t *testing.T) {
+diff --git a/src/pkg/crypto/x509/x509.go b/src/pkg/crypto/x509/x509.go
+index 23b7d0b629..728116850f 100644
+--- a/src/pkg/crypto/x509/x509.go
++++ b/src/pkg/crypto/x509/x509.go
+@@ -407,8 +407,8 @@ func matchHostnames(pattern, host string) bool {
+ 		return false
+ 	}
+ 
+-	patternParts := strings.Split(pattern, ".", 0)
+-	hostParts := strings.Split(host, ".", 0)
++	patternParts := strings.Split(pattern, ".", -1)
++	hostParts := strings.Split(host, ".", -1)
+ 
+ 	if len(patternParts) != len(hostParts) {
+ 		return false
+diff --git a/src/pkg/exec/exec.go b/src/pkg/exec/exec.go
+index 415b900b9c..ee3cec686b 100644
+--- a/src/pkg/exec/exec.go
++++ b/src/pkg/exec/exec.go
+@@ -208,7 +208,7 @@ func LookPath(file string) (string, os.Error) {
+ 		return "", os.ENOENT
+ 	}
+ 	pathenv := os.Getenv("PATH")
+-	for _, dir := range strings.Split(pathenv, ":", 0) {
++	for _, dir := range strings.Split(pathenv, ":", -1) {
+ 		if dir == "" {
+ 			// Unix shell semantics: path element "" means "."
+ 			dir = "."
+diff --git a/src/pkg/exp/nacl/srpc/client.go b/src/pkg/exp/nacl/srpc/client.go
+index d271a82ffe..f45730ffaf 100644
+--- a/src/pkg/exp/nacl/srpc/client.go
++++ b/src/pkg/exp/nacl/srpc/client.go
+@@ -67,7 +67,7 @@ func NewClient(fd int) (c *Client, err os.Error) {
+ 		log.Stderrf("NewClient service_discovery: %s", m.status)
+ 		return nil, m.status
+ 	}
+-	for n, line := range bytes.Split(m.Ret[0].([]byte), []byte{'\n'}, 0) {
++	for n, line := range bytes.Split(m.Ret[0].([]byte), []byte{'\n'}, -1) {
+ 		i := bytes.Index(line, []byte{':'})
+ 		if i < 0 {
+ 			continue
+diff --git a/src/pkg/exp/ogle/cmd.go b/src/pkg/exp/ogle/cmd.go
+index 45b47ef5b8..2f087b777f 100644
+--- a/src/pkg/exp/ogle/cmd.go
++++ b/src/pkg/exp/ogle/cmd.go
+@@ -153,7 +153,7 @@ func cmdLoad(args []byte) os.Error {
+ 		}
+ 		println("Attached to", pid)
+ 	} else {
+-		parts := strings.Split(path, " ", 0)
++		parts := strings.Split(path, " ", -1)
+ 		if len(parts) == 0 {
+ 			fname = ""
+ 		} else {
+diff --git a/src/pkg/go/doc/comment.go b/src/pkg/go/doc/comment.go
+index 3fc6396637..bbbc6a3c25 100644
+--- a/src/pkg/go/doc/comment.go
++++ b/src/pkg/go/doc/comment.go
+@@ -59,7 +59,7 @@ func CommentText(comment *ast.CommentGroup) string {
+ 		}
+ 
+ 		// Split on newlines.
+-		cl := strings.Split(c, "\n", 0)
++		cl := strings.Split(c, "\n", -1)
+ 
+ 		// Walk lines, stripping trailing white space and adding to list.
+ 		for _, l := range cl {
+diff --git a/src/pkg/http/request.go b/src/pkg/http/request.go
+index b1aface466..8a72d6cfad 100644
+--- a/src/pkg/http/request.go
++++ b/src/pkg/http/request.go
+@@ -568,7 +568,7 @@ func ReadRequest(b *bufio.Reader) (req *Request, err os.Error) {
+ 
+ func ParseQuery(query string) (m map[string][]string, err os.Error) {
+ 	m = make(map[string][]string)
+-	for _, kv := range strings.Split(query, "&", 0) {
++	for _, kv := range strings.Split(query, "&", -1) {
+ 		kvPair := strings.Split(kv, "=", 2)
+ 
+ 		var key, value string
+diff --git a/src/pkg/http/transfer.go b/src/pkg/http/transfer.go
+index 26266cbcac..5e190d74c6 100644
+--- a/src/pkg/http/transfer.go
++++ b/src/pkg/http/transfer.go
+@@ -269,7 +269,7 @@ func fixTransferEncoding(header map[string]string) ([]string, os.Error) {
+ 	}
+ 
+ 	header["Transfer-Encoding"] = "", false
+-	encodings := strings.Split(raw, ",", 0)
++	encodings := strings.Split(raw, ",", -1)
+ 	te := make([]string, 0, len(encodings))
+ 	// TODO: Even though we only support "identity" and "chunked"
+ 	// encodings, the loop below is designed with foresight. One
+@@ -373,7 +373,7 @@ func fixTrailer(header map[string]string, te []string) (map[string]string, os.Er
+ 
+ 	header["Trailer"] = "", false
+ 	trailer := make(map[string]string)
+-	keys := strings.Split(raw, ",", 0)
++	keys := strings.Split(raw, ",", -1)
+ 	for _, key := range keys {
+ 		key = CanonicalHeaderKey(strings.TrimSpace(key))
+ 		switch key {
+diff --git a/src/pkg/nntp/nntp_test.go b/src/pkg/nntp/nntp_test.go
+index 9bd7bd6b6d..bca1857224 100644
+--- a/src/pkg/nntp/nntp_test.go
++++ b/src/pkg/nntp/nntp_test.go
+@@ -31,8 +31,8 @@ func (f faker) Close() os.Error {
+ }
+ 
+ func TestBasic(t *testing.T) {
+-	basicServer = strings.Join(strings.Split(basicServer, "\n", 0), "\r\n")
+-	basicClient = strings.Join(strings.Split(basicClient, "\n", 0), "\r\n")
++	basicServer = strings.Join(strings.Split(basicServer, "\n", -1), "\r\n")
++	basicClient = strings.Join(strings.Split(basicClient, "\n", -1), "\r\n")
+ 
+ 	var cmdbuf bytes.Buffer
+ 	var fake faker
+diff --git a/src/pkg/patch/patch.go b/src/pkg/patch/patch.go
+index 9d9aa1b485..d4977dc990 100644
+--- a/src/pkg/patch/patch.go
++++ b/src/pkg/patch/patch.go
+@@ -319,4 +319,4 @@ func hasPrefix(s []byte, t string) bool {
+ 
+ // splitLines returns the result of splitting s into lines.
+ // The \n on each line is preserved.
+-func splitLines(s []byte) [][]byte { return bytes.SplitAfter(s, newline, 0) }
++func splitLines(s []byte) [][]byte { return bytes.SplitAfter(s, newline, -1) }
+diff --git a/src/pkg/rpc/server.go b/src/pkg/rpc/server.go
+index b8a0e5ccc0..d14f6ded2c 100644
+--- a/src/pkg/rpc/server.go
++++ b/src/pkg/rpc/server.go
+@@ -352,7 +352,7 @@ func (server *serverType) input(codec ServerCodec) {
+ 			sendResponse(sending, req, invalidRequest, codec, s)
+ 			break
+ 		}
+-		serviceMethod := strings.Split(req.ServiceMethod, ".", 0)
++		serviceMethod := strings.Split(req.ServiceMethod, ".", -1)
+ 		if len(serviceMethod) != 2 {
+ 			s := "rpc: service/method request ill-formed: " + req.ServiceMethod
+ 			sendResponse(sending, req, invalidRequest, codec, s)
+diff --git a/src/pkg/strconv/fp_test.go b/src/pkg/strconv/fp_test.go
+index 62fcfc677a..4cbadf316b 100644
+--- a/src/pkg/strconv/fp_test.go
++++ b/src/pkg/strconv/fp_test.go
+@@ -116,7 +116,7 @@ func TestFp(t *testing.T) {
+ 		if len(line) == 0 || line[0] == '#' {
+ 			continue
+ 		}
+-		a := strings.Split(line, " ", 0)
++		a := strings.Split(line, " ", -1)
+ 		if len(a) != 4 {
+ 			t.Error("testfp.txt:", lineno, ": wrong field count\n")
+ 			continue
+diff --git a/src/pkg/strings/strings.go b/src/pkg/strings/strings.go
+index 5de83250c1..5d3d61e195 100644
+--- a/src/pkg/strings/strings.go
++++ b/src/pkg/strings/strings.go
+@@ -10,9 +10,12 @@ import (
+ 	"utf8"
+ )
+ 
+-// explode splits s into an array of UTF-8 sequences, one per Unicode character (still strings) up to a maximum of n (n <= 0 means no limit).
++// explode splits s into an array of UTF-8 sequences, one per Unicode character (still strings) up to a maximum of n (n < 0 means no limit).
+ // Invalid UTF-8 sequences become correct encodings of U+FFF8.
+ func explode(s string, n int) []string {
++	if n == 0 {
++		return nil
++	}
+ 	l := utf8.RuneCountInString(s)
+ 	if n <= 0 || n > l {
+ 		n = l
+@@ -135,10 +138,13 @@ func IndexAny(s, chars string) int {
+ // Generic split: splits after each instance of sep,
+ // including sepSave bytes of sep in the subarrays.
+ func genSplit(s, sep string, sepSave, n int) []string {
++	if n == 0 {
++		return nil
++	}
+ 	if sep == "" {
+ 		return explode(s, n)
+ 	}
+-	if n <= 0 {
++	if n < 0 {
+ 		n = Count(s, sep) + 1
+ 	}
+ 	c := sep[0]
+@@ -159,12 +165,14 @@ func genSplit(s, sep string, sepSave, n int) []string {
+ 
+ // Split splits the string s around each instance of sep, returning an array of substrings of s.
+ // If sep is empty, Split splits s after each UTF-8 sequence.
+-// If n > 0, Split splits s into at most n substrings; the last substring will be the unsplit remainder.
++// If n >= 0, Split splits s into at most n substrings; the last substring will be the unsplit remainder.
++// Thus if n == 0, the result will be nil.
+ func Split(s, sep string, n int) []string { return genSplit(s, sep, 0, n) }
+ 
+ // SplitAfter splits the string s after each instance of sep, returning an array of substrings of s.
+ // If sep is empty, SplitAfter splits s after each UTF-8 sequence.
+-// If n > 0, SplitAfter splits s into at most n substrings; the last substring will be the unsplit remainder.
++// If n >= 0, SplitAfter splits s into at most n substrings; the last substring will be the unsplit remainder.
++// Thus if n == 0, the result will be nil.
+ func SplitAfter(s, sep string, n int) []string {
+ 	return genSplit(s, sep, len(sep), n)
+ }
+@@ -462,16 +470,16 @@ func TrimSpace(s string) string {
+ 
+ // Replace returns a copy of the string s with the first n
+ // non-overlapping instances of old replaced by new.
+-// If n <= 0, there is no limit on the number of replacements.
++// If n < 0, there is no limit on the number of replacements.
+ func Replace(s, old, new string, n int) string {
+-	if old == new {
++	if old == new || n == 0 {
+ 		return s // avoid allocation
+ 	}
+ 
+ 	// Compute number of replacements.
+ 	if m := Count(s, old); m == 0 {
+ 		return s // avoid allocation
+-	} else if n <= 0 || m < n {
++	} else if n < 0 || m < n {
+ 		n = m
+ 	}
+ 
+diff --git a/src/pkg/strings/strings_test.go b/src/pkg/strings/strings_test.go
+index 5ac6970c6b..06f1f1de1d 100644
+--- a/src/pkg/strings/strings_test.go
++++ b/src/pkg/strings/strings_test.go
+@@ -136,14 +136,15 @@ type SplitTest struct {
+ }
+ 
+ var splittests = []SplitTest{
+-	SplitTest{abcd, "a", 0, []string{"", "bcd"}},
+-	SplitTest{abcd, "z", 0, []string{"abcd"}},
+-	SplitTest{abcd, "", 0, []string{"a", "b", "c", "d"}},
+-	SplitTest{commas, ",", 0, []string{"1", "2", "3", "4"}},
+-	SplitTest{dots, "...", 0, []string{"1", ".2", ".3", ".4"}},
+-	SplitTest{faces, "☹", 0, []string{"☺☻", ""}},
+-	SplitTest{faces, "~", 0, []string{faces}},
+-	SplitTest{faces, "", 0, []string{"☺", "☻", "☹"}},
++	SplitTest{abcd, "a", 0, nil},
++	SplitTest{abcd, "a", -1, []string{"", "bcd"}},
++	SplitTest{abcd, "z", -1, []string{"abcd"}},
++	SplitTest{abcd, "", -1, []string{"a", "b", "c", "d"}},
++	SplitTest{commas, ",", -1, []string{"1", "2", "3", "4"}},
++	SplitTest{dots, "...", -1, []string{"1", ".2", ".3", ".4"}},
++	SplitTest{faces, "☹", -1, []string{"☺☻", ""}},
++	SplitTest{faces, "~", -1, []string{faces}},
++	SplitTest{faces, "", -1, []string{"☺", "☻", "☹"}},
+ 	SplitTest{"1 2 3 4", " ", 3, []string{"1", "2", "3 4"}},
+ 	SplitTest{"1 2", " ", 3, []string{"1", "2"}},
+ 	SplitTest{"123", "", 2, []string{"1", "23"}},
+@@ -157,6 +158,9 @@ func TestSplit(t *testing.T) {
+ 			t.Errorf("Split(%q, %q, %d) = %v; want %v", tt.s, tt.sep, tt.n, a, tt.a)
+ 			continue
+ 		}
++		if tt.n == 0 {
++			continue
++		}
+ 		s := Join(a, tt.sep)
+ 		if s != tt.s {
+ 			t.Errorf("Join(Split(%q, %q, %d), %q) = %q", tt.s, tt.sep, tt.n, tt.sep, s)
+@@ -165,14 +169,14 @@ func TestSplit(t *testing.T) {
+ }
+ 
+ var splitaftertests = []SplitTest{
+-	SplitTest{abcd, "a", 0, []string{"a", "bcd"}},
+-	SplitTest{abcd, "z", 0, []string{"abcd"}},
+-	SplitTest{abcd, "", 0, []string{"a", "b", "c", "d"}},
+-	SplitTest{commas, ",", 0, []string{"1,", "2,", "3,", "4"}},
+-	SplitTest{dots, "...", 0, []string{"1...", ".2...", ".3...", ".4"}},
+-	SplitTest{faces, "☹", 0, []string{"☺☻☹", ""}},
+-	SplitTest{faces, "~", 0, []string{faces}},
+-	SplitTest{faces, "", 0, []string{"☺", "☻", "☹"}},
++	SplitTest{abcd, "a", -1, []string{"a", "bcd"}},
++	SplitTest{abcd, "z", -1, []string{"abcd"}},
++	SplitTest{abcd, "", -1, []string{"a", "b", "c", "d"}},
++	SplitTest{commas, ",", -1, []string{"1,", "2,", "3,", "4"}},
++	SplitTest{dots, "...", -1, []string{"1...", ".2...", ".3...", ".4"}},
++	SplitTest{faces, "☹", -1, []string{"☺☻☹", ""}},
++	SplitTest{faces, "~", -1, []string{faces}},
++	SplitTest{faces, "", -1, []string{"☺", "☻", "☹"}},
+ 	SplitTest{"1 2 3 4", " ", 3, []string{"1 ", "2 ", "3 4"}},
+ 	SplitTest{"1 2 3", " ", 3, []string{"1 ", "2 ", "3"}},
+ 	SplitTest{"1 2", " ", 3, []string{"1 ", "2"}},
+@@ -554,8 +558,8 @@ func equal(m string, s1, s2 string, t *testing.T) bool {
+ 	if s1 == s2 {
+ 		return true
+ 	}
+-	e1 := Split(s1, "", 0)
+-	e2 := Split(s2, "", 0)
++	e1 := Split(s1, "", -1)
++	e2 := Split(s2, "", -1)
+ 	for i, c1 := range e1 {
+ 		if i > len(e2) {
+ 			break
+@@ -709,24 +713,25 @@ type ReplaceTest struct {
+ }
+ 
+ var ReplaceTests = []ReplaceTest{
+-	ReplaceTest{"hello", "l", "L", 0, "heLLo"},
+-	ReplaceTest{"hello", "x", "X", 0, "hello"},
+-	ReplaceTest{"", "x", "X", 0, ""},
+-	ReplaceTest{"radar", "r", "<r>", 0, "<r>ada<r>"},
+-	ReplaceTest{"", "", "<>", 0, "<>"},
+-	ReplaceTest{"banana", "a", "<>", 0, "b<>n<>n<>"},
++	ReplaceTest{"hello", "l", "L", 0, "hello"},
++	ReplaceTest{"hello", "l", "L", -1, "heLLo"},
++	ReplaceTest{"hello", "x", "X", -1, "hello"},
++	ReplaceTest{"", "x", "X", -1, ""},
++	ReplaceTest{"radar", "r", "<r>", -1, "<r>ada<r>"},
++	ReplaceTest{"", "", "<>", -1, "<>"},
++	ReplaceTest{"banana", "a", "<>", -1, "b<>n<>n<>"},
+ 	ReplaceTest{"banana", "a", "<>", 1, "b<>nana"},
+ 	ReplaceTest{"banana", "a", "<>", 1000, "b<>n<>n<>"},
+-	ReplaceTest{"banana", "an", "<>", 0, "b<><>a"},
+-	ReplaceTest{"banana", "ana", "<>", 0, "b<>na"},
+-	ReplaceTest{"banana", "", "<>", 0, "<>b<>a<>n<>a<>n<>a<>"},
++	ReplaceTest{"banana", "an", "<>", -1, "b<><>a"},
++	ReplaceTest{"banana", "ana", "<>", -1, "b<>na"},
++	ReplaceTest{"banana", "", "<>", -1, "<>b<>a<>n<>a<>n<>a<>"},
+ 	ReplaceTest{"banana", "", "<>", 10, "<>b<>a<>n<>a<>n<>a<>"},
+ 	ReplaceTest{"banana", "", "<>", 6, "<>b<>a<>n<>a<>n<>a"},
+ 	ReplaceTest{"banana", "", "<>", 5, "<>b<>a<>n<>a<>na"},
+ 	ReplaceTest{"banana", "", "<>", 1, "<>banana"},
+-	ReplaceTest{"banana", "a", "a", 0, "banana"},
++	ReplaceTest{"banana", "a", "a", -1, "banana"},
+ 	ReplaceTest{"banana", "a", "a", 1, "banana"},
+-	ReplaceTest{"☺☻☹", "", "<>", 0, "<>☺<>☻<>☹<>"},
++	ReplaceTest{"☺☻☹", "", "<>", -1, "<>☺<>☻<>☹<>"},
+ }
+ 
+ func TestReplace(t *testing.T) {
+diff --git a/src/pkg/template/template.go b/src/pkg/template/template.go
+index a615b7b418..11371abe70 100644
+--- a/src/pkg/template/template.go
++++ b/src/pkg/template/template.go
+@@ -635,7 +635,7 @@ func (st *state) findVar(s string) reflect.Value {
+ 		return st.data
+ 	}
+ 	data := st.data
+-	for _, elem := range strings.Split(s, ".", 0) {
++	for _, elem := range strings.Split(s, ".", -1) {
+ 		// Look up field; data must be a struct or map.
+ 		data = lookup(data, elem)
+ 		if data == nil {
+diff --git a/src/pkg/unicode/maketables.go b/src/pkg/unicode/maketables.go
+index 75d16418ef..4fc41cdea0 100644
+--- a/src/pkg/unicode/maketables.go
++++ b/src/pkg/unicode/maketables.go
+@@ -236,7 +236,7 @@ func all(scripts map[string][]Script) []string {
+ // Extract the version number from the URL
+ func version() string {
+ 	// Break on slashes and look for the first numeric field
+-	fields := strings.Split(*url, "/", 0)
++	fields := strings.Split(*url, "/", -1)
+ 	for _, f := range fields {
+ 		if len(f) > 0 && '0' <= f[0] && f[0] <= '9' {
+ 			return f
+@@ -304,7 +304,7 @@ func printCategories() {
+ 		return
+ 	}
+ 	// Find out which categories to dump
+-	list := strings.Split(*tablelist, ",", 0)
++	list := strings.Split(*tablelist, ",", -1)
+ 	if *tablelist == "all" {
+ 		list = allCategories()
+ 	}
+@@ -580,7 +580,7 @@ func printScriptOrProperty(doProps bool) {
+ 	resp.Body.Close()
+ 
+ 	// Find out which scripts to dump
+-	list := strings.Split(flaglist, ",", 0)
++	list := strings.Split(flaglist, ",", -1)
+ 	if flaglist == "all" {
+ 		list = all(table)
+ 	}

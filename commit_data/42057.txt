@@ -18,9 +18,268 @@ Date:   Mon Oct 21 14:07:50 2019 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/compile/internal/ssa/gen/ARM64Ops.go |   2 +
  src/runtime/mkpreempt.go                     |  54 ++++++++++-
  src/runtime/preempt_arm64.s                  | 140 ++++++++++++++++++++++++++-
  src/runtime/signal_arm64.go                  |  14 ++-
  4 files changed, 205 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64Ops.go b/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
+index 6fdb5729c5..51a610fc76 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
+@@ -96,6 +96,8 @@ var regNamesARM64 = []string{
+ 	"F30",
+ 	"F31",
+ 
++	// If you add registers, update asyncPreempt in runtime.
++
+ 	// pseudo-registers
+ 	"SB",
+ }
+diff --git a/src/runtime/mkpreempt.go b/src/runtime/mkpreempt.go
+index 78b1707f1b..76637e8a01 100644
+--- a/src/runtime/mkpreempt.go
++++ b/src/runtime/mkpreempt.go
+@@ -79,7 +79,7 @@ var arches = map[string]func(){
+ 	"386":     gen386,
+ 	"amd64":   genAMD64,
+ 	"arm":     genARM,
+-	"arm64":   notImplemented,
++	"arm64":   genARM64,
+ 	"mips64x": notImplemented,
+ 	"mipsx":   notImplemented,
+ 	"ppc64x":  notImplemented,
+@@ -304,6 +304,58 @@ func genARM() {
+ 	p("UNDEF")                            // shouldn't get here
+ }
+ 
++func genARM64() {
++	// Add integer registers R0-R26
++	// R27 (REGTMP), R28 (g), R29 (FP), R30 (LR), R31 (SP) are special
++	// and not saved here.
++	var l = layout{sp: "RSP", stack: 8} // add slot to save PC of interrupted instruction
++	for i := 0; i <= 26; i++ {
++		if i == 18 {
++			continue // R18 is not used, skip
++		}
++		reg := fmt.Sprintf("R%d", i)
++		l.add("MOVD", reg, 8)
++	}
++	// Add flag registers.
++	l.addSpecial(
++		"MOVD NZCV, R0\nMOVD R0, %d(RSP)",
++		"MOVD %d(RSP), R0\nMOVD R0, NZCV",
++		8)
++	l.addSpecial(
++		"MOVD FPSR, R0\nMOVD R0, %d(RSP)",
++		"MOVD %d(RSP), R0\nMOVD R0, FPSR",
++		8)
++	// TODO: FPCR? I don't think we'll change it, so no need to save.
++	// Add floating point registers F0-F31.
++	for i := 0; i <= 31; i++ {
++		reg := fmt.Sprintf("F%d", i)
++		l.add("FMOVD", reg, 8)
++	}
++	if l.stack%16 != 0 {
++		l.stack += 8 // SP needs 16-byte alignment
++	}
++
++	// allocate frame, save PC of interrupted instruction (in LR)
++	p("MOVD R30, %d(RSP)", -l.stack)
++	p("SUB $%d, RSP", l.stack)
++	p("#ifdef GOOS_linux")
++	p("MOVD R29, -8(RSP)") // save frame pointer (only used on Linux)
++	p("SUB $8, RSP, R29")  // set up new frame pointer
++	p("#endif")
++
++	l.save()
++	p("CALL ·asyncPreempt2(SB)")
++	l.restore()
++
++	p("MOVD %d(RSP), R30", l.stack) // sigctxt.pushCall has pushed LR (at interrupt) on stack, restore it
++	p("#ifdef GOOS_linux")
++	p("MOVD -8(RSP), R29") // restore frame pointer
++	p("#endif")
++	p("MOVD (RSP), R27")          // load PC to REGTMP
++	p("ADD $%d, RSP", l.stack+16) // pop frame (including the space pushed by sigctxt.pushCall)
++	p("JMP (R27)")
++}
++
+ func genWasm() {
+ 	p("// No async preemption on wasm")
+ 	p("UNDEF")
+diff --git a/src/runtime/preempt_arm64.s b/src/runtime/preempt_arm64.s
+index 5697268ce1..3a7cdf489b 100644
+--- a/src/runtime/preempt_arm64.s
++++ b/src/runtime/preempt_arm64.s
+@@ -4,5 +4,141 @@
+ #include "textflag.h"
+ 
+ TEXT ·asyncPreempt(SB),NOSPLIT|NOFRAME,$0-0
+-	// Not implemented yet
+-	JMP ·abort(SB)
++	MOVD R30, -496(RSP)
++	SUB $496, RSP
++	#ifdef GOOS_linux
++	MOVD R29, -8(RSP)
++	SUB $8, RSP, R29
++	#endif
++	MOVD R0, 8(RSP)
++	MOVD R1, 16(RSP)
++	MOVD R2, 24(RSP)
++	MOVD R3, 32(RSP)
++	MOVD R4, 40(RSP)
++	MOVD R5, 48(RSP)
++	MOVD R6, 56(RSP)
++	MOVD R7, 64(RSP)
++	MOVD R8, 72(RSP)
++	MOVD R9, 80(RSP)
++	MOVD R10, 88(RSP)
++	MOVD R11, 96(RSP)
++	MOVD R12, 104(RSP)
++	MOVD R13, 112(RSP)
++	MOVD R14, 120(RSP)
++	MOVD R15, 128(RSP)
++	MOVD R16, 136(RSP)
++	MOVD R17, 144(RSP)
++	MOVD R19, 152(RSP)
++	MOVD R20, 160(RSP)
++	MOVD R21, 168(RSP)
++	MOVD R22, 176(RSP)
++	MOVD R23, 184(RSP)
++	MOVD R24, 192(RSP)
++	MOVD R25, 200(RSP)
++	MOVD R26, 208(RSP)
++	MOVD NZCV, R0
++	MOVD R0, 216(RSP)
++	MOVD FPSR, R0
++	MOVD R0, 224(RSP)
++	FMOVD F0, 232(RSP)
++	FMOVD F1, 240(RSP)
++	FMOVD F2, 248(RSP)
++	FMOVD F3, 256(RSP)
++	FMOVD F4, 264(RSP)
++	FMOVD F5, 272(RSP)
++	FMOVD F6, 280(RSP)
++	FMOVD F7, 288(RSP)
++	FMOVD F8, 296(RSP)
++	FMOVD F9, 304(RSP)
++	FMOVD F10, 312(RSP)
++	FMOVD F11, 320(RSP)
++	FMOVD F12, 328(RSP)
++	FMOVD F13, 336(RSP)
++	FMOVD F14, 344(RSP)
++	FMOVD F15, 352(RSP)
++	FMOVD F16, 360(RSP)
++	FMOVD F17, 368(RSP)
++	FMOVD F18, 376(RSP)
++	FMOVD F19, 384(RSP)
++	FMOVD F20, 392(RSP)
++	FMOVD F21, 400(RSP)
++	FMOVD F22, 408(RSP)
++	FMOVD F23, 416(RSP)
++	FMOVD F24, 424(RSP)
++	FMOVD F25, 432(RSP)
++	FMOVD F26, 440(RSP)
++	FMOVD F27, 448(RSP)
++	FMOVD F28, 456(RSP)
++	FMOVD F29, 464(RSP)
++	FMOVD F30, 472(RSP)
++	FMOVD F31, 480(RSP)
++	CALL ·asyncPreempt2(SB)
++	FMOVD 480(RSP), F31
++	FMOVD 472(RSP), F30
++	FMOVD 464(RSP), F29
++	FMOVD 456(RSP), F28
++	FMOVD 448(RSP), F27
++	FMOVD 440(RSP), F26
++	FMOVD 432(RSP), F25
++	FMOVD 424(RSP), F24
++	FMOVD 416(RSP), F23
++	FMOVD 408(RSP), F22
++	FMOVD 400(RSP), F21
++	FMOVD 392(RSP), F20
++	FMOVD 384(RSP), F19
++	FMOVD 376(RSP), F18
++	FMOVD 368(RSP), F17
++	FMOVD 360(RSP), F16
++	FMOVD 352(RSP), F15
++	FMOVD 344(RSP), F14
++	FMOVD 336(RSP), F13
++	FMOVD 328(RSP), F12
++	FMOVD 320(RSP), F11
++	FMOVD 312(RSP), F10
++	FMOVD 304(RSP), F9
++	FMOVD 296(RSP), F8
++	FMOVD 288(RSP), F7
++	FMOVD 280(RSP), F6
++	FMOVD 272(RSP), F5
++	FMOVD 264(RSP), F4
++	FMOVD 256(RSP), F3
++	FMOVD 248(RSP), F2
++	FMOVD 240(RSP), F1
++	FMOVD 232(RSP), F0
++	MOVD 224(RSP), R0
++	MOVD R0, FPSR
++	MOVD 216(RSP), R0
++	MOVD R0, NZCV
++	MOVD 208(RSP), R26
++	MOVD 200(RSP), R25
++	MOVD 192(RSP), R24
++	MOVD 184(RSP), R23
++	MOVD 176(RSP), R22
++	MOVD 168(RSP), R21
++	MOVD 160(RSP), R20
++	MOVD 152(RSP), R19
++	MOVD 144(RSP), R17
++	MOVD 136(RSP), R16
++	MOVD 128(RSP), R15
++	MOVD 120(RSP), R14
++	MOVD 112(RSP), R13
++	MOVD 104(RSP), R12
++	MOVD 96(RSP), R11
++	MOVD 88(RSP), R10
++	MOVD 80(RSP), R9
++	MOVD 72(RSP), R8
++	MOVD 64(RSP), R7
++	MOVD 56(RSP), R6
++	MOVD 48(RSP), R5
++	MOVD 40(RSP), R4
++	MOVD 32(RSP), R3
++	MOVD 24(RSP), R2
++	MOVD 16(RSP), R1
++	MOVD 8(RSP), R0
++	MOVD 496(RSP), R30
++	#ifdef GOOS_linux
++	MOVD -8(RSP), R29
++	#endif
++	MOVD (RSP), R27
++	ADD $512, RSP
++	JMP (R27)
+diff --git a/src/runtime/signal_arm64.go b/src/runtime/signal_arm64.go
+index 2341d779da..db2ab2720b 100644
+--- a/src/runtime/signal_arm64.go
++++ b/src/runtime/signal_arm64.go
+@@ -79,8 +79,18 @@ func (c *sigctxt) preparePanic(sig uint32, gp *g) {
+ 	c.set_pc(uint64(funcPC(sigpanic)))
+ }
+ 
+-const pushCallSupported = false
++const pushCallSupported = true
+ 
+ func (c *sigctxt) pushCall(targetPC uintptr) {
+-	throw("not implemented")
++	// Push the LR to stack, as we'll clobber it in order to
++	// push the call. The function being pushed is responsible
++	// for restoring the LR and setting the SP back.
++	// This extra space is known to gentraceback.
++	sp := c.sp() - 16 // SP needs 16-byte alignment
++	c.set_sp(sp)
++	*(*uint64)(unsafe.Pointer(uintptr(sp))) = c.lr()
++	// Set up PC and LR to pretend the function being signaled
++	// calls targetPC at the faulting PC.
++	c.set_lr(c.pc())
++	c.set_pc(uint64(targetPC))
+ }

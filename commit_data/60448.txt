@@ -13,7 +13,7 @@ Date:   Tue Jul 23 11:43:23 2024 -0400
     Reviewed-by: Keith Randall <khr@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  .gitignore                                         |  2 +-
  src/cmd/compile/internal/noder/helpers.go          |  4 ++--
  src/cmd/compile/internal/ssagen/ssa.go             | 26 +++++++++++-----------
@@ -85,3 +85,1007 @@ Date:   Tue Jul 23 11:43:23 2024 -0400
  src/runtime/traceregion.go                         |  2 +-
  test/intrinsic.dir/main.go                         |  2 +-
  70 files changed, 89 insertions(+), 89 deletions(-)
+
+diff --git a/.gitignore b/.gitignore
+index 7978d68b76..c6512e64a4 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -37,7 +37,7 @@ _testmain.go
+ /src/go/build/zcgo.go
+ /src/go/doc/headscan
+ /src/internal/buildcfg/zbootstrap.go
+-/src/runtime/internal/sys/zversion.go
++/src/internal/runtime/sys/zversion.go
+ /src/unicode/maketables
+ /src/time/tzdata/zzipdata.go
+ /test.out
+diff --git a/src/cmd/compile/internal/noder/helpers.go b/src/cmd/compile/internal/noder/helpers.go
+index 0bff71e658..45512706d2 100644
+--- a/src/cmd/compile/internal/noder/helpers.go
++++ b/src/cmd/compile/internal/noder/helpers.go
+@@ -114,11 +114,11 @@ func isTypeParam(t types2.Type) bool {
+ }
+ 
+ // isNotInHeap reports whether typ is or contains an element of type
+-// runtime/internal/sys.NotInHeap.
++// internal/runtime/sys.NotInHeap.
+ func isNotInHeap(typ types2.Type) bool {
+ 	typ = types2.Unalias(typ)
+ 	if named, ok := typ.(*types2.Named); ok {
+-		if obj := named.Obj(); obj.Name() == "nih" && obj.Pkg().Path() == "runtime/internal/sys" {
++		if obj := named.Obj(); obj.Name() == "nih" && obj.Pkg().Path() == "internal/runtime/sys" {
+ 			return true
+ 		}
+ 		typ = named.Underlying()
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index d0ca5b7f30..e6d5a13957 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -4287,13 +4287,13 @@ func InitTables() {
+ 		// make it worthwhile as an intrinsic
+ 		brev_arch = append(brev_arch, sys.PPC64)
+ 	}
+-	/******** runtime/internal/sys ********/
+-	addF("runtime/internal/sys", "Bswap32",
++	/******** internal/runtime/sys ********/
++	addF("internal/runtime/sys", "Bswap32",
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue1(ssa.OpBswap32, types.Types[types.TUINT32], args[0])
+ 		},
+ 		brev_arch...)
+-	addF("runtime/internal/sys", "Bswap64",
++	addF("internal/runtime/sys", "Bswap64",
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue1(ssa.OpBswap64, types.Types[types.TUINT64], args[0])
+ 		},
+@@ -4309,9 +4309,9 @@ func InitTables() {
+ 
+ 	// Make Prefetch intrinsics for supported platforms
+ 	// On the unsupported platforms stub function will be eliminated
+-	addF("runtime/internal/sys", "Prefetch", makePrefetchFunc(ssa.OpPrefetchCache),
++	addF("internal/runtime/sys", "Prefetch", makePrefetchFunc(ssa.OpPrefetchCache),
+ 		sys.AMD64, sys.ARM64, sys.PPC64)
+-	addF("runtime/internal/sys", "PrefetchStreamed", makePrefetchFunc(ssa.OpPrefetchCacheStreamed),
++	addF("internal/runtime/sys", "PrefetchStreamed", makePrefetchFunc(ssa.OpPrefetchCacheStreamed),
+ 		sys.AMD64, sys.ARM64, sys.PPC64)
+ 
+ 	/******** internal/runtime/atomic ********/
+@@ -4837,8 +4837,8 @@ func InitTables() {
+ 			return s.newValue1(ssa.OpCtz64, types.Types[types.TINT], y)
+ 		},
+ 		sys.S390X)
+-	alias("math/bits", "ReverseBytes64", "runtime/internal/sys", "Bswap64", all...)
+-	alias("math/bits", "ReverseBytes32", "runtime/internal/sys", "Bswap32", all...)
++	alias("math/bits", "ReverseBytes64", "internal/runtime/sys", "Bswap64", all...)
++	alias("math/bits", "ReverseBytes32", "internal/runtime/sys", "Bswap32", all...)
+ 	// ReverseBytes inlines correctly, no need to intrinsify it.
+ 	// Nothing special is needed for targets where ReverseBytes16 lowers to a rotate
+ 	// On Power10, 16-bit rotate is not available so use BRH instruction
+@@ -5051,12 +5051,12 @@ func InitTables() {
+ 		sys.AMD64)
+ 	alias("math/bits", "Div", "math/bits", "Div64", sys.ArchAMD64)
+ 
+-	alias("runtime/internal/sys", "TrailingZeros8", "math/bits", "TrailingZeros8", all...)
+-	alias("runtime/internal/sys", "TrailingZeros32", "math/bits", "TrailingZeros32", all...)
+-	alias("runtime/internal/sys", "TrailingZeros64", "math/bits", "TrailingZeros64", all...)
+-	alias("runtime/internal/sys", "Len8", "math/bits", "Len8", all...)
+-	alias("runtime/internal/sys", "Len64", "math/bits", "Len64", all...)
+-	alias("runtime/internal/sys", "OnesCount64", "math/bits", "OnesCount64", all...)
++	alias("internal/runtime/sys", "TrailingZeros8", "math/bits", "TrailingZeros8", all...)
++	alias("internal/runtime/sys", "TrailingZeros32", "math/bits", "TrailingZeros32", all...)
++	alias("internal/runtime/sys", "TrailingZeros64", "math/bits", "TrailingZeros64", all...)
++	alias("internal/runtime/sys", "Len8", "math/bits", "Len8", all...)
++	alias("internal/runtime/sys", "Len64", "math/bits", "Len64", all...)
++	alias("internal/runtime/sys", "OnesCount64", "math/bits", "OnesCount64", all...)
+ 
+ 	/******** sync/atomic ********/
+ 
+diff --git a/src/cmd/compile/internal/test/inl_test.go b/src/cmd/compile/internal/test/inl_test.go
+index 4626269582..58f5df953b 100644
+--- a/src/cmd/compile/internal/test/inl_test.go
++++ b/src/cmd/compile/internal/test/inl_test.go
+@@ -97,7 +97,7 @@ func TestIntendedInlining(t *testing.T) {
+ 			"traceLocker.ok",
+ 			"traceEnabled",
+ 		},
+-		"runtime/internal/sys": {},
++		"internal/runtime/sys": {},
+ 		"internal/runtime/math": {
+ 			"MulUintptr",
+ 		},
+@@ -246,9 +246,9 @@ func TestIntendedInlining(t *testing.T) {
+ 	if runtime.GOARCH != "386" {
+ 		// As explained above, TrailingZeros64 and TrailingZeros32 are not Go code on 386.
+ 		// The same applies to Bswap32.
+-		want["runtime/internal/sys"] = append(want["runtime/internal/sys"], "TrailingZeros64")
+-		want["runtime/internal/sys"] = append(want["runtime/internal/sys"], "TrailingZeros32")
+-		want["runtime/internal/sys"] = append(want["runtime/internal/sys"], "Bswap32")
++		want["internal/runtime/sys"] = append(want["internal/runtime/sys"], "TrailingZeros64")
++		want["internal/runtime/sys"] = append(want["internal/runtime/sys"], "TrailingZeros32")
++		want["internal/runtime/sys"] = append(want["internal/runtime/sys"], "Bswap32")
+ 	}
+ 	if runtime.GOARCH == "amd64" || runtime.GOARCH == "arm64" || runtime.GOARCH == "loong64" || runtime.GOARCH == "mips" || runtime.GOARCH == "mips64" || runtime.GOARCH == "ppc64" || runtime.GOARCH == "riscv64" || runtime.GOARCH == "s390x" {
+ 		// internal/runtime/atomic.Loaduintptr is only intrinsified on these platforms.
+diff --git a/src/cmd/compile/internal/types/pkg.go b/src/cmd/compile/internal/types/pkg.go
+index c6ce7889af..9f64b84db4 100644
+--- a/src/cmd/compile/internal/types/pkg.go
++++ b/src/cmd/compile/internal/types/pkg.go
+@@ -16,7 +16,7 @@ import (
+ var pkgMap = make(map[string]*Pkg)
+ 
+ type Pkg struct {
+-	Path    string // string literal used in import statement, e.g. "runtime/internal/sys"
++	Path    string // string literal used in import statement, e.g. "internal/runtime/sys"
+ 	Name    string // package name, e.g. "sys"
+ 	Prefix  string // escaped path for use in symbol table
+ 	Syms    map[string]*Sym
+diff --git a/src/cmd/compile/internal/types/type.go b/src/cmd/compile/internal/types/type.go
+index 88052dc97b..41fdefe830 100644
+--- a/src/cmd/compile/internal/types/type.go
++++ b/src/cmd/compile/internal/types/type.go
+@@ -1650,7 +1650,7 @@ func NewNamed(obj Object) *Type {
+ 		t.SetIsShape(true)
+ 		t.SetHasShape(true)
+ 	}
+-	if sym.Pkg.Path == "runtime/internal/sys" && sym.Name == "nih" {
++	if sym.Pkg.Path == "internal/runtime/sys" && sym.Name == "nih" {
+ 		// Recognize the special not-in-heap type. Any type including
+ 		// this type will also be not-in-heap.
+ 		// This logic is duplicated in go/types and
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index c033beabdb..910d5290e5 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -639,7 +639,7 @@ var gentab = []struct {
+ }{
+ 	{"go/build", "zcgo.go", mkzcgo},
+ 	{"cmd/go/internal/cfg", "zdefaultcc.go", mkzdefaultcc},
+-	{"runtime/internal/sys", "zversion.go", mkzversion},
++	{"internal/runtime/sys", "zversion.go", mkzversion},
+ 	{"time/tzdata", "zzipdata.go", mktzdata},
+ }
+ 
+@@ -1707,7 +1707,7 @@ func checkNotStale(env []string, goBinary string, targets ...string) {
+ 	out := runEnv(workdir, CheckExit, env, append(goCmd, targets...)...)
+ 	if strings.Contains(out, "\tSTALE ") {
+ 		os.Setenv("GODEBUG", "gocachehash=1")
+-		for _, target := range []string{"runtime/internal/sys", "cmd/dist", "cmd/link"} {
++		for _, target := range []string{"internal/runtime/sys", "cmd/dist", "cmd/link"} {
+ 			if strings.Contains(out, "STALE "+target) {
+ 				run(workdir, ShowOutput|CheckExit, goBinary, "list", "-f={{.ImportPath}} {{.Stale}}", target)
+ 				break
+diff --git a/src/cmd/distpack/pack.go b/src/cmd/distpack/pack.go
+index 5525249366..a4f18da8bd 100644
+--- a/src/cmd/distpack/pack.go
++++ b/src/cmd/distpack/pack.go
+@@ -132,7 +132,7 @@ func main() {
+ 		// Generated during cmd/dist. See ../dist/build.go:/gentab.
+ 		"src/cmd/go/internal/cfg/zdefaultcc.go",
+ 		"src/go/build/zcgo.go",
+-		"src/runtime/internal/sys/zversion.go",
++		"src/internal/runtime/sys/zversion.go",
+ 		"src/time/tzdata/zzipdata.go",
+ 
+ 		// Generated during cmd/dist by bootstrapBuildTools.
+diff --git a/src/cmd/distpack/test.go b/src/cmd/distpack/test.go
+index 22b54b5fe1..108907d0e6 100644
+--- a/src/cmd/distpack/test.go
++++ b/src/cmd/distpack/test.go
+@@ -35,7 +35,7 @@ var srcRules = []testRule{
+ 	{name: "go/pkg/**", exclude: true},
+ 	{name: "go/src/cmd/dist/dist", exclude: true},
+ 	{name: "go/src/cmd/dist/dist.exe", exclude: true},
+-	{name: "go/src/runtime/internal/sys/zversion.go", exclude: true},
++	{name: "go/src/internal/runtime/sys/zversion.go", exclude: true},
+ 	{name: "go/src/time/tzdata/zzipdata.go", exclude: true},
+ }
+ 
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index b45a905880..5720a397f7 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -943,14 +943,14 @@ func TestNewReleaseRebuildsStalePackagesInGOPATH(t *testing.T) {
+ 	tg.run("install", "p1")
+ 	tg.wantNotStale("p1", "", "./testgo list claims p1 is stale, incorrectly, before any changes")
+ 
+-	// Changing mtime of runtime/internal/sys/sys.go
++	// Changing mtime of internal/runtime/sys/sys.go
+ 	// should have no effect: only the content matters.
+ 	// In fact this should be true even outside a release branch.
+-	sys := tg.path("goroot/src/runtime/internal/sys/sys.go")
++	sys := tg.path("goroot/src/internal/runtime/sys/sys.go")
+ 	tg.sleep()
+ 	restore := addVar(sys, 0)
+ 	restore()
+-	tg.wantNotStale("p1", "", "./testgo list claims p1 is stale, incorrectly, after updating mtime of runtime/internal/sys/sys.go")
++	tg.wantNotStale("p1", "", "./testgo list claims p1 is stale, incorrectly, after updating mtime of internal/runtime/sys/sys.go")
+ 
+ 	// But changing content of any file should have an effect.
+ 	// Previously zversion.go was the only one that mattered;
+diff --git a/src/cmd/internal/objabi/pkgspecial.go b/src/cmd/internal/objabi/pkgspecial.go
+index 2772226c93..f288096a02 100644
+--- a/src/cmd/internal/objabi/pkgspecial.go
++++ b/src/cmd/internal/objabi/pkgspecial.go
+@@ -48,7 +48,7 @@ var runtimePkgs = []string{
+ 	"internal/runtime/atomic",
+ 	"internal/runtime/exithook",
+ 	"internal/runtime/math",
+-	"runtime/internal/sys",
++	"internal/runtime/sys",
+ 	"internal/runtime/syscall",
+ 
+ 	"internal/abi",
+diff --git a/src/cmd/internal/objabi/stack.go b/src/cmd/internal/objabi/stack.go
+index 7c7ff4e058..d50a7c1afd 100644
+--- a/src/cmd/internal/objabi/stack.go
++++ b/src/cmd/internal/objabi/stack.go
+@@ -18,7 +18,7 @@ func StackNosplit(race bool) int {
+ // stack guard size. Larger multipliers are used for non-optimized
+ // builds that have larger stack frames or for specific targets.
+ func stackGuardMultiplier(race bool) int {
+-	// This arithmetic must match that in runtime/internal/sys/consts.go:StackGuardMultiplier.
++	// This arithmetic must match that in internal/runtime/sys/consts.go:StackGuardMultiplier.
+ 	n := 1
+ 	// On AIX, a larger stack is needed for syscalls.
+ 	if buildcfg.GOOS == "aix" {
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 9e22955eda..a0bcb4f27a 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -83,7 +83,7 @@ var depsRules = `
+ 	< internal/stringslite
+ 	< internal/itoa
+ 	< internal/unsafeheader
+-	< runtime/internal/sys
++	< internal/runtime/sys
+ 	< internal/runtime/syscall
+ 	< internal/runtime/atomic
+ 	< internal/runtime/exithook
+diff --git a/src/internal/coverage/pkid.go b/src/internal/coverage/pkid.go
+index a764cc4205..46de9fd0ce 100644
+--- a/src/internal/coverage/pkid.go
++++ b/src/internal/coverage/pkid.go
+@@ -26,7 +26,7 @@ package coverage
+ //    slot: 1 path='internal/goarch'  hard-coded id: 2
+ //    slot: 2 path='internal/runtime/atomic'  hard-coded id: 3
+ //    slot: 3 path='internal/goos'
+-//    slot: 4 path='runtime/internal/sys'  hard-coded id: 5
++//    slot: 4 path='internal/runtime/sys'  hard-coded id: 5
+ //    slot: 5 path='internal/abi'  hard-coded id: 4
+ //    slot: 6 path='internal/runtime/math'  hard-coded id: 6
+ //    slot: 7 path='internal/bytealg'  hard-coded id: 7
+@@ -50,7 +50,7 @@ var rtPkgs = [...]string{
+ 	"internal/runtime/atomic",
+ 	"internal/goos",
+ 	"internal/chacha8rand",
+-	"runtime/internal/sys",
++	"internal/runtime/sys",
+ 	"internal/abi",
+ 	"internal/runtime/math",
+ 	"internal/bytealg",
+diff --git a/src/runtime/internal/sys/consts.go b/src/internal/runtime/sys/consts.go
+similarity index 100%
+rename from src/runtime/internal/sys/consts.go
+rename to src/internal/runtime/sys/consts.go
+diff --git a/src/runtime/internal/sys/consts_norace.go b/src/internal/runtime/sys/consts_norace.go
+similarity index 100%
+rename from src/runtime/internal/sys/consts_norace.go
+rename to src/internal/runtime/sys/consts_norace.go
+diff --git a/src/runtime/internal/sys/consts_race.go b/src/internal/runtime/sys/consts_race.go
+similarity index 100%
+rename from src/runtime/internal/sys/consts_race.go
+rename to src/internal/runtime/sys/consts_race.go
+diff --git a/src/runtime/internal/sys/intrinsics.go b/src/internal/runtime/sys/intrinsics.go
+similarity index 100%
+rename from src/runtime/internal/sys/intrinsics.go
+rename to src/internal/runtime/sys/intrinsics.go
+diff --git a/src/runtime/internal/sys/intrinsics_test.go b/src/internal/runtime/sys/intrinsics_test.go
+similarity index 97%
+rename from src/runtime/internal/sys/intrinsics_test.go
+rename to src/internal/runtime/sys/intrinsics_test.go
+index 6799885001..d466f3e539 100644
+--- a/src/runtime/internal/sys/intrinsics_test.go
++++ b/src/internal/runtime/sys/intrinsics_test.go
+@@ -5,7 +5,7 @@
+ package sys_test
+ 
+ import (
+-	"runtime/internal/sys"
++	"internal/runtime/sys"
+ 	"testing"
+ )
+ 
+diff --git a/src/runtime/internal/sys/nih.go b/src/internal/runtime/sys/nih.go
+similarity index 100%
+rename from src/runtime/internal/sys/nih.go
+rename to src/internal/runtime/sys/nih.go
+diff --git a/src/runtime/internal/sys/sys.go b/src/internal/runtime/sys/sys.go
+similarity index 100%
+rename from src/runtime/internal/sys/sys.go
+rename to src/internal/runtime/sys/sys.go
+diff --git a/src/reflect/deepequal.go b/src/reflect/deepequal.go
+index 502ea9f146..041c3e1f7e 100644
+--- a/src/reflect/deepequal.go
++++ b/src/reflect/deepequal.go
+@@ -41,7 +41,7 @@ func deepValueEqual(v1, v2 Value, visited map[visit]bool) bool {
+ 		case Pointer:
+ 			if !v1.typ().Pointers() {
+ 				// not-in-heap pointers can't be cyclic.
+-				// At least, all of our current uses of runtime/internal/sys.NotInHeap
++				// At least, all of our current uses of internal/runtime/sys.NotInHeap
+ 				// have that property. The runtime ones aren't cyclic (and we don't use
+ 				// DeepEqual on them anyway), and the cgo-generated ones are
+ 				// all empty structs.
+diff --git a/src/runtime/HACKING.md b/src/runtime/HACKING.md
+index e1a43ba88e..f0c60f3af9 100644
+--- a/src/runtime/HACKING.md
++++ b/src/runtime/HACKING.md
+@@ -235,7 +235,7 @@ There are three mechanisms for allocating unmanaged memory:
+   objects of the same type.
+ 
+ In general, types that are allocated using any of these should be
+-marked as not in heap by embedding `runtime/internal/sys.NotInHeap`.
++marked as not in heap by embedding `internal/runtime/sys.NotInHeap`.
+ 
+ Objects that are allocated in unmanaged memory **must not** contain
+ heap pointers unless the following rules are also obeyed:
+diff --git a/src/runtime/arena.go b/src/runtime/arena.go
+index 96197099ca..936e3604bf 100644
+--- a/src/runtime/arena.go
++++ b/src/runtime/arena.go
+@@ -87,7 +87,7 @@ import (
+ 	"internal/goarch"
+ 	"internal/runtime/atomic"
+ 	"internal/runtime/math"
+-	"runtime/internal/sys"
++	"internal/runtime/sys"
+ 	"unsafe"
+ )
+ 
+diff --git a/src/runtime/cgo/cgo.go b/src/runtime/cgo/cgo.go
+index 1e3a502918..c37135fbbe 100644
+--- a/src/runtime/cgo/cgo.go
++++ b/src/runtime/cgo/cgo.go
+@@ -32,7 +32,7 @@ package cgo
+ */
+ import "C"
+ 
+-import "runtime/internal/sys"
++import "internal/runtime/sys"
+ 
+ // Incomplete is used specifically for the semantics of incomplete C types.
+ type Incomplete struct {
+diff --git a/src/runtime/cgocall.go b/src/runtime/cgocall.go
+index b943b1c2d6..ae91627972 100644
+--- a/src/runtime/cgocall.go
++++ b/src/runtime/cgocall.go
+@@ -88,7 +88,7 @@ import (
+ 	"internal/abi"
+ 	"internal/goarch"
+ 	"internal/goexperiment"
+-	"runtime/internal/sys"
++	"internal/runtime/sys"
+ 	"unsafe"
+ )
+ 
+diff --git a/src/runtime/cpuprof.go b/src/runtime/cpuprof.go
+index 100a78258a..ea4d3a8cb0 100644
+--- a/src/runtime/cpuprof.go
++++ b/src/runtime/cpuprof.go
+@@ -14,7 +14,7 @@ package runtime
+ 
+ import (
+ 	"internal/abi"
+-	"runtime/internal/sys"
++	"internal/runtime/sys"
+ 	"unsafe"
+ )
+ 
+diff --git a/src/runtime/debuglog.go b/src/runtime/debuglog.go
+index 695cd204f5..25186af7e0 100644
+--- a/src/runtime/debuglog.go
++++ b/src/runtime/debuglog.go
+@@ -18,7 +18,7 @@ package runtime
+ import (
+ 	"internal/abi"
+ 	"internal/runtime/atomic"
+-	"runtime/internal/sys"
++	"internal/runtime/sys"
+ 	"unsafe"
+ )
+ 
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index d55da1028d..759463755a 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -11,7 +11,7 @@ import (
+ 	"internal/goarch"
+ 	"internal/goos"
+ 	"internal/runtime/atomic"
+-	"runtime/internal/sys"
++	"internal/runtime/sys"
+ 	"unsafe"
+ )
+ 
+diff --git a/src/runtime/histogram.go b/src/runtime/histogram.go
+index 95230d1f39..920a9561d2 100644
+--- a/src/runtime/histogram.go
++++ b/src/runtime/histogram.go
+@@ -6,7 +6,7 @@ package runtime
+ 
+ import (
+ 	"internal/runtime/atomic"
+-	"runtime/internal/sys"
++	"internal/runtime/sys"
+ 	"unsafe"
+ )
+ 
+diff --git a/src/runtime/iface.go b/src/runtime/iface.go
+index 41a10ae012..5316182f4a 100644
+--- a/src/runtime/iface.go
++++ b/src/runtime/iface.go
+@@ -8,7 +8,7 @@ import (
+ 	"internal/abi"
+ 	"internal/goarch"
+ 	"internal/runtime/atomic"
+-	"runtime/internal/sys"
++	"internal/runtime/sys"
+ 	"unsafe"
+ )
+ 
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index cbb4f67ee8..b24ebec27d 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -105,7 +105,7 @@ import (
+ 	"internal/goos"
+ 	"internal/runtime/atomic"
+ 	"internal/runtime/math"
+-	"runtime/internal/sys"
++	"internal/runtime/sys"
+ 	"unsafe"
+ )
+ 
+@@ -1555,7 +1555,7 @@ var persistentChunks *notInHeap
+ // sysStat must be non-nil.
+ //
+ // Consider marking persistentalloc'd types not in heap by embedding
+-// runtime/internal/sys.NotInHeap.
++// internal/runtime/sys.NotInHeap.
+ func persistentalloc(size, align uintptr, sysStat *sysMemStat) unsafe.Pointer {
+ 	var p *notInHeap
+ 	systemstack(func() {
+@@ -1697,7 +1697,7 @@ func (l *linearAlloc) alloc(size, align uintptr, sysStat *sysMemStat) unsafe.Poi
+ // like sysAlloc or persistentAlloc.
+ //
+ // In general, it's better to use real types which embed
+-// runtime/internal/sys.NotInHeap, but this serves as a generic type
++// internal/runtime/sys.NotInHeap, but this serves as a generic type
+ // for situations where that isn't possible (like in the allocators).
+ //
+ // TODO: Use this as the return type of sysAlloc, persistentAlloc, etc?
+diff --git a/src/runtime/mbitmap.go b/src/runtime/mbitmap.go
+index 689fac103c..a25995f46f 100644
+--- a/src/runtime/mbitmap.go
++++ b/src/runtime/mbitmap.go
+@@ -59,7 +59,7 @@ import (
+ 	"internal/abi"
+ 	"internal/goarch"
+ 	"internal/runtime/atomic"
+-	"runtime/internal/sys"
++	"internal/runtime/sys"
+ 	"unsafe"
+ )
+ 
+diff --git a/src/runtime/mcache.go b/src/runtime/mcache.go
+index e8da133a69..97a5f70e9c 100644
+--- a/src/runtime/mcache.go
++++ b/src/runtime/mcache.go
+@@ -6,7 +6,7 @@ package runtime
+ 
+ import (
+ 	"internal/runtime/atomic"
+-	"runtime/internal/sys"
++	"internal/runtime/sys"
+ 	"unsafe"
+ )
+ 
+diff --git a/src/runtime/mcentral.go b/src/runtime/mcentral.go
+index bf597e1936..1a4819bc2c 100644
+--- a/src/runtime/mcentral.go
++++ b/src/runtime/mcentral.go
+@@ -14,7 +14,7 @@ package runtime
+ 
+ import (
+ 	"internal/runtime/atomic"
+-	"runtime/internal/sys"
++	"internal/runtime/sys"
+ )
+ 
+ // Central list of free objects of a given size.
+diff --git a/src/runtime/mcheckmark.go b/src/runtime/mcheckmark.go
+index 258f889272..f5560cf50f 100644
+--- a/src/runtime/mcheckmark.go
++++ b/src/runtime/mcheckmark.go
+@@ -15,7 +15,7 @@ package runtime
+ import (
+ 	"internal/goarch"
+ 	"internal/runtime/atomic"
+-	"runtime/internal/sys"
++	"internal/runtime/sys"
+ 	"unsafe"
+ )
+ 
+diff --git a/src/runtime/mfinal.go b/src/runtime/mfinal.go
+index 78313fb74c..a926a8ec35 100644
+--- a/src/runtime/mfinal.go
++++ b/src/runtime/mfinal.go
+@@ -10,7 +10,7 @@ import (
+ 	"internal/abi"
+ 	"internal/goarch"
+ 	"internal/runtime/atomic"
+-	"runtime/internal/sys"
++	"internal/runtime/sys"
+ 	"unsafe"
+ )
+ 
+diff --git a/src/runtime/mfixalloc.go b/src/runtime/mfixalloc.go
+index 7760ada397..be977af737 100644
+--- a/src/runtime/mfixalloc.go
++++ b/src/runtime/mfixalloc.go
+@@ -9,7 +9,7 @@
+ package runtime
+ 
+ import (
+-	"runtime/internal/sys"
++	"internal/runtime/sys"
+ 	"unsafe"
+ )
+ 
+@@ -27,7 +27,7 @@ import (
+ // smashed by freeing and reallocating.
+ //
+ // Consider marking fixalloc'd types not in heap by embedding
+-// runtime/internal/sys.NotInHeap.
++// internal/runtime/sys.NotInHeap.
+ type fixalloc struct {
+ 	size   uintptr
+ 	first  func(arg, p unsafe.Pointer) // called first time p is returned
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 61e917df41..9a48d15552 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -10,7 +10,7 @@ import (
+ 	"internal/abi"
+ 	"internal/goarch"
+ 	"internal/runtime/atomic"
+-	"runtime/internal/sys"
++	"internal/runtime/sys"
+ 	"unsafe"
+ )
+ 
+diff --git a/src/runtime/mgcscavenge.go b/src/runtime/mgcscavenge.go
+index 4f0bd9c28d..3d869ecdd2 100644
+--- a/src/runtime/mgcscavenge.go
++++ b/src/runtime/mgcscavenge.go
+@@ -93,7 +93,7 @@ package runtime
+ import (
+ 	"internal/goos"
+ 	"internal/runtime/atomic"
+-	"runtime/internal/sys"
++	"internal/runtime/sys"
+ 	"unsafe"
+ )
+ 
+diff --git a/src/runtime/mgcstack.go b/src/runtime/mgcstack.go
+index f4a83f5f59..bc5911f141 100644
+--- a/src/runtime/mgcstack.go
++++ b/src/runtime/mgcstack.go
+@@ -96,7 +96,7 @@ package runtime
+ 
+ import (
+ 	"internal/goarch"
+-	"runtime/internal/sys"
++	"internal/runtime/sys"
+ 	"unsafe"
+ )
+ 
+diff --git a/src/runtime/mgcwork.go b/src/runtime/mgcwork.go
+index b91a6bd464..2d66fa4002 100644
+--- a/src/runtime/mgcwork.go
++++ b/src/runtime/mgcwork.go
+@@ -7,7 +7,7 @@ package runtime
+ import (
+ 	"internal/goarch"
+ 	"internal/runtime/atomic"
+-	"runtime/internal/sys"
++	"internal/runtime/sys"
+ 	"unsafe"
+ )
+ 
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index 35fd08af50..e4b1fa0574 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -12,7 +12,7 @@ import (
+ 	"internal/cpu"
+ 	"internal/goarch"
+ 	"internal/runtime/atomic"
+-	"runtime/internal/sys"
++	"internal/runtime/sys"
+ 	"unsafe"
+ )
+ 
+diff --git a/src/runtime/mpagecache.go b/src/runtime/mpagecache.go
+index 245b0cbfef..0ed3e80c30 100644
+--- a/src/runtime/mpagecache.go
++++ b/src/runtime/mpagecache.go
+@@ -5,7 +5,7 @@
+ package runtime
+ 
+ import (
+-	"runtime/internal/sys"
++	"internal/runtime/sys"
+ 	"unsafe"
+ )
+ 
+diff --git a/src/runtime/mpallocbits.go b/src/runtime/mpallocbits.go
+index d8a9d25789..e8e70f36be 100644
+--- a/src/runtime/mpallocbits.go
++++ b/src/runtime/mpallocbits.go
+@@ -5,7 +5,7 @@
+ package runtime
+ 
+ import (
+-	"runtime/internal/sys"
++	"internal/runtime/sys"
+ )
+ 
+ // pageBits is a bitmap representing one bit per page in a palloc chunk.
+diff --git a/src/runtime/mprof.go b/src/runtime/mprof.go
+index 006274757e..a9adc7b6f7 100644
+--- a/src/runtime/mprof.go
++++ b/src/runtime/mprof.go
+@@ -12,7 +12,7 @@ import (
+ 	"internal/goarch"
+ 	"internal/profilerecord"
+ 	"internal/runtime/atomic"
+-	"runtime/internal/sys"
++	"internal/runtime/sys"
+ 	"unsafe"
+ )
+ 
+diff --git a/src/runtime/netpoll.go b/src/runtime/netpoll.go
+index 7b37d91b24..36b9edfe21 100644
+--- a/src/runtime/netpoll.go
++++ b/src/runtime/netpoll.go
+@@ -8,7 +8,7 @@ package runtime
+ 
+ import (
+ 	"internal/runtime/atomic"
+-	"runtime/internal/sys"
++	"internal/runtime/sys"
+ 	"unsafe"
+ )
+ 
+@@ -714,7 +714,7 @@ func (c *pollCache) alloc() *pollDesc {
+ // makeArg converts pd to an interface{}.
+ // makeArg does not do any allocation. Normally, such
+ // a conversion requires an allocation because pointers to
+-// types which embed runtime/internal/sys.NotInHeap (which pollDesc is)
++// types which embed internal/runtime/sys.NotInHeap (which pollDesc is)
+ // must be stored in interfaces indirectly. See issue 42076.
+ func (pd *pollDesc) makeArg() (i any) {
+ 	x := (*eface)(unsafe.Pointer(&i))
+diff --git a/src/runtime/panic.go b/src/runtime/panic.go
+index 98e96b12bf..bd1ea096aa 100644
+--- a/src/runtime/panic.go
++++ b/src/runtime/panic.go
+@@ -8,8 +8,8 @@ import (
+ 	"internal/abi"
+ 	"internal/goarch"
+ 	"internal/runtime/atomic"
++	"internal/runtime/sys"
+ 	"internal/stringslite"
+-	"runtime/internal/sys"
+ 	"unsafe"
+ )
+ 
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index c4f175b0b7..2cf8a31971 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -11,8 +11,8 @@ import (
+ 	"internal/goos"
+ 	"internal/runtime/atomic"
+ 	"internal/runtime/exithook"
++	"internal/runtime/sys"
+ 	"internal/stringslite"
+-	"runtime/internal/sys"
+ 	"unsafe"
+ )
+ 
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 4a78963961..62ed77aae5 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -9,7 +9,7 @@ import (
+ 	"internal/chacha8rand"
+ 	"internal/goarch"
+ 	"internal/runtime/atomic"
+-	"runtime/internal/sys"
++	"internal/runtime/sys"
+ 	"unsafe"
+ )
+ 
+diff --git a/src/runtime/signal_arm64.go b/src/runtime/signal_arm64.go
+index 4a96b3c2e7..af7d29f9de 100644
+--- a/src/runtime/signal_arm64.go
++++ b/src/runtime/signal_arm64.go
+@@ -9,7 +9,7 @@ package runtime
+ import (
+ 	"internal/abi"
+ 	"internal/goarch"
+-	"runtime/internal/sys"
++	"internal/runtime/sys"
+ 	"unsafe"
+ )
+ 
+diff --git a/src/runtime/signal_linux_s390x.go b/src/runtime/signal_linux_s390x.go
+index 18c3b115ef..54e9d1fb9d 100644
+--- a/src/runtime/signal_linux_s390x.go
++++ b/src/runtime/signal_linux_s390x.go
+@@ -7,7 +7,7 @@ package runtime
+ import (
+ 	"internal/abi"
+ 	"internal/goarch"
+-	"runtime/internal/sys"
++	"internal/runtime/sys"
+ 	"unsafe"
+ )
+ 
+diff --git a/src/runtime/signal_mipsx.go b/src/runtime/signal_mipsx.go
+index ba92655152..924e654c6c 100644
+--- a/src/runtime/signal_mipsx.go
++++ b/src/runtime/signal_mipsx.go
+@@ -8,7 +8,7 @@ package runtime
+ 
+ import (
+ 	"internal/abi"
+-	"runtime/internal/sys"
++	"internal/runtime/sys"
+ 	"unsafe"
+ )
+ 
+diff --git a/src/runtime/signal_ppc64x.go b/src/runtime/signal_ppc64x.go
+index b5722f99c6..20f874c2ec 100644
+--- a/src/runtime/signal_ppc64x.go
++++ b/src/runtime/signal_ppc64x.go
+@@ -8,7 +8,7 @@ package runtime
+ 
+ import (
+ 	"internal/abi"
+-	"runtime/internal/sys"
++	"internal/runtime/sys"
+ 	"unsafe"
+ )
+ 
+diff --git a/src/runtime/signal_unix.go b/src/runtime/signal_unix.go
+index 8ba498bdb2..a42972bb35 100644
+--- a/src/runtime/signal_unix.go
++++ b/src/runtime/signal_unix.go
+@@ -9,7 +9,7 @@ package runtime
+ import (
+ 	"internal/abi"
+ 	"internal/runtime/atomic"
+-	"runtime/internal/sys"
++	"internal/runtime/sys"
+ 	"unsafe"
+ )
+ 
+diff --git a/src/runtime/signal_windows.go b/src/runtime/signal_windows.go
+index 4b7960c1f0..b0c653ee46 100644
+--- a/src/runtime/signal_windows.go
++++ b/src/runtime/signal_windows.go
+@@ -6,7 +6,7 @@ package runtime
+ 
+ import (
+ 	"internal/abi"
+-	"runtime/internal/sys"
++	"internal/runtime/sys"
+ 	"unsafe"
+ )
+ 
+diff --git a/src/runtime/slice.go b/src/runtime/slice.go
+index 65883ea2f3..ecc2e2921b 100644
+--- a/src/runtime/slice.go
++++ b/src/runtime/slice.go
+@@ -8,7 +8,7 @@ import (
+ 	"internal/abi"
+ 	"internal/goarch"
+ 	"internal/runtime/math"
+-	"runtime/internal/sys"
++	"internal/runtime/sys"
+ 	"unsafe"
+ )
+ 
+@@ -18,7 +18,7 @@ type slice struct {
+ 	cap   int
+ }
+ 
+-// A notInHeapSlice is a slice backed by runtime/internal/sys.NotInHeap memory.
++// A notInHeapSlice is a slice backed by internal/runtime/sys.NotInHeap memory.
+ type notInHeapSlice struct {
+ 	array *notInHeap
+ 	len   int
+diff --git a/src/runtime/stack.go b/src/runtime/stack.go
+index cdf859a7ff..bdfeb21c18 100644
+--- a/src/runtime/stack.go
++++ b/src/runtime/stack.go
+@@ -10,7 +10,7 @@ import (
+ 	"internal/goarch"
+ 	"internal/goos"
+ 	"internal/runtime/atomic"
+-	"runtime/internal/sys"
++	"internal/runtime/sys"
+ 	"unsafe"
+ )
+ 
+diff --git a/src/runtime/stkframe.go b/src/runtime/stkframe.go
+index 42b6947751..2bab5a3a0e 100644
+--- a/src/runtime/stkframe.go
++++ b/src/runtime/stkframe.go
+@@ -7,7 +7,7 @@ package runtime
+ import (
+ 	"internal/abi"
+ 	"internal/goarch"
+-	"runtime/internal/sys"
++	"internal/runtime/sys"
+ 	"unsafe"
+ )
+ 
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index 10cdcf9c6e..f889d66992 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -8,7 +8,7 @@ import (
+ 	"internal/abi"
+ 	"internal/goarch"
+ 	"internal/runtime/atomic"
+-	"runtime/internal/sys"
++	"internal/runtime/sys"
+ 	"unsafe"
+ )
+ 
+diff --git a/src/runtime/symtabinl_test.go b/src/runtime/symtabinl_test.go
+index 3c7cb2e595..db682e0c9c 100644
+--- a/src/runtime/symtabinl_test.go
++++ b/src/runtime/symtabinl_test.go
+@@ -6,8 +6,8 @@ package runtime
+ 
+ import (
+ 	"internal/abi"
++	"internal/runtime/sys"
+ 	"internal/stringslite"
+-	"runtime/internal/sys"
+ )
+ 
+ func XTestInlineUnwinder(t TestingT) {
+diff --git a/src/runtime/sys_wasm.go b/src/runtime/sys_wasm.go
+index 27f9432bd4..f88b992e9c 100644
+--- a/src/runtime/sys_wasm.go
++++ b/src/runtime/sys_wasm.go
+@@ -6,7 +6,7 @@ package runtime
+ 
+ import (
+ 	"internal/goarch"
+-	"runtime/internal/sys"
++	"internal/runtime/sys"
+ 	"unsafe"
+ )
+ 
+diff --git a/src/runtime/time.go b/src/runtime/time.go
+index fc664f49eb..79f0514c6e 100644
+--- a/src/runtime/time.go
++++ b/src/runtime/time.go
+@@ -9,7 +9,7 @@ package runtime
+ import (
+ 	"internal/abi"
+ 	"internal/runtime/atomic"
+-	"runtime/internal/sys"
++	"internal/runtime/sys"
+ 	"unsafe"
+ )
+ 
+diff --git a/src/runtime/traceallocfree.go b/src/runtime/traceallocfree.go
+index e6a2a79c69..985d90eacb 100644
+--- a/src/runtime/traceallocfree.go
++++ b/src/runtime/traceallocfree.go
+@@ -8,7 +8,7 @@ package runtime
+ 
+ import (
+ 	"internal/abi"
+-	"runtime/internal/sys"
++	"internal/runtime/sys"
+ )
+ 
+ // Batch type values for the alloc/free experiment.
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index 03c02f7771..8946ec2528 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -8,8 +8,8 @@ import (
+ 	"internal/abi"
+ 	"internal/bytealg"
+ 	"internal/goarch"
++	"internal/runtime/sys"
+ 	"internal/stringslite"
+-	"runtime/internal/sys"
+ 	"unsafe"
+ )
+ 
+diff --git a/src/runtime/tracebuf.go b/src/runtime/tracebuf.go
+index db4adf53e9..908a63d273 100644
+--- a/src/runtime/tracebuf.go
++++ b/src/runtime/tracebuf.go
+@@ -7,7 +7,7 @@
+ package runtime
+ 
+ import (
+-	"runtime/internal/sys"
++	"internal/runtime/sys"
+ 	"unsafe"
+ )
+ 
+diff --git a/src/runtime/traceevent.go b/src/runtime/traceevent.go
+index 2a869fb515..9adbc52fd3 100644
+--- a/src/runtime/traceevent.go
++++ b/src/runtime/traceevent.go
+@@ -8,7 +8,7 @@ package runtime
+ 
+ import (
+ 	"internal/abi"
+-	"runtime/internal/sys"
++	"internal/runtime/sys"
+ )
+ 
+ // Event types in the trace, args are given in square brackets.
+diff --git a/src/runtime/tracemap.go b/src/runtime/tracemap.go
+index 5b2718c8d6..9efa325c11 100644
+--- a/src/runtime/tracemap.go
++++ b/src/runtime/tracemap.go
+@@ -19,7 +19,7 @@ import (
+ 	"internal/cpu"
+ 	"internal/goarch"
+ 	"internal/runtime/atomic"
+-	"runtime/internal/sys"
++	"internal/runtime/sys"
+ 	"unsafe"
+ )
+ 
+diff --git a/src/runtime/traceregion.go b/src/runtime/traceregion.go
+index 43eef9c92b..b45093ec86 100644
+--- a/src/runtime/traceregion.go
++++ b/src/runtime/traceregion.go
+@@ -8,7 +8,7 @@ package runtime
+ 
+ import (
+ 	"internal/runtime/atomic"
+-	"runtime/internal/sys"
++	"internal/runtime/sys"
+ 	"unsafe"
+ )
+ 
+diff --git a/test/intrinsic.dir/main.go b/test/intrinsic.dir/main.go
+index 951aa159d6..21e3eff805 100644
+--- a/test/intrinsic.dir/main.go
++++ b/test/intrinsic.dir/main.go
+@@ -6,7 +6,7 @@ package main
+ 
+ import (
+ 	"fmt"
+-	T "runtime/internal/sys"
++	T "internal/runtime/sys"
+ )
+ 
+ var A = []uint64{0x0102030405060708, 0x1122334455667788}

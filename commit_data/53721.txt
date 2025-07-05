@@ -16,6 +16,22 @@ Date:   Wed Aug 31 04:06:45 2022 -0500
     Run-TryBot: Archana Ravindar <aravind5@in.ibm.com>
     Reviewed-by: Heschi Kreinick <heschi@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/asm/internal/asm/parse.go | 4 +---
  1 file changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/parse.go b/src/cmd/asm/internal/asm/parse.go
+index b42178798e..037084fb8c 100644
+--- a/src/cmd/asm/internal/asm/parse.go
++++ b/src/cmd/asm/internal/asm/parse.go
+@@ -1017,9 +1017,7 @@ func (p *Parser) registerIndirect(a *obj.Addr, prefix rune) {
+ 			if scale != 0 && scale != 1 && (p.arch.Family == sys.ARM64 ||
+ 				p.arch.Family == sys.PPC64) {
+ 				// Support (R1)(R2) (no scaling) and (R1)(R2*1).
+-				if p.arch.Family != sys.PPC64 {
+-					p.errorf("%s doesn't support scaled register format", p.arch.Name)
+-				}
++				p.errorf("%s doesn't support scaled register format", p.arch.Name)
+ 			} else {
+ 				a.Scale = int16(scale)
+ 			}

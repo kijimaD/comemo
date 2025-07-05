@@ -7,7 +7,47 @@ Date:   Tue Mar 13 10:00:43 2012 -0400
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5801043
-
+---
  src/pkg/go/build/build.go      | 6 +++---
  src/pkg/go/build/build_test.go | 1 +
  2 files changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/go/build/build.go b/src/pkg/go/build/build.go
+index dc9dcd1d65..d2dbb58a1c 100644
+--- a/src/pkg/go/build/build.go
++++ b/src/pkg/go/build/build.go
+@@ -874,7 +874,7 @@ func splitQuoted(s string) (r []string, err error) {
+ //	!cgo (if cgo is disabled)
+ //	tag (if tag is listed in ctxt.BuildTags)
+ //	!tag (if tag is not listed in ctxt.BuildTags)
+-//	a slash-separated list of any of these
++//	a comma-separated list of any of these
+ //
+ func (ctxt *Context) match(name string) bool {
+ 	if name == "" {
+@@ -888,11 +888,11 @@ func (ctxt *Context) match(name string) bool {
+ 		return false
+ 	}
+ 	if strings.HasPrefix(name, "!") { // negation
+-		return !ctxt.match(name[1:])
++		return len(name) > 1 && !ctxt.match(name[1:])
+ 	}
+ 
+ 	// Tags must be letters, digits, underscores.
+-	// Unlike in Go identifiers, all digits is fine (e.g., "386").
++	// Unlike in Go identifiers, all digits are fine (e.g., "386").
+ 	for _, c := range name {
+ 		if !unicode.IsLetter(c) && !unicode.IsDigit(c) && c != '_' {
+ 			return false
+diff --git a/src/pkg/go/build/build_test.go b/src/pkg/go/build/build_test.go
+index 06b8b0e94f..560ebad5c9 100644
+--- a/src/pkg/go/build/build_test.go
++++ b/src/pkg/go/build/build_test.go
+@@ -36,6 +36,7 @@ func TestMatch(t *testing.T) {
+ 	nomatch(runtime.GOOS + "," + runtime.GOARCH + ",!foo")
+ 	match(runtime.GOOS + "," + runtime.GOARCH + ",!bar")
+ 	nomatch(runtime.GOOS + "," + runtime.GOARCH + ",bar")
++	nomatch("!")
+ }
+ 
+ func TestDotSlashImport(t *testing.T) {

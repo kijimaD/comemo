@@ -11,6 +11,20 @@ Date:   Fri Jul 3 12:32:40 2015 -0700
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/net/http/fcgi/child.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/net/http/fcgi/child.go b/src/net/http/fcgi/child.go
+index aba71cd5c1..da824ed717 100644
+--- a/src/net/http/fcgi/child.go
++++ b/src/net/http/fcgi/child.go
+@@ -289,6 +289,8 @@ func (c *child) serveRequest(req *request, body io.ReadCloser) {
+ }
+ 
+ func (c *child) cleanUp() {
++	c.mu.Lock()
++	defer c.mu.Unlock()
+ 	for _, req := range c.requests {
+ 		if req.pw != nil {
+ 			// race with call to Close in c.serveRequest doesn't matter because

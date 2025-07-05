@@ -7,6 +7,20 @@ Date:   Fri Aug 4 10:12:21 2017 +0200
     Change-Id: I7176becd10ad84cbfc3fb9427e190028626e5baf
     Reviewed-on: https://go-review.googlesource.com/53291
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go1.9.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go1.9.html b/doc/go1.9.html
+index becf1b18b5..967d79b93e 100644
+--- a/doc/go1.9.html
++++ b/doc/go1.9.html
+@@ -477,7 +477,7 @@ version of gccgo.
+ 
+     If any SAN extension, including with no DSN names, is present
+     in the certificate, then the Common Name from
+-    <a href="#pkg/crypto/x509/#Certificate.Subject"><code>Subject</code></a> is ignored.
++    <a href="/pkg/crypto/x509/#Certificate.Subject"><code>Subject</code></a> is ignored.
+     In previous releases, the code tested only whether DNS-name SANs were
+     present in a certificate.
+     </p>

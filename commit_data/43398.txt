@@ -14,7 +14,37 @@ Date:   Tue Mar 31 19:13:39 2020 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/duff_ppc64x.s | 6 ++----
  src/runtime/mkduff.go     | 4 +++-
  2 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/runtime/duff_ppc64x.s b/src/runtime/duff_ppc64x.s
+index 0c62d0afe9..d6b89ba940 100644
+--- a/src/runtime/duff_ppc64x.s
++++ b/src/runtime/duff_ppc64x.s
+@@ -137,7 +137,5 @@ TEXT runtime·duffzero(SB), NOSPLIT|NOFRAME, $0-0
+ 	MOVDU	R0, 8(R3)
+ 	RET
+ 
+-// TODO: Implement runtime·duffcopy.
+-TEXT runtime·duffcopy(SB),NOSPLIT|NOFRAME,$0-0
+-	MOVD	R0, 0(R0)
+-	RET
++TEXT runtime·duffcopy(SB), NOSPLIT|NOFRAME, $0-0
++	UNDEF
+diff --git a/src/runtime/mkduff.go b/src/runtime/mkduff.go
+index 6ac5e7da44..6c7a4cf8dc 100644
+--- a/src/runtime/mkduff.go
++++ b/src/runtime/mkduff.go
+@@ -194,7 +194,9 @@ func zeroPPC64x(w io.Writer) {
+ }
+ 
+ func copyPPC64x(w io.Writer) {
+-	fmt.Fprintln(w, "// TODO: Implement runtime·duffcopy.")
++	// duffcopy is not used on PPC64.
++	fmt.Fprintln(w, "TEXT runtime·duffcopy(SB), NOSPLIT|NOFRAME, $0-0")
++	fmt.Fprintln(w, "\tUNDEF")
+ }
+ 
+ func tagsMIPS64x(w io.Writer) {

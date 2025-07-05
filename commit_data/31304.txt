@@ -14,7 +14,65 @@ Date:   Fri Feb 10 13:08:13 2017 +1300
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/reflect/all_test.go | 15 ++++++++++-----
  src/reflect/type.go     |  1 +
  2 files changed, 11 insertions(+), 5 deletions(-)
+
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index 0be306dc54..0b81c28a22 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -2478,17 +2478,24 @@ func TestNumMethodOnDDD(t *testing.T) {
+ }
+ 
+ func TestPtrTo(t *testing.T) {
++	// This block of code means that the ptrToThis field of the
++	// reflect data for *unsafe.Pointer is non zero, see
++	// https://golang.org/issue/19003
++	var x unsafe.Pointer
++	var y = &x
++	var z = &y
++
+ 	var i int
+ 
+-	typ := TypeOf(i)
++	typ := TypeOf(z)
+ 	for i = 0; i < 100; i++ {
+ 		typ = PtrTo(typ)
+ 	}
+ 	for i = 0; i < 100; i++ {
+ 		typ = typ.Elem()
+ 	}
+-	if typ != TypeOf(i) {
+-		t.Errorf("after 100 PtrTo and Elem, have %s, want %s", typ, TypeOf(i))
++	if typ != TypeOf(z) {
++		t.Errorf("after 100 PtrTo and Elem, have %s, want %s", typ, TypeOf(z))
+ 	}
+ }
+ 
+@@ -6053,7 +6060,6 @@ func TestUnaddressableField(t *testing.T) {
+ 	})
+ }
+ 
+-
+ type Tint int
+ 
+ type Tint2 = Tint
+@@ -6086,4 +6092,3 @@ func TestAliasNames(t *testing.T) {
+ 		t.Errorf("Talias2 print:\nhave: %s\nwant: %s", out, want)
+ 	}
+ }
+-
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index fbfda3a363..40859093be 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -1463,6 +1463,7 @@ func (t *rtype) ptrTo() *rtype {
+ 	pp := *prototype
+ 
+ 	pp.str = resolveReflectName(newName(s, "", "", false))
++	pp.ptrToThis = 0
+ 
+ 	// For the type structures linked into the binary, the
+ 	// compiler provides a good hash of the string.

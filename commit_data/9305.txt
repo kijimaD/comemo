@@ -7,8 +7,74 @@ Date:   Mon Aug 8 16:29:57 2011 +1000
     R=r
     CC=golang-dev
     https://golang.org/cl/4837063
-
+---
  src/pkg/exp/template/doc.go       |  3 +++
  src/pkg/exp/template/exec_test.go |  3 +++
  src/pkg/exp/template/funcs.go     | 15 +++++++++++++++
  3 files changed, 21 insertions(+)
+
+diff --git a/src/pkg/exp/template/doc.go b/src/pkg/exp/template/doc.go
+index c374acec80..796bc9d476 100644
+--- a/src/pkg/exp/template/doc.go
++++ b/src/pkg/exp/template/doc.go
+@@ -244,6 +244,9 @@ Predefined global functions are named as follows.
+ 		An alias for fmt.Sprintf
+ 	println
+ 		An alias for fmt.Sprintln
++	url
++		Returns the escaped value of the textual representation of
++		its arguments in a form suitable for embedding in a URL.
+ 
+ The boolean functions take any zero value to be false and a non-zero value to
+ be true.
+diff --git a/src/pkg/exp/template/exec_test.go b/src/pkg/exp/template/exec_test.go
+index 4a13825bdb..50eefc3e85 100644
+--- a/src/pkg/exp/template/exec_test.go
++++ b/src/pkg/exp/template/exec_test.go
+@@ -283,6 +283,9 @@ var execTests = []execTest{
+ 	// JavaScript.
+ 	{"js", `{{js .}}`, `It\'d be nice.`, `It'd be nice.`, true},
+ 
++	// URL.
++	{"url", `{{"http://www.example.org/"|url}}`, "http%3A%2F%2Fwww.example.org%2F", nil, true},
++
+ 	// Booleans
+ 	{"not", "{{not true}} {{not false}}", "false true", nil, true},
+ 	{"and", "{{and false 0}} {{and 1 0}} {{and 0 true}} {{and 1 1}}", "false 0 0 1", nil, true},
+diff --git a/src/pkg/exp/template/funcs.go b/src/pkg/exp/template/funcs.go
+index 1de44fcb2c..5e912e014c 100644
+--- a/src/pkg/exp/template/funcs.go
++++ b/src/pkg/exp/template/funcs.go
+@@ -7,6 +7,7 @@ package template
+ import (
+ 	"bytes"
+ 	"fmt"
++	"http"
+ 	"io"
+ 	"os"
+ 	"reflect"
+@@ -31,6 +32,7 @@ var funcs = map[string]reflect.Value{
+ 	"print":   reflect.ValueOf(fmt.Sprint),
+ 	"printf":  reflect.ValueOf(fmt.Sprintf),
+ 	"println": reflect.ValueOf(fmt.Sprintln),
++	"url":     reflect.ValueOf(URLEscaper),
+ }
+ 
+ // addFuncs adds to values the functions in funcs, converting them to reflect.Values.
+@@ -318,3 +320,16 @@ func JSEscaper(args ...interface{}) string {
+ 	}
+ 	return JSEscapeString(s)
+ }
++
++// URLEscaper returns the escaped value of the textual representation of its
++// arguments in a form suitable for embedding in a URL.
++func URLEscaper(args ...interface{}) string {
++	s, ok := "", false
++	if len(args) == 1 {
++		s, ok = args[0].(string)
++	}
++	if !ok {
++		s = fmt.Sprint(args...)
++	}
++	return http.URLEscape(s)
++}

@@ -7,8 +7,45 @@ Date:   Mon May 3 15:29:59 2010 -0700
     R=ken2
     CC=golang-dev
     https://golang.org/cl/1067042
-
+---
  src/cmd/gc/lex.c                   | 2 ++
  test/{bugs => fixedbugs}/bug267.go | 0
  test/golden.out                    | 4 ----
  3 files changed, 2 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 7424f69671..48c200ccea 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -797,6 +797,7 @@ l0:
+ 	 * i said it was clumsy.
+ 	 */
+ 	case '(':
++	case '[':
+ 		if(loophack || lstk != nil) {
+ 			h = malloc(sizeof *h);
+ 			h->v = loophack;
+@@ -806,6 +807,7 @@ l0:
+ 		}
+ 		goto lx;
+ 	case ')':
++	case ']':
+ 		if(lstk != nil) {
+ 			h = lstk;
+ 			loophack = h->v;
+diff --git a/test/bugs/bug267.go b/test/fixedbugs/bug267.go
+similarity index 100%
+rename from test/bugs/bug267.go
+rename to test/fixedbugs/bug267.go
+diff --git a/test/golden.out b/test/golden.out
+index 3a9039fc5e..e0b6ad6242 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -185,7 +185,3 @@ panic: barCount != 1
+ 
+ panic PC=xxx
+ BUG
+-
+-=========== bugs/bug267.go
+-bugs/bug267.go:14: syntax error: unexpected {, expecting :
+-BUG

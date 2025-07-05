@@ -9,7 +9,7 @@ Date:   Tue Sep 27 08:57:02 2016 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/arm64/ssa.go        |   6 +
  src/cmd/compile/internal/ssa/gen/ARM64.rules |   8 +-
  src/cmd/compile/internal/ssa/gen/ARM64Ops.go |  19 ++
@@ -19,3 +19,565 @@ Date:   Tue Sep 27 08:57:02 2016 -0400
  src/runtime/duff_arm64.s                     | 387 ++++++++++++++++++++++++++-
  src/runtime/mkduff.go                        |  12 +-
  8 files changed, 463 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/arm64/ssa.go b/src/cmd/compile/internal/arm64/ssa.go
+index 18ca5a4531..1278fddc96 100644
+--- a/src/cmd/compile/internal/arm64/ssa.go
++++ b/src/cmd/compile/internal/arm64/ssa.go
+@@ -618,6 +618,12 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p3 := gc.Prog(arm64.ABLE)
+ 		p3.To.Type = obj.TYPE_BRANCH
+ 		gc.Patch(p3, p)
++	case ssa.OpARM64DUFFCOPY:
++		p := gc.Prog(obj.ADUFFCOPY)
++		p.To.Type = obj.TYPE_MEM
++		p.To.Name = obj.NAME_EXTERN
++		p.To.Sym = gc.Linksym(gc.Pkglookup("duffcopy", gc.Runtimepkg))
++		p.To.Offset = v.AuxInt
+ 	case ssa.OpARM64LoweredMove:
+ 		// MOVD.P	8(R16), Rtmp
+ 		// MOVD.P	Rtmp, 8(R17)
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64.rules b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+index 90f6883e58..994119fafb 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+@@ -431,8 +431,14 @@
+ 		(OffPtr <src.Type> src [SizeAndAlign(s).Size()-SizeAndAlign(s).Size()%8])
+ 		(Move [MakeSizeAndAlign(SizeAndAlign(s).Size()-SizeAndAlign(s).Size()%8, 1).Int64()] dst src mem))
+ 
++// medium move uses a duff device
++// 8 and 128 are magic constants, see runtime/mkduff.go
++(Move [s] dst src mem)
++	&& SizeAndAlign(s).Size()%8 == 0 && SizeAndAlign(s).Size() > 24 && SizeAndAlign(s).Size() <= 8*128
++	&& !config.noDuffDevice ->
++	(DUFFCOPY [8 * (128 - int64(SizeAndAlign(s).Size()/8))] dst src mem)
++
+ // large move uses a loop
+-// DUFFCOPY is not implemented on ARM64 (TODO)
+ (Move [s] dst src mem)
+ 	&& SizeAndAlign(s).Size() > 24 && SizeAndAlign(s).Size()%8 == 0 ->
+ 	(LoweredMove
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64Ops.go b/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
+index 3ccda45367..4002ab8abc 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
+@@ -376,6 +376,25 @@ func init() {
+ 			faultOnNilArg0: true,
+ 		},
+ 
++		// duffcopy
++		// arg0 = address of dst memory (in R17 aka arm64.REGRT2, changed as side effect)
++		// arg1 = address of src memory (in R16 aka arm64.REGRT1, changed as side effect)
++		// arg2 = mem
++		// auxint = offset into duffcopy code to start executing
++		// returns mem
++		// R16, R17 changed as side effect
++		{
++			name:      "DUFFCOPY",
++			aux:       "Int64",
++			argLength: 3,
++			reg: regInfo{
++				inputs:   []regMask{buildReg("R17"), buildReg("R16")},
++				clobbers: buildReg("R16 R17"),
++			},
++			faultOnNilArg0: true,
++			faultOnNilArg1: true,
++		},
++
+ 		// large move
+ 		// arg0 = address of dst memory (in R17 aka arm64.REGRT2, changed as side effect)
+ 		// arg1 = address of src memory (in R16 aka arm64.REGRT1, changed as side effect)
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 4605beacad..4d47d2067c 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -993,6 +993,7 @@ const (
+ 	OpARM64GreaterEqualU
+ 	OpARM64DUFFZERO
+ 	OpARM64LoweredZero
++	OpARM64DUFFCOPY
+ 	OpARM64LoweredMove
+ 	OpARM64LoweredGetClosurePtr
+ 	OpARM64MOVDconvert
+@@ -12323,6 +12324,20 @@ var opcodeTable = [...]opInfo{
+ 			clobbers: 65536, // R16
+ 		},
+ 	},
++	{
++		name:           "DUFFCOPY",
++		auxType:        auxInt64,
++		argLen:         3,
++		faultOnNilArg0: true,
++		faultOnNilArg1: true,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 131072}, // R17
++				{1, 65536},  // R16
++			},
++			clobbers: 196608, // R16 R17
++		},
++	},
+ 	{
+ 		name:           "LoweredMove",
+ 		argLen:         4,
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM64.go b/src/cmd/compile/internal/ssa/rewriteARM64.go
+index 49a4fb040b..0750096c78 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM64.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM64.go
+@@ -12470,6 +12470,24 @@ func rewriteValueARM64_OpMove(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ 	// match: (Move [s] dst src mem)
++	// cond: SizeAndAlign(s).Size()%8 == 0 && SizeAndAlign(s).Size() > 24 && SizeAndAlign(s).Size() <= 8*128 	&& !config.noDuffDevice
++	// result: (DUFFCOPY [8 * (128 - int64(SizeAndAlign(s).Size()/8))] dst src mem)
++	for {
++		s := v.AuxInt
++		dst := v.Args[0]
++		src := v.Args[1]
++		mem := v.Args[2]
++		if !(SizeAndAlign(s).Size()%8 == 0 && SizeAndAlign(s).Size() > 24 && SizeAndAlign(s).Size() <= 8*128 && !config.noDuffDevice) {
++			break
++		}
++		v.reset(OpARM64DUFFCOPY)
++		v.AuxInt = 8 * (128 - int64(SizeAndAlign(s).Size()/8))
++		v.AddArg(dst)
++		v.AddArg(src)
++		v.AddArg(mem)
++		return true
++	}
++	// match: (Move [s] dst src mem)
+ 	// cond: SizeAndAlign(s).Size() > 24 && SizeAndAlign(s).Size()%8 == 0
+ 	// result: (LoweredMove 		dst 		src 		(ADDconst <src.Type> src [SizeAndAlign(s).Size()-moveSize(SizeAndAlign(s).Align(), config)]) 		mem)
+ 	for {
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index 0c1cbdafc8..610c6d3c29 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -3852,8 +3852,7 @@ func opbra(ctxt *obj.Link, a obj.As) uint32 {
+ 	case AB:
+ 		return 0<<31 | 5<<26 /* imm26 */
+ 
+-	case obj.ADUFFZERO,
+-		ABL:
++	case obj.ADUFFZERO, obj.ADUFFCOPY, ABL:
+ 		return 1<<31 | 5<<26
+ 	}
+ 
+diff --git a/src/runtime/duff_arm64.s b/src/runtime/duff_arm64.s
+index 6d4bb15dd6..5a147faec0 100644
+--- a/src/runtime/duff_arm64.s
++++ b/src/runtime/duff_arm64.s
+@@ -135,4 +135,389 @@ TEXT runtime·duffzero(SB), NOSPLIT, $-8-0
+ 	MOVD.W	ZR, 8(R16)
+ 	RET
+ 
+-// TODO: Implement runtime·duffcopy.
++TEXT runtime·duffcopy(SB), NOSPLIT, $0-0
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	MOVD.P	8(R16), R27
++	MOVD.P	R27, 8(R17)
++
++	RET
+diff --git a/src/runtime/mkduff.go b/src/runtime/mkduff.go
+index 0e7cc66806..46890791e3 100644
+--- a/src/runtime/mkduff.go
++++ b/src/runtime/mkduff.go
+@@ -161,7 +161,17 @@ func zeroARM64(w io.Writer) {
+ }
+ 
+ func copyARM64(w io.Writer) {
+-	fmt.Fprintln(w, "// TODO: Implement runtime·duffcopy.")
++	// R16 (aka REGRT1): ptr to source memory
++	// R17 (aka REGRT2): ptr to destination memory
++	// R27 (aka REGTMP): scratch space
++	// R16 and R17 are updated as a side effect
++	fmt.Fprintln(w, "TEXT runtime·duffcopy(SB), NOSPLIT, $0-0")
++	for i := 0; i < 128; i++ {
++		fmt.Fprintln(w, "\tMOVD.P\t8(R16), R27")
++		fmt.Fprintln(w, "\tMOVD.P\tR27, 8(R17)")
++		fmt.Fprintln(w)
++	}
++	fmt.Fprintln(w, "\tRET")
+ }
+ 
+ func tagsPPC64x(w io.Writer) {

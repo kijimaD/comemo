@@ -7,7 +7,7 @@ Date:   Fri Sep 27 10:09:15 2013 +1000
     R=golang-dev, iant, adg
     CC=golang-dev
     https://golang.org/cl/14000043
-
+---
  src/pkg/encoding/gob/encoder_test.go   | 2 +-
  src/pkg/encoding/gob/gobencdec_test.go | 2 +-
  src/pkg/math/big/int_test.go           | 2 +-
@@ -21,3 +21,171 @@ Date:   Fri Sep 27 10:09:15 2013 +1000
  src/pkg/runtime/crash_test.go          | 3 +--
  src/pkg/runtime/mfinal_test.go         | 2 +-
  12 files changed, 15 insertions(+), 16 deletions(-)
+
+diff --git a/src/pkg/encoding/gob/encoder_test.go b/src/pkg/encoding/gob/encoder_test.go
+index 4f5673d665..4ecf51d122 100644
+--- a/src/pkg/encoding/gob/encoder_test.go
++++ b/src/pkg/encoding/gob/encoder_test.go
+@@ -687,7 +687,7 @@ func TestChanFuncIgnored(t *testing.T) {
+ 		t.Fatal("decode:", err)
+ 	}
+ 	if b1.A != b0.A {
+-		t.Fatal("got %d want %d", b1.A, b0.A)
++		t.Fatalf("got %d want %d", b1.A, b0.A)
+ 	}
+ 	if b1.C != nil || b1.CP != nil || b1.F != nil || b1.FPP != nil {
+ 		t.Fatal("unexpected value for chan or func")
+diff --git a/src/pkg/encoding/gob/gobencdec_test.go b/src/pkg/encoding/gob/gobencdec_test.go
+index 4e49aeda21..301551db48 100644
+--- a/src/pkg/encoding/gob/gobencdec_test.go
++++ b/src/pkg/encoding/gob/gobencdec_test.go
+@@ -428,7 +428,7 @@ func TestGobEncoderValueEncoder(t *testing.T) {
+ 		t.Fatal("decode error:", err)
+ 	}
+ 	if *x.V != "hello" || *x.BV != "Καλημέρα" || *x.TV != "こんにちは" {
+-		t.Errorf("expected `hello` got %s", x.V)
++		t.Errorf("expected `hello` got %s", *x.V)
+ 	}
+ }
+ 
+diff --git a/src/pkg/math/big/int_test.go b/src/pkg/math/big/int_test.go
+index 01d5d4e4dc..87b975d5c4 100644
+--- a/src/pkg/math/big/int_test.go
++++ b/src/pkg/math/big/int_test.go
+@@ -89,7 +89,7 @@ func testFunZZ(t *testing.T, msg string, f funZZ, a argZZ) {
+ 	var z Int
+ 	f(&z, a.x, a.y)
+ 	if !isNormalized(&z) {
+-		t.Errorf("%s%v is not normalized", z, msg)
++		t.Errorf("%s%v is not normalized", msg, z)
+ 	}
+ 	if (&z).Cmp(a.z) != 0 {
+ 		t.Errorf("%s%+v\n\tgot z = %v; want %v", msg, a, &z, a.z)
+diff --git a/src/pkg/net/http/header_test.go b/src/pkg/net/http/header_test.go
+index 69b41a7953..9fd9837a5b 100644
+--- a/src/pkg/net/http/header_test.go
++++ b/src/pkg/net/http/header_test.go
+@@ -204,6 +204,6 @@ func TestHeaderWriteSubsetMallocs(t *testing.T) {
+ 		testHeader.WriteSubset(&buf, nil)
+ 	})
+ 	if n > 0 {
+-		t.Errorf("mallocs = %d; want 0", n)
++		t.Errorf("mallocs = %g; want 0", n)
+ 	}
+ }
+diff --git a/src/pkg/net/http/request_test.go b/src/pkg/net/http/request_test.go
+index 692485c49d..89303c3360 100644
+--- a/src/pkg/net/http/request_test.go
++++ b/src/pkg/net/http/request_test.go
+@@ -332,7 +332,7 @@ func TestRequestWriteBufferedWriter(t *testing.T) {
+ func testMissingFile(t *testing.T, req *Request) {
+ 	f, fh, err := req.FormFile("missing")
+ 	if f != nil {
+-		t.Errorf("FormFile file = %q, want nil", f)
++		t.Errorf("FormFile file = %v, want nil", f)
+ 	}
+ 	if fh != nil {
+ 		t.Errorf("FormFile file header = %q, want nil", fh)
+diff --git a/src/pkg/net/http/serve_test.go b/src/pkg/net/http/serve_test.go
+index d5ee6e0e8a..955112bc2b 100644
+--- a/src/pkg/net/http/serve_test.go
++++ b/src/pkg/net/http/serve_test.go
+@@ -1987,7 +1987,7 @@ func TestHTTP10ConnectionHeader(t *testing.T) {
+ 
+ 		got := resp.Header["Connection"]
+ 		if !reflect.DeepEqual(got, tt.expect) {
+-			t.Errorf("wrong Connection headers for request %q. Got %q expect %q", got, tt.expect)
++			t.Errorf("wrong Connection headers for request %q. Got %q expect %q", tt.req, got, tt.expect)
+ 		}
+ 	}
+ }
+diff --git a/src/pkg/net/ip_test.go b/src/pkg/net/ip_test.go
+index 5fcc8257af..26b53729b8 100644
+--- a/src/pkg/net/ip_test.go
++++ b/src/pkg/net/ip_test.go
+@@ -85,7 +85,7 @@ func TestIPString(t *testing.T) {
+ 			}
+ 		}
+ 		if out, err := tt.in.MarshalText(); string(out) != tt.out || err != nil {
+-			t.Errorf("IP.MarshalText(%v) = %q, %v, want %q, nil", out, err, tt.out)
++			t.Errorf("IP.MarshalText(%v) = %q, %v, want %q, nil", tt.in, out, err, tt.out)
+ 		}
+ 	}
+ }
+diff --git a/src/pkg/net/timeout_test.go b/src/pkg/net/timeout_test.go
+index a14a88169b..35d427a69c 100644
+--- a/src/pkg/net/timeout_test.go
++++ b/src/pkg/net/timeout_test.go
+@@ -549,7 +549,7 @@ func TestReadDeadlineDataAvailable(t *testing.T) {
+ 	}
+ 	defer c.Close()
+ 	if res := <-servec; res.err != nil || res.n != int64(len(msg)) {
+-		t.Fatalf("unexpected server Write: n=%d, err=%d; want n=%d, err=nil", res.n, res.err, len(msg))
++		t.Fatalf("unexpected server Write: n=%d, err=%v; want n=%d, err=nil", res.n, res.err, len(msg))
+ 	}
+ 	c.SetReadDeadline(time.Now().Add(-5 * time.Second)) // in the psat.
+ 	buf := make([]byte, len(msg)/2)
+diff --git a/src/pkg/regexp/all_test.go b/src/pkg/regexp/all_test.go
+index 9c4d64f582..e914a7ccb4 100644
+--- a/src/pkg/regexp/all_test.go
++++ b/src/pkg/regexp/all_test.go
+@@ -308,14 +308,14 @@ func TestReplaceAllFunc(t *testing.T) {
+ 		}
+ 		actual := re.ReplaceAllStringFunc(tc.input, tc.replacement)
+ 		if actual != tc.output {
+-			t.Errorf("%q.ReplaceFunc(%q,%q) = %q; want %q",
+-				tc.pattern, tc.input, tc.replacement, actual, tc.output)
++			t.Errorf("%q.ReplaceFunc(%q,fn) = %q; want %q",
++				tc.pattern, tc.input, actual, tc.output)
+ 		}
+ 		// now try bytes
+ 		actual = string(re.ReplaceAllFunc([]byte(tc.input), func(s []byte) []byte { return []byte(tc.replacement(string(s))) }))
+ 		if actual != tc.output {
+-			t.Errorf("%q.ReplaceFunc(%q,%q) = %q; want %q",
+-				tc.pattern, tc.input, tc.replacement, actual, tc.output)
++			t.Errorf("%q.ReplaceFunc(%q,fn) = %q; want %q",
++				tc.pattern, tc.input, actual, tc.output)
+ 		}
+ 	}
+ }
+diff --git a/src/pkg/regexp/syntax/parse_test.go b/src/pkg/regexp/syntax/parse_test.go
+index 81fd9dc013..269d6c3b87 100644
+--- a/src/pkg/regexp/syntax/parse_test.go
++++ b/src/pkg/regexp/syntax/parse_test.go
+@@ -542,7 +542,7 @@ func TestToStringEquivalentParse(t *testing.T) {
+ 			// but "{" is a shorter equivalent in some contexts.
+ 			nre, err := Parse(s, testFlags)
+ 			if err != nil {
+-				t.Errorf("Parse(%#q.String() = %#q): %v", tt.Regexp, t, err)
++				t.Errorf("Parse(%#q.String() = %#q): %v", tt.Regexp, s, err)
+ 				continue
+ 			}
+ 			nd := dump(nre)
+diff --git a/src/pkg/runtime/crash_test.go b/src/pkg/runtime/crash_test.go
+index e07810bb1d..5476924bbd 100644
+--- a/src/pkg/runtime/crash_test.go
++++ b/src/pkg/runtime/crash_test.go
+@@ -111,9 +111,8 @@ func TestLockedDeadlock2(t *testing.T) {
+ 
+ func TestGoexitDeadlock(t *testing.T) {
+ 	output := executeTest(t, goexitDeadlockSource, nil)
+-	want := ""
+ 	if output != "" {
+-		t.Fatalf("expected no output:\n%s", want, output)
++		t.Fatalf("expected no output, got:\n%s", output)
+ 	}
+ }
+ 
+diff --git a/src/pkg/runtime/mfinal_test.go b/src/pkg/runtime/mfinal_test.go
+index 0d9b41b574..ae06dd291a 100644
+--- a/src/pkg/runtime/mfinal_test.go
++++ b/src/pkg/runtime/mfinal_test.go
+@@ -80,7 +80,7 @@ func TestFinalizerInterfaceBig(t *testing.T) {
+ 				t.Errorf("Expected *bigValue from interface{} in finalizer, got %v", *i)
+ 			}
+ 			if i.fill != 0xDEADBEEFDEADBEEF && i.it != true && i.up != "It matters not how strait the gate" {
+-				t.Errorf("*bigValue from interface{} has the wrong value: %d\n", *i)
++				t.Errorf("*bigValue from interface{} has the wrong value: %v\n", *i)
+ 			}
+ 			close(ch)
+ 		})

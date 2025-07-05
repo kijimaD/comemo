@@ -8,10 +8,300 @@ Date:   Tue Mar 8 00:02:07 2011 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4257057
-
+---
  src/pkg/gob/decode.go         | 35 ++++++++++-----------------
  src/pkg/gob/encode.go         | 55 +++++++++++++++++++++----------------------
  src/pkg/gob/encoder.go        |  3 ---
  src/pkg/gob/gobencdec_test.go | 35 +++++++++++++++++++++++----
  src/pkg/gob/type.go           | 17 +------------
  5 files changed, 71 insertions(+), 74 deletions(-)
+
+diff --git a/src/pkg/gob/decode.go b/src/pkg/gob/decode.go
+index 39af66698f..6d7ddfdfbc 100644
+--- a/src/pkg/gob/decode.go
++++ b/src/pkg/gob/decode.go
+@@ -936,37 +936,29 @@ func (dec *Decoder) decIgnoreOpFor(wireId typeId) decOp {
+ // GobDecoder.
+ func (dec *Decoder) gobDecodeOpFor(ut *userTypeInfo) (*decOp, int) {
+ 	rt := ut.user
+-	if ut.decIndir > 0 {
+-		errorf("gob: TODO: can't handle >0 indirections to reach GobDecoder")
+-	}
+ 	if ut.decIndir == -1 {
+ 		rt = reflect.PtrTo(rt)
+-	}
+-	index := -1
+-	for i := 0; i < rt.NumMethod(); i++ {
+-		if rt.Method(i).Name == gobDecodeMethodName {
+-			index = i
+-			break
++	} else if ut.decIndir > 0 {
++		for i := int8(0); i < ut.decIndir; i++ {
++			rt = rt.(*reflect.PtrType).Elem()
+ 		}
+ 	}
+-	if index < 0 {
+-		panic("can't find GobDecode method")
+-	}
+ 	var op decOp
+ 	op = func(i *decInstr, state *decoderState, p unsafe.Pointer) {
+ 		// Allocate the underlying data, but hold on to the address we have,
+-		// since it's known to be the receiver's address.
++		// since we need it to get to the receiver's address.
+ 		allocate(ut.base, uintptr(p), ut.indir)
+ 		var v reflect.Value
+-		switch {
+-		case ut.decIndir == 0:
+-			v = reflect.NewValue(unsafe.Unreflect(rt, p))
+-		case ut.decIndir == -1:
++		if ut.decIndir == -1 {
++			// Need to climb up one level to turn value into pointer.
+ 			v = reflect.NewValue(unsafe.Unreflect(rt, unsafe.Pointer(&p)))
+-		default:
+-			errorf("gob: TODO: can't handle >0 indirections to reach GobDecoder")
++		} else {
++			if ut.decIndir > 0 {
++				p = decIndirect(p, int(ut.decIndir))
++			}
++			v = reflect.NewValue(unsafe.Unreflect(rt, p))
+ 		}
+-		state.dec.decodeGobDecoder(state, v, index)
++		state.dec.decodeGobDecoder(state, v, methodIndex(rt, gobDecodeMethodName))
+ 	}
+ 	return &op, int(ut.decIndir)
+ 
+@@ -1190,9 +1182,6 @@ func (dec *Decoder) decodeValue(wireId typeId, val reflect.Value) (err os.Error)
+ 	indir := ut.indir
+ 	if ut.isGobDecoder {
+ 		indir = int(ut.decIndir)
+-		if indir != 0 {
+-			errorf("TODO: can't handle indirection in GobDecoder value")
+-		}
+ 	}
+ 	enginePtr, err := dec.getDecEnginePtr(wireId, ut)
+ 	if err != nil {
+diff --git a/src/pkg/gob/encode.go b/src/pkg/gob/encode.go
+index 2a4a96e5f2..cfee6f6d85 100644
+--- a/src/pkg/gob/encode.go
++++ b/src/pkg/gob/encode.go
+@@ -92,11 +92,14 @@ func (state *encoderState) update(instr *encInstr) {
+ 	}
+ }
+ 
+-// Each encoder is responsible for handling any indirections associated
+-// with the data structure.  If any pointer so reached is nil, no bytes are written.
+-// If the data item is zero, no bytes are written.
+-// Otherwise, the output (for a scalar) is the field number, as an encoded integer,
+-// followed by the field data in its appropriate format.
++// Each encoder for a composite is responsible for handling any
++// indirections associated with the elements of the data structure.
++// If any pointer so reached is nil, no bytes are written.  If the
++// data item is zero, no bytes are written.  Single values - ints,
++// strings etc. - are indirected before calling their encoders.
++// Otherwise, the output (for a scalar) is the field number, as an
++// encoded integer, followed by the field data in its appropriate
++// format.
+ 
+ // encIndirect dereferences p indir times and returns the result.
+ func encIndirect(p unsafe.Pointer, indir int) unsafe.Pointer {
+@@ -569,41 +572,40 @@ func (enc *Encoder) encOpFor(rt reflect.Type, inProgress map[reflect.Type]*encOp
+ 	return &op, indir
+ }
+ 
++// methodIndex returns which method of rt implements the method.
++func methodIndex(rt reflect.Type, method string) int {
++	for i := 0; i < rt.NumMethod(); i++ {
++		if rt.Method(i).Name == method {
++			return i
++		}
++	}
++	panic("can't find method " + method)
++}
++
+ // gobEncodeOpFor returns the op for a type that is known to implement
+ // GobEncoder.
+ func (enc *Encoder) gobEncodeOpFor(ut *userTypeInfo) (*encOp, int) {
+ 	rt := ut.user
+-	if ut.encIndir > 0 {
+-		errorf("gob: TODO: can't handle >0 indirections to reach GobEncoder")
+-	}
+ 	if ut.encIndir == -1 {
+ 		rt = reflect.PtrTo(rt)
+-	}
+-	index := -1
+-	for i := 0; i < rt.NumMethod(); i++ {
+-		if rt.Method(i).Name == gobEncodeMethodName {
+-			index = i
+-			break
++	} else if ut.encIndir > 0 {
++		for i := int8(0); i < ut.encIndir; i++ {
++			rt = rt.(*reflect.PtrType).Elem()
+ 		}
+ 	}
+-	if index < 0 {
+-		panic("can't find GobEncode method")
+-	}
+ 	var op encOp
+ 	op = func(i *encInstr, state *encoderState, p unsafe.Pointer) {
+ 		var v reflect.Value
+-		switch {
+-		case ut.encIndir == 0:
+-			v = reflect.NewValue(unsafe.Unreflect(rt, p))
+-		case ut.encIndir == -1:
++		if ut.encIndir == -1 {
++			// Need to climb up one level to turn value into pointer.
+ 			v = reflect.NewValue(unsafe.Unreflect(rt, unsafe.Pointer(&p)))
+-		default:
+-			errorf("gob: TODO: can't handle >0 indirections to reach GobEncoder")
++		} else {
++			v = reflect.NewValue(unsafe.Unreflect(rt, p))
+ 		}
+ 		state.update(i)
+-		state.enc.encodeGobEncoder(state.b, v, index)
++		state.enc.encodeGobEncoder(state.b, v, methodIndex(rt, gobEncodeMethodName))
+ 	}
+-	return &op, int(ut.encIndir)
++	return &op, int(ut.encIndir) // encIndir: op will get called with p == address of receiver.
+ }
+ 
+ // compileEnc returns the engine to compile the type.
+@@ -666,9 +668,6 @@ func (enc *Encoder) encode(b *bytes.Buffer, value reflect.Value, ut *userTypeInf
+ 	indir := ut.indir
+ 	if ut.isGobEncoder {
+ 		indir = int(ut.encIndir)
+-		if indir != 0 {
+-			errorf("TODO: can't handle indirection in GobEncoder value")
+-		}
+ 	}
+ 	for i := 0; i < indir; i++ {
+ 		value = reflect.Indirect(value)
+diff --git a/src/pkg/gob/encoder.go b/src/pkg/gob/encoder.go
+index 4bfcf15c7f..228445ff81 100644
+--- a/src/pkg/gob/encoder.go
++++ b/src/pkg/gob/encoder.go
+@@ -172,9 +172,6 @@ func (enc *Encoder) sendTypeDescriptor(w io.Writer, state *encoderState, ut *use
+ 	rt := ut.base
+ 	if ut.isGobEncoder {
+ 		rt = ut.user
+-		if ut.encIndir != 0 {
+-			panic("TODO: can't handle non-zero encIndir")
+-		}
+ 	}
+ 	if _, alreadySent := enc.sent[rt]; !alreadySent {
+ 		// No, so send it.
+diff --git a/src/pkg/gob/gobencdec_test.go b/src/pkg/gob/gobencdec_test.go
+index 1f60404f73..012b099566 100644
+--- a/src/pkg/gob/gobencdec_test.go
++++ b/src/pkg/gob/gobencdec_test.go
+@@ -110,8 +110,8 @@ type GobTest2 struct {
+ }
+ 
+ type GobTest3 struct {
+-	X int     // guarantee we have  something in common with GobTest*
+-	G *Gobber // TODO: should be able to satisfy interface without a pointer
++	X int // guarantee we have  something in common with GobTest*
++	G *Gobber
+ }
+ 
+ type GobTest4 struct {
+@@ -133,6 +133,11 @@ type GobTestValueEncDec struct {
+ 	G StringStruct // not a pointer.
+ }
+ 
++type GobTestIndirectEncDec struct {
++	X int             // guarantee we have  something in common with GobTest*
++	G ***StringStruct // indirections to the receiver.
++}
++
+ func TestGobEncoderField(t *testing.T) {
+ 	b := new(bytes.Buffer)
+ 	// First a field that's a structure.
+@@ -188,6 +193,29 @@ func TestGobEncoderValueField(t *testing.T) {
+ 	}
+ }
+ 
++// GobEncode/Decode should work even if the value is
++// more indirect than the receiver.
++func TestGobEncoderIndirectField(t *testing.T) {
++	b := new(bytes.Buffer)
++	// First a field that's a structure.
++	enc := NewEncoder(b)
++	s := &StringStruct{"HIJKL"}
++	sp := &s
++	err := enc.Encode(GobTestIndirectEncDec{17, &sp})
++	if err != nil {
++		t.Fatal("encode error:", err)
++	}
++	dec := NewDecoder(b)
++	x := new(GobTestIndirectEncDec)
++	err = dec.Decode(x)
++	if err != nil {
++		t.Fatal("decode error:", err)
++	}
++	if (***x.G).s != "HIJKL" {
++		t.Errorf("expected `HIJKL` got %s", (***x.G).s)
++	}
++}
++
+ // As long as the fields have the same name and implement the
+ // interface, we can cross-connect them.  Not sure it's useful
+ // and may even be bad but it works and it's hard to prevent
+@@ -301,8 +329,7 @@ func TestGobEncoderStructSingleton(t *testing.T) {
+ func TestGobEncoderNonStructSingleton(t *testing.T) {
+ 	b := new(bytes.Buffer)
+ 	enc := NewEncoder(b)
+-	g := Gobber(1234) // TODO: shouldn't need to take the address here.
+-	err := enc.Encode(&g)
++	err := enc.Encode(Gobber(1234))
+ 	if err != nil {
+ 		t.Fatal("encode error:", err)
+ 	}
+diff --git a/src/pkg/gob/type.go b/src/pkg/gob/type.go
+index 7fe0272403..0001f0c2e2 100644
+--- a/src/pkg/gob/type.go
++++ b/src/pkg/gob/type.go
+@@ -77,11 +77,6 @@ func validUserType(rt reflect.Type) (ut *userTypeInfo, err os.Error) {
+ 	ut.isGobEncoder, ut.encIndir = implementsInterface(ut.user, gobEncoderCheck)
+ 	ut.isGobDecoder, ut.decIndir = implementsInterface(ut.user, gobDecoderCheck)
+ 	userTypeCache[rt] = ut
+-	if ut.encIndir > 0 || ut.decIndir > 0 {
+-		// There are checks in lots of other places, but putting this here means we won't even
+-		// attempt to encode/decode this type.
+-		return nil, os.ErrorString("TODO: gob can't handle indirections to GobEncoder/Decoder")
+-	}
+ 	return
+ }
+ 
+@@ -123,7 +118,7 @@ func implementsInterface(typ reflect.Type, check func(typ reflect.Type) bool) (s
+ 	// The type might be a pointer and we need to keep
+ 	// dereferencing to the base type until we find an implementation.
+ 	for {
+-		if implements(typ, check) {
++		if implements(rt, check) {
+ 			return true, indir
+ 		}
+ 		if p, ok := rt.(*reflect.PtrType); ok {
+@@ -697,11 +692,6 @@ func mustGetTypeInfo(rt reflect.Type) *typeInfo {
+ // to guarantee the encoding used by a GobEncoder is stable as the
+ // software evolves.  For instance, it might make sense for GobEncode
+ // to include a version number in the encoding.
+-//
+-// Note: At the moment, the type implementing GobEncoder must
+-// be more indirect than the type passed to Decode.  For example, if
+-// if *T implements GobDecoder, the data item must be of type *T or T,
+-// not **T or ***T.
+ type GobEncoder interface {
+ 	// GobEncode returns a byte slice representing the encoding of the
+ 	// receiver for transmission to a GobDecoder, usually of the same
+@@ -711,11 +701,6 @@ type GobEncoder interface {
+ 
+ // GobDecoder is the interface describing data that provides its own
+ // routine for decoding transmitted values sent by a GobEncoder.
+-//
+-// Note: At the moment, the type implementing GobDecoder must
+-// be more indirect than the type passed to Decode.  For example, if
+-// if *T implements GobDecoder, the data item must be of type *T or T,
+-// not **T or ***T.
+ type GobDecoder interface {
+ 	// GobDecode overwrites the receiver, which must be a pointer,
+ 	// with the value represented by the byte slice, which was written

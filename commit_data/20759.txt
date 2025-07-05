@@ -9,6 +9,20 @@ Date:   Tue Oct 7 12:03:48 2014 -0400
     TBR=r
     CC=golang-codereviews
     https://golang.org/cl/149620043
-
+---
  src/cmd/gc/reflect.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/reflect.c b/src/cmd/gc/reflect.c
+index d0ebf6b481..b2ff2fbc5e 100644
+--- a/src/cmd/gc/reflect.c
++++ b/src/cmd/gc/reflect.c
+@@ -809,7 +809,7 @@ dcommontype(Sym *s, int ot, Type *t)
+ 		for(i=0; i<8; i++)
+ 			x1 = x1<<8 | gcmask[i];
+ 		if(widthptr == 4) {
+-			p = smprint("gcbits.%#016x", x1);
++			p = smprint("gcbits.%#016llux", x1);
+ 		} else {
+ 			x2 = 0;
+ 			for(i=0; i<8; i++)

@@ -9,6 +9,21 @@ Date:   Thu Jul 30 22:52:45 2015 -0400
     Change-Id: Ic9b57cafa197953cc7f435941e44d42b60b3ddf0
     Reviewed-on: https://go-review.googlesource.com/13011
     Reviewed-by: Dave Cheney <dave@cheney.net>
-
+---
  src/runtime/asm_arm.s | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/runtime/asm_arm.s b/src/runtime/asm_arm.s
+index 01504700f1..91dccdc381 100644
+--- a/src/runtime/asm_arm.s
++++ b/src/runtime/asm_arm.s
+@@ -215,6 +215,9 @@ switch:
+ 	// save our state in g->sched.  Pretend to
+ 	// be systemstack_switch if the G stack is scanned.
+ 	MOVW	$runtime·systemstack_switch(SB), R3
++#ifdef GOOS_nacl
++	ADD	$4, R3, R3 // get past nacl-insert bic instruction
++#endif
+ 	ADD	$4, R3, R3 // get past push {lr}
+ 	MOVW	R3, (g_sched+gobuf_pc)(g)
+ 	MOVW	R13, (g_sched+gobuf_sp)(g)

@@ -7,6 +7,29 @@ Date:   Tue Feb 14 16:27:35 2012 -0500
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5669046
-
+---
  src/cmd/gc/mkbuiltin | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/gc/mkbuiltin b/src/cmd/gc/mkbuiltin
+index c028518ba2..2f76e6f06b 100755
+--- a/src/cmd/gc/mkbuiltin
++++ b/src/cmd/gc/mkbuiltin
+@@ -3,7 +3,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-# Generate builtin.c and builtin.c.boot from $* (runtime.go and unsafe.go).
++# Generate builtin.c from $* (runtime.go and unsafe.go).
+ # Run this after changing runtime.go and unsafe.go
+ # or after changing the export metadata format in the compiler.
+ # Either way, you need to have a working compiler binary first.
+@@ -25,7 +25,7 @@ do
+ 	O=$GOCHAR ./mkbuiltin1 $i >>_builtin.c
+ done
+ 
+-# If _builtin.c has changed vs builtin.c.boot,
++# If _builtin.c has changed vs builtin.c,
+ # check in the new change.
+ cmp -s _builtin.c builtin.c || cp _builtin.c builtin.c
+ rm _builtin.c mkbuiltin1 unsafe.$GOCHAR runtime.$GOCHAR

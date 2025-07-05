@@ -21,6 +21,32 @@ Date:   Sun May 10 23:11:04 2015 +0900
     Change-Id: Ifdaf99cf5b8582c1a636a0f7d5cc66bb276efd72
     Reviewed-on: https://go-review.googlesource.com/9915
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/net/timeout_test.go | 8 ++++++--
  1 file changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/timeout_test.go b/src/net/timeout_test.go
+index cafa3755f6..9688c21699 100644
+--- a/src/net/timeout_test.go
++++ b/src/net/timeout_test.go
+@@ -696,14 +696,18 @@ func TestWriteTimeoutFluctuation(t *testing.T) {
+ 	}
+ 	defer c.Close()
+ 
+-	max := time.NewTimer(time.Second)
++	d := time.Second
++	if runtime.GOOS == "darwin" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64") {
++		d = 3 * time.Second // see golang.org/issue/10775
++	}
++	max := time.NewTimer(d)
+ 	defer max.Stop()
+ 	ch := make(chan error)
+ 	go timeoutTransmitter(c, 100*time.Millisecond, 50*time.Millisecond, 250*time.Millisecond, ch)
+ 
+ 	select {
+ 	case <-max.C:
+-		t.Fatal("Write took over 1s; expected 0.1s")
++		t.Fatalf("Write took over %v; expected 0.1s", d)
+ 	case err := <-ch:
+ 		if perr := parseWriteError(err); perr != nil {
+ 			t.Error(perr)

@@ -9,7 +9,177 @@ Date:   Thu Mar 15 10:06:37 2018 +0100
     Change-Id: I29c8d098a8893e6b669b6272a2f508985ac9d618
     Reviewed-on: https://go-review.googlesource.com/100876
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/gc/asm_test.go | 104 --------------------------------
  test/codegen/arithmetic.go              |  39 ++++++++++++
  2 files changed, 39 insertions(+), 104 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/asm_test.go b/src/cmd/compile/internal/gc/asm_test.go
+index f2d37e69c9..ced465c65d 100644
+--- a/src/cmd/compile/internal/gc/asm_test.go
++++ b/src/cmd/compile/internal/gc/asm_test.go
+@@ -578,58 +578,6 @@ var linuxAMD64Tests = []*asmTest{
+ 		`,
+ 		pos: []string{"\tSETHI\t.*\\(SP\\)"},
+ 	},
+-	// Check that len() and cap() div by a constant power of two
+-	// are compiled into SHRQ.
+-	{
+-		fn: `
+-		func $(a []int) int {
+-			return len(a) / 1024
+-		}
+-		`,
+-		pos: []string{"\tSHRQ\t\\$10,"},
+-	},
+-	{
+-		fn: `
+-		func $(s string) int {
+-			return len(s) / (4097 >> 1)
+-		}
+-		`,
+-		pos: []string{"\tSHRQ\t\\$11,"},
+-	},
+-	{
+-		fn: `
+-		func $(a []int) int {
+-			return cap(a) / ((1 << 11) + 2048)
+-		}
+-		`,
+-		pos: []string{"\tSHRQ\t\\$12,"},
+-	},
+-	// Check that len() and cap() mod by a constant power of two
+-	// are compiled into ANDQ.
+-	{
+-		fn: `
+-		func $(a []int) int {
+-			return len(a) % 1024
+-		}
+-		`,
+-		pos: []string{"\tANDQ\t\\$1023,"},
+-	},
+-	{
+-		fn: `
+-		func $(s string) int {
+-			return len(s) % (4097 >> 1)
+-		}
+-		`,
+-		pos: []string{"\tANDQ\t\\$2047,"},
+-	},
+-	{
+-		fn: `
+-		func $(a []int) int {
+-			return cap(a) % ((1 << 11) + 2048)
+-		}
+-		`,
+-		pos: []string{"\tANDQ\t\\$4095,"},
+-	},
+ 	{
+ 		fn: `
+ 		func $(p int, q *int) bool {
+@@ -683,58 +631,6 @@ var linux386Tests = []*asmTest{
+ 		`,
+ 		pos: []string{"TEXT\t.*, [$]0-4"},
+ 	},
+-	// Check that len() and cap() div by a constant power of two
+-	// are compiled into SHRL.
+-	{
+-		fn: `
+-		func $(a []int) int {
+-			return len(a) / 1024
+-		}
+-		`,
+-		pos: []string{"\tSHRL\t\\$10,"},
+-	},
+-	{
+-		fn: `
+-		func $(s string) int {
+-			return len(s) / (4097 >> 1)
+-		}
+-		`,
+-		pos: []string{"\tSHRL\t\\$11,"},
+-	},
+-	{
+-		fn: `
+-		func $(a []int) int {
+-			return cap(a) / ((1 << 11) + 2048)
+-		}
+-		`,
+-		pos: []string{"\tSHRL\t\\$12,"},
+-	},
+-	// Check that len() and cap() mod by a constant power of two
+-	// are compiled into ANDL.
+-	{
+-		fn: `
+-		func $(a []int) int {
+-			return len(a) % 1024
+-		}
+-		`,
+-		pos: []string{"\tANDL\t\\$1023,"},
+-	},
+-	{
+-		fn: `
+-		func $(s string) int {
+-			return len(s) % (4097 >> 1)
+-		}
+-		`,
+-		pos: []string{"\tANDL\t\\$2047,"},
+-	},
+-	{
+-		fn: `
+-		func $(a []int) int {
+-			return cap(a) % ((1 << 11) + 2048)
+-		}
+-		`,
+-		pos: []string{"\tANDL\t\\$4095,"},
+-	},
+ }
+ 
+ var linuxS390XTests = []*asmTest{
+diff --git a/test/codegen/arithmetic.go b/test/codegen/arithmetic.go
+index 20adc84bee..16517cfac4 100644
+--- a/test/codegen/arithmetic.go
++++ b/test/codegen/arithmetic.go
+@@ -118,3 +118,42 @@ func ConstMods(n1 uint, n2 int) (uint, int) {
+ 
+ 	return a, b
+ }
++
++// Check that len() and cap() calls divided by powers of two are
++// optimized into shifts and ands
++
++func LenDiv1(a []int) int {
++	// 386:"SHRL\t[$]10"
++	// amd64:"SHRQ\t[$]10"
++	return len(a) / 1024
++}
++
++func LenDiv2(s string) int {
++	// 386:"SHRL\t[$]11"
++	// amd64:"SHRQ\t[$]11"
++	return len(s) / (4097 >> 1)
++}
++
++func LenMod1(a []int) int {
++	// 386:"ANDL\t[$]1023"
++	// amd64:"ANDQ\t[$]1023"
++	return len(a) % 1024
++}
++
++func LenMod2(s string) int {
++	// 386:"ANDL\t[$]2047"
++	// amd64:"ANDQ\t[$]2047"
++	return len(s) % (4097 >> 1)
++}
++
++func CapDiv(a []int) int {
++	// 386:"SHRL\t[$]12"
++	// amd64:"SHRQ\t[$]12"
++	return cap(a) / ((1 << 11) + 2048)
++}
++
++func CapMod(a []int) int {
++	// 386:"ANDL\t[$]4095"
++	// amd64:"ANDQ\t[$]4095"
++	return cap(a) % ((1 << 11) + 2048)
++}

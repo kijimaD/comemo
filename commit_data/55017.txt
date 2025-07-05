@@ -18,7 +18,7 @@ Date:   Fri Dec 2 13:34:03 2022 -0500
     Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Cherry Mui <cherryyz@google.com>
-
+---
  src/runtime/cgo/gcc_386.S          | 2 ++
  src/runtime/cgo/gcc_aix_ppc64.S    | 2 ++
  src/runtime/cgo/gcc_amd64.S        | 2 ++
@@ -31,3 +31,147 @@ Date:   Fri Dec 2 13:34:03 2022 -0500
  src/runtime/cgo/gcc_riscv64.S      | 2 ++
  src/runtime/cgo/gcc_s390x.S        | 2 ++
  11 files changed, 22 insertions(+)
+
+diff --git a/src/runtime/cgo/gcc_386.S b/src/runtime/cgo/gcc_386.S
+index ff55b2cc63..5e6d715ce2 100644
+--- a/src/runtime/cgo/gcc_386.S
++++ b/src/runtime/cgo/gcc_386.S
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++.file "gcc_386.S"
++
+ /*
+  * Apple still insists on underscore prefixes for C function names.
+  */
+diff --git a/src/runtime/cgo/gcc_aix_ppc64.S b/src/runtime/cgo/gcc_aix_ppc64.S
+index a00fae24d2..a77363ee25 100644
+--- a/src/runtime/cgo/gcc_aix_ppc64.S
++++ b/src/runtime/cgo/gcc_aix_ppc64.S
+@@ -5,6 +5,8 @@
+ // +build ppc64
+ // +build aix
+ 
++.file "gcc_aix_ppc64.S"
++
+ /*
+  * void crosscall_ppc64(void (*fn)(void), void *g)
+  *
+diff --git a/src/runtime/cgo/gcc_amd64.S b/src/runtime/cgo/gcc_amd64.S
+index 46699d1d9c..5a1629e28c 100644
+--- a/src/runtime/cgo/gcc_amd64.S
++++ b/src/runtime/cgo/gcc_amd64.S
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++.file "gcc_amd64.S"
++
+ /*
+  * Apple still insists on underscore prefixes for C function names.
+  */
+diff --git a/src/runtime/cgo/gcc_arm.S b/src/runtime/cgo/gcc_arm.S
+index fe1c48be3f..6e8c14a28d 100644
+--- a/src/runtime/cgo/gcc_arm.S
++++ b/src/runtime/cgo/gcc_arm.S
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++.file "gcc_arm.S"
++
+ /*
+  * Apple still insists on underscore prefixes for C function names.
+  */
+diff --git a/src/runtime/cgo/gcc_arm64.S b/src/runtime/cgo/gcc_arm64.S
+index 9154d2aaf4..865f67c38f 100644
+--- a/src/runtime/cgo/gcc_arm64.S
++++ b/src/runtime/cgo/gcc_arm64.S
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++.file "gcc_arm64.S"
++
+ /*
+  * Apple still insists on underscore prefixes for C function names.
+  */
+diff --git a/src/runtime/cgo/gcc_linux_ppc64x.S b/src/runtime/cgo/gcc_linux_ppc64x.S
+index 595eb38460..957ef3ab1b 100644
+--- a/src/runtime/cgo/gcc_linux_ppc64x.S
++++ b/src/runtime/cgo/gcc_linux_ppc64x.S
+@@ -5,6 +5,8 @@
+ // +build ppc64 ppc64le
+ // +build linux
+ 
++.file "gcc_linux_ppc64x.S"
++
+ /*
+  * Apple still insists on underscore prefixes for C function names.
+  */
+diff --git a/src/runtime/cgo/gcc_loong64.S b/src/runtime/cgo/gcc_loong64.S
+index 100aa33cc2..9947aa61e8 100644
+--- a/src/runtime/cgo/gcc_loong64.S
++++ b/src/runtime/cgo/gcc_loong64.S
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++.file "gcc_loong4.S"
++
+ /*
+  * void crosscall1(void (*fn)(void), void (*setg_gcc)(void *g), void *g)
+  *
+diff --git a/src/runtime/cgo/gcc_mips64x.S b/src/runtime/cgo/gcc_mips64x.S
+index 908dd2135c..ec24d7199c 100644
+--- a/src/runtime/cgo/gcc_mips64x.S
++++ b/src/runtime/cgo/gcc_mips64x.S
+@@ -4,6 +4,8 @@
+ 
+ // +build mips64 mips64le
+ 
++.file "gcc_mips64x.S"
++
+ /*
+  * void crosscall1(void (*fn)(void), void (*setg_gcc)(void *g), void *g)
+  *
+diff --git a/src/runtime/cgo/gcc_mipsx.S b/src/runtime/cgo/gcc_mipsx.S
+index 54f4b8201a..2867f6a052 100644
+--- a/src/runtime/cgo/gcc_mipsx.S
++++ b/src/runtime/cgo/gcc_mipsx.S
+@@ -4,6 +4,8 @@
+ 
+ // +build mips mipsle
+ 
++.file "gcc_mipsx.S"
++
+ /*
+  * void crosscall1(void (*fn)(void), void (*setg_gcc)(void *g), void *g)
+  *
+diff --git a/src/runtime/cgo/gcc_riscv64.S b/src/runtime/cgo/gcc_riscv64.S
+index f429dc64ee..8f07649c68 100644
+--- a/src/runtime/cgo/gcc_riscv64.S
++++ b/src/runtime/cgo/gcc_riscv64.S
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++.file "gcc_riscv64.S"
++
+ /*
+  * void crosscall1(void (*fn)(void), void (*setg_gcc)(void *g), void *g)
+  *
+diff --git a/src/runtime/cgo/gcc_s390x.S b/src/runtime/cgo/gcc_s390x.S
+index 614de4b43b..8bd30fedd3 100644
+--- a/src/runtime/cgo/gcc_s390x.S
++++ b/src/runtime/cgo/gcc_s390x.S
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++.file "gcc_s390x.S"
++
+ /*
+  * void crosscall_s390x(void (*fn)(void), void *g)
+  *

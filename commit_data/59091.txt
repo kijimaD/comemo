@@ -13,6 +13,20 @@ Date:   Mon Feb 12 14:32:22 2024 -0500
     Auto-Submit: Michael Pratt <mpratt@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/runtime/cgo/gcc_stack_unix.c | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/runtime/cgo/gcc_stack_unix.c b/src/runtime/cgo/gcc_stack_unix.c
+index f3fead9c9e..67efd9bc63 100644
+--- a/src/runtime/cgo/gcc_stack_unix.c
++++ b/src/runtime/cgo/gcc_stack_unix.c
+@@ -29,6 +29,8 @@ x_cgo_getstackbound(uintptr bounds[2])
+ 	pthread_attr_get_np(pthread_self(), &attr);
+ 	pthread_attr_getstack(&attr, &addr, &size); // low address
+ #else
++	// We don't know how to get the current stacks, so assume they are the
++	// same as the default stack bounds.
+ 	pthread_attr_init(&attr);
+ 	pthread_attr_getstacksize(&attr, &size);
+ 	addr = __builtin_frame_address(0) + 4096 - size;

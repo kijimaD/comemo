@@ -10,6 +10,19 @@ Date:   Fri Nov 11 14:56:18 2011 -0500
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5369066
-
+---
  src/env.bash | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/env.bash b/src/env.bash
+index de446bf479..50bc4adad6 100644
+--- a/src/env.bash
++++ b/src/env.bash
+@@ -59,6 +59,7 @@ PROGS="
+ 	gcc
+ 	grep
+ 	ls
++	$MAKE
+ 	mkdir
+ 	mv
+ 	pwd

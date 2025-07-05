@@ -9,7 +9,60 @@ Date:   Tue Apr 10 15:56:17 2018 -0700
     Change-Id: I9c92c767b01cf7938c4808a8fef9f2936fc667bc
     Reviewed-on: https://go-review.googlesource.com/106119
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/typecheck.go |  2 ++
  test/fixedbugs/issue14321.go             | 33 ++++++++++++++++++++++++++++++++
  2 files changed, 35 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 9c9046bb3a..bd0c4aec9e 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -2359,6 +2359,8 @@ func typecheckMethodExpr(n *Node) *Node {
+ 	if m == nil {
+ 		if lookdot1(n, s, t, ms, 1) != nil {
+ 			yyerror("%v undefined (cannot refer to unexported method %v)", n, s)
++		} else if _, ambig := dotpath(s, t, nil, false); ambig {
++			yyerror("%v undefined (ambiguous selector)", n) // method or field
+ 		} else {
+ 			yyerror("%v undefined (type %v has no method %v)", n, t, s)
+ 		}
+diff --git a/test/fixedbugs/issue14321.go b/test/fixedbugs/issue14321.go
+new file mode 100644
+index 0000000000..058008c386
+--- /dev/null
++++ b/test/fixedbugs/issue14321.go
+@@ -0,0 +1,33 @@
++// errorcheck
++
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Verify that error message reports _ambiguous_ method.
++
++package p
++
++type A struct{
++	H int
++}
++
++func (A) F() {}
++func (A) G() {}
++
++type B struct{
++	G int
++	H int
++}
++
++func (B) F() {}
++
++type C struct {
++	A
++	B
++}
++
++var _ = C.F // ERROR "ambiguous selector"
++var _ = C.G // ERROR "ambiguous selector"
++var _ = C.H // ERROR "ambiguous selector"
++var _ = C.I // ERROR "no method I"

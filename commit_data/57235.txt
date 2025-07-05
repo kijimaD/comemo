@@ -23,7 +23,7 @@ Date:   Thu Jun 8 12:19:54 2023 -0400
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/internal/amd64/asm.go               | 23 ++++++++++++++++
  src/cmd/link/internal/arm64/asm.go               | 34 ++++++++++++++++++++++++
  src/cmd/link/link_test.go                        | 30 +++++++++++++++++++++
@@ -32,3 +32,214 @@ Date:   Thu Jun 8 12:19:54 2023 -0400
  src/cmd/link/testdata/dynimportvar/asm/a_arm64.s | 11 ++++++++
  src/cmd/link/testdata/dynimportvar/main.go       | 32 ++++++++++++++++++++++
  7 files changed, 156 insertions(+)
+
+diff --git a/src/cmd/link/internal/amd64/asm.go b/src/cmd/link/internal/amd64/asm.go
+index c91e37584c..c4134262c5 100644
+--- a/src/cmd/link/internal/amd64/asm.go
++++ b/src/cmd/link/internal/amd64/asm.go
+@@ -251,6 +251,29 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
+ 			// nothing to do, the relocation will be laid out in reloc
+ 			return true
+ 		}
++		if r.Type() == objabi.R_PCREL && ldr.SymType(s) == sym.STEXT && target.IsDarwin() {
++			// Loading the address of a dynamic symbol. Rewrite to use GOT.
++			// turn LEAQ symbol address to MOVQ of GOT entry
++			if r.Add() != 0 {
++				ldr.Errorf(s, "unexpected nonzero addend for dynamic symbol %s", ldr.SymName(targ))
++				return false
++			}
++			su := ldr.MakeSymbolUpdater(s)
++			if r.Off() >= 2 && su.Data()[r.Off()-2] == 0x8d {
++				su.MakeWritable()
++				su.Data()[r.Off()-2] = 0x8b
++				if target.IsInternal() {
++					ld.AddGotSym(target, ldr, syms, targ, 0)
++					su.SetRelocSym(rIdx, syms.GOT)
++					su.SetRelocAdd(rIdx, int64(ldr.SymGot(targ)))
++				} else {
++					su.SetRelocType(rIdx, objabi.R_GOTPCREL)
++				}
++				return true
++			}
++			ldr.Errorf(s, "unexpected R_PCREL reloc for dynamic symbol %s: not preceded by LEAQ instruction", ldr.SymName(targ))
++			return false
++		}
+ 		if target.IsExternal() {
+ 			// External linker will do this relocation.
+ 			return true
+diff --git a/src/cmd/link/internal/arm64/asm.go b/src/cmd/link/internal/arm64/asm.go
+index 312ee27aa6..e3fc1c4dd4 100644
+--- a/src/cmd/link/internal/arm64/asm.go
++++ b/src/cmd/link/internal/arm64/asm.go
+@@ -306,6 +306,40 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
+ 		su.SetRelocAdd(rIdx, int64(ldr.SymPlt(targ)))
+ 		return true
+ 
++	case objabi.R_ADDRARM64:
++		if targType == sym.SDYNIMPORT && ldr.SymType(s) == sym.STEXT && target.IsDarwin() {
++			// Loading the address of a dynamic symbol. Rewrite to use GOT.
++			// turn MOVD $sym (adrp+add) into MOVD sym@GOT (adrp+ldr)
++			if r.Add() != 0 {
++				ldr.Errorf(s, "unexpected nonzero addend for dynamic symbol %s", ldr.SymName(targ))
++				return false
++			}
++			su := ldr.MakeSymbolUpdater(s)
++			data := ldr.Data(s)
++			off := r.Off()
++			if int(off+8) > len(data) {
++				ldr.Errorf(s, "unexpected R_ADDRARM64 reloc for dynamic symbol %s", ldr.SymName(targ))
++				return false
++			}
++			o := target.Arch.ByteOrder.Uint32(data[off+4:])
++			if o>>24 == 0x91 { // add
++				// rewrite to ldr
++				o = (0xf9 << 24) | 1<<22 | (o & (1<<22 - 1))
++				su.MakeWritable()
++				su.SetUint32(target.Arch, int64(off+4), o)
++				if target.IsInternal() {
++					ld.AddGotSym(target, ldr, syms, targ, 0)
++					su.SetRelocSym(rIdx, syms.GOT)
++					su.SetRelocAdd(rIdx, int64(ldr.SymGot(targ)))
++					su.SetRelocType(rIdx, objabi.R_ARM64_PCREL_LDST64)
++				} else {
++					su.SetRelocType(rIdx, objabi.R_ARM64_GOTPCREL)
++				}
++				return true
++			}
++			ldr.Errorf(s, "unexpected R_ADDRARM64 reloc for dynamic symbol %s", ldr.SymName(targ))
++		}
++
+ 	case objabi.R_ADDR:
+ 		if ldr.SymType(s) == sym.STEXT && target.IsElf() {
+ 			// The code is asking for the address of an external
+diff --git a/src/cmd/link/link_test.go b/src/cmd/link/link_test.go
+index c37d6e57bc..7059af7cad 100644
+--- a/src/cmd/link/link_test.go
++++ b/src/cmd/link/link_test.go
+@@ -1209,3 +1209,33 @@ func TestResponseFile(t *testing.T) {
+ 		t.Error(err)
+ 	}
+ }
++
++func TestDynimportVar(t *testing.T) {
++	// Test that we can access dynamically imported variables.
++	// Currently darwin only.
++	if runtime.GOOS != "darwin" {
++		t.Skip("skip on non-darwin platform")
++	}
++
++	testenv.MustHaveGoBuild(t)
++	testenv.MustHaveCGO(t)
++
++	t.Parallel()
++
++	tmpdir := t.TempDir()
++	exe := filepath.Join(tmpdir, "a.exe")
++	src := filepath.Join("testdata", "dynimportvar", "main.go")
++
++	for _, mode := range []string{"internal", "external"} {
++		cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-ldflags=-linkmode="+mode, "-o", exe, src)
++		out, err := cmd.CombinedOutput()
++		if err != nil {
++			t.Fatalf("build (linkmode=%s) failed: %v\n%s", mode, err, out)
++		}
++		cmd = testenv.Command(t, exe)
++		out, err = cmd.CombinedOutput()
++		if err != nil {
++			t.Errorf("executable failed to run (%s): %v\n%s", mode, err, out)
++		}
++	}
++}
+diff --git a/src/cmd/link/testdata/dynimportvar/asm/a.go b/src/cmd/link/testdata/dynimportvar/asm/a.go
+new file mode 100644
+index 0000000000..8d9299972b
+--- /dev/null
++++ b/src/cmd/link/testdata/dynimportvar/asm/a.go
+@@ -0,0 +1,15 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This is a separate package because we cannot have Go
++// assembly code and cgo code in the same package.
++
++//go:build darwin
++
++package asm
++
++//go:cgo_import_dynamic libc_mach_task_self_ mach_task_self_ "/usr/lib/libSystem.B.dylib"
++
++// load mach_task_self_ from assembly code
++func Mach_task_self() uint32
+diff --git a/src/cmd/link/testdata/dynimportvar/asm/a_amd64.s b/src/cmd/link/testdata/dynimportvar/asm/a_amd64.s
+new file mode 100644
+index 0000000000..93547e32f1
+--- /dev/null
++++ b/src/cmd/link/testdata/dynimportvar/asm/a_amd64.s
+@@ -0,0 +1,11 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build darwin
++
++TEXT ·Mach_task_self(SB),0,$0-4
++	MOVQ	$libc_mach_task_self_(SB), AX
++	MOVQ	(AX), AX
++	MOVL	AX, ret+0(FP)
++	RET
+diff --git a/src/cmd/link/testdata/dynimportvar/asm/a_arm64.s b/src/cmd/link/testdata/dynimportvar/asm/a_arm64.s
+new file mode 100644
+index 0000000000..bd3c9d71f5
+--- /dev/null
++++ b/src/cmd/link/testdata/dynimportvar/asm/a_arm64.s
+@@ -0,0 +1,11 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build darwin
++
++TEXT ·Mach_task_self(SB),0,$0-4
++	MOVD	$libc_mach_task_self_(SB), R0
++	MOVD	(R0), R0
++	MOVW	R0, ret+0(FP)
++	RET
+diff --git a/src/cmd/link/testdata/dynimportvar/main.go b/src/cmd/link/testdata/dynimportvar/main.go
+new file mode 100644
+index 0000000000..658d340532
+--- /dev/null
++++ b/src/cmd/link/testdata/dynimportvar/main.go
+@@ -0,0 +1,32 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test that we can access dynamically imported variables.
++// We ues mach_task_self_ from darwin's system library.
++// Check that loading the variable from C and Go gets the
++// same result.
++
++//go:build darwin
++
++package main
++
++/*
++#include <mach/mach_init.h>
++
++unsigned int Mach_task_self(void) {
++	return mach_task_self();
++}
++*/
++import "C"
++
++import "cmd/link/testdata/dynimportvar/asm"
++
++func main() {
++	c := uint32(C.Mach_task_self())
++	a := asm.Mach_task_self()
++	if a != c {
++		println("got", a, "want", c)
++		panic("FAIL")
++	}
++}

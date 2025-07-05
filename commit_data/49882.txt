@@ -12,7 +12,43 @@ Date:   Sun Sep 19 18:18:41 2021 -0700
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Trust: Dan Scales <danscales@google.com>
-
+---
  src/cmd/compile/internal/typecheck/iexport.go | 4 ++--
  src/cmd/compile/internal/typecheck/iimport.go | 2 +-
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/typecheck/iexport.go b/src/cmd/compile/internal/typecheck/iexport.go
+index def9408544..bbdad09782 100644
+--- a/src/cmd/compile/internal/typecheck/iexport.go
++++ b/src/cmd/compile/internal/typecheck/iexport.go
+@@ -255,7 +255,7 @@ const (
+ 	structType
+ 	interfaceType
+ 	typeParamType
+-	instType
++	instanceType // Instantiation of a generic type
+ 	unionType
+ )
+ 
+@@ -893,7 +893,7 @@ func (w *exportWriter) doTyp(t *types.Type) {
+ 		if strings.Index(s.Name, "[") < 0 {
+ 			base.Fatalf("incorrect name for instantiated type")
+ 		}
+-		w.startType(instType)
++		w.startType(instanceType)
+ 		w.pos(t.Pos())
+ 		// Export the type arguments for the instantiated type. The
+ 		// instantiated type could be in a method header (e.g. "func (v
+diff --git a/src/cmd/compile/internal/typecheck/iimport.go b/src/cmd/compile/internal/typecheck/iimport.go
+index a7339903fc..ec4057a8d0 100644
+--- a/src/cmd/compile/internal/typecheck/iimport.go
++++ b/src/cmd/compile/internal/typecheck/iimport.go
+@@ -821,7 +821,7 @@ func (r *importReader) typ1() *types.Type {
+ 		}
+ 		return n.Type()
+ 
+-	case instType:
++	case instanceType:
+ 		if r.p.exportVersion < iexportVersionGenerics {
+ 			base.Fatalf("unexpected instantiation type")
+ 		}

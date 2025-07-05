@@ -13,7 +13,52 @@ Date:   Wed Mar 30 09:10:06 2022 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/typecheck/stmt.go      | 4 ++--
  src/cmd/compile/internal/typecheck/typecheck.go | 4 ++--
  2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/typecheck/stmt.go b/src/cmd/compile/internal/typecheck/stmt.go
+index 16e24a0491..60bac77d19 100644
+--- a/src/cmd/compile/internal/typecheck/stmt.go
++++ b/src/cmd/compile/internal/typecheck/stmt.go
+@@ -78,7 +78,7 @@ func typecheckrangeExpr(n *ir.RangeStmt) {
+ 					base.ErrorfAt(n.Pos(), "cannot assign type %v to %L in range%s", t, nn, why)
+ 				}
+ 			}
+-			checkassign(n, nn)
++			checkassign(nn)
+ 		}
+ 	}
+ 	do(n.Key, tk)
+@@ -137,7 +137,7 @@ func assign(stmt ir.Node, lhs, rhs []ir.Node) {
+ 		if lhs[i].Typecheck() == 0 {
+ 			lhs[i] = AssignExpr(lhs[i])
+ 		}
+-		checkassign(stmt, lhs[i])
++		checkassign(lhs[i])
+ 	}
+ 
+ 	assignType := func(i int, typ *types.Type) {
+diff --git a/src/cmd/compile/internal/typecheck/typecheck.go b/src/cmd/compile/internal/typecheck/typecheck.go
+index b5108eab84..85de653a82 100644
+--- a/src/cmd/compile/internal/typecheck/typecheck.go
++++ b/src/cmd/compile/internal/typecheck/typecheck.go
+@@ -488,7 +488,7 @@ func typecheck1(n ir.Node, top int) ir.Node {
+ 	case ir.OASOP:
+ 		n := n.(*ir.AssignOpStmt)
+ 		n.X, n.Y = Expr(n.X), Expr(n.Y)
+-		checkassign(n, n.X)
++		checkassign(n.X)
+ 		if n.IncDec && !okforarith[n.X.Type().Kind()] {
+ 			base.Errorf("invalid operation: %v (non-numeric type %v)", n, n.X.Type())
+ 			return n
+@@ -1562,7 +1562,7 @@ func checklvalue(n ir.Node, verb string) {
+ 	}
+ }
+ 
+-func checkassign(stmt ir.Node, n ir.Node) {
++func checkassign(n ir.Node) {
+ 	// have already complained about n being invalid
+ 	if n.Type() == nil {
+ 		if base.Errors() == 0 {

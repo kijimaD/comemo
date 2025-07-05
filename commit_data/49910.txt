@@ -37,6 +37,27 @@ Date:   Fri Sep 10 10:47:03 2021 -0400
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/io/io.go | 7 ++++---
  1 file changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/src/io/io.go b/src/io/io.go
+index 2724321ed9..2e697e7450 100644
+--- a/src/io/io.go
++++ b/src/io/io.go
+@@ -113,11 +113,12 @@ type Closer interface {
+ // SeekCurrent means relative to the current offset, and
+ // SeekEnd means relative to the end.
+ // Seek returns the new offset relative to the start of the
+-// file and an error, if any.
++// file or an error, if any.
+ //
+ // Seeking to an offset before the start of the file is an error.
+-// Seeking to any positive offset is legal, but the behavior of subsequent
+-// I/O operations on the underlying object is implementation-dependent.
++// Seeking to any positive offset may be allowed, but if the new offset exceeds
++// the size of the underlying object the behavior of subsequent I/O operations
++// is implementation-dependent.
+ type Seeker interface {
+ 	Seek(offset int64, whence int) (int64, error)
+ }

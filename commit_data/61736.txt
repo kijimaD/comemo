@@ -30,9 +30,351 @@ Date:   Wed Nov 20 23:11:35 2024 -0500
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/hash/maphash/maphash.go         | 80 ++++---------------------------------
  src/hash/maphash/maphash_purego.go  | 75 +++++++++++++++++++++++++++++++++-
  src/hash/maphash/maphash_runtime.go | 34 +++++++++-------
  src/hash/maphash/maphash_test.go    | 61 ++++++++++++++++++++++++----
  4 files changed, 155 insertions(+), 95 deletions(-)
+
+diff --git a/src/hash/maphash/maphash.go b/src/hash/maphash/maphash.go
+index 110b4cbfde..20735671a7 100644
+--- a/src/hash/maphash/maphash.go
++++ b/src/hash/maphash/maphash.go
+@@ -16,7 +16,6 @@ import (
+ 	"internal/abi"
+ 	"internal/byteorder"
+ 	"math"
+-	"reflect"
+ )
+ 
+ // A Seed is a random value that selects the specific hash function
+@@ -288,10 +287,7 @@ func (h *Hash) BlockSize() int { return len(h.buf) }
+ // If v != v, then the resulting hash is randomly distributed.
+ func Comparable[T comparable](seed Seed, v T) uint64 {
+ 	comparableReady(v)
+-	var h Hash
+-	h.SetSeed(seed)
+-	comparableF(&h, v)
+-	return h.Sum64()
++	return comparableHash(v, seed)
+ }
+ 
+ func comparableReady[T comparable](v T) {
+@@ -305,74 +301,14 @@ func comparableReady[T comparable](v T) {
+ // WriteComparable adds x to the data hashed by h.
+ func WriteComparable[T comparable](h *Hash, x T) {
+ 	comparableReady(x)
+-	comparableF(h, x)
+-}
+-
+-// appendT hash a value,
+-// when the value cannot be directly hash raw memory,
+-// or when purego is used.
+-func appendT(h *Hash, v reflect.Value) {
+-	h.WriteString(v.Type().String())
+-	switch v.Kind() {
+-	case reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Int:
+-		var buf [8]byte
+-		byteorder.LEPutUint64(buf[:], uint64(v.Int()))
+-		h.Write(buf[:])
+-		return
+-	case reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uint, reflect.Uintptr:
+-		var buf [8]byte
+-		byteorder.LEPutUint64(buf[:], v.Uint())
+-		h.Write(buf[:])
+-		return
+-	case reflect.Array:
+-		var buf [8]byte
+-		for i := range uint64(v.Len()) {
+-			byteorder.LEPutUint64(buf[:], i)
+-			// do not want to hash to the same value,
+-			// [2]string{"foo", ""} and [2]string{"", "foo"}.
+-			h.Write(buf[:])
+-			appendT(h, v.Index(int(i)))
+-		}
+-		return
+-	case reflect.String:
+-		h.WriteString(v.String())
+-		return
+-	case reflect.Struct:
+-		var buf [8]byte
+-		for i := range v.NumField() {
+-			f := v.Field(i)
+-			byteorder.LEPutUint64(buf[:], uint64(i))
+-			// do not want to hash to the same value,
+-			// struct{a,b string}{"foo",""} and
+-			// struct{a,b string}{"","foo"}.
+-			h.Write(buf[:])
+-			appendT(h, f)
+-		}
+-		return
+-	case reflect.Complex64, reflect.Complex128:
+-		c := v.Complex()
+-		h.float64(real(c))
+-		h.float64(imag(c))
+-		return
+-	case reflect.Float32, reflect.Float64:
+-		h.float64(v.Float())
+-		return
+-	case reflect.Bool:
+-		h.WriteByte(btoi(v.Bool()))
+-		return
+-	case reflect.UnsafePointer, reflect.Pointer:
+-		var buf [8]byte
+-		// because pointing to the abi.Escape call in comparableReady,
+-		// So this is ok to hash pointer,
+-		// this way because we know their target won't be moved.
+-		byteorder.LEPutUint64(buf[:], uint64(v.Pointer()))
+-		h.Write(buf[:])
+-		return
+-	case reflect.Interface:
+-		appendT(h, v.Elem())
+-		return
++	// writeComparable (not in purego mode) directly operates on h.state
++	// without using h.buf. Mix in the buffer length so it won't
++	// commute with a buffered write, which either changes h.n or changes
++	// h.state.
++	if h.n != 0 {
++		writeComparable(h, h.n)
+ 	}
+-	panic("maphash: " + v.Type().String() + " not comparable")
++	writeComparable(h, x)
+ }
+ 
+ func (h *Hash) float64(f float64) {
+diff --git a/src/hash/maphash/maphash_purego.go b/src/hash/maphash/maphash_purego.go
+index c34e1c8a23..687626a8a2 100644
+--- a/src/hash/maphash/maphash_purego.go
++++ b/src/hash/maphash/maphash_purego.go
+@@ -8,6 +8,7 @@ package maphash
+ 
+ import (
+ 	"crypto/rand"
++	"errors"
+ 	"internal/byteorder"
+ 	"math/bits"
+ 	"reflect"
+@@ -96,7 +97,79 @@ func mix(a, b uint64) uint64 {
+ 	return hi ^ lo
+ }
+ 
+-func comparableF[T comparable](h *Hash, v T) {
++func comparableHash[T comparable](v T, seed Seed) uint64 {
++	var h Hash
++	h.SetSeed(seed)
++	writeComparable(&h, v)
++	return h.Sum64()
++}
++
++func writeComparable[T comparable](h *Hash, v T) {
+ 	vv := reflect.ValueOf(v)
+ 	appendT(h, vv)
+ }
++
++// appendT hash a value.
++func appendT(h *Hash, v reflect.Value) {
++	h.WriteString(v.Type().String())
++	switch v.Kind() {
++	case reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Int:
++		var buf [8]byte
++		byteorder.LEPutUint64(buf[:], uint64(v.Int()))
++		h.Write(buf[:])
++		return
++	case reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uint, reflect.Uintptr:
++		var buf [8]byte
++		byteorder.LEPutUint64(buf[:], v.Uint())
++		h.Write(buf[:])
++		return
++	case reflect.Array:
++		var buf [8]byte
++		for i := range uint64(v.Len()) {
++			byteorder.LEPutUint64(buf[:], i)
++			// do not want to hash to the same value,
++			// [2]string{"foo", ""} and [2]string{"", "foo"}.
++			h.Write(buf[:])
++			appendT(h, v.Index(int(i)))
++		}
++		return
++	case reflect.String:
++		h.WriteString(v.String())
++		return
++	case reflect.Struct:
++		var buf [8]byte
++		for i := range v.NumField() {
++			f := v.Field(i)
++			byteorder.LEPutUint64(buf[:], uint64(i))
++			// do not want to hash to the same value,
++			// struct{a,b string}{"foo",""} and
++			// struct{a,b string}{"","foo"}.
++			h.Write(buf[:])
++			appendT(h, f)
++		}
++		return
++	case reflect.Complex64, reflect.Complex128:
++		c := v.Complex()
++		h.float64(real(c))
++		h.float64(imag(c))
++		return
++	case reflect.Float32, reflect.Float64:
++		h.float64(v.Float())
++		return
++	case reflect.Bool:
++		h.WriteByte(btoi(v.Bool()))
++		return
++	case reflect.UnsafePointer, reflect.Pointer:
++		var buf [8]byte
++		// because pointing to the abi.Escape call in comparableReady,
++		// So this is ok to hash pointer,
++		// this way because we know their target won't be moved.
++		byteorder.LEPutUint64(buf[:], uint64(v.Pointer()))
++		h.Write(buf[:])
++		return
++	case reflect.Interface:
++		appendT(h, v.Elem())
++		return
++	}
++	panic(errors.New("maphash: hash of unhashable type " + v.Type().String()))
++}
+diff --git a/src/hash/maphash/maphash_runtime.go b/src/hash/maphash/maphash_runtime.go
+index 1570e7dea4..049aa6281d 100644
+--- a/src/hash/maphash/maphash_runtime.go
++++ b/src/hash/maphash/maphash_runtime.go
+@@ -8,7 +8,7 @@ package maphash
+ 
+ import (
+ 	"internal/abi"
+-	"reflect"
++	"internal/goexperiment"
+ 	"unsafe"
+ )
+ 
+@@ -44,18 +44,24 @@ func randUint64() uint64 {
+ 	return runtime_rand()
+ }
+ 
+-func comparableF[T comparable](h *Hash, v T) {
+-	t := abi.TypeFor[T]()
+-	// We can only use the raw memory contents for the hash,
+-	// if the raw memory contents are used for computing equality.
+-	// That works for some types (int),
+-	// but not others (float, string, structs with padding, etc.)
+-	if t.TFlag&abi.TFlagRegularMemory != 0 {
+-		ptr := unsafe.Pointer(&v)
+-		l := t.Size()
+-		h.Write(unsafe.Slice((*byte)(ptr), l))
+-		return
++func comparableHash[T comparable](v T, seed Seed) uint64 {
++	s := seed.s
++	var m map[T]struct{}
++	mTyp := abi.TypeOf(m)
++	var hasher func(unsafe.Pointer, uintptr) uintptr
++	if goexperiment.SwissMap {
++		hasher = (*abi.SwissMapType)(unsafe.Pointer(mTyp)).Hasher
++	} else {
++		hasher = (*abi.OldMapType)(unsafe.Pointer(mTyp)).Hasher
+ 	}
+-	vv := reflect.ValueOf(v)
+-	appendT(h, vv)
++	if unsafe.Sizeof(uintptr(0)) == 8 {
++		return uint64(hasher(abi.NoEscape(unsafe.Pointer(&v)), uintptr(s)))
++	}
++	lo := hasher(abi.NoEscape(unsafe.Pointer(&v)), uintptr(s))
++	hi := hasher(abi.NoEscape(unsafe.Pointer(&v)), uintptr(s>>32))
++	return uint64(hi)<<32 | uint64(lo)
++}
++
++func writeComparable[T comparable](h *Hash, v T) {
++	h.state.s = comparableHash(v, h.state)
+ }
+diff --git a/src/hash/maphash/maphash_test.go b/src/hash/maphash/maphash_test.go
+index f1b292e101..f5bccdaca8 100644
+--- a/src/hash/maphash/maphash_test.go
++++ b/src/hash/maphash/maphash_test.go
+@@ -10,6 +10,7 @@ import (
+ 	"hash"
+ 	"math"
+ 	"reflect"
++	"strings"
+ 	"testing"
+ 	"unsafe"
+ )
+@@ -390,22 +391,35 @@ func TestComparableShouldPanic(t *testing.T) {
+ 	s := []byte("s")
+ 	a := any(s)
+ 	defer func() {
+-		err := recover()
+-		if err == nil {
+-			t.Fatalf("hash any([]byte) should panic in maphash.appendT")
+-		}
+-		s, ok := err.(string)
++		e := recover()
++		err, ok := e.(error)
+ 		if !ok {
+-			t.Fatalf("hash any([]byte) should panic in maphash.appendT")
++			t.Fatalf("Comaparable(any([]byte)) should panic")
+ 		}
+-		want := "maphash: []uint8 not comparable"
+-		if s != want {
++		want := "hash of unhashable type []uint8"
++		if s := err.Error(); !strings.Contains(s, want) {
+ 			t.Fatalf("want %s, got %s", want, s)
+ 		}
+ 	}()
+ 	Comparable(MakeSeed(), a)
+ }
+ 
++func TestWriteComparableNoncommute(t *testing.T) {
++	seed := MakeSeed()
++	var h1, h2 Hash
++	h1.SetSeed(seed)
++	h2.SetSeed(seed)
++
++	h1.WriteString("abc")
++	WriteComparable(&h1, 123)
++	WriteComparable(&h2, 123)
++	h2.WriteString("abc")
++
++	if h1.Sum64() == h2.Sum64() {
++		t.Errorf("WriteComparable and WriteString unexpectedly commute")
++	}
++}
++
+ // Make sure a Hash implements the hash.Hash and hash.Hash64 interfaces.
+ var _ hash.Hash = &Hash{}
+ var _ hash.Hash64 = &Hash{}
+@@ -449,3 +463,34 @@ func BenchmarkHash(b *testing.B) {
+ 		})
+ 	}
+ }
++
++func benchmarkComparable[T comparable](b *testing.B, v T) {
++	b.Run(reflect.TypeFor[T]().String(), func(b *testing.B) {
++		seed := MakeSeed()
++		for i := 0; i < b.N; i++ {
++			Comparable(seed, v)
++		}
++	})
++}
++
++func BenchmarkComparable(b *testing.B) {
++	type testStruct struct {
++		i int
++		u uint
++		b bool
++		f float64
++		p *int
++		a any
++	}
++	benchmarkComparable(b, int64(2))
++	benchmarkComparable(b, uint64(8))
++	benchmarkComparable(b, uintptr(12))
++	benchmarkComparable(b, any("s"))
++	benchmarkComparable(b, "s")
++	benchmarkComparable(b, true)
++	benchmarkComparable(b, new(float64))
++	benchmarkComparable(b, float64(9))
++	benchmarkComparable(b, complex128(9i+1))
++	benchmarkComparable(b, struct{}{})
++	benchmarkComparable(b, testStruct{i: 9, u: 1, b: true, f: 9.9, p: new(int), a: 1})
++}

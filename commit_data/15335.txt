@@ -10,7 +10,43 @@ Date:   Wed Feb 20 14:30:15 2013 -0800
     R=r, adg
     CC=golang-dev
     https://golang.org/cl/7314114
-
+---
  src/pkg/fmt/fmt_test.go | 4 ++++
  src/pkg/fmt/print.go    | 2 +-
  2 files changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/fmt/fmt_test.go b/src/pkg/fmt/fmt_test.go
+index a49b339554..af4b5c8f8e 100644
+--- a/src/pkg/fmt/fmt_test.go
++++ b/src/pkg/fmt/fmt_test.go
+@@ -178,6 +178,8 @@ var fmttests = []struct {
+ 	{"%.3q", "日本語日本語", `"日本語"`},
+ 	{"%.3q", []byte("日本語日本語"), `"日本語"`},
+ 	{"%10.1q", "日本語日本語", `       "日"`},
++	{"%10v", nil, "     <nil>"},
++	{"%-10v", nil, "<nil>     "},
+ 
+ 	// integers
+ 	{"%d", 12345, "12345"},
+@@ -437,6 +439,8 @@ var fmttests = []struct {
+ 	{"%T", renamedComplex128(4 - 3i), "fmt_test.renamedComplex128"},
+ 	{"%T", intVal, "int"},
+ 	{"%6T", &intVal, "  *int"},
++	{"%10T", nil, "     <nil>"},
++	{"%-10T", nil, "<nil>     "},
+ 
+ 	// %p
+ 	{"p0=%p", new(int), "p0=0xPTR"},
+diff --git a/src/pkg/fmt/print.go b/src/pkg/fmt/print.go
+index 636bb5e1a1..7d7aa93b2a 100644
+--- a/src/pkg/fmt/print.go
++++ b/src/pkg/fmt/print.go
+@@ -729,7 +729,7 @@ func (p *pp) printField(field interface{}, verb rune, plus, goSyntax bool, depth
+ 
+ 	if field == nil {
+ 		if verb == 'T' || verb == 'v' {
+-			p.buf.Write(nilAngleBytes)
++			p.fmt.pad(nilAngleBytes)
+ 		} else {
+ 			p.badVerb(verb)
+ 		}

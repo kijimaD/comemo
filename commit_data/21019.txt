@@ -8,6 +8,19 @@ Date:   Thu Nov 6 15:19:16 2014 -0500
     R=khr, r
     CC=golang-codereviews
     https://golang.org/cl/165590043
-
+---
  doc/go1.4.html | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/doc/go1.4.html b/doc/go1.4.html
+index b375612d0c..ac63ade60a 100644
+--- a/doc/go1.4.html
++++ b/doc/go1.4.html
+@@ -199,7 +199,6 @@ Details are available in <a href="https://golang.org/s/contigstacks">the design
+ <p>
+ The use of contiguous stacks means that stacks can start smaller without triggering performance issues,
+ so the default starting size for a goroutine's stack in 1.4 has been reduced to 2048 bytes from 8192 bytes.
+-TODO: It may be bumped to 4096 for the release.
+ </p>
+ 
+ <p>

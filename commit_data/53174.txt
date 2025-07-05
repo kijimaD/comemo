@@ -15,6 +15,21 @@ Date:   Tue Jul 26 12:50:02 2022 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  doc/go1.19.html | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/doc/go1.19.html b/doc/go1.19.html
+index ba8aa74ff5..de1dfefd4d 100644
+--- a/doc/go1.19.html
++++ b/doc/go1.19.html
+@@ -872,7 +872,8 @@ as well as support for rendering them to HTML, Markdown, and text.
+       Compared to v2, it is now typically 1.5x to 2x faster, uses half
+       as much memory, and it supports an unlimited number of
+       goroutines.
+-      On Linux, the race detector now requires at least glibc version 2.17.
++      On Linux, the race detector now requires at least glibc version
++      2.17 and GNU binutils 2.26.
+     </p>
+ 
+     <p><!-- CL 336549 -->

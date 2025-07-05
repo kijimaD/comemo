@@ -9,6 +9,19 @@ Date:   Fri Apr 3 04:37:29 2015 -0400
     Change-Id: I309e3df7608b9eef9339196fdc50dedf5f9439f6
     Reviewed-on: https://go-review.googlesource.com/8453
     Reviewed-by: Aram Hăvărneanu <aram@mgk.ro>
-
+---
  src/go/build/build.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/go/build/build.go b/src/go/build/build.go
+index b590105a5c..f0fe5ae85e 100644
+--- a/src/go/build/build.go
++++ b/src/go/build/build.go
+@@ -265,6 +265,7 @@ var cgoEnabled = map[string]bool{
+ 	"linux/386":       true,
+ 	"linux/amd64":     true,
+ 	"linux/arm":       true,
++	"linux/arm64":     true,
+ 	"linux/ppc64le":   true,
+ 	"android/386":     true,
+ 	"android/amd64":   true,

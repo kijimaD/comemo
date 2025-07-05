@@ -9,7 +9,32 @@ Date:   Wed Feb 20 14:42:13 2013 -0800
     R=gobot
     CC=golang-dev
     https://golang.org/cl/7377045
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 43881c8306..e0bb2ec019 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -257,6 +257,7 @@ Stefan Nilsson <snilsson@nada.kth.se> <trolleriprofessorn@gmail.com>
+ Stéphane Travostino <stephane.travostino@gmail.com>
+ Stephen McQuay <stephen@mcquay.me>
+ Stephen Weinberg <stephen@q5comm.com>
++Steven Elliot Harris <seharris@gmail.com>
+ Sven Almgren <sven@tras.se>
+ Szabolcs Nagy <nsz@port70.net>
+ Taj Khattra <taj.khattra@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 17983b4c92..787bf6cced 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -369,6 +369,7 @@ Stéphane Travostino <stephane.travostino@gmail.com>
+ Stephen Ma <stephenm@golang.org>
+ Stephen McQuay <stephen@mcquay.me>
+ Stephen Weinberg <stephen@q5comm.com>
++Steven Elliot Harris <seharris@gmail.com>
+ Sugu Sougoumarane <ssougou@gmail.com>
+ Sven Almgren <sven@tras.se>
+ Szabolcs Nagy <nsz@port70.net>

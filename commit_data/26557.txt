@@ -15,7 +15,207 @@ Date:   Fri Jan 29 21:57:57 2016 -0800
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/gc/ssa.go | 129 +++++++++++++++++++++++--------------
  src/cmd/compile/internal/ssa/TODO  |   2 -
  2 files changed, 81 insertions(+), 50 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index d56ff495ab..8109117982 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -2770,22 +2770,45 @@ func (s *state) insertWBstore(t *Type, left, right *ssa.Value, line int32) {
+ 	//   store pointer fields
+ 	// }
+ 
+-	if t.IsStruct() {
+-		n := t.NumFields()
+-		for i := int64(0); i < n; i++ {
+-			ft := t.FieldType(i)
+-			addr := s.newValue1I(ssa.OpOffPtr, ft.PtrTo(), t.FieldOff(i), left)
+-			val := s.newValue1I(ssa.OpStructSelect, ft, i, right)
+-			if haspointers(ft.(*Type)) {
+-				s.insertWBstore(ft.(*Type), addr, val, line)
+-			} else {
+-				s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, ft.Size(), addr, val, s.mem())
+-			}
+-		}
+-		return
++	s.storeTypeScalars(t, left, right)
++
++	bThen := s.f.NewBlock(ssa.BlockPlain)
++	bElse := s.f.NewBlock(ssa.BlockPlain)
++	bEnd := s.f.NewBlock(ssa.BlockPlain)
++
++	aux := &ssa.ExternSymbol{Types[TBOOL], syslook("writeBarrier", 0).Sym}
++	flagaddr := s.newValue1A(ssa.OpAddr, Ptrto(Types[TBOOL]), aux, s.sb)
++	// TODO: select the .enabled field.  It is currently first, so not needed for now.
++	flag := s.newValue2(ssa.OpLoad, Types[TBOOL], flagaddr, s.mem())
++	b := s.endBlock()
++	b.Kind = ssa.BlockIf
++	b.Likely = ssa.BranchUnlikely
++	b.Control = flag
++	b.AddEdgeTo(bThen)
++	b.AddEdgeTo(bElse)
++
++	// Issue write barriers for pointer writes.
++	s.startBlock(bThen)
++	s.storeTypePtrsWB(t, left, right)
++	s.endBlock().AddEdgeTo(bEnd)
++
++	// Issue regular stores for pointer writes.
++	s.startBlock(bElse)
++	s.storeTypePtrs(t, left, right)
++	s.endBlock().AddEdgeTo(bEnd)
++
++	s.startBlock(bEnd)
++
++	if Debug_wb > 0 {
++		Warnl(int(line), "write barrier")
+ 	}
++}
+ 
++// do *left = right for all scalar (non-pointer) parts of t.
++func (s *state) storeTypeScalars(t *Type, left, right *ssa.Value) {
+ 	switch {
++	case t.IsBoolean() || t.IsInteger() || t.IsFloat() || t.IsComplex():
++		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, t.Size(), left, right, s.mem())
+ 	case t.IsPtr() || t.IsMap() || t.IsChan():
+ 		// no scalar fields.
+ 	case t.IsString():
+@@ -2803,70 +2826,80 @@ func (s *state) insertWBstore(t *Type, left, right *ssa.Value, line int32) {
+ 		// itab field doesn't need a write barrier (even though it is a pointer).
+ 		itab := s.newValue1(ssa.OpITab, Ptrto(Types[TUINT8]), right)
+ 		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.IntSize, left, itab, s.mem())
++	case t.IsStruct():
++		n := t.NumFields()
++		for i := int64(0); i < n; i++ {
++			ft := t.FieldType(i)
++			addr := s.newValue1I(ssa.OpOffPtr, ft.PtrTo(), t.FieldOff(i), left)
++			val := s.newValue1I(ssa.OpStructSelect, ft, i, right)
++			s.storeTypeScalars(ft.(*Type), addr, val)
++		}
+ 	default:
+ 		s.Fatalf("bad write barrier type %s", t)
+ 	}
++}
+ 
+-	bThen := s.f.NewBlock(ssa.BlockPlain)
+-	bElse := s.f.NewBlock(ssa.BlockPlain)
+-	bEnd := s.f.NewBlock(ssa.BlockPlain)
+-
+-	aux := &ssa.ExternSymbol{Types[TBOOL], syslook("writeBarrier", 0).Sym}
+-	flagaddr := s.newValue1A(ssa.OpAddr, Ptrto(Types[TBOOL]), aux, s.sb)
+-	// TODO: select the .enabled field.  It is currently first, so not needed for now.
+-	flag := s.newValue2(ssa.OpLoad, Types[TBOOL], flagaddr, s.mem())
+-	b := s.endBlock()
+-	b.Kind = ssa.BlockIf
+-	b.Likely = ssa.BranchUnlikely
+-	b.Control = flag
+-	b.AddEdgeTo(bThen)
+-	b.AddEdgeTo(bElse)
+-
+-	// Issue write barriers for pointer writes.
+-	s.startBlock(bThen)
++// do *left = right for all pointer parts of t.
++func (s *state) storeTypePtrs(t *Type, left, right *ssa.Value) {
+ 	switch {
+ 	case t.IsPtr() || t.IsMap() || t.IsChan():
+-		s.rtcall(writebarrierptr, true, nil, left, right)
++		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.PtrSize, left, right, s.mem())
+ 	case t.IsString():
+ 		ptr := s.newValue1(ssa.OpStringPtr, Ptrto(Types[TUINT8]), right)
+-		s.rtcall(writebarrierptr, true, nil, left, ptr)
++		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.PtrSize, left, ptr, s.mem())
+ 	case t.IsSlice():
+ 		ptr := s.newValue1(ssa.OpSlicePtr, Ptrto(Types[TUINT8]), right)
+-		s.rtcall(writebarrierptr, true, nil, left, ptr)
++		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.PtrSize, left, ptr, s.mem())
+ 	case t.IsInterface():
++		// itab field is treated as a scalar.
+ 		idata := s.newValue1(ssa.OpIData, Ptrto(Types[TUINT8]), right)
+ 		idataAddr := s.newValue1I(ssa.OpOffPtr, Ptrto(Types[TUINT8]), s.config.PtrSize, left)
+-		s.rtcall(writebarrierptr, true, nil, idataAddr, idata)
++		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.PtrSize, idataAddr, idata, s.mem())
++	case t.IsStruct():
++		n := t.NumFields()
++		for i := int64(0); i < n; i++ {
++			ft := t.FieldType(i)
++			if !haspointers(ft.(*Type)) {
++				continue
++			}
++			addr := s.newValue1I(ssa.OpOffPtr, ft.PtrTo(), t.FieldOff(i), left)
++			val := s.newValue1I(ssa.OpStructSelect, ft, i, right)
++			s.storeTypePtrs(ft.(*Type), addr, val)
++		}
+ 	default:
+ 		s.Fatalf("bad write barrier type %s", t)
+ 	}
+-	s.endBlock().AddEdgeTo(bEnd)
++}
+ 
+-	// Issue regular stores for pointer writes.
+-	s.startBlock(bElse)
++// do *left = right with a write barrier for all pointer parts of t.
++func (s *state) storeTypePtrsWB(t *Type, left, right *ssa.Value) {
+ 	switch {
+ 	case t.IsPtr() || t.IsMap() || t.IsChan():
+-		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.PtrSize, left, right, s.mem())
++		s.rtcall(writebarrierptr, true, nil, left, right)
+ 	case t.IsString():
+ 		ptr := s.newValue1(ssa.OpStringPtr, Ptrto(Types[TUINT8]), right)
+-		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.PtrSize, left, ptr, s.mem())
++		s.rtcall(writebarrierptr, true, nil, left, ptr)
+ 	case t.IsSlice():
+ 		ptr := s.newValue1(ssa.OpSlicePtr, Ptrto(Types[TUINT8]), right)
+-		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.PtrSize, left, ptr, s.mem())
++		s.rtcall(writebarrierptr, true, nil, left, ptr)
+ 	case t.IsInterface():
+ 		idata := s.newValue1(ssa.OpIData, Ptrto(Types[TUINT8]), right)
+ 		idataAddr := s.newValue1I(ssa.OpOffPtr, Ptrto(Types[TUINT8]), s.config.PtrSize, left)
+-		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.PtrSize, idataAddr, idata, s.mem())
++		s.rtcall(writebarrierptr, true, nil, idataAddr, idata)
++	case t.IsStruct():
++		n := t.NumFields()
++		for i := int64(0); i < n; i++ {
++			ft := t.FieldType(i)
++			if !haspointers(ft.(*Type)) {
++				continue
++			}
++			addr := s.newValue1I(ssa.OpOffPtr, ft.PtrTo(), t.FieldOff(i), left)
++			val := s.newValue1I(ssa.OpStructSelect, ft, i, right)
++			s.storeTypePtrsWB(ft.(*Type), addr, val)
++		}
+ 	default:
+ 		s.Fatalf("bad write barrier type %s", t)
+ 	}
+-	s.endBlock().AddEdgeTo(bEnd)
+-
+-	s.startBlock(bEnd)
+-
+-	if Debug_wb > 0 {
+-		Warnl(int(line), "write barrier")
+-	}
+ }
+ 
+ // slice computes the slice v[i:j:k] and returns ptr, len, and cap of result.
+diff --git a/src/cmd/compile/internal/ssa/TODO b/src/cmd/compile/internal/ssa/TODO
+index 73396c7637..5fa14ee44b 100644
+--- a/src/cmd/compile/internal/ssa/TODO
++++ b/src/cmd/compile/internal/ssa/TODO
+@@ -7,7 +7,6 @@ Coverage
+ Correctness
+ -----------
+ - Debugging info (check & fix as much as we can)
+-- Fix write barriers so cgo tests work (misc/cgo/errors/ptr.go)
+ - Re-enable TestStackBarrierProfiling (src/runtime/pprof/pprof_test.go)
+ - @ directive in rewrites might read overwritten data.  Save @loc
+   in variable before modifying v.
+@@ -25,7 +24,6 @@ Optimizations (better compiled code)
+   SUBQ $8, AX
+   CMP AX, $0
+   JEQ ...
+-- Use better write barrier calls
+ - If there are a lot of MOVQ $0, ..., then load
+   0 into a register and use the register as the source instead.
+ - Allow arrays of length 1 (or longer, with all constant indexes?) to be SSAable.

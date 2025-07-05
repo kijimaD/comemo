@@ -13,8 +13,88 @@ Date:   Thu May 20 16:51:28 2021 -0700
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/modget/get.go                    | 2 +-
  src/cmd/go/testdata/script/mod_deprecate_message.txt | 8 ++++----
  src/cmd/go/testdata/script/mod_get_deprecated.txt    | 8 ++++----
  3 files changed, 9 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/go/internal/modget/get.go b/src/cmd/go/internal/modget/get.go
+index 2a7fe5226f..563f1a988f 100644
+--- a/src/cmd/go/internal/modget/get.go
++++ b/src/cmd/go/internal/modget/get.go
+@@ -1598,7 +1598,7 @@ func (r *resolver) checkPackageProblems(ctx context.Context, pkgPatterns []strin
+ 	// Report deprecations, then retractions.
+ 	for _, mm := range deprecations {
+ 		if mm.message != "" {
+-			fmt.Fprintf(os.Stderr, "go: warning: module %s is deprecated: %s\n", mm.m.Path, mm.message)
++			fmt.Fprintf(os.Stderr, "go: module %s is deprecated: %s\n", mm.m.Path, mm.message)
+ 		}
+ 	}
+ 	var retractPath string
+diff --git a/src/cmd/go/testdata/script/mod_deprecate_message.txt b/src/cmd/go/testdata/script/mod_deprecate_message.txt
+index 4a0674b808..567027935d 100644
+--- a/src/cmd/go/testdata/script/mod_deprecate_message.txt
++++ b/src/cmd/go/testdata/script/mod_deprecate_message.txt
+@@ -1,26 +1,26 @@
+ # When there is a short single-line message, 'go get' should print it all.
+ go get -d short
+-stderr '^go: warning: module short is deprecated: short$'
++stderr '^go: module short is deprecated: short$'
+ go list -m -u -f '{{.Deprecated}}' short
+ stdout '^short$'
+ 
+ # When there is a multi-line message, 'go get' should print the first line.
+ go get -d multiline
+-stderr '^go: warning: module multiline is deprecated: first line$'
++stderr '^go: module multiline is deprecated: first line$'
+ ! stderr 'second line'
+ go list -m -u -f '{{.Deprecated}}' multiline
+ stdout '^first line\nsecond line.$'
+ 
+ # When there is a long message, 'go get' should print a placeholder.
+ go get -d long
+-stderr '^go: warning: module long is deprecated: \(message omitted: too long\)$'
++stderr '^go: module long is deprecated: \(message omitted: too long\)$'
+ go list -m -u -f '{{.Deprecated}}' long
+ stdout '^aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa$'
+ 
+ # When a message contains unprintable chracters, 'go get' should say that
+ # without printing the message.
+ go get -d unprintable
+-stderr '^go: warning: module unprintable is deprecated: \(message omitted: contains non-printable characters\)$'
++stderr '^go: module unprintable is deprecated: \(message omitted: contains non-printable characters\)$'
+ go list -m -u -f '{{.Deprecated}}' unprintable
+ stdout '^message contains ASCII BEL\x07$'
+ 
+diff --git a/src/cmd/go/testdata/script/mod_get_deprecated.txt b/src/cmd/go/testdata/script/mod_get_deprecated.txt
+index 4633009f69..7bdd7a58a8 100644
+--- a/src/cmd/go/testdata/script/mod_get_deprecated.txt
++++ b/src/cmd/go/testdata/script/mod_get_deprecated.txt
+@@ -4,14 +4,14 @@ go get -d ./use/nothing
+ 
+ # 'go get pkg' should show a deprecation message for the module providing pkg.
+ go get -d example.com/deprecated/a
+-stderr '^go: warning: module example.com/deprecated/a is deprecated: in example.com/deprecated/a@v1.9.0$'
++stderr '^go: module example.com/deprecated/a is deprecated: in example.com/deprecated/a@v1.9.0$'
+ go get -d example.com/deprecated/a@v1.0.0
+-stderr '^go: warning: module example.com/deprecated/a is deprecated: in example.com/deprecated/a@v1.9.0$'
++stderr '^go: module example.com/deprecated/a is deprecated: in example.com/deprecated/a@v1.9.0$'
+ 
+ # 'go get pkg' should show a deprecation message for a module providing
+ # packages directly imported by pkg.
+ go get -d ./use/a
+-stderr '^go: warning: module example.com/deprecated/a is deprecated: in example.com/deprecated/a@v1.9.0$'
++stderr '^go: module example.com/deprecated/a is deprecated: in example.com/deprecated/a@v1.9.0$'
+ 
+ # 'go get pkg' may show a deprecation message for an indirectly required module
+ # if it provides a package named on the command line.
+@@ -20,7 +20,7 @@ go get -d ./use/b
+ go get -d local/use
+ ! stderr 'module.*is deprecated'
+ go get -d example.com/deprecated/b
+-stderr '^go: warning: module example.com/deprecated/b is deprecated: in example.com/deprecated/b@v1.9.0$'
++stderr '^go: module example.com/deprecated/b is deprecated: in example.com/deprecated/b@v1.9.0$'
+ 
+ # 'go get pkg' does not show a deprecation message for a module providing a
+ # directly imported package if the module is no longer deprecated in its

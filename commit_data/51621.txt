@@ -26,8 +26,90 @@ Date:   Fri Feb 25 15:10:24 2022 -0800
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Dan Scales <danscales@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/escape/escape.go |  4 ++++
  src/cmd/compile/internal/noder/stencil.go |  4 +++-
  test/typeparam/issue51355.go              | 31 +++++++++++++++++++++++++++++++
  3 files changed, 38 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/escape/escape.go b/src/cmd/compile/internal/escape/escape.go
+index c2145bdf91..bc6f7c93bb 100644
+--- a/src/cmd/compile/internal/escape/escape.go
++++ b/src/cmd/compile/internal/escape/escape.go
+@@ -10,6 +10,7 @@ import (
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/ir"
+ 	"cmd/compile/internal/logopt"
++	"cmd/compile/internal/typecheck"
+ 	"cmd/compile/internal/types"
+ )
+ 
+@@ -243,6 +244,9 @@ func (b *batch) flowClosure(k hole, clo *ir.ClosureExpr) {
+ 		n.SetByval(!loc.addrtaken && !loc.reassigned && n.Type().Size() <= 128)
+ 		if !n.Byval() {
+ 			n.SetAddrtaken(true)
++			if n.Sym().Name == typecheck.LocalDictName {
++				base.FatalfAt(n.Pos(), "dictionary variable not captured by value")
++			}
+ 		}
+ 
+ 		if base.Flag.LowerM > 1 {
+diff --git a/src/cmd/compile/internal/noder/stencil.go b/src/cmd/compile/internal/noder/stencil.go
+index 03937094e1..807794dc30 100644
+--- a/src/cmd/compile/internal/noder/stencil.go
++++ b/src/cmd/compile/internal/noder/stencil.go
+@@ -410,7 +410,8 @@ func (g *genInst) buildClosure(outer *ir.Func, x ir.Node) ir.Node {
+ 	fn, formalParams, formalResults := startClosure(pos, outer, typ)
+ 
+ 	// This is the dictionary we want to use.
+-	// It may be a constant, or it may be a dictionary acquired from the outer function's dictionary.
++	// It may be a constant, it may be the outer functions's dictionary, or it may be
++	// a subdictionary acquired from the outer function's dictionary.
+ 	// For the latter, dictVar is a variable in the outer function's scope, set to the subdictionary
+ 	// read from the outer function's dictionary.
+ 	var dictVar *ir.Name
+@@ -1145,6 +1146,7 @@ func (subst *subster) node(n ir.Node) ir.Node {
+ 			newfn.Dcl = append(newfn.Dcl, ldict)
+ 			as := ir.NewAssignStmt(x.Pos(), ldict, cdict)
+ 			as.SetTypecheck(1)
++			ldict.Defn = as
+ 			newfn.Body.Append(as)
+ 
+ 			// Create inst info for the instantiated closure. The dict
+diff --git a/test/typeparam/issue51355.go b/test/typeparam/issue51355.go
+new file mode 100644
+index 0000000000..15ffa4ba21
+--- /dev/null
++++ b/test/typeparam/issue51355.go
+@@ -0,0 +1,31 @@
++// compile -G=3
++
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++type Cache[E comparable] struct {
++	adder func(...E)
++}
++
++func New[E comparable]() *Cache[E] {
++	c := &Cache[E]{}
++
++	c.adder = func(elements ...E) {
++		for _, value := range elements {
++			value := value
++			go func() {
++				println(value)
++			}()
++		}
++	}
++
++	return c
++}
++
++func main() {
++	c := New[string]()
++	c.adder("test")
++}

@@ -7,7 +7,7 @@ Date:   Wed Mar 24 16:53:54 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/743041
-
+---
  src/cmd/gc/go.h        |  2 +-
  src/cmd/gc/lex.c       |  1 -
  src/cmd/gc/print.c     |  2 --
@@ -15,3 +15,136 @@ Date:   Wed Mar 24 16:53:54 2010 -0700
  src/cmd/gc/typecheck.c |  1 -
  src/cmd/gc/walk.c      | 10 +++-------
  6 files changed, 4 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 9b4ab47312..9de2361194 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -376,7 +376,7 @@ enum
+ 	ONEW,
+ 	ONOT, OCOM, OPLUS, OMINUS,
+ 	OOROR,
+-	OPANIC, OPANICN, OPRINT, OPRINTN,
++	OPANIC, OPRINT, OPRINTN,
+ 	OSEND, OSENDNB,
+ 	OSLICE, OSLICEARR, OSLICESTR,
+ 	ORECV,
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index c3a430665b..6489e7bee3 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -1305,7 +1305,6 @@ static	struct
+ 	"make",		LNAME,		Txxx,		OMAKE,
+ 	"new",		LNAME,		Txxx,		ONEW,
+ 	"panic",	LNAME,		Txxx,		OPANIC,
+-	"panicln",	LNAME,		Txxx,		OPANICN,
+ 	"print",	LNAME,		Txxx,		OPRINT,
+ 	"println",	LNAME,		Txxx,		OPRINTN,
+ 	"real",		LNAME,		Txxx,		OREAL,
+diff --git a/src/cmd/gc/print.c b/src/cmd/gc/print.c
+index af69202838..79c0e3720f 100644
+--- a/src/cmd/gc/print.c
++++ b/src/cmd/gc/print.c
+@@ -48,7 +48,6 @@ exprfmt(Fmt *f, Node *n, int prec)
+ 	case OMAKE:
+ 	case ONEW:
+ 	case OPANIC:
+-	case OPANICN:
+ 	case OPRINT:
+ 	case OPRINTN:
+ 	case OCALL:
+@@ -351,7 +350,6 @@ exprfmt(Fmt *f, Node *n, int prec)
+ 	case OMAKE:
+ 	case ONEW:
+ 	case OPANIC:
+-	case OPANICN:
+ 	case OPRINT:
+ 	case OPRINTN:
+ 		fmtprint(f, "%#O(", n->op);
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 0c01e728ce..b38ea9dfb9 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -832,7 +832,6 @@ goopnames[] =
+ 	[ONOT]		= "!",
+ 	[OOROR]		= "||",
+ 	[OOR]		= "|",
+-	[OPANICN]	= "panicln",
+ 	[OPANIC]	= "panic",
+ 	[OPLUS]		= "+",
+ 	[OPRINTN]	= "println",
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index a7ea631e1c..d10bf8f74b 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -1013,7 +1013,6 @@ reswitch:
+ 		goto ret;
+ 
+ 	case OPANIC:
+-	case OPANICN:
+ 	case OPRINT:
+ 	case OPRINTN:
+ 		ok |= Etop;
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 3820a58ff3..9c904f14c6 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -54,7 +54,6 @@ loop:
+ 	case OGOTO:
+ 	case ORETURN:
+ 	case OPANIC:
+-	case OPANICN:
+ 		return 0;
+ 		break;
+ 	}
+@@ -374,7 +373,6 @@ walkstmt(Node **np)
+ 	case OPRINT:
+ 	case OPRINTN:
+ 	case OPANIC:
+-	case OPANICN:
+ 	case OEMPTY:
+ 		if(n->typecheck == 0)
+ 			fatal("missing typecheck");
+@@ -411,7 +409,6 @@ walkstmt(Node **np)
+ 		case OPRINT:
+ 		case OPRINTN:
+ 		case OPANIC:
+-		case OPANICN:
+ 			walkexprlist(n->left->list, &n->ninit);
+ 			n->left = walkprint(n->left, &n->ninit, 1);
+ 			break;
+@@ -612,7 +609,6 @@ walkexpr(Node **np, NodeList **init)
+ 	case OPRINT:
+ 	case OPRINTN:
+ 	case OPANIC:
+-	case OPANICN:
+ 		walkexprlist(n->list, init);
+ 		n = walkprint(n, init, 0);
+ 		goto ret;
+@@ -1712,7 +1708,7 @@ walkprint(Node *nn, NodeList **init, int defer)
+ 			else
+ 				calls = list(calls, mkcall("printsp", T, init));
+ 		}
+-		notfirst = op == OPRINTN || op == OPANICN;
++		notfirst = op == OPRINTN;
+ 
+ 		n = l->n;
+ 		if(n->op == OLITERAL) {
+@@ -1828,7 +1824,7 @@ walkprint(Node *nn, NodeList **init, int defer)
+ 	if(defer) {
+ 		if(op == OPRINTN)
+ 			fmtprint(&fmt, "\n");
+-		if(op == OPANIC || op == OPANICN)
++		if(op == OPANIC)
+ 			fmtprint(&fmt, "%%!");
+ 		on = syslook("printf", 1);
+ 		on->type = functype(nil, intypes, nil);
+@@ -1845,7 +1841,7 @@ walkprint(Node *nn, NodeList **init, int defer)
+ 		typechecklist(calls, Etop);
+ 		walkexprlist(calls, init);
+ 
+-		if(op == OPANIC || op == OPANICN)
++		if(op == OPANIC)
+ 			r = mkcall("panicl", T, nil);
+ 		else
+ 			r = nod(OEMPTY, N, N);

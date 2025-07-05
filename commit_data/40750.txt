@@ -12,6 +12,20 @@ Date:   Tue Jun 25 10:58:47 2019 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-
+---
  misc/cgo/test/test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/misc/cgo/test/test.go b/misc/cgo/test/test.go
+index f7670ccf56..4286fb9cdb 100644
+--- a/misc/cgo/test/test.go
++++ b/misc/cgo/test/test.go
+@@ -853,7 +853,7 @@ static void issue29781F(char **p, int n) {}
+ static uint16_t issue31093F(uint16_t v) { return v; }
+ 
+ // issue 32579
+-typedef struct S32579 { int data[1]; } S32579;
++typedef struct S32579 { unsigned char data[1]; } S32579;
+ */
+ import "C"
+ 

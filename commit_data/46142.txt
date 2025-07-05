@@ -9,7 +9,7 @@ Date:   Tue Dec 8 17:48:39 2020 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/276472
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/expr.go |  6 +++++-
  test/fixedbugs/issue6750.go             |  2 +-
  test/fixedbugs/issue6772.go             |  4 ++--
@@ -20,3 +20,155 @@ Date:   Tue Dec 8 17:48:39 2020 -0800
  test/fixedbugs/issue7310.go             |  6 +++---
  test/run.go                             | 19 ++++++-------------
  9 files changed, 27 insertions(+), 30 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/expr.go b/src/cmd/compile/internal/types2/expr.go
+index c68077547e..bede0c639d 100644
+--- a/src/cmd/compile/internal/types2/expr.go
++++ b/src/cmd/compile/internal/types2/expr.go
+@@ -1039,7 +1039,11 @@ func (check *Checker) index(index syntax.Expr, max int64) (typ Type, val int64)
+ 
+ 	v, valid := constant.Int64Val(constant.ToInt(x.val))
+ 	if !valid || max >= 0 && v >= max {
+-		check.errorf(&x, "index %s is out of bounds", &x)
++		if check.conf.CompilerErrorMessages {
++			check.errorf(&x, "array index %s out of bounds [0:%d]", x.val.String(), max)
++		} else {
++			check.errorf(&x, "index %s is out of bounds", &x)
++		}
+ 		return
+ 	}
+ 
+diff --git a/test/fixedbugs/issue6750.go b/test/fixedbugs/issue6750.go
+index f62a85009c..fca4e66aaf 100644
+--- a/test/fixedbugs/issue6750.go
++++ b/test/fixedbugs/issue6750.go
+@@ -18,5 +18,5 @@ func printmany(nums ...int) {
+ func main() {
+ 	printmany(1, 2, 3)
+ 	printmany([]int{1, 2, 3}...)
+-	printmany(1, "abc", []int{2, 3}...) // ERROR "too many arguments in call to printmany\n\thave \(number, string, \.\.\.int\)\n\twant \(...int\)"
++	printmany(1, "abc", []int{2, 3}...) // ERROR "too many arguments in call( to printmany\n\thave \(number, string, \.\.\.int\)\n\twant \(...int\))?"
+ }
+diff --git a/test/fixedbugs/issue6772.go b/test/fixedbugs/issue6772.go
+index 4d0001c870..cb8d0a11f2 100644
+--- a/test/fixedbugs/issue6772.go
++++ b/test/fixedbugs/issue6772.go
+@@ -7,14 +7,14 @@
+ package p
+ 
+ func f1() {
+-	for a, a := range []int{1, 2, 3} { // ERROR "a repeated on left side of :="
++	for a, a := range []int{1, 2, 3} { // ERROR "a repeated on left side of :=|a redeclared"
+ 		println(a)
+ 	}
+ }
+ 
+ func f2() {
+ 	var a int
+-	for a, a := range []int{1, 2, 3} { // ERROR "a repeated on left side of :="
++	for a, a := range []int{1, 2, 3} { // ERROR "a repeated on left side of :=|a redeclared"
+ 		println(a)
+ 	}
+ 	println(a)
+diff --git a/test/fixedbugs/issue7129.go b/test/fixedbugs/issue7129.go
+index 2425cbd343..14fc418150 100644
+--- a/test/fixedbugs/issue7129.go
++++ b/test/fixedbugs/issue7129.go
+@@ -15,7 +15,7 @@ func g() bool { return true }
+ func h(int, int) {}
+ 
+ func main() {
+-	f(g())        // ERROR "in argument to f"
+-	f(true)       // ERROR "in argument to f"
+-	h(true, true) // ERROR "in argument to h"
++	f(g())        // ERROR "in argument to f|incompatible type"
++	f(true)       // ERROR "in argument to f|cannot convert"
++	h(true, true) // ERROR "in argument to h|cannot convert"
+ }
+diff --git a/test/fixedbugs/issue7150.go b/test/fixedbugs/issue7150.go
+index 8a8a7d088f..4bd9de8645 100644
+--- a/test/fixedbugs/issue7150.go
++++ b/test/fixedbugs/issue7150.go
+@@ -9,7 +9,7 @@
+ package main
+ 
+ func main() {
+-	_ = [0]int{-1: 50}              // ERROR "index must be non-negative integer constant"
++	_ = [0]int{-1: 50}              // ERROR "index must be non-negative integer constant|must not be negative"
+ 	_ = [0]int{0: 0}                // ERROR "index 0 out of bounds \[0:0\]"
+ 	_ = [0]int{5: 25}               // ERROR "index 5 out of bounds \[0:0\]"
+ 	_ = [10]int{2: 10, 15: 30}      // ERROR "index 15 out of bounds \[0:10\]"
+diff --git a/test/fixedbugs/issue7153.go b/test/fixedbugs/issue7153.go
+index 66b1338496..7a85fb8779 100644
+--- a/test/fixedbugs/issue7153.go
++++ b/test/fixedbugs/issue7153.go
+@@ -8,4 +8,4 @@
+ 
+ package p
+ 
+-var _ = []int{a: true, true} // ERROR "undefined: a" "cannot use true \(type untyped bool\) as type int in slice literal"
++var _ = []int{a: true, true} // ERROR "undefined: a" "cannot use true \(type untyped bool\) as type int in slice literal|cannot convert true"
+diff --git a/test/fixedbugs/issue7223.go b/test/fixedbugs/issue7223.go
+index 0ec3476403..c78de287ff 100644
+--- a/test/fixedbugs/issue7223.go
++++ b/test/fixedbugs/issue7223.go
+@@ -12,9 +12,9 @@ const bits2 uint = 10
+ func main() {
+ 	_ = make([]byte, 1<<bits1)
+ 	_ = make([]byte, 1<<bits2)
+-	_ = make([]byte, nil) // ERROR "non-integer.*len"
+-	_ = make([]byte, nil, 2) // ERROR "non-integer.*len"
+-	_ = make([]byte, 1, nil) // ERROR "non-integer.*cap"
+-	_ = make([]byte, true) // ERROR "non-integer.*len"
+-	_ = make([]byte, "abc") // ERROR "non-integer.*len"
++	_ = make([]byte, nil) // ERROR "non-integer.*len|untyped nil"
++	_ = make([]byte, nil, 2) // ERROR "non-integer.*len|untyped nil"
++	_ = make([]byte, 1, nil) // ERROR "non-integer.*cap|untyped nil"
++	_ = make([]byte, true) // ERROR "non-integer.*len|untyped bool"
++	_ = make([]byte, "abc") // ERROR "non-integer.*len|untyped string"
+ }
+diff --git a/test/fixedbugs/issue7310.go b/test/fixedbugs/issue7310.go
+index 6829d5e126..ef099ce41e 100644
+--- a/test/fixedbugs/issue7310.go
++++ b/test/fixedbugs/issue7310.go
+@@ -9,7 +9,7 @@
+ package main
+ 
+ func main() {
+-	_ = copy(nil, []int{}) // ERROR "use of untyped nil"
+-	_ = copy([]int{}, nil) // ERROR "use of untyped nil"
+-	_ = 1 + true           // ERROR "mismatched types untyped int and untyped bool"
++	_ = copy(nil, []int{}) // ERROR "use of untyped nil|untyped nil"
++	_ = copy([]int{}, nil) // ERROR "use of untyped nil|untyped nil"
++	_ = 1 + true           // ERROR "mismatched types untyped int and untyped bool|untyped int .* untyped bool"
+ }
+diff --git a/test/run.go b/test/run.go
+index 32c74e8210..891b9572b7 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -2115,19 +2115,12 @@ var excluded = map[string]bool{
+ 	"fixedbugs/issue6703x.go":  true,
+ 	"fixedbugs/issue6703y.go":  true,
+ 	"fixedbugs/issue6703z.go":  true,
+-	"fixedbugs/issue6750.go":   true,
+-	"fixedbugs/issue6772.go":   true,
+-	"fixedbugs/issue6889.go":   true,
+-	"fixedbugs/issue7129.go":   true,
+-	"fixedbugs/issue7150.go":   true,
+-	"fixedbugs/issue7153.go":   true,
+-	"fixedbugs/issue7223.go":   true,
+-	"fixedbugs/issue7310.go":   true,
+-	"fixedbugs/issue7525.go":   true,
+-	"fixedbugs/issue7525b.go":  true,
+-	"fixedbugs/issue7525c.go":  true,
+-	"fixedbugs/issue7525d.go":  true,
+-	"fixedbugs/issue7525e.go":  true,
++	"fixedbugs/issue6889.go":   true, // types2 can handle this without constant overflow
++	"fixedbugs/issue7525.go":   true, // init cycle error on different line - ok otherwise
++	"fixedbugs/issue7525b.go":  true, // init cycle error on different line - ok otherwise
++	"fixedbugs/issue7525c.go":  true, // init cycle error on different line - ok otherwise
++	"fixedbugs/issue7525d.go":  true, // init cycle error on different line - ok otherwise
++	"fixedbugs/issue7525e.go":  true, // init cycle error on different line - ok otherwise
+ 	"fixedbugs/issue7742.go":   true, // type-checking doesn't terminate
+ 	"fixedbugs/issue7746.go":   true, // type-checking doesn't terminate
+ }

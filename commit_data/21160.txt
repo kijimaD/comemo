@@ -7,6 +7,26 @@ Date:   Fri Nov 21 00:21:49 2014 -0500
     TBR=brainman
     CC=golang-codereviews
     https://golang.org/cl/175490043
-
+---
  src/run.bat | 8 +++++---
  1 file changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/src/run.bat b/src/run.bat
+index 14c1b45fda..efa97662f8 100644
+--- a/src/run.bat
++++ b/src/run.bat
+@@ -134,9 +134,11 @@ if %FAIL%==1 goto fail
+ set GOMAXPROCS=%OLDGOMAXPROCS%
+ set OLDGOMAXPROCS=
+ 
+-echo # Checking API compatibility.
+-go run "%GOROOT%\src\cmd\api\run.go"
+-if errorlevel 1 goto fail
++:: echo # Checking API compatibility.
++:: go run "%GOROOT%\src\cmd\api\run.go"
++:: if errorlevel 1 goto fail
++:: echo.
++echo # SKIPPING API COMPATIBILITY UNTIL ALL SYSTEMS BUILD.
+ echo.
+ 
+ echo ALL TESTS PASSED

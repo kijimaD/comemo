@@ -11,6 +11,25 @@ Date:   Wed May 15 11:04:10 2024 +0200
     Reviewed-by: Robert Griesemer <gri@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
-
+---
  src/math/rand/v2/rand_test.go | 7 -------
  1 file changed, 7 deletions(-)
+
+diff --git a/src/math/rand/v2/rand_test.go b/src/math/rand/v2/rand_test.go
+index d223180fb6..e89ee29f60 100644
+--- a/src/math/rand/v2/rand_test.go
++++ b/src/math/rand/v2/rand_test.go
+@@ -31,13 +31,6 @@ type statsResults struct {
+ 	maxError    float64
+ }
+ 
+-func max(a, b float64) float64 {
+-	if a > b {
+-		return a
+-	}
+-	return b
+-}
+-
+ func nearEqual(a, b, closeEnough, maxError float64) bool {
+ 	absDiff := math.Abs(a - b)
+ 	if absDiff < closeEnough { // Necessary when one value is zero and one value is close to zero.

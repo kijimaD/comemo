@@ -13,8 +13,70 @@ Date:   Wed Apr 20 18:00:52 2016 +0200
     Reviewed-by: Keith Randall <khr@golang.org>
     Run-TryBot: Martin Möhrmann <martisch@uos.de>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/chan.go    |  2 +-
  src/runtime/hashmap.go |  4 ++--
  src/runtime/malloc.go  | 10 +++++-----
  3 files changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/src/runtime/chan.go b/src/runtime/chan.go
+index 3fb0236785..712ad8cef9 100644
+--- a/src/runtime/chan.go
++++ b/src/runtime/chan.go
+@@ -84,7 +84,7 @@ func makechan(t *chantype, size int64) *hchan {
+ 		}
+ 	} else {
+ 		c = new(hchan)
+-		c.buf = newarray(elem, uintptr(size))
++		c.buf = newarray(elem, int(size))
+ 	}
+ 	c.elemsize = uint16(elem.size)
+ 	c.elemtype = elem
+diff --git a/src/runtime/hashmap.go b/src/runtime/hashmap.go
+index ff59faab5d..509cab2f0f 100644
+--- a/src/runtime/hashmap.go
++++ b/src/runtime/hashmap.go
+@@ -246,7 +246,7 @@ func makemap(t *maptype, hint int64, h *hmap, bucket unsafe.Pointer) *hmap {
+ 	// If hint is large zeroing this memory could take a while.
+ 	buckets := bucket
+ 	if B != 0 {
+-		buckets = newarray(t.bucket, uintptr(1)<<B)
++		buckets = newarray(t.bucket, 1<<B)
+ 	}
+ 
+ 	// initialize Hmap
+@@ -821,7 +821,7 @@ func hashGrow(t *maptype, h *hmap) {
+ 		throw("evacuation not done in time")
+ 	}
+ 	oldbuckets := h.buckets
+-	newbuckets := newarray(t.bucket, uintptr(1)<<(h.B+1))
++	newbuckets := newarray(t.bucket, 1<<(h.B+1))
+ 	flags := h.flags &^ (iterator | oldIterator)
+ 	if h.flags&iterator != 0 {
+ 		flags |= oldIterator
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index 95d24a467a..30f2a4fca5 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -770,16 +770,16 @@ func reflect_unsafe_New(typ *_type) unsafe.Pointer {
+ 	return newobject(typ)
+ }
+ 
+-// implementation of make builtin for slices
+-func newarray(typ *_type, n uintptr) unsafe.Pointer {
+-	if int(n) < 0 || n > maxSliceCap(typ.size) {
++// newarray allocates an array of n elements of type typ.
++func newarray(typ *_type, n int) unsafe.Pointer {
++	if n < 0 || uintptr(n) > maxSliceCap(typ.size) {
+ 		panic(plainError("runtime: allocation size out of range"))
+ 	}
+-	return mallocgc(typ.size*n, typ, true)
++	return mallocgc(typ.size*uintptr(n), typ, true)
+ }
+ 
+ //go:linkname reflect_unsafe_NewArray reflect.unsafe_NewArray
+-func reflect_unsafe_NewArray(typ *_type, n uintptr) unsafe.Pointer {
++func reflect_unsafe_NewArray(typ *_type, n int) unsafe.Pointer {
+ 	return newarray(typ, n)
+ }
+ 

@@ -28,7 +28,7 @@ Date:   Mon Jun 15 12:30:23 2015 -0400
     Reviewed-by: Minux Ma <minux@golang.org>
     Reviewed-by: Martin Capitanio <capnm9@gmail.com>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/asm_386.s         |  5 +++++
  src/runtime/asm_amd64.s       |  5 +++++
  src/runtime/asm_amd64p32.s    |  5 +++++
@@ -44,3 +44,247 @@ Date:   Mon Jun 15 12:30:23 2015 -0400
  src/runtime/sys_netbsd_arm.s  |  4 ++++
  src/runtime/sys_openbsd_arm.s |  3 +++
  14 files changed, 96 insertions(+)
+
+diff --git a/src/runtime/asm_386.s b/src/runtime/asm_386.s
+index b8a4054931..eb9ca6350a 100644
+--- a/src/runtime/asm_386.s
++++ b/src/runtime/asm_386.s
+@@ -632,6 +632,11 @@ TEXT runtime·atomicand8(SB), NOSPLIT, $0-5
+ 	ANDB	BX, (AX)
+ 	RET
+ 
++TEXT ·publicationBarrier(SB),NOSPLIT,$0-0
++	// Stores are already ordered on x86, so this is just a
++	// compile barrier.
++	RET
++
+ // void jmpdefer(fn, sp);
+ // called from deferreturn.
+ // 1. pop the caller
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index 13cca8e460..3b4ca4d012 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -615,6 +615,11 @@ TEXT runtime·atomicand8(SB), NOSPLIT, $0-9
+ 	ANDB	BX, (AX)
+ 	RET
+ 
++TEXT ·publicationBarrier(SB),NOSPLIT,$0-0
++	// Stores are already ordered on x86, so this is just a
++	// compile barrier.
++	RET
++
+ // void jmpdefer(fn, sp);
+ // called from deferreturn.
+ // 1. pop the caller
+diff --git a/src/runtime/asm_amd64p32.s b/src/runtime/asm_amd64p32.s
+index c058bde420..a5d6e8155a 100644
+--- a/src/runtime/asm_amd64p32.s
++++ b/src/runtime/asm_amd64p32.s
+@@ -569,6 +569,11 @@ TEXT runtime·atomicand8(SB), NOSPLIT, $0-5
+ 	ANDB	AX, 0(BX)
+ 	RET
+ 
++TEXT ·publicationBarrier(SB),NOSPLIT,$0-0
++	// Stores are already ordered on x86, so this is just a
++	// compile barrier.
++	RET
++
+ // void jmpdefer(fn, sp);
+ // called from deferreturn.
+ // 1. pop the caller
+diff --git a/src/runtime/asm_arm.s b/src/runtime/asm_arm.s
+index 874dc4fe55..661538c024 100644
+--- a/src/runtime/asm_arm.s
++++ b/src/runtime/asm_arm.s
+@@ -736,6 +736,17 @@ TEXT runtime·atomicloaduint(SB),NOSPLIT,$0-8
+ TEXT runtime·atomicstoreuintptr(SB),NOSPLIT,$0-8
+ 	B	runtime·atomicstore(SB)
+ 
++// armPublicationBarrier is a native store/store barrier for ARMv7+.
++// To implement publiationBarrier in sys_$GOOS_arm.s using the native
++// instructions, use:
++//
++//	TEXT ·publicationBarrier(SB),NOSPLIT,$-4-0
++//		B	runtime·armPublicationBarrier(SB)
++//
++TEXT runtime·armPublicationBarrier(SB),NOSPLIT,$-4-0
++	WORD $0xf57ff05e	// DMB ST
++	RET
++
+ // AES hashing not implemented for ARM
+ TEXT runtime·aeshash(SB),NOSPLIT,$-4-0
+ 	MOVW	$0, R0
+diff --git a/src/runtime/atomic_arm64.s b/src/runtime/atomic_arm64.s
+index acd0a62f4d..d3ab2a121c 100644
+--- a/src/runtime/atomic_arm64.s
++++ b/src/runtime/atomic_arm64.s
+@@ -111,3 +111,7 @@ again:
+ 
+ TEXT runtime·xchguintptr(SB), NOSPLIT, $0-24
+ 	B	runtime·xchg64(SB)
++
++TEXT ·publicationBarrier(SB),NOSPLIT,$-8-0
++	DMB	$0xe	// DMB ST
++	RET
+diff --git a/src/runtime/atomic_ppc64x.s b/src/runtime/atomic_ppc64x.s
+index d84865efd6..28c5bf3729 100644
+--- a/src/runtime/atomic_ppc64x.s
++++ b/src/runtime/atomic_ppc64x.s
+@@ -38,3 +38,10 @@ TEXT ·atomicloadp(SB),NOSPLIT,$-8-16
+ 	ISYNC
+ 	MOVD	R3, ret+8(FP)
+ 	RET
++
++TEXT ·publicationBarrier(SB),NOSPLIT,$-8-0
++	// LWSYNC is the "export" barrier recommended by Power ISA
++	// v2.07 book II, appendix B.2.2.2.
++	// LWSYNC is a load/load, load/store, and store/store barrier.
++	WORD $0x7c2004ac	// LWSYNC
++	RET
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index 5872a3752e..37d3a1eea1 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -657,6 +657,14 @@ func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
+ 		} else {
+ 			c.local_scan += typ.ptrdata
+ 		}
++
++		// Ensure that the stores above that initialize x to
++		// type-safe memory and set the heap bits occur before
++		// the caller can make x observable to the garbage
++		// collector. Otherwise, on weakly ordered machines,
++		// the garbage collector could follow a pointer to x,
++		// but see uninitialized memory or stale heap bits.
++		publicationBarrier()
+ 	}
+ 
+ 	// GCmarkterminate allocates black
+diff --git a/src/runtime/stubs.go b/src/runtime/stubs.go
+index f116dc3e9f..cd9a22336f 100644
+--- a/src/runtime/stubs.go
++++ b/src/runtime/stubs.go
+@@ -167,6 +167,23 @@ func xaddint64(ptr *int64, delta int64) int64 {
+ 	return int64(xadd64((*uint64)(unsafe.Pointer(ptr)), delta))
+ }
+ 
++// publicationBarrier performs a store/store barrier (a "publication"
++// or "export" barrier). Some form of synchronization is required
++// between initializing an object and making that object accessible to
++// another processor. Without synchronization, the initialization
++// writes and the "publication" write may be reordered, allowing the
++// other processor to follow the pointer and observe an uninitialized
++// object. In general, higher-level synchronization should be used,
++// such as locking or an atomic pointer write. publicationBarrier is
++// for when those aren't an option, such as in the implementation of
++// the memory manager.
++//
++// There's no corresponding barrier for the read side because the read
++// side naturally has a data dependency order. All architectures that
++// Go supports or seems likely to ever support automatically enforce
++// data dependency ordering.
++func publicationBarrier()
++
+ //go:noescape
+ func setcallerpc(argp unsafe.Pointer, pc uintptr)
+ 
+diff --git a/src/runtime/sys_darwin_arm.s b/src/runtime/sys_darwin_arm.s
+index b4c1b27530..55ae8f3a46 100644
+--- a/src/runtime/sys_darwin_arm.s
++++ b/src/runtime/sys_darwin_arm.s
+@@ -301,6 +301,9 @@ TEXT runtime·cas(SB),NOSPLIT,$0
+ TEXT runtime·casp1(SB),NOSPLIT,$0
+ 	B	runtime·cas(SB)
+ 
++TEXT ·publicationBarrier(SB),NOSPLIT,$-4-0
++	B	runtime·armPublicationBarrier(SB)
++
+ TEXT runtime·sysctl(SB),NOSPLIT,$0
+ 	MOVW	mib+0(FP), R0
+ 	MOVW	miblen+4(FP), R1
+diff --git a/src/runtime/sys_freebsd_arm.s b/src/runtime/sys_freebsd_arm.s
+index 2b5d754590..3dd04cf973 100644
+--- a/src/runtime/sys_freebsd_arm.s
++++ b/src/runtime/sys_freebsd_arm.s
+@@ -381,6 +381,10 @@ TEXT runtime·casp1(SB),NOSPLIT,$0
+ TEXT runtime·cas(SB),NOSPLIT,$0
+ 	B runtime·armcas(SB)
+ 
++// TODO: this is only valid for ARMv7+
++TEXT ·publicationBarrier(SB),NOSPLIT,$-4-0
++	B	runtime·armPublicationBarrier(SB)
++
+ // TODO(minux): this only supports ARMv6K+.
+ TEXT runtime·read_tls_fallback(SB),NOSPLIT,$-4
+ 	WORD $0xee1d0f70 // mrc p15, 0, r0, c13, c0, 3
+diff --git a/src/runtime/sys_linux_arm.s b/src/runtime/sys_linux_arm.s
+index 50f074a234..b68b81af3e 100644
+--- a/src/runtime/sys_linux_arm.s
++++ b/src/runtime/sys_linux_arm.s
+@@ -416,6 +416,22 @@ check:
+ TEXT runtime·casp1(SB),NOSPLIT,$0
+ 	B	runtime·cas(SB)
+ 
++// As for cas, memory barriers are complicated on ARM, but the kernel
++// provides a user helper. ARMv5 does not support SMP and has no
++// memory barrier instruction at all. ARMv6 added SMP support and has
++// a memory barrier, but it requires writing to a coprocessor
++// register. ARMv7 introduced the DMB instruction, but it's expensive
++// even on single-core devices. The kernel helper takes care of all of
++// this for us.
++
++TEXT publicationBarrier<>(SB),NOSPLIT,$0
++	// void __kuser_memory_barrier(void);
++	MOVW	$0xffff0fa0, R15 // R15 is hardware PC.
++
++TEXT ·publicationBarrier(SB),NOSPLIT,$0
++	BL	publicationBarrier<>(SB)
++	RET
++
+ TEXT runtime·osyield(SB),NOSPLIT,$0
+ 	MOVW	$SYS_sched_yield, R7
+ 	SWI	$0
+diff --git a/src/runtime/sys_nacl_arm.s b/src/runtime/sys_nacl_arm.s
+index 39ef25a618..cf4804fe14 100644
+--- a/src/runtime/sys_nacl_arm.s
++++ b/src/runtime/sys_nacl_arm.s
+@@ -323,5 +323,9 @@ TEXT runtime·casp1(SB),NOSPLIT,$0
+ TEXT runtime·cas(SB),NOSPLIT,$0
+ 	B runtime·armcas(SB)
+ 
++// Likewise, this is only valid for ARMv7+, but that's okay.
++TEXT ·publicationBarrier(SB),NOSPLIT,$-4-0
++	B	runtime·armPublicationBarrier(SB)
++
+ TEXT runtime·read_tls_fallback(SB),NOSPLIT,$-4
+ 	WORD $0xe7fedef0 // NACL_INSTR_ARM_ABORT_NOW (UDF #0xEDE0)
+diff --git a/src/runtime/sys_netbsd_arm.s b/src/runtime/sys_netbsd_arm.s
+index d275d6d0b6..5832f6d15c 100644
+--- a/src/runtime/sys_netbsd_arm.s
++++ b/src/runtime/sys_netbsd_arm.s
+@@ -349,6 +349,10 @@ TEXT runtime·casp1(SB),NOSPLIT,$0
+ TEXT runtime·cas(SB),NOSPLIT,$0
+ 	B runtime·armcas(SB)
+ 
++// TODO: this is only valid for ARMv7+
++TEXT ·publicationBarrier(SB),NOSPLIT,$-4-0
++	B	runtime·armPublicationBarrier(SB)
++
+ TEXT runtime·read_tls_fallback(SB),NOSPLIT,$-4
+ 	MOVM.WP [R1, R2, R3, R12], (R13)
+ 	SWI $0x00a0013c // _lwp_getprivate
+diff --git a/src/runtime/sys_openbsd_arm.s b/src/runtime/sys_openbsd_arm.s
+index e28d43eeaa..d231f0fdb3 100644
+--- a/src/runtime/sys_openbsd_arm.s
++++ b/src/runtime/sys_openbsd_arm.s
+@@ -374,6 +374,9 @@ TEXT runtime·casp1(SB),NOSPLIT,$0
+ TEXT runtime·cas(SB),NOSPLIT,$0
+ 	B	runtime·armcas(SB)
+ 
++TEXT ·publicationBarrier(SB),NOSPLIT,$-4-0
++	B	runtime·armPublicationBarrier(SB)
++
+ // TODO(jsing): Implement.
+ TEXT runtime·read_tls_fallback(SB),NOSPLIT,$-4
+ 	MOVW	$5, R0

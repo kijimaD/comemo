@@ -19,8 +19,74 @@ Date:   Sat Jan 2 03:23:49 2021 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/ir/mini.go | 9 +--------
  src/cmd/compile/internal/ir/name.go | 8 ++++++++
  src/cmd/compile/internal/ir/node.go | 2 --
  3 files changed, 9 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/mini.go b/src/cmd/compile/internal/ir/mini.go
+index 93aa15abec..4dd9a8807a 100644
+--- a/src/cmd/compile/internal/ir/mini.go
++++ b/src/cmd/compile/internal/ir/mini.go
+@@ -54,20 +54,13 @@ func (n *miniNode) Esc() uint16       { return n.esc }
+ func (n *miniNode) SetEsc(x uint16)   { n.esc = x }
+ 
+ const (
+-	miniWalkdefShift   = 0
++	miniWalkdefShift   = 0 // TODO(mdempsky): Move to Name.flags.
+ 	miniTypecheckShift = 2
+ 	miniDiag           = 1 << 4
+ 	miniHasCall        = 1 << 5 // for miniStmt
+ )
+ 
+-func (n *miniNode) Walkdef() uint8   { return n.bits.get2(miniWalkdefShift) }
+ func (n *miniNode) Typecheck() uint8 { return n.bits.get2(miniTypecheckShift) }
+-func (n *miniNode) SetWalkdef(x uint8) {
+-	if x > 3 {
+-		panic(fmt.Sprintf("cannot SetWalkdef %d", x))
+-	}
+-	n.bits.set2(miniWalkdefShift, x)
+-}
+ func (n *miniNode) SetTypecheck(x uint8) {
+ 	if x > 3 {
+ 		panic(fmt.Sprintf("cannot SetTypecheck %d", x))
+diff --git a/src/cmd/compile/internal/ir/name.go b/src/cmd/compile/internal/ir/name.go
+index 5acb2d0762..afee6e1308 100644
+--- a/src/cmd/compile/internal/ir/name.go
++++ b/src/cmd/compile/internal/ir/name.go
+@@ -10,6 +10,7 @@ import (
+ 	"cmd/internal/obj"
+ 	"cmd/internal/objabi"
+ 	"cmd/internal/src"
++	"fmt"
+ 
+ 	"go/constant"
+ )
+@@ -240,6 +241,13 @@ func (n *Name) FrameOffset() int64     { return n.Offset_ }
+ func (n *Name) SetFrameOffset(x int64) { n.Offset_ = x }
+ func (n *Name) Iota() int64            { return n.Offset_ }
+ func (n *Name) SetIota(x int64)        { n.Offset_ = x }
++func (n *Name) Walkdef() uint8         { return n.bits.get2(miniWalkdefShift) }
++func (n *Name) SetWalkdef(x uint8) {
++	if x > 3 {
++		panic(fmt.Sprintf("cannot SetWalkdef %d", x))
++	}
++	n.bits.set2(miniWalkdefShift, x)
++}
+ 
+ func (n *Name) Linksym() *obj.LSym { return n.sym.Linksym() }
+ 
+diff --git a/src/cmd/compile/internal/ir/node.go b/src/cmd/compile/internal/ir/node.go
+index 9d1ee17aa8..a5a7203faa 100644
+--- a/src/cmd/compile/internal/ir/node.go
++++ b/src/cmd/compile/internal/ir/node.go
+@@ -46,8 +46,6 @@ type Node interface {
+ 	// Storage for analysis passes.
+ 	Esc() uint16
+ 	SetEsc(x uint16)
+-	Walkdef() uint8
+-	SetWalkdef(x uint8)
+ 	Diag() bool
+ 	SetDiag(x bool)
+ 	Typecheck() uint8

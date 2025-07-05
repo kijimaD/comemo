@@ -17,7 +17,7 @@ Date:   Sat Sep 5 06:38:13 2015 -0700
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/html/template/content_test.go | 41 +++++++++++++++++++++++++++++++++++++++
  src/html/template/context.go      | 14 ++++++++-----
  src/html/template/escape.go       | 12 +++++++++++-
@@ -26,3 +26,285 @@ Date:   Sat Sep 5 06:38:13 2015 -0700
  src/html/template/js_test.go      | 18 +++++++++++++++++
  src/html/template/transition.go   | 30 +++++++++++++++++-----------
  7 files changed, 148 insertions(+), 17 deletions(-)
+
+diff --git a/src/html/template/content_test.go b/src/html/template/content_test.go
+index e698328693..0b4365c83b 100644
+--- a/src/html/template/content_test.go
++++ b/src/html/template/content_test.go
+@@ -161,6 +161,47 @@ func TestTypedContent(t *testing.T) {
+ 				`greeting=H%69\x26addressee=(World)`,
+ 			},
+ 		},
++		{
++			`<script type="text/javascript">alert("{{.}}")</script>`,
++			[]string{
++				`\x3cb\x3e \x22foo%\x22 O\x27Reilly \x26bar;`,
++				`a[href =~ \x22\/\/example.com\x22]#foo`,
++				`Hello, \x3cb\x3eWorld\x3c\/b\x3e \x26amp;tc!`,
++				` dir=\x22ltr\x22`,
++				`c \x26\x26 alert(\x22Hello, World!\x22);`,
++				// Escape sequence not over-escaped.
++				`Hello, World \x26 O\x27Reilly\x21`,
++				`greeting=H%69\x26addressee=(World)`,
++			},
++		},
++		{
++			`<script type="text/javascript">alert({{.}})</script>`,
++			[]string{
++				`"\u003cb\u003e \"foo%\" O'Reilly \u0026bar;"`,
++				`"a[href =~ \"//example.com\"]#foo"`,
++				`"Hello, \u003cb\u003eWorld\u003c/b\u003e \u0026amp;tc!"`,
++				`" dir=\"ltr\""`,
++				// Not escaped.
++				`c && alert("Hello, World!");`,
++				// Escape sequence not over-escaped.
++				`"Hello, World & O'Reilly\x21"`,
++				`"greeting=H%69\u0026addressee=(World)"`,
++			},
++		},
++		{
++			// Not treated as JS. The output is same as for <div>{{.}}</div>
++			`<script type="text/template">{{.}}</script>`,
++			[]string{
++				`&lt;b&gt; &#34;foo%&#34; O&#39;Reilly &amp;bar;`,
++				`a[href =~ &#34;//example.com&#34;]#foo`,
++				// Not escaped.
++				`Hello, <b>World</b> &amp;tc!`,
++				` dir=&#34;ltr&#34;`,
++				`c &amp;&amp; alert(&#34;Hello, World!&#34;);`,
++				`Hello, World &amp; O&#39;Reilly\x21`,
++				`greeting=H%69&amp;addressee=(World)`,
++			},
++		},
+ 		{
+ 			`<button onclick='alert("{{.}}")'>`,
+ 			[]string{
+diff --git a/src/html/template/context.go b/src/html/template/context.go
+index c90fc1fda5..37a3faf88b 100644
+--- a/src/html/template/context.go
++++ b/src/html/template/context.go
+@@ -285,7 +285,8 @@ type element uint8
+ const (
+ 	// elementNone occurs outside a special tag or special element body.
+ 	elementNone element = iota
+-	// elementScript corresponds to the raw text <script> element.
++	// elementScript corresponds to the raw text <script> element
++	// with JS MIME type or no type attribute.
+ 	elementScript
+ 	// elementStyle corresponds to the raw text <style> element.
+ 	elementStyle
+@@ -319,6 +320,8 @@ const (
+ 	attrNone attr = iota
+ 	// attrScript corresponds to an event handler attribute.
+ 	attrScript
++	// attrScriptType corresponds to the type attribute in script HTML element
++	attrScriptType
+ 	// attrStyle corresponds to the style attribute whose value is CSS.
+ 	attrStyle
+ 	// attrURL corresponds to an attribute whose value is a URL.
+@@ -326,10 +329,11 @@ const (
+ )
+ 
+ var attrNames = [...]string{
+-	attrNone:   "attrNone",
+-	attrScript: "attrScript",
+-	attrStyle:  "attrStyle",
+-	attrURL:    "attrURL",
++	attrNone:       "attrNone",
++	attrScript:     "attrScript",
++	attrScriptType: "attrScriptType",
++	attrStyle:      "attrStyle",
++	attrURL:        "attrURL",
+ }
+ 
+ func (a attr) String() string {
+diff --git a/src/html/template/escape.go b/src/html/template/escape.go
+index 8f2fe460de..dcc0b8a531 100644
+--- a/src/html/template/escape.go
++++ b/src/html/template/escape.go
+@@ -673,6 +673,8 @@ func contextAfterText(c context, s []byte) (context, int) {
+ 		return transitionFunc[c.state](c, s[:i])
+ 	}
+ 
++	// We are at the beginning of an attribute value.
++
+ 	i := bytes.IndexAny(s, delimEnds[c.delim])
+ 	if i == -1 {
+ 		i = len(s)
+@@ -703,13 +705,21 @@ func contextAfterText(c context, s []byte) (context, int) {
+ 		}
+ 		return c, len(s)
+ 	}
++
++	element := c.element
++
++	// If this is a non-JS "type" attribute inside "script" tag, do not treat the contents as JS.
++	if c.state == stateAttr && c.element == elementScript && c.attr == attrScriptType && !isJSType(string(s[:i])) {
++		element = elementNone
++	}
++
+ 	if c.delim != delimSpaceOrTagEnd {
+ 		// Consume any quote.
+ 		i++
+ 	}
+ 	// On exiting an attribute, we discard all state information
+ 	// except the state and element.
+-	return context{state: stateTag, element: c.element}, i
++	return context{state: stateTag, element: element}, i
+ }
+ 
+ // editActionNode records a change to an action pipeline for later commit.
+diff --git a/src/html/template/escape_test.go b/src/html/template/escape_test.go
+index 023ee57d59..b7ccd85425 100644
+--- a/src/html/template/escape_test.go
++++ b/src/html/template/escape_test.go
+@@ -1364,6 +1364,10 @@ func TestEscapeText(t *testing.T) {
+ 			`<script type=text/javascript `,
+ 			context{state: stateTag, element: elementScript},
+ 		},
++		{
++			`<script>`,
++			context{state: stateJS, jsCtx: jsCtxRegexp, element: elementScript},
++		},
+ 		{
+ 			`<script>foo`,
+ 			context{state: stateJS, jsCtx: jsCtxDivOp, element: elementScript},
+@@ -1388,6 +1392,14 @@ func TestEscapeText(t *testing.T) {
+ 			`<script>document.write("<script>alert(1)</script>");`,
+ 			context{state: stateText},
+ 		},
++		{
++			`<script type="text/template">`,
++			context{state: stateText},
++		},
++		{
++			`<script type="notjs">`,
++			context{state: stateText},
++		},
+ 		{
+ 			`<Script>`,
+ 			context{state: stateJS, element: elementScript},
+diff --git a/src/html/template/js.go b/src/html/template/js.go
+index f6d166b311..8e58f463ee 100644
+--- a/src/html/template/js.go
++++ b/src/html/template/js.go
+@@ -362,3 +362,41 @@ func isJSIdentPart(r rune) bool {
+ 	}
+ 	return false
+ }
++
++// isJSType returns true if the given MIME type should be considered JavaScript.
++//
++// It is used to determine whether a script tag with a type attribute is a javascript container.
++func isJSType(mimeType string) bool {
++	// per
++	//   http://www.w3.org/TR/html5/scripting-1.html#attr-script-type
++	//   https://tools.ietf.org/html/rfc7231#section-3.1.1
++	//   http://tools.ietf.org/html/rfc4329#section-3
++
++	// discard parameters
++	if i := strings.Index(mimeType, ";"); i >= 0 {
++		mimeType = mimeType[:i]
++	}
++	mimeType = strings.TrimSpace(mimeType)
++	switch mimeType {
++	case
++		"application/ecmascript",
++		"application/javascript",
++		"application/x-ecmascript",
++		"application/x-javascript",
++		"text/ecmascript",
++		"text/javascript",
++		"text/javascript1.0",
++		"text/javascript1.1",
++		"text/javascript1.2",
++		"text/javascript1.3",
++		"text/javascript1.4",
++		"text/javascript1.5",
++		"text/jscript",
++		"text/livescript",
++		"text/x-ecmascript",
++		"text/x-javascript":
++		return true
++	default:
++		return false
++	}
++}
+diff --git a/src/html/template/js_test.go b/src/html/template/js_test.go
+index 7af7997de9..58fc37ae3a 100644
+--- a/src/html/template/js_test.go
++++ b/src/html/template/js_test.go
+@@ -332,6 +332,24 @@ func TestEscapersOnLower7AndSelectHighCodepoints(t *testing.T) {
+ 	}
+ }
+ 
++func TestIsJsMimeType(t *testing.T) {
++	tests := []struct {
++		in  string
++		out bool
++	}{
++		{"application/javascript;version=1.8", true},
++		{"application/javascript;version=1.8;foo=bar", true},
++		{"application/javascript/version=1.8", false},
++		{"text/javascript", true},
++	}
++
++	for _, test := range tests {
++		if isJSType(test.in) != test.out {
++			t.Errorf("isJSType(%q) = %v, want %v", test.in, !test.out, test.out)
++		}
++	}
++}
++
+ func BenchmarkJSValEscaperWithNum(b *testing.B) {
+ 	for i := 0; i < b.N; i++ {
+ 		jsValEscaper(3.141592654)
+diff --git a/src/html/template/transition.go b/src/html/template/transition.go
+index aefe0355af..4a4716d782 100644
+--- a/src/html/template/transition.go
++++ b/src/html/template/transition.go
+@@ -105,14 +105,21 @@ func tTag(c context, s []byte) (context, int) {
+ 			err:   errorf(ErrBadHTML, nil, 0, "expected space, attr name, or end of tag, but got %q", s[i:]),
+ 		}, len(s)
+ 	}
+-	switch attrType(string(s[i:j])) {
+-	case contentTypeURL:
+-		attr = attrURL
+-	case contentTypeCSS:
+-		attr = attrStyle
+-	case contentTypeJS:
+-		attr = attrScript
++
++	attrName := string(s[i:j])
++	if c.element == elementScript && attrName == "type" {
++		attr = attrScriptType
++	} else {
++		switch attrType(attrName) {
++		case contentTypeURL:
++			attr = attrURL
++		case contentTypeCSS:
++			attr = attrStyle
++		case contentTypeJS:
++			attr = attrScript
++		}
+ 	}
++
+ 	if j == len(s) {
+ 		state = stateAttrName
+ 	} else {
+@@ -149,10 +156,11 @@ func tAfterName(c context, s []byte) (context, int) {
+ }
+ 
+ var attrStartStates = [...]state{
+-	attrNone:   stateAttr,
+-	attrScript: stateJS,
+-	attrStyle:  stateCSS,
+-	attrURL:    stateURL,
++	attrNone:       stateAttr,
++	attrScript:     stateJS,
++	attrScriptType: stateAttr,
++	attrStyle:      stateCSS,
++	attrURL:        stateURL,
+ }
+ 
+ // tBeforeValue is the context transition function for stateBeforeValue.

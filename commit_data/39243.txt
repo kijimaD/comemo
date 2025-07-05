@@ -11,8 +11,188 @@ Date:   Tue Feb 5 15:29:02 2019 -0500
     Run-TryBot: Filippo Valsorda <filippo@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  doc/go1.12.html            | 22 +++++++++++++++------
  src/crypto/tls/common.go   | 43 ++++++++++++++++++++++++++++++++++++++++
  src/crypto/tls/tls_test.go | 49 ++++++++++++++++++++++++++++++++++++++++------
  3 files changed, 102 insertions(+), 12 deletions(-)
+
+diff --git a/doc/go1.12.html b/doc/go1.12.html
+index 5cd35b94c4..0f076e379d 100644
+--- a/doc/go1.12.html
++++ b/doc/go1.12.html
+@@ -388,15 +388,25 @@ for {
+ <h3 id="tls_1_3">TLS 1.3</h3>
+ 
+ <p>
+-  Go 1.12 adds support in the <code>crypto/tls</code> package for TLS 1.3 as
+-  specified in <a href="https://www.rfc-editor.org/info/rfc8446">RFC 8446</a>.
++  Go 1.12 adds opt-in support for TLS 1.3 in the <code>crypto/tls</code> package as
++  specified by <a href="https://www.rfc-editor.org/info/rfc8446">RFC 8446</a>. It can
++  be enabled by adding the value <code>tls13=1</code> to the <code>GODEBUG</code>
++  environment variable. It will be enabled by default in Go 1.13.
++</p>
+ 
+-  Programs that did not set an explicit <code>MaxVersion</code> in
+-  <a href="/pkg/crypto/tls/#Config"><code>Config</code></a> will automatically negotiate
+-  TLS 1.3 if available. All TLS 1.2 features except <code>TLSUnique</code> in
++<p>
++  To negotiate TLS 1.3, make sure you do not set an explicit <code>MaxVersion</code> in
++  <a href="/pkg/crypto/tls/#Config"><code>Config</code></a> and run your program with
++  the environment variable <code>GODEBUG=tls13=1</code> set.
++</p>
++
++<p>
++  All TLS 1.2 features except <code>TLSUnique</code> in
+   <a href="/pkg/crypto/tls/#ConnectionState"><code>ConnectionState</code></a>
+   and renegotiation are available in TLS 1.3 and provide equivalent or
+-  better security and performance.
++  better security and performance. Note that even though TLS 1.3 is backwards
++  compatible with previous versions, certain legacy systems might not work
++  correctly when attempting to negotiate it.
+ </p>
+ 
+ <p>
+diff --git a/src/crypto/tls/common.go b/src/crypto/tls/common.go
+index 59d5507e1a..0b08700d83 100644
+--- a/src/crypto/tls/common.go
++++ b/src/crypto/tls/common.go
+@@ -16,6 +16,7 @@ import (
+ 	"io"
+ 	"math/big"
+ 	"net"
++	"os"
+ 	"strings"
+ 	"sync"
+ 	"time"
+@@ -775,11 +776,53 @@ func (c *Config) supportedVersions(isClient bool) []uint16 {
+ 		if isClient && v < VersionTLS10 {
+ 			continue
+ 		}
++		// TLS 1.3 is opt-in in Go 1.12.
++		if v == VersionTLS13 && !isTLS13Supported() {
++			continue
++		}
+ 		versions = append(versions, v)
+ 	}
+ 	return versions
+ }
+ 
++// tls13Support caches the result for isTLS13Supported.
++var tls13Support struct {
++	sync.Once
++	cached bool
++}
++
++// isTLS13Supported returns whether the program opted into TLS 1.3 via
++// GODEBUG=tls13=1. It's cached after the first execution.
++func isTLS13Supported() bool {
++	tls13Support.Do(func() {
++		tls13Support.cached = goDebugString("tls13") == "1"
++	})
++	return tls13Support.cached
++}
++
++// goDebugString returns the value of the named GODEBUG key.
++// GODEBUG is of the form "key=val,key2=val2".
++func goDebugString(key string) string {
++	s := os.Getenv("GODEBUG")
++	for i := 0; i < len(s)-len(key)-1; i++ {
++		if i > 0 && s[i-1] != ',' {
++			continue
++		}
++		afterKey := s[i+len(key):]
++		if afterKey[0] != '=' || s[i:i+len(key)] != key {
++			continue
++		}
++		val := afterKey[1:]
++		for i, b := range val {
++			if b == ',' {
++				return val[:i]
++			}
++		}
++		return val
++	}
++	return ""
++}
++
+ func (c *Config) maxSupportedVersion(isClient bool) uint16 {
+ 	supportedVersions := c.supportedVersions(isClient)
+ 	if len(supportedVersions) == 0 {
+diff --git a/src/crypto/tls/tls_test.go b/src/crypto/tls/tls_test.go
+index 00bb6e4ef3..9c26769b09 100644
+--- a/src/crypto/tls/tls_test.go
++++ b/src/crypto/tls/tls_test.go
+@@ -18,10 +18,18 @@ import (
+ 	"os"
+ 	"reflect"
+ 	"strings"
++	"sync"
+ 	"testing"
+ 	"time"
+ )
+ 
++func init() {
++	// TLS 1.3 is opt-in for Go 1.12, but we want to run most tests with it enabled.
++	// TestTLS13Switch below tests the disabled behavior. See Issue 30055.
++	tls13Support.Do(func() {}) // defuse the sync.Once
++	tls13Support.cached = true
++}
++
+ var rsaCertPEM = `-----BEGIN CERTIFICATE-----
+ MIIB0zCCAX2gAwIBAgIJAI/M7BYjwB+uMA0GCSqGSIb3DQEBBQUAMEUxCzAJBgNV
+ BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
+@@ -1076,18 +1084,47 @@ func TestEscapeRoute(t *testing.T) {
+ 		VersionSSL30,
+ 	}
+ 
+-	ss, cs, err := testHandshake(t, testConfig, testConfig)
++	expectVersion(t, testConfig, testConfig, VersionTLS12)
++}
++
++func expectVersion(t *testing.T, clientConfig, serverConfig *Config, v uint16) {
++	ss, cs, err := testHandshake(t, clientConfig, serverConfig)
+ 	if err != nil {
+-		t.Fatalf("Handshake failed when support for TLS 1.3 was dropped: %v", err)
++		t.Fatalf("Handshake failed: %v", err)
+ 	}
+-	if ss.Version != VersionTLS12 {
+-		t.Errorf("Server negotiated version %x, expected %x", cs.Version, VersionTLS12)
++	if ss.Version != v {
++		t.Errorf("Server negotiated version %x, expected %x", cs.Version, v)
+ 	}
+-	if cs.Version != VersionTLS12 {
+-		t.Errorf("Client negotiated version %x, expected %x", cs.Version, VersionTLS12)
++	if cs.Version != v {
++		t.Errorf("Client negotiated version %x, expected %x", cs.Version, v)
+ 	}
+ }
+ 
++// TestTLS13Switch checks the behavior of GODEBUG=tls13=[0|1]. See Issue 30055.
++func TestTLS13Switch(t *testing.T) {
++	defer func(savedGODEBUG string) {
++		os.Setenv("GODEBUG", savedGODEBUG)
++	}(os.Getenv("GODEBUG"))
++
++	os.Setenv("GODEBUG", "tls13=0")
++	tls13Support.Once = sync.Once{} // reset the cache
++
++	tls12Config := testConfig.Clone()
++	tls12Config.MaxVersion = VersionTLS12
++	expectVersion(t, testConfig, testConfig, VersionTLS12)
++	expectVersion(t, tls12Config, testConfig, VersionTLS12)
++	expectVersion(t, testConfig, tls12Config, VersionTLS12)
++	expectVersion(t, tls12Config, tls12Config, VersionTLS12)
++
++	os.Setenv("GODEBUG", "tls13=1")
++	tls13Support.Once = sync.Once{} // reset the cache
++
++	expectVersion(t, testConfig, testConfig, VersionTLS13)
++	expectVersion(t, tls12Config, testConfig, VersionTLS12)
++	expectVersion(t, testConfig, tls12Config, VersionTLS12)
++	expectVersion(t, tls12Config, tls12Config, VersionTLS12)
++}
++
+ // Issue 28744: Ensure that we don't modify memory
+ // that Config doesn't own such as Certificates.
+ func TestBuildNameToCertificate_doesntModifyCertificates(t *testing.T) {

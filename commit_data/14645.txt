@@ -9,7 +9,32 @@ Date:   Thu Dec 13 12:59:11 2012 -0800
     R=gobot
     CC=golang-dev
     https://golang.org/cl/6938051
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 3f843aebee..28fae1c53b 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -184,6 +184,7 @@ Moriyoshi Koizumi <mozo@mozo.jp>
+ Môshe van der Sterre <moshevds@gmail.com>
+ ngmoco, LLC
+ Nicholas Waples <nwaples@gmail.com>
++Nick Craig-Wood <nick@craig-wood.com> <nickcw@gmail.com>
+ Nigel Kerr <nigel.kerr@gmail.com>
+ Oling Cat <olingcat@gmail.com>
+ Olivier Antoine <olivier.antoine@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 74280d33ba..51a1763138 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -269,6 +269,7 @@ Miquel Sabaté Solà <mikisabate@gmail.com>
+ Moriyoshi Koizumi <mozo@mozo.jp>
+ Môshe van der Sterre <moshevds@gmail.com>
+ Nicholas Waples <nwaples@gmail.com>
++Nick Craig-Wood <nick@craig-wood.com> <nickcw@gmail.com>
+ Nigel Kerr <nigel.kerr@gmail.com>
+ Nigel Tao <nigeltao@golang.org>
+ Oling Cat <olingcat@gmail.com>

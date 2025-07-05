@@ -14,6 +14,93 @@ Date:   Mon Aug 16 06:41:15 2021 +0000
     Run-TryBot: eric fang <eric.fang@arm.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Michael Knyszek <mknyszek@google.com>
-
+---
  src/cmd/asm/internal/arch/arm64.go | 31 +++++--------------------------
  1 file changed, 5 insertions(+), 26 deletions(-)
+
+diff --git a/src/cmd/asm/internal/arch/arm64.go b/src/cmd/asm/internal/arch/arm64.go
+index 40d828a1fe..24689c5ab1 100644
+--- a/src/cmd/asm/internal/arch/arm64.go
++++ b/src/cmd/asm/internal/arch/arm64.go
+@@ -165,27 +165,21 @@ func ARM64RegisterExtension(a *obj.Addr, ext string, reg, num int16, isAmount, i
+ 		}
+ 	}
+ 	if reg <= arm64.REG_R31 && reg >= arm64.REG_R0 {
++		if !isAmount {
++			return errors.New("invalid register extension")
++		}
+ 		switch ext {
+ 		case "UXTB":
+-			if !isAmount {
+-				return errors.New("invalid register extension")
+-			}
+ 			if a.Type == obj.TYPE_MEM {
+ 				return errors.New("invalid shift for the register offset addressing mode")
+ 			}
+ 			a.Reg = arm64.REG_UXTB + Rnum
+ 		case "UXTH":
+-			if !isAmount {
+-				return errors.New("invalid register extension")
+-			}
+ 			if a.Type == obj.TYPE_MEM {
+ 				return errors.New("invalid shift for the register offset addressing mode")
+ 			}
+ 			a.Reg = arm64.REG_UXTH + Rnum
+ 		case "UXTW":
+-			if !isAmount {
+-				return errors.New("invalid register extension")
+-			}
+ 			// effective address of memory is a base register value and an offset register value.
+ 			if a.Type == obj.TYPE_MEM {
+ 				a.Index = arm64.REG_UXTW + Rnum
+@@ -193,48 +187,33 @@ func ARM64RegisterExtension(a *obj.Addr, ext string, reg, num int16, isAmount, i
+ 				a.Reg = arm64.REG_UXTW + Rnum
+ 			}
+ 		case "UXTX":
+-			if !isAmount {
+-				return errors.New("invalid register extension")
+-			}
+ 			if a.Type == obj.TYPE_MEM {
+ 				return errors.New("invalid shift for the register offset addressing mode")
+ 			}
+ 			a.Reg = arm64.REG_UXTX + Rnum
+ 		case "SXTB":
+-			if !isAmount {
+-				return errors.New("invalid register extension")
++			if a.Type == obj.TYPE_MEM {
++				return errors.New("invalid shift for the register offset addressing mode")
+ 			}
+ 			a.Reg = arm64.REG_SXTB + Rnum
+ 		case "SXTH":
+-			if !isAmount {
+-				return errors.New("invalid register extension")
+-			}
+ 			if a.Type == obj.TYPE_MEM {
+ 				return errors.New("invalid shift for the register offset addressing mode")
+ 			}
+ 			a.Reg = arm64.REG_SXTH + Rnum
+ 		case "SXTW":
+-			if !isAmount {
+-				return errors.New("invalid register extension")
+-			}
+ 			if a.Type == obj.TYPE_MEM {
+ 				a.Index = arm64.REG_SXTW + Rnum
+ 			} else {
+ 				a.Reg = arm64.REG_SXTW + Rnum
+ 			}
+ 		case "SXTX":
+-			if !isAmount {
+-				return errors.New("invalid register extension")
+-			}
+ 			if a.Type == obj.TYPE_MEM {
+ 				a.Index = arm64.REG_SXTX + Rnum
+ 			} else {
+ 				a.Reg = arm64.REG_SXTX + Rnum
+ 			}
+ 		case "LSL":
+-			if !isAmount {
+-				return errors.New("invalid register extension")
+-			}
+ 			a.Index = arm64.REG_LSL + Rnum
+ 		default:
+ 			return errors.New("unsupported general register extension type: " + ext)

@@ -9,6 +9,18 @@ Date:   Wed May 15 15:34:47 2013 +1000
     R=golang-dev
     CC=golang-dev
     https://golang.org/cl/9429043
-
+---
  misc/cgo/test/issue5337w.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/misc/cgo/test/issue5337w.go b/misc/cgo/test/issue5337w.go
+index f2719d3d7e..14720a94d5 100644
+--- a/misc/cgo/test/issue5337w.go
++++ b/misc/cgo/test/issue5337w.go
+@@ -6,4 +6,6 @@
+ 
+ package cgotest
+ 
++import "testing"
++
+ func test5337(t *testing.T) {}

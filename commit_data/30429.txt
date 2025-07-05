@@ -13,8 +13,67 @@ Date:   Thu Nov 3 15:58:55 2016 -0700
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/reflect.go |  9 ++++++++-
  src/cmd/compile/internal/gc/walk.go    |  1 -
  test/fixedbugs/issue17752.go           | 20 ++++++++++++++++++++
  3 files changed, 28 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index 14f7ab66ee..3554dc2e99 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -928,7 +928,14 @@ func dcommontype(s *Sym, ot int, t *Type) int {
+ }
+ 
+ func typesym(t *Type) *Sym {
+-	return Pkglookup(t.tconv(FmtLeft), typepkg)
++	name := t.tconv(FmtLeft)
++
++	// Use a separate symbol name for Noalg types for #17752.
++	if a, bad := algtype1(t); a == ANOEQ && bad.Noalg {
++		name = "noalg." + name
++	}
++
++	return Pkglookup(name, typepkg)
+ }
+ 
+ // tracksym returns the symbol for tracking use of field/method f, assumed
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index cfb65ebb40..c1caa47480 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -1785,7 +1785,6 @@ func mkdotargslice(lr0, nn []*Node, l *Field, fp int, init *Nodes, ddd *Node) []
+ 	}
+ 
+ 	tslice := typSlice(l.Type.Elem())
+-	tslice.Noalg = true
+ 
+ 	var n *Node
+ 	if len(lr0) == 0 {
+diff --git a/test/fixedbugs/issue17752.go b/test/fixedbugs/issue17752.go
+new file mode 100644
+index 0000000000..83283ad660
+--- /dev/null
++++ b/test/fixedbugs/issue17752.go
+@@ -0,0 +1,20 @@
++// run
++
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func f(m map[string]int) int {
++	return m["a"]
++}
++
++func g(m map[[8]string]int) int {
++	return m[[8]string{"a", "a", "a", "a", "a", "a", "a", "a"}]
++}
++
++func main() {
++	m := map[[8]string]int{}
++	g(m)
++}

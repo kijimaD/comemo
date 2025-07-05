@@ -27,7 +27,7 @@ Date:   Wed Apr 1 15:17:09 2015 -0700
     Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
     Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/dial.go              |  38 +++++++-----
  src/net/interface_linux.go   |   8 +--
  src/net/interface_windows.go |   4 +-
@@ -42,3 +42,782 @@ Date:   Wed Apr 1 15:17:09 2015 -0700
  src/net/unixsock.go          |   7 ---
  src/net/unixsock_posix.go    |   5 +-
  13 files changed, 225 insertions(+), 168 deletions(-)
+
+diff --git a/src/net/dial.go b/src/net/dial.go
+index ec48d2d4e2..a204e5723b 100644
+--- a/src/net/dial.go
++++ b/src/net/dial.go
+@@ -95,7 +95,7 @@ func parseNetwork(net string) (afnet string, proto int, err error) {
+ 	return "", 0, UnknownNetworkError(net)
+ }
+ 
+-func resolveAddr(op, net, addr string, deadline time.Time) (netaddr, error) {
++func resolveAddrList(op, net, addr string, deadline time.Time) (addrList, error) {
+ 	afnet, _, err := parseNetwork(net)
+ 	if err != nil {
+ 		return nil, err
+@@ -105,9 +105,13 @@ func resolveAddr(op, net, addr string, deadline time.Time) (netaddr, error) {
+ 	}
+ 	switch afnet {
+ 	case "unix", "unixgram", "unixpacket":
+-		return ResolveUnixAddr(afnet, addr)
++		addr, err := ResolveUnixAddr(afnet, addr)
++		if err != nil {
++			return nil, err
++		}
++		return addrList{addr}, nil
+ 	}
+-	return resolveInternetAddr(afnet, addr, deadline)
++	return internetAddrList(afnet, addr, deadline)
+ }
+ 
+ // Dial connects to the address on the named network.
+@@ -155,21 +159,25 @@ func DialTimeout(network, address string, timeout time.Duration) (Conn, error) {
+ // See func Dial for a description of the network and address
+ // parameters.
+ func (d *Dialer) Dial(network, address string) (Conn, error) {
+-	ra, err := resolveAddr("dial", network, address, d.deadline())
++	addrs, err := resolveAddrList("dial", network, address, d.deadline())
+ 	if err != nil {
+ 		return nil, &OpError{Op: "dial", Net: network, Addr: nil, Err: err}
+ 	}
+ 	var dialer func(deadline time.Time) (Conn, error)
+-	if ras, ok := ra.(addrList); ok && d.DualStack && network == "tcp" {
+-		dialer = func(deadline time.Time) (Conn, error) {
+-			return dialMulti(network, address, d.LocalAddr, ras, deadline)
++	if d.DualStack && network == "tcp" {
++		primaries, fallbacks := addrs.partition(isIPv4)
++		if len(fallbacks) > 0 {
++			dialer = func(deadline time.Time) (Conn, error) {
++				return dialMulti(network, address, d.LocalAddr, addrList{primaries[0], fallbacks[0]}, deadline)
++			}
+ 		}
+-	} else {
++	}
++	if dialer == nil {
+ 		dialer = func(deadline time.Time) (Conn, error) {
+-			return dialSingle(network, address, d.LocalAddr, ra.toAddr(), deadline)
++			return dialSingle(network, address, d.LocalAddr, addrs.first(isIPv4), deadline)
+ 		}
+ 	}
+-	c, err := dial(network, ra.toAddr(), dialer, d.deadline())
++	c, err := dial(network, addrs.first(isIPv4), dialer, d.deadline())
+ 	if d.KeepAlive > 0 && err == nil {
+ 		if tc, ok := c.(*TCPConn); ok {
+ 			tc.SetKeepAlive(true)
+@@ -206,7 +214,7 @@ func dialMulti(net, addr string, la Addr, ras addrList, deadline time.Time) (Con
+ 				// unnecessary resource starvation.
+ 				c.Close()
+ 			}
+-		}(ra.toAddr())
++		}(ra)
+ 	}
+ 	defer close(sig)
+ 	lastErr := errTimeout
+@@ -256,12 +264,12 @@ func dialSingle(net, addr string, la, ra Addr, deadline time.Time) (c Conn, err
+ // "tcp6", "unix" or "unixpacket".
+ // See Dial for the syntax of laddr.
+ func Listen(net, laddr string) (Listener, error) {
+-	la, err := resolveAddr("listen", net, laddr, noDeadline)
++	addrs, err := resolveAddrList("listen", net, laddr, noDeadline)
+ 	if err != nil {
+ 		return nil, &OpError{Op: "listen", Net: net, Addr: nil, Err: err}
+ 	}
+ 	var l Listener
+-	switch la := la.toAddr().(type) {
++	switch la := addrs.first(isIPv4).(type) {
+ 	case *TCPAddr:
+ 		l, err = ListenTCP(net, la)
+ 	case *UnixAddr:
+@@ -280,12 +288,12 @@ func Listen(net, laddr string) (Listener, error) {
+ // "udp6", "ip", "ip4", "ip6" or "unixgram".
+ // See Dial for the syntax of laddr.
+ func ListenPacket(net, laddr string) (PacketConn, error) {
+-	la, err := resolveAddr("listen", net, laddr, noDeadline)
++	addrs, err := resolveAddrList("listen", net, laddr, noDeadline)
+ 	if err != nil {
+ 		return nil, &OpError{Op: "listen", Net: net, Addr: nil, Err: err}
+ 	}
+ 	var l PacketConn
+-	switch la := la.toAddr().(type) {
++	switch la := addrs.first(isIPv4).(type) {
+ 	case *UDPAddr:
+ 		l, err = ListenUDP(net, la)
+ 	case *IPAddr:
+diff --git a/src/net/interface_linux.go b/src/net/interface_linux.go
+index 1115d0fc40..84d57c3c93 100644
+--- a/src/net/interface_linux.go
++++ b/src/net/interface_linux.go
+@@ -238,8 +238,8 @@ func parseProcNetIGMP(path string, ifi *Interface) []Addr {
+ 					b[i/2], _ = xtoi2(f[0][i:i+2], 0)
+ 				}
+ 				i := *(*uint32)(unsafe.Pointer(&b[:4][0]))
+-				ifma := IPAddr{IP: IPv4(byte(i>>24), byte(i>>16), byte(i>>8), byte(i))}
+-				ifmat = append(ifmat, ifma.toAddr())
++				ifma := &IPAddr{IP: IPv4(byte(i>>24), byte(i>>16), byte(i>>8), byte(i))}
++				ifmat = append(ifmat, ifma)
+ 			}
+ 		}
+ 	}
+@@ -263,8 +263,8 @@ func parseProcNetIGMP6(path string, ifi *Interface) []Addr {
+ 			for i := 0; i+1 < len(f[2]); i += 2 {
+ 				b[i/2], _ = xtoi2(f[2][i:i+2], 0)
+ 			}
+-			ifma := IPAddr{IP: IP{b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7], b[8], b[9], b[10], b[11], b[12], b[13], b[14], b[15]}}
+-			ifmat = append(ifmat, ifma.toAddr())
++			ifma := &IPAddr{IP: IP{b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7], b[8], b[9], b[10], b[11], b[12], b[13], b[14], b[15]}}
++			ifmat = append(ifmat, ifma)
+ 		}
+ 	}
+ 	return ifmat
+diff --git a/src/net/interface_windows.go b/src/net/interface_windows.go
+index 438dc874d6..ac12e28a17 100644
+--- a/src/net/interface_windows.go
++++ b/src/net/interface_windows.go
+@@ -217,11 +217,11 @@ func interfaceMulticastAddrTable(ifi *Interface) ([]Addr, error) {
+ 					case *syscall.SockaddrInet4:
+ 						ifa := &IPAddr{IP: make(IP, IPv4len)}
+ 						copy(ifa.IP, sav.Addr[:])
+-						ifat = append(ifat, ifa.toAddr())
++						ifat = append(ifat, ifa)
+ 					case *syscall.SockaddrInet6:
+ 						ifa := &IPAddr{IP: make(IP, IPv6len)}
+ 						copy(ifa.IP, sav.Addr[:])
+-						ifat = append(ifat, ifa.toAddr())
++						ifat = append(ifat, ifa)
+ 					}
+ 				}
+ 			}
+diff --git a/src/net/iprawsock.go b/src/net/iprawsock.go
+index 1e53ab2847..782561a418 100644
+--- a/src/net/iprawsock.go
++++ b/src/net/iprawsock.go
+@@ -30,13 +30,6 @@ func (a *IPAddr) isWildcard() bool {
+ 	return a.IP.IsUnspecified()
+ }
+ 
+-func (a *IPAddr) toAddr() Addr {
+-	if a == nil {
+-		return nil
+-	}
+-	return a
+-}
+-
+ // ResolveIPAddr parses addr as an IP address of the form "host" or
+ // "ipv6-host%zone" and resolves the domain name on the network net,
+ // which must be "ip", "ip4" or "ip6".
+@@ -53,9 +46,9 @@ func ResolveIPAddr(net, addr string) (*IPAddr, error) {
+ 	default:
+ 		return nil, UnknownNetworkError(net)
+ 	}
+-	a, err := resolveInternetAddr(afnet, addr, noDeadline)
++	addrs, err := internetAddrList(afnet, addr, noDeadline)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	return a.toAddr().(*IPAddr), nil
++	return addrs.first(isIPv4).(*IPAddr), nil
+ }
+diff --git a/src/net/iprawsock_posix.go b/src/net/iprawsock_posix.go
+index 94db068d7c..9095530923 100644
+--- a/src/net/iprawsock_posix.go
++++ b/src/net/iprawsock_posix.go
+@@ -104,7 +104,10 @@ func (c *IPConn) ReadFrom(b []byte) (int, Addr, error) {
+ 		return 0, nil, syscall.EINVAL
+ 	}
+ 	n, addr, err := c.ReadFromIP(b)
+-	return n, addr.toAddr(), err
++	if addr == nil {
++		return n, nil, err
++	}
++	return n, addr, err
+ }
+ 
+ // ReadMsgIP reads a packet from c, copying the payload into b and the
+diff --git a/src/net/ipsock.go b/src/net/ipsock.go
+index c54b94da40..c09faa763e 100644
+--- a/src/net/ipsock.go
++++ b/src/net/ipsock.go
+@@ -26,87 +26,70 @@ var (
+ 	supportsIPv4map bool
+ )
+ 
+-// A netaddr represents a network endpoint address or a list of
+-// network endpoint addresses.
+-type netaddr interface {
+-	// toAddr returns the address represented in Addr interface.
+-	// It returns a nil interface when the address is nil.
+-	toAddr() Addr
+-}
+-
+ // An addrList represents a list of network endpoint addresses.
+-type addrList []netaddr
++type addrList []Addr
+ 
+-func (al addrList) toAddr() Addr {
+-	switch len(al) {
+-	case 0:
+-		return nil
+-	case 1:
+-		return al[0].toAddr()
+-	default:
+-		// For now, we'll roughly pick first one without
+-		// considering dealing with any preferences such as
+-		// DNS TTL, transport path quality, network routing
+-		// information.
+-		return al[0].toAddr()
++// isIPv4 returns true if the Addr contains an IPv4 address.
++func isIPv4(addr Addr) bool {
++	switch addr := addr.(type) {
++	case *TCPAddr:
++		return addr.IP.To4() != nil
++	case *UDPAddr:
++		return addr.IP.To4() != nil
++	case *IPAddr:
++		return addr.IP.To4() != nil
+ 	}
++	return false
+ }
+ 
+-var errNoSuitableAddress = errors.New("no suitable address found")
+-
+-// firstFavoriteAddr returns an address or a list of addresses that
+-// implement the netaddr interface. Known filters are nil, ipv4only
+-// and ipv6only. It returns any address when filter is nil. The result
+-// contains at least one address when error is nil.
+-func firstFavoriteAddr(filter func(IPAddr) bool, ips []IPAddr, inetaddr func(IPAddr) netaddr) (netaddr, error) {
+-	if filter != nil {
+-		return firstSupportedAddr(filter, ips, inetaddr)
+-	}
+-	var (
+-		ipv4, ipv6, swap bool
+-		list             addrList
+-	)
+-	for _, ip := range ips {
+-		// We'll take any IP address, but since the dialing
+-		// code does not yet try multiple addresses
+-		// effectively, prefer to use an IPv4 address if
+-		// possible. This is especially relevant if localhost
+-		// resolves to [ipv6-localhost, ipv4-localhost]. Too
+-		// much code assumes localhost == ipv4-localhost.
+-		if ipv4only(ip) && !ipv4 {
+-			list = append(list, inetaddr(ip))
+-			ipv4 = true
+-			if ipv6 {
+-				swap = true
+-			}
+-		} else if ipv6only(ip) && !ipv6 {
+-			list = append(list, inetaddr(ip))
+-			ipv6 = true
+-		}
+-		if ipv4 && ipv6 {
+-			if swap {
+-				list[0], list[1] = list[1], list[0]
+-			}
+-			break
++// first returns the first address which satisfies strategy, or if
++// none do, then the first address of any kind.
++func (addrs addrList) first(strategy func(Addr) bool) Addr {
++	for _, addr := range addrs {
++		if strategy(addr) {
++			return addr
+ 		}
+ 	}
+-	switch len(list) {
+-	case 0:
+-		return nil, errNoSuitableAddress
+-	case 1:
+-		return list[0], nil
+-	default:
+-		return list, nil
++	return addrs[0]
++}
++
++// partition divides an address list into two categories, using a
++// strategy function to assign a boolean label to each address.
++// The first address, and any with a matching label, are returned as
++// primaries, while addresses with the opposite label are returned
++// as fallbacks. For non-empty inputs, primaries is guaranteed to be
++// non-empty.
++func (addrs addrList) partition(strategy func(Addr) bool) (primaries, fallbacks addrList) {
++	var primaryLabel bool
++	for i, addr := range addrs {
++		label := strategy(addr)
++		if i == 0 || label == primaryLabel {
++			primaryLabel = label
++			primaries = append(primaries, addr)
++		} else {
++			fallbacks = append(fallbacks, addr)
++		}
+ 	}
++	return
+ }
+ 
+-func firstSupportedAddr(filter func(IPAddr) bool, ips []IPAddr, inetaddr func(IPAddr) netaddr) (netaddr, error) {
++var errNoSuitableAddress = errors.New("no suitable address found")
++
++// filterAddrList applies a filter to a list of IP addresses,
++// yielding a list of Addr objects. Known filters are nil, ipv4only,
++// and ipv6only. It returns every address when the filter is nil.
++// The result contains at least one address when error is nil.
++func filterAddrList(filter func(IPAddr) bool, ips []IPAddr, inetaddr func(IPAddr) Addr) (addrList, error) {
++	var addrs addrList
+ 	for _, ip := range ips {
+-		if filter(ip) {
+-			return inetaddr(ip), nil
++		if filter == nil || filter(ip) {
++			addrs = append(addrs, inetaddr(ip))
+ 		}
+ 	}
+-	return nil, errNoSuitableAddress
++	if len(addrs) == 0 {
++		return nil, errNoSuitableAddress
++	}
++	return addrs, nil
+ }
+ 
+ // ipv4only reports whether the kernel supports IPv4 addressing mode
+@@ -214,13 +197,11 @@ func JoinHostPort(host, port string) string {
+ 	return host + ":" + port
+ }
+ 
+-// resolveInternetAddr resolves addr that is either a literal IP
+-// address or a DNS name and returns an internet protocol family
+-// address. It returns a list that contains a pair of different
+-// address family addresses when addr is a DNS name and the name has
+-// multiple address family records. The result contains at least one
+-// address when error is nil.
+-func resolveInternetAddr(net, addr string, deadline time.Time) (netaddr, error) {
++// internetAddrList resolves addr, which may be a literal IP
++// address or a DNS name, and returns a list of internet protocol
++// family addresses. The result contains at least one address when
++// error is nil.
++func internetAddrList(net, addr string, deadline time.Time) (addrList, error) {
+ 	var (
+ 		err        error
+ 		host, port string
+@@ -243,7 +224,7 @@ func resolveInternetAddr(net, addr string, deadline time.Time) (netaddr, error)
+ 	default:
+ 		return nil, UnknownNetworkError(net)
+ 	}
+-	inetaddr := func(ip IPAddr) netaddr {
++	inetaddr := func(ip IPAddr) Addr {
+ 		switch net {
+ 		case "tcp", "tcp4", "tcp6":
+ 			return &TCPAddr{IP: ip.IP, Port: portnum, Zone: ip.Zone}
+@@ -256,16 +237,16 @@ func resolveInternetAddr(net, addr string, deadline time.Time) (netaddr, error)
+ 		}
+ 	}
+ 	if host == "" {
+-		return inetaddr(IPAddr{}), nil
++		return addrList{inetaddr(IPAddr{})}, nil
+ 	}
+ 	// Try as a literal IP address.
+ 	var ip IP
+ 	if ip = parseIPv4(host); ip != nil {
+-		return inetaddr(IPAddr{IP: ip}), nil
++		return addrList{inetaddr(IPAddr{IP: ip})}, nil
+ 	}
+ 	var zone string
+ 	if ip, zone = parseIPv6(host, true); ip != nil {
+-		return inetaddr(IPAddr{IP: ip, Zone: zone}), nil
++		return addrList{inetaddr(IPAddr{IP: ip, Zone: zone})}, nil
+ 	}
+ 	// Try as a DNS name.
+ 	ips, err := lookupIPDeadline(host, deadline)
+@@ -279,7 +260,7 @@ func resolveInternetAddr(net, addr string, deadline time.Time) (netaddr, error)
+ 	if net != "" && net[len(net)-1] == '6' {
+ 		filter = ipv6only
+ 	}
+-	return firstFavoriteAddr(filter, ips, inetaddr)
++	return filterAddrList(filter, ips, inetaddr)
+ }
+ 
+ func zoneToString(zone int) string {
+diff --git a/src/net/ipsock_test.go b/src/net/ipsock_test.go
+index 754ccbb04f..9d68975166 100644
+--- a/src/net/ipsock_test.go
++++ b/src/net/ipsock_test.go
+@@ -9,14 +9,16 @@ import (
+ 	"testing"
+ )
+ 
+-var testInetaddr = func(ip IPAddr) netaddr { return &TCPAddr{IP: ip.IP, Port: 5682, Zone: ip.Zone} }
++var testInetaddr = func(ip IPAddr) Addr { return &TCPAddr{IP: ip.IP, Port: 5682, Zone: ip.Zone} }
+ 
+-var firstFavoriteAddrTests = []struct {
+-	filter   func(IPAddr) bool
+-	ips      []IPAddr
+-	inetaddr func(IPAddr) netaddr
+-	addr     netaddr
+-	err      error
++var addrListTests = []struct {
++	filter    func(IPAddr) bool
++	ips       []IPAddr
++	inetaddr  func(IPAddr) Addr
++	first     Addr
++	primaries addrList
++	fallbacks addrList
++	err       error
+ }{
+ 	{
+ 		nil,
+@@ -25,10 +27,9 @@ var firstFavoriteAddrTests = []struct {
+ 			{IP: IPv6loopback},
+ 		},
+ 		testInetaddr,
+-		addrList{
+-			&TCPAddr{IP: IPv4(127, 0, 0, 1), Port: 5682},
+-			&TCPAddr{IP: IPv6loopback, Port: 5682},
+-		},
++		&TCPAddr{IP: IPv4(127, 0, 0, 1), Port: 5682},
++		addrList{&TCPAddr{IP: IPv4(127, 0, 0, 1), Port: 5682}},
++		addrList{&TCPAddr{IP: IPv6loopback, Port: 5682}},
+ 		nil,
+ 	},
+ 	{
+@@ -38,10 +39,9 @@ var firstFavoriteAddrTests = []struct {
+ 			{IP: IPv4(127, 0, 0, 1)},
+ 		},
+ 		testInetaddr,
+-		addrList{
+-			&TCPAddr{IP: IPv4(127, 0, 0, 1), Port: 5682},
+-			&TCPAddr{IP: IPv6loopback, Port: 5682},
+-		},
++		&TCPAddr{IP: IPv4(127, 0, 0, 1), Port: 5682},
++		addrList{&TCPAddr{IP: IPv6loopback, Port: 5682}},
++		addrList{&TCPAddr{IP: IPv4(127, 0, 0, 1), Port: 5682}},
+ 		nil,
+ 	},
+ 	{
+@@ -52,6 +52,11 @@ var firstFavoriteAddrTests = []struct {
+ 		},
+ 		testInetaddr,
+ 		&TCPAddr{IP: IPv4(127, 0, 0, 1), Port: 5682},
++		addrList{
++			&TCPAddr{IP: IPv4(127, 0, 0, 1), Port: 5682},
++			&TCPAddr{IP: IPv4(192, 168, 0, 1), Port: 5682},
++		},
++		nil,
+ 		nil,
+ 	},
+ 	{
+@@ -62,6 +67,11 @@ var firstFavoriteAddrTests = []struct {
+ 		},
+ 		testInetaddr,
+ 		&TCPAddr{IP: IPv6loopback, Port: 5682},
++		addrList{
++			&TCPAddr{IP: IPv6loopback, Port: 5682},
++			&TCPAddr{IP: ParseIP("fe80::1"), Port: 5682, Zone: "eth0"},
++		},
++		nil,
+ 		nil,
+ 	},
+ 	{
+@@ -73,9 +83,14 @@ var firstFavoriteAddrTests = []struct {
+ 			{IP: ParseIP("fe80::1"), Zone: "eth0"},
+ 		},
+ 		testInetaddr,
++		&TCPAddr{IP: IPv4(127, 0, 0, 1), Port: 5682},
+ 		addrList{
+ 			&TCPAddr{IP: IPv4(127, 0, 0, 1), Port: 5682},
++			&TCPAddr{IP: IPv4(192, 168, 0, 1), Port: 5682},
++		},
++		addrList{
+ 			&TCPAddr{IP: IPv6loopback, Port: 5682},
++			&TCPAddr{IP: ParseIP("fe80::1"), Port: 5682, Zone: "eth0"},
+ 		},
+ 		nil,
+ 	},
+@@ -88,9 +103,14 @@ var firstFavoriteAddrTests = []struct {
+ 			{IP: IPv4(192, 168, 0, 1)},
+ 		},
+ 		testInetaddr,
++		&TCPAddr{IP: IPv4(127, 0, 0, 1), Port: 5682},
+ 		addrList{
+-			&TCPAddr{IP: IPv4(127, 0, 0, 1), Port: 5682},
+ 			&TCPAddr{IP: IPv6loopback, Port: 5682},
++			&TCPAddr{IP: ParseIP("fe80::1"), Port: 5682, Zone: "eth0"},
++		},
++		addrList{
++			&TCPAddr{IP: IPv4(127, 0, 0, 1), Port: 5682},
++			&TCPAddr{IP: IPv4(192, 168, 0, 1), Port: 5682},
+ 		},
+ 		nil,
+ 	},
+@@ -103,9 +123,14 @@ var firstFavoriteAddrTests = []struct {
+ 			{IP: ParseIP("fe80::1"), Zone: "eth0"},
+ 		},
+ 		testInetaddr,
++		&TCPAddr{IP: IPv4(127, 0, 0, 1), Port: 5682},
+ 		addrList{
+ 			&TCPAddr{IP: IPv4(127, 0, 0, 1), Port: 5682},
++			&TCPAddr{IP: IPv4(192, 168, 0, 1), Port: 5682},
++		},
++		addrList{
+ 			&TCPAddr{IP: IPv6loopback, Port: 5682},
++			&TCPAddr{IP: ParseIP("fe80::1"), Port: 5682, Zone: "eth0"},
+ 		},
+ 		nil,
+ 	},
+@@ -118,9 +143,14 @@ var firstFavoriteAddrTests = []struct {
+ 			{IP: IPv4(192, 168, 0, 1)},
+ 		},
+ 		testInetaddr,
++		&TCPAddr{IP: IPv4(127, 0, 0, 1), Port: 5682},
+ 		addrList{
+-			&TCPAddr{IP: IPv4(127, 0, 0, 1), Port: 5682},
+ 			&TCPAddr{IP: IPv6loopback, Port: 5682},
++			&TCPAddr{IP: ParseIP("fe80::1"), Port: 5682, Zone: "eth0"},
++		},
++		addrList{
++			&TCPAddr{IP: IPv4(127, 0, 0, 1), Port: 5682},
++			&TCPAddr{IP: IPv4(192, 168, 0, 1), Port: 5682},
+ 		},
+ 		nil,
+ 	},
+@@ -133,6 +163,8 @@ var firstFavoriteAddrTests = []struct {
+ 		},
+ 		testInetaddr,
+ 		&TCPAddr{IP: IPv4(127, 0, 0, 1), Port: 5682},
++		addrList{&TCPAddr{IP: IPv4(127, 0, 0, 1), Port: 5682}},
++		nil,
+ 		nil,
+ 	},
+ 	{
+@@ -143,6 +175,8 @@ var firstFavoriteAddrTests = []struct {
+ 		},
+ 		testInetaddr,
+ 		&TCPAddr{IP: IPv4(127, 0, 0, 1), Port: 5682},
++		addrList{&TCPAddr{IP: IPv4(127, 0, 0, 1), Port: 5682}},
++		nil,
+ 		nil,
+ 	},
+ 
+@@ -154,6 +188,8 @@ var firstFavoriteAddrTests = []struct {
+ 		},
+ 		testInetaddr,
+ 		&TCPAddr{IP: IPv6loopback, Port: 5682},
++		addrList{&TCPAddr{IP: IPv6loopback, Port: 5682}},
++		nil,
+ 		nil,
+ 	},
+ 	{
+@@ -164,30 +200,83 @@ var firstFavoriteAddrTests = []struct {
+ 		},
+ 		testInetaddr,
+ 		&TCPAddr{IP: IPv6loopback, Port: 5682},
++		addrList{&TCPAddr{IP: IPv6loopback, Port: 5682}},
++		nil,
+ 		nil,
+ 	},
+ 
+-	{nil, nil, testInetaddr, nil, errNoSuitableAddress},
++	{nil, nil, testInetaddr, nil, nil, nil, errNoSuitableAddress},
+ 
+-	{ipv4only, nil, testInetaddr, nil, errNoSuitableAddress},
+-	{ipv4only, []IPAddr{{IP: IPv6loopback}}, testInetaddr, nil, errNoSuitableAddress},
++	{ipv4only, nil, testInetaddr, nil, nil, nil, errNoSuitableAddress},
++	{ipv4only, []IPAddr{{IP: IPv6loopback}}, testInetaddr, nil, nil, nil, errNoSuitableAddress},
+ 
+-	{ipv6only, nil, testInetaddr, nil, errNoSuitableAddress},
+-	{ipv6only, []IPAddr{{IP: IPv4(127, 0, 0, 1)}}, testInetaddr, nil, errNoSuitableAddress},
++	{ipv6only, nil, testInetaddr, nil, nil, nil, errNoSuitableAddress},
++	{ipv6only, []IPAddr{{IP: IPv4(127, 0, 0, 1)}}, testInetaddr, nil, nil, nil, errNoSuitableAddress},
+ }
+ 
+-func TestFirstFavoriteAddr(t *testing.T) {
++func TestAddrList(t *testing.T) {
+ 	if !supportsIPv4 || !supportsIPv6 {
+ 		t.Skip("ipv4 or ipv6 is not supported")
+ 	}
+ 
+-	for i, tt := range firstFavoriteAddrTests {
+-		addr, err := firstFavoriteAddr(tt.filter, tt.ips, tt.inetaddr)
++	for i, tt := range addrListTests {
++		addrs, err := filterAddrList(tt.filter, tt.ips, tt.inetaddr)
+ 		if err != tt.err {
+-			t.Errorf("#%v: got %v; expected %v", i, err, tt.err)
++			t.Errorf("#%v: got %v; want %v", i, err, tt.err)
++		}
++		if tt.err != nil {
++			if len(addrs) != 0 {
++				t.Errorf("#%v: got %v; want 0", len(addrs))
++			}
++			continue
++		}
++		first := addrs.first(isIPv4)
++		if !reflect.DeepEqual(first, tt.first) {
++			t.Errorf("#%v: got %v; want %v", i, first, tt.first)
++		}
++		primaries, fallbacks := addrs.partition(isIPv4)
++		if !reflect.DeepEqual(primaries, tt.primaries) {
++			t.Errorf("#%v: got %v; want %v", i, primaries, tt.primaries)
++		}
++		if !reflect.DeepEqual(fallbacks, tt.fallbacks) {
++			t.Errorf("#%v: got %v; want %v", i, fallbacks, tt.fallbacks)
+ 		}
+-		if !reflect.DeepEqual(addr, tt.addr) {
+-			t.Errorf("#%v: got %v; expected %v", i, addr, tt.addr)
++		expectedLen := len(primaries) + len(fallbacks)
++		if len(addrs) != expectedLen {
++			t.Errorf("#%v: got %v; want %v", i, len(addrs), expectedLen)
++		}
++	}
++}
++
++func TestAddrListPartition(t *testing.T) {
++	addrs := addrList{
++		&IPAddr{IP: ParseIP("fe80::"), Zone: "eth0"},
++		&IPAddr{IP: ParseIP("fe80::1"), Zone: "eth0"},
++		&IPAddr{IP: ParseIP("fe80::2"), Zone: "eth0"},
++	}
++	cases := []struct {
++		lastByte  byte
++		primaries addrList
++		fallbacks addrList
++	}{
++		{0, addrList{addrs[0]}, addrList{addrs[1], addrs[2]}},
++		{1, addrList{addrs[0], addrs[2]}, addrList{addrs[1]}},
++		{2, addrList{addrs[0], addrs[1]}, addrList{addrs[2]}},
++		{3, addrList{addrs[0], addrs[1], addrs[2]}, nil},
++	}
++	for i, tt := range cases {
++		// Inverting the function's output should not affect the outcome.
++		for _, invert := range []bool{false, true} {
++			primaries, fallbacks := addrs.partition(func(a Addr) bool {
++				ip := a.(*IPAddr).IP
++				return (ip[len(ip)-1] == tt.lastByte) != invert
++			})
++			if !reflect.DeepEqual(primaries, tt.primaries) {
++				t.Errorf("#%v: got %v; want %v", i, primaries, tt.primaries)
++			}
++			if !reflect.DeepEqual(fallbacks, tt.fallbacks) {
++				t.Errorf("#%v: got %v; want %v", i, fallbacks, tt.fallbacks)
++			}
+ 		}
+ 	}
+ }
+diff --git a/src/net/sock_posix.go b/src/net/sock_posix.go
+index 013944ebec..bbab11bc46 100644
+--- a/src/net/sock_posix.go
++++ b/src/net/sock_posix.go
+@@ -17,8 +17,6 @@ import (
+ type sockaddr interface {
+ 	Addr
+ 
+-	netaddr
+-
+ 	// family returns the platform-dependent address family
+ 	// identifier.
+ 	family() int
+diff --git a/src/net/tcpsock.go b/src/net/tcpsock.go
+index fbadad65b0..b7c95b2b94 100644
+--- a/src/net/tcpsock.go
++++ b/src/net/tcpsock.go
+@@ -32,13 +32,6 @@ func (a *TCPAddr) isWildcard() bool {
+ 	return a.IP.IsUnspecified()
+ }
+ 
+-func (a *TCPAddr) toAddr() Addr {
+-	if a == nil {
+-		return nil
+-	}
+-	return a
+-}
+-
+ // ResolveTCPAddr parses addr as a TCP address of the form "host:port"
+ // or "[ipv6-host%zone]:port" and resolves a pair of domain name and
+ // port name on the network net, which must be "tcp", "tcp4" or
+@@ -53,9 +46,9 @@ func ResolveTCPAddr(net, addr string) (*TCPAddr, error) {
+ 	default:
+ 		return nil, UnknownNetworkError(net)
+ 	}
+-	a, err := resolveInternetAddr(net, addr, noDeadline)
++	addrs, err := internetAddrList(net, addr, noDeadline)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	return a.toAddr().(*TCPAddr), nil
++	return addrs.first(isIPv4).(*TCPAddr), nil
+ }
+diff --git a/src/net/udpsock.go b/src/net/udpsock.go
+index 532f7d5080..5291a3e112 100644
+--- a/src/net/udpsock.go
++++ b/src/net/udpsock.go
+@@ -32,13 +32,6 @@ func (a *UDPAddr) isWildcard() bool {
+ 	return a.IP.IsUnspecified()
+ }
+ 
+-func (a *UDPAddr) toAddr() Addr {
+-	if a == nil {
+-		return nil
+-	}
+-	return a
+-}
+-
+ // ResolveUDPAddr parses addr as a UDP address of the form "host:port"
+ // or "[ipv6-host%zone]:port" and resolves a pair of domain name and
+ // port name on the network net, which must be "udp", "udp4" or
+@@ -53,9 +46,9 @@ func ResolveUDPAddr(net, addr string) (*UDPAddr, error) {
+ 	default:
+ 		return nil, UnknownNetworkError(net)
+ 	}
+-	a, err := resolveInternetAddr(net, addr, noDeadline)
++	addrs, err := internetAddrList(net, addr, noDeadline)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	return a.toAddr().(*UDPAddr), nil
++	return addrs.first(isIPv4).(*UDPAddr), nil
+ }
+diff --git a/src/net/udpsock_posix.go b/src/net/udpsock_posix.go
+index 9733e7b833..31ca8c0420 100644
+--- a/src/net/udpsock_posix.go
++++ b/src/net/udpsock_posix.go
+@@ -73,7 +73,10 @@ func (c *UDPConn) ReadFrom(b []byte) (int, Addr, error) {
+ 		return 0, nil, syscall.EINVAL
+ 	}
+ 	n, addr, err := c.ReadFromUDP(b)
+-	return n, addr.toAddr(), err
++	if addr == nil {
++		return n, nil, err
++	}
++	return n, addr, err
+ }
+ 
+ // ReadMsgUDP reads a packet from c, copying the payload into b and
+diff --git a/src/net/unixsock.go b/src/net/unixsock.go
+index 85955845b8..94c4c39ddc 100644
+--- a/src/net/unixsock.go
++++ b/src/net/unixsock.go
+@@ -23,13 +23,6 @@ func (a *UnixAddr) String() string {
+ 	return a.Name
+ }
+ 
+-func (a *UnixAddr) toAddr() Addr {
+-	if a == nil {
+-		return nil
+-	}
+-	return a
+-}
+-
+ // ResolveUnixAddr parses addr as a Unix domain socket address.
+ // The string net gives the network name, "unix", "unixgram" or
+ // "unixpacket".
+diff --git a/src/net/unixsock_posix.go b/src/net/unixsock_posix.go
+index d7127d9c69..c5af8d34f3 100644
+--- a/src/net/unixsock_posix.go
++++ b/src/net/unixsock_posix.go
+@@ -133,7 +133,10 @@ func (c *UnixConn) ReadFrom(b []byte) (int, Addr, error) {
+ 		return 0, nil, syscall.EINVAL
+ 	}
+ 	n, addr, err := c.ReadFromUnix(b)
+-	return n, addr.toAddr(), err
++	if addr == nil {
++		return n, nil, err
++	}
++	return n, addr, err
+ }
+ 
+ // ReadMsgUnix reads a packet from c, copying the payload into b and

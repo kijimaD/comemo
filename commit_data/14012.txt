@@ -22,6 +22,51 @@ Date:   Wed Oct 3 13:46:37 2012 -0700
     R=rsc, r, iant, ken, iant
     CC=golang-dev
     https://golang.org/cl/6584065
-
+---
  doc/go_spec.html | 13 +++++++++++--
  1 file changed, 11 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index de35425b3b..165e9bebf2 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1,6 +1,6 @@
+ <!--{
+ 	"Title": "The Go Programming Language Specification",
+-	"Subtitle": "Version of September 28, 2012",
++	"Subtitle": "Version of October 3, 2012",
+ 	"Path": "/ref/spec"
+ }-->
+ 
+@@ -3394,7 +3394,8 @@ Conversion = Type "(" Expression [ "," ] ")" .
+ </pre>
+ 
+ <p>
+-If the type starts with an operator it must be parenthesized:
++If the type starts with the operator <code>*</code> or <code>&lt;-</code>,
++or the keyword <code>func</code>, it must be parenthesized:
+ </p>
+ 
+ <pre>
+@@ -3402,6 +3403,8 @@ If the type starts with an operator it must be parenthesized:
+ (*Point)(p)      // p is converted to (*Point)
+ &lt;-chan int(c)    // same as &lt;-(chan int(c))
+ (&lt;-chan int)(c)  // c is converted to (&lt;-chan int)
++func()(x)        // function signature func() x
++(func())(x)      // x is converted to (func())
+ </pre>
+ 
+ <p>
+@@ -3488,6 +3491,12 @@ implements this functionality under
+ restricted circumstances.
+ </p>
+ 
++<p>
++Implementation restriction: For backward-compatibility with the Go 1 language
++specification, a compiler may accept non-parenthesized literal function types
++in conversions where the syntax is unambiguous.
++</p>
++
+ <h4>Conversions between numeric types</h4>
+ 
+ <p>

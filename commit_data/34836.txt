@@ -13,6 +13,34 @@ Date:   Tue Oct 24 07:22:26 2017 -0700
     Reviewed-on: https://go-review.googlesource.com/72910
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-
+---
  src/cmd/go/internal/work/exec.go | 9 +++++++++
  1 file changed, 9 insertions(+)
+
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 405abc4323..c17e529551 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -18,6 +18,7 @@ import (
+ 	"os/exec"
+ 	"path/filepath"
+ 	"regexp"
++	"runtime"
+ 	"strconv"
+ 	"strings"
+ 	"sync"
+@@ -1065,6 +1066,14 @@ func (b *Builder) moveOrCopyFile(a *Action, dst, src string, perm os.FileMode, f
+ 		return b.copyFile(a, dst, src, perm, force)
+ 	}
+ 
++	// On Windows, always copy the file, so that we respect the NTFS
++	// permissions of the parent folder. https://golang.org/issue/22343.
++	// What matters here is not cfg.Goos (the system we are building
++	// for) but runtime.GOOS (the system we are building on).
++	if runtime.GOOS == "windows" {
++		return b.copyFile(a, dst, src, perm, force)
++	}
++
+ 	// If the destination directory has the group sticky bit set,
+ 	// we have to copy the file to retain the correct permissions.
+ 	// https://golang.org/issue/18878

@@ -14,6 +14,21 @@ Date:   Sat Sep 3 18:56:43 2022 +0000
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/runtime/pprof/label.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/pprof/label.go b/src/runtime/pprof/label.go
+index 0c58a7ac47..d39e0ad58e 100644
+--- a/src/runtime/pprof/label.go
++++ b/src/runtime/pprof/label.go
+@@ -57,8 +57,8 @@ func (l *labelMap) String() string {
+ // WithLabels returns a new context.Context with the given labels added.
+ // A label overwrites a prior label with the same key.
+ func WithLabels(ctx context.Context, labels LabelSet) context.Context {
+-	childLabels := make(labelMap)
+ 	parentLabels := labelValue(ctx)
++	childLabels := make(labelMap, len(parentLabels))
+ 	// TODO(matloob): replace the map implementation with something
+ 	// more efficient so creating a child context WithLabels doesn't need
+ 	// to clone the map.

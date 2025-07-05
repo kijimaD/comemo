@@ -8,7 +8,7 @@ Date:   Sat Mar 7 16:56:44 2009 -0800
     DELTA=143  (96 added, 0 deleted, 47 changed)
     OCL=25876
     CL=25888
-
+---
  src/lib/os/env.go   | 15 ++++++---
  src/lib/os/error.go | 16 +++++++---
  src/lib/os/exec.go  | 28 +++++++++++++----
@@ -16,3 +16,484 @@ Date:   Sat Mar 7 16:56:44 2009 -0800
  src/lib/os/time.go  |  5 +++
  src/lib/os/types.go | 38 ++++++++++++++---------
  6 files changed, 143 insertions(+), 47 deletions(-)
+
+diff --git a/src/lib/os/env.go b/src/lib/os/env.go
+index 4c53a9ad9d..69af22382f 100644
+--- a/src/lib/os/env.go
++++ b/src/lib/os/env.go
+@@ -11,11 +11,11 @@ import (
+ 	"os";
+ )
+ 
+-var (
+-	ENOENV = NewError("no such environment variable");
++// ENOENV is the Error indicating that an environment variable does not exist.
++var ENOENV = NewError("no such environment variable");
++
++var env map[string] string;
+ 
+-	env map[string] string;
+-)
+ 
+ func copyenv() {
+ 	env = make(map[string] string);
+@@ -29,6 +29,8 @@ func copyenv() {
+ 	}
+ }
+ 
++// Getenv retrieves the value of the environment variable named by the key.
++// It returns the value and an error, if any.
+ func Getenv(key string) (value string, err *Error) {
+ 	once.Do(copyenv);
+ 
+@@ -42,6 +44,8 @@ func Getenv(key string) (value string, err *Error) {
+ 	return v, nil;
+ }
+ 
++// Setenv sets the value of the environment variable named by the key.
++// It returns an Error, if any.
+ func Setenv(key, value string) *Error {
+ 	once.Do(copyenv);
+ 
+@@ -52,11 +56,14 @@ func Setenv(key, value string) *Error {
+ 	return nil;
+ }
+ 
++// Clearenv deletes all environment variables.
+ func Clearenv() {
+ 	once.Do(copyenv);	// prevent copyenv in Getenv/Setenv
+ 	env = make(map[string] string);
+ }
+ 
++// Environ returns an array of strings representing the environment,
++// in the form "key=value".
+ func Environ() []string {
+ 	once.Do(copyenv);
+ 	a := make([]string, len(env));
+diff --git a/src/lib/os/error.go b/src/lib/os/error.go
+index 63b2dbccac..18d010ce0a 100644
+--- a/src/lib/os/error.go
++++ b/src/lib/os/error.go
+@@ -6,8 +6,12 @@ package os
+ 
+ import syscall "syscall"
+ 
+-// Errors are singleton structures. Use the String() method to get their contents --
+-// it handles the nil (no error) case.
++// Error is a structure wrapping a string describing an error.
++// Errors are singleton structures, created by NewError, so their addresses can
++// be compared to test for equality. A nil Error pointer means ``no error''.
++// Use the String() method to get the contents; it handles the nil case.
++// The Error type is intended for use by any package that wishes to define
++// error strings.
+ type Error struct {
+ 	s string
+ }
+@@ -24,7 +28,8 @@ var errorStringTab = make(map[string] *Error);
+ // These functions contain a race if two goroutines add identical
+ // errors simultaneously but the consequences are unimportant.
+ 
+-// Allocate an Error object, but if it's been seen before, share that one.
++// NewError allocates an Error object, but if s has been seen before,
++// shares the Error associated with that message.
+ func NewError(s string) *Error {
+ 	if s == "" {
+ 		return nil
+@@ -38,7 +43,8 @@ func NewError(s string) *Error {
+ 	return err;
+ }
+ 
+-// Allocate an Error objecct, but if it's been seen before, share that one.
++// ErrnoToError calls NewError to create an Error object for the string
++// associated with Unix error code errno.
+ func ErrnoToError(errno int64) *Error {
+ 	if errno == 0 {
+ 		return nil
+@@ -53,6 +59,7 @@ func ErrnoToError(errno int64) *Error {
+ 	return err;
+ }
+ 
++// Commonly known Unix errors.
+ var (
+ 	ENONE = ErrnoToError(syscall.ENONE);
+ 	EPERM = ErrnoToError(syscall.EPERM);
+@@ -92,6 +99,7 @@ var (
+ 	EAGAIN = ErrnoToError(syscall.EAGAIN);
+ )
+ 
++// String returns the string associated with the Error.
+ func (e *Error) String() string {
+ 	if e == nil {
+ 		return "No Error"
+diff --git a/src/lib/os/exec.go b/src/lib/os/exec.go
+index 44e70cbbe2..b16a6c47a6 100644
+--- a/src/lib/os/exec.go
++++ b/src/lib/os/exec.go
+@@ -9,6 +9,12 @@ import (
+ 	"syscall";
+ )
+ 
++// ForkExec forks the current process and invokes Exec with the file, arguments,
++// and environment specified by argv0, argv, and envv.  It returns the process
++// id of the forked process and an Error, if any.  The fd array specifies the
++// file descriptors to be set up in the new process: fd[0] will be Unix file
++// descriptor 0 (standard input), fd[1] descriptor 1, and so on.  A nil entry
++// will cause the child to have no open file descriptor with that index.
+ func ForkExec(argv0 string, argv []string, envv []string, fd []*FD)
+ 	(pid int, err *Error)
+ {
+@@ -26,6 +32,10 @@ func ForkExec(argv0 string, argv []string, envv []string, fd []*FD)
+ 	return int(p), ErrnoToError(e);
+ }
+ 
++// Exec replaces the current process with an execution of the program
++// named by argv0, with arguments argv and environment envv.
++// If successful, Exec never returns.  If it fails, it returns an Error.
++// ForkExec is almost always a better way to execute a program.
+ func Exec(argv0 string, argv []string, envv []string) *Error {
+ 	if envv == nil {
+ 		envv = Environ();
+@@ -41,18 +51,24 @@ func Exec(argv0 string, argv []string, envv []string) *Error {
+ // since syscall one might have different field types across
+ // different OS.
+ 
++// Waitmsg stores the information about an exited process as reported by Wait.
+ type Waitmsg struct {
+-	Pid int;
+-	syscall.WaitStatus;
+-	Rusage *syscall.Rusage;
++	Pid int;	// The process's id.
++	syscall.WaitStatus;	// System-dependent status info.
++	Rusage *syscall.Rusage;	// System-dependent resource usage info.
+ }
+ 
++// Options for Wait.
+ const (
+-	WNOHANG = syscall.WNOHANG;
+-	WSTOPPED = syscall.WSTOPPED;
+-	WRUSAGE = 1<<60;
++	WNOHANG = syscall.WNOHANG;	// Don't wait if no process has exited.
++	WSTOPPED = syscall.WSTOPPED;	// If set, status of stopped subprocesses is also reported.
++	WUNTRACED = WSTOPPED;
++	WRUSAGE = 1<<60;	// Record resource usage.
+ )
+ 
++// Wait waits for process pid to exit or stop, and then returns a
++// Waitmsg describing its status and an Error, if any. The options
++// (WNOHANG etc.) affect the behavior of the Wait call.
+ func Wait(pid int, options uint64) (w *Waitmsg, err *Error) {
+ 	var status syscall.WaitStatus;
+ 	var rusage *syscall.Rusage;
+diff --git a/src/lib/os/file.go b/src/lib/os/file.go
+index b41f2418eb..1fb2a64090 100644
+--- a/src/lib/os/file.go
++++ b/src/lib/os/file.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// The os package provides a platform-independent interface to operating
++// system functionality.  The design is Unix-like.
+ package os
+ 
+ import (
+@@ -16,21 +18,25 @@ type dirInfo struct {	// TODO(r): 6g bug means this can't be private
+ 	bufp	int64;	// location of next record in buf.
+ }
+ 
+-// FDs are wrappers for file descriptors
++// FD represents an open file.
++// TODO(r): is FD the right name? Would File be better?
+ type FD struct {
+ 	fd int64;
+ 	name	string;
+ 	dirinfo	*dirInfo;	// nil unless directory being read
+ }
+ 
++// Fd returns the integer Unix file descriptor referencing the open file.
+ func (fd *FD) Fd() int64 {
+ 	return fd.fd
+ }
+ 
++// Name returns the name of the file as presented to Open.
+ func (fd *FD) Name() string {
+ 	return fd.name
+ }
+ 
++// NewFD returns a new FD with the given file descriptor and name.
+ func NewFD(fd int64, name string) *FD {
+ 	if fd < 0 {
+ 		return nil
+@@ -38,28 +44,35 @@ func NewFD(fd int64, name string) *FD {
+ 	return &FD{fd, name, nil}
+ }
+ 
++// Stdin, Stdout, and Stderr are open FDs pointing to the standard input,
++// standard output, and standard error file descriptors.
+ var (
+ 	Stdin = NewFD(0, "/dev/stdin");
+ 	Stdout = NewFD(1, "/dev/stdout");
+ 	Stderr = NewFD(2, "/dev/stderr");
+ )
+ 
++// Flags to Open wrapping those of the underlying system. Not all flags
++// may be implemented on a given system.
+ const (
+-	O_RDONLY = syscall.O_RDONLY;
+-	O_WRONLY = syscall.O_WRONLY;
+-	O_RDWR = syscall.O_RDWR;
+-	O_APPEND = syscall.O_APPEND;
+-	O_ASYNC = syscall.O_ASYNC;
+-	O_CREAT = syscall.O_CREAT;
+-	O_NOCTTY = syscall.O_NOCTTY;
+-	O_NONBLOCK = syscall.O_NONBLOCK;
+-	O_NDELAY = O_NONBLOCK;
+-	O_SYNC = syscall.O_SYNC;
+-	O_TRUNC = syscall.O_TRUNC;
++	O_RDONLY = syscall.O_RDONLY;	// open the file read-only.
++	O_WRONLY = syscall.O_WRONLY;	// open the file write-only.
++	O_RDWR = syscall.O_RDWR;	// open the file read-write.
++	O_APPEND = syscall.O_APPEND;	// open the file append-only.
++	O_ASYNC = syscall.O_ASYNC;	// generate a signal when I/O is available.
++	O_CREAT = syscall.O_CREAT;	// create a new file if none exists.
++	O_NOCTTY = syscall.O_NOCTTY;	// do not make file the controlling tty.
++	O_NONBLOCK = syscall.O_NONBLOCK;	// open in non-blocking mode.
++	O_NDELAY = O_NONBLOCK;		// synonym for O_NONBLOCK
++	O_SYNC = syscall.O_SYNC;	// open for synchronous I/O.
++	O_TRUNC = syscall.O_TRUNC;	// if possible, truncate file when opened.
+ )
+ 
+-func Open(name string, mode int, flags int) (fd *FD, err *Error) {
+-	r, e := syscall.Open(name, int64(mode), int64(flags | syscall.O_CLOEXEC));
++// Open opens the named file with specified flag (O_RDONLY etc.) and perm, (0666 etc.)
++// if applicable.  If successful, methods on the returned FD can be used for I/O.
++// It returns the FD and an Error, if any.
++func Open(name string, flag int, perm int) (fd *FD, err *Error) {
++	r, e := syscall.Open(name, int64(flag | syscall.O_CLOEXEC), int64(perm));
+ 	if e != 0 {
+ 		return nil, ErrnoToError(e);
+ 	}
+@@ -73,6 +86,8 @@ func Open(name string, mode int, flags int) (fd *FD, err *Error) {
+ 	return NewFD(r, name), ErrnoToError(e)
+ }
+ 
++// Close closes the FD, rendering it unusable for I/O.
++// It returns an Error, if any.
+ func (fd *FD) Close() *Error {
+ 	if fd == nil {
+ 		return EINVAL
+@@ -82,6 +97,10 @@ func (fd *FD) Close() *Error {
+ 	return ErrnoToError(e)
+ }
+ 
++// Read reads up to len(b) bytes from the FD.
++// It returns the number of bytes read and an Error, if any.
++// EOF is signaled by a zero count with a nil Error.
++// TODO(r): Add Pread, Pwrite (maybe ReadAt, WriteAt).
+ func (fd *FD) Read(b []byte) (ret int, err *Error) {
+ 	if fd == nil {
+ 		return 0, EINVAL
+@@ -96,6 +115,9 @@ func (fd *FD) Read(b []byte) (ret int, err *Error) {
+ 	return int(r), ErrnoToError(e)
+ }
+ 
++// Write writes len(b) bytes to the FD.
++// It returns the number of bytes written and an Error, if any.
++// If the byte count differs from len(b), it usually implies an error occurred.
+ func (fd *FD) Write(b []byte) (ret int, err *Error) {
+ 	if fd == nil {
+ 		return 0, EINVAL
+@@ -110,6 +132,10 @@ func (fd *FD) Write(b []byte) (ret int, err *Error) {
+ 	return int(r), ErrnoToError(e)
+ }
+ 
++// Seek sets the offset for the next Read or Write on FD to offset, interpreted
++// according to whence: 0 means relative to the origin of the file, 1 means
++// relative to the current offset, and 2 means relative to the end.
++// It returns the new offset and an Error, if any.
+ func (fd *FD) Seek(offset int64, whence int) (ret int64, err *Error) {
+ 	r, e := syscall.Seek(fd.fd, offset, int64(whence));
+ 	if e != 0 {
+@@ -121,6 +147,8 @@ func (fd *FD) Seek(offset int64, whence int) (ret int64, err *Error) {
+ 	return r, nil
+ }
+ 
++// WriteString is like Write, but writes the contents of string s rather than
++// an array of bytes.
+ func (fd *FD) WriteString(s string) (ret int, err *Error) {
+ 	if fd == nil {
+ 		return 0, EINVAL
+@@ -132,12 +160,14 @@ func (fd *FD) WriteString(s string) (ret int, err *Error) {
+ 	return int(r), ErrnoToError(e)
+ }
+ 
+-func Pipe() (fd1 *FD, fd2 *FD, err *Error) {
++// Pipe returns a connected pair of FDs; reads from r return bytes written to w.
++// It returns the FDs and an Error, if any.
++func Pipe() (r *FD, w *FD, err *Error) {
+ 	var p [2]int64;
+ 
+ 	// See ../syscall/exec.go for description of lock.
+ 	syscall.ForkLock.RLock();
+-	r, e := syscall.Pipe(&p);
++	ret, e := syscall.Pipe(&p);
+ 	if e != 0 {
+ 		syscall.ForkLock.RUnlock();
+ 		return nil, nil, ErrnoToError(e)
+@@ -149,11 +179,17 @@ func Pipe() (fd1 *FD, fd2 *FD, err *Error) {
+ 	return NewFD(p[0], "|0"), NewFD(p[1], "|1"), nil
+ }
+ 
++// Mkdir creates a new directory with the specified name and permission bits.
++// It returns an error, if any.
+ func Mkdir(name string, perm int) *Error {
+ 	r, e := syscall.Mkdir(name, int64(perm));
+ 	return ErrnoToError(e)
+ }
+ 
++// Stat returns the Dir structure describing the named file. If the file
++// is a symbolic link, it returns information about the file the link
++// references.
++// It returns the Dir and an error, if any.
+ func Stat(name string) (dir *Dir, err *Error) {
+ 	stat := new(syscall.Stat_t);
+ 	r, e := syscall.Stat(name, stat);
+@@ -163,6 +199,8 @@ func Stat(name string) (dir *Dir, err *Error) {
+ 	return dirFromStat(name, new(Dir), stat), nil
+ }
+ 
++// Fstat returns the Dir structure describing the file associated with the FD.
++// It returns the Dir and an error, if any.
+ func Fstat(fd *FD) (dir *Dir, err *Error) {
+ 	stat := new(syscall.Stat_t);
+ 	r, e := syscall.Fstat(fd.fd, stat);
+@@ -172,6 +210,9 @@ func Fstat(fd *FD) (dir *Dir, err *Error) {
+ 	return dirFromStat(fd.name, new(Dir), stat), nil
+ }
+ 
++// Lstat returns the Dir structure describing the named file. If the file
++// is a symbolic link, it returns information about the link itself.
++// It returns the Dir and an error, if any.
+ func Lstat(name string) (dir *Dir, err *Error) {
+ 	stat := new(syscall.Stat_t);
+ 	r, e := syscall.Lstat(name, stat);
+@@ -181,10 +222,21 @@ func Lstat(name string) (dir *Dir, err *Error) {
+ 	return dirFromStat(name, new(Dir), stat), nil
+ }
+ 
+-// Non-portable function defined in operating-system-dependent file.
++// Readdirnames has a non-portable implemenation so its code is separated into an
++// operating-system-dependent file.
++
++// Readdirnames reads the contents of the directory associated with fd and
++// returns an array of up to count names, in directory order.  Subsequent
++// calls on the same fd will yield further names.
++// A negative count means to read until EOF.
++// It returns the array and an Error, if any.
+ func Readdirnames(fd *FD, count int) (names []string, err *os.Error)
+ 
+-// Negative count means read until EOF.
++// Readdir reads the contents of the directory associated with fd and
++// returns an array of up to count Dir structures, in directory order.  Subsequent
++// calls on the same fd will yield further Dirs.
++// A negative count means to read until EOF.
++// It returns the array and an Error, if any.
+ func Readdir(fd *FD, count int) (dirs []Dir, err *os.Error) {
+ 	dirname := fd.name;
+ 	if dirname == "" {
+diff --git a/src/lib/os/time.go b/src/lib/os/time.go
+index 0f5fdfda81..9847d80bbf 100644
+--- a/src/lib/os/time.go
++++ b/src/lib/os/time.go
+@@ -9,6 +9,11 @@ import (
+ 	"syscall"
+ )
+ 
++
++// Time returns the current time, in whole seconds and
++// fractional nanoseconds, plus an Error if any. The current
++// time is thus 1e9*sec+nsec, in nanoseconds.  The zero of
++// time is the Unix epoch.
+ func Time() (sec int64, nsec int64, err *Error) {
+ 	var errno int64;
+ 	sec, nsec, errno = syscall.Gettimeofday();
+diff --git a/src/lib/os/types.go b/src/lib/os/types.go
+index 5157dca8e0..aba4631993 100644
+--- a/src/lib/os/types.go
++++ b/src/lib/os/types.go
+@@ -9,52 +9,60 @@ import "syscall"
+ // An operating-system independent representation of Unix data structures.
+ // OS-specific routines in this directory convert the OS-local versions to these.
+ 
+-// Result of stat64(2) etc.
++// A Dir describes a file and is returned by Stat, Fstat, and Lstat
+ type Dir struct {
+-	Dev	uint64;
+-	Ino	uint64;
+-	Nlink	uint64;
+-	Mode	uint32;
+-	Uid	uint32;
+-	Gid	uint32;
+-	Rdev	uint64;
+-	Size	uint64;
+-	Blksize	uint64;
+-	Blocks	uint64;
+-	Atime_ns	uint64;	// nanoseconds since 1970
+-	Mtime_ns	uint64;	// nanoseconds since 1970
+-	Ctime_ns	uint64;	// nanoseconds since 1970
+-	Name	string;
++	Dev	uint64;	// device number of file system holding file.
++	Ino	uint64;	// inode number.
++	Nlink	uint64;	// number of hard links.
++	Mode	uint32;	// permission and mode bits.
++	Uid	uint32;	// user id of owner.
++	Gid	uint32;	// group id of owner.
++	Rdev	uint64;	// device type for special file.
++	Size	uint64;	// length in bytes.
++	Blksize	uint64;	// size of blocks, in bytes.
++	Blocks	uint64;	// number of blocks allocated for file.
++	Atime_ns	uint64;	// access time; nanoseconds since epoch.
++	Mtime_ns	uint64;	// modified time; nanoseconds since epoch.
++	Ctime_ns	uint64;	// status change time; nanoseconds since epoch.
++	Name	string;	// name of file as presented to Open.
+ }
+ 
++// IsFifo reports whether the Dir describes a FIFO file.
+ func (dir *Dir) IsFifo() bool {
+ 	return (dir.Mode & syscall.S_IFMT) == syscall.S_IFIFO
+ }
+ 
++// IsChar reports whether the Dir describes a character special file.
+ func (dir *Dir) IsChar() bool {
+ 	return (dir.Mode & syscall.S_IFMT) == syscall.S_IFCHR
+ }
+ 
++// IsDirectory reports whether the Dir describes a directory.
+ func (dir *Dir) IsDirectory() bool {
+ 	return (dir.Mode & syscall.S_IFMT) == syscall.S_IFDIR
+ }
+ 
++// IsBlock reports whether the Dir describes a block special file.
+ func (dir *Dir) IsBlock() bool {
+ 	return (dir.Mode & syscall.S_IFMT) == syscall.S_IFBLK
+ }
+ 
++// IsRegular reports whether the Dir describes a regular file.
+ func (dir *Dir) IsRegular() bool {
+ 	return (dir.Mode & syscall.S_IFMT) == syscall.S_IFREG
+ }
+ 
++// IsSymlink reports whether the Dir describes a symbolic link.
+ func (dir *Dir) IsSymlink() bool {
+ 	return (dir.Mode & syscall.S_IFMT) == syscall.S_IFLNK
+ }
+ 
++// IsSocket reports whether the Dir describes a socket.
+ func (dir *Dir) IsSocket() bool {
+ 	return (dir.Mode & syscall.S_IFMT) == syscall.S_IFSOCK
+ }
+ 
++// Permission returns the file permission bits.
+ func (dir *Dir) Permission() int {
+ 	return int(dir.Mode & 0777)
+ }

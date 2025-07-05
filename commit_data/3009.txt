@@ -10,7 +10,7 @@ Date:   Tue Aug 18 10:06:15 2009 -0700
     DELTA=173  (136 added, 3 deleted, 34 changed)
     OCL=33431
     CL=33459
-
+---
  src/pkg/big/arith.go      | 15 +++++++++++
  src/pkg/big/arith_amd64.s | 29 ++++++++++++++++++++-
  src/pkg/big/int.go        | 16 ++++++------
@@ -18,3 +18,434 @@ Date:   Tue Aug 18 10:06:15 2009 -0700
  src/pkg/big/nat.go        | 64 +++++++++++++++++++++++++++++------------------
  src/pkg/big/nat_test.go   | 19 ++++++++++++++
  6 files changed, 166 insertions(+), 33 deletions(-)
+
+diff --git a/src/pkg/big/arith.go b/src/pkg/big/arith.go
+index f18b865098..ae84bd9f55 100644
+--- a/src/pkg/big/arith.go
++++ b/src/pkg/big/arith.go
+@@ -168,6 +168,9 @@ var (
+ 	// mulAddVWW sets z and returns c such that z+c = x*y + r.
+ 	mulAddVWW func(z, x *Word, y, r Word, n int) (c Word)	= mulAddVWW_g;
+ 
++	// addMulVVW sets z and returns c such that z+c = z + x*y.
++	addMulVVW func(z, x *Word, y Word, n int) (c Word)	= addMulVVW_g;
++
+ 	// divWVW sets z and returns r such that z-r = (xn<<(n*_W) + x) / y.
+ 	divWVW func(z* Word, xn Word, x *Word, y Word, n int) (r Word)	= divWVW_g;
+ )
+@@ -184,6 +187,7 @@ func init() {
+ 		addVW = addVW_s;
+ 		subVW = subVW_s;
+ 		mulAddVWW = mulAddVWW_s;
++		addMulVVW = addMulVVW_s;
+ 		divWVW = divWVW_s;
+ 	}
+ }
+@@ -242,6 +246,17 @@ func mulAddVWW_g(z, x *Word, y, r Word, n int) (c Word) {
+ }
+ 
+ 
++func addMulVVW_s(z, x *Word, y Word, n int) (c Word)
++func addMulVVW_g(z, x *Word, y Word, n int) (c Word) {
++	for i := 0; i < n; i++ {
++		z1, z0 := mulAddWWW_g(*x.at(i), y, *z.at(i));
++		c, *z.at(i) = addWW_g(z0, c, 0);
++		c += z1;
++	}
++	return;
++}
++
++
+ func divWVW_s(z* Word, xn Word, x *Word, y Word, n int) (r Word)
+ func divWVW_g(z* Word, xn Word, x *Word, y Word, n int) (r Word) {
+ 	r = xn;
+diff --git a/src/pkg/big/arith_amd64.s b/src/pkg/big/arith_amd64.s
+index 768a85d48a..c382847083 100644
+--- a/src/pkg/big/arith_amd64.s
++++ b/src/pkg/big/arith_amd64.s
+@@ -172,10 +172,37 @@ TEXT big·mulAddVWW_s(SB),7,$0
+ 	MOVQ a+24(FP), CX	// c = r
+ 	MOVL a+32(FP), R11	// n
+ 	XORQ BX, BX			// i = 0
++	JMP E5
++
++L5:	MOVQ (R8)(BX*8), AX
++	MULQ R9
++	ADDQ CX, AX
++	ADCQ $0, DX
++	MOVQ AX, (R10)(BX*8)
++	MOVQ DX, CX
++	ADDL $1, BX			// i++
++
++E5:	CMPQ BX, R11		// i < n
++	JL L5
++
++	MOVQ CX, a+40(FP)	// return c
++	RET
++
++
++// func addMulVVW_s(z, x *Word, y Word, n int) (c Word)
++TEXT big·addMulVVW_s(SB),7,$0
++	MOVQ a+0(FP), R10	// z
++	MOVQ a+8(FP), R8	// x
++	MOVQ a+16(FP), R9	// y
++	MOVL a+24(FP), R11	// n
++	XORQ BX, BX			// i = 0
++	XORQ CX, CX			// c = 0
+ 	JMP E6
+ 
+ L6:	MOVQ (R8)(BX*8), AX
+ 	MULQ R9
++	ADDQ (R10)(BX*8), AX
++	ADCQ $0, DX
+ 	ADDQ CX, AX
+ 	ADCQ $0, DX
+ 	MOVQ AX, (R10)(BX*8)
+@@ -185,7 +212,7 @@ L6:	MOVQ (R8)(BX*8), AX
+ E6:	CMPQ BX, R11		// i < n
+ 	JL L6
+ 
+-	MOVQ CX, a+40(FP)	// return c
++	MOVQ CX, a+32(FP)	// return c
+ 	RET
+ 
+ 
+diff --git a/src/pkg/big/int.go b/src/pkg/big/int.go
+index 3e6bbd15e8..6d885d1921 100644
+--- a/src/pkg/big/int.go
++++ b/src/pkg/big/int.go
+@@ -14,7 +14,7 @@ type Int struct {
+ }
+ 
+ 
+-// New sets z to x.
++// New allocates and returns a new Int set to x.
+ func (z *Int) New(x int64) *Int {
+ 	z.neg = false;
+ 	if x < 0 {
+@@ -90,25 +90,27 @@ func (z *Int) Mul(x, y *Int) *Int {
+ 	// x * (-y) == -(x * y)
+ 	// (-x) * y == -(x * y)
+ 	// (-x) * (-y) == x * y
+-	z.neg = x.neg != y.neg;
+ 	z.abs = mulNN(z.abs, x.abs, y.abs);
++	z.neg = len(z.abs) > 0 && x.neg != y.neg;  // 0 has no sign
+ 	return z
+ }
+ 
+ 
+ // Neg computes z = -x.
+ func (z *Int) Neg(x *Int) *Int {
+-	z.neg = len(x.abs) > 0 && !x.neg;  // 0 has no sign
+ 	z.abs = setN(z.abs, x.abs);
++	z.neg = len(z.abs) > 0 && !x.neg;  // 0 has no sign
+ 	return z;
+ }
+ 
+ 
+-// CmpInt compares x and y. The result is an int value that is
++// TODO(gri) Should this be x.Cmp(y) instead?
++
++// CmpInt compares x and y. The result is
+ //
+-//   <  0 if x <  y
+-//   == 0 if x == y
+-//   >  0 if x >  y
++//   -1 if x <  y
++//    0 if x == y
++//   +1 if x >  y
+ //
+ func CmpInt(x, y *Int) (r int) {
+ 	// x cmp y == x cmp y
+diff --git a/src/pkg/big/int_test.go b/src/pkg/big/int_test.go
+index 528afdd234..4e150ee4b7 100644
+--- a/src/pkg/big/int_test.go
++++ b/src/pkg/big/int_test.go
+@@ -25,6 +25,14 @@ var sumZZ = []argZZ{
+ 	argZZ{newZ(-1111111110), newZ(-123456789), newZ(-987654321)},
+ }
+ 
++var prodZZ = []argZZ{
++	argZZ{newZ(0), newZ(0), newZ(0)},
++	argZZ{newZ(0), newZ(1), newZ(0)},
++	argZZ{newZ(1), newZ(1), newZ(1)},
++	argZZ{newZ(-991*991), newZ(991), newZ(-991)},
++	// TODO(gri) add larger products
++}
++
+ 
+ func TestSetZ(t *testing.T) {
+ 	for _, a := range sumZZ {
+@@ -46,7 +54,7 @@ func testFunZZ(t *testing.T, msg string, f funZZ, a argZZ) {
+ }
+ 
+ 
+-func TestFunZZ(t *testing.T) {
++func TestSumZZ(t *testing.T) {
+ 	AddZZ := func(z, x, y *Int) *Int { return z.Add(x, y) };
+ 	SubZZ := func(z, x, y *Int) *Int { return z.Sub(x, y) };
+ 	for _, a := range sumZZ {
+@@ -63,3 +71,49 @@ func TestFunZZ(t *testing.T) {
+ 		testFunZZ(t, "SubZZ symmetric", SubZZ, arg);
+ 	}
+ }
++
++
++func TestProdZZ(t *testing.T) {
++	MulZZ := func(z, x, y *Int) *Int { return z.Mul(x, y) };
++	for _, a := range prodZZ {
++		arg := a;
++		testFunZZ(t, "MulZZ", MulZZ, arg);
++
++		arg = argZZ{a.z, a.y, a.x};
++		testFunZZ(t, "MulZZ symmetric", MulZZ, arg);
++	}
++}
++
++
++var facts = map[int] string {
++	0: "1",
++	1: "1",
++	2: "2",
++	10: "3628800",
++	20: "2432902008176640000",
++	100: "933262154439441526816992388562667004907159682643816214685929"
++		"638952175999932299156089414639761565182862536979208272237582"
++		"51185210916864000000000000000000000000",
++}
++
++
++func fact(n int) *Int {
++	var z Int;
++	z.New(1);
++	for i := 2; i <= n; i++ {
++		var t Int;
++		t.New(int64(i));
++		z.Mul(&z, &t);
++	}
++	return &z;
++}
++
++
++func TestFact(t *testing.T) {
++	for n, s := range facts {
++		f := fact(n).String();
++		if f != s {
++			t.Errorf("%d! = %s; want %s", n, f, s);
++		}
++	}
++}
+diff --git a/src/pkg/big/nat.go b/src/pkg/big/nat.go
+index b696563095..0274ceca59 100644
+--- a/src/pkg/big/nat.go
++++ b/src/pkg/big/nat.go
+@@ -33,10 +33,12 @@ func normN(z []Word) []Word {
+ }
+ 
+ 
+-func makeN(z []Word, m int) []Word {
++func makeN(z []Word, m int, clear bool) []Word {
+ 	if len(z) > m {
+-		z = z[0 : m];  // has at least one extra word for a carry, if any
+-		return z;  // reuse z
++		z = z[0 : m];  // reuse z - has at least one extra word for a carry, if any
++		for i := range z {
++			z[i] = 0;
++		}
+ 	}
+ 	c := 4;  // minimum capacity
+ 	if m > c {
+@@ -48,12 +50,12 @@ func makeN(z []Word, m int) []Word {
+ 
+ func newN(z []Word, x uint64) []Word {
+ 	if x == 0 {
+-		return makeN(z, 0);
++		return makeN(z, 0, false);
+ 	}
+ 
+ 	// single-digit values
+ 	if x == uint64(Word(x)) {
+-		z = makeN(z, 1);
++		z = makeN(z, 1, false);
+ 		z[0] = Word(x);
+ 		return z;
+ 	}
+@@ -65,7 +67,7 @@ func newN(z []Word, x uint64) []Word {
+ 	}
+ 
+ 	// split x into n words
+-	z = makeN(z, n);
++	z = makeN(z, n, false);
+ 	for i := 0; i < n; i++ {
+ 		z[i] = Word(x & _M);
+ 		x >>= _W;
+@@ -76,7 +78,7 @@ func newN(z []Word, x uint64) []Word {
+ 
+ 
+ func setN(z, x []Word) []Word {
+-	z = makeN(z, len(x));
++	z = makeN(z, len(x), false);
+ 	for i, d := range x {
+ 		z[i] = d;
+ 	}
+@@ -93,14 +95,14 @@ func addNN(z, x, y []Word) []Word {
+ 		return addNN(z, y, x);
+ 	case m == 0:
+ 		// n == 0 because m >= n; result is 0
+-		return makeN(z, 0);
++		return makeN(z, 0, false);
+ 	case n == 0:
+ 		// result is x
+ 		return setN(z, x);
+ 	}
+ 	// m > 0
+ 
+-	z = makeN(z, m);
++	z = makeN(z, m, false);
+ 	c := addVV(&z[0], &x[0], &y[0], n);
+ 	if m > n {
+ 		c = addVW(&z[n], &x[n], c, m-n);
+@@ -123,14 +125,14 @@ func subNN(z, x, y []Word) []Word {
+ 		panic("underflow");
+ 	case m == 0:
+ 		// n == 0 because m >= n; result is 0
+-		return makeN(z, 0);
++		return makeN(z, 0, false);
+ 	case n == 0:
+ 		// result is x
+ 		return setN(z, x);
+ 	}
+ 	// m > 0
+ 
+-	z = makeN(z, m);
++	z = makeN(z, m, false);
+ 	c := subVV(&z[0], &x[0], &y[0], n);
+ 	if m > n {
+ 		c = subVW(&z[n], &x[n], c, m-n);
+@@ -144,11 +146,15 @@ func subNN(z, x, y []Word) []Word {
+ }
+ 
+ 
+-func cmpNN(x, y []Word) int {
++func cmpNN(x, y []Word) (r int) {
+ 	m := len(x);
+ 	n := len(y);
+ 	if m != n || m == 0 {
+-		return m-n;
++		switch {
++		case m < n: r = -1;
++		case m > n: r = 1;
++		}
++		return;
+ 	}
+ 
+ 	i := m-1;
+@@ -156,12 +162,11 @@ func cmpNN(x, y []Word) int {
+ 		i--;
+ 	}
+ 
+-	z := 0;
+ 	switch {
+-	case x[i] < y[i]: z = -1;
+-	case x[i] > y[i]: z = 1;
++	case x[i] < y[i]: r = -1;
++	case x[i] > y[i]: r = 1;
+ 	}
+-	return z;
++	return;
+ }
+ 
+ 
+@@ -172,7 +177,7 @@ func mulAddNWW(z, x []Word, y, r Word) []Word {
+ 	}
+ 	// m > 0
+ 
+-	z = makeN(z, m);
++	z = makeN(z, m, false);
+ 	c := mulAddVWW(&z[0], &x[0], y, r, m);
+ 	if c > 0 {
+ 		z = z[0 : m+1];
+@@ -189,13 +194,24 @@ func mulNN(z, x, y []Word) []Word {
+ 
+ 	switch {
+ 	case m < n:
+-		return mulNN(z, x, y);
++		return mulNN(z, y, x);
+ 	case m == 0 || n == 0:
+-		return makeN(z, 0);
++		return makeN(z, 0, false);
++	case n == 1:
++		return mulAddNWW(z, x, y[0], 0);
+ 	}
+-	// m > 0 && n > 0 && m >= n
++	// m >= n && m > 1 && n > 1
+ 
+-	panic("mulNN unimplemented");
++	z = makeN(z, m+n, true);
++	if &z[0] == &x[0] || &z[0] == &y[0] {
++		z = makeN(nil, m+n, true);  // z is an alias for x or y - cannot reuse
++	}
++	for i := 0; i < n; i++ {
++		if f := y[i]; f != 0 {
++			z[m+i] = addMulVVW(&z[i], &x[0], f, m);
++		}
++	}
++	z = normN(z);
+ 
+ 	return z
+ }
+@@ -215,7 +231,7 @@ func divNW(z, x []Word, y Word) (q []Word, r Word) {
+ 		return;
+ 	}
+ 	// m > 0
+-	z = makeN(z, m);
++	z = makeN(z, m, false);
+ 	r = divWVW(&z[0], 0, &x[0], y, m);
+ 	q = normN(z);
+ 	return;
+@@ -286,7 +302,7 @@ func scanN(z []Word, s string, base int) ([]Word, int, int) {
+ 	}
+ 
+ 	// convert string
+-	z = makeN(z, len(z));
++	z = makeN(z, len(z), false);
+ 	for ; i < n; i++ {
+ 		d := hexValue(s[i]);
+ 		if 0 <= d && d < base {
+diff --git a/src/pkg/big/nat_test.go b/src/pkg/big/nat_test.go
+index 8f9f9cc6a3..23d793f276 100644
+--- a/src/pkg/big/nat_test.go
++++ b/src/pkg/big/nat_test.go
+@@ -23,6 +23,17 @@ var sumNN = []argNN{
+ 	argNN{[]Word{0, 0, 0, 1}, []Word{0, 0, _M}, []Word{0, 0, 1}},
+ }
+ 
++var prodNN = []argNN {
++	argNN{},
++	argNN{nil, nil, nil},
++	argNN{nil, []Word{991}, nil},
++	argNN{[]Word{991}, []Word{991}, []Word{1}},
++	argNN{[]Word{991*991}, []Word{991}, []Word{991}},
++	argNN{[]Word{0, 0, 991*991}, []Word{0, 991}, []Word{0, 991}},
++	argNN{[]Word{1*991, 2*991, 3*991, 4*991}, []Word{1, 2, 3, 4}, []Word{991}},
++	argNN{[]Word{4, 11, 20, 30, 20, 11, 4}, []Word{1, 2, 3, 4}, []Word{4, 3, 2, 1}},
++}
++
+ 
+ func TestSetN(t *testing.T) {
+ 	for _, a := range sumNN {
+@@ -56,6 +67,14 @@ func TestFunNN(t *testing.T) {
+ 		arg = argNN{a.y, a.z, a.x};
+ 		testFunNN(t, "subNN symmetric", subNN, arg);
+ 	}
++
++	for _, a := range prodNN {
++		arg := a;
++		testFunNN(t, "mulNN", mulNN, arg);
++
++		arg = argNN{a.z, a.y, a.x};
++		testFunNN(t, "mulNN symmetric", mulNN, arg);
++	}
+ }
+ 
+ 

@@ -13,7 +13,36 @@ Date:   Tue Mar 1 12:58:20 2022 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/internal/pkgbits/decoder.go | 4 ++++
  src/internal/pkgbits/encoder.go | 2 ++
  2 files changed, 6 insertions(+)
+
+diff --git a/src/internal/pkgbits/decoder.go b/src/internal/pkgbits/decoder.go
+index 537d48d899..9c8ad446ca 100644
+--- a/src/internal/pkgbits/decoder.go
++++ b/src/internal/pkgbits/decoder.go
+@@ -37,6 +37,10 @@ func NewPkgDecoder(pkgPath, input string) PkgDecoder {
+ 
+ 	r := strings.NewReader(input)
+ 
++	var version uint32
++	assert(binary.Read(r, binary.LittleEndian, &version) == nil)
++	assert(version == 0)
++
+ 	assert(binary.Read(r, binary.LittleEndian, pr.elemEndsEnds[:]) == nil)
+ 
+ 	pr.elemEnds = make([]uint32, pr.elemEndsEnds[len(pr.elemEndsEnds)-1])
+diff --git a/src/internal/pkgbits/encoder.go b/src/internal/pkgbits/encoder.go
+index 87ef50ed8b..820c707940 100644
+--- a/src/internal/pkgbits/encoder.go
++++ b/src/internal/pkgbits/encoder.go
+@@ -35,6 +35,8 @@ func (pw *PkgEncoder) DumpTo(out io.Writer) {
+ 		assert(binary.Write(out, binary.LittleEndian, x) == nil)
+ 	}
+ 
++	writeUint32(0) // version
++
+ 	var sum uint32
+ 	for _, elems := range &pw.elems {
+ 		sum += uint32(len(elems))

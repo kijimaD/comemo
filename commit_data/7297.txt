@@ -7,7 +7,7 @@ Date:   Mon Jan 31 18:36:28 2011 -0500
     R=golang-dev, nigeltao, niemeyer, r
     CC=golang-dev
     https://golang.org/cl/4079053
-
+---
  src/pkg/compress/flate/deflate_test.go |  13 ++-
  src/pkg/exp/draw/x11/conn.go           |  11 ++-
  src/pkg/fmt/print.go                   |  43 +++++++--
@@ -36,3 +36,1178 @@ Date:   Mon Jan 31 18:36:28 2011 -0500
  test/golden.out                        |   6 --
  test/named1.go                         |   9 +-
  27 files changed, 402 insertions(+), 205 deletions(-)
+
+diff --git a/src/pkg/compress/flate/deflate_test.go b/src/pkg/compress/flate/deflate_test.go
+index 3db955609d..68dcd7bcc5 100644
+--- a/src/pkg/compress/flate/deflate_test.go
++++ b/src/pkg/compress/flate/deflate_test.go
+@@ -116,9 +116,16 @@ func (b *syncBuffer) Read(p []byte) (n int, err os.Error) {
+ 	panic("unreachable")
+ }
+ 
++func (b *syncBuffer) signal() {
++	select {
++	case b.ready <- true:
++	default:
++	}
++}
++
+ func (b *syncBuffer) Write(p []byte) (n int, err os.Error) {
+ 	n, err = b.buf.Write(p)
+-	_ = b.ready <- true
++	b.signal()
+ 	return
+ }
+ 
+@@ -128,12 +135,12 @@ func (b *syncBuffer) WriteMode() {
+ 
+ func (b *syncBuffer) ReadMode() {
+ 	b.mu.Unlock()
+-	_ = b.ready <- true
++	b.signal()
+ }
+ 
+ func (b *syncBuffer) Close() os.Error {
+ 	b.closed = true
+-	_ = b.ready <- true
++	b.signal()
+ 	return nil
+ }
+ 
+diff --git a/src/pkg/exp/draw/x11/conn.go b/src/pkg/exp/draw/x11/conn.go
+index da2181536f..e28fb21706 100644
+--- a/src/pkg/exp/draw/x11/conn.go
++++ b/src/pkg/exp/draw/x11/conn.go
+@@ -122,10 +122,13 @@ func (c *conn) writeSocket() {
+ func (c *conn) Screen() draw.Image { return c.img }
+ 
+ func (c *conn) FlushImage() {
+-	// We do the send (the <- operator) in an expression context, rather than in
+-	// a statement context, so that it does not block, and fails if the buffered
+-	// channel is full (in which case there already is a flush request pending).
+-	_ = c.flush <- false
++	select {
++	case c.flush <- false:
++		// Flush notification sent.
++	default:
++		// Could not send.
++		// Flush notification must be pending already.
++	}
+ }
+ 
+ func (c *conn) Close() os.Error {
+diff --git a/src/pkg/fmt/print.go b/src/pkg/fmt/print.go
+index 96029a8789..d6dc8eb3da 100644
+--- a/src/pkg/fmt/print.go
++++ b/src/pkg/fmt/print.go
+@@ -74,15 +74,42 @@ type pp struct {
+ 	fmt     fmt
+ }
+ 
+-// A leaky bucket of reusable pp structures.
+-var ppFree = make(chan *pp, 100)
++// A cache holds a set of reusable objects.
++// The buffered channel holds the currently available objects.
++// If more are needed, the cache creates them by calling new.
++type cache struct {
++	saved chan interface{}
++	new   func() interface{}
++}
++
++func (c *cache) put(x interface{}) {
++	select {
++	case c.saved <- x:
++		// saved in cache
++	default:
++		// discard
++	}
++}
+ 
+-// Allocate a new pp struct.  Probably can grab the previous one from ppFree.
+-func newPrinter() *pp {
+-	p, ok := <-ppFree
+-	if !ok {
+-		p = new(pp)
++func (c *cache) get() interface{} {
++	select {
++	case x := <-c.saved:
++		return x // reused from cache
++	default:
++		return c.new()
+ 	}
++	panic("not reached")
++}
++
++func newCache(f func() interface{}) *cache {
++	return &cache{make(chan interface{}, 100), f}
++}
++
++var ppFree = newCache(func() interface{} { return new(pp) })
++
++// Allocate a new pp struct or grab a cached one.
++func newPrinter() *pp {
++	p := ppFree.get().(*pp)
+ 	p.fmt.init(&p.buf)
+ 	return p
+ }
+@@ -94,7 +121,7 @@ func (p *pp) free() {
+ 		return
+ 	}
+ 	p.buf.Reset()
+-	_ = ppFree <- p
++	ppFree.put(p)
+ }
+ 
+ func (p *pp) Width() (wid int, ok bool) { return p.fmt.wid, p.fmt.widPresent }
+diff --git a/src/pkg/fmt/scan.go b/src/pkg/fmt/scan.go
+index ebbb17155e..a408c42aaf 100644
+--- a/src/pkg/fmt/scan.go
++++ b/src/pkg/fmt/scan.go
+@@ -303,15 +303,11 @@ func (r *readRune) ReadRune() (rune int, size int, err os.Error) {
+ }
+ 
+ 
+-// A leaky bucket of reusable ss structures.
+-var ssFree = make(chan *ss, 100)
++var ssFree = newCache(func() interface{} { return new(ss) })
+ 
+-// Allocate a new ss struct.  Probably can grab the previous one from ssFree.
++// Allocate a new ss struct or grab a cached one.
+ func newScanState(r io.Reader, nlIsSpace bool) *ss {
+-	s, ok := <-ssFree
+-	if !ok {
+-		s = new(ss)
+-	}
++	s := ssFree.get().(*ss)
+ 	if rr, ok := r.(readRuner); ok {
+ 		s.rr = rr
+ 	} else {
+@@ -333,7 +329,7 @@ func (s *ss) free() {
+ 	}
+ 	s.buf.Reset()
+ 	s.rr = nil
+-	_ = ssFree <- s
++	ssFree.put(s)
+ }
+ 
+ // skipSpace skips spaces and maybe newlines.
+diff --git a/src/pkg/net/fd.go b/src/pkg/net/fd.go
+index 896178f18e..2ba9296f31 100644
+--- a/src/pkg/net/fd.go
++++ b/src/pkg/net/fd.go
+@@ -220,11 +220,16 @@ func (s *pollServer) Run() {
+ 				nn, _ = s.pr.Read(scratch[0:])
+ 			}
+ 			// Read from channels
+-			for fd, ok := <-s.cr; ok; fd, ok = <-s.cr {
+-				s.AddFD(fd, 'r')
+-			}
+-			for fd, ok := <-s.cw; ok; fd, ok = <-s.cw {
+-				s.AddFD(fd, 'w')
++		Update:
++			for {
++				select {
++				case fd := <-s.cr:
++					s.AddFD(fd, 'r')
++				case fd := <-s.cw:
++					s.AddFD(fd, 'w')
++				default:
++					break Update
++				}
+ 			}
+ 		} else {
+ 			netfd := s.LookupFD(fd, mode)
+diff --git a/src/pkg/net/server_test.go b/src/pkg/net/server_test.go
+index 543227f7d1..3dda500e58 100644
+--- a/src/pkg/net/server_test.go
++++ b/src/pkg/net/server_test.go
+@@ -140,13 +140,16 @@ func runPacket(t *testing.T, network, addr string, listening chan<- string, done
+ 	listening <- c.LocalAddr().String()
+ 	c.SetReadTimeout(10e6) // 10ms
+ 	var buf [1000]byte
++Run:
+ 	for {
+ 		n, addr, err := c.ReadFrom(buf[0:])
+ 		if e, ok := err.(Error); ok && e.Timeout() {
+-			if done <- 1 {
+-				break
++			select {
++			case done <- 1:
++				break Run
++			default:
++				continue Run
+ 			}
+-			continue
+ 		}
+ 		if err != nil {
+ 			break
+diff --git a/src/pkg/netchan/common.go b/src/pkg/netchan/common.go
+index 56c0b25199..6c085484e5 100644
+--- a/src/pkg/netchan/common.go
++++ b/src/pkg/netchan/common.go
+@@ -256,7 +256,10 @@ func (nch *netChan) send(val reflect.Value) {
+ 		nch.sendCh = make(chan reflect.Value, nch.size)
+ 		go nch.sender()
+ 	}
+-	if ok := nch.sendCh <- val; !ok {
++	select {
++	case nch.sendCh <- val:
++		// ok
++	default:
+ 		// TODO: should this be more resilient?
+ 		panic("netchan: remote sender sent more values than allowed")
+ 	}
+@@ -318,8 +321,11 @@ func (nch *netChan) acked() {
+ 	if nch.dir != Send {
+ 		panic("recv on wrong direction of channel")
+ 	}
+-	if ok := nch.ackCh <- true; !ok {
+-		panic("netchan: remote receiver sent too many acks")
++	select {
++	case nch.ackCh <- true:
++		// ok
++	default:
+ 		// TODO: should this be more resilient?
++		panic("netchan: remote receiver sent too many acks")
+ 	}
+ }
+diff --git a/src/pkg/netchan/import.go b/src/pkg/netchan/import.go
+index a694fb41f6..d1e9bbd406 100644
+--- a/src/pkg/netchan/import.go
++++ b/src/pkg/netchan/import.go
+@@ -91,11 +91,13 @@ func (imp *Importer) run() {
+ 			}
+ 			if err.Error != "" {
+ 				impLog("response error:", err.Error)
+-				if sent := imp.errors <- os.ErrorString(err.Error); !sent {
++				select {
++				case imp.errors <- os.ErrorString(err.Error):
++					continue // errors are not acknowledged
++				default:
+ 					imp.shutdown()
+ 					return
+ 				}
+-				continue // errors are not acknowledged.
+ 			}
+ 		case payClosed:
+ 			nch := imp.getChan(hdr.Id, false)
+diff --git a/src/pkg/os/inotify/inotify_linux.go b/src/pkg/os/inotify/inotify_linux.go
+index 1e74c7fbc5..9d7a074424 100644
+--- a/src/pkg/os/inotify/inotify_linux.go
++++ b/src/pkg/os/inotify/inotify_linux.go
+@@ -153,7 +153,11 @@ func (w *Watcher) readEvents() {
+ 	for {
+ 		n, errno = syscall.Read(w.fd, buf[0:])
+ 		// See if there is a message on the "done" channel
+-		_, done := <-w.done
++		var done bool
++		select {
++		case done = <-w.done:
++		default:
++		}
+ 
+ 		// If EOF or a "done" message is received
+ 		if n == 0 || done {
+diff --git a/src/pkg/path/path_test.go b/src/pkg/path/path_test.go
+index 6b4be07a95..ab0b48ad6a 100644
+--- a/src/pkg/path/path_test.go
++++ b/src/pkg/path/path_test.go
+@@ -256,8 +256,11 @@ func TestWalk(t *testing.T) {
+ 	// 2) handle errors, expect none
+ 	errors := make(chan os.Error, 64)
+ 	Walk(tree.name, v, errors)
+-	if err, ok := <-errors; ok {
++	select {
++	case err := <-errors:
+ 		t.Errorf("no error expected, found: %s", err)
++	default:
++		// ok
+ 	}
+ 	checkMarks(t)
+ 
+@@ -276,14 +279,21 @@ func TestWalk(t *testing.T) {
+ 		errors = make(chan os.Error, 64)
+ 		os.Chmod(Join(tree.name, tree.entries[1].name), 0)
+ 		Walk(tree.name, v, errors)
++	Loop:
+ 		for i := 1; i <= 2; i++ {
+-			if _, ok := <-errors; !ok {
++			select {
++			case <-errors:
++				// ok
++			default:
+ 				t.Errorf("%d. error expected, none found", i)
+-				break
++				break Loop
+ 			}
+ 		}
+-		if err, ok := <-errors; ok {
++		select {
++		case err := <-errors:
+ 			t.Errorf("only two errors expected, found 3rd: %v", err)
++		default:
++			// ok
+ 		}
+ 		// the inaccessible subtrees were marked manually
+ 		checkMarks(t)
+diff --git a/src/pkg/rpc/client.go b/src/pkg/rpc/client.go
+index 601c49715b..6f028c10d9 100644
+--- a/src/pkg/rpc/client.go
++++ b/src/pkg/rpc/client.go
+@@ -58,7 +58,7 @@ func (client *Client) send(c *Call) {
+ 	if client.shutdown != nil {
+ 		c.Error = client.shutdown
+ 		client.mutex.Unlock()
+-		_ = c.Done <- c // do not block
++		c.done()
+ 		return
+ 	}
+ 	c.seq = client.seq
+@@ -102,16 +102,14 @@ func (client *Client) input() {
+ 			// Empty strings should turn into nil os.Errors
+ 			c.Error = nil
+ 		}
+-		// We don't want to block here.  It is the caller's responsibility to make
+-		// sure the channel has enough buffer space. See comment in Go().
+-		_ = c.Done <- c // do not block
++		c.done()
+ 	}
+ 	// Terminate pending calls.
+ 	client.mutex.Lock()
+ 	client.shutdown = err
+ 	for _, call := range client.pending {
+ 		call.Error = err
+-		_ = call.Done <- call // do not block
++		call.done()
+ 	}
+ 	client.mutex.Unlock()
+ 	if err != os.EOF || !client.closing {
+@@ -119,6 +117,16 @@ func (client *Client) input() {
+ 	}
+ }
+ 
++func (call *Call) done() {
++	select {
++	case call.Done <- call:
++		// ok
++	default:
++		// We don't want to block here.  It is the caller's responsibility to make
++		// sure the channel has enough buffer space. See comment in Go().
++	}
++}
++
+ // NewClient returns a new Client to handle requests to the
+ // set of services at the other end of the connection.
+ func NewClient(conn io.ReadWriteCloser) *Client {
+@@ -233,7 +241,7 @@ func (client *Client) Go(serviceMethod string, args interface{}, reply interface
+ 	c.Done = done
+ 	if client.shutdown != nil {
+ 		c.Error = client.shutdown
+-		_ = c.Done <- c // do not block
++		c.done()
+ 		return c
+ 	}
+ 	client.send(c)
+diff --git a/src/pkg/rpc/server_test.go b/src/pkg/rpc/server_test.go
+index 355d51ce46..67b8762fa5 100644
+--- a/src/pkg/rpc/server_test.go
++++ b/src/pkg/rpc/server_test.go
+@@ -364,14 +364,12 @@ func TestSendDeadlock(t *testing.T) {
+ 		testSendDeadlock(client)
+ 		done <- true
+ 	}()
+-	for i := 0; i < 50; i++ {
+-		time.Sleep(100 * 1e6)
+-		_, ok := <-done
+-		if ok {
+-			return
+-		}
++	select {
++	case <-done:
++		return
++	case <-time.After(5e9):
++		t.Fatal("deadlock")
+ 	}
+-	t.Fatal("deadlock")
+ }
+ 
+ func testSendDeadlock(client *Client) {
+diff --git a/src/pkg/time/sleep_test.go b/src/pkg/time/sleep_test.go
+index 4007db561a..8bf599c3e1 100644
+--- a/src/pkg/time/sleep_test.go
++++ b/src/pkg/time/sleep_test.go
+@@ -120,10 +120,12 @@ func TestAfterStop(t *testing.T) {
+ 		t.Fatalf("failed to stop event 1")
+ 	}
+ 	<-c2
+-	_, ok0 := <-t0.C
+-	_, ok1 := <-c1
+-	if ok0 || ok1 {
+-		t.Fatalf("events were not stopped")
++	select {
++	case <-t0.C:
++		t.Fatalf("event 0 was not stopped")
++	case <-c1:
++		t.Fatalf("event 1 was not stopped")
++	default:
+ 	}
+ 	if t1.Stop() {
+ 		t.Fatalf("Stop returned true twice")
+diff --git a/src/pkg/time/tick.go b/src/pkg/time/tick.go
+index ddd7272702..6c21bf19b9 100644
+--- a/src/pkg/time/tick.go
++++ b/src/pkg/time/tick.go
+@@ -22,8 +22,12 @@ type Ticker struct {
+ 
+ // Stop turns off a ticker.  After Stop, no more ticks will be sent.
+ func (t *Ticker) Stop() {
+-	// Make it non-blocking so multiple Stops don't block.
+-	_ = t.shutdown <- true
++	select {
++	case t.shutdown <- true:
++		// ok
++	default:
++		// Stop in progress already
++	}
+ }
+ 
+ // Tick is a convenience wrapper for NewTicker providing access to the ticking
+@@ -106,7 +110,8 @@ func tickerLoop() {
+ 			// that need it and determining the next wake time.
+ 			// TODO(r): list should be sorted in time order.
+ 			for t := tickers; t != nil; t = t.next {
+-				if _, ok := <-t.shutdown; ok {
++				select {
++				case <-t.shutdown:
+ 					// Ticker is done; remove it from list.
+ 					if prev == nil {
+ 						tickers = t.next
+@@ -114,6 +119,7 @@ func tickerLoop() {
+ 						prev.next = t.next
+ 					}
+ 					continue
++				default:
+ 				}
+ 				if t.nextTick <= now {
+ 					if len(t.c) == 0 {
+diff --git a/src/pkg/time/tick_test.go b/src/pkg/time/tick_test.go
+index f2304a14e3..4dcb63956b 100644
+--- a/src/pkg/time/tick_test.go
++++ b/src/pkg/time/tick_test.go
+@@ -29,9 +29,11 @@ func TestTicker(t *testing.T) {
+ 	}
+ 	// Now test that the ticker stopped
+ 	Sleep(2 * Delta)
+-	_, received := <-ticker.C
+-	if received {
++	select {
++	case <-ticker.C:
+ 		t.Fatal("Ticker did not shut down")
++	default:
++		// ok
+ 	}
+ }
+ 
+diff --git a/test/chan/nonblock.go b/test/chan/nonblock.go
+index 52f04bfb12..33afb32916 100644
+--- a/test/chan/nonblock.go
++++ b/test/chan/nonblock.go
+@@ -76,7 +76,6 @@ func main() {
+ 	var i64 int64
+ 	var b bool
+ 	var s string
+-	var ok bool
+ 
+ 	var sync = make(chan bool)
+ 
+@@ -86,35 +85,45 @@ func main() {
+ 		cb := make(chan bool, buffer)
+ 		cs := make(chan string, buffer)
+ 
+-		i32, ok = <-c32
+-		if ok {
++		select {
++		case i32 = <-c32:
+ 			panic("blocked i32sender")
++		default:
+ 		}
+ 
+-		i64, ok = <-c64
+-		if ok {
++		select {
++		case i64 = <-c64:
+ 			panic("blocked i64sender")
++		default:
+ 		}
+ 
+-		b, ok = <-cb
+-		if ok {
++		select {
++		case b = <-cb:
+ 			panic("blocked bsender")
++		default:
+ 		}
+ 
+-		s, ok = <-cs
+-		if ok {
++		select {
++		case s = <-cs:
+ 			panic("blocked ssender")
++		default:
+ 		}
+ 
+ 		go i32receiver(c32, sync)
+ 		try := 0
+-		for !(c32 <- 123) {
+-			try++
+-			if try > maxTries {
+-				println("i32receiver buffer=", buffer)
+-				panic("fail")
++	Send32:
++		for {
++			select {
++			case c32 <- 123:
++				break Send32
++			default:
++				try++
++				if try > maxTries {
++					println("i32receiver buffer=", buffer)
++					panic("fail")
++				}
++				sleep()
+ 			}
+-			sleep()
+ 		}
+ 		<-sync
+ 
+@@ -123,13 +132,19 @@ func main() {
+ 			<-sync
+ 		}
+ 		try = 0
+-		for i32, ok = <-c32; !ok; i32, ok = <-c32 {
+-			try++
+-			if try > maxTries {
+-				println("i32sender buffer=", buffer)
+-				panic("fail")
++	Recv32:
++		for {
++			select {
++			case i32 = <-c32:
++				break Recv32
++			default:
++				try++
++				if try > maxTries {
++					println("i32sender buffer=", buffer)
++					panic("fail")
++				}
++				sleep()
+ 			}
+-			sleep()
+ 		}
+ 		if i32 != 234 {
+ 			panic("i32sender value")
+@@ -140,12 +155,18 @@ func main() {
+ 
+ 		go i64receiver(c64, sync)
+ 		try = 0
+-		for !(c64 <- 123456) {
+-			try++
+-			if try > maxTries {
+-				panic("i64receiver")
++	Send64:
++		for {
++			select {
++			case c64 <- 123456:
++				break Send64
++			default:
++				try++
++				if try > maxTries {
++					panic("i64receiver")
++				}
++				sleep()
+ 			}
+-			sleep()
+ 		}
+ 		<-sync
+ 
+@@ -154,12 +175,18 @@ func main() {
+ 			<-sync
+ 		}
+ 		try = 0
+-		for i64, ok = <-c64; !ok; i64, ok = <-c64 {
+-			try++
+-			if try > maxTries {
+-				panic("i64sender")
++	Recv64:
++		for {
++			select {
++			case i64 = <-c64:
++				break Recv64
++			default:
++				try++
++				if try > maxTries {
++					panic("i64sender")
++				}
++				sleep()
+ 			}
+-			sleep()
+ 		}
+ 		if i64 != 234567 {
+ 			panic("i64sender value")
+@@ -170,12 +197,18 @@ func main() {
+ 
+ 		go breceiver(cb, sync)
+ 		try = 0
+-		for !(cb <- true) {
+-			try++
+-			if try > maxTries {
+-				panic("breceiver")
++	SendBool:
++		for {
++			select {
++			case cb <- true:
++				break SendBool
++			default:
++				try++
++				if try > maxTries {
++					panic("breceiver")
++				}
++				sleep()
+ 			}
+-			sleep()
+ 		}
+ 		<-sync
+ 
+@@ -184,12 +217,18 @@ func main() {
+ 			<-sync
+ 		}
+ 		try = 0
+-		for b, ok = <-cb; !ok; b, ok = <-cb {
+-			try++
+-			if try > maxTries {
+-				panic("bsender")
++	RecvBool:
++		for {
++			select {
++			case b = <-cb:
++				break RecvBool
++			default:
++				try++
++				if try > maxTries {
++					panic("bsender")
++				}
++				sleep()
+ 			}
+-			sleep()
+ 		}
+ 		if !b {
+ 			panic("bsender value")
+@@ -200,12 +239,18 @@ func main() {
+ 
+ 		go sreceiver(cs, sync)
+ 		try = 0
+-		for !(cs <- "hello") {
+-			try++
+-			if try > maxTries {
+-				panic("sreceiver")
++	SendString:
++		for {
++			select {
++			case cs <- "hello":
++				break SendString
++			default:
++				try++
++				if try > maxTries {
++					panic("sreceiver")
++				}
++				sleep()
+ 			}
+-			sleep()
+ 		}
+ 		<-sync
+ 
+@@ -214,12 +259,18 @@ func main() {
+ 			<-sync
+ 		}
+ 		try = 0
+-		for s, ok = <-cs; !ok; s, ok = <-cs {
+-			try++
+-			if try > maxTries {
+-				panic("ssender")
++	RecvString:
++		for {
++			select {
++			case s = <-cs:
++				break RecvString
++			default:
++				try++
++				if try > maxTries {
++					panic("ssender")
++				}
++				sleep()
+ 			}
+-			sleep()
+ 		}
+ 		if s != "hello again" {
+ 			panic("ssender value")
+diff --git a/test/chan/perm.go b/test/chan/perm.go
+index d08c035193..c725829d13 100644
+--- a/test/chan/perm.go
++++ b/test/chan/perm.go
+@@ -9,49 +9,46 @@ package main
+ var (
+ 	cr <-chan int
+ 	cs chan<- int
+-	c chan int
++	c  chan int
+ )
+ 
+ func main() {
+-	cr = c		// ok
+-	cs = c		// ok
+-	c = cr		// ERROR "illegal types|incompatible|cannot"
+-	c = cs		// ERROR "illegal types|incompatible|cannot"
+-	cr = cs	// ERROR "illegal types|incompatible|cannot"
+-	cs = cr	// ERROR "illegal types|incompatible|cannot"
+-
+-	c <- 0		// ok
+-	ok := c <- 0	// ok
+-	_ = ok
+-	<-c		// ok
+-	x, ok := <-c	// ok
+-	_, _ = x, ok
+-
+-	cr <- 0	// ERROR "send"
+-	ok = cr <- 0	// ERROR "send"
+-	_ = ok
+-	<-cr		// ok
+-	x, ok = <-cr	// ok
+-	_, _ = x, ok
+-
+-	cs <- 0	// ok
+-	ok = cs <- 0	// ok
+-	_ = ok
+-	<-cs		// ERROR "receive"
+-	x, ok = <-cs	// ERROR "receive"
+-	_, _ = x, ok
++	cr = c  // ok
++	cs = c  // ok
++	c = cr  // ERROR "illegal types|incompatible|cannot"
++	c = cs  // ERROR "illegal types|incompatible|cannot"
++	cr = cs // ERROR "illegal types|incompatible|cannot"
++	cs = cr // ERROR "illegal types|incompatible|cannot"
++
++	c <- 0 // ok
++	<-c    // ok
++	//TODO(rsc): uncomment when this syntax is valid for receive+check closed
++	//	x, ok := <-c	// ok
++	//	_, _ = x, ok
++
++	cr <- 0 // ERROR "send"
++	<-cr    // ok
++	//TODO(rsc): uncomment when this syntax is valid for receive+check closed
++	//	x, ok = <-cr	// ok
++	//	_, _ = x, ok
++
++	cs <- 0 // ok
++	<-cs    // ERROR "receive"
++	////TODO(rsc): uncomment when this syntax is valid for receive+check closed
++	////	x, ok = <-cs	// ERROR "receive"
++	////	_, _ = x, ok
+ 
+ 	select {
+-	case c <- 0:	// ok
+-	case x := <-c:	// ok
++	case c <- 0: // ok
++	case x := <-c: // ok
+ 		_ = x
+ 
+-	case cr <- 0:	// ERROR "send"
+-	case x := <-cr:	// ok
++	case cr <- 0: // ERROR "send"
++	case x := <-cr: // ok
+ 		_ = x
+ 
+-	case cs <- 0:	// ok
+-	case x := <-cs:	// ERROR "receive"
++	case cs <- 0: // ok
++	case x := <-cs: // ERROR "receive"
+ 		_ = x
+ 	}
+ }
+diff --git a/test/closedchan.go b/test/closedchan.go
+index 8126d5a4e4..46d9d0f5d2 100644
+--- a/test/closedchan.go
++++ b/test/closedchan.go
+@@ -21,14 +21,21 @@ type Chan interface {
+ 	Impl() string
+ }
+ 
+-// direct channel operations
++// direct channel operations when possible
+ type XChan chan int
++
+ func (c XChan) Send(x int) {
+ 	c <- x
+ }
+ 
+ func (c XChan) Nbsend(x int) bool {
+-	return c <- x
++	select {
++	case c <- x:
++		return true
++	default:
++		return false
++	}
++	panic("nbsend")
+ }
+ 
+ func (c XChan) Recv() int {
+@@ -36,8 +43,13 @@ func (c XChan) Recv() int {
+ }
+ 
+ func (c XChan) Nbrecv() (int, bool) {
+-	x, ok := <-c
+-	return x, ok
++	select {
++	case x := <-c:
++		return x, true
++	default:
++		return 0, false
++	}
++	panic("nbrecv")
+ }
+ 
+ func (c XChan) Close() {
+@@ -54,6 +66,7 @@ func (c XChan) Impl() string {
+ 
+ // indirect operations via select
+ type SChan chan int
++
+ func (c SChan) Send(x int) {
+ 	select {
+ 	case c <- x:
+@@ -62,10 +75,10 @@ func (c SChan) Send(x int) {
+ 
+ func (c SChan) Nbsend(x int) bool {
+ 	select {
+-	case c <- x:
+-		return true
+ 	default:
+ 		return false
++	case c <- x:
++		return true
+ 	}
+ 	panic("nbsend")
+ }
+@@ -80,10 +93,10 @@ func (c SChan) Recv() int {
+ 
+ func (c SChan) Nbrecv() (int, bool) {
+ 	select {
+-	case x := <-c:
+-		return x, true
+ 	default:
+ 		return 0, false
++	case x := <-c:
++		return x, true
+ 	}
+ 	panic("nbrecv")
+ }
+@@ -100,6 +113,62 @@ func (c SChan) Impl() string {
+ 	return "(select)"
+ }
+ 
++// indirect operations via larger selects
++var dummy = make(chan bool)
++
++type SSChan chan int
++
++func (c SSChan) Send(x int) {
++	select {
++	case c <- x:
++	case <-dummy:
++	}
++}
++
++func (c SSChan) Nbsend(x int) bool {
++	select {
++	default:
++		return false
++	case <-dummy:
++	case c <- x:
++		return true
++	}
++	panic("nbsend")
++}
++
++func (c SSChan) Recv() int {
++	select {
++	case <-dummy:
++	case x := <-c:
++		return x
++	}
++	panic("recv")
++}
++
++func (c SSChan) Nbrecv() (int, bool) {
++	select {
++	case <-dummy:
++	default:
++		return 0, false
++	case x := <-c:
++		return x, true
++	}
++	panic("nbrecv")
++}
++
++func (c SSChan) Close() {
++	close(c)
++}
++
++func (c SSChan) Closed() bool {
++	return closed(c)
++}
++
++func (c SSChan) Impl() string {
++	return "(select)"
++}
++
++
+ func shouldPanic(f func()) {
+ 	defer func() {
+ 		if recover() == nil {
+@@ -137,7 +206,7 @@ func test1(c Chan) {
+ 	}
+ 
+ 	// send should work with ,ok too: sent a value without blocking, so ok == true.
+-	shouldPanic(func(){c.Nbsend(1)})
++	shouldPanic(func() { c.Nbsend(1) })
+ 
+ 	// the value should have been discarded.
+ 	if x := c.Recv(); x != 0 {
+@@ -145,7 +214,7 @@ func test1(c Chan) {
+ 	}
+ 
+ 	// similarly Send.
+-	shouldPanic(func(){c.Send(2)})
++	shouldPanic(func() { c.Send(2) })
+ 	if x := c.Recv(); x != 0 {
+ 		println("test1: recv on closed got non-zero after send on closed:", x, c.Impl())
+ 	}
+@@ -195,9 +264,12 @@ func closedasync() chan int {
+ func main() {
+ 	test1(XChan(closedsync()))
+ 	test1(SChan(closedsync()))
++	test1(SSChan(closedsync()))
+ 
+ 	testasync1(XChan(closedasync()))
+ 	testasync1(SChan(closedasync()))
++	testasync1(SSChan(closedasync()))
+ 	testasync2(XChan(closedasync()))
+ 	testasync2(SChan(closedasync()))
++	testasync2(SSChan(closedasync()))
+ }
+diff --git a/test/errchk b/test/errchk
+index b0edd7a6b0..fbb021ce41 100755
+--- a/test/errchk
++++ b/test/errchk
+@@ -73,6 +73,7 @@ sub chk {
+ 	my @match;
+ 	foreach my $src (@{$src{$file}}) {
+ 		$line++;
++		next if $src =~ m|////|;  # double comment disables ERROR
+ 		next unless $src =~ m|// (GC_)?ERROR (.*)|;
+ 		$regexp = $2;
+ 		if($regexp !~ /^"([^"]*)"/) {
+diff --git a/test/fixedbugs/bug016.go b/test/fixedbugs/bug016.go
+index 461bcf82ac..1cdd8df084 100644
+--- a/test/fixedbugs/bug016.go
++++ b/test/fixedbugs/bug016.go
+@@ -1,4 +1,4 @@
+-// ! $G $D/$F.go
++// errchk $G -e $D/$F.go
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+@@ -7,8 +7,8 @@
+ package main
+ 
+ func main() {
+-	var i int = 100;
+-	i = i << -3;  // BUG: should not compile (negative shift)
++	var i int = 100
++	i = i << -3 // ERROR "overflows"
+ }
+ 
+ /*
+diff --git a/test/fixedbugs/bug069.go b/test/fixedbugs/bug069.go
+index d6796cd72b..bf73163134 100644
+--- a/test/fixedbugs/bug069.go
++++ b/test/fixedbugs/bug069.go
+@@ -6,15 +6,16 @@
+ 
+ package main
+ 
+-func main(){
+-	c := make(chan int);
+-	ok := false;
+-	var i int;
+-
+-	i, ok = <-c;  // works
+-	_, _ = i, ok;
+-
+-	ca := new([2]chan int);
+-	i, ok = <-(ca[0]);  // fails: c.go:11: bad shape across assignment - cr=1 cl=2
+-	_, _ = i, ok;
++func main() {
++	//TODO(rsc): uncomment when this syntax is valid for receive+check closed
++	//	c := make(chan int);
++	//	ok := false;
++	//	var i int;
++	//
++	//	i, ok = <-c;  // works
++	//	_, _ = i, ok;
++	//
++	//	ca := new([2]chan int);
++	//	i, ok = <-(ca[0]);  // fails: c.go:11: bad shape across assignment - cr=1 cl=2
++	//	_, _ = i, ok;
+ }
+diff --git a/test/fixedbugs/bug081.go b/test/fixedbugs/bug081.go
+index ccb3699534..8d3d538c8f 100644
+--- a/test/fixedbugs/bug081.go
++++ b/test/fixedbugs/bug081.go
+@@ -1,12 +1,12 @@
+-// ! $G $D/$F.go
++// errchk $G $D/$F.go
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package main	
+- 	
+-const x x = 2;
++package main
++
++const x x = 2 // ERROR "loop"
+ 
+ /*
+ bug081.go:3: first constant must evaluate an expression
+diff --git a/test/fixedbugs/bug196.go b/test/fixedbugs/bug196.go
+index ea8ab0dc19..8cb9c9990d 100644
+--- a/test/fixedbugs/bug196.go
++++ b/test/fixedbugs/bug196.go
+@@ -13,11 +13,12 @@ var i int
+ func multi() (int, int) { return 1, 2 }
+ 
+ func xxx() {
+-	var c chan int
+-	x, ok := <-c
++	//TODO(rsc): uncomment when this syntax is valid for receive+check closed
++	//	var c chan int
++	//	x, ok := <-c
+ 
+ 	var m map[int]int
+-	x, ok = m[1]
++	x, ok := m[1]
+ 
+ 	var i interface{}
+ 	var xx int
+diff --git a/test/fixedbugs/bug234.go b/test/fixedbugs/bug234.go
+index b806ca64e9..9affad0430 100644
+--- a/test/fixedbugs/bug234.go
++++ b/test/fixedbugs/bug234.go
+@@ -7,16 +7,17 @@
+ package main
+ 
+ func main() {
+-	c := make(chan int, 1)
+-	c <- 100
+-	x, ok := <-c
+-	if x != 100 || !ok {
+-		println("x=", x, " ok=", ok, " want 100, true")
+-		panic("fail")
+-	}
+-	x, ok = <-c
+-	if x != 0 || ok {
+-		println("x=", x, " ok=", ok, " want 0, false")
+-		panic("fail")
+-	}
++	//TODO(rsc): uncomment when this syntax is valid for receive+check closed
++	//	c := make(chan int, 1)
++	//	c <- 100
++	//	x, ok := <-c
++	//	if x != 100 || !ok {
++	//		println("x=", x, " ok=", ok, " want 100, true")
++	//		panic("fail")
++	//	}
++	//	x, ok = <-c
++	//	if x != 0 || ok {
++	//		println("x=", x, " ok=", ok, " want 0, false")
++	//		panic("fail")
++	//	}
+ }
+diff --git a/test/fixedbugs/bug242.go b/test/fixedbugs/bug242.go
+index 5c21eaaf00..ad1cef8df4 100644
+--- a/test/fixedbugs/bug242.go
++++ b/test/fixedbugs/bug242.go
+@@ -101,10 +101,13 @@ func main() {
+ 
+ 	c := make(chan byte, 1)
+ 	c <- 'C'
++	//TODO(rsc): uncomment when this syntax is valid for receive+check closed
+ 	// 15          16
+-	*f(), p1 = <-e1(c, 16)
++	//	*f(), p1 = <-e1(c, 16)
++	*f(), p1 = <-e1(c, 16), true // delete uncommenting above
+ 	// 17          18
+-	*f(), p2 = <-e1(c, 18)
++	//	*f(), p2 = <-e1(c, 18)
++	*f(), p2, _ = 0, false, e1(c, 18) // delete when uncommenting above
+ 	a[17] += '0'
+ 	if !p1 || p2 {
+ 		println("bad chan check", i, p1, p2)
+diff --git a/test/golden.out b/test/golden.out
+index 83e8327a51..425771b4af 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -123,9 +123,6 @@ panic: interface conversion: *main.S is not main.I2: missing method Name
+ 
+ == fixedbugs/
+ 
+-=========== fixedbugs/bug016.go
+-fixedbugs/bug016.go:11: constant -3 overflows uint
+-
+ =========== fixedbugs/bug027.go
+ hi
+ 0 44444
+@@ -148,9 +145,6 @@ inner loop top i 0
+ do break
+ broke
+ 
+-=========== fixedbugs/bug081.go
+-fixedbugs/bug081.go:9: typechecking loop
+-
+ =========== fixedbugs/bug093.go
+ M
+ 
+diff --git a/test/named1.go b/test/named1.go
+index 600e502f9e..1776313f05 100644
+--- a/test/named1.go
++++ b/test/named1.go
+@@ -43,12 +43,9 @@ func main() {
+ 	_, b = m[2] // ERROR "cannot .* bool.*type Bool"
+ 	m[2] = 1, b // ERROR "cannot use.*type Bool.*as type bool"
+ 
+-	b = c <- 1 // ERROR "cannot use.*type bool.*type Bool"
+-	_ = b
+-	asBool(c <- 1) // ERROR "cannot use.*type bool.*as type Bool"
+-
+-	_, b = <-c // ERROR "cannot .* bool.*type Bool"
+-	_ = b
++	////TODO(rsc): uncomment when this syntax is valid for receive+check closed
++	////	_, b = <-c // ERROR "cannot .* bool.*type Bool"
++	////	_ = b
+ 
+ 	var inter interface{}
+ 	_, b = inter.(Map) // ERROR "cannot .* bool.*type Bool"

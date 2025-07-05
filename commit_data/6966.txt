@@ -11,7 +11,120 @@ Date:   Wed Dec 15 09:47:13 2010 -0500
     R=rsc, r, iant
     CC=golang-dev
     https://golang.org/cl/3619042
-
+---
  test/bench/timing.log | 10 +++++-----
  test/bench/timing.sh  | 24 ++++++++++++++++--------
  2 files changed, 21 insertions(+), 13 deletions(-)
+
+diff --git a/test/bench/timing.log b/test/bench/timing.log
+index ebc11e5985..030949bee5 100644
+--- a/test/bench/timing.log
++++ b/test/bench/timing.log
+@@ -90,7 +90,7 @@ mandelbrot 5500
+ 	gc mandelbrot	74.32u 0.00s 74.35r
+ 	gc_B mandelbrot	74.28u 0.01s 74.31r
+ 
+-meteor 16000
++meteor 2100
+ 	# we don't know
+ 	gcc -O2 meteor-contest.c	0.10u 0.00s 0.10r
+ 	gccgo -O2 meteor-contest.go	0.12u 0.00s 0.14r
+@@ -209,7 +209,7 @@ mandelbrot 16000
+ 	gc mandelbrot	64.05u 0.02s 64.08r	# *** -14%
+ 	gc_B mandelbrot	64.10u 0.02s 64.14r	# *** -14%
+ 
+-meteor 16000
++meteor 2100
+ 	# we don't know
+ 	gcc -O2 meteor-contest.c	0.10u 0.00s 0.10r
+ 	gccgo -O2 meteor-contest.go	0.12u 0.00s 0.12r
+@@ -307,7 +307,7 @@ mandelbrot 16000
+ 	gc mandelbrot	63.31u 0.01s 63.35r	# -1%
+ 	gc_B mandelbrot	63.29u 0.00s 63.31r	# -1%
+ 
+-meteor 16000
++meteor 2100
+ 	# we don't know
+ 	gcc -O2 meteor-contest.c	0.10u 0.00s 0.10r
+ 	gccgo -O2 meteor-contest.go	0.11u 0.00s 0.12r
+@@ -477,7 +477,7 @@ mandelbrot 16000
+ 	gc mandelbrot	66.05u 0.00s 66.07r	# -3%
+ 	gc_B mandelbrot	66.06u 0.00s 66.07r	# -3%
+ 
+-meteor 16000
++meteor 2100
+ 	gcc -O2 meteor-contest.c	0.10u 0.00s 0.10r
+ 	gccgo -O2 meteor-contest.go	0.12u 0.00s 0.12r
+ 	gc meteor-contest	0.17u 0.00s 0.17r
+@@ -561,7 +561,7 @@ mandelbrot 16000
+ 	gc mandelbrot	64.85u 0.01s 64.94r
+ 	gc_B mandelbrot	65.02u 0.01s 65.14r
+ 
+-meteor 16000
++meteor 2100
+ 	gcc -O2 meteor-contest.c	0.10u 0.00s 0.10r
+ 	gccgo -O2 meteor-contest.go	0.10u 0.00s 0.11r
+ 	gc meteor-contest	0.17u 0.00s 0.18r
+diff --git a/test/bench/timing.sh b/test/bench/timing.sh
+index f94dc88df3..fec39182ca 100755
+--- a/test/bench/timing.sh
++++ b/test/bench/timing.sh
+@@ -8,6 +8,12 @@ set -e
+ eval $(gomake --no-print-directory -f ../../src/Make.inc go-env)
+ PATH=.:$PATH
+ 
++havegccgo=false
++if which gccgo >/dev/null 2>&1
++then
++	havegccgo=true
++fi
++
+ mode=run
+ case X"$1" in
+ X-test)
+@@ -30,8 +36,6 @@ runonly() {
+ 	fi
+ }
+ 
+-
+-
+ run() {
+ 	if [ $mode = test ]
+ 	then
+@@ -57,6 +61,10 @@ run() {
+ 		fi
+ 		return
+ 	fi
++	if ! $havegccgo && echo $1 | grep -q '^gccgo '
++	then
++		return
++	fi
+ 	echo -n '	'$1'	'
+ 	$1
+ 	shift
+@@ -85,7 +93,7 @@ revcomp() {
+ 
+ nbody() {
+ 	runonly echo 'nbody -n 50000000'
+-	run 'gcc -O2 nbody.c' a.out 50000000
++	run 'gcc -O2 -lm nbody.c' a.out 50000000
+ 	run 'gccgo -O2 nbody.go' a.out -n 50000000
+ 	run 'gc nbody' $O.out -n 50000000
+ 	run 'gc_B nbody' $O.out -n 50000000
+@@ -152,11 +160,11 @@ mandelbrot() {
+ }
+ 
+ meteor() {
+-	runonly echo 'meteor 16000'
+-	run 'gcc -O2 meteor-contest.c' a.out
+-	run 'gccgo -O2 meteor-contest.go' a.out
+-	run 'gc meteor-contest' $O.out
+-	run 'gc_B  meteor-contest' $O.out
++	runonly echo 'meteor 2098'
++	run 'gcc -O2 meteor-contest.c' a.out 2098
++	run 'gccgo -O2 meteor-contest.go' a.out -n 2098
++	run 'gc meteor-contest' $O.out -n 2098
++	run 'gc_B  meteor-contest' $O.out -n 2098
+ }
+ 
+ pidigits() {

@@ -13,7 +13,62 @@ Date:   Tue Feb 27 14:02:09 2018 -0800
     Change-Id: Id428dbb295ce9f11ab7cd54ec5ab51ef4291ac3f
     Reviewed-on: https://go-review.googlesource.com/97535
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/go/types/testdata/issues.src | 11 +++++++++++
  src/go/types/typexpr.go          | 15 +++++++++++++--
  2 files changed, 24 insertions(+), 2 deletions(-)
+
+diff --git a/src/go/types/testdata/issues.src b/src/go/types/testdata/issues.src
+index a346ab169a..4ecec508db 100644
+--- a/src/go/types/testdata/issues.src
++++ b/src/go/types/testdata/issues.src
+@@ -229,3 +229,14 @@ func issue24026() {
+ }
+ 
+ func f(int) {} // for issue24026
++
++// Test that we don't report a "missing return statement" error
++// (due to incorrect context when type-checking interfaces).
++func issue24140(x interface{}) int {
++        switch x.(type) {
++        case interface{}:
++                return 0
++        default:
++                panic(0)
++        }
++}
+diff --git a/src/go/types/typexpr.go b/src/go/types/typexpr.go
+index 1a82b613cb..7ba5fd4389 100644
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@ -480,10 +480,12 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
+ 
+ 	// collect embedded interfaces
+ 	// Only needed for printing and API. Delay collection
+-	// to end of type-checking when all types are complete.
++	// to end of type-checking (for package-global interfaces)
++	// when all types are complete. Local interfaces are handled
++	// after each statement (as each statement processes delayed
++	// functions).
+ 	interfaceContext := check.context // capture for use in closure below
+ 	check.later(func() {
+-		check.context = interfaceContext
+ 		if trace {
+ 			check.trace(iface.Pos(), "-- delayed checking embedded interfaces of %s", iface)
+ 			check.indent++
+@@ -491,6 +493,15 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
+ 				check.indent--
+ 			}()
+ 		}
++
++		// The context must be restored since for local interfaces
++		// delayed functions are processed after each statement
++		// (was issue #24140).
++		defer func(ctxt context) {
++			check.context = ctxt
++		}(check.context)
++		check.context = interfaceContext
++
+ 		for _, f := range iface.Methods.List {
+ 			if len(f.Names) == 0 {
+ 				typ := check.typ(f.Type)

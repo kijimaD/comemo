@@ -17,7 +17,7 @@ Date:   Wed Sep 13 12:02:52 2023 -0400
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Bryan Mills <bcmills@google.com>
-
+---
  src/os/exec/exec.go            | 31 +-------------------------
  src/os/exec/lp_plan9.go        |  6 ++++++
  src/os/exec/lp_unix.go         |  6 ++++++
@@ -25,3 +25,212 @@ Date:   Wed Sep 13 12:02:52 2023 -0400
  src/os/exec/lp_windows.go      | 49 ++++++++++++++++++++++++++++++++++++++++++
  src/os/exec/lp_windows_test.go | 25 ++++++++++++---------
  6 files changed, 83 insertions(+), 40 deletions(-)
+
+diff --git a/src/os/exec/exec.go b/src/os/exec/exec.go
+index ea520f872a..c88ee7f52c 100644
+--- a/src/os/exec/exec.go
++++ b/src/os/exec/exec.go
+@@ -429,9 +429,6 @@ func Command(name string, arg ...string) *Cmd {
+ 	} else if runtime.GOOS == "windows" && filepath.IsAbs(name) {
+ 		// We may need to add a filename extension from PATHEXT
+ 		// or verify an extension that is already present.
+-		// (We need to do this even for names that already have an extension
+-		// in case of weird names like "foo.bat.exe".)
+-		//
+ 		// Since the path is absolute, its extension should be unambiguous
+ 		// and independent of cmd.Dir, and we can go ahead and update cmd.Path to
+ 		// reflect it.
+@@ -439,7 +436,7 @@ func Command(name string, arg ...string) *Cmd {
+ 		// Note that we cannot add an extension here for relative paths, because
+ 		// cmd.Dir may be set after we return from this function and that may cause
+ 		// the command to resolve to a different extension.
+-		lp, err := LookPath(name)
++		lp, err := lookExtensions(name, "")
+ 		if lp != "" {
+ 			cmd.Path = lp
+ 		}
+@@ -610,32 +607,6 @@ func (c *Cmd) Run() error {
+ 	return c.Wait()
+ }
+ 
+-// lookExtensions finds windows executable by its dir and path.
+-// It uses LookPath to try appropriate extensions.
+-// lookExtensions does not search PATH, instead it converts `prog` into `.\prog`.
+-func lookExtensions(path, dir string) (string, error) {
+-	if filepath.Base(path) == path {
+-		path = "." + string(filepath.Separator) + path
+-	}
+-	if dir == "" {
+-		return LookPath(path)
+-	}
+-	if filepath.VolumeName(path) != "" {
+-		return LookPath(path)
+-	}
+-	if len(path) > 1 && os.IsPathSeparator(path[0]) {
+-		return LookPath(path)
+-	}
+-	dirandpath := filepath.Join(dir, path)
+-	// We assume that LookPath will only add file extension.
+-	lp, err := LookPath(dirandpath)
+-	if err != nil {
+-		return "", err
+-	}
+-	ext := strings.TrimPrefix(lp, dirandpath)
+-	return path + ext, nil
+-}
+-
+ // Start starts the specified command but does not wait for it to complete.
+ //
+ // If Start returns successfully, the c.Process field will be set.
+diff --git a/src/os/exec/lp_plan9.go b/src/os/exec/lp_plan9.go
+index 9344b14e8c..dffdbac35f 100644
+--- a/src/os/exec/lp_plan9.go
++++ b/src/os/exec/lp_plan9.go
+@@ -64,3 +64,9 @@ func LookPath(file string) (string, error) {
+ 	}
+ 	return "", &Error{file, ErrNotFound}
+ }
++
++// lookExtensions is a no-op on non-Windows platforms, since
++// they do not restrict executables to specific extensions.
++func lookExtensions(path, dir string) (string, error) {
++	return path, nil
++}
+diff --git a/src/os/exec/lp_unix.go b/src/os/exec/lp_unix.go
+index fd2c6efbef..3787132078 100644
+--- a/src/os/exec/lp_unix.go
++++ b/src/os/exec/lp_unix.go
+@@ -80,3 +80,9 @@ func LookPath(file string) (string, error) {
+ 	}
+ 	return "", &Error{file, ErrNotFound}
+ }
++
++// lookExtensions is a no-op on non-Windows platforms, since
++// they do not restrict executables to specific extensions.
++func lookExtensions(path, dir string) (string, error) {
++	return path, nil
++}
+diff --git a/src/os/exec/lp_wasm.go b/src/os/exec/lp_wasm.go
+index f2c8e9c5de..3c819049ba 100644
+--- a/src/os/exec/lp_wasm.go
++++ b/src/os/exec/lp_wasm.go
+@@ -21,3 +21,9 @@ func LookPath(file string) (string, error) {
+ 	// Wasm can not execute processes, so act as if there are no executables at all.
+ 	return "", &Error{file, ErrNotFound}
+ }
++
++// lookExtensions is a no-op on non-Windows platforms, since
++// they do not restrict executables to specific extensions.
++func lookExtensions(path, dir string) (string, error) {
++	return path, nil
++}
+diff --git a/src/os/exec/lp_windows.go b/src/os/exec/lp_windows.go
+index ea83c19acd..698a97c40f 100644
+--- a/src/os/exec/lp_windows.go
++++ b/src/os/exec/lp_windows.go
+@@ -68,6 +68,51 @@ func findExecutable(file string, exts []string) (string, error) {
+ // As of Go 1.19, LookPath will instead return that path along with an error satisfying
+ // errors.Is(err, ErrDot). See the package documentation for more details.
+ func LookPath(file string) (string, error) {
++	return lookPath(file, pathExt())
++}
++
++// lookExtensions finds windows executable by its dir and path.
++// It uses LookPath to try appropriate extensions.
++// lookExtensions does not search PATH, instead it converts `prog` into `.\prog`.
++//
++// If the path already has an extension found in PATHEXT,
++// lookExtensions returns it directly without searching
++// for additional extensions. For example,
++// "C:\foo\example.com" would be returned as-is even if the
++// program is actually "C:\foo\example.com.exe".
++func lookExtensions(path, dir string) (string, error) {
++	if filepath.Base(path) == path {
++		path = "." + string(filepath.Separator) + path
++	}
++	exts := pathExt()
++	if ext := filepath.Ext(path); ext != "" {
++		for _, e := range exts {
++			if strings.EqualFold(ext, e) {
++				// Assume that path has already been resolved.
++				return path, nil
++			}
++		}
++	}
++	if dir == "" {
++		return lookPath(path, exts)
++	}
++	if filepath.VolumeName(path) != "" {
++		return lookPath(path, exts)
++	}
++	if len(path) > 1 && os.IsPathSeparator(path[0]) {
++		return lookPath(path, exts)
++	}
++	dirandpath := filepath.Join(dir, path)
++	// We assume that LookPath will only add file extension.
++	lp, err := lookPath(dirandpath, exts)
++	if err != nil {
++		return "", err
++	}
++	ext := strings.TrimPrefix(lp, dirandpath)
++	return path + ext, nil
++}
++
++func pathExt() []string {
+ 	var exts []string
+ 	x := os.Getenv(`PATHEXT`)
+ 	if x != "" {
+@@ -83,7 +128,11 @@ func LookPath(file string) (string, error) {
+ 	} else {
+ 		exts = []string{".com", ".exe", ".bat", ".cmd"}
+ 	}
++	return exts
++}
+ 
++// lookPath implements LookPath for the given PATHEXT list.
++func lookPath(file string, exts []string) (string, error) {
+ 	if strings.ContainsAny(file, `:\/`) {
+ 		f, err := findExecutable(file, exts)
+ 		if err == nil {
+diff --git a/src/os/exec/lp_windows_test.go b/src/os/exec/lp_windows_test.go
+index 0d5095e534..a92a29799f 100644
+--- a/src/os/exec/lp_windows_test.go
++++ b/src/os/exec/lp_windows_test.go
+@@ -611,22 +611,27 @@ func TestCommand(t *testing.T) {
+ func TestAbsCommandWithDoubledExtension(t *testing.T) {
+ 	t.Parallel()
+ 
++	// We expect that ".com" is always included in PATHEXT, but it may also be
++	// found in the import path of a Go package. If it is at the root of the
++	// import path, the resulting executable may be named like "example.com.exe".
++	//
++	// Since "example.com" looks like a proper executable name, it is probably ok
++	// for exec.Command to try to run it directly without re-resolving it.
++	// However, exec.LookPath should try a little harder to figure it out.
++
+ 	comPath := filepath.Join(t.TempDir(), "example.com")
+ 	batPath := comPath + ".bat"
+ 	installBat(t, batPath)
+ 
+ 	cmd := exec.Command(comPath)
+ 	out, err := cmd.CombinedOutput()
+-	t.Logf("%v:\n%s", cmd, out)
+-	if err == nil {
+-		got := strings.TrimSpace(string(out))
+-		if got != batPath {
+-			t.Errorf("wanted output %#q", batPath)
+-		}
+-	} else {
+-		t.Errorf("%v: %v", cmd, err)
++	t.Logf("%v: %v\n%s", cmd, err, out)
++	if !errors.Is(err, fs.ErrNotExist) {
++		t.Errorf("Command(%#q).Run: %v\nwant fs.ErrNotExist", comPath, err)
+ 	}
+-	if cmd.Path != batPath {
+-		t.Errorf("exec.Command(%#q).Path =\n     %#q\nwant %#q", comPath, cmd.Path, batPath)
++
++	resolved, err := exec.LookPath(comPath)
++	if err != nil || resolved != batPath {
++		t.Fatalf("LookPath(%#q) = %v, %v; want %#q, <nil>", comPath, resolved, err, batPath)
+ 	}
+ }

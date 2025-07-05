@@ -13,6 +13,20 @@ Date:   Sat Jul 11 16:30:24 2015 +0200
     Change-Id: I5517a9cb6b190f0b1ee314a67487477435f3b409
     Reviewed-on: https://go-review.googlesource.com/12034
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/ssa/func.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/func.go b/src/cmd/compile/internal/ssa/func.go
+index bd2b74c151..34d2780104 100644
+--- a/src/cmd/compile/internal/ssa/func.go
++++ b/src/cmd/compile/internal/ssa/func.go
+@@ -48,7 +48,7 @@ func (bp *blockPool) newBlock() *Block {
+ 	bp.mu.Lock()
+ 	defer bp.mu.Unlock()
+ 
+-	if len(bp.blocks) <= 0 {
++	if len(bp.blocks) == 0 {
+ 		bp.blocks = make([]Block, blockSize, blockSize)
+ 	}
+ 

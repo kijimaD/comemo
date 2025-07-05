@@ -13,6 +13,20 @@ Date:   Mon Oct 16 08:55:11 2023 +0000
     Reviewed-by: Than McIntosh <thanm@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/internal/nettrace/nettrace.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/internal/nettrace/nettrace.go b/src/internal/nettrace/nettrace.go
+index 0a2bf925e9..7d46268a1c 100644
+--- a/src/internal/nettrace/nettrace.go
++++ b/src/internal/nettrace/nettrace.go
+@@ -39,7 +39,7 @@ type Trace struct {
+ 	// goroutines.
+ 	ConnectStart func(network, addr string)
+ 
+-	// ConnectStart is called after a Dial with the results, excluding
++	// ConnectDone is called after a Dial with the results, excluding
+ 	// Dials made during DNS lookups. It may also be called multiple
+ 	// times, like ConnectStart.
+ 	ConnectDone func(network, addr string, err error)

@@ -15,7 +15,7 @@ Date:   Fri Apr 1 11:22:03 2016 -0700
     Reviewed-on: https://go-review.googlesource.com/21420
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/alg.go       | 117 ++++++++++++++++++-------------
  src/cmd/compile/internal/gc/reflect.go   |   4 +-
  src/cmd/compile/internal/gc/subr.go      |  21 ++----
@@ -23,3 +23,441 @@ Date:   Fri Apr 1 11:22:03 2016 -0700
  src/cmd/compile/internal/gc/typecheck.go |  17 ++---
  src/cmd/compile/internal/gc/walk.go      |  35 +++++----
  6 files changed, 110 insertions(+), 97 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/alg.go b/src/cmd/compile/internal/gc/alg.go
+index de26237b32..43876d8bef 100644
+--- a/src/cmd/compile/internal/gc/alg.go
++++ b/src/cmd/compile/internal/gc/alg.go
+@@ -6,9 +6,13 @@ package gc
+ 
+ import "fmt"
+ 
++// AlgKind describes the kind of algorithms used for comparing and
++// hashing a Type.
++type AlgKind int
++
+ const (
+ 	// These values are known by runtime.
+-	ANOEQ = iota
++	ANOEQ AlgKind = iota
+ 	AMEM0
+ 	AMEM8
+ 	AMEM16
+@@ -22,11 +26,40 @@ const (
+ 	AFLOAT64
+ 	ACPLX64
+ 	ACPLX128
+-	AMEM = 100
++
++	// Type can be compared/hashed as regular memory.
++	AMEM AlgKind = 100
++
++	// Type needs special comparison/hashing functions.
++	ASPECIAL AlgKind = -1
+ )
+ 
+-func algtype(t *Type) int {
+-	a := algtype1(t, nil)
++// IsComparable reports whether t is a comparable type.
++func (t *Type) IsComparable() bool {
++	a, _ := algtype1(t)
++	return a != ANOEQ
++}
++
++// IsRegularMemory reports whether t can be compared/hashed as regular memory.
++func (t *Type) IsRegularMemory() bool {
++	a, _ := algtype1(t)
++	return a == AMEM
++}
++
++// IncomparableField returns an incomparable Field of struct Type t, if any.
++func (t *Type) IncomparableField() *Field {
++	for _, f := range t.FieldSlice() {
++		if !f.Type.IsComparable() {
++			return f
++		}
++	}
++	return nil
++}
++
++// algtype is like algtype1, except it returns the fixed-width AMEMxx variants
++// instead of the general AMEM kind when possible.
++func algtype(t *Type) AlgKind {
++	a, _ := algtype1(t)
+ 	if a == AMEM {
+ 		switch t.Width {
+ 		case 0:
+@@ -47,115 +80,105 @@ func algtype(t *Type) int {
+ 	return a
+ }
+ 
+-func algtype1(t *Type, bad **Type) int {
+-	if bad != nil {
+-		*bad = nil
+-	}
++// algtype1 returns the AlgKind used for comparing and hashing Type t.
++// If it returns ANOEQ, it also returns the component type of t that
++// makes it incomparable.
++func algtype1(t *Type) (AlgKind, *Type) {
+ 	if t.Broke {
+-		return AMEM
++		return AMEM, nil
+ 	}
+ 	if t.Noalg {
+-		return ANOEQ
++		return ANOEQ, t
+ 	}
+ 
+ 	switch t.Etype {
+ 	case TANY, TFORW:
+ 		// will be defined later.
+-		*bad = t
+-		return -1
++		return ANOEQ, t
+ 
+ 	case TINT8, TUINT8, TINT16, TUINT16,
+ 		TINT32, TUINT32, TINT64, TUINT64,
+ 		TINT, TUINT, TUINTPTR,
+ 		TBOOL, TPTR32, TPTR64,
+ 		TCHAN, TUNSAFEPTR:
+-		return AMEM
++		return AMEM, nil
+ 
+ 	case TFUNC, TMAP:
+-		if bad != nil {
+-			*bad = t
+-		}
+-		return ANOEQ
++		return ANOEQ, t
+ 
+ 	case TFLOAT32:
+-		return AFLOAT32
++		return AFLOAT32, nil
+ 
+ 	case TFLOAT64:
+-		return AFLOAT64
++		return AFLOAT64, nil
+ 
+ 	case TCOMPLEX64:
+-		return ACPLX64
++		return ACPLX64, nil
+ 
+ 	case TCOMPLEX128:
+-		return ACPLX128
++		return ACPLX128, nil
+ 
+ 	case TSTRING:
+-		return ASTRING
++		return ASTRING, nil
+ 
+ 	case TINTER:
+ 		if isnilinter(t) {
+-			return ANILINTER
++			return ANILINTER, nil
+ 		}
+-		return AINTER
++		return AINTER, nil
+ 
+ 	case TARRAY:
+ 		if t.IsSlice() {
+-			if bad != nil {
+-				*bad = t
+-			}
+-			return ANOEQ
++			return ANOEQ, t
+ 		}
+ 
+-		a := algtype1(t.Elem(), bad)
++		a, bad := algtype1(t.Elem())
+ 		switch a {
+ 		case AMEM:
+-			return AMEM
++			return AMEM, nil
+ 		case ANOEQ:
+-			if bad != nil {
+-				*bad = t
+-			}
+-			return ANOEQ
++			return ANOEQ, bad
+ 		}
+ 
+ 		switch t.Bound {
+ 		case 0:
+ 			// We checked above that the element type is comparable.
+-			return AMEM
++			return AMEM, nil
+ 		case 1:
+ 			// Single-element array is same as its lone element.
+-			return a
++			return a, nil
+ 		}
+ 
+-		return -1 // needs special compare
++		return ASPECIAL, nil
+ 
+ 	case TSTRUCT:
+ 		fields := t.FieldSlice()
+ 
+ 		// One-field struct is same as that one field alone.
+ 		if len(fields) == 1 && !isblanksym(fields[0].Sym) {
+-			return algtype1(fields[0].Type, bad)
++			return algtype1(fields[0].Type)
+ 		}
+ 
+ 		ret := AMEM
+ 		for i, f := range fields {
+ 			// All fields must be comparable.
+-			a := algtype1(f.Type, bad)
++			a, bad := algtype1(f.Type)
+ 			if a == ANOEQ {
+-				return ANOEQ
++				return ANOEQ, bad
+ 			}
+ 
+ 			// Blank fields, padded fields, fields with non-memory
+ 			// equality need special compare.
+ 			if a != AMEM || isblanksym(f.Sym) || ispaddedfield(t, i) {
+-				ret = -1
++				ret = ASPECIAL
+ 			}
+ 		}
+ 
+-		return ret
++		return ret, nil
+ 	}
+ 
+ 	Fatalf("algtype1: unexpected type %v", t)
+-	return 0
++	return 0, nil
+ }
+ 
+ // Generate a helper function to compute the hash of a value of type t.
+@@ -239,7 +262,7 @@ func genhash(sym *Sym, t *Type) {
+ 			}
+ 
+ 			// Hash non-memory fields with appropriate hash function.
+-			if algtype1(f.Type, nil) != AMEM {
++			if !f.Type.IsRegularMemory() {
+ 				hashel := hashfor(f.Type)
+ 				call := Nod(OCALL, hashel, nil)
+ 				nx := NodSym(OXDOT, np, f.Sym) // TODO: fields from other packages?
+@@ -304,7 +327,7 @@ func genhash(sym *Sym, t *Type) {
+ func hashfor(t *Type) *Node {
+ 	var sym *Sym
+ 
+-	switch algtype1(t, nil) {
++	switch a, _ := algtype1(t); a {
+ 	case AMEM:
+ 		Fatalf("hashfor with AMEM type")
+ 	case AINTER:
+@@ -435,7 +458,7 @@ func geneq(sym *Sym, t *Type) {
+ 			}
+ 
+ 			// Compare non-memory fields with field equality.
+-			if algtype1(f.Type, nil) != AMEM {
++			if !f.Type.IsRegularMemory() {
+ 				and(eqfield(np, nq, f.Sym))
+ 				i++
+ 				continue
+@@ -560,7 +583,7 @@ func memrun(t *Type, start int) (size int64, next int) {
+ 			break
+ 		}
+ 		// Also, stop before a blank or non-memory field.
+-		if f := t.Field(next); isblanksym(f.Sym) || algtype1(f.Type, nil) != AMEM {
++		if f := t.Field(next); isblanksym(f.Sym) || !f.Type.IsRegularMemory() {
+ 			break
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index a2fdf0449b..a5c85eb98e 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -786,7 +786,7 @@ func dcommontype(s *Sym, ot int, t *Type) int {
+ 	dowidth(t)
+ 	alg := algtype(t)
+ 	var algsym *Sym
+-	if alg < 0 || alg == AMEM {
++	if alg == ASPECIAL || alg == AMEM {
+ 		algsym = dalgsym(t)
+ 	}
+ 
+@@ -854,7 +854,7 @@ func dcommontype(s *Sym, ot int, t *Type) int {
+ 	}
+ 	ot = duint8(s, ot, uint8(i)) // kind
+ 	if algsym == nil {
+-		ot = dsymptr(s, ot, dcommontype_algarray, alg*sizeofAlg)
++		ot = dsymptr(s, ot, dcommontype_algarray, int(alg)*sizeofAlg)
+ 	} else {
+ 		ot = dsymptr(s, ot, algsym, 0)
+ 	}
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index c40cda0aee..b4acb5b1af 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -374,24 +374,15 @@ func saveorignode(n *Node) {
+ 
+ // checkMapKeyType checks that Type key is valid for use as a map key.
+ func checkMapKeyType(key *Type) {
+-	var bad *Type
+-	atype := algtype1(key, &bad)
+-	var mtype EType
+-	if bad == nil {
+-		mtype = key.Etype
+-	} else {
+-		mtype = bad.Etype
++	alg, bad := algtype1(key)
++	if alg != ANOEQ {
++		return
+ 	}
+-	switch mtype {
++	switch bad.Etype {
+ 	default:
+-		if atype == ANOEQ {
+-			Yyerror("invalid map key type %v", key)
+-		}
+-
++		Yyerror("invalid map key type %v", key)
+ 	case TANY:
+-		// will be resolved later.
+-		break
+-
++		// Will be resolved later.
+ 	case TFORW:
+ 		// map[key] used during definition of key.
+ 		// postpone check until key is fully defined.
+diff --git a/src/cmd/compile/internal/gc/swt.go b/src/cmd/compile/internal/gc/swt.go
+index ae8af76517..996bd69113 100644
+--- a/src/cmd/compile/internal/gc/swt.go
++++ b/src/cmd/compile/internal/gc/swt.go
+@@ -83,16 +83,17 @@ func typecheckswitch(n *Node) {
+ 			t = Types[TBOOL]
+ 		}
+ 		if t != nil {
+-			var badtype *Type
+ 			switch {
+ 			case !okforeq[t.Etype]:
+ 				Yyerror("cannot switch on %v", Nconv(n.Left, FmtLong))
+-			case t.Etype == TARRAY && !t.IsArray():
++			case t.IsSlice():
+ 				nilonly = "slice"
+-			case t.Etype == TARRAY && t.IsArray() && algtype1(t, nil) == ANOEQ:
++			case t.IsArray() && !t.IsComparable():
+ 				Yyerror("cannot switch on %v", Nconv(n.Left, FmtLong))
+-			case t.IsStruct() && algtype1(t, &badtype) == ANOEQ:
+-				Yyerror("cannot switch on %v (struct containing %v cannot be compared)", Nconv(n.Left, FmtLong), badtype)
++			case t.IsStruct():
++				if f := t.IncomparableField(); f != nil {
++					Yyerror("cannot switch on %v (struct containing %v cannot be compared)", Nconv(n.Left, FmtLong), f.Type)
++				}
+ 			case t.Etype == TFUNC:
+ 				nilonly = "func"
+ 			case t.IsMap():
+@@ -139,7 +140,7 @@ func typecheckswitch(n *Node) {
+ 						}
+ 					case nilonly != "" && !isnil(n1):
+ 						Yyerror("invalid case %v in switch (can only compare %s %v to nil)", n1, nilonly, n.Left)
+-					case t.IsInterface() && !n1.Type.IsInterface() && algtype1(n1.Type, nil) == ANOEQ:
++					case t.IsInterface() && !n1.Type.IsInterface() && !n1.Type.IsComparable():
+ 						Yyerror("invalid case %v in switch (incomparable type)", Nconv(n1, FmtLong))
+ 					}
+ 
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index f0b0f080ff..68e29b620a 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -596,7 +596,7 @@ OpSwitch:
+ 			if r.Type.Etype != TBLANK {
+ 				aop = assignop(l.Type, r.Type, nil)
+ 				if aop != 0 {
+-					if r.Type.IsInterface() && !l.Type.IsInterface() && algtype1(l.Type, nil) == ANOEQ {
++					if r.Type.IsInterface() && !l.Type.IsInterface() && !l.Type.IsComparable() {
+ 						Yyerror("invalid operation: %v (operator %v not defined on %s)", n, Oconv(op, 0), typekind(l.Type))
+ 						n.Type = nil
+ 						return n
+@@ -618,7 +618,7 @@ OpSwitch:
+ 			if l.Type.Etype != TBLANK {
+ 				aop = assignop(r.Type, l.Type, nil)
+ 				if aop != 0 {
+-					if l.Type.IsInterface() && !r.Type.IsInterface() && algtype1(r.Type, nil) == ANOEQ {
++					if l.Type.IsInterface() && !r.Type.IsInterface() && !r.Type.IsComparable() {
+ 						Yyerror("invalid operation: %v (operator %v not defined on %s)", n, Oconv(op, 0), typekind(r.Type))
+ 						n.Type = nil
+ 						return n
+@@ -657,7 +657,7 @@ OpSwitch:
+ 
+ 		// okfor allows any array == array, map == map, func == func.
+ 		// restrict to slice/map/func == nil and nil == slice/map/func.
+-		if l.Type.IsArray() && algtype1(l.Type, nil) == ANOEQ {
++		if l.Type.IsArray() && !l.Type.IsComparable() {
+ 			Yyerror("invalid operation: %v (%v cannot be compared)", n, l.Type)
+ 			n.Type = nil
+ 			return n
+@@ -681,11 +681,12 @@ OpSwitch:
+ 			return n
+ 		}
+ 
+-		var badtype *Type
+-		if l.Type.IsStruct() && algtype1(l.Type, &badtype) == ANOEQ {
+-			Yyerror("invalid operation: %v (struct containing %v cannot be compared)", n, badtype)
+-			n.Type = nil
+-			return n
++		if l.Type.IsStruct() {
++			if f := l.Type.IncomparableField(); f != nil {
++				Yyerror("invalid operation: %v (struct containing %v cannot be compared)", n, f.Type)
++				n.Type = nil
++				return n
++			}
+ 		}
+ 
+ 		t = l.Type
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index a3e8a044d0..931017148b 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -3020,30 +3020,27 @@ func eqfor(t *Type, needsize *int) *Node {
+ 	// a struct/array containing a non-memory field/element.
+ 	// Small memory is handled inline, and single non-memory
+ 	// is handled during type check (OCMPSTR etc).
+-	a := algtype1(t, nil)
+-
+-	if a != AMEM && a != -1 {
+-		Fatalf("eqfor %v", t)
+-	}
+-
+-	if a == AMEM {
++	switch a, _ := algtype1(t); a {
++	case AMEM:
+ 		n := syslook("memequal")
+ 		n = substArgTypes(n, t, t)
+ 		*needsize = 1
+ 		return n
++	case ASPECIAL:
++		sym := typesymprefix(".eq", t)
++		n := newname(sym)
++		n.Class = PFUNC
++		ntype := Nod(OTFUNC, nil, nil)
++		ntype.List.Append(Nod(ODCLFIELD, nil, typenod(Ptrto(t))))
++		ntype.List.Append(Nod(ODCLFIELD, nil, typenod(Ptrto(t))))
++		ntype.Rlist.Append(Nod(ODCLFIELD, nil, typenod(Types[TBOOL])))
++		ntype = typecheck(ntype, Etype)
++		n.Type = ntype.Type
++		*needsize = 0
++		return n
+ 	}
+-
+-	sym := typesymprefix(".eq", t)
+-	n := newname(sym)
+-	n.Class = PFUNC
+-	ntype := Nod(OTFUNC, nil, nil)
+-	ntype.List.Append(Nod(ODCLFIELD, nil, typenod(Ptrto(t))))
+-	ntype.List.Append(Nod(ODCLFIELD, nil, typenod(Ptrto(t))))
+-	ntype.Rlist.Append(Nod(ODCLFIELD, nil, typenod(Types[TBOOL])))
+-	ntype = typecheck(ntype, Etype)
+-	n.Type = ntype.Type
+-	*needsize = 0
+-	return n
++	Fatalf("eqfor %v", t)
++	return nil
+ }
+ 
+ // The result of walkcompare MUST be assigned back to n, e.g.

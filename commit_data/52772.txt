@@ -14,6 +14,21 @@ Date:   Thu May 26 19:38:02 2022 +0800
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Alex Rakoczy <alex@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/internal/cpu/cpu_loong64.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/internal/cpu/cpu_loong64.go b/src/internal/cpu/cpu_loong64.go
+index d8403d731a..1c90c24fe3 100644
+--- a/src/internal/cpu/cpu_loong64.go
++++ b/src/internal/cpu/cpu_loong64.go
+@@ -6,6 +6,8 @@
+ 
+ package cpu
+ 
+-const CacheLinePadSize = 32
++// CacheLinePadSize is used to prevent false sharing of cache lines.
++// We choose 64 because Loongson 3A5000 the L1 Dcache is 4-way 256-line 64-byte-per-line.
++const CacheLinePadSize = 64
+ 
+ func doinit() {}

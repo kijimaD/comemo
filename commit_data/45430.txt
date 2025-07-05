@@ -19,6 +19,31 @@ Date:   Fri Oct 23 16:33:38 2020 -0700
     Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/syscall/syscall_linux_test.go | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/syscall/syscall_linux_test.go b/src/syscall/syscall_linux_test.go
+index d196534c64..0742ef5b07 100644
+--- a/src/syscall/syscall_linux_test.go
++++ b/src/syscall/syscall_linux_test.go
+@@ -410,6 +410,9 @@ const (
+ // syscalls that execute on all OSThreads - with which to support
+ // POSIX semantics for security state changes.
+ func TestAllThreadsSyscall(t *testing.T) {
++	if runtime.GOARCH == "ppc64" {
++		t.Skip("skipping on linux/ppc64; see issue #42178")
++	}
+ 	if _, _, err := syscall.AllThreadsSyscall(syscall.SYS_PRCTL, PR_SET_KEEPCAPS, 0, 0); err == syscall.ENOTSUP {
+ 		t.Skip("AllThreadsSyscall disabled with cgo")
+ 	}
+@@ -577,6 +580,9 @@ func compareStatus(filter, expect string) error {
+ // the syscalls. Care should be taken to mirror any enhancements to
+ // this test here in that file too.
+ func TestSetuidEtc(t *testing.T) {
++	if runtime.GOARCH == "ppc64" {
++		t.Skip("skipping on linux/ppc64; see issue #42178")
++	}
+ 	if syscall.Getuid() != 0 {
+ 		t.Skip("skipping root only test")
+ 	}

@@ -13,7 +13,7 @@ Date:   Fri May 5 14:17:38 2023 +0000
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Chressie Himpel <chressie@google.com>
-
+---
  misc/cgo/test/cgo_test.go                  |   7 +-
  misc/cgo/test/cthread_unix.c               |  24 ------
  misc/cgo/test/cthread_windows.c            |  22 ------
@@ -61,3 +61,1917 @@ Date:   Fri May 5 14:17:38 2023 +0000
  src/runtime/testdata/testprogcgo/bindm.c   |  34 ---------
  src/runtime/testdata/testprogcgo/bindm.go  |  61 ---------------
  46 files changed, 67 insertions(+), 1012 deletions(-)
+
+diff --git a/misc/cgo/test/cgo_test.go b/misc/cgo/test/cgo_test.go
+index 0c3980c12d..5b298954f5 100644
+--- a/misc/cgo/test/cgo_test.go
++++ b/misc/cgo/test/cgo_test.go
+@@ -104,7 +104,6 @@ func TestThreadLock(t *testing.T)            { testThreadLockFunc(t) }
+ func TestUnsignedInt(t *testing.T)           { testUnsignedInt(t) }
+ func TestZeroArgCallback(t *testing.T)       { testZeroArgCallback(t) }
+ 
+-func BenchmarkCgoCall(b *testing.B)      { benchCgoCall(b) }
+-func BenchmarkGoString(b *testing.B)     { benchGoString(b) }
+-func BenchmarkCGoCallback(b *testing.B)  { benchCallback(b) }
+-func BenchmarkCGoInCThread(b *testing.B) { benchCGoInCthread(b) }
++func BenchmarkCgoCall(b *testing.B)     { benchCgoCall(b) }
++func BenchmarkGoString(b *testing.B)    { benchGoString(b) }
++func BenchmarkCGoCallback(b *testing.B) { benchCallback(b) }
+diff --git a/misc/cgo/test/cthread_unix.c b/misc/cgo/test/cthread_unix.c
+index d0da643158..b6ec39816b 100644
+--- a/misc/cgo/test/cthread_unix.c
++++ b/misc/cgo/test/cthread_unix.c
+@@ -32,27 +32,3 @@ doAdd(int max, int nthread)
+ 	for(i=0; i<nthread; i++)
+ 		pthread_join(thread_id[i], 0);		
+ }
+-
+-static void*
+-goDummyCallbackThread(void* p)
+-{
+-	int i, max;
+-
+-	max = *(int*)p;
+-	for(i=0; i<max; i++)
+-		goDummy();
+-	return NULL;
+-}
+-
+-int
+-callGoInCThread(int max)
+-{
+-	pthread_t thread;
+-
+-	if (pthread_create(&thread, NULL, goDummyCallbackThread, (void*)(&max)) != 0)
+-		return -1;
+-	if (pthread_join(thread, NULL) != 0)
+-		return -1;
+-
+-	return max;
+-}
+diff --git a/misc/cgo/test/cthread_windows.c b/misc/cgo/test/cthread_windows.c
+index 4e52209dee..3a62ddd373 100644
+--- a/misc/cgo/test/cthread_windows.c
++++ b/misc/cgo/test/cthread_windows.c
+@@ -35,25 +35,3 @@ doAdd(int max, int nthread)
+ 		CloseHandle((HANDLE)thread_id[i]);
+ 	}
+ }
+-
+-__stdcall
+-static unsigned int
+-goDummyCallbackThread(void* p)
+-{
+-	int i, max;
+-
+-	max = *(int*)p;
+-	for(i=0; i<max; i++)
+-		goDummy();
+-	return 0;
+-}
+-
+-int
+-callGoInCThread(int max)
+-{
+-	uintptr_t thread_id;
+-	thread_id = _beginthreadex(0, 0, goDummyCallbackThread, &max, 0, 0);
+-	WaitForSingleObject((HANDLE)thread_id, INFINITE);
+-	CloseHandle((HANDLE)thread_id);
+-	return max;
+-}
+diff --git a/misc/cgo/test/testx.go b/misc/cgo/test/testx.go
+index 0e2a51a522..6a8e97ddf3 100644
+--- a/misc/cgo/test/testx.go
++++ b/misc/cgo/test/testx.go
+@@ -24,7 +24,6 @@ import (
+ /*
+ // threads
+ extern void doAdd(int, int);
+-extern int callGoInCThread(int);
+ 
+ // issue 1328
+ void IntoC(void);
+@@ -147,10 +146,6 @@ func Add(x int) {
+ 	*p = 2
+ }
+ 
+-//export goDummy
+-func goDummy() {
+-}
+-
+ func testCthread(t *testing.T) {
+ 	if (runtime.GOOS == "darwin" || runtime.GOOS == "ios") && runtime.GOARCH == "arm64" {
+ 		t.Skip("the iOS exec wrapper is unable to properly handle the panic from Add")
+@@ -164,15 +159,6 @@ func testCthread(t *testing.T) {
+ 	}
+ }
+ 
+-// Benchmark measuring overhead from C to Go in a C thread.
+-// Create a new C thread and invoke Go function repeatedly in the new C thread.
+-func benchCGoInCthread(b *testing.B) {
+-	n := C.callGoInCThread(C.int(b.N))
+-	if int(n) != b.N {
+-		b.Fatal("unmatch loop times")
+-	}
+-}
+-
+ // issue 1328
+ 
+ //export BackIntoGo
+diff --git a/misc/cgo/testcarchive/carchive_test.go b/misc/cgo/testcarchive/carchive_test.go
+index 5996268018..8a39c24a6d 100644
+--- a/misc/cgo/testcarchive/carchive_test.go
++++ b/misc/cgo/testcarchive/carchive_test.go
+@@ -1247,57 +1247,3 @@ func TestPreemption(t *testing.T) {
+ 		t.Error(err)
+ 	}
+ }
+-
+-// Issue 59294. Test calling Go function from C after using some
+-// stack space.
+-func TestDeepStack(t *testing.T) {
+-	t.Parallel()
+-
+-	if !testWork {
+-		defer func() {
+-			os.Remove("testp9" + exeSuffix)
+-			os.Remove("libgo9.a")
+-			os.Remove("libgo9.h")
+-		}()
+-	}
+-
+-	cmd := exec.Command("go", "build", "-buildmode=c-archive", "-o", "libgo9.a", "./libgo9")
+-	out, err := cmd.CombinedOutput()
+-	t.Logf("%v\n%s", cmd.Args, out)
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	checkLineComments(t, "libgo9.h")
+-	checkArchive(t, "libgo9.a")
+-
+-	// build with -O0 so the C compiler won't optimize out the large stack frame
+-	ccArgs := append(cc, "-O0", "-o", "testp9"+exeSuffix, "main9.c", "libgo9.a")
+-	out, err = exec.Command(ccArgs[0], ccArgs[1:]...).CombinedOutput()
+-	t.Logf("%v\n%s", ccArgs, out)
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-
+-	argv := cmdToRun("./testp9")
+-	cmd = exec.Command(argv[0], argv[1:]...)
+-	sb := new(strings.Builder)
+-	cmd.Stdout = sb
+-	cmd.Stderr = sb
+-	if err := cmd.Start(); err != nil {
+-		t.Fatal(err)
+-	}
+-
+-	timer := time.AfterFunc(time.Minute,
+-		func() {
+-			t.Error("test program timed out")
+-			cmd.Process.Kill()
+-		},
+-	)
+-	defer timer.Stop()
+-
+-	err = cmd.Wait()
+-	t.Logf("%v\n%s", cmd.Args, sb)
+-	if err != nil {
+-		t.Error(err)
+-	}
+-}
+diff --git a/misc/cgo/testcarchive/testdata/libgo9/a.go b/misc/cgo/testcarchive/testdata/libgo9/a.go
+deleted file mode 100644
+index acb08d90ec..0000000000
+--- a/misc/cgo/testcarchive/testdata/libgo9/a.go
++++ /dev/null
+@@ -1,14 +0,0 @@
+-// Copyright 2023 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-import "runtime"
+-
+-import "C"
+-
+-func main() {}
+-
+-//export GoF
+-func GoF() { runtime.GC() }
+diff --git a/misc/cgo/testcarchive/testdata/main9.c b/misc/cgo/testcarchive/testdata/main9.c
+deleted file mode 100644
+index 95ad4dea49..0000000000
+--- a/misc/cgo/testcarchive/testdata/main9.c
++++ /dev/null
+@@ -1,24 +0,0 @@
+-// Copyright 2023 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "libgo9.h"
+-
+-void use(int *x) { (*x)++; }
+-
+-void callGoFWithDeepStack() {
+-	int x[10000];
+-
+-	use(&x[0]);
+-	use(&x[9999]);
+-
+-	GoF();
+-
+-	use(&x[0]);
+-	use(&x[9999]);
+-}
+-
+-int main() {
+-	GoF();                  // call GoF without using much stack
+-	callGoFWithDeepStack(); // call GoF with a deep stack
+-}
+diff --git a/misc/cgo/testsanitizers/testdata/tsan14.go b/misc/cgo/testsanitizers/testdata/tsan14.go
+deleted file mode 100644
+index d594ffb5c0..0000000000
+--- a/misc/cgo/testsanitizers/testdata/tsan14.go
++++ /dev/null
+@@ -1,53 +0,0 @@
+-// Copyright 2023 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-// This program failed when run under the C/C++ ThreadSanitizer.
+-//
+-// cgocallback on a new thread calls into runtime.needm -> _cgo_getstackbound
+-// to update gp.stack.lo with the stack bounds. If the G itself is passed to
+-// _cgo_getstackbound, then writes to the same G can be seen on multiple
+-// threads (when the G is reused after thread exit). This would trigger TSAN.
+-
+-/*
+-#include <pthread.h>
+-
+-void go_callback();
+-
+-static void *thr(void *arg) {
+-    go_callback();
+-    return 0;
+-}
+-
+-static void foo() {
+-    pthread_t th;
+-    pthread_attr_t attr;
+-    pthread_attr_init(&attr);
+-    pthread_attr_setstacksize(&attr, 256 << 10);
+-    pthread_create(&th, &attr, thr, 0);
+-    pthread_join(th, 0);
+-}
+-*/
+-import "C"
+-
+-import (
+-	"time"
+-)
+-
+-//export go_callback
+-func go_callback() {
+-}
+-
+-func main() {
+-	for i := 0; i < 2; i++ {
+-		go func() {
+-			for {
+-				C.foo()
+-			}
+-		}()
+-	}
+-
+-	time.Sleep(1000*time.Millisecond)
+-}
+diff --git a/misc/cgo/testsanitizers/tsan_test.go b/misc/cgo/testsanitizers/tsan_test.go
+index dffed96373..f65d842363 100644
+--- a/misc/cgo/testsanitizers/tsan_test.go
++++ b/misc/cgo/testsanitizers/tsan_test.go
+@@ -47,7 +47,6 @@ func TestTSAN(t *testing.T) {
+ 		{src: "tsan11.go", needsRuntime: true},
+ 		{src: "tsan12.go", needsRuntime: true},
+ 		{src: "tsan13.go", needsRuntime: true},
+-		{src: "tsan14.go", needsRuntime: true},
+ 	}
+ 	for _, tc := range cases {
+ 		tc := tc
+diff --git a/src/runtime/asm_386.s b/src/runtime/asm_386.s
+index 5fd0ab9817..febe27089f 100644
+--- a/src/runtime/asm_386.s
++++ b/src/runtime/asm_386.s
+@@ -689,20 +689,7 @@ nosave:
+ TEXT ·cgocallback(SB),NOSPLIT,$12-12  // Frame size must match commented places below
+ 	NO_LOCAL_POINTERS
+ 
+-	// Skip cgocallbackg, just dropm when fn is nil, and frame is the saved g.
+-	// It is used to dropm while thread is exiting.
+-	MOVL	fn+0(FP), AX
+-	CMPL	AX, $0
+-	JNE	loadg
+-	// Restore the g from frame.
+-	get_tls(CX)
+-	MOVL	frame+4(FP), BX
+-	MOVL	BX, g(CX)
+-	JMP	dropm
+-
+-loadg:
+-	// If g is nil, Go did not create the current thread,
+-	// or if this thread never called into Go on pthread platforms.
++	// If g is nil, Go did not create the current thread.
+ 	// Call needm to obtain one for temporary use.
+ 	// In this case, we're running on the thread stack, so there's
+ 	// lots of space, but the linker doesn't know. Hide the call from
+@@ -720,9 +707,9 @@ loadg:
+ 	MOVL	BP, savedm-4(SP) // saved copy of oldm
+ 	JMP	havem
+ needm:
+-	MOVL	$runtime·needAndBindM(SB), AX
++	MOVL	$runtime·needm(SB), AX
+ 	CALL	AX
+-	MOVL	$0, savedm-4(SP)
++	MOVL	$0, savedm-4(SP) // dropm on return
+ 	get_tls(CX)
+ 	MOVL	g(CX), BP
+ 	MOVL	g_m(BP), BP
+@@ -797,29 +784,13 @@ havem:
+ 	MOVL	0(SP), AX
+ 	MOVL	AX, (g_sched+gobuf_sp)(SI)
+ 
+-	// If the m on entry was nil, we called needm above to borrow an m,
+-	// 1. for the duration of the call on non-pthread platforms,
+-	// 2. or the duration of the C thread alive on pthread platforms.
+-	// If the m on entry wasn't nil,
+-	// 1. the thread might be a Go thread,
+-	// 2. or it's wasn't the first call from a C thread on pthread platforms,
+-	//    since the we skip dropm to resue the m in the first call.
++	// If the m on entry was nil, we called needm above to borrow an m
++	// for the duration of the call. Since the call is over, return it with dropm.
+ 	MOVL	savedm-4(SP), DX
+ 	CMPL	DX, $0
+-	JNE	droppedm
+-
+-	// Skip dropm to reuse it in the next call, when a pthread key has been created.
+-	MOVL	_cgo_pthread_key_created(SB), DX
+-	// It means cgo is disabled when _cgo_pthread_key_created is a nil pointer, need dropm.
+-	CMPL	DX, $0
+-	JEQ	dropm
+-	CMPL	(DX), $0
+-	JNE	droppedm
+-
+-dropm:
++	JNE 3(PC)
+ 	MOVL	$runtime·dropm(SB), AX
+ 	CALL	AX
+-droppedm:
+ 
+ 	// Done!
+ 	RET
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index 7fe8528d19..7fb1ae2cff 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -918,20 +918,7 @@ GLOBL zeroTLS<>(SB),RODATA,$const_tlsSize
+ TEXT ·cgocallback(SB),NOSPLIT,$24-24
+ 	NO_LOCAL_POINTERS
+ 
+-	// Skip cgocallbackg, just dropm when fn is nil, and frame is the saved g.
+-	// It is used to dropm while thread is exiting.
+-	MOVQ	fn+0(FP), AX
+-	CMPQ	AX, $0
+-	JNE	loadg
+-	// Restore the g from frame.
+-	get_tls(CX)
+-	MOVQ	frame+8(FP), BX
+-	MOVQ	BX, g(CX)
+-	JMP	dropm
+-
+-loadg:
+-	// If g is nil, Go did not create the current thread,
+-	// or if this thread never called into Go on pthread platforms.
++	// If g is nil, Go did not create the current thread.
+ 	// Call needm to obtain one m for temporary use.
+ 	// In this case, we're running on the thread stack, so there's
+ 	// lots of space, but the linker doesn't know. Hide the call from
+@@ -969,9 +956,9 @@ needm:
+ 	// a bad value in there, in case needm tries to use it.
+ 	XORPS	X15, X15
+ 	XORQ    R14, R14
+-	MOVQ	$runtime·needAndBindM<ABIInternal>(SB), AX
++	MOVQ	$runtime·needm<ABIInternal>(SB), AX
+ 	CALL	AX
+-	MOVQ	$0, savedm-8(SP)
++	MOVQ	$0, savedm-8(SP) // dropm on return
+ 	get_tls(CX)
+ 	MOVQ	g(CX), BX
+ 	MOVQ	g_m(BX), BX
+@@ -1060,26 +1047,11 @@ havem:
+ 	MOVQ	0(SP), AX
+ 	MOVQ	AX, (g_sched+gobuf_sp)(SI)
+ 
+-	// If the m on entry was nil, we called needm above to borrow an m,
+-	// 1. for the duration of the call on non-pthread platforms,
+-	// 2. or the duration of the C thread alive on pthread platforms.
+-	// If the m on entry wasn't nil,
+-	// 1. the thread might be a Go thread,
+-	// 2. or it's wasn't the first call from a C thread on pthread platforms,
+-	//    since the we skip dropm to resue the m in the first call.
++	// If the m on entry was nil, we called needm above to borrow an m
++	// for the duration of the call. Since the call is over, return it with dropm.
+ 	MOVQ	savedm-8(SP), BX
+ 	CMPQ	BX, $0
+ 	JNE	done
+-
+-	// Skip dropm to reuse it in the next call, when a pthread key has been created.
+-	MOVQ	_cgo_pthread_key_created(SB), AX
+-	// It means cgo is disabled when _cgo_pthread_key_created is a nil pointer, need dropm.
+-	CMPQ	AX, $0
+-	JEQ	dropm
+-	CMPQ	(AX), $0
+-	JNE	done
+-
+-dropm:
+ 	MOVQ	$runtime·dropm(SB), AX
+ 	CALL	AX
+ #ifdef GOOS_windows
+diff --git a/src/runtime/asm_arm.s b/src/runtime/asm_arm.s
+index cd692e51a3..01621245dc 100644
+--- a/src/runtime/asm_arm.s
++++ b/src/runtime/asm_arm.s
+@@ -630,16 +630,6 @@ nosave:
+ TEXT	·cgocallback(SB),NOSPLIT,$12-12
+ 	NO_LOCAL_POINTERS
+ 
+-	// Skip cgocallbackg, just dropm when fn is nil, and frame is the saved g.
+-	// It is used to dropm while thread is exiting.
+-	MOVW	fn+0(FP), R1
+-	CMP	$0, R1
+-	B.NE	loadg
+-	// Restore the g from frame.
+-	MOVW	frame+4(FP), g
+-	B	dropm
+-
+-loadg:
+ 	// Load m and g from thread-local storage.
+ #ifdef GOOS_openbsd
+ 	BL	runtime·load_g(SB)
+@@ -649,8 +639,7 @@ loadg:
+ 	BL.NE	runtime·load_g(SB)
+ #endif
+ 
+-	// If g is nil, Go did not create the current thread,
+-	// or if this thread never called into Go on pthread platforms.
++	// If g is nil, Go did not create the current thread.
+ 	// Call needm to obtain one for temporary use.
+ 	// In this case, we're running on the thread stack, so there's
+ 	// lots of space, but the linker doesn't know. Hide the call from
+@@ -664,7 +653,7 @@ loadg:
+ 
+ needm:
+ 	MOVW	g, savedm-4(SP) // g is zero, so is m.
+-	MOVW	$runtime·needAndBindM(SB), R0
++	MOVW	$runtime·needm(SB), R0
+ 	BL	(R0)
+ 
+ 	// Set m->g0->sched.sp = SP, so that if a panic happens
+@@ -735,31 +724,14 @@ havem:
+ 	MOVW	savedsp-12(SP), R4	// must match frame size
+ 	MOVW	R4, (g_sched+gobuf_sp)(g)
+ 
+-	// If the m on entry was nil, we called needm above to borrow an m,
+-	// 1. for the duration of the call on non-pthread platforms,
+-	// 2. or the duration of the C thread alive on pthread platforms.
+-	// If the m on entry wasn't nil,
+-	// 1. the thread might be a Go thread,
+-	// 2. or it's wasn't the first call from a C thread on pthread platforms,
+-	//    since the we skip dropm to resue the m in the first call.
++	// If the m on entry was nil, we called needm above to borrow an m
++	// for the duration of the call. Since the call is over, return it with dropm.
+ 	MOVW	savedm-4(SP), R6
+ 	CMP	$0, R6
+-	B.NE	done
+-
+-	// Skip dropm to reuse it in the next call, when a pthread key has been created.
+-	MOVW	_cgo_pthread_key_created(SB), R6
+-	// It means cgo is disabled when _cgo_pthread_key_created is a nil pointer, need dropm.
+-	CMP	$0, R6
+-	B.EQ	dropm
+-	MOVW	(R6), R6
+-	CMP	$0, R6
+-	B.NE	done
+-
+-dropm:
++	B.NE	3(PC)
+ 	MOVW	$runtime·dropm(SB), R0
+ 	BL	(R0)
+ 
+-done:
+ 	// Done!
+ 	RET
+ 
+diff --git a/src/runtime/asm_arm64.s b/src/runtime/asm_arm64.s
+index 5cce33d7fe..6fe04a6445 100644
+--- a/src/runtime/asm_arm64.s
++++ b/src/runtime/asm_arm64.s
+@@ -1015,20 +1015,10 @@ nosave:
+ TEXT ·cgocallback(SB),NOSPLIT,$24-24
+ 	NO_LOCAL_POINTERS
+ 
+-	// Skip cgocallbackg, just dropm when fn is nil, and frame is the saved g.
+-	// It is used to dropm while thread is exiting.
+-	MOVD	fn+0(FP), R1
+-	CBNZ	R1, loadg
+-	// Restore the g from frame.
+-	MOVD	frame+8(FP), g
+-	B	dropm
+-
+-loadg:
+ 	// Load g from thread-local storage.
+ 	BL	runtime·load_g(SB)
+ 
+-	// If g is nil, Go did not create the current thread,
+-	// or if this thread never called into Go on pthread platforms.
++	// If g is nil, Go did not create the current thread.
+ 	// Call needm to obtain one for temporary use.
+ 	// In this case, we're running on the thread stack, so there's
+ 	// lots of space, but the linker doesn't know. Hide the call from
+@@ -1041,7 +1031,7 @@ loadg:
+ 
+ needm:
+ 	MOVD	g, savedm-8(SP) // g is zero, so is m.
+-	MOVD	$runtime·needAndBindM(SB), R0
++	MOVD	$runtime·needm(SB), R0
+ 	BL	(R0)
+ 
+ 	// Set m->g0->sched.sp = SP, so that if a panic happens
+@@ -1122,24 +1112,10 @@ havem:
+ 	MOVD	savedsp-16(SP), R4
+ 	MOVD	R4, (g_sched+gobuf_sp)(g)
+ 
+-	// If the m on entry was nil, we called needm above to borrow an m,
+-	// 1. for the duration of the call on non-pthread platforms,
+-	// 2. or the duration of the C thread alive on pthread platforms.
+-	// If the m on entry wasn't nil,
+-	// 1. the thread might be a Go thread,
+-	// 2. or it's wasn't the first call from a C thread on pthread platforms,
+-	//    since the we skip dropm to resue the m in the first call.
++	// If the m on entry was nil, we called needm above to borrow an m
++	// for the duration of the call. Since the call is over, return it with dropm.
+ 	MOVD	savedm-8(SP), R6
+ 	CBNZ	R6, droppedm
+-
+-	// Skip dropm to reuse it in the next call, when a pthread key has been created.
+-	MOVD	_cgo_pthread_key_created(SB), R6
+-	// It means cgo is disabled when _cgo_pthread_key_created is a nil pointer, need dropm.
+-	CBZ	R6, dropm
+-	MOVD	(R6), R6
+-	CBNZ	R6, droppedm
+-
+-dropm:
+ 	MOVD	$runtime·dropm(SB), R0
+ 	BL	(R0)
+ droppedm:
+diff --git a/src/runtime/asm_loong64.s b/src/runtime/asm_loong64.s
+index b93ad3316d..6029dbc8c3 100644
+--- a/src/runtime/asm_loong64.s
++++ b/src/runtime/asm_loong64.s
+@@ -460,23 +460,13 @@ g0:
+ TEXT ·cgocallback(SB),NOSPLIT,$24-24
+ 	NO_LOCAL_POINTERS
+ 
+-	// Skip cgocallbackg, just dropm when fn is nil, and frame is the saved g.
+-	// It is used to dropm while thread is exiting.
+-	MOVV    fn+0(FP), R5
+-	BNE	R5, loadg
+-	// Restore the g from frame.
+-	MOVV    frame+8(FP), g
+-	JMP	dropm
+-
+-loadg:
+ 	// Load m and g from thread-local storage.
+ 	MOVB	runtime·iscgo(SB), R19
+ 	BEQ	R19, nocgo
+ 	JAL	runtime·load_g(SB)
+ nocgo:
+ 
+-	// If g is nil, Go did not create the current thread,
+-	// or if this thread never called into Go on pthread platforms.
++	// If g is nil, Go did not create the current thread.
+ 	// Call needm to obtain one for temporary use.
+ 	// In this case, we're running on the thread stack, so there's
+ 	// lots of space, but the linker doesn't know. Hide the call from
+@@ -489,7 +479,7 @@ nocgo:
+ 
+ needm:
+ 	MOVV	g, savedm-8(SP) // g is zero, so is m.
+-	MOVV	$runtime·needAndBindM(SB), R4
++	MOVV	$runtime·needm(SB), R4
+ 	JAL	(R4)
+ 
+ 	// Set m->sched.sp = SP, so that if a panic happens
+@@ -561,24 +551,10 @@ havem:
+ 	MOVV	savedsp-24(SP), R13 // must match frame size
+ 	MOVV	R13, (g_sched+gobuf_sp)(g)
+ 
+-	// If the m on entry was nil, we called needm above to borrow an m,
+-	// 1. for the duration of the call on non-pthread platforms,
+-	// 2. or the duration of the C thread alive on pthread platforms.
+-	// If the m on entry wasn't nil,
+-	// 1. the thread might be a Go thread,
+-	// 2. or it's wasn't the first call from a C thread on pthread platforms,
+-	//    since the we skip dropm to resue the m in the first call.
++	// If the m on entry was nil, we called needm above to borrow an m
++	// for the duration of the call. Since the call is over, return it with dropm.
+ 	MOVV	savedm-8(SP), R12
+ 	BNE	R12, droppedm
+-
+-	// Skip dropm to reuse it in the next call, when a pthread key has been created.
+-	MOVV	_cgo_pthread_key_created(SB), R12
+-	// It means cgo is disabled when _cgo_pthread_key_created is a nil pointer, need dropm.
+-	BEQ	R12, dropm
+-	MOVV    (R12), R12
+-	BNE	R12, droppedm
+-
+-dropm:
+ 	MOVV	$runtime·dropm(SB), R4
+ 	JAL	(R4)
+ droppedm:
+diff --git a/src/runtime/asm_mips64x.s b/src/runtime/asm_mips64x.s
+index 1da90f7777..e6eb13f00a 100644
+--- a/src/runtime/asm_mips64x.s
++++ b/src/runtime/asm_mips64x.s
+@@ -469,23 +469,13 @@ g0:
+ TEXT ·cgocallback(SB),NOSPLIT,$24-24
+ 	NO_LOCAL_POINTERS
+ 
+-	// Skip cgocallbackg, just dropm when fn is nil, and frame is the saved g.
+-	// It is used to dropm while thread is exiting.
+-	MOVV	fn+0(FP), R5
+-	BNE	R5, loadg
+-	// Restore the g from frame.
+-	MOVV	frame+8(FP), g
+-	JMP	dropm
+-
+-loadg:
+ 	// Load m and g from thread-local storage.
+ 	MOVB	runtime·iscgo(SB), R1
+ 	BEQ	R1, nocgo
+ 	JAL	runtime·load_g(SB)
+ nocgo:
+ 
+-	// If g is nil, Go did not create the current thread,
+-	// or if this thread never called into Go on pthread platforms.
++	// If g is nil, Go did not create the current thread.
+ 	// Call needm to obtain one for temporary use.
+ 	// In this case, we're running on the thread stack, so there's
+ 	// lots of space, but the linker doesn't know. Hide the call from
+@@ -498,7 +488,7 @@ nocgo:
+ 
+ needm:
+ 	MOVV	g, savedm-8(SP) // g is zero, so is m.
+-	MOVV	$runtime·needAndBindM(SB), R4
++	MOVV	$runtime·needm(SB), R4
+ 	JAL	(R4)
+ 
+ 	// Set m->sched.sp = SP, so that if a panic happens
+@@ -569,24 +559,10 @@ havem:
+ 	MOVV	savedsp-24(SP), R2	// must match frame size
+ 	MOVV	R2, (g_sched+gobuf_sp)(g)
+ 
+-	// If the m on entry was nil, we called needm above to borrow an m,
+-	// 1. for the duration of the call on non-pthread platforms,
+-	// 2. or the duration of the C thread alive on pthread platforms.
+-	// If the m on entry wasn't nil,
+-	// 1. the thread might be a Go thread,
+-	// 2. or it's wasn't the first call from a C thread on pthread platforms,
+-	//    since the we skip dropm to resue the m in the first call.
++	// If the m on entry was nil, we called needm above to borrow an m
++	// for the duration of the call. Since the call is over, return it with dropm.
+ 	MOVV	savedm-8(SP), R3
+ 	BNE	R3, droppedm
+-
+-	// Skip dropm to reuse it in the next call, when a pthread key has been created.
+-	MOVV	_cgo_pthread_key_created(SB), R3
+-	// It means cgo is disabled when _cgo_pthread_key_created is a nil pointer, need dropm.
+-	BEQ	R3, dropm
+-	MOVV	(R3), R3
+-	BNE	R3, droppedm
+-
+-dropm:
+ 	MOVV	$runtime·dropm(SB), R4
+ 	JAL	(R4)
+ droppedm:
+diff --git a/src/runtime/asm_mipsx.s b/src/runtime/asm_mipsx.s
+index 49f96044c4..fc81e76354 100644
+--- a/src/runtime/asm_mipsx.s
++++ b/src/runtime/asm_mipsx.s
+@@ -459,23 +459,13 @@ g0:
+ TEXT ·cgocallback(SB),NOSPLIT,$12-12
+ 	NO_LOCAL_POINTERS
+ 
+-	// Skip cgocallbackg, just dropm when fn is nil, and frame is the saved g.
+-	// It is used to dropm while thread is exiting.
+-	MOVW	fn+0(FP), R5
+-	BNE	R5, loadg
+-	// Restore the g from frame.
+-	MOVW	frame+4(FP), g
+-	JMP	dropm
+-
+-loadg:
+ 	// Load m and g from thread-local storage.
+ 	MOVB	runtime·iscgo(SB), R1
+ 	BEQ	R1, nocgo
+ 	JAL	runtime·load_g(SB)
+ nocgo:
+ 
+-	// If g is nil, Go did not create the current thread,
+-	// or if this thread never called into Go on pthread platforms.
++	// If g is nil, Go did not create the current thread.
+ 	// Call needm to obtain one for temporary use.
+ 	// In this case, we're running on the thread stack, so there's
+ 	// lots of space, but the linker doesn't know. Hide the call from
+@@ -488,7 +478,7 @@ nocgo:
+ 
+ needm:
+ 	MOVW	g, savedm-4(SP) // g is zero, so is m.
+-	MOVW	$runtime·needAndBindM(SB), R4
++	MOVW	$runtime·needm(SB), R4
+ 	JAL	(R4)
+ 
+ 	// Set m->sched.sp = SP, so that if a panic happens
+@@ -559,24 +549,10 @@ havem:
+ 	MOVW	savedsp-12(SP), R2	// must match frame size
+ 	MOVW	R2, (g_sched+gobuf_sp)(g)
+ 
+-	// If the m on entry was nil, we called needm above to borrow an m,
+-	// 1. for the duration of the call on non-pthread platforms,
+-	// 2. or the duration of the C thread alive on pthread platforms.
+-	// If the m on entry wasn't nil,
+-	// 1. the thread might be a Go thread,
+-	// 2. or it's wasn't the first call from a C thread on pthread platforms,
+-	//    since the we skip dropm to resue the m in the first call.
++	// If the m on entry was nil, we called needm above to borrow an m
++	// for the duration of the call. Since the call is over, return it with dropm.
+ 	MOVW	savedm-4(SP), R3
+ 	BNE	R3, droppedm
+-
+-	// Skip dropm to reuse it in the next call, when a pthread key has been created.
+-	MOVW	_cgo_pthread_key_created(SB), R3
+-	// It means cgo is disabled when _cgo_pthread_key_created is a nil pointer, need dropm.
+-	BEQ	R3, dropm
+-	MOVW	(R3), R3
+-	BNE	R3, droppedm
+-
+-dropm:
+ 	MOVW	$runtime·dropm(SB), R4
+ 	JAL	(R4)
+ droppedm:
+diff --git a/src/runtime/asm_ppc64x.s b/src/runtime/asm_ppc64x.s
+index d5be18e853..1e17291d78 100644
+--- a/src/runtime/asm_ppc64x.s
++++ b/src/runtime/asm_ppc64x.s
+@@ -628,16 +628,6 @@ g0:
+ TEXT ·cgocallback(SB),NOSPLIT,$24-24
+ 	NO_LOCAL_POINTERS
+ 
+-	// Skip cgocallbackg, just dropm when fn is nil, and frame is the saved g.
+-	// It is used to dropm while thread is exiting.
+-	MOVD	fn+0(FP), R5
+-	CMP	R5, $0
+-	BNE	loadg
+-	// Restore the g from frame.
+-	MOVD	frame+8(FP), g
+-	BR	dropm
+-
+-loadg:
+ 	// Load m and g from thread-local storage.
+ 	MOVBZ	runtime·iscgo(SB), R3
+ 	CMP	R3, $0
+@@ -645,8 +635,7 @@ loadg:
+ 	BL	runtime·load_g(SB)
+ nocgo:
+ 
+-	// If g is nil, Go did not create the current thread,
+-	// or if this thread never called into Go on pthread platforms.
++	// If g is nil, Go did not create the current thread.
+ 	// Call needm to obtain one for temporary use.
+ 	// In this case, we're running on the thread stack, so there's
+ 	// lots of space, but the linker doesn't know. Hide the call from
+@@ -660,7 +649,7 @@ nocgo:
+ 
+ needm:
+ 	MOVD	g, savedm-8(SP) // g is zero, so is m.
+-	MOVD	$runtime·needAndBindM(SB), R12
++	MOVD	$runtime·needm(SB), R12
+ 	MOVD	R12, CTR
+ 	BL	(CTR)
+ 
+@@ -735,27 +724,11 @@ havem:
+ 	MOVD	savedsp-24(SP), R4      // must match frame size
+ 	MOVD	R4, (g_sched+gobuf_sp)(g)
+ 
+-	// If the m on entry was nil, we called needm above to borrow an m,
+-	// 1. for the duration of the call on non-pthread platforms,
+-	// 2. or the duration of the C thread alive on pthread platforms.
+-	// If the m on entry wasn't nil,
+-	// 1. the thread might be a Go thread,
+-	// 2. or it's wasn't the first call from a C thread on pthread platforms,
+-	//    since the we skip dropm to resue the m in the first call.
++	// If the m on entry was nil, we called needm above to borrow an m
++	// for the duration of the call. Since the call is over, return it with dropm.
+ 	MOVD	savedm-8(SP), R6
+ 	CMP	R6, $0
+ 	BNE	droppedm
+-
+-	// Skip dropm to reuse it in the next call, when a pthread key has been created.
+-	MOVD	_cgo_pthread_key_created(SB), R6
+-	// It means cgo is disabled when _cgo_pthread_key_created is a nil pointer, need dropm.
+-	CMP	R6, $0
+-	BEQ	dropm
+-	MOVD	(R6), R6
+-	CMP	R6, $0
+-	BNE	droppedm
+-
+-dropm:
+ 	MOVD	$runtime·dropm(SB), R12
+ 	MOVD	R12, CTR
+ 	BL	(CTR)
+diff --git a/src/runtime/asm_riscv64.s b/src/runtime/asm_riscv64.s
+index 0a34a591fd..759bae24b5 100644
+--- a/src/runtime/asm_riscv64.s
++++ b/src/runtime/asm_riscv64.s
+@@ -519,23 +519,13 @@ TEXT runtime·goexit(SB),NOSPLIT|NOFRAME|TOPFRAME,$0-0
+ TEXT ·cgocallback(SB),NOSPLIT,$24-24
+ 	NO_LOCAL_POINTERS
+ 
+-	// Skip cgocallbackg, just dropm when fn is nil, and frame is the saved g.
+-	// It is used to dropm while thread is exiting.
+-	MOV	fn+0(FP), X7
+-	BNE	ZERO, X7, loadg
+-	// Restore the g from frame.
+-	MOV	frame+8(FP), g
+-	JMP	dropm
+-
+-loadg:
+ 	// Load m and g from thread-local storage.
+ 	MOVBU	runtime·iscgo(SB), X5
+ 	BEQ	ZERO, X5, nocgo
+ 	CALL	runtime·load_g(SB)
+ nocgo:
+ 
+-	// If g is nil, Go did not create the current thread,
+-	// or if this thread never called into Go on pthread platforms.
++	// If g is nil, Go did not create the current thread.
+ 	// Call needm to obtain one for temporary use.
+ 	// In this case, we're running on the thread stack, so there's
+ 	// lots of space, but the linker doesn't know. Hide the call from
+@@ -548,7 +538,7 @@ nocgo:
+ 
+ needm:
+ 	MOV	g, savedm-8(SP) // g is zero, so is m.
+-	MOV	$runtime·needAndBindM(SB), X6
++	MOV	$runtime·needm(SB), X6
+ 	JALR	RA, X6
+ 
+ 	// Set m->sched.sp = SP, so that if a panic happens
+@@ -619,24 +609,10 @@ havem:
+ 	MOV	savedsp-24(SP), X6	// must match frame size
+ 	MOV	X6, (g_sched+gobuf_sp)(g)
+ 
+-	// If the m on entry was nil, we called needm above to borrow an m,
+-	// 1. for the duration of the call on non-pthread platforms,
+-	// 2. or the duration of the C thread alive on pthread platforms.
+-	// If the m on entry wasn't nil,
+-	// 1. the thread might be a Go thread,
+-	// 2. or it's wasn't the first call from a C thread on pthread platforms,
+-	//    since the we skip dropm to resue the m in the first call.
++	// If the m on entry was nil, we called needm above to borrow an m
++	// for the duration of the call. Since the call is over, return it with dropm.
+ 	MOV	savedm-8(SP), X5
+ 	BNE	ZERO, X5, droppedm
+-
+-	// Skip dropm to reuse it in the next call, when a pthread key has been created.
+-	MOV	_cgo_pthread_key_created(SB), X5
+-	// It means cgo is disabled when _cgo_pthread_key_created is a nil pointer, need dropm.
+-	BEQ	ZERO, X5, dropm
+-	MOV	(X5), X5
+-	BNE	ZERO, X5, droppedm
+-
+-dropm:
+ 	MOV	$runtime·dropm(SB), X6
+ 	JALR	RA, X6
+ droppedm:
+diff --git a/src/runtime/asm_s390x.s b/src/runtime/asm_s390x.s
+index 4c4a42e00a..d427c07de4 100644
+--- a/src/runtime/asm_s390x.s
++++ b/src/runtime/asm_s390x.s
+@@ -564,23 +564,13 @@ g0:
+ TEXT ·cgocallback(SB),NOSPLIT,$24-24
+ 	NO_LOCAL_POINTERS
+ 
+-	// Skip cgocallbackg, just dropm when fn is nil, and frame is the saved g.
+-	// It is used to dropm while thread is exiting.
+-	MOVD	fn+0(FP), R1
+-	CMPBNE	R1, $0, loadg
+-	// Restore the g from frame.
+-	MOVD	frame+8(FP), g
+-	BR	dropm
+-
+-loadg:
+ 	// Load m and g from thread-local storage.
+ 	MOVB	runtime·iscgo(SB), R3
+ 	CMPBEQ	R3, $0, nocgo
+ 	BL	runtime·load_g(SB)
+ 
+ nocgo:
+-	// If g is nil, Go did not create the current thread,
+-	// or if this thread never called into Go on pthread platforms.
++	// If g is nil, Go did not create the current thread.
+ 	// Call needm to obtain one for temporary use.
+ 	// In this case, we're running on the thread stack, so there's
+ 	// lots of space, but the linker doesn't know. Hide the call from
+@@ -593,7 +583,7 @@ nocgo:
+ 
+ needm:
+ 	MOVD	g, savedm-8(SP) // g is zero, so is m.
+-	MOVD	$runtime·needAndBindM(SB), R3
++	MOVD	$runtime·needm(SB), R3
+ 	BL	(R3)
+ 
+ 	// Set m->sched.sp = SP, so that if a panic happens
+@@ -664,24 +654,10 @@ havem:
+ 	MOVD	savedsp-24(SP), R4	// must match frame size
+ 	MOVD	R4, (g_sched+gobuf_sp)(g)
+ 
+-	// If the m on entry was nil, we called needm above to borrow an m,
+-	// 1. for the duration of the call on non-pthread platforms,
+-	// 2. or the duration of the C thread alive on pthread platforms.
+-	// If the m on entry wasn't nil,
+-	// 1. the thread might be a Go thread,
+-	// 2. or it's wasn't the first call from a C thread on pthread platforms,
+-	//    since the we skip dropm to resue the m in the first call.
++	// If the m on entry was nil, we called needm above to borrow an m
++	// for the duration of the call. Since the call is over, return it with dropm.
+ 	MOVD	savedm-8(SP), R6
+ 	CMPBNE	R6, $0, droppedm
+-
+-	// Skip dropm to reuse it in the next call, when a pthread key has been created.
+-	MOVD	_cgo_pthread_key_created(SB), R6
+-	// It means cgo is disabled when _cgo_pthread_key_created is a nil pointer, need dropm.
+-	CMPBEQ	R6, $0, dropm
+-	MOVD	(R6), R6
+-	CMPBNE	R6, $0, droppedm
+-
+-dropm:
+ 	MOVD	$runtime·dropm(SB), R3
+ 	BL	(R3)
+ droppedm:
+diff --git a/src/runtime/cgo.go b/src/runtime/cgo.go
+index 395303552c..d90468240d 100644
+--- a/src/runtime/cgo.go
++++ b/src/runtime/cgo.go
+@@ -17,9 +17,6 @@ import "unsafe"
+ //go:linkname _cgo_callers _cgo_callers
+ //go:linkname _cgo_set_context_function _cgo_set_context_function
+ //go:linkname _cgo_yield _cgo_yield
+-//go:linkname _cgo_pthread_key_created _cgo_pthread_key_created
+-//go:linkname _cgo_bindm _cgo_bindm
+-//go:linkname _cgo_getstackbound _cgo_getstackbound
+ 
+ var (
+ 	_cgo_init                     unsafe.Pointer
+@@ -29,17 +26,11 @@ var (
+ 	_cgo_callers                  unsafe.Pointer
+ 	_cgo_set_context_function     unsafe.Pointer
+ 	_cgo_yield                    unsafe.Pointer
+-	_cgo_pthread_key_created      unsafe.Pointer
+-	_cgo_bindm                    unsafe.Pointer
+-	_cgo_getstackbound            unsafe.Pointer
+ )
+ 
+ // iscgo is set to true by the runtime/cgo package
+ var iscgo bool
+ 
+-// set_crosscall2 is set by the runtime/cgo package
+-var set_crosscall2 func()
+-
+ // cgoHasExtraM is set on startup when an extra M is created for cgo.
+ // The extra M must be created before any C/C++ code calls cgocallback.
+ var cgoHasExtraM bool
+diff --git a/src/runtime/cgo/asm_386.s b/src/runtime/cgo/asm_386.s
+index 086e20b02f..2e7e9512e2 100644
+--- a/src/runtime/cgo/asm_386.s
++++ b/src/runtime/cgo/asm_386.s
+@@ -4,14 +4,6 @@
+ 
+ #include "textflag.h"
+ 
+-// Set the x_crosscall2_ptr C function pointer variable point to crosscall2.
+-// It's such a pointer chain: _crosscall2_ptr -> x_crosscall2_ptr -> crosscall2
+-TEXT ·set_crosscall2(SB),NOSPLIT,$0-0
+-	MOVL	_crosscall2_ptr(SB), AX
+-	MOVL	$crosscall2(SB), BX
+-	MOVL	BX, (AX)
+-	RET
+-
+ // Called by C code generated by cmd/cgo.
+ // func crosscall2(fn, a unsafe.Pointer, n int32, ctxt uintptr)
+ // Saves C callee-saved registers and calls cgocallback with three arguments.
+diff --git a/src/runtime/cgo/asm_amd64.s b/src/runtime/cgo/asm_amd64.s
+index f254622f23..e223a6c870 100644
+--- a/src/runtime/cgo/asm_amd64.s
++++ b/src/runtime/cgo/asm_amd64.s
+@@ -5,14 +5,6 @@
+ #include "textflag.h"
+ #include "abi_amd64.h"
+ 
+-// Set the x_crosscall2_ptr C function pointer variable point to crosscall2.
+-// It's such a pointer chain: _crosscall2_ptr -> x_crosscall2_ptr -> crosscall2
+-TEXT ·set_crosscall2(SB),NOSPLIT,$0-0
+-	MOVQ	_crosscall2_ptr(SB), AX
+-	MOVQ	$crosscall2(SB), BX
+-	MOVQ	BX, (AX)
+-	RET
+-
+ // Called by C code generated by cmd/cgo.
+ // func crosscall2(fn, a unsafe.Pointer, n int32, ctxt uintptr)
+ // Saves C callee-saved registers and calls cgocallback with three arguments.
+diff --git a/src/runtime/cgo/asm_arm.s b/src/runtime/cgo/asm_arm.s
+index f7f99772a6..ea55e173c1 100644
+--- a/src/runtime/cgo/asm_arm.s
++++ b/src/runtime/cgo/asm_arm.s
+@@ -4,14 +4,6 @@
+ 
+ #include "textflag.h"
+ 
+-// Set the x_crosscall2_ptr C function pointer variable point to crosscall2.
+-// It's such a pointer chain: _crosscall2_ptr -> x_crosscall2_ptr -> crosscall2
+-TEXT ·set_crosscall2(SB),NOSPLIT,$0-0
+-	MOVW	_crosscall2_ptr(SB), R1
+-	MOVW	$crosscall2(SB), R2
+-	MOVW	R2, (R1)
+-	RET
+-
+ // Called by C code generated by cmd/cgo.
+ // func crosscall2(fn, a unsafe.Pointer, n int32, ctxt uintptr)
+ // Saves C callee-saved registers and calls cgocallback with three arguments.
+diff --git a/src/runtime/cgo/asm_arm64.s b/src/runtime/cgo/asm_arm64.s
+index ce8909b492..e808dedcfc 100644
+--- a/src/runtime/cgo/asm_arm64.s
++++ b/src/runtime/cgo/asm_arm64.s
+@@ -5,14 +5,6 @@
+ #include "textflag.h"
+ #include "abi_arm64.h"
+ 
+-// Set the x_crosscall2_ptr C function pointer variable point to crosscall2.
+-// It's such a pointer chain: _crosscall2_ptr -> x_crosscall2_ptr -> crosscall2
+-TEXT ·set_crosscall2(SB),NOSPLIT,$0-0
+-	MOVD	_crosscall2_ptr(SB), R1
+-	MOVD	$crosscall2(SB), R2
+-	MOVD	R2, (R1)
+-	RET
+-
+ // Called by C code generated by cmd/cgo.
+ // func crosscall2(fn, a unsafe.Pointer, n int32, ctxt uintptr)
+ // Saves C callee-saved registers and calls cgocallback with three arguments.
+diff --git a/src/runtime/cgo/asm_loong64.s b/src/runtime/cgo/asm_loong64.s
+index 3b514ffc4a..aea4f8e6b9 100644
+--- a/src/runtime/cgo/asm_loong64.s
++++ b/src/runtime/cgo/asm_loong64.s
+@@ -5,14 +5,6 @@
+ #include "textflag.h"
+ #include "abi_loong64.h"
+ 
+-// Set the x_crosscall2_ptr C function pointer variable point to crosscall2.
+-// It's such a pointer chain: _crosscall2_ptr -> x_crosscall2_ptr -> crosscall2
+-TEXT ·set_crosscall2(SB),NOSPLIT,$0-0
+-	MOVV	_crosscall2_ptr(SB), R5
+-	MOVV	$crosscall2(SB), R6
+-	MOVV	R6, (R5)
+-	RET
+-
+ // Called by C code generated by cmd/cgo.
+ // func crosscall2(fn, a unsafe.Pointer, n int32, ctxt uintptr)
+ // Saves C callee-saved registers and calls cgocallback with three arguments.
+diff --git a/src/runtime/cgo/asm_mips64x.s b/src/runtime/cgo/asm_mips64x.s
+index 0a8fbbbef0..904f781d87 100644
+--- a/src/runtime/cgo/asm_mips64x.s
++++ b/src/runtime/cgo/asm_mips64x.s
+@@ -6,14 +6,6 @@
+ 
+ #include "textflag.h"
+ 
+-// Set the x_crosscall2_ptr C function pointer variable point to crosscall2.
+-// It's such a pointer chain: _crosscall2_ptr -> x_crosscall2_ptr -> crosscall2
+-TEXT ·set_crosscall2(SB),NOSPLIT,$0-0
+-	MOVV	_crosscall2_ptr(SB), R5
+-	MOVV	$crosscall2(SB), R6
+-	MOVV	R6, (R5)
+-	RET
+-
+ // Called by C code generated by cmd/cgo.
+ // func crosscall2(fn, a unsafe.Pointer, n int32, ctxt uintptr)
+ // Saves C callee-saved registers and calls cgocallback with three arguments.
+diff --git a/src/runtime/cgo/asm_mipsx.s b/src/runtime/cgo/asm_mipsx.s
+index a57ae97d7e..5e2db0b56e 100644
+--- a/src/runtime/cgo/asm_mipsx.s
++++ b/src/runtime/cgo/asm_mipsx.s
+@@ -6,14 +6,6 @@
+ 
+ #include "textflag.h"
+ 
+-// Set the x_crosscall2_ptr C function pointer variable point to crosscall2.
+-// It's such a pointer chain: _crosscall2_ptr -> x_crosscall2_ptr -> crosscall2
+-TEXT ·set_crosscall2(SB),NOSPLIT,$0-0
+-	MOVW	_crosscall2_ptr(SB), R5
+-	MOVW	$crosscall2(SB), R6
+-	MOVW	R6, (R5)
+-	RET
+-
+ // Called by C code generated by cmd/cgo.
+ // func crosscall2(fn, a unsafe.Pointer, n int32, ctxt uintptr)
+ // Saves C callee-saved registers and calls cgocallback with three arguments.
+diff --git a/src/runtime/cgo/asm_ppc64x.s b/src/runtime/cgo/asm_ppc64x.s
+index c258c7c2a0..cba053deb7 100644
+--- a/src/runtime/cgo/asm_ppc64x.s
++++ b/src/runtime/cgo/asm_ppc64x.s
+@@ -8,25 +8,6 @@
+ #include "asm_ppc64x.h"
+ #include "abi_ppc64x.h"
+ 
+-#ifdef GO_PPC64X_HAS_FUNCDESC
+-// crosscall2 is marked with go:cgo_export_static. On AIX, this creates and exports
+-// the symbol name and descriptor as the AIX linker expects, but does not work if
+-// referenced from within Go. Create and use an aliased descriptor of crosscall2
+-// to workaround this.
+-DEFINE_PPC64X_FUNCDESC(_crosscall2<>, crosscall2)
+-#define CROSSCALL2_FPTR $_crosscall2<>(SB)
+-#else
+-#define CROSSCALL2_FPTR $crosscall2(SB)
+-#endif
+-
+-// Set the x_crosscall2_ptr C function pointer variable point to crosscall2.
+-// It's such a pointer chain: _crosscall2_ptr -> x_crosscall2_ptr -> crosscall2
+-TEXT ·set_crosscall2(SB),NOSPLIT,$0-0
+-	MOVD	_crosscall2_ptr(SB), R5
+-	MOVD	CROSSCALL2_FPTR, R6
+-	MOVD	R6, (R5)
+-	RET
+-
+ // Called by C code generated by cmd/cgo.
+ // func crosscall2(fn, a unsafe.Pointer, n int32, ctxt uintptr)
+ // Saves C callee-saved registers and calls cgocallback with three arguments.
+@@ -46,12 +27,8 @@ TEXT crosscall2(SB),NOSPLIT|NOFRAME,$0
+ 
+ #ifdef GO_PPC64X_HAS_FUNCDESC
+ 	// Load the real entry address from the first slot of the function descriptor.
+-	// The first argument fn might be null, that means dropm in pthread key destructor.
+-	CMP	R3, $0
+-	BEQ	nil_fn
+ 	MOVD	8(R3), R2
+ 	MOVD	(R3), R3
+-nil_fn:
+ #endif
+ 	MOVD	R3, FIXED_FRAME+0(R1)	// fn unsafe.Pointer
+ 	MOVD	R4, FIXED_FRAME+8(R1)	// a unsafe.Pointer
+diff --git a/src/runtime/cgo/asm_riscv64.s b/src/runtime/cgo/asm_riscv64.s
+index 08c4ed8466..45151bf02b 100644
+--- a/src/runtime/cgo/asm_riscv64.s
++++ b/src/runtime/cgo/asm_riscv64.s
+@@ -4,14 +4,6 @@
+ 
+ #include "textflag.h"
+ 
+-// Set the x_crosscall2_ptr C function pointer variable point to crosscall2.
+-// It's such a pointer chain: _crosscall2_ptr -> x_crosscall2_ptr -> crosscall2
+-TEXT ·set_crosscall2(SB),NOSPLIT,$0-0
+-	MOV	_crosscall2_ptr(SB), X7
+-	MOV	$crosscall2(SB), X8
+-	MOV	X8, (X7)
+-	RET
+-
+ // Called by C code generated by cmd/cgo.
+ // func crosscall2(fn, a unsafe.Pointer, n int32, ctxt uintptr)
+ // Saves C callee-saved registers and calls cgocallback with three arguments.
+diff --git a/src/runtime/cgo/asm_s390x.s b/src/runtime/cgo/asm_s390x.s
+index bb0dfc1e31..8bf16e75e2 100644
+--- a/src/runtime/cgo/asm_s390x.s
++++ b/src/runtime/cgo/asm_s390x.s
+@@ -4,14 +4,6 @@
+ 
+ #include "textflag.h"
+ 
+-// Set the x_crosscall2_ptr C function pointer variable point to crosscall2.
+-// It's such a pointer chain: _crosscall2_ptr -> x_crosscall2_ptr -> crosscall2
+-TEXT ·set_crosscall2(SB),NOSPLIT,$0-0
+-	MOVD	_crosscall2_ptr(SB), R1
+-	MOVD	$crosscall2(SB), R2
+-	MOVD	R2, (R1)
+-	RET
+-
+ // Called by C code generated by cmd/cgo.
+ // func crosscall2(fn, a unsafe.Pointer, n int32, ctxt uintptr)
+ // Saves C callee-saved registers and calls cgocallback with three arguments.
+diff --git a/src/runtime/cgo/asm_wasm.s b/src/runtime/cgo/asm_wasm.s
+index e7f01bdc56..cb140eb7b8 100644
+--- a/src/runtime/cgo/asm_wasm.s
++++ b/src/runtime/cgo/asm_wasm.s
+@@ -4,8 +4,5 @@
+ 
+ #include "textflag.h"
+ 
+-TEXT ·set_crosscall2(SB),NOSPLIT,$0-0
+-	UNDEF
+-
+ TEXT crosscall2(SB), NOSPLIT, $0
+ 	UNDEF
+diff --git a/src/runtime/cgo/callbacks.go b/src/runtime/cgo/callbacks.go
+index 3c246a88b6..e7c8ef3e07 100644
+--- a/src/runtime/cgo/callbacks.go
++++ b/src/runtime/cgo/callbacks.go
+@@ -71,42 +71,6 @@ var _cgo_thread_start = &x_cgo_thread_start
+ var x_cgo_sys_thread_create byte
+ var _cgo_sys_thread_create = &x_cgo_sys_thread_create
+ 
+-// Indicates whether a dummy thread key has been created or not.
+-//
+-// When calling go exported function from C, we register a destructor
+-// callback, for a dummy thread key, by using pthread_key_create.
+-
+-//go:cgo_import_static x_cgo_pthread_key_created
+-//go:linkname x_cgo_pthread_key_created x_cgo_pthread_key_created
+-//go:linkname _cgo_pthread_key_created _cgo_pthread_key_created
+-var x_cgo_pthread_key_created byte
+-var _cgo_pthread_key_created = &x_cgo_pthread_key_created
+-
+-// Export crosscall2 to a c function pointer variable.
+-// Used to dropm in pthread key destructor, while C thread is exiting.
+-
+-//go:cgo_import_static x_crosscall2_ptr
+-//go:linkname x_crosscall2_ptr x_crosscall2_ptr
+-//go:linkname _crosscall2_ptr _crosscall2_ptr
+-var x_crosscall2_ptr byte
+-var _crosscall2_ptr = &x_crosscall2_ptr
+-
+-// Set the x_crosscall2_ptr C function pointer variable point to crosscall2.
+-// It's for the runtime package to call at init time.
+-func set_crosscall2()
+-
+-//go:linkname _set_crosscall2 runtime.set_crosscall2
+-var _set_crosscall2 = set_crosscall2
+-
+-// Store the g into the thread-specific value.
+-// So that pthread_key_destructor will dropm when the thread is exiting.
+-
+-//go:cgo_import_static x_cgo_bindm
+-//go:linkname x_cgo_bindm x_cgo_bindm
+-//go:linkname _cgo_bindm _cgo_bindm
+-var x_cgo_bindm byte
+-var _cgo_bindm = &x_cgo_bindm
+-
+ // Notifies that the runtime has been initialized.
+ //
+ // We currently block at every CGO entry point (via _cgo_wait_runtime_init_done)
+@@ -141,12 +105,3 @@ var _cgo_yield unsafe.Pointer
+ 
+ //go:cgo_export_static _cgo_topofstack
+ //go:cgo_export_dynamic _cgo_topofstack
+-
+-// x_cgo_getstackbound gets the thread's C stack size and
+-// set the G's stack bound based on the stack size.
+-
+-//go:cgo_import_static x_cgo_getstackbound
+-//go:linkname x_cgo_getstackbound x_cgo_getstackbound
+-//go:linkname _cgo_getstackbound _cgo_getstackbound
+-var x_cgo_getstackbound byte
+-var _cgo_getstackbound = &x_cgo_getstackbound
+diff --git a/src/runtime/cgo/gcc_libinit.c b/src/runtime/cgo/gcc_libinit.c
+index 9676593211..57620fe4de 100644
+--- a/src/runtime/cgo/gcc_libinit.c
++++ b/src/runtime/cgo/gcc_libinit.c
+@@ -17,14 +17,6 @@ static pthread_cond_t runtime_init_cond = PTHREAD_COND_INITIALIZER;
+ static pthread_mutex_t runtime_init_mu = PTHREAD_MUTEX_INITIALIZER;
+ static int runtime_init_done;
+ 
+-// pthread_g is a pthread specific key, for storing the g that binded to the C thread.
+-// The registered pthread_key_destructor will dropm, when the pthread-specified value g is not NULL,
+-// while a C thread is exiting.
+-static pthread_key_t pthread_g;
+-static void pthread_key_destructor(void* g);
+-uintptr_t x_cgo_pthread_key_created;
+-void (*x_crosscall2_ptr)(void (*fn)(void *), void *, int, size_t);
+-
+ // The context function, used when tracing back C calls into Go.
+ static void (*cgo_context_function)(struct context_arg*);
+ 
+@@ -47,12 +39,6 @@ _cgo_wait_runtime_init_done(void) {
+ 		pthread_cond_wait(&runtime_init_cond, &runtime_init_mu);
+ 	}
+ 
+-	// The key and x_cgo_pthread_key_created are for the whole program,
+-	// whereas the specific and destructor is per thread.
+-	if (x_cgo_pthread_key_created == 0 && pthread_key_create(&pthread_g, pthread_key_destructor) == 0) {
+-		x_cgo_pthread_key_created = 1;
+-	}
+-
+ 	// TODO(iant): For the case of a new C thread calling into Go, such
+ 	// as when using -buildmode=c-archive, we know that Go runtime
+ 	// initialization is complete but we do not know that all Go init
+@@ -75,16 +61,6 @@ _cgo_wait_runtime_init_done(void) {
+ 	return 0;
+ }
+ 
+-// Store the g into a thread-specific value associated with the pthread key pthread_g.
+-// And pthread_key_destructor will dropm when the thread is exiting.
+-void x_cgo_bindm(void* g) {
+-	// We assume this will always succeed, otherwise, there might be extra M leaking,
+-	// when a C thread exits after a cgo call.
+-	// We only invoke this function once per thread in runtime.needAndBindM,
+-	// and the next calls just reuse the bound m.
+-	pthread_setspecific(pthread_g, g);
+-}
+-
+ void
+ x_cgo_notify_runtime_init_done(void* dummy __attribute__ ((unused))) {
+ 	pthread_mutex_lock(&runtime_init_mu);
+@@ -134,14 +110,3 @@ _cgo_try_pthread_create(pthread_t* thread, const pthread_attr_t* attr, void* (*p
+ 	}
+ 	return EAGAIN;
+ }
+-
+-static void
+-pthread_key_destructor(void* g) {
+-	if (x_crosscall2_ptr != NULL) {
+-		// fn == NULL means dropm.
+-		// We restore g by using the stored g, before dropm in runtime.cgocallback,
+-		// since the g stored in the TLS by Go might be cleared in some platforms,
+-		// before this destructor invoked.
+-		x_crosscall2_ptr(NULL, g, 0, 0);
+-	}
+-}
+diff --git a/src/runtime/cgo/gcc_libinit_windows.c b/src/runtime/cgo/gcc_libinit_windows.c
+index 9a8c65ea29..fdcf027424 100644
+--- a/src/runtime/cgo/gcc_libinit_windows.c
++++ b/src/runtime/cgo/gcc_libinit_windows.c
+@@ -30,9 +30,6 @@ static CRITICAL_SECTION runtime_init_cs;
+ static HANDLE runtime_init_wait;
+ static int runtime_init_done;
+ 
+-uintptr_t x_cgo_pthread_key_created;
+-void (*x_crosscall2_ptr)(void (*fn)(void *), void *, int, size_t);
+-
+ // Pre-initialize the runtime synchronization objects
+ void
+ _cgo_preinit_init() {
+@@ -94,12 +91,6 @@ _cgo_wait_runtime_init_done(void) {
+ 	return 0;
+ }
+ 
+-// Should not be used since x_cgo_pthread_key_created will always be zero.
+-void x_cgo_bindm(void* dummy) {
+-	fprintf(stderr, "unexpected cgo_bindm on Windows\n");
+-	abort();
+-}
+-
+ void
+ x_cgo_notify_runtime_init_done(void* dummy) {
+ 	 _cgo_maybe_run_preinit();
+diff --git a/src/runtime/cgo/gcc_stack_darwin.c b/src/runtime/cgo/gcc_stack_darwin.c
+deleted file mode 100644
+index 700d2eb5a5..0000000000
+--- a/src/runtime/cgo/gcc_stack_darwin.c
++++ /dev/null
+@@ -1,19 +0,0 @@
+-// Copyright 2023 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include <pthread.h>
+-#include "libcgo.h"
+-
+-void
+-x_cgo_getstackbound(uintptr *low)
+-{
+-	void* addr;
+-	size_t size;
+-	pthread_t p;
+-
+-	p = pthread_self();
+-	addr = pthread_get_stackaddr_np(p); // high address (!)
+-	size = pthread_get_stacksize_np(p);
+-	*low = (uintptr)addr - size;
+-}
+diff --git a/src/runtime/cgo/gcc_stack_unix.c b/src/runtime/cgo/gcc_stack_unix.c
+deleted file mode 100644
+index 6fe46c56d7..0000000000
+--- a/src/runtime/cgo/gcc_stack_unix.c
++++ /dev/null
+@@ -1,39 +0,0 @@
+-// Copyright 2023 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build unix && !darwin
+-
+-#ifndef _GNU_SOURCE // pthread_getattr_np
+-#define _GNU_SOURCE
+-#endif
+-
+-#include <pthread.h>
+-#include "libcgo.h"
+-
+-void
+-x_cgo_getstackbound(uintptr *low)
+-{
+-	pthread_attr_t attr;
+-	void *addr;
+-	size_t size;
+-
+-#if defined(__GLIBC__) || (defined(__sun) && !defined(__illumos__))
+-	// pthread_getattr_np is a GNU extension supported in glibc.
+-	// Solaris is not glibc but does support pthread_getattr_np
+-	// (and the fallback doesn't work...). Illumos does not.
+-	pthread_getattr_np(pthread_self(), &attr);  // GNU extension
+-	pthread_attr_getstack(&attr, &addr, &size); // low address
+-#elif defined(__illumos__)
+-	pthread_attr_init(&attr);
+-	pthread_attr_get_np(pthread_self(), &attr);
+-	pthread_attr_getstack(&attr, &addr, &size); // low address
+-#else
+-	pthread_attr_init(&attr);
+-	pthread_attr_getstacksize(&attr, &size);
+-	addr = __builtin_frame_address(0) + 4096 - size;
+-#endif
+-	pthread_attr_destroy(&attr);
+-
+-	*low = (uintptr)addr;
+-}
+diff --git a/src/runtime/cgo/gcc_stack_windows.c b/src/runtime/cgo/gcc_stack_windows.c
+deleted file mode 100644
+index 14604e1e4f..0000000000
+--- a/src/runtime/cgo/gcc_stack_windows.c
++++ /dev/null
+@@ -1,7 +0,0 @@
+-// Copyright 2023 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "libcgo.h"
+-
+-void x_cgo_getstackbound(uintptr *low) {} // no-op for now
+diff --git a/src/runtime/cgo/libcgo.h b/src/runtime/cgo/libcgo.h
+index 04755f0f20..af4960e7e9 100644
+--- a/src/runtime/cgo/libcgo.h
++++ b/src/runtime/cgo/libcgo.h
+@@ -51,11 +51,6 @@ extern void (*_cgo_thread_start)(ThreadStart *ts);
+  */
+ extern void (*_cgo_sys_thread_create)(void* (*func)(void*), void* arg);
+ 
+-/*
+- * Indicates whether a dummy pthread per-thread variable is allocated.
+- */
+-extern uintptr_t *_cgo_pthread_key_created;
+-
+ /*
+  * Creates the new operating system thread (OS, arch dependent).
+  */
+diff --git a/src/runtime/cgocall.go b/src/runtime/cgocall.go
+index c2552cbdf5..b29523cab1 100644
+--- a/src/runtime/cgocall.go
++++ b/src/runtime/cgocall.go
+@@ -236,9 +236,6 @@ func cgocallbackg(fn, frame unsafe.Pointer, ctxt uintptr) {
+ 	savedpc := gp.syscallpc
+ 	exitsyscall() // coming out of cgo call
+ 	gp.m.incgo = false
+-	if gp.m.isextra {
+-		gp.m.isExtraInC = false
+-	}
+ 
+ 	osPreemptExtExit(gp.m)
+ 
+@@ -249,9 +246,6 @@ func cgocallbackg(fn, frame unsafe.Pointer, ctxt uintptr) {
+ 	// This is enforced by checking incgo in the schedule function.
+ 
+ 	gp.m.incgo = true
+-	if gp.m.isextra {
+-		gp.m.isExtraInC = true
+-	}
+ 
+ 	if gp.m != checkm {
+ 		throw("m changed unexpectedly in cgocallbackg")
+diff --git a/src/runtime/crash_cgo_test.go b/src/runtime/crash_cgo_test.go
+index 9efe202085..f4126d2337 100644
+--- a/src/runtime/crash_cgo_test.go
++++ b/src/runtime/crash_cgo_test.go
+@@ -836,16 +836,3 @@ func TestDestructorCallbackRace(t *testing.T) {
+ 		t.Errorf("expected %q, but got:\n%s", want, got)
+ 	}
+ }
+-
+-func TestEnsureBindM(t *testing.T) {
+-	t.Parallel()
+-	switch runtime.GOOS {
+-	case "windows", "plan9":
+-		t.Skipf("skipping bindm test on %s", runtime.GOOS)
+-	}
+-	got := runTestProg(t, "testprogcgo", "EnsureBindM")
+-	want := "OK\n"
+-	if got != want {
+-		t.Errorf("expected %q, got %v", want, got)
+-	}
+-}
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 0b9df169b2..1b75b2fc91 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -209,10 +209,6 @@ func main() {
+ 
+ 	main_init_done = make(chan bool)
+ 	if iscgo {
+-		if _cgo_pthread_key_created == nil {
+-			throw("_cgo_pthread_key_created missing")
+-		}
+-
+ 		if _cgo_thread_start == nil {
+ 			throw("_cgo_thread_start missing")
+ 		}
+@@ -227,13 +223,6 @@ func main() {
+ 		if _cgo_notify_runtime_init_done == nil {
+ 			throw("_cgo_notify_runtime_init_done missing")
+ 		}
+-
+-		// Set the x_crosscall2_ptr C function pointer variable point to crosscall2.
+-		if set_crosscall2 == nil {
+-			throw("set_crosscall2 missing")
+-		}
+-		set_crosscall2()
+-
+ 		// Start the template thread in case we enter Go from
+ 		// a C-created thread and need to create a new thread.
+ 		startTemplateThread()
+@@ -1891,15 +1880,11 @@ func allocm(pp *p, fn func(), id int64) *m {
+ // pressed into service as the scheduling stack and current
+ // goroutine for the duration of the cgo callback.
+ //
+-// It calls dropm to put the m back on the list,
+-// 1. when the callback is done with the m in non-pthread platforms,
+-// 2. or when the C thread exiting on pthread platforms.
+-//
+-// The signal argument indicates whether we're called from a signal
+-// handler.
++// When the callback is done with the m, it calls dropm to
++// put the m back on the list.
+ //
+ //go:nosplit
+-func needm(signal bool) {
++func needm() {
+ 	if (iscgo || GOOS == "windows") && !cgoHasExtraM {
+ 		// Can happen if C/C++ code calls Go from a global ctor.
+ 		// Can also happen on Windows if a global ctor uses a
+@@ -1948,36 +1933,16 @@ func needm(signal bool) {
+ 	osSetupTLS(mp)
+ 
+ 	// Install g (= m->g0) and set the stack bounds
+-	// to match the current stack. If we don't actually know
++	// to match the current stack. We don't actually know
+ 	// how big the stack is, like we don't know how big any
+-	// scheduling stack is, but we assume there's at least 32 kB.
+-	// If we can get a more accurate stack bound from pthread,
+-	// use that.
++	// scheduling stack is, but we assume there's at least 32 kB,
++	// which is more than enough for us.
+ 	setg(mp.g0)
+ 	gp := getg()
+ 	gp.stack.hi = getcallersp() + 1024
+ 	gp.stack.lo = getcallersp() - 32*1024
+-	if !signal && _cgo_getstackbound != nil {
+-		// Don't adjust if called from the signal handler.
+-		// We are on the signal stack, not the pthread stack.
+-		// (We could get the stack bounds from sigaltstack, but
+-		// we're getting out of the signal handler very soon
+-		// anyway. Not worth it.)
+-		var low uintptr
+-		asmcgocall(_cgo_getstackbound, unsafe.Pointer(&low))
+-		// getstackbound is an unsupported no-op on Windows.
+-		if low != 0 {
+-			gp.stack.lo = low
+-			// TODO: Also get gp.stack.hi from getstackbound.
+-		}
+-	}
+ 	gp.stackguard0 = gp.stack.lo + stackGuard
+ 
+-	// Should mark we are already in Go now.
+-	// Otherwise, we may call needm again when we get a signal, before cgocallbackg1,
+-	// which means the extram list may be empty, that will cause a deadlock.
+-	mp.isExtraInC = false
+-
+ 	// Initialize this thread to use the m.
+ 	asminit()
+ 	minit()
+@@ -1987,17 +1952,6 @@ func needm(signal bool) {
+ 	sched.ngsys.Add(-1)
+ }
+ 
+-// Acquire an extra m and bind it to the C thread when a pthread key has been created.
+-//
+-//go:nosplit
+-func needAndBindM() {
+-	needm(false)
+-
+-	if _cgo_pthread_key_created != nil && *(*uintptr)(_cgo_pthread_key_created) != 0 {
+-		cgoBindM()
+-	}
+-}
+-
+ // newextram allocates m's and puts them on the extra list.
+ // It is called with a working local m, so that it can do things
+ // like call schedlock and allocate.
+@@ -2042,8 +1996,6 @@ func oneNewExtraM() {
+ 	gp.m = mp
+ 	mp.curg = gp
+ 	mp.isextra = true
+-	// mark we are in C by default.
+-	mp.isExtraInC = true
+ 	mp.lockedInt++
+ 	mp.lockedg.set(gp)
+ 	gp.lockedm.set(mp)
+@@ -2076,11 +2028,9 @@ func oneNewExtraM() {
+ 	unlockextra(mp)
+ }
+ 
+-// dropm puts the current m back onto the extra list.
+-//
+-// 1. On systems without pthreads, like Windows
+ // dropm is called when a cgo callback has called needm but is now
+ // done with the callback and returning back into the non-Go thread.
++// It puts the current m back onto the extra list.
+ //
+ // The main expense here is the call to signalstack to release the
+ // m's signal stack, and then the call to needm on the next callback
+@@ -2092,18 +2042,15 @@ func oneNewExtraM() {
+ // call. These should typically not be scheduling operations, just a few
+ // atomics, so the cost should be small.
+ //
+-// 2. On systems with pthreads
+-// dropm is called while a non-Go thread is exiting.
+-// We allocate a pthread per-thread variable using pthread_key_create,
+-// to register a thread-exit-time destructor.
+-// And store the g into a thread-specific value associated with the pthread key,
+-// when first return back to C.
+-// So that the destructor would invoke dropm while the non-Go thread is exiting.
+-// This is much faster since it avoids expensive signal-related syscalls.
+-//
+-// NOTE: this always runs without a P, so, nowritebarrierrec required.
+-//
+-//go:nowritebarrierrec
++// TODO(rsc): An alternative would be to allocate a dummy pthread per-thread
++// variable using pthread_key_create. Unlike the pthread keys we already use
++// on OS X, this dummy key would never be read by Go code. It would exist
++// only so that we could register at thread-exit-time destructor.
++// That destructor would put the m back onto the extra list.
++// This is purely a performance optimization. The current version,
++// in which dropm happens on each cgo call, is still correct too.
++// We may have to keep the current version on systems with cgo
++// but without pthreads, like Windows.
+ func dropm() {
+ 	// Clear m and g, and return m to the extra list.
+ 	// After the call to setg we can only call nosplit functions
+@@ -2135,39 +2082,6 @@ func dropm() {
+ 	msigrestore(sigmask)
+ }
+ 
+-// bindm store the g0 of the current m into a thread-specific value.
+-//
+-// We allocate a pthread per-thread variable using pthread_key_create,
+-// to register a thread-exit-time destructor.
+-// We are here setting the thread-specific value of the pthread key, to enable the destructor.
+-// So that the pthread_key_destructor would dropm while the C thread is exiting.
+-//
+-// And the saved g will be used in pthread_key_destructor,
+-// since the g stored in the TLS by Go might be cleared in some platforms,
+-// before the destructor invoked, so, we restore g by the stored g, before dropm.
+-//
+-// We store g0 instead of m, to make the assembly code simpler,
+-// since we need to restore g0 in runtime.cgocallback.
+-//
+-// On systems without pthreads, like Windows, bindm shouldn't be used.
+-//
+-// NOTE: this always runs without a P, so, nowritebarrierrec required.
+-//
+-//go:nosplit
+-//go:nowritebarrierrec
+-func cgoBindM() {
+-	if GOOS == "windows" || GOOS == "plan9" {
+-		fatal("bindm in unexpected GOOS")
+-	}
+-	g := getg()
+-	if g.m.g0 != g {
+-		fatal("the current g is not g0")
+-	}
+-	if _cgo_bindm != nil {
+-		asmcgocall(_cgo_bindm, unsafe.Pointer(g))
+-	}
+-}
+-
+ // A helper function for EnsureDropM.
+ func getm() uintptr {
+ 	return uintptr(unsafe.Pointer(getg().m))
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 4fd5bba74d..eb9a1693ba 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -562,7 +562,6 @@ type m struct {
+ 	printlock     int8
+ 	incgo         bool          // m is executing a cgo call
+ 	isextra       bool          // m is an extra m
+-	isExtraInC    bool          // m is an extra m that is not executing Go code
+ 	freeWait      atomic.Uint32 // Whether it is safe to free g0 and delete m (one of freeMRef, freeMStack, freeMWait)
+ 	fastrand      uint64
+ 	needextram    bool
+diff --git a/src/runtime/signal_unix.go b/src/runtime/signal_unix.go
+index 7fb629f4d5..8b0d281ac9 100644
+--- a/src/runtime/signal_unix.go
++++ b/src/runtime/signal_unix.go
+@@ -435,7 +435,7 @@ func sigtrampgo(sig uint32, info *siginfo, ctx unsafe.Pointer) {
+ 	c := &sigctxt{info, ctx}
+ 	gp := sigFetchG(c)
+ 	setg(gp)
+-	if gp == nil || (gp.m != nil && gp.m.isExtraInC) {
++	if gp == nil {
+ 		if sig == _SIGPROF {
+ 			// Some platforms (Linux) have per-thread timers, which we use in
+ 			// combination with the process-wide timer. Avoid double-counting.
+@@ -458,18 +458,7 @@ func sigtrampgo(sig uint32, info *siginfo, ctx unsafe.Pointer) {
+ 			return
+ 		}
+ 		c.fixsigcode(sig)
+-		// Set g to nil here and badsignal will use g0 by needm.
+-		// TODO: reuse the current m here by using the gsignal and adjustSignalStack,
+-		// since the current g maybe a normal goroutine and actually running on the signal stack,
+-		// it may hit stack split that is not expected here.
+-		if gp != nil {
+-			setg(nil)
+-		}
+ 		badsignal(uintptr(sig), c)
+-		// Restore g
+-		if gp != nil {
+-			setg(gp)
+-		}
+ 		return
+ 	}
+ 
+@@ -585,7 +574,7 @@ func adjustSignalStack(sig uint32, mp *m, gsigStack *gsignalStack) bool {
+ 
+ 	// sp is not within gsignal stack, g0 stack, or sigaltstack. Bad.
+ 	setg(nil)
+-	needm(true)
++	needm()
+ 	if st.ss_flags&_SS_DISABLE != 0 {
+ 		noSignalStack(sig)
+ 	} else {
+@@ -1058,7 +1047,7 @@ func badsignal(sig uintptr, c *sigctxt) {
+ 		exit(2)
+ 		*(*uintptr)(unsafe.Pointer(uintptr(123))) = 2
+ 	}
+-	needm(true)
++	needm()
+ 	if !sigsend(uint32(sig)) {
+ 		// A foreign thread received the signal sig, and the
+ 		// Go code does not want to handle it.
+@@ -1126,9 +1115,8 @@ func sigfwdgo(sig uint32, info *siginfo, ctx unsafe.Pointer) bool {
+ 	//   (1) we weren't in VDSO page,
+ 	//   (2) we were in a goroutine (i.e., m.curg != nil), and
+ 	//   (3) we weren't in CGO.
+-	//   (4) we weren't in dropped extra m.
+ 	gp := sigFetchG(c)
+-	if gp != nil && gp.m != nil && gp.m.curg != nil && !gp.m.isExtraInC && !gp.m.incgo {
++	if gp != nil && gp.m != nil && gp.m.curg != nil && !gp.m.incgo {
+ 		return false
+ 	}
+ 
+diff --git a/src/runtime/stubs.go b/src/runtime/stubs.go
+index 65b7299f74..373445d613 100644
+--- a/src/runtime/stubs.go
++++ b/src/runtime/stubs.go
+@@ -237,9 +237,6 @@ func noEscapePtr[T any](p *T) *T {
+ // cgocallback is not called from Go, only from crosscall2.
+ // This in turn calls cgocallbackg, which is where we'll find
+ // pointer-declared arguments.
+-//
+-// When fn is nil (frame is saved g), call dropm instead,
+-// this is used when the C thread is exiting.
+ func cgocallback(fn, frame, ctxt uintptr)
+ 
+ func gogo(buf *gobuf)
+diff --git a/src/runtime/testdata/testprogcgo/bindm.c b/src/runtime/testdata/testprogcgo/bindm.c
+deleted file mode 100644
+index 815d8a75f2..0000000000
+--- a/src/runtime/testdata/testprogcgo/bindm.c
++++ /dev/null
+@@ -1,34 +0,0 @@
+-// Copyright 2023 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build !plan9 && !windows
+-
+-#include <stdint.h>
+-#include <pthread.h>
+-#include <unistd.h>
+-#include "_cgo_export.h"
+-
+-#define CTHREADS 2
+-#define CHECKCALLS 100
+-
+-static void* checkBindMThread(void* thread) {
+-	int i;
+-	for (i = 0; i < CHECKCALLS; i++) {
+-		GoCheckBindM((uintptr_t)thread);
+-		usleep(1);
+-	}
+-	return NULL;
+-}
+-
+-void CheckBindM() {
+-	int i;
+-	pthread_t s[CTHREADS];
+-
+-	for (i = 0; i < CTHREADS; i++) {
+-		pthread_create(&s[i], NULL, checkBindMThread, &s[i]);
+-	}
+-	for (i = 0; i < CTHREADS; i++) {
+-		pthread_join(s[i], NULL);
+-	}
+-}
+diff --git a/src/runtime/testdata/testprogcgo/bindm.go b/src/runtime/testdata/testprogcgo/bindm.go
+deleted file mode 100644
+index c2003c2093..0000000000
+--- a/src/runtime/testdata/testprogcgo/bindm.go
++++ /dev/null
+@@ -1,61 +0,0 @@
+-// Copyright 2023 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build !plan9 && !windows
+-
+-// Test that callbacks from C to Go in the same C-thread always get the same m.
+-// Make sure the extra M bind to the C-thread.
+-
+-package main
+-
+-/*
+-extern void CheckBindM();
+-*/
+-import "C"
+-
+-import (
+-	"fmt"
+-	"os"
+-	"runtime"
+-	"sync"
+-	"sync/atomic"
+-)
+-
+-var (
+-	mutex      = sync.Mutex{}
+-	cThreadToM = map[uintptr]uintptr{}
+-	started    = atomic.Uint32{}
+-)
+-
+-// same as CTHREADS in C, make sure all the C threads are actually started.
+-const cThreadNum = 2
+-
+-func init() {
+-	register("EnsureBindM", EnsureBindM)
+-}
+-
+-//export GoCheckBindM
+-func GoCheckBindM(thread uintptr) {
+-	// Wait all threads start
+-	if started.Load() != cThreadNum {
+-		// Only once for each thread, since it will wait all threads start.
+-		started.Add(1)
+-		for started.Load() < cThreadNum {
+-			runtime.Gosched()
+-		}
+-	}
+-	m := runtime_getm_for_test()
+-	mutex.Lock()
+-	defer mutex.Unlock()
+-	if savedM, ok := cThreadToM[thread]; ok && savedM != m {
+-		fmt.Printf("m == %x want %x\n", m, savedM)
+-		os.Exit(1)
+-	}
+-	cThreadToM[thread] = m
+-}
+-
+-func EnsureBindM() {
+-	C.CheckBindM()
+-	fmt.Println("OK")
+-}

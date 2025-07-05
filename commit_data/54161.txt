@@ -10,6 +10,60 @@ Date:   Wed Sep 28 00:29:14 2022 +0800
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Meng Zhuo <mzh@golangcn.org>
-
+---
  src/database/sql/convert.go | 16 ++++------------
  1 file changed, 4 insertions(+), 12 deletions(-)
+
+diff --git a/src/database/sql/convert.go b/src/database/sql/convert.go
+index 4d9d070137..32941cb4c2 100644
+--- a/src/database/sql/convert.go
++++ b/src/database/sql/convert.go
+@@ -7,6 +7,7 @@
+ package sql
+ 
+ import (
++	"bytes"
+ 	"database/sql/driver"
+ 	"errors"
+ 	"fmt"
+@@ -252,13 +253,13 @@ func convertAssignRows(dest, src any, rows *Rows) error {
+ 			if d == nil {
+ 				return errNilPtr
+ 			}
+-			*d = cloneBytes(s)
++			*d = bytes.Clone(s)
+ 			return nil
+ 		case *[]byte:
+ 			if d == nil {
+ 				return errNilPtr
+ 			}
+-			*d = cloneBytes(s)
++			*d = bytes.Clone(s)
+ 			return nil
+ 		case *RawBytes:
+ 			if d == nil {
+@@ -401,7 +402,7 @@ func convertAssignRows(dest, src any, rows *Rows) error {
+ 	if sv.IsValid() && sv.Type().AssignableTo(dv.Type()) {
+ 		switch b := src.(type) {
+ 		case []byte:
+-			dv.Set(reflect.ValueOf(cloneBytes(b)))
++			dv.Set(reflect.ValueOf(bytes.Clone(b)))
+ 		default:
+ 			dv.Set(sv)
+ 		}
+@@ -486,15 +487,6 @@ func strconvErr(err error) error {
+ 	return err
+ }
+ 
+-func cloneBytes(b []byte) []byte {
+-	if b == nil {
+-		return nil
+-	}
+-	c := make([]byte, len(b))
+-	copy(c, b)
+-	return c
+-}
+-
+ func asString(src any) string {
+ 	switch v := src.(type) {
+ 	case string:

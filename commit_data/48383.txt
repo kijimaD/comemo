@@ -24,8 +24,53 @@ Date:   Thu May 13 16:08:59 2021 +0200
     Trust: Jay Conrod <jayconrod@google.com>
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/go/script_test.go                        |  2 +-
  src/cmd/go/testdata/script/README                |  1 +
  src/cmd/go/testdata/script/test_script_cmdcd.txt | 13 +++++++++++++
  3 files changed, 15 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/script_test.go b/src/cmd/go/script_test.go
+index 327eaff445..639e907db0 100644
+--- a/src/cmd/go/script_test.go
++++ b/src/cmd/go/script_test.go
+@@ -517,7 +517,7 @@ func (ts *testScript) cmdCd(want simpleStatus, args []string) {
+ 		ts.fatalf("usage: cd dir")
+ 	}
+ 
+-	dir := args[0]
++	dir := filepath.FromSlash(args[0])
+ 	if !filepath.IsAbs(dir) {
+ 		dir = filepath.Join(ts.cd, dir)
+ 	}
+diff --git a/src/cmd/go/testdata/script/README b/src/cmd/go/testdata/script/README
+index d7e67bb7b6..48e4055b0b 100644
+--- a/src/cmd/go/testdata/script/README
++++ b/src/cmd/go/testdata/script/README
+@@ -102,6 +102,7 @@ The commands are:
+ 
+ - cd dir
+   Change to the given directory for future commands.
++  The directory must use slashes as path separator.
+ 
+ - chmod perm path...
+   Change the permissions of the files or directories named by the path arguments
+diff --git a/src/cmd/go/testdata/script/test_script_cmdcd.txt b/src/cmd/go/testdata/script/test_script_cmdcd.txt
+new file mode 100644
+index 0000000000..6e6f67e13d
+--- /dev/null
++++ b/src/cmd/go/testdata/script/test_script_cmdcd.txt
+@@ -0,0 +1,13 @@
++# Tests that after a cd command, where usually the UNIX path separator is used,
++# a match against $PWD does not fail on Windows.
++
++cd $WORK/a/b/c/pkg
++
++go list -find -f {{.Root}}
++stdout $PWD
++
++-- $WORK/a/b/c/pkg/go.mod --
++module pkg
++
++-- $WORK/a/b/c/pkg/pkg.go --
++package pkg

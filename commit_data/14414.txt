@@ -8,6 +8,24 @@ Date:   Thu Nov 15 10:42:39 2012 -0800
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/6854050
-
+---
  src/sudo.bash | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/sudo.bash b/src/sudo.bash
+index 40f8d1aa19..7b7d4f1cdd 100755
+--- a/src/sudo.bash
++++ b/src/sudo.bash
+@@ -12,6 +12,12 @@ Darwin)
+ 	exit 0
+ esac
+ 
++# Check that the go command exists
++if ! go help >/dev/null 2>&1; then
++	echo "The go command is not in your PATH." >&2
++	exit 2
++fi
++
+ eval $(go env)
+ if ! [ -x $GOTOOLDIR/cov -a -x $GOTOOLDIR/prof ]; then
+ 	echo "You don't need to run sudo.bash." >&2

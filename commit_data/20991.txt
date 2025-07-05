@@ -20,7 +20,44 @@ Date:   Mon Nov 3 15:48:51 2014 -0500
     R=rsc, dave
     CC=golang-codereviews
     https://golang.org/cl/168120043
-
+---
  src/cmd/9g/peep.c | 4 +++-
  src/cmd/gc/popt.c | 4 ----
  2 files changed, 3 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/9g/peep.c b/src/cmd/9g/peep.c
+index 5721d7b04f..ec314d6338 100644
+--- a/src/cmd/9g/peep.c
++++ b/src/cmd/9g/peep.c
+@@ -44,13 +44,15 @@ peep(Prog *p)
+ void
+ excise(Flow *r)
+ {
+-	Prog *p;
++	Prog *p, *l;
+ 
+ 	p = r->prog;
+ 	if(debug['P'] && debug['v'])
+ 		print("%P ===delete===\n", p);
++	l = p->link;
+ 	*p = zprog;
+ 	p->as = ANOP;
++	p->link = l;
+ 	ostats.ndelmov++;
+ }
+ 
+diff --git a/src/cmd/gc/popt.c b/src/cmd/gc/popt.c
+index 6e6db88ef8..993bb24821 100644
+--- a/src/cmd/gc/popt.c
++++ b/src/cmd/gc/popt.c
+@@ -847,10 +847,6 @@ nilopt(Prog *firstp)
+ 	Graph *g;
+ 	int ncheck, nkill;
+ 
+-	// TODO(minux): nilopt on power64 throw away seemly random segment of code.
+-	if(thechar == '9')
+-		return;
+-
+ 	g = flowstart(firstp, sizeof(NilFlow));
+ 	if(g == nil)
+ 		return;

@@ -15,7 +15,73 @@ Date:   Sun Oct 1 12:07:42 2023 +0000
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Robert Griesemer <gri@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/go/printer/nodes.go   | 17 ++++-------------
  src/go/printer/printer.go |  5 +----
  2 files changed, 5 insertions(+), 17 deletions(-)
+
+diff --git a/src/go/printer/nodes.go b/src/go/printer/nodes.go
+index e41ffc1958..97c2cab0f8 100644
+--- a/src/go/printer/nodes.go
++++ b/src/go/printer/nodes.go
+@@ -44,10 +44,7 @@ import (
+ // linebreaks. At the moment there is no easy way to know about
+ // future (not yet interspersed) comments in this function.
+ func (p *printer) linebreak(line, min int, ws whiteSpace, newSection bool) (nbreaks int) {
+-	n := nlimit(line - p.pos.Line)
+-	if n < min {
+-		n = min
+-	}
++	n := max(nlimit(line-p.pos.Line), min)
+ 	if n > 0 {
+ 		p.print(ws)
+ 		if newSection {
+@@ -670,9 +667,7 @@ func walkBinary(e *ast.BinaryExpr) (has4, has5 bool, maxProblem int) {
+ 		h4, h5, mp := walkBinary(l)
+ 		has4 = has4 || h4
+ 		has5 = has5 || h5
+-		if maxProblem < mp {
+-			maxProblem = mp
+-		}
++		maxProblem = max(maxProblem, mp)
+ 	}
+ 
+ 	switch r := e.Y.(type) {
+@@ -685,9 +680,7 @@ func walkBinary(e *ast.BinaryExpr) (has4, has5 bool, maxProblem int) {
+ 		h4, h5, mp := walkBinary(r)
+ 		has4 = has4 || h4
+ 		has5 = has5 || h5
+-		if maxProblem < mp {
+-			maxProblem = mp
+-		}
++		maxProblem = max(maxProblem, mp)
+ 
+ 	case *ast.StarExpr:
+ 		if e.Op == token.QUO { // `*/`
+@@ -699,9 +692,7 @@ func walkBinary(e *ast.BinaryExpr) (has4, has5 bool, maxProblem int) {
+ 		case "/*", "&&", "&^":
+ 			maxProblem = 5
+ 		case "++", "--":
+-			if maxProblem < 4 {
+-				maxProblem = 4
+-			}
++			maxProblem = max(maxProblem, 4)
+ 		}
+ 	}
+ 	return
+diff --git a/src/go/printer/printer.go b/src/go/printer/printer.go
+index 5cf4e4bb5f..ff36d58140 100644
+--- a/src/go/printer/printer.go
++++ b/src/go/printer/printer.go
+@@ -861,10 +861,7 @@ func (p *printer) writeWhitespace(n int) {
+ 
+ // nlimit limits n to maxNewlines.
+ func nlimit(n int) int {
+-	if n > maxNewlines {
+-		n = maxNewlines
+-	}
+-	return n
++	return min(n, maxNewlines)
+ }
+ 
+ func mayCombine(prev token.Token, next byte) (b bool) {

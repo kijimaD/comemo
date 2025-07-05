@@ -16,6 +16,26 @@ Date:   Wed Mar 8 17:10:06 2023 -0500
     Reviewed-by: Damien Neil <dneil@google.com>
     Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/net/http/serve_test.go | 8 +-------
  1 file changed, 1 insertion(+), 7 deletions(-)
+
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index b2bdeb10a1..343a358ef8 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -1354,13 +1354,7 @@ func testServerAllowsBlockingRemoteAddr(t *testing.T, mode testMode) {
+ 	// Start another request and grab its connection
+ 	response2c := make(chan string, 1)
+ 	go fetch(2, response2c)
+-	var conn2 net.Conn
+-
+-	select {
+-	case conn2 = <-conns:
+-	case <-time.After(time.Second):
+-		t.Fatal("Second Accept didn't happen")
+-	}
++	conn2 := <-conns
+ 
+ 	// Send a response on connection 2.
+ 	conn2.(*blockingRemoteAddrConn).addrs <- &net.TCPAddr{

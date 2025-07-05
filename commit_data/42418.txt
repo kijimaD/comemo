@@ -13,6 +13,20 @@ Date:   Mon Dec 16 17:20:02 2019 -0500
     Run-TryBot: Michael Matloob <matloob@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/go/doc/example.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/go/doc/example.go b/src/go/doc/example.go
+index 868db8a23f..a010d3a85a 100644
+--- a/src/go/doc/example.go
++++ b/src/go/doc/example.go
+@@ -62,7 +62,7 @@ func Examples(testFiles ...*ast.File) []*Example {
+ 			if !ok || f.Recv != nil {
+ 				continue
+ 			}
+-			if params := f.Type.Params; params.List != nil {
++			if params := f.Type.Params; len(params.List) != 0 {
+ 				continue // function has params; not a valid example
+ 			}
+ 			numDecl++

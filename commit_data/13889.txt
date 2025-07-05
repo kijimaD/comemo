@@ -7,9 +7,62 @@ Date:   Fri Sep 21 07:13:36 2012 +0900
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/6546044
-
+---
  src/pkg/net/dial.go       | 2 +-
  src/pkg/net/fd_unix.go    | 2 +-
  src/pkg/net/fd_windows.go | 2 +-
  src/pkg/net/sock_posix.go | 2 +-
  4 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/net/dial.go b/src/pkg/net/dial.go
+index 51912397a4..752f81b618 100644
+--- a/src/pkg/net/dial.go
++++ b/src/pkg/net/dial.go
+@@ -81,7 +81,7 @@ func resolveNetAddr(op, net, addr string) (afnet string, a Addr, err error) {
+ //	Dial("tcp", "google.com:80")
+ //	Dial("tcp", "[de:ad:be:ef::ca:fe]:80")
+ //
+-// For IP networks, addr must be "ip", "ip4" or "ip6" followed
++// For IP networks, net must be "ip", "ip4" or "ip6" followed
+ // by a colon and a protocol number or name.
+ //
+ // Examples:
+diff --git a/src/pkg/net/fd_unix.go b/src/pkg/net/fd_unix.go
+index 1b157daef1..57e04bb6ca 100644
+--- a/src/pkg/net/fd_unix.go
++++ b/src/pkg/net/fd_unix.go
+@@ -582,7 +582,7 @@ func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (netfd *netFD, err e
+ 	}
+ 	defer fd.decref()
+ 
+-	// See ../syscall/exec.go for description of ForkLock.
++	// See ../syscall/exec_unix.go for description of ForkLock.
+ 	// It is okay to hold the lock across syscall.Accept
+ 	// because we have put fd.sysfd into non-blocking mode.
+ 	var s int
+diff --git a/src/pkg/net/fd_windows.go b/src/pkg/net/fd_windows.go
+index 45f5c2d882..4ae78397c3 100644
+--- a/src/pkg/net/fd_windows.go
++++ b/src/pkg/net/fd_windows.go
+@@ -524,7 +524,7 @@ func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (*netFD, error) {
+ 	defer fd.decref()
+ 
+ 	// Get new socket.
+-	// See ../syscall/exec.go for description of ForkLock.
++	// See ../syscall/exec_unix.go for description of ForkLock.
+ 	syscall.ForkLock.RLock()
+ 	s, err := syscall.Socket(fd.family, fd.sotype, 0)
+ 	if err != nil {
+diff --git a/src/pkg/net/sock_posix.go b/src/pkg/net/sock_posix.go
+index e9e5735478..dc5247a7f3 100644
+--- a/src/pkg/net/sock_posix.go
++++ b/src/pkg/net/sock_posix.go
+@@ -17,7 +17,7 @@ var listenerBacklog = maxListenerBacklog()
+ 
+ // Generic socket creation.
+ func socket(net string, f, t, p int, ipv6only bool, ulsa, ursa syscall.Sockaddr, toAddr func(syscall.Sockaddr) Addr) (fd *netFD, err error) {
+-	// See ../syscall/exec.go for description of ForkLock.
++	// See ../syscall/exec_unix.go for description of ForkLock.
+ 	syscall.ForkLock.RLock()
+ 	s, err := syscall.Socket(f, t, p)
+ 	if err != nil {

@@ -11,7 +11,34 @@ Date:   Wed Apr 11 03:22:59 2018 +0000
     GitHub-Pull-Request: golang/go#24802
     Reviewed-on: https://go-review.googlesource.com/106123
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/install-source.html | 2 +-
  doc/install.html        | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/install-source.html b/doc/install-source.html
+index 4ed9487504..1928b0ba9b 100644
+--- a/doc/install-source.html
++++ b/doc/install-source.html
+@@ -307,7 +307,7 @@ package main
+ import "fmt"
+ 
+ func main() {
+-    fmt.Printf("hello, world\n")
++	fmt.Printf("hello, world\n")
+ }
+ </pre>
+ 
+diff --git a/doc/install.html b/doc/install.html
+index 79ae9664c8..cd9abcc57d 100644
+--- a/doc/install.html
++++ b/doc/install.html
+@@ -242,7 +242,7 @@ package main
+ import "fmt"
+ 
+ func main() {
+-    fmt.Printf("hello, world\n")
++	fmt.Printf("hello, world\n")
+ }
+ </pre>
+ 

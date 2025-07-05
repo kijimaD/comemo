@@ -7,8 +7,47 @@ Date:   Wed Dec 8 16:25:14 2010 -0500
     R=rsc
     CC=golang-dev
     https://golang.org/cl/3431046
-
+---
  src/pkg/archive/tar/reader_test.go | 2 +-
  src/pkg/archive/tar/writer_test.go | 2 +-
  src/pkg/flag/flag_test.go          | 2 +-
  3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/archive/tar/reader_test.go b/src/pkg/archive/tar/reader_test.go
+index cfc2585077..aa4c797fb6 100644
+--- a/src/pkg/archive/tar/reader_test.go
++++ b/src/pkg/archive/tar/reader_test.go
+@@ -136,7 +136,7 @@ testLoop:
+ 			break
+ 		}
+ 		if hdr != nil || err != nil {
+-			t.Errorf("test %d: Unexpected entry or error: hdr=%v err=%v", i, err)
++			t.Errorf("test %d: Unexpected entry or error: hdr=%v err=%v", i, hdr, err)
+ 		}
+ 		f.Close()
+ 	}
+diff --git a/src/pkg/archive/tar/writer_test.go b/src/pkg/archive/tar/writer_test.go
+index 24db9b821b..48b8911400 100644
+--- a/src/pkg/archive/tar/writer_test.go
++++ b/src/pkg/archive/tar/writer_test.go
+@@ -141,7 +141,7 @@ testLoop:
+ 			}
+ 		}
+ 		if err := tw.Close(); err != nil {
+-			t.Errorf("test %d: Failed closing archive: %v", err)
++			t.Errorf("test %d: Failed closing archive: %v", i, err)
+ 			continue testLoop
+ 		}
+ 
+diff --git a/src/pkg/flag/flag_test.go b/src/pkg/flag/flag_test.go
+index abde1e0db7..4ebb738058 100644
+--- a/src/pkg/flag/flag_test.go
++++ b/src/pkg/flag/flag_test.go
+@@ -196,6 +196,6 @@ func TestChangingArgs(t *testing.T) {
+ 	args := Args()
+ 
+ 	if !*before || cmd != "subcmd" || !*after || len(args) != 1 || args[0] != "args" {
+-		t.Fatal("expected true subcmd true [args] got %v %v %v %v", *before, cmd, *after, args)
++		t.Fatalf("expected true subcmd true [args] got %v %v %v %v", *before, cmd, *after, args)
+ 	}
+ }

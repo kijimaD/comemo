@@ -9,7 +9,53 @@ Date:   Thu Jul 28 20:41:18 2011 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/4823060
-
+---
  src/cmd/gc/dcl.c         |  6 ++----
  test/fixedbugs/bug365.go | 22 ++++++++++++++++++++++
  2 files changed, 24 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index ba1aa83888..5bfeeb97aa 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -746,10 +746,8 @@ stotype(NodeList *l, int et, Type **t, int funarg)
+ 			} else {
+ 				typecheck(&n->right, Etype);
+ 				n->type = n->right->type;
+-				if(n->type == T) {
+-					*t0 = T;
+-					return t0;
+-				}
++				if(n->type == T)
++					continue;
+ 				if(left != N)
+ 					left->type = n->type;
+ 				n->right = N;
+diff --git a/test/fixedbugs/bug365.go b/test/fixedbugs/bug365.go
+new file mode 100644
+index 0000000000..7ec19b0c8b
+--- /dev/null
++++ b/test/fixedbugs/bug365.go
+@@ -0,0 +1,22 @@
++// errchk $G $D/$F.go
++
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// check that compiler doesn't stop reading struct def
++// after first unknown type.
++
++// Fixes issue 2110.
++
++package main
++
++type S struct {
++	err os.Error  // ERROR "undefined"
++	Num int
++}
++
++func main() {
++	s := S{}
++	_ = s.Num  // no error here please
++}

@@ -26,9 +26,116 @@ Date:   Wed Jun 5 14:53:28 2019 -0400
     Run-TryBot: David Chase <drchase@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/go.go   |  8 ++++++--
  src/cmd/compile/internal/gc/main.go | 12 +++++++++++-
  src/cmd/compile/internal/gc/walk.go |  2 +-
  test/fixedbugs/issue27732a.go       | 23 +++++++++++++++++++++++
  4 files changed, 41 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index 6123e6acc1..a776af9f66 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -14,17 +14,21 @@ import (
+ 
+ const (
+ 	BADWIDTH = types.BADWIDTH
++)
+ 
++var (
+ 	// maximum size variable which we will allocate on the stack.
+ 	// This limit is for explicit variable declarations like "var x T" or "x := ...".
+-	maxStackVarSize = 10 * 1024 * 1024
++	// Note: the flag smallframes can update this value.
++	maxStackVarSize = int64(10 * 1024 * 1024)
+ 
+ 	// maximum size of implicit variables that we will allocate on the stack.
+ 	//   p := new(T)          allocating T on the stack
+ 	//   p := &T{}            allocating T on the stack
+ 	//   s := make([]T, n)    allocating [n]T on the stack
+ 	//   s := []byte("...")   allocating [n]byte on the stack
+-	maxImplicitStackVarSize = 64 * 1024
++	// Note: the flag smallframes can update this value.
++	maxImplicitStackVarSize = int64(64 * 1024)
+ )
+ 
+ // isRuntimePkg reports whether p is package runtime.
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 51b60fb417..b5b387868b 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -190,6 +190,10 @@ func Main(archInit func(*Arch)) {
+ 	Nacl = objabi.GOOS == "nacl"
+ 	Wasm := objabi.GOARCH == "wasm"
+ 
++	// Whether the limit for stack-allocated objects is much smaller than normal.
++	// This can be helpful for diagnosing certain causes of GC latency. See #27732.
++	smallFrames := false
++
+ 	flag.BoolVar(&compiling_runtime, "+", false, "compiling runtime")
+ 	flag.BoolVar(&compiling_std, "std", false, "compiling standard library")
+ 	objabi.Flagcount("%", "debug non-static initializers", &Debug['%'])
+@@ -261,13 +265,19 @@ func Main(archInit func(*Arch)) {
+ 	flag.StringVar(&mutexprofile, "mutexprofile", "", "write mutex profile to `file`")
+ 	flag.StringVar(&benchfile, "bench", "", "append benchmark times to `file`")
+ 	flag.BoolVar(&newescape, "newescape", true, "enable new escape analysis")
++	flag.BoolVar(&smallFrames, "smallframes", false, "reduce the size limit for stack allocated objects")
+ 	flag.BoolVar(&Ctxt.UseBASEntries, "dwarfbasentries", Ctxt.UseBASEntries, "use base address selection entries in DWARF")
+ 	objabi.Flagparse(usage)
+ 
+ 	// Record flags that affect the build result. (And don't
+ 	// record flags that don't, since that would cause spurious
+ 	// changes in the binary.)
+-	recordFlags("B", "N", "l", "msan", "race", "shared", "dynlink", "dwarflocationlists", "newescape", "dwarfbasentries")
++	recordFlags("B", "N", "l", "msan", "race", "shared", "dynlink", "dwarflocationlists", "newescape", "dwarfbasentries", "smallFrames")
++
++	if smallFrames {
++		maxStackVarSize = 128 * 1024
++		maxImplicitStackVarSize = 16 * 1024
++	}
+ 
+ 	Ctxt.Flag_shared = flag_dynlink || flag_shared
+ 	Ctxt.Flag_dynlink = flag_dynlink
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 679c86fab6..a8cc313b76 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -1393,7 +1393,7 @@ opswitch:
+ 			// Allocate a [n]byte of the right size.
+ 			t := types.NewArray(types.Types[TUINT8], int64(len(sc)))
+ 			var a *Node
+-			if n.Esc == EscNone && len(sc) <= maxImplicitStackVarSize {
++			if n.Esc == EscNone && len(sc) <= int(maxImplicitStackVarSize) {
+ 				a = nod(OADDR, temp(t), nil)
+ 			} else {
+ 				a = callnew(t)
+diff --git a/test/fixedbugs/issue27732a.go b/test/fixedbugs/issue27732a.go
+new file mode 100644
+index 0000000000..41b62a6d88
+--- /dev/null
++++ b/test/fixedbugs/issue27732a.go
+@@ -0,0 +1,23 @@
++// errorcheck -0 -m -l -smallframes -newescape=true
++
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This checks that the -smallframes flag forces a large variable to heap.
++
++package main
++
++const (
++	bufferLen = 200000
++)
++
++type kbyte []byte
++type circularBuffer [bufferLen]kbyte
++
++var sink byte
++
++func main() {
++	var c circularBuffer // ERROR "moved to heap: c$"
++	sink = c[0][0]
++}

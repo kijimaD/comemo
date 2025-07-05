@@ -28,8 +28,93 @@ Date:   Fri Dec 4 14:02:55 2020 +0800
     Run-TryBot: fannie zhang <Fannie.Zhang@arm.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/asm/internal/asm/testdata/arm64.s    |  3 +++
  src/cmd/asm/internal/asm/testdata/arm64enc.s |  2 ++
  src/cmd/internal/obj/arm64/asm7.go           | 10 ++++++----
  3 files changed, 11 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/arm64.s b/src/cmd/asm/internal/asm/testdata/arm64.s
+index d859171103..1146c1a789 100644
+--- a/src/cmd/asm/internal/asm/testdata/arm64.s
++++ b/src/cmd/asm/internal/asm/testdata/arm64.s
+@@ -596,9 +596,12 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
+ 	VMOV	R20, V1.S[0]          // 811e044e
+ 	VMOV	R20, V1.S[1]          // 811e0c4e
+ 	VMOV	R1, V9.H4             // 290c020e
++	VDUP	R1, V9.H4             // 290c020e
+ 	VMOV	R22, V11.D2           // cb0e084e
++	VDUP	R22, V11.D2           // cb0e084e
+ 	VMOV	V2.B16, V4.B16        // 441ca24e
+ 	VMOV	V20.S[0], V20         // 9406045e
++	VDUP	V20.S[0], V20         // 9406045e
+ 	VMOV	V12.D[0], V12.D[1]    // 8c05186e
+ 	VMOV	V10.S[0], V12.S[1]    // 4c050c6e
+ 	VMOV	V9.H[0], V12.H[1]     // 2c05066e
+diff --git a/src/cmd/asm/internal/asm/testdata/arm64enc.s b/src/cmd/asm/internal/asm/testdata/arm64enc.s
+index f71f7b0484..a29862822d 100644
+--- a/src/cmd/asm/internal/asm/testdata/arm64enc.s
++++ b/src/cmd/asm/internal/asm/testdata/arm64enc.s
+@@ -669,6 +669,7 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
+    VCMEQ V24.S4, V13.S4, V12.S4                                // ac8db86e
+    VCNT V13.B8, V11.B8                                         // ab59200e
+    VMOV V31.B[15], V18                                         // f2071f5e
++   VDUP V31.B[15], V18                                         // f2071f5e
+    VDUP V31.B[13], V20.B16                                     // f4071b4e
+    VEOR V4.B8, V18.B8, V7.B8                                   // 471e242e
+    VEXT $4, V2.B8, V1.B8, V3.B8                                // 2320022e
+@@ -700,6 +701,7 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
+    //TODO FMOVS.W 71(R29), F28                                 // bc7f44bc
+    FMOVS 6160(R4), F23                                         // 971058bd
+    VMOV V18.B[10], V27                                         // 5b06155e
++   VDUP V18.B[10], V27                                         // 5b06155e
+    VMOV V12.B[2], V28.B[12]                                    // 9c15196e
+    VMOV R30, V4.B[13]                                          // c41f1b4e
+    VMOV V2.B16, V4.B16                                         // 441ca24e
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index 275799aad3..20f1843951 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -501,6 +501,8 @@ var optab = []Optab{
+ 	{AVMOV, C_REG, C_NONE, C_NONE, C_ELEM, 78, 4, 0, 0, 0},
+ 	{AVMOV, C_ARNG, C_NONE, C_NONE, C_ARNG, 83, 4, 0, 0, 0},
+ 	{AVDUP, C_ELEM, C_NONE, C_NONE, C_ARNG, 79, 4, 0, 0, 0},
++	{AVDUP, C_ELEM, C_NONE, C_NONE, C_VREG, 80, 4, 0, 0, 0},
++	{AVDUP, C_REG, C_NONE, C_NONE, C_ARNG, 82, 4, 0, 0, 0},
+ 	{AVMOVI, C_ADDCON, C_NONE, C_NONE, C_ARNG, 86, 4, 0, 0, 0},
+ 	{AVFMLA, C_ARNG, C_ARNG, C_NONE, C_ARNG, 72, 4, 0, 0, 0},
+ 	{AVEXT, C_VCON, C_ARNG, C_ARNG, C_ARNG, 94, 4, 0, 0, 0},
+@@ -4653,13 +4655,13 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		o1 |= (uint32(Q&1) << 30) | (uint32(imm5&0x1f) << 16)
+ 		o1 |= (uint32(rf&31) << 5) | uint32(rt&31)
+ 
+-	case 80: /* vmov V.<T>[index], Vn */
++	case 80: /* vmov/vdup V.<T>[index], Vn */
+ 		rf := int(p.From.Reg)
+ 		rt := int(p.To.Reg)
+ 		imm5 := 0
+ 		index := int(p.From.Index)
+ 		switch p.As {
+-		case AVMOV:
++		case AVMOV, AVDUP:
+ 			o1 = 1<<30 | 15<<25 | 1<<10
+ 			switch (p.From.Reg >> 5) & 15 {
+ 			case ARNG_B:
+@@ -4709,7 +4711,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		o1 = c.maskOpvldvst(p, o1)
+ 		o1 |= uint32(r&31) << 5
+ 
+-	case 82: /* vmov Rn, Vd.<T> */
++	case 82: /* vmov/vdup Rn, Vd.<T> */
+ 		rf := int(p.From.Reg)
+ 		rt := int(p.To.Reg)
+ 		o1 = 7<<25 | 3<<10
+@@ -4737,7 +4739,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 			Q = 1
+ 			imm5 = 2
+ 		default:
+-			c.ctxt.Diag("invalid arrangement on VMOV Rn, Vd.<T>: %v\n", p)
++			c.ctxt.Diag("invalid arrangement: %v\n", p)
+ 		}
+ 		o1 |= (Q & 1 << 30) | (imm5 & 0x1f << 16)
+ 		o1 |= (uint32(rf&31) << 5) | uint32(rt&31)

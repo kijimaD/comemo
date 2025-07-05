@@ -9,7 +9,38 @@ Date:   Thu Jul 2 21:35:39 2009 -0700
     DELTA=4  (0 added, 0 deleted, 4 changed)
     OCL=31016
     CL=31126
-
+---
  src/cmd/5l/optab.c | 4 ++--
  src/cmd/5l/span.c  | 4 ++--
  2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/5l/optab.c b/src/cmd/5l/optab.c
+index 3d7015d14c..88067c4b0a 100644
+--- a/src/cmd/5l/optab.c
++++ b/src/cmd/5l/optab.c
+@@ -32,8 +32,8 @@
+ 
+ Optab	optab[] =
+ {
+-	/* Data layout:
+-	  OPCODE,	from, prog->reg, to,		 magic numbers? */
++	/* struct Optab:
++	  OPCODE,	from, prog->reg, to,		 type,size,param,flag */
+ 	{ ATEXT,	C_LEXT,	C_NONE,	C_LCON, 	 0, 0, 0 },
+ 	{ ATEXT,	C_LEXT,	C_REG,	C_LCON, 	 0, 0, 0 },
+ 	{ ATEXT,	C_ADDR,	C_NONE,	C_LCON, 	 0, 0, 0 },
+diff --git a/src/cmd/5l/span.c b/src/cmd/5l/span.c
+index ef80bed9c3..18d6cd45c4 100644
+--- a/src/cmd/5l/span.c
++++ b/src/cmd/5l/span.c
+@@ -849,8 +849,8 @@ oplook(Prog *p)
+ 		}
+ 		o = orange[r].stop; /* just generate an error */
+ 	}
+-	if(0) {
+-		print("oplook %A %d %d %d\n",
++	if(debug['O']) {
++		print("oplook %A %O %O %O\n",
+ 			(int)p->as, a1, a2, a3);
+ 		print("		%d %d\n", p->from.type, p->to.type);
+ 	}

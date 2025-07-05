@@ -16,7 +16,161 @@ Date:   Thu Oct 25 22:03:43 2018 -0700
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/server.go      | 55 ++++++++++++++++++++++++---------------------
  src/net/http/server_test.go | 45 +++++++++++++++++++++++++++++++++++++
  2 files changed, 74 insertions(+), 26 deletions(-)
+
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index 6e1ccff4cd..a7e79c2d91 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -22,6 +22,7 @@ import (
+ 	"os"
+ 	"path"
+ 	"runtime"
++	"sort"
+ 	"strconv"
+ 	"strings"
+ 	"sync"
+@@ -2179,7 +2180,8 @@ func RedirectHandler(url string, code int) Handler {
+ type ServeMux struct {
+ 	mu    sync.RWMutex
+ 	m     map[string]muxEntry
+-	hosts bool // whether any patterns contain hostnames
++	es    []muxEntry // slice of entries sorted from longest to shortest.
++	hosts bool       // whether any patterns contain hostnames
+ }
+ 
+ type muxEntry struct {
+@@ -2195,19 +2197,6 @@ var DefaultServeMux = &defaultServeMux
+ 
+ var defaultServeMux ServeMux
+ 
+-// Does path match pattern?
+-func pathMatch(pattern, path string) bool {
+-	if len(pattern) == 0 {
+-		// should not happen
+-		return false
+-	}
+-	n := len(pattern)
+-	if pattern[n-1] != '/' {
+-		return pattern == path
+-	}
+-	return len(path) >= n && path[0:n] == pattern
+-}
+-
+ // cleanPath returns the canonical path for p, eliminating . and .. elements.
+ func cleanPath(p string) string {
+ 	if p == "" {
+@@ -2252,19 +2241,14 @@ func (mux *ServeMux) match(path string) (h Handler, pattern string) {
+ 		return v.h, v.pattern
+ 	}
+ 
+-	// Check for longest valid match.
+-	var n = 0
+-	for k, v := range mux.m {
+-		if !pathMatch(k, path) {
+-			continue
+-		}
+-		if h == nil || len(k) > n {
+-			n = len(k)
+-			h = v.h
+-			pattern = v.pattern
++	// Check for longest valid match.  mux.es contains all patterns
++	// that end in / sorted from longest to shortest.
++	for _, e := range mux.es {
++		if strings.HasPrefix(path, e.pattern) {
++			return e.h, e.pattern
+ 		}
+ 	}
+-	return
++	return nil, ""
+ }
+ 
+ // redirectToPathSlash determines if the given path needs appending "/" to it.
+@@ -2410,13 +2394,32 @@ func (mux *ServeMux) Handle(pattern string, handler Handler) {
+ 	if mux.m == nil {
+ 		mux.m = make(map[string]muxEntry)
+ 	}
+-	mux.m[pattern] = muxEntry{h: handler, pattern: pattern}
++	e := muxEntry{h: handler, pattern: pattern}
++	mux.m[pattern] = e
++	if pattern[len(pattern)-1] == '/' {
++		mux.es = appendSorted(mux.es, e)
++	}
+ 
+ 	if pattern[0] != '/' {
+ 		mux.hosts = true
+ 	}
+ }
+ 
++func appendSorted(es []muxEntry, e muxEntry) []muxEntry {
++	n := len(es)
++	i := sort.Search(n, func(i int) bool {
++		return len(es[i].pattern) < len(e.pattern)
++	})
++	if i == n {
++		return append(es, e)
++	}
++	// we now know that i points at where we want to insert
++	es = append(es, muxEntry{}) // try to grow the slice in place, any entry works.
++	copy(es[i+1:], es[i:])      // Move shorter entries down
++	es[i] = e
++	return es
++}
++
+ // HandleFunc registers the handler function for the given pattern.
+ func (mux *ServeMux) HandleFunc(pattern string, handler func(ResponseWriter, *Request)) {
+ 	if handler == nil {
+diff --git a/src/net/http/server_test.go b/src/net/http/server_test.go
+new file mode 100644
+index 0000000000..0132f3ba5f
+--- /dev/null
++++ b/src/net/http/server_test.go
+@@ -0,0 +1,45 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Server unit tests
++
++package http
++
++import (
++	"fmt"
++	"testing"
++)
++
++func BenchmarkServerMatch(b *testing.B) {
++	fn := func(w ResponseWriter, r *Request) {
++		fmt.Fprintf(w, "OK")
++	}
++	mux := NewServeMux()
++	mux.HandleFunc("/", fn)
++	mux.HandleFunc("/index", fn)
++	mux.HandleFunc("/home", fn)
++	mux.HandleFunc("/about", fn)
++	mux.HandleFunc("/contact", fn)
++	mux.HandleFunc("/robots.txt", fn)
++	mux.HandleFunc("/products/", fn)
++	mux.HandleFunc("/products/1", fn)
++	mux.HandleFunc("/products/2", fn)
++	mux.HandleFunc("/products/3", fn)
++	mux.HandleFunc("/products/3/image.jpg", fn)
++	mux.HandleFunc("/admin", fn)
++	mux.HandleFunc("/admin/products/", fn)
++	mux.HandleFunc("/admin/products/create", fn)
++	mux.HandleFunc("/admin/products/update", fn)
++	mux.HandleFunc("/admin/products/delete", fn)
++
++	paths := []string{"/", "/notfound", "/admin/", "/admin/foo", "/contact", "/products",
++		"/products/", "/products/3/image.jpg"}
++	b.StartTimer()
++	for i := 0; i < b.N; i++ {
++		if h, p := mux.match(paths[i%len(paths)]); h != nil && p == "" {
++			b.Error("impossible")
++		}
++	}
++	b.StopTimer()
++}

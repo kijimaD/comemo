@@ -20,7 +20,38 @@ Date:   Wed Apr 13 11:13:39 2016 -0400
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Austin Clements <austin@google.com>
     Reviewed-by: Michael Munday <munday@ca.ibm.com>
-
+---
  src/runtime/atomic_pointer.go               | 5 ++---
  src/runtime/internal/atomic/atomic_s390x.go | 2 +-
  2 files changed, 3 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/atomic_pointer.go b/src/runtime/atomic_pointer.go
+index bd21b49945..d54f1d6eef 100644
+--- a/src/runtime/atomic_pointer.go
++++ b/src/runtime/atomic_pointer.go
+@@ -15,10 +15,9 @@ import (
+ // escape analysis decisions about the pointer value being stored.
+ // Instead, these are wrappers around the actual atomics (casp1 and so on)
+ // that use noescape to convey which arguments do not escape.
+-//
+-// Additionally, these functions must update the shadow heap for
+-// write barrier checking.
+ 
++// atomicstorep performs *ptr = new atomically and invokes a write barrier.
++//
+ //go:nosplit
+ func atomicstorep(ptr unsafe.Pointer, new unsafe.Pointer) {
+ 	atomic.Storep1(noescape(ptr), new)
+diff --git a/src/runtime/internal/atomic/atomic_s390x.go b/src/runtime/internal/atomic/atomic_s390x.go
+index f31f1af444..b6d3d84bdf 100644
+--- a/src/runtime/internal/atomic/atomic_s390x.go
++++ b/src/runtime/internal/atomic/atomic_s390x.go
+@@ -40,7 +40,7 @@ func Store64(ptr *uint64, val uint64) {
+ //go:noinline
+ //go:nosplit
+ func Storep1(ptr unsafe.Pointer, val unsafe.Pointer) {
+-	*(*unsafe.Pointer)(ptr) = val
++	*(*uintptr)(ptr) = uintptr(val)
+ }
+ 
+ //go:noescape

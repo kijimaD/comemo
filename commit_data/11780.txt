@@ -42,7 +42,7 @@ Date:   Fri Feb 10 13:27:32 2012 -0800
     R=rsc, rsc
     CC=golang-dev
     https://golang.org/cl/5643066
-
+---
  doc/go1.html                       |  20 ++++
  doc/go1.tmpl                       |  20 ++++
  src/cmd/cgo/godefs.go              |   2 +-
@@ -51,3 +51,771 @@ Date:   Fri Feb 10 13:27:32 2012 -0800
  src/pkg/go/printer/printer.go      | 234 +++++++++++++++++++++----------------
  src/pkg/go/printer/printer_test.go | 128 +++++++++++++++++++-
  7 files changed, 309 insertions(+), 114 deletions(-)
+
+diff --git a/doc/go1.html b/doc/go1.html
+index c8643914c4..fce1c079e7 100644
+--- a/doc/go1.html
++++ b/doc/go1.html
+@@ -1049,6 +1049,15 @@ The <code>Duration</code> flag is new and affects no existing code.
+ Several packages under <code>go</code> have slightly revised APIs.
+ </p>
+ 
++<p>
++A concrete <code>Mode</code> type was introduced for configuration mode flags
++in the packages
++<a href="/pkg/go/scanner/"><code>go/scanner</code></a>,
++<a href="/pkg/go/parser/"><code>go/parser</code></a>,
++<a href="/pkg/go/printer/"><code>go/printer</code></a>, and
++<a href="/pkg/go/doc/"><code>go/doc</code></a>.
++</p>
++
+ <p>
+ The modes <code>AllowIllegalChars</code> and <code>InsertSemis</code> have been removed
+ from the <a href="/pkg/go/scanner/"><code>go/scanner</code></a> package. They were mostly
+@@ -1075,6 +1084,17 @@ convenience functions <a href="/pkg/go/parser/#ParseDir"><code>ParseDir</code></
+ and <a href="/pkg/go/parser/#ParseExpr"><code>ParseExpr</code></a>.
+ </p>
+ 
++<p>
++The <a href="/pkg/go/printer/"><code>go/printer</code></a> package supports an additional
++configuration mode <a href="/pkg/go/printer/#Mode"><code>SourcePos</code></a>;
++if set, the printer will emit <code>//line</code> comments such that the generated
++output contains the original source code position information. The new type
++<a href="/pkg/go/printer/#CommentedNode"><code>CommentedNode</code></a> can be
++used to provide comments associated with an arbitrary
++<a href="/pkg/go/ast/#Node"><code>ast.Node</code></a> (until now only
++<a href="/pkg/go/ast/#File"><code>ast.File</code></a> carried comment information).
++</p>
++
+ <p>
+ The type names of the <a href="/pkg/go/doc/"><code>go/doc</code></a> package have been
+ streamlined by removing the <code>Doc</code> suffix: <code>PackageDoc</code>
+diff --git a/doc/go1.tmpl b/doc/go1.tmpl
+index f37f9516ee..985cf97e17 100644
+--- a/doc/go1.tmpl
++++ b/doc/go1.tmpl
+@@ -952,6 +952,15 @@ The <code>Duration</code> flag is new and affects no existing code.
+ Several packages under <code>go</code> have slightly revised APIs.
+ </p>
+ 
++<p>
++A concrete <code>Mode</code> type was introduced for configuration mode flags
++in the packages
++<a href="/pkg/go/scanner/"><code>go/scanner</code></a>,
++<a href="/pkg/go/parser/"><code>go/parser</code></a>,
++<a href="/pkg/go/printer/"><code>go/printer</code></a>, and
++<a href="/pkg/go/doc/"><code>go/doc</code></a>.
++</p>
++
+ <p>
+ The modes <code>AllowIllegalChars</code> and <code>InsertSemis</code> have been removed
+ from the <a href="/pkg/go/scanner/"><code>go/scanner</code></a> package. They were mostly
+@@ -978,6 +987,17 @@ convenience functions <a href="/pkg/go/parser/#ParseDir"><code>ParseDir</code></
+ and <a href="/pkg/go/parser/#ParseExpr"><code>ParseExpr</code></a>.
+ </p>
+ 
++<p>
++The <a href="/pkg/go/printer/"><code>go/printer</code></a> package supports an additional
++configuration mode <a href="/pkg/go/printer/#Mode"><code>SourcePos</code></a>;
++if set, the printer will emit <code>//line</code> comments such that the generated
++output contains the original source code position information. The new type
++<a href="/pkg/go/printer/#CommentedNode"><code>CommentedNode</code></a> can be
++used to provide comments associated with an arbitrary
++<a href="/pkg/go/ast/#Node"><code>ast.Node</code></a> (until now only
++<a href="/pkg/go/ast/#File"><code>ast.File</code></a> carried comment information).
++</p>
++
+ <p>
+ The type names of the <a href="/pkg/go/doc/"><code>go/doc</code></a> package have been
+ streamlined by removing the <code>Doc</code> suffix: <code>PackageDoc</code>
+diff --git a/src/cmd/cgo/godefs.go b/src/cmd/cgo/godefs.go
+index 6838729274..478ed261cb 100644
+--- a/src/cmd/cgo/godefs.go
++++ b/src/cmd/cgo/godefs.go
+@@ -109,7 +109,7 @@ func (p *Package) godefs(f *File, srcfile string) string {
+ 		}
+ 	}
+ 
+-	printer.Fprint(&buf, fset, f.AST)
++	conf.Fprint(&buf, fset, f.AST)
+ 
+ 	return buf.String()
+ }
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index 2c01074991..bfbcf50dc7 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -17,6 +17,8 @@ import (
+ 	"strings"
+ )
+ 
++var conf = printer.Config{Mode: printer.SourcePos, Tabwidth: 8}
++
+ // writeDefs creates output files to be compiled by 6g, 6c, and gcc.
+ // (The comments here say 6g and 6c but the code applies to the 8 and 5 tools too.)
+ func (p *Package) writeDefs() {
+@@ -57,7 +59,7 @@ func (p *Package) writeDefs() {
+ 
+ 	for name, def := range typedef {
+ 		fmt.Fprintf(fgo2, "type %s ", name)
+-		printer.Fprint(fgo2, fset, def)
++		conf.Fprint(fgo2, fset, def)
+ 		fmt.Fprintf(fgo2, "\n\n")
+ 	}
+ 	fmt.Fprintf(fgo2, "type _Ctype_void [0]byte\n")
+@@ -87,7 +89,7 @@ func (p *Package) writeDefs() {
+ 		fmt.Fprintf(fc, "\n")
+ 
+ 		fmt.Fprintf(fgo2, "var %s ", n.Mangle)
+-		printer.Fprint(fgo2, fset, &ast.StarExpr{X: n.Type.Go})
++		conf.Fprint(fgo2, fset, &ast.StarExpr{X: n.Type.Go})
+ 		fmt.Fprintf(fgo2, "\n")
+ 	}
+ 	fmt.Fprintf(fc, "\n")
+@@ -255,7 +257,7 @@ func (p *Package) writeDefsFunc(fc, fgo2 *os.File, n *Name) {
+ 		Name: ast.NewIdent(n.Mangle),
+ 		Type: gtype,
+ 	}
+-	printer.Fprint(fgo2, fset, d)
++	conf.Fprint(fgo2, fset, d)
+ 	if *gccgo {
+ 		fmt.Fprintf(fgo2, " __asm__(\"%s\")\n", n.C)
+ 	} else {
+@@ -327,8 +329,7 @@ func (p *Package) writeOutput(f *File, srcfile string) {
+ 
+ 	// Write Go output: Go input with rewrites of C.xxx to _C_xxx.
+ 	fmt.Fprintf(fgo1, "// Created by cgo - DO NOT EDIT\n\n")
+-	fmt.Fprintf(fgo1, "//line %s:1\n", srcfile)
+-	printer.Fprint(fgo1, fset, f.AST)
++	conf.Fprint(fgo1, fset, f.AST)
+ 
+ 	// While we process the vars and funcs, also write 6c and gcc output.
+ 	// Gcc output starts with the preamble.
+@@ -542,11 +543,11 @@ func (p *Package) writeExports(fgo2, fc, fm *os.File) {
+ 		// a Go wrapper function.
+ 		if fn.Recv != nil {
+ 			fmt.Fprintf(fgo2, "func %s(recv ", goname)
+-			printer.Fprint(fgo2, fset, fn.Recv.List[0].Type)
++			conf.Fprint(fgo2, fset, fn.Recv.List[0].Type)
+ 			forFieldList(fntype.Params,
+ 				func(i int, atype ast.Expr) {
+ 					fmt.Fprintf(fgo2, ", p%d ", i)
+-					printer.Fprint(fgo2, fset, atype)
++					conf.Fprint(fgo2, fset, atype)
+ 				})
+ 			fmt.Fprintf(fgo2, ")")
+ 			if gccResult != "void" {
+@@ -556,7 +557,7 @@ func (p *Package) writeExports(fgo2, fc, fm *os.File) {
+ 						if i > 0 {
+ 							fmt.Fprint(fgo2, ", ")
+ 						}
+-						printer.Fprint(fgo2, fset, atype)
++						conf.Fprint(fgo2, fset, atype)
+ 					})
+ 				fmt.Fprint(fgo2, ")")
+ 			}
+diff --git a/src/cmd/gofmt/gofmt.go b/src/cmd/gofmt/gofmt.go
+index 6d610adc0e..55c01beb55 100644
+--- a/src/cmd/gofmt/gofmt.go
++++ b/src/cmd/gofmt/gofmt.go
+@@ -45,7 +45,7 @@ var (
+ 	exitCode    = 0
+ 	rewrite     func(*ast.File) *ast.File
+ 	parserMode  parser.Mode
+-	printerMode uint
++	printerMode printer.Mode
+ )
+ 
+ func report(err error) {
+diff --git a/src/pkg/go/printer/printer.go b/src/pkg/go/printer/printer.go
+index fe99e675eb..e9ab5fd5de 100644
+--- a/src/pkg/go/printer/printer.go
++++ b/src/pkg/go/printer/printer.go
+@@ -6,7 +6,6 @@
+ package printer
+ 
+ import (
+-	"bytes"
+ 	"fmt"
+ 	"go/ast"
+ 	"go/token"
+@@ -51,22 +50,22 @@ type printer struct {
+ 	fset *token.FileSet
+ 
+ 	// Current state
+-	output      bytes.Buffer // raw printer result
++	output      []byte       // raw printer result
+ 	indent      int          // current indentation
+ 	mode        pmode        // current printer mode
+ 	impliedSemi bool         // if set, a linebreak implies a semicolon
+ 	lastTok     token.Token  // the last token printed (token.ILLEGAL if it's whitespace)
+ 	wsbuf       []whiteSpace // delayed white space
+ 
+-	// The (possibly estimated) position in the generated output;
+-	// in AST space (i.e., pos is set whenever a token position is
+-	// known accurately, and updated dependending on what has been
+-	// written).
+-	pos token.Position
+-
+-	// The value of pos immediately after the last item has been
+-	// written using writeItem.
+-	last token.Position
++	// Positions
++	// The out position differs from the pos position when the result
++	// formatting differs from the source formatting (in the amount of
++	// white space). If there's a difference and SourcePos is set in
++	// ConfigMode, //line comments are used in the output to restore
++	// original source positions for a reader.
++	pos  token.Position // current position in AST (source) space
++	out  token.Position // current position in output space
++	last token.Position // value of pos after calling writeString
+ 
+ 	// The list of all source comments, in order of appearance.
+ 	comments        []*ast.CommentGroup // may be nil
+@@ -89,6 +88,8 @@ type printer struct {
+ func (p *printer) init(cfg *Config, fset *token.FileSet, nodeSizes map[ast.Node]int) {
+ 	p.Config = *cfg
+ 	p.fset = fset
++	p.pos = token.Position{Line: 1, Column: 1}
++	p.out = token.Position{Line: 1, Column: 1}
+ 	p.wsbuf = make([]whiteSpace, 0, 16) // whitespace sequences are short
+ 	p.nodeSizes = nodeSizes
+ 	p.cachedPos = -1
+@@ -151,41 +152,57 @@ func (p *printer) lineFor(pos token.Pos) int {
+ 	return p.cachedLine
+ }
+ 
+-// writeByte writes ch to p.output and updates p.pos.
+-func (p *printer) writeByte(ch byte) {
+-	p.output.WriteByte(ch)
+-	p.pos.Offset++
+-	p.pos.Column++
+-
+-	if ch == '\n' || ch == '\f' {
+-		// write indentation
+-		// use "hard" htabs - indentation columns
+-		// must not be discarded by the tabwriter
+-		const htabs = "\t\t\t\t\t\t\t\t"
+-		j := p.indent
+-		for j > len(htabs) {
+-			p.output.WriteString(htabs)
+-			j -= len(htabs)
+-		}
+-		p.output.WriteString(htabs[0:j])
++// atLineBegin emits a //line comment if necessary and prints indentation.
++func (p *printer) atLineBegin(pos token.Position) {
++	// write a //line comment if necessary
++	if p.Config.Mode&SourcePos != 0 && pos.IsValid() && (p.out.Line != pos.Line || p.out.Filename != pos.Filename) {
++		p.output = append(p.output, tabwriter.Escape) // protect '\n' in //line from tabwriter interpretation
++		p.output = append(p.output, fmt.Sprintf("//line %s:%d\n", pos.Filename, pos.Line)...)
++		p.output = append(p.output, tabwriter.Escape)
++		// p.out must match the //line comment
++		p.out.Filename = pos.Filename
++		p.out.Line = pos.Line
++	}
+ 
+-		// update p.pos
+-		p.pos.Line++
+-		p.pos.Offset += p.indent
+-		p.pos.Column = 1 + p.indent
++	// write indentation
++	// use "hard" htabs - indentation columns
++	// must not be discarded by the tabwriter
++	for i := 0; i < p.indent; i++ {
++		p.output = append(p.output, '\t')
+ 	}
++
++	// update positions
++	i := p.indent
++	p.pos.Offset += i
++	p.pos.Column += i
++	p.out.Column += i
+ }
+ 
+-// writeByteN writes ch n times to p.output and updates p.pos.
+-func (p *printer) writeByteN(ch byte, n int) {
+-	for n > 0 {
+-		p.writeByte(ch)
+-		n--
++// writeByte writes ch n times to p.output and updates p.pos.
++func (p *printer) writeByte(ch byte, n int) {
++	if p.out.Column == 1 {
++		p.atLineBegin(p.pos)
++	}
++
++	for i := 0; i < n; i++ {
++		p.output = append(p.output, ch)
++	}
++
++	// update positions
++	p.pos.Offset += n
++	if ch == '\n' || ch == '\f' {
++		p.pos.Line += n
++		p.out.Line += n
++		p.pos.Column = 1
++		p.out.Column = 1
++		return
+ 	}
++	p.pos.Column += n
++	p.out.Column += n
+ }
+ 
+-// writeString writes the string s to p.output and updates p.pos.
+-// If isLit is set, s is escaped w/ tabwriter.Escape characters
++// writeString writes the string s to p.output and updates p.pos, p.out,
++// and p.last. If isLit is set, s is escaped w/ tabwriter.Escape characters
+ // to protect s from being interpreted by the tabwriter.
+ //
+ // Note: writeString is only used to write Go tokens, literals, and
+@@ -195,59 +212,66 @@ func (p *printer) writeByteN(ch byte, n int) {
+ // avoids processing extra escape characters and reduces run time of the
+ // printer benchmark by up to 10%.
+ //
+-func (p *printer) writeString(s string, isLit bool) {
++func (p *printer) writeString(pos token.Position, s string, isLit bool) {
++	if p.out.Column == 1 {
++		p.atLineBegin(pos)
++	}
++
++	if pos.IsValid() {
++		// update p.pos (if pos is invalid, continue with existing p.pos)
++		// Note: Must do this after handling line beginnings because
++		// atLineBegin updates p.pos if there's indentation, but p.pos
++		// is the position of s.
++		p.pos = pos
++		// reset state if the file changed
++		// (used when printing merged ASTs of different files
++		// e.g., the result of ast.MergePackageFiles)
++		if p.last.IsValid() && p.last.Filename != pos.Filename {
++			p.indent = 0
++			p.mode = 0
++			p.wsbuf = p.wsbuf[0:0]
++		}
++	}
++
+ 	if isLit {
+ 		// Protect s such that is passes through the tabwriter
+ 		// unchanged. Note that valid Go programs cannot contain
+ 		// tabwriter.Escape bytes since they do not appear in legal
+ 		// UTF-8 sequences.
+-		p.output.WriteByte(tabwriter.Escape)
++		p.output = append(p.output, tabwriter.Escape)
+ 	}
+ 
+-	p.output.WriteString(s)
++	if debug {
++		p.output = append(p.output, fmt.Sprintf("/*%s*/", pos)...) // do not update p.pos!
++	}
++	p.output = append(p.output, s...)
+ 
+-	// update p.pos
++	// update positions
+ 	nlines := 0
+-	column := p.pos.Column + len(s)
++	var li int // index of last newline; valid if nlines > 0
+ 	for i := 0; i < len(s); i++ {
++		// Go tokens cannot contain '\f' - no need to look for it
+ 		if s[i] == '\n' {
+ 			nlines++
+-			column = len(s) - i
++			li = i
+ 		}
+ 	}
+ 	p.pos.Offset += len(s)
+-	p.pos.Line += nlines
+-	p.pos.Column = column
++	if nlines > 0 {
++		p.pos.Line += nlines
++		p.out.Line += nlines
++		c := len(s) - li
++		p.pos.Column = c
++		p.out.Column = c
++	} else {
++		p.pos.Column += len(s)
++		p.out.Column += len(s)
++	}
+ 
+ 	if isLit {
+-		p.output.WriteByte(tabwriter.Escape)
++		p.output = append(p.output, tabwriter.Escape)
+ 	}
+-}
+ 
+-// writeItem writes data at position pos. data is the text corresponding to
+-// a single lexical token, but may also be comment text. pos is the actual
+-// (or at least very accurately estimated) position of the data in the original
+-// source text. writeItem updates p.last to the position immediately following
+-// the data.
+-//
+-func (p *printer) writeItem(pos token.Position, data string, isLit bool) {
+-	if pos.IsValid() {
+-		// continue with previous position if we don't have a valid pos
+-		if p.last.IsValid() && p.last.Filename != pos.Filename {
+-			// the file has changed - reset state
+-			// (used when printing merged ASTs of different files
+-			// e.g., the result of ast.MergePackageFiles)
+-			p.indent = 0
+-			p.mode = 0
+-			p.wsbuf = p.wsbuf[0:0]
+-		}
+-		p.pos = pos
+-	}
+-	if debug {
+-		// do not update p.pos - use write0
+-		fmt.Fprintf(&p.output, "/*%s*/", pos)
+-	}
+-	p.writeString(data, isLit)
+ 	p.last = p.pos
+ }
+ 
+@@ -262,14 +286,14 @@ const linePrefix = "//line "
+ // next item is a keyword.
+ //
+ func (p *printer) writeCommentPrefix(pos, next token.Position, prev, comment *ast.Comment, isKeyword bool) {
+-	if p.output.Len() == 0 {
++	if len(p.output) == 0 {
+ 		// the comment is the first item to be printed - don't write any whitespace
+ 		return
+ 	}
+ 
+ 	if pos.IsValid() && pos.Filename != p.last.Filename {
+ 		// comment in a different file - separate with newlines
+-		p.writeByteN('\f', maxNewlines)
++		p.writeByte('\f', maxNewlines)
+ 		return
+ 	}
+ 
+@@ -309,7 +333,7 @@ func (p *printer) writeCommentPrefix(pos, next token.Position, prev, comment *as
+ 				// with a blank instead of a tab
+ 				sep = ' '
+ 			}
+-			p.writeByte(sep)
++			p.writeByte(sep, 1)
+ 		}
+ 
+ 	} else {
+@@ -381,7 +405,7 @@ func (p *printer) writeCommentPrefix(pos, next token.Position, prev, comment *as
+ 			// use formfeeds to break columns before a comment;
+ 			// this is analogous to using formfeeds to separate
+ 			// individual lines of /*-style comments
+-			p.writeByteN('\f', nlimit(n))
++			p.writeByte('\f', nlimit(n))
+ 			p.indent = indent // restore indent
+ 		}
+ 	}
+@@ -587,7 +611,7 @@ func (p *printer) writeComment(comment *ast.Comment) {
+ 
+ 	// shortcut common case of //-style comments
+ 	if text[1] == '/' {
+-		p.writeItem(p.posFor(comment.Pos()), text, true)
++		p.writeString(p.posFor(comment.Pos()), text, true)
+ 		return
+ 	}
+ 
+@@ -601,11 +625,11 @@ func (p *printer) writeComment(comment *ast.Comment) {
+ 	pos := p.posFor(comment.Pos())
+ 	for i, line := range lines {
+ 		if i > 0 {
+-			p.writeByte('\f')
++			p.writeByte('\f', 1)
+ 			pos = p.pos
+ 		}
+ 		if len(line) > 0 {
+-			p.writeItem(pos, line, true)
++			p.writeString(pos, line, true)
+ 		}
+ 	}
+ }
+@@ -643,7 +667,7 @@ func (p *printer) writeCommentSuffix(needsLinebreak bool) (wroteNewline, dropped
+ 
+ 	// make sure we have a line break
+ 	if needsLinebreak {
+-		p.writeByte('\n')
++		p.writeByte('\n', 1)
+ 		wroteNewline = true
+ 	}
+ 
+@@ -671,7 +695,7 @@ func (p *printer) intersperseComments(next token.Position, tok token.Token) (wro
+ 		if last.Text[1] == '*' && p.lineFor(last.Pos()) == next.Line {
+ 			// the last comment is a /*-style comment and the next item
+ 			// follows on the same line: separate with an extra blank
+-			p.writeByte(' ')
++			p.writeByte(' ', 1)
+ 		}
+ 		// ensure that there is a line break after a //-style comment,
+ 		// before a closing '}' unless explicitly disabled, or at eof
+@@ -722,7 +746,7 @@ func (p *printer) writeWhitespace(n int) {
+ 			}
+ 			fallthrough
+ 		default:
+-			p.writeByte(byte(ch))
++			p.writeByte(byte(ch), 1)
+ 		}
+ 	}
+ 
+@@ -886,12 +910,12 @@ func (p *printer) print(args ...interface{}) {
+ 				if droppedFF {
+ 					ch = '\f' // use formfeed since we dropped one before
+ 				}
+-				p.writeByteN(ch, n)
++				p.writeByte(ch, n)
+ 				impliedSemi = false
+ 			}
+ 		}
+ 
+-		p.writeItem(next, data, isLit)
++		p.writeString(next, data, isLit)
+ 		p.impliedSemi = impliedSemi
+ 	}
+ }
+@@ -1027,7 +1051,7 @@ unsupported:
+ type trimmer struct {
+ 	output io.Writer
+ 	state  int
+-	space  bytes.Buffer
++	space  []byte
+ }
+ 
+ // trimmer is implemented as a state machine.
+@@ -1038,6 +1062,11 @@ const (
+ 	inText          // inside text
+ )
+ 
++func (p *trimmer) resetSpace() {
++	p.state = inSpace
++	p.space = p.space[0:0]
++}
++
+ // Design note: It is tempting to eliminate extra blanks occurring in
+ //              whitespace in this function as it could simplify some
+ //              of the blanks logic in the node printing functions.
+@@ -1062,36 +1091,33 @@ func (p *trimmer) Write(data []byte) (n int, err error) {
+ 		case inSpace:
+ 			switch b {
+ 			case '\t', ' ':
+-				p.space.WriteByte(b) // WriteByte returns no errors
++				p.space = append(p.space, b)
+ 			case '\n', '\f':
+-				p.space.Reset() // discard trailing space
++				p.resetSpace() // discard trailing space
+ 				_, err = p.output.Write(aNewline)
+ 			case tabwriter.Escape:
+-				_, err = p.output.Write(p.space.Bytes())
++				_, err = p.output.Write(p.space)
+ 				p.state = inEscape
+ 				m = n + 1 // +1: skip tabwriter.Escape
+ 			default:
+-				_, err = p.output.Write(p.space.Bytes())
++				_, err = p.output.Write(p.space)
+ 				p.state = inText
+ 				m = n
+ 			}
+ 		case inEscape:
+ 			if b == tabwriter.Escape {
+ 				_, err = p.output.Write(data[m:n])
+-				p.state = inSpace
+-				p.space.Reset()
++				p.resetSpace()
+ 			}
+ 		case inText:
+ 			switch b {
+ 			case '\t', ' ':
+ 				_, err = p.output.Write(data[m:n])
+-				p.state = inSpace
+-				p.space.Reset()
+-				p.space.WriteByte(b) // WriteByte returns no errors
++				p.resetSpace()
++				p.space = append(p.space, b)
+ 			case '\n', '\f':
+ 				_, err = p.output.Write(data[m:n])
+-				p.state = inSpace
+-				p.space.Reset()
++				p.resetSpace()
+ 				_, err = p.output.Write(aNewline)
+ 			case tabwriter.Escape:
+ 				_, err = p.output.Write(data[m:n])
+@@ -1110,8 +1136,7 @@ func (p *trimmer) Write(data []byte) (n int, err error) {
+ 	switch p.state {
+ 	case inEscape, inText:
+ 		_, err = p.output.Write(data[m:n])
+-		p.state = inSpace
+-		p.space.Reset()
++		p.resetSpace()
+ 	}
+ 
+ 	return
+@@ -1120,16 +1145,19 @@ func (p *trimmer) Write(data []byte) (n int, err error) {
+ // ----------------------------------------------------------------------------
+ // Public interface
+ 
+-// General printing is controlled with these Config.Mode flags.
++// A Mode value is a set of flags (or 0). They coontrol printing. 
++type Mode uint
++
+ const (
+-	RawFormat uint = 1 << iota // do not use a tabwriter; if set, UseSpaces is ignored
++	RawFormat Mode = 1 << iota // do not use a tabwriter; if set, UseSpaces is ignored
+ 	TabIndent                  // use tabs for indentation independent of UseSpaces
+ 	UseSpaces                  // use spaces instead of tabs for alignment
++	SourcePos                  // emit //line comments to preserve original source positions
+ )
+ 
+ // A Config node controls the output of Fprint.
+ type Config struct {
+-	Mode     uint // default: 0
++	Mode     Mode // default: 0
+ 	Tabwidth int  // default: 8
+ }
+ 
+@@ -1170,7 +1198,7 @@ func (cfg *Config) fprint(output io.Writer, fset *token.FileSet, node interface{
+ 	}
+ 
+ 	// write printer result via tabwriter/trimmer to output
+-	if _, err = output.Write(p.output.Bytes()); err != nil {
++	if _, err = output.Write(p.output); err != nil {
+ 		return
+ 	}
+ 
+diff --git a/src/pkg/go/printer/printer_test.go b/src/pkg/go/printer/printer_test.go
+index 9adf48cda6..a0578814aa 100644
+--- a/src/pkg/go/printer/printer_test.go
++++ b/src/pkg/go/printer/printer_test.go
+@@ -223,7 +223,8 @@ func TestBadNodes(t *testing.T) {
+ 	}
+ }
+ 
+-// Print and parse f with 
++// testComment verifies that f can be parsed again after printing it
++// with its first comment set to comment at any possible source offset.
+ func testComment(t *testing.T, f *ast.File, srclen int, comment *ast.Comment) {
+ 	f.Comments[0].List[0] = comment
+ 	var buf bytes.Buffer
+@@ -280,3 +281,128 @@ func fibo(n int) {
+ 	testComment(t, f, len(src), &ast.Comment{pos, "/*-style \n comment */"})
+ 	testComment(t, f, len(src), &ast.Comment{pos, "/*-style comment \n\n\n */"})
+ }
++
++type visitor chan *ast.Ident
++
++func (v visitor) Visit(n ast.Node) (w ast.Visitor) {
++	if ident, ok := n.(*ast.Ident); ok {
++		v <- ident
++	}
++	return v
++}
++
++// idents is an iterator that returns all idents in f via the result channel.
++func idents(f *ast.File) <-chan *ast.Ident {
++	v := make(visitor)
++	go func() {
++		ast.Walk(v, f)
++		close(v)
++	}()
++	return v
++}
++
++// identCount returns the number of identifiers found in f.
++func identCount(f *ast.File) int {
++	n := 0
++	for _ = range idents(f) {
++		n++
++	}
++	return n
++}
++
++// Verify that the SourcePos mode emits correct //line comments
++// by testing that position information for matching identifiers
++// is maintained.
++func TestSourcePos(t *testing.T) {
++	const src = `
++package p
++import ( "go/printer"; "math" )
++const pi = 3.14; var x = 0
++type t struct{ x, y, z int; u, v, w float32 }
++func (t *t) foo(a, b, c int) int {
++	return a*t.x + b*t.y +
++		// two extra lines here
++		// ...
++		c*t.z
++}
++`
++
++	// parse original
++	f1, err := parser.ParseFile(fset, "src", src, parser.ParseComments)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	// pretty-print original
++	var buf bytes.Buffer
++	err = (&Config{Mode: UseSpaces | SourcePos, Tabwidth: 8}).Fprint(&buf, fset, f1)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	// parse pretty printed original
++	// (//line comments must be interpreted even w/o parser.ParseComments set)
++	f2, err := parser.ParseFile(fset, "", buf.Bytes(), 0)
++	if err != nil {
++		t.Fatalf("%s\n%s", err, buf.Bytes())
++	}
++
++	// At this point the position information of identifiers in f2 should
++	// match the position information of corresponding identifiers in f1.
++
++	// number of identifiers must be > 0 (test should run) and must match
++	n1 := identCount(f1)
++	n2 := identCount(f2)
++	if n1 == 0 {
++		t.Fatal("got no idents")
++	}
++	if n2 != n1 {
++		t.Errorf("got %d idents; want %d", n2, n1)
++	}
++
++	// verify that all identifiers have correct line information
++	i2range := idents(f2)
++	for i1 := range idents(f1) {
++		i2 := <-i2range
++
++		if i2.Name != i1.Name {
++			t.Errorf("got ident %s; want %s", i2.Name, i1.Name)
++		}
++
++		l1 := fset.Position(i1.Pos()).Line
++		l2 := fset.Position(i2.Pos()).Line
++		if l2 != l1 {
++			t.Errorf("got line %d; want %d for %s", l2, l1, i1.Name)
++		}
++	}
++
++	if t.Failed() {
++		t.Logf("\n%s", buf.Bytes())
++	}
++}
++
++// TextX is a skeleton test that can be filled in for debugging one-off cases.
++// Do not remove.
++func TestX(t *testing.T) {
++	const src = `
++package p
++func _() {}
++`
++	// parse original
++	f, err := parser.ParseFile(fset, "src", src, parser.ParseComments)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	// pretty-print original
++	var buf bytes.Buffer
++	if err = (&Config{Mode: UseSpaces, Tabwidth: 8}).Fprint(&buf, fset, f); err != nil {
++		t.Fatal(err)
++	}
++
++	// parse pretty printed original
++	if _, err := parser.ParseFile(fset, "", buf.Bytes(), 0); err != nil {
++		t.Fatalf("%s\n%s", err, buf.Bytes())
++	}
++
++}

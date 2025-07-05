@@ -7,6 +7,20 @@ Date:   Mon Oct 18 11:28:57 2010 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/2519044
-
+---
  src/cmd/gc/typecheck.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 9466c39c14..89cd1d6591 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -425,7 +425,7 @@ reswitch:
+ 		n->right = r;
+ 		t = r->type;
+ 		if(!isint[t->etype] || issigned[t->etype]) {
+-			yyerror("invalid operation: %#N (shift count type %T)", n, r->type);
++			yyerror("invalid operation: %#N (shift count type %T, must be unsigned integer)", n, r->type);
+ 			goto error;
+ 		}
+ 		t = l->type;

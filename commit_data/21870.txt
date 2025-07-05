@@ -10,6 +10,19 @@ Date:   Mon Feb 9 16:54:06 2015 -0800
     Change-Id: Ie2b025fcd899d306ddeddd09d1d0e8f9a99ab7a8
     Reviewed-on: https://go-review.googlesource.com/4291
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/cmd/go/generate.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/go/generate.go b/src/cmd/go/generate.go
+index 8c1e3ee230..3c0af8760b 100644
+--- a/src/cmd/go/generate.go
++++ b/src/cmd/go/generate.go
+@@ -106,6 +106,7 @@ The generator is run in the package's source directory.
+ Go generate accepts one specific flag:
+ 
+ 	-run=""
++		TODO: This flag is unimplemented.
+ 		if non-empty, specifies a regular expression to
+ 		select directives whose command matches the expression.
+ 

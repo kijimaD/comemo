@@ -10,6 +10,38 @@ Date:   Fri Jan 18 22:54:27 2013 +0100
     R=golang-dev, minux.ma
     CC=golang-dev
     https://golang.org/cl/7127059
-
+---
  test/fixedbugs/issue4348.go | 10 ++++------
  1 file changed, 4 insertions(+), 6 deletions(-)
+
+diff --git a/test/fixedbugs/issue4348.go b/test/fixedbugs/issue4348.go
+index e1d172e9d2..3dac8f7685 100644
+--- a/test/fixedbugs/issue4348.go
++++ b/test/fixedbugs/issue4348.go
+@@ -1,13 +1,10 @@
+-// skip
+-
+-// NOTE: this test is now skipped because the relevant code
+-// is rejected after fixing issue 4666.
++// compile
+ 
+ // Copyright 2012 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Issue 4238. After switch to 64-bit ints the compiler generates
++// Issue 4348. After switch to 64-bit ints the compiler generates
+ // illegal instructions when using large array bounds or indexes.
+ 
+ package main
+@@ -20,8 +17,9 @@ func A() int {
+ 	return a[LARGE]
+ }
+ 
++var b [LARGE]int
++
+ func B(i int) int {
+-	var b [LARGE]int
+ 	return b[i]
+ }
+ 

@@ -13,6 +13,22 @@ Date:   Sun Jul 19 18:20:06 2015 -0700
     Reviewed-on: https://go-review.googlesource.com/12364
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/cmd/go/go_test.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 804901cb5a..93f6cadf66 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -1207,6 +1207,10 @@ func TestGoGetNonPkg(t *testing.T) {
+ }
+ 
+ func TestInstalls(t *testing.T) {
++	if testing.Short() {
++		t.Skip("don't install into GOROOT in short mode")
++	}
++
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+ 	tg.parallel()

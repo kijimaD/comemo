@@ -15,6 +15,36 @@ Date:   Thu Feb 21 14:17:43 2013 -0800
     R=golang-dev, iant, minux.ma, r, rsc, remyoudompheng
     CC=golang-dev
     https://golang.org/cl/7304094
-
+---
  src/pkg/testing/testing.go | 10 +++-------
  1 file changed, 3 insertions(+), 7 deletions(-)
+
+diff --git a/src/pkg/testing/testing.go b/src/pkg/testing/testing.go
+index 357d6f5f27..b1dafd0c3d 100644
+--- a/src/pkg/testing/testing.go
++++ b/src/pkg/testing/testing.go
+@@ -166,21 +166,17 @@ func decorate(s string) string {
+ 		line = 1
+ 	}
+ 	buf := new(bytes.Buffer)
++	// Every line is indented at least one tab.
++	buf.WriteByte('\t')
+ 	fmt.Fprintf(buf, "%s:%d: ", file, line)
+-
+ 	lines := strings.Split(s, "\n")
+ 	if l := len(lines); l > 1 && lines[l-1] == "" {
+ 		lines = lines[:l-1]
+ 	}
+ 	for i, line := range lines {
+-		if i > 0 {
+-			buf.WriteByte('\n')
+-		}
+-		// Every line is indented at least one tab.
+-		buf.WriteByte('\t')
+ 		if i > 0 {
+ 			// Second and subsequent lines are indented an extra tab.
+-			buf.WriteByte('\t')
++			buf.WriteString("\n\t\t")
+ 		}
+ 		buf.WriteString(line)
+ 	}

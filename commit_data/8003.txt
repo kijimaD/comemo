@@ -15,7 +15,7 @@ Date:   Wed Apr 6 15:44:40 2011 -0400
     R=r, r2
     CC=golang-dev
     https://golang.org/cl/4368048
-
+---
  src/pkg/os/Makefile                       |  6 ++-
  src/pkg/os/dir_freebsd.go                 | 65 -----------------------------
  src/pkg/os/dir_linux.go                   | 68 -------------------------------
@@ -24,3 +24,367 @@ Date:   Wed Apr 6 15:44:40 2011 -0400
  src/pkg/syscall/syscall_bsd.go            | 35 ++++++++++++++++
  src/pkg/syscall/syscall_linux.go          | 34 ++++++++++++++++
  7 files changed, 83 insertions(+), 160 deletions(-)
+
+diff --git a/src/pkg/os/Makefile b/src/pkg/os/Makefile
+index 985fd11d15..cd92840796 100644
+--- a/src/pkg/os/Makefile
++++ b/src/pkg/os/Makefile
+@@ -6,7 +6,6 @@ include ../../Make.inc
+ 
+ TARG=os
+ GOFILES=\
+-	dir_$(GOOS).go\
+ 	error.go\
+ 	env.go\
+ 	exec.go\
+@@ -19,6 +18,7 @@ GOFILES=\
+ 	types.go\
+ 
+ GOFILES_freebsd=\
++	dir_unix.go\
+ 	error_posix.go\
+ 	env_unix.go\
+ 	file_posix.go\
+@@ -28,6 +28,7 @@ GOFILES_freebsd=\
+ 	exec_unix.go\
+ 
+ GOFILES_darwin=\
++	dir_unix.go\
+ 	error_posix.go\
+ 	env_unix.go\
+ 	file_posix.go\
+@@ -37,6 +38,7 @@ GOFILES_darwin=\
+ 	exec_unix.go\
+ 
+ GOFILES_linux=\
++	dir_unix.go\
+ 	error_posix.go\
+ 	env_unix.go\
+ 	file_posix.go\
+@@ -46,6 +48,7 @@ GOFILES_linux=\
+ 	exec_unix.go\
+ 
+ GOFILES_windows=\
++	dir_windows.go\
+ 	error_posix.go\
+ 	env_windows.go\
+ 	file_posix.go\
+@@ -55,6 +58,7 @@ GOFILES_windows=\
+ 	exec_windows.go\
+ 
+ GOFILES_plan9=\
++	dir_plan9.go\
+ 	error_plan9.go\
+ 	env_plan9.go\
+ 	file_plan9.go\
+diff --git a/src/pkg/os/dir_freebsd.go b/src/pkg/os/dir_freebsd.go
+deleted file mode 100644
+index c9802e3362..0000000000
+--- a/src/pkg/os/dir_freebsd.go
++++ /dev/null
+@@ -1,65 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package os
+-
+-import (
+-	"syscall"
+-	"unsafe"
+-)
+-
+-const (
+-	blockSize = 4096
+-)
+-
+-func (file *File) Readdirnames(count int) (names []string, err Error) {
+-	// If this file has no dirinfo, create one.
+-	if file.dirinfo == nil {
+-		file.dirinfo = new(dirInfo)
+-		// The buffer must be at least a block long.
+-		file.dirinfo.buf = make([]byte, blockSize)
+-	}
+-	d := file.dirinfo
+-	size := count
+-	if size < 0 {
+-		size = 100
+-	}
+-	names = make([]string, 0, size) // Empty with room to grow.
+-	for count != 0 {
+-		// Refill the buffer if necessary
+-		if d.bufp >= d.nbuf {
+-			var errno int
+-			d.bufp = 0
+-			// Final argument is (basep *uintptr) and the syscall doesn't take nil.
+-			d.nbuf, errno = syscall.Getdirentries(file.fd, d.buf, new(uintptr))
+-			if errno != 0 {
+-				d.nbuf = 0
+-				return names, NewSyscallError("getdirentries", errno)
+-			}
+-			if d.nbuf <= 0 {
+-				break // EOF
+-			}
+-		}
+-		// Drain the buffer
+-		for count != 0 && d.bufp < d.nbuf {
+-			dirent := (*syscall.Dirent)(unsafe.Pointer(&d.buf[d.bufp]))
+-			if dirent.Reclen == 0 {
+-				d.bufp = d.nbuf
+-				break
+-			}
+-			d.bufp += int(dirent.Reclen)
+-			if dirent.Fileno == 0 { // File absent in directory.
+-				continue
+-			}
+-			bytes := (*[10000]byte)(unsafe.Pointer(&dirent.Name[0]))
+-			var name = string(bytes[0:dirent.Namlen])
+-			if name == "." || name == ".." { // Useless names
+-				continue
+-			}
+-			count--
+-			names = append(names, name)
+-		}
+-	}
+-	return names, nil
+-}
+diff --git a/src/pkg/os/dir_linux.go b/src/pkg/os/dir_linux.go
+deleted file mode 100644
+index 554b98a140..0000000000
+--- a/src/pkg/os/dir_linux.go
++++ /dev/null
+@@ -1,68 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package os
+-
+-import (
+-	"syscall"
+-	"unsafe"
+-)
+-
+-const (
+-	blockSize = 4096
+-)
+-
+-func clen(n []byte) int {
+-	for i := 0; i < len(n); i++ {
+-		if n[i] == 0 {
+-			return i
+-		}
+-	}
+-	return len(n)
+-}
+-
+-func (file *File) Readdirnames(count int) (names []string, err Error) {
+-	// If this file has no dirinfo, create one.
+-	if file.dirinfo == nil {
+-		file.dirinfo = new(dirInfo)
+-		// The buffer must be at least a block long.
+-		file.dirinfo.buf = make([]byte, blockSize)
+-	}
+-	d := file.dirinfo
+-	size := count
+-	if size < 0 {
+-		size = 100
+-	}
+-	names = make([]string, 0, size) // Empty with room to grow.
+-	for count != 0 {
+-		// Refill the buffer if necessary
+-		if d.bufp >= d.nbuf {
+-			var errno int
+-			d.nbuf, errno = syscall.Getdents(file.fd, d.buf)
+-			if errno != 0 {
+-				return names, NewSyscallError("getdents", errno)
+-			}
+-			if d.nbuf <= 0 {
+-				break // EOF
+-			}
+-			d.bufp = 0
+-		}
+-		// Drain the buffer
+-		for count != 0 && d.bufp < d.nbuf {
+-			dirent := (*syscall.Dirent)(unsafe.Pointer(&d.buf[d.bufp]))
+-			d.bufp += int(dirent.Reclen)
+-			if dirent.Ino == 0 { // File absent in directory.
+-				continue
+-			}
+-			bytes := (*[10000]byte)(unsafe.Pointer(&dirent.Name[0]))
+-			var name = string(bytes[0:clen(bytes[0:])])
+-			if name == "." || name == ".." { // Useless names
+-				continue
+-			}
+-			count--
+-			names = append(names, name)
+-		}
+-	}
+-	return names, nil
+-}
+diff --git a/src/pkg/os/dir_darwin.go b/src/pkg/os/dir_unix.go
+similarity index 61%
+rename from src/pkg/os/dir_darwin.go
+rename to src/pkg/os/dir_unix.go
+index 55d96879cf..f5b82230d1 100644
+--- a/src/pkg/os/dir_darwin.go
++++ b/src/pkg/os/dir_unix.go
+@@ -6,7 +6,6 @@ package os
+ 
+ import (
+ 	"syscall"
+-	"unsafe"
+ )
+ 
+ const (
+@@ -34,37 +33,22 @@ func (file *File) Readdirnames(count int) (names []string, err Error) {
+ 	for count != 0 {
+ 		// Refill the buffer if necessary
+ 		if d.bufp >= d.nbuf {
+-			var errno int
+ 			d.bufp = 0
+-			// Final argument is (basep *uintptr) and the syscall doesn't take nil.
+-			d.nbuf, errno = syscall.Getdirentries(file.fd, d.buf, new(uintptr))
++			var errno int
++			d.nbuf, errno = syscall.ReadDirent(file.fd, d.buf)
+ 			if errno != 0 {
+-				d.nbuf = 0
+-				return names, NewSyscallError("getdirentries", errno)
++				return names, NewSyscallError("readdirent", errno)
+ 			}
+ 			if d.nbuf <= 0 {
+ 				break // EOF
+ 			}
+ 		}
++
+ 		// Drain the buffer
+-		for count != 0 && d.bufp < d.nbuf {
+-			dirent := (*syscall.Dirent)(unsafe.Pointer(&d.buf[d.bufp]))
+-			if dirent.Reclen == 0 {
+-				d.bufp = d.nbuf
+-				break
+-			}
+-			d.bufp += int(dirent.Reclen)
+-			if dirent.Ino == 0 { // File absent in directory.
+-				continue
+-			}
+-			bytes := (*[10000]byte)(unsafe.Pointer(&dirent.Name[0]))
+-			var name = string(bytes[0:dirent.Namlen])
+-			if name == "." || name == ".." { // Useless names
+-				continue
+-			}
+-			count--
+-			names = append(names, name)
+-		}
++		var nb, nc int
++		nb, nc, names = syscall.ParseDirent(d.buf[d.bufp:d.nbuf], count, names)
++		d.bufp += nb
++		count -= nc
+ 	}
+ 	return names, nil
+ }
+diff --git a/src/pkg/os/os_test.go b/src/pkg/os/os_test.go
+index 394440b308..71ea45ec7f 100644
+--- a/src/pkg/os/os_test.go
++++ b/src/pkg/os/os_test.go
+@@ -17,8 +17,7 @@ import (
+ )
+ 
+ var dot = []string{
+-	"dir_darwin.go",
+-	"dir_linux.go",
++	"dir_unix.go",
+ 	"env_unix.go",
+ 	"error.go",
+ 	"file.go",
+diff --git a/src/pkg/syscall/syscall_bsd.go b/src/pkg/syscall/syscall_bsd.go
+index 93390eb323..27edb55e32 100644
+--- a/src/pkg/syscall/syscall_bsd.go
++++ b/src/pkg/syscall/syscall_bsd.go
+@@ -68,6 +68,41 @@ func Setgroups(gids []int) (errno int) {
+ 	return setgroups(len(a), &a[0])
+ }
+ 
++func ReadDirent(fd int, buf []byte) (n int, errno int) {
++	// Final argument is (basep *uintptr) and the syscall doesn't take nil.
++	// TODO(rsc): Can we use a single global basep for all calls?
++	return Getdirentries(fd, buf, new(uintptr))
++}
++
++// ParseDirent parses up to max directory entries in buf,
++// appending the names to names.  It returns the number
++// bytes consumed from buf, the number of entries added
++// to names, and the new names slice.
++func ParseDirent(buf []byte, max int, names []string) (consumed int, count int, newnames []string) {
++	origlen := len(buf)
++	for max != 0 && len(buf) > 0 {
++		dirent := (*Dirent)(unsafe.Pointer(&buf[0]))
++		if dirent.Reclen == 0 {
++			buf = nil
++			break
++		}
++		buf = buf[dirent.Reclen:]
++		if dirent.Ino == 0 { // File absent in directory.
++			continue
++		}
++		bytes := (*[10000]byte)(unsafe.Pointer(&dirent.Name[0]))
++		var name = string(bytes[0:dirent.Namlen])
++		if name == "." || name == ".." { // Useless names
++			continue
++		}
++		max--
++		count++
++		names = append(names, name)
++	}
++	return origlen - len(buf), count, names
++}
++
++
+ // Wait status is 7 bits at bottom, either 0 (exited),
+ // 0x7F (stopped), or a signal number that caused an exit.
+ // The 0x80 bit is whether there was a core dump.
+diff --git a/src/pkg/syscall/syscall_linux.go b/src/pkg/syscall/syscall_linux.go
+index 4667663591..c0ea7faeb9 100644
+--- a/src/pkg/syscall/syscall_linux.go
++++ b/src/pkg/syscall/syscall_linux.go
+@@ -679,6 +679,40 @@ func Reboot(cmd int) (errno int) {
+ 	return reboot(LINUX_REBOOT_MAGIC1, LINUX_REBOOT_MAGIC2, cmd, "")
+ }
+ 
++func clen(n []byte) int {
++	for i := 0; i < len(n); i++ {
++		if n[i] == 0 {
++			return i
++		}
++	}
++	return len(n)
++}
++
++func ReadDirent(fd int, buf []byte) (n int, errno int) {
++	return Getdents(fd, buf)
++}
++
++func ParseDirent(buf []byte, max int, names []string) (consumed int, count int, newnames []string) {
++	origlen := len(buf)
++	count = 0
++	for max != 0 && len(buf) > 0 {
++		dirent := (*Dirent)(unsafe.Pointer(&buf[0]))
++		buf = buf[dirent.Reclen:]
++		if dirent.Ino == 0 { // File absent in directory.
++			continue
++		}
++		bytes := (*[10000]byte)(unsafe.Pointer(&dirent.Name[0]))
++		var name = string(bytes[0:clen(bytes[:])])
++		if name == "." || name == ".." { // Useless names
++			continue
++		}
++		max--
++		count++
++		names = append(names, name)
++	}
++	return origlen - len(buf), count, names
++}
++
+ // Sendto
+ // Recvfrom
+ // Socketpair

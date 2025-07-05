@@ -14,7 +14,69 @@ Date:   Fri Mar 18 16:20:20 2016 -0700
     Reviewed-on: https://go-review.googlesource.com/20901
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/cmd/compile/internal/gc/reflect.go | 10 ++++++++--
  src/cmd/compile/internal/gc/walk.go    | 16 +++++++++-------
  2 files changed, 17 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index ecf98b9388..54673b1ea5 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -947,7 +947,7 @@ func typename(t *Type) *Node {
+ 	return n
+ }
+ 
+-func itabnamesym(t, itype *Type) *Sym {
++func itabname(t, itype *Type) *Node {
+ 	if t == nil || (Isptr[t.Etype] && t.Type == nil) || isideal(t) {
+ 		Fatalf("itabname %v", t)
+ 	}
+@@ -961,7 +961,13 @@ func itabnamesym(t, itype *Type) *Sym {
+ 
+ 		itabs = append(itabs, itabEntry{t: t, itype: itype, sym: s})
+ 	}
+-	return s.Def.Sym
++
++	n := Nod(OADDR, s.Def, nil)
++	n.Type = Ptrto(s.Def.Type)
++	n.Addable = true
++	n.Ullman = 2
++	n.Typecheck = 1
++	return n
+ }
+ 
+ // isreflexive reports whether t has a reflexive equality operator.
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 90ed401a43..1511c878b1 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -987,19 +987,21 @@ opswitch:
+ 	case OCONVIFACE:
+ 		n.Left = walkexpr(n.Left, init)
+ 
+-		// Optimize convT2E as a two-word copy when T is pointer-shaped.
+-		if isnilinter(n.Type) && isdirectiface(n.Left.Type) {
+-			l := Nod(OEFACE, typename(n.Left.Type), n.Left)
++		// Optimize convT2E or convT2I as a two-word copy when T is pointer-shaped.
++		if isdirectiface(n.Left.Type) {
++			var t *Node
++			if isnilinter(n.Type) {
++				t = typename(n.Left.Type)
++			} else {
++				t = itabname(n.Left.Type, n.Type)
++			}
++			l := Nod(OEFACE, t, n.Left)
+ 			l.Type = n.Type
+ 			l.Typecheck = n.Typecheck
+ 			n = l
+ 			break
+ 		}
+ 
+-		if isdirectiface(n.Left.Type) {
+-			itabnamesym(n.Left.Type, n.Type)
+-		}
+-
+ 		var ll []*Node
+ 		if !Isinter(n.Left.Type) {
+ 			ll = append(ll, typename(n.Left.Type))

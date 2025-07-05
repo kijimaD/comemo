@@ -7,6 +7,20 @@ Date:   Thu Aug 22 00:59:48 2013 +0200
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/13105047
-
+---
  src/pkg/syscall/mkall.sh | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/syscall/mkall.sh b/src/pkg/syscall/mkall.sh
+index 3900a93ab0..a94236336e 100755
+--- a/src/pkg/syscall/mkall.sh
++++ b/src/pkg/syscall/mkall.sh
+@@ -157,7 +157,7 @@ linux_amd64)
+ linux_arm)
+ 	mkerrors="$mkerrors"
+ 	mksyscall="./mksyscall.pl -l32 -arm"
+-	mksysnum="curl -s 'http://git.kernel.org/?p=linux/kernel/git/torvalds/linux-2.6.git;a=blob_plain;f=arch/arm/include/asm/unistd.h;hb=HEAD' | ./mksysnum_linux.pl"
++	mksysnum="curl -s 'http://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/plain/arch/arm/include/uapi/asm/unistd.h' | ./mksysnum_linux.pl"
+ 	mktypes="GOARCH=$GOARCH go tool cgo -godefs"
+ 	;;
+ netbsd_386)

@@ -6,6 +6,28 @@ Date:   Mon Nov 2 12:53:06 2009 -0800
     
     R=rsc, agl
     http://go/go-review/1016028
-
+---
  src/pkg/debug/elf/elf.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/pkg/debug/elf/elf.go b/src/pkg/debug/elf/elf.go
+index 9a8d2d3491..96e4a3f462 100644
+--- a/src/pkg/debug/elf/elf.go
++++ b/src/pkg/debug/elf/elf.go
+@@ -1465,6 +1465,8 @@ type Sym32 struct {
+ 	Shndx	uint16;
+ }
+ 
++const Sym32Size = 16
++
+ func ST_BIND(info uint8) SymBind {
+ 	return SymBind(info>>4);
+ }
+@@ -1582,6 +1584,7 @@ type Sym64 struct {
+ 	Size	uint64;	/* Size of associated object. */
+ }
+ 
++const Sym64Size = 24
+ 
+ type intName struct {
+ 	i	uint32;

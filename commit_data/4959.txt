@@ -18,7 +18,86 @@ Date:   Fri Feb 26 11:23:12 2010 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/224068
-
+---
  src/pkg/go/scanner/scanner.go      | 14 ++++++++------
  src/pkg/go/scanner/scanner_test.go |  6 ++++--
  2 files changed, 12 insertions(+), 8 deletions(-)
+
+diff --git a/src/pkg/go/scanner/scanner.go b/src/pkg/go/scanner/scanner.go
+index dc2f35939a..b12f9152a6 100644
+--- a/src/pkg/go/scanner/scanner.go
++++ b/src/pkg/go/scanner/scanner.go
+@@ -46,13 +46,15 @@ func (S *Scanner) next() {
+ 	if S.offset < len(S.src) {
+ 		S.pos.Offset = S.offset
+ 		S.pos.Column++
++		if S.ch == '\n' {
++			// next character starts a new line
++			S.pos.Line++
++			S.pos.Column = 1
++		}
+ 		r, w := int(S.src[S.offset]), 1
+ 		switch {
+ 		case r == 0:
+ 			S.error(S.pos, "illegal character NUL")
+-		case r == '\n':
+-			S.pos.Line++
+-			S.pos.Column = 0
+ 		case r >= 0x80:
+ 			// not ASCII
+ 			r, w = utf8.DecodeRune(S.src[S.offset:])
+@@ -168,7 +170,7 @@ func (S *Scanner) scanComment(pos token.Position) {
+ 								// valid //line filename:line comment;
+ 								// update scanner position
+ 								S.pos.Filename = string(text[len(prefix):i])
+-								S.pos.Line = line
++								S.pos.Line = line - 1 // -1 since the '\n' has not been consumed yet
+ 							}
+ 						}
+ 					}
+@@ -211,7 +213,7 @@ func (S *Scanner) findNewline(pos token.Position) bool {
+ 			newline = true
+ 			break
+ 		}
+-		S.skipWhitespace()
++		S.skipWhitespace() // S.insertSemi is set
+ 		if S.ch == '\n' {
+ 			newline = true
+ 			break
+@@ -526,7 +528,7 @@ scanAgain:
+ 		case -1:
+ 			tok = token.EOF
+ 		case '\n':
+-			// we only reach here of S.insertSemi was
++			// we only reach here if S.insertSemi was
+ 			// set in the first place and exited early
+ 			// from S.skipWhitespace()
+ 			S.insertSemi = false // newline consumed
+diff --git a/src/pkg/go/scanner/scanner_test.go b/src/pkg/go/scanner/scanner_test.go
+index ad54dfd1fa..002a81dd9e 100644
+--- a/src/pkg/go/scanner/scanner_test.go
++++ b/src/pkg/go/scanner/scanner_test.go
+@@ -219,11 +219,12 @@ func TestScan(t *testing.T) {
+ 	for _, e := range tokens {
+ 		src += e.lit + whitespace
+ 	}
++	src_linecount := newlineCount(src)
+ 	whitespace_linecount := newlineCount(whitespace)
+ 
+ 	// verify scan
+ 	index := 0
+-	epos := token.Position{"", 0, 1, 1}
++	epos := token.Position{"", 0, 1, 1} // expected position
+ 	nerrors := Tokenize("", []byte(src), &testErrorHandler{t}, ScanComments,
+ 		func(pos token.Position, tok token.Token, litb []byte) bool {
+ 			e := elt{token.EOF, "", special}
+@@ -233,7 +234,8 @@ func TestScan(t *testing.T) {
+ 			lit := string(litb)
+ 			if tok == token.EOF {
+ 				lit = "<EOF>"
+-				epos.Column = 0
++				epos.Line = src_linecount
++				epos.Column = 1
+ 			}
+ 			checkPos(t, lit, pos, epos)
+ 			if tok != e.tok {

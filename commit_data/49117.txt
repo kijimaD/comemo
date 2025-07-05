@@ -12,6 +12,20 @@ Date:   Mon Jul 19 20:08:50 2021 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/335549
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: Than McIntosh <thanm@google.com>
-
+---
  src/time/time.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/time/time.go b/src/time/time.go
+index 1cf1e2bbf6..4ecc3d82dc 100644
+--- a/src/time/time.go
++++ b/src/time/time.go
+@@ -1334,7 +1334,7 @@ func UnixMilli(msec int64) Time {
+ }
+ 
+ // UnixMicro returns the local Time corresponding to the given Unix time,
+-// usec milliseconds since January 1, 1970 UTC.
++// usec microseconds since January 1, 1970 UTC.
+ func UnixMicro(usec int64) Time {
+ 	return Unix(usec/1e6, (usec%1e6)*1e3)
+ }

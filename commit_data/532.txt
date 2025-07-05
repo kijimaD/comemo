@@ -7,7 +7,7 @@ Date:   Tue Aug 12 16:11:55 2008 -0700
     R=gri
     OCL=14137
     CL=14137
-
+---
  test/bugs/bug083.go                |  1 +
  test/bugs/bug088.go                |  1 +
  test/bugs/bug089.go                | 21 +++++++++++++++++++++
@@ -15,3 +15,111 @@ Date:   Tue Aug 12 16:11:55 2008 -0700
  test/{bugs => fixedbugs}/bug078.go |  0
  test/golden.out                    | 22 +++++++++++++++++-----
  6 files changed, 40 insertions(+), 5 deletions(-)
+
+diff --git a/test/bugs/bug083.go b/test/bugs/bug083.go
+index 9df211a35a..984969d47f 100644
+--- a/test/bugs/bug083.go
++++ b/test/bugs/bug083.go
+@@ -4,3 +4,4 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++ignored
+diff --git a/test/bugs/bug088.go b/test/bugs/bug088.go
+index f6fef4337d..9715a703cb 100644
+--- a/test/bugs/bug088.go
++++ b/test/bugs/bug088.go
+@@ -4,3 +4,4 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++ignored
+diff --git a/test/bugs/bug089.go b/test/bugs/bug089.go
+new file mode 100644
+index 0000000000..296e9e6d6d
+--- /dev/null
++++ b/test/bugs/bug089.go
+@@ -0,0 +1,21 @@
++// $G $D/$F.go
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++type	I1	interface {}
++type	I2	interface { pr() }
++
++func	e()	I1;
++
++var	i1	I1;
++var	i2	I2;
++
++func
++main()
++{
++	i2 = e();	// bug089.go:16: fatal error: agen_inter i2i
++}
+diff --git a/test/bugs/bug060.go b/test/fixedbugs/bug060.go
+similarity index 100%
+rename from test/bugs/bug060.go
+rename to test/fixedbugs/bug060.go
+diff --git a/test/bugs/bug078.go b/test/fixedbugs/bug078.go
+similarity index 100%
+rename from test/bugs/bug078.go
+rename to test/fixedbugs/bug078.go
+diff --git a/test/golden.out b/test/golden.out
+index d3f691102d..5fd5cbc343 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -91,9 +91,6 @@ BUG: known to fail incorrectly
+ bugs/bug054.go:25: fatal error: agen_inter i2s
+ BUG: known to fail incorrectly
+ 
+-=========== bugs/bug060.go
+-BUG: crashes
+-
+ =========== bugs/bug061.go
+ bugs/bug061.go:7: illegal types for operand: SLICE
+ bugs/bug061.go:7: illegal types for operand: AS
+@@ -121,8 +118,8 @@ outer loop top k 1
+ k not zero
+ panic on line 310 PC=0x1362
+ 0x1362?zi
+-	main·main(1, 0, 1606416392, ...)
+-	main·main(0x1, 0x7fff5fbff808, 0x0, ...)
++	main·main(1, 0, 1606414952, ...)
++	main·main(0x1, 0x7fff5fbff268, 0x0, ...)
+ BUG: crashes
+ Trace/BPT trap          ./$A.out
+ 
+@@ -164,6 +161,9 @@ bugs/bug081.go:5: first constant must evaluate an expression
+ BUG: compiler should not crash
+ Bus error               $G $D/$F.go
+ 
++=========== bugs/bug083.go
++BUG: succeeds incorrectly
++
+ =========== bugs/bug085.go
+ bugs/bug085.go:8: P: undefined
+ BUG: fails incorrectly
+@@ -178,6 +178,18 @@ bugs/bug087.go:8: illegal combination of literals LEN 9
+ bugs/bug087.go:8: illegal combination of literals LEN 9
+ BUG: fails incorrectly
+ 
++=========== bugs/bug088.go
++bugs/bug088.dir/bug1.go:8: shape error across :=
++bugs/bug088.dir/bug1.go:8: a2: undefined
++bugs/bug088.dir/bug1.go:8: b2: undefined
++bugs/bug088.dir/bug1.go:8: illegal types for operand: AS
++	(<(bug0)P.int32>INT32)
++BUG: fails incorrectly
++
++=========== bugs/bug089.go
++bugs/bug089.go:16: fatal error: agen_inter i2i
++BUG: should compile
++
+ =========== fixedbugs/bug015.go
+ fixedbugs/bug015.go:7: overflow converting constant to <int64>INT64
+ 

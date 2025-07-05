@@ -9,6 +9,37 @@ Date:   Thu Apr 16 20:33:02 2020 -0400
     Change-Id: I36ac990965250867574f8e2318b65b87a0beda04
     Reviewed-on: https://go-review.googlesource.com/c/go/+/228697
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  test/typecheck.go | 12 ++++++++----
  1 file changed, 8 insertions(+), 4 deletions(-)
+
+diff --git a/test/typecheck.go b/test/typecheck.go
+index 6f1204289a..4c55d2edcb 100644
+--- a/test/typecheck.go
++++ b/test/typecheck.go
+@@ -1,5 +1,9 @@
+ // errorcheck
+ 
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ // Verify that the Go compiler will not
+ // die after running into an undefined
+ // type in the argument list for a
+@@ -8,11 +12,11 @@
+ 
+ package main
+ 
+-func mine(int b) int {	// ERROR "undefined.*b"
+-	return b + 2	// ERROR "undefined.*b"
++func mine(int b) int { // ERROR "undefined.*b"
++	return b + 2 // ERROR "undefined.*b"
+ }
+ 
+ func main() {
+-	mine()		// GCCGO_ERROR "not enough arguments"
+-	c = mine()	// ERROR "undefined.*c|not enough arguments"
++	mine()     // GCCGO_ERROR "not enough arguments"
++	c = mine() // ERROR "undefined.*c|not enough arguments"
+ }

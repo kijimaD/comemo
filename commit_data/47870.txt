@@ -21,7 +21,49 @@ Date:   Wed Apr 14 10:52:30 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/dist/test.go                             | 13 +++++++++++++
  src/go/parser/testdata/resolution/typeparams.go2 |  9 +++++----
  2 files changed, 18 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index cbf3ec6d88..5ae0bf92cf 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -475,6 +475,19 @@ func (t *tester) registerTests() {
+ 		})
+ 	}
+ 
++	// Test go/... cmd/gofmt with type parameters enabled.
++	if !t.compileOnly {
++		t.tests = append(t.tests, distTest{
++			name:    "tyepparams",
++			heading: "go/... and cmd/gofmt tests with tag typeparams",
++			fn: func(dt *distTest) error {
++				t.addCmd(dt, "src", t.goTest(), t.timeout(300), "-tags=typeparams", "go/...")
++				t.addCmd(dt, "src", t.goTest(), t.timeout(300), "-tags=typeparams", "cmd/gofmt")
++				return nil
++			},
++		})
++	}
++
+ 	if t.iOS() && !t.compileOnly {
+ 		t.tests = append(t.tests, distTest{
+ 			name:    "x509omitbundledroots",
+diff --git a/src/go/parser/testdata/resolution/typeparams.go2 b/src/go/parser/testdata/resolution/typeparams.go2
+index 922f7790f5..c03a596203 100644
+--- a/src/go/parser/testdata/resolution/typeparams.go2
++++ b/src/go/parser/testdata/resolution/typeparams.go2
+@@ -18,7 +18,8 @@ type Addable /* =@Addable */ interface {
+ }
+ 
+ // TODO (#45221): resolve references to T in the signature below.
+-func Add /* =@AddDecl */[T /* =@T */ Addable /* @Addable */](l /* =@l */, r /* =@r */ T) T {
+-	var t /* =@t */ T /* @T */
+-	return l /* @l */ + r /* @r */ + t /* @t */
+-}
++// TODO(rFindley): re-enable these once type parameter resolution is fixed.
++// func Add /* =@AddDecl */[T /* =@T */ Addable /* @Addable */](l /* =@l */, r /* =@r */ T) T {
++	// var t /* =@t */ T /* @T */
++	// return l /* @l */ + r /* @r */ + t /* @t */
++// }

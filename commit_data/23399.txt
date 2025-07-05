@@ -13,6 +13,20 @@ Date:   Tue May 12 16:54:39 2015 +0200
     Reviewed-on: https://go-review.googlesource.com/9953
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/os1_plan9.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/os1_plan9.go b/src/runtime/os1_plan9.go
+index c026218241..1aae96a999 100644
+--- a/src/runtime/os1_plan9.go
++++ b/src/runtime/os1_plan9.go
+@@ -177,7 +177,7 @@ func exit(e int) {
+ 	} else {
+ 		// build error string
+ 		var tmp [32]byte
+-		status = []byte(gostringnocopy(&itoa(tmp[:len(tmp)-1], uint64(e))[0]))
++		status = append(itoa(tmp[:len(tmp)-1], uint64(e)), 0)
+ 	}
+ 	goexitsall(&status[0])
+ 	exits(&status[0])

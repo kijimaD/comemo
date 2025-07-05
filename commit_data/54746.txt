@@ -16,7 +16,51 @@ Date:   Fri Nov 11 07:34:15 2022 +0000
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Heschi Kreinick <heschi@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/net/conf.go      | 10 ++++++++--
  src/net/conf_test.go |  6 ++++--
  2 files changed, 12 insertions(+), 4 deletions(-)
+
+diff --git a/src/net/conf.go b/src/net/conf.go
+index 6854f46658..77099ca100 100644
+--- a/src/net/conf.go
++++ b/src/net/conf.go
+@@ -241,7 +241,7 @@ func (c *conf) hostLookupOrder(r *Resolver, hostname string) (ret hostLookupOrde
+ 	var first string
+ 	for _, src := range srcs {
+ 		if src.source == "myhostname" {
+-			if isLocalhost(hostname) || isGateway(hostname) {
++			if isLocalhost(hostname) || isGateway(hostname) || isOutbound(hostname) {
+ 				return fallbackOrder
+ 			}
+ 			hn, err := getHostname()
+@@ -343,5 +343,11 @@ func isLocalhost(h string) bool {
+ // isGateway reports whether h should be considered a "gateway"
+ // name for the myhostname NSS module.
+ func isGateway(h string) bool {
+-	return stringsEqualFold(h, "gateway")
++	return stringsEqualFold(h, "_gateway")
++}
++
++// isOutbound reports whether h should be considered a "outbound"
++// name for the myhostname NSS module.
++func isOutbound(h string) bool {
++	return stringsEqualFold(h, "_outbound")
+ }
+diff --git a/src/net/conf_test.go b/src/net/conf_test.go
+index 86fc4797b9..c059c3670a 100644
+--- a/src/net/conf_test.go
++++ b/src/net/conf_test.go
+@@ -271,8 +271,10 @@ func TestConfHostLookupOrder(t *testing.T) {
+ 				{"myHostname", "myhostname", hostLookupCgo},
+ 				{"myhostname.dot", "myhostname.dot", hostLookupCgo},
+ 				{"myHostname.dot", "myhostname.dot", hostLookupCgo},
+-				{"gateway", "myhostname", hostLookupCgo},
+-				{"Gateway", "myhostname", hostLookupCgo},
++				{"_gateway", "myhostname", hostLookupCgo},
++				{"_Gateway", "myhostname", hostLookupCgo},
++				{"_outbound", "myhostname", hostLookupCgo},
++				{"_Outbound", "myhostname", hostLookupCgo},
+ 				{"localhost", "myhostname", hostLookupCgo},
+ 				{"Localhost", "myhostname", hostLookupCgo},
+ 				{"anything.localhost", "myhostname", hostLookupCgo},

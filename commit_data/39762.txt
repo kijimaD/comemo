@@ -9,6 +9,23 @@ Date:   Thu Feb 21 10:45:40 2019 +0100
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/crash_cgo_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/crash_cgo_test.go b/src/runtime/crash_cgo_test.go
+index e0c8955e7d..07eba78c8a 100644
+--- a/src/runtime/crash_cgo_test.go
++++ b/src/runtime/crash_cgo_test.go
+@@ -90,9 +90,9 @@ func TestCgoExternalThreadSIGPROF(t *testing.T) {
+ 	case "plan9", "windows":
+ 		t.Skipf("no pthreads on %s", runtime.GOOS)
+ 	}
+-	if runtime.GOARCH == "ppc64" {
++	if runtime.GOARCH == "ppc64" && runtime.GOOS == "linux" {
+ 		// TODO(austin) External linking not implemented on
+-		// ppc64 (issue #8912)
++		// linux/ppc64 (issue #8912)
+ 		t.Skipf("no external linking on ppc64")
+ 	}
+ 

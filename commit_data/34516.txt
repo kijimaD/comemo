@@ -9,6 +9,21 @@ Date:   Mon Oct 30 16:31:57 2017 -0700
     Change-Id: Ia589c576be0b5cdb7cde5d35cd857ad7c93c372b
     Reviewed-on: https://go-review.googlesource.com/74550
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/os/file.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/os/file.go b/src/os/file.go
+index 1fc4cf34da..d842ce6ef0 100644
+--- a/src/os/file.go
++++ b/src/os/file.go
+@@ -60,7 +60,8 @@ var (
+ )
+ 
+ // Flags to OpenFile wrapping those of the underlying system. Not all
+-// flags may be implemented on a given system.
++// flags may be implemented on a given system. Each call to OpenFile
++// should specify exactly one of O_RDONLY, O_WRONLY, or O_RDWR.
+ const (
+ 	O_RDONLY int = syscall.O_RDONLY // open the file read-only.
+ 	O_WRONLY int = syscall.O_WRONLY // open the file write-only.

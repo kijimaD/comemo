@@ -7,6 +7,20 @@ Date:   Fri Apr 5 15:23:03 2013 -0700
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/8429045
-
+---
  src/pkg/net/http/request.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/http/request.go b/src/pkg/net/http/request.go
+index c1f862aadd..6d4569146f 100644
+--- a/src/pkg/net/http/request.go
++++ b/src/pkg/net/http/request.go
+@@ -48,7 +48,7 @@ var (
+ 	ErrUnexpectedTrailer    = &ProtocolError{"trailer header without chunked transfer encoding"}
+ 	ErrMissingContentLength = &ProtocolError{"missing ContentLength in HEAD response"}
+ 	ErrNotMultipart         = &ProtocolError{"request Content-Type isn't multipart/form-data"}
+-	ErrMissingBoundary      = &ProtocolError{"no multipart boundary param Content-Type"}
++	ErrMissingBoundary      = &ProtocolError{"no multipart boundary param in Content-Type"}
+ )
+ 
+ type badStringError struct {

@@ -11,6 +11,29 @@ Date:   Fri Jul 29 17:39:02 2011 -0400
     R=rsc, dvyukov
     CC=golang-dev
     https://golang.org/cl/4810059
-
+---
  src/pkg/runtime/proc.c | 10 +++++++++-
  1 file changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index ffaf44ddd8..6d8f6990b2 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -486,8 +486,16 @@ nextgandunlock(void)
+ 		// We can only run one g, and it's not available.
+ 		// Make sure some other cpu is running to handle
+ 		// the ordinary run queue.
+-		if(runtime·sched.gwait != 0)
++		if(runtime·sched.gwait != 0) {
+ 			matchmg();
++			// m->lockedg might have been on the queue.
++			if(m->nextg != nil) {
++				gp = m->nextg;
++				m->nextg = nil;
++				schedunlock();
++				return gp;
++			}
++		}
+ 	} else {
+ 		// Look for work on global queue.
+ 		while(haveg() && canaddmcpu()) {

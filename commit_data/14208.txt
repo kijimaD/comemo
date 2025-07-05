@@ -9,7 +9,42 @@ Date:   Mon Oct 22 19:14:30 2012 +0200
     R=rsc
     CC=golang-dev, gri
     https://golang.org/cl/6749059
-
+---
  src/cmd/gc/typecheck.c      |  6 ++++++
  test/fixedbugs/issue4097.go | 11 +++++++++++
  2 files changed, 17 insertions(+)
+
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 2ee468a58a..cebc2ff8a9 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -245,6 +245,12 @@ callrecv(Node *n)
+ 	case OCALLINTER:
+ 	case OCALLFUNC:
+ 	case ORECV:
++	case OCAP:
++	case OLEN:
++	case OCOPY:
++	case ONEW:
++	case OAPPEND:
++	case ODELETE:
+ 		return 1;
+ 	}
+ 
+diff --git a/test/fixedbugs/issue4097.go b/test/fixedbugs/issue4097.go
+new file mode 100644
+index 0000000000..2c999a8336
+--- /dev/null
++++ b/test/fixedbugs/issue4097.go
+@@ -0,0 +1,11 @@
++// errorcheck
++
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package foo
++
++var s [][10]int
++const m = len(s[len(s)-1]) // ERROR "must be constant" 
++

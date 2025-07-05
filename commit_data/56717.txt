@@ -20,7 +20,7 @@ Date:   Tue May 9 11:24:28 2023 -0400
     Reviewed-by: Robert Griesemer <gri@google.com>
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/types2/check_test.go  | 93 ++++++++++++++------------
  src/cmd/compile/internal/types2/issues_test.go | 69 +++++++++++++++++++
  src/cmd/compile/internal/types2/resolver.go    | 42 +++++++++---
@@ -28,3 +28,680 @@ Date:   Tue May 9 11:24:28 2023 -0400
  src/go/types/issues_test.go                    | 79 +++++++++++++++++++++-
  src/go/types/resolver.go                       | 43 ++++++++++--
  6 files changed, 298 insertions(+), 92 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/check_test.go b/src/cmd/compile/internal/types2/check_test.go
+index 26bb1aed9e..b149ae3908 100644
+--- a/src/cmd/compile/internal/types2/check_test.go
++++ b/src/cmd/compile/internal/types2/check_test.go
+@@ -37,6 +37,7 @@ import (
+ 	"internal/testenv"
+ 	"os"
+ 	"path/filepath"
++	"reflect"
+ 	"regexp"
+ 	"strconv"
+ 	"strings"
+@@ -50,12 +51,14 @@ var (
+ 	verifyErrors = flag.Bool("verify", false, "verify errors (rather than list them) in TestManual")
+ )
+ 
+-func parseFiles(t *testing.T, filenames []string, mode syntax.Mode) ([]*syntax.File, []error) {
++func parseFiles(t *testing.T, filenames []string, srcs [][]byte, mode syntax.Mode) ([]*syntax.File, []error) {
+ 	var files []*syntax.File
+ 	var errlist []error
+ 	errh := func(err error) { errlist = append(errlist, err) }
+-	for _, filename := range filenames {
+-		file, err := syntax.ParseFile(filename, errh, nil, mode)
++	for i, filename := range filenames {
++		base := syntax.NewFileBase(filename)
++		r := bytes.NewReader(srcs[i])
++		file, err := syntax.Parse(base, r, errh, nil, mode)
+ 		if file == nil {
+ 			t.Fatalf("%s: %s", filename, err)
+ 		}
+@@ -83,30 +86,10 @@ func absDiff(x, y uint) uint {
+ 	return x - y
+ }
+ 
+-// Note: parseFlags is identical to the version in go/types which is
+-//       why it has a src argument even though here it is always nil.
+-
+-// parseFlags parses flags from the first line of the given source
+-// (from src if present, or by reading from the file) if the line
+-// starts with "//" (line comment) followed by "-" (possibly with
+-// spaces between). Otherwise the line is ignored.
+-func parseFlags(filename string, src []byte, flags *flag.FlagSet) error {
+-	// If there is no src, read from the file.
+-	const maxLen = 256
+-	if len(src) == 0 {
+-		f, err := os.Open(filename)
+-		if err != nil {
+-			return err
+-		}
+-
+-		var buf [maxLen]byte
+-		n, err := f.Read(buf[:])
+-		if err != nil {
+-			return err
+-		}
+-		src = buf[:n]
+-	}
+-
++// parseFlags parses flags from the first line of the given source if the line
++// starts with "//" (line comment) followed by "-" (possibly with spaces
++// between). Otherwise the line is ignored.
++func parseFlags(src []byte, flags *flag.FlagSet) error {
+ 	// we must have a line comment that starts with a "-"
+ 	const prefix = "//"
+ 	if !bytes.HasPrefix(src, []byte(prefix)) {
+@@ -117,6 +100,7 @@ func parseFlags(filename string, src []byte, flags *flag.FlagSet) error {
+ 		return nil // comment doesn't start with a "-"
+ 	}
+ 	end := bytes.Index(src, []byte("\n"))
++	const maxLen = 256
+ 	if end < 0 || end > maxLen {
+ 		return fmt.Errorf("flags comment line too long")
+ 	}
+@@ -124,7 +108,16 @@ func parseFlags(filename string, src []byte, flags *flag.FlagSet) error {
+ 	return flags.Parse(strings.Fields(string(src[:end])))
+ }
+ 
+-func testFiles(t *testing.T, filenames []string, colDelta uint, manual bool) {
++// testFiles type-checks the package consisting of the given files, and
++// compares the resulting errors with the ERROR annotations in the source.
++//
++// The srcs slice contains the file content for the files named in the
++// filenames slice. The colDelta parameter specifies the tolerance for position
++// mismatch when comparing errors. The manual parameter specifies whether this
++// is a 'manual' test.
++//
++// If provided, opts may be used to mutate the Config before type-checking.
++func testFiles(t *testing.T, filenames []string, srcs [][]byte, colDelta uint, manual bool, opts ...func(*Config)) {
+ 	if len(filenames) == 0 {
+ 		t.Fatal("no source files")
+ 	}
+@@ -133,11 +126,11 @@ func testFiles(t *testing.T, filenames []string, colDelta uint, manual bool) {
+ 	flags := flag.NewFlagSet("", flag.PanicOnError)
+ 	flags.StringVar(&conf.GoVersion, "lang", "", "")
+ 	flags.BoolVar(&conf.FakeImportC, "fakeImportC", false, "")
+-	if err := parseFlags(filenames[0], nil, flags); err != nil {
++	if err := parseFlags(srcs[0], flags); err != nil {
+ 		t.Fatal(err)
+ 	}
+ 
+-	files, errlist := parseFiles(t, filenames, 0)
++	files, errlist := parseFiles(t, filenames, srcs, 0)
+ 
+ 	pkgName := "<no package>"
+ 	if len(files) > 0 {
+@@ -165,6 +158,11 @@ func testFiles(t *testing.T, filenames []string, colDelta uint, manual bool) {
+ 		}
+ 		errlist = append(errlist, err)
+ 	}
++
++	for _, opt := range opts {
++		opt(&conf)
++	}
++
+ 	conf.Check(pkgName, files, nil)
+ 
+ 	if listErrors {
+@@ -173,16 +171,10 @@ func testFiles(t *testing.T, filenames []string, colDelta uint, manual bool) {
+ 
+ 	// collect expected errors
+ 	errmap := make(map[string]map[uint][]syntax.Error)
+-	for _, filename := range filenames {
+-		f, err := os.Open(filename)
+-		if err != nil {
+-			t.Error(err)
+-			continue
+-		}
+-		if m := syntax.CommentMap(f, regexp.MustCompile("^ ERRORx? ")); len(m) > 0 {
++	for i, filename := range filenames {
++		if m := syntax.CommentMap(bytes.NewReader(srcs[i]), regexp.MustCompile("^ ERRORx? ")); len(m) > 0 {
+ 			errmap[filename] = m
+ 		}
+-		f.Close()
+ 	}
+ 
+ 	// match against found errors
+@@ -280,6 +272,13 @@ func testFiles(t *testing.T, filenames []string, colDelta uint, manual bool) {
+ 	}
+ }
+ 
++// boolFieldAddr(conf, name) returns the address of the boolean field conf.<name>.
++// For accessing unexported fields.
++func boolFieldAddr(conf *Config, name string) *bool {
++	v := reflect.Indirect(reflect.ValueOf(conf))
++	return (*bool)(v.FieldByName(name).Addr().UnsafePointer())
++}
++
+ // TestManual is for manual testing of a package - either provided
+ // as a list of filenames belonging to the package, or a directory
+ // name containing the package files - after the test arguments
+@@ -314,7 +313,7 @@ func TestManual(t *testing.T) {
+ 		}
+ 		testDir(t, filenames[0], 0, true)
+ 	} else {
+-		testFiles(t, filenames, 0, true)
++		testPkg(t, filenames, 0, true)
+ 	}
+ }
+ 
+@@ -351,7 +350,7 @@ func testDirFiles(t *testing.T, dir string, colDelta uint, manual bool) {
+ 			testDir(t, path, colDelta, manual)
+ 		} else {
+ 			t.Run(filepath.Base(path), func(t *testing.T) {
+-				testFiles(t, []string{path}, colDelta, manual)
++				testPkg(t, []string{path}, colDelta, manual)
+ 			})
+ 		}
+ 	}
+@@ -370,6 +369,18 @@ func testDir(t *testing.T, dir string, colDelta uint, manual bool) {
+ 	}
+ 
+ 	t.Run(filepath.Base(dir), func(t *testing.T) {
+-		testFiles(t, filenames, colDelta, manual)
++		testPkg(t, filenames, colDelta, manual)
+ 	})
+ }
++
++func testPkg(t *testing.T, filenames []string, colDelta uint, manual bool) {
++	srcs := make([][]byte, len(filenames))
++	for i, filename := range filenames {
++		src, err := os.ReadFile(filename)
++		if err != nil {
++			t.Fatalf("could not read %s: %v", filename, err)
++		}
++		srcs[i] = src
++	}
++	testFiles(t, filenames, srcs, colDelta, manual)
++}
+diff --git a/src/cmd/compile/internal/types2/issues_test.go b/src/cmd/compile/internal/types2/issues_test.go
+index e3e295e079..6005587645 100644
+--- a/src/cmd/compile/internal/types2/issues_test.go
++++ b/src/cmd/compile/internal/types2/issues_test.go
+@@ -11,6 +11,7 @@ import (
+ 	"fmt"
+ 	"internal/testenv"
+ 	"regexp"
++	"runtime"
+ 	"sort"
+ 	"strings"
+ 	"testing"
+@@ -804,3 +805,71 @@ func (S) M5(struct {S;t}) {}
+ 		test(t.main, t.b, t.want)
+ 	}
+ }
++
++func TestIssue59944(t *testing.T) {
++	if runtime.GOARCH == "wasm" {
++		// While we don't use the cgo tool directly in this test, we must have the
++		// syscall package.
++		t.Skip("cgo generated code does not compile on wasm")
++	}
++	// The typechecker should resolve methods declared on aliases of cgo types.
++	const src = `
++package p
++
++/*
++struct layout {
++	int field;
++};
++*/
++import "C"
++
++type Layout = C.struct_layout
++
++func (l *Layout) Binding() {}
++
++func _() {
++	_ = (*Layout).Binding
++}
++`
++
++	// code generated by cmd/cgo for the above source.
++	const cgoTypes = `
++// Code generated by cmd/cgo; DO NOT EDIT.
++
++package p
++
++import "unsafe"
++
++import "syscall"
++
++import _cgopackage "runtime/cgo"
++
++type _ _cgopackage.Incomplete
++var _ syscall.Errno
++func _Cgo_ptr(ptr unsafe.Pointer) unsafe.Pointer { return ptr }
++
++//go:linkname _Cgo_always_false runtime.cgoAlwaysFalse
++var _Cgo_always_false bool
++//go:linkname _Cgo_use runtime.cgoUse
++func _Cgo_use(interface{})
++type _Ctype_int int32
++
++type _Ctype_struct_layout struct {
++	field _Ctype_int
++}
++
++type _Ctype_void [0]byte
++
++//go:linkname _cgo_runtime_cgocall runtime.cgocall
++func _cgo_runtime_cgocall(unsafe.Pointer, uintptr) int32
++
++//go:linkname _cgoCheckPointer runtime.cgoCheckPointer
++func _cgoCheckPointer(interface{}, interface{})
++
++//go:linkname _cgoCheckResult runtime.cgoCheckResult
++func _cgoCheckResult(interface{})
++`
++	testFiles(t, []string{"p.go", "_cgo_gotypes.go"}, [][]byte{[]byte(src), []byte(cgoTypes)}, 0, false, func(cfg *Config) {
++		*boolFieldAddr(cfg, "go115UsesCgo") = true
++	})
++}
+diff --git a/src/cmd/compile/internal/types2/resolver.go b/src/cmd/compile/internal/types2/resolver.go
+index 956f8d503c..d051fb50e1 100644
+--- a/src/cmd/compile/internal/types2/resolver.go
++++ b/src/cmd/compile/internal/types2/resolver.go
+@@ -497,7 +497,7 @@ func (check *Checker) collectObjects() {
+ 		for i := range methods {
+ 			m := &methods[i]
+ 			// Determine the receiver base type and associate m with it.
+-			ptr, base := check.resolveBaseTypeName(m.ptr, m.recv)
++			ptr, base := check.resolveBaseTypeName(m.ptr, m.recv, fileScopes)
+ 			if base != nil {
+ 				m.obj.hasPtrRecv_ = ptr
+ 				check.methods[base] = append(check.methods[base], m.obj)
+@@ -571,7 +571,7 @@ L: // unpack receiver type
+ // there was a pointer indirection to get to it. The base type name must be declared
+ // in package scope, and there can be at most one pointer indirection. If no such type
+ // name exists, the returned base is nil.
+-func (check *Checker) resolveBaseTypeName(seenPtr bool, typ syntax.Expr) (ptr bool, base *TypeName) {
++func (check *Checker) resolveBaseTypeName(seenPtr bool, typ syntax.Expr, fileScopes []*Scope) (ptr bool, base *TypeName) {
+ 	// Algorithm: Starting from a type expression, which may be a name,
+ 	// we follow that type through alias declarations until we reach a
+ 	// non-alias type name. If we encounter anything but pointer types or
+@@ -580,8 +580,6 @@ func (check *Checker) resolveBaseTypeName(seenPtr bool, typ syntax.Expr) (ptr bo
+ 	ptr = seenPtr
+ 	var seen map[*TypeName]bool
+ 	for {
+-		typ = unparen(typ)
+-
+ 		// check if we have a pointer type
+ 		// if pexpr, _ := typ.(*ast.StarExpr); pexpr != nil {
+ 		if pexpr, _ := typ.(*syntax.Operation); pexpr != nil && pexpr.Op == syntax.Mul && pexpr.Y == nil {
+@@ -593,15 +591,43 @@ func (check *Checker) resolveBaseTypeName(seenPtr bool, typ syntax.Expr) (ptr bo
+ 			typ = unparen(pexpr.X) // continue with pointer base type
+ 		}
+ 
+-		// typ must be a name
+-		name, _ := typ.(*syntax.Name)
+-		if name == nil {
++		// typ must be a name, or a C.name cgo selector.
++		var name string
++		switch typ := typ.(type) {
++		case *syntax.Name:
++			name = typ.Value
++		case *syntax.SelectorExpr:
++			// C.struct_foo is a valid type name for packages using cgo.
++			//
++			// Detect this case, and adjust name so that the correct TypeName is
++			// resolved below.
++			if ident, _ := typ.X.(*syntax.Name); ident != nil && ident.Value == "C" {
++				// Check whether "C" actually resolves to an import of "C", by looking
++				// in the appropriate file scope.
++				var obj Object
++				for _, scope := range fileScopes {
++					if scope.Contains(ident.Pos()) {
++						obj = scope.Lookup(ident.Value)
++					}
++				}
++				// If Config.go115UsesCgo is set, the typechecker will resolve Cgo
++				// selectors to their cgo name. We must do the same here.
++				if pname, _ := obj.(*PkgName); pname != nil {
++					if pname.imported.cgo { // only set if Config.go115UsesCgo is set
++						name = "_Ctype_" + typ.Sel.Value
++					}
++				}
++			}
++			if name == "" {
++				return false, nil
++			}
++		default:
+ 			return false, nil
+ 		}
+ 
+ 		// name must denote an object found in the current package scope
+ 		// (note that dot-imported objects are not in the package scope!)
+-		obj := check.pkg.scope.Lookup(name.Value)
++		obj := check.pkg.scope.Lookup(name)
+ 		if obj == nil {
+ 			return false, nil
+ 		}
+diff --git a/src/go/types/check_test.go b/src/go/types/check_test.go
+index d53aaeadc5..73ac80235c 100644
+--- a/src/go/types/check_test.go
++++ b/src/go/types/check_test.go
+@@ -98,27 +98,10 @@ func absDiff(x, y int) int {
+ 	return x - y
+ }
+ 
+-// parseFlags parses flags from the first line of the given source
+-// (from src if present, or by reading from the file) if the line
+-// starts with "//" (line comment) followed by "-" (possibly with
+-// spaces between). Otherwise the line is ignored.
+-func parseFlags(filename string, src []byte, flags *flag.FlagSet) error {
+-	// If there is no src, read from the file.
+-	const maxLen = 256
+-	if len(src) == 0 {
+-		f, err := os.Open(filename)
+-		if err != nil {
+-			return err
+-		}
+-
+-		var buf [maxLen]byte
+-		n, err := f.Read(buf[:])
+-		if err != nil {
+-			return err
+-		}
+-		src = buf[:n]
+-	}
+-
++// parseFlags parses flags from the first line of the given source if the line
++// starts with "//" (line comment) followed by "-" (possibly with spaces
++// between). Otherwise the line is ignored.
++func parseFlags(src []byte, flags *flag.FlagSet) error {
+ 	// we must have a line comment that starts with a "-"
+ 	const prefix = "//"
+ 	if !bytes.HasPrefix(src, []byte(prefix)) {
+@@ -129,6 +112,7 @@ func parseFlags(filename string, src []byte, flags *flag.FlagSet) error {
+ 		return nil // comment doesn't start with a "-"
+ 	}
+ 	end := bytes.Index(src, []byte("\n"))
++	const maxLen = 256
+ 	if end < 0 || end > maxLen {
+ 		return fmt.Errorf("flags comment line too long")
+ 	}
+@@ -136,17 +120,24 @@ func parseFlags(filename string, src []byte, flags *flag.FlagSet) error {
+ 	return flags.Parse(strings.Fields(string(src[:end])))
+ }
+ 
+-func testFiles(t *testing.T, sizes Sizes, filenames []string, srcs [][]byte, manual bool, imp Importer) {
++// testFiles type-checks the package consisting of the given files, and
++// compares the resulting errors with the ERROR annotations in the source.
++//
++// The srcs slice contains the file content for the files named in the
++// filenames slice. The manual parameter specifies whether this is a 'manual'
++// test.
++//
++// If provided, opts may be used to mutate the Config before type-checking.
++func testFiles(t *testing.T, filenames []string, srcs [][]byte, manual bool, opts ...func(*Config)) {
+ 	if len(filenames) == 0 {
+ 		t.Fatal("no source files")
+ 	}
+ 
+ 	var conf Config
+-	conf.Sizes = sizes
+ 	flags := flag.NewFlagSet("", flag.PanicOnError)
+ 	flags.StringVar(&conf.GoVersion, "lang", "", "")
+ 	flags.BoolVar(&conf.FakeImportC, "fakeImportC", false, "")
+-	if err := parseFlags(filenames[0], srcs[0], flags); err != nil {
++	if err := parseFlags(srcs[0], flags); err != nil {
+ 		t.Fatal(err)
+ 	}
+ 
+@@ -167,10 +158,7 @@ func testFiles(t *testing.T, sizes Sizes, filenames []string, srcs [][]byte, man
+ 
+ 	// typecheck and collect typechecker errors
+ 	*boolFieldAddr(&conf, "_Trace") = manual && testing.Verbose()
+-	if imp == nil {
+-		imp = importer.Default()
+-	}
+-	conf.Importer = imp
++	conf.Importer = importer.Default()
+ 	conf.Error = func(err error) {
+ 		if *haltOnError {
+ 			defer panic(err)
+@@ -185,6 +173,11 @@ func testFiles(t *testing.T, sizes Sizes, filenames []string, srcs [][]byte, man
+ 			errlist = append(errlist, err)
+ 		}
+ 	}
++
++	for _, opt := range opts {
++		opt(&conf)
++	}
++
+ 	conf.Check(pkgName, fset, files, nil)
+ 
+ 	if listErrors {
+@@ -348,7 +341,13 @@ func TestManual(t *testing.T) {
+ func TestLongConstants(t *testing.T) {
+ 	format := `package longconst; const _ = %s /* ERROR "constant overflow" */; const _ = %s // ERROR "excessively long constant"`
+ 	src := fmt.Sprintf(format, strings.Repeat("1", 9999), strings.Repeat("1", 10001))
+-	testFiles(t, nil, []string{"longconst.go"}, [][]byte{[]byte(src)}, false, nil)
++	testFiles(t, []string{"longconst.go"}, [][]byte{[]byte(src)}, false)
++}
++
++func withSizes(sizes Sizes) func(*Config) {
++	return func(cfg *Config) {
++		cfg.Sizes = sizes
++	}
+ }
+ 
+ // TestIndexRepresentability tests that constant index operands must
+@@ -356,14 +355,14 @@ func TestLongConstants(t *testing.T) {
+ // represent larger values.
+ func TestIndexRepresentability(t *testing.T) {
+ 	const src = `package index; var s []byte; var _ = s[int64 /* ERRORx "int64\\(1\\) << 40 \\(.*\\) overflows int" */ (1) << 40]`
+-	testFiles(t, &StdSizes{4, 4}, []string{"index.go"}, [][]byte{[]byte(src)}, false, nil)
++	testFiles(t, []string{"index.go"}, [][]byte{[]byte(src)}, false, withSizes(&StdSizes{4, 4}))
+ }
+ 
+ func TestIssue47243_TypedRHS(t *testing.T) {
+ 	// The RHS of the shift expression below overflows uint on 32bit platforms,
+ 	// but this is OK as it is explicitly typed.
+ 	const src = `package issue47243; var a uint64; var _ = a << uint64(4294967296)` // uint64(1<<32)
+-	testFiles(t, &StdSizes{4, 4}, []string{"p.go"}, [][]byte{[]byte(src)}, false, nil)
++	testFiles(t, []string{"p.go"}, [][]byte{[]byte(src)}, false, withSizes(&StdSizes{4, 4}))
+ }
+ 
+ func TestCheck(t *testing.T) {
+@@ -418,7 +417,6 @@ func testDir(t *testing.T, dir string, manual bool) {
+ 	})
+ }
+ 
+-// TODO(rFindley) reconcile the different test setup in go/types with types2.
+ func testPkg(t *testing.T, filenames []string, manual bool) {
+ 	srcs := make([][]byte, len(filenames))
+ 	for i, filename := range filenames {
+@@ -428,5 +426,5 @@ func testPkg(t *testing.T, filenames []string, manual bool) {
+ 		}
+ 		srcs[i] = src
+ 	}
+-	testFiles(t, nil, filenames, srcs, manual, nil)
++	testFiles(t, filenames, srcs, manual)
+ }
+diff --git a/src/go/types/issues_test.go b/src/go/types/issues_test.go
+index a464659aaf..d7f06cd9cb 100644
+--- a/src/go/types/issues_test.go
++++ b/src/go/types/issues_test.go
+@@ -13,6 +13,7 @@ import (
+ 	"go/token"
+ 	"internal/testenv"
+ 	"regexp"
++	"runtime"
+ 	"sort"
+ 	"strings"
+ 	"testing"
+@@ -597,9 +598,13 @@ var _ T = template /* ERRORx "cannot use.*text/template.* as T value" */.Templat
+ 	a := mustTypecheck(asrc, nil, nil)
+ 	imp := importHelper{pkg: a, fallback: importer.Default()}
+ 
+-	testFiles(t, nil, []string{"b.go"}, [][]byte{[]byte(bsrc)}, false, imp)
+-	testFiles(t, nil, []string{"c.go"}, [][]byte{[]byte(csrc)}, false, imp)
+-	testFiles(t, nil, []string{"t.go"}, [][]byte{[]byte(tsrc)}, false, imp)
++	withImporter := func(cfg *Config) {
++		cfg.Importer = imp
++	}
++
++	testFiles(t, []string{"b.go"}, [][]byte{[]byte(bsrc)}, false, withImporter)
++	testFiles(t, []string{"c.go"}, [][]byte{[]byte(csrc)}, false, withImporter)
++	testFiles(t, []string{"t.go"}, [][]byte{[]byte(tsrc)}, false, withImporter)
+ }
+ 
+ func TestIssue50646(t *testing.T) {
+@@ -839,3 +844,71 @@ func (S) M5(struct {S;t}) {}
+ 		test(t.main, t.b, t.want)
+ 	}
+ }
++
++func TestIssue59944(t *testing.T) {
++	if runtime.GOARCH == "wasm" {
++		// While we don't use the cgo tool directly in this test, we must have the
++		// syscall package.
++		t.Skip("cgo generated code does not compile on wasm")
++	}
++	// The typechecker should resolve methods declared on aliases of cgo types.
++	const src = `
++package p
++
++/*
++struct layout {
++	int field;
++};
++*/
++import "C"
++
++type Layout = C.struct_layout
++
++func (l *Layout) Binding() {}
++
++func _() {
++	_ = (*Layout).Binding
++}
++`
++
++	// code generated by cmd/cgo for the above source.
++	const cgoTypes = `
++// Code generated by cmd/cgo; DO NOT EDIT.
++
++package p
++
++import "unsafe"
++
++import "syscall"
++
++import _cgopackage "runtime/cgo"
++
++type _ _cgopackage.Incomplete
++var _ syscall.Errno
++func _Cgo_ptr(ptr unsafe.Pointer) unsafe.Pointer { return ptr }
++
++//go:linkname _Cgo_always_false runtime.cgoAlwaysFalse
++var _Cgo_always_false bool
++//go:linkname _Cgo_use runtime.cgoUse
++func _Cgo_use(interface{})
++type _Ctype_int int32
++
++type _Ctype_struct_layout struct {
++	field _Ctype_int
++}
++
++type _Ctype_void [0]byte
++
++//go:linkname _cgo_runtime_cgocall runtime.cgocall
++func _cgo_runtime_cgocall(unsafe.Pointer, uintptr) int32
++
++//go:linkname _cgoCheckPointer runtime.cgoCheckPointer
++func _cgoCheckPointer(interface{}, interface{})
++
++//go:linkname _cgoCheckResult runtime.cgoCheckResult
++func _cgoCheckResult(interface{})
++`
++	testFiles(t, []string{"p.go", "_cgo_gotypes.go"}, [][]byte{[]byte(src), []byte(cgoTypes)}, false, func(cfg *Config) {
++		*boolFieldAddr(cfg, "go115UsesCgo") = true
++	})
++}
+diff --git a/src/go/types/resolver.go b/src/go/types/resolver.go
+index 6f927446e2..6397b394d1 100644
+--- a/src/go/types/resolver.go
++++ b/src/go/types/resolver.go
+@@ -482,7 +482,7 @@ func (check *Checker) collectObjects() {
+ 	for i := range methods {
+ 		m := &methods[i]
+ 		// Determine the receiver base type and associate m with it.
+-		ptr, base := check.resolveBaseTypeName(m.ptr, m.recv)
++		ptr, base := check.resolveBaseTypeName(m.ptr, m.recv, fileScopes)
+ 		if base != nil {
+ 			m.obj.hasPtrRecv_ = ptr
+ 			check.methods[base] = append(check.methods[base], m.obj)
+@@ -550,7 +550,7 @@ L: // unpack receiver type
+ // there was a pointer indirection to get to it. The base type name must be declared
+ // in package scope, and there can be at most one pointer indirection. If no such type
+ // name exists, the returned base is nil.
+-func (check *Checker) resolveBaseTypeName(seenPtr bool, name *ast.Ident) (ptr bool, base *TypeName) {
++func (check *Checker) resolveBaseTypeName(seenPtr bool, typ ast.Expr, fileScopes []*Scope) (ptr bool, base *TypeName) {
+ 	// Algorithm: Starting from a type expression, which may be a name,
+ 	// we follow that type through alias declarations until we reach a
+ 	// non-alias type name. If we encounter anything but pointer types or
+@@ -558,8 +558,9 @@ func (check *Checker) resolveBaseTypeName(seenPtr bool, name *ast.Ident) (ptr bo
+ 	// we're done.
+ 	ptr = seenPtr
+ 	var seen map[*TypeName]bool
+-	var typ ast.Expr = name
+ 	for {
++		// Note: this differs from types2, but is necessary. The syntax parser
++		// strips unnecessary parens.
+ 		typ = unparen(typ)
+ 
+ 		// check if we have a pointer type
+@@ -572,15 +573,43 @@ func (check *Checker) resolveBaseTypeName(seenPtr bool, name *ast.Ident) (ptr bo
+ 			typ = unparen(pexpr.X) // continue with pointer base type
+ 		}
+ 
+-		// typ must be a name
+-		name, _ := typ.(*ast.Ident)
+-		if name == nil {
++		// typ must be a name, or a C.name cgo selector.
++		var name string
++		switch typ := typ.(type) {
++		case *ast.Ident:
++			name = typ.Name
++		case *ast.SelectorExpr:
++			// C.struct_foo is a valid type name for packages using cgo.
++			//
++			// Detect this case, and adjust name so that the correct TypeName is
++			// resolved below.
++			if ident, _ := typ.X.(*ast.Ident); ident != nil && ident.Name == "C" {
++				// Check whether "C" actually resolves to an import of "C", by looking
++				// in the appropriate file scope.
++				var obj Object
++				for _, scope := range fileScopes {
++					if scope.Contains(ident.Pos()) {
++						obj = scope.Lookup(ident.Name)
++					}
++				}
++				// If Config.go115UsesCgo is set, the typechecker will resolve Cgo
++				// selectors to their cgo name. We must do the same here.
++				if pname, _ := obj.(*PkgName); pname != nil {
++					if pname.imported.cgo { // only set if Config.go115UsesCgo is set
++						name = "_Ctype_" + typ.Sel.Name
++					}
++				}
++			}
++			if name == "" {
++				return false, nil
++			}
++		default:
+ 			return false, nil
+ 		}
+ 
+ 		// name must denote an object found in the current package scope
+ 		// (note that dot-imported objects are not in the package scope!)
+-		obj := check.pkg.scope.Lookup(name.Name)
++		obj := check.pkg.scope.Lookup(name)
+ 		if obj == nil {
+ 			return false, nil
+ 		}

@@ -14,6 +14,28 @@ Date:   Wed Oct 1 21:35:12 2014 +0000
     R=rsc
     CC=golang-codereviews
     https://golang.org/cl/151970043
-
+---
  src/fmt/print.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/fmt/print.go b/src/fmt/print.go
+index 679c577dbd..de69e90fb7 100644
+--- a/src/fmt/print.go
++++ b/src/fmt/print.go
+@@ -297,13 +297,13 @@ func parsenum(s string, start, end int) (num int, isnum bool, newi int) {
+ 	return
+ }
+ 
+-func (p *pp) unknownType(v interface{}) {
+-	if v == nil {
++func (p *pp) unknownType(v reflect.Value) {
++	if !v.IsValid() {
+ 		p.buf.Write(nilAngleBytes)
+ 		return
+ 	}
+ 	p.buf.WriteByte('?')
+-	p.buf.WriteString(reflect.TypeOf(v).String())
++	p.buf.WriteString(v.Type().String())
+ 	p.buf.WriteByte('?')
+ }
+ 

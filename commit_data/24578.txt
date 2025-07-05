@@ -7,6 +7,32 @@ Date:   Wed Aug 5 16:07:13 2015 -0700
     Change-Id: I684440dc316625d5572cc12179adbc206e306429
     Reviewed-on: https://go-review.googlesource.com/13263
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/schedule.go | 7 ++++---
  1 file changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/schedule.go b/src/cmd/compile/internal/ssa/schedule.go
+index d1596f25e8..9c8e9a1156 100644
+--- a/src/cmd/compile/internal/ssa/schedule.go
++++ b/src/cmd/compile/internal/ssa/schedule.go
+@@ -15,7 +15,7 @@ func schedule(f *Func) {
+ 	uses := make([]int, f.NumValues())
+ 
+ 	// "priority" for a value
+-	score := make([]int, f.NumValues())
++	score := make([]uint8, f.NumValues())
+ 
+ 	// scheduling order.  We queue values in this list in reverse order.
+ 	var order []*Value
+@@ -57,8 +57,9 @@ func schedule(f *Func) {
+ 				score[v.ID] = 1
+ 			}
+ 		}
+-		if b.Control != nil {
+-			// Force the control value to be scheduled at the end.
++		if b.Control != nil && b.Control.Op != OpPhi {
++			// Force the control value to be scheduled at the end,
++			// unless it is a phi value (which must be first).
+ 			score[b.Control.ID] = 3
+ 			// TODO: some times control values are used by other values
+ 			// in the block.  So the control value will not appear at

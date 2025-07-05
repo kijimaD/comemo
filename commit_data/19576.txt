@@ -14,7 +14,95 @@ Date:   Thu Jun 19 11:22:50 2014 -0700
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/107190044
-
+---
  src/pkg/strings/replace.go      | 44 +++++++++++++----------------------------
  src/pkg/strings/replace_test.go |  9 +++++++++
  2 files changed, 23 insertions(+), 30 deletions(-)
+
+diff --git a/src/pkg/strings/replace.go b/src/pkg/strings/replace.go
+index 16889bac99..c661265613 100644
+--- a/src/pkg/strings/replace.go
++++ b/src/pkg/strings/replace.go
+@@ -511,48 +511,32 @@ func (r *byteStringReplacer) Replace(s string) string {
+ 	return string(buf)
+ }
+ 
+-// WriteString maintains one buffer that's at most 32KB.  The bytes in
+-// s are enumerated and the buffer is filled.  If it reaches its
+-// capacity or a byte has a replacement, the buffer is flushed to w.
+ func (r *byteStringReplacer) WriteString(w io.Writer, s string) (n int, err error) {
+-	// TODO(bradfitz): use io.WriteString with slices of s instead.
+-	bufsize := 32 << 10
+-	if len(s) < bufsize {
+-		bufsize = len(s)
+-	}
+-	buf := make([]byte, bufsize)
+-	bi := buf[:0]
+-
++	sw := getStringWriter(w)
++	last := 0
+ 	for i := 0; i < len(s); i++ {
+ 		b := s[i]
+-		var new []byte
+-		if r.old[b>>5]&uint32(1<<(b&31)) != 0 {
+-			new = r.new[b]
+-		} else {
+-			bi = append(bi, b)
+-		}
+-		if len(bi) == cap(bi) || (len(bi) > 0 && len(new) > 0) {
+-			nw, err := w.Write(bi)
+-			n += nw
+-			if err != nil {
+-				return n, err
+-			}
+-			bi = buf[:0]
++		if r.old[b>>5]&uint32(1<<(b&31)) == 0 {
++			continue
+ 		}
+-		if len(new) > 0 {
+-			nw, err := w.Write(new)
++		if last != i {
++			nw, err := sw.WriteString(s[last:i])
+ 			n += nw
+ 			if err != nil {
+ 				return n, err
+ 			}
+ 		}
+-	}
+-	if len(bi) > 0 {
+-		nw, err := w.Write(bi)
++		last = i + 1
++		nw, err := w.Write(r.new[b])
+ 		n += nw
+ 		if err != nil {
+ 			return n, err
+ 		}
+ 	}
+-	return n, nil
++	if last != len(s) {
++		var nw int
++		nw, err = sw.WriteString(s[last:])
++		n += nw
++	}
++	return
+ }
+diff --git a/src/pkg/strings/replace_test.go b/src/pkg/strings/replace_test.go
+index 82e4b6ef08..ca57f08251 100644
+--- a/src/pkg/strings/replace_test.go
++++ b/src/pkg/strings/replace_test.go
+@@ -480,6 +480,15 @@ func BenchmarkHTMLEscapeOld(b *testing.B) {
+ 	}
+ }
+ 
++func BenchmarkWriteString(b *testing.B) {
++	str := Repeat("I <3 to escape HTML & other text too.", 100)
++	buf := new(bytes.Buffer)
++	for i := 0; i < b.N; i++ {
++		htmlEscaper.WriteString(buf, str)
++		buf.Reset()
++	}
++}
++
+ // BenchmarkByteByteReplaces compares byteByteImpl against multiple Replaces.
+ func BenchmarkByteByteReplaces(b *testing.B) {
+ 	str := Repeat("a", 100) + Repeat("b", 100)

@@ -14,8 +14,69 @@ Date:   Mon Jul 29 18:39:02 2024 +0000
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  api/next/62384.txt                           |  4 ++++
  doc/next/6-stdlib/99-minor/encoding/62384.md |  5 +++++
  src/encoding/encoding.go                     | 24 ++++++++++++++++++++++++
  3 files changed, 33 insertions(+)
+
+diff --git a/api/next/62384.txt b/api/next/62384.txt
+new file mode 100644
+index 0000000000..c8dc0c8350
+--- /dev/null
++++ b/api/next/62384.txt
+@@ -0,0 +1,4 @@
++pkg encoding, type BinaryAppender interface { AppendBinary } #62384
++pkg encoding, type BinaryAppender interface, AppendBinary([]uint8) ([]uint8, error) #62384
++pkg encoding, type TextAppender interface { AppendText } #62384
++pkg encoding, type TextAppender interface, AppendText([]uint8) ([]uint8, error) #62384
+diff --git a/doc/next/6-stdlib/99-minor/encoding/62384.md b/doc/next/6-stdlib/99-minor/encoding/62384.md
+new file mode 100644
+index 0000000000..5b41d4ba6a
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/encoding/62384.md
+@@ -0,0 +1,5 @@
++Two new interfaces, [TextAppender] and [BinaryAppender], have been
++introduced to append the textual or binary representation of an object
++to a byte slice. These interfaces provide the same functionality as
++[TextMarshaler] and [BinaryMarshaler], but instead of allocating a new slice
++each time, they append the data directly to an existing slice.
+diff --git a/src/encoding/encoding.go b/src/encoding/encoding.go
+index 50acf3c23a..4d288b6d3b 100644
+--- a/src/encoding/encoding.go
++++ b/src/encoding/encoding.go
+@@ -35,6 +35,18 @@ type BinaryUnmarshaler interface {
+ 	UnmarshalBinary(data []byte) error
+ }
+ 
++// BinaryAppender is the interface implemented by an object
++// that can append the binary representation of itself.
++// If a type implements both [BinaryAppender] and [BinaryMarshaler],
++// then v.MarshalBinary() must be semantically identical to v.AppendBinary(nil).
++type BinaryAppender interface {
++	// AppendBinary appends the binary representation of itself to the end of b
++	// (allocating a larger slice if necessary) and returns the updated slice.
++	//
++	// Implementations must not retain b, nor mutate any bytes within b[:len(b)].
++	AppendBinary(b []byte) ([]byte, error)
++}
++
+ // TextMarshaler is the interface implemented by an object that can
+ // marshal itself into a textual form.
+ //
+@@ -52,3 +64,15 @@ type TextMarshaler interface {
+ type TextUnmarshaler interface {
+ 	UnmarshalText(text []byte) error
+ }
++
++// TextAppender is the interface implemented by an object
++// that can append the textual representation of itself.
++// If a type implements both [TextAppender] and [TextMarshaler],
++// then v.MarshalText() must be semantically identical to v.AppendText(nil).
++type TextAppender interface {
++	// AppendText appends the textual representation of itself to the end of b
++	// (allocating a larger slice if necessary) and returns the updated slice.
++	//
++	// Implementations must not retain b, nor mutate any bytes within b[:len(b)].
++	AppendText(b []byte) ([]byte, error)
++}

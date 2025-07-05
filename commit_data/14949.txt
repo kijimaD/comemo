@@ -14,8 +14,125 @@ Date:   Tue Jan 22 10:10:38 2013 -0500
     R=golang-dev, nightlyone, bradfitz, ality
     CC=golang-dev
     https://golang.org/cl/7163043
-
+---
  src/pkg/crypto/tls/common.go                |  6 ++++
  src/pkg/crypto/tls/handshake_server.go      | 19 +++++++++----
  src/pkg/crypto/tls/handshake_server_test.go | 44 +++++++++++++++++++++++++++++
  3 files changed, 64 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/crypto/tls/common.go b/src/pkg/crypto/tls/common.go
+index cfe2f2227f..a888df762d 100644
+--- a/src/pkg/crypto/tls/common.go
++++ b/src/pkg/crypto/tls/common.go
+@@ -184,6 +184,12 @@ type Config struct {
+ 	// is nil, TLS uses a list of suites supported by the implementation.
+ 	CipherSuites []uint16
+ 
++	// PreferServerCipherSuites controls whether the server selects the
++	// client's most preferred ciphersuite, or the server's most preferred
++	// ciphersuite. If true then the server's preference, as expressed in
++	// the order of elements in CipherSuites, is used.
++	PreferServerCipherSuites bool
++
+ 	// SessionTicketsDisabled may be set to true to disable session ticket
+ 	// (resumption) support.
+ 	SessionTicketsDisabled bool
+diff --git a/src/pkg/crypto/tls/handshake_server.go b/src/pkg/crypto/tls/handshake_server.go
+index d841034502..730991016a 100644
+--- a/src/pkg/crypto/tls/handshake_server.go
++++ b/src/pkg/crypto/tls/handshake_server.go
+@@ -180,8 +180,17 @@ Curves:
+ 		return true, nil
+ 	}
+ 
+-	for _, id := range hs.clientHello.cipherSuites {
+-		if hs.suite = c.tryCipherSuite(id, hs.ellipticOk); hs.suite != nil {
++	var preferenceList, supportedList []uint16
++	if c.config.PreferServerCipherSuites {
++		preferenceList = c.config.cipherSuites()
++		supportedList = hs.clientHello.cipherSuites
++	} else {
++		preferenceList = hs.clientHello.cipherSuites
++		supportedList = c.config.cipherSuites()
++	}
++
++	for _, id := range preferenceList {
++		if hs.suite = c.tryCipherSuite(id, supportedList, hs.ellipticOk); hs.suite != nil {
+ 			break
+ 		}
+ 	}
+@@ -222,7 +231,7 @@ func (hs *serverHandshakeState) checkForResumption() bool {
+ 	}
+ 
+ 	// Check that we also support the ciphersuite from the session.
+-	hs.suite = c.tryCipherSuite(hs.sessionState.cipherSuite, hs.ellipticOk)
++	hs.suite = c.tryCipherSuite(hs.sessionState.cipherSuite, c.config.cipherSuites(), hs.ellipticOk)
+ 	if hs.suite == nil {
+ 		return false
+ 	}
+@@ -568,8 +577,8 @@ func (hs *serverHandshakeState) processCertsFromClient(certificates [][]byte) (*
+ 
+ // tryCipherSuite returns a cipherSuite with the given id if that cipher suite
+ // is acceptable to use.
+-func (c *Conn) tryCipherSuite(id uint16, ellipticOk bool) *cipherSuite {
+-	for _, supported := range c.config.cipherSuites() {
++func (c *Conn) tryCipherSuite(id uint16, supportedCipherSuites []uint16, ellipticOk bool) *cipherSuite {
++	for _, supported := range supportedCipherSuites {
+ 		if id == supported {
+ 			var candidate *cipherSuite
+ 
+diff --git a/src/pkg/crypto/tls/handshake_server_test.go b/src/pkg/crypto/tls/handshake_server_test.go
+index 6d2e28b402..bf8cbe3ae6 100644
+--- a/src/pkg/crypto/tls/handshake_server_test.go
++++ b/src/pkg/crypto/tls/handshake_server_test.go
+@@ -125,6 +125,50 @@ func TestClose(t *testing.T) {
+ 	}
+ }
+ 
++func testHandshake(clientConfig, serverConfig *Config) (state ConnectionState, err error) {
++	c, s := net.Pipe()
++	go func() {
++		cli := Client(c, clientConfig)
++		cli.Handshake()
++		c.Close()
++	}()
++	server := Server(s, serverConfig)
++	err = server.Handshake()
++	if err == nil {
++		state = server.ConnectionState()
++	}
++	s.Close()
++	return
++}
++
++func TestCipherSuitePreference(t *testing.T) {
++	serverConfig := &Config{
++		CipherSuites: []uint16{TLS_RSA_WITH_RC4_128_SHA, TLS_RSA_WITH_AES_128_CBC_SHA, TLS_ECDHE_RSA_WITH_RC4_128_SHA},
++		Certificates: testConfig.Certificates,
++	}
++	clientConfig := &Config{
++		CipherSuites:       []uint16{TLS_RSA_WITH_AES_128_CBC_SHA, TLS_RSA_WITH_RC4_128_SHA},
++		InsecureSkipVerify: true,
++	}
++	state, err := testHandshake(clientConfig, serverConfig)
++	if err != nil {
++		t.Fatalf("handshake failed: %s", err)
++	}
++	if state.CipherSuite != TLS_RSA_WITH_AES_128_CBC_SHA {
++		// By default the server should use the client's preference.
++		t.Fatalf("Client's preference was not used, got %x", state.CipherSuite)
++	}
++
++	serverConfig.PreferServerCipherSuites = true
++	state, err = testHandshake(clientConfig, serverConfig)
++	if err != nil {
++		t.Fatalf("handshake failed: %s", err)
++	}
++	if state.CipherSuite != TLS_RSA_WITH_RC4_128_SHA {
++		t.Fatalf("Server's preference was not used, got %x", state.CipherSuite)
++	}
++}
++
+ func testServerScript(t *testing.T, name string, serverScript [][]byte, config *Config, peers []*x509.Certificate) {
+ 	c, s := net.Pipe()
+ 	srv := Server(s, config)

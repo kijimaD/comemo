@@ -12,6 +12,20 @@ Date:   Sat Sep 28 15:19:05 2013 -0700
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/14088044
-
+---
  test/blank1.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/test/blank1.go b/test/blank1.go
+index f46a50051b..54a72976b7 100644
+--- a/test/blank1.go
++++ b/test/blank1.go
+@@ -21,7 +21,7 @@ func main() {
+ 	_()	// ERROR "cannot use _ as value"
+ 	x := _+1	// ERROR "cannot use _ as value"
+ 	_ = x
+-	_ = t._ // ERROR "cannot refer to blank field"
++	_ = t._ // ERROR "cannot refer to blank field|invalid use of"
+ 
+       var v1, v2 T
+       _ = v1 == v2 // ERROR "cannot be compared|non-comparable"

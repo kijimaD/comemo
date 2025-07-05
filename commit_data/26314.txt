@@ -11,8 +11,65 @@ Date:   Fri Jan 8 14:27:02 2016 -0800
     Change-Id: I8664669f5d6adfec6f16e154263b1f0ea8988175
     Reviewed-on: https://go-review.googlesource.com/18445
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/internal/gcimporter/gcimporter.go | 8 +++-----
  src/go/types/api.go                      | 9 +++++----
  src/go/types/resolver.go                 | 3 ---
  3 files changed, 8 insertions(+), 12 deletions(-)
+
+diff --git a/src/go/internal/gcimporter/gcimporter.go b/src/go/internal/gcimporter/gcimporter.go
+index a12365a32b..1402aa223e 100644
+--- a/src/go/internal/gcimporter/gcimporter.go
++++ b/src/go/internal/gcimporter/gcimporter.go
+@@ -112,13 +112,11 @@ func ImportData(packages map[string]*types.Package, filename, id string, data io
+ // The packages map must contain all packages already imported.
+ //
+ func Import(packages map[string]*types.Package, path, srcDir string) (pkg *types.Package, err error) {
+-	// package "unsafe" is handled by the type checker
+-	if path == "unsafe" {
+-		panic(`gcimporter.Import called for package "unsafe"`)
+-	}
+-
+ 	filename, id := FindPkg(path, srcDir)
+ 	if filename == "" {
++		if path == "unsafe" {
++			return types.Unsafe, nil
++		}
+ 		err = fmt.Errorf("can't find import: %s", id)
+ 		return
+ 	}
+diff --git a/src/go/types/api.go b/src/go/types/api.go
+index 61f0d98762..b2ce79f07b 100644
+--- a/src/go/types/api.go
++++ b/src/go/types/api.go
+@@ -112,11 +112,12 @@ type Config struct {
+ 	// error found.
+ 	Error func(err error)
+ 
+-	// Importer.Import is called for each import declaration except when
+-	// importing package "unsafe". An error is reported if an importer is
+-	// needed but none was installed.
+-	// If the installed Importer implements Importer2, the Import2 method
++	// An importer is used to import packages referred to from
++	// import declarations.
++	// If the installed importer implements Importer2, Import2
+ 	// is called instead of Import.
++	// An error is reported if an importer is needed but none
++	// was installed.
+ 	Importer Importer
+ 
+ 	// If Sizes != nil, it provides the sizing functions for package unsafe.
+diff --git a/src/go/types/resolver.go b/src/go/types/resolver.go
+index de255eaac0..56ee5e1c64 100644
+--- a/src/go/types/resolver.go
++++ b/src/go/types/resolver.go
+@@ -183,9 +183,6 @@ func (check *Checker) collectObjects() {
+ 							// TODO(gri) shouldn't create a new one each time
+ 							imp = NewPackage("C", "C")
+ 							imp.fake = true
+-						} else if path == "unsafe" {
+-							// package "unsafe" is known to the language
+-							imp = Unsafe
+ 						} else {
+ 							// ordinary import
+ 							if importer := check.conf.Importer; importer == nil {

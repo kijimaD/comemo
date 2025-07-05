@@ -24,7 +24,67 @@ Date:   Wed Jul 20 17:44:45 2022 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Run-TryBot: Austin Clements <austin@google.com>
-
+---
  src/runtime/lockrank.go   | 8 ++++----
  src/runtime/mklockrank.go | 8 ++++++--
  2 files changed, 10 insertions(+), 6 deletions(-)
+
+diff --git a/src/runtime/lockrank.go b/src/runtime/lockrank.go
+index 83d1ac3f0b..50d35dbc57 100644
+--- a/src/runtime/lockrank.go
++++ b/src/runtime/lockrank.go
+@@ -59,8 +59,8 @@ const (
+ 	lockRankWbufSpans
+ 	lockRankMheap
+ 	lockRankGlobalAlloc
+-	lockRankDeadlock
+ 	lockRankPanic
++	lockRankDeadlock
+ )
+ 
+ // lockRankLeafRank is the rank of lock that does not have a declared rank,
+@@ -111,8 +111,8 @@ var lockNames = []string{
+ 	lockRankWbufSpans:     "wbufSpans",
+ 	lockRankMheap:         "mheap",
+ 	lockRankGlobalAlloc:   "globalAlloc",
+-	lockRankDeadlock:      "deadlock",
+ 	lockRankPanic:         "panic",
++	lockRankDeadlock:      "deadlock",
+ }
+ 
+ func (rank lockRank) String() string {
+@@ -176,6 +176,6 @@ var lockPartialOrder [][]lockRank = [][]lockRank{
+ 	lockRankWbufSpans:     {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankDefer, lockRankSweepWaiters, lockRankAssistQueue, lockRankSweep, lockRankPollDesc, lockRankCpuprof, lockRankSched, lockRankAllg, lockRankAllp, lockRankTimers, lockRankNetpollInit, lockRankHchan, lockRankNotifyList, lockRankSudog, lockRankRoot, lockRankItab, lockRankReflectOffs, lockRankTraceBuf, lockRankTraceStrings, lockRankFin, lockRankGcBitsArenas, lockRankMspanSpecial, lockRankSpanSetSpine, lockRankProfInsert, lockRankProfBlock, lockRankProfMemActive, lockRankProfMemFuture, lockRankTrace, lockRankTraceStackTab, lockRankGscan},
+ 	lockRankMheap:         {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankDefer, lockRankSweepWaiters, lockRankAssistQueue, lockRankSweep, lockRankPollDesc, lockRankCpuprof, lockRankSched, lockRankAllg, lockRankAllp, lockRankTimers, lockRankNetpollInit, lockRankHchan, lockRankNotifyList, lockRankSudog, lockRankRwmutexW, lockRankRwmutexR, lockRankRoot, lockRankItab, lockRankReflectOffs, lockRankTraceBuf, lockRankTraceStrings, lockRankFin, lockRankGcBitsArenas, lockRankMspanSpecial, lockRankSpanSetSpine, lockRankProfInsert, lockRankProfBlock, lockRankProfMemActive, lockRankProfMemFuture, lockRankTrace, lockRankTraceStackTab, lockRankGscan, lockRankStackpool, lockRankStackLarge, lockRankWbufSpans},
+ 	lockRankGlobalAlloc:   {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankDefer, lockRankSweepWaiters, lockRankAssistQueue, lockRankSweep, lockRankPollDesc, lockRankCpuprof, lockRankSched, lockRankAllg, lockRankAllp, lockRankTimers, lockRankNetpollInit, lockRankHchan, lockRankNotifyList, lockRankSudog, lockRankRwmutexW, lockRankRwmutexR, lockRankRoot, lockRankItab, lockRankReflectOffs, lockRankTraceBuf, lockRankTraceStrings, lockRankFin, lockRankGcBitsArenas, lockRankMheapSpecial, lockRankMspanSpecial, lockRankSpanSetSpine, lockRankProfInsert, lockRankProfBlock, lockRankProfMemActive, lockRankProfMemFuture, lockRankTrace, lockRankTraceStackTab, lockRankGscan, lockRankStackpool, lockRankStackLarge, lockRankWbufSpans, lockRankMheap},
+-	lockRankDeadlock:      {},
+-	lockRankPanic:         {lockRankDeadlock},
++	lockRankPanic:         {},
++	lockRankDeadlock:      {lockRankPanic, lockRankDeadlock},
+ }
+diff --git a/src/runtime/mklockrank.go b/src/runtime/mklockrank.go
+index fc7c0223e4..0d50d60a22 100644
+--- a/src/runtime/mklockrank.go
++++ b/src/runtime/mklockrank.go
+@@ -169,8 +169,10 @@ stackLarge,
+ mheap, mheapSpecial < globalAlloc;
+ 
+ # panic is handled specially. It is implicitly below all other locks.
+-NONE < deadlock;
+-deadlock < panic;
++NONE < panic;
++# deadlock is not acquired while holding panic, but it also needs to be
++# below all other locks.
++panic < deadlock;
+ `
+ 
+ // cyclicRanks lists lock ranks that allow multiple locks of the same
+@@ -185,6 +187,8 @@ var cyclicRanks = map[string]bool{
+ 	// Multiple hchanLeafs are acquired in hchan.sortkey() order in
+ 	// syncadjustsudogs().
+ 	"hchanLeaf": true,
++	// The point of the deadlock lock is to deadlock.
++	"deadlock": true,
+ }
+ 
+ func main() {

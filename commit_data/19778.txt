@@ -8,6 +8,37 @@ Date:   Sat Jul 19 01:12:42 2014 -0700
     R=golang-codereviews, dvyukov
     CC=golang-codereviews
     https://golang.org/cl/111360045
-
+---
  test/fixedbugs/bug487.go | 24 ++++++++++++++++++++++++
  1 file changed, 24 insertions(+)
+
+diff --git a/test/fixedbugs/bug487.go b/test/fixedbugs/bug487.go
+new file mode 100644
+index 0000000000..eb1ad5e571
+--- /dev/null
++++ b/test/fixedbugs/bug487.go
+@@ -0,0 +1,24 @@
++// errorcheck
++
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// The gccgo compiler did not reliably report mismatches between the
++// number of function results and the number of expected results.
++
++package p
++
++func G() (int, int, int) {
++	return 0, 0, 0
++}
++
++func F() {
++	a, b := G()	// ERROR "mismatch"
++	a, b = G()	// ERROR "mismatch"
++	_, _ = a, b
++}
++
++func H() (int, int) {
++	return G()	// ERROR "too many|mismatch"
++}

@@ -18,6 +18,44 @@ Date:   Tue Oct 31 00:27:58 2023 +1100
     Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/runtime/proc.go | 19 +++++++++----------
  1 file changed, 9 insertions(+), 10 deletions(-)
+
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 408f26cf7a..7189a0650a 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -543,16 +543,9 @@ func badctxt() {
+ 	throw("ctxt != 0")
+ }
+ 
+-// crashstack is a space that can be used as the stack when it is
+-// crashing on bad stack conditions, e.g. morestack on g0.
+-// gcrash is the corresponding (fake) g.
+-var crashstack [16384]byte
+-
+-var gcrash = g{
+-	stack:       stack{uintptr(unsafe.Pointer(&crashstack)), uintptr(unsafe.Pointer(&crashstack)) + unsafe.Sizeof(crashstack)},
+-	stackguard0: uintptr(unsafe.Pointer(&crashstack)) + 1000,
+-	stackguard1: uintptr(unsafe.Pointer(&crashstack)) + 1000,
+-}
++// gcrash is a fake g that can be used when crashing due to bad
++// stack conditions.
++var gcrash g
+ 
+ var crashingG atomic.Pointer[g]
+ 
+@@ -803,6 +796,12 @@ func schedinit() {
+ 	parsedebugvars()
+ 	gcinit()
+ 
++	// Allocate stack space that can be used when crashing due to bad stack
++	// conditions, e.g. morestack on g0.
++	gcrash.stack = stackalloc(16384)
++	gcrash.stackguard0 = gcrash.stack.lo + 1000
++	gcrash.stackguard1 = gcrash.stack.lo + 1000
++
+ 	// if disableMemoryProfiling is set, update MemProfileRate to 0 to turn off memprofile.
+ 	// Note: parsedebugvars may update MemProfileRate, but when disableMemoryProfiling is
+ 	// set to true by the linker, it means that nothing is consuming the profile, it is

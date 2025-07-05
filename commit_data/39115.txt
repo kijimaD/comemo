@@ -11,6 +11,36 @@ Date:   Thu Jan 3 17:55:15 2019 +0700
     Reviewed-by: Keith Randall <khr@golang.org>
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/hash_test.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/hash_test.go b/src/runtime/hash_test.go
+index 7b8ebc4f3c..fe25a7f84b 100644
+--- a/src/runtime/hash_test.go
++++ b/src/runtime/hash_test.go
+@@ -177,13 +177,13 @@ func twoNonZero(h *HashSet, n int) {
+ 	b := make([]byte, n)
+ 
+ 	// all zero
+-	h.addB(b[:])
++	h.addB(b)
+ 
+ 	// one non-zero byte
+ 	for i := 0; i < n; i++ {
+ 		for x := 1; x < 256; x++ {
+ 			b[i] = byte(x)
+-			h.addB(b[:])
++			h.addB(b)
+ 			b[i] = 0
+ 		}
+ 	}
+@@ -195,7 +195,7 @@ func twoNonZero(h *HashSet, n int) {
+ 			for j := i + 1; j < n; j++ {
+ 				for y := 1; y < 256; y++ {
+ 					b[j] = byte(y)
+-					h.addB(b[:])
++					h.addB(b)
+ 					b[j] = 0
+ 				}
+ 			}

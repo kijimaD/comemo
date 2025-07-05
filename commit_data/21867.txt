@@ -17,8 +17,98 @@ Date:   Fri Feb 6 02:05:30 2015 -0500
     Change-Id: I691ac5c3faea902f8b9a0b963e781b22e7b269a7
     Reviewed-on: https://go-review.googlesource.com/4030
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/liblink/asm5.c    |  8 +++++---
  src/runtime/asm_arm.s | 19 +------------------
  src/runtime/tls_arm.s | 21 +++++++++++++++++++++
  3 files changed, 27 insertions(+), 21 deletions(-)
+
+diff --git a/src/liblink/asm5.c b/src/liblink/asm5.c
+index 7b4ac47e85..3947a571e5 100644
+--- a/src/liblink/asm5.c
++++ b/src/liblink/asm5.c
+@@ -1638,9 +1638,11 @@ if(0 /*debug['G']*/) print("%ux: %s: arm %d\n", (uint32)(p->pc), p->from.sym->na
+ 			// runtime.tlsg is special.
+ 			// Its "address" is the offset from the TLS thread pointer
+ 			// to the thread-local g and m pointers.
+-			// Emit a TLS relocation instead of a standard one if it's
+-			// typed STLSBSS.
+-			if(rel->sym == ctxt->tlsg && ctxt->tlsg->type == STLSBSS) {
++			// Emit a TLS relocation instead of a standard one if its
++			// type is not explicitly set by runtime. This assumes that
++			// all references to runtime.tlsg should be accompanied with
++			// its type declaration if necessary.
++			if(rel->sym == ctxt->tlsg && ctxt->tlsg->type == 0) {
+ 				rel->type = R_TLS;
+ 				if(ctxt->flag_shared)
+ 					rel->add += ctxt->pc - p->pcrel->pc - 8 - rel->siz;
+diff --git a/src/runtime/asm_arm.s b/src/runtime/asm_arm.s
+index a7c6c20cfe..2efeaaa531 100644
+--- a/src/runtime/asm_arm.s
++++ b/src/runtime/asm_arm.s
+@@ -39,20 +39,8 @@ TEXT runtime·rt0_go(SB),NOSPLIT,$-4
+ 
+ 	BL	runtime·emptyfunc(SB)	// fault if stack check is wrong
+ 
+-#ifndef GOOS_nacl
+-	// if there is an _cgo_init, call it.
+-	MOVW	_cgo_init(SB), R4
+-	CMP	$0, R4
+-	B.EQ	nocgo
+-	MRC     15, 0, R0, C13, C0, 3 	// load TLS base pointer
+-	MOVW 	R0, R3 			// arg 3: TLS base pointer
+-	MOVW 	$runtime·tlsg(SB), R2 	// arg 2: tlsg
+-	MOVW	$setg_gcc<>(SB), R1 	// arg 1: setg
+-	MOVW	g, R0 			// arg 0: G
+-	BL	(R4) // will clobber R0-R3
+-#endif
++	BL	runtime·_initcgo(SB)	// will clobber R0-R3
+ 
+-nocgo:
+ 	// update stackguard after _cgo_init
+ 	MOVW	(g_stack+stack_lo)(g), R0
+ 	ADD	$const__StackGuard, R0
+@@ -830,11 +818,6 @@ loop:
+ 	MOVB	R8, v+16(FP)
+ 	RET
+ 
+-// void setg_gcc(G*); set g called from gcc.
+-TEXT setg_gcc<>(SB),NOSPLIT,$0
+-	MOVW	R0, g
+-	B		runtime·save_g(SB)
+-
+ // TODO: share code with memeq?
+ TEXT bytes·Equal(SB),NOSPLIT,$0
+ 	MOVW	a_len+4(FP), R1
+diff --git a/src/runtime/tls_arm.s b/src/runtime/tls_arm.s
+index 2dbab722b0..d130d42cf2 100644
+--- a/src/runtime/tls_arm.s
++++ b/src/runtime/tls_arm.s
+@@ -77,6 +77,27 @@ TEXT runtime·load_g(SB),NOSPLIT,$0
+ 	MOVW	0(R0), g
+ 	RET
+ 
++TEXT runtime·_initcgo(SB),NOSPLIT,$0
++#ifndef GOOS_nacl
++	// if there is an _cgo_init, call it.
++	MOVW	_cgo_init(SB), R4
++	CMP	$0, R4
++	B.EQ	nocgo
++	MRC     15, 0, R0, C13, C0, 3 	// load TLS base pointer
++	MOVW 	R0, R3 			// arg 3: TLS base pointer
++	MOVW 	$runtime·tlsg(SB), R2 	// arg 2: tlsg
++	MOVW	$setg_gcc<>(SB), R1 	// arg 1: setg
++	MOVW	g, R0 			// arg 0: G
++	BL	(R4) // will clobber R0-R3
++#endif
++nocgo:
++	RET
++
++// void setg_gcc(G*); set g called from gcc.
++TEXT setg_gcc<>(SB),NOSPLIT,$0
++	MOVW	R0, g
++	B		runtime·save_g(SB)
++
+ #ifdef TLSG_IS_VARIABLE
+ GLOBL runtime·tlsg+0(SB), NOPTR, $4
+ #endif

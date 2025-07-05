@@ -8,7 +8,152 @@ Date:   Tue Dec 2 17:03:47 2008 -0800
     R=r
     OCL=20297
     CL=20297
-
+---
  src/cmd/gc/const.c    | 53 ++++++++++++++++++++++++++++++++++-----------------
  src/cmd/gc/mparith3.c | 15 ++++++++++-----
  2 files changed, 46 insertions(+), 22 deletions(-)
+
+diff --git a/src/cmd/gc/const.c b/src/cmd/gc/const.c
+index 3a3fef191d..ad8607794e 100644
+--- a/src/cmd/gc/const.c
++++ b/src/cmd/gc/const.c
+@@ -5,6 +5,34 @@
+ #include	"go.h"
+ #define	TUP(x,y)	(((x)<<16)|(y))
+ 
++void
++truncfltlit(Mpflt *fv, Type *t)
++{
++	double d;
++	float f;
++
++	if(t == T)
++		return;
++
++	// convert large precision literal floating
++	// into limited precision (float64 or float32)
++	// botch -- this assumes that compiler fp
++	//    has same precision as runtime fp
++	switch(t->etype) {
++	case TFLOAT64:
++		d = mpgetflt(fv);
++		mpmovecflt(fv, d);
++		break;
++
++	case TFLOAT32:
++		d = mpgetflt(fv);
++		f = d;
++		d = f;
++		mpmovecflt(fv, d);
++		break;
++	}
++}
++
+ void
+ convlit(Node *n, Type *t)
+ {
+@@ -90,15 +118,18 @@ convlit(Node *n, Type *t)
+ 		if(isfloat[et]) {
+ 			// int to float
+ 			Mpint *xv;
++			Mpflt *fv;
+ 
+ 			xv = n->val.u.xval;
+ 			if(mpcmpfixflt(xv, minfltval[et]) < 0)
+ 				goto bad2;
+ 			if(mpcmpfixflt(xv, maxfltval[et]) > 0)
+ 				goto bad2;
+-			n->val.u.fval = mal(sizeof(*n->val.u.fval));
+-			mpmovefixflt(n->val.u.fval, xv);
++			fv = mal(sizeof(*n->val.u.fval));
++			n->val.u.fval = fv;
++			mpmovefixflt(fv, xv);
+ 			n->val.ctype = CTFLT;
++			truncfltlit(fv, t);
+ 			break;
+ 		}
+ 		goto bad1;
+@@ -126,8 +157,6 @@ convlit(Node *n, Type *t)
+ 		}
+ 		if(isfloat[et]) {
+ 			// float to float
+-			double d;
+-			float f;
+ 			Mpflt *fv;
+ 
+ 			fv = n->val.u.fval;
+@@ -135,24 +164,13 @@ convlit(Node *n, Type *t)
+ 				goto bad2;
+ 			if(mpcmpfltflt(fv, maxfltval[et]) > 0)
+ 				goto bad2;
+-//			switch(et) {
+-//			case TFLOAT64:
+-//				d = mpgetflt(fv);
+-//				mpmovecflt(fv, d);
+-//				break;
+-//
+-//			case TFLOAT32:
+-//				d = mpgetflt(fv);
+-//				f = d;
+-//				d = f;
+-//				mpmovecflt(fv, d);
+-//				break;
+-//			}
++			truncfltlit(fv, t);
+ 			break;
+ 		}
+ 		goto bad1;
+ 	}
+ 	n->type = t;
++	
+ 	return;
+ 
+ bad1:
+@@ -442,6 +460,7 @@ ret:
+ 	} else
+ 	if(wl == Wlitfloat) {
+ 		n->val.u.fval = fval;
++		truncfltlit(fval, n->type);
+ 	}
+ }
+ 
+diff --git a/src/cmd/gc/mparith3.c b/src/cmd/gc/mparith3.c
+index 1bf39c9fb4..7098ba68b2 100644
+--- a/src/cmd/gc/mparith3.c
++++ b/src/cmd/gc/mparith3.c
+@@ -176,11 +176,15 @@ mpgetflt(Mpflt *a)
+ 		mpnorm(a);
+ 	}
+ 
+-	while((a->val.a[Mpnorm-1] & (1L<<(Mpscale-1))) == 0) {
++	while((a->val.a[Mpnorm-1] & Mpsign) == 0) {
+ 		mpshiftfix(&a->val, 1);
+ 		a->exp -= 1;
+ 	}
+ 
++	// the magic numbers (64, 63, 53, 10) are
++	// IEEE specific. this should be done machine
++	// independently or in the 6g half of the compiler
++
+ 	// pick up the mantissa in a uvlong
+ 	s = 63;
+ 	v = 0;
+@@ -191,13 +195,14 @@ mpgetflt(Mpflt *a)
+ 	if(s > 0)
+ 		v = (v<<s) | (a->val.a[i]>>(Mpscale-s));
+ 
+-	// should do this in multi precision
+ 	// 63 bits of mantissa being rounded to 53
++	// should do this in multi precision
+ 	if((v&0x3ffULL) != 0x200ULL || (v&0x400) != 0)
+-		v += 0x200ULL;		// round
+-	v &= ~0x3ffULL;
++		v += 0x200ULL;		// round toward even
++
++	v >>= 10;
+ 	f = (double)(v);
+-	f = ldexp(f, Mpnorm*Mpscale + a->exp - 63);
++	f = ldexp(f, Mpnorm*Mpscale + a->exp - 53);
+ 
+ 	if(a->val.neg)
+ 		f = -f;

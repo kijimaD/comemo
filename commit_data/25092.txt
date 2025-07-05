@@ -12,6 +12,19 @@ Date:   Wed Sep 23 11:49:44 2015 -0400
     Change-Id: Icb52f0f1f0a267e0f9f70767cae427f3f0239965
     Reviewed-on: https://go-review.googlesource.com/14881
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/os/file.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/os/file.go b/src/os/file.go
+index 69338ce09a..a662197ceb 100644
+--- a/src/os/file.go
++++ b/src/os/file.go
+@@ -173,6 +173,7 @@ func (f *File) WriteAt(b []byte, off int64) (n int, err error) {
+ // according to whence: 0 means relative to the origin of the file, 1 means
+ // relative to the current offset, and 2 means relative to the end.
+ // It returns the new offset and an error, if any.
++// The behavior of Seek on a file opened with O_APPEND is not specified.
+ func (f *File) Seek(offset int64, whence int) (ret int64, err error) {
+ 	if f == nil {
+ 		return 0, ErrInvalid

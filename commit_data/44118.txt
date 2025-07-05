@@ -12,7 +12,7 @@ Date:   Thu May 7 10:06:28 2020 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/233338
     Run-TryBot: Than McIntosh <thanm@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/link/internal/amd64/asm.go  |   8 +-
  src/cmd/link/internal/ld/data.go    |   5 +
  src/cmd/link/internal/ld/dwarf.go   |  22 +-
@@ -25,3 +25,1636 @@ Date:   Thu May 7 10:06:28 2020 -0400
  src/cmd/link/internal/ld/symtab.go  | 155 ++++++----
  src/cmd/link/internal/ld/symtab2.go | 166 ++++++++++
  11 files changed, 1004 insertions(+), 160 deletions(-)
+
+diff --git a/src/cmd/link/internal/amd64/asm.go b/src/cmd/link/internal/amd64/asm.go
+index c8b4a1f261..554379d625 100644
+--- a/src/cmd/link/internal/amd64/asm.go
++++ b/src/cmd/link/internal/amd64/asm.go
+@@ -396,9 +396,9 @@ func adddynrel2(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s load
+ func elfreloc2(ctxt *ld.Link, ldr *loader.Loader, s loader.Sym, r loader.ExtRelocView, sectoff int64) bool {
+ 	ctxt.Out.Write64(uint64(sectoff))
+ 
+-	xsym := ldr.Syms[r.Xsym]
+-	elfsym := ld.ElfSymForReloc(ctxt, xsym)
++	elfsym := ld.ElfSymForReloc2(ctxt, r.Xsym)
+ 	siz := r.Siz()
++	xst := ldr.SymType(r.Xsym)
+ 	switch r.Type() {
+ 	default:
+ 		return false
+@@ -424,7 +424,7 @@ func elfreloc2(ctxt *ld.Link, ldr *loader.Loader, s loader.Sym, r loader.ExtRelo
+ 		}
+ 	case objabi.R_CALL:
+ 		if siz == 4 {
+-			if xsym.Type == sym.SDYNIMPORT {
++			if xst == sym.SDYNIMPORT {
+ 				if ctxt.DynlinkingGo() {
+ 					ctxt.Out.Write64(uint64(elf.R_X86_64_PLT32) | uint64(elfsym)<<32)
+ 				} else {
+@@ -438,7 +438,7 @@ func elfreloc2(ctxt *ld.Link, ldr *loader.Loader, s loader.Sym, r loader.ExtRelo
+ 		}
+ 	case objabi.R_PCREL:
+ 		if siz == 4 {
+-			if xsym.Type == sym.SDYNIMPORT && xsym.ElfType() == elf.STT_FUNC {
++			if xst == sym.SDYNIMPORT && ldr.SymElfType(r.Xsym) == elf.STT_FUNC {
+ 				ctxt.Out.Write64(uint64(elf.R_X86_64_PLT32) | uint64(elfsym)<<32)
+ 			} else {
+ 				ctxt.Out.Write64(uint64(elf.R_X86_64_PC32) | uint64(elfsym)<<32)
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 1502c60078..f17a9eba63 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -2104,6 +2104,11 @@ func (ctxt *Link) buildinfo() {
+ 	ldr := ctxt.loader
+ 	s := ldr.CreateSymForUpdate(".go.buildinfo", 0)
+ 	s.SetReachable(true)
++	if !ctxt.IsAIX() {
++		// On AIX, .go.buildinfo must be in the symbol table as
++		// it has relocations.
++		s.SetNotInSymbolTable(true)
++	}
+ 	s.SetType(sym.SBUILDINFO)
+ 	s.SetAlign(16)
+ 	// The \xff is invalid UTF-8, meant to make it less likely
+diff --git a/src/cmd/link/internal/ld/dwarf.go b/src/cmd/link/internal/ld/dwarf.go
+index 95e6b12282..964ed7abf6 100644
+--- a/src/cmd/link/internal/ld/dwarf.go
++++ b/src/cmd/link/internal/ld/dwarf.go
+@@ -2112,12 +2112,6 @@ func (d *dwctxt2) dwarfaddshstrings(ctxt *Link, shstrtab loader.Sym) {
+ 	panic("not yet implemented")
+ }
+ 
+-// Add section symbols for DWARF debug info.  This is called before
+-// dwarfaddelfheaders.
+-func (d *dwctxt2) dwarfaddelfsectionsyms(ctxt *Link) {
+-	panic("not yet implemented")
+-}
+-
+ // dwarfcompress compresses the DWARF sections. Relocations are applied
+ // on the fly. After this, dwarfp will contain a different (new) set of
+ // symbols, and sections may have been replaced.
+@@ -2152,3 +2146,19 @@ func saveDwsectCUSize(sname string, pkgname string, size uint64) {
+ func addDwsectCUSize(sname string, pkgname string, size uint64) {
+ 	dwsectCUSize[sname+"."+pkgname] += size
+ }
++
++func dwarfaddelfsectionsyms(ctxt *Link) {
++	if *FlagW { // disable dwarf
++		return
++	}
++	if ctxt.LinkMode != LinkExternal {
++		return
++	}
++
++	ldr := ctxt.loader
++	for _, si := range dwarfp2 {
++		s := si.secSym()
++		sect := ldr.SymSect(si.secSym())
++		putelfsectionsym(ctxt, ctxt.Out, s, sect.Elfsect.(*ElfShdr).shnum)
++	}
++}
+diff --git a/src/cmd/link/internal/ld/dwarf2.go b/src/cmd/link/internal/ld/dwarf2.go
+index 79abccfdf3..02090e1e07 100644
+--- a/src/cmd/link/internal/ld/dwarf2.go
++++ b/src/cmd/link/internal/ld/dwarf2.go
+@@ -67,7 +67,7 @@ func dwarfaddshstrings(ctxt *Link, shstrtab *loader.SymbolBuilder) {
+ 
+ // Add section symbols for DWARF debug info.  This is called before
+ // dwarfaddelfheaders.
+-func dwarfaddelfsectionsyms(ctxt *Link) {
++func dwarfaddelfsectionsyms2(ctxt *Link) {
+ 	if *FlagW { // disable dwarf
+ 		return
+ 	}
+@@ -76,20 +76,20 @@ func dwarfaddelfsectionsyms(ctxt *Link) {
+ 	}
+ 
+ 	s := ctxt.Syms.Lookup(".debug_info", 0)
+-	putelfsectionsym(ctxt, ctxt.Out, s, s.Sect.Elfsect.(*ElfShdr).shnum)
++	putelfsectionsym2(ctxt, ctxt.Out, s, s.Sect.Elfsect.(*ElfShdr).shnum)
+ 	s = ctxt.Syms.Lookup(".debug_abbrev", 0)
+-	putelfsectionsym(ctxt, ctxt.Out, s, s.Sect.Elfsect.(*ElfShdr).shnum)
++	putelfsectionsym2(ctxt, ctxt.Out, s, s.Sect.Elfsect.(*ElfShdr).shnum)
+ 	s = ctxt.Syms.Lookup(".debug_line", 0)
+-	putelfsectionsym(ctxt, ctxt.Out, s, s.Sect.Elfsect.(*ElfShdr).shnum)
++	putelfsectionsym2(ctxt, ctxt.Out, s, s.Sect.Elfsect.(*ElfShdr).shnum)
+ 	s = ctxt.Syms.Lookup(".debug_frame", 0)
+-	putelfsectionsym(ctxt, ctxt.Out, s, s.Sect.Elfsect.(*ElfShdr).shnum)
++	putelfsectionsym2(ctxt, ctxt.Out, s, s.Sect.Elfsect.(*ElfShdr).shnum)
+ 	s = ctxt.Syms.Lookup(".debug_loc", 0)
+ 	if s.Sect != nil {
+-		putelfsectionsym(ctxt, ctxt.Out, s, s.Sect.Elfsect.(*ElfShdr).shnum)
++		putelfsectionsym2(ctxt, ctxt.Out, s, s.Sect.Elfsect.(*ElfShdr).shnum)
+ 	}
+ 	s = ctxt.Syms.Lookup(".debug_ranges", 0)
+ 	if s.Sect != nil {
+-		putelfsectionsym(ctxt, ctxt.Out, s, s.Sect.Elfsect.(*ElfShdr).shnum)
++		putelfsectionsym2(ctxt, ctxt.Out, s, s.Sect.Elfsect.(*ElfShdr).shnum)
+ 	}
+ }
+ 
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index 67fe83d8f5..9cf1339aa4 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -1344,12 +1344,7 @@ func elfshreloc(arch *sys.Arch, sect *sym.Section) *ElfShdr {
+ 	return sh
+ }
+ 
+-func elfrelocsect(ctxt *Link, sect *sym.Section, syms []*sym.Symbol) {
+-	if !ctxt.IsAMD64() {
+-		elfrelocsect2(ctxt, sect, syms)
+-		return
+-	}
+-
++func elfrelocsect(ctxt *Link, sect *sym.Section, syms []loader.Sym) {
+ 	// If main section is SHT_NOBITS, nothing to relocate.
+ 	// Also nothing to relocate in .shstrtab.
+ 	if sect.Vaddr >= sect.Seg.Vaddr+sect.Seg.Filelen {
+@@ -1359,43 +1354,43 @@ func elfrelocsect(ctxt *Link, sect *sym.Section, syms []*sym.Symbol) {
+ 		return
+ 	}
+ 
++	ldr := ctxt.loader
+ 	sect.Reloff = uint64(ctxt.Out.Offset())
+ 	for i, s := range syms {
+-		if !s.Attr.Reachable() {
+-			continue
++		if !ldr.AttrReachable(s) {
++			panic("should never happen")
+ 		}
+-		if uint64(s.Value) >= sect.Vaddr {
++		if uint64(ldr.SymValue(s)) >= sect.Vaddr {
+ 			syms = syms[i:]
+ 			break
+ 		}
+ 	}
+ 
+-	ldr := ctxt.loader
+ 	eaddr := int32(sect.Vaddr + sect.Length)
+ 	for _, s := range syms {
+-		if !s.Attr.Reachable() {
++		if !ldr.AttrReachable(s) {
+ 			continue
+ 		}
+-		if s.Value >= int64(eaddr) {
++		if ldr.SymValue(s) >= int64(eaddr) {
+ 			break
+ 		}
+-		i := loader.Sym(s.SymIdx)
+-		relocs := ldr.ExtRelocs(i)
++
++		relocs := ldr.ExtRelocs(s)
+ 		for ri := 0; ri < relocs.Count(); ri++ {
+ 			r := relocs.At(ri)
+ 			if r.Xsym == 0 {
+-				Errorf(s, "missing xsym in relocation %v", ldr.SymName(r.Sym()))
++				ldr.Errorf(s, "missing xsym in relocation")
+ 				continue
+ 			}
+-			esr := ElfSymForReloc(ctxt, ldr.Syms[r.Xsym])
++			esr := ElfSymForReloc2(ctxt, r.Xsym)
+ 			if esr == 0 {
+-				Errorf(s, "reloc %d (%s) to non-elf symbol %s (outer=%s) %d (%s)", r.Type(), sym.RelocName(ctxt.Arch, r.Type()), ldr.Syms[r.Sym()].Name, ldr.Syms[r.Xsym].Name, ldr.Syms[r.Sym()].Type, ldr.Syms[r.Sym()].Type)
++				ldr.Errorf(s, "reloc %d (%s) to non-elf symbol %s (outer=%s) %d (%s)", r.Type(), sym.RelocName(ctxt.Arch, r.Type()), ldr.SymName(r.Sym()), ldr.SymName(r.Xsym), ldr.SymType(r.Sym()), ldr.SymType(r.Sym()).String())
+ 			}
+ 			if !ldr.AttrReachable(r.Xsym) {
+-				Errorf(s, "unreachable reloc %d (%s) target %v", r.Type(), sym.RelocName(ctxt.Arch, r.Type()), ldr.Syms[r.Xsym].Name)
++				ldr.Errorf(s, "unreachable reloc %d (%s) target %v", r.Type(), sym.RelocName(ctxt.Arch, r.Type()), ldr.SymName(r.Xsym))
+ 			}
+-			if !thearch.Elfreloc2(ctxt, ldr, i, r, int64(uint64(s.Value+int64(r.Off()))-sect.Vaddr)) {
+-				Errorf(s, "unsupported obj reloc %d (%s)/%d to %s", r.Type(), sym.RelocName(ctxt.Arch, r.Type()), r.Siz(), ldr.Syms[r.Sym()].Name)
++			if !thearch.Elfreloc2(ctxt, ldr, s, r, int64(uint64(ldr.SymValue(s)+int64(r.Off()))-sect.Vaddr)) {
++				ldr.Errorf(s, "unsupported obj reloc %d (%s)/%d to %s", r.Type, sym.RelocName(ctxt.Arch, r.Type()), r.Siz(), ldr.SymName(r.Sym()))
+ 			}
+ 		}
+ 	}
+@@ -1404,32 +1399,37 @@ func elfrelocsect(ctxt *Link, sect *sym.Section, syms []*sym.Symbol) {
+ }
+ 
+ func Elfemitreloc(ctxt *Link) {
++	if !ctxt.IsAMD64() {
++		Elfemitreloc2(ctxt)
++		return
++	}
++
+ 	for ctxt.Out.Offset()&7 != 0 {
+ 		ctxt.Out.Write8(0)
+ 	}
+ 
+ 	for _, sect := range Segtext.Sections {
+ 		if sect.Name == ".text" {
+-			elfrelocsect(ctxt, sect, ctxt.Textp)
++			elfrelocsect(ctxt, sect, ctxt.Textp2)
+ 		} else {
+-			elfrelocsect(ctxt, sect, ctxt.datap)
++			elfrelocsect(ctxt, sect, ctxt.datap2)
+ 		}
+ 	}
+ 
+ 	for _, sect := range Segrodata.Sections {
+-		elfrelocsect(ctxt, sect, ctxt.datap)
++		elfrelocsect(ctxt, sect, ctxt.datap2)
+ 	}
+ 	for _, sect := range Segrelrodata.Sections {
+-		elfrelocsect(ctxt, sect, ctxt.datap)
++		elfrelocsect(ctxt, sect, ctxt.datap2)
+ 	}
+ 	for _, sect := range Segdata.Sections {
+-		elfrelocsect(ctxt, sect, ctxt.datap)
++		elfrelocsect(ctxt, sect, ctxt.datap2)
+ 	}
+ 	for i := 0; i < len(Segdwarf.Sections); i++ {
+ 		sect := Segdwarf.Sections[i]
+-		si := dwarfp[i]
+-		if si.secSym() != sect.Sym ||
+-			si.secSym().Sect != sect {
++		si := dwarfp2[i]
++		if si.secSym() != loader.Sym(sect.Sym2) ||
++			ctxt.loader.SymSect(si.secSym()) != sect {
+ 			panic("inconsistency between dwarfp and Segdwarf")
+ 		}
+ 		elfrelocsect(ctxt, sect, si.syms)
+@@ -1734,13 +1734,16 @@ func (ctxt *Link) doelf() {
+ }
+ 
+ // Do not write DT_NULL.  elfdynhash will finish it.
+-func shsym(sh *ElfShdr, s *sym.Symbol) {
+-	addr := Symaddr(s)
++func shsym2(sh *ElfShdr, ldr *loader.Loader, s loader.Sym) {
++	if s == 0 {
++		panic("bad symbol in shsym2")
++	}
++	addr := ldr.SymValue(s)
+ 	if sh.flags&SHF_ALLOC != 0 {
+ 		sh.addr = uint64(addr)
+ 	}
+-	sh.off = uint64(datoff(s, addr))
+-	sh.size = uint64(s.Size)
++	sh.off = uint64(datoff(ldr, s, addr))
++	sh.size = uint64(ldr.SymSize(s))
+ }
+ 
+ func phsh(ph *ElfPhdr, sh *ElfShdr) {
+@@ -1782,6 +1785,12 @@ func Asmbelfsetup() {
+ }
+ 
+ func Asmbelf(ctxt *Link, symo int64) {
++	if !ctxt.IsAMD64() {
++		Asmbelf2(ctxt, symo)
++		return
++	}
++
++	ldr := ctxt.loader
+ 	eh := getElfEhdr()
+ 	switch ctxt.Arch.Family {
+ 	default:
+@@ -2000,22 +2009,22 @@ func Asmbelf(ctxt *Link, symo int64) {
+ 		sh.link = uint32(elfshname(".dynstr").shnum)
+ 
+ 		// sh.info is the index of first non-local symbol (number of local symbols)
+-		s := ctxt.Syms.Lookup(".dynsym", 0)
++		s := ldr.Lookup(".dynsym", 0)
+ 		i := uint32(0)
+-		for sub := s; sub != nil; sub = symSub(ctxt, sub) {
++		for sub := s; sub != 0; sub = ldr.SubSym(sub) {
+ 			i++
+-			if !sub.Attr.Local() {
++			if !ldr.AttrLocal(sub) {
+ 				break
+ 			}
+ 		}
+ 		sh.info = i
+-		shsym(sh, s)
++		shsym2(sh, ldr, s)
+ 
+ 		sh = elfshname(".dynstr")
+ 		sh.type_ = SHT_STRTAB
+ 		sh.flags = SHF_ALLOC
+ 		sh.addralign = 1
+-		shsym(sh, ctxt.Syms.Lookup(".dynstr", 0))
++		shsym2(sh, ldr, ldr.Lookup(".dynstr", 0))
+ 
+ 		if elfverneed != 0 {
+ 			sh := elfshname(".gnu.version")
+@@ -2024,7 +2033,7 @@ func Asmbelf(ctxt *Link, symo int64) {
+ 			sh.addralign = 2
+ 			sh.link = uint32(elfshname(".dynsym").shnum)
+ 			sh.entsize = 2
+-			shsym(sh, ctxt.Syms.Lookup(".gnu.version", 0))
++			shsym2(sh, ldr, ldr.Lookup(".gnu.version", 0))
+ 
+ 			sh = elfshname(".gnu.version_r")
+ 			sh.type_ = SHT_GNU_VERNEED
+@@ -2032,7 +2041,7 @@ func Asmbelf(ctxt *Link, symo int64) {
+ 			sh.addralign = uint64(ctxt.Arch.RegSize)
+ 			sh.info = uint32(elfverneed)
+ 			sh.link = uint32(elfshname(".dynstr").shnum)
+-			shsym(sh, ctxt.Syms.Lookup(".gnu.version_r", 0))
++			shsym2(sh, ldr, ldr.Lookup(".gnu.version_r", 0))
+ 		}
+ 
+ 		if elfRelType == ".rela" {
+@@ -2043,7 +2052,7 @@ func Asmbelf(ctxt *Link, symo int64) {
+ 			sh.addralign = uint64(ctxt.Arch.RegSize)
+ 			sh.link = uint32(elfshname(".dynsym").shnum)
+ 			sh.info = uint32(elfshname(".plt").shnum)
+-			shsym(sh, ctxt.Syms.Lookup(".rela.plt", 0))
++			shsym2(sh, ldr, ldr.Lookup(".rela.plt", 0))
+ 
+ 			sh = elfshname(".rela")
+ 			sh.type_ = SHT_RELA
+@@ -2051,7 +2060,7 @@ func Asmbelf(ctxt *Link, symo int64) {
+ 			sh.entsize = ELF64RELASIZE
+ 			sh.addralign = 8
+ 			sh.link = uint32(elfshname(".dynsym").shnum)
+-			shsym(sh, ctxt.Syms.Lookup(".rela", 0))
++			shsym2(sh, ldr, ldr.Lookup(".rela", 0))
+ 		} else {
+ 			sh := elfshname(".rel.plt")
+ 			sh.type_ = SHT_REL
+@@ -2059,7 +2068,7 @@ func Asmbelf(ctxt *Link, symo int64) {
+ 			sh.entsize = ELF32RELSIZE
+ 			sh.addralign = 4
+ 			sh.link = uint32(elfshname(".dynsym").shnum)
+-			shsym(sh, ctxt.Syms.Lookup(".rel.plt", 0))
++			shsym2(sh, ldr, ldr.Lookup(".rel.plt", 0))
+ 
+ 			sh = elfshname(".rel")
+ 			sh.type_ = SHT_REL
+@@ -2067,7 +2076,7 @@ func Asmbelf(ctxt *Link, symo int64) {
+ 			sh.entsize = ELF32RELSIZE
+ 			sh.addralign = 4
+ 			sh.link = uint32(elfshname(".dynsym").shnum)
+-			shsym(sh, ctxt.Syms.Lookup(".rel", 0))
++			shsym2(sh, ldr, ldr.Lookup(".rel", 0))
+ 		}
+ 
+ 		if eh.machine == EM_PPC64 {
+@@ -2075,7 +2084,7 @@ func Asmbelf(ctxt *Link, symo int64) {
+ 			sh.type_ = SHT_PROGBITS
+ 			sh.flags = SHF_ALLOC + SHF_EXECINSTR
+ 			sh.addralign = 4
+-			shsym(sh, ctxt.Syms.Lookup(".glink", 0))
++			shsym2(sh, ldr, ldr.Lookup(".glink", 0))
+ 		}
+ 
+ 		sh = elfshname(".plt")
+@@ -2096,7 +2105,7 @@ func Asmbelf(ctxt *Link, symo int64) {
+ 			sh.entsize = 4
+ 		}
+ 		sh.addralign = sh.entsize
+-		shsym(sh, ctxt.Syms.Lookup(".plt", 0))
++		shsym2(sh, ldr, ldr.Lookup(".plt", 0))
+ 
+ 		// On ppc64, .got comes from the input files, so don't
+ 		// create it here, and .got.plt is not used.
+@@ -2106,14 +2115,14 @@ func Asmbelf(ctxt *Link, symo int64) {
+ 			sh.flags = SHF_ALLOC + SHF_WRITE
+ 			sh.entsize = uint64(ctxt.Arch.RegSize)
+ 			sh.addralign = uint64(ctxt.Arch.RegSize)
+-			shsym(sh, ctxt.Syms.Lookup(".got", 0))
++			shsym2(sh, ldr, ldr.Lookup(".got", 0))
+ 
+ 			sh = elfshname(".got.plt")
+ 			sh.type_ = SHT_PROGBITS
+ 			sh.flags = SHF_ALLOC + SHF_WRITE
+ 			sh.entsize = uint64(ctxt.Arch.RegSize)
+ 			sh.addralign = uint64(ctxt.Arch.RegSize)
+-			shsym(sh, ctxt.Syms.Lookup(".got.plt", 0))
++			shsym2(sh, ldr, ldr.Lookup(".got.plt", 0))
+ 		}
+ 
+ 		sh = elfshname(".hash")
+@@ -2122,7 +2131,7 @@ func Asmbelf(ctxt *Link, symo int64) {
+ 		sh.entsize = 4
+ 		sh.addralign = uint64(ctxt.Arch.RegSize)
+ 		sh.link = uint32(elfshname(".dynsym").shnum)
+-		shsym(sh, ctxt.Syms.Lookup(".hash", 0))
++		shsym2(sh, ldr, ldr.Lookup(".hash", 0))
+ 
+ 		/* sh and PT_DYNAMIC for .dynamic section */
+ 		sh = elfshname(".dynamic")
+@@ -2132,7 +2141,7 @@ func Asmbelf(ctxt *Link, symo int64) {
+ 		sh.entsize = 2 * uint64(ctxt.Arch.RegSize)
+ 		sh.addralign = uint64(ctxt.Arch.RegSize)
+ 		sh.link = uint32(elfshname(".dynstr").shnum)
+-		shsym(sh, ctxt.Syms.Lookup(".dynamic", 0))
++		shsym2(sh, ldr, ldr.Lookup(".dynamic", 0))
+ 		ph := newElfPhdr()
+ 		ph.type_ = PT_DYNAMIC
+ 		ph.flags = PF_R + PF_W
+@@ -2176,7 +2185,7 @@ elfobj:
+ 	sh := elfshname(".shstrtab")
+ 	sh.type_ = SHT_STRTAB
+ 	sh.addralign = 1
+-	shsym(sh, ctxt.Syms.Lookup(".shstrtab", 0))
++	shsym2(sh, ldr, ldr.Lookup(".shstrtab", 0))
+ 	eh.shstrndx = uint16(sh.shnum)
+ 
+ 	// put these sections early in the list
+@@ -2214,9 +2223,9 @@ elfobj:
+ 		for _, sect := range Segdata.Sections {
+ 			elfshreloc(ctxt.Arch, sect)
+ 		}
+-		for _, si := range dwarfp {
+-			s := si.secSym()
+-			elfshreloc(ctxt.Arch, s.Sect)
++		for _, si := range dwarfp2 {
++			sect := ldr.SymSect(si.secSym())
++			elfshreloc(ctxt.Arch, sect)
+ 		}
+ 		// add a .note.GNU-stack section to mark the stack as non-executable
+ 		sh := elfshname(".note.GNU-stack")
+@@ -2279,7 +2288,7 @@ elfobj:
+ 	}
+ 
+ 	if ctxt.LinkMode != LinkExternal {
+-		eh.entry = uint64(Entryvalue(ctxt))
++		eh.entry = uint64(Entryvalue2(ctxt))
+ 	}
+ 
+ 	eh.version = EV_CURRENT
+diff --git a/src/cmd/link/internal/ld/elf2.go b/src/cmd/link/internal/ld/elf2.go
+index 07b64cfcb0..a1f822546c 100644
+--- a/src/cmd/link/internal/ld/elf2.go
++++ b/src/cmd/link/internal/ld/elf2.go
+@@ -5,7 +5,10 @@
+ package ld
+ 
+ import (
++	"cmd/internal/objabi"
++	"cmd/internal/sys"
+ 	"cmd/link/internal/sym"
++	"encoding/binary"
+ )
+ 
+ // Temporary dumping around for sym.Symbol version of helper
+@@ -24,6 +27,588 @@ func elfsetstring(s *sym.Symbol, str string, off int) {
+ 	nelfstr++
+ }
+ 
++func Asmbelf2(ctxt *Link, symo int64) {
++	eh := getElfEhdr()
++	switch ctxt.Arch.Family {
++	default:
++		Exitf("unknown architecture in asmbelf: %v", ctxt.Arch.Family)
++	case sys.MIPS, sys.MIPS64:
++		eh.machine = EM_MIPS
++	case sys.ARM:
++		eh.machine = EM_ARM
++	case sys.AMD64:
++		eh.machine = EM_X86_64
++	case sys.ARM64:
++		eh.machine = EM_AARCH64
++	case sys.I386:
++		eh.machine = EM_386
++	case sys.PPC64:
++		eh.machine = EM_PPC64
++	case sys.RISCV64:
++		eh.machine = EM_RISCV
++	case sys.S390X:
++		eh.machine = EM_S390
++	}
++
++	elfreserve := int64(ELFRESERVE)
++
++	numtext := int64(0)
++	for _, sect := range Segtext.Sections {
++		if sect.Name == ".text" {
++			numtext++
++		}
++	}
++
++	// If there are multiple text sections, extra space is needed
++	// in the elfreserve for the additional .text and .rela.text
++	// section headers.  It can handle 4 extra now. Headers are
++	// 64 bytes.
++
++	if numtext > 4 {
++		elfreserve += elfreserve + numtext*64*2
++	}
++
++	startva := *FlagTextAddr - int64(HEADR)
++	resoff := elfreserve
++
++	var pph *ElfPhdr
++	var pnote *ElfPhdr
++	if *flagRace && ctxt.IsNetbsd() {
++		sh := elfshname(".note.netbsd.pax")
++		resoff -= int64(elfnetbsdpax(sh, uint64(startva), uint64(resoff)))
++		pnote = newElfPhdr()
++		pnote.type_ = PT_NOTE
++		pnote.flags = PF_R
++		phsh(pnote, sh)
++	}
++	if ctxt.LinkMode == LinkExternal {
++		/* skip program headers */
++		eh.phoff = 0
++
++		eh.phentsize = 0
++
++		if ctxt.BuildMode == BuildModeShared {
++			sh := elfshname(".note.go.pkg-list")
++			sh.type_ = SHT_NOTE
++			sh = elfshname(".note.go.abihash")
++			sh.type_ = SHT_NOTE
++			sh.flags = SHF_ALLOC
++			sh = elfshname(".note.go.deps")
++			sh.type_ = SHT_NOTE
++		}
++
++		if *flagBuildid != "" {
++			sh := elfshname(".note.go.buildid")
++			sh.type_ = SHT_NOTE
++			sh.flags = SHF_ALLOC
++		}
++
++		goto elfobj
++	}
++
++	/* program header info */
++	pph = newElfPhdr()
++
++	pph.type_ = PT_PHDR
++	pph.flags = PF_R
++	pph.off = uint64(eh.ehsize)
++	pph.vaddr = uint64(*FlagTextAddr) - uint64(HEADR) + pph.off
++	pph.paddr = uint64(*FlagTextAddr) - uint64(HEADR) + pph.off
++	pph.align = uint64(*FlagRound)
++
++	/*
++	 * PHDR must be in a loaded segment. Adjust the text
++	 * segment boundaries downwards to include it.
++	 */
++	{
++		o := int64(Segtext.Vaddr - pph.vaddr)
++		Segtext.Vaddr -= uint64(o)
++		Segtext.Length += uint64(o)
++		o = int64(Segtext.Fileoff - pph.off)
++		Segtext.Fileoff -= uint64(o)
++		Segtext.Filelen += uint64(o)
++	}
++
++	if !*FlagD { /* -d suppresses dynamic loader format */
++		/* interpreter */
++		sh := elfshname(".interp")
++
++		sh.type_ = SHT_PROGBITS
++		sh.flags = SHF_ALLOC
++		sh.addralign = 1
++
++		if interpreter == "" && objabi.GO_LDSO != "" {
++			interpreter = objabi.GO_LDSO
++		}
++
++		if interpreter == "" {
++			switch ctxt.HeadType {
++			case objabi.Hlinux:
++				if objabi.GOOS == "android" {
++					interpreter = thearch.Androiddynld
++					if interpreter == "" {
++						Exitf("ELF interpreter not set")
++					}
++				} else {
++					interpreter = thearch.Linuxdynld
++				}
++
++			case objabi.Hfreebsd:
++				interpreter = thearch.Freebsddynld
++
++			case objabi.Hnetbsd:
++				interpreter = thearch.Netbsddynld
++
++			case objabi.Hopenbsd:
++				interpreter = thearch.Openbsddynld
++
++			case objabi.Hdragonfly:
++				interpreter = thearch.Dragonflydynld
++
++			case objabi.Hsolaris:
++				interpreter = thearch.Solarisdynld
++			}
++		}
++
++		resoff -= int64(elfinterp(sh, uint64(startva), uint64(resoff), interpreter))
++
++		ph := newElfPhdr()
++		ph.type_ = PT_INTERP
++		ph.flags = PF_R
++		phsh(ph, sh)
++	}
++
++	pnote = nil
++	if ctxt.HeadType == objabi.Hnetbsd || ctxt.HeadType == objabi.Hopenbsd {
++		var sh *ElfShdr
++		switch ctxt.HeadType {
++		case objabi.Hnetbsd:
++			sh = elfshname(".note.netbsd.ident")
++			resoff -= int64(elfnetbsdsig(sh, uint64(startva), uint64(resoff)))
++
++		case objabi.Hopenbsd:
++			sh = elfshname(".note.openbsd.ident")
++			resoff -= int64(elfopenbsdsig(sh, uint64(startva), uint64(resoff)))
++		}
++
++		pnote = newElfPhdr()
++		pnote.type_ = PT_NOTE
++		pnote.flags = PF_R
++		phsh(pnote, sh)
++	}
++
++	if len(buildinfo) > 0 {
++		sh := elfshname(".note.gnu.build-id")
++		resoff -= int64(elfbuildinfo(sh, uint64(startva), uint64(resoff)))
++
++		if pnote == nil {
++			pnote = newElfPhdr()
++			pnote.type_ = PT_NOTE
++			pnote.flags = PF_R
++		}
++
++		phsh(pnote, sh)
++	}
++
++	if *flagBuildid != "" {
++		sh := elfshname(".note.go.buildid")
++		resoff -= int64(elfgobuildid(sh, uint64(startva), uint64(resoff)))
++
++		pnote := newElfPhdr()
++		pnote.type_ = PT_NOTE
++		pnote.flags = PF_R
++		phsh(pnote, sh)
++	}
++
++	// Additions to the reserved area must be above this line.
++
++	elfphload(&Segtext)
++	if len(Segrodata.Sections) > 0 {
++		elfphload(&Segrodata)
++	}
++	if len(Segrelrodata.Sections) > 0 {
++		elfphload(&Segrelrodata)
++		elfphrelro(&Segrelrodata)
++	}
++	elfphload(&Segdata)
++
++	/* Dynamic linking sections */
++	if !*FlagD {
++		sh := elfshname(".dynsym")
++		sh.type_ = SHT_DYNSYM
++		sh.flags = SHF_ALLOC
++		if elf64 {
++			sh.entsize = ELF64SYMSIZE
++		} else {
++			sh.entsize = ELF32SYMSIZE
++		}
++		sh.addralign = uint64(ctxt.Arch.RegSize)
++		sh.link = uint32(elfshname(".dynstr").shnum)
++
++		// sh.info is the index of first non-local symbol (number of local symbols)
++		s := ctxt.Syms.Lookup(".dynsym", 0)
++		i := uint32(0)
++		for sub := s; sub != nil; sub = symSub(ctxt, sub) {
++			i++
++			if !sub.Attr.Local() {
++				break
++			}
++		}
++		sh.info = i
++		shsym(sh, s)
++
++		sh = elfshname(".dynstr")
++		sh.type_ = SHT_STRTAB
++		sh.flags = SHF_ALLOC
++		sh.addralign = 1
++		shsym(sh, ctxt.Syms.Lookup(".dynstr", 0))
++
++		if elfverneed != 0 {
++			sh := elfshname(".gnu.version")
++			sh.type_ = SHT_GNU_VERSYM
++			sh.flags = SHF_ALLOC
++			sh.addralign = 2
++			sh.link = uint32(elfshname(".dynsym").shnum)
++			sh.entsize = 2
++			shsym(sh, ctxt.Syms.Lookup(".gnu.version", 0))
++
++			sh = elfshname(".gnu.version_r")
++			sh.type_ = SHT_GNU_VERNEED
++			sh.flags = SHF_ALLOC
++			sh.addralign = uint64(ctxt.Arch.RegSize)
++			sh.info = uint32(elfverneed)
++			sh.link = uint32(elfshname(".dynstr").shnum)
++			shsym(sh, ctxt.Syms.Lookup(".gnu.version_r", 0))
++		}
++
++		if elfRelType == ".rela" {
++			sh := elfshname(".rela.plt")
++			sh.type_ = SHT_RELA
++			sh.flags = SHF_ALLOC
++			sh.entsize = ELF64RELASIZE
++			sh.addralign = uint64(ctxt.Arch.RegSize)
++			sh.link = uint32(elfshname(".dynsym").shnum)
++			sh.info = uint32(elfshname(".plt").shnum)
++			shsym(sh, ctxt.Syms.Lookup(".rela.plt", 0))
++
++			sh = elfshname(".rela")
++			sh.type_ = SHT_RELA
++			sh.flags = SHF_ALLOC
++			sh.entsize = ELF64RELASIZE
++			sh.addralign = 8
++			sh.link = uint32(elfshname(".dynsym").shnum)
++			shsym(sh, ctxt.Syms.Lookup(".rela", 0))
++		} else {
++			sh := elfshname(".rel.plt")
++			sh.type_ = SHT_REL
++			sh.flags = SHF_ALLOC
++			sh.entsize = ELF32RELSIZE
++			sh.addralign = 4
++			sh.link = uint32(elfshname(".dynsym").shnum)
++			shsym(sh, ctxt.Syms.Lookup(".rel.plt", 0))
++
++			sh = elfshname(".rel")
++			sh.type_ = SHT_REL
++			sh.flags = SHF_ALLOC
++			sh.entsize = ELF32RELSIZE
++			sh.addralign = 4
++			sh.link = uint32(elfshname(".dynsym").shnum)
++			shsym(sh, ctxt.Syms.Lookup(".rel", 0))
++		}
++
++		if eh.machine == EM_PPC64 {
++			sh := elfshname(".glink")
++			sh.type_ = SHT_PROGBITS
++			sh.flags = SHF_ALLOC + SHF_EXECINSTR
++			sh.addralign = 4
++			shsym(sh, ctxt.Syms.Lookup(".glink", 0))
++		}
++
++		sh = elfshname(".plt")
++		sh.type_ = SHT_PROGBITS
++		sh.flags = SHF_ALLOC + SHF_EXECINSTR
++		if eh.machine == EM_X86_64 {
++			sh.entsize = 16
++		} else if eh.machine == EM_S390 {
++			sh.entsize = 32
++		} else if eh.machine == EM_PPC64 {
++			// On ppc64, this is just a table of addresses
++			// filled by the dynamic linker
++			sh.type_ = SHT_NOBITS
++
++			sh.flags = SHF_ALLOC + SHF_WRITE
++			sh.entsize = 8
++		} else {
++			sh.entsize = 4
++		}
++		sh.addralign = sh.entsize
++		shsym(sh, ctxt.Syms.Lookup(".plt", 0))
++
++		// On ppc64, .got comes from the input files, so don't
++		// create it here, and .got.plt is not used.
++		if eh.machine != EM_PPC64 {
++			sh := elfshname(".got")
++			sh.type_ = SHT_PROGBITS
++			sh.flags = SHF_ALLOC + SHF_WRITE
++			sh.entsize = uint64(ctxt.Arch.RegSize)
++			sh.addralign = uint64(ctxt.Arch.RegSize)
++			shsym(sh, ctxt.Syms.Lookup(".got", 0))
++
++			sh = elfshname(".got.plt")
++			sh.type_ = SHT_PROGBITS
++			sh.flags = SHF_ALLOC + SHF_WRITE
++			sh.entsize = uint64(ctxt.Arch.RegSize)
++			sh.addralign = uint64(ctxt.Arch.RegSize)
++			shsym(sh, ctxt.Syms.Lookup(".got.plt", 0))
++		}
++
++		sh = elfshname(".hash")
++		sh.type_ = SHT_HASH
++		sh.flags = SHF_ALLOC
++		sh.entsize = 4
++		sh.addralign = uint64(ctxt.Arch.RegSize)
++		sh.link = uint32(elfshname(".dynsym").shnum)
++		shsym(sh, ctxt.Syms.Lookup(".hash", 0))
++
++		/* sh and PT_DYNAMIC for .dynamic section */
++		sh = elfshname(".dynamic")
++
++		sh.type_ = SHT_DYNAMIC
++		sh.flags = SHF_ALLOC + SHF_WRITE
++		sh.entsize = 2 * uint64(ctxt.Arch.RegSize)
++		sh.addralign = uint64(ctxt.Arch.RegSize)
++		sh.link = uint32(elfshname(".dynstr").shnum)
++		shsym(sh, ctxt.Syms.Lookup(".dynamic", 0))
++		ph := newElfPhdr()
++		ph.type_ = PT_DYNAMIC
++		ph.flags = PF_R + PF_W
++		phsh(ph, sh)
++
++		/*
++		 * Thread-local storage segment (really just size).
++		 */
++		tlssize := uint64(0)
++		for _, sect := range Segdata.Sections {
++			if sect.Name == ".tbss" {
++				tlssize = sect.Length
++			}
++		}
++		if tlssize != 0 {
++			ph := newElfPhdr()
++			ph.type_ = PT_TLS
++			ph.flags = PF_R
++			ph.memsz = tlssize
++			ph.align = uint64(ctxt.Arch.RegSize)
++		}
++	}
++
++	if ctxt.HeadType == objabi.Hlinux {
++		ph := newElfPhdr()
++		ph.type_ = PT_GNU_STACK
++		ph.flags = PF_W + PF_R
++		ph.align = uint64(ctxt.Arch.RegSize)
++
++		ph = newElfPhdr()
++		ph.type_ = PT_PAX_FLAGS
++		ph.flags = 0x2a00 // mprotect, randexec, emutramp disabled
++		ph.align = uint64(ctxt.Arch.RegSize)
++	} else if ctxt.HeadType == objabi.Hsolaris {
++		ph := newElfPhdr()
++		ph.type_ = PT_SUNWSTACK
++		ph.flags = PF_W + PF_R
++	}
++
++elfobj:
++	sh := elfshname(".shstrtab")
++	sh.type_ = SHT_STRTAB
++	sh.addralign = 1
++	shsym(sh, ctxt.Syms.Lookup(".shstrtab", 0))
++	eh.shstrndx = uint16(sh.shnum)
++
++	// put these sections early in the list
++	if !*FlagS {
++		elfshname(".symtab")
++		elfshname(".strtab")
++	}
++
++	for _, sect := range Segtext.Sections {
++		elfshbits(ctxt.LinkMode, sect)
++	}
++	for _, sect := range Segrodata.Sections {
++		elfshbits(ctxt.LinkMode, sect)
++	}
++	for _, sect := range Segrelrodata.Sections {
++		elfshbits(ctxt.LinkMode, sect)
++	}
++	for _, sect := range Segdata.Sections {
++		elfshbits(ctxt.LinkMode, sect)
++	}
++	for _, sect := range Segdwarf.Sections {
++		elfshbits(ctxt.LinkMode, sect)
++	}
++
++	if ctxt.LinkMode == LinkExternal {
++		for _, sect := range Segtext.Sections {
++			elfshreloc(ctxt.Arch, sect)
++		}
++		for _, sect := range Segrodata.Sections {
++			elfshreloc(ctxt.Arch, sect)
++		}
++		for _, sect := range Segrelrodata.Sections {
++			elfshreloc(ctxt.Arch, sect)
++		}
++		for _, sect := range Segdata.Sections {
++			elfshreloc(ctxt.Arch, sect)
++		}
++		for _, si := range dwarfp {
++			s := si.secSym()
++			elfshreloc(ctxt.Arch, s.Sect)
++		}
++		// add a .note.GNU-stack section to mark the stack as non-executable
++		sh := elfshname(".note.GNU-stack")
++
++		sh.type_ = SHT_PROGBITS
++		sh.addralign = 1
++		sh.flags = 0
++	}
++
++	if !*FlagS {
++		sh := elfshname(".symtab")
++		sh.type_ = SHT_SYMTAB
++		sh.off = uint64(symo)
++		sh.size = uint64(Symsize)
++		sh.addralign = uint64(ctxt.Arch.RegSize)
++		sh.entsize = 8 + 2*uint64(ctxt.Arch.RegSize)
++		sh.link = uint32(elfshname(".strtab").shnum)
++		sh.info = uint32(elfglobalsymndx)
++
++		sh = elfshname(".strtab")
++		sh.type_ = SHT_STRTAB
++		sh.off = uint64(symo) + uint64(Symsize)
++		sh.size = uint64(len(Elfstrdat))
++		sh.addralign = 1
++	}
++
++	/* Main header */
++	eh.ident[EI_MAG0] = '\177'
++
++	eh.ident[EI_MAG1] = 'E'
++	eh.ident[EI_MAG2] = 'L'
++	eh.ident[EI_MAG3] = 'F'
++	if ctxt.HeadType == objabi.Hfreebsd {
++		eh.ident[EI_OSABI] = ELFOSABI_FREEBSD
++	} else if ctxt.HeadType == objabi.Hnetbsd {
++		eh.ident[EI_OSABI] = ELFOSABI_NETBSD
++	} else if ctxt.HeadType == objabi.Hopenbsd {
++		eh.ident[EI_OSABI] = ELFOSABI_OPENBSD
++	} else if ctxt.HeadType == objabi.Hdragonfly {
++		eh.ident[EI_OSABI] = ELFOSABI_NONE
++	}
++	if elf64 {
++		eh.ident[EI_CLASS] = ELFCLASS64
++	} else {
++		eh.ident[EI_CLASS] = ELFCLASS32
++	}
++	if ctxt.Arch.ByteOrder == binary.BigEndian {
++		eh.ident[EI_DATA] = ELFDATA2MSB
++	} else {
++		eh.ident[EI_DATA] = ELFDATA2LSB
++	}
++	eh.ident[EI_VERSION] = EV_CURRENT
++
++	if ctxt.LinkMode == LinkExternal {
++		eh.type_ = ET_REL
++	} else if ctxt.BuildMode == BuildModePIE {
++		eh.type_ = ET_DYN
++	} else {
++		eh.type_ = ET_EXEC
++	}
++
++	if ctxt.LinkMode != LinkExternal {
++		eh.entry = uint64(Entryvalue(ctxt))
++	}
++
++	eh.version = EV_CURRENT
++
++	if pph != nil {
++		pph.filesz = uint64(eh.phnum) * uint64(eh.phentsize)
++		pph.memsz = pph.filesz
++	}
++
++	ctxt.Out.SeekSet(0)
++	a := int64(0)
++	a += int64(elfwritehdr(ctxt.Out))
++	a += int64(elfwritephdrs(ctxt.Out))
++	a += int64(elfwriteshdrs(ctxt.Out))
++	if !*FlagD {
++		a += int64(elfwriteinterp(ctxt.Out))
++	}
++	if ctxt.LinkMode != LinkExternal {
++		if ctxt.HeadType == objabi.Hnetbsd {
++			a += int64(elfwritenetbsdsig(ctxt.Out))
++		}
++		if ctxt.HeadType == objabi.Hopenbsd {
++			a += int64(elfwriteopenbsdsig(ctxt.Out))
++		}
++		if len(buildinfo) > 0 {
++			a += int64(elfwritebuildinfo(ctxt.Out))
++		}
++		if *flagBuildid != "" {
++			a += int64(elfwritegobuildid(ctxt.Out))
++		}
++	}
++	if *flagRace && ctxt.IsNetbsd() {
++		a += int64(elfwritenetbsdpax(ctxt.Out))
++	}
++
++	if a > elfreserve {
++		Errorf(nil, "ELFRESERVE too small: %d > %d with %d text sections", a, elfreserve, numtext)
++	}
++}
++
++// Do not write DT_NULL.  elfdynhash will finish it.
++func shsym(sh *ElfShdr, s *sym.Symbol) {
++	addr := Symaddr(s)
++	if sh.flags&SHF_ALLOC != 0 {
++		sh.addr = uint64(addr)
++	}
++	sh.off = uint64(datoff2(s, addr))
++	sh.size = uint64(s.Size)
++}
++
++func Elfemitreloc2(ctxt *Link) {
++	for ctxt.Out.Offset()&7 != 0 {
++		ctxt.Out.Write8(0)
++	}
++
++	for _, sect := range Segtext.Sections {
++		if sect.Name == ".text" {
++			elfrelocsect2(ctxt, sect, ctxt.Textp)
++		} else {
++			elfrelocsect2(ctxt, sect, ctxt.datap)
++		}
++	}
++
++	for _, sect := range Segrodata.Sections {
++		elfrelocsect2(ctxt, sect, ctxt.datap)
++	}
++	for _, sect := range Segrelrodata.Sections {
++		elfrelocsect2(ctxt, sect, ctxt.datap)
++	}
++	for _, sect := range Segdata.Sections {
++		elfrelocsect2(ctxt, sect, ctxt.datap)
++	}
++	for i := 0; i < len(Segdwarf.Sections); i++ {
++		sect := Segdwarf.Sections[i]
++		si := dwarfp[i]
++		if si.secSym() != sect.Sym ||
++			si.secSym().Sect != sect {
++			panic("inconsistency between dwarfp and Segdwarf")
++		}
++		elfrelocsect2(ctxt, sect, si.syms)
++	}
++}
++
+ func elfrelocsect2(ctxt *Link, sect *sym.Section, syms []*sym.Symbol) {
+ 	// If main section is SHT_NOBITS, nothing to relocate.
+ 	// Also nothing to relocate in .shstrtab.
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 229ed12f26..752dbeebf1 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -2662,46 +2662,32 @@ func (ctxt *Link) xdefine2(p string, t sym.SymKind, v int64) {
+ 	s.SetLocal(true)
+ }
+ 
+-func datoff(s *sym.Symbol, addr int64) int64 {
++func datoff(ldr *loader.Loader, s loader.Sym, addr int64) int64 {
+ 	if uint64(addr) >= Segdata.Vaddr {
+ 		return int64(uint64(addr) - Segdata.Vaddr + Segdata.Fileoff)
+ 	}
+ 	if uint64(addr) >= Segtext.Vaddr {
+ 		return int64(uint64(addr) - Segtext.Vaddr + Segtext.Fileoff)
+ 	}
+-	Errorf(s, "invalid datoff %#x", addr)
++	ldr.Errorf(s, "invalid datoff %#x", addr)
+ 	return 0
+ }
+ 
+-func Entryvalue(ctxt *Link) int64 {
+-	a := *flagEntrySymbol
+-	if a[0] >= '0' && a[0] <= '9' {
+-		return atolwhex(a)
+-	}
+-	s := ctxt.Syms.Lookup(a, 0)
+-	if s.Type == 0 {
+-		return *FlagTextAddr
+-	}
+-	if ctxt.HeadType != objabi.Haix && s.Type != sym.STEXT {
+-		Errorf(s, "entry not text")
+-	}
+-	return s.Value
+-}
+-
+ func Entryvalue2(ctxt *Link) int64 {
+ 	a := *flagEntrySymbol
+ 	if a[0] >= '0' && a[0] <= '9' {
+ 		return atolwhex(a)
+ 	}
+-	s := ctxt.loader.Lookup(a, 0)
+-	typ := ctxt.loader.SymType(s)
+-	if typ == 0 {
++	ldr := ctxt.loader
++	s := ldr.Lookup(a, 0)
++	st := ldr.SymType(s)
++	if st == 0 {
+ 		return *FlagTextAddr
+ 	}
+-	if ctxt.HeadType != objabi.Haix && typ != sym.STEXT {
+-		ctxt.Errorf(s, "entry not text")
++	if !ctxt.IsAIX() && st != sym.STEXT {
++		ldr.Errorf(s, "entry not text")
+ 	}
+-	return ctxt.loader.SymValue(s)
++	return ldr.SymValue(s)
+ }
+ 
+ func (ctxt *Link) callgraph() {
+@@ -2799,6 +2785,7 @@ func addToTextp(ctxt *Link) {
+ }
+ 
+ func (ctxt *Link) loadlibfull(symGroupType []sym.SymKind, needReloc, needExtReloc bool) {
++
+ 	// Load full symbol contents, resolve indexed references.
+ 	ctxt.loader.LoadFull(ctxt.Arch, ctxt.Syms, needReloc, needExtReloc)
+ 
+@@ -2891,14 +2878,14 @@ func symPkg(ctxt *Link, s *sym.Symbol) string {
+ 	return ctxt.loader.SymPkg(loader.Sym(s.SymIdx))
+ }
+ 
+-func ElfSymForReloc(ctxt *Link, s *sym.Symbol) int32 {
++func ElfSymForReloc2(ctxt *Link, s loader.Sym) int32 {
+ 	// If putelfsym created a local version of this symbol, use that in all
+ 	// relocations.
+-	les := ctxt.loader.SymLocalElfSym(loader.Sym(s.SymIdx))
++	les := ctxt.loader.SymLocalElfSym(s)
+ 	if les != 0 {
+ 		return les
+ 	} else {
+-		return ctxt.loader.SymElfSym(loader.Sym(s.SymIdx))
++		return ctxt.loader.SymElfSym(s)
+ 	}
+ }
+ 
+diff --git a/src/cmd/link/internal/ld/lib2.go b/src/cmd/link/internal/ld/lib2.go
+new file mode 100644
+index 0000000000..296d6d2785
+--- /dev/null
++++ b/src/cmd/link/internal/ld/lib2.go
+@@ -0,0 +1,51 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ld
++
++import (
++	"cmd/internal/objabi"
++	"cmd/link/internal/loader"
++	"cmd/link/internal/sym"
++)
++
++// Temporary dumping around for sym.Symbol version of helper
++// functions in lib.go, still being used for some archs/oses.
++
++func Entryvalue(ctxt *Link) int64 {
++	a := *flagEntrySymbol
++	if a[0] >= '0' && a[0] <= '9' {
++		return atolwhex(a)
++	}
++	s := ctxt.Syms.Lookup(a, 0)
++	if s.Type == 0 {
++		return *FlagTextAddr
++	}
++	if ctxt.HeadType != objabi.Haix && s.Type != sym.STEXT {
++		Errorf(s, "entry not text")
++	}
++	return s.Value
++}
++
++func datoff2(s *sym.Symbol, addr int64) int64 {
++	if uint64(addr) >= Segdata.Vaddr {
++		return int64(uint64(addr) - Segdata.Vaddr + Segdata.Fileoff)
++	}
++	if uint64(addr) >= Segtext.Vaddr {
++		return int64(uint64(addr) - Segtext.Vaddr + Segtext.Fileoff)
++	}
++	Errorf(s, "invalid datoff %#x", addr)
++	return 0
++}
++
++func ElfSymForReloc(ctxt *Link, s *sym.Symbol) int32 {
++	// If putelfsym created a local version of this symbol, use that in all
++	// relocations.
++	les := ctxt.loader.SymLocalElfSym(loader.Sym(s.SymIdx))
++	if les != 0 {
++		return les
++	} else {
++		return ctxt.loader.SymElfSym(loader.Sym(s.SymIdx))
++	}
++}
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index bcb1e888a0..6c16785b43 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -320,7 +320,7 @@ func Main(arch *sys.Arch, theArch Arch) {
+ 	thearch.Asmb(ctxt, ctxt.loader)
+ 	bench.Start("reloc")
+ 	ctxt.reloc()
+-	newasmb2 := ctxt.IsDarwin() || ctxt.IsWindows() || ctxt.IsWasm() || ctxt.IsPlan9()
++	newasmb2 := ctxt.IsDarwin() || ctxt.IsWindows() || ctxt.IsWasm() || ctxt.IsPlan9() || (ctxt.IsElf() && ctxt.IsAMD64())
+ 	if !newasmb2 {
+ 		bench.Start("loadlibfull")
+ 		// We don't need relocations at this point.
+diff --git a/src/cmd/link/internal/ld/symtab.go b/src/cmd/link/internal/ld/symtab.go
+index 9748de96d1..18036038fa 100644
+--- a/src/cmd/link/internal/ld/symtab.go
++++ b/src/cmd/link/internal/ld/symtab.go
+@@ -32,7 +32,6 @@ package ld
+ 
+ import (
+ 	"cmd/internal/objabi"
+-	"cmd/internal/sys"
+ 	"cmd/link/internal/loader"
+ 	"cmd/link/internal/sym"
+ 	"fmt"
+@@ -74,58 +73,38 @@ func putelfsyment(out *OutBuf, off int, addr int64, size int64, info int, shndx
+ 	}
+ }
+ 
+-func putelfsym(ctxt *Link, x *sym.Symbol, s string, t SymbolType, addr int64) {
+-	var typ int
+-
+-	switch t {
+-	default:
+-		return
+-
+-	case TextSym:
+-		typ = STT_FUNC
+-
+-	case DataSym, BSSSym:
+-		typ = STT_OBJECT
+-
+-	case UndefinedSym:
+-		// ElfType is only set for symbols read from Go shared libraries, but
+-		// for other symbols it is left as STT_NOTYPE which is fine.
+-		typ = int(x.ElfType())
+-
+-	case TLSSym:
+-		typ = STT_TLS
+-	}
+-
+-	size := x.Size
+-	if t == UndefinedSym {
+-		size = 0
+-	}
++func putelfsym(ctxt *Link, x loader.Sym, typ int, curbind int) {
++	ldr := ctxt.loader
++	addr := ldr.SymValue(x)
++	size := ldr.SymSize(x)
+ 
+ 	xo := x
+-	if xo.Outer != nil {
+-		xo = xo.Outer
++	if ldr.OuterSym(x) != 0 {
++		xo = ldr.OuterSym(x)
+ 	}
++	xot := ldr.SymType(xo)
++	xosect := ldr.SymSect(xo)
+ 
+ 	var elfshnum int
+-	if xo.Type == sym.SDYNIMPORT || xo.Type == sym.SHOSTOBJ || xo.Type == sym.SUNDEFEXT {
++	if xot == sym.SDYNIMPORT || xot == sym.SHOSTOBJ || xot == sym.SUNDEFEXT {
+ 		elfshnum = SHN_UNDEF
++		size = 0
+ 	} else {
+-		if xo.Sect == nil {
+-			Errorf(x, "missing section in putelfsym")
++		if xosect == nil {
++			ldr.Errorf(x, "missing section in putelfsym")
+ 			return
+ 		}
+-		if xo.Sect.Elfsect == nil {
+-			Errorf(x, "missing ELF section in putelfsym")
++		if xosect.Elfsect == nil {
++			ldr.Errorf(x, "missing ELF section in putelfsym")
+ 			return
+ 		}
+-		elfshnum = xo.Sect.Elfsect.(*ElfShdr).shnum
++		elfshnum = xosect.Elfsect.(*ElfShdr).shnum
+ 	}
+ 
+ 	// One pass for each binding: STB_LOCAL, STB_GLOBAL,
+ 	// maybe one day STB_WEAK.
+ 	bind := STB_GLOBAL
+-
+-	if x.IsFileLocal() || x.Attr.VisibilityHidden() || x.Attr.Local() {
++	if ldr.IsFileLocal(x) || ldr.AttrVisibilityHidden(x) || ldr.AttrLocal(x) {
+ 		bind = STB_LOCAL
+ 	}
+ 
+@@ -134,15 +113,15 @@ func putelfsym(ctxt *Link, x *sym.Symbol, s string, t SymbolType, addr int64) {
+ 	// To avoid filling the dynamic table with lots of unnecessary symbols,
+ 	// mark all Go symbols local (not global) in the final executable.
+ 	// But when we're dynamically linking, we need all those global symbols.
+-	if !ctxt.DynlinkingGo() && ctxt.LinkMode == LinkExternal && !x.Attr.CgoExportStatic() && elfshnum != SHN_UNDEF {
++	if !ctxt.DynlinkingGo() && ctxt.IsExternal() && !ldr.AttrCgoExportStatic(x) && elfshnum != SHN_UNDEF {
+ 		bind = STB_LOCAL
+ 	}
+ 
+ 	if ctxt.LinkMode == LinkExternal && elfshnum != SHN_UNDEF {
+-		addr -= int64(xo.Sect.Vaddr)
++		addr -= int64(xosect.Vaddr)
+ 	}
+ 	other := STV_DEFAULT
+-	if x.Attr.VisibilityHidden() {
++	if ldr.AttrVisibilityHidden(x) {
+ 		// TODO(mwhudson): We only set AttrVisibilityHidden in ldelf, i.e. when
+ 		// internally linking. But STV_HIDDEN visibility only matters in object
+ 		// files and shared libraries, and as we are a long way from implementing
+@@ -150,7 +129,7 @@ func putelfsym(ctxt *Link, x *sym.Symbol, s string, t SymbolType, addr int64) {
+ 		// externally linking, I don't think this makes a lot of sense.
+ 		other = STV_HIDDEN
+ 	}
+-	if ctxt.Arch.Family == sys.PPC64 && typ == STT_FUNC && x.Attr.Shared() && x.Name != "runtime.duffzero" && x.Name != "runtime.duffcopy" {
++	if ctxt.IsPPC64() && typ == STT_FUNC && ldr.AttrShared(x) && ldr.SymName(x) != "runtime.duffzero" && ldr.SymName(x) != "runtime.duffcopy" {
+ 		// On ppc64 the top three bits of the st_other field indicate how
+ 		// many instructions separate the global and local entry points. In
+ 		// our case it is two instructions, indicated by the value 3.
+@@ -160,22 +139,17 @@ func putelfsym(ctxt *Link, x *sym.Symbol, s string, t SymbolType, addr int64) {
+ 		other |= 3 << 5
+ 	}
+ 
+-	if s == x.Name {
+-		// We should use Extname for ELF symbol table.
+-		// TODO: maybe genasmsym should have done this. That function is too
+-		// overloaded and I would rather not change it for now.
+-		s = x.Extname()
+-	}
++	sname := ldr.SymExtname(x)
+ 
+ 	// When dynamically linking, we create Symbols by reading the names from
+ 	// the symbol tables of the shared libraries and so the names need to
+ 	// match exactly. Tools like DTrace will have to wait for now.
+ 	if !ctxt.DynlinkingGo() {
+ 		// Rewrite · to . for ASCII-only tools like DTrace (sigh)
+-		s = strings.Replace(s, "·", ".", -1)
++		sname = strings.Replace(sname, "·", ".", -1)
+ 	}
+ 
+-	if ctxt.DynlinkingGo() && bind == STB_GLOBAL && ctxt.elfbind == STB_LOCAL && x.Type == sym.STEXT {
++	if ctxt.DynlinkingGo() && bind == STB_GLOBAL && curbind == STB_LOCAL && ldr.SymType(x) == sym.STEXT {
+ 		// When dynamically linking, we want references to functions defined
+ 		// in this module to always be to the function object, not to the
+ 		// PLT. We force this by writing an additional local symbol for every
+@@ -184,26 +158,82 @@ func putelfsym(ctxt *Link, x *sym.Symbol, s string, t SymbolType, addr int64) {
+ 		// (*sym.Symbol).ElfsymForReloc). This is approximately equivalent to the
+ 		// ELF linker -Bsymbolic-functions option, but that is buggy on
+ 		// several platforms.
+-		putelfsyment(ctxt.Out, putelfstr("local."+s), addr, size, STB_LOCAL<<4|typ&0xf, elfshnum, other)
+-		ctxt.loader.SetSymLocalElfSym(loader.Sym(x.SymIdx), int32(ctxt.numelfsym))
++		putelfsyment(ctxt.Out, putelfstr("local."+sname), addr, size, STB_LOCAL<<4|typ&0xf, elfshnum, other)
++		ldr.SetSymLocalElfSym(x, int32(ctxt.numelfsym))
+ 		ctxt.numelfsym++
+ 		return
+-	} else if bind != ctxt.elfbind {
++	} else if bind != curbind {
+ 		return
+ 	}
+ 
+-	putelfsyment(ctxt.Out, putelfstr(s), addr, size, bind<<4|typ&0xf, elfshnum, other)
+-	ctxt.loader.SetSymElfSym(loader.Sym(x.SymIdx), int32(ctxt.numelfsym))
++	putelfsyment(ctxt.Out, putelfstr(sname), addr, size, bind<<4|typ&0xf, elfshnum, other)
++	ldr.SetSymElfSym(x, int32(ctxt.numelfsym))
+ 	ctxt.numelfsym++
+ }
+ 
+-func putelfsectionsym(ctxt *Link, out *OutBuf, s *sym.Symbol, shndx int) {
++func putelfsectionsym(ctxt *Link, out *OutBuf, s loader.Sym, shndx int) {
+ 	putelfsyment(out, 0, 0, 0, STB_LOCAL<<4|STT_SECTION, shndx, 0)
+-	ctxt.loader.SetSymElfSym(loader.Sym(s.SymIdx), int32(ctxt.numelfsym))
++	ctxt.loader.SetSymElfSym(s, int32(ctxt.numelfsym))
+ 	ctxt.numelfsym++
+ }
+ 
++func genelfsym(ctxt *Link, elfbind int) {
++	ldr := ctxt.loader
++
++	// Text symbols.
++	s := ldr.Lookup("runtime.text", 0)
++	putelfsym(ctxt, s, STT_FUNC, elfbind)
++	for _, s := range ctxt.Textp2 {
++		putelfsym(ctxt, s, STT_FUNC, elfbind)
++	}
++	s = ldr.Lookup("runtime.etext", 0)
++	if ldr.SymType(s) == sym.STEXT {
++		putelfsym(ctxt, s, STT_FUNC, elfbind)
++	}
++
++	shouldBeInSymbolTable := func(s loader.Sym) bool {
++		if ldr.AttrNotInSymbolTable(s) {
++			return false
++		}
++		// FIXME: avoid having to do name inspections here.
++		sn := ldr.SymName(s)
++		if (sn == "" || sn[0] == '.') && !ldr.IsFileLocal(s) {
++			return false
++		}
++		return true
++	}
++
++	// Data symbols.
++	for s := loader.Sym(1); s < loader.Sym(ldr.NSym()); s++ {
++		if !ldr.AttrReachable(s) {
++			continue
++		}
++		st := ldr.SymType(s)
++		if st >= sym.SELFRXSECT && st < sym.SXREF {
++			typ := STT_OBJECT
++			if st == sym.STLSBSS {
++				if ctxt.IsInternal() {
++					continue
++				}
++				typ = STT_TLS
++			}
++			if !shouldBeInSymbolTable(s) {
++				continue
++			}
++			putelfsym(ctxt, s, typ, elfbind)
++			continue
++		}
++		if st == sym.SHOSTOBJ || st == sym.SDYNIMPORT || st == sym.SUNDEFEXT {
++			putelfsym(ctxt, s, int(ldr.SymElfType(s)), elfbind)
++		}
++	}
++}
++
+ func Asmelfsym(ctxt *Link) {
++	if !ctxt.IsAMD64() {
++		Asmelfsym2(ctxt)
++		return
++	}
+ 	// the first symbol entry is reserved
+ 	putelfsyment(ctxt.Out, 0, 0, 0, STB_LOCAL<<4|STT_NOTYPE, 0, 0)
+ 
+@@ -216,12 +246,13 @@ func Asmelfsym(ctxt *Link) {
+ 	putelfsyment(ctxt.Out, putelfstr("go.go"), 0, 0, STB_LOCAL<<4|STT_FILE, SHN_ABS, 0)
+ 	ctxt.numelfsym++
+ 
+-	ctxt.elfbind = STB_LOCAL
+-	genasmsym(ctxt, putelfsym)
+-
+-	ctxt.elfbind = STB_GLOBAL
+-	elfglobalsymndx = ctxt.numelfsym
+-	genasmsym(ctxt, putelfsym)
++	bindings := []int{STB_LOCAL, STB_GLOBAL}
++	for _, elfbind := range bindings {
++		if elfbind == STB_GLOBAL {
++			elfglobalsymndx = ctxt.numelfsym
++		}
++		genelfsym(ctxt, elfbind)
++	}
+ }
+ 
+ func putplan9sym(ctxt *Link, ldr *loader.Loader, s loader.Sym, char SymbolType) {
+diff --git a/src/cmd/link/internal/ld/symtab2.go b/src/cmd/link/internal/ld/symtab2.go
+new file mode 100644
+index 0000000000..8108d723fc
+--- /dev/null
++++ b/src/cmd/link/internal/ld/symtab2.go
+@@ -0,0 +1,166 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ld
++
++import (
++	"cmd/internal/sys"
++	"cmd/link/internal/loader"
++	"cmd/link/internal/sym"
++	"strings"
++)
++
++// Temporary dumping around for sym.Symbol version of helper
++// functions in symtab.go, still being used for some archs/oses.
++
++func Asmelfsym2(ctxt *Link) {
++
++	// the first symbol entry is reserved
++	putelfsyment(ctxt.Out, 0, 0, 0, STB_LOCAL<<4|STT_NOTYPE, 0, 0)
++
++	dwarfaddelfsectionsyms2(ctxt)
++
++	// Some linkers will add a FILE sym if one is not present.
++	// Avoid having the working directory inserted into the symbol table.
++	// It is added with a name to avoid problems with external linking
++	// encountered on some versions of Solaris. See issue #14957.
++	putelfsyment(ctxt.Out, putelfstr("go.go"), 0, 0, STB_LOCAL<<4|STT_FILE, SHN_ABS, 0)
++	ctxt.numelfsym++
++
++	ctxt.elfbind = STB_LOCAL
++	genasmsym(ctxt, putelfsym2)
++
++	ctxt.elfbind = STB_GLOBAL
++	elfglobalsymndx = ctxt.numelfsym
++	genasmsym(ctxt, putelfsym2)
++}
++
++func putelfsectionsym2(ctxt *Link, out *OutBuf, s *sym.Symbol, shndx int) {
++	putelfsyment(out, 0, 0, 0, STB_LOCAL<<4|STT_SECTION, shndx, 0)
++	ctxt.loader.SetSymElfSym(loader.Sym(s.SymIdx), int32(ctxt.numelfsym))
++	ctxt.numelfsym++
++}
++
++func putelfsym2(ctxt *Link, x *sym.Symbol, s string, t SymbolType, addr int64) {
++	var typ int
++
++	switch t {
++	default:
++		return
++
++	case TextSym:
++		typ = STT_FUNC
++
++	case DataSym, BSSSym:
++		typ = STT_OBJECT
++
++	case UndefinedSym:
++		// ElfType is only set for symbols read from Go shared libraries, but
++		// for other symbols it is left as STT_NOTYPE which is fine.
++		typ = int(x.ElfType())
++
++	case TLSSym:
++		typ = STT_TLS
++	}
++
++	size := x.Size
++	if t == UndefinedSym {
++		size = 0
++	}
++
++	xo := x
++	if xo.Outer != nil {
++		xo = xo.Outer
++	}
++
++	var elfshnum int
++	if xo.Type == sym.SDYNIMPORT || xo.Type == sym.SHOSTOBJ || xo.Type == sym.SUNDEFEXT {
++		elfshnum = SHN_UNDEF
++	} else {
++		if xo.Sect == nil {
++			Errorf(x, "missing section in putelfsym")
++			return
++		}
++		if xo.Sect.Elfsect == nil {
++			Errorf(x, "missing ELF section in putelfsym")
++			return
++		}
++		elfshnum = xo.Sect.Elfsect.(*ElfShdr).shnum
++	}
++
++	// One pass for each binding: STB_LOCAL, STB_GLOBAL,
++	// maybe one day STB_WEAK.
++	bind := STB_GLOBAL
++
++	if x.IsFileLocal() || x.Attr.VisibilityHidden() || x.Attr.Local() {
++		bind = STB_LOCAL
++	}
++
++	// In external linking mode, we have to invoke gcc with -rdynamic
++	// to get the exported symbols put into the dynamic symbol table.
++	// To avoid filling the dynamic table with lots of unnecessary symbols,
++	// mark all Go symbols local (not global) in the final executable.
++	// But when we're dynamically linking, we need all those global symbols.
++	if !ctxt.DynlinkingGo() && ctxt.LinkMode == LinkExternal && !x.Attr.CgoExportStatic() && elfshnum != SHN_UNDEF {
++		bind = STB_LOCAL
++	}
++
++	if ctxt.LinkMode == LinkExternal && elfshnum != SHN_UNDEF {
++		addr -= int64(xo.Sect.Vaddr)
++	}
++	other := STV_DEFAULT
++	if x.Attr.VisibilityHidden() {
++		// TODO(mwhudson): We only set AttrVisibilityHidden in ldelf, i.e. when
++		// internally linking. But STV_HIDDEN visibility only matters in object
++		// files and shared libraries, and as we are a long way from implementing
++		// internal linking for shared libraries and only create object files when
++		// externally linking, I don't think this makes a lot of sense.
++		other = STV_HIDDEN
++	}
++	if ctxt.Arch.Family == sys.PPC64 && typ == STT_FUNC && x.Attr.Shared() && x.Name != "runtime.duffzero" && x.Name != "runtime.duffcopy" {
++		// On ppc64 the top three bits of the st_other field indicate how
++		// many instructions separate the global and local entry points. In
++		// our case it is two instructions, indicated by the value 3.
++		// The conditions here match those in preprocess in
++		// cmd/internal/obj/ppc64/obj9.go, which is where the
++		// instructions are inserted.
++		other |= 3 << 5
++	}
++
++	if s == x.Name {
++		// We should use Extname for ELF symbol table.
++		// TODO: maybe genasmsym should have done this. That function is too
++		// overloaded and I would rather not change it for now.
++		s = x.Extname()
++	}
++
++	// When dynamically linking, we create Symbols by reading the names from
++	// the symbol tables of the shared libraries and so the names need to
++	// match exactly. Tools like DTrace will have to wait for now.
++	if !ctxt.DynlinkingGo() {
++		// Rewrite · to . for ASCII-only tools like DTrace (sigh)
++		s = strings.Replace(s, "·", ".", -1)
++	}
++
++	if ctxt.DynlinkingGo() && bind == STB_GLOBAL && ctxt.elfbind == STB_LOCAL && x.Type == sym.STEXT {
++		// When dynamically linking, we want references to functions defined
++		// in this module to always be to the function object, not to the
++		// PLT. We force this by writing an additional local symbol for every
++		// global function symbol and making all relocations against the
++		// global symbol refer to this local symbol instead (see
++		// (*sym.Symbol).ElfsymForReloc). This is approximately equivalent to the
++		// ELF linker -Bsymbolic-functions option, but that is buggy on
++		// several platforms.
++		putelfsyment(ctxt.Out, putelfstr("local."+s), addr, size, STB_LOCAL<<4|typ&0xf, elfshnum, other)
++		ctxt.loader.SetSymLocalElfSym(loader.Sym(x.SymIdx), int32(ctxt.numelfsym))
++		ctxt.numelfsym++
++		return
++	} else if bind != ctxt.elfbind {
++		return
++	}
++
++	putelfsyment(ctxt.Out, putelfstr(s), addr, size, bind<<4|typ&0xf, elfshnum, other)
++	ctxt.loader.SetSymElfSym(loader.Sym(x.SymIdx), int32(ctxt.numelfsym))
++	ctxt.numelfsym++
++}

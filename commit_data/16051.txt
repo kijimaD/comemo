@@ -7,6 +7,20 @@ Date:   Tue Apr 2 12:12:16 2013 -0700
     R=golang-dev, minux.ma
     CC=golang-dev
     https://golang.org/cl/8276043
-
+---
  src/pkg/net/http/transport.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/http/transport.go b/src/pkg/net/http/transport.go
+index c14ee3aa68..4cd0533ffc 100644
+--- a/src/pkg/net/http/transport.go
++++ b/src/pkg/net/http/transport.go
+@@ -58,7 +58,7 @@ type Transport struct {
+ 	// Dial specifies the dial function for creating TCP
+ 	// connections.
+ 	// If Dial is nil, net.Dial is used.
+-	Dial func(net, addr string) (c net.Conn, err error)
++	Dial func(network, addr string) (net.Conn, error)
+ 
+ 	// TLSClientConfig specifies the TLS configuration to use with
+ 	// tls.Client. If nil, the default configuration is used.

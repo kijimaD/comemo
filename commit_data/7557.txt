@@ -7,6 +7,59 @@ Date:   Thu Feb 24 15:56:53 2011 +1100
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/4217042
-
+---
  src/make.bash | 41 ++++++++++++++++++-----------------------
  1 file changed, 18 insertions(+), 23 deletions(-)
+
+diff --git a/src/make.bash b/src/make.bash
+index 43c70a87ba..0cbf3becb4 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -61,29 +61,24 @@ bash "$GOROOT"/src/clean.bash
+ # pkg builds libcgo and the Go programs in cmd.
+ for i in lib9 libbio libmach cmd pkg
+ do
+-	case "$i-$GOOS-$GOARCH" in
+-	cmd/*-nacl-*)
+-		;;
+-	*)
+-		# The ( ) here are to preserve the current directory
+-		# for the next round despite the cd $i below.
+-		# set -e does not apply to ( ) so we must explicitly
+-		# test the exit status.
+-		(
+-			echo; echo; echo %%%% making $i %%%%; echo
+-			cd "$GOROOT"/src/$i
+-			case $i in
+-			cmd)
+-				bash make.bash
+-				;;
+-			pkg)
+-				gomake install
+-				;;
+-			*)
+-				gomake install
+-			esac
+-		)  || exit 1
+-	esac
++	# The ( ) here are to preserve the current directory
++	# for the next round despite the cd $i below.
++	# set -e does not apply to ( ) so we must explicitly
++	# test the exit status.
++	(
++		echo; echo; echo %%%% making $i %%%%; echo
++		cd "$GOROOT"/src/$i
++		case $i in
++		cmd)
++			bash make.bash
++			;;
++		pkg)
++			gomake install
++			;;
++		*)
++			gomake install
++		esac
++	)  || exit 1
+ done
+ 
+ # Print post-install messages.

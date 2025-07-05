@@ -22,6 +22,27 @@ Date:   Thu Jan 23 12:51:26 2020 -0500
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/testdata/script/mod_vendor_trimpath.txt | 9 +++++++--
  1 file changed, 7 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/mod_vendor_trimpath.txt b/src/cmd/go/testdata/script/mod_vendor_trimpath.txt
+index c419fc9793..5451aa773c 100644
+--- a/src/cmd/go/testdata/script/mod_vendor_trimpath.txt
++++ b/src/cmd/go/testdata/script/mod_vendor_trimpath.txt
+@@ -18,8 +18,13 @@ stdout vendor
+ 
+ # With -trimpath, everything before the package path should be trimmed.
+ # As with -mod=mod, the version should appear as part of the module path.
+-go run -trimpath main.go
+-stdout example.com/stack@v1.0.0/stack.go
++go run -mod=vendor -trimpath main.go
++stdout '^example.com/stack@v1.0.0/stack.go$'
++
++# With pristinely vendored source code, a trimmed binary built from vendored
++# code should have the same behavior as one build from the module cache.
++go run -mod=mod -trimpath main.go
++stdout '^example.com/stack@v1.0.0/stack.go$'
+ 
+ -- go.mod --
+ module example.com/main

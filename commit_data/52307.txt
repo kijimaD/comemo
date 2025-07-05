@@ -18,7 +18,21 @@ Date:   Thu Apr 21 17:04:34 2022 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Jonathan Albrecht <jonathan.albrecht@ibm.com>
-
+---
  src/runtime/race/README                |   1 +
  src/runtime/race/race_linux_s390x.syso | Bin 0 -> 565472 bytes
  2 files changed, 1 insertion(+)
+
+diff --git a/src/runtime/race/README b/src/runtime/race/README
+index 7ec2f80d3b..eb18ad600b 100644
+--- a/src/runtime/race/README
++++ b/src/runtime/race/README
+@@ -13,3 +13,4 @@ race_windows_amd64.syso built with LLVM 89f7ccea6f6488c443655880229c54db1f180153
+ race_linux_arm64.syso built with LLVM 41cb504b7c4b18ac15830107431a0c1eec73a6b2 and Go 851ecea4cc99ab276109493477b2c7e30c253ea8.
+ race_darwin_arm64.syso built with LLVM 41cb504b7c4b18ac15830107431a0c1eec73a6b2 and Go 851ecea4cc99ab276109493477b2c7e30c253ea8.
+ race_openbsd_amd64.syso built with LLVM fcf6ae2f070eba73074b6ec8d8281e54d29dbeeb and Go 8f2db14cd35bbd674cb2988a508306de6655e425.
++race_linux_s390x.syso built with LLVM 41cb504b7c4b18ac15830107431a0c1eec73a6b2 and Go 851ecea4cc99ab276109493477b2c7e30c253ea8.
+diff --git a/src/runtime/race/race_linux_s390x.syso b/src/runtime/race/race_linux_s390x.syso
+new file mode 100644
+index 0000000000..ed4a3007da
+Binary files /dev/null and b/src/runtime/race/race_linux_s390x.syso differ

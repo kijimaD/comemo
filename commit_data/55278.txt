@@ -24,6 +24,39 @@ Date:   Thu Jan 5 13:02:44 2023 -0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/regalloc.go | 14 ++++++++++++++
  1 file changed, 14 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index 294c522a90..05765bb701 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -1544,6 +1544,7 @@ func (s *regAllocState) regalloc(f *Func) {
+ 						}
+ 					}
+ 				}
++
+ 				// Avoid future fixed uses if we can.
+ 				if m&^desired.avoid != 0 {
+ 					m &^= desired.avoid
+@@ -1551,6 +1552,19 @@ func (s *regAllocState) regalloc(f *Func) {
+ 				// Save input 0 to a new register so we can clobber it.
+ 				c := s.allocValToReg(v.Args[0], m, true, v.Pos)
+ 				s.copies[c] = false
++
++				// Normally we use the register of the old copy of input 0 as the target.
++				// However, if input 0 is already in its desired register then we use
++				// the register of the new copy instead.
++				if rp, ok := s.f.getHome(args[0].ID).(*Register); ok {
++					r := register(rp.num)
++					for _, r2 := range dinfo[idx].in[0] {
++						if r == r2 {
++							args[0] = c
++							break
++						}
++					}
++				}
+ 			}
+ 
+ 		ok:

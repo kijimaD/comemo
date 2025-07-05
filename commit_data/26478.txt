@@ -18,7 +18,99 @@ Date:   Tue Jan 26 22:58:59 2016 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/mprof.go        | 52 ++++++++++++++++++++++++++++-----------------
  src/runtime/runtime_test.go | 12 +++++++++++
  2 files changed, 44 insertions(+), 20 deletions(-)
+
+diff --git a/src/runtime/mprof.go b/src/runtime/mprof.go
+index eb7231aec2..e45bc7a770 100644
+--- a/src/runtime/mprof.go
++++ b/src/runtime/mprof.go
+@@ -522,34 +522,46 @@ func ThreadCreateProfile(p []StackRecord) (n int, ok bool) {
+ // Most clients should use the runtime/pprof package instead
+ // of calling GoroutineProfile directly.
+ func GoroutineProfile(p []StackRecord) (n int, ok bool) {
++	gp := getg()
++
++	isOK := func(gp1 *g) bool {
++		// Checking isSystemGoroutine here makes GoroutineProfile
++		// consistent with both NumGoroutine and Stack.
++		return gp1 != gp && readgstatus(gp1) != _Gdead && !isSystemGoroutine(gp1)
++	}
++
++	stopTheWorld("profile")
++
++	n = 1
++	for _, gp1 := range allgs {
++		if isOK(gp1) {
++			n++
++		}
++	}
+ 
+-	n = NumGoroutine()
+ 	if n <= len(p) {
+-		gp := getg()
+-		stopTheWorld("profile")
+-
+-		n = NumGoroutine()
+-		if n <= len(p) {
+-			ok = true
+-			r := p
+-			sp := getcallersp(unsafe.Pointer(&p))
+-			pc := getcallerpc(unsafe.Pointer(&p))
+-			systemstack(func() {
+-				saveg(pc, sp, gp, &r[0])
+-			})
+-			r = r[1:]
+-			for _, gp1 := range allgs {
+-				if gp1 == gp || readgstatus(gp1) == _Gdead {
+-					continue
+-				}
++		ok = true
++		r := p
++
++		// Save current goroutine.
++		sp := getcallersp(unsafe.Pointer(&p))
++		pc := getcallerpc(unsafe.Pointer(&p))
++		systemstack(func() {
++			saveg(pc, sp, gp, &r[0])
++		})
++		r = r[1:]
++
++		// Save other goroutines.
++		for _, gp1 := range allgs {
++			if isOK(gp1) {
+ 				saveg(^uintptr(0), ^uintptr(0), gp1, &r[0])
+ 				r = r[1:]
+ 			}
+ 		}
+-
+-		startTheWorld()
+ 	}
+ 
++	startTheWorld()
++
+ 	return n, ok
+ }
+ 
+diff --git a/src/runtime/runtime_test.go b/src/runtime/runtime_test.go
+index 664c1180c4..581f52bcb0 100644
+--- a/src/runtime/runtime_test.go
++++ b/src/runtime/runtime_test.go
+@@ -308,3 +308,15 @@ func TestAppendSliceGrowth(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestGoroutineProfileTrivial(t *testing.T) {
++	n1, ok := GoroutineProfile(nil) // should fail, there's at least 1 goroutine
++	if n1 < 1 || ok {
++		t.Fatalf("GoroutineProfile(nil) = %d, %v, want >0, false", n1, ok)
++	}
++
++	n2, ok := GoroutineProfile(make([]StackRecord, n1))
++	if n2 != n1 || !ok {
++		t.Fatalf("GoroutineProfile(%d) = %d, %v, want %d, true", n1, n2, ok, n1)
++	}
++}

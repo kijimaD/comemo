@@ -9,7 +9,44 @@ Date:   Tue Jan 7 13:26:48 2014 +0100
     R=rsc
     CC=golang-codereviews
     https://golang.org/cl/41570047
-
+---
  src/cmd/gc/reflect.c     | 5 ++---
  test/method4.dir/prog.go | 9 ++++++++-
  2 files changed, 10 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/gc/reflect.c b/src/cmd/gc/reflect.c
+index 4dde2176b1..5afcdee489 100644
+--- a/src/cmd/gc/reflect.c
++++ b/src/cmd/gc/reflect.c
+@@ -476,9 +476,8 @@ imethods(Type *t)
+ 			last->link = a;
+ 		last = a;
+ 
+-		// Compiler can only refer to wrappers for
+-		// named interface types and non-blank methods.
+-		if(t->sym == S || isblanksym(method))
++		// Compiler can only refer to wrappers for non-blank methods.
++		if(isblanksym(method))
+ 			continue;
+ 
+ 		// NOTE(rsc): Perhaps an oversight that
+diff --git a/test/method4.dir/prog.go b/test/method4.dir/prog.go
+index 77d580cffc..cb5cf65f29 100644
+--- a/test/method4.dir/prog.go
++++ b/test/method4.dir/prog.go
+@@ -73,7 +73,14 @@ func main() {
+ 	f4 := I2.Sum
+ 	eq(f4(t1, a, 17), 27)
+ 	eq(f4(t2, a, 18), 28)
+-	
++
++	// issue 6723
++	f5 := (interface {
++		I2
++	}).Sum
++	eq(f5(t1, a, 19), 29)
++	eq(f5(t2, a, 20), 30)
++
+ 	mt1 := method4a.T1(4)
+ 	mt2 := &method4a.T2{4}
+ 

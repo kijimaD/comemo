@@ -242,6 +242,38 @@ Date:   Wed Apr 27 17:30:20 2016 -0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/cmd/compile/internal/gc/bexport.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index 24dfd81b76..9c5d8bd4f8 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -612,7 +612,7 @@ func (p *exporter) typ(t *Type) {
+ 				Fatalf("invalid symbol name: %s (%v)", m.Sym.Name, m.Sym)
+ 			}
+ 
+-			p.pos(m.Sym.Def)
++			p.pos(m.Nname)
+ 			p.fieldSym(m.Sym, false)
+ 
+ 			sig := m.Type
+@@ -717,7 +717,7 @@ func (p *exporter) fieldList(t *Type) {
+ }
+ 
+ func (p *exporter) field(f *Field) {
+-	p.pos(f.Sym.Def)
++	p.pos(f.Nname)
+ 	p.fieldName(f.Sym, f)
+ 	p.typ(f.Type)
+ 	p.string(f.Note)
+@@ -739,7 +739,7 @@ func (p *exporter) methodList(t *Type) {
+ }
+ 
+ func (p *exporter) method(m *Field) {
+-	p.pos(m.Sym.Def)
++	p.pos(m.Nname)
+ 	p.fieldName(m.Sym, m)
+ 	p.paramList(m.Type.Params(), false)
+ 	p.paramList(m.Type.Results(), false)

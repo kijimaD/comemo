@@ -13,10 +13,112 @@ Date:   Tue Mar 28 15:10:20 2017 -0400
     Change-Id: I2afb1a7c686ae5a933e50903b31ea4106e4cd0a0
     Reviewed-on: https://go-review.googlesource.com/38734
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/internal/obj/arm/obj5.go   | 4 ++--
  src/cmd/internal/obj/arm64/obj7.go | 4 ++--
  src/cmd/internal/obj/mips/obj0.go  | 4 ++--
  src/cmd/internal/obj/ppc64/obj9.go | 4 ++--
  src/cmd/internal/obj/s390x/objz.go | 4 ++--
  5 files changed, 10 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/internal/obj/arm/obj5.go b/src/cmd/internal/obj/arm/obj5.go
+index 0d798e4400..630a59cc66 100644
+--- a/src/cmd/internal/obj/arm/obj5.go
++++ b/src/cmd/internal/obj/arm/obj5.go
+@@ -747,14 +747,14 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32) *obj.Prog {
+ 		p.Reg = REGSP
+ 	} else if framesize <= obj.StackBig {
+ 		// large stack: SP-framesize < stackguard-StackSmall
+-		//	MOVW $-framesize(SP), R2
++		//	MOVW $-(framesize-StackSmall)(SP), R2
+ 		//	CMP stackguard, R2
+ 		p = obj.Appendp(ctxt, p)
+ 
+ 		p.As = AMOVW
+ 		p.From.Type = obj.TYPE_ADDR
+ 		p.From.Reg = REGSP
+-		p.From.Offset = int64(-framesize)
++		p.From.Offset = -(int64(framesize) - obj.StackSmall)
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = REG_R2
+ 
+diff --git a/src/cmd/internal/obj/arm64/obj7.go b/src/cmd/internal/obj/arm64/obj7.go
+index 2d195b19de..020b6e05c1 100644
+--- a/src/cmd/internal/obj/arm64/obj7.go
++++ b/src/cmd/internal/obj/arm64/obj7.go
+@@ -82,13 +82,13 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32) *obj.Prog {
+ 		p.Reg = REG_R2
+ 	} else if framesize <= obj.StackBig {
+ 		// large stack: SP-framesize < stackguard-StackSmall
+-		//	SUB	$framesize, SP, R2
++		//	SUB	$(framesize-StackSmall), SP, R2
+ 		//	CMP	stackguard, R2
+ 		p = obj.Appendp(ctxt, p)
+ 
+ 		p.As = ASUB
+ 		p.From.Type = obj.TYPE_CONST
+-		p.From.Offset = int64(framesize)
++		p.From.Offset = int64(framesize) - obj.StackSmall
+ 		p.Reg = REGSP
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = REG_R2
+diff --git a/src/cmd/internal/obj/mips/obj0.go b/src/cmd/internal/obj/mips/obj0.go
+index 11434751e2..53f648780a 100644
+--- a/src/cmd/internal/obj/mips/obj0.go
++++ b/src/cmd/internal/obj/mips/obj0.go
+@@ -658,13 +658,13 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32) *obj.Prog {
+ 		p.To.Reg = REG_R1
+ 	} else if framesize <= obj.StackBig {
+ 		// large stack: SP-framesize < stackguard-StackSmall
+-		//	ADD	$-framesize, SP, R2
++		//	ADD	$-(framesize-StackSmall), SP, R2
+ 		//	SGTU	R2, stackguard, R1
+ 		p = obj.Appendp(ctxt, p)
+ 
+ 		p.As = add
+ 		p.From.Type = obj.TYPE_CONST
+-		p.From.Offset = int64(-framesize)
++		p.From.Offset = -(int64(framesize) - obj.StackSmall)
+ 		p.Reg = REGSP
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = REG_R2
+diff --git a/src/cmd/internal/obj/ppc64/obj9.go b/src/cmd/internal/obj/ppc64/obj9.go
+index 5639ec989d..9a3dc4cc72 100644
+--- a/src/cmd/internal/obj/ppc64/obj9.go
++++ b/src/cmd/internal/obj/ppc64/obj9.go
+@@ -868,13 +868,13 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32) *obj.Prog {
+ 		p.To.Reg = REGSP
+ 	} else if framesize <= obj.StackBig {
+ 		// large stack: SP-framesize < stackguard-StackSmall
+-		//	ADD $-framesize, SP, R4
++		//	ADD $-(framesize-StackSmall), SP, R4
+ 		//	CMP stackguard, R4
+ 		p = obj.Appendp(ctxt, p)
+ 
+ 		p.As = AADD
+ 		p.From.Type = obj.TYPE_CONST
+-		p.From.Offset = int64(-framesize)
++		p.From.Offset = -(int64(framesize) - obj.StackSmall)
+ 		p.Reg = REGSP
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = REG_R4
+diff --git a/src/cmd/internal/obj/s390x/objz.go b/src/cmd/internal/obj/s390x/objz.go
+index 3ca6d19f99..f5d9365fe4 100644
+--- a/src/cmd/internal/obj/s390x/objz.go
++++ b/src/cmd/internal/obj/s390x/objz.go
+@@ -586,13 +586,13 @@ func stacksplitPre(ctxt *obj.Link, p *obj.Prog, framesize int32) (*obj.Prog, *ob
+ 
+ 	} else if framesize <= obj.StackBig {
+ 		// large stack: SP-framesize < stackguard-StackSmall
+-		//	ADD $-framesize, SP, R4
++		//	ADD $-(framesize-StackSmall), SP, R4
+ 		//	CMP stackguard, R4
+ 		p = obj.Appendp(ctxt, p)
+ 
+ 		p.As = AADD
+ 		p.From.Type = obj.TYPE_CONST
+-		p.From.Offset = int64(-framesize)
++		p.From.Offset = -(int64(framesize) - obj.StackSmall)
+ 		p.Reg = REGSP
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = REG_R4

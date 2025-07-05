@@ -14,6 +14,20 @@ Date:   Tue Feb 3 09:18:15 2015 -0500
     Change-Id: I84e00fa7e939e9064f0fa0a4a6fe00576dd61457
     Reviewed-on: https://go-review.googlesource.com/3782
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/traceback.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index 4f63502e85..6c87d7e2e4 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -234,7 +234,7 @@ func gentraceback(pc0 uintptr, sp0 uintptr, lr0 uintptr, gp *g, skip int, pcbuf
+ 
+ 		// If framepointer_enabled and there's a frame, then
+ 		// there's a saved bp here.
+-		if GOARCH == "amd64" && frame.varp > frame.sp && framepointer_enabled {
++		if framepointer_enabled && GOARCH == "amd64" && frame.varp > frame.sp {
+ 			frame.varp -= regSize
+ 		}
+ 

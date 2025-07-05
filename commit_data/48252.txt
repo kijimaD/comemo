@@ -10,6 +10,20 @@ Date:   Tue May 4 01:00:37 2021 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/316689
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/strconv/atoi.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/strconv/atoi.go b/src/strconv/atoi.go
+index f6c4efaef6..c9ba0383b3 100644
+--- a/src/strconv/atoi.go
++++ b/src/strconv/atoi.go
+@@ -143,7 +143,7 @@ func ParseUint(s string, base int, bitSize int) (uint64, error) {
+ 
+ 		n1 := n + uint64(d)
+ 		if n1 < n || n1 > maxVal {
+-			// n+v overflows
++			// n+d overflows
+ 			return maxVal, rangeError(fnParseUint, s0)
+ 		}
+ 		n = n1

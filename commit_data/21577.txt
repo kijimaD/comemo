@@ -9,6 +9,19 @@ Date:   Sun Jan 18 16:04:47 2015 -0800
     Change-Id: I3f2ddbd9e66a74eb3f37a2fe641b93820b02229e
     Reviewed-on: https://go-review.googlesource.com/3022
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/dist/buildruntime.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/dist/buildruntime.go b/src/cmd/dist/buildruntime.go
+index c0ec2efbd6..1e6ae82397 100644
+--- a/src/cmd/dist/buildruntime.go
++++ b/src/cmd/dist/buildruntime.go
+@@ -27,6 +27,7 @@ func mkzversion(dir, file string) {
+ 			"\n"+
+ 			"const defaultGoroot = `%s`\n"+
+ 			"const theVersion = `%s`\n"+
++			"\n"+
+ 			"var buildVersion = theVersion\n", goroot_final, goversion)
+ 
+ 	writefile(out, file, 0)

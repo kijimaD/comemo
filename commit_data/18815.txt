@@ -11,7 +11,33 @@ Date:   Mon Mar 10 12:33:45 2014 -0400
     R=golang-codereviews, bradfitz, r
     CC=golang-codereviews
     https://golang.org/cl/72120043
-
+---
  src/pkg/time/format.go    | 3 +++
  src/pkg/time/time_test.go | 1 +
  2 files changed, 4 insertions(+)
+
+diff --git a/src/pkg/time/format.go b/src/pkg/time/format.go
+index 6f92c12626..b9da7ba42a 100644
+--- a/src/pkg/time/format.go
++++ b/src/pkg/time/format.go
+@@ -1240,5 +1240,8 @@ func ParseDuration(s string) (Duration, error) {
+ 	if neg {
+ 		f = -f
+ 	}
++	if f < float64(-1<<63) || f > float64(1<<63-1) {
++		return 0, errors.New("time: overflow parsing duration")
++	}
+ 	return Duration(f), nil
+ }
+diff --git a/src/pkg/time/time_test.go b/src/pkg/time/time_test.go
+index 2615517d9a..4ae7da5a44 100644
+--- a/src/pkg/time/time_test.go
++++ b/src/pkg/time/time_test.go
+@@ -842,6 +842,7 @@ var parseDurationTests = []struct {
+ 	{"-.", false, 0},
+ 	{".s", false, 0},
+ 	{"+.s", false, 0},
++	{"3000000h", false, 0}, // overflow
+ }
+ 
+ func TestParseDuration(t *testing.T) {

@@ -17,7 +17,7 @@ Date:   Tue Feb 3 20:50:58 2015 +0300
     Change-Id: I92c5edd2adca4a7b6fba00713a581bf49dc59afe
     Reviewed-on: https://go-review.googlesource.com/3790
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/gc/builtin.c       |  1 +
  src/cmd/gc/go.h            |  1 +
  src/cmd/gc/order.c         |  4 ++++
@@ -26,3 +26,116 @@ Date:   Tue Feb 3 20:50:58 2015 +0300
  src/runtime/string.go      | 12 ++++++++++++
  src/runtime/string_test.go | 14 ++++++++++++++
  7 files changed, 38 insertions(+)
+
+diff --git a/src/cmd/gc/builtin.c b/src/cmd/gc/builtin.c
+index fcd5685cdc..f154ae70b1 100644
+--- a/src/cmd/gc/builtin.c
++++ b/src/cmd/gc/builtin.c
+@@ -38,6 +38,7 @@ char *runtimeimport =
+ 	"func @\"\".slicebytetostringtmp (? []byte) (? string)\n"
+ 	"func @\"\".slicerunetostring (? []rune) (? string)\n"
+ 	"func @\"\".stringtoslicebyte (? string) (? []byte)\n"
++	"func @\"\".stringtoslicebytetmp (? string) (? []byte)\n"
+ 	"func @\"\".stringtoslicerune (? string) (? []rune)\n"
+ 	"func @\"\".stringiter (? string, ? int) (? int)\n"
+ 	"func @\"\".stringiter2 (? string, ? int) (@\"\".retk·1 int, @\"\".retv·2 rune)\n"
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index da1fd64e86..2aa7838c93 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -467,6 +467,7 @@ enum
+ 	OARRAYBYTESTRTMP, // string(bytes) ephemeral
+ 	OARRAYRUNESTR,	// string(runes)
+ 	OSTRARRAYBYTE,	// []byte(s)
++	OSTRARRAYBYTETMP,	// []byte(s) ephemeral
+ 	OSTRARRAYRUNE,	// []rune(s)
+ 	OAS,	// x = y or x := y
+ 	OAS2,	// x, y, z = xx, yy, zz
+diff --git a/src/cmd/gc/order.c b/src/cmd/gc/order.c
+index 6603efe8d1..255c94a804 100644
+--- a/src/cmd/gc/order.c
++++ b/src/cmd/gc/order.c
+@@ -757,6 +757,10 @@ orderstmt(Node *n, Order *order)
+ 		default:
+ 			fatal("orderstmt range %T", n->type);
+ 		case TARRAY:
++			// Mark []byte(str) range expression to reuse string backing storage.
++			// It is safe because the storage cannot be mutated.
++			if(n->right->op == OSTRARRAYBYTE)
++				n->right->op = OSTRARRAYBYTETMP;
+ 			if(count(n->list) < 2 || isblank(n->list->next->n)) {
+ 				// for i := range x will only use x once, to compute len(x).
+ 				// No need to copy it.
+diff --git a/src/cmd/gc/runtime.go b/src/cmd/gc/runtime.go
+index 1b16ebb9c6..80550f856d 100644
+--- a/src/cmd/gc/runtime.go
++++ b/src/cmd/gc/runtime.go
+@@ -52,6 +52,7 @@ func slicebytetostring(*[32]byte, []byte) string
+ func slicebytetostringtmp([]byte) string
+ func slicerunetostring([]rune) string
+ func stringtoslicebyte(string) []byte
++func stringtoslicebytetmp(string) []byte
+ func stringtoslicerune(string) []rune
+ func stringiter(string, int) int
+ func stringiter2(string, int) (retk int, retv rune)
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 0b190779b1..efb283a1b8 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -1406,6 +1406,11 @@ walkexpr(Node **np, NodeList **init)
+ 		n = mkcall("stringtoslicebyte", n->type, init, conv(n->left, types[TSTRING]));
+ 		goto ret;
+ 
++	case OSTRARRAYBYTETMP:
++		// stringtoslicebytetmp(string) []byte;
++		n = mkcall("stringtoslicebytetmp", n->type, init, conv(n->left, types[TSTRING]));
++		goto ret;
++
+ 	case OSTRARRAYRUNE:
+ 		// stringtoslicerune(string) []rune
+ 		n = mkcall("stringtoslicerune", n->type, init, n->left);
+diff --git a/src/runtime/string.go b/src/runtime/string.go
+index 58198d0e1b..46c3502f77 100644
+--- a/src/runtime/string.go
++++ b/src/runtime/string.go
+@@ -135,6 +135,18 @@ func stringtoslicebyte(s string) []byte {
+ 	return b
+ }
+ 
++func stringtoslicebytetmp(s string) []byte {
++	// Return a slice referring to the actual string bytes.
++	// This is only for use by internal compiler optimizations
++	// that know that the slice won't be mutated.
++	// The only such case today is:
++	// for i, c := range []byte(str)
++
++	str := (*stringStruct)(unsafe.Pointer(&s))
++	ret := slice{array: (*byte)(str.str), len: uint(str.len), cap: uint(str.len)}
++	return *(*[]byte)(unsafe.Pointer(&ret))
++}
++
+ func stringtoslicerune(s string) []rune {
+ 	// two passes.
+ 	// unlike slicerunetostring, no race because strings are immutable.
+diff --git a/src/runtime/string_test.go b/src/runtime/string_test.go
+index 27a44ad645..dfda950bdd 100644
+--- a/src/runtime/string_test.go
++++ b/src/runtime/string_test.go
+@@ -221,3 +221,17 @@ func TestIntStringAllocs(t *testing.T) {
+ 		t.Fatalf("want 0 allocs, got %v", n)
+ 	}
+ }
++
++func TestRangeStringCast(t *testing.T) {
++	s := "abc"
++	n := testing.AllocsPerRun(1000, func() {
++		for i, c := range []byte(s) {
++			if c != s[i] {
++				t.Fatalf("want '%c' at pos %v, got '%c'", s[i], i, c)
++			}
++		}
++	})
++	if n != 0 {
++		t.Fatalf("want 0 allocs, got %v", n)
++	}
++}

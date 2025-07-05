@@ -7,7 +7,37 @@ Date:   Mon Nov 7 16:33:53 2011 +1100
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/5341044
-
+---
  src/pkg/archive/zip/reader.go      | 1 +
  src/pkg/archive/zip/reader_test.go | 6 +++++-
  2 files changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/archive/zip/reader.go b/src/pkg/archive/zip/reader.go
+index b705ebe7ea..cfbe5498a1 100644
+--- a/src/pkg/archive/zip/reader.go
++++ b/src/pkg/archive/zip/reader.go
+@@ -60,6 +60,7 @@ func OpenReader(name string) (*ReadCloser, error) {
+ 		f.Close()
+ 		return nil, err
+ 	}
++	r.f = f
+ 	return r, nil
+ }
+ 
+diff --git a/src/pkg/archive/zip/reader_test.go b/src/pkg/archive/zip/reader_test.go
+index 4d80aab709..ca0b04e2bb 100644
+--- a/src/pkg/archive/zip/reader_test.go
++++ b/src/pkg/archive/zip/reader_test.go
+@@ -98,7 +98,11 @@ func readTestZip(t *testing.T, zt ZipTest) {
+ 	if err == FormatError {
+ 		return
+ 	}
+-	defer z.Close()
++	defer func() {
++		if err := z.Close(); err != nil {
++			t.Errorf("error %q when closing zip file", err)
++		}
++	}()
+ 
+ 	// bail here if no Files expected to be tested
+ 	// (there may actually be files in the zip, but we don't care)

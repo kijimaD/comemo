@@ -14,10 +14,125 @@ Date:   Fri Jun 10 15:46:43 2022 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
-
+---
  src/cmd/go/internal/clean/clean.go            |  3 ++-
  src/cmd/go/internal/load/pkg.go               |  2 +-
  src/cmd/go/internal/modfetch/fetch.go         |  5 +++--
  src/cmd/go/internal/str/path.go               | 18 ++++++++++++++++++
  src/cmd/go/testdata/script/embed_brackets.txt | 18 ++++++++++++++++++
  5 files changed, 42 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/internal/clean/clean.go b/src/cmd/go/internal/clean/clean.go
+index 8564411fb6..019d36490f 100644
+--- a/src/cmd/go/internal/clean/clean.go
++++ b/src/cmd/go/internal/clean/clean.go
+@@ -22,6 +22,7 @@ import (
+ 	"cmd/go/internal/lockedfile"
+ 	"cmd/go/internal/modfetch"
+ 	"cmd/go/internal/modload"
++	"cmd/go/internal/str"
+ 	"cmd/go/internal/work"
+ )
+ 
+@@ -141,7 +142,7 @@ func runClean(ctx context.Context, cmd *base.Command, args []string) {
+ 			// The top cache directory may have been created with special permissions
+ 			// and not something that we want to remove. Also, we'd like to preserve
+ 			// the access log for future analysis, even if the cache is cleared.
+-			subdirs, _ := filepath.Glob(filepath.Join(dir, "[0-9a-f][0-9a-f]"))
++			subdirs, _ := filepath.Glob(filepath.Join(str.QuoteGlob(dir), "[0-9a-f][0-9a-f]"))
+ 			printedErrors := false
+ 			if len(subdirs) > 0 {
+ 				if cfg.BuildN || cfg.BuildX {
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 394a4a4383..fe4a82472d 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -2063,7 +2063,7 @@ func resolveEmbed(pkgdir string, patterns []string) (files []string, pmap map[st
+ 		}
+ 
+ 		// Glob to find matches.
+-		match, err := fsys.Glob(pkgdir + string(filepath.Separator) + filepath.FromSlash(glob))
++		match, err := fsys.Glob(str.QuoteGlob(pkgdir) + string(filepath.Separator) + filepath.FromSlash(glob))
+ 		if err != nil {
+ 			return nil, nil, err
+ 		}
+diff --git a/src/cmd/go/internal/modfetch/fetch.go b/src/cmd/go/internal/modfetch/fetch.go
+index 21d5f54688..a7c8c2c769 100644
+--- a/src/cmd/go/internal/modfetch/fetch.go
++++ b/src/cmd/go/internal/modfetch/fetch.go
+@@ -26,6 +26,7 @@ import (
+ 	"cmd/go/internal/lockedfile"
+ 	"cmd/go/internal/par"
+ 	"cmd/go/internal/robustio"
++	"cmd/go/internal/str"
+ 	"cmd/go/internal/trace"
+ 
+ 	"golang.org/x/mod/module"
+@@ -102,7 +103,7 @@ func download(ctx context.Context, mod module.Version) (dir string, err error) {
+ 	// active.
+ 	parentDir := filepath.Dir(dir)
+ 	tmpPrefix := filepath.Base(dir) + ".tmp-"
+-	if old, err := filepath.Glob(filepath.Join(parentDir, tmpPrefix+"*")); err == nil {
++	if old, err := filepath.Glob(filepath.Join(str.QuoteGlob(parentDir), str.QuoteGlob(tmpPrefix)+"*")); err == nil {
+ 		for _, path := range old {
+ 			RemoveAll(path) // best effort
+ 		}
+@@ -224,7 +225,7 @@ func downloadZip(ctx context.Context, mod module.Version, zipfile string) (err e
+ 	// This is only safe to do because the lock file ensures that their
+ 	// writers are no longer active.
+ 	tmpPattern := filepath.Base(zipfile) + "*.tmp"
+-	if old, err := filepath.Glob(filepath.Join(filepath.Dir(zipfile), tmpPattern)); err == nil {
++	if old, err := filepath.Glob(filepath.Join(str.QuoteGlob(filepath.Dir(zipfile)), tmpPattern)); err == nil {
+ 		for _, path := range old {
+ 			os.Remove(path) // best effort
+ 		}
+diff --git a/src/cmd/go/internal/str/path.go b/src/cmd/go/internal/str/path.go
+index a69e171f8c..c165b91785 100644
+--- a/src/cmd/go/internal/str/path.go
++++ b/src/cmd/go/internal/str/path.go
+@@ -66,3 +66,21 @@ func TrimFilePathPrefix(s, prefix string) string {
+ 	}
+ 	return trimmed[1:]
+ }
++
++// QuoteGlob returns s with all Glob metacharacters quoted.
++// We don't try to handle backslash here, as that can appear in a
++// file path on Windows.
++func QuoteGlob(s string) string {
++	if !strings.ContainsAny(s, `*?[]`) {
++		return s
++	}
++	var sb strings.Builder
++	for _, c := range s {
++		switch c {
++		case '*', '?', '[', ']':
++			sb.WriteByte('\\')
++		}
++		sb.WriteRune(c)
++	}
++	return sb.String()
++}
+diff --git a/src/cmd/go/testdata/script/embed_brackets.txt b/src/cmd/go/testdata/script/embed_brackets.txt
+new file mode 100644
+index 0000000000..7093a8497e
+--- /dev/null
++++ b/src/cmd/go/testdata/script/embed_brackets.txt
+@@ -0,0 +1,18 @@
++# issue 53314
++[windows] skip
++cd [pkg]
++go build
++
++-- [pkg]/go.mod --
++module m
++
++go 1.19
++-- [pkg]/x.go --
++package p
++
++import _ "embed"
++
++//go:embed t.txt
++var S string
++
++-- [pkg]//t.txt --

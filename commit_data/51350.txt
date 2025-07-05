@@ -31,9 +31,123 @@ Date:   Mon Dec 13 17:32:07 2021 -0500
     Run-TryBot: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/dist/metadata.go           | 24 ++++++++++++++++++++++++
  src/cmd/dist/metadata_bootstrap.go | 21 +++++++++++++++++++++
  src/cmd/dist/sys_windows.go        |  6 +++---
  src/cmd/dist/test.go               | 19 +++++++++++++++++++
  4 files changed, 67 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/dist/metadata.go b/src/cmd/dist/metadata.go
+new file mode 100644
+index 0000000000..f0a125fb8a
+--- /dev/null
++++ b/src/cmd/dist/metadata.go
+@@ -0,0 +1,24 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Helper to print system metadata (CPU model, etc). This uses packages that
++// may not be available in the bootstrap toolchain. It only needs to be built
++// on the dist build using the final toolchain.
++
++//go:build go1.18
++// +build go1.18
++
++package main
++
++import (
++	"fmt"
++	"internal/sysinfo"
++	"runtime"
++)
++
++func logMetadata() error {
++	fmt.Printf("# GOARCH: %s\n", runtime.GOARCH)
++	fmt.Printf("# CPU: %s\n", sysinfo.CPU.Name())
++	return nil
++}
+diff --git a/src/cmd/dist/metadata_bootstrap.go b/src/cmd/dist/metadata_bootstrap.go
+new file mode 100644
+index 0000000000..fe5f422b0b
+--- /dev/null
++++ b/src/cmd/dist/metadata_bootstrap.go
+@@ -0,0 +1,21 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// No-op metadata implementation when building with an old bootstrap toolchain.
++
++//go:build !go1.18
++// +build !go1.18
++
++package main
++
++import (
++	"fmt"
++)
++
++func logMetadata() error {
++	// We don't return an error so we don't completely preclude running
++	// tests with a bootstrap dist.
++	fmt.Printf("# Metadata unavailable: bootstrap build\n")
++	return nil
++}
+diff --git a/src/cmd/dist/sys_windows.go b/src/cmd/dist/sys_windows.go
+index 265f729d0f..0fb66ad27d 100644
+--- a/src/cmd/dist/sys_windows.go
++++ b/src/cmd/dist/sys_windows.go
+@@ -38,11 +38,11 @@ const (
+ 	PROCESSOR_ARCHITECTURE_IA64  = 6
+ )
+ 
+-var sysinfo systeminfo
++var winsysinfo systeminfo
+ 
+ func sysinit() {
+-	syscall.Syscall(procGetSystemInfo.Addr(), 1, uintptr(unsafe.Pointer(&sysinfo)), 0, 0)
+-	switch sysinfo.wProcessorArchitecture {
++	syscall.Syscall(procGetSystemInfo.Addr(), 1, uintptr(unsafe.Pointer(&winsysinfo)), 0, 0)
++	switch winsysinfo.wProcessorArchitecture {
+ 	case PROCESSOR_ARCHITECTURE_AMD64:
+ 		gohostarch = "amd64"
+ 	case PROCESSOR_ARCHITECTURE_INTEL:
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 50a2e5936c..fed83120ed 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -218,6 +218,15 @@ func (t *tester) run() {
+ 		}
+ 	}
+ 
++	if err := t.maybeLogMetadata(); err != nil {
++		t.failed = true
++		if t.keepGoing {
++			log.Printf("Failed logging metadata: %v", err)
++		} else {
++			fatalf("Failed logging metadata: %v", err)
++		}
++	}
++
+ 	for _, dt := range t.tests {
+ 		if !t.shouldRunTest(dt.name) {
+ 			t.partial = true
+@@ -268,6 +277,16 @@ func (t *tester) shouldRunTest(name string) bool {
+ 	return false
+ }
+ 
++func (t *tester) maybeLogMetadata() error {
++	if t.compileOnly {
++		// We need to run a subprocess to log metadata. Don't do that
++		// on compile-only runs.
++		return nil
++	}
++	t.out("Test execution environment.")
++	return logMetadata()
++}
++
+ // short returns a -short flag value to use with 'go test'
+ // or a test binary for tests intended to run in short mode.
+ // It returns "true", unless the environment variable

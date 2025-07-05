@@ -20,7 +20,7 @@ Date:   Wed Jun 9 14:29:20 2021 -0400
     Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: David Chase <drchase@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/amd64/ggen.go       | 10 ----------
  src/cmd/compile/internal/amd64/ssa.go        | 12 ++++++------
  src/cmd/compile/internal/ssa/config.go       |  2 +-
@@ -38,3 +38,493 @@ Date:   Wed Jun 9 14:29:20 2021 -0400
  src/runtime/sys_linux_amd64.s                | 10 ----------
  src/runtime/time_linux_amd64.s               | 10 ----------
  16 files changed, 13 insertions(+), 122 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/ggen.go b/src/cmd/compile/internal/amd64/ggen.go
+index 1484ad5404..b8dce81a92 100644
+--- a/src/cmd/compile/internal/amd64/ggen.go
++++ b/src/cmd/compile/internal/amd64/ggen.go
+@@ -57,7 +57,6 @@ func dzDI(b int64) int64 {
+ func zerorange(pp *objw.Progs, p *obj.Prog, off, cnt int64, state *uint32) *obj.Prog {
+ 	const (
+ 		r13 = 1 << iota // if R13 is already zeroed.
+-		x15             // if X15 is already zeroed. Note: in new ABI, X15 is always zero.
+ 	)
+ 
+ 	if cnt == 0 {
+@@ -85,11 +84,6 @@ func zerorange(pp *objw.Progs, p *obj.Prog, off, cnt int64, state *uint32) *obj.
+ 		}
+ 		p = pp.Append(p, x86.AMOVQ, obj.TYPE_REG, x86.REG_R13, 0, obj.TYPE_MEM, x86.REG_SP, off)
+ 	} else if !isPlan9 && cnt <= int64(8*types.RegSize) {
+-		if !buildcfg.Experiment.RegabiG && *state&x15 == 0 {
+-			p = pp.Append(p, x86.AXORPS, obj.TYPE_REG, x86.REG_X15, 0, obj.TYPE_REG, x86.REG_X15, 0)
+-			*state |= x15
+-		}
+-
+ 		for i := int64(0); i < cnt/16; i++ {
+ 			p = pp.Append(p, x86.AMOVUPS, obj.TYPE_REG, x86.REG_X15, 0, obj.TYPE_MEM, x86.REG_SP, off+i*16)
+ 		}
+@@ -98,10 +92,6 @@ func zerorange(pp *objw.Progs, p *obj.Prog, off, cnt int64, state *uint32) *obj.
+ 			p = pp.Append(p, x86.AMOVUPS, obj.TYPE_REG, x86.REG_X15, 0, obj.TYPE_MEM, x86.REG_SP, off+cnt-int64(16))
+ 		}
+ 	} else if !isPlan9 && (cnt <= int64(128*types.RegSize)) {
+-		if !buildcfg.Experiment.RegabiG && *state&x15 == 0 {
+-			p = pp.Append(p, x86.AXORPS, obj.TYPE_REG, x86.REG_X15, 0, obj.TYPE_REG, x86.REG_X15, 0)
+-			*state |= x15
+-		}
+ 		// Save DI to r12. With the amd64 Go register abi, DI can contain
+ 		// an incoming parameter, whereas R12 is always scratch.
+ 		p = pp.Append(p, x86.AMOVQ, obj.TYPE_REG, x86.REG_DI, 0, obj.TYPE_REG, x86.REG_R12, 0)
+diff --git a/src/cmd/compile/internal/amd64/ssa.go b/src/cmd/compile/internal/amd64/ssa.go
+index c27a5fe5b5..30dba057d0 100644
+--- a/src/cmd/compile/internal/amd64/ssa.go
++++ b/src/cmd/compile/internal/amd64/ssa.go
+@@ -823,7 +823,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p.To.Reg = v.Args[0].Reg()
+ 		ssagen.AddAux2(&p.To, v, sc.Off64())
+ 	case ssa.OpAMD64MOVOstorezero:
+-		if !buildcfg.Experiment.RegabiG || s.ABI != obj.ABIInternal {
++		if s.ABI != obj.ABIInternal {
+ 			// zero X15 manually
+ 			opregreg(s, x86.AXORPS, x86.REG_X15, x86.REG_X15)
+ 		}
+@@ -914,7 +914,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg()
+ 	case ssa.OpAMD64DUFFZERO:
+-		if !buildcfg.Experiment.RegabiG || s.ABI != obj.ABIInternal {
++		if s.ABI != obj.ABIInternal {
+ 			// zero X15 manually
+ 			opregreg(s, x86.AXORPS, x86.REG_X15, x86.REG_X15)
+ 		}
+@@ -997,13 +997,13 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		// Closure pointer is DX.
+ 		ssagen.CheckLoweredGetClosurePtr(v)
+ 	case ssa.OpAMD64LoweredGetG:
+-		if buildcfg.Experiment.RegabiG && s.ABI == obj.ABIInternal {
++		if s.ABI == obj.ABIInternal {
+ 			v.Fatalf("LoweredGetG should not appear in ABIInternal")
+ 		}
+ 		r := v.Reg()
+ 		getgFromTLS(s, r)
+ 	case ssa.OpAMD64CALLstatic:
+-		if buildcfg.Experiment.RegabiG && s.ABI == obj.ABI0 && v.Aux.(*ssa.AuxCall).Fn.ABI() == obj.ABIInternal {
++		if s.ABI == obj.ABI0 && v.Aux.(*ssa.AuxCall).Fn.ABI() == obj.ABIInternal {
+ 			// zeroing X15 when entering ABIInternal from ABI0
+ 			if buildcfg.GOOS != "plan9" { // do not use SSE on Plan 9
+ 				opregreg(s, x86.AXORPS, x86.REG_X15, x86.REG_X15)
+@@ -1012,7 +1012,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 			getgFromTLS(s, x86.REG_R14)
+ 		}
+ 		s.Call(v)
+-		if buildcfg.Experiment.RegabiG && s.ABI == obj.ABIInternal && v.Aux.(*ssa.AuxCall).Fn.ABI() == obj.ABI0 {
++		if s.ABI == obj.ABIInternal && v.Aux.(*ssa.AuxCall).Fn.ABI() == obj.ABI0 {
+ 			// zeroing X15 when entering ABIInternal from ABI0
+ 			if buildcfg.GOOS != "plan9" { // do not use SSE on Plan 9
+ 				opregreg(s, x86.AXORPS, x86.REG_X15, x86.REG_X15)
+@@ -1308,7 +1308,7 @@ func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
+ 	case ssa.BlockRet:
+ 		s.Prog(obj.ARET)
+ 	case ssa.BlockRetJmp:
+-		if buildcfg.Experiment.RegabiG && s.ABI == obj.ABI0 && b.Aux.(*obj.LSym).ABI() == obj.ABIInternal {
++		if s.ABI == obj.ABI0 && b.Aux.(*obj.LSym).ABI() == obj.ABIInternal {
+ 			// zeroing X15 when entering ABIInternal from ABI0
+ 			if buildcfg.GOOS != "plan9" { // do not use SSE on Plan 9
+ 				opregreg(s, x86.AXORPS, x86.REG_X15, x86.REG_X15)
+diff --git a/src/cmd/compile/internal/ssa/config.go b/src/cmd/compile/internal/ssa/config.go
+index 7d680304c9..61c65f9e54 100644
+--- a/src/cmd/compile/internal/ssa/config.go
++++ b/src/cmd/compile/internal/ssa/config.go
+@@ -196,7 +196,7 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize bool) *Config
+ 		c.floatParamRegs = paramFloatRegAMD64
+ 		c.FPReg = framepointerRegAMD64
+ 		c.LinkReg = linkRegAMD64
+-		c.hasGReg = buildcfg.Experiment.RegabiG
++		c.hasGReg = true
+ 	case "386":
+ 		c.PtrSize = 4
+ 		c.RegSize = 4
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index 4cd00732fc..45c0238317 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -460,7 +460,7 @@
+ (IsInBounds idx len) => (SETB (CMPQ idx len))
+ (IsSliceInBounds idx len) => (SETBE (CMPQ idx len))
+ (NilCheck ...) => (LoweredNilCheck ...)
+-(GetG mem) && !(buildcfg.Experiment.RegabiG && v.Block.Func.OwnAux.Fn.ABI() == obj.ABIInternal) => (LoweredGetG mem) // only lower in old ABI. in new ABI we have a G register.
++(GetG mem) && v.Block.Func.OwnAux.Fn.ABI() != obj.ABIInternal => (LoweredGetG mem) // only lower in old ABI. in new ABI we have a G register.
+ (GetClosurePtr ...) => (LoweredGetClosurePtr ...)
+ (GetCallerPC ...) => (LoweredGetCallerPC ...)
+ (GetCallerSP ...) => (LoweredGetCallerSP ...)
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 5045ba7351..89d32c0657 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -3,7 +3,6 @@
+ 
+ package ssa
+ 
+-import "internal/buildcfg"
+ import "math"
+ import "cmd/internal/obj"
+ import "cmd/compile/internal/types"
+@@ -29339,11 +29338,11 @@ func rewriteValueAMD64_OpFloor(v *Value) bool {
+ func rewriteValueAMD64_OpGetG(v *Value) bool {
+ 	v_0 := v.Args[0]
+ 	// match: (GetG mem)
+-	// cond: !(buildcfg.Experiment.RegabiG && v.Block.Func.OwnAux.Fn.ABI() == obj.ABIInternal)
++	// cond: v.Block.Func.OwnAux.Fn.ABI() != obj.ABIInternal
+ 	// result: (LoweredGetG mem)
+ 	for {
+ 		mem := v_0
+-		if !(!(buildcfg.Experiment.RegabiG && v.Block.Func.OwnAux.Fn.ABI() == obj.ABIInternal)) {
++		if !(v.Block.Func.OwnAux.Fn.ABI() != obj.ABIInternal) {
+ 			break
+ 		}
+ 		v.reset(OpAMD64LoweredGetG)
+diff --git a/src/cmd/internal/obj/x86/obj6.go b/src/cmd/internal/obj/x86/obj6.go
+index e2732d53e3..183ca2ebe9 100644
+--- a/src/cmd/internal/obj/x86/obj6.go
++++ b/src/cmd/internal/obj/x86/obj6.go
+@@ -35,7 +35,6 @@ import (
+ 	"cmd/internal/objabi"
+ 	"cmd/internal/src"
+ 	"cmd/internal/sys"
+-	"internal/buildcfg"
+ 	"log"
+ 	"math"
+ 	"path"
+@@ -647,13 +646,12 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 
+ 	var regg int16
+ 	if !p.From.Sym.NoSplit() || p.From.Sym.Wrapper() {
+-		if ctxt.Arch.Family == sys.AMD64 && buildcfg.Experiment.RegabiG && cursym.ABI() == obj.ABIInternal {
++		if ctxt.Arch.Family == sys.AMD64 && cursym.ABI() == obj.ABIInternal {
+ 			regg = REGG // use the g register directly in ABIInternal
+ 		} else {
+ 			p = obj.Appendp(p, newprog)
+ 			regg = REG_CX
+ 			if ctxt.Arch.Family == sys.AMD64 {
+-				// Using this register means that stacksplit works w/ //go:registerparams even when !buildcfg.Experiment.RegabiG
+ 				regg = REGG // == REG_R14
+ 			}
+ 			p = load_g(ctxt, p, newprog, regg) // load g into regg
+diff --git a/src/internal/buildcfg/exp.go b/src/internal/buildcfg/exp.go
+index b3f3de62a8..e78f987999 100644
+--- a/src/internal/buildcfg/exp.go
++++ b/src/internal/buildcfg/exp.go
+@@ -28,7 +28,6 @@ var regabiDeveloping = false
+ // configuration and any variation from this is an experiment.
+ var experimentBaseline = goexperiment.Flags{
+ 	RegabiWrappers: regabiSupported,
+-	RegabiG:        regabiSupported,
+ 	RegabiReflect:  regabiSupported,
+ 	RegabiArgs:     regabiSupported,
+ }
+@@ -67,7 +66,6 @@ func parseExperiments() goexperiment.Flags {
+ 		// do the right thing.
+ 		names["regabi"] = func(v bool) {
+ 			flags.RegabiWrappers = v
+-			flags.RegabiG = v
+ 			flags.RegabiReflect = v
+ 			flags.RegabiArgs = v
+ 		}
+@@ -104,16 +102,12 @@ func parseExperiments() goexperiment.Flags {
+ 	// regabi is only supported on amd64 and arm64.
+ 	if GOARCH != "amd64" && GOARCH != "arm64" {
+ 		flags.RegabiWrappers = false
+-		flags.RegabiG = false
+ 		flags.RegabiReflect = false
+ 		flags.RegabiArgs = false
+ 	}
+ 	// Check regabi dependencies.
+-	if flags.RegabiG && !flags.RegabiWrappers {
+-		Error = fmt.Errorf("GOEXPERIMENT regabig requires regabiwrappers")
+-	}
+-	if flags.RegabiArgs && !(flags.RegabiWrappers && flags.RegabiG && flags.RegabiReflect) {
+-		Error = fmt.Errorf("GOEXPERIMENT regabiargs requires regabiwrappers,regabig,regabireflect")
++	if flags.RegabiArgs && !(flags.RegabiWrappers && flags.RegabiReflect) {
++		Error = fmt.Errorf("GOEXPERIMENT regabiargs requires regabiwrappers,regabireflect")
+ 	}
+ 	return flags
+ }
+diff --git a/src/internal/goexperiment/exp_regabig_off.go b/src/internal/goexperiment/exp_regabig_off.go
+deleted file mode 100644
+index 1b37d45186..0000000000
+--- a/src/internal/goexperiment/exp_regabig_off.go
++++ /dev/null
+@@ -1,9 +0,0 @@
+-// Code generated by mkconsts.go. DO NOT EDIT.
+-
+-//go:build !goexperiment.regabig
+-// +build !goexperiment.regabig
+-
+-package goexperiment
+-
+-const RegabiG = false
+-const RegabiGInt = 0
+diff --git a/src/internal/goexperiment/exp_regabig_on.go b/src/internal/goexperiment/exp_regabig_on.go
+deleted file mode 100644
+index 7e5b162e0b..0000000000
+--- a/src/internal/goexperiment/exp_regabig_on.go
++++ /dev/null
+@@ -1,9 +0,0 @@
+-// Code generated by mkconsts.go. DO NOT EDIT.
+-
+-//go:build goexperiment.regabig
+-// +build goexperiment.regabig
+-
+-package goexperiment
+-
+-const RegabiG = true
+-const RegabiGInt = 1
+diff --git a/src/internal/goexperiment/flags.go b/src/internal/goexperiment/flags.go
+index c20dbcd9f5..71e38cd047 100644
+--- a/src/internal/goexperiment/flags.go
++++ b/src/internal/goexperiment/flags.go
+@@ -68,11 +68,6 @@ type Flags struct {
+ 	// ABI0 and ABIInternal functions. Without this, the ABIs are
+ 	// assumed to be identical so cross-ABI calls are direct.
+ 	RegabiWrappers bool
+-	// RegabiG enables dedicated G and zero registers in
+-	// ABIInternal.
+-	//
+-	// Requires wrappers because it makes the ABIs incompatible.
+-	RegabiG bool
+ 	// RegabiReflect enables the register-passing paths in
+ 	// reflection calls. This is also gated by intArgRegs in
+ 	// reflect and runtime (which are disabled by default) so it
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index f8f5fc62e6..50ffa30ac5 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -683,10 +683,6 @@ TEXT runtime·jmpdefer(SB), NOSPLIT, $0-16
+ // or else unwinding from systemstack_switch is incorrect.
+ // Smashes R9.
+ TEXT gosave_systemstack_switch<>(SB),NOSPLIT,$0
+-#ifndef GOEXPERIMENT_regabig
+-	get_tls(R14)
+-	MOVQ	g(R14), R14
+-#endif
+ 	MOVQ	$runtime·systemstack_switch(SB), R9
+ 	MOVQ	R9, (g_sched+gobuf_pc)(R14)
+ 	LEAQ	8(SP), R9
+@@ -1284,10 +1280,8 @@ aes65to128:
+ 	PXOR	X10, X8
+ 	PXOR	X11, X9
+ 	PXOR	X9, X8
+-#ifdef GOEXPERIMENT_regabig
+ 	// X15 must be zero on return
+ 	PXOR	X15, X15
+-#endif
+ #ifdef GOEXPERIMENT_regabiargs
+ 	MOVQ	X8, AX	// return X8
+ #else
+@@ -1408,10 +1402,8 @@ aesloop:
+ 	PXOR	X10, X8
+ 	PXOR	X11, X9
+ 	PXOR	X9, X8
+-#ifdef GOEXPERIMENT_regabig
+ 	// X15 must be zero on return
+ 	PXOR	X15, X15
+-#endif
+ #ifdef GOEXPERIMENT_regabiargs
+ 	MOVQ	X8, AX	// return X8
+ #else
+@@ -1595,12 +1587,10 @@ TEXT runtime·addmoduledata(SB),NOSPLIT,$0-0
+ // signals. It is quite painful to set X15 in the signal context,
+ // so we do it here.
+ TEXT ·sigpanic0(SB),NOSPLIT,$0-0
+-#ifdef GOEXPERIMENT_regabig
+ 	get_tls(R14)
+ 	MOVQ	g(R14), R14
+ #ifndef GOOS_plan9
+ 	XORPS	X15, X15
+-#endif
+ #endif
+ 	JMP	·sigpanic<ABIInternal>(SB)
+ 
+@@ -1619,13 +1609,7 @@ TEXT runtime·gcWriteBarrier<ABIInternal>(SB),NOSPLIT,$112
+ 	MOVQ	R13, 104(SP)
+ 	// TODO: Consider passing g.m.p in as an argument so they can be shared
+ 	// across a sequence of write barriers.
+-#ifdef GOEXPERIMENT_regabig
+ 	MOVQ	g_m(R14), R13
+-#else
+-	get_tls(R13)
+-	MOVQ	g(R13), R13
+-	MOVQ	g_m(R13), R13
+-#endif
+ 	MOVQ	m_p(R13), R13
+ 	MOVQ	(p_wbBuf+wbBuf_next)(R13), R12
+ 	// Increment wbBuf.next position.
+diff --git a/src/runtime/memclr_amd64.s b/src/runtime/memclr_amd64.s
+index a10f57bd8c..6c78869f4c 100644
+--- a/src/runtime/memclr_amd64.s
++++ b/src/runtime/memclr_amd64.s
+@@ -37,9 +37,6 @@ tail:
+ 	JE	_8
+ 	CMPQ	BX, $16
+ 	JBE	_9through16
+-#ifndef GOEXPERIMENT_regabig
+-	PXOR	X15, X15
+-#endif
+ 	CMPQ	BX, $32
+ 	JBE	_17through32
+ 	CMPQ	BX, $64
+diff --git a/src/runtime/memmove_amd64.s b/src/runtime/memmove_amd64.s
+index 24c6529f58..af538d4bce 100644
+--- a/src/runtime/memmove_amd64.s
++++ b/src/runtime/memmove_amd64.s
+@@ -254,10 +254,8 @@ move_129through256:
+ 	MOVOU	X13, -48(DI)(BX*1)
+ 	MOVOU	X14, -32(DI)(BX*1)
+ 	MOVOU	X15, -16(DI)(BX*1)
+-#ifdef GOEXPERIMENT_regabig
+ 	// X15 must be zero on return
+ 	PXOR	X15, X15
+-#endif
+ 	RET
+ move_256through2048:
+ 	SUBQ	$256, BX
+@@ -297,10 +295,8 @@ move_256through2048:
+ 	LEAQ	256(SI), SI
+ 	LEAQ	256(DI), DI
+ 	JGE	move_256through2048
+-#ifdef GOEXPERIMENT_regabig
+ 	// X15 must be zero on return
+ 	PXOR	X15, X15
+-#endif
+ 	JMP	tail
+ 
+ avxUnaligned:
+diff --git a/src/runtime/race_amd64.s b/src/runtime/race_amd64.s
+index 469623ff20..8a17113232 100644
+--- a/src/runtime/race_amd64.s
++++ b/src/runtime/race_amd64.s
+@@ -161,10 +161,6 @@ TEXT	runtime·racewriterangepc1(SB), NOSPLIT, $0-24
+ // If addr (RARG1) is out of range, do nothing.
+ // Otherwise, setup goroutine context and invoke racecall. Other arguments already set.
+ TEXT	racecalladdr<>(SB), NOSPLIT, $0-0
+-#ifndef GOEXPERIMENT_regabig
+-	get_tls(R12)
+-	MOVQ	g(R12), R14
+-#endif
+ 	MOVQ	g_racectx(R14), RARG0	// goroutine context
+ 	// Check that addr is within [arenastart, arenaend) or within [racedatastart, racedataend).
+ 	CMPQ	RARG1, runtime·racearenastart(SB)
+@@ -192,10 +188,6 @@ TEXT	runtime·racefuncenter(SB), NOSPLIT, $0-8
+ // R11 = caller's return address
+ TEXT	racefuncenter<>(SB), NOSPLIT, $0-0
+ 	MOVQ	DX, BX		// save function entry context (for closures)
+-#ifndef GOEXPERIMENT_regabig
+-	get_tls(R12)
+-	MOVQ	g(R12), R14
+-#endif
+ 	MOVQ	g_racectx(R14), RARG0	// goroutine context
+ 	MOVQ	R11, RARG1
+ 	// void __tsan_func_enter(ThreadState *thr, void *pc);
+@@ -208,10 +200,6 @@ TEXT	racefuncenter<>(SB), NOSPLIT, $0-0
+ // func runtime·racefuncexit()
+ // Called from instrumented code.
+ TEXT	runtime·racefuncexit(SB), NOSPLIT, $0-0
+-#ifndef GOEXPERIMENT_regabig
+-	get_tls(R12)
+-	MOVQ	g(R12), R14
+-#endif
+ 	MOVQ	g_racectx(R14), RARG0	// goroutine context
+ 	// void __tsan_func_exit(ThreadState *thr);
+ 	MOVQ	$__tsan_func_exit(SB), AX
+@@ -370,10 +358,6 @@ racecallatomic_data:
+ 	JAE	racecallatomic_ignore
+ racecallatomic_ok:
+ 	// Addr is within the good range, call the atomic function.
+-#ifndef GOEXPERIMENT_regabig
+-	get_tls(R12)
+-	MOVQ	g(R12), R14
+-#endif
+ 	MOVQ	g_racectx(R14), RARG0	// goroutine context
+ 	MOVQ	8(SP), RARG1	// caller pc
+ 	MOVQ	(SP), RARG2	// pc
+@@ -385,10 +369,6 @@ racecallatomic_ignore:
+ 	// An attempt to synchronize on the address would cause crash.
+ 	MOVQ	AX, BX	// remember the original function
+ 	MOVQ	$__tsan_go_ignore_sync_begin(SB), AX
+-#ifndef GOEXPERIMENT_regabig
+-	get_tls(R12)
+-	MOVQ	g(R12), R14
+-#endif
+ 	MOVQ	g_racectx(R14), RARG0	// goroutine context
+ 	CALL	racecall<>(SB)
+ 	MOVQ	BX, AX	// restore the original function
+@@ -416,10 +396,6 @@ TEXT	runtime·racecall(SB), NOSPLIT, $0-0
+ 
+ // Switches SP to g0 stack and calls (AX). Arguments already set.
+ TEXT	racecall<>(SB), NOSPLIT, $0-0
+-#ifndef GOEXPERIMENT_regabig
+-	get_tls(R12)
+-	MOVQ	g(R12), R14
+-#endif
+ 	MOVQ	g_m(R14), R13
+ 	// Switch to g0 stack.
+ 	MOVQ	SP, R12		// callee-saved, preserved across the CALL
+diff --git a/src/runtime/sys_linux_amd64.s b/src/runtime/sys_linux_amd64.s
+index f22b7ad928..64ddc2354e 100644
+--- a/src/runtime/sys_linux_amd64.s
++++ b/src/runtime/sys_linux_amd64.s
+@@ -215,13 +215,7 @@ TEXT runtime·nanotime1(SB),NOSPLIT,$16-8
+ 
+ 	MOVQ	SP, R12	// Save old SP; R12 unchanged by C code.
+ 
+-#ifdef GOEXPERIMENT_regabig
+ 	MOVQ	g_m(R14), BX // BX unchanged by C code.
+-#else
+-	get_tls(CX)
+-	MOVQ	g(CX), AX
+-	MOVQ	g_m(AX), BX // BX unchanged by C code.
+-#endif
+ 
+ 	// Set vdsoPC and vdsoSP for SIGPROF traceback.
+ 	// Save the old values on stack and restore them on exit,
+@@ -236,11 +230,7 @@ TEXT runtime·nanotime1(SB),NOSPLIT,$16-8
+ 	MOVQ	CX, m_vdsoPC(BX)
+ 	MOVQ	DX, m_vdsoSP(BX)
+ 
+-#ifdef GOEXPERIMENT_regabig
+ 	CMPQ	R14, m_curg(BX)	// Only switch if on curg.
+-#else
+-	CMPQ	AX, m_curg(BX)	// Only switch if on curg.
+-#endif
+ 	JNE	noswitch
+ 
+ 	MOVQ	m_g0(BX), DX
+diff --git a/src/runtime/time_linux_amd64.s b/src/runtime/time_linux_amd64.s
+index 0dd7919896..c88e92bd0c 100644
+--- a/src/runtime/time_linux_amd64.s
++++ b/src/runtime/time_linux_amd64.s
+@@ -15,13 +15,7 @@
+ TEXT time·now(SB),NOSPLIT,$16-24
+ 	MOVQ	SP, R12 // Save old SP; R12 unchanged by C code.
+ 
+-#ifdef GOEXPERIMENT_regabig
+ 	MOVQ	g_m(R14), BX // BX unchanged by C code.
+-#else
+-	get_tls(CX)
+-	MOVQ	g(CX), AX
+-	MOVQ	g_m(AX), BX // BX unchanged by C code.
+-#endif
+ 
+ 	// Store CLOCK_REALTIME results directly to return space.
+ 	LEAQ	sec+0(FP), SI
+@@ -38,11 +32,7 @@ TEXT time·now(SB),NOSPLIT,$16-24
+ 	MOVQ	CX, m_vdsoPC(BX)
+ 	MOVQ	SI, m_vdsoSP(BX)
+ 
+-#ifdef GOEXPERIMENT_regabig
+ 	CMPQ	R14, m_curg(BX)	// Only switch if on curg.
+-#else
+-	CMPQ	AX, m_curg(BX)	// Only switch if on curg.
+-#endif
+ 	JNE	noswitch
+ 
+ 	MOVQ	m_g0(BX), DX

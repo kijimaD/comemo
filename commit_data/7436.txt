@@ -7,6 +7,25 @@ Date:   Fri Feb 11 08:30:34 2011 -0500
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/4174045
-
+---
  src/pkg/os/inotify/inotify_linux.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/os/inotify/inotify_linux.go b/src/pkg/os/inotify/inotify_linux.go
+index 9d7a074424..96c229e7b7 100644
+--- a/src/pkg/os/inotify/inotify_linux.go
++++ b/src/pkg/os/inotify/inotify_linux.go
+@@ -8,11 +8,11 @@ This package implements a wrapper for the Linux inotify system.
+ Example:
+     watcher, err := inotify.NewWatcher()
+     if err != nil {
+-        log.Exit(err)
++        log.Fatal(err)
+     }
+     err = watcher.Watch("/tmp")
+     if err != nil {
+-        log.Exit(err)
++        log.Fatal(err)
+     }
+     for {
+         select {

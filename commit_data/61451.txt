@@ -15,10 +15,217 @@ Date:   Tue Nov 5 17:21:57 2024 +0800
     Auto-Submit: Keith Randall <khr@golang.org>
     Reviewed-by: Michael Pratt <mpratt@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  .../compile/internal/reflectdata/map_noswiss.go    | 14 +++++---
  src/reflect/map_noswiss.go                         |  1 +
  src/runtime/map_noswiss.go                         | 28 +++++-----------
  src/runtime/map_noswiss_test.go                    |  4 +--
  test/fixedbugs/issue70189.go                       | 38 ++++++++++++++++++++++
  5 files changed, 58 insertions(+), 27 deletions(-)
+
+diff --git a/src/cmd/compile/internal/reflectdata/map_noswiss.go b/src/cmd/compile/internal/reflectdata/map_noswiss.go
+index 07d0bb9049..a6fab4cbac 100644
+--- a/src/cmd/compile/internal/reflectdata/map_noswiss.go
++++ b/src/cmd/compile/internal/reflectdata/map_noswiss.go
+@@ -155,6 +155,7 @@ func OldMapType() *types.Type {
+ 	//    buckets    unsafe.Pointer
+ 	//    oldbuckets unsafe.Pointer
+ 	//    nevacuate  uintptr
++	//    clearSeq   uint64
+ 	//    extra      unsafe.Pointer // *mapextra
+ 	// }
+ 	// must match runtime/map.go:hmap.
+@@ -167,6 +168,7 @@ func OldMapType() *types.Type {
+ 		makefield("buckets", types.Types[types.TUNSAFEPTR]), // Used in walk.go for OMAKEMAP.
+ 		makefield("oldbuckets", types.Types[types.TUNSAFEPTR]),
+ 		makefield("nevacuate", types.Types[types.TUINTPTR]),
++		makefield("clearSeq", types.Types[types.TUINT64]),
+ 		makefield("extra", types.Types[types.TUNSAFEPTR]),
+ 	}
+ 
+@@ -178,9 +180,9 @@ func OldMapType() *types.Type {
+ 	hmap.SetUnderlying(types.NewStruct(fields))
+ 	types.CalcSize(hmap)
+ 
+-	// The size of hmap should be 48 bytes on 64 bit
+-	// and 28 bytes on 32 bit platforms.
+-	if size := int64(8 + 5*types.PtrSize); hmap.Size() != size {
++	// The size of hmap should be 56 bytes on 64 bit
++	// and 36 bytes on 32 bit platforms.
++	if size := int64(2*8 + 5*types.PtrSize); hmap.Size() != size {
+ 		base.Fatalf("hmap size not correct: got %d, want %d", hmap.Size(), size)
+ 	}
+ 
+@@ -216,6 +218,7 @@ func OldMapIterType() *types.Type {
+ 	//    i           uint8
+ 	//    bucket      uintptr
+ 	//    checkBucket uintptr
++	//    clearSeq    uint64
+ 	// }
+ 	// must match runtime/map.go:hiter.
+ 	fields := []*types.Field{
+@@ -234,6 +237,7 @@ func OldMapIterType() *types.Type {
+ 		makefield("i", types.Types[types.TUINT8]),
+ 		makefield("bucket", types.Types[types.TUINTPTR]),
+ 		makefield("checkBucket", types.Types[types.TUINTPTR]),
++		makefield("clearSeq", types.Types[types.TUINT64]),
+ 	}
+ 
+ 	// build iterator struct holding the above fields
+@@ -244,8 +248,8 @@ func OldMapIterType() *types.Type {
+ 
+ 	hiter.SetUnderlying(types.NewStruct(fields))
+ 	types.CalcSize(hiter)
+-	if hiter.Size() != int64(12*types.PtrSize) {
+-		base.Fatalf("hash_iter size not correct %d %d", hiter.Size(), 12*types.PtrSize)
++	if hiter.Size() != int64(8+12*types.PtrSize) {
++		base.Fatalf("hash_iter size not correct %d %d", hiter.Size(), 8+12*types.PtrSize)
+ 	}
+ 
+ 	oldHiterType = hiter
+diff --git a/src/reflect/map_noswiss.go b/src/reflect/map_noswiss.go
+index 81d7b6222a..99609829f0 100644
+--- a/src/reflect/map_noswiss.go
++++ b/src/reflect/map_noswiss.go
+@@ -256,6 +256,7 @@ type hiter struct {
+ 	i           uint8
+ 	bucket      uintptr
+ 	checkBucket uintptr
++	clearSeq    uint64
+ }
+ 
+ func (h *hiter) initialized() bool {
+diff --git a/src/runtime/map_noswiss.go b/src/runtime/map_noswiss.go
+index d7b8a5fe11..327f0c81e8 100644
+--- a/src/runtime/map_noswiss.go
++++ b/src/runtime/map_noswiss.go
+@@ -123,6 +123,7 @@ type hmap struct {
+ 	buckets    unsafe.Pointer // array of 2^B Buckets. may be nil if count==0.
+ 	oldbuckets unsafe.Pointer // previous bucket array of half the size, non-nil only when growing
+ 	nevacuate  uintptr        // progress counter for evacuation (buckets less than this have been evacuated)
++	clearSeq   uint64
+ 
+ 	extra *mapextra // optional fields
+ }
+@@ -176,6 +177,7 @@ type hiter struct {
+ 	i           uint8
+ 	bucket      uintptr
+ 	checkBucket uintptr
++	clearSeq    uint64
+ }
+ 
+ // bucketShift returns 1<<b, optimized for code generation.
+@@ -887,10 +889,11 @@ func mapiterinit(t *maptype, h *hmap, it *hiter) {
+ 		return
+ 	}
+ 
+-	if unsafe.Sizeof(hiter{})/goarch.PtrSize != 12 {
++	if unsafe.Sizeof(hiter{}) != 8+12*goarch.PtrSize {
+ 		throw("hash_iter size incorrect") // see cmd/compile/internal/reflectdata/reflect.go
+ 	}
+ 	it.h = h
++	it.clearSeq = h.clearSeq
+ 
+ 	// grab snapshot of bucket state
+ 	it.B = h.B
+@@ -1022,8 +1025,9 @@ next:
+ 				}
+ 			}
+ 		}
+-		if (b.tophash[offi] != evacuatedX && b.tophash[offi] != evacuatedY) ||
+-			!(t.ReflexiveKey() || t.Key.Equal(k, k)) {
++		if it.clearSeq == h.clearSeq &&
++			((b.tophash[offi] != evacuatedX && b.tophash[offi] != evacuatedY) ||
++				!(t.ReflexiveKey() || t.Key.Equal(k, k))) {
+ 			// This is the golden data, we can return it.
+ 			// OR
+ 			// key!=key, so the entry can't be deleted or updated, so we can just return it.
+@@ -1079,28 +1083,12 @@ func mapclear(t *maptype, h *hmap) {
+ 	}
+ 
+ 	h.flags ^= hashWriting
+-
+-	// Mark buckets empty, so existing iterators can be terminated, see issue #59411.
+-	markBucketsEmpty := func(bucket unsafe.Pointer, mask uintptr) {
+-		for i := uintptr(0); i <= mask; i++ {
+-			b := (*bmap)(add(bucket, i*uintptr(t.BucketSize)))
+-			for ; b != nil; b = b.overflow(t) {
+-				for i := uintptr(0); i < abi.OldMapBucketCount; i++ {
+-					b.tophash[i] = emptyRest
+-				}
+-			}
+-		}
+-	}
+-	markBucketsEmpty(h.buckets, bucketMask(h.B))
+-	if oldBuckets := h.oldbuckets; oldBuckets != nil {
+-		markBucketsEmpty(oldBuckets, h.oldbucketmask())
+-	}
+-
+ 	h.flags &^= sameSizeGrow
+ 	h.oldbuckets = nil
+ 	h.nevacuate = 0
+ 	h.noverflow = 0
+ 	h.count = 0
++	h.clearSeq++
+ 
+ 	// Reset the hash seed to make it more difficult for attackers to
+ 	// repeatedly trigger hash collisions. See issue 25237.
+diff --git a/src/runtime/map_noswiss_test.go b/src/runtime/map_noswiss_test.go
+index bda448471c..5af7b7b8c8 100644
+--- a/src/runtime/map_noswiss_test.go
++++ b/src/runtime/map_noswiss_test.go
+@@ -17,8 +17,8 @@ import (
+ func TestHmapSize(t *testing.T) {
+ 	// The structure of hmap is defined in runtime/map.go
+ 	// and in cmd/compile/internal/reflectdata/map.go and must be in sync.
+-	// The size of hmap should be 48 bytes on 64 bit and 28 bytes on 32 bit platforms.
+-	var hmapSize = uintptr(8 + 5*goarch.PtrSize)
++	// The size of hmap should be 56 bytes on 64 bit and 36 bytes on 32 bit platforms.
++	var hmapSize = uintptr(2*8 + 5*goarch.PtrSize)
+ 	if runtime.RuntimeHmapSize != hmapSize {
+ 		t.Errorf("sizeof(runtime.hmap{})==%d, want %d", runtime.RuntimeHmapSize, hmapSize)
+ 	}
+diff --git a/test/fixedbugs/issue70189.go b/test/fixedbugs/issue70189.go
+new file mode 100644
+index 0000000000..357ac537ad
+--- /dev/null
++++ b/test/fixedbugs/issue70189.go
+@@ -0,0 +1,38 @@
++// run -goexperiment noswissmap
++
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func nan() float64 {
++	var x, y float64
++	return x / y
++}
++
++func main() {
++	m := map[float64]int{}
++
++	// Make a small map with nan keys
++	for i := 0; i < 8; i++ {
++		m[nan()] = i
++	}
++
++	// Start iterating on it.
++	start := true
++	for _, v := range m {
++		if start {
++			// Add some more elements.
++			for i := 0; i < 10; i++ {
++				m[float64(i)] = i
++			}
++			// Now clear the map.
++			clear(m)
++			start = false
++		} else {
++			// We should never reach here.
++			panic(v)
++		}
++	}
++}

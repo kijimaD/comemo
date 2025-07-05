@@ -20,7 +20,111 @@ Date:   Wed Nov 8 12:10:13 2023 +0000
     Auto-Submit: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/internal/zstd/fuzz_test.go | 12 ++++--------
  src/internal/zstd/zstd_test.go | 23 ++++++++++++-----------
  2 files changed, 16 insertions(+), 19 deletions(-)
+
+diff --git a/src/internal/zstd/fuzz_test.go b/src/internal/zstd/fuzz_test.go
+index bb6f0a9721..12738519f8 100644
+--- a/src/internal/zstd/fuzz_test.go
++++ b/src/internal/zstd/fuzz_test.go
+@@ -43,9 +43,7 @@ func FuzzReader(f *testing.F) {
+ // explore the space of decompressor behavior, since it can't see
+ // what the compressor is doing. But it's better than nothing.
+ func FuzzDecompressor(f *testing.F) {
+-	if _, err := os.Stat("/usr/bin/zstd"); err != nil {
+-		f.Skip("skipping because /usr/bin/zstd does not exist")
+-	}
++	zstd := findZstd(f)
+ 
+ 	for _, test := range tests {
+ 		f.Add([]byte(test.uncompressed))
+@@ -61,7 +59,7 @@ func FuzzDecompressor(f *testing.F) {
+ 	f.Add(bigData(f))
+ 
+ 	f.Fuzz(func(t *testing.T, b []byte) {
+-		cmd := exec.Command("/usr/bin/zstd", "-z")
++		cmd := exec.Command(zstd, "-z")
+ 		cmd.Stdin = bytes.NewReader(b)
+ 		var compressed bytes.Buffer
+ 		cmd.Stdout = &compressed
+@@ -84,9 +82,7 @@ func FuzzDecompressor(f *testing.F) {
+ // Fuzz test to check that if we can decompress some data,
+ // so can zstd, and that we get the same result.
+ func FuzzReverse(f *testing.F) {
+-	if _, err := os.Stat("/usr/bin/zstd"); err != nil {
+-		f.Skip("skipping because /usr/bin/zstd does not exist")
+-	}
++	zstd := findZstd(f)
+ 
+ 	for _, test := range tests {
+ 		f.Add([]byte(test.compressed))
+@@ -100,7 +96,7 @@ func FuzzReverse(f *testing.F) {
+ 		r := NewReader(bytes.NewReader(b))
+ 		goExp, goErr := io.ReadAll(r)
+ 
+-		cmd := exec.Command("/usr/bin/zstd", "-d")
++		cmd := exec.Command(zstd, "-d")
+ 		cmd.Stdin = bytes.NewReader(b)
+ 		var uncompressed bytes.Buffer
+ 		cmd.Stdout = &uncompressed
+diff --git a/src/internal/zstd/zstd_test.go b/src/internal/zstd/zstd_test.go
+index 70141b02d0..4ae6f2b398 100644
+--- a/src/internal/zstd/zstd_test.go
++++ b/src/internal/zstd/zstd_test.go
+@@ -167,10 +167,17 @@ func bigData(t testing.TB) []byte {
+ 	return bigDataBytes
+ }
+ 
++func findZstd(t testing.TB) string {
++	zstd, err := exec.LookPath("zstd")
++	if err != nil {
++		t.Skip("skipping because zstd not found")
++	}
++	return zstd
++}
++
+ var (
+ 	zstdBigOnce  sync.Once
+ 	zstdBigBytes []byte
+-	zstdBigSkip  bool
+ 	zstdBigErr   error
+ )
+ 
+@@ -180,13 +187,10 @@ var (
+ func zstdBigData(t testing.TB) []byte {
+ 	input := bigData(t)
+ 
+-	zstdBigOnce.Do(func() {
+-		if _, err := os.Stat("/usr/bin/zstd"); err != nil {
+-			zstdBigSkip = true
+-			return
+-		}
++	zstd := findZstd(t)
+ 
+-		cmd := exec.Command("/usr/bin/zstd", "-z")
++	zstdBigOnce.Do(func() {
++		cmd := exec.Command(zstd, "-z")
+ 		cmd.Stdin = bytes.NewReader(input)
+ 		var compressed bytes.Buffer
+ 		cmd.Stdout = &compressed
+@@ -198,9 +202,6 @@ func zstdBigData(t testing.TB) []byte {
+ 
+ 		zstdBigBytes = compressed.Bytes()
+ 	})
+-	if zstdBigSkip {
+-		t.Skip("skipping because /usr/bin/zstd does not exist")
+-	}
+ 	if zstdBigErr != nil {
+ 		t.Fatal(zstdBigErr)
+ 	}
+@@ -217,7 +218,7 @@ func TestLarge(t *testing.T) {
+ 	data := bigData(t)
+ 	compressed := zstdBigData(t)
+ 
+-	t.Logf("/usr/bin/zstd compressed %d bytes to %d", len(data), len(compressed))
++	t.Logf("zstd compressed %d bytes to %d", len(data), len(compressed))
+ 
+ 	r := NewReader(bytes.NewReader(compressed))
+ 	got, err := io.ReadAll(r)

@@ -11,10 +11,674 @@ Date:   Tue Jun 8 17:07:10 2021 -0400
     Run-TryBot: Michael Matloob <matloob@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/modload/import.go  | 114 +++++++++++++++++----------------
  src/cmd/go/internal/modload/init.go    |  95 ++++++++++++++++++++-------
  src/cmd/go/internal/modload/modfile.go |  85 +++++++++++++++---------
  src/cmd/go/internal/modload/query.go   |  84 ++++++++++++++++--------
  src/cmd/go/internal/modload/vendor.go  |   3 +-
  5 files changed, 243 insertions(+), 138 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/import.go b/src/cmd/go/internal/modload/import.go
+index 7b5305e4bb..b6b9bf65b8 100644
+--- a/src/cmd/go/internal/modload/import.go
++++ b/src/cmd/go/internal/modload/import.go
+@@ -414,69 +414,71 @@ func importFromModules(ctx context.Context, path string, rs *Requirements, mg *M
+ func queryImport(ctx context.Context, path string, rs *Requirements) (module.Version, error) {
+ 	// To avoid spurious remote fetches, try the latest replacement for each
+ 	// module (golang.org/issue/26241).
+-	if index != nil {
+-		var mods []module.Version
+-		for mp, mv := range index.highestReplaced {
+-			if !maybeInModule(path, mp) {
+-				continue
+-			}
+-			if mv == "" {
+-				// The only replacement is a wildcard that doesn't specify a version, so
+-				// synthesize a pseudo-version with an appropriate major version and a
+-				// timestamp below any real timestamp. That way, if the main module is
+-				// used from within some other module, the user will be able to upgrade
+-				// the requirement to any real version they choose.
+-				if _, pathMajor, ok := module.SplitPathVersion(mp); ok && len(pathMajor) > 0 {
+-					mv = module.ZeroPseudoVersion(pathMajor[1:])
+-				} else {
+-					mv = module.ZeroPseudoVersion("v0")
++	var mods []module.Version
++	for _, v := range MainModules.Versions() {
++		if index := MainModules.Index(v); index != nil {
++			for mp, mv := range index.highestReplaced {
++				if !maybeInModule(path, mp) {
++					continue
+ 				}
++				if mv == "" {
++					// The only replacement is a wildcard that doesn't specify a version, so
++					// synthesize a pseudo-version with an appropriate major version and a
++					// timestamp below any real timestamp. That way, if the main module is
++					// used from within some other module, the user will be able to upgrade
++					// the requirement to any real version they choose.
++					if _, pathMajor, ok := module.SplitPathVersion(mp); ok && len(pathMajor) > 0 {
++						mv = module.ZeroPseudoVersion(pathMajor[1:])
++					} else {
++						mv = module.ZeroPseudoVersion("v0")
++					}
++				}
++				mg, err := rs.Graph(ctx)
++				if err != nil {
++					return module.Version{}, err
++				}
++				if cmpVersion(mg.Selected(mp), mv) >= 0 {
++					// We can't resolve the import by adding mp@mv to the module graph,
++					// because the selected version of mp is already at least mv.
++					continue
++				}
++				mods = append(mods, module.Version{Path: mp, Version: mv})
+ 			}
+-			mg, err := rs.Graph(ctx)
+-			if err != nil {
+-				return module.Version{}, err
+-			}
+-			if cmpVersion(mg.Selected(mp), mv) >= 0 {
+-				// We can't resolve the import by adding mp@mv to the module graph,
+-				// because the selected version of mp is already at least mv.
+-				continue
+-			}
+-			mods = append(mods, module.Version{Path: mp, Version: mv})
+ 		}
++	}
+ 
+-		// Every module path in mods is a prefix of the import path.
+-		// As in QueryPattern, prefer the longest prefix that satisfies the import.
+-		sort.Slice(mods, func(i, j int) bool {
+-			return len(mods[i].Path) > len(mods[j].Path)
+-		})
+-		for _, m := range mods {
+-			needSum := true
+-			root, isLocal, err := fetch(ctx, m, needSum)
+-			if err != nil {
+-				if sumErr := (*sumMissingError)(nil); errors.As(err, &sumErr) {
+-					return module.Version{}, &ImportMissingSumError{importPath: path}
+-				}
+-				return module.Version{}, err
+-			}
+-			if _, ok, err := dirInModule(path, m.Path, root, isLocal); err != nil {
+-				return m, err
+-			} else if ok {
+-				if cfg.BuildMod == "readonly" {
+-					return module.Version{}, &ImportMissingError{Path: path, replaced: m}
+-				}
+-				return m, nil
++	// Every module path in mods is a prefix of the import path.
++	// As in QueryPattern, prefer the longest prefix that satisfies the import.
++	sort.Slice(mods, func(i, j int) bool {
++		return len(mods[i].Path) > len(mods[j].Path)
++	})
++	for _, m := range mods {
++		needSum := true
++		root, isLocal, err := fetch(ctx, m, needSum)
++		if err != nil {
++			if sumErr := (*sumMissingError)(nil); errors.As(err, &sumErr) {
++				return module.Version{}, &ImportMissingSumError{importPath: path}
+ 			}
++			return module.Version{}, err
+ 		}
+-		if len(mods) > 0 && module.CheckPath(path) != nil {
+-			// The package path is not valid to fetch remotely,
+-			// so it can only exist in a replaced module,
+-			// and we know from the above loop that it is not.
+-			return module.Version{}, &PackageNotInModuleError{
+-				Mod:         mods[0],
+-				Query:       "latest",
+-				Pattern:     path,
+-				Replacement: Replacement(mods[0]),
++		if _, ok, err := dirInModule(path, m.Path, root, isLocal); err != nil {
++			return m, err
++		} else if ok {
++			if cfg.BuildMod == "readonly" {
++				return module.Version{}, &ImportMissingError{Path: path, replaced: m}
+ 			}
++			return m, nil
++		}
++	}
++	if len(mods) > 0 && module.CheckPath(path) != nil {
++		// The package path is not valid to fetch remotely,
++		// so it can only exist in a replaced module,
++		// and we know from the above loop that it is not.
++		return module.Version{}, &PackageNotInModuleError{
++			Mod:         mods[0],
++			Query:       "latest",
++			Pattern:     path,
++			Replacement: Replacement(mods[0]),
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index f211e1767c..607054d1eb 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -17,6 +17,7 @@ import (
+ 	"path/filepath"
+ 	"strconv"
+ 	"strings"
++	"sync"
+ 
+ 	"cmd/go/internal/base"
+ 	"cmd/go/internal/cfg"
+@@ -85,6 +86,11 @@ type MainModuleSet struct {
+ 	// inGorootSrc caches whether modRoot is within GOROOT/src.
+ 	// The "std" module is special within GOROOT/src, but not otherwise.
+ 	inGorootSrc map[module.Version]bool
++
++	modFiles map[module.Version]*modfile.File
++
++	indexMu sync.Mutex
++	indices map[module.Version]*modFileIndex
+ }
+ 
+ func (mms *MainModuleSet) PathPrefix(m module.Version) string {
+@@ -141,6 +147,36 @@ func (mms *MainModuleSet) mustGetSingleMainModule() module.Version {
+ 	return mms.versions[0]
+ }
+ 
++func (mms *MainModuleSet) GetSingleIndexOrNil() *modFileIndex {
++	if mms == nil {
++		return nil
++	}
++	if len(mms.versions) == 0 {
++		return nil
++	}
++	if len(mms.versions) != 1 {
++		_ = TODOWorkspaces("Check if we're in workspace mode before returning the below error.")
++		panic("internal error: mustGetSingleMainModule called in workspace mode")
++	}
++	return mms.indices[mms.versions[0]]
++}
++
++func (mms *MainModuleSet) Index(m module.Version) *modFileIndex {
++	mms.indexMu.Lock()
++	defer mms.indexMu.Unlock()
++	return mms.indices[m]
++}
++
++func (mms *MainModuleSet) SetIndex(m module.Version, index *modFileIndex) {
++	mms.indexMu.Lock()
++	defer mms.indexMu.Unlock()
++	mms.indices[m] = index
++}
++
++func (mms *MainModuleSet) ModFile(m module.Version) *modfile.File {
++	return mms.modFiles[m]
++}
++
+ func (mms *MainModuleSet) Len() int {
+ 	if mms == nil {
+ 		return 0
+@@ -178,6 +214,7 @@ const (
+ // in go.mod, edit it before loading.
+ func ModFile() *modfile.File {
+ 	Init()
++	modFile := MainModules.ModFile(MainModules.mustGetSingleMainModule())
+ 	if modFile == nil {
+ 		die()
+ 	}
+@@ -557,7 +594,7 @@ func loadModFile(ctx context.Context) (rs *Requirements, needCommit bool) {
+ 	if len(modRoots) == 0 {
+ 		_ = TODOWorkspaces("Instead of creating a fake module with an empty modroot, make MainModules.Len() == 0 mean that we're in module mode but not inside any module.")
+ 		mainModule := module.Version{Path: "command-line-arguments"}
+-		MainModules = makeMainModules([]module.Version{mainModule}, []string{""})
++		MainModules = makeMainModules([]module.Version{mainModule}, []string{""}, []*modfile.File{nil}, []*modFileIndex{nil})
+ 		goVersion := LatestGoVersion()
+ 		rawGoVersion.Store(mainModule, goVersion)
+ 		requirements = newRequirements(modDepthFromGoVersion(goVersion), nil, nil)
+@@ -566,6 +603,7 @@ func loadModFile(ctx context.Context) (rs *Requirements, needCommit bool) {
+ 
+ 	var modFiles []*modfile.File
+ 	var mainModules []module.Version
++	var indices []*modFileIndex
+ 	for _, modroot := range modRoots {
+ 		gomod := modFilePath(modroot)
+ 		var data []byte
+@@ -593,11 +631,10 @@ func loadModFile(ctx context.Context) (rs *Requirements, needCommit bool) {
+ 			base.Fatalf("go: no module declaration in go.mod. To specify the module path:\n\tgo mod edit -module=example.com/mod")
+ 		}
+ 
+-		modFile = f // TODO(golang.org/cl/327329): remove the global modFile variable and replace it with multiple modfiles
+ 		modFiles = append(modFiles, f)
+ 		mainModule := f.Module.Mod
+ 		mainModules = append(mainModules, mainModule)
+-		index = indexModFile(data, f, mainModule, fixed)
++		indices = append(indices, indexModFile(data, f, mainModule, fixed))
+ 
+ 		if err := module.CheckImportPath(f.Module.Mod.Path); err != nil {
+ 			if pathErr, ok := err.(*module.InvalidPathError); ok {
+@@ -607,7 +644,7 @@ func loadModFile(ctx context.Context) (rs *Requirements, needCommit bool) {
+ 		}
+ 	}
+ 
+-	MainModules = makeMainModules(mainModules, modRoots)
++	MainModules = makeMainModules(mainModules, modRoots, modFiles, indices)
+ 	setDefaultBuildMod() // possibly enable automatic vendoring
+ 	rs = requirementsFromModFiles(ctx, modFiles)
+ 
+@@ -623,14 +660,16 @@ func loadModFile(ctx context.Context) (rs *Requirements, needCommit bool) {
+ 
+ 	if cfg.BuildMod == "vendor" {
+ 		readVendorList()
+-		checkVendorConsistency()
++		index := MainModules.Index(mainModule)
++		modFile := MainModules.ModFile(mainModule)
++		checkVendorConsistency(index, modFile)
+ 		rs.initVendor(vendorList)
+ 	}
+-	if index.goVersionV == "" {
++	if MainModules.Index(mainModule).goVersionV == "" {
+ 		// TODO(#45551): Do something more principled instead of checking
+ 		// cfg.CmdName directly here.
+ 		if cfg.BuildMod == "mod" && cfg.CmdName != "mod graph" && cfg.CmdName != "mod why" {
+-			addGoStmt(mainModule, LatestGoVersion())
++			addGoStmt(MainModules.ModFile(mainModule), mainModule, LatestGoVersion())
+ 			if go117EnableLazyLoading {
+ 				// We need to add a 'go' version to the go.mod file, but we must assume
+ 				// that its existing contents match something between Go 1.11 and 1.16.
+@@ -689,12 +728,12 @@ func CreateModFile(ctx context.Context, modPath string) {
+ 	}
+ 
+ 	fmt.Fprintf(os.Stderr, "go: creating new go.mod: module %s\n", modPath)
+-	modFile = new(modfile.File)
++	modFile := new(modfile.File)
+ 	modFile.AddModuleStmt(modPath)
+-	MainModules = makeMainModules([]module.Version{modFile.Module.Mod}, []string{modRoot})
+-	addGoStmt(modFile.Module.Mod, LatestGoVersion()) // Add the go directive before converted module requirements.
++	MainModules = makeMainModules([]module.Version{modFile.Module.Mod}, []string{modRoot}, []*modfile.File{modFile}, []*modFileIndex{nil})
++	addGoStmt(modFile, modFile.Module.Mod, LatestGoVersion()) // Add the go directive before converted module requirements.
+ 
+-	convertedFrom, err := convertLegacyConfig(modPath)
++	convertedFrom, err := convertLegacyConfig(modFile, modPath)
+ 	if convertedFrom != "" {
+ 		fmt.Fprintf(os.Stderr, "go: copying requirements from %s\n", base.ShortPath(convertedFrom))
+ 	}
+@@ -792,7 +831,7 @@ func AllowMissingModuleImports() {
+ 
+ // makeMainModules creates a MainModuleSet and associated variables according to
+ // the given main modules.
+-func makeMainModules(ms []module.Version, rootDirs []string) *MainModuleSet {
++func makeMainModules(ms []module.Version, rootDirs []string, modFiles []*modfile.File, indices []*modFileIndex) *MainModuleSet {
+ 	for _, m := range ms {
+ 		if m.Version != "" {
+ 			panic("mainModulesCalled with module.Version with non empty Version field: " + fmt.Sprintf("%#v", m))
+@@ -803,10 +842,14 @@ func makeMainModules(ms []module.Version, rootDirs []string) *MainModuleSet {
+ 		inGorootSrc: map[module.Version]bool{},
+ 		pathPrefix:  map[module.Version]string{},
+ 		modRoot:     map[module.Version]string{},
++		modFiles:    map[module.Version]*modfile.File{},
++		indices:     map[module.Version]*modFileIndex{},
+ 	}
+ 	for i, m := range ms {
+ 		mainModules.pathPrefix[m] = m.Path
+ 		mainModules.modRoot[m] = rootDirs[i]
++		mainModules.modFiles[m] = modFiles[i]
++		mainModules.indices[m] = indices[i]
+ 
+ 		if rel := search.InDir(rootDirs[i], cfg.GOROOTsrc); rel != "" {
+ 			mainModules.inGorootSrc[m] = true
+@@ -840,15 +883,18 @@ func requirementsFromModFiles(ctx context.Context, modFiles []*modfile.File) *Re
+ 	}
+ 	direct := map[string]bool{}
+ 	for _, modFile := range modFiles {
+-		// TODO(golang.org/cl/327329): Use the correct index here.
++	requirement:
+ 		for _, r := range modFile.Require {
+-			if index != nil && index.exclude[r.Mod] {
+-				if cfg.BuildMod == "mod" {
+-					fmt.Fprintf(os.Stderr, "go: dropping requirement on excluded version %s %s\n", r.Mod.Path, r.Mod.Version)
+-				} else {
+-					fmt.Fprintf(os.Stderr, "go: ignoring requirement on excluded version %s %s\n", r.Mod.Path, r.Mod.Version)
++			// TODO(#45713): Maybe join
++			for _, mainModule := range MainModules.Versions() {
++				if index := MainModules.Index(mainModule); index != nil && index.exclude[r.Mod] {
++					if cfg.BuildMod == "mod" {
++						fmt.Fprintf(os.Stderr, "go: dropping requirement on excluded version %s %s\n", r.Mod.Path, r.Mod.Version)
++					} else {
++						fmt.Fprintf(os.Stderr, "go: ignoring requirement on excluded version %s %s\n", r.Mod.Path, r.Mod.Version)
++					}
++					continue requirement
+ 				}
+-				continue
+ 			}
+ 
+ 			roots = append(roots, r.Mod)
+@@ -908,6 +954,7 @@ func setDefaultBuildMod() {
+ 	}
+ 
+ 	if len(modRoots) == 1 {
++		index := MainModules.GetSingleIndexOrNil()
+ 		if fi, err := fsys.Stat(filepath.Join(modRoots[0], "vendor")); err == nil && fi.IsDir() {
+ 			modGo := "unspecified"
+ 			if index != nil && index.goVersionV != "" {
+@@ -933,7 +980,7 @@ func setDefaultBuildMod() {
+ 
+ // convertLegacyConfig imports module requirements from a legacy vendoring
+ // configuration file, if one is present.
+-func convertLegacyConfig(modPath string) (from string, err error) {
++func convertLegacyConfig(modFile *modfile.File, modPath string) (from string, err error) {
+ 	noneSelected := func(path string) (version string) { return "none" }
+ 	queryPackage := func(path, rev string) (module.Version, error) {
+ 		pkgMods, modOnly, err := QueryPattern(context.Background(), path, rev, noneSelected, nil)
+@@ -967,7 +1014,7 @@ func convertLegacyConfig(modPath string) (from string, err error) {
+ // addGoStmt adds a go directive to the go.mod file if it does not already
+ // include one. The 'go' version added, if any, is the latest version supported
+ // by this toolchain.
+-func addGoStmt(mod module.Version, v string) {
++func addGoStmt(modFile *modfile.File, mod module.Version, v string) {
+ 	if modFile.Go != nil && modFile.Go.Version != "" {
+ 		return
+ 	}
+@@ -1231,8 +1278,11 @@ func commitRequirements(ctx context.Context, goVersion string, rs *Requirements)
+ 	if MainModules.Len() != 1 || MainModules.ModRoot(MainModules.Versions()[0]) == "" {
+ 		_ = TODOWorkspaces("also check that workspace mode is off")
+ 		// We aren't in a module, so we don't have anywhere to write a go.mod file.
++		_ = TODOWorkspaces("also check that workspace mode is off")
+ 		return
+ 	}
++	mainModule := MainModules.Versions()[0]
++	modFile := MainModules.ModFile(mainModule)
+ 
+ 	var list []*modfile.Require
+ 	for _, m := range rs.rootModules {
+@@ -1251,6 +1301,7 @@ func commitRequirements(ctx context.Context, goVersion string, rs *Requirements)
+ 	}
+ 	modFile.Cleanup()
+ 
++	index := MainModules.GetSingleIndexOrNil()
+ 	dirty := index.modFileIsDirty(modFile)
+ 	if dirty && cfg.BuildMod != "mod" {
+ 		// If we're about to fail due to -mod=readonly,
+@@ -1281,7 +1332,7 @@ func commitRequirements(ctx context.Context, goVersion string, rs *Requirements)
+ 		mainModule := MainModules.Versions()[0]
+ 
+ 		// At this point we have determined to make the go.mod file on disk equal to new.
+-		index = indexModFile(new, modFile, mainModule, false)
++		MainModules.SetIndex(mainModule, indexModFile(new, modFile, mainModule, false))
+ 
+ 		// Update go.sum after releasing the side lock and refreshing the index.
+ 		// 'go mod init' shouldn't write go.sum, since it will be incomplete.
+diff --git a/src/cmd/go/internal/modload/modfile.go b/src/cmd/go/internal/modload/modfile.go
+index 7b9f6e863a..f5332ef52f 100644
+--- a/src/cmd/go/internal/modload/modfile.go
++++ b/src/cmd/go/internal/modload/modfile.go
+@@ -54,11 +54,13 @@ const (
+ 	go117LazyTODO = false
+ )
+ 
+-var modFile *modfile.File
+-
+ // modFileGoVersion returns the (non-empty) Go version at which the requirements
+ // in modFile are intepreted, or the latest Go version if modFile is nil.
+ func modFileGoVersion() string {
++	_ = TODOWorkspaces("this is obviously wrong.")
++	// Yes we're picking arbitrarily, we'll have to pass through the version
++	// we care about
++	modFile := MainModules.ModFile(MainModules.Versions()[0])
+ 	if modFile == nil {
+ 		return LatestGoVersion()
+ 	}
+@@ -90,9 +92,6 @@ type modFileIndex struct {
+ 	exclude         map[module.Version]bool
+ }
+ 
+-// index is the index of the go.mod file as of when it was last read or written.
+-var index *modFileIndex
+-
+ type requireMeta struct {
+ 	indirect bool
+ }
+@@ -135,8 +134,10 @@ var ErrDisallowed = errors.New("disallowed module version")
+ // CheckExclusions returns an error equivalent to ErrDisallowed if module m is
+ // excluded by the main module's go.mod file.
+ func CheckExclusions(ctx context.Context, m module.Version) error {
+-	if index != nil && index.exclude[m] {
+-		return module.VersionError(m, errExcluded)
++	for _, mainModule := range MainModules.Versions() {
++		if index := MainModules.Index(mainModule); index != nil && index.exclude[m] {
++			return module.VersionError(m, errExcluded)
++		}
+ 	}
+ 	return nil
+ }
+@@ -304,19 +305,37 @@ func CheckDeprecation(ctx context.Context, m module.Version) (deprecation string
+ 	return summary.deprecated, nil
+ }
+ 
++func replacement(mod module.Version, index *modFileIndex) (fromVersion string, to module.Version, ok bool) {
++	if r, ok := index.replace[mod]; ok {
++		return mod.Version, r, true
++	}
++	if r, ok := index.replace[module.Version{Path: mod.Path}]; ok {
++		return "", r, true
++	}
++	return "", module.Version{}, false
++}
++
+ // Replacement returns the replacement for mod, if any, from go.mod.
+ // If there is no replacement for mod, Replacement returns
+ // a module.Version with Path == "".
+ func Replacement(mod module.Version) module.Version {
+-	if index != nil {
+-		if r, ok := index.replace[mod]; ok {
+-			return r
+-		}
+-		if r, ok := index.replace[module.Version{Path: mod.Path}]; ok {
+-			return r
++	_ = TODOWorkspaces("support replaces in the go.work file")
++	foundFrom, found, foundModRoot := "", module.Version{}, ""
++	for _, v := range MainModules.Versions() {
++		if index := MainModules.Index(v); index != nil {
++			if from, r, ok := replacement(mod, index); ok {
++				modRoot := MainModules.ModRoot(v)
++				if foundModRoot != "" && foundFrom != from && found != r {
++					_ = TODOWorkspaces("once the go.work file supports replaces, recommend them as a way to override conflicts")
++					base.Errorf("conflicting replacements found for %v in workspace modules defined by %v and %v",
++						mod, modFilePath(foundModRoot), modFilePath(modRoot))
++					return found
++				}
++				found, foundModRoot = r, modRoot
++			}
+ 		}
+ 	}
+-	return module.Version{}
++	return found
+ }
+ 
+ // resolveReplacement returns the module actually used to load the source code
+@@ -551,27 +570,29 @@ func goModSummary(m module.Version) (*modFileSummary, error) {
+ 		}
+ 	}
+ 
+-	if index != nil && len(index.exclude) > 0 {
+-		// Drop any requirements on excluded versions.
+-		// Don't modify the cached summary though, since we might need the raw
+-		// summary separately.
+-		haveExcludedReqs := false
+-		for _, r := range summary.require {
+-			if index.exclude[r] {
+-				haveExcludedReqs = true
+-				break
+-			}
+-		}
+-		if haveExcludedReqs {
+-			s := new(modFileSummary)
+-			*s = *summary
+-			s.require = make([]module.Version, 0, len(summary.require))
++	for _, mainModule := range MainModules.Versions() {
++		if index := MainModules.Index(mainModule); index != nil && len(index.exclude) > 0 {
++			// Drop any requirements on excluded versions.
++			// Don't modify the cached summary though, since we might need the raw
++			// summary separately.
++			haveExcludedReqs := false
+ 			for _, r := range summary.require {
+-				if !index.exclude[r] {
+-					s.require = append(s.require, r)
++				if index.exclude[r] {
++					haveExcludedReqs = true
++					break
++				}
++			}
++			if haveExcludedReqs {
++				s := new(modFileSummary)
++				*s = *summary
++				s.require = make([]module.Version, 0, len(summary.require))
++				for _, r := range summary.require {
++					if !index.exclude[r] {
++						s.require = append(s.require, r)
++					}
+ 				}
++				summary = s
+ 			}
+-			summary = s
+ 		}
+ 	}
+ 	return summary, nil
+diff --git a/src/cmd/go/internal/modload/query.go b/src/cmd/go/internal/modload/query.go
+index 83e80d009b..05ef0a9c48 100644
+--- a/src/cmd/go/internal/modload/query.go
++++ b/src/cmd/go/internal/modload/query.go
+@@ -973,14 +973,18 @@ func lookupRepo(proxy, path string) (repo versionRepo, err error) {
+ 		repo = emptyRepo{path: path, err: err}
+ 	}
+ 
+-	if index == nil {
+-		return repo, err
+-	}
+-	if _, ok := index.highestReplaced[path]; !ok {
+-		return repo, err
++	// TODO(#45713): Join all the highestReplaced fields into a single value.
++	for _, mm := range MainModules.Versions() {
++		index := MainModules.Index(mm)
++		if index == nil {
++			continue
++		}
++		if _, ok := index.highestReplaced[path]; ok {
++			return &replacementRepo{repo: repo}, nil
++		}
+ 	}
+ 
+-	return &replacementRepo{repo: repo}, nil
++	return repo, err
+ }
+ 
+ // An emptyRepo is a versionRepo that contains no versions.
+@@ -1019,11 +1023,13 @@ func (rr *replacementRepo) Versions(prefix string) ([]string, error) {
+ 	}
+ 
+ 	versions := repoVersions
+-	if index != nil && len(index.replace) > 0 {
+-		path := rr.ModulePath()
+-		for m, _ := range index.replace {
+-			if m.Path == path && strings.HasPrefix(m.Version, prefix) && m.Version != "" && !module.IsPseudoVersion(m.Version) {
+-				versions = append(versions, m.Version)
++	for _, mm := range MainModules.Versions() {
++		if index := MainModules.Index(mm); index != nil && len(index.replace) > 0 {
++			path := rr.ModulePath()
++			for m, _ := range index.replace {
++				if m.Path == path && strings.HasPrefix(m.Version, prefix) && m.Version != "" && !module.IsPseudoVersion(m.Version) {
++					versions = append(versions, m.Version)
++				}
+ 			}
+ 		}
+ 	}
+@@ -1041,7 +1047,16 @@ func (rr *replacementRepo) Versions(prefix string) ([]string, error) {
+ 
+ func (rr *replacementRepo) Stat(rev string) (*modfetch.RevInfo, error) {
+ 	info, err := rr.repo.Stat(rev)
+-	if err == nil || index == nil || len(index.replace) == 0 {
++	if err == nil {
++		return info, err
++	}
++	var hasReplacements bool
++	for _, v := range MainModules.Versions() {
++		if index := MainModules.Index(v); index != nil && len(index.replace) > 0 {
++			hasReplacements = true
++		}
++	}
++	if !hasReplacements {
+ 		return info, err
+ 	}
+ 
+@@ -1068,27 +1083,42 @@ func (rr *replacementRepo) Stat(rev string) (*modfetch.RevInfo, error) {
+ 
+ func (rr *replacementRepo) Latest() (*modfetch.RevInfo, error) {
+ 	info, err := rr.repo.Latest()
++	path := rr.ModulePath()
+ 
+-	if index != nil {
+-		path := rr.ModulePath()
+-		if v, ok := index.highestReplaced[path]; ok {
+-			if v == "" {
+-				// The only replacement is a wildcard that doesn't specify a version, so
+-				// synthesize a pseudo-version with an appropriate major version and a
+-				// timestamp below any real timestamp. That way, if the main module is
+-				// used from within some other module, the user will be able to upgrade
+-				// the requirement to any real version they choose.
+-				if _, pathMajor, ok := module.SplitPathVersion(path); ok && len(pathMajor) > 0 {
+-					v = module.PseudoVersion(pathMajor[1:], "", time.Time{}, "000000000000")
+-				} else {
+-					v = module.PseudoVersion("v0", "", time.Time{}, "000000000000")
++	highestReplaced, found := "", false
++	for _, mm := range MainModules.Versions() {
++		if index := MainModules.Index(mm); index != nil {
++			if v, ok := index.highestReplaced[path]; ok {
++				if !found {
++					highestReplaced, found = v, true
++					continue
++				}
++				if semver.Compare(v, highestReplaced) > 0 {
++					highestReplaced = v
+ 				}
+ 			}
++		}
++	}
+ 
+-			if err != nil || semver.Compare(v, info.Version) > 0 {
+-				return rr.replacementStat(v)
++	if found {
++		v := highestReplaced
++
++		if v == "" {
++			// The only replacement is a wildcard that doesn't specify a version, so
++			// synthesize a pseudo-version with an appropriate major version and a
++			// timestamp below any real timestamp. That way, if the main module is
++			// used from within some other module, the user will be able to upgrade
++			// the requirement to any real version they choose.
++			if _, pathMajor, ok := module.SplitPathVersion(path); ok && len(pathMajor) > 0 {
++				v = module.PseudoVersion(pathMajor[1:], "", time.Time{}, "000000000000")
++			} else {
++				v = module.PseudoVersion("v0", "", time.Time{}, "000000000000")
+ 			}
+ 		}
++
++		if err != nil || semver.Compare(v, info.Version) > 0 {
++			return rr.replacementStat(v)
++		}
+ 	}
+ 
+ 	return info, err
+diff --git a/src/cmd/go/internal/modload/vendor.go b/src/cmd/go/internal/modload/vendor.go
+index e26da15a8f..6dc8b6cf82 100644
+--- a/src/cmd/go/internal/modload/vendor.go
++++ b/src/cmd/go/internal/modload/vendor.go
+@@ -15,6 +15,7 @@ import (
+ 
+ 	"cmd/go/internal/base"
+ 
++	"golang.org/x/mod/modfile"
+ 	"golang.org/x/mod/module"
+ 	"golang.org/x/mod/semver"
+ )
+@@ -134,7 +135,7 @@ func readVendorList() {
+ // checkVendorConsistency verifies that the vendor/modules.txt file matches (if
+ // go 1.14) or at least does not contradict (go 1.13 or earlier) the
+ // requirements and replacements listed in the main module's go.mod file.
+-func checkVendorConsistency() {
++func checkVendorConsistency(index *modFileIndex, modFile *modfile.File) {
+ 	readVendorList()
+ 
+ 	pre114 := false

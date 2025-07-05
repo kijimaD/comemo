@@ -11,7 +11,92 @@ Date:   Wed Aug 22 20:31:37 2018 +0000
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/internal/poll/sendfile_windows.go |  4 +--
  src/net/sendfile_test.go              | 61 +++++++++++++++++++++++++++++++++++
  2 files changed, 63 insertions(+), 2 deletions(-)
+
+diff --git a/src/internal/poll/sendfile_windows.go b/src/internal/poll/sendfile_windows.go
+index 1a4d0ca191..dc93e851d6 100644
+--- a/src/internal/poll/sendfile_windows.go
++++ b/src/internal/poll/sendfile_windows.go
+@@ -32,8 +32,8 @@ func SendFile(fd *FD, src syscall.Handle, n int64) (int64, error) {
+ 		return 0, err
+ 	}
+ 
+-	o.o.OffsetHigh = uint32(curpos)
+-	o.o.Offset = uint32(curpos >> 32)
++	o.o.Offset = uint32(curpos)
++	o.o.OffsetHigh = uint32(curpos >> 32)
+ 
+ 	done, err := wsrv.ExecIO(o, func(o *operation) error {
+ 		return syscall.TransmitFile(o.fd.Sysfd, o.handle, o.qty, 0, &o.o, nil, syscall.TF_WRITE_BEHIND)
+diff --git a/src/net/sendfile_test.go b/src/net/sendfile_test.go
+index ecc00d3c2a..3b982774b0 100644
+--- a/src/net/sendfile_test.go
++++ b/src/net/sendfile_test.go
+@@ -149,3 +149,64 @@ func TestSendfileParts(t *testing.T) {
+ 		t.Error(err)
+ 	}
+ }
++
++func TestSendfileSeeked(t *testing.T) {
++	ln, err := newLocalListener("tcp")
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer ln.Close()
++
++	const seekTo = 65 << 10
++	const sendSize = 10 << 10
++
++	errc := make(chan error, 1)
++	go func(ln Listener) {
++		// Wait for a connection.
++		conn, err := ln.Accept()
++		if err != nil {
++			errc <- err
++			close(errc)
++			return
++		}
++
++		go func() {
++			defer close(errc)
++			defer conn.Close()
++
++			f, err := os.Open(twain)
++			if err != nil {
++				errc <- err
++				return
++			}
++			defer f.Close()
++			if _, err := f.Seek(seekTo, os.SEEK_SET); err != nil {
++				errc <- err
++				return
++			}
++
++			_, err = io.CopyN(conn, f, sendSize)
++			if err != nil {
++				errc <- err
++				return
++			}
++		}()
++	}(ln)
++
++	c, err := Dial("tcp", ln.Addr().String())
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer c.Close()
++
++	buf := new(bytes.Buffer)
++	buf.ReadFrom(c)
++
++	if buf.Len() != sendSize {
++		t.Errorf("Got %d bytes; want %d", buf.Len(), sendSize)
++	}
++
++	for err := range errc {
++		t.Error(err)
++	}
++}

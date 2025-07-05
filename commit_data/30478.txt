@@ -9,7 +9,52 @@ Date:   Sun Nov 1 04:17:34 2015 -0500
     Change-Id: Iff6593514b7453b6c5e1f20079e35cb4992cc74a
     Reviewed-on: https://go-review.googlesource.com/32877
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/internal/syscall/windows/syscall_windows.go  |  1 +
  src/internal/syscall/windows/zsyscall_windows.go | 14 ++++++++++++++
  2 files changed, 15 insertions(+)
+
+diff --git a/src/internal/syscall/windows/syscall_windows.go b/src/internal/syscall/windows/syscall_windows.go
+index dd2df92ff6..ec08a5a92c 100644
+--- a/src/internal/syscall/windows/syscall_windows.go
++++ b/src/internal/syscall/windows/syscall_windows.go
+@@ -110,6 +110,7 @@ const (
+ //sys	GetAdaptersAddresses(family uint32, flags uint32, reserved uintptr, adapterAddresses *IpAdapterAddresses, sizePointer *uint32) (errcode error) = iphlpapi.GetAdaptersAddresses
+ //sys	GetComputerNameEx(nameformat uint32, buf *uint16, n *uint32) (err error) = GetComputerNameExW
+ //sys	MoveFileEx(from *uint16, to *uint16, flags uint32) (err error) = MoveFileExW
++//sys	GetModuleFileName(module syscall.Handle, fn *uint16, len uint32) (n uint32, err error) = kernel32.GetModuleFileNameW
+ 
+ const (
+ 	ComputerNameNetBIOS                   = 0
+diff --git a/src/internal/syscall/windows/zsyscall_windows.go b/src/internal/syscall/windows/zsyscall_windows.go
+index 9ed977f2bd..7a2ffeeffa 100644
+--- a/src/internal/syscall/windows/zsyscall_windows.go
++++ b/src/internal/syscall/windows/zsyscall_windows.go
+@@ -44,6 +44,7 @@ var (
+ 	procGetAdaptersAddresses  = modiphlpapi.NewProc("GetAdaptersAddresses")
+ 	procGetComputerNameExW    = modkernel32.NewProc("GetComputerNameExW")
+ 	procMoveFileExW           = modkernel32.NewProc("MoveFileExW")
++	procGetModuleFileNameW    = modkernel32.NewProc("GetModuleFileNameW")
+ 	procGetACP                = modkernel32.NewProc("GetACP")
+ 	procGetConsoleCP          = modkernel32.NewProc("GetConsoleCP")
+ 	procMultiByteToWideChar   = modkernel32.NewProc("MultiByteToWideChar")
+@@ -89,6 +90,19 @@ func MoveFileEx(from *uint16, to *uint16, flags uint32) (err error) {
+ 	return
+ }
+ 
++func GetModuleFileName(module syscall.Handle, fn *uint16, len uint32) (n uint32, err error) {
++	r0, _, e1 := syscall.Syscall(procGetModuleFileNameW.Addr(), 3, uintptr(module), uintptr(unsafe.Pointer(fn)), uintptr(len))
++	n = uint32(r0)
++	if n == 0 {
++		if e1 != 0 {
++			err = errnoErr(e1)
++		} else {
++			err = syscall.EINVAL
++		}
++	}
++	return
++}
++
+ func GetACP() (acp uint32) {
+ 	r0, _, _ := syscall.Syscall(procGetACP.Addr(), 0, 0, 0, 0)
+ 	acp = uint32(r0)

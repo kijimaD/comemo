@@ -12,8 +12,48 @@ Date:   Tue Nov 25 08:42:00 2014 +0100
     R=rsc, minux
     CC=golang-codereviews
     https://golang.org/cl/179300043
-
+---
  src/cmd/5g/reg.c | 2 +-
  src/cmd/6g/reg.c | 2 +-
  src/cmd/9g/reg.c | 2 +-
  3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/5g/reg.c b/src/cmd/5g/reg.c
+index 611310f124..30fb816013 100644
+--- a/src/cmd/5g/reg.c
++++ b/src/cmd/5g/reg.c
+@@ -458,7 +458,7 @@ brk:
+ 		print("\nregisterizing\n");
+ 	for(i=0; i<nregion; i++) {
+ 		if(debug['R'] && debug['v'])
+-			print("region %d: cost %d varno %d enter %d\n", i, rgp->cost, rgp->varno, rgp->enter->f.prog->pc);
++			print("region %d: cost %d varno %d enter %lld\n", i, rgp->cost, rgp->varno, rgp->enter->f.prog->pc);
+ 		bit = blsh(rgp->varno);
+ 		vreg = paint2(rgp->enter, rgp->varno, 0);
+ 		vreg = allreg(vreg, rgp);
+diff --git a/src/cmd/6g/reg.c b/src/cmd/6g/reg.c
+index 75f9573b2e..f3dc59b146 100644
+--- a/src/cmd/6g/reg.c
++++ b/src/cmd/6g/reg.c
+@@ -393,7 +393,7 @@ brk:
+ 		print("\nregisterizing\n");
+ 	for(i=0; i<nregion; i++) {
+ 		if(debug['R'] && debug['v'])
+-			print("region %d: cost %d varno %d enter %d\n", i, rgp->cost, rgp->varno, rgp->enter->f.prog->pc);
++			print("region %d: cost %d varno %d enter %lld\n", i, rgp->cost, rgp->varno, rgp->enter->f.prog->pc);
+ 		bit = blsh(rgp->varno);
+ 		vreg = paint2(rgp->enter, rgp->varno, 0);
+ 		vreg = allreg(vreg, rgp);
+diff --git a/src/cmd/9g/reg.c b/src/cmd/9g/reg.c
+index 2e546a95bb..2d8dbc4f1a 100644
+--- a/src/cmd/9g/reg.c
++++ b/src/cmd/9g/reg.c
+@@ -437,7 +437,7 @@ brk:
+ 		print("\nregisterizing\n");
+ 	for(i=0; i<nregion; i++) {
+ 		if(debug['R'] && debug['v'])
+-			print("region %d: cost %d varno %d enter %d\n", i, rgp->cost, rgp->varno, rgp->enter->f.prog->pc);
++			print("region %d: cost %d varno %d enter %lld\n", i, rgp->cost, rgp->varno, rgp->enter->f.prog->pc);
+ 		bit = blsh(rgp->varno);
+ 		usedreg = paint2(rgp->enter, rgp->varno, 0);
+ 		vreg = allreg(usedreg, rgp);

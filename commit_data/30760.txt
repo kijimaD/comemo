@@ -11,6 +11,24 @@ Date:   Wed Nov 30 17:09:07 2016 -0500
     Change-Id: I4e3a46eb0cb3a93b203e74f5bc99c5822331f535
     Reviewed-on: https://go-review.googlesource.com/33722
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/inl.go | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index d8f1f24536..7b2fcf89ba 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -107,6 +107,12 @@ func caninl(fn *Node) {
+ 		return
+ 	}
+ 
++	// If marked "go:cgo_unsafe_args", don't inline
++	if fn.Func.Pragma&CgoUnsafeArgs != 0 {
++		reason = "marked go:cgo_unsafe_args"
++		return
++	}
++
+ 	// If fn has no body (is defined outside of Go), cannot inline it.
+ 	if fn.Nbody.Len() == 0 {
+ 		reason = "no function body"

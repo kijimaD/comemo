@@ -124,3 +124,18 @@ Date:   Thu Dec 3 12:33:12 2020 -0500
  test/syntax/semi6.go                               |   4 +-
  test/winbatch.go                                   |   6 +-
  116 files changed, 2070 insertions(+), 591 deletions(-)
+
+diff --cc test/fixedbugs/bug340.go
+index a067940408,8c543c98d9..542a6eab03
+--- a/test/fixedbugs/bug340.go
++++ b/test/fixedbugs/bug340.go
+@@@ -12,7 -12,6 +12,7 @@@ func main() 
+  	var x interface{}
+  	switch t := x.(type) {
+  	case 0:		// ERROR "type"
+ -		t.x = 1 // ERROR "type interface \{\}|reference to undefined field or method|interface with no methods"
+ +		t.x = 1
+- 		x.x = 1 // ERROR "type interface \{\}|reference to undefined field or method"
+++		x.x = 1 // ERROR "type interface \{\}|reference to undefined field or method|interface with no methods"
+  	}
+  }

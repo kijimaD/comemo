@@ -12,8 +12,48 @@ Date:   Tue Feb 11 20:25:40 2014 +0000
     R=golang-codereviews, bradfitz, iant, dave, rsc
     CC=golang-codereviews
     https://golang.org/cl/56910045
-
+---
  src/cmd/5g/prog.c | 2 +-
  src/cmd/6g/prog.c | 2 +-
  src/cmd/8g/prog.c | 2 +-
  3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/5g/prog.c b/src/cmd/5g/prog.c
+index e5b8fbd279..3e42721365 100644
+--- a/src/cmd/5g/prog.c
++++ b/src/cmd/5g/prog.c
+@@ -26,7 +26,7 @@ static ProgInfo progtable[ALAST] = {
+ 	[ATEXT]=	{Pseudo},
+ 	[AFUNCDATA]=	{Pseudo},
+ 	[APCDATA]=	{Pseudo},
+-	[AUNDEF]=	{OK},
++	[AUNDEF]=	{Break},
+ 	[AUSEFIELD]=	{OK},
+ 	[ACHECKNIL]=	{LeftRead},
+ 	[AFATVARDEF]=	{Pseudo | RightWrite},
+diff --git a/src/cmd/6g/prog.c b/src/cmd/6g/prog.c
+index 657cc9f771..71f44a3e20 100644
+--- a/src/cmd/6g/prog.c
++++ b/src/cmd/6g/prog.c
+@@ -38,7 +38,7 @@ static ProgInfo progtable[ALAST] = {
+ 	[ATEXT]=	{Pseudo},
+ 	[AFUNCDATA]=	{Pseudo},
+ 	[APCDATA]=	{Pseudo},
+-	[AUNDEF]=	{OK},
++	[AUNDEF]=	{Break},
+ 	[AUSEFIELD]=	{OK},
+ 	[ACHECKNIL]=	{LeftRead},
+ 	[AFATVARDEF]=	{Pseudo | RightWrite},
+diff --git a/src/cmd/8g/prog.c b/src/cmd/8g/prog.c
+index 7745d503b8..0162b02881 100644
+--- a/src/cmd/8g/prog.c
++++ b/src/cmd/8g/prog.c
+@@ -38,7 +38,7 @@ static ProgInfo progtable[ALAST] = {
+ 	[ATEXT]=	{Pseudo},
+ 	[AFUNCDATA]=	{Pseudo},
+ 	[APCDATA]=	{Pseudo},
+-	[AUNDEF]=	{OK},
++	[AUNDEF]=	{Break},
+ 	[AUSEFIELD]=	{OK},
+ 	[ACHECKNIL]=	{LeftRead},
+ 	[AFATVARDEF]=	{Pseudo | RightWrite},

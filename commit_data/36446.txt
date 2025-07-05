@@ -17,7 +17,42 @@ Date:   Tue Apr 3 18:59:44 2018 +0200
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Giovanni Bajo <rasky@develer.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/ssa/prove.go | 3 +++
  test/prove.go                         | 9 +++++++++
  2 files changed, 12 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/prove.go b/src/cmd/compile/internal/ssa/prove.go
+index a11b46566d..371009a57d 100644
+--- a/src/cmd/compile/internal/ssa/prove.go
++++ b/src/cmd/compile/internal/ssa/prove.go
+@@ -704,6 +704,9 @@ func addBranchRestrictions(ft *factsTable, b *Block, br branch) {
+ 		// When we branched from parent we learned a new set of
+ 		// restrictions. Update the factsTable accordingly.
+ 		d := tr.d
++		if d == signed && ft.isNonNegative(c.Args[0]) && ft.isNonNegative(c.Args[1]) {
++			d |= unsigned
++		}
+ 		switch br {
+ 		case negative:
+ 			switch b.Control.Op { // Special cases
+diff --git a/test/prove.go b/test/prove.go
+index b7ef468be6..f7b3ef0847 100644
+--- a/test/prove.go
++++ b/test/prove.go
+@@ -605,6 +605,15 @@ func trans2(a, b []int, i int) {
+ 	_ = b[i] // ERROR "Proved IsInBounds$"
+ }
+ 
++func trans3(a, b []int, i int) {
++	if len(a) > len(b) {
++		return
++	}
++
++	_ = a[i]
++	_ = b[i] // ERROR "Proved IsInBounds$"
++}
++
+ //go:noinline
+ func useInt(a int) {
+ }

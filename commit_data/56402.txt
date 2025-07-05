@@ -13,6 +13,26 @@ Date:   Thu May 4 17:14:53 2023 -0400
     Reviewed-by: Austin Clements <austin@google.com>
     Run-TryBot: Bryan Mills <bcmills@google.com>
     Auto-Submit: Bryan Mills <bcmills@google.com>
-
+---
  src/internal/testenv/testenv_test.go | 8 ++++++++
  1 file changed, 8 insertions(+)
+
+diff --git a/src/internal/testenv/testenv_test.go b/src/internal/testenv/testenv_test.go
+index be766288e8..d748e41540 100644
+--- a/src/internal/testenv/testenv_test.go
++++ b/src/internal/testenv/testenv_test.go
+@@ -96,6 +96,14 @@ func TestHasGoBuild(t *testing.T) {
+ 				return
+ 			}
+ 		}
++
++		if strings.HasSuffix(b, "-noopt") {
++			// The -noopt builder sets GO_GCFLAGS, which causes tests of 'go build' to
++			// be skipped.
++			t.Logf("HasGoBuild is false on %s", b)
++			return
++		}
++
+ 		t.Fatalf("HasGoBuild unexpectedly false on %s", b)
+ 	}
+ 

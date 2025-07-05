@@ -12,9 +12,99 @@ Date:   Thu Aug 6 15:44:27 2020 +0000
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/metrics.go             | 18 ++++++++++++++++--
  src/runtime/metrics/description.go |  5 +++++
  src/runtime/metrics/doc.go         |  3 +++
  src/runtime/metrics_test.go        |  2 ++
  4 files changed, 26 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/metrics.go b/src/runtime/metrics.go
+index 44b5a29751..cf619cca4b 100644
+--- a/src/runtime/metrics.go
++++ b/src/runtime/metrics.go
+@@ -38,6 +38,13 @@ func initMetrics() {
+ 		return
+ 	}
+ 	metrics = map[string]metricData{
++		"/gc/heap/objects:objects": {
++			deps: makeStatDepSet(heapStatsDep),
++			compute: func(in *statAggregate, out *metricValue) {
++				out.kind = metricKindUint64
++				out.scalar = in.heapStats.numObjects
++			},
++		},
+ 		"/memory/classes/heap/free:bytes": {
+ 			deps: makeStatDepSet(heapStatsDep),
+ 			compute: func(in *statAggregate, out *metricValue) {
+@@ -210,9 +217,13 @@ func (s *statDepSet) has(d statDep) bool {
+ type heapStatsAggregate struct {
+ 	heapStatsDelta
+ 
++	// Derived from values in heapStatsDelta.
++
+ 	// inObjects is the bytes of memory occupied by objects,
+-	// derived from other values in heapStats.
+ 	inObjects uint64
++
++	// numObjects is the number of live objects in the heap.
++	numObjects uint64
+ }
+ 
+ // compute populates the heapStatsAggregate with values from the runtime.
+@@ -221,8 +232,11 @@ func (a *heapStatsAggregate) compute() {
+ 
+ 	// Calculate derived stats.
+ 	a.inObjects = uint64(a.largeAlloc - a.largeFree)
++	a.numObjects = uint64(a.largeAllocCount - a.largeFreeCount)
+ 	for i := range a.smallAllocCount {
+-		a.inObjects += uint64(a.smallAllocCount[i]-a.smallFreeCount[i]) * uint64(class_to_size[i])
++		n := uint64(a.smallAllocCount[i] - a.smallFreeCount[i])
++		a.inObjects += n * uint64(class_to_size[i])
++		a.numObjects += n
+ 	}
+ }
+ 
+diff --git a/src/runtime/metrics/description.go b/src/runtime/metrics/description.go
+index 2e7df7e09f..47013e1451 100644
+--- a/src/runtime/metrics/description.go
++++ b/src/runtime/metrics/description.go
+@@ -50,6 +50,11 @@ type Description struct {
+ // The English language descriptions below must be kept in sync with the
+ // descriptions of each metric in doc.go.
+ var allDesc = []Description{
++	{
++		Name:        "/gc/heap/objects:objects",
++		Description: "Number of objects, live or unswept, occupying heap memory.",
++		Kind:        KindUint64,
++	},
+ 	{
+ 		Name:        "/memory/classes/heap/free:bytes",
+ 		Description: "Memory that is available for allocation, and may be returned to the underlying system.",
+diff --git a/src/runtime/metrics/doc.go b/src/runtime/metrics/doc.go
+index fb4e23a2b5..4ac44bb19c 100644
+--- a/src/runtime/metrics/doc.go
++++ b/src/runtime/metrics/doc.go
+@@ -44,6 +44,9 @@ the documentation of the Name field of the Description struct.
+ 
+ Supported metrics
+ 
++	/gc/heap/objects:objects
++		Number of objects, live or unswept, occupying heap memory.
++
+ 	/memory/classes/heap/free:bytes
+ 		Memory that is available for allocation, and may be returned
+ 		to the underlying system.
+diff --git a/src/runtime/metrics_test.go b/src/runtime/metrics_test.go
+index d925b057b0..6c0be7dc0b 100644
+--- a/src/runtime/metrics_test.go
++++ b/src/runtime/metrics_test.go
+@@ -70,6 +70,8 @@ func TestReadMetrics(t *testing.T) {
+ 			checkUint64(t, name, samples[i].Value.Uint64(), mstats.BuckHashSys)
+ 		case "/memory/classes/total:bytes":
+ 			checkUint64(t, name, samples[i].Value.Uint64(), mstats.Sys)
++		case "/gc/heap/objects:objects":
++			checkUint64(t, name, samples[i].Value.Uint64(), mstats.HeapObjects)
+ 		}
+ 	}
+ }

@@ -7,6 +7,23 @@ Date:   Tue May 24 15:45:08 2011 +1000
     R=golang-dev, bradfitz, ality
     CC=golang-dev
     https://golang.org/cl/4526070
-
+---
  lib/godoc/package.html | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/lib/godoc/package.html b/lib/godoc/package.html
+index 4205f93159..cb3ffa2a75 100644
+--- a/lib/godoc/package.html
++++ b/lib/godoc/package.html
+@@ -91,6 +91,11 @@
+ 	</p>
+ {.end}
+ {.section Dirs}
++	<p class="detail">
++	Need more packages? The
++	<a href="http://godashboard.appspot.com/package">Package Dashboard</a>
++	provides a list of <a href="/cmd/goinstall/">goinstallable</a> packages.
++	</p>
+ 	{# DirList entries are numbers and strings - no need for FSet}
+ 	<h2 id="Subdirectories">Subdirectories</h2>
+ 	<p>

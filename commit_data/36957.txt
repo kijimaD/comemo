@@ -7,6 +7,20 @@ Date:   Tue Jun 12 16:41:14 2018 -0700
     Change-Id: I3ac25cf1770b5ac0d36690c37615b3badd27463d
     Reviewed-on: https://go-review.googlesource.com/118455
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/encoding/gob/encoder_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/encoding/gob/encoder_test.go b/src/encoding/gob/encoder_test.go
+index a41fc9e889..dc9bbcf35d 100644
+--- a/src/encoding/gob/encoder_test.go
++++ b/src/encoding/gob/encoder_test.go
+@@ -1015,7 +1015,7 @@ type Bug4Secret struct {
+ }
+ 
+ // Test that a failed compilation doesn't leave around an executable encoder.
+-// Issue 3273.
++// Issue 3723.
+ func TestMutipleEncodingsOfBadType(t *testing.T) {
+ 	x := Bug4Public{
+ 		Name:   "name",

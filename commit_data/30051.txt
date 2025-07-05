@@ -12,7 +12,65 @@ Date:   Thu Oct 20 20:05:41 2016 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Quentin Smith <quentin@golang.org>
-
+---
  src/reflect/all_test.go  | 20 ++++++++++++++++++++
  src/reflect/deepequal.go |  6 +++++-
  2 files changed, 25 insertions(+), 1 deletion(-)
+
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index 9f8fd0df19..1d423f4386 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -648,6 +648,20 @@ var (
+ 
+ type self struct{}
+ 
++type Loop *Loop
++type Loopy interface{}
++
++var loop1, loop2 Loop
++var loopy1, loopy2 Loopy
++
++func init() {
++	loop1 = &loop2
++	loop2 = &loop1
++
++	loopy1 = &loopy2
++	loopy2 = &loopy1
++}
++
+ var deepEqualTests = []DeepEqualTest{
+ 	// Equalities
+ 	{nil, nil, true},
+@@ -706,6 +720,12 @@ var deepEqualTests = []DeepEqualTest{
+ 	{&[3]interface{}{1, 2, 4}, &[3]interface{}{1, 2, "s"}, false},
+ 	{Basic{1, 0.5}, NotBasic{1, 0.5}, false},
+ 	{map[uint]string{1: "one", 2: "two"}, map[int]string{2: "two", 1: "one"}, false},
++
++	// Possible loops.
++	{&loop1, &loop1, true},
++	{&loop1, &loop2, true},
++	{&loopy1, &loopy1, true},
++	{&loopy1, &loopy2, true},
+ }
+ 
+ func TestDeepEqual(t *testing.T) {
+diff --git a/src/reflect/deepequal.go b/src/reflect/deepequal.go
+index d339768854..f3fd7043e5 100644
+--- a/src/reflect/deepequal.go
++++ b/src/reflect/deepequal.go
+@@ -30,9 +30,13 @@ func deepValueEqual(v1, v2 Value, visited map[visit]bool, depth int) bool {
+ 	}
+ 
+ 	// if depth > 10 { panic("deepValueEqual") }	// for debugging
++
++	// We want to avoid putting more in the visited map than we need to.
++	// For any possible reference cycle that might be encountered,
++	// hard(t) needs to return true for at least one of the types in the cycle.
+ 	hard := func(k Kind) bool {
+ 		switch k {
+-		case Array, Map, Slice, Struct:
++		case Map, Slice, Ptr, Interface:
+ 			return true
+ 		}
+ 		return false

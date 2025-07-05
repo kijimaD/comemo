@@ -27,7 +27,131 @@ Date:   Fri Nov 5 23:35:58 2021 +0000
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/debug_test.go        | 42 ++++++++++++++++++++++++++++++++++++++++
  src/runtime/export_debug_test.go | 10 +++++++++-
  2 files changed, 51 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/debug_test.go b/src/runtime/debug_test.go
+index b5db7a55f1..89ea577d64 100644
+--- a/src/runtime/debug_test.go
++++ b/src/runtime/debug_test.go
+@@ -114,6 +114,13 @@ func skipUnderDebugger(t *testing.T) {
+ }
+ 
+ func TestDebugCall(t *testing.T) {
++	// InjectDebugCall cannot be executed while a GC is actively in
++	// progress. Wait until the current GC is done, and turn it off.
++	//
++	// See #49370.
++	runtime.GC()
++	defer debug.SetGCPercent(debug.SetGCPercent(-1))
++
+ 	g, after := startDebugCallWorker(t)
+ 	defer after()
+ 
+@@ -143,6 +150,7 @@ func TestDebugCall(t *testing.T) {
+ 			x1: 42.0,
+ 		}
+ 	}
++
+ 	if _, err := runtime.InjectDebugCall(g, fn, &regs, args, debugCallTKill, false); err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -164,6 +172,13 @@ func TestDebugCall(t *testing.T) {
+ }
+ 
+ func TestDebugCallLarge(t *testing.T) {
++	// InjectDebugCall cannot be executed while a GC is actively in
++	// progress. Wait until the current GC is done, and turn it off.
++	//
++	// See #49370.
++	runtime.GC()
++	defer debug.SetGCPercent(debug.SetGCPercent(-1))
++
+ 	g, after := startDebugCallWorker(t)
+ 	defer after()
+ 
+@@ -193,6 +208,13 @@ func TestDebugCallLarge(t *testing.T) {
+ }
+ 
+ func TestDebugCallGC(t *testing.T) {
++	// InjectDebugCall cannot be executed while a GC is actively in
++	// progress. Wait until the current GC is done, and turn it off.
++	//
++	// See #49370.
++	runtime.GC()
++	defer debug.SetGCPercent(debug.SetGCPercent(-1))
++
+ 	g, after := startDebugCallWorker(t)
+ 	defer after()
+ 
+@@ -203,6 +225,13 @@ func TestDebugCallGC(t *testing.T) {
+ }
+ 
+ func TestDebugCallGrowStack(t *testing.T) {
++	// InjectDebugCall cannot be executed while a GC is actively in
++	// progress. Wait until the current GC is done, and turn it off.
++	//
++	// See #49370.
++	runtime.GC()
++	defer debug.SetGCPercent(debug.SetGCPercent(-1))
++
+ 	g, after := startDebugCallWorker(t)
+ 	defer after()
+ 
+@@ -233,6 +262,12 @@ func TestDebugCallUnsafePoint(t *testing.T) {
+ 	// This can deadlock if there aren't enough threads or if a GC
+ 	// tries to interrupt an atomic loop (see issue #10958).
+ 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(8))
++
++	// InjectDebugCall cannot be executed while a GC is actively in
++	// progress. Wait until the current GC is done, and turn it off.
++	//
++	// See #49370.
++	runtime.GC()
+ 	defer debug.SetGCPercent(debug.SetGCPercent(-1))
+ 
+ 	// Test that the runtime refuses call injection at unsafe points.
+@@ -256,6 +291,13 @@ func TestDebugCallPanic(t *testing.T) {
+ 	// This can deadlock if there aren't enough threads.
+ 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(8))
+ 
++	// InjectDebugCall cannot be executed while a GC is actively in
++	// progress. Wait until the current GC is done, and turn it off.
++	//
++	// See #49370.
++	runtime.GC()
++	defer debug.SetGCPercent(debug.SetGCPercent(-1))
++
+ 	ready := make(chan *runtime.G)
+ 	var stop uint32
+ 	defer atomic.StoreUint32(&stop, 1)
+diff --git a/src/runtime/export_debug_test.go b/src/runtime/export_debug_test.go
+index 032a9b9725..fffc99d7e5 100644
+--- a/src/runtime/export_debug_test.go
++++ b/src/runtime/export_debug_test.go
+@@ -107,6 +107,10 @@ type debugCallHandler struct {
+ }
+ 
+ func (h *debugCallHandler) inject(info *siginfo, ctxt *sigctxt, gp2 *g) bool {
++	// TODO(49370): This code is riddled with write barriers, but called from
++	// a signal handler. Add the go:nowritebarrierrec annotation and restructure
++	// this to avoid write barriers.
++
+ 	switch h.gp.atomicstatus {
+ 	case _Grunning:
+ 		if getg().m != h.mp {
+@@ -141,7 +145,11 @@ func (h *debugCallHandler) inject(info *siginfo, ctxt *sigctxt, gp2 *g) bool {
+ }
+ 
+ func (h *debugCallHandler) handle(info *siginfo, ctxt *sigctxt, gp2 *g) bool {
+-	// Sanity check.
++	// TODO(49370): This code is riddled with write barriers, but called from
++	// a signal handler. Add the go:nowritebarrierrec annotation and restructure
++	// this to avoid write barriers.
++
++	// Double-check m.
+ 	if getg().m != h.mp {
+ 		println("trap on wrong M", getg().m, h.mp)
+ 		return false

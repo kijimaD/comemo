@@ -19,6 +19,36 @@ Date:   Fri Feb 12 09:54:50 2021 +0100
     Trust: Bryan C. Mills <bcmills@google.com>
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/runtime/race/testdata/mutex_test.go | 9 ++++++++-
  1 file changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/race/testdata/mutex_test.go b/src/runtime/race/testdata/mutex_test.go
+index cbed2d370c..9dbed9a2c9 100644
+--- a/src/runtime/race/testdata/mutex_test.go
++++ b/src/runtime/race/testdata/mutex_test.go
+@@ -78,16 +78,23 @@ func TestNoRaceMutexPureHappensBefore(t *testing.T) {
+ 	var mu sync.Mutex
+ 	var x int16 = 0
+ 	_ = x
++	written := false
+ 	ch := make(chan bool, 2)
+ 	go func() {
+ 		x = 1
+ 		mu.Lock()
++		written = true
+ 		mu.Unlock()
+ 		ch <- true
+ 	}()
+ 	go func() {
+-		<-time.After(1e5)
++		time.Sleep(100 * time.Microsecond)
+ 		mu.Lock()
++		for !written {
++			mu.Unlock()
++			time.Sleep(100 * time.Microsecond)
++			mu.Lock()
++		}
+ 		mu.Unlock()
+ 		x = 1
+ 		ch <- true

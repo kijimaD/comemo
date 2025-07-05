@@ -7,6 +7,20 @@ Date:   Fri Nov 18 14:30:06 2011 -0500
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5417049
-
+---
  lib/codereview/codereview.py | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/lib/codereview/codereview.py b/lib/codereview/codereview.py
+index 2465053a36..da6bbd5f3e 100644
+--- a/lib/codereview/codereview.py
++++ b/lib/codereview/codereview.py
+@@ -1933,7 +1933,7 @@ def submit(ui, repo, *pats, **opts):
+ 		changeURL = "http://code.google.com/p/%s/source/detail?r=%s" % (m.group(2), changeURL)
+ 	else:
+ 		print >>sys.stderr, "URL: ", url
+-	pmsg = "*** Submitted as " + changeURL + " ***\n\n" + opts['message']
++	pmsg = "*** Submitted as " + changeURL + " ***\n\n" + message
+ 
+ 	# When posting, move reviewers to CC line,
+ 	# so that the issue stops showing up in their "My Issues" page.

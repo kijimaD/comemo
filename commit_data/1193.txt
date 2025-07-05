@@ -10,7 +10,7 @@ Date:   Wed Nov 19 14:38:05 2008 -0800
     DELTA=276  (71 added, 75 deleted, 130 changed)
     OCL=19614
     CL=19621
-
+---
  src/lib/strconv/testatof.go    | 44 ++++++++++-----------
  src/lib/strconv/testatoi.go    | 86 ++++++++++++++++++------------------------
  src/lib/strconv/testdecimal.go | 65 ++++++++++++++-----------------
@@ -19,3 +19,616 @@ Date:   Wed Nov 19 14:38:05 2008 -0800
  src/lib/strconv/testitoa.go    | 27 ++++++-------
  src/lib/testing.go             | 78 ++++++++++++++++++++++++++++++++------
  7 files changed, 182 insertions(+), 160 deletions(-)
+
+diff --git a/src/lib/strconv/testatof.go b/src/lib/strconv/testatof.go
+index 7ec1670be1..cf4603f810 100644
+--- a/src/lib/strconv/testatof.go
++++ b/src/lib/strconv/testatof.go
+@@ -6,7 +6,8 @@ package strconv
+ import (
+ 	"fmt";
+ 	"os";
+-	"strconv"
++	"strconv";
++	"testing"
+ )
+ 
+ type Test struct {
+@@ -90,48 +91,43 @@ var tests = []Test {
+ 	Test{ ".e-1", "0", os.EINVAL },
+ }
+ 
+-func XTestAtof(opt bool) bool {
++func XTestAtof(t *testing.T, opt bool) {
+ 	oldopt := strconv.optimize;
+ 	strconv.optimize = opt;
+-	ok := true;
+ 	for i := 0; i < len(tests); i++ {
+-		t := &tests[i];
+-		out, err := strconv.atof64(t.in);
++		test := &tests[i];
++		out, err := strconv.atof64(test.in);
+ 		outs := strconv.ftoa64(out, 'g', -1);
+-		if outs != t.out || err != t.err {
+-			fmt.printf("strconv.atof64(%v) = %v, %v want %v, %v\n",
+-				t.in, out, err, t.out, t.err);
+-			ok = false;
++		if outs != test.out || err != test.err {
++			t.Errorf("strconv.atof64(%v) = %v, %v want %v, %v\n",
++				test.in, out, err, test.out, test.err);
+ 		}
+ 
+ 		if float64(float32(out)) == out {
+-			out32, err := strconv.atof32(t.in);
++			out32, err := strconv.atof32(test.in);
+ 			outs := strconv.ftoa32(out32, 'g', -1);
+-			if outs != t.out || err != t.err {
+-				fmt.printf("strconv.atof32(%v) = %v, %v want %v, %v  # %v\n",
+-					t.in, out32, err, t.out, t.err, out);
+-				ok = false;
++			if outs != test.out || err != test.err {
++				t.Errorf("strconv.atof32(%v) = %v, %v want %v, %v  # %v\n",
++					test.in, out32, err, test.out, test.err, out);
+ 			}
+ 		}
+ 
+ 		if floatsize == 64 || float64(float32(out)) == out {
+-			outf, err := strconv.atof(t.in);
++			outf, err := strconv.atof(test.in);
+ 			outs := strconv.ftoa(outf, 'g', -1);
+-			if outs != t.out || err != t.err {
+-				fmt.printf("strconv.ftoa(%v) = %v, %v want %v, %v  # %v\n",
+-					t.in, outf, err, t.out, t.err, out);
+-				ok = false;
++			if outs != test.out || err != test.err {
++				t.Errorf("strconv.ftoa(%v) = %v, %v want %v, %v  # %v\n",
++					test.in, outf, err, test.out, test.err, out);
+ 			}
+ 		}
+ 	}
+ 	strconv.optimize = oldopt;
+-	return ok;
+ }
+ 
+-export func TestAtof() bool {
+-	return XTestAtof(true);
++export func TestAtof(t *testing.T) {
++	XTestAtof(t, true);
+ }
+ 
+-export func TestAtofSlow() bool {
+-	return XTestAtof(false);
++export func TestAtofSlow(t *testing.T) {
++	XTestAtof(t, false);
+ }
+diff --git a/src/lib/strconv/testatoi.go b/src/lib/strconv/testatoi.go
+index b318fc79a0..166c2e4332 100644
+--- a/src/lib/strconv/testatoi.go
++++ b/src/lib/strconv/testatoi.go
+@@ -6,7 +6,8 @@ package strconv
+ import (
+ 	"os";
+ 	"fmt";
+-	"strconv"
++	"strconv";
++	"testing"
+ )
+ 
+ type Uint64Test struct {
+@@ -102,32 +103,26 @@ var int32tests = []Int32Test {
+ 	Int32Test{ "-2147483649", -1<<31, os.ERANGE },
+ }
+ 
+-export func TestAtoui64() bool {
+-	ok := true;
++export func TestAtoui64(t *testing.T) {
+ 	for i := 0; i < len(uint64tests); i++ {
+-		t := &uint64tests[i];
+-		out, err := strconv.atoui64(t.in);
+-		if t.out != out || t.err != err {
+-			fmt.printf("strconv.atoui64(%v) = %v, %v want %v, %v\n",
+-				t.in, out, err, t.out, t.err);
+-			ok = false;
++		test := &uint64tests[i];
++		out, err := strconv.atoui64(test.in);
++		if test.out != out || test.err != err {
++			t.Errorf("strconv.atoui64(%v) = %v, %v want %v, %v\n",
++				test.in, out, err, test.out, test.err);
+ 		}
+ 	}
+-	return ok;
+ }
+ 
+-export func TestAtoi64() bool {
+-	ok := true;
++export func TestAtoi64(t *testing.T) {
+ 	for i := 0; i < len(int64tests); i++ {
+-		t := &int64tests[i];
+-		out, err := strconv.atoi64(t.in);
+-		if t.out != out || t.err != err {
+-			fmt.printf("strconv.atoi64(%v) = %v, %v want %v, %v\n",
+-				t.in, out, err, t.out, t.err);
+-			ok = false;
++		test := &int64tests[i];
++		out, err := strconv.atoi64(test.in);
++		if test.out != out || test.err != err {
++			t.Errorf("strconv.atoi64(%v) = %v, %v want %v, %v\n",
++				test.in, out, err, test.out, test.err);
+ 		}
+ 	}
+-	return ok;
+ }
+ 
+ func IntSize1() uint {
+@@ -135,61 +130,52 @@ func IntSize1() uint {
+ 	if tmp<<16<<16 == 0 {
+ 		return 32;
+ 	}
+-println("tmp<<32 = ", tmp<<32);
+ 	return 64;
+ }
+ 
+-export func TestAtoui() bool {
+-	ok := true;
++export func TestAtoui(t *testing.T) {
+ 	switch IntSize1() {
+ 	case 32:
+ 		for i := 0; i < len(uint32tests); i++ {
+-			t := &uint32tests[i];
+-			out, err := strconv.atoui(t.in);
+-			if t.out != uint32(out) || t.err != err {
+-				fmt.printf("strconv.atoui(%v) = %v, %v want %v, %v\n",
+-					t.in, out, err, t.out, t.err);
+-				ok = false;
++			test := &uint32tests[i];
++			out, err := strconv.atoui(test.in);
++			if test.out != uint32(out) || test.err != err {
++				t.Errorf("strconv.atoui(%v) = %v, %v want %v, %v\n",
++					test.in, out, err, test.out, test.err);
+ 			}
+ 		}
+ 	case 64:
+ 		for i := 0; i < len(uint64tests); i++ {
+-			t := &uint64tests[i];
+-			out, err := strconv.atoui(t.in);
+-			if t.out != uint64(out) || t.err != err {
+-				fmt.printf("strconv.atoui(%v) = %v, %v want %v, %v\n",
+-					t.in, out, err, t.out, t.err);
+-				ok = false;
++			test := &uint64tests[i];
++			out, err := strconv.atoui(test.in);
++			if test.out != uint64(out) || test.err != err {
++				t.Errorf("strconv.atoui(%v) = %v, %v want %v, %v\n",
++					test.in, out, err, test.out, test.err);
+ 			}
+ 		}
+ 	}
+-	return ok;
+ }
+ 
+-export func TestAtoi() bool {
+-	ok := true;
++export func TestAtoi(t *testing.T) {
+ 	switch IntSize1() {
+ 	case 32:
+ 		for i := 0; i < len(int32tests); i++ {
+-			t := &int32tests[i];
+-			out, err := strconv.atoi(t.in);
+-			if t.out != int32(out) || t.err != err {
+-				fmt.printf("strconv.atoi(%v) = %v, %v want %v, %v\n",
+-					t.in, out, err, t.out, t.err);
+-				ok = false;
++			test := &int32tests[i];
++			out, err := strconv.atoi(test.in);
++			if test.out != int32(out) || test.err != err {
++				t.Errorf("strconv.atoi(%v) = %v, %v want %v, %v\n",
++					test.in, out, err, test.out, test.err);
+ 			}
+ 		}
+ 	case 64:
+ 		for i := 0; i < len(int64tests); i++ {
+-			t := &int64tests[i];
+-			out, err := strconv.atoi(t.in);
+-			if t.out != int64(out) || t.err != err {
+-				fmt.printf("strconv.atoi(%v) = %v, %v want %v, %v\n",
+-					t.in, out, err, t.out, t.err);
+-				ok = false;
++			test := &int64tests[i];
++			out, err := strconv.atoi(test.in);
++			if test.out != int64(out) || test.err != err {
++				t.Errorf("strconv.atoi(%v) = %v, %v want %v, %v\n",
++					test.in, out, err, test.out, test.err);
+ 			}
+ 		}
+ 	}
+-	return ok;
+ }
+ 
+diff --git a/src/lib/strconv/testdecimal.go b/src/lib/strconv/testdecimal.go
+index 767701f159..5b6d1a6760 100644
+--- a/src/lib/strconv/testdecimal.go
++++ b/src/lib/strconv/testdecimal.go
+@@ -6,7 +6,8 @@ package strconv
+ 
+ import (
+ 	"fmt";
+-	"strconv"
++	"strconv";
++	"testing";
+ )
+ 
+ type ShiftTest struct {
+@@ -28,18 +29,16 @@ var shifttests = []ShiftTest {
+ 	ShiftTest{ 1953125, 9, "1000000000" },
+ }
+ 
+-export func TestDecimalShift() bool {
++export func TestDecimalShift(t *testing.T) {
+ 	ok := true;
+ 	for i := 0; i < len(shifttests); i++ {
+-		t := &shifttests[i];
+-		s := strconv.NewDecimal(t.i).Shift(t.shift).String();
+-		if s != t.out {
+-			fmt.printf("Decimal %v << %v = %v, want %v\n",
+-				t.i, t.shift, s, t.out);
+-			ok = false;
++		test := &shifttests[i];
++		s := strconv.NewDecimal(test.i).Shift(test.shift).String();
++		if s != test.out {
++			t.Errorf("Decimal %v << %v = %v, want %v\n",
++				test.i, test.shift, s, test.out);
+ 		}
+ 	}
+-	return ok;
+ }
+ 
+ type RoundTest struct {
+@@ -67,30 +66,25 @@ var roundtests = []RoundTest {
+ 	RoundTest{ 12999999, 4, "12990000", "13000000", "13000000", 13000000 },
+ }
+ 
+-export func TestDecimalRound() bool {
+-	ok := true;
++export func TestDecimalRound(t *testing.T) {
+ 	for i := 0; i < len(roundtests); i++ {
+-		t := &roundtests[i];
+-		s := strconv.NewDecimal(t.i).RoundDown(t.nd).String();
+-		if s != t.down {
+-			fmt.printf("Decimal %v RoundDown %d = %v, want %v\n",
+-				t.i, t.nd, s, t.down);
+-			ok = false;
++		test := &roundtests[i];
++		s := strconv.NewDecimal(test.i).RoundDown(test.nd).String();
++		if s != test.down {
++			t.Errorf("Decimal %v RoundDown %d = %v, want %v\n",
++				test.i, test.nd, s, test.down);
+ 		}
+-		s = strconv.NewDecimal(t.i).Round(t.nd).String();
+-		if s != t.round {
+-			fmt.printf("Decimal %v Round %d = %v, want %v\n",
+-				t.i, t.nd, s, t.down);
+-			ok = false;
++		s = strconv.NewDecimal(test.i).Round(test.nd).String();
++		if s != test.round {
++			t.Errorf("Decimal %v Round %d = %v, want %v\n",
++				test.i, test.nd, s, test.down);
+ 		}
+-		s = strconv.NewDecimal(t.i).RoundUp(t.nd).String();
+-		if s != t.up {
+-			fmt.printf("Decimal %v RoundUp %d = %v, want %v\n",
+-				t.i, t.nd, s, t.up);
+-			ok = false;
++		s = strconv.NewDecimal(test.i).RoundUp(test.nd).String();
++		if s != test.up {
++			t.Errorf("Decimal %v RoundUp %d = %v, want %v\n",
++				test.i, test.nd, s, test.up);
+ 		}
+ 	}
+-	return ok;
+ }
+ 
+ type RoundIntTest struct {
+@@ -112,17 +106,14 @@ var roundinttests = []RoundIntTest {
+ 	RoundIntTest{ 1000, 0, 1000 },
+ }
+ 
+-export func TestDecimalRoundedInteger() bool {
+-	ok := true;
++export func TestDecimalRoundedInteger(t *testing.T) {
+ 	for i := 0; i < len(roundinttests); i++ {
+-		t := roundinttests[i];
++		test := roundinttests[i];
+ 		// TODO: should be able to use int := here.
+-		int1 := strconv.NewDecimal(t.i).Shift(t.shift).RoundedInteger();
+-		if int1 != t.int {
+-			fmt.printf("Decimal %v >> %v RoundedInteger = %v, want %v\n",
+-				t.i, t.shift, int1, t.int);
+-			ok = false;
++		int1 := strconv.NewDecimal(test.i).Shift(test.shift).RoundedInteger();
++		if int1 != test.int {
++			t.Errorf("Decimal %v >> %v RoundedInteger = %v, want %v\n",
++				test.i, test.shift, int1, test.int);
+ 		}
+ 	}
+-	return ok;
+ }
+diff --git a/src/lib/strconv/testfp.go b/src/lib/strconv/testfp.go
+index 0518c528a8..6665a9c00d 100644
+--- a/src/lib/strconv/testfp.go
++++ b/src/lib/strconv/testfp.go
+@@ -9,6 +9,7 @@ import (
+ 	"os";
+ 	"strconv";
+ 	"strings";
++	"testing";
+ )
+ 
+ func pow2(i int) float64 {
+@@ -91,7 +92,7 @@ func myatof32(s string) (f float32, ok bool) {
+ 	return f1, true;
+ }
+ 
+-export func TestFp() bool {
++export func TestFp(t *testing.T) {
+ 	fd, err := os.Open("testfp.txt", os.O_RDONLY, 0);
+ 	if err != nil {
+ 		panicln("testfp: open testfp.txt:", err.String());
+@@ -103,7 +104,6 @@ export func TestFp() bool {
+ 	}
+ 
+ 	lineno := 0;
+-	ok := true;
+ 	for {
+ 		line, err2 := b.ReadLineString('\n', false);
+ 		if err2 == bufio.EndOfFile {
+@@ -118,7 +118,7 @@ export func TestFp() bool {
+ 		}
+ 		a := strings.split(line, " ");
+ 		if len(a) != 4 {
+-			print("testfp.txt:", lineno, ": wrong field count\n");
++			t.Errorf("testfp.txt:", lineno, ": wrong field count\n");
+ 			continue;
+ 		}
+ 		var s string;
+@@ -128,25 +128,23 @@ export func TestFp() bool {
+ 			var ok bool;
+ 			v, ok = myatof64(a[2]);
+ 			if !ok {
+-				print("testfp.txt:", lineno, ": cannot atof64 ", a[2]);
++				t.Errorf("testfp.txt:", lineno, ": cannot atof64 ", a[2]);
+ 				continue;
+ 			}
+ 			s = fmt.sprintf(a[1], v);
+ 		case "float32":
+ 			v1, ok := myatof32(a[2]);
+ 			if !ok {
+-				print("testfp.txt:", lineno, ": cannot atof32 ", a[2]);
++				t.Errorf("testfp.txt:", lineno, ": cannot atof32 ", a[2]);
+ 				continue;
+ 			}
+ 			s = fmt.sprintf(a[1], v1);
+ 			v = float64(v1);
+ 		}
+ 		if s != a[3] {
+-			print("testfp.txt:", lineno, ": ", a[0], " ", a[1], " ", a[2], " (", v, ") ",
++			t.Errorf("testfp.txt:", lineno, ": ", a[0], " ", a[1], " ", a[2], " (", v, ") ",
+ 				"want ", a[3], " got ", s, "\n");
+-			ok = false;
+ 		}
+ //else print("testfp.txt:", lineno, ": worked! ", s, "\n");
+ 	}
+-	return ok;
+ }
+diff --git a/src/lib/strconv/testftoa.go b/src/lib/strconv/testftoa.go
+index 390cd8bf57..c452eb2b70 100644
+--- a/src/lib/strconv/testftoa.go
++++ b/src/lib/strconv/testftoa.go
+@@ -3,7 +3,11 @@
+ // license that can be found in the LICENSE file.
+ 
+ package strconv
+-import "strconv"
++
++import (
++	"strconv";
++	"testing"
++)
+ 
+ type Test struct {
+ 	f float64;
+@@ -86,25 +90,21 @@ var ftests = []Test {
+ 	Test{ -1, 'b', -1, "-4503599627370496p-52" },
+ }
+ 
+-export func TestFtoa() bool {
+-	ok := true;
++export func TestFtoa(t *testing.T) {
+ 	if strconv.floatsize != 32 {
+ 		panic("floatsize: ", strconv.floatsize);
+ 	}
+ 	for i := 0; i < len(ftests); i++ {
+-		t := &ftests[i];
+-		s := strconv.ftoa64(t.f, t.fmt, t.prec);
+-		if s != t.s {
+-			println("test", t.f, string(t.fmt), t.prec, "want", t.s, "got", s);
+-			ok = false;
++		test := &ftests[i];
++		s := strconv.ftoa64(test.f, test.fmt, test.prec);
++		if s != test.s {
++			t.Errorf("test", test.f, string(test.fmt), test.prec, "want", test.s, "got", s);
+ 		}
+-		if float64(float32(t.f)) == t.f && t.fmt != 'b' {
+-			s := strconv.ftoa32(float32(t.f), t.fmt, t.prec);
+-			if s != t.s {
+-				println("test32", t.f, string(t.fmt), t.prec, "want", t.s, "got", s);
+-				ok = false;
++		if float64(float32(test.f)) == test.f && test.fmt != 'b' {
++			s := strconv.ftoa32(float32(test.f), test.fmt, test.prec);
++			if s != test.s {
++				t.Errorf("test32", test.f, string(test.fmt), test.prec, "want", test.s, "got", s);
+ 			}
+ 		}
+ 	}
+-	return ok;
+ }
+diff --git a/src/lib/strconv/testitoa.go b/src/lib/strconv/testitoa.go
+index 060264399d..89a97339e3 100644
+--- a/src/lib/strconv/testitoa.go
++++ b/src/lib/strconv/testitoa.go
+@@ -8,6 +8,7 @@ import (
+ 	"fmt";
+ 	"os";
+ 	"strconv";
++	"testing";
+ )
+ 
+ type Int64Test struct {
+@@ -41,26 +42,22 @@ var xint64tests = []Int64Test {
+ 	Int64Test{ -1<<63, "-9223372036854775808" },
+ }
+ 
+-export func TestItoa() bool {
+-	ok := true;
++export func TestItoa(t *testing.T) {
+ 	for i := 0; i < len(xint64tests); i++ {
+-		t := xint64tests[i];
+-		s := strconv.itoa64(t.in);
+-		if s != t.out {
+-			fmt.printf("strconv.itoa64(%v) = %v want %v\n",
+-				t.in, s, t.out);
+-			ok = false;
++		test := xint64tests[i];
++		s := strconv.itoa64(test.in);
++		if s != test.out {
++			t.Error("strconv.itoa64(%v) = %v want %v\n",
++				test.in, s, test.out);
+ 		}
+-		if int64(int(t.in)) == t.in {
+-			s := strconv.itoa(int(t.in));
+-			if s != t.out {
+-				fmt.printf("strconv.itoa(%v) = %v want %v\n",
+-					t.in, s, t.out);
+-				ok = false;
++		if int64(int(test.in)) == test.in {
++			s := strconv.itoa(int(test.in));
++			if s != test.out {
++				t.Error("strconv.itoa(%v) = %v want %v\n",
++					test.in, s, test.out);
+ 			}
+ 		}
+ 	}
+-	return ok;
+ }
+ 
+ // TODO: Use once there is a strconv.uitoa
+diff --git a/src/lib/testing.go b/src/lib/testing.go
+index 53a2c19d13..be82cbdebe 100644
+--- a/src/lib/testing.go
++++ b/src/lib/testing.go
+@@ -5,7 +5,8 @@
+ package testing
+ 
+ import (
+-	"flag"
++	"fmt";
++	"flag";
+ )
+ 
+ var chatty bool;
+@@ -13,32 +14,85 @@ func init() {
+ 	flag.Bool("chatty", false, &chatty, "chatty");
+ }
+ 
++export type T struct {
++	errors	string;
++	failed	bool;
++	ch	*chan *T;
++}
++
++func (t *T) Fail() {
++	t.failed = true
++}
++
++func (t *T) FailNow() {
++	t.Fail();
++	t.ch <- t;
++	sys.goexit();
++}
++
++func (t *T) Log(args ...) {
++	t.errors += "\t" + fmt.sprintln(args);
++}
++
++func (t *T) Logf(format string, args ...) {
++	t.errors += fmt.sprintf("\t" + format, args);
++	l := len(t.errors);
++	if l > 0 && t.errors[l-1] != '\n' {
++		t.errors += "\n"
++	}
++}
++
++func (t *T) Error(args ...) {
++	t.Log(args);
++	t.Fail();
++}
++
++func (t *T) Errorf(format string, args ...) {
++	t.Logf(format, args);
++	t.Fail();
++}
++
++func (t *T) Fatal(args ...) {
++	t.Log(args);
++	t.FailNow();
++}
++
++func (t *T) Fatalf(format string, args ...) {
++	t.Logf(format, args);
++	t.FailNow();
++}
++
+ export type Test struct {
+ 	name string;
+-	f *() bool;
++	f *(*T);
++}
++
++func TRunner(t *T, test *Test) {
++	test.f(t);
++	t.ch <- t;
+ }
+ 
+ export func Main(tests *[]Test) {
+-	flag.Parse();
+ 	ok := true;
+-	if len(tests) == 0 {
+-		println("warning: no tests available");
+-	} else if chatty {
+-		println(len(tests), "tests to run");
+-	}
+ 	for i := 0; i < len(tests); i++ {
+ 		if chatty {
+ 			println("=== RUN ", tests[i].name);
+ 		}
+-		ok1 := tests[i].f();
+-		if !ok1 {
++		t := new(T);
++		t.ch = new(chan *T);
++		go TRunner(t, &tests[i]);
++		<-t.ch;
++		if t.failed {
++			println("--- FAIL:", tests[i].name);
++			print(t.errors);
+ 			ok = false;
+-			println("--- FAIL", tests[i].name);
+ 		} else if chatty {
+-			println("--- PASS", tests[i].name);
++			println("--- PASS:", tests[i].name);
++			print(t.errors);
+ 		}
+ 	}
+ 	if !ok {
++		println("FAIL");
+ 		sys.exit(1);
+ 	}
+ 	println("PASS");

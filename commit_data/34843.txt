@@ -38,7 +38,60 @@ Date:   Sun Nov 19 17:28:46 2017 +0000
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/doc/doc_test.go | 18 ++++++++++++++++++
  src/cmd/doc/main.go     |  5 ++++-
  2 files changed, 22 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/doc/doc_test.go b/src/cmd/doc/doc_test.go
+index ce0d77a445..0df53a3630 100644
+--- a/src/cmd/doc/doc_test.go
++++ b/src/cmd/doc/doc_test.go
+@@ -569,6 +569,24 @@ func TestTwoArgLookup(t *testing.T) {
+ 			t.Errorf("unexpected error %q from rand Float64", err)
+ 		}
+ 	}
++	{
++		var flagSet flag.FlagSet
++		err := do(&b, &flagSet, []string{"bytes", "Foo"})
++		if err == nil {
++			t.Errorf("expected error from bytes Foo")
++		} else if !strings.Contains(err.Error(), "no symbol Foo") {
++			t.Errorf("unexpected error %q from bytes Foo", err)
++		}
++	}
++	{
++		var flagSet flag.FlagSet
++		err := do(&b, &flagSet, []string{"nosuchpackage", "Foo"})
++		if err == nil {
++			// actually present in the user's filesystem
++		} else if !strings.Contains(err.Error(), "no such package") {
++			t.Errorf("unexpected error %q from nosuchpackage Foo", err)
++		}
++	}
+ }
+ 
+ type trimTest struct {
+diff --git a/src/cmd/doc/main.go b/src/cmd/doc/main.go
+index de275403a2..809a719a58 100644
+--- a/src/cmd/doc/main.go
++++ b/src/cmd/doc/main.go
+@@ -93,6 +93,9 @@ func do(writer io.Writer, flagSet *flag.FlagSet, args []string) (err error) {
+ 		if i > 0 && !more { // Ignore the "more" bit on the first iteration.
+ 			return failMessage(paths, symbol, method)
+ 		}
++		if buildPackage == nil {
++			return fmt.Errorf("no such package: %s", userPath)
++		}
+ 		symbol, method = parseSymbol(sym)
+ 		pkg := parsePackage(writer, buildPackage, userPath)
+ 		paths = append(paths, pkg.prettyPath())
+@@ -179,7 +182,7 @@ func parseArgs(args []string) (pkg *build.Package, path, symbol string, more boo
+ 		// Package must be findable and importable.
+ 		packagePath, ok := findPackage(args[0])
+ 		if !ok {
+-			log.Fatalf("no such package: %s", args[0])
++			return nil, args[0], args[1], false
+ 		}
+ 		return importDir(packagePath), args[0], args[1], true
+ 	}

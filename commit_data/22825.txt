@@ -12,8 +12,195 @@ Date:   Fri Apr 10 18:32:40 2015 +0300
     Reviewed-by: Rick Hudson <rlh@golang.org>
     Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/internal/trace/parser.go | 36 ++++++++++++++++++++++++++++++------
  src/runtime/proc1.go         | 27 ++++++++++++++++++++-------
  src/runtime/trace.go         |  6 +++---
  3 files changed, 53 insertions(+), 16 deletions(-)
+
+diff --git a/src/internal/trace/parser.go b/src/internal/trace/parser.go
+index f1f709e4fd..1b4538f11b 100644
+--- a/src/internal/trace/parser.go
++++ b/src/internal/trace/parser.go
+@@ -235,6 +235,12 @@ func parseEvents(rawEvents []rawEvent) (events []*Event, err error) {
+ 				EvGoBlockSelect, EvGoBlockSync, EvGoBlockCond, EvGoBlockNet,
+ 				EvGoSysBlock:
+ 				lastG = 0
++			case EvGoSysExit:
++				if e.Args[1] != 0 {
++					// EvGoSysExit emission is delayed until the thread has a P.
++					// Give it the real timestamp.
++					e.Ts = int64(e.Args[1])
++				}
+ 			}
+ 			events = append(events, e)
+ 		}
+@@ -423,7 +429,12 @@ func postProcessTrace(events []*Event) error {
+ 			g1.state = gWaiting
+ 			gs[ev.Args[0]] = g1
+ 		case EvGoInSyscall:
+-			// this case is intentionally left blank
++			g1 := gs[ev.Args[0]]
++			if g1.state != gRunnable {
++				return fmt.Errorf("g %v is not runnable before EvGoInSyscall (offset %v, time %v)", ev.Args[0], ev.Off, ev.Ts)
++			}
++			g1.state = gWaiting
++			gs[ev.Args[0]] = g1
+ 		case EvGoCreate:
+ 			if err := checkRunning(p, g, ev); err != nil {
+ 				return err
+@@ -498,17 +509,18 @@ func postProcessTrace(events []*Event) error {
+ 			if err := checkRunning(p, g, ev); err != nil {
+ 				return err
+ 			}
+-			g.state = gRunnable
++			g.state = gWaiting
+ 			g.evStart.Link = ev
+ 			g.evStart = nil
+ 			p.g = 0
+ 		case EvGoSysExit:
+-			if g.state != gRunnable {
+-				return fmt.Errorf("g %v is not runnable during syscall exit (offset %v, time %v)", ev.G, ev.Off, ev.Ts)
++			if g.state != gWaiting {
++				return fmt.Errorf("g %v is not waiting during syscall exit (offset %v, time %v)", ev.G, ev.Off, ev.Ts)
+ 			}
+ 			if g.ev != nil && g.ev.Type == EvGoSysCall {
+ 				g.ev.Link = ev
+ 			}
++			g.state = gRunnable
+ 			g.ev = ev
+ 		case EvGoSleep, EvGoBlock, EvGoBlockSend, EvGoBlockRecv,
+ 			EvGoBlockSelect, EvGoBlockSync, EvGoBlockCond, EvGoBlockNet:
+@@ -638,6 +650,18 @@ func (l eventList) Swap(i, j int) {
+ 	l[i], l[j] = l[j], l[i]
+ }
+ 
++// Print dumps events to stdout. For debugging.
++func Print(events []*Event) {
++	for _, ev := range events {
++		desc := EventDescriptions[ev.Type]
++		fmt.Printf("%v %v p=%v g=%v off=%v", ev.Ts, desc.Name, ev.P, ev.G, ev.Off)
++		for i, a := range desc.Args {
++			fmt.Printf(" %v=%v", a, ev.Args[i])
++		}
++		fmt.Printf("\n")
++	}
++}
++
+ // Event types in the trace.
+ // Verbatim copy from src/runtime/trace.go.
+ const (
+@@ -670,7 +694,7 @@ const (
+ 	EvGoBlockCond    = 26 // goroutine blocks on Cond [timestamp, stack]
+ 	EvGoBlockNet     = 27 // goroutine blocks on network [timestamp, stack]
+ 	EvGoSysCall      = 28 // syscall enter [timestamp, stack]
+-	EvGoSysExit      = 29 // syscall exit [timestamp, goroutine id]
++	EvGoSysExit      = 29 // syscall exit [timestamp, goroutine id, real timestamp]
+ 	EvGoSysBlock     = 30 // syscall blocks [timestamp]
+ 	EvGoWaiting      = 31 // denotes that goroutine is blocked when tracing starts [goroutine id]
+ 	EvGoInSyscall    = 32 // denotes that goroutine is in syscall when tracing starts [goroutine id]
+@@ -715,7 +739,7 @@ var EventDescriptions = [EvCount]struct {
+ 	EvGoBlockCond:    {"GoBlockCond", true, []string{}},
+ 	EvGoBlockNet:     {"GoBlockNet", true, []string{}},
+ 	EvGoSysCall:      {"GoSysCall", true, []string{}},
+-	EvGoSysExit:      {"GoSysExit", false, []string{"g"}},
++	EvGoSysExit:      {"GoSysExit", false, []string{"g", "ts"}},
+ 	EvGoSysBlock:     {"GoSysBlock", false, []string{}},
+ 	EvGoWaiting:      {"GoWaiting", false, []string{"g"}},
+ 	EvGoInSyscall:    {"GoInSyscall", false, []string{"g"}},
+diff --git a/src/runtime/proc1.go b/src/runtime/proc1.go
+index b2ab04d464..3b09149260 100644
+--- a/src/runtime/proc1.go
++++ b/src/runtime/proc1.go
+@@ -1813,17 +1813,18 @@ func exitsyscall(dummy int32) {
+ 		return
+ 	}
+ 
++	var exitTicks int64
+ 	if trace.enabled {
+ 		// Wait till traceGoSysBlock event is emited.
+ 		// This ensures consistency of the trace (the goroutine is started after it is blocked).
+ 		for oldp != nil && oldp.syscalltick == _g_.m.syscalltick {
+ 			osyield()
+ 		}
+-		// This can't be done since the GC may be running and this code
+-		// will invoke write barriers.
+-		// TODO: Figure out how to get traceGoSysExit into the trace log or
+-		// it is likely not to work as expected.
+-		//		systemstack(traceGoSysExit)
++		// We can't trace syscall exit right now because we don't have a P.
++		// Tracing code can invoke write barriers that cannot run without a P.
++		// So instead we remember the syscall exit time and emit the event
++		// below when we have a P.
++		exitTicks = cputicks()
+ 	}
+ 
+ 	_g_.m.locks--
+@@ -1831,6 +1832,11 @@ func exitsyscall(dummy int32) {
+ 	// Call the scheduler.
+ 	mcall(exitsyscall0)
+ 
++	// The goroutine must not be re-scheduled up to traceGoSysExit.
++	// Otherwise we can emit GoStart but not GoSysExit, that would lead
++	// no an inconsistent trace.
++	_g_.m.locks++
++
+ 	if _g_.m.mcache == nil {
+ 		throw("lost mcache")
+ 	}
+@@ -1844,6 +1850,13 @@ func exitsyscall(dummy int32) {
+ 	_g_.syscallsp = 0
+ 	_g_.m.p.syscalltick++
+ 	_g_.throwsplit = false
++
++	if exitTicks != 0 {
++		systemstack(func() {
++			traceGoSysExit(exitTicks)
++		})
++	}
++	_g_.m.locks--
+ }
+ 
+ //go:nosplit
+@@ -1871,7 +1884,7 @@ func exitsyscallfast() bool {
+ 					// Denote blocking of the new syscall.
+ 					traceGoSysBlock(_g_.m.p)
+ 					// Denote completion of the current syscall.
+-					traceGoSysExit()
++					traceGoSysExit(0)
+ 				})
+ 			}
+ 			_g_.m.p.syscalltick++
+@@ -1895,7 +1908,7 @@ func exitsyscallfast() bool {
+ 						osyield()
+ 					}
+ 				}
+-				traceGoSysExit()
++				traceGoSysExit(0)
+ 			}
+ 		})
+ 		if ok {
+diff --git a/src/runtime/trace.go b/src/runtime/trace.go
+index 5146850770..a149799527 100644
+--- a/src/runtime/trace.go
++++ b/src/runtime/trace.go
+@@ -45,7 +45,7 @@ const (
+ 	traceEvGoBlockCond    = 26 // goroutine blocks on Cond [timestamp, stack]
+ 	traceEvGoBlockNet     = 27 // goroutine blocks on network [timestamp, stack]
+ 	traceEvGoSysCall      = 28 // syscall enter [timestamp, stack]
+-	traceEvGoSysExit      = 29 // syscall exit [timestamp, goroutine id]
++	traceEvGoSysExit      = 29 // syscall exit [timestamp, goroutine id, real timestamp]
+ 	traceEvGoSysBlock     = 30 // syscall blocks [timestamp]
+ 	traceEvGoWaiting      = 31 // denotes that goroutine is blocked when tracing starts [goroutine id]
+ 	traceEvGoInSyscall    = 32 // denotes that goroutine is in syscall when tracing starts [goroutine id]
+@@ -797,8 +797,8 @@ func traceGoSysCall() {
+ 	traceEvent(traceEvGoSysCall, 4)
+ }
+ 
+-func traceGoSysExit() {
+-	traceEvent(traceEvGoSysExit, -1, uint64(getg().m.curg.goid))
++func traceGoSysExit(ts int64) {
++	traceEvent(traceEvGoSysExit, -1, uint64(getg().m.curg.goid), uint64(ts)/traceTickDiv)
+ }
+ 
+ func traceGoSysBlock(pp *p) {

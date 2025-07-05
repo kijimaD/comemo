@@ -26,7 +26,239 @@ Date:   Sat Sep 9 13:41:35 2023 +0000
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Heschi Kreinick <heschi@google.com>
     Auto-Submit: Keith Randall <khr@golang.org>
-
+---
  src/runtime/internal/atomic/atomic_andor_test.go | 169 +++++++++++++++++++++++
  src/runtime/internal/atomic/atomic_wasm.go       |  48 +++++++
  2 files changed, 217 insertions(+)
+
+diff --git a/src/runtime/internal/atomic/atomic_andor_test.go b/src/runtime/internal/atomic/atomic_andor_test.go
+new file mode 100644
+index 0000000000..0298d75c9b
+--- /dev/null
++++ b/src/runtime/internal/atomic/atomic_andor_test.go
+@@ -0,0 +1,169 @@
++// +build wasm
++//
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// TODO(61395): move these tests to atomic_test.go once And/Or have
++// implementations for all architectures.
++package atomic_test
++
++import (
++	"testing"
++	"runtime/internal/atomic"
++)
++
++func TestAnd32(t *testing.T) {
++	// Basic sanity check.
++	x := uint32(0xffffffff)
++	for i := uint32(0); i < 32; i++ {
++		old := x
++		v := atomic.And32(&x, ^(1 << i))
++		if r := uint32(0xffffffff) << (i + 1); x != r || v != old {
++			t.Fatalf("clearing bit %#x: want %#x, got new %#x and old %#v", uint32(1<<i), r, x, v)
++		}
++	}
++
++	// Set every bit in array to 1.
++	a := make([]uint32, 1<<12)
++	for i := range a {
++		a[i] = 0xffffffff
++	}
++
++	// Clear array bit-by-bit in different goroutines.
++	done := make(chan bool)
++	for i := 0; i < 32; i++ {
++		m := ^uint32(1 << i)
++		go func() {
++			for i := range a {
++				atomic.And(&a[i], m)
++			}
++			done <- true
++		}()
++	}
++	for i := 0; i < 32; i++ {
++		<-done
++	}
++
++	// Check that the array has been totally cleared.
++	for i, v := range a {
++		if v != 0 {
++			t.Fatalf("a[%v] not cleared: want %#x, got %#x", i, uint32(0), v)
++		}
++	}
++}
++
++func TestAnd64(t *testing.T) {
++	// Basic sanity check.
++	x := uint64(0xffffffffffffffff)
++	for i := uint64(0); i < 64; i++ {
++		old := x
++		v := atomic.And64(&x, ^(1 << i))
++		if r := uint64(0xffffffffffffffff) << (i + 1); x != r || v != old {
++			t.Fatalf("clearing bit %#x: want %#x, got new %#x and old %#v", uint64(1<<i), r, x, v)
++		}
++	}
++
++	// Set every bit in array to 1.
++	a := make([]uint64, 1<<12)
++	for i := range a {
++		a[i] = 0xffffffffffffffff
++	}
++
++	// Clear array bit-by-bit in different goroutines.
++	done := make(chan bool)
++	for i := 0; i < 64; i++ {
++		m := ^uint64(1 << i)
++		go func() {
++			for i := range a {
++				atomic.And64(&a[i], m)
++			}
++			done <- true
++		}()
++	}
++	for i := 0; i < 64; i++ {
++		<-done
++	}
++
++	// Check that the array has been totally cleared.
++	for i, v := range a {
++		if v != 0 {
++			t.Fatalf("a[%v] not cleared: want %#x, got %#x", i, uint64(0), v)
++		}
++	}
++}
++
++func TestOr32(t *testing.T) {
++	// Basic sanity check.
++	x := uint32(0)
++	for i := uint32(0); i < 32; i++ {
++		old := x
++		v := atomic.Or32(&x, 1<<i)
++		if r := (uint32(1) << (i + 1)) - 1; x != r || v != old {
++			t.Fatalf("setting bit %#x: want %#x, got new %#x and old %#v", uint32(1<<i), r, x, v)
++		}
++	}
++
++	// Start with every bit in array set to 0.
++	a := make([]uint32, 1<<12)
++
++	// Set every bit in array bit-by-bit in different goroutines.
++	done := make(chan bool)
++	for i := 0; i < 32; i++ {
++		m := uint32(1 << i)
++		go func() {
++			for i := range a {
++				atomic.Or32(&a[i], m)
++			}
++			done <- true
++		}()
++	}
++	for i := 0; i < 32; i++ {
++		<-done
++	}
++
++	// Check that the array has been totally set.
++	for i, v := range a {
++		if v != 0xffffffff {
++			t.Fatalf("a[%v] not fully set: want %#x, got %#x", i, uint32(0xffffffff), v)
++		}
++	}
++}
++
++func TestOr64(t *testing.T) {
++	// Basic sanity check.
++	x := uint64(0)
++	for i := uint64(0); i < 64; i++ {
++		old := x
++		v := atomic.Or64(&x, 1<<i)
++		if r := (uint64(1) << (i + 1)) - 1; x != r || v != old {
++			t.Fatalf("setting bit %#x: want %#x, got new %#x and old %#v", uint64(1<<i), r, x, v)
++		}
++	}
++
++	// Start with every bit in array set to 0.
++	a := make([]uint64, 1<<12)
++
++	// Set every bit in array bit-by-bit in different goroutines.
++	done := make(chan bool)
++	for i := 0; i < 64; i++ {
++		m := uint64(1 << i)
++		go func() {
++			for i := range a {
++				atomic.Or64(&a[i], m)
++			}
++			done <- true
++		}()
++	}
++	for i := 0; i < 64; i++ {
++		<-done
++	}
++
++	// Check that the array has been totally set.
++	for i, v := range a {
++		if v != 0xffffffffffffffff {
++			t.Fatalf("a[%v] not fully set: want %#x, got %#x", i, uint64(0xffffffffffffffff), v)
++		}
++	}
++}
++
+diff --git a/src/runtime/internal/atomic/atomic_wasm.go b/src/runtime/internal/atomic/atomic_wasm.go
+index 835fc43ccf..d1ca994205 100644
+--- a/src/runtime/internal/atomic/atomic_wasm.go
++++ b/src/runtime/internal/atomic/atomic_wasm.go
+@@ -339,3 +339,51 @@ func Xaddint64(ptr *int64, delta int64) int64 {
+ 	*ptr = new
+ 	return new
+ }
++
++//go:nosplit
++//go:noinline
++func And32(ptr *uint32, val uint32) uint32 {
++	old := *ptr
++	*ptr = old & val
++	return old
++}
++
++//go:nosplit
++//go:noinline
++func And64(ptr *uint64, val uint64) uint64 {
++	old := *ptr
++	*ptr = old & val
++	return old
++}
++
++//go:nosplit
++//go:noinline
++func Anduintptr(ptr *uintptr, val uintptr) uintptr {
++	old := *ptr
++	*ptr = old & val
++	return old
++}
++
++//go:nosplit
++//go:noinline
++func Or32(ptr *uint32, val uint32) uint32 {
++	old := *ptr
++	*ptr = old | val
++	return old
++}
++
++//go:nosplit
++//go:noinline
++func Or64(ptr *uint64, val uint64) uint64 {
++	old := *ptr
++	*ptr = old | val
++	return old
++}
++
++//go:nosplit
++//go:noinline
++func Oruintptr(ptr *uintptr, val uintptr) uintptr {
++	old := *ptr
++	*ptr = old | val
++	return old
++}

@@ -7,7 +7,7 @@ Date:   Sat Oct 1 18:45:06 2011 +0900
     R=golang-dev, dave
     CC=golang-dev
     https://golang.org/cl/5137042
-
+---
  src/pkg/syscall/syscall_bsd.go          | 24 ++++++++++++++++++++++
  src/pkg/syscall/syscall_freebsd.go      | 11 +++++++++++
  src/pkg/syscall/syscall_linux.go        | 35 +++++++++++++++++++++++++++++++++
@@ -19,3 +19,291 @@ Date:   Sat Oct 1 18:45:06 2011 +0900
  src/pkg/syscall/ztypes_linux_amd64.go   |  7 +++++++
  src/pkg/syscall/ztypes_linux_arm.go     |  7 +++++++
  10 files changed, 109 insertions(+)
+
+diff --git a/src/pkg/syscall/syscall_bsd.go b/src/pkg/syscall/syscall_bsd.go
+index 57d15ff4a6..a90a4175d1 100644
+--- a/src/pkg/syscall/syscall_bsd.go
++++ b/src/pkg/syscall/syscall_bsd.go
+@@ -377,6 +377,26 @@ func GetsockoptInt(fd, level, opt int) (value, errno int) {
+ 	return int(n), errno
+ }
+ 
++func GetsockoptInet4Addr(fd, level, opt int) (value [4]byte, errno int) {
++	vallen := _Socklen(4)
++	errno = getsockopt(fd, level, opt, uintptr(unsafe.Pointer(&value[0])), &vallen)
++	return value, errno
++}
++
++func GetsockoptIPMreq(fd, level, opt int) (*IPMreq, int) {
++	var value IPMreq
++	vallen := _Socklen(SizeofIPMreq)
++	errno := getsockopt(fd, level, opt, uintptr(unsafe.Pointer(&value)), &vallen)
++	return &value, errno
++}
++
++func GetsockoptIPv6Mreq(fd, level, opt int) (*IPv6Mreq, int) {
++	var value IPv6Mreq
++	vallen := _Socklen(SizeofIPv6Mreq)
++	errno := getsockopt(fd, level, opt, uintptr(unsafe.Pointer(&value)), &vallen)
++	return &value, errno
++}
++
+ func SetsockoptByte(fd, level, opt int, value byte) (errno int) {
+ 	var n = byte(value)
+ 	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(&n)), 1)
+@@ -387,6 +407,10 @@ func SetsockoptInt(fd, level, opt int, value int) (errno int) {
+ 	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(&n)), 4)
+ }
+ 
++func SetsockoptInet4Addr(fd, level, opt int, value [4]byte) (errno int) {
++	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(&value[0])), 4)
++}
++
+ func SetsockoptTimeval(fd, level, opt int, tv *Timeval) (errno int) {
+ 	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(tv)), unsafe.Sizeof(*tv))
+ }
+diff --git a/src/pkg/syscall/syscall_freebsd.go b/src/pkg/syscall/syscall_freebsd.go
+index 18988c0a87..aa12560eba 100644
+--- a/src/pkg/syscall/syscall_freebsd.go
++++ b/src/pkg/syscall/syscall_freebsd.go
+@@ -71,6 +71,17 @@ func Sendfile(outfd int, infd int, offset *int64, count int) (written int, errno
+ 	return -1, ENOSYS
+ }
+ 
++func GetsockoptIPMreqn(fd, level, opt int) (*IPMreqn, int) {
++	var value IPMreqn
++	vallen := _Socklen(SizeofIPMreqn)
++	errno := getsockopt(fd, level, opt, uintptr(unsafe.Pointer(&value)), &vallen)
++	return &value, errno
++}
++
++func SetsockoptIPMreqn(fd, level, opt int, mreq *IPMreqn) (errno int) {
++	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(mreq)), unsafe.Sizeof(*mreq))
++}
++
+ /*
+  * Exposed directly
+  */
+diff --git a/src/pkg/syscall/syscall_linux.go b/src/pkg/syscall/syscall_linux.go
+index 9fc2605c4b..d4eb1bf923 100644
+--- a/src/pkg/syscall/syscall_linux.go
++++ b/src/pkg/syscall/syscall_linux.go
+@@ -450,11 +450,42 @@ func GetsockoptInt(fd, level, opt int) (value, errno int) {
+ 	return int(n), errno
+ }
+ 
++func GetsockoptInet4Addr(fd, level, opt int) (value [4]byte, errno int) {
++	vallen := _Socklen(4)
++	errno = getsockopt(fd, level, opt, uintptr(unsafe.Pointer(&value[0])), &vallen)
++	return value, errno
++}
++
++func GetsockoptIPMreq(fd, level, opt int) (*IPMreq, int) {
++	var value IPMreq
++	vallen := _Socklen(SizeofIPMreq)
++	errno := getsockopt(fd, level, opt, uintptr(unsafe.Pointer(&value)), &vallen)
++	return &value, errno
++}
++
++func GetsockoptIPMreqn(fd, level, opt int) (*IPMreqn, int) {
++	var value IPMreqn
++	vallen := _Socklen(SizeofIPMreqn)
++	errno := getsockopt(fd, level, opt, uintptr(unsafe.Pointer(&value)), &vallen)
++	return &value, errno
++}
++
++func GetsockoptIPv6Mreq(fd, level, opt int) (*IPv6Mreq, int) {
++	var value IPv6Mreq
++	vallen := _Socklen(SizeofIPv6Mreq)
++	errno := getsockopt(fd, level, opt, uintptr(unsafe.Pointer(&value)), &vallen)
++	return &value, errno
++}
++
+ func SetsockoptInt(fd, level, opt int, value int) (errno int) {
+ 	var n = int32(value)
+ 	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(&n)), 4)
+ }
+ 
++func SetsockoptInet4Addr(fd, level, opt int, value [4]byte) (errno int) {
++	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(&value[0])), 4)
++}
++
+ func SetsockoptTimeval(fd, level, opt int, tv *Timeval) (errno int) {
+ 	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(tv)), unsafe.Sizeof(*tv))
+ }
+@@ -467,6 +498,10 @@ func SetsockoptIPMreq(fd, level, opt int, mreq *IPMreq) (errno int) {
+ 	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(mreq)), unsafe.Sizeof(*mreq))
+ }
+ 
++func SetsockoptIPMreqn(fd, level, opt int, mreq *IPMreqn) (errno int) {
++	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(mreq)), unsafe.Sizeof(*mreq))
++}
++
+ func SetsockoptIPv6Mreq(fd, level, opt int, mreq *IPv6Mreq) (errno int) {
+ 	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(mreq)), unsafe.Sizeof(*mreq))
+ }
+diff --git a/src/pkg/syscall/types_freebsd.c b/src/pkg/syscall/types_freebsd.c
+index 1494661cfe..792886e34f 100644
+--- a/src/pkg/syscall/types_freebsd.c
++++ b/src/pkg/syscall/types_freebsd.c
+@@ -116,6 +116,7 @@ typedef socklen_t $_Socklen;
+ typedef struct linger $Linger;
+ typedef struct iovec $Iovec;
+ typedef struct ip_mreq $IPMreq;
++typedef struct ip_mreqn $IPMreqn;
+ typedef struct ipv6_mreq $IPv6Mreq;
+ typedef struct msghdr $Msghdr;
+ typedef struct cmsghdr $Cmsghdr;
+@@ -129,6 +130,7 @@ enum {
+ 	$SizeofSockaddrDatalink = sizeof(struct sockaddr_dl),
+ 	$SizeofLinger = sizeof(struct linger),
+ 	$SizeofIPMreq = sizeof(struct ip_mreq),
++	$SizeofIPMreqn = sizeof(struct ip_mreqn),
+ 	$SizeofIPv6Mreq = sizeof(struct ipv6_mreq),
+ 	$SizeofMsghdr = sizeof(struct msghdr),
+ 	$SizeofCmsghdr = sizeof(struct cmsghdr),
+diff --git a/src/pkg/syscall/types_linux.c b/src/pkg/syscall/types_linux.c
+index d8ba389b5a..3cf0e2e0d0 100644
+--- a/src/pkg/syscall/types_linux.c
++++ b/src/pkg/syscall/types_linux.c
+@@ -114,6 +114,7 @@ typedef socklen_t $_Socklen;
+ typedef struct linger $Linger;
+ typedef struct iovec $Iovec;
+ typedef struct ip_mreq $IPMreq;
++typedef struct ip_mreqn $IPMreqn;
+ typedef struct ipv6_mreq $IPv6Mreq;
+ typedef struct msghdr $Msghdr;
+ typedef struct cmsghdr $Cmsghdr;
+@@ -130,6 +131,7 @@ enum {
+ 	$SizeofSockaddrNetlink = sizeof(struct sockaddr_nl),
+ 	$SizeofLinger = sizeof(struct linger),
+ 	$SizeofIPMreq = sizeof(struct ip_mreq),
++	$SizeofIPMreqn = sizeof(struct ip_mreqn),
+ 	$SizeofIPv6Mreq = sizeof(struct ipv6_mreq),
+ 	$SizeofMsghdr = sizeof(struct msghdr),
+ 	$SizeofCmsghdr = sizeof(struct cmsghdr),
+diff --git a/src/pkg/syscall/ztypes_freebsd_386.go b/src/pkg/syscall/ztypes_freebsd_386.go
+index 01cf2fbda7..7e0ab52b89 100644
+--- a/src/pkg/syscall/ztypes_freebsd_386.go
++++ b/src/pkg/syscall/ztypes_freebsd_386.go
+@@ -33,6 +33,7 @@ const (
+ 	SizeofSockaddrDatalink = 0x36
+ 	SizeofLinger           = 0x8
+ 	SizeofIPMreq           = 0x8
++	SizeofIPMreqn          = 0xc
+ 	SizeofIPv6Mreq         = 0x14
+ 	SizeofMsghdr           = 0x1c
+ 	SizeofCmsghdr          = 0xc
+@@ -227,6 +228,12 @@ type IPMreq struct {
+ 	Interface [4]byte /* in_addr */
+ }
+ 
++type IPMreqn struct {
++	Multiaddr [4]byte /* in_addr */
++	Address   [4]byte /* in_addr */
++	Ifindex   int32
++}
++
+ type IPv6Mreq struct {
+ 	Multiaddr [16]byte /* in6_addr */
+ 	Interface uint32
+diff --git a/src/pkg/syscall/ztypes_freebsd_amd64.go b/src/pkg/syscall/ztypes_freebsd_amd64.go
+index d6a05ae68a..6b65a7fe65 100644
+--- a/src/pkg/syscall/ztypes_freebsd_amd64.go
++++ b/src/pkg/syscall/ztypes_freebsd_amd64.go
+@@ -33,6 +33,7 @@ const (
+ 	SizeofSockaddrDatalink = 0x36
+ 	SizeofLinger           = 0x8
+ 	SizeofIPMreq           = 0x8
++	SizeofIPMreqn          = 0xc
+ 	SizeofIPv6Mreq         = 0x14
+ 	SizeofMsghdr           = 0x30
+ 	SizeofCmsghdr          = 0xc
+@@ -228,6 +229,12 @@ type IPMreq struct {
+ 	Interface [4]byte /* in_addr */
+ }
+ 
++type IPMreqn struct {
++	Multiaddr [4]byte /* in_addr */
++	Address   [4]byte /* in_addr */
++	Ifindex   int32
++}
++
+ type IPv6Mreq struct {
+ 	Multiaddr [16]byte /* in6_addr */
+ 	Interface uint32
+diff --git a/src/pkg/syscall/ztypes_linux_386.go b/src/pkg/syscall/ztypes_linux_386.go
+index 46c92b4169..0ec479037e 100644
+--- a/src/pkg/syscall/ztypes_linux_386.go
++++ b/src/pkg/syscall/ztypes_linux_386.go
+@@ -20,6 +20,7 @@ const (
+ 	SizeofSockaddrNetlink   = 0xc
+ 	SizeofLinger            = 0x8
+ 	SizeofIPMreq            = 0x8
++	SizeofIPMreqn           = 0xc
+ 	SizeofIPv6Mreq          = 0x14
+ 	SizeofMsghdr            = 0x1c
+ 	SizeofCmsghdr           = 0xc
+@@ -308,6 +309,12 @@ type IPMreq struct {
+ 	Interface [4]byte /* in_addr */
+ }
+ 
++type IPMreqn struct {
++	Multiaddr [4]byte /* in_addr */
++	Address   [4]byte /* in_addr */
++	Ifindex   int32
++}
++
+ type IPv6Mreq struct {
+ 	Multiaddr [16]byte /* in6_addr */
+ 	Interface uint32
+diff --git a/src/pkg/syscall/ztypes_linux_amd64.go b/src/pkg/syscall/ztypes_linux_amd64.go
+index 793c2b0702..1ad4c8bfe6 100644
+--- a/src/pkg/syscall/ztypes_linux_amd64.go
++++ b/src/pkg/syscall/ztypes_linux_amd64.go
+@@ -20,6 +20,7 @@ const (
+ 	SizeofSockaddrNetlink   = 0xc
+ 	SizeofLinger            = 0x8
+ 	SizeofIPMreq            = 0x8
++	SizeofIPMreqn           = 0xc
+ 	SizeofIPv6Mreq          = 0x14
+ 	SizeofMsghdr            = 0x38
+ 	SizeofCmsghdr           = 0x10
+@@ -308,6 +309,12 @@ type IPMreq struct {
+ 	Interface [4]byte /* in_addr */
+ }
+ 
++type IPMreqn struct {
++	Multiaddr [4]byte /* in_addr */
++	Address   [4]byte /* in_addr */
++	Ifindex   int32
++}
++
+ type IPv6Mreq struct {
+ 	Multiaddr [16]byte /* in6_addr */
+ 	Interface uint32
+diff --git a/src/pkg/syscall/ztypes_linux_arm.go b/src/pkg/syscall/ztypes_linux_arm.go
+index c56afbe5dc..9fb7e347b6 100644
+--- a/src/pkg/syscall/ztypes_linux_arm.go
++++ b/src/pkg/syscall/ztypes_linux_arm.go
+@@ -25,6 +25,7 @@ const (
+ 	SizeofSockaddrNetlink   = 0xc
+ 	SizeofLinger            = 0x8
+ 	SizeofIPMreq            = 0x8
++	SizeofIPMreqn           = 0xc
+ 	SizeofIPv6Mreq          = 0x14
+ 	SizeofMsghdr            = 0x1c
+ 	SizeofCmsghdr           = 0xc
+@@ -315,6 +316,12 @@ type IPMreq struct {
+ 	Interface [4]byte /* in_addr */
+ }
+ 
++type IPMreqn struct {
++	Multiaddr [4]byte /* in_addr */
++	Address   [4]byte /* in_addr */
++	Ifindex   int32
++}
++
+ type IPv6Mreq struct {
+ 	Multiaddr [16]byte /* in6_addr */
+ 	Interface uint32

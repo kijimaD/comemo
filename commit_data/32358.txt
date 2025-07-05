@@ -23,6 +23,28 @@ Date:   Wed Apr 19 12:57:52 2017 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/compile/internal/gc/inl.go | 10 ++++++++++
  1 file changed, 10 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index c9d1a0c035..464b6e0e65 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -206,6 +206,16 @@ func ishairy(n *Node, budget *int32, reason *string) bool {
+ 			*budget--
+ 			break
+ 		}
++		// Functions that call runtime.getcaller{pc,sp} can not be inlined
++		// because getcaller{pc,sp} expect a pointer to the caller's first argument.
++		if n.Left.Op == ONAME && n.Left.Class == PFUNC && isRuntimePkg(n.Left.Sym.Pkg) {
++			fn := n.Left.Sym.Name
++			if fn == "getcallerpc" || fn == "getcallersp" {
++				*reason = "call to " + fn
++				return true
++			}
++		}
++
+ 		if fn := n.Left.Func; fn != nil && fn.Inl.Len() != 0 {
+ 			*budget -= fn.InlCost
+ 			break

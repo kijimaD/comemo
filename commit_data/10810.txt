@@ -10,8 +10,165 @@ Date:   Thu Dec 15 17:35:59 2011 +0100
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5483071
-
+---
  src/cmd/gc/esc.c | 72 +++++++++++++++++++++++++++++++++++++++++++++++++++++---
  src/cmd/gc/fmt.c |  6 +++++
  test/escape2.go  | 21 +++++++++++++++++
  3 files changed, 96 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/gc/esc.c b/src/cmd/gc/esc.c
+index 3794efc7dd..037067be7f 100644
+--- a/src/cmd/gc/esc.c
++++ b/src/cmd/gc/esc.c
+@@ -35,6 +35,8 @@
+ static void escfunc(Node *func);
+ static void esclist(NodeList *l);
+ static void esc(Node *n);
++static void escloopdepthlist(NodeList *l);
++static void escloopdepth(Node *n);
+ static void escassign(Node *dst, Node *src);
+ static void esccall(Node*);
+ static void escflows(Node *dst, Node *src);
+@@ -138,11 +140,64 @@ escfunc(Node *func)
+ 		escassign(curfn, n);
+ 	}
+ 
++	escloopdepthlist(curfn->nbody);
+ 	esclist(curfn->nbody);
+ 	curfn = savefn;
+ 	loopdepth = saveld;
+ }
+ 
++// Mark labels that have no backjumps to them as not increasing loopdepth.
++// Walk hasn't generated (goto|label)->left->sym->label yet, so we'll cheat
++// and set it to one of the following two.  Then in esc we'll clear it again.
++static Label looping;
++static Label nonlooping;
++
++static void
++escloopdepthlist(NodeList *l)
++{
++	for(; l; l=l->next)
++		escloopdepth(l->n);
++}
++
++static void
++escloopdepth(Node *n)
++{
++	if(n == N)
++		return;
++
++	escloopdepthlist(n->ninit);
++
++	switch(n->op) {
++	case OLABEL:
++		if(!n->left || !n->left->sym)
++			fatal("esc:label without label: %+N", n);
++		// Walk will complain about this label being already defined, but that's not until
++		// after escape analysis. in the future, maybe pull label & goto analysis out of walk and put before esc
++		// if(n->left->sym->label != nil)
++		//	fatal("escape analysis messed up analyzing label: %+N", n);
++		n->left->sym->label = &nonlooping;
++		break;
++	case OGOTO:
++		if(!n->left || !n->left->sym)
++			fatal("esc:goto without label: %+N", n);
++		// If we come past one that's uninitialized, this must be a (harmless) forward jump
++		// but if it's set to nonlooping the label must have preceded this goto.
++		if(n->left->sym->label == &nonlooping)
++			n->left->sym->label = &looping;
++		break;
++	}
++
++	escloopdepth(n->left);
++	escloopdepth(n->right);
++	escloopdepthlist(n->list);
++	escloopdepth(n->ntest);
++	escloopdepth(n->nincr);
++	escloopdepthlist(n->nbody);
++	escloopdepthlist(n->nelse);
++	escloopdepthlist(n->rlist);
++
++}
++
+ static void
+ esclist(NodeList *l)
+ {
+@@ -188,9 +243,20 @@ esc(Node *n)
+ 			n->left->escloopdepth = loopdepth;
+ 		break;
+ 
+-	case OLABEL:  // TODO: new loop/scope only if there are backjumps to it.
+-		loopdepth++;
+-		break;
++	case OLABEL:
++		if(n->left->sym->label == &nonlooping) {
++			if(debug['m'] > 1)
++				print("%L:%N non-looping label\n", lineno, n);
++		} else if(n->left->sym->label == &looping) {
++			if(debug['m'] > 1)
++				print("%L: %N looping label\n", lineno, n);
++			loopdepth++;
++		}
++		// See case OLABEL in escloopdepth above
++		// else if(n->left->sym->label == nil)
++		//	fatal("escape anaylysis missed or messed up a label: %+N", n);
++
++		n->left->sym->label = nil;
+ 
+ 	case ORANGE:
+ 		// Everything but fixed array is a dereference.
+diff --git a/src/cmd/gc/fmt.c b/src/cmd/gc/fmt.c
+index d2e3423f17..886488a368 100644
+--- a/src/cmd/gc/fmt.c
++++ b/src/cmd/gc/fmt.c
+@@ -913,6 +913,11 @@ stmtfmt(Fmt *f, Node *n)
+ 		else
+ 			fmtprint(f, "%#O", n->op);
+ 		break;
++
++	case OLABEL:
++		fmtprint(f, "%N: ", n->left);
++		break;
++	  
+ 	}
+ 
+ 	if(extrablock)
+@@ -1016,6 +1021,7 @@ static int opprec[] = {
+ 	[OFALL] = -1,
+ 	[OFOR] = -1,
+ 	[OIF] = -1,
++	[OLABEL] = -1,
+ 	[OPROC] = -1,
+ 	[ORANGE] = -1,
+ 	[ORETURN] = -1,
+diff --git a/test/escape2.go b/test/escape2.go
+index 13ebe271d8..e4d5084c79 100644
+--- a/test/escape2.go
++++ b/test/escape2.go
+@@ -1011,3 +1011,24 @@ func foo121b() {
+ 		go fmt.Printf("%d", i)    // ERROR "[.][.][.] argument escapes to heap"
+ 	}
+ }
++
++// a harmless forward jump
++func foo122() {
++	var i *int
++
++	goto L1
++L1:
++	i = new(int)	// ERROR "does not escape"
++	_ = i
++}
++
++// a backward jump, increases loopdepth
++func foo123() {
++	var i *int
++
++L1:
++	i = new(int)  // ERROR "escapes"
++
++	goto L1
++	_ = i
++}
+\ No newline at end of file

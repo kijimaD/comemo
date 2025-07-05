@@ -9,8 +9,83 @@ Date:   Thu May 3 14:25:11 2012 -0700
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/6177045
-
+---
  test/fixedbugs/bug437.dir/one.go | 18 ++++++++++++++++++
  test/fixedbugs/bug437.dir/two.go | 11 +++++++++++
  test/fixedbugs/bug437.go         | 27 +++++++++++++++++++++++++++
  3 files changed, 56 insertions(+)
+
+diff --git a/test/fixedbugs/bug437.dir/one.go b/test/fixedbugs/bug437.dir/one.go
+new file mode 100644
+index 0000000000..8d3caadae1
+--- /dev/null
++++ b/test/fixedbugs/bug437.dir/one.go
+@@ -0,0 +1,18 @@
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package one
++
++type I1 interface {
++	f()
++}
++
++type S1 struct {
++}
++
++func (s S1) f() {
++}
++
++func F1(i1 I1) {
++}
+diff --git a/test/fixedbugs/bug437.dir/two.go b/test/fixedbugs/bug437.dir/two.go
+new file mode 100644
+index 0000000000..406dd5903e
+--- /dev/null
++++ b/test/fixedbugs/bug437.dir/two.go
+@@ -0,0 +1,11 @@
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package two
++
++import "./one"
++
++type S2 struct {
++	one.S1
++}
+diff --git a/test/fixedbugs/bug437.go b/test/fixedbugs/bug437.go
+new file mode 100644
+index 0000000000..bc046bde27
+--- /dev/null
++++ b/test/fixedbugs/bug437.go
+@@ -0,0 +1,27 @@
++// $G $D/$F.dir/one.go && $G $D/$F.dir/two.go && $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test converting a type defined in a different package to an
++// interface defined in a third package, where the interface has a
++// hidden method.  This used to cause a link error with gccgo.
++
++package main
++
++import (
++	"./one"
++	"./two"
++)
++
++func F(i1 one.I1) {
++	switch v := i1.(type) {
++	case two.S2:
++		one.F1(v)
++	}
++}
++
++func main() {
++	F(nil)
++}

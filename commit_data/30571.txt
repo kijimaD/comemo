@@ -12,6 +12,28 @@ Date:   Sat Nov 12 20:08:02 2016 +0100
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/time/time.go | 10 +++-------
  1 file changed, 3 insertions(+), 7 deletions(-)
+
+diff --git a/src/time/time.go b/src/time/time.go
+index 00fafb64dd..10b32461e1 100644
+--- a/src/time/time.go
++++ b/src/time/time.go
+@@ -118,13 +118,9 @@ func (m Month) String() string {
+ 	if January <= m && m <= December {
+ 		return months[m-1]
+ 	}
+-	const prefix = "%!Month("
+-	buf := make([]byte, 20+len(prefix)+1)
+-	buf[len(buf)-1] = ')'
+-	n := fmtInt(buf[:len(buf)-1], uint64(m))
+-	n -= len(prefix)
+-	copy(buf[n:], prefix)
+-	return string(buf[n:])
++	buf := make([]byte, 20)
++	n := fmtInt(buf, uint64(m))
++	return "%!Month(" + string(buf[n:]) + ")"
+ }
+ 
+ // A Weekday specifies a day of the week (Sunday = 0, ...).

@@ -13,7 +13,7 @@ Date:   Wed Sep 28 11:20:58 2016 -0400
     Change-Id: I0020cfde745f9eab680b8b949ad28c87fe183afd
     Reviewed-on: https://go-review.googlesource.com/30030
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/arm64/prog.go       |  36 ++-
  src/cmd/compile/internal/arm64/ssa.go        |  12 +-
  src/cmd/compile/internal/ssa/gen/ARM64.rules |  36 ++-
@@ -22,3 +22,886 @@ Date:   Wed Sep 28 11:20:58 2016 -0400
  src/cmd/compile/internal/ssa/rewriteARM64.go | 455 ++++++++++++++++++---------
  src/cmd/internal/obj/arm64/obj7.go           |   4 +
  7 files changed, 385 insertions(+), 170 deletions(-)
+
+diff --git a/src/cmd/compile/internal/arm64/prog.go b/src/cmd/compile/internal/arm64/prog.go
+index 4ba6faff23..5d3ec67bc8 100644
+--- a/src/cmd/compile/internal/arm64/prog.go
++++ b/src/cmd/compile/internal/arm64/prog.go
+@@ -143,23 +143,25 @@ var progtable = [arm64.ALAST & obj.AMask]gc.ProgInfo{
+ 	arm64.ASTLXR & obj.AMask:  {Flags: gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Move},
+ 
+ 	// Jumps
+-	arm64.AB & obj.AMask:    {Flags: gc.Jump | gc.Break},
+-	arm64.ABL & obj.AMask:   {Flags: gc.Call},
+-	arm64.ABEQ & obj.AMask:  {Flags: gc.Cjmp},
+-	arm64.ABNE & obj.AMask:  {Flags: gc.Cjmp},
+-	arm64.ABGE & obj.AMask:  {Flags: gc.Cjmp},
+-	arm64.ABLT & obj.AMask:  {Flags: gc.Cjmp},
+-	arm64.ABGT & obj.AMask:  {Flags: gc.Cjmp},
+-	arm64.ABLE & obj.AMask:  {Flags: gc.Cjmp},
+-	arm64.ABLO & obj.AMask:  {Flags: gc.Cjmp},
+-	arm64.ABLS & obj.AMask:  {Flags: gc.Cjmp},
+-	arm64.ABHI & obj.AMask:  {Flags: gc.Cjmp},
+-	arm64.ABHS & obj.AMask:  {Flags: gc.Cjmp},
+-	arm64.ACBZ & obj.AMask:  {Flags: gc.Cjmp},
+-	arm64.ACBNZ & obj.AMask: {Flags: gc.Cjmp},
+-	obj.ARET:                {Flags: gc.Break},
+-	obj.ADUFFZERO:           {Flags: gc.Call},
+-	obj.ADUFFCOPY:           {Flags: gc.Call},
++	arm64.AB & obj.AMask:     {Flags: gc.Jump | gc.Break},
++	arm64.ABL & obj.AMask:    {Flags: gc.Call},
++	arm64.ABEQ & obj.AMask:   {Flags: gc.Cjmp},
++	arm64.ABNE & obj.AMask:   {Flags: gc.Cjmp},
++	arm64.ABGE & obj.AMask:   {Flags: gc.Cjmp},
++	arm64.ABLT & obj.AMask:   {Flags: gc.Cjmp},
++	arm64.ABGT & obj.AMask:   {Flags: gc.Cjmp},
++	arm64.ABLE & obj.AMask:   {Flags: gc.Cjmp},
++	arm64.ABLO & obj.AMask:   {Flags: gc.Cjmp},
++	arm64.ABLS & obj.AMask:   {Flags: gc.Cjmp},
++	arm64.ABHI & obj.AMask:   {Flags: gc.Cjmp},
++	arm64.ABHS & obj.AMask:   {Flags: gc.Cjmp},
++	arm64.ACBZ & obj.AMask:   {Flags: gc.Cjmp},
++	arm64.ACBNZ & obj.AMask:  {Flags: gc.Cjmp},
++	arm64.ACBZW & obj.AMask:  {Flags: gc.Cjmp},
++	arm64.ACBNZW & obj.AMask: {Flags: gc.Cjmp},
++	obj.ARET:                 {Flags: gc.Break},
++	obj.ADUFFZERO:            {Flags: gc.Call},
++	obj.ADUFFCOPY:            {Flags: gc.Call},
+ }
+ 
+ func proginfo(p *obj.Prog) gc.ProgInfo {
+diff --git a/src/cmd/compile/internal/arm64/ssa.go b/src/cmd/compile/internal/arm64/ssa.go
+index 984c1a934a..5670ef8e96 100644
+--- a/src/cmd/compile/internal/arm64/ssa.go
++++ b/src/cmd/compile/internal/arm64/ssa.go
+@@ -761,6 +761,10 @@ var blockJump = map[ssa.BlockKind]struct {
+ 	ssa.BlockARM64UGE: {arm64.ABHS, arm64.ABLO},
+ 	ssa.BlockARM64UGT: {arm64.ABHI, arm64.ABLS},
+ 	ssa.BlockARM64ULE: {arm64.ABLS, arm64.ABHI},
++	ssa.BlockARM64Z:   {arm64.ACBZ, arm64.ACBNZ},
++	ssa.BlockARM64NZ:  {arm64.ACBNZ, arm64.ACBZ},
++	ssa.BlockARM64ZW:  {arm64.ACBZW, arm64.ACBNZW},
++	ssa.BlockARM64NZW: {arm64.ACBNZW, arm64.ACBZW},
+ }
+ 
+ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
+@@ -807,7 +811,9 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
+ 		ssa.BlockARM64LT, ssa.BlockARM64GE,
+ 		ssa.BlockARM64LE, ssa.BlockARM64GT,
+ 		ssa.BlockARM64ULT, ssa.BlockARM64UGT,
+-		ssa.BlockARM64ULE, ssa.BlockARM64UGE:
++		ssa.BlockARM64ULE, ssa.BlockARM64UGE,
++		ssa.BlockARM64Z, ssa.BlockARM64NZ,
++		ssa.BlockARM64ZW, ssa.BlockARM64NZW:
+ 		jmp := blockJump[b.Kind]
+ 		var p *obj.Prog
+ 		switch next {
+@@ -827,6 +833,10 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
+ 			q.To.Type = obj.TYPE_BRANCH
+ 			s.Branches = append(s.Branches, gc.Branch{P: q, B: b.Succs[1].Block()})
+ 		}
++		if !b.Control.Type.IsFlags() {
++			p.From.Type = obj.TYPE_REG
++			p.From.Reg = b.Control.Reg()
++		}
+ 
+ 	default:
+ 		b.Fatalf("branch not implemented: %s. Control: %s", b.LongString(), b.Control.LongString())
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64.rules b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+index 994119fafb..6e2c350162 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+@@ -476,7 +476,7 @@
+ (If (GreaterEqual cc) yes no) -> (GE cc yes no)
+ (If (GreaterEqualU cc) yes no) -> (UGE cc yes no)
+ 
+-(If cond yes no) -> (NE (CMPconst [0] cond) yes no)
++(If cond yes no) -> (NZ cond yes no)
+ 
+ // atomic intrinsics
+ // Note: these ops do not accept offset.
+@@ -503,16 +503,21 @@
+ // Optimizations
+ 
+ // Absorb boolean tests into block
+-(NE (CMPconst [0] (Equal cc)) yes no) -> (EQ cc yes no)
+-(NE (CMPconst [0] (NotEqual cc)) yes no) -> (NE cc yes no)
+-(NE (CMPconst [0] (LessThan cc)) yes no) -> (LT cc yes no)
+-(NE (CMPconst [0] (LessThanU cc)) yes no) -> (ULT cc yes no)
+-(NE (CMPconst [0] (LessEqual cc)) yes no) -> (LE cc yes no)
+-(NE (CMPconst [0] (LessEqualU cc)) yes no) -> (ULE cc yes no)
+-(NE (CMPconst [0] (GreaterThan cc)) yes no) -> (GT cc yes no)
+-(NE (CMPconst [0] (GreaterThanU cc)) yes no) -> (UGT cc yes no)
+-(NE (CMPconst [0] (GreaterEqual cc)) yes no) -> (GE cc yes no)
+-(NE (CMPconst [0] (GreaterEqualU cc)) yes no) -> (UGE cc yes no)
++(NZ (Equal cc) yes no) -> (EQ cc yes no)
++(NZ (NotEqual cc) yes no) -> (NE cc yes no)
++(NZ (LessThan cc) yes no) -> (LT cc yes no)
++(NZ (LessThanU cc) yes no) -> (ULT cc yes no)
++(NZ (LessEqual cc) yes no) -> (LE cc yes no)
++(NZ (LessEqualU cc) yes no) -> (ULE cc yes no)
++(NZ (GreaterThan cc) yes no) -> (GT cc yes no)
++(NZ (GreaterThanU cc) yes no) -> (UGT cc yes no)
++(NZ (GreaterEqual cc) yes no) -> (GE cc yes no)
++(NZ (GreaterEqualU cc) yes no) -> (UGE cc yes no)
++
++(EQ (CMPconst [0] x) yes no) -> (Z x yes no)
++(NE (CMPconst [0] x) yes no) -> (NZ x yes no)
++(EQ (CMPWconst [0] x) yes no) -> (ZW x yes no)
++(NE (CMPWconst [0] x) yes no) -> (NZW x yes no)
+ 
+ // fold offset into address
+ (ADDconst [off1] (MOVDaddr [off2] {sym} ptr)) -> (MOVDaddr [off1+off2] {sym} ptr)
+@@ -925,6 +930,15 @@
+ (UGE (FlagGT_ULT) yes no) -> (First nil no yes)
+ (UGE (FlagGT_UGT) yes no) -> (First nil yes no)
+ 
++(Z (MOVDconst [0]) yes no) -> (First nil yes no)
++(Z (MOVDconst [c]) yes no) && c != 0 -> (First nil no yes)
++(NZ (MOVDconst [0]) yes no) -> (First nil no yes)
++(NZ (MOVDconst [c]) yes no) && c != 0 -> (First nil yes no)
++(ZW (MOVDconst [c]) yes no) && int32(c) == 0 -> (First nil yes no)
++(ZW (MOVDconst [c]) yes no) && int32(c) != 0 -> (First nil no yes)
++(NZW (MOVDconst [c]) yes no) && int32(c) == 0 -> (First nil no yes)
++(NZW (MOVDconst [c]) yes no) && int32(c) != 0 -> (First nil yes no)
++
+ // absorb InvertFlags into branches
+ (LT (InvertFlags cmp) yes no) -> (GT cmp yes no)
+ (GT (InvertFlags cmp) yes no) -> (LT cmp yes no)
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64Ops.go b/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
+index bbb175b0de..70cb9290c8 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
+@@ -514,6 +514,10 @@ func init() {
+ 		{name: "ULE"},
+ 		{name: "UGT"},
+ 		{name: "UGE"},
++		{name: "Z"},   // Control == 0 (take a register instead of flags)
++		{name: "NZ"},  // Control != 0
++		{name: "ZW"},  // Control == 0, 32-bit
++		{name: "NZW"}, // Control != 0, 32-bit
+ 	}
+ 
+ 	archs = append(archs, arch{
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 015d24fe59..0003059767 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -67,6 +67,10 @@ const (
+ 	BlockARM64ULE
+ 	BlockARM64UGT
+ 	BlockARM64UGE
++	BlockARM64Z
++	BlockARM64NZ
++	BlockARM64ZW
++	BlockARM64NZW
+ 
+ 	BlockMIPS64EQ
+ 	BlockMIPS64NE
+@@ -160,6 +164,10 @@ var blockString = [...]string{
+ 	BlockARM64ULE: "ULE",
+ 	BlockARM64UGT: "UGT",
+ 	BlockARM64UGE: "UGE",
++	BlockARM64Z:   "Z",
++	BlockARM64NZ:  "NZ",
++	BlockARM64ZW:  "ZW",
++	BlockARM64NZW: "NZW",
+ 
+ 	BlockMIPS64EQ:  "EQ",
+ 	BlockMIPS64NE:  "NE",
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM64.go b/src/cmd/compile/internal/ssa/rewriteARM64.go
+index 0750096c78..8d4d65d606 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM64.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM64.go
+@@ -15070,6 +15070,46 @@ func rewriteValueARM64_OpZeroExt8to64(v *Value, config *Config) bool {
+ func rewriteBlockARM64(b *Block, config *Config) bool {
+ 	switch b.Kind {
+ 	case BlockARM64EQ:
++		// match: (EQ (CMPconst [0] x) yes no)
++		// cond:
++		// result: (Z x yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARM64CMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			x := v.Args[0]
++			yes := b.Succs[0]
++			no := b.Succs[1]
++			b.Kind = BlockARM64Z
++			b.SetControl(x)
++			_ = yes
++			_ = no
++			return true
++		}
++		// match: (EQ (CMPWconst [0] x) yes no)
++		// cond:
++		// result: (ZW x yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARM64CMPWconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			x := v.Args[0]
++			yes := b.Succs[0]
++			no := b.Succs[1]
++			b.Kind = BlockARM64ZW
++			b.SetControl(x)
++			_ = yes
++			_ = no
++			return true
++		}
+ 		// match: (EQ (FlagEQ) yes no)
+ 		// cond:
+ 		// result: (First nil yes no)
+@@ -15545,18 +15585,15 @@ func rewriteBlockARM64(b *Block, config *Config) bool {
+ 		}
+ 		// match: (If cond yes no)
+ 		// cond:
+-		// result: (NE (CMPconst [0] cond) yes no)
++		// result: (NZ cond yes no)
+ 		for {
+ 			v := b.Control
+ 			_ = v
+ 			cond := b.Control
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+-			b.Kind = BlockARM64NE
+-			v0 := b.NewValue0(v.Line, OpARM64CMPconst, TypeFlags)
+-			v0.AuxInt = 0
+-			v0.AddArg(cond)
+-			b.SetControl(v0)
++			b.Kind = BlockARM64NZ
++			b.SetControl(cond)
+ 			_ = yes
+ 			_ = no
+ 			return true
+@@ -15763,9 +15800,9 @@ func rewriteBlockARM64(b *Block, config *Config) bool {
+ 			return true
+ 		}
+ 	case BlockARM64NE:
+-		// match: (NE (CMPconst [0] (Equal cc)) yes no)
++		// match: (NE (CMPconst [0] x) yes no)
+ 		// cond:
+-		// result: (EQ cc yes no)
++		// result: (NZ x yes no)
+ 		for {
+ 			v := b.Control
+ 			if v.Op != OpARM64CMPconst {
+@@ -15774,107 +15811,211 @@ func rewriteBlockARM64(b *Block, config *Config) bool {
+ 			if v.AuxInt != 0 {
+ 				break
+ 			}
+-			v_0 := v.Args[0]
+-			if v_0.Op != OpARM64Equal {
+-				break
+-			}
+-			cc := v_0.Args[0]
++			x := v.Args[0]
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+-			b.Kind = BlockARM64EQ
+-			b.SetControl(cc)
++			b.Kind = BlockARM64NZ
++			b.SetControl(x)
+ 			_ = yes
+ 			_ = no
+ 			return true
+ 		}
+-		// match: (NE (CMPconst [0] (NotEqual cc)) yes no)
++		// match: (NE (CMPWconst [0] x) yes no)
+ 		// cond:
+-		// result: (NE cc yes no)
++		// result: (NZW x yes no)
+ 		for {
+ 			v := b.Control
+-			if v.Op != OpARM64CMPconst {
++			if v.Op != OpARM64CMPWconst {
+ 				break
+ 			}
+ 			if v.AuxInt != 0 {
+ 				break
+ 			}
+-			v_0 := v.Args[0]
+-			if v_0.Op != OpARM64NotEqual {
++			x := v.Args[0]
++			yes := b.Succs[0]
++			no := b.Succs[1]
++			b.Kind = BlockARM64NZW
++			b.SetControl(x)
++			_ = yes
++			_ = no
++			return true
++		}
++		// match: (NE (FlagEQ) yes no)
++		// cond:
++		// result: (First nil no yes)
++		for {
++			v := b.Control
++			if v.Op != OpARM64FlagEQ {
+ 				break
+ 			}
+-			cc := v_0.Args[0]
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+-			b.Kind = BlockARM64NE
+-			b.SetControl(cc)
++			b.Kind = BlockFirst
++			b.SetControl(nil)
++			b.swapSuccessors()
++			_ = no
++			_ = yes
++			return true
++		}
++		// match: (NE (FlagLT_ULT) yes no)
++		// cond:
++		// result: (First nil yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARM64FlagLT_ULT {
++				break
++			}
++			yes := b.Succs[0]
++			no := b.Succs[1]
++			b.Kind = BlockFirst
++			b.SetControl(nil)
+ 			_ = yes
+ 			_ = no
+ 			return true
+ 		}
+-		// match: (NE (CMPconst [0] (LessThan cc)) yes no)
++		// match: (NE (FlagLT_UGT) yes no)
+ 		// cond:
+-		// result: (LT cc yes no)
++		// result: (First nil yes no)
+ 		for {
+ 			v := b.Control
+-			if v.Op != OpARM64CMPconst {
++			if v.Op != OpARM64FlagLT_UGT {
+ 				break
+ 			}
+-			if v.AuxInt != 0 {
++			yes := b.Succs[0]
++			no := b.Succs[1]
++			b.Kind = BlockFirst
++			b.SetControl(nil)
++			_ = yes
++			_ = no
++			return true
++		}
++		// match: (NE (FlagGT_ULT) yes no)
++		// cond:
++		// result: (First nil yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARM64FlagGT_ULT {
+ 				break
+ 			}
+-			v_0 := v.Args[0]
+-			if v_0.Op != OpARM64LessThan {
++			yes := b.Succs[0]
++			no := b.Succs[1]
++			b.Kind = BlockFirst
++			b.SetControl(nil)
++			_ = yes
++			_ = no
++			return true
++		}
++		// match: (NE (FlagGT_UGT) yes no)
++		// cond:
++		// result: (First nil yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARM64FlagGT_UGT {
+ 				break
+ 			}
+-			cc := v_0.Args[0]
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+-			b.Kind = BlockARM64LT
+-			b.SetControl(cc)
++			b.Kind = BlockFirst
++			b.SetControl(nil)
+ 			_ = yes
+ 			_ = no
+ 			return true
+ 		}
+-		// match: (NE (CMPconst [0] (LessThanU cc)) yes no)
++		// match: (NE (InvertFlags cmp) yes no)
+ 		// cond:
+-		// result: (ULT cc yes no)
++		// result: (NE cmp yes no)
+ 		for {
+ 			v := b.Control
+-			if v.Op != OpARM64CMPconst {
++			if v.Op != OpARM64InvertFlags {
+ 				break
+ 			}
+-			if v.AuxInt != 0 {
++			cmp := v.Args[0]
++			yes := b.Succs[0]
++			no := b.Succs[1]
++			b.Kind = BlockARM64NE
++			b.SetControl(cmp)
++			_ = yes
++			_ = no
++			return true
++		}
++	case BlockARM64NZ:
++		// match: (NZ (Equal cc) yes no)
++		// cond:
++		// result: (EQ cc yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARM64Equal {
+ 				break
+ 			}
+-			v_0 := v.Args[0]
+-			if v_0.Op != OpARM64LessThanU {
++			cc := v.Args[0]
++			yes := b.Succs[0]
++			no := b.Succs[1]
++			b.Kind = BlockARM64EQ
++			b.SetControl(cc)
++			_ = yes
++			_ = no
++			return true
++		}
++		// match: (NZ (NotEqual cc) yes no)
++		// cond:
++		// result: (NE cc yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARM64NotEqual {
+ 				break
+ 			}
+-			cc := v_0.Args[0]
++			cc := v.Args[0]
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+-			b.Kind = BlockARM64ULT
++			b.Kind = BlockARM64NE
+ 			b.SetControl(cc)
+ 			_ = yes
+ 			_ = no
+ 			return true
+ 		}
+-		// match: (NE (CMPconst [0] (LessEqual cc)) yes no)
++		// match: (NZ (LessThan cc) yes no)
+ 		// cond:
+-		// result: (LE cc yes no)
++		// result: (LT cc yes no)
+ 		for {
+ 			v := b.Control
+-			if v.Op != OpARM64CMPconst {
++			if v.Op != OpARM64LessThan {
+ 				break
+ 			}
+-			if v.AuxInt != 0 {
++			cc := v.Args[0]
++			yes := b.Succs[0]
++			no := b.Succs[1]
++			b.Kind = BlockARM64LT
++			b.SetControl(cc)
++			_ = yes
++			_ = no
++			return true
++		}
++		// match: (NZ (LessThanU cc) yes no)
++		// cond:
++		// result: (ULT cc yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARM64LessThanU {
+ 				break
+ 			}
+-			v_0 := v.Args[0]
+-			if v_0.Op != OpARM64LessEqual {
++			cc := v.Args[0]
++			yes := b.Succs[0]
++			no := b.Succs[1]
++			b.Kind = BlockARM64ULT
++			b.SetControl(cc)
++			_ = yes
++			_ = no
++			return true
++		}
++		// match: (NZ (LessEqual cc) yes no)
++		// cond:
++		// result: (LE cc yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARM64LessEqual {
+ 				break
+ 			}
+-			cc := v_0.Args[0]
++			cc := v.Args[0]
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockARM64LE
+@@ -15883,22 +16024,15 @@ func rewriteBlockARM64(b *Block, config *Config) bool {
+ 			_ = no
+ 			return true
+ 		}
+-		// match: (NE (CMPconst [0] (LessEqualU cc)) yes no)
++		// match: (NZ (LessEqualU cc) yes no)
+ 		// cond:
+ 		// result: (ULE cc yes no)
+ 		for {
+ 			v := b.Control
+-			if v.Op != OpARM64CMPconst {
+-				break
+-			}
+-			if v.AuxInt != 0 {
+-				break
+-			}
+-			v_0 := v.Args[0]
+-			if v_0.Op != OpARM64LessEqualU {
++			if v.Op != OpARM64LessEqualU {
+ 				break
+ 			}
+-			cc := v_0.Args[0]
++			cc := v.Args[0]
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockARM64ULE
+@@ -15907,22 +16041,15 @@ func rewriteBlockARM64(b *Block, config *Config) bool {
+ 			_ = no
+ 			return true
+ 		}
+-		// match: (NE (CMPconst [0] (GreaterThan cc)) yes no)
++		// match: (NZ (GreaterThan cc) yes no)
+ 		// cond:
+ 		// result: (GT cc yes no)
+ 		for {
+ 			v := b.Control
+-			if v.Op != OpARM64CMPconst {
+-				break
+-			}
+-			if v.AuxInt != 0 {
+-				break
+-			}
+-			v_0 := v.Args[0]
+-			if v_0.Op != OpARM64GreaterThan {
++			if v.Op != OpARM64GreaterThan {
+ 				break
+ 			}
+-			cc := v_0.Args[0]
++			cc := v.Args[0]
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockARM64GT
+@@ -15931,22 +16058,15 @@ func rewriteBlockARM64(b *Block, config *Config) bool {
+ 			_ = no
+ 			return true
+ 		}
+-		// match: (NE (CMPconst [0] (GreaterThanU cc)) yes no)
++		// match: (NZ (GreaterThanU cc) yes no)
+ 		// cond:
+ 		// result: (UGT cc yes no)
+ 		for {
+ 			v := b.Control
+-			if v.Op != OpARM64CMPconst {
+-				break
+-			}
+-			if v.AuxInt != 0 {
+-				break
+-			}
+-			v_0 := v.Args[0]
+-			if v_0.Op != OpARM64GreaterThanU {
++			if v.Op != OpARM64GreaterThanU {
+ 				break
+ 			}
+-			cc := v_0.Args[0]
++			cc := v.Args[0]
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockARM64UGT
+@@ -15955,22 +16075,15 @@ func rewriteBlockARM64(b *Block, config *Config) bool {
+ 			_ = no
+ 			return true
+ 		}
+-		// match: (NE (CMPconst [0] (GreaterEqual cc)) yes no)
++		// match: (NZ (GreaterEqual cc) yes no)
+ 		// cond:
+ 		// result: (GE cc yes no)
+ 		for {
+ 			v := b.Control
+-			if v.Op != OpARM64CMPconst {
+-				break
+-			}
+-			if v.AuxInt != 0 {
+-				break
+-			}
+-			v_0 := v.Args[0]
+-			if v_0.Op != OpARM64GreaterEqual {
++			if v.Op != OpARM64GreaterEqual {
+ 				break
+ 			}
+-			cc := v_0.Args[0]
++			cc := v.Args[0]
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockARM64GE
+@@ -15979,22 +16092,15 @@ func rewriteBlockARM64(b *Block, config *Config) bool {
+ 			_ = no
+ 			return true
+ 		}
+-		// match: (NE (CMPconst [0] (GreaterEqualU cc)) yes no)
++		// match: (NZ (GreaterEqualU cc) yes no)
+ 		// cond:
+ 		// result: (UGE cc yes no)
+ 		for {
+ 			v := b.Control
+-			if v.Op != OpARM64CMPconst {
+-				break
+-			}
+-			if v.AuxInt != 0 {
+-				break
+-			}
+-			v_0 := v.Args[0]
+-			if v_0.Op != OpARM64GreaterEqualU {
++			if v.Op != OpARM64GreaterEqualU {
+ 				break
+ 			}
+-			cc := v_0.Args[0]
++			cc := v.Args[0]
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockARM64UGE
+@@ -16003,12 +16109,15 @@ func rewriteBlockARM64(b *Block, config *Config) bool {
+ 			_ = no
+ 			return true
+ 		}
+-		// match: (NE (FlagEQ) yes no)
++		// match: (NZ (MOVDconst [0]) yes no)
+ 		// cond:
+ 		// result: (First nil no yes)
+ 		for {
+ 			v := b.Control
+-			if v.Op != OpARM64FlagEQ {
++			if v.Op != OpARM64MOVDconst {
++				break
++			}
++			if v.AuxInt != 0 {
+ 				break
+ 			}
+ 			yes := b.Succs[0]
+@@ -16020,83 +16129,64 @@ func rewriteBlockARM64(b *Block, config *Config) bool {
+ 			_ = yes
+ 			return true
+ 		}
+-		// match: (NE (FlagLT_ULT) yes no)
+-		// cond:
++		// match: (NZ (MOVDconst [c]) yes no)
++		// cond: c != 0
+ 		// result: (First nil yes no)
+ 		for {
+ 			v := b.Control
+-			if v.Op != OpARM64FlagLT_ULT {
++			if v.Op != OpARM64MOVDconst {
+ 				break
+ 			}
++			c := v.AuxInt
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+-			b.Kind = BlockFirst
+-			b.SetControl(nil)
+-			_ = yes
+-			_ = no
+-			return true
+-		}
+-		// match: (NE (FlagLT_UGT) yes no)
+-		// cond:
+-		// result: (First nil yes no)
+-		for {
+-			v := b.Control
+-			if v.Op != OpARM64FlagLT_UGT {
++			if !(c != 0) {
+ 				break
+ 			}
+-			yes := b.Succs[0]
+-			no := b.Succs[1]
+ 			b.Kind = BlockFirst
+ 			b.SetControl(nil)
+ 			_ = yes
+ 			_ = no
+ 			return true
+ 		}
+-		// match: (NE (FlagGT_ULT) yes no)
+-		// cond:
+-		// result: (First nil yes no)
++	case BlockARM64NZW:
++		// match: (NZW (MOVDconst [c]) yes no)
++		// cond: int32(c) == 0
++		// result: (First nil no yes)
+ 		for {
+ 			v := b.Control
+-			if v.Op != OpARM64FlagGT_ULT {
++			if v.Op != OpARM64MOVDconst {
+ 				break
+ 			}
++			c := v.AuxInt
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
++			if !(int32(c) == 0) {
++				break
++			}
+ 			b.Kind = BlockFirst
+ 			b.SetControl(nil)
+-			_ = yes
++			b.swapSuccessors()
+ 			_ = no
++			_ = yes
+ 			return true
+ 		}
+-		// match: (NE (FlagGT_UGT) yes no)
+-		// cond:
++		// match: (NZW (MOVDconst [c]) yes no)
++		// cond: int32(c) != 0
+ 		// result: (First nil yes no)
+ 		for {
+ 			v := b.Control
+-			if v.Op != OpARM64FlagGT_UGT {
++			if v.Op != OpARM64MOVDconst {
+ 				break
+ 			}
++			c := v.AuxInt
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+-			b.Kind = BlockFirst
+-			b.SetControl(nil)
+-			_ = yes
+-			_ = no
+-			return true
+-		}
+-		// match: (NE (InvertFlags cmp) yes no)
+-		// cond:
+-		// result: (NE cmp yes no)
+-		for {
+-			v := b.Control
+-			if v.Op != OpARM64InvertFlags {
++			if !(int32(c) != 0) {
+ 				break
+ 			}
+-			cmp := v.Args[0]
+-			yes := b.Succs[0]
+-			no := b.Succs[1]
+-			b.Kind = BlockARM64NE
+-			b.SetControl(cmp)
++			b.Kind = BlockFirst
++			b.SetControl(nil)
+ 			_ = yes
+ 			_ = no
+ 			return true
+@@ -16503,6 +16593,89 @@ func rewriteBlockARM64(b *Block, config *Config) bool {
+ 			_ = no
+ 			return true
+ 		}
++	case BlockARM64Z:
++		// match: (Z (MOVDconst [0]) yes no)
++		// cond:
++		// result: (First nil yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARM64MOVDconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			yes := b.Succs[0]
++			no := b.Succs[1]
++			b.Kind = BlockFirst
++			b.SetControl(nil)
++			_ = yes
++			_ = no
++			return true
++		}
++		// match: (Z (MOVDconst [c]) yes no)
++		// cond: c != 0
++		// result: (First nil no yes)
++		for {
++			v := b.Control
++			if v.Op != OpARM64MOVDconst {
++				break
++			}
++			c := v.AuxInt
++			yes := b.Succs[0]
++			no := b.Succs[1]
++			if !(c != 0) {
++				break
++			}
++			b.Kind = BlockFirst
++			b.SetControl(nil)
++			b.swapSuccessors()
++			_ = no
++			_ = yes
++			return true
++		}
++	case BlockARM64ZW:
++		// match: (ZW (MOVDconst [c]) yes no)
++		// cond: int32(c) == 0
++		// result: (First nil yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARM64MOVDconst {
++				break
++			}
++			c := v.AuxInt
++			yes := b.Succs[0]
++			no := b.Succs[1]
++			if !(int32(c) == 0) {
++				break
++			}
++			b.Kind = BlockFirst
++			b.SetControl(nil)
++			_ = yes
++			_ = no
++			return true
++		}
++		// match: (ZW (MOVDconst [c]) yes no)
++		// cond: int32(c) != 0
++		// result: (First nil no yes)
++		for {
++			v := b.Control
++			if v.Op != OpARM64MOVDconst {
++				break
++			}
++			c := v.AuxInt
++			yes := b.Succs[0]
++			no := b.Succs[1]
++			if !(int32(c) != 0) {
++				break
++			}
++			b.Kind = BlockFirst
++			b.SetControl(nil)
++			b.swapSuccessors()
++			_ = no
++			_ = yes
++			return true
++		}
+ 	}
+ 	return false
+ }
+diff --git a/src/cmd/internal/obj/arm64/obj7.go b/src/cmd/internal/obj/arm64/obj7.go
+index 410110c9fd..087f4a99ee 100644
+--- a/src/cmd/internal/obj/arm64/obj7.go
++++ b/src/cmd/internal/obj/arm64/obj7.go
+@@ -481,6 +481,10 @@ func relinv(a obj.As) obj.As {
+ 		return ACBNZ
+ 	case ACBNZ:
+ 		return ACBZ
++	case ACBZW:
++		return ACBNZW
++	case ACBNZW:
++		return ACBZW
+ 	}
+ 
+ 	log.Fatalf("unknown relation: %s", Anames[a-obj.ABaseARM64])

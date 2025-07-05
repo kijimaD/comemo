@@ -7,6 +7,22 @@ Date:   Sun Dec 6 08:18:58 2009 -0800
     
     TBR=r
     https://golang.org/cl/166077
-
+---
  src/pkg/runtime/slice.c | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/slice.c b/src/pkg/runtime/slice.c
+index d5e524e8a4..ba4be331b5 100644
+--- a/src/pkg/runtime/slice.c
++++ b/src/pkg/runtime/slice.c
+@@ -21,7 +21,9 @@ runtime·makeslice(SliceType *t, uint32 nel, uint32 cap, Slice ret)
+ 	ret.len = nel;
+ 	ret.cap = cap;
+ 
+-	if(t->elem->kind&KindNoPointers)
++	// TODO(rsc): Disabled because reflect and gob cast []byte
++	// to data structures with pointers.
++	if(0 && (t->elem->kind&KindNoPointers))
+ 		ret.array = mallocgc(size, RefNoPointers, 1);
+ 	else
+ 		ret.array = mal(size);

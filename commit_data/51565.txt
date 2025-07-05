@@ -18,7 +18,50 @@ Date:   Sun Feb 13 20:27:55 2022 -0500
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/types2/infer.go | 10 ----------
  src/go/types/infer.go                    | 10 ----------
  2 files changed, 20 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/infer.go b/src/cmd/compile/internal/types2/infer.go
+index 6259e287ae..2d6f26c0c9 100644
+--- a/src/cmd/compile/internal/types2/infer.go
++++ b/src/cmd/compile/internal/types2/infer.go
+@@ -116,16 +116,6 @@ func (check *Checker) infer(pos syntax.Pos, tparams []*TypeParam, targs []Type,
+ 
+ 			tparams = tparams2
+ 			params = check.subst(pos, params, renameMap, nil).(*Tuple)
+-
+-			// If we replaced any type parameters, their replacements may occur in
+-			// the resulting inferred type arguments. Make sure we use the original
+-			// type parameters in the result.
+-			defer func() {
+-				unrenameMap := makeRenameMap(tparams2, tparams)
+-				for i, res := range result {
+-					result[i] = check.subst(pos, res, unrenameMap, nil)
+-				}
+-			}()
+ 		}
+ 	}
+ 
+diff --git a/src/go/types/infer.go b/src/go/types/infer.go
+index 18ec81edd4..8f22144c83 100644
+--- a/src/go/types/infer.go
++++ b/src/go/types/infer.go
+@@ -115,16 +115,6 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
+ 
+ 			tparams = tparams2
+ 			params = check.subst(posn.Pos(), params, renameMap, nil).(*Tuple)
+-
+-			// If we replaced any type parameters, their replacements may occur in
+-			// the resulting inferred type arguments. Make sure we use the original
+-			// type parameters in the result.
+-			defer func() {
+-				unrenameMap := makeRenameMap(tparams2, tparams)
+-				for i, res := range result {
+-					result[i] = check.subst(posn.Pos(), res, unrenameMap, nil)
+-				}
+-			}()
+ 		}
+ 	}
+ 

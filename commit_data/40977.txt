@@ -11,9 +11,74 @@ Date:   Tue Aug 27 15:06:07 2019 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/ssa/check.go       | 6 ------
  src/cmd/compile/internal/ssa/gen/rulegen.go | 4 ++--
  src/cmd/compile/internal/ssa/op.go          | 2 --
  src/cmd/compile/internal/ssa/value.go       | 2 +-
  4 files changed, 3 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/check.go b/src/cmd/compile/internal/ssa/check.go
+index 13e8d7b3de..cecfe95dc8 100644
+--- a/src/cmd/compile/internal/ssa/check.go
++++ b/src/cmd/compile/internal/ssa/check.go
+@@ -155,12 +155,6 @@ func checkFunc(f *Func) {
+ 			case auxSymOff, auxSymValAndOff, auxTypSize:
+ 				canHaveAuxInt = true
+ 				canHaveAux = true
+-			case auxSymInt32:
+-				if v.AuxInt != int64(int32(v.AuxInt)) {
+-					f.Fatalf("bad int32 AuxInt value for %v", v)
+-				}
+-				canHaveAuxInt = true
+-				canHaveAux = true
+ 			case auxCCop:
+ 				if _, ok := v.Aux.(Op); !ok {
+ 					f.Fatalf("bad type %T for CCop in %v", v.Aux, v)
+diff --git a/src/cmd/compile/internal/ssa/gen/rulegen.go b/src/cmd/compile/internal/ssa/gen/rulegen.go
+index 500d98431c..ad09975a6d 100644
+--- a/src/cmd/compile/internal/ssa/gen/rulegen.go
++++ b/src/cmd/compile/internal/ssa/gen/rulegen.go
+@@ -908,14 +908,14 @@ func parseValue(val string, arch arch, loc string) (op opData, oparch, typ, auxi
+ 	// Sanity check aux, auxint.
+ 	if auxint != "" {
+ 		switch op.aux {
+-		case "Bool", "Int8", "Int16", "Int32", "Int64", "Int128", "Float32", "Float64", "SymOff", "SymValAndOff", "SymInt32", "TypSize":
++		case "Bool", "Int8", "Int16", "Int32", "Int64", "Int128", "Float32", "Float64", "SymOff", "SymValAndOff", "TypSize":
+ 		default:
+ 			log.Fatalf("%s: op %s %s can't have auxint", loc, op.name, op.aux)
+ 		}
+ 	}
+ 	if aux != "" {
+ 		switch op.aux {
+-		case "String", "Sym", "SymOff", "SymValAndOff", "SymInt32", "Typ", "TypSize", "CCop":
++		case "String", "Sym", "SymOff", "SymValAndOff", "Typ", "TypSize", "CCop":
+ 		default:
+ 			log.Fatalf("%s: op %s %s can't have aux", loc, op.name, op.aux)
+ 		}
+diff --git a/src/cmd/compile/internal/ssa/op.go b/src/cmd/compile/internal/ssa/op.go
+index ee764ec0f8..22a1c5fc05 100644
+--- a/src/cmd/compile/internal/ssa/op.go
++++ b/src/cmd/compile/internal/ssa/op.go
+@@ -83,8 +83,6 @@ const (
+ 	auxTyp                  // aux is a type
+ 	auxTypSize              // aux is a type, auxInt is a size, must have Aux.(Type).Size() == AuxInt
+ 	auxCCop                 // aux is a ssa.Op that represents a flags-to-bool conversion (e.g. LessThan)
+-
+-	auxSymInt32 // aux is a symbol, auxInt is a 32-bit integer
+ )
+ 
+ // A SymEffect describes the effect that an SSA Value has on the variable
+diff --git a/src/cmd/compile/internal/ssa/value.go b/src/cmd/compile/internal/ssa/value.go
+index 6e35a3c777..e209f2a3b8 100644
+--- a/src/cmd/compile/internal/ssa/value.go
++++ b/src/cmd/compile/internal/ssa/value.go
+@@ -183,7 +183,7 @@ func (v *Value) auxString() string {
+ 		if v.Aux != nil {
+ 			return fmt.Sprintf(" {%v}", v.Aux)
+ 		}
+-	case auxSymOff, auxSymInt32, auxTypSize:
++	case auxSymOff, auxTypSize:
+ 		s := ""
+ 		if v.Aux != nil {
+ 			s = fmt.Sprintf(" {%v}", v.Aux)

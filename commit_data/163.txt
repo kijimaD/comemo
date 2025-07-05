@@ -6,7 +6,97 @@ Date:   Thu Jun 12 14:21:09 2008 -0700
     fixed bugs in /= and %/
     
     SVN=122493
-
+---
  src/cmd/6g/gen.c | 46 +++++++++++++++++++++++-----------------------
  src/cmd/6g/gg.h  |  2 +-
  2 files changed, 24 insertions(+), 24 deletions(-)
+
+diff --git a/src/cmd/6g/gen.c b/src/cmd/6g/gen.c
+index b755afacee..4712b0c28c 100644
+--- a/src/cmd/6g/gen.c
++++ b/src/cmd/6g/gen.c
+@@ -275,7 +275,7 @@ loop:
+ 		break;
+ 
+ 	case OASOP:
+-		cgen_asop(n->left, n->right, n->etype);
++		cgen_asop(n);
+ 		break;
+ 
+ 	case OAS:
+@@ -683,40 +683,40 @@ cgen_ret(Node *n)
+ }
+ 
+ void
+-cgen_asop(Node *nl, Node *nr, int op)
++cgen_asop(Node *n)
+ {
+-	Node n1, n2;
+-	int a;
++	Node n1, n2, n3, n4;
++	Node *nl, *nr;
++
++	nl = n->left;
++	nr = n->right;
+ 
+ 	if(nr->ullman >= UINF && nl->ullman >= UINF) {
+ 		fatal("cgen_asop both sides call");
+ 	}
+ 
+-// BOTCH make special case for DIVQ
+-
+-	a = optoas(op, nl->type);
+-	if(nl->addable) {
+-		regalloc(&n2, nr->type, N);
++	if(nr->ullman > nl->ullman) {
++		regalloc(&n2, nl->type, N);
++		cgen(nr, &n2);
++		igen(nl, &n1, N);
++	} else {
++		igen(nl, &n1, N);
++		regalloc(&n2, nl->type, N);
+ 		cgen(nr, &n2);
+-		regalloc(&n1, nl->type, N);
+-		cgen(nl, &n1);
+-		gins(a, &n2, &n1);
+-		gmove(&n1, nl);
+-		regfree(&n1);
+-		regfree(&n2);
+-		return;
+ 	}
+ 
+-	if(nr->ullman > nl->ullman) {
+-		fatal("gcgen_asopen");
+-	}
++	n3 = *n;
++	n3.left = &n1;
++	n3.right = &n2;
++	n3.op = n->etype;
++
++	regalloc(&n4, nr->type, N);
++	cgen(&n3, &n4);
++	gmove(&n4, &n1);
+ 
+-	regalloc(&n1, nl->type, N);
+-	igen(nl, &n2, N);
+-	cgen(nr, &n1);
+-	gins(a, &n1, &n2);
+ 	regfree(&n1);
+ 	regfree(&n2);
++	regfree(&n4);
+ }
+ 
+ void
+diff --git a/src/cmd/6g/gg.h b/src/cmd/6g/gg.h
+index fa89cc8894..c2cfc44cbf 100644
+--- a/src/cmd/6g/gg.h
++++ b/src/cmd/6g/gg.h
+@@ -109,7 +109,7 @@ Node*	lookdot(Node*, Node*, int);
+ void	inarggen(void);
+ void	agen_inter(Node*, Node*);
+ void	cgen_as(Node*, Node*, int);
+-void	cgen_asop(Node*, Node*, int);
++void	cgen_asop(Node*);
+ void	cgen_ret(Node*);
+ void	cgen_call(Node*);
+ void	cgen_callmeth(Node*);

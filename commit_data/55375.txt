@@ -22,7 +22,7 @@ Date:   Fri Jan 20 16:25:33 2023 -0500
     Auto-Submit: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/cfg/cfg.go        | 16 ++++++++++------
  src/cmd/go/internal/load/pkg.go       |  9 +++++----
  src/cmd/go/internal/modindex/build.go |  7 ++-----
@@ -36,3 +36,383 @@ Date:   Fri Jan 20 16:25:33 2023 -0500
  src/cmd/go/testdata/addmod.go         |  3 +--
  src/cmd/go/testdata/savedir.go        |  3 +--
  12 files changed, 72 insertions(+), 47 deletions(-)
+
+diff --git a/src/cmd/go/internal/cfg/cfg.go b/src/cmd/go/internal/cfg/cfg.go
+index 563335220b..a6ad7390ef 100644
+--- a/src/cmd/go/internal/cfg/cfg.go
++++ b/src/cmd/go/internal/cfg/cfg.go
+@@ -389,13 +389,17 @@ func CanGetenv(key string) bool {
+ }
+ 
+ var (
+-	GOROOT       string
+-	GOROOTbin    string
+-	GOROOTpkg    string
+-	GOROOTsrc    string
++	GOROOT string
++
++	// Either empty or produced by filepath.Join(GOROOT, …).
++	GOROOTbin string
++	GOROOTpkg string
++	GOROOTsrc string
++
+ 	GOROOT_FINAL string
+-	GOBIN        = Getenv("GOBIN")
+-	GOMODCACHE   = envOr("GOMODCACHE", gopathDir("pkg/mod"))
++
++	GOBIN      = Getenv("GOBIN")
++	GOMODCACHE = envOr("GOMODCACHE", gopathDir("pkg/mod"))
+ 
+ 	// Used in envcmd.MkEnv and build ID computations.
+ 	GOARM    = envOr("GOARM", fmt.Sprint(buildcfg.GOARM))
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 7aee65667d..9e6b3ebcbd 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -887,8 +887,9 @@ func loadPackageData(ctx context.Context, path, parentPath, parentDir, parentRoo
+ 			modroot := modload.PackageModRoot(ctx, r.path)
+ 			if modroot == "" && str.HasPathPrefix(r.dir, cfg.GOROOTsrc) {
+ 				modroot = cfg.GOROOTsrc
+-				if str.HasPathPrefix(r.dir, cfg.GOROOTsrc+string(filepath.Separator)+"cmd") {
+-					modroot += string(filepath.Separator) + "cmd"
++				gorootSrcCmd := filepath.Join(cfg.GOROOTsrc, "cmd")
++				if str.HasPathPrefix(r.dir, gorootSrcCmd) {
++					modroot = gorootSrcCmd
+ 				}
+ 			}
+ 			if modroot != "" {
+@@ -1784,7 +1785,7 @@ func (p *Package) load(ctx context.Context, opts PackageOpts, path string, stk *
+ 			return
+ 		}
+ 		elem := p.DefaultExecName() + cfg.ExeSuffix
+-		full := cfg.BuildContext.GOOS + "_" + cfg.BuildContext.GOARCH + string(filepath.Separator) + elem
++		full := filepath.Join(cfg.BuildContext.GOOS+"_"+cfg.BuildContext.GOARCH, elem)
+ 		if cfg.BuildContext.GOOS != runtime.GOOS || cfg.BuildContext.GOARCH != runtime.GOARCH {
+ 			// Install cross-compiled binaries to subdirectories of bin.
+ 			elem = full
+@@ -2086,7 +2087,7 @@ func resolveEmbed(pkgdir string, patterns []string) (files []string, pmap map[st
+ 		}
+ 
+ 		// Glob to find matches.
+-		match, err := fsys.Glob(str.QuoteGlob(pkgdir) + string(filepath.Separator) + filepath.FromSlash(glob))
++		match, err := fsys.Glob(str.QuoteGlob(str.WithFilePathSeparator(pkgdir)) + filepath.FromSlash(glob))
+ 		if err != nil {
+ 			return nil, nil, err
+ 		}
+diff --git a/src/cmd/go/internal/modindex/build.go b/src/cmd/go/internal/modindex/build.go
+index afc976521d..ba7e47cf17 100644
+--- a/src/cmd/go/internal/modindex/build.go
++++ b/src/cmd/go/internal/modindex/build.go
+@@ -10,6 +10,7 @@ package modindex
+ import (
+ 	"bytes"
+ 	"cmd/go/internal/fsys"
++	"cmd/go/internal/str"
+ 	"errors"
+ 	"fmt"
+ 	"go/ast"
+@@ -166,11 +167,7 @@ func (ctxt *Context) hasSubdir(root, dir string) (rel string, ok bool) {
+ 
+ // hasSubdir reports if dir is within root by performing lexical analysis only.
+ func hasSubdir(root, dir string) (rel string, ok bool) {
+-	const sep = string(filepath.Separator)
+-	root = filepath.Clean(root)
+-	if !strings.HasSuffix(root, sep) {
+-		root += sep
+-	}
++	root = str.WithFilePathSeparator(filepath.Clean(root))
+ 	dir = filepath.Clean(dir)
+ 	if !strings.HasPrefix(dir, root) {
+ 		return "", false
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index e4f6a95320..f450ced299 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -546,9 +546,9 @@ func resolveLocalPackage(ctx context.Context, dir string, rs *Requirements) (str
+ 	pkgNotFoundLongestPrefix := ""
+ 	for _, mainModule := range MainModules.Versions() {
+ 		modRoot := MainModules.ModRoot(mainModule)
+-		if modRoot != "" && strings.HasPrefix(absDir, modRoot+string(filepath.Separator)) && !strings.Contains(absDir[len(modRoot):], "@") {
+-			suffix := filepath.ToSlash(absDir[len(modRoot):])
+-			if pkg, found := strings.CutPrefix(suffix, "/vendor/"); found {
++		if modRoot != "" && str.HasFilePathPrefix(absDir, modRoot) && !strings.Contains(absDir[len(modRoot):], "@") {
++			suffix := filepath.ToSlash(str.TrimFilePathPrefix(absDir, modRoot))
++			if pkg, found := strings.CutPrefix(suffix, "vendor/"); found {
+ 				if cfg.BuildMod != "vendor" {
+ 					return "", fmt.Errorf("without -mod=vendor, directory %s has no package path", absDir)
+ 				}
+@@ -562,7 +562,7 @@ func resolveLocalPackage(ctx context.Context, dir string, rs *Requirements) (str
+ 
+ 			mainModulePrefix := MainModules.PathPrefix(mainModule)
+ 			if mainModulePrefix == "" {
+-				pkg := strings.TrimPrefix(suffix, "/")
++				pkg := suffix
+ 				if pkg == "builtin" {
+ 					// "builtin" is a pseudo-package with a real source file.
+ 					// It's not included in "std", so it shouldn't resolve from "."
+@@ -572,7 +572,7 @@ func resolveLocalPackage(ctx context.Context, dir string, rs *Requirements) (str
+ 				return pkg, nil
+ 			}
+ 
+-			pkg := mainModulePrefix + suffix
++			pkg := pathpkg.Join(mainModulePrefix, suffix)
+ 			if _, ok, err := dirInModule(pkg, mainModulePrefix, modRoot, true); err != nil {
+ 				return "", err
+ 			} else if !ok {
+@@ -749,17 +749,17 @@ func (mms *MainModuleSet) DirImportPath(ctx context.Context, dir string) (path s
+ 		if dir == modRoot {
+ 			return mms.PathPrefix(v), v
+ 		}
+-		if strings.HasPrefix(dir, modRoot+string(filepath.Separator)) {
++		if str.HasFilePathPrefix(dir, modRoot) {
+ 			pathPrefix := MainModules.PathPrefix(v)
+ 			if pathPrefix > longestPrefix {
+ 				longestPrefix = pathPrefix
+ 				longestPrefixVersion = v
+-				suffix := filepath.ToSlash(dir[len(modRoot):])
+-				if strings.HasPrefix(suffix, "/vendor/") {
+-					longestPrefixPath = strings.TrimPrefix(suffix, "/vendor/")
++				suffix := filepath.ToSlash(str.TrimFilePathPrefix(dir, modRoot))
++				if strings.HasPrefix(suffix, "vendor/") {
++					longestPrefixPath = strings.TrimPrefix(suffix, "vendor/")
+ 					continue
+ 				}
+-				longestPrefixPath = mms.PathPrefix(v) + suffix
++				longestPrefixPath = pathpkg.Join(mms.PathPrefix(v), suffix)
+ 			}
+ 		}
+ 	}
+diff --git a/src/cmd/go/internal/modload/search.go b/src/cmd/go/internal/modload/search.go
+index 1da46a4b05..36e05321ae 100644
+--- a/src/cmd/go/internal/modload/search.go
++++ b/src/cmd/go/internal/modload/search.go
+@@ -78,7 +78,7 @@ func matchPackages(ctx context.Context, m *search.Match, tags map[string]bool, f
+ 		defer span.Done()
+ 
+ 		root = filepath.Clean(root)
+-		err := fsys.Walk(root, func(path string, fi fs.FileInfo, err error) error {
++		err := fsys.Walk(root, func(pkgDir string, fi fs.FileInfo, err error) error {
+ 			if err != nil {
+ 				m.AddError(err)
+ 				return nil
+@@ -88,30 +88,29 @@ func matchPackages(ctx context.Context, m *search.Match, tags map[string]bool, f
+ 			elem := ""
+ 
+ 			// Don't use GOROOT/src but do walk down into it.
+-			if path == root {
++			if pkgDir == root {
+ 				if importPathRoot == "" {
+ 					return nil
+ 				}
+ 			} else {
+ 				// Avoid .foo, _foo, and testdata subdirectory trees.
+-				_, elem = filepath.Split(path)
++				_, elem = filepath.Split(pkgDir)
+ 				if strings.HasPrefix(elem, ".") || strings.HasPrefix(elem, "_") || elem == "testdata" {
+ 					want = false
+ 				}
+ 			}
+ 
+-			name := importPathRoot + filepath.ToSlash(path[len(root):])
+-			if importPathRoot == "" {
+-				name = name[1:] // cut leading slash
+-			}
++			rel := strings.TrimPrefix(filepath.ToSlash(pkgDir[len(root):]), "/")
++			name := path.Join(importPathRoot, rel)
++
+ 			if !treeCanMatch(name) {
+ 				want = false
+ 			}
+ 
+ 			if !fi.IsDir() {
+ 				if fi.Mode()&fs.ModeSymlink != 0 && want && strings.Contains(m.Pattern(), "...") {
+-					if target, err := fsys.Stat(path); err == nil && target.IsDir() {
+-						fmt.Fprintf(os.Stderr, "warning: ignoring symlink %s\n", path)
++					if target, err := fsys.Stat(pkgDir); err == nil && target.IsDir() {
++						fmt.Fprintf(os.Stderr, "warning: ignoring symlink %s\n", pkgDir)
+ 					}
+ 				}
+ 				return nil
+@@ -121,8 +120,8 @@ func matchPackages(ctx context.Context, m *search.Match, tags map[string]bool, f
+ 				return filepath.SkipDir
+ 			}
+ 			// Stop at module boundaries.
+-			if (prune&pruneGoMod != 0) && path != root {
+-				if fi, err := os.Stat(filepath.Join(path, "go.mod")); err == nil && !fi.IsDir() {
++			if (prune&pruneGoMod != 0) && pkgDir != root {
++				if fi, err := os.Stat(filepath.Join(pkgDir, "go.mod")); err == nil && !fi.IsDir() {
+ 					return filepath.SkipDir
+ 				}
+ 			}
+@@ -131,7 +130,7 @@ func matchPackages(ctx context.Context, m *search.Match, tags map[string]bool, f
+ 				have[name] = true
+ 				if isMatch(name) {
+ 					q.Add(func() {
+-						if _, _, err := scanDir(root, path, tags); err != imports.ErrNoGo {
++						if _, _, err := scanDir(root, pkgDir, tags); err != imports.ErrNoGo {
+ 							addPkg(name)
+ 						}
+ 					})
+diff --git a/src/cmd/go/internal/script/cmds.go b/src/cmd/go/internal/script/cmds.go
+index e0eaad4c43..b87a8e2837 100644
+--- a/src/cmd/go/internal/script/cmds.go
++++ b/src/cmd/go/internal/script/cmds.go
+@@ -414,7 +414,7 @@ func Exec(cancel func(*exec.Cmd) error, waitDelay time.Duration) Cmd {
+ 				return nil, ErrUsage
+ 			}
+ 
+-			// Use the script's PATH to look up the command if it contains a separator
++			// Use the script's PATH to look up the command (if it does not contain a separator)
+ 			// instead of the test process's PATH (see lookPath).
+ 			// Don't use filepath.Clean, since that changes "./foo" to "foo".
+ 			name := filepath.FromSlash(args[0])
+@@ -497,6 +497,18 @@ func lookPath(s *State, command string) (string, error) {
+ 
+ 	pathEnv, _ := s.LookupEnv(pathEnvName())
+ 	for _, dir := range strings.Split(pathEnv, string(filepath.ListSeparator)) {
++		if dir == "" {
++			continue
++		}
++
++		// Determine whether dir needs a trailing path separator.
++		// Note: we avoid filepath.Join in this function because it cleans the
++		// result: we want to preserve the exact dir prefix from the environment.
++		sep := string(filepath.Separator)
++		if os.IsPathSeparator(dir[len(dir)-1]) {
++			sep = ""
++		}
++
+ 		if searchExt {
+ 			ents, err := os.ReadDir(dir)
+ 			if err != nil {
+@@ -505,12 +517,12 @@ func lookPath(s *State, command string) (string, error) {
+ 			for _, ent := range ents {
+ 				for _, ext := range pathExt {
+ 					if !ent.IsDir() && strEqual(ent.Name(), command+ext) {
+-						return dir + string(filepath.Separator) + ent.Name(), nil
++						return dir + sep + ent.Name(), nil
+ 					}
+ 				}
+ 			}
+ 		} else {
+-			path := dir + string(filepath.Separator) + command
++			path := dir + sep + command
+ 			if fi, err := os.Stat(path); err == nil && isExecutable(fi) {
+ 				return path, nil
+ 			}
+diff --git a/src/cmd/go/internal/script/state.go b/src/cmd/go/internal/script/state.go
+index a51c504ba5..548f67376b 100644
+--- a/src/cmd/go/internal/script/state.go
++++ b/src/cmd/go/internal/script/state.go
+@@ -147,10 +147,14 @@ func (s *State) ExpandEnv(str string, inRegexp bool) string {
+ // originally created.
+ func (s *State) ExtractFiles(ar *txtar.Archive) error {
+ 	wd := s.workdir
++
+ 	// Add trailing separator to terminate wd.
+ 	// This prevents extracting to outside paths which prefix wd,
+ 	// e.g. extracting to /home/foobar when wd is /home/foo
+-	if !strings.HasSuffix(wd, string(filepath.Separator)) {
++	if wd == "" {
++		panic("s.workdir is unexpectedly empty")
++	}
++	if !os.IsPathSeparator(wd[len(wd)-1]) {
+ 		wd += string(filepath.Separator)
+ 	}
+ 
+diff --git a/src/cmd/go/internal/search/search.go b/src/cmd/go/internal/search/search.go
+index 7ea6493d4a..fad1acb610 100644
+--- a/src/cmd/go/internal/search/search.go
++++ b/src/cmd/go/internal/search/search.go
+@@ -125,7 +125,7 @@ func (m *Match) MatchPackages() {
+ 		if (m.pattern == "std" || m.pattern == "cmd") && src != cfg.GOROOTsrc {
+ 			continue
+ 		}
+-		src = filepath.Clean(src) + string(filepath.Separator)
++		src = str.WithFilePathSeparator(filepath.Clean(src))
+ 		root := src
+ 		if m.pattern == "cmd" {
+ 			root += "cmd" + string(filepath.Separator)
+diff --git a/src/cmd/go/internal/str/path.go b/src/cmd/go/internal/str/path.go
+index 0c8f47988e..83a3d0eb75 100644
+--- a/src/cmd/go/internal/str/path.go
++++ b/src/cmd/go/internal/str/path.go
+@@ -105,6 +105,15 @@ func TrimFilePathPrefix(s, prefix string) string {
+ 	return trimmed
+ }
+ 
++// WithFilePathSeparator returns s with a trailing path separator, or the empty
++// string if s is empty.
++func WithFilePathSeparator(s string) string {
++	if s == "" || os.IsPathSeparator(s[len(s)-1]) {
++		return s
++	}
++	return s + string(filepath.Separator)
++}
++
+ // QuoteGlob returns s with all Glob metacharacters quoted.
+ // We don't try to handle backslash here, as that can appear in a
+ // file path on Windows.
+diff --git a/src/cmd/go/internal/work/action.go b/src/cmd/go/internal/work/action.go
+index 8beb1345d0..67d3530ae0 100644
+--- a/src/cmd/go/internal/work/action.go
++++ b/src/cmd/go/internal/work/action.go
+@@ -25,6 +25,7 @@ import (
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/load"
+ 	"cmd/go/internal/robustio"
++	"cmd/go/internal/str"
+ 	"cmd/go/internal/trace"
+ 	"cmd/internal/buildid"
+ )
+@@ -370,7 +371,7 @@ func CheckGOOSARCHPair(goos, goarch string) error {
+ // be called during action graph execution.
+ func (b *Builder) NewObjdir() string {
+ 	b.objdirSeq++
+-	return filepath.Join(b.WorkDir, fmt.Sprintf("b%03d", b.objdirSeq)) + string(filepath.Separator)
++	return str.WithFilePathSeparator(filepath.Join(b.WorkDir, fmt.Sprintf("b%03d", b.objdirSeq)))
+ }
+ 
+ // readpkglist returns the list of packages that were built into the shared library
+diff --git a/src/cmd/go/testdata/addmod.go b/src/cmd/go/testdata/addmod.go
+index e378d7f31a..0045d50a3b 100644
+--- a/src/cmd/go/testdata/addmod.go
++++ b/src/cmd/go/testdata/addmod.go
+@@ -16,7 +16,6 @@
+ //
+ // It is acceptable to edit the archive afterward to remove or shorten files.
+ // See mod/README for more information.
+-//
+ package main
+ 
+ import (
+@@ -131,7 +130,7 @@ func main() {
+ 				if err != nil {
+ 					return err
+ 				}
+-				a.Files = append(a.Files, txtar.File{Name: strings.TrimPrefix(path, dir+string(filepath.Separator)), Data: data})
++				a.Files = append(a.Files, txtar.File{Name: str.TrimFilePathPrefix(path, dir), Data: data})
+ 			}
+ 			return nil
+ 		})
+diff --git a/src/cmd/go/testdata/savedir.go b/src/cmd/go/testdata/savedir.go
+index eaafc5e493..9a3ed506b1 100644
+--- a/src/cmd/go/testdata/savedir.go
++++ b/src/cmd/go/testdata/savedir.go
+@@ -12,7 +12,6 @@
+ //	go run savedir.go /path/to/dir >saved.txt
+ //
+ // Typically the tree is later extracted during a test with tg.extract("testdata/saved.txt").
+-//
+ package main
+ 
+ import (
+@@ -70,7 +69,7 @@ func main() {
+ 			log.Printf("%s: ignoring invalid UTF-8 data", path)
+ 			return nil
+ 		}
+-		a.Files = append(a.Files, txtar.File{Name: strings.TrimPrefix(path, dir+string(filepath.Separator)), Data: data})
++		a.Files = append(a.Files, txtar.File{Name: str.TrimFilePathPrefix(path, dir), Data: data})
+ 		return nil
+ 	})
+ 

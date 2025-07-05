@@ -7,6 +7,36 @@ Date:   Fri May 21 14:53:54 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1242045
-
+---
  test/fixedbugs/bug276.go | 23 +++++++++++++++++++++++
  1 file changed, 23 insertions(+)
+
+diff --git a/test/fixedbugs/bug276.go b/test/fixedbugs/bug276.go
+new file mode 100644
+index 0000000000..844a6b2382
+--- /dev/null
++++ b/test/fixedbugs/bug276.go
+@@ -0,0 +1,23 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out || echo BUG code should run
++
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test case for issue 789. The bug only appeared for GOARCH=386.
++
++package main
++
++func main() {
++	i := 0
++	x := 0
++
++	a := (x & 1) << uint(1-i)
++	
++	s := uint(1-i)
++	b := (x & 1) << s
++	
++	if a != b {
++		panic(0)
++	}
++}

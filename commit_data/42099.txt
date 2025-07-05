@@ -14,6 +14,19 @@ Date:   Mon Nov 4 20:06:19 2019 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/205248
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/runtime/export_debug_test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/runtime/export_debug_test.go b/src/runtime/export_debug_test.go
+index e97dd52f20..7deddd52ea 100644
+--- a/src/runtime/export_debug_test.go
++++ b/src/runtime/export_debug_test.go
+@@ -67,6 +67,7 @@ func InjectDebugCall(gp *g, fn, args interface{}, tkill func(tid int) error) (in
+ 			case "retry _Grunnable", "executing on Go runtime stack":
+ 				// These are transient states. Try to get out of them.
+ 				if i < 100 {
++					usleep(100)
+ 					Gosched()
+ 					continue
+ 				}

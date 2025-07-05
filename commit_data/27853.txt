@@ -17,7 +17,364 @@ Date:   Fri Feb 19 10:12:44 2016 -0800
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Alexandre Cesaro <alexandre.cesaro@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/mail/message.go      | 164 ++++++++++++++++++++++++-------------------
  src/net/mail/message_test.go |  54 +++++++++++++-
  2 files changed, 144 insertions(+), 74 deletions(-)
+
+diff --git a/src/net/mail/message.go b/src/net/mail/message.go
+index b40a314e33..0c000697f7 100644
+--- a/src/net/mail/message.go
++++ b/src/net/mail/message.go
+@@ -5,13 +5,15 @@
+ /*
+ Package mail implements parsing of mail messages.
+ 
+-For the most part, this package follows the syntax as specified by RFC 5322.
++For the most part, this package follows the syntax as specified by RFC 5322 and
++extended by RFC 6532.
+ Notable divergences:
+ 	* Obsolete address formats are not parsed, including addresses with
+ 	  embedded route information.
+ 	* Group addresses are not parsed.
+ 	* The full range of spacing (the CFWS syntax element) is not supported,
+ 	  such as breaking addresses across lines.
++	* No unicode normalization is performed.
+ */
+ package mail
+ 
+@@ -26,6 +28,7 @@ import (
+ 	"net/textproto"
+ 	"strings"
+ 	"time"
++	"unicode/utf8"
+ )
+ 
+ var debug = debugT(false)
+@@ -180,15 +183,12 @@ func (a *Address) String() string {
+ 	}
+ 
+ 	// Add quotes if needed
+-	// TODO: rendering quoted local part and rendering printable name
+-	//       should be merged in helper function.
+ 	quoteLocal := false
+-	for i := 0; i < len(local); i++ {
+-		ch := local[i]
+-		if isAtext(ch, false) {
++	for i, r := range local {
++		if isAtext(r, false) {
+ 			continue
+ 		}
+-		if ch == '.' {
++		if r == '.' {
+ 			// Dots are okay if they are surrounded by atext.
+ 			// We only need to check that the previous byte is
+ 			// not a dot, and this isn't the end of the string.
+@@ -212,25 +212,16 @@ func (a *Address) String() string {
+ 
+ 	// If every character is printable ASCII, quoting is simple.
+ 	allPrintable := true
+-	for i := 0; i < len(a.Name); i++ {
++	for _, r := range a.Name {
+ 		// isWSP here should actually be isFWS,
+ 		// but we don't support folding yet.
+-		if !isVchar(a.Name[i]) && !isWSP(a.Name[i]) {
++		if !isVchar(r) && !isWSP(r) || isMultibyte(r) {
+ 			allPrintable = false
+ 			break
+ 		}
+ 	}
+ 	if allPrintable {
+-		b := bytes.NewBufferString(`"`)
+-		for i := 0; i < len(a.Name); i++ {
+-			if !isQtext(a.Name[i]) && !isWSP(a.Name[i]) {
+-				b.WriteByte('\\')
+-			}
+-			b.WriteByte(a.Name[i])
+-		}
+-		b.WriteString(`" `)
+-		b.WriteString(s)
+-		return b.String()
++		return quoteString(a.Name) + " " + s
+ 	}
+ 
+ 	// Text in an encoded-word in a display-name must not contain certain
+@@ -427,29 +418,48 @@ func (p *addrParser) consumePhrase() (phrase string, err error) {
+ func (p *addrParser) consumeQuotedString() (qs string, err error) {
+ 	// Assume first byte is '"'.
+ 	i := 1
+-	qsb := make([]byte, 0, 10)
++	qsb := make([]rune, 0, 10)
++
++	escaped := false
++
+ Loop:
+ 	for {
+-		if i >= p.len() {
++		r, size := utf8.DecodeRuneInString(p.s[i:])
++
++		switch {
++		case size == 0:
+ 			return "", errors.New("mail: unclosed quoted-string")
+-		}
+-		switch c := p.s[i]; {
+-		case c == '"':
+-			break Loop
+-		case c == '\\':
+-			if i+1 == p.len() {
+-				return "", errors.New("mail: unclosed quoted-string")
++
++		case size == 1 && r == utf8.RuneError:
++			return "", fmt.Errorf("mail: invalid utf-8 in quoted-string: %q", p.s)
++
++		case escaped:
++			//  quoted-pair = ("\" (VCHAR / WSP))
++
++			if !isVchar(r) && !isWSP(r) {
++				return "", fmt.Errorf("mail: bad character in quoted-string: %q", r)
+ 			}
+-			qsb = append(qsb, p.s[i+1])
+-			i += 2
+-		case isQtext(c), c == ' ':
++
++			qsb = append(qsb, r)
++			escaped = false
++
++		case isQtext(r) || isWSP(r):
+ 			// qtext (printable US-ASCII excluding " and \), or
+ 			// FWS (almost; we're ignoring CRLF)
+-			qsb = append(qsb, c)
+-			i++
++			qsb = append(qsb, r)
++
++		case r == '"':
++			break Loop
++
++		case r == '\\':
++			escaped = true
++
+ 		default:
+-			return "", fmt.Errorf("mail: bad character in quoted-string: %q", c)
++			return "", fmt.Errorf("mail: bad character in quoted-string: %q", r)
++
+ 		}
++
++		i += size
+ 	}
+ 	p.s = p.s[i+1:]
+ 	if len(qsb) == 0 {
+@@ -458,24 +468,32 @@ Loop:
+ 	return string(qsb), nil
+ }
+ 
+-var errNonASCII = errors.New("mail: unencoded non-ASCII text in address")
+-
+ // consumeAtom parses an RFC 5322 atom at the start of p.
+ // If dot is true, consumeAtom parses an RFC 5322 dot-atom instead.
+ // If permissive is true, consumeAtom will not fail on
+ // leading/trailing/double dots in the atom (see golang.org/issue/4938).
+ func (p *addrParser) consumeAtom(dot bool, permissive bool) (atom string, err error) {
+-	if c := p.peek(); !isAtext(c, false) {
+-		if c > 127 {
+-			return "", errNonASCII
++	i := 0
++
++Loop:
++	for {
++		r, size := utf8.DecodeRuneInString(p.s[i:])
++
++		switch {
++		case size == 1 && r == utf8.RuneError:
++			return "", fmt.Errorf("mail: invalid utf-8 in address: %q", p.s)
++
++		case size == 0 || !isAtext(r, dot):
++			break Loop
++
++		default:
++			i += size
++
+ 		}
+-		return "", errors.New("mail: invalid string")
+ 	}
+-	i := 1
+-	for ; i < p.len() && isAtext(p.s[i], dot); i++ {
+-	}
+-	if i < p.len() && p.s[i] > 127 {
+-		return "", errNonASCII
++
++	if i == 0 {
++		return "", errors.New("mail: invalid string")
+ 	}
+ 	atom, p.s = p.s[:i], p.s[i:]
+ 	if !permissive {
+@@ -547,54 +565,58 @@ func (e charsetError) Error() string {
+ 	return fmt.Sprintf("charset not supported: %q", string(e))
+ }
+ 
+-var atextChars = []byte("ABCDEFGHIJKLMNOPQRSTUVWXYZ" +
+-	"abcdefghijklmnopqrstuvwxyz" +
+-	"0123456789" +
+-	"!#$%&'*+-/=?^_`{|}~")
+-
+-// isAtext reports whether c is an RFC 5322 atext character.
++// isAtext reports whether r is an RFC 5322 atext character.
+ // If dot is true, period is included.
+-func isAtext(c byte, dot bool) bool {
+-	if dot && c == '.' {
+-		return true
++func isAtext(r rune, dot bool) bool {
++	switch r {
++	case '.':
++		return dot
++
++	case '(', ')', '<', '>', '[', ']', ':', ';', '@', '\\', ',', '"': // RFC 5322 3.2.3. specials
++		return false
+ 	}
+-	return bytes.IndexByte(atextChars, c) >= 0
++	return isVchar(r)
+ }
+ 
+-// isQtext reports whether c is an RFC 5322 qtext character.
+-func isQtext(c byte) bool {
++// isQtext reports whether r is an RFC 5322 qtext character.
++func isQtext(r rune) bool {
+ 	// Printable US-ASCII, excluding backslash or quote.
+-	if c == '\\' || c == '"' {
++	if r == '\\' || r == '"' {
+ 		return false
+ 	}
+-	return '!' <= c && c <= '~'
++	return isVchar(r)
+ }
+ 
+ // quoteString renders a string as an RFC 5322 quoted-string.
+ func quoteString(s string) string {
+ 	var buf bytes.Buffer
+ 	buf.WriteByte('"')
+-	for _, c := range s {
+-		ch := byte(c)
+-		if isQtext(ch) || isWSP(ch) {
+-			buf.WriteByte(ch)
+-		} else if isVchar(ch) {
++	for _, r := range s {
++		if isQtext(r) || isWSP(r) {
++			buf.WriteRune(r)
++		} else if isVchar(r) {
+ 			buf.WriteByte('\\')
+-			buf.WriteByte(ch)
++			buf.WriteRune(r)
+ 		}
+ 	}
+ 	buf.WriteByte('"')
+ 	return buf.String()
+ }
+ 
+-// isVchar reports whether c is an RFC 5322 VCHAR character.
+-func isVchar(c byte) bool {
++// isVchar reports whether r is an RFC 5322 VCHAR character.
++func isVchar(r rune) bool {
+ 	// Visible (printing) characters.
+-	return '!' <= c && c <= '~'
++	return '!' <= r && r <= '~' || isMultibyte(r)
++}
++
++// isMultibyte reports whether r is a multi-byte UTF-8 character
++// as supported by RFC 6532
++func isMultibyte(r rune) bool {
++	return r >= utf8.RuneSelf
+ }
+ 
+-// isWSP reports whether c is a WSP (white space).
++// isWSP reports whether r is a WSP (white space).
+ // WSP is a space or horizontal tab (RFC 5234 Appendix B).
+-func isWSP(c byte) bool {
+-	return c == ' ' || c == '\t'
++func isWSP(r rune) bool {
++	return r == ' ' || r == '\t'
+ }
+diff --git a/src/net/mail/message_test.go b/src/net/mail/message_test.go
+index 2669325c13..bbbba6b584 100644
+--- a/src/net/mail/message_test.go
++++ b/src/net/mail/message_test.go
+@@ -125,8 +125,12 @@ func TestAddressParsingError(t *testing.T) {
+ 		wantErrText string
+ 	}{
+ 		0: {"=?iso-8859-2?Q?Bogl=E1rka_Tak=E1cs?= <unknown@gmail.com>", "charset not supported"},
+-		1: {"µ <micro@example.net>", "unencoded non-ASCII text in address"},
+-		2: {"a@gmail.com b@gmail.com", "expected single address"},
++		1: {"a@gmail.com b@gmail.com", "expected single address"},
++		2: {string([]byte{0xed, 0xa0, 0x80}) + " <micro@example.net>", "invalid utf-8 in address"},
++		3: {"\"" + string([]byte{0xed, 0xa0, 0x80}) + "\" <half-surrogate@example.com>", "invalid utf-8 in quoted-string"},
++		4: {"\"\\" + string([]byte{0x80}) + "\" <escaped-invalid-unicode@example.net>", "invalid utf-8 in quoted-string"},
++		5: {"\"\x00\" <null@example.net>", "bad character in quoted-string"},
++		6: {"\"\\\x00\" <escaped-null@example.net>", "bad character in quoted-string"},
+ 	}
+ 
+ 	for i, tc := range mustErrTestCases {
+@@ -266,6 +270,46 @@ func TestAddressParsing(t *testing.T) {
+ 				},
+ 			},
+ 		},
++		// RFC 6532 3.2.3, qtext /= UTF8-non-ascii
++		{
++			`"Gø Pher" <gopher@example.com>`,
++			[]*Address{
++				{
++					Name:    `Gø Pher`,
++					Address: "gopher@example.com",
++				},
++			},
++		},
++		// RFC 6532 3.2, atext /= UTF8-non-ascii
++		{
++			`µ <micro@example.com>`,
++			[]*Address{
++				{
++					Name:    `µ`,
++					Address: "micro@example.com",
++				},
++			},
++		},
++		// RFC 6532 3.2.2, local address parts allow UTF-8
++		{
++			`Micro <µ@example.com>`,
++			[]*Address{
++				{
++					Name:    `Micro`,
++					Address: "µ@example.com",
++				},
++			},
++		},
++		// RFC 6532 3.2.4, domains parts allow UTF-8
++		{
++			`Micro <micro@µ.example.com>`,
++			[]*Address{
++				{
++					Name:    `Micro`,
++					Address: "micro@µ.example.com",
++				},
++			},
++		},
+ 	}
+ 	for _, test := range tests {
+ 		if len(test.exp) == 1 {
+@@ -517,6 +561,11 @@ func TestAddressString(t *testing.T) {
+ 			&Address{Name: "world?=", Address: "hello@world.com"},
+ 			`"world?=" <hello@world.com>`,
+ 		},
++		{
++			// should q-encode even for invalid utf-8.
++			&Address{Name: string([]byte{0xed, 0xa0, 0x80}), Address: "invalid-utf8@example.net"},
++			"=?utf-8?q?=ED=A0=80?= <invalid-utf8@example.net>",
++		},
+ 	}
+ 	for _, test := range tests {
+ 		s := test.addr.String()
+@@ -612,7 +661,6 @@ func TestAddressParsingAndFormatting(t *testing.T) {
+ 		`< @example.com>`,
+ 		`<""test""blah""@example.com>`,
+ 		`<""@0>`,
+-		"<\"\t0\"@0>",
+ 	}
+ 
+ 	for _, test := range badTests {

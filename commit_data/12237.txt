@@ -8,9 +8,102 @@ Date:   Tue Feb 28 08:33:06 2012 +1100
     R=golang-dev, gri
     CC=golang-dev
     https://golang.org/cl/5698080
-
+---
  src/cmd/go/test.go         |  5 -----
  src/cmd/go/testflag.go     |  2 --
  src/pkg/testing/example.go | 10 ++--------
  src/pkg/testing/testing.go |  2 +-
  4 files changed, 3 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/go/test.go b/src/cmd/go/test.go
+index 137cb6572b..1b040e89a0 100644
+--- a/src/cmd/go/test.go
++++ b/src/cmd/go/test.go
+@@ -99,11 +99,6 @@ directory containing the package sources, has its own flags:
+ 	    Run benchmarks matching the regular expression.
+ 	    By default, no benchmarks run.
+ 
+-	-test.example pattern
+-	    Run examples matching the regular expression.
+-	    By default, all examples run, but if -test.run is set,
+-	    no examples are run.
+-
+ 	-test.cpuprofile cpu.out
+ 	    Write a CPU profile to the specified file before exiting.
+ 
+diff --git a/src/cmd/go/testflag.go b/src/cmd/go/testflag.go
+index 916e34649f..7c9b7f16dd 100644
+--- a/src/cmd/go/testflag.go
++++ b/src/cmd/go/testflag.go
+@@ -28,7 +28,6 @@ var usageMessage = `Usage of go test:
+   -benchtime=1: passes -test.benchtime to test
+   -cpu="": passes -test.cpu to test
+   -cpuprofile="": passes -test.cpuprofile to test
+-  -example="": passes -test.example to test
+   -memprofile="": passes -test.memprofile to test
+   -memprofilerate=0: passes -test.memprofilerate to test
+   -parallel=0: passes -test.parallel to test
+@@ -68,7 +67,6 @@ var testFlagDefn = []*testFlagSpec{
+ 	{name: "benchtime", passToTest: true},
+ 	{name: "cpu", passToTest: true},
+ 	{name: "cpuprofile", passToTest: true},
+-	{name: "example", passToTest: true},
+ 	{name: "memprofile", passToTest: true},
+ 	{name: "memprofilerate", passToTest: true},
+ 	{name: "parallel", passToTest: true},
+diff --git a/src/pkg/testing/example.go b/src/pkg/testing/example.go
+index 70b69e9962..671c798760 100644
+--- a/src/pkg/testing/example.go
++++ b/src/pkg/testing/example.go
+@@ -6,7 +6,6 @@ package testing
+ 
+ import (
+ 	"bytes"
+-	"flag"
+ 	"fmt"
+ 	"io"
+ 	"os"
+@@ -14,8 +13,6 @@ import (
+ 	"time"
+ )
+ 
+-var matchExamples = flag.String("test.example", "", "regular expression to select examples to run")
+-
+ type InternalExample struct {
+ 	Name   string
+ 	F      func()
+@@ -23,9 +20,6 @@ type InternalExample struct {
+ }
+ 
+ func RunExamples(matchString func(pat, str string) (bool, error), examples []InternalExample) (ok bool) {
+-	if *match != "" && *matchExamples == "" {
+-		return // Don't run examples if testing is restricted: we're debugging.
+-	}
+ 	ok = true
+ 
+ 	var eg InternalExample
+@@ -33,9 +27,9 @@ func RunExamples(matchString func(pat, str string) (bool, error), examples []Int
+ 	stdout, stderr := os.Stdout, os.Stderr
+ 
+ 	for _, eg = range examples {
+-		matched, err := matchString(*matchExamples, eg.Name)
++		matched, err := matchString(*match, eg.Name)
+ 		if err != nil {
+-			fmt.Fprintf(os.Stderr, "testing: invalid regexp for -test.example: %s\n", err)
++			fmt.Fprintf(os.Stderr, "testing: invalid regexp for -test.run: %s\n", err)
+ 			os.Exit(1)
+ 		}
+ 		if !matched {
+diff --git a/src/pkg/testing/testing.go b/src/pkg/testing/testing.go
+index 2bcf9d96a8..477d2ac23a 100644
+--- a/src/pkg/testing/testing.go
++++ b/src/pkg/testing/testing.go
+@@ -99,7 +99,7 @@ var (
+ 
+ 	// Report as tests are run; default is silent for success.
+ 	chatty         = flag.Bool("test.v", false, "verbose: print additional output")
+-	match          = flag.String("test.run", "", "regular expression to select tests to run")
++	match          = flag.String("test.run", "", "regular expression to select tests and examples to run")
+ 	memProfile     = flag.String("test.memprofile", "", "write a memory profile to the named file after execution")
+ 	memProfileRate = flag.Int("test.memprofilerate", 0, "if >=0, sets runtime.MemProfileRate")
+ 	cpuProfile     = flag.String("test.cpuprofile", "", "write a cpu profile to the named file during execution")

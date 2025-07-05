@@ -17,9 +17,210 @@ Date:   Tue Aug 22 17:33:50 2023 -0400
     Run-TryBot: Bryan Mills <bcmills@google.com>
     Auto-Submit: Bryan Mills <bcmills@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/cmd/go/internal/test/test.go                   | 114 ++++++++++++---------
  src/cmd/go/internal/test/test_nonunix.go           |  12 +++
  src/cmd/go/internal/test/test_unix.go              |  16 +++
  .../go/testdata/script/test_compile_multi_pkg.txt  |   6 +-
  4 files changed, 101 insertions(+), 47 deletions(-)
+
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index a3f407fdae..4fd5c0b408 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -1368,65 +1368,87 @@ func (r *runTestActor) Act(b *work.Builder, ctx context.Context, a *work.Action)
+ 	ctx, cancel := context.WithTimeout(ctx, testKillTimeout)
+ 	defer cancel()
+ 
+-	cmd := exec.CommandContext(ctx, args[0], args[1:]...)
+-	cmd.Dir = a.Package.Dir
+-
+-	env := slices.Clip(cfg.OrigEnv)
+-	env = base.AppendPATH(env)
+-	env = base.AppendPWD(env, cmd.Dir)
+-	cmd.Env = env
+-	if addToEnv != "" {
+-		cmd.Env = append(cmd.Env, addToEnv)
+-	}
+-
+-	cmd.Stdout = stdout
+-	cmd.Stderr = stdout
+-
+-	// If there are any local SWIG dependencies, we want to load
+-	// the shared library from the build directory.
+-	if a.Package.UsesSwig() {
+-		env := cmd.Env
+-		found := false
+-		prefix := "LD_LIBRARY_PATH="
+-		for i, v := range env {
+-			if strings.HasPrefix(v, prefix) {
+-				env[i] = v + ":."
+-				found = true
+-				break
+-			}
+-		}
+-		if !found {
+-			env = append(env, "LD_LIBRARY_PATH=.")
+-		}
+-		cmd.Env = env
+-	}
++	// Now we're ready to actually run the command.
++	//
++	// If the -o flag is set, or if at some point we change cmd/go to start
++	// copying test executables into the build cache, we may run into spurious
++	// ETXTBSY errors on Unix platforms (see https://go.dev/issue/22315).
++	//
++	// Since we know what causes those, and we know that they should resolve
++	// quickly (the ETXTBSY error will resolve as soon as the subprocess
++	// holding the descriptor open reaches its 'exec' call), we retry them
++	// in a loop.
+ 
+ 	var (
++		cmd            *exec.Cmd
++		t0             time.Time
+ 		cancelKilled   = false
+ 		cancelSignaled = false
+ 	)
+-	cmd.Cancel = func() error {
+-		if base.SignalTrace == nil {
+-			err := cmd.Process.Kill()
++	for {
++		cmd = exec.CommandContext(ctx, args[0], args[1:]...)
++		cmd.Dir = a.Package.Dir
++
++		env := slices.Clip(cfg.OrigEnv)
++		env = base.AppendPATH(env)
++		env = base.AppendPWD(env, cmd.Dir)
++		cmd.Env = env
++		if addToEnv != "" {
++			cmd.Env = append(cmd.Env, addToEnv)
++		}
++
++		cmd.Stdout = stdout
++		cmd.Stderr = stdout
++
++		// If there are any local SWIG dependencies, we want to load
++		// the shared library from the build directory.
++		if a.Package.UsesSwig() {
++			env := cmd.Env
++			found := false
++			prefix := "LD_LIBRARY_PATH="
++			for i, v := range env {
++				if strings.HasPrefix(v, prefix) {
++					env[i] = v + ":."
++					found = true
++					break
++				}
++			}
++			if !found {
++				env = append(env, "LD_LIBRARY_PATH=.")
++			}
++			cmd.Env = env
++		}
++
++		cmd.Cancel = func() error {
++			if base.SignalTrace == nil {
++				err := cmd.Process.Kill()
++				if err == nil {
++					cancelKilled = true
++				}
++				return err
++			}
++
++			// Send a quit signal in the hope that the program will print
++			// a stack trace and exit.
++			err := cmd.Process.Signal(base.SignalTrace)
+ 			if err == nil {
+-				cancelKilled = true
++				cancelSignaled = true
+ 			}
+ 			return err
+ 		}
++		cmd.WaitDelay = testWaitDelay
++
++		base.StartSigHandlers()
++		t0 = time.Now()
++		err = cmd.Run()
+ 
+-		// Send a quit signal in the hope that the program will print
+-		// a stack trace and exit.
+-		err := cmd.Process.Signal(base.SignalTrace)
+-		if err == nil {
+-			cancelSignaled = true
++		if !isETXTBSY(err) {
++			// We didn't hit the race in #22315, so there is no reason to retry the
++			// command.
++			break
+ 		}
+-		return err
+ 	}
+-	cmd.WaitDelay = testWaitDelay
+ 
+-	base.StartSigHandlers()
+-	t0 := time.Now()
+-	err = cmd.Run()
+ 	out := buf.Bytes()
+ 	a.TestOutput = &buf
+ 	t := fmt.Sprintf("%.3fs", time.Since(t0).Seconds())
+diff --git a/src/cmd/go/internal/test/test_nonunix.go b/src/cmd/go/internal/test/test_nonunix.go
+new file mode 100644
+index 0000000000..df8448730d
+--- /dev/null
++++ b/src/cmd/go/internal/test/test_nonunix.go
+@@ -0,0 +1,12 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !unix
++
++package test
++
++func isETXTBSY(err error) bool {
++	// syscall.ETXTBSY is only meaningful on Unix platforms.
++	return false
++}
+diff --git a/src/cmd/go/internal/test/test_unix.go b/src/cmd/go/internal/test/test_unix.go
+new file mode 100644
+index 0000000000..f50ef98703
+--- /dev/null
++++ b/src/cmd/go/internal/test/test_unix.go
+@@ -0,0 +1,16 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build unix
++
++package test
++
++import (
++	"errors"
++	"syscall"
++)
++
++func isETXTBSY(err error) bool {
++	return errors.Is(err, syscall.ETXTBSY)
++}
+diff --git a/src/cmd/go/testdata/script/test_compile_multi_pkg.txt b/src/cmd/go/testdata/script/test_compile_multi_pkg.txt
+index 1f298b6fd5..921ef5c6c5 100644
+--- a/src/cmd/go/testdata/script/test_compile_multi_pkg.txt
++++ b/src/cmd/go/testdata/script/test_compile_multi_pkg.txt
+@@ -2,6 +2,10 @@
+ 
+ # Verify test -c can output multiple executables to a directory.
+ 
++# This test also serves as a regression test for https://go.dev/issue/62221:
++# prior to the fix for that issue, it occasionally failed with ETXTBSY when
++# run on Unix platforms.
++
+ go test -c -o $WORK/some/nonexisting/directory/ ./pkg/...
+ exists -exec $WORK/some/nonexisting/directory/pkg1.test$GOEXE
+ exists -exec $WORK/some/nonexisting/directory/pkg2.test$GOEXE
+@@ -43,4 +47,4 @@ package pkg1
+ package pkg2
+ 
+ -- anotherpkg/pkg1/pkg1_test.go --
+-package pkg1
+\ No newline at end of file
++package pkg1

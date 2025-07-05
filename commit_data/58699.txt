@@ -11,6 +11,45 @@ Date:   Fri Dec 1 16:27:43 2023 -0500
     Reviewed-by: Damien Neil <dneil@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Bryan Mills <bcmills@google.com>
-
+---
  src/net/http/transport_test.go | 13 +++++++++++--
  1 file changed, 11 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/http/transport_test.go b/src/net/http/transport_test.go
+index 8c09de70ff..3057024b76 100644
+--- a/src/net/http/transport_test.go
++++ b/src/net/http/transport_test.go
+@@ -3499,6 +3499,7 @@ func testTransportNoReuseAfterEarlyResponse(t *testing.T, mode testMode) {
+ 		c net.Conn
+ 	}
+ 	var getOkay bool
++	var copying sync.WaitGroup
+ 	closeConn := func() {
+ 		sconn.Lock()
+ 		defer sconn.Unlock()
+@@ -3510,7 +3511,10 @@ func testTransportNoReuseAfterEarlyResponse(t *testing.T, mode testMode) {
+ 			}
+ 		}
+ 	}
+-	defer closeConn()
++	defer func() {
++		closeConn()
++		copying.Wait()
++	}()
+ 
+ 	ts := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+ 		if r.Method == "GET" {
+@@ -3522,7 +3526,12 @@ func testTransportNoReuseAfterEarlyResponse(t *testing.T, mode testMode) {
+ 		sconn.c = conn
+ 		sconn.Unlock()
+ 		conn.Write([]byte("HTTP/1.1 200 OK\r\nContent-Length: 3\r\n\r\nfoo")) // keep-alive
+-		go io.Copy(io.Discard, conn)
++
++		copying.Add(1)
++		go func() {
++			io.Copy(io.Discard, conn)
++			copying.Done()
++		}()
+ 	})).ts
+ 	c := ts.Client()
+ 

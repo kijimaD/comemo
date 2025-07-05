@@ -13,7 +13,45 @@ Date:   Mon Dec 23 11:52:43 2024 -0500
     Reviewed-by: Damien Neil <dneil@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Carlos Amedee <carlos@golang.org>
-
+---
  src/net/fd_fake.go  | 2 ++
  src/net/fd_posix.go | 2 ++
  2 files changed, 4 insertions(+)
+
+diff --git a/src/net/fd_fake.go b/src/net/fd_fake.go
+index ae567acc69..946805ab94 100644
+--- a/src/net/fd_fake.go
++++ b/src/net/fd_fake.go
+@@ -104,6 +104,7 @@ func (fd *netFD) accept() (netfd *netFD, err error) {
+ func (fd *netFD) setAddr(laddr, raddr Addr) {
+ 	fd.laddr = laddr
+ 	fd.raddr = raddr
++	// TODO Replace with runtime.AddCleanup.
+ 	runtime.SetFinalizer(fd, (*netFD).Close)
+ }
+ 
+@@ -111,6 +112,7 @@ func (fd *netFD) Close() error {
+ 	if fd.fakeNetFD != nil {
+ 		return fd.fakeNetFD.Close()
+ 	}
++	// TODO Replace with runtime.AddCleanup.
+ 	runtime.SetFinalizer(fd, nil)
+ 	return fd.pfd.Close()
+ }
+diff --git a/src/net/fd_posix.go b/src/net/fd_posix.go
+index 93e6b5378e..023cd534e4 100644
+--- a/src/net/fd_posix.go
++++ b/src/net/fd_posix.go
+@@ -40,10 +40,12 @@ func (fd *netFD) name() string {
+ func (fd *netFD) setAddr(laddr, raddr Addr) {
+ 	fd.laddr = laddr
+ 	fd.raddr = raddr
++	// TODO Replace with runtime.AddCleanup.
+ 	runtime.SetFinalizer(fd, (*netFD).Close)
+ }
+ 
+ func (fd *netFD) Close() error {
++	// TODO Replace with runtime.AddCleanup.
+ 	runtime.SetFinalizer(fd, nil)
+ 	return fd.pfd.Close()
+ }

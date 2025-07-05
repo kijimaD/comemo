@@ -16,7 +16,61 @@ Date:   Thu Feb 12 08:42:11 2015 -0800
     Change-Id: I69f697bfc4017404a92a34e3fe57e2711c1e299d
     Reviewed-on: https://go-review.googlesource.com/7915
     Reviewed-by: David Symonds <dsymonds@golang.org>
-
+---
  src/net/http/fs.go      | 15 ++++++++++-----
  src/net/http/fs_test.go |  6 ++++++
  2 files changed, 16 insertions(+), 5 deletions(-)
+
+diff --git a/src/net/http/fs.go b/src/net/http/fs.go
+index 9a80123f6d..4e69da8f7f 100644
+--- a/src/net/http/fs.go
++++ b/src/net/http/fs.go
+@@ -102,10 +102,10 @@ func dirList(w ResponseWriter, f File) {
+ // The name is otherwise unused; in particular it can be empty and is
+ // never sent in the response.
+ //
+-// If modtime is not the zero time, ServeContent includes it in a
+-// Last-Modified header in the response.  If the request includes an
+-// If-Modified-Since header, ServeContent uses modtime to decide
+-// whether the content needs to be sent at all.
++// If modtime is not the zero time or Unix epoch, ServeContent
++// includes it in a Last-Modified header in the response.  If the
++// request includes an If-Modified-Since header, ServeContent uses
++// modtime to decide whether the content needs to be sent at all.
+ //
+ // The content's Seek method must work: ServeContent uses
+ // a seek to the end of the content to determine its size.
+@@ -258,10 +258,15 @@ func serveContent(w ResponseWriter, r *Request, name string, modtime time.Time,
+ 	}
+ }
+ 
++var unixEpochTime = time.Unix(0, 0)
++
+ // modtime is the modification time of the resource to be served, or IsZero().
+ // return value is whether this request is now complete.
+ func checkLastModified(w ResponseWriter, r *Request, modtime time.Time) bool {
+-	if modtime.IsZero() {
++	if modtime.IsZero() || modtime.Equal(unixEpochTime) {
++		// If the file doesn't have a modtime (IsZero), or the modtime
++		// is obviously garbage (Unix time == 0), then ignore modtimes
++		// and don't process the If-Modified-Since header.
+ 		return false
+ 	}
+ 
+diff --git a/src/net/http/fs_test.go b/src/net/http/fs_test.go
+index 72f8c2cf1d..a8cfe5f4c9 100644
+--- a/src/net/http/fs_test.go
++++ b/src/net/http/fs_test.go
+@@ -751,6 +751,12 @@ func TestServeContent(t *testing.T) {
+ 			wantContentType: "text/css; charset=utf-8",
+ 			wantLastMod:     "Wed, 25 Jun 2014 17:12:18 GMT",
+ 		},
++		"unix_zero_modtime": {
++			content:         strings.NewReader("<html>foo"),
++			modtime:         time.Unix(0, 0),
++			wantStatus:      StatusOK,
++			wantContentType: "text/html; charset=utf-8",
++		},
+ 	}
+ 	for testName, tt := range tests {
+ 		var content io.ReadSeeker

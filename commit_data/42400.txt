@@ -28,7 +28,7 @@ Date:   Mon Nov 18 19:23:39 2019 +0000
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/export_test.go      |   1 +
  src/runtime/mgcscavenge.go      | 131 ++++++++++++++++++++++++++--------------
  src/runtime/mpagealloc.go       |  60 +++---------------
@@ -36,3 +36,449 @@ Date:   Mon Nov 18 19:23:39 2019 +0000
  src/runtime/mpagealloc_test.go  |  17 +++++-
  src/runtime/mranges.go          |  25 ++++++++
  6 files changed, 196 insertions(+), 129 deletions(-)
+
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index d8cf2acad8..ce9c6a0ba7 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -578,6 +578,7 @@ func RunGetgThreadSwitchTest() {
+ const (
+ 	PageSize         = pageSize
+ 	PallocChunkPages = pallocChunkPages
++	PageAlloc64Bit   = pageAlloc64Bit
+ )
+ 
+ // Expose pallocSum for testing.
+diff --git a/src/runtime/mgcscavenge.go b/src/runtime/mgcscavenge.go
+index 1f8dff90d1..752c254ab0 100644
+--- a/src/runtime/mgcscavenge.go
++++ b/src/runtime/mgcscavenge.go
+@@ -405,15 +405,14 @@ func (s *pageAlloc) scavengeOne(max uintptr, locked bool) uintptr {
+ 	}
+ 
+ 	lockHeap()
+-	top := chunkIndex(s.scavAddr)
+-	if top < s.start {
++	ci := chunkIndex(s.scavAddr)
++	if ci < s.start {
+ 		unlockHeap()
+ 		return 0
+ 	}
+ 
+ 	// Check the chunk containing the scav addr, starting at the addr
+ 	// and see if there are any free and unscavenged pages.
+-	ci := chunkIndex(s.scavAddr)
+ 	if s.summary[len(s.summary)-1][ci].max() >= uint(minPages) {
+ 		// We only bother looking for a candidate if there at least
+ 		// minPages free pages at all. It's important that we only
+@@ -429,59 +428,97 @@ func (s *pageAlloc) scavengeOne(max uintptr, locked bool) uintptr {
+ 			return uintptr(npages) * pageSize
+ 		}
+ 	}
+-	unlockHeap()
+ 
+-	// Slow path: iterate optimistically looking for any free and unscavenged page.
+-	// If we think we see something, stop and verify it!
+-	for i := top - 1; i >= s.start; i-- {
+-		// If this chunk is totally in-use or has no unscavenged pages, don't bother
+-		// doing a  more sophisticated check.
+-		//
+-		// Note we're accessing the summary and the chunks without a lock, but
+-		// that's fine. We're being optimistic anyway.
+-
+-		// Check if there are enough free pages at all. It's imperative that we
+-		// check this before the chunk itself so that we quickly skip over
+-		// unused parts of the address space, which may have a cleared bitmap
+-		// but a zero'd summary which indicates not to allocate from there.
+-		if s.summary[len(s.summary)-1][i].max() < uint(minPages) {
+-			continue
++	// getInUseRange returns the highest range in the
++	// intersection of [0, addr] and s.inUse.
++	//
++	// s.mheapLock must be held.
++	getInUseRange := func(addr uintptr) addrRange {
++		top := s.inUse.findSucc(addr)
++		if top == 0 {
++			return addrRange{}
++		}
++		r := s.inUse.ranges[top-1]
++		// addr is inclusive, so treat it as such when
++		// updating the limit, which is exclusive.
++		if r.limit > addr+1 {
++			r.limit = addr + 1
+ 		}
++		return r
++	}
+ 
+-		// Run over the chunk looking harder for a candidate. Again, we could
+-		// race with a lot of different pieces of code, but we're just being
+-		// optimistic. Make sure we load the l2 pointer atomically though, to
+-		// avoid races with heap growth. It may or may not be possible to also
+-		// see a nil pointer in this case if we do race with heap growth, but
+-		// just defensively ignore the nils. This operation is optimistic anyway.
+-		l2 := (*[1 << pallocChunksL2Bits]pallocData)(atomic.Loadp(unsafe.Pointer(&s.chunks[i.l1()])))
+-		if l2 == nil || !l2[i.l2()].hasScavengeCandidate(minPages) {
+-			continue
++	// Slow path: iterate optimistically over the in-use address space
++	// looking for any free and unscavenged page. If we think we see something,
++	// lock and verify it!
++	//
++	// We iterate over the address space by taking ranges from inUse.
++newRange:
++	for {
++		r := getInUseRange(s.scavAddr)
++		if r.size() == 0 {
++			break
+ 		}
++		unlockHeap()
+ 
+-		// We found a candidate, so let's lock and verify it.
+-		lockHeap()
++		// Iterate over all of the chunks described by r.
++		// Note that r.limit is the exclusive upper bound, but what
++		// we want is the top chunk instead, inclusive, so subtract 1.
++		bot, top := chunkIndex(r.base), chunkIndex(r.limit-1)
++		for i := top; i >= bot; i-- {
++			// If this chunk is totally in-use or has no unscavenged pages, don't bother
++			// doing a  more sophisticated check.
++			//
++			// Note we're accessing the summary and the chunks without a lock, but
++			// that's fine. We're being optimistic anyway.
++
++			// Check quickly if there are enough free pages at all.
++			if s.summary[len(s.summary)-1][i].max() < uint(minPages) {
++				continue
++			}
+ 
+-		// Find, verify, and scavenge if we can.
+-		chunk := s.chunkOf(i)
+-		base, npages := chunk.findScavengeCandidate(pallocChunkPages-1, minPages, maxPages)
+-		if npages > 0 {
+-			// We found memory to scavenge! Mark the bits and report that up.
+-			s.scavengeRangeLocked(i, base, npages)
+-			unlockHeap()
+-			return uintptr(npages) * pageSize
++			// Run over the chunk looking harder for a candidate. Again, we could
++			// race with a lot of different pieces of code, but we're just being
++			// optimistic. Make sure we load the l2 pointer atomically though, to
++			// avoid races with heap growth. It may or may not be possible to also
++			// see a nil pointer in this case if we do race with heap growth, but
++			// just defensively ignore the nils. This operation is optimistic anyway.
++			l2 := (*[1 << pallocChunksL2Bits]pallocData)(atomic.Loadp(unsafe.Pointer(&s.chunks[i.l1()])))
++			if l2 == nil || !l2[i.l2()].hasScavengeCandidate(minPages) {
++				continue
++			}
++
++			// We found a candidate, so let's lock and verify it.
++			lockHeap()
++
++			// Find, verify, and scavenge if we can.
++			chunk := s.chunkOf(i)
++			base, npages := chunk.findScavengeCandidate(pallocChunkPages-1, minPages, maxPages)
++			if npages > 0 {
++				// We found memory to scavenge! Mark the bits and report that up.
++				// scavengeRangeLocked will update scavAddr for us, also.
++				s.scavengeRangeLocked(i, base, npages)
++				unlockHeap()
++				return uintptr(npages) * pageSize
++			}
++
++			// We were fooled, let's take this opportunity to move the scavAddr
++			// all the way down to where we searched as scavenged for future calls
++			// and keep iterating. Then, go get a new range.
++			s.scavAddr = chunkBase(i-1) + pallocChunkPages*pageSize - 1
++			continue newRange
+ 		}
++		lockHeap()
+ 
+-		// We were fooled, let's take this opportunity to move the scavAddr
+-		// all the way down to where we searched as scavenged for future calls
+-		// and keep iterating.
+-		s.scavAddr = chunkBase(i-1) + pallocChunkPages*pageSize - 1
+-		unlockHeap()
++		// Move the scavenger down the heap, past everything we just searched.
++		// Since we don't check if scavAddr moved while twe let go of the heap lock,
++		// it's possible that it moved down and we're moving it up here. This
++		// raciness could result in us searching parts of the heap unnecessarily.
++		// TODO(mknyszek): Remove this racy behavior through explicit address
++		// space reservations, which are difficult to do with just scavAddr.
++		s.scavAddr = r.base - 1
+ 	}
+-
+-	lockHeap()
+-	// We couldn't find anything, so signal that there's nothing left
+-	// to scavenge.
++	// We reached the end of the in-use address space and couldn't find anything,
++	// so signal that there's nothing left to scavenge.
+ 	s.scavAddr = minScavAddr
+ 	unlockHeap()
+ 
+diff --git a/src/runtime/mpagealloc.go b/src/runtime/mpagealloc.go
+index 10d547296e..572e6a9bc5 100644
+--- a/src/runtime/mpagealloc.go
++++ b/src/runtime/mpagealloc.go
+@@ -182,6 +182,10 @@ type pageAlloc struct {
+ 	// runtime segmentation fault, we get a much friendlier out-of-bounds
+ 	// error.
+ 	//
++	// To iterate over a summary level, use inUse to determine which ranges
++	// are currently available. Otherwise one might try to access
++	// memory which is only Reserved which may result in a hard fault.
++	//
+ 	// We may still get segmentation faults < len since some of that
+ 	// memory may not be committed yet.
+ 	summary [summaryLevels][]pallocSum
+@@ -212,12 +216,9 @@ type pageAlloc struct {
+ 	// making the impact on BSS too high (note the L1 is stored directly
+ 	// in pageAlloc).
+ 	//
+-	// summary[len(s.summary)-1][i] should always be checked, at least
+-	// for a zero max value, before accessing chunks[i]. It's possible the
+-	// bitmap at that index is mapped in and zeroed, indicating that it
+-	// contains free space, but in actuality it is unused since its
+-	// corresponding summary was never updated. Tests may ignore this
+-	// and assume the zero value (and that it is mapped).
++	// To iterate over the bitmap, use inUse to determine which ranges
++	// are currently available. Otherwise one might iterate over unused
++	// ranges.
+ 	//
+ 	// TODO(mknyszek): Consider changing the definition of the bitmap
+ 	// such that 1 means free and 0 means in-use so that summaries and
+@@ -297,53 +298,6 @@ func (s *pageAlloc) init(mheapLock *mutex, sysStat *uint64) {
+ 	s.mheapLock = mheapLock
+ }
+ 
+-// extendMappedRegion ensures that all the memory in the range
+-// [base+nbase, base+nlimit) is in the Ready state.
+-// base must refer to the beginning of a memory region in the
+-// Reserved state. extendMappedRegion assumes that the region
+-// [base+mbase, base+mlimit) is already mapped.
+-//
+-// Note that extendMappedRegion only supports extending
+-// mappings in one direction. Therefore,
+-// nbase < mbase && nlimit > mlimit is an invalid input
+-// and this function will throw.
+-func extendMappedRegion(base unsafe.Pointer, mbase, mlimit, nbase, nlimit uintptr, sysStat *uint64) {
+-	if uintptr(base)%physPageSize != 0 {
+-		print("runtime: base = ", base, "\n")
+-		throw("extendMappedRegion: base not page-aligned")
+-	}
+-	// Round the offsets to a physical page.
+-	mbase = alignDown(mbase, physPageSize)
+-	nbase = alignDown(nbase, physPageSize)
+-	mlimit = alignUp(mlimit, physPageSize)
+-	nlimit = alignUp(nlimit, physPageSize)
+-
+-	// If none of the region is mapped, don't bother
+-	// trying to figure out which parts are.
+-	if mlimit-mbase != 0 {
+-		// Determine which part of the region actually needs
+-		// mapping.
+-		if nbase < mbase && nlimit > mlimit {
+-			// TODO(mknyszek): Consider supporting this case. It can't
+-			// ever happen currently in the page allocator, but may be
+-			// useful in the future. Also, it would make this function's
+-			// purpose simpler to explain.
+-			throw("mapped region extended in two directions")
+-		} else if nbase < mbase && nlimit <= mlimit {
+-			nlimit = mbase
+-		} else if nbase >= mbase && nlimit > mlimit {
+-			nbase = mlimit
+-		} else {
+-			return
+-		}
+-	}
+-
+-	// Transition from Reserved to Ready.
+-	rbase := add(base, nbase)
+-	sysMap(rbase, nlimit-nbase, sysStat)
+-	sysUsed(rbase, nlimit-nbase)
+-}
+-
+ // compareSearchAddrTo compares an address against s.searchAddr in a linearized
+ // view of the address space on systems with discontinuous process address spaces.
+ // This linearized view is the same one generated by chunkIndex and arenaIndex,
+diff --git a/src/runtime/mpagealloc_64bit.go b/src/runtime/mpagealloc_64bit.go
+index 1e6cb5f2f2..86883bef35 100644
+--- a/src/runtime/mpagealloc_64bit.go
++++ b/src/runtime/mpagealloc_64bit.go
+@@ -102,42 +102,79 @@ func (s *pageAlloc) sysGrow(base, limit uintptr) {
+ 		throw("sysGrow bounds not aligned to pallocChunkBytes")
+ 	}
+ 
++	// addrRangeToSummaryRange converts a range of addresses into a range
++	// of summary indices which must be mapped to support those addresses
++	// in the summary range.
++	addrRangeToSummaryRange := func(level int, r addrRange) (int, int) {
++		sumIdxBase, sumIdxLimit := addrsToSummaryRange(level, r.base, r.limit)
++		return blockAlignSummaryRange(level, sumIdxBase, sumIdxLimit)
++	}
++
++	// summaryRangeToSumAddrRange converts a range of indices in any
++	// level of s.summary into page-aligned addresses which cover that
++	// range of indices.
++	summaryRangeToSumAddrRange := func(level, sumIdxBase, sumIdxLimit int) addrRange {
++		baseOffset := alignDown(uintptr(sumIdxBase)*pallocSumBytes, physPageSize)
++		limitOffset := alignUp(uintptr(sumIdxLimit)*pallocSumBytes, physPageSize)
++		base := unsafe.Pointer(&s.summary[level][0])
++		return addrRange{
++			uintptr(add(base, baseOffset)),
++			uintptr(add(base, limitOffset)),
++		}
++	}
++
++	// addrRangeToSumAddrRange is a convienience function that converts
++	// an address range r to the address range of the given summary level
++	// that stores the summaries for r.
++	addrRangeToSumAddrRange := func(level int, r addrRange) addrRange {
++		sumIdxBase, sumIdxLimit := addrRangeToSummaryRange(level, r)
++		return summaryRangeToSumAddrRange(level, sumIdxBase, sumIdxLimit)
++	}
++
++	// Find the first inUse index which is strictly greater than base.
++	//
++	// Because this function will never be asked remap the same memory
++	// twice, this index is effectively the index at which we would insert
++	// this new growth, and base will never overlap/be contained within
++	// any existing range.
++	//
++	// This will be used to look at what memory in the summary array is already
++	// mapped before and after this new range.
++	inUseIndex := s.inUse.findSucc(base)
++
+ 	// Walk up the radix tree and map summaries in as needed.
+-	cbase, climit := chunkBase(s.start), chunkBase(s.end)
+-	for l := len(s.summary) - 1; l >= 0; l-- {
++	for l := range s.summary {
+ 		// Figure out what part of the summary array this new address space needs.
+-		// Note that we need to align the ranges to the block width (1<<levelBits[l])
+-		// at this level because the full block is needed to compute the summary for
+-		// the next level.
+-		lo, hi := addrsToSummaryRange(l, base, limit)
+-		lo, hi = blockAlignSummaryRange(l, lo, hi)
++		needIdxBase, needIdxLimit := addrRangeToSummaryRange(l, addrRange{base, limit})
+ 
+ 		// Update the summary slices with a new upper-bound. This ensures
+ 		// we get tight bounds checks on at least the top bound.
+ 		//
+-		// We must do this regardless of whether we map new memory, because we
+-		// may be extending further into the mapped memory.
+-		if hi > len(s.summary[l]) {
+-			s.summary[l] = s.summary[l][:hi]
++		// We must do this regardless of whether we map new memory.
++		if needIdxLimit > len(s.summary[l]) {
++			s.summary[l] = s.summary[l][:needIdxLimit]
+ 		}
+ 
+-		// Figure out what part of the summary array is already mapped.
+-		// If we're doing our first growth, just pass zero.
+-		// addrsToSummaryRange won't accept cbase == climit.
+-		var mlo, mhi int
+-		if s.start != 0 {
+-			mlo, mhi = addrsToSummaryRange(l, cbase, climit)
+-			mlo, mhi = blockAlignSummaryRange(l, mlo, mhi)
++		// Compute the needed address range in the summary array for level l.
++		need := summaryRangeToSumAddrRange(l, needIdxBase, needIdxLimit)
++
++		// Prune need down to what needs to be newly mapped. Some parts of it may
++		// already be mapped by what inUse describes due to page alignment requirements
++		// for mapping. prune's invariants are guaranteed by the fact that this
++		// function will never be asked to remap the same memory twice.
++		if inUseIndex > 0 {
++			need = need.subtract(addrRangeToSumAddrRange(l, s.inUse.ranges[inUseIndex-1]))
++		}
++		if inUseIndex < len(s.inUse.ranges) {
++			need = need.subtract(addrRangeToSumAddrRange(l, s.inUse.ranges[inUseIndex]))
++		}
++		// It's possible that after our pruning above, there's nothing new to map.
++		if need.size() == 0 {
++			continue
+ 		}
+ 
+-		// Extend the mappings for this summary level.
+-		extendMappedRegion(
+-			unsafe.Pointer(&s.summary[l][0]),
+-			uintptr(mlo)*pallocSumBytes,
+-			uintptr(mhi)*pallocSumBytes,
+-			uintptr(lo)*pallocSumBytes,
+-			uintptr(hi)*pallocSumBytes,
+-			s.sysStat,
+-		)
++		// Map and commit need.
++		sysMap(unsafe.Pointer(need.base), need.size(), s.sysStat)
++		sysUsed(unsafe.Pointer(need.base), need.size())
+ 	}
+ }
+diff --git a/src/runtime/mpagealloc_test.go b/src/runtime/mpagealloc_test.go
+index e09dae00a1..3625d45c4c 100644
+--- a/src/runtime/mpagealloc_test.go
++++ b/src/runtime/mpagealloc_test.go
+@@ -41,10 +41,11 @@ func checkPageAlloc(t *testing.T, want, got *PageAlloc) {
+ }
+ 
+ func TestPageAllocGrow(t *testing.T) {
+-	tests := map[string]struct {
++	type test struct {
+ 		chunks []ChunkIdx
+ 		inUse  []AddrRange
+-	}{
++	}
++	tests := map[string]test{
+ 		"One": {
+ 			chunks: []ChunkIdx{
+ 				BaseChunkIdx,
+@@ -112,6 +113,18 @@ func TestPageAllocGrow(t *testing.T) {
+ 			},
+ 		},
+ 	}
++	if PageAlloc64Bit != 0 {
++		tests["ExtremelyDiscontiguous"] = test{
++			chunks: []ChunkIdx{
++				BaseChunkIdx,
++				BaseChunkIdx + 0x100000, // constant translates to O(TiB)
++			},
++			inUse: []AddrRange{
++				{PageBase(BaseChunkIdx, 0), PageBase(BaseChunkIdx+1, 0)},
++				{PageBase(BaseChunkIdx+0x100000, 0), PageBase(BaseChunkIdx+0x100001, 0)},
++			},
++		}
++	}
+ 	for name, v := range tests {
+ 		v := v
+ 		t.Run(name, func(t *testing.T) {
+diff --git a/src/runtime/mranges.go b/src/runtime/mranges.go
+index bf67da99fd..c1132aa727 100644
+--- a/src/runtime/mranges.go
++++ b/src/runtime/mranges.go
+@@ -21,6 +21,31 @@ type addrRange struct {
+ 	base, limit uintptr
+ }
+ 
++// size returns the size of the range represented in bytes.
++func (a addrRange) size() uintptr {
++	if a.limit <= a.base {
++		return 0
++	}
++	return a.limit - a.base
++}
++
++// subtract takes the addrRange toPrune and cuts out any overlap with
++// from, then returns the new range. subtract assumes that a and b
++// either don't overlap at all, only overlap on one side, or are equal.
++// If b is strictly contained in a, thus forcing a split, it will throw.
++func (a addrRange) subtract(b addrRange) addrRange {
++	if a.base >= b.base && a.limit <= b.limit {
++		return addrRange{}
++	} else if a.base < b.base && a.limit > b.limit {
++		throw("bad prune")
++	} else if a.limit > b.limit && a.base < b.limit {
++		a.base = b.limit
++	} else if a.base < b.base && a.limit > b.base {
++		a.limit = b.base
++	}
++	return a
++}
++
+ // addrRanges is a data structure holding a collection of ranges of
+ // address space.
+ //

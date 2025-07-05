@@ -11,7 +11,58 @@ Date:   Fri Sep 4 18:22:56 2015 +0200
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/mail/message.go      | 10 +++++++++-
  src/net/mail/message_test.go |  8 ++++++++
  2 files changed, 17 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/mail/message.go b/src/net/mail/message.go
+index 266ac50a38..01290bc65b 100644
+--- a/src/net/mail/message.go
++++ b/src/net/mail/message.go
+@@ -442,17 +442,25 @@ Loop:
+ 	return string(qsb), nil
+ }
+ 
++var errNonASCII = errors.New("mail: unencoded non-ASCII text in address")
++
+ // consumeAtom parses an RFC 5322 atom at the start of p.
+ // If dot is true, consumeAtom parses an RFC 5322 dot-atom instead.
+ // If permissive is true, consumeAtom will not fail on
+ // leading/trailing/double dots in the atom (see golang.org/issue/4938).
+ func (p *addrParser) consumeAtom(dot bool, permissive bool) (atom string, err error) {
+-	if !isAtext(p.peek(), false) {
++	if c := p.peek(); !isAtext(c, false) {
++		if c > 127 {
++			return "", errNonASCII
++		}
+ 		return "", errors.New("mail: invalid string")
+ 	}
+ 	i := 1
+ 	for ; i < p.len() && isAtext(p.s[i], dot); i++ {
+ 	}
++	if i < p.len() && p.s[i] > 127 {
++		return "", errNonASCII
++	}
+ 	atom, p.s = string(p.s[:i]), p.s[i:]
+ 	if !permissive {
+ 		if strings.HasPrefix(atom, ".") {
+diff --git a/src/net/mail/message_test.go b/src/net/mail/message_test.go
+index 1b422743f9..e05af6c6ba 100644
+--- a/src/net/mail/message_test.go
++++ b/src/net/mail/message_test.go
+@@ -127,6 +127,14 @@ func TestAddressParsingError(t *testing.T) {
+ 	}
+ }
+ 
++func TestAddressParsingErrorUnquotedNonASCII(t *testing.T) {
++	const txt = "µ <micro@example.net>"
++	_, err := ParseAddress(txt)
++	if err == nil || !strings.Contains(err.Error(), "unencoded non-ASCII text in address") {
++		t.Errorf(`mail.ParseAddress(%q) err: %q, want ".*unencoded non-ASCII text in address.*"`, txt, err)
++	}
++}
++
+ func TestAddressParsing(t *testing.T) {
+ 	tests := []struct {
+ 		addrsStr string

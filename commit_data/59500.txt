@@ -29,7 +29,7 @@ Date:   Tue Mar 19 14:19:43 2024 +0000
     Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/internal/runtime/syscall/defs_linux_386.go     | 1 +
  src/internal/runtime/syscall/defs_linux_amd64.go   | 1 +
  src/internal/runtime/syscall/defs_linux_arm.go     | 1 +
@@ -43,3 +43,152 @@ Date:   Tue Mar 19 14:19:43 2024 +0000
  src/runtime/mem_linux.go                           | 3 ++-
  src/runtime/os_linux.go                            | 6 ++++++
  12 files changed, 18 insertions(+), 1 deletion(-)
+
+diff --git a/src/internal/runtime/syscall/defs_linux_386.go b/src/internal/runtime/syscall/defs_linux_386.go
+index 613dc77d59..68e687fb14 100644
+--- a/src/internal/runtime/syscall/defs_linux_386.go
++++ b/src/internal/runtime/syscall/defs_linux_386.go
+@@ -6,6 +6,7 @@ package syscall
+ 
+ const (
+ 	SYS_FCNTL         = 55
++	SYS_MPROTECT      = 125
+ 	SYS_EPOLL_CTL     = 255
+ 	SYS_EPOLL_PWAIT   = 319
+ 	SYS_EPOLL_CREATE1 = 329
+diff --git a/src/internal/runtime/syscall/defs_linux_amd64.go b/src/internal/runtime/syscall/defs_linux_amd64.go
+index 2ba3128813..ec480f5817 100644
+--- a/src/internal/runtime/syscall/defs_linux_amd64.go
++++ b/src/internal/runtime/syscall/defs_linux_amd64.go
+@@ -5,6 +5,7 @@
+ package syscall
+ 
+ const (
++	SYS_MPROTECT      = 10
+ 	SYS_FCNTL         = 72
+ 	SYS_EPOLL_CTL     = 233
+ 	SYS_EPOLL_PWAIT   = 281
+diff --git a/src/internal/runtime/syscall/defs_linux_arm.go b/src/internal/runtime/syscall/defs_linux_arm.go
+index af3e0510b1..c5d1503012 100644
+--- a/src/internal/runtime/syscall/defs_linux_arm.go
++++ b/src/internal/runtime/syscall/defs_linux_arm.go
+@@ -6,6 +6,7 @@ package syscall
+ 
+ const (
+ 	SYS_FCNTL         = 55
++	SYS_MPROTECT      = 125
+ 	SYS_EPOLL_CTL     = 251
+ 	SYS_EPOLL_PWAIT   = 346
+ 	SYS_EPOLL_CREATE1 = 357
+diff --git a/src/internal/runtime/syscall/defs_linux_arm64.go b/src/internal/runtime/syscall/defs_linux_arm64.go
+index c924f6211a..f743fe31a5 100644
+--- a/src/internal/runtime/syscall/defs_linux_arm64.go
++++ b/src/internal/runtime/syscall/defs_linux_arm64.go
+@@ -9,6 +9,7 @@ const (
+ 	SYS_EPOLL_CTL     = 21
+ 	SYS_EPOLL_PWAIT   = 22
+ 	SYS_FCNTL         = 25
++	SYS_MPROTECT      = 226
+ 	SYS_EPOLL_PWAIT2  = 441
+ 	SYS_EVENTFD2      = 19
+ 
+diff --git a/src/internal/runtime/syscall/defs_linux_loong64.go b/src/internal/runtime/syscall/defs_linux_loong64.go
+index c1a5649a42..82218d1509 100644
+--- a/src/internal/runtime/syscall/defs_linux_loong64.go
++++ b/src/internal/runtime/syscall/defs_linux_loong64.go
+@@ -9,6 +9,7 @@ const (
+ 	SYS_EPOLL_CTL     = 21
+ 	SYS_EPOLL_PWAIT   = 22
+ 	SYS_FCNTL         = 25
++	SYS_MPROTECT      = 226
+ 	SYS_EPOLL_PWAIT2  = 441
+ 	SYS_EVENTFD2      = 19
+ 
+diff --git a/src/internal/runtime/syscall/defs_linux_mips64x.go b/src/internal/runtime/syscall/defs_linux_mips64x.go
+index 07c0aba539..4e0fd1f5d1 100644
+--- a/src/internal/runtime/syscall/defs_linux_mips64x.go
++++ b/src/internal/runtime/syscall/defs_linux_mips64x.go
+@@ -7,6 +7,7 @@
+ package syscall
+ 
+ const (
++	SYS_MPROTECT      = 5010
+ 	SYS_FCNTL         = 5070
+ 	SYS_EPOLL_CTL     = 5208
+ 	SYS_EPOLL_PWAIT   = 5272
+diff --git a/src/internal/runtime/syscall/defs_linux_mipsx.go b/src/internal/runtime/syscall/defs_linux_mipsx.go
+index a1bb5d720a..b87a355093 100644
+--- a/src/internal/runtime/syscall/defs_linux_mipsx.go
++++ b/src/internal/runtime/syscall/defs_linux_mipsx.go
+@@ -8,6 +8,7 @@ package syscall
+ 
+ const (
+ 	SYS_FCNTL         = 4055
++	SYS_MPROTECT      = 4125
+ 	SYS_EPOLL_CTL     = 4249
+ 	SYS_EPOLL_PWAIT   = 4313
+ 	SYS_EPOLL_CREATE1 = 4326
+diff --git a/src/internal/runtime/syscall/defs_linux_ppc64x.go b/src/internal/runtime/syscall/defs_linux_ppc64x.go
+index 78558b360f..8235edd795 100644
+--- a/src/internal/runtime/syscall/defs_linux_ppc64x.go
++++ b/src/internal/runtime/syscall/defs_linux_ppc64x.go
+@@ -8,6 +8,7 @@ package syscall
+ 
+ const (
+ 	SYS_FCNTL         = 55
++	SYS_MPROTECT      = 125
+ 	SYS_EPOLL_CTL     = 237
+ 	SYS_EPOLL_PWAIT   = 303
+ 	SYS_EPOLL_CREATE1 = 315
+diff --git a/src/internal/runtime/syscall/defs_linux_riscv64.go b/src/internal/runtime/syscall/defs_linux_riscv64.go
+index c1a5649a42..82218d1509 100644
+--- a/src/internal/runtime/syscall/defs_linux_riscv64.go
++++ b/src/internal/runtime/syscall/defs_linux_riscv64.go
+@@ -9,6 +9,7 @@ const (
+ 	SYS_EPOLL_CTL     = 21
+ 	SYS_EPOLL_PWAIT   = 22
+ 	SYS_FCNTL         = 25
++	SYS_MPROTECT      = 226
+ 	SYS_EPOLL_PWAIT2  = 441
+ 	SYS_EVENTFD2      = 19
+ 
+diff --git a/src/internal/runtime/syscall/defs_linux_s390x.go b/src/internal/runtime/syscall/defs_linux_s390x.go
+index b539b2d22a..08073c01f0 100644
+--- a/src/internal/runtime/syscall/defs_linux_s390x.go
++++ b/src/internal/runtime/syscall/defs_linux_s390x.go
+@@ -6,6 +6,7 @@ package syscall
+ 
+ const (
+ 	SYS_FCNTL         = 55
++	SYS_MPROTECT      = 125
+ 	SYS_EPOLL_CTL     = 250
+ 	SYS_EPOLL_PWAIT   = 312
+ 	SYS_EPOLL_CREATE1 = 327
+diff --git a/src/runtime/mem_linux.go b/src/runtime/mem_linux.go
+index d63c38c209..15a406d97a 100644
+--- a/src/runtime/mem_linux.go
++++ b/src/runtime/mem_linux.go
+@@ -150,7 +150,8 @@ func sysFreeOS(v unsafe.Pointer, n uintptr) {
+ }
+ 
+ func sysFaultOS(v unsafe.Pointer, n uintptr) {
+-	mmap(v, n, _PROT_NONE, _MAP_ANON|_MAP_PRIVATE|_MAP_FIXED, -1, 0)
++	mprotect(v, n, _PROT_NONE)
++	madvise(v, n, _MADV_DONTNEED)
+ }
+ 
+ func sysReserveOS(v unsafe.Pointer, n uintptr) unsafe.Pointer {
+diff --git a/src/runtime/os_linux.go b/src/runtime/os_linux.go
+index ddacaa585c..c4f503c8c9 100644
+--- a/src/runtime/os_linux.go
++++ b/src/runtime/os_linux.go
+@@ -891,3 +891,9 @@ func (c *sigctxt) sigFromUser() bool {
+ 	code := int32(c.sigcode())
+ 	return code == _SI_USER || code == _SI_TKILL
+ }
++
++//go:nosplit
++func mprotect(addr unsafe.Pointer, n uintptr, prot int32) (ret int32, errno int32) {
++	r, _, err := syscall.Syscall6(syscall.SYS_MPROTECT, uintptr(addr), n, uintptr(prot), 0, 0, 0)
++	return int32(r), int32(err)
++}

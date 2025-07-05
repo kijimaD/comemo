@@ -13,10 +13,230 @@ Date:   Fri Feb 25 14:29:55 2011 -0500
     R=r, r2
     CC=golang-dev
     https://golang.org/cl/4245043
-
+---
  src/pkg/runtime/Makefile        |  3 --
  src/pkg/runtime/arm/asm.s       | 31 +++++++++++++++++
  src/pkg/runtime/arm/cas5.s      | 74 -----------------------------------------
  src/pkg/runtime/arm/cas6.s      | 52 -----------------------------
  src/pkg/runtime/linux/arm/sys.s | 18 ++++++++++
  5 files changed, 49 insertions(+), 129 deletions(-)
+
+diff --git a/src/pkg/runtime/Makefile b/src/pkg/runtime/Makefile
+index 185397f570..e4cc081751 100644
+--- a/src/pkg/runtime/Makefile
++++ b/src/pkg/runtime/Makefile
+@@ -40,11 +40,8 @@ OFILES_386=\
+ 	vlop.$O\
+ 	vlrt.$O\
+ 
+-GOARM?=6
+-
+ # arm-specific object files
+ OFILES_arm=\
+-	cas$(GOARM).$O\
+ 	memset.$O\
+ 	softfloat.$O\
+ 	vlop.$O\
+diff --git a/src/pkg/runtime/arm/asm.s b/src/pkg/runtime/arm/asm.s
+index 93c4d4cd16..f9fe7e6283 100644
+--- a/src/pkg/runtime/arm/asm.s
++++ b/src/pkg/runtime/arm/asm.s
+@@ -274,3 +274,34 @@ TEXT runtime·abort(SB),7,$-4
+ TEXT runtime·runcgocallback(SB),7,$0
+ 	MOVW	$0, R0
+ 	MOVW	(R0), R1
++
++// bool armcas(int32 *val, int32 old, int32 new)
++// Atomically:
++//	if(*val == old){
++//		*val = new;
++//		return 1;
++//	}else
++//		return 0;
++//
++// To implement runtime·cas in ../$GOOS/arm/sys.s
++// using the native instructions, use:
++//
++//	TEXT runtime·cas(SB),7,$0
++//		B	runtime·armcas(SB)
++//
++TEXT runtime·armcas(SB),7,$0
++	MOVW	valptr+0(FP), R1
++	MOVW	old+4(FP), R2
++	MOVW	new+8(FP), R3
++casl:
++	LDREX	(R1), R0
++	CMP		R0, R2
++	BNE		casfail
++	STREX	R3, (R1), R0
++	CMP		$0, R0
++	BNE		casl
++	MOVW	$1, R0
++	RET
++casfail:
++	MOVW	$0, R0
++	RET
+diff --git a/src/pkg/runtime/arm/cas5.s b/src/pkg/runtime/arm/cas5.s
+deleted file mode 100644
+index d46cdf9371..0000000000
+--- a/src/pkg/runtime/arm/cas5.s
++++ /dev/null
+@@ -1,74 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "arm/asm.h"
+-
+-// This version works on pre v6 architectures
+-
+-// bool cas(int32 *val, int32 old, int32 new)
+-// Atomically:
+-//	if(*val == old){
+-//		*val = new;
+-//		return 1;
+-//	}else
+-//		return 0;
+-
+-TEXT runtime·cas(SB),7,$0
+-	MOVW	0(FP), R0	// *val
+-	MOVW	4(FP), R1	// old
+-	MOVW	8(FP), R2	// new
+-	MOVW	$1, R3
+-	MOVW	$runtime·cas_mutex(SB), R4
+-	SWPW	(R4), R3	// acquire mutex
+-	CMP		$0, R3
+-	BNE		fail0
+-	
+-	MOVW	(R0), R5
+-	CMP		R1, R5
+-	BNE		fail1
+-	
+-	MOVW	R2, (R0)	
+-	MOVW	R3, (R4)	// release mutex
+-	MOVW	$1, R0
+-	RET
+-fail1:	
+-	MOVW	R3, (R4)	// release mutex
+-fail0:
+-	MOVW	$0, R0
+-	RET
+-
+-// bool casp(void **p, void *old, void *new)
+-// Atomically:
+-//	if(*p == old){
+-//		*p = new;
+-//		return 1;
+-//	}else
+-//		return 0;
+-
+-TEXT runtime·casp(SB),7,$0
+-	MOVW	0(FP), R0	// *p
+-	MOVW	4(FP), R1	// old
+-	MOVW	8(FP), R2	// new
+-	MOVW	$1, R3
+-	MOVW	$runtime·cas_mutex(SB), R4
+-	SWPW	(R4), R3	// acquire mutex
+-	CMP		$0, R3
+-	BNE		failp0
+-	
+-	MOVW	(R0), R5
+-	CMP		R1, R5
+-	BNE		failp1
+-	
+-	MOVW	R2, (R0)	
+-	MOVW	R3, (R4)	// release mutex
+-	MOVW	$1, R0
+-	RET
+-failp1:	
+-	MOVW	R3, (R4)	// release mutex
+-failp0:
+-	MOVW	$0, R0
+-	RET
+-
+-DATA runtime·cas_mutex(SB)/4, $0
+-GLOBL runtime·cas_mutex(SB), $4
+diff --git a/src/pkg/runtime/arm/cas6.s b/src/pkg/runtime/arm/cas6.s
+deleted file mode 100644
+index ba9777120d..0000000000
+--- a/src/pkg/runtime/arm/cas6.s
++++ /dev/null
+@@ -1,52 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// bool cas(int32 *val, int32 old, int32 new)
+-// Atomically:
+-//	if(*val == old){
+-//		*val = new;
+-//		return 1;
+-//	}else
+-//		return 0;
+-
+-TEXT runtime·cas(SB),7,$0
+-	MOVW	0(FP), R1	// *val
+-	MOVW	4(FP), R2	// old
+-	MOVW	8(FP), R3	// new
+-l:
+-	LDREX	(R1), R0
+-	CMP		R0, R2
+-	BNE		fail
+-	STREX	R3, (R1), R0
+-	CMP		$0, R0
+-	BNE		l
+-	MOVW	$1, R0
+-	RET
+-fail:
+-	MOVW	$0, R0
+-	RET
+-
+-// bool casp(void **p, void *old, void *new)
+-// Atomically:
+-//	if(*p == old){
+-//		*p = new;
+-//		return 1;
+-//	}else
+-//		return 0;
+-TEXT runtime·casp(SB), 7, $0
+-	MOVW	0(FP), R1	// *p
+-	MOVW	4(FP), R2	// old
+-	MOVW	8(FP), R3	// new
+-lp:
+-	LDREX	(R1), R0
+-	CMP		R0, R2
+-	BNE		failp
+-	STREX	R3, (R1), R0
+-	CMP		$0, R0
+-	BNE		lp
+-	MOVW	$1, R0
+-	RET
+-failp:
+-	MOVW	$0, R0
+-	RET
+diff --git a/src/pkg/runtime/linux/arm/sys.s b/src/pkg/runtime/linux/arm/sys.s
+index 6c222fc8aa..9daf9c2e4d 100644
+--- a/src/pkg/runtime/linux/arm/sys.s
++++ b/src/pkg/runtime/linux/arm/sys.s
+@@ -230,3 +230,21 @@ TEXT runtime·sigreturn(SB),7,$0
+ 	MOVW	$SYS_rt_sigreturn, R7
+ 	SWI	$0
+ 	RET
++
++// Use kernel version instead of native armcas in ../../arm.s.
++// See ../../../sync/atomic/asm_linux_arm.s for details.
++TEXT cas<>(SB),7,$0
++	MOVW	$0xffff0fc0, PC
++
++TEXT runtime·cas(SB),7,$0
++	MOVW	valptr+0(FP), R2
++	MOVW	old+4(FP), R0
++	MOVW	new+8(FP), R1
++	BL	cas<>(SB)
++	MOVW	$0, R0
++	MOVW.CS	$1, R0
++	RET
++
++TEXT runtime·casp(SB),7,$0
++	B	runtime·cas(SB)
++

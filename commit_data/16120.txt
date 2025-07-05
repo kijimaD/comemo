@@ -11,6 +11,20 @@ Date:   Sat Apr 6 20:18:15 2013 -0700
     R=golang-dev, dvyukov
     CC=golang-dev
     https://golang.org/cl/8286045
-
+---
  src/pkg/runtime/runtime.h | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index ee82bedb7b..cb72b92d67 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -511,7 +511,7 @@ struct ParFor
+ struct CgoMal
+ {
+ 	CgoMal	*next;
+-	byte	*alloc;
++	void	*alloc;
+ };
+ 
+ /*

@@ -12,7 +12,7 @@ Date:   Tue Apr 7 21:46:58 2015 -0700
     Change-Id: I8072c59d2bbbc24a43d771fd04fd0b1a678d765a
     Reviewed-on: https://go-review.googlesource.com/8611
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/go/types/api_test.go                           | 25 +++++------
  src/go/types/check_test.go                         |  4 +-
  src/go/types/eval_test.go                          |  4 +-
@@ -21,3 +21,264 @@ Date:   Tue Apr 7 21:46:58 2015 -0700
  src/go/types/stdlib_test.go                        | 18 ++++----
  src/go/types/typestring_test.go                    |  4 +-
  7 files changed, 46 insertions(+), 63 deletions(-)
+
+diff --git a/src/go/types/api_test.go b/src/go/types/api_test.go
+index 1b5281b187..983ac950bf 100644
+--- a/src/go/types/api_test.go
++++ b/src/go/types/api_test.go
+@@ -18,18 +18,17 @@ import (
+ 	_ "go/types/internal/gcimporter"
+ )
+ 
+-// skipTest returns true for platforms on which the current gcimporter doesn't work.
+-// TODO(gri) eliminate this ASAP.
+-func skipTest() bool {
+-	switch runtime.GOOS + "-" + runtime.GOARCH {
++// skipSpecialPlatforms causes the test to be skipped for platforms where
++// builders (build.golang.org) don't have access to compiled packages for
++// import.
++func skipSpecialPlatforms(t *testing.T) {
++	switch platform := runtime.GOOS + "-" + runtime.GOARCH; platform {
+ 	case "nacl-amd64p32",
+-		"windows-amd64",
+ 		"nacl-386",
+-		"windows-386",
+-		"plan9-386":
+-		return true
++		"darwin-arm",
++		"darwin-arm64":
++		t.Skipf("no compiled packages available for import on %s", platform)
+ 	}
+-	return false
+ }
+ 
+ func pkgFor(path, source string, info *Info) (*Package, error) {
+@@ -299,9 +298,7 @@ func predString(tv TypeAndValue) string {
+ }
+ 
+ func TestPredicatesInfo(t *testing.T) {
+-	if skipTest() {
+-		return
+-	}
++	skipSpecialPlatforms(t)
+ 
+ 	var tests = []struct {
+ 		src  string
+@@ -387,9 +384,7 @@ func TestPredicatesInfo(t *testing.T) {
+ }
+ 
+ func TestScopesInfo(t *testing.T) {
+-	if skipTest() {
+-		return
+-	}
++	skipSpecialPlatforms(t)
+ 
+ 	var tests = []struct {
+ 		src    string
+diff --git a/src/go/types/check_test.go b/src/go/types/check_test.go
+index dc4284c4eb..6d2b5e957b 100644
+--- a/src/go/types/check_test.go
++++ b/src/go/types/check_test.go
+@@ -278,9 +278,7 @@ func checkFiles(t *testing.T, testfiles []string) {
+ }
+ 
+ func TestCheck(t *testing.T) {
+-	if skipTest() {
+-		return
+-	}
++	skipSpecialPlatforms(t)
+ 
+ 	// Declare builtins for testing.
+ 	DefPredeclaredTestFuncs()
+diff --git a/src/go/types/eval_test.go b/src/go/types/eval_test.go
+index 84c1c1b51a..8fc15034d0 100644
+--- a/src/go/types/eval_test.go
++++ b/src/go/types/eval_test.go
+@@ -83,9 +83,7 @@ func TestEvalArith(t *testing.T) {
+ }
+ 
+ func TestEvalContext(t *testing.T) {
+-	if skipTest() {
+-		return
+-	}
++	skipSpecialPlatforms(t)
+ 
+ 	src := `
+ package p
+diff --git a/src/go/types/internal/gcimporter/gcimporter_test.go b/src/go/types/internal/gcimporter/gcimporter_test.go
+index 590b225aff..31bfc4830e 100644
+--- a/src/go/types/internal/gcimporter/gcimporter_test.go
++++ b/src/go/types/internal/gcimporter/gcimporter_test.go
+@@ -18,18 +18,17 @@ import (
+ 	"go/types"
+ )
+ 
+-// skipTest returns true for platforms on which the current gcimporter doesn't work.
+-// TODO(gri) eliminate this ASAP.
+-func skipTest() bool {
+-	switch runtime.GOOS + "-" + runtime.GOARCH {
++// skipSpecialPlatforms causes the test to be skipped for platforms where
++// builders (build.golang.org) don't have access to compiled packages for
++// import.
++func skipSpecialPlatforms(t *testing.T) {
++	switch platform := runtime.GOOS + "-" + runtime.GOARCH; platform {
+ 	case "nacl-amd64p32",
+-		"windows-amd64",
+ 		"nacl-386",
+-		"windows-386",
+-		"plan9-386":
+-		return true
++		"darwin-arm",
++		"darwin-arm64":
++		t.Skipf("no compiled packages available for import on %s", platform)
+ 	}
+-	return false
+ }
+ 
+ var gcPath string // Go compiler path
+@@ -111,8 +110,9 @@ func testDir(t *testing.T, dir string, endTime time.Time) (nimports int) {
+ }
+ 
+ func TestImport(t *testing.T) {
+-	// This package does not handle gccgo export data.
+-	if runtime.Compiler == "gccgo" {
++	// This package only handles gc export data.
++	if runtime.Compiler != "gc" {
++		t.Skipf("gc-built packages not available (compiler = %s)", runtime.Compiler)
+ 		return
+ 	}
+ 
+@@ -147,14 +147,14 @@ var importedObjectTests = []struct {
+ }
+ 
+ func TestImportedTypes(t *testing.T) {
+-	if skipTest() {
+-		return
+-	}
++	skipSpecialPlatforms(t)
+ 
+-	// This package does not handle gccgo export data.
+-	if runtime.Compiler == "gccgo" {
++	// This package only handles gc export data.
++	if runtime.Compiler != "gc" {
++		t.Skipf("gc-built packages not available (compiler = %s)", runtime.Compiler)
+ 		return
+ 	}
++
+ 	for _, test := range importedObjectTests {
+ 		s := strings.Split(test.name, ".")
+ 		if len(s) != 2 {
+@@ -183,12 +183,11 @@ func TestImportedTypes(t *testing.T) {
+ }
+ 
+ func TestIssue5815(t *testing.T) {
+-	if skipTest() {
+-		return
+-	}
++	skipSpecialPlatforms(t)
+ 
+-	// This package does not handle gccgo export data.
+-	if runtime.Compiler == "gccgo" {
++	// This package only handles gc export data.
++	if runtime.Compiler != "gc" {
++		t.Skipf("gc-built packages not available (compiler = %s)", runtime.Compiler)
+ 		return
+ 	}
+ 
+@@ -217,12 +216,11 @@ func TestIssue5815(t *testing.T) {
+ 
+ // Smoke test to ensure that imported methods get the correct package.
+ func TestCorrectMethodPackage(t *testing.T) {
+-	if skipTest() {
+-		return
+-	}
++	skipSpecialPlatforms(t)
+ 
+-	// This package does not handle gccgo export data.
+-	if runtime.Compiler == "gccgo" {
++	// This package only handles gc export data.
++	if runtime.Compiler != "gc" {
++		t.Skipf("gc-built packages not available (compiler = %s)", runtime.Compiler)
+ 		return
+ 	}
+ 
+diff --git a/src/go/types/resolver_test.go b/src/go/types/resolver_test.go
+index 9085854975..cfd04dad1e 100644
+--- a/src/go/types/resolver_test.go
++++ b/src/go/types/resolver_test.go
+@@ -89,9 +89,7 @@ var pkgnames = []string{
+ }
+ 
+ func TestResolveIdents(t *testing.T) {
+-	if skipTest() {
+-		return
+-	}
++	skipSpecialPlatforms(t)
+ 
+ 	// parse package files
+ 	fset := token.NewFileSet()
+diff --git a/src/go/types/stdlib_test.go b/src/go/types/stdlib_test.go
+index 515bbcdc58..4b66944989 100644
+--- a/src/go/types/stdlib_test.go
++++ b/src/go/types/stdlib_test.go
+@@ -32,9 +32,7 @@ var (
+ )
+ 
+ func TestStdlib(t *testing.T) {
+-	if skipTest() {
+-		return
+-	}
++	skipSpecialPlatforms(t)
+ 
+ 	walkDirs(t, filepath.Join(runtime.GOROOT(), "src"))
+ 	if testing.Verbose() {
+@@ -120,7 +118,11 @@ func testTestDir(t *testing.T, path string, ignore ...string) {
+ }
+ 
+ func TestStdTest(t *testing.T) {
+-	if skipTest() {
++	skipSpecialPlatforms(t)
++
++	// test/recover4.go is only built for Linux and Darwin.
++	// TODO(gri) Remove once tests consider +build tags (issue 10370).
++	if runtime.GOOS != "linux" || runtime.GOOS != "darwin" {
+ 		return
+ 	}
+ 
+@@ -131,9 +133,7 @@ func TestStdTest(t *testing.T) {
+ }
+ 
+ func TestStdFixed(t *testing.T) {
+-	if skipTest() {
+-		return
+-	}
++	skipSpecialPlatforms(t)
+ 
+ 	testTestDir(t, filepath.Join(runtime.GOROOT(), "test", "fixedbugs"),
+ 		"bug248.go", "bug302.go", "bug369.go", // complex test instructions - ignore
+@@ -144,9 +144,7 @@ func TestStdFixed(t *testing.T) {
+ }
+ 
+ func TestStdKen(t *testing.T) {
+-	if skipTest() {
+-		return
+-	}
++	skipSpecialPlatforms(t)
+ 
+ 	testTestDir(t, filepath.Join(runtime.GOROOT(), "test", "ken"))
+ }
+diff --git a/src/go/types/typestring_test.go b/src/go/types/typestring_test.go
+index c068157cd8..b01fe991c4 100644
+--- a/src/go/types/typestring_test.go
++++ b/src/go/types/typestring_test.go
+@@ -116,9 +116,7 @@ var dependentTestTypes = []testEntry{
+ }
+ 
+ func TestTypeString(t *testing.T) {
+-	if skipTest() {
+-		return
+-	}
++	skipSpecialPlatforms(t)
+ 
+ 	var tests []testEntry
+ 	tests = append(tests, independentTestTypes...)

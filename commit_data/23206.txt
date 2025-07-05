@@ -54,7 +54,7 @@ Date:   Tue Apr 28 09:13:38 2015 -0700
     Reviewed-on: https://go-review.googlesource.com/9415
     Run-TryBot: Adam Langley <agl@golang.org>
     Reviewed-by: Adam Langley <agl@golang.org>
-
+---
  src/crypto/tls/cipher_suites.go                    |  43 ++---
  src/crypto/tls/common.go                           |  24 +--
  src/crypto/tls/handshake_client.go                 |  56 +++---
@@ -68,3 +68,1313 @@ Date:   Tue Apr 28 09:13:38 2015 -0700
  .../Server-TLSv12-ClientAuthRequestedAndGiven      |  75 ++++-----
  .../Server-TLSv12-ClientAuthRequestedNotGiven      |  57 +++----
  12 files changed, 445 insertions(+), 320 deletions(-)
+
+diff --git a/src/crypto/tls/cipher_suites.go b/src/crypto/tls/cipher_suites.go
+index b315436c1f..a5fed29375 100644
+--- a/src/crypto/tls/cipher_suites.go
++++ b/src/crypto/tls/cipher_suites.go
+@@ -5,7 +5,6 @@
+ package tls
+ 
+ import (
+-	"crypto"
+ 	"crypto/aes"
+ 	"crypto/cipher"
+ 	"crypto/des"
+@@ -49,6 +48,9 @@ const (
+ 	// suiteTLS12 indicates that the cipher suite should only be advertised
+ 	// and accepted when using TLS 1.2.
+ 	suiteTLS12
++	// suiteSHA384 indicates that the cipher suite uses SHA384 as the
++	// handshake hash.
++	suiteSHA384
+ 	// suiteDefaultOff indicates that this cipher suite is not included by
+ 	// default.
+ 	suiteDefaultOff
+@@ -64,31 +66,30 @@ type cipherSuite struct {
+ 	ivLen  int
+ 	ka     func(version uint16) keyAgreement
+ 	// flags is a bitmask of the suite* values, above.
+-	flags     int
+-	cipher    func(key, iv []byte, isRead bool) interface{}
+-	mac       func(version uint16, macKey []byte) macFunction
+-	aead      func(key, fixedNonce []byte) cipher.AEAD
+-	tls12Hash crypto.Hash
++	flags  int
++	cipher func(key, iv []byte, isRead bool) interface{}
++	mac    func(version uint16, macKey []byte) macFunction
++	aead   func(key, fixedNonce []byte) cipher.AEAD
+ }
+ 
+ var cipherSuites = []*cipherSuite{
+ 	// Ciphersuite order is chosen so that ECDHE comes before plain RSA
+ 	// and RC4 comes before AES (because of the Lucky13 attack).
+-	{TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256, 16, 0, 4, ecdheRSAKA, suiteECDHE | suiteTLS12, nil, nil, aeadAESGCM, crypto.SHA256},
+-	{TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, 16, 0, 4, ecdheECDSAKA, suiteECDHE | suiteECDSA | suiteTLS12, nil, nil, aeadAESGCM, crypto.SHA256},
+-	{TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384, 32, 0, 4, ecdheRSAKA, suiteECDHE | suiteTLS12, nil, nil, aeadAESGCM, crypto.SHA384},
+-	{TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384, 32, 0, 4, ecdheECDSAKA, suiteECDHE | suiteECDSA | suiteTLS12, nil, nil, aeadAESGCM, crypto.SHA384},
+-	{TLS_ECDHE_RSA_WITH_RC4_128_SHA, 16, 20, 0, ecdheRSAKA, suiteECDHE | suiteDefaultOff, cipherRC4, macSHA1, nil, crypto.SHA256},
+-	{TLS_ECDHE_ECDSA_WITH_RC4_128_SHA, 16, 20, 0, ecdheECDSAKA, suiteECDHE | suiteECDSA | suiteDefaultOff, cipherRC4, macSHA1, nil, crypto.SHA256},
+-	{TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA, 16, 20, 16, ecdheRSAKA, suiteECDHE, cipherAES, macSHA1, nil, crypto.SHA256},
+-	{TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA, 16, 20, 16, ecdheECDSAKA, suiteECDHE | suiteECDSA, cipherAES, macSHA1, nil, crypto.SHA256},
+-	{TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA, 32, 20, 16, ecdheRSAKA, suiteECDHE, cipherAES, macSHA1, nil, crypto.SHA256},
+-	{TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA, 32, 20, 16, ecdheECDSAKA, suiteECDHE | suiteECDSA, cipherAES, macSHA1, nil, crypto.SHA256},
+-	{TLS_RSA_WITH_RC4_128_SHA, 16, 20, 0, rsaKA, suiteDefaultOff, cipherRC4, macSHA1, nil, crypto.SHA256},
+-	{TLS_RSA_WITH_AES_128_CBC_SHA, 16, 20, 16, rsaKA, 0, cipherAES, macSHA1, nil, crypto.SHA256},
+-	{TLS_RSA_WITH_AES_256_CBC_SHA, 32, 20, 16, rsaKA, 0, cipherAES, macSHA1, nil, crypto.SHA256},
+-	{TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA, 24, 20, 8, ecdheRSAKA, suiteECDHE, cipher3DES, macSHA1, nil, crypto.SHA256},
+-	{TLS_RSA_WITH_3DES_EDE_CBC_SHA, 24, 20, 8, rsaKA, 0, cipher3DES, macSHA1, nil, crypto.SHA256},
++	{TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256, 16, 0, 4, ecdheRSAKA, suiteECDHE | suiteTLS12, nil, nil, aeadAESGCM},
++	{TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, 16, 0, 4, ecdheECDSAKA, suiteECDHE | suiteECDSA | suiteTLS12, nil, nil, aeadAESGCM},
++	{TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384, 32, 0, 4, ecdheRSAKA, suiteECDHE | suiteTLS12 | suiteSHA384, nil, nil, aeadAESGCM},
++	{TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384, 32, 0, 4, ecdheECDSAKA, suiteECDHE | suiteECDSA | suiteTLS12 | suiteSHA384, nil, nil, aeadAESGCM},
++	{TLS_ECDHE_RSA_WITH_RC4_128_SHA, 16, 20, 0, ecdheRSAKA, suiteECDHE | suiteDefaultOff, cipherRC4, macSHA1, nil},
++	{TLS_ECDHE_ECDSA_WITH_RC4_128_SHA, 16, 20, 0, ecdheECDSAKA, suiteECDHE | suiteECDSA | suiteDefaultOff, cipherRC4, macSHA1, nil},
++	{TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA, 16, 20, 16, ecdheRSAKA, suiteECDHE, cipherAES, macSHA1, nil},
++	{TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA, 16, 20, 16, ecdheECDSAKA, suiteECDHE | suiteECDSA, cipherAES, macSHA1, nil},
++	{TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA, 32, 20, 16, ecdheRSAKA, suiteECDHE, cipherAES, macSHA1, nil},
++	{TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA, 32, 20, 16, ecdheECDSAKA, suiteECDHE | suiteECDSA, cipherAES, macSHA1, nil},
++	{TLS_RSA_WITH_RC4_128_SHA, 16, 20, 0, rsaKA, suiteDefaultOff, cipherRC4, macSHA1, nil},
++	{TLS_RSA_WITH_AES_128_CBC_SHA, 16, 20, 16, rsaKA, 0, cipherAES, macSHA1, nil},
++	{TLS_RSA_WITH_AES_256_CBC_SHA, 32, 20, 16, rsaKA, 0, cipherAES, macSHA1, nil},
++	{TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA, 24, 20, 8, ecdheRSAKA, suiteECDHE, cipher3DES, macSHA1, nil},
++	{TLS_RSA_WITH_3DES_EDE_CBC_SHA, 24, 20, 8, rsaKA, 0, cipher3DES, macSHA1, nil},
+ }
+ 
+ func cipherRC4(key, iv []byte, isRead bool) interface{} {
+diff --git a/src/crypto/tls/common.go b/src/crypto/tls/common.go
+index 352df253df..8840841bf7 100644
+--- a/src/crypto/tls/common.go
++++ b/src/crypto/tls/common.go
+@@ -141,23 +141,16 @@ type signatureAndHash struct {
+ 	hash, signature uint8
+ }
+ 
+-// supportedSKXSignatureAlgorithms contains the signature and hash algorithms
+-// that the code advertises as supported in a TLS 1.2 ClientHello.
+-var supportedSKXSignatureAlgorithms = []signatureAndHash{
++// supportedSignatureAlgorithms contains the signature and hash algorithms that
++// the code advertises as supported in a TLS 1.2 ClientHello and in a TLS 1.2
++// CertificateRequest.
++var supportedSignatureAlgorithms = []signatureAndHash{
+ 	{hashSHA256, signatureRSA},
+ 	{hashSHA256, signatureECDSA},
+ 	{hashSHA1, signatureRSA},
+ 	{hashSHA1, signatureECDSA},
+ }
+ 
+-// supportedClientCertSignatureAlgorithms contains the signature and hash
+-// algorithms that the code advertises as supported in a TLS 1.2
+-// CertificateRequest.
+-var supportedClientCertSignatureAlgorithms = []signatureAndHash{
+-	{hashSHA256, signatureRSA},
+-	{hashSHA256, signatureECDSA},
+-}
+-
+ // ConnectionState records basic TLS details about the connection.
+ type ConnectionState struct {
+ 	Version                     uint16                // TLS version used by the connection (e.g. VersionTLS12)
+@@ -705,3 +698,12 @@ func initDefaultCipherSuites() {
+ func unexpectedMessageError(wanted, got interface{}) error {
+ 	return fmt.Errorf("tls: received unexpected handshake message of type %T when waiting for %T", got, wanted)
+ }
++
++func isSupportedSignatureAndHash(sigHash signatureAndHash, sigHashes []signatureAndHash) bool {
++	for _, s := range sigHashes {
++		if s == sigHash {
++			return true
++		}
++	}
++	return false
++}
+diff --git a/src/crypto/tls/handshake_client.go b/src/crypto/tls/handshake_client.go
+index bd3dfb80dd..6b092649c3 100644
+--- a/src/crypto/tls/handshake_client.go
++++ b/src/crypto/tls/handshake_client.go
+@@ -89,7 +89,7 @@ NextCipherSuite:
+ 	}
+ 
+ 	if hello.vers >= VersionTLS12 {
+-		hello.signatureAndHashes = supportedSKXSignatureAlgorithms
++		hello.signatureAndHashes = supportedSignatureAlgorithms
+ 	}
+ 
+ 	var session *ClientSessionState
+@@ -169,18 +169,26 @@ NextCipherSuite:
+ 		serverHello:  serverHello,
+ 		hello:        hello,
+ 		suite:        suite,
+-		finishedHash: newFinishedHash(c.vers, suite.tls12Hash),
++		finishedHash: newFinishedHash(c.vers, suite),
+ 		session:      session,
+ 	}
+ 
+-	hs.finishedHash.Write(hs.hello.marshal())
+-	hs.finishedHash.Write(hs.serverHello.marshal())
+-
+ 	isResume, err := hs.processServerHello()
+ 	if err != nil {
+ 		return err
+ 	}
+ 
++	// No signatures of the handshake are needed in a resumption.
++	// Otherwise, in a full handshake, if we don't have any certificates
++	// configured then we will never send a CertificateVerify message and
++	// thus no signatures are needed in that case either.
++	if isResume || len(c.config.Certificates) == 0 {
++		hs.finishedHash.discardHandshakeBuffer()
++	}
++
++	hs.finishedHash.Write(hs.hello.marshal())
++	hs.finishedHash.Write(hs.serverHello.marshal())
++
+ 	if isResume {
+ 		if err := hs.establishKeys(); err != nil {
+ 			return err
+@@ -424,7 +432,6 @@ func (hs *clientHandshakeState) doFullHandshake() error {
+ 	}
+ 
+ 	if chainToSend != nil {
+-		var signed []byte
+ 		certVerify := &certificateVerifyMsg{
+ 			hasSignatureAndHash: c.vers >= VersionTLS12,
+ 		}
+@@ -434,31 +441,42 @@ func (hs *clientHandshakeState) doFullHandshake() error {
+ 			c.sendAlert(alertInternalError)
+ 			return fmt.Errorf("tls: client certificate private key of type %T does not implement crypto.Signer", chainToSend.PrivateKey)
+ 		}
++
++		var signatureType uint8
+ 		switch key.Public().(type) {
+ 		case *ecdsa.PublicKey:
+-			digest, hashFunc, hashId := hs.finishedHash.hashForClientCertificate(signatureECDSA)
+-			signed, err = key.Sign(c.config.rand(), digest, hashFunc)
+-			certVerify.signatureAndHash.signature = signatureECDSA
+-			certVerify.signatureAndHash.hash = hashId
++			signatureType = signatureECDSA
+ 		case *rsa.PublicKey:
+-			digest, hashFunc, hashId := hs.finishedHash.hashForClientCertificate(signatureRSA)
+-			signed, err = key.Sign(c.config.rand(), digest, hashFunc)
+-			certVerify.signatureAndHash.signature = signatureRSA
+-			certVerify.signatureAndHash.hash = hashId
++			signatureType = signatureRSA
+ 		default:
+-			err = fmt.Errorf("tls: unknown client certificate key type: %T", key)
++			c.sendAlert(alertInternalError)
++			return fmt.Errorf("tls: failed to sign handshake with client certificate: unknown client certificate key type: %T", key)
++		}
++
++		certVerify.signatureAndHash, err = hs.finishedHash.selectClientCertSignatureAlgorithm(certReq.signatureAndHashes, signatureType)
++		if err != nil {
++			c.sendAlert(alertInternalError)
++			return err
+ 		}
++		digest, hashFunc, err := hs.finishedHash.hashForClientCertificate(certVerify.signatureAndHash, hs.masterSecret)
+ 		if err != nil {
+ 			c.sendAlert(alertInternalError)
+-			return errors.New("tls: failed to sign handshake with client certificate: " + err.Error())
++			return err
++		}
++		certVerify.signature, err = key.Sign(c.config.rand(), digest, hashFunc)
++		if err != nil {
++			c.sendAlert(alertInternalError)
++			return err
+ 		}
+-		certVerify.signature = signed
+ 
+ 		hs.finishedHash.Write(certVerify.marshal())
+ 		c.writeRecord(recordTypeHandshake, certVerify.marshal())
+ 	}
+ 
+-	hs.masterSecret = masterFromPreMasterSecret(c.vers, hs.suite.tls12Hash, preMasterSecret, hs.hello.random, hs.serverHello.random)
++	hs.masterSecret = masterFromPreMasterSecret(c.vers, hs.suite, preMasterSecret, hs.hello.random, hs.serverHello.random)
++
++	hs.finishedHash.discardHandshakeBuffer()
++
+ 	return nil
+ }
+ 
+@@ -466,7 +484,7 @@ func (hs *clientHandshakeState) establishKeys() error {
+ 	c := hs.c
+ 
+ 	clientMAC, serverMAC, clientKey, serverKey, clientIV, serverIV :=
+-		keysFromMasterSecret(c.vers, hs.suite.tls12Hash, hs.masterSecret, hs.hello.random, hs.serverHello.random, hs.suite.macLen, hs.suite.keyLen, hs.suite.ivLen)
++		keysFromMasterSecret(c.vers, hs.suite, hs.masterSecret, hs.hello.random, hs.serverHello.random, hs.suite.macLen, hs.suite.keyLen, hs.suite.ivLen)
+ 	var clientCipher, serverCipher interface{}
+ 	var clientHash, serverHash macFunction
+ 	if hs.suite.cipher != nil {
+diff --git a/src/crypto/tls/handshake_messages_test.go b/src/crypto/tls/handshake_messages_test.go
+index 52cdec94ed..95d825bd17 100644
+--- a/src/crypto/tls/handshake_messages_test.go
++++ b/src/crypto/tls/handshake_messages_test.go
+@@ -136,7 +136,7 @@ func (*clientHelloMsg) Generate(rand *rand.Rand, size int) reflect.Value {
+ 		}
+ 	}
+ 	if rand.Intn(10) > 5 {
+-		m.signatureAndHashes = supportedSKXSignatureAlgorithms
++		m.signatureAndHashes = supportedSignatureAlgorithms
+ 	}
+ 	m.alpnProtocols = make([]string, rand.Intn(5))
+ 	for i := range m.alpnProtocols {
+diff --git a/src/crypto/tls/handshake_server.go b/src/crypto/tls/handshake_server.go
+index 26c33337bb..accfa6f60f 100644
+--- a/src/crypto/tls/handshake_server.go
++++ b/src/crypto/tls/handshake_server.go
+@@ -49,8 +49,6 @@ func (c *Conn) serverHandshake() error {
+ 	if err != nil {
+ 		return err
+ 	}
+-	hs.finishedHash = newFinishedHash(hs.c.vers, hs.suite.tls12Hash)
+-	hs.finishedHash.Write(hs.clientHello.marshal())
+ 
+ 	// For an overview of TLS handshaking, see https://tools.ietf.org/html/rfc5246#section-7.3
+ 	if isResume {
+@@ -320,6 +318,9 @@ func (hs *serverHandshakeState) doResumeHandshake() error {
+ 	// that we're doing a resumption.
+ 	hs.hello.sessionId = hs.clientHello.sessionId
+ 	hs.hello.ticketSupported = hs.sessionState.usedOldKey
++	hs.finishedHash = newFinishedHash(c.vers, hs.suite)
++	hs.finishedHash.discardHandshakeBuffer()
++	hs.finishedHash.Write(hs.clientHello.marshal())
+ 	hs.finishedHash.Write(hs.hello.marshal())
+ 	c.writeRecord(recordTypeHandshake, hs.hello.marshal())
+ 
+@@ -344,6 +345,14 @@ func (hs *serverHandshakeState) doFullHandshake() error {
+ 
+ 	hs.hello.ticketSupported = hs.clientHello.ticketSupported && !config.SessionTicketsDisabled
+ 	hs.hello.cipherSuite = hs.suite.id
++
++	hs.finishedHash = newFinishedHash(hs.c.vers, hs.suite)
++	if config.ClientAuth == NoClientCert {
++		// No need to keep a full record of the handshake if client
++		// certificates won't be used.
++		hs.finishedHash.discardHandshakeBuffer()
++	}
++	hs.finishedHash.Write(hs.clientHello.marshal())
+ 	hs.finishedHash.Write(hs.hello.marshal())
+ 	c.writeRecord(recordTypeHandshake, hs.hello.marshal())
+ 
+@@ -380,7 +389,7 @@ func (hs *serverHandshakeState) doFullHandshake() error {
+ 		}
+ 		if c.vers >= VersionTLS12 {
+ 			certReq.hasSignatureAndHash = true
+-			certReq.signatureAndHashes = supportedClientCertSignatureAlgorithms
++			certReq.signatureAndHashes = supportedSignatureAlgorithms
+ 		}
+ 
+ 		// An empty list of certificateAuthorities signals to
+@@ -444,6 +453,13 @@ func (hs *serverHandshakeState) doFullHandshake() error {
+ 	}
+ 	hs.finishedHash.Write(ckx.marshal())
+ 
++	preMasterSecret, err := keyAgreement.processClientKeyExchange(config, hs.cert, ckx, c.vers)
++	if err != nil {
++		c.sendAlert(alertHandshakeFailure)
++		return err
++	}
++	hs.masterSecret = masterFromPreMasterSecret(c.vers, hs.suite, preMasterSecret, hs.clientHello.random, hs.hello.random)
++
+ 	// If we received a client cert in response to our certificate request message,
+ 	// the client will send us a certificateVerifyMsg immediately after the
+ 	// clientKeyExchangeMsg.  This message is a digest of all preceding
+@@ -461,8 +477,31 @@ func (hs *serverHandshakeState) doFullHandshake() error {
+ 			return unexpectedMessageError(certVerify, msg)
+ 		}
+ 
++		// Determine the signature type.
++		var signatureAndHash signatureAndHash
++		if certVerify.hasSignatureAndHash {
++			signatureAndHash = certVerify.signatureAndHash
++			if !isSupportedSignatureAndHash(signatureAndHash, supportedSignatureAlgorithms) {
++				return errors.New("tls: unsupported hash function for client certificate")
++			}
++		} else {
++			// Before TLS 1.2 the signature algorithm was implicit
++			// from the key type, and only one hash per signature
++			// algorithm was possible. Leave the hash as zero.
++			switch pub.(type) {
++			case *ecdsa.PublicKey:
++				signatureAndHash.signature = signatureECDSA
++			case *rsa.PublicKey:
++				signatureAndHash.signature = signatureRSA
++			}
++		}
++
+ 		switch key := pub.(type) {
+ 		case *ecdsa.PublicKey:
++			if signatureAndHash.signature != signatureECDSA {
++				err = errors.New("bad signature type for client's ECDSA certificate")
++				break
++			}
+ 			ecdsaSig := new(ecdsaSignature)
+ 			if _, err = asn1.Unmarshal(certVerify.signature, ecdsaSig); err != nil {
+ 				break
+@@ -471,28 +510,34 @@ func (hs *serverHandshakeState) doFullHandshake() error {
+ 				err = errors.New("ECDSA signature contained zero or negative values")
+ 				break
+ 			}
+-			digest, _, _ := hs.finishedHash.hashForClientCertificate(signatureECDSA)
++			var digest []byte
++			if digest, _, err = hs.finishedHash.hashForClientCertificate(signatureAndHash, hs.masterSecret); err != nil {
++				break
++			}
+ 			if !ecdsa.Verify(key, digest, ecdsaSig.R, ecdsaSig.S) {
+ 				err = errors.New("ECDSA verification failure")
+-				break
+ 			}
+ 		case *rsa.PublicKey:
+-			digest, hashFunc, _ := hs.finishedHash.hashForClientCertificate(signatureRSA)
++			if signatureAndHash.signature != signatureRSA {
++				err = errors.New("bad signature type for client's RSA certificate")
++				break
++			}
++			var digest []byte
++			var hashFunc crypto.Hash
++			if digest, hashFunc, err = hs.finishedHash.hashForClientCertificate(signatureAndHash, hs.masterSecret); err != nil {
++				break
++			}
+ 			err = rsa.VerifyPKCS1v15(key, hashFunc, digest, certVerify.signature)
+ 		}
+ 		if err != nil {
+ 			c.sendAlert(alertBadCertificate)
+-			return errors.New("could not validate signature of connection nonces: " + err.Error())
++			return errors.New("tls: could not validate signature of connection nonces: " + err.Error())
+ 		}
+ 
+ 		hs.finishedHash.Write(certVerify.marshal())
+ 	}
+-	preMasterSecret, err := keyAgreement.processClientKeyExchange(config, hs.cert, ckx, c.vers)
+-	if err != nil {
+-		c.sendAlert(alertHandshakeFailure)
+-		return err
+-	}
+-	hs.masterSecret = masterFromPreMasterSecret(c.vers, hs.suite.tls12Hash, preMasterSecret, hs.clientHello.random, hs.hello.random)
++
++	hs.finishedHash.discardHandshakeBuffer()
+ 
+ 	return nil
+ }
+@@ -501,7 +546,7 @@ func (hs *serverHandshakeState) establishKeys() error {
+ 	c := hs.c
+ 
+ 	clientMAC, serverMAC, clientKey, serverKey, clientIV, serverIV :=
+-		keysFromMasterSecret(c.vers, hs.suite.tls12Hash, hs.masterSecret, hs.clientHello.random, hs.hello.random, hs.suite.macLen, hs.suite.keyLen, hs.suite.ivLen)
++		keysFromMasterSecret(c.vers, hs.suite, hs.masterSecret, hs.clientHello.random, hs.hello.random, hs.suite.macLen, hs.suite.keyLen, hs.suite.ivLen)
+ 
+ 	var clientCipher, serverCipher interface{}
+ 	var clientHash, serverHash macFunction
+diff --git a/src/crypto/tls/key_agreement.go b/src/crypto/tls/key_agreement.go
+index d57d93357d..b9f86d24d6 100644
+--- a/src/crypto/tls/key_agreement.go
++++ b/src/crypto/tls/key_agreement.go
+@@ -11,7 +11,6 @@ import (
+ 	"crypto/md5"
+ 	"crypto/rsa"
+ 	"crypto/sha1"
+-	"crypto/sha256"
+ 	"crypto/x509"
+ 	"encoding/asn1"
+ 	"errors"
+@@ -108,30 +107,26 @@ func md5SHA1Hash(slices [][]byte) []byte {
+ 	return md5sha1
+ }
+ 
+-// sha256Hash implements TLS 1.2's hash function.
+-func sha256Hash(slices [][]byte) []byte {
+-	h := sha256.New()
+-	for _, slice := range slices {
+-		h.Write(slice)
+-	}
+-	return h.Sum(nil)
+-}
+-
+ // hashForServerKeyExchange hashes the given slices and returns their digest
+-// and the identifier of the hash function used. The hashFunc argument is only
+-// used for >= TLS 1.2 and precisely identifies the hash function to use.
+-func hashForServerKeyExchange(sigType, hashFunc uint8, version uint16, slices ...[]byte) ([]byte, crypto.Hash, error) {
++// and the identifier of the hash function used. The sigAndHash argument is
++// only used for >= TLS 1.2 and precisely identifies the hash function to use.
++func hashForServerKeyExchange(sigAndHash signatureAndHash, version uint16, slices ...[]byte) ([]byte, crypto.Hash, error) {
+ 	if version >= VersionTLS12 {
+-		switch hashFunc {
+-		case hashSHA256:
+-			return sha256Hash(slices), crypto.SHA256, nil
+-		case hashSHA1:
+-			return sha1Hash(slices), crypto.SHA1, nil
+-		default:
+-			return nil, crypto.Hash(0), errors.New("tls: unknown hash function used by peer")
++		if !isSupportedSignatureAndHash(sigAndHash, supportedSignatureAlgorithms) {
++			return nil, crypto.Hash(0), errors.New("tls: unsupported hash function used by peer")
+ 		}
++		hashFunc, err := lookupTLSHash(sigAndHash.hash)
++		if err != nil {
++			return nil, crypto.Hash(0), err
++		}
++		h := hashFunc.New()
++		for _, slice := range slices {
++			h.Write(slice)
++		}
++		digest := h.Sum(nil)
++		return digest, hashFunc, nil
+ 	}
+-	if sigType == signatureECDSA {
++	if sigAndHash.signature == signatureECDSA {
+ 		return sha1Hash(slices), crypto.SHA1, nil
+ 	}
+ 	return md5SHA1Hash(slices), crypto.MD5SHA1, nil
+@@ -140,20 +135,19 @@ func hashForServerKeyExchange(sigType, hashFunc uint8, version uint16, slices ..
+ // pickTLS12HashForSignature returns a TLS 1.2 hash identifier for signing a
+ // ServerKeyExchange given the signature type being used and the client's
+ // advertised list of supported signature and hash combinations.
+-func pickTLS12HashForSignature(sigType uint8, clientSignatureAndHashes []signatureAndHash) (uint8, error) {
+-	if len(clientSignatureAndHashes) == 0 {
++func pickTLS12HashForSignature(sigType uint8, clientList []signatureAndHash) (uint8, error) {
++	if len(clientList) == 0 {
+ 		// If the client didn't specify any signature_algorithms
+ 		// extension then we can assume that it supports SHA1. See
+ 		// http://tools.ietf.org/html/rfc5246#section-7.4.1.4.1
+ 		return hashSHA1, nil
+ 	}
+ 
+-	for _, sigAndHash := range clientSignatureAndHashes {
++	for _, sigAndHash := range clientList {
+ 		if sigAndHash.signature != sigType {
+ 			continue
+ 		}
+-		switch sigAndHash.hash {
+-		case hashSHA1, hashSHA256:
++		if isSupportedSignatureAndHash(sigAndHash, supportedSignatureAlgorithms) {
+ 			return sigAndHash.hash, nil
+ 		}
+ 	}
+@@ -226,14 +220,15 @@ NextCandidate:
+ 	serverECDHParams[3] = byte(len(ecdhePublic))
+ 	copy(serverECDHParams[4:], ecdhePublic)
+ 
+-	var tls12HashId uint8
++	sigAndHash := signatureAndHash{signature: ka.sigType}
++
+ 	if ka.version >= VersionTLS12 {
+-		if tls12HashId, err = pickTLS12HashForSignature(ka.sigType, clientHello.signatureAndHashes); err != nil {
++		if sigAndHash.hash, err = pickTLS12HashForSignature(ka.sigType, clientHello.signatureAndHashes); err != nil {
+ 			return nil, err
+ 		}
+ 	}
+ 
+-	digest, hashFunc, err := hashForServerKeyExchange(ka.sigType, tls12HashId, ka.version, clientHello.random, hello.random, serverECDHParams)
++	digest, hashFunc, err := hashForServerKeyExchange(sigAndHash, ka.version, clientHello.random, hello.random, serverECDHParams)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+@@ -271,8 +266,8 @@ NextCandidate:
+ 	copy(skx.key, serverECDHParams)
+ 	k := skx.key[len(serverECDHParams):]
+ 	if ka.version >= VersionTLS12 {
+-		k[0] = tls12HashId
+-		k[1] = ka.sigType
++		k[0] = sigAndHash.hash
++		k[1] = sigAndHash.signature
+ 		k = k[2:]
+ 	}
+ 	k[0] = byte(len(sig) >> 8)
+@@ -333,15 +328,14 @@ func (ka *ecdheKeyAgreement) processServerKeyExchange(config *Config, clientHell
+ 		return errServerKeyExchange
+ 	}
+ 
+-	var tls12HashId uint8
++	sigAndHash := signatureAndHash{signature: ka.sigType}
+ 	if ka.version >= VersionTLS12 {
+ 		// handle SignatureAndHashAlgorithm
+-		var sigAndHash []uint8
+-		sigAndHash, sig = sig[:2], sig[2:]
+-		if sigAndHash[1] != ka.sigType {
++		sigAndHash = signatureAndHash{hash: sig[0], signature: sig[1]}
++		if sigAndHash.signature != ka.sigType {
+ 			return errServerKeyExchange
+ 		}
+-		tls12HashId = sigAndHash[0]
++		sig = sig[2:]
+ 		if len(sig) < 2 {
+ 			return errServerKeyExchange
+ 		}
+@@ -352,7 +346,7 @@ func (ka *ecdheKeyAgreement) processServerKeyExchange(config *Config, clientHell
+ 	}
+ 	sig = sig[2:]
+ 
+-	digest, hashFunc, err := hashForServerKeyExchange(ka.sigType, tls12HashId, ka.version, clientHello.random, serverHello.random, serverECDHParams)
++	digest, hashFunc, err := hashForServerKeyExchange(sigAndHash, ka.version, clientHello.random, serverHello.random, serverECDHParams)
+ 	if err != nil {
+ 		return err
+ 	}
+diff --git a/src/crypto/tls/prf.go b/src/crypto/tls/prf.go
+index d2f9e28882..6127c1ccfe 100644
+--- a/src/crypto/tls/prf.go
++++ b/src/crypto/tls/prf.go
+@@ -9,8 +9,10 @@ import (
+ 	"crypto/hmac"
+ 	"crypto/md5"
+ 	"crypto/sha1"
++	"crypto/sha256"
++	"crypto/sha512"
++	"errors"
+ 	"hash"
+-	"strconv"
+ )
+ 
+ // Split a premaster secret in two as specified in RFC 4346, section 5.
+@@ -64,14 +66,14 @@ func prf10(result, secret, label, seed []byte) {
+ 	}
+ }
+ 
+-// prf12New returns a function implementing the TLS 1.2 pseudo-random function,
+-// as defined in RFC 5246, section 5, using the given hash.
+-func prf12New(tls12Hash crypto.Hash) func(result, secret, label, seed []byte) {
++// prf12 implements the TLS 1.2 pseudo-random function, as defined in RFC 5246, section 5.
++func prf12(hashFunc func() hash.Hash) func(result, secret, label, seed []byte) {
+ 	return func(result, secret, label, seed []byte) {
+ 		labelAndSeed := make([]byte, len(label)+len(seed))
+ 		copy(labelAndSeed, label)
+ 		copy(labelAndSeed[len(label):], seed)
+-		pHash(result, secret, labelAndSeed, tls12Hash.New)
++
++		pHash(result, secret, labelAndSeed, hashFunc)
+ 	}
+ }
+ 
+@@ -119,41 +121,49 @@ var keyExpansionLabel = []byte("key expansion")
+ var clientFinishedLabel = []byte("client finished")
+ var serverFinishedLabel = []byte("server finished")
+ 
+-func prfForVersion(version uint16, tls12Hash crypto.Hash) func(result, secret, label, seed []byte) {
++func prfAndHashForVersion(version uint16, suite *cipherSuite) (func(result, secret, label, seed []byte), crypto.Hash) {
+ 	switch version {
+ 	case VersionSSL30:
+-		return prf30
++		return prf30, crypto.Hash(0)
+ 	case VersionTLS10, VersionTLS11:
+-		return prf10
++		return prf10, crypto.Hash(0)
+ 	case VersionTLS12:
+-		return prf12New(tls12Hash)
++		if suite.flags&suiteSHA384 != 0 {
++			return prf12(sha512.New384), crypto.SHA384
++		}
++		return prf12(sha256.New), crypto.SHA256
+ 	default:
+ 		panic("unknown version")
+ 	}
+ }
+ 
++func prfForVersion(version uint16, suite *cipherSuite) func(result, secret, label, seed []byte) {
++	prf, _ := prfAndHashForVersion(version, suite)
++	return prf
++}
++
+ // masterFromPreMasterSecret generates the master secret from the pre-master
+ // secret. See http://tools.ietf.org/html/rfc5246#section-8.1
+-func masterFromPreMasterSecret(version uint16, tls12Hash crypto.Hash, preMasterSecret, clientRandom, serverRandom []byte) []byte {
++func masterFromPreMasterSecret(version uint16, suite *cipherSuite, preMasterSecret, clientRandom, serverRandom []byte) []byte {
+ 	var seed [tlsRandomLength * 2]byte
+ 	copy(seed[0:len(clientRandom)], clientRandom)
+ 	copy(seed[len(clientRandom):], serverRandom)
+ 	masterSecret := make([]byte, masterSecretLength)
+-	prfForVersion(version, tls12Hash)(masterSecret, preMasterSecret, masterSecretLabel, seed[0:])
++	prfForVersion(version, suite)(masterSecret, preMasterSecret, masterSecretLabel, seed[0:])
+ 	return masterSecret
+ }
+ 
+ // keysFromMasterSecret generates the connection keys from the master
+ // secret, given the lengths of the MAC key, cipher key and IV, as defined in
+ // RFC 2246, section 6.3.
+-func keysFromMasterSecret(version uint16, tls12Hash crypto.Hash, masterSecret, clientRandom, serverRandom []byte, macLen, keyLen, ivLen int) (clientMAC, serverMAC, clientKey, serverKey, clientIV, serverIV []byte) {
++func keysFromMasterSecret(version uint16, suite *cipherSuite, masterSecret, clientRandom, serverRandom []byte, macLen, keyLen, ivLen int) (clientMAC, serverMAC, clientKey, serverKey, clientIV, serverIV []byte) {
+ 	var seed [tlsRandomLength * 2]byte
+ 	copy(seed[0:len(clientRandom)], serverRandom)
+ 	copy(seed[len(serverRandom):], clientRandom)
+ 
+ 	n := 2*macLen + 2*keyLen + 2*ivLen
+ 	keyMaterial := make([]byte, n)
+-	prfForVersion(version, tls12Hash)(keyMaterial, masterSecret, keyExpansionLabel, seed[0:])
++	prfForVersion(version, suite)(keyMaterial, masterSecret, keyExpansionLabel, seed[0:])
+ 	clientMAC = keyMaterial[:macLen]
+ 	keyMaterial = keyMaterial[macLen:]
+ 	serverMAC = keyMaterial[:macLen]
+@@ -168,30 +178,53 @@ func keysFromMasterSecret(version uint16, tls12Hash crypto.Hash, masterSecret, c
+ 	return
+ }
+ 
+-func newFinishedHash(version uint16, tls12Hash crypto.Hash) finishedHash {
+-	if version >= VersionTLS12 {
+-		return finishedHash{tls12Hash.New(), tls12Hash.New(), tls12Hash, nil, nil, version, prfForVersion(version, tls12Hash)}
++// lookupTLSHash looks up the corresponding crypto.Hash for a given
++// TLS hash identifier.
++func lookupTLSHash(hash uint8) (crypto.Hash, error) {
++	switch hash {
++	case hashSHA1:
++		return crypto.SHA1, nil
++	case hashSHA256:
++		return crypto.SHA256, nil
++	case hashSHA384:
++		return crypto.SHA384, nil
++	default:
++		return 0, errors.New("tls: unsupported hash algorithm")
+ 	}
+-	return finishedHash{sha1.New(), sha1.New(), crypto.MD5SHA1, md5.New(), md5.New(), version, prfForVersion(version, tls12Hash)}
++}
++
++func newFinishedHash(version uint16, cipherSuite *cipherSuite) finishedHash {
++	var buffer []byte
++	if version == VersionSSL30 || version >= VersionTLS12 {
++		buffer = []byte{}
++	}
++
++	prf, hash := prfAndHashForVersion(version, cipherSuite)
++	if hash != 0 {
++		return finishedHash{hash.New(), hash.New(), nil, nil, buffer, version, prf}
++	}
++
++	return finishedHash{sha1.New(), sha1.New(), md5.New(), md5.New(), buffer, version, prf}
+ }
+ 
+ // A finishedHash calculates the hash of a set of handshake messages suitable
+ // for including in a Finished message.
+ type finishedHash struct {
+ 	client hash.Hash
+-
+-	server     hash.Hash
+-	serverHash crypto.Hash
++	server hash.Hash
+ 
+ 	// Prior to TLS 1.2, an additional MD5 hash is required.
+ 	clientMD5 hash.Hash
+ 	serverMD5 hash.Hash
+ 
++	// In TLS 1.2, a full buffer is sadly required.
++	buffer []byte
++
+ 	version uint16
+ 	prf     func(result, secret, label, seed []byte)
+ }
+ 
+-func (h finishedHash) Write(msg []byte) (n int, err error) {
++func (h *finishedHash) Write(msg []byte) (n int, err error) {
+ 	h.client.Write(msg)
+ 	h.server.Write(msg)
+ 
+@@ -199,14 +232,29 @@ func (h finishedHash) Write(msg []byte) (n int, err error) {
+ 		h.clientMD5.Write(msg)
+ 		h.serverMD5.Write(msg)
+ 	}
++
++	if h.buffer != nil {
++		h.buffer = append(h.buffer, msg...)
++	}
++
+ 	return len(msg), nil
+ }
+ 
++func (h finishedHash) Sum() []byte {
++	if h.version >= VersionTLS12 {
++		return h.client.Sum(nil)
++	}
++
++	out := make([]byte, 0, md5.Size+sha1.Size)
++	out = h.clientMD5.Sum(out)
++	return h.client.Sum(out)
++}
++
+ // finishedSum30 calculates the contents of the verify_data member of a SSLv3
+ // Finished message given the MD5 and SHA1 hashes of a set of handshake
+ // messages.
+-func finishedSum30(md5, sha1 hash.Hash, masterSecret []byte, magic [4]byte) []byte {
+-	md5.Write(magic[:])
++func finishedSum30(md5, sha1 hash.Hash, masterSecret []byte, magic []byte) []byte {
++	md5.Write(magic)
+ 	md5.Write(masterSecret)
+ 	md5.Write(ssl30Pad1[:])
+ 	md5Digest := md5.Sum(nil)
+@@ -217,7 +265,7 @@ func finishedSum30(md5, sha1 hash.Hash, masterSecret []byte, magic [4]byte) []by
+ 	md5.Write(md5Digest)
+ 	md5Digest = md5.Sum(nil)
+ 
+-	sha1.Write(magic[:])
++	sha1.Write(magic)
+ 	sha1.Write(masterSecret)
+ 	sha1.Write(ssl30Pad1[:40])
+ 	sha1Digest := sha1.Sum(nil)
+@@ -241,19 +289,11 @@ var ssl3ServerFinishedMagic = [4]byte{0x53, 0x52, 0x56, 0x52}
+ // Finished message.
+ func (h finishedHash) clientSum(masterSecret []byte) []byte {
+ 	if h.version == VersionSSL30 {
+-		return finishedSum30(h.clientMD5, h.client, masterSecret, ssl3ClientFinishedMagic)
++		return finishedSum30(h.clientMD5, h.client, masterSecret, ssl3ClientFinishedMagic[:])
+ 	}
+ 
+ 	out := make([]byte, finishedVerifyLength)
+-	if h.version >= VersionTLS12 {
+-		seed := h.client.Sum(nil)
+-		h.prf(out, masterSecret, clientFinishedLabel, seed)
+-	} else {
+-		seed := make([]byte, 0, md5.Size+sha1.Size)
+-		seed = h.clientMD5.Sum(seed)
+-		seed = h.client.Sum(seed)
+-		h.prf(out, masterSecret, clientFinishedLabel, seed)
+-	}
++	h.prf(out, masterSecret, clientFinishedLabel, h.Sum())
+ 	return out
+ }
+ 
+@@ -261,48 +301,67 @@ func (h finishedHash) clientSum(masterSecret []byte) []byte {
+ // Finished message.
+ func (h finishedHash) serverSum(masterSecret []byte) []byte {
+ 	if h.version == VersionSSL30 {
+-		return finishedSum30(h.serverMD5, h.server, masterSecret, ssl3ServerFinishedMagic)
++		return finishedSum30(h.serverMD5, h.server, masterSecret, ssl3ServerFinishedMagic[:])
+ 	}
+ 
+ 	out := make([]byte, finishedVerifyLength)
+-	if h.version >= VersionTLS12 {
+-		seed := h.server.Sum(nil)
+-		h.prf(out, masterSecret, serverFinishedLabel, seed)
+-	} else {
+-		seed := make([]byte, 0, md5.Size+sha1.Size)
+-		seed = h.serverMD5.Sum(seed)
+-		seed = h.server.Sum(seed)
+-		h.prf(out, masterSecret, serverFinishedLabel, seed)
+-	}
++	h.prf(out, masterSecret, serverFinishedLabel, h.Sum())
+ 	return out
+ }
+ 
++// selectClientCertSignatureAlgorithm returns a signatureAndHash to sign a
++// client's CertificateVerify with, or an error if none can be found.
++func (h finishedHash) selectClientCertSignatureAlgorithm(serverList []signatureAndHash, sigType uint8) (signatureAndHash, error) {
++	if h.version < VersionTLS12 {
++		// Nothing to negotiate before TLS 1.2.
++		return signatureAndHash{signature: sigType}, nil
++	}
++
++	for _, v := range serverList {
++		if v.signature == sigType && isSupportedSignatureAndHash(v, supportedSignatureAlgorithms) {
++			return v, nil
++		}
++	}
++	return signatureAndHash{}, errors.New("tls: no supported signature algorithm found for signing client certificate")
++}
++
+ // hashForClientCertificate returns a digest, hash function, and TLS 1.2 hash
+ // id suitable for signing by a TLS client certificate.
+-func (h finishedHash) hashForClientCertificate(sigType uint8) ([]byte, crypto.Hash, uint8) {
++func (h finishedHash) hashForClientCertificate(signatureAndHash signatureAndHash, masterSecret []byte) ([]byte, crypto.Hash, error) {
++	if (h.version == VersionSSL30 || h.version >= VersionTLS12) && h.buffer == nil {
++		panic("a handshake hash for a client-certificate was requested after discarding the handshake buffer")
++	}
++
++	if h.version == VersionSSL30 {
++		if signatureAndHash.signature != signatureRSA {
++			return nil, 0, errors.New("tls: unsupported signature type for client certificate")
++		}
++
++		md5Hash := md5.New()
++		md5Hash.Write(h.buffer)
++		sha1Hash := sha1.New()
++		sha1Hash.Write(h.buffer)
++		return finishedSum30(md5Hash, sha1Hash, masterSecret, nil), crypto.MD5SHA1, nil
++	}
+ 	if h.version >= VersionTLS12 {
+-		digest := h.server.Sum(nil)
+-		return digest, h.serverHash, tls12HashID(h.serverHash)
++		hashAlg, err := lookupTLSHash(signatureAndHash.hash)
++		if err != nil {
++			return nil, 0, err
++		}
++		hash := hashAlg.New()
++		hash.Write(h.buffer)
++		return hash.Sum(nil), hashAlg, nil
+ 	}
+-	if sigType == signatureECDSA {
+-		digest := h.server.Sum(nil)
+-		return digest, crypto.SHA1, hashSHA1
++
++	if signatureAndHash.signature == signatureECDSA {
++		return h.server.Sum(nil), crypto.SHA1, nil
+ 	}
+ 
+-	digest := make([]byte, 0, 36)
+-	digest = h.serverMD5.Sum(digest)
+-	digest = h.server.Sum(digest)
+-	return digest, crypto.MD5SHA1, 0 /* not specified in TLS 1.2. */
++	return h.Sum(), crypto.MD5SHA1, nil
+ }
+ 
+-// tls12HashID returns the HashAlgorithm id corresponding to the hash h, as
+-// specified in RFC 5246, section A.4.1.
+-func tls12HashID(h crypto.Hash) uint8 {
+-	switch h {
+-	case crypto.SHA256:
+-		return hashSHA256
+-	case crypto.SHA384:
+-		return hashSHA384
+-	}
+-	panic("tls12HashID called with unknown hash " + strconv.Itoa(int(h)))
++// discardHandshakeBuffer is called when there is no more need to
++// buffer the entirety of the handshake messages.
++func (h *finishedHash) discardHandshakeBuffer() {
++	h.buffer = nil
+ }
+diff --git a/src/crypto/tls/prf_test.go b/src/crypto/tls/prf_test.go
+index 1d21741f62..0a1b1bcbd1 100644
+--- a/src/crypto/tls/prf_test.go
++++ b/src/crypto/tls/prf_test.go
+@@ -5,7 +5,6 @@
+ package tls
+ 
+ import (
+-	"crypto"
+ 	"encoding/hex"
+ 	"testing"
+ )
+@@ -36,7 +35,7 @@ func TestSplitPreMasterSecret(t *testing.T) {
+ 
+ type testKeysFromTest struct {
+ 	version                    uint16
+-	hash                       crypto.Hash
++	suite                      *cipherSuite
+ 	preMasterSecret            string
+ 	clientRandom, serverRandom string
+ 	masterSecret               string
+@@ -51,13 +50,13 @@ func TestKeysFromPreMasterSecret(t *testing.T) {
+ 		clientRandom, _ := hex.DecodeString(test.clientRandom)
+ 		serverRandom, _ := hex.DecodeString(test.serverRandom)
+ 
+-		masterSecret := masterFromPreMasterSecret(test.version, test.hash, in, clientRandom, serverRandom)
++		masterSecret := masterFromPreMasterSecret(test.version, test.suite, in, clientRandom, serverRandom)
+ 		if s := hex.EncodeToString(masterSecret); s != test.masterSecret {
+ 			t.Errorf("#%d: bad master secret %s, want %s", i, s, test.masterSecret)
+ 			continue
+ 		}
+ 
+-		clientMAC, serverMAC, clientKey, serverKey, _, _ := keysFromMasterSecret(test.version, test.hash, masterSecret, clientRandom, serverRandom, test.macLen, test.keyLen, 0)
++		clientMAC, serverMAC, clientKey, serverKey, _, _ := keysFromMasterSecret(test.version, test.suite, masterSecret, clientRandom, serverRandom, test.macLen, test.keyLen, 0)
+ 		clientMACString := hex.EncodeToString(clientMAC)
+ 		serverMACString := hex.EncodeToString(serverMAC)
+ 		clientKeyString := hex.EncodeToString(clientKey)
+@@ -71,11 +70,20 @@ func TestKeysFromPreMasterSecret(t *testing.T) {
+ 	}
+ }
+ 
++func cipherSuiteById(id uint16) *cipherSuite {
++	for _, cipherSuite := range cipherSuites {
++		if cipherSuite.id == id {
++			return cipherSuite
++		}
++	}
++	panic("ciphersuite not found")
++}
++
+ // These test vectors were generated from GnuTLS using `gnutls-cli --insecure -d 9 `
+ var testKeysFromTests = []testKeysFromTest{
+ 	{
+ 		VersionTLS10,
+-		crypto.SHA1,
++		cipherSuiteById(TLS_RSA_WITH_RC4_128_SHA),
+ 		"0302cac83ad4b1db3b9ab49ad05957de2a504a634a386fc600889321e1a971f57479466830ac3e6f468e87f5385fa0c5",
+ 		"4ae66303755184a3917fcb44880605fcc53baa01912b22ed94473fc69cebd558",
+ 		"4ae663020ec16e6bb5130be918cfcafd4d765979a3136a5d50c593446e4e44db",
+@@ -89,7 +97,7 @@ var testKeysFromTests = []testKeysFromTest{
+ 	},
+ 	{
+ 		VersionTLS10,
+-		crypto.SHA1,
++		cipherSuiteById(TLS_RSA_WITH_RC4_128_SHA),
+ 		"03023f7527316bc12cbcd69e4b9e8275d62c028f27e65c745cfcddc7ce01bd3570a111378b63848127f1c36e5f9e4890",
+ 		"4ae66364b5ea56b20ce4e25555aed2d7e67f42788dd03f3fee4adae0459ab106",
+ 		"4ae66363ab815cbf6a248b87d6b556184e945e9b97fbdf247858b0bdafacfa1c",
+@@ -103,7 +111,7 @@ var testKeysFromTests = []testKeysFromTest{
+ 	},
+ 	{
+ 		VersionTLS10,
+-		crypto.SHA1,
++		cipherSuiteById(TLS_RSA_WITH_RC4_128_SHA),
+ 		"832d515f1d61eebb2be56ba0ef79879efb9b527504abb386fb4310ed5d0e3b1f220d3bb6b455033a2773e6d8bdf951d278a187482b400d45deb88a5d5a6bb7d6a7a1decc04eb9ef0642876cd4a82d374d3b6ff35f0351dc5d411104de431375355addc39bfb1f6329fb163b0bc298d658338930d07d313cd980a7e3d9196cac1",
+ 		"4ae663b2ee389c0de147c509d8f18f5052afc4aaf9699efe8cb05ece883d3a5e",
+ 		"4ae664d503fd4cff50cfc1fb8fc606580f87b0fcdac9554ba0e01d785bdf278e",
+@@ -117,7 +125,7 @@ var testKeysFromTests = []testKeysFromTest{
+ 	},
+ 	{
+ 		VersionSSL30,
+-		crypto.SHA1,
++		cipherSuiteById(TLS_RSA_WITH_RC4_128_SHA),
+ 		"832d515f1d61eebb2be56ba0ef79879efb9b527504abb386fb4310ed5d0e3b1f220d3bb6b455033a2773e6d8bdf951d278a187482b400d45deb88a5d5a6bb7d6a7a1decc04eb9ef0642876cd4a82d374d3b6ff35f0351dc5d411104de431375355addc39bfb1f6329fb163b0bc298d658338930d07d313cd980a7e3d9196cac1",
+ 		"4ae663b2ee389c0de147c509d8f18f5052afc4aaf9699efe8cb05ece883d3a5e",
+ 		"4ae664d503fd4cff50cfc1fb8fc606580f87b0fcdac9554ba0e01d785bdf278e",
+diff --git a/src/crypto/tls/testdata/Client-TLSv12-ClientCert-RSA-AES256-GCM-SHA384 b/src/crypto/tls/testdata/Client-TLSv12-ClientCert-RSA-AES256-GCM-SHA384
+index f9d39b62ad..30de85fb35 100644
+--- a/src/crypto/tls/testdata/Client-TLSv12-ClientCert-RSA-AES256-GCM-SHA384
++++ b/src/crypto/tls/testdata/Client-TLSv12-ClientCert-RSA-AES256-GCM-SHA384
+@@ -9,11 +9,11 @@
+ 00000070  08 04 01 04 03 02 01 02  03 ff 01 00 01 00 00 12  |................|
+ 00000080  00 00                                             |..|
+ >>> Flow 2 (server to client)
+-00000000  16 03 03 00 59 02 00 00  55 03 03 45 6f 12 3b 7d  |....Y...U..Eo.;}|
+-00000010  30 71 fe ad ab 43 21 b1  68 78 42 2e cb b9 44 c9  |0q...C!.hxB...D.|
+-00000020  93 0a f3 4a dc f6 b1 a1  fe e3 22 20 1b 24 38 d4  |...J......" .$8.|
+-00000030  5c 84 2e c7 63 c1 a4 84  ca b6 2a 6c b3 90 04 9e  |\...c.....*l....|
+-00000040  7e a6 60 d7 1d 76 26 2f  68 12 59 a3 c0 30 00 00  |~.`..v&/h.Y..0..|
++00000000  16 03 03 00 59 02 00 00  55 03 03 c1 99 f4 77 ba  |....Y...U.....w.|
++00000010  f5 46 ef 26 6d 0d e2 57  6f 04 28 01 4e 69 d8 e0  |.F.&m..Wo.(.Ni..|
++00000020  2f 70 03 fe 77 b9 d1 7b  fc 49 ed 20 e2 0f 35 19  |/p..w..{.I. ..5.|
++00000030  ae 5a 66 04 be cc 60 d3  4f 6d ce b2 25 7f 25 24  |.Zf...`.Om..%.%$|
++00000040  31 23 d8 40 bf 78 77 4d  fa 11 22 3d c0 30 00 00  |1#.@.xwM.."=.0..|
+ 00000050  0d ff 01 00 01 00 00 0b  00 04 03 00 01 02 16 03  |................|
+ 00000060  03 02 be 0b 00 02 ba 00  02 b7 00 02 b4 30 82 02  |.............0..|
+ 00000070  b0 30 82 02 19 a0 03 02  01 02 02 09 00 85 b0 bb  |.0..............|
+@@ -59,20 +59,20 @@
+ 000002f0  5f 33 c4 b6 d8 c9 75 90  96 8c 0f 52 98 b5 cd 98  |_3....u....R....|
+ 00000300  1f 89 20 5f f2 a0 1c a3  1b 96 94 dd a9 fd 57 e9  |.. _..........W.|
+ 00000310  70 e8 26 6d 71 99 9b 26  6e 38 50 29 6c 90 a7 bd  |p.&mq..&n8P)l...|
+-00000320  d9 16 03 03 00 cd 0c 00  00 c9 03 00 17 41 04 a9  |.............A..|
+-00000330  2e 21 28 57 be bc 41 fd  5b a8 fa e2 d9 9d d5 47  |.!(W..A.[......G|
+-00000340  08 f2 68 6c 30 3f da 1c  be 40 71 7f 1d 45 a6 24  |..hl0?...@q..E.$|
+-00000350  73 42 86 16 f8 16 3b 12  87 90 19 dd 03 3a 9a 45  |sB....;......:.E|
+-00000360  ac ad ce 9f fc 22 8d 1f  e7 3e b2 ba 62 29 90 04  |....."...>..b)..|
+-00000370  01 00 80 a0 41 e8 bf 28  94 15 fa 7b 2c aa 42 08  |....A..(...{,.B.|
+-00000380  e8 e0 20 5e e0 9b 86 92  c7 f4 78 ce 9a 72 49 19  |.. ^......x..rI.|
+-00000390  45 cb ed 4f 23 11 3d a2  9a 9e f3 80 47 d3 16 96  |E..O#.=.....G...|
+-000003a0  ea 91 8d 62 91 5c b6 04  46 7f d5 06 d3 8f 4d f8  |...b.\..F.....M.|
+-000003b0  77 ae ee c4 42 b6 44 db  cd cf 76 aa 5b 3c b0 93  |w...B.D...v.[<..|
+-000003c0  6d 2d 51 53 f8 f4 c5 3e  ba 9c 8f 35 95 7c 87 33  |m-QS...>...5.|.3|
+-000003d0  95 0b 69 be 33 c0 a9 b7  f7 a8 de ae 1c 95 3a c1  |..i.3.........:.|
+-000003e0  11 55 4e f6 82 6d 25 d7  96 e5 fd ab cc 72 58 5b  |.UN..m%......rX[|
+-000003f0  6e 12 4c 16 03 03 00 2e  0d 00 00 26 03 01 02 40  |n.L........&...@|
++00000320  d9 16 03 03 00 cd 0c 00  00 c9 03 00 17 41 04 2b  |.............A.+|
++00000330  31 48 64 07 93 c0 be 1d  68 24 fc 3a e9 ab fa 89  |1Hd.....h$.:....|
++00000340  5f 30 31 4f 39 bf c5 a4  90 40 2f c1 f3 83 a6 2a  |_01O9....@/....*|
++00000350  00 aa d5 d3 4e 8b ac 3f  4f d6 a2 e5 e6 3b a7 75  |....N..?O....;.u|
++00000360  75 6d 9a de fa 86 ba b8  e5 c0 64 a0 a6 24 8e 04  |um........d..$..|
++00000370  01 00 80 0b 10 7f 53 50  56 f1 0d 66 42 b3 6a ab  |......SPV..fB.j.|
++00000380  8b 47 e5 c2 95 01 3b 1d  e6 00 43 3e 5e 1e 15 27  |.G....;...C>^..'|
++00000390  9c cb eb 71 8a 57 50 29  5d 46 5d a6 b1 66 13 a6  |...q.WP)]F]..f..|
++000003a0  59 0a 0d 8b a1 6f 8b 56  fd 6e 42 df 11 16 00 3c  |Y....o.V.nB....<|
++000003b0  e7 d4 10 6d 03 63 47 25  f5 fa 5d ae b9 67 fd 06  |...m.cG%..]..g..|
++000003c0  e0 c3 8d c3 62 d4 72 18  0b eb 8a c2 3e 40 35 fc  |....b.r.....>@5.|
++000003d0  ec 6f e1 52 95 4f b8 52  4c 8e 97 67 bc 63 9a 37  |.o.R.O.RL..g.c.7|
++000003e0  df 89 2b ae 42 88 b6 f7  5b 31 84 47 44 e2 d8 c2  |..+.B...[1.GD...|
++000003f0  79 a8 b0 16 03 03 00 2e  0d 00 00 26 03 01 02 40  |y..........&...@|
+ 00000400  00 1e 06 01 06 02 06 03  05 01 05 02 05 03 04 01  |................|
+ 00000410  04 02 04 03 03 01 03 02  03 03 02 01 02 02 02 03  |................|
+ 00000420  00 00 0e 00 00 00                                 |......|
+@@ -114,26 +114,26 @@
+ 00000220  a7 24 20 3e b2 56 1c ce  97 28 5e f8 2b 2d 4f 9e  |.$ >.V...(^.+-O.|
+ 00000230  f1 07 9f 6c 4b 5b 83 56  e2 32 42 e9 58 b6 d7 49  |...lK[.V.2B.X..I|
+ 00000240  a6 b5 68 1a 41 03 56 6b  dc 5a 89 16 03 03 00 88  |..h.A.Vk.Z......|
+-00000250  0f 00 00 84 05 01 00 80  38 ca f2 b9 60 19 01 9c  |........8...`...|
+-00000260  ce 24 b2 10 54 62 0f a3  03 7a af 0d 64 aa e9 c9  |.$..Tb...z..d...|
+-00000270  d5 47 40 ec a6 44 b3 5a  97 73 2c e8 2b 17 e9 fb  |.G@..D.Z.s,.+...|
+-00000280  2b 87 4b cc 80 ee 8a 88  35 c2 4f 2f e7 f0 1e c7  |+.K.....5.O/....|
+-00000290  c6 40 6b f8 c5 71 83 2b  c0 8e 41 62 3f 3a 80 96  |.@k..q.+..Ab?:..|
+-000002a0  71 a5 25 50 d3 4e 01 86  ff 1f d3 a0 a8 23 ef 80  |q.%P.N.......#..|
+-000002b0  3a 79 77 d6 88 5f 70 a2  98 7a 0a 71 1e 9b 81 5d  |:yw.._p..z.q...]|
+-000002c0  14 61 ac 2f 96 22 49 18  57 47 42 cf 2d 6f c3 8b  |.a./."I.WGB.-o..|
+-000002d0  95 24 24 87 75 4e 52 28  14 03 03 00 01 01 16 03  |.$$.uNR(........|
+-000002e0  03 00 28 00 00 00 00 00  00 00 00 4b 1b ec 28 3a  |..(........K..(:|
+-000002f0  02 86 9e 52 29 d1 73 ce  60 eb 80 92 0a 1a bc 07  |...R).s.`.......|
+-00000300  14 15 98 1e f7 98 d1 28  eb b7 43                 |.......(..C|
++00000250  0f 00 00 84 04 01 00 80  0a 86 16 61 b0 61 19 af  |...........a.a..|
++00000260  0e 42 fc ec 44 c2 2b dd  27 cc 9a ee d1 a8 64 7c  |.B..D.+.'.....d||
++00000270  ac 69 55 22 3b b2 ba 56  c0 22 53 af 11 be cf f0  |.iU";..V."S.....|
++00000280  90 d1 0e 72 51 d0 f2 4e  cd e0 d2 d6 a0 2f 91 46  |...rQ..N...../.F|
++00000290  fa bd 97 b5 a6 ef 66 2e  5e 15 e2 89 df b0 ea 0e  |......f.^.......|
++000002a0  67 c4 8c 7e a1 4f 9a 00  dc 32 f9 d1 cd 72 ea 1f  |g..~.O...2...r..|
++000002b0  c6 6a 20 54 a2 0f e8 32  50 4e f6 b6 79 70 4c bb  |.j T...2PN..ypL.|
++000002c0  68 8f a8 5a 46 49 a6 54  b6 83 53 df 5f 2b 00 cb  |h..ZFI.T..S._+..|
++000002d0  09 36 86 f1 21 6b bb 98  14 03 03 00 01 01 16 03  |.6..!k..........|
++000002e0  03 00 28 00 00 00 00 00  00 00 00 af 07 a0 f1 0b  |..(.............|
++000002f0  cb 36 97 2c 38 96 e4 02  7c 4d 66 db d0 72 2c 00  |.6.,8...|Mf..r,.|
++00000300  2d ea 21 0a 55 7e 98 9d  65 9a 18                 |-.!.U~..e..|
+ >>> Flow 4 (server to client)
+-00000000  14 03 03 00 01 01 16 03  03 00 28 c3 0d 76 f6 6c  |..........(..v.l|
+-00000010  2f 07 ca 24 51 2d 2b f3  92 72 82 49 79 70 a8 e9  |/..$Q-+..r.Iyp..|
+-00000020  38 99 cf 1b ff 6c 7a 83  7c b0 3b f6 a5 f6 21 db  |8....lz.|.;...!.|
+-00000030  56 1e 7c                                          |V.||
++00000000  14 03 03 00 01 01 16 03  03 00 28 27 8b bb 41 ea  |..........('..A.|
++00000010  84 0b 2b d3 d8 1b 13 7c  7c 9d fd 8d 2d 8e ed 2b  |..+....||...-..+|
++00000020  1f 32 d5 8d 61 e1 bd 7a  74 59 51 a9 b9 85 6f ae  |.2..a..ztYQ...o.|
++00000030  34 1f b1                                          |4..|
+ >>> Flow 5 (client to server)
+-00000000  17 03 03 00 1e 00 00 00  00 00 00 00 01 00 9f 31  |...............1|
+-00000010  ad 88 20 ee 78 04 8c 11  dc dd cb 50 f6 8b d7 fb  |.. .x......P....|
+-00000020  2e 22 c2 15 03 03 00 1a  00 00 00 00 00 00 00 02  |."..............|
+-00000030  e5 ab e8 1a 4e 58 d7 b1  eb 61 10 a8 5a be f5 2e  |....NX...a..Z...|
+-00000040  f5 ae                                             |..|
++00000000  17 03 03 00 1e 00 00 00  00 00 00 00 01 0c f2 76  |...............v|
++00000010  e3 1c 31 7e bd 51 b4 4a  a8 82 d1 b6 64 51 5f 17  |..1~.Q.J....dQ_.|
++00000020  fc 28 5d 15 03 03 00 1a  00 00 00 00 00 00 00 02  |.(].............|
++00000030  14 1c ec a4 e3 2f 16 d9  22 94 ad be 2a 82 0a 68  |...../.."...*..h|
++00000040  31 d4                                             |1.|
+diff --git a/src/crypto/tls/testdata/Server-TLSv12-ClientAuthRequestedAndECDSAGiven b/src/crypto/tls/testdata/Server-TLSv12-ClientAuthRequestedAndECDSAGiven
+index 547f79834d..76a77060b4 100644
+--- a/src/crypto/tls/testdata/Server-TLSv12-ClientAuthRequestedAndECDSAGiven
++++ b/src/crypto/tls/testdata/Server-TLSv12-ClientAuthRequestedAndECDSAGiven
+@@ -1,11 +1,10 @@
+ >>> Flow 1 (client to server)
+-00000000  16 03 01 00 5c 01 00 00  58 03 03 52 cc 57 59 65  |....\...X..R.WYe|
+-00000010  ae b3 ec a4 7a 05 f7 ec  39 22 7d 8c 91 96 6b e0  |....z...9"}...k.|
+-00000020  69 81 ff 88 28 17 60 ac  94 19 ff 00 00 04 00 05  |i...(.`.........|
+-00000030  00 ff 01 00 00 2b 00 0d  00 22 00 20 06 01 06 02  |.....+...". ....|
+-00000040  06 03 05 01 05 02 05 03  04 01 04 02 04 03 03 01  |................|
+-00000050  03 02 03 03 02 01 02 02  02 03 01 01 00 0f 00 01  |................|
+-00000060  01                                                |.|
++00000000  16 03 01 00 5b 01 00 00  57 03 03 3b 02 c7 94 b7  |....[...W..;....|
++00000010  61 d9 c9 d4 1f 4e 9a a0  73 77 d7 6b 4f 42 af 97  |a....N..sw.kOB..|
++00000020  3c 12 f8 10 38 c7 3d 56  11 a3 09 00 00 04 00 05  |<...8.=V........|
++00000030  00 ff 02 01 00 00 29 00  0d 00 20 00 1e 06 01 06  |......)... .....|
++00000040  02 06 03 05 01 05 02 05  03 04 01 04 02 04 03 03  |................|
++00000050  01 03 02 03 03 02 01 02  02 02 03 00 0f 00 01 01  |................|
+ >>> Flow 2 (server to client)
+ 00000000  16 03 03 00 31 02 00 00  2d 03 03 00 00 00 00 00  |....1...-.......|
+ 00000010  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+@@ -54,9 +53,9 @@
+ 000002c0  50 56 5c d5 82 5a 2d 5a  5f 33 c4 b6 d8 c9 75 90  |PV\..Z-Z_3....u.|
+ 000002d0  96 8c 0f 52 98 b5 cd 98  1f 89 20 5f f2 a0 1c a3  |...R...... _....|
+ 000002e0  1b 96 94 dd a9 fd 57 e9  70 e8 26 6d 71 99 9b 26  |......W.p.&mq..&|
+-000002f0  6e 38 50 29 6c 90 a7 bd  d9 16 03 03 00 0f 0d 00  |n8P)l...........|
+-00000300  00 0b 02 01 40 00 04 04  01 04 03 00 00 16 03 03  |....@...........|
+-00000310  00 04 0e 00 00 00                                 |......|
++000002f0  6e 38 50 29 6c 90 a7 bd  d9 16 03 03 00 13 0d 00  |n8P)l...........|
++00000300  00 0f 02 01 40 00 08 04  01 04 03 02 01 02 03 00  |....@...........|
++00000310  00 16 03 03 00 04 0e 00  00 00                    |..........|
+ >>> Flow 3 (client to server)
+ 00000000  16 03 03 02 0a 0b 00 02  06 00 02 03 00 02 00 30  |...............0|
+ 00000010  82 01 fc 30 82 01 5e 02  09 00 9a 30 84 6c 26 35  |...0..^....0.l&5|
+@@ -91,32 +90,33 @@
+ 000001e0  be e8 91 b3 da 1a f5 5d  a3 23 f5 26 8b 45 70 8d  |.......].#.&.Ep.|
+ 000001f0  65 62 9b 7e 01 99 3d 18  f6 10 9a 38 61 9b 2e 57  |eb.~..=....8a..W|
+ 00000200  e4 fa cc b1 8a ce e2 23  a0 87 f0 e1 67 51 eb 16  |.......#....gQ..|
+-00000210  03 03 00 86 10 00 00 82  00 80 47 5a 2f b8 78 46  |..........GZ/.xF|
+-00000220  9f 3c fc ab 8b 35 c9 77  da c3 96 78 31 7c 2b 4f  |.<...5.w...x1|+O|
+-00000230  56 be 0f 33 bd 17 bc 1c  86 5a ae b3 0f 8b 18 2f  |V..3.....Z...../|
+-00000240  48 0d e0 0a 20 d3 53 96  88 d2 8a 7d b6 58 13 44  |H... .S....}.X.D|
+-00000250  a5 e8 19 6d 02 df a6 1b  79 c5 54 c2 ef 4d 41 4f  |...m....y.T..MAO|
+-00000260  04 1c eb 37 55 b7 2b f4  7c 6d 37 9c f1 89 a0 2c  |...7U.+.|m7....,|
+-00000270  0f ba 10 09 e4 a1 ee 0a  7e 9a fd 2c 32 63 1c 55  |........~..,2c.U|
+-00000280  85 38 de d0 7b 5f 46 03  1f cc 4d 69 51 97 d8 d7  |.8..{_F...MiQ...|
+-00000290  88 6f ba 43 04 b0 42 09  61 5e 16 03 03 00 92 0f  |.o.C..B.a^......|
+-000002a0  00 00 8e 04 03 00 8a 30  81 87 02 41 14 3d 4c 71  |.......0...A.=Lq|
+-000002b0  c2 32 4a 20 ee b7 69 17  55 e8 99 55 11 76 51 7a  |.2J ..i.U..U.vQz|
+-000002c0  74 55 e7 e8 c3 3b b3 70  db 1c 8e f6 8a d4 99 40  |tU...;.p.......@|
+-000002d0  6e da 04 fd 7a 47 41 d6  ae c0 63 ad fd 91 a8 58  |n...zGA...c....X|
+-000002e0  24 b9 ac 2f 7a 4c bf 5b  24 12 cb 3a f3 02 42 00  |$../zL.[$..:..B.|
+-000002f0  90 f9 48 97 0e d4 33 99  09 9f 1d a8 97 16 60 82  |..H...3.......`.|
+-00000300  85 cc 5a 5d 79 f7 2f 03  2a c0 b8 12 61 ac 9f 88  |..Z]y./.*...a...|
+-00000310  1d 0d 9e 0a ee 28 a8 5a  e2 42 b7 94 e2 e6 0e 13  |.....(.Z.B......|
+-00000320  c8 64 dc 4e d3 6b 10 d6  83 41 9c dc d4 53 c3 08  |.d.N.k...A...S..|
+-00000330  19 14 03 03 00 01 01 16  03 03 00 24 ef bd e3 23  |...........$...#|
+-00000340  10 23 ae 6e b5 12 eb 9c  21 78 db 36 fd bf 7f ee  |.#.n....!x.6....|
+-00000350  6f c8 00 2d b6 35 cc 2f  38 73 ae a4 34 cf 0d df  |o..-.5./8s..4...|
++00000210  03 03 00 86 10 00 00 82  00 80 ba 08 cf e6 45 d3  |..............E.|
++00000220  24 3f 4a 7e 0d 68 5f ed  5d a2 0e ad fa 41 6c 71  |$?J~.h_.]....Alq|
++00000230  43 ce 20 cf 12 c2 e1 45  78 9c 00 0b 69 f5 5f b1  |C. ....Ex...i._.|
++00000240  45 48 27 32 51 44 d8 cd  3b dc 78 1b df ee 82 68  |EH'2QD..;.x....h|
++00000250  3e 1e 26 bf e5 8d 8f 0a  6c 62 a0 f0 47 65 50 8d  |>.&.....lb..GeP.|
++00000260  2c 9a 80 bb 0a 2b e4 14  25 c6 2c 86 17 67 1b e8  |,....+..%.,..g..|
++00000270  ca 89 78 79 00 a2 d8 0e  b1 02 49 28 12 a3 a1 46  |..xy......I(...F|
++00000280  bb 6c 59 bf 59 4b 5b 48  0c 24 38 ee 7f 9f fd dd  |.lY.YK[H.$8.....|
++00000290  62 07 41 0c 5a bd 29 a4  3a ef 16 03 03 00 93 0f  |b.A.Z.).:.......|
++000002a0  00 00 8f 04 03 00 8b 30  81 88 02 42 00 9d ee a7  |.......0...B....|
++000002b0  23 08 8d 08 61 7a 5c 97  0a 6b 3e 65 3f 1e d2 36  |#...az\..k>e?..6|
++000002c0  4e 25 27 96 8f 92 08 b8  da 69 f9 3d 1e 77 88 dc  |N%'......i.=.w..|
++000002d0  33 3e 5f c5 eb 40 16 ab  32 3e c6 f5 a5 9f 42 22  |3>_..@..2>....B"|
++000002e0  f6 56 86 1f e0 95 c8 83  2d 5a c9 b9 79 b2 02 42  |.V......-Z..y..B|
++000002f0  01 2d 43 06 1d 79 3b ca  84 b2 81 21 51 01 4e 3b  |.-C..y;....!Q.N;|
++00000300  9d 5a b2 c5 87 e4 ea f9  08 2e bb 28 cc 9f a6 c6  |.Z.........(....|
++00000310  f7 6a 5c 2a f0 c8 02 33  ba 56 ea bc 3b ac 97 bc  |.j\*...3.V..;...|
++00000320  4b d0 e0 19 18 14 a6 8c  d5 60 05 b3 a2 20 7f c3  |K........`... ..|
++00000330  24 f9 14 03 03 00 01 01  16 03 03 00 24 99 58 7b  |$...........$.X{|
++00000340  e7 5d 19 95 f0 8b d5 86  7d 87 19 03 98 24 3d e8  |.]......}....$=.|
++00000350  cc c0 79 58 f9 81 b8 6c  fb d6 ed a4 84 96 13 b7  |..yX...l........|
++00000360  d0                                                |.|
+ >>> Flow 4 (server to client)
+-00000000  14 03 03 00 01 01 16 03  03 00 24 a7 50 0f 50 b4  |..........$.P.P.|
+-00000010  1c c3 4d f3 7a 64 df 65  ac 35 22 13 46 cc ec 36  |..M.zd.e.5".F..6|
+-00000020  e6 d2 f3 67 94 6a 18 85  9f 4a 3c 44 a3 58 b0 17  |...g.j...J<D.X..|
+-00000030  03 03 00 21 51 0a 41 8c  fd 50 e3 54 8b 6a 1f 83  |...!Q.A..P.T.j..|
+-00000040  a5 37 98 e1 5b 1e ec 03  1d c7 0e 28 6d 79 3f 34  |.7..[......(my?4|
+-00000050  de 1c 38 6d 7e 15 03 03  00 16 06 fc b1 7d ad 70  |..8m~........}.p|
+-00000060  1a de d4 b7 b5 e7 a2 6d  1b 9a b0 31 0c cc 7b 70  |.......m...1..{p|
++00000000  14 03 03 00 01 01 16 03  03 00 24 50 c9 ae 5b 73  |..........$P..[s|
++00000010  ce 45 98 b1 88 74 25 bd  18 6c 08 aa e4 7c 39 0b  |.E...t%..l...|9.|
++00000020  d3 e9 c2 29 fe a1 fd 0e  46 80 63 0a a0 b2 55 17  |...)....F.c...U.|
++00000030  03 03 00 21 89 28 af 50  62 c3 63 39 5b 13 03 45  |...!.(.Pb.c9[..E|
++00000040  48 c9 3c 74 93 1a 01 47  ec 28 0b 7d 37 1d 15 48  |H.<t...G.(.}7..H|
++00000050  ac eb dc 62 04 15 03 03  00 16 f6 84 ba 7b 57 9d  |...b.........{W.|
++00000060  b5 c7 d4 01 cd 04 8a d3  5a c9 c0 72 61 12 3f a1  |........Z..ra.?.|
+diff --git a/src/crypto/tls/testdata/Server-TLSv12-ClientAuthRequestedAndGiven b/src/crypto/tls/testdata/Server-TLSv12-ClientAuthRequestedAndGiven
+index 04a5b117cd..45e384f226 100644
+--- a/src/crypto/tls/testdata/Server-TLSv12-ClientAuthRequestedAndGiven
++++ b/src/crypto/tls/testdata/Server-TLSv12-ClientAuthRequestedAndGiven
+@@ -1,11 +1,10 @@
+ >>> Flow 1 (client to server)
+-00000000  16 03 01 00 5c 01 00 00  58 03 03 52 cc 57 59 6b  |....\...X..R.WYk|
+-00000010  11 07 04 39 77 20 c2 b4  3f cb 0a c9 53 fe 5b 3e  |...9w ..?...S.[>|
+-00000020  5f 58 2c 7e 30 69 e1 8e  6c 9d c8 00 00 04 00 05  |_X,~0i..l.......|
+-00000030  00 ff 01 00 00 2b 00 0d  00 22 00 20 06 01 06 02  |.....+...". ....|
+-00000040  06 03 05 01 05 02 05 03  04 01 04 02 04 03 03 01  |................|
+-00000050  03 02 03 03 02 01 02 02  02 03 01 01 00 0f 00 01  |................|
+-00000060  01                                                |.|
++00000000  16 03 01 00 5b 01 00 00  57 03 03 23 82 04 e6 b7  |....[...W..#....|
++00000010  a4 1e 2c 61 ae c0 cd ef  d3 2a 30 0b d7 19 88 16  |..,a.....*0.....|
++00000020  e3 af 68 6c 45 83 df f5  02 b0 43 00 00 04 00 05  |..hlE.....C.....|
++00000030  00 ff 02 01 00 00 29 00  0d 00 20 00 1e 06 01 06  |......)... .....|
++00000040  02 06 03 05 01 05 02 05  03 04 01 04 02 04 03 03  |................|
++00000050  01 03 02 03 03 02 01 02  02 02 03 00 0f 00 01 01  |................|
+ >>> Flow 2 (server to client)
+ 00000000  16 03 03 00 31 02 00 00  2d 03 03 00 00 00 00 00  |....1...-.......|
+ 00000010  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+@@ -54,9 +53,9 @@
+ 000002c0  50 56 5c d5 82 5a 2d 5a  5f 33 c4 b6 d8 c9 75 90  |PV\..Z-Z_3....u.|
+ 000002d0  96 8c 0f 52 98 b5 cd 98  1f 89 20 5f f2 a0 1c a3  |...R...... _....|
+ 000002e0  1b 96 94 dd a9 fd 57 e9  70 e8 26 6d 71 99 9b 26  |......W.p.&mq..&|
+-000002f0  6e 38 50 29 6c 90 a7 bd  d9 16 03 03 00 0f 0d 00  |n8P)l...........|
+-00000300  00 0b 02 01 40 00 04 04  01 04 03 00 00 16 03 03  |....@...........|
+-00000310  00 04 0e 00 00 00                                 |......|
++000002f0  6e 38 50 29 6c 90 a7 bd  d9 16 03 03 00 13 0d 00  |n8P)l...........|
++00000300  00 0f 02 01 40 00 08 04  01 04 03 02 01 02 03 00  |....@...........|
++00000310  00 16 03 03 00 04 0e 00  00 00                    |..........|
+ >>> Flow 3 (client to server)
+ 00000000  16 03 03 01 fb 0b 00 01  f7 00 01 f4 00 01 f1 30  |...............0|
+ 00000010  82 01 ed 30 82 01 58 a0  03 02 01 02 02 01 00 30  |...0..X........0|
+@@ -90,32 +89,32 @@
+ 000001d0  8b ec ab 67 be c8 64 b0  11 50 46 58 17 6b 99 1c  |...g..d..PFX.k..|
+ 000001e0  d3 1d fc 06 f1 0e e5 96  a8 0c f9 78 20 b7 44 18  |...........x .D.|
+ 000001f0  51 8d 10 7e 4f 94 67 df  a3 4e 70 73 8e 90 91 85  |Q..~O.g..Nps....|
+-00000200  16 03 03 00 86 10 00 00  82 00 80 44 89 7d aa 26  |...........D.}.&|
+-00000210  30 ce 6b db 25 70 b0 1e  16 fa 5b 3a dd 4a 4b bd  |0.k.%p....[:.JK.|
+-00000220  ec ee 50 9d 21 ba 52 b5  51 4f a8 65 d8 2e 41 e2  |..P.!.R.QO.e..A.|
+-00000230  e1 dc f3 1a df 58 4f 87  7a d3 e1 e1 1c 13 b2 0b  |.....XO.z.......|
+-00000240  b7 43 b7 92 f2 df 19 bb  79 71 e0 71 44 ab 19 2f  |.C......yq.qD../|
+-00000250  37 11 ac 62 50 b6 f1 53  fe aa b4 bc 29 8e 0b 4c  |7..bP..S....)..L|
+-00000260  0b 12 8d d5 84 a9 fa a9  ea 16 aa c3 0d da 32 c8  |..............2.|
+-00000270  e0 4c 9f 99 f8 69 cd a8  c3 b1 76 42 67 f3 ff 15  |.L...i....vBg...|
+-00000280  52 95 43 66 da 49 43 25  9d e5 eb 16 03 03 00 88  |R.Cf.IC%........|
+-00000290  0f 00 00 84 04 01 00 80  01 d5 0e 1c 75 97 89 52  |............u..R|
+-000002a0  1a f0 cc ef 93 6e 71 b2  b1 38 8c 50 11 f7 a3 02  |.....nq..8.P....|
+-000002b0  71 c4 d5 6f 8d 01 83 06  2e ea 5a 10 8a 0d d0 fc  |q..o......Z.....|
+-000002c0  b6 a2 63 af 4f 99 b5 eb  ab fd 01 c2 fb 26 fc fd  |..c.O........&..|
+-000002d0  ad 2c b3 63 b3 87 a6 f5  14 ea 7d e7 fe a8 e7 7e  |.,.c......}....~|
+-000002e0  20 ab b9 f6 c3 58 bd c0  f3 96 eb 83 dc 42 6c 0d  | ....X.......Bl.|
+-000002f0  5e e8 09 55 c7 b8 24 05  dd e1 7c af 9f 2c 22 6c  |^..U..$...|..,"l|
+-00000300  fa b8 94 13 3b f1 09 e1  38 59 fc a1 8c cb aa ca  |....;...8Y......|
+-00000310  f8 e0 2a 9c 36 f9 c3 2b  14 03 03 00 01 01 16 03  |..*.6..+........|
+-00000320  03 00 24 d0 12 7c cc d2  3e 37 1f f4 7d b4 c0 fc  |..$..|..>7..}...|
+-00000330  19 f6 c8 ea 62 12 e0 0d  af 62 d4 69 f7 96 5a c0  |....b....b.i..Z.|
+-00000340  97 d3 bb b0 a3 f7 3f                              |......?|
++00000200  16 03 03 00 86 10 00 00  82 00 80 a9 2f ef 94 68  |............/..h|
++00000210  e5 de 70 a0 f6 ef 70 e6  db 01 69 b1 0b e6 ee 21  |..p...p...i....!|
++00000220  48 e0 39 28 4d 19 61 b4  67 9d e6 a1 c5 93 49 b4  |H.9(M.a.g.....I.|
++00000230  5c ed 60 72 1a 01 aa b3  21 18 47 20 f0 0b cd e7  |\.`r....!.G ....|
++00000240  68 fa ca 35 65 86 06 42  9c 36 45 f3 36 42 17 88  |h..5e..B.6E.6B..|
++00000250  9f 0b 0b 99 35 28 d4 98  a3 86 4d 55 0b d0 2c 31  |....5(....MU..,1|
++00000260  64 d6 ce e4 50 a5 4e d6  a4 4b 9c b8 d2 4a 35 61  |d...P.N..K...J5a|
++00000270  0d f0 28 ad 96 91 59 04  5c 55 5a 0b 2d 12 a1 d1  |..(...Y.\UZ.-...|
++00000280  60 e8 55 a2 90 55 9a 55  ad 1d 05 16 03 03 00 88  |`.U..U.U........|
++00000290  0f 00 00 84 04 01 00 80  0f 8a 5c 80 aa 8e d3 c9  |..........\.....|
++000002a0  2c 97 a1 0b 0c 54 b4 66  4e 92 59 89 4e 3b 58 71  |,....T.fN.Y.N;Xq|
++000002b0  e0 d7 5a 5a 85 90 de 1e  b2 61 1b 0b f1 a2 1c d6  |..ZZ.....a......|
++000002c0  02 44 da 1e 10 fd 41 62  3f 11 13 0f 59 43 40 cb  |.D....Ab?...YC@.|
++000002d0  f4 6a e4 c9 a7 f4 20 be  d2 8c ac cb b9 24 40 51  |.j.... ......$@Q|
++000002e0  a9 83 c5 a9 34 b2 16 e2  4a 7b 0f d1 df a0 fc 15  |....4...J{......|
++000002f0  85 89 0c f7 5a bc bb c6  90 da e2 81 c3 c5 4d 58  |....Z.........MX|
++00000300  f3 04 73 8f ab 03 39 e5  88 52 bd 3a bd ca 0a 09  |..s...9..R.:....|
++00000310  23 36 68 dc b3 2b 1b 07  14 03 03 00 01 01 16 03  |#6h..+..........|
++00000320  03 00 24 64 3e ca cf ab  6e 8b 5e 2d bb b0 09 55  |..$d>...n.^-...U|
++00000330  68 c6 88 08 25 15 fc a5  6c 95 9a d8 b4 58 f9 a3  |h...%...l....X..|
++00000340  55 a0 92 c2 08 72 1c                              |U....r.|
+ >>> Flow 4 (server to client)
+-00000000  14 03 03 00 01 01 16 03  03 00 24 cd 20 85 1e 74  |..........$. ..t|
+-00000010  18 b2 71 48 d5 10 61 c6  b0 18 26 83 c2 7f f1 b1  |..qH..a...&.....|
+-00000020  2f b5 35 d0 47 a8 99 9a  9a a5 62 64 fb f9 29 17  |/.5.G.....bd..).|
+-00000030  03 03 00 21 22 7b ed 61  e3 9b 6d 98 b9 23 98 e3  |...!"{.a..m..#..|
+-00000040  55 11 b8 0f 7e 2b e1 c1  d4 f1 83 79 c3 f8 03 f0  |U...~+.....y....|
+-00000050  02 5c 61 24 d7 15 03 03  00 16 14 2b a3 5a 56 f0  |.\a$.......+.ZV.|
+-00000060  92 da d0 e6 32 91 d8 30  7a b4 d0 a2 93 f5 01 ea  |....2..0z.......|
++00000000  14 03 03 00 01 01 16 03  03 00 24 4e b8 9c fd 56  |..........$N...V|
++00000010  81 68 9d 5a 41 5c 53 f9  10 a5 d0 8e 93 79 4e 87  |.h.ZA\S......yN.|
++00000020  f8 92 09 09 0f ea 04 08  e8 14 e1 8a 0b f8 23 17  |..............#.|
++00000030  03 03 00 21 1f 22 bc 5a  ce d7 5e ca c4 d3 be f5  |...!.".Z..^.....|
++00000040  d4 f6 4e b9 aa 10 be d3  b6 a9 ad 3e f5 f6 69 fd  |..N........>..i.|
++00000050  23 a8 cd e2 4d 15 03 03  00 16 29 1d 72 73 aa 62  |#...M.....).rs.b|
++00000060  c7 ac 8b 19 8f 72 27 b2  12 ac ce 72 2c c4 47 19  |.....r'....r,.G.|
+diff --git a/src/crypto/tls/testdata/Server-TLSv12-ClientAuthRequestedNotGiven b/src/crypto/tls/testdata/Server-TLSv12-ClientAuthRequestedNotGiven
+index 562fe1aaa0..d4e5447b4d 100644
+--- a/src/crypto/tls/testdata/Server-TLSv12-ClientAuthRequestedNotGiven
++++ b/src/crypto/tls/testdata/Server-TLSv12-ClientAuthRequestedNotGiven
+@@ -1,11 +1,10 @@
+ >>> Flow 1 (client to server)
+-00000000  16 03 01 00 5c 01 00 00  58 03 03 52 cc 57 59 1b  |....\...X..R.WY.|
+-00000010  08 fe f7 8a bf 07 84 2b  60 a6 13 2d 15 13 f8 b6  |.......+`..-....|
+-00000020  d4 b6 3b f2 7a 98 ff 32  a0 68 7c 00 00 04 00 05  |..;.z..2.h|.....|
+-00000030  00 ff 01 00 00 2b 00 0d  00 22 00 20 06 01 06 02  |.....+...". ....|
+-00000040  06 03 05 01 05 02 05 03  04 01 04 02 04 03 03 01  |................|
+-00000050  03 02 03 03 02 01 02 02  02 03 01 01 00 0f 00 01  |................|
+-00000060  01                                                |.|
++00000000  16 03 01 00 5b 01 00 00  57 03 03 d7 96 89 ca 52  |....[...W......R|
++00000010  d3 5b 27 58 b9 d2 4a 09  ce 09 7a 0f ee ea fc be  |.['X..J...z.....|
++00000020  04 8b 05 15 5b ab 26 52  88 72 51 00 00 04 00 05  |....[.&R.rQ.....|
++00000030  00 ff 02 01 00 00 29 00  0d 00 20 00 1e 06 01 06  |......)... .....|
++00000040  02 06 03 05 01 05 02 05  03 04 01 04 02 04 03 03  |................|
++00000050  01 03 02 03 03 02 01 02  02 02 03 00 0f 00 01 01  |................|
+ >>> Flow 2 (server to client)
+ 00000000  16 03 03 00 31 02 00 00  2d 03 03 00 00 00 00 00  |....1...-.......|
+ 00000010  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+@@ -54,28 +53,28 @@
+ 000002c0  50 56 5c d5 82 5a 2d 5a  5f 33 c4 b6 d8 c9 75 90  |PV\..Z-Z_3....u.|
+ 000002d0  96 8c 0f 52 98 b5 cd 98  1f 89 20 5f f2 a0 1c a3  |...R...... _....|
+ 000002e0  1b 96 94 dd a9 fd 57 e9  70 e8 26 6d 71 99 9b 26  |......W.p.&mq..&|
+-000002f0  6e 38 50 29 6c 90 a7 bd  d9 16 03 03 00 0f 0d 00  |n8P)l...........|
+-00000300  00 0b 02 01 40 00 04 04  01 04 03 00 00 16 03 03  |....@...........|
+-00000310  00 04 0e 00 00 00                                 |......|
++000002f0  6e 38 50 29 6c 90 a7 bd  d9 16 03 03 00 13 0d 00  |n8P)l...........|
++00000300  00 0f 02 01 40 00 08 04  01 04 03 02 01 02 03 00  |....@...........|
++00000310  00 16 03 03 00 04 0e 00  00 00                    |..........|
+ >>> Flow 3 (client to server)
+ 00000000  16 03 03 00 07 0b 00 00  03 00 00 00 16 03 03 00  |................|
+-00000010  86 10 00 00 82 00 80 6b  51 48 d3 18 7d 30 e0 0c  |.......kQH..}0..|
+-00000020  20 8d f3 e4 39 47 30 0e  a5 85 79 f9 8b 11 50 9e  | ...9G0...y...P.|
+-00000030  81 71 5c 26 c6 bb cb aa  d5 00 d1 89 79 b1 77 2d  |.q\&........y.w-|
+-00000040  eb 9b 86 7c 52 c6 f7 b7  10 b0 b6 94 22 51 b8 12  |...|R......."Q..|
+-00000050  3c 09 35 8e 1b cc f4 3b  b7 b8 78 ab 89 59 41 49  |<.5....;..x..YAI|
+-00000060  21 31 eb f0 f8 94 63 3d  e6 96 8f b6 63 95 05 dd  |!1....c=....c...|
+-00000070  46 b3 00 8a d6 83 75 99  1b 5a 48 0a 23 b5 10 c1  |F.....u..ZH.#...|
+-00000080  95 b5 bc 15 72 b5 f5 a0  62 e2 1d c0 ff d2 87 a5  |....r...b.......|
+-00000090  97 5c 33 49 a7 26 35 14  03 03 00 01 01 16 03 03  |.\3I.&5.........|
+-000000a0  00 24 61 38 1f 9d fb d9  65 2e 02 07 fb be f9 85  |.$a8....e.......|
+-000000b0  8d 15 34 c0 d1 0e 4e 10  3c 25 60 2f ac 04 21 66  |..4...N.<%`/..!f|
+-000000c0  04 9d 9a 60 31 72                                 |...`1r|
++00000010  86 10 00 00 82 00 80 2a  d6 5e 1d 41 2f 3e 28 16  |.......*.^.A/>(.|
++00000020  59 0e af 65 a4 10 24 a0  cb 7b cb c5 4d f2 5b 61  |Y..e..$..{..M.[a|
++00000030  48 b2 13 26 0c 6e 7f 8d  7a fc cf 40 7c 1f 9b ca  |H..&.n..z..@|...|
++00000040  e2 2e 62 ba e0 54 be b4  3b b4 93 20 87 e9 55 58  |..b..T..;.. ..UX|
++00000050  b7 e3 8f 16 d0 9b 92 09  c3 37 fb 90 75 0d b1 34  |.........7..u..4|
++00000060  2c 2f da 8e 91 a2 54 a8  23 82 35 06 a6 37 98 d7  |,/....T.#.5..7..|
++00000070  54 13 35 48 3c bb db 5e  02 30 5d e6 76 ac 72 bd  |T.5H<..^.0].v.r.|
++00000080  40 da 41 62 0a 6c c1 4a  bc 4d c2 e0 19 2c 0a d0  |@.Ab.l.J.M...,..|
++00000090  02 be ca 74 9d fe f0 14  03 03 00 01 01 16 03 03  |...t............|
++000000a0  00 24 69 1d 39 5e 3d 56  c4 a9 69 be 15 e3 3f 54  |.$i.9^=V..i...?T|
++000000b0  59 cf 24 b1 6b 02 cf e3  88 89 e2 61 1e 28 a2 ac  |Y.$.k......a.(..|
++000000c0  cb e0 e2 26 d7 eb                                 |...&..|
+ >>> Flow 4 (server to client)
+-00000000  14 03 03 00 01 01 16 03  03 00 24 fe 0e 3e 84 af  |..........$..>..|
+-00000010  e5 6b 10 ed 41 9c 2b e0  ba e0 2b 53 61 36 1b 40  |.k..A.+...+Sa6.@|
+-00000020  35 de 3a c7 c3 5c df 74  67 f7 05 74 84 f5 e1 17  |5.:..\.tg..t....|
+-00000030  03 03 00 21 d3 8d 81 85  b7 1f 30 bd 89 33 f9 81  |...!......0..3..|
+-00000040  89 f7 af d1 be b0 c1 46  e3 df 32 f6 dc 2f 4d 82  |.......F..2../M.|
+-00000050  0a 84 9f 5b 03 15 03 03  00 16 13 af 37 91 82 67  |...[........7..g|
+-00000060  b0 7c 5e 0e ec 8e cc 31  a0 ea a5 72 a4 2b 0b 73  |.|^....1...r.+.s|
++00000000  14 03 03 00 01 01 16 03  03 00 24 30 d5 30 a5 a9  |..........$0.0..|
++00000010  c2 4d 71 23 01 6d d2 86  fa 08 77 a0 c2 a8 06 f9  |.Mq#.m....w.....|
++00000020  76 af e2 60 cd a8 8a c9  ee 7c 47 70 02 e6 04 17  |v..`.....|Gp....|
++00000030  03 03 00 21 a8 23 bf 89  d0 ec 14 17 8b 13 1f 66  |...!.#.........f|
++00000040  83 f8 b3 6b ce 70 ba 77  ab 04 6e b5 38 76 bc 4c  |...k.p.w..n.8v.L|
++00000050  b3 a2 ed 67 9a 15 03 03  00 16 1d c3 b9 d1 e5 39  |...g...........9|
++00000060  d8 1e f8 49 46 49 6c 58  57 fc c7 07 0f 10 94 c7  |...IFIlXW.......|

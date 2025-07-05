@@ -9,7 +9,7 @@ Date:   Thu Feb 21 17:01:13 2013 -0500
     R=golang-dev, r, daniel.morsing, remyoudompheng
     CC=golang-dev
     https://golang.org/cl/7393045
-
+---
  src/cmd/5g/gg.h                 |  2 +-
  src/cmd/5g/ggen.c               | 39 +++++++++++++++++++++++++++++++++------
  src/cmd/5g/gsubr.c              |  5 ++++-
@@ -49,3 +49,1329 @@ Date:   Thu Feb 21 17:01:13 2013 -0500
  src/pkg/runtime/traceback_x86.c |  4 ++--
  src/pkg/time/sleep.go           |  2 +-
  38 files changed, 316 insertions(+), 89 deletions(-)
+
+diff --git a/src/cmd/5g/gg.h b/src/cmd/5g/gg.h
+index c45be79f41..2c89129f2d 100644
+--- a/src/cmd/5g/gg.h
++++ b/src/cmd/5g/gg.h
+@@ -141,7 +141,7 @@ int	isfat(Type*);
+ int	dotaddable(Node*, Node*);
+ void	sudoclean(void);
+ int	sudoaddable(int, Node*, Addr*, int*);
+-void	afunclit(Addr*);
++void	afunclit(Addr*, Node*);
+ void	datagostring(Strlit*, Addr*);
+ void	split64(Node*, Node*, Node*);
+ void	splitclean(void);
+diff --git a/src/cmd/5g/ggen.c b/src/cmd/5g/ggen.c
+index 1decdf46c1..4f2e324cfd 100644
+--- a/src/cmd/5g/ggen.c
++++ b/src/cmd/5g/ggen.c
+@@ -52,15 +52,17 @@ fixautoused(Prog* p)
+ /*
+  * generate:
+  *	call f
++ *	proc=-1	normal call but no return
+  *	proc=0	normal call
+  *	proc=1	goroutine run in new proc
+  *	proc=2	defer call save away stack
++  *	proc=3	normal call to C pointer (not Go func value)
+  */
+ void
+ ginscall(Node *f, int proc)
+ {
+ 	Prog *p;
+-	Node n1, r, con;
++	Node n1, r, r1, con;
+ 
+ 	switch(proc) {
+ 	default:
+@@ -69,10 +71,24 @@ ginscall(Node *f, int proc)
+ 
+ 	case 0:	// normal call
+ 	case -1:	// normal call but no return
+-		p = gins(ABL, N, f);
+-		afunclit(&p->to);
+-		if(proc == -1 || noreturn(p))
+-			gins(AUNDEF, N, N);
++		if(f->op == ONAME && f->class == PFUNC) {
++			p = gins(ABL, N, f);
++			afunclit(&p->to, f);
++			if(proc == -1 || noreturn(p))
++				gins(AUNDEF, N, N);
++			break;
++		}
++		nodreg(&r, types[tptr], 0);
++		nodreg(&r1, types[tptr], 1);
++		gmove(f, &r);
++		r.op = OINDREG;
++		gmove(&r, &r1);
++		r1.op = OINDREG;
++		gins(ABL, N, &r1);
++		break;
++
++	case 3:	// normal call of c function pointer
++		gins(ABL, N, f);
+ 		break;
+ 
+ 	case 1:	// call in new proc (go)
+@@ -139,6 +155,7 @@ cgen_callinter(Node *n, Node *res, int proc)
+ 	int r;
+ 	Node *i, *f;
+ 	Node tmpi, nodo, nodr, nodsp;
++	Prog *p;
+ 
+ 	i = n->left;
+ 	if(i->op != ODOTINTER)
+@@ -183,7 +200,17 @@ cgen_callinter(Node *n, Node *res, int proc)
+ 	cgen(&nodo, &nodr);	// REG = 0(REG) -- i.tab
+ 
+ 	nodo.xoffset = n->left->xoffset + 3*widthptr + 8;
+-	cgen(&nodo, &nodr);	// REG = 20+offset(REG) -- i.tab->fun[f]
++	
++	if(proc == 0) {
++		// plain call: use direct c function pointer - more efficient
++		cgen(&nodo, &nodr);	// REG = 20+offset(REG) -- i.tab->fun[f]
++		nodr.op = OINDREG;
++		proc = 3;
++	} else {
++		// go/defer. generate go func value.
++		p = gins(AMOVW, &nodo, &nodr);
++		p->from.type = D_CONST;	// REG = &(20+offset(REG)) -- i.tab->fun[f]
++	}
+ 
+ 	// BOTCH nodr.type = fntype;
+ 	nodr.type = n->left->type;
+diff --git a/src/cmd/5g/gsubr.c b/src/cmd/5g/gsubr.c
+index b8161acdbc..52090fa07c 100644
+--- a/src/cmd/5g/gsubr.c
++++ b/src/cmd/5g/gsubr.c
+@@ -257,10 +257,12 @@ isfat(Type *t)
+  * also fix up direct register references to be D_OREG.
+  */
+ void
+-afunclit(Addr *a)
++afunclit(Addr *a, Node *n)
+ {
+ 	if(a->type == D_CONST && a->name == D_EXTERN || a->type == D_REG) {
+ 		a->type = D_OREG;
++		if(n->op == ONAME)
++			a->sym = n->sym;
+ 	}
+ }
+ 
+@@ -1315,6 +1317,7 @@ naddr(Node *n, Addr *a, int canemitcode)
+ 		case PFUNC:
+ 			a->name = D_EXTERN;
+ 			a->type = D_CONST;
++			a->sym = funcsym(a->sym);
+ 			break;
+ 		}
+ 		break;
+diff --git a/src/cmd/6g/gg.h b/src/cmd/6g/gg.h
+index 2c9a43ffe6..ceb6a2caaa 100644
+--- a/src/cmd/6g/gg.h
++++ b/src/cmd/6g/gg.h
+@@ -130,7 +130,7 @@ Plist*	newplist(void);
+ int	isfat(Type*);
+ void	sudoclean(void);
+ int	sudoaddable(int, Node*, Addr*);
+-void	afunclit(Addr*);
++void	afunclit(Addr*, Node*);
+ void	nodfconst(Node*, Type*, Mpflt*);
+ void	gtrack(Sym*);
+ 
+diff --git a/src/cmd/6g/ggen.c b/src/cmd/6g/ggen.c
+index 4cb8244f05..c9a60c2fa2 100644
+--- a/src/cmd/6g/ggen.c
++++ b/src/cmd/6g/ggen.c
+@@ -50,9 +50,11 @@ fixautoused(Prog* p)
+ /*
+  * generate:
+  *	call f
++ *	proc=-1	normal call but no return
+  *	proc=0	normal call
+  *	proc=1	goroutine run in new proc
+  *	proc=2	defer call save away stack
++  *	proc=3	normal call to C pointer (not Go func value)
+  */
+ void
+ ginscall(Node *f, int proc)
+@@ -68,10 +70,23 @@ ginscall(Node *f, int proc)
+ 
+ 	case 0:	// normal call
+ 	case -1:	// normal call but no return
+-		p = gins(ACALL, N, f);
+-		afunclit(&p->to);
+-		if(proc == -1 || noreturn(p))
+-			gins(AUNDEF, N, N);
++		if(f->op == ONAME && f->class == PFUNC) {
++			p = gins(ACALL, N, f);
++			afunclit(&p->to, f);
++			if(proc == -1 || noreturn(p))
++				gins(AUNDEF, N, N);
++			break;
++		}
++		nodreg(&reg, types[tptr], D_AX);
++		nodreg(&r1, types[tptr], D_BX);
++		gmove(f, &reg);
++		reg.op = OINDREG;
++		gmove(&reg, &r1);
++		gins(ACALL, N, &r1);
++		break;
++	
++	case 3:	// normal call of c function pointer
++		gins(ACALL, N, f);
+ 		break;
+ 
+ 	case 1:	// call in new proc (go)
+@@ -153,7 +168,14 @@ cgen_callinter(Node *n, Node *res, int proc)
+ 		fatal("cgen_callinter: badwidth");
+ 	nodo.op = OINDREG;
+ 	nodo.xoffset = n->left->xoffset + 3*widthptr + 8;
+-	cgen(&nodo, &nodr);	// REG = 32+offset(REG) -- i.tab->fun[f]
++	if(proc == 0) {
++		// plain call: use direct c function pointer - more efficient
++		cgen(&nodo, &nodr);	// REG = 32+offset(REG) -- i.tab->fun[f]
++		proc = 3;
++	} else {
++		// go/defer. generate go func value.
++		gins(ALEAQ, &nodo, &nodr);	// REG = &(32+offset(REG)) -- i.tab->fun[f]
++	}
+ 
+ 	// BOTCH nodr.type = fntype;
+ 	nodr.type = n->left->type;
+diff --git a/src/cmd/6g/gsubr.c b/src/cmd/6g/gsubr.c
+index 61a8d96d53..07bab24d5b 100644
+--- a/src/cmd/6g/gsubr.c
++++ b/src/cmd/6g/gsubr.c
+@@ -254,11 +254,12 @@ isfat(Type *t)
+  * call afunclit to fix up the argument.
+  */
+ void
+-afunclit(Addr *a)
++afunclit(Addr *a, Node *n)
+ {
+ 	if(a->type == D_ADDR && a->index == D_EXTERN) {
+ 		a->type = D_EXTERN;
+ 		a->index = D_NONE;
++		a->sym = n->sym;
+ 	}
+ }
+ 
+@@ -1195,6 +1196,7 @@ naddr(Node *n, Addr *a, int canemitcode)
+ 			a->index = D_EXTERN;
+ 			a->type = D_ADDR;
+ 			a->width = widthptr;
++			a->sym = funcsym(a->sym);
+ 			break;
+ 		}
+ 		break;
+diff --git a/src/cmd/8g/gg.h b/src/cmd/8g/gg.h
+index 99f9952358..03c206aa98 100644
+--- a/src/cmd/8g/gg.h
++++ b/src/cmd/8g/gg.h
+@@ -148,7 +148,7 @@ int	isfat(Type*);
+ void	sudoclean(void);
+ int	sudoaddable(int, Node*, Addr*);
+ int	dotaddable(Node*, Node*);
+-void	afunclit(Addr*);
++void	afunclit(Addr*, Node*);
+ void	split64(Node*, Node*, Node*);
+ void	splitclean(void);
+ void	nswap(Node*, Node*);
+diff --git a/src/cmd/8g/ggen.c b/src/cmd/8g/ggen.c
+index 30663aabe5..1738c881a7 100644
+--- a/src/cmd/8g/ggen.c
++++ b/src/cmd/8g/ggen.c
+@@ -94,15 +94,17 @@ clearfat(Node *nl)
+ /*
+  * generate:
+  *	call f
++ *	proc=-1	normal call but no return
+  *	proc=0	normal call
+  *	proc=1	goroutine run in new proc
+  *	proc=2	defer call save away stack
++  *	proc=3	normal call to C pointer (not Go func value)
+  */
+ void
+ ginscall(Node *f, int proc)
+ {
+ 	Prog *p;
+-	Node reg, con;
++	Node reg, r1, con;
+ 
+ 	switch(proc) {
+ 	default:
+@@ -111,10 +113,23 @@ ginscall(Node *f, int proc)
+ 
+ 	case 0:	// normal call
+ 	case -1:	// normal call but no return
+-		p = gins(ACALL, N, f);
+-		afunclit(&p->to);
+-		if(proc == -1 || noreturn(p))
+-			gins(AUNDEF, N, N);
++		if(f->op == ONAME && f->class == PFUNC) {
++			p = gins(ACALL, N, f);
++			afunclit(&p->to, f);
++			if(proc == -1 || noreturn(p))
++				gins(AUNDEF, N, N);
++			break;
++		}
++		nodreg(&reg, types[tptr], D_AX);
++		nodreg(&r1, types[tptr], D_BX);
++		gmove(f, &reg);
++		reg.op = OINDREG;
++		gmove(&reg, &r1);
++		gins(ACALL, N, &r1);
++		break;
++	
++	case 3:	// normal call of c function pointer
++		gins(ACALL, N, f);
+ 		break;
+ 
+ 	case 1:	// call in new proc (go)
+@@ -186,7 +201,15 @@ cgen_callinter(Node *n, Node *res, int proc)
+ 		fatal("cgen_callinter: badwidth");
+ 	nodo.op = OINDREG;
+ 	nodo.xoffset = n->left->xoffset + 3*widthptr + 8;
+-	cgen(&nodo, &nodr);	// REG = 20+offset(REG) -- i.tab->fun[f]
++	
++	if(proc == 0) {
++		// plain call: use direct c function pointer - more efficient
++		cgen(&nodo, &nodr);	// REG = 20+offset(REG) -- i.tab->fun[f]
++		proc = 3;
++	} else {
++		// go/defer. generate go func value.
++		gins(ALEAL, &nodo, &nodr);	// REG = &(20+offset(REG)) -- i.tab->fun[f]
++	}
+ 
+ 	// BOTCH nodr.type = fntype;
+ 	nodr.type = n->left->type;
+diff --git a/src/cmd/8g/gsubr.c b/src/cmd/8g/gsubr.c
+index c21c2022ed..6e7c12ee9f 100644
+--- a/src/cmd/8g/gsubr.c
++++ b/src/cmd/8g/gsubr.c
+@@ -255,11 +255,12 @@ isfat(Type *t)
+  * call afunclit to fix up the argument.
+  */
+ void
+-afunclit(Addr *a)
++afunclit(Addr *a, Node *n)
+ {
+ 	if(a->type == D_ADDR && a->index == D_EXTERN) {
+ 		a->type = D_EXTERN;
+ 		a->index = D_NONE;
++		a->sym = n->sym;
+ 	}
+ }
+ 
+@@ -2273,6 +2274,7 @@ naddr(Node *n, Addr *a, int canemitcode)
+ 		case PFUNC:
+ 			a->index = D_EXTERN;
+ 			a->type = D_ADDR;
++			a->sym = funcsym(a->sym);
+ 			break;
+ 		}
+ 		break;
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index b2fefb18c8..431df2d690 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -1436,3 +1436,21 @@ funccompile(Node *n, int isclosure)
+ 	funcdepth = 0;
+ 	dclcontext = PEXTERN;
+ }
++
++Sym*
++funcsym(Sym *s)
++{
++	char *p;
++	Sym *s1;
++	
++	p = smprint("%s·f", s->name);
++	s1 = pkglookup(p, s->pkg);
++	free(p);
++	if(s1->def == N) {
++		s1->def = newname(s1);
++		s1->def->shortname = newname(s);
++		funcsyms = list(funcsyms, s1->def);
++	}
++	return s1;
++}
++ 
+\ No newline at end of file
+diff --git a/src/cmd/gc/gen.c b/src/cmd/gc/gen.c
+index 335d77db53..5f03d9476e 100644
+--- a/src/cmd/gc/gen.c
++++ b/src/cmd/gc/gen.c
+@@ -281,7 +281,7 @@ gen(Node *n)
+ 
+ 	switch(n->op) {
+ 	default:
+-		fatal("gen: unknown op %N", n);
++		fatal("gen: unknown op %+hN", n);
+ 		break;
+ 
+ 	case OCASE:
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 886a6f7867..82e1b1b48b 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -907,6 +907,7 @@ EXTERN	NodeList*	externdcl;
+ EXTERN	NodeList*	closures;
+ EXTERN	NodeList*	exportlist;
+ EXTERN	NodeList*	importlist;	// imported functions and methods with inlinable bodies
++EXTERN	NodeList*	funcsyms;
+ EXTERN	int	dclcontext;		// PEXTERN/PAUTO
+ EXTERN	int	incannedimport;
+ EXTERN	int	statuniqgen;		// name generator for static temps
+@@ -1058,6 +1059,7 @@ Node*	typedcl0(Sym *s);
+ Node*	typedcl1(Node *n, Node *t, int local);
+ Node*	typenod(Type *t);
+ NodeList*	variter(NodeList *vl, Node *t, NodeList *el);
++Sym*	funcsym(Sym*);
+ 
+ /*
+  *	esc.c
+diff --git a/src/cmd/gc/obj.c b/src/cmd/gc/obj.c
+index 6f7098dd4e..94f1c65c96 100644
+--- a/src/cmd/gc/obj.c
++++ b/src/cmd/gc/obj.c
+@@ -61,6 +61,12 @@ dumpglobls(void)
+ 
+ 		ggloblnod(n, n->type->width);
+ 	}
++
++	for(l=funcsyms; l; l=l->next) {
++		n = l->n;
++		dsymptr(n->sym, 0, n->sym->def->shortname->sym, 0);
++		ggloblsym(n->sym, widthptr, 1, 1);
++	}
+ }
+ 
+ void
+diff --git a/src/cmd/gc/pgen.c b/src/cmd/gc/pgen.c
+index 23c71ae0e5..38589d55d2 100644
+--- a/src/cmd/gc/pgen.c
++++ b/src/cmd/gc/pgen.c
+@@ -83,7 +83,7 @@ compile(Node *fn)
+ 	ptxt = gins(ATEXT, isblank(curfn->nname) ? N : curfn->nname, &nod1);
+ 	if(fn->dupok)
+ 		ptxt->TEXTFLAG = DUPOK;
+-	afunclit(&ptxt->from);
++	afunclit(&ptxt->from, curfn->nname);
+ 
+ 	ginit();
+ 
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 4e751cbce7..ce76c6b89a 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -416,7 +416,7 @@ walkexpr(Node **np, NodeList **init)
+ 	switch(n->op) {
+ 	default:
+ 		dump("walk", n);
+-		fatal("walkexpr: switch 1 unknown op %N", n);
++		fatal("walkexpr: switch 1 unknown op %+hN", n);
+ 		break;
+ 
+ 	case OTYPE:
+@@ -442,7 +442,6 @@ walkexpr(Node **np, NodeList **init)
+ 		usefield(n);
+ 		walkexpr(&n->left, init);
+ 		goto ret;
+-		
+ 
+ 	case OEFACE:
+ 		walkexpr(&n->left, init);
+diff --git a/src/pkg/reflect/makefunc.go b/src/pkg/reflect/makefunc.go
+index 2e767eef7e..e85a1f3b0e 100644
+--- a/src/pkg/reflect/makefunc.go
++++ b/src/pkg/reflect/makefunc.go
+@@ -14,6 +14,8 @@ import (
+ // makeFuncImpl is the closure value implementing the function
+ // returned by MakeFunc.
+ type makeFuncImpl struct {
++	codeptr unsafe.Pointer
++
+ 	// References visible to the garbage collector.
+ 	// The code array below contains the same references
+ 	// embedded in the machine code.
+@@ -62,11 +64,12 @@ func MakeFunc(typ Type, fn func(args []Value) (results []Value)) Value {
+ 		typ: t,
+ 		fn:  fn,
+ 	}
++	impl.codeptr = unsafe.Pointer(&impl.code[0])
+ 
+ 	tptr := unsafe.Pointer(t)
+ 	fptr := *(*unsafe.Pointer)(unsafe.Pointer(&fn))
+ 	tmp := makeFuncStub
+-	stub := *(*unsafe.Pointer)(unsafe.Pointer(&tmp))
++	stub := **(**unsafe.Pointer)(unsafe.Pointer(&tmp))
+ 
+ 	// Create code. Copy template and fill in pointer values.
+ 	switch runtime.GOARCH {
+@@ -95,7 +98,7 @@ func MakeFunc(typ Type, fn func(args []Value) (results []Value)) Value {
+ 		cacheflush(&impl.code[0], &impl.code[len(impl.code)-1])
+ 	}
+ 
+-	return Value{t, unsafe.Pointer(&impl.code[0]), flag(Func) << flagKindShift}
++	return Value{t, unsafe.Pointer(impl), flag(Func) << flagKindShift}
+ }
+ 
+ func cacheflush(start, end *byte)
+diff --git a/src/pkg/reflect/type.go b/src/pkg/reflect/type.go
+index 8c8b938538..94a7521a7c 100644
+--- a/src/pkg/reflect/type.go
++++ b/src/pkg/reflect/type.go
+@@ -463,7 +463,7 @@ func (t *uncommonType) Method(i int) (m Method) {
+ 	}
+ 	mt := p.typ
+ 	m.Type = mt
+-	fn := p.tfn
++	fn := unsafe.Pointer(&p.tfn)
+ 	m.Func = Value{mt, fn, fl}
+ 	m.Index = i
+ 	return
+diff --git a/src/pkg/reflect/value.go b/src/pkg/reflect/value.go
+index 65311a6a42..11659751d1 100644
+--- a/src/pkg/reflect/value.go
++++ b/src/pkg/reflect/value.go
+@@ -381,7 +381,7 @@ func (v Value) call(method string, in []Value) []Value {
+ 			if iface.itab == nil {
+ 				panic(method + " of method on nil interface value")
+ 			}
+-			fn = iface.itab.fun[i]
++			fn = unsafe.Pointer(&iface.itab.fun[i])
+ 			rcvr = iface.word
+ 		} else {
+ 			ut := v.typ.uncommon()
+@@ -392,7 +392,7 @@ func (v Value) call(method string, in []Value) []Value {
+ 			if m.pkgPath != nil {
+ 				panic(method + " of unexported method")
+ 			}
+-			fn = m.ifn
++			fn = unsafe.Pointer(&m.ifn)
+ 			t = m.mtyp
+ 			rcvr = v.iword()
+ 		}
+@@ -1213,18 +1213,35 @@ func (v Value) OverflowUint(x uint64) bool {
+ // code using reflect cannot obtain unsafe.Pointers
+ // without importing the unsafe package explicitly.
+ // It panics if v's Kind is not Chan, Func, Map, Ptr, Slice, or UnsafePointer.
++//
++// If v's Kind is Func, the returned pointer is an underlying
++// code pointer, but not necessarily enough to identify a
++// single function uniquely. The only guarantee is that the
++// result is zero if and only if v is a nil func Value.
+ func (v Value) Pointer() uintptr {
+ 	k := v.kind()
+ 	switch k {
+-	case Chan, Func, Map, Ptr, UnsafePointer:
+-		if k == Func && v.flag&flagMethod != 0 {
++	case Chan, Map, Ptr, UnsafePointer:
++		p := v.val
++		if v.flag&flagIndir != 0 {
++			p = *(*unsafe.Pointer)(p)
++		}
++		return uintptr(p)
++	case Func:
++		if v.flag&flagMethod != 0 {
+ 			panic("reflect.Value.Pointer of method Value")
+ 		}
+ 		p := v.val
+ 		if v.flag&flagIndir != 0 {
+ 			p = *(*unsafe.Pointer)(p)
+ 		}
++		// Non-nil func value points at data block.
++		// First word of data block is actual code.
++		if p != nil {
++			p = *(*unsafe.Pointer)(p)
++		}
+ 		return uintptr(p)
++
+ 	case Slice:
+ 		return (*SliceHeader)(v.val).Data
+ 	}
+diff --git a/src/pkg/runtime/asm_386.s b/src/pkg/runtime/asm_386.s
+index f09ddd028d..4d8cb1a966 100644
+--- a/src/pkg/runtime/asm_386.s
++++ b/src/pkg/runtime/asm_386.s
+@@ -75,7 +75,7 @@ ok:
+ 	CALL	runtime·schedinit(SB)
+ 
+ 	// create a new goroutine to start program
+-	PUSHL	$runtime·main(SB)	// entry
++	PUSHL	$runtime·main·f(SB)	// entry
+ 	PUSHL	$0	// arg size
+ 	CALL	runtime·newproc(SB)
+ 	POPL	AX
+@@ -87,6 +87,9 @@ ok:
+ 	INT $3
+ 	RET
+ 
++DATA	runtime·main·f+0(SB)/4,$runtime·main(SB)
++GLOBL	runtime·main·f(SB),8,$4
++
+ TEXT runtime·breakpoint(SB),7,$0
+ 	INT $3
+ 	RET
+@@ -147,6 +150,23 @@ TEXT runtime·gogocall(SB), 7, $0
+ 	JMP	AX
+ 	POPL	BX	// not reached
+ 
++// void gogocallfn(Gobuf*, FuncVal*)
++// restore state from Gobuf but then call fn.
++// (call fn, returning to state in Gobuf)
++TEXT runtime·gogocallfn(SB), 7, $0
++	MOVL	8(SP), AX		// fn
++	MOVL	4(SP), BX		// gobuf
++	MOVL	gobuf_g(BX), DX
++	get_tls(CX)
++	MOVL	DX, g(CX)
++	MOVL	0(DX), CX		// make sure g != nil
++	MOVL	gobuf_sp(BX), SP	// restore SP
++	MOVL	gobuf_pc(BX), BX
++	PUSHL	BX
++	MOVL	0(AX), BX
++	JMP	BX
++	POPL	BX	// not reached
++
+ // void mcall(void (*fn)(G*))
+ // Switch to m->g0's stack, call fn(g).
+ // Fn must never return.  It should gogo(&g->sched)
+@@ -425,7 +445,8 @@ TEXT runtime·jmpdefer(SB), 7, $0
+ 	MOVL	8(SP), BX	// caller sp
+ 	LEAL	-4(BX), SP	// caller sp after CALL
+ 	SUBL	$5, (SP)	// return to CALL again
+-	JMP	AX	// but first run the deferred function
++	MOVL	0(AX), BX
++	JMP	BX	// but first run the deferred function
+ 
+ // Dummy function to use in saved gobuf.PC,
+ // to match SP pointing at a return address.
+diff --git a/src/pkg/runtime/asm_amd64.s b/src/pkg/runtime/asm_amd64.s
+index 159b7639be..ea944e1dea 100644
+--- a/src/pkg/runtime/asm_amd64.s
++++ b/src/pkg/runtime/asm_amd64.s
+@@ -68,7 +68,7 @@ ok:
+ 	CALL	runtime·schedinit(SB)
+ 
+ 	// create a new goroutine to start program
+-	PUSHQ	$runtime·main(SB)		// entry
++	PUSHQ	$runtime·main·f(SB)		// entry
+ 	PUSHQ	$0			// arg size
+ 	CALL	runtime·newproc(SB)
+ 	POPQ	AX
+@@ -80,6 +80,9 @@ ok:
+ 	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
++DATA	runtime·main·f+0(SB)/8,$runtime·main(SB)
++GLOBL	runtime·main·f(SB),8,$8
++
+ TEXT runtime·breakpoint(SB),7,$0
+ 	BYTE	$0xcc
+ 	RET
+@@ -134,6 +137,23 @@ TEXT runtime·gogocall(SB), 7, $0
+ 	JMP	AX
+ 	POPQ	BX	// not reached
+ 
++// void gogocallfn(Gobuf*, FuncVal*)
++// restore state from Gobuf but then call fn.
++// (call fn, returning to state in Gobuf)
++TEXT runtime·gogocallfn(SB), 7, $0
++	MOVQ	16(SP), AX		// fn
++	MOVQ	8(SP), BX		// gobuf
++	MOVQ	gobuf_g(BX), DX
++	get_tls(CX)
++	MOVQ	DX, g(CX)
++	MOVQ	0(DX), CX	// make sure g != nil
++	MOVQ	gobuf_sp(BX), SP	// restore SP
++	MOVQ	gobuf_pc(BX), BX
++	PUSHQ	BX
++	MOVQ	0(AX), BX
++	JMP	BX
++	POPQ	BX	// not reached
++
+ // void mcall(void (*fn)(G*))
+ // Switch to m->g0's stack, call fn(g).
+ // Fn must never return.  It should gogo(&g->sched)
+@@ -455,7 +475,8 @@ TEXT runtime·jmpdefer(SB), 7, $0
+ 	MOVQ	16(SP), BX	// caller sp
+ 	LEAQ	-8(BX), SP	// caller sp after CALL
+ 	SUBQ	$5, (SP)	// return to CALL again
+-	JMP	AX	// but first run the deferred function
++	MOVQ	0(AX), BX
++	JMP	BX	// but first run the deferred function
+ 
+ // Dummy function to use in saved gobuf.PC,
+ // to match SP pointing at a return address.
+diff --git a/src/pkg/runtime/asm_arm.s b/src/pkg/runtime/asm_arm.s
+index b0678bcd0b..0f6026cd1d 100644
+--- a/src/pkg/runtime/asm_arm.s
++++ b/src/pkg/runtime/asm_arm.s
+@@ -50,7 +50,7 @@ TEXT _rt0_arm(SB),7,$-4
+ 	BL	runtime·schedinit(SB)
+ 
+ 	// create a new goroutine to start program
+-	MOVW	$runtime·main(SB), R0
++	MOVW	$runtime·main·f(SB), R0
+ 	MOVW.W	R0, -4(R13)
+ 	MOVW	$8, R0
+ 	MOVW.W	R0, -4(R13)
+@@ -66,6 +66,9 @@ TEXT _rt0_arm(SB),7,$-4
+ 	MOVW	$1000, R1
+ 	MOVW	R0, (R1)	// fail hard
+ 
++DATA	runtime·main·f+0(SB)/4,$runtime·main(SB)
++GLOBL	runtime·main·f(SB),8,$4
++
+ TEXT runtime·breakpoint(SB),7,$0
+ 	// gdb won't skip this breakpoint instruction automatically,
+ 	// so you must manually "set $pc+=4" to skip it and continue.
+@@ -126,6 +129,24 @@ TEXT runtime·gogocall(SB), 7, $-4
+ 	MOVW	gobuf_pc(R3), LR
+ 	MOVW	R1, PC
+ 
++// void gogocallfn(Gobuf*, FuncVal*)
++// restore state from Gobuf but then call fn.
++// (call fn, returning to state in Gobuf)
++// using frame size $-4 means do not save LR on stack.
++TEXT runtime·gogocallfn(SB), 7, $-4
++	MOVW	0(FP), R3		// gobuf
++	MOVW	4(FP), R1		// fn
++	MOVW	8(FP), R2		// fp offset
++	MOVW	gobuf_g(R3), g
++	MOVW	0(g), R0		// make sure g != nil
++	MOVW	cgo_save_gm(SB), R0
++	CMP 	$0, R0 // if in Cgo, we have to save g and m
++	BL.NE	(R0) // this call will clobber R0
++	MOVW	gobuf_sp(R3), SP	// restore SP
++	MOVW	gobuf_pc(R3), LR
++	MOVW	R1, R0
++	MOVW	0(R1), PC
++
+ // void mcall(void (*fn)(G*))
+ // Switch to m->g0's stack, call fn(g).
+ // Fn must never return.  It should gogo(&g->sched)
+@@ -242,7 +263,8 @@ TEXT runtime·jmpdefer(SB), 7, $0
+ 	MOVW	fn+0(FP), R0
+ 	MOVW	argp+4(FP), SP
+ 	MOVW	$-4(SP), SP	// SP is 4 below argp, due to saved LR
+-	B		(R0)
++	MOVW	0(R0), R1
++	B	(R1)
+ 
+ // Dummy function to use in saved gobuf.PC,
+ // to match SP pointing at a return address.
+diff --git a/src/pkg/runtime/cgocall.c b/src/pkg/runtime/cgocall.c
+index 4f68b466fe..f89ac4684f 100644
+--- a/src/pkg/runtime/cgocall.c
++++ b/src/pkg/runtime/cgocall.c
+@@ -95,6 +95,8 @@ static void unwindm(void);
+ 
+ // Call from Go to C.
+ 
++static FuncVal unlockOSThread = { runtime·unlockOSThread };
++
+ void
+ runtime·cgocall(void (*fn)(void*), void *arg)
+ {
+@@ -121,7 +123,7 @@ runtime·cgocall(void (*fn)(void*), void *arg)
+ 	 * cgo callback. Add entry to defer stack in case of panic.
+ 	 */
+ 	runtime·lockOSThread();
+-	d.fn = (byte*)runtime·unlockOSThread;
++	d.fn = &unlockOSThread;
+ 	d.siz = 0;
+ 	d.link = g->defer;
+ 	d.argp = (void*)-1;  // unused because unlockm never recovers
+@@ -154,7 +156,7 @@ runtime·cgocall(void (*fn)(void*), void *arg)
+ 		m->cgomal = nil;
+ 	}
+ 
+-	if(g->defer != &d || d.fn != (byte*)runtime·unlockOSThread)
++	if(g->defer != &d || d.fn != &unlockOSThread)
+ 		runtime·throw("runtime: bad defer entry in cgocallback");
+ 	g->defer = d.link;
+ 	runtime·unlockOSThread();
+@@ -201,13 +203,17 @@ runtime·cfree(void *p)
+ 
+ // Call from C back to Go.
+ 
++static FuncVal unwindmf = {unwindm};
++
+ void
+ runtime·cgocallbackg(void (*fn)(void), void *arg, uintptr argsize)
+ {
+ 	Defer d;
++	FuncVal fv;
+ 
++	fv.fn = fn;
+ 	if(m->racecall) {
+-		reflect·call((byte*)fn, arg, argsize);
++		reflect·call(&fv, arg, argsize);
+ 		return;
+ 	}
+ 
+@@ -222,7 +228,7 @@ runtime·cgocallbackg(void (*fn)(void), void *arg, uintptr argsize)
+ 	}
+ 
+ 	// Add entry to defer stack in case of panic.
+-	d.fn = (byte*)unwindm;
++	d.fn = &unwindmf;
+ 	d.siz = 0;
+ 	d.link = g->defer;
+ 	d.argp = (void*)-1;  // unused because unwindm never recovers
+@@ -234,7 +240,7 @@ runtime·cgocallbackg(void (*fn)(void), void *arg, uintptr argsize)
+ 		runtime·raceacquire(&cgosync);
+ 
+ 	// Invoke callback.
+-	reflect·call((byte*)fn, arg, argsize);
++	reflect·call(&fv, arg, argsize);
+ 
+ 	if(raceenabled)
+ 		runtime·racereleasemerge(&cgosync);
+@@ -242,7 +248,7 @@ runtime·cgocallbackg(void (*fn)(void), void *arg, uintptr argsize)
+ 	// Pop defer.
+ 	// Do not unwind m->g0->sched.sp.
+ 	// Our caller, cgocallback, will do that.
+-	if(g->defer != &d || d.fn != (byte*)unwindm)
++	if(g->defer != &d || d.fn != &unwindmf)
+ 		runtime·throw("runtime: bad defer entry in cgocallback");
+ 	g->defer = d.link;
+ 
+diff --git a/src/pkg/runtime/closure_386.c b/src/pkg/runtime/closure_386.c
+index b4d8677114..c4ef3aee49 100644
+--- a/src/pkg/runtime/closure_386.c
++++ b/src/pkg/runtime/closure_386.c
+@@ -18,6 +18,7 @@ runtime·closure(int32 siz, byte *fn, byte *arg0)
+ 	if(siz < 0 || siz%4 != 0)
+ 		runtime·throw("bad closure size");
+ 
++	fn = *(byte**)fn;
+ 	ret = (byte**)((byte*)&arg0 + siz);
+ 
+ 	if(siz > 100) {
+@@ -40,8 +41,10 @@ runtime·closure(int32 siz, byte *fn, byte *arg0)
+ 	if(n%4)
+ 		n += 4 - n%4;
+ 
+-	p = runtime·mal(n);
++	p = runtime·mal(4+n);
+ 	*ret = p;
++	*(byte**)p = p+4;
++	p += 4;
+ 	q = p + n - siz;
+ 
+ 	if(siz > 0) {
+diff --git a/src/pkg/runtime/closure_amd64.c b/src/pkg/runtime/closure_amd64.c
+index 481b4a8882..f7deb7b85f 100644
+--- a/src/pkg/runtime/closure_amd64.c
++++ b/src/pkg/runtime/closure_amd64.c
+@@ -18,6 +18,7 @@ runtime·closure(int32 siz, byte *fn, byte *arg0)
+ 	if(siz < 0 || siz%8 != 0)
+ 		runtime·throw("bad closure size");
+ 
++	fn = *(byte**)fn;
+ 	ret = (byte**)((byte*)&arg0 + siz);
+ 
+ 	if(siz > 100) {
+@@ -40,10 +41,13 @@ runtime·closure(int32 siz, byte *fn, byte *arg0)
+ 	if(n%8)
+ 		n += 8 - n%8;
+ 
+-	p = runtime·mal(n);
++	p = runtime·mal(8+n);
+ 	*ret = p;
++	*(byte**)p = (p+8);
++	p += 8;
+ 	q = p + n - siz;
+ 
++
+ 	if(siz > 0) {
+ 		runtime·memmove(q, (byte*)&arg0, siz);
+ 
+diff --git a/src/pkg/runtime/closure_arm.c b/src/pkg/runtime/closure_arm.c
+index 119e91b611..08792ac590 100644
+--- a/src/pkg/runtime/closure_arm.c
++++ b/src/pkg/runtime/closure_arm.c
+@@ -56,6 +56,7 @@ runtime·closure(int32 siz, byte *fn, byte *arg0)
+ 	if(siz < 0 || siz%4 != 0)
+ 		runtime·throw("bad closure size");
+ 
++	fn = *(byte**)fn;
+ 	ret = (byte**)((byte*)&arg0 + siz);
+ 
+ 	if(siz > 100) {
+@@ -73,8 +74,10 @@ runtime·closure(int32 siz, byte *fn, byte *arg0)
+ 	// store args aligned after code, so gc can find them.
+ 	n += siz;
+ 
+-	p = runtime·mal(n);
++	p = runtime·mal(4+n);
+ 	*ret = p;
++	*(byte**)p = p+4;
++	p += 4;
+ 	q = p + n - siz;
+ 
+ 	pc = (uint32*)p;
+diff --git a/src/pkg/runtime/malloc.h b/src/pkg/runtime/malloc.h
+index 5874741e17..c795a6fd5b 100644
+--- a/src/pkg/runtime/malloc.h
++++ b/src/pkg/runtime/malloc.h
+@@ -474,7 +474,7 @@ int32	runtime·gcprocs(void);
+ void	runtime·helpgc(int32 nproc);
+ void	runtime·gchelper(void);
+ 
+-bool	runtime·getfinalizer(void *p, bool del, void (**fn)(void*), uintptr *nret);
++bool	runtime·getfinalizer(void *p, bool del, FuncVal **fn, uintptr *nret);
+ void	runtime·walkfintab(void (*fn)(void*));
+ 
+ enum
+diff --git a/src/pkg/runtime/mfinal.c b/src/pkg/runtime/mfinal.c
+index ab450717ab..2f5e4277dd 100644
+--- a/src/pkg/runtime/mfinal.c
++++ b/src/pkg/runtime/mfinal.c
+@@ -11,7 +11,7 @@ enum { debug = 0 };
+ typedef struct Fin Fin;
+ struct Fin
+ {
+-	void (*fn)(void*);
++	FuncVal *fn;
+ 	uintptr nret;
+ };
+ 
+@@ -42,7 +42,7 @@ static struct {
+ } fintab[TABSZ];
+ 
+ static void
+-addfintab(Fintab *t, void *k, void (*fn)(void*), uintptr nret)
++addfintab(Fintab *t, void *k, FuncVal *fn, uintptr nret)
+ {
+ 	int32 i, j;
+ 
+@@ -137,7 +137,7 @@ resizefintab(Fintab *tab)
+ }
+ 
+ bool
+-runtime·addfinalizer(void *p, void (*f)(void*), uintptr nret)
++runtime·addfinalizer(void *p, FuncVal *f, uintptr nret)
+ {
+ 	Fintab *tab;
+ 	byte *base;
+@@ -175,7 +175,7 @@ runtime·addfinalizer(void *p, void (*f)(void*), uintptr nret)
+ // get finalizer; if del, delete finalizer.
+ // caller is responsible for updating RefHasFinalizer (special) bit.
+ bool
+-runtime·getfinalizer(void *p, bool del, void (**fn)(void*), uintptr *nret)
++runtime·getfinalizer(void *p, bool del, FuncVal **fn, uintptr *nret)
+ {
+ 	Fintab *tab;
+ 	bool res;
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index 0266a10950..f6c76145a6 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -104,7 +104,7 @@ struct Workbuf
+ typedef struct Finalizer Finalizer;
+ struct Finalizer
+ {
+-	void (*fn)(void*);
++	FuncVal *fn;
+ 	void *arg;
+ 	uintptr nret;
+ };
+@@ -1328,7 +1328,7 @@ addroots(void)
+ static bool
+ handlespecial(byte *p, uintptr size)
+ {
+-	void (*fn)(void*);
++	FuncVal *fn;
+ 	uintptr nret;
+ 	FinBlock *block;
+ 	Finalizer *f;
+@@ -1656,6 +1656,7 @@ runtime·gc(int32 force)
+ {
+ 	byte *p;
+ 	struct gc_args a, *ap;
++	FuncVal gcv;
+ 
+ 	// The atomic operations are not atomic if the uint64s
+ 	// are not aligned on uint64 boundaries. This has been
+@@ -1689,7 +1690,8 @@ runtime·gc(int32 force)
+ 	a.force = force;
+ 	ap = &a;
+ 	m->moreframesize_minalloc = StackBig;
+-	reflect·call((byte*)gc, (byte*)&ap, sizeof(ap));
++	gcv.fn = (void*)gc;
++	reflect·call(&gcv, (byte*)&ap, sizeof(ap));
+ 
+ 	if(gctrace > 1 && !force) {
+ 		a.force = 1;
+@@ -1697,6 +1699,8 @@ runtime·gc(int32 force)
+ 	}
+ }
+ 
++static FuncVal runfinqv = {runfinq};
++
+ static void
+ gc(struct gc_args *args)
+ {
+@@ -1786,7 +1790,7 @@ gc(struct gc_args *args)
+ 		m->locks++;	// disable gc during the mallocs in newproc
+ 		// kick off or wake up goroutine to run queued finalizers
+ 		if(fing == nil)
+-			fing = runtime·newproc1((byte*)runfinq, nil, 0, 0, runtime·gc);
++			fing = runtime·newproc1(&runfinqv, nil, 0, 0, runtime·gc);
+ 		else if(fingwait) {
+ 			fingwait = 0;
+ 			runtime·ready(fing);
+@@ -1924,7 +1928,7 @@ runfinq(void)
+ 					framecap = framesz;
+ 				}
+ 				*(void**)frame = f->arg;
+-				reflect·call((byte*)f->fn, frame, sizeof(uintptr) + f->nret);
++				reflect·call(f->fn, frame, sizeof(uintptr) + f->nret);
+ 				f->fn = nil;
+ 				f->arg = nil;
+ 			}
+diff --git a/src/pkg/runtime/mheap.c b/src/pkg/runtime/mheap.c
+index 44c9e99b48..76cd2011c7 100644
+--- a/src/pkg/runtime/mheap.c
++++ b/src/pkg/runtime/mheap.c
+@@ -391,6 +391,8 @@ scavenge(uint64 now, uint64 limit)
+ 	return sumreleased;
+ }
+ 
++static FuncVal forcegchelperv = {(void(*)(void))forcegchelper};
++
+ // Release (part of) unused memory to OS.
+ // Goroutine created at startup.
+ // Loop forever.
+@@ -437,7 +439,7 @@ runtime·MHeap_Scavenger(void)
+ 			// GC blocks other goroutines via the runtime·worldsema.
+ 			runtime·noteclear(&note);
+ 			notep = &note;
+-			runtime·newproc1((byte*)forcegchelper, (byte*)&notep, sizeof(notep), 0, runtime·MHeap_Scavenger);
++			runtime·newproc1(&forcegchelperv, (byte*)&notep, sizeof(notep), 0, runtime·MHeap_Scavenger);
+ 			runtime·entersyscallblock();
+ 			runtime·notesleep(&note);
+ 			runtime·exitsyscall();
+diff --git a/src/pkg/runtime/panic.c b/src/pkg/runtime/panic.c
+index 603ff62eb3..2f553f417e 100644
+--- a/src/pkg/runtime/panic.c
++++ b/src/pkg/runtime/panic.c
+@@ -119,7 +119,7 @@ freedefer(Defer *d)
+ // functions that split the stack.
+ #pragma textflag 7
+ uintptr
+-runtime·deferproc(int32 siz, byte* fn, ...)
++runtime·deferproc(int32 siz, FuncVal *fn, ...)
+ {
+ 	Defer *d;
+ 
+@@ -156,7 +156,8 @@ void
+ runtime·deferreturn(uintptr arg0)
+ {
+ 	Defer *d;
+-	byte *argp, *fn;
++	byte *argp;
++	FuncVal *fn;
+ 
+ 	d = g->defer;
+ 	if(d == nil)
+diff --git a/src/pkg/runtime/parfor.c b/src/pkg/runtime/parfor.c
+index d146727430..aa5537d020 100644
+--- a/src/pkg/runtime/parfor.c
++++ b/src/pkg/runtime/parfor.c
+@@ -76,7 +76,7 @@ runtime·parforsetup(ParFor *desc, uint32 nthr, uint32 n, void *ctx, bool wait,
+ void
+ runtime·parforsetup2(ParFor *desc, uint32 nthr, uint32 n, void *ctx, bool wait, void *body)
+ {
+-	runtime·parforsetup(desc, nthr, n, ctx, wait, (void(*)(ParFor*, uint32))body);
++	runtime·parforsetup(desc, nthr, n, ctx, wait, *(void(**)(ParFor*, uint32))body);
+ }
+ 
+ void
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 9909182b6b..e2ba4b6614 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -226,6 +226,8 @@ runtime·schedinit(void)
+ extern void main·init(void);
+ extern void main·main(void);
+ 
++static FuncVal scavenger = {runtime·MHeap_Scavenger};
++
+ // The main goroutine.
+ void
+ runtime·main(void)
+@@ -240,7 +242,7 @@ runtime·main(void)
+ 	// From now on, newgoroutines may use non-main threads.
+ 	setmcpumax(runtime·gomaxprocs);
+ 	runtime·sched.init = true;
+-	scvg = runtime·newproc1((byte*)runtime·MHeap_Scavenger, nil, 0, 0, runtime·main);
++	scvg = runtime·newproc1(&scavenger, nil, 0, 0, runtime·main);
+ 	scvg->issystem = true;
+ 	// The deadlock detection has false negatives.
+ 	// Let scvg start up, to eliminate the false negative
+@@ -1170,7 +1172,7 @@ schedule(G *gp)
+ 		runtime·resetcpuprofiler(hz);
+ 
+ 	if(gp->sched.pc == (byte*)runtime·goexit) {	// kickoff
+-		runtime·gogocall(&gp->sched, (void(*)(void))gp->entry);
++		runtime·gogocallfn(&gp->sched, gp->fnstart);
+ 	}
+ 	runtime·gogo(&gp->sched, 0);
+ }
+@@ -1419,7 +1421,7 @@ runtime·malg(int32 stacksize)
+ // functions that split the stack.
+ #pragma textflag 7
+ void
+-runtime·newproc(int32 siz, byte* fn, ...)
++runtime·newproc(int32 siz, FuncVal* fn, ...)
+ {
+ 	byte *argp;
+ 
+@@ -1435,7 +1437,7 @@ runtime·newproc(int32 siz, byte* fn, ...)
+ // address of the go statement that created this.  The new g is put
+ // on the queue of g's waiting to run.
+ G*
+-runtime·newproc1(byte *fn, byte *argp, int32 narg, int32 nret, void *callerpc)
++runtime·newproc1(FuncVal *fn, byte *argp, int32 narg, int32 nret, void *callerpc)
+ {
+ 	byte *sp;
+ 	G *newg;
+@@ -1484,7 +1486,7 @@ runtime·newproc1(byte *fn, byte *argp, int32 narg, int32 nret, void *callerpc)
+ 	newg->sched.sp = (uintptr)sp;
+ 	newg->sched.pc = (byte*)runtime·goexit;
+ 	newg->sched.g = newg;
+-	newg->entry = fn;
++	newg->fnstart = fn;
+ 	newg->gopc = (uintptr)callerpc;
+ 	if(raceenabled)
+ 		newg->racectx = racectx;
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 75a3d047d7..e98f13b889 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -57,6 +57,7 @@ typedef	union	Note		Note;
+ typedef	struct	Slice		Slice;
+ typedef	struct	Stktop		Stktop;
+ typedef	struct	String		String;
++typedef	struct	FuncVal		FuncVal;
+ typedef	struct	SigTab		SigTab;
+ typedef	struct	MCache		MCache;
+ typedef	struct	FixAlloc	FixAlloc;
+@@ -78,11 +79,11 @@ typedef	struct	WinCall		WinCall;
+ typedef	struct	SEH		SEH;
+ typedef	struct	Timers		Timers;
+ typedef	struct	Timer		Timer;
+-typedef struct	GCStats		GCStats;
+-typedef struct	LFNode		LFNode;
+-typedef struct	ParFor		ParFor;
+-typedef struct	ParForThread	ParForThread;
+-typedef struct	CgoMal		CgoMal;
++typedef	struct	GCStats		GCStats;
++typedef	struct	LFNode		LFNode;
++typedef	struct	ParFor		ParFor;
++typedef	struct	ParForThread	ParForThread;
++typedef	struct	CgoMal		CgoMal;
+ 
+ /*
+  * Per-CPU declaration.
+@@ -154,6 +155,11 @@ struct String
+ 	byte*	str;
+ 	intgo	len;
+ };
++struct FuncVal
++{
++	void	(*fn)(void);
++	// variable-size, fn-specific data here
++};
+ struct Iface
+ {
+ 	Itab*	tab;
+@@ -209,7 +215,7 @@ struct	G
+ 	uintptr	gcsp;		// if status==Gsyscall, gcsp = sched.sp to use during gc
+ 	uintptr	gcguard;		// if status==Gsyscall, gcguard = stackguard to use during gc
+ 	uintptr	stack0;
+-	byte*	entry;		// initial function
++	FuncVal*	fnstart;		// initial function
+ 	G*	alllink;	// on allg
+ 	void*	param;		// passed parameter on wakeup
+ 	int16	status;
+@@ -416,7 +422,7 @@ struct	Timer
+ 	// a well-behaved function and not block.
+ 	int64	when;
+ 	int64	period;
+-	void	(*f)(int64, Eface);
++	FuncVal	*fv;
+ 	Eface	arg;
+ };
+ 
+@@ -552,7 +558,7 @@ struct Defer
+ 	bool	free; // if special, free when done
+ 	byte*	argp;  // where args were copied from
+ 	byte*	pc;
+-	byte*	fn;
++	FuncVal*	fn;
+ 	Defer*	link;
+ 	void*	args[1];	// padded to actual size
+ };
+@@ -610,6 +616,7 @@ int32	runtime·charntorune(int32*, uint8*, int32);
+ 
+ void	runtime·gogo(Gobuf*, uintptr);
+ void	runtime·gogocall(Gobuf*, void(*)(void));
++void	runtime·gogocallfn(Gobuf*, FuncVal*);
+ void	runtime·gosave(Gobuf*);
+ void	runtime·lessstack(void);
+ void	runtime·goargs(void);
+@@ -652,7 +659,7 @@ void	runtime·atomicstore64(uint64 volatile*, uint64);
+ uint64	runtime·atomicload64(uint64 volatile*);
+ void*	runtime·atomicloadp(void* volatile*);
+ void	runtime·atomicstorep(void* volatile*, void*);
+-void	runtime·jmpdefer(byte*, void*);
++void	runtime·jmpdefer(FuncVal*, void*);
+ void	runtime·exit1(int32);
+ void	runtime·ready(G*);
+ byte*	runtime·getenv(int8*);
+@@ -678,7 +685,7 @@ uintptr	runtime·ifacehash(Iface, uintptr);
+ uintptr	runtime·efacehash(Eface, uintptr);
+ void*	runtime·malloc(uintptr size);
+ void	runtime·free(void *v);
+-bool	runtime·addfinalizer(void*, void(*fn)(void*), uintptr);
++bool	runtime·addfinalizer(void*, FuncVal *fn, uintptr);
+ void	runtime·runpanic(Panic*);
+ void*	runtime·getcallersp(void*);
+ int32	runtime·mcount(void);
+@@ -699,7 +706,7 @@ void	runtime·asmcgocall(void (*fn)(void*), void*);
+ void	runtime·entersyscall(void);
+ void	runtime·entersyscallblock(void);
+ void	runtime·exitsyscall(void);
+-G*	runtime·newproc1(byte*, byte*, int32, int32, void*);
++G*	runtime·newproc1(FuncVal*, byte*, int32, int32, void*);
+ bool	runtime·sigsend(int32 sig);
+ int32	runtime·callers(int32, uintptr*, int32);
+ int32	runtime·gentraceback(byte*, byte*, byte*, G*, int32, uintptr*, int32);
+@@ -835,7 +842,7 @@ void	runtime·printuint(uint64);
+ void	runtime·printhex(uint64);
+ void	runtime·printslice(Slice);
+ void	runtime·printcomplex(Complex128);
+-void	reflect·call(byte*, byte*, uint32);
++void	reflect·call(FuncVal*, byte*, uint32);
+ void	runtime·panic(Eface);
+ void	runtime·panicindex(void);
+ void	runtime·panicslice(void);
+diff --git a/src/pkg/runtime/stack.c b/src/pkg/runtime/stack.c
+index ac00e53765..d1d5c8f3f9 100644
+--- a/src/pkg/runtime/stack.c
++++ b/src/pkg/runtime/stack.c
+@@ -273,7 +273,10 @@ runtime·newstack(void)
+ 	label.sp = (uintptr)sp;
+ 	label.pc = (byte*)runtime·lessstack;
+ 	label.g = m->curg;
+-	runtime·gogocall(&label, m->morepc);
++	if(reflectcall)
++		runtime·gogocallfn(&label, (FuncVal*)m->morepc);
++	else
++		runtime·gogocall(&label, m->morepc);
+ 
+ 	*(int32*)345 = 123;	// never return
+ }
+diff --git a/src/pkg/runtime/time.goc b/src/pkg/runtime/time.goc
+index d962b74e1f..2babb173df 100644
+--- a/src/pkg/runtime/time.goc
++++ b/src/pkg/runtime/time.goc
+@@ -57,6 +57,8 @@ ready(int64 now, Eface e)
+ 	runtime·ready(e.data);
+ }
+ 
++static FuncVal readyv = {(void(*)(void))ready};
++
+ // Put the current goroutine to sleep for ns nanoseconds.
+ void
+ runtime·tsleep(int64 ns, int8 *reason)
+@@ -68,13 +70,15 @@ runtime·tsleep(int64 ns, int8 *reason)
+ 
+ 	t.when = runtime·nanotime() + ns;
+ 	t.period = 0;
+-	t.f = ready;
++	t.fv = &readyv;
+ 	t.arg.data = g;
+ 	runtime·lock(&timers);
+ 	addtimer(&t);
+ 	runtime·park(runtime·unlock, &timers, reason);
+ }
+ 
++static FuncVal timerprocv = {timerproc};
++
+ // Add a timer to the heap and start or kick the timer proc
+ // if the new timer is earlier than any of the others.
+ static void
+@@ -109,7 +113,7 @@ addtimer(Timer *t)
+ 		}
+ 	}
+ 	if(timers.timerproc == nil) {
+-		timers.timerproc = runtime·newproc1((byte*)timerproc, nil, 0, 0, addtimer);
++		timers.timerproc = runtime·newproc1(&timerprocv, nil, 0, 0, addtimer);
+ 		timers.timerproc->issystem = true;
+ 	}
+ }
+@@ -182,7 +186,7 @@ timerproc(void)
+ 				siftdown(0);
+ 				t->i = -1;  // mark as removed
+ 			}
+-			f = t->f;
++			f = (void*)t->fv->fn;
+ 			arg = t->arg;
+ 			runtime·unlock(&timers);
+ 			if(raceenabled)
+diff --git a/src/pkg/runtime/traceback_arm.c b/src/pkg/runtime/traceback_arm.c
+index 5c831685e4..cafab3f79d 100644
+--- a/src/pkg/runtime/traceback_arm.c
++++ b/src/pkg/runtime/traceback_arm.c
+@@ -32,8 +32,8 @@ runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *gp, int32 skip, uintptr
+ 	waspanic = false;
+ 
+ 	// If the PC is goexit, the goroutine hasn't started yet.
+-	if(pc == (uintptr)runtime·goexit && gp->entry != 0) {
+-		pc = (uintptr)gp->entry;
++	if(pc == (uintptr)runtime·goexit && gp->fnstart != nil) {
++		pc = (uintptr)gp->fnstart->fn;
+ 		lr = (uintptr)runtime·goexit;
+ 	}
+ 
+diff --git a/src/pkg/runtime/traceback_x86.c b/src/pkg/runtime/traceback_x86.c
+index f5d8f2a3ff..4ee5f0df36 100644
+--- a/src/pkg/runtime/traceback_x86.c
++++ b/src/pkg/runtime/traceback_x86.c
+@@ -40,10 +40,10 @@ runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *gp, int32 skip, uintptr
+ 	waspanic = false;
+ 	
+ 	// If the PC is goexit, the goroutine hasn't started yet.
+-	if(pc0 == gp->sched.pc && sp == (byte*)gp->sched.sp && pc0 == (byte*)runtime·goexit && gp->entry != 0) {
++	if(pc0 == gp->sched.pc && sp == (byte*)gp->sched.sp && pc0 == (byte*)runtime·goexit && gp->fnstart != nil) {
+ 		fp = sp;
+ 		lr = pc;
+-		pc = (uintptr)gp->entry;
++		pc = (uintptr)gp->fnstart->fn;
+ 	}
+ 	
+ 	// If the PC is zero, it's likely a nil function call.
+diff --git a/src/pkg/time/sleep.go b/src/pkg/time/sleep.go
+index 1e6b4f2e44..657b669030 100644
+--- a/src/pkg/time/sleep.go
++++ b/src/pkg/time/sleep.go
+@@ -18,7 +18,7 @@ type runtimeTimer struct {
+ 	i      int32
+ 	when   int64
+ 	period int64
+-	f      func(int64, interface{})
++	f      func(int64, interface{}) // NOTE: must not be closure
+ 	arg    interface{}
+ }
+ 

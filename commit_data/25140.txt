@@ -14,8 +14,109 @@ Date:   Wed Aug 5 11:35:28 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/13169
     Reviewed-by: Rick Hudson <rlh@golang.org>
     Run-TryBot: Austin Clements <austin@google.com>
-
+---
  src/runtime/export_test.go |  2 ++
  src/runtime/gc_test.go     | 31 +++++++++++++++++++++++++++++++
  src/runtime/proc1.go       | 22 +++++++++++++---------
  3 files changed, 46 insertions(+), 9 deletions(-)
+
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index f14dc30a7f..06ffbf6191 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -155,3 +155,5 @@ const PtrSize = ptrSize
+ 
+ var TestingAssertE2I2GC = &testingAssertE2I2GC
+ var TestingAssertE2T2GC = &testingAssertE2T2GC
++
++var ForceGCPeriod = &forcegcperiod
+diff --git a/src/runtime/gc_test.go b/src/runtime/gc_test.go
+index 6c9b314c65..61bbc14945 100644
+--- a/src/runtime/gc_test.go
++++ b/src/runtime/gc_test.go
+@@ -199,6 +199,37 @@ func TestHugeGCInfo(t *testing.T) {
+ 	}
+ }
+ 
++func TestPeriodicGC(t *testing.T) {
++	// Make sure we're not in the middle of a GC.
++	runtime.GC()
++
++	var ms1, ms2 runtime.MemStats
++	runtime.ReadMemStats(&ms1)
++
++	// Make periodic GC run continuously.
++	orig := *runtime.ForceGCPeriod
++	*runtime.ForceGCPeriod = 0
++
++	// Let some periodic GCs happen. In a heavily loaded system,
++	// it's possible these will be delayed, so this is designed to
++	// succeed quickly if things are working, but to give it some
++	// slack if things are slow.
++	var numGCs uint32
++	const want = 2
++	for i := 0; i < 20 && numGCs < want; i++ {
++		time.Sleep(5 * time.Millisecond)
++
++		// Test that periodic GC actually happened.
++		runtime.ReadMemStats(&ms2)
++		numGCs = ms2.NumGC - ms1.NumGC
++	}
++	*runtime.ForceGCPeriod = orig
++
++	if numGCs < want {
++		t.Fatalf("no periodic GC: got %v GCs, want >= 2", numGCs)
++	}
++}
++
+ func BenchmarkSetTypePtr(b *testing.B) {
+ 	benchSetType(b, new(*byte))
+ }
+diff --git a/src/runtime/proc1.go b/src/runtime/proc1.go
+index 47f11b6ee1..ec60f8c0d0 100644
+--- a/src/runtime/proc1.go
++++ b/src/runtime/proc1.go
+@@ -2962,10 +2962,14 @@ func checkdead() {
+ 	throw("all goroutines are asleep - deadlock!")
+ }
+ 
+-func sysmon() {
+-	// If we go two minutes without a garbage collection, force one to run.
+-	forcegcperiod := int64(2 * 60 * 1e9)
++// forcegcperiod is the maximum time in nanoseconds between garbage
++// collections. If we go this long without a garbage collection, one
++// is forced to run.
++//
++// This is a variable for testing purposes. It normally doesn't change.
++var forcegcperiod int64 = 2 * 60 * 1e9
+ 
++func sysmon() {
+ 	// If a heap span goes unused for 5 minutes after a garbage collection,
+ 	// we hand it back to the operating system.
+ 	scavengelimit := int64(5 * 60 * 1e9)
+@@ -2979,12 +2983,6 @@ func sysmon() {
+ 	lastscavenge := nanotime()
+ 	nscavenge := 0
+ 
+-	// Make wake-up period small enough for the sampling to be correct.
+-	maxsleep := forcegcperiod / 2
+-	if scavengelimit < forcegcperiod {
+-		maxsleep = scavengelimit / 2
+-	}
+-
+ 	lasttrace := int64(0)
+ 	idle := 0 // how many cycles in succession we had not wokeup somebody
+ 	delay := uint32(0)
+@@ -3003,6 +3001,12 @@ func sysmon() {
+ 			if atomicload(&sched.gcwaiting) != 0 || atomicload(&sched.npidle) == uint32(gomaxprocs) {
+ 				atomicstore(&sched.sysmonwait, 1)
+ 				unlock(&sched.lock)
++				// Make wake-up period small enough
++				// for the sampling to be correct.
++				maxsleep := forcegcperiod / 2
++				if scavengelimit < forcegcperiod {
++					maxsleep = scavengelimit / 2
++				}
+ 				notetsleep(&sched.sysmonnote, maxsleep)
+ 				lock(&sched.lock)
+ 				atomicstore(&sched.sysmonwait, 0)

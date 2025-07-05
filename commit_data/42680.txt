@@ -15,6 +15,21 @@ Date:   Tue Feb 4 12:48:20 2020 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/217720
     Run-TryBot: Katie Hockman <katie@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  doc/go1.14.html | 3 ---
  1 file changed, 3 deletions(-)
+
+diff --git a/doc/go1.14.html b/doc/go1.14.html
+index d3199cb0e9..186899e680 100644
+--- a/doc/go1.14.html
++++ b/doc/go1.14.html
+@@ -27,9 +27,6 @@ Do not send CLs removing the interior tags from such phrases.
+ <p>
+ Module support in the <code>go</code> command is now ready for production use,
+ and we encourage all users to migrate to Go modules for dependency management.
+-</p>
+-
+-<p>
+ If you are unable to migrate due to a problem in the Go toolchain,
+ please ensure that the problem has an
+ <a href="https://golang.org/issue?q=is%3Aissue+is%3Aopen+label%3Amodules">open issue</a>

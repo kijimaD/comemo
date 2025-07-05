@@ -13,6 +13,20 @@ Date:   Sat Oct 15 15:52:57 2016 +0100
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
-
+---
  src/net/net_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/net_test.go b/src/net/net_test.go
+index 1968ff323e..f58b93e74b 100644
+--- a/src/net/net_test.go
++++ b/src/net/net_test.go
+@@ -15,7 +15,7 @@ import (
+ 
+ func TestCloseRead(t *testing.T) {
+ 	switch runtime.GOOS {
+-	case "nacl", "plan9":
++	case "plan9":
+ 		t.Skipf("not supported on %s", runtime.GOOS)
+ 	}
+ 

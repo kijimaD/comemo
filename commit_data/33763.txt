@@ -13,6 +13,20 @@ Date:   Wed Sep 6 10:31:03 2017 +0100
     Reviewed-by: Filippo Valsorda <hi@filippo.io>
     Run-TryBot: Filippo Valsorda <hi@filippo.io>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/crypto/cipher/ofb.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/crypto/cipher/ofb.go b/src/crypto/cipher/ofb.go
+index e86ebcb237..7b35f8995c 100644
+--- a/src/crypto/cipher/ofb.go
++++ b/src/crypto/cipher/ofb.go
+@@ -19,7 +19,7 @@ type ofb struct {
+ func NewOFB(b Block, iv []byte) Stream {
+ 	blockSize := b.BlockSize()
+ 	if len(iv) != blockSize {
+-		return nil
++		panic("cipher.NewOFB: IV length must equal block size")
+ 	}
+ 	bufSize := streamBufferSize
+ 	if bufSize < blockSize {

@@ -9,9 +9,203 @@ Date:   Mon Aug 18 16:42:24 2014 +0400
     R=golang-codereviews, khr
     CC=golang-codereviews, rsc
     https://golang.org/cl/124440043
-
+---
  src/pkg/runtime/heapdump.c |  6 ++----
  src/pkg/runtime/mgc0.c     | 45 +++++++++++++++++++--------------------------
  src/pkg/runtime/proc.c     |  1 +
  src/pkg/runtime/runtime.h  |  3 +++
  4 files changed, 25 insertions(+), 30 deletions(-)
+
+diff --git a/src/pkg/runtime/heapdump.c b/src/pkg/runtime/heapdump.c
+index e5032783a8..aa817fceec 100644
+--- a/src/pkg/runtime/heapdump.c
++++ b/src/pkg/runtime/heapdump.c
+@@ -23,8 +23,6 @@ extern byte data[];
+ extern byte edata[];
+ extern byte bss[];
+ extern byte ebss[];
+-extern byte gcdata[];
+-extern byte gcbss[];
+ 
+ enum {
+ 	FieldKindEol = 0,
+@@ -497,13 +495,13 @@ dumproots(void)
+ 	dumpint(TagData);
+ 	dumpint((uintptr)data);
+ 	dumpmemrange(data, edata - data);
+-	dumpfields((BitVector){(edata - data)*8, (uint32*)gcdata});
++	dumpfields((BitVector){(edata - data)*8, (uint32*)runtime·gcdatamask});
+ 
+ 	// bss segment
+ 	dumpint(TagBss);
+ 	dumpint((uintptr)bss);
+ 	dumpmemrange(bss, ebss - bss);
+-	dumpfields((BitVector){(ebss - bss)*8, (uint32*)gcbss});
++	dumpfields((BitVector){(ebss - bss)*8, (uint32*)runtime·gcbssmask});
+ 
+ 	// MSpan.types
+ 	allspans = runtime·mheap.allspans;
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index f46d329017..5389538eae 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -78,10 +78,9 @@ enum {
+ };
+ 
+ #define ScanConservatively ((byte*)1)
+-#define GcpercentUnknown (-2)
+ 
+ // Initialized from $GOGC.  GOGC=off means no gc.
+-extern int32 runtime·gcpercent = GcpercentUnknown;
++extern int32 runtime·gcpercent;
+ 
+ static FuncVal* poolcleanup;
+ 
+@@ -172,6 +171,8 @@ static FinBlock	*finc;		// cache of free blocks
+ static FinBlock	*allfin;	// list of all blocks
+ bool	runtime·fingwait;
+ bool	runtime·fingwake;
++byte*	runtime·gcdatamask;
++byte*	runtime·gcbssmask;
+ 
+ static Lock	gclock;
+ 
+@@ -200,8 +201,6 @@ static struct {
+ 	volatile uint32	ndone;
+ 	Note	alldone;
+ 	ParFor*	markfor;
+-	byte*	gcdata;
+-	byte*	gcbss;
+ } work;
+ 
+ // scanblock scans a block of n bytes starting at pointer b for references
+@@ -517,11 +516,11 @@ markroot(ParFor *desc, uint32 i)
+ 	// Note: if you add a case here, please also update heapdump.c:dumproots.
+ 	switch(i) {
+ 	case RootData:
+-		scanblock(data, edata - data, work.gcdata);
++		scanblock(data, edata - data, runtime·gcdatamask);
+ 		break;
+ 
+ 	case RootBss:
+-		scanblock(bss, ebss - bss, work.gcbss);
++		scanblock(bss, ebss - bss, runtime·gcbssmask);
+ 		break;
+ 
+ 	case RootFinalizers:
+@@ -1300,6 +1299,18 @@ runtime·readgogc(void)
+ 	return runtime·atoi(p);
+ }
+ 
++void
++runtime·gcinit(void)
++{
++	if(sizeof(Workbuf) != WorkbufSize)
++		runtime·throw("runtime: size of Workbuf is suboptimal");
++
++	work.markfor = runtime·parforalloc(MaxGcproc);
++	runtime·gcpercent = runtime·readgogc();
++	runtime·gcdatamask = unrollglobgcprog(gcdata, edata - data);
++	runtime·gcbssmask = unrollglobgcprog(gcbss, ebss - bss);
++}
++
+ // force = 1 - do GC regardless of current heap usage
+ // force = 2 - go GC and eager sweep
+ void
+@@ -1308,8 +1319,6 @@ runtime·gc(int32 force)
+ 	struct gc_args a;
+ 	int32 i;
+ 
+-	if(sizeof(Workbuf) != WorkbufSize)
+-		runtime·throw("runtime: size of Workbuf is suboptimal");
+ 	// The gc is turned off (via enablegc) until
+ 	// the bootstrap has completed.
+ 	// Also, malloc gets called in the guts
+@@ -1321,12 +1330,6 @@ runtime·gc(int32 force)
+ 	if(!mstats.enablegc || g == g->m->g0 || g->m->locks > 0 || runtime·panicking)
+ 		return;
+ 
+-	if(runtime·gcpercent == GcpercentUnknown) {	// first time through
+-		runtime·lock(&runtime·mheap.lock);
+-		if(runtime·gcpercent == GcpercentUnknown)
+-			runtime·gcpercent = runtime·readgogc();
+-		runtime·unlock(&runtime·mheap.lock);
+-	}
+ 	if(runtime·gcpercent < 0)
+ 		return;
+ 
+@@ -1415,14 +1418,6 @@ gc(struct gc_args *args)
+ 	t0 = args->start_time;
+ 	work.tstart = args->start_time; 
+ 
+-	if(work.gcdata == nil) {
+-		work.gcdata = unrollglobgcprog(gcdata, edata - data);
+-		work.gcbss = unrollglobgcprog(gcbss, ebss - bss);
+-	}
+-
+-	if(work.markfor == nil)
+-		work.markfor = runtime·parforalloc(MaxGcproc);
+-
+ 	t1 = 0;
+ 	if(runtime·debug.gctrace)
+ 		t1 = runtime·nanotime();
+@@ -1598,8 +1593,6 @@ runtime·setgcpercent(int32 in) {
+ 	int32 out;
+ 
+ 	runtime·lock(&runtime·mheap.lock);
+-	if(runtime·gcpercent == GcpercentUnknown)
+-		runtime·gcpercent = runtime·readgogc();
+ 	out = runtime·gcpercent;
+ 	if(in < 0)
+ 		in = -1;
+@@ -2027,7 +2020,7 @@ runtime·getgcmask(byte *p, Type *t, byte **mask, uintptr *len)
+ 		*mask = runtime·mallocgc(*len, nil, 0);
+ 		for(i = 0; i < n; i += PtrSize) {
+ 			off = (p+i-data)/PtrSize;
+-			bits = (work.gcdata[off/PointersPerByte] >> ((off%PointersPerByte)*BitsPerPointer))&BitsMask;
++			bits = (runtime·gcdatamask[off/PointersPerByte] >> ((off%PointersPerByte)*BitsPerPointer))&BitsMask;
+ 			(*mask)[i/PtrSize] = bits;
+ 		}
+ 		return;
+@@ -2039,7 +2032,7 @@ runtime·getgcmask(byte *p, Type *t, byte **mask, uintptr *len)
+ 		*mask = runtime·mallocgc(*len, nil, 0);
+ 		for(i = 0; i < n; i += PtrSize) {
+ 			off = (p+i-bss)/PtrSize;
+-			bits = (work.gcbss[off/PointersPerByte] >> ((off%PointersPerByte)*BitsPerPointer))&BitsMask;
++			bits = (runtime·gcbssmask[off/PointersPerByte] >> ((off%PointersPerByte)*BitsPerPointer))&BitsMask;
+ 			(*mask)[i/PtrSize] = bits;
+ 		}
+ 		return;
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 443bdda100..a3e0f4bc52 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -158,6 +158,7 @@ runtime·schedinit(void)
+ 	runtime·symtabinit();
+ 	runtime·stackinit();
+ 	runtime·mallocinit();
++	runtime·gcinit();
+ 	runtime·chaninit();
+ 	mcommoninit(g->m);
+ 	
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 62100a783a..0aeba39da8 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -779,6 +779,8 @@ extern	uint32	runtime·cpuid_ecx;
+ extern	uint32	runtime·cpuid_edx;
+ extern	DebugVars	runtime·debug;
+ extern	uintptr	runtime·maxstacksize;
++extern	byte*	runtime·gcdatamask;
++extern	byte*	runtime·gcbssmask;
+ 
+ /*
+  * common functions and data
+@@ -880,6 +882,7 @@ void	runtime·shrinkstack(G*);
+ MCache*	runtime·allocmcache(void);
+ void	runtime·freemcache(MCache*);
+ void	runtime·mallocinit(void);
++void	runtime·gcinit(void);
+ void	runtime·chaninit(void);
+ void*	runtime·mallocgc(uintptr size, Type* typ, uint32 flag);
+ void	runtime·runpanic(Panic*);

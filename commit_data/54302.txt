@@ -15,9 +15,68 @@ Date:   Tue Oct 4 15:59:56 2022 +0000
     Auto-Submit: Bryan Mills <bcmills@google.com>
     Run-TryBot: Bryan Mills <bcmills@google.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
-
+---
  src/cmd/go/internal/modfetch/coderepo.go | 2 +-
  src/cmd/go/internal/modload/build.go     | 4 ++--
  src/cmd/trace/annotations.go             | 2 +-
  src/net/smtp/auth.go                     | 2 +-
  4 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/go/internal/modfetch/coderepo.go b/src/cmd/go/internal/modfetch/coderepo.go
+index 0aee381e17..04164ff9a1 100644
+--- a/src/cmd/go/internal/modfetch/coderepo.go
++++ b/src/cmd/go/internal/modfetch/coderepo.go
+@@ -962,7 +962,7 @@ func (r *codeRepo) GoMod(version string) (data []byte, err error) {
+ // for dependencies in the middle of a build, impossible to
+ // correct. So we stopped.
+ func LegacyGoMod(modPath string) []byte {
+-	return []byte(fmt.Sprintf("module %s\n", modfile.AutoQuote(modPath)))
++	return fmt.Appendf(nil, "module %s\n", modfile.AutoQuote(modPath))
+ }
+ 
+ func (r *codeRepo) modPrefix(rev string) string {
+diff --git a/src/cmd/go/internal/modload/build.go b/src/cmd/go/internal/modload/build.go
+index bbece3f849..f5e16e2a92 100644
+--- a/src/cmd/go/internal/modload/build.go
++++ b/src/cmd/go/internal/modload/build.go
+@@ -431,12 +431,12 @@ func ModInfoProg(info string, isgccgo bool) []byte {
+ 	// look at the module info in their init functions (see issue 29628),
+ 	// which won't work. See also issue 30344.
+ 	if isgccgo {
+-		return []byte(fmt.Sprintf(`package main
++		return fmt.Appendf(nil, `package main
+ import _ "unsafe"
+ //go:linkname __set_debug_modinfo__ runtime.setmodinfo
+ func __set_debug_modinfo__(string)
+ func init() { __set_debug_modinfo__(%q) }
+-`, ModInfoData(info)))
++`, ModInfoData(info))
+ 	}
+ 	return nil
+ }
+diff --git a/src/cmd/trace/annotations.go b/src/cmd/trace/annotations.go
+index be515880e6..9ffce1b187 100644
+--- a/src/cmd/trace/annotations.go
++++ b/src/cmd/trace/annotations.go
+@@ -1095,7 +1095,7 @@ Search log text: <form onsubmit="window.location.search+='&logtext='+window.logt
+ `))
+ 
+ func elapsed(d time.Duration) string {
+-	b := []byte(fmt.Sprintf("%.9f", d.Seconds()))
++	b := fmt.Appendf(nil, "%.9f", d.Seconds())
+ 
+ 	// For subsecond durations, blank all zeros before decimal point,
+ 	// and all zeros between the decimal point and the first non-zero digit.
+diff --git a/src/net/smtp/auth.go b/src/net/smtp/auth.go
+index 7a32ef6a2e..72eb16671f 100644
+--- a/src/net/smtp/auth.go
++++ b/src/net/smtp/auth.go
+@@ -103,7 +103,7 @@ func (a *cramMD5Auth) Next(fromServer []byte, more bool) ([]byte, error) {
+ 		d := hmac.New(md5.New, []byte(a.secret))
+ 		d.Write(fromServer)
+ 		s := make([]byte, 0, d.Size())
+-		return []byte(fmt.Sprintf("%s %x", a.username, d.Sum(s))), nil
++		return fmt.Appendf(nil, "%s %x", a.username, d.Sum(s)), nil
+ 	}
+ 	return nil, nil
+ }

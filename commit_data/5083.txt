@@ -7,10 +7,130 @@ Date:   Fri Mar 19 15:21:37 2010 -0700
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/621041
-
+---
  src/pkg/syscall/Makefile              | 16 +++++++++++++++-
  src/pkg/syscall/{errstr.go => str.go} |  8 --------
  src/pkg/syscall/syscall_mingw.go      |  8 +++-----
  src/pkg/syscall/syscall_unix.go       | 12 ++++++++++++
  src/pkg/syscall/zerrors_mingw_386.go  |  5 -----
  5 files changed, 30 insertions(+), 19 deletions(-)
+
+diff --git a/src/pkg/syscall/Makefile b/src/pkg/syscall/Makefile
+index ca3338b10c..0e10f36915 100644
+--- a/src/pkg/syscall/Makefile
++++ b/src/pkg/syscall/Makefile
+@@ -6,7 +6,7 @@ include ../../Make.$(GOARCH)
+ 
+ TARG=syscall
+ GOFILES=\
+-	errstr.go\
++	str.go\
+ 	exec.go\
+ 	syscall.go\
+ 	syscall_$(GOARCH).go\
+@@ -17,7 +17,21 @@ GOFILES=\
+ 	zsysnum_$(GOOS)_$(GOARCH).go\
+ 	ztypes_$(GOOS)_$(GOARCH).go\
+ 
++GOFILES_freebsd=\
++	syscall_unix.go\
++
++GOFILES_darwin=\
++	syscall_unix.go\
++
++GOFILES_linux=\
++	syscall_unix.go\
++
++GOFILES_nacl=\
++	syscall_unix.go\
++
+ OFILES=\
+ 	asm_$(GOOS)_$(GOARCH).$O\
+ 
++GOFILES+=$(GOFILES_$(GOOS))
++
+ include ../../Make.pkg
+diff --git a/src/pkg/syscall/errstr.go b/src/pkg/syscall/str.go
+similarity index 77%
+rename from src/pkg/syscall/errstr.go
+rename to src/pkg/syscall/str.go
+index 94a799a801..12f0c7d607 100644
+--- a/src/pkg/syscall/errstr.go
++++ b/src/pkg/syscall/str.go
+@@ -4,7 +4,6 @@
+ 
+ package syscall
+ 
+-
+ func str(val int) string { // do it here rather than with fmt to avoid dependency
+ 	if val < 0 {
+ 		return "-" + str(-val)
+@@ -19,10 +18,3 @@ func str(val int) string { // do it here rather than with fmt to avoid dependenc
+ 	buf[i] = byte(val + '0')
+ 	return string(buf[i:])
+ }
+-
+-func Errstr(errno int) string {
+-	if errno < 0 || errno >= int(len(errors)) {
+-		return "error " + str(errno)
+-	}
+-	return errors[errno]
+-}
+diff --git a/src/pkg/syscall/syscall_mingw.go b/src/pkg/syscall/syscall_mingw.go
+index 16b8a281ea..210c783150 100644
+--- a/src/pkg/syscall/syscall_mingw.go
++++ b/src/pkg/syscall/syscall_mingw.go
+@@ -24,7 +24,7 @@ import (
+ )
+ 
+ func abort(funcname string, err int) {
+-	panic(funcname+" failed: (", err, ") ", syscall.GetErrstr(err), "\n")
++	panic(funcname+" failed: (", err, ") ", syscall.Errstr(err), "\n")
+ }
+ 
+ func print_version(v uint32) {
+@@ -99,11 +99,9 @@ func getSysProcAddr(m uint32, pname string) uintptr {
+ //sys	GetVersion() (ver uint32, errno int)
+ //sys	FormatMessage(flags uint32, msgsrc uint32, msgid uint32, langid uint32, buf []uint16, args *byte) (n uint32, errno int) = FormatMessageW
+ 
+-// TODO(brainman): maybe GetErrstr should replace Errstr alltogether
+-
+-func GetErrstr(errno int) string {
++func Errstr(errno int) string {
+ 	if errno == EMINGW {
+-		return errors[errno]
++		return "not supported by windows"
+ 	}
+ 	var b = make([]uint16, 300)
+ 	n, err := FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM|FORMAT_MESSAGE_ARGUMENT_ARRAY, 0, uint32(errno), 0, b, nil)
+diff --git a/src/pkg/syscall/syscall_unix.go b/src/pkg/syscall/syscall_unix.go
+new file mode 100644
+index 0000000000..a32c275d54
+--- /dev/null
++++ b/src/pkg/syscall/syscall_unix.go
+@@ -0,0 +1,12 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package syscall
++
++func Errstr(errno int) string {
++	if errno < 0 || errno >= int(len(errors)) {
++		return "error " + str(errno)
++	}
++	return errors[errno]
++}
+diff --git a/src/pkg/syscall/zerrors_mingw_386.go b/src/pkg/syscall/zerrors_mingw_386.go
+index 0af1d1106d..87caf8a846 100644
+--- a/src/pkg/syscall/zerrors_mingw_386.go
++++ b/src/pkg/syscall/zerrors_mingw_386.go
+@@ -12,8 +12,3 @@ const (
+ 	// TODO(brainman): should use value for EMINGW that does not clashes with anything else
+ 	EMINGW = 99999 /* otherwise unused */
+ )
+-
+-// Error table
+-var errors = [...]string{
+-	EMINGW: "not supported by windows",
+-}

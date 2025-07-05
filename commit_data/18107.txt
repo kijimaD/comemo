@@ -7,7 +7,34 @@ Date:   Fri Dec 20 23:19:32 2013 -0800
     R=golang-codereviews, gobot, r
     CC=golang-codereviews
     https://golang.org/cl/42310045
-
+---
  src/pkg/bytes/bytes_test.go     | 2 ++
  src/pkg/strings/strings_test.go | 2 ++
  2 files changed, 4 insertions(+)
+
+diff --git a/src/pkg/bytes/bytes_test.go b/src/pkg/bytes/bytes_test.go
+index ab5da4fbf0..4c4780f79a 100644
+--- a/src/pkg/bytes/bytes_test.go
++++ b/src/pkg/bytes/bytes_test.go
+@@ -1073,6 +1073,8 @@ var TitleTests = []TitleTest{
+ 	{"123a456", "123a456"},
+ 	{"double-blind", "Double-Blind"},
+ 	{"ÿøû", "Ÿøû"},
++	{"with_underscore", "With_underscore"},
++	{"unicode \xe2\x80\xa8 line separator", "Unicode \xe2\x80\xa8 Line Separator"},
+ }
+ 
+ func TestTitle(t *testing.T) {
+diff --git a/src/pkg/strings/strings_test.go b/src/pkg/strings/strings_test.go
+index df0dd7165a..a5be2f9bed 100644
+--- a/src/pkg/strings/strings_test.go
++++ b/src/pkg/strings/strings_test.go
+@@ -903,6 +903,8 @@ var TitleTests = []struct {
+ 	{"123a456", "123a456"},
+ 	{"double-blind", "Double-Blind"},
+ 	{"ÿøû", "Ÿøû"},
++	{"with_underscore", "With_underscore"},
++	{"unicode \xe2\x80\xa8 line separator", "Unicode \xe2\x80\xa8 Line Separator"},
+ }
+ 
+ func TestTitle(t *testing.T) {

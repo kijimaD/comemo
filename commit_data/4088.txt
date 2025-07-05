@@ -8,10 +8,212 @@ Date:   Tue Nov 17 08:39:17 2009 -0800
     
     R=r
     https://golang.org/cl/154177
-
+---
  src/pkg/net/fd.go           | 56 +++++++++++++++++++++++++++++++++++++++++++++
  src/pkg/net/server_test.go  |  2 +-
  src/pkg/net/timeout_test.go | 26 ++++++++++++++++-----
  src/pkg/net/udpsock.go      | 10 ++------
  src/pkg/net/unixsock.go     | 10 ++------
  5 files changed, 81 insertions(+), 23 deletions(-)
+
+diff --git a/src/pkg/net/fd.go b/src/pkg/net/fd.go
+index a09a7c2fdf..261bd9f441 100644
+--- a/src/pkg/net/fd.go
++++ b/src/pkg/net/fd.go
+@@ -372,6 +372,33 @@ func (fd *netFD) Read(p []byte) (n int, err os.Error) {
+ 	return;
+ }
+ 
++func (fd *netFD) ReadFrom(p []byte) (n int, sa syscall.Sockaddr, err os.Error) {
++	if fd == nil || fd.file == nil {
++		return 0, nil, os.EINVAL
++	}
++	fd.rio.Lock();
++	defer fd.rio.Unlock();
++	if fd.rdeadline_delta > 0 {
++		fd.rdeadline = pollserver.Now() + fd.rdeadline_delta
++	} else {
++		fd.rdeadline = 0
++	}
++	for {
++		var errno int;
++		n, sa, errno = syscall.Recvfrom(fd.fd, p, 0);
++		if errno == syscall.EAGAIN && fd.rdeadline >= 0 {
++			pollserver.WaitRead(fd);
++			continue;
++		}
++		if errno != 0 {
++			n = 0;
++			err = &os.PathError{"recvfrom", fd.file.Name(), os.Errno(errno)};
++		}
++		break;
++	}
++	return;
++}
++
+ func (fd *netFD) Write(p []byte) (n int, err os.Error) {
+ 	if fd == nil || fd.file == nil {
+ 		return 0, os.EINVAL
+@@ -404,6 +431,35 @@ func (fd *netFD) Write(p []byte) (n int, err os.Error) {
+ 	return nn, err;
+ }
+ 
++func (fd *netFD) WriteTo(p []byte, sa syscall.Sockaddr) (n int, err os.Error) {
++	if fd == nil || fd.file == nil {
++		return 0, os.EINVAL
++	}
++	fd.wio.Lock();
++	defer fd.wio.Unlock();
++	if fd.wdeadline_delta > 0 {
++		fd.wdeadline = pollserver.Now() + fd.wdeadline_delta
++	} else {
++		fd.wdeadline = 0
++	}
++	err = nil;
++	for {
++		errno := syscall.Sendto(fd.fd, p, 0, sa);
++		if errno == syscall.EAGAIN && fd.wdeadline >= 0 {
++			pollserver.WaitWrite(fd);
++			continue;
++		}
++		if errno != 0 {
++			err = &os.PathError{"sendto", fd.file.Name(), os.Errno(errno)}
++		}
++		break;
++	}
++	if err == nil {
++		n = len(p)
++	}
++	return;
++}
++
+ func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (nfd *netFD, err os.Error) {
+ 	if fd == nil || fd.file == nil {
+ 		return nil, os.EINVAL
+diff --git a/src/pkg/net/server_test.go b/src/pkg/net/server_test.go
+index 744f325534..647f29789f 100644
+--- a/src/pkg/net/server_test.go
++++ b/src/pkg/net/server_test.go
+@@ -116,7 +116,7 @@ func runPacket(t *testing.T, network, addr string, listening chan<- string, done
+ 	var buf [1000]byte;
+ 	for {
+ 		n, addr, err := c.ReadFrom(&buf);
+-		if err == os.EAGAIN {
++		if isEAGAIN(err) {
+ 			if done <- 1 {
+ 				break
+ 			}
+diff --git a/src/pkg/net/timeout_test.go b/src/pkg/net/timeout_test.go
+index 57bfa090c0..c1ba399424 100644
+--- a/src/pkg/net/timeout_test.go
++++ b/src/pkg/net/timeout_test.go
+@@ -5,11 +5,12 @@
+ package net
+ 
+ import (
++	"os";
+ 	"testing";
+ 	"time";
+ )
+ 
+-func testTimeout(t *testing.T, network, addr string) {
++func testTimeout(t *testing.T, network, addr string, readFrom bool) {
+ 	fd, err := Dial(network, "", addr);
+ 	defer fd.Close();
+ 	if err != nil {
+@@ -18,21 +19,34 @@ func testTimeout(t *testing.T, network, addr string) {
+ 	t0 := time.Nanoseconds();
+ 	fd.SetReadTimeout(1e8);	// 100ms
+ 	var b [100]byte;
+-	n, err1 := fd.Read(&b);
++	var n int;
++	var err1 os.Error;
++	if readFrom {
++		n, _, err1 = fd.(PacketConn).ReadFrom(&b)
++	} else {
++		n, err1 = fd.Read(&b)
++	}
+ 	t1 := time.Nanoseconds();
++	what := "Read";
++	if readFrom {
++		what = "ReadFrom"
++	}
+ 	if n != 0 || !isEAGAIN(err1) {
+-		t.Errorf("fd.Read on %s %s did not return 0, EAGAIN: %v, %v", network, addr, n, err1)
++		t.Errorf("fd.%s on %s %s did not return 0, EAGAIN: %v, %v", what, network, addr, n, err1)
+ 	}
+ 	if t1-t0 < 0.5e8 || t1-t0 > 1.5e8 {
+-		t.Errorf("fd.Read on %s %s took %f seconds, expected 0.1", network, addr, float64(t1-t0)/1e9)
++		t.Errorf("fd.%s on %s %s took %f seconds, expected 0.1", what, network, addr, float64(t1-t0)/1e9)
+ 	}
+ }
+ 
+-func TestTimeoutUDP(t *testing.T)	{ testTimeout(t, "udp", "127.0.0.1:53") }
++func TestTimeoutUDP(t *testing.T) {
++	testTimeout(t, "udp", "127.0.0.1:53", false);
++	testTimeout(t, "udp", "127.0.0.1:53", true);
++}
+ 
+ func TestTimeoutTCP(t *testing.T) {
+ 	// 74.125.19.99 is www.google.com.
+ 	// could use dns, but dns depends on
+ 	// timeouts and this is the timeout test.
+-	testTimeout(t, "tcp", "74.125.19.99:80")
++	testTimeout(t, "tcp", "74.125.19.99:80", false)
+ }
+diff --git a/src/pkg/net/udpsock.go b/src/pkg/net/udpsock.go
+index 32c7c734cf..a7069fec4b 100644
+--- a/src/pkg/net/udpsock.go
++++ b/src/pkg/net/udpsock.go
+@@ -188,10 +188,7 @@ func (c *UDPConn) ReadFromUDP(b []byte) (n int, addr *UDPAddr, err os.Error) {
+ 	if !c.ok() {
+ 		return 0, nil, os.EINVAL
+ 	}
+-	n, sa, errno := syscall.Recvfrom(c.fd.fd, b, 0);
+-	if errno != 0 {
+-		err = os.Errno(errno)
+-	}
++	n, sa, err := c.fd.ReadFrom(b);
+ 	switch sa := sa.(type) {
+ 	case *syscall.SockaddrInet4:
+ 		addr = &UDPAddr{&sa.Addr, sa.Port}
+@@ -228,10 +225,7 @@ func (c *UDPConn) WriteToUDP(b []byte, addr *UDPAddr) (n int, err os.Error) {
+ 	if err != nil {
+ 		return 0, err
+ 	}
+-	if errno := syscall.Sendto(c.fd.fd, b, 0, sa); errno != 0 {
+-		return 0, os.Errno(errno)
+-	}
+-	return len(b), nil;
++	return c.fd.WriteTo(b, sa);
+ }
+ 
+ // WriteTo writes a UDP packet with payload b to addr via c.
+diff --git a/src/pkg/net/unixsock.go b/src/pkg/net/unixsock.go
+index f5631d8005..6572e85dc7 100644
+--- a/src/pkg/net/unixsock.go
++++ b/src/pkg/net/unixsock.go
+@@ -243,10 +243,7 @@ func (c *UnixConn) ReadFromUnix(b []byte) (n int, addr *UnixAddr, err os.Error)
+ 	if !c.ok() {
+ 		return 0, nil, os.EINVAL
+ 	}
+-	n, sa, errno := syscall.Recvfrom(c.fd.fd, b, 0);
+-	if errno != 0 {
+-		err = os.Errno(errno)
+-	}
++	n, sa, err := c.fd.ReadFrom(b);
+ 	switch sa := sa.(type) {
+ 	case *syscall.SockaddrUnix:
+ 		addr = &UnixAddr{sa.Name, c.fd.proto == syscall.SOCK_DGRAM}
+@@ -281,10 +278,7 @@ func (c *UnixConn) WriteToUnix(b []byte, addr *UnixAddr) (n int, err os.Error) {
+ 		return 0, os.EAFNOSUPPORT
+ 	}
+ 	sa := &syscall.SockaddrUnix{Name: addr.Name};
+-	if errno := syscall.Sendto(c.fd.fd, b, 0, sa); errno != 0 {
+-		return 0, os.Errno(errno)
+-	}
+-	return len(b), nil;
++	return c.fd.WriteTo(b, sa);
+ }
+ 
+ // WriteTo writes a packet to addr via c, copying the payload from b.

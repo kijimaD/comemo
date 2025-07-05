@@ -7,7 +7,7 @@ Date:   Mon Jul 4 15:15:47 2011 +1000
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/4673042
-
+---
  src/pkg/exp/template/Makefile      |   1 +
  src/pkg/exp/template/exec.go       | 111 +++++++++++++--
  src/pkg/exp/template/exec_test.go  |  91 +++++++++---
@@ -16,3 +16,1156 @@ Date:   Mon Jul 4 15:15:47 2011 +1000
  src/pkg/exp/template/set.go        |  71 +++++++++
  src/pkg/exp/template/set_test.go   | 101 +++++++++++++
  7 files changed, 626 insertions(+), 116 deletions(-)
+
+diff --git a/src/pkg/exp/template/Makefile b/src/pkg/exp/template/Makefile
+index a2d39e248a..50a0bd7234 100644
+--- a/src/pkg/exp/template/Makefile
++++ b/src/pkg/exp/template/Makefile
+@@ -9,5 +9,6 @@ GOFILES=\
+ 	exec.go\
+ 	lex.go\
+ 	parse.go\
++	set.go\
+ 
+ include ../../../Make.pkg
+diff --git a/src/pkg/exp/template/exec.go b/src/pkg/exp/template/exec.go
+index 27c1b096ec..3eaecd1941 100644
+--- a/src/pkg/exp/template/exec.go
++++ b/src/pkg/exp/template/exec.go
+@@ -9,6 +9,7 @@ import (
+ 	"io"
+ 	"os"
+ 	"reflect"
++	"strings"
+ )
+ 
+ // state represents the state of an execution. It's not part of the
+@@ -17,6 +18,7 @@ import (
+ type state struct {
+ 	tmpl *Template
+ 	wr   io.Writer
++	set  *Set
+ 	line int // line number for errors
+ }
+ 
+@@ -33,11 +35,19 @@ func (s *state) error(err os.Error) {
+ 
+ // Execute applies a parsed template to the specified data object,
+ // writing the output to wr.
+-func (t *Template) Execute(wr io.Writer, data interface{}) (err os.Error) {
++func (t *Template) Execute(wr io.Writer, data interface{}) os.Error {
++	return t.ExecuteInSet(wr, data, nil)
++}
++
++// ExecuteInSet applies a parsed template to the specified data object,
++// writing the output to wr. Nested template invocations will be resolved
++// from the specified set.
++func (t *Template) ExecuteInSet(wr io.Writer, data interface{}, set *Set) (err os.Error) {
+ 	defer t.recover(&err)
+ 	state := &state{
+ 		tmpl: t,
+ 		wr:   wr,
++		set:  set,
+ 		line: 1,
+ 	}
+ 	if t.root == nil {
+@@ -49,7 +59,6 @@ func (t *Template) Execute(wr io.Writer, data interface{}) (err os.Error) {
+ 
+ // Walk functions step through the major pieces of the template structure,
+ // generating output as they go.
+-
+ func (s *state) walk(data reflect.Value, n node) {
+ 	switch n := n.(type) {
+ 	case *actionNode:
+@@ -59,17 +68,56 @@ func (s *state) walk(data reflect.Value, n node) {
+ 		for _, node := range n.nodes {
+ 			s.walk(data, node)
+ 		}
++	case *ifNode:
++		s.walkIfOrWith(nodeIf, data, n.pipeline, n.list, n.elseList)
+ 	case *rangeNode:
+ 		s.walkRange(data, n)
+ 	case *textNode:
+ 		if _, err := s.wr.Write(n.text); err != nil {
+ 			s.error(err)
+ 		}
++	case *templateNode:
++		s.walkTemplate(data, n)
++	case *withNode:
++		s.walkIfOrWith(nodeWith, data, n.pipeline, n.list, n.elseList)
+ 	default:
+ 		s.errorf("unknown node: %s", n)
+ 	}
+ }
+ 
++// walkIfOrWith walks an 'if' or 'with' node. The two control structures
++// are identical in behavior except that 'with' sets dot.
++func (s *state) walkIfOrWith(typ nodeType, data reflect.Value, pipe []*commandNode, list, elseList *listNode) {
++	val := s.evalPipeline(data, pipe)
++	truth := false
++	switch val.Kind() {
++	case reflect.Array, reflect.Map, reflect.Slice, reflect.String:
++		truth = val.Len() > 0
++	case reflect.Bool:
++		truth = val.Bool()
++	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
++		truth = val.Int() != 0
++	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
++		truth = val.Uint() != 0
++	case reflect.Float32, reflect.Float64:
++		truth = val.Float() != 0
++	case reflect.Complex64, reflect.Complex128:
++		truth = val.Complex() != 0
++	case reflect.Chan, reflect.Func, reflect.Ptr:
++		truth = !val.IsNil()
++	default:
++		s.errorf("if/with can't use value of type %T", val.Interface())
++	}
++	if truth {
++		if typ == nodeWith {
++			data = val
++		}
++		s.walk(data, list)
++	} else if elseList != nil {
++		s.walk(data, elseList)
++	}
++}
++
+ func (s *state) walkRange(data reflect.Value, r *rangeNode) {
+ 	val := s.evalPipeline(data, r.pipeline)
+ 	switch val.Kind() {
+@@ -97,6 +145,21 @@ func (s *state) walkRange(data reflect.Value, r *rangeNode) {
+ 	}
+ }
+ 
++func (s *state) walkTemplate(data reflect.Value, t *templateNode) {
++	name := s.evalArg(data, reflect.TypeOf("string"), t.name).String()
++	if s.set == nil {
++		s.errorf("no set defined in which to invoke template named %q", name)
++	}
++	tmpl := s.set.tmpl[name]
++	if tmpl == nil {
++		s.errorf("template %q not in set", name)
++	}
++	data = s.evalPipeline(data, t.pipeline)
++	newState := *s
++	newState.tmpl = tmpl
++	newState.walk(data, tmpl.root)
++}
++
+ // Eval functions evaluate pipelines, commands, and their elements and extract
+ // values from the data structure by examining fields, calling methods, and so on.
+ // The printing of those values happens only through walk functions.
+@@ -110,16 +173,38 @@ func (s *state) evalPipeline(data reflect.Value, pipe []*commandNode) reflect.Va
+ }
+ 
+ func (s *state) evalCommand(data reflect.Value, cmd *commandNode, final reflect.Value) reflect.Value {
+-	switch field := cmd.args[0].(type) {
++	firstWord := cmd.args[0]
++	if field, ok := firstWord.(*fieldNode); ok {
++		return s.evalFieldNode(data, field, cmd.args, final)
++	}
++	if len(cmd.args) > 1 || final.IsValid() {
++		// TODO: functions
++		s.errorf("can't give argument to non-method %s", cmd.args[0])
++	}
++	switch word := cmd.args[0].(type) {
+ 	case *dotNode:
+-		if final.IsValid() {
+-			s.errorf("can't give argument to dot")
+-		}
+ 		return data
+-	case *fieldNode:
+-		return s.evalFieldNode(data, field, cmd.args, final)
++	case *boolNode:
++		return reflect.ValueOf(word.true)
++	case *numberNode:
++		// These are ideal constants but we don't know the type
++		// and we have no context.  (If it was a method argument,
++		// we'd know what we need.) The syntax guides us to some extent.
++		switch {
++		case word.isComplex:
++			return reflect.ValueOf(word.complex128) // incontrovertible.
++		case word.isFloat && strings.IndexAny(word.text, ".eE") >= 0:
++			return reflect.ValueOf(word.float64)
++		case word.isInt:
++			return reflect.ValueOf(word.int64)
++		case word.isUint:
++			return reflect.ValueOf(word.uint64)
++		}
++	case *stringNode:
++		return reflect.ValueOf(word.text)
++	default:
++		s.errorf("can't handle command %q", firstWord)
+ 	}
+-	s.errorf("%s not a field", cmd.args[0])
+ 	panic("not reached")
+ }
+ 
+@@ -148,7 +233,7 @@ func (s *state) evalField(data reflect.Value, fieldName string) reflect.Value {
+ 		}
+ 		s.errorf("%s has no field %s", data.Type(), fieldName)
+ 	default:
+-		s.errorf("can't evaluate field %s of  type %s", fieldName, data.Type())
++		s.errorf("can't evaluate field %s of type %s", fieldName, data.Type())
+ 	}
+ 	panic("not reached")
+ }
+@@ -282,7 +367,7 @@ func (s *state) evalUnsignedInteger(v reflect.Value, typ reflect.Type, n node) r
+ }
+ 
+ func (s *state) evalFloat(v reflect.Value, typ reflect.Type, n node) reflect.Value {
+-	if n, ok := n.(*numberNode); ok && n.isFloat && !n.imaginary {
++	if n, ok := n.(*numberNode); ok && n.isFloat {
+ 		value := reflect.New(typ).Elem()
+ 		value.SetFloat(n.float64)
+ 		return value
+@@ -292,9 +377,9 @@ func (s *state) evalFloat(v reflect.Value, typ reflect.Type, n node) reflect.Val
+ }
+ 
+ func (s *state) evalComplex(v reflect.Value, typ reflect.Type, n node) reflect.Value {
+-	if n, ok := n.(*numberNode); ok && n.isFloat && n.imaginary {
++	if n, ok := n.(*numberNode); ok && n.isComplex {
+ 		value := reflect.New(typ).Elem()
+-		value.SetComplex(complex(0, n.float64))
++		value.SetComplex(n.complex128)
+ 		return value
+ 	}
+ 	s.errorf("expected complex; found %s", n)
+diff --git a/src/pkg/exp/template/exec_test.go b/src/pkg/exp/template/exec_test.go
+index bd21125ef4..6e4da692e9 100644
+--- a/src/pkg/exp/template/exec_test.go
++++ b/src/pkg/exp/template/exec_test.go
+@@ -16,17 +16,20 @@ import (
+ // T has lots of interesting pieces to use to test execution.
+ type T struct {
+ 	// Basics
+-	I   int
+-	U16 uint16
+-	X   string
++	I           int
++	U16         uint16
++	X           string
++	FloatZero   float64
++	ComplexZero float64
+ 	// Nested structs.
+ 	U *U
+ 	// Slices
+-	SI     []int
+-	SEmpty []int
+-	SB     []bool
++	SI      []int
++	SIEmpty []int
++	SB      []bool
+ 	// Maps
+ 	MSI      map[string]int
++	MSIone   map[string]int // one element, for deterministic output
+ 	MSIEmpty map[string]int
+ }
+ 
+@@ -76,13 +79,14 @@ type U struct {
+ }
+ 
+ var tVal = &T{
+-	I:   17,
+-	U16: 16,
+-	X:   "x",
+-	U:   &U{"v"},
+-	SI:  []int{3, 4, 5},
+-	SB:  []bool{true, false},
+-	MSI: map[string]int{"one": 1, "two": 2, "three": 3},
++	I:      17,
++	U16:    16,
++	X:      "x",
++	U:      &U{"v"},
++	SI:     []int{3, 4, 5},
++	SB:     []bool{true, false},
++	MSI:    map[string]int{"one": 1, "two": 2, "three": 3},
++	MSIone: map[string]int{"one": 1},
+ }
+ 
+ type execTest struct {
+@@ -94,31 +98,80 @@ type execTest struct {
+ }
+ 
+ var execTests = []execTest{
++	// Trivial cases.
+ 	{"empty", "", "", nil, true},
+ 	{"text", "some text", "some text", nil, true},
++	// Fields of structs.
+ 	{".X", "-{{.X}}-", "-x-", tVal, true},
+ 	{".U.V", "-{{.U.V}}-", "-v-", tVal, true},
++	// Dots of all kinds to test basic evaluation.
++	{"dot int", "<{{.}}>", "<13>", 13, true},
++	{"dot uint", "<{{.}}>", "<14>", uint(14), true},
++	{"dot float", "<{{.}}>", "<15.1>", 15.1, true},
++	{"dot bool", "<{{.}}>", "<true>", true, true},
++	{"dot complex", "<{{.}}>", "<(16.2-17i)>", 16.2 - 17i, true},
++	{"dot string", "<{{.}}>", "<hello>", "hello", true},
++	{"dot slice", "<{{.}}>", "<[-1 -2 -3]>", []int{-1, -2, -3}, true},
++	{"dot map", "<{{.}}>", "<map[two:22 one:11]>", map[string]int{"one": 11, "two": 22}, true},
++	{"dot struct", "<{{.}}>", "<{7 seven}>", struct {
++		a int
++		b string
++	}{7, "seven"}, true},
++	// Method calls.
+ 	{".Method0", "-{{.Method0}}-", "-resultOfMethod0-", tVal, true},
+ 	{".Method1(1234)", "-{{.Method1 1234}}-", "-1234-", tVal, true},
+ 	{".Method1(.I)", "-{{.Method1 .I}}-", "-17-", tVal, true},
+ 	{".Method2(3, .X)", "-{{.Method2 3 .X}}-", "-Method2: 3 x-", tVal, true},
+ 	{".Method2(.U16, `str`)", "-{{.Method2 .U16 `str`}}-", "-Method2: 16 str-", tVal, true},
++	// Pipelines.
+ 	{"pipeline", "-{{.Method0 | .Method2 .U16}}-", "-Method2: 16 resultOfMethod0-", tVal, true},
++	// If.
++	{"if true", "{{if true}}TRUE{{end}}", "TRUE", tVal, true},
++	{"if false", "{{if false}}TRUE{{else}}FALSE{{end}}", "FALSE", tVal, true},
++	{"if 1", "{{if 1}}NON-ZERO{{else}}ZERO{{end}}", "NON-ZERO", tVal, true},
++	{"if 0", "{{if 0}}NON-ZERO{{else}}ZERO{{end}}", "ZERO", tVal, true},
++	{"if 1.5", "{{if 1.5}}NON-ZERO{{else}}ZERO{{end}}", "NON-ZERO", tVal, true},
++	{"if 0.0", "{{if .FloatZero}}NON-ZERO{{else}}ZERO{{end}}", "ZERO", tVal, true},
++	{"if 1.5i", "{{if 1.5i}}NON-ZERO{{else}}ZERO{{end}}", "NON-ZERO", tVal, true},
++	{"if 0.0i", "{{if .ComplexZero}}NON-ZERO{{else}}ZERO{{end}}", "ZERO", tVal, true},
++	{"if emptystring", "{{if ``}}NON-EMPTY{{else}}EMPTY{{end}}", "EMPTY", tVal, true},
++	{"if string", "{{if `notempty`}}NON-EMPTY{{else}}EMPTY{{end}}", "NON-EMPTY", tVal, true},
++	{"if emptyslice", "{{if .SIEmpty}}NON-EMPTY{{else}}EMPTY{{end}}", "EMPTY", tVal, true},
++	{"if slice", "{{if .SI}}NON-EMPTY{{else}}EMPTY{{end}}", "NON-EMPTY", tVal, true},
++	{"if emptymap", "{{if .MSIEmpty}}NON-EMPTY{{else}}EMPTY{{end}}", "EMPTY", tVal, true},
++	{"if map", "{{if .MSI}}NON-EMPTY{{else}}EMPTY{{end}}", "NON-EMPTY", tVal, true},
++	// With.
++	{"with true", "{{with true}}{{.}}{{end}}", "true", tVal, true},
++	{"with false", "{{with false}}{{.}}{{else}}FALSE{{end}}", "FALSE", tVal, true},
++	{"with 1", "{{with 1}}{{.}}{{else}}ZERO{{end}}", "1", tVal, true},
++	{"with 0", "{{with 0}}{{.}}{{else}}ZERO{{end}}", "ZERO", tVal, true},
++	{"with 1.5", "{{with 1.5}}{{.}}{{else}}ZERO{{end}}", "1.5", tVal, true},
++	{"with 0.0", "{{with .FloatZero}}{{.}}{{else}}ZERO{{end}}", "ZERO", tVal, true},
++	{"with 1.5i", "{{with 1.5i}}{{.}}{{else}}ZERO{{end}}", "(0+1.5i)", tVal, true},
++	{"with 0.0i", "{{with .ComplexZero}}{{.}}{{else}}ZERO{{end}}", "ZERO", tVal, true},
++	{"with emptystring", "{{with ``}}{{.}}{{else}}EMPTY{{end}}", "EMPTY", tVal, true},
++	{"with string", "{{with `notempty`}}{{.}}{{else}}EMPTY{{end}}", "notempty", tVal, true},
++	{"with emptyslice", "{{with .SIEmpty}}{{.}}{{else}}EMPTY{{end}}", "EMPTY", tVal, true},
++	{"with slice", "{{with .SI}}{{.}}{{else}}EMPTY{{end}}", "[3 4 5]", tVal, true},
++	{"with emptymap", "{{with .MSIEmpty}}{{.}}{{else}}EMPTY{{end}}", "EMPTY", tVal, true},
++	{"with map", "{{with .MSIone}}{{.}}{{else}}EMPTY{{end}}", "map[one:1]", tVal, true},
++	// Range.
+ 	{"range []int", "{{range .SI}}-{{.}}-{{end}}", "-3--4--5-", tVal, true},
+-	{"range empty no else", "{{range .SEmpty}}-{{.}}-{{end}}", "", tVal, true},
++	{"range empty no else", "{{range .SIEmpty}}-{{.}}-{{end}}", "", tVal, true},
+ 	{"range []int else", "{{range .SI}}-{{.}}-{{else}}EMPTY{{end}}", "-3--4--5-", tVal, true},
+-	{"range empty else", "{{range .SEmpty}}-{{.}}-{{else}}EMPTY{{end}}", "EMPTY", tVal, true},
++	{"range empty else", "{{range .SIEmpty}}-{{.}}-{{else}}EMPTY{{end}}", "EMPTY", tVal, true},
+ 	{"range []bool", "{{range .SB}}-{{.}}-{{end}}", "-true--false-", tVal, true},
+ 	{"range []int method", "{{range .SI | .MAdd .I}}-{{.}}-{{end}}", "-20--21--22-", tVal, true},
+ 	{"range map", "{{range .MSI | .MSort}}-{{.}}-{{end}}", "-one--three--two-", tVal, true},
+ 	{"range empty map no else", "{{range .MSIEmpty}}-{{.}}-{{end}}", "", tVal, true},
+ 	{"range map else", "{{range .MSI | .MSort}}-{{.}}-{{else}}EMPTY{{end}}", "-one--three--two-", tVal, true},
+ 	{"range empty map else", "{{range .MSIEmpty}}-{{.}}-{{else}}EMPTY{{end}}", "EMPTY", tVal, true},
++	// Error handling.
+ 	{"error method, error", "{{.EPERM true}}", "", tVal, false},
+ 	{"error method, no error", "{{.EPERM false}}", "false", tVal, true},
+ }
+ 
+-func TestExecute(t *testing.T) {
++func testExecute(execTests []execTest, set *Set, t *testing.T) {
+ 	b := new(bytes.Buffer)
+ 	for _, test := range execTests {
+ 		tmpl := New(test.name)
+@@ -128,7 +181,7 @@ func TestExecute(t *testing.T) {
+ 			continue
+ 		}
+ 		b.Reset()
+-		err = tmpl.Execute(b, test.data)
++		err = tmpl.ExecuteInSet(b, test.data, set)
+ 		switch {
+ 		case !test.ok && err == nil:
+ 			t.Errorf("%s: expected error; got none", test.name)
+@@ -146,6 +199,10 @@ func TestExecute(t *testing.T) {
+ 	}
+ }
+ 
++func TestExecute(t *testing.T) {
++	testExecute(execTests, nil, t)
++}
++
+ // Check that an error from a method flows back to the top.
+ func TestExecuteError(t *testing.T) {
+ 	b := new(bytes.Buffer)
+diff --git a/src/pkg/exp/template/parse.go b/src/pkg/exp/template/parse.go
+index f1695557f4..74b5f2c0ae 100644
+--- a/src/pkg/exp/template/parse.go
++++ b/src/pkg/exp/template/parse.go
+@@ -11,6 +11,7 @@ import (
+ 	"runtime"
+ 	"strconv"
+ 	"strings"
++	"unicode"
+ )
+ 
+ // Template is the representation of a parsed template.
+@@ -19,7 +20,7 @@ type Template struct {
+ 	root *listNode
+ 	// Parsing.
+ 	lex      *lexer
+-	tokens   chan item
++	tokens   <-chan item
+ 	token    item // token lookahead for parser
+ 	havePeek bool
+ }
+@@ -70,10 +71,13 @@ const (
+ 	nodeEnd
+ 	nodeField
+ 	nodeIdentifier
++	nodeIf
+ 	nodeList
+ 	nodeNumber
+ 	nodeRange
+ 	nodeString
++	nodeTemplate
++	nodeWith
+ )
+ 
+ // Nodes.
+@@ -215,31 +219,40 @@ func (b *boolNode) String() string {
+ 	return fmt.Sprintf("B=false")
+ }
+ 
+-// numberNode holds a number, signed or unsigned, integer, floating, or imaginary.
++// numberNode holds a number, signed or unsigned integer, floating, or complex.
+ // The value is parsed and stored under all the types that can represent the value.
+ // This simulates in a small amount of code the behavior of Go's ideal constants.
+-// TODO: booleans, complex numbers.
+ type numberNode struct {
+ 	nodeType
+-	isInt     bool // number has an integral value
+-	isUint    bool // number has an unsigned integral value
+-	isFloat   bool // number has a floating-point value
+-	imaginary bool // number is imaginary
+-	int64          // the signed integer value
+-	uint64         // the unsigned integer value
+-	float64        // the positive floating-point value
+-	text      string
+-}
+-
+-func newNumber(text string) (*numberNode, os.Error) {
++	isInt      bool // number has an integral value
++	isUint     bool // number has an unsigned integral value
++	isFloat    bool // number has a floating-point value
++	isComplex  bool // number is complex
++	int64           // the signed integer value
++	uint64          // the unsigned integer value
++	float64         // the floating-point value
++	complex128      // the complex value
++	text       string
++}
++
++func newNumber(text string, isComplex bool) (*numberNode, os.Error) {
+ 	n := &numberNode{nodeType: nodeNumber, text: text}
+-	// Imaginary constants can only be floating-point.
++	if isComplex {
++		// fmt.Sscan can parse the pair, so let it do the work.
++		if _, err := fmt.Sscan(text, &n.complex128); err != nil {
++			return nil, err
++		}
++		n.isComplex = true
++		n.simplifyComplex()
++		return n, nil
++	}
++	// Imaginary constants can only be complex unless they are zero.
+ 	if len(text) > 0 && text[len(text)-1] == 'i' {
+ 		f, err := strconv.Atof64(text[:len(text)-1])
+ 		if err == nil {
+-			n.imaginary = true
+-			n.isFloat = true
+-			n.float64 = f
++			n.isComplex = true
++			n.complex128 = complex(0, f)
++			n.simplifyComplex()
+ 			return n, nil
+ 		}
+ 	}
+@@ -287,6 +300,23 @@ func newNumber(text string) (*numberNode, os.Error) {
+ 	return n, nil
+ }
+ 
++// simplifyComplex pulls out any other types that are represented by the complex number.
++// These all require that the imaginary part be zero.
++func (n *numberNode) simplifyComplex() {
++	n.isFloat = imag(n.complex128) == 0
++	if n.isFloat {
++		n.float64 = real(n.complex128)
++		n.isInt = float64(int64(n.float64)) == n.float64
++		if n.isInt {
++			n.int64 = int64(n.float64)
++		}
++		n.isUint = float64(uint64(n.float64)) == n.float64
++		if n.isUint {
++			n.uint64 = uint64(n.float64)
++		}
++	}
++}
++
+ func (n *numberNode) String() string {
+ 	return fmt.Sprintf("N=%s", n.text)
+ }
+@@ -337,6 +367,26 @@ func (e *elseNode) typ() nodeType {
+ func (e *elseNode) String() string {
+ 	return "{{else}}"
+ }
++// ifNode represents an {{if}} action and its commands.
++// TODO: what should evaluation look like? is a pipeline enough?
++type ifNode struct {
++	nodeType
++	line     int
++	pipeline []*commandNode
++	list     *listNode
++	elseList *listNode
++}
++
++func newIf(line int, pipeline []*commandNode, list, elseList *listNode) *ifNode {
++	return &ifNode{nodeType: nodeIf, line: line, pipeline: pipeline, list: list, elseList: elseList}
++}
++
++func (i *ifNode) String() string {
++	if i.elseList != nil {
++		return fmt.Sprintf("({{if %s}} %s {{else}} %s)", i.pipeline, i.list, i.elseList)
++	}
++	return fmt.Sprintf("({{if %s}} %s)", i.pipeline, i.list)
++}
+ 
+ // rangeNode represents a {{range}} action and its commands.
+ type rangeNode struct {
+@@ -347,8 +397,8 @@ type rangeNode struct {
+ 	elseList *listNode
+ }
+ 
+-func newRange(line int, pipeline []*commandNode, list *listNode) *rangeNode {
+-	return &rangeNode{nodeType: nodeRange, line: line, pipeline: pipeline, list: list}
++func newRange(line int, pipeline []*commandNode, list, elseList *listNode) *rangeNode {
++	return &rangeNode{nodeType: nodeRange, line: line, pipeline: pipeline, list: list, elseList: elseList}
+ }
+ 
+ func (r *rangeNode) String() string {
+@@ -358,6 +408,43 @@ func (r *rangeNode) String() string {
+ 	return fmt.Sprintf("({{range %s}} %s)", r.pipeline, r.list)
+ }
+ 
++// templateNode represents a {{template}} action.
++type templateNode struct {
++	nodeType
++	line     int
++	name     node
++	pipeline []*commandNode
++}
++
++func newTemplate(line int, name node, pipeline []*commandNode) *templateNode {
++	return &templateNode{nodeType: nodeTemplate, line: line, name: name, pipeline: pipeline}
++}
++
++func (t *templateNode) String() string {
++	return fmt.Sprintf("{{template %s %s}}", t.name, t.pipeline)
++}
++
++// withNode represents a {{with}} action and its commands.
++type withNode struct {
++	nodeType
++	line     int
++	pipeline []*commandNode
++	list     *listNode
++	elseList *listNode
++}
++
++func newWith(line int, pipeline []*commandNode, list, elseList *listNode) *withNode {
++	return &withNode{nodeType: nodeWith, line: line, pipeline: pipeline, list: list, elseList: elseList}
++}
++
++func (w *withNode) String() string {
++	if w.elseList != nil {
++		return fmt.Sprintf("({{with %s}} %s {{else}} %s)", w.pipeline, w.list, w.elseList)
++	}
++	return fmt.Sprintf("({{with %s}} %s)", w.pipeline, w.list)
++}
++
++
+ // Parsing.
+ 
+ // New allocates a new template with the given name.
+@@ -400,24 +487,62 @@ func (t *Template) recover(errp *os.Error) {
+ 		if _, ok := e.(runtime.Error); ok {
+ 			panic(e)
+ 		}
+-		t.root, t.lex, t.tokens = nil, nil, nil
++		t.stopParse()
++		t.root = nil
+ 		*errp = e.(os.Error)
+ 	}
+ 	return
+ }
+ 
++// startParse starts the template parsing from the lexer.
++func (t *Template) startParse(lex *lexer, tokens <-chan item) {
++	t.root = nil
++	t.lex, t.tokens = lex, tokens
++}
++
++// stopParse terminates parsing.
++func (t *Template) stopParse() {
++	t.lex, t.tokens = nil, nil
++}
++
++// atEOF returns true if, possibly after spaces, we're at EOF.
++func (t *Template) atEOF() bool {
++	for {
++		token := t.peek()
++		switch token.typ {
++		case itemEOF:
++			return true
++		case itemText:
++			for _, r := range token.val {
++				if !unicode.IsSpace(r) {
++					return false
++				}
++			}
++			t.next() // skip spaces.
++			continue
++		}
++		break
++	}
++	return false
++}
++
+ // Parse parses the template definition string to construct an internal representation
+ // of the template for execution.
+ func (t *Template) Parse(s string) (err os.Error) {
+-	t.lex, t.tokens = lex(t.name, s)
++	t.startParse(lex(t.name, s))
+ 	defer t.recover(&err)
+-	var next node
++	t.parse(true)
++	t.stopParse()
++	return
++}
++
++// parse is the helper for Parse. It triggers an error if we expect EOF but don't reach it.
++func (t *Template) parse(toEOF bool) (next node) {
+ 	t.root, next = t.itemList(true)
+-	if next != nil {
++	if toEOF && next != nil {
+ 		t.errorf("unexpected %s", next)
+ 	}
+-	t.lex, t.tokens = nil, nil
+-	return nil
++	return next
+ }
+ 
+ // itemList:
+@@ -461,12 +586,18 @@ func (t *Template) textOrAction() node {
+ // First word could be a keyword such as range.
+ func (t *Template) action() (n node) {
+ 	switch token := t.next(); token.typ {
+-	case itemRange:
+-		return t.rangeControl()
+ 	case itemElse:
+ 		return t.elseControl()
+ 	case itemEnd:
+ 		return t.endControl()
++	case itemIf:
++		return t.ifControl()
++	case itemRange:
++		return t.rangeControl()
++	case itemTemplate:
++		return t.templateControl()
++	case itemWith:
++		return t.withControl()
+ 	}
+ 	t.backup()
+ 	return newAction(t.lex.lineNumber(), t.pipeline("command"))
+@@ -479,14 +610,13 @@ func (t *Template) pipeline(context string) (pipe []*commandNode) {
+ 	for {
+ 		switch token := t.next(); token.typ {
+ 		case itemRightMeta:
++			if len(pipe) == 0 {
++				t.errorf("missing value for %s", context)
++			}
+ 			return
+-		case itemIdentifier, itemField, itemDot:
++		case itemBool, itemComplex, itemDot, itemField, itemIdentifier, itemNumber, itemRawString, itemString:
+ 			t.backup()
+-			cmd, err := t.command()
+-			if err != nil {
+-				t.error(err)
+-			}
+-			pipe = append(pipe, cmd)
++			pipe = append(pipe, t.command())
+ 		default:
+ 			t.unexpected(token, context)
+ 		}
+@@ -494,26 +624,47 @@ func (t *Template) pipeline(context string) (pipe []*commandNode) {
+ 	return
+ }
+ 
+-// Range:
+-//	{{range field}} itemList {{end}}
+-//	{{range field}} itemList {{else}} itemList {{end}}
+-// Range keyword is past.
+-func (t *Template) rangeControl() node {
+-	pipeline := t.pipeline("range")
+-	list, next := t.itemList(false)
+-	r := newRange(t.lex.lineNumber(), pipeline, list)
++func (t *Template) parseControl(context string) (lineNum int, pipe []*commandNode, list, elseList *listNode) {
++	pipe = t.pipeline(context)
++	var next node
++	list, next = t.itemList(false)
+ 	switch next.typ() {
+ 	case nodeEnd: //done
+ 	case nodeElse:
+-		elseList, next := t.itemList(false)
++		elseList, next = t.itemList(false)
+ 		if next.typ() != nodeEnd {
+ 			t.errorf("expected end; found %s", next)
+ 		}
+-		r.elseList = elseList
++		elseList = elseList
+ 	}
+-	return r
++	return lineNum, pipe, list, elseList
++}
++
++// If:
++//	{{if pipeline}} itemList {{end}}
++//	{{if pipeline}} itemList {{else}} itemList {{end}}
++// If keyword is past.
++func (t *Template) ifControl() node {
++	return newIf(t.parseControl("if"))
+ }
+ 
++// Range:
++//	{{range pipeline}} itemList {{end}}
++//	{{range pipeline}} itemList {{else}} itemList {{end}}
++// Range keyword is past.
++func (t *Template) rangeControl() node {
++	return newRange(t.parseControl("range"))
++}
++
++// With:
++//	{{with pipeline}} itemList {{end}}
++//	{{with pipeline}} itemList {{else}} itemList {{end}}
++// If keyword is past.
++func (t *Template) withControl() node {
++	return newWith(t.parseControl("with"))
++}
++
++
+ // End:
+ //	{{end}}
+ // End keyword is past.
+@@ -530,10 +681,36 @@ func (t *Template) elseControl() node {
+ 	return newElse(t.lex.lineNumber())
+ }
+ 
++// Template:
++//	{{template stringValue pipeline}}
++// Template keyword is past.  The name must be something that can evaluate
++// to a string.
++func (t *Template) templateControl() node {
++	var name node
++	switch token := t.next(); token.typ {
++	case itemIdentifier:
++		name = newIdentifier(token.val)
++	case itemDot:
++		name = newDot()
++	case itemField:
++		name = newField(token.val)
++	case itemString, itemRawString:
++		s, err := strconv.Unquote(token.val)
++		if err != nil {
++			t.error(err)
++		}
++		name = newString(s)
++	default:
++		t.unexpected(token, "template invocation")
++	}
++	pipeline := t.pipeline("template")
++	return newTemplate(t.lex.lineNumber(), name, pipeline)
++}
++
+ // command:
+ // space-separated arguments up to a pipeline character or right metacharacter.
+ // we consume the pipe character but leave the right meta to terminate the action.
+-func (t *Template) command() (*commandNode, os.Error) {
++func (t *Template) command() *commandNode {
+ 	cmd := newCommand()
+ Loop:
+ 	for {
+@@ -544,7 +721,7 @@ Loop:
+ 		case itemPipe:
+ 			break Loop
+ 		case itemError:
+-			return nil, os.NewError(token.val)
++			t.errorf("%s", token.val)
+ 		case itemIdentifier:
+ 			cmd.append(newIdentifier(token.val))
+ 		case itemDot:
+@@ -553,22 +730,16 @@ Loop:
+ 			cmd.append(newField(token.val))
+ 		case itemBool:
+ 			cmd.append(newBool(token.val == "true"))
+-		case itemNumber:
+-			if len(cmd.args) == 0 {
+-				t.errorf("command cannot be %q", token.val)
+-			}
+-			number, err := newNumber(token.val)
++		case itemComplex, itemNumber:
++			number, err := newNumber(token.val, token.typ == itemComplex)
+ 			if err != nil {
+ 				t.error(err)
+ 			}
+ 			cmd.append(number)
+ 		case itemString, itemRawString:
+-			if len(cmd.args) == 0 {
+-				t.errorf("command cannot be %q", token.val)
+-			}
+ 			s, err := strconv.Unquote(token.val)
+ 			if err != nil {
+-				return nil, err
++				t.error(err)
+ 			}
+ 			cmd.append(newString(s))
+ 		default:
+@@ -578,5 +749,5 @@ Loop:
+ 	if len(cmd.args) == 0 {
+ 		t.errorf("empty command")
+ 	}
+-	return cmd, nil
++	return cmd
+ }
+diff --git a/src/pkg/exp/template/parse_test.go b/src/pkg/exp/template/parse_test.go
+index b1da989cf2..5c780cd292 100644
+--- a/src/pkg/exp/template/parse_test.go
++++ b/src/pkg/exp/template/parse_test.go
+@@ -16,41 +16,53 @@ type numberTest struct {
+ 	isInt     bool
+ 	isUint    bool
+ 	isFloat   bool
+-	imaginary bool
++	isComplex bool
+ 	int64
+ 	uint64
+ 	float64
++	complex128
+ }
+ 
+ var numberTests = []numberTest{
+ 	// basics
+-	{"0", true, true, true, false, 0, 0, 0},
+-	{"-0", true, true, true, false, 0, 0, 0}, // check that -0 is a uint.
+-	{"73", true, true, true, false, 73, 73, 73},
+-	{"-73", true, false, true, false, -73, 0, -73},
+-	{"+73", true, false, true, false, 73, 0, 73},
+-	{"100", true, true, true, false, 100, 100, 100},
+-	{"1e9", true, true, true, false, 1e9, 1e9, 1e9},
+-	{"-1e9", true, false, true, false, -1e9, 0, -1e9},
+-	{"-1.2", false, false, true, false, 0, 0, -1.2},
+-	{"1e19", false, true, true, false, 0, 1e19, 1e19},
+-	{"-1e19", false, false, true, false, 0, 0, -1e19},
+-	{"4i", false, false, true, true, 0, 0, 4},
++	{"0", true, true, true, false, 0, 0, 0, 0},
++	{"-0", true, true, true, false, 0, 0, 0, 0}, // check that -0 is a uint.
++	{"73", true, true, true, false, 73, 73, 73, 0},
++	{"-73", true, false, true, false, -73, 0, -73, 0},
++	{"+73", true, false, true, false, 73, 0, 73, 0},
++	{"100", true, true, true, false, 100, 100, 100, 0},
++	{"1e9", true, true, true, false, 1e9, 1e9, 1e9, 0},
++	{"-1e9", true, false, true, false, -1e9, 0, -1e9, 0},
++	{"-1.2", false, false, true, false, 0, 0, -1.2, 0},
++	{"1e19", false, true, true, false, 0, 1e19, 1e19, 0},
++	{"-1e19", false, false, true, false, 0, 0, -1e19, 0},
++	{"4i", false, false, false, true, 0, 0, 0, 4i},
++	{"-1.2+4.2i", false, false, false, true, 0, 0, 0, -1.2 + 4.2i},
++	// complex with 0 imaginary are float (and maybe integer)
++	{"0i", true, true, true, true, 0, 0, 0, 0},
++	{"-1.2+0i", false, false, true, true, 0, 0, -1.2, -1.2},
++	{"-12+0i", true, false, true, true, -12, 0, -12, -12},
++	{"13+0i", true, true, true, true, 13, 13, 13, 13},
+ 	// funny bases
+-	{"0123", true, true, true, false, 0123, 0123, 0123},
+-	{"-0x0", true, true, true, false, 0, 0, 0},
+-	{"0xdeadbeef", true, true, true, false, 0xdeadbeef, 0xdeadbeef, 0xdeadbeef},
++	{"0123", true, true, true, false, 0123, 0123, 0123, 0},
++	{"-0x0", true, true, true, false, 0, 0, 0, 0},
++	{"0xdeadbeef", true, true, true, false, 0xdeadbeef, 0xdeadbeef, 0xdeadbeef, 0},
+ 	// some broken syntax
+ 	{text: "+-2"},
+ 	{text: "0x123."},
+ 	{text: "1e."},
+ 	{text: "0xi."},
++	{text: "1+2."},
+ }
+ 
+ func TestNumberParse(t *testing.T) {
+ 	for _, test := range numberTests {
+-		n, err := newNumber(test.text)
+-		ok := test.isInt || test.isUint || test.isFloat
++		// If fmt.Sscan thinks it's complex, it's complex.  We can't trust the output
++		// because imaginary comes out as a number.
++		var c complex128
++		_, err := fmt.Sscan(test.text, &c)
++		n, err := newNumber(test.text, err == nil)
++		ok := test.isInt || test.isUint || test.isFloat || test.isComplex
+ 		if ok && err != nil {
+ 			t.Errorf("unexpected error for %q", test.text)
+ 			continue
+@@ -62,8 +74,8 @@ func TestNumberParse(t *testing.T) {
+ 		if !ok {
+ 			continue
+ 		}
+-		if n.imaginary != test.imaginary {
+-			t.Errorf("imaginary incorrect for %q; should be %t", test.text, test.imaginary)
++		if n.isComplex != test.isComplex {
++			t.Errorf("complex incorrect for %q; should be %t", test.text, test.isComplex)
+ 		}
+ 		if test.isInt {
+ 			if !n.isInt {
+@@ -95,17 +107,19 @@ func TestNumberParse(t *testing.T) {
+ 		} else if n.isFloat {
+ 			t.Errorf("did not expect float for %q", test.text)
+ 		}
++		if test.isComplex {
++			if !n.isComplex {
++				t.Errorf("expected complex for %q", test.text)
++			}
++			if n.complex128 != test.complex128 {
++				t.Errorf("complex128 for %q should be %g is %g", test.text, test.complex128, n.complex128)
++			}
++		} else if n.isComplex {
++			t.Errorf("did not expect complex for %q", test.text)
++		}
+ 	}
+ }
+ 
+-func num(s string) *numberNode {
+-	n, err := newNumber(s)
+-	if err != nil {
+-		panic(err)
+-	}
+-	return n
+-}
+-
+ type parseTest struct {
+ 	name   string
+ 	input  string
+@@ -125,7 +139,7 @@ var parseTests = []parseTest{
+ 		`[(text: " \t\n")]`},
+ 	{"text", "some text", noError,
+ 		`[(text: "some text")]`},
+-	{"emptyMeta", "{{}}", noError,
++	{"emptyMeta", "{{}}", hasError,
+ 		`[(action: [])]`},
+ 	{"field", "{{.X}}", noError,
+ 		`[(action: [(command: [F=[X]])])]`},
+@@ -139,6 +153,10 @@ var parseTests = []parseTest{
+ 		"[(action: [(command: [I=hello S=`quoted text`])])]"},
+ 	{"pipeline", "{{hello|world}}", noError,
+ 		`[(action: [(command: [I=hello]) (command: [I=world])])]`},
++	{"simple if", "{{if .X}}hello{{end}}", noError,
++		`[({{if [(command: [F=[X]])]}} [(text: "hello")])]`},
++	{"if with else", "{{if .X}}true{{else}}false{{end}}", noError,
++		`[({{if [(command: [F=[X]])]}} [(text: "true")] {{else}} [(text: "false")])]`},
+ 	{"simple range", "{{range .X}}hello{{end}}", noError,
+ 		`[({{range [(command: [F=[X]])]}} [(text: "hello")])]`},
+ 	{"chained field range", "{{range .X.Y.Z}}hello{{end}}", noError,
+@@ -153,6 +171,12 @@ var parseTests = []parseTest{
+ 		`[({{range [(command: [F=[SI]])]}} [(action: [(command: [{{<.>}}])])])]`},
+ 	{"constants", "{{range .SI 1 -3.2i true false }}{{end}}", noError,
+ 		`[({{range [(command: [F=[SI] N=1 N=-3.2i B=true B=false])]}} [])]`},
++	{"template", "{{template foo .X}}", noError,
++		"[{{template I=foo [(command: [F=[X]])]}}]"},
++	{"with", "{{with .X}}hello{{end}}", noError,
++		`[({{with [(command: [F=[X]])]}} [(text: "hello")])]`},
++	{"with with else", "{{with .X}}hello{{else}}goodbye{{end}}", noError,
++		`[({{with [(command: [F=[X]])]}} [(text: "hello")] {{else}} [(text: "goodbye")])]`},
+ 	// Errors.
+ 	{"unclosed action", "hello{{range", hasError, ""},
+ 	{"missing end", "hello{{range .x}}", hasError, ""},
+diff --git a/src/pkg/exp/template/set.go b/src/pkg/exp/template/set.go
+new file mode 100644
+index 0000000000..13d93d03ca
+--- /dev/null
++++ b/src/pkg/exp/template/set.go
+@@ -0,0 +1,71 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package template
++
++import (
++	"os"
++	"runtime"
++	"strconv"
++)
++
++// Set holds a set of related templates that can refer to one another by name.
++// A template may be a member of multiple sets.
++type Set struct {
++	tmpl map[string]*Template
++}
++
++// NewSet allocates a new, empty template set.
++func NewSet() *Set {
++	return &Set{
++		tmpl: make(map[string]*Template),
++	}
++}
++
++// recover is the handler that turns panics into returns from the top
++// level of Parse.
++func (s *Set) recover(errp *os.Error) {
++	e := recover()
++	if e != nil {
++		if _, ok := e.(runtime.Error); ok {
++			panic(e)
++		}
++		s.tmpl = nil
++		*errp = e.(os.Error)
++	}
++	return
++}
++
++// Parse parses the file into a set of named templates.
++func (s *Set) Parse(text string) (err os.Error) {
++	defer s.recover(&err)
++	lex, tokens := lex("set", text)
++	const context = "define clause"
++	for {
++		t := New("set") // name will be updated once we know it.
++		t.startParse(lex, tokens)
++		// Expect EOF or "{{ define name }}".
++		if t.atEOF() {
++			return
++		}
++		t.expect(itemLeftMeta, context)
++		t.expect(itemDefine, context)
++		name := t.expect(itemString, context)
++		t.name, err = strconv.Unquote(name.val)
++		if err != nil {
++			t.error(err)
++		}
++		t.expect(itemRightMeta, context)
++		end := t.parse(false)
++		if end == nil {
++			t.errorf("unexpected EOF in %s", context)
++		}
++		if end.typ() != nodeEnd {
++			t.errorf("unexpected %s in %s", end, context)
++		}
++		t.stopParse()
++		s.tmpl[t.name] = t
++	}
++	return nil
++}
+diff --git a/src/pkg/exp/template/set_test.go b/src/pkg/exp/template/set_test.go
+new file mode 100644
+index 0000000000..873d261b3d
+--- /dev/null
++++ b/src/pkg/exp/template/set_test.go
+@@ -0,0 +1,101 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package template
++
++import (
++	"fmt"
++	"testing"
++)
++
++type setParseTest struct {
++	name    string
++	input   string
++	ok      bool
++	names   []string
++	results []string
++}
++
++var setParseTests = []setParseTest{
++	{"empty", "", noError,
++		nil,
++		nil},
++	{"one", `{{define "foo"}} FOO {{end}}`, noError,
++		[]string{"foo"},
++		[]string{`[(text: " FOO ")]`}},
++	{"two", `{{define "foo"}} FOO {{end}}{{define "bar"}} BAR {{end}}`, noError,
++		[]string{"foo", "bar"},
++		[]string{`[(text: " FOO ")]`, `[(text: " BAR ")]`}},
++	// errors
++	{"missing end", `{{define "foo"}} FOO `, hasError,
++		nil,
++		nil},
++	{"malformed name", `{{define "foo}} FOO `, hasError,
++		nil,
++		nil},
++}
++
++func TestSetParse(t *testing.T) {
++	for _, test := range setParseTests {
++		set := NewSet()
++		err := set.Parse(test.input)
++		switch {
++		case err == nil && !test.ok:
++			t.Errorf("%q: expected error; got none", test.name)
++			continue
++		case err != nil && test.ok:
++			t.Errorf("%q: unexpected error: %v", test.name, err)
++			continue
++		case err != nil && !test.ok:
++			// expected error, got one
++			if dumpErrors {
++				fmt.Printf("%s: %s\n\t%s\n", test.name, test.input, err)
++			}
++			continue
++		}
++		if len(set.tmpl) != len(test.names) {
++			t.Errorf("%s: wrong number of templates; wanted %d got %d", test.name, len(test.names), len(set.tmpl))
++			continue
++		}
++		for i, name := range test.names {
++			tmpl, ok := set.tmpl[name]
++			if !ok {
++				t.Errorf("%s: can't find template %q", test.name, name)
++				continue
++			}
++			result := tmpl.root.String()
++			if result != test.results[i] {
++				t.Errorf("%s=(%q): got\n\t%v\nexpected\n\t%v", test.name, test.input, result, test.results[i])
++			}
++		}
++	}
++}
++
++
++var setExecTests = []execTest{
++	{"empty", "", "", nil, true},
++	{"text", "some text", "some text", nil, true},
++	{"invoke text", `{{template "text" .SI}}`, "TEXT", tVal, true},
++	{"invoke dot int", `{{template "dot" .I}}`, "17", tVal, true},
++	{"invoke dot []int", `{{template "dot" .SI}}`, "[3 4 5]", tVal, true},
++	{"invoke dotV", `{{template "dotV" .U}}`, "v", tVal, true},
++	{"invoke nested int", `{{template "nested" .I}}`, "17", tVal, true},
++}
++
++const setText = `
++	{{define "text"}}TEXT{{end}}
++	{{define "dotV"}}{{.V}}{{end}}
++	{{define "dot"}}{{.}}{{end}}
++	{{define "nested"}}{{template "dot" .}}{{end}}
++`
++
++func TestSetExecute(t *testing.T) {
++	// Declare a set with a couple of templates first.
++	set := NewSet()
++	err := set.Parse(setText)
++	if err != nil {
++		t.Fatalf("error parsing set: %s", err)
++	}
++	testExecute(setExecTests, set, t)
++}

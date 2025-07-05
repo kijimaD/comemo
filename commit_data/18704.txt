@@ -17,7 +17,60 @@ Date:   Sat Mar 1 20:32:42 2014 -0800
     R=bradfitz
     CC=golang-codereviews
     https://golang.org/cl/70410044
-
+---
  src/pkg/net/http/serve_test.go | 21 +++++++++++++++++++++
  src/pkg/net/http/server.go     |  2 +-
  2 files changed, 22 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/http/serve_test.go b/src/pkg/net/http/serve_test.go
+index 4b8d9ce7e2..36832140b4 100644
+--- a/src/pkg/net/http/serve_test.go
++++ b/src/pkg/net/http/serve_test.go
+@@ -2372,6 +2372,27 @@ func TestServerKeepAlivesEnabled(t *testing.T) {
+ 	}
+ }
+ 
++func TestServerConnStateNew(t *testing.T) {
++	sawNew := false // if the test is buggy, we'll race on this variable.
++	srv := &Server{
++		ConnState: func(c net.Conn, state ConnState) {
++			if state == StateNew {
++				sawNew = true // testing that this write isn't racy
++			}
++		},
++		Handler: HandlerFunc(func(w ResponseWriter, r *Request) {}), // irrelevant
++	}
++	srv.Serve(&oneConnListener{
++		conn: &rwTestConn{
++			Reader: strings.NewReader("GET / HTTP/1.1\r\nHost: foo\r\n\r\n"),
++			Writer: ioutil.Discard,
++		},
++	})
++	if !sawNew { // testing that this read isn't racy
++		t.Error("StateNew not seen")
++	}
++}
++
+ func BenchmarkClientServer(b *testing.B) {
+ 	b.ReportAllocs()
+ 	b.StopTimer()
+diff --git a/src/pkg/net/http/server.go b/src/pkg/net/http/server.go
+index b77ec6cb6f..ffe5838a06 100644
+--- a/src/pkg/net/http/server.go
++++ b/src/pkg/net/http/server.go
+@@ -1090,7 +1090,6 @@ func (c *conn) setState(nc net.Conn, state ConnState) {
+ // Serve a new connection.
+ func (c *conn) serve() {
+ 	origConn := c.rwc // copy it before it's set nil on Close or Hijack
+-	c.setState(origConn, StateNew)
+ 	defer func() {
+ 		if err := recover(); err != nil {
+ 			const size = 64 << 10
+@@ -1722,6 +1721,7 @@ func (srv *Server) Serve(l net.Listener) error {
+ 		if err != nil {
+ 			continue
+ 		}
++		c.setState(c.rwc, StateNew) // before Serve can return
+ 		go c.serve()
+ 	}
+ }

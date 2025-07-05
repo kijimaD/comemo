@@ -9,6 +9,28 @@ Date:   Thu Jan 21 16:36:36 2016 -0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/lex.go | 10 +++-------
  1 file changed, 3 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/lex.go b/src/cmd/compile/internal/gc/lex.go
+index 01eb3a5656..8d1d2e2594 100644
+--- a/src/cmd/compile/internal/gc/lex.go
++++ b/src/cmd/compile/internal/gc/lex.go
+@@ -932,13 +932,9 @@ func isfrog(c int) bool {
+ }
+ 
+ type yySymType struct {
+-	yys  int
+-	node *Node
+-	list *NodeList
+-	typ  *Type
+-	sym  *Sym
+-	val  Val
+-	op   Op
++	sym *Sym
++	val Val
++	op  Op
+ }
+ 
+ const (

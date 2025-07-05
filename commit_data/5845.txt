@@ -7,6 +7,20 @@ Date:   Mon Jul 19 11:33:11 2010 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/1857043
-
+---
  src/pkg/tabwriter/tabwriter.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/tabwriter/tabwriter.go b/src/pkg/tabwriter/tabwriter.go
+index e6ce3232ac..de774c7d13 100644
+--- a/src/pkg/tabwriter/tabwriter.go
++++ b/src/pkg/tabwriter/tabwriter.go
+@@ -165,7 +165,7 @@ const (
+ // specifies the filter output. The remaining parameters control the formatting:
+ //
+ //	minwidth	minimal cell width including any padding
+-//      tabwidth	width of tab characters (equivalent number of spaces)
++//	tabwidth	width of tab characters (equivalent number of spaces)
+ //	padding		padding added to a cell before computing its width
+ //	padchar		ASCII char used for padding
+ //			if padchar == '\t', the Writer will assume that the

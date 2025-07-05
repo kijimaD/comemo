@@ -11,7 +11,54 @@ Date:   Wed Mar 11 12:51:44 2020 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/inl.go |  6 ++++++
  test/fixedbugs/issue35073.go       | 23 +++++++++++++++++++++++
  2 files changed, 29 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index 68acf876f8..b9460ed6d6 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -575,6 +575,12 @@ func inlnode(n *Node, maxCost int32) *Node {
+ 	// so escape analysis can avoid more heapmoves.
+ 	case OCLOSURE:
+ 		return n
++	case OCALLMETH:
++		// Prevent inlining some reflect.Value methods when using checkptr,
++		// even when package reflect was compiled without it (#35073).
++		if s := n.Left.Sym; Debug_checkptr != 0 && s.Pkg.Path == "reflect" && (s.Name == "Value.UnsafeAddr" || s.Name == "Value.Pointer") {
++			return n
++		}
+ 	}
+ 
+ 	lno := setlineno(n)
+diff --git a/test/fixedbugs/issue35073.go b/test/fixedbugs/issue35073.go
+new file mode 100644
+index 0000000000..dc8ce3a987
+--- /dev/null
++++ b/test/fixedbugs/issue35073.go
+@@ -0,0 +1,23 @@
++// run -gcflags=-d=checkptr
++
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test that reflect.Value.UnsafeAddr/Pointer is handled
++// correctly by -d=checkptr
++
++package main
++
++import (
++	"reflect"
++	"unsafe"
++)
++
++func main() {
++	n := 10
++	m := make(map[string]string)
++
++	_ = unsafe.Pointer(reflect.ValueOf(&n).Elem().UnsafeAddr())
++	_ = unsafe.Pointer(reflect.ValueOf(&m).Elem().Pointer())
++}

@@ -21,7 +21,7 @@ Date:   Wed Jul 31 13:13:39 2019 -0700
     Change-Id: I70cda664590d8872541e17409a5780da76920891
     Reviewed-on: https://go-review.googlesource.com/c/go/+/188398
     Reviewed-by: Jonathan Amsterdam <jba@google.com>
-
+---
  api/go1.13.txt                      |  1 -
  src/context/context.go              |  2 +-
  src/internal/oserror/errors.go      | 18 ------------------
@@ -39,3 +39,300 @@ Date:   Wed Jul 31 13:13:39 2019 -0700
  src/syscall/syscall_unix.go         |  2 --
  src/syscall/syscall_windows.go      |  2 --
  16 files changed, 17 insertions(+), 70 deletions(-)
+
+diff --git a/api/go1.13.txt b/api/go1.13.txt
+index 16f11cf2b7..a8e39ce8ea 100644
+--- a/api/go1.13.txt
++++ b/api/go1.13.txt
+@@ -237,7 +237,6 @@ pkg os (netbsd-arm64), const O_SYNC = 128
+ pkg os (netbsd-arm64), const O_TRUNC = 1024
+ pkg os (netbsd-arm64), const PathListSeparator = 58
+ pkg os (netbsd-arm64), const PathSeparator = 47
+-pkg os, var ErrTemporary error
+ pkg os, var ErrTimeout error
+ pkg path/filepath (netbsd-arm64-cgo), const ListSeparator = 58
+ pkg path/filepath (netbsd-arm64-cgo), const Separator = 47
+diff --git a/src/context/context.go b/src/context/context.go
+index 05d01d0294..b400396513 100644
+--- a/src/context/context.go
++++ b/src/context/context.go
+@@ -164,7 +164,7 @@ func (deadlineExceededError) Error() string   { return "context deadline exceede
+ func (deadlineExceededError) Timeout() bool   { return true }
+ func (deadlineExceededError) Temporary() bool { return true }
+ func (deadlineExceededError) Is(target error) bool {
+-	return target == oserror.ErrTimeout || target == oserror.ErrTemporary
++	return target == oserror.ErrTimeout
+ }
+ 
+ // An emptyCtx is never canceled, has no values, and has no deadline. It is not
+diff --git a/src/internal/oserror/errors.go b/src/internal/oserror/errors.go
+index 8bd17c8b56..8fccc95482 100644
+--- a/src/internal/oserror/errors.go
++++ b/src/internal/oserror/errors.go
+@@ -15,7 +15,6 @@ var (
+ 	ErrExist      = errors.New("file already exists")
+ 	ErrNotExist   = errors.New("file does not exist")
+ 	ErrClosed     = errors.New("file already closed")
+-	ErrTemporary  = temporaryError{}
+ 	ErrTimeout    = timeoutError{}
+ )
+ 
+@@ -45,20 +44,3 @@ func IsTimeout(err error) bool {
+ 	}
+ 	return false
+ }
+-
+-// IsTemporary reports whether err indicates a temporary condition.
+-func IsTemporary(err error) bool {
+-	for err != nil {
+-		if err == ErrTemporary {
+-			return true
+-		}
+-		if x, ok := err.(interface{ Temporary() bool }); ok {
+-			return x.Temporary()
+-		}
+-		if x, ok := err.(interface{ Is(error) bool }); ok && x.Is(ErrTemporary) {
+-			return true
+-		}
+-		err = errors.Unwrap(err)
+-	}
+-	return false
+-}
+diff --git a/src/internal/oserror/errors_test.go b/src/internal/oserror/errors_test.go
+index 6d6a56a0c7..bf3e057ccf 100644
+--- a/src/internal/oserror/errors_test.go
++++ b/src/internal/oserror/errors_test.go
+@@ -9,15 +9,13 @@ import (
+ )
+ 
+ type ttError struct {
+-	timeout   bool
+-	temporary bool
++	timeout bool
+ }
+ 
+ func (e ttError) Error() string {
+-	return fmt.Sprintf("ttError{timeout:%v temporary:%v}", e.timeout, e.temporary)
++	return fmt.Sprintf("ttError{timeout:%v}", e.timeout)
+ }
+-func (e ttError) Timeout() bool   { return e.timeout }
+-func (e ttError) Temporary() bool { return e.temporary }
++func (e ttError) Timeout() bool { return e.timeout }
+ 
+ type isError struct {
+ 	err error
+@@ -43,21 +41,3 @@ func TestIsTimeout(t *testing.T) {
+ 		}
+ 	}
+ }
+-
+-func TestIsTemporary(t *testing.T) {
+-	for _, test := range []struct {
+-		want bool
+-		err  error
+-	}{
+-		{true, ttError{temporary: true}},
+-		{true, isError{os.ErrTemporary}},
+-		{true, os.ErrTemporary},
+-		{true, fmt.Errorf("wrap: %w", os.ErrTemporary)},
+-		{false, ttError{temporary: false}},
+-		{false, errors.New("error")},
+-	} {
+-		if got, want := oserror.IsTemporary(test.err), test.want; got != want {
+-			t.Errorf("IsTemporary(err) = %v, want %v\n%+v", got, want, test.err)
+-		}
+-	}
+-}
+diff --git a/src/internal/poll/fd.go b/src/internal/poll/fd.go
+index 784bea4b5a..5009e2671b 100644
+--- a/src/internal/poll/fd.go
++++ b/src/internal/poll/fd.go
+@@ -48,7 +48,7 @@ func (e *TimeoutError) Timeout() bool   { return true }
+ func (e *TimeoutError) Temporary() bool { return true }
+ 
+ func (e *TimeoutError) Is(target error) bool {
+-	return target == oserror.ErrTimeout || target == oserror.ErrTemporary
++	return target == oserror.ErrTimeout
+ }
+ 
+ // ErrNotPollable is returned when the file or socket is not suitable
+diff --git a/src/net/cgo_unix.go b/src/net/cgo_unix.go
+index b9a6ffaa60..c31cbfd814 100644
+--- a/src/net/cgo_unix.go
++++ b/src/net/cgo_unix.go
+@@ -40,8 +40,6 @@ func (eai addrinfoErrno) Timeout() bool   { return false }
+ 
+ func (eai addrinfoErrno) Is(target error) bool {
+ 	switch target {
+-	case os.ErrTemporary:
+-		return eai.Temporary()
+ 	case os.ErrTimeout:
+ 		return eai.Timeout()
+ 	}
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index 2f9bdc2700..e3a1a10cc6 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -2288,8 +2288,6 @@ func (e *httpError) Is(target error) bool {
+ 	switch target {
+ 	case os.ErrTimeout:
+ 		return e.timeout
+-	case os.ErrTemporary:
+-		return true
+ 	}
+ 	return false
+ }
+@@ -2629,7 +2627,7 @@ func (tlsHandshakeTimeoutError) Temporary() bool { return true }
+ func (tlsHandshakeTimeoutError) Error() string   { return "net/http: TLS handshake timeout" }
+ 
+ func (tlsHandshakeTimeoutError) Is(target error) bool {
+-	return target == os.ErrTimeout || target == os.ErrTemporary
++	return target == os.ErrTimeout
+ }
+ 
+ // fakeLocker is a sync.Locker which does nothing. It's used to guard
+diff --git a/src/net/net.go b/src/net/net.go
+index b3f9b8ba07..54e1ac383a 100644
+--- a/src/net/net.go
++++ b/src/net/net.go
+@@ -518,8 +518,6 @@ func (e *OpError) Temporary() bool {
+ 
+ func (e *OpError) Is(target error) bool {
+ 	switch target {
+-	case os.ErrTemporary:
+-		return e.Temporary()
+ 	case os.ErrTimeout:
+ 		return e.Timeout()
+ 	}
+@@ -619,8 +617,6 @@ func (e *DNSError) Temporary() bool { return e.IsTimeout || e.IsTemporary }
+ 
+ func (e *DNSError) Is(target error) bool {
+ 	switch target {
+-	case os.ErrTemporary:
+-		return e.Temporary()
+ 	case os.ErrTimeout:
+ 		return e.Timeout()
+ 	}
+diff --git a/src/net/pipe.go b/src/net/pipe.go
+index 8cc127464b..5abc4aabe6 100644
+--- a/src/net/pipe.go
++++ b/src/net/pipe.go
+@@ -86,7 +86,7 @@ func (timeoutError) Timeout() bool   { return true }
+ func (timeoutError) Temporary() bool { return true }
+ 
+ func (timeoutError) Is(target error) bool {
+-	return target == os.ErrTemporary || target == os.ErrTimeout
++	return target == os.ErrTimeout
+ }
+ 
+ type pipeAddr struct{}
+diff --git a/src/net/url/url.go b/src/net/url/url.go
+index 7f6ff93ce4..3212b9e998 100644
+--- a/src/net/url/url.go
++++ b/src/net/url/url.go
+@@ -26,10 +26,16 @@ type Error struct {
+ 	Err error
+ }
+ 
+-func (e *Error) Unwrap() error   { return e.Err }
+-func (e *Error) Error() string   { return e.Op + " " + e.URL + ": " + e.Err.Error() }
+-func (e *Error) Timeout() bool   { return oserror.IsTimeout(e.Err) }
+-func (e *Error) Temporary() bool { return oserror.IsTemporary(e.Err) }
++func (e *Error) Unwrap() error { return e.Err }
++func (e *Error) Error() string { return e.Op + " " + e.URL + ": " + e.Err.Error() }
++func (e *Error) Timeout() bool { return oserror.IsTimeout(e.Err) }
++
++func (e *Error) Temporary() bool {
++	t, ok := e.Err.(interface {
++		Temporary() bool
++	})
++	return ok && t.Temporary()
++}
+ 
+ func ishex(c byte) bool {
+ 	switch {
+diff --git a/src/os/error.go b/src/os/error.go
+index 0c2e6a7322..4cf35f2b77 100644
+--- a/src/os/error.go
++++ b/src/os/error.go
+@@ -23,7 +23,6 @@ var (
+ 	ErrNotExist   = errNotExist()   // "file does not exist"
+ 	ErrClosed     = errClosed()     // "file already closed"
+ 	ErrTimeout    = errTimeout()    // "deadline exceeded"
+-	ErrTemporary  = errTemporary()  // "temporary error"
+ 	ErrNoDeadline = errNoDeadline() // "file type does not support deadline"
+ )
+ 
+@@ -33,7 +32,6 @@ func errExist() error      { return oserror.ErrExist }
+ func errNotExist() error   { return oserror.ErrNotExist }
+ func errClosed() error     { return oserror.ErrClosed }
+ func errTimeout() error    { return oserror.ErrTimeout }
+-func errTemporary() error  { return oserror.ErrTemporary }
+ func errNoDeadline() error { return poll.ErrNoDeadline }
+ 
+ type timeout interface {
+diff --git a/src/syscall/syscall_js.go b/src/syscall/syscall_js.go
+index 99f9a935fe..6db01c32f1 100644
+--- a/src/syscall/syscall_js.go
++++ b/src/syscall/syscall_js.go
+@@ -58,8 +58,6 @@ func (e Errno) Error() string {
+ 
+ func (e Errno) Is(target error) bool {
+ 	switch target {
+-	case oserror.ErrTemporary:
+-		return e.Temporary()
+ 	case oserror.ErrTimeout:
+ 		return e.Timeout()
+ 	case oserror.ErrPermission:
+diff --git a/src/syscall/syscall_nacl.go b/src/syscall/syscall_nacl.go
+index 3fc504fd9f..33ad8bfab0 100644
+--- a/src/syscall/syscall_nacl.go
++++ b/src/syscall/syscall_nacl.go
+@@ -65,8 +65,6 @@ func (e Errno) Error() string {
+ 
+ func (e Errno) Is(target error) bool {
+ 	switch target {
+-	case oserror.ErrTemporary:
+-		return e.Temporary()
+ 	case oserror.ErrTimeout:
+ 		return e.Timeout()
+ 	case oserror.ErrPermission:
+diff --git a/src/syscall/syscall_plan9.go b/src/syscall/syscall_plan9.go
+index 9b5a2940b0..d1b4bd9bd5 100644
+--- a/src/syscall/syscall_plan9.go
++++ b/src/syscall/syscall_plan9.go
+@@ -29,8 +29,6 @@ func NewError(s string) error { return ErrorString(s) }
+ 
+ func (e ErrorString) Is(target error) bool {
+ 	switch target {
+-	case oserror.ErrTemporary:
+-		return e.Temporary()
+ 	case oserror.ErrTimeout:
+ 		return e.Timeout()
+ 	case oserror.ErrPermission:
+diff --git a/src/syscall/syscall_unix.go b/src/syscall/syscall_unix.go
+index 1b66e3bb11..4bb7799d53 100644
+--- a/src/syscall/syscall_unix.go
++++ b/src/syscall/syscall_unix.go
+@@ -121,8 +121,6 @@ func (e Errno) Error() string {
+ 
+ func (e Errno) Is(target error) bool {
+ 	switch target {
+-	case oserror.ErrTemporary:
+-		return e.Temporary()
+ 	case oserror.ErrTimeout:
+ 		return e.Timeout()
+ 	case oserror.ErrPermission:
+diff --git a/src/syscall/syscall_windows.go b/src/syscall/syscall_windows.go
+index 6201b6475d..aa4cfa7243 100644
+--- a/src/syscall/syscall_windows.go
++++ b/src/syscall/syscall_windows.go
+@@ -115,8 +115,6 @@ const _ERROR_BAD_NETPATH = Errno(53)
+ 
+ func (e Errno) Is(target error) bool {
+ 	switch target {
+-	case oserror.ErrTemporary:
+-		return e.Temporary()
+ 	case oserror.ErrTimeout:
+ 		return e.Timeout()
+ 	case oserror.ErrPermission:

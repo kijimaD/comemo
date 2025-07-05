@@ -12,7 +12,7 @@ Date:   Wed Oct 25 11:28:56 2017 +0200
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/internal/atomic/atomic_test.go | 2 +-
  src/runtime/internal/sys/arch_386.go       | 2 +-
  src/runtime/internal/sys/arch_amd64.go     | 2 +-
@@ -28,3 +28,195 @@ Date:   Wed Oct 25 11:28:56 2017 +0200
  src/runtime/internal/sys/arch_s390x.go     | 2 +-
  src/runtime/mstats.go                      | 4 ++--
  14 files changed, 15 insertions(+), 15 deletions(-)
+
+diff --git a/src/runtime/internal/atomic/atomic_test.go b/src/runtime/internal/atomic/atomic_test.go
+index 879a82f9c8..b697aa8bd3 100644
+--- a/src/runtime/internal/atomic/atomic_test.go
++++ b/src/runtime/internal/atomic/atomic_test.go
+@@ -52,7 +52,7 @@ func TestXadduintptr(t *testing.T) {
+ // Tests that xadduintptr correctly updates 64-bit values. The place where
+ // we actually do so is mstats.go, functions mSysStat{Inc,Dec}.
+ func TestXadduintptrOnUint64(t *testing.T) {
+-	if sys.BigEndian != 0 {
++	if sys.BigEndian {
+ 		// On big endian architectures, we never use xadduintptr to update
+ 		// 64-bit values and hence we skip the test.  (Note that functions
+ 		// mSysStat{Inc,Dec} in mstats.go have explicit checks for
+diff --git a/src/runtime/internal/sys/arch_386.go b/src/runtime/internal/sys/arch_386.go
+index 61d6722cca..5fb1fba02b 100644
+--- a/src/runtime/internal/sys/arch_386.go
++++ b/src/runtime/internal/sys/arch_386.go
+@@ -6,7 +6,7 @@ package sys
+ 
+ const (
+ 	ArchFamily          = I386
+-	BigEndian           = 0
++	BigEndian           = false
+ 	CacheLineSize       = 64
+ 	DefaultPhysPageSize = GoosNacl*65536 + (1-GoosNacl)*4096 // 4k normally; 64k on NaCl
+ 	PCQuantum           = 1
+diff --git a/src/runtime/internal/sys/arch_amd64.go b/src/runtime/internal/sys/arch_amd64.go
+index 1f2114a736..2f32bc469f 100644
+--- a/src/runtime/internal/sys/arch_amd64.go
++++ b/src/runtime/internal/sys/arch_amd64.go
+@@ -6,7 +6,7 @@ package sys
+ 
+ const (
+ 	ArchFamily          = AMD64
+-	BigEndian           = 0
++	BigEndian           = false
+ 	CacheLineSize       = 64
+ 	DefaultPhysPageSize = 4096
+ 	PCQuantum           = 1
+diff --git a/src/runtime/internal/sys/arch_amd64p32.go b/src/runtime/internal/sys/arch_amd64p32.go
+index 07798557de..c560907c67 100644
+--- a/src/runtime/internal/sys/arch_amd64p32.go
++++ b/src/runtime/internal/sys/arch_amd64p32.go
+@@ -6,7 +6,7 @@ package sys
+ 
+ const (
+ 	ArchFamily          = AMD64
+-	BigEndian           = 0
++	BigEndian           = false
+ 	CacheLineSize       = 64
+ 	DefaultPhysPageSize = 65536*GoosNacl + 4096*(1-GoosNacl)
+ 	PCQuantum           = 1
+diff --git a/src/runtime/internal/sys/arch_arm.go b/src/runtime/internal/sys/arch_arm.go
+index 899010bfa1..f383d82027 100644
+--- a/src/runtime/internal/sys/arch_arm.go
++++ b/src/runtime/internal/sys/arch_arm.go
+@@ -6,7 +6,7 @@ package sys
+ 
+ const (
+ 	ArchFamily          = ARM
+-	BigEndian           = 0
++	BigEndian           = false
+ 	CacheLineSize       = 32
+ 	DefaultPhysPageSize = 65536
+ 	PCQuantum           = 4
+diff --git a/src/runtime/internal/sys/arch_arm64.go b/src/runtime/internal/sys/arch_arm64.go
+index df8fb1e5fb..cb83ecc445 100644
+--- a/src/runtime/internal/sys/arch_arm64.go
++++ b/src/runtime/internal/sys/arch_arm64.go
+@@ -6,7 +6,7 @@ package sys
+ 
+ const (
+ 	ArchFamily          = ARM64
+-	BigEndian           = 0
++	BigEndian           = false
+ 	CacheLineSize       = 64
+ 	DefaultPhysPageSize = 65536
+ 	PCQuantum           = 4
+diff --git a/src/runtime/internal/sys/arch_mips.go b/src/runtime/internal/sys/arch_mips.go
+index 65fc4f8a60..e12f32d0ee 100644
+--- a/src/runtime/internal/sys/arch_mips.go
++++ b/src/runtime/internal/sys/arch_mips.go
+@@ -6,7 +6,7 @@ package sys
+ 
+ const (
+ 	ArchFamily          = MIPS
+-	BigEndian           = 1
++	BigEndian           = true
+ 	CacheLineSize       = 32
+ 	DefaultPhysPageSize = 65536
+ 	PCQuantum           = 4
+diff --git a/src/runtime/internal/sys/arch_mips64.go b/src/runtime/internal/sys/arch_mips64.go
+index 0f6de74e6f..973ec10e17 100644
+--- a/src/runtime/internal/sys/arch_mips64.go
++++ b/src/runtime/internal/sys/arch_mips64.go
+@@ -6,7 +6,7 @@ package sys
+ 
+ const (
+ 	ArchFamily          = MIPS64
+-	BigEndian           = 1
++	BigEndian           = true
+ 	CacheLineSize       = 32
+ 	DefaultPhysPageSize = 16384
+ 	PCQuantum           = 4
+diff --git a/src/runtime/internal/sys/arch_mips64le.go b/src/runtime/internal/sys/arch_mips64le.go
+index 4ced35bfde..e96d962f36 100644
+--- a/src/runtime/internal/sys/arch_mips64le.go
++++ b/src/runtime/internal/sys/arch_mips64le.go
+@@ -6,7 +6,7 @@ package sys
+ 
+ const (
+ 	ArchFamily          = MIPS64
+-	BigEndian           = 0
++	BigEndian           = false
+ 	CacheLineSize       = 32
+ 	DefaultPhysPageSize = 16384
+ 	PCQuantum           = 4
+diff --git a/src/runtime/internal/sys/arch_mipsle.go b/src/runtime/internal/sys/arch_mipsle.go
+index 33e9764037..25742ae9d3 100644
+--- a/src/runtime/internal/sys/arch_mipsle.go
++++ b/src/runtime/internal/sys/arch_mipsle.go
+@@ -6,7 +6,7 @@ package sys
+ 
+ const (
+ 	ArchFamily          = MIPS
+-	BigEndian           = 0
++	BigEndian           = false
+ 	CacheLineSize       = 32
+ 	DefaultPhysPageSize = 65536
+ 	PCQuantum           = 4
+diff --git a/src/runtime/internal/sys/arch_ppc64.go b/src/runtime/internal/sys/arch_ppc64.go
+index 80595ee195..a538bbdec0 100644
+--- a/src/runtime/internal/sys/arch_ppc64.go
++++ b/src/runtime/internal/sys/arch_ppc64.go
+@@ -6,7 +6,7 @@ package sys
+ 
+ const (
+ 	ArchFamily          = PPC64
+-	BigEndian           = 1
++	BigEndian           = true
+ 	CacheLineSize       = 128
+ 	DefaultPhysPageSize = 65536
+ 	PCQuantum           = 4
+diff --git a/src/runtime/internal/sys/arch_ppc64le.go b/src/runtime/internal/sys/arch_ppc64le.go
+index f68e777055..aa50689181 100644
+--- a/src/runtime/internal/sys/arch_ppc64le.go
++++ b/src/runtime/internal/sys/arch_ppc64le.go
+@@ -6,7 +6,7 @@ package sys
+ 
+ const (
+ 	ArchFamily          = PPC64
+-	BigEndian           = 0
++	BigEndian           = false
+ 	CacheLineSize       = 128
+ 	DefaultPhysPageSize = 65536
+ 	PCQuantum           = 4
+diff --git a/src/runtime/internal/sys/arch_s390x.go b/src/runtime/internal/sys/arch_s390x.go
+index 4ec4bf8fec..e42c420a54 100644
+--- a/src/runtime/internal/sys/arch_s390x.go
++++ b/src/runtime/internal/sys/arch_s390x.go
+@@ -6,7 +6,7 @@ package sys
+ 
+ const (
+ 	ArchFamily          = S390X
+-	BigEndian           = 1
++	BigEndian           = true
+ 	CacheLineSize       = 256
+ 	DefaultPhysPageSize = 4096
+ 	PCQuantum           = 2
+diff --git a/src/runtime/mstats.go b/src/runtime/mstats.go
+index 18b8401cc4..53caefc0fe 100644
+--- a/src/runtime/mstats.go
++++ b/src/runtime/mstats.go
+@@ -664,7 +664,7 @@ func purgecachedstats(c *mcache) {
+ // overflow errors.
+ //go:nosplit
+ func mSysStatInc(sysStat *uint64, n uintptr) {
+-	if sys.BigEndian != 0 {
++	if sys.BigEndian {
+ 		atomic.Xadd64(sysStat, int64(n))
+ 		return
+ 	}
+@@ -678,7 +678,7 @@ func mSysStatInc(sysStat *uint64, n uintptr) {
+ // mSysStatInc apply.
+ //go:nosplit
+ func mSysStatDec(sysStat *uint64, n uintptr) {
+-	if sys.BigEndian != 0 {
++	if sys.BigEndian {
+ 		atomic.Xadd64(sysStat, -int64(n))
+ 		return
+ 	}

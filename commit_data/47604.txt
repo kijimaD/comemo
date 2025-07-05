@@ -17,7 +17,45 @@ Date:   Mon Mar 29 20:14:51 2021 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/ssa/expand_calls.go | 5 ++++-
  src/cmd/compile/internal/ssa/value.go        | 3 +++
  2 files changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/expand_calls.go b/src/cmd/compile/internal/ssa/expand_calls.go
+index 3444097ae3..b6aba0ed16 100644
+--- a/src/cmd/compile/internal/ssa/expand_calls.go
++++ b/src/cmd/compile/internal/ssa/expand_calls.go
+@@ -1114,6 +1114,9 @@ func expandCalls(f *Func) {
+ 		for _, v := range b.Values {
+ 			if v.Op == OpStore {
+ 				t := v.Aux.(*types.Type)
++				if t.IsPtrShaped() { // Everything already fits, and this ensures pointer type properties aren't discarded (e.g, notinheap)
++					continue
++				}
+ 				source := v.Args[1]
+ 				tSrc := source.Type
+ 				iAEATt := x.isAlreadyExpandedAggregateType(t)
+@@ -1422,7 +1425,7 @@ func (x *expandState) newArgToMemOrRegs(baseArg, toReplace *Value, offset int64,
+ 	if x.debug {
+ 		x.indent(3)
+ 		defer x.indent(-3)
+-		x.Printf("newArgToMemOrRegs(base=%s; toReplace=%s; t=%s; memOff=%d; regOff=%d)\n", baseArg.String(), toReplace.LongString(), t, offset, regOffset)
++		x.Printf("newArgToMemOrRegs(base=%s; toReplace=%s; t=%s; memOff=%d; regOff=%d)\n", baseArg.String(), toReplace.LongString(), t.String(), offset, regOffset)
+ 	}
+ 	key := selKey{baseArg, offset, t.Width, t}
+ 	w := x.commonArgs[key]
+diff --git a/src/cmd/compile/internal/ssa/value.go b/src/cmd/compile/internal/ssa/value.go
+index 5a9779dd1e..ba7f8c0300 100644
+--- a/src/cmd/compile/internal/ssa/value.go
++++ b/src/cmd/compile/internal/ssa/value.go
+@@ -139,6 +139,9 @@ func (v *Value) AuxArm64BitField() arm64BitField {
+ 
+ // long form print.  v# = opcode <type> [aux] args [: reg] (names)
+ func (v *Value) LongString() string {
++	if v == nil {
++		return "<NIL VALUE>"
++	}
+ 	s := fmt.Sprintf("v%d = %s", v.ID, v.Op)
+ 	s += " <" + v.Type.String() + ">"
+ 	s += v.auxString()

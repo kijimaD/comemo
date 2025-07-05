@@ -9,6 +9,19 @@ Date:   Wed Aug 14 00:55:18 2013 +0400
     R=golang-dev
     CC=golang-dev
     https://golang.org/cl/12890043
-
+---
  src/pkg/net/dnsclient_unix_test.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/pkg/net/dnsclient_unix_test.go b/src/pkg/net/dnsclient_unix_test.go
+index 97e55489c1..0375af5943 100644
+--- a/src/pkg/net/dnsclient_unix_test.go
++++ b/src/pkg/net/dnsclient_unix_test.go
+@@ -7,7 +7,6 @@
+ package net
+ 
+ import (
+-	"runtime"
+ 	"testing"
+ )
+ 

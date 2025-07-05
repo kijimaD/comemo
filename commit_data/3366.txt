@@ -8,10 +8,727 @@ Date:   Thu Sep 24 17:25:24 2009 -0700
     TBR=r
     OCL=34994
     CL=34994
-
+---
  usr/gri/pretty/Makefile.iant |  35 -------
  usr/gri/pretty/ast.txt       | 217 ++++++++++++++++++++++++++-----------------
  usr/gri/pretty/selftest0.go  |  11 ---
  usr/gri/pretty/selftest1.go  |  40 --------
  usr/gri/pretty/selftest2.go  | 158 -------------------------------
  5 files changed, 133 insertions(+), 328 deletions(-)
+
+diff --git a/usr/gri/pretty/Makefile.iant b/usr/gri/pretty/Makefile.iant
+deleted file mode 100644
+index 03d9c30423..0000000000
+--- a/usr/gri/pretty/Makefile.iant
++++ /dev/null
+@@ -1,35 +0,0 @@
+-# Copyright 2009 The Go Authors.  All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-# -*- Makefile -*-
+-
+-GO = /home/iant/go/bin/gccgo
+-
+-LDFLAGS = -Wl,-R,/home/iant/go/lib,-static-libgo
+-
+-PRETTY_OBJS = \
+-	astprinter.o \
+-	format.o \
+-	pretty.o \
+-
+-pretty: $(PRETTY_OBJS)
+-	$(GO) $(LDFLAGS) -o $@ $(PRETTY_OBJS)
+-
+-test: pretty
+-	test.sh
+-
+-install: pretty
+-	cp pretty $(HOME)/bin/pretty
+-
+-clean:
+-	rm -f pretty *.o  *~
+-
+-
+-pretty.o:	 astprinter.o format.o
+-
+-.SUFFIXES:
+-.SUFFIXES: .go .o
+-
+-.go.o:
+-	$(GO) -O2 -c -g $<
+diff --git a/usr/gri/pretty/ast.txt b/usr/gri/pretty/ast.txt
+index e4c257309d..4d1c1dd3a0 100644
+--- a/usr/gri/pretty/ast.txt
++++ b/usr/gri/pretty/ast.txt
+@@ -2,43 +2,65 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Format file for printing AST nodes.
+-
++// This is the datafmt format file for printing AST nodes.
++// It is used by go/ast/format.go. It assumes that the output
++// is fed through a tabwriter.Writer for proper alignment.
++// Form feed chars ('\f') are used to control the tabwriter's
++// column formatting.
++
++// TODO change these to "go/ast", "go/token" once
++//      the full path is returned by reflection
+ ast "ast";
+ token "token";
+ 
++
++// ----------------------------------------------------------------------------
++// Custom formatters
++//
++// TODO should be able to reduce this number/find better primitives
++// The following formatters are defined in go/ast/format.go:
++//
++// allCode
++// setComments
++// isVisible (currently not used)
++// isValidPos
++// isParenResult
++// isSend
++// isRecv
++// writeComment
++// clearOptSemi
++// setOptSemi
++// optSemi
++// token.Position
++
++
+ // ----------------------------------------------------------------------------
+ // Basic types, support rules
+ 
+ array =
+ 	*;
+ 
++bytes =
++	{*};
++
++char =
++	"%c";
++
++interface =
++	*;
++
+ ptr =
+ 	*;
+ 
+ string =
+ 	"%s";
+ 
+-char =
+-	"%c";
+-
+-bytes =
+-	{*};
+-
+ empty =
+ 	;
+ 
+ exists =
+ 	*:empty;
+ 
+-ast.Expr =
+-	*;
+-
+-ast.Stmt =
+-	*;
+-
+-ast.Decl =
+-	*;
+ 
+ // ----------------------------------------------------------------------------
+ // Tokens and comments
+@@ -47,10 +69,7 @@ token.Token =
+ 	@:string;
+ 
+ ast.Comment =
+-	// TODO this doesn't indent properly after //-style comments because
+-	//      the '\n'-char is printed as part of the comment - need to
+-	//      address this
+-	Text:string [Text:isMultiLineComment "\n"];
++	Position Text:writeComment;
+ 
+ ast.Comments =
+ 	{*};
+@@ -60,28 +79,31 @@ ast.Comments =
+ // Expressions & Types
+ 
+ ast.Field =
+-	[Names:exists {Names / ", "} " "] Type;
++	[Names:exists {Names / ", "} "\t"] Type ["\t" Tag];
++
++ast.Expr =
++	*;
+ 
+ ast.BadExpr =
+-	"BAD EXPR";
++	Position "BAD EXPR";
+ 
+ ast.Ident =
+-	Value;
++	Position Value;
+ 
+ ast.Ellipsis =
+-	"...";
++	Position "...";
+ 
+ ast.IntLit =
+-	Value:string;
++	Position Value:string;
+ 
+ ast.FloatLit =
+-	Value:string;
++	Position Value:string;
+ 
+ ast.CharLit =
+-	Value:string;
++	Position Value:string;
+ 
+ ast.StringLit =
+-	Value:string;
++	Position Value:string;
+ 
+ ast.StringList =
+ 	{Strings / "\n"};
+@@ -90,71 +112,77 @@ ast.FuncLit =
+ 	Type " " Body @:clearOptSemi;  // no optional ; after a func literal body
+ 
+ ast.CompositeLit =
+-	Type "{" {Elts / ", "} "}";
++	Type Lbrace "{" {Elts / ", "} Rbrace "}";
+ 
+ ast.ParenExpr =
+-	"(" X ")";
++	Position "(" X ")";
+ 
+ ast.SelectorExpr =
+ 	X "." Sel;
+ 
+ ast.IndexExpr =
+-	X "[" Index [":" End] "]";
++	X "[" Index [" : " End] "]";
+ 
+ ast.TypeAssertExpr =
+ 	X ".(" Type ")";
+ 
+ ast.CallExpr =
+-	Fun "(" {Args / ", "} ")";
++	Fun Lparen "(" {Args / ", "} Rparen ")";
+ 
+ ast.StarExpr =
+-	"*" X;
++	Position "*" X;
+ 
+ ast.UnaryExpr =
+-	Op X;
++	Position Op X;
+ 
+ ast.BinaryExpr =
+-	X " " Op " " Y;
++	X " " OpPos Op " " Y;
+ 
+ ast.KeyValueExpr =
+-	Key ": " Value;
++	Key  Colon ": " Value;
+ 
+ ast.ArrayType =
+-	"[" [Len] "]" Elt;
++	Position "[" [Len] "]" Elt;
+ 
+ ast.StructType =
+-	"struct"
+-	[Lbrace:isValidPos " {"]
++	Position "struct"
++	[Lbrace:isValidPos " " Lbrace "{"]
+ 	[	Fields:exists
+-		( "\t" >> "\n"
++		( "\t" >> "\f"
+ 			{Fields / ";\n"}
+ 		) "\n"
+ 	]
+-	[Rbrace:isValidPos "}"];
++	[Rbrace:isValidPos Rbrace "}"];
+ 
+ signature =
+-	"(" {Params / ", "} ")" [Results:exists " (" {Results / ", "} ")"];
++	"(" {Params / ", "} ")"
++	[	Results:exists " "
++		(	Results:isParenResult "(" {Results / ", "} ")"
++		|	{Results}
++		)
++	];
+ 
+ funcSignature =
+ 	*:signature;
+ 
+ ast.FuncType =
+-	[Position:isValidPos "func"] @:signature;
++	[Position:isValidPos Position "func"] @:signature;
+ 
+ ast.InterfaceType =
+-	"interface"
+-	[Lbrace:isValidPos " {"]
++	Position "interface"
++	[Lbrace:isValidPos " " Lbrace "{"]
+ 	[	Methods:exists
+-		( "\t" >> "\n"
++		( "\t" >> "\f"
+ 			{Methods / ";\n"}
+ 		) "\n"
+ 	]
+-	[Rbrace:isValidPos "}"];
++	[Rbrace:isValidPos Rbrace "}"];
+ 
+ ast.MapType =
+-	"map[" Key "]" Value;
++	Position "map[" Key "]" Value;
+ 
+ ast.ChanType =
++	Position
+ 	(	Dir:isSend Dir:isRecv
+ 		"chan "
+ 	|	Dir:isSend
+@@ -167,14 +195,17 @@ ast.ChanType =
+ // ----------------------------------------------------------------------------
+ // Statements
+ 
++ast.Stmt =
++	*;
++
+ ast.BadStmt =
+-	"BAD STMT";
++	Position "BAD STMT";
+ 
+ ast.DeclStmt =
+ 	Decl;
+ 
+ ast.EmptyStmt =
+-	;
++	Position ;
+ 
+ ast.LabeledStmt =
+ 	Label ":\t" Stmt;
+@@ -186,19 +217,19 @@ ast.IncDecStmt =
+ 	X Tok;
+ 
+ ast.AssignStmt =
+-	{Lhs / ", "} " " Tok " " {Rhs / ", "};
++	{Lhs / ", "} " " TokPos Tok " " {Rhs / ", "};
+ 
+ ast.GoStmt =
+-	"go " Call;
++	Position "go " Call;
+ 
+ ast.DeferStmt =
+-	"defer " Call;
++	Position "defer " Call;
+ 
+ ast.ReturnStmt =
+-	"return" {" " Results / ","};
++	Position "return" {" " Results / ","};
+ 
+ ast.BranchStmt =
+-	Tok [" " Label];
++	Position Tok [" " Label];
+ 
+ stmtList =
+ 	{@ / @:optSemi "\n"};
+@@ -206,7 +237,7 @@ stmtList =
+ blockStmt =  // like ast.BlockStmt but w/o indentation
+ 	"{"
+ 	[List:exists
+-	"\n"
++	"\f"
+ 		List:stmtList
+ 	"\n"
+ 	]
+@@ -216,22 +247,26 @@ blockStmtPtr =
+ 	*:blockStmt;
+ 
+ ast.BlockStmt =
+-	"{"
++	Position "{"
+ 	[List:exists
+-	( "\t" >> "\n"
++	( "\t" >> "\f"
+ 		List:stmtList
+ 	) "\n"
+ 	]
+-	"}" @:setOptSemi;
++	Rbrace "}" @:setOptSemi;
+ 
+ ast.IfStmt =
+-	"if " [Init "; "] [Cond " "] Body [" else " Else];
++	Position "if " [Init "; "] [Cond " "] Body [" else " Else];
+ 
+ ast.CaseClause =
+-	(	Values:exists "case " {Values / ", "}
++	// TODO the code below should work with () instead of []
++	//      but doesn't (after first case, always default is
++	//      selected).
++	Position
++	[	Values:exists "case " {Values / ", "}
+ 	|	"default"
+-	)
+-	":"
++	]
++	Colon ":"
+ 	[Body:exists
+ 	( "\t" >> "\n"
+ 		Body:stmtList
+@@ -239,14 +274,15 @@ ast.CaseClause =
+ 	];
+ 
+ ast.SwitchStmt =
+-	"switch " [Init "; "] [Tag " "]
++	Position "switch " [Init "; "] [Tag " "]
+ 	Body:blockStmtPtr;
+ 
+ ast.TypeCaseClause =
++	Position
+ 	(	Type:exists "case " Type
+ 	|	"default"
+ 	)
+-	":"
++	Colon ":"
+ 	[Body:exists
+ 	( "\t" >> "\n"
+ 		Body:stmtList
+@@ -254,14 +290,15 @@ ast.TypeCaseClause =
+ 	];
+ 
+ ast.TypeSwitchStmt =
+-	"switch " Assign " "
++	Position "switch " Assign " "
+ 	Body:blockStmtPtr;
+ 
+ ast.CommClause =
++	Position
+ 	(	"case " [Lhs " " Tok " "] Rhs
+ 	|	"default"
+ 	)
+-	":"
++	Colon ":"
+ 	[Body:exists
+ 	( "\t" >> "\n"
+ 		Body:stmtList
+@@ -269,7 +306,7 @@ ast.CommClause =
+ 	];
+ 
+ ast.SelectStmt =
+-	"select "
++	Position "select "
+ 	Body:blockStmtPtr;
+ 
+ ast.ForStmt =
+@@ -281,7 +318,7 @@ ast.ForStmt =
+ 	Body;
+ 
+ ast.RangeStmt =
+-	"for " Key [", " Value] " " Tok " range " X
++	Position "for " Key [", " Value] " " TokPos Tok " range " X
+ 	" "
+ 	Body;
+ 
+@@ -293,35 +330,44 @@ ast.Spec =
+ 	*;
+ 
+ ast.ImportSpec =
+-	Doc
++	[@:allCode Doc]
+ 	[Name] "\t" {Path};
+ 
+ ast.ValueSpec =
+-	{Names / ", "} [" " Type] [Values:exists " = " {Values / ", "}];
++	{Names / ", "} ["\t" Type] [Values:exists "\t= " {Values / ", "}];
+ 
+ ast.TypeSpec =
+-	Name " "  // TODO using "\t" instead of " " screws up struct field alignment
+-	Type;
++	Name "\t" Type;
++
++ast.Decl =
++	*;
+ 
+ ast.BadDecl =
+-	"BAD DECL";
++	Position "BAD DECL";
+ 
+ ast.GenDecl =
+-	Doc
+-	Tok " "
+-	(	Lparen:isValidPos "("
++	[@:allCode Doc]
++	Position Tok " "
++	(	Lparen:isValidPos Lparen "("
+ 		[Specs:exists
+-		( "\t" >> "\n"
++		( "\t" >> "\f"
+ 			{Specs / ";\n"}
+ 		) "\n"
+ 		]
+-		")" @:setOptSemi
++		Rparen ")" @:setOptSemi
+ 	|	{Specs / ";\n"}
+ 	);
+ 
++funcKeyword =
++	Position "func ";
++
++funcTypePtr =
++	*:funcKeyword;
++
+ ast.FuncDecl =
+-	"func " ["(" Recv ") "] Name Type:funcSignature
+-	[" " Body]
++	[@:allCode Doc]
++	Type:funcTypePtr ["(" Recv ") "] Name Type:funcSignature
++	[@:allCode " " Body]
+ 	"\n";
+ 
+ 
+@@ -329,6 +375,9 @@ ast.FuncDecl =
+ // Program
+ 
+ ast.Program =
+-	Doc
+-	"package " Name "\n\n"
+-	{Decls / "\n\n"};
++	Comments:setComments
++	""
++	[@:allCode Doc]
++	Position "package " Name "\n\n"
++	{Decls / "\n\n"}
++	"\n";  // TODO necessary because tabwriter.Flush doesn't format last line correctly - fix this
+diff --git a/usr/gri/pretty/selftest0.go b/usr/gri/pretty/selftest0.go
+deleted file mode 100644
+index 09b1283db4..0000000000
+--- a/usr/gri/pretty/selftest0.go
++++ /dev/null
+@@ -1,11 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-type Proto struct {
+-	a int "a tag";
+-	b, c, d *Proto "bcd" "tag";
+-	*Proto "proto tag"
+-}
+diff --git a/usr/gri/pretty/selftest1.go b/usr/gri/pretty/selftest1.go
+deleted file mode 100644
+index d3597d26cd..0000000000
+--- a/usr/gri/pretty/selftest1.go
++++ /dev/null
+@@ -1,40 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-import P0 /* ERROR expected */ ; /* SYNC */
+-import P1 /* ERROR expected */ Flags /* SYNC */
+-import P2 /* ERROR expected */ 42 /* SYNC */
+-
+-
+-type S0 struct {
+-	f0, f1, f2 int;
+-}
+-
+-
+-func /* ERROR receiver */ () f0() {} /* SYNC */
+-func /* ERROR receiver */ (*S0, *S0) f1() {} /* SYNC */
+-
+-
+-func f0(a b, c /* ERROR type */ ) /* SYNC */ {}
+-
+-
+-func f1() {
+-}
+-
+-
+-func CompositeLiterals() {
+-	a1 := []int();
+-	a2 := []int(0, 1, 2, );
+-	a3 := []int(0, 1, 2, /* ERROR single value expected */ 3 : 4, 5); /* SYNC */
+-	a1 := []int(0 : 1, 2 : 3, /* ERROR key:value pair expected */ 4, ); /* SYNC */
+-}
+-
+-
+-func main () {
+-}
+-
+-
+-func /* ERROR EOF */
+diff --git a/usr/gri/pretty/selftest2.go b/usr/gri/pretty/selftest2.go
+deleted file mode 100644
+index 783d72d9c3..0000000000
+--- a/usr/gri/pretty/selftest2.go
++++ /dev/null
+@@ -1,158 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-import (
+-	"container/vector";  // not needed
+-	"utf8";  // not needed
+-	Fmt "fmt"
+-)
+-
+-
+-const /* enum1 */ (
+-	EnumTag0 = iota;
+-	EnumTag1;
+-	EnumTag2;
+-	EnumTag3;
+-	EnumTag4;
+-	EnumTag5;
+-	EnumTag6;
+-	EnumTag7;
+-	EnumTag8;
+-	EnumTag9;
+-)
+-
+-
+-const /* enum2 */ (
+-	a, b = iota*2 + 1, iota*2;
+-	c, d;
+-	e, f;
+-)
+-
+-
+-type S struct {}
+-
+-
+-type T struct {
+-	x, y int;
+-	s string;
+-	next_t *T
+-}
+-
+-
+-var (
+-	aa = 5;
+-	u, v, w int = 0, 0, 0;
+-	foo = "foo";
+-	fixed_array0 = [10]int{};
+-	fixed_array1 = [10]int{0, 1, 2};
+-	fixed_array2 = [...]string{"foo", "bar"};
+-)
+-
+-
+-var (
+-	// Unicode identifiers
+-	ä, ö, ü, ƒ, ß int;
+-)
+-
+-
+-func d0() {
+-	var (
+-		a string;
+-		b, c string;
+-		d, e, f string;
+-		g, h, i, j string;
+-		k, l, m, n, o string;
+-	)
+-}
+-
+-
+-func f0(a, b int) int {
+-	if a < b {
+-		a = a + 1;  // estimate
+-	}
+-	return b;
+-}
+-
+-
+-func f1(tag int) {
+-	switch tag {
+-	case
+-		EnumTag0, EnumTag1, EnumTag2, EnumTag3, EnumTag4,
+-		EnumTag5, EnumTag6, EnumTag7, EnumTag8, EnumTag9: break;
+-	default:
+-	}
+-}
+-
+-
+-func f2(tag int) {
+-	type T struct {}
+-	var x T
+-}
+-
+-
+-func f3(a *[]int, m map[string] int) {
+-	println("A1");
+-	for i := range a {
+-		println(i);
+-	}
+-
+-	println("A2");
+-	for i, x := range a {
+-		println(i, x);
+-	}
+-
+-	println("A3");
+-	for i, x := range a {
+-		println(i, x);
+-	}
+-
+-	println("M1");
+-	for i := range m {
+-		println(i);
+-	}
+-
+-	println("M2");
+-	for i, x := range m {
+-		println(i, x);
+-	}
+-
+-	println("M3");
+-	var i string;
+-	var x int;
+-	for i, x = range m {
+-		defer Fmt.Println(i, x);
+-	}
+-}
+-
+-
+-type I interface {}
+-
+-/*
+-func f4(x I) int {
+-	switch tmp := x.(type) {
+-	case S: return 1;
+-	}
+-	switch {
+-	case t := x.(S): return 2;
+-	}
+-	return 0;
+-}
+-*/
+-
+-func main() {
+-// the prologue
+-	for i := 0; i <= 10 /* limit */; i++ {
+-		println(i);  // the index
+-		println(i + 1);  // the index + 1
+-		println(i + 1000);  // the index + 1000
+-		println();
+-	}
+-	f3(&[]int{2, 3, 5, 7}, map[string]int{"two":2, "three":3, "five":5, "seven":7});
+-// the epilogue
+-	println("foo");  // foo
+-	println("foobar");  // foobar
+-var x int;  // declare x
+-}

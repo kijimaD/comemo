@@ -40,7 +40,74 @@ Date:   Thu Jul 12 18:47:31 2018 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/http/export_test.go |  2 +-
  src/net/http/transport.go   | 28 +++++++++++++++++++++++++++-
  2 files changed, 28 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/http/export_test.go b/src/net/http/export_test.go
+index 7cdb51b05b..2c606a45a3 100644
+--- a/src/net/http/export_test.go
++++ b/src/net/http/export_test.go
+@@ -117,7 +117,7 @@ func (t *Transport) IdleConnStrsForTesting() []string {
+ 
+ func (t *Transport) IdleConnStrsForTesting_h2() []string {
+ 	var ret []string
+-	noDialPool := t.h2transport.ConnPool.(http2noDialClientConnPool)
++	noDialPool := t.h2transport.(*http2Transport).ConnPool.(http2noDialClientConnPool)
+ 	pool := noDialPool.http2clientConnPool
+ 
+ 	pool.mu.Lock()
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index 10b961219b..4e2dd3beb5 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -24,6 +24,7 @@ import (
+ 	"net/textproto"
+ 	"net/url"
+ 	"os"
++	"reflect"
+ 	"strings"
+ 	"sync"
+ 	"sync/atomic"
+@@ -255,7 +256,17 @@ type Transport struct {
+ 	// nextProtoOnce guards initialization of TLSNextProto and
+ 	// h2transport (via onceSetNextProtoDefaults)
+ 	nextProtoOnce sync.Once
+-	h2transport   *http2Transport // non-nil if http2 wired up
++	h2transport   h2Transport // non-nil if http2 wired up
++}
++
++// h2Transport is the interface we expect to be able to call from
++// net/http against an *http2.Transport that's either bundled into
++// h2_bundle.go or supplied by the user via x/net/http2.
++//
++// We name it with the "h2" prefix to stay out of the "http2" prefix
++// namespace used by x/tools/cmd/bundle for h2_bundle.go.
++type h2Transport interface {
++	CloseIdleConnections()
+ }
+ 
+ // onceSetNextProtoDefaults initializes TLSNextProto.
+@@ -264,6 +275,21 @@ func (t *Transport) onceSetNextProtoDefaults() {
+ 	if strings.Contains(os.Getenv("GODEBUG"), "http2client=0") {
+ 		return
+ 	}
++
++	// If they've already configured http2 with
++	// golang.org/x/net/http2 instead of the bundled copy, try to
++	// get at its http2.Transport value (via the the "https"
++	// altproto map) so we can call CloseIdleConnections on it if
++	// requested. (Issue 22891)
++	altProto, _ := t.altProto.Load().(map[string]RoundTripper)
++	if rv := reflect.ValueOf(altProto["https"]); rv.IsValid() && rv.Type().Kind() == reflect.Struct && rv.Type().NumField() == 1 {
++		if v := rv.Field(0); v.CanInterface() {
++			if h2i, ok := v.Interface().(h2Transport); ok {
++				t.h2transport = h2i
++			}
++		}
++	}
++
+ 	if t.TLSNextProto != nil {
+ 		// This is the documented way to disable http2 on a
+ 		// Transport.

@@ -10,7 +10,99 @@ Date:   Thu Apr 9 16:03:12 2015 -0700
     Change-Id: Ica1a6bd015e429d4e655bc0c6f66cea21c454acf
     Reviewed-on: https://go-review.googlesource.com/8730
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/io/io.go      | 26 ++++++++++++++++++++++----
  src/io/io_test.go | 22 +++++++++++++++++++++-
  2 files changed, 43 insertions(+), 5 deletions(-)
+
+diff --git a/src/io/io.go b/src/io/io.go
+index 12833ef214..290fc8824b 100644
+--- a/src/io/io.go
++++ b/src/io/io.go
+@@ -336,9 +336,8 @@ func CopyN(dst Writer, src Reader, n int64) (written int64, err error) {
+ }
+ 
+ // Copy copies from src to dst until either EOF is reached
+-// on src or an error occurs. It returns the number of bytes
+-// copied and the error that prevented it from progressing
+-// further, if any.
++// on src or an error occurs.  It returns the number of bytes
++// copied and the first error encountered while copying, if any.
+ //
+ // A successful Copy returns err == nil, not err == EOF.
+ // Because Copy is defined to read from src until EOF, it does
+@@ -349,6 +348,23 @@ func CopyN(dst Writer, src Reader, n int64) (written int64, err error) {
+ // Otherwise, if dst implements the ReaderFrom interface,
+ // the copy is implemented by calling dst.ReadFrom(src).
+ func Copy(dst Writer, src Reader) (written int64, err error) {
++	return copyBuffer(dst, src, nil)
++}
++
++// CopyBuffer is identical to Copy except that it stages through the
++// provided buffer (if one is required) rather than allocating a
++// temporary one. If buf is nil, one is allocated; otherwise if it has
++// zero length, CopyBuffer panics.
++func CopyBuffer(dst Writer, src Reader, buf []byte) (written int64, err error) {
++	if buf != nil && len(buf) == 0 {
++		panic("empty buffer in io.CopyBuffer")
++	}
++	return copyBuffer(dst, src, buf)
++}
++
++// copyBuffer is the actual implementation of Copy and CopyBuffer.
++// if buf is nil, one is allocated.
++func copyBuffer(dst Writer, src Reader, buf []byte) (written int64, err error) {
+ 	// If the reader has a WriteTo method, use it to do the copy.
+ 	// Avoids an allocation and a copy.
+ 	if wt, ok := src.(WriterTo); ok {
+@@ -358,7 +374,9 @@ func Copy(dst Writer, src Reader) (written int64, err error) {
+ 	if rt, ok := dst.(ReaderFrom); ok {
+ 		return rt.ReadFrom(src)
+ 	}
+-	buf := make([]byte, 32*1024)
++	if buf == nil {
++		buf = make([]byte, 32*1024)
++	}
+ 	for {
+ 		nr, er := src.Read(buf)
+ 		if nr > 0 {
+diff --git a/src/io/io_test.go b/src/io/io_test.go
+index d2f725a94d..e892574b0b 100644
+--- a/src/io/io_test.go
++++ b/src/io/io_test.go
+@@ -20,7 +20,7 @@ type Buffer struct {
+ 	WriterTo   // conflicts with and hides bytes.Buffer's WriterTo.
+ }
+ 
+-// Simple tests, primarily to verify the ReadFrom and WriteTo callouts inside Copy and CopyN.
++// Simple tests, primarily to verify the ReadFrom and WriteTo callouts inside Copy, CopyBuffer and CopyN.
+ 
+ func TestCopy(t *testing.T) {
+ 	rb := new(Buffer)
+@@ -32,6 +32,26 @@ func TestCopy(t *testing.T) {
+ 	}
+ }
+ 
++func TestCopyBuffer(t *testing.T) {
++	rb := new(Buffer)
++	wb := new(Buffer)
++	rb.WriteString("hello, world.")
++	CopyBuffer(wb, rb, make([]byte, 1)) // Tiny buffer to keep it honest.
++	if wb.String() != "hello, world." {
++		t.Errorf("CopyBuffer did not work properly")
++	}
++}
++
++func TestCopyBufferNil(t *testing.T) {
++	rb := new(Buffer)
++	wb := new(Buffer)
++	rb.WriteString("hello, world.")
++	CopyBuffer(wb, rb, nil) // Should allocate a buffer.
++	if wb.String() != "hello, world." {
++		t.Errorf("CopyBuffer did not work properly")
++	}
++}
++
+ func TestCopyReadFrom(t *testing.T) {
+ 	rb := new(Buffer)
+ 	wb := new(bytes.Buffer) // implements ReadFrom.

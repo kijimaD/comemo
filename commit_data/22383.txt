@@ -28,7 +28,7 @@ Date:   Tue Mar 10 09:58:01 2015 +1100
     Reviewed-by: Keith Randall <khr@golang.org>
     Run-TryBot: Dave Cheney <dave@cheney.net>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/internal/gc/dcl.go     |  6 +++---
  src/cmd/internal/gc/go.go      |  4 ++--
  src/cmd/internal/gc/go.y       |  2 +-
@@ -39,3 +39,204 @@ Date:   Tue Mar 10 09:58:01 2015 +1100
  src/cmd/internal/gc/walk.go    |  6 +++---
  src/cmd/internal/gc/y.go       |  2 +-
  9 files changed, 29 insertions(+), 29 deletions(-)
+
+diff --git a/src/cmd/internal/gc/dcl.go b/src/cmd/internal/gc/dcl.go
+index cccdbdd6f0..7194c123a2 100644
+--- a/src/cmd/internal/gc/dcl.go
++++ b/src/cmd/internal/gc/dcl.go
+@@ -763,9 +763,9 @@ func typedcl0(s *Sym) *Node {
+  * is being declared to have uncompiled type t.
+  * return the ODCLTYPE node to use.
+  */
+-func typedcl1(n *Node, t *Node, local int) *Node {
++func typedcl1(n *Node, t *Node, local bool) *Node {
+ 	n.Ntype = t
+-	n.Local = uint8(local)
++	n.Local = local
+ 	return Nod(ODCLTYPE, n, nil)
+ }
+ 
+@@ -1404,7 +1404,7 @@ func addmethod(sf *Sym, t *Type, local bool, nointerface bool) {
+ 		}
+ 	}
+ 
+-	if local && pa.Local == 0 {
++	if local && !pa.Local {
+ 		// defining method on non-local type.
+ 		Yyerror("cannot define new methods on non-local type %v", Tconv(pa, 0))
+ 
+diff --git a/src/cmd/internal/gc/go.go b/src/cmd/internal/gc/go.go
+index 6442eb6739..348dd833e0 100644
+--- a/src/cmd/internal/gc/go.go
++++ b/src/cmd/internal/gc/go.go
+@@ -140,7 +140,7 @@ type Type struct {
+ 	Siggen      uint8
+ 	Funarg      uint8 // on TSTRUCT and TFIELD
+ 	Copyany     uint8
+-	Local       uint8 // created in this file
++	Local       bool // created in this file
+ 	Deferwidth  uint8
+ 	Broke       uint8 // broken type definition.
+ 	Isddd       bool  // TFIELD is ... argument
+@@ -661,7 +661,7 @@ var nhunk int32
+ 
+ var thunk int32
+ 
+-var Funcdepth int
++var Funcdepth int32
+ 
+ var typecheckok int
+ 
+diff --git a/src/cmd/internal/gc/go.y b/src/cmd/internal/gc/go.y
+index ba01f5be79..bfdf781519 100644
+--- a/src/cmd/internal/gc/go.y
++++ b/src/cmd/internal/gc/go.y
+@@ -404,7 +404,7 @@ typedclname:
+ typedcl:
+ 	typedclname ntype
+ 	{
+-		$$ = typedcl1($1, $2, 1);
++		$$ = typedcl1($1, $2, true);
+ 	}
+ 
+ simple_stmt:
+diff --git a/src/cmd/internal/gc/reflect.go b/src/cmd/internal/gc/reflect.go
+index 36aa0b6749..19694ad3d8 100644
+--- a/src/cmd/internal/gc/reflect.go
++++ b/src/cmd/internal/gc/reflect.go
+@@ -1000,7 +1000,7 @@ func dtypesym(t *Type) *Sym {
+ 	}
+ 
+ 	// named types from other files are defined only by those files
+-	if tbase.Sym != nil && tbase.Local == 0 {
++	if tbase.Sym != nil && !tbase.Local {
+ 		return s
+ 	}
+ 	if isforw[tbase.Etype] {
+diff --git a/src/cmd/internal/gc/select.go b/src/cmd/internal/gc/select.go
+index 145d18688f..5816428deb 100644
+--- a/src/cmd/internal/gc/select.go
++++ b/src/cmd/internal/gc/select.go
+@@ -340,7 +340,7 @@ func selecttype(size int32) *Type {
+ 	sudog.List = list(sudog.List, Nod(ODCLFIELD, newname(Lookup("waitlink")), typenod(Ptrto(Types[TUINT8]))))
+ 	typecheck(&sudog, Etype)
+ 	sudog.Type.Noalg = 1
+-	sudog.Type.Local = 1
++	sudog.Type.Local = true
+ 
+ 	scase := Nod(OTSTRUCT, nil, nil)
+ 	scase.List = list(scase.List, Nod(ODCLFIELD, newname(Lookup("elem")), typenod(Ptrto(Types[TUINT8]))))
+@@ -352,7 +352,7 @@ func selecttype(size int32) *Type {
+ 	scase.List = list(scase.List, Nod(ODCLFIELD, newname(Lookup("releasetime")), typenod(Types[TUINT64])))
+ 	typecheck(&scase, Etype)
+ 	scase.Type.Noalg = 1
+-	scase.Type.Local = 1
++	scase.Type.Local = true
+ 
+ 	sel := Nod(OTSTRUCT, nil, nil)
+ 	sel.List = list(sel.List, Nod(ODCLFIELD, newname(Lookup("tcase")), typenod(Types[TUINT16])))
+@@ -367,7 +367,7 @@ func selecttype(size int32) *Type {
+ 	sel.List = list(sel.List, Nod(ODCLFIELD, newname(Lookup("pollorderarr")), arr))
+ 	typecheck(&sel, Etype)
+ 	sel.Type.Noalg = 1
+-	sel.Type.Local = 1
++	sel.Type.Local = true
+ 
+ 	return sel.Type
+ }
+diff --git a/src/cmd/internal/gc/subr.go b/src/cmd/internal/gc/subr.go
+index 65881defbb..c59b7e6447 100644
+--- a/src/cmd/internal/gc/subr.go
++++ b/src/cmd/internal/gc/subr.go
+@@ -2503,7 +2503,7 @@ func genwrapper(rcvr *Type, method *Type, newnam *Sym, iface int) {
+ 
+ 	// Set inl_nonlocal to whether we are calling a method on a
+ 	// type defined in a different package.  Checked in inlvar.
+-	if methodrcvr.Local == 0 {
++	if !methodrcvr.Local {
+ 		inl_nonlocal = 1
+ 	}
+ 
+diff --git a/src/cmd/internal/gc/syntax.go b/src/cmd/internal/gc/syntax.go
+index bd0f343c38..442cc5cbd8 100644
+--- a/src/cmd/internal/gc/syntax.go
++++ b/src/cmd/internal/gc/syntax.go
+@@ -40,26 +40,26 @@ type Node struct {
+ 	Nowritebarrier bool  // emit compiler error instead of write barrier
+ 	Walkdef        uint8
+ 	Typecheck      uint8
+-	Local          uint8
++	Local          bool
+ 	Dodata         uint8
+ 	Initorder      uint8
+ 	Used           bool
+ 	Isddd          bool // is the argument variadic
+ 	Readonly       bool
+ 	Implicit       bool
+-	Addrtaken      bool // address taken, even if not moved to heap
+-	Assigned       bool // is the variable ever assigned to
+-	Captured       bool // is the variable captured by a closure
+-	Byval          bool // is the variable captured by value or by reference
+-	Dupok          bool // duplicate definitions ok (for func)
+-	Wrapper        bool // is method wrapper (for func)
+-	Reslice        bool // this is a reslice x = x[0:y] or x = append(x, ...)
+-	Likely         int8 // likeliness of if statement
+-	Hasbreak       bool // has break statement
+-	Needzero       bool // if it contains pointers, needs to be zeroed on function entry
+-	Needctxt       bool // function uses context register (has closure variables)
+-	Esc            uint // EscXXX
+-	Funcdepth      int
++	Addrtaken      bool  // address taken, even if not moved to heap
++	Assigned       bool  // is the variable ever assigned to
++	Captured       bool  // is the variable captured by a closure
++	Byval          bool  // is the variable captured by value or by reference
++	Dupok          bool  // duplicate definitions ok (for func)
++	Wrapper        bool  // is method wrapper (for func)
++	Reslice        bool  // this is a reslice x = x[0:y] or x = append(x, ...)
++	Likely         int8  // likeliness of if statement
++	Hasbreak       bool  // has break statement
++	Needzero       bool  // if it contains pointers, needs to be zeroed on function entry
++	Needctxt       bool  // function uses context register (has closure variables)
++	Esc            uint8 // EscXXX
++	Funcdepth      int32
+ 
+ 	// most nodes
+ 	Type *Type
+diff --git a/src/cmd/internal/gc/walk.go b/src/cmd/internal/gc/walk.go
+index c1156680e8..af45015ccb 100644
+--- a/src/cmd/internal/gc/walk.go
++++ b/src/cmd/internal/gc/walk.go
+@@ -1757,9 +1757,9 @@ func ascompatet(op int, nl *NodeList, nr **Type, fp int, init **NodeList) *NodeL
+ * package all the arguments that match a ... T parameter into a []T.
+  */
+ func mkdotargslice(lr0 *NodeList, nn *NodeList, l *Type, fp int, init **NodeList, ddd *Node) *NodeList {
+-	esc := EscUnknown
++	esc := uint8(EscUnknown)
+ 	if ddd != nil {
+-		esc = int(ddd.Esc)
++		esc = ddd.Esc
+ 	}
+ 
+ 	tslice := typ(TARRAY)
+@@ -1776,7 +1776,7 @@ func mkdotargslice(lr0 *NodeList, nn *NodeList, l *Type, fp int, init **NodeList
+ 			n.Alloc = ddd.Alloc // temporary to use
+ 		}
+ 		n.List = lr0
+-		n.Esc = uint(esc)
++		n.Esc = esc
+ 		typecheck(&n, Erv)
+ 		if n.Type == nil {
+ 			Fatal("mkdotargslice: typecheck failed")
+diff --git a/src/cmd/internal/gc/y.go b/src/cmd/internal/gc/y.go
+index 532ae39da8..4f97439b22 100644
+--- a/src/cmd/internal/gc/y.go
++++ b/src/cmd/internal/gc/y.go
+@@ -1416,7 +1416,7 @@ yydefault:
+ 		yyDollar = yyS[yypt-2 : yypt+1]
+ 		//line go.y:406
+ 		{
+-			yyVAL.node = typedcl1(yyDollar[1].node, yyDollar[2].node, 1)
++			yyVAL.node = typedcl1(yyDollar[1].node, yyDollar[2].node, true)
+ 		}
+ 	case 49:
+ 		yyDollar = yyS[yypt-1 : yypt+1]

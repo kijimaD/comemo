@@ -13,10 +13,239 @@ Date:   Fri Feb 21 02:30:09 2020 +1100
     Change-Id: I77e660639802293ece40cfde4865ac237e3308d6
     Reviewed-on: https://go-review.googlesource.com/c/go/+/220540
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/asm/internal/arch/riscv64.go         | 25 +++++++++++++++++++++
  src/cmd/asm/internal/asm/asm.go              | 17 +++++++++++++-
  src/cmd/asm/internal/asm/testdata/riscvenc.s |  8 ++++++-
  src/cmd/internal/obj/riscv/obj.go            | 33 +++++++++++++++++++++-------
  src/runtime/internal/atomic/atomic_riscv64.s | 12 +++++-----
  5 files changed, 79 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/asm/internal/arch/riscv64.go b/src/cmd/asm/internal/arch/riscv64.go
+new file mode 100644
+index 0000000000..1b0cccec46
+--- /dev/null
++++ b/src/cmd/asm/internal/arch/riscv64.go
+@@ -0,0 +1,25 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This file encapsulates some of the odd characteristics of the RISCV64
++// instruction set, to minimize its interaction with the core of the
++// assembler.
++
++package arch
++
++import (
++	"cmd/internal/obj"
++	"cmd/internal/obj/riscv"
++)
++
++// IsRISCV64AMO reports whether the op (as defined by a riscv.A*
++// constant) is one of the AMO instructions that requires special
++// handling.
++func IsRISCV64AMO(op obj.As) bool {
++	switch op {
++	case riscv.ASCW, riscv.ASCD:
++		return true
++	}
++	return false
++}
+diff --git a/src/cmd/asm/internal/asm/asm.go b/src/cmd/asm/internal/asm/asm.go
+index 26b355dee1..42e217dc23 100644
+--- a/src/cmd/asm/internal/asm/asm.go
++++ b/src/cmd/asm/internal/asm/asm.go
+@@ -590,7 +590,7 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
+ 		prog.To = a[1]
+ 	case 3:
+ 		switch p.arch.Family {
+-		case sys.MIPS, sys.MIPS64, sys.RISCV64:
++		case sys.MIPS, sys.MIPS64:
+ 			prog.From = a[0]
+ 			prog.Reg = p.getRegister(prog, op, &a[1])
+ 			prog.To = a[2]
+@@ -675,6 +675,21 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
+ 				p.errorf("invalid addressing modes for %s instruction", op)
+ 				return
+ 			}
++		case sys.RISCV64:
++			// RISCV64 instructions with one input and two outputs.
++			if arch.IsRISCV64AMO(op) {
++				prog.From = a[0]
++				prog.To = a[1]
++				if a[2].Type != obj.TYPE_REG {
++					p.errorf("invalid addressing modes for third operand to %s instruction, must be register", op)
++					return
++				}
++				prog.RegTo2 = a[2].Reg
++				break
++			}
++			prog.From = a[0]
++			prog.Reg = p.getRegister(prog, op, &a[1])
++			prog.To = a[2]
+ 		case sys.S390X:
+ 			prog.From = a[0]
+ 			if a[1].Type == obj.TYPE_REG {
+diff --git a/src/cmd/asm/internal/asm/testdata/riscvenc.s b/src/cmd/asm/internal/asm/testdata/riscvenc.s
+index 18f94adb69..1327505e2a 100644
+--- a/src/cmd/asm/internal/asm/testdata/riscvenc.s
++++ b/src/cmd/asm/internal/asm/testdata/riscvenc.s
+@@ -157,6 +157,12 @@ start:
+ 	REMW	X5, X6, X7				// bb635302
+ 	REMUW	X5, X6, X7				// bb735302
+ 
++	// 8.2: Load-Reserved/Store-Conditional
++	LRW	(X5), X6				// 2fa30214
++	LRD	(X5), X6				// 2fb30214
++	SCW	X5, (X6), X7				// af23531c
++	SCD	X5, (X6), X7				// af33531c
++
+ 	// 10.1: Base Counters and Timers
+ 	RDCYCLE		X5				// f32200c0
+ 	RDTIME		X5				// f32210c0
+@@ -276,7 +282,7 @@ start:
+ 	// These jumps can get printed as jumps to 2 because they go to the
+ 	// second instruction in the function (the first instruction is an
+ 	// invisible stack pointer adjustment).
+-	JMP	start		// JMP	2		// 6ff09fcc
++	JMP	start		// JMP	2		// 6ff09fcb
+ 	JMP	(X5)					// 67800200
+ 	JMP	4(X5)					// 67804200
+ 
+diff --git a/src/cmd/internal/obj/riscv/obj.go b/src/cmd/internal/obj/riscv/obj.go
+index 5497a1dbc5..d55c05a38c 100644
+--- a/src/cmd/internal/obj/riscv/obj.go
++++ b/src/cmd/internal/obj/riscv/obj.go
+@@ -1318,7 +1318,7 @@ func validateRaw(ctxt *obj.Link, ins *instruction) {
+ }
+ 
+ // encodeR encodes an R-type RISC-V instruction.
+-func encodeR(as obj.As, rs1, rs2, rd, funct3 uint32) uint32 {
++func encodeR(as obj.As, rs1, rs2, rd, funct3, funct7 uint32) uint32 {
+ 	enc := encode(as)
+ 	if enc == nil {
+ 		panic("encodeR: could not encode instruction")
+@@ -1326,31 +1326,31 @@ func encodeR(as obj.As, rs1, rs2, rd, funct3 uint32) uint32 {
+ 	if enc.rs2 != 0 && rs2 != 0 {
+ 		panic("encodeR: instruction uses rs2, but rs2 was nonzero")
+ 	}
+-	return enc.funct7<<25 | enc.rs2<<20 | rs2<<20 | rs1<<15 | enc.funct3<<12 | funct3<<12 | rd<<7 | enc.opcode
++	return funct7<<25 | enc.funct7<<25 | enc.rs2<<20 | rs2<<20 | rs1<<15 | enc.funct3<<12 | funct3<<12 | rd<<7 | enc.opcode
+ }
+ 
+ func encodeRIII(ins *instruction) uint32 {
+-	return encodeR(ins.as, regI(ins.rs1), regI(ins.rs2), regI(ins.rd), ins.funct3)
++	return encodeR(ins.as, regI(ins.rs1), regI(ins.rs2), regI(ins.rd), ins.funct3, ins.funct7)
+ }
+ 
+ func encodeRFFF(ins *instruction) uint32 {
+-	return encodeR(ins.as, regF(ins.rs1), regF(ins.rs2), regF(ins.rd), ins.funct3)
++	return encodeR(ins.as, regF(ins.rs1), regF(ins.rs2), regF(ins.rd), ins.funct3, ins.funct7)
+ }
+ 
+ func encodeRFFI(ins *instruction) uint32 {
+-	return encodeR(ins.as, regF(ins.rs1), regF(ins.rs2), regI(ins.rd), ins.funct3)
++	return encodeR(ins.as, regF(ins.rs1), regF(ins.rs2), regI(ins.rd), ins.funct3, ins.funct7)
+ }
+ 
+ func encodeRFI(ins *instruction) uint32 {
+-	return encodeR(ins.as, regF(ins.rs2), 0, regI(ins.rd), ins.funct3)
++	return encodeR(ins.as, regF(ins.rs2), 0, regI(ins.rd), ins.funct3, ins.funct7)
+ }
+ 
+ func encodeRIF(ins *instruction) uint32 {
+-	return encodeR(ins.as, regI(ins.rs2), 0, regF(ins.rd), ins.funct3)
++	return encodeR(ins.as, regI(ins.rs2), 0, regF(ins.rd), ins.funct3, ins.funct7)
+ }
+ 
+ func encodeRFF(ins *instruction) uint32 {
+-	return encodeR(ins.as, regF(ins.rs2), 0, regF(ins.rd), ins.funct3)
++	return encodeR(ins.as, regF(ins.rs2), 0, regF(ins.rd), ins.funct3, ins.funct7)
+ }
+ 
+ // encodeI encodes an I-type RISC-V instruction.
+@@ -1585,6 +1585,12 @@ var encodings = [ALAST & obj.AMask]encoding{
+ 	AREMW & obj.AMask:   rIIIEncoding,
+ 	AREMUW & obj.AMask:  rIIIEncoding,
+ 
++	// 8.2: Load-Reserved/Store-Conditional
++	ALRW & obj.AMask: rIIIEncoding,
++	ALRD & obj.AMask: rIIIEncoding,
++	ASCW & obj.AMask: rIIIEncoding,
++	ASCD & obj.AMask: rIIIEncoding,
++
+ 	// 10.1: Base Counters and Timers
+ 	ARDCYCLE & obj.AMask:   iIEncoding,
+ 	ARDTIME & obj.AMask:    iIEncoding,
+@@ -1699,6 +1705,7 @@ type instruction struct {
+ 	rs2    uint32 // Source register 2
+ 	imm    int64  // Immediate
+ 	funct3 uint32 // Function 3
++	funct7 uint32 // Function 7
+ }
+ 
+ func (ins *instruction) encode() (uint32, error) {
+@@ -1764,6 +1771,16 @@ func instructionsForProg(p *obj.Prog) []*instruction {
+ 		ins.rs1, ins.rs2 = uint32(p.From.Reg), obj.REG_NONE
+ 		ins.imm = p.To.Offset
+ 
++	case ALRW, ALRD:
++		// Set aq to use acquire access ordering, which matches Go's memory requirements.
++		ins.funct7 = 2
++		ins.rs1, ins.rs2 = uint32(p.From.Reg), REG_ZERO
++
++	case ASCW, ASCD:
++		// Set aq to use acquire access ordering, which matches Go's memory requirements.
++		ins.funct7 = 2
++		ins.rd, ins.rs1, ins.rs2 = uint32(p.RegTo2), uint32(p.To.Reg), uint32(p.From.Reg)
++
+ 	case AECALL, AEBREAK, ARDCYCLE, ARDTIME, ARDINSTRET:
+ 		insEnc := encode(p.As)
+ 		if p.To.Type == obj.TYPE_NONE {
+diff --git a/src/runtime/internal/atomic/atomic_riscv64.s b/src/runtime/internal/atomic/atomic_riscv64.s
+index 80c84cf7d3..e4b7902d52 100644
+--- a/src/runtime/internal/atomic/atomic_riscv64.s
++++ b/src/runtime/internal/atomic/atomic_riscv64.s
+@@ -52,9 +52,9 @@ TEXT ·Cas(SB), NOSPLIT, $0-17
+ 	MOVW	old+8(FP), A1
+ 	MOVW	new+12(FP), A2
+ cas_again:
+-	AMOWSC(LR_,13,10,0)	// lr.w.aq a3,(a0)
++	LRW	(A0), A3
+ 	BNE	A3, A1, cas_fail
+-	AMOWSC(SC_,14,10,12)	// sc.w.aq a4,a2,(a0)
++	SCW	A2, (A0), A4
+ 	BNE	A4, ZERO, cas_again
+ 	MOV	$1, A0
+ 	MOVB	A0, ret+16(FP)
+@@ -70,9 +70,9 @@ TEXT ·Cas64(SB), NOSPLIT, $0-25
+ 	MOV	old+8(FP), A1
+ 	MOV	new+16(FP), A2
+ cas_again:
+-	AMODSC(LR_,13,10,0)	// lr.d.aq a3,(a0)
++	LRD	(A0), A3
+ 	BNE	A3, A1, cas_fail
+-	AMODSC(SC_,14,10,12)	// sc.d.aq a4,a2,(a0)
++	SCD	A2, (A0), A4
+ 	BNE	A4, ZERO, cas_again
+ 	MOV	$1, A0
+ 	MOVB	A0, ret+24(FP)
+@@ -84,7 +84,7 @@ cas_fail:
+ // func Load(ptr *uint32) uint32
+ TEXT ·Load(SB),NOSPLIT|NOFRAME,$0-12
+ 	MOV	ptr+0(FP), A0
+-	AMOWSC(LR_,10,10,0)
++	LRW	(A0), A0
+ 	MOVW	A0, ret+8(FP)
+ 	RET
+ 
+@@ -100,7 +100,7 @@ TEXT ·Load8(SB),NOSPLIT|NOFRAME,$0-9
+ // func Load64(ptr *uint64) uint64
+ TEXT ·Load64(SB),NOSPLIT|NOFRAME,$0-16
+ 	MOV	ptr+0(FP), A0
+-	AMODSC(LR_,10,10,0)
++	LRD	(A0), A0
+ 	MOV	A0, ret+8(FP)
+ 	RET
+ 

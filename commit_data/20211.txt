@@ -11,7 +11,7 @@ Date:   Mon Aug 25 20:59:52 2014 +0400
     R=golang-codereviews, rsc
     CC=golang-codereviews, khr, rlh
     https://golang.org/cl/108640043
-
+---
  src/pkg/runtime/heapdump.c |  2 +-
  src/pkg/runtime/malloc.h   |  2 +-
  src/pkg/runtime/mgc0.c     |  8 ++---
@@ -20,3 +20,371 @@ Date:   Mon Aug 25 20:59:52 2014 +0400
  src/pkg/runtime/runtime.h  |  3 +-
  src/pkg/runtime/time.go    |  2 --
  7 files changed, 77 insertions(+), 92 deletions(-)
+
+diff --git a/src/pkg/runtime/heapdump.c b/src/pkg/runtime/heapdump.c
+index 3fc54aedbc..1a38087c8d 100644
+--- a/src/pkg/runtime/heapdump.c
++++ b/src/pkg/runtime/heapdump.c
+@@ -406,7 +406,7 @@ dumpgoroutine(G *gp)
+ 	dumpint(gp->gopc);
+ 	dumpint(gp->status);
+ 	dumpbool(gp->issystem);
+-	dumpbool(gp->isbackground);
++	dumpbool(false);  // isbackground
+ 	dumpint(gp->waitsince);
+ 	dumpstr(gp->waitreason);
+ 	dumpint((uintptr)gp->sched.ctxt);
+diff --git a/src/pkg/runtime/malloc.h b/src/pkg/runtime/malloc.h
+index fb51a9e5dd..f5a2b2a42d 100644
+--- a/src/pkg/runtime/malloc.h
++++ b/src/pkg/runtime/malloc.h
+@@ -516,7 +516,7 @@ MSpan*	runtime·MHeap_LookupMaybe(MHeap *h, void *v);
+ void*	runtime·MHeap_SysAlloc(MHeap *h, uintptr n);
+ void	runtime·MHeap_MapBits(MHeap *h);
+ void	runtime·MHeap_MapSpans(MHeap *h);
+-void	runtime·MHeap_Scavenger(void);
++void	runtime·MHeap_Scavenge(int32 k, uint64 now, uint64 limit);
+ 
+ void*	runtime·persistentalloc(uintptr size, uintptr align, uint64 *stat);
+ int32	runtime·mlookup(void *v, byte **base, uintptr *size, MSpan **s);
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index 86470c182b..d931e31525 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -1095,7 +1095,7 @@ static struct
+ static void
+ bgsweep(void)
+ {
+-	g->issystem = 1;
++	g->issystem = true;
+ 	for(;;) {
+ 		while(runtime·sweepone() != -1) {
+ 			sweep.nbgsweep++;
+@@ -1109,9 +1109,7 @@ bgsweep(void)
+ 			continue;
+ 		}
+ 		sweep.parked = true;
+-		g->isbackground = true;
+ 		runtime·parkunlock(&gclock, runtime·gostringnocopy((byte*)"GC sweep wait"));
+-		g->isbackground = false;
+ 	}
+ }
+ 
+@@ -1685,9 +1683,9 @@ runfinq(void)
+ 		finq = nil;
+ 		if(fb == nil) {
+ 			runtime·fingwait = true;
+-			g->isbackground = true;
++			g->issystem = true;
+ 			runtime·parkunlock(&finlock, runtime·gostringnocopy((byte*)"finalizer wait"));
+-			g->isbackground = false;
++			g->issystem = false;
+ 			continue;
+ 		}
+ 		runtime·unlock(&finlock);
+diff --git a/src/pkg/runtime/mheap.c b/src/pkg/runtime/mheap.c
+index 59be0e093c..a447bbc973 100644
+--- a/src/pkg/runtime/mheap.c
++++ b/src/pkg/runtime/mheap.c
+@@ -574,13 +574,6 @@ MHeap_FreeSpanLocked(MHeap *h, MSpan *s, bool acctinuse, bool acctidle)
+ 		runtime·MSpanList_Insert(&h->freelarge, s);
+ }
+ 
+-static void
+-forcegchelper(Note *note)
+-{
+-	runtime·gc(1);
+-	runtime·notewakeup(note);
+-}
+-
+ static uintptr
+ scavengelist(MSpan *list, uint64 now, uint64 limit)
+ {
+@@ -603,18 +596,20 @@ scavengelist(MSpan *list, uint64 now, uint64 limit)
+ 	return sumreleased;
+ }
+ 
+-static void
+-scavenge(int32 k, uint64 now, uint64 limit)
++void
++runtime·MHeap_Scavenge(int32 k, uint64 now, uint64 limit)
+ {
+ 	uint32 i;
+ 	uintptr sumreleased;
+ 	MHeap *h;
+ 	
+ 	h = &runtime·mheap;
++	runtime·lock(&h->lock);
+ 	sumreleased = 0;
+ 	for(i=0; i < nelem(h->free); i++)
+ 		sumreleased += scavengelist(&h->free[i], now, limit);
+ 	sumreleased += scavengelist(&h->freelarge, now, limit);
++	runtime·unlock(&h->lock);
+ 
+ 	if(runtime·debug.gctrace > 0) {
+ 		if(sumreleased > 0)
+@@ -630,72 +625,15 @@ scavenge(int32 k, uint64 now, uint64 limit)
+ static void
+ scavenge_m(G *gp)
+ {
+-	runtime·lock(&runtime·mheap.lock);
+-	scavenge(g->m->scalararg[0], g->m->scalararg[1], g->m->scalararg[2]);
+-	runtime·unlock(&runtime·mheap.lock);
++	runtime·MHeap_Scavenge(-1, ~(uintptr)0, 0);
+ 	runtime·gogo(&gp->sched);
+ }
+ 
+-static FuncVal forcegchelperv = {(void(*)(void))forcegchelper};
+-
+-// Release (part of) unused memory to OS.
+-// Goroutine created at startup.
+-// Loop forever.
+-void
+-runtime·MHeap_Scavenger(void)
+-{
+-	uint64 tick, forcegc, limit;
+-	int64 unixnow;
+-	int32 k;
+-	Note note, *notep;
+-
+-	g->issystem = true;
+-	g->isbackground = true;
+-
+-	// If we go two minutes without a garbage collection, force one to run.
+-	forcegc = 2*60*1e9;
+-	// If a span goes unused for 5 minutes after a garbage collection,
+-	// we hand it back to the operating system.
+-	limit = 5*60*1e9;
+-	// Make wake-up period small enough for the sampling to be correct.
+-	if(forcegc < limit)
+-		tick = forcegc/2;
+-	else
+-		tick = limit/2;
+-
+-	for(k=0;; k++) {
+-		runtime·noteclear(&note);
+-		runtime·notetsleepg(&note, tick);
+-
+-		unixnow = runtime·unixnanotime();
+-		if(unixnow - mstats.last_gc > forcegc) {
+-			// The scavenger can not block other goroutines,
+-			// otherwise deadlock detector can fire spuriously.
+-			// GC blocks other goroutines via the runtime·worldsema.
+-			runtime·noteclear(&note);
+-			notep = &note;
+-			runtime·newproc1(&forcegchelperv, (byte*)&notep, sizeof(notep), 0, runtime·MHeap_Scavenger);
+-			runtime·notetsleepg(&note, -1);
+-			if(runtime·debug.gctrace > 0)
+-				runtime·printf("scvg%d: GC forced\n", k);
+-		}
+-		g->m->locks++;	// ensure that we are on the same m while filling arguments
+-		g->m->scalararg[0] = k;
+-		g->m->scalararg[1] = runtime·nanotime();
+-		g->m->scalararg[2] = limit;
+-		runtime·mcall(scavenge_m);
+-		g->m->locks--;
+-	}
+-}
+-
+ void
+ runtime∕debug·freeOSMemory(void)
+ {
+ 	runtime·gc(2);  // force GC and do eager sweep
+ 
+-	g->m->scalararg[0] = -1;
+-	g->m->scalararg[1] = ~(uintptr)0;
+-	g->m->scalararg[2] = 0;
+ 	runtime·mcall(scavenge_m);
+ }
+ 
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 31ff4f55de..ce0f74aa6c 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -130,6 +130,15 @@ static bool exitsyscallfast(void);
+ static bool haveexperiment(int8*);
+ static void allgadd(G*);
+ 
++static void forcegchelper(void);
++static struct
++{
++	Lock	lock;
++	G*	g;
++	FuncVal	fv;
++	uint32	idle;
++} forcegc;
++
+ extern String runtime·buildVersion;
+ 
+ // The bootstrap sequence is:
+@@ -200,8 +209,6 @@ runtime·schedinit(void)
+ extern void main·init(void);
+ extern void main·main(void);
+ 
+-static FuncVal scavenger = {runtime·MHeap_Scavenger};
+-
+ static FuncVal initDone = { runtime·unlockOSThread };
+ 
+ // The main goroutine.
+@@ -247,7 +254,8 @@ runtime·main(void)
+ 
+ 	if(g->m != &runtime·m0)
+ 		runtime·throw("runtime·main not on m0");
+-	runtime·newproc1(&scavenger, nil, 0, 0, runtime·main);
++	forcegc.fv.fn = forcegchelper;
++	forcegc.g = runtime·newproc1(&forcegc.fv, nil, 0, 0, runtime·main);
+ 	main·init();
+ 
+ 	if(g->defer != &d || d.fn != &initDone)
+@@ -1619,8 +1627,6 @@ void
+ 
+ 	p = releasep();
+ 	handoffp(p);
+-	if(g->isbackground)  // do not consider blocked scavenger for deadlock detection
+-		incidlelocked(1);
+ 
+ 	// Resave for traceback during blocked call.
+ 	save(runtime·getcallerpc(&dummy), runtime·getcallersp(&dummy));
+@@ -1664,9 +1670,6 @@ runtime·exitsyscall(void)
+ {
+ 	g->m->locks++;  // see comment in entersyscall
+ 
+-	if(g->isbackground)  // do not consider blocked scavenger for deadlock detection
+-		incidlelocked(-1);
+-
+ 	g->waitsince = 0;
+ 	if(exitsyscallfast()) {
+ 		// There's a cpu for us, so we can run.
+@@ -2602,7 +2605,7 @@ checkdead(void)
+ 	runtime·lock(&allglock);
+ 	for(i = 0; i < runtime·allglen; i++) {
+ 		gp = runtime·allg[i];
+-		if(gp->isbackground)
++		if(gp->issystem)
+ 			continue;
+ 		s = gp->status;
+ 		if(s == Gwaiting)
+@@ -2623,10 +2626,23 @@ checkdead(void)
+ static void
+ sysmon(void)
+ {
+-	uint32 idle, delay;
+-	int64 now, lastpoll, lasttrace;
++	uint32 idle, delay, nscavenge;
++	int64 now, unixnow, lastpoll, lasttrace;
++	int64 forcegcperiod, scavengelimit, lastscavenge, maxsleep;
+ 	G *gp;
+ 
++	// If we go two minutes without a garbage collection, force one to run.
++	forcegcperiod = 2*60*1e6;
++	// If a heap span goes unused for 5 minutes after a garbage collection,
++	// we hand it back to the operating system.
++	scavengelimit = 5*60*1e6;
++	lastscavenge = runtime·nanotime();
++	nscavenge = 0;
++	// Make wake-up period small enough for the sampling to be correct.
++	maxsleep = forcegcperiod/2;
++	if(scavengelimit < forcegcperiod)
++		maxsleep = scavengelimit/2;
++
+ 	lasttrace = 0;
+ 	idle = 0;  // how many cycles in succession we had not wokeup somebody
+ 	delay = 0;
+@@ -2644,16 +2660,19 @@ sysmon(void)
+ 			if(runtime·atomicload(&runtime·sched.gcwaiting) || runtime·atomicload(&runtime·sched.npidle) == runtime·gomaxprocs) {
+ 				runtime·atomicstore(&runtime·sched.sysmonwait, 1);
+ 				runtime·unlock(&runtime·sched.lock);
+-				runtime·notesleep(&runtime·sched.sysmonnote);
++				runtime·notetsleep(&runtime·sched.sysmonnote, maxsleep);
++				runtime·lock(&runtime·sched.lock);
++				runtime·atomicstore(&runtime·sched.sysmonwait, 0);
+ 				runtime·noteclear(&runtime·sched.sysmonnote);
+ 				idle = 0;
+ 				delay = 20;
+-			} else
+-				runtime·unlock(&runtime·sched.lock);
++			}
++			runtime·unlock(&runtime·sched.lock);
+ 		}
+ 		// poll network if not polled for more than 10ms
+ 		lastpoll = runtime·atomicload64(&runtime·sched.lastpoll);
+ 		now = runtime·nanotime();
++		unixnow = runtime·unixnanotime();
+ 		if(lastpoll != 0 && lastpoll + 10*1000*1000 < now) {
+ 			runtime·cas64(&runtime·sched.lastpoll, lastpoll, now);
+ 			gp = runtime·netpoll(false);  // non-blocking
+@@ -2677,6 +2696,22 @@ sysmon(void)
+ 		else
+ 			idle++;
+ 
++		// check if we need to force a GC
++		if(unixnow - mstats.last_gc > forcegcperiod && runtime·atomicload(&forcegc.idle)) {
++			runtime·lock(&forcegc.lock);
++			forcegc.idle = 0;
++			forcegc.g->schedlink = nil;
++			injectglist(forcegc.g);
++			runtime·unlock(&forcegc.lock);
++		}
++
++		// scavenge heap once in a while
++		if(lastscavenge + scavengelimit/2 < now) {
++			runtime·MHeap_Scavenge(nscavenge, now, scavengelimit);
++			lastscavenge = now;
++			nscavenge++;
++		}
++
+ 		if(runtime·debug.schedtrace > 0 && lasttrace + runtime·debug.schedtrace*1000000ll <= now) {
+ 			lasttrace = now;
+ 			runtime·schedtrace(runtime·debug.scheddetail);
+@@ -2751,6 +2786,23 @@ retake(int64 now)
+ 	return n;
+ }
+ 
++static void
++forcegchelper(void)
++{
++	g->issystem = true;
++	for(;;) {
++		runtime·lock(&forcegc.lock);
++		if(forcegc.idle)
++			runtime·throw("forcegc: phase error");
++		runtime·atomicstore(&forcegc.idle, 1);
++		runtime·parkunlock(&forcegc.lock, runtime·gostringnocopy((byte*)"force gc (idle)"));
++		// this goroutine is explicitly resumed by sysmon
++		if(runtime·debug.gctrace > 0)
++			runtime·printf("GC forced\n");
++		runtime·gc(1);
++	}
++}
++
+ // Tell all goroutines that they have been preempted and they should stop.
+ // This function is purely best-effort.  It can fail to inform a goroutine if a
+ // processor just started running it.
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index beafc76637..df2999bbd9 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -282,8 +282,7 @@ struct	G
+ 	String	waitreason;	// if status==Gwaiting
+ 	G*	schedlink;
+ 	bool	ispanic;
+-	bool	issystem;	// do not output in stack dump
+-	bool	isbackground;	// ignore in deadlock detector
++	bool	issystem;	// do not output in stack dump, ignore in deadlock detector
+ 	bool	preempt;	// preemption signal, duplicates stackguard0 = StackPreempt
+ 	bool	paniconfault;	// panic (instead of crash) on unexpected fault address
+ 	int8	raceignore;	// ignore race detection events
+diff --git a/src/pkg/runtime/time.go b/src/pkg/runtime/time.go
+index 9430414cea..97092c655e 100644
+--- a/src/pkg/runtime/time.go
++++ b/src/pkg/runtime/time.go
+@@ -192,9 +192,7 @@ func timerproc() {
+ 		if delta < 0 {
+ 			// No timers left - put goroutine to sleep.
+ 			timers.rescheduling = true
+-			timers.gp.isbackground = 1
+ 			goparkunlock(&timers.lock, "timer goroutine (idle)")
+-			timers.gp.isbackground = 0
+ 			continue
+ 		}
+ 		// At least one timer pending.  Sleep until then.

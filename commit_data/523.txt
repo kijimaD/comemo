@@ -10,7 +10,7 @@ Date:   Mon Aug 11 21:20:42 2008 -0700
     DELTA=229  (1 added, 17 deleted, 211 changed)
     OCL=14103
     CL=14103
-
+---
  src/lib/container/vector.go   | 14 +++----
  src/lib/flag.go               | 26 ++++++------
  src/pkg/integer.go            |  8 ++--
@@ -29,3 +29,1451 @@ Date:   Mon Aug 11 21:20:42 2008 -0700
  usr/gri/gosrc/utils.go        |  4 +-
  usr/gri/gosrc/verifier.go     |  2 +-
  17 files changed, 199 insertions(+), 215 deletions(-)
+
+diff --git a/src/lib/container/vector.go b/src/lib/container/vector.go
+index 891f3538d3..c3ec0d390f 100644
+--- a/src/lib/container/vector.go
++++ b/src/lib/container/vector.go
+@@ -37,8 +37,8 @@ func Alloc(i int) *[]Element {
+ 	case 1000:
+ 		return new([1000]Element);
+ 	}
+-	print "bad size ", i, "\n";
+-	panic "not known size\n";
++	print("bad size ", i, "\n");
++	panic("not known size\n");
+ }
+ 
+ func is_pow10(i int) bool {
+@@ -63,7 +63,7 @@ func (v *Vector) Len() int {
+ 
+ func (v *Vector) At(i int) Element {
+ 	if i < 0 || i >= v.nelem {
+-		panic "Vector.At(", i, ") out of range (size ", v.nelem, ")\n";
++		panic("Vector.At(", i, ") out of range (size ", v.nelem, ")\n");
+ 		return nil;
+ 	}
+ 	return v.elem[i];
+@@ -71,7 +71,7 @@ func (v *Vector) At(i int) Element {
+ 
+ func (v *Vector) Delete(i int) {
+ 	if i < 0 || i >= v.nelem {
+-		panic "Delete out of range\n";
++		panic("Delete out of range\n");
+ 	}
+ 	for j := i+1; j < v.nelem; j++ {
+ 		v.elem[j-1] = v.elem[j];
+@@ -82,7 +82,7 @@ func (v *Vector) Delete(i int) {
+ 
+ func (v *Vector) Insert(i int, e Element) {
+ 	if i > v.nelem {
+-		panic "Del too large\n";
++		panic("Del too large\n");
+ 	}
+ 	if v.nelem == v.nalloc && is_pow10(v.nalloc) {
+ 		n := Alloc(v.nalloc * 10);
+@@ -114,14 +114,14 @@ func Test() {
+ 	i3 := new(I); i3.val = 3333;
+ 	i4 := new(I); i4.val = 44444;
+ 	v := New();
+-	print "hi\n";
++	print("hi\n");
+ 	v.Insert(0, i4);
+ 	v.Insert(0, i3);
+ 	v.Insert(0, i2);
+ 	v.Insert(0, i1);
+ 	v.Insert(0, i0);
+ 	for i := 0; i < v.Len(); i++ {
+-		print i, " ", v.At(i).(*I).val, "\n";
++		print(i, " ", v.At(i).(*I).val, "\n");
+ 	}
+ }
+ 
+diff --git a/src/lib/flag.go b/src/lib/flag.go
+index f473aeafdc..acf3424db3 100644
+--- a/src/lib/flag.go
++++ b/src/lib/flag.go
+@@ -21,8 +21,8 @@ package flag
+  *
+  *	3) Flags may then be used directly (getters are SVal, BVal, Ival) or through the associated
+  *	cell, if set:
+- *		print "fi has value ", fi.IVal(), "\n";
+- *		print "i has value ", i, "\n";
++ *		print("fi has value ", fi.IVal(), "\n");
++ *		print("i has value ", i, "\n");
+  *
+  *	4) After parsing, flag.Arg(i) is the i'th argument after the flags.
+  *	Args are indexed from 0 up to flag.NArg().
+@@ -291,9 +291,9 @@ type Flags struct {
+ 
+ func (flags *Flags) Usage() {
+ 	// BUG: use map iteration when available
+-	print "Usage: \n";
++	print("Usage: \n");
+ 	for f := flags.flag_list; f != nil; f = f.next {
+-		print "  -", f.name, "=", f.value.Str(), ": ", f.usage, "\n";
++		print("  -", f.name, "=", f.value.Str(), ": ", f.usage, "\n");
+ 	}
+ 	sys.exit(1);
+ }
+@@ -349,8 +349,8 @@ func Add(name string, value Value, usage string) *Flag {
+ 	f.value = value;
+ 	dummy, alreadythere := flags.formal[name];
+ 	if alreadythere {
+-		print "flag redefined: ", name, "\n";
+-		panic "flag redefinition"
++		print("flag redefined: ", name, "\n");
++		panic("flag redefinition");
+ 	}
+ 	flags.formal[name] = f;
+ 	f.next = flags.flag_list;  // BUG: remove when we can iterate over maps
+@@ -392,7 +392,7 @@ func (f *Flags) ParseOne(index int) (ok bool, next int)
+ 	}
+ 	name := s[num_minuses : len(s)];
+ 	if len(name) == 0 || name[0] == '-' || name[0]=='=' {
+-		print "bad flag syntax: ", s, "\n";
++		print("bad flag syntax: ", s, "\n");
+ 		f.Usage();
+ 	}
+ 
+@@ -409,13 +409,13 @@ func (f *Flags) ParseOne(index int) (ok bool, next int)
+ 	}
+ 	flag, alreadythere := flags.actual[name];
+ 	if alreadythere {
+-		print "flag specified twice: -", name, "\n";
++		print("flag specified twice: -", name, "\n");
+ 		f.Usage();
+ 	}
+ 	m := flags.formal;
+ 	flag, alreadythere = m[name]; // BUG
+ 	if !alreadythere {
+-		print "flag provided but not defined: -", name, "\n";
++		print("flag provided but not defined: -", name, "\n");
+ 		f.Usage();
+ 	}
+ 	if !has_value && index < sys.argc()-1 && flag.value.ValidValue(sys.argv(index+1)) {
+@@ -429,7 +429,7 @@ func (f *Flags) ParseOne(index int) (ok bool, next int)
+ 			if has_value {
+ 				k, ok := atob(value);
+ 				if !ok {
+-					print "invalid boolean value ", value, " for flag: -", name, "\n";
++					print("invalid boolean value ", value, " for flag: -", name, "\n");
+ 					f.Usage();
+ 				}
+ 				flag.value.AsBool().Set(k)
+@@ -438,18 +438,18 @@ func (f *Flags) ParseOne(index int) (ok bool, next int)
+ 			}
+ 		case flag.value.IsInt():
+ 			if !has_value {
+-				print "flag needs an argument: -", name, "\n";
++				print("flag needs an argument: -", name, "\n");
+ 				f.Usage();
+ 			}
+ 			k, ok := atoi(value);
+ 			if !ok {
+-				print "invalid integer value ", value, " for flag: -", name, "\n";
++				print("invalid integer value ", value, " for flag: -", name, "\n");
+ 				f.Usage();
+ 			}
+ 			flag.value.AsInt().Set(k)
+ 		case flag.value.IsString():
+ 			if !has_value {
+-				print "flag needs an argument: -", name, "\n";
++				print("flag needs an argument: -", name, "\n");
+ 				f.Usage();
+ 			}
+ 			flag.value.AsString().Set(value)
+diff --git a/src/pkg/integer.go b/src/pkg/integer.go
+index b9c3fc7149..b10c73577e 100755
+--- a/src/pkg/integer.go
++++ b/src/pkg/integer.go
+@@ -24,20 +24,20 @@ const M = 1 << L - 1;
+ // TODO What are we going to about asserts?
+ func ASSERT(p bool) {
+   if !p {
+-    panic "ASSERT failed";
++    panic("ASSERT failed");
+   }
+ }
+ 
+ 
+ func CHECK(p bool) {
+   if !p {
+-    panic "CHECK failed";
++    panic("CHECK failed");
+   }
+ }
+ 
+ 
+ func UNIMPLEMENTED(s string) {
+-  panic "UNIMPLEMENTED: ", s;
++  panic("UNIMPLEMENTED: ", s);
+ }
+ 
+ 
+@@ -631,5 +631,5 @@ func (x Integer) ToInt() int {
+     }
+     return i;
+   }
+-  panic "integer too large";
++  panic("integer too large");
+ }
+diff --git a/src/pkg/test_integer.go b/src/pkg/test_integer.go
+index be93f33ef0..991c99811c 100644
+--- a/src/pkg/test_integer.go
++++ b/src/pkg/test_integer.go
+@@ -24,7 +24,7 @@ var (
+ 
+ func CHECK(msg string, p bool) {
+   if !p {
+-    panic "CHECK failed: ", msg, "\n";
++    panic("CHECK failed: ", msg, "\n");
+   }
+ }
+ 
+@@ -46,7 +46,7 @@ func Init() {
+ func N991() string { return "991" }
+ 
+ func TestConv() {
+-  print "TestConv\n";
++  print("TestConv\n");
+   CHECK("TC1", a.eql(Integer.FromInt(991)));
+   CHECK("TC2", b.eql(Integer.Fact(20)));
+   CHECK("TC3", c.eql(Integer.Fact(100)));
+@@ -59,7 +59,7 @@ func TestConv() {
+ 
+ 
+ func TestAdd() {
+-  print "TestAdd\n";
++  print("TestAdd\n");
+   CHECK("TA1", z.add(z).eql(z));
+   CHECK("TA2", a.add(z).eql(a));
+   CHECK("TA3", z.add(a).eql(a));
+@@ -78,7 +78,7 @@ func TestAdd() {
+ 
+ 
+ func TestSub() {
+-  print "TestSub\n";
++  print("TestSub\n");
+   CHECK("TS1", z.sub(z).eql(z));
+   CHECK("TS2", a.sub(z).eql(a));
+   CHECK("TS3", z.sub(a).eql(a.neg()));
+@@ -95,25 +95,25 @@ func TestSub() {
+ 
+ 
+ func TestMul() {
+-  print "TestMul\n";
++  print("TestMul\n");
+   // tested much via TestFact for now
+ }
+ 
+ 
+ func TestDiv() {
+-  print "TestDiv\n";
++  print("TestDiv\n");
+   // no div implemented yet
+ }
+ 
+ 
+ func TestMod() {
+-  print "TestMod\n";
++  print("TestMod\n");
+   // no mod implemented yet
+ }
+ 
+ 
+ func TestFact() {
+-  print "TestFact\n";
++  print("TestFact\n");
+   for n := 990; n < 1010; n++ {
+     f := Integer.Fact(n);
+     CHECK("TF", Integer.FromString(f.ToString()).eql(f));
+@@ -133,5 +133,5 @@ func main() {
+ 
+   TestFact();
+   
+-  print "PASSED\n";
++  print("PASSED\n");
+ }
+diff --git a/usr/gri/gosrc/compilation.go b/usr/gri/gosrc/compilation.go
+index c8c394279e..d8a78be10a 100644
+--- a/usr/gri/gosrc/compilation.go
++++ b/usr/gri/gosrc/compilation.go
+@@ -21,7 +21,7 @@ import Verifier "verifier"
+ 
+ func ReadImport(comp* Globals.Compilation, filename string, update bool) (data string, ok bool) {
+ 	if filename == "" {
+-		panic "illegal package file name";
++		panic("illegal package file name");
+ 	}
+ 
+ 	// see if it just works
+@@ -32,7 +32,7 @@ func ReadImport(comp* Globals.Compilation, filename string, update bool) (data s
+ 	
+ 	if filename[0] == '/' {
+ 		// absolute path
+-		panic `don't know how to handle absolute import file path "` + filename + `"`;
++		panic(`don't know how to handle absolute import file path "` + filename + `"`);
+ 	}
+ 	
+ 	// relative path
+@@ -77,7 +77,7 @@ export func Export(comp *Globals.Compilation, pkg_file string) {
+ 	data := Exporter.Export(comp);
+ 	ok := Platform.WriteObjectFile(pkg_file, data);
+ 	if !ok {
+-		panic "export failed";
++		panic("export failed");
+ 	}
+ }
+ 
+@@ -85,12 +85,12 @@ export func Export(comp *Globals.Compilation, pkg_file string) {
+ export func Compile(comp *Globals.Compilation, src_file string) {
+ 	src, ok := Platform.ReadSourceFile(src_file);
+ 	if !ok {
+-		print "cannot open ", src_file, "\n"
++		print("cannot open ", src_file, "\n");
+ 		return;
+ 	}
+ 	
+ 	if comp.flags.verbosity > 0 {
+-		print src_file, "\n";
++		print(src_file, "\n");
+ 	}
+ 
+ 	scanner := new(Scanner.Scanner);
+diff --git a/usr/gri/gosrc/export.go b/usr/gri/gosrc/export.go
+index cfca1a9aef..97f9d1b17a 100755
+--- a/usr/gri/gosrc/export.go
++++ b/usr/gri/gosrc/export.go
+@@ -30,7 +30,7 @@ func (E *Exporter) WriteByte(x byte) {
+ 	E.buf_pos++;
+ 	/*
+ 	if E.debug {
+-		print " ", x;
++		print(" ", x);
+ 	}
+ 	*/
+ }
+@@ -46,7 +46,7 @@ func (E *Exporter) WriteInt(x int) {
+ 	E.WriteByte(byte(x + 192));
+ 	/*
+ 	if E.debug {
+-		print " #", x0;
++		print(" #", x0);
+ 	}
+ 	*/
+ }
+@@ -59,7 +59,7 @@ func (E *Exporter) WriteString(s string) {
+ 		E.WriteByte(s[i]);
+ 	}
+ 	if E.debug {
+-		print ` "`, s, `"`;
++		print(` "`, s, `"`);
+ 	}
+ }
+ 
+@@ -68,9 +68,9 @@ func (E *Exporter) WritePackageTag(tag int) {
+ 	E.WriteInt(tag);
+ 	if E.debug {
+ 		if tag >= 0 {
+-			print " [P", tag, "]";  // package ref
++			print(" [P", tag, "]");  // package ref
+ 		} else {
+-			print "\nP", E.pkg_ref, ":";
++			print("\nP", E.pkg_ref, ":");
+ 		}
+ 	}
+ }
+@@ -80,9 +80,9 @@ func (E *Exporter) WriteTypeTag(tag int) {
+ 	E.WriteInt(tag);
+ 	if E.debug {
+ 		if tag >= 0 {
+-			print " [T", tag, "]";  // type ref
++			print(" [T", tag, "]");  // type ref
+ 		} else {
+-			print "\nT", E.type_ref, ": ", Type.FormStr(-tag);
++			print("\nT", E.type_ref, ": ", Type.FormStr(-tag));
+ 		}
+ 	}
+ }
+@@ -90,18 +90,18 @@ func (E *Exporter) WriteTypeTag(tag int) {
+ 
+ func (E *Exporter) WriteObjectTag(tag int) {
+ 	if tag < 0 {
+-		panic "tag < 0";
++		panic("tag < 0");
+ 	}
+ 	E.WriteInt(tag);
+ 	if E.debug {
+-		print "\n", Object.KindStr(tag);
++		print("\n", Object.KindStr(tag));
+ 	}
+ }
+ 
+ 
+ func (E *Exporter) WritePackage(pkg *Globals.Package) {
+ 	if E.comp.pkg_list[pkg.obj.pnolev] != pkg {
+-		panic "inconsistent package object"
++		panic("inconsistent package object");
+ 	}
+ 
+ 	if pkg.ref >= 0 {
+@@ -121,7 +121,7 @@ func (E *Exporter) WritePackage(pkg *Globals.Package) {
+ 
+ func (E *Exporter) WriteScope(scope *Globals.Scope) {
+ 	if E.debug {
+-		print " {";
++		print(" {");
+ 	}
+ 
+ 	for p := scope.entries.first; p != nil; p = p.next {
+@@ -132,7 +132,7 @@ func (E *Exporter) WriteScope(scope *Globals.Scope) {
+ 	E.WriteObject(nil);
+ 	
+ 	if E.debug {
+-		print " }";
++		print(" }");
+ 	}
+ }
+ 
+@@ -144,7 +144,7 @@ func (E *Exporter) WriteType(typ *Globals.Type) {
+ 	}
+ 
+ 	if -typ.form >= 0 {
+-		panic "conflict with ref numbers";
++		panic("conflict with ref numbers");
+ 	}
+ 	E.WriteTypeTag(-typ.form);
+ 	typ.ref = E.type_ref;
+@@ -155,7 +155,7 @@ func (E *Exporter) WriteType(typ *Globals.Type) {
+ 	if typ.obj != nil {
+ 		// named type
+ 		if typ.obj.typ != typ {
+-			panic "inconsistent named type";
++			panic("inconsistent named type");
+ 		}
+ 		ident = typ.obj.ident;
+ 		if !typ.obj.exported {
+@@ -177,7 +177,7 @@ func (E *Exporter) WriteType(typ *Globals.Type) {
+ 	case Type.FORWARD:
+ 		// corresponding package must be forward-declared too
+ 		if typ.obj == nil || E.comp.pkg_list[typ.obj.pnolev].key != "" {
+-			panic "inconsistency in package.type forward declaration";
++			panic("inconsistency in package.type forward declaration");
+ 		}
+ 		
+ 	case Type.ALIAS, Type.MAP:
+@@ -203,7 +203,7 @@ func (E *Exporter) WriteType(typ *Globals.Type) {
+ 		E.WriteType(typ.elt);
+ 
+ 	default:
+-		panic "UNREACHABLE";
++		panic("UNREACHABLE");
+ 	}
+ }
+ 
+@@ -218,7 +218,7 @@ func (E *Exporter) WriteObject(obj *Globals.Object) {
+ 	if obj.kind == Object.TYPE {
+ 		// named types are handled entirely by WriteType()
+ 		if obj.typ.obj != obj {
+-			panic "inconsistent named type"
++			panic("inconsistent named type");
+ 		}
+ 		E.WriteType(obj.typ);
+ 		return;
+@@ -238,7 +238,7 @@ func (E *Exporter) WriteObject(obj *Globals.Object) {
+ 		E.WriteInt(0);  // should be the correct address/offset
+ 		
+ 	default:
+-		panic "UNREACHABLE";
++		panic("UNREACHABLE");
+ 	}
+ }
+ 
+@@ -261,7 +261,7 @@ func (E *Exporter) Export(comp* Globals.Compilation) string {
+ 	{	i := 0;
+ 		for p := Universe.types.first; p != nil; p = p.next {
+ 			if p.typ.ref != i {
+-				panic "incorrect ref for predeclared type";
++				panic("incorrect ref for predeclared type");
+ 			}
+ 			i++;
+ 		}
+@@ -274,7 +274,7 @@ func (E *Exporter) Export(comp* Globals.Compilation) string {
+ 	E.WriteScope(pkg.scope);
+ 	
+ 	if E.debug {
+-		print "\n(", E.buf_pos, " bytes)\n";
++		print("\n(", E.buf_pos, " bytes)\n");
+ 	}
+ 	
+ 	return string(E.buf)[0 : E.buf_pos];
+diff --git a/usr/gri/gosrc/globals.go b/usr/gri/gosrc/globals.go
+index 4bc9affc4f..4285aa324b 100644
+--- a/usr/gri/gosrc/globals.go
++++ b/usr/gri/gosrc/globals.go
+@@ -192,7 +192,7 @@ func (L* List) len_() int {
+ 
+ func (L *List) at(i int) *Elem {
+ 	if i < 0 || L.len_ <= i {
+-		panic "index out of bounds";
++		panic("index out of bounds");
+ 	}
+ 
+ 	p := L.first;
+@@ -282,7 +282,7 @@ func (scope *Scope) Lookup(ident string) *Object {
+ 
+ func (scope *Scope) Insert(obj *Object) {
+ 	if scope.Lookup(obj.ident) != nil {
+-		panic "obj already inserted";
++		panic("obj already inserted");
+ 	}
+ 	scope.entries.AddObj(obj);
+ }
+@@ -299,11 +299,11 @@ func (scope *Scope) InsertImport(obj *Object) *Object {
+ 
+ 
+ func (scope *Scope) Print() {
+-	print "scope {";
++	print("scope {");
+ 	for p := scope.entries.first; p != nil; p = p.next {
+-		print "\n  ", p.obj.ident;
++		print("\n  ", p.obj.ident);
+ 	}
+-	print "\n}\n";
++	print("\n}\n");
+ }
+ 
+ 
+@@ -323,7 +323,7 @@ func (C *Compilation) Lookup(file_name string) *Package {
+ 
+ func (C *Compilation) Insert(pkg *Package) {
+ 	if C.Lookup(pkg.file_name) != nil {
+-		panic "package already inserted";
++		panic("package already inserted");
+ 	}
+ 	pkg.obj.pnolev = C.pkg_ref;
+ 	C.pkg_list[C.pkg_ref] = pkg;
+diff --git a/usr/gri/gosrc/go.go b/usr/gri/gosrc/go.go
+index 625548ed89..b4e7bcb6ab 100644
+--- a/usr/gri/gosrc/go.go
++++ b/usr/gri/gosrc/go.go
+@@ -10,7 +10,7 @@ import Compilation "compilation"
+ 
+ 
+ func PrintHelp() {
+-	print
++	print(
+ 		"go (" + Build.time + ")\n" +
+ 		"usage:\n" +
+ 		"  go { flag } { file }\n" +
+@@ -24,7 +24,8 @@ func PrintHelp() {
+ 		"  -parse         parse only, print productions\n" +
+ 		"  -ast           analyse only, print ast\n" +
+ 		"  -deps          print package dependencies\n" +
+-		"  -token_chan    use token channel to scan and parse in parallel\n";
++		"  -token_chan    use token channel to scan and parse in parallel\n"
++	);
+ }
+ 
+ 
+@@ -54,7 +55,7 @@ func main() {
+ 	    switch arg {
+ 		case "-d": flags.debug = true;
+ 		case "-o": flags.object_file = Next();
+-			print "note: -o flag ignored at the moment\n";
++			print("note: -o flag ignored at the moment\n");
+ 		case "-r": flags.update_packages = true;
+ 		case "-p": flags.print_interface = true;
+ 		case "-v":
+@@ -69,12 +70,12 @@ func main() {
+ 			}
+ 		case "-6g": flags.sixg = true;
+ 		case "-scan": flags.scan = true;
+-			print "note: -scan flag ignored at the moment\n";
++			print("note: -scan flag ignored at the moment\n");
+ 		case "-parse": flags.parse = true;
+-			print "note: -parse flag ignored at the moment\n";
++			print("note: -parse flag ignored at the moment\n");
+ 		case "-ast": flags.ast = true;
+ 		case "-deps": flags.deps = true;
+-			print "note: -deps flag ignored at the moment\n";
++			print("note: -deps flag ignored at the moment\n");
+ 		case "-token_chan": flags.token_chan = true;
+ 		default: files.AddStr(arg);
+ 		}
+diff --git a/usr/gri/gosrc/import.go b/usr/gri/gosrc/import.go
+index 2be6e06af6..8aff333063 100755
+--- a/usr/gri/gosrc/import.go
++++ b/usr/gri/gosrc/import.go
+@@ -32,7 +32,7 @@ func (I *Importer) ReadByte() byte {
+ 	I.buf_pos++;
+ 	/*
+ 	if E.debug {
+-		print " ", x;
++		print(" ", x);
+ 	}
+ 	*/
+ 	return x;
+@@ -52,7 +52,7 @@ func (I *Importer) ReadInt() int {
+ 	x |= ((int(b) - 192) << s);
+ 	/*
+ 	if I.debug {
+-		print " #", x;
++		print(" #", x);
+ 	}
+ 	*/
+ 	return x;
+@@ -67,7 +67,7 @@ func (I *Importer) ReadString() string {
+ 	}
+ 	s := string(buf)[0 : n];
+ 	if I.debug {
+-		print ` "`, s, `"`;
++		print(` "`, s, `"`);
+ 	}
+ 	return s;
+ }
+@@ -77,9 +77,9 @@ func (I *Importer) ReadPackageTag() int {
+ 	tag := I.ReadInt();
+ 	if I.debug {
+ 		if tag >= 0 {
+-			print " [P", tag, "]";  // package ref
++			print(" [P", tag, "]");  // package ref
+ 		} else {
+-			print "\nP", I.pkg_ref, ":";
++			print("\nP", I.pkg_ref, ":");
+ 		}
+ 	}
+ 	return tag;
+@@ -90,9 +90,9 @@ func (I *Importer) ReadTypeTag() int {
+ 	tag := I.ReadInt();
+ 	if I.debug {
+ 		if tag >= 0 {
+-			print " [T", tag, "]";  // type ref
++			print(" [T", tag, "]");  // type ref
+ 		} else {
+-			print "\nT", I.type_ref, ": ", Type.FormStr(-tag);
++			print("\nT", I.type_ref, ": ", Type.FormStr(-tag));
+ 		}
+ 	}
+ 	return tag;
+@@ -102,10 +102,10 @@ func (I *Importer) ReadTypeTag() int {
+ func (I *Importer) ReadObjectTag() int {
+ 	tag := I.ReadInt();
+ 	if tag < 0 {
+-		panic "tag < 0";
++		panic("tag < 0");
+ 	}
+ 	if I.debug {
+-		print "\n", Object.KindStr(tag);
++		print("\n", Object.KindStr(tag));
+ 	}
+ 	return tag;
+ }
+@@ -130,14 +130,14 @@ func (I *Importer) ReadPackage() *Globals.Package {
+ 		pkg = Globals.NewPackage(file_name, obj, Globals.NewScope(nil));
+ 		I.comp.Insert(pkg);
+ 		if I.comp.flags.verbosity > 1 {
+-			print `import: implicitly adding package `, ident, ` "`, file_name, `" (pno = `, obj.pnolev, ")\n";
++			print(`import: implicitly adding package `, ident, ` "`, file_name, `" (pno = `, obj.pnolev, ")\n");
+ 		}
+ 	} else if key != "" && key != pkg.key {
+ 		// the package was imported before but the package
+ 		// key has changed (a "" key indicates a forward-
+ 		// declared package - it's key is consistent with
+ 		// any actual package of the same name)
+-		panic "package key inconsistency";
++		panic("package key inconsistency");
+ 	}
+ 	I.pkg_list[I.pkg_ref] = pkg;
+ 	I.pkg_ref++;
+@@ -148,7 +148,7 @@ func (I *Importer) ReadPackage() *Globals.Package {
+ 
+ func (I *Importer) ReadScope(scope *Globals.Scope, allow_multiples bool) {
+ 	if I.debug {
+-		print " {";
++		print(" {");
+ 	}
+ 
+ 	obj := I.ReadObject();
+@@ -164,7 +164,7 @@ func (I *Importer) ReadScope(scope *Globals.Scope, allow_multiples bool) {
+ 	}
+ 	
+ 	if I.debug {
+-		print " }";
++		print(" }");
+ 	}
+ }
+ 
+@@ -229,7 +229,7 @@ func (I *Importer) ReadType() *Globals.Type {
+ 		typ.elt = I.ReadType();
+ 
+ 	default:
+-		panic "UNREACHABLE";
++		panic("UNREACHABLE");
+ 	}
+ 
+ 	return ptyp;  // only use primary type
+@@ -246,7 +246,7 @@ func (I *Importer) ReadObject() *Globals.Object {
+ 		// named types are handled entirely by ReadType()
+ 		typ := I.ReadType();
+ 		if typ.obj.typ != typ {
+-			panic "inconsistent named type";
++			panic("inconsistent named type");
+ 		}
+ 		return typ.obj;
+ 	}
+@@ -267,7 +267,7 @@ func (I *Importer) ReadObject() *Globals.Object {
+ 		I.ReadInt();  // should set the address/offset field
+ 		
+ 	default:
+-		panic "UNREACHABLE";
++		panic("UNREACHABLE");
+ 	}
+ 
+ 	return obj;
+@@ -290,7 +290,7 @@ func (I *Importer) Import(comp* Globals.Compilation, data string) *Globals.Packa
+ 	// Predeclared types are "pre-imported".
+ 	for p := Universe.types.first; p != nil; p = p.next {
+ 		if p.typ.ref != I.type_ref {
+-			panic "incorrect ref for predeclared type";
++			panic("incorrect ref for predeclared type");
+ 		}
+ 		I.type_list[I.type_ref] = p.typ;
+ 		I.type_ref++;
+@@ -301,7 +301,7 @@ func (I *Importer) Import(comp* Globals.Compilation, data string) *Globals.Packa
+ 	I.ReadScope(pkg.scope, true);
+ 	
+ 	if I.debug {
+-		print "\n(", I.buf_pos, " bytes)\n";
++		print("\n(", I.buf_pos, " bytes)\n");
+ 	}
+ 	
+ 	return pkg;
+diff --git a/usr/gri/gosrc/parser.go b/usr/gri/gosrc/parser.go
+index 01bb8c71eb..789573190b 100644
+--- a/usr/gri/gosrc/parser.go
++++ b/usr/gri/gosrc/parser.go
+@@ -40,7 +40,7 @@ export type Parser struct {
+ 
+ func (P *Parser) PrintIndent() {
+ 	for i := P.indent; i > 0; i-- {
+-		print ". ";
++		print(". ");
+ 	}
+ }
+ 
+@@ -48,7 +48,7 @@ func (P *Parser) PrintIndent() {
+ func (P *Parser) Trace(msg string) {
+ 	if P.verbose {
+ 		P.PrintIndent();
+-		print msg, " {\n";
++		print(msg, " {\n");
+ 	}
+ 	P.indent++;
+ }
+@@ -58,7 +58,7 @@ func (P *Parser) Ecart() {
+ 	P.indent--;
+ 	if P.verbose {
+ 		P.PrintIndent();
+-		print "}\n";
++		print("}\n");
+ 	}
+ }
+ 
+@@ -72,7 +72,7 @@ func (P *Parser) Next() {
+ 	}
+ 	if P.verbose {
+ 		P.PrintIndent();
+-		print "[", P.pos, "] ", Scanner.TokenName(P.tok), "\n";
++		print("[", P.pos, "] ", Scanner.TokenName(P.tok), "\n");
+ 	}
+ }
+ 
+@@ -141,7 +141,7 @@ func (P *Parser) DeclareInScope(scope *Globals.Scope, obj *Globals.Object) {
+ 		return;
+ 	}
+ 	if P.level > 0 {
+-		panic "cannot declare objects in other packages";
++		panic("cannot declare objects in other packages");
+ 	}
+ 	obj.pnolev = P.level;
+ 	if scope.Lookup(obj.ident) != nil {
+@@ -163,7 +163,7 @@ func MakeFunctionType(sig *Globals.Scope, p0, r0 int, check_recv bool) *Globals.
+ 	if p0 > 0 && check_recv {
+ 		// method
+ 		if p0 != 1 {
+-			panic "p0 != 1";
++			panic("p0 != 1");
+ 		}
+ 	}
+ 
+@@ -192,7 +192,7 @@ func (P *Parser) DeclareFunc(pos int, ident string, typ *Globals.Type) *Globals.
+ 	if typ.flags & Type.RECV != 0 {
+ 		// method - declare in corresponding struct
+ 		if typ.scope.entries.len_ < 1 {
+-			panic "no recv in signature?";
++			panic("no recv in signature?");
+ 		}
+ 		recv_typ := typ.scope.entries.first.obj.typ;
+ 		if recv_typ.form == Type.POINTER {
+@@ -256,7 +256,7 @@ func (P *Parser) ParseIdent(allow_keyword bool) (pos int, ident string) {
+ 		ident = P.val;
+ 		if P.verbose {
+ 			P.PrintIndent();
+-			print "Ident = \"", ident, "\"\n";
++			print("Ident = \"", ident, "\"\n");
+ 		}
+ 		P.Next();
+ 	} else {
+@@ -322,11 +322,11 @@ func (P *Parser) ParseQualifiedIdent(pos int, ident string) *Globals.Object {
+ 
+ 		if obj.kind == Object.PACKAGE && P.tok == Scanner.PERIOD {
+ 			if obj.pnolev < 0 {
+-				panic "obj.pnolev < 0";
++				panic("obj.pnolev < 0");
+ 			}
+ 			pkg := P.comp.pkg_list[obj.pnolev];
+ 			//if pkg.obj.ident != ident {
+-			//	panic "pkg.obj.ident != ident";
++			//	panic("pkg.obj.ident != ident");
+ 			//}
+ 			P.Next();  // consume "."
+ 			pos, ident = P.ParseIdent(false);
+@@ -534,7 +534,7 @@ func (P *Parser) ParseAnonymousSignature() *Globals.Type {
+ 		p0 = sig.entries.len_;
+ 		if P.semantic_checks && p0 != 1 {
+ 			P.Error(recv_pos, "must have exactly one receiver")
+-			panic "UNIMPLEMENTED (ParseAnonymousSignature)";
++			panic("UNIMPLEMENTED (ParseAnonymousSignature)");
+ 			// TODO do something useful here
+ 		}
+ 		P.Next();
+@@ -573,9 +573,9 @@ func (P *Parser) ParseNamedSignature() (pos int, ident string, typ *Globals.Type
+ 		P.ParseParameters();
+ 		p0 = sig.entries.len_;
+ 		if P.semantic_checks && p0 != 1 {
+-			print "p0 = ", p0, "\n";
++			print("p0 = ", p0, "\n");
+ 			P.Error(recv_pos, "must have exactly one receiver")
+-			panic "UNIMPLEMENTED (ParseNamedSignature)";
++			panic("UNIMPLEMENTED (ParseNamedSignature)");
+ 			// TODO do something useful here
+ 		}
+ 	}
+@@ -718,7 +718,7 @@ func (P *Parser) ParsePointerType() *Globals.Type {
+ 				// package exists already - must be forward declaration
+ 				if pkg.key != "" {
+ 					P.Error(P.pos, `cannot use implicit package forward declaration for imported package "` + P.val + `"`);
+-					panic "wrong package forward decl";
++					panic("wrong package forward decl");
+ 					// TODO introduce dummy package so we can continue safely
+ 				}
+ 			}
+@@ -738,7 +738,7 @@ func (P *Parser) ParsePointerType() *Globals.Type {
+ 				obj.pnolev = pkg.obj.pnolev;
+ 			} else {
+ 				if obj.kind != Object.TYPE || obj.typ.form != Type.FORWARD {
+-					panic "inconsistency in package.type forward declaration";
++					panic("inconsistency in package.type forward declaration");
+ 				}
+ 				elt = obj.typ;
+ 			}
+@@ -939,17 +939,6 @@ func (P *Parser) ParseExpressionPairList(list *Globals.List) {
+ }
+ 
+ 
+-func (P *Parser) ParseBuiltinCall() Globals.Expr {
+-	P.Trace("BuiltinCall");
+-	
+-	args := Globals.NewList();
+-	P.ParseExpressionList(args);  // TODO should be optional
+-	
+-	P.Ecart();
+-	return nil;
+-}
+-
+-
+ func (P *Parser) ParseCompositeLit(typ *Globals.Type) Globals.Expr {
+ 	P.Trace("CompositeLit");
+ 	
+@@ -1006,18 +995,12 @@ func (P *Parser) ParseOperand(pos int, ident string) Globals.Expr {
+ 	var res Globals.Expr = AST.Bad;
+ 
+ 	if pos >= 0 {
+-		// TODO set these up properly in the Universe
+-		if ident == "panic" || ident == "print" {
+-			res = P.ParseBuiltinCall();
+-			
+-		} else {
+-			obj := P.ParseQualifiedIdent(pos, ident);
+-			if P.semantic_checks {
+-				if obj.kind == Object.TYPE {
+-					res = P.ParseCompositeLit(obj.typ);
+-				} else {
+-					res = AST.NewObject(pos, obj);
+-				}
++		obj := P.ParseQualifiedIdent(pos, ident);
++		if P.semantic_checks {
++			if obj.kind == Object.TYPE {
++				res = P.ParseCompositeLit(obj.typ);
++			} else {
++				res = AST.NewObject(pos, obj);
+ 			}
+ 		}
+ 
+@@ -1025,7 +1008,7 @@ func (P *Parser) ParseOperand(pos int, ident string) Globals.Expr {
+ 	
+ 		switch P.tok {
+ 		case Scanner.IDENT:
+-			panic "UNREACHABLE";
++			panic("UNREACHABLE");
+ 			
+ 		case Scanner.LPAREN:
+ 			P.Next();
+@@ -1126,7 +1109,7 @@ func (P *Parser) ParseSelectorOrTypeAssertion(x Globals.Expr) Globals.Expr {
+ 		P.Expect(Scanner.RPAREN);
+ 		
+ 		if P.semantic_checks {
+-			panic "UNIMPLEMENTED";
++			panic("UNIMPLEMENTED");
+ 		}
+ 	}
+ 	
+@@ -1154,12 +1137,12 @@ func (P *Parser) ParseIndexOrSlice(x Globals.Expr) Globals.Expr {
+ 			// ignore
+ 			break;
+ 		case Type.STRING, Type.ARRAY:
+-			panic "UNIMPLEMENTED";
++			panic("UNIMPLEMENTED");
+ 			
+ 		case Type.MAP:
+ 			if Type.Equal(typ.aux, i1.typ()) {
+ 				// x = AST.NewSubscript(x, i1);
+-				panic "UNIMPLEMENTED";
++				panic("UNIMPLEMENTED");
+ 				
+ 			} else {
+ 				P.Error(x.pos(), "map key type mismatch");
+@@ -1189,7 +1172,7 @@ func (P *Parser) ParseCall(x Globals.Expr) Globals.Expr {
+ 	P.Expect(Scanner.RPAREN);
+ 
+ 	if P.semantic_checks {
+-		panic "UNIMPLEMENTED";
++		panic("UNIMPLEMENTED");
+ 	}
+ 	
+ 	P.Ecart();
+@@ -1311,7 +1294,7 @@ func (P *Parser) ParseIdentExpression(pos int, ident string) Globals.Expr {
+ 	x := P.ParseBinaryExpr(pos, ident, 1);
+ 	
+ 	if indent != P.indent {
+-		panic "imbalanced tracing code (Expression)";
++		panic("imbalanced tracing code (Expression)");
+ 	}
+ 	P.Ecart();
+ 	return x;
+@@ -1740,7 +1723,7 @@ func (P *Parser) TryStatement() bool {
+ 	}
+ 
+ 	if indent != P.indent {
+-		panic "imbalanced tracing code (Statement)"
++		panic("imbalanced tracing code (Statement)");
+ 	}
+ 	P.Ecart();
+ 	return res;
+@@ -1825,10 +1808,10 @@ func (P *Parser) ParseTypeSpec(exported bool) {
+ 		if obj.typ.form == Type.FORWARD {
+ 			// imported forward-declared type
+ 			if !exported {
+-				panic "foo";
++				panic("foo");
+ 			}
+ 		} else {
+-			panic "bar";
++			panic("bar");
+ 		}
+ 		
+ 	} else {
+@@ -1915,7 +1898,7 @@ func (P *Parser) ParseSpec(exported bool, keyword int) {
+ 	case Scanner.CONST: P.ParseConstSpec(exported);
+ 	case Scanner.TYPE: P.ParseTypeSpec(exported);
+ 	case Scanner.VAR: P.ParseVarSpec(exported);
+-	default: panic "UNREACHABLE";
++	default: panic("UNREACHABLE");
+ 	}
+ }
+ 
+@@ -2024,7 +2007,7 @@ func (P *Parser) ParseDeclaration() {
+ 	}
+ 	
+ 	if indent != P.indent {
+-		panic "imbalanced tracing code (Declaration)"
++		panic("imbalanced tracing code (Declaration)");
+ 	}
+ 	P.Ecart();
+ }
+@@ -2041,12 +2024,12 @@ func (P *Parser) ResolveForwardTypes() {
+ 	for p := P.forward_types.first; p != nil; p = p.next {
+ 		typ := p.typ;
+ 		if typ.form != Type.POINTER {
+-			panic "unresolved types should be pointers only";
++			panic("unresolved types should be pointers only");
+ 		}
+ 		
+ 		elt := typ.elt;
+ 		if typ.elt.form != Type.FORWARD {
+-			panic "unresolved pointer should point to forward type";
++			panic("unresolved pointer should point to forward type");
+ 		}
+ 		
+ 		obj := elt.obj;
+@@ -2120,12 +2103,12 @@ func (P *Parser) ParseProgram() {
+ 	
+ 	{	P.OpenScope();
+ 		if P.level != 0 {
+-			panic "incorrect scope level";
++			panic("incorrect scope level");
+ 		}
+ 		
+ 		P.comp.Insert(Globals.NewPackage(P.S.filename, obj, P.top_scope));
+ 		if P.comp.pkg_ref != 1 {
+-			panic "should have exactly one package now";
++			panic("should have exactly one package now");
+ 		}
+ 
+ 		for P.tok == Scanner.IMPORT {
+@@ -2142,7 +2125,7 @@ func (P *Parser) ParseProgram() {
+ 		P.MarkExports();
+ 		
+ 		if P.level != 0 {
+-			panic "incorrect scope level";
++			panic("incorrect scope level");
+ 		}
+ 		P.CloseScope();
+ 	}
+diff --git a/usr/gri/gosrc/printer.go b/usr/gri/gosrc/printer.go
+index c053caea8a..bcd7edb6c3 100755
+--- a/usr/gri/gosrc/printer.go
++++ b/usr/gri/gosrc/printer.go
+@@ -42,23 +42,23 @@ func (P *Printer) PrintSigRange(typ *Globals.Type, a, b int) {
+ 	if a + 1 == b && IsAnonymous(scope.entries.ObjAt(a).ident) {
+ 		P.PrintType(scope.entries.TypAt(a));  // result type only
+ 	} else {
+-		print "(";
++		print("(");
+ 		for i := a; i < b; i++ {
+ 			par := scope.entries.ObjAt(i);
+ 			if i > a {
+-				print ", ";
++				print(", ");
+ 			}
+-			print par.ident, " ";
++			print(par.ident, " ");
+ 			P.PrintType(par.typ);
+ 		}
+-		print ")";
++		print(")");
+ 	}
+ }
+ 
+ 
+ func (P *Printer) PrintSignature(typ *Globals.Type, fun *Globals.Object) {
+ 	if typ.form != Type.FUNCTION {
+-		panic "typ.form != Type.FUNCTION";
++		panic("typ.form != Type.FUNCTION");
+ 	}
+ 	
+ 	p0 := 0;
+@@ -69,34 +69,34 @@ func (P *Printer) PrintSignature(typ *Globals.Type, fun *Globals.Object) {
+ 	l0 := typ.scope.entries.len_;
+ 	
+ 	if P.level == 0 {
+-		print "func ";
++		print("func ");
+ 
+ 		if 0 < p0 {
+ 			P.PrintSigRange(typ, 0, p0);
+-			print " ";
++			print(" ");
+ 		}
+ 	}
+ 	
+ 	if fun != nil {
+ 		P.PrintObject(fun);
+-		//print " ";
++		//print(" ");
+ 	} else if p0 > 0 {
+-		print ". ";
++		print(". ");
+ 	}
+ 	
+ 	P.PrintSigRange(typ, p0, r0);
+ 
+ 	if r0 < l0 {
+-		print " ";
++		print(" ");
+ 		P.PrintSigRange(typ, r0, l0);
+ 	}
+ }
+ 
+ 
+ func (P *Printer) PrintIndent() {
+-	print "\n";
++	print("\n");
+ 	for i := P.level; i > 0; i-- {
+-		print "\t";
++		print("\t");
+ 	}
+ }
+ 
+@@ -134,44 +134,44 @@ func (P *Printer) PrintScope(scope *Globals.Scope, delta int) {
+ func (P *Printer) PrintObjectStruct(obj *Globals.Object) {
+ 	switch obj.kind {
+ 	case Object.BAD:
+-		print "bad ";
++		print("bad ");
+ 		P.PrintObject(obj);
+ 
+ 	case Object.CONST:
+-		print "const ";
++		print("const ");
+ 		P.PrintObject(obj);
+-		print " ";
++		print(" ");
+ 		P.PrintType(obj.typ);
+ 
+ 	case Object.TYPE:
+-		print "type ";
++		print("type ");
+ 		P.PrintObject(obj);
+-		print " ";
++		print(" ");
+ 		P.PrintTypeStruct(obj.typ);
+ 
+ 	case Object.VAR, Object.FIELD:
+ 		if P.level == 0 {
+-			print "var ";
++			print("var ");
+ 		}
+ 		P.PrintObject(obj);
+-		print " ";
++		print(" ");
+ 		P.PrintType(obj.typ);
+ 
+ 	case Object.FUNC:
+ 		P.PrintSignature(obj.typ, obj);
+ 
+ 	case Object.PACKAGE:
+-		print "package ";
++		print("package ");
+ 		P.PrintObject(obj);
+-		print " ";
++		print(" ");
+ 		P.PrintScope(P.comp.pkg_list[obj.pnolev].scope, 0);
+ 
+ 	default:
+-		panic "UNREACHABLE";
++		panic("UNREACHABLE");
+ 	}
+ 	
+ 	if P.level > 0 {
+-		print ";";
++		print(";");
+ 	}
+ }
+ 
+@@ -181,86 +181,86 @@ func (P *Printer) PrintObject(obj *Globals.Object) {
+ 		pkg := P.comp.pkg_list[obj.pnolev];
+ 		if pkg.key == "" {
+ 			// forward-declared package
+-			print `"`, pkg.file_name, `"`;
++			print(`"`, pkg.file_name, `"`);
+ 		} else {
+ 			// imported package
+-			print pkg.obj.ident;
++			print(pkg.obj.ident);
+ 		}
+-		print "."
++		print(".");
+ 	}
+-	print obj.ident;
++	print(obj.ident);
+ }
+ 
+ 
+ func (P *Printer) PrintTypeStruct(typ *Globals.Type) {
+ 	switch typ.form {
+ 	case Type.VOID:
+-		print "void";
++		print("void");
+ 		
+ 	case Type.FORWARD:
+-		print "<forward type>";
++		print("<forward type>");
+ 
+ 	case Type.BAD:
+-		print "<bad type>";
++		print("<bad type>");
+ 
+ 	case Type.NIL, Type.BOOL, Type.UINT, Type.INT, Type.FLOAT, Type.STRING, Type.ANY:
+ 		if typ.obj == nil {
+-			panic "typ.obj == nil";
++			panic("typ.obj == nil");
+ 		}
+ 		P.PrintType(typ);
+ 
+ 	case Type.ALIAS:
+ 		P.PrintType(typ.elt);
+ 		if typ.aux != typ.elt {
+-			print " /* ";
++			print(" /* ");
+ 			P.PrintType(typ.aux);
+-			print " */";
++			print(" */");
+ 		}
+ 		
+ 	case Type.ARRAY:
+-		print "[]";
++		print("[]");
+ 		P.PrintType(typ.elt);
+ 
+ 	case Type.STRUCT:
+-		print "struct {";
++		print("struct {");
+ 		P.PrintScope(typ.scope, 1);
+-		print "}";
++		print("}");
+ 
+ 	case Type.INTERFACE:
+-		print "interface {";
++		print("interface {");
+ 		P.PrintScope(typ.scope, 1);
+-		print "}";
++		print("}");
+ 
+ 	case Type.MAP:
+-		print "map [";
++		print("map [");
+ 		P.PrintType(typ.aux);
+-		print "] ";
++		print("] ");
+ 		P.PrintType(typ.elt);
+ 
+ 	case Type.CHANNEL:
+-		print "chan";
++		print("chan");
+ 		switch typ.flags {
+-		case Type.SEND: print " -<";
+-		case Type.RECV: print " <-";
++		case Type.SEND: print(" -<");
++		case Type.RECV: print(" <-");
+ 		case Type.SEND + Type.RECV:  // nothing to print
+-		default: panic "UNREACHABLE";
++		default: panic("UNREACHABLE");
+ 		}
+-		print " ";
++		print(" ");
+ 		P.PrintType(typ.elt);
+ 
+ 	case Type.FUNCTION:
+ 		P.PrintSignature(typ, nil);
+ 
+ 	case Type.POINTER:
+-		print "*";
++		print("*");
+ 		P.PrintType(typ.elt);
+ 
+ 	case Type.REFERENCE:
+-		print "&";
++		print("&");
+ 		P.PrintType(typ.elt);
+ 
+ 	default:
+-		panic "UNREACHABLE";
++		panic("UNREACHABLE");
+ 		
+ 	}
+ }
+@@ -279,5 +279,5 @@ export func PrintObject(comp *Globals.Compilation, obj *Globals.Object, print_al
+ 	var P Printer;
+ 	(&P).Init(comp, print_all);
+ 	(&P).PrintObjectStruct(obj);
+-	print "\n";
++	print("\n");
+ }
+diff --git a/usr/gri/gosrc/scanner.go b/usr/gri/gosrc/scanner.go
+index 5ff6910490..956d0facfa 100644
+--- a/usr/gri/gosrc/scanner.go
++++ b/usr/gri/gosrc/scanner.go
+@@ -397,17 +397,17 @@ func (S *Scanner) Error(pos int, msg string) {
+ 		delta = -delta;
+ 	}
+ 	if delta > errdist || S.nerrors == 0 /* always report first error */ {
+-		print S.filename;
++		print(S.filename);
+ 		if pos >= 0 {
+ 			// print position
+ 			line, col := S.LineCol(pos);
+ 			if VerboseMsgs {
+-				print ":", line, ":", col;
++				print(":", line, ":", col);
+ 			} else {
+-				print ":", line;
++				print(":", line);
+ 			}
+ 		}
+-		print ": ", msg, "\n";
++		print(": ", msg, "\n");
+ 		S.nerrors++;
+ 		S.errpos = pos;
+ 	}
+diff --git a/usr/gri/gosrc/test_scanner.go b/usr/gri/gosrc/test_scanner.go
+index 5c23acf21f..ffdc0b56fc 100644
+--- a/usr/gri/gosrc/test_scanner.go
++++ b/usr/gri/gosrc/test_scanner.go
+@@ -12,11 +12,11 @@ func Scan1(filename, src string) {
+ 	S.Open(filename, src);
+ 	for {
+ 		tok, pos, val := S.Scan();
+-		print pos, ": ", Scanner.TokenName(tok);
++		print(pos, ": ", Scanner.TokenName(tok));
+ 		if tok == Scanner.IDENT || tok == Scanner.INT || tok == Scanner.FLOAT || tok == Scanner.STRING {
+-			print " ", val;
++			print(" ", val);
+ 		}
+-		print "\n";
++		print("\n");
+ 		if tok == Scanner.EOF {
+ 			return;
+ 		}
+@@ -33,11 +33,11 @@ func Scan2(filename, src string) {
+ 		var t *Scanner.Token;
+ 		t = <- c;
+ 		tok, pos, val := t.tok, t.pos, t.val;
+-		print pos, ": ", Scanner.TokenName(tok);
++		print(pos, ": ", Scanner.TokenName(tok));
+ 		if tok == Scanner.IDENT || tok == Scanner.INT || tok == Scanner.FLOAT || tok == Scanner.STRING {
+-			print " ", val;
++			print(" ", val);
+ 		}
+-		print "\n";
++		print("\n");
+ 		if tok == Scanner.EOF {
+ 			return;
+ 		}
+@@ -51,14 +51,14 @@ func main() {
+ 		var ok bool;
+ 		src, ok = sys.readfile(sys.argv(i));
+ 		if ok {
+-			print "scanning (standard) " + sys.argv(i) + "\n";
++			print("scanning (standard) " + sys.argv(i) + "\n");
+ 			Scan1(sys.argv(i), src);
+-			print "\n";
+-			print "scanning (channels) " + sys.argv(i) + "\n";
++			print("\n");
++			print("scanning (channels) " + sys.argv(i) + "\n");
+ 			Scan2(sys.argv(i), src);
+ 		} else {
+-			print "error: cannot read " + sys.argv(i) + "\n";
++			print("error: cannot read " + sys.argv(i) + "\n");
+ 		}
+-		print "\n";
++		print("\n");
+ 	}
+ }
+diff --git a/usr/gri/gosrc/type.go b/usr/gri/gosrc/type.go
+index 266a903bb1..bd554d4ea7 100644
+--- a/usr/gri/gosrc/type.go
++++ b/usr/gri/gosrc/type.go
+@@ -128,7 +128,7 @@ func Equal0(x, y *Globals.Type) bool {
+ 				xf := p.obj;
+ 				yf := q.obj;
+ 				if xf.kind != Object.VAR || yf.kind != Object.VAR {
+-					panic "parameters must be vars";
++					panic("parameters must be vars");
+ 				}
+ 				if !Equal(xf.typ, yf.typ) {
+ 					return false;
+@@ -160,14 +160,14 @@ func Equal0(x, y *Globals.Type) bool {
+ 		return false;
+ 
+ 	case INTERFACE:
+-		panic "UNIMPLEMENTED";
++		panic("UNIMPLEMENTED");
+ 		return false;
+ 
+ 	case POINTER, REFERENCE:
+ 		return Equal(x.elt, y.elt);
+ 	}
+ 
+-	panic "UNREACHABLE";
++	panic("UNREACHABLE");
+ 	return false;
+ }
+ 
+@@ -176,7 +176,7 @@ export func Equal(x, y *Globals.Type) bool {
+ 	res := Equal0(x, y);
+ 	// TODO should do the check below only in debug mode
+ 	if Equal0(y, x) != res {
+-		panic "type equality must be symmetric";
++		panic("type equality must be symmetric");
+ 	}
+ 	return res;
+ }
+@@ -187,6 +187,6 @@ export func Assigneable(from, to *Globals.Type) bool {
+ 		return true;
+ 	}
+ 	
+-	panic "UNIMPLEMENTED";
++	panic("UNIMPLEMENTED");
+ 	return false;
+ }
+diff --git a/usr/gri/gosrc/universe.go b/usr/gri/gosrc/universe.go
+index 744244c485..cb656825c0 100755
+--- a/usr/gri/gosrc/universe.go
++++ b/usr/gri/gosrc/universe.go
+@@ -80,7 +80,7 @@ func DeclAlias(ident string, typ *Globals.Type) *Globals.Type {
+ 
+ func Register(typ *Globals.Type) *Globals.Type {
+ 	if types.len_ < 0 {
+-		panic "types.len_ < 0";
++		panic("types.len_ < 0");
+ 	}
+ 	typ.ref = types.len_;
+ 	types.AddTyp(typ);
+diff --git a/usr/gri/gosrc/utils.go b/usr/gri/gosrc/utils.go
+index 57d2eb546d..0764a2f8ca 100644
+--- a/usr/gri/gosrc/utils.go
++++ b/usr/gri/gosrc/utils.go
+@@ -10,7 +10,7 @@ export func BaseName(s string) string {
+ 	i := len(s) - 1;
+ 	for i >= 0 && s[i] != '/' {
+ 		if s[i] > 128 {
+-			panic "non-ASCII string"
++			panic("non-ASCII string");
+ 		}
+ 		i--;
+ 	}
+@@ -38,7 +38,7 @@ export func IntToString(x, base int) string {
+ 	if x < 0 {
+ 		x = -x;
+ 		if x < 0 {
+-			panic "smallest int not handled";
++			panic("smallest int not handled");
+ 		}
+ 	} else if x == 0 {
+ 		return "0";
+diff --git a/usr/gri/gosrc/verifier.go b/usr/gri/gosrc/verifier.go
+index b7f64ce0f5..236675ffea 100644
+--- a/usr/gri/gosrc/verifier.go
++++ b/usr/gri/gosrc/verifier.go
+@@ -17,7 +17,7 @@ import AST "ast"
+ 
+ 
+ func Error(msg string) {
+-	panic "internal compiler error: ", msg, "\n";
++	panic("internal compiler error: ", msg, "\n");
+ }
+ 
+ 

@@ -24,7 +24,7 @@ Date:   Fri Jan 29 12:03:32 2021 -0500
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/dist/build.go                           |   2 +
  src/cmd/internal/objabi/path.go                 |   2 +
  src/crypto/x509/internal/macos/corefoundation.s |  21 +-
@@ -36,3 +36,2006 @@ Date:   Fri Jan 29 12:03:32 2021 -0500
  src/syscall/zsyscall_openbsd_amd64.s            | 230 +++++++++++-----------
  src/syscall/zsyscall_openbsd_arm64.s            | 230 +++++++++++-----------
  10 files changed, 554 insertions(+), 541 deletions(-)
+
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index c8c3212d16..332f2fab58 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -1765,6 +1765,8 @@ func IsRuntimePackagePath(pkgpath string) bool {
+ 		rval = true
+ 	case "syscall":
+ 		rval = true
++	case "crypto/x509/internal/macos": // libc function wrappers need to be ABIInternal
++		rval = true
+ 	default:
+ 		rval = strings.HasPrefix(pkgpath, "runtime/internal")
+ 	}
+diff --git a/src/cmd/internal/objabi/path.go b/src/cmd/internal/objabi/path.go
+index fd1c9981c6..1a0784cf7f 100644
+--- a/src/cmd/internal/objabi/path.go
++++ b/src/cmd/internal/objabi/path.go
+@@ -56,6 +56,8 @@ func IsRuntimePackagePath(pkgpath string) bool {
+ 		rval = true
+ 	case "syscall":
+ 		rval = true
++	case "crypto/x509/internal/macos": // libc function wrappers need to be ABIInternal
++		rval = true
+ 	default:
+ 		rval = strings.HasPrefix(pkgpath, "runtime/internal")
+ 	}
+diff --git a/src/crypto/x509/internal/macos/corefoundation.s b/src/crypto/x509/internal/macos/corefoundation.s
+index a4495d68dd..1ce39fac9d 100644
+--- a/src/crypto/x509/internal/macos/corefoundation.s
++++ b/src/crypto/x509/internal/macos/corefoundation.s
+@@ -6,21 +6,24 @@
+ 
+ #include "textflag.h"
+ 
+-TEXT ·x509_CFArrayGetCount_trampoline(SB),NOSPLIT,$0-0
++// The trampolines are ABIInternal as they are address-taken in
++// Go code.
++
++TEXT ·x509_CFArrayGetCount_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	x509_CFArrayGetCount(SB)
+-TEXT ·x509_CFArrayGetValueAtIndex_trampoline(SB),NOSPLIT,$0-0
++TEXT ·x509_CFArrayGetValueAtIndex_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	x509_CFArrayGetValueAtIndex(SB)
+-TEXT ·x509_CFDataGetBytePtr_trampoline(SB),NOSPLIT,$0-0
++TEXT ·x509_CFDataGetBytePtr_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	x509_CFDataGetBytePtr(SB)
+-TEXT ·x509_CFDataGetLength_trampoline(SB),NOSPLIT,$0-0
++TEXT ·x509_CFDataGetLength_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	x509_CFDataGetLength(SB)
+-TEXT ·x509_CFStringCreateWithBytes_trampoline(SB),NOSPLIT,$0-0
++TEXT ·x509_CFStringCreateWithBytes_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	x509_CFStringCreateWithBytes(SB)
+-TEXT ·x509_CFRelease_trampoline(SB),NOSPLIT,$0-0
++TEXT ·x509_CFRelease_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	x509_CFRelease(SB)
+-TEXT ·x509_CFDictionaryGetValueIfPresent_trampoline(SB),NOSPLIT,$0-0
++TEXT ·x509_CFDictionaryGetValueIfPresent_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	x509_CFDictionaryGetValueIfPresent(SB)
+-TEXT ·x509_CFNumberGetValue_trampoline(SB),NOSPLIT,$0-0
++TEXT ·x509_CFNumberGetValue_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	x509_CFNumberGetValue(SB)
+-TEXT ·x509_CFEqual_trampoline(SB),NOSPLIT,$0-0
++TEXT ·x509_CFEqual_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	x509_CFEqual(SB)
+diff --git a/src/crypto/x509/internal/macos/security.s b/src/crypto/x509/internal/macos/security.s
+index bd446dbcbe..bea265a5ef 100644
+--- a/src/crypto/x509/internal/macos/security.s
++++ b/src/crypto/x509/internal/macos/security.s
+@@ -6,11 +6,14 @@
+ 
+ #include "textflag.h"
+ 
+-TEXT ·x509_SecTrustSettingsCopyCertificates_trampoline(SB),NOSPLIT,$0-0
++// The trampolines are ABIInternal as they are address-taken in
++// Go code.
++
++TEXT ·x509_SecTrustSettingsCopyCertificates_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	x509_SecTrustSettingsCopyCertificates(SB)
+-TEXT ·x509_SecItemExport_trampoline(SB),NOSPLIT,$0-0
++TEXT ·x509_SecItemExport_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	x509_SecItemExport(SB)
+-TEXT ·x509_SecTrustSettingsCopyTrustSettings_trampoline(SB),NOSPLIT,$0-0
++TEXT ·x509_SecTrustSettingsCopyTrustSettings_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	x509_SecTrustSettingsCopyTrustSettings(SB)
+-TEXT ·x509_SecPolicyCopyProperties_trampoline(SB),NOSPLIT,$0-0
++TEXT ·x509_SecPolicyCopyProperties_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	x509_SecPolicyCopyProperties(SB)
+diff --git a/src/runtime/sys_darwin_amd64.s b/src/runtime/sys_darwin_amd64.s
+index 630fb5df64..0fe8c7e172 100644
+--- a/src/runtime/sys_darwin_amd64.s
++++ b/src/runtime/sys_darwin_amd64.s
+@@ -5,6 +5,8 @@
+ // System calls and other sys.stuff for AMD64, Darwin
+ // System calls are implemented in libSystem, this file contains
+ // trampolines that convert from Go to C calling convention.
++// The trampolines are ABIInternal as they are referenced from
++// Go code with funcPC.
+ 
+ #include "go_asm.h"
+ #include "go_tls.h"
+@@ -13,7 +15,7 @@
+ #define CLOCK_REALTIME		0
+ 
+ // Exit the entire program (like C exit)
+-TEXT runtime·exit_trampoline(SB),NOSPLIT,$0
++TEXT runtime·exit_trampoline<ABIInternal>(SB),NOSPLIT,$0
+ 	PUSHQ	BP
+ 	MOVQ	SP, BP
+ 	MOVL	0(DI), DI		// arg 1 exit status
+@@ -22,7 +24,7 @@ TEXT runtime·exit_trampoline(SB),NOSPLIT,$0
+ 	POPQ	BP
+ 	RET
+ 
+-TEXT runtime·open_trampoline(SB),NOSPLIT,$0
++TEXT runtime·open_trampoline<ABIInternal>(SB),NOSPLIT,$0
+ 	PUSHQ	BP
+ 	MOVQ	SP, BP
+ 	MOVL	8(DI), SI		// arg 2 flags
+@@ -33,7 +35,7 @@ TEXT runtime·open_trampoline(SB),NOSPLIT,$0
+ 	POPQ	BP
+ 	RET
+ 
+-TEXT runtime·close_trampoline(SB),NOSPLIT,$0
++TEXT runtime·close_trampoline<ABIInternal>(SB),NOSPLIT,$0
+ 	PUSHQ	BP
+ 	MOVQ	SP, BP
+ 	MOVL	0(DI), DI		// arg 1 fd
+@@ -41,7 +43,7 @@ TEXT runtime·close_trampoline(SB),NOSPLIT,$0
+ 	POPQ	BP
+ 	RET
+ 
+-TEXT runtime·read_trampoline(SB),NOSPLIT,$0
++TEXT runtime·read_trampoline<ABIInternal>(SB),NOSPLIT,$0
+ 	PUSHQ	BP
+ 	MOVQ	SP, BP
+ 	MOVQ	8(DI), SI		// arg 2 buf
+@@ -57,7 +59,7 @@ noerr:
+ 	POPQ	BP
+ 	RET
+ 
+-TEXT runtime·write_trampoline(SB),NOSPLIT,$0
++TEXT runtime·write_trampoline<ABIInternal>(SB),NOSPLIT,$0
+ 	PUSHQ	BP
+ 	MOVQ	SP, BP
+ 	MOVQ	8(DI), SI		// arg 2 buf
+@@ -73,7 +75,7 @@ noerr:
+ 	POPQ	BP
+ 	RET
+ 
+-TEXT runtime·pipe_trampoline(SB),NOSPLIT,$0
++TEXT runtime·pipe_trampoline<ABIInternal>(SB),NOSPLIT,$0
+ 	PUSHQ	BP
+ 	MOVQ	SP, BP
+ 	CALL	libc_pipe(SB)		// pointer already in DI
+@@ -84,7 +86,7 @@ TEXT runtime·pipe_trampoline(SB),NOSPLIT,$0
+ 	POPQ	BP
+ 	RET
+ 
+-TEXT runtime·setitimer_trampoline(SB),NOSPLIT,$0
++TEXT runtime·setitimer_trampoline<ABIInternal>(SB),NOSPLIT,$0
+ 	PUSHQ	BP
+ 	MOVQ	SP, BP
+ 	MOVQ	8(DI), SI		// arg 2 new
+@@ -94,7 +96,7 @@ TEXT runtime·setitimer_trampoline(SB),NOSPLIT,$0
+ 	POPQ	BP
+ 	RET
+ 
+-TEXT runtime·madvise_trampoline(SB), NOSPLIT, $0
++TEXT runtime·madvise_trampoline<ABIInternal>(SB), NOSPLIT, $0
+ 	PUSHQ	BP
+ 	MOVQ	SP, BP
+ 	MOVQ	8(DI), SI	// arg 2 len
+@@ -105,12 +107,12 @@ TEXT runtime·madvise_trampoline(SB), NOSPLIT, $0
+ 	POPQ	BP
+ 	RET
+ 
+-TEXT runtime·mlock_trampoline(SB), NOSPLIT, $0
++TEXT runtime·mlock_trampoline<ABIInternal>(SB), NOSPLIT, $0
+ 	UNDEF // unimplemented
+ 
+ GLOBL timebase<>(SB),NOPTR,$(machTimebaseInfo__size)
+ 
+-TEXT runtime·nanotime_trampoline(SB),NOSPLIT,$0
++TEXT runtime·nanotime_trampoline<ABIInternal>(SB),NOSPLIT,$0
+ 	PUSHQ	BP
+ 	MOVQ	SP, BP
+ 	MOVQ	DI, BX
+@@ -139,7 +141,7 @@ initialized:
+ 	POPQ	BP
+ 	RET
+ 
+-TEXT runtime·walltime_trampoline(SB),NOSPLIT,$0
++TEXT runtime·walltime_trampoline<ABIInternal>(SB),NOSPLIT,$0
+ 	PUSHQ	BP			// make a frame; keep stack aligned
+ 	MOVQ	SP, BP
+ 	MOVQ	DI, SI			// arg 2 timespec
+@@ -148,7 +150,7 @@ TEXT runtime·walltime_trampoline(SB),NOSPLIT,$0
+ 	POPQ	BP
+ 	RET
+ 
+-TEXT runtime·sigaction_trampoline(SB),NOSPLIT,$0
++TEXT runtime·sigaction_trampoline<ABIInternal>(SB),NOSPLIT,$0
+ 	PUSHQ	BP
+ 	MOVQ	SP, BP
+ 	MOVQ	8(DI), SI		// arg 2 new
+@@ -161,7 +163,7 @@ TEXT runtime·sigaction_trampoline(SB),NOSPLIT,$0
+ 	POPQ	BP
+ 	RET
+ 
+-TEXT runtime·sigprocmask_trampoline(SB),NOSPLIT,$0
++TEXT runtime·sigprocmask_trampoline<ABIInternal>(SB),NOSPLIT,$0
+ 	PUSHQ	BP
+ 	MOVQ	SP, BP
+ 	MOVQ	8(DI), SI	// arg 2 new
+@@ -174,7 +176,7 @@ TEXT runtime·sigprocmask_trampoline(SB),NOSPLIT,$0
+ 	POPQ	BP
+ 	RET
+ 
+-TEXT runtime·sigaltstack_trampoline(SB),NOSPLIT,$0
++TEXT runtime·sigaltstack_trampoline<ABIInternal>(SB),NOSPLIT,$0
+ 	PUSHQ	BP
+ 	MOVQ	SP, BP
+ 	MOVQ	8(DI), SI		// arg 2 old
+@@ -186,7 +188,7 @@ TEXT runtime·sigaltstack_trampoline(SB),NOSPLIT,$0
+ 	POPQ	BP
+ 	RET
+ 
+-TEXT runtime·raiseproc_trampoline(SB),NOSPLIT,$0
++TEXT runtime·raiseproc_trampoline<ABIInternal>(SB),NOSPLIT,$0
+ 	PUSHQ	BP
+ 	MOVQ	SP, BP
+ 	MOVL	0(DI), BX	// signal
+@@ -212,7 +214,7 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
+ 
+ // This is the function registered during sigaction and is invoked when
+ // a signal is received. It just redirects to the Go function sigtrampgo.
+-TEXT runtime·sigtramp(SB),NOSPLIT,$0
++TEXT runtime·sigtramp<ABIInternal>(SB),NOSPLIT,$0
+ 	// This runs on the signal stack, so we have lots of stack available.
+ 	// We allocate our own stack space, because if we tell the linker
+ 	// how much we're using, the NOSPLIT check fails.
+@@ -246,7 +248,7 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$0
+ 
+ // Used instead of sigtramp in programs that use cgo.
+ // Arguments from kernel are in DI, SI, DX.
+-TEXT runtime·cgoSigtramp(SB),NOSPLIT,$0
++TEXT runtime·cgoSigtramp<ABIInternal>(SB),NOSPLIT,$0
+ 	// If no traceback function, do usual sigtramp.
+ 	MOVQ	runtime·cgoTraceback(SB), AX
+ 	TESTQ	AX, AX
+@@ -289,12 +291,12 @@ TEXT runtime·cgoSigtramp(SB),NOSPLIT,$0
+ 	// The first three arguments, and the fifth, are already in registers.
+ 	// Set the two remaining arguments now.
+ 	MOVQ	runtime·cgoTraceback(SB), CX
+-	MOVQ	$runtime·sigtramp(SB), R9
++	MOVQ	$runtime·sigtramp<ABIInternal>(SB), R9
+ 	MOVQ	_cgo_callers(SB), AX
+ 	JMP	AX
+ 
+ sigtramp:
+-	JMP	runtime·sigtramp(SB)
++	JMP	runtime·sigtramp<ABIInternal>(SB)
+ 
+ sigtrampnog:
+ 	// Signal arrived on a non-Go thread. If this is SIGPROF, get a
+@@ -320,7 +322,7 @@ sigtrampnog:
+ 	MOVQ	_cgo_callers(SB), AX
+ 	JMP	AX
+ 
+-TEXT runtime·mmap_trampoline(SB),NOSPLIT,$0
++TEXT runtime·mmap_trampoline<ABIInternal>(SB),NOSPLIT,$0
+ 	PUSHQ	BP			// make a frame; keep stack aligned
+ 	MOVQ	SP, BP
+ 	MOVQ	DI, BX
+@@ -343,7 +345,7 @@ ok:
+ 	POPQ	BP
+ 	RET
+ 
+-TEXT runtime·munmap_trampoline(SB),NOSPLIT,$0
++TEXT runtime·munmap_trampoline<ABIInternal>(SB),NOSPLIT,$0
+ 	PUSHQ	BP
+ 	MOVQ	SP, BP
+ 	MOVQ	8(DI), SI		// arg 2 len
+@@ -355,7 +357,7 @@ TEXT runtime·munmap_trampoline(SB),NOSPLIT,$0
+ 	POPQ	BP
+ 	RET
+ 
+-TEXT runtime·usleep_trampoline(SB),NOSPLIT,$0
++TEXT runtime·usleep_trampoline<ABIInternal>(SB),NOSPLIT,$0
+ 	PUSHQ	BP
+ 	MOVQ	SP, BP
+ 	MOVL	0(DI), DI	// arg 1 usec
+@@ -367,7 +369,7 @@ TEXT runtime·settls(SB),NOSPLIT,$32
+ 	// Nothing to do on Darwin, pthread already set thread-local storage up.
+ 	RET
+ 
+-TEXT runtime·sysctl_trampoline(SB),NOSPLIT,$0
++TEXT runtime·sysctl_trampoline<ABIInternal>(SB),NOSPLIT,$0
+ 	PUSHQ	BP
+ 	MOVQ	SP, BP
+ 	MOVL	8(DI), SI		// arg 2 miblen
+@@ -380,7 +382,7 @@ TEXT runtime·sysctl_trampoline(SB),NOSPLIT,$0
+ 	POPQ	BP
+ 	RET
+ 
+-TEXT runtime·sysctlbyname_trampoline(SB),NOSPLIT,$0
++TEXT runtime·sysctlbyname_trampoline<ABIInternal>(SB),NOSPLIT,$0
+ 	PUSHQ	BP
+ 	MOVQ	SP, BP
+ 	MOVQ	8(DI), SI		// arg 2 oldp
+@@ -392,14 +394,14 @@ TEXT runtime·sysctlbyname_trampoline(SB),NOSPLIT,$0
+ 	POPQ	BP
+ 	RET
+ 
+-TEXT runtime·kqueue_trampoline(SB),NOSPLIT,$0
++TEXT runtime·kqueue_trampoline<ABIInternal>(SB),NOSPLIT,$0
+ 	PUSHQ	BP
+ 	MOVQ	SP, BP
+ 	CALL	libc_kqueue(SB)
+ 	POPQ	BP
+ 	RET
+ 
+-TEXT runtime·kevent_trampoline(SB),NOSPLIT,$0
++TEXT runtime·kevent_trampoline<ABIInternal>(SB),NOSPLIT,$0
+ 	PUSHQ	BP
+ 	MOVQ	SP, BP
+ 	MOVQ	8(DI), SI		// arg 2 keventt
+@@ -418,7 +420,7 @@ ok:
+ 	POPQ	BP
+ 	RET
+ 
+-TEXT runtime·fcntl_trampoline(SB),NOSPLIT,$0
++TEXT runtime·fcntl_trampoline<ABIInternal>(SB),NOSPLIT,$0
+ 	PUSHQ	BP
+ 	MOVQ	SP, BP
+ 	MOVL	4(DI), SI		// arg 2 cmd
+@@ -475,7 +477,7 @@ TEXT runtime·mstart_stub(SB),NOSPLIT,$0
+ // A pointer to the arguments is passed in DI.
+ // A single int32 result is returned in AX.
+ // (For more results, make an args/results structure.)
+-TEXT runtime·pthread_attr_init_trampoline(SB),NOSPLIT,$0
++TEXT runtime·pthread_attr_init_trampoline<ABIInternal>(SB),NOSPLIT,$0
+ 	PUSHQ	BP	// make frame, keep stack 16-byte aligned.
+ 	MOVQ	SP, BP
+ 	MOVQ	0(DI), DI // arg 1 attr
+@@ -483,7 +485,7 @@ TEXT runtime·pthread_attr_init_trampoline(SB),NOSPLIT,$0
+ 	POPQ	BP
+ 	RET
+ 
+-TEXT runtime·pthread_attr_getstacksize_trampoline(SB),NOSPLIT,$0
++TEXT runtime·pthread_attr_getstacksize_trampoline<ABIInternal>(SB),NOSPLIT,$0
+ 	PUSHQ	BP
+ 	MOVQ	SP, BP
+ 	MOVQ	8(DI), SI	// arg 2 size
+@@ -492,7 +494,7 @@ TEXT runtime·pthread_attr_getstacksize_trampoline(SB),NOSPLIT,$0
+ 	POPQ	BP
+ 	RET
+ 
+-TEXT runtime·pthread_attr_setdetachstate_trampoline(SB),NOSPLIT,$0
++TEXT runtime·pthread_attr_setdetachstate_trampoline<ABIInternal>(SB),NOSPLIT,$0
+ 	PUSHQ	BP
+ 	MOVQ	SP, BP
+ 	MOVQ	8(DI), SI	// arg 2 state
+@@ -501,7 +503,7 @@ TEXT runtime·pthread_attr_setdetachstate_trampoline(SB),NOSPLIT,$0
+ 	POPQ	BP
+ 	RET
+ 
+-TEXT runtime·pthread_create_trampoline(SB),NOSPLIT,$0
++TEXT runtime·pthread_create_trampoline<ABIInternal>(SB),NOSPLIT,$0
+ 	PUSHQ	BP
+ 	MOVQ	SP, BP
+ 	SUBQ	$16, SP
+@@ -514,7 +516,7 @@ TEXT runtime·pthread_create_trampoline(SB),NOSPLIT,$0
+ 	POPQ	BP
+ 	RET
+ 
+-TEXT runtime·raise_trampoline(SB),NOSPLIT,$0
++TEXT runtime·raise_trampoline<ABIInternal>(SB),NOSPLIT,$0
+ 	PUSHQ	BP
+ 	MOVQ	SP, BP
+ 	MOVL	0(DI), DI	// arg 1 signal
+@@ -522,7 +524,7 @@ TEXT runtime·raise_trampoline(SB),NOSPLIT,$0
+ 	POPQ	BP
+ 	RET
+ 
+-TEXT runtime·pthread_mutex_init_trampoline(SB),NOSPLIT,$0
++TEXT runtime·pthread_mutex_init_trampoline<ABIInternal>(SB),NOSPLIT,$0
+ 	PUSHQ	BP
+ 	MOVQ	SP, BP
+ 	MOVQ	8(DI), SI	// arg 2 attr
+@@ -531,7 +533,7 @@ TEXT runtime·pthread_mutex_init_trampoline(SB),NOSPLIT,$0
+ 	POPQ	BP
+ 	RET
+ 
+-TEXT runtime·pthread_mutex_lock_trampoline(SB),NOSPLIT,$0
++TEXT runtime·pthread_mutex_lock_trampoline<ABIInternal>(SB),NOSPLIT,$0
+ 	PUSHQ	BP
+ 	MOVQ	SP, BP
+ 	MOVQ	0(DI), DI	// arg 1 mutex
+@@ -539,7 +541,7 @@ TEXT runtime·pthread_mutex_lock_trampoline(SB),NOSPLIT,$0
+ 	POPQ	BP
+ 	RET
+ 
+-TEXT runtime·pthread_mutex_unlock_trampoline(SB),NOSPLIT,$0
++TEXT runtime·pthread_mutex_unlock_trampoline<ABIInternal>(SB),NOSPLIT,$0
+ 	PUSHQ	BP
+ 	MOVQ	SP, BP
+ 	MOVQ	0(DI), DI	// arg 1 mutex
+@@ -547,7 +549,7 @@ TEXT runtime·pthread_mutex_unlock_trampoline(SB),NOSPLIT,$0
+ 	POPQ	BP
+ 	RET
+ 
+-TEXT runtime·pthread_cond_init_trampoline(SB),NOSPLIT,$0
++TEXT runtime·pthread_cond_init_trampoline<ABIInternal>(SB),NOSPLIT,$0
+ 	PUSHQ	BP
+ 	MOVQ	SP, BP
+ 	MOVQ	8(DI), SI	// arg 2 attr
+@@ -556,7 +558,7 @@ TEXT runtime·pthread_cond_init_trampoline(SB),NOSPLIT,$0
+ 	POPQ	BP
+ 	RET
+ 
+-TEXT runtime·pthread_cond_wait_trampoline(SB),NOSPLIT,$0
++TEXT runtime·pthread_cond_wait_trampoline<ABIInternal>(SB),NOSPLIT,$0
+ 	PUSHQ	BP
+ 	MOVQ	SP, BP
+ 	MOVQ	8(DI), SI	// arg 2 mutex
+@@ -565,7 +567,7 @@ TEXT runtime·pthread_cond_wait_trampoline(SB),NOSPLIT,$0
+ 	POPQ	BP
+ 	RET
+ 
+-TEXT runtime·pthread_cond_timedwait_relative_np_trampoline(SB),NOSPLIT,$0
++TEXT runtime·pthread_cond_timedwait_relative_np_trampoline<ABIInternal>(SB),NOSPLIT,$0
+ 	PUSHQ	BP
+ 	MOVQ	SP, BP
+ 	MOVQ	8(DI), SI	// arg 2 mutex
+@@ -575,7 +577,7 @@ TEXT runtime·pthread_cond_timedwait_relative_np_trampoline(SB),NOSPLIT,$0
+ 	POPQ	BP
+ 	RET
+ 
+-TEXT runtime·pthread_cond_signal_trampoline(SB),NOSPLIT,$0
++TEXT runtime·pthread_cond_signal_trampoline<ABIInternal>(SB),NOSPLIT,$0
+ 	PUSHQ	BP
+ 	MOVQ	SP, BP
+ 	MOVQ	0(DI), DI	// arg 1 cond
+@@ -583,7 +585,7 @@ TEXT runtime·pthread_cond_signal_trampoline(SB),NOSPLIT,$0
+ 	POPQ	BP
+ 	RET
+ 
+-TEXT runtime·pthread_self_trampoline(SB),NOSPLIT,$0
++TEXT runtime·pthread_self_trampoline<ABIInternal>(SB),NOSPLIT,$0
+ 	PUSHQ	BP
+ 	MOVQ	SP, BP
+ 	MOVQ	DI, BX		// BX is caller-save
+@@ -592,7 +594,7 @@ TEXT runtime·pthread_self_trampoline(SB),NOSPLIT,$0
+ 	POPQ	BP
+ 	RET
+ 
+-TEXT runtime·pthread_kill_trampoline(SB),NOSPLIT,$0
++TEXT runtime·pthread_kill_trampoline<ABIInternal>(SB),NOSPLIT,$0
+ 	PUSHQ	BP
+ 	MOVQ	SP, BP
+ 	MOVQ	8(DI), SI	// arg 2 sig
+@@ -617,7 +619,7 @@ TEXT runtime·pthread_kill_trampoline(SB),NOSPLIT,$0
+ //
+ // syscall expects a 32-bit result and tests for 32-bit -1
+ // to decide there was an error.
+-TEXT runtime·syscall(SB),NOSPLIT,$0
++TEXT runtime·syscall<ABIInternal>(SB),NOSPLIT,$0
+ 	PUSHQ	BP
+ 	MOVQ	SP, BP
+ 	SUBQ	$16, SP
+@@ -667,7 +669,7 @@ ok:
+ //
+ // syscallX is like syscall but expects a 64-bit result
+ // and tests for 64-bit -1 to decide there was an error.
+-TEXT runtime·syscallX(SB),NOSPLIT,$0
++TEXT runtime·syscallX<ABIInternal>(SB),NOSPLIT,$0
+ 	PUSHQ	BP
+ 	MOVQ	SP, BP
+ 	SUBQ	$16, SP
+@@ -703,7 +705,7 @@ ok:
+ 
+ // syscallPtr is like syscallX except that the libc function reports an
+ // error by returning NULL and setting errno.
+-TEXT runtime·syscallPtr(SB),NOSPLIT,$0
++TEXT runtime·syscallPtr<ABIInternal>(SB),NOSPLIT,$0
+ 	PUSHQ	BP
+ 	MOVQ	SP, BP
+ 	SUBQ	$16, SP
+@@ -756,7 +758,7 @@ ok:
+ //
+ // syscall6 expects a 32-bit result and tests for 32-bit -1
+ // to decide there was an error.
+-TEXT runtime·syscall6(SB),NOSPLIT,$0
++TEXT runtime·syscall6<ABIInternal>(SB),NOSPLIT,$0
+ 	PUSHQ	BP
+ 	MOVQ	SP, BP
+ 	SUBQ	$16, SP
+@@ -809,7 +811,7 @@ ok:
+ //
+ // syscall6X is like syscall6 but expects a 64-bit result
+ // and tests for 64-bit -1 to decide there was an error.
+-TEXT runtime·syscall6X(SB),NOSPLIT,$0
++TEXT runtime·syscall6X<ABIInternal>(SB),NOSPLIT,$0
+ 	PUSHQ	BP
+ 	MOVQ	SP, BP
+ 	SUBQ	$16, SP
+@@ -845,7 +847,7 @@ ok:
+ 
+ // syscallNoErr is like syscall6 but does not check for errors, and
+ // only returns one value, for use with standard C ABI library functions.
+-TEXT runtime·syscallNoErr(SB),NOSPLIT,$0
++TEXT runtime·syscallNoErr<ABIInternal>(SB),NOSPLIT,$0
+ 	PUSHQ	BP
+ 	MOVQ	SP, BP
+ 	SUBQ	$16, SP
+diff --git a/src/syscall/mkasm.go b/src/syscall/mkasm.go
+index 2ebaf8d351..e53d14bed1 100644
+--- a/src/syscall/mkasm.go
++++ b/src/syscall/mkasm.go
+@@ -53,7 +53,8 @@ func main() {
+ 		fn := line[5 : len(line)-13]
+ 		if !trampolines[fn] {
+ 			trampolines[fn] = true
+-			fmt.Fprintf(&out, "TEXT ·%s_trampoline(SB),NOSPLIT,$0-0\n", fn)
++			// The trampolines are ABIInternal as they are address-taken in Go code.
++			fmt.Fprintf(&out, "TEXT ·%s_trampoline<ABIInternal>(SB),NOSPLIT,$0-0\n", fn)
+ 			fmt.Fprintf(&out, "\tJMP\t%s(SB)\n", fn)
+ 		}
+ 	}
+diff --git a/src/syscall/zsyscall_darwin_amd64.s b/src/syscall/zsyscall_darwin_amd64.s
+index 492f947855..5eb48cee44 100644
+--- a/src/syscall/zsyscall_darwin_amd64.s
++++ b/src/syscall/zsyscall_darwin_amd64.s
+@@ -1,253 +1,253 @@
+ // go run mkasm.go darwin amd64
+ // Code generated by the command above; DO NOT EDIT.
+ #include "textflag.h"
+-TEXT ·libc_getfsstat_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_getfsstat_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_getfsstat(SB)
+-TEXT ·libc_setattrlist_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_setattrlist_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_setattrlist(SB)
+-TEXT ·libc_fdopendir_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_fdopendir_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_fdopendir(SB)
+-TEXT ·libc_sendfile_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_sendfile_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_sendfile(SB)
+-TEXT ·libc_getgroups_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_getgroups_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_getgroups(SB)
+-TEXT ·libc_setgroups_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_setgroups_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_setgroups(SB)
+-TEXT ·libc_wait4_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_wait4_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_wait4(SB)
+-TEXT ·libc_accept_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_accept_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_accept(SB)
+-TEXT ·libc_bind_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_bind_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_bind(SB)
+-TEXT ·libc_connect_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_connect_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_connect(SB)
+-TEXT ·libc_socket_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_socket_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_socket(SB)
+-TEXT ·libc_getsockopt_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_getsockopt_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_getsockopt(SB)
+-TEXT ·libc_setsockopt_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_setsockopt_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_setsockopt(SB)
+-TEXT ·libc_getpeername_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_getpeername_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_getpeername(SB)
+-TEXT ·libc_getsockname_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_getsockname_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_getsockname(SB)
+-TEXT ·libc_shutdown_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_shutdown_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_shutdown(SB)
+-TEXT ·libc_socketpair_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_socketpair_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_socketpair(SB)
+-TEXT ·libc_recvfrom_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_recvfrom_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_recvfrom(SB)
+-TEXT ·libc_sendto_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_sendto_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_sendto(SB)
+-TEXT ·libc_recvmsg_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_recvmsg_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_recvmsg(SB)
+-TEXT ·libc_sendmsg_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_sendmsg_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_sendmsg(SB)
+-TEXT ·libc_kevent_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_kevent_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_kevent(SB)
+-TEXT ·libc_utimes_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_utimes_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_utimes(SB)
+-TEXT ·libc_futimes_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_futimes_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_futimes(SB)
+-TEXT ·libc_fcntl_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_fcntl_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_fcntl(SB)
+-TEXT ·libc_pipe_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_pipe_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_pipe(SB)
+-TEXT ·libc_kill_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_kill_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_kill(SB)
+-TEXT ·libc_access_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_access_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_access(SB)
+-TEXT ·libc_adjtime_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_adjtime_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_adjtime(SB)
+-TEXT ·libc_chdir_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_chdir_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_chdir(SB)
+-TEXT ·libc_chflags_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_chflags_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_chflags(SB)
+-TEXT ·libc_chmod_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_chmod_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_chmod(SB)
+-TEXT ·libc_chown_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_chown_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_chown(SB)
+-TEXT ·libc_chroot_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_chroot_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_chroot(SB)
+-TEXT ·libc_close_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_close_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_close(SB)
+-TEXT ·libc_closedir_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_closedir_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_closedir(SB)
+-TEXT ·libc_dup_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_dup_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_dup(SB)
+-TEXT ·libc_dup2_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_dup2_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_dup2(SB)
+-TEXT ·libc_exchangedata_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_exchangedata_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_exchangedata(SB)
+-TEXT ·libc_fchdir_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_fchdir_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_fchdir(SB)
+-TEXT ·libc_fchflags_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_fchflags_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_fchflags(SB)
+-TEXT ·libc_fchmod_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_fchmod_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_fchmod(SB)
+-TEXT ·libc_fchown_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_fchown_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_fchown(SB)
+-TEXT ·libc_flock_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_flock_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_flock(SB)
+-TEXT ·libc_fpathconf_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_fpathconf_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_fpathconf(SB)
+-TEXT ·libc_fsync_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_fsync_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_fsync(SB)
+-TEXT ·libc_ftruncate_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_ftruncate_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_ftruncate(SB)
+-TEXT ·libc_getdtablesize_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_getdtablesize_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_getdtablesize(SB)
+-TEXT ·libc_getegid_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_getegid_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_getegid(SB)
+-TEXT ·libc_geteuid_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_geteuid_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_geteuid(SB)
+-TEXT ·libc_getgid_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_getgid_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_getgid(SB)
+-TEXT ·libc_getpgid_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_getpgid_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_getpgid(SB)
+-TEXT ·libc_getpgrp_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_getpgrp_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_getpgrp(SB)
+-TEXT ·libc_getpid_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_getpid_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_getpid(SB)
+-TEXT ·libc_getppid_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_getppid_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_getppid(SB)
+-TEXT ·libc_getpriority_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_getpriority_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_getpriority(SB)
+-TEXT ·libc_getrlimit_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_getrlimit_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_getrlimit(SB)
+-TEXT ·libc_getrusage_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_getrusage_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_getrusage(SB)
+-TEXT ·libc_getsid_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_getsid_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_getsid(SB)
+-TEXT ·libc_getuid_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_getuid_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_getuid(SB)
+-TEXT ·libc_issetugid_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_issetugid_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_issetugid(SB)
+-TEXT ·libc_kqueue_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_kqueue_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_kqueue(SB)
+-TEXT ·libc_lchown_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_lchown_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_lchown(SB)
+-TEXT ·libc_link_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_link_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_link(SB)
+-TEXT ·libc_listen_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_listen_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_listen(SB)
+-TEXT ·libc_mkdir_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_mkdir_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_mkdir(SB)
+-TEXT ·libc_mkfifo_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_mkfifo_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_mkfifo(SB)
+-TEXT ·libc_mknod_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_mknod_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_mknod(SB)
+-TEXT ·libc_mlock_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_mlock_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_mlock(SB)
+-TEXT ·libc_mlockall_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_mlockall_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_mlockall(SB)
+-TEXT ·libc_mprotect_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_mprotect_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_mprotect(SB)
+-TEXT ·libc_munlock_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_munlock_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_munlock(SB)
+-TEXT ·libc_munlockall_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_munlockall_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_munlockall(SB)
+-TEXT ·libc_open_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_open_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_open(SB)
+-TEXT ·libc_pathconf_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_pathconf_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_pathconf(SB)
+-TEXT ·libc_pread_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_pread_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_pread(SB)
+-TEXT ·libc_pwrite_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_pwrite_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_pwrite(SB)
+-TEXT ·libc_read_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_read_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_read(SB)
+-TEXT ·libc_readdir_r_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_readdir_r_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_readdir_r(SB)
+-TEXT ·libc_readlink_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_readlink_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_readlink(SB)
+-TEXT ·libc_rename_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_rename_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_rename(SB)
+-TEXT ·libc_revoke_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_revoke_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_revoke(SB)
+-TEXT ·libc_rmdir_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_rmdir_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_rmdir(SB)
+-TEXT ·libc_lseek_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_lseek_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_lseek(SB)
+-TEXT ·libc_select_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_select_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_select(SB)
+-TEXT ·libc_setegid_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_setegid_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_setegid(SB)
+-TEXT ·libc_seteuid_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_seteuid_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_seteuid(SB)
+-TEXT ·libc_setgid_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_setgid_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_setgid(SB)
+-TEXT ·libc_setlogin_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_setlogin_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_setlogin(SB)
+-TEXT ·libc_setpgid_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_setpgid_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_setpgid(SB)
+-TEXT ·libc_setpriority_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_setpriority_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_setpriority(SB)
+-TEXT ·libc_setprivexec_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_setprivexec_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_setprivexec(SB)
+-TEXT ·libc_setregid_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_setregid_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_setregid(SB)
+-TEXT ·libc_setreuid_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_setreuid_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_setreuid(SB)
+-TEXT ·libc_setrlimit_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_setrlimit_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_setrlimit(SB)
+-TEXT ·libc_setsid_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_setsid_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_setsid(SB)
+-TEXT ·libc_settimeofday_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_settimeofday_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_settimeofday(SB)
+-TEXT ·libc_setuid_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_setuid_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_setuid(SB)
+-TEXT ·libc_symlink_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_symlink_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_symlink(SB)
+-TEXT ·libc_sync_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_sync_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_sync(SB)
+-TEXT ·libc_truncate_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_truncate_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_truncate(SB)
+-TEXT ·libc_umask_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_umask_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_umask(SB)
+-TEXT ·libc_undelete_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_undelete_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_undelete(SB)
+-TEXT ·libc_unlink_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_unlink_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_unlink(SB)
+-TEXT ·libc_unmount_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_unmount_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_unmount(SB)
+-TEXT ·libc_write_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_write_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_write(SB)
+-TEXT ·libc_writev_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_writev_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_writev(SB)
+-TEXT ·libc_mmap_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_mmap_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_mmap(SB)
+-TEXT ·libc_munmap_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_munmap_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_munmap(SB)
+-TEXT ·libc_fork_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_fork_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_fork(SB)
+-TEXT ·libc_ioctl_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_ioctl_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_ioctl(SB)
+-TEXT ·libc_execve_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_execve_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_execve(SB)
+-TEXT ·libc_exit_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_exit_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_exit(SB)
+-TEXT ·libc_sysctl_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_sysctl_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_sysctl(SB)
+-TEXT ·libc_unlinkat_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_unlinkat_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_unlinkat(SB)
+-TEXT ·libc_openat_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_openat_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_openat(SB)
+-TEXT ·libc_getcwd_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_getcwd_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_getcwd(SB)
+-TEXT ·libc_fstat64_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_fstat64_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_fstat64(SB)
+-TEXT ·libc_fstatfs64_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_fstatfs64_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_fstatfs64(SB)
+-TEXT ·libc_gettimeofday_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_gettimeofday_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_gettimeofday(SB)
+-TEXT ·libc_lstat64_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_lstat64_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_lstat64(SB)
+-TEXT ·libc_stat64_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_stat64_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_stat64(SB)
+-TEXT ·libc_statfs64_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_statfs64_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_statfs64(SB)
+-TEXT ·libc_fstatat64_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_fstatat64_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_fstatat64(SB)
+-TEXT ·libc_ptrace_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_ptrace_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_ptrace(SB)
+diff --git a/src/syscall/zsyscall_darwin_arm64.s b/src/syscall/zsyscall_darwin_arm64.s
+index b606c6e49e..73e4a3fd8d 100644
+--- a/src/syscall/zsyscall_darwin_arm64.s
++++ b/src/syscall/zsyscall_darwin_arm64.s
+@@ -1,253 +1,253 @@
+ // go run mkasm.go darwin arm64
+ // Code generated by the command above; DO NOT EDIT.
+ #include "textflag.h"
+-TEXT ·libc_getfsstat_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_getfsstat_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_getfsstat(SB)
+-TEXT ·libc_setattrlist_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_setattrlist_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_setattrlist(SB)
+-TEXT ·libc_fdopendir_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_fdopendir_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_fdopendir(SB)
+-TEXT ·libc_sendfile_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_sendfile_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_sendfile(SB)
+-TEXT ·libc_getgroups_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_getgroups_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_getgroups(SB)
+-TEXT ·libc_setgroups_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_setgroups_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_setgroups(SB)
+-TEXT ·libc_wait4_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_wait4_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_wait4(SB)
+-TEXT ·libc_accept_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_accept_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_accept(SB)
+-TEXT ·libc_bind_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_bind_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_bind(SB)
+-TEXT ·libc_connect_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_connect_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_connect(SB)
+-TEXT ·libc_socket_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_socket_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_socket(SB)
+-TEXT ·libc_getsockopt_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_getsockopt_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_getsockopt(SB)
+-TEXT ·libc_setsockopt_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_setsockopt_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_setsockopt(SB)
+-TEXT ·libc_getpeername_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_getpeername_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_getpeername(SB)
+-TEXT ·libc_getsockname_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_getsockname_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_getsockname(SB)
+-TEXT ·libc_shutdown_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_shutdown_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_shutdown(SB)
+-TEXT ·libc_socketpair_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_socketpair_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_socketpair(SB)
+-TEXT ·libc_recvfrom_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_recvfrom_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_recvfrom(SB)
+-TEXT ·libc_sendto_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_sendto_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_sendto(SB)
+-TEXT ·libc_recvmsg_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_recvmsg_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_recvmsg(SB)
+-TEXT ·libc_sendmsg_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_sendmsg_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_sendmsg(SB)
+-TEXT ·libc_kevent_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_kevent_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_kevent(SB)
+-TEXT ·libc_utimes_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_utimes_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_utimes(SB)
+-TEXT ·libc_futimes_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_futimes_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_futimes(SB)
+-TEXT ·libc_fcntl_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_fcntl_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_fcntl(SB)
+-TEXT ·libc_pipe_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_pipe_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_pipe(SB)
+-TEXT ·libc_kill_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_kill_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_kill(SB)
+-TEXT ·libc_access_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_access_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_access(SB)
+-TEXT ·libc_adjtime_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_adjtime_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_adjtime(SB)
+-TEXT ·libc_chdir_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_chdir_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_chdir(SB)
+-TEXT ·libc_chflags_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_chflags_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_chflags(SB)
+-TEXT ·libc_chmod_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_chmod_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_chmod(SB)
+-TEXT ·libc_chown_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_chown_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_chown(SB)
+-TEXT ·libc_chroot_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_chroot_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_chroot(SB)
+-TEXT ·libc_close_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_close_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_close(SB)
+-TEXT ·libc_closedir_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_closedir_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_closedir(SB)
+-TEXT ·libc_dup_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_dup_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_dup(SB)
+-TEXT ·libc_dup2_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_dup2_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_dup2(SB)
+-TEXT ·libc_exchangedata_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_exchangedata_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_exchangedata(SB)
+-TEXT ·libc_fchdir_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_fchdir_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_fchdir(SB)
+-TEXT ·libc_fchflags_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_fchflags_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_fchflags(SB)
+-TEXT ·libc_fchmod_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_fchmod_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_fchmod(SB)
+-TEXT ·libc_fchown_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_fchown_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_fchown(SB)
+-TEXT ·libc_flock_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_flock_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_flock(SB)
+-TEXT ·libc_fpathconf_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_fpathconf_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_fpathconf(SB)
+-TEXT ·libc_fsync_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_fsync_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_fsync(SB)
+-TEXT ·libc_ftruncate_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_ftruncate_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_ftruncate(SB)
+-TEXT ·libc_getdtablesize_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_getdtablesize_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_getdtablesize(SB)
+-TEXT ·libc_getegid_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_getegid_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_getegid(SB)
+-TEXT ·libc_geteuid_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_geteuid_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_geteuid(SB)
+-TEXT ·libc_getgid_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_getgid_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_getgid(SB)
+-TEXT ·libc_getpgid_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_getpgid_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_getpgid(SB)
+-TEXT ·libc_getpgrp_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_getpgrp_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_getpgrp(SB)
+-TEXT ·libc_getpid_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_getpid_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_getpid(SB)
+-TEXT ·libc_getppid_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_getppid_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_getppid(SB)
+-TEXT ·libc_getpriority_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_getpriority_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_getpriority(SB)
+-TEXT ·libc_getrlimit_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_getrlimit_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_getrlimit(SB)
+-TEXT ·libc_getrusage_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_getrusage_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_getrusage(SB)
+-TEXT ·libc_getsid_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_getsid_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_getsid(SB)
+-TEXT ·libc_getuid_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_getuid_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_getuid(SB)
+-TEXT ·libc_issetugid_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_issetugid_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_issetugid(SB)
+-TEXT ·libc_kqueue_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_kqueue_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_kqueue(SB)
+-TEXT ·libc_lchown_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_lchown_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_lchown(SB)
+-TEXT ·libc_link_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_link_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_link(SB)
+-TEXT ·libc_listen_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_listen_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_listen(SB)
+-TEXT ·libc_mkdir_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_mkdir_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_mkdir(SB)
+-TEXT ·libc_mkfifo_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_mkfifo_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_mkfifo(SB)
+-TEXT ·libc_mknod_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_mknod_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_mknod(SB)
+-TEXT ·libc_mlock_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_mlock_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_mlock(SB)
+-TEXT ·libc_mlockall_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_mlockall_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_mlockall(SB)
+-TEXT ·libc_mprotect_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_mprotect_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_mprotect(SB)
+-TEXT ·libc_munlock_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_munlock_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_munlock(SB)
+-TEXT ·libc_munlockall_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_munlockall_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_munlockall(SB)
+-TEXT ·libc_open_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_open_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_open(SB)
+-TEXT ·libc_pathconf_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_pathconf_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_pathconf(SB)
+-TEXT ·libc_pread_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_pread_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_pread(SB)
+-TEXT ·libc_pwrite_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_pwrite_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_pwrite(SB)
+-TEXT ·libc_read_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_read_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_read(SB)
+-TEXT ·libc_readdir_r_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_readdir_r_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_readdir_r(SB)
+-TEXT ·libc_readlink_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_readlink_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_readlink(SB)
+-TEXT ·libc_rename_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_rename_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_rename(SB)
+-TEXT ·libc_revoke_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_revoke_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_revoke(SB)
+-TEXT ·libc_rmdir_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_rmdir_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_rmdir(SB)
+-TEXT ·libc_lseek_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_lseek_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_lseek(SB)
+-TEXT ·libc_select_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_select_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_select(SB)
+-TEXT ·libc_setegid_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_setegid_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_setegid(SB)
+-TEXT ·libc_seteuid_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_seteuid_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_seteuid(SB)
+-TEXT ·libc_setgid_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_setgid_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_setgid(SB)
+-TEXT ·libc_setlogin_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_setlogin_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_setlogin(SB)
+-TEXT ·libc_setpgid_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_setpgid_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_setpgid(SB)
+-TEXT ·libc_setpriority_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_setpriority_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_setpriority(SB)
+-TEXT ·libc_setprivexec_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_setprivexec_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_setprivexec(SB)
+-TEXT ·libc_setregid_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_setregid_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_setregid(SB)
+-TEXT ·libc_setreuid_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_setreuid_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_setreuid(SB)
+-TEXT ·libc_setrlimit_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_setrlimit_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_setrlimit(SB)
+-TEXT ·libc_setsid_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_setsid_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_setsid(SB)
+-TEXT ·libc_settimeofday_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_settimeofday_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_settimeofday(SB)
+-TEXT ·libc_setuid_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_setuid_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_setuid(SB)
+-TEXT ·libc_symlink_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_symlink_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_symlink(SB)
+-TEXT ·libc_sync_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_sync_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_sync(SB)
+-TEXT ·libc_truncate_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_truncate_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_truncate(SB)
+-TEXT ·libc_umask_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_umask_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_umask(SB)
+-TEXT ·libc_undelete_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_undelete_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_undelete(SB)
+-TEXT ·libc_unlink_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_unlink_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_unlink(SB)
+-TEXT ·libc_unmount_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_unmount_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_unmount(SB)
+-TEXT ·libc_write_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_write_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_write(SB)
+-TEXT ·libc_writev_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_writev_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_writev(SB)
+-TEXT ·libc_mmap_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_mmap_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_mmap(SB)
+-TEXT ·libc_munmap_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_munmap_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_munmap(SB)
+-TEXT ·libc_fork_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_fork_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_fork(SB)
+-TEXT ·libc_ioctl_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_ioctl_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_ioctl(SB)
+-TEXT ·libc_execve_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_execve_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_execve(SB)
+-TEXT ·libc_exit_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_exit_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_exit(SB)
+-TEXT ·libc_sysctl_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_sysctl_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_sysctl(SB)
+-TEXT ·libc_unlinkat_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_unlinkat_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_unlinkat(SB)
+-TEXT ·libc_openat_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_openat_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_openat(SB)
+-TEXT ·libc_getcwd_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_getcwd_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_getcwd(SB)
+-TEXT ·libc_fstat_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_fstat_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_fstat(SB)
+-TEXT ·libc_fstatfs_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_fstatfs_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_fstatfs(SB)
+-TEXT ·libc_gettimeofday_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_gettimeofday_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_gettimeofday(SB)
+-TEXT ·libc_lstat_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_lstat_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_lstat(SB)
+-TEXT ·libc_stat_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_stat_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_stat(SB)
+-TEXT ·libc_statfs_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_statfs_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_statfs(SB)
+-TEXT ·libc_fstatat_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_fstatat_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_fstatat(SB)
+-TEXT ·libc_ptrace_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_ptrace_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_ptrace(SB)
+diff --git a/src/syscall/zsyscall_openbsd_amd64.s b/src/syscall/zsyscall_openbsd_amd64.s
+index e5c5dde930..8256a451f5 100644
+--- a/src/syscall/zsyscall_openbsd_amd64.s
++++ b/src/syscall/zsyscall_openbsd_amd64.s
+@@ -1,233 +1,233 @@
+ // go run mkasm.go openbsd amd64
+ // Code generated by the command above; DO NOT EDIT.
+ #include "textflag.h"
+-TEXT ·libc_getgroups_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_getgroups_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_getgroups(SB)
+-TEXT ·libc_setgroups_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_setgroups_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_setgroups(SB)
+-TEXT ·libc_wait4_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_wait4_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_wait4(SB)
+-TEXT ·libc_accept_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_accept_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_accept(SB)
+-TEXT ·libc_bind_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_bind_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_bind(SB)
+-TEXT ·libc_connect_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_connect_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_connect(SB)
+-TEXT ·libc_socket_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_socket_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_socket(SB)
+-TEXT ·libc_getsockopt_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_getsockopt_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_getsockopt(SB)
+-TEXT ·libc_setsockopt_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_setsockopt_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_setsockopt(SB)
+-TEXT ·libc_getpeername_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_getpeername_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_getpeername(SB)
+-TEXT ·libc_getsockname_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_getsockname_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_getsockname(SB)
+-TEXT ·libc_shutdown_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_shutdown_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_shutdown(SB)
+-TEXT ·libc_socketpair_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_socketpair_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_socketpair(SB)
+-TEXT ·libc_recvfrom_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_recvfrom_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_recvfrom(SB)
+-TEXT ·libc_sendto_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_sendto_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_sendto(SB)
+-TEXT ·libc_recvmsg_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_recvmsg_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_recvmsg(SB)
+-TEXT ·libc_sendmsg_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_sendmsg_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_sendmsg(SB)
+-TEXT ·libc_kevent_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_kevent_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_kevent(SB)
+-TEXT ·libc_utimes_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_utimes_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_utimes(SB)
+-TEXT ·libc_futimes_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_futimes_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_futimes(SB)
+-TEXT ·libc_fcntl_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_fcntl_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_fcntl(SB)
+-TEXT ·libc_pipe2_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_pipe2_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_pipe2(SB)
+-TEXT ·libc_accept4_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_accept4_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_accept4(SB)
+-TEXT ·libc_getdents_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_getdents_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_getdents(SB)
+-TEXT ·libc_access_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_access_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_access(SB)
+-TEXT ·libc_adjtime_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_adjtime_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_adjtime(SB)
+-TEXT ·libc_chdir_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_chdir_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_chdir(SB)
+-TEXT ·libc_chflags_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_chflags_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_chflags(SB)
+-TEXT ·libc_chmod_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_chmod_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_chmod(SB)
+-TEXT ·libc_chown_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_chown_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_chown(SB)
+-TEXT ·libc_chroot_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_chroot_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_chroot(SB)
+-TEXT ·libc_close_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_close_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_close(SB)
+-TEXT ·libc_dup_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_dup_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_dup(SB)
+-TEXT ·libc_dup2_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_dup2_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_dup2(SB)
+-TEXT ·libc_fchdir_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_fchdir_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_fchdir(SB)
+-TEXT ·libc_fchflags_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_fchflags_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_fchflags(SB)
+-TEXT ·libc_fchmod_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_fchmod_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_fchmod(SB)
+-TEXT ·libc_fchown_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_fchown_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_fchown(SB)
+-TEXT ·libc_flock_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_flock_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_flock(SB)
+-TEXT ·libc_fpathconf_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_fpathconf_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_fpathconf(SB)
+-TEXT ·libc_fstat_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_fstat_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_fstat(SB)
+-TEXT ·libc_fstatfs_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_fstatfs_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_fstatfs(SB)
+-TEXT ·libc_fsync_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_fsync_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_fsync(SB)
+-TEXT ·libc_ftruncate_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_ftruncate_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_ftruncate(SB)
+-TEXT ·libc_getegid_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_getegid_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_getegid(SB)
+-TEXT ·libc_geteuid_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_geteuid_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_geteuid(SB)
+-TEXT ·libc_getgid_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_getgid_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_getgid(SB)
+-TEXT ·libc_getpgid_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_getpgid_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_getpgid(SB)
+-TEXT ·libc_getpgrp_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_getpgrp_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_getpgrp(SB)
+-TEXT ·libc_getpid_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_getpid_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_getpid(SB)
+-TEXT ·libc_getppid_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_getppid_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_getppid(SB)
+-TEXT ·libc_getpriority_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_getpriority_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_getpriority(SB)
+-TEXT ·libc_getrlimit_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_getrlimit_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_getrlimit(SB)
+-TEXT ·libc_getrusage_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_getrusage_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_getrusage(SB)
+-TEXT ·libc_getsid_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_getsid_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_getsid(SB)
+-TEXT ·libc_gettimeofday_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_gettimeofday_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_gettimeofday(SB)
+-TEXT ·libc_getuid_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_getuid_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_getuid(SB)
+-TEXT ·libc_issetugid_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_issetugid_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_issetugid(SB)
+-TEXT ·libc_kill_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_kill_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_kill(SB)
+-TEXT ·libc_kqueue_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_kqueue_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_kqueue(SB)
+-TEXT ·libc_lchown_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_lchown_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_lchown(SB)
+-TEXT ·libc_link_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_link_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_link(SB)
+-TEXT ·libc_listen_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_listen_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_listen(SB)
+-TEXT ·libc_lstat_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_lstat_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_lstat(SB)
+-TEXT ·libc_mkdir_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_mkdir_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_mkdir(SB)
+-TEXT ·libc_mkfifo_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_mkfifo_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_mkfifo(SB)
+-TEXT ·libc_mknod_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_mknod_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_mknod(SB)
+-TEXT ·libc_nanosleep_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_nanosleep_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_nanosleep(SB)
+-TEXT ·libc_open_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_open_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_open(SB)
+-TEXT ·libc_pathconf_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_pathconf_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_pathconf(SB)
+-TEXT ·libc_pread_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_pread_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_pread(SB)
+-TEXT ·libc_pwrite_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_pwrite_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_pwrite(SB)
+-TEXT ·libc_read_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_read_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_read(SB)
+-TEXT ·libc_readlink_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_readlink_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_readlink(SB)
+-TEXT ·libc_rename_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_rename_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_rename(SB)
+-TEXT ·libc_revoke_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_revoke_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_revoke(SB)
+-TEXT ·libc_rmdir_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_rmdir_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_rmdir(SB)
+-TEXT ·libc_select_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_select_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_select(SB)
+-TEXT ·libc_setegid_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_setegid_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_setegid(SB)
+-TEXT ·libc_seteuid_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_seteuid_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_seteuid(SB)
+-TEXT ·libc_setgid_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_setgid_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_setgid(SB)
+-TEXT ·libc_setlogin_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_setlogin_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_setlogin(SB)
+-TEXT ·libc_setpgid_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_setpgid_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_setpgid(SB)
+-TEXT ·libc_setpriority_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_setpriority_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_setpriority(SB)
+-TEXT ·libc_setregid_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_setregid_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_setregid(SB)
+-TEXT ·libc_setreuid_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_setreuid_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_setreuid(SB)
+-TEXT ·libc_setrlimit_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_setrlimit_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_setrlimit(SB)
+-TEXT ·libc_setsid_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_setsid_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_setsid(SB)
+-TEXT ·libc_settimeofday_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_settimeofday_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_settimeofday(SB)
+-TEXT ·libc_setuid_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_setuid_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_setuid(SB)
+-TEXT ·libc_stat_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_stat_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_stat(SB)
+-TEXT ·libc_statfs_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_statfs_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_statfs(SB)
+-TEXT ·libc_symlink_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_symlink_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_symlink(SB)
+-TEXT ·libc_sync_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_sync_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_sync(SB)
+-TEXT ·libc_truncate_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_truncate_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_truncate(SB)
+-TEXT ·libc_umask_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_umask_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_umask(SB)
+-TEXT ·libc_unlink_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_unlink_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_unlink(SB)
+-TEXT ·libc_unmount_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_unmount_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_unmount(SB)
+-TEXT ·libc_write_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_write_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_write(SB)
+-TEXT ·libc_mmap_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_mmap_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_mmap(SB)
+-TEXT ·libc_munmap_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_munmap_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_munmap(SB)
+-TEXT ·libc_utimensat_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_utimensat_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_utimensat(SB)
+-TEXT ·libc_syscall_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_syscall_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_syscall(SB)
+-TEXT ·libc_lseek_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_lseek_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_lseek(SB)
+-TEXT ·libc_getcwd_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_getcwd_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_getcwd(SB)
+-TEXT ·libc_sysctl_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_sysctl_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_sysctl(SB)
+-TEXT ·libc_fork_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_fork_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_fork(SB)
+-TEXT ·libc_ioctl_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_ioctl_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_ioctl(SB)
+-TEXT ·libc_execve_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_execve_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_execve(SB)
+-TEXT ·libc_exit_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_exit_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_exit(SB)
+-TEXT ·libc_ptrace_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_ptrace_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_ptrace(SB)
+-TEXT ·libc_getentropy_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_getentropy_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_getentropy(SB)
+-TEXT ·libc_fstatat_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_fstatat_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_fstatat(SB)
+-TEXT ·libc_unlinkat_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_unlinkat_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_unlinkat(SB)
+-TEXT ·libc_openat_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_openat_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_openat(SB)
+diff --git a/src/syscall/zsyscall_openbsd_arm64.s b/src/syscall/zsyscall_openbsd_arm64.s
+index 37778b1db5..f6e0a8da94 100644
+--- a/src/syscall/zsyscall_openbsd_arm64.s
++++ b/src/syscall/zsyscall_openbsd_arm64.s
+@@ -1,233 +1,233 @@
+ // go run mkasm.go openbsd arm64
+ // Code generated by the command above; DO NOT EDIT.
+ #include "textflag.h"
+-TEXT ·libc_getgroups_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_getgroups_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_getgroups(SB)
+-TEXT ·libc_setgroups_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_setgroups_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_setgroups(SB)
+-TEXT ·libc_wait4_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_wait4_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_wait4(SB)
+-TEXT ·libc_accept_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_accept_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_accept(SB)
+-TEXT ·libc_bind_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_bind_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_bind(SB)
+-TEXT ·libc_connect_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_connect_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_connect(SB)
+-TEXT ·libc_socket_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_socket_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_socket(SB)
+-TEXT ·libc_getsockopt_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_getsockopt_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_getsockopt(SB)
+-TEXT ·libc_setsockopt_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_setsockopt_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_setsockopt(SB)
+-TEXT ·libc_getpeername_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_getpeername_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_getpeername(SB)
+-TEXT ·libc_getsockname_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_getsockname_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_getsockname(SB)
+-TEXT ·libc_shutdown_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_shutdown_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_shutdown(SB)
+-TEXT ·libc_socketpair_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_socketpair_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_socketpair(SB)
+-TEXT ·libc_recvfrom_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_recvfrom_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_recvfrom(SB)
+-TEXT ·libc_sendto_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_sendto_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_sendto(SB)
+-TEXT ·libc_recvmsg_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_recvmsg_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_recvmsg(SB)
+-TEXT ·libc_sendmsg_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_sendmsg_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_sendmsg(SB)
+-TEXT ·libc_kevent_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_kevent_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_kevent(SB)
+-TEXT ·libc_utimes_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_utimes_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_utimes(SB)
+-TEXT ·libc_futimes_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_futimes_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_futimes(SB)
+-TEXT ·libc_fcntl_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_fcntl_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_fcntl(SB)
+-TEXT ·libc_pipe2_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_pipe2_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_pipe2(SB)
+-TEXT ·libc_accept4_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_accept4_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_accept4(SB)
+-TEXT ·libc_getdents_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_getdents_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_getdents(SB)
+-TEXT ·libc_access_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_access_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_access(SB)
+-TEXT ·libc_adjtime_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_adjtime_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_adjtime(SB)
+-TEXT ·libc_chdir_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_chdir_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_chdir(SB)
+-TEXT ·libc_chflags_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_chflags_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_chflags(SB)
+-TEXT ·libc_chmod_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_chmod_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_chmod(SB)
+-TEXT ·libc_chown_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_chown_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_chown(SB)
+-TEXT ·libc_chroot_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_chroot_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_chroot(SB)
+-TEXT ·libc_close_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_close_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_close(SB)
+-TEXT ·libc_dup_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_dup_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_dup(SB)
+-TEXT ·libc_dup2_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_dup2_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_dup2(SB)
+-TEXT ·libc_fchdir_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_fchdir_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_fchdir(SB)
+-TEXT ·libc_fchflags_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_fchflags_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_fchflags(SB)
+-TEXT ·libc_fchmod_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_fchmod_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_fchmod(SB)
+-TEXT ·libc_fchown_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_fchown_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_fchown(SB)
+-TEXT ·libc_flock_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_flock_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_flock(SB)
+-TEXT ·libc_fpathconf_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_fpathconf_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_fpathconf(SB)
+-TEXT ·libc_fstat_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_fstat_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_fstat(SB)
+-TEXT ·libc_fstatfs_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_fstatfs_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_fstatfs(SB)
+-TEXT ·libc_fsync_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_fsync_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_fsync(SB)
+-TEXT ·libc_ftruncate_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_ftruncate_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_ftruncate(SB)
+-TEXT ·libc_getegid_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_getegid_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_getegid(SB)
+-TEXT ·libc_geteuid_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_geteuid_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_geteuid(SB)
+-TEXT ·libc_getgid_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_getgid_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_getgid(SB)
+-TEXT ·libc_getpgid_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_getpgid_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_getpgid(SB)
+-TEXT ·libc_getpgrp_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_getpgrp_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_getpgrp(SB)
+-TEXT ·libc_getpid_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_getpid_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_getpid(SB)
+-TEXT ·libc_getppid_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_getppid_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_getppid(SB)
+-TEXT ·libc_getpriority_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_getpriority_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_getpriority(SB)
+-TEXT ·libc_getrlimit_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_getrlimit_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_getrlimit(SB)
+-TEXT ·libc_getrusage_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_getrusage_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_getrusage(SB)
+-TEXT ·libc_getsid_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_getsid_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_getsid(SB)
+-TEXT ·libc_gettimeofday_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_gettimeofday_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_gettimeofday(SB)
+-TEXT ·libc_getuid_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_getuid_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_getuid(SB)
+-TEXT ·libc_issetugid_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_issetugid_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_issetugid(SB)
+-TEXT ·libc_kill_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_kill_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_kill(SB)
+-TEXT ·libc_kqueue_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_kqueue_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_kqueue(SB)
+-TEXT ·libc_lchown_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_lchown_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_lchown(SB)
+-TEXT ·libc_link_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_link_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_link(SB)
+-TEXT ·libc_listen_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_listen_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_listen(SB)
+-TEXT ·libc_lstat_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_lstat_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_lstat(SB)
+-TEXT ·libc_mkdir_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_mkdir_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_mkdir(SB)
+-TEXT ·libc_mkfifo_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_mkfifo_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_mkfifo(SB)
+-TEXT ·libc_mknod_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_mknod_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_mknod(SB)
+-TEXT ·libc_nanosleep_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_nanosleep_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_nanosleep(SB)
+-TEXT ·libc_open_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_open_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_open(SB)
+-TEXT ·libc_pathconf_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_pathconf_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_pathconf(SB)
+-TEXT ·libc_pread_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_pread_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_pread(SB)
+-TEXT ·libc_pwrite_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_pwrite_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_pwrite(SB)
+-TEXT ·libc_read_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_read_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_read(SB)
+-TEXT ·libc_readlink_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_readlink_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_readlink(SB)
+-TEXT ·libc_rename_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_rename_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_rename(SB)
+-TEXT ·libc_revoke_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_revoke_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_revoke(SB)
+-TEXT ·libc_rmdir_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_rmdir_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_rmdir(SB)
+-TEXT ·libc_select_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_select_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_select(SB)
+-TEXT ·libc_setegid_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_setegid_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_setegid(SB)
+-TEXT ·libc_seteuid_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_seteuid_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_seteuid(SB)
+-TEXT ·libc_setgid_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_setgid_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_setgid(SB)
+-TEXT ·libc_setlogin_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_setlogin_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_setlogin(SB)
+-TEXT ·libc_setpgid_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_setpgid_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_setpgid(SB)
+-TEXT ·libc_setpriority_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_setpriority_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_setpriority(SB)
+-TEXT ·libc_setregid_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_setregid_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_setregid(SB)
+-TEXT ·libc_setreuid_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_setreuid_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_setreuid(SB)
+-TEXT ·libc_setrlimit_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_setrlimit_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_setrlimit(SB)
+-TEXT ·libc_setsid_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_setsid_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_setsid(SB)
+-TEXT ·libc_settimeofday_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_settimeofday_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_settimeofday(SB)
+-TEXT ·libc_setuid_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_setuid_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_setuid(SB)
+-TEXT ·libc_stat_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_stat_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_stat(SB)
+-TEXT ·libc_statfs_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_statfs_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_statfs(SB)
+-TEXT ·libc_symlink_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_symlink_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_symlink(SB)
+-TEXT ·libc_sync_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_sync_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_sync(SB)
+-TEXT ·libc_truncate_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_truncate_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_truncate(SB)
+-TEXT ·libc_umask_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_umask_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_umask(SB)
+-TEXT ·libc_unlink_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_unlink_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_unlink(SB)
+-TEXT ·libc_unmount_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_unmount_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_unmount(SB)
+-TEXT ·libc_write_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_write_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_write(SB)
+-TEXT ·libc_mmap_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_mmap_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_mmap(SB)
+-TEXT ·libc_munmap_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_munmap_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_munmap(SB)
+-TEXT ·libc_utimensat_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_utimensat_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_utimensat(SB)
+-TEXT ·libc_syscall_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_syscall_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_syscall(SB)
+-TEXT ·libc_lseek_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_lseek_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_lseek(SB)
+-TEXT ·libc_getcwd_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_getcwd_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_getcwd(SB)
+-TEXT ·libc_sysctl_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_sysctl_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_sysctl(SB)
+-TEXT ·libc_fork_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_fork_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_fork(SB)
+-TEXT ·libc_ioctl_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_ioctl_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_ioctl(SB)
+-TEXT ·libc_execve_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_execve_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_execve(SB)
+-TEXT ·libc_exit_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_exit_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_exit(SB)
+-TEXT ·libc_ptrace_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_ptrace_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_ptrace(SB)
+-TEXT ·libc_getentropy_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_getentropy_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_getentropy(SB)
+-TEXT ·libc_fstatat_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_fstatat_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_fstatat(SB)
+-TEXT ·libc_unlinkat_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_unlinkat_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_unlinkat(SB)
+-TEXT ·libc_openat_trampoline(SB),NOSPLIT,$0-0
++TEXT ·libc_openat_trampoline<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	libc_openat(SB)

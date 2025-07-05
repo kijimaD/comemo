@@ -10,7 +10,91 @@ Date:   Wed Sep 24 14:13:07 2008 -0700
     R=r
     OCL=15762
     CL=15772
-
+---
  src/runtime/proc.c    | 30 +++++++++++++++++-------------
  src/runtime/runtime.h |  2 +-
  2 files changed, 18 insertions(+), 14 deletions(-)
+
+diff --git a/src/runtime/proc.c b/src/runtime/proc.c
+index 84f5a06ed6..4fdcd4ec29 100644
+--- a/src/runtime/proc.c
++++ b/src/runtime/proc.c
+@@ -285,24 +285,25 @@ gfget(void)
+ void
+ ready(G *g)
+ {
+-	// Wait for g to stop running (for example, it migh
+-	// have queued itself on a channel but not yet gotten
+-	// a chance to call sys·gosched and actually go to sleep).
+-	notesleep(&g->stopped);
+-
+ 	lock(&sched);
+ 	readylocked(g);
+ 	unlock(&sched);
+ }
+ 
+-// Mark g ready to run.  Sched is already locked,
+-// and g is known not to be running right now
+-// (i.e., ready has slept on g->stopped or the g was
+-// just allocated in sys·newproc).
++// Mark g ready to run.  Sched is already locked.
++// G might be running already and about to stop.
++// The sched lock protects g->status from changing underfoot.
+ static void
+ readylocked(G *g)
+ {
+ 	M *m;
++	
++	if(g->m){
++		// Running on another machine.
++		// Ready it when it stops.
++		g->readyonstop = 1;
++		return;
++	}
+ 
+ 	// Mark runnable.
+ 	if(g->status == Grunnable || g->status == Grunning)
+@@ -382,7 +383,7 @@ scheduler(void)
+ 
+ 		// Just finished running m->curg.
+ 		gp = m->curg;
+-		gp->m = nil;	// for debugger
++		gp->m = nil;
+ 		switch(gp->status){
+ 		case Grunnable:
+ 		case Gdead:
+@@ -398,15 +399,18 @@ scheduler(void)
+ 				sys·exit(0);
+ 			break;
+ 		}
+-		notewakeup(&gp->stopped);
++		if(gp->readyonstop){
++			gp->readyonstop = 0;
++			readylocked(gp);
++		}
+ 	}
+ 
+ 	// Find (or wait for) g to run.  Unlocks sched.
+ 	gp = nextgandunlock();
+-	noteclear(&gp->stopped);
++	gp->readyonstop = 0;
+ 	gp->status = Grunning;
+ 	m->curg = gp;
+-	gp->m = m;	// for debugger
++	gp->m = m;
+ 	g = gp;
+ 	gogo(&gp->sched);
+ }
+diff --git a/src/runtime/runtime.h b/src/runtime/runtime.h
+index 411b6046bf..86afaaa7c2 100644
+--- a/src/runtime/runtime.h
++++ b/src/runtime/runtime.h
+@@ -123,7 +123,7 @@ struct	G
+ 	int32	goid;
+ 	int32	selgen;		// valid sudog pointer
+ 	G*	schedlink;
+-	Note	stopped;
++	bool		readyonstop;
+ 	M*	m;	// for debuggers
+ };
+ struct	Mem

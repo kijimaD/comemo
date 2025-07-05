@@ -7,9 +7,62 @@ Date:   Mon Mar 23 21:33:08 2015 +0100
     Change-Id: Iacee13150b283f9d2867a7ca98f805900f7cbe50
     Reviewed-on: https://go-review.googlesource.com/7943
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/net/sendfile_dragonfly.go | 2 +-
  src/net/sendfile_freebsd.go   | 2 +-
  src/net/sendfile_linux.go     | 2 +-
  src/net/sendfile_solaris.go   | 2 +-
  4 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/net/sendfile_dragonfly.go b/src/net/sendfile_dragonfly.go
+index 939a9a9466..a9cf3fe951 100644
+--- a/src/net/sendfile_dragonfly.go
++++ b/src/net/sendfile_dragonfly.go
+@@ -91,7 +91,7 @@ func sendFile(c *netFD, r io.Reader) (written int64, err error, handled bool) {
+ 		if err1 != nil {
+ 			// This includes syscall.ENOSYS (no kernel
+ 			// support) and syscall.EINVAL (fd types which
+-			// don't implement sendfile together)
++			// don't implement sendfile)
+ 			err = err1
+ 			break
+ 		}
+diff --git a/src/net/sendfile_freebsd.go b/src/net/sendfile_freebsd.go
+index 9b423cbb7b..d0bf6034c1 100644
+--- a/src/net/sendfile_freebsd.go
++++ b/src/net/sendfile_freebsd.go
+@@ -91,7 +91,7 @@ func sendFile(c *netFD, r io.Reader) (written int64, err error, handled bool) {
+ 		if err1 != nil {
+ 			// This includes syscall.ENOSYS (no kernel
+ 			// support) and syscall.EINVAL (fd types which
+-			// don't implement sendfile together)
++			// don't implement sendfile)
+ 			err = err1
+ 			break
+ 		}
+diff --git a/src/net/sendfile_linux.go b/src/net/sendfile_linux.go
+index 6480cf573e..5ca41c39eb 100644
+--- a/src/net/sendfile_linux.go
++++ b/src/net/sendfile_linux.go
+@@ -64,7 +64,7 @@ func sendFile(c *netFD, r io.Reader) (written int64, err error, handled bool) {
+ 		if err1 != nil {
+ 			// This includes syscall.ENOSYS (no kernel
+ 			// support) and syscall.EINVAL (fd types which
+-			// don't implement sendfile together)
++			// don't implement sendfile)
+ 			err = err1
+ 			break
+ 		}
+diff --git a/src/net/sendfile_solaris.go b/src/net/sendfile_solaris.go
+index c7e3df1ddb..5f7f068964 100644
+--- a/src/net/sendfile_solaris.go
++++ b/src/net/sendfile_solaris.go
+@@ -95,7 +95,7 @@ func sendFile(c *netFD, r io.Reader) (written int64, err error, handled bool) {
+ 		if err1 != nil {
+ 			// This includes syscall.ENOSYS (no kernel
+ 			// support) and syscall.EINVAL (fd types which
+-			// don't implement sendfile together)
++			// don't implement sendfile)
+ 			err = err1
+ 			break
+ 		}

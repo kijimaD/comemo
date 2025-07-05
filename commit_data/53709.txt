@@ -20,7 +20,88 @@ Date:   Fri May 13 23:52:48 2022 +0800
     Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Heschi Kreinick <heschi@google.com>
-
+---
  src/cmd/compile/internal/ssa/prove.go | 20 ++++++++++++++------
  test/prove.go                         | 15 ++++++++++++---
  2 files changed, 26 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/prove.go b/src/cmd/compile/internal/ssa/prove.go
+index fec79a413b..cebadcb42c 100644
+--- a/src/cmd/compile/internal/ssa/prove.go
++++ b/src/cmd/compile/internal/ssa/prove.go
+@@ -463,15 +463,23 @@ func (ft *factsTable) update(parent *Block, v, w *Value, d domain, r relation) {
+ 			if parent.Func.pass.debug > 1 {
+ 				parent.Func.Warnl(parent.Pos, "x+d %s w; x:%v %v delta:%v w:%v d:%v", r, x, parent.String(), delta, w.AuxInt, d)
+ 			}
++			underflow := true
++			if l, has := ft.limits[x.ID]; has && delta < 0 {
++				if (x.Type.Size() == 8 && l.min >= math.MinInt64-delta) ||
++					(x.Type.Size() == 4 && l.min >= math.MinInt32-delta) {
++					underflow = false
++				}
++			}
++			if delta < 0 && !underflow {
++				// If delta < 0 and x+delta cannot underflow then x > x+delta (that is, x > v)
++				ft.update(parent, x, v, signed, gt)
++			}
+ 			if !w.isGenericIntConst() {
+ 				// If we know that x+delta > w but w is not constant, we can derive:
+-				//    if delta < 0 and x > MinInt - delta, then x > w (because x+delta cannot underflow)
++				//    if delta < 0 and x+delta cannot underflow, then x > w
+ 				// This is useful for loops with bounds "len(slice)-K" (delta = -K)
+-				if l, has := ft.limits[x.ID]; has && delta < 0 {
+-					if (x.Type.Size() == 8 && l.min >= math.MinInt64-delta) ||
+-						(x.Type.Size() == 4 && l.min >= math.MinInt32-delta) {
+-						ft.update(parent, x, w, signed, r)
+-					}
++				if delta < 0 && !underflow {
++					ft.update(parent, x, w, signed, r)
+ 				}
+ 			} else {
+ 				// With w,delta constants, we want to derive: x+delta > w  ⇒  x > w-delta
+diff --git a/test/prove.go b/test/prove.go
+index 0c96f8e4f9..5ccaff54ce 100644
+--- a/test/prove.go
++++ b/test/prove.go
+@@ -1,6 +1,8 @@
+-// +build amd64
+ // errorcheck -0 -d=ssa/prove/debug=1
+ 
++//go:build amd64
++// +build amd64
++
+ // Copyright 2016 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+@@ -793,7 +795,7 @@ func unrollUpExcl(a []int) int {
+ func unrollUpIncl(a []int) int {
+ 	var i, x int
+ 	for i = 0; i <= len(a)-2; i += 2 { // ERROR "Induction variable: limits \[0,\?\], increment 2$"
+-		x += a[i]
++		x += a[i] // ERROR "Proved IsInBounds$"
+ 		x += a[i+1]
+ 	}
+ 	if i == len(a)-1 {
+@@ -833,7 +835,7 @@ func unrollDownInclStep(a []int) int {
+ 	var i, x int
+ 	for i = len(a); i >= 2; i -= 2 { // ERROR "Induction variable: limits \[2,\?\], increment 2$"
+ 		x += a[i-1] // ERROR "Proved IsInBounds$"
+-		x += a[i-2]
++		x += a[i-2] // ERROR "Proved IsInBounds$"
+ 	}
+ 	if i == 1 {
+ 		x += a[i-1]
+@@ -1044,6 +1046,13 @@ func and(p []byte) ([]byte, []byte) { // issue #52563
+ 	return blk, rem
+ }
+ 
++func issue51622(b []byte) int {
++	if len(b) >= 3 && b[len(b)-3] == '#' { // ERROR "Proved IsInBounds$"
++		return len(b)
++	}
++	return 0
++}
++
+ //go:noinline
+ func useInt(a int) {
+ }

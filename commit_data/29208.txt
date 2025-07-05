@@ -10,6 +10,26 @@ Date:   Tue Aug 30 19:14:46 2016 -0700
     Reviewed-on: https://go-review.googlesource.com/28217
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/docs.html | 8 +++++++-
  1 file changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/doc/docs.html b/doc/docs.html
+index 7eb3a3ad26..1ccd1f3fe7 100644
+--- a/doc/docs.html
++++ b/doc/docs.html
+@@ -40,7 +40,13 @@ The first section covers basic syntax and data structures; the second discusses
+ methods and interfaces; and the third introduces Go's concurrency primitives.
+ Each section concludes with a few exercises so you can practice what you've
+ learned. You can <a href="//tour.golang.org/">take the tour online</a> or
+-<a href="//code.google.com/p/go-tour/">install it locally</a>.
++install it locally with:
++</p>
++<p>
++<pre>
++$ go get golang.org/x/tour/gotour
++</pre>
++This will place the <code>gotour</code> binary in your workspace's <code>bin</code> directory.
+ </p>
+ 
+ <h3 id="code"><a href="code.html">How to write Go code</a></h3>

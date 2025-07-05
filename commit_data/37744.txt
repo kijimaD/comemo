@@ -16,7 +16,63 @@ Date:   Sun Jun 3 13:00:19 2018 +0200
     Run-TryBot: Martin Möhrmann <moehrmann@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/runtime/mbitmap.go | 29 +++++++++++++++++++++++++++++
  src/runtime/slice.go   |  4 +++-
  2 files changed, 32 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/mbitmap.go b/src/runtime/mbitmap.go
+index 75f23a16b4..e217e7695f 100644
+--- a/src/runtime/mbitmap.go
++++ b/src/runtime/mbitmap.go
+@@ -647,6 +647,35 @@ func bulkBarrierPreWrite(dst, src, size uintptr) {
+ 	}
+ }
+ 
++// bulkBarrierPreWriteSrcOnly is like bulkBarrierPreWrite but
++// does not execute write barriers for [dst, dst+size).
++//
++// In addition to the requirements of bulkBarrierPreWrite
++// callers need to ensure [dst, dst+size) is zeroed.
++//
++// This is used for special cases where e.g. dst was just
++// created and zeroed with malloc.
++//go:nosplit
++func bulkBarrierPreWriteSrcOnly(dst, src, size uintptr) {
++	if (dst|src|size)&(sys.PtrSize-1) != 0 {
++		throw("bulkBarrierPreWrite: unaligned arguments")
++	}
++	if !writeBarrier.needed {
++		return
++	}
++	buf := &getg().m.p.ptr().wbBuf
++	h := heapBitsForAddr(dst)
++	for i := uintptr(0); i < size; i += sys.PtrSize {
++		if h.isPointer() {
++			srcx := (*uintptr)(unsafe.Pointer(src + i))
++			if !buf.putFast(0, *srcx) {
++				wbBufFlush(nil, 0)
++			}
++		}
++		h = h.next()
++	}
++}
++
+ // bulkBarrierBitmap executes write barriers for copying from [src,
+ // src+size) to [dst, dst+size) using a 1-bit pointer bitmap. src is
+ // assumed to start maskOffset bytes into the data covered by the
+diff --git a/src/runtime/slice.go b/src/runtime/slice.go
+index 737aab5704..4206f4384a 100644
+--- a/src/runtime/slice.go
++++ b/src/runtime/slice.go
+@@ -202,7 +202,9 @@ func growslice(et *_type, old slice, cap int) slice {
+ 		// Note: can't use rawmem (which avoids zeroing of memory), because then GC can scan uninitialized memory.
+ 		p = mallocgc(capmem, et, true)
+ 		if writeBarrier.enabled {
+-			bulkBarrierPreWrite(uintptr(p), uintptr(old.array), lenmem)
++			// Only shade the pointers in old.array since we know the destination slice p
++			// only contains nil pointers because it has been cleared during alloc.
++			bulkBarrierPreWriteSrcOnly(uintptr(p), uintptr(old.array), lenmem)
+ 		}
+ 	}
+ 	memmove(p, old.array, lenmem)

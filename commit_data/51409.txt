@@ -21,8 +21,133 @@ Date:   Tue Jan 25 09:50:03 2022 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/380774
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Trust: Dan Scales <danscales@google.com>
-
+---
  test/typeparam/absdiff2.go          |  5 ++-
  test/typeparam/absdiff3.go          | 82 +++++++++++++++++++++++++++++++++++++
  test/typeparam/absdiffimp2.dir/a.go |  2 +-
  3 files changed, 87 insertions(+), 2 deletions(-)
+
+diff --git a/test/typeparam/absdiff2.go b/test/typeparam/absdiff2.go
+index 8f13bad2b6..2d82c4721c 100644
+--- a/test/typeparam/absdiff2.go
++++ b/test/typeparam/absdiff2.go
+@@ -4,6 +4,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// absdiff example in which an Abs method is attached to a generic type, which is a
++// structure with a single field that may be a list of possible basic types.
++
+ package main
+ 
+ import (
+@@ -24,7 +27,7 @@ type numericAbs[T Numeric] interface {
+ 	Abs() T
+ }
+ 
+-// AbsDifference computes the absolute value of the difference of
++// absDifference computes the absolute value of the difference of
+ // a and b, where the absolute value is determined by the Abs method.
+ func absDifference[T Numeric, U numericAbs[T]](a, b U) T {
+ 	d := a.Value - b.Value
+diff --git a/test/typeparam/absdiff3.go b/test/typeparam/absdiff3.go
+new file mode 100644
+index 0000000000..3ca03fe26f
+--- /dev/null
++++ b/test/typeparam/absdiff3.go
+@@ -0,0 +1,82 @@
++// run -gcflags=-G=3
++
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// absdiff example using a function argument rather than attaching an
++// Abs method to a structure containing base types.
++
++package main
++
++import (
++	"fmt"
++	"math"
++)
++
++type Numeric interface {
++	OrderedNumeric | Complex
++}
++
++// absDifference computes the absolute value of the difference of
++// a and b, where the absolute value is determined by the abs function.
++func absDifference[T Numeric](a, b T, abs func(a T) T) T {
++	return abs(a - b)
++}
++
++// OrderedNumeric matches numeric types that support the < operator.
++type OrderedNumeric interface {
++	~int | ~int8 | ~int16 | ~int32 | ~int64 |
++		~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr |
++		~float32 | ~float64
++}
++
++func Abs[T OrderedNumeric](a T) T {
++	if a < 0 {
++		return -a
++	}
++	return a
++}
++
++// Complex matches the two complex types, which do not have a < operator.
++type Complex interface {
++	~complex64 | ~complex128
++}
++
++func ComplexAbs[T Complex](a T) T {
++	r := float64(real(a))
++	i := float64(imag(a))
++	d := math.Sqrt(r*r + i*i)
++	return T(complex(d, 0))
++}
++
++// OrderedAbsDifference returns the absolute value of the difference
++// between a and b, where a and b are of an ordered type.
++func OrderedAbsDifference[T OrderedNumeric](a, b T) T {
++	return absDifference(a, b, Abs[T])
++}
++
++// ComplexAbsDifference returns the absolute value of the difference
++// between a and b, where a and b are of a complex type.
++func ComplexAbsDifference[T Complex](a, b T) T {
++	return absDifference(a, b, ComplexAbs[T])
++}
++
++func main() {
++	if got, want := OrderedAbsDifference(1.0, -2.0), 3.0; got != want {
++		panic(fmt.Sprintf("got = %v, want = %v", got, want))
++	}
++	if got, want := OrderedAbsDifference(-1.0, 2.0), 3.0; got != want {
++		panic(fmt.Sprintf("got = %v, want = %v", got, want))
++	}
++	if got, want := OrderedAbsDifference(-20, 15), 35; got != want {
++		panic(fmt.Sprintf("got = %v, want = %v", got, want))
++	}
++
++	if got, want := ComplexAbsDifference(5.0+2.0i, 2.0-2.0i), 5+0i; got != want {
++		panic(fmt.Sprintf("got = %v, want = %v", got, want))
++	}
++	if got, want := ComplexAbsDifference(2.0-2.0i, 5.0+2.0i), 5+0i; got != want {
++		panic(fmt.Sprintf("got = %v, want = %v", got, want))
++	}
++}
+diff --git a/test/typeparam/absdiffimp2.dir/a.go b/test/typeparam/absdiffimp2.dir/a.go
+index 782e000da9..302b69b976 100644
+--- a/test/typeparam/absdiffimp2.dir/a.go
++++ b/test/typeparam/absdiffimp2.dir/a.go
+@@ -21,7 +21,7 @@ type numericAbs[T Numeric] interface {
+ 	Abs() T
+ }
+ 
+-// AbsDifference computes the absolute value of the difference of
++// absDifference computes the absolute value of the difference of
+ // a and b, where the absolute value is determined by the Abs method.
+ func absDifference[T Numeric, U numericAbs[T]](a, b U) T {
+ 	d := a.Value - b.Value

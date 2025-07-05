@@ -8,6 +8,22 @@ Date:   Tue Jul 7 11:04:10 2009 -0700
     DELTA=2  (0 added, 0 deleted, 2 changed)
     OCL=31115
     CL=31285
-
+---
  src/pkg/go/printer/printer.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/go/printer/printer.go b/src/pkg/go/printer/printer.go
+index 4c5daefbf9..e2898c518f 100644
+--- a/src/pkg/go/printer/printer.go
++++ b/src/pkg/go/printer/printer.go
+@@ -152,8 +152,8 @@ func (p *printer) adjustSpacingAndMergeComments() {
+ 
+ 
+ func (p *printer) print(args ...) {
+-	v := reflect.NewValue(args).(reflect.StructValue);
+-	for i := 0; i < v.Len(); i++ {
++	v := reflect.NewValue(args).(*reflect.StructValue);
++	for i := 0; i < v.NumField(); i++ {
+ 		p.adjustSpacingAndMergeComments();
+ 		f := v.Field(i);
+ 		switch x := f.Interface().(type) {

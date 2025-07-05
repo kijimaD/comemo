@@ -32,10 +32,120 @@ Date:   Fri Aug 17 15:40:55 2018 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/internal/modfetch/codehost/vcs.go   | 14 ++++++++++++++
  src/cmd/go/internal/modfetch/repo.go           |  3 +++
  src/cmd/go/internal/modload/import.go          |  4 ++++
  src/cmd/go/internal/modload/query.go           |  6 ++++++
  src/cmd/go/testdata/script/mod_vcs_missing.txt | 11 +++++++++++
  5 files changed, 38 insertions(+)
+
+diff --git a/src/cmd/go/internal/modfetch/codehost/vcs.go b/src/cmd/go/internal/modfetch/codehost/vcs.go
+index 03def8e082..9e862a0ef8 100644
+--- a/src/cmd/go/internal/modfetch/codehost/vcs.go
++++ b/src/cmd/go/internal/modfetch/codehost/vcs.go
+@@ -22,6 +22,17 @@ import (
+ 	"cmd/go/internal/str"
+ )
+ 
++// A VCSError indicates an error using a version control system.
++// The implication of a VCSError is that we know definitively where
++// to get the code, but we can't access it due to the error.
++// The caller should report this error instead of continuing to probe
++// other possible module paths.
++type VCSError struct {
++	Err error
++}
++
++func (e *VCSError) Error() string { return e.Err.Error() }
++
+ func NewRepo(vcs, remote string) (Repo, error) {
+ 	type key struct {
+ 		vcs    string
+@@ -33,6 +44,9 @@ func NewRepo(vcs, remote string) (Repo, error) {
+ 	}
+ 	c := vcsRepoCache.Do(key{vcs, remote}, func() interface{} {
+ 		repo, err := newVCSRepo(vcs, remote)
++		if err != nil {
++			err = &VCSError{err}
++		}
+ 		return cached{repo, err}
+ 	}).(cached)
+ 
+diff --git a/src/cmd/go/internal/modfetch/repo.go b/src/cmd/go/internal/modfetch/repo.go
+index 003479461c..c8b133574e 100644
+--- a/src/cmd/go/internal/modfetch/repo.go
++++ b/src/cmd/go/internal/modfetch/repo.go
+@@ -237,6 +237,9 @@ func lookup(path string) (r Repo, err error) {
+ func lookupCodeRepo(rr *get.RepoRoot) (codehost.Repo, error) {
+ 	code, err := codehost.NewRepo(rr.VCS, rr.Repo)
+ 	if err != nil {
++		if _, ok := err.(*codehost.VCSError); ok {
++			return nil, err
++		}
+ 		return nil, fmt.Errorf("lookup %s: %v", rr.Root, err)
+ 	}
+ 	return code, nil
+diff --git a/src/cmd/go/internal/modload/import.go b/src/cmd/go/internal/modload/import.go
+index 3b954f18fe..78ae83e4bf 100644
+--- a/src/cmd/go/internal/modload/import.go
++++ b/src/cmd/go/internal/modload/import.go
+@@ -14,6 +14,7 @@ import (
+ 	"strings"
+ 
+ 	"cmd/go/internal/cfg"
++	"cmd/go/internal/modfetch/codehost"
+ 	"cmd/go/internal/module"
+ 	"cmd/go/internal/par"
+ 	"cmd/go/internal/search"
+@@ -133,6 +134,9 @@ func Import(path string) (m module.Version, dir string, err error) {
+ 
+ 	m, _, err = QueryPackage(path, "latest", Allowed)
+ 	if err != nil {
++		if _, ok := err.(*codehost.VCSError); ok {
++			return module.Version{}, "", err
++		}
+ 		return module.Version{}, "", &ImportMissingError{ImportPath: path}
+ 	}
+ 	return m, "", &ImportMissingError{ImportPath: path, Module: m}
+diff --git a/src/cmd/go/internal/modload/query.go b/src/cmd/go/internal/modload/query.go
+index bd3141865c..3b550f1db7 100644
+--- a/src/cmd/go/internal/modload/query.go
++++ b/src/cmd/go/internal/modload/query.go
+@@ -6,6 +6,7 @@ package modload
+ 
+ import (
+ 	"cmd/go/internal/modfetch"
++	"cmd/go/internal/modfetch/codehost"
+ 	"cmd/go/internal/module"
+ 	"cmd/go/internal/semver"
+ 	"fmt"
+@@ -223,6 +224,11 @@ func QueryPackage(path, query string, allowed func(module.Version) bool) (module
+ 	for p := path; p != "."; p = pathpkg.Dir(p) {
+ 		info, err := Query(p, query, allowed)
+ 		if err != nil {
++			if _, ok := err.(*codehost.VCSError); ok {
++				// A VCSError means we know where to find the code,
++				// we just can't. Abort search.
++				return module.Version{}, nil, err
++			}
+ 			if finalErr == errMissing {
+ 				finalErr = err
+ 			}
+diff --git a/src/cmd/go/testdata/script/mod_vcs_missing.txt b/src/cmd/go/testdata/script/mod_vcs_missing.txt
+new file mode 100644
+index 0000000000..fb146b4415
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_vcs_missing.txt
+@@ -0,0 +1,11 @@
++[exec:bzr] skip 'tests NOT having bzr'
++[!net] skip
++
++env GO111MODULE=on
++env GOPROXY=
++
++! go list launchpad.net/gocheck
++stderr '"bzr": executable file not found'
++
++-- go.mod --
++module m

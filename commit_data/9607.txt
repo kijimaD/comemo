@@ -7,6 +7,20 @@ Date:   Tue Sep 6 15:59:21 2011 -0700
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/4951066
-
+---
  src/pkg/template/exec.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/template/exec.go b/src/pkg/template/exec.go
+index f1590b3bb6..e7fad72fe7 100644
+--- a/src/pkg/template/exec.go
++++ b/src/pkg/template/exec.go
+@@ -511,7 +511,7 @@ func (s *state) validateType(value reflect.Value, typ reflect.Type) reflect.Valu
+ 		// are much more constrained, so it makes more sense there than here.
+ 		// Besides, one is almost always all you need.
+ 		switch {
+-		case value.Kind() == reflect.Ptr && value.Elem().Type().AssignableTo(typ):
++		case value.Kind() == reflect.Ptr && value.Type().Elem().AssignableTo(typ):
+ 			value = value.Elem()
+ 		case reflect.PtrTo(value.Type()).AssignableTo(typ) && value.CanAddr():
+ 			value = value.Addr()

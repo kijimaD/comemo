@@ -9,6 +9,29 @@ Date:   Mon Jan 23 22:26:27 2017 +0000
     Change-Id: Ic0f72f3b7bbccd0546692993c4ed414f8c88c1c6
     Reviewed-on: https://go-review.googlesource.com/35573
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  doc/go1.8.html | 11 +++++++++++
  1 file changed, 11 insertions(+)
+
+diff --git a/doc/go1.8.html b/doc/go1.8.html
+index 337f13d630..147221a44e 100644
+--- a/doc/go1.8.html
++++ b/doc/go1.8.html
+@@ -1645,6 +1645,17 @@ crypto/x509: return error for missing SerialNumber (CL 27238)
+       and only the overall execution of the test binary would fail.
+     </p>
+ 
++    <p><!-- CL 32455 -->
++      The signature of the
++      <a href="/pkg/testing/#MainStart"><code>MainStart</code></a>
++      function has changed, as allowed by the documentation. It is an
++      internal detail and not part of the Go 1 compatibility promise.
++      If you're not calling <code>MainStart</code> directly but see
++      errors, that likely means you set the
++      normally-empty <code>GOROOT</code> environment variable and it
++      doesn't match the version of your <code>go</code> command's binary.
++    </p>
++
+   </dd>
+ </dl>
+ 

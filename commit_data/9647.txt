@@ -10,7 +10,7 @@ Date:   Fri Sep 9 15:08:57 2011 +0200
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4988048
-
+---
  src/cmd/gc/obj.c             | 10 +-----
  src/cmd/ld/dwarf.c           | 26 ++++++++------
  test/dwarf/linedirectives.go | 83 ++++++++++++++++++++++++++++++++++++++++++++
@@ -38,3 +38,467 @@ Date:   Fri Sep 9 15:08:57 2011 +0200
  test/golden.out              |  2 ++
  test/run                     |  2 +-
  26 files changed, 215 insertions(+), 21 deletions(-)
+
+diff --git a/src/cmd/gc/obj.c b/src/cmd/gc/obj.c
+index d6fe6f65db..730b42671c 100644
+--- a/src/cmd/gc/obj.c
++++ b/src/cmd/gc/obj.c
+@@ -125,7 +125,6 @@ static void
+ outhist(Biobuf *b)
+ {
+ 	Hist *h;
+-	int i, depth = 0;
+ 	char *p, ds[] = {'c', ':', '/', 0};
+ 
+ 	for(h = hist; h != H; h = h->link) {
+@@ -162,14 +161,7 @@ outhist(Biobuf *b)
+ 					outzfile(b, p);
+ 				}
+ 			}
+-			if(h->offset > 0) {
+-				//line directive
+-				depth++;
+-			}
+-		} else if(depth > 0) {
+-			for(i = 0; i < depth; i++)
+-				zhist(b, h->line, h->offset);
+-			depth = 0;
++		
+ 		}
+ 		zhist(b, h->line, h->offset);
+ 	}
+diff --git a/src/cmd/ld/dwarf.c b/src/cmd/ld/dwarf.c
+index d8ca27acea..77536018a5 100644
+--- a/src/cmd/ld/dwarf.c
++++ b/src/cmd/ld/dwarf.c
+@@ -1578,13 +1578,16 @@ addhistfile(char *zentry)
+ 		histfile[histfilesize++] = "<eof>";
+ 
+ 	fname = decodez(zentry);
++//	print("addhistfile %d: %s\n", histfilesize, fname);
+ 	if (fname == 0)
+ 		return -1;
++
+ 	// Don't fill with duplicates (check only top one).
+ 	if (strcmp(fname, histfile[histfilesize-1]) == 0) {
+ 		free(fname);
+ 		return histfilesize - 1;
+ 	}
++
+ 	histfile[histfilesize++] = fname;
+ 	return histfilesize - 1;
+ }
+@@ -1608,11 +1611,13 @@ finddebugruntimepath(void)
+ }
+ 
+ // Go's runtime C sources are sane, and Go sources nest only 1 level,
+-// so 16 should be plenty.
++// so a handful would be plenty, if it weren't for the fact that line
++// directives can push an unlimited number of them.
+ static struct {
+ 	int file;
+ 	vlong line;
+-} includestack[16];
++} *includestack;
++static int includestacksize;
+ static int includetop;
+ static vlong absline;
+ 
+@@ -1629,17 +1634,15 @@ static Linehist *linehist;
+ static void
+ checknesting(void)
+ {
+-	int i;
+-
+ 	if (includetop < 0) {
+ 		diag("dwarf: corrupt z stack");
+ 		errorexit();
+ 	}
+-	if (includetop >= nelem(includestack)) {
+-		diag("dwarf: nesting too deep");
+-		for (i = 0; i < nelem(includestack); i++)
+-			diag("\t%s", histfile[includestack[i].file]);
+-		errorexit();
++	if (includetop >= includestacksize) {
++		includestacksize += 1;
++		includestacksize <<= 2;
++//		print("checknesting: growing to %d\n", includestacksize);
++		includestack = realloc(includestack, includestacksize * sizeof *includestack);	       
+ 	}
+ }
+ 
+@@ -1669,6 +1672,7 @@ inithist(Auto *a)
+ 	// Clear the history.
+ 	clearhistfile();
+ 	includetop = 0;
++	checknesting();
+ 	includestack[includetop].file = 0;
+ 	includestack[includetop].line = -1;
+ 	absline = 0;
+@@ -1682,10 +1686,10 @@ inithist(Auto *a)
+ 	for (; a; a = a->link) {
+ 		if (a->type == D_FILE) {  // 'z'
+ 			int f = addhistfile(a->asym->name);
+-			if (f < 0) {	   // pop file
++			if (f < 0) {	// pop file
+ 				includetop--;
+ 				checknesting();
+-			} else if(f != includestack[includetop].file) { // pushed a new file
++			} else {	// pushed a file (potentially same)
+ 				includestack[includetop].line += a->aoffset - absline;
+ 				includetop++;
+ 				checknesting();
+diff --git a/test/dwarf/linedirectives.go b/test/dwarf/linedirectives.go
+new file mode 100755
+index 0000000000..68434f0ab5
+--- /dev/null
++++ b/test/dwarf/linedirectives.go
+@@ -0,0 +1,83 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//line foo/bar.y:4
++package main
++//line foo/bar.y:60
++func main() { 
++//line foo/bar.y:297
++	f, l := 0, 0
++//line yacctab:1
++	f, l = 1, 1
++//line yaccpar:1
++	f, l = 2, 1
++//line foo/bar.y:82
++	f, l = 3, 82
++//line foo/bar.y:90
++	f, l = 3, 90
++//line foo/bar.y:92
++	f, l = 3, 92
++//line foo/bar.y:100
++	f, l = 3, 100
++//line foo/bar.y:104
++	l = 104
++//line foo/bar.y:112
++	l = 112
++//line foo/bar.y:117
++	l = 117
++//line foo/bar.y:121
++	l = 121
++//line foo/bar.y:125
++	l = 125
++//line foo/bar.y:133
++	l = 133
++//line foo/bar.y:146
++	l = 146
++//line foo/bar.y:148
++//line foo/bar.y:153
++//line foo/bar.y:155
++	l = 155
++//line foo/bar.y:160
++
++//line foo/bar.y:164
++//line foo/bar.y:173
++
++//line foo/bar.y:178
++//line foo/bar.y:180
++//line foo/bar.y:185
++//line foo/bar.y:195
++//line foo/bar.y:197
++//line foo/bar.y:202
++//line foo/bar.y:204
++//line foo/bar.y:208
++//line foo/bar.y:211
++//line foo/bar.y:213
++//line foo/bar.y:215
++//line foo/bar.y:217
++//line foo/bar.y:221
++//line foo/bar.y:229
++//line foo/bar.y:236
++//line foo/bar.y:238
++//line foo/bar.y:240
++//line foo/bar.y:244
++//line foo/bar.y:249
++//line foo/bar.y:253
++//line foo/bar.y:257
++//line foo/bar.y:262
++//line foo/bar.y:267
++//line foo/bar.y:272
++	if l == f {
++//line foo/bar.y:277
++	panic("aie!")
++//line foo/bar.y:281
++	}
++//line foo/bar.y:285
++	return
++//line foo/bar.y:288
++//line foo/bar.y:290
++}
++//line foo/bar.y:293
++//line foo/bar.y:295
+diff --git a/test/dwarf/main.go b/test/dwarf/main.go
+new file mode 100644
+index 0000000000..7f2ec4c00a
+--- /dev/null
++++ b/test/dwarf/main.go
+@@ -0,0 +1,29 @@
++// $G $D/$F.go $D/z*.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++func main() {
++F1()
++F2()
++F3()
++F4()
++F5()
++F6()
++F7()
++F8()
++F9()
++F10()
++F11()
++F12()
++F13()
++F14()
++F15()
++F16()
++F17()
++F18()
++F19()
++F20()
++}
+diff --git a/test/dwarf/z1.go b/test/dwarf/z1.go
+new file mode 100644
+index 0000000000..7f163e9a1d
+--- /dev/null
++++ b/test/dwarf/z1.go
+@@ -0,0 +1,5 @@
++
++
++//line x1.go:4
++package main
++func F1() {}
+diff --git a/test/dwarf/z10.go b/test/dwarf/z10.go
+new file mode 100644
+index 0000000000..19c70020e0
+--- /dev/null
++++ b/test/dwarf/z10.go
+@@ -0,0 +1,6 @@
++
++
++
++//line x10.go:4
++package main
++func F10() {}
+diff --git a/test/dwarf/z11.go b/test/dwarf/z11.go
+new file mode 100644
+index 0000000000..c1d2f9180f
+--- /dev/null
++++ b/test/dwarf/z11.go
+@@ -0,0 +1,4 @@
++
++//line x11.go:4
++package main
++func F11() {}
+diff --git a/test/dwarf/z12.go b/test/dwarf/z12.go
+new file mode 100644
+index 0000000000..7455f18946
+--- /dev/null
++++ b/test/dwarf/z12.go
+@@ -0,0 +1,4 @@
++
++//line x12.go:4
++package main
++func F12() {}
+diff --git a/test/dwarf/z13.go b/test/dwarf/z13.go
+new file mode 100644
+index 0000000000..ecb3c4c8c7
+--- /dev/null
++++ b/test/dwarf/z13.go
+@@ -0,0 +1,4 @@
++
++//line x13.go:4
++package main
++func F13() {}
+diff --git a/test/dwarf/z14.go b/test/dwarf/z14.go
+new file mode 100644
+index 0000000000..134b39b64e
+--- /dev/null
++++ b/test/dwarf/z14.go
+@@ -0,0 +1,4 @@
++
++//line x14.go:4
++package main
++func F14() {}
+diff --git a/test/dwarf/z15.go b/test/dwarf/z15.go
+new file mode 100644
+index 0000000000..d73819b443
+--- /dev/null
++++ b/test/dwarf/z15.go
+@@ -0,0 +1,4 @@
++
++//line x15.go:4
++package main
++func F15() {}
+diff --git a/test/dwarf/z16.go b/test/dwarf/z16.go
+new file mode 100644
+index 0000000000..6c31651baa
+--- /dev/null
++++ b/test/dwarf/z16.go
+@@ -0,0 +1,4 @@
++
++//line x16.go:4
++package main
++func F16() {}
+diff --git a/test/dwarf/z17.go b/test/dwarf/z17.go
+new file mode 100644
+index 0000000000..b742d16726
+--- /dev/null
++++ b/test/dwarf/z17.go
+@@ -0,0 +1,4 @@
++
++//line x17.go:4
++package main
++func F17() {}
+diff --git a/test/dwarf/z18.go b/test/dwarf/z18.go
+new file mode 100644
+index 0000000000..84150ff0a3
+--- /dev/null
++++ b/test/dwarf/z18.go
+@@ -0,0 +1,5 @@
++
++
++//line x18.go:4
++package main
++func F18() {}
+diff --git a/test/dwarf/z19.go b/test/dwarf/z19.go
+new file mode 100644
+index 0000000000..bb2e296841
+--- /dev/null
++++ b/test/dwarf/z19.go
+@@ -0,0 +1,4 @@
++
++//line x19.go:4
++package main
++func F19() {}
+diff --git a/test/dwarf/z2.go b/test/dwarf/z2.go
+new file mode 100644
+index 0000000000..68bd58257d
+--- /dev/null
++++ b/test/dwarf/z2.go
+@@ -0,0 +1,4 @@
++
++//line x2.go:4
++package main
++func F2() {}
+diff --git a/test/dwarf/z20.go b/test/dwarf/z20.go
+new file mode 100644
+index 0000000000..03111e1845
+--- /dev/null
++++ b/test/dwarf/z20.go
+@@ -0,0 +1,4 @@
++
++//line x20.go:4
++package main
++func F20() {}
+diff --git a/test/dwarf/z3.go b/test/dwarf/z3.go
+new file mode 100644
+index 0000000000..5e4ad3ae25
+--- /dev/null
++++ b/test/dwarf/z3.go
+@@ -0,0 +1,4 @@
++
++//line x3.go:4
++package main
++func F3() {}
+diff --git a/test/dwarf/z4.go b/test/dwarf/z4.go
+new file mode 100644
+index 0000000000..1f28465c57
+--- /dev/null
++++ b/test/dwarf/z4.go
+@@ -0,0 +1,4 @@
++
++//line x4.go:4
++package main
++func F4() {}
+diff --git a/test/dwarf/z5.go b/test/dwarf/z5.go
+new file mode 100644
+index 0000000000..7f4eeb419a
+--- /dev/null
++++ b/test/dwarf/z5.go
+@@ -0,0 +1,4 @@
++
++//line x5.go:4
++package main
++func F5() {}
+diff --git a/test/dwarf/z6.go b/test/dwarf/z6.go
+new file mode 100644
+index 0000000000..241791dff2
+--- /dev/null
++++ b/test/dwarf/z6.go
+@@ -0,0 +1,4 @@
++
++//line x6.go:4
++package main
++func F6() {}
+diff --git a/test/dwarf/z7.go b/test/dwarf/z7.go
+new file mode 100644
+index 0000000000..68c1ad0c24
+--- /dev/null
++++ b/test/dwarf/z7.go
+@@ -0,0 +1,4 @@
++
++//line x7.go:4
++package main
++func F7() {}
+diff --git a/test/dwarf/z8.go b/test/dwarf/z8.go
+new file mode 100644
+index 0000000000..16eed32a28
+--- /dev/null
++++ b/test/dwarf/z8.go
+@@ -0,0 +1,4 @@
++
++//line x8.go:4
++package main
++func F8() {}
+diff --git a/test/dwarf/z9.go b/test/dwarf/z9.go
+new file mode 100644
+index 0000000000..cbb94b4d2b
+--- /dev/null
++++ b/test/dwarf/z9.go
+@@ -0,0 +1,4 @@
++
++//line x9.go:4
++package main
++func F9() {}
+diff --git a/test/golden.out b/test/golden.out
+index 624b2119f9..1942f45fbe 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -115,6 +115,8 @@ panic: interface conversion: *main.S is not main.I2: missing method Name
+ 
+ == syntax/
+ 
++== dwarf/
++
+ == fixedbugs/
+ 
+ =========== fixedbugs/bug027.go
+diff --git a/test/run b/test/run
+index d6f57272c7..844ee5feca 100755
+--- a/test/run
++++ b/test/run
+@@ -53,7 +53,7 @@ filterout() {
+ 	grep '^'"$2"'$' $1 >/dev/null
+ }
+ 
+-for dir in . ken chan interface nilptr syntax fixedbugs bugs
++for dir in . ken chan interface nilptr syntax dwarf fixedbugs bugs
+ do
+ 	echo
+ 	echo '==' $dir'/'

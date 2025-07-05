@@ -10,6 +10,51 @@ Date:   Fri Jun 11 16:39:54 2021 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  .../go/testdata/script/mod_get_lazy_indirect.txt   | 38 ++++++++++++++++++++++
  1 file changed, 38 insertions(+)
+
+diff --git a/src/cmd/go/testdata/script/mod_get_lazy_indirect.txt b/src/cmd/go/testdata/script/mod_get_lazy_indirect.txt
+new file mode 100644
+index 0000000000..60548e8429
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_get_lazy_indirect.txt
+@@ -0,0 +1,38 @@
++# https://golang.org/issue/45979: after 'go get' on a package,
++# that package should be importable without error.
++
++
++# We start out with an unresolved dependency.
++# 'go list' suggests that we run 'go get' on that dependency.
++
++! go list -deps .
++stderr '^m.go:3:8: no required module provides package rsc\.io/quote; to add it:\n\tgo get rsc.io/quote$'
++
++
++# Unfortunately, the suggested 'go get' command leaves us with another problem.
++#
++# TODO(#45979): After 'go get', the 'go list' command from above should succeed.
++
++go get rsc.io/quote
++
++! go list -deps .
++stderr '^go: updates to go.mod needed; to update it:\n\tgo mod tidy'
++[!short] ! go build .
++stderr '^go: updates to go.mod needed; to update it:\n\tgo mod tidy'
++
++
++# After running the suggested 'go mod tidy' command, the build
++# should succeed.
++go mod tidy
++go list -deps .
++[!short] go build .
++
++
++-- go.mod --
++module example.com/m
++
++go 1.17
++-- m.go --
++package m
++
++import _ "rsc.io/quote"

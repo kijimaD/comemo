@@ -11,8 +11,104 @@ Date:   Tue May 17 12:20:16 2016 +0900
     Change-Id: I554fa960878fa44557a522635ed412d8d7548d3f
     Reviewed-on: https://go-review.googlesource.com/23126
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/dial.go |  8 ++++----
  src/net/ip.go   | 18 +++++++++---------
  src/net/net.go  |  2 +-
  3 files changed, 14 insertions(+), 14 deletions(-)
+
+diff --git a/src/net/dial.go b/src/net/dial.go
+index 16f67a2f33..55edb43395 100644
+--- a/src/net/dial.go
++++ b/src/net/dial.go
+@@ -241,8 +241,8 @@ func resolveAddrList(ctx context.Context, op, network, addr string, hint Addr) (
+ // If the host is empty, as in ":80", the local system is assumed.
+ //
+ // Examples:
+-//	Dial("tcp", "12.34.56.78:80")
+-//	Dial("tcp", "google.com:http")
++//	Dial("tcp", "192.0.2.1:80")
++//	Dial("tcp", "golang.org:http")
+ //	Dial("tcp", "[2001:db8::1]:http")
+ //	Dial("tcp", "[fe80::1%lo0]:80")
+ //	Dial("tcp", ":80")
+@@ -252,8 +252,8 @@ func resolveAddrList(ctx context.Context, op, network, addr string, hint Addr) (
+ // literal IP address.
+ //
+ // Examples:
+-//	Dial("ip4:1", "127.0.0.1")
+-//	Dial("ip6:ospf", "::1")
++//	Dial("ip4:1", "192.0.2.1")
++//	Dial("ip6:ipv6-icmp", "2001:db8::1")
+ //
+ // For Unix networks, the address must be a file system path.
+ func Dial(network, address string) (Conn, error) {
+diff --git a/src/net/ip.go b/src/net/ip.go
+index a2361bbdbf..06d349b5f2 100644
+--- a/src/net/ip.go
++++ b/src/net/ip.go
+@@ -255,7 +255,7 @@ func (ip IP) Mask(mask IPMask) IP {
+ // It returns one of 4 forms:
+ //   - "<nil>", if ip has length 0
+ //   - dotted decimal ("192.0.2.1"), if ip is an IPv4 or IP4-mapped IPv6 address
+-//   - IPv6 ("2001:db9::1"), if ip is a valid IPv6 address
++//   - IPv6 ("2001:db8::1"), if ip is a valid IPv6 address
+ //   - the hexadecimal form of ip, without punctuation, if no other cases apply
+ func (ip IP) String() string {
+ 	p := ip
+@@ -483,12 +483,12 @@ func (n *IPNet) Contains(ip IP) bool {
+ // Network returns the address's network name, "ip+net".
+ func (n *IPNet) Network() string { return "ip+net" }
+ 
+-// String returns the CIDR notation of n like "192.168.100.1/24"
+-// or "2001:DB8::/48" as defined in RFC 4632 and RFC 4291.
++// String returns the CIDR notation of n like "192.0.2.1/24"
++// or "2001:db8::/48" as defined in RFC 4632 and RFC 4291.
+ // If the mask is not in the canonical form, it returns the
+ // string which consists of an IP address, followed by a slash
+ // character and a mask expressed as hexadecimal form with no
+-// punctuation like "192.168.100.1/c000ff00".
++// punctuation like "198.51.100.1/c000ff00".
+ func (n *IPNet) String() string {
+ 	nn, m := networkNumberAndMask(n)
+ 	if nn == nil || m == nil {
+@@ -641,8 +641,8 @@ func parseIPv6(s string, zoneAllowed bool) (ip IP, zone string) {
+ }
+ 
+ // ParseIP parses s as an IP address, returning the result.
+-// The string s can be in dotted decimal ("74.125.19.99")
+-// or IPv6 ("2001:4860:0:2001::68") form.
++// The string s can be in dotted decimal ("192.0.2.1")
++// or IPv6 ("2001:db8::68") form.
+ // If s is not a valid textual representation of an IP address,
+ // ParseIP returns nil.
+ func ParseIP(s string) IP {
+@@ -659,12 +659,12 @@ func ParseIP(s string) IP {
+ }
+ 
+ // ParseCIDR parses s as a CIDR notation IP address and mask,
+-// like "192.168.100.1/24" or "2001:DB8::/48", as defined in
++// like "192.0.2.0/24" or "2001:db8::/32", as defined in
+ // RFC 4632 and RFC 4291.
+ //
+ // It returns the IP address and the network implied by the IP
+-// and mask. For example, ParseCIDR("192.168.100.1/16") returns
+-// the IP address 192.168.100.1 and the network 192.168.0.0/16.
++// and mask. For example, ParseCIDR("198.51.100.1/24") returns
++// the IP address 198.51.100.1 and the network 198.51.100.0/24.
+ func ParseCIDR(s string) (IP, *IPNet, error) {
+ 	i := byteIndex(s, '/')
+ 	if i < 0 {
+diff --git a/src/net/net.go b/src/net/net.go
+index 27e9ca367d..d6812d1ef0 100644
+--- a/src/net/net.go
++++ b/src/net/net.go
+@@ -14,7 +14,7 @@ the same interfaces and similar Dial and Listen functions.
+ 
+ The Dial function connects to a server:
+ 
+-	conn, err := net.Dial("tcp", "google.com:80")
++	conn, err := net.Dial("tcp", "golang.org:80")
+ 	if err != nil {
+ 		// handle error
+ 	}

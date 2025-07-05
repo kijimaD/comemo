@@ -37,9 +37,122 @@ Date:   Sat Oct 24 10:40:09 2020 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/ssa.go    |  5 +++++
  src/cmd/compile/internal/gc/syntax.go |  2 +-
  src/cmd/compile/internal/gc/walk.go   | 30 ++++++++++++------------------
  test/bounds.go                        |  5 +++++
  4 files changed, 23 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index a1b5a03687..4769c2c7d9 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -2472,6 +2472,11 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 		a := s.expr(n.Left)
+ 		b := s.expr(n.Right)
+ 		return s.newValue2(s.ssaOp(n.Op, n.Type), a.Type, a, b)
++	case OANDNOT:
++		a := s.expr(n.Left)
++		b := s.expr(n.Right)
++		b = s.newValue1(s.ssaOp(OBITNOT, b.Type), b.Type, b)
++		return s.newValue2(s.ssaOp(OAND, n.Type), a.Type, a, b)
+ 	case OLSH, ORSH:
+ 		a := s.expr(n.Left)
+ 		b := s.expr(n.Right)
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index 83b5db834f..58de9b5e3f 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -142,7 +142,7 @@ const (
+ 	_, _                               // second nodeInitorder bit
+ 	_, nodeHasBreak
+ 	_, nodeNoInline  // used internally by inliner to indicate that a function call should not be inlined; set for OCALLFUNC and OCALLMETH only
+-	_, nodeImplicit  // implicit OADDR or ODEREF; ++/-- statement represented as OASOP; or ANDNOT lowered to OAND
++	_, nodeImplicit  // implicit OADDR or ODEREF; ++/-- statement represented as OASOP
+ 	_, nodeIsDDD     // is the argument variadic
+ 	_, nodeDiag      // already printed error about this
+ 	_, nodeColas     // OAS resulting from :=
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 6ce3eda44b..927f6c4b1e 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -474,7 +474,7 @@ opswitch:
+ 		ODEREF, OSPTR, OITAB, OIDATA, OADDR:
+ 		n.Left = walkexpr(n.Left, init)
+ 
+-	case OEFACE, OAND, OSUB, OMUL, OADD, OOR, OXOR, OLSH, ORSH:
++	case OEFACE, OAND, OANDNOT, OSUB, OMUL, OADD, OOR, OXOR, OLSH, ORSH:
+ 		n.Left = walkexpr(n.Left, init)
+ 		n.Right = walkexpr(n.Right, init)
+ 
+@@ -965,14 +965,6 @@ opswitch:
+ 		fn := basicnames[param] + "to" + basicnames[result]
+ 		n = conv(mkcall(fn, types.Types[result], init, conv(n.Left, types.Types[param])), n.Type)
+ 
+-	case OANDNOT:
+-		n.Left = walkexpr(n.Left, init)
+-		n.Op = OAND
+-		n.SetImplicit(true) // for walkCheckPtrArithmetic
+-		n.Right = nod(OBITNOT, n.Right, nil)
+-		n.Right = typecheck(n.Right, ctxExpr)
+-		n.Right = walkexpr(n.Right, init)
+-
+ 	case ODIV, OMOD:
+ 		n.Left = walkexpr(n.Left, init)
+ 		n.Right = walkexpr(n.Right, init)
+@@ -3609,14 +3601,20 @@ func bounded(n *Node, max int64) bool {
+ 	}
+ 
+ 	switch n.Op {
+-	case OAND:
++	case OAND, OANDNOT:
+ 		v := int64(-1)
+-		if smallintconst(n.Left) {
++		switch {
++		case smallintconst(n.Left):
+ 			v = n.Left.Int64Val()
+-		} else if smallintconst(n.Right) {
++		case smallintconst(n.Right):
+ 			v = n.Right.Int64Val()
++			if n.Op == OANDNOT {
++				v = ^v
++				if !sign {
++					v &= 1<<uint(bits) - 1
++				}
++			}
+ 		}
+-
+ 		if 0 <= v && v < max {
+ 			return true
+ 		}
+@@ -4045,12 +4043,8 @@ func walkCheckPtrArithmetic(n *Node, init *Nodes) *Node {
+ 		case OADD:
+ 			walk(n.Left)
+ 			walk(n.Right)
+-		case OSUB:
++		case OSUB, OANDNOT:
+ 			walk(n.Left)
+-		case OAND:
+-			if n.Implicit() { // was OANDNOT
+-				walk(n.Left)
+-			}
+ 		case OCONVNOP:
+ 			if n.Left.Type.IsUnsafePtr() {
+ 				n.Left = cheapexpr(n.Left, init)
+diff --git a/test/bounds.go b/test/bounds.go
+index 4a9c3b2d39..aa1d51b6f9 100644
+--- a/test/bounds.go
++++ b/test/bounds.go
+@@ -209,6 +209,11 @@ func main() {
+ 	use(a1k[i&^0])
+ 	use(a1k[i&^-2]) // ERROR "index bounds check elided"
+ 	use(a1k[i&^1])
++	use(a1k[i8&^0])
++	use(a1k[i8&^-128]) // ERROR "index bounds check elided"
++	use(a1k[ui8&^1])   // ERROR "index bounds check elided"
++	use(a1k[ui16&^0xf000])
++	use(a1k[ui16&^0xff00]) // ERROR "index bounds check elided"
+ 
+ 	// Right shift cuts the effective number of bits in the index,
+ 	// but only for unsigned (signed stays negative).

@@ -17,8 +17,90 @@ Date:   Tue Sep 6 20:23:40 2016 +0900
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/strings/strings.go       | 12 +++---------
  src/strings/strings_amd64.go |  2 ++
  src/strings/strings_test.go  | 25 +++++++++++++++++++++++++
  3 files changed, 30 insertions(+), 9 deletions(-)
+
+diff --git a/src/strings/strings.go b/src/strings/strings.go
+index 738c493032..c5355db9a2 100644
+--- a/src/strings/strings.go
++++ b/src/strings/strings.go
+@@ -176,17 +176,11 @@ func LastIndex(s, sep string) int {
+ // IndexRune returns the index of the first instance of the Unicode code point
+ // r, or -1 if rune is not present in s.
+ func IndexRune(s string, r rune) int {
+-	switch {
+-	case r < utf8.RuneSelf:
++	if r < utf8.RuneSelf {
+ 		return IndexByte(s, byte(r))
+-	default:
+-		for i, c := range s {
+-			if c == r {
+-				return i
+-			}
+-		}
+ 	}
+-	return -1
++
++	return Index(s, string(r))
+ }
+ 
+ // IndexAny returns the index of the first instance of any Unicode code point
+diff --git a/src/strings/strings_amd64.go b/src/strings/strings_amd64.go
+index 55bf2d2f6f..434e2e9eb3 100644
+--- a/src/strings/strings_amd64.go
++++ b/src/strings/strings_amd64.go
+@@ -4,6 +4,8 @@
+ 
+ package strings
+ 
++//go:noescape
++
+ // indexShortStr returns the index of the first instance of c in s, or -1 if c is not present in s.
+ // indexShortStr requires 2 <= len(c) <= shortStringLen
+ func indexShortStr(s, c string) int // ../runtime/asm_$GOARCH.s
+diff --git a/src/strings/strings_test.go b/src/strings/strings_test.go
+index fcef761da7..5fdf59c88d 100644
+--- a/src/strings/strings_test.go
++++ b/src/strings/strings_test.go
+@@ -244,6 +244,20 @@ func TestIndexRune(t *testing.T) {
+ 			t.Errorf("IndexRune(%q,%d)= %v; want %v", test.s, test.rune, actual, test.out)
+ 		}
+ 	}
++
++	haystack := "test世界"
++	allocs := testing.AllocsPerRun(1000, func() {
++		if i := IndexRune(haystack, 's'); i != 2 {
++			t.Fatalf("'s' at %d; want 2", i)
++		}
++		if i := IndexRune(haystack, '世'); i != 4 {
++			t.Fatalf("'世' at %d; want 4", i)
++		}
++	})
++
++	if allocs != 0 {
++		t.Errorf(`expected no allocations, got %f`, allocs)
++	}
+ }
+ 
+ const benchmarkString = "some_text=some☺value"
+@@ -257,6 +271,17 @@ func BenchmarkIndexRune(b *testing.B) {
+ 	}
+ }
+ 
++var benchmarkLongString = Repeat(" ", 100) + benchmarkString
++
++func BenchmarkIndexRuneLongString(b *testing.B) {
++	if got := IndexRune(benchmarkLongString, '☺'); got != 114 {
++		b.Fatalf("wrong index: expected 114, got=%d", got)
++	}
++	for i := 0; i < b.N; i++ {
++		IndexRune(benchmarkLongString, '☺')
++	}
++}
++
+ func BenchmarkIndexRuneFastPath(b *testing.B) {
+ 	if got := IndexRune(benchmarkString, 'v'); got != 17 {
+ 		b.Fatalf("wrong index: expected 17, got=%d", got)

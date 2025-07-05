@@ -10,8 +10,160 @@ Date:   Tue Nov 15 13:09:19 2011 -0500
     R=r
     CC=golang-dev
     https://golang.org/cl/5374090
-
+---
  src/pkg/testing/benchmark.go |  8 ++++----
  src/pkg/testing/example.go   | 28 +++++++++++++---------------
  src/pkg/testing/testing.go   | 14 +++++++-------
  3 files changed, 24 insertions(+), 26 deletions(-)
+
+diff --git a/src/pkg/testing/benchmark.go b/src/pkg/testing/benchmark.go
+index df4c4a1a29..4f049a31f7 100644
+--- a/src/pkg/testing/benchmark.go
++++ b/src/pkg/testing/benchmark.go
+@@ -205,7 +205,7 @@ func RunBenchmarks(matchString func(pat, str string) (bool, error), benchmarks [
+ 	for _, Benchmark := range benchmarks {
+ 		matched, err := matchString(*matchBenchmarks, Benchmark.Name)
+ 		if err != nil {
+-			println("invalid regexp for -test.bench:", err.Error())
++			fmt.Fprintf(os.Stderr, "testing: invalid regexp for -test.bench: %s\n", err)
+ 			os.Exit(1)
+ 		}
+ 		if !matched {
+@@ -218,11 +218,11 @@ func RunBenchmarks(matchString func(pat, str string) (bool, error), benchmarks [
+ 			if procs != 1 {
+ 				benchName = fmt.Sprintf("%s-%d", Benchmark.Name, procs)
+ 			}
+-			print(fmt.Sprintf("%s\t", benchName))
++			fmt.Printf("%s\t", benchName)
+ 			r := b.run()
+-			print(fmt.Sprintf("%v\n", r))
++			fmt.Printf("%v\n", r)
+ 			if p := runtime.GOMAXPROCS(-1); p != procs {
+-				print(fmt.Sprintf("%s left GOMAXPROCS set to %d\n", benchName, p))
++				fmt.Fprintf(os.Stderr, "testing: %s left GOMAXPROCS set to %d\n", benchName, p)
+ 			}
+ 		}
+ 	}
+diff --git a/src/pkg/testing/example.go b/src/pkg/testing/example.go
+index 5b3e322b59..3b026ee66e 100644
+--- a/src/pkg/testing/example.go
++++ b/src/pkg/testing/example.go
+@@ -21,24 +21,23 @@ type InternalExample struct {
+ func RunExamples(examples []InternalExample) (ok bool) {
+ 	ok = true
+ 
++	var eg InternalExample
++
+ 	stdout, stderr := os.Stdout, os.Stderr
+ 	defer func() {
+ 		os.Stdout, os.Stderr = stdout, stderr
+ 		if e := recover(); e != nil {
+-			if err, ok := e.(error); ok {
+-				fmt.Fprintln(os.Stderr, err)
+-				os.Exit(1)
+-			}
+-			panic(e)
++			fmt.Printf("--- FAIL: %s\npanic: %v\n", eg.Name, e)
++			os.Exit(1)
+ 		}
+ 	}()
+ 
+-	for _, eg := range examples {
++	for _, eg = range examples {
+ 		if *chatty {
+-			fmt.Fprintln(os.Stderr, "=== RUN:", eg.Name)
++			fmt.Printf("=== RUN: %s\n", eg.Name)
+ 		}
+ 
+-		// capture stdout and stderr for testing purposes
++		// capture stdout and stderr
+ 		r, w, err := os.Pipe()
+ 		if err != nil {
+ 			fmt.Fprintln(os.Stderr, err)
+@@ -50,7 +49,7 @@ func RunExamples(examples []InternalExample) (ok bool) {
+ 			buf := new(bytes.Buffer)
+ 			_, err := io.Copy(buf, r)
+ 			if err != nil {
+-				fmt.Fprintln(os.Stderr, err)
++				fmt.Fprintf(stderr, "testing: copying pipe: %v\n", err)
+ 				os.Exit(1)
+ 			}
+ 			outC <- buf.String()
+@@ -67,16 +66,15 @@ func RunExamples(examples []InternalExample) (ok bool) {
+ 		out := <-outC
+ 
+ 		// report any errors
++		tstr := fmt.Sprintf("(%.2f seconds)", float64(ns)/1e9)
+ 		if out != eg.Output {
+-			fmt.Fprintf(
+-				os.Stderr,
+-				"--- FAIL: %s\ngot:\n%s\nwant:\n%s\n",
+-				eg.Name, out, eg.Output,
++			fmt.Printf(
++				"--- FAIL: %s %s\ngot:\n%s\nwant:\n%s\n",
++				eg.Name, tstr, out, eg.Output,
+ 			)
+ 			ok = false
+ 		} else if *chatty {
+-			tstr := fmt.Sprintf("(%.2f seconds)", float64(ns)/1e9)
+-			fmt.Fprintln(os.Stderr, "--- PASS:", eg.Name, tstr)
++			fmt.Printf("--- PASS: %s %s\n", eg.Name, tstr)
+ 		}
+ 	}
+ 
+diff --git a/src/pkg/testing/testing.go b/src/pkg/testing/testing.go
+index 32c3fc3ad5..08443a3125 100644
+--- a/src/pkg/testing/testing.go
++++ b/src/pkg/testing/testing.go
+@@ -201,10 +201,10 @@ func Main(matchString func(pat, str string) (bool, error), tests []InternalTest,
+ 	testOk := RunTests(matchString, tests)
+ 	exampleOk := RunExamples(examples)
+ 	if !testOk || !exampleOk {
+-		fmt.Fprintln(os.Stderr, "FAIL")
++		fmt.Println("FAIL")
+ 		os.Exit(1)
+ 	}
+-	fmt.Fprintln(os.Stderr, "PASS")
++	fmt.Println("PASS")
+ 	stopAlarm()
+ 	RunBenchmarks(matchString, benchmarks)
+ 	after()
+@@ -214,9 +214,9 @@ func report(t *T) {
+ 	tstr := fmt.Sprintf("(%.2f seconds)", float64(t.ns)/1e9)
+ 	format := "--- %s: %s %s\n%s"
+ 	if t.failed {
+-		fmt.Fprintf(os.Stderr, format, "FAIL", t.name, tstr, t.errors)
++		fmt.Printf(format, "FAIL", t.name, tstr, t.errors)
+ 	} else if *chatty {
+-		fmt.Fprintf(os.Stderr, format, "PASS", t.name, tstr, t.errors)
++		fmt.Printf(format, "PASS", t.name, tstr, t.errors)
+ 	}
+ }
+ 
+@@ -236,7 +236,7 @@ func RunTests(matchString func(pat, str string) (bool, error), tests []InternalT
+ 		for i := 0; i < len(tests); i++ {
+ 			matched, err := matchString(*match, tests[i].Name)
+ 			if err != nil {
+-				println("invalid regexp for -test.run:", err.Error())
++				fmt.Fprintf(os.Stderr, "testing: invalid regexp for -test.run: %s\n", err)
+ 				os.Exit(1)
+ 			}
+ 			if !matched {
+@@ -248,7 +248,7 @@ func RunTests(matchString func(pat, str string) (bool, error), tests []InternalT
+ 			}
+ 			t := &T{ch: ch, name: testName, startParallel: startParallel}
+ 			if *chatty {
+-				println("=== RUN", t.name)
++				fmt.Printf("=== RUN %s\n", t.name)
+ 			}
+ 			go tRunner(t, &tests[i])
+ 			out := <-t.ch
+@@ -344,7 +344,7 @@ func parseCpuList() {
+ 		for _, val := range strings.Split(*cpuListStr, ",") {
+ 			cpu, err := strconv.Atoi(val)
+ 			if err != nil || cpu <= 0 {
+-				println("invalid value for -test.cpu")
++				fmt.Fprintf(os.Stderr, "testing: invalid value %q for -test.cpu", val)
+ 				os.Exit(1)
+ 			}
+ 			cpuList = append(cpuList, cpu)

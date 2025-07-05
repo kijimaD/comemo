@@ -19,9 +19,154 @@ Date:   Wed Oct 5 23:08:25 2016 -0400
     Run-TryBot: Michael Munday <munday@ca.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/asm/internal/arch/s390x.go   |  6 +----
  src/cmd/internal/obj/s390x/a.out.go  |  4 ---
  src/cmd/internal/obj/s390x/anames.go |  4 ---
  src/cmd/internal/obj/s390x/asmz.go   | 47 +++---------------------------------
  4 files changed, 5 insertions(+), 56 deletions(-)
+
+diff --git a/src/cmd/asm/internal/arch/s390x.go b/src/cmd/asm/internal/arch/s390x.go
+index 4110b43ebf..7e0e8b9e0f 100644
+--- a/src/cmd/asm/internal/arch/s390x.go
++++ b/src/cmd/asm/internal/arch/s390x.go
+@@ -80,11 +80,7 @@ func IsS390xCMP(op obj.As) bool {
+ // one of the NEG-like instructions that require special handling.
+ func IsS390xNEG(op obj.As) bool {
+ 	switch op {
+-	case s390x.AADDME,
+-		s390x.AADDZE,
+-		s390x.ANEG,
+-		s390x.ASUBME,
+-		s390x.ASUBZE:
++	case s390x.ANEG, s390x.ANEGW:
+ 		return true
+ 	}
+ 	return false
+diff --git a/src/cmd/internal/obj/s390x/a.out.go b/src/cmd/internal/obj/s390x/a.out.go
+index 4c4a2320e7..87ee971e25 100644
+--- a/src/cmd/internal/obj/s390x/a.out.go
++++ b/src/cmd/internal/obj/s390x/a.out.go
+@@ -209,9 +209,7 @@ const (
+ 	// integer arithmetic
+ 	AADD = obj.ABaseS390X + obj.A_ARCHSPECIFIC + iota
+ 	AADDC
+-	AADDME
+ 	AADDE
+-	AADDZE
+ 	AADDW
+ 	ADIVW
+ 	ADIVWU
+@@ -227,10 +225,8 @@ const (
+ 	AMULHDU
+ 	ASUB
+ 	ASUBC
+-	ASUBME
+ 	ASUBV
+ 	ASUBE
+-	ASUBZE
+ 	ASUBW
+ 	ANEG
+ 	ANEGW
+diff --git a/src/cmd/internal/obj/s390x/anames.go b/src/cmd/internal/obj/s390x/anames.go
+index eb1576e21c..51b9ffc5f9 100644
+--- a/src/cmd/internal/obj/s390x/anames.go
++++ b/src/cmd/internal/obj/s390x/anames.go
+@@ -8,9 +8,7 @@ import "cmd/internal/obj"
+ var Anames = []string{
+ 	obj.A_ARCHSPECIFIC: "ADD",
+ 	"ADDC",
+-	"ADDME",
+ 	"ADDE",
+-	"ADDZE",
+ 	"ADDW",
+ 	"DIVW",
+ 	"DIVWU",
+@@ -26,10 +24,8 @@ var Anames = []string{
+ 	"MULHDU",
+ 	"SUB",
+ 	"SUBC",
+-	"SUBME",
+ 	"SUBV",
+ 	"SUBE",
+-	"SUBZE",
+ 	"SUBW",
+ 	"NEG",
+ 	"NEGW",
+diff --git a/src/cmd/internal/obj/s390x/asmz.go b/src/cmd/internal/obj/s390x/asmz.go
+index 3bfff61374..2f89afad73 100644
+--- a/src/cmd/internal/obj/s390x/asmz.go
++++ b/src/cmd/internal/obj/s390x/asmz.go
+@@ -153,7 +153,6 @@ var optab = []Optab{
+ 	Optab{ADIVW, C_REG, C_NONE, C_NONE, C_REG, 2, 0},
+ 	Optab{ASUB, C_REG, C_REG, C_NONE, C_REG, 10, 0},
+ 	Optab{ASUB, C_REG, C_NONE, C_NONE, C_REG, 10, 0},
+-	Optab{AADDME, C_REG, C_NONE, C_NONE, C_REG, 47, 0},
+ 	Optab{ANEG, C_REG, C_NONE, C_NONE, C_REG, 47, 0},
+ 	Optab{ANEG, C_NONE, C_NONE, C_NONE, C_REG, 47, 0},
+ 
+@@ -837,10 +836,6 @@ func buildop(ctxt *obj.Link) {
+ 			opset(ASTMY, r)
+ 		case ALMG:
+ 			opset(ALMY, r)
+-		case AADDME:
+-			opset(AADDZE, r)
+-			opset(ASUBME, r)
+-			opset(ASUBZE, r)
+ 		case ABEQ:
+ 			opset(ABGE, r)
+ 			opset(ABGT, r)
+@@ -3232,49 +3227,15 @@ func asmout(ctxt *obj.Link, asm *[]byte) {
+ 			*asm = append(*asm, uint8(wd))
+ 		}
+ 
+-	case 47: // arithmetic op (carry) reg [reg] reg
++	case 47: // negate [reg] reg
+ 		r := p.From.Reg
++		if r == 0 {
++			r = p.To.Reg
++		}
+ 		switch p.As {
+-		default:
+-		case AADDME:
+-			if p.To.Reg == p.From.Reg {
+-				zRRE(op_LGR, REGTMP, uint32(p.From.Reg), asm)
+-				r = REGTMP
+-			}
+-			zRIL(_a, op_LGFI, uint32(p.To.Reg), 0xffffffff, asm) // p.To.Reg <- -1
+-			zRRE(op_ALCGR, uint32(p.To.Reg), uint32(r), asm)
+-		case AADDZE:
+-			if p.To.Reg == p.From.Reg {
+-				zRRE(op_LGR, REGTMP, uint32(p.From.Reg), asm)
+-				r = REGTMP
+-			}
+-			zRI(op_LGHI, uint32(p.To.Reg), 0, asm)
+-			zRRE(op_ALCGR, uint32(p.To.Reg), uint32(r), asm)
+-		case ASUBME:
+-			if p.To.Reg == p.From.Reg {
+-				zRRE(op_LGR, REGTMP, uint32(p.From.Reg), asm)
+-				r = REGTMP
+-			}
+-			zRIL(_a, op_LGFI, uint32(p.To.Reg), 0xffffffff, asm) // p.To.Reg <- -1
+-			zRRE(op_SLBGR, uint32(p.To.Reg), uint32(r), asm)
+-		case ASUBZE:
+-			if p.To.Reg == p.From.Reg {
+-				zRRE(op_LGR, REGTMP, uint32(p.From.Reg), asm)
+-				r = REGTMP
+-			}
+-			zRI(op_LGHI, uint32(p.To.Reg), 0, asm)
+-			zRRE(op_SLBGR, uint32(p.To.Reg), uint32(r), asm)
+ 		case ANEG:
+-			r := p.From.Reg
+-			if r == 0 {
+-				r = p.To.Reg
+-			}
+ 			zRRE(op_LCGR, uint32(p.To.Reg), uint32(r), asm)
+ 		case ANEGW:
+-			r := p.From.Reg
+-			if r == 0 {
+-				r = p.To.Reg
+-			}
+ 			zRRE(op_LCGFR, uint32(p.To.Reg), uint32(r), asm)
+ 		}
+ 

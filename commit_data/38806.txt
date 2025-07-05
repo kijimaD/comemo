@@ -13,9 +13,68 @@ Date:   Tue Nov 13 16:05:15 2018 -0500
     Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
-
+---
  src/cmd/asm/internal/asm/testdata/ppc64.s | 1 +
  src/cmd/internal/obj/ppc64/a.out.go       | 1 +
  src/cmd/internal/obj/ppc64/anames.go      | 1 +
  src/cmd/internal/obj/ppc64/asm9.go        | 4 +++-
  4 files changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/ppc64.s b/src/cmd/asm/internal/asm/testdata/ppc64.s
+index 9e8929dac4..366c80c090 100644
+--- a/src/cmd/asm/internal/asm/testdata/ppc64.s
++++ b/src/cmd/asm/internal/asm/testdata/ppc64.s
+@@ -948,6 +948,7 @@ label1:
+ //	<MNEMONIC> VRA,VRB,VRC,VRT produces
+ //	<mnemonic> VRT,VRA,VRB,VRC
+ 	VPERM V3, V2, V1, V0
++	VPERMXOR V3, V2, V1, V0
+ 
+ //	Vector bit permute, VX-form
+ //	<MNEMONIC> VRA,VRB,VRT produces
+diff --git a/src/cmd/internal/obj/ppc64/a.out.go b/src/cmd/internal/obj/ppc64/a.out.go
+index 0fd9c81039..6b248d5c36 100644
+--- a/src/cmd/internal/obj/ppc64/a.out.go
++++ b/src/cmd/internal/obj/ppc64/a.out.go
+@@ -903,6 +903,7 @@ const (
+ 	AVCMPNEZB
+ 	AVCMPNEZBCC
+ 	AVPERM
++	AVPERMXOR
+ 	AVBPERMQ
+ 	AVBPERMD
+ 	AVSEL
+diff --git a/src/cmd/internal/obj/ppc64/anames.go b/src/cmd/internal/obj/ppc64/anames.go
+index c04ce27e46..fb934e96f9 100644
+--- a/src/cmd/internal/obj/ppc64/anames.go
++++ b/src/cmd/internal/obj/ppc64/anames.go
+@@ -493,6 +493,7 @@ var Anames = []string{
+ 	"VCMPNEZB",
+ 	"VCMPNEZBCC",
+ 	"VPERM",
++	"VPERMXOR",
+ 	"VBPERMQ",
+ 	"VBPERMD",
+ 	"VSEL",
+diff --git a/src/cmd/internal/obj/ppc64/asm9.go b/src/cmd/internal/obj/ppc64/asm9.go
+index 51a9a18601..d7f1a08622 100644
+--- a/src/cmd/internal/obj/ppc64/asm9.go
++++ b/src/cmd/internal/obj/ppc64/asm9.go
+@@ -1498,7 +1498,7 @@ func buildop(ctxt *obj.Link) {
+ 			opset(AVCMPNEZBCC, r0)
+ 
+ 		case AVPERM: /* vperm */
+-			opset(AVPERM, r0)
++			opset(AVPERMXOR, r0)
+ 
+ 		case AVBPERMQ: /* vbpermq, vbpermd */
+ 			opset(AVBPERMD, r0)
+@@ -4503,6 +4503,8 @@ func (c *ctxt9) oprrr(a obj.As) uint32 {
+ 
+ 	case AVPERM:
+ 		return OPVX(4, 43, 0, 0) /* vperm - v2.03 */
++	case AVPERMXOR:
++		return OPVX(4, 45, 0, 0) /* vpermxor - v2.03 */
+ 
+ 	case AVSEL:
+ 		return OPVX(4, 42, 0, 0) /* vsel - v2.03 */

@@ -7,7 +7,7 @@ Date:   Tue Jan 7 23:53:30 2014 -0500
     R=golang-codereviews, minux.ma, gobot, rsc, dave
     CC=golang-codereviews
     https://golang.org/cl/36040043
-
+---
  src/cmd/go/signal_unix.go          | 2 +-
  src/pkg/archive/tar/stat_atim.go   | 2 +-
  src/pkg/archive/tar/stat_unix.go   | 2 +-
@@ -18,3 +18,121 @@ Date:   Tue Jan 7 23:53:30 2014 -0500
  src/pkg/time/sys_unix.go           | 2 +-
  src/pkg/time/zoneinfo_unix.go      | 2 +-
  9 files changed, 9 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/go/signal_unix.go b/src/cmd/go/signal_unix.go
+index 00c71657f5..8faa7efa76 100644
+--- a/src/cmd/go/signal_unix.go
++++ b/src/cmd/go/signal_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux netbsd openbsd
++// +build darwin dragonfly freebsd linux netbsd openbsd solaris
+ 
+ package main
+ 
+diff --git a/src/pkg/archive/tar/stat_atim.go b/src/pkg/archive/tar/stat_atim.go
+index 6029b08712..72342ef37a 100644
+--- a/src/pkg/archive/tar/stat_atim.go
++++ b/src/pkg/archive/tar/stat_atim.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build linux openbsd
++// +build linux openbsd solaris
+ 
+ package tar
+ 
+diff --git a/src/pkg/archive/tar/stat_unix.go b/src/pkg/archive/tar/stat_unix.go
+index 92bc924242..e5ba673ccf 100644
+--- a/src/pkg/archive/tar/stat_unix.go
++++ b/src/pkg/archive/tar/stat_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build linux darwin freebsd openbsd netbsd
++// +build linux darwin freebsd openbsd netbsd solaris
+ 
+ package tar
+ 
+diff --git a/src/pkg/crypto/rand/rand_unix.go b/src/pkg/crypto/rand/rand_unix.go
+index 238ceee557..0fbd7eaf57 100644
+--- a/src/pkg/crypto/rand/rand_unix.go
++++ b/src/pkg/crypto/rand/rand_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux netbsd openbsd plan9
++// +build darwin dragonfly freebsd linux netbsd openbsd plan9 solaris
+ 
+ // Unix cryptographically secure pseudorandom number
+ // generator.
+diff --git a/src/pkg/crypto/x509/root_unix.go b/src/pkg/crypto/x509/root_unix.go
+index 324f855b13..a5bd19e821 100644
+--- a/src/pkg/crypto/x509/root_unix.go
++++ b/src/pkg/crypto/x509/root_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build dragonfly freebsd linux openbsd netbsd
++// +build dragonfly freebsd linux openbsd netbsd solaris
+ 
+ package x509
+ 
+diff --git a/src/pkg/mime/type_unix.go b/src/pkg/mime/type_unix.go
+index 713e301cdf..d949ba3f3e 100644
+--- a/src/pkg/mime/type_unix.go
++++ b/src/pkg/mime/type_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux netbsd openbsd
++// +build darwin dragonfly freebsd linux netbsd openbsd solaris
+ 
+ package mime
+ 
+diff --git a/src/pkg/path/filepath/path_unix.go b/src/pkg/path/filepath/path_unix.go
+index d927b342be..2be675c3af 100644
+--- a/src/pkg/path/filepath/path_unix.go
++++ b/src/pkg/path/filepath/path_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux netbsd openbsd
++// +build darwin dragonfly freebsd linux netbsd openbsd solaris
+ 
+ package filepath
+ 
+diff --git a/src/pkg/time/sys_unix.go b/src/pkg/time/sys_unix.go
+index 60a3ce08f9..36c214b6b0 100644
+--- a/src/pkg/time/sys_unix.go
++++ b/src/pkg/time/sys_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux netbsd openbsd
++// +build darwin dragonfly freebsd linux netbsd openbsd solaris
+ 
+ package time
+ 
+diff --git a/src/pkg/time/zoneinfo_unix.go b/src/pkg/time/zoneinfo_unix.go
+index fc5ae89fe5..26159c1aa0 100644
+--- a/src/pkg/time/zoneinfo_unix.go
++++ b/src/pkg/time/zoneinfo_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux netbsd openbsd
++// +build darwin dragonfly freebsd linux netbsd openbsd solaris
+ 
+ // Parse "zoneinfo" time zone file.
+ // This is a fairly standard file format used on OS X, Linux, BSD, Sun, and others.

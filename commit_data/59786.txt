@@ -17,7 +17,7 @@ Date:   Sun Apr 14 16:55:57 2024 +0500
     Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/runtime/mgclimit.go    | 27 ++++++++++++++-------------
  src/runtime/mgcscavenge.go | 14 +++++++-------
  src/runtime/netpoll.go     |  4 ++--
@@ -26,3 +26,190 @@ Date:   Sun Apr 14 16:55:57 2024 +0500
  src/runtime/sizeof_test.go |  2 +-
  src/runtime/symtab.go      |  3 +--
  7 files changed, 29 insertions(+), 29 deletions(-)
+
+diff --git a/src/runtime/mgclimit.go b/src/runtime/mgclimit.go
+index bd6dc37e04..ad86fbd65b 100644
+--- a/src/runtime/mgclimit.go
++++ b/src/runtime/mgclimit.go
+@@ -33,16 +33,6 @@ type gcCPULimiterState struct {
+ 	lock atomic.Uint32
+ 
+ 	enabled atomic.Bool
+-	bucket  struct {
+-		// Invariants:
+-		// - fill >= 0
+-		// - capacity >= 0
+-		// - fill <= capacity
+-		fill, capacity uint64
+-	}
+-	// overflow is the cumulative amount of GC CPU time that we tried to fill the
+-	// bucket with but exceeded its capacity.
+-	overflow uint64
+ 
+ 	// gcEnabled is an internal copy of gcBlackenEnabled that determines
+ 	// whether the limiter tracks total assist time.
+@@ -55,6 +45,20 @@ type gcCPULimiterState struct {
+ 	// the mark and sweep phases.
+ 	transitioning bool
+ 
++	// test indicates whether this instance of the struct was made for testing purposes.
++	test bool
++
++	bucket struct {
++		// Invariants:
++		// - fill >= 0
++		// - capacity >= 0
++		// - fill <= capacity
++		fill, capacity uint64
++	}
++	// overflow is the cumulative amount of GC CPU time that we tried to fill the
++	// bucket with but exceeded its capacity.
++	overflow uint64
++
+ 	// assistTimePool is the accumulated assist time since the last update.
+ 	assistTimePool atomic.Int64
+ 
+@@ -77,9 +81,6 @@ type gcCPULimiterState struct {
+ 	//
+ 	// gomaxprocs isn't used directly so as to keep this structure unit-testable.
+ 	nprocs int32
+-
+-	// test indicates whether this instance of the struct was made for testing purposes.
+-	test bool
+ }
+ 
+ // limiting returns true if the CPU limiter is currently enabled, meaning the Go GC
+diff --git a/src/runtime/mgcscavenge.go b/src/runtime/mgcscavenge.go
+index dede4a1ad3..8102940a7c 100644
+--- a/src/runtime/mgcscavenge.go
++++ b/src/runtime/mgcscavenge.go
+@@ -281,15 +281,19 @@ type scavengerState struct {
+ 	// g is the goroutine the scavenger is bound to.
+ 	g *g
+ 
+-	// parked is whether or not the scavenger is parked.
+-	parked bool
+-
+ 	// timer is the timer used for the scavenger to sleep.
+ 	timer *timer
+ 
+ 	// sysmonWake signals to sysmon that it should wake the scavenger.
+ 	sysmonWake atomic.Uint32
+ 
++	// parked is whether or not the scavenger is parked.
++	parked bool
++
++	// printControllerReset instructs printScavTrace to signal that
++	// the controller was reset.
++	printControllerReset bool
++
+ 	// targetCPUFraction is the target CPU overhead for the scavenger.
+ 	targetCPUFraction float64
+ 
+@@ -312,10 +316,6 @@ type scavengerState struct {
+ 	// value. Used if the controller's assumptions fail to hold.
+ 	controllerCooldown int64
+ 
+-	// printControllerReset instructs printScavTrace to signal that
+-	// the controller was reset.
+-	printControllerReset bool
+-
+ 	// sleepStub is a stub used for testing to avoid actually having
+ 	// the scavenger sleep.
+ 	//
+diff --git a/src/runtime/netpoll.go b/src/runtime/netpoll.go
+index 6a73f70988..bbfef80aec 100644
+--- a/src/runtime/netpoll.go
++++ b/src/runtime/netpoll.go
+@@ -102,14 +102,14 @@ type pollDesc struct {
+ 
+ 	lock    mutex // protects the following fields
+ 	closing bool
++	rrun    bool      // whether rt is running
++	wrun    bool      // whether wt is running
+ 	user    uint32    // user settable cookie
+ 	rseq    uintptr   // protects from stale read timers
+ 	rt      timer     // read deadline timer
+-	rrun    bool      // whether rt is running
+ 	rd      int64     // read deadline (a nanotime in the future, -1 when expired)
+ 	wseq    uintptr   // protects from stale write timers
+ 	wt      timer     // write deadline timer
+-	wrun    bool      // whether wt is running
+ 	wd      int64     // write deadline (a nanotime in the future, -1 when expired)
+ 	self    *pollDesc // storage for indirect interface. See (*pollDesc).makeArg.
+ }
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 1468c7c599..e469f20e5e 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -6024,8 +6024,8 @@ func sysmon() {
+ 
+ type sysmontick struct {
+ 	schedtick   uint32
+-	schedwhen   int64
+ 	syscalltick uint32
++	schedwhen   int64
+ 	syscallwhen int64
+ }
+ 
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index b58255f279..0093a6ddb9 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -510,12 +510,12 @@ type g struct {
+ 	sleepWhen     int64          // when to sleep until
+ 	selectDone    atomic.Uint32  // are we participating in a select and did someone win the race?
+ 
+-	coroarg *coro // argument during coroutine transfers
+-
+ 	// goroutineProfiled indicates the status of this goroutine's stack for the
+ 	// current in-progress goroutine profile
+ 	goroutineProfiled goroutineProfileStateHolder
+ 
++	coroarg *coro // argument during coroutine transfers
++
+ 	// Per-G tracer state.
+ 	trace gTraceState
+ 
+@@ -604,8 +604,8 @@ type m struct {
+ 	// there's no stack to put them on. That is their sole purpose.
+ 	waitunlockf          func(*g, unsafe.Pointer) bool
+ 	waitlock             unsafe.Pointer
+-	waitTraceBlockReason traceBlockReason
+ 	waitTraceSkip        int
++	waitTraceBlockReason traceBlockReason
+ 
+ 	syscalltick uint32
+ 	freelink    *m // on sched.freem
+diff --git a/src/runtime/sizeof_test.go b/src/runtime/sizeof_test.go
+index d235d6a3f8..43aba98dce 100644
+--- a/src/runtime/sizeof_test.go
++++ b/src/runtime/sizeof_test.go
+@@ -20,7 +20,7 @@ func TestSizeof(t *testing.T) {
+ 		_32bit uintptr // size on 32bit platforms
+ 		_64bit uintptr // size on 64bit platforms
+ 	}{
+-		{runtime.G{}, 272, 440},   // g, but exported for testing
++		{runtime.G{}, 272, 432},   // g, but exported for testing
+ 		{runtime.Sudog{}, 56, 88}, // sudog, but exported for testing
+ 	}
+ 
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index bfe415360e..a7ce9c3a7e 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -401,13 +401,12 @@ type moduledata struct {
+ 	modulehashes []modulehash
+ 
+ 	hasmain uint8 // 1 if module contains the main function, 0 otherwise
++	bad     bool  // module failed to load and should be ignored
+ 
+ 	gcdatamask, gcbssmask bitvector
+ 
+ 	typemap map[typeOff]*_type // offset to *_rtype in previous module
+ 
+-	bad bool // module failed to load and should be ignored
+-
+ 	next *moduledata
+ }
+ 

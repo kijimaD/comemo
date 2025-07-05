@@ -15,7 +15,40 @@ Date:   Wed Feb 19 11:17:09 2014 -0500
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/65440043
-
+---
  src/pkg/crypto/tls/common.go | 5 +++--
  src/pkg/crypto/tls/tls.go    | 5 ++---
  2 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/crypto/tls/common.go b/src/pkg/crypto/tls/common.go
+index 3382853ee6..7ce2077de4 100644
+--- a/src/pkg/crypto/tls/common.go
++++ b/src/pkg/crypto/tls/common.go
+@@ -231,8 +231,9 @@ type Config struct {
+ 	// NextProtos is a list of supported, application level protocols.
+ 	NextProtos []string
+ 
+-	// ServerName is included in the client's handshake to support virtual
+-	// hosting.
++	// ServerName is used to verify the hostname on the returned
++	// certificates unless InsecureSkipVerify is given. It is also included
++	// in the client's handshake to support virtual hosting.
+ 	ServerName string
+ 
+ 	// ClientAuth determines the server's policy for
+diff --git a/src/pkg/crypto/tls/tls.go b/src/pkg/crypto/tls/tls.go
+index 6c67506fc3..40156a0013 100644
+--- a/src/pkg/crypto/tls/tls.go
++++ b/src/pkg/crypto/tls/tls.go
+@@ -27,9 +27,8 @@ func Server(conn net.Conn, config *Config) *Conn {
+ 
+ // Client returns a new TLS client side connection
+ // using conn as the underlying transport.
+-// Client interprets a nil configuration as equivalent to
+-// the zero configuration; see the documentation of Config
+-// for the defaults.
++// The config cannot be nil: users must set either ServerHostname or
++// InsecureSkipVerify in the config.
+ func Client(conn net.Conn, config *Config) *Conn {
+ 	return &Conn{conn: conn, config: config, isClient: true}
+ }

@@ -12,9 +12,93 @@ Date:   Fri Mar 23 20:20:50 2018 +0000
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/pgen.go    | 4 ++--
  src/cmd/compile/internal/gc/plive.go   | 7 +++----
  src/cmd/compile/internal/gc/reflect.go | 5 ++---
  src/cmd/compile/internal/gc/scope.go   | 8 --------
  4 files changed, 7 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index 15eaf3b252..7bf4fb227a 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -465,8 +465,8 @@ func createComplexVars(fn *Func) ([]*Node, []*dwarf.Var, map[*Node]bool) {
+ 	var vars []*dwarf.Var
+ 	ssaVars := make(map[*Node]bool)
+ 
+-	for varID := range debugInfo.Vars {
+-		n := debugInfo.Vars[varID].(*Node)
++	for varID, dvar := range debugInfo.Vars {
++		n := dvar.(*Node)
+ 		ssaVars[n] = true
+ 		for _, slot := range debugInfo.VarSlots[varID] {
+ 			ssaVars[debugInfo.Slots[slot].N.(*Node)] = true
+diff --git a/src/cmd/compile/internal/gc/plive.go b/src/cmd/compile/internal/gc/plive.go
+index 14e755e1b0..03998e6790 100644
+--- a/src/cmd/compile/internal/gc/plive.go
++++ b/src/cmd/compile/internal/gc/plive.go
+@@ -304,17 +304,16 @@ func affectedNode(v *ssa.Value) (*Node, ssa.SymEffect) {
+ 		return nil, 0
+ 	}
+ 
+-	var n *Node
+ 	switch a := v.Aux.(type) {
+ 	case nil, *obj.LSym:
+ 		// ok, but no node
++		return nil, e
+ 	case *Node:
+-		n = a
++		return a, e
+ 	default:
+ 		Fatalf("weird aux: %s", v.LongString())
++		return nil, e
+ 	}
+-
+-	return n, e
+ }
+ 
+ // Constructs a new liveness structure used to hold the global state of the
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index 3cb6930c79..579e10f985 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -343,9 +343,8 @@ func methodfunc(f *types.Type, receiver *types.Type) *types.Type {
+ 		in = append(in, d)
+ 	}
+ 
+-	var d *Node
+ 	for _, t := range f.Params().Fields().Slice() {
+-		d = nod(ODCLFIELD, nil, nil)
++		d := nod(ODCLFIELD, nil, nil)
+ 		d.Type = t.Type
+ 		d.SetIsddd(t.Isddd())
+ 		in = append(in, d)
+@@ -353,7 +352,7 @@ func methodfunc(f *types.Type, receiver *types.Type) *types.Type {
+ 
+ 	var out []*Node
+ 	for _, t := range f.Results().Fields().Slice() {
+-		d = nod(ODCLFIELD, nil, nil)
++		d := nod(ODCLFIELD, nil, nil)
+ 		d.Type = t.Type
+ 		out = append(out, d)
+ 	}
+diff --git a/src/cmd/compile/internal/gc/scope.go b/src/cmd/compile/internal/gc/scope.go
+index b019329067..3d543084bc 100644
+--- a/src/cmd/compile/internal/gc/scope.go
++++ b/src/cmd/compile/internal/gc/scope.go
+@@ -113,14 +113,6 @@ func compactScopes(dwarfScopes []dwarf.Scope) []dwarf.Scope {
+ 	return dwarfScopes
+ }
+ 
+-type pcsByPC []scopedPCs
+-
+-func (s pcsByPC) Len() int      { return len(s) }
+-func (s pcsByPC) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
+-func (s pcsByPC) Less(i, j int) bool {
+-	return s[i].start < s[j].start
+-}
+-
+ type varsByScopeAndOffset struct {
+ 	vars   []*dwarf.Var
+ 	scopes []ScopeID

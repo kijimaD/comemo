@@ -12,7 +12,7 @@ Date:   Thu Sep 21 15:22:28 2023 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/530579
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/compile/internal/inline/inl.go             |  4 ++
  .../inline/inlheur/analyze_func_callsites.go       | 66 ++++++++++++++++++-
  .../compile/internal/inline/inlheur/callsite.go    |  8 +++
@@ -21,3 +21,483 @@ Date:   Thu Sep 21 15:22:28 2023 -0400
  src/cmd/compile/internal/inline/inlheur/scoring.go | 74 +++++++++++++++++-----
  .../inline/inlheur/testdata/props/calls.go         | 29 +++++----
  7 files changed, 178 insertions(+), 41 deletions(-)
+
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index 50f06f270e..c2d3effd65 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -1192,6 +1192,10 @@ func mkinlcall(callerfn *ir.Func, n *ir.CallExpr, fn *ir.Func, bigCaller bool, i
+ 		fmt.Printf("%v: After inlining %+v\n\n", ir.Line(res), res)
+ 	}
+ 
++	if useNewInliner() {
++		inlheur.UpdateCallsiteTable(callerfn, n, res)
++	}
++
+ 	*inlCalls = append(*inlCalls, res)
+ 
+ 	return res
+diff --git a/src/cmd/compile/internal/inline/inlheur/analyze_func_callsites.go b/src/cmd/compile/internal/inline/inlheur/analyze_func_callsites.go
+index e59ee26531..9c8fac4e9e 100644
+--- a/src/cmd/compile/internal/inline/inlheur/analyze_func_callsites.go
++++ b/src/cmd/compile/internal/inline/inlheur/analyze_func_callsites.go
+@@ -152,7 +152,8 @@ func (csa *callSiteAnalyzer) addCallSite(callee *ir.Func, call *ir.CallExpr) {
+ 	}
+ 	csa.cstab[call] = cs
+ 	if debugTrace&debugTraceCalls != 0 {
+-		fmt.Fprintf(os.Stderr, "=-= added callsite at %s: callee=%s call[%p]=%v\n", fmtFullPos(call.Pos()), callee.Sym().Name, call, call)
++		fmt.Fprintf(os.Stderr, "=-= added callsite: caller=%v callee=%v n=%s\n",
++			csa.fn, callee, fmtFullPos(call.Pos()))
+ 	}
+ }
+ 
+@@ -287,3 +288,66 @@ func (csa *callSiteAnalyzer) containingAssignment(n ir.Node) ir.Node {
+ 
+ 	return nil
+ }
++
++// UpdateCallsiteTable handles updating of callerfn's call site table
++// after an inlined has been carried out, e.g. the call at 'n' as been
++// turned into the inlined call expression 'ic' within function
++// callerfn. The chief thing of interest here is to make sure that any
++// call nodes within 'ic' are added to the call site table for
++// 'callerfn' and scored appropriately.
++func UpdateCallsiteTable(callerfn *ir.Func, n *ir.CallExpr, ic *ir.InlinedCallExpr) {
++	enableDebugTraceIfEnv()
++	defer disableDebugTrace()
++
++	funcInlHeur, ok := fpmap[callerfn]
++	if !ok {
++		// This can happen for compiler-generated wrappers.
++		if debugTrace&debugTraceCalls != 0 {
++			fmt.Fprintf(os.Stderr, "=-= early exit, no entry for caller fn %v\n", callerfn)
++		}
++		return
++	}
++
++	if debugTrace&debugTraceCalls != 0 {
++		fmt.Fprintf(os.Stderr, "=-= UpdateCallsiteTable(caller=%v, cs=%s)\n",
++			callerfn, fmtFullPos(n.Pos()))
++	}
++
++	// Mark the call in question as inlined.
++	oldcs, ok := funcInlHeur.cstab[n]
++	if !ok {
++		// This can happen for compiler-generated wrappers.
++		return
++	}
++	oldcs.aux |= csAuxInlined
++
++	if debugTrace&debugTraceCalls != 0 {
++		fmt.Fprintf(os.Stderr, "=-= marked as inlined: callee=%v %s\n",
++			oldcs.Callee, EncodeCallSiteKey(oldcs))
++	}
++
++	// Walk the inlined call region to collect new callsites.
++	var icp pstate
++	if oldcs.Flags&CallSiteOnPanicPath != 0 {
++		icp = psCallsPanic
++	}
++	var loopNestLevel int
++	if oldcs.Flags&CallSiteInLoop != 0 {
++		loopNestLevel = 1
++	}
++	ptab := map[ir.Node]pstate{ic: icp}
++	icstab := computeCallSiteTable(callerfn, ic.Body, nil, ptab, loopNestLevel)
++
++	// Record parent callsite. This is primarily for debug output.
++	for _, cs := range icstab {
++		cs.parent = oldcs
++	}
++
++	// Score the calls in the inlined body. Note the setting of "doCallResults"
++	// to false here: at the moment there isn't any easy way to localize
++	// or region-ize the work done by "rescoreBasedOnCallResultUses", which
++	// currently does a walk over the entire function to look for uses
++	// of a given set of results.
++	const doCallResults = false
++	scoreCallsRegion(callerfn, ic.Body, icstab, doCallResults, ic)
++}
+diff --git a/src/cmd/compile/internal/inline/inlheur/callsite.go b/src/cmd/compile/internal/inline/inlheur/callsite.go
+index d62215cb37..baa1c20dcf 100644
+--- a/src/cmd/compile/internal/inline/inlheur/callsite.go
++++ b/src/cmd/compile/internal/inline/inlheur/callsite.go
+@@ -27,11 +27,13 @@ import (
+ type CallSite struct {
+ 	Callee    *ir.Func
+ 	Call      *ir.CallExpr
++	parent    *CallSite
+ 	Assign    ir.Node
+ 	Flags     CSPropBits
+ 	Score     int
+ 	ScoreMask scoreAdjustTyp
+ 	ID        uint
++	aux       uint8
+ }
+ 
+ // CallSiteTab is a table of call sites, keyed by call expr.
+@@ -49,6 +51,12 @@ const (
+ 	CallSiteInInitFunc
+ )
+ 
++type csAuxBits uint8
++
++const (
++	csAuxInlined = 1 << iota
++)
++
+ // encodedCallSiteTab is a table keyed by "encoded" callsite
+ // (stringified src.XPos plus call site ID) mapping to a value of call
+ // property bits and score.
+diff --git a/src/cmd/compile/internal/inline/inlheur/dumpscores_test.go b/src/cmd/compile/internal/inline/inlheur/dumpscores_test.go
+index ddb9fecff9..438b70096f 100644
+--- a/src/cmd/compile/internal/inline/inlheur/dumpscores_test.go
++++ b/src/cmd/compile/internal/inline/inlheur/dumpscores_test.go
+@@ -17,16 +17,18 @@ func TestDumpCallSiteScoreDump(t *testing.T) {
+ 	testenv.MustHaveGoBuild(t)
+ 
+ 	scenarios := []struct {
+-		name      string
+-		promoted  int
+-		demoted   int
+-		unchanged int
++		name               string
++		promoted           int
++		indirectlyPromoted int
++		demoted            int
++		unchanged          int
+ 	}{
+ 		{
+-			name:      "dumpscores",
+-			promoted:  1,
+-			demoted:   1,
+-			unchanged: 5,
++			name:               "dumpscores",
++			promoted:           1,
++			indirectlyPromoted: 1,
++			demoted:            1,
++			unchanged:          5,
+ 		},
+ 	}
+ 
+@@ -41,13 +43,16 @@ func TestDumpCallSiteScoreDump(t *testing.T) {
+ 		} else {
+ 			lines = strings.Split(string(content), "\n")
+ 		}
+-		prom, dem, unch := 0, 0, 0
++		prom, indprom, dem, unch := 0, 0, 0, 0
+ 		for _, line := range lines {
+ 			switch {
+ 			case strings.TrimSpace(line) == "":
++			case !strings.Contains(line, "|"):
+ 			case strings.HasPrefix(line, "#"):
+ 			case strings.Contains(line, "PROMOTED"):
+ 				prom++
++			case strings.Contains(line, "INDPROM"):
++				indprom++
+ 			case strings.Contains(line, "DEMOTED"):
+ 				dem++
+ 			default:
+@@ -60,6 +65,11 @@ func TestDumpCallSiteScoreDump(t *testing.T) {
+ 				scen.name, prom, scen.promoted)
+ 			showout = true
+ 		}
++		if indprom != scen.indirectlyPromoted {
++			t.Errorf("testcase %q, got %d indirectly promoted want %d",
++				scen.name, indprom, scen.indirectlyPromoted)
++			showout = true
++		}
+ 		if dem != scen.demoted {
+ 			t.Errorf("testcase %q, got %d demoted want %d demoted",
+ 				scen.name, dem, scen.demoted)
+@@ -88,6 +98,7 @@ func gatherInlCallSitesScoresForFile(t *testing.T, testcase string, td string) (
+ 	run := []string{testenv.GoToolPath(t), "build",
+ 		"-gcflags=-d=dumpinlcallsitescores=1", "-o", outpath, gopath}
+ 	out, err := testenv.Command(t, run[0], run[1:]...).CombinedOutput()
++	t.Logf("run: %+v\n", run)
+ 	if err != nil {
+ 		return "", err
+ 	}
+diff --git a/src/cmd/compile/internal/inline/inlheur/score_callresult_uses.go b/src/cmd/compile/internal/inline/inlheur/score_callresult_uses.go
+index 61dc7520ab..1d31f09ac0 100644
+--- a/src/cmd/compile/internal/inline/inlheur/score_callresult_uses.go
++++ b/src/cmd/compile/internal/inline/inlheur/score_callresult_uses.go
+@@ -65,7 +65,7 @@ func rescoreBasedOnCallResultUses(fn *ir.Func, resultNameTab map[*ir.Name]result
+ 	disableDebugTrace()
+ }
+ 
+-func examineCallResults(cs *CallSite, resultNameTab map[*ir.Name]resultPropAndCS) {
++func examineCallResults(cs *CallSite, resultNameTab map[*ir.Name]resultPropAndCS) map[*ir.Name]resultPropAndCS {
+ 	if debugTrace&debugTraceScoring != 0 {
+ 		fmt.Fprintf(os.Stderr, "=-= examining call results for %q\n",
+ 			EncodeCallSiteKey(cs))
+@@ -79,7 +79,7 @@ func examineCallResults(cs *CallSite, resultNameTab map[*ir.Name]resultPropAndCS
+ 	//
+ 	names, autoTemps, props := namesDefined(cs)
+ 	if len(names) == 0 {
+-		return
++		return resultNameTab
+ 	}
+ 
+ 	if debugTrace&debugTraceScoring != 0 {
+@@ -106,7 +106,9 @@ func examineCallResults(cs *CallSite, resultNameTab map[*ir.Name]resultPropAndCS
+ 		if ir.Reassigned(n) {
+ 			continue
+ 		}
+-		if _, ok := resultNameTab[n]; ok {
++		if resultNameTab == nil {
++			resultNameTab = make(map[*ir.Name]resultPropAndCS)
++		} else if _, ok := resultNameTab[n]; ok {
+ 			panic("should never happen")
+ 		}
+ 		entry := resultPropAndCS{
+@@ -121,6 +123,7 @@ func examineCallResults(cs *CallSite, resultNameTab map[*ir.Name]resultPropAndCS
+ 			fmt.Fprintf(os.Stderr, "=-= add resultNameTab table entry n=%v autotemp=%v props=%s\n", n, autoTemps[idx], rprop.String())
+ 		}
+ 	}
++	return resultNameTab
+ }
+ 
+ // namesDefined returns a list of ir.Name's corresponding to locals
+diff --git a/src/cmd/compile/internal/inline/inlheur/scoring.go b/src/cmd/compile/internal/inline/inlheur/scoring.go
+index 37fd2c2a19..47f14a876a 100644
+--- a/src/cmd/compile/internal/inline/inlheur/scoring.go
++++ b/src/cmd/compile/internal/inline/inlheur/scoring.go
+@@ -401,21 +401,20 @@ func ScoreCalls(fn *ir.Func) {
+ 		cstab = computeCallSiteTable(fn, fn.Body, scoreCallsCache.tab, nil, 0)
+ 	}
+ 
+-	scoreCallsRegion(fn, fn.Body, cstab)
++	const doCallResults = true
++	scoreCallsRegion(fn, fn.Body, cstab, doCallResults, nil)
+ }
+ 
+ // scoreCallsRegion assigns numeric scores to each of the callsites in
+ // region 'region' within function 'fn'. This can be called on
+ // an entire function, or with 'region' set to a chunk of
+ // code corresponding to an inlined call.
+-func scoreCallsRegion(fn *ir.Func, region ir.Nodes, cstab CallSiteTab) {
++func scoreCallsRegion(fn *ir.Func, region ir.Nodes, cstab CallSiteTab, doCallResults bool, ic *ir.InlinedCallExpr) {
+ 	if debugTrace&debugTraceScoring != 0 {
+ 		fmt.Fprintf(os.Stderr, "=-= scoreCallsRegion(%v, %s)\n",
+ 			ir.FuncName(fn), region[0].Op().String())
+ 	}
+ 
+-	resultNameTab := make(map[*ir.Name]resultPropAndCS)
+-
+ 	// Sort callsites to avoid any surprises with non deterministic
+ 	// map iteration order (this is probably not needed, but here just
+ 	// in case).
+@@ -429,6 +428,7 @@ func scoreCallsRegion(fn *ir.Func, region ir.Nodes, cstab CallSiteTab) {
+ 	})
+ 
+ 	// Score each call site.
++	var resultNameTab map[*ir.Name]resultPropAndCS
+ 	for _, cs := range csl {
+ 		var cprops *FuncProps
+ 		fihcprops := false
+@@ -449,18 +449,32 @@ func scoreCallsRegion(fn *ir.Func, region ir.Nodes, cstab CallSiteTab) {
+ 		}
+ 		cs.Score, cs.ScoreMask = computeCallSiteScore(cs.Callee, cprops, cs.Call, cs.Flags)
+ 
+-		examineCallResults(cs, resultNameTab)
++		if doCallResults {
++			if debugTrace&debugTraceScoring != 0 {
++				fmt.Fprintf(os.Stderr, "=-= examineCallResults at %s: flags=%d score=%d funcInlHeur=%v deser=%v\n", fmtFullPos(cs.Call.Pos()), cs.Flags, cs.Score, fihcprops, desercprops)
++			}
++			resultNameTab = examineCallResults(cs, resultNameTab)
++		}
+ 
+ 		if debugTrace&debugTraceScoring != 0 {
+ 			fmt.Fprintf(os.Stderr, "=-= scoring call at %s: flags=%d score=%d funcInlHeur=%v deser=%v\n", fmtFullPos(cs.Call.Pos()), cs.Flags, cs.Score, fihcprops, desercprops)
+ 		}
+ 	}
+ 
+-	rescoreBasedOnCallResultUses(fn, resultNameTab, cstab)
++	if resultNameTab != nil {
++		rescoreBasedOnCallResultUses(fn, resultNameTab, cstab)
++	}
+ 
+ 	disableDebugTrace()
+ 
+-	callSiteTab = cstab
++	if ic != nil && callSiteTab != nil {
++		// Integrate the calls from this cstab into the table for the caller.
++		if err := callSiteTab.merge(cstab); err != nil {
++			base.FatalfAt(ic.Pos(), "%v", err)
++		}
++	} else {
++		callSiteTab = cstab
++	}
+ }
+ 
+ // ScoreCallsCleanup resets the state of the callsite cache
+@@ -507,7 +521,7 @@ var allCallSites CallSiteTab
+ //
+ // Score  Adjustment  Status  Callee  CallerPos ScoreFlags
+ // 115    40          DEMOTED cmd/compile/internal/abi.(*ABIParamAssignment).Offset     expand_calls.go:1679:14|6       panicPathAdj
+-// 76     -5n           PROMOTED runtime.persistentalloc   mcheckmark.go:48:45|3   inLoopAdj
++// 76     -5n         PROMOTED runtime.persistentalloc   mcheckmark.go:48:45|3   inLoopAdj
+ // 201    0           --- PGO  unicode.DecodeRuneInString        utf8.go:312:30|1
+ // 7      -5          --- PGO  internal/abi.Name.DataChecked     type.go:625:22|0        inLoopAdj
+ //
+@@ -524,16 +538,31 @@ var allCallSites CallSiteTab
+ // we used to make adjustments to callsite score via heuristics.
+ func DumpInlCallSiteScores(profile *pgo.Profile, budgetCallback func(fn *ir.Func, profile *pgo.Profile) (int32, bool)) {
+ 
+-	genstatus := func(cs *CallSite, prof *pgo.Profile) string {
++	var indirectlyDueToPromotion func(cs *CallSite) bool
++	indirectlyDueToPromotion = func(cs *CallSite) bool {
++		bud, _ := budgetCallback(cs.Callee, profile)
+ 		hairyval := cs.Callee.Inl.Cost
+-		bud, isPGO := budgetCallback(cs.Callee, prof)
+ 		score := int32(cs.Score)
+-		st := "---"
++		if hairyval > bud && score <= bud {
++			return true
++		}
++		if cs.parent != nil {
++			return indirectlyDueToPromotion(cs.parent)
++		}
++		return false
++	}
+ 
++	genstatus := func(cs *CallSite) string {
++		hairyval := cs.Callee.Inl.Cost
++		bud, isPGO := budgetCallback(cs.Callee, profile)
++		score := int32(cs.Score)
++		st := "---"
++		expinl := false
+ 		switch {
+ 		case hairyval <= bud && score <= bud:
+ 			// "Normal" inlined case: hairy val sufficiently low that
+ 			// it would have been inlined anyway without heuristics.
++			expinl = true
+ 		case hairyval > bud && score > bud:
+ 			// "Normal" not inlined case: hairy val sufficiently high
+ 			// and scoring didn't lower it.
+@@ -541,13 +570,27 @@ func DumpInlCallSiteScores(profile *pgo.Profile, budgetCallback func(fn *ir.Func
+ 			// Promoted: we would not have inlined it before, but
+ 			// after score adjustment we decided to inline.
+ 			st = "PROMOTED"
++			expinl = true
+ 		case hairyval <= bud && score > bud:
+ 			// Demoted: we would have inlined it before, but after
+ 			// score adjustment we decided not to inline.
+ 			st = "DEMOTED"
+ 		}
++		inlined := cs.aux&csAuxInlined != 0
++		indprom := false
++		if cs.parent != nil {
++			indprom = indirectlyDueToPromotion(cs.parent)
++		}
++		if inlined && indprom {
++			st += "|INDPROM"
++		}
++		if inlined && !expinl {
++			st += "|[NI?]"
++		} else if !inlined && expinl {
++			st += "|[IN?]"
++		}
+ 		if isPGO {
+-			st += " PGO"
++			st += "|PGO"
+ 		}
+ 		return st
+ 	}
+@@ -595,10 +638,11 @@ func DumpInlCallSiteScores(profile *pgo.Profile, budgetCallback func(fn *ir.Func
+ 		for _, cs := range sl {
+ 			hairyval := cs.Callee.Inl.Cost
+ 			adj := int32(cs.Score) - hairyval
++			nm := mkname(cs.Callee)
++			ecc := EncodeCallSiteKey(cs)
+ 			fmt.Fprintf(os.Stdout, "%d  %d\t%s\t%s\t%s\t%s\n",
+-				cs.Score, adj, genstatus(cs, profile),
+-				mkname(cs.Callee),
+-				EncodeCallSiteKey(cs),
++				cs.Score, adj, genstatus(cs),
++				nm, ecc,
+ 				cs.ScoreMask.String())
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/inline/inlheur/testdata/props/calls.go b/src/cmd/compile/internal/inline/inlheur/testdata/props/calls.go
+index 0b610cbbf5..b1499dbf24 100644
+--- a/src/cmd/compile/internal/inline/inlheur/testdata/props/calls.go
++++ b/src/cmd/compile/internal/inline/inlheur/testdata/props/calls.go
+@@ -130,20 +130,21 @@ func init() {
+ 	println(callee(5))
+ }
+ 
+-// calls.go T_pass_inlinable_func_to_param_feeding_indirect_call 139 0 1
++// calls.go T_pass_inlinable_func_to_param_feeding_indirect_call 140 0 1
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[0],"ResultFlags":[0]}
+-// callsite: calls.go:140:19|0 flagstr "" flagval 0 score 16 mask 512 maskstr "passInlinableFuncToIndCallAdj"
++// callsite: calls.go:141:19|0 flagstr "" flagval 0 score 16 mask 512 maskstr "passInlinableFuncToIndCallAdj"
++// callsite: calls.go:141:19|calls.go:232:10|0 flagstr "" flagval 0 score 2 mask 0 maskstr ""
+ // <endcallsites>
+ // <endfuncpreamble>
+ func T_pass_inlinable_func_to_param_feeding_indirect_call(x int) int {
+ 	return callsParam(x, callee)
+ }
+ 
+-// calls.go T_pass_noninlinable_func_to_param_feeding_indirect_call 149 0 1
++// calls.go T_pass_noninlinable_func_to_param_feeding_indirect_call 150 0 1
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[0],"ResultFlags":[0]}
+-// callsite: calls.go:152:19|0 flagstr "" flagval 0 score 36 mask 128 maskstr "passFuncToIndCallAdj"
++// callsite: calls.go:153:19|0 flagstr "" flagval 0 score 36 mask 128 maskstr "passFuncToIndCallAdj"
+ // <endcallsites>
+ // <endfuncpreamble>
+ func T_pass_noninlinable_func_to_param_feeding_indirect_call(x int) int {
+@@ -152,39 +153,41 @@ func T_pass_noninlinable_func_to_param_feeding_indirect_call(x int) int {
+ 	return callsParam(x, calleeNoInline)
+ }
+ 
+-// calls.go T_pass_inlinable_func_to_param_feeding_nested_indirect_call 163 0 1
++// calls.go T_pass_inlinable_func_to_param_feeding_nested_indirect_call 165 0 1
+ // ParamFlags
+ //   0 ParamFeedsIfOrSwitch
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[32],"ResultFlags":[0]}
+-// callsite: calls.go:164:25|0 flagstr "" flagval 0 score 27 mask 1024 maskstr "passInlinableFuncToNestedIndCallAdj"
++// callsite: calls.go:166:25|0 flagstr "" flagval 0 score 27 mask 1024 maskstr "passInlinableFuncToNestedIndCallAdj"
++// callsite: calls.go:166:25|calls.go:237:11|0 flagstr "" flagval 0 score 2 mask 0 maskstr ""
+ // <endcallsites>
+ // <endfuncpreamble>
+ func T_pass_inlinable_func_to_param_feeding_nested_indirect_call(x int) int {
+ 	return callsParamNested(x, callee)
+ }
+ 
+-// calls.go T_pass_noninlinable_func_to_param_feeding_nested_indirect_call 175 0 1
++// calls.go T_pass_noninlinable_func_to_param_feeding_nested_indirect_call 177 0 1
+ // ParamFlags
+ //   0 ParamFeedsIfOrSwitch
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[32],"ResultFlags":[0]}
+-// callsite: calls.go:176:25|0 flagstr "" flagval 0 score 47 mask 256 maskstr "passFuncToNestedIndCallAdj"
++// callsite: calls.go:178:25|0 flagstr "" flagval 0 score 47 mask 256 maskstr "passFuncToNestedIndCallAdj"
+ // <endcallsites>
+ // <endfuncpreamble>
+ func T_pass_noninlinable_func_to_param_feeding_nested_indirect_call(x int) int {
+ 	return callsParamNested(x, calleeNoInline)
+ }
+ 
+-// calls.go T_call_scoring_in_noninlinable_func 192 0 1
++// calls.go T_call_scoring_in_noninlinable_func 195 0 1
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[0,0],"ResultFlags":[0]}
+-// callsite: calls.go:206:14|0 flagstr "CallSiteOnPanicPath" flagval 2 score 42 mask 1 maskstr "panicPathAdj"
+-// callsite: calls.go:207:15|1 flagstr "CallSiteOnPanicPath" flagval 2 score 42 mask 1 maskstr "panicPathAdj"
+-// callsite: calls.go:209:19|2 flagstr "" flagval 0 score 16 mask 512 maskstr "passInlinableFuncToIndCallAdj"
++// callsite: calls.go:209:14|0 flagstr "CallSiteOnPanicPath" flagval 2 score 42 mask 1 maskstr "panicPathAdj"
++// callsite: calls.go:210:15|1 flagstr "CallSiteOnPanicPath" flagval 2 score 42 mask 1 maskstr "panicPathAdj"
++// callsite: calls.go:212:19|2 flagstr "" flagval 0 score 16 mask 512 maskstr "passInlinableFuncToIndCallAdj"
++// callsite: calls.go:212:19|calls.go:232:10|0 flagstr "" flagval 0 score 4 mask 0 maskstr ""
+ // <endcallsites>
+ // <endfuncpreamble>
+-// calls.go T_call_scoring_in_noninlinable_func.func1 209 0 1
++// calls.go T_call_scoring_in_noninlinable_func.func1 212 0 1
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[0],"ResultFlags":[0]}
+ // <endcallsites>

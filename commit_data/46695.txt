@@ -16,6 +16,21 @@ Date:   Tue Jan 19 09:59:24 2021 -0800
     Trust: Roland Shoemaker <roland@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Roland Shoemaker <roland@golang.org>
-
+---
  src/cmd/go/internal/work/exec.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 16a4ebaa0f..cacb4c05df 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -2042,6 +2042,9 @@ func (b *Builder) runOut(a *Action, dir string, env []string, cmdargs ...interfa
+ 
+ 	var buf bytes.Buffer
+ 	cmd := exec.Command(cmdline[0], cmdline[1:]...)
++	if cmd.Path != "" {
++		cmd.Args[0] = cmd.Path
++	}
+ 	cmd.Stdout = &buf
+ 	cmd.Stderr = &buf
+ 	cleanup := passLongArgsInResponseFiles(cmd)

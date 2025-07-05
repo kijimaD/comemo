@@ -18,7 +18,7 @@ Date:   Mon Aug 30 20:30:25 2021 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/346294
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/decl.go                |  2 +-
  .../internal/types2/testdata/check/typeinst.go2        | 10 ++++++----
  .../internal/types2/testdata/fixedbugs/issue39768.go2  |  6 +++---
@@ -26,3 +26,153 @@ Date:   Mon Aug 30 20:30:25 2021 -0700
  src/cmd/compile/internal/types2/typexpr.go             | 18 ++++++------------
  test/typeparam/aliasimp.dir/main.go                    | 13 ++++++++-----
  6 files changed, 25 insertions(+), 26 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/decl.go b/src/cmd/compile/internal/types2/decl.go
+index d7a33546aa..b61d282b14 100644
+--- a/src/cmd/compile/internal/types2/decl.go
++++ b/src/cmd/compile/internal/types2/decl.go
+@@ -555,7 +555,7 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *syntax.TypeDecl, def *Named
+ 		}
+ 
+ 		obj.typ = Typ[Invalid]
+-		rhs = check.anyType(tdecl.Type)
++		rhs = check.varType(tdecl.Type)
+ 		obj.typ = rhs
+ 		return
+ 	}
+diff --git a/src/cmd/compile/internal/types2/testdata/check/typeinst.go2 b/src/cmd/compile/internal/types2/testdata/check/typeinst.go2
+index 0d628cb9d0..3fab2cb9ad 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/typeinst.go2
++++ b/src/cmd/compile/internal/types2/testdata/check/typeinst.go2
+@@ -17,13 +17,15 @@ type T2[P any] struct {
+ 
+ type List[P any] []P
+ 
+-// Alias type declarations cannot have type parameters. Syntax error.
++// Alias type declarations cannot have type parameters.
++// Issue #46477 proposses to change that.
+ type A1[P any] = /* ERROR cannot be alias */ P
+ 
+-// But an alias may refer to a generic, uninstantiated type.
+-type A2 = List
++// Pending clarification of #46477 we disallow aliases
++// of generic types.
++type A2 = List // ERROR cannot use generic type
+ var _ A2[int]
+-var _ A2 /* ERROR without instantiation */
++var _ A2
+ 
+ type A3 = List[int]
+ var _ A3
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39768.go2 b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39768.go2
+index abac141d7f..fb522733e0 100644
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39768.go2
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39768.go2
+@@ -5,9 +5,9 @@
+ package p
+ 
+ type T[P any] P
+-type A = T
++type A = T  // ERROR cannot use generic type
+ var x A[int]
+-var _ A /* ERROR cannot use generic type */
++var _ A
+ 
+ type B = T[int]
+ var y B = x
+@@ -16,5 +16,5 @@ var _ B /* ERROR not a generic type */ [int]
+ // test case from issue
+ 
+ type Vector[T any] []T
+-type VectorAlias = Vector
++type VectorAlias = Vector // ERROR cannot use generic type
+ var v Vector[int]
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue47968.go2 b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue47968.go2
+index bbbe6805f2..711e50a55a 100644
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue47968.go2
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue47968.go2
+@@ -8,7 +8,7 @@ type T[P any] struct{}
+ 
+ func (T[P]) m1()
+ 
+-type A1 = T
++type A1 = T // ERROR cannot use generic type
+ 
+ func (A1[P]) m2() {}
+ 
+diff --git a/src/cmd/compile/internal/types2/typexpr.go b/src/cmd/compile/internal/types2/typexpr.go
+index 73b143ce1b..f3db3bbba9 100644
+--- a/src/cmd/compile/internal/types2/typexpr.go
++++ b/src/cmd/compile/internal/types2/typexpr.go
+@@ -38,12 +38,15 @@ func (check *Checker) ident(x *operand, e *syntax.Name, def *Named, wantType boo
+ 		}
+ 		return
+ 	case universeAny, universeComparable:
+-		// complain if necessary but keep going
++		// complain if necessary
+ 		if !check.allowVersion(check.pkg, 1, 18) {
+-			check.softErrorf(e, "undeclared name: %s (requires version go1.18 or later)", e.Value)
+-		} else if obj == universeAny {
++			check.errorf(e, "undeclared name: %s (requires version go1.18 or later)", e.Value)
++			return // avoid follow-on errors
++		}
++		if obj == universeAny {
+ 			// If we allow "any" for general use, this if-statement can be removed (issue #33232).
+ 			check.softErrorf(e, "cannot use any outside constraint position")
++			// ok to continue
+ 		}
+ 	}
+ 	check.recordUse(e, obj)
+@@ -159,15 +162,6 @@ func (check *Checker) varType(e syntax.Expr) Type {
+ 	return typ
+ }
+ 
+-// anyType type-checks the type expression e and returns its type, or Typ[Invalid].
+-// The type may be generic or instantiated.
+-func (check *Checker) anyType(e syntax.Expr) Type {
+-	typ := check.typInternal(e, nil)
+-	assert(isTyped(typ))
+-	check.recordTypeAndValue(e, typexpr, typ, nil)
+-	return typ
+-}
+-
+ // definedType is like typ but also accepts a type name def.
+ // If def != nil, e is the type specification for the defined type def, declared
+ // in a type declaration, and def.underlying will be set to the type of e before
+diff --git a/test/typeparam/aliasimp.dir/main.go b/test/typeparam/aliasimp.dir/main.go
+index 221a6c758d..24ce95472f 100644
+--- a/test/typeparam/aliasimp.dir/main.go
++++ b/test/typeparam/aliasimp.dir/main.go
+@@ -10,16 +10,18 @@ type R[T any] struct {
+ 	F T
+ }
+ 
+-type S = R
++// type S = R // disallowed for now
+ 
+ type Sint = R[int]
+ 
+-type Simp = a.Rimp
++// type Simp = a.Rimp // disallowed for now
+ 
+-type SimpString Simp[string]
++// type SimpString Simp[string] // disallowed for now
++type SimpString a.Rimp[string]
+ 
+ func main() {
+-	var s S[int]
++	// var s S[int] // disallowed for now
++	var s R[int]
+ 	if s.F != 0 {
+ 		panic(s.F)
+ 	}
+@@ -27,7 +29,8 @@ func main() {
+ 	if s2.F != 0 {
+ 		panic(s2.F)
+ 	}
+-	var s3 Simp[string]
++	// var s3 Simp[string] // disallowed for now
++	var s3 a.Rimp[string]
+ 	if s3.F != "" {
+ 		panic(s3.F)
+ 	}

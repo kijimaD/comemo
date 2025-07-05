@@ -17,8 +17,257 @@ Date:   Mon May 9 11:29:36 2022 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
     Run-TryBot: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/ssa/gen/ARM64.rules |  17 ++-
  src/cmd/compile/internal/ssa/rewriteARM64.go | 160 ++++++++++++++++++++++++++-
  test/fixedbugs/issue52788.go                 |  27 +++++
  3 files changed, 201 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64.rules b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+index 1163ae837b..43a7a65dbb 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+@@ -532,7 +532,7 @@
+ (If (GreaterThanF cc) yes no) => (FGT cc yes no)
+ (If (GreaterEqualF cc) yes no) => (FGE cc yes no)
+ 
+-(If cond yes no) => (NZ cond yes no)
++(If cond yes no) => (TBNZ [0] cond yes no)
+ 
+ // atomic intrinsics
+ // Note: these ops do not accept offset.
+@@ -593,6 +593,21 @@
+ (NZ (GreaterThanF cc) yes no) => (FGT cc yes no)
+ (NZ (GreaterEqualF cc) yes no) => (FGE cc yes no)
+ 
++(TBNZ [0] (Equal cc) yes no) => (EQ cc yes no)
++(TBNZ [0] (NotEqual cc) yes no) => (NE cc yes no)
++(TBNZ [0] (LessThan cc) yes no) => (LT cc yes no)
++(TBNZ [0] (LessThanU cc) yes no) => (ULT cc yes no)
++(TBNZ [0] (LessEqual cc) yes no) => (LE cc yes no)
++(TBNZ [0] (LessEqualU cc) yes no) => (ULE cc yes no)
++(TBNZ [0] (GreaterThan cc) yes no) => (GT cc yes no)
++(TBNZ [0] (GreaterThanU cc) yes no) => (UGT cc yes no)
++(TBNZ [0] (GreaterEqual cc) yes no) => (GE cc yes no)
++(TBNZ [0] (GreaterEqualU cc) yes no) => (UGE cc yes no)
++(TBNZ [0] (LessThanF cc) yes no) => (FLT cc yes no)
++(TBNZ [0] (LessEqualF cc) yes no) => (FLE cc yes no)
++(TBNZ [0] (GreaterThanF cc) yes no) => (FGT cc yes no)
++(TBNZ [0] (GreaterEqualF cc) yes no) => (FGE cc yes no)
++
+ (EQ (CMPWconst [0] x:(ANDconst [c] y)) yes no) && x.Uses == 1 => (EQ (TSTWconst [int32(c)] y) yes no)
+ (NE (CMPWconst [0] x:(ANDconst [c] y)) yes no) && x.Uses == 1 => (NE (TSTWconst [int32(c)] y) yes no)
+ (LT (CMPWconst [0] x:(ANDconst [c] y)) yes no) && x.Uses == 1 => (LT (TSTWconst [int32(c)] y) yes no)
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM64.go b/src/cmd/compile/internal/ssa/rewriteARM64.go
+index 2ed1c0a04a..e3a01ae34b 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM64.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM64.go
+@@ -28696,10 +28696,11 @@ func rewriteBlockARM64(b *Block) bool {
+ 			return true
+ 		}
+ 		// match: (If cond yes no)
+-		// result: (NZ cond yes no)
++		// result: (TBNZ [0] cond yes no)
+ 		for {
+ 			cond := b.Controls[0]
+-			b.resetWithControl(BlockARM64NZ, cond)
++			b.resetWithControl(BlockARM64TBNZ, cond)
++			b.AuxInt = int64ToAuxInt(0)
+ 			return true
+ 		}
+ 	case BlockARM64LE:
+@@ -30088,6 +30089,161 @@ func rewriteBlockARM64(b *Block) bool {
+ 			b.Reset(BlockFirst)
+ 			return true
+ 		}
++	case BlockARM64TBNZ:
++		// match: (TBNZ [0] (Equal cc) yes no)
++		// result: (EQ cc yes no)
++		for b.Controls[0].Op == OpARM64Equal {
++			v_0 := b.Controls[0]
++			cc := v_0.Args[0]
++			if auxIntToInt64(b.AuxInt) != 0 {
++				break
++			}
++			b.resetWithControl(BlockARM64EQ, cc)
++			return true
++		}
++		// match: (TBNZ [0] (NotEqual cc) yes no)
++		// result: (NE cc yes no)
++		for b.Controls[0].Op == OpARM64NotEqual {
++			v_0 := b.Controls[0]
++			cc := v_0.Args[0]
++			if auxIntToInt64(b.AuxInt) != 0 {
++				break
++			}
++			b.resetWithControl(BlockARM64NE, cc)
++			return true
++		}
++		// match: (TBNZ [0] (LessThan cc) yes no)
++		// result: (LT cc yes no)
++		for b.Controls[0].Op == OpARM64LessThan {
++			v_0 := b.Controls[0]
++			cc := v_0.Args[0]
++			if auxIntToInt64(b.AuxInt) != 0 {
++				break
++			}
++			b.resetWithControl(BlockARM64LT, cc)
++			return true
++		}
++		// match: (TBNZ [0] (LessThanU cc) yes no)
++		// result: (ULT cc yes no)
++		for b.Controls[0].Op == OpARM64LessThanU {
++			v_0 := b.Controls[0]
++			cc := v_0.Args[0]
++			if auxIntToInt64(b.AuxInt) != 0 {
++				break
++			}
++			b.resetWithControl(BlockARM64ULT, cc)
++			return true
++		}
++		// match: (TBNZ [0] (LessEqual cc) yes no)
++		// result: (LE cc yes no)
++		for b.Controls[0].Op == OpARM64LessEqual {
++			v_0 := b.Controls[0]
++			cc := v_0.Args[0]
++			if auxIntToInt64(b.AuxInt) != 0 {
++				break
++			}
++			b.resetWithControl(BlockARM64LE, cc)
++			return true
++		}
++		// match: (TBNZ [0] (LessEqualU cc) yes no)
++		// result: (ULE cc yes no)
++		for b.Controls[0].Op == OpARM64LessEqualU {
++			v_0 := b.Controls[0]
++			cc := v_0.Args[0]
++			if auxIntToInt64(b.AuxInt) != 0 {
++				break
++			}
++			b.resetWithControl(BlockARM64ULE, cc)
++			return true
++		}
++		// match: (TBNZ [0] (GreaterThan cc) yes no)
++		// result: (GT cc yes no)
++		for b.Controls[0].Op == OpARM64GreaterThan {
++			v_0 := b.Controls[0]
++			cc := v_0.Args[0]
++			if auxIntToInt64(b.AuxInt) != 0 {
++				break
++			}
++			b.resetWithControl(BlockARM64GT, cc)
++			return true
++		}
++		// match: (TBNZ [0] (GreaterThanU cc) yes no)
++		// result: (UGT cc yes no)
++		for b.Controls[0].Op == OpARM64GreaterThanU {
++			v_0 := b.Controls[0]
++			cc := v_0.Args[0]
++			if auxIntToInt64(b.AuxInt) != 0 {
++				break
++			}
++			b.resetWithControl(BlockARM64UGT, cc)
++			return true
++		}
++		// match: (TBNZ [0] (GreaterEqual cc) yes no)
++		// result: (GE cc yes no)
++		for b.Controls[0].Op == OpARM64GreaterEqual {
++			v_0 := b.Controls[0]
++			cc := v_0.Args[0]
++			if auxIntToInt64(b.AuxInt) != 0 {
++				break
++			}
++			b.resetWithControl(BlockARM64GE, cc)
++			return true
++		}
++		// match: (TBNZ [0] (GreaterEqualU cc) yes no)
++		// result: (UGE cc yes no)
++		for b.Controls[0].Op == OpARM64GreaterEqualU {
++			v_0 := b.Controls[0]
++			cc := v_0.Args[0]
++			if auxIntToInt64(b.AuxInt) != 0 {
++				break
++			}
++			b.resetWithControl(BlockARM64UGE, cc)
++			return true
++		}
++		// match: (TBNZ [0] (LessThanF cc) yes no)
++		// result: (FLT cc yes no)
++		for b.Controls[0].Op == OpARM64LessThanF {
++			v_0 := b.Controls[0]
++			cc := v_0.Args[0]
++			if auxIntToInt64(b.AuxInt) != 0 {
++				break
++			}
++			b.resetWithControl(BlockARM64FLT, cc)
++			return true
++		}
++		// match: (TBNZ [0] (LessEqualF cc) yes no)
++		// result: (FLE cc yes no)
++		for b.Controls[0].Op == OpARM64LessEqualF {
++			v_0 := b.Controls[0]
++			cc := v_0.Args[0]
++			if auxIntToInt64(b.AuxInt) != 0 {
++				break
++			}
++			b.resetWithControl(BlockARM64FLE, cc)
++			return true
++		}
++		// match: (TBNZ [0] (GreaterThanF cc) yes no)
++		// result: (FGT cc yes no)
++		for b.Controls[0].Op == OpARM64GreaterThanF {
++			v_0 := b.Controls[0]
++			cc := v_0.Args[0]
++			if auxIntToInt64(b.AuxInt) != 0 {
++				break
++			}
++			b.resetWithControl(BlockARM64FGT, cc)
++			return true
++		}
++		// match: (TBNZ [0] (GreaterEqualF cc) yes no)
++		// result: (FGE cc yes no)
++		for b.Controls[0].Op == OpARM64GreaterEqualF {
++			v_0 := b.Controls[0]
++			cc := v_0.Args[0]
++			if auxIntToInt64(b.AuxInt) != 0 {
++				break
++			}
++			b.resetWithControl(BlockARM64FGE, cc)
++			return true
++		}
+ 	case BlockARM64UGE:
+ 		// match: (UGE (FlagConstant [fc]) yes no)
+ 		// cond: fc.uge()
+diff --git a/test/fixedbugs/issue52788.go b/test/fixedbugs/issue52788.go
+new file mode 100644
+index 0000000000..b0d7d142fc
+--- /dev/null
++++ b/test/fixedbugs/issue52788.go
+@@ -0,0 +1,27 @@
++// run
++
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 52788: miscompilation for boolean comparison on ARM64.
++
++package main
++
++import (
++	"fmt"
++	"reflect"
++)
++
++func f(next func() bool) {
++	for b := next(); b; b = next() {
++		fmt.Printf("next() returned %v\n", b)
++	}
++}
++
++func main() {
++	next := reflect.MakeFunc(reflect.TypeOf((func() bool)(nil)), func(_ []reflect.Value) []reflect.Value {
++		return []reflect.Value{reflect.ValueOf(false)}
++	})
++	reflect.ValueOf(f).Call([]reflect.Value{next})
++}

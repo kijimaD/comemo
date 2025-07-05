@@ -8,6 +8,27 @@ Date:   Fri May 8 16:40:55 2009 -0700
     DELTA=10  (10 added, 0 deleted, 0 changed)
     OCL=28585
     CL=28591
-
+---
  test/import1.go | 14 ++++++++++++++
  1 file changed, 14 insertions(+)
+
+diff --git a/test/import1.go b/test/import1.go
+new file mode 100644
+index 0000000000..caa12224c8
+--- /dev/null
++++ b/test/import1.go
+@@ -0,0 +1,14 @@
++// errchk $G -e $D/$F.go
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// check for import conflicts
++
++package main
++
++import (
++	"bufio";
++	bufio "os";	// ERROR "redeclaration"
++)

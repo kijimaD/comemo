@@ -13,6 +13,20 @@ Date:   Mon Oct 17 14:35:55 2016 -0500
     Reviewed-on: https://go-review.googlesource.com/31266
     Reviewed-by: Michael Munday <munday@ca.ibm.com>
     Run-TryBot: Michael Munday <munday@ca.ibm.com>
-
+---
  src/runtime/asm_ppc64x.s | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/asm_ppc64x.s b/src/runtime/asm_ppc64x.s
+index 251dc1b564..85f73a88b4 100644
+--- a/src/runtime/asm_ppc64x.s
++++ b/src/runtime/asm_ppc64x.s
+@@ -853,7 +853,7 @@ loop32a:
+ 	BNE	cmpne		// further compare for LT or GT
+ 	MOVD	16(R5),R9	// get next pair of doublewords
+ 	MOVD	16(R6),R10
+-	CMPU	R4,R15		// bytes match?
++	CMPU	R14,R15		// bytes match?
+ 	MOVD	$8,R16		// set up for cmpne
+ 	BNE	cmpne		// further compare for LT or GT
+ 	MOVD	24(R5),R14	// get next pair of doublewords

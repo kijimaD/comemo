@@ -15,7 +15,7 @@ Date:   Tue Dec 17 19:57:54 2024 +0100
     Reviewed-by: Russ Cox <rsc@golang.org>
     Auto-Submit: Filippo Valsorda <filippo@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/go/internal/fips140/fips140.go        | 4 ++++
  src/cmd/go/testdata/script/env_changed.txt    | 3 +++
  src/cmd/go/testdata/script/fips.txt           | 3 +++
@@ -23,3 +23,105 @@ Date:   Tue Dec 17 19:57:54 2024 +0100
  src/crypto/internal/boring/boring.go          | 7 +++++++
  src/crypto/internal/fips140test/check_test.go | 5 +++++
  6 files changed, 25 insertions(+)
+
+diff --git a/src/cmd/go/internal/fips140/fips140.go b/src/cmd/go/internal/fips140/fips140.go
+index 7c04a94dd1..1dad8e0bbf 100644
+--- a/src/cmd/go/internal/fips140/fips140.go
++++ b/src/cmd/go/internal/fips140/fips140.go
+@@ -119,6 +119,10 @@ func Init() {
+ 	if Snapshot() {
+ 		fsys.Bind(Dir(), filepath.Join(cfg.GOROOT, "src/crypto/internal/fips140"))
+ 	}
++
++	if cfg.Experiment.BoringCrypto && Enabled() {
++		base.Fatalf("go: cannot use GOFIPS140 with GOEXPERIMENT=boringcrypto")
++	}
+ }
+ 
+ var initDone bool
+diff --git a/src/cmd/go/testdata/script/env_changed.txt b/src/cmd/go/testdata/script/env_changed.txt
+index f57f69bfd7..10db765407 100644
+--- a/src/cmd/go/testdata/script/env_changed.txt
++++ b/src/cmd/go/testdata/script/env_changed.txt
+@@ -1,5 +1,8 @@
+ # Test query for non-defaults in the env
+ 
++# Go+BoringCrypto conflicts with GOFIPS140.
++[GOEXPERIMENT:boringcrypto] skip
++
+ env GOROOT=./a
+ env GOTOOLCHAIN=local
+ env GOSUMDB=nodefault
+diff --git a/src/cmd/go/testdata/script/fips.txt b/src/cmd/go/testdata/script/fips.txt
+index fd791d3990..fe096ea0c3 100644
+--- a/src/cmd/go/testdata/script/fips.txt
++++ b/src/cmd/go/testdata/script/fips.txt
+@@ -1,3 +1,6 @@
++# Go+BoringCrypto conflicts with GOFIPS140.
++[GOEXPERIMENT:boringcrypto] skip
++
+ # list with GOFIPS140=off
+ env GOFIPS140=off
+ go list -f '{{.DefaultGODEBUG}}'
+diff --git a/src/cmd/go/testdata/script/fipssnap.txt b/src/cmd/go/testdata/script/fipssnap.txt
+index 17a9d647a1..0bf46c56e2 100644
+--- a/src/cmd/go/testdata/script/fipssnap.txt
++++ b/src/cmd/go/testdata/script/fipssnap.txt
+@@ -7,6 +7,9 @@ env alias=inprocess
+ skip 'no snapshots yet'
+ env GOFIPS140=$snap
+ 
++# Go+BoringCrypto conflicts with GOFIPS140.
++[GOEXPERIMENT:boringcrypto] skip
++
+ # default GODEBUG includes fips140=on
+ go list -f '{{.DefaultGODEBUG}}'
+ stdout fips140=on
+diff --git a/src/crypto/internal/boring/boring.go b/src/crypto/internal/boring/boring.go
+index 90cf1edb75..6dfc6ed5f5 100644
+--- a/src/crypto/internal/boring/boring.go
++++ b/src/crypto/internal/boring/boring.go
+@@ -16,6 +16,7 @@ import "C"
+ import (
+ 	"crypto/internal/boring/sig"
+ 	_ "crypto/internal/boring/syso"
++	"crypto/internal/fips140"
+ 	"internal/stringslite"
+ 	"math/bits"
+ 	"unsafe"
+@@ -31,6 +32,12 @@ func init() {
+ 	sig.BoringCrypto()
+ }
+ 
++func init() {
++	if fips140.Enabled {
++		panic("boringcrypto: cannot use GODEBUG=fips140 with GOEXPERIMENT=boringcrypto")
++	}
++}
++
+ // Unreachable marks code that should be unreachable
+ // when BoringCrypto is in use. It panics.
+ func Unreachable() {
+diff --git a/src/crypto/internal/fips140test/check_test.go b/src/crypto/internal/fips140test/check_test.go
+index b156de2cbb..cf42dbfa78 100644
+--- a/src/crypto/internal/fips140test/check_test.go
++++ b/src/crypto/internal/fips140test/check_test.go
+@@ -5,6 +5,7 @@
+ package fipstest
+ 
+ import (
++	"crypto/internal/boring"
+ 	. "crypto/internal/fips140/check"
+ 	"crypto/internal/fips140/check/checktest"
+ 	"fmt"
+@@ -22,6 +23,10 @@ import (
+ const enableFIPSTest = true
+ 
+ func TestFIPSCheckVerify(t *testing.T) {
++	if boring.Enabled {
++		t.Skip("not testing fips140 with boringcrypto enabled")
++	}
++
+ 	if Verified {
+ 		t.Logf("verified")
+ 		return

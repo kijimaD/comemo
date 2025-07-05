@@ -9,6 +9,21 @@ Date:   Tue Apr 3 11:39:38 2012 +1000
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5967063
-
+---
  src/pkg/time/zoneinfo_windows.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/pkg/time/zoneinfo_windows.go b/src/pkg/time/zoneinfo_windows.go
+index 754e392dec..d596fab93d 100644
+--- a/src/pkg/time/zoneinfo_windows.go
++++ b/src/pkg/time/zoneinfo_windows.go
+@@ -83,6 +83,9 @@ func initLocalFromTZI(i *syscall.Timezoneinformation) {
+ 		l.cacheStart = -1 << 63
+ 		l.cacheEnd = 1<<63 - 1
+ 		l.cacheZone = std
++		l.tx = make([]zoneTrans, 1)
++		l.tx[0].when = l.cacheStart
++		l.tx[0].index = 0
+ 		return
+ 	}
+ 

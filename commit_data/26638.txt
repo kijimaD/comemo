@@ -18,8 +18,49 @@ Date:   Tue Dec 1 12:05:30 2015 -0800
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/bexport.go | 3 +++
  src/cmd/compile/internal/gc/export.go  | 2 +-
  src/go/internal/gcimporter/bimport.go  | 4 ++++
  3 files changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index 3edd0488e7..ff0465f64c 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -1035,6 +1035,9 @@ func predeclared() []*Type {
+ 
+ 			// package unsafe
+ 			Types[TUNSAFEPTR],
++
++			// any type, for builtin export data
++			Types[TANY],
+ 		}
+ 	}
+ 	return predecl
+diff --git a/src/cmd/compile/internal/gc/export.go b/src/cmd/compile/internal/gc/export.go
+index e50cf383d7..1b61d7f228 100644
+--- a/src/cmd/compile/internal/gc/export.go
++++ b/src/cmd/compile/internal/gc/export.go
+@@ -442,7 +442,7 @@ func importsym(s *Sym, op Op) *Sym {
+ 
+ 	// mark the symbol so it is not reexported
+ 	if s.Def == nil {
+-		if exportname(s.Name) || initname(s.Name) {
++		if Debug['A'] != 0 || exportname(s.Name) || initname(s.Name) {
+ 			s.Flags |= SymExport
+ 		} else {
+ 			s.Flags |= SymPackage // package scope
+diff --git a/src/go/internal/gcimporter/bimport.go b/src/go/internal/gcimporter/bimport.go
+index 68690424a1..ad1c4cd02a 100644
+--- a/src/go/internal/gcimporter/bimport.go
++++ b/src/go/internal/gcimporter/bimport.go
+@@ -678,4 +678,8 @@ var predeclared = []types.Type{
+ 
+ 	// package unsafe
+ 	types.Typ[types.UnsafePointer],
++
++	// any type, for builtin export data
++	// TODO(mdempsky): Provide an actual Type value to represent "any"?
++	types.Typ[types.Invalid],
+ }

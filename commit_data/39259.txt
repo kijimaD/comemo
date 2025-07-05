@@ -19,7 +19,75 @@ Date:   Mon Jan 14 13:34:42 2019 -0800
     Change-Id: Ia97beeae91eaf9e0ed3dada0a806f1f7122461cc
     Reviewed-on: https://go-review.googlesource.com/c/157819
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/text/scanner/scanner.go      |  6 ++++--
  src/text/scanner/scanner_test.go | 19 +++++++++++++++++++
  2 files changed, 23 insertions(+), 2 deletions(-)
+
+diff --git a/src/text/scanner/scanner.go b/src/text/scanner/scanner.go
+index 893a4edbaf..62b3231e5e 100644
+--- a/src/text/scanner/scanner.go
++++ b/src/text/scanner/scanner.go
+@@ -322,6 +322,7 @@ func (s *Scanner) Peek() rune {
+ }
+ 
+ func (s *Scanner) error(msg string) {
++	s.tokEnd = s.srcPos - s.lastCharLen // make sure token text is terminated
+ 	s.ErrorCount++
+ 	if s.Error != nil {
+ 		s.Error(s, msg)
+@@ -664,17 +665,18 @@ func (s *Scanner) Pos() (pos Position) {
+ }
+ 
+ // TokenText returns the string corresponding to the most recently scanned token.
+-// Valid after calling Scan().
++// Valid after calling Scan and in calls of Scanner.Error.
+ func (s *Scanner) TokenText() string {
+ 	if s.tokPos < 0 {
+ 		// no token text
+ 		return ""
+ 	}
+ 
+-	if s.tokEnd < 0 {
++	if s.tokEnd < s.tokPos {
+ 		// if EOF was reached, s.tokEnd is set to -1 (s.srcPos == 0)
+ 		s.tokEnd = s.tokPos
+ 	}
++	// s.tokEnd >= s.tokPos
+ 
+ 	if s.tokBuf.Len() == 0 {
+ 		// common case: the entire token text is still in srcBuf
+diff --git a/src/text/scanner/scanner_test.go b/src/text/scanner/scanner_test.go
+index e26e816f51..e7539a058b 100644
+--- a/src/text/scanner/scanner_test.go
++++ b/src/text/scanner/scanner_test.go
+@@ -293,6 +293,12 @@ func TestScan(t *testing.T) {
+ func TestIllegalExponent(t *testing.T) {
+ 	const src = "1.5e 1.5E 1e+ 1e- 1.5z"
+ 	s := new(Scanner).Init(strings.NewReader(src))
++	s.Error = func(s *Scanner, msg string) {
++		const want = "illegal exponent"
++		if msg != want {
++			t.Errorf("%s: got error %q; want %q", s.TokenText(), msg, want)
++		}
++	}
+ 	checkTokErr(t, s, 1, Float, "1.5e")
+ 	checkTokErr(t, s, 1, Float, "1.5E")
+ 	checkTokErr(t, s, 1, Float, "1e+")
+@@ -692,3 +698,16 @@ func TestScanEOFHandling(t *testing.T) {
+ 		t.Errorf("scanner called Read %d times, not once", r)
+ 	}
+ }
++
++func TestIssue29723(t *testing.T) {
++	s := new(Scanner).Init(strings.NewReader(`x "`))
++	s.Error = func(s *Scanner, _ string) {
++		got := s.TokenText() // this call shouldn't panic
++		const want = `"`
++		if got != want {
++			t.Errorf("got %q; want %q", got, want)
++		}
++	}
++	for r := s.Scan(); r != EOF; r = s.Scan() {
++	}
++}

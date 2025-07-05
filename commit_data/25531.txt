@@ -13,6 +13,20 @@ Date:   Fri Nov 6 08:35:55 2015 -0800
     Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/cmd/compile/internal/amd64/prog.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/amd64/prog.go b/src/cmd/compile/internal/amd64/prog.go
+index ae8f5255a9..649b706245 100644
+--- a/src/cmd/compile/internal/amd64/prog.go
++++ b/src/cmd/compile/internal/amd64/prog.go
+@@ -226,7 +226,7 @@ var progtable = [x86.ALAST]obj.ProgInfo{
+ 	x86.ASTOSL:    {Flags: gc.OK, Reguse: AX | DI, Regset: DI},
+ 	x86.ASTOSQ:    {Flags: gc.OK, Reguse: AX | DI, Regset: DI},
+ 	x86.ASTOSW:    {Flags: gc.OK, Reguse: AX | DI, Regset: DI},
+-	obj.ADUFFZERO: {Flags: gc.OK, Reguse: AX | DI, Regset: DI},
++	obj.ADUFFZERO: {Flags: gc.OK, Reguse: X0 | DI, Regset: DI},
+ 	x86.ASUBB:     {Flags: gc.SizeB | gc.LeftRead | RightRdwr | gc.SetCarry},
+ 	x86.ASUBL:     {Flags: gc.SizeL | gc.LeftRead | RightRdwr | gc.SetCarry},
+ 	x86.ASUBQ:     {Flags: gc.SizeQ | gc.LeftRead | RightRdwr | gc.SetCarry},

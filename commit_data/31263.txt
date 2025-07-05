@@ -13,6 +13,25 @@ Date:   Wed Feb 8 23:11:15 2017 +0100
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: David du Colombier <0intro@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/gofmt/gofmt.go | 7 ++++++-
  1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gofmt/gofmt.go b/src/cmd/gofmt/gofmt.go
+index cf1ddea917..ff38df7ee4 100644
+--- a/src/cmd/gofmt/gofmt.go
++++ b/src/cmd/gofmt/gofmt.go
+@@ -243,7 +243,12 @@ func diff(b1, b2 []byte, filename string) (data []byte, err error) {
+ 	f1.Write(b1)
+ 	f2.Write(b2)
+ 
+-	data, err = exec.Command("diff", "-u", f1.Name(), f2.Name()).CombinedOutput()
++	cmd := "diff"
++	if runtime.GOOS == "plan9" {
++		cmd = "/bin/ape/diff"
++	}
++
++	data, err = exec.Command(cmd, "-u", f1.Name(), f2.Name()).CombinedOutput()
+ 	if len(data) > 0 {
+ 		// diff exits with a non-zero status when the files don't match.
+ 		// Ignore that failure as long as we get output.

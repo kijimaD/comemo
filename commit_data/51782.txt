@@ -18,7 +18,31 @@ Date:   Sun Mar 13 00:04:46 2022 +0700
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Trust: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/noder/stencil.go | 2 +-
  test/typeparam/mdempsky/13.go             | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/stencil.go b/src/cmd/compile/internal/noder/stencil.go
+index cd586cab78..c78a169d31 100644
+--- a/src/cmd/compile/internal/noder/stencil.go
++++ b/src/cmd/compile/internal/noder/stencil.go
+@@ -898,7 +898,7 @@ func getDictionaryType(info *instInfo, dictParam *ir.Name, pos src.XPos, i int)
+ 		base.Fatalf(fmt.Sprintf("bad dict index %d", i))
+ 	}
+ 
+-	r := getDictionaryEntry(pos, info.dictParam, i, info.dictInfo.startSubDict)
++	r := getDictionaryEntry(pos, dictParam, i, info.dictInfo.startSubDict)
+ 	// change type of retrieved dictionary entry to *byte, which is the
+ 	// standard typing of a *runtime._type in the compiler
+ 	typed(types.Types[types.TUINT8].PtrTo(), r)
+diff --git a/test/typeparam/mdempsky/13.go b/test/typeparam/mdempsky/13.go
+index bf37a64177..8e11352b51 100644
+--- a/test/typeparam/mdempsky/13.go
++++ b/test/typeparam/mdempsky/13.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=""
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style

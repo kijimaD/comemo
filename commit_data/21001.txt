@@ -10,6 +10,34 @@ Date:   Wed Nov 5 14:42:24 2014 -0500
     R=rlh
     CC=golang-codereviews
     https://golang.org/cl/169990043
-
+---
  src/runtime/mgc0.c | 16 ++++++++++------
  1 file changed, 10 insertions(+), 6 deletions(-)
+
+diff --git a/src/runtime/mgc0.c b/src/runtime/mgc0.c
+index 77a6c93776..3ebaf005f5 100644
+--- a/src/runtime/mgc0.c
++++ b/src/runtime/mgc0.c
+@@ -326,12 +326,16 @@ objectstart(byte *b, Markbits *mbits)
+ 
+ 			// The following ensures that we are rigorous about what data 
+ 			// structures hold valid pointers
+-			runtime·printf("runtime:objectstart Span weird: obj=%p, k=%p", obj, k);
+-			if (s == nil)
+-				runtime·printf(" s=nil\n");
+-			else
+-				runtime·printf(" s->start=%p s->limit=%p, s->state=%d\n", s->start*PageSize, s->limit, s->state);
+-			runtime·throw("objectstart: bad span");
++			if(0) {
++				// Still happens sometimes. We don't know why.
++				runtime·printf("runtime:objectstart Span weird: obj=%p, k=%p", obj, k);
++				if (s == nil)
++					runtime·printf(" s=nil\n");
++				else
++					runtime·printf(" s->start=%p s->limit=%p, s->state=%d\n", s->start*PageSize, s->limit, s->state);
++				runtime·throw("objectstart: bad pointer in unexpected span");
++			}
++			return nil;
+ 		}
+ 		p = (byte*)((uintptr)s->start<<PageShift);
+ 		if(s->sizeclass != 0) {

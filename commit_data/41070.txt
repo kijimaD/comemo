@@ -15,6 +15,23 @@ Date:   Sat Aug 31 22:32:11 2019 +0000
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/io/ioutil/ioutil.go | 5 +----
  1 file changed, 1 insertion(+), 4 deletions(-)
+
+diff --git a/src/io/ioutil/ioutil.go b/src/io/ioutil/ioutil.go
+index 674b2701db..e617be5dae 100644
+--- a/src/io/ioutil/ioutil.go
++++ b/src/io/ioutil/ioutil.go
+@@ -81,10 +81,7 @@ func WriteFile(filename string, data []byte, perm os.FileMode) error {
+ 	if err != nil {
+ 		return err
+ 	}
+-	n, err := f.Write(data)
+-	if err == nil && n < len(data) {
+-		err = io.ErrShortWrite
+-	}
++	_, err = f.Write(data)
+ 	if err1 := f.Close(); err == nil {
+ 		err = err1
+ 	}

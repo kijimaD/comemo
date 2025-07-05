@@ -15,8 +15,79 @@ Date:   Thu Mar 29 15:29:23 2018 +0100
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/go_test.go                    | 16 ++++++++++++++++
  src/cmd/go/internal/generate/generate.go | 12 +++++++++++-
  src/cmd/go/internal/load/pkg.go          |  8 +++++++-
  3 files changed, 34 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index c4939ed1d9..aa354027f4 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -3179,6 +3179,22 @@ func TestGoGenerateEnv(t *testing.T) {
+ 	}
+ }
+ 
++func TestGoGenerateXTestPkgName(t *testing.T) {
++	if runtime.GOOS == "windows" {
++		t.Skip("skipping because windows has no echo command")
++	}
++
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.parallel()
++	tg.tempFile("env_test.go", "package main_test\n\n//go:generate echo $GOPACKAGE")
++	tg.run("generate", tg.path("env_test.go"))
++	want := "main_test"
++	if got := strings.TrimSpace(tg.getStdout()); got != want {
++		t.Errorf("go generate in XTest file got package name %q; want %q", got, want)
++	}
++}
++
+ func TestGoGenerateBadImports(t *testing.T) {
+ 	if runtime.GOOS == "windows" {
+ 		t.Skip("skipping because windows has no echo command")
+diff --git a/src/cmd/go/internal/generate/generate.go b/src/cmd/go/internal/generate/generate.go
+index 75c0d3b09d..441f91aea8 100644
+--- a/src/cmd/go/internal/generate/generate.go
++++ b/src/cmd/go/internal/generate/generate.go
+@@ -153,8 +153,18 @@ func runGenerate(cmd *base.Command, args []string) {
+ 	}
+ 	// Even if the arguments are .go files, this loop suffices.
+ 	for _, pkg := range load.Packages(args) {
++		pkgName := pkg.Name
++
+ 		for _, file := range pkg.InternalGoFiles() {
+-			if !generate(pkg.Name, file) {
++			if !generate(pkgName, file) {
++				break
++			}
++		}
++
++		pkgName += "_test"
++
++		for _, file := range pkg.InternalXGoFiles() {
++			if !generate(pkgName, file) {
+ 				break
+ 			}
+ 		}
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 0b82fc9f41..02cbb94bc7 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -1294,7 +1294,13 @@ func (p *Package) mkAbs(list []string) []string {
+ // InternalGoFiles returns the list of Go files being built for the package,
+ // using absolute paths.
+ func (p *Package) InternalGoFiles() []string {
+-	return p.mkAbs(str.StringList(p.GoFiles, p.CgoFiles, p.TestGoFiles, p.XTestGoFiles))
++	return p.mkAbs(str.StringList(p.GoFiles, p.CgoFiles, p.TestGoFiles))
++}
++
++// InternalXGoFiles returns the list of Go files being built for the XTest package,
++// using absolute paths.
++func (p *Package) InternalXGoFiles() []string {
++	return p.mkAbs(p.XTestGoFiles)
+ }
+ 
+ // InternalGoFiles returns the list of all Go files possibly relevant for the package,

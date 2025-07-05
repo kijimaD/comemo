@@ -9,7 +9,7 @@ Date:   Wed Jan 13 19:51:59 2010 -0800
     R=r
     CC=golang-dev
     https://golang.org/cl/186144
-
+---
  src/cmd/8l/asm.c                  |  24 +++++-----
  src/cmd/8l/obj.c                  |  14 ++++++
  src/cmd/ld/elf.c                  |   4 ++
@@ -29,3 +29,639 @@ Date:   Wed Jan 13 19:51:59 2010 -0800
  src/pkg/runtime/pchw/thread.c     |  89 ++++++++++++++++++++++++++++++++++++
  src/pkg/runtime/symtab.c          |   4 ++
  18 files changed, 416 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/8l/asm.c b/src/cmd/8l/asm.c
+index 73ceeba6ef..005634e429 100644
+--- a/src/cmd/8l/asm.c
++++ b/src/cmd/8l/asm.c
+@@ -275,7 +275,7 @@ doelf(void)
+ 	Sym *s, *shstrtab, *dynamic, *dynstr, *d;
+ 	int h, nsym, t;
+ 
+-	if(HEADTYPE != 7 && HEADTYPE != 8 && HEADTYPE != 9)
++	if(!iself)
+ 		return;
+ 
+ 	/* predefine strings we need for section headers */
+@@ -504,6 +504,8 @@ asmb(void)
+ 
+ 	switch(HEADTYPE) {
+ 	default:
++		if(iself)
++			goto Elfseek;
+ 		diag("unknown header type %d", HEADTYPE);
+ 	case 0:
+ 		seek(cout, rnd(HEADR+textsize, 8192), 0);
+@@ -529,9 +531,7 @@ asmb(void)
+ 		}
+ 		cflush();
+ 		break;
+-	case 7:
+-	case 8:
+-	case 9:
++	Elfseek:
+ 	case 10:
+ 		v = rnd(HEADR+textsize, INITRND);
+ 		seek(cout, v, 0);
+@@ -570,6 +570,8 @@ asmb(void)
+ 		Bflush(&bso);
+ 		switch(HEADTYPE) {
+ 		default:
++			if(iself)
++				goto Elfsym;
+ 		case 0:
+ 			seek(cout, rnd(HEADR+textsize, 8192)+datsize, 0);
+ 			break;
+@@ -587,9 +589,7 @@ asmb(void)
+ 		case 6:
+ 			symo = rnd(HEADR+textsize, INITRND)+rnd(datsize, INITRND)+machlink;
+ 			break;
+-		case 7:
+-		case 8:
+-		case 9:
++		Elfsym:
+ 		case 10:
+ 			symo = rnd(HEADR+textsize, INITRND)+datsize;
+ 			symo = rnd(symo, INITRND);
+@@ -627,6 +627,8 @@ asmb(void)
+ 	seek(cout, 0L, 0);
+ 	switch(HEADTYPE) {
+ 	default:
++		if(iself)
++			goto Elfput;
+ 	case 0:	/* garbage */
+ 		lput(0x160L<<16);		/* magic and sections */
+ 		lput(0L);			/* time and date */
+@@ -760,11 +762,9 @@ asmb(void)
+ 		asmbmacho(symdatva, symo);
+ 		break;
+ 
+-	case 7:
+-	case 8:
+-	case 9:
++	Elfput:
+ 		/* elf 386 */
+-		if(HEADTYPE == 8)
++		if(HEADTYPE == 8 || HEADTYPE == 11)
+ 			debug['d'] = 1;
+ 
+ 		eh = getElfEhdr();
+@@ -833,7 +833,7 @@ asmb(void)
+ 		ph->memsz = w+bsssize;
+ 		ph->align = INITRND;
+ 
+-		if(!debug['s'] && HEADTYPE != 8) {
++		if(!debug['s'] && HEADTYPE != 8 && HEADTYPE != 11) {
+ 			ph = newElfPhdr();
+ 			ph->type = PT_LOAD;
+ 			ph->flags = PF_W+PF_R;
+diff --git a/src/cmd/8l/obj.c b/src/cmd/8l/obj.c
+index 89ddf0313e..5918b0e801 100644
+--- a/src/cmd/8l/obj.c
++++ b/src/cmd/8l/obj.c
+@@ -164,6 +164,9 @@ main(int argc, char *argv[])
+ 		else
+ 		if(strcmp(goos, "mingw") == 0)
+ 			HEADTYPE = 10;
++		else
++		if(strcmp(goos, "pchw") == 0)
++			HEADTYPE = 11;
+ 		else
+ 			print("goos is not known: %s\n", goos);
+ 	}
+@@ -283,6 +286,17 @@ main(int argc, char *argv[])
+ 		if(INITRND == -1)
+ 			INITRND = PEALIGN;
+ 		break;
++	case 11:
++		tlsoffset = 0;
++		elfinit();
++		HEADR = ELFRESERVE;
++		if(INITTEXT == -1)
++			INITTEXT = 0x100000+HEADR;
++		if(INITDAT == -1)
++			INITDAT = 0;
++		if(INITRND == -1)
++			INITRND = 4096;
++		break;
+ 	}
+ 	if(INITDAT != 0 && INITRND != 0)
+ 		print("warning: -D0x%lux is ignored because of -R0x%lux\n",
+diff --git a/src/cmd/ld/elf.c b/src/cmd/ld/elf.c
+index c57630e808..d2adca16ce 100644
+--- a/src/cmd/ld/elf.c
++++ b/src/cmd/ld/elf.c
+@@ -13,6 +13,8 @@
+  */
+ #define	NSECT	32
+ 
++int	iself;
++
+ static	int	elf64;
+ static	ElfEhdr	hdr;
+ static	ElfPhdr	*phdr[NSECT];
+@@ -26,6 +28,8 @@ static	char	*interp;
+ void
+ elfinit(void)
+ {
++	iself = 1;
++
+ 	switch(thechar) {
+ 	// 64-bit architectures
+ 	case '6':
+diff --git a/src/cmd/ld/elf.h b/src/cmd/ld/elf.h
+index 9f18ec3ddc..cd78f2d9cc 100644
+--- a/src/cmd/ld/elf.h
++++ b/src/cmd/ld/elf.h
+@@ -961,6 +961,7 @@ uint64	startelf(void);
+ uint64	endelf(void);
+ extern	int	numelfphdr;
+ extern	int	numelfshdr;
++extern	int	iself;
+ int	elfwriteinterp(void);
+ void	elfinterp(ElfShdr*, uint64, char*);
+ 
+diff --git a/src/pkg/runtime/Makefile b/src/pkg/runtime/Makefile
+index 370a97309f..91154764af 100644
+--- a/src/pkg/runtime/Makefile
++++ b/src/pkg/runtime/Makefile
+@@ -24,6 +24,9 @@ GOFILES=\
+ 	extern.go\
+ 	type.go\
+ 
++GOFILES_pchw=\
++	pchw/io.go\
++
+ # 386-specific object files
+ OFILES_386=\
+ 	vlop.$O\
+diff --git a/src/pkg/runtime/pchw/386/defs.h b/src/pkg/runtime/pchw/386/defs.h
+new file mode 100644
+index 0000000000..5df7576133
+--- /dev/null
++++ b/src/pkg/runtime/pchw/386/defs.h
+@@ -0,0 +1 @@
++// nothing to see here
+diff --git a/src/pkg/runtime/pchw/386/rt0.s b/src/pkg/runtime/pchw/386/rt0.s
+new file mode 100644
+index 0000000000..d03fc2d7a2
+--- /dev/null
++++ b/src/pkg/runtime/pchw/386/rt0.s
+@@ -0,0 +1,28 @@
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++TEXT _rt0_386_pchw(SB), 7, $0
++	// Disable interrupts.
++	CLI
++	
++	// Establish stack.
++	MOVL	$0x10000, AX
++	MOVL	AX, SP
++	
++	// Set up memory hardware.
++	CALL	msetup(SB)
++
++	// _rt0_386 expects to find argc, argv, envv on stack.
++	// Set up argv=["kernel"] and envv=[].
++	SUBL	$64, SP
++	MOVL	$1, 0(SP)
++	MOVL	$kernel(SB), 4(SP)
++	MOVL	$0, 8(SP)
++	MOVL	$0, 12(SP)
++	JMP	_rt0_386(SB)
++
++DATA kernel+0(SB)/7, $"kernel\z"
++GLOBL kernel(SB), $7
++	
++
+diff --git a/src/pkg/runtime/pchw/386/signal.c b/src/pkg/runtime/pchw/386/signal.c
+new file mode 100644
+index 0000000000..5df7576133
+--- /dev/null
++++ b/src/pkg/runtime/pchw/386/signal.c
+@@ -0,0 +1 @@
++// nothing to see here
+diff --git a/src/pkg/runtime/pchw/386/sys.s b/src/pkg/runtime/pchw/386/sys.s
+new file mode 100644
+index 0000000000..c51a5ec3e2
+--- /dev/null
++++ b/src/pkg/runtime/pchw/386/sys.s
+@@ -0,0 +1,92 @@
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Manipulation of segment tables.
++//
++// Descriptor entry format for system call
++// is the native machine format, ugly as it is:
++//
++//	2-byte limit
++//	3-byte base
++//	1-byte: 0x80=present, 0x60=dpl<<5, 0x1F=type
++//	1-byte: 0x80=limit is *4k, 0x40=32-bit operand size,
++//		0x0F=4 more bits of limit
++//	1 byte: 8 more bits of base
++
++// Called to set up memory hardware.
++// Already running in 32-bit mode thanks to boot block,
++// but we need to install our new GDT that we can modify.
++TEXT msetup(SB), 7, $0
++	MOVL	gdtptr(SB), GDTR
++	MOVL	$(1*8+0), AX
++	MOVW	AX, DS
++	MOVW	AX, ES
++	MOVW	AX, SS
++	MOVW	$0, AX
++	MOVW	AX, FS
++	MOVW	AX, GS
++
++	// long jmp to cs:mret
++	BYTE	$0xEA
++	LONG $mret(SB)
++	WORD $(2*8+0)
++	
++TEXT mret(SB), 7, $0
++	RET
++
++// GDT memory
++TEXT gdt(SB), 7, $0
++	// null segment
++	LONG	$0
++	LONG	$0
++	
++	// 4GB data segment
++	LONG	$0xFFFF
++	LONG	$0x00CF9200
++
++	// 4GB code segment
++	LONG	$0xFFFF
++	LONG	$0x00CF9A00
++
++	// null segment (will be thread-local storage segment)
++	LONG	$0
++	LONG	$0
++
++// GDT pseudo-descriptor
++TEXT gdtptr(SB), 7, $0
++	WORD	$(4*8)
++	LONG	$gdt(SB)
++
++// Called to establish the per-thread segment.
++// Write to gdt[3] and reload the gdt register.
++// setldt(int entry, int address, int limit)
++TEXT setldt(SB),7,$32
++	MOVL	address+4(FP), BX	// aka base
++	MOVL	limit+8(FP), CX
++
++	// set up segment descriptor
++	LEAL	gdt+(3*8)(SB), AX	// gdt entry #3
++	MOVL	$0, 0(AX)
++	MOVL	$0, 4(AX)
++
++	MOVW	BX, 2(AX)
++	SHRL	$16, BX
++	MOVB	BX, 4(AX)
++	SHRL	$8, BX
++	MOVB	BX, 7(AX)
++
++	MOVW	CX, 0(AX)
++	SHRL	$16, CX
++	ANDL	$0x0F, CX
++	ORL	$0x40, CX		// 32-bit operand size
++	MOVB	CX, 6(AX)
++	MOVB	$0xF2, 5(AX)	// r/w data descriptor, dpl=3, present
++
++	MOVL	gdtptr(SB), GDTR
++
++	// Compute segment selector - (entry*8+0)
++	MOVL	$(3*8+0), AX
++	MOVW	AX, GS
++	RET
++
+diff --git a/src/pkg/runtime/pchw/README b/src/pkg/runtime/pchw/README
+new file mode 100755
+index 0000000000..4987f58ff2
+--- /dev/null
++++ b/src/pkg/runtime/pchw/README
+@@ -0,0 +1,53 @@
++This directory contains a simple example of how one might
++start Go running on bare hardware.  It is very primitive but
++can run go/test/sieve.go, the concurrent prime sieve, on a
++uniprocessor.  It has only been tested using the Bochs emulator.
++
++To run, first build the tools by running all.bash with GOARCH=386
++and GOOS set to your normal GOOS (linux, darwin).  Then:
++
++	export GOOS=pchw
++	cd $GOROOT/src/pkg/runtime
++	make clean
++	make install
++	cd pchw
++	8g $GOROOT/test/sieve.go
++	8l sieve.8
++	8l -a sieve.8 >sieve.asm	# can consult sieve.asm for debugging
++	dd if=/dev/zero of=disk count=10000
++	cat bootblock 8.out | dd of=disk conv=notrunc
++	bochs
++
++You may have to tweak the .bochsrc depending on your system,
++and you may need to install the Bochs emulator.
++
++
++
++The bootblock is from MIT's xv6 project and carries this notice:
++
++    The xv6 software is:
++    
++    Copyright (c) 2006-2009 Frans Kaashoek, Robert Morris, Russ Cox,
++                            Massachusetts Institute of Technology
++    
++    Permission is hereby granted, free of charge, to any person obtaining
++    a copy of this software and associated documentation files (the
++    "Software"), to deal in the Software without restriction, including
++    without limitation the rights to use, copy, modify, merge, publish,
++    distribute, sublicense, and/or sell copies of the Software, and to
++    permit persons to whom the Software is furnished to do so, subject to
++    the following conditions:
++    
++    The above copyright notice and this permission notice shall be
++    included in all copies or substantial portions of the Software.
++    
++    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
++    EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
++    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
++    NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
++    LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
++    OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
++    WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
++
++http://pdos.csail.mit.edu/6.828/xv6/
++
+diff --git a/src/pkg/runtime/pchw/bootblock b/src/pkg/runtime/pchw/bootblock
+new file mode 100755
+index 0000000000..54dd7c6328
+Binary files /dev/null and b/src/pkg/runtime/pchw/bootblock differ
+diff --git a/src/pkg/runtime/pchw/dot-bochsrc b/src/pkg/runtime/pchw/dot-bochsrc
+new file mode 100644
+index 0000000000..3f5c813a25
+--- /dev/null
++++ b/src/pkg/runtime/pchw/dot-bochsrc
+@@ -0,0 +1,18 @@
++romimage: file=$BXSHARE/BIOS-bochs-latest
++cpu: count=1, ips=100000000, reset_on_triple_fault=0
++megs: 32
++vgaromimage: file=/usr/share/vgabios/vgabios.bin
++vga: extension=none
++ata0: enabled=1, ioaddr1=0x1f0, ioaddr2=0x3f0, irq=14
++ata1: enabled=1, ioaddr1=0x170, ioaddr2=0x370, irq=15
++ata2: enabled=0, ioaddr1=0x1e8, ioaddr2=0x3e0, irq=11
++ata3: enabled=0, ioaddr1=0x168, ioaddr2=0x360, irq=9
++ata0-master: type=disk, mode=flat, path="disk", cylinders=100, heads=10, spt=10
++boot: disk
++panic: action=ask
++error: action=report
++info: action=report
++debug: action=ignore
++debugger_log: -
++config_interface: wx
++display_library: wx
+diff --git a/src/pkg/runtime/pchw/io.go b/src/pkg/runtime/pchw/io.go
+new file mode 100644
+index 0000000000..f30e688895
+--- /dev/null
++++ b/src/pkg/runtime/pchw/io.go
+@@ -0,0 +1,53 @@
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Simple CGA screen output
++
++package runtime
++
++import "unsafe"
++
++var crt *[25 * 80]uint16
++var pos int
++
++func putc(c int) {
++	const (
++		port  = 0x3d4
++		color = 0x0700 // white on black
++	)
++
++	if crt == nil {
++		// init on demand in case printf is called before
++		// initialization runs.
++		var mem uintptr = 0xb8000
++		crt = (*[25 * 80]uint16)(unsafe.Pointer(mem))
++		pos = 0
++		for i := range crt[0:] {
++			crt[i] = 0
++		}
++	}
++
++	switch c {
++	case '\n':
++		pos += 80 - pos%80
++	default:
++		crt[pos] = uint16(c&0xff | color)
++		pos++
++	}
++
++	if pos/80 >= 24 {
++		copy(crt[0:], crt[80:])
++		pos -= 80
++		for i := 0; i < 80; i++ {
++			crt[24*80+i] = 0
++		}
++	}
++	crt[pos] = ' ' | color
++}
++
++func write(fd int32, b []byte) {
++	for _, c := range b {
++		putc(int(c))
++	}
++}
+diff --git a/src/pkg/runtime/pchw/mem.c b/src/pkg/runtime/pchw/mem.c
+new file mode 100644
+index 0000000000..99c5b4980b
+--- /dev/null
++++ b/src/pkg/runtime/pchw/mem.c
+@@ -0,0 +1,41 @@
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "runtime.h"
++#include "malloc.h"
++
++// Assume there's an arbitrary amount of memory starting at "end".
++// Sizing PC memory is beyond the scope of this demo.
++
++void*
++SysAlloc(uintptr ask)
++{
++	static byte *p;
++	extern byte end[];
++	byte *q;
++	
++	if(p == nil) {
++		p = end;
++		p += 7 & -(uintptr)p;
++	}
++	ask += 7 & -ask;
++
++	q = p;
++	p += ask;
++	runtime·memclr(q, ask);
++	return q;
++}
++
++void
++SysFree(void *v, uintptr n)
++{
++	USED(v, n);
++}
++
++void
++SysUnused(void *v, uintptr n)
++{
++	USED(v, n);
++}
++
+diff --git a/src/pkg/runtime/pchw/os.h b/src/pkg/runtime/pchw/os.h
+new file mode 100644
+index 0000000000..5df7576133
+--- /dev/null
++++ b/src/pkg/runtime/pchw/os.h
+@@ -0,0 +1 @@
++// nothing to see here
+diff --git a/src/pkg/runtime/pchw/signals.h b/src/pkg/runtime/pchw/signals.h
+new file mode 100644
+index 0000000000..5df7576133
+--- /dev/null
++++ b/src/pkg/runtime/pchw/signals.h
+@@ -0,0 +1 @@
++// nothing to see here
+diff --git a/src/pkg/runtime/pchw/thread.c b/src/pkg/runtime/pchw/thread.c
+new file mode 100644
+index 0000000000..634dbd5f37
+--- /dev/null
++++ b/src/pkg/runtime/pchw/thread.c
+@@ -0,0 +1,89 @@
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "runtime.h"
++
++int8 *goos = "pchw";
++
++extern void runtime·write(int32 fd, void *v, int32 len, int32 cap);	// slice, spelled out
++
++int32
++write(int32 fd, void *v, int32 len)
++{
++	runtime·write(fd, v, len, len);
++	return len;
++}
++
++void
++minit(void)
++{
++}
++
++void
++osinit(void)
++{
++}
++
++void
++initsig(void)
++{
++}
++
++void
++exit(int32)
++{
++	for(;;);
++}
++
++// single processor, no interrupts,
++// so no need for real concurrency or atomicity
++
++void
++newosproc(M *m, G *g, void *stk, void (*fn)(void))
++{
++	USED(m, g, stk, fn);
++	throw("newosproc");
++}
++
++void
++lock(Lock *l)
++{
++	if(m->locks < 0)
++		throw("lock count");
++	m->locks++;
++	if(l->key != 0)
++		throw("deadlock");
++	l->key = 1;
++}
++
++void
++unlock(Lock *l)
++{
++	m->locks--;
++	if(m->locks < 0)
++		throw("lock count");
++	if(l->key != 1)
++		throw("unlock of unlocked lock");
++	l->key = 0;
++}
++
++void
++noteclear(Note *n)
++{
++	n->lock.key = 0;
++}
++
++void
++notewakeup(Note *n)
++{
++	n->lock.key = 1;
++}
++
++void
++notesleep(Note *n)
++{
++	if(n->lock.key != 1)
++		throw("notesleep");
++}
++
+diff --git a/src/pkg/runtime/symtab.c b/src/pkg/runtime/symtab.c
+index 1a547f230b..ac4f45ce1e 100644
+--- a/src/pkg/runtime/symtab.c
++++ b/src/pkg/runtime/symtab.c
+@@ -46,6 +46,8 @@ walksymtab(void (*fn)(Sym*))
+ 	// TODO(rsc): Remove once TODO at top of file is done.
+ 	if(goos != nil && strcmp((uint8*)goos, (uint8*)"nacl") == 0)
+ 		return;
++	if(goos != nil && strcmp((uint8*)goos, (uint8*)"pchw") == 0)
++		return;
+ 
+ #ifdef __MINGW__
+ 	v = get_symdat_addr();
+@@ -251,6 +253,8 @@ splitpcln(void)
+ 	// TODO(rsc): Remove once TODO at top of file is done.
+ 	if(goos != nil && strcmp((uint8*)goos, (uint8*)"nacl") == 0)
+ 		return;
++	if(goos != nil && strcmp((uint8*)goos, (uint8*)"pchw") == 0)
++		return;
+ 
+ 	// pc/ln table bounds
+ #ifdef __MINGW__

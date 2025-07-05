@@ -41,9 +41,134 @@ Date:   Wed Feb 23 15:51:20 2011 -0500
     R=r, r2
     CC=golang-dev
     https://golang.org/cl/4216045
-
+---
  src/pkg/runtime/malloc.goc |  6 ++++++
  src/pkg/runtime/mgc0.c     |  1 +
  src/pkg/runtime/proc.c     | 46 +++++++++++++++++++++++++++++++++++++---------
  src/pkg/runtime/runtime.h  |  1 +
  4 files changed, 45 insertions(+), 9 deletions(-)
+
+diff --git a/src/pkg/runtime/malloc.goc b/src/pkg/runtime/malloc.goc
+index abbf63b931..41060682eb 100644
+--- a/src/pkg/runtime/malloc.goc
++++ b/src/pkg/runtime/malloc.goc
+@@ -394,6 +394,12 @@ runtime·stackalloc(uint32 n)
+ {
+ 	void *v;
+ 
++	// Stackalloc must be called on scheduler stack, so that we
++	// never try to grow the stack during the code that stackalloc runs.
++	// Doing so would cause a deadlock (issue 1547).
++	if(g != m->g0)
++		runtime·throw("stackalloc not on scheduler stack");
++
+ 	if(m->mallocing || m->gcing || n == FixedStack) {
+ 		runtime·lock(&stacks);
+ 		if(stacks.size == 0)
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index c471fff5e8..1d382580fa 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -380,6 +380,7 @@ mark(void)
+ 			break;
+ 		case Grunning:
+ 		case Grecovery:
++		case Gstackalloc:
+ 			if(gp != g)
+ 				runtime·throw("mark - world not stopped");
+ 			scanstack(gp);
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 1bbca63177..455a39e22b 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -253,8 +253,10 @@ readylocked(G *g)
+ 	}
+ 
+ 	// Mark runnable.
+-	if(g->status == Grunnable || g->status == Grunning || g->status == Grecovery)
++	if(g->status == Grunnable || g->status == Grunning || g->status == Grecovery || g->status == Gstackalloc) {
++		runtime·printf("goroutine %d has status %d\n", g->goid, g->status);
+ 		runtime·throw("bad g->status in ready");
++	}
+ 	g->status = Grunnable;
+ 
+ 	gput(g);
+@@ -492,6 +494,13 @@ scheduler(void)
+ 			runtime·free(d);
+ 			runtime·gogo(&gp->sched, 1);
+ 		}
++		
++		if(gp->status == Gstackalloc) {
++			// switched to scheduler stack to call stackalloc.
++			gp->param = runtime·stackalloc((uintptr)gp->param);
++			gp->status = Grunning;
++			runtime·gogo(&gp->sched, 1);
++		}
+ 
+ 		// Jumped here via runtime·gosave/gogo, so didn't
+ 		// execute lock(&runtime·sched) above.
+@@ -509,6 +518,8 @@ scheduler(void)
+ 		switch(gp->status){
+ 		case Grunnable:
+ 		case Gdead:
++		case Grecovery:
++		case Gstackalloc:
+ 			// Shouldn't have been running!
+ 			runtime·throw("bad gp->status in sched");
+ 		case Grunning:
+@@ -795,18 +806,35 @@ runtime·newstack(void)
+ G*
+ runtime·malg(int32 stacksize)
+ {
+-	G *g;
++	G *newg;
+ 	byte *stk;
++	int32 oldstatus;
+ 
+-	g = runtime·malloc(sizeof(G));
++	newg = runtime·malloc(sizeof(G));
+ 	if(stacksize >= 0) {
+-		stk = runtime·stackalloc(StackSystem + stacksize);
+-		g->stack0 = stk;
+-		g->stackguard = stk + StackSystem + StackGuard;
+-		g->stackbase = stk + StackSystem + stacksize - sizeof(Stktop);
+-		runtime·memclr(g->stackbase, sizeof(Stktop));
++		if(g == m->g0) {
++			// running on scheduler stack already.
++			stk = runtime·stackalloc(StackSystem + stacksize);
++		} else {
++			// have to call stackalloc on scheduler stack.
++			oldstatus = g->status;
++			g->param = (void*)(StackSystem + stacksize);
++			g->status = Gstackalloc;
++			// next two lines are runtime·gosched without the check
++			// of m->locks.  we're almost certainly holding a lock,
++			// but this is not a real rescheduling so it's okay.
++			if(runtime·gosave(&g->sched) == 0)
++				runtime·gogo(&m->sched, 1);
++			stk = g->param;
++			g->param = nil;
++			g->status = oldstatus;
++		}
++		newg->stack0 = stk;
++		newg->stackguard = stk + StackSystem + StackGuard;
++		newg->stackbase = stk + StackSystem + stacksize - sizeof(Stktop);
++		runtime·memclr(newg->stackbase, sizeof(Stktop));
+ 	}
+-	return g;
++	return newg;
+ }
+ 
+ /*
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index ac992a2f1b..4456e9b8d4 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -104,6 +104,7 @@ enum
+ 	Gmoribund,
+ 	Gdead,
+ 	Grecovery,
++	Gstackalloc,
+ };
+ enum
+ {

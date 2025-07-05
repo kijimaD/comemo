@@ -14,9 +14,80 @@ Date:   Wed Mar 27 14:59:10 2019 -0700
     Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/proc.go        | 10 +++++-----
  src/runtime/race_amd64.s   |  2 +-
  src/runtime/race_ppc64le.s |  2 +-
  src/runtime/runtime2.go    |  2 +-
  4 files changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 9e993afba9..78940625b8 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -3956,12 +3956,12 @@ func procresize(nprocs int32) *p {
+ 				pp.mcache = allocmcache()
+ 			}
+ 		}
+-		if raceenabled && pp.racectx == 0 {
++		if raceenabled && pp.raceprocctx == 0 {
+ 			if old == 0 && i == 0 {
+-				pp.racectx = raceprocctx0
++				pp.raceprocctx = raceprocctx0
+ 				raceprocctx0 = 0 // bootstrap
+ 			} else {
+-				pp.racectx = raceproccreate()
++				pp.raceprocctx = raceproccreate()
+ 			}
+ 		}
+ 	}
+@@ -4019,8 +4019,8 @@ func procresize(nprocs int32) *p {
+ 		gfpurge(p)
+ 		traceProcFree(p)
+ 		if raceenabled {
+-			raceprocdestroy(p.racectx)
+-			p.racectx = 0
++			raceprocdestroy(p.raceprocctx)
++			p.raceprocctx = 0
+ 		}
+ 		p.gcAssistTime = 0
+ 		p.status = _Pdead
+diff --git a/src/runtime/race_amd64.s b/src/runtime/race_amd64.s
+index 2a65b0faee..4ed9533bfb 100644
+--- a/src/runtime/race_amd64.s
++++ b/src/runtime/race_amd64.s
+@@ -398,7 +398,7 @@ TEXT	runtime·racecallbackthunk(SB), NOSPLIT, $56-8
+ 	MOVQ	g(RARG0), RARG0
+ 	MOVQ	g_m(RARG0), RARG0
+ 	MOVQ	m_p(RARG0), RARG0
+-	MOVQ	p_racectx(RARG0), RARG0
++	MOVQ	p_raceprocctx(RARG0), RARG0
+ 	MOVQ	RARG0, (RARG1)
+ 	RET
+ 
+diff --git a/src/runtime/race_ppc64le.s b/src/runtime/race_ppc64le.s
+index 5c723e0f51..8aba786d3f 100644
+--- a/src/runtime/race_ppc64le.s
++++ b/src/runtime/race_ppc64le.s
+@@ -455,7 +455,7 @@ TEXT	runtime·racecallbackthunk(SB), NOSPLIT, $-8
+ 	MOVD    0(R13)(R10*1), g
+ 	MOVD	g_m(g), R3
+ 	MOVD	m_p(R3), R3
+-	MOVD	p_racectx(R3), R3
++	MOVD	p_raceprocctx(R3), R3
+ 	MOVD	R3, (R4)
+ 	MOVD	R9, g		// restore R30 ??
+ 	RET
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index df9cbaef20..0dd2e929a0 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -482,7 +482,7 @@ type p struct {
+ 	sysmontick  sysmontick // last tick observed by sysmon
+ 	m           muintptr   // back-link to associated m (nil if idle)
+ 	mcache      *mcache
+-	racectx     uintptr
++	raceprocctx uintptr
+ 
+ 	deferpool    [5][]*_defer // pool of available defer structs of different sizes (see panic.go)
+ 	deferpoolbuf [5][32]*_defer

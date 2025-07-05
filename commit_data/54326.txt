@@ -13,7 +13,43 @@ Date:   Thu Oct 6 13:41:02 2022 -0400
     Reviewed-by: Michael Matloob <matloob@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/modload/load.go            |  1 +
  src/cmd/go/testdata/script/vendor_internal.txt | 16 ++++++++++++++++
  2 files changed, 17 insertions(+)
+
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index e74780a7b2..afd6c80370 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -753,6 +753,7 @@ func (mms *MainModuleSet) DirImportPath(ctx context.Context, dir string) (path s
+ 				suffix := filepath.ToSlash(dir[len(modRoot):])
+ 				if strings.HasPrefix(suffix, "/vendor/") {
+ 					longestPrefixPath = strings.TrimPrefix(suffix, "/vendor/")
++					continue
+ 				}
+ 				longestPrefixPath = mms.PathPrefix(v) + suffix
+ 			}
+diff --git a/src/cmd/go/testdata/script/vendor_internal.txt b/src/cmd/go/testdata/script/vendor_internal.txt
+new file mode 100644
+index 0000000000..4c0f1facee
+--- /dev/null
++++ b/src/cmd/go/testdata/script/vendor_internal.txt
+@@ -0,0 +1,16 @@
++go build ./vendor/foo.com/internal/bar/a
++
++-- go.mod --
++module example.com/x
++go 1.19
++
++require "foo.com/internal/bar" v1.0.0
++-- vendor/modules.txt --
++# foo.com/internal/bar v1.0.0
++## explicit
++foo.com/internal/bar/a
++-- vendor/foo.com/internal/bar/a/a.go --
++package a
++import _ "foo.com/internal/bar/b"
++-- vendor/foo.com/internal/bar/b/b.go --
++package b
+\ No newline at end of file

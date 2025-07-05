@@ -9,6 +9,19 @@ Date:   Thu May 30 18:33:14 2019 -0400
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  misc/cgo/errors/ptr_test.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/misc/cgo/errors/ptr_test.go b/misc/cgo/errors/ptr_test.go
+index ba4f4ade64..12846cae44 100644
+--- a/misc/cgo/errors/ptr_test.go
++++ b/misc/cgo/errors/ptr_test.go
+@@ -440,7 +440,6 @@ func TestPointerChecks(t *testing.T) {
+ 			atomic.AddInt32(&pending, +1)
+ 			defer func() {
+ 				if atomic.AddInt32(&pending, -1) == 0 {
+-					println("removing", dir)
+ 					os.RemoveAll(dir)
+ 				}
+ 			}()

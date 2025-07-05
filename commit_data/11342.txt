@@ -11,7 +11,7 @@ Date:   Mon Jan 23 10:41:54 2012 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5573046
-
+---
  src/pkg/go/doc/doc_test.go                         |  12 +-
  src/pkg/go/doc/testdata/{alpha.out => a.0.golden}  |   4 +-
  src/pkg/go/doc/testdata/a.1.golden                 |  13 +
@@ -24,3 +24,523 @@ Date:   Mon Jan 23 10:41:54 2012 -0800
  .../doc/testdata/{testing.out => testing.0.golden} |   0
  src/pkg/go/doc/testdata/testing.1.golden           | 298 +++++++++++++++++++++
  11 files changed, 406 insertions(+), 7 deletions(-)
+
+diff --git a/src/pkg/go/doc/doc_test.go b/src/pkg/go/doc/doc_test.go
+index 0a4830148a..d9ffe47b61 100644
+--- a/src/pkg/go/doc/doc_test.go
++++ b/src/pkg/go/doc/doc_test.go
+@@ -7,6 +7,7 @@ package doc
+ import (
+ 	"bytes"
+ 	"flag"
++	"fmt"
+ 	"go/parser"
+ 	"go/printer"
+ 	"go/token"
+@@ -64,7 +65,7 @@ type bundle struct {
+ 	FSet *token.FileSet
+ }
+ 
+-func Test(t *testing.T) {
++func test(t *testing.T, mode Mode) {
+ 	// get all packages
+ 	fset := token.NewFileSet()
+ 	pkgs, err := parser.ParseDir(fset, dataDir, isGoFile, parser.ParseComments)
+@@ -75,7 +76,7 @@ func Test(t *testing.T) {
+ 	// test all packages
+ 	for _, pkg := range pkgs {
+ 		importpath := dataDir + "/" + pkg.Name
+-		doc := New(pkg, importpath, 0)
++		doc := New(pkg, importpath, mode)
+ 
+ 		// golden files always use / in filenames - canonicalize them
+ 		for i, filename := range doc.Filenames {
+@@ -91,7 +92,7 @@ func Test(t *testing.T) {
+ 		got := buf.Bytes()
+ 
+ 		// update golden file if necessary
+-		golden := filepath.Join(dataDir, pkg.Name+".out")
++		golden := filepath.Join(dataDir, fmt.Sprintf("%s.%d.golden", pkg.Name, mode))
+ 		if *update {
+ 			err := ioutil.WriteFile(golden, got, 0644)
+ 			if err != nil {
+@@ -113,3 +114,8 @@ func Test(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func Test(t *testing.T) {
++	test(t, 0)
++	test(t, AllDecls)
++}
+diff --git a/src/pkg/go/doc/testdata/alpha.out b/src/pkg/go/doc/testdata/a.0.golden
+similarity index 77%
+rename from src/pkg/go/doc/testdata/alpha.out
+rename to src/pkg/go/doc/testdata/a.0.golden
+index 8f02f9d914..24db02d348 100644
+--- a/src/pkg/go/doc/testdata/alpha.out
++++ b/src/pkg/go/doc/testdata/a.0.golden
+@@ -1,8 +1,8 @@
+ // comment 0  comment 1 
+-PACKAGE alpha
++PACKAGE a
+ 
+ IMPORTPATH
+-	testdata/alpha
++	testdata/a
+ 
+ FILENAMES
+ 	testdata/a0.go
+diff --git a/src/pkg/go/doc/testdata/a.1.golden b/src/pkg/go/doc/testdata/a.1.golden
+new file mode 100644
+index 0000000000..24db02d348
+--- /dev/null
++++ b/src/pkg/go/doc/testdata/a.1.golden
+@@ -0,0 +1,13 @@
++// comment 0  comment 1 
++PACKAGE a
++
++IMPORTPATH
++	testdata/a
++
++FILENAMES
++	testdata/a0.go
++	testdata/a1.go
++
++BUGS
++	// bug0 
++	// bug1 
+diff --git a/src/pkg/go/doc/testdata/a0.go b/src/pkg/go/doc/testdata/a0.go
+index 1c208c0faa..dc552989ec 100644
+--- a/src/pkg/go/doc/testdata/a0.go
++++ b/src/pkg/go/doc/testdata/a0.go
+@@ -3,6 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ // comment 0
+-package alpha
++package a
+ 
+ //BUG(uid): bug0
+diff --git a/src/pkg/go/doc/testdata/a1.go b/src/pkg/go/doc/testdata/a1.go
+index 8db9c8041d..098776c1b0 100644
+--- a/src/pkg/go/doc/testdata/a1.go
++++ b/src/pkg/go/doc/testdata/a1.go
+@@ -3,6 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ // comment 1
+-package alpha
++package a
+ 
+ //BUG(uid): bug1
+diff --git a/src/pkg/go/doc/testdata/b.out b/src/pkg/go/doc/testdata/b.0.golden
+similarity index 100%
+rename from src/pkg/go/doc/testdata/b.out
+rename to src/pkg/go/doc/testdata/b.0.golden
+diff --git a/src/pkg/go/doc/testdata/b.1.golden b/src/pkg/go/doc/testdata/b.1.golden
+new file mode 100644
+index 0000000000..c5ad0d0fc8
+--- /dev/null
++++ b/src/pkg/go/doc/testdata/b.1.golden
+@@ -0,0 +1,34 @@
++// 
++PACKAGE b
++
++IMPORTPATH
++	testdata/b
++
++IMPORTS
++	a
++
++FILENAMES
++	testdata/b.go
++
++CONSTANTS
++	// 
++	const Pi = 3.14	// Pi
++
++
++VARIABLES
++	// 
++	var MaxInt int	// MaxInt
++
++
++FUNCTIONS
++	// 
++	func F(x int) int
++
++
++TYPES
++	// 
++	type T struct{}	// T
++
++	// 
++	var V T	// v
++
+diff --git a/src/pkg/go/doc/testdata/c.out b/src/pkg/go/doc/testdata/c.0.golden
+similarity index 100%
+rename from src/pkg/go/doc/testdata/c.out
+rename to src/pkg/go/doc/testdata/c.0.golden
+diff --git a/src/pkg/go/doc/testdata/c.1.golden b/src/pkg/go/doc/testdata/c.1.golden
+new file mode 100644
+index 0000000000..e21959b195
+--- /dev/null
++++ b/src/pkg/go/doc/testdata/c.1.golden
+@@ -0,0 +1,48 @@
++// 
++PACKAGE c
++
++IMPORTPATH
++	testdata/c
++
++IMPORTS
++	a
++
++FILENAMES
++	testdata/c.go
++
++TYPES
++	// A (should see this) 
++	type A struct{}
++
++	// B (should see this) 
++	type B struct{}
++
++	// C (should see this) 
++	type C struct{}
++
++	// D (should see this) 
++	type D struct{}
++
++	// E1 (should see this) 
++	type E1 struct{}
++
++	// E (should see this for E2 and E3) 
++	type E2 struct{}
++
++	// E (should see this for E2 and E3) 
++	type E3 struct{}
++
++	// E4 (should see this) 
++	type E4 struct{}
++
++	// 
++	type T1 struct{}
++
++	// 
++	func (t1 *T1) M()
++
++	// T2 must not show methods of local T1 
++	type T2 struct {
++		a.T1	// not the same as locally declared T1
++	}
++
+diff --git a/src/pkg/go/doc/testdata/testing.out b/src/pkg/go/doc/testdata/testing.0.golden
+similarity index 100%
+rename from src/pkg/go/doc/testdata/testing.out
+rename to src/pkg/go/doc/testdata/testing.0.golden
+diff --git a/src/pkg/go/doc/testdata/testing.1.golden b/src/pkg/go/doc/testdata/testing.1.golden
+new file mode 100644
+index 0000000000..1f92f8fe3e
+--- /dev/null
++++ b/src/pkg/go/doc/testdata/testing.1.golden
+@@ -0,0 +1,298 @@
++// Package testing provides support for automated testing of Go ...
++PACKAGE testing
++
++IMPORTPATH
++	testdata/testing
++
++IMPORTS
++	bytes
++	flag
++	fmt
++	io
++	os
++	runtime
++	runtime/pprof
++	strconv
++	strings
++	time
++
++FILENAMES
++	testdata/benchmark.go
++	testdata/example.go
++	testdata/testing.go
++
++VARIABLES
++	// 
++	var (
++		// The short flag requests that tests run more quickly, but its functionality
++		// is provided by test writers themselves.  The testing package is just its
++		// home.  The all.bash installation script sets it to make installation more
++		// efficient, but by default the flag is off so a plain "gotest" will do a
++		// full test of the package.
++		short	= flag.Bool("test.short", false, "run smaller test suite to save time")
++	
++		// Report as tests are run; default is silent for success.
++		chatty		= flag.Bool("test.v", false, "verbose: print additional output")
++		match		= flag.String("test.run", "", "regular expression to select tests to run")
++		memProfile	= flag.String("test.memprofile", "", "write a memory profile to the named file after execution")
++		memProfileRate	= flag.Int("test.memprofilerate", 0, "if >=0, sets runtime.MemProfileRate")
++		cpuProfile	= flag.String("test.cpuprofile", "", "write a cpu profile to the named file during execution")
++		timeout		= flag.Duration("test.timeout", 0, "if positive, sets an aggregate time limit for all tests")
++		cpuListStr	= flag.String("test.cpu", "", "comma-separated list of number of CPUs to use for each test")
++		parallel	= flag.Int("test.parallel", runtime.GOMAXPROCS(0), "maximum test parallelism")
++	
++		cpuList	[]int
++	)
++
++	// 
++	var benchTime = flag.Float64("test.benchtime", 1, "approximate run time for each benchmark, in seconds")
++
++	// 
++	var matchBenchmarks = flag.String("test.bench", "", "regular expression to select benchmarks to run")
++
++	// 
++	var timer *time.Timer
++
++
++FUNCTIONS
++	// An internal function but exported because it is cross-package; ...
++	func Main(matchString func(pat, str string) (bool, error), tests []InternalTest, benchmarks []InternalBenchmark, examples []InternalExample)
++
++	// An internal function but exported because it is cross-package; ...
++	func RunBenchmarks(matchString func(pat, str string) (bool, error), benchmarks []InternalBenchmark)
++
++	// 
++	func RunExamples(examples []InternalExample) (ok bool)
++
++	// 
++	func RunTests(matchString func(pat, str string) (bool, error), tests []InternalTest) (ok bool)
++
++	// Short reports whether the -test.short flag is set. 
++	func Short() bool
++
++	// after runs after all testing. 
++	func after()
++
++	// alarm is called if the timeout expires. 
++	func alarm()
++
++	// before runs before all testing. 
++	func before()
++
++	// decorate inserts the final newline if needed and indentation ...
++	func decorate(s string, addFileLine bool) string
++
++	// 
++	func max(x, y int) int
++
++	// 
++	func min(x, y int) int
++
++	// 
++	func parseCpuList()
++
++	// roundDown10 rounds a number down to the nearest power of 10. 
++	func roundDown10(n int) int
++
++	// roundUp rounds x up to a number of the form [1eX, 2eX, 5eX]. 
++	func roundUp(n int) int
++
++	// startAlarm starts an alarm if requested. 
++	func startAlarm()
++
++	// stopAlarm turns off the alarm. 
++	func stopAlarm()
++
++	// 
++	func tRunner(t *T, test *InternalTest)
++
++
++TYPES
++	// B is a type passed to Benchmark functions to manage benchmark ...
++	type B struct {
++		common
++		N		int
++		benchmark	InternalBenchmark
++		bytes		int64
++		timerOn		bool
++		result		BenchmarkResult
++	}
++
++	// Error is equivalent to Log() followed by Fail(). 
++	func (c *B) Error(args ...interface{})
++
++	// Errorf is equivalent to Logf() followed by Fail(). 
++	func (c *B) Errorf(format string, args ...interface{})
++
++	// Fail marks the function as having failed but continues ...
++	func (c *B) Fail()
++
++	// FailNow marks the function as having failed and stops its ...
++	func (c *B) FailNow()
++
++	// Failed returns whether the function has failed. 
++	func (c *B) Failed() bool
++
++	// Fatal is equivalent to Log() followed by FailNow(). 
++	func (c *B) Fatal(args ...interface{})
++
++	// Fatalf is equivalent to Logf() followed by FailNow(). 
++	func (c *B) Fatalf(format string, args ...interface{})
++
++	// Log formats its arguments using default formatting, analogous ...
++	func (c *B) Log(args ...interface{})
++
++	// Logf formats its arguments according to the format, analogous ...
++	func (c *B) Logf(format string, args ...interface{})
++
++	// ResetTimer sets the elapsed benchmark time to zero. It does not ...
++	func (b *B) ResetTimer()
++
++	// SetBytes records the number of bytes processed in a single ...
++	func (b *B) SetBytes(n int64)
++
++	// StartTimer starts timing a test.  This function is called ...
++	func (b *B) StartTimer()
++
++	// StopTimer stops timing a test.  This can be used to pause the ...
++	func (b *B) StopTimer()
++
++	// launch launches the benchmark function.  It gradually increases ...
++	func (b *B) launch()
++
++	// log generates the output. It's always at the same stack depth. 
++	func (c *B) log(s string)
++
++	// 
++	func (b *B) nsPerOp() int64
++
++	// run times the benchmark function in a separate goroutine. 
++	func (b *B) run() BenchmarkResult
++
++	// runN runs a single benchmark for the specified number of ...
++	func (b *B) runN(n int)
++
++	// trimOutput shortens the output from a benchmark, which can be ...
++	func (b *B) trimOutput()
++
++	// The results of a benchmark run. 
++	type BenchmarkResult struct {
++		N	int		// The number of iterations.
++		T	time.Duration	// The total time taken.
++		Bytes	int64		// Bytes processed in one iteration.
++	}
++
++	// Benchmark benchmarks a single function. Useful for creating ...
++	func Benchmark(f func(b *B)) BenchmarkResult
++
++	// 
++	func (r BenchmarkResult) NsPerOp() int64
++
++	// 
++	func (r BenchmarkResult) String() string
++
++	// 
++	func (r BenchmarkResult) mbPerSec() float64
++
++	// An internal type but exported because it is cross-package; part ...
++	type InternalBenchmark struct {
++		Name	string
++		F	func(b *B)
++	}
++
++	// 
++	type InternalExample struct {
++		Name	string
++		F	func()
++		Output	string
++	}
++
++	// An internal type but exported because it is cross-package; part ...
++	type InternalTest struct {
++		Name	string
++		F	func(*T)
++	}
++
++	// T is a type passed to Test functions to manage test state and ...
++	type T struct {
++		common
++		name		string		// Name of test.
++		startParallel	chan bool	// Parallel tests will wait on this.
++	}
++
++	// Error is equivalent to Log() followed by Fail(). 
++	func (c *T) Error(args ...interface{})
++
++	// Errorf is equivalent to Logf() followed by Fail(). 
++	func (c *T) Errorf(format string, args ...interface{})
++
++	// Fail marks the function as having failed but continues ...
++	func (c *T) Fail()
++
++	// FailNow marks the function as having failed and stops its ...
++	func (c *T) FailNow()
++
++	// Failed returns whether the function has failed. 
++	func (c *T) Failed() bool
++
++	// Fatal is equivalent to Log() followed by FailNow(). 
++	func (c *T) Fatal(args ...interface{})
++
++	// Fatalf is equivalent to Logf() followed by FailNow(). 
++	func (c *T) Fatalf(format string, args ...interface{})
++
++	// Log formats its arguments using default formatting, analogous ...
++	func (c *T) Log(args ...interface{})
++
++	// Logf formats its arguments according to the format, analogous ...
++	func (c *T) Logf(format string, args ...interface{})
++
++	// Parallel signals that this test is to be run in parallel with ...
++	func (t *T) Parallel()
++
++	// log generates the output. It's always at the same stack depth. 
++	func (c *T) log(s string)
++
++	// 
++	func (t *T) report()
++
++	// common holds the elements common between T and B and captures ...
++	type common struct {
++		output		[]byte		// Output generated by test or benchmark.
++		failed		bool		// Test or benchmark has failed.
++		start		time.Time	// Time test or benchmark started
++		duration	time.Duration
++		self		interface{}		// To be sent on signal channel when done.
++		signal		chan interface{}	// Output for serial tests.
++	}
++
++	// Error is equivalent to Log() followed by Fail(). 
++	func (c *common) Error(args ...interface{})
++
++	// Errorf is equivalent to Logf() followed by Fail(). 
++	func (c *common) Errorf(format string, args ...interface{})
++
++	// Fail marks the function as having failed but continues ...
++	func (c *common) Fail()
++
++	// FailNow marks the function as having failed and stops its ...
++	func (c *common) FailNow()
++
++	// Failed returns whether the function has failed. 
++	func (c *common) Failed() bool
++
++	// Fatal is equivalent to Log() followed by FailNow(). 
++	func (c *common) Fatal(args ...interface{})
++
++	// Fatalf is equivalent to Logf() followed by FailNow(). 
++	func (c *common) Fatalf(format string, args ...interface{})
++
++	// Log formats its arguments using default formatting, analogous ...
++	func (c *common) Log(args ...interface{})
++
++	// Logf formats its arguments according to the format, analogous ...
++	func (c *common) Logf(format string, args ...interface{})
++
++	// log generates the output. It's always at the same stack depth. 
++	func (c *common) log(s string)
++

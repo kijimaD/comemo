@@ -7,9 +7,119 @@ Date:   Tue Mar 13 12:50:04 2012 +1100
     R=golang-dev, rsc, bradfitz, alex.brainman
     CC=golang-dev
     https://golang.org/cl/5754083
-
+---
  src/pkg/os/error_posix.go         |  2 +-
  src/pkg/os/error_test.go          | 31 +++++++++++++++++++++++++++++++
  src/pkg/os/error_windows.go       | 35 +++++++++++++++++++++++++++++++++++
  src/pkg/syscall/ztypes_windows.go |  2 ++
  4 files changed, 69 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/os/error_posix.go b/src/pkg/os/error_posix.go
+index 74b75d1121..d08ad5db16 100644
+--- a/src/pkg/os/error_posix.go
++++ b/src/pkg/os/error_posix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin freebsd linux netbsd openbsd windows
++// +build darwin freebsd linux netbsd openbsd
+ 
+ package os
+ 
+diff --git a/src/pkg/os/error_test.go b/src/pkg/os/error_test.go
+new file mode 100644
+index 0000000000..8218f861af
+--- /dev/null
++++ b/src/pkg/os/error_test.go
+@@ -0,0 +1,31 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package os_test
++
++import (
++	"io/ioutil"
++	"os"
++	"testing"
++)
++
++func TestErrIsExist(t *testing.T) {
++	f, err := ioutil.TempFile("", "_Go_ErrIsExist")
++	if err != nil {
++		t.Fatalf("open ErrIsExist tempfile: %s", err)
++		return
++	}
++	defer os.Remove(f.Name())
++	defer f.Close()
++	f2, err := os.OpenFile(f.Name(), os.O_RDWR|os.O_CREATE|os.O_EXCL, 0600)
++	if err == nil {
++		f2.Close()
++		t.Fatal("Open should have failed")
++		return
++	}
++	if !os.IsExist(err) {
++		t.Fatalf("os.IsExist does not work as expected for %#v", err)
++		return
++	}
++}
+diff --git a/src/pkg/os/error_windows.go b/src/pkg/os/error_windows.go
+new file mode 100644
+index 0000000000..84bf5eae8a
+--- /dev/null
++++ b/src/pkg/os/error_windows.go
+@@ -0,0 +1,35 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package os
++
++import "syscall"
++
++// IsExist returns whether the error is known to report that a file already exists.
++// It is satisfied by ErrExist as well as some syscall errors.
++func IsExist(err error) bool {
++	if pe, ok := err.(*PathError); ok {
++		err = pe.Err
++	}
++	return err == syscall.EEXIST || err == syscall.ERROR_ALREADY_EXISTS ||
++		err == syscall.ERROR_FILE_EXISTS || err == ErrExist
++}
++
++// IsNotExist returns whether the error is known to report that a file does not exist.
++// It is satisfied by ErrNotExist as well as some syscall errors.
++func IsNotExist(err error) bool {
++	if pe, ok := err.(*PathError); ok {
++		err = pe.Err
++	}
++	return err == syscall.ENOENT || err == ErrNotExist
++}
++
++// IsPermission returns whether the error is known to report that permission is denied.
++// It is satisfied by ErrPermission as well as some syscall errors.
++func IsPermission(err error) bool {
++	if pe, ok := err.(*PathError); ok {
++		err = pe.Err
++	}
++	return err == syscall.EACCES || err == syscall.EPERM || err == ErrPermission
++}
+diff --git a/src/pkg/syscall/ztypes_windows.go b/src/pkg/syscall/ztypes_windows.go
+index 9894ce3246..54168bb98a 100644
+--- a/src/pkg/syscall/ztypes_windows.go
++++ b/src/pkg/syscall/ztypes_windows.go
+@@ -10,11 +10,13 @@ const (
+ 	ERROR_PATH_NOT_FOUND      Errno = 3
+ 	ERROR_ACCESS_DENIED       Errno = 5
+ 	ERROR_NO_MORE_FILES       Errno = 18
++	ERROR_FILE_EXISTS         Errno = 80
+ 	ERROR_BROKEN_PIPE         Errno = 109
+ 	ERROR_BUFFER_OVERFLOW     Errno = 111
+ 	ERROR_INSUFFICIENT_BUFFER Errno = 122
+ 	ERROR_MOD_NOT_FOUND       Errno = 126
+ 	ERROR_PROC_NOT_FOUND      Errno = 127
++	ERROR_ALREADY_EXISTS      Errno = 183
+ 	ERROR_ENVVAR_NOT_FOUND    Errno = 203
+ 	ERROR_OPERATION_ABORTED   Errno = 995
+ 	ERROR_IO_PENDING          Errno = 997

@@ -16,6 +16,20 @@ Date:   Fri Apr 2 20:46:35 2021 +0000
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/runtime/asm_amd64.s | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index dbe7f7f381..c245fce7ef 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -550,7 +550,7 @@ TEXT ·unspillArgs<ABIInternal>(SB),NOSPLIT,$0-0
+ 	JMP	AX
+ // Note: can't just "JMP NAME(SB)" - bad inlining results.
+ 
+-TEXT ·reflectcall<ABIInternal>(SB), NOSPLIT, $0-48
++TEXT ·reflectcall(SB), NOSPLIT, $0-48
+ 	MOVLQZX frameSize+32(FP), CX
+ 	DISPATCH(runtime·call16, 16)
+ 	DISPATCH(runtime·call32, 32)

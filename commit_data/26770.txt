@@ -55,7 +55,32 @@ Date:   Tue Feb 9 18:30:38 2016 -0500
     Reviewed-by: Rick Hudson <rlh@golang.org>
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/mcentral.go | 1 -
  src/runtime/mgcsweep.go | 1 -
  2 files changed, 2 deletions(-)
+
+diff --git a/src/runtime/mcentral.go b/src/runtime/mcentral.go
+index 29a7b77376..8a2fbe98c9 100644
+--- a/src/runtime/mcentral.go
++++ b/src/runtime/mcentral.go
+@@ -195,7 +195,6 @@ func (c *mcentral) freeSpan(s *mspan, n int32, start gclinkptr, end gclinkptr, p
+ 	s.needzero = 1
+ 	s.freelist = 0
+ 	unlock(&c.lock)
+-	heapBitsForSpan(s.base()).initSpan(s.layout())
+ 	mheap_.freeSpan(s, 0)
+ 	return true
+ }
+diff --git a/src/runtime/mgcsweep.go b/src/runtime/mgcsweep.go
+index b00ceb0a8a..d6d91d2021 100644
+--- a/src/runtime/mgcsweep.go
++++ b/src/runtime/mgcsweep.go
+@@ -276,7 +276,6 @@ func (s *mspan) sweep(preserve bool) bool {
+ 			if preserve {
+ 				throw("can't preserve large span")
+ 			}
+-			heapBitsForSpan(p).initSpan(s.layout())
+ 			s.needzero = 1
+ 
+ 			// Free the span after heapBitsSweepSpan

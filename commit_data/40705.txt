@@ -11,6 +11,30 @@ Date:   Tue Jun 18 01:14:22 2019 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/const.go | 12 ++++++------
  1 file changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/const.go b/src/cmd/compile/internal/gc/const.go
+index 39adba0f07..4ed881bc07 100644
+--- a/src/cmd/compile/internal/gc/const.go
++++ b/src/cmd/compile/internal/gc/const.go
+@@ -27,12 +27,12 @@ const (
+ 
+ type Val struct {
+ 	// U contains one of:
+-	// bool     bool when n.ValCtype() == CTBOOL
+-	// *Mpint   int when n.ValCtype() == CTINT, rune when n.ValCtype() == CTRUNE
+-	// *Mpflt   float when n.ValCtype() == CTFLT
+-	// *Mpcplx  pair of floats when n.ValCtype() == CTCPLX
+-	// string   string when n.ValCtype() == CTSTR
+-	// *Nilval  when n.ValCtype() == CTNIL
++	// bool     bool when Ctype() == CTBOOL
++	// *Mpint   int when Ctype() == CTINT, rune when Ctype() == CTRUNE
++	// *Mpflt   float when Ctype() == CTFLT
++	// *Mpcplx  pair of floats when Ctype() == CTCPLX
++	// string   string when Ctype() == CTSTR
++	// *Nilval  when Ctype() == CTNIL
+ 	U interface{}
+ }
+ 

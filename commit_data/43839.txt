@@ -11,7 +11,7 @@ Date:   Fri Apr 24 22:45:05 2020 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/229992
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/internal/ld/data2.go      |  5 ++++-
  src/cmd/link/internal/ld/elf2.go       |  5 ++++-
  src/cmd/link/internal/ld/lib.go        | 10 ++++++++--
@@ -20,3 +20,171 @@ Date:   Fri Apr 24 22:45:05 2020 -0400
  src/cmd/link/internal/loader/loader.go | 18 +++++++++++++++---
  src/cmd/link/internal/sym/symbols.go   |  3 ---
  7 files changed, 36 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/data2.go b/src/cmd/link/internal/ld/data2.go
+index 5c88fbaa57..e11988fbbd 100644
+--- a/src/cmd/link/internal/ld/data2.go
++++ b/src/cmd/link/internal/ld/data2.go
+@@ -28,7 +28,10 @@ func (ctxt *Link) dodata() {
+ 
+ 	// Collect data symbols by type into data.
+ 	state := dodataState{ctxt: ctxt}
+-	for _, s := range ctxt.Syms.Allsym {
++	for _, s := range ctxt.loader.Syms {
++		if s == nil {
++			continue
++		}
+ 		if !s.Attr.Reachable() || s.Attr.Special() || s.Attr.SubSymbol() {
+ 			continue
+ 		}
+diff --git a/src/cmd/link/internal/ld/elf2.go b/src/cmd/link/internal/ld/elf2.go
+index e77510f4a6..c6e11d87bf 100644
+--- a/src/cmd/link/internal/ld/elf2.go
++++ b/src/cmd/link/internal/ld/elf2.go
+@@ -51,7 +51,10 @@ func elfdynhash(ctxt *Link) {
+ 	chain := make([]uint32, nsym)
+ 	buckets := make([]uint32, nbucket)
+ 
+-	for _, sy := range ctxt.Syms.Allsym {
++	for _, sy := range ctxt.loader.Syms {
++		if sy == nil {
++			continue
++		}
+ 		if sy.Dynid <= 0 {
+ 			continue
+ 		}
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 5d01babd5f..a43aff22ee 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -2555,7 +2555,10 @@ func genasmsym(ctxt *Link, put func(*Link, *sym.Symbol, string, SymbolType, int6
+ 		return true
+ 	}
+ 
+-	for _, s := range ctxt.Syms.Allsym {
++	for _, s := range ctxt.loader.Syms {
++		if s == nil {
++			continue
++		}
+ 		if !shouldBeInSymbolTable(s) {
+ 			continue
+ 		}
+@@ -2909,7 +2912,10 @@ func (ctxt *Link) loadlibfull(symGroupType []sym.SymKind) {
+ }
+ 
+ func (ctxt *Link) dumpsyms() {
+-	for _, s := range ctxt.Syms.Allsym {
++	for _, s := range ctxt.loader.Syms {
++		if s == nil {
++			continue
++		}
+ 		fmt.Printf("%s %s reachable=%v onlist=%v outer=%v sub=%v\n", s, s.Type, s.Attr.Reachable(), s.Attr.OnList(), s.Outer, s.Sub)
+ 		for i := range s.R {
+ 			fmt.Println("\t", s.R[i].Type, s.R[i].Sym)
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index a5f2092f0f..837cfe59ca 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -364,7 +364,7 @@ func Main(arch *sys.Arch, theArch Arch) {
+ 	bench.Start("hostlink")
+ 	ctxt.hostlink()
+ 	if ctxt.Debugvlog != 0 {
+-		ctxt.Logf("%d symbols\n", len(ctxt.Syms.Allsym))
++		ctxt.Logf("%d symbols, %d reachable\n", len(ctxt.loader.Syms), ctxt.loader.NReachableSym())
+ 		ctxt.Logf("%d liveness data\n", liveness)
+ 	}
+ 	bench.Start("Flush")
+diff --git a/src/cmd/link/internal/ld/xcoff.go b/src/cmd/link/internal/ld/xcoff.go
+index e4f30ffb31..379ecec6e7 100644
+--- a/src/cmd/link/internal/ld/xcoff.go
++++ b/src/cmd/link/internal/ld/xcoff.go
+@@ -1646,7 +1646,10 @@ func xcoffCreateExportFile(ctxt *Link) (fname string) {
+ 	fname = filepath.Join(*flagTmpdir, "export_file.exp")
+ 	var buf bytes.Buffer
+ 
+-	for _, s := range ctxt.Syms.Allsym {
++	for _, s := range ctxt.loader.Syms {
++		if s == nil {
++			continue
++		}
+ 		if !s.Attr.CgoExport() {
+ 			continue
+ 		}
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index 30121d4cba..1eebb0f2d1 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -147,6 +147,16 @@ func (bm Bitmap) Has(i Sym) bool {
+ func (bm Bitmap) Len() int {
+ 	return len(bm) * 32
+ }
++
++// return the number of bits set.
++func (bm Bitmap) Count() int {
++	s := 0
++	for _, x := range bm {
++		s += bits.OnesCount32(x)
++	}
++	return s
++}
++
+ func MakeBitmap(n int) Bitmap {
+ 	return make(Bitmap, (n+31)/32)
+ }
+@@ -625,6 +635,11 @@ func (l *Loader) NDef() int {
+ 	return int(l.extStart)
+ }
+ 
++// Number of reachable symbols.
++func (l *Loader) NReachableSym() int {
++	return l.attrReachable.Count()
++}
++
+ // Returns the raw (unpatched) name of the i-th symbol.
+ func (l *Loader) RawSymName(i Sym) string {
+ 	if l.IsExternal(i) {
+@@ -2195,7 +2210,6 @@ func (l *Loader) ExtractSymbols(syms *sym.Symbols) {
+ 		if s == nil {
+ 			continue
+ 		}
+-		syms.Allsym = append(syms.Allsym, s) // XXX still add to Allsym for now, as there are code looping through Allsym
+ 		if s.Version < 0 {
+ 			s.Version = int16(anonVerReplacement)
+ 		}
+@@ -2209,7 +2223,6 @@ func (l *Loader) ExtractSymbols(syms *sym.Symbols) {
+ 		}
+ 		s := l.allocSym(name, ver)
+ 		l.installSym(i, s)
+-		syms.Allsym = append(syms.Allsym, s) // XXX see above
+ 		return s
+ 	}
+ 	syms.Lookup = l.SymLookup
+@@ -2221,7 +2234,6 @@ func (l *Loader) ExtractSymbols(syms *sym.Symbols) {
+ 		i := l.newExtSym(name, ver)
+ 		s := l.allocSym(name, ver)
+ 		l.installSym(i, s)
+-		syms.Allsym = append(syms.Allsym, s) // XXX see above
+ 		return s
+ 	}
+ }
+diff --git a/src/cmd/link/internal/sym/symbols.go b/src/cmd/link/internal/sym/symbols.go
+index d36be11ee8..0d7b7e6a46 100644
+--- a/src/cmd/link/internal/sym/symbols.go
++++ b/src/cmd/link/internal/sym/symbols.go
+@@ -34,8 +34,6 @@ type Symbols struct {
+ 	// Symbol lookup based on name and indexed by version.
+ 	versions int
+ 
+-	Allsym []*Symbol
+-
+ 	// Provided by the loader
+ 
+ 	// Look up the symbol with the given name and version, creating the
+@@ -55,7 +53,6 @@ type Symbols struct {
+ func NewSymbols() *Symbols {
+ 	return &Symbols{
+ 		versions: SymVerStatic,
+-		Allsym:   make([]*Symbol, 0, 100000),
+ 	}
+ }
+ 

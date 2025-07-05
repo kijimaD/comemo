@@ -11,7 +11,148 @@ Date:   Tue Oct 13 00:29:44 2015 +0000
     Reviewed-by: Andrew Gerrand <adg@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/response_test.go | 49 +++++++++++++++++++++++++++++++++++++++++++
  src/net/http/transfer.go      | 32 ++++++++++++++++++----------
  2 files changed, 70 insertions(+), 11 deletions(-)
+
+diff --git a/src/net/http/response_test.go b/src/net/http/response_test.go
+index 421cf55f49..d1c5a61a12 100644
+--- a/src/net/http/response_test.go
++++ b/src/net/http/response_test.go
+@@ -456,6 +456,55 @@ some body`,
+ 
+ 		"",
+ 	},
++
++	// Issue 12785: HTTP/1.0 response with bogus (to be ignored) Transfer-Encoding.
++	// Without a Content-Length.
++	{
++		"HTTP/1.0 200 OK\r\n" +
++			"Transfer-Encoding: bogus\r\n" +
++			"\r\n" +
++			"Body here\n",
++
++		Response{
++			Status:        "200 OK",
++			StatusCode:    200,
++			Proto:         "HTTP/1.0",
++			ProtoMajor:    1,
++			ProtoMinor:    0,
++			Request:       dummyReq("GET"),
++			Header:        Header{},
++			Close:         true,
++			ContentLength: -1,
++		},
++
++		"Body here\n",
++	},
++
++	// Issue 12785: HTTP/1.0 response with bogus (to be ignored) Transfer-Encoding.
++	// With a Content-Length.
++	{
++		"HTTP/1.0 200 OK\r\n" +
++			"Transfer-Encoding: bogus\r\n" +
++			"Content-Length: 10\r\n" +
++			"\r\n" +
++			"Body here\n",
++
++		Response{
++			Status:     "200 OK",
++			StatusCode: 200,
++			Proto:      "HTTP/1.0",
++			ProtoMajor: 1,
++			ProtoMinor: 0,
++			Request:    dummyReq("GET"),
++			Header: Header{
++				"Content-Length": {"10"},
++			},
++			Close:         true,
++			ContentLength: 10,
++		},
++
++		"Body here\n",
++	},
+ }
+ 
+ func TestReadResponse(t *testing.T) {
+diff --git a/src/net/http/transfer.go b/src/net/http/transfer.go
+index a8736b28e1..38b6f67c42 100644
+--- a/src/net/http/transfer.go
++++ b/src/net/http/transfer.go
+@@ -271,6 +271,10 @@ type transferReader struct {
+ 	Trailer          Header
+ }
+ 
++func (t *transferReader) protoAtLeast(m, n int) bool {
++	return t.ProtoMajor > m || (t.ProtoMajor == m && t.ProtoMinor >= n)
++}
++
+ // bodyAllowedForStatus reports whether a given response status code
+ // permits a body.  See RFC2616, section 4.4.
+ func bodyAllowedForStatus(status int) bool {
+@@ -337,7 +341,7 @@ func readTransfer(msg interface{}, r *bufio.Reader) (err error) {
+ 	}
+ 
+ 	// Transfer encoding, content length
+-	t.TransferEncoding, err = fixTransferEncoding(isResponse, t.RequestMethod, t.Header)
++	err = t.fixTransferEncoding()
+ 	if err != nil {
+ 		return err
+ 	}
+@@ -424,13 +428,18 @@ func chunked(te []string) bool { return len(te) > 0 && te[0] == "chunked" }
+ // Checks whether the encoding is explicitly "identity".
+ func isIdentity(te []string) bool { return len(te) == 1 && te[0] == "identity" }
+ 
+-// Sanitize transfer encoding
+-func fixTransferEncoding(isResponse bool, requestMethod string, header Header) ([]string, error) {
+-	raw, present := header["Transfer-Encoding"]
++// fixTransferEncoding sanitizes t.TransferEncoding, if needed.
++func (t *transferReader) fixTransferEncoding() error {
++	raw, present := t.Header["Transfer-Encoding"]
+ 	if !present {
+-		return nil, nil
++		return nil
++	}
++	delete(t.Header, "Transfer-Encoding")
++
++	// Issue 12785; ignore Transfer-Encoding on HTTP/1.0 requests.
++	if !t.protoAtLeast(1, 1) {
++		return nil
+ 	}
+-	delete(header, "Transfer-Encoding")
+ 
+ 	encodings := strings.Split(raw[0], ",")
+ 	te := make([]string, 0, len(encodings))
+@@ -445,13 +454,13 @@ func fixTransferEncoding(isResponse bool, requestMethod string, header Header) (
+ 			break
+ 		}
+ 		if encoding != "chunked" {
+-			return nil, &badStringError{"unsupported transfer encoding", encoding}
++			return &badStringError{"unsupported transfer encoding", encoding}
+ 		}
+ 		te = te[0 : len(te)+1]
+ 		te[len(te)-1] = encoding
+ 	}
+ 	if len(te) > 1 {
+-		return nil, &badStringError{"too many transfer encodings", strings.Join(te, ",")}
++		return &badStringError{"too many transfer encodings", strings.Join(te, ",")}
+ 	}
+ 	if len(te) > 0 {
+ 		// RFC 7230 3.3.2 says "A sender MUST NOT send a
+@@ -470,11 +479,12 @@ func fixTransferEncoding(isResponse bool, requestMethod string, header Header) (
+ 		// such a message downstream."
+ 		//
+ 		// Reportedly, these appear in the wild.
+-		delete(header, "Content-Length")
+-		return te, nil
++		delete(t.Header, "Content-Length")
++		t.TransferEncoding = te
++		return nil
+ 	}
+ 
+-	return nil, nil
++	return nil
+ }
+ 
+ // Determine the expected body length, using RFC 2616 Section 4.4. This

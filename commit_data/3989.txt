@@ -8,7 +8,38 @@ Date:   Wed Nov 11 13:08:35 2009 -0800
     
     R=r
     https://golang.org/cl/154064
-
+---
  src/cmd/cc/cc.h | 3 +++
  src/cmd/gc/go.h | 5 +++++
  2 files changed, 8 insertions(+)
+
+diff --git a/src/cmd/cc/cc.h b/src/cmd/cc/cc.h
+index a1168fc8b5..a6f3384383 100644
+--- a/src/cmd/cc/cc.h
++++ b/src/cmd/cc/cc.h
+@@ -39,6 +39,9 @@
+ #define EXTERN	extern
+ #endif
+ 
++#define	getc	ccgetc
++#define	ungetc	ccungetc
++
+ typedef	struct	Node	Node;
+ typedef	struct	Sym	Sym;
+ typedef	struct	Type	Type;
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index bb11f4c92b..ee863decbb 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -13,6 +13,11 @@
+ #ifndef	EXTERN
+ #define	EXTERN	extern
+ #endif
++
++
++#define	getc	gcgetc
++#define	ungetc	gcungetc
++
+ enum
+ {
+ 	NHUNK		= 50000,

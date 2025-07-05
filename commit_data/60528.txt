@@ -12,6 +12,26 @@ Date:   Sat Jan 6 16:59:56 2024 +0800
     Reviewed-by: sophie zhao <zhaoxiaolin@loongson.cn>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: abner chenc <chenguoqi@loongson.cn>
-
+---
  src/cmd/internal/obj/loong64/asm.go | 8 --------
  1 file changed, 8 deletions(-)
+
+diff --git a/src/cmd/internal/obj/loong64/asm.go b/src/cmd/internal/obj/loong64/asm.go
+index 749db66421..45568c9a4f 100644
+--- a/src/cmd/internal/obj/loong64/asm.go
++++ b/src/cmd/internal/obj/loong64/asm.go
+@@ -1247,14 +1247,6 @@ func buildop(ctxt *obj.Link) {
+ 	}
+ }
+ 
+-func OP(x uint32, y uint32) uint32 {
+-	return x<<3 | y<<0
+-}
+-
+-func SP(x uint32, y uint32) uint32 {
+-	return x<<29 | y<<26
+-}
+-
+ func OP_TEN(x uint32, y uint32) uint32 {
+ 	return x<<21 | y<<10
+ }

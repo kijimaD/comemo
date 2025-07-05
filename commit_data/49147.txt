@@ -12,6 +12,20 @@ Date:   Fri Jul 23 00:24:50 2021 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/escape/call.go | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/escape/call.go b/src/cmd/compile/internal/escape/call.go
+index 65c76d6870..9e5abed591 100644
+--- a/src/cmd/compile/internal/escape/call.go
++++ b/src/cmd/compile/internal/escape/call.go
+@@ -320,8 +320,6 @@ func (e *escape) rewriteArgument(argp *ir.Node, init *ir.Nodes, call ir.Node, fn
+ 			return
+ 		case ir.ONAME:
+ 			if arg.(*ir.Name).Class == ir.PFUNC {
+-				// TODO(cuonglm): figure it why this is necessary, we should not depend on this to make
+-				//                ABI analyze works correctly (see #47227 and discussion in CL 334882).
+ 				return
+ 			}
+ 		}

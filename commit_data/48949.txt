@@ -18,6 +18,28 @@ Date:   Mon Jun 28 20:27:30 2021 +0800
     Run-TryBot: Damien Neil <dneil@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/net/dnsclient_unix_test.go | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/net/dnsclient_unix_test.go b/src/net/dnsclient_unix_test.go
+index a59be7fea0..d69107a2f2 100644
+--- a/src/net/dnsclient_unix_test.go
++++ b/src/net/dnsclient_unix_test.go
+@@ -1921,12 +1921,12 @@ func TestCVE202133195(t *testing.T) {
+ 		t.Errorf("LookupSRV returned unexpected error, got %q, want %q", err, expected)
+ 	}
+ 
+-	_, _, err = r.LookupSRV(context.Background(), "hdr", "tcp", "golang.org")
+-	if expected := "lookup golang.org: SRV header name is invalid"; err == nil || err.Error() != expected {
++	_, _, err = r.LookupSRV(context.Background(), "hdr", "tcp", "golang.org.")
++	if expected := "lookup golang.org.: SRV header name is invalid"; err == nil || err.Error() != expected {
+ 		t.Errorf("Resolver.LookupSRV returned unexpected error, got %q, want %q", err, expected)
+ 	}
+-	_, _, err = LookupSRV("hdr", "tcp", "golang.org")
+-	if expected := "lookup golang.org: SRV header name is invalid"; err == nil || err.Error() != expected {
++	_, _, err = LookupSRV("hdr", "tcp", "golang.org.")
++	if expected := "lookup golang.org.: SRV header name is invalid"; err == nil || err.Error() != expected {
+ 		t.Errorf("LookupSRV returned unexpected error, got %q, want %q", err, expected)
+ 	}
+ 

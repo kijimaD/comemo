@@ -19,7 +19,7 @@ Date:   Thu Jun 10 10:50:37 2021 -0700
     Run-TryBot: Damien Neil <dneil@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/go/build/deps_test.go                        | 4 +++-
  src/net/http/httptest/server.go                  | 4 ++--
  src/net/http/internal/{ => testcert}/testcert.go | 5 +++--
@@ -27,3 +27,157 @@ Date:   Thu Jun 10 10:50:37 2021 -0700
  src/net/http/transport_internal_test.go          | 4 ++--
  src/net/http/transport_test.go                   | 4 ++--
  6 files changed, 16 insertions(+), 12 deletions(-)
+
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 5d1cf7f4c9..45e2f25df7 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -440,7 +440,8 @@ var depsRules = `
+ 	# HTTP, King of Dependencies.
+ 
+ 	FMT
+-	< golang.org/x/net/http2/hpack, net/http/internal, net/http/internal/ascii;
++	< golang.org/x/net/http2/hpack
++	< net/http/internal, net/http/internal/ascii, net/http/internal/testcert;
+ 
+ 	FMT, NET, container/list, encoding/binary, log
+ 	< golang.org/x/text/transform
+@@ -459,6 +460,7 @@ var depsRules = `
+ 	golang.org/x/net/http2/hpack,
+ 	net/http/internal,
+ 	net/http/internal/ascii,
++	net/http/internal/testcert,
+ 	net/http/httptrace,
+ 	mime/multipart,
+ 	log
+diff --git a/src/net/http/httptest/server.go b/src/net/http/httptest/server.go
+index a02a6d64c3..4f85ff55d8 100644
+--- a/src/net/http/httptest/server.go
++++ b/src/net/http/httptest/server.go
+@@ -14,7 +14,7 @@ import (
+ 	"log"
+ 	"net"
+ 	"net/http"
+-	"net/http/internal"
++	"net/http/internal/testcert"
+ 	"os"
+ 	"strings"
+ 	"sync"
+@@ -144,7 +144,7 @@ func (s *Server) StartTLS() {
+ 	if s.client == nil {
+ 		s.client = &http.Client{Transport: &http.Transport{}}
+ 	}
+-	cert, err := tls.X509KeyPair(internal.LocalhostCert, internal.LocalhostKey)
++	cert, err := tls.X509KeyPair(testcert.LocalhostCert, testcert.LocalhostKey)
+ 	if err != nil {
+ 		panic(fmt.Sprintf("httptest: NewTLSServer: %v", err))
+ 	}
+diff --git a/src/net/http/internal/testcert.go b/src/net/http/internal/testcert/testcert.go
+similarity index 94%
+rename from src/net/http/internal/testcert.go
+rename to src/net/http/internal/testcert/testcert.go
+index 2284a836fb..5f94704ef5 100644
+--- a/src/net/http/internal/testcert.go
++++ b/src/net/http/internal/testcert/testcert.go
+@@ -2,7 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package internal
++// Package testcert contains a test-only localhost certificate.
++package testcert
+ 
+ import "strings"
+ 
+@@ -25,7 +26,7 @@ h1fIw3cSS2OolhloGw/XM6RWPWtPAlGykKLciQrBru5NAPvCMsb/I1DAceTiotQM
+ fblo6RBxUQ==
+ -----END CERTIFICATE-----`)
+ 
+-// LocalhostKey is the private key for localhostCert.
++// LocalhostKey is the private key for LocalhostCert.
+ var LocalhostKey = []byte(testingKey(`-----BEGIN RSA TESTING KEY-----
+ MIICXgIBAAKBgQDuLnQAI3mDgey3VBzWnB2L39JUU4txjeVE6myuDqkM/uGlfjb9
+ SjY1bIw4iA5sBBZzHi3z0h1YV8QPuxEbi4nW91IJm2gsvvZhIrCHS3l6afab4pZB
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index c2f8811469..6394da3bb7 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -25,6 +25,7 @@ import (
+ 	"net/http/httptest"
+ 	"net/http/httputil"
+ 	"net/http/internal"
++	"net/http/internal/testcert"
+ 	"net/url"
+ 	"os"
+ 	"os/exec"
+@@ -1475,7 +1476,7 @@ func TestServeTLS(t *testing.T) {
+ 	defer afterTest(t)
+ 	defer SetTestHookServerServe(nil)
+ 
+-	cert, err := tls.X509KeyPair(internal.LocalhostCert, internal.LocalhostKey)
++	cert, err := tls.X509KeyPair(testcert.LocalhostCert, testcert.LocalhostKey)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -1599,7 +1600,7 @@ func TestAutomaticHTTP2_Serve_WithTLSConfig(t *testing.T) {
+ }
+ 
+ func TestAutomaticHTTP2_ListenAndServe(t *testing.T) {
+-	cert, err := tls.X509KeyPair(internal.LocalhostCert, internal.LocalhostKey)
++	cert, err := tls.X509KeyPair(testcert.LocalhostCert, testcert.LocalhostKey)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -1609,7 +1610,7 @@ func TestAutomaticHTTP2_ListenAndServe(t *testing.T) {
+ }
+ 
+ func TestAutomaticHTTP2_ListenAndServe_GetCertificate(t *testing.T) {
+-	cert, err := tls.X509KeyPair(internal.LocalhostCert, internal.LocalhostKey)
++	cert, err := tls.X509KeyPair(testcert.LocalhostCert, testcert.LocalhostKey)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+diff --git a/src/net/http/transport_internal_test.go b/src/net/http/transport_internal_test.go
+index 1097ffd173..1cce27235d 100644
+--- a/src/net/http/transport_internal_test.go
++++ b/src/net/http/transport_internal_test.go
+@@ -12,7 +12,7 @@ import (
+ 	"errors"
+ 	"io"
+ 	"net"
+-	"net/http/internal"
++	"net/http/internal/testcert"
+ 	"strings"
+ 	"testing"
+ )
+@@ -191,7 +191,7 @@ func (f roundTripFunc) RoundTrip(r *Request) (*Response, error) {
+ 
+ // Issue 25009
+ func TestTransportBodyAltRewind(t *testing.T) {
+-	cert, err := tls.X509KeyPair(internal.LocalhostCert, internal.LocalhostKey)
++	cert, err := tls.X509KeyPair(testcert.LocalhostCert, testcert.LocalhostKey)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+diff --git a/src/net/http/transport_test.go b/src/net/http/transport_test.go
+index dcaacece61..690e0c299d 100644
+--- a/src/net/http/transport_test.go
++++ b/src/net/http/transport_test.go
+@@ -30,7 +30,7 @@ import (
+ 	"net/http/httptest"
+ 	"net/http/httptrace"
+ 	"net/http/httputil"
+-	"net/http/internal"
++	"net/http/internal/testcert"
+ 	"net/textproto"
+ 	"net/url"
+ 	"os"
+@@ -4299,7 +4299,7 @@ func TestTransportReuseConnEmptyResponseBody(t *testing.T) {
+ 
+ // Issue 13839
+ func TestNoCrashReturningTransportAltConn(t *testing.T) {
+-	cert, err := tls.X509KeyPair(internal.LocalhostCert, internal.LocalhostKey)
++	cert, err := tls.X509KeyPair(testcert.LocalhostCert, testcert.LocalhostKey)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}

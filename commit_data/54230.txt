@@ -13,7 +13,7 @@ Date:   Thu Sep 29 12:46:10 2022 +0000
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/dist/util.go                 | 2 +-
  src/cmd/fix/typecheck.go             | 2 +-
  src/cmd/go/internal/fsys/fsys.go     | 4 ++--
@@ -26,3 +26,183 @@ Date:   Thu Sep 29 12:46:10 2022 +0000
  src/cmd/internal/obj/util.go         | 2 +-
  src/cmd/link/internal/wasm/asm.go    | 2 +-
  11 files changed, 15 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/dist/util.go b/src/cmd/dist/util.go
+index fc1bfcf9b8..a4d49f4614 100644
+--- a/src/cmd/dist/util.go
++++ b/src/cmd/dist/util.go
+@@ -309,7 +309,7 @@ func xreaddir(dir string) []string {
+ 	return names
+ }
+ 
+-// xreaddir replaces dst with a list of the names of the files in dir.
++// xreaddirfiles replaces dst with a list of the names of the files in dir.
+ // The names are relative to dir; they are not full paths.
+ func xreaddirfiles(dir string) []string {
+ 	f, err := os.Open(dir)
+diff --git a/src/cmd/fix/typecheck.go b/src/cmd/fix/typecheck.go
+index 015a0eef2f..27042e05a5 100644
+--- a/src/cmd/fix/typecheck.go
++++ b/src/cmd/fix/typecheck.go
+@@ -293,7 +293,7 @@ func makeExprList(a []*ast.Ident) []ast.Expr {
+ 	return b
+ }
+ 
+-// Typecheck1 is the recursive form of typecheck.
++// typecheck1 is the recursive form of typecheck.
+ // It is like typecheck but adds to the information in typeof
+ // instead of allocating a new map.
+ func typecheck1(cfg *TypeConfig, f any, typeof map[any]string, assign map[string][]any) {
+diff --git a/src/cmd/go/internal/fsys/fsys.go b/src/cmd/go/internal/fsys/fsys.go
+index f6abec42ff..7ff4538d41 100644
+--- a/src/cmd/go/internal/fsys/fsys.go
++++ b/src/cmd/go/internal/fsys/fsys.go
+@@ -94,7 +94,7 @@ func (n *node) isDeleted() bool {
+ var overlay map[string]*node // path -> file or directory node
+ var cwd string               // copy of base.Cwd() to avoid dependency
+ 
+-// Canonicalize a path for looking it up in the overlay.
++// canonicalize a path for looking it up in the overlay.
+ // Important: filepath.Join(cwd, path) doesn't always produce
+ // the correct absolute path if path is relative, because on
+ // Windows producing the correct absolute path requires making
+@@ -507,7 +507,7 @@ func Walk(root string, walkFn filepath.WalkFunc) error {
+ 	return err
+ }
+ 
+-// lstat implements a version of os.Lstat that operates on the overlay filesystem.
++// Lstat implements a version of os.Lstat that operates on the overlay filesystem.
+ func Lstat(path string) (fs.FileInfo, error) {
+ 	Trace("Lstat", path)
+ 	return overlayStat(path, os.Lstat, "lstat")
+diff --git a/src/cmd/go/internal/modindex/scan.go b/src/cmd/go/internal/modindex/scan.go
+index d3f059bcfc..56ba9e86c8 100644
+--- a/src/cmd/go/internal/modindex/scan.go
++++ b/src/cmd/go/internal/modindex/scan.go
+@@ -69,7 +69,7 @@ func indexModule(modroot string) ([]byte, error) {
+ 	return encodeModuleBytes(packages), nil
+ }
+ 
+-// indexModule indexes the package at the given directory and returns its
++// indexPackage indexes the package at the given directory and returns its
+ // encoded representation. It returns ErrNotIndexed if the package can't
+ // be indexed.
+ func indexPackage(modroot, pkgdir string) []byte {
+@@ -115,7 +115,7 @@ func parseErrorToString(err error) string {
+ 	return string(s)
+ }
+ 
+-// parseErrorFrom string converts a string produced by parseErrorToString back
++// parseErrorFromString converts a string produced by parseErrorToString back
+ // to an error.  An empty string is converted to a nil error, and all
+ // other strings are expected to be JSON-marshalled parseError structs.
+ // The two functions are meant to preserve the structure of an
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index 8c610a0033..7da2bebdb8 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -1665,7 +1665,7 @@ const (
+ 	addBuildListZipSums
+ )
+ 
+-// modKey returns the module.Version under which the checksum for m's go.mod
++// modkey returns the module.Version under which the checksum for m's go.mod
+ // file is stored in the go.sum file.
+ func modkey(m module.Version) module.Version {
+ 	return module.Version{Path: m.Path, Version: m.Version + "/go.mod"}
+diff --git a/src/cmd/go/internal/workcmd/edit.go b/src/cmd/go/internal/workcmd/edit.go
+index 1478c19389..a0b96cd730 100644
+--- a/src/cmd/go/internal/workcmd/edit.go
++++ b/src/cmd/go/internal/workcmd/edit.go
+@@ -235,7 +235,7 @@ func parsePathVersionOptional(adj, arg string, allowDirPath bool) (path, version
+ 	return path, version, nil
+ }
+ 
+-// flagReplace implements the -replace flag.
++// flagEditworkReplace implements the -replace flag.
+ func flagEditworkReplace(arg string) {
+ 	var i int
+ 	if i = strings.Index(arg, "="); i < 0 {
+@@ -264,7 +264,7 @@ func flagEditworkReplace(arg string) {
+ 	})
+ }
+ 
+-// flagDropReplace implements the -dropreplace flag.
++// flagEditworkDropReplace implements the -dropreplace flag.
+ func flagEditworkDropReplace(arg string) {
+ 	path, version, err := parsePathVersionOptional("old", arg, true)
+ 	if err != nil {
+diff --git a/src/cmd/internal/dwarf/dwarf.go b/src/cmd/internal/dwarf/dwarf.go
+index 4821efa963..18800f7948 100644
+--- a/src/cmd/internal/dwarf/dwarf.go
++++ b/src/cmd/internal/dwarf/dwarf.go
+@@ -396,7 +396,7 @@ func expandPseudoForm(form uint8) uint8 {
+ 	return uint8(expandedForm)
+ }
+ 
+-// Abbrevs() returns the finalized abbrev array for the platform,
++// Abbrevs returns the finalized abbrev array for the platform,
+ // expanding any DW_FORM pseudo-ops to real values.
+ func Abbrevs() []dwAbbrev {
+ 	if abbrevsFinalized {
+@@ -1719,7 +1719,7 @@ func (s byChildIndex) Len() int           { return len(s) }
+ func (s byChildIndex) Less(i, j int) bool { return s[i].ChildIndex < s[j].ChildIndex }
+ func (s byChildIndex) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+ 
+-// IsDWARFEnabledOnAIX returns true if DWARF is possible on the
++// IsDWARFEnabledOnAIXLd returns true if DWARF is possible on the
+ // current extld.
+ // AIX ld doesn't support DWARF with -bnoobjreorder with version
+ // prior to 7.2.2.
+diff --git a/src/cmd/internal/goobj/mkbuiltin.go b/src/cmd/internal/goobj/mkbuiltin.go
+index d96ac41c1a..57e39dc47e 100644
+--- a/src/cmd/internal/goobj/mkbuiltin.go
++++ b/src/cmd/internal/goobj/mkbuiltin.go
+@@ -116,7 +116,7 @@ func mkbuiltin(w io.Writer) {
+ 	fmt.Fprintln(w, "}")
+ }
+ 
+-// addBasicTypes returns the symbol names for basic types that are
++// enumerateBasicTypes returns the symbol names for basic types that are
+ // defined in the runtime and referenced in other packages.
+ // Needs to be kept in sync with reflect.go:WriteBasicTypes() and
+ // reflect.go:writeType() in the compiler.
+diff --git a/src/cmd/internal/obj/pcln.go b/src/cmd/internal/obj/pcln.go
+index 49b425b124..ea2d59492f 100644
+--- a/src/cmd/internal/obj/pcln.go
++++ b/src/cmd/internal/obj/pcln.go
+@@ -369,7 +369,7 @@ type PCIter struct {
+ 	Done    bool
+ }
+ 
+-// newPCIter creates a PCIter with a scale factor for the PC step size.
++// NewPCIter creates a PCIter with a scale factor for the PC step size.
+ func NewPCIter(pcScale uint32) *PCIter {
+ 	it := new(PCIter)
+ 	it.PCScale = pcScale
+diff --git a/src/cmd/internal/obj/util.go b/src/cmd/internal/obj/util.go
+index 55b3dd26ed..b219a07063 100644
+--- a/src/cmd/internal/obj/util.go
++++ b/src/cmd/internal/obj/util.go
+@@ -233,7 +233,7 @@ func Dconv(p *Prog, a *Addr) string {
+ 	return buf.String()
+ }
+ 
+-// DconvDconvWithABIDetail accepts an argument 'a' within a prog 'p'
++// DconvWithABIDetail accepts an argument 'a' within a prog 'p'
+ // and returns a string with a formatted version of the argument, in
+ // which text symbols are rendered with explicit ABI selectors.
+ func DconvWithABIDetail(p *Prog, a *Addr) string {
+diff --git a/src/cmd/link/internal/wasm/asm.go b/src/cmd/link/internal/wasm/asm.go
+index 041b4e2780..0aa065f99d 100644
+--- a/src/cmd/link/internal/wasm/asm.go
++++ b/src/cmd/link/internal/wasm/asm.go
+@@ -412,7 +412,7 @@ func writeElementSec(ctxt *ld.Link, numImports, numFns uint64) {
+ 	writeSecSize(ctxt, sizeOffset)
+ }
+ 
+-// writeElementSec writes the section that provides the function bodies for the functions
++// writeCodeSec writes the section that provides the function bodies for the functions
+ // declared by the "func" section.
+ func writeCodeSec(ctxt *ld.Link, fns []*wasmFunc) {
+ 	sizeOffset := writeSecHeader(ctxt, sectionCode)

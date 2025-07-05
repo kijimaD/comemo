@@ -11,6 +11,20 @@ Date:   Thu May 13 04:03:18 2021 +0000
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Trust: Brad Fitzpatrick <bradfitz@golang.org>
     Trust: Heschi Kreinick <heschi@google.com>
-
+---
  src/debug/macho/macho.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/debug/macho/macho.go b/src/debug/macho/macho.go
+index 49e107eed3..9fa9f95752 100644
+--- a/src/debug/macho/macho.go
++++ b/src/debug/macho/macho.go
+@@ -4,7 +4,7 @@
+ 
+ // Mach-O header data structures
+ // Originally at:
+-// http://developer.apple.com/mac/library/documentation/DeveloperTools/Conceptual/MachORuntime/Reference/reference.html (since deleted by Apply)
++// http://developer.apple.com/mac/library/documentation/DeveloperTools/Conceptual/MachORuntime/Reference/reference.html (since deleted by Apple)
+ // Archived copy at:
+ // https://web.archive.org/web/20090819232456/http://developer.apple.com/documentation/DeveloperTools/Conceptual/MachORuntime/index.html
+ // For cloned PDF see:

@@ -43,6 +43,26 @@ Date:   Fri Apr 24 11:01:38 2020 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/alg.go | 8 ++++++++
  1 file changed, 8 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/alg.go b/src/cmd/compile/internal/gc/alg.go
+index 16524773a0..571ac4c6c7 100644
+--- a/src/cmd/compile/internal/gc/alg.go
++++ b/src/cmd/compile/internal/gc/alg.go
+@@ -585,6 +585,14 @@ func geneq(t *types.Type) *obj.LSym {
+ 					eqlen, eqmem := eqstring(p, q)
+ 					and(eqlen)
+ 					and(eqmem)
++				case f.Type.IsInterface():
++					p.Type = f.Type
++					p = typecheck(p, ctxExpr)
++					q.Type = f.Type
++					q = typecheck(q, ctxExpr)
++					eqtab, eqdata := eqinterface(p, q)
++					and(eqtab)
++					and(eqdata)
+ 				default:
+ 					and(nod(OEQ, p, q))
+ 				}

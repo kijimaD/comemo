@@ -11,7 +11,37 @@ Date:   Wed Mar 16 14:09:56 2022 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/393436
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/validtype.go | 3 ++-
  src/go/types/validtype.go                    | 4 ++--
  2 files changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/validtype.go b/src/cmd/compile/internal/types2/validtype.go
+index f365ad1e27..c7d42551dd 100644
+--- a/src/cmd/compile/internal/types2/validtype.go
++++ b/src/cmd/compile/internal/types2/validtype.go
+@@ -63,7 +63,8 @@ func (check *Checker) validType0(typ Type, env *tparamEnv, path []Object) typeIn
+ 	case *Named:
+ 		// Don't report a 2nd error if we already know the type is invalid
+ 		// (e.g., if a cycle was detected earlier, via under).
+-		if t.underlying == Typ[Invalid] {
++		// Note: ensure that t.orig is fully resolved by calling Underlying().
++		if t.Underlying() == Typ[Invalid] {
+ 			check.infoMap[t] = invalid
+ 			return invalid
+ 		}
+diff --git a/src/go/types/validtype.go b/src/go/types/validtype.go
+index 7d7029bce2..2c686f2655 100644
+--- a/src/go/types/validtype.go
++++ b/src/go/types/validtype.go
+@@ -62,8 +62,8 @@ func (check *Checker) validType0(typ Type, env *tparamEnv, path []Object) typeIn
+ 
+ 	case *Named:
+ 		// Don't report a 2nd error if we already know the type is invalid
+-		// (e.g., if a cycle was detected earlier, via under).
+-		if t.underlying == Typ[Invalid] {
++		// Note: ensure that t.orig is fully resolved by calling Underlying().
++		if t.Underlying() == Typ[Invalid] {
+ 			check.infoMap[t] = invalid
+ 			return invalid
+ 		}

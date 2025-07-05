@@ -16,7 +16,49 @@ Date:   Mon Dec 17 11:33:42 2018 -0800
     Change-Id: I54c8afc88a2c6d1906afa2d09c68a0a3f3e2f1e3
     Reviewed-on: https://go-review.googlesource.com/c/154578
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/subr.go |  5 +++--
  test/fixedbugs/issue29304.go        | 19 +++++++++++++++++++
  2 files changed, 22 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 629186829a..2a976dc4f0 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -1517,8 +1517,9 @@ func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym) {
+ 		return
+ 	}
+ 
+-	// Only generate I.M wrappers for I in I's own package.
+-	if rcvr.IsInterface() && rcvr.Sym != nil && rcvr.Sym.Pkg != localpkg {
++	// Only generate I.M wrappers for I in I's own package
++	// but keep doing it for error.Error (was issue #29304).
++	if rcvr.IsInterface() && rcvr.Sym != nil && rcvr.Sym.Pkg != localpkg && rcvr != types.Errortype {
+ 		return
+ 	}
+ 
+diff --git a/test/fixedbugs/issue29304.go b/test/fixedbugs/issue29304.go
+new file mode 100644
+index 0000000000..47bc99f9ca
+--- /dev/null
++++ b/test/fixedbugs/issue29304.go
+@@ -0,0 +1,19 @@
++// run
++
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Verify that relocation target go.builtin.error.Error
++// is defined and the code links and runs correctly.
++
++package main
++
++import "errors"
++
++func main() {
++	err := errors.New("foo")
++	if error.Error(err) != "foo" {
++		panic("FAILED")
++	}
++}

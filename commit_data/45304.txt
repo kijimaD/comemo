@@ -26,7 +26,120 @@ Date:   Sat Oct 17 15:19:53 2020 +0000
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Joe Tsai <thebrokentoaster@gmail.com>
     Trust: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/compress/flate/deflate_test.go | 57 ++++++++++++++++++++++++++++++++++++++
  src/compress/flate/deflatefast.go  | 11 ++++++--
  2 files changed, 65 insertions(+), 3 deletions(-)
+
+diff --git a/src/compress/flate/deflate_test.go b/src/compress/flate/deflate_test.go
+index 49a0345fd1..b19cbec5a9 100644
+--- a/src/compress/flate/deflate_test.go
++++ b/src/compress/flate/deflate_test.go
+@@ -11,6 +11,7 @@ import (
+ 	"internal/testenv"
+ 	"io"
+ 	"io/ioutil"
++	"math/rand"
+ 	"reflect"
+ 	"runtime/debug"
+ 	"sync"
+@@ -896,6 +897,62 @@ func TestBestSpeedMaxMatchOffset(t *testing.T) {
+ 	}
+ }
+ 
++func TestBestSpeedShiftOffsets(t *testing.T) {
++	// Test if shiftoffsets properly preserves matches and resets out-of-range matches
++	// seen in https://github.com/golang/go/issues/4142
++	enc := newDeflateFast()
++
++	// testData may not generate internal matches.
++	testData := make([]byte, 32)
++	rng := rand.New(rand.NewSource(0))
++	for i := range testData {
++		testData[i] = byte(rng.Uint32())
++	}
++
++	// Encode the testdata with clean state.
++	// Second part should pick up matches from the first block.
++	wantFirstTokens := len(enc.encode(nil, testData))
++	wantSecondTokens := len(enc.encode(nil, testData))
++
++	if wantFirstTokens <= wantSecondTokens {
++		t.Fatalf("test needs matches between inputs to be generated")
++	}
++	// Forward the current indicator to before wraparound.
++	enc.cur = bufferReset - int32(len(testData))
++
++	// Part 1 before wrap, should match clean state.
++	got := len(enc.encode(nil, testData))
++	if wantFirstTokens != got {
++		t.Errorf("got %d, want %d tokens", got, wantFirstTokens)
++	}
++
++	// Verify we are about to wrap.
++	if enc.cur != bufferReset {
++		t.Errorf("got %d, want e.cur to be at bufferReset (%d)", enc.cur, bufferReset)
++	}
++
++	// Part 2 should match clean state as well even if wrapped.
++	got = len(enc.encode(nil, testData))
++	if wantSecondTokens != got {
++		t.Errorf("got %d, want %d token", got, wantSecondTokens)
++	}
++
++	// Verify that we wrapped.
++	if enc.cur >= bufferReset {
++		t.Errorf("want e.cur to be < bufferReset (%d), got %d", bufferReset, enc.cur)
++	}
++
++	// Forward the current buffer, leaving the matches at the bottom.
++	enc.cur = bufferReset
++	enc.shiftOffsets()
++
++	// Ensure that no matches were picked up.
++	got = len(enc.encode(nil, testData))
++	if wantFirstTokens != got {
++		t.Errorf("got %d, want %d tokens", got, wantFirstTokens)
++	}
++}
++
+ func TestMaxStackSize(t *testing.T) {
+ 	// This test must not run in parallel with other tests as debug.SetMaxStack
+ 	// affects all goroutines.
+diff --git a/src/compress/flate/deflatefast.go b/src/compress/flate/deflatefast.go
+index 24f8be9d5d..6aa439f13d 100644
+--- a/src/compress/flate/deflatefast.go
++++ b/src/compress/flate/deflatefast.go
+@@ -270,6 +270,7 @@ func (e *deflateFast) matchLen(s, t int32, src []byte) int32 {
+ func (e *deflateFast) reset() {
+ 	e.prev = e.prev[:0]
+ 	// Bump the offset, so all matches will fail distance check.
++	// Nothing should be >= e.cur in the table.
+ 	e.cur += maxMatchOffset
+ 
+ 	// Protect against e.cur wraparound.
+@@ -288,17 +289,21 @@ func (e *deflateFast) shiftOffsets() {
+ 		for i := range e.table[:] {
+ 			e.table[i] = tableEntry{}
+ 		}
+-		e.cur = maxMatchOffset
++		e.cur = maxMatchOffset + 1
+ 		return
+ 	}
+ 
+ 	// Shift down everything in the table that isn't already too far away.
+ 	for i := range e.table[:] {
+-		v := e.table[i].offset - e.cur + maxMatchOffset
++		v := e.table[i].offset - e.cur + maxMatchOffset + 1
+ 		if v < 0 {
++			// We want to reset e.cur to maxMatchOffset + 1, so we need to shift
++			// all table entries down by (e.cur - (maxMatchOffset + 1)).
++			// Because we ignore matches > maxMatchOffset, we can cap
++			// any negative offsets at 0.
+ 			v = 0
+ 		}
+ 		e.table[i].offset = v
+ 	}
+-	e.cur = maxMatchOffset
++	e.cur = maxMatchOffset + 1
+ }

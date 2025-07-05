@@ -9,8 +9,168 @@ Date:   Fri Jun 3 10:49:24 2016 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
-
+---
  misc/cgo/testsanitizers/test.bash | 62 ++++++++++++---------------------------
  misc/cgo/testsanitizers/tsan6.go  | 49 +++++++++++++++++++++++++++++++
  src/runtime/cgo/gcc_mmap.c        |  4 +++
  3 files changed, 71 insertions(+), 44 deletions(-)
+
+diff --git a/misc/cgo/testsanitizers/test.bash b/misc/cgo/testsanitizers/test.bash
+index 1a2a9a697d..12ddba5dfa 100755
+--- a/misc/cgo/testsanitizers/test.bash
++++ b/misc/cgo/testsanitizers/test.bash
+@@ -111,61 +111,35 @@ if test "$tsan" = "yes"; then
+      rm -f ${TMPDIR}/testsanitizers$$*
+ fi
+ 
+-if test "$tsan" = "yes"; then
++# Run a TSAN test.
++# $1 test name
++# $2 environment variables
++# $3 go run args
++testtsan() {
+     err=${TMPDIR}/tsanerr$$.out
+-
+-    if ! go run tsan.go 2>$err; then
+-	cat $err
+-	echo "FAIL: tsan"
+-	status=1
+-    elif grep -i warning $err >/dev/null 2>&1; then
+-	cat $err
+-	echo "FAIL: tsan"
+-	status=1
+-    fi
+-
+-    if ! go run tsan2.go 2>$err; then
+-	cat $err
+-	echo "FAIL: tsan2"
+-	status=1
+-    elif grep -i warning $err >/dev/null 2>&1; then
+-	cat $err
+-	echo "FAIL: tsan2"
+-	status=1
+-    fi
+-
+-    if ! go run tsan3.go 2>$err; then
++    if ! env $2 go run $3 $1 2>$err; then
+ 	cat $err
+-	echo "FAIL: tsan3"
++	echo "FAIL: $1"
+ 	status=1
+     elif grep -i warning $err >/dev/null 2>&1; then
+ 	cat $err
+-	echo "FAIL: tsan3"
++	echo "FAIL: $1"
+ 	status=1
+     fi
++    rm -f $err
++}
+ 
+-    if ! go run tsan4.go 2>$err; then
+-	cat $err
+-	echo "FAIL: tsan4"
+-	status=1
+-    elif grep -i warning $err >/dev/null 2>&1; then
+-	cat $err
+-	echo "FAIL: tsan4"
+-	status=1
+-    fi
++if test "$tsan" = "yes"; then
++    testtsan tsan.go
++    testtsan tsan2.go
++    testtsan tsan3.go
++    testtsan tsan4.go
+ 
+     # This test requires rebuilding os/user with -fsanitize=thread.
+-    if ! CGO_CFLAGS="-fsanitize=thread" CGO_LDFLAGS="-fsanitize=thread" go run -installsuffix=tsan tsan5.go 2>$err; then
+-	cat $err
+-	echo "FAIL: tsan5"
+-	status=1
+-    elif grep -i warning $err >/dev/null 2>&1; then
+-	cat $err
+-	echo "FAIL: tsan5"
+-	status=1
+-    fi
++    testtsan tsan5.go "CGO_CFLAGS=-fsanitize=thread CGO_LDFLAGS=-fsanitize=thread" "-installsuffix=tsan"
+ 
+-    rm -f $err
++    # This test requires rebuilding runtime/cgo with -fsanitize=thread.
++    testtsan tsan6.go "CGO_CFLAGS=-fsanitize=thread CGO_LDFLAGS=-fsanitize=thread" "-installsuffix=tsan"
+ fi
+ 
+ exit $status
+diff --git a/misc/cgo/testsanitizers/tsan6.go b/misc/cgo/testsanitizers/tsan6.go
+new file mode 100644
+index 0000000000..c96f08d2f3
+--- /dev/null
++++ b/misc/cgo/testsanitizers/tsan6.go
+@@ -0,0 +1,49 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++// Check that writes to Go allocated memory, with Go synchronization,
++// do not look like a race.
++
++/*
++#cgo CFLAGS: -fsanitize=thread
++#cgo LDFLAGS: -fsanitize=thread
++
++void f(char *p) {
++	*p = 1;
++}
++*/
++import "C"
++
++import (
++	"runtime"
++	"sync"
++)
++
++func main() {
++	var wg sync.WaitGroup
++	var mu sync.Mutex
++	c := make(chan []C.char, 100)
++	for i := 0; i < 10; i++ {
++		wg.Add(2)
++		go func() {
++			defer wg.Done()
++			for i := 0; i < 100; i++ {
++				c <- make([]C.char, 4096)
++				runtime.Gosched()
++			}
++		}()
++		go func() {
++			defer wg.Done()
++			for i := 0; i < 100; i++ {
++				p := &(<-c)[0]
++				mu.Lock()
++				C.f(p)
++				mu.Unlock()
++			}
++		}()
++	}
++	wg.Wait()
++}
+diff --git a/src/runtime/cgo/gcc_mmap.c b/src/runtime/cgo/gcc_mmap.c
+index 14efa5489d..088bcb291e 100644
+--- a/src/runtime/cgo/gcc_mmap.c
++++ b/src/runtime/cgo/gcc_mmap.c
+@@ -8,11 +8,15 @@
+ #include <stdint.h>
+ #include <sys/mman.h>
+ 
++#include "libcgo.h"
++
+ void *
+ x_cgo_mmap(void *addr, uintptr_t length, int32_t prot, int32_t flags, int32_t fd, uint32_t offset) {
+ 	void *p;
+ 
++	_cgo_tsan_acquire();
+ 	p = mmap(addr, length, prot, flags, fd, offset);
++	_cgo_tsan_release();
+ 	if (p == MAP_FAILED) {
+ 		/* This is what the Go code expects on failure.  */
+ 		p = (void *) (uintptr_t) errno;

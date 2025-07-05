@@ -17,8 +17,70 @@ Date:   Wed Dec 28 14:21:50 2022 -0800
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/types2/typeset.go         |  2 +-
  src/go/types/typeset.go                            |  2 +-
  .../types/testdata/fixedbugs/issue57486.go         | 29 ++++++++++++++++++++++
  3 files changed, 31 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/typeset.go b/src/cmd/compile/internal/types2/typeset.go
+index 391ea8cd79..673cadca90 100644
+--- a/src/cmd/compile/internal/types2/typeset.go
++++ b/src/cmd/compile/internal/types2/typeset.go
+@@ -352,7 +352,7 @@ func intersectTermLists(xterms termlist, xcomp bool, yterms termlist, ycomp bool
+ 		i := 0
+ 		for _, t := range terms {
+ 			assert(t.typ != nil)
+-			if Comparable(t.typ) {
++			if comparable(t.typ, false /* strictly comparable */, nil, nil) {
+ 				terms[i] = t
+ 				i++
+ 			}
+diff --git a/src/go/types/typeset.go b/src/go/types/typeset.go
+index 35a32972e0..d68446df66 100644
+--- a/src/go/types/typeset.go
++++ b/src/go/types/typeset.go
+@@ -350,7 +350,7 @@ func intersectTermLists(xterms termlist, xcomp bool, yterms termlist, ycomp bool
+ 		i := 0
+ 		for _, t := range terms {
+ 			assert(t.typ != nil)
+-			if Comparable(t.typ) {
++			if comparable(t.typ, false /* strictly comparable */, nil, nil) {
+ 				terms[i] = t
+ 				i++
+ 			}
+diff --git a/src/internal/types/testdata/fixedbugs/issue57486.go b/src/internal/types/testdata/fixedbugs/issue57486.go
+new file mode 100644
+index 0000000000..ff9e3d1db5
+--- /dev/null
++++ b/src/internal/types/testdata/fixedbugs/issue57486.go
+@@ -0,0 +1,29 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type C1 interface {
++	comparable
++}
++
++type C2 interface {
++	comparable
++	[2]any | int
++}
++
++func G1[T C1](t T) { _ = t == t }
++func G2[T C2](t T) { _ = t == t }
++
++func F1[V [2]any](v V) {
++	_ = G1[V /* ERROR "V does not implement comparable" */]
++	_ = G1[[2]any]
++	_ = G1[int]
++}
++
++func F2[V [2]any](v V) {
++	_ = G2[V /* ERROR "V does not implement C2" */]
++	_ = G2[[ /* ERROR "\[2\]any does not implement C2 \(\[2\]any missing in int\)" */ 2]any]
++	_ = G2[int]
++}

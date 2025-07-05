@@ -8,8 +8,102 @@ Date:   Wed Jul 29 15:10:29 2009 -0700
     DELTA=32  (24 added, 1 deleted, 7 changed)
     OCL=32461
     CL=32463
-
+---
  src/pkg/gob/decode.go       |  5 +++++
  src/pkg/gob/decoder.go      | 17 +++++++++--------
  src/pkg/gob/encoder_test.go | 17 +++++++++++++++++
  3 files changed, 31 insertions(+), 8 deletions(-)
+
+diff --git a/src/pkg/gob/decode.go b/src/pkg/gob/decode.go
+index 9cd2387369..f790a70c2f 100644
+--- a/src/pkg/gob/decode.go
++++ b/src/pkg/gob/decode.go
+@@ -19,6 +19,7 @@ import (
+ 
+ var (
+ 	errBadUint = os.ErrorString("gob: encoded unsigned integer out of range");
++	errBadType = os.ErrorString("gob: unknown type id or corrupted data");
+ 	errRange = os.ErrorString("gob: internal error: field numbers out of bounds");
+ 	errNotStruct = os.ErrorString("gob: TODO: can only handle structs")
+ )
+@@ -768,6 +769,10 @@ func decode(b *bytes.Buffer, wireId typeId, e interface{}) os.Error {
+ 		return os.ErrorString("gob: decode can't handle " + rt.String())
+ 	}
+ 	typeLock.Lock();
++	if _, ok := idToType[wireId]; !ok {
++		typeLock.Unlock();
++		return errBadType;
++	}
+ 	enginePtr, err := getDecEnginePtr(wireId, rt);
+ 	typeLock.Unlock();
+ 	if err != nil {
+diff --git a/src/pkg/gob/decoder.go b/src/pkg/gob/decoder.go
+index 91bfcbbb8e..b4c0acdfa7 100644
+--- a/src/pkg/gob/decoder.go
++++ b/src/pkg/gob/decoder.go
+@@ -64,11 +64,11 @@ func (dec *Decoder) Decode(e interface{}) os.Error {
+ 	dec.state.err = nil;
+ 	for {
+ 		// Read a count.
+-		nbytes, err := decodeUintReader(dec.r, dec.oneByte);
+-		if err != nil {
+-			return err;
++		var nbytes uint64;
++		nbytes, dec.state.err = decodeUintReader(dec.r, dec.oneByte);
++		if dec.state.err != nil {
++			break;
+ 		}
+-
+ 		// Allocate the buffer.
+ 		if nbytes > uint64(len(dec.buf)) {
+ 			dec.buf = make([]byte, nbytes + 1000);
+@@ -77,12 +77,13 @@ func (dec *Decoder) Decode(e interface{}) os.Error {
+ 
+ 		// Read the data
+ 		var n int;
+-		n, err = dec.r.Read(dec.buf[0:nbytes]);
+-		if err != nil {
+-			return err;
++		n, dec.state.err = io.ReadFull(dec.r, dec.buf[0:nbytes]);
++		if dec.state.err != nil {
++			break;
+ 		}
+ 		if n < int(nbytes) {
+-			return os.ErrorString("gob decode: short read");
++			dec.state.err = io.ErrUnexpectedEOF;
++			break;
+ 		}
+ 
+ 		// Receive a type id.
+diff --git a/src/pkg/gob/encoder_test.go b/src/pkg/gob/encoder_test.go
+index 3e82d8f76e..06420c08e3 100644
+--- a/src/pkg/gob/encoder_test.go
++++ b/src/pkg/gob/encoder_test.go
+@@ -7,6 +7,7 @@ package gob
+ import (
+ 	"bytes";
+ 	"gob";
++	"io";
+ 	"os";
+ 	"reflect";
+ 	"strings";
+@@ -227,3 +228,19 @@ func TestWrongTypeDecoder(t *testing.T) {
+ 	badTypeCheck(new(ET3), false, "different name of field", t);
+ 	badTypeCheck(new(ET4), true, "different type of field", t);
+ }
++
++func corruptDataCheck(s string, err os.Error, t *testing.T) {
++	b := bytes.NewBuffer(strings.Bytes(s));
++	dec := NewDecoder(b);
++	dec.Decode(new(ET2));
++	if dec.state.err != err {
++		t.Error("expected error", err, "got", dec.state.err);
++	}
++}
++
++// Check that we survive bad data.
++func TestBadData(t *testing.T) {
++	corruptDataCheck("\x01\x01\x01", os.EOF, t);
++	corruptDataCheck("\x7Fhi", io.ErrUnexpectedEOF, t);
++	corruptDataCheck("\x03now is the time for all good men", errBadType, t);
++}

@@ -20,10 +20,137 @@ Date:   Mon Nov 26 12:59:54 2018 -0800
     Run-TryBot: Keith Randall <khr@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/const.go  | 25 ++++++++++++++++++++++---
  src/cmd/compile/internal/gc/fmt.go    |  9 ++++++++-
  src/cmd/compile/internal/gc/syntax.go |  2 +-
  test/fixedbugs/issue17038.go          |  2 +-
  test/fixedbugs/issue24760.go          | 12 ++++++++++++
  5 files changed, 44 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/const.go b/src/cmd/compile/internal/gc/const.go
+index 9f5afadd70..afcdb95443 100644
+--- a/src/cmd/compile/internal/gc/const.go
++++ b/src/cmd/compile/internal/gc/const.go
+@@ -584,6 +584,14 @@ func Isconst(n *Node, ct Ctype) bool {
+ 
+ // evconst rewrites constant expressions into OLITERAL nodes.
+ func evconst(n *Node) {
++	if !n.isGoConst() {
++		// Avoid constant evaluation of things that aren't actually constants
++		// according to the spec. See issue 24760.
++		// The SSA backend has a more robust optimizer that will catch
++		// all of these weird cases (like uintptr(unsafe.Pointer(uintptr(1)))).
++		return
++	}
++
+ 	nl, nr := n.Left, n.Right
+ 
+ 	// Pick off just the opcodes that can be constant evaluated.
+@@ -1268,7 +1276,7 @@ func nonnegintconst(n *Node) int64 {
+ //
+ // Expressions derived from nil, like string([]byte(nil)), while they
+ // may be known at compile time, are not Go language constants.
+-// Only called for expressions known to evaluated to compile-time
++// Only called for expressions known to evaluate to compile-time
+ // constants.
+ func (n *Node) isGoConst() bool {
+ 	if n.Orig != nil {
+@@ -1277,7 +1285,6 @@ func (n *Node) isGoConst() bool {
+ 
+ 	switch n.Op {
+ 	case OADD,
+-		OADDSTR,
+ 		OAND,
+ 		OANDAND,
+ 		OANDNOT,
+@@ -1301,13 +1308,25 @@ func (n *Node) isGoConst() bool {
+ 		OSUB,
+ 		OXOR,
+ 		OIOTA,
+-		OCOMPLEX,
+ 		OREAL,
+ 		OIMAG:
+ 		if n.Left.isGoConst() && (n.Right == nil || n.Right.isGoConst()) {
+ 			return true
+ 		}
+ 
++	case OCOMPLEX:
++		if n.List.Len() == 0 && n.Left.isGoConst() && n.Right.isGoConst() {
++			return true
++		}
++
++	case OADDSTR:
++		for _, n1 := range n.List.Slice() {
++			if !n1.isGoConst() {
++				return false
++			}
++		}
++		return true
++
+ 	case OCONV:
+ 		if okforconst[n.Type.Etype] && n.Left.isGoConst() {
+ 			return true
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index 36f7545b3c..f128872dbb 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -1400,9 +1400,16 @@ func (n *Node) exprfmt(s fmt.State, prec int, mode fmtMode) {
+ 		}
+ 		mode.Fprintf(s, "sliceheader{%v,%v,%v}", n.Left, n.List.First(), n.List.Second())
+ 
+-	case OCOPY, OCOMPLEX:
++	case OCOPY:
+ 		mode.Fprintf(s, "%#v(%v, %v)", n.Op, n.Left, n.Right)
+ 
++	case OCOMPLEX:
++		if n.List.Len() == 1 {
++			mode.Fprintf(s, "%#v(%v)", n.Op, n.List.First())
++		} else {
++			mode.Fprintf(s, "%#v(%v, %v)", n.Op, n.Left, n.Right)
++		}
++
+ 	case OCONV,
+ 		OCONVIFACE,
+ 		OCONVNOP,
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index 9ecea8a4c5..0be52f1271 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -692,7 +692,7 @@ const (
+ 	OIOTA        // iota
+ 	OREAL        // real(Left)
+ 	OIMAG        // imag(Left)
+-	OCOMPLEX     // complex(Left, Right)
++	OCOMPLEX     // complex(Left, Right) or complex(List[0]) where List[0] is a 2-result function call
+ 	OALIGNOF     // unsafe.Alignof(Left)
+ 	OOFFSETOF    // unsafe.Offsetof(Left)
+ 	OSIZEOF      // unsafe.Sizeof(Left)
+diff --git a/test/fixedbugs/issue17038.go b/test/fixedbugs/issue17038.go
+index 1b65ffc1f0..e07a4b22ce 100644
+--- a/test/fixedbugs/issue17038.go
++++ b/test/fixedbugs/issue17038.go
+@@ -6,4 +6,4 @@
+ 
+ package main
+ 
+-const A = complex(0()) // ERROR "cannot call non-function"
++const A = complex(0()) // ERROR "cannot call non-function" "const initializer .* is not a constant"
+diff --git a/test/fixedbugs/issue24760.go b/test/fixedbugs/issue24760.go
+new file mode 100644
+index 0000000000..cd6f124517
+--- /dev/null
++++ b/test/fixedbugs/issue24760.go
+@@ -0,0 +1,12 @@
++// compile
++
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++import "unsafe"
++
++var _ = string([]byte(nil))[0]
++var _ = uintptr(unsafe.Pointer(uintptr(1))) << 100

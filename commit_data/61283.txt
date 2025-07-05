@@ -13,6 +13,26 @@ Date:   Tue Oct 22 12:57:13 2024 +0800
     Reviewed-by: Michael Pratt <mpratt@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Michael Pratt <mpratt@google.com>
-
+---
  test/codegen/issue69635.go | 13 +++++++++++++
  1 file changed, 13 insertions(+)
+
+diff --git a/test/codegen/issue69635.go b/test/codegen/issue69635.go
+new file mode 100644
+index 0000000000..de68bf1287
+--- /dev/null
++++ b/test/codegen/issue69635.go
+@@ -0,0 +1,13 @@
++// asmcheck
++
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package codegen
++
++func calc(a uint64) uint64 {
++	v := a >> 20 & 0x7f
++	// amd64: `SHRQ\s\$17, AX$`, `ANDL\s\$1016, AX$`
++	return v << 3
++}

@@ -11,7 +11,7 @@ Date:   Mon Dec 22 13:27:53 2014 -0500
     Change-Id: Ie7ff3020a8f60a8e4c8645fe236e7883a3f23f46
     Reviewed-on: https://go-review.googlesource.com/1962
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/asm_386.s      |   5 +-
  src/runtime/asm_amd64.s    |   5 +-
  src/runtime/asm_amd64p32.s |   5 +-
@@ -41,3 +41,956 @@ Date:   Mon Dec 22 13:27:53 2014 -0500
  src/runtime/thunk.s        | 203 ---------------------------------------------
  src/runtime/time.go        |  17 +++-
  28 files changed, 177 insertions(+), 238 deletions(-)
+
+diff --git a/src/runtime/asm_386.s b/src/runtime/asm_386.s
+index 8436579cd2..5ae869b1de 100644
+--- a/src/runtime/asm_386.s
++++ b/src/runtime/asm_386.s
+@@ -341,6 +341,9 @@ TEXT runtime·morestack_noctxt(SB),NOSPLIT,$0-0
+ 	JMP	AX
+ // Note: can't just "JMP NAME(SB)" - bad inlining results.
+ 
++TEXT reflect·call(SB), NOSPLIT, $0-0
++	JMP	·reflectcall(SB)
++
+ TEXT ·reflectcall(SB), NOSPLIT, $0-16
+ 	MOVL	argsize+8(FP), CX
+ 	DISPATCH(runtime·call16, 16)
+@@ -1403,7 +1406,7 @@ TEXT runtime·cmpstring(SB),NOSPLIT,$0-20
+ 	MOVL	AX, ret+16(FP)
+ 	RET
+ 
+-TEXT runtime·cmpbytes(SB),NOSPLIT,$0-28
++TEXT bytes·Compare(SB),NOSPLIT,$0-28
+ 	MOVL	s1+0(FP), SI
+ 	MOVL	s1+4(FP), BX
+ 	MOVL	s2+12(FP), DI
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index a8a827c1c5..0ec5d7a806 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -330,6 +330,9 @@ TEXT runtime·morestack_noctxt(SB),NOSPLIT,$0
+ 	JMP	AX
+ // Note: can't just "JMP NAME(SB)" - bad inlining results.
+ 
++TEXT reflect·call(SB), NOSPLIT, $0-0
++	JMP	·reflectcall(SB)
++
+ TEXT ·reflectcall(SB), NOSPLIT, $0-24
+ 	MOVLQZX argsize+16(FP), CX
+ 	DISPATCH(runtime·call16, 16)
+@@ -1336,7 +1339,7 @@ TEXT runtime·cmpstring(SB),NOSPLIT,$0-40
+ 	MOVQ	AX, ret+32(FP)
+ 	RET
+ 
+-TEXT runtime·cmpbytes(SB),NOSPLIT,$0-56
++TEXT bytes·Compare(SB),NOSPLIT,$0-56
+ 	MOVQ	s1+0(FP), SI
+ 	MOVQ	s1+8(FP), BX
+ 	MOVQ	s2+24(FP), DI
+diff --git a/src/runtime/asm_amd64p32.s b/src/runtime/asm_amd64p32.s
+index c87d848fec..0749b3e85f 100644
+--- a/src/runtime/asm_amd64p32.s
++++ b/src/runtime/asm_amd64p32.s
+@@ -302,6 +302,9 @@ TEXT runtime·morestack_noctxt(SB),NOSPLIT,$0
+ 	JMP	AX
+ // Note: can't just "JMP NAME(SB)" - bad inlining results.
+ 
++TEXT reflect·call(SB), NOSPLIT, $0-0
++	JMP	·reflectcall(SB)
++
+ TEXT ·reflectcall(SB), NOSPLIT, $0-16
+ 	MOVLQZX argsize+8(FP), CX
+ 	DISPATCH(runtime·call16, 16)
+@@ -804,7 +807,7 @@ TEXT runtime·cmpstring(SB),NOSPLIT,$0-20
+ 	MOVL	AX, ret+16(FP)
+ 	RET
+ 
+-TEXT runtime·cmpbytes(SB),NOSPLIT,$0-28
++TEXT bytes·Compare(SB),NOSPLIT,$0-28
+ 	MOVL	s1+0(FP), SI
+ 	MOVL	s1+4(FP), BX
+ 	MOVL	s2+12(FP), DI
+diff --git a/src/runtime/asm_arm.s b/src/runtime/asm_arm.s
+index c6c98b4439..fdcc0e67c1 100644
+--- a/src/runtime/asm_arm.s
++++ b/src/runtime/asm_arm.s
+@@ -333,6 +333,9 @@ TEXT runtime·morestack_noctxt(SB),NOSPLIT,$-4-0
+ 	MOVW	$NAME(SB), R1;		\
+ 	B	(R1)
+ 
++TEXT reflect·call(SB), NOSPLIT, $0-0
++	B	·reflectcall(SB)
++
+ TEXT ·reflectcall(SB),NOSPLIT,$-4-16
+ 	MOVW	argsize+8(FP), R0
+ 	DISPATCH(runtime·call16, 16)
+diff --git a/src/runtime/asm_ppc64x.s b/src/runtime/asm_ppc64x.s
+index b3b55fe55e..1360c6ed3b 100644
+--- a/src/runtime/asm_ppc64x.s
++++ b/src/runtime/asm_ppc64x.s
+@@ -285,6 +285,9 @@ TEXT runtime·morestack_noctxt(SB),NOSPLIT,$-8-0
+ 	BR	(CTR)
+ // Note: can't just "BR NAME(SB)" - bad inlining results.
+ 
++TEXT reflect·call(SB), NOSPLIT, $0-0
++	BR	·reflectcall(SB)
++
+ TEXT ·reflectcall(SB), NOSPLIT, $-8-24
+ 	MOVWZ n+16(FP), R3
+ 	DISPATCH(runtime·call16, 16)
+diff --git a/src/runtime/chan.go b/src/runtime/chan.go
+index d673bb993a..43c0703895 100644
+--- a/src/runtime/chan.go
++++ b/src/runtime/chan.go
+@@ -16,6 +16,11 @@ const (
+ 
+ // TODO(khr): make hchan.buf an unsafe.Pointer, not a *uint8
+ 
++//go:linkname reflect_makechan reflect.makechan
++func reflect_makechan(t *chantype, size int64) *hchan {
++	return makechan(t, size)
++}
++
+ func makechan(t *chantype, size int64) *hchan {
+ 	elem := t.elem
+ 
+@@ -590,14 +595,17 @@ func selectnbrecv2(t *chantype, elem unsafe.Pointer, received *bool, c *hchan) (
+ 	return
+ }
+ 
++//go:linkname reflect_chansend reflect.chansend
+ func reflect_chansend(t *chantype, c *hchan, elem unsafe.Pointer, nb bool) (selected bool) {
+ 	return chansend(t, c, elem, !nb, getcallerpc(unsafe.Pointer(&t)))
+ }
+ 
++//go:linkname reflect_chanrecv reflect.chanrecv
+ func reflect_chanrecv(t *chantype, c *hchan, nb bool, elem unsafe.Pointer) (selected bool, received bool) {
+ 	return chanrecv(t, c, elem, !nb)
+ }
+ 
++//go:linkname reflect_chanlen reflect.chanlen
+ func reflect_chanlen(c *hchan) int {
+ 	if c == nil {
+ 		return 0
+@@ -605,6 +613,7 @@ func reflect_chanlen(c *hchan) int {
+ 	return int(c.qcount)
+ }
+ 
++//go:linkname reflect_chancap reflect.chancap
+ func reflect_chancap(c *hchan) int {
+ 	if c == nil {
+ 		return 0
+@@ -612,6 +621,11 @@ func reflect_chancap(c *hchan) int {
+ 	return int(c.dataqsiz)
+ }
+ 
++//go:linkname reflect_chanclose reflect.chanclose
++func reflect_chanclose(c *hchan) {
++	closechan(c)
++}
++
+ func (q *waitq) enqueue(sgp *sudog) {
+ 	sgp.next = nil
+ 	x := q.last
+diff --git a/src/runtime/cpuprof.go b/src/runtime/cpuprof.go
+index a9bb1add85..d8e0ab7d40 100644
+--- a/src/runtime/cpuprof.go
++++ b/src/runtime/cpuprof.go
+@@ -421,3 +421,8 @@ func uintptrBytes(p []uintptr) (ret []byte) {
+ func CPUProfile() []byte {
+ 	return cpuprof.getprofile()
+ }
++
++//go:linkname runtime_pprof_runtime_cyclesPerSecond runtime/pprof.runtime_cyclesPerSecond
++func runtime_pprof_runtime_cyclesPerSecond() int64 {
++	return tickspersecond()
++}
+diff --git a/src/runtime/env_posix.go b/src/runtime/env_posix.go
+index 03c7a5a4af..1e013296f9 100644
+--- a/src/runtime/env_posix.go
++++ b/src/runtime/env_posix.go
+@@ -35,6 +35,7 @@ var _cgo_unsetenv unsafe.Pointer // pointer to C function
+ 
+ // Update the C environment if cgo is loaded.
+ // Called from syscall.Setenv.
++//go:linkname syscall_setenv_c syscall.setenv_c
+ func syscall_setenv_c(k string, v string) {
+ 	if _cgo_setenv == nil {
+ 		return
+@@ -45,6 +46,7 @@ func syscall_setenv_c(k string, v string) {
+ 
+ // Update the C environment if cgo is loaded.
+ // Called from syscall.unsetenv.
++//go:linkname syscall_unsetenv_c syscall.unsetenv_c
+ func syscall_unsetenv_c(k string) {
+ 	if _cgo_unsetenv == nil {
+ 		return
+diff --git a/src/runtime/hashmap.go b/src/runtime/hashmap.go
+index dd3877d21e..adaf65e419 100644
+--- a/src/runtime/hashmap.go
++++ b/src/runtime/hashmap.go
+@@ -909,10 +909,12 @@ func ismapkey(t *_type) bool {
+ 
+ // Reflect stubs.  Called from ../reflect/asm_*.s
+ 
++//go:linkname reflect_makemap reflect.makemap
+ func reflect_makemap(t *maptype) *hmap {
+ 	return makemap(t, 0)
+ }
+ 
++//go:linkname reflect_mapaccess reflect.mapaccess
+ func reflect_mapaccess(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer {
+ 	val, ok := mapaccess2(t, h, key)
+ 	if !ok {
+@@ -922,28 +924,34 @@ func reflect_mapaccess(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer {
+ 	return val
+ }
+ 
++//go:linkname reflect_mapassign reflect.mapassign
+ func reflect_mapassign(t *maptype, h *hmap, key unsafe.Pointer, val unsafe.Pointer) {
+ 	mapassign1(t, h, key, val)
+ }
+ 
++//go:linkname reflect_mapdelete reflect.mapdelete
+ func reflect_mapdelete(t *maptype, h *hmap, key unsafe.Pointer) {
+ 	mapdelete(t, h, key)
+ }
+ 
++//go:linkname reflect_mapiterinit reflect.mapiterinit
+ func reflect_mapiterinit(t *maptype, h *hmap) *hiter {
+ 	it := new(hiter)
+ 	mapiterinit(t, h, it)
+ 	return it
+ }
+ 
++//go:linkname reflect_mapiternext reflect.mapiternext
+ func reflect_mapiternext(it *hiter) {
+ 	mapiternext(it)
+ }
+ 
++//go:linkname reflect_mapiterkey reflect.mapiterkey
+ func reflect_mapiterkey(it *hiter) unsafe.Pointer {
+ 	return it.key
+ }
+ 
++//go:linkname reflect_maplen reflect.maplen
+ func reflect_maplen(h *hmap) int {
+ 	if h == nil {
+ 		return 0
+@@ -955,6 +963,7 @@ func reflect_maplen(h *hmap) int {
+ 	return h.count
+ }
+ 
++//go:linkname reflect_ismapkey reflect.ismapkey
+ func reflect_ismapkey(t *_type) bool {
+ 	return ismapkey(t)
+ }
+diff --git a/src/runtime/iface.go b/src/runtime/iface.go
+index f60b6a79cc..6be1df74a3 100644
+--- a/src/runtime/iface.go
++++ b/src/runtime/iface.go
+@@ -386,6 +386,7 @@ func assertE2I2(inter *interfacetype, e interface{}) (r fInterface, ok bool) {
+ 	return
+ }
+ 
++//go:linkname reflect_ifaceE2I reflect.ifaceE2I
+ func reflect_ifaceE2I(inter *interfacetype, e interface{}, dst *fInterface) {
+ 	*dst = assertE2I(inter, e)
+ }
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index a056808bf7..d7fca7f906 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -387,6 +387,11 @@ func newobject(typ *_type) unsafe.Pointer {
+ 	return mallocgc(uintptr(typ.size), typ, flags)
+ }
+ 
++//go:linkname reflect_unsafe_New reflect.unsafe_New
++func reflect_unsafe_New(typ *_type) unsafe.Pointer {
++	return newobject(typ)
++}
++
+ // implementation of make builtin for slices
+ func newarray(typ *_type, n uintptr) unsafe.Pointer {
+ 	flags := uint32(0)
+@@ -399,6 +404,11 @@ func newarray(typ *_type, n uintptr) unsafe.Pointer {
+ 	return mallocgc(uintptr(typ.size)*n, typ, flags)
+ }
+ 
++//go:linkname reflect_unsafe_NewArray reflect.unsafe_NewArray
++func reflect_unsafe_NewArray(typ *_type, n uintptr) unsafe.Pointer {
++	return newarray(typ, n)
++}
++
+ // rawmem returns a chunk of pointerless memory.  It is
+ // not zeroed.
+ func rawmem(size uintptr) unsafe.Pointer {
+diff --git a/src/runtime/mem.go b/src/runtime/mem.go
+index 1835672512..03d80067fb 100644
+--- a/src/runtime/mem.go
++++ b/src/runtime/mem.go
+@@ -95,8 +95,8 @@ func ReadMemStats(m *MemStats) {
+ 	gp.m.locks--
+ }
+ 
+-// Implementation of runtime/debug.WriteHeapDump
+-func writeHeapDump(fd uintptr) {
++//go:linkname runtime_debug_WriteHeapDump runtime/debug.WriteHeapDump
++func runtime_debug_WriteHeapDump(fd uintptr) {
+ 	semacquire(&worldsema, false)
+ 	gp := getg()
+ 	gp.m.gcing = 1
+diff --git a/src/runtime/mgc0.go b/src/runtime/mgc0.go
+index d6e786165b..4900b26b58 100644
+--- a/src/runtime/mgc0.go
++++ b/src/runtime/mgc0.go
+@@ -22,18 +22,20 @@ func gc_itab_ptr(ret *interface{}) {
+ }
+ 
+ func gc_unixnanotime(now *int64) {
+-	sec, nsec := timenow()
++	sec, nsec := time_now()
+ 	*now = sec*1e9 + int64(nsec)
+ }
+ 
+-func freeOSMemory() {
++//go:linkname runtime_debug_freeOSMemory runtime/debug.freeOSMemory
++func runtime_debug_freeOSMemory() {
+ 	gogc(2) // force GC and do eager sweep
+ 	systemstack(scavenge_m)
+ }
+ 
+ var poolcleanup func()
+ 
+-func registerPoolCleanup(f func()) {
++//go:linkname sync_runtime_registerPoolCleanup sync.runtime_registerPoolCleanup
++func sync_runtime_registerPoolCleanup(f func()) {
+ 	poolcleanup = f
+ }
+ 
+diff --git a/src/runtime/netpoll.go b/src/runtime/netpoll.go
+index 7a99f18ad2..ba7a0f6931 100644
+--- a/src/runtime/netpoll.go
++++ b/src/runtime/netpoll.go
+@@ -71,11 +71,13 @@ type pollCache struct {
+ 
+ var pollcache pollCache
+ 
+-func netpollServerInit() {
++//go:linkname net_runtime_pollServerInit net.runtime_pollServerInit
++func net_runtime_pollServerInit() {
+ 	netpollinit()
+ }
+ 
+-func netpollOpen(fd uintptr) (*pollDesc, int) {
++//go:linkname net_runtime_pollOpen net.runtime_pollOpen
++func net_runtime_pollOpen(fd uintptr) (*pollDesc, int) {
+ 	pd := pollcache.alloc()
+ 	lock(&pd.lock)
+ 	if pd.wg != 0 && pd.wg != pdReady {
+@@ -98,7 +100,8 @@ func netpollOpen(fd uintptr) (*pollDesc, int) {
+ 	return pd, int(errno)
+ }
+ 
+-func netpollClose(pd *pollDesc) {
++//go:linkname net_runtime_pollClose net.runtime_pollClose
++func net_runtime_pollClose(pd *pollDesc) {
+ 	if !pd.closing {
+ 		gothrow("netpollClose: close w/o unblock")
+ 	}
+@@ -119,7 +122,8 @@ func (c *pollCache) free(pd *pollDesc) {
+ 	unlock(&c.lock)
+ }
+ 
+-func netpollReset(pd *pollDesc, mode int) int {
++//go:linkname net_runtime_pollReset net.runtime_pollReset
++func net_runtime_pollReset(pd *pollDesc, mode int) int {
+ 	err := netpollcheckerr(pd, int32(mode))
+ 	if err != 0 {
+ 		return err
+@@ -132,7 +136,8 @@ func netpollReset(pd *pollDesc, mode int) int {
+ 	return 0
+ }
+ 
+-func netpollWait(pd *pollDesc, mode int) int {
++//go:linkname net_runtime_pollWait net.runtime_pollWait
++func net_runtime_pollWait(pd *pollDesc, mode int) int {
+ 	err := netpollcheckerr(pd, int32(mode))
+ 	if err != 0 {
+ 		return err
+@@ -153,14 +158,16 @@ func netpollWait(pd *pollDesc, mode int) int {
+ 	return 0
+ }
+ 
+-func netpollWaitCanceled(pd *pollDesc, mode int) {
++//go:linkname net_runtime_pollWaitCanceled net.runtime_pollWaitCanceled
++func net_runtime_pollWaitCanceled(pd *pollDesc, mode int) {
+ 	// This function is used only on windows after a failed attempt to cancel
+ 	// a pending async IO operation. Wait for ioready, ignore closing or timeouts.
+ 	for !netpollblock(pd, int32(mode), true) {
+ 	}
+ }
+ 
+-func netpollSetDeadline(pd *pollDesc, d int64, mode int) {
++//go:linkname net_runtime_pollSetDeadline net.runtime_pollSetDeadline
++func net_runtime_pollSetDeadline(pd *pollDesc, d int64, mode int) {
+ 	lock(&pd.lock)
+ 	if pd.closing {
+ 		unlock(&pd.lock)
+@@ -229,7 +236,8 @@ func netpollSetDeadline(pd *pollDesc, d int64, mode int) {
+ 	}
+ }
+ 
+-func netpollUnblock(pd *pollDesc) {
++//go:linkname net_runtime_pollUnblock net.runtime_pollUnblock
++func net_runtime_pollUnblock(pd *pollDesc) {
+ 	lock(&pd.lock)
+ 	if pd.closing {
+ 		gothrow("netpollUnblock: already closing")
+diff --git a/src/runtime/noasm.go b/src/runtime/noasm.go
+index 1337fc9a18..b7e3f82f8e 100644
+--- a/src/runtime/noasm.go
++++ b/src/runtime/noasm.go
+@@ -32,7 +32,8 @@ func cmpstring(s1, s2 string) int {
+ 	return 0
+ }
+ 
+-func cmpbytes(s1, s2 []byte) int {
++//go:linkname bytes_Compare bytes.Compare
++func bytes_Compare(s1, s2 []byte) int {
+ 	l := len(s1)
+ 	if len(s2) < l {
+ 		l = len(s2)
+diff --git a/src/runtime/os_nacl.go b/src/runtime/os_nacl.go
+index eff9ec30e4..d7d076fdc6 100644
+--- a/src/runtime/os_nacl.go
++++ b/src/runtime/os_nacl.go
+@@ -34,6 +34,7 @@ func osyield()
+ //go:noescape
+ func write(fd uintptr, p unsafe.Pointer, n int32) int32
+ 
++//go:linkname os_sigpipe os.sigpipe
+ func os_sigpipe() {
+ 	gothrow("too many writes on closed pipe")
+ }
+diff --git a/src/runtime/os_plan9.go b/src/runtime/os_plan9.go
+index 5a038db497..f1354df0d3 100644
+--- a/src/runtime/os_plan9.go
++++ b/src/runtime/os_plan9.go
+@@ -53,6 +53,7 @@ func errstr() string
+ 
+ type _Plink uintptr
+ 
++//go:linkname os_sigpipe os.sigpipe
+ func os_sigpipe() {
+ 	gothrow("too many writes on closed pipe")
+ }
+diff --git a/src/runtime/os_windows.go b/src/runtime/os_windows.go
+index 097b5d6290..e70944cb39 100644
+--- a/src/runtime/os_windows.go
++++ b/src/runtime/os_windows.go
+@@ -6,6 +6,7 @@ package runtime
+ 
+ type stdFunction *byte
+ 
++//go:linkname os_sigpipe os.sigpipe
+ func os_sigpipe() {
+ 	gothrow("too many writes on closed pipe")
+ }
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 64f6a35209..695fc4115b 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -6,8 +6,13 @@ package runtime
+ 
+ import "unsafe"
+ 
++//go:linkname runtime_init runtime.init
+ func runtime_init()
++
++//go:linkname main_init main.init
+ func main_init()
++
++//go:linkname main_main main.main
+ func main_main()
+ 
+ // The main goroutine.
+diff --git a/src/runtime/proc1.go b/src/runtime/proc1.go
+index a3aae8f221..658a6d568e 100644
+--- a/src/runtime/proc1.go
++++ b/src/runtime/proc1.go
+@@ -1884,8 +1884,9 @@ func beforefork() {
+ }
+ 
+ // Called from syscall package before fork.
++//go:linkname syscall_runtime_BeforeFork syscall.runtime_BeforeFork
+ //go:nosplit
+-func syscall_BeforeFork() {
++func syscall_runtime_BeforeFork() {
+ 	systemstack(beforefork)
+ }
+ 
+@@ -1903,8 +1904,9 @@ func afterfork() {
+ }
+ 
+ // Called from syscall package after fork in parent.
++//go:linkname syscall_runtime_AfterFork syscall.runtime_AfterFork
+ //go:nosplit
+-func syscall_AfterFork() {
++func syscall_runtime_AfterFork() {
+ 	systemstack(afterfork)
+ }
+ 
+@@ -3196,7 +3198,7 @@ func haveexperiment(name string) bool {
+ }
+ 
+ //go:nosplit
+-func sync_procPin() int {
++func procPin() int {
+ 	_g_ := getg()
+ 	mp := _g_.m
+ 
+@@ -3205,7 +3207,31 @@ func sync_procPin() int {
+ }
+ 
+ //go:nosplit
+-func sync_procUnpin() {
++func procUnpin() {
+ 	_g_ := getg()
+ 	_g_.m.locks--
+ }
++
++//go:linkname sync_runtime_procPin sync.runtime_procPin
++//go:nosplit
++func sync_runtime_procPin() int {
++	return procPin()
++}
++
++//go:linkname sync_runtime_procUnpin sync.runtime_procUnpin
++//go:nosplit
++func sync_runtime_procUnpin() {
++	procUnpin()
++}
++
++//go:linkname sync_atomic_runtime_procPin sync/atomic.runtime_procPin
++//go:nosplit
++func sync_atomic_runtime_procPin() int {
++	return procPin()
++}
++
++//go:linkname sync_atomic_runtime_procUnpin sync/atomic.runtime_procUnpin
++//go:nosplit
++func sync_atomic_runtime_procUnpin() {
++	procUnpin()
++}
+diff --git a/src/runtime/runtime.go b/src/runtime/runtime.go
+index 2e291c28be..2ce4618f3f 100644
+--- a/src/runtime/runtime.go
++++ b/src/runtime/runtime.go
+@@ -4,6 +4,8 @@
+ 
+ package runtime
+ 
++import _ "unsafe" // for go:linkname
++
+ //go:generate go run wincallback.go
+ 
+ var ticks struct {
+@@ -55,8 +57,8 @@ func parforalloc(nthrmax uint32) *parfor {
+ var envs []string
+ var argslice []string
+ 
+-// called from syscall
+-func runtime_envs() []string { return envs }
++//go:linkname syscall_runtime_envs syscall.runtime_envs
++func syscall_runtime_envs() []string { return envs }
+ 
+-// called from os
+-func runtime_args() []string { return argslice }
++//go:linkname os_runtime_args os.runtime_args
++func os_runtime_args() []string { return argslice }
+diff --git a/src/runtime/runtime1.go b/src/runtime/runtime1.go
+index 9e19b68bee..13fed93484 100644
+--- a/src/runtime/runtime1.go
++++ b/src/runtime/runtime1.go
+@@ -397,8 +397,9 @@ func gomcache() *mcache {
+ 
+ var typelink, etypelink [0]byte
+ 
++//go:linkname reflect_typelinks reflect.typelinks
+ //go:nosplit
+-func typelinks() []*_type {
++func reflect_typelinks() []*_type {
+ 	var ret []*_type
+ 	sp := (*slice)(unsafe.Pointer(&ret))
+ 	sp.array = (*byte)(unsafe.Pointer(&typelink))
+diff --git a/src/runtime/select.go b/src/runtime/select.go
+index 63d436a9b6..39484e8360 100644
+--- a/src/runtime/select.go
++++ b/src/runtime/select.go
+@@ -595,6 +595,7 @@ const (
+ 	selectDefault           // default
+ )
+ 
++//go:linkname reflect_rselect reflect.rselect
+ func reflect_rselect(cases []runtimeSelect) (chosen int, recvOK bool) {
+ 	// flagNoScan is safe here, because all objects are also referenced from cases.
+ 	size := selectsize(uintptr(len(cases)))
+diff --git a/src/runtime/sema.go b/src/runtime/sema.go
+index 26dbd30ea3..625445c912 100644
+--- a/src/runtime/sema.go
++++ b/src/runtime/sema.go
+@@ -38,12 +38,23 @@ var semtable [semTabSize]struct {
+ 	pad  [_CacheLineSize - unsafe.Sizeof(semaRoot{})]byte
+ }
+ 
+-// Called from sync/net packages.
+-func asyncsemacquire(addr *uint32) {
++//go:linkname sync_runtime_Semacquire sync.runtime_Semacquire
++func sync_runtime_Semacquire(addr *uint32) {
+ 	semacquire(addr, true)
+ }
+ 
+-func asyncsemrelease(addr *uint32) {
++//go:linkname net_runtime_Semacquire net.runtime_Semacquire
++func net_runtime_Semacquire(addr *uint32) {
++	semacquire(addr, true)
++}
++
++//go:linkname sync_runtime_Semrelease sync.runtime_Semrelease
++func sync_runtime_Semrelease(addr *uint32) {
++	semrelease(addr)
++}
++
++//go:linkname net_runtime_Semrelease net.runtime_Semrelease
++func net_runtime_Semrelease(addr *uint32) {
+ 	semrelease(addr)
+ }
+ 
+@@ -185,7 +196,8 @@ type syncSema struct {
+ 	tail *sudog
+ }
+ 
+-// Syncsemacquire waits for a pairing syncsemrelease on the same semaphore s.
++// syncsemacquire waits for a pairing syncsemrelease on the same semaphore s.
++//go:linkname syncsemacquire sync.runtime_Syncsemacquire
+ func syncsemacquire(s *syncSema) {
+ 	lock(&s.lock)
+ 	if s.head != nil && s.head.nrelease > 0 {
+@@ -230,7 +242,8 @@ func syncsemacquire(s *syncSema) {
+ 	}
+ }
+ 
+-// Syncsemrelease waits for n pairing syncsemacquire on the same semaphore s.
++// syncsemrelease waits for n pairing syncsemacquire on the same semaphore s.
++//go:linkname syncsemrelease sync.runtime_Syncsemrelease
+ func syncsemrelease(s *syncSema, n uint32) {
+ 	lock(&s.lock)
+ 	for n > 0 && s.head != nil && s.head.nrelease < 0 {
+@@ -267,6 +280,7 @@ func syncsemrelease(s *syncSema, n uint32) {
+ 	}
+ }
+ 
++//go:linkname syncsemcheck sync.runtime_Syncsemcheck
+ func syncsemcheck(sz uintptr) {
+ 	if sz != unsafe.Sizeof(syncSema{}) {
+ 		print("runtime: bad syncSema size - sync=", sz, " runtime=", unsafe.Sizeof(syncSema{}), "\n")
+diff --git a/src/runtime/signal_unix.go b/src/runtime/signal_unix.go
+index c457083dcf..8834e51f4b 100644
+--- a/src/runtime/signal_unix.go
++++ b/src/runtime/signal_unix.go
+@@ -6,6 +6,9 @@
+ 
+ package runtime
+ 
++import _ "unsafe" // for go:linkname
++
++//go:linkname os_sigpipe os.sigpipe
+ func os_sigpipe() {
+ 	systemstack(sigpipe)
+ }
+diff --git a/src/runtime/stubs.go b/src/runtime/stubs.go
+index 4408e22bff..03e3ee98f8 100644
+--- a/src/runtime/stubs.go
++++ b/src/runtime/stubs.go
+@@ -70,7 +70,12 @@ func memclr(ptr unsafe.Pointer, n uintptr)
+ // memmove copies n bytes from "from" to "to".
+ // in memmove_*.s
+ //go:noescape
+-func memmove(to unsafe.Pointer, from unsafe.Pointer, n uintptr)
++func memmove(to, from unsafe.Pointer, n uintptr)
++
++//go:linkname reflect_memmove reflect.memmove
++func reflect_memmove(to, from unsafe.Pointer, n uintptr) {
++	memmove(to, from, n)
++}
+ 
+ // exported value for testing
+ var hashLoad = loadFactor
+@@ -197,8 +202,8 @@ func rt0_go()
+ // in asm_*.s
+ func return0()
+ 
+-// thunk to call time.now.
+-func timenow() (sec int64, nsec int32)
++//go:linkname time_now time.now
++func time_now() (sec int64, nsec int32)
+ 
+ // in asm_*.s
+ // not called directly; definitions here supply type information for traceback.
+diff --git a/src/runtime/thunk.s b/src/runtime/thunk.s
+deleted file mode 100644
+index 0714dc198a..0000000000
+--- a/src/runtime/thunk.s
++++ /dev/null
+@@ -1,203 +0,0 @@
+-// Copyright 2014 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// This file exposes various internal runtime functions to other packages in std lib.
+-
+-#include "textflag.h"
+-
+-#ifdef GOARCH_arm
+-#define JMP B
+-#endif
+-#ifdef GOARCH_ppc64
+-#define JMP BR
+-#endif
+-#ifdef GOARCH_ppc64le
+-#define JMP BR
+-#endif
+-
+-TEXT net·runtimeNano(SB),NOSPLIT,$0-0
+-	JMP	runtime·nanotime(SB)
+-
+-TEXT time·runtimeNano(SB),NOSPLIT,$0-0
+-	JMP     runtime·nanotime(SB)
+-
+-TEXT time·Sleep(SB),NOSPLIT,$0-0
+-	JMP     runtime·timeSleep(SB)
+-
+-TEXT time·startTimer(SB),NOSPLIT,$0-0
+-	JMP     runtime·startTimer(SB)
+-
+-TEXT time·stopTimer(SB),NOSPLIT,$0-0
+-	JMP     runtime·stopTimer(SB)
+-
+-TEXT sync·runtime_Syncsemacquire(SB),NOSPLIT,$0-0
+-	JMP	runtime·syncsemacquire(SB)
+-
+-TEXT sync·runtime_Syncsemrelease(SB),NOSPLIT,$0-0
+-	JMP	runtime·syncsemrelease(SB)
+-
+-TEXT sync·runtime_Syncsemcheck(SB),NOSPLIT,$0-0
+-	JMP	runtime·syncsemcheck(SB)
+-
+-TEXT sync·runtime_Semacquire(SB),NOSPLIT,$0-0
+-	JMP	runtime·asyncsemacquire(SB)
+-
+-TEXT sync·runtime_Semrelease(SB),NOSPLIT,$0-0
+-	JMP	runtime·asyncsemrelease(SB)
+-
+-TEXT sync·runtime_registerPoolCleanup(SB),NOSPLIT,$0-0
+-	JMP	runtime·registerPoolCleanup(SB)
+-
+-TEXT net·runtime_Semacquire(SB),NOSPLIT,$0-0
+-	JMP	runtime·asyncsemacquire(SB)
+-
+-TEXT net·runtime_Semrelease(SB),NOSPLIT,$0-0
+-	JMP	runtime·asyncsemrelease(SB)
+-
+-TEXT runtime∕pprof·runtime_cyclesPerSecond(SB),NOSPLIT,$0-0
+-	JMP	runtime·tickspersecond(SB)
+-
+-TEXT bytes·Compare(SB),NOSPLIT,$0-0
+-	JMP	runtime·cmpbytes(SB)
+-
+-TEXT reflect·call(SB), NOSPLIT, $0-0
+-	JMP	runtime·reflectcall(SB)
+-
+-TEXT reflect·chanclose(SB), NOSPLIT, $0-0
+-	JMP	runtime·closechan(SB)
+-
+-TEXT reflect·chanlen(SB), NOSPLIT, $0-0
+-	JMP	runtime·reflect_chanlen(SB)
+-
+-TEXT reflect·chancap(SB), NOSPLIT, $0-0
+-	JMP	runtime·reflect_chancap(SB)
+-
+-TEXT reflect·chansend(SB), NOSPLIT, $0-0
+-	JMP	runtime·reflect_chansend(SB)
+-
+-TEXT reflect·chanrecv(SB), NOSPLIT, $0-0
+-	JMP	runtime·reflect_chanrecv(SB)
+-
+-TEXT reflect·memmove(SB), NOSPLIT, $0-0
+-	JMP	runtime·memmove(SB)
+-
+-TEXT runtime∕debug·freeOSMemory(SB), NOSPLIT, $0-0
+-	JMP	runtime·freeOSMemory(SB)
+-
+-TEXT runtime∕debug·WriteHeapDump(SB), NOSPLIT, $0-0
+-	JMP	runtime·writeHeapDump(SB)
+-
+-TEXT net·runtime_pollServerInit(SB),NOSPLIT,$0-0
+-	JMP	runtime·netpollServerInit(SB)
+-
+-TEXT net·runtime_pollOpen(SB),NOSPLIT,$0-0
+-	JMP	runtime·netpollOpen(SB)
+-
+-TEXT net·runtime_pollClose(SB),NOSPLIT,$0-0
+-	JMP	runtime·netpollClose(SB)
+-
+-TEXT net·runtime_pollReset(SB),NOSPLIT,$0-0
+-	JMP	runtime·netpollReset(SB)
+-
+-TEXT net·runtime_pollWait(SB),NOSPLIT,$0-0
+-	JMP	runtime·netpollWait(SB)
+-
+-TEXT net·runtime_pollWaitCanceled(SB),NOSPLIT,$0-0
+-	JMP	runtime·netpollWaitCanceled(SB)
+-
+-TEXT net·runtime_pollSetDeadline(SB),NOSPLIT,$0-0
+-	JMP	runtime·netpollSetDeadline(SB)
+-
+-TEXT net·runtime_pollUnblock(SB),NOSPLIT,$0-0
+-	JMP	runtime·netpollUnblock(SB)
+-
+-TEXT syscall·setenv_c(SB), NOSPLIT, $0-0
+-	JMP	runtime·syscall_setenv_c(SB)
+-
+-TEXT syscall·unsetenv_c(SB), NOSPLIT, $0-0
+-	JMP	runtime·syscall_unsetenv_c(SB)
+-
+-TEXT reflect·makemap(SB),NOSPLIT,$0-0
+-	JMP	runtime·reflect_makemap(SB)
+-
+-TEXT reflect·mapaccess(SB),NOSPLIT,$0-0
+-	JMP	runtime·reflect_mapaccess(SB)
+-
+-TEXT reflect·mapassign(SB),NOSPLIT,$0-0
+-	JMP	runtime·reflect_mapassign(SB)
+-
+-TEXT reflect·mapdelete(SB),NOSPLIT,$0-0
+-	JMP	runtime·reflect_mapdelete(SB)
+-
+-TEXT reflect·mapiterinit(SB),NOSPLIT,$0-0
+-	JMP	runtime·reflect_mapiterinit(SB)
+-
+-TEXT reflect·mapiterkey(SB),NOSPLIT,$0-0
+-	JMP	runtime·reflect_mapiterkey(SB)
+-
+-TEXT reflect·mapiternext(SB),NOSPLIT,$0-0
+-	JMP	runtime·reflect_mapiternext(SB)
+-
+-TEXT reflect·maplen(SB),NOSPLIT,$0-0
+-	JMP	runtime·reflect_maplen(SB)
+-
+-TEXT reflect·ismapkey(SB),NOSPLIT,$0-0
+-	JMP	runtime·reflect_ismapkey(SB)
+-
+-TEXT reflect·ifaceE2I(SB),NOSPLIT,$0-0
+-	JMP	runtime·reflect_ifaceE2I(SB)
+-
+-TEXT reflect·unsafe_New(SB),NOSPLIT,$0-0
+-	JMP	runtime·newobject(SB)
+-
+-TEXT reflect·unsafe_NewArray(SB),NOSPLIT,$0-0
+-	JMP	runtime·newarray(SB)
+-
+-TEXT reflect·makechan(SB),NOSPLIT,$0-0
+-	JMP	runtime·makechan(SB)
+-
+-TEXT reflect·rselect(SB),NOSPLIT,$0-0
+-	JMP	runtime·reflect_rselect(SB)
+-
+-TEXT os·sigpipe(SB),NOSPLIT,$0-0
+-	JMP	runtime·os_sigpipe(SB)
+-
+-TEXT runtime·runtime_init(SB),NOSPLIT,$0-0
+-	JMP	runtime·init(SB)
+-
+-TEXT runtime·main_init(SB),NOSPLIT,$0-0
+-	JMP	main·init(SB)
+-
+-TEXT runtime·main_main(SB),NOSPLIT,$0-0
+-	JMP	main·main(SB)
+-
+-TEXT runtime·timenow(SB),NOSPLIT,$0-0
+-	JMP	time·now(SB)
+-
+-TEXT sync∕atomic·runtime_procPin(SB),NOSPLIT,$0-0
+-	JMP     sync·runtime_procPin(SB)
+-
+-TEXT sync∕atomic·runtime_procUnpin(SB),NOSPLIT,$0-0
+-	JMP     sync·runtime_procUnpin(SB)
+-
+-TEXT syscall·runtime_envs(SB),NOSPLIT,$0-0
+-	JMP	runtime·runtime_envs(SB)
+-
+-TEXT os·runtime_args(SB),NOSPLIT,$0-0
+-	JMP	runtime·runtime_args(SB)
+-
+-TEXT sync·runtime_procUnpin(SB),NOSPLIT,$0-0
+-	JMP	runtime·sync_procUnpin(SB)
+-
+-TEXT sync·runtime_procPin(SB),NOSPLIT,$0-0
+-	JMP	runtime·sync_procPin(SB)
+-
+-TEXT syscall·runtime_BeforeFork(SB),NOSPLIT,$0-0
+-	JMP	runtime·syscall_BeforeFork(SB)
+-
+-TEXT syscall·runtime_AfterFork(SB),NOSPLIT,$0-0
+-	JMP	runtime·syscall_AfterFork(SB)
+-
+-TEXT reflect·typelinks(SB),NOSPLIT,$0-0
+-	JMP	runtime·typelinks(SB)
+diff --git a/src/runtime/time.go b/src/runtime/time.go
+index 11862c7e23..5917d7ce04 100644
+--- a/src/runtime/time.go
++++ b/src/runtime/time.go
+@@ -43,7 +43,8 @@ var faketime int64
+ 
+ // time.now is implemented in assembly.
+ 
+-// Sleep puts the current goroutine to sleep for at least ns nanoseconds.
++// timeSleep puts the current goroutine to sleep for at least ns nanoseconds.
++//go:linkname timeSleep time.Sleep
+ func timeSleep(ns int64) {
+ 	if ns <= 0 {
+ 		return
+@@ -59,6 +60,7 @@ func timeSleep(ns int64) {
+ }
+ 
+ // startTimer adds t to the timer heap.
++//go:linkname startTimer time.startTimer
+ func startTimer(t *timer) {
+ 	if raceenabled {
+ 		racerelease(unsafe.Pointer(t))
+@@ -68,6 +70,7 @@ func startTimer(t *timer) {
+ 
+ // stopTimer removes t from the timer heap if it is there.
+ // It returns true if t was removed, false if t wasn't even there.
++//go:linkname stopTimer time.stopTimer
+ func stopTimer(t *timer) bool {
+ 	return deltimer(t)
+ }
+@@ -287,3 +290,15 @@ func siftdownTimer(i int) {
+ 		i = c
+ 	}
+ }
++
++// Entry points for net, time to call nanotime.
++
++//go:linkname net_runtimeNano net.runtimeNano
++func net_runtimeNano() int64 {
++	return nanotime()
++}
++
++//go:linkname time_runtimeNano time.runtimeNano
++func time_runtimeNano() int64 {
++	return nanotime()
++}

@@ -16,8 +16,164 @@ Date:   Wed Apr 13 14:35:15 2022 -0700
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  misc/cgo/test/callback_c.c | 31 ++++-----------------------
  misc/cgo/test/cgo_test.go  |  2 +-
  misc/cgo/test/testx.go     | 53 ++++++++++++++++++++++++----------------------
  3 files changed, 33 insertions(+), 53 deletions(-)
+
+diff --git a/misc/cgo/test/callback_c.c b/misc/cgo/test/callback_c.c
+index 8921b7306c..8ecf70f272 100644
+--- a/misc/cgo/test/callback_c.c
++++ b/misc/cgo/test/callback_c.c
+@@ -3,8 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ #include <string.h>
+-#include <sys/types.h>
+-#include <unistd.h>
++
+ #include "_cgo_export.h"
+ 
+ void
+@@ -31,32 +30,10 @@ IntoC(void)
+ 	BackIntoGo();
+ }
+ 
+-#ifdef WIN32
+-#include <windows.h>
+-long long
+-mysleep(int seconds) {
+-	long long st = GetTickCount();
+-	Sleep(1000 * seconds);
+-	return st;
+-}
+-#else
+-#include <sys/time.h>
+-long long
+-mysleep(int seconds) {
+-	long long st;
+-	struct timeval tv;
+-	gettimeofday(&tv, NULL);
+-	st = tv.tv_sec * 1000 + tv.tv_usec / 1000;
+-	sleep(seconds);
+-	return st;
+-}
+-#endif
+-
+-long long
+-twoSleep(int n)
++void
++Issue1560InC(void)
+ {
+-	BackgroundSleep(n);
+-	return mysleep(n);
++	Issue1560FromC();
+ }
+ 
+ void
+diff --git a/misc/cgo/test/cgo_test.go b/misc/cgo/test/cgo_test.go
+index 774277e10d..dee6164354 100644
+--- a/misc/cgo/test/cgo_test.go
++++ b/misc/cgo/test/cgo_test.go
+@@ -11,6 +11,7 @@ import "testing"
+ // These wrappers are here for gotest to find.
+ 
+ func Test1328(t *testing.T)                  { test1328(t) }
++func Test1560(t *testing.T)                  { test1560(t) }
+ func Test1635(t *testing.T)                  { test1635(t) }
+ func Test3250(t *testing.T)                  { test3250(t) }
+ func Test3729(t *testing.T)                  { test3729(t) }
+@@ -89,7 +90,6 @@ func TestLibgcc(t *testing.T)                { testLibgcc(t) }
+ func TestMultipleAssign(t *testing.T)        { testMultipleAssign(t) }
+ func TestNaming(t *testing.T)                { testNaming(t) }
+ func TestPanicFromC(t *testing.T)            { testPanicFromC(t) }
+-func TestParallelSleep(t *testing.T)         { testParallelSleep(t) }
+ func TestPrintf(t *testing.T)                { testPrintf(t) }
+ func TestReturnAfterGrow(t *testing.T)       { testReturnAfterGrow(t) }
+ func TestReturnAfterGrowFromGo(t *testing.T) { testReturnAfterGrowFromGo(t) }
+diff --git a/misc/cgo/test/testx.go b/misc/cgo/test/testx.go
+index 8ec84a8b22..6a8e97ddf3 100644
+--- a/misc/cgo/test/testx.go
++++ b/misc/cgo/test/testx.go
+@@ -18,7 +18,6 @@ import (
+ 	"sync"
+ 	"sync/atomic"
+ 	"testing"
+-	"time"
+ 	"unsafe"
+ )
+ 
+@@ -30,8 +29,7 @@ extern void doAdd(int, int);
+ void IntoC(void);
+ 
+ // issue 1560
+-// mysleep returns the absolute start time in ms.
+-long long mysleep(int seconds);
++extern void Issue1560InC(void);
+ 
+ // twoSleep returns the absolute start time of the first sleep
+ // in ms.
+@@ -183,35 +181,40 @@ func test1328(t *testing.T) {
+ }
+ 
+ // issue 1560
++// Test that C functions and Go functions run in parallel.
+ 
+-var sleepDone = make(chan int64)
++var (
++	issue1560 int32
+ 
+-// parallelSleep returns the absolute difference between the start time
+-// of the two sleeps.
+-func parallelSleep(n int) int64 {
+-	t := int64(C.twoSleep(C.int(n))) - <-sleepDone
+-	if t < 0 {
+-		return -t
++	issue1560Ch = make(chan bool, 2)
++)
++
++//export Issue1560FromC
++func Issue1560FromC() {
++	for atomic.LoadInt32(&issue1560) != 1 {
++		runtime.Gosched()
++	}
++	atomic.AddInt32(&issue1560, 1)
++	for atomic.LoadInt32(&issue1560) != 3 {
++		runtime.Gosched()
+ 	}
+-	return t
++	issue1560Ch <- true
+ }
+ 
+-//export BackgroundSleep
+-func BackgroundSleep(n int32) {
+-	go func() {
+-		sleepDone <- int64(C.mysleep(C.int(n)))
+-	}()
++func Issue1560FromGo() {
++	atomic.AddInt32(&issue1560, 1)
++	for atomic.LoadInt32(&issue1560) != 2 {
++		runtime.Gosched()
++	}
++	atomic.AddInt32(&issue1560, 1)
++	issue1560Ch <- true
+ }
+ 
+-func testParallelSleep(t *testing.T) {
+-	sleepSec := 1
+-	dt := time.Duration(parallelSleep(sleepSec)) * time.Millisecond
+-	t.Logf("difference in start time for two sleep(%d) is %v", sleepSec, dt)
+-	// bug used to run sleeps in serial, producing a 2*sleepSec-second delay.
+-	// we detect if the start times of those sleeps are > 0.5*sleepSec-second.
+-	if dt >= time.Duration(sleepSec)*time.Second/2 {
+-		t.Fatalf("parallel %d-second sleeps slept for %f seconds", sleepSec, dt.Seconds())
+-	}
++func test1560(t *testing.T) {
++	go Issue1560FromGo()
++	go C.Issue1560InC()
++	<-issue1560Ch
++	<-issue1560Ch
+ }
+ 
+ // issue 2462

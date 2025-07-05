@@ -9,7 +9,65 @@ Date:   Mon Oct 17 21:08:48 2016 -0400
     Change-Id: I5c7ee46604399f7dc3c3c49f964cbb1aa6c0d621
     Reviewed-on: https://go-review.googlesource.com/31320
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/bufio/bufio.go      | 12 ++++++++++--
  src/bufio/bufio_test.go | 21 +++++++++++++++++++++
  2 files changed, 31 insertions(+), 2 deletions(-)
+
+diff --git a/src/bufio/bufio.go b/src/bufio/bufio.go
+index 1e7872d50b..e1e8fb2272 100644
+--- a/src/bufio/bufio.go
++++ b/src/bufio/bufio.go
+@@ -206,10 +206,18 @@ func (b *Reader) Read(p []byte) (n int, err error) {
+ 			}
+ 			return n, b.readErr()
+ 		}
+-		b.fill() // buffer is empty
+-		if b.r == b.w {
++		// One read.
++		// Do not use b.fill, which will loop.
++		b.r = 0
++		b.w = 0
++		n, b.err = b.rd.Read(b.buf)
++		if n < 0 {
++			panic(errNegativeRead)
++		}
++		if n == 0 {
+ 			return 0, b.readErr()
+ 		}
++		b.w += n
+ 	}
+ 
+ 	// copy as much as we can
+diff --git a/src/bufio/bufio_test.go b/src/bufio/bufio_test.go
+index 858048696e..ef0f6c834e 100644
+--- a/src/bufio/bufio_test.go
++++ b/src/bufio/bufio_test.go
+@@ -1236,6 +1236,27 @@ func TestWriterReadFromErrNoProgress(t *testing.T) {
+ 	}
+ }
+ 
++func TestReadZero(t *testing.T) {
++	for _, size := range []int{100, 2} {
++		t.Run(fmt.Sprintf("bufsize=%d", size), func(t *testing.T) {
++			r := io.MultiReader(strings.NewReader("abc"), &emptyThenNonEmptyReader{r: strings.NewReader("def"), n: 1})
++			br := NewReaderSize(r, size)
++			want := func(s string, wantErr error) {
++				p := make([]byte, 50)
++				n, err := br.Read(p)
++				if err != wantErr || n != len(s) || string(p[:n]) != s {
++					t.Fatalf("read(%d) = %q, %v, want %q, %v", len(p), string(p[:n]), err, s, wantErr)
++				}
++				t.Logf("read(%d) = %q, %v", len(p), string(p[:n]), err)
++			}
++			want("abc", nil)
++			want("", nil)
++			want("def", nil)
++			want("", io.EOF)
++		})
++	}
++}
++
+ func TestReaderReset(t *testing.T) {
+ 	r := NewReader(strings.NewReader("foo foo"))
+ 	buf := make([]byte, 3)

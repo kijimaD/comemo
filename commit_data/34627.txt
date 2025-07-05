@@ -13,7 +13,172 @@ Date:   Mon Oct 30 16:05:18 2017 -0700
     Reviewed-on: https://go-review.googlesource.com/74510
     Reviewed-by: Jelte Fennema <github-tech@jeltef.nl>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/bytes/bytes.go      | 10 ++++----
  src/bytes/bytes_test.go | 62 +++++++++++++++++++++++++++++++++++++++++++++++--
  2 files changed, 65 insertions(+), 7 deletions(-)
+
+diff --git a/src/bytes/bytes.go b/src/bytes/bytes.go
+index 40d76be094..68ed8e1b43 100644
+--- a/src/bytes/bytes.go
++++ b/src/bytes/bytes.go
+@@ -39,7 +39,7 @@ func explode(s []byte, n int) [][]byte {
+ 			break
+ 		}
+ 		_, size = utf8.DecodeRune(s)
+-		a[na] = s[0:size]
++		a[na] = s[0:size:size]
+ 		s = s[size:]
+ 		na++
+ 	}
+@@ -219,7 +219,7 @@ func genSplit(s, sep []byte, sepSave, n int) [][]byte {
+ 		if m < 0 {
+ 			break
+ 		}
+-		a[i] = s[:m+sepSave]
++		a[i] = s[: m+sepSave : m+sepSave]
+ 		s = s[m+len(sep):]
+ 		i++
+ 	}
+@@ -302,7 +302,7 @@ func Fields(s []byte) [][]byte {
+ 			i++
+ 			continue
+ 		}
+-		a[na] = s[fieldStart:i]
++		a[na] = s[fieldStart:i:i]
+ 		na++
+ 		i++
+ 		// Skip spaces in between fields.
+@@ -312,7 +312,7 @@ func Fields(s []byte) [][]byte {
+ 		fieldStart = i
+ 	}
+ 	if fieldStart < len(s) { // Last field might end at EOF.
+-		a[na] = s[fieldStart:]
++		a[na] = s[fieldStart:len(s):len(s)]
+ 	}
+ 	return a
+ }
+@@ -363,7 +363,7 @@ func FieldsFunc(s []byte, f func(rune) bool) [][]byte {
+ 	// Create subslices from recorded field indices.
+ 	a := make([][]byte, len(spans))
+ 	for i, span := range spans {
+-		a[i] = s[span.start:span.end]
++		a[i] = s[span.start:span.end:span.end]
+ 	}
+ 
+ 	return a
+diff --git a/src/bytes/bytes_test.go b/src/bytes/bytes_test.go
+index db28497e39..78eca2064a 100644
+--- a/src/bytes/bytes_test.go
++++ b/src/bytes/bytes_test.go
+@@ -736,6 +736,13 @@ var splittests = []SplitTest{
+ func TestSplit(t *testing.T) {
+ 	for _, tt := range splittests {
+ 		a := SplitN([]byte(tt.s), []byte(tt.sep), tt.n)
++
++		// Appending to the results should not change future results.
++		var x []byte
++		for _, v := range a {
++			x = append(v, 'z')
++		}
++
+ 		result := sliceOfString(a)
+ 		if !eq(result, tt.a) {
+ 			t.Errorf(`Split(%q, %q, %d) = %v; want %v`, tt.s, tt.sep, tt.n, result, tt.a)
+@@ -744,6 +751,11 @@ func TestSplit(t *testing.T) {
+ 		if tt.n == 0 {
+ 			continue
+ 		}
++
++		if want := tt.a[len(tt.a)-1] + "z"; string(x) != want {
++			t.Errorf("last appended result was %s; want %s", x, want)
++		}
++
+ 		s := Join(a, []byte(tt.sep))
+ 		if string(s) != tt.s {
+ 			t.Errorf(`Join(Split(%q, %q, %d), %q) = %q`, tt.s, tt.sep, tt.n, tt.sep, s)
+@@ -782,11 +794,23 @@ var splitaftertests = []SplitTest{
+ func TestSplitAfter(t *testing.T) {
+ 	for _, tt := range splitaftertests {
+ 		a := SplitAfterN([]byte(tt.s), []byte(tt.sep), tt.n)
++
++		// Appending to the results should not change future results.
++		var x []byte
++		for _, v := range a {
++			x = append(v, 'z')
++		}
++
+ 		result := sliceOfString(a)
+ 		if !eq(result, tt.a) {
+ 			t.Errorf(`Split(%q, %q, %d) = %v; want %v`, tt.s, tt.sep, tt.n, result, tt.a)
+ 			continue
+ 		}
++
++		if want := tt.a[len(tt.a)-1] + "z"; string(x) != want {
++			t.Errorf("last appended result was %s; want %s", x, want)
++		}
++
+ 		s := Join(a, nil)
+ 		if string(s) != tt.s {
+ 			t.Errorf(`Join(Split(%q, %q, %d), %q) = %q`, tt.s, tt.sep, tt.n, tt.sep, s)
+@@ -821,12 +845,29 @@ var fieldstests = []FieldsTest{
+ 
+ func TestFields(t *testing.T) {
+ 	for _, tt := range fieldstests {
+-		a := Fields([]byte(tt.s))
++		b := []byte(tt.s)
++		a := Fields(b)
++
++		// Appending to the results should not change future results.
++		var x []byte
++		for _, v := range a {
++			x = append(v, 'z')
++		}
++
+ 		result := sliceOfString(a)
+ 		if !eq(result, tt.a) {
+ 			t.Errorf("Fields(%q) = %v; want %v", tt.s, a, tt.a)
+ 			continue
+ 		}
++
++		if string(b) != tt.s {
++			t.Errorf("slice changed to %s; want %s", string(b), tt.s)
++		}
++		if len(tt.a) > 0 {
++			if want := tt.a[len(tt.a)-1] + "z"; string(x) != want {
++				t.Errorf("last appended result was %s; want %s", x, want)
++			}
++		}
+ 	}
+ }
+ 
+@@ -847,11 +888,28 @@ func TestFieldsFunc(t *testing.T) {
+ 		{"aXXbXXXcX", []string{"a", "b", "c"}},
+ 	}
+ 	for _, tt := range fieldsFuncTests {
+-		a := FieldsFunc([]byte(tt.s), pred)
++		b := []byte(tt.s)
++		a := FieldsFunc(b, pred)
++
++		// Appending to the results should not change future results.
++		var x []byte
++		for _, v := range a {
++			x = append(v, 'z')
++		}
++
+ 		result := sliceOfString(a)
+ 		if !eq(result, tt.a) {
+ 			t.Errorf("FieldsFunc(%q) = %v, want %v", tt.s, a, tt.a)
+ 		}
++
++		if string(b) != tt.s {
++			t.Errorf("slice changed to %s; want %s", b, tt.s)
++		}
++		if len(tt.a) > 0 {
++			if want := tt.a[len(tt.a)-1] + "z"; string(x) != want {
++				t.Errorf("last appended result was %s; want %s", x, want)
++			}
++		}
+ 	}
+ }
+ 

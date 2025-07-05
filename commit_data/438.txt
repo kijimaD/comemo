@@ -7,10 +7,96 @@ Date:   Mon Jul 28 11:29:41 2008 -0700
     R=ken
     OCL=13518
     CL=13518
-
+---
  src/runtime/proc.c             | 15 +++++++++++++++
  src/runtime/rt1_amd64_darwin.c |  1 +
  src/runtime/rt1_amd64_linux.c  |  3 ++-
  src/runtime/runtime.c          |  1 +
  src/runtime/runtime.h          |  3 ++-
  5 files changed, 21 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/proc.c b/src/runtime/proc.c
+index ecd4cedab0..bef497c9a7 100644
+--- a/src/runtime/proc.c
++++ b/src/runtime/proc.c
+@@ -74,6 +74,21 @@ sys·newproc(int32 siz, byte* fn, byte* arg0)
+ //prints("\n");
+ }
+ 
++void
++tracebackothers(G *me)
++{
++	G *g;
++
++	for(g = allg; g != nil; g = g->alllink) {
++		if(g == me)
++			continue;
++		prints("\ngoroutine ");
++		sys·printint(g->goid);
++		prints(":\n");
++		traceback(g->sched.PC, g->sched.SP+8, g);  // gogo adjusts SP by 8 (not portable!)
++	}
++}
++
+ G*
+ select(void)
+ {
+diff --git a/src/runtime/rt1_amd64_darwin.c b/src/runtime/rt1_amd64_darwin.c
+index 9d03ce0559..e0d2cb8b77 100644
+--- a/src/runtime/rt1_amd64_darwin.c
++++ b/src/runtime/rt1_amd64_darwin.c
+@@ -149,6 +149,7 @@ sighandler(int32 sig, siginfo *info, void *context)
+ 	prints("\n\n");
+         
+ 	traceback((void *)ss->__rip, (void *)ss->__rsp, (void*)ss->__r15);
++	tracebackothers((void*)ss->__r15);
+ 	print_thread_state(ss);
+         
+ 	sys·exit(2);
+diff --git a/src/runtime/rt1_amd64_linux.c b/src/runtime/rt1_amd64_linux.c
+index b31b89aa68..9f3d99e6ef 100644
+--- a/src/runtime/rt1_amd64_linux.c
++++ b/src/runtime/rt1_amd64_linux.c
+@@ -153,7 +153,8 @@ sighandler(int32 sig, siginfo* info, void** context)
+         prints("\n\n");
+         
+ 	traceback((void *)sc->rip, (void *)sc->rsp, (void *)sc->r15);
+-        print_sigcontext(sc);
++	tracebackothers((void*)sc->__r15);
++	print_sigcontext(sc);
+ 
+ 	sys·breakpoint();
+ 	sys·exit(2);
+diff --git a/src/runtime/runtime.c b/src/runtime/runtime.c
+index 8180b3c8ec..b53f857cb0 100644
+--- a/src/runtime/runtime.c
++++ b/src/runtime/runtime.c
+@@ -19,6 +19,7 @@ sys·panicl(int32 lno)
+ 	prints("\n");
+ 	sp = (uint8*)&lno;
+ 	traceback(sys·getcallerpc(&lno), sp, g);
++	tracebackothers(g);
+ 	sys·breakpoint();
+ 	sys·exit(2);
+ }
+diff --git a/src/runtime/runtime.h b/src/runtime/runtime.h
+index 9ee7534926..26eb1af2ac 100644
+--- a/src/runtime/runtime.h
++++ b/src/runtime/runtime.h
+@@ -106,7 +106,7 @@ struct	G
+ 	byte*	stackbase;	// must not move
+ 	byte*	stack0;		// first stack segment
+ 	Gobuf	sched;
+-	G*	alllink;	// on allq
++	G*	alllink;	// on allg
+ 	void*	param;		// passed parameter on wakeup
+ 	int16	status;
+ 	int32	goid;
+@@ -189,6 +189,7 @@ void*	mal(uint32);
+ uint32	cmpstring(string, string);
+ void	initsig(void);
+ void	traceback(uint8 *pc, uint8 *sp, G* gp);
++void	tracebackothers(G*);
+ int32	open(byte*, int32, ...);
+ int32	read(int32, void*, int32);
+ int32	write(int32, void*, int32);

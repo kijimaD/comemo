@@ -7,7 +7,7 @@ Date:   Mon May 20 23:18:52 2013 +0900
     R=golang-dev, dave, iant
     CC=golang-dev
     https://golang.org/cl/9575043
-
+---
  src/pkg/syscall/mksyscall.pl         | 2 +-
  src/pkg/syscall/mksyscall_windows.pl | 2 +-
  src/pkg/syscall/mksysctl_openbsd.pl  | 2 +-
@@ -17,3 +17,84 @@ Date:   Mon May 20 23:18:52 2013 +0900
  src/pkg/syscall/mksysnum_netbsd.pl   | 2 +-
  src/pkg/syscall/mksysnum_openbsd.pl  | 2 +-
  8 files changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/src/pkg/syscall/mksyscall.pl b/src/pkg/syscall/mksyscall.pl
+index df47958eae..4a814ca5cf 100755
+--- a/src/pkg/syscall/mksyscall.pl
++++ b/src/pkg/syscall/mksyscall.pl
+@@ -1,4 +1,4 @@
+-#!/usr/bin/perl
++#!/usr/bin/env perl
+ # Copyright 2009 The Go Authors. All rights reserved.
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+diff --git a/src/pkg/syscall/mksyscall_windows.pl b/src/pkg/syscall/mksyscall_windows.pl
+index 0e015cb707..65d6efc205 100755
+--- a/src/pkg/syscall/mksyscall_windows.pl
++++ b/src/pkg/syscall/mksyscall_windows.pl
+@@ -1,4 +1,4 @@
+-#!/usr/bin/perl
++#!/usr/bin/env perl
+ # Copyright 2009 The Go Authors. All rights reserved.
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+diff --git a/src/pkg/syscall/mksysctl_openbsd.pl b/src/pkg/syscall/mksysctl_openbsd.pl
+index 8e5ccaac26..c2e2ea925d 100755
+--- a/src/pkg/syscall/mksysctl_openbsd.pl
++++ b/src/pkg/syscall/mksysctl_openbsd.pl
+@@ -1,4 +1,4 @@
+-#!/usr/bin/perl
++#!/usr/bin/env perl
+ 
+ # Copyright 2011 The Go Authors. All rights reserved.
+ # Use of this source code is governed by a BSD-style
+diff --git a/src/pkg/syscall/mksysnum_darwin.pl b/src/pkg/syscall/mksysnum_darwin.pl
+index fd4375b2f9..e3470435d2 100755
+--- a/src/pkg/syscall/mksysnum_darwin.pl
++++ b/src/pkg/syscall/mksysnum_darwin.pl
+@@ -1,4 +1,4 @@
+-#!/usr/bin/perl
++#!/usr/bin/env perl
+ # Copyright 2009 The Go Authors. All rights reserved.
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+diff --git a/src/pkg/syscall/mksysnum_freebsd.pl b/src/pkg/syscall/mksysnum_freebsd.pl
+index 54872b2f48..5c156338ee 100755
+--- a/src/pkg/syscall/mksysnum_freebsd.pl
++++ b/src/pkg/syscall/mksysnum_freebsd.pl
+@@ -1,4 +1,4 @@
+-#!/usr/bin/perl
++#!/usr/bin/env perl
+ # Copyright 2009 The Go Authors. All rights reserved.
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+diff --git a/src/pkg/syscall/mksysnum_linux.pl b/src/pkg/syscall/mksysnum_linux.pl
+index d11666a1dd..c7e5cf73aa 100755
+--- a/src/pkg/syscall/mksysnum_linux.pl
++++ b/src/pkg/syscall/mksysnum_linux.pl
+@@ -1,4 +1,4 @@
+-#!/usr/bin/perl
++#!/usr/bin/env perl
+ # Copyright 2009 The Go Authors. All rights reserved.
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+diff --git a/src/pkg/syscall/mksysnum_netbsd.pl b/src/pkg/syscall/mksysnum_netbsd.pl
+index a300810ba5..f1534ed584 100755
+--- a/src/pkg/syscall/mksysnum_netbsd.pl
++++ b/src/pkg/syscall/mksysnum_netbsd.pl
+@@ -1,4 +1,4 @@
+-#!/usr/bin/perl
++#!/usr/bin/env perl
+ # Copyright 2009 The Go Authors. All rights reserved.
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+diff --git a/src/pkg/syscall/mksysnum_openbsd.pl b/src/pkg/syscall/mksysnum_openbsd.pl
+index e041888eae..ad1ccc12ac 100755
+--- a/src/pkg/syscall/mksysnum_openbsd.pl
++++ b/src/pkg/syscall/mksysnum_openbsd.pl
+@@ -1,4 +1,4 @@
+-#!/usr/bin/perl
++#!/usr/bin/env perl
+ # Copyright 2009 The Go Authors. All rights reserved.
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.

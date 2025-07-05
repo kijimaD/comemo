@@ -23,10 +23,768 @@ Date:   Thu Sep 17 00:22:56 2015 -0700
     Change-Id: Ic7a0565d2a2cd95d955547ace3b6dea2b57fab34
     Reviewed-on: https://go-review.googlesource.com/14669
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/archive/tar/common.go      |  37 +-------
  src/archive/tar/format.go      | 197 +++++++++++++++++++++++++++++++++++++++++
  src/archive/tar/reader.go      | 167 +++++++++++++---------------------
  src/archive/tar/writer.go      | 100 +++++++++------------
  src/archive/tar/writer_test.go |  22 ++---
  5 files changed, 314 insertions(+), 209 deletions(-)
+
+diff --git a/src/archive/tar/common.go b/src/archive/tar/common.go
+index 36f4e23980..2a1e432182 100644
+--- a/src/archive/tar/common.go
++++ b/src/archive/tar/common.go
+@@ -21,10 +21,8 @@ import (
+ 	"time"
+ )
+ 
++// Header type flags.
+ const (
+-	blockSize = 512
+-
+-	// Types
+ 	TypeReg           = '0'    // regular file
+ 	TypeRegA          = '\x00' // regular file
+ 	TypeLink          = '1'    // hard link
+@@ -61,12 +59,6 @@ type Header struct {
+ 	Xattrs     map[string]string
+ }
+ 
+-// File name constants from the tar spec.
+-const (
+-	fileNameSize       = 100 // Maximum number of bytes in a standard tar name.
+-	fileNamePrefixSize = 155 // Maximum number of ustar extension bytes.
+-)
+-
+ // FileInfo returns an os.FileInfo for the Header.
+ func (h *Header) FileInfo() os.FileInfo {
+ 	return headerFileInfo{h}
+@@ -279,33 +271,6 @@ func FileInfoHeader(fi os.FileInfo, link string) (*Header, error) {
+ 	return h, nil
+ }
+ 
+-var zeroBlock = make([]byte, blockSize)
+-
+-// POSIX specifies a sum of the unsigned byte values, but the Sun tar uses signed byte values.
+-// We compute and return both.
+-func checksum(header []byte) (unsigned int64, signed int64) {
+-	for i := 0; i < len(header); i++ {
+-		if i == 148 {
+-			// The chksum field (header[148:156]) is special: it should be treated as space bytes.
+-			unsigned += ' ' * 8
+-			signed += ' ' * 8
+-			i += 7
+-			continue
+-		}
+-		unsigned += int64(header[i])
+-		signed += int64(int8(header[i]))
+-	}
+-	return
+-}
+-
+-type slicer []byte
+-
+-func (sp *slicer) next(n int) (b []byte) {
+-	s := *sp
+-	b, *sp = s[0:n], s[n:]
+-	return
+-}
+-
+ func isASCII(s string) bool {
+ 	for _, c := range s {
+ 		if c >= 0x80 {
+diff --git a/src/archive/tar/format.go b/src/archive/tar/format.go
+new file mode 100644
+index 0000000000..c2c9910d00
+--- /dev/null
++++ b/src/archive/tar/format.go
+@@ -0,0 +1,197 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package tar
++
++// Constants to identify various tar formats.
++const (
++	// The format is unknown.
++	formatUnknown = (1 << iota) / 2 // Sequence of 0, 1, 2, 4, 8, etc...
++
++	// The format of the original Unix V7 tar tool prior to standardization.
++	formatV7
++
++	// The old and new GNU formats, which are incompatible with USTAR.
++	// This does cover the old GNU sparse extension.
++	// This does not cover the GNU sparse extensions using PAX headers,
++	// versions 0.0, 0.1, and 1.0; these fall under the PAX format.
++	formatGNU
++
++	// Schily's tar format, which is incompatible with USTAR.
++	// This does not cover STAR extensions to the PAX format; these fall under
++	// the PAX format.
++	formatSTAR
++
++	// USTAR is the former standardization of tar defined in POSIX.1-1988.
++	// This is incompatible with the GNU and STAR formats.
++	formatUSTAR
++
++	// PAX is the latest standardization of tar defined in POSIX.1-2001.
++	// This is an extension of USTAR and is "backwards compatible" with it.
++	//
++	// Some newer formats add their own extensions to PAX, such as GNU sparse
++	// files and SCHILY extended attributes. Since they are backwards compatible
++	// with PAX, they will be labelled as "PAX".
++	formatPAX
++)
++
++// Magics used to identify various formats.
++const (
++	magicGNU, versionGNU     = "ustar ", " \x00"
++	magicUSTAR, versionUSTAR = "ustar\x00", "00"
++	trailerSTAR              = "tar\x00"
++)
++
++// Size constants from various tar specifications.
++const (
++	blockSize  = 512 // Size of each block in a tar stream
++	nameSize   = 100 // Max length of the name field in USTAR format
++	prefixSize = 155 // Max length of the prefix field in USTAR format
++)
++
++var zeroBlock block
++
++type block [blockSize]byte
++
++// Convert block to any number of formats.
++func (b *block) V7() *headerV7       { return (*headerV7)(b) }
++func (b *block) GNU() *headerGNU     { return (*headerGNU)(b) }
++func (b *block) STAR() *headerSTAR   { return (*headerSTAR)(b) }
++func (b *block) USTAR() *headerUSTAR { return (*headerUSTAR)(b) }
++func (b *block) Sparse() sparseArray { return (sparseArray)(b[:]) }
++
++// GetFormat checks that the block is a valid tar header based on the checksum.
++// It then attempts to guess the specific format based on magic values.
++// If the checksum fails, then formatUnknown is returned.
++func (b *block) GetFormat() (format int) {
++	// Verify checksum.
++	var p parser
++	value := p.parseOctal(b.V7().Chksum())
++	chksum1, chksum2 := b.ComputeChecksum()
++	if p.err != nil || (value != chksum1 && value != chksum2) {
++		return formatUnknown
++	}
++
++	// Guess the magic values.
++	magic := string(b.USTAR().Magic())
++	version := string(b.USTAR().Version())
++	trailer := string(b.STAR().Trailer())
++	switch {
++	case magic == magicUSTAR && trailer == trailerSTAR:
++		return formatSTAR
++	case magic == magicUSTAR:
++		return formatUSTAR
++	case magic == magicGNU && version == versionGNU:
++		return formatGNU
++	default:
++		return formatV7
++	}
++}
++
++// SetFormat writes the magic values necessary for specified format
++// and then updates the checksum accordingly.
++func (b *block) SetFormat(format int) {
++	// Set the magic values.
++	switch format {
++	case formatV7:
++		// Do nothing.
++	case formatGNU:
++		copy(b.GNU().Magic(), magicGNU)
++		copy(b.GNU().Version(), versionGNU)
++	case formatSTAR:
++		copy(b.STAR().Magic(), magicUSTAR)
++		copy(b.STAR().Version(), versionUSTAR)
++		copy(b.STAR().Trailer(), trailerSTAR)
++	case formatUSTAR, formatPAX:
++		copy(b.USTAR().Magic(), magicUSTAR)
++		copy(b.USTAR().Version(), versionUSTAR)
++	default:
++		panic("invalid format")
++	}
++
++	// Update checksum.
++	// This field is special in that it is terminated by a NULL then space.
++	var f formatter
++	field := b.V7().Chksum()
++	chksum, _ := b.ComputeChecksum() // Possible values are 256..128776
++	f.formatOctal(field[:7], chksum) // Never fails since 128776 < 262143
++	field[7] = ' '
++}
++
++// ComputeChecksum computes the checksum for the header block.
++// POSIX specifies a sum of the unsigned byte values, but the Sun tar used
++// signed byte values.
++// We compute and return both.
++func (b *block) ComputeChecksum() (unsigned, signed int64) {
++	for i, c := range b {
++		if 148 <= i && i < 156 {
++			c = ' ' // Treat the checksum field itself as all spaces.
++		}
++		unsigned += int64(uint8(c))
++		signed += int64(int8(c))
++	}
++	return unsigned, signed
++}
++
++type headerV7 [blockSize]byte
++
++func (h *headerV7) Name() []byte     { return h[000:][:100] }
++func (h *headerV7) Mode() []byte     { return h[100:][:8] }
++func (h *headerV7) UID() []byte      { return h[108:][:8] }
++func (h *headerV7) GID() []byte      { return h[116:][:8] }
++func (h *headerV7) Size() []byte     { return h[124:][:12] }
++func (h *headerV7) ModTime() []byte  { return h[136:][:12] }
++func (h *headerV7) Chksum() []byte   { return h[148:][:8] }
++func (h *headerV7) TypeFlag() []byte { return h[156:][:1] }
++func (h *headerV7) LinkName() []byte { return h[157:][:100] }
++
++type headerGNU [blockSize]byte
++
++func (h *headerGNU) V7() *headerV7       { return (*headerV7)(h) }
++func (h *headerGNU) Magic() []byte       { return h[257:][:6] }
++func (h *headerGNU) Version() []byte     { return h[263:][:2] }
++func (h *headerGNU) UserName() []byte    { return h[265:][:32] }
++func (h *headerGNU) GroupName() []byte   { return h[297:][:32] }
++func (h *headerGNU) DevMajor() []byte    { return h[329:][:8] }
++func (h *headerGNU) DevMinor() []byte    { return h[337:][:8] }
++func (h *headerGNU) AccessTime() []byte  { return h[345:][:12] }
++func (h *headerGNU) ChangeTime() []byte  { return h[357:][:12] }
++func (h *headerGNU) Sparse() sparseArray { return (sparseArray)(h[386:][:24*4+1]) }
++func (h *headerGNU) RealSize() []byte    { return h[483:][:12] }
++
++type headerSTAR [blockSize]byte
++
++func (h *headerSTAR) V7() *headerV7      { return (*headerV7)(h) }
++func (h *headerSTAR) Magic() []byte      { return h[257:][:6] }
++func (h *headerSTAR) Version() []byte    { return h[263:][:2] }
++func (h *headerSTAR) UserName() []byte   { return h[265:][:32] }
++func (h *headerSTAR) GroupName() []byte  { return h[297:][:32] }
++func (h *headerSTAR) DevMajor() []byte   { return h[329:][:8] }
++func (h *headerSTAR) DevMinor() []byte   { return h[337:][:8] }
++func (h *headerSTAR) Prefix() []byte     { return h[345:][:131] }
++func (h *headerSTAR) AccessTime() []byte { return h[476:][:12] }
++func (h *headerSTAR) ChangeTime() []byte { return h[488:][:12] }
++func (h *headerSTAR) Trailer() []byte    { return h[508:][:4] }
++
++type headerUSTAR [blockSize]byte
++
++func (h *headerUSTAR) V7() *headerV7     { return (*headerV7)(h) }
++func (h *headerUSTAR) Magic() []byte     { return h[257:][:6] }
++func (h *headerUSTAR) Version() []byte   { return h[263:][:2] }
++func (h *headerUSTAR) UserName() []byte  { return h[265:][:32] }
++func (h *headerUSTAR) GroupName() []byte { return h[297:][:32] }
++func (h *headerUSTAR) DevMajor() []byte  { return h[329:][:8] }
++func (h *headerUSTAR) DevMinor() []byte  { return h[337:][:8] }
++func (h *headerUSTAR) Prefix() []byte    { return h[345:][:155] }
++
++type sparseArray []byte
++
++func (s sparseArray) Entry(i int) sparseNode { return (sparseNode)(s[i*24:]) }
++func (s sparseArray) IsExtended() []byte     { return s[24*s.MaxEntries():][:1] }
++func (s sparseArray) MaxEntries() int        { return len(s) / 24 }
++
++type sparseNode []byte
++
++func (s sparseNode) Offset() []byte   { return s[00:][:12] }
++func (s sparseNode) NumBytes() []byte { return s[12:][:12] }
+diff --git a/src/archive/tar/reader.go b/src/archive/tar/reader.go
+index e2a2a5440e..096ef082bf 100644
+--- a/src/archive/tar/reader.go
++++ b/src/archive/tar/reader.go
+@@ -29,11 +29,11 @@ const maxNanoSecondIntSize = 9
+ // The Next method advances to the next file in the archive (including the first),
+ // and then it can be treated as an io.Reader to access the file's data.
+ type Reader struct {
+-	r       io.Reader
+-	err     error
+-	pad     int64           // amount of padding (ignored) after current file entry
+-	curr    numBytesReader  // reader for current file entry
+-	hdrBuff [blockSize]byte // buffer to use in readHeader
++	r    io.Reader
++	err  error
++	pad  int64          // amount of padding (ignored) after current file entry
++	curr numBytesReader // reader for current file entry
++	blk  block          // buffer to use as temporary local storage
+ }
+ 
+ type parser struct {
+@@ -98,17 +98,6 @@ const (
+ 	paxGNUSparseRealSize  = "GNU.sparse.realsize"
+ )
+ 
+-// Keywords for old GNU sparse headers
+-const (
+-	oldGNUSparseMainHeaderOffset               = 386
+-	oldGNUSparseMainHeaderIsExtendedOffset     = 482
+-	oldGNUSparseMainHeaderNumEntries           = 4
+-	oldGNUSparseExtendedHeaderIsExtendedOffset = 504
+-	oldGNUSparseExtendedHeaderNumEntries       = 21
+-	oldGNUSparseOffsetSize                     = 12
+-	oldGNUSparseNumBytesSize                   = 12
+-)
+-
+ // NewReader creates a new Reader reading from r.
+ func NewReader(r io.Reader) *Reader { return &Reader{r: r} }
+ 
+@@ -542,17 +531,6 @@ func (tr *Reader) skipUnread() error {
+ 	return tr.err
+ }
+ 
+-func (tr *Reader) verifyChecksum(header []byte) bool {
+-	if tr.err != nil {
+-		return false
+-	}
+-
+-	var p parser
+-	given := p.parseOctal(header[148:156])
+-	unsigned, signed := checksum(header)
+-	return p.err == nil && (given == unsigned || given == signed)
+-}
+-
+ // readHeader reads the next block header and assumes that the underlying reader
+ // is already aligned to a block boundary.
+ //
+@@ -561,19 +539,16 @@ func (tr *Reader) verifyChecksum(header []byte) bool {
+ //	* Exactly 1 block of zeros is read and EOF is hit.
+ //	* At least 2 blocks of zeros are read.
+ func (tr *Reader) readHeader() *Header {
+-	header := tr.hdrBuff[:]
+-	copy(header, zeroBlock)
+-
+-	if _, tr.err = io.ReadFull(tr.r, header); tr.err != nil {
++	if _, tr.err = io.ReadFull(tr.r, tr.blk[:]); tr.err != nil {
+ 		return nil // io.EOF is okay here
+ 	}
+ 
+ 	// Two blocks of zero bytes marks the end of the archive.
+-	if bytes.Equal(header, zeroBlock[0:blockSize]) {
+-		if _, tr.err = io.ReadFull(tr.r, header); tr.err != nil {
++	if bytes.Equal(tr.blk[:], zeroBlock[:]) {
++		if _, tr.err = io.ReadFull(tr.r, tr.blk[:]); tr.err != nil {
+ 			return nil // io.EOF is okay here
+ 		}
+-		if bytes.Equal(header, zeroBlock[0:blockSize]) {
++		if bytes.Equal(tr.blk[:], zeroBlock[:]) {
+ 			tr.err = io.EOF
+ 		} else {
+ 			tr.err = ErrHeader // zero block and then non-zero block
+@@ -581,71 +556,55 @@ func (tr *Reader) readHeader() *Header {
+ 		return nil
+ 	}
+ 
+-	if !tr.verifyChecksum(header) {
++	// Verify the header matches a known format.
++	format := tr.blk.GetFormat()
++	if format == formatUnknown {
+ 		tr.err = ErrHeader
+ 		return nil
+ 	}
+ 
+-	// Unpack
+ 	var p parser
+ 	hdr := new(Header)
+-	s := slicer(header)
+-
+-	hdr.Name = p.parseString(s.next(100))
+-	hdr.Mode = p.parseNumeric(s.next(8))
+-	hdr.Uid = int(p.parseNumeric(s.next(8)))
+-	hdr.Gid = int(p.parseNumeric(s.next(8)))
+-	hdr.Size = p.parseNumeric(s.next(12))
+-	hdr.ModTime = time.Unix(p.parseNumeric(s.next(12)), 0)
+-	s.next(8) // chksum
+-	hdr.Typeflag = s.next(1)[0]
+-	hdr.Linkname = p.parseString(s.next(100))
+-
+-	// The remainder of the header depends on the value of magic.
+-	// The original (v7) version of tar had no explicit magic field,
+-	// so its magic bytes, like the rest of the block, are NULs.
+-	magic := string(s.next(8)) // contains version field as well.
+-	var format string
+-	switch {
+-	case magic[:6] == "ustar\x00": // POSIX tar (1003.1-1988)
+-		if string(header[508:512]) == "tar\x00" {
+-			format = "star"
+-		} else {
+-			format = "posix"
+-		}
+-	case magic == "ustar  \x00": // old GNU tar
+-		format = "gnu"
+-	}
+ 
+-	switch format {
+-	case "posix", "gnu", "star":
+-		hdr.Uname = p.parseString(s.next(32))
+-		hdr.Gname = p.parseString(s.next(32))
+-		devmajor := s.next(8)
+-		devminor := s.next(8)
++	// Unpack the V7 header.
++	v7 := tr.blk.V7()
++	hdr.Name = p.parseString(v7.Name())
++	hdr.Mode = p.parseNumeric(v7.Mode())
++	hdr.Uid = int(p.parseNumeric(v7.UID()))
++	hdr.Gid = int(p.parseNumeric(v7.GID()))
++	hdr.Size = p.parseNumeric(v7.Size())
++	hdr.ModTime = time.Unix(p.parseNumeric(v7.ModTime()), 0)
++	hdr.Typeflag = v7.TypeFlag()[0]
++	hdr.Linkname = p.parseString(v7.LinkName())
++
++	// Unpack format specific fields.
++	if format > formatV7 {
++		ustar := tr.blk.USTAR()
++		hdr.Uname = p.parseString(ustar.UserName())
++		hdr.Gname = p.parseString(ustar.GroupName())
+ 		if hdr.Typeflag == TypeChar || hdr.Typeflag == TypeBlock {
+-			hdr.Devmajor = p.parseNumeric(devmajor)
+-			hdr.Devminor = p.parseNumeric(devminor)
++			hdr.Devmajor = p.parseNumeric(ustar.DevMajor())
++			hdr.Devminor = p.parseNumeric(ustar.DevMinor())
+ 		}
++
+ 		var prefix string
+ 		switch format {
+-		case "posix", "gnu":
+-			prefix = p.parseString(s.next(155))
+-		case "star":
+-			prefix = p.parseString(s.next(131))
+-			hdr.AccessTime = time.Unix(p.parseNumeric(s.next(12)), 0)
+-			hdr.ChangeTime = time.Unix(p.parseNumeric(s.next(12)), 0)
++		case formatUSTAR, formatGNU:
++			// TODO(dsnet): Do not use the prefix field for the GNU format!
++			// See golang.org/issues/12594
++			ustar := tr.blk.USTAR()
++			prefix = p.parseString(ustar.Prefix())
++		case formatSTAR:
++			star := tr.blk.STAR()
++			prefix = p.parseString(star.Prefix())
++			hdr.AccessTime = time.Unix(p.parseNumeric(star.AccessTime()), 0)
++			hdr.ChangeTime = time.Unix(p.parseNumeric(star.ChangeTime()), 0)
+ 		}
+ 		if len(prefix) > 0 {
+ 			hdr.Name = prefix + "/" + hdr.Name
+ 		}
+ 	}
+ 
+-	if p.err != nil {
+-		tr.err = p.err
+-		return nil
+-	}
+-
+ 	nb := hdr.Size
+ 	if isHeaderOnlyType(hdr.Typeflag) {
+ 		nb = 0
+@@ -662,14 +621,14 @@ func (tr *Reader) readHeader() *Header {
+ 	// Check for old GNU sparse format entry.
+ 	if hdr.Typeflag == TypeGNUSparse {
+ 		// Get the real size of the file.
+-		hdr.Size = p.parseNumeric(header[483:495])
++		hdr.Size = p.parseNumeric(tr.blk.GNU().RealSize())
+ 		if p.err != nil {
+ 			tr.err = p.err
+ 			return nil
+ 		}
+ 
+ 		// Read the sparse map.
+-		sp := tr.readOldGNUSparseMap(header)
++		sp := tr.readOldGNUSparseMap(&tr.blk)
+ 		if tr.err != nil {
+ 			return nil
+ 		}
+@@ -681,26 +640,24 @@ func (tr *Reader) readHeader() *Header {
+ 		}
+ 	}
+ 
++	if p.err != nil {
++		tr.err = p.err
++		return nil
++	}
++
+ 	return hdr
+ }
+ 
+ // readOldGNUSparseMap reads the sparse map as stored in the old GNU sparse format.
+ // The sparse map is stored in the tar header if it's small enough. If it's larger than four entries,
+ // then one or more extension headers are used to store the rest of the sparse map.
+-func (tr *Reader) readOldGNUSparseMap(header []byte) []sparseEntry {
++func (tr *Reader) readOldGNUSparseMap(blk *block) []sparseEntry {
+ 	var p parser
+-	isExtended := header[oldGNUSparseMainHeaderIsExtendedOffset] != 0
+-	spCap := oldGNUSparseMainHeaderNumEntries
+-	if isExtended {
+-		spCap += oldGNUSparseExtendedHeaderNumEntries
+-	}
+-	sp := make([]sparseEntry, 0, spCap)
+-	s := slicer(header[oldGNUSparseMainHeaderOffset:])
+-
+-	// Read the four entries from the main tar header
+-	for i := 0; i < oldGNUSparseMainHeaderNumEntries; i++ {
+-		offset := p.parseNumeric(s.next(oldGNUSparseOffsetSize))
+-		numBytes := p.parseNumeric(s.next(oldGNUSparseNumBytesSize))
++	var s sparseArray = blk.GNU().Sparse()
++	var sp = make([]sparseEntry, 0, s.MaxEntries())
++	for i := 0; i < s.MaxEntries(); i++ {
++		offset := p.parseOctal(s.Entry(i).Offset())
++		numBytes := p.parseOctal(s.Entry(i).NumBytes())
+ 		if p.err != nil {
+ 			tr.err = p.err
+ 			return nil
+@@ -711,17 +668,17 @@ func (tr *Reader) readOldGNUSparseMap(header []byte) []sparseEntry {
+ 		sp = append(sp, sparseEntry{offset: offset, numBytes: numBytes})
+ 	}
+ 
+-	for isExtended {
++	for s.IsExtended()[0] > 0 {
+ 		// There are more entries. Read an extension header and parse its entries.
+-		sparseHeader := make([]byte, blockSize)
+-		if _, tr.err = io.ReadFull(tr.r, sparseHeader); tr.err != nil {
++		var blk block
++		if _, tr.err = io.ReadFull(tr.r, blk[:]); tr.err != nil {
+ 			return nil
+ 		}
+-		isExtended = sparseHeader[oldGNUSparseExtendedHeaderIsExtendedOffset] != 0
+-		s = slicer(sparseHeader)
+-		for i := 0; i < oldGNUSparseExtendedHeaderNumEntries; i++ {
+-			offset := p.parseNumeric(s.next(oldGNUSparseOffsetSize))
+-			numBytes := p.parseNumeric(s.next(oldGNUSparseNumBytesSize))
++		s = blk.Sparse()
++
++		for i := 0; i < s.MaxEntries(); i++ {
++			offset := p.parseOctal(s.Entry(i).Offset())
++			numBytes := p.parseOctal(s.Entry(i).NumBytes())
+ 			if p.err != nil {
+ 				tr.err = p.err
+ 				return nil
+diff --git a/src/archive/tar/writer.go b/src/archive/tar/writer.go
+index 944b2d4952..426e4434eb 100644
+--- a/src/archive/tar/writer.go
++++ b/src/archive/tar/writer.go
+@@ -36,10 +36,10 @@ type Writer struct {
+ 	nb         int64 // number of unwritten bytes for current file entry
+ 	pad        int64 // amount of padding to write after current file entry
+ 	closed     bool
+-	usedBinary bool            // whether the binary numeric field extension was used
+-	preferPax  bool            // use pax header instead of binary numeric header
+-	hdrBuff    [blockSize]byte // buffer to use in writeHeader when writing a regular header
+-	paxHdrBuff [blockSize]byte // buffer to use in writeHeader when writing a pax header
++	usedBinary bool  // whether the binary numeric field extension was used
++	preferPax  bool  // use PAX header instead of binary numeric header
++	hdrBuff    block // buffer to use in writeHeader when writing a regular header
++	paxHdrBuff block // buffer to use in writeHeader when writing a PAX header
+ }
+ 
+ type formatter struct {
+@@ -153,27 +153,24 @@ func (tw *Writer) writeHeader(hdr *Header, allowPax bool) error {
+ 	// a map to hold pax header records, if any are needed
+ 	paxHeaders := make(map[string]string)
+ 
+-	// TODO(shanemhansen): we might want to use PAX headers for
++	// TODO(dsnet): we might want to use PAX headers for
+ 	// subsecond time resolution, but for now let's just capture
+ 	// too long fields or non ascii characters
+ 
+-	var f formatter
+-	var header []byte
+-
+ 	// We need to select which scratch buffer to use carefully,
+ 	// since this method is called recursively to write PAX headers.
+ 	// If allowPax is true, this is the non-recursive call, and we will use hdrBuff.
+ 	// If allowPax is false, we are being called by writePAXHeader, and hdrBuff is
+ 	// already being used by the non-recursive call, so we must use paxHdrBuff.
+-	header = tw.hdrBuff[:]
++	header := &tw.hdrBuff
+ 	if !allowPax {
+-		header = tw.paxHdrBuff[:]
++		header = &tw.paxHdrBuff
+ 	}
+-	copy(header, zeroBlock)
+-	s := slicer(header)
++	copy(header[:], zeroBlock[:])
+ 
+ 	// Wrappers around formatter that automatically sets paxHeaders if the
+ 	// argument extends beyond the capacity of the input byte slice.
++	var f formatter
+ 	var formatString = func(b []byte, s string, paxKeyword string) {
+ 		needsPaxHeader := paxKeyword != paxNone && len(s) > len(b) || !isASCII(s)
+ 		if needsPaxHeader {
+@@ -202,44 +199,33 @@ func (tw *Writer) writeHeader(hdr *Header, allowPax bool) error {
+ 		f.formatNumeric(b, x)
+ 	}
+ 
+-	// keep a reference to the filename to allow to overwrite it later if we detect that we can use ustar longnames instead of pax
+-	pathHeaderBytes := s.next(fileNameSize)
+-
+-	formatString(pathHeaderBytes, hdr.Name, paxPath)
+-
+ 	// Handle out of range ModTime carefully.
+ 	var modTime int64
+ 	if !hdr.ModTime.Before(minTime) && !hdr.ModTime.After(maxTime) {
+ 		modTime = hdr.ModTime.Unix()
+ 	}
+ 
+-	f.formatOctal(s.next(8), hdr.Mode)               // 100:108
+-	formatNumeric(s.next(8), int64(hdr.Uid), paxUid) // 108:116
+-	formatNumeric(s.next(8), int64(hdr.Gid), paxGid) // 116:124
+-	formatNumeric(s.next(12), hdr.Size, paxSize)     // 124:136
+-	formatNumeric(s.next(12), modTime, paxNone)      // 136:148 --- consider using pax for finer granularity
+-	s.next(8)                                        // chksum (148:156)
+-	s.next(1)[0] = hdr.Typeflag                      // 156:157
+-
+-	formatString(s.next(100), hdr.Linkname, paxLinkpath)
+-
+-	copy(s.next(8), []byte("ustar\x0000"))          // 257:265
+-	formatString(s.next(32), hdr.Uname, paxUname)   // 265:297
+-	formatString(s.next(32), hdr.Gname, paxGname)   // 297:329
+-	formatNumeric(s.next(8), hdr.Devmajor, paxNone) // 329:337
+-	formatNumeric(s.next(8), hdr.Devminor, paxNone) // 337:345
+-
+-	// keep a reference to the prefix to allow to overwrite it later if we detect that we can use ustar longnames instead of pax
+-	prefixHeaderBytes := s.next(155)
+-	formatString(prefixHeaderBytes, "", paxNone) // 345:500  prefix
++	v7 := header.V7()
++	formatString(v7.Name(), hdr.Name, paxPath)
++	// TODO(dsnet): The GNU format permits the mode field to be encoded in
++	// base-256 format. Thus, we can use formatNumeric instead of formatOctal.
++	f.formatOctal(v7.Mode(), hdr.Mode)
++	formatNumeric(v7.UID(), int64(hdr.Uid), paxUid)
++	formatNumeric(v7.GID(), int64(hdr.Gid), paxGid)
++	formatNumeric(v7.Size(), hdr.Size, paxSize)
++	// TODO(dsnet): Consider using PAX for finer time granularity.
++	formatNumeric(v7.ModTime(), modTime, paxNone)
++	v7.TypeFlag()[0] = hdr.Typeflag
++	formatString(v7.LinkName(), hdr.Linkname, paxLinkpath)
++
++	ustar := header.USTAR()
++	formatString(ustar.UserName(), hdr.Uname, paxUname)
++	formatString(ustar.GroupName(), hdr.Gname, paxGname)
++	formatNumeric(ustar.DevMajor(), hdr.Devmajor, paxNone)
++	formatNumeric(ustar.DevMinor(), hdr.Devminor, paxNone)
+ 
+-	// Use the GNU magic instead of POSIX magic if we used any GNU extensions.
+-	if tw.usedBinary {
+-		copy(header[257:265], []byte("ustar  \x00"))
+-	}
+-
+-	_, paxPathUsed := paxHeaders[paxPath]
+ 	// try to use a ustar header when only the name is too long
++	_, paxPathUsed := paxHeaders[paxPath]
+ 	if !tw.preferPax && len(paxHeaders) == 1 && paxPathUsed {
+ 		prefix, suffix, ok := splitUSTARPath(hdr.Name)
+ 		if ok {
+@@ -247,16 +233,16 @@ func (tw *Writer) writeHeader(hdr *Header, allowPax bool) error {
+ 			delete(paxHeaders, paxPath)
+ 
+ 			// Update the path fields
+-			formatString(pathHeaderBytes, suffix, paxNone)
+-			formatString(prefixHeaderBytes, prefix, paxNone)
++			formatString(v7.Name(), suffix, paxNone)
++			formatString(ustar.Prefix(), prefix, paxNone)
+ 		}
+ 	}
+ 
+-	// The chksum field is terminated by a NUL and a space.
+-	// This is different from the other octal fields.
+-	chksum, _ := checksum(header)
+-	f.formatOctal(header[148:155], chksum) // Never fails
+-	header[155] = ' '
++	if tw.usedBinary {
++		header.SetFormat(formatGNU)
++	} else {
++		header.SetFormat(formatUSTAR)
++	}
+ 
+ 	// Check if there were any formatting errors.
+ 	if f.err != nil {
+@@ -281,7 +267,7 @@ func (tw *Writer) writeHeader(hdr *Header, allowPax bool) error {
+ 	tw.nb = hdr.Size
+ 	tw.pad = (blockSize - (tw.nb % blockSize)) % blockSize
+ 
+-	_, tw.err = tw.w.Write(header)
++	_, tw.err = tw.w.Write(header[:])
+ 	return tw.err
+ }
+ 
+@@ -289,10 +275,10 @@ func (tw *Writer) writeHeader(hdr *Header, allowPax bool) error {
+ // If the path is not splittable, then it will return ("", "", false).
+ func splitUSTARPath(name string) (prefix, suffix string, ok bool) {
+ 	length := len(name)
+-	if length <= fileNameSize || !isASCII(name) {
++	if length <= nameSize || !isASCII(name) {
+ 		return "", "", false
+-	} else if length > fileNamePrefixSize+1 {
+-		length = fileNamePrefixSize + 1
++	} else if length > prefixSize+1 {
++		length = prefixSize + 1
+ 	} else if name[length-1] == '/' {
+ 		length--
+ 	}
+@@ -300,7 +286,7 @@ func splitUSTARPath(name string) (prefix, suffix string, ok bool) {
+ 	i := strings.LastIndex(name[:length], "/")
+ 	nlen := len(name) - i - 1 // nlen is length of suffix
+ 	plen := i                 // plen is length of prefix
+-	if i <= 0 || nlen > fileNameSize || nlen == 0 || plen > fileNamePrefixSize {
++	if i <= 0 || nlen > nameSize || nlen == 0 || plen > prefixSize {
+ 		return "", "", false
+ 	}
+ 	return name[:i], name[i+1:], true
+@@ -323,8 +309,8 @@ func (tw *Writer) writePAXHeader(hdr *Header, paxHeaders map[string]string) erro
+ 	fullName := path.Join(dir, "PaxHeaders.0", file)
+ 
+ 	ascii := toASCII(fullName)
+-	if len(ascii) > 100 {
+-		ascii = ascii[:100]
++	if len(ascii) > nameSize {
++		ascii = ascii[:nameSize]
+ 	}
+ 	ext.Name = ascii
+ 	// Construct the body
+@@ -407,7 +393,7 @@ func (tw *Writer) Close() error {
+ 
+ 	// trailer: two zero blocks
+ 	for i := 0; i < 2; i++ {
+-		_, tw.err = tw.w.Write(zeroBlock)
++		_, tw.err = tw.w.Write(zeroBlock[:])
+ 		if tw.err != nil {
+ 			break
+ 		}
+diff --git a/src/archive/tar/writer_test.go b/src/archive/tar/writer_test.go
+index 6e91d907ce..27aa8e5dab 100644
+--- a/src/archive/tar/writer_test.go
++++ b/src/archive/tar/writer_test.go
+@@ -587,17 +587,17 @@ func TestSplitUSTARPath(t *testing.T) {
+ 		{"", "", "", false},
+ 		{"abc", "", "", false},
+ 		{"用戶名", "", "", false},
+-		{sr("a", fileNameSize), "", "", false},
+-		{sr("a", fileNameSize) + "/", "", "", false},
+-		{sr("a", fileNameSize) + "/a", sr("a", fileNameSize), "a", true},
+-		{sr("a", fileNamePrefixSize) + "/", "", "", false},
+-		{sr("a", fileNamePrefixSize) + "/a", sr("a", fileNamePrefixSize), "a", true},
+-		{sr("a", fileNameSize+1), "", "", false},
+-		{sr("/", fileNameSize+1), sr("/", fileNameSize-1), "/", true},
+-		{sr("a", fileNamePrefixSize) + "/" + sr("b", fileNameSize),
+-			sr("a", fileNamePrefixSize), sr("b", fileNameSize), true},
+-		{sr("a", fileNamePrefixSize) + "//" + sr("b", fileNameSize), "", "", false},
+-		{sr("a/", fileNameSize), sr("a/", 77) + "a", sr("a/", 22), true},
++		{sr("a", nameSize), "", "", false},
++		{sr("a", nameSize) + "/", "", "", false},
++		{sr("a", nameSize) + "/a", sr("a", nameSize), "a", true},
++		{sr("a", prefixSize) + "/", "", "", false},
++		{sr("a", prefixSize) + "/a", sr("a", prefixSize), "a", true},
++		{sr("a", nameSize+1), "", "", false},
++		{sr("/", nameSize+1), sr("/", nameSize-1), "/", true},
++		{sr("a", prefixSize) + "/" + sr("b", nameSize),
++			sr("a", prefixSize), sr("b", nameSize), true},
++		{sr("a", prefixSize) + "//" + sr("b", nameSize), "", "", false},
++		{sr("a/", nameSize), sr("a/", 77) + "a", sr("a/", 22), true},
+ 	}
+ 
+ 	for _, v := range vectors {

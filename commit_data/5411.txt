@@ -9,7 +9,82 @@ Date:   Fri Apr 30 13:27:08 2010 -0700
     R=ken2
     CC=golang-dev
     https://golang.org/cl/978043
-
+---
  src/cmd/gc/walk.c        | 15 +++++++--------
  test/fixedbugs/bug271.go | 20 ++++++++++++++++++++
  2 files changed, 27 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index f845638e88..951496e604 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -1618,7 +1618,7 @@ ascompatte(int op, Type **nl, NodeList *lr, int fp, NodeList **init)
+ 	Type *l, *ll;
+ 	Node *r, *a;
+ 	NodeList *nn, *lr0, *alist;
+-	Iter savel, peekl;
++	Iter savel;
+ 
+ 	lr0 = lr;
+ 	l = structfirst(&savel, nl);
+@@ -1626,11 +1626,9 @@ ascompatte(int op, Type **nl, NodeList *lr, int fp, NodeList **init)
+ 	if(lr)
+ 		r = lr->n;
+ 	nn = nil;
+-
+-	// 1 to many
+-	peekl = savel;
+-	if(l != T && r != N && structnext(&peekl) != T && lr->next == nil
+-	&& r->type->etype == TSTRUCT && r->type->funarg) {
++	
++	// f(g()) where g has multiple return values
++	if(r != N && lr->next == nil && r->type->etype == TSTRUCT && r->type->funarg) {
+ 		// optimization - can do block copy
+ 		if(eqtypenoname(r->type, *nl)) {
+ 			a = nodarg(*nl, fp);
+@@ -1638,6 +1636,7 @@ ascompatte(int op, Type **nl, NodeList *lr, int fp, NodeList **init)
+ 			nn = list1(convas(nod(OAS, a, r), init));
+ 			goto ret;
+ 		}
++		
+ 		// conversions involved.
+ 		// copy into temporaries.
+ 		alist = nil;
+@@ -1689,9 +1688,9 @@ loop:
+ 	if(l == T || r == N) {
+ 		if(l != T || r != N) {
+ 			if(l != T)
+-				yyerror("xxx not enough arguments to %O", op);
++				yyerror("not enough arguments to %O", op);
+ 			else
+-				yyerror("xxx too many arguments to %O", op);
++				yyerror("too many arguments to %O", op);
+ 			dumptypes(nl, "expected");
+ 			dumpnodetypes(lr0, "given");
+ 		}
+diff --git a/test/fixedbugs/bug271.go b/test/fixedbugs/bug271.go
+new file mode 100644
+index 0000000000..ba93d93ed2
+--- /dev/null
++++ b/test/fixedbugs/bug271.go
+@@ -0,0 +1,20 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// http://code.google.com/p/go/issues/detail?id=662
++
++package main
++
++import "fmt"
++
++func f() (int, int) { return 1, 2 }
++
++func main() {
++	s := fmt.Sprint(f())
++	if s != "1 2" {	// with bug, was "{1 2}"
++		println("BUG")
++	}
++}

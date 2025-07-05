@@ -12,7 +12,7 @@ Date:   Tue Feb 21 16:49:30 2012 -0500
     R=golang-dev, rsc, minux.ma
     CC=golang-dev
     https://golang.org/cl/5675095
-
+---
  src/cmd/dist/a.h            |  2 +-
  src/cmd/dist/build.c        | 24 ++++++++++++------------
  src/cmd/dist/buildgc.c      |  4 ++--
@@ -21,3 +21,239 @@ Date:   Tue Feb 21 16:49:30 2012 -0500
  src/cmd/dist/unix.c         |  9 ++++++---
  src/cmd/dist/windows.c      |  4 +++-
  7 files changed, 31 insertions(+), 26 deletions(-)
+
+diff --git a/src/cmd/dist/a.h b/src/cmd/dist/a.h
+index 3fbace3f6d..c19b1f4685 100644
+--- a/src/cmd/dist/a.h
++++ b/src/cmd/dist/a.h
+@@ -120,7 +120,7 @@ void	runv(Buf *b, char *dir, int mode, Vec *argv);
+ void	bgrunv(char *dir, int mode, Vec *argv);
+ void	bgwait(void);
+ bool	streq(char*, char*);
+-void	writefile(Buf*, char*);
++void	writefile(Buf*, char*, int);
+ void	xatexit(void (*f)(void));
+ void	xexit(int);
+ void	xfree(void*);
+diff --git a/src/cmd/dist/build.c b/src/cmd/dist/build.c
+index 260a9df6c4..7285b47bfa 100644
+--- a/src/cmd/dist/build.c
++++ b/src/cmd/dist/build.c
+@@ -27,7 +27,7 @@ char *slash;	// / for unix, \ for windows
+ bool	rebuildall = 0;
+ 
+ static bool shouldbuild(char*, char*);
+-static void copy(char*, char*);
++static void copy(char*, char*, int);
+ static char *findgoversion(void);
+ 
+ // The known architecture letters.
+@@ -245,7 +245,7 @@ findgoversion(void)
+ 		bwriteb(&b, &bmore);
+ 
+ 	// Cache version.
+-	writefile(&b, bstr(&path));
++	writefile(&b, bstr(&path), 0);
+ 
+ done:
+ 	p = btake(&b);
+@@ -567,7 +567,7 @@ install(char *dir)
+ 	// For misc/prof, copy into the tool directory and we're done.
+ 	if(hasprefix(dir, "misc/")) {
+ 		copy(bpathf(&b, "%s/%s", tooldir, name),
+-			bpathf(&b1, "%s/misc/%s", goroot, name));
++			bpathf(&b1, "%s/misc/%s", goroot, name), 1);
+ 		goto out;
+ 	}
+ 
+@@ -750,13 +750,13 @@ install(char *dir)
+ 	// For package runtime, copy some files into the work space.
+ 	if(streq(dir, "pkg/runtime")) {
+ 		copy(bpathf(&b, "%s/arch_GOARCH.h", workdir),
+-			bpathf(&b1, "%s/arch_%s.h", bstr(&path), goarch));
++			bpathf(&b1, "%s/arch_%s.h", bstr(&path), goarch), 0);
+ 		copy(bpathf(&b, "%s/defs_GOOS_GOARCH.h", workdir),
+-			bpathf(&b1, "%s/defs_%s_%s.h", bstr(&path), goos, goarch));
++			bpathf(&b1, "%s/defs_%s_%s.h", bstr(&path), goos, goarch), 0);
+ 		copy(bpathf(&b, "%s/os_GOOS.h", workdir),
+-			bpathf(&b1, "%s/os_%s.h", bstr(&path), goos));
++			bpathf(&b1, "%s/os_%s.h", bstr(&path), goos), 0);
+ 		copy(bpathf(&b, "%s/signals_GOOS.h", workdir),
+-			bpathf(&b1, "%s/signals_%s.h", bstr(&path), goos));
++			bpathf(&b1, "%s/signals_%s.h", bstr(&path), goos), 0);
+ 	}
+ 
+ 	// Generate any missing files; regenerate existing ones.
+@@ -789,7 +789,7 @@ install(char *dir)
+ 	// This one is generated.
+ 	if(streq(dir, "pkg/runtime")) {
+ 		copy(bpathf(&b, "%s/zasm_GOOS_GOARCH.h", workdir),
+-			bpathf(&b1, "%s/zasm_%s_%s.h", bstr(&path), goos, goarch));
++			bpathf(&b1, "%s/zasm_%s_%s.h", bstr(&path), goos, goarch), 0);
+ 	}
+ 	
+ 	// Generate .c files from .goc files.
+@@ -935,9 +935,9 @@ nobuild:
+ 	// for use by cgo compilation.
+ 	if(streq(dir, "pkg/runtime")) {
+ 		copy(bpathf(&b, "%s/pkg/%s_%s/cgocall.h", goroot, goos, goarch),
+-			bpathf(&b1, "%s/src/pkg/runtime/cgocall.h", goroot));
++			bpathf(&b1, "%s/src/pkg/runtime/cgocall.h", goroot), 0);
+ 		copy(bpathf(&b, "%s/pkg/%s_%s/runtime.h", goroot, goos, goarch),
+-			bpathf(&b1, "%s/src/pkg/runtime/runtime.h", goroot));
++			bpathf(&b1, "%s/src/pkg/runtime/runtime.h", goroot), 0);
+ 	}
+ 
+ 
+@@ -1051,7 +1051,7 @@ out:
+ 
+ // copy copies the file src to dst, via memory (so only good for small files).
+ static void
+-copy(char *dst, char *src)
++copy(char *dst, char *src, int exec)
+ {
+ 	Buf b;
+ 	
+@@ -1060,7 +1060,7 @@ copy(char *dst, char *src)
+ 
+ 	binit(&b);
+ 	readfile(&b, src);
+-	writefile(&b, dst);
++	writefile(&b, dst, exec);
+ 	bfree(&b);
+ }
+ 
+diff --git a/src/cmd/dist/buildgc.c b/src/cmd/dist/buildgc.c
+index 1c1d4a1d4f..da38760c66 100644
+--- a/src/cmd/dist/buildgc.c
++++ b/src/cmd/dist/buildgc.c
+@@ -55,7 +55,7 @@ gcopnames(char *dir, char *file)
+ 	
+ 	bwritestr(&out, bprintf(&b, "};\n"));
+ 
+-	writefile(&out, file);
++	writefile(&out, file, 0);
+ 
+ 	bfree(&in);
+ 	bfree(&b);
+@@ -97,7 +97,7 @@ mkenam(char *dir, char *file)
+ 		}
+ 	}
+ 	bwritestr(&out, "};\n");
+-	writefile(&out, file);
++	writefile(&out, file, 0);
+ 
+ 	bfree(&b);
+ 	bfree(&in);
+diff --git a/src/cmd/dist/buildruntime.c b/src/cmd/dist/buildruntime.c
+index 03ebd345fd..a0c62010d6 100644
+--- a/src/cmd/dist/buildruntime.c
++++ b/src/cmd/dist/buildruntime.c
+@@ -31,7 +31,7 @@ mkzversion(char *dir, char *file)
+ 		"const defaultGoroot = `%s`\n"
+ 		"const theVersion = `%s`\n", goroot_final, goversion));
+ 
+-	writefile(&out, file);
++	writefile(&out, file, 0);
+ 	
+ 	bfree(&b);
+ 	bfree(&out);
+@@ -57,7 +57,7 @@ mkzgoarch(char *dir, char *file)
+ 		"\n"
+ 		"const theGoarch = `%s`\n", goarch));
+ 
+-	writefile(&out, file);
++	writefile(&out, file, 0);
+ 	
+ 	bfree(&b);
+ 	bfree(&out);
+@@ -83,7 +83,7 @@ mkzgoos(char *dir, char *file)
+ 		"\n"
+ 		"const theGoos = `%s`\n", goos));
+ 
+-	writefile(&out, file);
++	writefile(&out, file, 0);
+ 	
+ 	bfree(&b);
+ 	bfree(&out);
+@@ -235,8 +235,8 @@ ok:
+ 	}
+ 	
+ 	// Write both to file and to workdir/zasm_GOOS_GOARCH.h.
+-	writefile(&out, file);
+-	writefile(&out, bprintf(&b, "%s/zasm_GOOS_GOARCH.h", workdir));
++	writefile(&out, file, 0);
++	writefile(&out, bprintf(&b, "%s/zasm_GOOS_GOARCH.h", workdir), 0);
+ 
+ 	bfree(&in);
+ 	bfree(&b);
+@@ -334,7 +334,7 @@ mkzruntimedefs(char *dir, char *file)
+ 		bwritestr(&out, p);
+ 	}
+ 	
+-	writefile(&out, file);
++	writefile(&out, file, 0);
+ 
+ 	bfree(&in);
+ 	bfree(&b);
+diff --git a/src/cmd/dist/goc2c.c b/src/cmd/dist/goc2c.c
+index 2443c30b10..22f72f8b50 100644
+--- a/src/cmd/dist/goc2c.c
++++ b/src/cmd/dist/goc2c.c
+@@ -731,5 +731,5 @@ goc2c(char *goc, char *c)
+ 
+ 	process_file();
+ 	
+-	writefile(&out, c);
++	writefile(&out, c, 0);
+ }
+diff --git a/src/cmd/dist/unix.c b/src/cmd/dist/unix.c
+index 5aedbed18d..76622a4d88 100644
+--- a/src/cmd/dist/unix.c
++++ b/src/cmd/dist/unix.c
+@@ -351,9 +351,10 @@ readfile(Buf *b, char *file)
+ 	close(fd);
+ }
+ 
+-// writefile writes b to the named file, creating it if needed.
++// writefile writes b to the named file, creating it if needed.  if
++// exec is non-zero, marks the file as executable.
+ void
+-writefile(Buf *b, char *file)
++writefile(Buf *b, char *file, int exec)
+ {
+ 	int fd;
+ 	
+@@ -362,9 +363,11 @@ writefile(Buf *b, char *file)
+ 		fatal("create %s: %s", file, strerror(errno));
+ 	if(write(fd, b->p, b->len) != b->len)
+ 		fatal("short write: %s", strerror(errno));
++	if(exec)
++		fchmod(fd, 0755);
+ 	close(fd);
+ }
+-	
++
+ // xmkdir creates the directory p.
+ void
+ xmkdir(char *p)
+diff --git a/src/cmd/dist/windows.c b/src/cmd/dist/windows.c
+index aa961eb6cf..557e4b0031 100644
+--- a/src/cmd/dist/windows.c
++++ b/src/cmd/dist/windows.c
+@@ -539,12 +539,14 @@ readfile(Buf *b, char *file)
+ }
+ 
+ void
+-writefile(Buf *b, char *file)
++writefile(Buf *b, char *file, int exec)
+ {
+ 	HANDLE h;
+ 	Rune *r;
+ 	DWORD n;
+ 
++	USED(exec);
++
+ 	if(vflag > 2)
+ 		xprintf("write %s\n", file);
+ 	torune(&r, file);

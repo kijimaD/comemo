@@ -19,10 +19,526 @@ Date:   Tue Jun 20 15:36:34 2017 -0500
     Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/amd64/ssa.go        |   4 +-
  src/cmd/compile/internal/ssa/gen/AMD64.rules |  10 +
  src/cmd/compile/internal/ssa/gen/AMD64Ops.go |   2 +
  src/cmd/compile/internal/ssa/opGen.go        |  32 ++++
  src/cmd/compile/internal/ssa/rewriteAMD64.go | 267 ++++++++++++++++++++++++++-
  5 files changed, 306 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/ssa.go b/src/cmd/compile/internal/amd64/ssa.go
+index a0cfdd093a..8c92f07320 100644
+--- a/src/cmd/compile/internal/amd64/ssa.go
++++ b/src/cmd/compile/internal/amd64/ssa.go
+@@ -525,7 +525,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		gc.AddAux(&p.From, v)
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg()
+-	case ssa.OpAMD64MOVQloadidx8, ssa.OpAMD64MOVSDloadidx8:
++	case ssa.OpAMD64MOVQloadidx8, ssa.OpAMD64MOVSDloadidx8, ssa.OpAMD64MOVLloadidx8:
+ 		p := s.Prog(v.Op.Asm())
+ 		p.From.Type = obj.TYPE_MEM
+ 		p.From.Reg = v.Args[0].Reg()
+@@ -573,7 +573,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.To.Type = obj.TYPE_MEM
+ 		p.To.Reg = v.Args[0].Reg()
+ 		gc.AddAux(&p.To, v)
+-	case ssa.OpAMD64MOVQstoreidx8, ssa.OpAMD64MOVSDstoreidx8:
++	case ssa.OpAMD64MOVQstoreidx8, ssa.OpAMD64MOVSDstoreidx8, ssa.OpAMD64MOVLstoreidx8:
+ 		p := s.Prog(v.Op.Asm())
+ 		p.From.Type = obj.TYPE_REG
+ 		p.From.Reg = v.Args[2].Reg()
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index 0bbe14dd8c..e4321cbbcb 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -1128,6 +1128,8 @@
+ 	(MOVLloadidx1 [off1+off2] {mergeSym(sym1,sym2)} ptr idx mem)
+ (MOVLload [off1] {sym1} (LEAQ4 [off2] {sym2} ptr idx) mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
+ 	(MOVLloadidx4 [off1+off2] {mergeSym(sym1,sym2)} ptr idx mem)
++(MOVLload [off1] {sym1} (LEAQ8 [off2] {sym2} ptr idx) mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
++	(MOVLloadidx8 [off1+off2] {mergeSym(sym1,sym2)} ptr idx mem)
+ (MOVQload [off1] {sym1} (LEAQ1 [off2] {sym2} ptr idx) mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
+ 	(MOVQloadidx1 [off1+off2] {mergeSym(sym1,sym2)} ptr idx mem)
+ (MOVQload [off1] {sym1} (LEAQ8 [off2] {sym2} ptr idx) mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
+@@ -1151,6 +1153,8 @@
+ 	(MOVLstoreidx1 [off1+off2] {mergeSym(sym1,sym2)} ptr idx val mem)
+ (MOVLstore [off1] {sym1} (LEAQ4 [off2] {sym2} ptr idx) val mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
+ 	(MOVLstoreidx4 [off1+off2] {mergeSym(sym1,sym2)} ptr idx val mem)
++(MOVLstore [off1] {sym1} (LEAQ8 [off2] {sym2} ptr idx) val mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
++	(MOVLstoreidx8 [off1+off2] {mergeSym(sym1,sym2)} ptr idx val mem)
+ (MOVQstore [off1] {sym1} (LEAQ1 [off2] {sym2} ptr idx) val mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
+ 	(MOVQstoreidx1 [off1+off2] {mergeSym(sym1,sym2)} ptr idx val mem)
+ (MOVQstore [off1] {sym1} (LEAQ8 [off2] {sym2} ptr idx) val mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
+@@ -1200,11 +1204,13 @@
+ // combine SHLQ into indexed loads and stores
+ (MOVWloadidx1 [c] {sym} ptr (SHLQconst [1] idx) mem) -> (MOVWloadidx2 [c] {sym} ptr idx mem)
+ (MOVLloadidx1 [c] {sym} ptr (SHLQconst [2] idx) mem) -> (MOVLloadidx4 [c] {sym} ptr idx mem)
++(MOVLloadidx1 [c] {sym} ptr (SHLQconst [3] idx) mem) -> (MOVLloadidx8 [c] {sym} ptr idx mem)
+ (MOVQloadidx1 [c] {sym} ptr (SHLQconst [3] idx) mem) -> (MOVQloadidx8 [c] {sym} ptr idx mem)
+ (MOVSSloadidx1 [c] {sym} ptr (SHLQconst [2] idx) mem) -> (MOVSSloadidx4 [c] {sym} ptr idx mem)
+ (MOVSDloadidx1 [c] {sym} ptr (SHLQconst [3] idx) mem) -> (MOVSDloadidx8 [c] {sym} ptr idx mem)
+ (MOVWstoreidx1 [c] {sym} ptr (SHLQconst [1] idx) val mem) -> (MOVWstoreidx2 [c] {sym} ptr idx val mem)
+ (MOVLstoreidx1 [c] {sym} ptr (SHLQconst [2] idx) val mem) -> (MOVLstoreidx4 [c] {sym} ptr idx val mem)
++(MOVLstoreidx1 [c] {sym} ptr (SHLQconst [3] idx) val mem) -> (MOVLstoreidx8 [c] {sym} ptr idx val mem)
+ (MOVQstoreidx1 [c] {sym} ptr (SHLQconst [3] idx) val mem) -> (MOVQstoreidx8 [c] {sym} ptr idx val mem)
+ (MOVSSstoreidx1 [c] {sym} ptr (SHLQconst [2] idx) val mem) -> (MOVSSstoreidx4 [c] {sym} ptr idx val mem)
+ (MOVSDstoreidx1 [c] {sym} ptr (SHLQconst [3] idx) val mem) -> (MOVSDstoreidx8 [c] {sym} ptr idx val mem)
+@@ -1218,6 +1224,7 @@
+ (MOVWloadidx2 [c] {sym} (ADDQconst [d] ptr) idx mem) && is32Bit(c+d) -> (MOVWloadidx2 [c+d] {sym} ptr idx mem)
+ (MOVLloadidx1 [c] {sym} (ADDQconst [d] ptr) idx mem) && is32Bit(c+d) -> (MOVLloadidx1 [c+d] {sym} ptr idx mem)
+ (MOVLloadidx4 [c] {sym} (ADDQconst [d] ptr) idx mem) && is32Bit(c+d) -> (MOVLloadidx4 [c+d] {sym} ptr idx mem)
++(MOVLloadidx8 [c] {sym} (ADDQconst [d] ptr) idx mem) && is32Bit(c+d) -> (MOVLloadidx8 [c+d] {sym} ptr idx mem)
+ (MOVQloadidx1 [c] {sym} (ADDQconst [d] ptr) idx mem) && is32Bit(c+d) -> (MOVQloadidx1 [c+d] {sym} ptr idx mem)
+ (MOVQloadidx8 [c] {sym} (ADDQconst [d] ptr) idx mem) && is32Bit(c+d) -> (MOVQloadidx8 [c+d] {sym} ptr idx mem)
+ (MOVSSloadidx1 [c] {sym} (ADDQconst [d] ptr) idx mem) && is32Bit(c+d) -> (MOVSSloadidx1 [c+d] {sym} ptr idx mem)
+@@ -1230,6 +1237,7 @@
+ (MOVWstoreidx2 [c] {sym} (ADDQconst [d] ptr) idx val mem) && is32Bit(c+d) -> (MOVWstoreidx2 [c+d] {sym} ptr idx val mem)
+ (MOVLstoreidx1 [c] {sym} (ADDQconst [d] ptr) idx val mem) && is32Bit(c+d) -> (MOVLstoreidx1 [c+d] {sym} ptr idx val mem)
+ (MOVLstoreidx4 [c] {sym} (ADDQconst [d] ptr) idx val mem) && is32Bit(c+d) -> (MOVLstoreidx4 [c+d] {sym} ptr idx val mem)
++(MOVLstoreidx8 [c] {sym} (ADDQconst [d] ptr) idx val mem) && is32Bit(c+d) -> (MOVLstoreidx8 [c+d] {sym} ptr idx val mem)
+ (MOVQstoreidx1 [c] {sym} (ADDQconst [d] ptr) idx val mem) && is32Bit(c+d) -> (MOVQstoreidx1 [c+d] {sym} ptr idx val mem)
+ (MOVQstoreidx8 [c] {sym} (ADDQconst [d] ptr) idx val mem) && is32Bit(c+d) -> (MOVQstoreidx8 [c+d] {sym} ptr idx val mem)
+ (MOVSSstoreidx1 [c] {sym} (ADDQconst [d] ptr) idx val mem) && is32Bit(c+d) -> (MOVSSstoreidx1 [c+d] {sym} ptr idx val mem)
+@@ -1242,6 +1250,7 @@
+ (MOVWloadidx2 [c] {sym} ptr (ADDQconst [d] idx) mem)  && is32Bit(c+2*d) -> (MOVWloadidx2 [c+2*d] {sym} ptr idx mem)
+ (MOVLloadidx1 [c] {sym} ptr (ADDQconst [d] idx) mem)  && is32Bit(c+d)   -> (MOVLloadidx1 [c+d] {sym} ptr idx mem)
+ (MOVLloadidx4 [c] {sym} ptr (ADDQconst [d] idx) mem)  && is32Bit(c+4*d) -> (MOVLloadidx4 [c+4*d] {sym} ptr idx mem)
++(MOVLloadidx8 [c] {sym} ptr (ADDQconst [d] idx) mem)  && is32Bit(c+8*d) -> (MOVLloadidx8 [c+8*d] {sym} ptr idx mem)
+ (MOVQloadidx1 [c] {sym} ptr (ADDQconst [d] idx) mem)  && is32Bit(c+d)   -> (MOVQloadidx1 [c+d] {sym} ptr idx mem)
+ (MOVQloadidx8 [c] {sym} ptr (ADDQconst [d] idx) mem)  && is32Bit(c+8*d) -> (MOVQloadidx8 [c+8*d] {sym} ptr idx mem)
+ (MOVSSloadidx1 [c] {sym} ptr (ADDQconst [d] idx) mem) && is32Bit(c+d)   -> (MOVSSloadidx1 [c+d] {sym} ptr idx mem)
+@@ -1254,6 +1263,7 @@
+ (MOVWstoreidx2 [c] {sym} ptr (ADDQconst [d] idx) val mem)  && is32Bit(c+2*d) -> (MOVWstoreidx2 [c+2*d] {sym} ptr idx val mem)
+ (MOVLstoreidx1 [c] {sym} ptr (ADDQconst [d] idx) val mem)  && is32Bit(c+d)   -> (MOVLstoreidx1 [c+d] {sym} ptr idx val mem)
+ (MOVLstoreidx4 [c] {sym} ptr (ADDQconst [d] idx) val mem)  && is32Bit(c+4*d) -> (MOVLstoreidx4 [c+4*d] {sym} ptr idx val mem)
++(MOVLstoreidx8 [c] {sym} ptr (ADDQconst [d] idx) val mem)  && is32Bit(c+8*d) -> (MOVLstoreidx8 [c+8*d] {sym} ptr idx val mem)
+ (MOVQstoreidx1 [c] {sym} ptr (ADDQconst [d] idx) val mem)  && is32Bit(c+d)   -> (MOVQstoreidx1 [c+d] {sym} ptr idx val mem)
+ (MOVQstoreidx8 [c] {sym} ptr (ADDQconst [d] idx) val mem)  && is32Bit(c+8*d) -> (MOVQstoreidx8 [c+8*d] {sym} ptr idx val mem)
+ (MOVSSstoreidx1 [c] {sym} ptr (ADDQconst [d] idx) val mem) && is32Bit(c+d)   -> (MOVSSstoreidx1 [c+d] {sym} ptr idx val mem)
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+index a4059f29de..23f7af587c 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+@@ -426,6 +426,7 @@ func init() {
+ 		{name: "MOVWloadidx2", argLength: 3, reg: gploadidx, asm: "MOVWLZX", aux: "SymOff", typ: "UInt16", symEffect: "Read"},                    // load 2 bytes from arg0+2*arg1+auxint+aux. arg2=mem
+ 		{name: "MOVLloadidx1", argLength: 3, reg: gploadidx, commutative: true, asm: "MOVL", aux: "SymOff", typ: "UInt32", symEffect: "Read"},    // load 4 bytes from arg0+arg1+auxint+aux. arg2=mem
+ 		{name: "MOVLloadidx4", argLength: 3, reg: gploadidx, asm: "MOVL", aux: "SymOff", typ: "UInt32", symEffect: "Read"},                       // load 4 bytes from arg0+4*arg1+auxint+aux. arg2=mem
++		{name: "MOVLloadidx8", argLength: 3, reg: gploadidx, asm: "MOVL", aux: "SymOff", typ: "UInt32", symEffect: "Read"},                       // load 4 bytes from arg0+8*arg1+auxint+aux. arg2=mem
+ 		{name: "MOVQloadidx1", argLength: 3, reg: gploadidx, commutative: true, asm: "MOVQ", aux: "SymOff", typ: "UInt64", symEffect: "Read"},    // load 8 bytes from arg0+arg1+auxint+aux. arg2=mem
+ 		{name: "MOVQloadidx8", argLength: 3, reg: gploadidx, asm: "MOVQ", aux: "SymOff", typ: "UInt64", symEffect: "Read"},                       // load 8 bytes from arg0+8*arg1+auxint+aux. arg2=mem
+ 		// TODO: sign-extending indexed loads
+@@ -435,6 +436,7 @@ func init() {
+ 		{name: "MOVWstoreidx2", argLength: 4, reg: gpstoreidx, asm: "MOVW", aux: "SymOff", symEffect: "Write"}, // store 2 bytes in arg2 to arg0+2*arg1+auxint+aux. arg3=mem
+ 		{name: "MOVLstoreidx1", argLength: 4, reg: gpstoreidx, asm: "MOVL", aux: "SymOff", symEffect: "Write"}, // store 4 bytes in arg2 to arg0+arg1+auxint+aux. arg3=mem
+ 		{name: "MOVLstoreidx4", argLength: 4, reg: gpstoreidx, asm: "MOVL", aux: "SymOff", symEffect: "Write"}, // store 4 bytes in arg2 to arg0+4*arg1+auxint+aux. arg3=mem
++		{name: "MOVLstoreidx8", argLength: 4, reg: gpstoreidx, asm: "MOVL", aux: "SymOff", symEffect: "Write"}, // store 4 bytes in arg2 to arg0+8*arg1+auxint+aux. arg3=mem
+ 		{name: "MOVQstoreidx1", argLength: 4, reg: gpstoreidx, asm: "MOVQ", aux: "SymOff", symEffect: "Write"}, // store 8 bytes in arg2 to arg0+arg1+auxint+aux. arg3=mem
+ 		{name: "MOVQstoreidx8", argLength: 4, reg: gpstoreidx, asm: "MOVQ", aux: "SymOff", symEffect: "Write"}, // store 8 bytes in arg2 to arg0+8*arg1+auxint+aux. arg3=mem
+ 		// TODO: add size-mismatched indexed loads, like MOVBstoreidx4.
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index eec57b8b03..96a2088d1b 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -620,6 +620,7 @@ const (
+ 	OpAMD64MOVWloadidx2
+ 	OpAMD64MOVLloadidx1
+ 	OpAMD64MOVLloadidx4
++	OpAMD64MOVLloadidx8
+ 	OpAMD64MOVQloadidx1
+ 	OpAMD64MOVQloadidx8
+ 	OpAMD64MOVBstoreidx1
+@@ -627,6 +628,7 @@ const (
+ 	OpAMD64MOVWstoreidx2
+ 	OpAMD64MOVLstoreidx1
+ 	OpAMD64MOVLstoreidx4
++	OpAMD64MOVLstoreidx8
+ 	OpAMD64MOVQstoreidx1
+ 	OpAMD64MOVQstoreidx8
+ 	OpAMD64MOVBstoreconst
+@@ -7470,6 +7472,22 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:      "MOVLloadidx8",
++		auxType:   auxSymOff,
++		argLen:    3,
++		symEffect: SymRead,
++		asm:       x86.AMOVL,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++			outputs: []outputInfo{
++				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++			},
++		},
++	},
+ 	{
+ 		name:        "MOVQloadidx1",
+ 		auxType:     auxSymOff,
+@@ -7573,6 +7591,20 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:      "MOVLstoreidx8",
++		auxType:   auxSymOff,
++		argLen:    4,
++		symEffect: SymWrite,
++		asm:       x86.AMOVL,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++		},
++	},
+ 	{
+ 		name:      "MOVQstoreidx1",
+ 		auxType:   auxSymOff,
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index e707fcd519..01d2f883c6 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -125,6 +125,8 @@ func rewriteValueAMD64(v *Value) bool {
+ 		return rewriteValueAMD64_OpAMD64MOVLloadidx1_0(v)
+ 	case OpAMD64MOVLloadidx4:
+ 		return rewriteValueAMD64_OpAMD64MOVLloadidx4_0(v)
++	case OpAMD64MOVLloadidx8:
++		return rewriteValueAMD64_OpAMD64MOVLloadidx8_0(v)
+ 	case OpAMD64MOVLstore:
+ 		return rewriteValueAMD64_OpAMD64MOVLstore_0(v) || rewriteValueAMD64_OpAMD64MOVLstore_10(v)
+ 	case OpAMD64MOVLstoreconst:
+@@ -137,6 +139,8 @@ func rewriteValueAMD64(v *Value) bool {
+ 		return rewriteValueAMD64_OpAMD64MOVLstoreidx1_0(v)
+ 	case OpAMD64MOVLstoreidx4:
+ 		return rewriteValueAMD64_OpAMD64MOVLstoreidx4_0(v)
++	case OpAMD64MOVLstoreidx8:
++		return rewriteValueAMD64_OpAMD64MOVLstoreidx8_0(v)
+ 	case OpAMD64MOVOload:
+ 		return rewriteValueAMD64_OpAMD64MOVOload_0(v)
+ 	case OpAMD64MOVOstore:
+@@ -7312,6 +7316,34 @@ func rewriteValueAMD64_OpAMD64MOVLload_0(v *Value) bool {
+ 		v.AddArg(mem)
+ 		return true
+ 	}
++	// match: (MOVLload [off1] {sym1} (LEAQ8 [off2] {sym2} ptr idx) mem)
++	// cond: is32Bit(off1+off2) && canMergeSym(sym1, sym2)
++	// result: (MOVLloadidx8 [off1+off2] {mergeSym(sym1,sym2)} ptr idx mem)
++	for {
++		off1 := v.AuxInt
++		sym1 := v.Aux
++		_ = v.Args[1]
++		v_0 := v.Args[0]
++		if v_0.Op != OpAMD64LEAQ8 {
++			break
++		}
++		off2 := v_0.AuxInt
++		sym2 := v_0.Aux
++		_ = v_0.Args[1]
++		ptr := v_0.Args[0]
++		idx := v_0.Args[1]
++		mem := v.Args[1]
++		if !(is32Bit(off1+off2) && canMergeSym(sym1, sym2)) {
++			break
++		}
++		v.reset(OpAMD64MOVLloadidx8)
++		v.AuxInt = off1 + off2
++		v.Aux = mergeSym(sym1, sym2)
++		v.AddArg(ptr)
++		v.AddArg(idx)
++		v.AddArg(mem)
++		return true
++	}
+ 	// match: (MOVLload [off] {sym} (ADDQ ptr idx) mem)
+ 	// cond: ptr.Op != OpSB
+ 	// result: (MOVLloadidx1 [off] {sym} ptr idx mem)
+@@ -7467,6 +7499,56 @@ func rewriteValueAMD64_OpAMD64MOVLloadidx1_0(v *Value) bool {
+ 		v.AddArg(mem)
+ 		return true
+ 	}
++	// match: (MOVLloadidx1 [c] {sym} ptr (SHLQconst [3] idx) mem)
++	// cond:
++	// result: (MOVLloadidx8 [c] {sym} ptr idx mem)
++	for {
++		c := v.AuxInt
++		sym := v.Aux
++		_ = v.Args[2]
++		ptr := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpAMD64SHLQconst {
++			break
++		}
++		if v_1.AuxInt != 3 {
++			break
++		}
++		idx := v_1.Args[0]
++		mem := v.Args[2]
++		v.reset(OpAMD64MOVLloadidx8)
++		v.AuxInt = c
++		v.Aux = sym
++		v.AddArg(ptr)
++		v.AddArg(idx)
++		v.AddArg(mem)
++		return true
++	}
++	// match: (MOVLloadidx1 [c] {sym} (SHLQconst [3] idx) ptr mem)
++	// cond:
++	// result: (MOVLloadidx8 [c] {sym} ptr idx mem)
++	for {
++		c := v.AuxInt
++		sym := v.Aux
++		_ = v.Args[2]
++		v_0 := v.Args[0]
++		if v_0.Op != OpAMD64SHLQconst {
++			break
++		}
++		if v_0.AuxInt != 3 {
++			break
++		}
++		idx := v_0.Args[0]
++		ptr := v.Args[1]
++		mem := v.Args[2]
++		v.reset(OpAMD64MOVLloadidx8)
++		v.AuxInt = c
++		v.Aux = sym
++		v.AddArg(ptr)
++		v.AddArg(idx)
++		v.AddArg(mem)
++		return true
++	}
+ 	// match: (MOVLloadidx1 [c] {sym} (ADDQconst [d] ptr) idx mem)
+ 	// cond: is32Bit(c+d)
+ 	// result: (MOVLloadidx1 [c+d] {sym} ptr idx mem)
+@@ -7628,6 +7710,61 @@ func rewriteValueAMD64_OpAMD64MOVLloadidx4_0(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueAMD64_OpAMD64MOVLloadidx8_0(v *Value) bool {
++	// match: (MOVLloadidx8 [c] {sym} (ADDQconst [d] ptr) idx mem)
++	// cond: is32Bit(c+d)
++	// result: (MOVLloadidx8 [c+d] {sym} ptr idx mem)
++	for {
++		c := v.AuxInt
++		sym := v.Aux
++		_ = v.Args[2]
++		v_0 := v.Args[0]
++		if v_0.Op != OpAMD64ADDQconst {
++			break
++		}
++		d := v_0.AuxInt
++		ptr := v_0.Args[0]
++		idx := v.Args[1]
++		mem := v.Args[2]
++		if !(is32Bit(c + d)) {
++			break
++		}
++		v.reset(OpAMD64MOVLloadidx8)
++		v.AuxInt = c + d
++		v.Aux = sym
++		v.AddArg(ptr)
++		v.AddArg(idx)
++		v.AddArg(mem)
++		return true
++	}
++	// match: (MOVLloadidx8 [c] {sym} ptr (ADDQconst [d] idx) mem)
++	// cond: is32Bit(c+8*d)
++	// result: (MOVLloadidx8 [c+8*d] {sym} ptr idx mem)
++	for {
++		c := v.AuxInt
++		sym := v.Aux
++		_ = v.Args[2]
++		ptr := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpAMD64ADDQconst {
++			break
++		}
++		d := v_1.AuxInt
++		idx := v_1.Args[0]
++		mem := v.Args[2]
++		if !(is32Bit(c + 8*d)) {
++			break
++		}
++		v.reset(OpAMD64MOVLloadidx8)
++		v.AuxInt = c + 8*d
++		v.Aux = sym
++		v.AddArg(ptr)
++		v.AddArg(idx)
++		v.AddArg(mem)
++		return true
++	}
++	return false
++}
+ func rewriteValueAMD64_OpAMD64MOVLstore_0(v *Value) bool {
+ 	// match: (MOVLstore [off] {sym} ptr (MOVLQSX x) mem)
+ 	// cond:
+@@ -7810,6 +7947,36 @@ func rewriteValueAMD64_OpAMD64MOVLstore_0(v *Value) bool {
+ 		v.AddArg(mem)
+ 		return true
+ 	}
++	// match: (MOVLstore [off1] {sym1} (LEAQ8 [off2] {sym2} ptr idx) val mem)
++	// cond: is32Bit(off1+off2) && canMergeSym(sym1, sym2)
++	// result: (MOVLstoreidx8 [off1+off2] {mergeSym(sym1,sym2)} ptr idx val mem)
++	for {
++		off1 := v.AuxInt
++		sym1 := v.Aux
++		_ = v.Args[2]
++		v_0 := v.Args[0]
++		if v_0.Op != OpAMD64LEAQ8 {
++			break
++		}
++		off2 := v_0.AuxInt
++		sym2 := v_0.Aux
++		_ = v_0.Args[1]
++		ptr := v_0.Args[0]
++		idx := v_0.Args[1]
++		val := v.Args[1]
++		mem := v.Args[2]
++		if !(is32Bit(off1+off2) && canMergeSym(sym1, sym2)) {
++			break
++		}
++		v.reset(OpAMD64MOVLstoreidx8)
++		v.AuxInt = off1 + off2
++		v.Aux = mergeSym(sym1, sym2)
++		v.AddArg(ptr)
++		v.AddArg(idx)
++		v.AddArg(val)
++		v.AddArg(mem)
++		return true
++	}
+ 	// match: (MOVLstore [off] {sym} (ADDQ ptr idx) val mem)
+ 	// cond: ptr.Op != OpSB
+ 	// result: (MOVLstoreidx1 [off] {sym} ptr idx val mem)
+@@ -7883,6 +8050,13 @@ func rewriteValueAMD64_OpAMD64MOVLstore_0(v *Value) bool {
+ 		v.AddArg(mem)
+ 		return true
+ 	}
++	return false
++}
++func rewriteValueAMD64_OpAMD64MOVLstore_10(v *Value) bool {
++	b := v.Block
++	_ = b
++	typ := &b.Func.Config.Types
++	_ = typ
+ 	// match: (MOVLstore [i] {s} p (SHRQconst [j] w) x:(MOVLstore [i-4] {s} p w0:(SHRQconst [j-32] w) mem))
+ 	// cond: x.Uses == 1   && clobber(x)
+ 	// result: (MOVQstore [i-4] {s} p w0 mem)
+@@ -7933,13 +8107,6 @@ func rewriteValueAMD64_OpAMD64MOVLstore_0(v *Value) bool {
+ 		v.AddArg(mem)
+ 		return true
+ 	}
+-	return false
+-}
+-func rewriteValueAMD64_OpAMD64MOVLstore_10(v *Value) bool {
+-	b := v.Block
+-	_ = b
+-	typ := &b.Func.Config.Types
+-	_ = typ
+ 	// match: (MOVLstore [i] {s} p x1:(MOVLload [j] {s2} p2 mem) mem2:(MOVLstore [i-4] {s} p x2:(MOVLload [j-4] {s2} p2 mem) mem))
+ 	// cond: x1.Uses == 1   && x2.Uses == 1   && mem2.Uses == 1   && clobber(x1)   && clobber(x2)   && clobber(mem2)
+ 	// result: (MOVQstore [i-4] {s} p (MOVQload [j-4] {s2} p2 mem) mem)
+@@ -8593,6 +8760,33 @@ func rewriteValueAMD64_OpAMD64MOVLstoreidx1_0(v *Value) bool {
+ 		v.AddArg(mem)
+ 		return true
+ 	}
++	// match: (MOVLstoreidx1 [c] {sym} ptr (SHLQconst [3] idx) val mem)
++	// cond:
++	// result: (MOVLstoreidx8 [c] {sym} ptr idx val mem)
++	for {
++		c := v.AuxInt
++		sym := v.Aux
++		_ = v.Args[3]
++		ptr := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpAMD64SHLQconst {
++			break
++		}
++		if v_1.AuxInt != 3 {
++			break
++		}
++		idx := v_1.Args[0]
++		val := v.Args[2]
++		mem := v.Args[3]
++		v.reset(OpAMD64MOVLstoreidx8)
++		v.AuxInt = c
++		v.Aux = sym
++		v.AddArg(ptr)
++		v.AddArg(idx)
++		v.AddArg(val)
++		v.AddArg(mem)
++		return true
++	}
+ 	// match: (MOVLstoreidx1 [c] {sym} (ADDQconst [d] ptr) idx val mem)
+ 	// cond: is32Bit(c+d)
+ 	// result: (MOVLstoreidx1 [c+d] {sym} ptr idx val mem)
+@@ -8928,6 +9122,65 @@ func rewriteValueAMD64_OpAMD64MOVLstoreidx4_0(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueAMD64_OpAMD64MOVLstoreidx8_0(v *Value) bool {
++	// match: (MOVLstoreidx8 [c] {sym} (ADDQconst [d] ptr) idx val mem)
++	// cond: is32Bit(c+d)
++	// result: (MOVLstoreidx8 [c+d] {sym} ptr idx val mem)
++	for {
++		c := v.AuxInt
++		sym := v.Aux
++		_ = v.Args[3]
++		v_0 := v.Args[0]
++		if v_0.Op != OpAMD64ADDQconst {
++			break
++		}
++		d := v_0.AuxInt
++		ptr := v_0.Args[0]
++		idx := v.Args[1]
++		val := v.Args[2]
++		mem := v.Args[3]
++		if !(is32Bit(c + d)) {
++			break
++		}
++		v.reset(OpAMD64MOVLstoreidx8)
++		v.AuxInt = c + d
++		v.Aux = sym
++		v.AddArg(ptr)
++		v.AddArg(idx)
++		v.AddArg(val)
++		v.AddArg(mem)
++		return true
++	}
++	// match: (MOVLstoreidx8 [c] {sym} ptr (ADDQconst [d] idx) val mem)
++	// cond: is32Bit(c+8*d)
++	// result: (MOVLstoreidx8 [c+8*d] {sym} ptr idx val mem)
++	for {
++		c := v.AuxInt
++		sym := v.Aux
++		_ = v.Args[3]
++		ptr := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpAMD64ADDQconst {
++			break
++		}
++		d := v_1.AuxInt
++		idx := v_1.Args[0]
++		val := v.Args[2]
++		mem := v.Args[3]
++		if !(is32Bit(c + 8*d)) {
++			break
++		}
++		v.reset(OpAMD64MOVLstoreidx8)
++		v.AuxInt = c + 8*d
++		v.Aux = sym
++		v.AddArg(ptr)
++		v.AddArg(idx)
++		v.AddArg(val)
++		v.AddArg(mem)
++		return true
++	}
++	return false
++}
+ func rewriteValueAMD64_OpAMD64MOVOload_0(v *Value) bool {
+ 	// match: (MOVOload [off1] {sym} (ADDQconst [off2] ptr) mem)
+ 	// cond: is32Bit(off1+off2)

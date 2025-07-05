@@ -8,6 +8,24 @@ Date:   Wed Feb 15 13:26:50 2012 -0500
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5674055
-
+---
  src/cmd/go/test.go | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/test.go b/src/cmd/go/test.go
+index 8c88ea0b02..56df526e74 100644
+--- a/src/cmd/go/test.go
++++ b/src/cmd/go/test.go
+@@ -357,7 +357,11 @@ func runTest(cmd *Command, args []string) {
+ 		}
+ 	}
+ 	if warned {
+-		fmt.Fprintf(os.Stderr, "installing these packages with 'go test -i' will speed future tests.\n\n")
++		args := strings.Join(pkgArgs, " ")
++		if args != "" {
++			args = " " + args
++		}
++		fmt.Fprintf(os.Stderr, "installing these packages with 'go test -i%s' will speed future tests.\n\n", args)
+ 	}
+ 
+ 	b.do(root)

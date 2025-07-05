@@ -14,6 +14,19 @@ Date:   Thu Dec 5 13:44:01 2019 -0800
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/chan_test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/runtime/chan_test.go b/src/runtime/chan_test.go
+index d4752dd344..039a086e9b 100644
+--- a/src/runtime/chan_test.go
++++ b/src/runtime/chan_test.go
+@@ -719,6 +719,7 @@ func TestSelectStackAdjust(t *testing.T) {
+ 		if after.NumGC-before.NumGC >= 2 {
+ 			goto done
+ 		}
++		runtime.Gosched()
+ 	}
+ 	t.Fatal("failed to trigger concurrent GC")
+ done:

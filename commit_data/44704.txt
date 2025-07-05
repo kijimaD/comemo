@@ -13,7 +13,72 @@ Date:   Fri Aug 21 08:01:01 2020 +0000
     Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-
+---
  src/net/http/requestwrite_test.go | 5 +++--
  src/net/http/transport_test.go    | 9 ++-------
  2 files changed, 5 insertions(+), 9 deletions(-)
+
+diff --git a/src/net/http/requestwrite_test.go b/src/net/http/requestwrite_test.go
+index b110b57b1a..fc6257cb33 100644
+--- a/src/net/http/requestwrite_test.go
++++ b/src/net/http/requestwrite_test.go
+@@ -15,6 +15,7 @@ import (
+ 	"net/url"
+ 	"strings"
+ 	"testing"
++	"testing/iotest"
+ 	"time"
+ )
+ 
+@@ -349,7 +350,7 @@ var reqWriteTests = []reqWriteTest{
+ 
+ 		Body: func() io.ReadCloser {
+ 			err := errors.New("Custom reader error")
+-			errReader := &errorReader{err}
++			errReader := iotest.ErrReader(err)
+ 			return ioutil.NopCloser(io.MultiReader(strings.NewReader("x"), errReader))
+ 		},
+ 
+@@ -369,7 +370,7 @@ var reqWriteTests = []reqWriteTest{
+ 
+ 		Body: func() io.ReadCloser {
+ 			err := errors.New("Custom reader error")
+-			errReader := &errorReader{err}
++			errReader := iotest.ErrReader(err)
+ 			return ioutil.NopCloser(errReader)
+ 		},
+ 
+diff --git a/src/net/http/transport_test.go b/src/net/http/transport_test.go
+index 0a47687d9a..2d9ca10bf0 100644
+--- a/src/net/http/transport_test.go
++++ b/src/net/http/transport_test.go
+@@ -41,6 +41,7 @@ import (
+ 	"sync"
+ 	"sync/atomic"
+ 	"testing"
++	"testing/iotest"
+ 	"time"
+ 
+ 	"golang.org/x/net/http/httpguts"
+@@ -3408,12 +3409,6 @@ func TestTransportIssue10457(t *testing.T) {
+ 	}
+ }
+ 
+-type errorReader struct {
+-	err error
+-}
+-
+-func (e errorReader) Read(p []byte) (int, error) { return 0, e.err }
+-
+ type closerFunc func() error
+ 
+ func (f closerFunc) Close() error { return f() }
+@@ -3610,7 +3605,7 @@ func TestTransportClosesBodyOnError(t *testing.T) {
+ 		io.Reader
+ 		io.Closer
+ 	}{
+-		io.MultiReader(io.LimitReader(neverEnding('x'), 1<<20), errorReader{fakeErr}),
++		io.MultiReader(io.LimitReader(neverEnding('x'), 1<<20), iotest.ErrReader(fakeErr)),
+ 		closerFunc(func() error {
+ 			select {
+ 			case didClose <- true:

@@ -10,7 +10,181 @@ Date:   Wed May 21 13:59:14 2014 -0400
     R=r
     CC=golang-codereviews
     https://golang.org/cl/91610046
-
+---
  src/cmd/go/test.bash | 36 ++++++++++++++++++++-------------
  src/cmd/go/test.go   | 56 ++++++++++++++++++++++++++++++----------------------
  2 files changed, 54 insertions(+), 38 deletions(-)
+
+diff --git a/src/cmd/go/test.bash b/src/cmd/go/test.bash
+index 9a4fc1fa66..0060ce2185 100755
+--- a/src/cmd/go/test.bash
++++ b/src/cmd/go/test.bash
+@@ -563,37 +563,50 @@ TEST source file name order preserved
+ ./testgo test testdata/example[12]_test.go || ok=false
+ 
+ # Check that coverage analysis works at all.
+-# Don't worry about the exact numbers
++# Don't worry about the exact numbers but require not 0.0%.
++checkcoverage() {
++	if grep '[^0-9]0\.0%' testdata/cover.txt >/dev/null; then
++		echo 'some coverage results are 0.0%'
++		ok=false
++	fi
++	cat testdata/cover.txt
++	rm -f testdata/cover.txt
++}
++	
+ TEST coverage runs
+-./testgo test -short -coverpkg=strings strings regexp || ok=false
+-./testgo test -short -cover strings math regexp || ok=false
++./testgo test -short -coverpkg=strings strings regexp >testdata/cover.txt 2>&1 || ok=false
++./testgo test -short -cover strings math regexp >>testdata/cover.txt 2>&1 || ok=false
++checkcoverage
+ 
+ # Check that coverage analysis uses set mode.
+ TEST coverage uses set mode
+-if ./testgo test -short -coverpkg=encoding/binary -coverprofile=testdata/cover.out; then
++if ./testgo test -short -cover encoding/binary -coverprofile=testdata/cover.out >testdata/cover.txt 2>&1; then
+ 	if ! grep -q 'mode: set' testdata/cover.out; then
+ 		ok=false
+ 	fi
++	checkcoverage
+ else
+ 	ok=false
+ fi
+-rm -f testdata/cover.out
++rm -f testdata/cover.out testdata/cover.txt
+ 
+ TEST coverage uses atomic mode for -race.
+-if ./testgo test -short -race -coverpkg=encoding/binary -coverprofile=testdata/cover.out; then
++if ./testgo test -short -race -cover encoding/binary -coverprofile=testdata/cover.out >testdata/cover.txt 2>&1; then
+ 	if ! grep -q 'mode: atomic' testdata/cover.out; then
+ 		ok=false
+ 	fi
++	checkcoverage
+ else
+ 	ok=false
+ fi
+ rm -f testdata/cover.out
+ 
+ TEST coverage uses actual setting to override even for -race.
+-if ./testgo test -short -race -coverpkg=encoding/binary -covermode=count -coverprofile=testdata/cover.out; then
++if ./testgo test -short -race -cover encoding/binary -covermode=count -coverprofile=testdata/cover.out >testdata/cover.txt 2>&1; then
+ 	if ! grep -q 'mode: count' testdata/cover.out; then
+ 		ok=false
+ 	fi
++	checkcoverage
+ else
+ 	ok=false
+ fi
+@@ -601,13 +614,8 @@ rm -f testdata/cover.out
+ 
+ TEST coverage with cgo
+ d=$(TMPDIR=/var/tmp mktemp -d -t testgoXXX)
+-./testgo test -short -cover ./testdata/cgocover >$d/cgo.out 2>&1 || ok=false
+-cat $d/cgo.out
+-if grep 'coverage: 0.0%' $d/cgo.out >/dev/null; then 
+-	ok=false
+-	echo no coverage for cgo package
+-	ok=false
+-fi
++./testgo test -short -cover ./testdata/cgocover >testdata/cover.txt 2>&1 || ok=false
++checkcoverage
+ 
+ TEST cgo depends on syscall
+ rm -rf $GOROOT/pkg/*_race
+diff --git a/src/cmd/go/test.go b/src/cmd/go/test.go
+index b30182791e..5935c98db9 100644
+--- a/src/cmd/go/test.go
++++ b/src/cmd/go/test.go
+@@ -715,13 +715,20 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
+ 		}
+ 	}
+ 
+-	// writeTestmain writes _testmain.go but also updates
+-	// pmain.imports to reflect the import statements written
+-	// to _testmain.go. This metadata is needed for recompileForTest
+-	// and the builds below.
+-	if err := writeTestmain(filepath.Join(testDir, "_testmain.go"), pmain, ptest, pxtest); err != nil {
++	// Do initial scan for metadata needed for writing _testmain.go
++	// Use that metadata to update the list of imports for package main.
++	// The list of imports is used by recompileForTest and by the loop
++	// afterward that gathers t.Cover information.
++	t, err := loadTestFuncs(ptest)
++	if err != nil {
+ 		return nil, nil, nil, err
+ 	}
++	if t.NeedTest || ptest.coverMode != "" {
++		pmain.imports = append(pmain.imports, ptest)
++	}
++	if t.NeedXtest {
++		pmain.imports = append(pmain.imports, pxtest)
++	}
+ 
+ 	if ptest != p && localCover {
+ 		// We have made modifications to the package p being tested
+@@ -739,6 +746,18 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
+ 		recompileForTest(pmain, p, ptest, testDir)
+ 	}
+ 
++	for _, cp := range pmain.imports {
++		if len(cp.coverVars) > 0 {
++			t.Cover = append(t.Cover, coverInfo{cp, cp.coverVars})
++		}
++	}
++
++	// writeTestmain writes _testmain.go. This must happen after recompileForTest,
++	// because recompileForTest modifies XXX.
++	if err := writeTestmain(filepath.Join(testDir, "_testmain.go"), t); err != nil {
++		return nil, nil, nil, err
++	}
++
+ 	computeStale(pmain)
+ 
+ 	if ptest != p {
+@@ -1057,37 +1076,26 @@ type coverInfo struct {
+ 	Vars    map[string]*CoverVar
+ }
+ 
+-// writeTestmain writes the _testmain.go file for package p to
+-// the file named out. It also updates pmain.imports to include
+-// ptest and/or pxtest, depending on what it writes to _testmain.go.
+-func writeTestmain(out string, pmain, ptest, pxtest *Package) error {
++// loadTestFuncs returns the testFuncs describing the tests that will be run.
++func loadTestFuncs(ptest *Package) (*testFuncs, error) {
+ 	t := &testFuncs{
+ 		Package: ptest,
+ 	}
+ 	for _, file := range ptest.TestGoFiles {
+ 		if err := t.load(filepath.Join(ptest.Dir, file), "_test", &t.NeedTest); err != nil {
+-			return err
++			return nil, err
+ 		}
+ 	}
+ 	for _, file := range ptest.XTestGoFiles {
+ 		if err := t.load(filepath.Join(ptest.Dir, file), "_xtest", &t.NeedXtest); err != nil {
+-			return err
+-		}
+-	}
+-
+-	if t.NeedTest {
+-		pmain.imports = append(pmain.imports, ptest)
+-	}
+-	if t.NeedXtest {
+-		pmain.imports = append(pmain.imports, pxtest)
+-	}
+-
+-	for _, cp := range pmain.imports {
+-		if len(cp.coverVars) > 0 {
+-			t.Cover = append(t.Cover, coverInfo{cp, cp.coverVars})
++			return nil, err
+ 		}
+ 	}
++	return t, nil
++}
+ 
++// writeTestmain writes the _testmain.go file for t to the file named out.
++func writeTestmain(out string, t *testFuncs) error {
+ 	f, err := os.Create(out)
+ 	if err != nil {
+ 		return err

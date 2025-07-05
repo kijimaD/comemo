@@ -17,6 +17,30 @@ Date:   Thu Mar 8 17:48:22 2018 -0500
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/runtime/runtime2.go | 12 +++++++++++-
  1 file changed, 11 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 3db791cb4a..e6808ac023 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -710,7 +710,17 @@ type _defer struct {
+ 	link    *_defer
+ }
+ 
+-// panics
++// A _panic holds information about an active panic.
++//
++// This is marked go:notinheap because _panic values must only ever
++// live on the stack.
++//
++// The argp and link fields are stack pointers, but don't need special
++// handling during stack growth: because they are pointer-typed and
++// _panic values only live on the stack, regular stack pointer
++// adjustment takes care of them.
++//
++//go:notinheap
+ type _panic struct {
+ 	argp      unsafe.Pointer // pointer to arguments of deferred call run during panic; cannot move - known to liblink
+ 	arg       interface{}    // argument to panic

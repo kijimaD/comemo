@@ -14,10 +14,331 @@ Date:   Mon Feb 13 15:37:35 2012 -0500
     R=ken2
     CC=golang-dev
     https://golang.org/cl/5662043
-
+---
  src/cmd/dist/build.c    |   1 +
  src/cmd/gc/builtin.c    | 125 +++++++++++++++++++++++-------------------------
  src/cmd/gc/mkbuiltin    |  13 ++---
  src/cmd/gc/mkbuiltin1.c |  32 +++++++++----
  src/cmd/gc/unsafe.go    |   6 ---
  5 files changed, 92 insertions(+), 85 deletions(-)
+
+diff --git a/src/cmd/dist/build.c b/src/cmd/dist/build.c
+index cea2e374a6..c8984300b0 100644
+--- a/src/cmd/dist/build.c
++++ b/src/cmd/dist/build.c
+@@ -1212,6 +1212,7 @@ cmdenv(int argc, char **argv)
+ 	xprintf(format, "GOBIN", gobin);
+ 	xprintf(format, "GOARCH", goarch);
+ 	xprintf(format, "GOOS", goos);
++	xprintf(format, "GOCHAR", gochar);
+ 	if(pflag) {
+ 		sep = ":";
+ 		if(streq(gohostos, "windows"))
+diff --git a/src/cmd/gc/builtin.c b/src/cmd/gc/builtin.c
+index 23d36964a9..ca3d6670d4 100644
+--- a/src/cmd/gc/builtin.c
++++ b/src/cmd/gc/builtin.c
+@@ -1,14 +1,14 @@
+ char *runtimeimport =
+ 	"package runtime\n"
+ 	"import runtime \"runtime\"\n"
+-	"func @\"\".new(@\"\".typ *byte) *any\n"
++	"func @\"\".new(@\"\".typ *byte) (? *any)\n"
+ 	"func @\"\".panicindex()\n"
+ 	"func @\"\".panicslice()\n"
+ 	"func @\"\".throwreturn()\n"
+ 	"func @\"\".throwinit()\n"
+ 	"func @\"\".panicwrap(? string, ? string, ? string)\n"
+ 	"func @\"\".panic(? interface {})\n"
+-	"func @\"\".recover(? *int32) interface {}\n"
++	"func @\"\".recover(? *int32) (? interface {})\n"
+ 	"func @\"\".printbool(? bool)\n"
+ 	"func @\"\".printfloat(? float64)\n"
+ 	"func @\"\".printint(? int64)\n"
+@@ -24,71 +24,71 @@ char *runtimeimport =
+ 	"func @\"\".goprintf()\n"
+ 	"func @\"\".concatstring()\n"
+ 	"func @\"\".append()\n"
+-	"func @\"\".appendslice(@\"\".typ *byte, @\"\".x any, @\"\".y []any) any\n"
+-	"func @\"\".appendstr(@\"\".typ *byte, @\"\".x []byte, @\"\".y string) []byte\n"
+-	"func @\"\".cmpstring(? string, ? string) int\n"
+-	"func @\"\".slicestring(? string, ? int, ? int) string\n"
+-	"func @\"\".slicestring1(? string, ? int) string\n"
+-	"func @\"\".intstring(? int64) string\n"
+-	"func @\"\".slicebytetostring(? []byte) string\n"
+-	"func @\"\".slicerunetostring(? []rune) string\n"
+-	"func @\"\".stringtoslicebyte(? string) []byte\n"
+-	"func @\"\".stringtoslicerune(? string) []rune\n"
+-	"func @\"\".stringiter(? string, ? int) int\n"
++	"func @\"\".appendslice(@\"\".typ *byte, @\"\".x any, @\"\".y []any) (? any)\n"
++	"func @\"\".appendstr(@\"\".typ *byte, @\"\".x []byte, @\"\".y string) (? []byte)\n"
++	"func @\"\".cmpstring(? string, ? string) (? int)\n"
++	"func @\"\".slicestring(? string, ? int, ? int) (? string)\n"
++	"func @\"\".slicestring1(? string, ? int) (? string)\n"
++	"func @\"\".intstring(? int64) (? string)\n"
++	"func @\"\".slicebytetostring(? []byte) (? string)\n"
++	"func @\"\".slicerunetostring(? []rune) (? string)\n"
++	"func @\"\".stringtoslicebyte(? string) (? []byte)\n"
++	"func @\"\".stringtoslicerune(? string) (? []rune)\n"
++	"func @\"\".stringiter(? string, ? int) (? int)\n"
+ 	"func @\"\".stringiter2(? string, ? int) (@\"\".retk int, @\"\".retv rune)\n"
+-	"func @\"\".copy(@\"\".to any, @\"\".fr any, @\"\".wid uint32) int\n"
+-	"func @\"\".slicestringcopy(@\"\".to any, @\"\".fr any) int\n"
+-	"func @\"\".convI2E(@\"\".elem any) any\n"
+-	"func @\"\".convI2I(@\"\".typ *byte, @\"\".elem any) any\n"
+-	"func @\"\".convT2E(@\"\".typ *byte, @\"\".elem any) any\n"
+-	"func @\"\".convT2I(@\"\".typ *byte, @\"\".typ2 *byte, @\"\".elem any) any\n"
+-	"func @\"\".assertE2E(@\"\".typ *byte, @\"\".iface any) any\n"
++	"func @\"\".copy(@\"\".to any, @\"\".fr any, @\"\".wid uint32) (? int)\n"
++	"func @\"\".slicestringcopy(@\"\".to any, @\"\".fr any) (? int)\n"
++	"func @\"\".convI2E(@\"\".elem any) (@\"\".ret any)\n"
++	"func @\"\".convI2I(@\"\".typ *byte, @\"\".elem any) (@\"\".ret any)\n"
++	"func @\"\".convT2E(@\"\".typ *byte, @\"\".elem any) (@\"\".ret any)\n"
++	"func @\"\".convT2I(@\"\".typ *byte, @\"\".typ2 *byte, @\"\".elem any) (@\"\".ret any)\n"
++	"func @\"\".assertE2E(@\"\".typ *byte, @\"\".iface any) (@\"\".ret any)\n"
+ 	"func @\"\".assertE2E2(@\"\".typ *byte, @\"\".iface any) (@\"\".ret any, @\"\".ok bool)\n"
+-	"func @\"\".assertE2I(@\"\".typ *byte, @\"\".iface any) any\n"
++	"func @\"\".assertE2I(@\"\".typ *byte, @\"\".iface any) (@\"\".ret any)\n"
+ 	"func @\"\".assertE2I2(@\"\".typ *byte, @\"\".iface any) (@\"\".ret any, @\"\".ok bool)\n"
+-	"func @\"\".assertE2T(@\"\".typ *byte, @\"\".iface any) any\n"
++	"func @\"\".assertE2T(@\"\".typ *byte, @\"\".iface any) (@\"\".ret any)\n"
+ 	"func @\"\".assertE2T2(@\"\".typ *byte, @\"\".iface any) (@\"\".ret any, @\"\".ok bool)\n"
+-	"func @\"\".assertI2E(@\"\".typ *byte, @\"\".iface any) any\n"
++	"func @\"\".assertI2E(@\"\".typ *byte, @\"\".iface any) (@\"\".ret any)\n"
+ 	"func @\"\".assertI2E2(@\"\".typ *byte, @\"\".iface any) (@\"\".ret any, @\"\".ok bool)\n"
+-	"func @\"\".assertI2I(@\"\".typ *byte, @\"\".iface any) any\n"
++	"func @\"\".assertI2I(@\"\".typ *byte, @\"\".iface any) (@\"\".ret any)\n"
+ 	"func @\"\".assertI2I2(@\"\".typ *byte, @\"\".iface any) (@\"\".ret any, @\"\".ok bool)\n"
+-	"func @\"\".assertI2T(@\"\".typ *byte, @\"\".iface any) any\n"
++	"func @\"\".assertI2T(@\"\".typ *byte, @\"\".iface any) (@\"\".ret any)\n"
+ 	"func @\"\".assertI2T2(@\"\".typ *byte, @\"\".iface any) (@\"\".ret any, @\"\".ok bool)\n"
+-	"func @\"\".ifaceeq(@\"\".i1 any, @\"\".i2 any) bool\n"
+-	"func @\"\".efaceeq(@\"\".i1 any, @\"\".i2 any) bool\n"
+-	"func @\"\".ifacethash(@\"\".i1 any) uint32\n"
+-	"func @\"\".efacethash(@\"\".i1 any) uint32\n"
+-	"func @\"\".equal(@\"\".typ *byte, @\"\".x1 any, @\"\".x2 any) bool\n"
+-	"func @\"\".makemap(@\"\".mapType *byte, @\"\".hint int64) map[any]any\n"
+-	"func @\"\".mapaccess1(@\"\".mapType *byte, @\"\".hmap map[any]any, @\"\".key any) any\n"
++	"func @\"\".ifaceeq(@\"\".i1 any, @\"\".i2 any) (@\"\".ret bool)\n"
++	"func @\"\".efaceeq(@\"\".i1 any, @\"\".i2 any) (@\"\".ret bool)\n"
++	"func @\"\".ifacethash(@\"\".i1 any) (@\"\".ret uint32)\n"
++	"func @\"\".efacethash(@\"\".i1 any) (@\"\".ret uint32)\n"
++	"func @\"\".equal(@\"\".typ *byte, @\"\".x1 any, @\"\".x2 any) (@\"\".ret bool)\n"
++	"func @\"\".makemap(@\"\".mapType *byte, @\"\".hint int64) (@\"\".hmap map[any]any)\n"
++	"func @\"\".mapaccess1(@\"\".mapType *byte, @\"\".hmap map[any]any, @\"\".key any) (@\"\".val any)\n"
+ 	"func @\"\".mapaccess2(@\"\".mapType *byte, @\"\".hmap map[any]any, @\"\".key any) (@\"\".val any, @\"\".pres bool)\n"
+ 	"func @\"\".mapassign1(@\"\".mapType *byte, @\"\".hmap map[any]any, @\"\".key any, @\"\".val any)\n"
+ 	"func @\"\".mapassign2(@\"\".mapType *byte, @\"\".hmap map[any]any, @\"\".key any, @\"\".val any, @\"\".pres bool)\n"
+ 	"func @\"\".mapiterinit(@\"\".mapType *byte, @\"\".hmap map[any]any, @\"\".hiter *any)\n"
+ 	"func @\"\".mapdelete(@\"\".mapType *byte, @\"\".hmap map[any]any, @\"\".key any)\n"
+ 	"func @\"\".mapiternext(@\"\".hiter *any)\n"
+-	"func @\"\".mapiter1(@\"\".hiter *any) any\n"
++	"func @\"\".mapiter1(@\"\".hiter *any) (@\"\".key any)\n"
+ 	"func @\"\".mapiter2(@\"\".hiter *any) (@\"\".key any, @\"\".val any)\n"
+-	"func @\"\".makechan(@\"\".chanType *byte, @\"\".hint int64) chan any\n"
+-	"func @\"\".chanrecv1(@\"\".chanType *byte, @\"\".hchan <-chan any) any\n"
++	"func @\"\".makechan(@\"\".chanType *byte, @\"\".hint int64) (@\"\".hchan chan any)\n"
++	"func @\"\".chanrecv1(@\"\".chanType *byte, @\"\".hchan <-chan any) (@\"\".elem any)\n"
+ 	"func @\"\".chanrecv2(@\"\".chanType *byte, @\"\".hchan <-chan any) (@\"\".elem any, @\"\".received bool)\n"
+ 	"func @\"\".chansend1(@\"\".chanType *byte, @\"\".hchan chan<- any, @\"\".elem any)\n"
+ 	"func @\"\".closechan(@\"\".hchan any)\n"
+-	"func @\"\".selectnbsend(@\"\".chanType *byte, @\"\".hchan chan<- any, @\"\".elem any) bool\n"
+-	"func @\"\".selectnbrecv(@\"\".chanType *byte, @\"\".elem *any, @\"\".hchan <-chan any) bool\n"
+-	"func @\"\".selectnbrecv2(@\"\".chanType *byte, @\"\".elem *any, @\"\".received *bool, @\"\".hchan <-chan any) bool\n"
+-	"func @\"\".newselect(@\"\".size int) *byte\n"
+-	"func @\"\".selectsend(@\"\".sel *byte, @\"\".hchan chan<- any, @\"\".elem *any) bool\n"
+-	"func @\"\".selectrecv(@\"\".sel *byte, @\"\".hchan <-chan any, @\"\".elem *any) bool\n"
+-	"func @\"\".selectrecv2(@\"\".sel *byte, @\"\".hchan <-chan any, @\"\".elem *any, @\"\".received *bool) bool\n"
+-	"func @\"\".selectdefault(@\"\".sel *byte) bool\n"
++	"func @\"\".selectnbsend(@\"\".chanType *byte, @\"\".hchan chan<- any, @\"\".elem any) (? bool)\n"
++	"func @\"\".selectnbrecv(@\"\".chanType *byte, @\"\".elem *any, @\"\".hchan <-chan any) (? bool)\n"
++	"func @\"\".selectnbrecv2(@\"\".chanType *byte, @\"\".elem *any, @\"\".received *bool, @\"\".hchan <-chan any) (? bool)\n"
++	"func @\"\".newselect(@\"\".size int) (@\"\".sel *byte)\n"
++	"func @\"\".selectsend(@\"\".sel *byte, @\"\".hchan chan<- any, @\"\".elem *any) (@\"\".selected bool)\n"
++	"func @\"\".selectrecv(@\"\".sel *byte, @\"\".hchan <-chan any, @\"\".elem *any) (@\"\".selected bool)\n"
++	"func @\"\".selectrecv2(@\"\".sel *byte, @\"\".hchan <-chan any, @\"\".elem *any, @\"\".received *bool) (@\"\".selected bool)\n"
++	"func @\"\".selectdefault(@\"\".sel *byte) (@\"\".selected bool)\n"
+ 	"func @\"\".selectgo(@\"\".sel *byte)\n"
+ 	"func @\"\".block()\n"
+-	"func @\"\".makeslice(@\"\".typ *byte, @\"\".nel int64, @\"\".cap int64) []any\n"
+-	"func @\"\".growslice(@\"\".typ *byte, @\"\".old []any, @\"\".n int64) []any\n"
+-	"func @\"\".sliceslice1(@\"\".old []any, @\"\".lb uint64, @\"\".width uint64) []any\n"
+-	"func @\"\".sliceslice(@\"\".old []any, @\"\".lb uint64, @\"\".hb uint64, @\"\".width uint64) []any\n"
+-	"func @\"\".slicearray(@\"\".old *any, @\"\".nel uint64, @\"\".lb uint64, @\"\".hb uint64, @\"\".width uint64) []any\n"
++	"func @\"\".makeslice(@\"\".typ *byte, @\"\".nel int64, @\"\".cap int64) (@\"\".ary []any)\n"
++	"func @\"\".growslice(@\"\".typ *byte, @\"\".old []any, @\"\".n int64) (@\"\".ary []any)\n"
++	"func @\"\".sliceslice1(@\"\".old []any, @\"\".lb uint64, @\"\".width uint64) (@\"\".ary []any)\n"
++	"func @\"\".sliceslice(@\"\".old []any, @\"\".lb uint64, @\"\".hb uint64, @\"\".width uint64) (@\"\".ary []any)\n"
++	"func @\"\".slicearray(@\"\".old *any, @\"\".nel uint64, @\"\".lb uint64, @\"\".hb uint64, @\"\".width uint64) (@\"\".ary []any)\n"
+ 	"func @\"\".closure()\n"
+ 	"func @\"\".memequal(@\"\".eq *bool, @\"\".size uintptr, @\"\".x *any, @\"\".y *any)\n"
+ 	"func @\"\".memequal8(@\"\".eq *bool, @\"\".size uintptr, @\"\".x *any, @\"\".y *any)\n"
+@@ -96,28 +96,23 @@ char *runtimeimport =
+ 	"func @\"\".memequal32(@\"\".eq *bool, @\"\".size uintptr, @\"\".x *any, @\"\".y *any)\n"
+ 	"func @\"\".memequal64(@\"\".eq *bool, @\"\".size uintptr, @\"\".x *any, @\"\".y *any)\n"
+ 	"func @\"\".memequal128(@\"\".eq *bool, @\"\".size uintptr, @\"\".x *any, @\"\".y *any)\n"
+-	"func @\"\".int64div(? int64, ? int64) int64\n"
+-	"func @\"\".uint64div(? uint64, ? uint64) uint64\n"
+-	"func @\"\".int64mod(? int64, ? int64) int64\n"
+-	"func @\"\".uint64mod(? uint64, ? uint64) uint64\n"
+-	"func @\"\".float64toint64(? float64) int64\n"
+-	"func @\"\".float64touint64(? float64) uint64\n"
+-	"func @\"\".int64tofloat64(? int64) float64\n"
+-	"func @\"\".uint64tofloat64(? uint64) float64\n"
+-	"func @\"\".complex128div(@\"\".num complex128, @\"\".den complex128) complex128\n"
++	"func @\"\".int64div(? int64, ? int64) (? int64)\n"
++	"func @\"\".uint64div(? uint64, ? uint64) (? uint64)\n"
++	"func @\"\".int64mod(? int64, ? int64) (? int64)\n"
++	"func @\"\".uint64mod(? uint64, ? uint64) (? uint64)\n"
++	"func @\"\".float64toint64(? float64) (? int64)\n"
++	"func @\"\".float64touint64(? float64) (? uint64)\n"
++	"func @\"\".int64tofloat64(? int64) (? float64)\n"
++	"func @\"\".uint64tofloat64(? uint64) (? float64)\n"
++	"func @\"\".complex128div(@\"\".num complex128, @\"\".den complex128) (@\"\".quo complex128)\n"
+ 	"\n"
+ 	"$$\n";
+ char *unsafeimport =
+ 	"package unsafe\n"
+ 	"import runtime \"runtime\"\n"
+ 	"type @\"\".Pointer uintptr\n"
+-	"func @\"\".Offsetof(? any) uintptr\n"
+-	"func @\"\".Sizeof(? any) uintptr\n"
+-	"func @\"\".Alignof(? any) uintptr\n"
+-	"func @\"\".Typeof(@\"\".i interface {}) interface {}\n"
+-	"func @\"\".Reflect(@\"\".i interface {}) (@\"\".typ interface {}, @\"\".addr @\"\".Pointer)\n"
+-	"func @\"\".Unreflect(@\"\".typ interface {}, @\"\".addr @\"\".Pointer) interface {}\n"
+-	"func @\"\".New(@\"\".typ interface {}) @\"\".Pointer\n"
+-	"func @\"\".NewArray(@\"\".typ interface {}, @\"\".n int) @\"\".Pointer\n"
++	"func @\"\".Offsetof(? any) (? uintptr)\n"
++	"func @\"\".Sizeof(? any) (? uintptr)\n"
++	"func @\"\".Alignof(? any) (? uintptr)\n"
+ 	"\n"
+ 	"$$\n";
+diff --git a/src/cmd/gc/mkbuiltin b/src/cmd/gc/mkbuiltin
+index 9ef0c705b7..c028518ba2 100755
+--- a/src/cmd/gc/mkbuiltin
++++ b/src/cmd/gc/mkbuiltin
+@@ -10,21 +10,22 @@
+ 
+ set -e
+ 
+-eval $(go tool make --no-print-directory -f ../../Make.inc go-env)
+-if [ -z "$GC" ]; then
+-	echo 'missing $GC - gomake failed?' 1>&2
++eval $(go tool dist env)
++if [ -z "$GOCHAR" ]; then
++	echo 'missing $GOCHAR - go tool dist failed?' 1>&2
+ 	exit 1
+ fi
+ 
+-go tool make mkbuiltin1
++GC=${GOCHAR}g
++gcc -o mkbuiltin1 mkbuiltin1.c
+ rm -f _builtin.c
+ for i in runtime unsafe
+ do
+ 	go tool $GC -A $i.go
+-	O=$O ./mkbuiltin1 $i >>_builtin.c
++	O=$GOCHAR ./mkbuiltin1 $i >>_builtin.c
+ done
+ 
+ # If _builtin.c has changed vs builtin.c.boot,
+ # check in the new change.
+ cmp -s _builtin.c builtin.c || cp _builtin.c builtin.c
+-rm _builtin.c
++rm _builtin.c mkbuiltin1 unsafe.$GOCHAR runtime.$GOCHAR
+diff --git a/src/cmd/gc/mkbuiltin1.c b/src/cmd/gc/mkbuiltin1.c
+index aa2a1e7852..f8f61c278f 100644
+--- a/src/cmd/gc/mkbuiltin1.c
++++ b/src/cmd/gc/mkbuiltin1.c
+@@ -6,13 +6,17 @@
+ 
+ // Compile .go file, import data from .6 file, and generate C string version.
+ 
+-#include <u.h>
+-#include <libc.h>
+ #include <stdio.h>
++#include <stdlib.h>
++#include <unistd.h>
++#include <string.h>
++#include <errno.h>
++#include <stdarg.h>
+ 
+ void esc(char*);
++void fatal(char*, ...);
+ 
+-void
++int
+ main(int argc, char **argv)
+ {
+ 	char *name;
+@@ -21,7 +25,7 @@ main(int argc, char **argv)
+ 
+ 	if(argc != 2) {
+ 		fprintf(stderr, "usage: mkbuiltin1 sys\n");
+-		sysfatal("in file $1.6 s/PACKAGE/$1/\n");
++		fatal("in file $1.6 s/PACKAGE/$1/");
+ 	}
+ 
+ 	name = argv[1];
+@@ -29,14 +33,14 @@ main(int argc, char **argv)
+ 
+ 	snprintf(buf, sizeof(buf), "%s.%s", name, getenv("O"));
+ 	if((fin = fopen(buf, "r")) == NULL) {
+-		sysfatal("open %s: %r\n", buf);
++		fatal("open %s: %s", buf, strerror(errno));
+ 	}
+ 
+ 	// look for $$ that introduces imports
+ 	while(fgets(buf, sizeof buf, fin) != NULL)
+ 		if(strstr(buf, "$$"))
+ 			goto begin;
+-	sysfatal("did not find beginning of imports\n");
++	fatal("did not find beginning of imports");
+ 
+ begin:
+ 	printf("char *%simport =\n", name);
+@@ -68,11 +72,11 @@ begin:
+ 		esc(p);
+ 		printf("\\n\"\n");
+ 	}
+-	sysfatal("did not find end of imports\n");
++	fatal("did not find end of imports");
+ 
+ end:
+ 	printf("\t\"$$\\n\";\n");
+-	exits(0);
++	return 0;
+ }
+ 
+ void
+@@ -84,3 +88,15 @@ esc(char *p)
+ 		putchar(*p);
+ 	}
+ }
++
++void
++fatal(char *msg, ...)
++{
++	va_list arg;
++	
++	va_start(arg, msg);
++	fprintf(stderr, "fatal: ");
++	vfprintf(stderr, msg, arg);
++	fprintf(stderr, "\n");
++	exit(2);
++}
+diff --git a/src/cmd/gc/unsafe.go b/src/cmd/gc/unsafe.go
+index c7b48a8b06..c3c627815a 100644
+--- a/src/cmd/gc/unsafe.go
++++ b/src/cmd/gc/unsafe.go
+@@ -16,9 +16,3 @@ type Pointer uintptr // not really; filled in by compiler
+ func Offsetof(any) uintptr
+ func Sizeof(any) uintptr
+ func Alignof(any) uintptr
+-
+-func Typeof(i interface{}) (typ interface{})
+-func Reflect(i interface{}) (typ interface{}, addr Pointer)
+-func Unreflect(typ interface{}, addr Pointer) (ret interface{})
+-func New(typ interface{}) Pointer
+-func NewArray(typ interface{}, n int) Pointer

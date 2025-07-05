@@ -9,6 +9,24 @@ Date:   Mon Jul 26 17:33:50 2010 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/1876045
-
+---
  lib/codereview/codereview.py | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/lib/codereview/codereview.py b/lib/codereview/codereview.py
+index baed951225..84fbee61fa 100644
+--- a/lib/codereview/codereview.py
++++ b/lib/codereview/codereview.py
+@@ -1632,7 +1632,11 @@ def RietveldSetup(ui, repo):
+ 			if line.startswith('defaultcc: '):
+ 				defaultcc = SplitCommaSpace(line[10:])
+ 	except:
+-		pass
++		# If there are no options, chances are good this is not
++		# a code review repository; stop now before we foul
++		# things up even worse.  Might also be that repo doesn't
++		# even have a root.  See issue 959.
++		return
+ 
+ 	try:
+ 		f = open(repo.root + '/CONTRIBUTORS', 'r')

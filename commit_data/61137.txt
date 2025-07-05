@@ -16,9 +16,93 @@ Date:   Mon Aug 26 19:57:43 2024 +0200
     Reviewed-by: Roland Shoemaker <roland@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/runtime/os_darwin.go       |  8 ++------
  src/runtime/sys_darwin.go      | 10 ++++++++++
  src/runtime/sys_darwin_amd64.s |  6 ++++++
  src/runtime/sys_darwin_arm64.s |  6 ++++++
  4 files changed, 24 insertions(+), 6 deletions(-)
+
+diff --git a/src/runtime/os_darwin.go b/src/runtime/os_darwin.go
+index c6e2018817..0ecbea7ae4 100644
+--- a/src/runtime/os_darwin.go
++++ b/src/runtime/os_darwin.go
+@@ -192,14 +192,10 @@ func getPageSize() uintptr {
+ 	return 0
+ }
+ 
+-var urandom_dev = []byte("/dev/urandom\x00")
+-
+ //go:nosplit
+ func readRandom(r []byte) int {
+-	fd := open(&urandom_dev[0], 0 /* O_RDONLY */, 0)
+-	n := read(fd, unsafe.Pointer(&r[0]), int32(len(r)))
+-	closefd(fd)
+-	return int(n)
++	arc4random_buf(unsafe.Pointer(&r[0]), int32(len(r)))
++	return len(r)
+ }
+ 
+ func goenvs() {
+diff --git a/src/runtime/sys_darwin.go b/src/runtime/sys_darwin.go
+index 1e4b2ac79e..5c769a71ea 100644
+--- a/src/runtime/sys_darwin.go
++++ b/src/runtime/sys_darwin.go
+@@ -571,6 +571,15 @@ func pthread_cond_signal(c *pthreadcond) int32 {
+ }
+ func pthread_cond_signal_trampoline()
+ 
++//go:nosplit
++//go:cgo_unsafe_args
++func arc4random_buf(p unsafe.Pointer, n int32) {
++	// arc4random_buf() never fails, per its man page, so it's safe to ignore the return value.
++	libcCall(unsafe.Pointer(abi.FuncPCABI0(arc4random_buf_trampoline)), unsafe.Pointer(&p))
++	KeepAlive(p)
++}
++func arc4random_buf_trampoline()
++
+ // Not used on Darwin, but must be defined.
+ func exitThread(wait *atomic.Uint32) {
+ 	throw("exitThread")
+@@ -691,6 +700,7 @@ func proc_regionfilename_trampoline()
+ //go:cgo_import_dynamic libc_pthread_cond_wait pthread_cond_wait "/usr/lib/libSystem.B.dylib"
+ //go:cgo_import_dynamic libc_pthread_cond_timedwait_relative_np pthread_cond_timedwait_relative_np "/usr/lib/libSystem.B.dylib"
+ //go:cgo_import_dynamic libc_pthread_cond_signal pthread_cond_signal "/usr/lib/libSystem.B.dylib"
++//go:cgo_import_dynamic libc_arc4random_buf arc4random_buf "/usr/lib/libSystem.B.dylib"
+ 
+ //go:cgo_import_dynamic libc_notify_is_valid_token notify_is_valid_token "/usr/lib/libSystem.B.dylib"
+ //go:cgo_import_dynamic libc_xpc_date_create_from_current xpc_date_create_from_current "/usr/lib/libSystem.B.dylib"
+diff --git a/src/runtime/sys_darwin_amd64.s b/src/runtime/sys_darwin_amd64.s
+index 01992d59d4..acf24d2f69 100644
+--- a/src/runtime/sys_darwin_amd64.s
++++ b/src/runtime/sys_darwin_amd64.s
+@@ -500,6 +500,12 @@ TEXT runtime·osinit_hack_trampoline(SB),NOSPLIT,$0
+ 	CALL	libc_xpc_date_create_from_current(SB)
+ 	RET
+ 
++TEXT runtime·arc4random_buf_trampoline(SB),NOSPLIT,$0
++	MOVL	8(DI), SI	// arg 2 nbytes
++	MOVQ	0(DI), DI	// arg 1 buf
++	CALL	libc_arc4random_buf(SB)
++	RET
++
+ // syscall calls a function in libc on behalf of the syscall package.
+ // syscall takes a pointer to a struct like:
+ // struct {
+diff --git a/src/runtime/sys_darwin_arm64.s b/src/runtime/sys_darwin_arm64.s
+index 32d1f95d56..788fdf87b7 100644
+--- a/src/runtime/sys_darwin_arm64.s
++++ b/src/runtime/sys_darwin_arm64.s
+@@ -475,6 +475,12 @@ TEXT runtime·osinit_hack_trampoline(SB),NOSPLIT,$0
+ 	BL	libc_xpc_date_create_from_current(SB)
+ 	RET
+ 
++TEXT runtime·arc4random_buf_trampoline(SB),NOSPLIT,$0
++	MOVW	8(R0), R1	// arg 2 nbytes
++	MOVD	0(R0), R0	// arg 1 buf
++	BL	libc_arc4random_buf(SB)
++	RET
++
+ // syscall calls a function in libc on behalf of the syscall package.
+ // syscall takes a pointer to a struct like:
+ // struct {

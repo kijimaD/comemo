@@ -17,6 +17,20 @@ Date:   Tue Mar 23 21:50:41 2021 +0000
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Trust: Robert Griesemer <gri@golang.org>
-
+---
  src/io/io.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/io/io.go b/src/io/io.go
+index ffd3cedc25..2724321ed9 100644
+--- a/src/io/io.go
++++ b/src/io/io.go
+@@ -566,7 +566,7 @@ func (t *teeReader) Read(p []byte) (n int, err error) {
+ 	return
+ }
+ 
+-// Discard is an Writer on which all Write calls succeed
++// Discard is a Writer on which all Write calls succeed
+ // without doing anything.
+ var Discard Writer = discard{}
+ 

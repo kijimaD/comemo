@@ -16,6 +16,30 @@ Date:   Mon Jul 6 16:45:46 2020 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/testdata/cycles2.src | 5 ++---
  1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/src/go/types/testdata/cycles2.src b/src/go/types/testdata/cycles2.src
+index 5fd9e838b6..1a7f40ae4b 100644
+--- a/src/go/types/testdata/cycles2.src
++++ b/src/go/types/testdata/cycles2.src
+@@ -37,7 +37,7 @@ type A interface {
+ }
+ 
+ type B interface {
+-	a() interface {
++	b() interface {
+ 		AB
+ 	}
+ }
+@@ -59,8 +59,7 @@ var y interface {
+ 	B
+ }
+ 
+-// TODO(gri) This should be a valid compare. See #33656.
+-var _ = x /* ERROR cannot compare */ == y
++var _ = x == y
+ 
+ 
+ // Test case for issue 6638.

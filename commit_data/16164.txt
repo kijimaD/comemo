@@ -8,6 +8,10 @@ Date:   Thu Apr 11 13:40:14 2013 -0700
     R=golang-dev, iant, minux.ma
     CC=golang-dev
     https://golang.org/cl/8682043
-
+---
  misc/dist/darwin/scripts/preinstall | 0
  1 file changed, 0 insertions(+), 0 deletions(-)
+
+diff --git a/misc/dist/darwin/scripts/preinstall b/misc/dist/darwin/scripts/preinstall
+old mode 100644
+new mode 100755

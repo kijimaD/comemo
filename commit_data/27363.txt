@@ -25,6 +25,46 @@ Date:   Fri Mar 18 13:21:53 2016 +1100
     Change-Id: I5fcc30e0f76a823d1c301d4980b583d716a75ce3
     Reviewed-on: https://go-review.googlesource.com/20844
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/zcse.go | 14 +++-----------
  1 file changed, 3 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/zcse.go b/src/cmd/compile/internal/ssa/zcse.go
+index dbda53e8a2..16d5c10331 100644
+--- a/src/cmd/compile/internal/ssa/zcse.go
++++ b/src/cmd/compile/internal/ssa/zcse.go
+@@ -17,7 +17,7 @@ func zcse(f *Func) {
+ 			v := b.Values[i]
+ 			next := true
+ 			if opcodeTable[v.Op].argLen == 0 {
+-				key := vkey{v.Op, keyFor(v), v.Aux, typeStr(v)}
++				key := vkey{v.Op, keyFor(v), v.Aux, v.Type}
+ 				if vals[key] == nil {
+ 					vals[key] = v
+ 					if b != f.Entry {
+@@ -46,7 +46,7 @@ func zcse(f *Func) {
+ 		for _, v := range b.Values {
+ 			for i, a := range v.Args {
+ 				if opcodeTable[a.Op].argLen == 0 {
+-					key := vkey{a.Op, keyFor(a), a.Aux, typeStr(a)}
++					key := vkey{a.Op, keyFor(a), a.Aux, a.Type}
+ 					if rv, ok := vals[key]; ok {
+ 						v.SetArg(i, rv)
+ 					}
+@@ -61,15 +61,7 @@ type vkey struct {
+ 	op Op
+ 	ai int64       // aux int
+ 	ax interface{} // aux
+-	t  string      // type
+-}
+-
+-// typeStr returns a string version of the type of v.
+-func typeStr(v *Value) string {
+-	if v.Type == nil {
+-		return ""
+-	}
+-	return v.Type.String()
++	t  Type        // type
+ }
+ 
+ // keyFor returns the AuxInt portion of a  key structure uniquely identifying a

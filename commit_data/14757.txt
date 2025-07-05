@@ -18,7 +18,7 @@ Date:   Fri Dec 28 11:41:44 2012 -0800
     R=adonovan
     CC=golang-dev
     https://golang.org/cl/7013049
-
+---
  src/pkg/exp/gotype/gotype.go                       | 2 +-
  src/pkg/exp/gotype/gotype_test.go                  | 2 +-
  src/pkg/{exp => go}/types/api.go                   | 0
@@ -54,3 +54,171 @@ Date:   Fri Dec 28 11:41:44 2012 -0800
  src/pkg/{exp => go}/types/types_test.go            | 0
  src/pkg/{exp => go}/types/universe.go              | 0
  34 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/exp/gotype/gotype.go b/src/pkg/exp/gotype/gotype.go
+index 67475e664a..311def89f5 100644
+--- a/src/pkg/exp/gotype/gotype.go
++++ b/src/pkg/exp/gotype/gotype.go
+@@ -6,13 +6,13 @@ package main
+ 
+ import (
+ 	"errors"
+-	"exp/types"
+ 	"flag"
+ 	"fmt"
+ 	"go/ast"
+ 	"go/parser"
+ 	"go/scanner"
+ 	"go/token"
++	"go/types"
+ 	"io/ioutil"
+ 	"os"
+ 	"path/filepath"
+diff --git a/src/pkg/exp/gotype/gotype_test.go b/src/pkg/exp/gotype/gotype_test.go
+index 755336871e..405093b2ae 100644
+--- a/src/pkg/exp/gotype/gotype_test.go
++++ b/src/pkg/exp/gotype/gotype_test.go
+@@ -117,7 +117,6 @@ var tests = []string{
+ 	"flag",
+ 	"fmt",
+ 
+-	"exp/types",
+ 	"exp/gotype",
+ 
+ 	"go/ast",
+@@ -128,6 +127,7 @@ var tests = []string{
+ 	"go/printer",
+ 	"go/scanner",
+ 	// "go/token",
++	"go/types",
+ 
+ 	"hash/adler32",
+ 	"hash/crc32",
+diff --git a/src/pkg/exp/types/api.go b/src/pkg/go/types/api.go
+similarity index 100%
+rename from src/pkg/exp/types/api.go
+rename to src/pkg/go/types/api.go
+diff --git a/src/pkg/exp/types/builtins.go b/src/pkg/go/types/builtins.go
+similarity index 100%
+rename from src/pkg/exp/types/builtins.go
+rename to src/pkg/go/types/builtins.go
+diff --git a/src/pkg/exp/types/check.go b/src/pkg/go/types/check.go
+similarity index 100%
+rename from src/pkg/exp/types/check.go
+rename to src/pkg/go/types/check.go
+diff --git a/src/pkg/exp/types/check_test.go b/src/pkg/go/types/check_test.go
+similarity index 100%
+rename from src/pkg/exp/types/check_test.go
+rename to src/pkg/go/types/check_test.go
+diff --git a/src/pkg/exp/types/const.go b/src/pkg/go/types/const.go
+similarity index 100%
+rename from src/pkg/exp/types/const.go
+rename to src/pkg/go/types/const.go
+diff --git a/src/pkg/exp/types/conversions.go b/src/pkg/go/types/conversions.go
+similarity index 100%
+rename from src/pkg/exp/types/conversions.go
+rename to src/pkg/go/types/conversions.go
+diff --git a/src/pkg/exp/types/errors.go b/src/pkg/go/types/errors.go
+similarity index 100%
+rename from src/pkg/exp/types/errors.go
+rename to src/pkg/go/types/errors.go
+diff --git a/src/pkg/exp/types/exportdata.go b/src/pkg/go/types/exportdata.go
+similarity index 100%
+rename from src/pkg/exp/types/exportdata.go
+rename to src/pkg/go/types/exportdata.go
+diff --git a/src/pkg/exp/types/expr.go b/src/pkg/go/types/expr.go
+similarity index 100%
+rename from src/pkg/exp/types/expr.go
+rename to src/pkg/go/types/expr.go
+diff --git a/src/pkg/exp/types/gcimporter.go b/src/pkg/go/types/gcimporter.go
+similarity index 100%
+rename from src/pkg/exp/types/gcimporter.go
+rename to src/pkg/go/types/gcimporter.go
+diff --git a/src/pkg/exp/types/gcimporter_test.go b/src/pkg/go/types/gcimporter_test.go
+similarity index 100%
+rename from src/pkg/exp/types/gcimporter_test.go
+rename to src/pkg/go/types/gcimporter_test.go
+diff --git a/src/pkg/exp/types/operand.go b/src/pkg/go/types/operand.go
+similarity index 100%
+rename from src/pkg/exp/types/operand.go
+rename to src/pkg/go/types/operand.go
+diff --git a/src/pkg/exp/types/predicates.go b/src/pkg/go/types/predicates.go
+similarity index 100%
+rename from src/pkg/exp/types/predicates.go
+rename to src/pkg/go/types/predicates.go
+diff --git a/src/pkg/exp/types/resolver_test.go b/src/pkg/go/types/resolver_test.go
+similarity index 100%
+rename from src/pkg/exp/types/resolver_test.go
+rename to src/pkg/go/types/resolver_test.go
+diff --git a/src/pkg/exp/types/stmt.go b/src/pkg/go/types/stmt.go
+similarity index 100%
+rename from src/pkg/exp/types/stmt.go
+rename to src/pkg/go/types/stmt.go
+diff --git a/src/pkg/exp/types/testdata/builtins.src b/src/pkg/go/types/testdata/builtins.src
+similarity index 100%
+rename from src/pkg/exp/types/testdata/builtins.src
+rename to src/pkg/go/types/testdata/builtins.src
+diff --git a/src/pkg/exp/types/testdata/const0.src b/src/pkg/go/types/testdata/const0.src
+similarity index 100%
+rename from src/pkg/exp/types/testdata/const0.src
+rename to src/pkg/go/types/testdata/const0.src
+diff --git a/src/pkg/exp/types/testdata/conversions.src b/src/pkg/go/types/testdata/conversions.src
+similarity index 100%
+rename from src/pkg/exp/types/testdata/conversions.src
+rename to src/pkg/go/types/testdata/conversions.src
+diff --git a/src/pkg/exp/types/testdata/decls0.src b/src/pkg/go/types/testdata/decls0.src
+similarity index 100%
+rename from src/pkg/exp/types/testdata/decls0.src
+rename to src/pkg/go/types/testdata/decls0.src
+diff --git a/src/pkg/exp/types/testdata/decls1.src b/src/pkg/go/types/testdata/decls1.src
+similarity index 100%
+rename from src/pkg/exp/types/testdata/decls1.src
+rename to src/pkg/go/types/testdata/decls1.src
+diff --git a/src/pkg/exp/types/testdata/decls2a.src b/src/pkg/go/types/testdata/decls2a.src
+similarity index 100%
+rename from src/pkg/exp/types/testdata/decls2a.src
+rename to src/pkg/go/types/testdata/decls2a.src
+diff --git a/src/pkg/exp/types/testdata/decls2b.src b/src/pkg/go/types/testdata/decls2b.src
+similarity index 100%
+rename from src/pkg/exp/types/testdata/decls2b.src
+rename to src/pkg/go/types/testdata/decls2b.src
+diff --git a/src/pkg/exp/types/testdata/decls3.src b/src/pkg/go/types/testdata/decls3.src
+similarity index 100%
+rename from src/pkg/exp/types/testdata/decls3.src
+rename to src/pkg/go/types/testdata/decls3.src
+diff --git a/src/pkg/exp/types/testdata/exports.go b/src/pkg/go/types/testdata/exports.go
+similarity index 100%
+rename from src/pkg/exp/types/testdata/exports.go
+rename to src/pkg/go/types/testdata/exports.go
+diff --git a/src/pkg/exp/types/testdata/expr0.src b/src/pkg/go/types/testdata/expr0.src
+similarity index 100%
+rename from src/pkg/exp/types/testdata/expr0.src
+rename to src/pkg/go/types/testdata/expr0.src
+diff --git a/src/pkg/exp/types/testdata/expr1.src b/src/pkg/go/types/testdata/expr1.src
+similarity index 100%
+rename from src/pkg/exp/types/testdata/expr1.src
+rename to src/pkg/go/types/testdata/expr1.src
+diff --git a/src/pkg/exp/types/testdata/expr2.src b/src/pkg/go/types/testdata/expr2.src
+similarity index 100%
+rename from src/pkg/exp/types/testdata/expr2.src
+rename to src/pkg/go/types/testdata/expr2.src
+diff --git a/src/pkg/exp/types/testdata/expr3.src b/src/pkg/go/types/testdata/expr3.src
+similarity index 100%
+rename from src/pkg/exp/types/testdata/expr3.src
+rename to src/pkg/go/types/testdata/expr3.src
+diff --git a/src/pkg/exp/types/testdata/stmt0.src b/src/pkg/go/types/testdata/stmt0.src
+similarity index 100%
+rename from src/pkg/exp/types/testdata/stmt0.src
+rename to src/pkg/go/types/testdata/stmt0.src
+diff --git a/src/pkg/exp/types/types.go b/src/pkg/go/types/types.go
+similarity index 100%
+rename from src/pkg/exp/types/types.go
+rename to src/pkg/go/types/types.go
+diff --git a/src/pkg/exp/types/types_test.go b/src/pkg/go/types/types_test.go
+similarity index 100%
+rename from src/pkg/exp/types/types_test.go
+rename to src/pkg/go/types/types_test.go
+diff --git a/src/pkg/exp/types/universe.go b/src/pkg/go/types/universe.go
+similarity index 100%
+rename from src/pkg/exp/types/universe.go
+rename to src/pkg/go/types/universe.go

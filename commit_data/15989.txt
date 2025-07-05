@@ -7,6 +7,20 @@ Date:   Thu Mar 28 13:13:55 2013 -0700
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/8113043
-
+---
  src/pkg/go/doc/doc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/go/doc/doc.go b/src/pkg/go/doc/doc.go
+index 96d867caea..1f11417932 100644
+--- a/src/pkg/go/doc/doc.go
++++ b/src/pkg/go/doc/doc.go
+@@ -64,7 +64,7 @@ type Func struct {
+ 	Level int    // embedding level; 0 means not embedded
+ }
+ 
+-// A Note represents marked comments starting with "MARKER(uid): note body".
++// A Note represents a marked comment starting with "MARKER(uid): note body".
+ // Any note with a marker of 2 or more upper case [A-Z] letters and a uid of
+ // at least one character is recognized. The ":" following the uid is optional.
+ // Notes are collected in the Package.Notes map indexed by the notes marker.

@@ -12,6 +12,20 @@ Date:   Mon May 29 22:14:32 2017 +0200
     Change-Id: Ibafd36ea446ace5c677df27873a4bbf716a0a9bc
     Reviewed-on: https://go-review.googlesource.com/44376
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/link/internal/ld/decodesym.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/ld/decodesym.go b/src/cmd/link/internal/ld/decodesym.go
+index 13cb01829a..eba8ee3082 100644
+--- a/src/cmd/link/internal/ld/decodesym.go
++++ b/src/cmd/link/internal/ld/decodesym.go
+@@ -14,7 +14,7 @@ import (
+ 
+ // Decoding the type.* symbols.	 This has to be in sync with
+ // ../../runtime/type.go, or more specifically, with what
+-// ../gc/reflect.c stuffs in these.
++// cmd/compile/internal/gc/reflect.go stuffs in these.
+ 
+ // tflag is documented in reflect/type.go.
+ //

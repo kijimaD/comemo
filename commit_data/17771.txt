@@ -12,7 +12,96 @@ Date:   Wed Oct 9 11:08:22 2013 -0400
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/14575043
-
+---
  misc/cgo/test/issue6472.go  | 22 ++++++++++++++++++++++
  src/pkg/debug/dwarf/type.go | 43 +++++++++++++++++++++++++++++++------------
  2 files changed, 53 insertions(+), 12 deletions(-)
+
+diff --git a/misc/cgo/test/issue6472.go b/misc/cgo/test/issue6472.go
+new file mode 100644
+index 0000000000..cd94cac376
+--- /dev/null
++++ b/misc/cgo/test/issue6472.go
+@@ -0,0 +1,22 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cgotest
++
++/*
++typedef struct
++{
++        struct
++        {
++            int x;
++        } y[16];
++} z;
++*/
++import "C"
++
++func test6472() {
++	// nothing to run, just make sure this compiles
++	s := new(C.z)
++	println(s.y[0].x)
++}
+diff --git a/src/pkg/debug/dwarf/type.go b/src/pkg/debug/dwarf/type.go
+index 54000fbd75..1fbae6c144 100644
+--- a/src/pkg/debug/dwarf/type.go
++++ b/src/pkg/debug/dwarf/type.go
+@@ -271,24 +271,43 @@ func (d *Data) Type(off Offset) (Type, error) {
+ 	// d.Type recursively, to handle circular types correctly.
+ 	var typ Type
+ 
++	nextDepth := 0
++
+ 	// Get next child; set err if error happens.
+ 	next := func() *Entry {
+ 		if !e.Children {
+ 			return nil
+ 		}
+-		kid, err1 := r.Next()
+-		if err1 != nil {
+-			err = err1
+-			return nil
+-		}
+-		if kid == nil {
+-			err = DecodeError{"info", r.b.off, "unexpected end of DWARF entries"}
+-			return nil
+-		}
+-		if kid.Tag == 0 {
+-			return nil
++		// Only return direct children.
++		// Skip over composite entries that happen to be nested
++		// inside this one. Most DWARF generators wouldn't generate
++		// such a thing, but clang does.
++		// See golang.org/issue/6472.
++		for {
++			kid, err1 := r.Next()
++			if err1 != nil {
++				err = err1
++				return nil
++			}
++			if kid == nil {
++				err = DecodeError{"info", r.b.off, "unexpected end of DWARF entries"}
++				return nil
++			}
++			if kid.Tag == 0 {
++				if nextDepth > 0 {
++					nextDepth--
++					continue
++				}
++				return nil
++			}
++			if kid.Children {
++				nextDepth++
++			}
++			if nextDepth > 0 {
++				continue
++			}
++			return kid
+ 		}
+-		return kid
+ 	}
+ 
+ 	// Get Type referred to by Entry's AttrType field.

@@ -8,7 +8,7 @@ Date:   Thu Mar 13 09:00:12 2014 -0700
     R=rsc, 0intro, aram, jeremyjackins, iant
     CC=golang-codereviews, lucio.dere, minux.ma, paurea, r
     https://golang.org/cl/9796043
-
+---
  src/pkg/runtime/os_plan9.c       |  82 ++++++++++++++++++++---
  src/pkg/runtime/os_plan9.h       |   9 ++-
  src/pkg/runtime/os_plan9_386.c   | 140 +++++++++++++++++++++------------------
@@ -18,3 +18,655 @@ Date:   Thu Mar 13 09:00:12 2014 -0700
  src/pkg/runtime/signals_plan9.h  |  61 ++++++++++++-----
  src/pkg/runtime/string.goc       |  19 ++++++
  8 files changed, 307 insertions(+), 138 deletions(-)
+
+diff --git a/src/pkg/runtime/os_plan9.c b/src/pkg/runtime/os_plan9.c
+index 214cb224ba..af20ce8db9 100644
+--- a/src/pkg/runtime/os_plan9.c
++++ b/src/pkg/runtime/os_plan9.c
+@@ -193,13 +193,15 @@ runtime·itoa(int32 n, byte *p, uint32 len)
+ void
+ runtime·goexitsall(int8 *status)
+ {
++	int8 buf[ERRMAX];
+ 	M *mp;
+ 	int32 pid;
+ 
++	runtime·snprintf((byte*)buf, sizeof buf, "go: exit %s", status);
+ 	pid = getpid();
+ 	for(mp=runtime·atomicloadp(&runtime·allm); mp; mp=mp->alllink)
+ 		if(mp->procid != pid)
+-			runtime·postnote(mp->procid, status);
++			runtime·postnote(mp->procid, buf);
+ }
+ 
+ int32
+@@ -305,19 +307,79 @@ os·sigpipe(void)
+ 	runtime·throw("too many writes on closed pipe");
+ }
+ 
++static int64
++atolwhex(byte *p)
++{
++	int64 n;
++	int32 f;
++
++	n = 0;
++	f = 0;
++	while(*p == ' ' || *p == '\t')
++		p++;
++	if(*p == '-' || *p == '+') {
++		if(*p++ == '-')
++			f = 1;
++		while(*p == ' ' || *p == '\t')
++			p++;
++	}
++	if(p[0] == '0' && p[1]) {
++		if(p[1] == 'x' || p[1] == 'X') {
++			p += 2;
++			for(;;) {
++				if('0' <= *p && *p <= '9')
++					n = n*16 + *p++ - '0';
++				else if('a' <= *p && *p <= 'f')
++					n = n*16 + *p++ - 'a' + 10;
++				else if('A' <= *p && *p <= 'F')
++					n = n*16 + *p++ - 'A' + 10;
++				else
++					break;
++			}
++		} else
++			while('0' <= *p && *p <= '7')
++				n = n*8 + *p++ - '0';
++	} else
++		while('0' <= *p && *p <= '9')
++			n = n*10 + *p++ - '0';
++	if(f)
++		n = -n;
++	return n;
++}
++
+ void
+ runtime·sigpanic(void)
+ {
+-	if(g->sigpc == 0)
+-		runtime·panicstring("call of nil func value");
+-	if(runtime·strcmp((byte*)m->notesig, (byte*)"sys: trap: fault read addr") >= 0 || runtime·strcmp((byte*)m->notesig, (byte*)"sys: trap: fault write addr") >= 0)
+-		runtime·panicstring("invalid memory address or nil pointer dereference");
+-	if(runtime·strcmp((byte*)m->notesig, (byte*)"sys: trap: divide error") >= 0)
+-		runtime·panicstring("integer divide by zero");
+-	runtime·panicstring(m->notesig);
+-
+-	if(g->sig == 1 || g->sig == 2)
++	byte *p;
++
++	switch(g->sig) {
++	case SIGRFAULT:
++	case SIGWFAULT:
++		p = runtime·strstr((byte*)m->notesig, (byte*)"addr=")+5;
++		g->sigcode1 = atolwhex(p);
++		if(g->sigcode1 < 0x1000 || g->paniconfault) {
++			if(g->sigpc == 0)
++				runtime·panicstring("call of nil func value");
++			runtime·panicstring("invalid memory address or nil pointer dereference");
++		}
++		runtime·printf("unexpected fault address %p\n", g->sigcode1);
+ 		runtime·throw("fault");
++		break;
++	case SIGTRAP:
++		if(g->paniconfault)
++			runtime·panicstring("invalid memory address or nil pointer dereference");
++		runtime·throw(m->notesig);
++		break;
++	case SIGINTDIV:
++		runtime·panicstring("integer divide by zero");
++		break;
++	case SIGFLOAT:
++		runtime·panicstring("floating point error");
++		break;
++	default:
++		runtime·panicstring(m->notesig);
++		break;
++	}
+ }
+ 
+ int32
+diff --git a/src/pkg/runtime/os_plan9.h b/src/pkg/runtime/os_plan9.h
+index f0474cda54..00ea8366d7 100644
+--- a/src/pkg/runtime/os_plan9.h
++++ b/src/pkg/runtime/os_plan9.h
+@@ -78,5 +78,12 @@ struct Tos {
+ 	/* top of stack is here */
+ };
+ 
+-#define	NSIG	5	/* number of signals in runtime·SigTab array */
++#define	NSIG	14	/* number of signals in runtime·SigTab array */
+ #define	ERRMAX	128	/* max length of note string */
++
++/* Notes in runtime·sigtab that are handled by runtime·sigpanic. */
++#define	SIGRFAULT	2
++#define	SIGWFAULT	3
++#define	SIGINTDIV	4
++#define	SIGFLOAT	5
++#define	SIGTRAP		6
+diff --git a/src/pkg/runtime/os_plan9_386.c b/src/pkg/runtime/os_plan9_386.c
+index 3a17b33b84..04be91bf4e 100644
+--- a/src/pkg/runtime/os_plan9_386.c
++++ b/src/pkg/runtime/os_plan9_386.c
+@@ -10,77 +10,83 @@
+ void
+ runtime·dumpregs(Ureg *u)
+ {
+-	runtime·printf("ax	%X\n", u->ax);
+-	runtime·printf("bx	%X\n", u->bx);
+-	runtime·printf("cx	%X\n", u->cx);
+-	runtime·printf("dx	%X\n", u->dx);
+-	runtime·printf("di	%X\n", u->di);
+-	runtime·printf("si	%X\n", u->si);
+-	runtime·printf("bp	%X\n", u->bp);
+-	runtime·printf("sp	%X\n", u->sp);
+-	runtime·printf("pc	%X\n", u->pc);
+-	runtime·printf("flags	%X\n", u->flags);
+-	runtime·printf("cs	%X\n", u->cs);
+-	runtime·printf("fs	%X\n", u->fs);
+-	runtime·printf("gs	%X\n", u->gs);
++	runtime·printf("ax	%x\n", u->ax);
++	runtime·printf("bx	%x\n", u->bx);
++	runtime·printf("cx	%x\n", u->cx);
++	runtime·printf("dx	%x\n", u->dx);
++	runtime·printf("di	%x\n", u->di);
++	runtime·printf("si	%x\n", u->si);
++	runtime·printf("bp	%x\n", u->bp);
++	runtime·printf("sp	%x\n", u->sp);
++	runtime·printf("pc	%x\n", u->pc);
++	runtime·printf("flags	%x\n", u->flags);
++	runtime·printf("cs	%x\n", u->cs);
++	runtime·printf("fs	%x\n", u->fs);
++	runtime·printf("gs	%x\n", u->gs);
+ }
+ 
+ int32
+-runtime·sighandler(void *v, int8 *s, G *gp)
++runtime·sighandler(void *v, int8 *note, G *gp)
+ {
++	uintptr *sp;
++	SigTab *t;
+ 	bool crash;
+ 	Ureg *ureg;
+-	uintptr *sp;
+-	SigTab *sig, *nsig;
+-	intgo len, i;
++	intgo len, n;
++	int32 sig, flags;
+ 
+-	if(!s)
+-		return NCONT;
+-			
+-	len = runtime·findnull((byte*)s);
+-	if(len <= 4 || runtime·mcmp((byte*)s, (byte*)"sys:", 4) != 0)
+-		return NDFLT;
+-
+-	nsig = nil;
+-	sig = runtime·sigtab;
+-	for(i=0; i < NSIG; i++) {
+-		if(runtime·strstr((byte*)s, (byte*)sig->name)) {
+-			nsig = sig;
++	ureg = (Ureg*)v;
++
++	// The kernel will never pass us a nil note or ureg so we probably
++	// made a mistake somewhere in runtime·sigtramp.
++	if(ureg == nil || note == nil) {
++		runtime·printf("sighandler: ureg %p note %p\n", ureg, note);
++		goto Throw;
++	}
++
++	// Check that the note is no more than ERRMAX bytes (including
++	// the trailing NUL). We should never receive a longer note.
++	len = runtime·findnull((byte*)note);
++	if(len > ERRMAX-1) {
++		runtime·printf("sighandler: note is longer than ERRMAX\n");
++		goto Throw;
++	}
++
++	// See if the note matches one of the patterns in runtime·sigtab.
++	// Notes that do not match any pattern can be handled at a higher
++	// level by the program but will otherwise be ignored.
++	flags = SigNotify;
++	for(sig = 0; sig < nelem(runtime·sigtab); sig++) {
++		t = &runtime·sigtab[sig];
++		n = runtime·findnull((byte*)t->name);
++		if(len < n)
++			continue;
++		if(runtime·strncmp((byte*)note, (byte*)t->name, n) == 0) {
++			flags = t->flags;
+ 			break;
+ 		}
+-		sig++;
+ 	}
+ 
+-	if(nsig == nil)
+-		return NDFLT;
++	if(flags & SigGoExit)
++		runtime·exits(note+9); // Strip "go: exit " prefix.
+ 
+-	ureg = v;
+-	if(nsig->flags & SigPanic) {
+-		if(gp == nil || m->notesig == 0)
++	if(flags & SigPanic) {
++		if(!runtime·canpanic(gp))
+ 			goto Throw;
+ 
+ 		// Copy the error string from sigtramp's stack into m->notesig so
+-		// we can reliably access it from the panic routines. We can't use
+-		// runtime·memmove here since it will use SSE instructions for big
+-		// copies. The Plan 9 kernel doesn't allow floating point in note
+-		// handlers.
+-		//
+-		// TODO(ality): revert back to memmove when the kernel is fixed.
+-		if(len >= ERRMAX)
+-			len = ERRMAX-1;
+-		for(i = 0; i < len; i++)
+-			m->notesig[i] = s[i];
+-		m->notesig[i] = '\0';
+-
+-		gp->sig = i;
++		// we can reliably access it from the panic routines.
++		runtime·memmove(m->notesig, note, len+1);
++
++		gp->sig = sig;
+ 		gp->sigpc = ureg->pc;
+ 
+-		// Only push runtime·sigpanic if ureg->pc != 0.
+-		// If ureg->pc == 0, probably panicked because of a
+-		// call to a nil func.  Not pushing that onto sp will
+-		// make the trace look like a call to runtime·sigpanic instead.
+-		// (Otherwise the trace will end at runtime·sigpanic and we
+-		// won't get to see who faulted.)
++		// Only push runtime·sigpanic if PC != 0.
++		//
++		// If PC == 0, probably panicked because of a call to a nil func.
++		// Not pushing that onto SP will make the trace look like a call
++		// to runtime·sigpanic instead. (Otherwise the trace will end at
++		// runtime·sigpanic and we won't get to see who faulted).
+ 		if(ureg->pc != 0) {
+ 			sp = (uintptr*)ureg->sp;
+ 			*--sp = ureg->pc;
+@@ -90,34 +96,42 @@ runtime·sighandler(void *v, int8 *s, G *gp)
+ 		return NCONT;
+ 	}
+ 
+-	if(!(nsig->flags & SigThrow))
+-		return NDFLT;
++	if(flags & SigNotify) {
++		// TODO(ality): See if os/signal wants it.
++		//if(runtime·sigsend(...))
++		//	return NCONT;
++	}
++	if(flags & SigKill)
++		goto Exit;
++	if(!(flags & SigThrow))
++		return NCONT;
+ 
+ Throw:
+ 	m->throwing = 1;
+ 	m->caughtsig = gp;
+ 	runtime·startpanic();
+ 
+-	runtime·printf("%s\n", s);
+-	runtime·printf("PC=%X\n", ureg->pc);
++	runtime·printf("%s\n", note);
++	runtime·printf("PC=%x\n", ureg->pc);
+ 	runtime·printf("\n");
+ 
+ 	if(runtime·gotraceback(&crash)) {
++		runtime·goroutineheader(gp);
+ 		runtime·traceback(ureg->pc, ureg->sp, 0, gp);
+ 		runtime·tracebackothers(gp);
++		runtime·printf("\n");
+ 		runtime·dumpregs(ureg);
+ 	}
+ 	
+ 	if(crash)
+ 		runtime·crash();
+ 
+-	runtime·goexitsall("");
+-	runtime·exits(s);
+-
+-	return 0;
++Exit:
++	runtime·goexitsall(note);
++	runtime·exits(note);
++	return NDFLT; // not reached
+ }
+ 
+-
+ void
+ runtime·sigenable(uint32 sig)
+ {
+diff --git a/src/pkg/runtime/os_plan9_amd64.c b/src/pkg/runtime/os_plan9_amd64.c
+index 4847dc6cef..7f4e1187fd 100644
+--- a/src/pkg/runtime/os_plan9_amd64.c
++++ b/src/pkg/runtime/os_plan9_amd64.c
+@@ -34,95 +34,110 @@ runtime·dumpregs(Ureg *u)
+ }
+ 
+ int32
+-runtime·sighandler(void *v, int8 *s, G *gp)
++runtime·sighandler(void *v, int8 *note, G *gp)
+ {
++	uintptr *sp;
++	SigTab *t;
+ 	bool crash;
+ 	Ureg *ureg;
+-	uintptr *sp;
+-	SigTab *sig, *nsig;
+-	intgo i, len;
++	intgo len, n;
++	int32 sig, flags;
+ 
+-	if(!s)
+-		return NCONT;
+-			
+-	len = runtime·findnull((byte*)s);
+-	if(len <= 4 || runtime·mcmp((byte*)s, (byte*)"sys:", 4) != 0)
+-		return NDFLT;
+-
+-	nsig = nil;
+-	sig = runtime·sigtab;
+-	for(i=0; i < NSIG; i++) {
+-		if(runtime·strstr((byte*)s, (byte*)sig->name)) {
+-			nsig = sig;
++	ureg = (Ureg*)v;
++
++	// The kernel will never pass us a nil note or ureg so we probably
++	// made a mistake somewhere in runtime·sigtramp.
++	if(ureg == nil || note == nil) {
++		runtime·printf("sighandler: ureg %p note %p\n", ureg, note);
++		goto Throw;
++	}
++
++	// Check that the note is no more than ERRMAX bytes (including
++	// the trailing NUL). We should never receive a longer note.
++	len = runtime·findnull((byte*)note);
++	if(len > ERRMAX-1) {
++		runtime·printf("sighandler: note is longer than ERRMAX\n");
++		goto Throw;
++	}
++
++	// See if the note matches one of the patterns in runtime·sigtab.
++	// Notes that do not match any pattern can be handled at a higher
++	// level by the program but will otherwise be ignored.
++	flags = SigNotify;
++	for(sig = 0; sig < nelem(runtime·sigtab); sig++) {
++		t = &runtime·sigtab[sig];
++		n = runtime·findnull((byte*)t->name);
++		if(len < n)
++			continue;
++		if(runtime·strncmp((byte*)note, (byte*)t->name, n) == 0) {
++			flags = t->flags;
+ 			break;
+ 		}
+-		sig++;
+ 	}
+ 
+-	if(nsig == nil)
+-		return NDFLT;
++	if(flags & SigGoExit)
++		runtime·exits(note+9); // Strip "go: exit " prefix.
+ 
+-	ureg = v;
+-	if(nsig->flags & SigPanic) {
+-		if(gp == nil || m->notesig == 0)
++	if(flags & SigPanic) {
++		if(!runtime·canpanic(gp))
+ 			goto Throw;
+ 
+ 		// Copy the error string from sigtramp's stack into m->notesig so
+-		// we can reliably access it from the panic routines. We can't use
+-		// runtime·memmove here since it will use SSE instructions for big
+-		// copies. The Plan 9 kernel doesn't allow floating point in note
+-		// handlers.
+-		//
+-		// TODO(ality): revert back to memmove when the kernel is fixed.
+-		if(len >= ERRMAX)
+-			len = ERRMAX-1;
+-		for(i = 0; i < len; i++)
+-			m->notesig[i] = s[i];
+-		m->notesig[i] = '\0';
+-
+-		gp->sig = i;
++		// we can reliably access it from the panic routines.
++		runtime·memmove(m->notesig, note, len+1);
++
++		gp->sig = sig;
+ 		gp->sigpc = ureg->ip;
+ 
+-		// Only push runtime·sigpanic if ureg->ip != 0.
+-		// If ureg->ip == 0, probably panicked because of a
+-		// call to a nil func.  Not pushing that onto sp will
+-		// make the trace look like a call to runtime·sigpanic instead.
+-		// (Otherwise the trace will end at runtime·sigpanic and we
+-		// won't get to see who faulted.)
++		// Only push runtime·sigpanic if PC != 0.
++		//
++		// If PC == 0, probably panicked because of a call to a nil func.
++		// Not pushing that onto SP will make the trace look like a call
++		// to runtime·sigpanic instead. (Otherwise the trace will end at
++		// runtime·sigpanic and we won't get to see who faulted).
+ 		if(ureg->ip != 0) {
+ 			sp = (uintptr*)ureg->sp;
+ 			*--sp = ureg->ip;
+-			ureg->sp = (uint64)sp;
++			ureg->sp = (uint32)sp;
+ 		}
+ 		ureg->ip = (uintptr)runtime·sigpanic;
+ 		return NCONT;
+ 	}
+ 
+-	if(!(nsig->flags & SigThrow))
+-		return NDFLT;
++	if(flags & SigNotify) {
++		// TODO(ality): See if os/signal wants it.
++		//if(runtime·sigsend(...))
++		//	return NCONT;
++	}
++	if(flags & SigKill)
++		goto Exit;
++	if(!(flags & SigThrow))
++		return NCONT;
+ 
+ Throw:
+ 	m->throwing = 1;
+ 	m->caughtsig = gp;
+ 	runtime·startpanic();
+ 
+-	runtime·printf("%s\n", s);
++	runtime·printf("%s\n", note);
+ 	runtime·printf("PC=%X\n", ureg->ip);
+ 	runtime·printf("\n");
+ 
+ 	if(runtime·gotraceback(&crash)) {
++		runtime·goroutineheader(gp);
+ 		runtime·traceback(ureg->ip, ureg->sp, 0, gp);
+ 		runtime·tracebackothers(gp);
++		runtime·printf("\n");
+ 		runtime·dumpregs(ureg);
+ 	}
+ 	
+ 	if(crash)
+ 		runtime·crash();
+ 
+-	runtime·goexitsall("");
+-	runtime·exits(s);
+-
+-	return 0;
++Exit:
++	runtime·goexitsall(note);
++	runtime·exits(note);
++	return NDFLT; // not reached
+ }
+ 
+ void
+diff --git a/src/pkg/runtime/print.c b/src/pkg/runtime/print.c
+index 2a772ea340..e58c8bf3e6 100644
+--- a/src/pkg/runtime/print.c
++++ b/src/pkg/runtime/print.c
+@@ -63,6 +63,24 @@ runtime·printf(int8 *s, ...)
+ 	vprintf(s, arg);
+ }
+ 
++#pragma textflag NOSPLIT
++int32
++runtime·snprintf(byte *buf, int32 n, int8 *s, ...)
++{
++	byte *arg;
++	int32 m;
++
++	arg = (byte*)(&s+1);
++	g->writebuf = buf;
++	g->writenbuf = n-1;
++	vprintf(s, arg);
++	*g->writebuf = '\0';
++	m = g->writebuf - buf;
++	g->writenbuf = 0;
++	g->writebuf = nil;
++	return m;
++}
++
+ // Very simple printf.  Only for debugging prints.
+ // Do not add to this without checking with Rob.
+ static void
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 8e5e9a1294..01294b70a0 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -468,6 +468,7 @@ enum
+ 	SigDefault = 1<<4,	// if the signal isn't explicitly requested, don't monitor it
+ 	SigHandling = 1<<5,	// our signal handler is registered
+ 	SigIgnored = 1<<6,	// the signal was ignored before we registered for it
++	SigGoExit = 1<<7,	// cause all runtime procs to exit (only used on Plan 9).
+ };
+ 
+ // Layout of in-memory per-function information prepared by linker
+@@ -792,6 +793,7 @@ extern	uintptr	runtime·maxstacksize;
+  * common functions and data
+  */
+ int32	runtime·strcmp(byte*, byte*);
++int32	runtime·strncmp(byte*, byte*, uintptr);
+ byte*	runtime·strstr(byte*, byte*);
+ intgo	runtime·findnull(byte*);
+ intgo	runtime·findnullw(uint16*);
+@@ -840,6 +842,7 @@ void	runtime·panicstring(int8*);
+ bool	runtime·canpanic(G*);
+ void	runtime·prints(int8*);
+ void	runtime·printf(int8*, ...);
++int32	runtime·snprintf(byte*, int32, int8*, ...);
+ byte*	runtime·mchr(byte*, byte, byte*);
+ int32	runtime·mcmp(byte*, byte*, uintptr);
+ void	runtime·memmove(void*, void*, uintptr);
+diff --git a/src/pkg/runtime/signals_plan9.h b/src/pkg/runtime/signals_plan9.h
+index b16ecafd10..818f508cf3 100644
+--- a/src/pkg/runtime/signals_plan9.h
++++ b/src/pkg/runtime/signals_plan9.h
+@@ -3,27 +3,58 @@
+ // license that can be found in the LICENSE file.
+ 
+ #define N SigNotify
++#define K SigKill
+ #define T SigThrow
+ #define P SigPanic
++#define E SigGoExit
++
++// Incoming notes are compared against this table using strncmp, so the
++// order matters: longer patterns must appear before their prefixes.
++// There are #defined SIG constants in os_plan9.h for the table index of
++// some of these.
++//
++// If you add entries to this table, you must respect the prefix ordering
++// and also update the constant values is os_plan9.h.
+ 
+ SigTab runtime·sigtab[] = {
+-	P, "sys: fp:",
+-
+-	// Go libraries expect to be able
+-	// to recover from memory
+-	// read/write errors, so we flag
+-	// those as panics. All other traps
+-	// are generally more serious and
+-	// should immediately throw an
+-	// exception.
+-	P, "sys: trap: fault read addr",
+-	P, "sys: trap: fault write addr",
+-	P, "sys: trap: divide error",
+-	T, "sys: trap:",
+-
+-	N, "sys: bad sys call",
++	// Traps that we cannot be recovered.
++	T,	"sys: trap: debug exception",
++	T,	"sys: trap: invalid opcode",
++
++	// We can recover from some memory errors in runtime·sigpanic.
++	P,	"sys: trap: fault read addr",	// SIGRFAULT
++	P,	"sys: trap: fault write addr",	// SIGWFAULT
++
++	// We can also recover from math errors.
++	P,	"sys: trap: divide error",	// SIGINTDIV
++	P,	"sys: fp:",	// SIGFLOAT
++
++	// All other traps are normally handled as if they were marked SigThrow.
++	// We mark them SigPanic here so that debug.SetPanicOnFault will work.
++	P,	"sys: trap:",	// SIGTRAP
++
++	// Writes to a closed pipe can be handled if desired, otherwise they're ignored.
++	N,	"sys: write on closed pipe",
++
++	// Other system notes are more serious and cannot be recovered.
++	T,	"sys:",
++
++	// Issued to all other procs when calling runtime·exit.
++	E,	"go: exit ",
++
++	// Kill is sent by external programs to cause an exit.
++	K,	"kill",
++
++	// Interrupts can be handled if desired, otherwise they cause an exit.
++	N+K,	"interrupt",
++	N+K,	"hangup",
++
++	// Alarms can be handled if desired, otherwise they're ignored.
++	N,	"alarm",
+ };
+ 
+ #undef N
++#undef K
+ #undef T
+ #undef P
++#undef E
+diff --git a/src/pkg/runtime/string.goc b/src/pkg/runtime/string.goc
+index 8bdaf9d654..89b9130c08 100644
+--- a/src/pkg/runtime/string.goc
++++ b/src/pkg/runtime/string.goc
+@@ -236,6 +236,25 @@ runtime·strcmp(byte *s1, byte *s2)
+ 	}
+ }
+ 
++int32
++runtime·strncmp(byte *s1, byte *s2, uintptr n)
++{
++	uintptr i;
++	byte c1, c2;
++
++	for(i=0; i<n; i++) {
++		c1 = s1[i];
++		c2 = s2[i];
++		if(c1 < c2)
++			return -1;
++		if(c1 > c2)
++			return +1;
++		if(c1 == 0)
++			break;
++	}
++	return 0;
++}
++
+ byte*
+ runtime·strstr(byte *s1, byte *s2)
+ {

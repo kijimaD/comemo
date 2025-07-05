@@ -28,7 +28,7 @@ Date:   Sat Jan 27 11:55:34 2018 +0100
     Run-TryBot: Martin Möhrmann <moehrmann@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/amd64/ssa.go          |  13 ++-
  src/cmd/compile/internal/gc/ssa.go             |   8 ++
  src/cmd/compile/internal/ssa/gen/386.rules     |   5 +
@@ -42,3 +42,825 @@ Date:   Sat Jan 27 11:55:34 2018 +0100
  src/cmd/compile/internal/x86/ssa.go            |  13 ++-
  src/runtime/internal/math/math_test.go         |  28 +++++
  12 files changed, 459 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/ssa.go b/src/cmd/compile/internal/amd64/ssa.go
+index f12e4cb5ec..5b776170d7 100644
+--- a/src/cmd/compile/internal/amd64/ssa.go
++++ b/src/cmd/compile/internal/amd64/ssa.go
+@@ -315,6 +315,13 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 			m.To.Reg = x86.REG_DX
+ 		}
+ 
++	case ssa.OpAMD64MULQU, ssa.OpAMD64MULLU:
++		// Arg[0] is already in AX as it's the only register we allow
++		// results lo in AX
++		p := s.Prog(v.Op.Asm())
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = v.Args[1].Reg()
++
+ 	case ssa.OpAMD64MULQU2:
+ 		// Arg[0] is already in AX as it's the only register we allow
+ 		// results hi in DX, lo in AX
+@@ -979,7 +986,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		ssa.OpAMD64SETGF, ssa.OpAMD64SETGEF,
+ 		ssa.OpAMD64SETB, ssa.OpAMD64SETBE,
+ 		ssa.OpAMD64SETORD, ssa.OpAMD64SETNAN,
+-		ssa.OpAMD64SETA, ssa.OpAMD64SETAE:
++		ssa.OpAMD64SETA, ssa.OpAMD64SETAE,
++		ssa.OpAMD64SETO:
+ 		p := s.Prog(v.Op.Asm())
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg()
+@@ -1122,6 +1130,8 @@ var blockJump = [...]struct {
+ 	ssa.BlockAMD64GE:  {x86.AJGE, x86.AJLT},
+ 	ssa.BlockAMD64LE:  {x86.AJLE, x86.AJGT},
+ 	ssa.BlockAMD64GT:  {x86.AJGT, x86.AJLE},
++	ssa.BlockAMD64OS:  {x86.AJOS, x86.AJOC},
++	ssa.BlockAMD64OC:  {x86.AJOC, x86.AJOS},
+ 	ssa.BlockAMD64ULT: {x86.AJCS, x86.AJCC},
+ 	ssa.BlockAMD64UGE: {x86.AJCC, x86.AJCS},
+ 	ssa.BlockAMD64UGT: {x86.AJHI, x86.AJLS},
+@@ -1183,6 +1193,7 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
+ 	case ssa.BlockAMD64EQ, ssa.BlockAMD64NE,
+ 		ssa.BlockAMD64LT, ssa.BlockAMD64GE,
+ 		ssa.BlockAMD64LE, ssa.BlockAMD64GT,
++		ssa.BlockAMD64OS, ssa.BlockAMD64OC,
+ 		ssa.BlockAMD64ULT, ssa.BlockAMD64UGT,
+ 		ssa.BlockAMD64ULE, ssa.BlockAMD64UGE:
+ 		jmp := blockJump[b.Kind]
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index ca1c7df9a0..d3a30879db 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -2913,6 +2913,14 @@ func init() {
+ 			},
+ 			all...)
+ 	}
++	addF("runtime/internal/math", "MulUintptr",
++		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
++			if s.config.PtrSize == 4 {
++				return s.newValue2(ssa.OpMul32uover, types.NewTuple(types.Types[TUINT], types.Types[TUINT]), args[0], args[1])
++			}
++			return s.newValue2(ssa.OpMul64uover, types.NewTuple(types.Types[TUINT], types.Types[TUINT]), args[0], args[1])
++		},
++		sys.AMD64, sys.I386)
+ 	add("runtime", "KeepAlive",
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			data := s.newValue1(ssa.OpIData, s.f.Config.Types.BytePtr, args[0])
+diff --git a/src/cmd/compile/internal/ssa/gen/386.rules b/src/cmd/compile/internal/ssa/gen/386.rules
+index 7a6797bb09..e8d19cf3c9 100644
+--- a/src/cmd/compile/internal/ssa/gen/386.rules
++++ b/src/cmd/compile/internal/ssa/gen/386.rules
+@@ -17,6 +17,9 @@
+ (Mul(32|64)F x y) -> (MULS(S|D) x y)
+ (Mul32uhilo x y) -> (MULLQU x y)
+ 
++(Select0 (Mul32uover x y)) -> (Select0 <typ.UInt32> (MULLU x y))
++(Select1 (Mul32uover x y)) -> (SETO (Select1 <types.TypeFlags> (MULLU x y)))
++
+ (Avg32u x y) -> (AVGLU x y)
+ 
+ (Div32F x y) -> (DIVSS x y)
+@@ -369,6 +372,7 @@
+ (If (SETBE cmp) yes no) -> (ULE cmp yes no)
+ (If (SETA  cmp) yes no) -> (UGT cmp yes no)
+ (If (SETAE cmp) yes no) -> (UGE cmp yes no)
++(If (SETO  cmp) yes no) -> (OS cmp yes no)
+ 
+ // Special case for floating point - LF/LEF not generated
+ (If (SETGF  cmp) yes no) -> (UGT  cmp yes no)
+@@ -398,6 +402,7 @@
+ (NE (TESTB (SETBE cmp) (SETBE cmp)) yes no) -> (ULE cmp yes no)
+ (NE (TESTB (SETA  cmp) (SETA  cmp)) yes no) -> (UGT cmp yes no)
+ (NE (TESTB (SETAE cmp) (SETAE cmp)) yes no) -> (UGE cmp yes no)
++(NE (TESTB (SETO cmp) (SETO cmp)) yes no) -> (OS cmp yes no)
+ 
+ // Special case for floating point - LF/LEF not generated
+ (NE (TESTB (SETGF  cmp) (SETGF  cmp)) yes no) -> (UGT  cmp yes no)
+diff --git a/src/cmd/compile/internal/ssa/gen/386Ops.go b/src/cmd/compile/internal/ssa/gen/386Ops.go
+index f7e5f939ab..cb2919567f 100644
+--- a/src/cmd/compile/internal/ssa/gen/386Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/386Ops.go
+@@ -207,6 +207,8 @@ func init() {
+ 		{name: "MULL", argLength: 2, reg: gp21, asm: "IMULL", commutative: true, resultInArg0: true, clobberFlags: true}, // arg0 * arg1
+ 		{name: "MULLconst", argLength: 1, reg: gp11, asm: "IMUL3L", aux: "Int32", clobberFlags: true},                    // arg0 * auxint
+ 
++		{name: "MULLU", argLength: 2, reg: regInfo{inputs: []regMask{ax, gpsp}, outputs: []regMask{ax, 0}, clobbers: dx}, typ: "(UInt32,Flags)", asm: "MULL", commutative: true, clobberFlags: true}, // Let x = arg0*arg1 (full 32x32->64  unsigned multiply). Returns uint32(x), and flags set to overflow if uint32(x) != x.
++
+ 		{name: "HMULL", argLength: 2, reg: gp21hmul, commutative: true, asm: "IMULL", clobberFlags: true}, // (arg0 * arg1) >> width
+ 		{name: "HMULLU", argLength: 2, reg: gp21hmul, commutative: true, asm: "MULL", clobberFlags: true}, // (arg0 * arg1) >> width
+ 
+@@ -326,6 +328,7 @@ func init() {
+ 		{name: "SETBE", argLength: 1, reg: readflags, asm: "SETLS"}, // extract unsigned <= condition from arg0
+ 		{name: "SETA", argLength: 1, reg: readflags, asm: "SETHI"},  // extract unsigned > condition from arg0
+ 		{name: "SETAE", argLength: 1, reg: readflags, asm: "SETCC"}, // extract unsigned >= condition from arg0
++		{name: "SETO", argLength: 1, reg: readflags, asm: "SETOS"},  // extract if overflow flag is set from arg0
+ 		// Need different opcodes for floating point conditions because
+ 		// any comparison involving a NaN is always FALSE and thus
+ 		// the patterns for inverting conditions cannot be used.
+@@ -553,6 +556,8 @@ func init() {
+ 		{name: "LE"},
+ 		{name: "GT"},
+ 		{name: "GE"},
++		{name: "OS"},
++		{name: "OC"},
+ 		{name: "ULT"},
+ 		{name: "ULE"},
+ 		{name: "UGT"},
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index fa7f1438d6..adb94c3bfe 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -16,6 +16,10 @@
+ (Mul(64|32|16|8)  x y) -> (MUL(Q|L|L|L)  x y)
+ (Mul(32|64)F x y) -> (MULS(S|D) x y)
+ 
++(Select0 (Mul64uover x y)) -> (Select0 <typ.UInt64> (MULQU x y))
++(Select0 (Mul32uover x y)) -> (Select0 <typ.UInt32> (MULLU x y))
++(Select1 (Mul(64|32)uover x y)) -> (SETO (Select1 <types.TypeFlags> (MUL(Q|L)U x y)))
++
+ (Hmul(64|32)  x y) -> (HMUL(Q|L)  x y)
+ (Hmul(64|32)u x y) -> (HMUL(Q|L)U x y)
+ 
+@@ -480,6 +484,7 @@
+ (If (SETBE cmp) yes no) -> (ULE cmp yes no)
+ (If (SETA  cmp) yes no) -> (UGT cmp yes no)
+ (If (SETAE cmp) yes no) -> (UGE cmp yes no)
++(If (SETO cmp) yes no) -> (OS cmp yes no)
+ 
+ // Special case for floating point - LF/LEF not generated
+ (If (SETGF  cmp) yes no) -> (UGT  cmp yes no)
+@@ -542,6 +547,7 @@
+ (NE (TESTB (SETBE cmp) (SETBE cmp)) yes no) -> (ULE cmp yes no)
+ (NE (TESTB (SETA  cmp) (SETA  cmp)) yes no) -> (UGT cmp yes no)
+ (NE (TESTB (SETAE cmp) (SETAE cmp)) yes no) -> (UGE cmp yes no)
++(NE (TESTB (SETO cmp) (SETO cmp)) yes no) -> (OS cmp yes no)
+ 
+ // Recognize bit tests: a&(1<<b) != 0 for b suitably bounded
+ // Note that BTx instructions use the carry bit, so we need to convert tests for zero flag
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+index 017c07071d..cd6eb53460 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+@@ -210,6 +210,9 @@ func init() {
+ 		{name: "MULQconst", argLength: 1, reg: gp11, asm: "IMUL3Q", aux: "Int32", clobberFlags: true},                    // arg0 * auxint
+ 		{name: "MULLconst", argLength: 1, reg: gp11, asm: "IMUL3L", aux: "Int32", clobberFlags: true},                    // arg0 * auxint
+ 
++		{name: "MULLU", argLength: 2, reg: regInfo{inputs: []regMask{ax, gpsp}, outputs: []regMask{ax, 0}, clobbers: dx}, typ: "(UInt32,Flags)", asm: "MULL", commutative: true, clobberFlags: true}, // Let x = arg0*arg1 (full 32x32->64  unsigned multiply). Returns uint32(x), and flags set to overflow if uint32(x) != x.
++		{name: "MULQU", argLength: 2, reg: regInfo{inputs: []regMask{ax, gpsp}, outputs: []regMask{ax, 0}, clobbers: dx}, typ: "(UInt64,Flags)", asm: "MULQ", commutative: true, clobberFlags: true}, // Let x = arg0*arg1 (full 64x64->128 unsigned multiply). Returns uint64(x), and flags set to overflow if uint64(x) != x.
++
+ 		{name: "HMULQ", argLength: 2, reg: gp21hmul, commutative: true, asm: "IMULQ", clobberFlags: true}, // (arg0 * arg1) >> width
+ 		{name: "HMULL", argLength: 2, reg: gp21hmul, commutative: true, asm: "IMULL", clobberFlags: true}, // (arg0 * arg1) >> width
+ 		{name: "HMULQU", argLength: 2, reg: gp21hmul, commutative: true, asm: "MULQ", clobberFlags: true}, // (arg0 * arg1) >> width
+@@ -468,6 +471,7 @@ func init() {
+ 		{name: "SETBE", argLength: 1, reg: readflags, asm: "SETLS"}, // extract unsigned <= condition from arg0
+ 		{name: "SETA", argLength: 1, reg: readflags, asm: "SETHI"},  // extract unsigned > condition from arg0
+ 		{name: "SETAE", argLength: 1, reg: readflags, asm: "SETCC"}, // extract unsigned >= condition from arg0
++		{name: "SETO", argLength: 1, reg: readflags, asm: "SETOS"},  // extract if overflow flag is set from arg0
+ 		// Variants that store result to memory
+ 		{name: "SETEQstore", argLength: 3, reg: gpstoreconst, asm: "SETEQ", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // extract == condition from arg1 to arg0+auxint+aux, arg2=mem
+ 		{name: "SETNEstore", argLength: 3, reg: gpstoreconst, asm: "SETNE", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // extract != condition from arg1 to arg0+auxint+aux, arg2=mem
+@@ -754,6 +758,8 @@ func init() {
+ 		{name: "LE"},
+ 		{name: "GT"},
+ 		{name: "GE"},
++		{name: "OS"},
++		{name: "OC"},
+ 		{name: "ULT"},
+ 		{name: "ULE"},
+ 		{name: "UGT"},
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index ee9c6fa0f6..58f1b5bf79 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -55,6 +55,9 @@ var genericOps = []opData{
+ 	{name: "Mul32uhilo", argLength: 2, typ: "(UInt32,UInt32)", commutative: true}, // arg0 * arg1, returns (hi, lo)
+ 	{name: "Mul64uhilo", argLength: 2, typ: "(UInt64,UInt64)", commutative: true}, // arg0 * arg1, returns (hi, lo)
+ 
++	{name: "Mul32uover", argLength: 2, typ: "(UInt32,Bool)", commutative: true}, // Let x = arg0*arg1 (full 32x32-> 64 unsigned multiply), returns (uint32(x), (uint32(x) != x))
++	{name: "Mul64uover", argLength: 2, typ: "(UInt64,Bool)", commutative: true}, // Let x = arg0*arg1 (full 64x64->128 unsigned multiply), returns (uint64(x), (uint64(x) != x))
++
+ 	// Weird special instructions for use in the strength reduction of divides.
+ 	// These ops compute unsigned (arg0 + arg1) / 2, correct to all
+ 	// 32/64 bits, even when the intermediate result of the add has 33/65 bits.
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index ae04e25798..082b6e1ba7 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -22,6 +22,8 @@ const (
+ 	Block386LE
+ 	Block386GT
+ 	Block386GE
++	Block386OS
++	Block386OC
+ 	Block386ULT
+ 	Block386ULE
+ 	Block386UGT
+@@ -37,6 +39,8 @@ const (
+ 	BlockAMD64LE
+ 	BlockAMD64GT
+ 	BlockAMD64GE
++	BlockAMD64OS
++	BlockAMD64OC
+ 	BlockAMD64ULT
+ 	BlockAMD64ULE
+ 	BlockAMD64UGT
+@@ -130,6 +134,8 @@ var blockString = [...]string{
+ 	Block386LE:  "LE",
+ 	Block386GT:  "GT",
+ 	Block386GE:  "GE",
++	Block386OS:  "OS",
++	Block386OC:  "OC",
+ 	Block386ULT: "ULT",
+ 	Block386ULE: "ULE",
+ 	Block386UGT: "UGT",
+@@ -145,6 +151,8 @@ var blockString = [...]string{
+ 	BlockAMD64LE:  "LE",
+ 	BlockAMD64GT:  "GT",
+ 	BlockAMD64GE:  "GE",
++	BlockAMD64OS:  "OS",
++	BlockAMD64OC:  "OC",
+ 	BlockAMD64ULT: "ULT",
+ 	BlockAMD64ULE: "ULE",
+ 	BlockAMD64UGT: "UGT",
+@@ -278,6 +286,7 @@ const (
+ 	Op386SBBLconst
+ 	Op386MULL
+ 	Op386MULLconst
++	Op386MULLU
+ 	Op386HMULL
+ 	Op386HMULLU
+ 	Op386MULLQU
+@@ -364,6 +373,7 @@ const (
+ 	Op386SETBE
+ 	Op386SETA
+ 	Op386SETAE
++	Op386SETO
+ 	Op386SETEQF
+ 	Op386SETNEF
+ 	Op386SETORD
+@@ -500,6 +510,8 @@ const (
+ 	OpAMD64MULL
+ 	OpAMD64MULQconst
+ 	OpAMD64MULLconst
++	OpAMD64MULLU
++	OpAMD64MULQU
+ 	OpAMD64HMULQ
+ 	OpAMD64HMULL
+ 	OpAMD64HMULQU
+@@ -705,6 +717,7 @@ const (
+ 	OpAMD64SETBE
+ 	OpAMD64SETA
+ 	OpAMD64SETAE
++	OpAMD64SETO
+ 	OpAMD64SETEQstore
+ 	OpAMD64SETNEstore
+ 	OpAMD64SETLstore
+@@ -2083,6 +2096,8 @@ const (
+ 	OpHmul64u
+ 	OpMul32uhilo
+ 	OpMul64uhilo
++	OpMul32uover
++	OpMul64uover
+ 	OpAvg32u
+ 	OpAvg64u
+ 	OpDiv8
+@@ -3114,6 +3129,24 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:         "MULLU",
++		argLen:       2,
++		commutative:  true,
++		clobberFlags: true,
++		asm:          x86.AMULL,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1},   // AX
++				{1, 255}, // AX CX DX BX SP BP SI DI
++			},
++			clobbers: 4, // DX
++			outputs: []outputInfo{
++				{1, 0},
++				{0, 1}, // AX
++			},
++		},
++	},
+ 	{
+ 		name:         "HMULL",
+ 		argLen:       2,
+@@ -4378,6 +4411,16 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:   "SETO",
++		argLen: 1,
++		asm:    x86.ASETOS,
++		reg: regInfo{
++			outputs: []outputInfo{
++				{0, 239}, // AX CX DX BX BP SI DI
++			},
++		},
++	},
+ 	{
+ 		name:         "SETEQF",
+ 		argLen:       1,
+@@ -6271,6 +6314,42 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:         "MULLU",
++		argLen:       2,
++		commutative:  true,
++		clobberFlags: true,
++		asm:          x86.AMULL,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1},     // AX
++				{1, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++			},
++			clobbers: 4, // DX
++			outputs: []outputInfo{
++				{1, 0},
++				{0, 1}, // AX
++			},
++		},
++	},
++	{
++		name:         "MULQU",
++		argLen:       2,
++		commutative:  true,
++		clobberFlags: true,
++		asm:          x86.AMULQ,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1},     // AX
++				{1, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++			},
++			clobbers: 4, // DX
++			outputs: []outputInfo{
++				{1, 0},
++				{0, 1}, // AX
++			},
++		},
++	},
+ 	{
+ 		name:         "HMULQ",
+ 		argLen:       2,
+@@ -9293,6 +9372,16 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:   "SETO",
++		argLen: 1,
++		asm:    x86.ASETOS,
++		reg: regInfo{
++			outputs: []outputInfo{
++				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++			},
++		},
++	},
+ 	{
+ 		name:           "SETEQstore",
+ 		auxType:        auxSymOff,
+@@ -27899,6 +27988,18 @@ var opcodeTable = [...]opInfo{
+ 		commutative: true,
+ 		generic:     true,
+ 	},
++	{
++		name:        "Mul32uover",
++		argLen:      2,
++		commutative: true,
++		generic:     true,
++	},
++	{
++		name:        "Mul64uover",
++		argLen:      2,
++		commutative: true,
++		generic:     true,
++	},
+ 	{
+ 		name:    "Avg32u",
+ 		argLen:  2,
+diff --git a/src/cmd/compile/internal/ssa/rewrite386.go b/src/cmd/compile/internal/ssa/rewrite386.go
+index 9b2ec74a9d..14784bef3a 100644
+--- a/src/cmd/compile/internal/ssa/rewrite386.go
++++ b/src/cmd/compile/internal/ssa/rewrite386.go
+@@ -637,6 +637,10 @@ func rewriteValue386(v *Value) bool {
+ 		return rewriteValue386_OpRsh8x64_0(v)
+ 	case OpRsh8x8:
+ 		return rewriteValue386_OpRsh8x8_0(v)
++	case OpSelect0:
++		return rewriteValue386_OpSelect0_0(v)
++	case OpSelect1:
++		return rewriteValue386_OpSelect1_0(v)
+ 	case OpSignExt16to32:
+ 		return rewriteValue386_OpSignExt16to32_0(v)
+ 	case OpSignExt8to16:
+@@ -23707,6 +23711,59 @@ func rewriteValue386_OpRsh8x8_0(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValue386_OpSelect0_0(v *Value) bool {
++	b := v.Block
++	_ = b
++	typ := &b.Func.Config.Types
++	_ = typ
++	// match: (Select0 (Mul32uover x y))
++	// cond:
++	// result: (Select0 <typ.UInt32> (MULLU x y))
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpMul32uover {
++			break
++		}
++		_ = v_0.Args[1]
++		x := v_0.Args[0]
++		y := v_0.Args[1]
++		v.reset(OpSelect0)
++		v.Type = typ.UInt32
++		v0 := b.NewValue0(v.Pos, Op386MULLU, types.NewTuple(typ.UInt32, types.TypeFlags))
++		v0.AddArg(x)
++		v0.AddArg(y)
++		v.AddArg(v0)
++		return true
++	}
++	return false
++}
++func rewriteValue386_OpSelect1_0(v *Value) bool {
++	b := v.Block
++	_ = b
++	typ := &b.Func.Config.Types
++	_ = typ
++	// match: (Select1 (Mul32uover x y))
++	// cond:
++	// result: (SETO (Select1 <types.TypeFlags> (MULLU x y)))
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpMul32uover {
++			break
++		}
++		_ = v_0.Args[1]
++		x := v_0.Args[0]
++		y := v_0.Args[1]
++		v.reset(Op386SETO)
++		v0 := b.NewValue0(v.Pos, OpSelect1, types.TypeFlags)
++		v1 := b.NewValue0(v.Pos, Op386MULLU, types.NewTuple(typ.UInt32, types.TypeFlags))
++		v1.AddArg(x)
++		v1.AddArg(y)
++		v0.AddArg(v1)
++		v.AddArg(v0)
++		return true
++	}
++	return false
++}
+ func rewriteValue386_OpSignExt16to32_0(v *Value) bool {
+ 	// match: (SignExt16to32 x)
+ 	// cond:
+@@ -24845,6 +24902,20 @@ func rewriteBlock386(b *Block) bool {
+ 			b.Aux = nil
+ 			return true
+ 		}
++		// match: (If (SETO cmp) yes no)
++		// cond:
++		// result: (OS cmp yes no)
++		for {
++			v := b.Control
++			if v.Op != Op386SETO {
++				break
++			}
++			cmp := v.Args[0]
++			b.Kind = Block386OS
++			b.SetControl(cmp)
++			b.Aux = nil
++			return true
++		}
+ 		// match: (If (SETGF cmp) yes no)
+ 		// cond:
+ 		// result: (UGT cmp yes no)
+@@ -25602,6 +25673,58 @@ func rewriteBlock386(b *Block) bool {
+ 			b.Aux = nil
+ 			return true
+ 		}
++		// match: (NE (TESTB (SETO cmp) (SETO cmp)) yes no)
++		// cond:
++		// result: (OS cmp yes no)
++		for {
++			v := b.Control
++			if v.Op != Op386TESTB {
++				break
++			}
++			_ = v.Args[1]
++			v_0 := v.Args[0]
++			if v_0.Op != Op386SETO {
++				break
++			}
++			cmp := v_0.Args[0]
++			v_1 := v.Args[1]
++			if v_1.Op != Op386SETO {
++				break
++			}
++			if cmp != v_1.Args[0] {
++				break
++			}
++			b.Kind = Block386OS
++			b.SetControl(cmp)
++			b.Aux = nil
++			return true
++		}
++		// match: (NE (TESTB (SETO cmp) (SETO cmp)) yes no)
++		// cond:
++		// result: (OS cmp yes no)
++		for {
++			v := b.Control
++			if v.Op != Op386TESTB {
++				break
++			}
++			_ = v.Args[1]
++			v_0 := v.Args[0]
++			if v_0.Op != Op386SETO {
++				break
++			}
++			cmp := v_0.Args[0]
++			v_1 := v.Args[1]
++			if v_1.Op != Op386SETO {
++				break
++			}
++			if cmp != v_1.Args[0] {
++				break
++			}
++			b.Kind = Block386OS
++			b.SetControl(cmp)
++			b.Aux = nil
++			return true
++		}
+ 		// match: (NE (TESTB (SETGF cmp) (SETGF cmp)) yes no)
+ 		// cond:
+ 		// result: (UGT cmp yes no)
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index e89ed9edb6..254c40a4ea 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -64552,6 +64552,46 @@ func rewriteValueAMD64_OpRsh8x8_0(v *Value) bool {
+ func rewriteValueAMD64_OpSelect0_0(v *Value) bool {
+ 	b := v.Block
+ 	_ = b
++	typ := &b.Func.Config.Types
++	_ = typ
++	// match: (Select0 (Mul64uover x y))
++	// cond:
++	// result: (Select0 <typ.UInt64> (MULQU x y))
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpMul64uover {
++			break
++		}
++		_ = v_0.Args[1]
++		x := v_0.Args[0]
++		y := v_0.Args[1]
++		v.reset(OpSelect0)
++		v.Type = typ.UInt64
++		v0 := b.NewValue0(v.Pos, OpAMD64MULQU, types.NewTuple(typ.UInt64, types.TypeFlags))
++		v0.AddArg(x)
++		v0.AddArg(y)
++		v.AddArg(v0)
++		return true
++	}
++	// match: (Select0 (Mul32uover x y))
++	// cond:
++	// result: (Select0 <typ.UInt32> (MULLU x y))
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpMul32uover {
++			break
++		}
++		_ = v_0.Args[1]
++		x := v_0.Args[0]
++		y := v_0.Args[1]
++		v.reset(OpSelect0)
++		v.Type = typ.UInt32
++		v0 := b.NewValue0(v.Pos, OpAMD64MULLU, types.NewTuple(typ.UInt32, types.TypeFlags))
++		v0.AddArg(x)
++		v0.AddArg(y)
++		v.AddArg(v0)
++		return true
++	}
+ 	// match: (Select0 <t> (AddTupleFirst32 val tuple))
+ 	// cond:
+ 	// result: (ADDL val (Select0 <t> tuple))
+@@ -64593,6 +64633,50 @@ func rewriteValueAMD64_OpSelect0_0(v *Value) bool {
+ 	return false
+ }
+ func rewriteValueAMD64_OpSelect1_0(v *Value) bool {
++	b := v.Block
++	_ = b
++	typ := &b.Func.Config.Types
++	_ = typ
++	// match: (Select1 (Mul64uover x y))
++	// cond:
++	// result: (SETO (Select1 <types.TypeFlags> (MULQU x y)))
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpMul64uover {
++			break
++		}
++		_ = v_0.Args[1]
++		x := v_0.Args[0]
++		y := v_0.Args[1]
++		v.reset(OpAMD64SETO)
++		v0 := b.NewValue0(v.Pos, OpSelect1, types.TypeFlags)
++		v1 := b.NewValue0(v.Pos, OpAMD64MULQU, types.NewTuple(typ.UInt64, types.TypeFlags))
++		v1.AddArg(x)
++		v1.AddArg(y)
++		v0.AddArg(v1)
++		v.AddArg(v0)
++		return true
++	}
++	// match: (Select1 (Mul32uover x y))
++	// cond:
++	// result: (SETO (Select1 <types.TypeFlags> (MULLU x y)))
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpMul32uover {
++			break
++		}
++		_ = v_0.Args[1]
++		x := v_0.Args[0]
++		y := v_0.Args[1]
++		v.reset(OpAMD64SETO)
++		v0 := b.NewValue0(v.Pos, OpSelect1, types.TypeFlags)
++		v1 := b.NewValue0(v.Pos, OpAMD64MULLU, types.NewTuple(typ.UInt32, types.TypeFlags))
++		v1.AddArg(x)
++		v1.AddArg(y)
++		v0.AddArg(v1)
++		v.AddArg(v0)
++		return true
++	}
+ 	// match: (Select1 (AddTupleFirst32 _ tuple))
+ 	// cond:
+ 	// result: (Select1 tuple)
+@@ -66757,6 +66841,20 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			b.Aux = nil
+ 			return true
+ 		}
++		// match: (If (SETO cmp) yes no)
++		// cond:
++		// result: (OS cmp yes no)
++		for {
++			v := b.Control
++			if v.Op != OpAMD64SETO {
++				break
++			}
++			cmp := v.Args[0]
++			b.Kind = BlockAMD64OS
++			b.SetControl(cmp)
++			b.Aux = nil
++			return true
++		}
+ 		// match: (If (SETGF cmp) yes no)
+ 		// cond:
+ 		// result: (UGT cmp yes no)
+@@ -67514,6 +67612,58 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			b.Aux = nil
+ 			return true
+ 		}
++		// match: (NE (TESTB (SETO cmp) (SETO cmp)) yes no)
++		// cond:
++		// result: (OS cmp yes no)
++		for {
++			v := b.Control
++			if v.Op != OpAMD64TESTB {
++				break
++			}
++			_ = v.Args[1]
++			v_0 := v.Args[0]
++			if v_0.Op != OpAMD64SETO {
++				break
++			}
++			cmp := v_0.Args[0]
++			v_1 := v.Args[1]
++			if v_1.Op != OpAMD64SETO {
++				break
++			}
++			if cmp != v_1.Args[0] {
++				break
++			}
++			b.Kind = BlockAMD64OS
++			b.SetControl(cmp)
++			b.Aux = nil
++			return true
++		}
++		// match: (NE (TESTB (SETO cmp) (SETO cmp)) yes no)
++		// cond:
++		// result: (OS cmp yes no)
++		for {
++			v := b.Control
++			if v.Op != OpAMD64TESTB {
++				break
++			}
++			_ = v.Args[1]
++			v_0 := v.Args[0]
++			if v_0.Op != OpAMD64SETO {
++				break
++			}
++			cmp := v_0.Args[0]
++			v_1 := v.Args[1]
++			if v_1.Op != OpAMD64SETO {
++				break
++			}
++			if cmp != v_1.Args[0] {
++				break
++			}
++			b.Kind = BlockAMD64OS
++			b.SetControl(cmp)
++			b.Aux = nil
++			return true
++		}
+ 		// match: (NE (TESTL (SHLL (MOVLconst [1]) x) y))
+ 		// cond: !config.nacl
+ 		// result: (ULT (BTL x y))
+diff --git a/src/cmd/compile/internal/x86/ssa.go b/src/cmd/compile/internal/x86/ssa.go
+index e0aebb449c..8a6f015854 100644
+--- a/src/cmd/compile/internal/x86/ssa.go
++++ b/src/cmd/compile/internal/x86/ssa.go
+@@ -278,6 +278,13 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 			m.To.Reg = x86.REG_DX
+ 		}
+ 
++	case ssa.Op386MULLU:
++		// Arg[0] is already in AX as it's the only register we allow
++		// results lo in AX
++		p := s.Prog(v.Op.Asm())
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = v.Args[1].Reg()
++
+ 	case ssa.Op386MULLQU:
+ 		// AX * args[1], high 32 bits in DX (result[0]), low 32 bits in AX (result[1]).
+ 		p := s.Prog(v.Op.Asm())
+@@ -770,7 +777,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		ssa.Op386SETGF, ssa.Op386SETGEF,
+ 		ssa.Op386SETB, ssa.Op386SETBE,
+ 		ssa.Op386SETORD, ssa.Op386SETNAN,
+-		ssa.Op386SETA, ssa.Op386SETAE:
++		ssa.Op386SETA, ssa.Op386SETAE,
++		ssa.Op386SETO:
+ 		p := s.Prog(v.Op.Asm())
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg()
+@@ -842,6 +850,8 @@ var blockJump = [...]struct {
+ 	ssa.Block386GE:  {x86.AJGE, x86.AJLT},
+ 	ssa.Block386LE:  {x86.AJLE, x86.AJGT},
+ 	ssa.Block386GT:  {x86.AJGT, x86.AJLE},
++	ssa.Block386OS:  {x86.AJOS, x86.AJOC},
++	ssa.Block386OC:  {x86.AJOC, x86.AJOS},
+ 	ssa.Block386ULT: {x86.AJCS, x86.AJCC},
+ 	ssa.Block386UGE: {x86.AJCC, x86.AJCS},
+ 	ssa.Block386UGT: {x86.AJHI, x86.AJLS},
+@@ -903,6 +913,7 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
+ 	case ssa.Block386EQ, ssa.Block386NE,
+ 		ssa.Block386LT, ssa.Block386GE,
+ 		ssa.Block386LE, ssa.Block386GT,
++		ssa.Block386OS, ssa.Block386OC,
+ 		ssa.Block386ULT, ssa.Block386UGT,
+ 		ssa.Block386ULE, ssa.Block386UGE:
+ 		jmp := blockJump[b.Kind]
+diff --git a/src/runtime/internal/math/math_test.go b/src/runtime/internal/math/math_test.go
+index 9447bd23f9..303eb63405 100644
+--- a/src/runtime/internal/math/math_test.go
++++ b/src/runtime/internal/math/math_test.go
+@@ -49,3 +49,31 @@ func TestMulUintptr(t *testing.T) {
+ 		}
+ 	}
+ }
++
++var SinkUintptr uintptr
++var SinkBool bool
++
++var x, y uintptr
++
++func BenchmarkMulUintptr(b *testing.B) {
++	x, y = 1, 2
++	b.Run("small", func(b *testing.B) {
++		for i := 0; i < b.N; i++ {
++			var overflow bool
++			SinkUintptr, overflow = MulUintptr(x, y)
++			if overflow {
++				SinkUintptr = 0
++			}
++		}
++	})
++	x, y = MaxUintptr, MaxUintptr-1
++	b.Run("large", func(b *testing.B) {
++		for i := 0; i < b.N; i++ {
++			var overflow bool
++			SinkUintptr, overflow = MulUintptr(x, y)
++			if overflow {
++				SinkUintptr = 0
++			}
++		}
++	})
++}

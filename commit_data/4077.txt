@@ -9,6 +9,20 @@ Date:   Mon Nov 16 15:39:04 2009 -0800
     R=r
     CC=golang-dev
     https://golang.org/cl/155072
-
+---
  src/pkg/unsafe/unsafe.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/unsafe/unsafe.go b/src/pkg/unsafe/unsafe.go
+index a766e546a4..d55aa2446d 100644
+--- a/src/pkg/unsafe/unsafe.go
++++ b/src/pkg/unsafe/unsafe.go
+@@ -30,7 +30,7 @@ func Sizeof(v ArbitraryType) int
+ // number of bytes between the start of the struct and the start of the field.
+ func Offsetof(v ArbitraryType) int
+ 
+-// Alignof returns the alignment of the value v.  It is the minimum value m such
++// Alignof returns the alignment of the value v.  It is the maximum value m such
+ // that the address of a variable with the type of v will always always be zero mod m.
+ // If v is of the form obj.f, it returns the alignment of field f within struct object obj.
+ func Alignof(v ArbitraryType) int

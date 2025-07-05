@@ -12,7 +12,7 @@ Date:   Wed May 27 10:40:47 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/10533
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/arm/cgen64.go | 6 +++---
  src/cmd/compile/internal/arm/ggen.go   | 4 ++--
  src/cmd/compile/internal/arm/gsubr.go  | 2 +-
@@ -23,3 +23,203 @@ Date:   Wed May 27 10:40:47 2015 -0400
  src/cmd/internal/obj/ppc64/asm9.go     | 6 +++---
  src/cmd/internal/obj/x86/asm6.go       | 6 +++---
  9 files changed, 19 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/compile/internal/arm/cgen64.go b/src/cmd/compile/internal/arm/cgen64.go
+index 6c88b76e20..cc969b8414 100644
+--- a/src/cmd/compile/internal/arm/cgen64.go
++++ b/src/cmd/compile/internal/arm/cgen64.go
+@@ -194,7 +194,7 @@ func cgen64(n *gc.Node, res *gc.Node) {
+ 		p1.To.Reg = ah.Reg
+ 		p1.To.Offset = int64(al.Reg)
+ 
+-		//print("%P\n", p1);
++		//print("%v\n", p1);
+ 
+ 		// bl * ch + ah -> ah
+ 		p1 = gins(arm.AMULA, nil, nil)
+@@ -206,7 +206,7 @@ func cgen64(n *gc.Node, res *gc.Node) {
+ 		p1.To.Reg = ah.Reg
+ 		p1.To.Offset = int64(ah.Reg)
+ 
+-		//print("%P\n", p1);
++		//print("%v\n", p1);
+ 
+ 		// bh * cl + ah -> ah
+ 		p1 = gins(arm.AMULA, nil, nil)
+@@ -218,7 +218,7 @@ func cgen64(n *gc.Node, res *gc.Node) {
+ 		p1.To.Reg = ah.Reg
+ 		p1.To.Offset = int64(ah.Reg)
+ 
+-		//print("%P\n", p1);
++		//print("%v\n", p1);
+ 
+ 		gc.Regfree(&bh)
+ 
+diff --git a/src/cmd/compile/internal/arm/ggen.go b/src/cmd/compile/internal/arm/ggen.go
+index 6633351032..2d19d750ef 100644
+--- a/src/cmd/compile/internal/arm/ggen.go
++++ b/src/cmd/compile/internal/arm/ggen.go
+@@ -395,7 +395,7 @@ func clearfat(nl *gc.Node) {
+ 			p.To.Offset = 4
+ 			p.Scond |= arm.C_PBIT
+ 
+-			//print("1. %P\n", p);
++			//print("1. %v\n", p);
+ 			q--
+ 		}
+ 	}
+@@ -407,7 +407,7 @@ func clearfat(nl *gc.Node) {
+ 		p.To.Offset = 1
+ 		p.Scond |= arm.C_PBIT
+ 
+-		//print("2. %P\n", p);
++		//print("2. %v\n", p);
+ 		c--
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/arm/gsubr.go b/src/cmd/compile/internal/arm/gsubr.go
+index 5263f15ac2..a0a7ba223d 100644
+--- a/src/cmd/compile/internal/arm/gsubr.go
++++ b/src/cmd/compile/internal/arm/gsubr.go
+@@ -402,7 +402,7 @@ func gmove(f *gc.Node, t *gc.Node) {
+ 		p1.From.Offset = 2<<5 | 31<<7 | int64(r1.Reg)&15 // r1->31
+ 		p1.From.Reg = 0
+ 
+-		//print("gmove: %P\n", p1);
++		//print("gmove: %v\n", p1);
+ 		gins(arm.AMOVW, &r1, &tlo)
+ 
+ 		gins(arm.AMOVW, &r2, &thi)
+diff --git a/src/cmd/compile/internal/gc/popt.go b/src/cmd/compile/internal/gc/popt.go
+index ce904e155b..b47a1dea3a 100644
+--- a/src/cmd/compile/internal/gc/popt.go
++++ b/src/cmd/compile/internal/gc/popt.go
+@@ -313,7 +313,7 @@ func Flowstart(firstp *obj.Prog, newData func() interface{}) *Graph {
+ 				Fatal("fnil %v / %v", p, p.To.Val.(*obj.Prog))
+ 			}
+ 			if f1 == f {
+-				//fatal("self loop %P", p);
++				//fatal("self loop %v", p);
+ 				continue
+ 			}
+ 
+@@ -1026,10 +1026,10 @@ for(f1 = f0; f1 != nil; f1 = f1->p1) {
+ 	}
+ 
+ 	if(f1->p1 == nil && f1->p2 == nil) {
+-		print("lost pred for %P\n", fcheck->prog);
++		print("lost pred for %v\n", fcheck->prog);
+ 		for(f1=f0; f1!=nil; f1=f1->p1) {
+ 			thearch.proginfo(&info, f1->prog);
+-			print("\t%P %d %d %D %D\n", r1->prog, info.flags&RightWrite, thearch.sameaddr(&f1->prog->to, &fcheck->prog->from), &f1->prog->to, &fcheck->prog->from);
++			print("\t%v %d %d %D %D\n", r1->prog, info.flags&RightWrite, thearch.sameaddr(&f1->prog->to, &fcheck->prog->from), &f1->prog->to, &fcheck->prog->from);
+ 		}
+ 		fatal("lost pred trail");
+ 	}
+diff --git a/src/cmd/internal/obj/arm/asm5.go b/src/cmd/internal/obj/arm/asm5.go
+index bda1a79f0e..75977ab45e 100644
+--- a/src/cmd/internal/obj/arm/asm5.go
++++ b/src/cmd/internal/obj/arm/asm5.go
+@@ -720,7 +720,7 @@ func span5(ctxt *obj.Link, cursym *obj.LSym) {
+ 				bflag = 1
+ 			}
+ 
+-			//print("%P pc changed %d to %d in iter. %d\n", p, opc, (int32)p->pc, times);
++			//print("%v pc changed %d to %d in iter. %d\n", p, opc, (int32)p->pc, times);
+ 			c = int32(p.Pc + int64(m))
+ 
+ 			if m%4 != 0 || p.Pc%4 != 0 {
+diff --git a/src/cmd/internal/obj/data.go b/src/cmd/internal/obj/data.go
+index 2037af4398..6e01e6e370 100644
+--- a/src/cmd/internal/obj/data.go
++++ b/src/cmd/internal/obj/data.go
+@@ -61,13 +61,13 @@ func savedata(ctxt *Link, s *LSym, p *Prog, pn string) {
+ 		mangle(pn)
+ 	}
+ 	if ctxt.Enforce_data_order != 0 && off < int32(len(s.P)) {
+-		ctxt.Diag("data out of order (already have %d)\n%P", len(s.P), p)
++		ctxt.Diag("data out of order (already have %d)\n%v", len(s.P), p)
+ 	}
+ 	Symgrow(ctxt, s, int64(off+siz))
+ 
+ 	switch int(p.To.Type) {
+ 	default:
+-		ctxt.Diag("bad data: %P", p)
++		ctxt.Diag("bad data: %v", p)
+ 
+ 	case TYPE_FCONST:
+ 		switch siz {
+diff --git a/src/cmd/internal/obj/pcln.go b/src/cmd/internal/obj/pcln.go
+index 13bb1cd85c..91c9293bb2 100644
+--- a/src/cmd/internal/obj/pcln.go
++++ b/src/cmd/internal/obj/pcln.go
+@@ -147,7 +147,7 @@ func pctofileline(ctxt *Link, sym *LSym, oldval int32, p *Prog, phase int32, arg
+ 	var f *LSym
+ 	linkgetline(ctxt, p.Lineno, &f, &l)
+ 	if f == nil {
+-		//	print("getline failed for %s %P\n", ctxt->cursym->name, p);
++		//	print("getline failed for %s %v\n", ctxt->cursym->name, p);
+ 		return oldval
+ 	}
+ 
+diff --git a/src/cmd/internal/obj/ppc64/asm9.go b/src/cmd/internal/obj/ppc64/asm9.go
+index b9f5ad378f..2955a0023d 100644
+--- a/src/cmd/internal/obj/ppc64/asm9.go
++++ b/src/cmd/internal/obj/ppc64/asm9.go
+@@ -746,7 +746,7 @@ func oplook(ctxt *obj.Link, p *obj.Prog) *Optab {
+ 		a2 = C_REG
+ 	}
+ 
+-	//print("oplook %P %d %d %d %d\n", p, a1, a2, a3, a4);
++	//print("oplook %v %d %d %d %d\n", p, a1, a2, a3, a4);
+ 	r0 := p.As & obj.AMask
+ 
+ 	o := oprange[r0].start
+@@ -1488,7 +1488,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
+ 	o4 := uint32(0)
+ 	o5 := uint32(0)
+ 
+-	//print("%P => case %d\n", p, o->type);
++	//print("%v => case %d\n", p, o->type);
+ 	switch o.type_ {
+ 	default:
+ 		ctxt.Diag("unknown type %d", o.type_)
+@@ -2190,7 +2190,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
+ 			 * qc has already complained.
+ 			 *
+ 			if(v < 0 || v > 31)
+-				ctxt->diag("illegal shift %ld\n%P", v, p);
++				ctxt->diag("illegal shift %ld\n%v", v, p);
+ 		*/
+ 		if v < 0 {
+ 			v = 0
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index 2afc4596e9..7a69dc8414 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -3301,7 +3301,7 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
+ 				l = int(v >> 32)
+ 				if l == 0 && rel.Siz != 8 {
+ 					//p->mark |= 0100;
+-					//print("zero: %llux %P\n", v, p);
++					//print("zero: %llux %v\n", v, p);
+ 					ctxt.Rexflag &^= (0x40 | Rxw)
+ 
+ 					ctxt.Rexflag |= regrex[p.To.Reg] & Rxb
+@@ -3317,14 +3317,14 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
+ 				} else if l == -1 && uint64(v)&(uint64(1)<<31) != 0 { /* sign extend */
+ 
+ 					//p->mark |= 0100;
+-					//print("sign: %llux %P\n", v, p);
++					//print("sign: %llux %v\n", v, p);
+ 					ctxt.Andptr[0] = 0xc7
+ 					ctxt.Andptr = ctxt.Andptr[1:]
+ 
+ 					asmando(ctxt, p, &p.To, 0)
+ 					put4(ctxt, int32(v)) /* need all 8 */
+ 				} else {
+-					//print("all: %llux %P\n", v, p);
++					//print("all: %llux %v\n", v, p);
+ 					ctxt.Rexflag |= regrex[p.To.Reg] & Rxb
+ 
+ 					ctxt.Andptr[0] = byte(op + reg[p.To.Reg])

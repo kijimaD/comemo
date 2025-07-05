@@ -9,6 +9,20 @@ Date:   Mon Nov 19 08:25:51 2012 -0800
     R=golang-dev, mattn.jp
     CC=golang-dev
     https://golang.org/cl/6853067
-
+---
  src/pkg/net/http/cgi/testdata/test.cgi | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/pkg/net/http/cgi/testdata/test.cgi b/src/pkg/net/http/cgi/testdata/test.cgi
+index b46b1330f3..d74a70239b 100755
+--- a/src/pkg/net/http/cgi/testdata/test.cgi
++++ b/src/pkg/net/http/cgi/testdata/test.cgi
+@@ -8,6 +8,8 @@
+ use strict;
+ use Cwd;
+ 
++binmode STDOUT;
++
+ my $q = MiniCGI->new;
+ my $params = $q->Vars;
+ 

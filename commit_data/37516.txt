@@ -10,6 +10,18 @@ Date:   Thu Aug 9 17:38:32 2018 -0400
     Reviewed-on: https://go-review.googlesource.com/128879
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/testdata/script/mod_patterns.txt | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/cmd/go/testdata/script/mod_patterns.txt b/src/cmd/go/testdata/script/mod_patterns.txt
+index 2ce5766a87..e051d819b4 100644
+--- a/src/cmd/go/testdata/script/mod_patterns.txt
++++ b/src/cmd/go/testdata/script/mod_patterns.txt
+@@ -1,3 +1,6 @@
++# Broken on nocgo builders: https://golang.org/issue/26906
++[!cgo] skip
++
+ env GO111MODULE=on
+ 
+ cd m

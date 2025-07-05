@@ -15,9 +15,76 @@ Date:   Sun Aug 21 17:08:04 2016 +0200
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/bimport.go |  5 +++++
  test/fixedbugs/issue16317.dir/a.go     | 11 +++++++++++
  test/fixedbugs/issue16317.dir/b.go     | 11 +++++++++++
  test/fixedbugs/issue16317.go           | 10 ++++++++++
  4 files changed, 37 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/bimport.go b/src/cmd/compile/internal/gc/bimport.go
+index 2f724861f6..dfe102b78a 100644
+--- a/src/cmd/compile/internal/gc/bimport.go
++++ b/src/cmd/compile/internal/gc/bimport.go
+@@ -807,6 +807,11 @@ func (p *importer) node() *Node {
+ 		typ := p.typ()
+ 		n := nodlit(p.value(typ))
+ 		if !typ.IsUntyped() {
++			if typ.IsUnsafePtr() {
++				conv := Nod(OCALL, typenod(Types[TUINTPTR]), nil)
++				conv.List.Set1(n)
++				n = conv
++			}
+ 			conv := Nod(OCALL, typenod(typ), nil)
+ 			conv.List.Set1(n)
+ 			n = conv
+diff --git a/test/fixedbugs/issue16317.dir/a.go b/test/fixedbugs/issue16317.dir/a.go
+new file mode 100644
+index 0000000000..3a1b7e021d
+--- /dev/null
++++ b/test/fixedbugs/issue16317.dir/a.go
+@@ -0,0 +1,11 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++import "unsafe"
++
++func ConstUnsafePointer() unsafe.Pointer {
++	return unsafe.Pointer(uintptr(0))
++}
+diff --git a/test/fixedbugs/issue16317.dir/b.go b/test/fixedbugs/issue16317.dir/b.go
+new file mode 100644
+index 0000000000..b81391866b
+--- /dev/null
++++ b/test/fixedbugs/issue16317.dir/b.go
+@@ -0,0 +1,11 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "./a"
++
++func main() {
++	_ = a.ConstUnsafePointer()
++}
+diff --git a/test/fixedbugs/issue16317.go b/test/fixedbugs/issue16317.go
+new file mode 100644
+index 0000000000..b3376bbbd7
+--- /dev/null
++++ b/test/fixedbugs/issue16317.go
+@@ -0,0 +1,10 @@
++// compiledir
++
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 16317: cmd/compile: internal compiler error:
++//              unhandled OCONV INT -> TUNSAFEPTR
++
++package ignored

@@ -9,6 +9,27 @@ Date:   Thu Jul 21 11:31:07 2011 -0400
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/4816043
-
+---
  src/pkg/testing/benchmark.go | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/testing/benchmark.go b/src/pkg/testing/benchmark.go
+index 3b416acfaf..fd0bd86657 100644
+--- a/src/pkg/testing/benchmark.go
++++ b/src/pkg/testing/benchmark.go
+@@ -214,12 +214,13 @@ func RunBenchmarks(matchString func(pat, str string) (bool, os.Error), benchmark
+ 		for _, procs := range cpuList {
+ 			runtime.GOMAXPROCS(procs)
+ 			b := &B{benchmark: Benchmark}
+-			r := b.run()
+ 			benchName := Benchmark.Name
+ 			if procs != 1 {
+ 				benchName = fmt.Sprintf("%s-%d", Benchmark.Name, procs)
+ 			}
+-			print(fmt.Sprintf("%s\t%v\n", benchName, r))
++			print(fmt.Sprintf("%s\t", benchName))
++			r := b.run()
++			print(fmt.Sprintf("%v\n", r))
+ 			if p := runtime.GOMAXPROCS(-1); p != procs {
+ 				print(fmt.Sprintf("%s left GOMAXPROCS set to %d\n", benchName, p))
+ 			}

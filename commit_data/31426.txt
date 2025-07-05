@@ -37,6 +37,25 @@ Date:   Sat Feb 18 15:07:13 2017 -0800
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/internal/envcmd/env.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/envcmd/env.go b/src/cmd/go/internal/envcmd/env.go
+index e8c5891724..2f19d65992 100644
+--- a/src/cmd/go/internal/envcmd/env.go
++++ b/src/cmd/go/internal/envcmd/env.go
+@@ -94,12 +94,12 @@ func ExtraEnvVars() []cfg.EnvVar {
+ 	b.Init()
+ 	cppflags, cflags, cxxflags, fflags, ldflags := b.CFlags(&load.Package{})
+ 	return []cfg.EnvVar{
+-		{Name: "PKG_CONFIG", Value: b.PkgconfigCmd()},
+ 		{Name: "CGO_CFLAGS", Value: strings.Join(cflags, " ")},
+ 		{Name: "CGO_CPPFLAGS", Value: strings.Join(cppflags, " ")},
+ 		{Name: "CGO_CXXFLAGS", Value: strings.Join(cxxflags, " ")},
+ 		{Name: "CGO_FFLAGS", Value: strings.Join(fflags, " ")},
+ 		{Name: "CGO_LDFLAGS", Value: strings.Join(ldflags, " ")},
++		{Name: "PKG_CONFIG", Value: b.PkgconfigCmd()},
+ 	}
+ }
+ 

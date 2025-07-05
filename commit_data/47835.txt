@@ -13,6 +13,30 @@ Date:   Tue Apr 13 12:35:28 2021 +0200
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: Joe Tsai <thebrokentoaster@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/archive/tar/tar_test.go | 9 ++-------
  1 file changed, 2 insertions(+), 7 deletions(-)
+
+diff --git a/src/archive/tar/tar_test.go b/src/archive/tar/tar_test.go
+index 91b38401b6..e9fafc7cc7 100644
+--- a/src/archive/tar/tar_test.go
++++ b/src/archive/tar/tar_test.go
+@@ -262,16 +262,11 @@ func TestFileInfoHeaderDir(t *testing.T) {
+ func TestFileInfoHeaderSymlink(t *testing.T) {
+ 	testenv.MustHaveSymlink(t)
+ 
+-	tmpdir, err := os.MkdirTemp("", "TestFileInfoHeaderSymlink")
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	defer os.RemoveAll(tmpdir)
++	tmpdir := t.TempDir()
+ 
+ 	link := filepath.Join(tmpdir, "link")
+ 	target := tmpdir
+-	err = os.Symlink(target, link)
+-	if err != nil {
++	if err := os.Symlink(target, link); err != nil {
+ 		t.Fatal(err)
+ 	}
+ 	fi, err := os.Lstat(link)

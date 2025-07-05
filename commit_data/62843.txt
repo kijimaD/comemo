@@ -11,7 +11,7 @@ Date:   Thu Apr 10 19:16:22 2025 -0400
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Alan Donovan <adonovan@google.com>
     Auto-Submit: Russ Cox <rsc@golang.org>
-
+---
  src/math/big/internal/asmgen/386.go     |  58 +++++++++++++
  src/math/big/internal/asmgen/amd64.go   | 146 ++++++++++++++++++++++++++++++++
  src/math/big/internal/asmgen/arm64.go   | 111 ++++++++++++++++++++++++
@@ -22,3 +22,696 @@ Date:   Thu Apr 10 19:16:22 2025 -0400
  src/math/big/internal/asmgen/riscv64.go |  47 ++++++++++
  src/math/big/internal/asmgen/s390x.go   | 100 ++++++++++++++++++++++
  9 files changed, 630 insertions(+)
+
+diff --git a/src/math/big/internal/asmgen/386.go b/src/math/big/internal/asmgen/386.go
+new file mode 100644
+index 0000000000..f8f67ba526
+--- /dev/null
++++ b/src/math/big/internal/asmgen/386.go
+@@ -0,0 +1,58 @@
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package asmgen
++
++import "fmt"
++
++var Arch386 = &Arch{
++	Name:      "386",
++	WordBits:  32,
++	WordBytes: 4,
++
++	regs: []string{
++		"BX", "SI", "DI", "BP",
++		"CX", "DX", "AX", // last, to leave available for hinted allocation
++	},
++	op3:              x86Op3,
++	hint:             x86Hint,
++	memOK:            true,
++	subCarryIsBorrow: true,
++	maxColumns:       1, // not enough registers for more
++
++	// Note: It would be nice to not set memIndex and then
++	// delete all the code in pipe.go that supports it.
++	// But a few routines, notably lshVU and mulAddVWW,
++	// benefit dramatically from the use of index registers.
++	// Perhaps some day we will decide 386 performance
++	// does not matter enough to keep this code.
++	memIndex: _386MemIndex,
++
++	mov:      "MOVL",
++	adds:     "ADDL",
++	adcs:     "ADCL",
++	subs:     "SUBL",
++	sbcs:     "SBBL",
++	lsh:      "SHLL",
++	lshd:     "SHLL",
++	rsh:      "SHRL",
++	rshd:     "SHRL",
++	and:      "ANDL",
++	or:       "ORL",
++	xor:      "XORL",
++	neg:      "NEGL",
++	lea:      "LEAL",
++	mulWideF: x86MulWide,
++
++	addWords: "LEAL (%[2]s)(%[1]s*4), %[3]s",
++
++	jmpZero:       "TESTL %[1]s, %[1]s; JZ %[2]s",
++	jmpNonZero:    "TESTL %[1]s, %[1]s; JNZ %[2]s",
++	loopBottom:    "SUBL $1, %[1]s; JNZ %[2]s",
++	loopBottomNeg: "ADDL $1, %[1]s; JNZ %[2]s",
++}
++
++func _386MemIndex(a *Asm, off int, ix Reg, p RegPtr) Reg {
++	return Reg{fmt.Sprintf("%d(%s)(%s*%d)", off, p, ix, a.Arch.WordBytes)}
++}
+diff --git a/src/math/big/internal/asmgen/amd64.go b/src/math/big/internal/asmgen/amd64.go
+new file mode 100644
+index 0000000000..36b1b5844b
+--- /dev/null
++++ b/src/math/big/internal/asmgen/amd64.go
+@@ -0,0 +1,146 @@
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package asmgen
++
++var ArchAMD64 = &Arch{
++	Name:      "amd64",
++	WordBits:  64,
++	WordBytes: 8,
++
++	regs: []string{
++		"BX", "SI", "DI",
++		"R8", "R9", "R10", "R11", "R12", "R13", "R14", "R15",
++		"AX", "DX", "CX", // last to leave available for hinted allocation
++	},
++	op3:              x86Op3,
++	hint:             x86Hint,
++	memOK:            true,
++	subCarryIsBorrow: true,
++
++	// Note: Not setting memIndex, because code generally runs faster
++	// if we avoid the use of scaled-index memory references,
++	// particularly in ADX instructions.
++
++	options: map[Option]func(*Asm, string){
++		OptionAltCarry: amd64JmpADX,
++	},
++
++	mov:      "MOVQ",
++	adds:     "ADDQ",
++	adcs:     "ADCQ",
++	subs:     "SUBQ",
++	sbcs:     "SBBQ",
++	lsh:      "SHLQ",
++	lshd:     "SHLQ",
++	rsh:      "SHRQ",
++	rshd:     "SHRQ",
++	and:      "ANDQ",
++	or:       "ORQ",
++	xor:      "XORQ",
++	neg:      "NEGQ",
++	lea:      "LEAQ",
++	addF:     amd64Add,
++	mulWideF: x86MulWide,
++
++	addWords: "LEAQ (%[2]s)(%[1]s*8), %[3]s",
++
++	jmpZero:       "TESTQ %[1]s, %[1]s; JZ %[2]s",
++	jmpNonZero:    "TESTQ %[1]s, %[1]s; JNZ %[2]s",
++	loopBottom:    "SUBQ $1, %[1]s; JNZ %[2]s",
++	loopBottomNeg: "ADDQ $1, %[1]s; JNZ %[2]s",
++}
++
++func amd64JmpADX(a *Asm, label string) {
++	a.Printf("\tCMPB ·hasADX(SB), $0; JNZ %s\n", label)
++}
++
++func amd64Add(a *Asm, src1, src2 Reg, dst Reg, carry Carry) bool {
++	if a.Enabled(OptionAltCarry) {
++		// If OptionAltCarry is enabled, the generator is emitting ADD instructions
++		// both with and without the AltCarry flag set; the AltCarry flag means to
++		// use ADOX. Otherwise we have to use ADCX.
++		// Using regular ADD/ADC would smash both carry flags,
++		// so we reject anything we can't handled with ADCX/ADOX.
++		if carry&UseCarry != 0 && carry&(SetCarry|SmashCarry) != 0 {
++			if carry&AltCarry != 0 {
++				a.op3("ADOXQ", src1, src2, dst)
++			} else {
++				a.op3("ADCXQ", src1, src2, dst)
++			}
++			return true
++		}
++		if carry&(SetCarry|UseCarry) == SetCarry && a.IsZero(src1) && src2 == dst {
++			// Clearing carry flag. Caller will add EOL comment.
++			a.Printf("\tTESTQ AX, AX\n")
++			return true
++		}
++		if carry != KeepCarry {
++			a.Fatalf("unsupported carry")
++		}
++	}
++	return false
++}
++
++// The x86-prefixed functions are shared with Arch386 in 386.go.
++
++func x86Op3(name string) bool {
++	// As far as a.op3 is concerned, there are no 3-op instructions.
++	// (We print instructions like MULX ourselves.)
++	return false
++}
++
++func x86Hint(a *Asm, h Hint) string {
++	switch h {
++	case HintShiftCount:
++		return "CX"
++	case HintMulSrc:
++		if a.Enabled(OptionAltCarry) { // using MULX
++			return "DX"
++		}
++		return "AX"
++	case HintMulHi:
++		if a.Enabled(OptionAltCarry) { // using MULX
++			return ""
++		}
++		return "DX"
++	}
++	return ""
++}
++
++func x86Suffix(a *Asm) string {
++	// Note: Not using a.Arch == Arch386 to avoid init cycle.
++	if a.Arch.Name == "386" {
++		return "L"
++	}
++	return "Q"
++}
++
++func x86MulWide(a *Asm, src1, src2, dstlo, dsthi Reg) {
++	if a.Enabled(OptionAltCarry) {
++		// Using ADCX/ADOX; use MULX to avoid clearing carry flag.
++		if src1.name != "DX" {
++			if src2.name != "DX" {
++				a.Fatalf("mul src1 or src2 must be DX")
++			}
++			src2 = src1
++		}
++		a.Printf("\tMULXQ %s, %s, %s\n", src2, dstlo, dsthi)
++		return
++	}
++
++	if src1.name != "AX" {
++		if src2.name != "AX" {
++			a.Fatalf("mulwide src1 or src2 must be AX")
++		}
++		src2 = src1
++	}
++	if dstlo.name != "AX" {
++		a.Fatalf("mulwide dstlo must be AX")
++	}
++	if dsthi.name != "DX" {
++		a.Fatalf("mulwide dsthi must be DX")
++	}
++	a.Printf("\tMUL%s %s\n", x86Suffix(a), src2)
++}
+diff --git a/src/math/big/internal/asmgen/arm64.go b/src/math/big/internal/asmgen/arm64.go
+new file mode 100644
+index 0000000000..ce70d5a1f7
+--- /dev/null
++++ b/src/math/big/internal/asmgen/arm64.go
+@@ -0,0 +1,111 @@
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package asmgen
++
++var ArchARM64 = &Arch{
++	Name:          "arm64",
++	WordBits:      64,
++	WordBytes:     8,
++	CarrySafeLoop: true,
++
++	regs: []string{
++		// R18 is the platform register.
++		// R27 is the assembler/linker temporary (which we could potentially use but don't).
++		// R28 is g.
++		// R29 is FP.
++		// R30 is LR.
++		"R0", "R1", "R2", "R3", "R4", "R5", "R6", "R7", "R8", "R9",
++		"R10", "R11", "R12", "R13", "R14", "R15", "R16", "R17", "R19",
++		"R20", "R21", "R22", "R23", "R24", "R25", "R26",
++	},
++	reg0: "ZR",
++
++	mov:   "MOVD",
++	add:   "ADD",
++	adds:  "ADDS",
++	adc:   "ADC",
++	adcs:  "ADCS",
++	sub:   "SUB",
++	subs:  "SUBS",
++	sbc:   "SBC",
++	sbcs:  "SBCS",
++	mul:   "MUL",
++	mulhi: "UMULH",
++	lsh:   "LSL",
++	rsh:   "LSR",
++	and:   "AND",
++	or:    "ORR",
++	xor:   "EOR",
++
++	addWords: "ADD %[1]s<<3, %[2]s, %[3]s",
++
++	jmpZero:    "CBZ %s, %s",
++	jmpNonZero: "CBNZ %s, %s",
++
++	loadIncN:  arm64LoadIncN,
++	loadDecN:  arm64LoadDecN,
++	storeIncN: arm64StoreIncN,
++	storeDecN: arm64StoreDecN,
++}
++
++func arm64LoadIncN(a *Asm, p RegPtr, regs []Reg) {
++	if len(regs) == 1 {
++		a.Printf("\tMOVD.P %d(%s), %s\n", a.Arch.WordBytes, p, regs[0])
++		return
++	}
++	a.Printf("\tLDP.P %d(%s), (%s, %s)\n", len(regs)*a.Arch.WordBytes, p, regs[0], regs[1])
++	var i int
++	for i = 2; i+2 <= len(regs); i += 2 {
++		a.Printf("\tLDP %d(%s), (%s, %s)\n", (i-len(regs))*a.Arch.WordBytes, p, regs[i], regs[i+1])
++	}
++	if i < len(regs) {
++		a.Printf("\tMOVD %d(%s), %s\n", -1*a.Arch.WordBytes, p, regs[i])
++	}
++}
++
++func arm64LoadDecN(a *Asm, p RegPtr, regs []Reg) {
++	if len(regs) == 1 {
++		a.Printf("\tMOVD.W -%d(%s), %s\n", a.Arch.WordBytes, p, regs[0])
++		return
++	}
++	a.Printf("\tLDP.W %d(%s), (%s, %s)\n", -len(regs)*a.Arch.WordBytes, p, regs[len(regs)-1], regs[len(regs)-2])
++	var i int
++	for i = 2; i+2 <= len(regs); i += 2 {
++		a.Printf("\tLDP %d(%s), (%s, %s)\n", i*a.Arch.WordBytes, p, regs[len(regs)-1-i], regs[len(regs)-2-i])
++	}
++	if i < len(regs) {
++		a.Printf("\tMOVD %d(%s), %s\n", i*a.Arch.WordBytes, p, regs[0])
++	}
++}
++
++func arm64StoreIncN(a *Asm, p RegPtr, regs []Reg) {
++	if len(regs) == 1 {
++		a.Printf("\tMOVD.P %s, %d(%s)\n", regs[0], a.Arch.WordBytes, p)
++		return
++	}
++	a.Printf("\tSTP.P (%s, %s), %d(%s)\n", regs[0], regs[1], len(regs)*a.Arch.WordBytes, p)
++	var i int
++	for i = 2; i+2 <= len(regs); i += 2 {
++		a.Printf("\tSTP (%s, %s), %d(%s)\n", regs[i], regs[i+1], (i-len(regs))*a.Arch.WordBytes, p)
++	}
++	if i < len(regs) {
++		a.Printf("\tMOVD %s, %d(%s)\n", regs[i], -1*a.Arch.WordBytes, p)
++	}
++}
++
++func arm64StoreDecN(a *Asm, p RegPtr, regs []Reg) {
++	if len(regs) == 1 {
++		a.Printf("\tMOVD.W %s, -%d(%s)\n", regs[0], a.Arch.WordBytes, p)
++		return
++	}
++	a.Printf("\tSTP.W (%s, %s), %d(%s)\n", regs[len(regs)-1], regs[len(regs)-2], -len(regs)*a.Arch.WordBytes, p)
++	var i int
++	for i = 2; i+2 <= len(regs); i += 2 {
++		a.Printf("\tSTP (%s, %s), %d(%s)\n", regs[len(regs)-1-i], regs[len(regs)-2-i], i*a.Arch.WordBytes, p)
++	}
++	if i < len(regs) {
++		a.Printf("\tMOVD %s, %d(%s)\n", regs[0], i*a.Arch.WordBytes, p)
++	}
++}
+diff --git a/src/math/big/internal/asmgen/cheat.go b/src/math/big/internal/asmgen/cheat.go
+new file mode 100644
+index 0000000000..0149d9ac56
+--- /dev/null
++++ b/src/math/big/internal/asmgen/cheat.go
+@@ -0,0 +1,52 @@
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build ignore
++
++// This program can be compiled with -S to produce a “cheat sheet”
++// for filling out a new Arch: the compiler will show you how to implement
++// the various operations.
++//
++// Usage (replace TARGET with your target architecture):
++//
++//	GOOS=linux GOARCH=TARGET go build -gcflags='-p=cheat -S' cheat.go
++
++package p
++
++import "math/bits"
++
++func mov(x, y uint) uint             { return y }
++func zero() uint                     { return 0 }
++func add(x, y uint) uint             { return x + y }
++func adds(x, y, c uint) (uint, uint) { return bits.Add(x, y, 0) }
++func adcs(x, y, c uint) (uint, uint) { return bits.Add(x, y, c) }
++func sub(x, y uint) uint             { return x + y }
++func subs(x, y uint) (uint, uint)    { return bits.Sub(x, y, 0) }
++func sbcs(x, y, c uint) (uint, uint) { return bits.Sub(x, y, c) }
++func mul(x, y uint) uint             { return x * y }
++func mulWide(x, y uint) (uint, uint) { return bits.Mul(x, y) }
++func lsh(x, s uint) uint             { return x << s }
++func rsh(x, s uint) uint             { return x >> s }
++func and(x, y uint) uint             { return x & y }
++func or(x, y uint) uint              { return x | y }
++func xor(x, y uint) uint             { return x ^ y }
++func neg(x uint) uint                { return -x }
++func loop(x int) int {
++	s := 0
++	for i := 1; i < x; i++ {
++		s += i
++		if s == 98 {
++			return 99
++		}
++		if s == 99 {
++			return 100
++		}
++		if s == 0 {
++			return 101
++		}
++		s += 2
++	}
++	return s
++}
++func mem(x *[10]struct{ a, b uint }, i int) uint { return x[i].b }
+diff --git a/src/math/big/internal/asmgen/loong64.go b/src/math/big/internal/asmgen/loong64.go
+new file mode 100644
+index 0000000000..e2d05690ab
+--- /dev/null
++++ b/src/math/big/internal/asmgen/loong64.go
+@@ -0,0 +1,45 @@
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package asmgen
++
++var ArchLoong64 = &Arch{
++	Name:          "loong64",
++	WordBits:      64,
++	WordBytes:     8,
++	CarrySafeLoop: true,
++
++	regs: []string{
++		// R0 is set to 0.
++		// R1 is LR.
++		// R2 is ???
++		// R3 is SP.
++		// R22 is g.
++		// R28 and R29 are our virtual carry flags.
++		// R30 is the linker/assembler temp, which we use too.
++		"R4", "R5", "R6", "R7", "R8", "R9",
++		"R10", "R11", "R12", "R13", "R14", "R15", "R16", "R17", "R18", "R19",
++		"R20", "R21", "R23", "R24", "R25", "R26", "R27",
++		"R31",
++	},
++	reg0:        "R0",
++	regCarry:    "R28",
++	regAltCarry: "R29",
++	regTmp:      "R30",
++
++	mov:   "MOVV",
++	add:   "ADDVU",
++	sub:   "SUBVU",
++	sltu:  "SGTU",
++	mul:   "MULV",
++	mulhi: "MULHVU",
++	lsh:   "SLLV",
++	rsh:   "SRLV",
++	and:   "AND",
++	or:    "OR",
++	xor:   "XOR",
++
++	jmpZero:    "BEQ %s, %s",
++	jmpNonZero: "BNE %s, %s",
++}
+diff --git a/src/math/big/internal/asmgen/main.go b/src/math/big/internal/asmgen/main.go
+index 0214a91b1c..7f7f36c89f 100644
+--- a/src/math/big/internal/asmgen/main.go
++++ b/src/math/big/internal/asmgen/main.go
+@@ -15,9 +15,16 @@
+ package asmgen
+ 
+ var arches = []*Arch{
++	Arch386,
++	ArchAMD64,
+ 	ArchARM,
++	ArchARM64,
++	ArchLoong64,
+ 	ArchMIPS,
+ 	ArchMIPS64x,
++	ArchPPC64x,
++	ArchRISCV64,
++	ArchS390X,
+ }
+ 
+ // generate returns the file name and content of the generated assembly for the given architecture.
+diff --git a/src/math/big/internal/asmgen/ppc64.go b/src/math/big/internal/asmgen/ppc64.go
+new file mode 100644
+index 0000000000..e2cf7229a3
+--- /dev/null
++++ b/src/math/big/internal/asmgen/ppc64.go
+@@ -0,0 +1,64 @@
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package asmgen
++
++var ArchPPC64x = &Arch{
++	Name:          "ppc64x",
++	Build:         "ppc64 || ppc64le",
++	WordBits:      64,
++	WordBytes:     8,
++	CarrySafeLoop: true,
++
++	// Note: The old, hand-written ppc64x assembly used MOVDU
++	// to avoid explicit pointer updates in a few routines, but the new
++	// generated code runs just as fast, so we haven't bothered to try
++	// to add that back. (It's not trivial; you'd have to keep the pointers
++	// shifted one word in order to make the semantics work.)
++	//
++	// The old assembly also used some complex vector instructions
++	// to implement lshVU and rshVU, but the generated code that uses
++	// ordinary integer instructions is much faster than the vector code was,
++	// at least on the power10 gomote.
++
++	regs: []string{
++		// R0 is 0 by convention.
++		// R1 is SP.
++		// R2 is TOC.
++		// R30 is g.
++		// R31 is the assembler/linker temporary (which we use too).
++		"R3", "R4", "R5", "R6", "R7", "R8", "R9",
++		"R10", "R11", "R12" /*R13 is TLS*/, "R14", "R15", "R16", "R17", "R18", "R19",
++		"R20", "R21", "R22", "R23", "R24", "R25", "R26", "R27", "R28", "R29",
++	},
++	reg0:   "R0",
++	regTmp: "R31",
++
++	// Note: Could write an addF and subF to use ADDZE and SUBZE,
++	// but we have R0 so it doesn't seem to matter much.
++
++	mov:   "MOVD",
++	add:   "ADD",
++	adds:  "ADDC",
++	adcs:  "ADDE",
++	sub:   "SUB",
++	subs:  "SUBC",
++	sbcs:  "SUBE",
++	mul:   "MULLD",
++	mulhi: "MULHDU",
++	lsh:   "SLD",
++	rsh:   "SRD",
++	and:   "ANDCC", // regular AND does not accept immediates
++	or:    "OR",
++	xor:   "XOR",
++
++	jmpZero:    "CMP %[1]s, $0; BEQ %[2]s",
++	jmpNonZero: "CMP %s, $0; BNE %s",
++
++	// Note: Using CTR means that we could free the count register
++	// during the loop body, but the portable logic doesn't know that,
++	// and we're not hurting for registers.
++	loopTop:    "CMP %[1]s, $0; BEQ %[2]s; MOVD %[1]s, CTR",
++	loopBottom: "BDNZ %[2]s",
++}
+diff --git a/src/math/big/internal/asmgen/riscv64.go b/src/math/big/internal/asmgen/riscv64.go
+new file mode 100644
+index 0000000000..8995c4c159
+--- /dev/null
++++ b/src/math/big/internal/asmgen/riscv64.go
+@@ -0,0 +1,47 @@
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package asmgen
++
++var ArchRISCV64 = &Arch{
++	Name:          "riscv64",
++	WordBits:      64,
++	WordBytes:     8,
++	CarrySafeLoop: true,
++
++	regs: []string{
++		// X0 is zero.
++		// X1 is LR.
++		// X2 is SP.
++		// X3 is SB.
++		// X4 is TP.
++		// X27 is g.
++		// X28 and X29 are our virtual carry flags.
++		// X31 is the assembler/linker temporary (which we use too).
++		"X5", "X6", "X7", "X8", "X9",
++		"X10", "X11", "X12", "X13", "X14", "X15", "X16", "X17", "X18", "X19",
++		"X20", "X21", "X22", "X23", "X24", "X25", "X26",
++		"X30",
++	},
++
++	reg0:        "X0",
++	regCarry:    "X28",
++	regAltCarry: "X29",
++	regTmp:      "X31",
++
++	mov:   "MOV",
++	add:   "ADD",
++	sub:   "SUB",
++	mul:   "MUL",
++	mulhi: "MULHU",
++	lsh:   "SLL",
++	rsh:   "SRL",
++	and:   "AND",
++	or:    "OR",
++	xor:   "XOR",
++	sltu:  "SLTU",
++
++	jmpZero:    "BEQZ %s, %s",
++	jmpNonZero: "BNEZ %s, %s",
++}
+diff --git a/src/math/big/internal/asmgen/s390x.go b/src/math/big/internal/asmgen/s390x.go
+new file mode 100644
+index 0000000000..71c9b165c6
+--- /dev/null
++++ b/src/math/big/internal/asmgen/s390x.go
+@@ -0,0 +1,100 @@
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package asmgen
++
++var ArchS390X = &Arch{
++	Name:          "s390x",
++	WordBits:      64,
++	WordBytes:     8,
++	CarrySafeLoop: true,
++
++	regs: []string{
++		// R0 is 0 by convention in this code (see setup).
++		// R10 is the assembler/linker temporary.
++		// R11 is a second assembler/linker temporary, for wide multiply.
++		// We allow allocating R10 and R11 so that we can use them as
++		// direct multiplication targets while tracking whether they're in use.
++		// R13 is g.
++		// R14 is LR.
++		// R15 is SP.
++		"R1", "R2", "R3", "R4", "R5", "R6", "R7", "R8", "R9",
++		"R10", "R11", "R12",
++	},
++	reg0:       "R0",
++	regTmp:     "R10",
++	setup:      s390xSetup,
++	maxColumns: 2,
++	op3:        s390xOp3,
++	hint:       s390xHint,
++
++	// Instruction reference: chapter 7 of
++	// https://www.ibm.com/docs/en/SSQ2R2_15.0.0/com.ibm.tpf.toolkit.hlasm.doc/dz9zr006.pdf
++
++	mov:      "MOVD",
++	adds:     "ADDC", // ADD is an alias for ADDC, sets carry
++	adcs:     "ADDE",
++	subs:     "SUBC", // SUB is an alias for SUBC, sets carry
++	sbcs:     "SUBE",
++	mulWideF: s390MulWide,
++	lsh:      "SLD",
++	rsh:      "SRD",
++	and:      "AND",
++	or:       "OR",
++	xor:      "XOR",
++	neg:      "NEG",
++	lea:      "LAY", // LAY because LA only accepts positive offsets
++
++	jmpZero:    "CMPBEQ %s, $0, %s",
++	jmpNonZero: "CMPBNE %s, $0, %s",
++}
++
++func s390xSetup(f *Func) {
++	a := f.Asm
++	if f.Name == "addVV" || f.Name == "subVV" {
++		// S390x, unlike every other system, has vector instructions
++		// that can propagate carry bits during parallel adds (VACC).
++		// Instead of trying to generate that for this one system,
++		// jump to the hand-written code in arithvec_s390x.s.
++		a.Printf("\tMOVB ·hasVX(SB), R1\n")
++		a.Printf("\tCMPBEQ R1, $0, novec\n")
++		a.Printf("\tJMP ·%svec(SB)\n", f.Name)
++		a.Printf("novec:\n")
++	}
++	a.Printf("\tMOVD $0, R0\n")
++}
++
++func s390xOp3(name string) bool {
++	if name == "AND" { // AND with immediate only takes imm, reg; not imm, reg, reg.
++		return false
++	}
++	return true
++}
++
++func s390xHint(_ *Asm, h Hint) string {
++	switch h {
++	case HintMulSrc:
++		return "R11"
++	case HintMulHi:
++		return "R10"
++	}
++	return ""
++}
++
++func s390MulWide(a *Asm, src1, src2, dstlo, dsthi Reg) {
++	if src1.name != "R11" && src2.name != "R11" {
++		a.Fatalf("mulWide src1 or src2 must be R11")
++	}
++	if dstlo.name != "R11" {
++		a.Fatalf("mulWide dstlo must be R11")
++	}
++	if dsthi.name != "R10" {
++		a.Fatalf("mulWide dsthi must be R10")
++	}
++	src := src1
++	if src.name == "R11" {
++		src = src2
++	}
++	a.Printf("\tMLGR %s, R10\n", src)
++}

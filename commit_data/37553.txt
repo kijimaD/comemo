@@ -22,7 +22,7 @@ Date:   Fri Aug 10 13:26:32 2018 -0400
     Reviewed-on: https://go-review.googlesource.com/129058
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/cmd/go/internal/get/get.go       |  45 ++++------
  src/cmd/go/internal/load/pkg.go      |  45 ++++------
  src/cmd/go/internal/modcmd/why.go    |  24 ++---
@@ -31,3 +31,731 @@ Date:   Fri Aug 10 13:26:32 2018 -0400
  src/cmd/go/internal/search/search.go | 119 ++++++++++++-------------
  src/cmd/go/internal/work/build.go    |  10 +--
  7 files changed, 219 insertions(+), 204 deletions(-)
+
+diff --git a/src/cmd/go/internal/get/get.go b/src/cmd/go/internal/get/get.go
+index fd97c6dcb6..47953f09a4 100644
+--- a/src/cmd/go/internal/get/get.go
++++ b/src/cmd/go/internal/get/get.go
+@@ -163,9 +163,8 @@ func runGet(cmd *base.Command, args []string) {
+ 	if *getT {
+ 		mode |= load.GetTestDeps
+ 	}
+-	args = downloadPaths(args)
+-	for _, arg := range args {
+-		download(arg, nil, &stk, mode)
++	for _, pkg := range downloadPaths(args) {
++		download(pkg, nil, &stk, mode)
+ 	}
+ 	base.ExitIfErrors()
+ 
+@@ -184,8 +183,7 @@ func runGet(cmd *base.Command, args []string) {
+ 	// This leads to duplicated loads of the standard packages.
+ 	load.ClearCmdCache()
+ 
+-	args = load.ImportPaths(args)
+-	load.PackagesForBuild(args)
++	pkgs := load.PackagesForBuild(args)
+ 
+ 	// Phase 3. Install.
+ 	if *getD {
+@@ -195,7 +193,7 @@ func runGet(cmd *base.Command, args []string) {
+ 		return
+ 	}
+ 
+-	work.InstallPackages(args)
++	work.InstallPackages(args, pkgs)
+ }
+ 
+ // downloadPaths prepares the list of paths to pass to download.
+@@ -203,34 +201,21 @@ func runGet(cmd *base.Command, args []string) {
+ // for a particular pattern, downloadPaths leaves it in the result list,
+ // in the hope that we can figure out the repository from the
+ // initial ...-free prefix.
+-func downloadPaths(args []string) []string {
+-	for _, arg := range args {
++func downloadPaths(patterns []string) []string {
++	for _, arg := range patterns {
+ 		if strings.Contains(arg, "@") {
+ 			base.Fatalf("go: cannot use path@version syntax in GOPATH mode")
+ 		}
+ 	}
+-
+-	args = load.ImportPathsForGoGet(args)
+-	var out []string
+-	for _, a := range args {
+-		if strings.Contains(a, "...") {
+-			var expand []string
+-			// Use matchPackagesInFS to avoid printing
+-			// warnings. They will be printed by the
+-			// eventual call to importPaths instead.
+-			if build.IsLocalImport(a) {
+-				expand = search.MatchPackagesInFS(a)
+-			} else {
+-				expand = search.MatchPackages(a)
+-			}
+-			if len(expand) > 0 {
+-				out = append(out, expand...)
+-				continue
+-			}
++	var pkgs []string
++	for _, m := range search.ImportPathsQuiet(patterns) {
++		if len(m.Pkgs) == 0 && strings.Contains(m.Pattern, "...") {
++			pkgs = append(pkgs, m.Pattern)
++		} else {
++			pkgs = append(pkgs, m.Pkgs...)
+ 		}
+-		out = append(out, a)
+ 	}
+-	return out
++	return pkgs
+ }
+ 
+ // downloadCache records the import paths we have already
+@@ -311,9 +296,9 @@ func download(arg string, parent *load.Package, stk *load.ImportStack, mode int)
+ 		// for p has been replaced in the package cache.
+ 		if wildcardOkay && strings.Contains(arg, "...") {
+ 			if build.IsLocalImport(arg) {
+-				args = search.MatchPackagesInFS(arg)
++				args = search.MatchPackagesInFS(arg).Pkgs
+ 			} else {
+-				args = search.MatchPackages(arg)
++				args = search.MatchPackages(arg).Pkgs
+ 			}
+ 			isWildcard = true
+ 		}
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index bef27b33ad..3a3a38651c 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -35,7 +35,7 @@ var (
+ 	ModBinDir            func() string                                       // return effective bin directory
+ 	ModLookup            func(path string) (dir, realPath string, err error) // lookup effective meaning of import
+ 	ModPackageModuleInfo func(path string) *modinfo.ModulePublic             // return module info for Package struct
+-	ModImportPaths       func(args []string) []string                        // expand import paths
++	ModImportPaths       func(args []string) []*search.Match                 // expand import paths
+ 	ModPackageBuildInfo  func(main string, deps []string) string             // return module info to embed in binary
+ 	ModInfoProg          func(info string) []byte                            // wrap module info in .go code for binary
+ 	ModImportFromFiles   func([]string)                                      // update go.mod to add modules for imports in these files
+@@ -1829,54 +1829,41 @@ func Packages(args []string) []*Package {
+ // *Package for every argument, even the ones that
+ // cannot be loaded at all.
+ // The packages that fail to load will have p.Error != nil.
+-func PackagesAndErrors(args []string) []*Package {
+-	if len(args) > 0 && strings.HasSuffix(args[0], ".go") {
+-		return []*Package{GoFilesPackage(args)}
++func PackagesAndErrors(patterns []string) []*Package {
++	if len(patterns) > 0 && strings.HasSuffix(patterns[0], ".go") {
++		return []*Package{GoFilesPackage(patterns)}
+ 	}
+ 
+-	args = ImportPaths(args)
++	matches := ImportPaths(patterns)
+ 	var (
+ 		pkgs    []*Package
+ 		stk     ImportStack
+-		seenArg = make(map[string]bool)
+ 		seenPkg = make(map[*Package]bool)
+ 	)
+ 
+-	for _, arg := range args {
+-		if seenArg[arg] {
+-			continue
+-		}
+-		seenArg[arg] = true
+-		pkg := LoadPackage(arg, &stk)
+-		if seenPkg[pkg] {
+-			continue
++	for _, m := range matches {
++		for _, pkg := range m.Pkgs {
++			p := LoadPackage(pkg, &stk)
++			if seenPkg[p] {
++				continue
++			}
++			seenPkg[p] = true
++			pkgs = append(pkgs, p)
+ 		}
+-		seenPkg[pkg] = true
+-		pkgs = append(pkgs, pkg)
+ 	}
+ 
+ 	return pkgs
+ }
+ 
+-func ImportPaths(args []string) []string {
+-	if cmdlineMatchers == nil {
+-		SetCmdlinePatterns(search.CleanImportPaths(args))
+-	}
++func ImportPaths(args []string) []*search.Match {
+ 	if ModInit(); cfg.ModulesEnabled {
+ 		return ModImportPaths(args)
+ 	}
+ 	return search.ImportPaths(args)
+ }
+ 
+-func ImportPathsForGoGet(args []string) []string {
+-	if cmdlineMatchers == nil {
+-		SetCmdlinePatterns(search.CleanImportPaths(args))
+-	}
+-	return search.ImportPathsNoDotExpansion(args)
+-}
+-
+-// packagesForBuild is like 'packages' but fails if any of
+-// the packages or their dependencies have errors
++// PackagesForBuild is like Packages but exits
++// if any of the packages or their dependencies have errors
+ // (cannot be built).
+ func PackagesForBuild(args []string) []*Package {
+ 	pkgs := PackagesAndErrors(args)
+diff --git a/src/cmd/go/internal/modcmd/why.go b/src/cmd/go/internal/modcmd/why.go
+index 6923685599..03e0a039bc 100644
+--- a/src/cmd/go/internal/modcmd/why.go
++++ b/src/cmd/go/internal/modcmd/why.go
+@@ -100,20 +100,22 @@ func runWhy(cmd *base.Command, args []string) {
+ 			sep = "\n"
+ 		}
+ 	} else {
+-		pkgs := modload.ImportPaths(args) // resolve to packages
+-		loadALL()                         // rebuild graph, from main module (not from named packages)
++		matches := modload.ImportPaths(args) // resolve to packages
++		loadALL()                            // rebuild graph, from main module (not from named packages)
+ 		sep := ""
+-		for _, path := range pkgs {
+-			why := modload.Why(path)
+-			if why == "" {
+-				vendoring := ""
+-				if *whyVendor {
+-					vendoring = " to vendor"
++		for _, m := range matches {
++			for _, path := range m.Pkgs {
++				why := modload.Why(path)
++				if why == "" {
++					vendoring := ""
++					if *whyVendor {
++						vendoring = " to vendor"
++					}
++					why = "(main module does not need" + vendoring + " package " + path + ")\n"
+ 				}
+-				why = "(main module does not need" + vendoring + " package " + path + ")\n"
++				fmt.Printf("%s# %s\n%s", sep, path, why)
++				sep = "\n"
+ 			}
+-			fmt.Printf("%s# %s\n%s", sep, path, why)
+-			sep = "\n"
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/go/internal/modget/get.go b/src/cmd/go/internal/modget/get.go
+index f4a92686a5..90a5bd8130 100644
+--- a/src/cmd/go/internal/modget/get.go
++++ b/src/cmd/go/internal/modget/get.go
+@@ -229,7 +229,7 @@ func runGet(cmd *base.Command, args []string) {
+ 	// and a list of install targets (for the "go install" at the end).
+ 	var tasks []*task
+ 	var install []string
+-	for _, arg := range search.CleanImportPaths(args) {
++	for _, arg := range search.CleanPatterns(args) {
+ 		// Argument is module query path@vers, or else path with implicit @latest.
+ 		path := arg
+ 		vers := ""
+@@ -519,8 +519,9 @@ func runGet(cmd *base.Command, args []string) {
+ 		// Note that 'go get -u' without any arguments results in len(install) == 1:
+ 		// search.CleanImportPaths returns "." for empty args.
+ 		work.BuildInit()
+-		var pkgs []string
+-		for _, p := range load.PackagesAndErrors(install) {
++		pkgs := load.PackagesAndErrors(install)
++		var todo []*load.Package
++		for _, p := range pkgs {
+ 			// Ignore "no Go source files" errors for 'go get' operations on modules.
+ 			if p.Error != nil {
+ 				if len(args) == 0 && getU != "" && strings.HasPrefix(p.Error.Err, "no Go files") {
+@@ -534,14 +535,14 @@ func runGet(cmd *base.Command, args []string) {
+ 					continue
+ 				}
+ 			}
+-			pkgs = append(pkgs, p.ImportPath)
++			todo = append(todo, p)
+ 		}
+ 
+ 		// If -d was specified, we're done after the download: no build.
+ 		// (The load.PackagesAndErrors is what did the download
+ 		// of the named packages and their dependencies.)
+-		if len(pkgs) > 0 && !*getD {
+-			work.InstallPackages(pkgs)
++		if len(todo) > 0 && !*getD {
++			work.InstallPackages(install, todo)
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index 389c643db2..e408e478d3 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -27,6 +27,7 @@ import (
+ 	"cmd/go/internal/par"
+ 	"cmd/go/internal/search"
+ 	"cmd/go/internal/semver"
++	"cmd/go/internal/str"
+ )
+ 
+ // buildList is the list of modules to use for building packages.
+@@ -50,24 +51,46 @@ var loaded *loader
+ 
+ // ImportPaths returns the set of packages matching the args (patterns),
+ // adding modules to the build list as needed to satisfy new imports.
+-func ImportPaths(args []string) []string {
++func ImportPaths(patterns []string) []*search.Match {
+ 	InitMod()
+ 
+-	cleaned := search.CleanImportPaths(args)
++	var matches []*search.Match
++	for _, pattern := range search.CleanPatterns(patterns) {
++			m := &search.Match{
++				Pattern: pattern,
++				Literal: !strings.Contains(pattern, "...") && !search.IsMetaPackage(pattern),
++			}
++			if m.Literal {
++				m.Pkgs = []string{pattern}
++			}
++			matches = append(matches, m)
++	}
++
++	fsDirs := make([][]string, len(matches))
+ 	loaded = newLoader()
+-	var paths []string
+-	loaded.load(func() []string {
+-		var roots []string
+-		paths = nil
+-		for _, pkg := range cleaned {
++	updateMatches := func(iterating bool) {
++		for i, m := range matches {
+ 			switch {
+-			case build.IsLocalImport(pkg) || filepath.IsAbs(pkg):
+-				list := []string{pkg}
+-				if strings.Contains(pkg, "...") {
+-					// TODO: Where is the go.mod cutoff?
+-					list = warnPattern(pkg, search.AllPackagesInFS(pkg))
++			case build.IsLocalImport(m.Pattern) || filepath.IsAbs(m.Pattern):
++				// Evaluate list of file system directories on first iteration.
++				if fsDirs[i] == nil {
++					var dirs []string
++					if m.Literal {
++						dirs = []string{m.Pattern}
++					} else {
++						dirs = search.MatchPackagesInFS(m.Pattern).Pkgs
++					}
++					fsDirs[i] = dirs
+ 				}
+-				for _, pkg := range list {
++
++				// Make a copy of the directory list and translate to import paths.
++				// Note that whether a directory corresponds to an import path
++				// changes as the build list is updated, and a directory can change
++				// from not being in the build list to being in it and back as
++				// the exact version of a particular module increases during
++				// the loader iterations.
++				m.Pkgs = str.StringList(fsDirs[i])
++				for i, pkg := range m.Pkgs {
+ 					dir := pkg
+ 					if !filepath.IsAbs(dir) {
+ 						dir = filepath.Join(cwd, pkg)
+@@ -93,38 +116,53 @@ func ImportPaths(args []string) []string {
+ 					} else if path := pathInModuleCache(dir); path != "" {
+ 						pkg = path
+ 					} else {
+-						base.Errorf("go: directory %s outside available modules", base.ShortPath(dir))
+-						continue
++						if !iterating {
++							base.Errorf("go: directory %s outside available modules", base.ShortPath(dir))
++						}
++						pkg = ""
+ 					}
+-					roots = append(roots, pkg)
+-					paths = append(paths, pkg)
++					m.Pkgs[i] = pkg
+ 				}
+ 
+-			case pkg == "all":
++			case strings.Contains(m.Pattern, "..."):
++				m.Pkgs = matchPackages(m.Pattern, loaded.tags, true, buildList)
++
++			case m.Pattern == "all":
+ 				loaded.testAll = true
+-				// TODO: Don't print warnings multiple times.
+-				roots = append(roots, warnPattern("all", matchPackages("...", loaded.tags, false, []module.Version{Target}))...)
+-				paths = append(paths, "all") // will expand after load completes
+-
+-			case search.IsMetaPackage(pkg): // std, cmd
+-				list := search.AllPackages(pkg)
+-				roots = append(roots, list...)
+-				paths = append(paths, list...)
+-
+-			case strings.Contains(pkg, "..."):
+-				// TODO: Don't we need to reevaluate this one last time once the build list stops changing?
+-				list := warnPattern(pkg, matchPackages(pkg, loaded.tags, true, buildList))
+-				roots = append(roots, list...)
+-				paths = append(paths, list...)
+-
+-			default:
+-				roots = append(roots, pkg)
+-				paths = append(paths, pkg)
++				if iterating {
++					// Enumerate the packages in the main module.
++					// We'll load the dependencies as we find them.
++					m.Pkgs = matchPackages("...", loaded.tags, false, []module.Version{Target})
++				} else {
++					// Starting with the packages in the main module,
++					// enumerate the full list of "all".
++					m.Pkgs = loaded.computePatternAll(m.Pkgs)
++				}
++
++			case search.IsMetaPackage(m.Pattern): // std, cmd
++				if len(m.Pkgs) == 0 {
++					m.Pkgs = search.MatchPackages(m.Pattern).Pkgs
++				}
++			}
++		}
++	}
++
++	loaded.load(func() []string {
++		var roots []string
++		updateMatches(true)
++		for _, m := range matches {
++			for _, pkg := range m.Pkgs {
++				if pkg != "" {
++					roots = append(roots, pkg)
++				}
+ 			}
+ 		}
+ 		return roots
+ 	})
+ 
++	// One last pass to finalize wildcards.
++	updateMatches(false)
++
+ 	// A given module path may be used as itself or as a replacement for another
+ 	// module, but not both at the same time. Otherwise, the aliasing behavior is
+ 	// too subtle (see https://golang.org/issue/26607), and we don't want to
+@@ -142,33 +180,10 @@ func ImportPaths(args []string) []string {
+ 		}
+ 	}
+ 	base.ExitIfErrors()
+-
+ 	WriteGoMod()
+ 
+-	// Process paths to produce final paths list.
+-	// Remove duplicates and expand "all".
+-	have := make(map[string]bool)
+-	var final []string
+-	for _, path := range paths {
+-		if have[path] {
+-			continue
+-		}
+-		have[path] = true
+-		if path == "all" {
+-			for _, pkg := range loaded.pkgs {
+-				if e, ok := pkg.err.(*ImportMissingError); ok && e.Module.Path == "" {
+-					continue // Package doesn't actually exist, so don't report it.
+-				}
+-				if !have[pkg.path] {
+-					have[pkg.path] = true
+-					final = append(final, pkg.path)
+-				}
+-			}
+-			continue
+-		}
+-		final = append(final, path)
+-	}
+-	return final
++	search.WarnUnmatched(matches)
++	return matches
+ }
+ 
+ // pathInModuleCache returns the import path of the directory dir,
+@@ -581,6 +596,36 @@ func (ld *loader) doPkg(item interface{}) {
+ 	}
+ }
+ 
++// computePatternAll returns the list of packages matching pattern "all",
++// starting with a list of the import paths for the packages in the main module.
++func (ld *loader) computePatternAll(paths []string) []string {
++	seen := make(map[*loadPkg]bool)
++	var all []string
++	var walk func(*loadPkg)
++	walk = func(pkg *loadPkg) {
++		if seen[pkg] {
++			return
++		}
++		seen[pkg] = true
++		if pkg.testOf == nil {
++			all = append(all, pkg.path)
++		}
++		for _, p := range pkg.imports {
++			walk(p)
++		}
++		if p := pkg.test; p != nil {
++			walk(p)
++		}
++	}
++	for _, path := range paths {
++		walk(ld.pkg(path, false))
++	}
++	sort.Strings(all)
++
++	fmt.Fprintf(os.Stderr, "ALL %v -> %v\n", paths, all)
++	return all
++}
++
+ // scanDir is like imports.ScanDir but elides known magic imports from the list,
+ // so that we do not go looking for packages that don't really exist.
+ //
+diff --git a/src/cmd/go/internal/search/search.go b/src/cmd/go/internal/search/search.go
+index b020f600c1..60ae73696b 100644
+--- a/src/cmd/go/internal/search/search.go
++++ b/src/cmd/go/internal/search/search.go
+@@ -17,32 +17,22 @@ import (
+ 	"strings"
+ )
+ 
+-// AllPackages returns all the packages that can be found
++// A Match represents the result of matching a single package pattern.
++type Match struct {
++	Pattern string   // the pattern itself
++	Literal bool     // whether it is a literal (no wildcards)
++	Pkgs    []string // matching packages (dirs or import paths)
++}
++
++// MatchPackages returns all the packages that can be found
+ // under the $GOPATH directories and $GOROOT matching pattern.
+ // The pattern is either "all" (all packages), "std" (standard packages),
+ // "cmd" (standard commands), or a path including "...".
+-func AllPackages(pattern string) []string {
+-	pkgs := MatchPackages(pattern)
+-	if len(pkgs) == 0 {
+-		fmt.Fprintf(os.Stderr, "warning: %q matched no packages\n", pattern)
+-	}
+-	return pkgs
+-}
+-
+-// AllPackagesInFS is like allPackages but is passed a pattern
+-// beginning ./ or ../, meaning it should scan the tree rooted
+-// at the given directory. There are ... in the pattern too.
+-func AllPackagesInFS(pattern string) []string {
+-	pkgs := MatchPackagesInFS(pattern)
+-	if len(pkgs) == 0 {
+-		fmt.Fprintf(os.Stderr, "warning: %q matched no packages\n", pattern)
++func MatchPackages(pattern string) *Match {
++	m := &Match{
++		Pattern: pattern,
++		Literal: false,
+ 	}
+-	return pkgs
+-}
+-
+-// MatchPackages returns a list of package paths matching pattern
+-// (see go help packages for pattern syntax).
+-func MatchPackages(pattern string) []string {
+ 	match := func(string) bool { return true }
+ 	treeCanMatch := func(string) bool { return true }
+ 	if !IsMetaPackage(pattern) {
+@@ -56,7 +46,6 @@ func MatchPackages(pattern string) []string {
+ 	if !cfg.BuildContext.CgoEnabled {
+ 		have["runtime/cgo"] = true // ignore during walk
+ 	}
+-	var pkgs []string
+ 
+ 	for _, src := range cfg.BuildContext.SrcDirs() {
+ 		if (pattern == "std" || pattern == "cmd") && src != cfg.GOROOTsrc {
+@@ -123,11 +112,11 @@ func MatchPackages(pattern string) []string {
+ 				return nil
+ 			}
+ 
+-			pkgs = append(pkgs, name)
++			m.Pkgs = append(m.Pkgs, name)
+ 			return nil
+ 		})
+ 	}
+-	return pkgs
++	return m
+ }
+ 
+ var modRoot string
+@@ -136,10 +125,16 @@ func SetModRoot(dir string) {
+ 	modRoot = dir
+ }
+ 
+-// MatchPackagesInFS returns a list of package paths matching pattern,
+-// which must begin with ./ or ../
+-// (see go help packages for pattern syntax).
+-func MatchPackagesInFS(pattern string) []string {
++// MatchPackagesInFS is like allPackages but is passed a pattern
++// beginning ./ or ../, meaning it should scan the tree rooted
++// at the given directory. There are ... in the pattern too.
++// (See go help packages for pattern syntax.)
++func MatchPackagesInFS(pattern string) *Match {
++	m := &Match{
++		Pattern: pattern,
++		Literal: false,
++	}
++
+ 	// Find directory to begin the scan.
+ 	// Could be smarter but this one optimization
+ 	// is enough for now, since ... is usually at the
+@@ -168,7 +163,6 @@ func MatchPackagesInFS(pattern string) []string {
+ 		}
+ 	}
+ 
+-	var pkgs []string
+ 	filepath.Walk(dir, func(path string, fi os.FileInfo, err error) error {
+ 		if err != nil || !fi.IsDir() {
+ 			return nil
+@@ -218,10 +212,10 @@ func MatchPackagesInFS(pattern string) []string {
+ 			}
+ 			return nil
+ 		}
+-		pkgs = append(pkgs, name)
++		m.Pkgs = append(m.Pkgs, name)
+ 		return nil
+ 	})
+-	return pkgs
++	return m
+ }
+ 
+ // TreeCanMatchPattern(pattern)(name) reports whether
+@@ -308,36 +302,53 @@ func replaceVendor(x, repl string) string {
+ 	return strings.Join(elem, "/")
+ }
+ 
+-// ImportPaths returns the import paths to use for the given command line.
+-func ImportPaths(args []string) []string {
+-	args = CleanImportPaths(args)
+-	var out []string
+-	for _, a := range args {
++// WarnUnmatched warns about patterns that didn't match any packages.
++func WarnUnmatched(matches []*Match) {
++	for _, m := range matches {
++		if len(m.Pkgs) == 0 {
++			fmt.Fprintf(os.Stderr, "go: warning: %q matched no packages\n", m.Pattern)
++		}
++	}
++}
++
++// ImportPaths returns the matching paths to use for the given command line.
++// It calls ImportPathsQuiet and then WarnUnmatched.
++func ImportPaths(patterns []string) []*Match {
++	matches := ImportPathsQuiet(patterns)
++	WarnUnmatched(matches)
++	return matches
++}
++
++// ImportPathsQuiet is like ImportPaths but does not warn about patterns with no matches.
++func ImportPathsQuiet(patterns []string) []*Match {
++	var out []*Match
++	for _, a := range CleanPatterns(patterns) {
+ 		if IsMetaPackage(a) {
+-			out = append(out, AllPackages(a)...)
++			out = append(out, MatchPackages(a))
+ 			continue
+ 		}
+ 		if strings.Contains(a, "...") {
+ 			if build.IsLocalImport(a) {
+-				out = append(out, AllPackagesInFS(a)...)
++				out = append(out, MatchPackagesInFS(a))
+ 			} else {
+-				out = append(out, AllPackages(a)...)
++				out = append(out, MatchPackages(a))
+ 			}
+ 			continue
+ 		}
+-		out = append(out, a)
++		out = append(out, &Match{Pattern: a, Literal: true, Pkgs: []string{a}})
+ 	}
+ 	return out
+ }
+ 
+-// CleanImportPaths returns the import paths to use for the given
+-// command line, but it does no wildcard expansion.
+-func CleanImportPaths(args []string) []string {
+-	if len(args) == 0 {
++// CleanPatterns returns the patterns to use for the given
++// command line. It canonicalizes the patterns but does not
++// evaluate any matches.
++func CleanPatterns(patterns []string) []string {
++	if len(patterns) == 0 {
+ 		return []string{"."}
+ 	}
+ 	var out []string
+-	for _, a := range args {
++	for _, a := range patterns {
+ 		// Arguments are supposed to be import paths, but
+ 		// as a courtesy to Windows developers, rewrite \ to /
+ 		// in command-line arguments. Handles .\... and so on.
+@@ -359,22 +370,6 @@ func CleanImportPaths(args []string) []string {
+ 	return out
+ }
+ 
+-// ImportPathsNoDotExpansion returns the import paths to use for the given
+-// command line, but it does no ... expansion.
+-// TODO(rsc): Delete once old go get is gone.
+-func ImportPathsNoDotExpansion(args []string) []string {
+-	args = CleanImportPaths(args)
+-	var out []string
+-	for _, a := range args {
+-		if IsMetaPackage(a) {
+-			out = append(out, AllPackages(a)...)
+-			continue
+-		}
+-		out = append(out, a)
+-	}
+-	return out
+-}
+-
+ // IsMetaPackage checks if name is a reserved package name that expands to multiple packages.
+ func IsMetaPackage(name string) bool {
+ 	return name == "std" || name == "cmd" || name == "all"
+diff --git a/src/cmd/go/internal/work/build.go b/src/cmd/go/internal/work/build.go
+index 891f81e116..ed41ce5d07 100644
+--- a/src/cmd/go/internal/work/build.go
++++ b/src/cmd/go/internal/work/build.go
+@@ -414,7 +414,7 @@ func libname(args []string, pkgs []*load.Package) (string, error) {
+ 
+ func runInstall(cmd *base.Command, args []string) {
+ 	BuildInit()
+-	InstallPackages(args)
++	InstallPackages(args, load.PackagesForBuild(args))
+ }
+ 
+ // omitTestOnly returns pkgs with test-only packages removed.
+@@ -434,12 +434,12 @@ func omitTestOnly(pkgs []*load.Package) []*load.Package {
+ 	return list
+ }
+ 
+-func InstallPackages(args []string) {
++func InstallPackages(patterns []string, pkgs []*load.Package) {
+ 	if cfg.GOBIN != "" && !filepath.IsAbs(cfg.GOBIN) {
+ 		base.Fatalf("cannot install, GOBIN must be an absolute path")
+ 	}
+ 
+-	pkgs := omitTestOnly(pkgsFilter(load.PackagesForBuild(args)))
++	pkgs = omitTestOnly(pkgsFilter(pkgs))
+ 	for _, p := range pkgs {
+ 		if p.Target == "" {
+ 			switch {
+@@ -500,7 +500,7 @@ func InstallPackages(args []string) {
+ 		// tools above did not apply, and a is just a simple Action
+ 		// with a list of Deps, one per package named in pkgs,
+ 		// the same as in runBuild.
+-		a = b.buildmodeShared(ModeInstall, ModeInstall, args, pkgs, a)
++		a = b.buildmodeShared(ModeInstall, ModeInstall, patterns, pkgs, a)
+ 	}
+ 
+ 	b.Do(a)
+@@ -515,7 +515,7 @@ func InstallPackages(args []string) {
+ 	// One way to view this behavior is that it is as if 'go install' first
+ 	// runs 'go build' and the moves the generated file to the install dir.
+ 	// See issue 9645.
+-	if len(args) == 0 && len(pkgs) == 1 && pkgs[0].Name == "main" {
++	if len(patterns) == 0 && len(pkgs) == 1 && pkgs[0].Name == "main" {
+ 		// Compute file 'go build' would have created.
+ 		// If it exists and is an executable file, remove it.
+ 		_, targ := filepath.Split(pkgs[0].ImportPath)

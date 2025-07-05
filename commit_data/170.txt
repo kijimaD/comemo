@@ -5,7 +5,104 @@ Date:   Fri Jun 13 12:55:37 2008 -0700
     support symbol tables and line numbers in 6.out executables
     
     SVN=122700
-
+---
  src/libmach_amd64/executable.c | 49 +++++++++++++++++++++++++++++++++++++++++-
  src/make.bash                  |  2 ++
  2 files changed, 50 insertions(+), 1 deletion(-)
+
+diff --git a/src/libmach_amd64/executable.c b/src/libmach_amd64/executable.c
+index 23505f5733..d00dc2ffa7 100644
+--- a/src/libmach_amd64/executable.c
++++ b/src/libmach_amd64/executable.c
+@@ -626,7 +626,8 @@ elf64dotout(int fd, Fhdr *fp, ExecHdr *hp)
+ 	ushort (*swab)(ushort);
+ 	Ehdr64 *ep;
+ 	Phdr64 *ph;
+-	int i, it, id, is, phsz;
++	Shdr64 *sh;
++	int i, it, id, is, phsz, shsz;
+ 
+ 	/* bitswap the header according to the DATA format */
+ 	ep = &hp->e.elfhdr64;
+@@ -711,6 +712,17 @@ print("entry: 0x%x\n", ep->elfentry);
+ 	}
+ 	hswal(ph, phsz/sizeof(ulong), swal);
+ 
++	shsz = sizeof(Shdr64)*ep->shnum;
++	sh = malloc(shsz);
++	if(sh) {
++		seek(fd, ep->shoff, 0);
++		if(read(fd, sh, shsz) < 0) {
++			free(sh);
++			sh = 0;
++		} else
++			hswal(ph, phsz/sizeof(ulong), swal);
++	}
++
+ 	/* find text, data and symbols and install them */
+ 	it = id = is = -1;
+ 	for(i = 0; i < ep->phnum; i++) {
+@@ -748,7 +760,9 @@ print("entry: 0x%x\n", ep->elfentry);
+ 		}
+ 
+ 		werrstr("No TEXT or DATA sections");
++error:
+ 		free(ph);
++		free(sh);
+ 		return 0;
+ 	}
+ 
+@@ -756,7 +770,40 @@ print("entry: 0x%x\n", ep->elfentry);
+ 	setdata(fp, ph[id].vaddr, ph[id].filesz, ph[id].offset, ph[id].memsz - ph[id].filesz);
+ 	if(is != -1)
+ 		setsym(fp, ph[is].filesz, 0, ph[is].memsz, ph[is].offset);
++	else if(ep->machine == AMD64 && sh != 0){
++		char *buf;
++		uvlong symsize = 0;
++		uvlong symoff = 0;
++		uvlong pclnsz = 0;
++
++		/* load shstrtab names */
++		buf = malloc(sh[ep->shstrndx].size);
++		if (buf == 0)
++			goto done;
++		memset(buf, 0, sizeof buf);
++		seek(fd, sh[ep->shstrndx].offset, 0);
++		read(fd, buf, sh[ep->shstrndx].size);
++
++		for(i = 0; i < ep->shnum; i++) {
++			if (sh[i].type == 2 && strcmp(&buf[sh[i].name], ".gosymtab") == 0) {
++				symsize = sh[i].size;
++				symoff = sh[i].offset;
++			}
++			if (sh[i].type == 2 && strcmp(&buf[sh[i].name], ".gopclntab") == 0) {
++				if (sh[i].offset != symoff+symsize) {
++					werrstr("pc line table not contiguous with symbol table");
++					free(buf);
++					goto error;
++				}
++				pclnsz = sh[i].size;
++			}
++		}
++		setsym(fp, symsize, 0, pclnsz, symoff);
++		free(buf);
++	}
++done:
+ 	free(ph);
++	free(sh);
+ 	return 1;
+ }
+ 
+diff --git a/src/make.bash b/src/make.bash
+index d9a46a0f68..14d8188f2e 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -3,6 +3,8 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
++bash clean.bash
++
+ for i in lib9 libbio libmach_amd64
+ do
+ 	cd $i

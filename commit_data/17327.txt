@@ -8,8 +8,114 @@ Date:   Mon Aug 19 23:09:24 2013 +0400
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/13052043
-
+---
  src/pkg/net/fd_windows.go | 11 ++++++++++-
  src/pkg/net/race.go       | 31 +++++++++++++++++++++++++++++++
  src/pkg/net/race0.go      | 26 ++++++++++++++++++++++++++
  3 files changed, 67 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/fd_windows.go b/src/pkg/net/fd_windows.go
+index d9c3a3cb26..2f8fb4e035 100644
+--- a/src/pkg/net/fd_windows.go
++++ b/src/pkg/net/fd_windows.go
+@@ -15,7 +15,10 @@ import (
+ 	"unsafe"
+ )
+ 
+-var initErr error
++var (
++	initErr error
++	ioSync  uint64
++)
+ 
+ // CancelIo Windows API cancels all outstanding IO for a particular
+ // socket on current thread. To overcome that limitation, we run
+@@ -448,6 +451,9 @@ func (fd *netFD) Read(buf []byte) (int, error) {
+ 	if err == nil && n == 0 {
+ 		err = io.EOF
+ 	}
++	if raceenabled {
++		raceAcquire(unsafe.Pointer(&ioSync))
++	}
+ 	return n, err
+ }
+ 
+@@ -480,6 +486,9 @@ func (fd *netFD) Write(buf []byte) (int, error) {
+ 		return 0, err
+ 	}
+ 	defer fd.writeUnlock()
++	if raceenabled {
++		raceReleaseMerge(unsafe.Pointer(&ioSync))
++	}
+ 	o := &fd.wop
+ 	o.InitBuf(buf)
+ 	return iosrv.ExecIO(o, "WSASend", func(o *operation) error {
+diff --git a/src/pkg/net/race.go b/src/pkg/net/race.go
+new file mode 100644
+index 0000000000..2f02a6c226
+--- /dev/null
++++ b/src/pkg/net/race.go
+@@ -0,0 +1,31 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build race
++// +build windows
++
++package net
++
++import (
++	"runtime"
++	"unsafe"
++)
++
++const raceenabled = true
++
++func raceAcquire(addr unsafe.Pointer) {
++	runtime.RaceAcquire(addr)
++}
++
++func raceReleaseMerge(addr unsafe.Pointer) {
++	runtime.RaceReleaseMerge(addr)
++}
++
++func raceReadRange(addr unsafe.Pointer, len int) {
++	runtime.RaceReadRange(addr, len)
++}
++
++func raceWriteRange(addr unsafe.Pointer, len int) {
++	runtime.RaceWriteRange(addr, len)
++}
+diff --git a/src/pkg/net/race0.go b/src/pkg/net/race0.go
+new file mode 100644
+index 0000000000..f504297793
+--- /dev/null
++++ b/src/pkg/net/race0.go
+@@ -0,0 +1,26 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !race
++// +build windows
++
++package net
++
++import (
++	"unsafe"
++)
++
++const raceenabled = false
++
++func raceAcquire(addr unsafe.Pointer) {
++}
++
++func raceReleaseMerge(addr unsafe.Pointer) {
++}
++
++func raceReadRange(addr unsafe.Pointer, len int) {
++}
++
++func raceWriteRange(addr unsafe.Pointer, len int) {
++}

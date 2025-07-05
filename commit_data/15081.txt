@@ -11,7 +11,7 @@ Date:   Fri Feb 1 08:41:25 2013 -0800
     R=rsc, kevlar
     CC=golang-dev
     https://golang.org/cl/7239044
-
+---
  src/cmd/api/goapi.go            |  3 +--
  src/cmd/cgo/gcc.go              |  4 ++--
  src/cmd/cgo/godefs.go           |  2 +-
@@ -34,3 +34,450 @@ Date:   Fri Feb 1 08:41:25 2013 -0800
  src/pkg/strings/strings.go      | 18 ++++++++++++++++++
  src/pkg/strings/strings_test.go | 16 ++++++++++++----
  21 files changed, 117 insertions(+), 54 deletions(-)
+
+diff --git a/src/cmd/api/goapi.go b/src/cmd/api/goapi.go
+index 906cd3a68d..0d76b0cdb6 100644
+--- a/src/cmd/api/goapi.go
++++ b/src/cmd/api/goapi.go
+@@ -778,8 +778,7 @@ func (w *Walker) walkConst(vs *ast.ValueSpec) {
+ 				}
+ 			}
+ 		}
+-		if strings.HasPrefix(litType, constDepPrefix) {
+-			dep := litType[len(constDepPrefix):]
++		if dep := strings.TrimPrefix(litType, constDepPrefix); dep != litType {
+ 			w.constDep[ident.Name] = dep
+ 			continue
+ 		}
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 3266abe618..1449a8d6b5 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -1542,8 +1542,8 @@ func godefsFields(fld []*ast.Field) {
+ 	npad := 0
+ 	for _, f := range fld {
+ 		for _, n := range f.Names {
+-			if strings.HasPrefix(n.Name, prefix) && n.Name != prefix {
+-				n.Name = n.Name[len(prefix):]
++			if n.Name != prefix {
++				n.Name = strings.TrimPrefix(n.Name, prefix)
+ 			}
+ 			if n.Name == "_" {
+ 				// Use exported name instead.
+diff --git a/src/cmd/cgo/godefs.go b/src/cmd/cgo/godefs.go
+index fec70a334b..20376170da 100644
+--- a/src/cmd/cgo/godefs.go
++++ b/src/cmd/cgo/godefs.go
+@@ -180,7 +180,7 @@ func (p *Package) cdefs(f *File, srcfile string) string {
+ 			for _, line := range lines {
+ 				line = strings.TrimSpace(line)
+ 				if strings.HasPrefix(line, "type ") && strings.HasSuffix(line, " struct {") {
+-					s := line[len("type ") : len(line)-len(" struct {")]
++					s := strings.TrimSuffix(strings.TrimPrefix(line, "type "), " struct {")
+ 					printf("typedef struct %s %s;\n", s, s)
+ 				}
+ 			}
+diff --git a/src/cmd/fix/typecheck.go b/src/cmd/fix/typecheck.go
+index d54d375478..d33b69fddc 100644
+--- a/src/cmd/fix/typecheck.go
++++ b/src/cmd/fix/typecheck.go
+@@ -395,9 +395,7 @@ func typecheck1(cfg *TypeConfig, f interface{}, typeof map[interface{}]string, a
+ 			// Field or method.
+ 			name := n.Sel.Name
+ 			if t := typeof[n.X]; t != "" {
+-				if strings.HasPrefix(t, "*") {
+-					t = t[1:] // implicit *
+-				}
++				t = strings.TrimPrefix(t, "*") // implicit *
+ 				if typ := cfg.Type[t]; typ != nil {
+ 					if t := typ.dot(cfg, name); t != "" {
+ 						typeof[n] = t
+diff --git a/src/cmd/go/testflag.go b/src/cmd/go/testflag.go
+index 8dd51437d7..b2ca66b094 100644
+--- a/src/cmd/go/testflag.go
++++ b/src/cmd/go/testflag.go
+@@ -195,9 +195,7 @@ func testFlag(args []string, i int) (f *testFlagSpec, value string, extra bool)
+ 	}
+ 	name := arg[1:]
+ 	// If there's already "test.", drop it for now.
+-	if strings.HasPrefix(name, "test.") {
+-		name = name[5:]
+-	}
++	name = strings.TrimPrefix(name, "test.")
+ 	equals := strings.Index(name, "=")
+ 	if equals >= 0 {
+ 		value = name[equals+1:]
+diff --git a/src/cmd/godoc/dirtrees.go b/src/cmd/godoc/dirtrees.go
+index 29bd39e6b0..08dbfc2e8b 100644
+--- a/src/cmd/godoc/dirtrees.go
++++ b/src/cmd/godoc/dirtrees.go
+@@ -229,9 +229,7 @@ func (dir *Directory) lookupLocal(name string) *Directory {
+ }
+ 
+ func splitPath(p string) []string {
+-	if strings.HasPrefix(p, "/") {
+-		p = p[1:]
+-	}
++	p = strings.TrimPrefix(p, "/")
+ 	if p == "" {
+ 		return nil
+ 	}
+@@ -310,14 +308,9 @@ func (root *Directory) listing(skipRoot bool) *DirList {
+ 		// the path is relative to root.Path - remove the root.Path
+ 		// prefix (the prefix should always be present but avoid
+ 		// crashes and check)
+-		path := d.Path
+-		if strings.HasPrefix(d.Path, root.Path) {
+-			path = d.Path[len(root.Path):]
+-		}
++		path := strings.TrimPrefix(d.Path, root.Path)
+ 		// remove leading separator if any - path must be relative
+-		if len(path) > 0 && path[0] == '/' {
+-			path = path[1:]
+-		}
++		path = strings.TrimPrefix(path, "/")
+ 		p.Path = path
+ 		p.Name = d.Name
+ 		p.HasPkg = d.HasPkg
+diff --git a/src/cmd/godoc/filesystem.go b/src/cmd/godoc/filesystem.go
+index c4afbed800..0309d7cabe 100644
+--- a/src/cmd/godoc/filesystem.go
++++ b/src/cmd/godoc/filesystem.go
+@@ -459,9 +459,7 @@ func (ns nameSpace) ReadDir(path string) ([]os.FileInfo, error) {
+ 		if hasPathPrefix(old, path) && old != path {
+ 			// Find next element after path in old.
+ 			elem := old[len(path):]
+-			if strings.HasPrefix(elem, "/") {
+-				elem = elem[1:]
+-			}
++			elem = strings.TrimPrefix(elem, "/")
+ 			if i := strings.Index(elem, "/"); i >= 0 {
+ 				elem = elem[:i]
+ 			}
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index 4d66c3011c..887480911a 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -419,9 +419,7 @@ func pkgLinkFunc(path string) string {
+ 	relpath := path[1:]
+ 	// because of the irregular mapping under goroot
+ 	// we need to correct certain relative paths
+-	if strings.HasPrefix(relpath, "src/pkg/") {
+-		relpath = relpath[len("src/pkg/"):]
+-	}
++	relpath = strings.TrimPrefix(relpath, "src/pkg/")
+ 	return pkgHandler.pattern[1:] + relpath // remove trailing '/' for relative URL
+ }
+ 
+diff --git a/src/cmd/godoc/main.go b/src/cmd/godoc/main.go
+index 02891444b0..1344100906 100644
+--- a/src/cmd/godoc/main.go
++++ b/src/cmd/godoc/main.go
+@@ -347,7 +347,7 @@ func main() {
+ 		fs.Bind(target, OS(path), "/", bindReplace)
+ 		abspath = target
+ 	} else if strings.HasPrefix(path, cmdPrefix) {
+-		path = path[len(cmdPrefix):]
++		path = strings.TrimPrefix(path, cmdPrefix)
+ 		forceCmd = true
+ 	} else if bp, _ := build.Import(path, "", build.FindOnly); bp.Dir != "" && bp.ImportPath != "" {
+ 		fs.Bind(target, OS(bp.Dir), "/", bindReplace)
+diff --git a/src/cmd/vet/method.go b/src/cmd/vet/method.go
+index 41df96cec5..dcfa8a02f3 100644
+--- a/src/cmd/vet/method.go
++++ b/src/cmd/vet/method.go
+@@ -90,9 +90,7 @@ func (f *File) checkCanonicalMethod(id *ast.Ident, t *ast.FuncType) {
+ 			fmt.Fprintf(&f.b, "<%s>", err)
+ 		}
+ 		actual := f.b.String()
+-		if strings.HasPrefix(actual, "func(") {
+-			actual = actual[4:]
+-		}
++		actual = strings.TrimPrefix(actual, "func(")
+ 		actual = id.Name + actual
+ 
+ 		f.Warnf(id.Pos(), "method %s should have signature %s", actual, expectFmt)
+diff --git a/src/pkg/bytes/bytes.go b/src/pkg/bytes/bytes.go
+index e3ee5b1d88..31cf89ea87 100644
+--- a/src/pkg/bytes/bytes.go
++++ b/src/pkg/bytes/bytes.go
+@@ -515,6 +515,24 @@ func TrimFunc(s []byte, f func(r rune) bool) []byte {
+ 	return TrimRightFunc(TrimLeftFunc(s, f), f)
+ }
+ 
++// TrimPrefix returns s without the provided leading prefix string.
++// If s doesn't start with prefix, s is returned unchanged.
++func TrimPrefix(s, prefix []byte) []byte {
++	if HasPrefix(s, prefix) {
++		return s[len(prefix):]
++	}
++	return s
++}
++
++// TrimSuffix returns s without the provided trailing suffix string.
++// If s doesn't end with suffix, s is returned unchanged.
++func TrimSuffix(s, suffix []byte) []byte {
++	if HasSuffix(s, suffix) {
++		return s[:len(s)-len(suffix)]
++	}
++	return s
++}
++
+ // IndexFunc interprets s as a sequence of UTF-8-encoded Unicode code points.
+ // It returns the byte index in s of the first Unicode
+ // code point satisfying f(c), or -1 if none do.
+diff --git a/src/pkg/bytes/bytes_test.go b/src/pkg/bytes/bytes_test.go
+index 05956d460a..1d073b143b 100644
+--- a/src/pkg/bytes/bytes_test.go
++++ b/src/pkg/bytes/bytes_test.go
+@@ -794,8 +794,8 @@ func TestRunes(t *testing.T) {
+ }
+ 
+ type TrimTest struct {
+-	f               string
+-	in, cutset, out string
++	f            string
++	in, arg, out string
+ }
+ 
+ var trimTests = []TrimTest{
+@@ -820,12 +820,17 @@ var trimTests = []TrimTest{
+ 	{"TrimRight", "", "123", ""},
+ 	{"TrimRight", "", "", ""},
+ 	{"TrimRight", "☺\xc0", "☺", "☺\xc0"},
++	{"TrimPrefix", "aabb", "a", "abb"},
++	{"TrimPrefix", "aabb", "b", "aabb"},
++	{"TrimSuffix", "aabb", "a", "aabb"},
++	{"TrimSuffix", "aabb", "b", "aab"},
+ }
+ 
+ func TestTrim(t *testing.T) {
+ 	for _, tc := range trimTests {
+ 		name := tc.f
+ 		var f func([]byte, string) []byte
++		var fb func([]byte, []byte) []byte
+ 		switch name {
+ 		case "Trim":
+ 			f = Trim
+@@ -833,12 +838,21 @@ func TestTrim(t *testing.T) {
+ 			f = TrimLeft
+ 		case "TrimRight":
+ 			f = TrimRight
++		case "TrimPrefix":
++			fb = TrimPrefix
++		case "TrimSuffix":
++			fb = TrimSuffix
+ 		default:
+ 			t.Errorf("Undefined trim function %s", name)
+ 		}
+-		actual := string(f([]byte(tc.in), tc.cutset))
++		var actual string
++		if f != nil {
++			actual = string(f([]byte(tc.in), tc.arg))
++		} else {
++			actual = string(fb([]byte(tc.in), []byte(tc.arg)))
++		}
+ 		if actual != tc.out {
+-			t.Errorf("%s(%q, %q) = %q; want %q", name, tc.in, tc.cutset, actual, tc.out)
++			t.Errorf("%s(%q, %q) = %q; want %q", name, tc.in, tc.arg, actual, tc.out)
+ 		}
+ 	}
+ }
+diff --git a/src/pkg/bytes/example_test.go b/src/pkg/bytes/example_test.go
+index dc66b6a40f..ad2dbc69b7 100644
+--- a/src/pkg/bytes/example_test.go
++++ b/src/pkg/bytes/example_test.go
+@@ -66,3 +66,20 @@ func ExampleCompare_search() {
+ 		// Found it!
+ 	}
+ }
++
++func ExampleTrimSuffix() {
++	var b = []byte("Hello, goodbye, etc!")
++	b = bytes.TrimSuffix(b, []byte("goodbye, etc!"))
++	b = bytes.TrimSuffix(b, []byte("gopher"))
++	b = append(b, bytes.TrimSuffix([]byte("world!"), []byte("x!"))...)
++	os.Stdout.Write(b)
++	// Output: Hello, world!
++}
++
++func ExampleTrimPrefix() {
++	var b = []byte("Goodbye,, world!")
++	b = bytes.TrimPrefix(b, []byte("Goodbye,"))
++	b = bytes.TrimPrefix(b, []byte("See ya,"))
++	fmt.Printf("Hello%s", b)
++	// Output: Hello, world!
++}
+diff --git a/src/pkg/exp/html/parse_test.go b/src/pkg/exp/html/parse_test.go
+index 4896dfb7a0..f72af45970 100644
+--- a/src/pkg/exp/html/parse_test.go
++++ b/src/pkg/exp/html/parse_test.go
+@@ -42,10 +42,7 @@ func readParseTest(r *bufio.Reader) (text, want, context string, err error) {
+ 		}
+ 		b = append(b, line...)
+ 	}
+-	text = string(b)
+-	if strings.HasSuffix(text, "\n") {
+-		text = text[:len(text)-1]
+-	}
++	text = strings.TrimSuffix(string(b), "\n")
+ 	b = b[:0]
+ 
+ 	// Skip the error list.
+diff --git a/src/pkg/go/printer/printer.go b/src/pkg/go/printer/printer.go
+index f1c07bd3be..3c8d23e655 100644
+--- a/src/pkg/go/printer/printer.go
++++ b/src/pkg/go/printer/printer.go
+@@ -551,9 +551,7 @@ func stripCommonPrefix(lines []string) {
+ 			}
+ 			// Shorten the computed common prefix by the length of
+ 			// suffix, if it is found as suffix of the prefix.
+-			if strings.HasSuffix(prefix, string(suffix)) {
+-				prefix = prefix[0 : len(prefix)-len(suffix)]
+-			}
++			prefix = strings.TrimSuffix(prefix, string(suffix))
+ 		}
+ 	}
+ 
+diff --git a/src/pkg/go/types/gcimporter.go b/src/pkg/go/types/gcimporter.go
+index edd3e4dec7..e0e4cea3c7 100644
+--- a/src/pkg/go/types/gcimporter.go
++++ b/src/pkg/go/types/gcimporter.go
+@@ -44,10 +44,7 @@ func FindPkg(path, srcDir string) (filename, id string) {
+ 		if bp.PkgObj == "" {
+ 			return
+ 		}
+-		noext = bp.PkgObj
+-		if strings.HasSuffix(noext, ".a") {
+-			noext = noext[:len(noext)-len(".a")]
+-		}
++		noext = strings.TrimSuffix(bp.PkgObj, ".a")
+ 
+ 	case build.IsLocalImport(path):
+ 		// "./x" -> "/this/directory/x.ext", "/this/directory/x"
+diff --git a/src/pkg/net/http/pprof/pprof.go b/src/pkg/net/http/pprof/pprof.go
+index 0c03e5b2b7..0c7548e3ef 100644
+--- a/src/pkg/net/http/pprof/pprof.go
++++ b/src/pkg/net/http/pprof/pprof.go
+@@ -172,7 +172,7 @@ func (name handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+ // listing the available profiles.
+ func Index(w http.ResponseWriter, r *http.Request) {
+ 	if strings.HasPrefix(r.URL.Path, "/debug/pprof/") {
+-		name := r.URL.Path[len("/debug/pprof/"):]
++		name := strings.TrimPrefix(r.URL.Path, "/debug/pprof/")
+ 		if name != "" {
+ 			handler(name).ServeHTTP(w, r)
+ 			return
+diff --git a/src/pkg/net/http/response.go b/src/pkg/net/http/response.go
+index 7901c49f5a..391ebbf6d7 100644
+--- a/src/pkg/net/http/response.go
++++ b/src/pkg/net/http/response.go
+@@ -198,9 +198,7 @@ func (r *Response) Write(w io.Writer) error {
+ 	}
+ 	protoMajor, protoMinor := strconv.Itoa(r.ProtoMajor), strconv.Itoa(r.ProtoMinor)
+ 	statusCode := strconv.Itoa(r.StatusCode) + " "
+-	if strings.HasPrefix(text, statusCode) {
+-		text = text[len(statusCode):]
+-	}
++	text = strings.TrimPrefix(text, statusCode)
+ 	io.WriteString(w, "HTTP/"+protoMajor+"."+protoMinor+" "+statusCode+text+"\r\n")
+ 
+ 	// Process Body,ContentLength,Close,Trailer
+diff --git a/src/pkg/strings/example_test.go b/src/pkg/strings/example_test.go
+index 733caf5f2d..36e0a42fb0 100644
+--- a/src/pkg/strings/example_test.go
++++ b/src/pkg/strings/example_test.go
+@@ -179,3 +179,19 @@ func ExampleToLower() {
+ 	fmt.Println(strings.ToLower("Gopher"))
+ 	// Output: gopher
+ }
++
++func ExampleTrimSuffix() {
++	var s = "Hello, goodbye, etc!"
++	s = strings.TrimSuffix(s, "goodbye, etc!")
++	s = strings.TrimSuffix(s, "planet")
++	fmt.Print(s, "world!")
++	// Output: Hello, world!
++}
++
++func ExampleTrimPrefix() {
++	var s = "Goodbye,, world!"
++	s = strings.TrimPrefix(s, "Goodbye,")
++	s = strings.TrimPrefix(s, "Howdy,")
++	fmt.Print("Hello" + s)
++	// Output: Hello, world!
++}
+diff --git a/src/pkg/strings/strings.go b/src/pkg/strings/strings.go
+index b411ba5d8b..d4b3f03473 100644
+--- a/src/pkg/strings/strings.go
++++ b/src/pkg/strings/strings.go
+@@ -558,6 +558,24 @@ func TrimSpace(s string) string {
+ 	return TrimFunc(s, unicode.IsSpace)
+ }
+ 
++// TrimPrefix returns s without the provided leading prefix string.
++// If s doesn't start with prefix, s is returned unchanged.
++func TrimPrefix(s, prefix string) string {
++	if HasPrefix(s, prefix) {
++		return s[len(prefix):]
++	}
++	return s
++}
++
++// TrimSuffix returns s without the provided trailing suffix string.
++// If s doesn't end with suffix, s is returned unchanged.
++func TrimSuffix(s, suffix string) string {
++	if HasSuffix(s, suffix) {
++		return s[:len(s)-len(suffix)]
++	}
++	return s
++}
++
+ // Replace returns a copy of the string s with the first n
+ // non-overlapping instances of old replaced by new.
+ // If n < 0, there is no limit on the number of replacements.
+diff --git a/src/pkg/strings/strings_test.go b/src/pkg/strings/strings_test.go
+index 7be41a8dca..e222af14a7 100644
+--- a/src/pkg/strings/strings_test.go
++++ b/src/pkg/strings/strings_test.go
+@@ -496,8 +496,8 @@ func TestSpecialCase(t *testing.T) {
+ func TestTrimSpace(t *testing.T) { runStringTests(t, TrimSpace, "TrimSpace", trimSpaceTests) }
+ 
+ var trimTests = []struct {
+-	f               string
+-	in, cutset, out string
++	f            string
++	in, arg, out string
+ }{
+ 	{"Trim", "abba", "a", "bb"},
+ 	{"Trim", "abba", "ab", ""},
+@@ -520,6 +520,10 @@ var trimTests = []struct {
+ 	{"TrimRight", "", "123", ""},
+ 	{"TrimRight", "", "", ""},
+ 	{"TrimRight", "☺\xc0", "☺", "☺\xc0"},
++	{"TrimPrefix", "aabb", "a", "abb"},
++	{"TrimPrefix", "aabb", "b", "aabb"},
++	{"TrimSuffix", "aabb", "a", "aabb"},
++	{"TrimSuffix", "aabb", "b", "aab"},
+ }
+ 
+ func TestTrim(t *testing.T) {
+@@ -533,12 +537,16 @@ func TestTrim(t *testing.T) {
+ 			f = TrimLeft
+ 		case "TrimRight":
+ 			f = TrimRight
++		case "TrimPrefix":
++			f = TrimPrefix
++		case "TrimSuffix":
++			f = TrimSuffix
+ 		default:
+ 			t.Errorf("Undefined trim function %s", name)
+ 		}
+-		actual := f(tc.in, tc.cutset)
++		actual := f(tc.in, tc.arg)
+ 		if actual != tc.out {
+-			t.Errorf("%s(%q, %q) = %q; want %q", name, tc.in, tc.cutset, actual, tc.out)
++			t.Errorf("%s(%q, %q) = %q; want %q", name, tc.in, tc.arg, actual, tc.out)
+ 		}
+ 	}
+ }

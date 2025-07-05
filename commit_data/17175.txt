@@ -10,6 +10,30 @@ Date:   Mon Aug 12 19:18:47 2013 -0700
     R=golang-dev, shivakumar.gn
     CC=golang-dev
     https://golang.org/cl/12814043
-
+---
  src/cmd/api/run.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/cmd/api/run.go b/src/cmd/api/run.go
+index 520c56fd52..d824651b81 100644
+--- a/src/cmd/api/run.go
++++ b/src/cmd/api/run.go
+@@ -16,6 +16,7 @@ package main
+ import (
+ 	"fmt"
+ 	"log"
++	"net/http"
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
+@@ -109,6 +110,10 @@ func prepGoPath() string {
+ 	cmd.Dir = cloneDir
+ 	out, err := cmd.CombinedOutput()
+ 	if err != nil {
++		if _, err := http.Head("http://ip.appspot.com/"); err != nil {
++			log.Printf("# Skipping API check; network appears to be unavailable")
++			os.Exit(0)
++		}
+ 		log.Fatalf("Error running hg clone on go.tools: %v\n%s", err, out)
+ 	}
+ 	if err := os.Rename(tmpDir, finalDir); err != nil {

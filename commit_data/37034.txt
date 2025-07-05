@@ -15,6 +15,22 @@ Date:   Wed Jun 20 11:35:20 2018 +0530
     Change-Id: I112a4629c415032bd29e165ac1c27a0f3cabeede
     Reviewed-on: https://go-review.googlesource.com/119938
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/internal/help/help.go | 4 ----
  1 file changed, 4 deletions(-)
+
+diff --git a/src/cmd/go/internal/help/help.go b/src/cmd/go/internal/help/help.go
+index 68b2c940d1..c79bf8bebb 100644
+--- a/src/cmd/go/internal/help/help.go
++++ b/src/cmd/go/internal/help/help.go
+@@ -64,10 +64,6 @@ func Help(args []string) {
+ 
+ var usageTemplate = `Go is a tool for managing Go source code.
+ 
+-This is vgo, an experimental go command with support for package versioning.
+-Even though you are invoking it as vgo, most of the messages printed will
+-still say "go", not "vgo". Sorry.
+-
+ Usage:
+ 
+ 	go command [arguments]

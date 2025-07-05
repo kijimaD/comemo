@@ -7,8 +7,77 @@ Date:   Fri Nov 7 14:20:32 2008 -0800
     R=r
     OCL=18807
     CL=18807
-
+---
  src/cmd/6g/cgen.c |  5 ++++-
  src/cmd/6g/gen.c  | 29 +++++++++++++++++++++++++++++
  src/cmd/6g/gg.h   |  1 +
  3 files changed, 34 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/6g/cgen.c b/src/cmd/6g/cgen.c
+index e1b970b323..4fb9e3415d 100644
+--- a/src/cmd/6g/cgen.c
++++ b/src/cmd/6g/cgen.c
+@@ -122,7 +122,10 @@ cgen(Node *n, Node *res)
+ 	case OADD:
+ 	case OMUL:
+ 		a = optoas(n->op, nl->type);
+-		goto sbop;
++		if(a != AIMULB)
++			goto sbop;
++		cgen_bmul(n->op, nl, nr, res);
++		break;
+ 
+ 	// asymmetric binary
+ 	case OSUB:
+diff --git a/src/cmd/6g/gen.c b/src/cmd/6g/gen.c
+index 1b4c7e6645..b9f558a608 100644
+--- a/src/cmd/6g/gen.c
++++ b/src/cmd/6g/gen.c
+@@ -1095,6 +1095,35 @@ ret:
+ 	;
+ }
+ 
++void
++cgen_bmul(int op, Node *nl, Node *nr, Node *res)
++{
++	Node n1, n2;
++	Type *t;
++	int a;
++
++	t = types[TUINT16];
++	if(issigned[nl->type->etype])
++		t = types[TINT16];
++
++	if(nl->ullman >= nr->ullman) {
++		regalloc(&n1, t, nl);
++		cgen(nl, &n1);
++		regalloc(&n2, t, nr);
++		cgen(nr, &n2);
++	} else {
++		regalloc(&n2, t, nr);
++		cgen(nr, &n2);
++		regalloc(&n1, t, nl);
++		cgen(nl, &n1);
++	}
++	a = optoas(op, t);
++	gins(a, &n2, &n1);
++	gmove(&n1, res);
++	regfree(&n1);
++	regfree(&n2);
++}
++
+ void
+ checklabels(void)
+ {
+diff --git a/src/cmd/6g/gg.h b/src/cmd/6g/gg.h
+index a26ed819b1..594689bc76 100644
+--- a/src/cmd/6g/gg.h
++++ b/src/cmd/6g/gg.h
+@@ -138,6 +138,7 @@ void	cgen_callinter(Node*, Node*, int);
+ void	cgen_proc(Node*);
+ void	cgen_callret(Node*, Node*);
+ void	cgen_div(int, Node*, Node*, Node*);
++void	cgen_bmul(int, Node*, Node*, Node*);
+ void	cgen_shift(int, Node*, Node*, Node*);
+ void	genpanic(void);
+ int	needconvert(Type*, Type*);

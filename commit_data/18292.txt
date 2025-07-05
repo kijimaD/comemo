@@ -7,9 +7,96 @@ Date:   Sun Jan 19 09:57:02 2014 -0800
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/54290043
-
+---
  src/pkg/syscall/types_netbsd.go        |  5 +++++
  src/pkg/syscall/ztypes_netbsd_386.go   | 10 ++++++++++
  src/pkg/syscall/ztypes_netbsd_amd64.go | 10 ++++++++++
  src/pkg/syscall/ztypes_netbsd_arm.go   | 10 ++++++++++
  4 files changed, 35 insertions(+)
+
+diff --git a/src/pkg/syscall/types_netbsd.go b/src/pkg/syscall/types_netbsd.go
+index badaa1049a..04354a32a9 100644
+--- a/src/pkg/syscall/types_netbsd.go
++++ b/src/pkg/syscall/types_netbsd.go
+@@ -18,6 +18,7 @@ package syscall
+ #include <dirent.h>
+ #include <fcntl.h>
+ #include <signal.h>
++#include <termios.h>
+ #include <stdio.h>
+ #include <unistd.h>
+ #include <sys/param.h>
+@@ -222,6 +223,10 @@ type BpfHdr C.struct_bpf_hdr
+ 
+ type BpfTimeval C.struct_bpf_timeval
+ 
++// Terminal handling
++
++type Termios C.struct_termios
++
+ // Sysctl
+ 
+ type Sysctlnode C.struct_sysctlnode
+diff --git a/src/pkg/syscall/ztypes_netbsd_386.go b/src/pkg/syscall/ztypes_netbsd_386.go
+index 59314bad28..6add325a37 100644
+--- a/src/pkg/syscall/ztypes_netbsd_386.go
++++ b/src/pkg/syscall/ztypes_netbsd_386.go
+@@ -370,6 +370,16 @@ type BpfTimeval struct {
+ 	Usec int32
+ }
+ 
++type Termios struct {
++	Iflag  uint32
++	Oflag  uint32
++	Cflag  uint32
++	Lflag  uint32
++	Cc     [20]uint8
++	Ispeed int32
++	Ospeed int32
++}
++
+ type Sysctlnode struct {
+ 	Flags           uint32
+ 	Num             int32
+diff --git a/src/pkg/syscall/ztypes_netbsd_amd64.go b/src/pkg/syscall/ztypes_netbsd_amd64.go
+index a021a57387..4451fc1f02 100644
+--- a/src/pkg/syscall/ztypes_netbsd_amd64.go
++++ b/src/pkg/syscall/ztypes_netbsd_amd64.go
+@@ -377,6 +377,16 @@ type BpfTimeval struct {
+ 	Usec int64
+ }
+ 
++type Termios struct {
++	Iflag  uint32
++	Oflag  uint32
++	Cflag  uint32
++	Lflag  uint32
++	Cc     [20]uint8
++	Ispeed int32
++	Ospeed int32
++}
++
+ type Sysctlnode struct {
+ 	Flags           uint32
+ 	Num             int32
+diff --git a/src/pkg/syscall/ztypes_netbsd_arm.go b/src/pkg/syscall/ztypes_netbsd_arm.go
+index 59314bad28..6add325a37 100644
+--- a/src/pkg/syscall/ztypes_netbsd_arm.go
++++ b/src/pkg/syscall/ztypes_netbsd_arm.go
+@@ -370,6 +370,16 @@ type BpfTimeval struct {
+ 	Usec int32
+ }
+ 
++type Termios struct {
++	Iflag  uint32
++	Oflag  uint32
++	Cflag  uint32
++	Lflag  uint32
++	Cc     [20]uint8
++	Ispeed int32
++	Ospeed int32
++}
++
+ type Sysctlnode struct {
+ 	Flags           uint32
+ 	Num             int32

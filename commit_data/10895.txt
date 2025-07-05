@@ -7,7 +7,205 @@ Date:   Tue Dec 20 09:01:18 2011 -0800
     R=golang-dev, dsymonds, hectorchu, r, r
     CC=golang-dev
     https://golang.org/cl/5496064
-
+---
  src/pkg/time/time.go      | 58 +++++++++++++++++++++++++++++++++++++----
  src/pkg/time/time_test.go | 66 ++++++++++++++++++++++++++++++++++++++++++-----
  2 files changed, 113 insertions(+), 11 deletions(-)
+
+diff --git a/src/pkg/time/time.go b/src/pkg/time/time.go
+index 8e24daeff7..33d557f736 100644
+--- a/src/pkg/time/time.go
++++ b/src/pkg/time/time.go
+@@ -7,6 +7,8 @@
+ // The calendrical calculations always assume a Gregorian calendar.
+ package time
+ 
++import "errors"
++
+ // A Time represents an instant in time with nanosecond precision.
+ //
+ // Programs using times should typically store and pass them as values,
+@@ -765,11 +767,11 @@ func (t Time) GobEncode() ([]byte, error) {
+ 	} else {
+ 		_, offset := t.Zone()
+ 		if offset%60 != 0 {
+-			return nil, gobError("Time.GobEncode: zone offset has fractional minute")
++			return nil, errors.New("Time.GobEncode: zone offset has fractional minute")
+ 		}
+ 		offset /= 60
+ 		if offset < -32768 || offset == -1 || offset > 32767 {
+-			return nil, gobError("Time.GobEncode: unexpected zone offset")
++			return nil, errors.New("Time.GobEncode: unexpected zone offset")
+ 		}
+ 		offsetMin = int16(offset)
+ 	}
+@@ -798,15 +800,15 @@ func (t Time) GobEncode() ([]byte, error) {
+ // GobDecode implements the gob.GobDecoder interface.
+ func (t *Time) GobDecode(buf []byte) error {
+ 	if len(buf) == 0 {
+-		return gobError("Time.GobDecode: no data")
++		return errors.New("Time.GobDecode: no data")
+ 	}
+ 
+ 	if buf[0] != timeGobVersion {
+-		return gobError("Time.GobDecode: unsupported version")
++		return errors.New("Time.GobDecode: unsupported version")
+ 	}
+ 
+ 	if len(buf) != /*version*/ 1+ /*sec*/ 8+ /*nsec*/ 4+ /*zone offset*/ 2 {
+-		return gobError("Time.GobDecode: invalid length")
++		return errors.New("Time.GobDecode: invalid length")
+ 	}
+ 
+ 	buf = buf[1:]
+@@ -830,6 +832,52 @@ func (t *Time) GobDecode(buf []byte) error {
+ 	return nil
+ }
+ 
++// MarshalJSON implements the json.Marshaler interface.
++// Time is formatted as RFC3339.
++func (t Time) MarshalJSON() ([]byte, error) {
++	yearInt := t.Year()
++	if yearInt < 0 || yearInt > 9999 {
++		return nil, errors.New("Time.MarshalJSON: year outside of range [0,9999]")
++	}
++
++	// We need a four-digit year, but Format produces variable-width years.
++	year := itoa(yearInt)
++	year = "0000"[:4-len(year)] + year
++
++	var formattedTime string
++	if t.nsec == 0 {
++		// RFC3339, no fractional second
++		formattedTime = t.Format("-01-02T15:04:05Z07:00")
++	} else {
++		// RFC3339 with fractional second
++		formattedTime = t.Format("-01-02T15:04:05.000000000Z07:00")
++
++		// Trim trailing zeroes from fractional second.
++		const nanoEnd = 24 // Index of last digit of fractional second
++		var i int
++		for i = nanoEnd; formattedTime[i] == '0'; i-- {
++			// Seek backwards until first significant digit is found.
++		}
++
++		formattedTime = formattedTime[:i+1] + formattedTime[nanoEnd+1:]
++	}
++
++	buf := make([]byte, 0, 1+len(year)+len(formattedTime)+1)
++	buf = append(buf, '"')
++	buf = append(buf, year...)
++	buf = append(buf, formattedTime...)
++	buf = append(buf, '"')
++	return buf, nil
++}
++
++// UnmarshalJSON implements the json.Unmarshaler interface.
++// Time is expected in RFC3339 format.
++func (t *Time) UnmarshalJSON(data []byte) (err error) {
++	*t, err = Parse("\""+RFC3339+"\"", string(data))
++	// Fractional seconds are handled implicitly by Parse.
++	return
++}
++
+ // Unix returns the local Time corresponding to the given Unix time,
+ // sec seconds and nsec nanoseconds since January 1, 1970 UTC.
+ // It is valid to pass nsec outside the range [0, 999999999].
+diff --git a/src/pkg/time/time_test.go b/src/pkg/time/time_test.go
+index bcc9c42365..484ae4266a 100644
+--- a/src/pkg/time/time_test.go
++++ b/src/pkg/time/time_test.go
+@@ -7,6 +7,7 @@ package time_test
+ import (
+ 	"bytes"
+ 	"encoding/gob"
++	"encoding/json"
+ 	"strconv"
+ 	"strings"
+ 	"testing"
+@@ -694,6 +695,12 @@ func TestAddToExactSecond(t *testing.T) {
+ 	}
+ }
+ 
++func equalTimeAndZone(a, b Time) bool {
++	aname, aoffset := a.Zone()
++	bname, boffset := b.Zone()
++	return a.Equal(b) && aoffset == boffset && aname == bname
++}
++
+ var gobTests = []Time{
+ 	Date(0, 1, 2, 3, 4, 5, 6, UTC),
+ 	Date(7, 8, 9, 10, 11, 12, 13, FixedZone("", 0)),
+@@ -713,12 +720,8 @@ func TestTimeGob(t *testing.T) {
+ 			t.Errorf("%v gob Encode error = %q, want nil", tt, err)
+ 		} else if err := dec.Decode(&gobtt); err != nil {
+ 			t.Errorf("%v gob Decode error = %q, want nil", tt, err)
+-		} else {
+-			gobname, goboffset := gobtt.Zone()
+-			name, offset := tt.Zone()
+-			if !gobtt.Equal(tt) || goboffset != offset || gobname != name {
+-				t.Errorf("Decoded time = %v, want %v", gobtt, tt)
+-			}
++		} else if !equalTimeAndZone(gobtt, tt) {
++			t.Errorf("Decoded time = %v, want %v", gobtt, tt)
+ 		}
+ 		b.Reset()
+ 	}
+@@ -762,6 +765,57 @@ func TestNotGobEncodableTime(t *testing.T) {
+ 	}
+ }
+ 
++var jsonTests = []struct {
++	time Time
++	json string
++}{
++	{Date(9999, 4, 12, 23, 20, 50, .52*1e9, UTC), `"9999-04-12T23:20:50.52Z"`},
++	{Date(1996, 12, 19, 16, 39, 57, 0, Local), `"1996-12-19T16:39:57-08:00"`},
++	{Date(0, 1, 1, 0, 0, 0, 1, FixedZone("", 1*60)), `"0000-01-01T00:00:00.000000001+00:01"`},
++}
++
++func TestTimeJSON(t *testing.T) {
++	for _, tt := range jsonTests {
++		var jsonTime Time
++
++		if jsonBytes, err := json.Marshal(tt.time); err != nil {
++			t.Errorf("%v json.Marshal error = %v, want nil", tt.time, err)
++		} else if string(jsonBytes) != tt.json {
++			t.Errorf("%v JSON = %q, want %q", tt.time, string(jsonBytes), tt.json)
++		} else if err = json.Unmarshal(jsonBytes, &jsonTime); err != nil {
++			t.Errorf("%v json.Unmarshal error = %v, want nil", tt.time, err)
++		} else if !equalTimeAndZone(jsonTime, tt.time) {
++			t.Errorf("Unmarshaled time = %v, want %v", jsonTime, tt.time)
++		}
++	}
++}
++
++func TestInvalidTimeJSON(t *testing.T) {
++	var tt Time
++	err := json.Unmarshal([]byte(`{"now is the time":"buddy"}`), &tt)
++	_, isParseErr := err.(*ParseError)
++	if !isParseErr {
++		t.Errorf("expected *time.ParseError unmarshaling JSON, got %v", err)
++	}
++}
++
++var notJSONEncodableTimes = []struct {
++	time Time
++	want string
++}{
++	{Date(10000, 1, 1, 0, 0, 0, 0, UTC), "Time.MarshalJSON: year outside of range [0,9999]"},
++	{Date(-1, 1, 1, 0, 0, 0, 0, UTC), "Time.MarshalJSON: year outside of range [0,9999]"},
++}
++
++func TestNotJSONEncodableTime(t *testing.T) {
++	for _, tt := range notJSONEncodableTimes {
++		_, err := tt.time.MarshalJSON()
++		if err == nil || err.Error() != tt.want {
++			t.Errorf("%v MarshalJSON error = %v, want %v", tt.time, err, tt.want)
++		}
++	}
++}
++
+ func BenchmarkNow(b *testing.B) {
+ 	for i := 0; i < b.N; i++ {
+ 		Now()

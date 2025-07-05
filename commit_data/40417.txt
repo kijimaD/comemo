@@ -24,6 +24,20 @@ Date:   Fri May 10 16:31:56 2019 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ssa/rewrite.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index 18d9c9f985..c6b0fa38f3 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -868,7 +868,7 @@ func logRule(s string) {
+ 		}
+ 		ruleFile = w
+ 	}
+-	_, err := fmt.Fprintf(ruleFile, "rewrite %s\n", s)
++	_, err := fmt.Fprintln(ruleFile, s)
+ 	if err != nil {
+ 		panic(err)
+ 	}

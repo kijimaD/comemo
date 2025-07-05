@@ -15,8 +15,95 @@ Date:   Tue Apr 5 23:32:49 2016 +0200
     Run-TryBot: Alexandru Moșoi <alexandru@mosoi.ro>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/ssa/gen/AMD64.rules |  2 ++
  src/cmd/compile/internal/ssa/rewriteAMD64.go | 32 ++++++++++++++++++++++++++++
  test/checkbce.go                             | 12 +++++++++++
  3 files changed, 46 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index b37720eb39..d7f361dc2e 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -1101,6 +1101,8 @@
+ (CMPQconst (MOVBQZX _) [c]) && 0xFF < c -> (FlagLT_ULT)
+ (CMPQconst (MOVWQZX _) [c]) && 0xFFFF < c -> (FlagLT_ULT)
+ (CMPQconst (MOVLQZX _) [c]) && 0xFFFFFFFF < c -> (FlagLT_ULT)
++(CMPLconst (SHRLconst _ [c]) [n]) && 0 <= n && 0 < c && c <= 32 && (1<<uint64(32-c)) <= uint64(n) -> (FlagLT_ULT)
++(CMPQconst (SHRQconst _ [c]) [n]) && 0 <= n && 0 < c && c <= 64 && (1<<uint64(64-c)) <= uint64(n) -> (FlagLT_ULT)
+ (CMPQconst (ANDQconst _ [m]) [n]) && 0 <= m && m < n -> (FlagLT_ULT)
+ (CMPLconst (ANDLconst _ [m]) [n]) && 0 <= int32(m) && int32(m) < int32(n) -> (FlagLT_ULT)
+ (CMPWconst (ANDWconst _ [m]) [n]) && 0 <= int16(m) && int16(m) < int16(n) -> (FlagLT_ULT)
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index a1d1e4edd9..34a393bbc5 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -2869,6 +2869,22 @@ func rewriteValueAMD64_OpAMD64CMPLconst(v *Value, config *Config) bool {
+ 		v.reset(OpAMD64FlagGT_UGT)
+ 		return true
+ 	}
++	// match: (CMPLconst (SHRLconst _ [c]) [n])
++	// cond: 0 <= n && 0 < c && c <= 32 && (1<<uint64(32-c)) <= uint64(n)
++	// result: (FlagLT_ULT)
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpAMD64SHRLconst {
++			break
++		}
++		c := v_0.AuxInt
++		n := v.AuxInt
++		if !(0 <= n && 0 < c && c <= 32 && (1<<uint64(32-c)) <= uint64(n)) {
++			break
++		}
++		v.reset(OpAMD64FlagLT_ULT)
++		return true
++	}
+ 	// match: (CMPLconst (ANDLconst _ [m]) [n])
+ 	// cond: 0 <= int32(m) && int32(m) < int32(n)
+ 	// result: (FlagLT_ULT)
+@@ -3107,6 +3123,22 @@ func rewriteValueAMD64_OpAMD64CMPQconst(v *Value, config *Config) bool {
+ 		v.reset(OpAMD64FlagLT_ULT)
+ 		return true
+ 	}
++	// match: (CMPQconst (SHRQconst _ [c]) [n])
++	// cond: 0 <= n && 0 < c && c <= 64 && (1<<uint64(64-c)) <= uint64(n)
++	// result: (FlagLT_ULT)
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpAMD64SHRQconst {
++			break
++		}
++		c := v_0.AuxInt
++		n := v.AuxInt
++		if !(0 <= n && 0 < c && c <= 64 && (1<<uint64(64-c)) <= uint64(n)) {
++			break
++		}
++		v.reset(OpAMD64FlagLT_ULT)
++		return true
++	}
+ 	// match: (CMPQconst (ANDQconst _ [m]) [n])
+ 	// cond: 0 <= m && m < n
+ 	// result: (FlagLT_ULT)
+diff --git a/test/checkbce.go b/test/checkbce.go
+index a3b0100db8..988375fcc7 100644
+--- a/test/checkbce.go
++++ b/test/checkbce.go
+@@ -52,6 +52,18 @@ func f5(a []int) {
+ 	}
+ }
+ 
++func f6(a [32]int, b [64]int, i int) {
++	useInt(a[uint32(i*0x07C4ACDD)>>27])
++	useInt(b[uint64(i*0x07C4ACDD)>>58])
++	useInt(a[uint(i*0x07C4ACDD)>>59])
++
++	// The following bounds should removed as they can overflow.
++	useInt(a[uint32(i*0x106297f105d0cc86)>>26]) // ERROR "Found IsInBounds$"
++	useInt(b[uint64(i*0x106297f105d0cc86)>>57]) // ERROR "Found IsInBounds$"
++	useInt(a[int32(i*0x106297f105d0cc86)>>26])  // ERROR "Found IsInBounds$"
++	useInt(b[int64(i*0x106297f105d0cc86)>>57])  // ERROR "Found IsInBounds$"
++}
++
+ func g1(a []int) {
+ 	for i := range a {
+ 		a[i] = i

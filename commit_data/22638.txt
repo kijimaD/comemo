@@ -12,7 +12,7 @@ Date:   Fri Mar 27 11:21:14 2015 -0400
     Change-Id: Ic315dd50d144d94dd3324227099c116be5ca70b6
     Reviewed-on: https://go-review.googlesource.com/8201
     Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
-
+---
  src/cmd/internal/gc/builtin.go         |  4 ++--
  src/cmd/internal/gc/builtin/runtime.go |  4 ++--
  src/cmd/internal/gc/esc.go             |  5 ++---
@@ -21,3 +21,187 @@ Date:   Fri Mar 27 11:21:14 2015 -0400
  src/runtime/iface_test.go              | 40 ++++++++++++++++++++++++++++++++++
  test/escape2.go                        |  2 +-
  7 files changed, 72 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/internal/gc/builtin.go b/src/cmd/internal/gc/builtin.go
+index d39bc2b02f..13ee7d7289 100644
+--- a/src/cmd/internal/gc/builtin.go
++++ b/src/cmd/internal/gc/builtin.go
+@@ -50,8 +50,8 @@ const runtimeimport = "" +
+ 	"func @\"\".typ2Itab (@\"\".typ·2 *byte, @\"\".typ2·3 *byte, @\"\".cache·4 **byte) (@\"\".ret·1 *byte)\n" +
+ 	"func @\"\".convI2E (@\"\".elem·2 any) (@\"\".ret·1 any)\n" +
+ 	"func @\"\".convI2I (@\"\".typ·2 *byte, @\"\".elem·3 any) (@\"\".ret·1 any)\n" +
+-	"func @\"\".convT2E (@\"\".typ·2 *byte, @\"\".elem·3 *any) (@\"\".ret·1 any)\n" +
+-	"func @\"\".convT2I (@\"\".typ·2 *byte, @\"\".typ2·3 *byte, @\"\".cache·4 **byte, @\"\".elem·5 *any) (@\"\".ret·1 any)\n" +
++	"func @\"\".convT2E (@\"\".typ·2 *byte, @\"\".elem·3 *any, @\"\".buf·4 *any) (@\"\".ret·1 any)\n" +
++	"func @\"\".convT2I (@\"\".typ·2 *byte, @\"\".typ2·3 *byte, @\"\".cache·4 **byte, @\"\".elem·5 *any, @\"\".buf·6 *any) (@\"\".ret·1 any)\n" +
+ 	"func @\"\".assertE2E (@\"\".typ·1 *byte, @\"\".iface·2 any, @\"\".ret·3 *any)\n" +
+ 	"func @\"\".assertE2E2 (@\"\".typ·2 *byte, @\"\".iface·3 any, @\"\".ret·4 *any) (? bool)\n" +
+ 	"func @\"\".assertE2I (@\"\".typ·1 *byte, @\"\".iface·2 any, @\"\".ret·3 *any)\n" +
+diff --git a/src/cmd/internal/gc/builtin/runtime.go b/src/cmd/internal/gc/builtin/runtime.go
+index 554d787feb..0cf1fb2894 100644
+--- a/src/cmd/internal/gc/builtin/runtime.go
++++ b/src/cmd/internal/gc/builtin/runtime.go
+@@ -63,8 +63,8 @@ func slicestringcopy(to any, fr any) int
+ func typ2Itab(typ *byte, typ2 *byte, cache **byte) (ret *byte)
+ func convI2E(elem any) (ret any)
+ func convI2I(typ *byte, elem any) (ret any)
+-func convT2E(typ *byte, elem *any) (ret any)
+-func convT2I(typ *byte, typ2 *byte, cache **byte, elem *any) (ret any)
++func convT2E(typ *byte, elem, buf *any) (ret any)
++func convT2I(typ *byte, typ2 *byte, cache **byte, elem, buf *any) (ret any)
+ 
+ // interface type assertions  x.(T)
+ func assertE2E(typ *byte, iface any, ret *any)
+diff --git a/src/cmd/internal/gc/esc.go b/src/cmd/internal/gc/esc.go
+index 6d9b72019c..10c6b5ed88 100644
+--- a/src/cmd/internal/gc/esc.go
++++ b/src/cmd/internal/gc/esc.go
+@@ -653,12 +653,11 @@ func esc(e *EscState, n *Node, up *Node) {
+ 			}
+ 		}
+ 
+-	case OCONV, OCONVNOP:
++	case OCONV,
++		OCONVNOP:
+ 		escassign(e, n, n.Left)
+ 
+ 	case OCONVIFACE:
+-		// We don't allocate storage for OCONVIFACE on stack yet,
+-		// but mark it as EscNone merely to get debug output for tests.
+ 		n.Esc = EscNone // until proven otherwise
+ 		e.noesc = list(e.noesc, n)
+ 		n.Escloopdepth = e.loopdepth
+diff --git a/src/cmd/internal/gc/walk.go b/src/cmd/internal/gc/walk.go
+index c6ad507e27..75d08d40c4 100644
+--- a/src/cmd/internal/gc/walk.go
++++ b/src/cmd/internal/gc/walk.go
+@@ -1040,9 +1040,25 @@ func walkexpr(np **Node, init **NodeList) {
+ 			} else {
+ 				ll = list(ll, Nod(OADDR, copyexpr(n.Left, n.Left.Type, init), nil))
+ 			}
++			dowidth(n.Left.Type)
++			r := nodnil()
++			if n.Esc == EscNone && n.Left.Type.Width <= 1024 {
++				// Allocate stack buffer for value stored in interface.
++				r = temp(n.Left.Type)
++				r = Nod(OAS, r, nil) // zero temp
++				typecheck(&r, Etop)
++				*init = list(*init, r)
++				r = Nod(OADDR, r.Left, nil)
++				typecheck(&r, Erv)
++			}
++			ll = list(ll, r)
+ 		}
+ 
+-		substArgTypes(fn, n.Left.Type, n.Type)
++		if !Isinter(n.Left.Type) {
++			substArgTypes(fn, n.Left.Type, n.Left.Type, n.Type)
++		} else {
++			substArgTypes(fn, n.Left.Type, n.Type)
++		}
+ 		dowidth(fn.Type)
+ 		n = Nod(OCALL, fn, nil)
+ 		n.List = ll
+diff --git a/src/runtime/iface.go b/src/runtime/iface.go
+index c60aa47b2f..0d4989b2e5 100644
+--- a/src/runtime/iface.go
++++ b/src/runtime/iface.go
+@@ -130,13 +130,15 @@ func typ2Itab(t *_type, inter *interfacetype, cache **itab) *itab {
+ 	return tab
+ }
+ 
+-func convT2E(t *_type, elem unsafe.Pointer) (e interface{}) {
++func convT2E(t *_type, elem unsafe.Pointer, x unsafe.Pointer) (e interface{}) {
+ 	ep := (*eface)(unsafe.Pointer(&e))
+ 	if isDirectIface(t) {
+ 		ep._type = t
+ 		typedmemmove(t, unsafe.Pointer(&ep.data), elem)
+ 	} else {
+-		x := newobject(t)
++		if x == nil {
++			x = newobject(t)
++		}
+ 		// TODO: We allocate a zeroed object only to overwrite it with
+ 		// actual data.  Figure out how to avoid zeroing.  Also below in convT2I.
+ 		typedmemmove(t, x, elem)
+@@ -146,7 +148,7 @@ func convT2E(t *_type, elem unsafe.Pointer) (e interface{}) {
+ 	return
+ }
+ 
+-func convT2I(t *_type, inter *interfacetype, cache **itab, elem unsafe.Pointer) (i fInterface) {
++func convT2I(t *_type, inter *interfacetype, cache **itab, elem unsafe.Pointer, x unsafe.Pointer) (i fInterface) {
+ 	tab := (*itab)(atomicloadp(unsafe.Pointer(cache)))
+ 	if tab == nil {
+ 		tab = getitab(inter, t, false)
+@@ -157,7 +159,9 @@ func convT2I(t *_type, inter *interfacetype, cache **itab, elem unsafe.Pointer)
+ 		pi.tab = tab
+ 		typedmemmove(t, unsafe.Pointer(&pi.data), elem)
+ 	} else {
+-		x := newobject(t)
++		if x == nil {
++			x = newobject(t)
++		}
+ 		typedmemmove(t, x, elem)
+ 		pi.tab = tab
+ 		pi.data = x
+diff --git a/src/runtime/iface_test.go b/src/runtime/iface_test.go
+index f632a65629..7f27baa61f 100644
+--- a/src/runtime/iface_test.go
++++ b/src/runtime/iface_test.go
+@@ -221,3 +221,43 @@ func BenchmarkAssertE2E2Blank(b *testing.B) {
+ 		_, ok = e.(interface{})
+ 	}
+ }
++
++func TestNonEscapingConvT2E(t *testing.T) {
++	m := make(map[interface{}]bool)
++	m[42] = true
++	if !m[42] {
++		t.Fatalf("42 is not present in the map")
++	}
++	if m[0] {
++		t.Fatalf("0 is present in the map")
++	}
++
++	n := testing.AllocsPerRun(1000, func() {
++		if m[0] {
++			t.Fatalf("0 is present in the map")
++		}
++	})
++	if n != 0 {
++		t.Fatalf("want 0 allocs, got %v", n)
++	}
++}
++
++func TestNonEscapingConvT2I(t *testing.T) {
++	m := make(map[I1]bool)
++	m[TM(42)] = true
++	if !m[TM(42)] {
++		t.Fatalf("42 is not present in the map")
++	}
++	if m[TM(0)] {
++		t.Fatalf("0 is present in the map")
++	}
++
++	n := testing.AllocsPerRun(1000, func() {
++		if m[TM(0)] {
++			t.Fatalf("0 is present in the map")
++		}
++	})
++	if n != 0 {
++		t.Fatalf("want 0 allocs, got %v", n)
++	}
++}
+diff --git a/test/escape2.go b/test/escape2.go
+index 591e6e1469..65dbd7a2fe 100644
+--- a/test/escape2.go
++++ b/test/escape2.go
+@@ -1787,7 +1787,7 @@ func makemap1() map[int]int {
+ 
+ func makemap2() {
+ 	m := make(map[int]int) // ERROR "make\(map\[int\]int\) escapes to heap"
+-	sink = m	// ERROR "m escapes to heap"
++	sink = m               // ERROR "m escapes to heap"
+ }
+ 
+ func nonescapingEface(m map[interface{}]bool) bool { // ERROR "m does not escape"

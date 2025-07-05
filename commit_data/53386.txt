@@ -11,7 +11,7 @@ Date:   Fri Aug 12 16:37:42 2022 +0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/memmove_test.go             |  8 ++++----
  src/runtime/pprof/pprof_test.go         | 14 +++++++-------
  src/runtime/runtime2.go                 |  2 +-
@@ -19,3 +19,107 @@ Date:   Fri Aug 12 16:37:42 2022 +0700
  src/runtime/testdata/testprog/unsafe.go |  2 +-
  src/runtime/trace.go                    |  2 +-
  6 files changed, 15 insertions(+), 14 deletions(-)
+
+diff --git a/src/runtime/memmove_test.go b/src/runtime/memmove_test.go
+index 88873208eb..dbb4b6a836 100644
+--- a/src/runtime/memmove_test.go
++++ b/src/runtime/memmove_test.go
+@@ -417,20 +417,20 @@ func BenchmarkMemclrRange(b *testing.B) {
+ 	}
+ 
+ 	benchSizes := []RunData{
+-		RunData{[]int{1043, 1078, 1894, 1582, 1044, 1165, 1467, 1100, 1919, 1562, 1932, 1645,
++		{[]int{1043, 1078, 1894, 1582, 1044, 1165, 1467, 1100, 1919, 1562, 1932, 1645,
+ 			1412, 1038, 1576, 1200, 1029, 1336, 1095, 1494, 1350, 1025, 1502, 1548, 1316, 1296,
+ 			1868, 1639, 1546, 1626, 1642, 1308, 1726, 1665, 1678, 1187, 1515, 1598, 1353, 1237,
+ 			1977, 1452, 2012, 1914, 1514, 1136, 1975, 1618, 1536, 1695, 1600, 1733, 1392, 1099,
+ 			1358, 1996, 1224, 1783, 1197, 1838, 1460, 1556, 1554, 2020}}, // 1kb-2kb
+-		RunData{[]int{3964, 5139, 6573, 7775, 6553, 2413, 3466, 5394, 2469, 7336, 7091, 6745,
++		{[]int{3964, 5139, 6573, 7775, 6553, 2413, 3466, 5394, 2469, 7336, 7091, 6745,
+ 			4028, 5643, 6164, 3475, 4138, 6908, 7559, 3335, 5660, 4122, 3945, 2082, 7564, 6584,
+ 			5111, 2288, 6789, 2797, 4928, 7986, 5163, 5447, 2999, 4968, 3174, 3202, 7908, 8137,
+ 			4735, 6161, 4646, 7592, 3083, 5329, 3687, 2754, 3599, 7231, 6455, 2549, 8063, 2189,
+ 			7121, 5048, 4277, 6626, 6306, 2815, 7473, 3963, 7549, 7255}}, // 2kb-8kb
+-		RunData{[]int{16304, 15936, 15760, 4736, 9136, 11184, 10160, 5952, 14560, 15744,
++		{[]int{16304, 15936, 15760, 4736, 9136, 11184, 10160, 5952, 14560, 15744,
+ 			6624, 5872, 13088, 14656, 14192, 10304, 4112, 10384, 9344, 4496, 11392, 7024,
+ 			5200, 10064, 14784, 5808, 13504, 10480, 8512, 4896, 13264, 5600}}, // 4kb-16kb
+-		RunData{[]int{164576, 233136, 220224, 183280, 214112, 217248, 228560, 201728}}, // 128kb-256kb
++		{[]int{164576, 233136, 220224, 183280, 214112, 217248, 228560, 201728}}, // 128kb-256kb
+ 	}
+ 
+ 	for _, t := range benchSizes {
+diff --git a/src/runtime/pprof/pprof_test.go b/src/runtime/pprof/pprof_test.go
+index aabc180de3..28b8f4319e 100644
+--- a/src/runtime/pprof/pprof_test.go
++++ b/src/runtime/pprof/pprof_test.go
+@@ -1319,13 +1319,13 @@ func TestGoroutineCounts(t *testing.T) {
+ 		t.Errorf("protobuf profile is invalid: %v", err)
+ 	}
+ 	expectedLabels := map[int64]map[string]string{
+-		50: map[string]string{},
+-		44: map[string]string{"label": "value"},
+-		40: map[string]string{},
+-		36: map[string]string{"label": "value"},
+-		10: map[string]string{},
+-		9:  map[string]string{"label": "value"},
+-		1:  map[string]string{},
++		50: {},
++		44: {"label": "value"},
++		40: {},
++		36: {"label": "value"},
++		10: {},
++		9:  {"label": "value"},
++		1:  {},
+ 	}
+ 	if !containsCountsLabels(p, expectedLabels) {
+ 		t.Errorf("expected count profile to contain goroutines with counts and labels %v, got %v",
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 884d6cc096..32ad34ccdf 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -779,7 +779,7 @@ type schedt struct {
+ 
+ 	pidle        puintptr // idle p's
+ 	npidle       atomic.Int32
+-	nmspinning   atomic.Int32 // See "Worker thread parking/unparking" comment in proc.go.
++	nmspinning   atomic.Int32  // See "Worker thread parking/unparking" comment in proc.go.
+ 	needspinning atomic.Uint32 // See "Delicate dance" comment in proc.go. Boolean. Must hold sched.lock to set to 1.
+ 
+ 	// Global runnable queue.
+diff --git a/src/runtime/signal_windows.go b/src/runtime/signal_windows.go
+index 0cf8ba8cdf..0f1929e09a 100644
+--- a/src/runtime/signal_windows.go
++++ b/src/runtime/signal_windows.go
+@@ -200,6 +200,7 @@ func lastcontinuehandler(info *exceptionrecord, r *context, gp *g) int32 {
+ }
+ 
+ // Always called on g0. gp is the G where the exception occurred.
++//
+ //go:nosplit
+ func winthrow(info *exceptionrecord, r *context, gp *g) {
+ 	g0 := getg()
+diff --git a/src/runtime/testdata/testprog/unsafe.go b/src/runtime/testdata/testprog/unsafe.go
+index d6dddf22c2..021b08fa52 100644
+--- a/src/runtime/testdata/testprog/unsafe.go
++++ b/src/runtime/testdata/testprog/unsafe.go
+@@ -9,4 +9,4 @@ func init() {
+ func panicOnNilAndEleSizeIsZero() {
+ 	var p *struct{}
+ 	_ = unsafe.Slice(p, 5)
+-}
+\ No newline at end of file
++}
+diff --git a/src/runtime/trace.go b/src/runtime/trace.go
+index 0bae0db88d..1b5e9df38b 100644
+--- a/src/runtime/trace.go
++++ b/src/runtime/trace.go
+@@ -1158,7 +1158,7 @@ func traceFrames(bufp traceBufPtr, pcs []uintptr) ([]traceFrame, traceBufPtr) {
+ //
+ //go:systemstack
+ func (tab *traceStackTable) dump(bufp traceBufPtr) traceBufPtr {
+-	for i, _ := range tab.tab {
++	for i := range tab.tab {
+ 		stk := tab.tab[i].ptr()
+ 		for ; stk != nil; stk = stk.link.ptr() {
+ 			var frames []traceFrame

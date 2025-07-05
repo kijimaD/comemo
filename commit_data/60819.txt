@@ -10,7 +10,64 @@ Date:   Tue Aug 13 18:27:38 2024 +0200
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/cmd/compile/internal/ssa/prove.go | 11 +++++++++++
  test/prove.go                         | 23 +++++++++++++++++++++++
  2 files changed, 34 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/prove.go b/src/cmd/compile/internal/ssa/prove.go
+index c90b380096..4094857614 100644
+--- a/src/cmd/compile/internal/ssa/prove.go
++++ b/src/cmd/compile/internal/ssa/prove.go
+@@ -1780,6 +1780,17 @@ func (ft *factsTable) flowLimit(v *Value) bool {
+ 		b := ft.limits[v.Args[1].ID]
+ 		// Underflow in the arithmetic below is ok, it gives to MaxUint64 which does nothing to the limit.
+ 		return ft.unsignedMax(v, minU(a.umax, b.umax-1))
++	case OpDiv64u, OpDiv32u, OpDiv16u, OpDiv8u:
++		a := ft.limits[v.Args[0].ID]
++		b := ft.limits[v.Args[1].ID]
++		lim := noLimit
++		if b.umax > 0 {
++			lim = lim.unsignedMin(a.umin / b.umax)
++		}
++		if b.umin > 0 {
++			lim = lim.unsignedMax(a.umax / b.umin)
++		}
++		return ft.newLimit(v, lim)
+ 
+ 	case OpPhi:
+ 		// Compute the union of all the input phis.
+diff --git a/test/prove.go b/test/prove.go
+index a1aa67d472..5ea81bffff 100644
+--- a/test/prove.go
++++ b/test/prove.go
+@@ -1478,6 +1478,29 @@ func mod64uWithIdenticalMax(a, b uint64, ensureBothBranchesCouldHappen bool) int
+ 	return z
+ }
+ 
++func div64u(a, b uint64, ensureAllBranchesCouldHappen func() bool) uint64 {
++	a &= 0xffff
++	a |= 0xfff
++	b &= 0xff
++	b |= 0xf
++
++	z := a / b // ERROR "Proved Neq64$"
++
++	if ensureAllBranchesCouldHappen() && z > 0xffff/0xf { // ERROR "Disproved Less64U$"
++		return 42
++	}
++	if ensureAllBranchesCouldHappen() && z <= 0xffff/0xf { // ERROR "Proved Leq64U$"
++		return 1337
++	}
++	if ensureAllBranchesCouldHappen() && z < 0xfff/0xff { // ERROR "Disproved Less64U$"
++		return 42
++	}
++	if ensureAllBranchesCouldHappen() && z >= 0xfff/0xff { // ERROR "Proved Leq64U$"
++		return 42
++	}
++	return z
++}
++
+ //go:noinline
+ func useInt(a int) {
+ }

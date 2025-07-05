@@ -14,10 +14,106 @@ Date:   Wed Dec 13 21:11:47 2017 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/go_test.go                         |  4 ++++
  src/cmd/go/internal/test/test.go              | 22 ++++++++++++----------
  src/cmd/go/testdata/src/vetfail/p1/p1.go      |  7 +++++++
  src/cmd/go/testdata/src/vetfail/p2/p2.go      |  6 ++++++
  src/cmd/go/testdata/src/vetfail/p2/p2_test.go |  7 +++++++
  5 files changed, 36 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index d5875d9106..b3fb5dce4f 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -5275,6 +5275,10 @@ func TestTestVet(t *testing.T) {
+ 
+ 	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
+ 	tg.run("test", "vetcycle") // must not fail; #22890
++
++	tg.runFail("test", "vetfail/...")
++	tg.grepStderr(`Printf format %d`, "did not diagnose bad Printf")
++	tg.grepStdout(`ok\s+vetfail/p2`, "did not run vetfail/p2")
+ }
+ 
+ func TestInstallDeps(t *testing.T) {
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index 5b4408ccd1..4ea852c06f 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -1087,7 +1087,7 @@ func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, prin
+ 			Func:       c.builderRunTest,
+ 			Deps:       []*work.Action{buildAction},
+ 			Package:    p,
+-			IgnoreFail: true,
++			IgnoreFail: true, // run (prepare output) even if build failed
+ 			TryCache:   c.tryCache,
+ 			Objdir:     testDir,
+ 		}
+@@ -1098,17 +1098,19 @@ func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, prin
+ 			addTestVet(b, pxtest, runAction, installAction)
+ 		}
+ 		cleanAction = &work.Action{
+-			Mode:    "test clean",
+-			Func:    builderCleanTest,
+-			Deps:    []*work.Action{runAction},
+-			Package: p,
+-			Objdir:  testDir,
++			Mode:       "test clean",
++			Func:       builderCleanTest,
++			Deps:       []*work.Action{runAction},
++			Package:    p,
++			IgnoreFail: true, // clean even if test failed
++			Objdir:     testDir,
+ 		}
+ 		printAction = &work.Action{
+-			Mode:    "test print",
+-			Func:    builderPrintTest,
+-			Deps:    []*work.Action{cleanAction},
+-			Package: p,
++			Mode:       "test print",
++			Func:       builderPrintTest,
++			Deps:       []*work.Action{cleanAction},
++			Package:    p,
++			IgnoreFail: true, // print even if test failed
+ 		}
+ 	}
+ 	if installAction != nil {
+diff --git a/src/cmd/go/testdata/src/vetfail/p1/p1.go b/src/cmd/go/testdata/src/vetfail/p1/p1.go
+new file mode 100644
+index 0000000000..248317b779
+--- /dev/null
++++ b/src/cmd/go/testdata/src/vetfail/p1/p1.go
+@@ -0,0 +1,7 @@
++package p1
++
++import "fmt"
++
++func F() {
++	fmt.Printf("%d", "hello") // causes vet error
++}
+diff --git a/src/cmd/go/testdata/src/vetfail/p2/p2.go b/src/cmd/go/testdata/src/vetfail/p2/p2.go
+new file mode 100644
+index 0000000000..88b1cc2373
+--- /dev/null
++++ b/src/cmd/go/testdata/src/vetfail/p2/p2.go
+@@ -0,0 +1,6 @@
++package p2
++
++import _ "vetfail/p1"
++
++func F() {
++}
+diff --git a/src/cmd/go/testdata/src/vetfail/p2/p2_test.go b/src/cmd/go/testdata/src/vetfail/p2/p2_test.go
+new file mode 100644
+index 0000000000..fde0d1a73f
+--- /dev/null
++++ b/src/cmd/go/testdata/src/vetfail/p2/p2_test.go
+@@ -0,0 +1,7 @@
++package p2
++
++import "testing"
++
++func TestF(t *testing.T) {
++	F()
++}

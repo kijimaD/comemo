@@ -21,7 +21,7 @@ Date:   Wed Apr 14 23:55:38 2021 +0300
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
     Trust: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/alldocs.go                       |   7 ++
  src/cmd/go/internal/test/flagdefs.go        |   1 +
  src/cmd/go/internal/test/test.go            |   8 ++
@@ -33,3 +33,422 @@ Date:   Wed Apr 14 23:55:38 2021 +0300
  src/math/rand/rand_test.go                  |   8 +-
  src/testing/testing.go                      |  22 +++++
  10 files changed, 249 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 103eecf79c..0a12eaf4e9 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -2667,6 +2667,13 @@
+ // 	    the Go tree can run a sanity check but not spend time running
+ // 	    exhaustive tests.
+ //
++// 	-shuffle off,on,N
++// 		Randomize the execution order of tests and benchmarks.
++// 		It is off by default. If -shuffle is set to on, then it will seed
++// 		the randomizer using the system clock. If -shuffle is set to an
++// 		integer N, then N will be used as the seed value. In both cases,
++// 		the seed will be reported for reproducibility.
++//
+ // 	-timeout d
+ // 	    If a test binary runs longer than duration d, panic.
+ // 	    If d is 0, the timeout is disabled.
+diff --git a/src/cmd/go/internal/test/flagdefs.go b/src/cmd/go/internal/test/flagdefs.go
+index 8a0a07683b..37ac81c267 100644
+--- a/src/cmd/go/internal/test/flagdefs.go
++++ b/src/cmd/go/internal/test/flagdefs.go
+@@ -28,6 +28,7 @@ var passFlagToTest = map[string]bool{
+ 	"parallel":             true,
+ 	"run":                  true,
+ 	"short":                true,
++	"shuffle":              true,
+ 	"timeout":              true,
+ 	"trace":                true,
+ 	"v":                    true,
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index 847b9357b4..c2f8aed004 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -272,6 +272,13 @@ control the execution of any test:
+ 	    the Go tree can run a sanity check but not spend time running
+ 	    exhaustive tests.
+ 
++	-shuffle off,on,N
++		Randomize the execution order of tests and benchmarks.
++		It is off by default. If -shuffle is set to on, then it will seed
++		the randomizer using the system clock. If -shuffle is set to an
++		integer N, then N will be used as the seed value. In both cases,
++		the seed will be reported for reproducibility.
++
+ 	-timeout d
+ 	    If a test binary runs longer than duration d, panic.
+ 	    If d is 0, the timeout is disabled.
+@@ -480,6 +487,7 @@ var (
+ 	testList         string                            // -list flag
+ 	testO            string                            // -o flag
+ 	testOutputDir    = base.Cwd                        // -outputdir flag
++	testShuffle      shuffleFlag                       // -shuffle flag
+ 	testTimeout      time.Duration                     // -timeout flag
+ 	testV            bool                              // -v flag
+ 	testVet          = vetFlag{flags: defaultVetFlags} // -vet flag
+diff --git a/src/cmd/go/internal/test/testflag.go b/src/cmd/go/internal/test/testflag.go
+index 10e6604da5..6ed96a36d0 100644
+--- a/src/cmd/go/internal/test/testflag.go
++++ b/src/cmd/go/internal/test/testflag.go
+@@ -10,6 +10,7 @@ import (
+ 	"fmt"
+ 	"os"
+ 	"path/filepath"
++	"strconv"
+ 	"strings"
+ 	"time"
+ 
+@@ -68,6 +69,7 @@ func init() {
+ 	cf.DurationVar(&testTimeout, "timeout", 10*time.Minute, "")
+ 	cf.StringVar(&testTrace, "trace", "", "")
+ 	cf.BoolVar(&testV, "v", false, "")
++	cf.Var(&testShuffle, "shuffle", "")
+ 
+ 	for name, _ := range passFlagToTest {
+ 		cf.Var(cf.Lookup(name).Value, "test."+name, "")
+@@ -194,6 +196,41 @@ func (f *vetFlag) Set(value string) error {
+ 	return nil
+ }
+ 
++type shuffleFlag struct {
++	on   bool
++	seed *int64
++}
++
++func (f *shuffleFlag) String() string {
++	if !f.on {
++		return "off"
++	}
++	if f.seed == nil {
++		return "on"
++	}
++	return fmt.Sprintf("%d", *f.seed)
++}
++
++func (f *shuffleFlag) Set(value string) error {
++	if value == "off" {
++		*f = shuffleFlag{on: false}
++		return nil
++	}
++
++	if value == "on" {
++		*f = shuffleFlag{on: true}
++		return nil
++	}
++
++	seed, err := strconv.ParseInt(value, 10, 64)
++	if err != nil {
++		return fmt.Errorf(`-shuffle argument must be "on", "off", or an int64: %v`, err)
++	}
++
++	*f = shuffleFlag{on: true, seed: &seed}
++	return nil
++}
++
+ // testFlags processes the command line, grabbing -x and -c, rewriting known flags
+ // to have "test" before them, and reading the command line for the test binary.
+ // Unfortunately for us, we need to do our own flag processing because go test
+diff --git a/src/cmd/go/testdata/script/test_shuffle.txt b/src/cmd/go/testdata/script/test_shuffle.txt
+new file mode 100644
+index 0000000000..3a50605c34
+--- /dev/null
++++ b/src/cmd/go/testdata/script/test_shuffle.txt
+@@ -0,0 +1,148 @@
++# Shuffle order of tests and benchmarks
++
++# Run tests
++go test -v foo_test.go
++! stdout '-test.shuffle '
++stdout '(?s)TestOne(.*)TestTwo(.*)TestThree'
++
++go test -v -shuffle=off foo_test.go
++! stdout '-test.shuffle '
++stdout '(?s)TestOne(.*)TestTwo(.*)TestThree'
++
++go test -v -shuffle=42 foo_test.go
++stdout '^-test.shuffle 42'
++stdout '(?s)TestThree(.*)TestOne(.*)TestTwo'
++
++go test -v -shuffle=43 foo_test.go
++stdout '^-test.shuffle 43'
++stdout '(?s)TestThree(.*)TestTwo(.*)TestOne'
++
++go test -v -shuffle=44 foo_test.go
++stdout '^-test.shuffle 44'
++stdout '(?s)TestOne(.*)TestThree(.*)TestTwo'
++
++go test -v -shuffle=0 foo_test.go
++stdout '^-test.shuffle 0'
++stdout '(?s)TestTwo(.*)TestOne(.*)TestThree'
++
++go test -v -shuffle -1 foo_test.go
++stdout '^-test.shuffle -1'
++stdout '(?s)TestThree(.*)TestOne(.*)TestTwo'
++
++go test -v -shuffle=on foo_test.go
++stdout '^-test.shuffle '
++stdout '(?s)=== RUN   TestOne(.*)--- PASS: TestOne'
++stdout '(?s)=== RUN   TestTwo(.*)--- PASS: TestTwo'
++stdout '(?s)=== RUN   TestThree(.*)--- PASS: TestThree'
++
++
++# Run tests and benchmarks
++go test -v -bench=. foo_test.go
++! stdout '-test.shuffle '
++stdout '(?s)TestOne(.*)TestTwo(.*)TestThree(.*)BenchmarkOne(.*)BenchmarkTwo(.*)BenchmarkThree'
++
++go test -v -bench=. -shuffle=off foo_test.go
++! stdout '-test.shuffle '
++stdout '(?s)TestOne(.*)TestTwo(.*)TestThree(.*)BenchmarkOne(.*)BenchmarkTwo(.*)BenchmarkThree'
++
++go test -v -bench=. -shuffle=42 foo_test.go
++stdout '^-test.shuffle 42'
++stdout '(?s)TestThree(.*)TestOne(.*)TestTwo(.*)BenchmarkThree(.*)BenchmarkOne(.*)BenchmarkTwo'
++
++go test -v -bench=. -shuffle=43 foo_test.go
++stdout '^-test.shuffle 43'
++stdout '(?s)TestThree(.*)TestTwo(.*)TestOne(.*)BenchmarkThree(.*)BenchmarkOne(.*)BenchmarkTwo'
++
++go test -v -bench=. -shuffle=44 foo_test.go
++stdout '^-test.shuffle 44'
++stdout '(?s)TestOne(.*)TestThree(.*)TestTwo(.*)BenchmarkTwo(.*)BenchmarkOne(.*)BenchmarkThree'
++
++go test -v -bench=. -shuffle=0 foo_test.go
++stdout '^-test.shuffle 0'
++stdout '(?s)TestTwo(.*)TestOne(.*)TestThree(.*)BenchmarkThree(.*)BenchmarkOne(.*)BenchmarkTwo'
++
++go test -v -bench=. -shuffle -1 foo_test.go
++stdout '^-test.shuffle -1'
++stdout '(?s)TestThree(.*)TestOne(.*)TestTwo(.*)BenchmarkOne(.*)BenchmarkThree(.*)BenchmarkTwo'
++
++go test -v -bench=. -shuffle=on foo_test.go
++stdout '^-test.shuffle '
++stdout '(?s)=== RUN   TestOne(.*)--- PASS: TestOne'
++stdout '(?s)=== RUN   TestTwo(.*)--- PASS: TestTwo'
++stdout '(?s)=== RUN   TestThree(.*)--- PASS: TestThree'
++stdout -count=2 'BenchmarkOne'
++stdout -count=2 'BenchmarkTwo'
++stdout -count=2 'BenchmarkThree'
++
++
++# When running go test -count=N, each of the N runs distinct runs should maintain the same
++# shuffled order of these tests.
++go test -v -shuffle=43 -count=4 foo_test.go
++stdout '^-test.shuffle 43'
++stdout '(?s)TestThree(.*)TestTwo(.*)TestOne(.*)TestThree(.*)TestTwo(.*)TestOne(.*)TestThree(.*)TestTwo(.*)TestOne(.*)TestThree(.*)TestTwo(.*)TestOne'
++
++go test -v -bench=. -shuffle=44 -count=2 foo_test.go
++stdout '^-test.shuffle 44'
++stdout '(?s)TestOne(.*)TestThree(.*)TestTwo(.*)TestOne(.*)TestThree(.*)TestTwo(.*)BenchmarkTwo(.*)BenchmarkOne(.*)BenchmarkThree(.*)'
++
++
++# The feature should work with test binaries as well
++go test -c
++exec ./m.test -test.shuffle=off
++! stdout '^-test.shuffle '
++
++exec ./m.test -test.shuffle=on
++stdout '^-test.shuffle '
++
++exec ./m.test -test.v -test.bench=. -test.shuffle=0 foo_test.go
++stdout '^-test.shuffle 0'
++stdout '(?s)TestTwo(.*)TestOne(.*)TestThree(.*)BenchmarkThree(.*)BenchmarkOne(.*)BenchmarkTwo'
++
++exec ./m.test -test.v -test.bench=. -test.shuffle=123 foo_test.go
++stdout '^-test.shuffle 123'
++stdout '(?s)TestThree(.*)TestOne(.*)TestTwo(.*)BenchmarkThree(.*)BenchmarkTwo(.*)BenchmarkOne'
++
++exec ./m.test -test.v -test.bench=. -test.shuffle=-1 foo_test.go
++stdout '^-test.shuffle -1'
++stdout '(?s)TestThree(.*)TestOne(.*)TestTwo(.*)BenchmarkOne(.*)BenchmarkThree(.*)BenchmarkTwo'
++
++exec ./m.test -test.v -test.bench=. -test.shuffle=44 -test.count=2 foo_test.go
++stdout '^-test.shuffle 44'
++stdout '(?s)TestOne(.*)TestThree(.*)TestTwo(.*)TestOne(.*)TestThree(.*)TestTwo(.*)BenchmarkTwo(.*)BenchmarkOne(.*)BenchmarkThree(.*)'
++
++
++# Negative testcases for invalid input
++! go test -shuffle -count=2
++stderr 'invalid value "-count=2" for flag -shuffle: -shuffle argument must be "on", "off", or an int64: strconv.ParseInt: parsing "-count=2": invalid syntax'
++
++! go test -shuffle=
++stderr '(?s)invalid value "" for flag -shuffle: -shuffle argument must be "on", "off", or an int64: strconv.ParseInt: parsing "": invalid syntax'
++
++! go test -shuffle=' '
++stderr '(?s)invalid value " " for flag -shuffle: -shuffle argument must be "on", "off", or an int64: strconv.ParseInt: parsing " ": invalid syntax'
++
++! go test -shuffle=true
++stderr 'invalid value "true" for flag -shuffle: -shuffle argument must be "on", "off", or an int64: strconv.ParseInt: parsing "true": invalid syntax'
++
++! go test -shuffle='abc'
++stderr 'invalid value "abc" for flag -shuffle: -shuffle argument must be "on", "off", or an int64: strconv.ParseInt: parsing "abc": invalid syntax'
++
++-- go.mod --
++module m
++
++go 1.16
++-- foo_test.go --
++package foo
++
++import "testing"
++
++func TestOne(t *testing.T)   {}
++func TestTwo(t *testing.T)   {}
++func TestThree(t *testing.T) {}
++
++func BenchmarkOne(b *testing.B)   {}
++func BenchmarkTwo(b *testing.B)   {}
++func BenchmarkThree(b *testing.B) {}
++
++-- foo.go --
++package foo
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 1b93348edb..9cdfb898ba 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -503,7 +503,7 @@ var depsRules = `
+ 	FMT, flag, math/rand
+ 	< testing/quick;
+ 
+-	FMT, flag, runtime/debug, runtime/trace, internal/sysinfo
++	FMT, flag, runtime/debug, runtime/trace, internal/sysinfo, math/rand
+ 	< testing;
+ 
+ 	internal/testlog, runtime/pprof, regexp
+diff --git a/src/math/rand/export_test.go b/src/math/rand/export_test.go
+new file mode 100644
+index 0000000000..560010be6b
+--- /dev/null
++++ b/src/math/rand/export_test.go
+@@ -0,0 +1,17 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package rand
++
++func Int31nForTest(r *Rand, n int32) int32 {
++	return r.int31n(n)
++}
++
++func GetNormalDistributionParameters() (float64, [128]uint32, [128]float32, [128]float32) {
++	return rn, kn, wn, fn
++}
++
++func GetExponentialDistributionParameters() (float64, [256]uint32, [256]float32, [256]float32) {
++	return re, ke, we, fe
++}
+diff --git a/src/math/rand/race_test.go b/src/math/rand/race_test.go
+index 186c7169d8..e7d103664b 100644
+--- a/src/math/rand/race_test.go
++++ b/src/math/rand/race_test.go
+@@ -2,9 +2,10 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package rand
++package rand_test
+ 
+ import (
++	. "math/rand"
+ 	"sync"
+ 	"testing"
+ )
+diff --git a/src/math/rand/rand_test.go b/src/math/rand/rand_test.go
+index e037aaed0e..462de8b73b 100644
+--- a/src/math/rand/rand_test.go
++++ b/src/math/rand/rand_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package rand
++package rand_test
+ 
+ import (
+ 	"bytes"
+@@ -11,6 +11,7 @@ import (
+ 	"internal/testenv"
+ 	"io"
+ 	"math"
++	. "math/rand"
+ 	"os"
+ 	"runtime"
+ 	"testing"
+@@ -21,6 +22,9 @@ const (
+ 	numTestSamples = 10000
+ )
+ 
++var rn, kn, wn, fn = GetNormalDistributionParameters()
++var re, ke, we, fe = GetExponentialDistributionParameters()
++
+ type statsResults struct {
+ 	mean        float64
+ 	stddev      float64
+@@ -503,7 +507,7 @@ func TestUniformFactorial(t *testing.T) {
+ 				fn   func() int
+ 			}{
+ 				{name: "Int31n", fn: func() int { return int(r.Int31n(int32(nfact))) }},
+-				{name: "int31n", fn: func() int { return int(r.int31n(int32(nfact))) }},
++				{name: "int31n", fn: func() int { return int(Int31nForTest(r, int32(nfact))) }},
+ 				{name: "Perm", fn: func() int { return encodePerm(r.Perm(n)) }},
+ 				{name: "Shuffle", fn: func() int {
+ 					// Generate permutation using Shuffle.
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index 1562eadef0..85a7fec65f 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -242,6 +242,7 @@ import (
+ 	"fmt"
+ 	"internal/race"
+ 	"io"
++	"math/rand"
+ 	"os"
+ 	"runtime"
+ 	"runtime/debug"
+@@ -299,6 +300,7 @@ func Init() {
+ 	cpuListStr = flag.String("test.cpu", "", "comma-separated `list` of cpu counts to run each test with")
+ 	parallel = flag.Int("test.parallel", runtime.GOMAXPROCS(0), "run at most `n` tests in parallel")
+ 	testlog = flag.String("test.testlogfile", "", "write test action log to `file` (for use only by cmd/go)")
++	shuffle = flag.String("test.shuffle", "off", "randomize the execution order of tests and benchmarks")
+ 
+ 	initBenchmarkFlags()
+ }
+@@ -325,6 +327,7 @@ var (
+ 	timeout              *time.Duration
+ 	cpuListStr           *string
+ 	parallel             *int
++	shuffle              *string
+ 	testlog              *string
+ 
+ 	haveExamples bool // are there examples?
+@@ -1456,6 +1459,25 @@ func (m *M) Run() (code int) {
+ 		return
+ 	}
+ 
++	if *shuffle != "off" {
++		var n int64
++		var err error
++		if *shuffle == "on" {
++			n = time.Now().UnixNano()
++		} else {
++			n, err = strconv.ParseInt(*shuffle, 10, 64)
++			if err != nil {
++				fmt.Fprintln(os.Stderr, `testing: -shuffle should be "off", "on", or a valid integer:`, err)
++				m.exitCode = 2
++				return
++			}
++		}
++		fmt.Println("-test.shuffle", n)
++		rng := rand.New(rand.NewSource(n))
++		rng.Shuffle(len(m.tests), func(i, j int) { m.tests[i], m.tests[j] = m.tests[j], m.tests[i] })
++		rng.Shuffle(len(m.benchmarks), func(i, j int) { m.benchmarks[i], m.benchmarks[j] = m.benchmarks[j], m.benchmarks[i] })
++	}
++
+ 	parseCpuList()
+ 
+ 	m.before()

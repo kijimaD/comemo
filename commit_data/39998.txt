@@ -12,6 +12,20 @@ Date:   Tue Apr 9 10:00:38 2019 +0900
     Change-Id: I91ab570d33c4c1bb48e6e01451a811272f6f8b77
     Reviewed-on: https://go-review.googlesource.com/c/go/+/171100
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/cover/cover_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/cover/cover_test.go b/src/cmd/cover/cover_test.go
+index bac448cd47..ea970a61da 100644
+--- a/src/cmd/cover/cover_test.go
++++ b/src/cmd/cover/cover_test.go
+@@ -81,7 +81,7 @@ var debug = flag.Bool("debug", false, "keep rewritten files for debugging")
+ // We use TestMain to set up a temporary directory and remove it when
+ // the tests are done.
+ func TestMain(m *testing.M) {
+-	dir, err := ioutil.TempDir("", "gotestcover")
++	dir, err := ioutil.TempDir("", "go-testcover")
+ 	if err != nil {
+ 		fmt.Fprintln(os.Stderr, err)
+ 		os.Exit(1)

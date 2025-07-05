@@ -12,6 +12,19 @@ Date:   Thu Jan 17 12:06:04 2013 +1100
     R=nigeltao
     CC=golang-dev
     https://golang.org/cl/7131050
-
+---
  src/pkg/exp/html/doc.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/pkg/exp/html/doc.go b/src/pkg/exp/html/doc.go
+index 4dd453091c..fac0f54e78 100644
+--- a/src/pkg/exp/html/doc.go
++++ b/src/pkg/exp/html/doc.go
+@@ -4,7 +4,6 @@
+ 
+ /*
+ Package html implements an HTML5-compliant tokenizer and parser.
+-INCOMPLETE.
+ 
+ Tokenization is done by creating a Tokenizer for an io.Reader r. It is the
+ caller's responsibility to ensure that r provides UTF-8 encoded HTML.

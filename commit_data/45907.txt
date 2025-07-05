@@ -18,6 +18,22 @@ Date:   Sat Nov 28 14:38:29 2020 +0100
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Trust: Jason A. Donenfeld <Jason@zx2c4.com>
-
+---
  src/runtime/pprof/pprof_test.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/runtime/pprof/pprof_test.go b/src/runtime/pprof/pprof_test.go
+index 43307aeab9..b807072485 100644
+--- a/src/runtime/pprof/pprof_test.go
++++ b/src/runtime/pprof/pprof_test.go
+@@ -286,6 +286,10 @@ func testCPUProfile(t *testing.T, matches matchFunc, need []string, avoid []stri
+ 		if runtime.GOARCH == "arm" || runtime.GOARCH == "arm64" {
+ 			broken = true
+ 		}
++	case "windows":
++		if runtime.GOARCH == "arm" {
++			broken = true // See https://golang.org/issues/42862
++		}
+ 	}
+ 
+ 	maxDuration := 5 * time.Second

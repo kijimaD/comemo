@@ -16,8 +16,58 @@ Date:   Tue Apr 28 01:20:36 2020 +0000
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/cmd/go/testdata/script/mod_retention.txt | 12 +++++++++++-
  src/go/build/doc.go                          |  1 +
  src/internal/goversion/goversion.go          |  2 +-
  3 files changed, 13 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/mod_retention.txt b/src/cmd/go/testdata/script/mod_retention.txt
+index bff4142ad8..1d83e6c07e 100644
+--- a/src/cmd/go/testdata/script/mod_retention.txt
++++ b/src/cmd/go/testdata/script/mod_retention.txt
+@@ -64,7 +64,7 @@ cmp go.mod go.mod.tidy
+ # However, that should not remove other redundant requirements.
+ cp go.mod.nogo go.mod
+ go list all
+-cmp go.mod go.mod.redundant
++cmpenv go.mod go.mod.currentgo
+ 
+ 
+ -- go.mod.tidy --
+@@ -133,3 +133,13 @@ require (
+ 	rsc.io/sampler v1.3.0 // indirect
+ 	rsc.io/testonly v1.0.0 // indirect
+ )
++-- go.mod.currentgo --
++module m
++
++go $goversion
++
++require (
++	rsc.io/quote v1.5.2
++	rsc.io/sampler v1.3.0 // indirect
++	rsc.io/testonly v1.0.0 // indirect
++)
+diff --git a/src/go/build/doc.go b/src/go/build/doc.go
+index bf60ff7fc2..9633d599f3 100644
+--- a/src/go/build/doc.go
++++ b/src/go/build/doc.go
+@@ -112,6 +112,7 @@
+ //	- "go1.12", from Go version 1.12 onward
+ //	- "go1.13", from Go version 1.13 onward
+ //	- "go1.14", from Go version 1.14 onward
++//	- "go1.15", from Go version 1.15 onward
+ //	- any additional words listed in ctxt.BuildTags
+ //
+ // There are no build tags for beta or minor releases.
+diff --git a/src/internal/goversion/goversion.go b/src/internal/goversion/goversion.go
+index c5783337b3..4ffd34c1a2 100644
+--- a/src/internal/goversion/goversion.go
++++ b/src/internal/goversion/goversion.go
+@@ -10,4 +10,4 @@ package goversion
+ //
+ // When incrementing this, also add to the list at src/go/build/doc.go
+ // (search for "onward").
+-const Version = 14
++const Version = 15

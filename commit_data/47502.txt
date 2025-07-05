@@ -20,6 +20,20 @@ Date:   Tue Mar 23 19:55:17 2021 -0400
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/abi/abiutils.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/abi/abiutils.go b/src/cmd/compile/internal/abi/abiutils.go
+index 8495ed7c51..549c11306a 100644
+--- a/src/cmd/compile/internal/abi/abiutils.go
++++ b/src/cmd/compile/internal/abi/abiutils.go
+@@ -168,7 +168,7 @@ func appendParamTypes(rts []*types.Type, t *types.Type) []*types.Type {
+ 		typ := t.Kind()
+ 		switch typ {
+ 		case types.TARRAY:
+-			for i := int64(0); i < t.Size(); i++ { // 0 gets no registers, plus future-proofing.
++			for i := int64(0); i < t.NumElem(); i++ { // 0 gets no registers, plus future-proofing.
+ 				rts = appendParamTypes(rts, t.Elem())
+ 			}
+ 		case types.TSTRUCT:

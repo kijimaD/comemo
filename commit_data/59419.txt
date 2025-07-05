@@ -12,7 +12,34 @@ Date:   Mon Mar 11 23:28:30 2024 +0900
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/html/template/transition.go | 2 +-
  src/net/netip/slow_test.go      | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/html/template/transition.go b/src/html/template/transition.go
+index b897bea542..c430389a34 100644
+--- a/src/html/template/transition.go
++++ b/src/html/template/transition.go
+@@ -414,7 +414,7 @@ func tJSDelimited(c context, s []byte) (context, int) {
+ 			// If "</script" appears in a regex literal, the '/' should not
+ 			// close the regex literal, and it will later be escaped to
+ 			// "\x3C/script" in escapeText.
+-			if i > 0 && i+7 <= len(s) && bytes.Equal(bytes.ToLower(s[i-1 : i+7]), []byte("</script")) {
++			if i > 0 && i+7 <= len(s) && bytes.Equal(bytes.ToLower(s[i-1:i+7]), []byte("</script")) {
+ 				i++
+ 			} else if !inCharset {
+ 				c.state, c.jsCtx = stateJS, jsCtxDivOp
+diff --git a/src/net/netip/slow_test.go b/src/net/netip/slow_test.go
+index a05f39de74..eef41c116d 100644
+--- a/src/net/netip/slow_test.go
++++ b/src/net/netip/slow_test.go
+@@ -182,7 +182,7 @@ func parseIPv4Slow(s string) (Addr, error) {
+ // parseWord converts a 16-bit hex string into its corresponding
+ // two-byte value.
+ func parseWord(s string) (byte, byte, error) {
+-	if(len(s) > 4) {
++	if len(s) > 4 {
+ 		return 0, 0, fmt.Errorf("parseWord(%q): invalid word", s)
+ 	}
+ 	ret, err := strconv.ParseUint(s, 16, 16)

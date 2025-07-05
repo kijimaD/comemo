@@ -16,6 +16,20 @@ Date:   Mon Sep 30 18:47:34 2024 +0200
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/runtime/stubs.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/stubs.go b/src/runtime/stubs.go
+index d334190976..2a2b484a1b 100644
+--- a/src/runtime/stubs.go
++++ b/src/runtime/stubs.go
+@@ -268,7 +268,7 @@ func reflectcall(stackArgsType *_type, fn, stackArgs unsafe.Pointer, stackArgsSi
+ // Notable members of the hall of shame include:
+ //   - github.com/sagernet/sing-tun
+ //   - github.com/slackhq/nebula
+-//   - github.com/tailscale/wireguard-go
++//   - golang.zx2c4.com/wireguard
+ //
+ // Do not remove or change the type signature.
+ // See go.dev/issue/67401.

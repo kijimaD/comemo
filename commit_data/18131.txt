@@ -7,6 +7,38 @@ Date:   Sun Dec 29 11:11:28 2013 -0800
     R=golang-codereviews, iant
     CC=golang-codereviews
     https://golang.org/cl/46320043
-
+---
  doc/contribute.html | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/doc/contribute.html b/doc/contribute.html
+index 716a1849e5..ffdd4d0d5f 100644
+--- a/doc/contribute.html
++++ b/doc/contribute.html
+@@ -240,7 +240,7 @@ These can be code review nicknames or arbitrary email addresses.
+ Unless explicitly told otherwise, such as in the discussion leading
+ up to sending in the change list, leave the reviewer field blank.
+ This means that the
+-<a href="http://groups.google.com/group/golang-dev">golang-dev@googlegroups.com</a>
++<a href="http://groups.google.com/group/golang-codereviews">golang-codereviews@googlegroups.com</a>
+ mailing list will be used as the reviewer.
+ </p>
+ 
+@@ -270,7 +270,7 @@ After editing, the template might now read:
+ # Lines beginning with # are ignored.
+ # Multi-line values should be indented.
+ 
+-Reviewer: golang-dev@googlegroups.com
++Reviewer: golang-codereviews@googlegroups.com
+ CC: math-nuts@swtch.com
+ 
+ Description:
+@@ -448,7 +448,7 @@ lines blank and then run:
+ </p>
+ 
+ <pre>
+-$ hg mail -r golang-dev@googlegroups.com --cc math-nuts@swtch.com 99999
++$ hg mail -r golang-codereviews@googlegroups.com --cc math-nuts@swtch.com 99999
+ </pre>
+ 
+ <p>to achieve the same effect.</p>

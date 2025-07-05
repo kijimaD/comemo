@@ -9,6 +9,29 @@ Date:   Wed Jun 13 18:57:40 2018 -0300
     Change-Id: I149dbb2afef13cc13fb5722d930377ed918d7e3c
     Reviewed-on: https://go-review.googlesource.com/118717
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/code.html | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/code.html b/doc/code.html
+index c0efcde66f..4e8c54a1c5 100644
+--- a/doc/code.html
++++ b/doc/code.html
+@@ -240,7 +240,7 @@ package main
+ import "fmt"
+ 
+ func main() {
+-	fmt.Printf("Hello, world.\n")
++	fmt.Println("Hello, world.")
+ }
+ </pre>
+ 
+@@ -395,7 +395,7 @@ import (
+ )
+ 
+ func main() {
+-	fmt.Printf(stringutil.Reverse("!oG ,olleH"))
++	fmt.Println(stringutil.Reverse("!oG ,olleH"))
+ }
+ </pre>
+ 

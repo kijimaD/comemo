@@ -19,6 +19,19 @@ Date:   Thu Mar 12 13:03:50 2015 -0400
     Change-Id: I07a18a4335a41e266a6d70aa3a0911a40babce23
     Reviewed-on: https://go-review.googlesource.com/7732
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/mgcmark.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 1be69fe062..a5ec31c30c 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -56,7 +56,6 @@ var oneptr = [...]uint8{typePointer}
+ //go:nowritebarrier
+ func markroot(desc *parfor, i uint32) {
+ 	var gcw gcWorkProducer
+-	gcw.initFromCache()
+ 
+ 	// Note: if you add a case here, please also update heapdump.go:dumproots.
+ 	switch i {

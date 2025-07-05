@@ -11,7 +11,32 @@ Date:   Thu Apr 29 15:04:15 2021 +0000
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Ben Shi <powerman1st@163.com>
     Trust: Matthew Dempsky <mdempsky@google.com>
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 1763ab88d8..48ce71f4cc 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -1425,6 +1425,7 @@ Wèi Cōngruì <crvv.mail@gmail.com>
+ Wei Fu <fhfuwei@163.com>
+ Wei Guangjing <vcc.163@gmail.com>
+ Weichao Tang <tevic.tt@gmail.com>
++Weixie Cui <cuiweixie@gmail.com> <523516579@qq.com>
+ Wembley G. Leach, Jr <wembley.gl@gmail.com>
+ Will Faught <will.faught@gmail.com>
+ Will Storey <will@summercat.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 5574026b75..56e3da4274 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -2526,6 +2526,7 @@ Wei Guangjing <vcc.163@gmail.com>
+ Wei Xiao <wei.xiao@arm.com>
+ Wei Xikai <xykwei@gmail.com>
+ Weichao Tang <tevic.tt@gmail.com>
++Weixie Cui <cuiweixie@gmail.com> <523516579@qq.com>
+ Wembley G. Leach, Jr <wembley.gl@gmail.com>
+ Wenlei (Frank) He <wlhe@google.com>
+ Wenzel Lowe <lowewenzel@gmail.com>

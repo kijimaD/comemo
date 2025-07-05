@@ -20,9 +20,72 @@ Date:   Fri Feb 7 23:22:50 2025 +0000
     Auto-Submit: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Damien Neil <dneil@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/os/root.go          | 2 +-
  src/os/root_noopenat.go | 2 +-
  src/os/root_unix.go     | 4 ++--
  src/os/root_windows.go  | 4 ++--
  4 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/os/root.go b/src/os/root.go
+index 04741c0281..f91c0f75f3 100644
+--- a/src/os/root.go
++++ b/src/os/root.go
+@@ -60,7 +60,7 @@ func OpenInRoot(dir, name string) (*File, error) {
+ //   - When GOOS=plan9 or GOOS=js, Root does not track directories across renames.
+ //     On these platforms, a Root references a directory name, not a file descriptor.
+ type Root struct {
+-	root root
++	root *root
+ }
+ 
+ const (
+diff --git a/src/os/root_noopenat.go b/src/os/root_noopenat.go
+index 8d5ead32b9..8be55a029f 100644
+--- a/src/os/root_noopenat.go
++++ b/src/os/root_noopenat.go
+@@ -49,7 +49,7 @@ func newRoot(name string) (*Root, error) {
+ 	if !fi.IsDir() {
+ 		return nil, errors.New("not a directory")
+ 	}
+-	return &Root{root{name: name}}, nil
++	return &Root{&root{name: name}}, nil
+ }
+ 
+ func (r *root) Close() error {
+diff --git a/src/os/root_unix.go b/src/os/root_unix.go
+index 4b52b81de7..02d3b4bdad 100644
+--- a/src/os/root_unix.go
++++ b/src/os/root_unix.go
+@@ -48,11 +48,11 @@ func newRoot(fd int, name string) (*Root, error) {
+ 		syscall.CloseOnExec(fd)
+ 	}
+ 
+-	r := &Root{root{
++	r := &Root{&root{
+ 		fd:   fd,
+ 		name: name,
+ 	}}
+-	runtime.SetFinalizer(&r.root, (*root).Close)
++	runtime.SetFinalizer(r.root, (*root).Close)
+ 	return r, nil
+ }
+ 
+diff --git a/src/os/root_windows.go b/src/os/root_windows.go
+index dcc311cf86..32dfa070b7 100644
+--- a/src/os/root_windows.go
++++ b/src/os/root_windows.go
+@@ -105,11 +105,11 @@ func newRoot(fd syscall.Handle, name string) (*Root, error) {
+ 		return nil, &PathError{Op: "open", Path: name, Err: errors.New("not a directory")}
+ 	}
+ 
+-	r := &Root{root{
++	r := &Root{&root{
+ 		fd:   fd,
+ 		name: name,
+ 	}}
+-	runtime.SetFinalizer(&r.root, (*root).Close)
++	runtime.SetFinalizer(r.root, (*root).Close)
+ 	return r, nil
+ }
+ 

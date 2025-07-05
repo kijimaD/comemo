@@ -9,7 +9,7 @@ Date:   Mon Jul 12 13:51:42 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1771043
-
+---
  src/pkg/container/vector/Makefile             |  2 --
  src/pkg/container/vector/intvector.go         | 17 ----------
  src/pkg/container/vector/intvector_test.go    | 47 ---------------------------
@@ -19,3 +19,298 @@ Date:   Mon Jul 12 13:51:42 2010 -0700
  src/pkg/container/vector/vector_test.go       | 47 ---------------------------
  src/pkg/nntp/nntp.go                          |  4 +--
  8 files changed, 1 insertion(+), 197 deletions(-)
+
+diff --git a/src/pkg/container/vector/Makefile b/src/pkg/container/vector/Makefile
+index c456c6a6c1..f664b43f94 100644
+--- a/src/pkg/container/vector/Makefile
++++ b/src/pkg/container/vector/Makefile
+@@ -42,7 +42,6 @@ generate: vector.go vector_test.go
+ 	| gofmt -r='make_vector -> make_vectorInt'\
+ 	| gofmt -r='TestInsertVector -> TestIntInsertVector'\
+ 	| gofmt -r='TestDo -> TestIntDo'\
+-	| gofmt -r='TestIter -> TestIntIter'\
+ 	| gofmt -r='TestVectorData -> TestIntVectorData'\
+ 	| gofmt -r='interface{} -> int'\
+ 	> intvector_test.go\
+@@ -65,7 +64,6 @@ generate: vector.go vector_test.go
+ 	| gofmt -r='make_vector -> make_vectorStr'\
+ 	| gofmt -r='TestInsertVector -> TestStrInsertVector'\
+ 	| gofmt -r='TestDo -> TestStrDo'\
+-	| gofmt -r='TestIter -> TestStrIter'\
+ 	| gofmt -r='TestVectorData -> TestStrVectorData'\
+ 	| gofmt -r='interface{} -> string'\
+ 	> stringvector_test.go
+diff --git a/src/pkg/container/vector/intvector.go b/src/pkg/container/vector/intvector.go
+index 6aad358e3d..5f4d6fa3d7 100644
+--- a/src/pkg/container/vector/intvector.go
++++ b/src/pkg/container/vector/intvector.go
+@@ -199,23 +199,6 @@ func (p *IntVector) Swap(i, j int) {
+ }
+ 
+ 
+-// Iterate over all elements; driver for range
+-func (p *IntVector) iterate(c chan<- int) {
+-	for _, v := range *p {
+-		c <- v
+-	}
+-	close(c)
+-}
+-
+-
+-// Channel iterator for range.
+-func (p *IntVector) Iter() <-chan int {
+-	c := make(chan int)
+-	go p.iterate(c)
+-	return c
+-}
+-
+-
+ // Do calls function f for each element of the vector, in order.
+ // The behavior of Do is undefined if f changes *p.
+ func (p *IntVector) Do(f func(elem int)) {
+diff --git a/src/pkg/container/vector/intvector_test.go b/src/pkg/container/vector/intvector_test.go
+index c80dd52cca..2f853ebfac 100644
+--- a/src/pkg/container/vector/intvector_test.go
++++ b/src/pkg/container/vector/intvector_test.go
+@@ -326,53 +326,6 @@ func TestIntDo(t *testing.T) {
+ }
+ 
+ 
+-func TestIntIter(t *testing.T) {
+-	const Len = 100
+-	x := new(IntVector).Resize(Len, 0)
+-	for i := 0; i < Len; i++ {
+-		x.Set(i, int2IntValue(i*i))
+-	}
+-	i := 0
+-	for v := range x.Iter() {
+-		if elem2IntValue(v) != int2IntValue(i*i) {
+-			t.Error(tname(x), "Iter expected", i*i, "got", elem2IntValue(v))
+-		}
+-		i++
+-	}
+-	if i != Len {
+-		t.Error(tname(x), "Iter stopped at", i, "not", Len)
+-	}
+-	y := new(IntVector).Resize(Len, 0)
+-	for i := 0; i < Len; i++ {
+-		(*y)[i] = int2IntValue(i * i)
+-	}
+-	i = 0
+-	for v := range y.Iter() {
+-		if elem2IntValue(v) != int2IntValue(i*i) {
+-			t.Error(tname(y), "y, Iter expected", i*i, "got", elem2IntValue(v))
+-		}
+-		i++
+-	}
+-	if i != Len {
+-		t.Error(tname(y), "y, Iter stopped at", i, "not", Len)
+-	}
+-	var z IntVector
+-	z.Resize(Len, 0)
+-	for i := 0; i < Len; i++ {
+-		z[i] = int2IntValue(i * i)
+-	}
+-	i = 0
+-	for v := range z.Iter() {
+-		if elem2IntValue(v) != int2IntValue(i*i) {
+-			t.Error(tname(z), "z, Iter expected", i*i, "got", elem2IntValue(v))
+-		}
+-		i++
+-	}
+-	if i != Len {
+-		t.Error(tname(z), "z, Iter stopped at", i, "not", Len)
+-	}
+-}
+-
+ func TestIntVectorData(t *testing.T) {
+ 	// verify Data() returns a slice of a copy, not a slice of the original vector
+ 	const Len = 10
+diff --git a/src/pkg/container/vector/stringvector.go b/src/pkg/container/vector/stringvector.go
+index ddc030f817..a9b727a908 100644
+--- a/src/pkg/container/vector/stringvector.go
++++ b/src/pkg/container/vector/stringvector.go
+@@ -199,23 +199,6 @@ func (p *StringVector) Swap(i, j int) {
+ }
+ 
+ 
+-// Iterate over all elements; driver for range
+-func (p *StringVector) iterate(c chan<- string) {
+-	for _, v := range *p {
+-		c <- v
+-	}
+-	close(c)
+-}
+-
+-
+-// Channel iterator for range.
+-func (p *StringVector) Iter() <-chan string {
+-	c := make(chan string)
+-	go p.iterate(c)
+-	return c
+-}
+-
+-
+ // Do calls function f for each element of the vector, in order.
+ // The behavior of Do is undefined if f changes *p.
+ func (p *StringVector) Do(f func(elem string)) {
+diff --git a/src/pkg/container/vector/stringvector_test.go b/src/pkg/container/vector/stringvector_test.go
+index 859dac2fde..1c05145a24 100644
+--- a/src/pkg/container/vector/stringvector_test.go
++++ b/src/pkg/container/vector/stringvector_test.go
+@@ -326,53 +326,6 @@ func TestStrDo(t *testing.T) {
+ }
+ 
+ 
+-func TestStrIter(t *testing.T) {
+-	const Len = 100
+-	x := new(StringVector).Resize(Len, 0)
+-	for i := 0; i < Len; i++ {
+-		x.Set(i, int2StrValue(i*i))
+-	}
+-	i := 0
+-	for v := range x.Iter() {
+-		if elem2StrValue(v) != int2StrValue(i*i) {
+-			t.Error(tname(x), "Iter expected", i*i, "got", elem2StrValue(v))
+-		}
+-		i++
+-	}
+-	if i != Len {
+-		t.Error(tname(x), "Iter stopped at", i, "not", Len)
+-	}
+-	y := new(StringVector).Resize(Len, 0)
+-	for i := 0; i < Len; i++ {
+-		(*y)[i] = int2StrValue(i * i)
+-	}
+-	i = 0
+-	for v := range y.Iter() {
+-		if elem2StrValue(v) != int2StrValue(i*i) {
+-			t.Error(tname(y), "y, Iter expected", i*i, "got", elem2StrValue(v))
+-		}
+-		i++
+-	}
+-	if i != Len {
+-		t.Error(tname(y), "y, Iter stopped at", i, "not", Len)
+-	}
+-	var z StringVector
+-	z.Resize(Len, 0)
+-	for i := 0; i < Len; i++ {
+-		z[i] = int2StrValue(i * i)
+-	}
+-	i = 0
+-	for v := range z.Iter() {
+-		if elem2StrValue(v) != int2StrValue(i*i) {
+-			t.Error(tname(z), "z, Iter expected", i*i, "got", elem2StrValue(v))
+-		}
+-		i++
+-	}
+-	if i != Len {
+-		t.Error(tname(z), "z, Iter stopped at", i, "not", Len)
+-	}
+-}
+-
+ func TestStrVectorData(t *testing.T) {
+ 	// verify Data() returns a slice of a copy, not a slice of the original vector
+ 	const Len = 10
+diff --git a/src/pkg/container/vector/vector.go b/src/pkg/container/vector/vector.go
+index 986321b14b..f219cdcaaf 100644
+--- a/src/pkg/container/vector/vector.go
++++ b/src/pkg/container/vector/vector.go
+@@ -199,23 +199,6 @@ func (p *Vector) Swap(i, j int) {
+ }
+ 
+ 
+-// Iterate over all elements; driver for range
+-func (p *Vector) iterate(c chan<- interface{}) {
+-	for _, v := range *p {
+-		c <- v
+-	}
+-	close(c)
+-}
+-
+-
+-// Channel iterator for range.
+-func (p *Vector) Iter() <-chan interface{} {
+-	c := make(chan interface{})
+-	go p.iterate(c)
+-	return c
+-}
+-
+-
+ // Do calls function f for each element of the vector, in order.
+ // The behavior of Do is undefined if f changes *p.
+ func (p *Vector) Do(f func(elem interface{})) {
+diff --git a/src/pkg/container/vector/vector_test.go b/src/pkg/container/vector/vector_test.go
+index 158b34479b..ba15398c28 100644
+--- a/src/pkg/container/vector/vector_test.go
++++ b/src/pkg/container/vector/vector_test.go
+@@ -326,53 +326,6 @@ func TestDo(t *testing.T) {
+ }
+ 
+ 
+-func TestIter(t *testing.T) {
+-	const Len = 100
+-	x := new(Vector).Resize(Len, 0)
+-	for i := 0; i < Len; i++ {
+-		x.Set(i, int2Value(i*i))
+-	}
+-	i := 0
+-	for v := range x.Iter() {
+-		if elem2Value(v) != int2Value(i*i) {
+-			t.Error(tname(x), "Iter expected", i*i, "got", elem2Value(v))
+-		}
+-		i++
+-	}
+-	if i != Len {
+-		t.Error(tname(x), "Iter stopped at", i, "not", Len)
+-	}
+-	y := new(Vector).Resize(Len, 0)
+-	for i := 0; i < Len; i++ {
+-		(*y)[i] = int2Value(i * i)
+-	}
+-	i = 0
+-	for v := range y.Iter() {
+-		if elem2Value(v) != int2Value(i*i) {
+-			t.Error(tname(y), "y, Iter expected", i*i, "got", elem2Value(v))
+-		}
+-		i++
+-	}
+-	if i != Len {
+-		t.Error(tname(y), "y, Iter stopped at", i, "not", Len)
+-	}
+-	var z Vector
+-	z.Resize(Len, 0)
+-	for i := 0; i < Len; i++ {
+-		z[i] = int2Value(i * i)
+-	}
+-	i = 0
+-	for v := range z.Iter() {
+-		if elem2Value(v) != int2Value(i*i) {
+-			t.Error(tname(z), "z, Iter expected", i*i, "got", elem2Value(v))
+-		}
+-		i++
+-	}
+-	if i != Len {
+-		t.Error(tname(z), "z, Iter stopped at", i, "not", Len)
+-	}
+-}
+-
+ func TestVectorData(t *testing.T) {
+ 	// verify Data() returns a slice of a copy, not a slice of the original vector
+ 	const Len = 10
+diff --git a/src/pkg/nntp/nntp.go b/src/pkg/nntp/nntp.go
+index e78b036f54..8f343dc8f8 100644
+--- a/src/pkg/nntp/nntp.go
++++ b/src/pkg/nntp/nntp.go
+@@ -361,10 +361,8 @@ func parseGroups(lines []string) ([]Group, os.Error) {
+ 		res.Push(&Group{ss[0], high, low, ss[3]})
+ 	}
+ 	realres := make([]Group, res.Len())
+-	i := 0
+-	for v := range res.Iter() {
++	for i, v := range res {
+ 		realres[i] = *v.(*Group)
+-		i++
+ 	}
+ 	return realres, nil
+ }

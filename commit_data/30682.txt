@@ -19,6 +19,87 @@ Date:   Mon Oct 31 07:58:41 2016 -0700
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/database/sql/sql_test.go | 40 +++++++++++++++++++++++++++++++---------
  1 file changed, 31 insertions(+), 9 deletions(-)
+
+diff --git a/src/database/sql/sql_test.go b/src/database/sql/sql_test.go
+index c46aaf60f8..b64d4dda5a 100644
+--- a/src/database/sql/sql_test.go
++++ b/src/database/sql/sql_test.go
+@@ -1438,7 +1438,11 @@ func TestPendingConnsAfterErr(t *testing.T) {
+ 		tryOpen = maxOpen*2 + 2
+ 	)
+ 
+-	db := newTestDB(t, "people")
++	// No queries will be run.
++	db, err := Open("test", fakeDBName)
++	if err != nil {
++		t.Fatalf("Open: %v", err)
++	}
+ 	defer closeDB(t, db)
+ 	defer func() {
+ 		for k, v := range db.lastPut {
+@@ -1450,29 +1454,29 @@ func TestPendingConnsAfterErr(t *testing.T) {
+ 	db.SetMaxIdleConns(0)
+ 
+ 	errOffline := errors.New("db offline")
++
+ 	defer func() { setHookOpenErr(nil) }()
+ 
+ 	errs := make(chan error, tryOpen)
+ 
+-	unblock := make(chan struct{})
++	var opening sync.WaitGroup
++	opening.Add(tryOpen)
++
+ 	setHookOpenErr(func() error {
+-		<-unblock // block until all connections are in flight
++		// Wait for all connections to enqueue.
++		opening.Wait()
+ 		return errOffline
+ 	})
+ 
+-	var opening sync.WaitGroup
+-	opening.Add(tryOpen)
+ 	for i := 0; i < tryOpen; i++ {
+ 		go func() {
+ 			opening.Done() // signal one connection is in flight
+-			_, err := db.Exec("INSERT|people|name=Julia,age=19")
++			_, err := db.Exec("will never run")
+ 			errs <- err
+ 		}()
+ 	}
+ 
+-	opening.Wait()                    // wait for all workers to begin running
+-	time.Sleep(10 * time.Millisecond) // make extra sure all workers are blocked
+-	close(unblock)                    // let all workers proceed
++	opening.Wait() // wait for all workers to begin running
+ 
+ 	const timeout = 5 * time.Second
+ 	to := time.NewTimer(timeout)
+@@ -1489,6 +1493,24 @@ func TestPendingConnsAfterErr(t *testing.T) {
+ 			t.Fatalf("orphaned connection request(s), still waiting after %v", timeout)
+ 		}
+ 	}
++
++	// Wait a reasonable time for the database to close all connections.
++	tick := time.NewTicker(3 * time.Millisecond)
++	defer tick.Stop()
++	for {
++		select {
++		case <-tick.C:
++			db.mu.Lock()
++			if db.numOpen == 0 {
++				db.mu.Unlock()
++				return
++			}
++			db.mu.Unlock()
++		case <-to.C:
++			// Closing the database will check for numOpen and fail the test.
++			return
++		}
++	}
+ }
+ 
+ func TestSingleOpenConn(t *testing.T) {

@@ -22,7 +22,80 @@ Date:   Tue Sep 25 17:32:03 2018 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/mgc.go      |  4 ++--
  src/runtime/mgcsweep.go | 18 ++++--------------
  2 files changed, 6 insertions(+), 16 deletions(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 2c6af43da5..9a35c7671f 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -1061,7 +1061,7 @@ func GC() {
+ 	// complete the cycle and because runtime.GC() is often used
+ 	// as part of tests and benchmarks to get the system into a
+ 	// relatively stable and isolated state.
+-	for atomic.Load(&work.cycles) == n+1 && gosweepone() != ^uintptr(0) {
++	for atomic.Load(&work.cycles) == n+1 && sweepone() != ^uintptr(0) {
+ 		sweep.nbgsweep++
+ 		Gosched()
+ 	}
+@@ -1219,7 +1219,7 @@ func gcStart(trigger gcTrigger) {
+ 	//
+ 	// We check the transition condition continuously here in case
+ 	// this G gets delayed in to the next GC cycle.
+-	for trigger.test() && gosweepone() != ^uintptr(0) {
++	for trigger.test() && sweepone() != ^uintptr(0) {
+ 		sweep.nbgsweep++
+ 	}
+ 
+diff --git a/src/runtime/mgcsweep.go b/src/runtime/mgcsweep.go
+index b7528ab68f..35b717ca9b 100644
+--- a/src/runtime/mgcsweep.go
++++ b/src/runtime/mgcsweep.go
+@@ -52,7 +52,7 @@ func bgsweep(c chan int) {
+ 	goparkunlock(&sweep.lock, waitReasonGCSweepWait, traceEvGoBlock, 1)
+ 
+ 	for {
+-		for gosweepone() != ^uintptr(0) {
++		for sweepone() != ^uintptr(0) {
+ 			sweep.nbgsweep++
+ 			Gosched()
+ 		}
+@@ -72,9 +72,8 @@ func bgsweep(c chan int) {
+ 	}
+ }
+ 
+-// sweeps one span
+-// returns number of pages returned to heap, or ^uintptr(0) if there is nothing to sweep
+-//go:nowritebarrier
++// sweepone sweeps one span and returns the number of pages returned
++// to the heap, or ^uintptr(0) if there was nothing to sweep.
+ func sweepone() uintptr {
+ 	_g_ := getg()
+ 	sweepRatio := mheap_.sweepPagesPerByte // For debugging
+@@ -135,15 +134,6 @@ func sweepone() uintptr {
+ 	return npages
+ }
+ 
+-//go:nowritebarrier
+-func gosweepone() uintptr {
+-	var ret uintptr
+-	systemstack(func() {
+-		ret = sweepone()
+-	})
+-	return ret
+-}
+-
+ //go:nowritebarrier
+ func gosweepdone() bool {
+ 	return mheap_.sweepdone != 0
+@@ -414,7 +404,7 @@ retry:
+ 	newHeapLive := uintptr(atomic.Load64(&memstats.heap_live)-mheap_.sweepHeapLiveBasis) + spanBytes
+ 	pagesTarget := int64(mheap_.sweepPagesPerByte*float64(newHeapLive)) - int64(callerSweepPages)
+ 	for pagesTarget > int64(atomic.Load64(&mheap_.pagesSwept)-sweptBasis) {
+-		if gosweepone() == ^uintptr(0) {
++		if sweepone() == ^uintptr(0) {
+ 			mheap_.sweepPagesPerByte = 0
+ 			break
+ 		}

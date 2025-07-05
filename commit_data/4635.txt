@@ -8,9 +8,116 @@ Date:   Mon Jan 18 21:46:46 2010 -0800
     R=r
     CC=golang-dev
     https://golang.org/cl/186173
-
+---
  src/cmd/gc/lex.c  |  4 ++--
  src/cmd/ld/lib.c  | 16 ++--------------
  src/lib9/Makefile |  4 ++++
  src/lib9/goos.c   | 35 +++++++++++++++++++++++++++++++++++
  4 files changed, 43 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index c433c1ec9e..84e6a2e97b 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -223,8 +223,8 @@ findpkg(Strlit *name)
+ 	Idir *p;
+ 
+ 	if(goroot == nil) {
+-		goroot = getenv("GOROOT");
+-		goos = getenv("GOOS");
++		goroot = getgoroot();
++		goos = getgoos();
+ 		goarch = thestring;
+ 	}
+ 
+diff --git a/src/cmd/ld/lib.c b/src/cmd/ld/lib.c
+index f702bae237..b70c874390 100644
+--- a/src/cmd/ld/lib.c
++++ b/src/cmd/ld/lib.c
+@@ -720,21 +720,9 @@ mywhatsys(void)
+ {
+ 	char *s;
+ 
+-	goroot = getenv("GOROOT");
+-	goos = getenv("GOOS");
+-
+-	if(goroot == nil) {
+-		s = getenv("HOME");
+-		if(s == nil)
+-			s = "/home/ken";
+-		goroot = mal(strlen(s) + 10);
+-		strcpy(goroot, s);
+-		strcat(goroot, "/go");
+-	}
++	goroot = getgoroot();
++	goos = getgoos();
+ 	goarch = thestring;	// ignore $GOARCH - we know who we are
+-	if(goos == nil) {
+-		goos = "linux";
+-	}
+ }
+ 
+ int
+diff --git a/src/lib9/Makefile b/src/lib9/Makefile
+index 9038730b1f..592bc3b1a6 100644
+--- a/src/lib9/Makefile
++++ b/src/lib9/Makefile
+@@ -69,6 +69,7 @@ LIB9OFILES=\
+ 	getenv.$O\
+ 	getfields.$O\
+ 	getwd.$O\
++	goos.$O\
+ 	main.$O\
+ 	nan.$O\
+ 	nulldir.$O\
+@@ -115,6 +116,9 @@ $(LIB): $(OFILES)
+ %.$O: utf/%.c
+ 	$(CC) -c $(CFLAGS) $<
+ 
++goos.$O: goos.c
++	$(CC) -c $(CFLAGS) -DGOOS='"$(GOOS)"' -DGOARCH='"$(GOARCH)"' -DGOROOT='"$(GOROOT)"' $<
++
+ clean:
+ 	rm -f *.$O *.6 6.out $(LIB)
+ 
+diff --git a/src/lib9/goos.c b/src/lib9/goos.c
+new file mode 100644
+index 0000000000..668dc1941d
+--- /dev/null
++++ b/src/lib9/goos.c
+@@ -0,0 +1,35 @@
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include <u.h>
++#include <libc.h>
++
++static char*
++defgetenv(char *name, char *def)
++{
++	char *p;
++	
++	p = getenv(name);
++	if(p == nil || p[0] == '\0')
++		p = def;
++	return p;
++}
++
++char*
++getgoos(void)
++{
++	return defgetenv("GOOS", GOOS);
++}
++
++char*
++getgoarch(void)
++{
++	return defgetenv("GOARCH", GOARCH);
++}
++
++char*
++getgoroot(void)
++{
++	return defgetenv("GOROOT", GOROOT);
++}

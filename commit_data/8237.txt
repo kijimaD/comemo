@@ -7,6 +7,42 @@ Date:   Wed Apr 27 10:12:10 2011 +1000
     R=rsc, dfc
     CC=golang-dev
     https://golang.org/cl/4452047
-
+---
  misc/dashboard/builder/main.go | 17 ++++++++++++++---
  1 file changed, 14 insertions(+), 3 deletions(-)
+
+diff --git a/misc/dashboard/builder/main.go b/misc/dashboard/builder/main.go
+index 3924ff2a00..d11cbb1337 100644
+--- a/misc/dashboard/builder/main.go
++++ b/misc/dashboard/builder/main.go
+@@ -60,6 +60,7 @@ var (
+ 	buildRevision = flag.String("rev", "", "Build specified revision and exit")
+ 	buildCmd      = flag.String("cmd", "./all.bash", "Build command (specify absolute or relative to go/src/)")
+ 	external      = flag.Bool("external", false, "Build external packages")
++	parallel      = flag.Bool("parallel", false, "Build multiple targets in parallel")
+ 	verbose       = flag.Bool("v", false, "verbose")
+ )
+ 
+@@ -133,9 +134,19 @@ func main() {
+ 			continue
+ 		}
+ 		built := false
+-		for _, b := range builders {
+-			if b.build() {
+-				built = true
++		if *parallel {
++			done := make(chan bool)
++			for _, b := range builders {
++				go func(b *Builder) {
++					done <- b.build()
++				}(b)
++			}
++			for _ = range builders {
++				built = <-done || built
++			}
++		} else {
++			for _, b := range builders {
++				built = b.build() || built
+ 			}
+ 		}
+ 		// only run benchmarks if we didn't build anything

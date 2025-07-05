@@ -15,7 +15,40 @@ Date:   Mon Apr 8 23:12:52 2019 +0200
     Reviewed-on: https://go-review.googlesource.com/c/go/+/170956
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/runtime/asm_386.s   | 6 ++++--
  src/runtime/asm_amd64.s | 4 +++-
  2 files changed, 7 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/asm_386.s b/src/runtime/asm_386.s
+index 61aae47c08..682f1ab5d0 100644
+--- a/src/runtime/asm_386.s
++++ b/src/runtime/asm_386.s
+@@ -172,8 +172,10 @@ nocpuinfo:
+ 	TESTL	AX, AX
+ 	JZ	needtls
+ #ifdef GOOS_android
+-	MOVL	0(TLS), BX
+-	MOVL	BX, 12(SP)	// arg 4: TLS base, stored in the first slot (TLS_SLOT_SELF).
++	// arg 4: TLS base, stored in slot 0 (Android's TLS_SLOT_SELF).
++	// Compensate for tls_g (+8).
++	MOVL	-8(TLS), BX
++	MOVL	BX, 12(SP)
+ 	MOVL	$runtime·tls_g(SB), 8(SP)	// arg 3: &tls_g
+ #else
+ 	MOVL	$0, BX
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index 7b2fdf0d3d..e5b987858d 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -136,7 +136,9 @@ nocpuinfo:
+ 	MOVQ	$setg_gcc<>(SB), SI // arg 2: setg_gcc
+ #ifdef GOOS_android
+ 	MOVQ	$runtime·tls_g(SB), DX 	// arg 3: &tls_g
+-	MOVQ	0(TLS), CX	// arg 4: TLS base, stored in the first slot (TLS_SLOT_SELF).
++	// arg 4: TLS base, stored in slot 0 (Android's TLS_SLOT_SELF).
++	// Compensate for tls_g (+16).
++	MOVQ	-16(TLS), CX
+ #else
+ 	MOVQ	$0, DX	// arg 3, 4: not used when using platform's TLS
+ 	MOVQ	$0, CX

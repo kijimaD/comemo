@@ -18,8 +18,108 @@ Date:   Tue Nov 7 00:39:27 2023 +1100
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Joel Sing <joel@sing.id.au>
-
+---
  src/internal/syscall/unix/tcsetpgrp_bsd.go   | 22 ++++++++++++++++++++++
  src/internal/syscall/unix/tcsetpgrp_linux.go | 21 +++++++++++++++++++++
  src/os/signal/signal_cgo_test.go             | 12 +++++-------
  3 files changed, 48 insertions(+), 7 deletions(-)
+
+diff --git a/src/internal/syscall/unix/tcsetpgrp_bsd.go b/src/internal/syscall/unix/tcsetpgrp_bsd.go
+new file mode 100644
+index 0000000000..bac614df97
+--- /dev/null
++++ b/src/internal/syscall/unix/tcsetpgrp_bsd.go
+@@ -0,0 +1,22 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build darwin || dragonfly || freebsd || netbsd || openbsd
++
++package unix
++
++import (
++	"syscall"
++	"unsafe"
++)
++
++//go:linkname ioctlPtr syscall.ioctlPtr
++func ioctlPtr(fd int, req uint, arg unsafe.Pointer) (err error)
++
++// Note that pgid should really be pid_t, however _C_int (aka int32) is
++// generally equivalent.
++
++func Tcsetpgrp(fd int, pgid int32) (err error) {
++	return ioctlPtr(fd, syscall.TIOCSPGRP, unsafe.Pointer(&pgid))
++}
+diff --git a/src/internal/syscall/unix/tcsetpgrp_linux.go b/src/internal/syscall/unix/tcsetpgrp_linux.go
+new file mode 100644
+index 0000000000..be208d9cd2
+--- /dev/null
++++ b/src/internal/syscall/unix/tcsetpgrp_linux.go
+@@ -0,0 +1,21 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package unix
++
++import (
++	"syscall"
++	"unsafe"
++)
++
++// Note that pgid should really be pid_t, however _C_int (aka int32) is
++// generally equivalent.
++
++func Tcsetpgrp(fd int, pgid int32) (err error) {
++	_, _, errno := syscall.Syscall6(syscall.SYS_IOCTL, uintptr(fd), uintptr(syscall.TIOCSPGRP), uintptr(unsafe.Pointer(&pgid)), 0, 0, 0)
++	if errno != 0 {
++		return errno
++	}
++	return nil
++}
+diff --git a/src/os/signal/signal_cgo_test.go b/src/os/signal/signal_cgo_test.go
+index 0aaf38c221..bc6f030d5f 100644
+--- a/src/os/signal/signal_cgo_test.go
++++ b/src/os/signal/signal_cgo_test.go
+@@ -14,6 +14,7 @@ import (
+ 	"context"
+ 	"encoding/binary"
+ 	"fmt"
++	"internal/syscall/unix"
+ 	"internal/testenv"
+ 	"internal/testpty"
+ 	"os"
+@@ -23,7 +24,6 @@ import (
+ 	"syscall"
+ 	"testing"
+ 	"time"
+-	"unsafe"
+ )
+ 
+ const (
+@@ -304,9 +304,8 @@ func runSessionLeader(t *testing.T, pause time.Duration) {
+ 
+ 		// Take TTY.
+ 		pgrp := int32(syscall.Getpgrp()) // assume that pid_t is int32
+-		_, _, errno := syscall.Syscall(syscall.SYS_IOCTL, ptyFD, syscall.TIOCSPGRP, uintptr(unsafe.Pointer(&pgrp)))
+-		if errno != 0 {
+-			return fmt.Errorf("error setting tty process group: %w", errno)
++		if err := unix.Tcsetpgrp(ptyFD, pgrp); err != nil {
++			return fmt.Errorf("error setting tty process group: %w", err)
+ 		}
+ 
+ 		// Give the kernel time to potentially wake readers and have
+@@ -315,9 +314,8 @@ func runSessionLeader(t *testing.T, pause time.Duration) {
+ 
+ 		// Give TTY back.
+ 		pid := int32(cmd.Process.Pid) // assume that pid_t is int32
+-		_, _, errno = syscall.Syscall(syscall.SYS_IOCTL, ptyFD, syscall.TIOCSPGRP, uintptr(unsafe.Pointer(&pid)))
+-		if errno != 0 {
+-			return fmt.Errorf("error setting tty process group back: %w", errno)
++		if err := unix.Tcsetpgrp(ptyFD, pid); err != nil {
++			return fmt.Errorf("error setting tty process group back: %w", err)
+ 		}
+ 
+ 		// Report that we are done and SIGCONT can be sent. Note that

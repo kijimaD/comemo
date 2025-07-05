@@ -14,9 +14,86 @@ Date:   Thu Sep 16 02:10:17 2021 +0800
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Alexander Rakoczy <alex@golang.org>
-
+---
  misc/cgo/testshared/shared_test.go                   |  8 ++++++++
  misc/cgo/testshared/testdata/issue47837/a/a.go       | 19 +++++++++++++++++++
  misc/cgo/testshared/testdata/issue47837/main/main.go | 14 ++++++++++++++
  src/cmd/link/internal/ld/deadcode.go                 |  4 +++-
  4 files changed, 44 insertions(+), 1 deletion(-)
+
+diff --git a/misc/cgo/testshared/shared_test.go b/misc/cgo/testshared/shared_test.go
+index 1bd89bc27a..672811fe0e 100644
+--- a/misc/cgo/testshared/shared_test.go
++++ b/misc/cgo/testshared/shared_test.go
+@@ -1070,3 +1070,11 @@ func TestIssue44031(t *testing.T) {
+ 	goCmd(t, "install", "-buildmode=shared", "-linkshared", "./issue44031/b")
+ 	goCmd(t, "run", "-linkshared", "./issue44031/main")
+ }
++
++// Test that we use a variable from shared libraries (which implement an
++// interface in shared libraries.). A weak reference is used in the itab
++// in main process. It can cause unreacheble panic. See issue 47873.
++func TestIssue47873(t *testing.T) {
++	goCmd(t, "install", "-buildmode=shared", "-linkshared", "./issue47837/a")
++	goCmd(t, "run", "-linkshared", "./issue47837/main")
++}
+diff --git a/misc/cgo/testshared/testdata/issue47837/a/a.go b/misc/cgo/testshared/testdata/issue47837/a/a.go
+new file mode 100644
+index 0000000000..68588eda2f
+--- /dev/null
++++ b/misc/cgo/testshared/testdata/issue47837/a/a.go
+@@ -0,0 +1,19 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++type A interface {
++	M()
++}
++
++//go:noinline
++func TheFuncWithArgA(a A) {
++	a.M()
++}
++
++type ImplA struct{}
++
++//go:noinline
++func (A *ImplA) M() {}
+diff --git a/misc/cgo/testshared/testdata/issue47837/main/main.go b/misc/cgo/testshared/testdata/issue47837/main/main.go
+new file mode 100644
+index 0000000000..77c6f34379
+--- /dev/null
++++ b/misc/cgo/testshared/testdata/issue47837/main/main.go
+@@ -0,0 +1,14 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"testshared/issue47837/a"
++)
++
++func main() {
++	var vara a.ImplA
++	a.TheFuncWithArgA(&vara)
++}
+diff --git a/src/cmd/link/internal/ld/deadcode.go b/src/cmd/link/internal/ld/deadcode.go
+index 0221024d56..79acd73387 100644
+--- a/src/cmd/link/internal/ld/deadcode.go
++++ b/src/cmd/link/internal/ld/deadcode.go
+@@ -134,7 +134,9 @@ func (d *deadcodePass) flood() {
+ 		methods = methods[:0]
+ 		for i := 0; i < relocs.Count(); i++ {
+ 			r := relocs.At(i)
+-			if r.Weak() {
++			// When build with "-linkshared", we can't tell if the interface
++			// method in itab will be used or not. Ignore the weak attribute.
++			if r.Weak() && !(d.ctxt.linkShared && d.ldr.IsItab(symIdx)) {
+ 				continue
+ 			}
+ 			t := r.Type()

@@ -8,6 +8,23 @@ Date:   Fri Oct 10 09:46:41 2014 +1100
     R=golang-codereviews
     CC=golang-codereviews
     https://golang.org/cl/157820043
-
+---
  src/net/udp_test.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/net/udp_test.go b/src/net/udp_test.go
+index a102acf6c5..aa5751557f 100644
+--- a/src/net/udp_test.go
++++ b/src/net/udp_test.go
+@@ -36,6 +36,11 @@ func TestResolveUDPAddr(t *testing.T) {
+ }
+ 
+ func TestReadFromUDP(t *testing.T) {
++	switch runtime.GOOS {
++	case "nacl", "plan9":
++		t.Skipf("skipping test on %q", runtime.GOOS)
++	}
++
+ 	ra, err := ResolveUDPAddr("udp", "127.0.0.1:7")
+ 	if err != nil {
+ 		t.Fatal(err)

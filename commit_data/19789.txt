@@ -11,7 +11,65 @@ Date:   Mon Jul 21 12:06:30 2014 -0700
     R=rsc, dave
     CC=golang-codereviews
     https://golang.org/cl/113300044
-
+---
  src/cmd/api/goapi.go      |  8 +++++++-
  src/cmd/api/goapi_test.go | 20 ++++++++++++++++++++
  2 files changed, 27 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/api/goapi.go b/src/cmd/api/goapi.go
+index 508056a937..007601328c 100644
+--- a/src/cmd/api/goapi.go
++++ b/src/cmd/api/goapi.go
+@@ -107,6 +107,8 @@ func setContexts() {
+ 	}
+ }
+ 
++var internalPkg = regexp.MustCompile(`(^|/)internal($|/)`)
++
+ func main() {
+ 	flag.Parse()
+ 
+@@ -132,7 +134,11 @@ func main() {
+ 		if err != nil {
+ 			log.Fatal(err)
+ 		}
+-		pkgNames = strings.Fields(string(stds))
++		for _, pkg := range strings.Fields(string(stds)) {
++			if !internalPkg.MatchString(pkg) {
++				pkgNames = append(pkgNames, pkg)
++			}
++		}
+ 	}
+ 
+ 	var featureCtx = make(map[string]map[string]bool) // feature -> context name -> true
+diff --git a/src/cmd/api/goapi_test.go b/src/cmd/api/goapi_test.go
+index b909c32b34..cb68769c8f 100644
+--- a/src/cmd/api/goapi_test.go
++++ b/src/cmd/api/goapi_test.go
+@@ -142,6 +142,26 @@ func TestCompareAPI(t *testing.T) {
+ 	}
+ }
+ 
++func TestSkipInternal(t *testing.T) {
++	tests := []struct {
++		pkg  string
++		want bool
++	}{
++		{"net/http", true},
++		{"net/http/internal-foo", true},
++		{"net/http/internal", false},
++		{"net/http/internal/bar", false},
++		{"internal/foo", false},
++		{"internal", false},
++	}
++	for _, tt := range tests {
++		got := !internalPkg.MatchString(tt.pkg)
++		if got != tt.want {
++			t.Errorf("%s is internal = %v; want %v", tt.pkg, got, tt.want)
++		}
++	}
++}
++
+ func BenchmarkAll(b *testing.B) {
+ 	stds, err := exec.Command("go", "list", "std").Output()
+ 	if err != nil {

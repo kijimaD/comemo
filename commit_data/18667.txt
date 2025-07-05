@@ -22,7 +22,7 @@ Date:   Wed Feb 26 13:39:49 2014 -0800
     R=golang-codereviews, r
     CC=golang-codereviews
     https://golang.org/cl/68630043
-
+---
  src/pkg/go/printer/nodes.go                     | 25 +++++---
  src/pkg/go/printer/printer.go                   | 84 ++++++++++++++++++-------
  src/pkg/go/printer/testdata/comments.golden     | 13 ++--
@@ -30,3 +30,294 @@ Date:   Wed Feb 26 13:39:49 2014 -0800
  src/pkg/go/printer/testdata/declarations.golden |  3 +-
  src/pkg/go/printer/testdata/declarations.input  |  3 +-
  6 files changed, 99 insertions(+), 41 deletions(-)
+
+diff --git a/src/pkg/go/printer/nodes.go b/src/pkg/go/printer/nodes.go
+index 494ce948f4..3a93177b1b 100644
+--- a/src/pkg/go/printer/nodes.go
++++ b/src/pkg/go/printer/nodes.go
+@@ -826,10 +826,16 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int) {
+ 		}
+ 		p.print(x.Lbrace, token.LBRACE)
+ 		p.exprList(x.Lbrace, x.Elts, 1, commaTerm, x.Rbrace)
+-		// do not insert extra line breaks because of comments before
+-		// the closing '}' as it might break the code if there is no
+-		// trailing ','
+-		p.print(noExtraLinebreak, x.Rbrace, token.RBRACE, noExtraLinebreak)
++		// do not insert extra line break following a /*-style comment
++		// before the closing '}' as it might break the code if there
++		// is no trailing ','
++		mode := noExtraLinebreak
++		// do not insert extra blank following a /*-style comment
++		// before the closing '}' unless the literal is empty
++		if len(x.Elts) > 0 {
++			mode |= noExtraBlank
++		}
++		p.print(mode, x.Rbrace, token.RBRACE, mode)
+ 
+ 	case *ast.Ellipsis:
+ 		p.print(token.ELLIPSIS)
+@@ -1461,13 +1467,16 @@ func (p *printer) bodySize(b *ast.BlockStmt, maxSize int) int {
+ 		// opening and closing brace are on different lines - don't make it a one-liner
+ 		return maxSize + 1
+ 	}
+-	if len(b.List) > 5 || p.commentBefore(p.posFor(pos2)) {
+-		// too many statements or there is a comment inside - don't make it a one-liner
++	if len(b.List) > 5 {
++		// too many statements - don't make it a one-liner
+ 		return maxSize + 1
+ 	}
+ 	// otherwise, estimate body size
+-	bodySize := 0
++	bodySize := p.commentSizeBefore(p.posFor(pos2))
+ 	for i, s := range b.List {
++		if bodySize > maxSize {
++			break // no need to continue
++		}
+ 		if i > 0 {
+ 			bodySize += 2 // space for a semicolon and blank
+ 		}
+@@ -1501,7 +1510,7 @@ func (p *printer) adjBlock(headerSize int, sep whiteSpace, b *ast.BlockStmt) {
+ 			}
+ 			p.print(blank)
+ 		}
+-		p.print(b.Rbrace, token.RBRACE)
++		p.print(noExtraLinebreak, b.Rbrace, token.RBRACE, noExtraLinebreak)
+ 		return
+ 	}
+ 
+diff --git a/src/pkg/go/printer/printer.go b/src/pkg/go/printer/printer.go
+index e06d2edfb2..a86ce8a3f0 100644
+--- a/src/pkg/go/printer/printer.go
++++ b/src/pkg/go/printer/printer.go
+@@ -39,9 +39,17 @@ const (
+ type pmode int
+ 
+ const (
+-	noExtraLinebreak pmode = 1 << iota
++	noExtraBlank     pmode = 1 << iota // disables extra blank after /*-style comment
++	noExtraLinebreak                   // disables extra line break after /*-style comment
+ )
+ 
++type commentInfo struct {
++	cindex         int               // current comment index
++	comment        *ast.CommentGroup // = printer.comments[cindex]; or nil
++	commentOffset  int               // = printer.posFor(printer.comments[cindex].List[0].Pos()).Offset; or infinity
++	commentNewline bool              // true if the comment group contains newlines
++}
++
+ type printer struct {
+ 	// Configuration (does not change after initialization)
+ 	Config
+@@ -52,7 +60,8 @@ type printer struct {
+ 	indent      int          // current indentation
+ 	mode        pmode        // current printer mode
+ 	impliedSemi bool         // if set, a linebreak implies a semicolon
+-	lastTok     token.Token  // the last token printed (token.ILLEGAL if it's whitespace)
++	lastTok     token.Token  // last token printed (token.ILLEGAL if it's whitespace)
++	prevOpen    token.Token  // previous non-brace "open" token (, [, or token.ILLEGAL
+ 	wsbuf       []whiteSpace // delayed white space
+ 
+ 	// Positions
+@@ -67,13 +76,10 @@ type printer struct {
+ 
+ 	// The list of all source comments, in order of appearance.
+ 	comments        []*ast.CommentGroup // may be nil
+-	cindex          int                 // current comment index
+ 	useNodeComments bool                // if not set, ignore lead and line comments of nodes
+ 
+ 	// Information about p.comments[p.cindex]; set up by nextComment.
+-	comment        *ast.CommentGroup // = p.comments[p.cindex]; or nil
+-	commentOffset  int               // = p.posFor(p.comments[p.cindex].List[0].Pos()).Offset; or infinity
+-	commentNewline bool              // true if the comment group contains newlines
++	commentInfo
+ 
+ 	// Cache of already computed node sizes.
+ 	nodeSizes map[ast.Node]int
+@@ -129,6 +135,33 @@ func (p *printer) nextComment() {
+ 	p.commentOffset = infinity
+ }
+ 
++// commentBefore returns true iff the current comment group occurs
++// before the next position in the source code and printing it does
++// not introduce implicit semicolons.
++//
++func (p *printer) commentBefore(next token.Position) bool {
++	return p.commentOffset < next.Offset && (!p.impliedSemi || !p.commentNewline)
++}
++
++// commentSizeBefore returns the estimated size of the
++// comments on the same line before the next position.
++//
++func (p *printer) commentSizeBefore(next token.Position) int {
++	// save/restore current p.commentInfo (p.nextComment() modifies it)
++	defer func(info commentInfo) {
++		p.commentInfo = info
++	}(p.commentInfo)
++
++	size := 0
++	for p.commentBefore(next) {
++		for _, c := range p.comment.List {
++			size += len(c.Text)
++		}
++		p.nextComment()
++	}
++	return size
++}
++
+ func (p *printer) internalError(msg ...interface{}) {
+ 	if debug {
+ 		fmt.Print(p.pos.String() + ": ")
+@@ -675,10 +708,14 @@ func (p *printer) intersperseComments(next token.Position, tok token.Token) (wro
+ 
+ 	if last != nil {
+ 		// if the last comment is a /*-style comment and the next item
+-		// follows on the same line but is not a comma or a "closing"
+-		// token, add an extra blank for separation
+-		if last.Text[1] == '*' && p.lineFor(last.Pos()) == next.Line && tok != token.COMMA &&
+-			tok != token.RPAREN && tok != token.RBRACK && tok != token.RBRACE {
++		// follows on the same line but is not a comma, and not a "closing"
++		// token immediately following its corresponding "opening" token,
++		// add an extra blank for separation unless explicitly disabled
++		if p.mode&noExtraBlank == 0 &&
++			last.Text[1] == '*' && p.lineFor(last.Pos()) == next.Line &&
++			tok != token.COMMA &&
++			(tok != token.RPAREN || p.prevOpen == token.LPAREN) &&
++			(tok != token.RBRACK || p.prevOpen == token.LBRACK) {
+ 			p.writeByte(' ', 1)
+ 		}
+ 		// ensure that there is a line break after a //-style comment,
+@@ -735,12 +772,8 @@ func (p *printer) writeWhitespace(n int) {
+ 	}
+ 
+ 	// shift remaining entries down
+-	i := 0
+-	for ; n < len(p.wsbuf); n++ {
+-		p.wsbuf[i] = p.wsbuf[n]
+-		i++
+-	}
+-	p.wsbuf = p.wsbuf[0:i]
++	l := copy(p.wsbuf, p.wsbuf[n:])
++	p.wsbuf = p.wsbuf[:l]
+ }
+ 
+ // ----------------------------------------------------------------------------
+@@ -790,6 +823,17 @@ func (p *printer) print(args ...interface{}) {
+ 		var isLit bool
+ 		var impliedSemi bool // value for p.impliedSemi after this arg
+ 
++		// record previous opening token, if any
++		switch p.lastTok {
++		case token.ILLEGAL:
++			// ignore (white space)
++		case token.LPAREN, token.LBRACK:
++			p.prevOpen = p.lastTok
++		default:
++			// other tokens followed any opening token
++			p.prevOpen = token.ILLEGAL
++		}
++
+ 		switch x := arg.(type) {
+ 		case pmode:
+ 			// toggle printer mode
+@@ -904,14 +948,6 @@ func (p *printer) print(args ...interface{}) {
+ 	}
+ }
+ 
+-// commentBefore returns true iff the current comment group occurs
+-// before the next position in the source code and printing it does
+-// not introduce implicit semicolons.
+-//
+-func (p *printer) commentBefore(next token.Position) (result bool) {
+-	return p.commentOffset < next.Offset && (!p.impliedSemi || !p.commentNewline)
+-}
+-
+ // flush prints any pending comments and whitespace occurring textually
+ // before the position of the next token tok. The flush result indicates
+ // if a newline was written or if a formfeed was dropped from the whitespace
+diff --git a/src/pkg/go/printer/testdata/comments.golden b/src/pkg/go/printer/testdata/comments.golden
+index 610a42a68b..b1af7958a9 100644
+--- a/src/pkg/go/printer/testdata/comments.golden
++++ b/src/pkg/go/printer/testdata/comments.golden
+@@ -494,16 +494,21 @@ func _() {
+ func _( /* this */ x /* is */ /* an */ int) {
+ }
+ 
+-func _( /* no params */)	{}
++func _( /* no params - extra blank before and after comment */ )	{}
++func _(a, b int /* params - no extra blank after comment */)		{}
++
++func _()	{ f( /* no args - extra blank before and after comment */ ) }
++func _()	{ f(a, b /* args - no extra blank after comment */) }
+ 
+ func _() {
+-	f( /* no args */)
++	f( /* no args - extra blank before and after comment */ )
++	f(a, b /* args - no extra blank after comment */)
+ }
+ 
+ func ( /* comment1 */ T /* comment2 */) _()	{}
+ 
+-func _() { /* one-line functions with comments are formatted as multi-line functions */
+-}
++func _()	{ /* "short-ish one-line functions with comments are formatted as multi-line functions */ }
++func _()	{ x := 0; /* comment */ y = x /* comment */ }
+ 
+ func _() {
+ 	_ = 0
+diff --git a/src/pkg/go/printer/testdata/comments.input b/src/pkg/go/printer/testdata/comments.input
+index d121dd4be7..983e2b2c97 100644
+--- a/src/pkg/go/printer/testdata/comments.input
++++ b/src/pkg/go/printer/testdata/comments.input
+@@ -500,15 +500,21 @@ func _() {
+ func _(/* this */x/* is *//* an */ int) {
+ }
+ 
+-func _(/* no params */) {}
++func _(/* no params - extra blank before and after comment */) {}
++func _(a, b int /* params - no extra blank after comment */) {}
++
++func _() { f(/* no args - extra blank before and after comment */) }
++func _() { f(a, b /* args - no extra blank after comment */) }
+ 
+ func _() {
+-	f(/* no args */)
++	f(/* no args - extra blank before and after comment */)
++	f(a, b /* args - no extra blank after comment */)
+ }
+ 
+ func (/* comment1 */ T /* comment2 */) _() {}
+ 
+-func _() { /* one-line functions with comments are formatted as multi-line functions */ }
++func _() { /* "short-ish one-line functions with comments are formatted as multi-line functions */ }
++func _() { x := 0; /* comment */ y = x /* comment */ }
+ 
+ func _() {
+ 	_ = 0
+diff --git a/src/pkg/go/printer/testdata/declarations.golden b/src/pkg/go/printer/testdata/declarations.golden
+index 0331615e51..735e489379 100644
+--- a/src/pkg/go/printer/testdata/declarations.golden
++++ b/src/pkg/go/printer/testdata/declarations.golden
+@@ -723,7 +723,8 @@ func _() int {
+ }
+ 
+ // making function declarations safe for new semicolon rules
+-func _() { /* multi-line func because of comment */
++func _()	{ /* single-line function because of "short-ish" comment */ }
++func _() { /* multi-line function because of "long-ish" comment - much more comment text is following here */ /* and more */
+ }
+ 
+ func _() {
+diff --git a/src/pkg/go/printer/testdata/declarations.input b/src/pkg/go/printer/testdata/declarations.input
+index dbdbdfe742..53f7a2ef73 100644
+--- a/src/pkg/go/printer/testdata/declarations.input
++++ b/src/pkg/go/printer/testdata/declarations.input
+@@ -737,7 +737,8 @@ func _() int {
+ 
+ 
+ // making function declarations safe for new semicolon rules
+-func _() { /* multi-line func because of comment */ }
++func _() { /* single-line function because of "short-ish" comment */ }
++func _() { /* multi-line function because of "long-ish" comment - much more comment text is following here */ /* and more */ }
+ 
+ func _() {
+ /* multi-line func because block is on multiple lines */ }

@@ -5,9 +5,186 @@ Date:   Fri Jun 6 12:57:00 2008 -0700
     first cut at test suite
     
     SVN=121454
-
+---
  test/golden.out | 49 +++++++++++++++++++++++++++++++++++++++++++++++++
  test/hashmap.go |  2 --
  test/run        | 40 ++++++++++++++++++++++++++++++++++++++++
  test/test0.go   | 16 +++++++---------
  4 files changed, 96 insertions(+), 11 deletions(-)
+
+diff --git a/test/golden.out b/test/golden.out
+new file mode 100644
+index 0000000000..4ae48de5a6
+--- /dev/null
++++ b/test/golden.out
+@@ -0,0 +1,49 @@
++=========== char_lit.go
++char_lit.go:5: syntax error
++char_lit.go:17: unknown escape sequence: \
++char_lit.go:19: unknown escape sequence: "
++BUG: known to fail incorrectly
++=========== float_lit.go
++float_lit.go:5: syntax error
++float_lit.go:28: overflow in float constant
++float_lit.go:56: overflow in float constant
++float_lit.go:60: overflow in float constant
++float_lit.go:64: overflow in float constant
++BUG: known to fail incorrectly
++=========== hashmap.go
++hashmap.go:46: fatal error: optoas: no entry LSH-<uint32>UINT32
++BUG: known to fail incorrectly
++=========== helloworld.go
++hello, world
++=========== int_lit.go
++int_lit.go:5: syntax error
++BUG: known to fail incorrectly
++=========== sieve.go
++sieve.go:8: syntax error
++sieve.go:16: prime undefined
++sieve.go:17: out undefined
++sieve.go:18: syntax error
++sieve.go:27: fatal error: walktype: switch 1 unknown op RECV l(27)
++BUG: known to fail incorrectly
++=========== string_lit.go
++string_lit.go:5: syntax error
++string_lit.go:12: unknown escape sequence: \
++string_lit.go:12: unknown escape sequence: '
++BUG: known to fail incorrectly
++=========== test0.go
++test0.go:23: addtyp: renaming Point/<Point>{<x><int32>INT32;<y><int32>INT32;} to Point2/<Point2>FORW
++test0.go:48: illegal types for operand
++	(<float32>FLOAT32) AS (<int32>INT32)
++test0.go:49: illegal types for operand
++	(<float32>FLOAT32) AS (<int32>INT32)
++test0.go:50: error in shape across assignment
++test0.go:55: illegal types for operand
++	(*<Point2>{}) CALLMETH (<Point2>{})
++test0.go:54: function call must be single valued (0)
++test0.go:54: illegal types for operand
++	(<Point2>{}) AS ({})
++BUG: known to fail incorrectly
++=========== turing.go
++^B^A^H^H^K^B^Q^@^C^C^C^A^@index 0<111>111
++throw: bounds
++BUG: known to fail incorrectly
+diff --git a/test/hashmap.go b/test/hashmap.go
+index daa0d43748..c384051fda 100755
+--- a/test/hashmap.go
++++ b/test/hashmap.go
+@@ -4,8 +4,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// To compile: go hashmap.go && gcc -o g.out main.go.c gort0.c && g.out
+-
+ package main
+ 
+ // ----------------------------------------------------------------------------
+diff --git a/test/run b/test/run
+new file mode 100755
+index 0000000000..cf6b9e5316
+--- /dev/null
++++ b/test/run
+@@ -0,0 +1,40 @@
++#!/bin/sh
++# Copyright 2009 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++case X"$GOARCH" in
++Xamd64)
++	export A=6
++	;;
++*)
++	echo 1>&2 run: unknown architecture
++	exit 1
++esac
++
++export A=6
++export G=${A}g
++export L=${A}l
++
++failed=0
++
++for i in *.go
++do
++	echo '===========' $i
++	export F=$(basename $i .go)
++	sed -n '1,/[^/]/p' $i | sed 's@//@@; $d' > /tmp/$USER.$$.gotest
++	if ! sh /tmp/$USER.$$.gotest
++	then
++		echo >&2 fail: $i
++	fi
++done | cat -v >run.out
++case $failed in
++1)
++	echo FAIL
++esac
++rm  /tmp/$USER.$$.gotest
++if ! diff run.out golden.out
++then
++	failed=1
++fi
++exit $failed
+diff --git a/test/test0.go b/test/test0.go
+index 318c5ff77a..4d7b0df1f6 100644
+--- a/test/test0.go
++++ b/test/test0.go
+@@ -4,8 +4,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// This is test0.go.
+-
+ package Test0
+ 
+ const
+@@ -29,11 +27,11 @@ type (
+ )
+ 
+ func (p *Point) Initialize(x, y int) {
+-  p.x, p.y = x, y
++  p.x, p.y = x, y;
+ }
+ 
+ func (p *Point) Distance() int {
+-  return p.x * p.x + p.y * p.y
++  return p.x * p.x + p.y * p.y;
+ }
+ 
+ var (
+@@ -45,14 +43,14 @@ var (
+ func foo() {}
+ 
+ func min(x, y int) int {
+-  if x < y { return x }
+-  return y
++  if x < y { return x; }
++  return y;
+ }
+ 
+ func swap(x, y int) (u, v int) {
+   u = y;
+   v = x;
+-  return
++  return;
+ }
+ 
+ func control_structs() {
+@@ -64,7 +62,7 @@ func control_structs() {
+   for j := 0; j < i; j++ {
+     if i == 0 {
+     } else i = 0;
+-    var x float
++    var x float;
+   }
+   foo:  // a label
+   var j int;
+@@ -77,6 +75,6 @@ func control_structs() {
+     goto foo;
+   default:
+     i = -+-+i;
+-    break
++    break;
+   }
+ }

@@ -10,7 +10,44 @@ Date:   Thu Dec 17 10:29:12 2015 -0800
     Reviewed-on: https://go-review.googlesource.com/17916
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/go_test.go | 9 +++++++++
  src/cmd/go/pkg.go     | 8 ++++++++
  2 files changed, 17 insertions(+)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 20d3d4052f..f3dbe85c01 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -2454,3 +2454,12 @@ func TestGoBuildARM(t *testing.T) {
+ 	tg.run("build", "hello.go")
+ 	tg.grepStderrNot("unable to find math.a", "did not build math.a correctly")
+ }
++
++func TestIssue13655(t *testing.T) {
++	tg := testgo(t)
++	defer tg.cleanup()
++	for _, pkg := range []string{"runtime", "runtime/internal/atomic"} {
++		tg.run("list", "-f", "{{.Deps}}", pkg)
++		tg.grepStdout("runtime/internal/sys", "did not find required dependency of "+pkg+" on runtime/internal/sys")
++	}
++}
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index 2f8799a608..3361fc3200 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -835,6 +835,14 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package
+ 		}
+ 	}
+ 
++	// Runtime and its internal packages depend on runtime/internal/sys,
++	// so that they pick up the generated zversion.go file.
++	// This can be an issue particularly for runtime/internal/atomic;
++	// see issue 13655.
++	if p.Standard && (p.ImportPath == "runtime" || strings.HasPrefix(p.ImportPath, "runtime/internal/")) && p.ImportPath != "runtime/internal/sys" {
++		importPaths = append(importPaths, "runtime/internal/sys")
++	}
++
+ 	// Build list of full paths to all Go files in the package,
+ 	// for use by commands like go fmt.
+ 	p.gofiles = stringList(p.GoFiles, p.CgoFiles, p.TestGoFiles, p.XTestGoFiles)

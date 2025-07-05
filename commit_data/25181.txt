@@ -21,9 +21,91 @@ Date:   Sat Oct 3 15:50:45 2015 +0000
     Change-Id: I5821d29097ef0a36076ec5273125b09846c7d832
     Reviewed-on: https://go-review.googlesource.com/15264
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/cgo/errors/issue11097a.go | 15 +++++++++++++++
  misc/cgo/errors/issue11097b.go | 15 +++++++++++++++
  misc/cgo/errors/test.bash      |  2 ++
  src/cmd/cgo/gcc.go             |  8 ++++++++
  4 files changed, 40 insertions(+)
+
+diff --git a/misc/cgo/errors/issue11097a.go b/misc/cgo/errors/issue11097a.go
+new file mode 100644
+index 0000000000..4508213cb4
+--- /dev/null
++++ b/misc/cgo/errors/issue11097a.go
+@@ -0,0 +1,15 @@
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++/*
++//enum test { foo, bar };
++*/
++import "C"
++
++func main() {
++	var a = C.enum_test(1) // ERROR HERE
++	_ = a
++}
+diff --git a/misc/cgo/errors/issue11097b.go b/misc/cgo/errors/issue11097b.go
+new file mode 100644
+index 0000000000..68c5c7c64c
+--- /dev/null
++++ b/misc/cgo/errors/issue11097b.go
+@@ -0,0 +1,15 @@
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++/*
++//enum test { foo, bar };
++*/
++import "C"
++
++func main() {
++	p := new(C.enum_test) // ERROR HERE
++	_ = p
++}
+diff --git a/misc/cgo/errors/test.bash b/misc/cgo/errors/test.bash
+index c880ad65c2..25ab249940 100755
+--- a/misc/cgo/errors/test.bash
++++ b/misc/cgo/errors/test.bash
+@@ -31,6 +31,8 @@ check err2.go
+ check err3.go
+ check issue7757.go
+ check issue8442.go
++check issue11097a.go
++check issue11097b.go
+ 
+ rm -rf errs _obj
+ exit 0
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index b64849a8d1..b65b6cb7a9 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -607,6 +607,10 @@ func (p *Package) rewriteRef(f *File) {
+ 			if r.Name.Kind != "func" {
+ 				if r.Name.Kind == "type" {
+ 					r.Context = "type"
++					if r.Name.Type == nil {
++						error_(r.Pos(), "invalid conversion to C.%s: undefined C type '%s'", fixGo(r.Name.Go), r.Name.C)
++						break
++					}
+ 					expr = r.Name.Type.Go
+ 					break
+ 				}
+@@ -658,6 +662,10 @@ func (p *Package) rewriteRef(f *File) {
+ 				}
+ 			} else if r.Name.Kind == "type" {
+ 				// Okay - might be new(T)
++				if r.Name.Type == nil {
++					error_(r.Pos(), "expression C.%s: undefined C type '%s'", fixGo(r.Name.Go), r.Name.C)
++					break
++				}
+ 				expr = r.Name.Type.Go
+ 			} else if r.Name.Kind == "var" {
+ 				expr = &ast.StarExpr{Star: (*r.Expr).Pos(), X: expr}

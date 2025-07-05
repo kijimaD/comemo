@@ -7,6 +7,58 @@ Date:   Tue Nov 18 17:15:42 2008 -0800
     R=r
     OCL=19525
     CL=19525
-
+---
  src/cmd/6g/gen.c | 19 ++++++++++++-------
  1 file changed, 12 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/6g/gen.c b/src/cmd/6g/gen.c
+index c5159f9d75..f162a67f07 100644
+--- a/src/cmd/6g/gen.c
++++ b/src/cmd/6g/gen.c
+@@ -6,7 +6,6 @@
+ #undef	EXTERN
+ #define	EXTERN
+ #include "gg.h"
+-//#include "opt.h"
+ 
+ enum
+ {
+@@ -93,11 +92,6 @@ if(throwreturn == N) {
+ 	gclean();
+ 	checklabels();
+ 
+-//	if(debug['N']) {
+-//		regopt(ptxt);
+-//		debug['N'] = 0;
+-//	}
+-
+ 	if(curfn->type->outtuple != 0) {
+ 		gins(ACALL, N, throwreturn);
+ 	}
+@@ -105,6 +99,11 @@ if(throwreturn == N) {
+ 	pc->as = ARET;	// overwrite AEND
+ 	pc->lineno = lineno;
+ 
++//	if(debug['N']) {
++//		regopt(ptxt);
++//		debug['N'] = 0;
++//	}
++
+ 	// fill in argument size
+ 	ptxt->to.offset = rnd(curfn->type->argwid, maxround);
+ 
+@@ -1212,7 +1211,13 @@ cgen_shift(int op, Node *nl, Node *nr, Node *res)
+ 	if(nr->op == OLITERAL) {
+ 		regalloc(&n1, nl->type, res);
+ 		cgen(nl, &n1);
+-		gins(a, nr, &n1);
++		if(mpgetfix(nr->val.u.xval) >= nl->type->width*8) {
++			// large shift gets 2 shifts by width
++			nodconst(&n3, types[TUINT32], nl->type->width*8-1);
++			gins(a, &n3, &n1);
++			gins(a, &n3, &n1);
++		} else
++			gins(a, nr, &n1);
+ 		gmove(&n1, res);
+ 		regfree(&n1);
+ 		goto ret;

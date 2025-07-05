@@ -16,9 +16,121 @@ Date:   Thu Feb 3 10:00:30 2022 +0000
     Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  api/next/50770.txt    |  1 +
  src/time/mono_test.go | 19 ++++++++++++++++++-
  src/time/time.go      | 23 ++++++++++++++++++++++-
  src/time/time_test.go |  1 +
  4 files changed, 42 insertions(+), 2 deletions(-)
+
+diff --git a/api/next/50770.txt b/api/next/50770.txt
+new file mode 100644
+index 0000000000..e83888d02b
+--- /dev/null
++++ b/api/next/50770.txt
+@@ -0,0 +1 @@
++pkg time, method (Time) Compare(Time) int #50770
+diff --git a/src/time/mono_test.go b/src/time/mono_test.go
+index 8778ab78a0..cdbb11ee71 100644
+--- a/src/time/mono_test.go
++++ b/src/time/mono_test.go
+@@ -106,6 +106,12 @@ func TestMonotonicAdd(t *testing.T) {
+ 	if !now.Before(tn1) {
+ 		t.Errorf("Now().Before(Now().Add(1*Hour)) = false, want true")
+ 	}
++	if got, want := now.Compare(tn1), -1; got != want {
++		t.Errorf("Now().Compare(Now().Add(1*Hour)) = %d, want %d", got, want)
++	}
++	if got, want := tn1.Compare(now), 1; got != want {
++		t.Errorf("Now().Add(1*Hour).Compare(Now()) = %d, want %d", got, want)
++	}
+ }
+ 
+ func TestMonotonicSub(t *testing.T) {
+@@ -155,7 +161,7 @@ func TestMonotonicSub(t *testing.T) {
+ 	sub("t3", "t3", t3, t3w, t3, t3w, 0, 0)
+ 
+ 	cmp := func(txs, tys string, tx, txw, ty, tyw Time, c, cw int) {
+-		check := func(expr string, b, want bool) {
++		check := func(expr string, b, want any) {
+ 			if b != want {
+ 				t.Errorf("%s = %v, want %v", expr, b, want)
+ 			}
+@@ -174,6 +180,11 @@ func TestMonotonicSub(t *testing.T) {
+ 		check(txs+"w.Equal("+tys+")", txw.Equal(ty), cw == 0)
+ 		check(txs+".Equal("+tys+"w)", tx.Equal(tyw), cw == 0)
+ 		check(txs+"w.Equal("+tys+"w)", txw.Equal(tyw), cw == 0)
++
++		check(txs+".Compare("+tys+")", tx.Compare(ty), c)
++		check(txs+"w.Compare("+tys+")", txw.Compare(ty), cw)
++		check(txs+".Compare("+tys+"w)", tx.Compare(tyw), cw)
++		check(txs+"w.Compare("+tys+"w)", txw.Compare(tyw), cw)
+ 	}
+ 
+ 	cmp("t1", "t1", t1, t1w, t1, t1w, 0, 0)
+@@ -229,6 +240,12 @@ func TestMonotonicOverflow(t *testing.T) {
+ 	if !t2.Before(t1) {
+ 		t.Errorf("Now().Add(-5*Second).Before(Now().Add(1*Hour)) = false, want true\nt1=%v\nt2=%v", t1, t2)
+ 	}
++	if got, want := t1.Compare(t2), 1; got != want {
++		t.Errorf("Now().Add(1*Hour).Compare(Now().Add(-5*Second)) = %d, want %d\nt1=%v\nt2=%v", got, want, t1, t2)
++	}
++	if got, want := t2.Compare(t1), -1; got != want {
++		t.Errorf("Now().Add(-5*Second).Before(Now().Add(1*Hour)) = %d, want %d\nt1=%v\nt2=%v", got, want, t1, t2)
++	}
+ }
+ 
+ var monotonicStringTests = []struct {
+diff --git a/src/time/time.go b/src/time/time.go
+index 47b26e39a8..0cd7a7e8a2 100644
+--- a/src/time/time.go
++++ b/src/time/time.go
+@@ -46,7 +46,7 @@
+ // The canonical way to strip a monotonic clock reading is to use t = t.Round(0).
+ //
+ // If Times t and u both contain monotonic clock readings, the operations
+-// t.After(u), t.Before(u), t.Equal(u), and t.Sub(u) are carried out
++// t.After(u), t.Before(u), t.Equal(u), t.Compare(u), and t.Sub(u) are carried out
+ // using the monotonic clock readings alone, ignoring the wall clock
+ // readings. If either t or u contains no monotonic clock reading, these
+ // operations fall back to using the wall clock readings.
+@@ -266,6 +266,27 @@ func (t Time) Before(u Time) bool {
+ 	return ts < us || ts == us && t.nsec() < u.nsec()
+ }
+ 
++// Compare compares the time instant t with u. If t is before u, it returns -1;
++// if t is after u, it returns +1; if they're the same, it returns 0.
++func (t Time) Compare(u Time) int {
++	var tc, uc int64
++	if t.wall&u.wall&hasMonotonic != 0 {
++		tc, uc = t.ext, u.ext
++	} else {
++		tc, uc = t.sec(), u.sec()
++		if tc == uc {
++			tc, uc = int64(t.nsec()), int64(u.nsec())
++		}
++	}
++	switch {
++	case tc < uc:
++		return -1
++	case tc > uc:
++		return +1
++	}
++	return 0
++}
++
+ // Equal reports whether t and u represent the same time instant.
+ // Two times can be equal even if they are in different locations.
+ // For example, 6:00 +0200 and 4:00 UTC are Equal.
+diff --git a/src/time/time_test.go b/src/time/time_test.go
+index f0fed62930..17ce6b3b0b 100644
+--- a/src/time/time_test.go
++++ b/src/time/time_test.go
+@@ -1282,6 +1282,7 @@ var defaultLocTests = []struct {
+ 	{"After", func(t1, t2 Time) bool { return t1.After(t2) == t2.After(t1) }},
+ 	{"Before", func(t1, t2 Time) bool { return t1.Before(t2) == t2.Before(t1) }},
+ 	{"Equal", func(t1, t2 Time) bool { return t1.Equal(t2) == t2.Equal(t1) }},
++	{"Compare", func(t1, t2 Time) bool { return t1.Compare(t2) == t2.Compare(t1) }},
+ 
+ 	{"IsZero", func(t1, t2 Time) bool { return t1.IsZero() == t2.IsZero() }},
+ 	{"Date", func(t1, t2 Time) bool {

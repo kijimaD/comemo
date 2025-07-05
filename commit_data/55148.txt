@@ -21,10 +21,80 @@ Date:   Mon Jan 9 11:46:15 2023 -0800
     Run-TryBot: Robert Griesemer <gri@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/gccgosizes.go | 1 +
  src/cmd/compile/internal/types2/typeparam.go  | 6 +++---
  src/cmd/compile/internal/types2/validtype.go  | 2 +-
  src/go/types/errorcalls_test.go               | 2 +-
  src/go/types/testdata/manual.go               | 1 -
  5 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/gccgosizes.go b/src/cmd/compile/internal/types2/gccgosizes.go
+index 05aba53472..460200126c 100644
+--- a/src/cmd/compile/internal/types2/gccgosizes.go
++++ b/src/cmd/compile/internal/types2/gccgosizes.go
+@@ -17,6 +17,7 @@ var gccgoArchSizes = map[string]*StdSizes{
+ 	"arm64":       {8, 8},
+ 	"arm64be":     {8, 8},
+ 	"ia64":        {8, 8},
++	"loong64":     {8, 8},
+ 	"m68k":        {4, 2},
+ 	"mips":        {4, 8},
+ 	"mipsle":      {4, 8},
+diff --git a/src/cmd/compile/internal/types2/typeparam.go b/src/cmd/compile/internal/types2/typeparam.go
+index 2e9a2adae6..aebbec27a8 100644
+--- a/src/cmd/compile/internal/types2/typeparam.go
++++ b/src/cmd/compile/internal/types2/typeparam.go
+@@ -24,9 +24,6 @@ type TypeParam struct {
+ 	bound Type      // any type, but underlying is eventually *Interface for correct programs (see TypeParam.iface)
+ }
+ 
+-// Obj returns the type name for the type parameter t.
+-func (t *TypeParam) Obj() *TypeName { return t.obj }
+-
+ // NewTypeParam returns a new TypeParam. Type parameters may be set on a Named
+ // or Signature type by calling SetTypeParams. Setting a type parameter on more
+ // than one type will result in a panic.
+@@ -59,6 +56,9 @@ func (check *Checker) newTypeParam(obj *TypeName, constraint Type) *TypeParam {
+ 	return typ
+ }
+ 
++// Obj returns the type name for the type parameter t.
++func (t *TypeParam) Obj() *TypeName { return t.obj }
++
+ // Index returns the index of the type param within its param list, or -1 if
+ // the type parameter has not yet been bound to a type.
+ func (t *TypeParam) Index() int {
+diff --git a/src/cmd/compile/internal/types2/validtype.go b/src/cmd/compile/internal/types2/validtype.go
+index b0ebc02560..dbe91dc08f 100644
+--- a/src/cmd/compile/internal/types2/validtype.go
++++ b/src/cmd/compile/internal/types2/validtype.go
+@@ -198,7 +198,7 @@ func makeObjList(tlist []*Named) []Object {
+ //         nest = A[A[string]]->B[P]
+ //         path = A[A[string]]->B[P]
+ //
+-// Eventutally we reach the type parameter P of type B (P₂):
++// Eventually we reach the type parameter P of type B (P₂):
+ //
+ //   P₂
+ //         nest = A[A[string]]->B[P]
+diff --git a/src/go/types/errorcalls_test.go b/src/go/types/errorcalls_test.go
+index ea9a122063..d76c06da30 100644
+--- a/src/go/types/errorcalls_test.go
++++ b/src/go/types/errorcalls_test.go
+@@ -94,4 +94,4 @@ func balancedParentheses(s string) bool {
+ 		stack = stack[:top]
+ 	}
+ 	return len(stack) == 0
+-}
+\ No newline at end of file
++}
+diff --git a/src/go/types/testdata/manual.go b/src/go/types/testdata/manual.go
+index a7caee9903..96d4ba67c2 100644
+--- a/src/go/types/testdata/manual.go
++++ b/src/go/types/testdata/manual.go
+@@ -6,4 +6,3 @@
+ // without source arguments. Use for one-off debugging.
+ 
+ package p
+-

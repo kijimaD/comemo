@@ -11,9 +11,63 @@ Date:   Tue Sep 8 03:36:19 2020 +0000
     Reviewed-by: Austin Clements <austin@google.com>
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/internal/objabi/funcdata.go | 2 +-
  src/runtime/debugcall.go            | 2 +-
  src/runtime/preempt.go              | 2 +-
  src/runtime/symtab.go               | 3 +++
  4 files changed, 6 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/internal/objabi/funcdata.go b/src/cmd/internal/objabi/funcdata.go
+index d5bacb5900..c9480bf2f0 100644
+--- a/src/cmd/internal/objabi/funcdata.go
++++ b/src/cmd/internal/objabi/funcdata.go
+@@ -35,7 +35,7 @@ const (
+ 	// PCDATA_RegMapIndex values.
+ 	//
+ 	// Only if !go115ReduceLiveness.
+-	PCDATA_RegMapUnsafe = -2 // Unsafe for async preemption
++	PCDATA_RegMapUnsafe = PCDATA_UnsafePointUnsafe // Unsafe for async preemption
+ 
+ 	// PCDATA_UnsafePoint values.
+ 	PCDATA_UnsafePointSafe   = -1 // Safe for async preemption
+diff --git a/src/runtime/debugcall.go b/src/runtime/debugcall.go
+index 6c285ec829..b5480c73ae 100644
+--- a/src/runtime/debugcall.go
++++ b/src/runtime/debugcall.go
+@@ -87,7 +87,7 @@ func debugCallCheck(pc uintptr) string {
+ 				pcdata = 0 // in prologue
+ 			}
+ 			stkmap := (*stackmap)(funcdata(f, _FUNCDATA_RegPointerMaps))
+-			if pcdata == -2 || stkmap == nil {
++			if pcdata == _PCDATA_RegMapUnsafe || stkmap == nil {
+ 				// Not at a safe point.
+ 				ret = debugCallUnsafePoint
+ 				return
+diff --git a/src/runtime/preempt.go b/src/runtime/preempt.go
+index 761856576a..17ef2c90d3 100644
+--- a/src/runtime/preempt.go
++++ b/src/runtime/preempt.go
+@@ -406,7 +406,7 @@ func isAsyncSafePoint(gp *g, pc, sp, lr uintptr) (bool, uintptr) {
+ 	var startpc uintptr
+ 	if !go115ReduceLiveness {
+ 		smi := pcdatavalue(f, _PCDATA_RegMapIndex, pc, nil)
+-		if smi == -2 {
++		if smi == _PCDATA_RegMapUnsafe {
+ 			// Unsafe-point marked by compiler. This includes
+ 			// atomic sequences (e.g., write barrier) and nosplit
+ 			// functions (except at calls).
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index ddb5ea82b4..fa8d17035e 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -284,6 +284,9 @@ const (
+ )
+ 
+ const (
++	// Only if !go115ReduceLiveness.
++	_PCDATA_RegMapUnsafe = _PCDATA_UnsafePointUnsafe // Unsafe for async preemption
++
+ 	// PCDATA_UnsafePoint values.
+ 	_PCDATA_UnsafePointSafe   = -1 // Safe for async preemption
+ 	_PCDATA_UnsafePointUnsafe = -2 // Unsafe for async preemption

@@ -7,6 +7,22 @@ Date:   Fri Jul 22 21:21:08 2011 -0400
     R=golang-dev, mattn.jp, rsc
     CC=golang-dev
     https://golang.org/cl/4794052
-
+---
  src/cmd/ld/ldpe.c | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/cmd/ld/ldpe.c b/src/cmd/ld/ldpe.c
+index 3e2b57112a..3423b71a18 100644
+--- a/src/cmd/ld/ldpe.c
++++ b/src/cmd/ld/ldpe.c
+@@ -327,6 +327,10 @@ ldpe(Biobuf *f, char *pkg, int64 len, char *pn)
+ 		if(sym->sectnum == 0) {// extern
+ 			if(s->type == SDYNIMPORT)
+ 				s->plt = -2; // flag for dynimport in PE object files.
++			if (s->type == SXREF && sym->value > 0) {// global data
++				s->type = SDATA; 
++				s->size = sym->value;
++			}
+ 			continue;
+ 		} else if (sym->sectnum > 0) {
+ 			sect = &obj->sect[sym->sectnum-1];

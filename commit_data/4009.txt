@@ -8,7 +8,55 @@ Date:   Wed Nov 11 23:23:11 2009 -0800
     
     R=rsc
     https://golang.org/cl/152089
-
+---
  src/pkg/runtime/arm/closure.c   |  4 ++++
  src/pkg/runtime/linux/arm/sys.s | 11 +++++++++++
  2 files changed, 15 insertions(+)
+
+diff --git a/src/pkg/runtime/arm/closure.c b/src/pkg/runtime/arm/closure.c
+index b0aa2ad8b0..f36e812cbb 100644
+--- a/src/pkg/runtime/arm/closure.c
++++ b/src/pkg/runtime/arm/closure.c
+@@ -43,6 +43,8 @@ vars:		WORD	arg0
+ 		WORD	arg2
+ */
+ 
++extern void cacheflush(byte* start, byte* end);
++
+ #pragma textflag 7
+ void
+ runtime·closure(int32 siz, byte *fn, byte *arg0)
+@@ -121,5 +123,7 @@ runtime·closure(int32 siz, byte *fn, byte *arg0)
+ 
+ 	if(p > q)
+ 		throw("bad math in sys.closure");
++
++	cacheflush(*ret, q+siz);
+ }
+ 
+diff --git a/src/pkg/runtime/linux/arm/sys.s b/src/pkg/runtime/linux/arm/sys.s
+index 00472ef79c..f11646d5b4 100644
+--- a/src/pkg/runtime/linux/arm/sys.s
++++ b/src/pkg/runtime/linux/arm/sys.s
+@@ -22,6 +22,9 @@
+ #define SYS_futex (SYS_BASE + 240)
+ #define SYS_exit_group (SYS_BASE + 248)
+ 
++#define ARM_BASE (SYS_BASE + 0x0f0000)
++#define SYS_ARM_cacheflush (ARM_BASE + 2)
++
+ TEXT write(SB),7,$0
+ 	MOVW	0(FP), R0
+ 	MOVW	4(FP), R1
+@@ -136,3 +139,11 @@ TEXT clone(SB),7,$0
+ 	MOVW	R0, (R1)
+ 
+ 
++TEXT cacheflush(SB),7,$0
++	MOVW	0(FP), R0
++	MOVW	4(FP), R1
++	MOVW	$0, R2
++	MOVW	$SYS_ARM_cacheflush, R7
++	SWI	$0
++	RET
++

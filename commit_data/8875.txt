@@ -7,8 +7,137 @@ Date:   Tue Jun 28 12:46:16 2011 +1000
     R=rsc
     CC=golang-dev, vcc.163
     https://golang.org/cl/4627071
-
+---
  src/pkg/runtime/windows/mem.c    | 10 +++++-----
  src/pkg/runtime/windows/os.h     |  3 +++
  src/pkg/runtime/windows/thread.c | 16 ++++++++--------
  3 files changed, 16 insertions(+), 13 deletions(-)
+
+diff --git a/src/pkg/runtime/windows/mem.c b/src/pkg/runtime/windows/mem.c
+index 54d77da37e..5d2291fa32 100644
+--- a/src/pkg/runtime/windows/mem.c
++++ b/src/pkg/runtime/windows/mem.c
+@@ -24,7 +24,7 @@ void*
+ runtime·SysAlloc(uintptr n)
+ {
+ 	mstats.sys += n;
+-	return runtime·stdcall(runtime·VirtualAlloc, 4, nil, n, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
++	return runtime·stdcall(runtime·VirtualAlloc, 4, nil, n, (uintptr)(MEM_COMMIT|MEM_RESERVE), (uintptr)PAGE_EXECUTE_READWRITE);
+ }
+ 
+ void
+@@ -40,7 +40,7 @@ runtime·SysFree(void *v, uintptr n)
+ 	uintptr r;
+ 
+ 	mstats.sys -= n;
+-	r = (uintptr)runtime·stdcall(runtime·VirtualFree, 3, v, 0, MEM_RELEASE);
++	r = (uintptr)runtime·stdcall(runtime·VirtualFree, 3, v, (uintptr)0, (uintptr)MEM_RELEASE);
+ 	if(r == 0)
+ 		runtime·throw("runtime: failed to release pages");
+ }
+@@ -50,12 +50,12 @@ runtime·SysReserve(void *v, uintptr n)
+ {
+ 	// v is just a hint.
+ 	// First try at v.
+-	v = runtime·stdcall(runtime·VirtualAlloc, 4, v, n, MEM_RESERVE, PAGE_EXECUTE_READWRITE);
++	v = runtime·stdcall(runtime·VirtualAlloc, 4, v, n, (uintptr)MEM_RESERVE, (uintptr)PAGE_EXECUTE_READWRITE);
+ 	if(v != nil)
+ 		return v;
+ 	
+ 	// Next let the kernel choose the address.
+-	return runtime·stdcall(runtime·VirtualAlloc, 4, nil, n, MEM_RESERVE, PAGE_EXECUTE_READWRITE);
++	return runtime·stdcall(runtime·VirtualAlloc, 4, nil, n, (uintptr)MEM_RESERVE, (uintptr)PAGE_EXECUTE_READWRITE);
+ }
+ 
+ void
+@@ -64,7 +64,7 @@ runtime·SysMap(void *v, uintptr n)
+ 	void *p;
+ 	
+ 	mstats.sys += n;
+-	p = runtime·stdcall(runtime·VirtualAlloc, 4, v, n, MEM_COMMIT, PAGE_EXECUTE_READWRITE);
++	p = runtime·stdcall(runtime·VirtualAlloc, 4, v, n, (uintptr)MEM_COMMIT, (uintptr)PAGE_EXECUTE_READWRITE);
+ 	if(p != v)
+ 		runtime·throw("runtime: cannot map pages in arena address space");
+ }
+diff --git a/src/pkg/runtime/windows/os.h b/src/pkg/runtime/windows/os.h
+index 77881e86ec..bc96787334 100644
+--- a/src/pkg/runtime/windows/os.h
++++ b/src/pkg/runtime/windows/os.h
+@@ -7,6 +7,9 @@ extern void *runtime·GetProcAddress;
+ 
+ // Call a Windows function with stdcall conventions,
+ // and switch to os stack during the call.
++#pragma	varargck	countpos	runtime·stdcall	2
++#pragma	varargck	type		runtime·stdcall	void*
++#pragma	varargck	type		runtime·stdcall	uintptr
+ void *runtime·stdcall_raw(void *fn, uintptr nargs, void *args);
+ void *runtime·stdcall(void *fn, int32 count, ...);
+ uintptr runtime·syscall(void *fn, uintptr nargs, void *args, uintptr *err);
+diff --git a/src/pkg/runtime/windows/thread.c b/src/pkg/runtime/windows/thread.c
+index 81ad680333..0c362d42c6 100644
+--- a/src/pkg/runtime/windows/thread.c
++++ b/src/pkg/runtime/windows/thread.c
+@@ -45,7 +45,7 @@ void
+ runtime·osinit(void)
+ {
+ 	runtime·stdcall(runtime·QueryPerformanceFrequency, 1, &timerfreq);
+-	runtime·stdcall(runtime·SetConsoleCtrlHandler, 2, runtime·ctrlhandler, 1);
++	runtime·stdcall(runtime·SetConsoleCtrlHandler, 2, runtime·ctrlhandler, (uintptr)1);
+ }
+ 
+ void
+@@ -81,7 +81,7 @@ runtime·goenvs(void)
+ void
+ runtime·exit(int32 code)
+ {
+-	runtime·stdcall(runtime·ExitProcess, 1, code);
++	runtime·stdcall(runtime·ExitProcess, 1, (uintptr)code);
+ }
+ 
+ int32
+@@ -93,15 +93,15 @@ runtime·write(int32 fd, void *buf, int32 n)
+ 	written = 0;
+ 	switch(fd) {
+ 	case 1:
+-		handle = runtime·stdcall(runtime·GetStdHandle, 1, -11);
++		handle = runtime·stdcall(runtime·GetStdHandle, 1, (uintptr)-11);
+ 		break;
+ 	case 2:
+-		handle = runtime·stdcall(runtime·GetStdHandle, 1, -12);
++		handle = runtime·stdcall(runtime·GetStdHandle, 1, (uintptr)-12);
+ 		break;
+ 	default:
+ 		return -1;
+ 	}
+-	runtime·stdcall(runtime·WriteFile, 5, handle, buf, n, &written, 0);
++	runtime·stdcall(runtime·WriteFile, 5, handle, buf, (uintptr)n, &written, (uintptr)0);
+ 	return written;
+ }
+ 
+@@ -111,7 +111,7 @@ initevent(void **pevent)
+ {
+ 	void *event;
+ 
+-	event = runtime·stdcall(runtime·CreateEvent, 4, 0, 0, 0, 0);
++	event = runtime·stdcall(runtime·CreateEvent, 4, (uintptr)0, (uintptr)0, (uintptr)0, (uintptr)0);
+ 	if(!runtime·casp(pevent, 0, event)) {
+ 		// Someone else filled it in.  Use theirs.
+ 		runtime·stdcall(runtime·CloseHandle, 1, event);
+@@ -126,7 +126,7 @@ eventlock(Lock *l)
+ 		initevent(&l->event);
+ 
+ 	if(runtime·xadd(&l->key, 1) > 1)	// someone else has it; wait
+-		runtime·stdcall(runtime·WaitForSingleObject, 2, l->event, -1);
++		runtime·stdcall(runtime·WaitForSingleObject, 2, l->event, (uintptr)-1);
+ }
+ 
+ static void
+@@ -190,7 +190,7 @@ runtime·newosproc(M *m, G *g, void *stk, void (*fn)(void))
+ 	USED(g);	// assuming g = m->g0
+ 	USED(fn);	// assuming fn = mstart
+ 
+-	thandle = runtime·stdcall(runtime·CreateThread, 6, 0, 0, runtime·tstart_stdcall, m, 0, 0);
++	thandle = runtime·stdcall(runtime·CreateThread, 6, (uintptr)0, (uintptr)0, runtime·tstart_stdcall, m, (uintptr)0, (uintptr)0);
+ 	if(thandle == 0) {
+ 		runtime·printf("runtime: failed to create new OS thread (have %d already; errno=%d)\n", runtime·mcount(), runtime·getlasterror());
+ 		runtime·throw("runtime.newosproc");

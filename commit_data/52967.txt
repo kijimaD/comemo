@@ -15,7 +15,46 @@ Date:   Fri Jun 17 05:01:26 2022 +0000
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Alex Rakoczy <alex@golang.org>
-
+---
  src/encoding/xml/read.go      |  4 ++++
  src/encoding/xml/read_test.go | 15 +++++++++++++++
  2 files changed, 19 insertions(+)
+
+diff --git a/src/encoding/xml/read.go b/src/encoding/xml/read.go
+index 565d9a8bea..257591262f 100644
+--- a/src/encoding/xml/read.go
++++ b/src/encoding/xml/read.go
+@@ -148,6 +148,10 @@ func (d *Decoder) DecodeElement(v any, start *StartElement) error {
+ 	if val.Kind() != reflect.Pointer {
+ 		return errors.New("non-pointer passed to Unmarshal")
+ 	}
++
++	if val.IsNil() {
++		return errors.New("nil pointer passed to Unmarshal")
++	}
+ 	return d.unmarshal(val.Elem(), start)
+ }
+ 
+diff --git a/src/encoding/xml/read_test.go b/src/encoding/xml/read_test.go
+index 391fe731a8..6ef55de77b 100644
+--- a/src/encoding/xml/read_test.go
++++ b/src/encoding/xml/read_test.go
+@@ -1079,3 +1079,18 @@ func TestUnmarshalWhitespaceAttrs(t *testing.T) {
+ 		t.Fatalf("whitespace attrs: Unmarshal:\nhave: %#+v\nwant: %#+v", v, want)
+ 	}
+ }
++
++// golang.org/issues/53350
++func TestUnmarshalIntoNil(t *testing.T) {
++	type T struct {
++		A int `xml:"A"`
++	}
++
++	var nilPointer *T
++	err := Unmarshal([]byte("<T><A>1</A></T>"), nilPointer)
++
++	if err == nil {
++		t.Fatalf("no error in unmarshalling")
++	}
++
++}

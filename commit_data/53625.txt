@@ -18,7 +18,7 @@ Date:   Wed Aug 24 16:59:22 2022 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/425454
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/builtins.go        |  9 ++--
  src/cmd/compile/internal/types2/builtins_test.go   |  9 ++--
  .../internal/types2/testdata/check/builtins0.go    | 54 ++++++++++++++++++++++
@@ -27,3 +27,342 @@ Date:   Wed Aug 24 16:59:22 2022 -0700
  src/go/types/errorcodes.go                         | 30 ++++++------
  src/go/types/testdata/check/builtins0.go           | 54 ++++++++++++++++++++++
  7 files changed, 143 insertions(+), 39 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/builtins.go b/src/cmd/compile/internal/types2/builtins.go
+index c67e064257..440a532396 100644
+--- a/src/cmd/compile/internal/types2/builtins.go
++++ b/src/cmd/compile/internal/types2/builtins.go
+@@ -757,7 +757,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 		}
+ 
+ 		x.mode = value
+-		x.typ = NewPointer(slice.Elem())
++		x.typ = NewPointer(slice.elem)
+ 		if check.Types != nil {
+ 			check.recordBuiltinType(call.Fun, makeSig(x.typ, slice))
+ 		}
+@@ -793,16 +793,15 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 			return
+ 		}
+ 
+-		str, _ := x.typ.(*Basic)
+-		if str == nil || str.Kind() != String {
+-			check.errorf(x, invalidArg+"%s is not a string", x)
++		check.assignment(x, Typ[String], "argument to unsafe.StringData")
++		if x.mode == invalid {
+ 			return
+ 		}
+ 
+ 		x.mode = value
+ 		x.typ = NewPointer(universeByte)
+ 		if check.Types != nil {
+-			check.recordBuiltinType(call.Fun, makeSig(x.typ, str))
++			check.recordBuiltinType(call.Fun, makeSig(x.typ, Typ[String]))
+ 		}
+ 
+ 	case _Assert:
+diff --git a/src/cmd/compile/internal/types2/builtins_test.go b/src/cmd/compile/internal/types2/builtins_test.go
+index fb9db73d70..e382c47b91 100644
+--- a/src/cmd/compile/internal/types2/builtins_test.go
++++ b/src/cmd/compile/internal/types2/builtins_test.go
+@@ -128,15 +128,16 @@ var builtinCalls = []struct {
+ 
+ 	{"Slice", `var p *int; _ = unsafe.Slice(p, 1)`, `func(*int, int) []int`},
+ 	{"Slice", `var p *byte; var n uintptr; _ = unsafe.Slice(p, n)`, `func(*byte, uintptr) []byte`},
++	{"Slice", `type B *byte; var b B; _ = unsafe.Slice(b, 0)`, `func(*byte, int) []byte`},
+ 
+-	{"SliceData", "var a []int; _ = unsafe.SliceData(a)", `func([]int) *int`},
+-	{"SliceData", "type sliceType []int; var a sliceType; _ = unsafe.SliceData(a)", `func([]int) *int`},
++	{"SliceData", "var s []int; _ = unsafe.SliceData(s)", `func([]int) *int`},
++	{"SliceData", "type S []int; var s S; _ = unsafe.SliceData(s)", `func([]int) *int`},
+ 
+ 	{"String", `var p *byte; _ = unsafe.String(p, 1)`, `func(*byte, int) string`},
+-	{"String", `type pbyte *byte; var p  pbyte; var n uintptr; _ = unsafe.String(p, n)`, `func(*byte, uintptr) string`},
++	{"String", `type B *byte; var b B; _ = unsafe.String(b, 0)`, `func(*byte, int) string`},
+ 
+ 	{"StringData", `var s string; _ = unsafe.StringData(s)`, `func(string) *byte`},
+-	{"StringData", `var s = "abc"; _ = unsafe.StringData(s)`, `func(string) *byte`},
++	{"StringData", `_ = unsafe.StringData("foo")`, `func(string) *byte`},
+ 
+ 	{"assert", `assert(true)`, `invalid type`},                                    // constant
+ 	{"assert", `type B bool; const pred B = 1 < 2; assert(pred)`, `invalid type`}, // constant
+diff --git a/src/cmd/compile/internal/types2/testdata/check/builtins0.go b/src/cmd/compile/internal/types2/testdata/check/builtins0.go
+index 358e9c5c0d..c9550b1f73 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/builtins0.go
++++ b/src/cmd/compile/internal/types2/testdata/check/builtins0.go
+@@ -849,6 +849,60 @@ func Sizeof2() {
+ 	_ = unsafe.Sizeof(f2()) // ERROR too many arguments
+ }
+ 
++func Slice1() {
++	var x int
++	unsafe.Slice()        // ERROR not enough arguments
++	unsafe.Slice(1, 2, 3) // ERROR too many arguments
++	unsafe.Slice(1 /* ERROR is not a pointer */ , 2)
++	unsafe.Slice(nil /* ERROR nil is not a pointer */ , 0)
++	unsafe.Slice(&x, "foo" /* ERROR cannot convert .* to int */ )
++	unsafe.Slice(&x, 1.2 /* ERROR truncated to int */ )
++	unsafe.Slice(&x, - /* ERROR must not be negative */ 1)
++	unsafe /* ERROR not used */ .Slice(&x, 0)
++	var _ []byte = unsafe /* ERROR value of type \[\]int */ .Slice(&x, 0)
++
++	var _ []int = unsafe.Slice(&x, 0)
++	_ = unsafe.Slice(&x, 1.0)
++	_ = unsafe.Slice((*int)(nil), 0)
++}
++
++func SliceData1() {
++	var s []int
++	unsafe.SliceData(0 /* ERROR not a slice */)
++	unsafe /* ERROR not used */ .SliceData(s)
++
++	type S []int
++	_ = unsafe.SliceData(s)
++	_ = unsafe.SliceData(S{})
++}
++
++func String1() {
++	var b byte
++	unsafe.String()        // ERROR not enough arguments
++	unsafe.String(1, 2, 3) // ERROR too many arguments
++	unsafe.String(1 /* ERROR cannot use 1 */ , 2)
++	unsafe.String(&b, "foo" /* ERROR cannot convert .* to int */ )
++	unsafe.String(&b, 1.2 /* ERROR truncated to int */ )
++	unsafe.String(&b, - /* ERROR must not be negative */ 1)
++	unsafe /* ERROR not used */ .String(&b, 0)
++	var _ []byte = unsafe /* ERROR value of type string */ .String(&b, 0)
++
++	var _ string = unsafe.String(&b, 0)
++	_ = unsafe.String(&b, 1.0)
++	_ = unsafe.String(nil, 0) // here we allow nil as ptr argument (in contrast to unsafe.Slice)
++}
++
++func StringData1() {
++	var s string
++	type S string
++	unsafe.StringData(0 /* ERROR cannot use 0 */)
++	unsafe.StringData(S /* ERROR cannot use S */ ("foo"))
++	unsafe /* ERROR not used */ .StringData(s)
++
++	_ = unsafe.StringData(s)
++	_ = unsafe.StringData("foo")
++}
++
+ // self-testing only
+ func assert1() {
+ 	var x int
+diff --git a/src/go/types/builtins.go b/src/go/types/builtins.go
+index 4f9b791ce7..eff4f2b027 100644
+--- a/src/go/types/builtins.go
++++ b/src/go/types/builtins.go
+@@ -753,19 +753,20 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 		}
+ 
+ 	case _SliceData:
+-		// unsafe.SliceData(str string) *byte
++		// unsafe.SliceData(slice []T) *T
+ 		if !check.allowVersion(check.pkg, 1, 20) {
+ 			check.errorf(call.Fun, _InvalidUnsafeSliceData, "unsafe.SliceData requires go1.20 or later")
+ 			return
+ 		}
+ 
+-		slice, ok := under(x.typ).(*Slice)
+-		if !ok {
++		slice, _ := under(x.typ).(*Slice) // TODO(gri) should this be coreType rather than under?
++		if slice == nil {
+ 			check.invalidArg(x, _InvalidUnsafeSliceData, "%s is not a slice", x)
+ 			return
+ 		}
++
+ 		x.mode = value
+-		x.typ = NewPointer(slice.Elem())
++		x.typ = NewPointer(slice.elem)
+ 		if check.Types != nil {
+ 			check.recordBuiltinType(call.Fun, makeSig(x.typ, slice))
+ 		}
+@@ -779,7 +780,6 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 
+ 		check.assignment(x, NewPointer(universeByte), "argument to unsafe.String")
+ 		if x.mode == invalid {
+-			check.invalidArg(x, _InvalidUnsafeString, "%s is not a *byte", x)
+ 			return
+ 		}
+ 
+@@ -802,16 +802,15 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 			return
+ 		}
+ 
+-		str, _ := x.typ.(*Basic)
+-		if str == nil || str.kind != String {
+-			check.invalidArg(x, _InvalidUnsafeStringData, "%s is not a string", x)
++		check.assignment(x, Typ[String], "argument to unsafe.StringData")
++		if x.mode == invalid {
+ 			return
+ 		}
+ 
+ 		x.mode = value
+ 		x.typ = NewPointer(universeByte)
+ 		if check.Types != nil {
+-			check.recordBuiltinType(call.Fun, makeSig(x.typ, str))
++			check.recordBuiltinType(call.Fun, makeSig(x.typ, Typ[String]))
+ 		}
+ 
+ 	case _Assert:
+diff --git a/src/go/types/builtins_test.go b/src/go/types/builtins_test.go
+index deabe21272..a794f2fb54 100644
+--- a/src/go/types/builtins_test.go
++++ b/src/go/types/builtins_test.go
+@@ -129,15 +129,16 @@ var builtinCalls = []struct {
+ 
+ 	{"Slice", `var p *int; _ = unsafe.Slice(p, 1)`, `func(*int, int) []int`},
+ 	{"Slice", `var p *byte; var n uintptr; _ = unsafe.Slice(p, n)`, `func(*byte, uintptr) []byte`},
++	{"Slice", `type B *byte; var b B; _ = unsafe.Slice(b, 0)`, `func(*byte, int) []byte`},
+ 
+-	{"SliceData", "var a []int; _ = unsafe.SliceData(a)", `func([]int) *int`},
+-	{"SliceData", "type sliceType []int; var a sliceType; _ = unsafe.SliceData(a)", `func([]int) *int`},
++	{"SliceData", "var s []int; _ = unsafe.SliceData(s)", `func([]int) *int`},
++	{"SliceData", "type S []int; var s S; _ = unsafe.SliceData(s)", `func([]int) *int`},
+ 
+ 	{"String", `var p *byte; _ = unsafe.String(p, 1)`, `func(*byte, int) string`},
+-	{"String", `type pbyte *byte; var p  pbyte; var n uintptr; _ = unsafe.String(p, n)`, `func(*byte, uintptr) string`},
++	{"String", `type B *byte; var b B; _ = unsafe.String(b, 0)`, `func(*byte, int) string`},
+ 
+ 	{"StringData", `var s string; _ = unsafe.StringData(s)`, `func(string) *byte`},
+-	{"StringData", `var s = "abc"; _ = unsafe.StringData(s)`, `func(string) *byte`},
++	{"StringData", `_ = unsafe.StringData("foo")`, `func(string) *byte`},
+ 
+ 	{"assert", `assert(true)`, `invalid type`},                                    // constant
+ 	{"assert", `type B bool; const pred B = 1 < 2; assert(pred)`, `invalid type`}, // constant
+diff --git a/src/go/types/errorcodes.go b/src/go/types/errorcodes.go
+index 6448eda155..d1fd2fb01f 100644
+--- a/src/go/types/errorcodes.go
++++ b/src/go/types/errorcodes.go
+@@ -1261,6 +1261,8 @@ const (
+ 
+ 	// _InvalidUnsafeAdd occurs when unsafe.Add is called with a
+ 	// length argument that is not of integer type.
++	// It also occurs if it is used in a package compiled for a
++	// language version before go1.17.
+ 	//
+ 	// Example:
+ 	//  import "unsafe"
+@@ -1272,6 +1274,8 @@ const (
+ 	// _InvalidUnsafeSlice occurs when unsafe.Slice is called with a
+ 	// pointer argument that is not of pointer type or a length argument
+ 	// that is not of integer type, negative, or out of bounds.
++	// It also occurs if it is used in a package compiled for a language
++	// version before go1.17.
+ 	//
+ 	// Example:
+ 	//  import "unsafe"
+@@ -1390,8 +1394,9 @@ const (
+ 	//  type T[P any] struct{ *P }
+ 	_MisplacedTypeParam
+ 
+-	// _InvalidUnsafeSliceData occurs when unsafe.SliceData called with type
+-	// is not slice
++	// _InvalidUnsafeSliceData occurs when unsafe.SliceData is called with
++	// an argument that is not of slice type. It also occurs if it is used
++	// in a package compiled for a language version before go1.20.
+ 	//
+ 	// Example:
+ 	//  import "unsafe"
+@@ -1400,9 +1405,10 @@ const (
+ 	//  var _ = unsafe.SliceData(x)
+ 	_InvalidUnsafeSliceData
+ 
+-	// _InvalidUnsafeString occurs when unsafe.String is called with a
+-	// pointer argument that is not of pointer type or a length argument
+-	// that is not of integer type, negative, or out of bounds.
++	// _InvalidUnsafeString occurs when unsafe.String is called with
++	// a length argument that is not of integer type, negative, or
++	// out of bounds. It also occurs if it is used in a package
++	// compiled for a language version before go1.20.
+ 	//
+ 	// Example:
+ 	//  import "unsafe"
+@@ -1411,17 +1417,7 @@ const (
+ 	//  var _ = unsafe.String(&b[0], -1)
+ 	_InvalidUnsafeString
+ 
+-	// _InvalidUnsafeStringData
+-	//
+-	// Example:
+-	//  import "unsafe"
+-	//
+-	//  var x int
+-	//  var _ = unsafe.StringData(x)
+-	//
+-	// Example:
+-	// import "unsafe"
+-	//
+-	// var _ = unsafe.StringData("abc")
++	// _InvalidUnsafeStringData occurs if it is used in a package
++	// compiled for a language version before go1.20.
+ 	_InvalidUnsafeStringData
+ )
+diff --git a/src/go/types/testdata/check/builtins0.go b/src/go/types/testdata/check/builtins0.go
+index 8a4c207a05..936595b06b 100644
+--- a/src/go/types/testdata/check/builtins0.go
++++ b/src/go/types/testdata/check/builtins0.go
+@@ -849,6 +849,60 @@ func Sizeof2() {
+ 	_ = unsafe.Sizeof(f2()) // ERROR too many arguments
+ }
+ 
++func Slice1() {
++	var x int
++	unsafe.Slice()        // ERROR not enough arguments
++	unsafe.Slice(1, 2, 3) // ERROR too many arguments
++	unsafe.Slice(1 /* ERROR is not a pointer */ , 2)
++	unsafe.Slice(nil /* ERROR nil is not a pointer */ , 0)
++	unsafe.Slice(&x, "foo" /* ERROR cannot convert .* to int */ )
++	unsafe.Slice(&x, 1.2 /* ERROR truncated to int */ )
++	unsafe.Slice(&x, - /* ERROR must not be negative */ 1)
++	unsafe /* ERROR not used */ .Slice(&x, 0)
++	var _ []byte = unsafe /* ERROR value of type \[\]int */ .Slice(&x, 0)
++
++	var _ []int = unsafe.Slice(&x, 0)
++	_ = unsafe.Slice(&x, 1.0)
++	_ = unsafe.Slice((*int)(nil), 0)
++}
++
++func SliceData1() {
++	var s []int
++	unsafe.SliceData(0 /* ERROR not a slice */)
++	unsafe /* ERROR not used */ .SliceData(s)
++
++	type S []int
++	_ = unsafe.SliceData(s)
++	_ = unsafe.SliceData(S{})
++}
++
++func String1() {
++	var b byte
++	unsafe.String()        // ERROR not enough arguments
++	unsafe.String(1, 2, 3) // ERROR too many arguments
++	unsafe.String(1 /* ERROR cannot use 1 */ , 2)
++	unsafe.String(&b, "foo" /* ERROR cannot convert .* to int */ )
++	unsafe.String(&b, 1.2 /* ERROR truncated to int */ )
++	unsafe.String(&b, - /* ERROR must not be negative */ 1)
++	unsafe /* ERROR not used */ .String(&b, 0)
++	var _ []byte = unsafe /* ERROR value of type string */ .String(&b, 0)
++
++	var _ string = unsafe.String(&b, 0)
++	_ = unsafe.String(&b, 1.0)
++	_ = unsafe.String(nil, 0) // here we allow nil as ptr argument (in contrast to unsafe.Slice)
++}
++
++func StringData1() {
++	var s string
++	type S string
++	unsafe.StringData(0 /* ERROR cannot use 0 */)
++	unsafe.StringData(S /* ERROR cannot use S */ ("foo"))
++	unsafe /* ERROR not used */ .StringData(s)
++
++	_ = unsafe.StringData(s)
++	_ = unsafe.StringData("foo")
++}
++
+ // self-testing only
+ func assert1() {
+ 	var x int

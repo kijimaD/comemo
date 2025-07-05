@@ -8,7 +8,7 @@ Date:   Mon Aug 25 15:59:13 2014 +1000
     R=khr, remyoudompheng
     CC=golang-codereviews
     https://golang.org/cl/132820043
-
+---
  src/cmd/api/goapi.go                |  5 +-
  src/cmd/dist/buildruntime.c         |  5 ++
  src/pkg/runtime/callback_windows.c  | 77 -------------------------------
@@ -19,3 +19,312 @@ Date:   Mon Aug 25 15:59:13 2014 +1000
  src/pkg/syscall/asm_windows_amd64.s |  7 ---
  src/pkg/syscall/syscall_windows.go  | 18 ++++++--
  9 files changed, 127 insertions(+), 105 deletions(-)
+
+diff --git a/src/cmd/api/goapi.go b/src/cmd/api/goapi.go
+index 2900a27ceb..54c84b4d09 100644
+--- a/src/cmd/api/goapi.go
++++ b/src/cmd/api/goapi.go
+@@ -384,8 +384,9 @@ func (w *Walker) parseFile(dir, file string) (*ast.File, error) {
+ 			" iface struct{}; eface struct{}; interfacetype struct{}; itab struct{};" +
+ 			" mcache struct{}; bucket struct{}; sudog struct{}; g struct{};" +
+ 			" hchan struct{}; chantype struct{}; waitq struct{};" +
+-			" note struct{};" +
+-			")"
++			" note struct{}; wincallbackcontext struct{};" +
++			"); " +
++			"const ( cb_max = 2000 )"
+ 		f, err = parser.ParseFile(fset, filename, src, 0)
+ 		if err != nil {
+ 			log.Fatalf("incorrect generated file: %s", err)
+diff --git a/src/cmd/dist/buildruntime.c b/src/cmd/dist/buildruntime.c
+index b16b5756cc..5daa31494b 100644
+--- a/src/cmd/dist/buildruntime.c
++++ b/src/cmd/dist/buildruntime.c
+@@ -402,6 +402,11 @@ mkzruntimedefs(char *dir, char *file)
+ 		
+ 		bwritestr(&out, p);
+ 	}
++
++	// Some windows specific const.
++	if(streq(goos, "windows")) {
++		bwritestr(&out, bprintf(&b, "const cb_max = %d\n", MAXWINCB));
++	}
+ 	
+ 	writefile(&out, file, 0);
+ 
+diff --git a/src/pkg/runtime/callback_windows.c b/src/pkg/runtime/callback_windows.c
+deleted file mode 100644
+index 5c6975af29..0000000000
+--- a/src/pkg/runtime/callback_windows.c
++++ /dev/null
+@@ -1,77 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "runtime.h"
+-#include "type.h"
+-#include "typekind.h"
+-#include "defs_GOOS_GOARCH.h"
+-#include "os_GOOS.h"
+-#include "zasm_GOOS_GOARCH.h"
+-
+-typedef	struct	Callbacks	Callbacks;
+-struct	Callbacks {
+-	Lock			lock;
+-	WinCallbackContext*	ctxt[cb_max];
+-	int32			n;
+-};
+-
+-static	Callbacks	cbs;
+-
+-WinCallbackContext** runtime·cbctxts; // to simplify access to cbs.ctxt in sys_windows_*.s
+-
+-// Call back from windows dll into go.
+-byte *
+-runtime·compilecallback(Eface fn, bool cleanstack)
+-{
+-	FuncType *ft;
+-	Type *t;
+-	int32 argsize, i, n;
+-	WinCallbackContext *c;
+-
+-	if(fn.type == nil || (fn.type->kind&KindMask) != KindFunc)
+-		runtime·panicstring("compilecallback: not a function");
+-	ft = (FuncType*)fn.type;
+-	if(ft->out.len != 1)
+-		runtime·panicstring("compilecallback: function must have one output parameter");
+-	if(((Type**)ft->out.array)[0]->size != sizeof(uintptr))
+-		runtime·panicstring("compilecallback: output parameter size is wrong");
+-	argsize = 0;
+-	for(i=0; i<ft->in.len; i++) {
+-		t = ((Type**)ft->in.array)[i];
+-		if(t->size > sizeof(uintptr))
+-			runtime·panicstring("compilecallback: input parameter size is wrong");
+-		argsize += sizeof(uintptr);
+-	}
+-
+-	runtime·lock(&cbs.lock);
+-	if(runtime·cbctxts == nil)
+-		runtime·cbctxts = &(cbs.ctxt[0]);
+-	n = cbs.n;
+-	for(i=0; i<n; i++) {
+-		if(cbs.ctxt[i]->gobody == fn.data && cbs.ctxt[i]->cleanstack == cleanstack) {
+-			runtime·unlock(&cbs.lock);
+-			// runtime·callbackasm is just a series of CALL instructions
+-			// (each is 5 bytes long), and we want callback to arrive at
+-			// correspondent call instruction instead of start of
+-			// runtime·callbackasm.
+-			return (byte*)runtime·callbackasm + i * 5;
+-		}
+-	}
+-	if(n >= cb_max)
+-		runtime·throw("too many callback functions");
+-	c = runtime·mallocgc(sizeof *c, nil, 0);
+-	c->gobody = fn.data;
+-	c->argsize = argsize;
+-	c->cleanstack = cleanstack;
+-	if(cleanstack && argsize!=0)
+-		c->restorestack = argsize;
+-	else
+-		c->restorestack = 0;
+-	cbs.ctxt[n] = c;
+-	cbs.n++;
+-	runtime·unlock(&cbs.lock);
+-
+-	// as before
+-	return (byte*)runtime·callbackasm + n * 5;
+-}
+diff --git a/src/pkg/runtime/syscall_windows.go b/src/pkg/runtime/syscall_windows.go
+new file mode 100644
+index 0000000000..272db62410
+--- /dev/null
++++ b/src/pkg/runtime/syscall_windows.go
+@@ -0,0 +1,92 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++import (
++	"unsafe"
++)
++
++type callbacks struct {
++	lock
++	ctxt [cb_max]*wincallbackcontext
++	n    int
++}
++
++func (c *wincallbackcontext) isCleanstack() bool {
++	return c.cleanstack == 1
++}
++
++func (c *wincallbackcontext) setCleanstack(cleanstack bool) {
++	if cleanstack {
++		c.cleanstack = 1
++	} else {
++		c.cleanstack = 0
++	}
++}
++
++var (
++	cbs     callbacks
++	cbctxts **wincallbackcontext = &cbs.ctxt[0] // to simplify access to cbs.ctxt in sys_windows_*.s
++
++	callbackasm byte // type isn't really byte, it's code in runtime
++)
++
++// callbackasmAddr returns address of runtime.callbackasm
++// function adjusted by i.
++// runtime.callbackasm is just a series of CALL instructions
++// (each is 5 bytes long), and we want callback to arrive at
++// correspondent call instruction instead of start of
++// runtime.callbackasm.
++func callbackasmAddr(i int) uintptr {
++	return uintptr(add(unsafe.Pointer(&callbackasm), uintptr(i*5)))
++}
++
++func compileCallback(fn eface, cleanstack bool) (code uintptr) {
++	if fn._type == nil || (fn._type.kind&kindMask) != kindFunc {
++		panic("compilecallback: not a function")
++	}
++	ft := (*functype)(unsafe.Pointer(fn._type))
++	if len(ft.out) != 1 {
++		panic("compilecallback: function must have one output parameter")
++	}
++	uintptrSize := uint(unsafe.Sizeof(uintptr(0)))
++	if t := (**_type)(unsafe.Pointer(&ft.out[0])); (*t).size != uintptrSize {
++		panic("compilecallback: output parameter size is wrong")
++	}
++	argsize := uint(0)
++	for _, t := range (*[1024](*_type))(unsafe.Pointer(&ft.in[0]))[:len(ft.in)] {
++		if (*t).size != uintptrSize {
++			panic("compilecallback: input parameter size is wrong")
++		}
++		argsize += uintptrSize
++	}
++
++	golock(&cbs.lock)
++	defer gounlock(&cbs.lock)
++
++	n := cbs.n
++	for i := 0; i < n; i++ {
++		if cbs.ctxt[i].gobody == fn.data && cbs.ctxt[i].isCleanstack() == cleanstack {
++			return callbackasmAddr(i)
++		}
++	}
++	if n >= cb_max {
++		gothrow("too many callback functions")
++	}
++
++	c := new(wincallbackcontext)
++	c.gobody = fn.data
++	c.argsize = argsize
++	c.setCleanstack(cleanstack)
++	if cleanstack && argsize != 0 {
++		c.restorestack = argsize
++	} else {
++		c.restorestack = 0
++	}
++	cbs.ctxt[n] = c
++	cbs.n++
++
++	return callbackasmAddr(n)
++}
+diff --git a/src/pkg/runtime/syscall_windows.goc b/src/pkg/runtime/syscall_windows.goc
+index 528245363e..a1665c3b5c 100644
+--- a/src/pkg/runtime/syscall_windows.goc
++++ b/src/pkg/runtime/syscall_windows.goc
+@@ -36,14 +36,6 @@ func getprocaddress(handle uintptr, procname *uint8) (proc uintptr, err uintptr)
+ 		err = 0;
+ }
+ 
+-func NewCallback(fn Eface) (code uintptr) {
+-	code = (uintptr)runtime·compilecallback(fn, true);
+-}
+-
+-func NewCallbackCDecl(fn Eface) (code uintptr) {
+-	code = (uintptr)runtime·compilecallback(fn, false);
+-}
+-
+ func Syscall(fn uintptr, nargs uintptr, a1 uintptr, a2 uintptr, a3 uintptr) (r1 uintptr, r2 uintptr, err uintptr) {
+ 	LibCall c;
+ 
+diff --git a/src/pkg/syscall/asm_windows.s b/src/pkg/syscall/asm_windows.s
+new file mode 100644
+index 0000000000..abb6641a25
+--- /dev/null
++++ b/src/pkg/syscall/asm_windows.s
+@@ -0,0 +1,13 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//
++// System calls for Windows are implemented in ../runtime/syscall_windows.goc
++//
++
++#include "textflag.h"
++
++// func compileCallback(fn interface{}, cleanstack bool) uintptr
++TEXT ·compileCallback(SB),NOSPLIT,$0
++	JMP	runtime·compileCallback(SB)
+diff --git a/src/pkg/syscall/asm_windows_386.s b/src/pkg/syscall/asm_windows_386.s
+deleted file mode 100644
+index 8b52fa9851..0000000000
+--- a/src/pkg/syscall/asm_windows_386.s
++++ /dev/null
+@@ -1,7 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//
+-// System calls for 386, Windows are implemented in ../runtime/syscall_windows.goc
+-//
+diff --git a/src/pkg/syscall/asm_windows_amd64.s b/src/pkg/syscall/asm_windows_amd64.s
+deleted file mode 100644
+index 5813404d17..0000000000
+--- a/src/pkg/syscall/asm_windows_amd64.s
++++ /dev/null
+@@ -1,7 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//
+-// System calls for amd64, Windows are implemented in ../runtime/syscall_windows.goc
+-//
+diff --git a/src/pkg/syscall/syscall_windows.go b/src/pkg/syscall/syscall_windows.go
+index 32a7aed001..bda8214c3c 100644
+--- a/src/pkg/syscall/syscall_windows.go
++++ b/src/pkg/syscall/syscall_windows.go
+@@ -105,12 +105,22 @@ func (e Errno) Timeout() bool {
+ 	return e == EAGAIN || e == EWOULDBLOCK || e == ETIMEDOUT
+ }
+ 
++// Implemented in asm_windows.s
++func compileCallback(fn interface{}, cleanstack bool) uintptr
++
++// Converts a Go function to a function pointer conforming
++// to the stdcall calling convention. This is useful when
++// interoperating with Windows code requiring callbacks.
++func NewCallback(fn interface{}) uintptr {
++	return compileCallback(fn, true)
++}
++
+ // Converts a Go function to a function pointer conforming
+-// to the stdcall or cdecl calling convention.  This is useful when
++// to the cdecl calling convention. This is useful when
+ // interoperating with Windows code requiring callbacks.
+-// Implemented in ../runtime/syscall_windows.goc
+-func NewCallback(fn interface{}) uintptr
+-func NewCallbackCDecl(fn interface{}) uintptr
++func NewCallbackCDecl(fn interface{}) uintptr {
++	return compileCallback(fn, false)
++}
+ 
+ // windows api calls
+ 

@@ -12,7 +12,75 @@ Date:   Tue Sep 30 10:03:10 2014 +1000
     R=rsc, khr, minux
     CC=golang-codereviews
     https://golang.org/cl/147310043
-
+---
  src/liblink/obj5.c    | 20 ++++++++++++++++++--
  src/runtime/tls_arm.s | 11 +++--------
  2 files changed, 21 insertions(+), 10 deletions(-)
+
+diff --git a/src/liblink/obj5.c b/src/liblink/obj5.c
+index e192b082b5..d7f2714ed8 100644
+--- a/src/liblink/obj5.c
++++ b/src/liblink/obj5.c
+@@ -119,14 +119,30 @@ progedit(Link *ctxt, Prog *p)
+ 				ctxt->diag("%L: TLS MRC instruction must write to R0 as it might get translated into a BL instruction", p->lineno);
+ 
+ 			if(ctxt->goarm < 7) {
+-				// Replace it with BL runtime.read_tls_fallback(SB).
++				// Replace it with BL runtime.read_tls_fallback(SB) for ARM CPUs that lack the tls extension.
+ 				if(tlsfallback == nil)
+ 					tlsfallback = linklookup(ctxt, "runtime.read_tls_fallback", 0);
+-				// BL runtime.read_tls_fallback(SB)
++				// MOVW	LR, R11
++				p->as = AMOVW;
++				p->from.type = D_REG;
++				p->from.reg = REGLINK;
++				p->to.type = D_REG;
++				p->to.reg = REGTMP;
++
++				// BL	runtime.read_tls_fallback(SB)
++				p = appendp(ctxt, p);
+ 				p->as = ABL;
+ 				p->to.type = D_BRANCH;
+ 				p->to.sym = tlsfallback;
+ 				p->to.offset = 0;
++
++				// MOVW	R11, LR
++				p = appendp(ctxt, p);
++				p->as = AMOVW;
++				p->from.type = D_REG;
++				p->from.reg = REGTMP;
++				p->to.type = D_REG;
++				p->to.reg = REGLINK;
+ 				break;
+ 			}
+ 		}
+diff --git a/src/runtime/tls_arm.s b/src/runtime/tls_arm.s
+index 039b013833..85c3940bf2 100644
+--- a/src/runtime/tls_arm.s
++++ b/src/runtime/tls_arm.s
+@@ -31,11 +31,8 @@ TEXT runtime·save_g(SB),NOSPLIT,$-4
+ #endif
+ 	// If the host does not support MRC the linker will replace it with
+ 	// a call to runtime.read_tls_fallback which jumps to __kuser_get_tls.
+-	// Both functions are written to only disturb R0 so it should be safe to 
+-	// use R11 here to temporarily store LR.
+-	MOVW	LR, R11
++	// The replacement function saves LR in R11 over the call to read_tls_fallback.
+ 	MRC	15, 0, R0, C13, C0, 3 // fetch TLS base pointer
+-	MOVW	R11, LR
+ 	// $runtime.tlsg(SB) is a special linker symbol.
+ 	// It is the offset from the TLS base pointer to our
+ 	// thread-local storage for g.
+@@ -57,10 +54,8 @@ TEXT runtime·load_g(SB),NOSPLIT,$0
+ 	// nothing to do as nacl/arm does not use TLS at all.
+ 	RET
+ #endif
+-	// See comment in save_g.
+-	MOVW	LR, R11
+-	MRC		15, 0, R0, C13, C0, 3 // fetch TLS base pointer
+-	MOVW	R11, LR
++	// See save_g
++	MRC	15, 0, R0, C13, C0, 3 // fetch TLS base pointer
+ 	// $runtime.tlsg(SB) is a special linker symbol.
+ 	// It is the offset from the TLS base pointer to our
+ 	// thread-local storage for g.

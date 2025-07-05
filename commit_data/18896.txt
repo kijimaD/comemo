@@ -13,7 +13,46 @@ Date:   Tue Mar 18 20:52:58 2014 -0700
     R=golang-codereviews, iant
     CC=golang-codereviews
     https://golang.org/cl/77420044
-
+---
  src/pkg/bytes/bytes.go      |  6 +++++-
  src/pkg/bytes/bytes_test.go | 10 ++++++++++
  2 files changed, 15 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/bytes/bytes.go b/src/pkg/bytes/bytes.go
+index 644bf75b89..0c53e4c0b7 100644
+--- a/src/pkg/bytes/bytes.go
++++ b/src/pkg/bytes/bytes.go
+@@ -356,7 +356,11 @@ func Map(mapping func(r rune) rune, s []byte) []byte {
+ 		}
+ 		r = mapping(r)
+ 		if r >= 0 {
+-			if nbytes+utf8.RuneLen(r) > maxbytes {
++			rl := utf8.RuneLen(r)
++			if rl < 0 {
++				rl = len(string(utf8.RuneError))
++			}
++			if nbytes+rl > maxbytes {
+ 				// Grow the buffer.
+ 				maxbytes = maxbytes*2 + utf8.UTFMax
+ 				nb := make([]byte, maxbytes)
+diff --git a/src/pkg/bytes/bytes_test.go b/src/pkg/bytes/bytes_test.go
+index 808655a4a4..b16ac9f515 100644
+--- a/src/pkg/bytes/bytes_test.go
++++ b/src/pkg/bytes/bytes_test.go
+@@ -785,6 +785,16 @@ func TestMap(t *testing.T) {
+ 	if string(m) != expect {
+ 		t.Errorf("drop: expected %q got %q", expect, m)
+ 	}
++
++	// 6. Invalid rune
++	invalidRune := func(r rune) rune {
++		return utf8.MaxRune + 1
++	}
++	m = Map(invalidRune, []byte("x"))
++	expect = "\uFFFD"
++	if string(m) != expect {
++		t.Errorf("invalidRune: expected %q got %q", expect, m)
++	}
+ }
+ 
+ func TestToUpper(t *testing.T) { runStringTests(t, ToUpper, "ToUpper", upperTests) }

@@ -7,8 +7,92 @@ Date:   Tue Feb 12 19:40:20 2013 -0800
     R=adonovan
     CC=golang-dev
     https://golang.org/cl/7304089
-
+---
  src/pkg/go/types/builtins.go           | 12 +++++++++---
  src/pkg/go/types/testdata/builtins.src | 26 ++++++++++++++++++++++++++
  src/pkg/go/types/universe.go           |  4 ++--
  3 files changed, 37 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/go/types/builtins.go b/src/pkg/go/types/builtins.go
+index 7141856ccc..544f7610bb 100644
+--- a/src/pkg/go/types/builtins.go
++++ b/src/pkg/go/types/builtins.go
+@@ -41,7 +41,7 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *builtin, iota
+ 	if n > 0 {
+ 		arg0 = args[0]
+ 		switch id {
+-		case _Make, _New, _Trace:
++		case _Make, _New, _Print, _Println, _Trace:
+ 			// respective cases below do the work
+ 		default:
+ 			// argument must be an expression
+@@ -301,9 +301,15 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *builtin, iota
+ 		x.mode = variable
+ 		x.typ = &Pointer{Base: resultTyp}
+ 
+-	case _Panic, _Print, _Println:
+-		for _, arg := range args[1:] {
++	case _Panic:
++		x.mode = novalue
++
++	case _Print, _Println:
++		for _, arg := range args {
+ 			check.expr(x, arg, nil, -1)
++			if x.mode == invalid {
++				goto Error
++			}
+ 		}
+ 		x.mode = novalue
+ 
+diff --git a/src/pkg/go/types/testdata/builtins.src b/src/pkg/go/types/testdata/builtins.src
+index 241c231876..8c07f6e458 100644
+--- a/src/pkg/go/types/testdata/builtins.src
++++ b/src/pkg/go/types/testdata/builtins.src
+@@ -214,6 +214,32 @@ func _new() {
+ 	new /* ERROR "not used" */ (int)
+ }
+ 
++func _panic() {
++	panic /* ERROR "arguments" */ ()
++	panic /* ERROR "arguments" */ (1, 2)
++	panic(0)
++	panic("foo")
++	panic(false)
++}
++
++func _print() {
++	print()
++	print(1)
++	print(1, 2)
++	print("foo")
++	print(2.718281828)
++	print(false)
++}
++
++func _println() {
++	println()
++	println(1)
++	println(1, 2)
++	println("foo")
++	println(2.718281828)
++	println(false)
++}
++
+ func _real() {
+ 	var f32 float32
+ 	var f64 float64
+diff --git a/src/pkg/go/types/universe.go b/src/pkg/go/types/universe.go
+index 8e9f6aaa09..707180deb5 100644
+--- a/src/pkg/go/types/universe.go
++++ b/src/pkg/go/types/universe.go
+@@ -73,8 +73,8 @@ var predeclaredFunctions = [...]*builtin{
+ 	{_Make, "make", 1, true, false},
+ 	{_New, "new", 1, false, false},
+ 	{_Panic, "panic", 1, false, true},
+-	{_Print, "print", 1, true, true},
+-	{_Println, "println", 1, true, true},
++	{_Print, "print", 0, true, true},
++	{_Println, "println", 0, true, true},
+ 	{_Real, "real", 1, false, false},
+ 	{_Recover, "recover", 0, false, true},
+ 

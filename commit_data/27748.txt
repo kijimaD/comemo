@@ -9,6 +9,19 @@ Date:   Mon Apr 11 21:47:37 2016 -0300
     Change-Id: Idd7f06b547a0179fe15571807a8c48b7c3b78d7c
     Reviewed-on: https://go-review.googlesource.com/21852
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/io/io.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/io/io.go b/src/io/io.go
+index 023473c79b..c36ec2afbb 100644
+--- a/src/io/io.go
++++ b/src/io/io.go
+@@ -291,6 +291,7 @@ type stringWriter interface {
+ 
+ // WriteString writes the contents of the string s to w, which accepts a slice of bytes.
+ // If w implements a WriteString method, it is invoked directly.
++// Otherwise, w.Write is called exactly once.
+ func WriteString(w Writer, s string) (n int, err error) {
+ 	if sw, ok := w.(stringWriter); ok {
+ 		return sw.WriteString(s)

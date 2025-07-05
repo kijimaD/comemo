@@ -13,6 +13,31 @@ Date:   Sun Nov 17 13:24:43 2024 -0800
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Keith Randall <khr@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/internal/runtime/maps/export_noswiss_test.go | 13 +++++++------
  1 file changed, 7 insertions(+), 6 deletions(-)
+
+diff --git a/src/internal/runtime/maps/export_noswiss_test.go b/src/internal/runtime/maps/export_noswiss_test.go
+index 0cb262f207..333fc6ce90 100644
+--- a/src/internal/runtime/maps/export_noswiss_test.go
++++ b/src/internal/runtime/maps/export_noswiss_test.go
+@@ -33,12 +33,13 @@ func newTestMapType[K comparable, V any]() *abi.SwissMapType {
+ 	var slot instantiatedSlot[K, V]
+ 
+ 	mt := &abi.SwissMapType{
+-		Key:      omt.Key,
+-		Elem:     omt.Elem,
+-		Group:    abi.TypeOf(grp),
+-		Hasher:   omt.Hasher,
+-		SlotSize: unsafe.Sizeof(slot),
+-		ElemOff:  unsafe.Offsetof(slot.elem),
++		Key:       omt.Key,
++		Elem:      omt.Elem,
++		Group:     abi.TypeOf(grp),
++		Hasher:    omt.Hasher,
++		SlotSize:  unsafe.Sizeof(slot),
++		GroupSize: unsafe.Sizeof(grp),
++		ElemOff:   unsafe.Offsetof(slot.elem),
+ 	}
+ 	if omt.NeedKeyUpdate() {
+ 		mt.Flags |= abi.SwissMapNeedKeyUpdate

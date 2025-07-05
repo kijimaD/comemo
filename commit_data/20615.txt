@@ -38,7 +38,7 @@ Date:   Wed Sep 24 16:55:26 2014 -0400
     R=iant
     CC=golang-codereviews
     https://golang.org/cl/149770043
-
+---
  src/cmd/cc/dcl.c                |  9 ++++++---
  src/cmd/cc/lex.c                |  2 ++
  src/cmd/cgo/out.go              | 13 +++++++++++++
@@ -72,3 +72,771 @@ Date:   Wed Sep 24 16:55:26 2014 -0400
  src/runtime/thunk.s             |  8 +++++++-
  src/syscall/env_unix.go         |  4 +++-
  32 files changed, 126 insertions(+), 77 deletions(-)
+
+diff --git a/src/cmd/cc/dcl.c b/src/cmd/cc/dcl.c
+index 292717d688..117508fd6d 100644
+--- a/src/cmd/cc/dcl.c
++++ b/src/cmd/cc/dcl.c
+@@ -30,6 +30,9 @@
+ 
+ #include <u.h>
+ #include "cc.h"
++#include "../ld/textflag.h"
++
++static int haspointers(Type*);
+ 
+ Node*
+ dodecl(void (*f)(int,Type*,Sym*), int c, Type *t, Node *n)
+@@ -123,7 +126,8 @@ loop:
+ 		if(dataflag) {
+ 			s->dataflag = dataflag;
+ 			dataflag = 0;
+-		}
++		} else if(s->type != T && !haspointers(s->type))
++			s->dataflag = NOPTR;
+ 		firstbit = 0;
+ 		n->sym = s;
+ 		n->type = s->type;
+@@ -568,9 +572,8 @@ haspointers(Type *t)
+ 		return 0;
+ 	case TARRAY:
+ 		return haspointers(t->link);
+-	case TFUNC:
+ 	case TIND:
+-		return 1;
++		return t->link->etype != TFUNC;
+ 	default:
+ 		return 0;
+ 	}
+diff --git a/src/cmd/cc/lex.c b/src/cmd/cc/lex.c
+index 55fc36b1e0..7c9f718c09 100644
+--- a/src/cmd/cc/lex.c
++++ b/src/cmd/cc/lex.c
+@@ -31,6 +31,7 @@
+ #include	<u.h>
+ #include	"cc.h"
+ #include	"y.tab.h"
++#include	"../ld/textflag.h"
+ 
+ #ifndef	CPP
+ #define	CPP	"cpp"
+@@ -1317,6 +1318,7 @@ cinit(void)
+ 	t->width = 0;
+ 	symstring = slookup(".string");
+ 	symstring->class = CSTATIC;
++	symstring->dataflag = NOPTR;
+ 	symstring->type = t;
+ 
+ 	t = typ(TARRAY, types[TCHAR]);
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index 6586531ada..2d14f766fc 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -129,6 +129,7 @@ func (p *Package) writeDefs() {
+ 			fmt.Fprintf(fc, `extern void *%s __asm__("%s.%s");`, n.Mangle, gccgoSymbolPrefix, n.Mangle)
+ 			fmt.Fprintf(&gccgoInit, "\t%s = %s%s;\n", n.Mangle, amp, n.C)
+ 		} else {
++			fmt.Fprintf(fc, "#pragma dataflag NOPTR /* C pointer, not heap pointer */ \n")
+ 			fmt.Fprintf(fc, "void *·%s = %s%s;\n", n.Mangle, amp, n.C)
+ 		}
+ 		fmt.Fprintf(fc, "\n")
+@@ -397,6 +398,7 @@ func (p *Package) writeDefsFunc(fc, fgo2 *os.File, n *Name) {
+ 	// C wrapper calls into gcc, passing a pointer to the argument frame.
+ 	fmt.Fprintf(fc, "#pragma cgo_import_static %s\n", cname)
+ 	fmt.Fprintf(fc, "void %s(void*);\n", cname)
++	fmt.Fprintf(fc, "#pragma dataflag NOPTR\n")
+ 	fmt.Fprintf(fc, "void *·%s = %s;\n", cname, cname)
+ 
+ 	nret := 0
+@@ -1151,20 +1153,31 @@ void *_CMalloc(size_t);
+ const cProlog = `
+ #include "runtime.h"
+ #include "cgocall.h"
++#include "textflag.h"
+ 
++#pragma dataflag NOPTR
+ static void *cgocall_errno = runtime·cgocall_errno;
++#pragma dataflag NOPTR
+ void *·_cgo_runtime_cgocall_errno = &cgocall_errno;
+ 
++#pragma dataflag NOPTR
+ static void *runtime_gostring = runtime·gostring;
++#pragma dataflag NOPTR
+ void *·_cgo_runtime_gostring = &runtime_gostring;
+ 
++#pragma dataflag NOPTR
+ static void *runtime_gostringn = runtime·gostringn;
++#pragma dataflag NOPTR
+ void *·_cgo_runtime_gostringn = &runtime_gostringn;
+ 
++#pragma dataflag NOPTR
+ static void *runtime_gobytes = runtime·gobytes;
++#pragma dataflag NOPTR
+ void *·_cgo_runtime_gobytes = &runtime_gobytes;
+ 
++#pragma dataflag NOPTR
+ static void *runtime_cmalloc = runtime·cmalloc;
++#pragma dataflag NOPTR
+ void *·_cgo_runtime_cmalloc = &runtime_cmalloc;
+ 
+ void ·_Cerrno(void*, int32);
+diff --git a/src/cmd/dist/buildruntime.c b/src/cmd/dist/buildruntime.c
+index 1257d5b811..bb774e05fc 100644
+--- a/src/cmd/dist/buildruntime.c
++++ b/src/cmd/dist/buildruntime.c
+@@ -330,9 +330,11 @@ mkzsys(char *dir, char *file)
+ static char *runtimedefs[] = {
+ 	"defs.c",
+ 	"malloc.c",
++	"mcache.c",
+ 	"mgc0.c",
+ 	"proc.c",
+ 	"parfor.c",
++	"stack.c",
+ };
+ 
+ // mkzruntimedefs writes zruntime_defs_$GOOS_$GOARCH.h,
+diff --git a/src/cmd/ld/data.c b/src/cmd/ld/data.c
+index 71624c3304..9d224d9eb9 100644
+--- a/src/cmd/ld/data.c
++++ b/src/cmd/ld/data.c
+@@ -818,6 +818,7 @@ proggenaddsym(ProgGen *g, LSym *s)
+ 
+ 	if(s->gotype == nil && s->size >= PtrSize) {
+ 		// conservative scan
++		diag("missing Go type information for global symbol: %s", s->name);
+ 		if((s->size%PtrSize) || (g->pos%PtrSize))
+ 			diag("proggenaddsym: unaligned conservative symbol %s: size=%lld pos=%lld",
+ 				s->name, s->size, g->pos);
+diff --git a/src/liblink/objfile.c b/src/liblink/objfile.c
+index 9b1e1b7a8f..15d602df92 100644
+--- a/src/liblink/objfile.c
++++ b/src/liblink/objfile.c
+@@ -550,7 +550,7 @@ readsym(Link *ctxt, Biobuf *f, char *pkg, char *pn)
+ 	static int ndup;
+ 	char *name;
+ 	Reloc *r;
+-	LSym *s, *dup;
++	LSym *s, *dup, *typ;
+ 	Pcln *pc;
+ 	Auto *a;
+ 	
+@@ -586,7 +586,9 @@ readsym(Link *ctxt, Biobuf *f, char *pkg, char *pn)
+ 	s->type = t;
+ 	if(s->size < size)
+ 		s->size = size;
+-	s->gotype = rdsym(ctxt, f, pkg);
++	typ = rdsym(ctxt, f, pkg);
++	if(typ != nil) // if bss sym defined multiple times, take type from any one def
++		s->gotype = typ;
+ 	rddata(f, &s->p, &s->np);
+ 	s->maxp = s->np;
+ 	n = rdint(f);
+diff --git a/src/os/proc.go b/src/os/proc.go
+index 38c436ec54..b63c85ad90 100644
+--- a/src/os/proc.go
++++ b/src/os/proc.go
+@@ -11,6 +11,12 @@ import "syscall"
+ // Args hold the command-line arguments, starting with the program name.
+ var Args []string
+ 
++func init() {
++	Args = runtime_args()
++}
++
++func runtime_args() []string // in package runtime
++
+ // Getuid returns the numeric user id of the caller.
+ func Getuid() int { return syscall.Getuid() }
+ 
+diff --git a/src/runtime/asm_386.s b/src/runtime/asm_386.s
+index 2961f10f2a..846a214d55 100644
+--- a/src/runtime/asm_386.s
++++ b/src/runtime/asm_386.s
+@@ -903,8 +903,6 @@ TEXT runtime·emptyfunc(SB),0,$0-0
+ TEXT runtime·abort(SB),NOSPLIT,$0-0
+ 	INT $0x3
+ 
+-GLOBL runtime·tls0(SB), $32
+-
+ // hash function using AES hardware instructions
+ TEXT runtime·aeshash(SB),NOSPLIT,$0-16
+ 	MOVL	p+0(FP), AX	// ptr to data
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index 44159bb57e..7304d79a2f 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -871,8 +871,6 @@ TEXT runtime·gocputicks(SB),NOSPLIT,$0-8
+ 	MOVQ    AX, ret+0(FP)
+ 	RET
+ 
+-GLOBL runtime·tls0(SB), $64
+-
+ // hash function using AES hardware instructions
+ TEXT runtime·aeshash(SB),NOSPLIT,$0-32
+ 	MOVQ	p+0(FP), AX	// ptr to data
+diff --git a/src/runtime/asm_amd64p32.s b/src/runtime/asm_amd64p32.s
+index bbbd886a53..13a1642568 100644
+--- a/src/runtime/asm_amd64p32.s
++++ b/src/runtime/asm_amd64p32.s
+@@ -674,8 +674,6 @@ TEXT runtime·gocputicks(SB),NOSPLIT,$0-8
+ 	MOVQ    AX, ret+0(FP)
+ 	RET
+ 
+-GLOBL runtime·tls0(SB), $64
+-
+ // hash function using AES hardware instructions
+ // For now, our one amd64p32 system (NaCl) does not
+ // support using AES instructions, so have not bothered to
+diff --git a/src/runtime/heapdump.c b/src/runtime/heapdump.c
+index 75897c3d35..54b9666b55 100644
+--- a/src/runtime/heapdump.c
++++ b/src/runtime/heapdump.c
+@@ -59,6 +59,8 @@ static BitVector makeheapobjbv(byte *p, uintptr size);
+ 
+ // fd to write the dump to.
+ static uintptr	dumpfd;
++
++#pragma dataflag NOPTR /* tmpbuf not a heap pointer at least */
+ static byte	*tmpbuf;
+ static uintptr	tmpbufsize;
+ 
+@@ -109,6 +111,7 @@ typedef struct TypeCacheBucket TypeCacheBucket;
+ struct TypeCacheBucket {
+ 	Type *t[TypeCacheAssoc];
+ };
++#pragma dataflag NOPTR /* only initialized and used while world is stopped */
+ static TypeCacheBucket typecache[TypeCacheBuckets];
+ 
+ // dump a uint64 in a varint format parseable by encoding/binary
+diff --git a/src/runtime/malloc.c b/src/runtime/malloc.c
+index 60d20a992d..b79c30b720 100644
+--- a/src/runtime/malloc.c
++++ b/src/runtime/malloc.c
+@@ -329,29 +329,6 @@ runtime·MHeap_SysAlloc(MHeap *h, uintptr n)
+ 	return p;
+ }
+ 
+-// Runtime stubs.
+-
+-static void*
+-cnew(Type *typ, intgo n)
+-{
+-	if(n < 0 || (typ->size > 0 && n > MaxMem/typ->size))
+-		runtime·throw("runtime: allocation size out of range");
+-	return runtime·mallocgc(typ->size*n, typ, typ->kind&KindNoPointers ? FlagNoScan : 0);
+-}
+-
+-// same as runtime·new, but callable from C
+-void*
+-runtime·cnew(Type *typ)
+-{
+-	return cnew(typ, 1);
+-}
+-
+-void*
+-runtime·cnewarray(Type *typ, intgo n)
+-{
+-	return cnew(typ, n);
+-}
+-
+ void
+ runtime·setFinalizer_m(void)
+ {
+diff --git a/src/runtime/malloc.h b/src/runtime/malloc.h
+index 410a007173..b90f1baf29 100644
+--- a/src/runtime/malloc.h
++++ b/src/runtime/malloc.h
+@@ -526,8 +526,6 @@ uintptr	runtime·sweepone(void);
+ void	runtime·markspan(void *v, uintptr size, uintptr n, bool leftover);
+ void	runtime·unmarkspan(void *v, uintptr size);
+ void	runtime·purgecachedstats(MCache*);
+-void*	runtime·cnew(Type*);
+-void*	runtime·cnewarray(Type*, intgo);
+ void	runtime·tracealloc(void*, uintptr, Type*);
+ void	runtime·tracefree(void*, uintptr);
+ void	runtime·tracegc(void);
+diff --git a/src/runtime/mcache.c b/src/runtime/mcache.c
+index 17ea5d2e26..5fdbe32667 100644
+--- a/src/runtime/mcache.c
++++ b/src/runtime/mcache.c
+@@ -13,7 +13,7 @@
+ extern volatile intgo runtime·MemProfileRate;
+ 
+ // dummy MSpan that contains no free objects.
+-static MSpan runtime·emptymspan;
++MSpan runtime·emptymspan;
+ 
+ MCache*
+ runtime·allocmcache(void)
+diff --git a/src/runtime/mgc0.c b/src/runtime/mgc0.c
+index 54728d5ada..c92fa1db73 100644
+--- a/src/runtime/mgc0.c
++++ b/src/runtime/mgc0.c
+@@ -120,7 +120,7 @@ FinBlock*	runtime·finc;	// cache of free blocks
+ static byte finptrmask[FinBlockSize/PtrSize/PointersPerByte];
+ bool	runtime·fingwait;
+ bool	runtime·fingwake;
+-static FinBlock	*runtime·allfin;	// list of all blocks
++FinBlock	*runtime·allfin;	// list of all blocks
+ 
+ BitVector	runtime·gcdatamask;
+ BitVector	runtime·gcbssmask;
+@@ -140,7 +140,7 @@ static BitVector	unrollglobgcprog(byte *prog, uintptr size);
+ void runtime·bgsweep(void);
+ static FuncVal bgsweepv = {runtime·bgsweep};
+ 
+-static struct {
++struct {
+ 	uint64	full;  // lock-free list of full blocks
+ 	uint64	empty; // lock-free list of empty blocks
+ 	byte	pad0[CacheLineSize]; // prevents false-sharing between full/empty and nproc/nwait
+@@ -1038,7 +1038,6 @@ runtime·MSpan_Sweep(MSpan *s, bool preserve)
+ 
+ // State of background runtime·sweep.
+ // Protected by runtime·gclock.
+-// Must match mgc0.go.
+ struct
+ {
+ 	G*	g;
+diff --git a/src/runtime/os_windows.c b/src/runtime/os_windows.c
+index 62d94b65a0..6546d51d33 100644
+--- a/src/runtime/os_windows.c
++++ b/src/runtime/os_windows.c
+@@ -147,7 +147,7 @@ runtime·get_random_data(byte **rnd, int32 *rnd_len)
+ void
+ runtime·goenvs(void)
+ {
+-	extern Slice syscall·envs;
++	extern Slice runtime·envs;
+ 
+ 	uint16 *env;
+ 	String *s;
+@@ -160,8 +160,8 @@ runtime·goenvs(void)
+ 	for(p=env; *p; n++)
+ 		p += runtime·findnullw(p)+1;
+ 
+-	syscall·envs = runtime·makeStringSlice(n);
+-	s = (String*)syscall·envs.array;
++	runtime·envs = runtime·makeStringSlice(n);
++	s = (String*)runtime·envs.array;
+ 
+ 	p = env;
+ 	for(i=0; i<n; i++) {
+diff --git a/src/runtime/proc.c b/src/runtime/proc.c
+index 564798be7b..1f0a79098b 100644
+--- a/src/runtime/proc.c
++++ b/src/runtime/proc.c
+@@ -102,9 +102,9 @@ extern String runtime·buildVersion;
+ #pragma cgo_export_static main
+ 
+ // Filled in by dynamic linker when Cgo is available.
+-void* _cgo_init;
+-void* _cgo_malloc;
+-void* _cgo_free;
++void (*_cgo_init)(void);
++void (*_cgo_malloc)(void);
++void (*_cgo_free)(void);
+ 
+ // Copy for Go code.
+ void* runtime·cgoMalloc;
+@@ -852,24 +852,19 @@ struct CgoThreadStart
+ 	void (*fn)(void);
+ };
+ 
++M *runtime·newM(void); // in proc.go
++
+ // Allocate a new m unassociated with any thread.
+ // Can use p for allocation context if needed.
+ M*
+ runtime·allocm(P *p)
+ {
+ 	M *mp;
+-	static Type *mtype;  // The Go type M
+ 
+ 	g->m->locks++;  // disable GC because it can be called from sysmon
+ 	if(g->m->p == nil)
+ 		acquirep(p);  // temporarily borrow p for mallocs in this function
+-	if(mtype == nil) {
+-		Eface e;
+-		runtime·gc_m_ptr(&e);
+-		mtype = ((PtrType*)e.type)->elem;
+-	}
+-
+-	mp = runtime·cnew(mtype);
++	mp = runtime·newM();
+ 	mcommoninit(mp);
+ 
+ 	// In case of cgo or Solaris, pthread_create will make us a stack.
+@@ -889,19 +884,12 @@ runtime·allocm(P *p)
+ 	return mp;
+ }
+ 
++G *runtime·newG(void); // in proc.go
++
+ static G*
+ allocg(void)
+ {
+-	G *gp;
+-	static Type *gtype;
+-	
+-	if(gtype == nil) {
+-		Eface e;
+-		runtime·gc_g_ptr(&e);
+-		gtype = ((PtrType*)e.type)->elem;
+-	}
+-	gp = runtime·cnew(gtype);
+-	return gp;
++	return runtime·newG();
+ }
+ 
+ static M* lockextra(bool nilokay);
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 9b95868594..4bb661b54b 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -202,6 +202,14 @@ func newP() *p {
+ 	return new(p)
+ }
+ 
++func newM() *m {
++	return new(m)
++}
++
++func newG() *g {
++	return new(g)
++}
++
+ func allgadd(gp *g) {
+ 	if readgstatus(gp) == _Gidle {
+ 		gothrow("allgadd: bad status Gidle")
+diff --git a/src/runtime/runtime.c b/src/runtime/runtime.c
+index aa8dd8f7a0..b3503fb909 100644
+--- a/src/runtime/runtime.c
++++ b/src/runtime/runtime.c
+@@ -62,10 +62,12 @@ runtime·mchr(byte *p, byte c, byte *ep)
+ }
+ 
+ static int32	argc;
++
++#pragma dataflag NOPTR /* argv not a heap pointer */
+ static uint8**	argv;
+ 
+-Slice os·Args;
+-Slice syscall·envs;
++extern Slice runtime·argslice;
++extern Slice runtime·envs;
+ 
+ void (*runtime·sysargs)(int32, uint8**);
+ 
+@@ -97,8 +99,8 @@ runtime·goargs(void)
+ 	if(Windows)
+ 		return;
+ 
+-	os·Args = runtime·makeStringSlice(argc);
+-	s = (String*)os·Args.array;
++	runtime·argslice = runtime·makeStringSlice(argc);
++	s = (String*)runtime·argslice.array;
+ 	for(i=0; i<argc; i++)
+ 		s[i] = runtime·gostringnocopy(argv[i]);
+ }
+@@ -112,8 +114,8 @@ runtime·goenvs_unix(void)
+ 	for(n=0; argv[argc+1+n] != 0; n++)
+ 		;
+ 
+-	syscall·envs = runtime·makeStringSlice(n);
+-	s = (String*)syscall·envs.array;
++	runtime·envs = runtime·makeStringSlice(n);
++	s = (String*)runtime·envs.array;
+ 	for(i=0; i<n; i++)
+ 		s[i] = runtime·gostringnocopy(argv[argc+1+i]);
+ }
+@@ -122,7 +124,7 @@ runtime·goenvs_unix(void)
+ Slice
+ runtime·environ()
+ {
+-	return syscall·envs;
++	return runtime·envs;
+ }
+ 
+ int32
+@@ -267,10 +269,15 @@ runtime·check(void)
+ #pragma dataflag NOPTR
+ DebugVars	runtime·debug;
+ 
+-static struct {
++typedef struct DbgVar DbgVar;
++struct DbgVar
++{
+ 	int8*	name;
+ 	int32*	value;
+-} dbgvar[] = {
++};
++
++#pragma dataflag NOPTR /* dbgvar has no heap pointers */
++static DbgVar dbgvar[] = {
+ 	{"allocfreetrace", &runtime·debug.allocfreetrace},
+ 	{"efence", &runtime·debug.efence},
+ 	{"gctrace", &runtime·debug.gctrace},
+diff --git a/src/runtime/runtime.go b/src/runtime/runtime.go
+index dbaea45a66..4e4e1d17a5 100644
+--- a/src/runtime/runtime.go
++++ b/src/runtime/runtime.go
+@@ -9,6 +9,8 @@ var ticks struct {
+ 	val  uint64
+ }
+ 
++var tls0 [8]uintptr // available storage for m0's TLS; not necessarily used; opaque to GC
++
+ // Note: Called by runtime/pprof in addition to runtime code.
+ func tickspersecond() int64 {
+ 	r := int64(atomicload64(&ticks.val))
+@@ -47,3 +49,12 @@ func parforalloc(nthrmax uint32) *parfor {
+ 		nthrmax: nthrmax,
+ 	}
+ }
++
++var envs []string
++var argslice []string
++
++// called from syscall
++func runtime_envs() []string { return envs }
++
++// called from os
++func runtime_args() []string { return argslice }
+diff --git a/src/runtime/signals_darwin.h b/src/runtime/signals_darwin.h
+index 229b585902..8761e1bd94 100644
+--- a/src/runtime/signals_darwin.h
++++ b/src/runtime/signals_darwin.h
+@@ -2,12 +2,15 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++#include "textflag.h"
++
+ #define N SigNotify
+ #define K SigKill
+ #define T SigThrow
+ #define P SigPanic
+ #define D SigDefault
+ 
++#pragma dataflag NOPTR
+ SigTab runtime·sigtab[] = {
+ 	/* 0 */	0, "SIGNONE: no trap",
+ 	/* 1 */	N+K, "SIGHUP: terminal line hangup",
+diff --git a/src/runtime/signals_dragonfly.h b/src/runtime/signals_dragonfly.h
+index 4d27e050d0..07343a766e 100644
+--- a/src/runtime/signals_dragonfly.h
++++ b/src/runtime/signals_dragonfly.h
+@@ -2,12 +2,15 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++#include "textflag.h"
++
+ #define N SigNotify
+ #define K SigKill
+ #define T SigThrow
+ #define P SigPanic
+ #define D SigDefault
+ 
++#pragma dataflag NOPTR
+ SigTab runtime·sigtab[] = {
+ 	/* 0 */	0, "SIGNONE: no trap",
+ 	/* 1 */	N+K, "SIGHUP: terminal line hangup",
+diff --git a/src/runtime/signals_freebsd.h b/src/runtime/signals_freebsd.h
+index 8d45c50c3b..39e0a947e0 100644
+--- a/src/runtime/signals_freebsd.h
++++ b/src/runtime/signals_freebsd.h
+@@ -2,12 +2,15 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++#include "textflag.h"
++
+ #define N SigNotify
+ #define K SigKill
+ #define T SigThrow
+ #define P SigPanic
+ #define D SigDefault
+ 
++#pragma dataflag NOPTR
+ SigTab runtime·sigtab[] = {
+ 	/* 0 */	0, "SIGNONE: no trap",
+ 	/* 1 */	N+K, "SIGHUP: terminal line hangup",
+diff --git a/src/runtime/signals_linux.h b/src/runtime/signals_linux.h
+index 368afc1c84..374107609f 100644
+--- a/src/runtime/signals_linux.h
++++ b/src/runtime/signals_linux.h
+@@ -2,12 +2,15 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++#include "textflag.h"
++
+ #define N SigNotify
+ #define K SigKill
+ #define T SigThrow
+ #define P SigPanic
+ #define D SigDefault
+ 
++#pragma dataflag NOPTR
+ SigTab runtime·sigtab[] = {
+ 	/* 0 */	0, "SIGNONE: no trap",
+ 	/* 1 */	N+K, "SIGHUP: terminal line hangup",
+diff --git a/src/runtime/signals_nacl.h b/src/runtime/signals_nacl.h
+index 229b585902..8761e1bd94 100644
+--- a/src/runtime/signals_nacl.h
++++ b/src/runtime/signals_nacl.h
+@@ -2,12 +2,15 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++#include "textflag.h"
++
+ #define N SigNotify
+ #define K SigKill
+ #define T SigThrow
+ #define P SigPanic
+ #define D SigDefault
+ 
++#pragma dataflag NOPTR
+ SigTab runtime·sigtab[] = {
+ 	/* 0 */	0, "SIGNONE: no trap",
+ 	/* 1 */	N+K, "SIGHUP: terminal line hangup",
+diff --git a/src/runtime/signals_netbsd.h b/src/runtime/signals_netbsd.h
+index 7140de86fc..950a2fe62c 100644
+--- a/src/runtime/signals_netbsd.h
++++ b/src/runtime/signals_netbsd.h
+@@ -2,12 +2,15 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++#include "textflag.h"
++
+ #define N SigNotify
+ #define K SigKill
+ #define T SigThrow
+ #define P SigPanic
+ #define D SigDefault
+ 
++#pragma dataflag NOPTR
+ SigTab runtime·sigtab[] = {
+ 	/*  0 */	0, "SIGNONE: no trap",
+ 	/*  1 */	N+K, "SIGHUP: terminal line hangup",
+diff --git a/src/runtime/signals_openbsd.h b/src/runtime/signals_openbsd.h
+index 7140de86fc..950a2fe62c 100644
+--- a/src/runtime/signals_openbsd.h
++++ b/src/runtime/signals_openbsd.h
+@@ -2,12 +2,15 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++#include "textflag.h"
++
+ #define N SigNotify
+ #define K SigKill
+ #define T SigThrow
+ #define P SigPanic
+ #define D SigDefault
+ 
++#pragma dataflag NOPTR
+ SigTab runtime·sigtab[] = {
+ 	/*  0 */	0, "SIGNONE: no trap",
+ 	/*  1 */	N+K, "SIGHUP: terminal line hangup",
+diff --git a/src/runtime/signals_plan9.h b/src/runtime/signals_plan9.h
+index 818f508cf3..4ee8e542c9 100644
+--- a/src/runtime/signals_plan9.h
++++ b/src/runtime/signals_plan9.h
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++#include "textflag.h"
++
+ #define N SigNotify
+ #define K SigKill
+ #define T SigThrow
+@@ -16,6 +18,7 @@
+ // If you add entries to this table, you must respect the prefix ordering
+ // and also update the constant values is os_plan9.h.
+ 
++#pragma dataflag NOPTR
+ SigTab runtime·sigtab[] = {
+ 	// Traps that we cannot be recovered.
+ 	T,	"sys: trap: debug exception",
+diff --git a/src/runtime/signals_solaris.h b/src/runtime/signals_solaris.h
+index c272cad292..1f0a65ea62 100644
+--- a/src/runtime/signals_solaris.h
++++ b/src/runtime/signals_solaris.h
+@@ -2,12 +2,15 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++#include "textflag.h"
++
+ #define N SigNotify
+ #define K SigKill
+ #define T SigThrow
+ #define P SigPanic
+ #define D SigDefault
+ 
++#pragma dataflag NOPTR
+ SigTab runtime·sigtab[] = {
+ 	/* 0 */		0, "SIGNONE: no trap",
+ 	/* 1 */		N+K, "SIGHUP: hangup",
+diff --git a/src/runtime/stack.c b/src/runtime/stack.c
+index 6fbab8fb6e..0d8814731c 100644
+--- a/src/runtime/stack.c
++++ b/src/runtime/stack.c
+@@ -32,8 +32,8 @@ enum
+ // Stacks are assigned an order according to size.
+ //     order = log_2(size/FixedStack)
+ // There is a free list for each order.
+-static MSpan runtime·stackpool[NumStackOrders];
+-static Mutex runtime·stackpoolmu;
++MSpan runtime·stackpool[NumStackOrders];
++Mutex runtime·stackpoolmu;
+ // TODO: one lock per order?
+ 
+ void
+diff --git a/src/runtime/thunk.s b/src/runtime/thunk.s
+index 5e8e674f54..d6a2d399e6 100644
+--- a/src/runtime/thunk.s
++++ b/src/runtime/thunk.s
+@@ -164,7 +164,7 @@ TEXT runtime·main_init(SB),NOSPLIT,$0-0
+ TEXT runtime·main_main(SB),NOSPLIT,$0-0
+ 	JMP	main·main(SB)
+ 
+-TEXT runtime·timenow(SB), NOSPLIT, $0-0
++TEXT runtime·timenow(SB),NOSPLIT,$0-0
+ 	JMP	time·now(SB)
+ 
+ TEXT sync∕atomic·runtime_procPin(SB),NOSPLIT,$0-0
+@@ -172,3 +172,9 @@ TEXT sync∕atomic·runtime_procPin(SB),NOSPLIT,$0-0
+ 
+ TEXT sync∕atomic·runtime_procUnpin(SB),NOSPLIT,$0-0
+ 	JMP     sync·runtime_procUnpin(SB)
++
++TEXT syscall·runtime_envs(SB),NOSPLIT,$0-0
++	JMP	runtime·runtime_envs(SB)
++
++TEXT os·runtime_args(SB),NOSPLIT,$0-0
++	JMP	runtime·runtime_args(SB)
+diff --git a/src/syscall/env_unix.go b/src/syscall/env_unix.go
+index ad354ed057..01ac38af13 100644
+--- a/src/syscall/env_unix.go
++++ b/src/syscall/env_unix.go
+@@ -22,9 +22,11 @@ var (
+ 
+ 	// envs is provided by the runtime. elements are expected to be
+ 	// of the form "key=value".
+-	envs []string
++	envs []string = runtime_envs()
+ )
+ 
++func runtime_envs() []string // in package runtime
++
+ // setenv_c is provided by the runtime, but is a no-op if cgo isn't
+ // loaded.
+ func setenv_c(k, v string)

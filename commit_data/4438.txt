@@ -8,7 +8,7 @@ Date:   Tue Dec 15 18:21:29 2009 -0800
     
     R=rsc, r
     https://golang.org/cl/162056
-
+---
  src/pkg/Makefile                       |  1 +
  src/pkg/os/signal/Makefile             | 11 +++++
  src/pkg/os/signal/signal.go            | 47 ++++++++++++++++++
@@ -29,3 +29,826 @@ Date:   Tue Dec 15 18:21:29 2009 -0800
  src/pkg/runtime/runtime.h              |  7 +++
  src/pkg/runtime/sigqueue.cgo           | 90 ++++++++++++++++++++++++++++++++++
  19 files changed, 356 insertions(+), 67 deletions(-)
+
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index ea50e0d7b5..db33ab2629 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -82,6 +82,7 @@ DIRS=\
+ 	net\
+ 	once\
+ 	os\
++	os/signal\
+ 	patch\
+ 	path\
+ 	rand\
+diff --git a/src/pkg/os/signal/Makefile b/src/pkg/os/signal/Makefile
+new file mode 100644
+index 0000000000..a1f04b6e18
+--- /dev/null
++++ b/src/pkg/os/signal/Makefile
+@@ -0,0 +1,11 @@
++# Copyright 2009 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++include ../../../Make.$(GOARCH)
++
++TARG=os/signal
++GOFILES=\
++	signal.go\
++
++include ../../../Make.pkg
+diff --git a/src/pkg/os/signal/signal.go b/src/pkg/os/signal/signal.go
+new file mode 100644
+index 0000000000..df81e512ea
+--- /dev/null
++++ b/src/pkg/os/signal/signal.go
+@@ -0,0 +1,47 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package signal implements operating system-independent signal handling.
++package signal
++
++import (
++	"runtime"
++	"strconv"
++)
++
++// A Signal can represent any operating system signal.
++type Signal interface {
++	String() string
++}
++
++type UnixSignal int32
++
++func (sig UnixSignal) String() string {
++	s := runtime.Signame(int32(sig))
++	if len(s) > 0 {
++		return s
++	}
++	return "Signal " + strconv.Itoa(int(sig))
++}
++
++// Incoming is the global signal channel.
++// All signals received by the program will be delivered to this channel.
++var Incoming <-chan Signal
++
++func process(ch chan<- Signal) {
++	for {
++		var mask uint32 = runtime.Sigrecv()
++		for sig := uint(0); sig < 32; sig++ {
++			if mask&(1<<sig) != 0 {
++				ch <- UnixSignal(sig)
++			}
++		}
++	}
++}
++
++func init() {
++	ch := make(chan Signal) // Done here so Incoming can have type <-chan Signal
++	Incoming = ch
++	go process(ch)
++}
+diff --git a/src/pkg/os/signal/signal_test.go b/src/pkg/os/signal/signal_test.go
+new file mode 100644
+index 0000000000..e5b21c7f53
+--- /dev/null
++++ b/src/pkg/os/signal/signal_test.go
+@@ -0,0 +1,19 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package signal
++
++import (
++	"syscall"
++	"testing"
++)
++
++func TestSignal(t *testing.T) {
++	// Send this process a SIGHUP.
++	syscall.Syscall(syscall.SYS_KILL, uintptr(syscall.Getpid()), syscall.SIGHUP, 0)
++
++	if sig := (<-Incoming).(UnixSignal); sig != 1 {
++		t.Error("signal was %v, want %v", sig, 1)
++	}
++}
+diff --git a/src/pkg/runtime/Makefile b/src/pkg/runtime/Makefile
+index 6dc4f0ac15..bd6cd908bd 100644
+--- a/src/pkg/runtime/Makefile
++++ b/src/pkg/runtime/Makefile
+@@ -63,6 +63,7 @@ OFILES=\
+ 	rt0.$O\
+ 	sema.$O\
+ 	signal.$O\
++	sigqueue.$O\
+ 	slice.$O\
+ 	string.$O\
+ 	symtab.$O\
+@@ -78,6 +79,7 @@ HFILES=\
+ 	malloc.h\
+ 	$(GOARCH)/asm.h\
+ 	$(GOOS)/os.h\
++	$(GOOS)/signals.h\
+ 	$(GOOS)/$(GOARCH)/defs.h\
+ 
+ include ../../Make.pkg
+diff --git a/src/pkg/runtime/darwin/386/signal.c b/src/pkg/runtime/darwin/386/signal.c
+index 8d9a68967c..4023439b39 100644
+--- a/src/pkg/runtime/darwin/386/signal.c
++++ b/src/pkg/runtime/darwin/386/signal.c
+@@ -25,6 +25,14 @@ dumpregs(Regs *r)
+ 	printf("gs      %x\n", r->gs);
+ }
+ 
++String
++signame(int32 sig)
++{
++	if(sig < 0 || sig >= NSIG)
++		return emptystring;
++	return gostring((byte*)sigtab[sig].name);
++}
++
+ void
+ sighandler(int32 sig, Siginfo *info, void *context)
+ {
+@@ -32,6 +40,11 @@ sighandler(int32 sig, Siginfo *info, void *context)
+ 	Mcontext *mc;
+ 	Regs *r;
+ 
++	if(sigtab[sig].flags & SigQueue) {
++		sigsend(sig);
++		return;
++	}
++
+ 	if(panicking)	// traceback already printed
+ 		exit(2);
+ 	panicking = 1;
+@@ -82,12 +95,14 @@ initsig(void)
+ 	int32 i;
+ 	static Sigaction sa;
+ 
++	siginit();
++
+ 	sa.sa_flags |= SA_SIGINFO|SA_ONSTACK;
+ 	sa.sa_mask = 0xFFFFFFFFU;
+ 	sa.sa_tramp = sigtramp;	// sigtramp's job is to call into real handler
+ 	for(i = 0; i<NSIG; i++) {
+ 		if(sigtab[i].flags) {
+-			if(sigtab[i].flags & SigCatch) {
++			if(sigtab[i].flags & (SigCatch | SigQueue)) {
+ 				sa.__sigaction_u.__sa_sigaction = sighandler;
+ 			} else {
+ 				sa.__sigaction_u.__sa_sigaction = sigignore;
+@@ -100,4 +115,3 @@ initsig(void)
+ 		}
+ 	}
+ }
+-
+diff --git a/src/pkg/runtime/darwin/amd64/signal.c b/src/pkg/runtime/darwin/amd64/signal.c
+index 8ceb17ed38..5e26a713ee 100644
+--- a/src/pkg/runtime/darwin/amd64/signal.c
++++ b/src/pkg/runtime/darwin/amd64/signal.c
+@@ -33,6 +33,14 @@ dumpregs(Regs *r)
+ 	printf("gs      %X\n", r->gs);
+ }
+ 
++String
++signame(int32 sig)
++{
++	if(sig < 0 || sig >= NSIG)
++		return emptystring;
++	return gostring((byte*)sigtab[sig].name);
++}
++
+ void
+ sighandler(int32 sig, Siginfo *info, void *context)
+ {
+@@ -40,6 +48,11 @@ sighandler(int32 sig, Siginfo *info, void *context)
+ 	Mcontext *mc;
+ 	Regs *r;
+ 
++	if(sigtab[sig].flags & SigQueue) {
++		sigsend(sig);
++		return;
++	}
++
+ 	if(panicking)	// traceback already printed
+ 		exit(2);
+ 	panicking = 1;
+@@ -90,12 +103,14 @@ initsig(void)
+ 	int32 i;
+ 	static Sigaction sa;
+ 
++	siginit();
++
+ 	sa.sa_flags |= SA_SIGINFO|SA_ONSTACK;
+ 	sa.sa_mask = 0xFFFFFFFFU;
+ 	sa.sa_tramp = sigtramp;	// sigtramp's job is to call into real handler
+ 	for(i = 0; i<NSIG; i++) {
+ 		if(sigtab[i].flags) {
+-			if(sigtab[i].flags & SigCatch) {
++			if(sigtab[i].flags & (SigCatch | SigQueue)) {
+ 				sa.__sigaction_u.__sa_sigaction = sighandler;
+ 			} else {
+ 				sa.__sigaction_u.__sa_sigaction = sigignore;
+@@ -108,4 +123,3 @@ initsig(void)
+ 		}
+ 	}
+ }
+-
+diff --git a/src/pkg/runtime/darwin/signals.h b/src/pkg/runtime/darwin/signals.h
+index 8cca361f75..48a5db12d8 100644
+--- a/src/pkg/runtime/darwin/signals.h
++++ b/src/pkg/runtime/darwin/signals.h
+@@ -5,11 +5,12 @@
+ #define C SigCatch
+ #define I SigIgnore
+ #define R SigRestart
++#define Q SigQueue
+ 
+ static SigTab sigtab[] = {
+ 	/* 0 */	0, "SIGNONE: no trap",
+-	/* 1 */	0, "SIGHUP: terminal line hangup",
+-	/* 2 */	0, "SIGINT: interrupt",
++	/* 1 */	Q+R, "SIGHUP: terminal line hangup",
++	/* 2 */	Q+R, "SIGINT: interrupt",
+ 	/* 3 */	C, "SIGQUIT: quit",
+ 	/* 4 */	C, "SIGILL: illegal instruction",
+ 	/* 5 */	C, "SIGTRAP: trace trap",	/* used by panic and array out of bounds, etc. */
+@@ -21,27 +22,28 @@ static SigTab sigtab[] = {
+ 	/* 11 */	C, "SIGSEGV: segmentation violation",
+ 	/* 12 */	C, "SIGSYS: bad system call",
+ 	/* 13 */	I, "SIGPIPE: write to broken pipe",
+-	/* 14 */	0, "SIGALRM: alarm clock",
+-	/* 15 */	0, "SIGTERM: termination",
+-	/* 16 */	0, "SIGURG: urgent condition on socket",
++	/* 14 */	Q+R, "SIGALRM: alarm clock",
++	/* 15 */	Q+R, "SIGTERM: termination",
++	/* 16 */	Q+R, "SIGURG: urgent condition on socket",
+ 	/* 17 */	0, "SIGSTOP: stop",
+-	/* 18 */	0, "SIGTSTP: keyboard stop",
++	/* 18 */	Q+R, "SIGTSTP: keyboard stop",
+ 	/* 19 */	0, "SIGCONT: continue after stop",
+ 	/* 20 */	I+R, "SIGCHLD: child status has changed",
+-	/* 21 */	0, "SIGTTIN: background read from tty",
+-	/* 22 */	0, "SIGTTOU: background write to tty",
+-	/* 23 */	0, "SIGIO: i/o now possible",
+-	/* 24 */	0, "SIGXCPU: cpu limit exceeded",
+-	/* 25 */	0, "SIGXFSZ: file size limit exceeded",
+-	/* 26 */	0, "SIGVTALRM: virtual alarm clock",
+-	/* 27 */	0, "SIGPROF: profiling alarm clock",
+-	/* 28 */	I+R, "SIGWINCH: window size change",
+-	/* 29 */	0, "SIGINFO: status request from keyboard",
+-	/* 30 */	0, "SIGUSR1: user-defined signal 1",
+-	/* 31 */	0, "SIGUSR2: user-defined signal 2",
++	/* 21 */	Q+R, "SIGTTIN: background read from tty",
++	/* 22 */	Q+R, "SIGTTOU: background write to tty",
++	/* 23 */	Q+R, "SIGIO: i/o now possible",
++	/* 24 */	Q+R, "SIGXCPU: cpu limit exceeded",
++	/* 25 */	Q+R, "SIGXFSZ: file size limit exceeded",
++	/* 26 */	Q+R, "SIGVTALRM: virtual alarm clock",
++	/* 27 */	Q+R, "SIGPROF: profiling alarm clock",
++	/* 28 */	Q+R, "SIGWINCH: window size change",
++	/* 29 */	Q+R, "SIGINFO: status request from keyboard",
++	/* 30 */	Q+R, "SIGUSR1: user-defined signal 1",
++	/* 31 */	Q+R, "SIGUSR2: user-defined signal 2",
+ };
+ #undef C
+ #undef I
+ #undef R
++#undef Q
+ 
+ #define	NSIG 32
+diff --git a/src/pkg/runtime/extern.go b/src/pkg/runtime/extern.go
+index 575caf1f21..27cb73c558 100644
+--- a/src/pkg/runtime/extern.go
++++ b/src/pkg/runtime/extern.go
+@@ -59,3 +59,10 @@ func Semacquire(s *uint32)
+ // It is intended as a simple wakeup primitive for use by the synchronization
+ // library and should not be used directly.
+ func Semrelease(s *uint32)
++
++// Sigrecv returns a bitmask of signals that have arrived since the last call to Sigrecv.
++// It blocks until at least one signal arrives.
++func Sigrecv() uint32
++
++// Signame returns a string describing the signal, or "" if the signal is unknown.
++func Signame(sig int32) string
+diff --git a/src/pkg/runtime/freebsd/386/signal.c b/src/pkg/runtime/freebsd/386/signal.c
+index 1654d2bc3b..7bad780844 100644
+--- a/src/pkg/runtime/freebsd/386/signal.c
++++ b/src/pkg/runtime/freebsd/386/signal.c
+@@ -1,3 +1,7 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ #include "runtime.h"
+ #include "defs.h"
+ #include "signals.h"
+@@ -32,12 +36,25 @@ dumpregs(Mcontext *r)
+ 	printf("gs      %x\n", r->mc_gs);
+ }
+ 
++String
++signame(int32 sig)
++{
++	if(sig < 0 || sig >= NSIG)
++		return emptystring;
++	return gostring((byte*)sigtab[sig].name);
++}
++
+ void
+ sighandler(int32 sig, Siginfo* info, void* context)
+ {
+ 	Ucontext *uc;
+ 	Mcontext *mc;
+ 
++	if(sigtab[sig].flags & SigQueue) {
++		sigsend(sig);
++		return;
++	}
++
+ 	if(panicking)	// traceback already printed
+ 		exit(2);
+ 	panicking = 1;
+@@ -85,13 +102,15 @@ initsig(void)
+ {
+ 	static Sigaction sa;
+ 
++	siginit();
++
+ 	int32 i;
+ 	sa.sa_flags |= SA_ONSTACK | SA_SIGINFO;
+ 	sa.sa_mask = ~0x0ull;
+ 	
+ 	for(i = 0; i < NSIG; i++) {
+ 		if(sigtab[i].flags) {
+-			if(sigtab[i].flags & SigCatch)
++			if(sigtab[i].flags & (SigCatch | SigQueue))
+ 				sa.__sigaction_u.__sa_sigaction = (void*) sigtramp;
+ 			else
+ 				sa.__sigaction_u.__sa_sigaction = (void*) sigignore;
+diff --git a/src/pkg/runtime/freebsd/amd64/signal.c b/src/pkg/runtime/freebsd/amd64/signal.c
+index a7ed8260e9..ed03db1bcc 100644
+--- a/src/pkg/runtime/freebsd/amd64/signal.c
++++ b/src/pkg/runtime/freebsd/amd64/signal.c
+@@ -1,3 +1,7 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ #include "runtime.h"
+ #include "defs.h"
+ #include "signals.h"
+@@ -40,12 +44,25 @@ dumpregs(Mcontext *r)
+ 	printf("gs      %X\n", r->mc_gs);
+ }
+ 
++String
++signame(int32 sig)
++{
++	if(sig < 0 || sig >= NSIG)
++		return emptystring;
++	return gostring((byte*)sigtab[sig].name);
++}
++
+ void
+ sighandler(int32 sig, Siginfo* info, void* context)
+ {
+ 	Ucontext *uc;
+ 	Mcontext *mc;
+ 
++	if(sigtab[sig].flags & SigQueue) {
++		sigsend(sig);
++		return;
++	}
++
+ 	if(panicking)	// traceback already printed
+ 		exit(2);
+ 	panicking = 1;
+@@ -93,13 +110,15 @@ initsig(void)
+ {
+ 	static Sigaction sa;
+ 
++	siginit();
++
+ 	int32 i;
+ 	sa.sa_flags |= SA_ONSTACK | SA_SIGINFO;
+ 	sa.sa_mask = ~0x0ull;
+ 	
+ 	for(i = 0; i < NSIG; i++) {
+ 		if(sigtab[i].flags) {
+-			if(sigtab[i].flags & SigCatch)
++			if(sigtab[i].flags & (SigCatch | SigQueue))
+ 				sa.__sigaction_u.__sa_sigaction = (void*) sigtramp;
+ 			else
+ 				sa.__sigaction_u.__sa_sigaction = (void*) sigignore;
+diff --git a/src/pkg/runtime/freebsd/signals.h b/src/pkg/runtime/freebsd/signals.h
+index c566481e05..91ddef8889 100644
+--- a/src/pkg/runtime/freebsd/signals.h
++++ b/src/pkg/runtime/freebsd/signals.h
+@@ -5,11 +5,12 @@
+ #define C SigCatch
+ #define I SigIgnore
+ #define R SigRestart
++#define Q SigQueue
+ 
+ static SigTab sigtab[] = {
+ 	/* 0 */		0, "SIGNONE: no trap",
+-	/* 1 */		0, "SIGHUP: terminal line hangup",
+-	/* 2 */		0, "SIGINT: interrupt",
++	/* 1 */		Q+R, "SIGHUP: terminal line hangup",
++	/* 2 */		Q+R, "SIGINT: interrupt",
+ 	/* 3 */		C, "SIGQUIT: quit",
+ 	/* 4 */		C, "SIGILL: illegal instruction",
+ 	/* 5 */		C, "SIGTRAP: trace trap",
+@@ -21,28 +22,29 @@ static SigTab sigtab[] = {
+ 	/* 11 */	C, "SIGSEGV: segmentation violation",
+ 	/* 12 */	C, "SIGSYS: bad system call",
+ 	/* 13 */	I, "SIGPIPE: write to broken pipe",
+-	/* 14 */	0, "SIGALRM: alarm clock",
+-	/* 15 */	0, "SIGTERM: termination",
+-	/* 16 */	0, "SIGURG: urgent condition on socket",
++	/* 14 */	Q+R, "SIGALRM: alarm clock",
++	/* 15 */	Q+R, "SIGTERM: termination",
++	/* 16 */	Q+R, "SIGURG: urgent condition on socket",
+ 	/* 17 */	0, "SIGSTOP: stop, unblockable",
+-	/* 18 */	0, "SIGTSTP: stop from tty",
++	/* 18 */	Q+R, "SIGTSTP: stop from tty",
+ 	/* 19 */	0, "SIGCONT: continue",
+ 	/* 20 */	I+R, "SIGCHLD: child status has changed",
+-	/* 21 */	0, "SIGTTIN: background read from tty",
+-	/* 22 */	0, "SIGTTOU: background write to tty",
+-	/* 23 */	0, "SIGIO: i/o now possible",
+-	/* 24 */	0, "SIGXCPU: cpu limit exceeded",
+-	/* 25 */	0, "SIGXFSZ: file size limit exceeded",
+-	/* 26 */	0, "SIGVTALRM: virtual alarm clock",
+-	/* 27 */	0, "SIGPROF: profiling alarm clock",
++	/* 21 */	Q+R, "SIGTTIN: background read from tty",
++	/* 22 */	Q+R, "SIGTTOU: background write to tty",
++	/* 23 */	Q+R, "SIGIO: i/o now possible",
++	/* 24 */	Q+R, "SIGXCPU: cpu limit exceeded",
++	/* 25 */	Q+R, "SIGXFSZ: file size limit exceeded",
++	/* 26 */	Q+R, "SIGVTALRM: virtual alarm clock",
++	/* 27 */	Q+R, "SIGPROF: profiling alarm clock",
+ 	/* 28 */	I+R, "SIGWINCH: window size change",
+-	/* 29 */	0, "SIGINFO: information request",
+-	/* 30 */	0, "SIGUSR1: user-defined signal 1",
+-	/* 31 */	0, "SIGUSR2: user-defined signal 2",
+-	/* 32 */	0, "SIGTHR: reserved",
++	/* 29 */	Q+R, "SIGINFO: information request",
++	/* 30 */	Q+R, "SIGUSR1: user-defined signal 1",
++	/* 31 */	Q+R, "SIGUSR2: user-defined signal 2",
++	/* 32 */	Q+R, "SIGTHR: reserved",
+ };
+ #undef C
+ #undef I
+ #undef R
++#undef Q
+ 
+ #define	NSIG 33
+diff --git a/src/pkg/runtime/linux/386/signal.c b/src/pkg/runtime/linux/386/signal.c
+index 90685d8799..2e6c7a5ff0 100644
+--- a/src/pkg/runtime/linux/386/signal.c
++++ b/src/pkg/runtime/linux/386/signal.c
+@@ -33,12 +33,25 @@ extern void sigtramp(void);
+ extern void sigignore(void);	// just returns
+ extern void sigreturn(void);	// calls sigreturn
+ 
++String
++signame(int32 sig)
++{
++	if(sig < 0 || sig >= NSIG)
++		return emptystring;
++	return gostring((byte*)sigtab[sig].name);
++}
++
+ void
+ sighandler(int32 sig, Siginfo* info, void* context)
+ {
+ 	Ucontext *uc;
+ 	Sigcontext *sc;
+ 
++	if(sigtab[sig].flags & SigQueue) {
++		sigsend(sig);
++		return;
++	}
++
+ 	if(panicking)	// traceback already printed
+ 		exit(2);
+ 	panicking = 1;
+@@ -81,13 +94,15 @@ initsig(void)
+ {
+ 	static Sigaction sa;
+ 
++	siginit();
++
+ 	int32 i;
+ 	sa.sa_flags = SA_ONSTACK | SA_SIGINFO | SA_RESTORER;
+ 	sa.sa_mask = 0xFFFFFFFFFFFFFFFFULL;
+ 	sa.sa_restorer = (void*)sigreturn;
+ 	for(i = 0; i<NSIG; i++) {
+ 		if(sigtab[i].flags) {
+-			if(sigtab[i].flags & SigCatch)
++			if(sigtab[i].flags & (SigCatch | SigQueue))
+ 				sa.k_sa_handler = (void*)sigtramp;
+ 			else
+ 				sa.k_sa_handler = (void*)sigignore;
+@@ -99,4 +114,3 @@ initsig(void)
+ 		}
+ 	}
+ }
+-
+diff --git a/src/pkg/runtime/linux/amd64/signal.c b/src/pkg/runtime/linux/amd64/signal.c
+index 55215176de..693b8c7042 100644
+--- a/src/pkg/runtime/linux/amd64/signal.c
++++ b/src/pkg/runtime/linux/amd64/signal.c
+@@ -41,6 +41,14 @@ extern void sigtramp(void);
+ extern void sigignore(void);	// just returns
+ extern void sigreturn(void);	// calls sigreturn
+ 
++String
++signame(int32 sig)
++{
++	if(sig < 0 || sig >= NSIG)
++		return emptystring;
++	return gostring((byte*)sigtab[sig].name);
++}
++
+ void
+ sighandler(int32 sig, Siginfo* info, void* context)
+ {
+@@ -48,6 +56,11 @@ sighandler(int32 sig, Siginfo* info, void* context)
+ 	Mcontext *mc;
+ 	Sigcontext *sc;
+ 
++	if(sigtab[sig].flags & SigQueue) {
++		sigsend(sig);
++		return;
++	}
++
+ 	if(panicking)	// traceback already printed
+ 		exit(2);
+ 	panicking = 1;
+@@ -91,13 +104,15 @@ initsig(void)
+ {
+ 	static Sigaction sa;
+ 
++	siginit();
++
+ 	int32 i;
+ 	sa.sa_flags = SA_ONSTACK | SA_SIGINFO | SA_RESTORER;
+ 	sa.sa_mask = 0xFFFFFFFFFFFFFFFFULL;
+ 	sa.sa_restorer = (void*)sigreturn;
+ 	for(i = 0; i<NSIG; i++) {
+ 		if(sigtab[i].flags) {
+-			if(sigtab[i].flags & SigCatch)
++			if(sigtab[i].flags & (SigCatch | SigQueue))
+ 				sa.sa_handler = (void*)sigtramp;
+ 			else
+ 				sa.sa_handler = (void*)sigignore;
+@@ -109,4 +124,3 @@ initsig(void)
+ 		}
+ 	}
+ }
+-
+diff --git a/src/pkg/runtime/linux/arm/signal.c b/src/pkg/runtime/linux/arm/signal.c
+index f14dcbf912..2400575481 100644
+--- a/src/pkg/runtime/linux/arm/signal.c
++++ b/src/pkg/runtime/linux/arm/signal.c
+@@ -35,6 +35,14 @@ extern void sigtramp(void);
+ extern void sigignore(void);	// just returns
+ extern void sigreturn(void);	// calls sigreturn
+ 
++String
++signame(int32 sig)
++{
++	if(sig < 0 || sig >= NSIG)
++		return emptystring;
++	return gostring((byte*)sigtab[sig].name);
++}
++
+ void sighandler(void) {}
+ // void
+ // sighandler(int32 sig, Siginfo* info, void* context)
+diff --git a/src/pkg/runtime/linux/signals.h b/src/pkg/runtime/linux/signals.h
+index 8f1112b991..883ac4e04a 100644
+--- a/src/pkg/runtime/linux/signals.h
++++ b/src/pkg/runtime/linux/signals.h
+@@ -5,11 +5,12 @@
+ #define C SigCatch
+ #define I SigIgnore
+ #define R SigRestart
++#define Q SigQueue
+ 
+ static SigTab sigtab[] = {
+ 	/* 0 */	0, "SIGNONE: no trap",
+-	/* 1 */	0, "SIGHUP: terminal line hangup",
+-	/* 2 */	0, "SIGINT: interrupt",
++	/* 1 */	Q+R, "SIGHUP: terminal line hangup",
++	/* 2 */	Q+R, "SIGINT: interrupt",
+ 	/* 3 */	C, "SIGQUIT: quit",
+ 	/* 4 */	C, "SIGILL: illegal instruction",
+ 	/* 5 */	C, "SIGTRAP: trace trap",
+@@ -17,31 +18,32 @@ static SigTab sigtab[] = {
+ 	/* 7 */	C, "SIGBUS: bus error",
+ 	/* 8 */	C, "SIGFPE: floating-point exception",
+ 	/* 9 */	0, "SIGKILL: kill",
+-	/* 10 */	0, "SIGUSR1: user-defined signal 1",
++	/* 10 */	Q+R, "SIGUSR1: user-defined signal 1",
+ 	/* 11 */	C, "SIGSEGV: segmentation violation",
+-	/* 12 */	0, "SIGUSR2: user-defined signal 2",
++	/* 12 */	Q+R, "SIGUSR2: user-defined signal 2",
+ 	/* 13 */	I, "SIGPIPE: write to broken pipe",
+-	/* 14 */	0, "SIGALRM: alarm clock",
+-	/* 15 */	0, "SIGTERM: termination",
+-	/* 16 */	0, "SIGSTKFLT: stack fault",
+-	/* 17 */	I+R, "SIGCHLD: child status has changed",
++	/* 14 */	Q+R, "SIGALRM: alarm clock",
++	/* 15 */	Q+R, "SIGTERM: termination",
++	/* 16 */	Q+R, "SIGSTKFLT: stack fault",
++	/* 17 */	Q+R, "SIGCHLD: child status has changed",
+ 	/* 18 */	0, "SIGCONT: continue",
+ 	/* 19 */	0, "SIGSTOP: stop, unblockable",
+-	/* 20 */	0, "SIGTSTP: keyboard stop",
+-	/* 21 */	0, "SIGTTIN: background read from tty",
+-	/* 22 */	0, "SIGTTOU: background write to tty",
+-	/* 23 */	0, "SIGURG: urgent condition on socket",
+-	/* 24 */	0, "SIGXCPU: cpu limit exceeded",
+-	/* 25 */	0, "SIGXFSZ: file size limit exceeded",
+-	/* 26 */	0, "SIGVTALRM: virtual alarm clock",
+-	/* 27 */	0, "SIGPROF: profiling alarm clock",
+-	/* 28 */	I+R, "SIGWINCH: window size change",
+-	/* 29 */	0, "SIGIO: i/o now possible",
+-	/* 30 */	0, "SIGPWR: power failure restart",
++	/* 20 */	Q+R, "SIGTSTP: keyboard stop",
++	/* 21 */	Q+R, "SIGTTIN: background read from tty",
++	/* 22 */	Q+R, "SIGTTOU: background write to tty",
++	/* 23 */	Q+R, "SIGURG: urgent condition on socket",
++	/* 24 */	Q+R, "SIGXCPU: cpu limit exceeded",
++	/* 25 */	Q+R, "SIGXFSZ: file size limit exceeded",
++	/* 26 */	Q+R, "SIGVTALRM: virtual alarm clock",
++	/* 27 */	Q+R, "SIGPROF: profiling alarm clock",
++	/* 28 */	Q+R, "SIGWINCH: window size change",
++	/* 29 */	Q+R, "SIGIO: i/o now possible",
++	/* 30 */	Q+R, "SIGPWR: power failure restart",
+ 	/* 31 */	C, "SIGSYS: bad system call",
+ };
+ #undef C
+ #undef I
+ #undef R
++#undef Q
+ 
+ #define	NSIG 32
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index e81089bfae..60d76bc0f7 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -527,12 +527,9 @@ gosched(void)
+ // Record that it's not using the cpu anymore.
+ // This is called only from the go syscall library, not
+ // from the low-level system calls used by the runtime.
+-// The "arguments" are syscall.Syscall's stack frame
+ void
+-runtime·entersyscall(uint64 callerpc, int64 trap)
++runtime·entersyscall(void)
+ {
+-	USED(callerpc, trap);
+-
+ 	lock(&sched);
+ 	if(sched.predawn) {
+ 		unlock(&sched);
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 54bc9d8f2d..46df412b39 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -235,6 +235,7 @@ enum
+ 	SigCatch = 1<<0,
+ 	SigIgnore = 1<<1,
+ 	SigRestart = 1<<2,
++	SigQueue = 1<<3,
+ };
+ 
+ // (will be) shared with go; edit ../cmd/6g/sys.go too.
+@@ -373,6 +374,10 @@ void	breakpoint(void);
+ void	gosched(void);
+ void	goexit(void);
+ void	runcgo(void (*fn)(void*), void*);
++void	entersyscall(void);
++void	exitsyscall(void);
++void	siginit(void);
++void	sigsend(int32 sig);
+ 
+ #pragma	varargck	argpos	printf	1
+ 
+@@ -485,6 +490,8 @@ float64	ldexp(float64 d, int32 e);
+ float64	modf(float64 d, float64 *ip);
+ void	semacquire(uint32*);
+ void	semrelease(uint32*);
++String	signame(int32 sig);
++
+ 
+ void	mapassign(Hmap*, byte*, byte*);
+ void	mapaccess(Hmap*, byte*, byte*, bool*);
+diff --git a/src/pkg/runtime/sigqueue.cgo b/src/pkg/runtime/sigqueue.cgo
+new file mode 100644
+index 0000000000..059d3edd1c
+--- /dev/null
++++ b/src/pkg/runtime/sigqueue.cgo
+@@ -0,0 +1,90 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This file implements runtime support for signal handling.
++//
++// Most synchronization primitives are not available from
++// the signal handler (it cannot block and cannot use locks)
++// so the handler communicates with a processing goroutine
++// via struct sig, below.
++//
++// Ownership for sig.Note passes back and forth between
++// the signal handler and the signal goroutine in rounds.
++// The initial state is that sig.note is cleared (setup by siginit).
++// At the beginning of each round, mask == 0.
++// The round goes through three stages:
++//
++// (In parallel)
++// 1a) One or more signals arrive and are handled
++// by sigsend using cas to set bits in sig.mask.
++// The handler that changes sig.mask from zero to non-zero
++// calls notewakeup(&sig).
++// 1b) Sigrecv calls notesleep(&sig) to wait for the wakeup.
++//
++// 2) Having received the wakeup, sigrecv knows that sigsend
++// will not send another wakeup, so it can noteclear(&sig)
++// to prepare for the next round. (Sigsend may still be adding
++// signals to sig.mask at this point, which is fine.)
++//
++// 3) Sigrecv uses cas to grab the current sig.mask and zero it,
++// triggering the next round.
++//
++// The signal handler takes ownership of the note by atomically
++// changing mask from a zero to non-zero value. It gives up
++// ownership by calling notewakeup. The signal goroutine takes
++// ownership by returning from notesleep (caused by the notewakeup)
++// and gives up ownership by clearing mask.
++
++package runtime
++#include "runtime.h"
++#include "defs.h"
++
++static struct {
++	Note;
++	uint32 mask;
++} sig;
++
++void
++siginit(void)
++{
++	noteclear(&sig);
++}
++
++// Called from sighandler to send a signal back out of the signal handling thread.
++void
++sigsend(int32 s)
++{
++	uint32 bit, mask;
++
++	bit = 1 << s;
++	for(;;) {
++		mask = sig.mask;
++		if(mask & bit)
++			return;		// signal already in queue
++		if(cas(&sig.mask, mask, mask|bit)) {
++			// Added to queue.
++			// Only send a wakeup for the first signal in each round.
++			if(mask == 0)
++				notewakeup(&sig);
++			return;
++		}
++	}
++}
++
++// Called to receive a bitmask of queued signals.
++func Sigrecv() (m uint32) {
++	runtime·entersyscall();
++	notesleep(&sig);
++	runtime·exitsyscall();
++	noteclear(&sig);
++	for(;;) {
++		m = sig.mask;
++		if(cas(&sig.mask, m, 0))
++			break;
++	}
++}
++
++func Signame(sig int32) (name String) {
++	name = signame(sig);
++}

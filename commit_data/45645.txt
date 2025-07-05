@@ -18,7 +18,43 @@ Date:   Fri Aug 28 06:39:43 2020 +0700
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Trust: Robert Griesemer <gri@golang.org>
     Trust: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/go/doc/comment.go      |  2 +-
  src/go/doc/comment_test.go | 11 +++++++++++
  2 files changed, 12 insertions(+), 1 deletion(-)
+
+diff --git a/src/go/doc/comment.go b/src/go/doc/comment.go
+index da33f21612..92131a3b83 100644
+--- a/src/go/doc/comment.go
++++ b/src/go/doc/comment.go
+@@ -487,7 +487,7 @@ func (l *lineWrapper) write(text string) {
+ 			l.out.Write(nl)
+ 			l.n = 0
+ 			l.pendSpace = 0
+-			needsPrefix = isComment
++			needsPrefix = isComment && !strings.HasPrefix(f, "//")
+ 		}
+ 		if l.n == 0 {
+ 			l.out.Write([]byte(l.indent))
+diff --git a/src/go/doc/comment_test.go b/src/go/doc/comment_test.go
+index 101f446287..6d1b209e1e 100644
+--- a/src/go/doc/comment_test.go
++++ b/src/go/doc/comment_test.go
+@@ -152,6 +152,17 @@ A very long line of 46 char for line wrapping. */`,
+ 		text: `.   /* A very long line of 46 char for line
+ .   wrapping. A very long line of 46 char
+ .   for line wrapping. */
++`,
++	},
++	{
++		in: `A line of 36 char for line wrapping.
++//Another line starting with //`,
++		out: []block{
++			{opPara, []string{"A line of 36 char for line wrapping.\n",
++				"//Another line starting with //"}},
++		},
++		text: `.   A line of 36 char for line wrapping.
++.   //Another line starting with //
+ `,
+ 	},
+ }

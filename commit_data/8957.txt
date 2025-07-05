@@ -8,8 +8,74 @@ Date:   Wed Jul 6 17:46:36 2011 +1000
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/4643071
-
+---
  src/pkg/exp/template/exec.go       | 6 ++----
  src/pkg/exp/template/parse_test.go | 5 +++--
  src/pkg/exp/template/set_test.go   | 2 +-
  3 files changed, 6 insertions(+), 7 deletions(-)
+
+diff --git a/src/pkg/exp/template/exec.go b/src/pkg/exp/template/exec.go
+index b8cfb54806..6f171da384 100644
+--- a/src/pkg/exp/template/exec.go
++++ b/src/pkg/exp/template/exec.go
+@@ -200,8 +200,7 @@ func (s *state) evalCommand(data reflect.Value, cmd *commandNode, final reflect.
+ 		return s.evalFieldOrCall(data, n.ident, cmd.args, final)
+ 	}
+ 	if len(cmd.args) > 1 || final.IsValid() {
+-		// TODO: functions
+-		s.errorf("can't give argument to non-method %s", cmd.args[0])
++		s.errorf("can't give argument to non-function %s", cmd.args[0])
+ 	}
+ 	switch word := cmd.args[0].(type) {
+ 	case *dotNode:
+@@ -224,9 +223,8 @@ func (s *state) evalCommand(data reflect.Value, cmd *commandNode, final reflect.
+ 		}
+ 	case *stringNode:
+ 		return reflect.ValueOf(word.text)
+-	default:
+-		s.errorf("can't handle command %q", firstWord)
+ 	}
++	s.errorf("can't handle command %q", firstWord)
+ 	panic("not reached")
+ }
+ 
+diff --git a/src/pkg/exp/template/parse_test.go b/src/pkg/exp/template/parse_test.go
+index 70c9f5a64c..34b0da6ebf 100644
+--- a/src/pkg/exp/template/parse_test.go
++++ b/src/pkg/exp/template/parse_test.go
+@@ -5,11 +5,12 @@
+ package template
+ 
+ import (
++	"flag"
+ 	"fmt"
+ 	"testing"
+ )
+ 
+-const dumpErrors = true
++var debug = flag.Bool("debug", false, "show the errors produced by the tests")
+ 
+ type numberTest struct {
+ 	text      string
+@@ -193,7 +194,7 @@ func TestParse(t *testing.T) {
+ 			continue
+ 		case err != nil && !test.ok:
+ 			// expected error, got one
+-			if dumpErrors {
++			if *debug {
+ 				fmt.Printf("%s: %s\n\t%s\n", test.name, test.input, err)
+ 			}
+ 			continue
+diff --git a/src/pkg/exp/template/set_test.go b/src/pkg/exp/template/set_test.go
+index 873d261b3d..c0115ec0ad 100644
+--- a/src/pkg/exp/template/set_test.go
++++ b/src/pkg/exp/template/set_test.go
+@@ -49,7 +49,7 @@ func TestSetParse(t *testing.T) {
+ 			continue
+ 		case err != nil && !test.ok:
+ 			// expected error, got one
+-			if dumpErrors {
++			if *debug {
+ 				fmt.Printf("%s: %s\n\t%s\n", test.name, test.input, err)
+ 			}
+ 			continue

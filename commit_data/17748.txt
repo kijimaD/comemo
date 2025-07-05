@@ -9,6 +9,20 @@ Date:   Fri Oct 4 13:53:34 2013 +1000
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/14231047
-
+---
  src/pkg/runtime/os_windows.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/os_windows.c b/src/pkg/runtime/os_windows.c
+index c3e296aa67..44c9b342de 100644
+--- a/src/pkg/runtime/os_windows.c
++++ b/src/pkg/runtime/os_windows.c
+@@ -402,7 +402,7 @@ profilem(M *mp)
+ 		tls = runtime·tls0;
+ 	gp = *(G**)tls;
+ 
+-	if(gp != nil && gp != mp->g0 && gp->status != Gsyscall) {
++	if(gp != nil) {
+ 		// align Context to 16 bytes
+ 		r = (Context*)((uintptr)(&rbuf[15]) & ~15);
+ 		r->ContextFlags = CONTEXT_CONTROL;

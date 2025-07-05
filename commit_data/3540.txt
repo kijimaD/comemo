@@ -8,6 +8,20 @@ Date:   Wed Oct 14 18:10:00 2009 -0700
     DELTA=1  (0 added, 0 deleted, 1 changed)
     OCL=35737
     CL=35745
-
+---
  src/pkg/exp/datafmt/Makefile | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/exp/datafmt/Makefile b/src/pkg/exp/datafmt/Makefile
+index 421382d983..57836a1b3b 100644
+--- a/src/pkg/exp/datafmt/Makefile
++++ b/src/pkg/exp/datafmt/Makefile
+@@ -4,7 +4,7 @@
+ 
+ include $(GOROOT)/src/Make.$(GOARCH)
+ 
+-TARG=datafmt
++TARG=exp/datafmt
+ GOFILES=\
+ 	datafmt.go\
+ 	parser.go\

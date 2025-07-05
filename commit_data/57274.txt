@@ -17,9 +17,96 @@ Date:   Sun Jul 23 05:21:31 2023 -0400
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Auto-Submit: Russ Cox <rsc@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/cmd/dist/README | 22 ++++++++--------------
  src/make.bash       |  8 ++++----
  src/make.bat        |  2 +-
  src/make.rc         |  2 +-
  4 files changed, 14 insertions(+), 20 deletions(-)
+
+diff --git a/src/cmd/dist/README b/src/cmd/dist/README
+index 673c0f38c8..f9220b4cf5 100644
+--- a/src/cmd/dist/README
++++ b/src/cmd/dist/README
+@@ -4,24 +4,18 @@ As of Go 1.5, dist and other parts of the compiler toolchain are written
+ in Go, making bootstrapping a little more involved than in the past.
+ The approach is to build the current release of Go with an earlier one.
+ 
+-The process to install Go 1.x, for x ≥ 20, is:
++The process to install Go 1.x, for x ≥ 22, is:
+ 
+-1. Build cmd/dist with Go 1.17.13.
+-2. Using dist, build Go 1.x compiler toolchain with Go 1.17.13.
++1. Build cmd/dist with Go 1.20.6.
++2. Using dist, build Go 1.x compiler toolchain with Go 1.20.6.
+ 3. Using dist, rebuild Go 1.x compiler toolchain with itself.
+ 4. Using dist, build Go 1.x cmd/go (as go_bootstrap) with Go 1.x compiler toolchain.
+ 5. Using go_bootstrap, build the remaining Go 1.x standard library and commands.
+ 
+-NOTE: During the transition from the old C-based toolchain to the Go-based one,
+-step 2 also builds the parts of the toolchain written in C, and step 3 does not
+-recompile those.
++Because of backward compatibility, although the steps above say Go 1.20.6,
++in practice any release ≥ Go 1.20.6 but < Go 1.x will work as the bootstrap base.
++Releases ≥ Go 1.x are very likely to work as well.
+ 
+-Because of backward compatibility, although the steps above say Go 1.17.13,
+-in practice any release ≥ Go 1.17.13 but < Go 1.x will work as the bootstrap base.
++See golang.org/s/go15bootstrap for more details about the original bootstrap
++and https://go.dev/cl/54265 for details about later bootstrap version bumps.
+ 
+-See golang.org/s/go15bootstrap for more details.
+-
+-Compared to Go 1.4 and earlier, dist will also take over much of what used to
+-be done by make.bash/make.bat/make.rc and all of what used to be done by
+-run.bash/run.bat/run.rc, because it is nicer to implement that logic in Go
+-than in three different scripting languages simultaneously.
+diff --git a/src/make.bash b/src/make.bash
+index 755b3b0b9e..e8f002adb0 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -67,14 +67,14 @@
+ # timing information to this file. Useful for profiling where the
+ # time goes when these scripts run.
+ #
+-# GOROOT_BOOTSTRAP: A working Go tree >= Go 1.17.13 for bootstrap.
++# GOROOT_BOOTSTRAP: A working Go tree >= Go 1.20.6 for bootstrap.
+ # If $GOROOT_BOOTSTRAP/bin/go is missing, $(go env GOROOT) is
+-# tried for all "go" in $PATH. By default, one of $HOME/go1.17.13,
+-# $HOME/sdk/go1.17.13, or $HOME/go1.4, whichever exists, in that order.
++# tried for all "go" in $PATH. By default, one of $HOME/go1.20.6,
++# $HOME/sdk/go1.20.6, or $HOME/go1.4, whichever exists, in that order.
+ # We still check $HOME/go1.4 to allow for build scripts that still hard-code
+ # that name even though they put newer Go toolchains there.
+ 
+-bootgo=1.17.13
++bootgo=1.20.6
+ 
+ set -e
+ 
+diff --git a/src/make.bat b/src/make.bat
+index 3b861cb91d..5e76368199 100644
+--- a/src/make.bat
++++ b/src/make.bat
+@@ -85,7 +85,7 @@ for /f "tokens=*" %%g in ('where go 2^>nul') do (
+ 	)
+ )
+ 
+-set bootgo=1.17.13
++set bootgo=1.20.6
+ if "x%GOROOT_BOOTSTRAP%"=="x" if exist "%HOMEDRIVE%%HOMEPATH%\go%bootgo%" set GOROOT_BOOTSTRAP=%HOMEDRIVE%%HOMEPATH%\go%bootgo%
+ if "x%GOROOT_BOOTSTRAP%"=="x" if exist "%HOMEDRIVE%%HOMEPATH%\sdk\go%bootgo%" set GOROOT_BOOTSTRAP=%HOMEDRIVE%%HOMEPATH%\sdk\go%bootgo%
+ if "x%GOROOT_BOOTSTRAP%"=="x" set GOROOT_BOOTSTRAP=%HOMEDRIVE%%HOMEPATH%\Go1.4
+diff --git a/src/make.rc b/src/make.rc
+index 834c1f1ba6..b10be7dbd1 100755
+--- a/src/make.rc
++++ b/src/make.rc
+@@ -51,7 +51,7 @@ fn nogoenv {
+ 	GO111MODULE=off GOENV=off GOOS=() GOARCH=() GOEXPERIMENT=() GOFLAGS=() $*
+ }
+ 
+-bootgo = 1.17.13
++bootgo = 1.20.6
+ GOROOT = `{cd .. && pwd}
+ goroot_bootstrap_set = 'true'
+ if(! ~ $#GOROOT_BOOTSTRAP 1){

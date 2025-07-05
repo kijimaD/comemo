@@ -9,7 +9,43 @@ Date:   Thu Sep 30 14:39:52 2021 -0700
     Trust: Robert Griesemer <gri@golang.org>
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/go/internal/gccgoimporter/parser.go | 4 ++--
  src/go/types/universe.go                | 2 +-
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/go/internal/gccgoimporter/parser.go b/src/go/internal/gccgoimporter/parser.go
+index 1b1d07d3f6..267c9953e4 100644
+--- a/src/go/internal/gccgoimporter/parser.go
++++ b/src/go/internal/gccgoimporter/parser.go
+@@ -599,7 +599,7 @@ func (p *parser) parseNamedType(nlist []interface{}) types.Type {
+ 			p.skipInlineBody()
+ 			p.expectEOL()
+ 
+-			sig := types.NewSignature(receiver, params, results, isVariadic)
++			sig := types.NewSignatureType(receiver, nil, nil, params, results, isVariadic)
+ 			nt.AddMethod(types.NewFunc(token.NoPos, pkg, name, sig))
+ 		}
+ 	}
+@@ -766,7 +766,7 @@ func (p *parser) parseFunctionType(pkg *types.Package, nlist []interface{}) *typ
+ 	params, isVariadic := p.parseParamList(pkg)
+ 	results := p.parseResultList(pkg)
+ 
+-	*t = *types.NewSignature(nil, params, results, isVariadic)
++	*t = *types.NewSignatureType(nil, nil, nil, params, results, isVariadic)
+ 	return t
+ }
+ 
+diff --git a/src/go/types/universe.go b/src/go/types/universe.go
+index 6045c61c30..4d52242e61 100644
+--- a/src/go/types/universe.go
++++ b/src/go/types/universe.go
+@@ -87,7 +87,7 @@ func defPredeclaredTypes() {
+ 		obj := NewTypeName(token.NoPos, nil, "error", nil)
+ 		obj.setColor(black)
+ 		res := NewVar(token.NoPos, nil, "", Typ[String])
+-		sig := NewSignature(nil, nil, NewTuple(res), false)
++		sig := NewSignatureType(nil, nil, nil, nil, NewTuple(res), false)
+ 		err := NewFunc(token.NoPos, nil, "Error", sig)
+ 		ityp := &Interface{nil, obj, []*Func{err}, nil, nil, true, nil}
+ 		computeInterfaceTypeSet(nil, token.NoPos, ityp) // prevent races due to lazy computation of tset

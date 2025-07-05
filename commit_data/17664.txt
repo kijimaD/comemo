@@ -13,6 +13,21 @@ Date:   Fri Sep 20 17:27:56 2013 -0700
     R=golang-dev, r, cshapiro
     CC=golang-dev
     https://golang.org/cl/13701046
-
+---
  test/chan/select2.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/test/chan/select2.go b/test/chan/select2.go
+index 4a08139126..ccf9dab81b 100644
+--- a/test/chan/select2.go
++++ b/test/chan/select2.go
+@@ -47,7 +47,8 @@ func main() {
+ 	runtime.GC()
+ 	runtime.ReadMemStats(memstats)
+ 
+-	if memstats.Alloc-alloc > 1.1e5 {
++	// Be careful to avoid wraparound.
++	if memstats.Alloc > alloc && memstats.Alloc-alloc > 1.1e5 {
+ 		println("BUG: too much memory for 100,000 selects:", memstats.Alloc-alloc)
+ 	}
+ }

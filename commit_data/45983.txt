@@ -10,8 +10,70 @@ Date:   Tue Dec 1 16:02:37 2020 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/274615
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/assignments.go       |  1 +
  src/cmd/compile/internal/types2/decl.go              | 14 ++++++++++++++
  src/cmd/compile/internal/types2/testdata/vardecl.src | 13 ++++++++++++-
  3 files changed, 27 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/types2/assignments.go b/src/cmd/compile/internal/types2/assignments.go
+index 3178c38ade..b367aa76da 100644
+--- a/src/cmd/compile/internal/types2/assignments.go
++++ b/src/cmd/compile/internal/types2/assignments.go
+@@ -112,6 +112,7 @@ func (check *Checker) initVar(lhs *Var, x *operand, context string) Type {
+ 		if lhs.typ == nil {
+ 			lhs.typ = Typ[Invalid]
+ 		}
++		lhs.used = true // avoid follow-on "declared but not used" errors
+ 		return nil
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/types2/decl.go b/src/cmd/compile/internal/types2/decl.go
+index c7bfd3fd7b..bb33e38051 100644
+--- a/src/cmd/compile/internal/types2/decl.go
++++ b/src/cmd/compile/internal/types2/decl.go
+@@ -457,6 +457,20 @@ func (check *Checker) constDecl(obj *Const, typ, init syntax.Expr) {
+ func (check *Checker) varDecl(obj *Var, lhs []*Var, typ, init syntax.Expr) {
+ 	assert(obj.typ == nil)
+ 
++	// If we have undefined variable types due to errors,
++	// mark variables as used to avoid follow-on errors.
++	// Matches compiler behavior.
++	defer func() {
++		if obj.typ == Typ[Invalid] {
++			obj.used = true
++		}
++		for _, lhs := range lhs {
++			if lhs.typ == Typ[Invalid] {
++				lhs.used = true
++			}
++		}
++	}()
++
+ 	// determine type, if any
+ 	if typ != nil {
+ 		obj.typ = check.varType(typ)
+diff --git a/src/cmd/compile/internal/types2/testdata/vardecl.src b/src/cmd/compile/internal/types2/testdata/vardecl.src
+index d8980f2ede..9e48cdf847 100644
+--- a/src/cmd/compile/internal/types2/testdata/vardecl.src
++++ b/src/cmd/compile/internal/types2/testdata/vardecl.src
+@@ -155,7 +155,18 @@ func _() {
+ 	}
+ }
+ 
+-// Invalid (unused) expressions must not lead to spurious "declared but not used errors"
++// Invalid variable declarations must not lead to "declared but not used errors".
++func _() {
++	var a x                        // ERROR undeclared name: x
++	var b = x                      // ERROR undeclared name: x
++	var c int = x                  // ERROR undeclared name: x
++	var d, e, f x                  /* ERROR x */ /* ERROR x */ /* ERROR x */
++	var g, h, i = x, x, x          /* ERROR x */ /* ERROR x */ /* ERROR x */
++	var j, k, l float32 = x, x, x  /* ERROR x */ /* ERROR x */ /* ERROR x */
++	// but no "declared but not used" errors
++}
++
++// Invalid (unused) expressions must not lead to spurious "declared but not used errors".
+ func _() {
+ 	var a, b, c int
+ 	var x, y int

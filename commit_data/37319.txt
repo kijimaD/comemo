@@ -9,6 +9,23 @@ Date:   Wed Jul 18 03:06:21 2018 -0400
     Change-Id: I0384f058298bd8fcfd2d97996464d46b4e419938
     Reviewed-on: https://go-review.googlesource.com/124656
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go1.11.html | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go1.11.html b/doc/go1.11.html
+index 79bc1a4fe8..7b16e121e2 100644
+--- a/doc/go1.11.html
++++ b/doc/go1.11.html
+@@ -661,8 +661,9 @@ func f(v interface{}) {
+       This release adds a new "allocs" profile type that profiles
+       total number of bytes allocated since the program began
+       (including garbage-collected bytes). This is identical to the
+-      existing "heap" profile viewed in <code>-alloc_space</code>
+-      mode.
++      existing "heap" profile viewed in <code>-alloc_space</code> mode.
++      Now <code>go test -memprofile=...</code> reports an "allocs" profile
++      instead of "heap" profile.
+     </p>
+ 
+ </dl><!-- runtime/pprof -->

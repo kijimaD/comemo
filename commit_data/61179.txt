@@ -15,6 +15,18 @@ Date:   Mon Oct 14 21:32:40 2024 +0200
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Auto-Submit: Quim Muntal <quimmuntal@gmail.com>
-
+---
  src/internal/syscall/windows/at_windows.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/internal/syscall/windows/at_windows.go b/src/internal/syscall/windows/at_windows.go
+index 17a8c592f9..064564c5e0 100644
+--- a/src/internal/syscall/windows/at_windows.go
++++ b/src/internal/syscall/windows/at_windows.go
+@@ -164,5 +164,6 @@ func Mkdirat(dirfd syscall.Handle, name string, mode uint32) error {
+ 	if err != nil {
+ 		return ntCreateFileError(err, 0)
+ 	}
++	syscall.CloseHandle(h)
+ 	return nil
+ }

@@ -19,10 +19,120 @@ Date:   Fri Jan 15 14:43:25 2021 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/284292
     Trust: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Katie Hockman <katie@golang.org>
-
+---
  src/internal/fuzz/sys_posix.go         | 11 +++++++++++
  src/internal/fuzz/sys_unimplemented.go |  4 ++++
  src/internal/fuzz/sys_windows.go       |  5 +++++
  src/internal/fuzz/worker.go            | 25 +++++++++++++++++++------
  src/testing/internal/testdeps/deps.go  |  4 ++--
  5 files changed, 41 insertions(+), 8 deletions(-)
+
+diff --git a/src/internal/fuzz/sys_posix.go b/src/internal/fuzz/sys_posix.go
+index ec27b4bf00..ecffa72755 100644
+--- a/src/internal/fuzz/sys_posix.go
++++ b/src/internal/fuzz/sys_posix.go
+@@ -73,3 +73,14 @@ func getWorkerComm() (comm workerComm, err error) {
+ 	}
+ 	return workerComm{fuzzIn: fuzzIn, fuzzOut: fuzzOut, mem: mem}, nil
+ }
++
++// isInterruptError returns whether an error was returned by a process that
++// was terminated by an interrupt signal (SIGINT).
++func isInterruptError(err error) bool {
++	exitErr, ok := err.(*exec.ExitError)
++	if !ok || exitErr.ExitCode() >= 0 {
++		return false
++	}
++	status := exitErr.Sys().(syscall.WaitStatus)
++	return status.Signal() == syscall.SIGINT
++}
+diff --git a/src/internal/fuzz/sys_unimplemented.go b/src/internal/fuzz/sys_unimplemented.go
+index dbb380ef67..331b8761d0 100644
+--- a/src/internal/fuzz/sys_unimplemented.go
++++ b/src/internal/fuzz/sys_unimplemented.go
+@@ -29,3 +29,7 @@ func setWorkerComm(cmd *exec.Cmd, comm workerComm) {
+ func getWorkerComm() (comm workerComm, err error) {
+ 	panic("not implemented")
+ }
++
++func isInterruptError(err error) bool {
++	panic("not implemented")
++}
+diff --git a/src/internal/fuzz/sys_windows.go b/src/internal/fuzz/sys_windows.go
+index 286634c692..678ab0f0a3 100644
+--- a/src/internal/fuzz/sys_windows.go
++++ b/src/internal/fuzz/sys_windows.go
+@@ -131,3 +131,8 @@ func getWorkerComm() (comm workerComm, err error) {
+ 
+ 	return workerComm{fuzzIn: fuzzIn, fuzzOut: fuzzOut, mem: mem}, nil
+ }
++
++func isInterruptError(err error) bool {
++	// TODO(jayconrod): implement
++	return false
++}
+diff --git a/src/internal/fuzz/worker.go b/src/internal/fuzz/worker.go
+index 583e8f25c1..a10561a244 100644
+--- a/src/internal/fuzz/worker.go
++++ b/src/internal/fuzz/worker.go
+@@ -80,19 +80,32 @@ func (w *worker) runFuzzing() error {
+ 		select {
+ 		case <-w.coordinator.doneC:
+ 			// All workers were told to stop.
+-			return w.stop()
++			err := w.stop()
++			if isInterruptError(err) {
++				// Worker interrupted by SIGINT. This can happen if the worker receives
++				// SIGINT before installing the signal handler. That's likely if
++				// TestMain or the fuzz target setup takes a long time.
++				return nil
++			}
++			return err
+ 
+ 		case <-w.termC:
+-			// Worker process terminated unexpectedly, so inform the coordinator
+-			// that a crash occurred.
++			// Worker process terminated unexpectedly.
++			if isInterruptError(w.waitErr) {
++				// Worker interrupted by SIGINT. See comment in doneC case.
++				w.stop()
++				return nil
++			}
++
++			// Unexpected termination. Inform the coordinator about the crash.
++			// TODO(jayconrod,katiehockman): if -keepfuzzing, restart worker.
+ 			value := w.mem.valueCopy()
++			message := fmt.Sprintf("fuzzing process terminated unexpectedly: %v", w.waitErr)
+ 			crasher := crasherEntry{
+ 				corpusEntry: corpusEntry{b: value},
+-				errMsg:      "fuzzing process crashed unexpectedly",
++				errMsg:      message,
+ 			}
+ 			w.coordinator.crasherC <- crasher
+-
+-			// TODO(jayconrod,katiehockman): if -keepfuzzing, restart worker.
+ 			err := w.stop()
+ 			if err == nil {
+ 				err = fmt.Errorf("worker exited unexpectedly")
+diff --git a/src/testing/internal/testdeps/deps.go b/src/testing/internal/testdeps/deps.go
+index dbc30ddc0f..2d0d7bac38 100644
+--- a/src/testing/internal/testdeps/deps.go
++++ b/src/testing/internal/testdeps/deps.go
+@@ -146,7 +146,7 @@ func (TestDeps) CoordinateFuzzing(timeout time.Duration, parallel int, seed [][]
+ 		<-interruptC
+ 		cancel()
+ 	}()
+-	defer close(interruptC)
++	defer func() { interruptC <- os.Interrupt }()
+ 
+ 	err := fuzz.CoordinateFuzzing(ctx, parallel, seed, corpusDir, cacheDir)
+ 	if err == ctx.Err() {
+@@ -169,7 +169,7 @@ func (TestDeps) RunFuzzWorker(fn func([]byte) error) error {
+ 		<-interruptC
+ 		cancel()
+ 	}()
+-	defer close(interruptC)
++	defer func() { interruptC <- os.Interrupt }()
+ 
+ 	err := fuzz.RunFuzzWorker(ctx, fn)
+ 	if err == ctx.Err() {

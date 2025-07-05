@@ -17,6 +17,23 @@ Date:   Wed Aug 24 16:06:10 2016 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/runtime2.go | 5 -----
  1 file changed, 5 deletions(-)
+
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 6119e75203..24f85d943d 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -575,11 +575,6 @@ const (
+ 	_LockInternal = 2
+ )
+ 
+-type sigtabtt struct {
+-	flags int32
+-	name  *int8
+-}
+-
+ const (
+ 	_SigNotify   = 1 << iota // let signal.Notify have signal, even if from kernel
+ 	_SigKill                 // if signal.Notify doesn't take it, exit quietly

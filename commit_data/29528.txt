@@ -17,7 +17,7 @@ Date:   Fri Jun 3 15:04:53 2016 -0700
     Run-TryBot: Damien Neil <dneil@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/syscall/dirent.go            | 102 +++++++++++++++++++++++++++++++++++++++
  src/syscall/endian_big.go        |   9 ++++
  src/syscall/endian_little.go     |   9 ++++
@@ -30,3 +30,533 @@ Date:   Fri Jun 3 15:04:53 2016 -0700
  src/syscall/syscall_openbsd.go   |  36 ++++----------
  src/syscall/syscall_solaris.go   |  38 +++++----------
  11 files changed, 210 insertions(+), 203 deletions(-)
+
+diff --git a/src/syscall/dirent.go b/src/syscall/dirent.go
+new file mode 100644
+index 0000000000..4db2d4355b
+--- /dev/null
++++ b/src/syscall/dirent.go
+@@ -0,0 +1,102 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build darwin dragonfly freebsd linux nacl netbsd openbsd solaris
++
++package syscall
++
++import "unsafe"
++
++// readInt returns the size-bytes unsigned integer in native byte order at offset off.
++func readInt(b []byte, off, size uintptr) (u uint64, ok bool) {
++	if len(b) < int(off+size) {
++		return 0, false
++	}
++	if isBigEndian {
++		return readIntBE(b[off:], size), true
++	}
++	return readIntLE(b[off:], size), true
++}
++
++func readIntBE(b []byte, size uintptr) uint64 {
++	switch size {
++	case 1:
++		return uint64(b[0])
++	case 2:
++		_ = b[1] // bounds check hint to compiler; see golang.org/issue/14808
++		return uint64(b[1]) | uint64(b[0])<<8
++	case 4:
++		_ = b[3] // bounds check hint to compiler; see golang.org/issue/14808
++		return uint64(b[3]) | uint64(b[2])<<8 | uint64(b[1])<<16 | uint64(b[0])<<24
++	case 8:
++		_ = b[7] // bounds check hint to compiler; see golang.org/issue/14808
++		return uint64(b[7]) | uint64(b[6])<<8 | uint64(b[5])<<16 | uint64(b[4])<<24 |
++			uint64(b[3])<<32 | uint64(b[2])<<40 | uint64(b[1])<<48 | uint64(b[0])<<56
++	default:
++		panic("syscall: readInt with unsupported size")
++	}
++}
++
++func readIntLE(b []byte, size uintptr) uint64 {
++	switch size {
++	case 1:
++		return uint64(b[0])
++	case 2:
++		_ = b[1] // bounds check hint to compiler; see golang.org/issue/14808
++		return uint64(b[0]) | uint64(b[1])<<8
++	case 4:
++		_ = b[3] // bounds check hint to compiler; see golang.org/issue/14808
++		return uint64(b[0]) | uint64(b[1])<<8 | uint64(b[2])<<16 | uint64(b[3])<<24
++	case 8:
++		_ = b[7] // bounds check hint to compiler; see golang.org/issue/14808
++		return uint64(b[0]) | uint64(b[1])<<8 | uint64(b[2])<<16 | uint64(b[3])<<24 |
++			uint64(b[4])<<32 | uint64(b[5])<<40 | uint64(b[6])<<48 | uint64(b[7])<<56
++	default:
++		panic("syscall: readInt with unsupported size")
++	}
++}
++
++// ParseDirent parses up to max directory entries in buf,
++// appending the names to names. It returns the number of
++// bytes consumed from buf, the number of entries added
++// to names, and the new names slice.
++func ParseDirent(buf []byte, max int, names []string) (consumed int, count int, newnames []string) {
++	origlen := len(buf)
++	count = 0
++	for max != 0 && len(buf) > 0 {
++		reclen, ok := direntReclen(buf)
++		if !ok || reclen > uint64(len(buf)) {
++			return origlen, count, names
++		}
++		rec := buf[:reclen]
++		buf = buf[reclen:]
++		ino, ok := direntIno(rec)
++		if !ok {
++			break
++		}
++		if ino == 0 { // File absent in directory.
++			continue
++		}
++		const namoff = uint64(unsafe.Offsetof(Dirent{}.Name))
++		namlen, ok := direntNamlen(rec)
++		if !ok || namoff+namlen > uint64(len(rec)) {
++			break
++		}
++		name := rec[namoff : namoff+namlen]
++		for i, c := range name {
++			if c == 0 {
++				name = name[:i]
++				break
++			}
++		}
++		// Check for useless names before allocating a string.
++		if string(name) == "." || string(name) == ".." {
++			continue
++		}
++		max--
++		count++
++		names = append(names, string(name))
++	}
++	return origlen - len(buf), count, names
++}
+diff --git a/src/syscall/endian_big.go b/src/syscall/endian_big.go
+new file mode 100644
+index 0000000000..84756c4ac3
+--- /dev/null
++++ b/src/syscall/endian_big.go
+@@ -0,0 +1,9 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++//
++// +build ppc64 s390x mips64
++
++package syscall
++
++const isBigEndian = true
+diff --git a/src/syscall/endian_little.go b/src/syscall/endian_little.go
+new file mode 100644
+index 0000000000..43d9dfde7f
+--- /dev/null
++++ b/src/syscall/endian_little.go
+@@ -0,0 +1,9 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++//
++// +build 386 amd64 amd64p32 arm arm64 ppc64le mips64le
++
++package syscall
++
++const isBigEndian = false
+diff --git a/src/syscall/syscall_darwin.go b/src/syscall/syscall_darwin.go
+index 380be70fad..689bc14cf4 100644
+--- a/src/syscall/syscall_darwin.go
++++ b/src/syscall/syscall_darwin.go
+@@ -75,32 +75,16 @@ func nametomib(name string) (mib []_C_int, err error) {
+ 	return buf[0 : n/siz], nil
+ }
+ 
+-// ParseDirent parses up to max directory entries in buf,
+-// appending the names to names. It returns the number
+-// bytes consumed from buf, the number of entries added
+-// to names, and the new names slice.
+-func ParseDirent(buf []byte, max int, names []string) (consumed int, count int, newnames []string) {
+-	origlen := len(buf)
+-	for max != 0 && len(buf) > 0 {
+-		dirent := (*Dirent)(unsafe.Pointer(&buf[0]))
+-		if dirent.Reclen == 0 {
+-			buf = nil
+-			break
+-		}
+-		buf = buf[dirent.Reclen:]
+-		if dirent.Ino == 0 { // File absent in directory.
+-			continue
+-		}
+-		bytes := (*[10000]byte)(unsafe.Pointer(&dirent.Name[0]))
+-		var name = string(bytes[0:dirent.Namlen])
+-		if name == "." || name == ".." { // Useless names
+-			continue
+-		}
+-		max--
+-		count++
+-		names = append(names, name)
+-	}
+-	return origlen - len(buf), count, names
++func direntIno(buf []byte) (uint64, bool) {
++	return readInt(buf, unsafe.Offsetof(Dirent{}.Ino), unsafe.Sizeof(Dirent{}.Ino))
++}
++
++func direntReclen(buf []byte) (uint64, bool) {
++	return readInt(buf, unsafe.Offsetof(Dirent{}.Reclen), unsafe.Sizeof(Dirent{}.Reclen))
++}
++
++func direntNamlen(buf []byte) (uint64, bool) {
++	return readInt(buf, unsafe.Offsetof(Dirent{}.Namlen), unsafe.Sizeof(Dirent{}.Namlen))
+ }
+ 
+ //sys   ptrace(request int, pid int, addr uintptr, data uintptr) (err error)
+diff --git a/src/syscall/syscall_dragonfly.go b/src/syscall/syscall_dragonfly.go
+index 4080b6ba3c..97a8ef8932 100644
+--- a/src/syscall/syscall_dragonfly.go
++++ b/src/syscall/syscall_dragonfly.go
+@@ -56,29 +56,20 @@ func nametomib(name string) (mib []_C_int, err error) {
+ 	return buf[0 : n/siz], nil
+ }
+ 
+-// ParseDirent parses up to max directory entries in buf,
+-// appending the names to names. It returns the number
+-// bytes consumed from buf, the number of entries added
+-// to names, and the new names slice.
+-func ParseDirent(buf []byte, max int, names []string) (consumed int, count int, newnames []string) {
+-	origlen := len(buf)
+-	for max != 0 && len(buf) > 0 {
+-		dirent := (*Dirent)(unsafe.Pointer(&buf[0]))
+-		reclen := int(16+dirent.Namlen+1+7) & ^7
+-		buf = buf[reclen:]
+-		if dirent.Fileno == 0 { // File absent in directory.
+-			continue
+-		}
+-		bytes := (*[10000]byte)(unsafe.Pointer(&dirent.Name[0]))
+-		var name = string(bytes[0:dirent.Namlen])
+-		if name == "." || name == ".." { // Useless names
+-			continue
+-		}
+-		max--
+-		count++
+-		names = append(names, name)
++func direntIno(buf []byte) (uint64, bool) {
++	return readInt(buf, unsafe.Offsetof(Dirent{}.Ino), unsafe.Sizeof(Dirent{}.Ino))
++}
++
++func direntReclen(buf []byte) (uint64, bool) {
++	namlen, ok := direntNamlen(buf)
++	if !ok {
++		return 0, false
+ 	}
+-	return origlen - len(buf), count, names
++	return (16 + namlen + 1 + 7) & ^7, true
++}
++
++func direntNamlen(buf []byte) (uint64, bool) {
++	return readInt(buf, unsafe.Offsetof(Dirent{}.Namlen), unsafe.Sizeof(Dirent{}.Namlen))
+ }
+ 
+ //sysnb pipe() (r int, w int, err error)
+diff --git a/src/syscall/syscall_freebsd.go b/src/syscall/syscall_freebsd.go
+index 950dc64910..2a304cd2c6 100644
+--- a/src/syscall/syscall_freebsd.go
++++ b/src/syscall/syscall_freebsd.go
+@@ -54,32 +54,16 @@ func nametomib(name string) (mib []_C_int, err error) {
+ 	return buf[0 : n/siz], nil
+ }
+ 
+-// ParseDirent parses up to max directory entries in buf,
+-// appending the names to names. It returns the number
+-// bytes consumed from buf, the number of entries added
+-// to names, and the new names slice.
+-func ParseDirent(buf []byte, max int, names []string) (consumed int, count int, newnames []string) {
+-	origlen := len(buf)
+-	for max != 0 && len(buf) > 0 {
+-		dirent := (*Dirent)(unsafe.Pointer(&buf[0]))
+-		if dirent.Reclen == 0 {
+-			buf = nil
+-			break
+-		}
+-		buf = buf[dirent.Reclen:]
+-		if dirent.Fileno == 0 { // File absent in directory.
+-			continue
+-		}
+-		bytes := (*[10000]byte)(unsafe.Pointer(&dirent.Name[0]))
+-		var name = string(bytes[0:dirent.Namlen])
+-		if name == "." || name == ".." { // Useless names
+-			continue
+-		}
+-		max--
+-		count++
+-		names = append(names, name)
+-	}
+-	return origlen - len(buf), count, names
++func direntIno(buf []byte) (uint64, bool) {
++	return readInt(buf, unsafe.Offsetof(Dirent{}.Fileno), unsafe.Sizeof(Dirent{}.Fileno))
++}
++
++func direntReclen(buf []byte) (uint64, bool) {
++	return readInt(buf, unsafe.Offsetof(Dirent{}.Reclen), unsafe.Sizeof(Dirent{}.Reclen))
++}
++
++func direntNamlen(buf []byte) (uint64, bool) {
++	return readInt(buf, unsafe.Offsetof(Dirent{}.Namlen), unsafe.Sizeof(Dirent{}.Namlen))
+ }
+ 
+ //sysnb pipe() (r int, w int, err error)
+diff --git a/src/syscall/syscall_linux.go b/src/syscall/syscall_linux.go
+index 73a16f8959..d70e471ba5 100644
+--- a/src/syscall/syscall_linux.go
++++ b/src/syscall/syscall_linux.go
+@@ -757,38 +757,24 @@ func Reboot(cmd int) (err error) {
+ 	return reboot(LINUX_REBOOT_MAGIC1, LINUX_REBOOT_MAGIC2, cmd, "")
+ }
+ 
+-func clen(n []byte) int {
+-	for i := 0; i < len(n); i++ {
+-		if n[i] == 0 {
+-			return i
+-		}
+-	}
+-	return len(n)
+-}
+-
+ func ReadDirent(fd int, buf []byte) (n int, err error) {
+ 	return Getdents(fd, buf)
+ }
+ 
+-func ParseDirent(buf []byte, max int, names []string) (consumed int, count int, newnames []string) {
+-	origlen := len(buf)
+-	count = 0
+-	for max != 0 && len(buf) > 0 {
+-		dirent := (*Dirent)(unsafe.Pointer(&buf[0]))
+-		buf = buf[dirent.Reclen:]
+-		if dirent.Ino == 0 { // File absent in directory.
+-			continue
+-		}
+-		bytes := (*[10000]byte)(unsafe.Pointer(&dirent.Name[0]))
+-		var name = string(bytes[0:clen(bytes[:])])
+-		if name == "." || name == ".." { // Useless names
+-			continue
+-		}
+-		max--
+-		count++
+-		names = append(names, name)
++func direntIno(buf []byte) (uint64, bool) {
++	return readInt(buf, unsafe.Offsetof(Dirent{}.Ino), unsafe.Sizeof(Dirent{}.Ino))
++}
++
++func direntReclen(buf []byte) (uint64, bool) {
++	return readInt(buf, unsafe.Offsetof(Dirent{}.Reclen), unsafe.Sizeof(Dirent{}.Reclen))
++}
++
++func direntNamlen(buf []byte) (uint64, bool) {
++	reclen, ok := direntReclen(buf)
++	if !ok {
++		return 0, false
+ 	}
+-	return origlen - len(buf), count, names
++	return reclen - uint64(unsafe.Offsetof(Dirent{}.Name)), true
+ }
+ 
+ //sys	mount(source string, target string, fstype string, flags uintptr, data *byte) (err error)
+diff --git a/src/syscall/syscall_nacl.go b/src/syscall/syscall_nacl.go
+index e594ad34c3..88e4e3a9dc 100644
+--- a/src/syscall/syscall_nacl.go
++++ b/src/syscall/syscall_nacl.go
+@@ -26,34 +26,20 @@ type Dirent struct {
+ 	Name   [256]byte
+ }
+ 
+-func ParseDirent(buf []byte, max int, names []string) (consumed int, count int, newnames []string) {
+-	origlen := len(buf)
+-	count = 0
+-	for max != 0 && len(buf) > 0 {
+-		dirent := (*Dirent)(unsafe.Pointer(&buf[0]))
+-		buf = buf[dirent.Reclen:]
+-		if dirent.Ino == 0 { // File absent in directory.
+-			continue
+-		}
+-		bytes := (*[512 + PathMax]byte)(unsafe.Pointer(&dirent.Name[0]))
+-		var name = string(bytes[0:clen(bytes[:])])
+-		if name == "." || name == ".." { // Useless names
+-			continue
+-		}
+-		max--
+-		count++
+-		names = append(names, name)
+-	}
+-	return origlen - len(buf), count, names
++func direntIno(buf []byte) (uint64, bool) {
++	return readInt(buf, unsafe.Offsetof(Dirent{}.Ino), unsafe.Sizeof(Dirent{}.Ino))
+ }
+ 
+-func clen(n []byte) int {
+-	for i := 0; i < len(n); i++ {
+-		if n[i] == 0 {
+-			return i
+-		}
++func direntReclen(buf []byte) (uint64, bool) {
++	return readInt(buf, unsafe.Offsetof(Dirent{}.Reclen), unsafe.Sizeof(Dirent{}.Reclen))
++}
++
++func direntNamlen(buf []byte) (uint64, bool) {
++	reclen, ok := direntReclen(buf)
++	if !ok {
++		return 0, false
+ 	}
+-	return len(n)
++	return reclen - uint64(unsafe.Offsetof(Dirent{}.Name)), true
+ }
+ 
+ const PathMax = 256
+diff --git a/src/syscall/syscall_netbsd.go b/src/syscall/syscall_netbsd.go
+index 081af62cc5..f2e169446f 100644
+--- a/src/syscall/syscall_netbsd.go
++++ b/src/syscall/syscall_netbsd.go
+@@ -90,32 +90,16 @@ func nametomib(name string) (mib []_C_int, err error) {
+ 	return mib, nil
+ }
+ 
+-// ParseDirent parses up to max directory entries in buf,
+-// appending the names to names. It returns the number
+-// bytes consumed from buf, the number of entries added
+-// to names, and the new names slice.
+-func ParseDirent(buf []byte, max int, names []string) (consumed int, count int, newnames []string) {
+-	origlen := len(buf)
+-	for max != 0 && len(buf) > 0 {
+-		dirent := (*Dirent)(unsafe.Pointer(&buf[0]))
+-		if dirent.Reclen == 0 {
+-			buf = nil
+-			break
+-		}
+-		buf = buf[dirent.Reclen:]
+-		if dirent.Fileno == 0 { // File absent in directory.
+-			continue
+-		}
+-		bytes := (*[10000]byte)(unsafe.Pointer(&dirent.Name[0]))
+-		var name = string(bytes[0:dirent.Namlen])
+-		if name == "." || name == ".." { // Useless names
+-			continue
+-		}
+-		max--
+-		count++
+-		names = append(names, name)
+-	}
+-	return origlen - len(buf), count, names
++func direntIno(buf []byte) (uint64, bool) {
++	return readInt(buf, unsafe.Offsetof(Dirent{}.Fileno), unsafe.Sizeof(Dirent{}.Fileno))
++}
++
++func direntReclen(buf []byte) (uint64, bool) {
++	return readInt(buf, unsafe.Offsetof(Dirent{}.Reclen), unsafe.Sizeof(Dirent{}.Reclen))
++}
++
++func direntNamlen(buf []byte) (uint64, bool) {
++	return readInt(buf, unsafe.Offsetof(Dirent{}.Namlen), unsafe.Sizeof(Dirent{}.Namlen))
+ }
+ 
+ //sysnb pipe() (fd1 int, fd2 int, err error)
+diff --git a/src/syscall/syscall_openbsd.go b/src/syscall/syscall_openbsd.go
+index 68218cf93b..bd25fbf87a 100644
+--- a/src/syscall/syscall_openbsd.go
++++ b/src/syscall/syscall_openbsd.go
+@@ -50,32 +50,16 @@ func nametomib(name string) (mib []_C_int, err error) {
+ 	return nil, EINVAL
+ }
+ 
+-// ParseDirent parses up to max directory entries in buf,
+-// appending the names to names. It returns the number
+-// bytes consumed from buf, the number of entries added
+-// to names, and the new names slice.
+-func ParseDirent(buf []byte, max int, names []string) (consumed int, count int, newnames []string) {
+-	origlen := len(buf)
+-	for max != 0 && len(buf) > 0 {
+-		dirent := (*Dirent)(unsafe.Pointer(&buf[0]))
+-		if dirent.Reclen == 0 {
+-			buf = nil
+-			break
+-		}
+-		buf = buf[dirent.Reclen:]
+-		if dirent.Fileno == 0 { // File absent in directory.
+-			continue
+-		}
+-		bytes := (*[10000]byte)(unsafe.Pointer(&dirent.Name[0]))
+-		var name = string(bytes[0:dirent.Namlen])
+-		if name == "." || name == ".." { // Useless names
+-			continue
+-		}
+-		max--
+-		count++
+-		names = append(names, name)
+-	}
+-	return origlen - len(buf), count, names
++func direntIno(buf []byte) (uint64, bool) {
++	return readInt(buf, unsafe.Offsetof(Dirent{}.Fileno), unsafe.Sizeof(Dirent{}.Fileno))
++}
++
++func direntReclen(buf []byte) (uint64, bool) {
++	return readInt(buf, unsafe.Offsetof(Dirent{}.Reclen), unsafe.Sizeof(Dirent{}.Reclen))
++}
++
++func direntNamlen(buf []byte) (uint64, bool) {
++	return readInt(buf, unsafe.Offsetof(Dirent{}.Namlen), unsafe.Sizeof(Dirent{}.Namlen))
+ }
+ 
+ //sysnb pipe(p *[2]_C_int) (err error)
+diff --git a/src/syscall/syscall_solaris.go b/src/syscall/syscall_solaris.go
+index b307a80d28..8de9161257 100644
+--- a/src/syscall/syscall_solaris.go
++++ b/src/syscall/syscall_solaris.go
+@@ -38,32 +38,20 @@ func clen(n []byte) int {
+ 	return len(n)
+ }
+ 
+-// ParseDirent parses up to max directory entries in buf,
+-// appending the names to names. It returns the number
+-// bytes consumed from buf, the number of entries added
+-// to names, and the new names slice.
+-func ParseDirent(buf []byte, max int, names []string) (consumed int, count int, newnames []string) {
+-	origlen := len(buf)
+-	for max != 0 && len(buf) > 0 {
+-		dirent := (*Dirent)(unsafe.Pointer(&buf[0]))
+-		if dirent.Reclen == 0 {
+-			buf = nil
+-			break
+-		}
+-		buf = buf[dirent.Reclen:]
+-		if dirent.Ino == 0 { // File absent in directory.
+-			continue
+-		}
+-		bytes := (*[10000]byte)(unsafe.Pointer(&dirent.Name[0]))
+-		var name = string(bytes[0:clen(bytes[:])])
+-		if name == "." || name == ".." { // Useless names
+-			continue
+-		}
+-		max--
+-		count++
+-		names = append(names, name)
++func direntIno(buf []byte) (uint64, bool) {
++	return readInt(buf, unsafe.Offsetof(Dirent{}.Ino), unsafe.Sizeof(Dirent{}.Ino))
++}
++
++func direntReclen(buf []byte) (uint64, bool) {
++	return readInt(buf, unsafe.Offsetof(Dirent{}.Reclen), unsafe.Sizeof(Dirent{}.Reclen))
++}
++
++func direntNamlen(buf []byte) (uint64, bool) {
++	reclen, ok := direntReclen(buf)
++	if !ok {
++		return 0, false
+ 	}
+-	return origlen - len(buf), count, names
++	return reclen - uint64(unsafe.Offsetof(Dirent{}.Name)), true
+ }
+ 
+ func pipe() (r uintptr, w uintptr, err uintptr)

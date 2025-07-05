@@ -11,6 +11,21 @@ Date:   Mon Aug 4 20:29:36 2014 -0700
     R=golang-codereviews, minux, dave
     CC=golang-codereviews
     https://golang.org/cl/115630043
-
+---
  src/pkg/runtime/netpoll_epoll.c | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/netpoll_epoll.c b/src/pkg/runtime/netpoll_epoll.c
+index 9ea5e1a595..a0ae7df310 100644
+--- a/src/pkg/runtime/netpoll_epoll.c
++++ b/src/pkg/runtime/netpoll_epoll.c
+@@ -55,7 +55,8 @@ runtime·netpollclose(uintptr fd)
+ void
+ runtime·netpollarm(PollDesc* pd, int32 mode)
+ {
+-	USED(pd, mode);
++	USED(pd);
++	USED(mode);
+ 	runtime·throw("unused");
+ }
+ 

@@ -9,6 +9,19 @@ Date:   Tue Aug 22 19:50:43 2017 +0900
     Run-TryBot: Dave Cheney <dave@cheney.net>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Dave Cheney <dave@cheney.net>
-
+---
  src/cmd/link/internal/ld/lib.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 3207bdb837..4538899fa0 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -1562,6 +1562,7 @@ func ldshlibsyms(ctxt *Link, shlib string) {
+ 		Errorf(nil, "cannot open shared library: %s", libpath)
+ 		return
+ 	}
++	defer f.Close()
+ 
+ 	hash, err := readnote(f, ELF_NOTE_GO_NAME, ELF_NOTE_GOABIHASH_TAG)
+ 	if err != nil {

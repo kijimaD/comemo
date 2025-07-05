@@ -7,7 +7,32 @@ Date:   Fri Sep 14 12:26:45 2012 +1000
     R=golang-dev, nigeltao
     CC=golang-dev
     https://golang.org/cl/6493121
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index f2a840aedd..01e4b378b0 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -231,6 +231,7 @@ Vinu Rajashekhar <vinutheraj@gmail.com>
+ Volker Dobler <dr.volker.dobler@gmail.com>
+ Wei Guangjing <vcc.163@gmail.com>
+ William Josephson <wjosephson@gmail.com>
++Xing Xing <mikespook@gmail.com>
+ Yasuhiro Matsumoto <mattn.jp@gmail.com>
+ Yissakhar Z. Beck <yissakhar.beck@gmail.com>
+ Yongjian Xu <i3dmaster@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 4ac62be42c..a5bec4874e 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -332,6 +332,7 @@ Volker Dobler <dr.volker.dobler@gmail.com>
+ Wei Guangjing <vcc.163@gmail.com>
+ William Chan <willchan@chromium.org>
+ William Josephson <wjosephson@gmail.com>
++Xing Xing <mikespook@gmail.com>
+ Yasuhiro Matsumoto <mattn.jp@gmail.com>
+ Yissakhar Z. Beck <yissakhar.beck@gmail.com>
+ Yongjian Xu <i3dmaster@gmail.com>

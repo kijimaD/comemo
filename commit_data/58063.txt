@@ -15,8 +15,125 @@ Date:   Fri Sep 22 21:03:27 2023 +0000
     Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: qiulaidongfeng <2645477756@qq.com>
-
+---
  api/next/60204.txt  |  1 +
  src/cmp/cmp.go      | 12 +++++++++
  src/cmp/cmp_test.go | 72 +++++++++++++++++++++++++++++++++++++++++++++++++++++
  3 files changed, 85 insertions(+)
+
+diff --git a/api/next/60204.txt b/api/next/60204.txt
+new file mode 100644
+index 0000000000..62dddc620c
+--- /dev/null
++++ b/api/next/60204.txt
+@@ -0,0 +1 @@
++pkg cmp, func Or[$0 comparable](...$0) $0 #60204
+diff --git a/src/cmp/cmp.go b/src/cmp/cmp.go
+index 0fba5c1211..4d1af6a98c 100644
+--- a/src/cmp/cmp.go
++++ b/src/cmp/cmp.go
+@@ -57,3 +57,15 @@ func Compare[T Ordered](x, y T) int {
+ func isNaN[T Ordered](x T) bool {
+ 	return x != x
+ }
++
++// Or returns the first of its arguments that is not equal to the zero value.
++// If no argument is non-zero, it returns the zero value.
++func Or[T comparable](vals ...T) T {
++	var zero T
++	for _, val := range vals {
++		if val != zero {
++			return val
++		}
++	}
++	return zero
++}
+diff --git a/src/cmp/cmp_test.go b/src/cmp/cmp_test.go
+index b0c0dc3fbd..0bb39c6941 100644
+--- a/src/cmp/cmp_test.go
++++ b/src/cmp/cmp_test.go
+@@ -6,8 +6,10 @@ package cmp_test
+ 
+ import (
+ 	"cmp"
++	"fmt"
+ 	"math"
+ 	"sort"
++	"slices"
+ 	"testing"
+ )
+ 
+@@ -93,3 +95,73 @@ func TestSort(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestOr(t *testing.T) {
++	cases := []struct {
++		in   []int
++		want int
++	}{
++		{nil, 0},
++		{[]int{0}, 0},
++		{[]int{1}, 1},
++		{[]int{0, 2}, 2},
++		{[]int{3, 0}, 3},
++		{[]int{4, 5}, 4},
++		{[]int{0, 6, 7}, 6},
++	}
++	for _, tc := range cases {
++		if got := cmp.Or(tc.in...); got != tc.want {
++			t.Errorf("cmp.Or(%v) = %v; want %v", tc.in, got, tc.want)
++		}
++	}
++}
++
++func ExampleOr() {
++	// Suppose we have some user input
++	// that may or may not be an empty string
++	userInput1 := ""
++	userInput2 := "some text"
++
++	fmt.Println(cmp.Or(userInput1, "default"))
++	fmt.Println(cmp.Or(userInput2, "default"))
++	fmt.Println(cmp.Or(userInput1, userInput2, "default"))
++	// Output:
++	// default
++	// some text
++	// some text
++}
++
++func ExampleOr_sort() {
++	type Order struct {
++		Product string
++		Customer string
++		Price float64
++	}
++	orders := []Order{
++		{"foo", "alice", 1.00},
++		{"bar", "bob", 3.00},
++		{"baz", "carol", 4.00},
++		{"foo", "alice", 2.00},
++		{"bar", "carol", 1.00},
++		{"foo", "bob", 4.00},
++	}
++	// Sort by customer first, product second, and last by higher price
++	slices.SortFunc(orders, func(a, b Order) int {
++		return cmp.Or(
++			cmp.Compare(a.Customer, b.Customer),
++			cmp.Compare(a.Product, b.Product),
++			cmp.Compare(b.Price, a.Price),
++		)
++	})
++	for _, order := range orders {
++		fmt.Printf("%s %s %.2f\n", order.Product, order.Customer, order.Price)
++	}
++
++	// Output:
++	// foo alice 2.00
++	// foo alice 1.00
++	// bar bob 3.00
++	// foo bob 4.00
++	// bar carol 1.00
++	// baz carol 4.00
++}

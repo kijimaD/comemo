@@ -7,6 +7,19 @@ Date:   Sun Oct 30 09:46:36 2016 +0900
     Change-Id: Iec469846dc8b5a747ad81690000f1f6f53721ea1
     Reviewed-on: https://go-review.googlesource.com/32372
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/writev_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/writev_test.go b/src/net/writev_test.go
+index 385cc12503..175bc38400 100644
+--- a/src/net/writev_test.go
++++ b/src/net/writev_test.go
+@@ -207,6 +207,6 @@ func TestWritevError(t *testing.T) {
+ 		buffers[i] = buf
+ 	}
+ 	if _, err := buffers.WriteTo(c1); err == nil {
+-		t.Fatalf("Buffers.WriteTo(closed conn) succeeded, want error", err)
++		t.Fatal("Buffers.WriteTo(closed conn) succeeded, want error")
+ 	}
+ }

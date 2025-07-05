@@ -9,7 +9,7 @@ Date:   Sat Nov 14 15:29:09 2009 -0800
     
     R=rsc
     https://golang.org/cl/152138
-
+---
  src/Make.pkg                |  2 +-
  src/all-arm.bash            |  2 +-
  src/all-nacl.bash           |  2 +-
@@ -31,3 +31,389 @@ Date:   Sat Nov 14 15:29:09 2009 -0800
  src/sudo.bash               |  2 +-
  test/run                    |  2 +-
  20 files changed, 65 insertions(+), 48 deletions(-)
+
+diff --git a/src/Make.pkg b/src/Make.pkg
+index fd8e5bdb61..dc0e70f37a 100644
+--- a/src/Make.pkg
++++ b/src/Make.pkg
+@@ -69,7 +69,7 @@ dir:
+ 	@echo $(dir)
+ 
+ %.make:
+-	(cd $* && make)
++	(cd $* && gomake)
+ 
+ # To use cgo in a Go package, add a line
+ #
+diff --git a/src/all-arm.bash b/src/all-arm.bash
+index 0bf9927af2..e089b9cf40 100755
+--- a/src/all-arm.bash
++++ b/src/all-arm.bash
+@@ -1,4 +1,4 @@
+-#!/bin/bash
++#!/usr/bin/env bash
+ # Copyright 2009 The Go Authors. All rights reserved.
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+diff --git a/src/all-nacl.bash b/src/all-nacl.bash
+index 9270b5d20c..b022b4341e 100644
+--- a/src/all-nacl.bash
++++ b/src/all-nacl.bash
+@@ -1,4 +1,4 @@
+-#!/bin/bash
++#!/usr/bin/env bash
+ # Copyright 2009 The Go Authors. All rights reserved.
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+diff --git a/src/all.bash b/src/all.bash
+index 006ac5965e..67c19cd43f 100755
+--- a/src/all.bash
++++ b/src/all.bash
+@@ -1,4 +1,4 @@
+-#!/bin/bash
++#!/usr/bin/env bash
+ # Copyright 2009 The Go Authors. All rights reserved.
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+diff --git a/src/clean.bash b/src/clean.bash
+index b9012ea04d..411321b55d 100755
+--- a/src/clean.bash
++++ b/src/clean.bash
+@@ -1,4 +1,4 @@
+-#!/bin/bash
++#!/usr/bin/env bash
+ # Copyright 2009 The Go Authors. All rights reserved.
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+@@ -13,6 +13,6 @@ do(
+ 	if test -f clean.bash; then
+ 		bash clean.bash
+ 	else
+-		make clean
++		gomake clean
+ 	fi
+ )done
+diff --git a/src/cmd/clean.bash b/src/cmd/clean.bash
+index 3237d4c965..7a8ec107b3 100644
+--- a/src/cmd/clean.bash
++++ b/src/cmd/clean.bash
+@@ -1,4 +1,4 @@
+-#!/bin/bash
++#!/usr/bin/env bash
+ # Copyright 2009 The Go Authors. All rights reserved.
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+@@ -6,6 +6,6 @@
+ for i in cc 6l 6a 6c 8l 8a 8c 8g 5l 5a 5c 5g gc 6g gopack nm cgo cov ebnflint godefs godoc gofmt gotest goyacc hgpatch prof
+ do
+ 	cd $i
+-	make clean
++	gomake clean
+ 	cd ..
+ done
+diff --git a/src/cmd/gofmt/test.sh b/src/cmd/gofmt/test.sh
+index 7f276ef5b6..08afc65362 100755
+--- a/src/cmd/gofmt/test.sh
++++ b/src/cmd/gofmt/test.sh
+@@ -1,4 +1,4 @@
+-#!/bin/bash
++#!/usr/bin/env bash
+ # Copyright 2009 The Go Authors. All rights reserved.
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+diff --git a/src/cmd/gotest/gotest b/src/cmd/gotest/gotest
+index b43fe4d283..87bb7fafb0 100755
+--- a/src/cmd/gotest/gotest
++++ b/src/cmd/gotest/gotest
+@@ -1,4 +1,4 @@
+-#!/bin/bash
++#!/usr/bin/env bash
+ # Copyright 2009 The Go Authors. All rights reserved.
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+@@ -94,8 +94,8 @@ fi
+ 
+ set -e
+ 
+-make testpackage-clean
+-make testpackage "GOTESTFILES=$gofiles"
++gomake testpackage-clean
++gomake testpackage "GOTESTFILES=$gofiles"
+ if $havex; then
+ 	$GC -o $xofile $xgofiles
+ fi
+@@ -107,7 +107,7 @@ trap "rm -f _testmain.go _testmain.$O" 0 1 2 3 14 15
+ MAKEFLAGS=
+ MAKELEVEL=
+ 
+-importpath=$(make -s importpath)
++importpath=$(gomake -s importpath)
+ {
+ 	# test functions are named TestFoo
+ 	# the grep -v eliminates methods and other special names
+diff --git a/src/cmd/make.bash b/src/cmd/make.bash
+index 3068096332..db31b7b5ac 100644
+--- a/src/cmd/make.bash
++++ b/src/cmd/make.bash
+@@ -1,4 +1,4 @@
+-#!/bin/bash
++#!/usr/bin/env bash
+ # Copyright 2009 The Go Authors. All rights reserved.
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+@@ -15,13 +15,13 @@ fi
+ 
+ cd ${O}l
+ bash mkenam
+-make enam.o
++gomake enam.o
+ cd ..
+ 
+ for i in cc ${O}l ${O}a ${O}c gc ${O}g gopack nm cov godefs prof gotest
+ do
+ 	echo; echo; echo %%%% making $i %%%%; echo
+ 	cd $i
+-	make install
++	gomake install
+ 	cd ..
+ done
+diff --git a/src/make-arm.bash b/src/make-arm.bash
+index d47467bcb0..239e7c6b6b 100755
+--- a/src/make-arm.bash
++++ b/src/make-arm.bash
+@@ -1,4 +1,4 @@
+-#!/bin/bash
++#!/usr/bin/env bash
+ # Copyright 2009 The Go Authors. All rights reserved.
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+diff --git a/src/make.bash b/src/make.bash
+index 06c1f128cd..2038fe2394 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -1,4 +1,4 @@
+-#!/bin/bash
++#!/usr/bin/env bash
+ # Copyright 2009 The Go Authors. All rights reserved.
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+@@ -29,7 +29,7 @@ amd64 | 386 | arm)
+ esac
+ 
+ case "$GOOS" in
+-darwin | linux | nacl)
++darwin | linux | nacl | freebsd)
+ 	;;
+ *)
+ 	echo '$GOOS is set to <'$GOOS'>, must be darwin, linux, or nacl' 1>&2
+@@ -41,6 +41,14 @@ CC=${CC:-gcc}
+ sed -e "s|@CC@|$CC|" < quietgcc.bash > $GOBIN/quietgcc
+ chmod +x $GOBIN/quietgcc
+ 
++rm -f $GOBIN/gomake
++MAKE=make
++if ! make --version 2>/dev/null | grep 'GNU Make' >/dev/null; then
++	MAKE=gmake
++fi
++(echo '#!/bin/sh'; echo 'exec '$MAKE' "$@"') >$GOBIN/gomake
++chmod +x $GOBIN/gomake
++
+ if ! (cd lib9 && which quietgcc) >/dev/null 2>&1; then
+ 	echo "installed quietgcc as $GOBIN/quietgcc but 'which quietgcc' fails" 1>&2
+ 	echo "double-check that $GOBIN is in your "'$PATH' 1>&2
+@@ -83,7 +91,7 @@ do
+ 				bash make.bash
+ 				;;
+ 			*)
+-				make install
++				gomake install
+ 			esac
+ 		)  || exit 1
+ 	esac
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index 2869af2e07..4b251d4b85 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -120,16 +120,16 @@ nuke.dirs: $(addsuffix .nuke, $(DIRS))
+ test.dirs: $(addsuffix .test, $(TEST))
+ 
+ %.clean:
+-	+cd $* && make clean
++	+cd $* && gomake clean
+ 
+ %.install:
+-	+cd $* && make install
++	+cd $* && gomake install
+ 
+ %.nuke:
+-	+cd $* && make nuke
++	+cd $* && gomake nuke
+ 
+ %.test:
+-	+cd $* && make test
++	+cd $* && gomake test
+ 
+ clean: clean.dirs
+ 
+diff --git a/src/pkg/deps.bash b/src/pkg/deps.bash
+index b0d1d7aa57..10273e0281 100755
+--- a/src/pkg/deps.bash
++++ b/src/pkg/deps.bash
+@@ -1,4 +1,4 @@
+-#!/bin/bash
++#!/usr/bin/env bash
+ # Copyright 2009 The Go Authors. All rights reserved.
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+diff --git a/src/pkg/exp/eval/test.bash b/src/pkg/exp/eval/test.bash
+index 81f4c3dd11..dabaa280ba 100755
+--- a/src/pkg/exp/eval/test.bash
++++ b/src/pkg/exp/eval/test.bash
+@@ -1,4 +1,4 @@
+-#!/bin/bash
++#!/usr/bin/env bash
+ # Copyright 2009 The Go Authors.  All rights reserved.
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+diff --git a/src/pkg/syscall/mkall.sh b/src/pkg/syscall/mkall.sh
+index d0383f54a8..390392e6f8 100755
+--- a/src/pkg/syscall/mkall.sh
++++ b/src/pkg/syscall/mkall.sh
+@@ -1,4 +1,4 @@
+-#!/bin/sh
++#!/usr/bin/env bash
+ # Copyright 2009 The Go Authors. All rights reserved.
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+@@ -99,6 +99,10 @@ _* | *_ | _)
+ 	echo 'undefined $GOOS_$GOARCH:' "$GOOSARCH" 1>&2
+ 	exit 1
+ 	;;
++freebsd_amd64)
++	mksysnum="mksysnum_freebsd.sh /usr/src/sys/kern/syscalls.master"
++	mktypes="godefs -gsyscall -f-m64"
++	;;
+ darwin_386)
+ 	mksyscall="mksyscall.sh -l32"
+ 	mksysnum="mksysnum_darwin.sh /home/rsc/pub/xnu-1228/bsd/kern/syscalls.master"
+diff --git a/src/pkg/syscall/mkerrors.sh b/src/pkg/syscall/mkerrors.sh
+index 669cd85a50..92bc9c5453 100755
+--- a/src/pkg/syscall/mkerrors.sh
++++ b/src/pkg/syscall/mkerrors.sh
+@@ -1,4 +1,4 @@
+-#!/bin/bash
++#!/usr/bin/env bash
+ # Copyright 2009 The Go Authors. All rights reserved.
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+@@ -38,6 +38,11 @@ includes_Darwin='
+ #include <sys/event.h>
+ '
+ 
++includes_FreeBSD='
++#include <sys/wait.h>
++#include <sys/event.h>
++'
++
+ includes='
+ #include <sys/types.h>
+ #include <fcntl.h>
+diff --git a/src/quietgcc.bash b/src/quietgcc.bash
+index 54e091e25b..dd3db36426 100755
+--- a/src/quietgcc.bash
++++ b/src/quietgcc.bash
+@@ -1,4 +1,4 @@
+-#!/bin/bash
++#!/usr/bin/env bash
+ # Copyright 2009 The Go Authors. All rights reserved.
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+diff --git a/src/run.bash b/src/run.bash
+index c13eb22189..e307ddcc1f 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -1,4 +1,4 @@
+-#!/bin/bash
++#!/usr/bin/env bash
+ # Copyright 2009 The Go Authors. All rights reserved.
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+@@ -19,10 +19,10 @@ maketest() {
+ 	do
+ 		(
+ 			xcd $i
+-			make clean
+-			time make
+-			make install
+-			make test
++			gomake clean
++			time gomake
++			gomake install
++			gomake test
+ 		) || exit $?
+ 	done
+ }
+@@ -34,31 +34,31 @@ maketest \
+ # from what maketest does.
+ 
+ (xcd pkg/sync;
+-make clean;
+-time make
+-GOMAXPROCS=10 make test
++gomake clean;
++time gomake
++GOMAXPROCS=10 gomake test
+ ) || exit $?
+ 
+ (xcd cmd/gofmt
+-make clean
+-time make
+-time make smoketest
++gomake clean
++time gomake
++time gomake smoketest
+ ) || exit $?
+ 
+ (xcd cmd/ebnflint
+-make clean
+-time make
+-time make test
++gomake clean
++time gomake
++time gomake test
+ ) || exit $?
+ 
+ (xcd ../misc/cgo/stdio
+-make clean
++gomake clean
+ ./test.bash
+ ) || exit $?
+ 
+ (xcd pkg/exp/ogle
+-make clean
+-time make ogle
++gomake clean
++time gomake ogle
+ ) || exit $?
+ 
+ (xcd ../doc/progs
+diff --git a/src/sudo.bash b/src/sudo.bash
+index 7c7b43cb3b..68f9905912 100755
+--- a/src/sudo.bash
++++ b/src/sudo.bash
+@@ -1,4 +1,4 @@
+-#!/bin/bash
++#!/usr/bin/env bash
+ # Copyright 2009 The Go Authors. All rights reserved.
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+diff --git a/test/run b/test/run
+index 00cfede662..47f300fe6d 100755
+--- a/test/run
++++ b/test/run
+@@ -1,4 +1,4 @@
+-#!/bin/bash
++#!/usr/bin/env bash
+ # Copyright 2009 The Go Authors. All rights reserved.
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.

@@ -14,6 +14,19 @@ Date:   Fri Apr 1 23:42:12 2022 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/397555
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Trust: Emmanuel Odeke <emmanuel@orijtech.com>
-
+---
  doc/go_spec.html | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 2255b6f8e2..9da1f6ad99 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -529,6 +529,7 @@ escaped_char     = `\` ( "a" | "b" | "f" | "n" | "r" | "t" | "v" | `\` | "'" | `
+ 'aa'         // illegal: too many characters
+ '\xa'        // illegal: too few hexadecimal digits
+ '\0'         // illegal: too few octal digits
++'\400'       // illegal: octal value over 255
+ '\uDFFF'     // illegal: surrogate half
+ '\U00110000' // illegal: invalid Unicode code point
+ </pre>

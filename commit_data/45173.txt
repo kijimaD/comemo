@@ -31,6 +31,24 @@ Date:   Fri Oct 9 23:26:30 2020 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/ssa.go | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 08144bace3..e363f4f723 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -50,12 +50,10 @@ func initssaconfig() {
+ 	// Caching is disabled in the backend, so generating these here avoids allocations.
+ 	_ = types.NewPtr(types.Types[TINTER])                             // *interface{}
+ 	_ = types.NewPtr(types.NewPtr(types.Types[TSTRING]))              // **string
+-	_ = types.NewPtr(types.NewPtr(types.UntypedString))               // **string
+ 	_ = types.NewPtr(types.NewSlice(types.Types[TINTER]))             // *[]interface{}
+ 	_ = types.NewPtr(types.NewPtr(types.Bytetype))                    // **byte
+ 	_ = types.NewPtr(types.NewSlice(types.Bytetype))                  // *[]byte
+ 	_ = types.NewPtr(types.NewSlice(types.Types[TSTRING]))            // *[]string
+-	_ = types.NewPtr(types.NewSlice(types.UntypedString))             // *[]string
+ 	_ = types.NewPtr(types.NewPtr(types.NewPtr(types.Types[TUINT8]))) // ***uint8
+ 	_ = types.NewPtr(types.Types[TINT16])                             // *int16
+ 	_ = types.NewPtr(types.Types[TINT64])                             // *int64

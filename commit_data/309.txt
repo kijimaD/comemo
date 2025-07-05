@@ -5,6 +5,29 @@ Date:   Tue Jul 8 16:01:10 2008 -0700
     - added missing keyword 'iota'
     
     SVN=126397
-
+---
  doc/go_lang.txt | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/doc/go_lang.txt b/doc/go_lang.txt
+index 73acfb76bc..2f102c06cc 100644
+--- a/doc/go_lang.txt
++++ b/doc/go_lang.txt
+@@ -313,14 +313,14 @@ type, a function, etc. An identifier must not be a reserved word.
+ Reserved words
+ ----
+ 
+-  break         fallthrough       import            return
+-  case          false             interface         select
++  break         fallthrough       interface         return
++  case          false             iota              select
+   const         for               map               struct
+   chan          func              new               switch
+   continue      go                nil               true
+   default       goto              package           type
+   else          if                range             var
+-  export
++  export        import
+ 
+ 
+ TODO: "len" is currently also a reserved word - it shouldn't be.

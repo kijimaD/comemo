@@ -14,10 +14,342 @@ Date:   Thu Mar 1 21:56:54 2012 -0500
     R=golang-dev, alex.brainman, r
     CC=golang-dev
     https://golang.org/cl/5710056
-
+---
  src/pkg/os/doc.go          | 65 ++++++++++++++++++++++++++++++++++++++++++++++
  src/pkg/os/exec_plan9.go   | 39 +++++++---------------------
  src/pkg/os/exec_posix.go   | 29 +++++----------------
  src/pkg/os/exec_unix.go    | 13 +++-------
  src/pkg/os/exec_windows.go | 18 +++++--------
  5 files changed, 91 insertions(+), 73 deletions(-)
+
+diff --git a/src/pkg/os/doc.go b/src/pkg/os/doc.go
+index 546f864714..6a531e0d74 100644
+--- a/src/pkg/os/doc.go
++++ b/src/pkg/os/doc.go
+@@ -4,6 +4,8 @@
+ 
+ package os
+ 
++import "time"
++
+ // FindProcess looks for a running process by its pid.
+ // The Process it returns can be used to obtain information
+ // about the underlying operating system process.
+@@ -11,6 +13,17 @@ func FindProcess(pid int) (p *Process, err error) {
+ 	return findProcess(pid)
+ }
+ 
++// StartProcess starts a new process with the program, arguments and attributes
++// specified by name, argv and attr.
++//
++// StartProcess is a low-level interface. The os/exec package provides
++// higher-level interfaces.
++//
++// If there is an error, it will be of type *PathError.
++func StartProcess(name string, argv []string, attr *ProcAttr) (*Process, error) {
++	return startProcess(name, argv, attr)
++}
++
+ // Release releases any resources associated with the Process p,
+ // rendering it unusable in the future.
+ // Release only needs to be called if Wait is not.
+@@ -18,6 +31,58 @@ func (p *Process) Release() error {
+ 	return p.release()
+ }
+ 
++// Kill causes the Process to exit immediately.
++func (p *Process) Kill() error {
++	return p.kill()
++}
++
++// Wait waits for the Process to exit, and then returns a
++// ProcessState describing its status and an error, if any.
++// Wait releases any resources associated with the Process.
++func (p *Process) Wait() (*ProcessState, error) {
++	return p.wait()
++}
++
++// Signal sends a signal to the Process.
++func (p *Process) Signal(sig Signal) error {
++	return p.signal(sig)
++}
++
++// UserTime returns the user CPU time of the exited process and its children.
++func (p *ProcessState) UserTime() time.Duration {
++	return p.userTime()
++}
++
++// SystemTime returns the system CPU time of the exited process and its children.
++func (p *ProcessState) SystemTime() time.Duration {
++	return p.systemTime()
++}
++
++// Exited returns whether the program has exited.
++func (p *ProcessState) Exited() bool {
++	return p.exited()
++}
++
++// Success reports whether the program exited successfully,
++// such as with exit status 0 on Unix.
++func (p *ProcessState) Success() bool {
++	return p.success()
++}
++
++// Sys returns system-dependent exit information about
++// the process.  Convert it to the appropriate underlying
++// type, such as syscall.WaitStatus on Unix, to access its contents.
++func (p *ProcessState) Sys() interface{} {
++	return p.sys()
++}
++
++// SysUsage returns system-dependent resource usage information about
++// the exited process.  Convert it to the appropriate underlying
++// type, such as *syscall.Rusage on Unix, to access its contents.
++func (p *ProcessState) SysUsage() interface{} {
++	return p.sysUsage()
++}
++
+ // Hostname returns the host name reported by the kernel.
+ func Hostname() (name string, err error) {
+ 	return hostname()
+diff --git a/src/pkg/os/exec_plan9.go b/src/pkg/os/exec_plan9.go
+index a941d12660..a7e2e2543a 100644
+--- a/src/pkg/os/exec_plan9.go
++++ b/src/pkg/os/exec_plan9.go
+@@ -11,10 +11,7 @@ import (
+ 	"time"
+ )
+ 
+-// StartProcess starts a new process with the program, arguments and attributes
+-// specified by name, argv and attr.
+-// If there is an error, it will be of type *PathError.
+-func StartProcess(name string, argv []string, attr *ProcAttr) (p *Process, err error) {
++func startProcess(name string, argv []string, attr *ProcAttr) (p *Process, err error) {
+ 	sysattr := &syscall.ProcAttr{
+ 		Dir: attr.Dir,
+ 		Env: attr.Env,
+@@ -40,7 +37,7 @@ func (note Plan9Note) String() string {
+ 	return string(note)
+ }
+ 
+-func (p *Process) Signal(sig Signal) error {
++func (p *Process) signal(sig Signal) error {
+ 	if p.done {
+ 		return errors.New("os: process already finished")
+ 	}
+@@ -54,8 +51,7 @@ func (p *Process) Signal(sig Signal) error {
+ 	return e
+ }
+ 
+-// Kill causes the Process to exit immediately.
+-func (p *Process) Kill() error {
++func (p *Process) kill() error {
+ 	f, e := OpenFile("/proc/"+itoa(p.Pid)+"/ctl", O_WRONLY, 0)
+ 	if e != nil {
+ 		return NewSyscallError("kill", e)
+@@ -65,9 +61,7 @@ func (p *Process) Kill() error {
+ 	return e
+ }
+ 
+-// Wait waits for the Process to exit or stop, and then returns a
+-// ProcessState describing its status and an error, if any.
+-func (p *Process) Wait() (ps *ProcessState, err error) {
++func (p *Process) wait() (ps *ProcessState, err error) {
+ 	var waitmsg syscall.Waitmsg
+ 
+ 	if p.Pid == -1 {
+@@ -118,40 +112,27 @@ func (p *ProcessState) Pid() int {
+ 	return p.pid
+ }
+ 
+-// Exited returns whether the program has exited.
+-func (p *ProcessState) Exited() bool {
++func (p *ProcessState) exited() bool {
+ 	return p.status.Exited()
+ }
+ 
+-// Success reports whether the program exited successfully,
+-// such as with exit status 0 on Unix.
+-func (p *ProcessState) Success() bool {
++func (p *ProcessState) success() bool {
+ 	return p.status.ExitStatus() == 0
+ }
+ 
+-// Sys returns system-dependent exit information about
+-// the process.  Convert it to the appropriate underlying
+-// type, such as *syscall.Waitmsg on Plan 9, to access its contents.
+-func (p *ProcessState) Sys() interface{} {
++func (p *ProcessState) sys() interface{} {
+ 	return p.status
+ }
+ 
+-// SysUsage returns system-dependent resource usage information about
+-// the exited process.  Convert it to the appropriate underlying
+-// type, such as *syscall.Waitmsg on Plan 9, to access its contents.
+-func (p *ProcessState) SysUsage() interface{} {
++func (p *ProcessState) sysUsage() interface{} {
+ 	return p.status
+ }
+ 
+-// UserTime returns the user CPU time of the exited process and its children.
+-// It is always reported as 0 on Windows.
+-func (p *ProcessState) UserTime() time.Duration {
++func (p *ProcessState) userTime() time.Duration {
+ 	return time.Duration(p.status.Time[0]) * time.Millisecond
+ }
+ 
+-// SystemTime returns the system CPU time of the exited process and its children.
+-// It is always reported as 0 on Windows.
+-func (p *ProcessState) SystemTime() time.Duration {
++func (p *ProcessState) systemTime() time.Duration {
+ 	return time.Duration(p.status.Time[1]) * time.Millisecond
+ }
+ 
+diff --git a/src/pkg/os/exec_posix.go b/src/pkg/os/exec_posix.go
+index a686f44606..a39ed92b9e 100644
+--- a/src/pkg/os/exec_posix.go
++++ b/src/pkg/os/exec_posix.go
+@@ -10,14 +10,7 @@ import (
+ 	"syscall"
+ )
+ 
+-// StartProcess starts a new process with the program, arguments and attributes
+-// specified by name, argv and attr.
+-//
+-// StartProcess is a low-level interface. The os/exec package provides
+-// higher-level interfaces.
+-//
+-// If there is an error, it will be of type *PathError.
+-func StartProcess(name string, argv []string, attr *ProcAttr) (p *Process, err error) {
++func startProcess(name string, argv []string, attr *ProcAttr) (p *Process, err error) {
+ 	// Double-check existence of the directory we want
+ 	// to chdir into.  We can make the error clearer this way.
+ 	if attr != nil && attr.Dir != "" {
+@@ -47,8 +40,7 @@ func StartProcess(name string, argv []string, attr *ProcAttr) (p *Process, err e
+ 	return newProcess(pid, h), nil
+ }
+ 
+-// Kill causes the Process to exit immediately.
+-func (p *Process) Kill() error {
++func (p *Process) kill() error {
+ 	return p.Signal(Kill)
+ }
+ 
+@@ -64,28 +56,19 @@ func (p *ProcessState) Pid() int {
+ 	return p.pid
+ }
+ 
+-// Exited returns whether the program has exited.
+-func (p *ProcessState) Exited() bool {
++func (p *ProcessState) exited() bool {
+ 	return p.status.Exited()
+ }
+ 
+-// Success reports whether the program exited successfully,
+-// such as with exit status 0 on Unix.
+-func (p *ProcessState) Success() bool {
++func (p *ProcessState) success() bool {
+ 	return p.status.ExitStatus() == 0
+ }
+ 
+-// Sys returns system-dependent exit information about
+-// the process.  Convert it to the appropriate underlying
+-// type, such as syscall.WaitStatus on Unix, to access its contents.
+-func (p *ProcessState) Sys() interface{} {
++func (p *ProcessState) sys() interface{} {
+ 	return p.status
+ }
+ 
+-// SysUsage returns system-dependent resource usage information about
+-// the exited process.  Convert it to the appropriate underlying
+-// type, such as *syscall.Rusage on Unix, to access its contents.
+-func (p *ProcessState) SysUsage() interface{} {
++func (p *ProcessState) sysUsage() interface{} {
+ 	return p.rusage
+ }
+ 
+diff --git a/src/pkg/os/exec_unix.go b/src/pkg/os/exec_unix.go
+index 3f89fe8238..ecfe5353bc 100644
+--- a/src/pkg/os/exec_unix.go
++++ b/src/pkg/os/exec_unix.go
+@@ -13,9 +13,7 @@ import (
+ 	"time"
+ )
+ 
+-// Wait waits for the Process to exit or stop, and then returns a
+-// ProcessState describing its status and an error, if any.
+-func (p *Process) Wait() (ps *ProcessState, err error) {
++func (p *Process) wait() (ps *ProcessState, err error) {
+ 	if p.Pid == -1 {
+ 		return nil, syscall.EINVAL
+ 	}
+@@ -36,8 +34,7 @@ func (p *Process) Wait() (ps *ProcessState, err error) {
+ 	return ps, nil
+ }
+ 
+-// Signal sends a signal to the Process.
+-func (p *Process) Signal(sig Signal) error {
++func (p *Process) signal(sig Signal) error {
+ 	if p.done {
+ 		return errors.New("os: process already finished")
+ 	}
+@@ -64,12 +61,10 @@ func findProcess(pid int) (p *Process, err error) {
+ 	return newProcess(pid, 0), nil
+ }
+ 
+-// UserTime returns the user CPU time of the exited process and its children.
+-func (p *ProcessState) UserTime() time.Duration {
++func (p *ProcessState) userTime() time.Duration {
+ 	return time.Duration(p.rusage.Utime.Nano()) * time.Nanosecond
+ }
+ 
+-// SystemTime returns the system CPU time of the exited process and its children.
+-func (p *ProcessState) SystemTime() time.Duration {
++func (p *ProcessState) systemTime() time.Duration {
+ 	return time.Duration(p.rusage.Stime.Nano()) * time.Nanosecond
+ }
+diff --git a/src/pkg/os/exec_windows.go b/src/pkg/os/exec_windows.go
+index 3d07ab7c92..93360b15f1 100644
+--- a/src/pkg/os/exec_windows.go
++++ b/src/pkg/os/exec_windows.go
+@@ -12,10 +12,7 @@ import (
+ 	"unsafe"
+ )
+ 
+-// Wait waits for the Process to exit or stop, and then returns a
+-// ProcessState describing its status and an error, if any.
+-// Wait releases any resources associated with the Process.
+-func (p *Process) Wait() (ps *ProcessState, err error) {
++func (p *Process) wait() (ps *ProcessState, err error) {
+ 	s, e := syscall.WaitForSingleObject(syscall.Handle(p.handle), syscall.INFINITE)
+ 	switch s {
+ 	case syscall.WAIT_OBJECT_0:
+@@ -35,8 +32,7 @@ func (p *Process) Wait() (ps *ProcessState, err error) {
+ 	return &ProcessState{p.Pid, syscall.WaitStatus{Status: s, ExitCode: ec}, new(syscall.Rusage)}, nil
+ }
+ 
+-// Signal sends a signal to the Process.
+-func (p *Process) Signal(sig Signal) error {
++func (p *Process) signal(sig Signal) error {
+ 	if p.done {
+ 		return errors.New("os: process already finished")
+ 	}
+@@ -86,14 +82,12 @@ func init() {
+ 	}
+ }
+ 
+-// UserTime returns the user CPU time of the exited process and its children.
+-// For now, it is always reported as 0 on Windows.
+-func (p *ProcessState) UserTime() time.Duration {
++// BUG(rsc): On Windows, ProcessState's UserTime and SystemTime methods always return 0.
++
++func (p *ProcessState) userTime() time.Duration {
+ 	return 0
+ }
+ 
+-// SystemTime returns the system CPU time of the exited process and its children.
+-// For now, it is always reported as 0 on Windows.
+-func (p *ProcessState) SystemTime() time.Duration {
++func (p *ProcessState) systemTime() time.Duration {
+ 	return 0
+ }

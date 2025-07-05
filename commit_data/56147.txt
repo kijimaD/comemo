@@ -14,8 +14,80 @@ Date:   Mon Mar 27 13:23:36 2023 +0200
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
-
+---
  api/next/46159.txt     |  2 ++
  src/regexp/all_test.go | 26 ++++++++++++++++++++++++++
  src/regexp/regexp.go   | 21 +++++++++++++++++++++
  3 files changed, 49 insertions(+)
+
+diff --git a/api/next/46159.txt b/api/next/46159.txt
+new file mode 100644
+index 0000000000..183cd07da6
+--- /dev/null
++++ b/api/next/46159.txt
+@@ -0,0 +1,2 @@
++pkg regexp, method (*Regexp) MarshalText() ([]uint8, error) #46159
++pkg regexp, method (*Regexp) UnmarshalText([]uint8) error #46159
+diff --git a/src/regexp/all_test.go b/src/regexp/all_test.go
+index 52de3fef83..124313d1af 100644
+--- a/src/regexp/all_test.go
++++ b/src/regexp/all_test.go
+@@ -947,3 +947,29 @@ func TestMinInputLen(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestUnmarshalText(t *testing.T) {
++	unmarshaled := new(Regexp)
++	for i := range goodRe {
++		re := compileTest(t, goodRe[i], "")
++		marshaled, err := re.MarshalText()
++		if err != nil {
++			t.Errorf("regexp %#q failed to marshal: %s", re, err)
++			continue
++		}
++		if err := unmarshaled.UnmarshalText(marshaled); err != nil {
++			t.Errorf("regexp %#q failed to unmarshal: %s", re, err)
++			continue
++		}
++		if unmarshaled.String() != goodRe[i] {
++			t.Errorf("UnmarshalText returned unexpected value: %s", unmarshaled.String())
++		}
++	}
++	t.Run("invalid pattern", func(t *testing.T) {
++		re := new(Regexp)
++		err := re.UnmarshalText([]byte(`\`))
++		if err == nil {
++			t.Error("unexpected success")
++		}
++	})
++}
+diff --git a/src/regexp/regexp.go b/src/regexp/regexp.go
+index 990c06e891..82023868ec 100644
+--- a/src/regexp/regexp.go
++++ b/src/regexp/regexp.go
+@@ -1283,3 +1283,24 @@ func (re *Regexp) Split(s string, n int) []string {
+ 
+ 	return strings
+ }
++
++// MarshalText implements the encoding.TextMarshaler interface. The output
++// matches that of calling the [Regexp.String] method.
++//
++// Note that the output is lossy in some cases: This method does not indicate
++// POSIX regular expressions (i.e. those compiled by calling CompilePOSIX), or
++// those for which the [Regexp.Longest] method has been called.
++func (re *Regexp) MarshalText() ([]byte, error) {
++	return []byte(re.String()), nil
++}
++
++// MarshalText implements the encoding.TextUnmarshaler interface by calling
++// Compile on the encoded value.
++func (re *Regexp) UnmarshalText(text []byte) error {
++	newRE, err := Compile(string(text))
++	if err != nil {
++		return err
++	}
++	*re = *newRE
++	return nil
++}

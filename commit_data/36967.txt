@@ -12,7 +12,7 @@ Date:   Wed Jun 13 08:20:23 2018 -0700
     Reviewed-on: https://go-review.googlesource.com/118561
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/defs_darwin.go       |   4 ++
  src/runtime/defs_darwin_386.go   |   3 +
  src/runtime/defs_darwin_amd64.go |   3 +
@@ -26,3 +26,498 @@ Date:   Wed Jun 13 08:20:23 2018 -0700
  src/runtime/sys_darwin_386.s     | 120 ++++++++++++++++++++++++++-------------
  src/runtime/sys_darwin_amd64.s   | 100 ++++++++++++++++----------------
  12 files changed, 211 insertions(+), 101 deletions(-)
+
+diff --git a/src/runtime/defs_darwin.go b/src/runtime/defs_darwin.go
+index 92f7822796..a52ec3db63 100644
+--- a/src/runtime/defs_darwin.go
++++ b/src/runtime/defs_darwin.go
+@@ -25,6 +25,7 @@ package runtime
+ #include <sys/event.h>
+ #include <sys/mman.h>
+ #include <pthread.h>
++#include <fcntl.h>
+ */
+ import "C"
+ 
+@@ -146,6 +147,9 @@ const (
+ 	EVFILT_WRITE = C.EVFILT_WRITE
+ 
+ 	PTHREAD_CREATE_DETACHED = C.PTHREAD_CREATE_DETACHED
++
++	F_SETFD    = C.F_SETFD
++	FD_CLOEXEC = C.FD_CLOEXEC
+ )
+ 
+ type MachBody C.mach_msg_body_t
+diff --git a/src/runtime/defs_darwin_386.go b/src/runtime/defs_darwin_386.go
+index 7f8ae9c934..9a9aa26fb5 100644
+--- a/src/runtime/defs_darwin_386.go
++++ b/src/runtime/defs_darwin_386.go
+@@ -123,6 +123,9 @@ const (
+ 	_EVFILT_WRITE = -0x2
+ 
+ 	_PTHREAD_CREATE_DETACHED = 0x2
++
++	_F_SETFD    = 0x2
++	_FD_CLOEXEC = 0x1
+ )
+ 
+ type machbody struct {
+diff --git a/src/runtime/defs_darwin_amd64.go b/src/runtime/defs_darwin_amd64.go
+index f35b90a5fa..53fc927cd3 100644
+--- a/src/runtime/defs_darwin_amd64.go
++++ b/src/runtime/defs_darwin_amd64.go
+@@ -123,6 +123,9 @@ const (
+ 	_EVFILT_WRITE = -0x2
+ 
+ 	_PTHREAD_CREATE_DETACHED = 0x2
++
++	_F_SETFD    = 0x2
++	_FD_CLOEXEC = 0x1
+ )
+ 
+ type machbody struct {
+diff --git a/src/runtime/netpoll_kqueue.go b/src/runtime/netpoll_kqueue.go
+index 4d5d1a4ea8..0f73bf385e 100644
+--- a/src/runtime/netpoll_kqueue.go
++++ b/src/runtime/netpoll_kqueue.go
+@@ -10,12 +10,6 @@ package runtime
+ 
+ import "unsafe"
+ 
+-func kqueue() int32
+-
+-//go:noescape
+-func kevent(kq int32, ch *keventt, nch int32, ev *keventt, nev int32, ts *timespec) int32
+-func closeonexec(fd int32)
+-
+ var (
+ 	kq int32 = -1
+ )
+diff --git a/src/runtime/os_darwin.go b/src/runtime/os_darwin.go
+index cf57cc9020..8024d443a2 100644
+--- a/src/runtime/os_darwin.go
++++ b/src/runtime/os_darwin.go
+@@ -18,9 +18,6 @@ func mach_reply_port() uint32
+ func mach_task_self() uint32
+ func mach_thread_self() uint32
+ 
+-//go:noescape
+-func sysctl(mib *uint32, miblen uint32, out *byte, size *uintptr, dst *byte, ndst uintptr) int32
+-
+ func unimplemented(name string) {
+ 	println(name, "not implemented")
+ 	*(*int)(unsafe.Pointer(uintptr(1231))) = 1231
+@@ -498,9 +495,6 @@ const (
+ 	_SS_DISABLE  = 4
+ )
+ 
+-//go:noescape
+-func setitimer(mode int32, new, old *itimerval)
+-
+ //extern SigTabTT runtime·sigtab[];
+ 
+ type sigset uint32
+diff --git a/src/runtime/os_dragonfly.go b/src/runtime/os_dragonfly.go
+index 2c9a78ca7b..eb7e159d35 100644
+--- a/src/runtime/os_dragonfly.go
++++ b/src/runtime/os_dragonfly.go
+@@ -49,6 +49,12 @@ func sys_umtx_wakeup(addr *uint32, val int32) int32
+ 
+ func osyield()
+ 
++func kqueue() int32
++
++//go:noescape
++func kevent(kq int32, ch *keventt, nch int32, ev *keventt, nev int32, ts *timespec) int32
++func closeonexec(fd int32)
++
+ const stackSystem = 0
+ 
+ // From DragonFly's <sys/sysctl.h>
+diff --git a/src/runtime/os_freebsd.go b/src/runtime/os_freebsd.go
+index b3fc6a34ac..631dc20ab4 100644
+--- a/src/runtime/os_freebsd.go
++++ b/src/runtime/os_freebsd.go
+@@ -34,6 +34,12 @@ func sys_umtx_op(addr *uint32, mode int32, val uint32, uaddr1 uintptr, ut *umtx_
+ 
+ func osyield()
+ 
++func kqueue() int32
++
++//go:noescape
++func kevent(kq int32, ch *keventt, nch int32, ev *keventt, nev int32, ts *timespec) int32
++func closeonexec(fd int32)
++
+ // From FreeBSD's <sys/sysctl.h>
+ const (
+ 	_CTL_HW      = 6
+diff --git a/src/runtime/os_netbsd.go b/src/runtime/os_netbsd.go
+index 1a92619354..a9bf407a36 100644
+--- a/src/runtime/os_netbsd.go
++++ b/src/runtime/os_netbsd.go
+@@ -68,6 +68,12 @@ func lwp_self() int32
+ 
+ func osyield()
+ 
++func kqueue() int32
++
++//go:noescape
++func kevent(kq int32, ch *keventt, nch int32, ev *keventt, nev int32, ts *timespec) int32
++func closeonexec(fd int32)
++
+ const (
+ 	_ESRCH     = 3
+ 	_ETIMEDOUT = 60
+diff --git a/src/runtime/os_openbsd.go b/src/runtime/os_openbsd.go
+index 432c468a8b..c359ceb280 100644
+--- a/src/runtime/os_openbsd.go
++++ b/src/runtime/os_openbsd.go
+@@ -55,6 +55,12 @@ func thrwakeup(ident uintptr, n int32) int32
+ 
+ func osyield()
+ 
++func kqueue() int32
++
++//go:noescape
++func kevent(kq int32, ch *keventt, nch int32, ev *keventt, nev int32, ts *timespec) int32
++func closeonexec(fd int32)
++
+ const (
+ 	_ESRCH       = 3
+ 	_EAGAIN      = 35
+diff --git a/src/runtime/sys_darwin.go b/src/runtime/sys_darwin.go
+index 7b4e927b36..475bbff0ce 100644
+--- a/src/runtime/sys_darwin.go
++++ b/src/runtime/sys_darwin.go
+@@ -214,10 +214,51 @@ func raiseproc(sig uint32) {
+ }
+ func raiseproc_trampoline()
+ 
++//go:nosplit
++//go:cgo_unsafe_args
++func setitimer(mode int32, new, old *itimerval) {
++	asmcgocall(unsafe.Pointer(funcPC(setitimer_trampoline)), unsafe.Pointer(&mode))
++}
++func setitimer_trampoline()
++
++//go:nosplit
++//go:cgo_unsafe_args
++func sysctl(mib *uint32, miblen uint32, out *byte, size *uintptr, dst *byte, ndst uintptr) int32 {
++	return asmcgocall(unsafe.Pointer(funcPC(sysctl_trampoline)), unsafe.Pointer(&mib))
++}
++func sysctl_trampoline()
++
++//go:nosplit
++//go:cgo_unsafe_args
++func fcntl(fd, cmd, arg int32) int32 {
++	return asmcgocall(unsafe.Pointer(funcPC(fcntl_trampoline)), unsafe.Pointer(&fd))
++}
++func fcntl_trampoline()
++
++//go:nosplit
++//go:cgo_unsafe_args
++func kqueue() int32 {
++	v := asmcgocall(unsafe.Pointer(funcPC(kqueue_trampoline)), nil)
++	return v
++}
++func kqueue_trampoline()
++
++//go:nosplit
++//go:cgo_unsafe_args
++func kevent(kq int32, ch *keventt, nch int32, ev *keventt, nev int32, ts *timespec) int32 {
++	return asmcgocall(unsafe.Pointer(funcPC(kevent_trampoline)), unsafe.Pointer(&kq))
++}
++func kevent_trampoline()
++
+ // Not used on Darwin, but must be defined.
+ func exitThread(wait *uint32) {
+ }
+ 
++//go:nosplit
++func closeonexec(fd int32) {
++	fcntl(fd, _F_SETFD, _FD_CLOEXEC)
++}
++
+ // Tell the linker that the libc_* functions are to be found
+ // in a system library, with the libc_ prefix missing.
+ 
+@@ -247,6 +288,11 @@ func exitThread(wait *uint32) {
+ //go:cgo_import_dynamic libc_sigaltstack sigaltstack "/usr/lib/libSystem.B.dylib"
+ //go:cgo_import_dynamic libc_getpid getpid "/usr/lib/libSystem.B.dylib"
+ //go:cgo_import_dynamic libc_kill kill "/usr/lib/libSystem.B.dylib"
++//go:cgo_import_dynamic libc_setitimer setitimer "/usr/lib/libSystem.B.dylib"
++//go:cgo_import_dynamic libc_sysctl sysctl "/usr/lib/libSystem.B.dylib"
++//go:cgo_import_dynamic libc_fcntl fcntl "/usr/lib/libSystem.B.dylib"
++//go:cgo_import_dynamic libc_kqueue kqueue "/usr/lib/libSystem.B.dylib"
++//go:cgo_import_dynamic libc_kevent kevent "/usr/lib/libSystem.B.dylib"
+ 
+ // Magic incantation to get libSystem actually dynamically linked.
+ // TODO: Why does the code require this?  See cmd/compile/internal/ld/go.go:210
+diff --git a/src/runtime/sys_darwin_386.s b/src/runtime/sys_darwin_386.s
+index cb60d070b5..624cead0b5 100644
+--- a/src/runtime/sys_darwin_386.s
++++ b/src/runtime/sys_darwin_386.s
+@@ -150,9 +150,20 @@ TEXT runtime·munmap_trampoline(SB),NOSPLIT,$0
+ 	POPL	BP
+ 	RET
+ 
+-TEXT runtime·setitimer(SB),NOSPLIT,$0
+-	MOVL	$83, AX
+-	INT	$0x80
++TEXT runtime·setitimer_trampoline(SB),NOSPLIT,$0
++	PUSHL	BP
++	MOVL	SP, BP
++	SUBL	$24, SP
++	MOVL	32(SP), CX
++	MOVL	0(CX), AX		// arg 1 mode
++	MOVL	AX, 0(SP)
++	MOVL	4(CX), AX		// arg 2 new
++	MOVL	AX, 4(SP)
++	MOVL	8(CX), AX		// arg 3 old
++	MOVL	AX, 8(SP)
++	CALL	libc_setitimer(SB)
++	MOVL	BP, SP
++	POPL	BP
+ 	RET
+ 
+ TEXT runtime·walltime_trampoline(SB),NOSPLIT,$0
+@@ -398,46 +409,79 @@ TEXT runtime·setldt(SB),NOSPLIT,$32
+ 	// Nothing to do on Darwin, pthread already set thread-local storage up.
+ 	RET
+ 
+-TEXT runtime·sysctl(SB),NOSPLIT,$0
+-	MOVL	$202, AX
+-	INT	$0x80
+-	JAE	4(PC)
+-	NEGL	AX
+-	MOVL	AX, ret+24(FP)
++TEXT runtime·sysctl_trampoline(SB),NOSPLIT,$0
++	PUSHL	BP
++	MOVL	SP, BP
++	SUBL	$24, SP
++	MOVL	32(SP), CX
++	MOVL	0(CX), AX		// arg 1 mib
++	MOVL	AX, 0(SP)
++	MOVL	4(CX), AX		// arg 2 miblen
++	MOVL	AX, 4(SP)
++	MOVL	8(CX), AX		// arg 3 out
++	MOVL	AX, 8(SP)
++	MOVL	12(CX), AX		// arg 4 size
++	MOVL	AX, 12(SP)
++	MOVL	16(CX), AX		// arg 5 dst
++	MOVL	AX, 16(SP)
++	MOVL	20(CX), AX		// arg 6 ndst
++	MOVL	AX, 20(SP)
++	CALL	libc_sysctl(SB)
++	MOVL	BP, SP
++	POPL	BP
+ 	RET
+-	MOVL	$0, AX
+-	MOVL	AX, ret+24(FP)
++
++TEXT runtime·kqueue_trampoline(SB),NOSPLIT,$0
++	PUSHL	BP
++	MOVL	SP, BP
++	SUBL	$8, SP
++	CALL	libc_kqueue(SB)
++	MOVL	BP, SP
++	POPL	BP
+ 	RET
+ 
+-// func kqueue() int32
+-TEXT runtime·kqueue(SB),NOSPLIT,$0
+-	MOVL	$362, AX
+-	INT	$0x80
+-	JAE	2(PC)
+-	NEGL	AX
+-	MOVL	AX, ret+0(FP)
++TEXT runtime·kevent_trampoline(SB),NOSPLIT,$0
++	PUSHL	BP
++	MOVL	SP, BP
++	SUBL	$24, SP
++	MOVL	32(SP), CX
++	MOVL	0(CX), AX		// arg 1 kq
++	MOVL	AX, 0(SP)
++	MOVL	4(CX), AX		// arg 2 ch
++	MOVL	AX, 4(SP)
++	MOVL	8(CX), AX		// arg 3 nch
++	MOVL	AX, 8(SP)
++	MOVL	12(CX), AX		// arg 4 ev
++	MOVL	AX, 12(SP)
++	MOVL	16(CX), AX		// arg 5 nev
++	MOVL	AX, 16(SP)
++	MOVL	20(CX), AX		// arg 6 ts
++	MOVL	AX, 20(SP)
++	CALL	libc_kevent(SB)
++	CMPL	AX, $-1
++	JNE	ok
++	CALL	libc_error(SB)
++	MOVL	(AX), AX		// errno
++	NEGL	AX			// caller wants it as a negative error code
++ok:
++	MOVL	BP, SP
++	POPL	BP
+ 	RET
+ 
+-// func kevent(kq int32, ch *keventt, nch int32, ev *keventt, nev int32, ts *timespec) int32
+-TEXT runtime·kevent(SB),NOSPLIT,$0
+-	MOVL	$363, AX
+-	INT	$0x80
+-	JAE	2(PC)
+-	NEGL	AX
+-	MOVL	AX, ret+24(FP)
+-	RET
+-
+-// func closeonexec(fd int32)
+-TEXT runtime·closeonexec(SB),NOSPLIT,$32
+-	MOVL	$92, AX  // fcntl
+-	// 0(SP) is where the caller PC would be; kernel skips it
+-	MOVL	fd+0(FP), BX
+-	MOVL	BX, 4(SP)  // fd
+-	MOVL	$2, 8(SP)  // F_SETFD
+-	MOVL	$1, 12(SP)  // FD_CLOEXEC
+-	INT	$0x80
+-	JAE	2(PC)
+-	NEGL	AX
++TEXT runtime·fcntl_trampoline(SB),NOSPLIT,$0
++	PUSHL	BP
++	MOVL	SP, BP
++	SUBL	$24, SP
++	MOVL	32(SP), CX
++	MOVL	0(CX), AX		// arg 1 fd
++	MOVL	AX, 0(SP)
++	MOVL	4(CX), AX		// arg 2 cmd
++	MOVL	AX, 4(SP)
++	MOVL	8(CX), AX		// arg 3 arg
++	MOVL	AX, 8(SP)
++	CALL	libc_fcntl(SB)
++	MOVL	BP, SP
++	POPL	BP
+ 	RET
+ 
+ // mstart_stub is the first function executed on a new thread started by pthread_create.
+diff --git a/src/runtime/sys_darwin_amd64.s b/src/runtime/sys_darwin_amd64.s
+index b52e0b52cd..da08427701 100644
+--- a/src/runtime/sys_darwin_amd64.s
++++ b/src/runtime/sys_darwin_amd64.s
+@@ -63,12 +63,14 @@ TEXT runtime·write_trampoline(SB),NOSPLIT,$0
+ 	POPQ	BP
+ 	RET
+ 
+-TEXT runtime·setitimer(SB), NOSPLIT, $0
+-	MOVL	mode+0(FP), DI
+-	MOVQ	new+8(FP), SI
+-	MOVQ	old+16(FP), DX
+-	MOVL	$(0x2000000+83), AX	// syscall entry
+-	SYSCALL
++TEXT runtime·setitimer_trampoline(SB),NOSPLIT,$0
++	PUSHQ	BP
++	MOVQ	SP, BP
++	MOVQ	8(DI), SI		// arg 2 new
++	MOVQ	16(DI), DX		// arg 3 old
++	MOVL	0(DI), DI		// arg 1 which
++	CALL	libc_setitimer(SB)
++	POPQ	BP
+ 	RET
+ 
+ TEXT runtime·madvise_trampoline(SB), NOSPLIT, $0
+@@ -338,57 +340,53 @@ TEXT runtime·settls(SB),NOSPLIT,$32
+ 	// Nothing to do on Darwin, pthread already set thread-local storage up.
+ 	RET
+ 
+-TEXT runtime·sysctl(SB),NOSPLIT,$0
+-	MOVQ	mib+0(FP), DI
+-	MOVL	miblen+8(FP), SI
+-	MOVQ	out+16(FP), DX
+-	MOVQ	size+24(FP), R10
+-	MOVQ	dst+32(FP), R8
+-	MOVQ	ndst+40(FP), R9
+-	MOVL	$(0x2000000+202), AX	// syscall entry
+-	SYSCALL
+-	JCC 4(PC)
+-	NEGQ	AX
+-	MOVL	AX, ret+48(FP)
+-	RET
+-	MOVL	$0, AX
+-	MOVL	AX, ret+48(FP)
++TEXT runtime·sysctl_trampoline(SB),NOSPLIT,$0
++	PUSHQ	BP
++	MOVQ	SP, BP
++	MOVL	8(DI), SI		// arg 2 miblen
++	MOVQ	16(DI), DX		// arg 3 out
++	MOVQ	24(DI), CX		// arg 4 size
++	MOVQ	32(DI), R8		// arg 5 dst
++	MOVQ	40(DI), R9		// arg 6 ndst
++	MOVQ	0(DI), DI		// arg 1 mib
++	CALL	libc_sysctl(SB)
++	POPQ	BP
+ 	RET
+ 
+-// func kqueue() int32
+-TEXT runtime·kqueue(SB),NOSPLIT,$0
+-	MOVQ    $0, DI
+-	MOVQ    $0, SI
+-	MOVQ    $0, DX
+-	MOVL	$(0x2000000+362), AX
+-	SYSCALL
+-	JCC	2(PC)
+-	NEGQ	AX
+-	MOVL	AX, ret+0(FP)
++TEXT runtime·kqueue_trampoline(SB),NOSPLIT,$0
++	PUSHQ	BP
++	MOVQ	SP, BP
++	CALL	libc_kqueue(SB)
++	POPQ	BP
+ 	RET
+ 
+-// func kevent(kq int32, ch *keventt, nch int32, ev *keventt, nev int32, ts *timespec) int32
+-TEXT runtime·kevent(SB),NOSPLIT,$0
+-	MOVL    kq+0(FP), DI
+-	MOVQ    ch+8(FP), SI
+-	MOVL    nch+16(FP), DX
+-	MOVQ    ev+24(FP), R10
+-	MOVL    nev+32(FP), R8
+-	MOVQ    ts+40(FP), R9
+-	MOVL	$(0x2000000+363), AX
+-	SYSCALL
+-	JCC	2(PC)
+-	NEGQ	AX
+-	MOVL	AX, ret+48(FP)
++TEXT runtime·kevent_trampoline(SB),NOSPLIT,$0
++	PUSHQ	BP
++	MOVQ	SP, BP
++	MOVQ	8(DI), SI		// arg 2 keventt
++	MOVL	16(DI), DX		// arg 3 nch
++	MOVQ	24(DI), CX		// arg 4 ev
++	MOVL	32(DI), R8		// arg 5 nev
++	MOVQ	40(DI), R9		// arg 6 ts
++	MOVL	0(DI), DI		// arg 1 kq
++	CALL	libc_kevent(SB)
++	CMPQ	AX, $-1
++	JNE	ok
++	CALL	libc_error(SB)
++	MOVQ	(AX), AX		// errno
++	NEGQ	AX			// caller wants it as a negative error code
++ok:
++	POPQ	BP
+ 	RET
+ 
+-// func closeonexec(fd int32)
+-TEXT runtime·closeonexec(SB),NOSPLIT,$0
+-	MOVL    fd+0(FP), DI  // fd
+-	MOVQ    $2, SI  // F_SETFD
+-	MOVQ    $1, DX  // FD_CLOEXEC
+-	MOVL	$(0x2000000+92), AX  // fcntl
+-	SYSCALL
++TEXT runtime·fcntl_trampoline(SB),NOSPLIT,$0
++	PUSHQ	BP
++	MOVQ	SP, BP
++	MOVL	4(DI), SI		// arg 2 cmd
++	MOVL	8(DI), DX		// arg 3 arg
++	MOVL	0(DI), DI		// arg 1 fd
++	CALL	libc_fcntl(SB)
++	POPQ	BP
+ 	RET
+ 
+ // mstart_stub is the first function executed on a new thread started by pthread_create.

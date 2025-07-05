@@ -9,6 +9,33 @@ Date:   Sat Jul 15 12:58:19 2017 -0600
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/math/example_test.go | 20 ++++++++++++++++++++
  1 file changed, 20 insertions(+)
+
+diff --git a/src/math/example_test.go b/src/math/example_test.go
+new file mode 100644
+index 0000000000..12e9876730
+--- /dev/null
++++ b/src/math/example_test.go
+@@ -0,0 +1,20 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package math_test
++
++import (
++	"fmt"
++	"math"
++)
++
++func ExampleSqrt() {
++	const (
++		a = 3
++		b = 4
++	)
++	c := math.Sqrt(a*a + b*b)
++	fmt.Printf("%.1f", c)
++	// Output: 5.0
++}

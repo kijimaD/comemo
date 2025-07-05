@@ -12,6 +12,22 @@ Date:   Wed Oct 9 11:10:48 2019 -0400
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/testdata/script/README | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/testdata/script/README b/src/cmd/go/testdata/script/README
+index 66ab8515c3..46444d84d8 100644
+--- a/src/cmd/go/testdata/script/README
++++ b/src/cmd/go/testdata/script/README
+@@ -79,7 +79,9 @@ should only run when the condition is satisfied. The available conditions are:
+    - [exec:prog] for whether prog is available for execution (found by exec.LookPath)
+ 
+ A condition can be negated: [!short] means to run the rest of the line
+-when testing.Short() is false.
++when testing.Short() is false. Multiple conditions may be given for a single
++command, for example, '[linux] [amd64] skip'. The command will run if all conditions
++are satisfied.
+ 
+ The commands are:
+ 

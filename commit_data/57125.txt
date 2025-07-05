@@ -12,6 +12,20 @@ Date:   Fri Jun 23 18:52:31 2023 +0700
     Reviewed-by: Jonathan Amsterdam <jba@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/log/slog/attr.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/log/slog/attr.go b/src/log/slog/attr.go
+index a180d0e1d3..90e343b319 100644
+--- a/src/log/slog/attr.go
++++ b/src/log/slog/attr.go
+@@ -81,7 +81,7 @@ func argsToAttrSlice(args []any) []Attr {
+ }
+ 
+ // Any returns an Attr for the supplied value.
+-// See [Value.AnyValue] for how values are treated.
++// See [AnyValue] for how values are treated.
+ func Any(key string, value any) Attr {
+ 	return Attr{key, AnyValue(value)}
+ }

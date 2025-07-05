@@ -9,6 +9,20 @@ Date:   Fri Sep 20 15:25:59 2013 -0400
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/13812043
-
+---
  test/run.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/test/run.go b/test/run.go
+index 3535532406..f1f1ec0345 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -135,7 +135,7 @@ func main() {
+ 		if !*verbose && test.err == nil {
+ 			continue
+ 		}
+-		fmt.Printf("%-20s %-20s: %s\n", test.action, test.goFileName(), errStr)
++		fmt.Printf("# go run run.go -- %s\n%-20s %-20s: %s\n", path.Join(test.dir, test.gofile), test.action, test.goFileName(), errStr)
+ 	}
+ 
+ 	if *summary {

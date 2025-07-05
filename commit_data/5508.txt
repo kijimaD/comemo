@@ -7,6 +7,22 @@ Date:   Fri May 21 14:33:17 2010 -0700
     R=kaib
     CC=golang-dev
     https://golang.org/cl/1209047
-
+---
  src/pkg/syscall/zsyscall_linux_arm.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/syscall/zsyscall_linux_arm.go b/src/pkg/syscall/zsyscall_linux_arm.go
+index 7ad4e6ed01..7e872ce3d2 100644
+--- a/src/pkg/syscall/zsyscall_linux_arm.go
++++ b/src/pkg/syscall/zsyscall_linux_arm.go
+@@ -31,8 +31,8 @@ func utimes(path string, times *[2]Timeval) (errno int) {
+ 	return
+ }
+ 
+-func futimesat(dirfd int, path string, times *[2]Timeval) (errno int) {
+-	_, _, e1 := Syscall(SYS_FUTIMESAT, uintptr(dirfd), uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(unsafe.Pointer(times)))
++func futimesat(dirfd int, path *byte, times *[2]Timeval) (errno int) {
++	_, _, e1 := Syscall(SYS_FUTIMESAT, uintptr(dirfd), uintptr(unsafe.Pointer(path)), uintptr(unsafe.Pointer(times)))
+ 	errno = int(e1)
+ 	return
+ }

@@ -9,6 +9,20 @@ Date:   Tue Feb 14 08:11:07 2017 -0800
     Change-Id: Ib11b9a22ea8092aca9e1c9c36b1fb015dd555c4b
     Reviewed-on: https://go-review.googlesource.com/36943
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/server.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index 25573d9594..f4639a6e08 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -2613,6 +2613,8 @@ func (srv *Server) shouldConfigureHTTP2ForServe() bool {
+ 	return strSliceContains(srv.TLSConfig.NextProtos, http2NextProtoTLS)
+ }
+ 
++// ErrServerClosed is returned by the Server's Serve, ListenAndServe,
++// and ListenAndServeTLS methods after a call to Shutdown or Close.
+ var ErrServerClosed = errors.New("http: Server closed")
+ 
+ // Serve accepts incoming connections on the Listener l, creating a

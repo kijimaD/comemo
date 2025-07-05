@@ -7,6 +7,19 @@ Date:   Thu Mar 8 17:06:53 2012 +1100
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5786049
-
+---
  src/pkg/go/build/build.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/pkg/go/build/build.go b/src/pkg/go/build/build.go
+index 9a04c4636c..2388790860 100644
+--- a/src/pkg/go/build/build.go
++++ b/src/pkg/go/build/build.go
+@@ -483,6 +483,7 @@ Found:
+ 			// Likely of the form foo_windows.syso, but
+ 			// the name was vetted above with goodOSArchFile.
+ 			p.SysoFiles = append(p.SysoFiles, name)
++			continue
+ 		default:
+ 			// skip
+ 			continue

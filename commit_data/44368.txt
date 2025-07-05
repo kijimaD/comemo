@@ -11,7 +11,59 @@ Date:   Tue Jun 16 21:57:43 2020 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/reflect/all_test.go  |  6 ++++++
  src/reflect/deepequal.go | 16 ++++++++++++++--
  2 files changed, 20 insertions(+), 2 deletions(-)
+
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index e87d1d27cd..63f6a92157 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -824,6 +824,11 @@ var loop1, loop2 Loop
+ var loopy1, loopy2 Loopy
+ var cycleMap1, cycleMap2, cycleMap3 map[string]interface{}
+ 
++type structWithSelfPtr struct {
++	p *structWithSelfPtr
++	s string
++}
++
+ func init() {
+ 	loop1 = &loop2
+ 	loop2 = &loop1
+@@ -880,6 +885,7 @@ var deepEqualTests = []DeepEqualTest{
+ 	{[]float64{math.NaN()}, self{}, true},
+ 	{map[float64]float64{math.NaN(): 1}, map[float64]float64{1: 2}, false},
+ 	{map[float64]float64{math.NaN(): 1}, self{}, true},
++	{&structWithSelfPtr{p: &structWithSelfPtr{s: "a"}}, &structWithSelfPtr{p: &structWithSelfPtr{s: "b"}}, false},
+ 
+ 	// Nil vs empty: not the same.
+ 	{[]int{}, []int(nil), false},
+diff --git a/src/reflect/deepequal.go b/src/reflect/deepequal.go
+index f2d46165b5..8a2bf8b09e 100644
+--- a/src/reflect/deepequal.go
++++ b/src/reflect/deepequal.go
+@@ -45,8 +45,20 @@ func deepValueEqual(v1, v2 Value, visited map[visit]bool, depth int) bool {
+ 	}
+ 
+ 	if hard(v1, v2) {
+-		addr1 := v1.ptr
+-		addr2 := v2.ptr
++		// For a Ptr or Map value, we need to check flagIndir,
++		// which we do by calling the pointer method.
++		// For Slice or Interface, flagIndir is always set,
++		// and using v.ptr suffices.
++		ptrval := func(v Value) unsafe.Pointer {
++			switch v.Kind() {
++			case Ptr, Map:
++				return v.pointer()
++			default:
++				return v.ptr
++			}
++		}
++		addr1 := ptrval(v1)
++		addr2 := ptrval(v2)
+ 		if uintptr(addr1) > uintptr(addr2) {
+ 			// Canonicalize order to reduce number of entries in visited.
+ 			// Assumes non-moving garbage collector.

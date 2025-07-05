@@ -7,6 +7,20 @@ Date:   Wed Jan 25 17:09:50 2012 -0800
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/5574071
-
+---
  src/pkg/go/doc/doc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/go/doc/doc.go b/src/pkg/go/doc/doc.go
+index 96daf7cd6b..d4aae8ff05 100644
+--- a/src/pkg/go/doc/doc.go
++++ b/src/pkg/go/doc/doc.go
+@@ -35,7 +35,7 @@ type Value struct {
+ 	order int
+ }
+ 
+-// Type is the documentation for type declaration.
++// Type is the documentation for a type declaration.
+ type Type struct {
+ 	Doc  string
+ 	Name string

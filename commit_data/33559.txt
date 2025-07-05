@@ -17,7 +17,98 @@ Date:   Mon Aug 21 11:00:31 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/runtime/hashmap.go      | 18 +++++++++++-------
  src/runtime/hashmap_fast.go | 33 ++++++++++++++++++++++++---------
  2 files changed, 35 insertions(+), 16 deletions(-)
+
+diff --git a/src/runtime/hashmap.go b/src/runtime/hashmap.go
+index 1cfa9070fb..60af870fac 100644
+--- a/src/runtime/hashmap.go
++++ b/src/runtime/hashmap.go
+@@ -681,16 +681,20 @@ func mapdelete(t *maptype, h *hmap, key unsafe.Pointer) {
+ 			if !alg.equal(key, k2) {
+ 				continue
+ 			}
++			// Only clear key if there are pointers in it.
+ 			if t.indirectkey {
+ 				*(*unsafe.Pointer)(k) = nil
+-			} else {
+-				typedmemclr(t.key, k)
++			} else if t.key.kind&kindNoPointers == 0 {
++				memclrHasPointers(k, t.key.size)
+ 			}
+-			v := unsafe.Pointer(uintptr(unsafe.Pointer(b)) + dataOffset + bucketCnt*uintptr(t.keysize) + i*uintptr(t.valuesize))
+-			if t.indirectvalue {
+-				*(*unsafe.Pointer)(v) = nil
+-			} else {
+-				typedmemclr(t.elem, v)
++			// Only clear value if there are pointers in it.
++			if t.indirectvalue || t.elem.kind&kindNoPointers == 0 {
++				v := add(unsafe.Pointer(b), dataOffset+bucketCnt*uintptr(t.keysize)+i*uintptr(t.valuesize))
++				if t.indirectvalue {
++					*(*unsafe.Pointer)(v) = nil
++				} else {
++					memclrHasPointers(v, t.elem.size)
++				}
+ 			}
+ 			b.tophash[i] = empty
+ 			h.count--
+diff --git a/src/runtime/hashmap_fast.go b/src/runtime/hashmap_fast.go
+index 2fda9f4255..64f9dc4c2a 100644
+--- a/src/runtime/hashmap_fast.go
++++ b/src/runtime/hashmap_fast.go
+@@ -652,9 +652,15 @@ func mapdelete_fast32(t *maptype, h *hmap, key uint32) {
+ 			if key != *(*uint32)(k) || b.tophash[i] == empty {
+ 				continue
+ 			}
+-			typedmemclr(t.key, unsafe.Pointer(k))
+-			v := unsafe.Pointer(uintptr(unsafe.Pointer(b)) + dataOffset + bucketCnt*4 + i*uintptr(t.valuesize))
+-			typedmemclr(t.elem, v)
++			// Only clear key if there are pointers in it.
++			if t.key.kind&kindNoPointers == 0 {
++				memclrHasPointers(k, t.key.size)
++			}
++			// Only clear value if there are pointers in it.
++			if t.elem.kind&kindNoPointers == 0 {
++				v := unsafe.Pointer(uintptr(unsafe.Pointer(b)) + dataOffset + bucketCnt*4 + i*uintptr(t.valuesize))
++				memclrHasPointers(v, t.elem.size)
++			}
+ 			b.tophash[i] = empty
+ 			h.count--
+ 			goto done
+@@ -699,9 +705,15 @@ func mapdelete_fast64(t *maptype, h *hmap, key uint64) {
+ 			if key != *(*uint64)(k) || b.tophash[i] == empty {
+ 				continue
+ 			}
+-			typedmemclr(t.key, unsafe.Pointer(k))
+-			v := unsafe.Pointer(uintptr(unsafe.Pointer(b)) + dataOffset + bucketCnt*8 + i*uintptr(t.valuesize))
+-			typedmemclr(t.elem, v)
++			// Only clear key if there are pointers in it.
++			if t.key.kind&kindNoPointers == 0 {
++				memclrHasPointers(k, t.key.size)
++			}
++			// Only clear value if there are pointers in it.
++			if t.elem.kind&kindNoPointers == 0 {
++				v := unsafe.Pointer(uintptr(unsafe.Pointer(b)) + dataOffset + bucketCnt*8 + i*uintptr(t.valuesize))
++				memclrHasPointers(v, t.elem.size)
++			}
+ 			b.tophash[i] = empty
+ 			h.count--
+ 			goto done
+@@ -752,9 +764,12 @@ func mapdelete_faststr(t *maptype, h *hmap, ky string) {
+ 			if k.str != key.str && !memequal(k.str, key.str, uintptr(key.len)) {
+ 				continue
+ 			}
+-			typedmemclr(t.key, unsafe.Pointer(k))
+-			v := unsafe.Pointer(uintptr(unsafe.Pointer(b)) + dataOffset + bucketCnt*2*sys.PtrSize + i*uintptr(t.valuesize))
+-			typedmemclr(t.elem, v)
++			*(*string)(kptr) = ""
++			// Only clear value if there are pointers in it.
++			if t.elem.kind&kindNoPointers == 0 {
++				v := unsafe.Pointer(uintptr(unsafe.Pointer(b)) + dataOffset + bucketCnt*2*sys.PtrSize + i*uintptr(t.valuesize))
++				memclrHasPointers(v, t.elem.size)
++			}
+ 			b.tophash[i] = empty
+ 			h.count--
+ 			goto done

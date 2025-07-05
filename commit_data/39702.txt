@@ -13,7 +13,57 @@ Date:   Wed Feb 27 10:14:44 2019 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/167386
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/asm_386.s   | 12 ++----------
  src/runtime/asm_amd64.s |  8 +++-----
  2 files changed, 5 insertions(+), 15 deletions(-)
+
+diff --git a/src/runtime/asm_386.s b/src/runtime/asm_386.s
+index 48a959aad1..51103928b3 100644
+--- a/src/runtime/asm_386.s
++++ b/src/runtime/asm_386.s
+@@ -248,16 +248,8 @@ ok:
+ 	CALL	runtime·abort(SB)
+ 	RET
+ 
+-DATA	bad_proc_msg<>+0x00(SB)/8, $"This pro"
+-DATA	bad_proc_msg<>+0x08(SB)/8, $"gram can"
+-DATA	bad_proc_msg<>+0x10(SB)/8, $" only be"
+-DATA	bad_proc_msg<>+0x18(SB)/8, $" run on "
+-DATA	bad_proc_msg<>+0x20(SB)/8, $"processo"
+-DATA	bad_proc_msg<>+0x28(SB)/8, $"rs with "
+-DATA	bad_proc_msg<>+0x30(SB)/8, $"MMX supp"
+-DATA	bad_proc_msg<>+0x38(SB)/4, $"ort."
+-DATA	bad_proc_msg<>+0x3c(SB)/1, $0xa
+-GLOBL	bad_proc_msg<>(SB), RODATA, $0x3d
++DATA	bad_proc_msg<>+0x00(SB)/61, $"This program can only be run on processors with MMX support.\n"
++GLOBL	bad_proc_msg<>(SB), RODATA, $61
+ 
+ DATA	runtime·mainPC+0(SB)/4,$runtime·main(SB)
+ GLOBL	runtime·mainPC(SB),RODATA,$4
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index 6339dc0000..85133bf2df 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -1438,10 +1438,8 @@ flush:
+ 	MOVQ	96(SP), R15
+ 	JMP	ret
+ 
+-DATA	debugCallFrameTooLarge<>+0x00(SB)/8, $"call fra"
+-DATA	debugCallFrameTooLarge<>+0x08(SB)/8, $"me too l"
+-DATA	debugCallFrameTooLarge<>+0x10(SB)/4, $"arge"
+-GLOBL	debugCallFrameTooLarge<>(SB), RODATA, $0x14	// Size duplicated below
++DATA	debugCallFrameTooLarge<>+0x00(SB)/20, $"call frame too large"
++GLOBL	debugCallFrameTooLarge<>(SB), RODATA, $20	// Size duplicated below
+ 
+ // debugCallV1 is the entry point for debugger-injected function
+ // calls on running goroutines. It informs the runtime that a
+@@ -1565,7 +1563,7 @@ good:
+ 	// The frame size is too large. Report the error.
+ 	MOVQ	$debugCallFrameTooLarge<>(SB), AX
+ 	MOVQ	AX, 0(SP)
+-	MOVQ	$0x14, 8(SP)
++	MOVQ	$20, 8(SP) // length of debugCallFrameTooLarge string
+ 	MOVQ	$8, AX
+ 	BYTE	$0xcc
+ 	JMP	restore

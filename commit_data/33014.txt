@@ -15,6 +15,20 @@ Date:   Mon Nov 28 23:16:16 2016 +0300
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/httptest/server.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/http/httptest/server.go b/src/net/http/httptest/server.go
+index 549ef04623..1baec23d57 100644
+--- a/src/net/http/httptest/server.go
++++ b/src/net/http/httptest/server.go
+@@ -235,7 +235,7 @@ func (s *Server) CloseClientConnections() {
+ 	nconn := len(s.conns)
+ 	ch := make(chan struct{}, nconn)
+ 	for c := range s.conns {
+-		s.closeConnChan(c, ch)
++		go s.closeConnChan(c, ch)
+ 	}
+ 	s.mu.Unlock()
+ 

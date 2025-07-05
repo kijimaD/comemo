@@ -13,6 +13,20 @@ Date:   Tue Feb 28 19:31:23 2023 +0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/net/splice_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/splice_test.go b/src/net/splice_test.go
+index c74361d61b..75a8f274ff 100644
+--- a/src/net/splice_test.go
++++ b/src/net/splice_test.go
+@@ -108,7 +108,7 @@ func (tc spliceTestCase) test(t *testing.T) {
+ }
+ 
+ func (tc spliceTestCase) testFile(t *testing.T) {
+-	f, err := os.CreateTemp(t.TempDir(), "linux-splice-to-file")
++	f, err := os.OpenFile(os.DevNull, os.O_WRONLY, 0)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}

@@ -8,6 +8,21 @@ Date:   Fri Apr 18 10:50:06 2014 +0200
     R=r
     CC=golang-codereviews, rsc
     https://golang.org/cl/86180046
-
+---
  doc/go1.3.html | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/doc/go1.3.html b/doc/go1.3.html
+index 553bf7ec9e..a9a9791c4f 100644
+--- a/doc/go1.3.html
++++ b/doc/go1.3.html
+@@ -234,7 +234,8 @@ which can be useful information when debugging deadlocks or performance issues.
+ <h3 id="new_packages">New packages</h3>
+ 
+ <p>
+-No new packages appear in the core libraries in Go 1.3.
++A new package <a href="/pkg/debug/plan9obj/"><code>debug/plan9obj</code></a> was added to the standard library.
++It implements access to Plan 9 <a href="http://plan9.bell-labs.com/magic/man2html/6/a.out">a.out</a> object files.
+ </p>
+ 
+ <h3 id="major_library_changes">Major changes to the library</h3>

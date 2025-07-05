@@ -14,7 +14,7 @@ Date:   Fri May 1 12:38:42 2015 +0900
     Reviewed-on: https://go-review.googlesource.com/9662
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
-
+---
  src/net/cgo_unix_test.go        |  4 +-
  src/net/conf_test.go            |  2 +-
  src/net/conn_test.go            | 12 +++---
@@ -45,3 +45,2117 @@ Date:   Fri May 1 12:38:42 2015 +0900
  src/net/udp_test.go             | 70 +++++++++++++++---------------
  src/net/unix_test.go            | 94 +++++++++++++++++++++--------------------
  29 files changed, 307 insertions(+), 320 deletions(-)
+
+diff --git a/src/net/cgo_unix_test.go b/src/net/cgo_unix_test.go
+index 33566ce9c2..55ea86a458 100644
+--- a/src/net/cgo_unix_test.go
++++ b/src/net/cgo_unix_test.go
+@@ -16,9 +16,9 @@ func TestCgoLookupIP(t *testing.T) {
+ 		t.Errorf("cgoLookupIP must not be a placeholder")
+ 	}
+ 	if err != nil {
+-		t.Errorf("cgoLookupIP failed: %v", err)
++		t.Error(err)
+ 	}
+ 	if _, err := goLookupIP(host); err != nil {
+-		t.Errorf("goLookupIP failed: %v", err)
++		t.Error(err)
+ 	}
+ }
+diff --git a/src/net/conf_test.go b/src/net/conf_test.go
+index 43be546d07..01de0de794 100644
+--- a/src/net/conf_test.go
++++ b/src/net/conf_test.go
+@@ -277,7 +277,7 @@ func TestConfHostLookupOrder(t *testing.T) {
+ 		for _, ht := range tt.hostTests {
+ 			gotOrder := tt.c.hostLookupOrder(ht.host)
+ 			if gotOrder != ht.want {
+-				t.Errorf("%s: useCgoLookupHost(%q) = %v; want %v", tt.name, ht.host, gotOrder, ht.want)
++				t.Errorf("%s: hostLookupOrder(%q) = %v; want %v", tt.name, ht.host, gotOrder, ht.want)
+ 			}
+ 		}
+ 	}
+diff --git a/src/net/conn_test.go b/src/net/conn_test.go
+index cb055d880b..6995c110f2 100644
+--- a/src/net/conn_test.go
++++ b/src/net/conn_test.go
+@@ -26,7 +26,7 @@ func TestConnAndListener(t *testing.T) {
+ 
+ 		ls, err := newLocalServer(network)
+ 		if err != nil {
+-			t.Fatalf("Listen failed: %v", err)
++			t.Fatal(err)
+ 		}
+ 		defer ls.teardown()
+ 		ch := make(chan error, 1)
+@@ -40,22 +40,22 @@ func TestConnAndListener(t *testing.T) {
+ 
+ 		c, err := Dial(ls.Listener.Addr().Network(), ls.Listener.Addr().String())
+ 		if err != nil {
+-			t.Fatalf("Dial failed: %v", err)
++			t.Fatal(err)
+ 		}
+ 		defer c.Close()
+ 		if c.LocalAddr().Network() != network || c.LocalAddr().Network() != network {
+-			t.Fatalf("got %v->%v; want %v->%v", c.LocalAddr().Network(), c.RemoteAddr().Network(), network, network)
++			t.Fatalf("got %s->%s; want %s->%s", c.LocalAddr().Network(), c.RemoteAddr().Network(), network, network)
+ 		}
+ 		c.SetDeadline(time.Now().Add(someTimeout))
+ 		c.SetReadDeadline(time.Now().Add(someTimeout))
+ 		c.SetWriteDeadline(time.Now().Add(someTimeout))
+ 
+-		if _, err := c.Write([]byte("CONN TEST")); err != nil {
+-			t.Fatalf("Conn.Write failed: %v", err)
++		if _, err := c.Write([]byte("CONN AND LISTENER TEST")); err != nil {
++			t.Fatal(err)
+ 		}
+ 		rb := make([]byte, 128)
+ 		if _, err := c.Read(rb); err != nil {
+-			t.Fatalf("Conn.Read failed: %v", err)
++			t.Fatal(err)
+ 		}
+ 
+ 		for err := range ch {
+diff --git a/src/net/dial_test.go b/src/net/dial_test.go
+index d569a0be53..fab5262769 100644
+--- a/src/net/dial_test.go
++++ b/src/net/dial_test.go
+@@ -5,7 +5,6 @@
+ package net
+ 
+ import (
+-	"fmt"
+ 	"net/internal/socktest"
+ 	"runtime"
+ 	"sync"
+@@ -56,7 +55,7 @@ func TestProhibitionaryDialArg(t *testing.T) {
+ func TestSelfConnect(t *testing.T) {
+ 	if runtime.GOOS == "windows" {
+ 		// TODO(brainman): do not know why it hangs.
+-		t.Skip("skipping known-broken test on windows")
++		t.Skip("known-broken test on windows")
+ 	}
+ 
+ 	// Test that Dial does not honor self-connects.
+@@ -213,7 +212,7 @@ func TestDialerLocalAddr(t *testing.T) {
+ 	handler := func(ls *localServer, ln Listener) {
+ 		c, err := ln.Accept()
+ 		if err != nil {
+-			ch <- fmt.Errorf("Accept failed: %v", err)
++			ch <- err
+ 			return
+ 		}
+ 		defer c.Close()
+@@ -230,13 +229,13 @@ func TestDialerLocalAddr(t *testing.T) {
+ 
+ 	laddr, err := ResolveTCPAddr(ls.Listener.Addr().Network(), ls.Listener.Addr().String())
+ 	if err != nil {
+-		t.Fatalf("ResolveTCPAddr failed: %v", err)
++		t.Fatal(err)
+ 	}
+ 	laddr.Port = 0
+ 	d := &Dialer{LocalAddr: laddr}
+ 	c, err := d.Dial(ls.Listener.Addr().Network(), ls.Addr().String())
+ 	if err != nil {
+-		t.Fatalf("Dial failed: %v", err)
++		t.Fatal(err)
+ 	}
+ 	defer c.Close()
+ 	c.Read(make([]byte, 1))
+@@ -312,9 +311,7 @@ func TestDialerKeepAlive(t *testing.T) {
+ 	if err := ls.buildup(handler); err != nil {
+ 		t.Fatal(err)
+ 	}
+-	defer func() {
+-		testHookSetKeepAlive = func() {}
+-	}()
++	defer func() { testHookSetKeepAlive = func() {} }()
+ 
+ 	for _, keepAlive := range []bool{false, true} {
+ 		got := false
+diff --git a/src/net/dnsclient_test.go b/src/net/dnsclient_test.go
+index 435eb35506..3ab2b836ef 100644
+--- a/src/net/dnsclient_test.go
++++ b/src/net/dnsclient_test.go
+@@ -47,7 +47,7 @@ func testUniformity(t *testing.T, size int, margin float64) {
+ 	checkDistribution(t, data, margin)
+ }
+ 
+-func TestUniformity(t *testing.T) {
++func TestDNSSRVUniformity(t *testing.T) {
+ 	testUniformity(t, 2, 0.05)
+ 	testUniformity(t, 3, 0.10)
+ 	testUniformity(t, 10, 0.20)
+diff --git a/src/net/dnsclient_unix_test.go b/src/net/dnsclient_unix_test.go
+index f46545dcac..d046fc415e 100644
+--- a/src/net/dnsclient_unix_test.go
++++ b/src/net/dnsclient_unix_test.go
+@@ -31,7 +31,7 @@ var dnsTransportFallbackTests = []struct {
+ 
+ func TestDNSTransportFallback(t *testing.T) {
+ 	if testing.Short() || !*testExternal {
+-		t.Skip("skipping test to avoid external network")
++		t.Skip("avoid external network")
+ 	}
+ 
+ 	for _, tt := range dnsTransportFallbackTests {
+@@ -73,7 +73,7 @@ var specialDomainNameTests = []struct {
+ 
+ func TestSpecialDomainName(t *testing.T) {
+ 	if testing.Short() || !*testExternal {
+-		t.Skip("skipping test to avoid external network")
++		t.Skip("avoid external network")
+ 	}
+ 
+ 	server := "8.8.8.8:53"
+@@ -103,7 +103,7 @@ type resolvConfTest struct {
+ func newResolvConfTest(t *testing.T) *resolvConfTest {
+ 	dir, err := ioutil.TempDir("", "resolvConfTest")
+ 	if err != nil {
+-		t.Fatalf("could not create temp dir: %v", err)
++		t.Fatal(err)
+ 	}
+ 
+ 	// Disable the default loadConfig
+@@ -150,7 +150,7 @@ func (r *resolvConfTest) WantServers(want []string) {
+ 	cfg.mu.RLock()
+ 	defer cfg.mu.RUnlock()
+ 	if got := cfg.dnsConfig.servers; !reflect.DeepEqual(got, want) {
+-		r.Fatalf("Unexpected dns server loaded, got %v want %v", got, want)
++		r.Fatalf("unexpected dns server loaded, got %v want %v", got, want)
+ 	}
+ }
+ 
+@@ -165,7 +165,7 @@ func (r *resolvConfTest) Close() {
+ 
+ func TestReloadResolvConfFail(t *testing.T) {
+ 	if testing.Short() || !*testExternal {
+-		t.Skip("skipping test to avoid external network")
++		t.Skip("avoid external network")
+ 	}
+ 
+ 	r := newResolvConfTest(t)
+@@ -175,7 +175,7 @@ func TestReloadResolvConfFail(t *testing.T) {
+ 	r.SetConf("nameserver 8.8.8.8")
+ 
+ 	if _, err := goLookupIP("golang.org"); err != nil {
+-		t.Fatalf("goLookupIP(missing; good) failed: %v", err)
++		t.Fatal(err)
+ 	}
+ 
+ 	// Using an empty resolv.conf should use localhost as servers
+@@ -190,12 +190,11 @@ func TestReloadResolvConfFail(t *testing.T) {
+ 			t.Fatalf("goLookupIP(missing; good; bad) failed: servers=%v, want: %v", cfg.dnsConfig.servers, defaultNS)
+ 		}
+ 	}
+-
+ }
+ 
+ func TestReloadResolvConfChange(t *testing.T) {
+ 	if testing.Short() || !*testExternal {
+-		t.Skip("skipping test to avoid external network")
++		t.Skip("avoid external network")
+ 	}
+ 
+ 	r := newResolvConfTest(t)
+@@ -205,7 +204,7 @@ func TestReloadResolvConfChange(t *testing.T) {
+ 	r.SetConf("nameserver 8.8.8.8")
+ 
+ 	if _, err := goLookupIP("golang.org"); err != nil {
+-		t.Fatalf("goLookupIP(good) failed: %v", err)
++		t.Fatal(err)
+ 	}
+ 	r.WantServers([]string{"8.8.8.8"})
+ 
+diff --git a/src/net/dnsconfig_unix_test.go b/src/net/dnsconfig_unix_test.go
+index ef45f2d8b8..c8eed61890 100644
+--- a/src/net/dnsconfig_unix_test.go
++++ b/src/net/dnsconfig_unix_test.go
+@@ -77,7 +77,7 @@ func TestDNSReadConfig(t *testing.T) {
+ 			t.Fatal(conf.err)
+ 		}
+ 		if !reflect.DeepEqual(conf, tt.want) {
+-			t.Errorf("%s:\n got: %+v\nwant: %+v", tt.name, conf, tt.want)
++			t.Errorf("%s:\ngot: %+v\nwant: %+v", tt.name, conf, tt.want)
+ 		}
+ 	}
+ }
+@@ -85,7 +85,7 @@ func TestDNSReadConfig(t *testing.T) {
+ func TestDNSReadMissingFile(t *testing.T) {
+ 	conf := dnsReadConfig("a-nonexistent-file")
+ 	if !os.IsNotExist(conf.err) {
+-		t.Errorf("Missing resolv.conf:\n got: %v\nwant: %v", conf.err, os.ErrNotExist)
++		t.Errorf("missing resolv.conf:\ngot: %v\nwant: %v", conf.err, os.ErrNotExist)
+ 	}
+ 	conf.err = nil
+ 	want := &dnsConfig{
+@@ -95,6 +95,6 @@ func TestDNSReadMissingFile(t *testing.T) {
+ 		attempts: 2,
+ 	}
+ 	if !reflect.DeepEqual(conf, want) {
+-		t.Errorf("Missing resolv.conf:\n got: %+v\nwant: %+v", conf, want)
++		t.Errorf("missing resolv.conf:\ngot: %+v\nwant: %+v", conf, want)
+ 	}
+ }
+diff --git a/src/net/dnsmsg_test.go b/src/net/dnsmsg_test.go
+index 655d5c0a8f..1078d77ceb 100644
+--- a/src/net/dnsmsg_test.go
++++ b/src/net/dnsmsg_test.go
+@@ -66,7 +66,7 @@ func TestDNSParseCorruptSRVReply(t *testing.T) {
+ 	msg := new(dnsMsg)
+ 	ok := msg.Unpack(data)
+ 	if !ok {
+-		t.Fatalf("unpacking packet failed")
++		t.Fatal("unpacking packet failed")
+ 	}
+ 	msg.String() // exercise this code path
+ 	if g, e := len(msg.answer), 5; g != e {
+diff --git a/src/net/dnsname_test.go b/src/net/dnsname_test.go
+index b118fe1774..cc660c9d42 100644
+--- a/src/net/dnsname_test.go
++++ b/src/net/dnsname_test.go
+@@ -9,12 +9,12 @@ import (
+ 	"testing"
+ )
+ 
+-type testCase struct {
++type dnsNameTest struct {
+ 	name   string
+ 	result bool
+ }
+ 
+-var tests = []testCase{
++var dnsNameTests = []dnsNameTest{
+ 	// RFC2181, section 11.
+ 	{"_xmpp-server._tcp.google.com", true},
+ 	{"foo.com", true},
+@@ -30,7 +30,7 @@ var tests = []testCase{
+ 	{"b.com.", true},
+ }
+ 
+-func getTestCases(ch chan<- testCase) {
++func emitDNSNameTest(ch chan<- dnsNameTest) {
+ 	defer close(ch)
+ 	var char59 = ""
+ 	var char63 = ""
+@@ -41,37 +41,36 @@ func getTestCases(ch chan<- testCase) {
+ 	char63 = char59 + "aaaa"
+ 	char64 = char63 + "a"
+ 
+-	for _, tc := range tests {
++	for _, tc := range dnsNameTests {
+ 		ch <- tc
+ 	}
+ 
+-	ch <- testCase{char63 + ".com", true}
+-	ch <- testCase{char64 + ".com", false}
++	ch <- dnsNameTest{char63 + ".com", true}
++	ch <- dnsNameTest{char64 + ".com", false}
+ 	// 255 char name is fine:
+-	ch <- testCase{char59 + "." + char63 + "." + char63 + "." +
++	ch <- dnsNameTest{char59 + "." + char63 + "." + char63 + "." +
+ 		char63 + ".com",
+ 		true}
+ 	// 256 char name is bad:
+-	ch <- testCase{char59 + "a." + char63 + "." + char63 + "." +
++	ch <- dnsNameTest{char59 + "a." + char63 + "." + char63 + "." +
+ 		char63 + ".com",
+ 		false}
+ }
+ 
+-func TestDNSNames(t *testing.T) {
+-	ch := make(chan testCase)
+-	go getTestCases(ch)
++func TestDNSName(t *testing.T) {
++	ch := make(chan dnsNameTest)
++	go emitDNSNameTest(ch)
+ 	for tc := range ch {
+ 		if isDomainName(tc.name) != tc.result {
+-			t.Errorf("isDomainName(%v) failed: Should be %v",
+-				tc.name, tc.result)
++			t.Errorf("isDomainName(%q) = %v; want %v", tc.name, !tc.result, tc.result)
+ 		}
+ 	}
+ }
+ 
+-func BenchmarkDNSNames(b *testing.B) {
++func BenchmarkDNSName(b *testing.B) {
+ 	testHookUninstaller.Do(func() { uninstallTestHooks() })
+ 
+-	benchmarks := append(tests, []testCase{
++	benchmarks := append(dnsNameTests, []dnsNameTest{
+ 		{strings.Repeat("a", 63), true},
+ 		{strings.Repeat("a", 64), false},
+ 	}...)
+diff --git a/src/net/file_test.go b/src/net/file_test.go
+index 609efb232e..607715c58b 100644
+--- a/src/net/file_test.go
++++ b/src/net/file_test.go
+@@ -29,26 +29,26 @@ type connFile interface {
+ func testFileListener(t *testing.T, net, laddr string) {
+ 	l, err := Listen(net, laddr)
+ 	if err != nil {
+-		t.Fatalf("Listen failed: %v", err)
++		t.Fatal(err)
+ 	}
+ 	defer l.Close()
+ 	lf := l.(listenerFile)
+ 	f, err := lf.File()
+ 	if err != nil {
+-		t.Fatalf("File failed: %v", err)
++		t.Fatal(err)
+ 	}
+ 	c, err := FileListener(f)
+ 	if err != nil {
+-		t.Fatalf("FileListener failed: %v", err)
++		t.Fatal(err)
+ 	}
+ 	if !reflect.DeepEqual(l.Addr(), c.Addr()) {
+-		t.Fatalf("Addrs not equal: %#v != %#v", l.Addr(), c.Addr())
++		t.Fatalf("got %#v; want%#v", l.Addr(), c.Addr())
+ 	}
+ 	if err := c.Close(); err != nil {
+-		t.Fatalf("Close failed: %v", err)
++		t.Fatal(err)
+ 	}
+ 	if err := f.Close(); err != nil {
+-		t.Fatalf("Close failed: %v", err)
++		t.Fatal(err)
+ 	}
+ }
+ 
+@@ -84,12 +84,12 @@ var fileListenerTests = []struct {
+ func TestFileListener(t *testing.T) {
+ 	switch runtime.GOOS {
+ 	case "nacl", "windows":
+-		t.Skipf("skipping test on %q", runtime.GOOS)
++		t.Skipf("not supported on %s", runtime.GOOS)
+ 	}
+ 
+ 	for _, tt := range fileListenerTests {
+ 		if !testableListenArgs(tt.net, tt.laddr, "") {
+-			t.Logf("skipping %s test", tt.net+":"+tt.laddr+"->")
++			t.Logf("skipping %s test", tt.net+" "+tt.laddr)
+ 			continue
+ 		}
+ 		testFileListener(t, tt.net, tt.laddr)
+@@ -99,47 +99,47 @@ func TestFileListener(t *testing.T) {
+ func testFilePacketConn(t *testing.T, pcf packetConnFile, listen bool) {
+ 	f, err := pcf.File()
+ 	if err != nil {
+-		t.Fatalf("File failed: %v", err)
++		t.Fatal(err)
+ 	}
+ 	c, err := FilePacketConn(f)
+ 	if err != nil {
+-		t.Fatalf("FilePacketConn failed: %v", err)
++		t.Fatal(err)
+ 	}
+ 	if !reflect.DeepEqual(pcf.LocalAddr(), c.LocalAddr()) {
+-		t.Fatalf("LocalAddrs not equal: %#v != %#v", pcf.LocalAddr(), c.LocalAddr())
++		t.Fatalf("got %#v; want %#v", pcf.LocalAddr(), c.LocalAddr())
+ 	}
+ 	if listen {
+ 		if _, err := c.WriteTo([]byte{}, c.LocalAddr()); err != nil {
+-			t.Fatalf("WriteTo failed: %v", err)
++			t.Fatal(err)
+ 		}
+ 	}
+ 	if err := c.Close(); err != nil {
+-		t.Fatalf("Close failed: %v", err)
++		t.Fatal(err)
+ 	}
+ 	if err := f.Close(); err != nil {
+-		t.Fatalf("Close failed: %v", err)
++		t.Fatal(err)
+ 	}
+ }
+ 
+ func testFilePacketConnListen(t *testing.T, net, laddr string) {
+ 	l, err := ListenPacket(net, laddr)
+ 	if err != nil {
+-		t.Fatalf("ListenPacket failed: %v", err)
++		t.Fatal(err)
+ 	}
+ 	testFilePacketConn(t, l.(packetConnFile), true)
+ 	if err := l.Close(); err != nil {
+-		t.Fatalf("Close failed: %v", err)
++		t.Fatal(err)
+ 	}
+ }
+ 
+ func testFilePacketConnDial(t *testing.T, net, raddr string) {
+ 	c, err := Dial(net, raddr)
+ 	if err != nil {
+-		t.Fatalf("Dial failed: %v", err)
++		t.Fatal(err)
+ 	}
+ 	testFilePacketConn(t, c.(packetConnFile), false)
+ 	if err := c.Close(); err != nil {
+-		t.Fatalf("Close failed: %v", err)
++		t.Fatal(err)
+ 	}
+ }
+ 
+@@ -164,12 +164,12 @@ var filePacketConnTests = []struct {
+ func TestFilePacketConn(t *testing.T) {
+ 	switch runtime.GOOS {
+ 	case "nacl", "plan9", "windows":
+-		t.Skipf("skipping test on %q", runtime.GOOS)
++		t.Skipf("not supported on %s", runtime.GOOS)
+ 	}
+ 
+ 	for _, tt := range filePacketConnTests {
+ 		if !testableListenArgs(tt.net, tt.addr, "") {
+-			t.Logf("skipping %s test", tt.net+":"+tt.addr+"->")
++			t.Logf("skipping %s test", tt.net+" "+tt.addr)
+ 			continue
+ 		}
+ 		if os.Getuid() != 0 && tt.net == "ip4:icmp" {
+diff --git a/src/net/hosts_test.go b/src/net/hosts_test.go
+index 5bb663b4c7..352ecb95d0 100644
+--- a/src/net/hosts_test.go
++++ b/src/net/hosts_test.go
+@@ -39,14 +39,12 @@ func TestLookupStaticHost(t *testing.T) {
+ 		tt := hosttests[i]
+ 		ips := lookupStaticHost(tt.host)
+ 		if len(ips) != len(tt.ips) {
+-			t.Errorf("# of hosts = %v; want %v",
+-				len(ips), len(tt.ips))
++			t.Errorf("# of hosts = %v; want %v", len(ips), len(tt.ips))
+ 			continue
+ 		}
+ 		for k, v := range ips {
+ 			if tt.ips[k].String() != v {
+-				t.Errorf("lookupStaticHost(%q) = %v; want %v",
+-					tt.host, v, tt.ips[k])
++				t.Errorf("lookupStaticHost(%q) = %v; want %v", tt.host, v, tt.ips[k])
+ 			}
+ 		}
+ 	}
+diff --git a/src/net/interface_linux_test.go b/src/net/interface_linux_test.go
+index d8800bd0ce..059bde11c6 100644
+--- a/src/net/interface_linux_test.go
++++ b/src/net/interface_linux_test.go
+@@ -78,7 +78,7 @@ var (
+ func TestParseProcNet(t *testing.T) {
+ 	defer func() {
+ 		if p := recover(); p != nil {
+-			t.Fatalf("parseProcNetIGMP or parseProtNetIGMP6 panicked: %v", p)
++			t.Fatalf("panicked: %v", p)
+ 		}
+ 	}()
+ 
+@@ -88,7 +88,7 @@ func TestParseProcNet(t *testing.T) {
+ 		ifmat4 = append(ifmat4, ifmat...)
+ 	}
+ 	if len(ifmat4) != numOfTestIPv4MCAddrs {
+-		t.Fatalf("parseProcNetIGMP returns %v addresses, expected %v", len(ifmat4), numOfTestIPv4MCAddrs)
++		t.Fatalf("got %d; want %d", len(ifmat4), numOfTestIPv4MCAddrs)
+ 	}
+ 
+ 	var ifmat6 []Addr
+@@ -97,6 +97,6 @@ func TestParseProcNet(t *testing.T) {
+ 		ifmat6 = append(ifmat6, ifmat...)
+ 	}
+ 	if len(ifmat6) != numOfTestIPv6MCAddrs {
+-		t.Fatalf("parseProcNetIGMP6 returns %v addresses, expected %v", len(ifmat6), numOfTestIPv6MCAddrs)
++		t.Fatalf("got %d; want %d", len(ifmat6), numOfTestIPv6MCAddrs)
+ 	}
+ }
+diff --git a/src/net/interface_unix_test.go b/src/net/interface_unix_test.go
+index 01f609f15e..84bf06cbce 100644
+--- a/src/net/interface_unix_test.go
++++ b/src/net/interface_unix_test.go
+@@ -42,14 +42,13 @@ func (ti *testInterface) teardown() error {
+ 
+ func TestPointToPointInterface(t *testing.T) {
+ 	if testing.Short() {
+-		t.Skip("skipping test in short mode")
++		t.Skip("avoid external network")
+ 	}
+-	switch {
+-	case runtime.GOOS == "darwin":
+-		t.Skipf("skipping read test on %q", runtime.GOOS)
++	if runtime.GOOS == "darwin" {
++		t.Skipf("not supported on %s", runtime.GOOS)
+ 	}
+ 	if os.Getuid() != 0 {
+-		t.Skip("skipping test; must be root")
++		t.Skip("must be root")
+ 	}
+ 
+ 	local, remote := "169.254.0.1", "169.254.0.254"
+@@ -60,21 +59,21 @@ func TestPointToPointInterface(t *testing.T) {
+ 			t.Skipf("test requries external command: %v", err)
+ 		}
+ 		if err := ti.setup(); err != nil {
+-			t.Fatalf("testInterface.setup failed: %v", err)
++			t.Fatal(err)
+ 		} else {
+ 			time.Sleep(3 * time.Millisecond)
+ 		}
+ 		ift, err := Interfaces()
+ 		if err != nil {
+ 			ti.teardown()
+-			t.Fatalf("Interfaces failed: %v", err)
++			t.Fatal(err)
+ 		}
+ 		for _, ifi := range ift {
+ 			if ti.name == ifi.Name {
+ 				ifat, err := ifi.Addrs()
+ 				if err != nil {
+ 					ti.teardown()
+-					t.Fatalf("Interface.Addrs failed: %v", err)
++					t.Fatal(err)
+ 				}
+ 				for _, ifa := range ifat {
+ 					if ip.Equal(ifa.(*IPNet).IP) {
+@@ -85,7 +84,7 @@ func TestPointToPointInterface(t *testing.T) {
+ 			}
+ 		}
+ 		if err := ti.teardown(); err != nil {
+-			t.Fatalf("testInterface.teardown failed: %v", err)
++			t.Fatal(err)
+ 		} else {
+ 			time.Sleep(3 * time.Millisecond)
+ 		}
+@@ -94,30 +93,30 @@ func TestPointToPointInterface(t *testing.T) {
+ 
+ func TestInterfaceArrivalAndDeparture(t *testing.T) {
+ 	if testing.Short() {
+-		t.Skip("skipping test in short mode")
++		t.Skip("avoid external network")
+ 	}
+ 	if os.Getuid() != 0 {
+-		t.Skip("skipping test; must be root")
++		t.Skip("must be root")
+ 	}
+ 
+ 	for i := 0; i < 3; i++ {
+ 		ift1, err := Interfaces()
+ 		if err != nil {
+-			t.Fatalf("Interfaces failed: %v", err)
++			t.Fatal(err)
+ 		}
+ 		ti := &testInterface{}
+ 		if err := ti.setBroadcast(5682 + i); err != nil {
+ 			t.Skipf("test requires external command: %v", err)
+ 		}
+ 		if err := ti.setup(); err != nil {
+-			t.Fatalf("testInterface.setup failed: %v", err)
++			t.Fatal(err)
+ 		} else {
+ 			time.Sleep(3 * time.Millisecond)
+ 		}
+ 		ift2, err := Interfaces()
+ 		if err != nil {
+ 			ti.teardown()
+-			t.Fatalf("Interfaces failed: %v", err)
++			t.Fatal(err)
+ 		}
+ 		if len(ift2) <= len(ift1) {
+ 			for _, ifi := range ift1 {
+@@ -130,13 +129,13 @@ func TestInterfaceArrivalAndDeparture(t *testing.T) {
+ 			t.Fatalf("got %v; want gt %v", len(ift2), len(ift1))
+ 		}
+ 		if err := ti.teardown(); err != nil {
+-			t.Fatalf("testInterface.teardown failed: %v", err)
++			t.Fatal(err)
+ 		} else {
+ 			time.Sleep(3 * time.Millisecond)
+ 		}
+ 		ift3, err := Interfaces()
+ 		if err != nil {
+-			t.Fatalf("Interfaces failed: %v", err)
++			t.Fatal(err)
+ 		}
+ 		if len(ift3) >= len(ift2) {
+ 			for _, ifi := range ift2 {
+diff --git a/src/net/ipraw_test.go b/src/net/ipraw_test.go
+index 6d917bcac8..7221f7868b 100644
+--- a/src/net/ipraw_test.go
++++ b/src/net/ipraw_test.go
+@@ -88,11 +88,11 @@ func TestIPConnLocalName(t *testing.T) {
+ 		}
+ 		c, err := ListenIP(tt.net, tt.laddr)
+ 		if err != nil {
+-			t.Fatalf("ListenIP failed: %v", err)
++			t.Fatal(err)
+ 		}
+ 		defer c.Close()
+ 		if la := c.LocalAddr(); la == nil {
+-			t.Fatal("IPConn.LocalAddr failed")
++			t.Fatal("should not fail")
+ 		}
+ 	}
+ }
+@@ -105,10 +105,10 @@ func TestIPConnRemoteName(t *testing.T) {
+ 	raddr := &IPAddr{IP: IPv4(127, 0, 0, 1).To4()}
+ 	c, err := DialIP("ip:tcp", &IPAddr{IP: IPv4(127, 0, 0, 1)}, raddr)
+ 	if err != nil {
+-		t.Fatalf("DialIP failed: %v", err)
++		t.Fatal(err)
+ 	}
+ 	defer c.Close()
+ 	if !reflect.DeepEqual(raddr, c.RemoteAddr()) {
+-		t.Fatalf("got %#v, expected %#v", c.RemoteAddr(), raddr)
++		t.Fatalf("got %#v; want %#v", c.RemoteAddr(), raddr)
+ 	}
+ }
+diff --git a/src/net/listen_test.go b/src/net/listen_test.go
+index 1d375f72f0..995792bed3 100644
+--- a/src/net/listen_test.go
++++ b/src/net/listen_test.go
+@@ -481,7 +481,7 @@ func TestWildWildcardListener(t *testing.T) {
+ 
+ 	defer func() {
+ 		if p := recover(); p != nil {
+-			t.Fatal("panicked: %v", p)
++			t.Fatalf("panicked: %v", p)
+ 		}
+ 	}()
+ 
+diff --git a/src/net/lookup_test.go b/src/net/lookup_test.go
+index ad55f31cb3..1f36184d55 100644
+--- a/src/net/lookup_test.go
++++ b/src/net/lookup_test.go
+@@ -39,7 +39,7 @@ var lookupGoogleSRVTests = []struct {
+ 
+ func TestLookupGoogleSRV(t *testing.T) {
+ 	if testing.Short() || !*testExternal {
+-		t.Skip("skipping test to avoid external network")
++		t.Skip("avoid external network")
+ 	}
+ 
+ 	for _, tt := range lookupGoogleSRVTests {
+@@ -63,7 +63,7 @@ func TestLookupGoogleSRV(t *testing.T) {
+ 
+ func TestLookupGmailMX(t *testing.T) {
+ 	if testing.Short() || !*testExternal {
+-		t.Skip("skipping test to avoid external network")
++		t.Skip("avoid external network")
+ 	}
+ 
+ 	mxs, err := LookupMX("gmail.com")
+@@ -82,7 +82,7 @@ func TestLookupGmailMX(t *testing.T) {
+ 
+ func TestLookupGmailNS(t *testing.T) {
+ 	if testing.Short() || !*testExternal {
+-		t.Skip("skipping test to avoid external network")
++		t.Skip("avoid external network")
+ 	}
+ 
+ 	nss, err := LookupNS("gmail.com")
+@@ -101,7 +101,7 @@ func TestLookupGmailNS(t *testing.T) {
+ 
+ func TestLookupGmailTXT(t *testing.T) {
+ 	if testing.Short() || !*testExternal {
+-		t.Skip("skipping test to avoid external network")
++		t.Skip("avoid external network")
+ 	}
+ 
+ 	txts, err := LookupTXT("gmail.com")
+@@ -130,7 +130,7 @@ var lookupGooglePublicDNSAddrs = []struct {
+ 
+ func TestLookupGooglePublicDNSAddr(t *testing.T) {
+ 	if testing.Short() || !*testExternal {
+-		t.Skip("skipping test to avoid external network")
++		t.Skip("avoid external network")
+ 	}
+ 
+ 	for _, tt := range lookupGooglePublicDNSAddrs {
+@@ -151,7 +151,7 @@ func TestLookupGooglePublicDNSAddr(t *testing.T) {
+ 
+ func TestLookupIANACNAME(t *testing.T) {
+ 	if testing.Short() || !*testExternal {
+-		t.Skip("skipping test to avoid external network")
++		t.Skip("avoid external network")
+ 	}
+ 
+ 	cname, err := LookupCNAME("www.iana.org")
+@@ -165,7 +165,7 @@ func TestLookupIANACNAME(t *testing.T) {
+ 
+ func TestLookupGoogleHost(t *testing.T) {
+ 	if testing.Short() || !*testExternal {
+-		t.Skip("skipping test to avoid external network")
++		t.Skip("avoid external network")
+ 	}
+ 
+ 	addrs, err := LookupHost("google.com")
+@@ -184,7 +184,7 @@ func TestLookupGoogleHost(t *testing.T) {
+ 
+ func TestLookupGoogleIP(t *testing.T) {
+ 	if testing.Short() || !*testExternal {
+-		t.Skip("skipping test to avoid external network")
++		t.Skip("avoid external network")
+ 	}
+ 
+ 	ips, err := LookupIP("google.com")
+diff --git a/src/net/lookup_windows_test.go b/src/net/lookup_windows_test.go
+index 7495b5b578..3f64d8cec8 100644
+--- a/src/net/lookup_windows_test.go
++++ b/src/net/lookup_windows_test.go
+@@ -26,12 +26,13 @@ func toJson(v interface{}) string {
+ 
+ func TestLookupMX(t *testing.T) {
+ 	if testing.Short() || !*testExternal {
+-		t.Skip("skipping test to avoid external network")
++		t.Skip("avoid external network")
+ 	}
++
+ 	for _, server := range nslookupTestServers {
+ 		mx, err := LookupMX(server)
+ 		if err != nil {
+-			t.Errorf("failed %s: %s", server, err)
++			t.Error(err)
+ 			continue
+ 		}
+ 		if len(mx) == 0 {
+@@ -52,8 +53,9 @@ func TestLookupMX(t *testing.T) {
+ 
+ func TestLookupCNAME(t *testing.T) {
+ 	if testing.Short() || !*testExternal {
+-		t.Skip("skipping test to avoid external network")
++		t.Skip("avoid external network")
+ 	}
++
+ 	for _, server := range nslookupTestServers {
+ 		cname, err := LookupCNAME(server)
+ 		if err != nil {
+@@ -76,8 +78,9 @@ func TestLookupCNAME(t *testing.T) {
+ 
+ func TestLookupNS(t *testing.T) {
+ 	if testing.Short() || !*testExternal {
+-		t.Skip("skipping test to avoid external network")
++		t.Skip("avoid external network")
+ 	}
++
+ 	for _, server := range nslookupTestServers {
+ 		ns, err := LookupNS(server)
+ 		if err != nil {
+@@ -103,8 +106,9 @@ func TestLookupNS(t *testing.T) {
+ 
+ func TestLookupTXT(t *testing.T) {
+ 	if testing.Short() || !*testExternal {
+-		t.Skip("skipping test to avoid external network")
++		t.Skip("avoid external network")
+ 	}
++
+ 	for _, server := range nslookupTestServers {
+ 		txt, err := LookupTXT(server)
+ 		if err != nil {
+diff --git a/src/net/mac_test.go b/src/net/mac_test.go
+index 8f9dc6685f..0af0c014f5 100644
+--- a/src/net/mac_test.go
++++ b/src/net/mac_test.go
+@@ -10,7 +10,7 @@ import (
+ 	"testing"
+ )
+ 
+-var mactests = []struct {
++var parseMACTests = []struct {
+ 	in  string
+ 	out HardwareAddr
+ 	err string
+@@ -36,19 +36,18 @@ var mactests = []struct {
+ 	{"0123.4567.89AB.CDEF", HardwareAddr{1, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef}, ""},
+ }
+ 
+-func match(err error, s string) bool {
+-	if s == "" {
+-		return err == nil
++func TestParseMAC(t *testing.T) {
++	match := func(err error, s string) bool {
++		if s == "" {
++			return err == nil
++		}
++		return err != nil && strings.Contains(err.Error(), s)
+ 	}
+-	return err != nil && strings.Contains(err.Error(), s)
+-}
+ 
+-func TestMACParseString(t *testing.T) {
+-	for i, tt := range mactests {
++	for i, tt := range parseMACTests {
+ 		out, err := ParseMAC(tt.in)
+ 		if !reflect.DeepEqual(out, tt.out) || !match(err, tt.err) {
+-			t.Errorf("ParseMAC(%q) = %v, %v, want %v, %v", tt.in, out, err, tt.out,
+-				tt.err)
++			t.Errorf("ParseMAC(%q) = %v, %v, want %v, %v", tt.in, out, err, tt.out, tt.err)
+ 		}
+ 		if tt.err == "" {
+ 			// Verify that serialization works too, and that it round-trips.
+diff --git a/src/net/net_windows_test.go b/src/net/net_windows_test.go
+index 750a4304b2..80723da4d3 100644
+--- a/src/net/net_windows_test.go
++++ b/src/net/net_windows_test.go
+@@ -64,7 +64,7 @@ func TestAcceptIgnoreSomeErrors(t *testing.T) {
+ 		// In child process.
+ 		c, err := Dial("tcp", envaddr)
+ 		if err != nil {
+-			t.Fatalf("Dial failed: %v", err)
++			t.Fatal(err)
+ 		}
+ 		fmt.Printf("sleeping\n")
+ 		time.Sleep(time.Minute) // process will be killed here
+@@ -73,7 +73,7 @@ func TestAcceptIgnoreSomeErrors(t *testing.T) {
+ 
+ 	ln, err := Listen("tcp", "127.0.0.1:0")
+ 	if err != nil {
+-		t.Fatalf("Listen failed: %v", err)
++		t.Fatal(err)
+ 	}
+ 	defer ln.Close()
+ 
+diff --git a/src/net/netgo_unix_test.go b/src/net/netgo_unix_test.go
+index 9fb2a567df..1d950d67d7 100644
+--- a/src/net/netgo_unix_test.go
++++ b/src/net/netgo_unix_test.go
+@@ -16,9 +16,9 @@ func TestGoLookupIP(t *testing.T) {
+ 		t.Errorf("cgoLookupIP must be a placeholder")
+ 	}
+ 	if err != nil {
+-		t.Errorf("cgoLookupIP failed: %v", err)
++		t.Error(err)
+ 	}
+ 	if _, err := goLookupIP(host); err != nil {
+-		t.Errorf("goLookupIP failed: %v", err)
++		t.Error(err)
+ 	}
+ }
+diff --git a/src/net/packetconn_test.go b/src/net/packetconn_test.go
+index 31e050f6d3..7f3ea8a2d0 100644
+--- a/src/net/packetconn_test.go
++++ b/src/net/packetconn_test.go
+@@ -54,7 +54,7 @@ func TestPacketConn(t *testing.T) {
+ 
+ 		c1, err := ListenPacket(tt.net, tt.addr1)
+ 		if err != nil {
+-			t.Fatalf("ListenPacket failed: %v", err)
++			t.Fatal(err)
+ 		}
+ 		defer closer(c1, tt.net, tt.addr1, tt.addr2)
+ 		c1.LocalAddr()
+@@ -64,7 +64,7 @@ func TestPacketConn(t *testing.T) {
+ 
+ 		c2, err := ListenPacket(tt.net, tt.addr2)
+ 		if err != nil {
+-			t.Fatalf("ListenPacket failed: %v", err)
++			t.Fatal(err)
+ 		}
+ 		defer closer(c2, tt.net, tt.addr1, tt.addr2)
+ 		c2.LocalAddr()
+@@ -74,17 +74,17 @@ func TestPacketConn(t *testing.T) {
+ 		rb2 := make([]byte, 128)
+ 
+ 		if _, err := c1.WriteTo(wb, c2.LocalAddr()); err != nil {
+-			t.Fatalf("PacketConn.WriteTo failed: %v", err)
++			t.Fatal(err)
+ 		}
+ 		if _, _, err := c2.ReadFrom(rb2); err != nil {
+-			t.Fatalf("PacketConn.ReadFrom failed: %v", err)
++			t.Fatal(err)
+ 		}
+ 		if _, err := c2.WriteTo(wb, c1.LocalAddr()); err != nil {
+-			t.Fatalf("PacketConn.WriteTo failed: %v", err)
++			t.Fatal(err)
+ 		}
+ 		rb1 := make([]byte, 128)
+ 		if _, _, err := c1.ReadFrom(rb1); err != nil {
+-			t.Fatalf("PacketConn.ReadFrom failed: %v", err)
++			t.Fatal(err)
+ 		}
+ 	}
+ }
+@@ -109,7 +109,7 @@ func TestConnAndPacketConn(t *testing.T) {
+ 
+ 		c1, err := ListenPacket(tt.net, tt.addr1)
+ 		if err != nil {
+-			t.Fatalf("ListenPacket failed: %v", err)
++			t.Fatal(err)
+ 		}
+ 		defer closer(c1, tt.net, tt.addr1, tt.addr2)
+ 		c1.LocalAddr()
+@@ -119,7 +119,7 @@ func TestConnAndPacketConn(t *testing.T) {
+ 
+ 		c2, err := Dial(tt.net, c1.LocalAddr().String())
+ 		if err != nil {
+-			t.Fatalf("Dial failed: %v", err)
++			t.Fatal(err)
+ 		}
+ 		defer c2.Close()
+ 		c2.LocalAddr()
+@@ -129,11 +129,11 @@ func TestConnAndPacketConn(t *testing.T) {
+ 		c2.SetWriteDeadline(time.Now().Add(500 * time.Millisecond))
+ 
+ 		if _, err := c2.Write(wb); err != nil {
+-			t.Fatalf("Conn.Write failed: %v", err)
++			t.Fatal(err)
+ 		}
+ 		rb1 := make([]byte, 128)
+ 		if _, _, err := c1.ReadFrom(rb1); err != nil {
+-			t.Fatalf("PacketConn.ReadFrom failed: %v", err)
++			t.Fatal(err)
+ 		}
+ 		var dst Addr
+ 		switch tt.net {
+@@ -143,11 +143,11 @@ func TestConnAndPacketConn(t *testing.T) {
+ 			dst = c2.LocalAddr()
+ 		}
+ 		if _, err := c1.WriteTo(wb, dst); err != nil {
+-			t.Fatalf("PacketConn.WriteTo failed: %v", err)
++			t.Fatal(err)
+ 		}
+ 		rb2 := make([]byte, 128)
+ 		if _, err := c2.Read(rb2); err != nil {
+-			t.Fatalf("Conn.Read failed: %v", err)
++			t.Fatal(err)
+ 		}
+ 	}
+ }
+diff --git a/src/net/parse_test.go b/src/net/parse_test.go
+index 7b213b75bd..f5359d8c36 100644
+--- a/src/net/parse_test.go
++++ b/src/net/parse_test.go
+@@ -15,20 +15,20 @@ func TestReadLine(t *testing.T) {
+ 	// /etc/services file does not exist on android, plan9, windows.
+ 	switch runtime.GOOS {
+ 	case "android", "plan9", "windows":
+-		t.Skipf("skipping test on %q", runtime.GOOS)
++		t.Skipf("not supported on %s", runtime.GOOS)
+ 	}
+ 	filename := "/etc/services" // a nice big file
+ 
+ 	fd, err := os.Open(filename)
+ 	if err != nil {
+-		t.Fatalf("open %s: %v", filename, err)
++		t.Fatal(err)
+ 	}
+ 	defer fd.Close()
+ 	br := bufio.NewReader(fd)
+ 
+ 	file, err := open(filename)
+ 	if file == nil {
+-		t.Fatalf("net.open(%s) = nil", filename)
++		t.Fatal(err)
+ 	}
+ 	defer file.close()
+ 
+@@ -41,8 +41,7 @@ func TestReadLine(t *testing.T) {
+ 		}
+ 		line, ok := file.readLine()
+ 		if (berr != nil) != !ok || bline != line {
+-			t.Fatalf("%s:%d (#%d)\nbufio => %q, %v\nnet => %q, %v",
+-				filename, lineno, byteno, bline, berr, line, ok)
++			t.Fatalf("%s:%d (#%d)\nbufio => %q, %v\nnet => %q, %v", filename, lineno, byteno, bline, berr, line, ok)
+ 		}
+ 		if !ok {
+ 			break
+diff --git a/src/net/pipe_test.go b/src/net/pipe_test.go
+index afe4f2408f..60c3920593 100644
+--- a/src/net/pipe_test.go
++++ b/src/net/pipe_test.go
+@@ -10,10 +10,10 @@ import (
+ 	"testing"
+ )
+ 
+-func checkWrite(t *testing.T, w io.Writer, data []byte, c chan int) {
++func checkPipeWrite(t *testing.T, w io.Writer, data []byte, c chan int) {
+ 	n, err := w.Write(data)
+ 	if err != nil {
+-		t.Errorf("write: %v", err)
++		t.Error(err)
+ 	}
+ 	if n != len(data) {
+ 		t.Errorf("short write: %d != %d", n, len(data))
+@@ -21,11 +21,11 @@ func checkWrite(t *testing.T, w io.Writer, data []byte, c chan int) {
+ 	c <- 0
+ }
+ 
+-func checkRead(t *testing.T, r io.Reader, data []byte, wantErr error) {
++func checkPipeRead(t *testing.T, r io.Reader, data []byte, wantErr error) {
+ 	buf := make([]byte, len(data)+10)
+ 	n, err := r.Read(buf)
+ 	if err != wantErr {
+-		t.Errorf("read: %v", err)
++		t.Error(err)
+ 		return
+ 	}
+ 	if n != len(data) || !bytes.Equal(buf[0:n], data) {
+@@ -34,23 +34,22 @@ func checkRead(t *testing.T, r io.Reader, data []byte, wantErr error) {
+ 	}
+ }
+ 
+-// Test a simple read/write/close sequence.
++// TestPipe tests a simple read/write/close sequence.
+ // Assumes that the underlying io.Pipe implementation
+ // is solid and we're just testing the net wrapping.
+-
+ func TestPipe(t *testing.T) {
+ 	c := make(chan int)
+ 	cli, srv := Pipe()
+-	go checkWrite(t, cli, []byte("hello, world"), c)
+-	checkRead(t, srv, []byte("hello, world"), nil)
++	go checkPipeWrite(t, cli, []byte("hello, world"), c)
++	checkPipeRead(t, srv, []byte("hello, world"), nil)
+ 	<-c
+-	go checkWrite(t, srv, []byte("line 2"), c)
+-	checkRead(t, cli, []byte("line 2"), nil)
++	go checkPipeWrite(t, srv, []byte("line 2"), c)
++	checkPipeRead(t, cli, []byte("line 2"), nil)
+ 	<-c
+-	go checkWrite(t, cli, []byte("a third line"), c)
+-	checkRead(t, srv, []byte("a third line"), nil)
++	go checkPipeWrite(t, cli, []byte("a third line"), c)
++	checkPipeRead(t, srv, []byte("a third line"), nil)
+ 	<-c
+ 	go srv.Close()
+-	checkRead(t, cli, nil, io.EOF)
++	checkPipeRead(t, cli, nil, io.EOF)
+ 	cli.Close()
+ }
+diff --git a/src/net/port_test.go b/src/net/port_test.go
+index 4811ade69e..2dacd975e7 100644
+--- a/src/net/port_test.go
++++ b/src/net/port_test.go
+@@ -9,14 +9,12 @@ import (
+ 	"testing"
+ )
+ 
+-type portTest struct {
+-	netw string
+-	name string
+-	port int
+-	ok   bool
+-}
+-
+-var porttests = []portTest{
++var portTests = []struct {
++	network string
++	name    string
++	port    int
++	ok      bool
++}{
+ 	{"tcp", "echo", 7, true},
+ 	{"tcp", "discard", 9, true},
+ 	{"tcp", "systat", 11, true},
+@@ -46,14 +44,12 @@ var porttests = []portTest{
+ func TestLookupPort(t *testing.T) {
+ 	switch runtime.GOOS {
+ 	case "nacl":
+-		t.Skipf("skipping test on %q", runtime.GOOS)
++		t.Skipf("not supported on %s", runtime.GOOS)
+ 	}
+ 
+-	for i := 0; i < len(porttests); i++ {
+-		tt := porttests[i]
+-		if port, err := LookupPort(tt.netw, tt.name); port != tt.port || (err == nil) != tt.ok {
+-			t.Errorf("LookupPort(%q, %q) = %v, %v; want %v",
+-				tt.netw, tt.name, port, err, tt.port)
++	for _, tt := range portTests {
++		if port, err := LookupPort(tt.network, tt.name); port != tt.port || (err == nil) != tt.ok {
++			t.Errorf("LookupPort(%q, %q) = %v, %v; want %v", tt.network, tt.name, port, err, tt.port)
+ 		}
+ 	}
+ }
+diff --git a/src/net/protoconn_test.go b/src/net/protoconn_test.go
+index b04c4e58e0..c6ef23b0e1 100644
+--- a/src/net/protoconn_test.go
++++ b/src/net/protoconn_test.go
+@@ -23,16 +23,16 @@ import (
+ func TestTCPListenerSpecificMethods(t *testing.T) {
+ 	switch runtime.GOOS {
+ 	case "plan9":
+-		t.Skipf("skipping test on %q", runtime.GOOS)
++		t.Skipf("not supported on %s", runtime.GOOS)
+ 	}
+ 
+ 	la, err := ResolveTCPAddr("tcp4", "127.0.0.1:0")
+ 	if err != nil {
+-		t.Fatalf("ResolveTCPAddr failed: %v", err)
++		t.Fatal(err)
+ 	}
+ 	ln, err := ListenTCP("tcp4", la)
+ 	if err != nil {
+-		t.Fatalf("ListenTCP failed: %v", err)
++		t.Fatal(err)
+ 	}
+ 	defer ln.Close()
+ 	ln.Addr()
+@@ -40,21 +40,21 @@ func TestTCPListenerSpecificMethods(t *testing.T) {
+ 
+ 	if c, err := ln.Accept(); err != nil {
+ 		if !err.(Error).Timeout() {
+-			t.Fatalf("TCPListener.Accept failed: %v", err)
++			t.Fatal(err)
+ 		}
+ 	} else {
+ 		c.Close()
+ 	}
+ 	if c, err := ln.AcceptTCP(); err != nil {
+ 		if !err.(Error).Timeout() {
+-			t.Fatalf("TCPListener.AcceptTCP failed: %v", err)
++			t.Fatal(err)
+ 		}
+ 	} else {
+ 		c.Close()
+ 	}
+ 
+ 	if f, err := ln.File(); err != nil {
+-		condFatalf(t, "TCPListener.File failed: %v", err)
++		condFatalf(t, "%v", err)
+ 	} else {
+ 		f.Close()
+ 	}
+@@ -63,11 +63,11 @@ func TestTCPListenerSpecificMethods(t *testing.T) {
+ func TestTCPConnSpecificMethods(t *testing.T) {
+ 	la, err := ResolveTCPAddr("tcp4", "127.0.0.1:0")
+ 	if err != nil {
+-		t.Fatalf("ResolveTCPAddr failed: %v", err)
++		t.Fatal(err)
+ 	}
+ 	ln, err := ListenTCP("tcp4", la)
+ 	if err != nil {
+-		t.Fatalf("ListenTCP failed: %v", err)
++		t.Fatal(err)
+ 	}
+ 	ch := make(chan error, 1)
+ 	handler := func(ls *localServer, ln Listener) { transponder(ls.Listener, ch) }
+@@ -82,11 +82,11 @@ func TestTCPConnSpecificMethods(t *testing.T) {
+ 
+ 	ra, err := ResolveTCPAddr("tcp4", ls.Listener.Addr().String())
+ 	if err != nil {
+-		t.Fatalf("ResolveTCPAddr failed: %v", err)
++		t.Fatal(err)
+ 	}
+ 	c, err := DialTCP("tcp4", nil, ra)
+ 	if err != nil {
+-		t.Fatalf("DialTCP failed: %v", err)
++		t.Fatal(err)
+ 	}
+ 	defer c.Close()
+ 	c.SetKeepAlive(false)
+@@ -100,11 +100,11 @@ func TestTCPConnSpecificMethods(t *testing.T) {
+ 	c.SetWriteDeadline(time.Now().Add(someTimeout))
+ 
+ 	if _, err := c.Write([]byte("TCPCONN TEST")); err != nil {
+-		t.Fatalf("TCPConn.Write failed: %v", err)
++		t.Fatal(err)
+ 	}
+ 	rb := make([]byte, 128)
+ 	if _, err := c.Read(rb); err != nil {
+-		t.Fatalf("TCPConn.Read failed: %v", err)
++		t.Fatal(err)
+ 	}
+ 
+ 	for err := range ch {
+@@ -115,11 +115,11 @@ func TestTCPConnSpecificMethods(t *testing.T) {
+ func TestUDPConnSpecificMethods(t *testing.T) {
+ 	la, err := ResolveUDPAddr("udp4", "127.0.0.1:0")
+ 	if err != nil {
+-		t.Fatalf("ResolveUDPAddr failed: %v", err)
++		t.Fatal(err)
+ 	}
+ 	c, err := ListenUDP("udp4", la)
+ 	if err != nil {
+-		t.Fatalf("ListenUDP failed: %v", err)
++		t.Fatal(err)
+ 	}
+ 	defer c.Close()
+ 	c.LocalAddr()
+@@ -133,27 +133,27 @@ func TestUDPConnSpecificMethods(t *testing.T) {
+ 	wb := []byte("UDPCONN TEST")
+ 	rb := make([]byte, 128)
+ 	if _, err := c.WriteToUDP(wb, c.LocalAddr().(*UDPAddr)); err != nil {
+-		t.Fatalf("UDPConn.WriteToUDP failed: %v", err)
++		t.Fatal(err)
+ 	}
+ 	if _, _, err := c.ReadFromUDP(rb); err != nil {
+-		t.Fatalf("UDPConn.ReadFromUDP failed: %v", err)
++		t.Fatal(err)
+ 	}
+ 	if _, _, err := c.WriteMsgUDP(wb, nil, c.LocalAddr().(*UDPAddr)); err != nil {
+-		condFatalf(t, "UDPConn.WriteMsgUDP failed: %v", err)
++		condFatalf(t, "%v", err)
+ 	}
+ 	if _, _, _, _, err := c.ReadMsgUDP(rb, nil); err != nil {
+-		condFatalf(t, "UDPConn.ReadMsgUDP failed: %v", err)
++		condFatalf(t, "%v", err)
+ 	}
+ 
+ 	if f, err := c.File(); err != nil {
+-		condFatalf(t, "UDPConn.File failed: %v", err)
++		condFatalf(t, "%v", err)
+ 	} else {
+ 		f.Close()
+ 	}
+ 
+ 	defer func() {
+ 		if p := recover(); p != nil {
+-			t.Fatalf("UDPConn.WriteToUDP or WriteMsgUDP panicked: %v", p)
++			t.Fatalf("panicked: %v", p)
+ 		}
+ 	}()
+ 
+@@ -168,11 +168,11 @@ func TestIPConnSpecificMethods(t *testing.T) {
+ 
+ 	la, err := ResolveIPAddr("ip4", "127.0.0.1")
+ 	if err != nil {
+-		t.Fatalf("ResolveIPAddr failed: %v", err)
++		t.Fatal(err)
+ 	}
+ 	c, err := ListenIP("ip4:icmp", la)
+ 	if err != nil {
+-		t.Fatalf("ListenIP failed: %v", err)
++		t.Fatal(err)
+ 	}
+ 	defer c.Close()
+ 	c.LocalAddr()
+@@ -184,14 +184,14 @@ func TestIPConnSpecificMethods(t *testing.T) {
+ 	c.SetWriteBuffer(2048)
+ 
+ 	if f, err := c.File(); err != nil {
+-		condFatalf(t, "IPConn.File failed: %v", err)
++		condFatalf(t, "%v", err)
+ 	} else {
+ 		f.Close()
+ 	}
+ 
+ 	defer func() {
+ 		if p := recover(); p != nil {
+-			t.Fatalf("IPConn.WriteToIP or WriteMsgIP panicked: %v", p)
++			t.Fatalf("panicked: %v", p)
+ 		}
+ 	}()
+ 
+@@ -208,11 +208,11 @@ func TestUnixListenerSpecificMethods(t *testing.T) {
+ 	addr := testUnixAddr()
+ 	la, err := ResolveUnixAddr("unix", addr)
+ 	if err != nil {
+-		t.Fatalf("ResolveUnixAddr failed: %v", err)
++		t.Fatal(err)
+ 	}
+ 	ln, err := ListenUnix("unix", la)
+ 	if err != nil {
+-		t.Fatalf("ListenUnix failed: %v", err)
++		t.Fatal(err)
+ 	}
+ 	defer ln.Close()
+ 	defer os.Remove(addr)
+@@ -221,21 +221,21 @@ func TestUnixListenerSpecificMethods(t *testing.T) {
+ 
+ 	if c, err := ln.Accept(); err != nil {
+ 		if !err.(Error).Timeout() {
+-			t.Fatalf("UnixListener.Accept failed: %v", err)
++			t.Fatal(err)
+ 		}
+ 	} else {
+ 		c.Close()
+ 	}
+ 	if c, err := ln.AcceptUnix(); err != nil {
+ 		if !err.(Error).Timeout() {
+-			t.Fatalf("UnixListener.AcceptUnix failed: %v", err)
++			t.Fatal(err)
+ 		}
+ 	} else {
+ 		c.Close()
+ 	}
+ 
+ 	if f, err := ln.File(); err != nil {
+-		t.Fatalf("UnixListener.File failed: %v", err)
++		t.Fatal(err)
+ 	} else {
+ 		f.Close()
+ 	}
+@@ -250,11 +250,11 @@ func TestUnixConnSpecificMethods(t *testing.T) {
+ 
+ 	a1, err := ResolveUnixAddr("unixgram", addr1)
+ 	if err != nil {
+-		t.Fatalf("ResolveUnixAddr failed: %v", err)
++		t.Fatal(err)
+ 	}
+ 	c1, err := DialUnix("unixgram", a1, nil)
+ 	if err != nil {
+-		t.Fatalf("DialUnix failed: %v", err)
++		t.Fatal(err)
+ 	}
+ 	defer c1.Close()
+ 	defer os.Remove(addr1)
+@@ -268,11 +268,11 @@ func TestUnixConnSpecificMethods(t *testing.T) {
+ 
+ 	a2, err := ResolveUnixAddr("unixgram", addr2)
+ 	if err != nil {
+-		t.Fatalf("ResolveUnixAddr failed: %v", err)
++		t.Fatal(err)
+ 	}
+ 	c2, err := DialUnix("unixgram", a2, nil)
+ 	if err != nil {
+-		t.Fatalf("DialUnix failed: %v", err)
++		t.Fatal(err)
+ 	}
+ 	defer c2.Close()
+ 	defer os.Remove(addr2)
+@@ -286,11 +286,11 @@ func TestUnixConnSpecificMethods(t *testing.T) {
+ 
+ 	a3, err := ResolveUnixAddr("unixgram", addr3)
+ 	if err != nil {
+-		t.Fatalf("ResolveUnixAddr failed: %v", err)
++		t.Fatal(err)
+ 	}
+ 	c3, err := ListenUnixgram("unixgram", a3)
+ 	if err != nil {
+-		t.Fatalf("ListenUnixgram failed: %v", err)
++		t.Fatal(err)
+ 	}
+ 	defer c3.Close()
+ 	defer os.Remove(addr3)
+@@ -307,39 +307,39 @@ func TestUnixConnSpecificMethods(t *testing.T) {
+ 	rb2 := make([]byte, 128)
+ 	rb3 := make([]byte, 128)
+ 	if _, _, err := c1.WriteMsgUnix(wb, nil, a2); err != nil {
+-		t.Fatalf("UnixConn.WriteMsgUnix failed: %v", err)
++		t.Fatal(err)
+ 	}
+ 	if _, _, _, _, err := c2.ReadMsgUnix(rb2, nil); err != nil {
+-		t.Fatalf("UnixConn.ReadMsgUnix failed: %v", err)
++		t.Fatal(err)
+ 	}
+ 	if _, err := c2.WriteToUnix(wb, a1); err != nil {
+-		t.Fatalf("UnixConn.WriteToUnix failed: %v", err)
++		t.Fatal(err)
+ 	}
+ 	if _, _, err := c1.ReadFromUnix(rb1); err != nil {
+-		t.Fatalf("UnixConn.ReadFromUnix failed: %v", err)
++		t.Fatal(err)
+ 	}
+ 	if _, err := c3.WriteToUnix(wb, a1); err != nil {
+-		t.Fatalf("UnixConn.WriteToUnix failed: %v", err)
++		t.Fatal(err)
+ 	}
+ 	if _, _, err := c1.ReadFromUnix(rb1); err != nil {
+-		t.Fatalf("UnixConn.ReadFromUnix failed: %v", err)
++		t.Fatal(err)
+ 	}
+ 	if _, err := c2.WriteToUnix(wb, a3); err != nil {
+-		t.Fatalf("UnixConn.WriteToUnix failed: %v", err)
++		t.Fatal(err)
+ 	}
+ 	if _, _, err := c3.ReadFromUnix(rb3); err != nil {
+-		t.Fatalf("UnixConn.ReadFromUnix failed: %v", err)
++		t.Fatal(err)
+ 	}
+ 
+ 	if f, err := c1.File(); err != nil {
+-		t.Fatalf("UnixConn.File failed: %v", err)
++		t.Fatal(err)
+ 	} else {
+ 		f.Close()
+ 	}
+ 
+ 	defer func() {
+ 		if p := recover(); p != nil {
+-			t.Fatalf("UnixConn.WriteToUnix or WriteMsgUnix panicked: %v", p)
++			t.Fatalf("panicked: %v", p)
+ 		}
+ 	}()
+ 
+diff --git a/src/net/server_test.go b/src/net/server_test.go
+index 140716598d..fe0006b11f 100644
+--- a/src/net/server_test.go
++++ b/src/net/server_test.go
+@@ -55,7 +55,7 @@ func TestTCPServer(t *testing.T) {
+ 
+ 	for i, tt := range tcpServerTests {
+ 		if !testableListenArgs(tt.snet, tt.saddr, tt.taddr) {
+-			t.Logf("skipping %s test", tt.snet+":"+tt.saddr+"->"+tt.taddr)
++			t.Logf("skipping %s test", tt.snet+" "+tt.saddr+"->"+tt.taddr)
+ 			continue
+ 		}
+ 
+@@ -139,7 +139,7 @@ func TestUnixAndUnixpacketServer(t *testing.T) {
+ 
+ 	for i, tt := range unixAndUnixpacketServerTests {
+ 		if !testableListenArgs(tt.network, tt.address, "") {
+-			t.Logf("skipping %s test", tt.network+":"+tt.address+"->")
++			t.Logf("skipping %s test", tt.network+" "+tt.address)
+ 			continue
+ 		}
+ 
+@@ -251,7 +251,7 @@ var udpServerTests = []struct {
+ func TestUDPServer(t *testing.T) {
+ 	for i, tt := range udpServerTests {
+ 		if !testableListenArgs(tt.snet, tt.saddr, tt.taddr) {
+-			t.Logf("skipping %s test", tt.snet+":"+tt.saddr+"->"+tt.taddr)
++			t.Logf("skipping %s test", tt.snet+" "+tt.saddr+"->"+tt.taddr)
+ 			continue
+ 		}
+ 
+@@ -329,7 +329,7 @@ var unixgramServerTests = []struct {
+ func TestUnixgramServer(t *testing.T) {
+ 	for i, tt := range unixgramServerTests {
+ 		if !testableListenArgs("unixgram", tt.saddr, "") {
+-			t.Logf("skipping %s test", "unixgram:"+tt.saddr+"->"+tt.caddr)
++			t.Logf("skipping %s test", "unixgram "+tt.saddr+"->"+tt.caddr)
+ 			continue
+ 		}
+ 
+diff --git a/src/net/tcp_test.go b/src/net/tcp_test.go
+index cb58ab571d..6229df2869 100644
+--- a/src/net/tcp_test.go
++++ b/src/net/tcp_test.go
+@@ -77,7 +77,7 @@ func benchmarkTCP(b *testing.B, persistent, timeout bool, laddr string) {
+ 	sendMsg := func(c Conn, buf []byte) bool {
+ 		n, err := c.Write(buf)
+ 		if n != len(buf) || err != nil {
+-			b.Logf("Write failed: %v", err)
++			b.Log(err)
+ 			return false
+ 		}
+ 		return true
+@@ -87,7 +87,7 @@ func benchmarkTCP(b *testing.B, persistent, timeout bool, laddr string) {
+ 			n, err := c.Read(buf)
+ 			read += n
+ 			if err != nil {
+-				b.Logf("Read failed: %v", err)
++				b.Log(err)
+ 				return false
+ 			}
+ 		}
+@@ -95,7 +95,7 @@ func benchmarkTCP(b *testing.B, persistent, timeout bool, laddr string) {
+ 	}
+ 	ln, err := Listen("tcp", laddr)
+ 	if err != nil {
+-		b.Fatalf("Listen failed: %v", err)
++		b.Fatal(err)
+ 	}
+ 	defer ln.Close()
+ 	serverSem := make(chan bool, numConcurrent)
+@@ -135,7 +135,7 @@ func benchmarkTCP(b *testing.B, persistent, timeout bool, laddr string) {
+ 			}()
+ 			c, err := Dial("tcp", ln.Addr().String())
+ 			if err != nil {
+-				b.Logf("Dial failed: %v", err)
++				b.Log(err)
+ 				return
+ 			}
+ 			defer c.Close()
+@@ -186,7 +186,7 @@ func benchmarkTCPConcurrentReadWrite(b *testing.B, laddr string) {
+ 	servers := make([]Conn, P)
+ 	ln, err := Listen("tcp", laddr)
+ 	if err != nil {
+-		b.Fatalf("Listen failed: %v", err)
++		b.Fatal(err)
+ 	}
+ 	defer ln.Close()
+ 	done := make(chan bool)
+@@ -194,7 +194,7 @@ func benchmarkTCPConcurrentReadWrite(b *testing.B, laddr string) {
+ 		for p := 0; p < P; p++ {
+ 			s, err := ln.Accept()
+ 			if err != nil {
+-				b.Errorf("Accept failed: %v", err)
++				b.Error(err)
+ 				return
+ 			}
+ 			servers[p] = s
+@@ -204,7 +204,7 @@ func benchmarkTCPConcurrentReadWrite(b *testing.B, laddr string) {
+ 	for p := 0; p < P; p++ {
+ 		c, err := Dial("tcp", ln.Addr().String())
+ 		if err != nil {
+-			b.Fatalf("Dial failed: %v", err)
++			b.Fatal(err)
+ 		}
+ 		clients[p] = c
+ 	}
+@@ -227,7 +227,7 @@ func benchmarkTCPConcurrentReadWrite(b *testing.B, laddr string) {
+ 				buf[0] = v
+ 				_, err := c.Write(buf[:])
+ 				if err != nil {
+-					b.Errorf("Write failed: %v", err)
++					b.Error(err)
+ 					return
+ 				}
+ 			}
+@@ -243,7 +243,7 @@ func benchmarkTCPConcurrentReadWrite(b *testing.B, laddr string) {
+ 			for i := 0; i < N; i++ {
+ 				_, err := s.Read(buf[:])
+ 				if err != nil {
+-					b.Errorf("Read failed: %v", err)
++					b.Error(err)
+ 					return
+ 				}
+ 				pipe <- buf[0]
+@@ -262,7 +262,7 @@ func benchmarkTCPConcurrentReadWrite(b *testing.B, laddr string) {
+ 				buf[0] = v
+ 				_, err := s.Write(buf[:])
+ 				if err != nil {
+-					b.Errorf("Write failed: %v", err)
++					b.Error(err)
+ 					return
+ 				}
+ 			}
+@@ -276,7 +276,7 @@ func benchmarkTCPConcurrentReadWrite(b *testing.B, laddr string) {
+ 			for i := 0; i < N; i++ {
+ 				_, err := c.Read(buf[:])
+ 				if err != nil {
+-					b.Errorf("Read failed: %v", err)
++					b.Error(err)
+ 					return
+ 				}
+ 			}
+@@ -346,13 +346,13 @@ var tcpListenerNameTests = []struct {
+ 
+ func TestTCPListenerName(t *testing.T) {
+ 	if testing.Short() || !*testExternal {
+-		t.Skip("skipping test to avoid external network")
++		t.Skip("avoid external network")
+ 	}
+ 
+ 	for _, tt := range tcpListenerNameTests {
+ 		ln, err := ListenTCP(tt.net, tt.laddr)
+ 		if err != nil {
+-			t.Fatalf("ListenTCP failed: %v", err)
++			t.Fatal(err)
+ 		}
+ 		defer ln.Close()
+ 		la := ln.Addr()
+@@ -364,7 +364,7 @@ func TestTCPListenerName(t *testing.T) {
+ 
+ func TestIPv6LinkLocalUnicastTCP(t *testing.T) {
+ 	if testing.Short() || !*testExternal {
+-		t.Skip("skipping test to avoid external network")
++		t.Skip("avoid external network")
+ 	}
+ 	if !supportsIPv6 {
+ 		t.Skip("ipv6 is not supported")
+@@ -403,7 +403,7 @@ func TestIPv6LinkLocalUnicastTCP(t *testing.T) {
+ 		if err != nil {
+ 			// It might return "LookupHost returned no
+ 			// suitable address" error on some platforms.
+-			t.Logf("Listen failed: %v", err)
++			t.Log(err)
+ 			continue
+ 		}
+ 		ls, err := (&streamListener{Listener: ln}).newLocalServer()
+@@ -422,7 +422,7 @@ func TestIPv6LinkLocalUnicastTCP(t *testing.T) {
+ 
+ 		c, err := Dial(tt.net, ls.Listener.Addr().String())
+ 		if err != nil {
+-			t.Fatalf("Dial failed: %v", err)
++			t.Fatal(err)
+ 		}
+ 		defer c.Close()
+ 		if la, ok := c.LocalAddr().(*TCPAddr); !ok || !tt.nameLookup && la.Zone == "" {
+@@ -433,11 +433,11 @@ func TestIPv6LinkLocalUnicastTCP(t *testing.T) {
+ 		}
+ 
+ 		if _, err := c.Write([]byte("TCP OVER IPV6 LINKLOCAL TEST")); err != nil {
+-			t.Fatalf("Conn.Write failed: %v", err)
++			t.Fatal(err)
+ 		}
+ 		b := make([]byte, 32)
+ 		if _, err := c.Read(b); err != nil {
+-			t.Fatalf("Conn.Read failed: %v", err)
++			t.Fatal(err)
+ 		}
+ 
+ 		for err := range ch {
+@@ -450,7 +450,7 @@ func TestTCPConcurrentAccept(t *testing.T) {
+ 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(4))
+ 	ln, err := Listen("tcp", "127.0.0.1:0")
+ 	if err != nil {
+-		t.Fatalf("Listen failed: %v", err)
++		t.Fatal(err)
+ 	}
+ 	const N = 10
+ 	var wg sync.WaitGroup
+@@ -546,7 +546,7 @@ func TestTCPStress(t *testing.T) {
+ 	sendMsg := func(c Conn, buf []byte) bool {
+ 		n, err := c.Write(buf)
+ 		if n != len(buf) || err != nil {
+-			t.Logf("Write failed: %v", err)
++			t.Log(err)
+ 			return false
+ 		}
+ 		return true
+@@ -556,7 +556,7 @@ func TestTCPStress(t *testing.T) {
+ 			n, err := c.Read(buf)
+ 			read += n
+ 			if err != nil {
+-				t.Logf("Read failed: %v", err)
++				t.Log(err)
+ 				return false
+ 			}
+ 		}
+@@ -565,7 +565,7 @@ func TestTCPStress(t *testing.T) {
+ 
+ 	ln, err := Listen("tcp", "127.0.0.1:0")
+ 	if err != nil {
+-		t.Fatalf("Listen failed: %v", err)
++		t.Fatal(err)
+ 	}
+ 	defer ln.Close()
+ 	// Acceptor.
+@@ -596,7 +596,7 @@ func TestTCPStress(t *testing.T) {
+ 			}()
+ 			c, err := Dial("tcp", ln.Addr().String())
+ 			if err != nil {
+-				t.Logf("Dial failed: %v", err)
++				t.Log(err)
+ 				return
+ 			}
+ 			defer c.Close()
+diff --git a/src/net/udp_test.go b/src/net/udp_test.go
+index f5e0ff8a97..2213468e79 100644
+--- a/src/net/udp_test.go
++++ b/src/net/udp_test.go
+@@ -63,7 +63,7 @@ func TestResolveUDPAddr(t *testing.T) {
+ func TestWriteToUDP(t *testing.T) {
+ 	switch runtime.GOOS {
+ 	case "plan9":
+-		t.Skipf("skipping test on %q", runtime.GOOS)
++		t.Skipf("not supported on %s", runtime.GOOS)
+ 	}
+ 
+ 	c, err := ListenPacket("udp", "127.0.0.1:0")
+@@ -88,35 +88,33 @@ func testWriteToConn(t *testing.T, raddr string) {
+ 		t.Fatal(err)
+ 	}
+ 
+-	_, err = c.(*UDPConn).WriteToUDP([]byte("Connection-oriented mode socket"), ra)
++	b := []byte("CONNECTED-MODE SOCKET")
++	_, err = c.(*UDPConn).WriteToUDP(b, ra)
+ 	if err == nil {
+-		t.Fatal("WriteToUDP should fail")
++		t.Fatal("should fail")
+ 	}
+ 	if err != nil && err.(*OpError).Err != ErrWriteToConnected {
+-		t.Fatalf("WriteToUDP should fail as ErrWriteToConnected: %v", err)
++		t.Fatalf("should fail as ErrWriteToConnected: %v", err)
+ 	}
+-
+-	_, err = c.(*UDPConn).WriteTo([]byte("Connection-oriented mode socket"), ra)
++	_, err = c.(*UDPConn).WriteTo(b, ra)
+ 	if err == nil {
+-		t.Fatal("WriteTo should fail")
++		t.Fatal("should fail")
+ 	}
+ 	if err != nil && err.(*OpError).Err != ErrWriteToConnected {
+-		t.Fatalf("WriteTo should fail as ErrWriteToConnected: %v", err)
++		t.Fatalf("should fail as ErrWriteToConnected: %v", err)
+ 	}
+-
+-	_, err = c.Write([]byte("Connection-oriented mode socket"))
++	_, err = c.Write(b)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+-
+-	_, _, err = c.(*UDPConn).WriteMsgUDP([]byte("Connection-oriented mode socket"), nil, ra)
++	_, _, err = c.(*UDPConn).WriteMsgUDP(b, nil, ra)
+ 	if err == nil {
+-		t.Fatal("WriteMsgUDP should fail")
++		t.Fatal("should fail")
+ 	}
+ 	if err != nil && err.(*OpError).Err != ErrWriteToConnected {
+-		t.Fatalf("WriteMsgUDP should fail as ErrWriteToConnected: %v", err)
++		t.Fatalf("should fail as ErrWriteToConnected: %v", err)
+ 	}
+-	_, _, err = c.(*UDPConn).WriteMsgUDP([]byte("Connection-oriented mode socket"), nil, nil)
++	_, _, err = c.(*UDPConn).WriteMsgUDP(b, nil, nil)
+ 	switch runtime.GOOS {
+ 	case "nacl", "windows": // see golang.org/issue/9252
+ 		t.Skipf("not implemented yet on %s", runtime.GOOS)
+@@ -139,29 +137,27 @@ func testWriteToPacketConn(t *testing.T, raddr string) {
+ 		t.Fatal(err)
+ 	}
+ 
+-	_, err = c.(*UDPConn).WriteToUDP([]byte("Connection-less mode socket"), ra)
++	b := []byte("UNCONNECTED-MODE SOCKET")
++	_, err = c.(*UDPConn).WriteToUDP(b, ra)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+-
+-	_, err = c.WriteTo([]byte("Connection-less mode socket"), ra)
++	_, err = c.WriteTo(b, ra)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+-
+-	_, err = c.(*UDPConn).Write([]byte("Connection-less mode socket"))
++	_, err = c.(*UDPConn).Write(b)
+ 	if err == nil {
+-		t.Fatal("Write should fail")
++		t.Fatal("should fail")
+ 	}
+-
+-	_, _, err = c.(*UDPConn).WriteMsgUDP([]byte("Connection-less mode socket"), nil, nil)
++	_, _, err = c.(*UDPConn).WriteMsgUDP(b, nil, nil)
+ 	if err == nil {
+-		t.Fatal("WriteMsgUDP should fail")
++		t.Fatal("should fail")
+ 	}
+ 	if err != nil && err.(*OpError).Err != errMissingAddress {
+-		t.Fatalf("WriteMsgUDP should fail as errMissingAddress: %v", err)
++		t.Fatalf("should fail as errMissingAddress: %v", err)
+ 	}
+-	_, _, err = c.(*UDPConn).WriteMsgUDP([]byte("Connection-less mode socket"), nil, ra)
++	_, _, err = c.(*UDPConn).WriteMsgUDP(b, nil, ra)
+ 	switch runtime.GOOS {
+ 	case "nacl", "windows": // see golang.org/issue/9252
+ 		t.Skipf("not implemented yet on %s", runtime.GOOS)
+@@ -183,13 +179,13 @@ var udpConnLocalNameTests = []struct {
+ 
+ func TestUDPConnLocalName(t *testing.T) {
+ 	if testing.Short() || !*testExternal {
+-		t.Skip("skipping test to avoid external network")
++		t.Skip("avoid external network")
+ 	}
+ 
+ 	for _, tt := range udpConnLocalNameTests {
+ 		c, err := ListenUDP(tt.net, tt.laddr)
+ 		if err != nil {
+-			t.Fatalf("ListenUDP failed: %v", err)
++			t.Fatal(err)
+ 		}
+ 		defer c.Close()
+ 		la := c.LocalAddr()
+@@ -203,7 +199,7 @@ func TestUDPConnLocalAndRemoteNames(t *testing.T) {
+ 	for _, laddr := range []string{"", "127.0.0.1:0"} {
+ 		c1, err := ListenPacket("udp", "127.0.0.1:0")
+ 		if err != nil {
+-			t.Fatalf("ListenUDP failed: %v", err)
++			t.Fatal(err)
+ 		}
+ 		defer c1.Close()
+ 
+@@ -211,12 +207,12 @@ func TestUDPConnLocalAndRemoteNames(t *testing.T) {
+ 		if laddr != "" {
+ 			var err error
+ 			if la, err = ResolveUDPAddr("udp", laddr); err != nil {
+-				t.Fatalf("ResolveUDPAddr failed: %v", err)
++				t.Fatal(err)
+ 			}
+ 		}
+ 		c2, err := DialUDP("udp", la, c1.LocalAddr().(*UDPAddr))
+ 		if err != nil {
+-			t.Fatalf("DialUDP failed: %v", err)
++			t.Fatal(err)
+ 		}
+ 		defer c2.Close()
+ 
+@@ -239,7 +235,7 @@ func TestUDPConnLocalAndRemoteNames(t *testing.T) {
+ 
+ func TestIPv6LinkLocalUnicastUDP(t *testing.T) {
+ 	if testing.Short() || !*testExternal {
+-		t.Skip("skipping test to avoid external network")
++		t.Skip("avoid external network")
+ 	}
+ 	if !supportsIPv6 {
+ 		t.Skip("ipv6 is not supported")
+@@ -282,7 +278,7 @@ func TestIPv6LinkLocalUnicastUDP(t *testing.T) {
+ 		if err != nil {
+ 			// It might return "LookupHost returned no
+ 			// suitable address" error on some platforms.
+-			t.Logf("ListenPacket failed: %v", err)
++			t.Log(err)
+ 			continue
+ 		}
+ 		defer c1.Close()
+@@ -292,7 +288,7 @@ func TestIPv6LinkLocalUnicastUDP(t *testing.T) {
+ 
+ 		c2, err := Dial(tt.net, c1.LocalAddr().String())
+ 		if err != nil {
+-			t.Fatalf("Dial failed: %v", err)
++			t.Fatal(err)
+ 		}
+ 		defer c2.Close()
+ 		if la, ok := c2.LocalAddr().(*UDPAddr); !ok || !tt.nameLookup && la.Zone == "" {
+@@ -303,11 +299,11 @@ func TestIPv6LinkLocalUnicastUDP(t *testing.T) {
+ 		}
+ 
+ 		if _, err := c2.Write([]byte("UDP OVER IPV6 LINKLOCAL TEST")); err != nil {
+-			t.Fatalf("Conn.Write failed: %v", err)
++			t.Fatal(err)
+ 		}
+ 		b := make([]byte, 32)
+ 		if _, from, err := c1.ReadFrom(b); err != nil {
+-			t.Fatalf("PacketConn.ReadFrom failed: %v", err)
++			t.Fatal(err)
+ 		} else {
+ 			if ra, ok := from.(*UDPAddr); !ok || !tt.nameLookup && ra.Zone == "" {
+ 				t.Fatalf("got %v; expected a proper address with zone identifier", ra)
+@@ -365,7 +361,7 @@ func TestUDPZeroByteBuffer(t *testing.T) {
+ 	}
+ 	defer c.Close()
+ 
+-	b := []byte("UDP ZERO BYTE BUFFER")
++	b := []byte("UDP ZERO BYTE BUFFER TEST")
+ 	for _, genericRead := range []bool{false, true} {
+ 		n, err := c.WriteTo(b, c.LocalAddr())
+ 		if err != nil {
+diff --git a/src/net/unix_test.go b/src/net/unix_test.go
+index 9e0db57cff..59f5c2d85b 100644
+--- a/src/net/unix_test.go
++++ b/src/net/unix_test.go
+@@ -24,11 +24,11 @@ func TestReadUnixgramWithUnnamedSocket(t *testing.T) {
+ 	addr := testUnixAddr()
+ 	la, err := ResolveUnixAddr("unixgram", addr)
+ 	if err != nil {
+-		t.Fatalf("ResolveUnixAddr failed: %v", err)
++		t.Fatal(err)
+ 	}
+ 	c, err := ListenUnixgram("unixgram", la)
+ 	if err != nil {
+-		t.Fatalf("ListenUnixgram failed: %v", err)
++		t.Fatal(err)
+ 	}
+ 	defer func() {
+ 		c.Close()
+@@ -41,13 +41,13 @@ func TestReadUnixgramWithUnnamedSocket(t *testing.T) {
+ 		defer func() { off <- true }()
+ 		s, err := syscall.Socket(syscall.AF_UNIX, syscall.SOCK_DGRAM, 0)
+ 		if err != nil {
+-			t.Errorf("syscall.Socket failed: %v", err)
++			t.Error(err)
+ 			return
+ 		}
+ 		defer syscall.Close(s)
+ 		rsa := &syscall.SockaddrUnix{Name: addr}
+ 		if err := syscall.Sendto(s, data[:], 0, rsa); err != nil {
+-			t.Errorf("syscall.Sendto failed: %v", err)
++			t.Error(err)
+ 			return
+ 		}
+ 	}()
+@@ -57,13 +57,13 @@ func TestReadUnixgramWithUnnamedSocket(t *testing.T) {
+ 	c.SetReadDeadline(time.Now().Add(100 * time.Millisecond))
+ 	n, from, err := c.ReadFrom(b)
+ 	if err != nil {
+-		t.Fatalf("UnixConn.ReadFrom failed: %v", err)
++		t.Fatal(err)
+ 	}
+ 	if from != nil {
+-		t.Fatalf("neighbor address is %v", from)
++		t.Fatalf("unexpected peer address: %v", from)
+ 	}
+ 	if !bytes.Equal(b[:n], data[:]) {
+-		t.Fatalf("got %v, want %v", b[:n], data[:])
++		t.Fatalf("got %v; want %v", b[:n], data[:])
+ 	}
+ }
+ 
+@@ -136,7 +136,7 @@ func TestUnixgramZeroByteBuffer(t *testing.T) {
+ 	defer os.Remove(c2.LocalAddr().String())
+ 	defer c2.Close()
+ 
+-	b := []byte("UNIXGRAM ZERO BYTE BUFFER")
++	b := []byte("UNIXGRAM ZERO BYTE BUFFER TEST")
+ 	for _, genericRead := range []bool{false, true} {
+ 		n, err := c2.Write(b)
+ 		if err != nil {
+@@ -167,13 +167,13 @@ func TestUnixgramZeroByteBuffer(t *testing.T) {
+ 
+ func TestUnixgramAutobind(t *testing.T) {
+ 	if runtime.GOOS != "linux" {
+-		t.Skip("skipping: autobind is linux only")
++		t.Skip("autobind is linux only")
+ 	}
+ 
+ 	laddr := &UnixAddr{Name: "", Net: "unixgram"}
+ 	c1, err := ListenUnixgram("unixgram", laddr)
+ 	if err != nil {
+-		t.Fatalf("ListenUnixgram failed: %v", err)
++		t.Fatal(err)
+ 	}
+ 	defer c1.Close()
+ 
+@@ -188,7 +188,7 @@ func TestUnixgramAutobind(t *testing.T) {
+ 
+ 	c2, err := DialUnix("unixgram", nil, autoAddr)
+ 	if err != nil {
+-		t.Fatalf("DialUnix failed: %v", err)
++		t.Fatal(err)
+ 	}
+ 	defer c2.Close()
+ 
+@@ -199,13 +199,13 @@ func TestUnixgramAutobind(t *testing.T) {
+ 
+ func TestUnixAutobindClose(t *testing.T) {
+ 	if runtime.GOOS != "linux" {
+-		t.Skip("skipping: autobind is linux only")
++		t.Skip("autobind is linux only")
+ 	}
+ 
+ 	laddr := &UnixAddr{Name: "", Net: "unix"}
+ 	ln, err := ListenUnix("unix", laddr)
+ 	if err != nil {
+-		t.Fatalf("ListenUnix failed: %v", err)
++		t.Fatal(err)
+ 	}
+ 	ln.Close()
+ }
+@@ -218,11 +218,11 @@ func TestUnixgramWrite(t *testing.T) {
+ 	addr := testUnixAddr()
+ 	laddr, err := ResolveUnixAddr("unixgram", addr)
+ 	if err != nil {
+-		t.Fatalf("ResolveUnixAddr failed: %v", err)
++		t.Fatal(err)
+ 	}
+ 	c, err := ListenPacket("unixgram", addr)
+ 	if err != nil {
+-		t.Fatalf("ListenPacket failed: %v", err)
++		t.Fatal(err)
+ 	}
+ 	defer os.Remove(addr)
+ 	defer c.Close()
+@@ -234,27 +234,28 @@ func TestUnixgramWrite(t *testing.T) {
+ func testUnixgramWriteConn(t *testing.T, raddr *UnixAddr) {
+ 	c, err := Dial("unixgram", raddr.String())
+ 	if err != nil {
+-		t.Fatalf("Dial failed: %v", err)
++		t.Fatal(err)
+ 	}
+ 	defer c.Close()
+ 
+-	if _, err := c.(*UnixConn).WriteToUnix([]byte("Connection-oriented mode socket"), raddr); err == nil {
+-		t.Fatal("WriteToUnix should fail")
++	b := []byte("CONNECTED-MODE SOCKET")
++	if _, err := c.(*UnixConn).WriteToUnix(b, raddr); err == nil {
++		t.Fatal("should fail")
+ 	} else if err.(*OpError).Err != ErrWriteToConnected {
+-		t.Fatalf("WriteToUnix should fail as ErrWriteToConnected: %v", err)
++		t.Fatalf("should fail as ErrWriteToConnected: %v", err)
+ 	}
+-	if _, err = c.(*UnixConn).WriteTo([]byte("Connection-oriented mode socket"), raddr); err == nil {
+-		t.Fatal("WriteTo should fail")
++	if _, err = c.(*UnixConn).WriteTo(b, raddr); err == nil {
++		t.Fatal("should fail")
+ 	} else if err.(*OpError).Err != ErrWriteToConnected {
+-		t.Fatalf("WriteTo should fail as ErrWriteToConnected: %v", err)
++		t.Fatalf("should fail as ErrWriteToConnected: %v", err)
+ 	}
+-	if _, _, err = c.(*UnixConn).WriteMsgUnix([]byte("Connection-oriented mode socket"), nil, raddr); err == nil {
+-		t.Fatal("WriteTo should fail")
++	if _, _, err = c.(*UnixConn).WriteMsgUnix(b, nil, raddr); err == nil {
++		t.Fatal("should fail")
+ 	} else if err.(*OpError).Err != ErrWriteToConnected {
+-		t.Fatalf("WriteMsgUnix should fail as ErrWriteToConnected: %v", err)
++		t.Fatalf("should fail as ErrWriteToConnected: %v", err)
+ 	}
+-	if _, err := c.Write([]byte("Connection-oriented mode socket")); err != nil {
+-		t.Fatalf("Write failed: %v", err)
++	if _, err := c.Write(b); err != nil {
++		t.Fatal(err)
+ 	}
+ }
+ 
+@@ -262,22 +263,23 @@ func testUnixgramWritePacketConn(t *testing.T, raddr *UnixAddr) {
+ 	addr := testUnixAddr()
+ 	c, err := ListenPacket("unixgram", addr)
+ 	if err != nil {
+-		t.Fatalf("ListenPacket failed: %v", err)
++		t.Fatal(err)
+ 	}
+ 	defer os.Remove(addr)
+ 	defer c.Close()
+ 
+-	if _, err := c.(*UnixConn).WriteToUnix([]byte("Connectionless mode socket"), raddr); err != nil {
+-		t.Fatalf("WriteToUnix failed: %v", err)
++	b := []byte("UNCONNECTED-MODE SOCKET")
++	if _, err := c.(*UnixConn).WriteToUnix(b, raddr); err != nil {
++		t.Fatal(err)
+ 	}
+-	if _, err := c.WriteTo([]byte("Connectionless mode socket"), raddr); err != nil {
+-		t.Fatalf("WriteTo failed: %v", err)
++	if _, err := c.WriteTo(b, raddr); err != nil {
++		t.Fatal(err)
+ 	}
+-	if _, _, err := c.(*UnixConn).WriteMsgUnix([]byte("Connectionless mode socket"), nil, raddr); err != nil {
+-		t.Fatalf("WriteMsgUnix failed: %v", err)
++	if _, _, err := c.(*UnixConn).WriteMsgUnix(b, nil, raddr); err != nil {
++		t.Fatal(err)
+ 	}
+-	if _, err := c.(*UnixConn).Write([]byte("Connectionless mode socket")); err == nil {
+-		t.Fatal("Write should fail")
++	if _, err := c.(*UnixConn).Write(b); err == nil {
++		t.Fatal("should fail")
+ 	}
+ }
+ 
+@@ -292,11 +294,11 @@ func TestUnixConnLocalAndRemoteNames(t *testing.T) {
+ 		taddr := testUnixAddr()
+ 		ta, err := ResolveUnixAddr("unix", taddr)
+ 		if err != nil {
+-			t.Fatalf("ResolveUnixAddr failed: %v", err)
++			t.Fatal(err)
+ 		}
+ 		ln, err := ListenUnix("unix", ta)
+ 		if err != nil {
+-			t.Fatalf("ListenUnix failed: %v", err)
++			t.Fatal(err)
+ 		}
+ 		ls, err := (&streamListener{Listener: ln}).newLocalServer()
+ 		if err != nil {
+@@ -309,11 +311,11 @@ func TestUnixConnLocalAndRemoteNames(t *testing.T) {
+ 
+ 		la, err := ResolveUnixAddr("unix", laddr)
+ 		if err != nil {
+-			t.Fatalf("ResolveUnixAddr failed: %v", err)
++			t.Fatal(err)
+ 		}
+ 		c, err := DialUnix("unix", la, ta)
+ 		if err != nil {
+-			t.Fatalf("DialUnix failed: %v", err)
++			t.Fatal(err)
+ 		}
+ 		defer func() {
+ 			c.Close()
+@@ -322,7 +324,7 @@ func TestUnixConnLocalAndRemoteNames(t *testing.T) {
+ 			}
+ 		}()
+ 		if _, err := c.Write([]byte("UNIXCONN LOCAL AND REMOTE NAME TEST")); err != nil {
+-			t.Fatalf("UnixConn.Write failed: %v", err)
++			t.Fatal(err)
+ 		}
+ 
+ 		switch runtime.GOOS {
+@@ -354,11 +356,11 @@ func TestUnixgramConnLocalAndRemoteNames(t *testing.T) {
+ 		taddr := testUnixAddr()
+ 		ta, err := ResolveUnixAddr("unixgram", taddr)
+ 		if err != nil {
+-			t.Fatalf("ResolveUnixAddr failed: %v", err)
++			t.Fatal(err)
+ 		}
+ 		c1, err := ListenUnixgram("unixgram", ta)
+ 		if err != nil {
+-			t.Fatalf("ListenUnixgram failed: %v", err)
++			t.Fatal(err)
+ 		}
+ 		defer func() {
+ 			c1.Close()
+@@ -368,12 +370,12 @@ func TestUnixgramConnLocalAndRemoteNames(t *testing.T) {
+ 		var la *UnixAddr
+ 		if laddr != "" {
+ 			if la, err = ResolveUnixAddr("unixgram", laddr); err != nil {
+-				t.Fatalf("ResolveUnixAddr failed: %v", err)
++				t.Fatal(err)
+ 			}
+ 		}
+ 		c2, err := DialUnix("unixgram", la, ta)
+ 		if err != nil {
+-			t.Fatalf("DialUnix failed: %v", err)
++			t.Fatal(err)
+ 		}
+ 		defer func() {
+ 			c2.Close()
+@@ -397,7 +399,7 @@ func TestUnixgramConnLocalAndRemoteNames(t *testing.T) {
+ 		}
+ 		for _, ca := range connAddrs {
+ 			if !reflect.DeepEqual(ca.got, ca.want) {
+-				t.Fatalf("got %#v, expected %#v", ca.got, ca.want)
++				t.Fatalf("got %#v; want %#v", ca.got, ca.want)
+ 			}
+ 		}
+ 	}

@@ -19,7 +19,7 @@ Date:   Mon Nov 26 15:58:03 2018 -0800
     Run-TryBot: Keith Randall <khr@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/const.go     |  2 +-
  src/cmd/compile/internal/gc/swt.go       |  2 +-
  src/cmd/compile/internal/gc/typecheck.go |  6 +++---
@@ -28,3 +28,157 @@ Date:   Mon Nov 26 15:58:03 2018 -0800
  test/fixedbugs/issue28079b.go            | 17 ++++++++++++++++
  test/fixedbugs/issue28079c.go            | 15 ++++++++++++++
  7 files changed, 91 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/const.go b/src/cmd/compile/internal/gc/const.go
+index afcdb95443..c01820506d 100644
+--- a/src/cmd/compile/internal/gc/const.go
++++ b/src/cmd/compile/internal/gc/const.go
+@@ -1327,7 +1327,7 @@ func (n *Node) isGoConst() bool {
+ 		}
+ 		return true
+ 
+-	case OCONV:
++	case OCONV, OCONVNOP:
+ 		if okforconst[n.Type.Etype] && n.Left.isGoConst() {
+ 			return true
+ 		}
+diff --git a/src/cmd/compile/internal/gc/swt.go b/src/cmd/compile/internal/gc/swt.go
+index b475e7adc3..a985626a02 100644
+--- a/src/cmd/compile/internal/gc/swt.go
++++ b/src/cmd/compile/internal/gc/swt.go
+@@ -679,7 +679,7 @@ func checkDupExprCases(exprname *Node, clauses []*Node) {
+ 	seen := make(map[typeVal]*Node)
+ 	for _, ncase := range clauses {
+ 		for _, n := range ncase.List.Slice() {
+-			if ct := consttype(n); ct == 0 || ct == CTBOOL {
++			if ct := consttype(n); ct == 0 || ct == CTBOOL || ct == CTNIL {
+ 				continue
+ 			}
+ 			tv := typeVal{
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 069a38cbbb..cbca685415 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -1818,9 +1818,9 @@ func typecheck1(n *Node, top int) (res *Node) {
+ 
+ 		switch n.Op {
+ 		case OCONVNOP:
+-			if n.Left.Op == OLITERAL {
+-				n.Op = OCONV
+-				setconst(n, n.Left.Val())
++			if n.Left.Op == OLITERAL && n.isGoConst() {
++				n.Op = OCONV              // set so n.Orig gets OCONV instead of OCONVNOP
++				setconst(n, n.Left.Val()) // convert n to OLITERAL with the given value
+ 			} else if t.Etype == n.Type.Etype {
+ 				switch t.Etype {
+ 				case TFLOAT32, TFLOAT64, TCOMPLEX64, TCOMPLEX128:
+diff --git a/test/fixedbugs/issue28078.go b/test/fixedbugs/issue28078.go
+new file mode 100644
+index 0000000000..2e4c4b5516
+--- /dev/null
++++ b/test/fixedbugs/issue28078.go
+@@ -0,0 +1,34 @@
++// compile
++
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Non-constant duplicate keys/cases should not be reported
++// as errors by the compiler.
++
++package p
++
++import "unsafe"
++
++func f() {
++	_ = map[uintptr]int{
++		0:                            0,
++		uintptr(unsafe.Pointer(nil)): 0,
++	}
++
++	switch uintptr(0) {
++	case 0:
++	case uintptr(unsafe.Pointer(nil)):
++	}
++
++	switch interface{}(nil) {
++	case nil:
++	case nil:
++	}
++
++	_ = map[interface{}]int{
++		nil: 0,
++		nil: 0,
++	}
++}
+diff --git a/test/fixedbugs/issue28079a.go b/test/fixedbugs/issue28079a.go
+new file mode 100644
+index 0000000000..b0631bbd86
+--- /dev/null
++++ b/test/fixedbugs/issue28079a.go
+@@ -0,0 +1,20 @@
++// compile
++
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Non-Go-constant but constant indexes are ok at compile time.
++
++package p
++
++import "unsafe"
++
++func f() {
++	var x [0]int
++	x[uintptr(unsafe.Pointer(nil))] = 0
++}
++func g() {
++	var x [10]int
++	_ = x[3:uintptr(unsafe.Pointer(nil))]
++}
+diff --git a/test/fixedbugs/issue28079b.go b/test/fixedbugs/issue28079b.go
+new file mode 100644
+index 0000000000..47cc16dfb2
+--- /dev/null
++++ b/test/fixedbugs/issue28079b.go
+@@ -0,0 +1,17 @@
++// errorcheck
++
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Non-Go-constant but constant values aren't ok for array sizes.
++
++package p
++
++import "unsafe"
++
++type T [uintptr(unsafe.Pointer(nil))]int // ERROR "non-constant array bound"
++
++func f() {
++	_ = complex(1<<uintptr(unsafe.Pointer(nil)), 0)
++}
+diff --git a/test/fixedbugs/issue28079c.go b/test/fixedbugs/issue28079c.go
+new file mode 100644
+index 0000000000..bea1898304
+--- /dev/null
++++ b/test/fixedbugs/issue28079c.go
+@@ -0,0 +1,15 @@
++// errorcheck
++
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Non-Go-constant but constant values aren't ok for shifts.
++
++package p
++
++import "unsafe"
++
++func f() {
++	_ = complex(1<<uintptr(unsafe.Pointer(nil)), 0) // ERROR "invalid operation: .*shift of type float64.*"
++}

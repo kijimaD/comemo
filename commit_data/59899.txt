@@ -14,6 +14,42 @@ Date:   Tue May 7 14:52:46 2024 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/583916
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  .github/ISSUE_TEMPLATE/12-telemetry.yml | 9 +++------
  1 file changed, 3 insertions(+), 6 deletions(-)
+
+diff --git a/.github/ISSUE_TEMPLATE/12-telemetry.yml b/.github/ISSUE_TEMPLATE/12-telemetry.yml
+index 5524659136..e072df260a 100644
+--- a/.github/ISSUE_TEMPLATE/12-telemetry.yml
++++ b/.github/ISSUE_TEMPLATE/12-telemetry.yml
+@@ -1,7 +1,5 @@
+ name: Go Telemetry Proposals
+-description: |
+-  Modify the telemetry upload configuration, by adding new counters to upload,
+-  or refining or removing existing upload configuration.
++description: Changes to the telemetry upload configuration
+ title: "x/telemetry/config: proposal title"
+ labels: ["Telemetry-Proposal"]
+ projects: ["golang/29"]
+@@ -9,11 +7,10 @@ body:
+ - type: textarea
+   attributes:
+     label: Summary
+-    description: |
++    description: >
+       What change are you proposing to the upload configuration, and why?
+       For new upload configuration, which new counters will be collected, what
+       do they measure, and why is it important to collect them?
+-      All counters must already be instrumented in the target program.
+       Note that uploaded data must not carry sensitive user information.
+       See [go.dev/doc/telemetry#proposals](https://go.dev/doc/telemetry#proposals)
+       for more details on telemetry proposals.
+@@ -22,7 +19,7 @@ body:
+ - type: input
+   attributes:
+     label: Proposed Config Change
+-    description: |
++    description: >
+       A CL containing proposed changes to the
+       [config.txt](https://go.googlesource.com/telemetry/+/master/internal/chartconfig/config.txt)
+       chart configuration.

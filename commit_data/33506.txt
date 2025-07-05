@@ -17,7 +17,52 @@ Date:   Fri Aug 18 12:58:08 2017 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/race/output_test.go | 21 +++++++++++++++++++++
  src/testing/testing.go          |  3 +--
  2 files changed, 22 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/race/output_test.go b/src/runtime/race/output_test.go
+index e73e6b3bfc..13dfc33b47 100644
+--- a/src/runtime/race/output_test.go
++++ b/src/runtime/race/output_test.go
+@@ -259,4 +259,25 @@ Goroutine [0-9] \(running\) created at:
+   runtime\.newextram\(\)
+       .*/runtime/proc.go:[0-9]+ \+0x[0-9,a-f]+
+ ==================`},
++	{"second_test_passes", "test", "", "atexit_sleep_ms=0", `
++package main_test
++import "testing"
++func TestFail(t *testing.T) {
++	done := make(chan bool)
++	x := 0
++	go func() {
++		x = 42
++		done <- true
++	}()
++	x = 43
++	<-done
++}
++
++func TestPass(t *testing.T) {
++}
++`, `
++==================
++--- FAIL: TestFail \(0...s\)
++.*testing.go:.*: race detected during execution of test
++FAIL`},
+ }
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index 11af926c80..3585af3fc4 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -695,8 +695,7 @@ func tRunner(t *T, fn func(t *T)) {
+ 	// a call to runtime.Goexit, record the duration and send
+ 	// a signal saying that the test is done.
+ 	defer func() {
+-		t.raceErrors += race.Errors()
+-		if t.raceErrors > 0 {
++		if t.raceErrors+race.Errors() > 0 {
+ 			t.Errorf("race detected during execution of test")
+ 		}
+ 

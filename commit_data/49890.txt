@@ -22,8 +22,131 @@ Date:   Thu Sep 16 10:03:04 2021 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Joe Tsai <joetsai@digital-static.net>
-
+---
  src/cmd/go/testdata/script/test_fuzz.txt | 32 +++++-----------------------
  src/internal/fuzz/fuzz.go                | 36 ++++----------------------------
  src/testing/fuzz.go                      |  2 +-
  3 files changed, 10 insertions(+), 60 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/test_fuzz.txt b/src/cmd/go/testdata/script/test_fuzz.txt
+index 3f825c1bc3..b1a02f46eb 100644
+--- a/src/cmd/go/testdata/script/test_fuzz.txt
++++ b/src/cmd/go/testdata/script/test_fuzz.txt
+@@ -131,23 +131,11 @@ stdout FAIL
+ ! stdout ^ok
+ stdout FAIL
+ 
+-# Test that converting compatible value from f.Add successful runs cleanly.
+-go test -run FuzzConvertType fuzz_add_test.go
+-stdout ^ok
+-! stdout FAIL
+-
+-# Test that converting incompatible value from f.Add fails.
+-! go test -run FuzzConvertIncompatibleType fuzz_add_test.go
++# Test that the wrong type given with f.Add will fail.
++! go test -run FuzzWrongType fuzz_add_test.go
+ ! stdout ^ok
+ stdout FAIL
+ 
+-# Test that converts value which would lose precision from f.Add.
+-# Consider making a test like this fail, as it may have unexpected
+-# consequences for the developer.
+-go test -v -run FuzzConvertLosePrecision fuzz_add_test.go
+-stdout ok
+-! stdout FAIL
+-
+ # Test fatal with testdata seed corpus
+ ! go test -run FuzzFail corpustesting/fuzz_testdata_corpus_test.go
+ ! stdout ^ok
+@@ -391,19 +379,9 @@ func FuzzAddDifferentType(f *testing.F) {
+     f.Fuzz(func(*testing.T, []byte) {})
+ }
+ 
+-func FuzzConvertIncompatibleType(f *testing.F) {
+-    f.Add("abcde")
+-    f.Fuzz(func(*testing.T, int64) {})
+-}
+-
+-func FuzzConvertLosePrecision(f *testing.F) {
+-    f.Add(-1)
+-    f.Fuzz(func(*testing.T, uint) {})
+-}
+-
+-func FuzzConvertType(f *testing.F) {
+-    f.Add(1, "hello")
+-    f.Fuzz(func(*testing.T, uint, []byte) {})
++func FuzzWrongType(f *testing.F) {
++    f.Add("hello")
++    f.Fuzz(func(*testing.T, []byte) {})
+ }
+ 
+ -- corpustesting/fuzz_testdata_corpus_test.go --
+diff --git a/src/internal/fuzz/fuzz.go b/src/internal/fuzz/fuzz.go
+index 99cf39e100..2cd7ebb472 100644
+--- a/src/internal/fuzz/fuzz.go
++++ b/src/internal/fuzz/fuzz.go
+@@ -942,47 +942,19 @@ func readCorpusData(data []byte, types []reflect.Type) ([]interface{}, error) {
+ }
+ 
+ // CheckCorpus verifies that the types in vals match the expected types
+-// provided. If not, attempt to convert them. If that's not possible, return an
+-// error.
++// provided.
+ func CheckCorpus(vals []interface{}, types []reflect.Type) error {
+ 	if len(vals) != len(types) {
+-		return fmt.Errorf("wrong number of values in corpus file: %d, want %d", len(vals), len(types))
++		return fmt.Errorf("wrong number of values in corpus entry: %d, want %d", len(vals), len(types))
+ 	}
+ 	for i := range types {
+-		orig := reflect.ValueOf(vals[i])
+-		origType := orig.Type()
+-		wantType := types[i]
+-		if origType == wantType {
+-			continue // already the same type
+-		}
+-		// Attempt to convert the corpus value to the expected type
+-		if !origType.ConvertibleTo(wantType) {
+-			return fmt.Errorf("cannot convert %v to %v", origType, wantType)
+-		}
+-		convertedVal, ok := convertToType(orig, wantType)
+-		if !ok {
+-			return fmt.Errorf("error converting %v to %v", origType, wantType)
++		if reflect.TypeOf(vals[i]) != types[i] {
++			return fmt.Errorf("mismatched types in corpus entry: %v, want %v", vals, types)
+ 		}
+-		// TODO: Check that the value didn't change.
+-		// e.g. val went from int64(-1) -> uint(0) -> int64(0) which should fail
+-
+-		// Updates vals to use the newly converted value of the expected type.
+-		vals[i] = convertedVal.Interface()
+ 	}
+ 	return nil
+ }
+ 
+-func convertToType(orig reflect.Value, t reflect.Type) (converted reflect.Value, ok bool) {
+-	// Convert might panic even if ConvertibleTo returns true, so catch
+-	// that panic and return false.
+-	defer func() {
+-		if r := recover(); r != nil {
+-			ok = false
+-		}
+-	}()
+-	return orig.Convert(t), true
+-}
+-
+ // writeToCorpus atomically writes the given bytes to a new file in testdata.
+ // If the directory does not exist, it will create one. If the file already
+ // exists, writeToCorpus will not rewrite it. writeToCorpus returns the
+diff --git a/src/testing/fuzz.go b/src/testing/fuzz.go
+index 3a1b0bdeaa..57ea418039 100644
+--- a/src/testing/fuzz.go
++++ b/src/testing/fuzz.go
+@@ -250,7 +250,7 @@ func (f *F) TempDir() string {
+ 
+ // Add will add the arguments to the seed corpus for the fuzz target. This will
+ // be a no-op if called after or within the Fuzz function. The args must match
+-// or be convertible to those in the Fuzz function.
++// those in the Fuzz function.
+ func (f *F) Add(args ...interface{}) {
+ 	var values []interface{}
+ 	for i := range args {

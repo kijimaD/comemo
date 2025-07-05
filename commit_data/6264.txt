@@ -7,6 +7,48 @@ Date:   Mon Sep 13 13:36:51 2010 +1000
     R=rsc, brainman
     CC=golang-dev
     https://golang.org/cl/2171044
-
+---
  src/run.bash | 18 +++++++++++++-----
  1 file changed, 13 insertions(+), 5 deletions(-)
+
+diff --git a/src/run.bash b/src/run.bash
+index 1100f52f2a..304b3e9f5a 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -76,8 +76,10 @@ time gomake test
+ ) || exit $?
+ 
+ (xcd ../misc/cgo/stdio
+-gomake clean
+-./test.bash
++if [[ $(uname | tr A-Z a-z | sed 's/mingw/windows/') != *windows* ]]; then
++	gomake clean
++	./test.bash
++fi
+ ) || exit $?
+ 
+ (xcd pkg/exp/ogle
+@@ -86,14 +88,20 @@ time gomake ogle
+ ) || exit $?
+ 
+ (xcd ../doc/progs
+-time ./run
++if [[ $(uname | tr A-Z a-z | sed 's/mingw/windows/') != *windows* ]]; then
++	time ./run
++fi
+ ) || exit $?
+ 
+ (xcd ../test/bench
+-./timing.sh -test
++if [[ $(uname | tr A-Z a-z | sed 's/mingw/windows/') != *windows* ]]; then
++	./timing.sh -test
++fi
+ ) || exit $?
+ 
+ (xcd ../test
+-./run
++if [[ $(uname | tr A-Z a-z | sed 's/mingw/windows/') != *windows* ]]; then
++	./run
++fi
+ ) || exit $?
+ 

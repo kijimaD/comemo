@@ -7,7 +7,175 @@ Date:   Tue Jul 19 14:10:12 2011 +1000
     R=golang-dev, dsymonds, dsymonds, r
     CC=golang-dev
     https://golang.org/cl/4771041
-
+---
  doc/talks/io2010/decrypt.go | 75 ++++++++++++++++++++++++++++++++++++---------
  doc/talks/io2010/encrypt.go | 38 ++++++++++++++++++-----
  2 files changed, 91 insertions(+), 22 deletions(-)
+
+diff --git a/doc/talks/io2010/decrypt.go b/doc/talks/io2010/decrypt.go
+index 8d21690be0..0a6c006e24 100644
+--- a/doc/talks/io2010/decrypt.go
++++ b/doc/talks/io2010/decrypt.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// This code differs from the slides in that it handles errors.
++
+ package main
+ 
+ import (
+@@ -9,32 +11,75 @@ import (
+ 	"crypto/cipher"
+ 	"compress/gzip"
+ 	"io"
++	"log"
+ 	"os"
+ )
+ 
+-func EncryptAndGzip(dstfile, srcfile string, key, iv []byte) {
+-	r, _ := os.Open(srcfile)
++func EncryptAndGzip(dstfile, srcfile string, key, iv []byte) os.Error {
++	r, err := os.Open(srcfile)
++	if err != nil {
++		return err
++	}
+ 	var w io.Writer
+-	w, _ = os.Create(dstfile)
+-	c, _ := aes.NewCipher(key)
++	w, err = os.Create(dstfile)
++	if err != nil {
++		return err
++	}
++	c, err := aes.NewCipher(key)
++	if err != nil {
++		return err
++	}
+ 	w = cipher.StreamWriter{S: cipher.NewOFB(c, iv), W: w}
+-	w2, _ := gzip.NewWriter(w)
+-	io.Copy(w2, r)
+-	w2.Close()
++	w2, err := gzip.NewWriter(w)
++	if err != nil {
++		return err
++	}
++	defer w2.Close()
++	_, err = io.Copy(w2, r)
++	return err
+ }
+ 
+-func DecryptAndGunzip(dstfile, srcfile string, key, iv []byte) {
+-	f, _ := os.Open(srcfile)
++func DecryptAndGunzip(dstfile, srcfile string, key, iv []byte) os.Error {
++	f, err := os.Open(srcfile)
++	if err != nil {
++		return err
++	}
+ 	defer f.Close()
+-	c, _ := aes.NewCipher(key)
++	c, err := aes.NewCipher(key)
++	if err != nil {
++		return err
++	}
+ 	r := cipher.StreamReader{S: cipher.NewOFB(c, iv), R: f}
+-	r2, _ := gzip.NewReader(r)
+-	w, _ := os.Create(dstfile)
++	r2, err := gzip.NewReader(r)
++	if err != nil {
++		return err
++	}
++	w, err := os.Create(dstfile)
++	if err != nil {
++		return err
++	}
+ 	defer w.Close()
+-	io.Copy(w, r2)
++	_, err = io.Copy(w, r2)
++	return err
+ }
+ 
+ func main() {
+-	EncryptAndGzip("/tmp/passwd.gz", "/etc/passwd", make([]byte, 16), make([]byte, 16))
+-	DecryptAndGunzip("/dev/stdout", "/tmp/passwd.gz", make([]byte, 16), make([]byte, 16))
++	err := EncryptAndGzip(
++		"/tmp/passwd.gz",
++		"/etc/passwd",
++		make([]byte, 16),
++		make([]byte, 16),
++	)
++	if err != nil {
++		log.Fatal(err)
++	}
++	err = DecryptAndGunzip(
++		"/dev/stdout",
++		"/tmp/passwd.gz",
++		make([]byte, 16),
++		make([]byte, 16),
++	)
++	if err != nil {
++		log.Fatal(err)
++	}
+ }
+diff --git a/doc/talks/io2010/encrypt.go b/doc/talks/io2010/encrypt.go
+index 56d1dc1b2f..c6508bba15 100644
+--- a/doc/talks/io2010/encrypt.go
++++ b/doc/talks/io2010/encrypt.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// This code differs from the slides in that it handles errors.
++
+ package main
+ 
+ import (
+@@ -9,20 +11,42 @@ import (
+ 	"crypto/cipher"
+ 	"compress/gzip"
+ 	"io"
++	"log"
+ 	"os"
+ )
+ 
+-func EncryptAndGzip(dstfile, srcfile string, key, iv []byte) {
+-	r, _ := os.Open(srcfile)
++func EncryptAndGzip(dstfile, srcfile string, key, iv []byte) os.Error {
++	r, err := os.Open(srcfile)
++	if err != nil {
++		return err
++	}
+ 	var w io.WriteCloser
+-	w, _ = os.Create(dstfile)
++	w, err = os.Create(dstfile)
++	if err != nil {
++		return err
++	}
+ 	defer w.Close()
+-	w, _ = gzip.NewWriter(w)
++	w, err = gzip.NewWriter(w)
++	if err != nil {
++		return err
++	}
+ 	defer w.Close()
+-	c, _ := aes.NewCipher(key)
+-	io.Copy(cipher.StreamWriter{S: cipher.NewOFB(c, iv), W: w}, r)
++	c, err := aes.NewCipher(key)
++	if err != nil {
++		return err
++	}
++	_, err = io.Copy(cipher.StreamWriter{S: cipher.NewOFB(c, iv), W: w}, r)
++	return err
+ }
+ 
+ func main() {
+-	EncryptAndGzip("/tmp/passwd.gz", "/etc/passwd", make([]byte, 16), make([]byte, 16))
++	err := EncryptAndGzip(
++		"/tmp/passwd.gz",
++		"/etc/passwd",
++		make([]byte, 16),
++		make([]byte, 16),
++	)
++	if err != nil {
++		log.Fatal(err)
++	}
+ }

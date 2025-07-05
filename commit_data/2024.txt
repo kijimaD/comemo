@@ -11,8 +11,286 @@ Date:   Wed Apr 15 18:40:55 2009 -0700
     DELTA=243  (242 added, 0 deleted, 1 changed)
     OCL=27472
     CL=27523
-
+---
  src/lib/http/server.go   |  43 ++++++++++++
  src/lib/http/url.go      |  28 +++++++-
  src/lib/http/url_test.go | 174 +++++++++++++++++++++++++++++++++++++++++++++++
  3 files changed, 244 insertions(+), 1 deletion(-)
+
+diff --git a/src/lib/http/server.go b/src/lib/http/server.go
+index a8aef01f0e..267e9e41e4 100644
+--- a/src/lib/http/server.go
++++ b/src/lib/http/server.go
+@@ -269,6 +269,49 @@ func NotFoundHandler() Handler {
+ // Redirect replies to the request with a redirect to url,
+ // which may be a path relative to the request path.
+ func Redirect(c *Conn, url string) {
++	u, err := ParseURL(url);
++	if err != nil {
++		// TODO report internal error instead?
++		c.SetHeader("Location", url);
++		c.WriteHeader(StatusMovedPermanently);
++	}
++
++	// If url was relative, make absolute by
++	// combining with request path.
++	// The browser would probably do this for us,
++	// but doing it ourselves is more reliable.
++
++	// NOTE(rsc): RFC 2616 says that the Location
++	// line must be an absolute URI, like
++	// "http://www.google.com/redirect/",
++	// not a path like "/redirect/".
++	// Unfortunately, we don't know what to
++	// put in the host name section to get the
++	// client to connect to us again, so we can't
++	// know the right absolute URI to send back.
++	// Because of this problem, no one pays attention
++	// to the RFC; they all send back just a new path.
++	// So do we.
++	oldpath := c.Req.Url.Path;
++	if oldpath == "" {	// should not happen, but avoid a crash if it does
++		oldpath = "/"
++	}
++	if u.Scheme == "" {
++		// no leading http://server
++		if url == "" || url[0] != '/' {
++			// make relative path absolute
++			olddir, oldfile := path.Split(oldpath);
++			url = olddir + url;
++		}
++
++		// clean up but preserve trailing slash
++		trailing := url[len(url) - 1] == '/';
++		url = path.Clean(url);
++		if trailing && url[len(url) - 1] != '/' {
++			url += "/";
++		}
++	}
++
+ 	c.SetHeader("Location", url);
+ 	c.WriteHeader(StatusMovedPermanently);
+ }
+diff --git a/src/lib/http/url.go b/src/lib/http/url.go
+index 13ac7772e6..d92a3baa62 100644
+--- a/src/lib/http/url.go
++++ b/src/lib/http/url.go
+@@ -3,7 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // Parse URLs (actually URIs, but that seems overly pedantic).
+-// TODO(rsc): Add tests.
++// RFC 2396
+ 
+ package http
+ 
+@@ -196,3 +196,29 @@ func ParseURLReference(rawurlref string) (url *URL, err *os.Error) {
+ 	return url, nil
+ }
+ 
++// String reassembles url into a valid URL string.
++//
++// There are redundant fields stored in the URL structure:
++// the String method consults Scheme, Path, Host, Userinfo,
++// Query, and Fragment, but not RawPath or Authority.
++func (url *URL) String() string {
++	result := "";
++	if url.Scheme != "" {
++		result += url.Scheme + ":";
++	}
++	if url.Host != "" || url.Userinfo != "" {
++		result += "//";
++		if url.Userinfo != "" {
++			result += url.Userinfo + "@";
++		}
++		result += url.Host;
++	}
++	result += url.Path;
++	if url.Query != "" {
++		result += "?" + url.Query;
++	}
++	if url.Fragment != "" {
++		result += "#" + url.Fragment;
++	}
++	return result;
++}
+diff --git a/src/lib/http/url_test.go b/src/lib/http/url_test.go
+new file mode 100644
+index 0000000000..50263f69ae
+--- /dev/null
++++ b/src/lib/http/url_test.go
+@@ -0,0 +1,174 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package http
++
++import (
++	"fmt";
++	"http";
++	"os";
++	"reflect";
++	"testing";
++)
++
++// TODO(rsc):
++//	test URLUnescape
++// 	test URLEscape
++//	test ParseURL
++
++type URLTest struct {
++	in string;
++	out *URL;
++}
++
++var urltests = []URLTest {
++	// no path
++	URLTest{
++		"http://www.google.com",
++		&URL{
++			"http://www.google.com",
++			"http", "//www.google.com",
++			"www.google.com", "", "www.google.com",
++			"", "", ""
++		}
++	},
++	// path
++	URLTest{
++		"http://www.google.com/",
++		&URL{
++			"http://www.google.com/",
++			"http", "//www.google.com/",
++			"www.google.com", "", "www.google.com",
++			"/", "", ""
++		}
++	},
++	// user
++	URLTest{
++		"ftp://webmaster@www.google.com/",
++		&URL{
++			"ftp://webmaster@www.google.com/",
++			"ftp", "//webmaster@www.google.com/",
++			"webmaster@www.google.com", "webmaster", "www.google.com",
++			"/", "", ""
++		}
++	},
++	// query
++	URLTest{
++		"http://www.google.com/?q=go+language",
++		&URL{
++			"http://www.google.com/?q=go+language",
++			"http", "//www.google.com/?q=go+language",
++			"www.google.com", "", "www.google.com",
++			"/", "q=go+language", ""
++		}
++	},
++	// path without /, so no query parsing
++	URLTest{
++		"http:www.google.com/?q=go+language",
++		&URL{
++			"http:www.google.com/?q=go+language",
++			"http", "www.google.com/?q=go+language",
++			"", "", "",
++			"www.google.com/?q=go+language", "", ""
++		}
++	},
++	// non-authority
++	URLTest{
++		"mailto:/webmaster@golang.org",
++		&URL{
++			"mailto:/webmaster@golang.org",
++			"mailto", "/webmaster@golang.org",
++			"", "", "",
++			"/webmaster@golang.org", "", ""
++		}
++	},
++	// non-authority
++	URLTest{
++		"mailto:webmaster@golang.org",
++		&URL{
++			"mailto:webmaster@golang.org",
++			"mailto", "webmaster@golang.org",
++			"", "", "",
++			"webmaster@golang.org", "", ""
++		}
++	},
++}
++
++var urlnofragtests = []URLTest {
++	URLTest{
++		"http://www.google.com/?q=go+language#foo",
++		&URL{
++			"http://www.google.com/?q=go+language#foo",
++			"http", "//www.google.com/?q=go+language#foo",
++			"www.google.com", "", "www.google.com",
++			"/", "q=go+language#foo", ""
++		}
++	},
++}
++
++var urlfragtests = []URLTest {
++	URLTest{
++		"http://www.google.com/?q=go+language#foo",
++		&URL{
++			"http://www.google.com/?q=go+language",
++			"http", "//www.google.com/?q=go+language",
++			"www.google.com", "", "www.google.com",
++			"/", "q=go+language", "foo"
++		}
++	},
++}
++
++// more useful string for debugging than fmt's struct printer
++func ufmt(u *URL) string {
++	return fmt.Sprintf("%q, %q, %q, %q, %q, %q, %q, %q, %q",
++		u.Raw, u.Scheme, u.RawPath, u.Authority, u.Userinfo,
++		u.Host, u.Path, u.Query, u.Fragment);
++}
++
++func DoTest(t *testing.T, parse func(string) (*URL, *os.Error), name string, tests []URLTest) {
++	for i, tt := range tests {
++		u, err := parse(tt.in);
++		if err != nil {
++			t.Errorf("%s(%q) returned error %s", name, tt.in, err);
++			continue;
++		}
++		if !reflect.DeepEqual(u, tt.out) {
++			t.Errorf("%s(%q):\n\thave %v\n\twant %v\n",
++				name, tt.in, ufmt(u), ufmt(tt.out));
++		}
++	}
++}
++
++func TestParseURL(t *testing.T) {
++	DoTest(t, ParseURL, "ParseURL", urltests);
++	DoTest(t, ParseURL, "ParseURL", urlnofragtests);
++}
++
++func TestParseURLReference(t *testing.T) {
++	DoTest(t, ParseURLReference, "ParseURLReference", urltests);
++	DoTest(t, ParseURLReference, "ParseURLReference", urlfragtests);
++}
++
++func DoTestString(t *testing.T, parse func(string) (*URL, *os.Error), name string, tests []URLTest) {
++	for i, tt := range tests {
++		u, err := parse(tt.in);
++		if err != nil {
++			t.Errorf("%s(%q) returned error %s", name, tt.in, err);
++			continue;
++		}
++		s := u.String();
++		if s != tt.in {
++			t.Errorf("%s(%q).String() == %q", tt.in, s);
++		}
++	}
++}
++
++func TestURLString(t *testing.T) {
++	DoTestString(t, ParseURL, "ParseURL", urltests);
++	DoTestString(t, ParseURL, "ParseURL", urlfragtests);
++	DoTestString(t, ParseURL, "ParseURL", urlnofragtests);
++	DoTestString(t, ParseURLReference, "ParseURLReference", urltests);
++	DoTestString(t, ParseURLReference, "ParseURLReference", urlfragtests);
++	DoTestString(t, ParseURLReference, "ParseURLReference", urlnofragtests);
++}

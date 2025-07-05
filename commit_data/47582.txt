@@ -12,6 +12,21 @@ Date:   Tue Mar 30 14:53:24 2021 +0000
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/noder/noder.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/noder/noder.go b/src/cmd/compile/internal/noder/noder.go
+index 4c7c9fc322..2c021cc570 100644
+--- a/src/cmd/compile/internal/noder/noder.go
++++ b/src/cmd/compile/internal/noder/noder.go
+@@ -46,8 +46,8 @@ func LoadPackage(filenames []string) {
+ 		noders[i] = &p
+ 
+ 		filename := filename
++		sem <- struct{}{}
+ 		go func() {
+-			sem <- struct{}{}
+ 			defer func() { <-sem }()
+ 			defer close(p.err)
+ 			fbase := syntax.NewFileBase(filename)

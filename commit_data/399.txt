@@ -5,8 +5,144 @@ Date:   Sat Jul 19 18:39:12 2008 -0700
     init
     
     SVN=128128
-
+---
  src/cmd/gc/dcl.c | 58 +++++++++++++++++++++++++++++++++++++-------------------
  src/cmd/gc/go.h  |  1 +
  src/cmd/gc/go.y  |  2 ++
  3 files changed, 41 insertions(+), 20 deletions(-)
+
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index 1c9f233097..3cf5c7ea71 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -298,6 +298,28 @@ bad:
+ 	yyerror("unknown method pointer: %T", pa);
+ }
+ 
++/*
++ * a function named init is a special case.
++ * it is called by the initialization before
++ * main is run. to make it unique within a
++ * package, the name, normally "pkg.init", is
++ * altered to "pkg.<file>_init".
++ */
++Node*
++renameinit(Node *n)
++{
++	Sym *s;
++
++	s = n->sym;
++	if(s == S)
++		return n;
++	if(strcmp(s->name, "init") != 0)
++		return n;
++	snprint(namebuf, sizeof(namebuf), "init_%s", filename);
++	s = lookup(namebuf);
++	return newname(s);
++}
++
+ /*
+  * declare the function proper.
+  * and declare the arguments
+@@ -879,23 +901,22 @@ forwdcl(Sym *s)
+ }
+ 
+ // hand-craft the following initialization code
+-//	var	init_%%%_done bool;			(1)
+-//	func	init_%%%_function()			(2)
+-//		if init_%%%_done { return }		(3)
+-//		init_%%%_done = true;			(4)
+-//		for Y {	
+-//			init_%%%_function()		(5)
+-//		}
+-//		if true { <init stmts> }		(6)
++//	var	init_<file>_done bool;			(1)
++//	func	init_<file>_function()			(2)
++//		if init_<file>_done { return }		(3)
++//		init_<file>_done = true;		(4)
++//		// over all matching imported symbols
++//			<pkg>.init_<file>_function()	(5)
++//		{ <init stmts> }			(6)
+ //		init()	// if any			(7)
+ //		return					(8)
+ //	}
+-//	export	init_%%%_function			(9)
++//	export	init_<file>_function			(9)
+ 
+ void
+ fninit(Node *n)
+ {
+-	Node *done, *any, *init;
++	Node *done, *any;
+ 	Node *a, *b, *r;
+ 	Iter iter;
+ 	ulong h;
+@@ -904,8 +925,7 @@ fninit(Node *n)
+ 	r = N;
+ 
+ 	// (1)
+-	vargen++;
+-	snprint(namebuf, sizeof(namebuf), "init_%.3ld_done", vargen);
++	snprint(namebuf, sizeof(namebuf), "init_%s_done", filename);
+ 	done = newname(lookup(namebuf));
+ 	addvar(done, types[TBOOL], PEXTERN);
+ 
+@@ -937,18 +957,14 @@ fninit(Node *n)
+ 	r = list(r, a);
+ 
+ 	// (5)
+-	init = N;
+ 	for(h=0; h<NHASH; h++)
+ 	for(s = hash[h]; s != S; s = s->link) {
+ 		if(s->name[0] != 'i')
+ 			continue;
+-		if(strstr(s->name, "init") == nil)
++		if(strstr(s->name, "init_") == nil)
+ 			continue;
+-		if(strstr(s->name, "_function") == nil) {
+-			if(strcmp(s->name, "init") == 0)
+-				init = s->oname;
++		if(strstr(s->name, "_function") == nil)
+ 			continue;
+-		}
+ 		if(s->oname == N)
+ 			continue;
+ 
+@@ -960,8 +976,10 @@ fninit(Node *n)
+ 	r = list(r, n);
+ 
+ 	// (7)
+-	if(init != N) {
+-		a = nod(OCALL, init, N);
++	snprint(namebuf, sizeof(namebuf), "init_%s", filename);
++	s = lookup(namebuf);
++	if(s->oname != N) {
++		a = nod(OCALL, s->oname, N);
+ 		r = list(r, a);
+ 	}
+ 
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 547be9d63b..1002f2b51a 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -521,6 +521,7 @@ Node*	methodname(Node*, Type*);
+ Type*	functype(Node*, Node*, Node*);
+ char*	thistypenam(Node*);
+ void	funcnam(Type*, char*);
++Node*	renameinit(Node*);
+ void	funchdr(Node*);
+ void	funcargs(Type*);
+ void	funcbody(Node*);
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index 672e53ac5d..c0d01124c5 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -955,6 +955,8 @@ fndcl:
+ 		b0stack = dclstack;	// mark base for fn literals
+ 		$$ = nod(ODCLFUNC, N, N);
+ 		$$->nname = $1;
++		if($3 == N && $5 == N)
++			$$->nname = renameinit($1);
+ 		$$->type = functype(N, $3, $5);
+ 		funchdr($$);
+ 	}

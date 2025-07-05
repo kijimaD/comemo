@@ -20,7 +20,7 @@ Date:   Mon May 16 17:49:01 2022 -0400
     Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
     Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/go.mod                                     |   6 +-
  src/cmd/go.sum                                     |  12 +-
  .../golang.org/x/arch/arm64/arm64asm/condition.go  |   8 +-
@@ -51,3 +51,1027 @@ Date:   Mon May 16 17:49:01 2022 -0400
  src/vendor/golang.org/x/sys/cpu/cpu.go             |   4 +-
  src/vendor/modules.txt                             |   2 +-
  29 files changed, 377 insertions(+), 128 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index 7e80e3ca17..d6ca56f135 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -4,11 +4,11 @@ go 1.19
+ 
+ require (
+ 	github.com/google/pprof v0.0.0-20220314021825-5bba342933ea
+-	golang.org/x/arch v0.0.0-20210923205945-b76863e36670
++	golang.org/x/arch v0.0.0-20220412001346-fc48f9fe4c15
+ 	golang.org/x/mod v0.6.0-dev.0.20220419223038-86c51ed26bb4
+ 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
+-	golang.org/x/sys v0.0.0-20220422013727-9388b58f7150
+-	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211
++	golang.org/x/sys v0.0.0-20220513210249-45d2b4557a2a
++	golang.org/x/term v0.0.0-20220411215600-e5f449aeb171
+ 	golang.org/x/tools v0.1.11-0.20220510125844-bc0e26ea1275
+ )
+ 
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index fce3ca84dd..39227186fd 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -5,8 +5,8 @@ github.com/google/pprof v0.0.0-20220314021825-5bba342933ea h1:yVDp4C9ff/qoEAhHNf
+ github.com/google/pprof v0.0.0-20220314021825-5bba342933ea/go.mod h1:KgnwoLYCZ8IQu3XUZ8Nc/bM9CCZFOyjUNOSygVozoDg=
+ github.com/ianlancetaylor/demangle v0.0.0-20210905161508-09a460cdf81d h1:uGg2frlt3IcT7kbV6LEp5ONv4vmoO2FW4qSO+my/aoM=
+ github.com/ianlancetaylor/demangle v0.0.0-20210905161508-09a460cdf81d/go.mod h1:aYm2/VgdVmcIU8iMfdMvDMsRAQjcfZSKFby6HOFvi/w=
+-golang.org/x/arch v0.0.0-20210923205945-b76863e36670 h1:18EFjUmQOcUvxNYSkA6jO9VAiXCnxFY6NyDX0bHDmkU=
+-golang.org/x/arch v0.0.0-20210923205945-b76863e36670/go.mod h1:5om86z9Hs0C8fWVUuoMHwpExlXzs5Tkyp9hOrfG7pp8=
++golang.org/x/arch v0.0.0-20220412001346-fc48f9fe4c15 h1:GVfVkciLYxn5mY5EncwAe0SXUn9Rm81rRkZ0TTmn/cU=
++golang.org/x/arch v0.0.0-20220412001346-fc48f9fe4c15/go.mod h1:5om86z9Hs0C8fWVUuoMHwpExlXzs5Tkyp9hOrfG7pp8=
+ golang.org/x/crypto v0.0.0-20220315160706-3147a52a75dd h1:XcWmESyNjXJMLahc3mqVQJcgSTDxFxhETVlfk9uGc38=
+ golang.org/x/crypto v0.0.0-20220315160706-3147a52a75dd/go.mod h1:IxCIyHEi3zRg3s0A5j5BB6A9Jmi73HwBIUl50j+osU4=
+ golang.org/x/mod v0.6.0-dev.0.20220419223038-86c51ed26bb4 h1:6zppjxzCulZykYSLyVDYbneBfbaBIQPYMevg0bEwv2s=
+@@ -14,9 +14,9 @@ golang.org/x/mod v0.6.0-dev.0.20220419223038-86c51ed26bb4/go.mod h1:jJ57K6gSWd91
+ golang.org/x/sync v0.0.0-20210220032951-036812b2e83c h1:5KslGYwFpkhGh+Q16bwMP3cOontH8FOep7tGV86Y7SQ=
+ golang.org/x/sync v0.0.0-20210220032951-036812b2e83c/go.mod h1:RxMgew5VJxzue5/jJTE5uejpjVlOe/izrB70Jof72aM=
+ golang.org/x/sys v0.0.0-20211007075335-d3039528d8ac/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
+-golang.org/x/sys v0.0.0-20220422013727-9388b58f7150 h1:xHms4gcpe1YE7A3yIllJXP16CMAGuqwO2lX1mTyyRRc=
+-golang.org/x/sys v0.0.0-20220422013727-9388b58f7150/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
+-golang.org/x/term v0.0.0-20210927222741-03fcf44c2211 h1:JGgROgKl9N8DuW20oFS5gxc+lE67/N3FcwmBPMe7ArY=
+-golang.org/x/term v0.0.0-20210927222741-03fcf44c2211/go.mod h1:jbD1KX2456YbFQfuXm/mYQcufACuNUgVhRMnK/tPxf8=
++golang.org/x/sys v0.0.0-20220513210249-45d2b4557a2a h1:N2T1jUrTQE9Re6TFF5PhvEHXHCguynGhKjWVsIUt5cY=
++golang.org/x/sys v0.0.0-20220513210249-45d2b4557a2a/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
++golang.org/x/term v0.0.0-20220411215600-e5f449aeb171 h1:EH1Deb8WZJ0xc0WK//leUHXcX9aLE5SymusoTmMZye8=
++golang.org/x/term v0.0.0-20220411215600-e5f449aeb171/go.mod h1:jbD1KX2456YbFQfuXm/mYQcufACuNUgVhRMnK/tPxf8=
+ golang.org/x/tools v0.1.11-0.20220510125844-bc0e26ea1275 h1:ismY4QcvigOCsXTuUEtx/f/vntz7reNAQnMGPI0Z4KE=
+ golang.org/x/tools v0.1.11-0.20220510125844-bc0e26ea1275/go.mod h1:SgwaegtQh8clINPpECJMqnxLv9I09HLqnW3RMqW0CA4=
+diff --git a/src/cmd/vendor/golang.org/x/arch/arm64/arm64asm/condition.go b/src/cmd/vendor/golang.org/x/arch/arm64/arm64asm/condition.go
+index d673857212..37ad8eed99 100644
+--- a/src/cmd/vendor/golang.org/x/arch/arm64/arm64asm/condition.go
++++ b/src/cmd/vendor/golang.org/x/arch/arm64/arm64asm/condition.go
+@@ -11,7 +11,7 @@ package arm64asm
+ // Refer to instFormat inside decode.go for more details
+ 
+ func at_sys_cr_system_cond(instr uint32) bool {
+-	return sys_op_4((instr>>16)&0x7, 0x7, 0x8, (instr>>5)&0x7) == Sys_AT
++	return sys_op_4((instr>>16)&0x7, 0x7, 0x8, (instr>>5)&0x7) == sys_AT
+ }
+ 
+ func bfi_bfm_32m_bitfield_cond(instr uint32) bool {
+@@ -61,11 +61,11 @@ func csinv_general_cond(instr uint32) bool {
+ 	return instr&0xe000 != 0xe000
+ }
+ func dc_sys_cr_system_cond(instr uint32) bool {
+-	return sys_op_4((instr>>16)&0x7, 0x7, (instr>>8)&0xf, (instr>>5)&0x7) == Sys_DC
++	return sys_op_4((instr>>16)&0x7, 0x7, (instr>>8)&0xf, (instr>>5)&0x7) == sys_DC
+ }
+ 
+ func ic_sys_cr_system_cond(instr uint32) bool {
+-	return sys_op_4((instr>>16)&0x7, 0x7, (instr>>8)&0xf, (instr>>5)&0x7) == Sys_IC
++	return sys_op_4((instr>>16)&0x7, 0x7, (instr>>8)&0xf, (instr>>5)&0x7) == sys_IC
+ }
+ 
+ func lsl_ubfm_32m_bitfield_cond(instr uint32) bool {
+@@ -133,7 +133,7 @@ func sbfx_sbfm_64m_bitfield_cond(instr uint32) bool {
+ }
+ 
+ func tlbi_sys_cr_system_cond(instr uint32) bool {
+-	return sys_op_4((instr>>16)&0x7, 0x8, (instr>>8)&0xf, (instr>>5)&0x7) == Sys_TLBI
++	return sys_op_4((instr>>16)&0x7, 0x8, (instr>>8)&0xf, (instr>>5)&0x7) == sys_TLBI
+ }
+ 
+ func ubfiz_ubfm_32m_bitfield_cond(instr uint32) bool {
+diff --git a/src/cmd/vendor/golang.org/x/arch/arm64/arm64asm/condition_util.go b/src/cmd/vendor/golang.org/x/arch/arm64/arm64asm/condition_util.go
+index 62c0c3b0ac..f2fa11b9dc 100644
+--- a/src/cmd/vendor/golang.org/x/arch/arm64/arm64asm/condition_util.go
++++ b/src/cmd/vendor/golang.org/x/arch/arm64/arm64asm/condition_util.go
+@@ -47,19 +47,19 @@ func move_wide_preferred_4(sf, N, imms, immr uint32) bool {
+ 	return false
+ }
+ 
+-type Sys uint8
++type sys uint8
+ 
+ const (
+-	Sys_AT Sys = iota
+-	Sys_DC
+-	Sys_IC
+-	Sys_TLBI
+-	Sys_SYS
++	sys_AT sys = iota
++	sys_DC
++	sys_IC
++	sys_TLBI
++	sys_SYS
+ )
+ 
+-func sys_op_4(op1, crn, crm, op2 uint32) Sys {
+-	// TODO: system instruction
+-	return Sys_SYS
++func sys_op_4(op1, crn, crm, op2 uint32) sys {
++	sysInst := sysInstFields{uint8(op1), uint8(crn), uint8(crm), uint8(op2)}
++	return sysInst.getType()
+ }
+ 
+ func is_zero(x uint32) bool {
+diff --git a/src/cmd/vendor/golang.org/x/arch/arm64/arm64asm/decode.go b/src/cmd/vendor/golang.org/x/arch/arm64/arm64asm/decode.go
+index 5e29c47696..b1c4f5ec2c 100644
+--- a/src/cmd/vendor/golang.org/x/arch/arm64/arm64asm/decode.go
++++ b/src/cmd/vendor/golang.org/x/arch/arm64/arm64asm/decode.go
+@@ -684,17 +684,26 @@ func decodeArg(aop instArg, x uint32) Arg {
+ 		//TODO: system instruction
+ 		return nil
+ 
+-	case arg_sysop_DC_SYS_CR_system:
+-		//TODO: system instruction
+-		return nil
+-
+ 	case arg_sysop_SYS_CR_system:
+ 		//TODO: system instruction
+ 		return nil
+ 
+-	case arg_sysop_TLBI_SYS_CR_system:
+-		//TODO: system instruction
+-		return nil
++	case arg_sysop_DC_SYS_CR_system, arg_sysop_TLBI_SYS_CR_system:
++		op1 := (x >> 16) & 7
++		cn := (x >> 12) & 15
++		cm := (x >> 8) & 15
++		op2 := (x >> 5) & 7
++		sysInst := sysInstFields{uint8(op1), uint8(cn), uint8(cm), uint8(op2)}
++		attrs := sysInst.getAttrs()
++		reg := int(x & 31)
++		if !attrs.hasOperand2 {
++			if reg == 31 {
++				return sysOp{sysInst, 0, false}
++			}
++			// This instruction is undefined if the Rt field is not set to 31.
++			return nil
++		}
++		return sysOp{sysInst, X0 + Reg(reg), true}
+ 
+ 	case arg_Bt:
+ 		return B0 + Reg(x&(1<<5-1))
+diff --git a/src/cmd/vendor/golang.org/x/arch/arm64/arm64asm/inst.go b/src/cmd/vendor/golang.org/x/arch/arm64/arm64asm/inst.go
+index afeb9a3c10..8c633fef60 100644
+--- a/src/cmd/vendor/golang.org/x/arch/arm64/arm64asm/inst.go
++++ b/src/cmd/vendor/golang.org/x/arch/arm64/arm64asm/inst.go
+@@ -968,3 +968,161 @@ func (r RegisterWithArrangementAndIndex) String() string {
+ 	}
+ 	return fmt.Sprintf("%s[%d]", result, r.index)
+ }
++
++type sysOp struct {
++	op          sysInstFields
++	r           Reg
++	hasOperand2 bool
++}
++
++func (s sysOp) isArg() {}
++
++func (s sysOp) String() string {
++	result := s.op.String()
++	// If s.hasOperand2 is false, the value in the register
++	// specified by s.r is ignored.
++	if s.hasOperand2 {
++		result += ", " + s.r.String()
++	}
++	return result
++}
++
++type sysInstFields struct {
++	op1 uint8
++	cn  uint8
++	cm  uint8
++	op2 uint8
++}
++
++type sysInstAttrs struct {
++	typ         sys
++	name        string
++	hasOperand2 bool
++}
++
++func (s sysInstFields) isArg() {}
++
++func (s sysInstFields) getAttrs() sysInstAttrs {
++	attrs, ok := sysInstsAttrs[sysInstFields{s.op1, s.cn, s.cm, s.op2}]
++	if !ok {
++		return sysInstAttrs{typ: sys_SYS}
++	}
++	return attrs
++}
++
++func (s sysInstFields) String() string {
++	return s.getAttrs().name
++}
++
++func (s sysInstFields) getType() sys {
++	return s.getAttrs().typ
++}
++
++var sysInstsAttrs = map[sysInstFields]sysInstAttrs{
++	sysInstFields{0, 8, 3, 0}:  {sys_TLBI, "VMALLE1IS", false},
++	sysInstFields{0, 8, 3, 1}:  {sys_TLBI, "VAE1IS", true},
++	sysInstFields{0, 8, 3, 2}:  {sys_TLBI, "ASIDE1IS", true},
++	sysInstFields{0, 8, 3, 3}:  {sys_TLBI, "VAAE1IS", true},
++	sysInstFields{0, 8, 3, 5}:  {sys_TLBI, "VALE1IS", true},
++	sysInstFields{0, 8, 3, 7}:  {sys_TLBI, "VAALE1IS", true},
++	sysInstFields{0, 8, 7, 0}:  {sys_TLBI, "VMALLE1", false},
++	sysInstFields{0, 8, 7, 1}:  {sys_TLBI, "VAE1", true},
++	sysInstFields{0, 8, 7, 2}:  {sys_TLBI, "ASIDE1", true},
++	sysInstFields{0, 8, 7, 3}:  {sys_TLBI, "VAAE1", true},
++	sysInstFields{0, 8, 7, 5}:  {sys_TLBI, "VALE1", true},
++	sysInstFields{0, 8, 7, 7}:  {sys_TLBI, "VAALE1", true},
++	sysInstFields{4, 8, 0, 1}:  {sys_TLBI, "IPAS2E1IS", true},
++	sysInstFields{4, 8, 0, 5}:  {sys_TLBI, "IPAS2LE1IS", true},
++	sysInstFields{4, 8, 3, 0}:  {sys_TLBI, "ALLE2IS", false},
++	sysInstFields{4, 8, 3, 1}:  {sys_TLBI, "VAE2IS", true},
++	sysInstFields{4, 8, 3, 4}:  {sys_TLBI, "ALLE1IS", false},
++	sysInstFields{4, 8, 3, 5}:  {sys_TLBI, "VALE2IS", true},
++	sysInstFields{4, 8, 3, 6}:  {sys_TLBI, "VMALLS12E1IS", false},
++	sysInstFields{4, 8, 4, 1}:  {sys_TLBI, "IPAS2E1", true},
++	sysInstFields{4, 8, 4, 5}:  {sys_TLBI, "IPAS2LE1", true},
++	sysInstFields{4, 8, 7, 0}:  {sys_TLBI, "ALLE2", false},
++	sysInstFields{4, 8, 7, 1}:  {sys_TLBI, "VAE2", true},
++	sysInstFields{4, 8, 7, 4}:  {sys_TLBI, "ALLE1", false},
++	sysInstFields{4, 8, 7, 5}:  {sys_TLBI, "VALE2", true},
++	sysInstFields{4, 8, 7, 6}:  {sys_TLBI, "VMALLS12E1", false},
++	sysInstFields{6, 8, 3, 0}:  {sys_TLBI, "ALLE3IS", false},
++	sysInstFields{6, 8, 3, 1}:  {sys_TLBI, "VAE3IS", true},
++	sysInstFields{6, 8, 3, 5}:  {sys_TLBI, "VALE3IS", true},
++	sysInstFields{6, 8, 7, 0}:  {sys_TLBI, "ALLE3", false},
++	sysInstFields{6, 8, 7, 1}:  {sys_TLBI, "VAE3", true},
++	sysInstFields{6, 8, 7, 5}:  {sys_TLBI, "VALE3", true},
++	sysInstFields{0, 8, 1, 0}:  {sys_TLBI, "VMALLE1OS", false},
++	sysInstFields{0, 8, 1, 1}:  {sys_TLBI, "VAE1OS", true},
++	sysInstFields{0, 8, 1, 2}:  {sys_TLBI, "ASIDE1OS", true},
++	sysInstFields{0, 8, 1, 3}:  {sys_TLBI, "VAAE1OS", true},
++	sysInstFields{0, 8, 1, 5}:  {sys_TLBI, "VALE1OS", true},
++	sysInstFields{0, 8, 1, 7}:  {sys_TLBI, "VAALE1OS", true},
++	sysInstFields{0, 8, 2, 1}:  {sys_TLBI, "RVAE1IS", true},
++	sysInstFields{0, 8, 2, 3}:  {sys_TLBI, "RVAAE1IS", true},
++	sysInstFields{0, 8, 2, 5}:  {sys_TLBI, "RVALE1IS", true},
++	sysInstFields{0, 8, 2, 7}:  {sys_TLBI, "RVAALE1IS", true},
++	sysInstFields{0, 8, 5, 1}:  {sys_TLBI, "RVAE1OS", true},
++	sysInstFields{0, 8, 5, 3}:  {sys_TLBI, "RVAAE1OS", true},
++	sysInstFields{0, 8, 5, 5}:  {sys_TLBI, "RVALE1OS", true},
++	sysInstFields{0, 8, 5, 7}:  {sys_TLBI, "RVAALE1OS", true},
++	sysInstFields{0, 8, 6, 1}:  {sys_TLBI, "RVAE1", true},
++	sysInstFields{0, 8, 6, 3}:  {sys_TLBI, "RVAAE1", true},
++	sysInstFields{0, 8, 6, 5}:  {sys_TLBI, "RVALE1", true},
++	sysInstFields{0, 8, 6, 7}:  {sys_TLBI, "RVAALE1", true},
++	sysInstFields{4, 8, 0, 2}:  {sys_TLBI, "RIPAS2E1IS", true},
++	sysInstFields{4, 8, 0, 6}:  {sys_TLBI, "RIPAS2LE1IS", true},
++	sysInstFields{4, 8, 1, 0}:  {sys_TLBI, "ALLE2OS", false},
++	sysInstFields{4, 8, 1, 1}:  {sys_TLBI, "VAE2OS", true},
++	sysInstFields{4, 8, 1, 4}:  {sys_TLBI, "ALLE1OS", false},
++	sysInstFields{4, 8, 1, 5}:  {sys_TLBI, "VALE2OS", true},
++	sysInstFields{4, 8, 1, 6}:  {sys_TLBI, "VMALLS12E1OS", false},
++	sysInstFields{4, 8, 2, 1}:  {sys_TLBI, "RVAE2IS", true},
++	sysInstFields{4, 8, 2, 5}:  {sys_TLBI, "RVALE2IS", true},
++	sysInstFields{4, 8, 4, 0}:  {sys_TLBI, "IPAS2E1OS", true},
++	sysInstFields{4, 8, 4, 2}:  {sys_TLBI, "RIPAS2E1", true},
++	sysInstFields{4, 8, 4, 3}:  {sys_TLBI, "RIPAS2E1OS", true},
++	sysInstFields{4, 8, 4, 4}:  {sys_TLBI, "IPAS2LE1OS", true},
++	sysInstFields{4, 8, 4, 6}:  {sys_TLBI, "RIPAS2LE1", true},
++	sysInstFields{4, 8, 4, 7}:  {sys_TLBI, "RIPAS2LE1OS", true},
++	sysInstFields{4, 8, 5, 1}:  {sys_TLBI, "RVAE2OS", true},
++	sysInstFields{4, 8, 5, 5}:  {sys_TLBI, "RVALE2OS", true},
++	sysInstFields{4, 8, 6, 1}:  {sys_TLBI, "RVAE2", true},
++	sysInstFields{4, 8, 6, 5}:  {sys_TLBI, "RVALE2", true},
++	sysInstFields{6, 8, 1, 0}:  {sys_TLBI, "ALLE3OS", false},
++	sysInstFields{6, 8, 1, 1}:  {sys_TLBI, "VAE3OS", true},
++	sysInstFields{6, 8, 1, 5}:  {sys_TLBI, "VALE3OS", true},
++	sysInstFields{6, 8, 2, 1}:  {sys_TLBI, "RVAE3IS", true},
++	sysInstFields{6, 8, 2, 5}:  {sys_TLBI, "RVALE3IS", true},
++	sysInstFields{6, 8, 5, 1}:  {sys_TLBI, "RVAE3OS", true},
++	sysInstFields{6, 8, 5, 5}:  {sys_TLBI, "RVALE3OS", true},
++	sysInstFields{6, 8, 6, 1}:  {sys_TLBI, "RVAE3", true},
++	sysInstFields{6, 8, 6, 5}:  {sys_TLBI, "RVALE3", true},
++	sysInstFields{0, 7, 6, 1}:  {sys_DC, "IVAC", true},
++	sysInstFields{0, 7, 6, 2}:  {sys_DC, "ISW", true},
++	sysInstFields{0, 7, 10, 2}: {sys_DC, "CSW", true},
++	sysInstFields{0, 7, 14, 2}: {sys_DC, "CISW", true},
++	sysInstFields{3, 7, 4, 1}:  {sys_DC, "ZVA", true},
++	sysInstFields{3, 7, 10, 1}: {sys_DC, "CVAC", true},
++	sysInstFields{3, 7, 11, 1}: {sys_DC, "CVAU", true},
++	sysInstFields{3, 7, 14, 1}: {sys_DC, "CIVAC", true},
++	sysInstFields{0, 7, 6, 3}:  {sys_DC, "IGVAC", true},
++	sysInstFields{0, 7, 6, 4}:  {sys_DC, "IGSW", true},
++	sysInstFields{0, 7, 6, 5}:  {sys_DC, "IGDVAC", true},
++	sysInstFields{0, 7, 6, 6}:  {sys_DC, "IGDSW", true},
++	sysInstFields{0, 7, 10, 4}: {sys_DC, "CGSW", true},
++	sysInstFields{0, 7, 10, 6}: {sys_DC, "CGDSW", true},
++	sysInstFields{0, 7, 14, 4}: {sys_DC, "CIGSW", true},
++	sysInstFields{0, 7, 14, 6}: {sys_DC, "CIGDSW", true},
++	sysInstFields{3, 7, 4, 3}:  {sys_DC, "GVA", true},
++	sysInstFields{3, 7, 4, 4}:  {sys_DC, "GZVA", true},
++	sysInstFields{3, 7, 10, 3}: {sys_DC, "CGVAC", true},
++	sysInstFields{3, 7, 10, 5}: {sys_DC, "CGDVAC", true},
++	sysInstFields{3, 7, 12, 3}: {sys_DC, "CGVAP", true},
++	sysInstFields{3, 7, 12, 5}: {sys_DC, "CGDVAP", true},
++	sysInstFields{3, 7, 13, 3}: {sys_DC, "CGVADP", true},
++	sysInstFields{3, 7, 13, 5}: {sys_DC, "CGDVADP", true},
++	sysInstFields{3, 7, 14, 3}: {sys_DC, "CIGVAC", true},
++	sysInstFields{3, 7, 14, 5}: {sys_DC, "CIGDVAC", true},
++	sysInstFields{3, 7, 12, 1}: {sys_DC, "CVAP", true},
++	sysInstFields{3, 7, 13, 1}: {sys_DC, "CVADP", true},
++}
+diff --git a/src/cmd/vendor/golang.org/x/arch/arm64/arm64asm/plan9x.go b/src/cmd/vendor/golang.org/x/arch/arm64/arm64asm/plan9x.go
+index f4eef8c0a7..ea5139cb82 100644
+--- a/src/cmd/vendor/golang.org/x/arch/arm64/arm64asm/plan9x.go
++++ b/src/cmd/vendor/golang.org/x/arch/arm64/arm64asm/plan9x.go
+@@ -542,10 +542,7 @@ func plan9Arg(inst *Inst, pc uint64, symname func(uint64) (string, uint64), arg
+ 			}
+ 
+ 		}
+-		if regno == 31 {
+-			return "ZR"
+-		}
+-		return fmt.Sprintf("R%d", regno)
++		return plan9gpr(a)
+ 
+ 	case RegSP:
+ 		regno := uint16(a) & 31
+@@ -555,13 +552,7 @@ func plan9Arg(inst *Inst, pc uint64, symname func(uint64) (string, uint64), arg
+ 		return fmt.Sprintf("R%d", regno)
+ 
+ 	case RegExtshiftAmount:
+-		reg := ""
+-		regno := uint16(a.reg) & 31
+-		if regno == 31 {
+-			reg = "ZR"
+-		} else {
+-			reg = fmt.Sprintf("R%d", uint16(a.reg)&31)
+-		}
++		reg := plan9gpr(a.reg)
+ 		extshift := ""
+ 		amount := ""
+ 		if a.extShift != ExtShift(0) {
+@@ -614,19 +605,13 @@ func plan9Arg(inst *Inst, pc uint64, symname func(uint64) (string, uint64), arg
+ 	case MemExtend:
+ 		base := ""
+ 		index := ""
+-		indexreg := ""
+ 		regno := uint16(a.Base) & 31
+ 		if regno == 31 {
+ 			base = "(RSP)"
+ 		} else {
+ 			base = fmt.Sprintf("(R%d)", regno)
+ 		}
+-		regno = uint16(a.Index) & 31
+-		if regno == 31 {
+-			indexreg = "ZR"
+-		} else {
+-			indexreg = fmt.Sprintf("R%d", regno)
+-		}
++		indexreg := plan9gpr(a.Index)
+ 
+ 		if a.Extend == lsl {
+ 			// Refer to ARM reference manual, for byte load/store(register), the index
+@@ -736,7 +721,22 @@ func plan9Arg(inst *Inst, pc uint64, symname func(uint64) (string, uint64), arg
+ 		if strings.Contains(a.String(), "#") {
+ 			return fmt.Sprintf("$%d", a)
+ 		}
++	case sysOp:
++		result := a.op.String()
++		if a.r != 0 {
++			result += ", " + plan9gpr(a.r)
++		}
++		return result
+ 	}
+ 
+ 	return strings.ToUpper(arg.String())
+ }
++
++// Convert a general-purpose register to plan9 assembly format.
++func plan9gpr(r Reg) string {
++	regno := uint16(r) & 31
++	if regno == 31 {
++		return "ZR"
++	}
++	return fmt.Sprintf("R%d", regno)
++}
+diff --git a/src/cmd/vendor/golang.org/x/arch/ppc64/ppc64asm/tables.go b/src/cmd/vendor/golang.org/x/arch/ppc64/ppc64asm/tables.go
+index d42ab0f294..9e3b26f170 100644
+--- a/src/cmd/vendor/golang.org/x/arch/ppc64/ppc64asm/tables.go
++++ b/src/cmd/vendor/golang.org/x/arch/ppc64/ppc64asm/tables.go
+@@ -1,5 +1,4 @@
+-// DO NOT EDIT
+-// generated by: ppc64map -fmt=decoder ../pp64.csv
++// Code generated by ppc64map -fmt=decoder pp64.csv DO NOT EDIT.
+ 
+ package ppc64asm
+ 
+diff --git a/src/cmd/vendor/golang.org/x/arch/x86/x86asm/plan9x.go b/src/cmd/vendor/golang.org/x/arch/x86/x86asm/plan9x.go
+index 59d8f97753..de417946a4 100644
+--- a/src/cmd/vendor/golang.org/x/arch/x86/x86asm/plan9x.go
++++ b/src/cmd/vendor/golang.org/x/arch/x86/x86asm/plan9x.go
+@@ -66,6 +66,10 @@ func GoSyntax(inst Inst, pc uint64, symname SymLookup) string {
+ 		s := inst.DataSize
+ 		if inst.MemBytes != 0 {
+ 			s = inst.MemBytes * 8
++		} else if inst.Args[1] == nil { // look for register-only 64-bit instruction, like PUSHQ AX
++			if r, ok := inst.Args[0].(Reg); ok && RAX <= r && r <= R15 {
++				s = 64
++			}
+ 		}
+ 		switch s {
+ 		case 8:
+diff --git a/src/cmd/vendor/golang.org/x/arch/x86/x86asm/tables.go b/src/cmd/vendor/golang.org/x/arch/x86/x86asm/tables.go
+index af3fb73c51..6f57c70bf1 100644
+--- a/src/cmd/vendor/golang.org/x/arch/x86/x86asm/tables.go
++++ b/src/cmd/vendor/golang.org/x/arch/x86/x86asm/tables.go
+@@ -1,5 +1,4 @@
+-// DO NOT EDIT
+-// generated by: x86map -fmt=decoder ../x86.csv
++// Code generated by x86map -fmt=decoder x86.csv DO NOT EDIT.
+ 
+ package x86asm
+ 
+diff --git a/src/cmd/vendor/golang.org/x/sys/plan9/syscall.go b/src/cmd/vendor/golang.org/x/sys/plan9/syscall.go
+index 602473cba3..a25223b8fd 100644
+--- a/src/cmd/vendor/golang.org/x/sys/plan9/syscall.go
++++ b/src/cmd/vendor/golang.org/x/sys/plan9/syscall.go
+@@ -113,5 +113,6 @@ func (tv *Timeval) Nano() int64 {
+ 
+ // use is a no-op, but the compiler cannot see that it is.
+ // Calling use(p) ensures that p is kept live until that point.
++//
+ //go:noescape
+ func use(p unsafe.Pointer)
+diff --git a/src/cmd/vendor/golang.org/x/sys/plan9/syscall_plan9.go b/src/cmd/vendor/golang.org/x/sys/plan9/syscall_plan9.go
+index 723b1f4002..d079d8116e 100644
+--- a/src/cmd/vendor/golang.org/x/sys/plan9/syscall_plan9.go
++++ b/src/cmd/vendor/golang.org/x/sys/plan9/syscall_plan9.go
+@@ -115,6 +115,7 @@ func Write(fd int, p []byte) (n int, err error) {
+ var ioSync int64
+ 
+ //sys	fd2path(fd int, buf []byte) (err error)
++
+ func Fd2path(fd int) (path string, err error) {
+ 	var buf [512]byte
+ 
+@@ -126,6 +127,7 @@ func Fd2path(fd int) (path string, err error) {
+ }
+ 
+ //sys	pipe(p *[2]int32) (err error)
++
+ func Pipe(p []int) (err error) {
+ 	if len(p) != 2 {
+ 		return syscall.ErrorString("bad arg in system call")
+@@ -180,6 +182,7 @@ func (w Waitmsg) ExitStatus() int {
+ }
+ 
+ //sys	await(s []byte) (n int, err error)
++
+ func Await(w *Waitmsg) (err error) {
+ 	var buf [512]byte
+ 	var f [5][]byte
+@@ -301,42 +304,49 @@ func Getgroups() (gids []int, err error) {
+ }
+ 
+ //sys	open(path string, mode int) (fd int, err error)
++
+ func Open(path string, mode int) (fd int, err error) {
+ 	fixwd()
+ 	return open(path, mode)
+ }
+ 
+ //sys	create(path string, mode int, perm uint32) (fd int, err error)
++
+ func Create(path string, mode int, perm uint32) (fd int, err error) {
+ 	fixwd()
+ 	return create(path, mode, perm)
+ }
+ 
+ //sys	remove(path string) (err error)
++
+ func Remove(path string) error {
+ 	fixwd()
+ 	return remove(path)
+ }
+ 
+ //sys	stat(path string, edir []byte) (n int, err error)
++
+ func Stat(path string, edir []byte) (n int, err error) {
+ 	fixwd()
+ 	return stat(path, edir)
+ }
+ 
+ //sys	bind(name string, old string, flag int) (err error)
++
+ func Bind(name string, old string, flag int) (err error) {
+ 	fixwd()
+ 	return bind(name, old, flag)
+ }
+ 
+ //sys	mount(fd int, afd int, old string, flag int, aname string) (err error)
++
+ func Mount(fd int, afd int, old string, flag int, aname string) (err error) {
+ 	fixwd()
+ 	return mount(fd, afd, old, flag, aname)
+ }
+ 
+ //sys	wstat(path string, edir []byte) (err error)
++
+ func Wstat(path string, edir []byte) (err error) {
+ 	fixwd()
+ 	return wstat(path, edir)
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/syscall_aix.go b/src/cmd/vendor/golang.org/x/sys/unix/syscall_aix.go
+index f2a114fc27..ad22c33db3 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/syscall_aix.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/syscall_aix.go
+@@ -37,6 +37,7 @@ func Creat(path string, mode uint32) (fd int, err error) {
+ }
+ 
+ //sys	utimes(path string, times *[2]Timeval) (err error)
++
+ func Utimes(path string, tv []Timeval) error {
+ 	if len(tv) != 2 {
+ 		return EINVAL
+@@ -45,6 +46,7 @@ func Utimes(path string, tv []Timeval) error {
+ }
+ 
+ //sys	utimensat(dirfd int, path string, times *[2]Timespec, flag int) (err error)
++
+ func UtimesNano(path string, ts []Timespec) error {
+ 	if len(ts) != 2 {
+ 		return EINVAL
+@@ -300,11 +302,13 @@ func direntNamlen(buf []byte) (uint64, bool) {
+ }
+ 
+ //sys	getdirent(fd int, buf []byte) (n int, err error)
++
+ func Getdents(fd int, buf []byte) (n int, err error) {
+ 	return getdirent(fd, buf)
+ }
+ 
+ //sys	wait4(pid Pid_t, status *_C_int, options int, rusage *Rusage) (wpid Pid_t, err error)
++
+ func Wait4(pid int, wstatus *WaitStatus, options int, rusage *Rusage) (wpid int, err error) {
+ 	var status _C_int
+ 	var r Pid_t
+@@ -372,6 +376,7 @@ func (w WaitStatus) TrapCause() int { return -1 }
+ //sys	fcntl(fd int, cmd int, arg int) (val int, err error)
+ 
+ //sys	fsyncRange(fd int, how int, start int64, length int64) (err error) = fsync_range
++
+ func Fsync(fd int) error {
+ 	return fsyncRange(fd, O_SYNC, 0, 0)
+ }
+@@ -536,6 +541,7 @@ func Poll(fds []PollFd, timeout int) (n int, err error) {
+ //sys	Getsystemcfg(label int) (n uint64)
+ 
+ //sys	umount(target string) (err error)
++
+ func Unmount(target string, flags int) (err error) {
+ 	if flags != 0 {
+ 		// AIX doesn't have any flags for umount.
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/syscall_darwin.go b/src/cmd/vendor/golang.org/x/sys/unix/syscall_darwin.go
+index 09a25c6532..e5448cc93c 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/syscall_darwin.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/syscall_darwin.go
+@@ -504,6 +504,7 @@ func SysctlKinfoProcSlice(name string, args ...int) ([]KinfoProc, error) {
+ //sys	Mkdirat(dirfd int, path string, mode uint32) (err error)
+ //sys	Mkfifo(path string, mode uint32) (err error)
+ //sys	Mknod(path string, mode uint32, dev int) (err error)
++//sys	Mount(fsType string, dir string, flags int, data unsafe.Pointer) (err error)
+ //sys	Open(path string, mode int, perm uint32) (fd int, err error)
+ //sys	Openat(dirfd int, path string, mode int, perm uint32) (fd int, err error)
+ //sys	Pathconf(path string, name int) (val int, err error)
+@@ -572,7 +573,6 @@ func SysctlKinfoProcSlice(name string, args ...int) ([]KinfoProc, error) {
+ // Nfssvc
+ // Getfh
+ // Quotactl
+-// Mount
+ // Csops
+ // Waitid
+ // Add_profil
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/syscall_dragonfly.go b/src/cmd/vendor/golang.org/x/sys/unix/syscall_dragonfly.go
+index c61e274980..61c0d0de15 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/syscall_dragonfly.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/syscall_dragonfly.go
+@@ -125,11 +125,13 @@ func Pipe2(p []int, flags int) (err error) {
+ }
+ 
+ //sys	extpread(fd int, p []byte, flags int, offset int64) (n int, err error)
++
+ func pread(fd int, p []byte, offset int64) (n int, err error) {
+ 	return extpread(fd, p, 0, offset)
+ }
+ 
+ //sys	extpwrite(fd int, p []byte, flags int, offset int64) (n int, err error)
++
+ func pwrite(fd int, p []byte, offset int64) (n int, err error) {
+ 	return extpwrite(fd, p, 0, offset)
+ }
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux.go b/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux.go
+index d251dafae0..c8d2032125 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux.go
+@@ -512,24 +512,24 @@ func (sa *SockaddrL2) sockaddr() (unsafe.Pointer, _Socklen, error) {
+ //
+ // Server example:
+ //
+-//      fd, _ := Socket(AF_BLUETOOTH, SOCK_STREAM, BTPROTO_RFCOMM)
+-//      _ = unix.Bind(fd, &unix.SockaddrRFCOMM{
+-//      	Channel: 1,
+-//      	Addr:    [6]uint8{0, 0, 0, 0, 0, 0}, // BDADDR_ANY or 00:00:00:00:00:00
+-//      })
+-//      _ = Listen(fd, 1)
+-//      nfd, sa, _ := Accept(fd)
+-//      fmt.Printf("conn addr=%v fd=%d", sa.(*unix.SockaddrRFCOMM).Addr, nfd)
+-//      Read(nfd, buf)
++//	fd, _ := Socket(AF_BLUETOOTH, SOCK_STREAM, BTPROTO_RFCOMM)
++//	_ = unix.Bind(fd, &unix.SockaddrRFCOMM{
++//		Channel: 1,
++//		Addr:    [6]uint8{0, 0, 0, 0, 0, 0}, // BDADDR_ANY or 00:00:00:00:00:00
++//	})
++//	_ = Listen(fd, 1)
++//	nfd, sa, _ := Accept(fd)
++//	fmt.Printf("conn addr=%v fd=%d", sa.(*unix.SockaddrRFCOMM).Addr, nfd)
++//	Read(nfd, buf)
+ //
+ // Client example:
+ //
+-//      fd, _ := Socket(AF_BLUETOOTH, SOCK_STREAM, BTPROTO_RFCOMM)
+-//      _ = Connect(fd, &SockaddrRFCOMM{
+-//      	Channel: 1,
+-//      	Addr:    [6]byte{0x11, 0x22, 0x33, 0xaa, 0xbb, 0xcc}, // CC:BB:AA:33:22:11
+-//      })
+-//      Write(fd, []byte(`hello`))
++//	fd, _ := Socket(AF_BLUETOOTH, SOCK_STREAM, BTPROTO_RFCOMM)
++//	_ = Connect(fd, &SockaddrRFCOMM{
++//		Channel: 1,
++//		Addr:    [6]byte{0x11, 0x22, 0x33, 0xaa, 0xbb, 0xcc}, // CC:BB:AA:33:22:11
++//	})
++//	Write(fd, []byte(`hello`))
+ type SockaddrRFCOMM struct {
+ 	// Addr represents a bluetooth address, byte ordering is little-endian.
+ 	Addr [6]uint8
+@@ -556,12 +556,12 @@ func (sa *SockaddrRFCOMM) sockaddr() (unsafe.Pointer, _Socklen, error) {
+ // The SockaddrCAN struct must be bound to the socket file descriptor
+ // using Bind before the CAN socket can be used.
+ //
+-//      // Read one raw CAN frame
+-//      fd, _ := Socket(AF_CAN, SOCK_RAW, CAN_RAW)
+-//      addr := &SockaddrCAN{Ifindex: index}
+-//      Bind(fd, addr)
+-//      frame := make([]byte, 16)
+-//      Read(fd, frame)
++//	// Read one raw CAN frame
++//	fd, _ := Socket(AF_CAN, SOCK_RAW, CAN_RAW)
++//	addr := &SockaddrCAN{Ifindex: index}
++//	Bind(fd, addr)
++//	frame := make([]byte, 16)
++//	Read(fd, frame)
+ //
+ // The full SocketCAN documentation can be found in the linux kernel
+ // archives at: https://www.kernel.org/doc/Documentation/networking/can.txt
+@@ -632,13 +632,13 @@ func (sa *SockaddrCANJ1939) sockaddr() (unsafe.Pointer, _Socklen, error) {
+ // Here is an example of using an AF_ALG socket with SHA1 hashing.
+ // The initial socket setup process is as follows:
+ //
+-//      // Open a socket to perform SHA1 hashing.
+-//      fd, _ := unix.Socket(unix.AF_ALG, unix.SOCK_SEQPACKET, 0)
+-//      addr := &unix.SockaddrALG{Type: "hash", Name: "sha1"}
+-//      unix.Bind(fd, addr)
+-//      // Note: unix.Accept does not work at this time; must invoke accept()
+-//      // manually using unix.Syscall.
+-//      hashfd, _, _ := unix.Syscall(unix.SYS_ACCEPT, uintptr(fd), 0, 0)
++//	// Open a socket to perform SHA1 hashing.
++//	fd, _ := unix.Socket(unix.AF_ALG, unix.SOCK_SEQPACKET, 0)
++//	addr := &unix.SockaddrALG{Type: "hash", Name: "sha1"}
++//	unix.Bind(fd, addr)
++//	// Note: unix.Accept does not work at this time; must invoke accept()
++//	// manually using unix.Syscall.
++//	hashfd, _, _ := unix.Syscall(unix.SYS_ACCEPT, uintptr(fd), 0, 0)
+ //
+ // Once a file descriptor has been returned from Accept, it may be used to
+ // perform SHA1 hashing. The descriptor is not safe for concurrent use, but
+@@ -647,39 +647,39 @@ func (sa *SockaddrCANJ1939) sockaddr() (unsafe.Pointer, _Socklen, error) {
+ // When hashing a small byte slice or string, a single Write and Read may
+ // be used:
+ //
+-//      // Assume hashfd is already configured using the setup process.
+-//      hash := os.NewFile(hashfd, "sha1")
+-//      // Hash an input string and read the results. Each Write discards
+-//      // previous hash state. Read always reads the current state.
+-//      b := make([]byte, 20)
+-//      for i := 0; i < 2; i++ {
+-//          io.WriteString(hash, "Hello, world.")
+-//          hash.Read(b)
+-//          fmt.Println(hex.EncodeToString(b))
+-//      }
+-//      // Output:
+-//      // 2ae01472317d1935a84797ec1983ae243fc6aa28
+-//      // 2ae01472317d1935a84797ec1983ae243fc6aa28
++//	// Assume hashfd is already configured using the setup process.
++//	hash := os.NewFile(hashfd, "sha1")
++//	// Hash an input string and read the results. Each Write discards
++//	// previous hash state. Read always reads the current state.
++//	b := make([]byte, 20)
++//	for i := 0; i < 2; i++ {
++//	    io.WriteString(hash, "Hello, world.")
++//	    hash.Read(b)
++//	    fmt.Println(hex.EncodeToString(b))
++//	}
++//	// Output:
++//	// 2ae01472317d1935a84797ec1983ae243fc6aa28
++//	// 2ae01472317d1935a84797ec1983ae243fc6aa28
+ //
+ // For hashing larger byte slices, or byte streams such as those read from
+ // a file or socket, use Sendto with MSG_MORE to instruct the kernel to update
+ // the hash digest instead of creating a new one for a given chunk and finalizing it.
+ //
+-//      // Assume hashfd and addr are already configured using the setup process.
+-//      hash := os.NewFile(hashfd, "sha1")
+-//      // Hash the contents of a file.
+-//      f, _ := os.Open("/tmp/linux-4.10-rc7.tar.xz")
+-//      b := make([]byte, 4096)
+-//      for {
+-//          n, err := f.Read(b)
+-//          if err == io.EOF {
+-//              break
+-//          }
+-//          unix.Sendto(hashfd, b[:n], unix.MSG_MORE, addr)
+-//      }
+-//      hash.Read(b)
+-//      fmt.Println(hex.EncodeToString(b))
+-//      // Output: 85cdcad0c06eef66f805ecce353bec9accbeecc5
++//	// Assume hashfd and addr are already configured using the setup process.
++//	hash := os.NewFile(hashfd, "sha1")
++//	// Hash the contents of a file.
++//	f, _ := os.Open("/tmp/linux-4.10-rc7.tar.xz")
++//	b := make([]byte, 4096)
++//	for {
++//	    n, err := f.Read(b)
++//	    if err == io.EOF {
++//	        break
++//	    }
++//	    unix.Sendto(hashfd, b[:n], unix.MSG_MORE, addr)
++//	}
++//	hash.Read(b)
++//	fmt.Println(hex.EncodeToString(b))
++//	// Output: 85cdcad0c06eef66f805ecce353bec9accbeecc5
+ //
+ // For more information, see: http://www.chronox.de/crypto-API/crypto/userspace-if.html.
+ type SockaddrALG struct {
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/syscall_openbsd.go b/src/cmd/vendor/golang.org/x/sys/unix/syscall_openbsd.go
+index 15d637d63e..78daceb338 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/syscall_openbsd.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/syscall_openbsd.go
+@@ -81,6 +81,7 @@ func Pipe(p []int) (err error) {
+ }
+ 
+ //sysnb	pipe2(p *[2]_C_int, flags int) (err error)
++
+ func Pipe2(p []int, flags int) error {
+ 	if len(p) != 2 {
+ 		return EINVAL
+@@ -95,6 +96,7 @@ func Pipe2(p []int, flags int) error {
+ }
+ 
+ //sys	Getdents(fd int, buf []byte) (n int, err error)
++
+ func Getdirentries(fd int, buf []byte, basep *uintptr) (n int, err error) {
+ 	n, err = Getdents(fd, buf)
+ 	if err != nil || basep == nil {
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_darwin_amd64.go b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_darwin_amd64.go
+index 8793765896..467deed763 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_darwin_amd64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_darwin_amd64.go
+@@ -1643,6 +1643,30 @@ var libc_mknod_trampoline_addr uintptr
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func Mount(fsType string, dir string, flags int, data unsafe.Pointer) (err error) {
++	var _p0 *byte
++	_p0, err = BytePtrFromString(fsType)
++	if err != nil {
++		return
++	}
++	var _p1 *byte
++	_p1, err = BytePtrFromString(dir)
++	if err != nil {
++		return
++	}
++	_, _, e1 := syscall_syscall6(libc_mount_trampoline_addr, uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(_p1)), uintptr(flags), uintptr(data), 0, 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++var libc_mount_trampoline_addr uintptr
++
++//go:cgo_import_dynamic libc_mount mount "/usr/lib/libSystem.B.dylib"
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func Open(path string, mode int, perm uint32) (fd int, err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_darwin_amd64.s b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_darwin_amd64.s
+index 8da90cf0e4..7e308a476d 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_darwin_amd64.s
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_darwin_amd64.s
+@@ -600,6 +600,12 @@ TEXT libc_mknod_trampoline<>(SB),NOSPLIT,$0-0
+ GLOBL	·libc_mknod_trampoline_addr(SB), RODATA, $8
+ DATA	·libc_mknod_trampoline_addr(SB)/8, $libc_mknod_trampoline<>(SB)
+ 
++TEXT libc_mount_trampoline<>(SB),NOSPLIT,$0-0
++	JMP	libc_mount(SB)
++
++GLOBL	·libc_mount_trampoline_addr(SB), RODATA, $8
++DATA	·libc_mount_trampoline_addr(SB)/8, $libc_mount_trampoline<>(SB)
++
+ TEXT libc_open_trampoline<>(SB),NOSPLIT,$0-0
+ 	JMP	libc_open(SB)
+ 
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_darwin_arm64.go b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_darwin_arm64.go
+index f47eedd5a8..35938d34ff 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_darwin_arm64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_darwin_arm64.go
+@@ -1643,6 +1643,30 @@ var libc_mknod_trampoline_addr uintptr
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func Mount(fsType string, dir string, flags int, data unsafe.Pointer) (err error) {
++	var _p0 *byte
++	_p0, err = BytePtrFromString(fsType)
++	if err != nil {
++		return
++	}
++	var _p1 *byte
++	_p1, err = BytePtrFromString(dir)
++	if err != nil {
++		return
++	}
++	_, _, e1 := syscall_syscall6(libc_mount_trampoline_addr, uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(_p1)), uintptr(flags), uintptr(data), 0, 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++var libc_mount_trampoline_addr uintptr
++
++//go:cgo_import_dynamic libc_mount mount "/usr/lib/libSystem.B.dylib"
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func Open(path string, mode int, perm uint32) (fd int, err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_darwin_arm64.s b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_darwin_arm64.s
+index 4d26f7d014..b09e5bb0e2 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_darwin_arm64.s
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_darwin_arm64.s
+@@ -600,6 +600,12 @@ TEXT libc_mknod_trampoline<>(SB),NOSPLIT,$0-0
+ GLOBL	·libc_mknod_trampoline_addr(SB), RODATA, $8
+ DATA	·libc_mknod_trampoline_addr(SB)/8, $libc_mknod_trampoline<>(SB)
+ 
++TEXT libc_mount_trampoline<>(SB),NOSPLIT,$0-0
++	JMP	libc_mount(SB)
++
++GLOBL	·libc_mount_trampoline_addr(SB), RODATA, $8
++DATA	·libc_mount_trampoline_addr(SB)/8, $libc_mount_trampoline<>(SB)
++
+ TEXT libc_open_trampoline<>(SB),NOSPLIT,$0-0
+ 	JMP	libc_open(SB)
+ 
+diff --git a/src/cmd/vendor/golang.org/x/sys/windows/exec_windows.go b/src/cmd/vendor/golang.org/x/sys/windows/exec_windows.go
+index 855698bb28..75980fd44a 100644
+--- a/src/cmd/vendor/golang.org/x/sys/windows/exec_windows.go
++++ b/src/cmd/vendor/golang.org/x/sys/windows/exec_windows.go
+@@ -15,11 +15,11 @@ import (
+ // in http://msdn.microsoft.com/en-us/library/ms880421.
+ // This function returns "" (2 double quotes) if s is empty.
+ // Alternatively, these transformations are done:
+-// - every back slash (\) is doubled, but only if immediately
+-//   followed by double quote (");
+-// - every double quote (") is escaped by back slash (\);
+-// - finally, s is wrapped with double quotes (arg -> "arg"),
+-//   but only if there is space or tab inside s.
++//   - every back slash (\) is doubled, but only if immediately
++//     followed by double quote (");
++//   - every double quote (") is escaped by back slash (\);
++//   - finally, s is wrapped with double quotes (arg -> "arg"),
++//     but only if there is space or tab inside s.
+ func EscapeArg(s string) string {
+ 	if len(s) == 0 {
+ 		return "\"\""
+diff --git a/src/cmd/vendor/golang.org/x/sys/windows/syscall_windows.go b/src/cmd/vendor/golang.org/x/sys/windows/syscall_windows.go
+index ce3075c453..636e5de60e 100644
+--- a/src/cmd/vendor/golang.org/x/sys/windows/syscall_windows.go
++++ b/src/cmd/vendor/golang.org/x/sys/windows/syscall_windows.go
+@@ -623,7 +623,6 @@ var (
+ 
+ func getStdHandle(stdhandle uint32) (fd Handle) {
+ 	r, _ := GetStdHandle(stdhandle)
+-	CloseOnExec(r)
+ 	return r
+ }
+ 
+diff --git a/src/cmd/vendor/golang.org/x/term/term.go b/src/cmd/vendor/golang.org/x/term/term.go
+index d592708808..1a40d10125 100644
+--- a/src/cmd/vendor/golang.org/x/term/term.go
++++ b/src/cmd/vendor/golang.org/x/term/term.go
+@@ -7,11 +7,11 @@
+ //
+ // Putting a terminal into raw mode is the most common requirement:
+ //
+-// 	oldState, err := term.MakeRaw(int(os.Stdin.Fd()))
+-// 	if err != nil {
+-// 	        panic(err)
+-// 	}
+-// 	defer term.Restore(int(os.Stdin.Fd()), oldState)
++//	oldState, err := term.MakeRaw(int(os.Stdin.Fd()))
++//	if err != nil {
++//	        panic(err)
++//	}
++//	defer term.Restore(int(os.Stdin.Fd()), oldState)
+ //
+ // Note that on non-Unix systems os.Stdin.Fd() may not be 0.
+ package term
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index 86db4e15f0..ede312d358 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -17,7 +17,7 @@ github.com/google/pprof/third_party/svgpan
+ # github.com/ianlancetaylor/demangle v0.0.0-20210905161508-09a460cdf81d
+ ## explicit; go 1.12
+ github.com/ianlancetaylor/demangle
+-# golang.org/x/arch v0.0.0-20210923205945-b76863e36670
++# golang.org/x/arch v0.0.0-20220412001346-fc48f9fe4c15
+ ## explicit; go 1.17
+ golang.org/x/arch/arm/armasm
+ golang.org/x/arch/arm64/arm64asm
+@@ -40,13 +40,13 @@ golang.org/x/mod/zip
+ # golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
+ ## explicit
+ golang.org/x/sync/semaphore
+-# golang.org/x/sys v0.0.0-20220422013727-9388b58f7150
++# golang.org/x/sys v0.0.0-20220513210249-45d2b4557a2a
+ ## explicit; go 1.17
+ golang.org/x/sys/internal/unsafeheader
+ golang.org/x/sys/plan9
+ golang.org/x/sys/unix
+ golang.org/x/sys/windows
+-# golang.org/x/term v0.0.0-20210927222741-03fcf44c2211
++# golang.org/x/term v0.0.0-20220411215600-e5f449aeb171
+ ## explicit; go 1.17
+ golang.org/x/term
+ # golang.org/x/tools v0.1.11-0.20220510125844-bc0e26ea1275
+diff --git a/src/go.mod b/src/go.mod
+index 2c43eccc71..f2c3708288 100644
+--- a/src/go.mod
++++ b/src/go.mod
+@@ -8,6 +8,6 @@ require (
+ )
+ 
+ require (
+-	golang.org/x/sys v0.0.0-20220422013727-9388b58f7150 // indirect
++	golang.org/x/sys v0.0.0-20220513210249-45d2b4557a2a // indirect
+ 	golang.org/x/text v0.3.8-0.20220124021120-d1c84af989ab // indirect
+ )
+diff --git a/src/go.sum b/src/go.sum
+index a86e5553d0..d3d671ad8a 100644
+--- a/src/go.sum
++++ b/src/go.sum
+@@ -2,7 +2,7 @@ golang.org/x/crypto v0.0.0-20220315160706-3147a52a75dd h1:XcWmESyNjXJMLahc3mqVQJ
+ golang.org/x/crypto v0.0.0-20220315160706-3147a52a75dd/go.mod h1:IxCIyHEi3zRg3s0A5j5BB6A9Jmi73HwBIUl50j+osU4=
+ golang.org/x/net v0.0.0-20220421235706-1d1ef9303861 h1:yssD99+7tqHWO5Gwh81phT+67hg+KttniBr6UnEXOY8=
+ golang.org/x/net v0.0.0-20220421235706-1d1ef9303861/go.mod h1:CfG3xpIq0wQ8r1q4Su4UZFWDARRcnwPjda9FqA0JpMk=
+-golang.org/x/sys v0.0.0-20220422013727-9388b58f7150 h1:xHms4gcpe1YE7A3yIllJXP16CMAGuqwO2lX1mTyyRRc=
+-golang.org/x/sys v0.0.0-20220422013727-9388b58f7150/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
++golang.org/x/sys v0.0.0-20220513210249-45d2b4557a2a h1:N2T1jUrTQE9Re6TFF5PhvEHXHCguynGhKjWVsIUt5cY=
++golang.org/x/sys v0.0.0-20220513210249-45d2b4557a2a/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
+ golang.org/x/text v0.3.8-0.20220124021120-d1c84af989ab h1:eHo2TTVBaAPw9lDGK2Gb9GyPMXT6g7O63W6sx3ylbzU=
+ golang.org/x/text v0.3.8-0.20220124021120-d1c84af989ab/go.mod h1:EFNZuWvGYxIRUEX+K8UmCFwYmZjqcrnq15ZuVldZkZ0=
+diff --git a/src/vendor/golang.org/x/sys/cpu/cpu.go b/src/vendor/golang.org/x/sys/cpu/cpu.go
+index b56886f261..83f112c4c8 100644
+--- a/src/vendor/golang.org/x/sys/cpu/cpu.go
++++ b/src/vendor/golang.org/x/sys/cpu/cpu.go
+@@ -106,8 +106,8 @@ var ARM64 struct {
+ 
+ // ARM contains the supported CPU features of the current ARM (32-bit) platform.
+ // All feature flags are false if:
+-//   1. the current platform is not arm, or
+-//   2. the current operating system is not Linux.
++//  1. the current platform is not arm, or
++//  2. the current operating system is not Linux.
+ var ARM struct {
+ 	_           CacheLinePad
+ 	HasSWP      bool // SWP instruction support
+diff --git a/src/vendor/modules.txt b/src/vendor/modules.txt
+index 78ead27048..bb06cde16a 100644
+--- a/src/vendor/modules.txt
++++ b/src/vendor/modules.txt
+@@ -19,7 +19,7 @@ golang.org/x/net/idna
+ golang.org/x/net/lif
+ golang.org/x/net/nettest
+ golang.org/x/net/route
+-# golang.org/x/sys v0.0.0-20220422013727-9388b58f7150
++# golang.org/x/sys v0.0.0-20220513210249-45d2b4557a2a
+ ## explicit; go 1.17
+ golang.org/x/sys/cpu
+ # golang.org/x/text v0.3.8-0.20220124021120-d1c84af989ab

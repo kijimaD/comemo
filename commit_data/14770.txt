@@ -7,6 +7,20 @@ Date:   Wed Jan 2 16:26:25 2013 +1100
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/7034044
-
+---
  doc/contribute.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/contribute.html b/doc/contribute.html
+index 694de5467a..dd317a51ff 100644
+--- a/doc/contribute.html
++++ b/doc/contribute.html
+@@ -530,7 +530,7 @@ This rigmarole needs to be done only for your first submission.
+ <p>Code that you contribute should use the standard copyright header:</p>
+ 
+ <pre>
+-// Copyright 2012 The Go Authors. All rights reserved.
++// Copyright 2013 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ </pre>

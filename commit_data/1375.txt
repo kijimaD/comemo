@@ -8,7 +8,7 @@ Date:   Fri Dec 19 03:05:37 2008 -0800
     TBR=r
     OCL=21576
     CL=21581
-
+---
  src/cmd/gotest/gotest               |   2 +-
  src/lib/bignum.go                   |  30 +--
  src/lib/bufio.go                    |  30 +--
@@ -121,3 +121,6669 @@ Date:   Fri Dec 19 03:05:37 2008 -0800
  usr/gri/pretty/scanner.go           |  82 ++++----
  usr/gri/pretty/selftest2.go         |   2 +-
  111 files changed, 814 insertions(+), 845 deletions(-)
+
+diff --git a/src/cmd/gotest/gotest b/src/cmd/gotest/gotest
+index 174b1d6148..82cc7381c3 100755
+--- a/src/cmd/gotest/gotest
++++ b/src/cmd/gotest/gotest
+@@ -41,7 +41,7 @@ done
+ set -e
+ 
+ # They all compile; now generate the code to call them.
+-#trap "rm -f _testmain.go _testmain.6" 0 1 2 3 14 15
++trap "rm -f _testmain.go _testmain.6" 0 1 2 3 14 15
+ {
+ 	# package spec
+ 	echo 'package main'
+diff --git a/src/lib/bignum.go b/src/lib/bignum.go
+index c4a35f20bd..5b3e6e8894 100755
+--- a/src/lib/bignum.go
++++ b/src/lib/bignum.go
+@@ -164,9 +164,9 @@ func (x *Natural) Add(y *Natural) *Natural {
+ 	if n < m {
+ 		return y.Add(x);
+ 	}
+-	
++
+ 	c := Digit(0);
+-	z := new(Natural, n + 1);
++	z := new(*Natural, n + 1);
+ 	i := 0;
+ 	for i < m {
+ 		t := c + x[i] + y[i];
+@@ -193,9 +193,9 @@ func (x *Natural) Sub(y *Natural) *Natural {
+ 	if n < m {
+ 		panic("underflow")
+ 	}
+-	
++
+ 	c := Digit(0);
+-	z := new(Natural, n);
++	z := new(*Natural, n);
+ 	i := 0;
+ 	for i < m {
+ 		t := c + x[i] - y[i];
+@@ -253,7 +253,7 @@ func (x *Natural) Mul(y *Natural) *Natural {
+ 	n := len(x);
+ 	m := len(y);
+ 
+-	z := new(Natural, n + m);
++	z := new(*Natural, n + m);
+ 	for j := 0; j < m; j++ {
+ 		d := y[j];
+ 		if d != 0 {
+@@ -296,7 +296,7 @@ func Unpack(x *Natural) []Digit2 {
+ 
+ func Pack(x []Digit2) *Natural {
+ 	n := (len(x) + 1) / 2;
+-	z := new(Natural, n);
++	z := new(*Natural, n);
+ 	if len(x) & 1 == 1 {
+ 		// handle odd len(x)
+ 		n--;
+@@ -376,7 +376,7 @@ func DivMod(x, y []Digit2) ([]Digit2, []Digit2) {
+ 	} else {
+ 		// general case
+ 		assert(2 <= m && m <= n);
+-		
++
+ 		// normalize x and y
+ 		// TODO Instead of multiplying, it would be sufficient to
+ 		//      shift y such that the normalization condition is
+@@ -472,7 +472,7 @@ func Shl(z, x []Digit, s uint) Digit {
+ func (x *Natural) Shl(s uint) *Natural {
+ 	n := uint(len(x));
+ 	m := n + s/W;
+-	z := new(Natural, m+1);
++	z := new(*Natural, m+1);
+ 
+ 	z[m] = Shl(z[m-n : m], x, s%W);
+ 
+@@ -497,7 +497,7 @@ func (x *Natural) Shr(s uint) *Natural {
+ 	if m > n {  // check for underflow
+ 		m = 0;
+ 	}
+-	z := new(Natural, m);
++	z := new(*Natural, m);
+ 
+ 	Shr(z, x[n-m : n], s%W);
+ 
+@@ -512,7 +512,7 @@ func (x *Natural) And(y *Natural) *Natural {
+ 		return y.And(x);
+ 	}
+ 
+-	z := new(Natural, m);
++	z := new(*Natural, m);
+ 	for i := 0; i < m; i++ {
+ 		z[i] = x[i] & y[i];
+ 	}
+@@ -536,7 +536,7 @@ func (x *Natural) Or(y *Natural) *Natural {
+ 		return y.Or(x);
+ 	}
+ 
+-	z := new(Natural, n);
++	z := new(*Natural, n);
+ 	for i := 0; i < m; i++ {
+ 		z[i] = x[i] | y[i];
+ 	}
+@@ -553,7 +553,7 @@ func (x *Natural) Xor(y *Natural) *Natural {
+ 		return y.Xor(x);
+ 	}
+ 
+-	z := new(Natural, n);
++	z := new(*Natural, n);
+ 	for i := 0; i < m; i++ {
+ 		z[i] = x[i] ^ y[i];
+ 	}
+@@ -630,7 +630,7 @@ func (x *Natural) ToString(base uint) string {
+ 	s := new([]byte, n);
+ 
+ 	// don't destroy x
+-	t := new(Natural, len(x));
++	t := new(*Natural, len(x));
+ 	Copy(t, x);
+ 
+ 	// convert
+@@ -682,7 +682,7 @@ func HexValue(ch byte) uint {
+ func MulAdd1(x *Natural, d, c Digit) *Natural {
+ 	assert(IsSmall(d-1) && IsSmall(c));
+ 	n := len(x);
+-	z := new(Natural, n + 1);
++	z := new(*Natural, n + 1);
+ 
+ 	for i := 0; i < n; i++ {
+ 		t := c + x[i]*d;
+@@ -1088,7 +1088,7 @@ func (x *Integer) ToString(base uint) string {
+ 	return s + x.mant.ToString(base);
+ }
+ 
+-	
++
+ func (x *Integer) String() string {
+ 	return x.ToString(10);
+ }
+diff --git a/src/lib/bufio.go b/src/lib/bufio.go
+index 8df00731cb..68be143206 100644
+--- a/src/lib/bufio.go
++++ b/src/lib/bufio.go
+@@ -50,7 +50,7 @@ export func NewBufReadSize(rd io.Read, size int) (b *BufRead, err *os.Error) {
+ 	if size <= 0 {
+ 		return nil, BadBufSize
+ 	}
+-	b = new(BufRead);
++	b = new(*BufRead);
+ 	b.buf = new([]byte, size);
+ 	b.rd = rd;
+ 	return b, nil
+@@ -191,11 +191,9 @@ func (b *BufRead) Buffered() int {
+ // For internal (or advanced) use only.
+ // Use ReadLineString or ReadLineBytes instead.
+ 
+-var NIL []byte // TODO(rsc): should be able to use nil
+-
+ func (b *BufRead) ReadLineSlice(delim byte) (line []byte, err *os.Error) {
+ 	if b.err != nil {
+-		return NIL, b.err
++		return nil, b.err
+ 	}
+ 
+ 	// Look in buffer.
+@@ -210,7 +208,7 @@ func (b *BufRead) ReadLineSlice(delim byte) (line []byte, err *os.Error) {
+ 		n := b.Buffered();
+ 		b.Fill();
+ 		if b.err != nil {
+-			return NIL, b.err
++			return nil, b.err
+ 		}
+ 		if b.Buffered() == n {	// no data added; end of file
+ 			line := b.buf[b.r:b.w];
+@@ -227,12 +225,12 @@ func (b *BufRead) ReadLineSlice(delim byte) (line []byte, err *os.Error) {
+ 
+ 		// Buffer is full?
+ 		if b.Buffered() >= len(b.buf) {
+-			return NIL, BufferFull
++			return nil, BufferFull
+ 		}
+ 	}
+ 
+ 	// BUG 6g bug100
+-	return NIL, nil
++	return nil, nil
+ }
+ 
+ // Read until the first occurrence of delim in the input,
+@@ -242,7 +240,7 @@ func (b *BufRead) ReadLineSlice(delim byte) (line []byte, err *os.Error) {
+ // we might have read more than the buffer size.)
+ func (b *BufRead) ReadLineBytes(delim byte) (line []byte, err *os.Error) {
+ 	if b.err != nil {
+-		return NIL, b.err
++		return nil, b.err
+ 	}
+ 
+ 	// Use ReadLineSlice to look for array,
+@@ -279,7 +277,7 @@ func (b *BufRead) ReadLineBytes(delim byte) (line []byte, err *os.Error) {
+ 		}
+ 
+ 		// Grow list if needed.
+-		if len(full) == 0 {
++		if full == nil {
+ 			full = new([][]byte, 16);
+ 		} else if nfull >= len(full) {
+ 			newfull := new([][]byte, len(full)*2);
+@@ -313,26 +311,18 @@ func (b *BufRead) ReadLineBytes(delim byte) (line []byte, err *os.Error) {
+ 	return buf, err
+ }
+ 
+-// BUG(bugs/bug102.go): string(empty bytes array) throws error
+-func ToString(p []byte) string {
+-	if len(p) == 0 {
+-		return ""
+-	}
+-	return string(p)
+-}
+-
+ // Read until the first occurrence of delim in the input,
+ // returning a new string containing the line.
+ // If savedelim, keep delim in the result; otherwise chop it off.
+ func (b *BufRead) ReadLineString(delim byte, savedelim bool) (line string, err *os.Error) {
+ 	bytes, e := b.ReadLineBytes(delim);
+ 	if e != nil {
+-		return ToString(bytes), e
++		return string(bytes), e
+ 	}
+ 	if !savedelim {
+ 		bytes = bytes[0:len(bytes)-1]
+ 	}
+-	return ToString(bytes), nil
++	return string(bytes), nil
+ }
+ 
+ 
+@@ -349,7 +339,7 @@ export func NewBufWriteSize(wr io.Write, size int) (b *BufWrite, err *os.Error)
+ 	if size <= 0 {
+ 		return nil, BadBufSize
+ 	}
+-	b = new(BufWrite);
++	b = new(*BufWrite);
+ 	b.buf = new([]byte, size);
+ 	b.wr = wr;
+ 	return b, nil
+diff --git a/src/lib/bufio_test.go b/src/lib/bufio_test.go
+index 897f331d48..fecc7780da 100644
+--- a/src/lib/bufio_test.go
++++ b/src/lib/bufio_test.go
+@@ -34,7 +34,7 @@ type ByteReader struct {
+ }
+ 
+ func NewByteReader(p []byte) io.Read {
+-	b := new(ByteReader);
++	b := new(*ByteReader);
+ 	b.p = p;
+ 	return b
+ }
+@@ -56,7 +56,7 @@ type HalfByteReader struct {
+ }
+ 
+ func NewHalfByteReader(p []byte) io.Read {
+-	b := new(HalfByteReader);
++	b := new(*HalfByteReader);
+ 	b.p = p;
+ 	return b
+ }
+@@ -80,7 +80,7 @@ type Rot13Reader struct {
+ }
+ 
+ func NewRot13Reader(r io.Read) *Rot13Reader {
+-	r13 := new(Rot13Reader);
++	r13 := new(*Rot13Reader);
+ 	r13.r = r;
+ 	return r13
+ }
+@@ -238,7 +238,7 @@ type ByteWriter struct {
+ }
+ 
+ func NewByteWriter() WriteBuffer {
+-	return new(ByteWriter)
++	return new(*ByteWriter)
+ }
+ 
+ func (w *ByteWriter) Write(p []byte) (int, *os.Error) {
+@@ -266,7 +266,7 @@ type HalfByteWriter struct {
+ }
+ 
+ func NewHalfByteWriter() WriteBuffer {
+-	w := new(HalfByteWriter);
++	w := new(*HalfByteWriter);
+ 	w.bw = NewByteWriter();
+ 	return w
+ }
+diff --git a/src/lib/container/array/array.go b/src/lib/container/array/array.go
+index 5c03536138..e87f4266b6 100644
+--- a/src/lib/container/array/array.go
++++ b/src/lib/container/array/array.go
+@@ -36,7 +36,7 @@ func (p *Array) Init(initial_len int) *Array {
+ 
+ 
+ export func New(len int) *Array {
+-	return new(Array).Init(len)
++	return new(*Array).Init(len)
+ }
+ 
+ 
+diff --git a/src/lib/container/array/intarray.go b/src/lib/container/array/intarray.go
+index eb7e83907a..a02e56883c 100644
+--- a/src/lib/container/array/intarray.go
++++ b/src/lib/container/array/intarray.go
+@@ -19,7 +19,7 @@ func (p *IntArray) Init(len int) *IntArray {
+ 
+ 
+ export func NewIntArray(len int) *IntArray {
+-	return new(IntArray).Init(len)
++	return new(*IntArray).Init(len)
+ }
+ 
+ 
+diff --git a/src/lib/flag.go b/src/lib/flag.go
+index a1189a67fa..bc962f699f 100644
+--- a/src/lib/flag.go
++++ b/src/lib/flag.go
+@@ -289,8 +289,8 @@ export type Flag struct {
+ }
+ 
+ type Flags struct {
+-	actual *map[string] *Flag;
+-	formal *map[string] *Flag;
++	actual map[string] *Flag;
++	formal map[string] *Flag;
+ 	first_arg	int;
+ 	flag_list	*Flag;  // BUG: remove when we can iterate over maps
+ }
+@@ -318,7 +318,7 @@ func (f *Flag) SVal() string {
+ }
+ 
+ func New() *Flags {
+-	f := new(Flags);
++	f := new(*Flags);
+ 	f.first_arg = 1;	// 0 is the program name, 1 is first arg
+ 	f.actual = new(map[string] *Flag);
+ 	f.formal = new(map[string] *Flag);
+@@ -361,7 +361,7 @@ export func NArg() int {
+ }
+ 
+ func Add(name string, value Value, usage string) *Flag {
+-	f := new(Flag);
++	f := new(*Flag);
+ 	f.name = name;
+ 	f.usage = usage;
+ 	f.value = value;
+diff --git a/src/lib/hash/adler32.go b/src/lib/hash/adler32.go
+index cebbfb212e..f1aa732445 100644
+--- a/src/lib/hash/adler32.go
++++ b/src/lib/hash/adler32.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Adler-32 checksum. 
++// Adler-32 checksum.
+ // Defined in RFC 1950:
+ //	Adler-32 is composed of two sums accumulated per byte: s1 is
+ //	the sum of all bytes, s2 is the sum of all s1 values. Both sums
+diff --git a/src/lib/hash/crc32.go b/src/lib/hash/crc32.go
+index 4ab8495b5d..9f6aa7d351 100644
+--- a/src/lib/hash/crc32.go
++++ b/src/lib/hash/crc32.go
+@@ -25,7 +25,7 @@ export const (
+ 	Koopman = 0xeb31d82e;
+ )
+ 
+-// TODO(rsc): Change to [256]uint32
++// TODO(rsc): Change to [256]uint32 once 6g can handle it.
+ export type Table []uint32
+ 
+ export func MakeTable(poly uint32) Table {
+diff --git a/src/lib/hash/md5.go b/src/lib/hash/md5.go
+index 7e90e34119..773ff4a5d6 100644
+--- a/src/lib/hash/md5.go
++++ b/src/lib/hash/md5.go
+@@ -27,7 +27,7 @@ export type Digest struct {
+ }
+ 
+ export func NewDigest() *Digest {
+-	d := new(Digest);
++	d := new(*Digest);
+ 	d.s[0] = A;
+ 	d.s[1] = B;
+ 	d.s[2] = C;
+diff --git a/src/lib/hash/sha1.go b/src/lib/hash/sha1.go
+index 3aa6903a4a..97333473b4 100644
+--- a/src/lib/hash/sha1.go
++++ b/src/lib/hash/sha1.go
+@@ -28,7 +28,7 @@ export type Digest struct {
+ }
+ 
+ export func NewDigest() *Digest {
+-	d := new(Digest);
++	d := new(*Digest);
+ 	d.h[0] = H0;
+ 	d.h[1] = H1;
+ 	d.h[2] = H2;
+diff --git a/src/lib/http/conn.go b/src/lib/http/conn.go
+index 15c0707f3e..ec33d9e8ef 100644
+--- a/src/lib/http/conn.go
++++ b/src/lib/http/conn.go
+@@ -22,7 +22,7 @@ export type Conn struct {
+ 
+ // Create new connection from rwc.
+ export func NewConn(rwc io.ReadWriteClose) (c *Conn, err *os.Error) {
+-	c = new(Conn);
++	c = new(*Conn);
+ 	c.rwc = rwc;
+ 	if c.br, err = bufio.NewBufRead(rwc); err != nil {
+ 		return nil, err
+diff --git a/src/lib/http/request.go b/src/lib/http/request.go
+index 36fa77033f..c997ee81e2 100644
+--- a/src/lib/http/request.go
++++ b/src/lib/http/request.go
+@@ -37,7 +37,7 @@ export type Request struct {
+ 	pmajor int;	// 1
+ 	pminor int;	// 0
+ 
+-	header *map[string] string;
++	header map[string] string;
+ 
+ 	close bool;
+ 	host string;
+@@ -45,18 +45,16 @@ export type Request struct {
+ 	useragent string;
+ }
+ 
+-var NIL []byte // TODO(rsc)
+-
+ // Read a line of bytes (up to \n) from b.
+ // Give up if the line exceeds MaxLineLength.
+ // The returned bytes are a pointer into storage in
+ // the bufio, so they are only valid until the next bufio read.
+ func ReadLineBytes(b *bufio.BufRead) (p []byte, err *os.Error) {
+ 	if p, err = b.ReadLineSlice('\n'); err != nil {
+-		return NIL, err
++		return nil, err
+ 	}
+ 	if len(p) >= MaxLineLength {
+-		return NIL, LineTooLong
++		return nil, LineTooLong
+ 	}
+ 
+ 	// Chop off trailing white space.
+@@ -183,7 +181,7 @@ func ParseHTTPVersion(vers string) (int, int, bool) {
+ 
+ // Read and parse a request from b.
+ export func ReadRequest(b *bufio.BufRead) (req *Request, err *os.Error) {
+-	req = new(Request);
++	req = new(*Request);
+ 
+ 	// First line: GET /index.html HTTP/1.0
+ 	var s string;
+diff --git a/src/lib/http/url.go b/src/lib/http/url.go
+index 8df18eb305..b985c9757f 100644
+--- a/src/lib/http/url.go
++++ b/src/lib/http/url.go
+@@ -131,7 +131,7 @@ export func ParseURL(rawurl string) (url *URL, err *os.Error) {
+ 	if rawurl == "" {
+ 		return nil, BadURL
+ 	}
+-	url = new(URL);
++	url = new(*URL);
+ 	url.raw = rawurl;
+ 
+ 	// Split off possible leading "http:", "mailto:", etc.
+diff --git a/src/lib/io/bytebuffer.go b/src/lib/io/bytebuffer.go
+index d06f1486bc..f85679c8f5 100644
+--- a/src/lib/io/bytebuffer.go
++++ b/src/lib/io/bytebuffer.go
+@@ -81,7 +81,7 @@ func (b *ByteBuffer) Data() []byte {
+ 
+ 
+ export func NewByteBufferFromArray(buf []byte) *ByteBuffer {
+-	b := new(ByteBuffer);
++	b := new(*ByteBuffer);
+ 	b.buf = buf;
+ 	b.off = 0;
+ 	b.len = len(buf);
+diff --git a/src/lib/json/generic.go b/src/lib/json/generic.go
+index abdcd9546c..4f4268459b 100644
+--- a/src/lib/json/generic.go
++++ b/src/lib/json/generic.go
+@@ -99,7 +99,7 @@ func (j *Bool) String() string {
+ 	return "false"
+ }
+ 
+-type Map struct { m *map[string]Json; Null }
++type Map struct { m map[string]Json; Null }
+ func (j *Map) Kind() int { return MapKind }
+ func (j *Map) Get(s string) Json {
+ 	if j.m == nil {
+@@ -212,7 +212,7 @@ type JsonBuilder struct {
+ 	i int;
+ 
+ 	// or to m[k] (can't set ptr = &m[k])
+-	m *map[string] Json;
++	m map[string] Json;
+ 	k string;
+ }
+ 
+@@ -273,7 +273,7 @@ func (b *JsonBuilder) Map() {
+ }
+ 
+ func (b *JsonBuilder) Elem(i int) Builder {
+-	bb := new(JsonBuilder);
++	bb := new(*JsonBuilder);
+ 	bb.a = b.Get().(*Array).a;
+ 	bb.i = i;
+ 	for i >= bb.a.Len() {
+@@ -283,7 +283,7 @@ func (b *JsonBuilder) Elem(i int) Builder {
+ }
+ 
+ func (b *JsonBuilder) Key(k string) Builder {
+-	bb := new(JsonBuilder);
++	bb := new(*JsonBuilder);
+ 	bb.m = b.Get().(*Map).m;
+ 	bb.k = k;
+ 	bb.m[k] = null;
+@@ -293,7 +293,7 @@ func (b *JsonBuilder) Key(k string) Builder {
+ export func StringToJson(s string) (json Json, ok bool, errtok string) {
+ 	var errindx int;
+ 	var j Json;
+-	b := new(JsonBuilder);
++	b := new(*JsonBuilder);
+ 	b.ptr = &j;
+ 	ok, errindx, errtok = Parse(s, b);
+ 	if !ok {
+diff --git a/src/lib/json/parse.go b/src/lib/json/parse.go
+index 1373a124a6..f38bb59a6f 100644
+--- a/src/lib/json/parse.go
++++ b/src/lib/json/parse.go
+@@ -120,7 +120,7 @@ export func Unquote(s string) (t string, ok bool) {
+ export func Quote(s string) string {
+ 	chr := new([]byte, utf8.UTFMax);
+ 	chr0 := chr[0:1];
+-	b := new(io.ByteBuffer);
++	b := new(*io.ByteBuffer);
+ 	chr[0] = '"';
+ 	b.Write(chr0);
+ 	for i := 0; i < len(s); i++ {
+@@ -387,7 +387,7 @@ Switch:
+ }
+ 
+ export func Parse(s string, build Builder) (ok bool, errindx int, errtok string) {
+-	lex := new(Lexer);
++	lex := new(*Lexer);
+ 	lex.s = s;
+ 	lex.Next();
+ 	if ParseValue(lex, build) {
+diff --git a/src/lib/json/struct_test.go b/src/lib/json/struct_test.go
+index 85dbd8881d..9f8615a360 100644
+--- a/src/lib/json/struct_test.go
++++ b/src/lib/json/struct_test.go
+@@ -26,7 +26,7 @@ type MyStruct struct {
+ 	fl float;
+ 	fl32 float32;
+ 	fl64 float64;
+-	a []string;
++	a *[]string;	// TODO(rsc): Should be able to use []string.
+ 	my *MyStruct;
+ };
+ 
+@@ -69,7 +69,7 @@ export func TestUnmarshal(t *testing.T) {
+ 	Check(t, m.fl==11.5, "fl", m.fl);
+ 	Check(t, m.fl32==12.25, "fl32", m.fl32);
+ 	Check(t, m.fl64==13.75, "fl64", m.fl64);
+-//	Check(t, m.a!=nil, "a", m.a);	// TODO(rsc): uncomment once []string as interface works
++	Check(t, m.a!=nil, "a", m.a);
+ 	if m.a != nil {
+ 		Check(t, m.a[0]=="x", "a[0]", m.a[0]);
+ 		Check(t, m.a[1]=="y", "a[1]", m.a[1]);
+diff --git a/src/lib/net/dialgoogle_test.go b/src/lib/net/dialgoogle_test.go
+index c23d7b7c7b..684439d0b0 100644
+--- a/src/lib/net/dialgoogle_test.go
++++ b/src/lib/net/dialgoogle_test.go
+@@ -22,7 +22,7 @@ func FetchGoogle(t *testing.T, fd net.Conn, network, addr string) {
+ 	req := io.StringBytes("GET / HTTP/1.0\r\nHost: www.google.com\r\n\r\n");
+ 	n, errno := fd.Write(req);
+ 
+-	buf := new([1000]byte);
++	buf := new([]byte, 1000);
+ 	n, errno = io.Readn(fd, buf);
+ 
+ 	if n < 1000 {
+diff --git a/src/lib/net/dnsclient.go b/src/lib/net/dnsclient.go
+index 2e8c638d26..eff46f8b19 100644
+--- a/src/lib/net/dnsclient.go
++++ b/src/lib/net/dnsclient.go
+@@ -44,7 +44,7 @@ func Exchange(cfg *DNS_Config, c Conn, name string) (m *DNS_Msg, err *os.Error)
+ 	if len(name) >= 256 {
+ 		return nil, DNS_NameTooLong
+ 	}
+-	out := new(DNS_Msg);
++	out := new(*DNS_Msg);
+ 	out.id = 0x1234;
+ 	out.question = []DNS_Question{
+ 		DNS_Question{ name, DNS_TypeA, DNS_ClassINET }
+@@ -71,7 +71,7 @@ func Exchange(cfg *DNS_Config, c Conn, name string) (m *DNS_Msg, err *os.Error)
+ 			continue
+ 		}
+ 		buf = buf[0:n];
+-		in := new(DNS_Msg);
++		in := new(*DNS_Msg);
+ 		if !in.Unpack(buf) || in.id != out.id {
+ 			continue
+ 		}
+@@ -80,24 +80,22 @@ func Exchange(cfg *DNS_Config, c Conn, name string) (m *DNS_Msg, err *os.Error)
+ 	return nil, DNS_NoAnswer
+ }
+ 
+-var NIL []string // TODO(rsc)
+-
+ 
+ // Find answer for name in dns message.
+ // On return, if err == nil, addrs != nil.
+ // TODO(rsc): Maybe return [][]byte (==[]IPAddr) instead?
+ func Answer(name string, dns *DNS_Msg) (addrs []string, err *os.Error) {
+-	addrs = new([]string, len(dns.answer))[0:0];
++	addrs = new([]string, 0, len(dns.answer));
+ 
+ 	if dns.rcode == DNS_RcodeNameError && dns.authoritative {
+-		return NIL, DNS_NameNotFound	// authoritative "no such host"
++		return nil, DNS_NameNotFound	// authoritative "no such host"
+ 	}
+ 	if dns.rcode != DNS_RcodeSuccess {
+ 		// None of the error codes make sense
+ 		// for the query we sent.  If we didn't get
+ 		// a name error and we didn't get success,
+ 		// the server is behaving incorrectly.
+-		return NIL, DNS_ServerFailure
++		return nil, DNS_ServerFailure
+ 	}
+ 
+ 	// Look for the name.
+@@ -126,13 +124,13 @@ Cname:
+ 			}
+ 		}
+ 		if len(addrs) == 0 {
+-			return NIL, DNS_NameNotFound
++			return nil, DNS_NameNotFound
+ 		}
+ 		return addrs, nil
+ 	}
+ 
+ 	// Too many redirects
+-	return NIL, DNS_RedirectLoop
++	return nil, DNS_RedirectLoop
+ }
+ 
+ // Do a lookup for a single name, which must be rooted
+diff --git a/src/lib/net/dnsconfig.go b/src/lib/net/dnsconfig.go
+index 0dff681b6f..5c2b45812a 100644
+--- a/src/lib/net/dnsconfig.go
++++ b/src/lib/net/dnsconfig.go
+@@ -31,7 +31,7 @@ export func DNS_ReadConfig() *DNS_Config {
+ 	if file == nil {
+ 		return nil
+ 	}
+-	conf := new(DNS_Config);
++	conf := new(*DNS_Config);
+ 	conf.servers = new([]string, 3)[0:0];		// small, but the standard limit
+ 	conf.search = new([]string, 0);
+ 	conf.ndots = 1;
+diff --git a/src/lib/net/dnsmsg.go b/src/lib/net/dnsmsg.go
+index a94d039cee..1c85c935ef 100644
+--- a/src/lib/net/dnsmsg.go
++++ b/src/lib/net/dnsmsg.go
+@@ -198,18 +198,18 @@ export type DNS_RR_A struct {
+ 
+ // Map of constructors for each RR wire type.
+ var rr_mk = map[int]*()DNS_RR {
+-	DNS_TypeCNAME: func() DNS_RR { return new(DNS_RR_CNAME) },
+-	DNS_TypeHINFO: func() DNS_RR { return new(DNS_RR_HINFO) },
+-	DNS_TypeMB: func() DNS_RR { return new(DNS_RR_MB) },
+-	DNS_TypeMG: func() DNS_RR { return new(DNS_RR_MG) },
+-	DNS_TypeMINFO: func() DNS_RR { return new(DNS_RR_MINFO) },
+-	DNS_TypeMR: func() DNS_RR { return new(DNS_RR_MR) },
+-	DNS_TypeMX: func() DNS_RR { return new(DNS_RR_MX) },
+-	DNS_TypeNS: func() DNS_RR { return new(DNS_RR_NS) },
+-	DNS_TypePTR: func() DNS_RR { return new(DNS_RR_PTR) },
+-	DNS_TypeSOA: func() DNS_RR { return new(DNS_RR_SOA) },
+-	DNS_TypeTXT: func() DNS_RR { return new(DNS_RR_TXT) },
+-	DNS_TypeA: func() DNS_RR { return new(DNS_RR_A) },
++	DNS_TypeCNAME: func() DNS_RR { return new(*DNS_RR_CNAME) },
++	DNS_TypeHINFO: func() DNS_RR { return new(*DNS_RR_HINFO) },
++	DNS_TypeMB: func() DNS_RR { return new(*DNS_RR_MB) },
++	DNS_TypeMG: func() DNS_RR { return new(*DNS_RR_MG) },
++	DNS_TypeMINFO: func() DNS_RR { return new(*DNS_RR_MINFO) },
++	DNS_TypeMR: func() DNS_RR { return new(*DNS_RR_MR) },
++	DNS_TypeMX: func() DNS_RR { return new(*DNS_RR_MX) },
++	DNS_TypeNS: func() DNS_RR { return new(*DNS_RR_NS) },
++	DNS_TypePTR: func() DNS_RR { return new(*DNS_RR_PTR) },
++	DNS_TypeSOA: func() DNS_RR { return new(*DNS_RR_SOA) },
++	DNS_TypeTXT: func() DNS_RR { return new(*DNS_RR_TXT) },
++	DNS_TypeA: func() DNS_RR { return new(*DNS_RR_A) },
+ }
+ 
+ // Pack a domain name s into msg[off:].
+@@ -545,7 +545,6 @@ export type DNS_Msg struct {
+ 	extra []DNS_RR;
+ }
+ 
+-var NIL []byte // TODO(rsc): remove
+ 
+ func (dns *DNS_Msg) Pack() (msg []byte, ok bool) {
+ 	var dh DNS_Header;
+@@ -569,9 +568,11 @@ func (dns *DNS_Msg) Pack() (msg []byte, ok bool) {
+ 		dh.bits |= QR;
+ 	}
+ 
+-	// Prepare variable sized arrays; paper over nils.
+-	var question []DNS_Question;
+-	var answer, ns, extra []DNS_RR;
++	// Prepare variable sized arrays.
++	question := dns.question;
++	answer := dns.answer;
++	ns := dns.ns;
++	extra := dns.extra;
+ 
+ 	dh.qdcount = uint16(len(question));
+ 	dh.ancount = uint16(len(answer));
+@@ -599,7 +600,7 @@ func (dns *DNS_Msg) Pack() (msg []byte, ok bool) {
+ 		off, ok = PackStruct(extra[i], msg, off);
+ 	}
+ 	if !ok {
+-		return NIL, false
++		return nil, false
+ 	}
+ 	return msg[0:off], true
+ }
+diff --git a/src/lib/net/fd.go b/src/lib/net/fd.go
+index 600ac38f65..a9c90c87cc 100644
+--- a/src/lib/net/fd.go
++++ b/src/lib/net/fd.go
+@@ -19,8 +19,8 @@ export type FD struct {
+ 	// immutable until Close
+ 	fd int64;
+ 	osfd *os.FD;
+-	cr *chan *FD;
+-	cw *chan *FD;
++	cr chan *FD;
++	cw chan *FD;
+ 
+ 	// owned by fd wait server
+ 	ncr, ncw int;
+@@ -70,15 +70,15 @@ func SetNonblock(fd int64) *os.Error {
+ // might help batch requests.
+ 
+ type PollServer struct {
+-	cr, cw *chan *FD;	// buffered >= 1
++	cr, cw chan *FD;	// buffered >= 1
+ 	pr, pw *os.FD;
+-	pending *map[int64] *FD;
++	pending map[int64] *FD;
+ 	poll *Pollster;	// low-level OS hooks
+ }
+ func (s *PollServer) Run();
+ 
+ func NewPollServer() (s *PollServer, err *os.Error) {
+-	s = new(PollServer);
++	s = new(*PollServer);
+ 	s.cr = new(chan *FD, 1);
+ 	s.cw = new(chan *FD, 1);
+ 	if s.pr, s.pw, err = os.Pipe(); err != nil {
+@@ -214,7 +214,7 @@ export func NewFD(fd int64) (f *FD, err *os.Error) {
+ 	if err = SetNonblock(fd); err != nil {
+ 		return nil, err
+ 	}
+-	f = new(FD);
++	f = new(*FD);
+ 	f.fd = fd;
+ 	f.osfd = os.NewFD(fd);
+ 	f.cr = new(chan *FD, 1);
+diff --git a/src/lib/net/fd_darwin.go b/src/lib/net/fd_darwin.go
+index b0eaf0594e..5a21be58e3 100644
+--- a/src/lib/net/fd_darwin.go
++++ b/src/lib/net/fd_darwin.go
+@@ -18,10 +18,8 @@ export type Pollster struct {
+ 	events []syscall.Kevent;
+ }
+ 
+-var NIL []syscall.Kevent;  // TODO(rsc): remove
+-
+ export func NewPollster() (p *Pollster, err *os.Error) {
+-	p = new(Pollster);
++	p = new(*Pollster);
+ 	var e int64;
+ 	if p.kq, e = syscall.kqueue(); e != 0 {
+ 		return nil, os.ErrnoToError(e)
+@@ -66,7 +64,7 @@ func (p *Pollster) AddFD(fd int64, mode int, repeat bool) *os.Error {
+ 
+ func (p *Pollster) WaitFD() (fd int64, mode int, err *os.Error) {
+ 	for len(p.events) == 0 {
+-		nn, e := syscall.kevent(p.kq, NIL, p.eventbuf, nil);
++		nn, e := syscall.kevent(p.kq, nil, p.eventbuf, nil);
+ 		if e != 0 {
+ 			if e == syscall.EAGAIN || e == syscall.EINTR {
+ 				continue
+diff --git a/src/lib/net/fd_linux.go b/src/lib/net/fd_linux.go
+index 282be20c47..e459dddc4a 100644
+--- a/src/lib/net/fd_linux.go
++++ b/src/lib/net/fd_linux.go
+@@ -21,11 +21,11 @@ export type Pollster struct {
+ 	epfd int64;
+ 
+ 	// Events we're already waiting for
+-	events *map[int64] uint32;
++	events map[int64] uint32;
+ }
+ 
+ export func NewPollster() (p *Pollster, err *os.Error) {
+-	p = new(Pollster);
++	p = new(*Pollster);
+ 	var e int64;
+ 
+ 	// The arg to epoll_create is a hint to the kernel
+@@ -102,9 +102,9 @@ func (p *Pollster) WaitFD() (fd int64, mode int, err *os.Error) {
+ 	// Get an event.
+ 	var evarray [1]syscall.EpollEvent;
+ 	ev := &evarray[0];
+-	n, e := syscall.epoll_wait(p.epfd, &evarray, -1);
++	n, e := syscall.epoll_wait(p.epfd, evarray, -1);
+ 	for e == syscall.EAGAIN || e == syscall.EINTR {
+-		n, e = syscall.epoll_wait(p.epfd, &evarray, -1)
++		n, e = syscall.epoll_wait(p.epfd, evarray, -1)
+ 	}
+ 	if e != 0 {
+ 		return -1, 0, os.ErrnoToError(e)
+diff --git a/src/lib/net/ip.go b/src/lib/net/ip.go
+index 4cf56dc8ae..883a1c63e5 100644
+--- a/src/lib/net/ip.go
++++ b/src/lib/net/ip.go
+@@ -39,8 +39,6 @@ func MakeIPv4(a, b, c, d byte) []byte {
+ // Well-known IP addresses
+ export var IPv4bcast, IPv4allsys, IPv4allrouter, IPv4prefix, IPallbits, IPnoaddr []byte
+ 
+-var NIL []byte // TODO(rsc)
+-
+ func init() {
+ 	IPv4bcast = MakeIPv4(0xff, 0xff, 0xff, 0xff);
+ 	IPv4allsys = MakeIPv4(0xe0, 0x00, 0x00, 0x01);
+@@ -75,7 +73,7 @@ export func ToIPv4(p []byte) []byte {
+ 	&& p[11] == 0xff {
+ 		return p[12:16]
+ 	}
+-	return NIL
++	return nil
+ }
+ 
+ // Convert p to IPv6 form.
+@@ -86,7 +84,7 @@ export func ToIPv6(p []byte) []byte {
+ 	if len(p) == IPv6len {
+ 		return p
+ 	}
+-	return NIL
++	return nil
+ }
+ 
+ // Default route masks for IPv4.
+@@ -97,8 +95,8 @@ export var (
+ )
+ 
+ export func DefaultMask(p []byte) []byte {
+-	if p = ToIPv4(p); len(p) == 0 {
+-		return NIL
++	if p = ToIPv4(p); p == nil {
++		return nil
+ 	}
+ 	switch true {
+ 	case p[0] < 0x80:
+@@ -108,14 +106,14 @@ export func DefaultMask(p []byte) []byte {
+ 	default:
+ 		return ClassCMask;
+ 	}
+-	return NIL;	// not reached
++	return nil;	// not reached
+ }
+ 
+ // Apply mask to ip, returning new address.
+ export func Mask(ip []byte, mask []byte) []byte {
+ 	n := len(ip);
+ 	if n != len(mask) {
+-		return NIL
++		return nil
+ 	}
+ 	out := new([]byte, n);
+ 	for i := 0; i < n; i++ {
+@@ -253,7 +251,7 @@ func ParseIPv4(s string) []byte {
+ 	for j := 0; j < IPv4len; j++ {
+ 		if j > 0 {
+ 			if s[i] != '.' {
+-				return NIL
++				return nil
+ 			}
+ 			i++;
+ 		}
+@@ -263,12 +261,12 @@ func ParseIPv4(s string) []byte {
+ 		)
+ 		n, i, ok = Dtoi(s, i);
+ 		if !ok || n > 0xFF {
+-			return NIL
++			return nil
+ 		}
+ 		p[j] = byte(n)
+ 	}
+ 	if i != len(s) {
+-		return NIL
++		return nil
+ 	}
+ 	return MakeIPv4(p[0], p[1], p[2], p[3])
+ }
+@@ -302,22 +300,22 @@ L:	for j < IPv6len {
+ 		// Hex number.
+ 		n, i1, ok := Xtoi(s, i);
+ 		if !ok || n > 0xFFFF {
+-			return NIL
++			return nil
+ 		}
+ 
+ 		// If followed by dot, might be in trailing IPv4.
+ 		if i1 < len(s) && s[i1] == '.' {
+ 			if ellipsis < 0 && j != IPv6len - IPv4len {
+ 				// Not the right place.
+-				return NIL
++				return nil
+ 			}
+ 			if j+IPv4len > IPv6len {
+ 				// Not enough room.
+-				return NIL
++				return nil
+ 			}
+ 			p4 := ParseIPv4(s[i:len(s)]);
+-			if len(p4) == 0 {
+-				return NIL
++			if p4 == nil {
++				return nil
+ 			}
+ 			// BUG: p[j:j+4] = p4
+ 			p[j] = p4[12];
+@@ -342,14 +340,14 @@ L:	for j < IPv6len {
+ 
+ 		// Otherwise must be followed by colon and more.
+ 		if s[i] != ':' && i+1 == len(s) {
+-			return NIL
++			return nil
+ 		}
+ 		i++;
+ 
+ 		// Look for ellipsis.
+ 		if s[i] == ':' {
+ 			if ellipsis >= 0 {	// already have one
+-				return NIL
++				return nil
+ 			}
+ 			ellipsis = j;
+ 			if i++; i == len(s) {	// can be at end
+@@ -360,13 +358,13 @@ L:	for j < IPv6len {
+ 
+ 	// Must have used entire string.
+ 	if i != len(s) {
+-		return NIL
++		return nil
+ 	}
+ 
+ 	// If didn't parse enough, expand ellipsis.
+ 	if j < IPv6len {
+ 		if ellipsis < 0 {
+-			return NIL
++			return nil
+ 		}
+ 		n := IPv6len - j;
+ 		for k := j-1; k >= ellipsis; k-- {
+@@ -381,7 +379,7 @@ L:	for j < IPv6len {
+ 
+ export func ParseIP(s string) []byte {
+ 	p := ParseIPv4(s);
+-	if len(p) != 0 {
++	if p != nil {
+ 		return p
+ 	}
+ 	return ParseIPv6(s)
+diff --git a/src/lib/net/net.go b/src/lib/net/net.go
+index ca5f33733c..2fae03e5af 100644
+--- a/src/lib/net/net.go
++++ b/src/lib/net/net.go
+@@ -62,8 +62,6 @@ func JoinHostPort(host, port string) string {
+ 	return host + ":" + port
+ }
+ 
+-var NIL []byte
+-
+ // Convert "host:port" into IP address and port.
+ // For now, host and port must be numeric literals.
+ // Eventually, we'll have name resolution.
+@@ -71,24 +69,24 @@ func HostPortToIP(net string, hostport string) (ip []byte, iport int, err *os.Er
+ 	var host, port string;
+ 	host, port, err = SplitHostPort(hostport);
+ 	if err != nil {
+-		return NIL, 0, err
++		return nil, 0, err
+ 	}
+ 
+ 	// Try as an IP address.
+ 	addr := ParseIP(host);
+-	if len(addr) == 0 {
++	if addr == nil {
+ 		// Not an IP address.  Try as a DNS name.
+ 		hostname, addrs, err := LookupHost(host);
+ 		if err != nil {
+-			return NIL, 0, err
++			return nil, 0, err
+ 		}
+ 		if len(addrs) == 0 {
+-			return NIL, 0, UnknownHost
++			return nil, 0, UnknownHost
+ 		}
+ 		addr = ParseIP(addrs[0]);
+-		if len(addr) == 0 {
++		if addr == nil {
+ 			// should not happen
+-			return NIL, 0, BadAddress
++			return nil, 0, BadAddress
+ 		}
+ 	}
+ 
+@@ -96,11 +94,11 @@ func HostPortToIP(net string, hostport string) (ip []byte, iport int, err *os.Er
+ 	if !ok || i != len(port) {
+ 		p, ok = LookupPort(net, port);
+ 		if !ok {
+-			return NIL, 0, UnknownPort
++			return nil, 0, UnknownPort
+ 		}
+ 	}
+ 	if p < 0 || p > 0xFFFF {
+-		return NIL, 0, BadAddress
++		return nil, 0, BadAddress
+ 	}
+ 
+ 	return addr, p, nil
+@@ -311,7 +309,7 @@ func InternetSocket(net, laddr, raddr string, proto int64) (fd *FD, err *os.Erro
+ 	default:
+ 		// Otherwise, guess.
+ 		// If the addresses are IPv4 and we prefer IPv4, use 4; else 6.
+-		if PreferIPv4 && len(ToIPv4(lip)) != 0 && len(ToIPv4(rip)) != 0 {
++		if PreferIPv4 && ToIPv4(lip) != nil && ToIPv4(rip) != nil {
+ 			vers = 4
+ 		} else {
+ 			vers = 6
+@@ -329,13 +327,13 @@ func InternetSocket(net, laddr, raddr string, proto int64) (fd *FD, err *os.Erro
+ 	}
+ 
+ 	var la, ra *syscall.Sockaddr;
+-	if len(lip) != 0 {
++	if lip != nil {
+ 		la, lerr = cvt(lip, lport);
+ 		if lerr != nil {
+ 			return nil, lerr
+ 		}
+ 	}
+-	if len(rip) != 0 {
++	if rip != nil {
+ 		ra, rerr = cvt(rip, rport);
+ 		if rerr != nil {
+ 			return nil, rerr
+@@ -361,7 +359,7 @@ func (c *ConnTCP) SetNoDelay(nodelay bool) *os.Error {
+ }
+ 
+ func NewConnTCP(fd *FD, raddr string) *ConnTCP {
+-	c := new(ConnTCP);
++	c := new(*ConnTCP);
+ 	c.fd = fd;
+ 	c.raddr = raddr;
+ 	c.SetNoDelay(true);
+@@ -389,7 +387,7 @@ export type ConnUDP struct {
+ }
+ 
+ func NewConnUDP(fd *FD, raddr string) *ConnUDP {
+-	c := new(ConnUDP);
++	c := new(*ConnUDP);
+ 	c.fd = fd;
+ 	c.raddr = raddr;
+ 	return c
+@@ -488,7 +486,7 @@ export func ListenTCP(net, laddr string) (l *ListenerTCP, err *os.Error) {
+ 		syscall.close(fd.fd);
+ 		return nil, os.ErrnoToError(e1)
+ 	}
+-	l = new(ListenerTCP);
++	l = new(*ListenerTCP);
+ 	l.fd = fd;
+ 	return l, nil
+ }
+diff --git a/src/lib/net/net_darwin.go b/src/lib/net/net_darwin.go
+index 2a23decc24..9d143d3499 100644
+--- a/src/lib/net/net_darwin.go
++++ b/src/lib/net/net_darwin.go
+@@ -13,10 +13,10 @@ import (
+ 
+ export func IPv4ToSockaddr(p []byte, port int) (sa1 *syscall.Sockaddr, err *os.Error) {
+ 	p = ToIPv4(p);
+-	if len(p) == 0 || port < 0 || port > 0xFFFF {
++	if p == nil || port < 0 || port > 0xFFFF {
+ 		return nil, os.EINVAL
+ 	}
+-	sa := new(syscall.SockaddrInet4);
++	sa := new(*syscall.SockaddrInet4);
+ 	sa.len = syscall.SizeofSockaddrInet4;
+ 	sa.family = syscall.AF_INET;
+ 	sa.port[0] = byte(port>>8);
+@@ -29,10 +29,10 @@ export func IPv4ToSockaddr(p []byte, port int) (sa1 *syscall.Sockaddr, err *os.E
+ 
+ export func IPv6ToSockaddr(p []byte, port int) (sa1 *syscall.Sockaddr, err *os.Error) {
+ 	p = ToIPv6(p);
+-	if len(p) == 0 || port < 0 || port > 0xFFFF {
++	if p == nil || port < 0 || port > 0xFFFF {
+ 		return nil, os.EINVAL
+ 	}
+-	sa := new(syscall.SockaddrInet6);
++	sa := new(*syscall.SockaddrInet6);
+ 	sa.len = syscall.SizeofSockaddrInet6;
+ 	sa.family = syscall.AF_INET6;
+ 	sa.port[0] = byte(port>>8);
+@@ -43,28 +43,27 @@ export func IPv6ToSockaddr(p []byte, port int) (sa1 *syscall.Sockaddr, err *os.E
+ 	return unsafe.pointer(sa).(*syscall.Sockaddr), nil
+ }
+ 
+-var NIL []byte	// TODO(rsc)
+ 
+ export func SockaddrToIP(sa1 *syscall.Sockaddr) (p []byte, port int, err *os.Error) {
+ 	switch sa1.family {
+ 	case syscall.AF_INET:
+ 		sa := unsafe.pointer(sa1).(*syscall.SockaddrInet4);
+ 		a := ToIPv6(sa.addr);
+-		if len(a) == 0 {
+-			return NIL, 0, os.EINVAL
++		if a == nil {
++			return nil, 0, os.EINVAL
+ 		}
+ 		return a, int(sa.port[0])<<8 + int(sa.port[1]), nil;
+ 	case syscall.AF_INET6:
+ 		sa := unsafe.pointer(sa1).(*syscall.SockaddrInet6);
+ 		a := ToIPv6(sa.addr);
+-		if len(a) == 0 {
+-			return NIL, 0, os.EINVAL
++		if a == nil {
++			return nil, 0, os.EINVAL
+ 		}
+-		return NIL, int(sa.port[0])<<8 + int(sa.port[1]), nil;
++		return nil, int(sa.port[0])<<8 + int(sa.port[1]), nil;
+ 	default:
+-		return NIL, 0, os.EINVAL
++		return nil, 0, os.EINVAL
+ 	}
+-	return NIL, 0, nil	// not reached
++	return nil, 0, nil	// not reached
+ }
+ 
+ export func ListenBacklog() int64 {
+diff --git a/src/lib/net/net_linux.go b/src/lib/net/net_linux.go
+index 3d9dd69fe3..028e6e23b5 100644
+--- a/src/lib/net/net_linux.go
++++ b/src/lib/net/net_linux.go
+@@ -16,7 +16,7 @@ export func IPv4ToSockaddr(p []byte, port int) (sa1 *syscall.Sockaddr, err *os.E
+ 	if p == nil || port < 0 || port > 0xFFFF {
+ 		return nil, os.EINVAL
+ 	}
+-	sa := new(syscall.SockaddrInet4);
++	sa := new(*syscall.SockaddrInet4);
+ 	sa.family = syscall.AF_INET;
+ 	sa.port[0] = byte(port>>8);
+ 	sa.port[1] = byte(port);
+@@ -38,10 +38,10 @@ export func IPv6ToSockaddr(p []byte, port int) (sa1 *syscall.Sockaddr, err *os.E
+ 	// In IPv6 mode, Linux treats that as meaning "announce on 0.0.0.0",
+ 	// which it refuses to do.  Rewrite to the IPv6 all zeros.
+ 	if p4 := ToIPv4(p); p4 != nil && p4[0] == 0 && p4[1] == 0 && p4[2] == 0 && p4[3] == 0 {
+-		p = &IPv6zero;
++		p = IPv6zero;
+ 	}
+ 
+-	sa := new(syscall.SockaddrInet6);
++	sa := new(*syscall.SockaddrInet6);
+ 	sa.family = syscall.AF_INET6;
+ 	sa.port[0] = byte(port>>8);
+ 	sa.port[1] = byte(port);
+@@ -55,14 +55,14 @@ export func SockaddrToIP(sa1 *syscall.Sockaddr) (p []byte, port int, err *os.Err
+ 	switch sa1.family {
+ 	case syscall.AF_INET:
+ 		sa := unsafe.pointer(sa1).(*syscall.SockaddrInet4);
+-		a := ToIPv6(&sa.addr);
++		a := ToIPv6(sa.addr);
+ 		if a == nil {
+ 			return nil, 0, os.EINVAL
+ 		}
+ 		return a, int(sa.port[0])<<8 + int(sa.port[1]), nil;
+ 	case syscall.AF_INET6:
+ 		sa := unsafe.pointer(sa1).(*syscall.SockaddrInet6);
+-		a := ToIPv6(&sa.addr);
++		a := ToIPv6(sa.addr);
+ 		if a == nil {
+ 			return nil, 0, os.EINVAL
+ 		}
+diff --git a/src/lib/net/port.go b/src/lib/net/port.go
+index 5ff1e5805a..efcbc0ad93 100644
+--- a/src/lib/net/port.go
++++ b/src/lib/net/port.go
+@@ -14,10 +14,10 @@ import (
+ 	"strconv";
+ )
+ 
+-var services *map[string] *map[string] int
++var services map[string] map[string] int
+ 
+ func ReadServices() {
+-	services = new(map[string] *map[string] int);
++	services = new(map[string] map[string] int);
+ 	file := Open("/etc/services");
+ 	for line, ok := file.ReadLine(); ok; line, ok = file.ReadLine() {
+ 		// "http 80/tcp www www-http # World Wide Web HTTP"
+diff --git a/src/lib/net/tcpserver_test.go b/src/lib/net/tcpserver_test.go
+index 9489c8cf27..0e50369742 100644
+--- a/src/lib/net/tcpserver_test.go
++++ b/src/lib/net/tcpserver_test.go
+@@ -11,7 +11,7 @@ import (
+ 	"testing";
+ )
+ 
+-func Echo(fd io.ReadWrite, done *chan<- int) {
++func Echo(fd io.ReadWrite, done chan<- int) {
+ 	var buf [1024]byte;
+ 
+ 	for {
+@@ -24,7 +24,7 @@ func Echo(fd io.ReadWrite, done *chan<- int) {
+ 	done <- 1
+ }
+ 
+-func Serve(t *testing.T, network, addr string, listening, done *chan<- int) {
++func Serve(t *testing.T, network, addr string, listening, done chan<- int) {
+ 	l, err := net.Listen(network, addr);
+ 	if err != nil {
+ 		t.Fatalf("net.Listen(%q, %q) = _, %v", network, addr, err);
+@@ -76,9 +76,9 @@ func DoTest(t *testing.T, network, listenaddr, dialaddr string) {
+ }
+ 
+ export func TestTcpServer(t *testing.T) {
+-	DoTest(t,  "tcp", "0.0.0.0:9999", "127.0.0.1:9999");
+-	DoTest(t, "tcp", "[::]:9999", "[::ffff:127.0.0.1]:9999");
+-	DoTest(t, "tcp", "[::]:9999", "127.0.0.1:9999");
+-	DoTest(t, "tcp", "0.0.0.0:9999", "[::ffff:127.0.0.1]:9999");
++	DoTest(t,  "tcp", "0.0.0.0:9997", "127.0.0.1:9997");
++	DoTest(t, "tcp", "[::]:9997", "[::ffff:127.0.0.1]:9997");
++	DoTest(t, "tcp", "[::]:9997", "127.0.0.1:9997");
++	DoTest(t, "tcp", "0.0.0.0:9997", "[::ffff:127.0.0.1]:9997");
+ }
+ 
+diff --git a/src/lib/once.go b/src/lib/once.go
+index 7585a44235..414f28888a 100644
+--- a/src/lib/once.go
++++ b/src/lib/once.go
+@@ -13,12 +13,12 @@ package once
+ 
+ type Job struct {
+ 	done bool;
+-	doit *chan bool;	// buffer of 1
++	doit chan bool;	// buffer of 1
+ }
+ 
+ type Request struct {
+ 	f *();
+-	reply *chan *Job
++	reply chan *Job
+ }
+ 
+ // TODO: Would like to use chan Request but 6g rejects it.
+@@ -34,7 +34,7 @@ func Server() {
+ 		req := <-service;
+ 		job, present := jobmap[req.f];
+ 		if !present {
+-			job = new(Job);
++			job = new(*Job);
+ 			job.doit = new(chan bool, 1);
+ 			job.doit <- true;
+ 			jobmap[req.f] = job
+diff --git a/src/lib/regexp/regexp.go b/src/lib/regexp/regexp.go
+index 2176c4ddba..218fbd6013 100644
+--- a/src/lib/regexp/regexp.go
++++ b/src/lib/regexp/regexp.go
+@@ -48,7 +48,7 @@ func (c *Common) SetIndex(i int) { c.index = i }
+ 
+ type RE struct {
+ 	expr	string;	// the original expression
+-	ch	*chan<- *RE;	// reply channel when we're done
++	ch	chan<- *RE;	// reply channel when we're done
+ 	error	*os.Error;	// compile- or run-time error; nil if OK
+ 	inst	*array.Array;
+ 	start	Inst;
+@@ -112,7 +112,7 @@ func (char *Char) Type() int { return CHAR }
+ func (char *Char) Print() { print("char ", string(char.char)) }
+ 
+ func NewChar(char int) *Char {
+-	c := new(Char);
++	c := new(*Char);
+ 	c.char = char;
+ 	return c;
+ }
+@@ -163,7 +163,7 @@ func (cclass *CharClass) Matches(c int) bool {
+ }
+ 
+ func NewCharClass() *CharClass {
+-	c := new(CharClass);
++	c := new(*CharClass);
+ 	c.ranges = array.NewIntArray(0);
+ 	return c;
+ }
+@@ -249,7 +249,7 @@ func (p *Parser) nextc() int {
+ }
+ 
+ func NewParser(re *RE) *Parser {
+-	parser := new(Parser);
++	parser := new(*Parser);
+ 	parser.re = re;
+ 	parser.nextc();	// load p.ch
+ 	return parser;
+@@ -364,15 +364,15 @@ func (p *Parser) Term() (start, end Inst) {
+ 		p.re.Error(ErrUnmatchedRbkt);
+ 	case '^':
+ 		p.nextc();
+-		start = p.re.Add(new(Bot));
++		start = p.re.Add(new(*Bot));
+ 		return start, start;
+ 	case '$':
+ 		p.nextc();
+-		start = p.re.Add(new(Eot));
++		start = p.re.Add(new(*Eot));
+ 		return start, start;
+ 	case '.':
+ 		p.nextc();
+-		start = p.re.Add(new(Any));
++		start = p.re.Add(new(*Any));
+ 		return start, start;
+ 	case '[':
+ 		p.nextc();
+@@ -393,9 +393,9 @@ func (p *Parser) Term() (start, end Inst) {
+ 		}
+ 		p.nlpar--;
+ 		p.nextc();
+-		bra := new(Bra);
++		bra := new(*Bra);
+ 		p.re.Add(bra);
+-		ebra := new(Ebra);
++		ebra := new(*Ebra);
+ 		p.re.Add(ebra);
+ 		bra.n = nbra;
+ 		ebra.n = nbra;
+@@ -437,7 +437,7 @@ func (p *Parser) Closure() (start, end Inst) {
+ 	switch p.c() {
+ 	case '*':
+ 		// (start,end)*:
+-		alt := new(Alt);
++		alt := new(*Alt);
+ 		p.re.Add(alt);
+ 		end.SetNext(alt);	// after end, do alt
+ 		alt.left = start;	// alternate brach: return to start
+@@ -445,16 +445,16 @@ func (p *Parser) Closure() (start, end Inst) {
+ 		end = alt;
+ 	case '+':
+ 		// (start,end)+:
+-		alt := new(Alt);
++		alt := new(*Alt);
+ 		p.re.Add(alt);
+ 		end.SetNext(alt);	// after end, do alt
+ 		alt.left = start;	// alternate brach: return to start
+ 		end = alt;	// start is unchanged; end is alt
+ 	case '?':
+ 		// (start,end)?:
+-		alt := new(Alt);
++		alt := new(*Alt);
+ 		p.re.Add(alt);
+-		nop := new(Nop);
++		nop := new(*Nop);
+ 		p.re.Add(nop);
+ 		alt.left = start;	// alternate branch is start
+ 		alt.next = nop;	// follow on to nop
+@@ -478,7 +478,7 @@ func (p *Parser) Concatenation() (start, end Inst) {
+ 		switch {
+ 		case nstart == NULL:	// end of this concatenation
+ 			if start == NULL {	// this is the empty string
+-				nop := p.re.Add(new(Nop));
++				nop := p.re.Add(new(*Nop));
+ 				return nop, nop;
+ 			}
+ 			return;
+@@ -501,11 +501,11 @@ func (p *Parser) Regexp() (start, end Inst) {
+ 		case '|':
+ 			p.nextc();
+ 			nstart, nend := p.Concatenation();
+-			alt := new(Alt);
++			alt := new(*Alt);
+ 			p.re.Add(alt);
+ 			alt.left = start;
+ 			alt.next = nstart;
+-			nop := new(Nop);
++			nop := new(*Nop);
+ 			p.re.Add(nop);
+ 			end.SetNext(nop);
+ 			nend.SetNext(nop);
+@@ -550,12 +550,12 @@ func (re *RE) Dump() {
+ 
+ func (re *RE) DoParse() {
+ 	parser := NewParser(re);
+-	start := new(Start);
++	start := new(*Start);
+ 	re.Add(start);
+ 	s, e := parser.Regexp();
+ 	start.next = s;
+ 	re.start = start;
+-	e.SetNext(re.Add(new(End)));
++	e.SetNext(re.Add(new(*End)));
+ 
+ 	if debug {
+ 		re.Dump();
+@@ -571,8 +571,8 @@ func (re *RE) DoParse() {
+ }
+ 
+ 
+-func Compiler(str string, ch *chan *RE) {
+-	re := new(RE);
++func Compiler(str string, ch chan *RE) {
++	re := new(*RE);
+ 	re.expr = str;
+ 	re.inst = array.New(0);
+ 	re.ch = ch;
+diff --git a/src/lib/strconv/atof.go b/src/lib/strconv/atof.go
+index 8869e2032c..b7f5156147 100644
+--- a/src/lib/strconv/atof.go
++++ b/src/lib/strconv/atof.go
+@@ -34,7 +34,7 @@ func StringToDecimal(s string) (neg bool, d *Decimal, trunc bool, ok bool) {
+ 	}
+ 
+ 	// digits
+-	b := new(Decimal);
++	b := new(*Decimal);
+ 	sawdot := false;
+ 	sawdigits := false;
+ 	for ; i < len(s); i++ {
+diff --git a/src/lib/strconv/decimal.go b/src/lib/strconv/decimal.go
+index d22d4526ca..9f94e30039 100644
+--- a/src/lib/strconv/decimal.go
++++ b/src/lib/strconv/decimal.go
+@@ -120,7 +120,7 @@ func (a *Decimal) Assign(v uint64) {
+ }
+ 
+ package func NewDecimal(i uint64) *Decimal {
+-	a := new(Decimal);
++	a := new(*Decimal);
+ 	a.Assign(i);
+ 	return a;
+ }
+diff --git a/src/lib/sync/mutex_test.go b/src/lib/sync/mutex_test.go
+index 7a6dd1814d..0fd204c89e 100644
+--- a/src/lib/sync/mutex_test.go
++++ b/src/lib/sync/mutex_test.go
+@@ -11,7 +11,7 @@ import (
+ 	"testing"
+ )
+ 
+-func HammerSemaphore(s *int32, cdone *chan bool) {
++func HammerSemaphore(s *int32, cdone chan bool) {
+ 	for i := 0; i < 1000; i++ {
+ 		sys.semacquire(s);
+ 		sys.semrelease(s);
+@@ -20,7 +20,7 @@ func HammerSemaphore(s *int32, cdone *chan bool) {
+ }
+ 
+ export func TestSemaphore(t *testing.T) {
+-	s := new(int32);
++	s := new(*int32);
+ 	*s = 1;
+ 	c := new(chan bool);
+ 	for i := 0; i < 10; i++ {
+@@ -32,7 +32,7 @@ export func TestSemaphore(t *testing.T) {
+ }
+ 
+ 
+-func HammerMutex(m *Mutex, cdone *chan bool) {
++func HammerMutex(m *Mutex, cdone chan bool) {
+ 	for i := 0; i < 1000; i++ {
+ 		m.Lock();
+ 		m.Unlock();
+@@ -41,7 +41,7 @@ func HammerMutex(m *Mutex, cdone *chan bool) {
+ }
+ 
+ export func TestMutex(t *testing.T) {
+-	m := new(Mutex);
++	m := new(*Mutex);
+ 	c := new(chan bool);
+ 	for i := 0; i < 10; i++ {
+ 		go HammerMutex(m, c);
+diff --git a/src/lib/syscall/file_linux.go b/src/lib/syscall/file_linux.go
+index 4d6982bb2b..80fc1e934f 100644
+--- a/src/lib/syscall/file_linux.go
++++ b/src/lib/syscall/file_linux.go
+@@ -15,7 +15,7 @@ const NameBufsize = 512
+ 
+ export func open(name string, mode int64, perm int64) (ret int64, errno int64) {
+ 	var namebuf [NameBufsize]byte;
+-	if !StringToBytes(&namebuf, name) {
++	if !StringToBytes(namebuf, name) {
+ 		return -1, ENAMETOOLONG
+ 	}
+ 	r1, r2, err := Syscall(SYS_OPEN, int64(uintptr(unsafe.pointer(&namebuf[0]))), mode, perm);
+@@ -24,7 +24,7 @@ export func open(name string, mode int64, perm int64) (ret int64, errno int64) {
+ 
+ export func creat(name string, perm int64) (ret int64, errno int64) {
+ 	var namebuf [NameBufsize]byte;
+-	if !StringToBytes(&namebuf, name) {
++	if !StringToBytes(namebuf, name) {
+ 		return -1, ENAMETOOLONG
+ 	}
+ 	r1, r2, err := Syscall(SYS_OPEN, int64(uintptr(unsafe.pointer(&namebuf[0]))),  O_CREAT|O_WRONLY|O_TRUNC, perm);
+@@ -59,7 +59,7 @@ export func pipe(fds *[2]int64) (ret int64, errno int64) {
+ 
+ export func stat(name string, buf *Stat) (ret int64, errno int64) {
+ 	var namebuf [NameBufsize]byte;
+-	if !StringToBytes(&namebuf, name) {
++	if !StringToBytes(namebuf, name) {
+ 		return -1, ENAMETOOLONG
+ 	}
+ 	r1, r2, err := Syscall(SYS_STAT, int64(uintptr(unsafe.pointer(&namebuf[0]))), int64(uintptr(unsafe.pointer(buf))), 0);
+@@ -78,7 +78,7 @@ export func fstat(fd int64, buf *Stat) (ret int64, errno int64) {
+ 
+ export func unlink(name string) (ret int64, errno int64) {
+ 	var namebuf [NameBufsize]byte;
+-	if !StringToBytes(&namebuf, name) {
++	if !StringToBytes(namebuf, name) {
+ 		return -1, ENAMETOOLONG
+ 	}
+ 	r1, r2, err := Syscall(SYS_UNLINK, int64(uintptr(unsafe.pointer(&namebuf[0]))), 0, 0);
+@@ -92,7 +92,7 @@ export func fcntl(fd, cmd, arg int64) (ret int64, errno int64) {
+ 
+ export func mkdir(name string, perm int64) (ret int64, errno int64) {
+ 	var namebuf [NameBufsize]byte;
+-	if !StringToBytes(&namebuf, name) {
++	if !StringToBytes(namebuf, name) {
+ 		return -1, ENAMETOOLONG
+ 	}
+ 	r1, r2, err := Syscall(SYS_MKDIR, int64(uintptr(unsafe.pointer(&namebuf[0]))), perm, 0);
+diff --git a/src/lib/tabwriter/tabwriter.go b/src/lib/tabwriter/tabwriter.go
+index 16a8ae10bb..f8df1e18d1 100644
+--- a/src/lib/tabwriter/tabwriter.go
++++ b/src/lib/tabwriter/tabwriter.go
+@@ -165,7 +165,7 @@ func (b *Writer) Init(writer io.Write, cellwidth, padding int, padchar byte, ali
+ 	b.lines_width.Init(0);
+ 	b.widths.Init(0);
+ 	b.AddLine();  // the very first line
+-	
++
+ 	return b;
+ }
+ 
+@@ -219,7 +219,7 @@ func (b *Writer) WritePadding(textw, cellw int) (err *os.Error) {
+ 	if b.padbytes[0] == '\t' {
+ 		n = (n + b.cellwidth - 1) / b.cellwidth;
+ 	}
+-	
++
+ 	for n > len(b.padbytes) {
+ 		err = b.Write0(b.padbytes);
+ 		if err != nil {
+@@ -269,7 +269,7 @@ func (b *Writer) WriteLines(pos0 int, line0, line1 int) (pos int, err *os.Error)
+ 				pos += s;
+ 			}
+ 		}
+-		
++
+ 		if i+1 == b.lines_size.Len() {
+ 			// last buffered line - we don't have a newline, so just write
+ 			// any outstanding buffered data
+@@ -291,22 +291,22 @@ exit:
+ 
+ func (b *Writer) Format(pos0 int, line0, line1 int) (pos int, err *os.Error) {
+ 	pos = pos0;
+-	column := b.widths.Len();	
++	column := b.widths.Len();
+ 	last := line0;
+ 	for this := line0; this < line1; this++ {
+ 		line_size, line_width := b.Line(this);
+-		
++
+ 		if column < line_size.Len() - 1 {
+ 			// cell exists in this column
+ 			// (note that the last cell per line is ignored)
+-			
++
+ 			// print unprinted lines until beginning of block
+ 			pos, err = b.WriteLines(pos, last, this);
+ 			if err != nil {
+ 				goto exit;
+ 			}
+ 			last = this;
+-			
++
+ 			// column block begin
+ 			width := b.cellwidth;  // minimal width
+ 			for ; this < line1; this++ {
+@@ -334,7 +334,7 @@ func (b *Writer) Format(pos0 int, line0, line1 int) (pos int, err *os.Error) {
+ 
+ 	// print unprinted lines until end
+ 	pos, err = b.WriteLines(pos, last, line1);
+-	
++
+ exit:
+ 	return pos, err;
+ }
+@@ -366,7 +366,7 @@ func UnicodeLen(buf []byte) int {
+ 	}
+ 	return l;
+ }
+- 
++
+ 
+ func (b *Writer) Append(buf []byte) {
+ 	b.buf.Append(buf);
+@@ -438,7 +438,7 @@ func (b *Writer) Append(buf []byte) {
+ 			}
+ 		}
+ 	}
+-	
++
+ 	// append leftover text
+ 	b.Append(buf[i0 : n]);
+ 	return n, nil;
+@@ -446,5 +446,5 @@ func (b *Writer) Append(buf []byte) {
+ 
+ 
+ export func New(writer io.Write, cellwidth, padding int, padchar byte, align_left, filter_html bool) *Writer {
+-	return new(Writer).Init(writer, cellwidth, padding, padchar, align_left, filter_html)
++	return new(*Writer).Init(writer, cellwidth, padding, padchar, align_left, filter_html)
+ }
+diff --git a/src/lib/testing.go b/src/lib/testing.go
+index c5a9761e75..3609a25077 100644
+--- a/src/lib/testing.go
++++ b/src/lib/testing.go
+@@ -27,7 +27,7 @@ func Tabify(s string) string {
+ export type T struct {
+ 	errors	string;
+ 	failed	bool;
+-	ch	*chan *T;
++	ch	chan *T;
+ }
+ 
+ func (t *T) Fail() {
+@@ -92,7 +92,7 @@ export func Main(tests []Test) {
+ 		if chatty {
+ 			println("=== RUN ", tests[i].name);
+ 		}
+-		t := new(T);
++		t := new(*T);
+ 		t.ch = new(chan *T);
+ 		go TRunner(t, &tests[i]);
+ 		<-t.ch;
+diff --git a/src/lib/time/tick.go b/src/lib/time/tick.go
+index f3df11c45e..a4cb786c5c 100644
+--- a/src/lib/time/tick.go
++++ b/src/lib/time/tick.go
+@@ -18,14 +18,14 @@ import (
+ // Also, if timeouts become part of the select statement,
+ // perhaps the Ticker is just:
+ //
+-//	func Ticker(ns int64, c *chan int64) {
++//	func Ticker(ns int64, c chan int64) {
+ //		for {
+ //			select { timeout ns: }
+ //			nsec, err := time.Nanoseconds();
+ //			c <- nsec;
+ //		}
+ 
+-func Ticker(ns int64, c *chan int64) {
++func Ticker(ns int64, c chan int64) {
+ 	var tv syscall.Timeval;
+ 	now := time.Nanoseconds();
+ 	when := now;
+@@ -49,7 +49,7 @@ func Ticker(ns int64, c *chan int64) {
+ 	}
+ }
+ 
+-export func Tick(ns int64) *chan int64 {
++export func Tick(ns int64) chan int64 {
+ 	if ns <= 0 {
+ 		return nil
+ 	}
+diff --git a/src/lib/time/time.go b/src/lib/time/time.go
+index 2a6a3bf018..c067cbeff4 100644
+--- a/src/lib/time/time.go
++++ b/src/lib/time/time.go
+@@ -71,7 +71,7 @@ const (
+ )
+ 
+ export func SecondsToUTC(sec int64) *Time {
+-	t := new(Time);
++	t := new(*Time);
+ 
+ 	// Split into time and day.
+ 	day := sec/SecondsPerDay;
+diff --git a/src/lib/time/zoneinfo.go b/src/lib/time/zoneinfo.go
+index 90d8adb9a3..9ac9807ab1 100644
+--- a/src/lib/time/zoneinfo.go
++++ b/src/lib/time/zoneinfo.go
+@@ -30,13 +30,12 @@ type Data struct {
+ 	error bool;
+ }
+ 
+-var NIL []byte  // TODO(rsc)
+ 
+ func (d *Data) Read(n int) []byte {
+ 	if len(d.p) < n {
+-		d.p = NIL;
++		d.p = nil;
+ 		d.error = true;
+-		return NIL;
++		return nil;
+ 	}
+ 	p := d.p[0:n];
+ 	d.p = d.p[n:len(d.p)];
+@@ -86,20 +85,19 @@ type Zonetime struct {
+ }
+ 
+ func ParseZoneinfo(bytes []byte) (zt []Zonetime, err *os.Error) {
+-	var NIL []Zonetime;  // TODO(rsc)
+ 
+ 	data1 := Data{bytes, false};
+ 	data := &data1;
+ 
+ 	// 4-byte magic "TZif"
+ 	if magic := data.Read(4); string(magic) != "TZif" {
+-		return NIL, BadZoneinfo
++		return nil, BadZoneinfo
+ 	}
+ 
+ 	// 1-byte version, then 15 bytes of padding
+ 	var p []byte;
+ 	if p = data.Read(16); len(p) != 16 || p[0] != 0 && p[0] != '2' {
+-		return NIL, BadZoneinfo
++		return nil, BadZoneinfo
+ 	}
+ 	vers := p[0];
+ 
+@@ -122,7 +120,7 @@ func ParseZoneinfo(bytes []byte) (zt []Zonetime, err *os.Error) {
+ 	for i := 0; i < 6; i++ {
+ 		nn, ok := data.Big4();
+ 		if !ok {
+-			return NIL, BadZoneinfo
++			return nil, BadZoneinfo
+ 		}
+ 		n[i] = int(nn);
+ 	}
+@@ -154,7 +152,7 @@ func ParseZoneinfo(bytes []byte) (zt []Zonetime, err *os.Error) {
+ 	isutc := data.Read(n[NUTCLocal]);
+ 
+ 	if data.error {	// ran out of data
+-		return NIL, BadZoneinfo
++		return nil, BadZoneinfo
+ 	}
+ 
+ 	// If version == 2, the entire file repeats, this time using
+@@ -169,16 +167,16 @@ func ParseZoneinfo(bytes []byte) (zt []Zonetime, err *os.Error) {
+ 		var ok bool;
+ 		var n uint32;
+ 		if n, ok = zonedata.Big4(); !ok {
+-			return NIL, BadZoneinfo
++			return nil, BadZoneinfo
+ 		}
+ 		zone[i].utcoff = int(n);
+ 		var b byte;
+ 		if b, ok = zonedata.Byte(); !ok {
+-			return NIL, BadZoneinfo
++			return nil, BadZoneinfo
+ 		}
+ 		zone[i].isdst = b != 0;
+ 		if b, ok = zonedata.Byte(); !ok || int(b) >= len(abbrev) {
+-			return NIL, BadZoneinfo
++			return nil, BadZoneinfo
+ 		}
+ 		zone[i].name = ByteString(abbrev[b:len(abbrev)])
+ 	}
+@@ -189,11 +187,11 @@ func ParseZoneinfo(bytes []byte) (zt []Zonetime, err *os.Error) {
+ 		var ok bool;
+ 		var n uint32;
+ 		if n, ok = txtimes.Big4(); !ok {
+-			return NIL, BadZoneinfo
++			return nil, BadZoneinfo
+ 		}
+ 		zt[i].time = int32(n);
+ 		if int(txzones[i]) >= len(zone) {
+-			return NIL, BadZoneinfo
++			return nil, BadZoneinfo
+ 		}
+ 		zt[i].zone = &zone[txzones[i]];
+ 		if i < len(isstd) {
+@@ -207,10 +205,9 @@ func ParseZoneinfo(bytes []byte) (zt []Zonetime, err *os.Error) {
+ }
+ 
+ func ReadFile(name string, max int) (p []byte, err *os.Error) {
+-	var NIL []byte; // TODO(rsc)
+ 	fd, e := os.Open(name, os.O_RDONLY, 0);
+ 	if e != nil {
+-		return NIL, e
++		return nil, e
+ 	}
+ 	p = new([]byte, max+1)[0:0];
+ 	n := 0;
+@@ -218,7 +215,7 @@ func ReadFile(name string, max int) (p []byte, err *os.Error) {
+ 		nn, e := fd.Read(p[n:cap(p)]);
+ 		if e != nil {
+ 			fd.Close();
+-			return NIL, e
++			return nil, e
+ 		}
+ 		if nn == 0 {
+ 			fd.Close();
+@@ -227,15 +224,14 @@ func ReadFile(name string, max int) (p []byte, err *os.Error) {
+ 		p = p[0:n+nn]
+ 	}
+ 	fd.Close();
+-	return NIL, BadZoneinfo	// too long
++	return nil, BadZoneinfo	// too long
+ }
+ 
+ 
+ func ReadZoneinfoFile(name string) (tx []Zonetime, err *os.Error) {
+-	var NIL []Zonetime;  // TODO(rsc)
+ 	data, e := ReadFile(name, MaxFileSize);
+ 	if e != nil {
+-		return NIL, e
++		return nil, e
+ 	}
+ 	tx, err = ParseZoneinfo(data);
+ 	return tx, err
+diff --git a/src/run.bash b/src/run.bash
+index 15caf72675..30166f71e9 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -26,16 +26,15 @@ maketest() {
+ maketest \
+ 	lib/fmt\
+ 	lib/hash\
++	lib/json\
+ 	lib/math\
++	lib/net\
+ 	lib/reflect\
+ 	lib/regexp\
+ 	lib/strconv\
+ 	lib/tabwriter\
+ 	lib/time\
+ 
+-#	lib/json\
+-#	lib/net\
+-
+ # all of these are subtly different
+ # from what maketest does.
+ 
+diff --git a/test/235.go b/test/235.go
+index 47d6b58ac0..4ff7c30c8c 100644
+--- a/test/235.go
++++ b/test/235.go
+@@ -8,10 +8,10 @@ package main
+ 
+ type T chan uint64;
+ 
+-func M(f uint64) (in, out *T) {
++func M(f uint64) (in, out T) {
+ 	in = new(T, 100);
+ 	out = new(T, 100);
+-	go func(in, out *T, f uint64) {
++	go func(in, out T, f uint64) {
+ 		for {
+ 			out <- f * <-in;
+ 		}
+@@ -44,8 +44,8 @@ func main() {
+ 		1250, 1280, 1296, 1350, 1440, 1458, 1500, 1536, 1600 };
+ 
+ 	x := uint64(1);
+-	ins := new([]*T, n);
+-	outs := new([]*T, n);
++	ins := new([]T, n);
++	outs := new([]T, n);
+ 	xs := new([]uint64, n);
+ 	for i := 0; i < n; i++ {
+ 		ins[i], outs[i] = M(F[i]);
+@@ -61,7 +61,7 @@ func main() {
+ 		for i := 0; i < n; i++ {
+ 			if xs[i] == x { xs[i] = <- outs[i]; }
+ 		}
+-		
++
+ 		x = min(xs);
+ 		if x != OUT[i] { panic("bad: ", x, " should be ", OUT[i]); }
+ 	}
+diff --git a/test/bugs/bug121.go b/test/bugs/bug121.go
+index cc960e318c..cea6f1b701 100644
+--- a/test/bugs/bug121.go
++++ b/test/bugs/bug121.go
+@@ -21,5 +21,5 @@ func (s *S) g() {}
+ func (s *S) h() {}  // here we can't write (s *S) T either
+ 
+ func main() {
+-	var i I = new(S);
++	var i I = new(*S);
+ }
+diff --git a/test/chan/fifo.go b/test/chan/fifo.go
+index 1152a6d666..eef494dd6f 100644
+--- a/test/chan/fifo.go
++++ b/test/chan/fifo.go
+@@ -23,7 +23,7 @@ func AsynchFifo() {
+ 	}
+ }
+ 
+-func Chain(ch *<-chan int, val int, in *<-chan int, out *chan<- int) {
++func Chain(ch <-chan int, val int, in <-chan int, out chan<- int) {
+ 	<-in;
+ 	if <-ch != val {
+ 		panic(val)
+diff --git a/test/chan/goroutines.go b/test/chan/goroutines.go
+index 3fd80f29b7..afc5ead30f 100644
+--- a/test/chan/goroutines.go
++++ b/test/chan/goroutines.go
+@@ -14,7 +14,7 @@ import (
+ 	"strconv";
+ )
+ 
+-func f(left, right *chan int) {
++func f(left, right chan int) {
+ 	left <- <-right;
+ }
+ 
+@@ -36,6 +36,6 @@ func main() {
+ 		go f(left, right);
+ 		left = right;
+ 	}
+-	go func(c *chan int) { c <- 1 }(right);
++	go func(c chan int) { c <- 1 }(right);
+ 	<-leftmost;
+ }
+diff --git a/test/chan/nonblock.go b/test/chan/nonblock.go
+index 5622e8382a..4d36bdbbf2 100644
+--- a/test/chan/nonblock.go
++++ b/test/chan/nonblock.go
+@@ -13,35 +13,35 @@ func pause() {
+ 	for i:=0; i<100; i++ { sys.gosched() }
+ }
+ 
+-func i32receiver(c *chan int32) {
++func i32receiver(c chan int32) {
+ 	if <-c != 123 { panic("i32 value") }
+ }
+ 
+-func i32sender(c *chan int32) {
++func i32sender(c chan int32) {
+ 	c <- 234
+ }
+ 
+-func i64receiver(c *chan int64) {
++func i64receiver(c chan int64) {
+ 	if <-c != 123456 { panic("i64 value") }
+ }
+ 
+-func i64sender(c *chan int64) {
++func i64sender(c chan int64) {
+ 	c <- 234567
+ }
+ 
+-func breceiver(c *chan bool) {
++func breceiver(c chan bool) {
+ 	if ! <-c { panic("b value") }
+ }
+ 
+-func bsender(c *chan bool) {
++func bsender(c chan bool) {
+ 	c <- true
+ }
+ 
+-func sreceiver(c *chan string) {
++func sreceiver(c chan string) {
+ 	if <-c != "hello" { panic("s value") }
+ }
+ 
+-func ssender(c *chan string) {
++func ssender(c chan string) {
+ 	c <- "hello again"
+ }
+ 
+@@ -57,19 +57,19 @@ func main() {
+ 		c64 := new(chan int64, buffer);
+ 		cb := new(chan bool, buffer);
+ 		cs := new(chan string, buffer);
+-	
++
+ 		i32, ok = <-c32;
+ 		if ok { panic("blocked i32sender") }
+-	
++
+ 		i64, ok = <-c64;
+ 		if ok { panic("blocked i64sender") }
+-	
++
+ 		b, ok = <-cb;
+ 		if ok { panic("blocked bsender") }
+-	
++
+ 		s, ok = <-cs;
+ 		if ok { panic("blocked ssender") }
+-	
++
+ 		go i32receiver(c32);
+ 		pause();
+ 		ok = c32 <- 123;
+@@ -79,7 +79,7 @@ func main() {
+ 		i32, ok = <-c32;
+ 		if !ok { panic("i32sender") }
+ 		if i32 != 234 { panic("i32sender value") }
+-	
++
+ 		go i64receiver(c64);
+ 		pause();
+ 		ok = c64 <- 123456;
+@@ -89,7 +89,7 @@ func main() {
+ 		i64, ok = <-c64;
+ 		if !ok { panic("i64sender") }
+ 		if i64 != 234567 { panic("i64sender value") }
+-	
++
+ 		go breceiver(cb);
+ 		pause();
+ 		ok = cb <- true;
+@@ -99,7 +99,7 @@ func main() {
+ 		b, ok = <-cb;
+ 		if !ok { panic("bsender") }
+ 		if !b{ panic("bsender value") }
+-	
++
+ 		go sreceiver(cs);
+ 		pause();
+ 		ok = cs <- "hello";
+diff --git a/test/chan/powser1.go b/test/chan/powser1.go
+index 8222de0392..a010f69951 100644
+--- a/test/chan/powser1.go
++++ b/test/chan/powser1.go
+@@ -30,8 +30,8 @@ func (u *rat) eq(c item) bool {
+ }
+ 
+ type dch struct {
+-	req *chan  int;
+-	dat *chan  item;
++	req chan  int;
++	dat chan  item;
+ 	nam int;
+ }
+ 
+@@ -46,7 +46,7 @@ func Init();
+ func mkdch() *dch {
+ 	c := chnameserial % len(chnames);
+ 	chnameserial++;
+-	d := new(dch);
++	d := new(*dch);
+ 	d.req = new(chan int);
+ 	d.dat = new(chan item);
+ 	d.nam = c;
+@@ -54,7 +54,7 @@ func mkdch() *dch {
+ }
+ 
+ func mkdch2() *dch2 {
+-	d2 := new(dch2);
++	d2 := new(*dch2);
+ 	d2[0] = mkdch();
+ 	d2[1] = mkdch();
+ 	return d2;
+@@ -74,7 +74,7 @@ func mkdch2() *dch2 {
+ // a signal on the release-wait channel tells the next newer
+ // generation to begin servicing out[1].
+ 
+-func dosplit(in *dch, out *dch2, wait *chan int ){
++func dosplit(in *dch, out *dch2, wait chan int ){
+ 	var t *dch;
+ 	both := false;	// do not service both channels
+ 
+@@ -127,9 +127,9 @@ func get(in *dch) *rat {
+ func getn(in []*dch, n int) []item {
+ 	// BUG n:=len(in);
+ 	if n != 2 { panic("bad n in getn") };
+-	req := new([2] *chan int);
+-	dat := new([2] *chan item);
+-	out := new([2] item);
++	req := new(*[2] chan int);
++	dat := new(*[2] chan item);
++	out := new([]item, 2);
+ 	var i int;
+ 	var it item;
+ 	for i=0; i<n; i++ {
+@@ -159,11 +159,8 @@ func getn(in []*dch, n int) []item {
+ 
+ // Get one item from each of 2 demand channels
+ 
+-func get2(in0 *dch, in1 *dch)  []item {
+-	x := new([2] *dch);
+-	x[0] = in0;
+-	x[1] = in1;
+-	return getn(x, 2);
++func get2(in0 *dch, in1 *dch) []item {
++	return getn([]*dch{in0, in1}, 2);
+ }
+ 
+ func copy(in *dch, out *dch){
+@@ -211,7 +208,7 @@ func gcd (u, v int64) int64{
+ 
+ func i2tor(u, v int64) *rat{
+ 	g := gcd(u,v);
+-	r := new(rat);
++	r := new(*rat);
+ 	if v > 0 {
+ 		r.num = u/g;
+ 		r.den = v/g;
+@@ -249,7 +246,7 @@ func add(u, v *rat) *rat {
+ func mul(u, v *rat) *rat{
+ 	g1 := gcd(u.num,v.den);
+ 	g2 := gcd(u.den,v.num);
+-	r := new(rat);
++	r := new(*rat);
+ 	r.num =(u.num/g1)*(v.num/g2);
+ 	r.den = (u.den/g2)*(v.den/g1);
+ 	return r;
+@@ -649,7 +646,7 @@ func main() {
+ 		check(Ones, one, 5, "Ones");
+ 		check(Add(Ones, Ones), itor(2), 0, "Add Ones Ones");  // 1 1 1 1 1
+ 		check(Add(Ones, Twos), itor(3), 0, "Add Ones Twos"); // 3 3 3 3 3
+-		a := new([N] *rat);
++		a := new([] *rat, N);
+ 		d := Diff(Ones);
+ 		// BUG: want array initializer
+ 		for i:=0; i < N; i++ {
+diff --git a/test/chan/powser2.go b/test/chan/powser2.go
+index c72c2fad55..5f2d1dc8cb 100644
+--- a/test/chan/powser2.go
++++ b/test/chan/powser2.go
+@@ -35,8 +35,8 @@ func (u *rat) eq(c item) bool {
+ }
+ 
+ type dch struct {
+-	req *chan  int;
+-	dat *chan  item;
++	req chan  int;
++	dat chan  item;
+ 	nam int;
+ }
+ 
+@@ -51,7 +51,7 @@ func Init();
+ func mkdch() *dch {
+ 	c := chnameserial % len(chnames);
+ 	chnameserial++;
+-	d := new(dch);
++	d := new(*dch);
+ 	d.req = new(chan int);
+ 	d.dat = new(chan item);
+ 	d.nam = c;
+@@ -59,7 +59,7 @@ func mkdch() *dch {
+ }
+ 
+ func mkdch2() *dch2 {
+-	d2 := new(dch2);
++	d2 := new(*dch2);
+ 	d2[0] = mkdch();
+ 	d2[1] = mkdch();
+ 	return d2;
+@@ -79,7 +79,7 @@ func mkdch2() *dch2 {
+ // a signal on the release-wait channel tells the next newer
+ // generation to begin servicing out[1].
+ 
+-func dosplit(in *dch, out *dch2, wait *chan int ){
++func dosplit(in *dch, out *dch2, wait chan int ){
+ 	var t *dch;
+ 	both := false;	// do not service both channels
+ 
+@@ -132,9 +132,9 @@ func get(in *dch) *rat {
+ func getn(in []*dch, n int) []item {
+ 	// BUG n:=len(in);
+ 	if n != 2 { panic("bad n in getn") };
+-	req := new([2] *chan int);
+-	dat := new([2] *chan item);
+-	out := new([2] item);
++	req := new([] chan int, 2);
++	dat := new([] chan item, 2);
++	out := new([]item, 2);
+ 	var i int;
+ 	var it item;
+ 	for i=0; i<n; i++ {
+@@ -165,10 +165,7 @@ func getn(in []*dch, n int) []item {
+ // Get one item from each of 2 demand channels
+ 
+ func get2(in0 *dch, in1 *dch)  []item {
+-	x := new([2] *dch);
+-	x[0] = in0;
+-	x[1] = in1;
+-	return getn(x, 2);
++	return getn([]*dch{in0, in1}, 2);
+ }
+ 
+ func copy(in *dch, out *dch){
+@@ -216,7 +213,7 @@ func gcd (u, v int64) int64{
+ 
+ func i2tor(u, v int64) *rat{
+ 	g := gcd(u,v);
+-	r := new(rat);
++	r := new(*rat);
+ 	if v > 0 {
+ 		r.num = u/g;
+ 		r.den = v/g;
+@@ -254,7 +251,7 @@ func add(u, v *rat) *rat {
+ func mul(u, v *rat) *rat{
+ 	g1 := gcd(u.num,v.den);
+ 	g2 := gcd(u.den,v.num);
+-	r := new(rat);
++	r := new(*rat);
+ 	r.num =(u.num/g1)*(v.num/g2);
+ 	r.den = (u.den/g2)*(v.den/g1);
+ 	return r;
+@@ -654,7 +651,7 @@ func main() {
+ 		check(Ones, one, 5, "Ones");
+ 		check(Add(Ones, Ones), itor(2), 0, "Add Ones Ones");  // 1 1 1 1 1
+ 		check(Add(Ones, Twos), itor(3), 0, "Add Ones Twos"); // 3 3 3 3 3
+-		a := new([N] *rat);
++		a := new([]*rat, N);
+ 		d := Diff(Ones);
+ 		// BUG: want array initializer
+ 		for i:=0; i < N; i++ {
+diff --git a/test/chan/select.go b/test/chan/select.go
+index 470e151818..3158ee6c29 100644
+--- a/test/chan/select.go
++++ b/test/chan/select.go
+@@ -14,7 +14,7 @@ func GetValue() uint {
+   return 1 << shift
+ }
+ 
+-func Send(a, b *chan uint) int {
++func Send(a, b chan uint) int {
+   var i int;
+   LOOP:
+     for {
+diff --git a/test/chan/sieve.go b/test/chan/sieve.go
+index f45373b483..b6bcdb33da 100644
+--- a/test/chan/sieve.go
++++ b/test/chan/sieve.go
+@@ -10,7 +10,7 @@
+ package main
+ 
+ // Send the sequence 2, 3, 4, ... to channel 'ch'.
+-func Generate(ch *chan<- int) {
++func Generate(ch chan<- int) {
+ 	for i := 2; ; i++ {
+ 		ch <- i  // Send 'i' to channel 'ch'.
+ 	}
+@@ -18,7 +18,7 @@ func Generate(ch *chan<- int) {
+ 
+ // Copy the values from channel 'in' to channel 'out',
+ // removing those divisible by 'prime'.
+-func Filter(in *<-chan int, out *chan<- int, prime int) {
++func Filter(in <-chan int, out chan<- int, prime int) {
+ 	for {
+ 		i := <-in;  // Receive value of new variable 'i' from 'in'.
+ 		if i % prime != 0 {
+@@ -28,7 +28,7 @@ func Filter(in *<-chan int, out *chan<- int, prime int) {
+ }
+ 
+ // The prime sieve: Daisy-chain Filter processes together.
+-func Sieve(primes *chan<- int) {
++func Sieve(primes chan<- int) {
+ 	ch := new(chan int);  // Create a new channel.
+ 	go Generate(ch);  // Start Generate() as a subprocess.
+ 	for {
+diff --git a/test/complit.go b/test/complit.go
+index 43f090412e..ca3c8e0483 100644
+--- a/test/complit.go
++++ b/test/complit.go
+@@ -11,7 +11,7 @@ type T struct { i int; f float; s string; next *T }
+ type R struct { num int }
+ 
+ func itor(a int) *R {
+-	r := new(R);
++	r := new(*R);
+ 	r.num = a;
+ 	return r;
+ }
+@@ -49,12 +49,12 @@ func main() {
+ 	if len(at) != 3 { panic("at") }
+ 
+ 	c := new(chan int);
+-	ac := []*chan int{c, c, c};
++	ac := []chan int{c, c, c};
+ 	if len(ac) != 3 { panic("ac") }
+ 
+ 	aat := [][len(at)]*T{at, at};
+ 	if len(aat) != 2 || len(aat[1]) != 3 { panic("at") }
+-	
++
+ 	s := string([]byte{'h', 'e', 'l', 'l', 'o'});
+ 	if s != "hello" { panic("s") }
+ 
+@@ -62,7 +62,7 @@ func main() {
+ 	if len(m) != 3 { panic("m") }
+ 
+ 	eq(&[]*R{itor(0), itor(1), itor(2), itor(3), itor(4), itor(5)});
+-	
++
+ 	p1 := NewP(1, 2);
+ 	p2 := NewP(1, 2);
+ 	if p1 == p2 { panic("NewP") }
+diff --git a/test/fixedbugs/bug011.go b/test/fixedbugs/bug011.go
+index 63673c0865..c2d9cde6c0 100644
+--- a/test/fixedbugs/bug011.go
++++ b/test/fixedbugs/bug011.go
+@@ -16,7 +16,7 @@ func (t *T) m(a int, b float) int {
+ }
+ 
+ func main() {
+-	var t *T = new(T);
++	var t *T = new(*T);
+ 	t.x = 1;
+ 	t.y = 2;
+ 	r10 := t.m(1, 3.0);
+diff --git a/test/fixedbugs/bug026.go b/test/fixedbugs/bug026.go
+index 1d97c18ae5..d8a1d77851 100644
+--- a/test/fixedbugs/bug026.go
++++ b/test/fixedbugs/bug026.go
+@@ -18,8 +18,8 @@ func (v *Vector) Insert(i int, e Element) {
+ 
+ func main() {
+ 	type I struct { val int; };  // BUG: can't be local; works if global
+-	v := new(Vector);
+-	v.Insert(0, new(I));
++	v := new(*Vector);
++	v.Insert(0, new(*I));
+ }
+ /*
+ check: main_sigs_I: not defined
+diff --git a/test/fixedbugs/bug027.go b/test/fixedbugs/bug027.go
+index 2c595cb830..95bc064127 100644
+--- a/test/fixedbugs/bug027.go
++++ b/test/fixedbugs/bug027.go
+@@ -15,9 +15,9 @@ type Vector struct {
+ }
+ 
+ func New() *Vector {
+-	v := new(Vector);
++	v := new(*Vector);
+ 	v.nelem = 0;
+-	v.elem = new([10]Element);
++	v.elem = new(*[10]Element);
+ 	return v;
+ }
+ 
+@@ -33,11 +33,11 @@ func (v *Vector) Insert(e Element) {
+ type I struct { val int; };  // BUG: can't be local;
+ 
+ func main() {
+-	i0 := new(I); i0.val = 0;
+-	i1 := new(I); i1.val = 11;
+-	i2 := new(I); i2.val = 222;
+-	i3 := new(I); i3.val = 3333;
+-	i4 := new(I); i4.val = 44444;
++	i0 := new(*I); i0.val = 0;
++	i1 := new(*I); i1.val = 11;
++	i2 := new(*I); i2.val = 222;
++	i3 := new(*I); i3.val = 3333;
++	i4 := new(*I); i4.val = 44444;
+ 	v := New();
+ 	print("hi\n");
+ 	v.Insert(i4);
+diff --git a/test/fixedbugs/bug038.go b/test/fixedbugs/bug038.go
+index 7585376a36..444a04252b 100644
+--- a/test/fixedbugs/bug038.go
++++ b/test/fixedbugs/bug038.go
+@@ -9,5 +9,5 @@ package main
+ 
+ func main() {
+ 	var z [3]byte;
+-	z := new([3]byte);  // BUG redeclaration
++	z := new(*[3]byte);  // BUG redeclaration
+ }
+diff --git a/test/fixedbugs/bug045.go b/test/fixedbugs/bug045.go
+index d8a712c6da..9e94f44739 100644
+--- a/test/fixedbugs/bug045.go
++++ b/test/fixedbugs/bug045.go
+@@ -13,7 +13,7 @@ type T struct {
+ func main() {
+ 	var ta []*T;
+ 
+-	ta = new([1]*T);
++	ta = new(*[1]*T);
+ 	ta[0] = nil;
+ }
+ /*
+diff --git a/test/fixedbugs/bug054.go b/test/fixedbugs/bug054.go
+index decf5841df..f4d7c27faa 100644
+--- a/test/fixedbugs/bug054.go
++++ b/test/fixedbugs/bug054.go
+@@ -30,12 +30,12 @@ func (s *TStruct) field(i int) *TStruct {
+ }
+ 
+ func main() {
+-	v := new(Vector);
+-	v.elem = new([10]Element);
+-	t := new(TStruct);
++	v := new(*Vector);
++	v.elem = new(*[10]Element);
++	t := new(*TStruct);
+ 	t.name = "hi";
+ 	v.elem[0] = t;
+-	s := new(TStruct);
++	s := new(*TStruct);
+ 	s.name = "foo";
+ 	s.fields = v;
+ 	if s.field(0).name != "hi" {
+diff --git a/test/fixedbugs/bug058.go b/test/fixedbugs/bug058.go
+index f44181546b..2cfe19de4a 100644
+--- a/test/fixedbugs/bug058.go
++++ b/test/fixedbugs/bug058.go
+@@ -7,8 +7,8 @@
+ package main
+ 
+ type Box struct {};
+-var m *map[string] *Box;
+-  
++var m map[string] *Box;
++
+ func main() {
+   m := new(map[string] *Box);
+   s := "foo";
+diff --git a/test/fixedbugs/bug059.go b/test/fixedbugs/bug059.go
+index 5a29ed1f09..55c05f6806 100644
+--- a/test/fixedbugs/bug059.go
++++ b/test/fixedbugs/bug059.go
+@@ -20,7 +20,7 @@ func P(a []string) string {
+ 
+ func main() {
+ 	m := new(map[string] []string);
+-	as := new([2]string);
++	as := new(*[2]string);
+ 	as[0] = "0";
+ 	as[1] = "1";
+ 	m["0"] = as;
+diff --git a/test/fixedbugs/bug066.go b/test/fixedbugs/bug066.go
+index ab69257920..4f64152aec 100644
+--- a/test/fixedbugs/bug066.go
++++ b/test/fixedbugs/bug066.go
+@@ -12,7 +12,7 @@ type (
+ )
+ 
+ type Scope struct {
+-	entries *map[string] *Object;
++	entries map[string] *Object;
+ }
+ 
+ 
+diff --git a/test/fixedbugs/bug067.go b/test/fixedbugs/bug067.go
+index fd22cd6f89..1e747ebba8 100644
+--- a/test/fixedbugs/bug067.go
++++ b/test/fixedbugs/bug067.go
+@@ -6,7 +6,7 @@
+ 
+ package main
+ 
+-var c *chan int
++var c chan int
+ 
+ func main() {
+ 	c = new(chan int);
+diff --git a/test/fixedbugs/bug069.go b/test/fixedbugs/bug069.go
+index 51e034d654..2e538469b3 100644
+--- a/test/fixedbugs/bug069.go
++++ b/test/fixedbugs/bug069.go
+@@ -13,6 +13,6 @@ func main(){
+ 
+ 	i, ok = <-c;  // works
+ 
+-	ca := new([2]*chan int);
++	ca := new(*[2]chan int);
+ 	i, ok = <-(ca[0]);  // fails: c.go:11: bad shape across assignment - cr=1 cl=2
+ }
+diff --git a/test/fixedbugs/bug071.go b/test/fixedbugs/bug071.go
+index 8af54626ee..665a441bdb 100644
+--- a/test/fixedbugs/bug071.go
++++ b/test/fixedbugs/bug071.go
+@@ -14,7 +14,7 @@ func (u *rat) pr() {
+ }
+ 
+ type dch struct {
+-	dat *chan  *rat;
++	dat chan  *rat;
+ }
+ 
+ func dosplit(in *dch){
+diff --git a/test/fixedbugs/bug075.go b/test/fixedbugs/bug075.go
+index 01b0fe0e7f..c1b8647453 100644
+--- a/test/fixedbugs/bug075.go
++++ b/test/fixedbugs/bug075.go
+@@ -6,9 +6,9 @@
+ 
+ package main
+ 
+-type T struct { m *map[int]int }
++type T struct { m map[int]int }
+ func main() {
+-	t := new(T);
++	t := new(*T);
+ 	t.m = new(map[int]int);
+ 	var x int;
+ 	var ok bool;
+diff --git a/test/fixedbugs/bug078.go b/test/fixedbugs/bug078.go
+index 3ffadb7d00..ddd3faeba4 100644
+--- a/test/fixedbugs/bug078.go
++++ b/test/fixedbugs/bug078.go
+@@ -6,7 +6,7 @@
+ 
+ package main
+ 
+-func dosplit(wait *chan int ){
++func dosplit(wait chan int ){
+ 	select {
+ 	case <-wait:
+ 	}
+diff --git a/test/fixedbugs/bug084.go b/test/fixedbugs/bug084.go
+index a5ccdb37c5..138b6da4b1 100644
+--- a/test/fixedbugs/bug084.go
++++ b/test/fixedbugs/bug084.go
+@@ -18,6 +18,6 @@ var arith Service
+ 
+ func main() {
+ 	c := new(chan string);
+-	a := new(Service);
++	a := new(*Service);
+ 	go a.Serve(1234);
+ }
+diff --git a/test/fixedbugs/bug099.go b/test/fixedbugs/bug099.go
+index f76f0e873c..2b1776c1f5 100644
+--- a/test/fixedbugs/bug099.go
++++ b/test/fixedbugs/bug099.go
+@@ -18,7 +18,7 @@ func (s *S) F() int { return 1 }
+ // if you take it out (and the 0s below)
+ // then the bug goes away.
+ func NewI(i int) I {
+-	return new(S)
++	return new(*S)
+ }
+ 
+ // Uses interface method.
+diff --git a/test/fixedbugs/bug111.go b/test/fixedbugs/bug111.go
+index 39da9b4dd6..ee61cd8302 100644
+--- a/test/fixedbugs/bug111.go
++++ b/test/fixedbugs/bug111.go
+@@ -22,7 +22,7 @@ func (s *Stucky) Me() Iffy {
+ }
+ 
+ func main() {
+-	s := new(Stucky);
++	s := new(*Stucky);
+ 	i := s.Me();
+ 	j := i.Me();
+ 	j.Me();
+diff --git a/test/fixedbugs/bug118.go b/test/fixedbugs/bug118.go
+index 778b533c76..d508d83533 100644
+--- a/test/fixedbugs/bug118.go
++++ b/test/fixedbugs/bug118.go
+@@ -6,7 +6,7 @@
+ 
+ package main
+ 
+-export func Send(c *chan int) int {
++export func Send(c chan int) int {
+   select {
+   default:
+     return 1;
+diff --git a/test/func.go b/test/func.go
+index ee9414ddc4..7b15f7477a 100644
+--- a/test/func.go
++++ b/test/func.go
+@@ -81,7 +81,7 @@ func main() {
+ 	r9, s9 := f9(1);
+ 	assertequal(r9, 9, "r9");
+ 	assertequal(int(s9), 9, "s9");
+-	var t *T = new(T);
++	var t *T = new(*T);
+ 	t.x = 1;
+ 	t.y = 2;
+ 	r10 := t.m10(1, 3.0);
+diff --git a/test/hashmap.go b/test/hashmap.go
+index 86a3422726..d458b8c973 100755
+--- a/test/hashmap.go
++++ b/test/hashmap.go
+@@ -64,7 +64,7 @@ func (m *HashMap) Clear() {
+ 
+ func (m *HashMap) Initialize (initial_log2_capacity uint32) {
+ 	m.log2_capacity_ = initial_log2_capacity;
+-	m.map_ = new([1024] Entry);
++	m.map_ = new(*[1024] Entry);
+ 	m.Clear();
+ }
+ 
+@@ -74,7 +74,7 @@ func (m *HashMap) Probe (key *KeyType) *Entry {
+ 
+ 	var i uint32 = key.Hash() % m.capacity();
+ 	ASSERT(0 <= i && i < m.capacity());
+-	
++
+ 	ASSERT(m.occupancy_ < m.capacity());	// guarantees loop termination
+ 	for m.map_[i].key != nil && !m.map_[i].key.Match(key) {
+ 		i++;
+@@ -82,7 +82,7 @@ func (m *HashMap) Probe (key *KeyType) *Entry {
+ 			i = 0;
+ 		}
+ 	}
+-	
++
+ 	return &m.map_[i];
+ }
+ 
+@@ -102,13 +102,13 @@ func (m *HashMap) Lookup (key *KeyType, insert bool) *Entry {
+ 		p.key = key;
+ 		p.value = nil;
+ 		m.occupancy_++;
+-	
++
+ 		// Grow the map if we reached >= 80% occupancy.
+ 		if m.occupancy_ + m.occupancy_/4 >= m.capacity() {
+ 			m.Resize();
+ 			p = m.Probe(key);
+ 		}
+-		
++
+ 		return p;
+ 	}
+ 
+@@ -120,10 +120,10 @@ func (m *HashMap) Lookup (key *KeyType, insert bool) *Entry {
+ func (m *HashMap) Resize() {
+ 	var hmap *[1024] Entry = m.map_;
+ 	var n uint32 = m.occupancy_;
+-	
++
+ 	// Allocate a new map of twice the current size.
+ 	m.Initialize(m.log2_capacity_ << 1);
+-	
++
+ 	// Rehash all current entries.
+ 	var i uint32 = 0;
+ 	for n > 0 {
+@@ -157,7 +157,7 @@ func (n *Number) Match(other *KeyType) bool {
+ 
+ 
+ func MakeNumber (x uint32) *Number {
+-	var n *Number = new(Number);
++	var n *Number = new(*Number);
+ 	n.x = x;
+ 	return n;
+ }
+@@ -167,18 +167,18 @@ func main() {
+ 	//f unc (n int) int { return n + 1; }(1);
+ 
+ 	//print "HashMap - gri 2/8/2008\n";
+-	
+-	var hmap *HashMap = new(HashMap);
++
++	var hmap *HashMap = new(*HashMap);
+ 	hmap.Initialize(0);
+-	
++
+ 	var x1 *Number = MakeNumber(1001);
+ 	var x2 *Number = MakeNumber(2002);
+ 	var x3 *Number = MakeNumber(3003);
+-	
++
+ 	// this doesn't work I think...
+ 	//hmap.Lookup(x1, true);
+ 	//hmap.Lookup(x2, true);
+ 	//hmap.Lookup(x3, true);
+-	
++
+ 	//print "done\n";
+ }
+diff --git a/test/hilbert.go b/test/hilbert.go
+index b2b916b132..415e957f84 100644
+--- a/test/hilbert.go
++++ b/test/hilbert.go
+@@ -47,7 +47,7 @@ func (a *Matrix) set(i, j int, x *Big.Rational) {
+ 
+ func NewMatrix(n, m int) *Matrix {
+ 	assert(0 <= n && 0 <= m);
+-	a := new(Matrix);
++	a := new(*Matrix);
+ 	a.n = n;
+ 	a.m = m;
+ 	a.a = new([]*Big.Rational, n*m);
+diff --git a/test/initcomma.go b/test/initcomma.go
+index d4bff2a888..d86ddbac43 100644
+--- a/test/initcomma.go
++++ b/test/initcomma.go
+@@ -7,7 +7,7 @@
+ package main
+ 
+ var a = []int { 1, 2, }
+-var b = [5]int { }
++var b = []int { }
+ var c = []int { 1 }
+ 
+ func main() {
+diff --git a/test/interface1.go b/test/interface1.go
+index 649a955f6d..a053ed3e91 100644
+--- a/test/interface1.go
++++ b/test/interface1.go
+@@ -28,8 +28,8 @@ func AddInst(Inst) *Inst {
+ }
+ 
+ func main() {
+-	re := new(Regexp);
++	re := new(*Regexp);
+ 	print("call addinst\n");
+-	var x Inst = AddInst(new(Start));	// ERROR "illegal|incompatible"
++	var x Inst = AddInst(new(*Start));	// ERROR "illegal|incompatible"
+ 	print("return from  addinst\n");
+ }
+diff --git a/test/ken/array.go b/test/ken/array.go
+index 167830e575..2027a31fff 100644
+--- a/test/ken/array.go
++++ b/test/ken/array.go
+@@ -95,7 +95,7 @@ testpfpf()
+ func
+ testpdpf1()
+ {
+-	a := new([40]int);
++	a := new(*[40]int);
+ 	setpd(a);
+ 	res(sumpd(a), 0, 40);
+ 
+diff --git a/test/ken/chan.go b/test/ken/chan.go
+index 64758537eb..da08477e65 100644
+--- a/test/ken/chan.go
++++ b/test/ken/chan.go
+@@ -22,7 +22,7 @@ nrand(n int) int
+ type	Chan
+ struct
+ {
+-	sc,rc	*chan int;	// send and recv chan
++	sc,rc	chan int;	// send and recv chan
+ 	sv,rv	int;		// send and recv seq
+ }
+ 
+@@ -38,7 +38,7 @@ var
+ func
+ init()
+ {
+-	nc = new(Chan);
++	nc = new(*Chan);
+ }
+ 
+ func
+@@ -47,7 +47,7 @@ mkchan(c,n int) []*Chan
+ 	ca := new([]*Chan, n);
+ 	for i:=0; i<n; i++ {
+ 		cval = cval+100;
+-		ch := new(Chan);
++		ch := new(*Chan);
+ 		ch.sc = new(chan int, c);
+ 		ch.rc = ch.sc;
+ 		ch.sv = cval;
+diff --git a/test/ken/embed.go b/test/ken/embed.go
+index f0c9f4ec2b..42e83e44fd 100644
+--- a/test/ken/embed.go
++++ b/test/ken/embed.go
+@@ -166,10 +166,10 @@ main()
+ 	var s *S;
+ 
+ 	// allocate
+-	s = new(S);
+-	s.Subp = new(Subp);
+-	s.Sub.SubSubp = new(SubSubp);
+-	s.Subp.SubpSubp = new(SubpSubp);
++	s = new(*S);
++	s.Subp = new(*Subp);
++	s.Sub.SubSubp = new(*SubSubp);
++	s.Subp.SubpSubp = new(*SubpSubp);
+ 
+ 	// explicit assignment
+ 	s.a = 1;
+diff --git a/test/ken/interfun.go b/test/ken/interfun.go
+index 97db893168..4ab2b8b9fe 100644
+--- a/test/ken/interfun.go
++++ b/test/ken/interfun.go
+@@ -40,7 +40,7 @@ main()
+ 	var i2 I2;
+ 	var g *S;
+ 
+-	s := new(S);
++	s := new(*S);
+ 	s.a = 5;
+ 	s.b = 6;
+ 
+diff --git a/test/ken/intervar.go b/test/ken/intervar.go
+index 1c3d650006..711568b4cb 100644
+--- a/test/ken/intervar.go
++++ b/test/ken/intervar.go
+@@ -58,9 +58,9 @@ puts(s string)
+ func
+ main()
+ {
+-	p := new(Print);
+-	b := new(Bio);
+-	f := new(File);
++	p := new(*Print);
++	b := new(*Bio);
++	f := new(*File);
+ 
+ 	p.whoami = 1;
+ 	p.put = b;
+diff --git a/test/ken/ptrfun.go b/test/ken/ptrfun.go
+index e7db3a94d3..949cb823e5 100644
+--- a/test/ken/ptrfun.go
++++ b/test/ken/ptrfun.go
+@@ -27,7 +27,7 @@ main()
+ 	var v int;
+ 	var c *C;
+ 
+-	c = new(C);
++	c = new(*C);
+ 	c.a = 6;
+ 	c.x = &g;
+ 
+diff --git a/test/ken/range.go b/test/ken/range.go
+index 2831806bf2..5bb6d55dc2 100644
+--- a/test/ken/range.go
++++ b/test/ken/range.go
+@@ -10,7 +10,7 @@ const	size	= 16;
+ 
+ var	a	[size]byte;
+ var	p	[]byte;
+-var	m	*map[int]byte;
++var	m	map[int]byte;
+ 
+ func
+ f(k int) byte
+diff --git a/test/ken/rob1.go b/test/ken/rob1.go
+index a75878b1f5..35397b36ff 100644
+--- a/test/ken/rob1.go
++++ b/test/ken/rob1.go
+@@ -31,7 +31,7 @@ Init()
+ func (list *List)
+ Insert(i Item)
+ {
+-	item := new(ListItem);
++	item := new(*ListItem);
+ 	item.item = i;
+ 	item.next = list.head;
+ 	list.head = item;
+@@ -69,10 +69,10 @@ Print()
+ func
+ main()
+ {
+-	list := new(List);
++	list := new(*List);
+ 	list.Init();
+ 	for i := 0; i < 10; i = i + 1 {
+-		integer := new(Integer);
++		integer := new(*Integer);
+ 		integer.Init(i);
+ 		list.Insert(integer);
+ 	}
+diff --git a/test/ken/rob2.go b/test/ken/rob2.go
+index 7d2eecbf7d..9cb2ff3dda 100644
+--- a/test/ken/rob2.go
++++ b/test/ken/rob2.go
+@@ -213,7 +213,7 @@ func ParseList() *Slist
+ {
+ 	var slist, retval *Slist;
+ 
+-	slist = new(Slist);
++	slist = new(*Slist);
+ 	slist.list.car = nil;
+ 	slist.list.cdr = nil;
+ 	slist.isatom = false;
+@@ -225,7 +225,7 @@ func ParseList() *Slist
+ 		if token == ')' || token == EOF {	// empty cdr
+ 			break;
+ 		}
+-		slist.list.cdr = new(Slist);
++		slist.list.cdr = new(*Slist);
+ 		slist = slist.list.cdr;
+ 	}
+ 	return retval;
+@@ -236,7 +236,7 @@ func atom(i int) *Slist	// BUG: uses tokenbuf; should take argument
+ 	var h, length int;
+ 	var slist, tail *Slist;
+ 
+-	slist = new(Slist);
++	slist = new(*Slist);
+ 	if token == '0' {
+ 		slist.atom.integer = i;
+ 		slist.isstring = false;
+diff --git a/test/ken/robfunc.go b/test/ken/robfunc.go
+index 12b4b6d7b6..947016fac1 100644
+--- a/test/ken/robfunc.go
++++ b/test/ken/robfunc.go
+@@ -86,7 +86,7 @@ func main() {
+ 	r9, s9 = f9(1);
+ 	assertequal(r9, 9, "r9");
+ 	assertequal(int(s9), 9, "s9");
+-	var t *T = new(T);
++	var t *T = new(*T);
+ 	t.x = 1;
+ 	t.y = 2;
+ 	r10 := t.m10(1, 3.0);
+diff --git a/test/ken/simparray.go b/test/ken/simparray.go
+index 90331e5e3d..f68ff145bb 100644
+--- a/test/ken/simparray.go
++++ b/test/ken/simparray.go
+@@ -35,7 +35,7 @@ main()
+ 
+ 	if s2 != 35 { panic(s2); }
+ 
+-	b := new([100]int);
++	b := new(*[100]int);
+ 	for i:=0; i<100; i=i+1 {
+ 		b[i] = i;
+ 	}
+diff --git a/test/ken/simpbool.go b/test/ken/simpbool.go
+index aad111dd55..28ddafe158 100644
+--- a/test/ken/simpbool.go
++++ b/test/ken/simpbool.go
+@@ -30,7 +30,7 @@ main()
+ 	if !!!a { panic(6); }
+ 
+ 	var x *s;
+-	x = new(s);
++	x = new(*s);
+ 	x.a = true;
+ 	x.b = false;
+ 
+diff --git a/test/ken/string.go b/test/ken/string.go
+index 3a15beeffa..7e3aa902b0 100644
+--- a/test/ken/string.go
++++ b/test/ken/string.go
+@@ -92,7 +92,7 @@ main()
+ 	}
+ 
+ 	/* create string with byte array pointer */
+-	z2 := new([3]byte);
++	z2 := new(*[3]byte);
+ 	z2[0] = 'a';
+ 	z2[1] = 'b';
+ 	z2[2] = 'c';
+diff --git a/test/map.go b/test/map.go
+index a0175feac4..7182aa08fb 100644
+--- a/test/map.go
++++ b/test/map.go
+@@ -46,8 +46,8 @@ func main() {
+ 	//mit := new(map[int] T);	// should be able to do a value but:  fatal error: algtype: cant find type <T>{}
+ 	//mti := new(map[T] int);	// should be able to do a value but:  fatal error: algtype: cant find type <T>{}
+ 
+-	type M map[int] int; 
+-	mipM := new(map[int] *M);
++	type M map[int] int;
++	mipM := new(map[int] M);
+ 
+ 	const count = 100; // BUG: should be bigger but maps do linear lookup
+ 	var apT [2*count]*T;
+@@ -55,14 +55,14 @@ func main() {
+ 	for i := 0; i < count; i++ {
+ 		s := F.d(i).str();
+ 		f := float(i);
+-		apT[i] = new(T);
++		apT[i] = new(*T);
+ 		apT[i].s = s;
+ 		apT[i].f = f;
+-		apT[2*i] = new(T);	// need twice as many entries as we use, for the nonexistence check
++		apT[2*i] = new(*T);	// need twice as many entries as we use, for the nonexistence check
+ 		apT[2*i].s = s;
+ 		apT[2*i].f = f;
+ 		// BUG t := T(s, f);
+-		t := new(T); t.s = s; t.f = f;
++		t := new(*T); t.s = s; t.f = f;
+ 		// BUG m := M(i, i+1);
+ 		m := new(M); m[i] = i+1;
+ 		mib[i] = (i != 0);
+@@ -73,7 +73,7 @@ func main() {
+ 		msi[F.d(i).str()] = i;
+ 		mss[F.d(i).str()] = F.d(10*i).str();
+ 		mss[F.d(i).str()] = F.d(10*i).str();
+-		as := new([arraylen]string);
++		as := new([]string, arraylen);
+ 			as[0] = F.d(10*i).str();
+ 			as[1] = F.d(10*i).str();
+ 		mspa[F.d(i).str()] = as;
+@@ -120,7 +120,7 @@ func main() {
+ 	if len(mipM) != count {
+ 		F.s("len(mipM) = ").d(len(mipM)).putnl();
+ 	}
+-	
++
+ 	// test construction directly
+ 	for i := 0; i < count; i++ {
+ 		s := F.d(i).str();
+@@ -411,7 +411,7 @@ func main() {
+ 			}
+ 		}
+ 	}
+-	
++
+ 
+ 	// tests for structured map element updates
+ 	for i := 0; i < count; i++ {
+diff --git a/test/nil.go b/test/nil.go
+index f26ba3221c..8cd8e57aac 100644
+--- a/test/nil.go
++++ b/test/nil.go
+@@ -17,8 +17,8 @@ func main() {
+ 	var i *int;
+ 	var f *float;
+ 	var s *string;
+-	var m *map[float] *int;
+-	var c *chan int;
++	var m map[float] *int;
++	var c chan int;
+ 	var t *T;
+ 	var in IN;
+ 	var ta []IN;
+@@ -30,6 +30,6 @@ func main() {
+ 	c = nil;
+ 	t = nil;
+ 	i = nil;
+-	ta = new([1]IN);
++	ta = new([]IN, 1);
+ 	ta[0] = nil;
+ }
+diff --git a/test/peano.go b/test/peano.go
+index 4c1b837b2f..e290905741 100644
+--- a/test/peano.go
++++ b/test/peano.go
+@@ -25,7 +25,7 @@ func is_zero(x *Number) bool {
+ 
+ 
+ func add1(x *Number) *Number {
+-	e := new(Number);
++	e := new(*Number);
+ 	e.next = x;
+ 	return e;
+ }
+@@ -122,7 +122,7 @@ func verify() {
+ 
+ 
+ func main() {
+-	
++
+ 	verify();
+ 	for i := 0; i <= 10; i++ {
+ 		print(i, "! = ", count(fact(gen(i))), "\n");
+diff --git a/test/sieve.go b/test/sieve.go
+index 366d5b94ce..91fa6e5f0c 100644
+--- a/test/sieve.go
++++ b/test/sieve.go
+@@ -7,7 +7,7 @@
+ package main
+ 
+ // Send the sequence 2, 3, 4, ... to channel 'ch'.
+-func Generate(ch *chan<- int) {
++func Generate(ch chan<- int) {
+ 	for i := 2; ; i++ {
+ 		ch <- i  // Send 'i' to channel 'ch'.
+ 	}
+@@ -15,7 +15,7 @@ func Generate(ch *chan<- int) {
+ 
+ // Copy the values from channel 'in' to channel 'out',
+ // removing those divisible by 'prime'.
+-func Filter(in *<-chan int, out *chan<- int, prime int) {
++func Filter(in <-chan int, out chan<- int, prime int) {
+ 	for {
+ 		i := <-in;  // Receive value of new variable 'i' from 'in'.
+ 		if i % prime != 0 {
+diff --git a/test/test0.go b/test/test0.go
+index a3691fb469..0a11e1d288 100644
+--- a/test/test0.go
++++ b/test/test0.go
+@@ -8,7 +8,7 @@ package main
+ 
+ const
+   a_const = 0
+-  
++
+ const (
+   pi = /* the usual */ 3.14159265358979323;
+   e = 2.718281828;
+@@ -55,7 +55,7 @@ func swap(x, y int) (u, v int) {
+ }
+ 
+ func control_structs() {
+-  var p *Point = new(Point).Initialize(2, 3);
++  var p *Point = new(*Point).Initialize(2, 3);
+   i := p.Distance();
+   var f float = 0.3;
+   for {}
+diff --git a/test/utf.go b/test/utf.go
+index 5905152b67..7880b5ab90 100644
+--- a/test/utf.go
++++ b/test/utf.go
+@@ -29,7 +29,7 @@ func main() {
+ 	// encoded as bytes:  'a' 'b' 'c' e6 97 a5 e6 9c ac e8 aa 9e
+ 	const L = 12;
+ 	if L != l { panic("wrong length constructing array") }
+-	a := new([L]byte);
++	a := new(*[L]byte);
+ 	a[0] = 'a';
+ 	a[1] = 'b';
+ 	a[2] = 'c';
+diff --git a/test/vectors.go b/test/vectors.go
+index eefec91971..abc59732e4 100644
+--- a/test/vectors.go
++++ b/test/vectors.go
+@@ -31,7 +31,7 @@ func test0() {
+ func test1() {
+ 	var a [1000] *S;
+ 	for i := 0; i < len(a); i++ {
+-		a[i] = new(S).Init(i);
++		a[i] = new(*S).Init(i);
+ 	}
+ 
+ 	v := array.New(0);
+@@ -48,7 +48,7 @@ func test1() {
+ 			panic("expected ", i, ", found ", x.val, "\n");
+ 		}
+ 	}
+-	
++
+ 	for v.Len() > 10 {
+ 		v.Remove(10);
+ 	}
+diff --git a/usr/gri/gosrc/ast.go b/usr/gri/gosrc/ast.go
+index c37c902e5a..b1d495ba77 100644
+--- a/usr/gri/gosrc/ast.go
++++ b/usr/gri/gosrc/ast.go
+@@ -33,7 +33,7 @@ func (x *Literal) typ() *Globals.Type {
+ 
+ 
+ export func NewLiteral(pos int, typ *Globals.Type) *Literal {
+-	x := new(Literal);
++	x := new(*Literal);
+ 	x.pos_ = pos;
+ 	x.typ_ = typ;
+ 	return x;
+@@ -63,7 +63,7 @@ func (x *Object) typ() *Globals.Type {
+ 
+ 
+ export func NewObject(pos int, obj* Globals.Object) *Object {
+-	x := new(Object);
++	x := new(*Object);
+ 	x.pos_ = pos;
+ 	x.obj = obj;
+ 	return x;
+@@ -88,7 +88,7 @@ func (x *Selector) typ() *Globals.Type {
+ 
+ 
+ export func NewSelector(pos int, typ *Globals.Type) *Selector {
+-	x := new(Selector);
++	x := new(*Selector);
+ 	x.pos_ = pos;
+ 	x.typ_ = typ;
+ 	return x;
+diff --git a/usr/gri/gosrc/compilation.go b/usr/gri/gosrc/compilation.go
+index 595c4f1080..e72aa46545 100644
+--- a/usr/gri/gosrc/compilation.go
++++ b/usr/gri/gosrc/compilation.go
+@@ -93,16 +93,16 @@ export func Compile(comp *Globals.Compilation, src_file string) {
+ 		print(src_file, "\n");
+ 	}
+ 
+-	scanner := new(Scanner.Scanner);
++	scanner := new(*Scanner.Scanner);
+ 	scanner.Open(src_file, src);
+ 
+-	var tstream *chan *Scanner.Token;
++	var tstream chan *Scanner.Token;
+ 	if comp.flags.token_chan {
+ 		tstream = new(chan *Scanner.Token, 100);
+ 		go scanner.Server(tstream);
+ 	}
+ 
+-	parser := new(Parser.Parser);
++	parser := new(*Parser.Parser);
+ 	parser.Open(comp, scanner, tstream);
+ 
+ 	parser.ParseProgram();
+diff --git a/usr/gri/gosrc/decls.go b/usr/gri/gosrc/decls.go
+index b923fd1b8f..58b995a5b4 100755
+--- a/usr/gri/gosrc/decls.go
++++ b/usr/gri/gosrc/decls.go
+@@ -52,7 +52,7 @@ type T8 chan <- *T6
+ 
+ type T9 struct {
+ 	p *T9;
+-	q [] *map [int] *T9;
++	q [] map [int] *T9;
+ 	f *(x, y *T9) *T9;
+ }
+ 
+diff --git a/usr/gri/gosrc/globals.go b/usr/gri/gosrc/globals.go
+index e971a1462d..809e01f5fc 100644
+--- a/usr/gri/gosrc/globals.go
++++ b/usr/gri/gosrc/globals.go
+@@ -59,7 +59,7 @@ export type List struct {
+ export type Scope struct {
+ 	parent *Scope;
+ 	entries *List;
+-	// entries *map[string] *Object;  // doesn't work properly
++	// entries map[string] *Object;  // doesn't work properly
+ }
+ 
+ 
+@@ -129,7 +129,7 @@ type Elem struct {
+ export var Universe_void_t *Type  // initialized by Universe to Universe.void_t
+ 
+ export func NewObject(pos, kind int, ident string) *Object {
+-	obj := new(Object);
++	obj := new(*Object);
+ 	obj.exported = false;
+ 	obj.pos = pos;
+ 	obj.kind = kind;
+@@ -141,7 +141,7 @@ export func NewObject(pos, kind int, ident string) *Object {
+ 
+ 
+ export func NewType(form int) *Type {
+-	typ := new(Type);
++	typ := new(*Type);
+ 	typ.ref = -1;  // not yet exported
+ 	typ.form = form;
+ 	return typ;
+@@ -149,7 +149,7 @@ export func NewType(form int) *Type {
+ 
+ 
+ export func NewPackage(file_name string, obj *Object, scope *Scope) *Package {
+-	pkg := new(Package);
++	pkg := new(*Package);
+ 	pkg.ref = -1;  // not yet exported
+ 	pkg.file_name = file_name;
+ 	pkg.key = "<the package key>";  // empty key means package forward declaration
+@@ -160,12 +160,12 @@ export func NewPackage(file_name string, obj *Object, scope *Scope) *Package {
+ 
+ 
+ export func NewList() *List {
+-	return new(List);
++	return new(*List);
+ }
+ 
+ 
+ export func NewScope(parent *Scope) *Scope {
+-	scope := new(Scope);
++	scope := new(*Scope);
+ 	scope.parent = parent;
+ 	scope.entries = NewList();
+ 	return scope;
+@@ -176,7 +176,7 @@ export func NewScope(parent *Scope) *Scope {
+ // Object methods
+ 
+ func (obj *Object) Copy() *Object {
+-	copy := new(Object);
++	copy := new(*Object);
+ 	copy.exported = obj.exported;
+ 	copy.pos = obj.pos;
+ 	copy.kind = obj.kind;
+@@ -211,7 +211,7 @@ func (L *List) Clear() {
+ 
+ func (L *List) Add() *Elem {
+ 	L.len_++;
+-	e := new(Elem);
++	e := new(*Elem);
+ 	if L.first == nil {
+ 		L.first = e;
+ 	} else {
+diff --git a/usr/gri/gosrc/go.go b/usr/gri/gosrc/go.go
+index b4e7bcb6ab..537c327932 100644
+--- a/usr/gri/gosrc/go.go
++++ b/usr/gri/gosrc/go.go
+@@ -42,14 +42,14 @@ func Next() string {
+ 
+ func main() {
+ 	arg := Next();
+-	
++
+ 	if arg == "" {
+ 		PrintHelp();
+ 		return;
+ 	}
+ 
+ 	// collect flags and files
+-	flags := new(Globals.Flags);
++	flags := new(*Globals.Flags);
+ 	files := Globals.NewList();
+ 	for arg != "" {
+ 	    switch arg {
+@@ -81,20 +81,20 @@ func main() {
+ 		}
+ 		arg = Next();
+ 	}
+-	
++
+ 	// setup environment
+-	env := new(Globals.Environment);
++	env := new(*Globals.Environment);
+ 	env.Import = &Compilation.Import;
+ 	env.Export = &Compilation.Export;
+ 	env.Compile = &Compilation.Compile;
+-	
++
+ 	// compile files
+ 	for p := files.first; p != nil; p = p.next {
+ 		// setup compilation
+-		comp := new(Globals.Compilation);
++		comp := new(*Globals.Compilation);
+ 		comp.flags = flags;
+ 		comp.env = env;
+-		
++
+ 		// compile
+ 		Compilation.Compile(comp, p.str);
+ 	}
+diff --git a/usr/gri/gosrc/parser.go b/usr/gri/gosrc/parser.go
+index f908dc78e8..06a51b63e9 100644
+--- a/usr/gri/gosrc/parser.go
++++ b/usr/gri/gosrc/parser.go
+@@ -20,8 +20,8 @@ export type Parser struct {
+ 	verbose bool;
+ 	indent uint;
+ 	S *Scanner.Scanner;
+-	C *chan *Scanner.Token;
+-	
++	C chan *Scanner.Token;
++
+ 	// Token
+ 	tok int;  // one token look-ahead
+ 	pos int;  // token source position
+@@ -77,7 +77,7 @@ func (P *Parser) Next() {
+ }
+ 
+ 
+-func (P *Parser) Open(comp *Globals.Compilation, S *Scanner.Scanner, C *chan *Scanner.Token) {
++func (P *Parser) Open(comp *Globals.Compilation, S *Scanner.Scanner, C chan *Scanner.Token) {
+ 	P.comp = comp;
+ 	P.semantic_checks = comp.flags.ast;
+ 	P.verbose = comp.flags.verbosity > 2;
+@@ -228,7 +228,7 @@ func (P *Parser) DeclareFunc(pos int, ident string, typ *Globals.Type) *Globals.
+ 		obj = Globals.NewObject(-1, Object.FUNC, ident);
+ 		obj.typ = typ;
+ 		// TODO do we need to set the primary type? probably...
+-		return obj;    
++		return obj;
+ 	}
+ 
+ 	// We have a matching forward declaration. Use it.
+@@ -262,7 +262,7 @@ func (P *Parser) ParseIdent(allow_keyword bool) (pos int, ident string) {
+ 	} else {
+ 		P.Expect(Scanner.IDENT);  // use Expect() error handling
+ 	}
+-	
++
+ 	P.Ecart();
+ 	return pos, ident;
+ }
+@@ -270,11 +270,11 @@ func (P *Parser) ParseIdent(allow_keyword bool) (pos int, ident string) {
+ 
+ func (P *Parser) ParseIdentDecl(kind int) *Globals.Object {
+ 	P.Trace("IdentDecl");
+-	
++
+ 	pos, ident := P.ParseIdent(kind == Object.FIELD);
+ 	obj := Globals.NewObject(pos, kind, ident);
+ 	P.Declare(obj);
+-	
++
+ 	P.Ecart();
+ 	return obj;
+ }
+@@ -282,14 +282,14 @@ func (P *Parser) ParseIdentDecl(kind int) *Globals.Object {
+ 
+ func (P *Parser) ParseIdentDeclList(kind int) *Globals.List {
+ 	P.Trace("IdentDeclList");
+-	
++
+ 	list := Globals.NewList();
+ 	list.AddObj(P.ParseIdentDecl(kind));
+ 	for P.tok == Scanner.COMMA {
+ 		P.Next();
+ 		list.AddObj(P.ParseIdentDecl(kind));
+ 	}
+-	
++
+ 	P.Ecart();
+ 	return list;
+ }
+@@ -312,7 +312,7 @@ func (P *Parser) ParseQualifiedIdent(pos int, ident string) *Globals.Object {
+ 	if pos < 0 {
+ 		pos, ident = P.ParseIdent(false);
+ 	}
+-	
++
+ 	if P.semantic_checks {
+ 		obj := P.Lookup(ident);
+ 		if obj == nil {
+@@ -336,10 +336,10 @@ func (P *Parser) ParseQualifiedIdent(pos int, ident string) *Globals.Object {
+ 				obj = Globals.NewObject(pos, Object.BAD, ident);
+ 			}
+ 		}
+-		
++
+ 		P.Ecart();
+ 		return obj;
+-		
++
+ 	} else {
+ 		if P.tok == Scanner.PERIOD {
+ 			P.Next();
+@@ -348,7 +348,7 @@ func (P *Parser) ParseQualifiedIdent(pos int, ident string) *Globals.Object {
+ 		P.Ecart();
+ 		return nil;
+ 	}
+-	
++
+ 	panic("UNREACHABLE");
+ }
+ 
+@@ -358,13 +358,13 @@ func (P *Parser) ParseQualifiedIdent(pos int, ident string) *Globals.Object {
+ 
+ func (P *Parser) ParseType() *Globals.Type {
+ 	P.Trace("Type");
+-	
++
+ 	typ := P.TryType();
+ 	if typ == nil {
+ 		P.Error(P.pos, "type expected");
+ 		typ = Universe.bad_t;
+ 	}
+-	
++
+ 	P.Ecart();
+ 	return typ;
+ }
+@@ -372,10 +372,10 @@ func (P *Parser) ParseType() *Globals.Type {
+ 
+ func (P *Parser) ParseVarType() *Globals.Type {
+ 	P.Trace("VarType");
+-	
++
+ 	pos := P.pos;
+ 	typ := P.ParseType();
+-	
++
+ 	if P.semantic_checks {
+ 		switch typ.form {
+ 		case Type.ARRAY:
+@@ -384,13 +384,13 @@ func (P *Parser) ParseVarType() *Globals.Type {
+ 			}
+ 			// open arrays must be pointers
+ 			fallthrough;
+-			
++
+ 		case Type.MAP, Type.CHANNEL, Type.FUNCTION:
+ 			P.Error(pos, "must be pointer to this type");
+ 			typ = Universe.bad_t;
+ 		}
+ 	}
+-		
++
+ 	P.Ecart();
+ 	return typ;
+ }
+@@ -398,7 +398,7 @@ func (P *Parser) ParseVarType() *Globals.Type {
+ 
+ func (P *Parser) ParseTypeName() *Globals.Type {
+ 	P.Trace("TypeName");
+-	
++
+ 	if P.semantic_checks {
+ 		pos := P.pos;
+ 		obj := P.ParseQualifiedIdent(-1, "");
+@@ -414,14 +414,14 @@ func (P *Parser) ParseTypeName() *Globals.Type {
+ 		P.Ecart();
+ 		return Universe.bad_t;
+ 	}
+-	
++
+ 	panic("UNREACHABLE");
+ }
+ 
+ 
+ func (P *Parser) ParseArrayType() *Globals.Type {
+ 	P.Trace("ArrayType");
+-	
++
+ 	P.Expect(Scanner.LBRACK);
+ 	typ := Globals.NewType(Type.ARRAY);
+ 	if P.tok != Scanner.RBRACK {
+@@ -431,14 +431,14 @@ func (P *Parser) ParseArrayType() *Globals.Type {
+ 	P.Expect(Scanner.RBRACK);
+ 	typ.elt = P.ParseVarType();
+ 
+-	P.Ecart();	
++	P.Ecart();
+ 	return typ;
+ }
+ 
+ 
+ func (P *Parser) ParseChannelType() *Globals.Type {
+ 	P.Trace("ChannelType");
+-	
++
+ 	typ := Globals.NewType(Type.CHANNEL);
+ 	if P.tok == Scanner.CHAN {
+ 		P.Next();
+@@ -455,53 +455,53 @@ func (P *Parser) ParseChannelType() *Globals.Type {
+ 	}
+ 	typ.elt = P.ParseVarType();
+ 
+-	P.Ecart();	
++	P.Ecart();
+ 	return typ;
+ }
+ 
+ 
+ func (P *Parser) ParseVarDeclList(kind int) {
+ 	P.Trace("VarDeclList");
+-	
++
+ 	list := P.ParseIdentDeclList(kind);
+ 	typ := P.ParseVarType();
+ 	for p := list.first; p != nil; p = p.next {
+ 		p.obj.typ = typ;  // TODO should use/have set_type()
+ 	}
+-	
++
+ 	P.Ecart();
+ }
+ 
+ 
+ func (P *Parser) ParseParameterList() {
+ 	P.Trace("ParameterList");
+-	
++
+ 	P.ParseVarDeclList(Object.VAR);
+ 	for P.tok == Scanner.COMMA {
+ 		P.Next();
+ 		P.ParseVarDeclList(Object.VAR);
+ 	}
+-	
++
+ 	P.Ecart();
+ }
+ 
+ 
+ func (P *Parser) ParseParameters() {
+ 	P.Trace("Parameters");
+-	
++
+ 	P.Expect(Scanner.LPAREN);
+ 	if P.tok != Scanner.RPAREN {
+ 		P.ParseParameterList();
+ 	}
+ 	P.Expect(Scanner.RPAREN);
+-	
++
+ 	P.Ecart();
+ }
+ 
+ 
+ func (P *Parser) TryResult() bool {
+ 	P.Trace("Result (try)");
+-	
++
+ 	res := false;
+ 	if P.tok == Scanner.LPAREN {
+ 		// TODO: here we allow empty returns - should proably fix this
+@@ -511,7 +511,7 @@ func (P *Parser) TryResult() bool {
+ 		res = P.TryType() != nil;
+ 	}
+ 	P.Ecart();
+-	
++
+ 	return res;
+ }
+ 
+@@ -527,15 +527,15 @@ func (P *Parser) TryResult() bool {
+ 
+ func (P *Parser) ParseAnonymousSignature() *Globals.Type {
+ 	P.Trace("AnonymousSignature");
+-	
++
+ 	P.OpenScope();
+ 	P.level--;
+ 	sig := P.top_scope;
+ 	p0 := 0;
+-	
++
+ 	recv_pos := P.pos;
+ 	P.ParseParameters();
+-	
++
+ 	if P.tok == Scanner.PERIOD {
+ 		p0 = sig.entries.len_;
+ 		if P.semantic_checks && p0 != 1 {
+@@ -546,12 +546,12 @@ func (P *Parser) ParseAnonymousSignature() *Globals.Type {
+ 		P.Next();
+ 		P.ParseParameters();
+ 	}
+-	
++
+ 	r0 := sig.entries.len_;
+ 	P.TryResult();
+ 	P.level++;
+ 	P.CloseScope();
+-	
++
+ 	P.Ecart();
+ 	return MakeFunctionType(sig, p0, r0, true);
+ }
+@@ -568,7 +568,7 @@ func (P *Parser) ParseAnonymousSignature() *Globals.Type {
+ 
+ func (P *Parser) ParseNamedSignature() (pos int, ident string, typ *Globals.Type) {
+ 	P.Trace("NamedSignature");
+-	
++
+ 	P.OpenScope();
+ 	P.level--;
+ 	sig := P.top_scope;
+@@ -585,16 +585,16 @@ func (P *Parser) ParseNamedSignature() (pos int, ident string, typ *Globals.Type
+ 			// TODO do something useful here
+ 		}
+ 	}
+-	
++
+ 	pos, ident = P.ParseIdent(true);
+ 
+ 	P.ParseParameters();
+-	
++
+ 	r0 := sig.entries.len_;
+ 	P.TryResult();
+ 	P.level++;
+ 	P.CloseScope();
+-	
++
+ 	P.Ecart();
+ 	return pos, ident, MakeFunctionType(sig, p0, r0, true);
+ }
+@@ -602,9 +602,9 @@ func (P *Parser) ParseNamedSignature() (pos int, ident string, typ *Globals.Type
+ 
+ func (P *Parser) ParseFunctionType() *Globals.Type {
+ 	P.Trace("FunctionType");
+-	
++
+ 	typ := P.ParseAnonymousSignature();
+-	
++
+ 	P.Ecart();
+ 	return typ;
+ }
+@@ -612,36 +612,36 @@ func (P *Parser) ParseFunctionType() *Globals.Type {
+ 
+ func (P *Parser) ParseMethodDecl(recv_typ *Globals.Type) {
+ 	P.Trace("MethodDecl");
+-	
++
+ 	pos, ident := P.ParseIdent(true);
+ 	P.OpenScope();
+ 	P.level--;
+ 	sig := P.top_scope;
+-	
++
+ 	// dummy receiver (give it a name so it won't conflict with unnamed result)
+ 	recv := Globals.NewObject(pos, Object.VAR, ".recv");
+ 	recv.typ = recv_typ;
+ 	sig.Insert(recv);
+-	
++
+ 	P.ParseParameters();
+-	
++
+ 	r0 := sig.entries.len_;
+ 	P.TryResult();
+ 	P.level++;
+ 	P.CloseScope();
+ 	P.Optional(Scanner.SEMICOLON);
+-	
++
+ 	obj := Globals.NewObject(pos, Object.FUNC, ident);
+ 	obj.typ = MakeFunctionType(sig, 1, r0, true);
+ 	P.Declare(obj);
+-	
++
+ 	P.Ecart();
+ }
+ 
+ 
+ func (P *Parser) ParseInterfaceType() *Globals.Type {
+ 	P.Trace("InterfaceType");
+-	
++
+ 	P.Expect(Scanner.INTERFACE);
+ 	P.Expect(Scanner.LBRACE);
+ 	P.OpenScope();
+@@ -654,7 +654,7 @@ func (P *Parser) ParseInterfaceType() *Globals.Type {
+ 	P.level++;
+ 	P.CloseScope();
+ 	P.Expect(Scanner.RBRACE);
+-	
++
+ 	P.Ecart();
+ 	return typ;
+ }
+@@ -662,7 +662,7 @@ func (P *Parser) ParseInterfaceType() *Globals.Type {
+ 
+ func (P *Parser) ParseMapType() *Globals.Type {
+ 	P.Trace("MapType");
+-	
++
+ 	P.Expect(Scanner.MAP);
+ 	P.Expect(Scanner.LBRACK);
+ 	typ := Globals.NewType(Type.MAP);
+@@ -670,14 +670,14 @@ func (P *Parser) ParseMapType() *Globals.Type {
+ 	P.Expect(Scanner.RBRACK);
+ 	typ.elt = P.ParseVarType();
+ 	P.Ecart();
+-	
++
+ 	return typ;
+ }
+ 
+ 
+ func (P *Parser) ParseStructType() *Globals.Type {
+ 	P.Trace("StructType");
+-	
++
+ 	P.Expect(Scanner.STRUCT);
+ 	P.Expect(Scanner.LBRACE);
+ 	P.OpenScope();
+@@ -694,7 +694,7 @@ func (P *Parser) ParseStructType() *Globals.Type {
+ 	P.level++;
+ 	P.CloseScope();
+ 	P.Expect(Scanner.RBRACE);
+-	
++
+ 	P.Ecart();
+ 	return typ;
+ }
+@@ -702,10 +702,10 @@ func (P *Parser) ParseStructType() *Globals.Type {
+ 
+ func (P *Parser) ParsePointerType() *Globals.Type {
+ 	P.Trace("PointerType");
+-	
++
+ 	P.Expect(Scanner.MUL);
+ 	typ := Globals.NewType(Type.POINTER);
+-	
++
+ 	var elt *Globals.Type;
+ 	if P.semantic_checks {
+ 		if P.tok == Scanner.STRING && !P.comp.flags.sixg {
+@@ -727,7 +727,7 @@ func (P *Parser) ParsePointerType() *Globals.Type {
+ 					// TODO introduce dummy package so we can continue safely
+ 				}
+ 			}
+-			
++
+ 			P.Next();  // consume package name
+ 			P.Expect(Scanner.PERIOD);
+ 			pos, ident := P.ParseIdent(false);
+@@ -747,11 +747,11 @@ func (P *Parser) ParsePointerType() *Globals.Type {
+ 				}
+ 				elt = obj.typ;
+ 			}
+-			
++
+ 		} else if P.tok == Scanner.IDENT {
+ 			if P.Lookup(P.val) == nil {
+ 				// implicit type forward declaration
+-				// create a named forward type 
++				// create a named forward type
+ 				pos, ident := P.ParseIdent(false);
+ 				obj := Globals.NewObject(pos, Object.TYPE, ident);
+ 				elt = Globals.NewType(Type.FORWARD);
+@@ -760,7 +760,7 @@ func (P *Parser) ParsePointerType() *Globals.Type {
+ 				// remember the current scope - resolving the forward
+ 				// type must find a matching declaration in this or a less nested scope
+ 				elt.scope = P.top_scope;
+-				
++
+ 			} else {
+ 				// type name
+ 				// (ParseType() (via TryType()) checks for forward types and complains,
+@@ -774,17 +774,17 @@ func (P *Parser) ParsePointerType() *Globals.Type {
+ 			if elt.form == Type.FORWARD {
+ 				P.forward_types.AddTyp(typ);
+ 			}
+-			
++
+ 		} else {
+ 			elt = P.ParseType();
+ 		}
+-	
++
+ 	} else {
+ 		elt = P.ParseType();
+ 	}
+ 
+ 	typ.elt = elt;
+-	
++
+ 	P.Ecart();
+ 	return typ;
+ }
+@@ -793,7 +793,7 @@ func (P *Parser) ParsePointerType() *Globals.Type {
+ // Returns nil if no type was found.
+ func (P *Parser) TryType() *Globals.Type {
+ 	P.Trace("Type (try)");
+-	
++
+ 	pos := P.pos;
+ 	var typ *Globals.Type = nil;
+ 	switch P.tok {
+@@ -840,7 +840,7 @@ func (P *Parser) ParseStatementList() {
+ 
+ func (P *Parser) ParseBlock(sig *Globals.Scope) {
+ 	P.Trace("Block");
+-	
++
+ 	P.Expect(Scanner.LBRACE);
+ 	P.OpenScope();
+ 	if sig != nil {
+@@ -860,7 +860,7 @@ func (P *Parser) ParseBlock(sig *Globals.Scope) {
+ 	}
+ 	P.CloseScope();
+ 	P.Expect(Scanner.RBRACE);
+-	
++
+ 	P.Ecart();
+ }
+ 
+@@ -870,23 +870,23 @@ func (P *Parser) ParseBlock(sig *Globals.Scope) {
+ 
+ func (P *Parser) ParseExpressionList(list *Globals.List) {
+ 	P.Trace("ExpressionList");
+-	
++
+ 	list.AddExpr(P.ParseExpression());
+ 	for P.tok == Scanner.COMMA {
+ 		P.Next();
+ 		list.AddExpr(P.ParseExpression());
+ 	}
+-	
++
+ 	P.Ecart();
+ }
+ 
+ 
+ func (P *Parser) ParseNewExpressionList() *Globals.List {
+ 	P.Trace("NewExpressionList");
+-	
++
+ 	list := Globals.NewList();
+ 	P.ParseExpressionList(list);
+-	
++
+ 	P.Ecart();
+ 	return list;
+ }
+@@ -894,7 +894,7 @@ func (P *Parser) ParseNewExpressionList() *Globals.List {
+ 
+ func (P *Parser) ParseNew() Globals.Expr {
+ 	P.Trace("New");
+-	
++
+ 	P.Expect(Scanner.NEW);
+ 	P.Expect(Scanner.LPAREN);
+ 	P.ParseType();
+@@ -904,7 +904,7 @@ func (P *Parser) ParseNew() Globals.Expr {
+ 		P.ParseExpressionList(args)
+ 	}
+ 	P.Expect(Scanner.RPAREN);
+-	
++
+ 	P.Ecart();
+ 	return nil;
+ }
+@@ -912,11 +912,11 @@ func (P *Parser) ParseNew() Globals.Expr {
+ 
+ func (P *Parser) ParseFunctionLit() Globals.Expr {
+ 	P.Trace("FunctionLit");
+-	
++
+ 	P.Expect(Scanner.FUNC);
+ 	typ := P.ParseFunctionType();
+ 	P.ParseBlock(typ.scope);
+-	
++
+ 	P.Ecart();
+ 	return nil;
+ }
+@@ -928,7 +928,7 @@ func (P *Parser) ParseExpressionPair(list *Globals.List) {
+ 	list.AddExpr(P.ParseExpression());
+ 	P.Expect(Scanner.COLON);
+ 	list.AddExpr(P.ParseExpression());
+-	
++
+ 	P.Ecart();
+ }
+ 
+@@ -940,14 +940,14 @@ func (P *Parser) ParseExpressionPairList(list *Globals.List) {
+ 	for (P.tok == Scanner.COMMA) {
+ 		P.ParseExpressionPair(list);
+ 	}
+-	
++
+ 	P.Ecart();
+ }
+ 
+ 
+ func (P *Parser) ParseCompositeLit(typ *Globals.Type) Globals.Expr {
+ 	P.Trace("CompositeLit");
+-	
++
+ 	P.Expect(Scanner.LBRACE);
+ 	// TODO: should allow trailing ','
+ 	list := Globals.NewList();
+@@ -999,16 +999,16 @@ func (P *Parser) ParseOperand(pos int, ident string) Globals.Expr {
+ 		}
+ 
+ 	} else {
+-	
++
+ 		switch P.tok {
+ 		case Scanner.IDENT:
+ 			panic("UNREACHABLE");
+-			
++
+ 		case Scanner.LPAREN:
+ 			P.Next();
+ 			res = P.ParseExpression();
+ 			P.Expect(Scanner.RPAREN);
+-			
++
+ 		case Scanner.INT:
+ 			x := AST.NewLiteral(P.pos, Universe.int_t);
+ 			x.i = 42;  // TODO set the right value
+@@ -1030,7 +1030,7 @@ func (P *Parser) ParseOperand(pos int, ident string) Globals.Expr {
+ 		case Scanner.NIL:
+ 			P.Next();
+ 			res = AST.Nil;
+-			
++
+ 		case Scanner.IOTA:
+ 			x := AST.NewLiteral(P.pos, Universe.int_t);
+ 			x.i = 42;  // TODO set the right value
+@@ -1044,13 +1044,13 @@ func (P *Parser) ParseOperand(pos int, ident string) Globals.Expr {
+ 		case Scanner.FALSE:
+ 			P.Next();
+ 			res = AST.False;
+-			
++
+ 		case Scanner.FUNC:
+ 			res = P.ParseFunctionLit();
+-			
++
+ 		case Scanner.NEW:
+ 			res = P.ParseNew();
+-			
++
+ 		default:
+ 			typ := P.TryType();
+ 			if typ != nil {
+@@ -1060,7 +1060,7 @@ func (P *Parser) ParseOperand(pos int, ident string) Globals.Expr {
+ 				P.Next();  // make progress
+ 			}
+ 		}
+-	
++
+ 	}
+ 
+ 	P.Ecart();
+@@ -1073,10 +1073,10 @@ func (P *Parser) ParseSelectorOrTypeAssertion(x Globals.Expr) Globals.Expr {
+ 
+ 	period_pos := P.pos;
+ 	P.Expect(Scanner.PERIOD);
+-	
++
+ 	if P.tok >= Scanner.IDENT {
+ 		ident_pos, ident := P.ParseIdent(true);
+-		
++
+ 		if P.semantic_checks {
+ 			switch typ := x.typ(); typ.form {
+ 			case Type.BAD:
+@@ -1086,7 +1086,7 @@ func (P *Parser) ParseSelectorOrTypeAssertion(x Globals.Expr) Globals.Expr {
+ 				obj := typ.scope.Lookup(ident);
+ 				if obj != nil {
+ 					x = AST.NewSelector(x.pos(), obj.typ);
+-					
++
+ 				} else {
+ 					P.Error(ident_pos, `no field/method "` + ident + `"`);
+ 					x = AST.Bad;
+@@ -1096,17 +1096,17 @@ func (P *Parser) ParseSelectorOrTypeAssertion(x Globals.Expr) Globals.Expr {
+ 				x = AST.Bad;
+ 			}
+ 		}
+-		
++
+ 	} else {
+ 		P.Expect(Scanner.LPAREN);
+ 		P.ParseType();
+ 		P.Expect(Scanner.RPAREN);
+-		
++
+ 		if P.semantic_checks {
+ 			panic("UNIMPLEMENTED");
+ 		}
+ 	}
+-	
++
+ 	P.Ecart();
+ 	return x;
+ }
+@@ -1114,7 +1114,7 @@ func (P *Parser) ParseSelectorOrTypeAssertion(x Globals.Expr) Globals.Expr {
+ 
+ func (P *Parser) ParseIndexOrSlice(x Globals.Expr) Globals.Expr {
+ 	P.Trace("IndexOrSlice");
+-	
++
+ 	pos := P.pos;
+ 	P.Expect(Scanner.LBRACK);
+ 	i1 := P.ParseExpression();
+@@ -1124,7 +1124,7 @@ func (P *Parser) ParseIndexOrSlice(x Globals.Expr) Globals.Expr {
+ 		i2 := P.ParseExpression();
+ 	}
+ 	P.Expect(Scanner.RBRACK);
+-	
++
+ 	if P.semantic_checks {
+ 		switch typ := x.typ(); typ.form {
+ 		case Type.BAD:
+@@ -1132,24 +1132,24 @@ func (P *Parser) ParseIndexOrSlice(x Globals.Expr) Globals.Expr {
+ 			break;
+ 		case Type.STRING, Type.ARRAY:
+ 			panic("UNIMPLEMENTED");
+-			
++
+ 		case Type.MAP:
+ 			if Type.Equal(typ.aux, i1.typ()) {
+ 				// x = AST.NewSubscript(x, i1);
+ 				panic("UNIMPLEMENTED");
+-				
++
+ 			} else {
+ 				P.Error(x.pos(), "map key type mismatch");
+ 				x = AST.Bad;
+ 			}
+-			
++
+ 		default:
+ 			P.Error(pos, `"[]" not applicable`);
+ 			x = AST.Bad;
+ 		}
+-		
++
+ 	}
+-	
++
+ 	P.Ecart();
+ 	return x;
+ }
+@@ -1168,7 +1168,7 @@ func (P *Parser) ParseCall(x Globals.Expr) Globals.Expr {
+ 	if P.semantic_checks {
+ 		panic("UNIMPLEMENTED");
+ 	}
+-	
++
+ 	P.Ecart();
+ 	return x;
+ }
+@@ -1176,7 +1176,7 @@ func (P *Parser) ParseCall(x Globals.Expr) Globals.Expr {
+ 
+ func (P *Parser) ParsePrimaryExpr(pos int, ident string) Globals.Expr {
+ 	P.Trace("PrimaryExpr");
+-	
++
+ 	x := P.ParseOperand(pos, ident);
+ 	for {
+ 		switch P.tok {
+@@ -1203,7 +1203,7 @@ func (P *Parser) ParsePrimaryExprList() *Globals.List {
+ 		P.Next();
+ 		list.AddExpr(P.ParsePrimaryExpr(-1, ""));
+ 	}
+-	
++
+ 	P.Ecart();
+ 	return list;
+ }
+@@ -1211,7 +1211,7 @@ func (P *Parser) ParsePrimaryExprList() *Globals.List {
+ 
+ func (P *Parser) ParseUnaryExpr() Globals.Expr {
+ 	P.Trace("UnaryExpr");
+-	
++
+ 	switch P.tok {
+ 	case Scanner.ADD: fallthrough;
+ 	case Scanner.SUB: fallthrough;
+@@ -1226,7 +1226,7 @@ func (P *Parser) ParseUnaryExpr() Globals.Expr {
+ 		return nil;  // TODO fix this
+ 	}
+ 	P.ParsePrimaryExpr(-1, "");
+-	
++
+ 	P.Ecart();
+ 	return nil;  // TODO fix this
+ }
+@@ -1254,7 +1254,7 @@ func Precedence(tok int) int {
+ 
+ func (P *Parser) ParseBinaryExpr(pos int, ident string, prec1 int) Globals.Expr {
+ 	P.Trace("BinaryExpr");
+-	
++
+ 	var x Globals.Expr;
+ 	if pos >= 0 {
+ 		x = P.ParsePrimaryExpr(pos, ident);
+@@ -1263,7 +1263,7 @@ func (P *Parser) ParseBinaryExpr(pos int, ident string, prec1 int) Globals.Expr
+ 	}
+ 	for prec := Precedence(P.tok); prec >= prec1; prec-- {
+ 		for Precedence(P.tok) == prec {
+-			e := new(AST.BinaryExpr);
++			e := new(*AST.BinaryExpr);
+ 			e.typ_ = Universe.bad_t;  // TODO fix this
+ 			e.op = P.tok;  // TODO should we use tokens or separate operator constants?
+ 			e.x = x;
+@@ -1272,7 +1272,7 @@ func (P *Parser) ParseBinaryExpr(pos int, ident string, prec1 int) Globals.Expr
+ 			x = e;
+ 		}
+ 	}
+-	
++
+ 	P.Ecart();
+ 	return x;
+ }
+@@ -1284,9 +1284,9 @@ func (P *Parser) ParseBinaryExpr(pos int, ident string, prec1 int) Globals.Expr
+ func (P *Parser) ParseIdentExpression(pos int, ident string) Globals.Expr {
+ 	P.Trace("IdentExpression");
+ 	indent := P.indent;
+-	
++
+ 	x := P.ParseBinaryExpr(pos, ident, 1);
+-	
++
+ 	if indent != P.indent {
+ 		panic("imbalanced tracing code (Expression)");
+ 	}
+@@ -1297,7 +1297,7 @@ func (P *Parser) ParseIdentExpression(pos int, ident string) Globals.Expr {
+ 
+ func (P *Parser) ParseExpression() Globals.Expr {
+ 	P.Trace("Expression");
+-	
++
+ 	x := P.ParseIdentExpression(-1, "");
+ 
+ 	P.Ecart();
+@@ -1326,7 +1326,7 @@ func (P *Parser) ConvertToExprList(pos_list, ident_list, expr_list *Globals.List
+ 
+ func (P *Parser) ParseIdentOrExpr(pos_list, ident_list, expr_list *Globals.List) {
+ 	P.Trace("IdentOrExpr");
+-	
++
+ 	pos_list.AddInt(P.pos);
+ 	pos, ident := -1, "";
+ 	just_ident := false;
+@@ -1360,21 +1360,21 @@ func (P *Parser) ParseIdentOrExpr(pos_list, ident_list, expr_list *Globals.List)
+ 		P.ParseIdentExpression(pos, ident);
+ 		expr_list.AddInt(0);  // TODO fix this - add correct expression
+ 	}
+-	
++
+ 	P.Ecart();
+ }
+ 
+ 
+ func (P *Parser) ParseIdentOrExprList() (pos_list, ident_list, expr_list *Globals.List) {
+ 	P.Trace("IdentOrExprList");
+-	
++
+ 	pos_list, ident_list, expr_list = Globals.NewList(), Globals.NewList(), Globals.NewList();
+ 	P.ParseIdentOrExpr(pos_list, ident_list, expr_list);
+ 	for P.tok == Scanner.COMMA {
+ 		P.Next();
+ 		P.ParseIdentOrExpr(pos_list, ident_list, expr_list);
+ 	}
+-	
++
+ 	P.Ecart();
+ 	return pos_list, ident_list, expr_list;
+ }
+@@ -1382,7 +1382,7 @@ func (P *Parser) ParseIdentOrExprList() (pos_list, ident_list, expr_list *Global
+ 
+ func (P *Parser) ParseSimpleStat() {
+ 	P.Trace("SimpleStat");
+-	
++
+ 	// If we see an identifier, we don't know if it's part of a
+ 	// label declaration, (multiple) variable declaration, assignment,
+ 	// or simply an expression, without looking ahead.
+@@ -1393,7 +1393,7 @@ func (P *Parser) ParseSimpleStat() {
+ 	// a non-empty list of identifiers or a non-empty list of expressions
+ 	// (but not both).
+ 	pos_list, ident_list, expr_list := P.ParseIdentOrExprList();
+-	
++
+ 	switch P.tok {
+ 	case Scanner.COLON:
+ 		// label declaration
+@@ -1401,7 +1401,7 @@ func (P *Parser) ParseSimpleStat() {
+ 			P.Error(P.pos, "illegal label declaration");
+ 		}
+ 		P.Next();
+-		
++
+ 	case Scanner.DEFINE:
+ 		// variable declaration
+ 		if P.semantic_checks && ident_list.len_ == 0 {
+@@ -1421,7 +1421,7 @@ func (P *Parser) ParseSimpleStat() {
+ 				// TODO set correct types
+ 			}
+ 		}
+-		
++
+ 	case Scanner.ASSIGN: fallthrough;
+ 	case Scanner.ADD_ASSIGN: fallthrough;
+ 	case Scanner.SUB_ASSIGN: fallthrough;
+@@ -1440,7 +1440,7 @@ func (P *Parser) ParseSimpleStat() {
+ 		if P.semantic_checks && val_list.len_ != expr_list.len_ {
+ 			P.Error(pos, "number of expressions does not match number of variables");
+ 		}
+-		
++
+ 	default:
+ 		P.ConvertToExprList(pos_list, ident_list, expr_list);
+ 		if P.semantic_checks && expr_list.len_ != 1 {
+@@ -1450,49 +1450,49 @@ func (P *Parser) ParseSimpleStat() {
+ 			P.Next();
+ 		}
+ 	}
+-	
++
+ 	P.Ecart();
+ }
+ 
+ 
+ func (P *Parser) ParseGoStat() {
+ 	P.Trace("GoStat");
+-	
++
+ 	P.Expect(Scanner.GO);
+ 	P.ParseExpression();
+-	
++
+ 	P.Ecart();
+ }
+ 
+ 
+ func (P *Parser) ParseReturnStat() {
+ 	P.Trace("ReturnStat");
+-	
++
+ 	P.Expect(Scanner.RETURN);
+ 	res := Globals.NewList();
+ 	if P.tok != Scanner.SEMICOLON && P.tok != Scanner.RBRACE {
+ 		P.ParseExpressionList(res);
+ 	}
+-	
++
+ 	P.Ecart();
+ }
+ 
+ 
+ func (P *Parser) ParseControlFlowStat(tok int) {
+ 	P.Trace("ControlFlowStat");
+-	
++
+ 	P.Expect(tok);
+ 	if P.tok == Scanner.IDENT {
+ 		P.ParseIdent(false);
+ 	}
+-	
++
+ 	P.Ecart();
+ }
+ 
+ 
+ func (P *Parser) ParseIfStat() *AST.IfStat {
+ 	P.Trace("IfStat");
+-	
++
+ 	P.Expect(Scanner.IF);
+ 	P.OpenScope();
+ 	if P.tok != Scanner.LBRACE {
+@@ -1517,7 +1517,7 @@ func (P *Parser) ParseIfStat() *AST.IfStat {
+ 		}
+ 	}
+ 	P.CloseScope();
+-	
++
+ 	P.Ecart();
+ 	return nil;
+ }
+@@ -1525,7 +1525,7 @@ func (P *Parser) ParseIfStat() *AST.IfStat {
+ 
+ func (P *Parser) ParseForStat() {
+ 	P.Trace("ForStat");
+-	
++
+ 	P.Expect(Scanner.FOR);
+ 	P.OpenScope();
+ 	if P.tok != Scanner.LBRACE {
+@@ -1545,14 +1545,14 @@ func (P *Parser) ParseForStat() {
+ 	}
+ 	P.ParseBlock(nil);
+ 	P.CloseScope();
+-	
++
+ 	P.Ecart();
+ }
+ 
+ 
+ func (P *Parser) ParseCase() {
+ 	P.Trace("Case");
+-	
++
+ 	if P.tok == Scanner.CASE {
+ 		P.Next();
+ 		list := Globals.NewList();
+@@ -1561,14 +1561,14 @@ func (P *Parser) ParseCase() {
+ 		P.Expect(Scanner.DEFAULT);
+ 	}
+ 	P.Expect(Scanner.COLON);
+-	
++
+ 	P.Ecart();
+ }
+ 
+ 
+ func (P *Parser) ParseCaseClause() {
+ 	P.Trace("CaseClause");
+-	
++
+ 	P.ParseCase();
+ 	if P.tok != Scanner.FALLTHROUGH && P.tok != Scanner.RBRACE {
+ 		P.ParseStatementList();
+@@ -1578,14 +1578,14 @@ func (P *Parser) ParseCaseClause() {
+ 		P.Next();
+ 		P.Optional(Scanner.SEMICOLON);
+ 	}
+-	
++
+ 	P.Ecart();
+ }
+ 
+ 
+ func (P *Parser) ParseSwitchStat() {
+ 	P.Trace("SwitchStat");
+-	
++
+ 	P.Expect(Scanner.SWITCH);
+ 	P.OpenScope();
+ 	if P.tok != Scanner.LBRACE {
+@@ -1605,14 +1605,14 @@ func (P *Parser) ParseSwitchStat() {
+ 	}
+ 	P.Expect(Scanner.RBRACE);
+ 	P.CloseScope();
+-	
++
+ 	P.Ecart();
+ }
+ 
+ 
+ func (P *Parser) ParseCommCase() {
+   P.Trace("CommCase");
+-  
++
+   if P.tok == Scanner.CASE {
+ 	P.Next();
+ 	if P.tok == Scanner.GTR {
+@@ -1634,47 +1634,47 @@ func (P *Parser) ParseCommCase() {
+ 	P.Expect(Scanner.DEFAULT);
+   }
+   P.Expect(Scanner.COLON);
+-  
++
+   P.Ecart();
+ }
+ 
+ 
+ func (P *Parser) ParseCommClause() {
+ 	P.Trace("CommClause");
+-	
++
+ 	P.ParseCommCase();
+ 	if P.tok != Scanner.CASE && P.tok != Scanner.DEFAULT && P.tok != Scanner.RBRACE {
+ 		P.ParseStatementList();
+ 		P.Optional(Scanner.SEMICOLON);
+ 	}
+-	
++
+ 	P.Ecart();
+ }
+ 
+ 
+ func (P *Parser) ParseRangeStat() {
+ 	P.Trace("RangeStat");
+-	
++
+ 	P.Expect(Scanner.RANGE);
+ 	P.ParseIdentList();
+ 	P.Expect(Scanner.DEFINE);
+ 	P.ParseExpression();
+ 	P.ParseBlock(nil);
+-	
++
+ 	P.Ecart();
+ }
+ 
+ 
+ func (P *Parser) ParseSelectStat() {
+ 	P.Trace("SelectStat");
+-	
++
+ 	P.Expect(Scanner.SELECT);
+ 	P.Expect(Scanner.LBRACE);
+ 	for P.tok != Scanner.RBRACE && P.tok != Scanner.EOF {
+ 		P.ParseCommClause();
+ 	}
+ 	P.Next();
+-	
++
+ 	P.Ecart();
+ }
+ 
+@@ -1730,7 +1730,7 @@ func (P *Parser) TryStatement() bool {
+ 
+ func (P *Parser) ParseImportSpec() {
+ 	P.Trace("ImportSpec");
+-	
++
+ 	var obj *Globals.Object = nil;
+ 	if P.tok == Scanner.PERIOD {
+ 		P.Error(P.pos, `"import ." not yet handled properly`);
+@@ -1738,7 +1738,7 @@ func (P *Parser) ParseImportSpec() {
+ 	} else if P.tok == Scanner.IDENT {
+ 		obj = P.ParseIdentDecl(Object.PACKAGE);
+ 	}
+-	
++
+ 	if P.semantic_checks && P.tok == Scanner.STRING {
+ 		// TODO eventually the scanner should strip the quotes
+ 		pkg_name := P.val[1 : len(P.val) - 1];  // strip quotes
+@@ -1760,14 +1760,14 @@ func (P *Parser) ParseImportSpec() {
+ 	} else {
+ 		P.Expect(Scanner.STRING);  // use Expect() error handling
+ 	}
+-	
++
+ 	P.Ecart();
+ }
+ 
+ 
+ func (P *Parser) ParseConstSpec(exported bool) {
+ 	P.Trace("ConstSpec");
+-	
++
+ 	list := P.ParseIdentDeclList(Object.CONST);
+ 	typ := P.TryType();
+ 	if typ != nil {
+@@ -1775,18 +1775,18 @@ func (P *Parser) ParseConstSpec(exported bool) {
+ 			p.obj.typ = typ;
+ 		}
+ 	}
+-	
++
+ 	if P.tok == Scanner.ASSIGN {
+ 		P.Next();
+ 		P.ParseNewExpressionList();
+ 	}
+-	
++
+ 	if exported {
+ 		for p := list.first; p != nil; p = p.next {
+ 			p.obj.exported = true;
+ 		}
+ 	}
+-	
++
+ 	P.Ecart();
+ }
+ 
+@@ -1795,10 +1795,10 @@ func (P *Parser) ParseTypeSpec(exported bool) {
+ 	P.Trace("TypeSpec");
+ 
+ 	var typ *Globals.Type;
+-	
++
+ 	pos, ident := P.ParseIdent(false);
+ 	obj := P.Lookup(ident);
+-	
++
+ 	if !P.comp.flags.sixg && obj != nil {
+ 		if obj.typ.form == Type.FORWARD {
+ 			// imported forward-declared type
+@@ -1808,7 +1808,7 @@ func (P *Parser) ParseTypeSpec(exported bool) {
+ 		} else {
+ 			panic("bar");
+ 		}
+-		
++
+ 	} else {
+ 		// Immediately after declaration of the type name, the type is
+ 		// considered forward-declared. It may be referred to from inside
+@@ -1843,7 +1843,7 @@ func (P *Parser) ParseTypeSpec(exported bool) {
+ 	if typ.obj == nil {
+ 		typ.obj = obj;  // primary type object
+ 	}
+-	
++
+ 	// if the type is exported, for now we export all fields
+ 	// of structs and interfaces by default
+ 	// TODO this needs to change eventually
+@@ -1853,14 +1853,14 @@ func (P *Parser) ParseTypeSpec(exported bool) {
+ 			p.obj.exported = true;
+ 		}
+ 	}
+-	
++
+ 	P.Ecart();
+ }
+ 
+ 
+ func (P *Parser) ParseVarSpec(exported bool) {
+ 	P.Trace("VarSpec");
+-	
++
+ 	list := P.ParseIdentDeclList(Object.VAR);
+ 	if P.tok == Scanner.ASSIGN {
+ 		P.Next();
+@@ -1875,13 +1875,13 @@ func (P *Parser) ParseVarSpec(exported bool) {
+ 			P.ParseNewExpressionList();
+ 		}
+ 	}
+-	
++
+ 	if exported {
+ 		for p := list.first; p != nil; p = p.next {
+ 			p.obj.exported = true;
+ 		}
+ 	}
+-	
++
+ 	P.Ecart();
+ }
+ 
+@@ -1900,7 +1900,7 @@ func (P *Parser) ParseSpec(exported bool, keyword int) {
+ 
+ func (P *Parser) ParseDecl(exported bool, keyword int) {
+ 	P.Trace("Decl");
+-	
++
+ 	P.Expect(keyword);
+ 	if P.tok == Scanner.LPAREN {
+ 		P.Next();
+@@ -1915,14 +1915,14 @@ func (P *Parser) ParseDecl(exported bool, keyword int) {
+ 	} else {
+ 		P.ParseSpec(exported, keyword);
+ 	}
+-	
++
+ 	P.Ecart();
+ }
+ 
+ 
+ func (P *Parser) ParseFuncDecl(exported bool) {
+ 	P.Trace("FuncDecl");
+-	
++
+ 	P.Expect(Scanner.FUNC);
+ 	pos, ident, typ := P.ParseNamedSignature();
+ 	obj := P.DeclareFunc(pos, ident, typ);  // need obj later for statements
+@@ -1933,14 +1933,14 @@ func (P *Parser) ParseFuncDecl(exported bool) {
+ 	} else {
+ 		P.ParseBlock(typ.scope);
+ 	}
+-	
++
+ 	P.Ecart();
+ }
+ 
+ 
+ func (P *Parser) ParseExportDecl() {
+ 	P.Trace("ExportDecl");
+-	
++
+ 	// TODO This is deprecated syntax and should go away eventually.
+ 	// (Also at the moment the syntax is everything goes...)
+ 	//P.Expect(Scanner.EXPORT);
+@@ -1948,7 +1948,7 @@ func (P *Parser) ParseExportDecl() {
+ 	if !P.comp.flags.sixg {
+ 		P.Error(P.pos, "deprecated export syntax (use -6g to enable)");
+ 	}
+-	
++
+ 	has_paren := false;
+ 	if P.tok == Scanner.LPAREN {
+ 		P.Next();
+@@ -1962,7 +1962,7 @@ func (P *Parser) ParseExportDecl() {
+ 	if has_paren {
+ 		P.Expect(Scanner.RPAREN)
+ 	}
+-	
++
+ 	P.Ecart();
+ }
+ 
+@@ -1970,7 +1970,7 @@ func (P *Parser) ParseExportDecl() {
+ func (P *Parser) ParseDeclaration() {
+ 	P.Trace("Declaration");
+ 	indent := P.indent;
+-	
++
+ 	exported := false;
+ 	if P.tok == Scanner.EXPORT {
+ 		if P.level == 0 {
+@@ -1980,7 +1980,7 @@ func (P *Parser) ParseDeclaration() {
+ 		}
+ 		P.Next();
+ 	}
+-	
++
+ 	switch P.tok {
+ 	case Scanner.CONST, Scanner.TYPE, Scanner.VAR:
+ 		P.ParseDecl(exported, P.tok);
+@@ -2000,7 +2000,7 @@ func (P *Parser) ParseDeclaration() {
+ 			P.Next();  // make progress
+ 		}
+ 	}
+-	
++
+ 	if indent != P.indent {
+ 		panic("imbalanced tracing code (Declaration)");
+ 	}
+@@ -2015,18 +2015,18 @@ func (P *Parser) ResolveForwardTypes() {
+ 	if !P.semantic_checks {
+ 		return;
+ 	}
+-	
++
+ 	for p := P.forward_types.first; p != nil; p = p.next {
+ 		typ := p.typ;
+ 		if typ.form != Type.POINTER {
+ 			panic("unresolved types should be pointers only");
+ 		}
+-		
++
+ 		elt := typ.elt;
+ 		if typ.elt.form != Type.FORWARD {
+ 			panic("unresolved pointer should point to forward type");
+ 		}
+-		
++
+ 		obj := elt.obj;
+ 		if obj.typ == elt {
+ 			// actual forward declaration (as opposed to forward types introduced
+@@ -2047,7 +2047,7 @@ func (P *Parser) ResolveForwardTypes() {
+ 
+ 		// update the pointer type
+ 		typ.elt = obj.typ;
+-		
++
+ 		// TODO as long as we don't *use* a forward type, we are ok
+ 		// => consider not reporting this as an error
+ 		// (in a real forward declaration, the corresponding objects are not in a scope
+@@ -2063,7 +2063,7 @@ func (P *Parser) MarkExports() {
+ 	if !P.semantic_checks {
+ 		return;
+ 	}
+-	
++
+ 	scope := P.top_scope;
+ 	for p := P.exports.first; p != nil; p = p.next {
+ 		obj := scope.Lookup(p.str);
+@@ -2090,17 +2090,17 @@ func (P *Parser) MarkExports() {
+ 
+ func (P *Parser) ParseProgram() {
+ 	P.Trace("Program");
+-	
++
+ 	P.OpenScope();
+ 	P.Expect(Scanner.PACKAGE);
+ 	obj := P.ParseIdentDecl(Object.PACKAGE);
+ 	P.Optional(Scanner.SEMICOLON);
+-	
++
+ 	{	P.OpenScope();
+ 		if P.level != 0 {
+ 			panic("incorrect scope level");
+ 		}
+-		
++
+ 		P.comp.Insert(Globals.NewPackage(P.S.filename, obj, P.top_scope));
+ 		if P.comp.pkg_ref != 1 {
+ 			panic("should have exactly one package now");
+@@ -2110,21 +2110,21 @@ func (P *Parser) ParseProgram() {
+ 			P.ParseDecl(false, Scanner.IMPORT);
+ 			P.Optional(Scanner.SEMICOLON);
+ 		}
+-		
++
+ 		for P.tok != Scanner.EOF {
+ 			P.ParseDeclaration();
+ 			P.Optional(Scanner.SEMICOLON);
+ 		}
+-		
++
+ 		P.ResolveForwardTypes();
+ 		P.MarkExports();
+-		
++
+ 		if P.level != 0 {
+ 			panic("incorrect scope level");
+ 		}
+ 		P.CloseScope();
+ 	}
+-	
++
+ 	P.CloseScope();
+ 	P.Ecart();
+ }
+diff --git a/usr/gri/gosrc/scanner.go b/usr/gri/gosrc/scanner.go
+index bfb8e3c360..a1e18ba35c 100644
+--- a/usr/gri/gosrc/scanner.go
++++ b/usr/gri/gosrc/scanner.go
+@@ -26,24 +26,24 @@ export const (
+ 	RBRACK;
+ 	LBRACE;
+ 	RBRACE;
+-	
++
+ 	ASSIGN;
+ 	DEFINE;
+-	
++
+ 	INC;
+ 	DEC;
+ 	NOT;
+-	
++
+ 	AND;
+ 	OR;
+ 	XOR;
+-	
++
+ 	ADD;
+ 	SUB;
+ 	MUL;
+ 	QUO;
+ 	REM;
+-	
++
+ 	EQL;
+ 	NEQ;
+ 	LSS;
+@@ -53,7 +53,7 @@ export const (
+ 
+ 	SHL;
+ 	SHR;
+-	
++
+ 	ARROW;
+ 
+ 	ADD_ASSIGN;
+@@ -65,13 +65,13 @@ export const (
+ 	AND_ASSIGN;
+ 	OR_ASSIGN;
+ 	XOR_ASSIGN;
+-	
++
+ 	SHL_ASSIGN;
+ 	SHR_ASSIGN;
+ 
+ 	LAND;
+ 	LOR;
+-	
++
+ 	// IDENT must be immediately before keywords
+ 	IDENT;
+ 
+@@ -111,7 +111,7 @@ export const (
+ )
+ 
+ 
+-var Keywords *map [string] int;
++var Keywords map [string] int;
+ var VerboseMsgs bool;  // error message customization
+ 
+ 
+@@ -137,7 +137,7 @@ export func TokenName(tok int) string {
+ 
+ 	case ASSIGN: return "=";
+ 	case DEFINE: return ":=";
+-	
++
+ 	case INC: return "++";
+ 	case DEC: return "--";
+ 	case NOT: return "!";
+@@ -145,13 +145,13 @@ export func TokenName(tok int) string {
+ 	case AND: return "&";
+ 	case OR: return "|";
+ 	case XOR: return "^";
+-	
++
+ 	case ADD: return "+";
+ 	case SUB: return "-";
+ 	case MUL: return "*";
+ 	case QUO: return "/";
+ 	case REM: return "%";
+-	
++
+ 	case EQL: return "==";
+ 	case NEQ: return "!=";
+ 	case LSS: return "<";
+@@ -161,7 +161,7 @@ export func TokenName(tok int) string {
+ 
+ 	case SHL: return "<<";
+ 	case SHR: return ">>";
+-	
++
+ 	case ARROW: return "<-";
+ 
+ 	case ADD_ASSIGN: return "+=";
+@@ -213,18 +213,18 @@ export func TokenName(tok int) string {
+ 	case TYPE: return "type";
+ 	case VAR: return "var";
+ 	}
+-	
++
+ 	return "???";
+ }
+ 
+ 
+ func init() {
+ 	Keywords = new(map [string] int);
+-	
++
+ 	for i := KEYWORDS_BEG; i <= KEYWORDS_END; i++ {
+ 	  Keywords[TokenName(i)] = i;
+ 	}
+-	
++
+ 	// Provide column information in error messages for gri only...
+ 	VerboseMsgs = Platform.USER == "gri";
+ }
+@@ -258,7 +258,7 @@ export type Scanner struct {
+ 	filename string;  // error reporting only
+ 	nerrors int;  // number of errors
+ 	errpos int;  // last error position
+-	
++
+ 	src string;  // scanned source
+ 	pos int;  // current reading position
+ 	ch int;  // one char look-ahead
+@@ -296,7 +296,7 @@ func (S *Scanner) Next() {
+ 	src := S.src;
+ 	lim := len(src);
+ 	pos := S.pos;
+-	
++
+ 	// 1-byte sequence
+ 	// 0000-007F => T1
+ 	if pos >= lim {
+@@ -371,7 +371,7 @@ bad:
+ func (S *Scanner) LineCol(pos int) (line, col int) {
+ 	line = 1;
+ 	lpos := 0;
+-	
++
+ 	src := S.src;
+ 	if pos > len(src) {
+ 		pos = len(src);
+@@ -383,7 +383,7 @@ func (S *Scanner) LineCol(pos int) (line, col int) {
+ 			lpos = i;
+ 		}
+ 	}
+-	
++
+ 	return line, pos - lpos;
+ }
+ 
+@@ -409,7 +409,7 @@ func (S *Scanner) Error(pos int, msg string) {
+ 		S.nerrors++;
+ 		S.errpos = pos;
+ 	}
+-	
++
+ 	if S.nerrors >= 10 {
+ 		sys.exit(1);
+ 	}
+@@ -420,7 +420,7 @@ func (S *Scanner) Open(filename, src string) {
+ 	S.filename = filename;
+ 	S.nerrors = 0;
+ 	S.errpos = 0;
+-	
++
+ 	S.src = src;
+ 	S.pos = 0;
+ 	S.Next();
+@@ -467,7 +467,7 @@ func (S *Scanner) SkipComment() {
+ 		for S.ch != '\n' && S.ch >= 0 {
+ 			S.Next();
+ 		}
+-		
++
+ 	} else {
+ 		/* comment */
+ 		pos := S.chpos - 1;
+@@ -491,13 +491,13 @@ func (S *Scanner) ScanIdentifier() (tok int, val string) {
+ 		S.Next();
+ 	}
+ 	val = S.src[pos : S.chpos];
+-	
++
+ 	var present bool;
+ 	tok, present = Keywords[val];
+ 	if !present {
+ 		tok = IDENT;
+ 	}
+-	
++
+ 	return tok, val;
+ }
+ 
+@@ -512,14 +512,14 @@ func (S *Scanner) ScanMantissa(base int) {
+ func (S *Scanner) ScanNumber(seen_decimal_point bool) (tok int, val string) {
+ 	pos := S.chpos;
+ 	tok = INT;
+-	
++
+ 	if seen_decimal_point {
+ 		tok = FLOAT;
+ 		pos--;  // '.' is one byte
+ 		S.ScanMantissa(10);
+ 		goto exponent;
+ 	}
+-	
++
+ 	if S.ch == '0' {
+ 		// int or float
+ 		S.Next();
+@@ -539,18 +539,18 @@ func (S *Scanner) ScanNumber(seen_decimal_point bool) (tok int, val string) {
+ 		}
+ 		goto exit;
+ 	}
+-	
++
+ mantissa:
+ 	// decimal int or float
+ 	S.ScanMantissa(10);
+-	
++
+ 	if S.ch == '.' {
+ 		// float
+ 		tok = FLOAT;
+ 		S.Next();
+ 		S.ScanMantissa(10)
+ 	}
+-	
++
+ exponent:
+ 	if S.ch == 'e' || S.ch == 'E' {
+ 		// float
+@@ -561,7 +561,7 @@ exponent:
+ 		}
+ 		S.ScanMantissa(10);
+ 	}
+-	
++
+ exit:
+ 	return tok, S.src[pos : S.chpos];
+ }
+@@ -580,22 +580,22 @@ func (S *Scanner) ScanDigits(n int, base int) {
+ 
+ func (S *Scanner) ScanEscape() string {
+ 	// TODO: fix this routine
+-	
++
+ 	ch := S.ch;
+ 	pos := S.chpos;
+ 	S.Next();
+ 	switch (ch) {
+ 	case 'a', 'b', 'f', 'n', 'r', 't', 'v', '\\', '\'', '"':
+ 		return string(ch);
+-		
++
+ 	case '0', '1', '2', '3', '4', '5', '6', '7':
+ 		S.ScanDigits(3 - 1, 8);  // 1 char already read
+ 		return "";  // TODO fix this
+-		
++
+ 	case 'x':
+ 		S.ScanDigits(2, 16);
+ 		return "";  // TODO fix this
+-		
++
+ 	case 'u':
+ 		S.ScanDigits(4, 16);
+ 		return "";  // TODO fix this
+@@ -642,7 +642,7 @@ func (S *Scanner) ScanString() string {
+ 			S.ScanEscape();
+ 		}
+ 	}
+-	
++
+ 	S.Next();
+ 	return S.src[pos : S.chpos];
+ }
+@@ -707,11 +707,11 @@ func (S *Scanner) Select4(tok0, tok1, ch2, tok2, tok3 int) int {
+ 
+ func (S *Scanner) Scan() (tok, pos int, val string) {
+ 	S.SkipWhitespace();
+-	
++
+ 	ch := S.ch;
+ 	tok = ILLEGAL;
+ 	pos = S.chpos;
+-	
++
+ 	switch {
+ 	case is_letter(ch): tok, val = S.ScanIdentifier();
+ 	case digit_val(ch) < 10: tok, val = S.ScanNumber(false);
+@@ -767,7 +767,7 @@ func (S *Scanner) Scan() (tok, pos int, val string) {
+ 			tok = ILLEGAL;
+ 		}
+ 	}
+-	
++
+ 	return tok, pos, val;
+ }
+ 
+@@ -779,9 +779,9 @@ export type Token struct {
+ }
+ 
+ 
+-func (S *Scanner) Server(c *chan *Token) {
++func (S *Scanner) Server(c chan *Token) {
+ 	for {
+-		t := new(Token);
++		t := new(*Token);
+ 		t.tok, t.pos, t.val = S.Scan();
+ 		c <- t;
+ 		if t.tok == EOF {
+diff --git a/usr/gri/gosrc/test_scanner.go b/usr/gri/gosrc/test_scanner.go
+index ffdc0b56fc..b43810a856 100644
+--- a/usr/gri/gosrc/test_scanner.go
++++ b/usr/gri/gosrc/test_scanner.go
+@@ -8,7 +8,7 @@ import Scanner "scanner"
+ 
+ 
+ func Scan1(filename, src string) {
+-	S := new(Scanner.Scanner);
++	S := new(*Scanner.Scanner);
+ 	S.Open(filename, src);
+ 	for {
+ 		tok, pos, val := S.Scan();
+@@ -25,7 +25,7 @@ func Scan1(filename, src string) {
+ 
+ 
+ func Scan2(filename, src string) {
+-	S := new(Scanner.Scanner);
++	S := new(*Scanner.Scanner);
+ 	S.Open(filename, src);
+ 	c := new(chan *Scanner.Token, 32);
+ 	go S.Server(c);
+diff --git a/usr/gri/gosrc/verifier.go b/usr/gri/gosrc/verifier.go
+index 9fc2290b94..9c1405e6ef 100644
+--- a/usr/gri/gosrc/verifier.go
++++ b/usr/gri/gosrc/verifier.go
+@@ -23,11 +23,11 @@ func Error(msg string) {
+ 
+ type Verifier struct {
+ 	comp *Globals.Compilation;
+-	
++
+ 	// various sets for marking the graph (and thus avoid cycles)
+-	objs *map[*Globals.Object] bool;
+-	typs *map[*Globals.Type] bool;
+-	pkgs *map[*Globals.Package] bool;
++	objs map[*Globals.Object] bool;
++	typs map[*Globals.Type] bool;
++	pkgs map[*Globals.Package] bool;
+ }
+ 
+ 
+@@ -39,11 +39,11 @@ func (V *Verifier) VerifyType(typ *Globals.Type) {
+ 		return;  // already verified
+ 	}
+ 	V.typs[typ] = true;
+-	
++
+ 	if typ.obj != nil {
+ 		V.VerifyObject(typ.obj, 0);
+ 	}
+-	
++
+ 	switch typ.form {
+ 	case Type.VOID:
+ 		break;  // TODO for now - remove eventually
+@@ -95,10 +95,10 @@ func (V *Verifier) VerifyObject(obj *Globals.Object, pnolev int) {
+ 		return;  // already verified
+ 	}
+ 	V.objs[obj] = true;
+-	
++
+ 	// all objects have a non-nil type
+ 	V.VerifyType(obj.typ);
+-	
++
+ 	switch obj.kind {
+ 	case Object.CONST:
+ 		break;
+@@ -130,7 +130,7 @@ func (V *Verifier) VerifyPackage(pkg *Globals.Package, pno int) {
+ 		return;  // already verified
+ 	}
+ 	V.pkgs[pkg] = true;
+-	
++
+ 	V.VerifyObject(pkg.obj, pno);
+ 	V.VerifyScope(pkg.scope);
+ }
+@@ -158,6 +158,6 @@ func (V *Verifier) Verify(comp *Globals.Compilation) {
+ 
+ 
+ export func Verify(comp *Globals.Compilation) {
+-	V := new(Verifier);
++	V := new(*Verifier);
+ 	V.Verify(comp);
+ }
+diff --git a/usr/gri/pretty/ast.go b/usr/gri/pretty/ast.go
+index 5969c8fb16..3c3c039ec1 100644
+--- a/usr/gri/pretty/ast.go
++++ b/usr/gri/pretty/ast.go
+@@ -56,14 +56,14 @@ export func NewExpr(pos, tok int, x, y *Expr) *Expr {
+ 	if x != nil && x.tok == Scanner.TYPE || y != nil && y.tok == Scanner.TYPE {
+ 		panic("no type expression allowed");
+ 	}
+-	e := new(Expr);
++	e := new(*Expr);
+ 	e.pos, e.tok, e.x, e.y = pos, tok, x, y;
+ 	return e;
+ }
+ 
+ 
+ export func NewLit(pos, tok int, s string) *Expr {
+-	e := new(Expr);
++	e := new(*Expr);
+ 	e.pos, e.tok, e.s = pos, tok, s;
+ 	return e;
+ }
+@@ -112,7 +112,7 @@ func (t *Type) nfields() int {
+ 
+ 
+ export func NewType(pos, tok int) *Type {
+-	t := new(Type);
++	t := new(*Type);
+ 	t.pos, t.tok = pos, tok;
+ 	return t;
+ }
+@@ -120,7 +120,7 @@ export func NewType(pos, tok int) *Type {
+ 
+ // requires complete Type type
+ export func NewTypeExpr(t *Type) *Expr {
+-	e := new(Expr);
++	e := new(*Expr);
+ 	e.pos, e.tok, e.t = t.pos, Scanner.TYPE, t;
+ 	return e;
+ }
+@@ -142,7 +142,7 @@ export type Stat struct {
+ 
+ 
+ export func NewStat(pos, tok int) *Stat {
+-	s := new(Stat);
++	s := new(*Stat);
+ 	s.pos, s.tok = pos, tok;
+ 	return s;
+ }
+@@ -167,7 +167,7 @@ export type Decl struct {
+ 
+ 
+ export func NewDecl(pos, tok int, exported bool) *Decl {
+-	d := new(Decl);
++	d := new(*Decl);
+ 	d.pos, d.tok, d.exported = pos, tok, exported;
+ 	return d;
+ }
+@@ -186,7 +186,7 @@ export type Comment struct {
+ 
+ 
+ export func NewComment(pos int, text string) *Comment {
+-	c := new(Comment);
++	c := new(*Comment);
+ 	c.pos, c.text = pos, text;
+ 	return c;
+ }
+@@ -201,7 +201,7 @@ export type Program struct {
+ 
+ 
+ export func NewProgram(pos int) *Program {
+-	p := new(Program);
++	p := new(*Program);
+ 	p.pos = pos;
+ 	return p;
+ }
+diff --git a/usr/gri/pretty/compilation.go b/usr/gri/pretty/compilation.go
+index 82b6618da3..3168354870 100644
+--- a/usr/gri/pretty/compilation.go
++++ b/usr/gri/pretty/compilation.go
+@@ -54,7 +54,7 @@ func (h *ErrorHandler) Init(filename, src string, columns bool) {
+ func (h *ErrorHandler) LineCol(pos int) (line, col int) {
+ 	line = 1;
+ 	lpos := 0;
+-	
++
+ 	src := h.src;
+ 	if pos > len(src) {
+ 		pos = len(src);
+@@ -66,7 +66,7 @@ func (h *ErrorHandler) LineCol(pos int) (line, col int) {
+ 			lpos = i;
+ 		}
+ 	}
+-	
++
+ 	return line, pos - lpos;
+ }
+ 
+@@ -82,7 +82,7 @@ func (h *ErrorHandler) ErrorMsg(pos int, msg string) {
+ 		}
+ 	}
+ 	print(" ", msg, "\n");
+-	
++
+ 	h.nerrors++;
+ 	h.errpos = pos;
+ 
+@@ -100,10 +100,10 @@ func (h *ErrorHandler) Error(pos int, msg string) {
+ 	if delta < 0 {
+ 		delta = -delta;
+ 	}
+-	
++
+ 	if delta > errdist || h.nerrors == 0 /* always report first error */ {
+ 		h.ErrorMsg(pos, msg);
+-	}	
++	}
+ }
+ 
+ 
+@@ -118,14 +118,14 @@ export func Compile(src_file string, flags *Flags) (*AST.Program, int) {
+ 		print("cannot open ", src_file, "\n");
+ 		return nil, 1;
+ 	}
+-	
++
+ 	var err ErrorHandler;
+ 	err.Init(src_file, src, flags.columns);
+ 
+ 	var scanner Scanner.Scanner;
+ 	scanner.Init(&err, src, true, flags.testmode);
+ 
+-	var tstream *<-chan *Scanner.Token;
++	var tstream <-chan *Scanner.Token;
+ 	if flags.tokenchan {
+ 		tstream = scanner.TokenStream();
+ 	}
+@@ -134,11 +134,11 @@ export func Compile(src_file string, flags *Flags) (*AST.Program, int) {
+ 	parser.Open(flags.verbose, flags.sixg, flags.deps, &scanner, tstream);
+ 
+ 	prog := parser.ParseProgram();
+-	
++
+ 	if err.nerrors == 0 {
+ 		TypeChecker.CheckProgram(prog);
+ 	}
+-	
++
+ 	return prog, err.nerrors;
+ }
+ 
+@@ -153,27 +153,27 @@ func FileExists(name string) bool {
+ }
+ 
+ 
+-func AddDeps(globalset *map [string] bool, wset *array.Array, src_file string, flags *Flags) {
++func AddDeps(globalset map [string] bool, wset *array.Array, src_file string, flags *Flags) {
+ 	dummy, found := globalset[src_file];
+ 	if !found {
+ 		globalset[src_file] = true;
+-		
++
+ 		prog, nerrors := Compile(src_file, flags);
+ 		if nerrors > 0 {
+ 			return;
+ 		}
+-		
++
+ 		nimports := prog.decls.Len();
+ 		if nimports > 0 {
+ 			print(src_file, ".6:\t");
+-			
++
+ 			localset := new(map [string] bool);
+ 			for i := 0; i < nimports; i++ {
+ 				decl := prog.decls.At(i).(*AST.Decl);
+ 				assert(decl.tok == Scanner.IMPORT && decl.val.tok == Scanner.STRING);
+ 				src := decl.val.s;
+ 				src = src[1 : len(src) - 1];  // strip "'s
+-				
++
+ 				// ignore files when they are seen a 2nd time
+ 				dummy, found := localset[src];
+ 				if !found {
+@@ -184,7 +184,7 @@ func AddDeps(globalset *map [string] bool, wset *array.Array, src_file string, f
+ 					} else if
+ 						FileExists(Platform.GOROOT + "/pkg/" + src + ".6") ||
+ 						FileExists(Platform.GOROOT + "/pkg/" + src + ".a") {
+-						
++
+ 					} else {
+ 						// TODO should collect these and print later
+ 						//print("missing file: ", src, "\n");
+diff --git a/usr/gri/pretty/globals.go b/usr/gri/pretty/globals.go
+index d1dc47cb0b..e51bfb14d0 100644
+--- a/usr/gri/pretty/globals.go
++++ b/usr/gri/pretty/globals.go
+@@ -57,7 +57,7 @@ export type Package struct {
+ 
+ export type Scope struct {
+ 	parent *Scope;
+-	entries *map[string] *Object;
++	entries map[string] *Object;
+ }
+ 
+ 
+@@ -72,15 +72,15 @@ export type Environment struct {
+ export type OldCompilation struct {
+ 	// environment
+ 	env *Environment;
+-	
++
+ 	// TODO rethink the need for this here
+ 	src_file string;
+ 	src string;
+-	
++
+ 	// Error handling
+ 	nerrors int;  // number of errors reported
+ 	errpos int;  // last error position
+-	
++
+ 	// TODO use open arrays eventually
+ 	pkg_list [256] *Package;  // pkg_list[0] is the current package
+ 	pkg_ref int;
+@@ -119,7 +119,7 @@ export type Elem struct {
+ export var Universe_void_typ *Type  // initialized by Universe to Universe.void_typ
+ 
+ export func NewObject(pos, kind int, ident string) *Object {
+-	obj := new(Object);
++	obj := new(*Object);
+ 	obj.exported = false;
+ 	obj.pos = pos;
+ 	obj.kind = kind;
+@@ -131,7 +131,7 @@ export func NewObject(pos, kind int, ident string) *Object {
+ 
+ 
+ export func NewType(form int) *Type {
+-	typ := new(Type);
++	typ := new(*Type);
+ 	typ.ref = -1;  // not yet exported
+ 	typ.form = form;
+ 	return typ;
+@@ -139,7 +139,7 @@ export func NewType(form int) *Type {
+ 
+ 
+ export func NewPackage(file_name string, obj *Object, scope *Scope) *Package {
+-	pkg := new(Package);
++	pkg := new(*Package);
+ 	pkg.ref = -1;  // not yet exported
+ 	pkg.file_name = file_name;
+ 	pkg.key = "<the package key>";  // empty key means package forward declaration
+@@ -150,7 +150,7 @@ export func NewPackage(file_name string, obj *Object, scope *Scope) *Package {
+ 
+ 
+ export func NewScope(parent *Scope) *Scope {
+-	scope := new(Scope);
++	scope := new(*Scope);
+ 	scope.parent = parent;
+ 	scope.entries = new(map[string]*Object, 8);
+ 	return scope;
+@@ -161,7 +161,7 @@ export func NewScope(parent *Scope) *Scope {
+ // Object methods
+ 
+ func (obj *Object) Copy() *Object {
+-	copy := new(Object);
++	copy := new(*Object);
+ 	copy.exported = obj.exported;
+ 	copy.pos = obj.pos;
+ 	copy.kind = obj.kind;
+diff --git a/usr/gri/pretty/parser.go b/usr/gri/pretty/parser.go
+index f9fcf0630d..b773d8e233 100644
+--- a/usr/gri/pretty/parser.go
++++ b/usr/gri/pretty/parser.go
+@@ -13,17 +13,17 @@ export type Parser struct {
+ 	// Tracing/debugging
+ 	verbose, sixg, deps bool;
+ 	indent uint;
+-	
++
+ 	// Scanner
+ 	scanner *Scanner.Scanner;
+-	tokchan *<-chan *Scanner.Token;
++	tokchan <-chan *Scanner.Token;
+ 	comments *array.Array;
+-	
++
+ 	// Scanner.Token
+ 	pos int;  // token source position
+ 	tok int;  // one token look-ahead
+ 	val string;  // token value (for IDENT, NUMBER, STRING only)
+-	
++
+ 	// Non-syntactic parser control
+ 	opt_semi bool;  // true if semicolon is optional
+ 
+@@ -69,7 +69,7 @@ func (P *Parser) Next0() {
+ 		P.tok, P.pos, P.val = t.tok, t.pos, t.val;
+ 	}
+ 	P.opt_semi = false;
+-	
++
+ 	if P.verbose {
+ 		P.PrintIndent();
+ 		print("[", P.pos, "] ", Scanner.TokenString(P.tok), "\n");
+@@ -84,16 +84,16 @@ func (P *Parser) Next() {
+ }
+ 
+ 
+-func (P *Parser) Open(verbose, sixg, deps bool, scanner *Scanner.Scanner, tokchan *<-chan *Scanner.Token) {
++func (P *Parser) Open(verbose, sixg, deps bool, scanner *Scanner.Scanner, tokchan <-chan *Scanner.Token) {
+ 	P.verbose = verbose;
+ 	P.sixg = sixg;
+ 	P.deps = deps;
+ 	P.indent = 0;
+-	
++
+ 	P.scanner = scanner;
+ 	P.tokchan = tokchan;
+ 	P.comments = array.New(0);
+-	
++
+ 	P.Next();
+ 	P.expr_lev = 0;
+ 	P.scope_lev = 0;
+@@ -182,7 +182,7 @@ func (P *Parser) ParseIdent() *AST.Expr {
+ 	} else {
+ 		P.Expect(Scanner.IDENT);  // use Expect() error handling
+ 	}
+-	
++
+ 	P.Ecart();
+ 	return x;
+ }
+@@ -214,13 +214,13 @@ func (P *Parser) ParseIdentList() *AST.Expr {
+ 
+ func (P *Parser) ParseType() *AST.Type {
+ 	P.Trace("Type");
+-	
++
+ 	t := P.TryType();
+ 	if t == nil {
+ 		P.Error(P.pos, "type expected");
+ 		t = AST.BadType;
+ 	}
+-	
++
+ 	P.Ecart();
+ 	return t;
+ }
+@@ -228,9 +228,9 @@ func (P *Parser) ParseType() *AST.Type {
+ 
+ func (P *Parser) ParseVarType() *AST.Type {
+ 	P.Trace("VarType");
+-	
++
+ 	typ := P.ParseType();
+-	
++
+ 	P.Ecart();
+ 	return typ;
+ }
+@@ -246,7 +246,7 @@ func (P *Parser) ParseQualifiedIdent() *AST.Expr {
+ 		y := P.ParseIdent();
+ 		x = P.NewExpr(pos, Scanner.PERIOD, x, y);
+ 	}
+-	
++
+ 	P.Ecart();
+ 	return x;
+ }
+@@ -254,7 +254,7 @@ func (P *Parser) ParseQualifiedIdent() *AST.Expr {
+ 
+ func (P *Parser) ParseTypeName() *AST.Type {
+ 	P.Trace("TypeName");
+-	
++
+ 	t := AST.NewType(P.pos, P.tok);
+ 	t.expr = P.ParseQualifiedIdent();
+ 
+@@ -265,7 +265,7 @@ func (P *Parser) ParseTypeName() *AST.Type {
+ 
+ func (P *Parser) ParseArrayType() *AST.Type {
+ 	P.Trace("ArrayType");
+-	
++
+ 	t := AST.NewType(P.pos, Scanner.LBRACK);
+ 	P.Expect(Scanner.LBRACK);
+ 	if P.tok != Scanner.RBRACK {
+@@ -281,7 +281,7 @@ func (P *Parser) ParseArrayType() *AST.Type {
+ 
+ func (P *Parser) ParseChannelType() *AST.Type {
+ 	P.Trace("ChannelType");
+-	
++
+ 	t := AST.NewType(P.pos, Scanner.CHAN);
+ 	t.mode = AST.FULL;
+ 	if P.tok == Scanner.CHAN {
+@@ -340,13 +340,13 @@ func (P *Parser) ParseVarDeclList(list *array.Array, ellipsis_ok bool) {
+ 		typ = AST.NewType(P.pos, Scanner.ELLIPSIS);
+ 		P.Next();
+ 	}
+-	
++
+ 	if ellipsis_ok /* param list */ && i0 > 0 && typ == nil {
+ 		// not the first parameter section; we must have a type
+ 		P.Error(P.pos, "type expected");
+ 		typ = AST.BadType;
+ 	}
+-	
++
+ 	// convert the list into a list of (type) expressions
+ 	if typ != nil {
+ 		// all list entries must be identifiers
+@@ -371,21 +371,21 @@ func (P *Parser) ParseVarDeclList(list *array.Array, ellipsis_ok bool) {
+ 			list.Set(i, AST.NewTypeExpr(t));
+ 		}
+ 	}
+-	
++
+ 	P.Ecart();
+ }
+ 
+ 
+ func (P *Parser) ParseParameterList(ellipsis_ok bool) *array.Array {
+ 	P.Trace("ParameterList");
+-	
++
+ 	list := array.New(0);
+ 	P.ParseVarDeclList(list, ellipsis_ok);
+ 	for P.tok == Scanner.COMMA {
+ 		P.Next();
+ 		P.ParseVarDeclList(list, ellipsis_ok);
+ 	}
+-	
++
+ 	P.Ecart();
+ 	return list;
+ }
+@@ -393,7 +393,7 @@ func (P *Parser) ParseParameterList(ellipsis_ok bool) *array.Array {
+ 
+ func (P *Parser) ParseParameters(ellipsis_ok bool) *AST.Type {
+ 	P.Trace("Parameters");
+-	
++
+ 	t := AST.NewType(P.pos, Scanner.STRUCT);
+ 	P.Expect(Scanner.LPAREN);
+ 	if P.tok != Scanner.RPAREN {
+@@ -401,7 +401,7 @@ func (P *Parser) ParseParameters(ellipsis_ok bool) *AST.Type {
+ 	}
+ 	t.end = P.pos;
+ 	P.Expect(Scanner.RPAREN);
+-	
++
+ 	P.Ecart();
+ 	return t;
+ }
+@@ -425,7 +425,7 @@ func (P *Parser) ParseResultList() {
+ 
+ func (P *Parser) ParseResult() *AST.Type {
+ 	P.Trace("Result");
+-	
++
+ 	var t *AST.Type;
+ 	if P.tok == Scanner.LPAREN {
+ 		t = P.ParseParameters(false);
+@@ -452,12 +452,12 @@ func (P *Parser) ParseResult() *AST.Type {
+ 
+ func (P *Parser) ParseFunctionType() *AST.Type {
+ 	P.Trace("FunctionType");
+-	
++
+ 	t := AST.NewType(P.pos, Scanner.LPAREN);
+ 	t.list = P.ParseParameters(true).list;  // TODO find better solution
+ 	t.end = P.pos;
+ 	t.elt = P.ParseResult();
+-	
++
+ 	P.Ecart();
+ 	return t;
+ }
+@@ -465,7 +465,7 @@ func (P *Parser) ParseFunctionType() *AST.Type {
+ 
+ func (P *Parser) ParseMethodSpec(list *array.Array) {
+ 	P.Trace("MethodDecl");
+-	
++
+ 	list.Push(P.ParseIdentList());
+ 	t := AST.BadType;
+ 	if P.sixg {
+@@ -474,14 +474,14 @@ func (P *Parser) ParseMethodSpec(list *array.Array) {
+ 		t = P.ParseFunctionType();
+ 	}
+ 	list.Push(AST.NewTypeExpr(t));
+-	
++
+ 	P.Ecart();
+ }
+ 
+ 
+ func (P *Parser) ParseInterfaceType() *AST.Type {
+ 	P.Trace("InterfaceType");
+-	
++
+ 	t := AST.NewType(P.pos, Scanner.INTERFACE);
+ 	P.Expect(Scanner.INTERFACE);
+ 	if P.tok == Scanner.LBRACE {
+@@ -504,14 +504,14 @@ func (P *Parser) ParseInterfaceType() *AST.Type {
+ 
+ func (P *Parser) ParseMapType() *AST.Type {
+ 	P.Trace("MapType");
+-	
++
+ 	t := AST.NewType(P.pos, Scanner.MAP);
+ 	P.Expect(Scanner.MAP);
+ 	P.Expect(Scanner.LBRACK);
+ 	t.key = P.ParseVarType();
+ 	P.Expect(Scanner.RBRACK);
+ 	t.elt = P.ParseVarType();
+-	
++
+ 	P.Ecart();
+ 	return t;
+ }
+@@ -551,11 +551,11 @@ func (P *Parser) ParseStructType() *AST.Type {
+ 
+ func (P *Parser) ParsePointerType() *AST.Type {
+ 	P.Trace("PointerType");
+-	
++
+ 	t := AST.NewType(P.pos, Scanner.MUL);
+ 	P.Expect(Scanner.MUL);
+ 	t.elt = P.ParseType();
+-	
++
+ 	P.Ecart();
+ 	return t;
+ }
+@@ -563,7 +563,7 @@ func (P *Parser) ParsePointerType() *AST.Type {
+ 
+ func (P *Parser) TryType() *AST.Type {
+ 	P.Trace("Type (try)");
+-	
++
+ 	t := AST.BadType;
+ 	switch P.tok {
+ 	case Scanner.IDENT: t = P.ParseTypeName();
+@@ -587,7 +587,7 @@ func (P *Parser) TryType() *AST.Type {
+ 
+ func (P *Parser) ParseStatementList() *array.Array {
+ 	P.Trace("StatementList");
+-	
++
+ 	list := array.New(0);
+ 	for P.tok != Scanner.CASE && P.tok != Scanner.DEFAULT && P.tok != Scanner.RBRACE && P.tok != Scanner.EOF {
+ 		s := P.ParseStatement();
+@@ -603,7 +603,7 @@ func (P *Parser) ParseStatementList() *array.Array {
+ 			break;
+ 		}
+ 	}
+-	
++
+ 	// Try to provide a good error message
+ 	if P.tok != Scanner.CASE && P.tok != Scanner.DEFAULT && P.tok != Scanner.RBRACE && P.tok != Scanner.EOF {
+ 		P.Error(P.pos, "expected end of statement list (semicolon missing?)");
+@@ -616,13 +616,13 @@ func (P *Parser) ParseStatementList() *array.Array {
+ 
+ func (P *Parser) ParseBlock() (slist *array.Array, end int) {
+ 	P.Trace("Block");
+-	
++
+ 	P.Expect(Scanner.LBRACE);
+ 	slist = P.ParseStatementList();
+ 	end = P.pos;
+ 	P.Expect(Scanner.RBRACE);
+ 	P.opt_semi = true;
+-	
++
+ 	P.Ecart();
+ 	return slist, end;
+ }
+@@ -654,7 +654,7 @@ func (P *Parser) ParseExpressionList() *AST.Expr {
+ 
+ func (P *Parser) ParseFunctionLit() *AST.Expr {
+ 	P.Trace("FunctionLit");
+-	
++
+ 	x := AST.NewLit(P.pos, Scanner.FUNC, "");
+ 	P.Expect(Scanner.FUNC);
+ 	x.t = P.ParseFunctionType();
+@@ -663,7 +663,7 @@ func (P *Parser) ParseFunctionLit() *AST.Expr {
+ 	x.block, x.end = P.ParseBlock();
+ 	P.scope_lev--;
+ 	P.expr_lev--;
+-	
++
+ 	P.Ecart();
+ 	return x;
+ }
+@@ -672,7 +672,7 @@ func (P *Parser) ParseFunctionLit() *AST.Expr {
+ /*
+ func (P *Parser) ParseNewCall() *AST.Expr {
+ 	P.Trace("NewCall");
+-	
++
+ 	x := AST.NewExpr(P.pos, Scanner.NEW, nil, nil);
+ 	P.Next();
+ 	P.Expect(Scanner.LPAREN);
+@@ -684,7 +684,7 @@ func (P *Parser) ParseNewCall() *AST.Expr {
+ 	}
+ 	P.expr_lev--;
+ 	P.Expect(Scanner.RPAREN);
+-	
++
+ 	P.Ecart();
+ 	return x;
+ }
+@@ -698,9 +698,9 @@ func (P *Parser) ParseOperand() *AST.Expr {
+ 	switch P.tok {
+ 	case Scanner.IDENT:
+ 		x = P.ParseIdent();
+-		
++
+ 	case Scanner.LPAREN:
+-		// TODO we could have a function type here as in: new(*())
++		// TODO we could have a function type here as in: new(**())
+ 		// (currently not working)
+ 		P.Next();
+ 		P.expr_lev++;
+@@ -745,16 +745,16 @@ func (P *Parser) ParseSelectorOrTypeGuard(x *AST.Expr) *AST.Expr {
+ 
+ 	x = P.NewExpr(P.pos, Scanner.PERIOD, x, nil);
+ 	P.Expect(Scanner.PERIOD);
+-	
++
+ 	if P.tok == Scanner.IDENT {
+ 		x.y = P.ParseIdent();
+-		
++
+ 	} else {
+ 		P.Expect(Scanner.LPAREN);
+ 		x.t = P.ParseType();
+ 		P.Expect(Scanner.RPAREN);
+ 	}
+-	
++
+ 	P.Ecart();
+ 	return x;
+ }
+@@ -762,14 +762,14 @@ func (P *Parser) ParseSelectorOrTypeGuard(x *AST.Expr) *AST.Expr {
+ 
+ func (P *Parser) ParseIndex(x *AST.Expr) *AST.Expr {
+ 	P.Trace("IndexOrSlice");
+-	
++
+ 	pos := P.pos;
+ 	P.Expect(Scanner.LBRACK);
+ 	P.expr_lev++;
+ 	i := P.ParseExpression(0);
+ 	P.expr_lev--;
+ 	P.Expect(Scanner.RBRACK);
+-	
++
+ 	P.Ecart();
+ 	return P.NewExpr(pos, Scanner.LBRACK, x, i);
+ }
+@@ -786,7 +786,7 @@ func (P *Parser) ParseCall(x0 *AST.Expr) *AST.Expr {
+ 		P.expr_lev++;
+ 		var t *AST.Type;
+ 		if x0.tok == Scanner.IDENT && x0.s == "new" {
+-			// heuristic: assume it's a new(T, ...) call, try to parse a type
++			// heuristic: assume it's a new(*T, ...) call, try to parse a type
+ 			t = P.TryType();
+ 		}
+ 		if t != nil {
+@@ -808,7 +808,7 @@ func (P *Parser) ParseCall(x0 *AST.Expr) *AST.Expr {
+ 		P.expr_lev--;
+ 	}
+ 	P.Expect(Scanner.RPAREN);
+-	
++
+ 	P.Ecart();
+ 	return x;
+ }
+@@ -819,13 +819,13 @@ func (P *Parser) ParseCompositeElements() *AST.Expr {
+ 	if P.tok == Scanner.COMMA {
+ 		pos := P.pos;
+ 		P.Next();
+-		
++
+ 		// first element determines mode
+ 		singles := true;
+ 		if x.tok == Scanner.COLON {
+ 			singles = false;
+ 		}
+-		
++
+ 		for first := true; P.tok != Scanner.RBRACE && P.tok != Scanner.EOF; {
+ 			y := P.ParseExpression(0);
+ 
+@@ -838,13 +838,13 @@ func (P *Parser) ParseCompositeElements() *AST.Expr {
+ 					P.Error(y.pos, "key:value pair expected; found single value");
+ 				}
+ 			}
+-			
++
+ 			if first {
+ 				x = P.NewExpr(pos, Scanner.COMMA, x, y);
+ 			} else {
+ 				x.y = P.NewExpr(pos, Scanner.COMMA, x.y, y);
+ 			}
+-		
++
+ 			if P.tok == Scanner.COMMA {
+ 				pos = P.pos;
+ 				P.Next();
+@@ -860,7 +860,7 @@ func (P *Parser) ParseCompositeElements() *AST.Expr {
+ 
+ func (P *Parser) ParseCompositeLit(t *AST.Type) *AST.Expr {
+ 	P.Trace("CompositeLit");
+-	
++
+ 	x := P.NewExpr(P.pos, Scanner.LBRACE, nil, nil);
+ 	x.t = t;
+ 	P.Expect(Scanner.LBRACE);
+@@ -868,7 +868,7 @@ func (P *Parser) ParseCompositeLit(t *AST.Type) *AST.Expr {
+ 		x.y = P.ParseCompositeElements();
+ 	}
+ 	P.Expect(Scanner.RBRACE);
+-	
++
+ 	P.Ecart();
+ 	return x;
+ }
+@@ -876,7 +876,7 @@ func (P *Parser) ParseCompositeLit(t *AST.Type) *AST.Expr {
+ 
+ func (P *Parser) ParsePrimaryExpr() *AST.Expr {
+ 	P.Trace("PrimaryExpr");
+-	
++
+ 	x := P.ParseOperand();
+ 	for {
+ 		switch P.tok {
+@@ -899,7 +899,7 @@ func (P *Parser) ParsePrimaryExpr() *AST.Expr {
+ 		default: goto exit;
+ 		}
+ 	}
+-	
++
+ exit:
+ 	P.Ecart();
+ 	return x;
+@@ -908,7 +908,7 @@ exit:
+ 
+ func (P *Parser) ParseUnaryExpr() *AST.Expr {
+ 	P.Trace("UnaryExpr");
+-	
++
+ 	x := AST.BadExpr;
+ 	switch P.tok {
+ 	case Scanner.ADD, Scanner.SUB, Scanner.MUL, Scanner.NOT, Scanner.XOR, Scanner.ARROW, Scanner.AND:
+@@ -923,11 +923,11 @@ func (P *Parser) ParseUnaryExpr() *AST.Expr {
+ 		} else {
+ 			x = P.NewExpr(pos, tok, nil, y);
+ 		}
+-	
++
+ 	default:
+ 		x = P.ParsePrimaryExpr();
+ 	}
+-	
++
+ 	P.Ecart();
+ 	return x;
+ }
+@@ -935,7 +935,7 @@ func (P *Parser) ParseUnaryExpr() *AST.Expr {
+ 
+ func (P *Parser) ParseBinaryExpr(prec1 int) *AST.Expr {
+ 	P.Trace("BinaryExpr");
+-	
++
+ 	x := P.ParseUnaryExpr();
+ 	for prec := Scanner.Precedence(P.tok); prec >= prec1; prec-- {
+ 		for Scanner.Precedence(P.tok) == prec {
+@@ -945,7 +945,7 @@ func (P *Parser) ParseBinaryExpr(prec1 int) *AST.Expr {
+ 			x = P.NewExpr(pos, tok, x, y);
+ 		}
+ 	}
+-	
++
+ 	P.Ecart();
+ 	return x;
+ }
+@@ -973,10 +973,10 @@ func (P *Parser) ParseExpression(prec int) *AST.Expr {
+ 
+ func (P *Parser) ParseSimpleStat(range_ok bool) *AST.Stat {
+ 	P.Trace("SimpleStat");
+-	
++
+ 	s := AST.BadStat;
+ 	x := P.ParseExpressionList();
+-	
++
+ 	is_range := false;
+ 	if range_ok && P.tok == Scanner.COLON {
+ 		pos := P.pos;
+@@ -989,7 +989,7 @@ func (P *Parser) ParseSimpleStat(range_ok bool) *AST.Stat {
+ 			P.Error(pos, "expected initialization, found ':'");
+ 		}
+ 	}
+-	
++
+ 	switch P.tok {
+ 	case Scanner.COLON:
+ 		// label declaration
+@@ -1052,7 +1052,7 @@ func (P *Parser) ParseSimpleStat(range_ok bool) *AST.Stat {
+ 			P.Error(x.pos, "only one expression allowed");
+ 		}
+ 	}
+-	
++
+ 	P.Ecart();
+ 	return s;
+ }
+@@ -1060,11 +1060,11 @@ func (P *Parser) ParseSimpleStat(range_ok bool) *AST.Stat {
+ 
+ func (P *Parser) ParseGoStat() *AST.Stat {
+ 	P.Trace("GoStat");
+-	
++
+ 	s := AST.NewStat(P.pos, Scanner.GO);
+ 	P.Expect(Scanner.GO);
+ 	s.expr = P.ParseExpression(1);
+-	
++
+ 	P.Ecart();
+ 	return s;
+ }
+@@ -1072,13 +1072,13 @@ func (P *Parser) ParseGoStat() *AST.Stat {
+ 
+ func (P *Parser) ParseReturnStat() *AST.Stat {
+ 	P.Trace("ReturnStat");
+-	
++
+ 	s := AST.NewStat(P.pos, Scanner.RETURN);
+ 	P.Expect(Scanner.RETURN);
+ 	if P.tok != Scanner.SEMICOLON && P.tok != Scanner.RBRACE {
+ 		s.expr = P.ParseExpressionList();
+ 	}
+-	
++
+ 	P.Ecart();
+ 	return s;
+ }
+@@ -1086,13 +1086,13 @@ func (P *Parser) ParseReturnStat() *AST.Stat {
+ 
+ func (P *Parser) ParseControlFlowStat(tok int) *AST.Stat {
+ 	P.Trace("ControlFlowStat");
+-	
++
+ 	s := AST.NewStat(P.pos, tok);
+ 	P.Expect(tok);
+ 	if tok != Scanner.FALLTHROUGH && P.tok == Scanner.IDENT {
+ 		s.expr = P.ParseIdent();
+ 	}
+-	
++
+ 	P.Ecart();
+ 	return s;
+ }
+@@ -1100,7 +1100,7 @@ func (P *Parser) ParseControlFlowStat(tok int) *AST.Stat {
+ 
+ func (P *Parser) ParseControlClause(keyword int) *AST.Stat {
+ 	P.Trace("ControlClause");
+-	
++
+ 	s := AST.NewStat(P.pos, keyword);
+ 	P.Expect(keyword);
+ 	if P.tok != Scanner.LBRACE {
+@@ -1163,7 +1163,7 @@ func (P *Parser) ParseIfStat() *AST.Stat {
+ 		}
+ 		s.post = s1;
+ 	}
+-	
++
+ 	P.Ecart();
+ 	return s;
+ }
+@@ -1171,10 +1171,10 @@ func (P *Parser) ParseIfStat() *AST.Stat {
+ 
+ func (P *Parser) ParseForStat() *AST.Stat {
+ 	P.Trace("ForStat");
+-	
++
+ 	s := P.ParseControlClause(Scanner.FOR);
+ 	s.block, s.end = P.ParseBlock();
+-	
++
+ 	P.Ecart();
+ 	return s;
+ }
+@@ -1182,7 +1182,7 @@ func (P *Parser) ParseForStat() *AST.Stat {
+ 
+ func (P *Parser) ParseCase() *AST.Stat {
+ 	P.Trace("Case");
+-	
++
+ 	s := AST.NewStat(P.pos, P.tok);
+ 	if P.tok == Scanner.CASE {
+ 		P.Next();
+@@ -1191,7 +1191,7 @@ func (P *Parser) ParseCase() *AST.Stat {
+ 		P.Expect(Scanner.DEFAULT);
+ 	}
+ 	P.Expect(Scanner.COLON);
+-	
++
+ 	P.Ecart();
+ 	return s;
+ }
+@@ -1204,7 +1204,7 @@ func (P *Parser) ParseCaseClause() *AST.Stat {
+ 	if P.tok != Scanner.CASE && P.tok != Scanner.DEFAULT && P.tok != Scanner.RBRACE {
+ 		s.block = P.ParseStatementList();
+ 	}
+-	
++
+ 	P.Ecart();
+ 	return s;
+ }
+@@ -1212,7 +1212,7 @@ func (P *Parser) ParseCaseClause() *AST.Stat {
+ 
+ func (P *Parser) ParseSwitchStat() *AST.Stat {
+ 	P.Trace("SwitchStat");
+-	
++
+ 	s := P.ParseControlClause(Scanner.SWITCH);
+ 	s.block = array.New(0);
+ 	P.Expect(Scanner.LBRACE);
+@@ -1258,12 +1258,12 @@ func (P *Parser) ParseCommCase() *AST.Stat {
+ 
+ func (P *Parser) ParseCommClause() *AST.Stat {
+ 	P.Trace("CommClause");
+-	
++
+ 	s := P.ParseCommCase();
+ 	if P.tok != Scanner.CASE && P.tok != Scanner.DEFAULT && P.tok != Scanner.RBRACE {
+ 		s.block = P.ParseStatementList();
+ 	}
+-	
++
+ 	P.Ecart();
+ 	return s;
+ }
+@@ -1271,7 +1271,7 @@ func (P *Parser) ParseCommClause() *AST.Stat {
+ 
+ func (P *Parser) ParseSelectStat() *AST.Stat {
+ 	P.Trace("SelectStat");
+-	
++
+ 	s := AST.NewStat(P.pos, Scanner.SELECT);
+ 	s.block = array.New(0);
+ 	P.Expect(Scanner.SELECT);
+@@ -1281,7 +1281,7 @@ func (P *Parser) ParseSelectStat() *AST.Stat {
+ 	}
+ 	P.Expect(Scanner.RBRACE);
+ 	P.opt_semi = true;
+-	
++
+ 	P.Ecart();
+ 	return s;
+ }
+@@ -1289,14 +1289,14 @@ func (P *Parser) ParseSelectStat() *AST.Stat {
+ 
+ func (P *Parser) ParseRangeStat() *AST.Stat {
+ 	P.Trace("RangeStat");
+-	
++
+ 	s := AST.NewStat(P.pos, Scanner.RANGE);
+ 	P.Expect(Scanner.RANGE);
+ 	P.ParseIdentList();
+ 	P.Expect(Scanner.DEFINE);
+ 	s.expr = P.ParseExpression(1);
+ 	s.block, s.end = P.ParseBlock();
+-	
++
+ 	P.Ecart();
+ 	return s;
+ }
+@@ -1358,7 +1358,7 @@ func (P *Parser) ParseStatement() *AST.Stat {
+ 
+ func (P *Parser) ParseImportSpec(pos int) *AST.Decl {
+ 	P.Trace("ImportSpec");
+-	
++
+ 	d := AST.NewDecl(pos, Scanner.IMPORT, false);
+ 	if P.tok == Scanner.PERIOD {
+ 		P.Error(P.pos, `"import ." not yet handled properly`);
+@@ -1366,7 +1366,7 @@ func (P *Parser) ParseImportSpec(pos int) *AST.Decl {
+ 	} else if P.tok == Scanner.IDENT {
+ 		d.ident = P.ParseIdent();
+ 	}
+-	
++
+ 	if P.tok == Scanner.STRING {
+ 		// TODO eventually the scanner should strip the quotes
+ 		d.val = AST.NewLit(P.pos, Scanner.STRING, P.val);
+@@ -1374,7 +1374,7 @@ func (P *Parser) ParseImportSpec(pos int) *AST.Decl {
+ 	} else {
+ 		P.Expect(Scanner.STRING);  // use Expect() error handling
+ 	}
+-	
++
+ 	P.Ecart();
+ 	return d;
+ }
+@@ -1382,7 +1382,7 @@ func (P *Parser) ParseImportSpec(pos int) *AST.Decl {
+ 
+ func (P *Parser) ParseConstSpec(exported bool, pos int) *AST.Decl {
+ 	P.Trace("ConstSpec");
+-	
++
+ 	d := AST.NewDecl(pos, Scanner.CONST, exported);
+ 	d.ident = P.ParseIdentList();
+ 	d.typ = P.TryType();
+@@ -1390,7 +1390,7 @@ func (P *Parser) ParseConstSpec(exported bool, pos int) *AST.Decl {
+ 		P.Next();
+ 		d.val = P.ParseExpressionList();
+ 	}
+-	
++
+ 	P.Ecart();
+ 	return d;
+ }
+@@ -1403,7 +1403,7 @@ func (P *Parser) ParseTypeSpec(exported bool, pos int) *AST.Decl {
+ 	d.ident = P.ParseIdent();
+ 	d.typ = P.ParseType();
+ 	P.opt_semi = true;
+-	
++
+ 	P.Ecart();
+ 	return d;
+ }
+@@ -1411,7 +1411,7 @@ func (P *Parser) ParseTypeSpec(exported bool, pos int) *AST.Decl {
+ 
+ func (P *Parser) ParseVarSpec(exported bool, pos int) *AST.Decl {
+ 	P.Trace("VarSpec");
+-	
++
+ 	d := AST.NewDecl(pos, Scanner.VAR, exported);
+ 	d.ident = P.ParseIdentList();
+ 	if P.tok == Scanner.ASSIGN {
+@@ -1424,7 +1424,7 @@ func (P *Parser) ParseVarSpec(exported bool, pos int) *AST.Decl {
+ 			d.val = P.ParseExpressionList();
+ 		}
+ 	}
+-	
++
+ 	P.Ecart();
+ 	return d;
+ }
+@@ -1445,7 +1445,7 @@ func (P *Parser) ParseSpec(exported bool, pos int, keyword int) *AST.Decl {
+ 
+ func (P *Parser) ParseDecl(exported bool, keyword int) *AST.Decl {
+ 	P.Trace("Decl");
+-	
++
+ 	d := AST.BadDecl;
+ 	pos := P.pos;
+ 	P.Expect(keyword);
+@@ -1464,11 +1464,11 @@ func (P *Parser) ParseDecl(exported bool, keyword int) *AST.Decl {
+ 		d.end = P.pos;
+ 		P.Expect(Scanner.RPAREN);
+ 		P.opt_semi = true;
+-		
++
+ 	} else {
+ 		d = P.ParseSpec(exported, pos, keyword);
+ 	}
+-	
++
+ 	P.Ecart();
+ 	return d;
+ }
+@@ -1485,10 +1485,10 @@ func (P *Parser) ParseDecl(exported bool, keyword int) *AST.Decl {
+ 
+ func (P *Parser) ParseFunctionDecl(exported bool) *AST.Decl {
+ 	P.Trace("FunctionDecl");
+-	
++
+ 	d := AST.NewDecl(P.pos, Scanner.FUNC, exported);
+ 	P.Expect(Scanner.FUNC);
+-	
++
+ 	var recv *AST.Type;
+ 	if P.tok == Scanner.LPAREN {
+ 		pos := P.pos;
+@@ -1497,7 +1497,7 @@ func (P *Parser) ParseFunctionDecl(exported bool) *AST.Decl {
+ 			P.Error(pos, "must have exactly one receiver");
+ 		}
+ 	}
+-	
++
+ 	d.ident = P.ParseIdent();
+ 	d.typ = P.ParseFunctionType();
+ 	d.typ.key = recv;
+@@ -1507,7 +1507,7 @@ func (P *Parser) ParseFunctionDecl(exported bool) *AST.Decl {
+ 		d.list, d.end = P.ParseBlock();
+ 		P.scope_lev--;
+ 	}
+-	
++
+ 	P.Ecart();
+ 	return d;
+ }
+@@ -1515,7 +1515,7 @@ func (P *Parser) ParseFunctionDecl(exported bool) *AST.Decl {
+ 
+ func (P *Parser) ParseExportDecl() *AST.Decl {
+ 	P.Trace("ExportDecl");
+-	
++
+ 	d := AST.NewDecl(P.pos, Scanner.EXPORT, false);
+ 	d.ident = P.ParseIdentList();
+ 
+@@ -1527,7 +1527,7 @@ func (P *Parser) ParseExportDecl() *AST.Decl {
+ func (P *Parser) ParseDeclaration() *AST.Decl {
+ 	P.Trace("Declaration");
+ 	indent := P.indent;
+-	
++
+ 	d := AST.BadDecl;
+ 	exported := false;
+ 	// TODO don't use bool flag for export
+@@ -1539,7 +1539,7 @@ func (P *Parser) ParseDeclaration() *AST.Decl {
+ 		}
+ 		P.Next();
+ 	}
+-	
++
+ 	switch P.tok {
+ 	case Scanner.CONST, Scanner.TYPE, Scanner.VAR:
+ 		d = P.ParseDecl(exported, P.tok);
+@@ -1573,26 +1573,26 @@ func (P *Parser) ParseDeclaration() *AST.Decl {
+ 
+ func (P *Parser) ParseProgram() *AST.Program {
+ 	P.Trace("Program");
+-	
++
+ 	p := AST.NewProgram(P.pos);
+ 	P.Expect(Scanner.PACKAGE);
+ 	p.ident = P.ParseIdent();
+-	
++
+ 	p.decls = array.New(0);
+ 	for P.tok == Scanner.IMPORT {
+ 		p.decls.Push(P.ParseDecl(false, Scanner.IMPORT));
+ 		P.OptSemicolon();
+ 	}
+-	
++
+ 	if !P.deps {
+ 		for P.tok != Scanner.EOF {
+ 			p.decls.Push(P.ParseDeclaration());
+ 			P.OptSemicolon();
+ 		}
+ 	}
+-	
++
+ 	p.comments = P.comments;
+-	
++
+ 	P.Ecart();
+ 	return p;
+ }
+diff --git a/usr/gri/pretty/scanner.go b/usr/gri/pretty/scanner.go
+index 917acad382..e77ade39ee 100644
+--- a/usr/gri/pretty/scanner.go
++++ b/usr/gri/pretty/scanner.go
+@@ -24,13 +24,13 @@ export const (
+ 	MUL;
+ 	QUO;
+ 	REM;
+-	
++
+ 	AND;
+ 	OR;
+ 	XOR;
+ 	SHL;
+ 	SHR;
+-	
++
+ 	ADD_ASSIGN;
+ 	SUB_ASSIGN;
+ 	MUL_ASSIGN;
+@@ -48,7 +48,7 @@ export const (
+ 	ARROW;
+ 	INC;
+ 	DEC;
+-	
++
+ 	EQL;
+ 	NEQ;
+ 	LSS;
+@@ -60,14 +60,14 @@ export const (
+ 	DEFINE;
+ 	NOT;
+ 	ELLIPSIS;
+-	
++
+ 	LPAREN;
+ 	RPAREN;
+ 	LBRACK;
+ 	RBRACK;
+ 	LBRACE;
+ 	RBRACE;
+-	
++
+ 	COMMA;
+ 	SEMICOLON;
+ 	COLON;
+@@ -80,32 +80,32 @@ export const (
+ 	CHAN;
+ 	CONST;
+ 	CONTINUE;
+-	
++
+ 	DEFAULT;
+ 	ELSE;
+ 	EXPORT;
+ 	FALLTHROUGH;
+ 	FOR;
+-	
++
+ 	FUNC;
+ 	GO;
+ 	GOTO;
+ 	IF;
+ 	IMPORT;
+-	
++
+ 	INTERFACE;
+ 	MAP;
+ 	PACKAGE;
+ 	RANGE;
+ 	RETURN;
+-	
++
+ 	SELECT;
+ 	STRUCT;
+ 	SWITCH;
+ 	TYPE;
+ 	VAR;
+ 	KEYWORDS_END;
+-	
++
+ 	// AST use only
+ 	EXPRSTAT;
+ )
+@@ -114,7 +114,7 @@ export const (
+ export func TokenString(tok int) string {
+ 	switch tok {
+ 	case ILLEGAL: return "ILLEGAL";
+-	
++
+ 	case IDENT: return "IDENT";
+ 	case INT: return "INT";
+ 	case FLOAT: return "FLOAT";
+@@ -128,13 +128,13 @@ export func TokenString(tok int) string {
+ 	case MUL: return "*";
+ 	case QUO: return "/";
+ 	case REM: return "%";
+-	
++
+ 	case AND: return "&";
+ 	case OR: return "|";
+ 	case XOR: return "^";
+ 	case SHL: return "<<";
+ 	case SHR: return ">>";
+-	
++
+ 	case ADD_ASSIGN: return "+=";
+ 	case SUB_ASSIGN: return "-=";
+ 	case MUL_ASSIGN: return "+=";
+@@ -206,10 +206,10 @@ export func TokenString(tok int) string {
+ 	case SWITCH: return "switch";
+ 	case TYPE: return "type";
+ 	case VAR: return "var";
+-	
++
+ 	case EXPRSTAT: return "EXPRSTAT";
+ 	}
+-	
++
+ 	return "token(" + Utils.IntToString(tok, 10) + ")";
+ }
+ 
+@@ -242,7 +242,7 @@ export func Precedence(tok int) int {
+ }
+ 
+ 
+-var Keywords *map [string] int;
++var Keywords map [string] int;
+ 
+ 
+ func init() {
+@@ -325,7 +325,7 @@ func (S *Scanner) Error(pos int, msg string) {
+ 		S.testpos = -1;
+ 		return;
+ 	}
+-	
++
+ 	S.err.Error(pos, msg);
+ }
+ 
+@@ -397,7 +397,7 @@ func (S *Scanner) SkipWhitespace() {
+ func (S *Scanner) ScanComment() string {
+ 	// first '/' already consumed
+ 	pos := S.chpos - 1;
+-	
++
+ 	if S.ch == '/' {
+ 		//-style comment
+ 		S.Next();
+@@ -410,7 +410,7 @@ func (S *Scanner) ScanComment() string {
+ 				goto exit;
+ 			}
+ 		}
+-		
++
+ 	} else {
+ 		/*-style comment */
+ 		S.Expect('*');
+@@ -423,7 +423,7 @@ func (S *Scanner) ScanComment() string {
+ 			}
+ 		}
+ 	}
+-	
++
+ 	S.Error(pos, "comment not terminated");
+ 
+ exit:
+@@ -443,7 +443,7 @@ exit:
+ 			oldpos = S.testpos;
+ 			S.ExpectNoErrors();
+ 		}
+-	
++
+ 		if 0 <= oldpos && oldpos <= len(S.src) {
+ 			// the previous error was not found
+ 			S.Error(oldpos, "ERROR not found");  // TODO this should call ErrorMsg
+@@ -460,13 +460,13 @@ func (S *Scanner) ScanIdentifier() (tok int, val string) {
+ 		S.Next();
+ 	}
+ 	val = S.src[pos : S.chpos];
+-	
++
+ 	var present bool;
+ 	tok, present = Keywords[val];
+ 	if !present {
+ 		tok = IDENT;
+ 	}
+-	
++
+ 	return tok, val;
+ }
+ 
+@@ -481,14 +481,14 @@ func (S *Scanner) ScanMantissa(base int) {
+ func (S *Scanner) ScanNumber(seen_decimal_point bool) (tok int, val string) {
+ 	pos := S.chpos;
+ 	tok = INT;
+-	
++
+ 	if seen_decimal_point {
+ 		tok = FLOAT;
+ 		pos--;  // '.' is one byte
+ 		S.ScanMantissa(10);
+ 		goto exponent;
+ 	}
+-	
++
+ 	if S.ch == '0' {
+ 		// int or float
+ 		S.Next();
+@@ -508,18 +508,18 @@ func (S *Scanner) ScanNumber(seen_decimal_point bool) (tok int, val string) {
+ 		}
+ 		goto exit;
+ 	}
+-	
++
+ mantissa:
+ 	// decimal int or float
+ 	S.ScanMantissa(10);
+-	
++
+ 	if S.ch == '.' {
+ 		// float
+ 		tok = FLOAT;
+ 		S.Next();
+ 		S.ScanMantissa(10)
+ 	}
+-	
++
+ exponent:
+ 	if S.ch == 'e' || S.ch == 'E' {
+ 		// float
+@@ -530,7 +530,7 @@ exponent:
+ 		}
+ 		S.ScanMantissa(10);
+ 	}
+-	
++
+ exit:
+ 	return tok, S.src[pos : S.chpos];
+ }
+@@ -549,22 +549,22 @@ func (S *Scanner) ScanDigits(n int, base int) {
+ 
+ func (S *Scanner) ScanEscape(quote int) string {
+ 	// TODO: fix this routine
+-	
++
+ 	ch := S.ch;
+ 	pos := S.chpos;
+ 	S.Next();
+ 	switch ch {
+ 	case 'a', 'b', 'f', 'n', 'r', 't', 'v', '\\':
+ 		return string(ch);
+-		
++
+ 	case '0', '1', '2', '3', '4', '5', '6', '7':
+ 		S.ScanDigits(3 - 1, 8);  // 1 char already read
+ 		return "";  // TODO fix this
+-		
++
+ 	case 'x':
+ 		S.ScanDigits(2, 16);
+ 		return "";  // TODO fix this
+-		
++
+ 	case 'u':
+ 		S.ScanDigits(4, 16);
+ 		return "";  // TODO fix this
+@@ -580,7 +580,7 @@ func (S *Scanner) ScanEscape(quote int) string {
+ 		}
+ 		S.Error(pos, "illegal char escape");
+ 	}
+-	
++
+ 	return "";  // TODO fix this
+ }
+ 
+@@ -615,7 +615,7 @@ func (S *Scanner) ScanString() string {
+ 			S.ScanEscape('"');
+ 		}
+ 	}
+-	
++
+ 	S.Next();
+ 	return S.src[pos : S.chpos];
+ }
+@@ -680,9 +680,9 @@ func (S *Scanner) Select4(tok0, tok1, ch2, tok2, tok3 int) int {
+ 
+ func (S *Scanner) Scan() (pos, tok int, val string) {
+ L:	S.SkipWhitespace();
+-	
++
+ 	pos, tok = S.chpos, ILLEGAL;
+-	
++
+ 	switch ch := S.ch; {
+ 	case is_letter(ch): tok, val = S.ScanIdentifier();
+ 	case digit_val(ch) < 10: tok, val = S.ScanNumber(false);
+@@ -746,7 +746,7 @@ L:	S.SkipWhitespace();
+ 			tok = ILLEGAL;
+ 		}
+ 	}
+-	
++
+ 	return pos, tok, val;
+ }
+ 
+@@ -758,11 +758,11 @@ export type Token struct {
+ }
+ 
+ 
+-func (S *Scanner) TokenStream() *<-chan *Token {
++func (S *Scanner) TokenStream() <-chan *Token {
+ 	ch := new(chan *Token, 100);
+-	go func(S *Scanner, ch *chan <- *Token) {
++	go func(S *Scanner, ch chan <- *Token) {
+ 		for {
+-			t := new(Token);
++			t := new(*Token);
+ 			t.pos, t.tok, t.val = S.Scan();
+ 			ch <- t;
+ 			if t.tok == EOF {
+diff --git a/usr/gri/pretty/selftest2.go b/usr/gri/pretty/selftest2.go
+index 3e07ba799b..af449ed1ac 100644
+--- a/usr/gri/pretty/selftest2.go
++++ b/usr/gri/pretty/selftest2.go
+@@ -73,7 +73,7 @@ func f2(tag int) {
+ }
+ 
+ 
+-func f3(a *[]int, m *map[string] int) {
++func f3(a *[]int, m map[string] int) {
+ 	println("A1");
+ 	for i := range a {
+ 		println(i);

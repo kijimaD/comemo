@@ -9,6 +9,19 @@ Date:   Fri Nov 12 09:57:46 2010 -0800
     R=golang-dev, gri
     CC=golang-dev
     https://golang.org/cl/3052041
-
+---
  doc/go_spec.html | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 6c9283dd33..2b2817d9cb 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -4744,6 +4744,7 @@ func IsPrintable(s string) (ok bool) {
+ 		// The return value will be true normally, false if a panic occurred.
+ 	}()
+ 	panicIfNotPrintable(s)	// will panic if validations fails.
++	return
+ }
+ </pre>
+ 

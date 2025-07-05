@@ -19,10 +19,190 @@ Date:   Sat Jan 5 18:35:27 2019 +1100
     Reviewed-on: https://go-review.googlesource.com/c/156398
     Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/path/filepath/path_test.go         | 25 ++++++++-----------------
  src/path/filepath/path_windows_test.go | 32 +++++++++++++++++++++++++++-----
  src/path/filepath/symlink.go           |  3 +--
  src/path/filepath/symlink_unix.go      |  9 +++++++++
  src/path/filepath/symlink_windows.go   | 26 +++++++++-----------------
  5 files changed, 54 insertions(+), 41 deletions(-)
+
+diff --git a/src/path/filepath/path_test.go b/src/path/filepath/path_test.go
+index 1b9f286c4d..cbddda88b6 100644
+--- a/src/path/filepath/path_test.go
++++ b/src/path/filepath/path_test.go
+@@ -1382,27 +1382,18 @@ func TestIssue29372(t *testing.T) {
+ 	path := f.Name()
+ 	defer os.Remove(path)
+ 
+-	isWin := runtime.GOOS == "windows"
+ 	pathSeparator := string(filepath.Separator)
+-	tests := []struct {
+-		path string
+-		skip bool
+-	}{
+-		{path + strings.Repeat(pathSeparator, 1), false},
+-		{path + strings.Repeat(pathSeparator, 2), false},
+-		{path + strings.Repeat(pathSeparator, 1) + ".", false},
+-		{path + strings.Repeat(pathSeparator, 2) + ".", false},
+-		// windows.GetFinalPathNameByHandle return the directory part with trailing dot dot
+-		// C:\path\to\existing_dir\existing_file\.. returns C:\path\to\existing_dir
+-		{path + strings.Repeat(pathSeparator, 1) + "..", isWin},
+-		{path + strings.Repeat(pathSeparator, 2) + "..", isWin},
++	tests := []string{
++		path + strings.Repeat(pathSeparator, 1),
++		path + strings.Repeat(pathSeparator, 2),
++		path + strings.Repeat(pathSeparator, 1) + ".",
++		path + strings.Repeat(pathSeparator, 2) + ".",
++		path + strings.Repeat(pathSeparator, 1) + "..",
++		path + strings.Repeat(pathSeparator, 2) + "..",
+ 	}
+ 
+ 	for i, test := range tests {
+-		if test.skip {
+-			continue
+-		}
+-		_, err = filepath.EvalSymlinks(test.path)
++		_, err = filepath.EvalSymlinks(test)
+ 		if err != syscall.ENOTDIR {
+ 			t.Fatalf("test#%d: want %q, got %q", i, syscall.ENOTDIR, err)
+ 		}
+diff --git a/src/path/filepath/path_windows_test.go b/src/path/filepath/path_windows_test.go
+index 63eab18116..3fcccfab78 100644
+--- a/src/path/filepath/path_windows_test.go
++++ b/src/path/filepath/path_windows_test.go
+@@ -536,17 +536,39 @@ func TestNTNamespaceSymlink(t *testing.T) {
+ 	}
+ 	target := strings.Trim(string(output), " \n\r")
+ 
+-	link := filepath.Join(tmpdir, "link")
+-	output, err = exec.Command("cmd", "/c", "mklink", "/J", link, target).CombinedOutput()
++	dirlink := filepath.Join(tmpdir, "dirlink")
++	output, err = exec.Command("cmd", "/c", "mklink", "/J", dirlink, target).CombinedOutput()
+ 	if err != nil {
+-		t.Fatalf("failed to run mklink %v %v: %v %q", link, target, err, output)
++		t.Fatalf("failed to run mklink %v %v: %v %q", dirlink, target, err, output)
+ 	}
+ 
+-	got, err := filepath.EvalSymlinks(link)
++	got, err := filepath.EvalSymlinks(dirlink)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+ 	if want := vol + `\`; got != want {
+-		t.Errorf(`EvalSymlinks(%q): got %q, want %q`, link, got, want)
++		t.Errorf(`EvalSymlinks(%q): got %q, want %q`, dirlink, got, want)
++	}
++
++	file := filepath.Join(tmpdir, "file")
++	err = ioutil.WriteFile(file, []byte(""), 0666)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	target += file[len(filepath.VolumeName(file)):]
++
++	filelink := filepath.Join(tmpdir, "filelink")
++	output, err = exec.Command("cmd", "/c", "mklink", filelink, target).CombinedOutput()
++	if err != nil {
++		t.Fatalf("failed to run mklink %v %v: %v %q", filelink, target, err, output)
++	}
++
++	got, err = filepath.EvalSymlinks(filelink)
++	if err != nil {
++		t.Fatal(err)
++	}
++	if want := file; got != want {
++		t.Errorf(`EvalSymlinks(%q): got %q, want %q`, filelink, got, want)
+ 	}
+ }
+diff --git a/src/path/filepath/symlink.go b/src/path/filepath/symlink.go
+index a08b85a29c..4b41039e25 100644
+--- a/src/path/filepath/symlink.go
++++ b/src/path/filepath/symlink.go
+@@ -8,7 +8,6 @@ import (
+ 	"errors"
+ 	"os"
+ 	"runtime"
+-	"syscall"
+ )
+ 
+ func walkSymlinks(path string) (string, error) {
+@@ -79,7 +78,7 @@ func walkSymlinks(path string) (string, error) {
+ 
+ 		if fi.Mode()&os.ModeSymlink == 0 {
+ 			if !fi.Mode().IsDir() && end < len(path) {
+-				return "", syscall.ENOTDIR
++				return "", slashAfterFilePathError
+ 			}
+ 			continue
+ 		}
+diff --git a/src/path/filepath/symlink_unix.go b/src/path/filepath/symlink_unix.go
+index d20e63a987..b57e7f2277 100644
+--- a/src/path/filepath/symlink_unix.go
++++ b/src/path/filepath/symlink_unix.go
+@@ -2,6 +2,15 @@
+ 
+ package filepath
+ 
++import (
++	"syscall"
++)
++
++// walkSymlinks returns slashAfterFilePathError error for paths like
++// //path/to/existing_file/ and /path/to/existing_file/. and /path/to/existing_file/..
++
++var slashAfterFilePathError = syscall.ENOTDIR
++
+ func evalSymlinks(path string) (string, error) {
+ 	return walkSymlinks(path)
+ }
+diff --git a/src/path/filepath/symlink_windows.go b/src/path/filepath/symlink_windows.go
+index 1108b3ddff..531dc26fc0 100644
+--- a/src/path/filepath/symlink_windows.go
++++ b/src/path/filepath/symlink_windows.go
+@@ -159,18 +159,6 @@ func evalSymlinksUsingGetFinalPathNameByHandle(path string) (string, error) {
+ 	return "", errors.New("GetFinalPathNameByHandle returned unexpected path=" + s)
+ }
+ 
+-func symlinkOrDir(path string) (string, error) {
+-	fi, err := os.Lstat(path)
+-	if err != nil {
+-		return "", err
+-	}
+-
+-	if fi.Mode()&os.ModeSymlink == 0 && !fi.Mode().IsDir() {
+-		return "", syscall.ENOTDIR
+-	}
+-	return path, nil
+-}
+-
+ func samefile(path1, path2 string) bool {
+ 	fi1, err := os.Lstat(path1)
+ 	if err != nil {
+@@ -183,16 +171,20 @@ func samefile(path1, path2 string) bool {
+ 	return os.SameFile(fi1, fi2)
+ }
+ 
++// walkSymlinks returns slashAfterFilePathError error for paths like
++// //path/to/existing_file/ and /path/to/existing_file/. and /path/to/existing_file/..
++
++var slashAfterFilePathError = errors.New("attempting to walk past file path.")
++
+ func evalSymlinks(path string) (string, error) {
+ 	newpath, err := walkSymlinks(path)
++	if err == slashAfterFilePathError {
++		return "", syscall.ENOTDIR
++	}
+ 	if err != nil {
+ 		newpath2, err2 := evalSymlinksUsingGetFinalPathNameByHandle(path)
+ 		if err2 == nil {
+-			normPath, toNormErr := toNorm(newpath2, normBase)
+-			if toNormErr != nil {
+-				return "", toNormErr
+-			}
+-			return symlinkOrDir(normPath)
++			return toNorm(newpath2, normBase)
+ 		}
+ 		return "", err
+ 	}

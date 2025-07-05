@@ -9,6 +9,20 @@ Date:   Thu Jul 8 16:57:07 2010 +1000
     R=golang-dev, rminnich, adg
     CC=golang-dev
     https://golang.org/cl/1749041
-
+---
  src/pkg/io/io.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/io/io.go b/src/pkg/io/io.go
+index dcdc883b1b..a41a674cea 100644
+--- a/src/pkg/io/io.go
++++ b/src/pkg/io/io.go
+@@ -336,7 +336,7 @@ func (s *SectionReader) Seek(offset int64, whence int) (ret int64, err os.Error)
+ 	case 2:
+ 		offset += s.limit
+ 	}
+-	if offset < s.off || offset > s.limit {
++	if offset < s.base || offset > s.limit {
+ 		return 0, os.EINVAL
+ 	}
+ 	s.off = offset

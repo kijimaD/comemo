@@ -27,6 +27,34 @@ Date:   Tue Apr 28 16:40:38 2020 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/230498
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/mstats.go | 9 ++++++---
  1 file changed, 6 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/mstats.go b/src/runtime/mstats.go
+index f40bccad17..ba508729c5 100644
+--- a/src/runtime/mstats.go
++++ b/src/runtime/mstats.go
+@@ -513,6 +513,12 @@ func readGCStats_m(pauses *[]uint64) {
+ 
+ //go:nowritebarrier
+ func updatememstats() {
++	// Flush mcaches to mcentral before doing anything else.
++	//
++	// Flushing to the mcentral may in general cause stats to
++	// change as mcentral data structures are manipulated.
++	systemstack(flushallmcaches)
++
+ 	memstats.mcache_inuse = uint64(mheap_.cachealloc.inuse)
+ 	memstats.mspan_inuse = uint64(mheap_.spanalloc.inuse)
+ 	memstats.sys = memstats.heap_sys + memstats.stacks_sys + memstats.mspan_sys +
+@@ -537,9 +543,6 @@ func updatememstats() {
+ 		memstats.by_size[i].nfree = 0
+ 	}
+ 
+-	// Flush mcache's to mcentral.
+-	systemstack(flushallmcaches)
+-
+ 	// Aggregate local stats.
+ 	cachestats()
+ 

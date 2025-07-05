@@ -41,8 +41,53 @@ Date:   Tue May 19 22:58:10 2015 -0400
     Change-Id: I53982c93ef23ef93155c4086bbd95a4c4fdaac9a
     Reviewed-on: https://go-review.googlesource.com/10317
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/mbarrier.go | 2 +-
  src/runtime/mbitmap.go  | 6 ++++++
  src/runtime/mheap.go    | 2 ++
  3 files changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/mbarrier.go b/src/runtime/mbarrier.go
+index 77b50095a0..53a0a00ae7 100644
+--- a/src/runtime/mbarrier.go
++++ b/src/runtime/mbarrier.go
+@@ -195,7 +195,7 @@ func callwritebarrier(typ *_type, frame unsafe.Pointer, framesize, retoffset uin
+ 	if !writeBarrierEnabled || typ == nil || typ.kind&kindNoPointers != 0 || framesize-retoffset < ptrSize || !inheap(uintptr(frame)) {
+ 		return
+ 	}
+-	heapBitsBulkBarrier(uintptr(add(frame, retoffset)), framesize)
++	heapBitsBulkBarrier(uintptr(add(frame, retoffset)), framesize-retoffset)
+ }
+ 
+ //go:nosplit
+diff --git a/src/runtime/mbitmap.go b/src/runtime/mbitmap.go
+index 39bb4217b3..b20908fb49 100644
+--- a/src/runtime/mbitmap.go
++++ b/src/runtime/mbitmap.go
+@@ -356,6 +356,12 @@ func (h heapBits) setCheckmarked(size uintptr) {
+ // calling memmove(p, src, size). This function is marked nosplit
+ // to avoid being preempted; the GC must not stop the goroutine
+ // betwen the memmove and the execution of the barriers.
++//
++// The heap bitmap is not maintained for allocations containing
++// no pointers at all; any caller of heapBitsBulkBarrier must first
++// make sure the underlying allocation contains pointers, usually
++// by checking typ.kind&kindNoPointers.
++//
+ //go:nosplit
+ func heapBitsBulkBarrier(p, size uintptr) {
+ 	if (p|size)&(ptrSize-1) != 0 {
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index a610da2e47..04fa050bc5 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -168,7 +168,9 @@ func recordspan(vh unsafe.Pointer, p unsafe.Pointer) {
+ 
+ // inheap reports whether b is a pointer into a (potentially dead) heap object.
+ // It returns false for pointers into stack spans.
++// Non-preemptible because it is used by write barriers.
+ //go:nowritebarrier
++//go:nosplit
+ func inheap(b uintptr) bool {
+ 	if b == 0 || b < mheap_.arena_start || b >= mheap_.arena_used {
+ 		return false

@@ -12,7 +12,7 @@ Date:   Thu Mar 3 15:49:04 2016 -0800
     Reviewed-on: https://go-review.googlesource.com/20089
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Dave Cheney <dave@cheney.net>
-
+---
  src/cmd/compile/internal/amd64/peep.go   | 46 +++++++++++++-------------
  src/cmd/compile/internal/arm/cgen.go     |  2 +-
  src/cmd/compile/internal/arm/peep.go     | 56 ++++++++++++++++----------------
@@ -40,3 +40,1265 @@ Date:   Thu Mar 3 15:49:04 2016 -0800
  src/cmd/compile/internal/ppc64/reg.go    |  2 +-
  src/cmd/compile/internal/x86/cgen.go     |  2 +-
  26 files changed, 158 insertions(+), 158 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/peep.go b/src/cmd/compile/internal/amd64/peep.go
+index b24c92cf69..f0e22de6fd 100644
+--- a/src/cmd/compile/internal/amd64/peep.go
++++ b/src/cmd/compile/internal/amd64/peep.go
+@@ -80,7 +80,7 @@ func rnops(r *gc.Flow) *gc.Flow {
+ }
+ 
+ func peep(firstp *obj.Prog) {
+-	g := (*gc.Graph)(gc.Flowstart(firstp, nil))
++	g := gc.Flowstart(firstp, nil)
+ 	if g == nil {
+ 		return
+ 	}
+@@ -94,7 +94,7 @@ func peep(firstp *obj.Prog) {
+ 	// another MOV $con,R without
+ 	// setting R in the interim
+ 	var p *obj.Prog
+-	for r := (*gc.Flow)(g.Start); r != nil; r = r.Link {
++	for r := g.Start; r != nil; r = r.Link {
+ 		p = r.Prog
+ 		switch p.As {
+ 		case x86.ALEAL,
+@@ -261,7 +261,7 @@ loop1:
+ 	// can be replaced by MOVAPD, which moves the pair of float64s
+ 	// instead of just the lower one. We only use the lower one, but
+ 	// the processor can do better if we do moves using both.
+-	for r := (*gc.Flow)(g.Start); r != nil; r = r.Link {
++	for r := g.Start; r != nil; r = r.Link {
+ 		p = r.Prog
+ 		if p.As == x86.AMOVLQZX {
+ 			if regtyp(&p.From) {
+@@ -285,7 +285,7 @@ loop1:
+ 	// load pipelining
+ 	// push any load from memory as early as possible
+ 	// to give it time to complete before use.
+-	for r := (*gc.Flow)(g.Start); r != nil; r = r.Link {
++	for r := g.Start; r != nil; r = r.Link {
+ 		p = r.Prog
+ 		switch p.As {
+ 		case x86.AMOVB,
+@@ -307,7 +307,7 @@ func pushback(r0 *gc.Flow) {
+ 	var p *obj.Prog
+ 
+ 	var b *gc.Flow
+-	p0 := (*obj.Prog)(r0.Prog)
++	p0 := r0.Prog
+ 	for r = gc.Uniqp(r0); r != nil && gc.Uniqs(r) != nil; r = gc.Uniqp(r) {
+ 		p = r.Prog
+ 		if p.As != obj.ANOP {
+@@ -338,7 +338,7 @@ func pushback(r0 *gc.Flow) {
+ 
+ 	if gc.Debug['P'] != 0 && gc.Debug['v'] != 0 {
+ 		fmt.Printf("pushback\n")
+-		for r := (*gc.Flow)(b); ; r = r.Link {
++		for r := b; ; r = r.Link {
+ 			fmt.Printf("\t%v\n", r.Prog)
+ 			if r == r0 {
+ 				break
+@@ -346,7 +346,7 @@ func pushback(r0 *gc.Flow) {
+ 		}
+ 	}
+ 
+-	t := obj.Prog(*r0.Prog)
++	t := *r0.Prog
+ 	for r = gc.Uniqp(r0); ; r = gc.Uniqp(r) {
+ 		p0 = r.Link.Prog
+ 		p = r.Prog
+@@ -368,7 +368,7 @@ func pushback(r0 *gc.Flow) {
+ 
+ 	if gc.Debug['P'] != 0 && gc.Debug['v'] != 0 {
+ 		fmt.Printf("\tafter\n")
+-		for r := (*gc.Flow)(b); ; r = r.Link {
++		for r := b; ; r = r.Link {
+ 			fmt.Printf("\t%v\n", r.Prog)
+ 			if r == r0 {
+ 				break
+@@ -378,7 +378,7 @@ func pushback(r0 *gc.Flow) {
+ }
+ 
+ func excise(r *gc.Flow) {
+-	p := (*obj.Prog)(r.Prog)
++	p := r.Prog
+ 	if gc.Debug['P'] != 0 && gc.Debug['v'] != 0 {
+ 		fmt.Printf("%v ===delete===\n", p)
+ 	}
+@@ -405,7 +405,7 @@ func regtyp(a *obj.Addr) bool {
+ func elimshortmov(g *gc.Graph) {
+ 	var p *obj.Prog
+ 
+-	for r := (*gc.Flow)(g.Start); r != nil; r = r.Link {
++	for r := g.Start; r != nil; r = r.Link {
+ 		p = r.Prog
+ 		if regtyp(&p.To) {
+ 			switch p.As {
+@@ -506,7 +506,7 @@ func regconsttyp(a *obj.Addr) bool {
+ 
+ // is reg guaranteed to be truncated by a previous L instruction?
+ func prevl(r0 *gc.Flow, reg int) bool {
+-	for r := (*gc.Flow)(gc.Uniqp(r0)); r != nil; r = gc.Uniqp(r) {
++	for r := gc.Uniqp(r0); r != nil; r = gc.Uniqp(r) {
+ 		p := r.Prog
+ 		if p.To.Type == obj.TYPE_REG && int(p.To.Reg) == reg {
+ 			flags := progflags(p)
+@@ -540,8 +540,8 @@ func subprop(r0 *gc.Flow) bool {
+ 	if gc.Debug['P'] != 0 && gc.Debug['v'] != 0 {
+ 		fmt.Printf("subprop %v\n", r0.Prog)
+ 	}
+-	p := (*obj.Prog)(r0.Prog)
+-	v1 := (*obj.Addr)(&p.From)
++	p := r0.Prog
++	v1 := &p.From
+ 	if !regtyp(v1) {
+ 		if gc.Debug['P'] != 0 && gc.Debug['v'] != 0 {
+ 			fmt.Printf("\tnot regtype %v; return 0\n", gc.Ctxt.Dconv(v1))
+@@ -549,7 +549,7 @@ func subprop(r0 *gc.Flow) bool {
+ 		return false
+ 	}
+ 
+-	v2 := (*obj.Addr)(&p.To)
++	v2 := &p.To
+ 	if !regtyp(v2) {
+ 		if gc.Debug['P'] != 0 && gc.Debug['v'] != 0 {
+ 			fmt.Printf("\tnot regtype %v; return 0\n", gc.Ctxt.Dconv(v2))
+@@ -605,7 +605,7 @@ func subprop(r0 *gc.Flow) bool {
+ 				}
+ 			}
+ 
+-			t := int(int(v1.Reg))
++			t := int(v1.Reg)
+ 			v1.Reg = v2.Reg
+ 			v2.Reg = int16(t)
+ 			if gc.Debug['P'] != 0 {
+@@ -651,9 +651,9 @@ func copyprop(g *gc.Graph, r0 *gc.Flow) bool {
+ 	if gc.Debug['P'] != 0 && gc.Debug['v'] != 0 {
+ 		fmt.Printf("copyprop %v\n", r0.Prog)
+ 	}
+-	p := (*obj.Prog)(r0.Prog)
+-	v1 := (*obj.Addr)(&p.From)
+-	v2 := (*obj.Addr)(&p.To)
++	p := r0.Prog
++	v1 := &p.From
++	v2 := &p.To
+ 	if copyas(v1, v2) {
+ 		return true
+ 	}
+@@ -948,7 +948,7 @@ func copyau(a *obj.Addr, v *obj.Addr) bool {
+  */
+ func copysub(a *obj.Addr, v *obj.Addr, s *obj.Addr, f int) int {
+ 	if copyas(a, v) {
+-		reg := int(int(s.Reg))
++		reg := int(s.Reg)
+ 		if reg >= x86.REG_AX && reg <= x86.REG_R15 || reg >= x86.REG_X0 && reg <= x86.REG_X0+15 {
+ 			if f != 0 {
+ 				a.Reg = int16(reg)
+@@ -959,7 +959,7 @@ func copysub(a *obj.Addr, v *obj.Addr, s *obj.Addr, f int) int {
+ 	}
+ 
+ 	if regtyp(v) {
+-		reg := int(int(v.Reg))
++		reg := int(v.Reg)
+ 		if a.Type == obj.TYPE_MEM && int(a.Reg) == reg {
+ 			if (s.Reg == x86.REG_BP || s.Reg == x86.REG_R13) && a.Index != x86.REG_NONE {
+ 				return 1 /* can't use BP-base with index */
+@@ -987,9 +987,9 @@ func conprop(r0 *gc.Flow) {
+ 	var p *obj.Prog
+ 	var t int
+ 
+-	p0 := (*obj.Prog)(r0.Prog)
+-	v0 := (*obj.Addr)(&p0.To)
+-	r := (*gc.Flow)(r0)
++	p0 := r0.Prog
++	v0 := &p0.To
++	r := r0
+ 
+ loop:
+ 	r = gc.Uniqs(r)
+diff --git a/src/cmd/compile/internal/arm/cgen.go b/src/cmd/compile/internal/arm/cgen.go
+index 289da5d888..1eabbf48bb 100644
+--- a/src/cmd/compile/internal/arm/cgen.go
++++ b/src/cmd/compile/internal/arm/cgen.go
+@@ -87,7 +87,7 @@ func blockcopy(n, res *gc.Node, osrc, odst, w int64) {
+ 	// if we are copying forward on the stack and
+ 	// the src and dst overlap, then reverse direction
+ 	dir := align
+-	if osrc < odst && int64(odst) < int64(osrc)+w {
++	if osrc < odst && odst < osrc+w {
+ 		dir = -dir
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/arm/peep.go b/src/cmd/compile/internal/arm/peep.go
+index bc49ebcd02..6794441489 100644
+--- a/src/cmd/compile/internal/arm/peep.go
++++ b/src/cmd/compile/internal/arm/peep.go
+@@ -41,7 +41,7 @@ var gactive uint32
+ 
+ // UNUSED
+ func peep(firstp *obj.Prog) {
+-	g := (*gc.Graph)(gc.Flowstart(firstp, nil))
++	g := gc.Flowstart(firstp, nil)
+ 	if g == nil {
+ 		return
+ 	}
+@@ -119,7 +119,7 @@ loop1:
+ 		goto loop1
+ 	}
+ 
+-	for r := (*gc.Flow)(g.Start); r != nil; r = r.Link {
++	for r := g.Start; r != nil; r = r.Link {
+ 		p = r.Prog
+ 		switch p.As {
+ 		/*
+@@ -139,7 +139,7 @@ loop1:
+ 		}
+ 	}
+ 
+-	for r := (*gc.Flow)(g.Start); r != nil; r = r.Link {
++	for r := g.Start; r != nil; r = r.Link {
+ 		p = r.Prog
+ 		switch p.As {
+ 		case arm.AMOVW,
+@@ -248,12 +248,12 @@ func regtyp(a *obj.Addr) bool {
+  * will be eliminated by copy propagation.
+  */
+ func subprop(r0 *gc.Flow) bool {
+-	p := (*obj.Prog)(r0.Prog)
+-	v1 := (*obj.Addr)(&p.From)
++	p := r0.Prog
++	v1 := &p.From
+ 	if !regtyp(v1) {
+ 		return false
+ 	}
+-	v2 := (*obj.Addr)(&p.To)
++	v2 := &p.To
+ 	if !regtyp(v2) {
+ 		return false
+ 	}
+@@ -308,7 +308,7 @@ func subprop(r0 *gc.Flow) bool {
+ 							}
+ 						}
+ 
+-						t := int(int(v1.Reg))
++						t := int(v1.Reg)
+ 						v1.Reg = v2.Reg
+ 						v2.Reg = int16(t)
+ 						if gc.Debug['P'] != 0 {
+@@ -344,9 +344,9 @@ func subprop(r0 *gc.Flow) bool {
+  *	set v2	return success
+  */
+ func copyprop(g *gc.Graph, r0 *gc.Flow) bool {
+-	p := (*obj.Prog)(r0.Prog)
+-	v1 := (*obj.Addr)(&p.From)
+-	v2 := (*obj.Addr)(&p.To)
++	p := r0.Prog
++	v1 := &p.From
++	v2 := &p.To
+ 	if copyas(v1, v2) {
+ 		return true
+ 	}
+@@ -511,13 +511,13 @@ func constprop(c1 *obj.Addr, v1 *obj.Addr, r *gc.Flow) {
+  * MOVBS above can be a MOVBS, MOVBU, MOVHS or MOVHU.
+  */
+ func shortprop(r *gc.Flow) bool {
+-	p := (*obj.Prog)(r.Prog)
+-	r1 := (*gc.Flow)(findpre(r, &p.From))
++	p := r.Prog
++	r1 := findpre(r, &p.From)
+ 	if r1 == nil {
+ 		return false
+ 	}
+ 
+-	p1 := (*obj.Prog)(r1.Prog)
++	p1 := r1.Prog
+ 	if p1.As == p.As {
+ 		// Two consecutive extensions.
+ 		goto gotit
+@@ -563,7 +563,7 @@ gotit:
+  * ..
+  */
+ func shiftprop(r *gc.Flow) bool {
+-	p := (*obj.Prog)(r.Prog)
++	p := r.Prog
+ 	if p.To.Type != obj.TYPE_REG {
+ 		if gc.Debug['P'] != 0 {
+ 			fmt.Printf("\tBOTCH: result not reg; FAILURE\n")
+@@ -571,8 +571,8 @@ func shiftprop(r *gc.Flow) bool {
+ 		return false
+ 	}
+ 
+-	n := int(int(p.To.Reg))
+-	a := obj.Addr(obj.Addr{})
++	n := int(p.To.Reg)
++	a := obj.Addr{}
+ 	if p.Reg != 0 && p.Reg != p.To.Reg {
+ 		a.Type = obj.TYPE_REG
+ 		a.Reg = p.Reg
+@@ -581,7 +581,7 @@ func shiftprop(r *gc.Flow) bool {
+ 	if gc.Debug['P'] != 0 {
+ 		fmt.Printf("shiftprop\n%v", p)
+ 	}
+-	r1 := (*gc.Flow)(r)
++	r1 := r
+ 	var p1 *obj.Prog
+ 	for {
+ 		/* find first use of shift result; abort if shift operands or result are changed */
+@@ -709,7 +709,7 @@ func shiftprop(r *gc.Flow) bool {
+ 	}
+ 
+ 	/* check whether shift result is used subsequently */
+-	p2 := (*obj.Prog)(p1)
++	p2 := p1
+ 
+ 	if int(p1.To.Reg) != n {
+ 		var p1 *obj.Prog
+@@ -747,7 +747,7 @@ func shiftprop(r *gc.Flow) bool {
+ 	/* make the substitution */
+ 	p2.From.Reg = 0
+ 
+-	o := int(int(p.Reg))
++	o := int(p.Reg)
+ 	if o == 0 {
+ 		o = int(p.To.Reg)
+ 	}
+@@ -911,7 +911,7 @@ func findu1(r *gc.Flow, v *obj.Addr) bool {
+ }
+ 
+ func finduse(g *gc.Graph, r *gc.Flow, v *obj.Addr) bool {
+-	for r1 := (*gc.Flow)(g.Start); r1 != nil; r1 = r1.Link {
++	for r1 := g.Start; r1 != nil; r1 = r1.Link {
+ 		r1.Active = 0
+ 	}
+ 	return findu1(r, v)
+@@ -931,10 +931,10 @@ func finduse(g *gc.Graph, r *gc.Flow, v *obj.Addr) bool {
+  *   MOVBU  R0<<0(R1),R0
+  */
+ func xtramodes(g *gc.Graph, r *gc.Flow, a *obj.Addr) bool {
+-	p := (*obj.Prog)(r.Prog)
+-	v := obj.Addr(*a)
++	p := r.Prog
++	v := *a
+ 	v.Type = obj.TYPE_REG
+-	r1 := (*gc.Flow)(findpre(r, &v))
++	r1 := findpre(r, &v)
+ 	if r1 != nil {
+ 		p1 := r1.Prog
+ 		if p1.To.Type == obj.TYPE_REG && p1.To.Reg == v.Reg {
+@@ -993,7 +993,7 @@ func xtramodes(g *gc.Graph, r *gc.Flow, a *obj.Addr) bool {
+ 
+ 			case arm.AMOVW:
+ 				if p1.From.Type == obj.TYPE_REG {
+-					r2 := (*gc.Flow)(findinc(r1, r, &p1.From))
++					r2 := findinc(r1, r, &p1.From)
+ 					if r2 != nil {
+ 						var r3 *gc.Flow
+ 						for r3 = gc.Uniqs(r2); r3.Prog.As == obj.ANOP; r3 = gc.Uniqs(r3) {
+@@ -1018,7 +1018,7 @@ func xtramodes(g *gc.Graph, r *gc.Flow, a *obj.Addr) bool {
+ 	}
+ 
+ 	if a != &p.From || a.Reg != p.To.Reg {
+-		r1 := (*gc.Flow)(findinc(r, nil, &v))
++		r1 := findinc(r, nil, &v)
+ 		if r1 != nil {
+ 			/* post-indexing */
+ 			p1 := r1.Prog
+@@ -1669,7 +1669,7 @@ func applypred(rstart *gc.Flow, j *Joininfo, cond int, branch int) {
+ 		pred = predinfo[rstart.Prog.As-arm.ABEQ].notscond
+ 	}
+ 
+-	for r := (*gc.Flow)(j.start); ; r = successor(r) {
++	for r := j.start; ; r = successor(r) {
+ 		if r.Prog.As == arm.AB {
+ 			if r != j.last || branch == Delbranch {
+ 				excise(r)
+@@ -1700,7 +1700,7 @@ func predicate(g *gc.Graph) {
+ 	var j1 Joininfo
+ 	var j2 Joininfo
+ 
+-	for r := (*gc.Flow)(g.Start); r != nil; r = r.Link {
++	for r := g.Start; r != nil; r = r.Link {
+ 		if isbranch(r.Prog) {
+ 			t1 = joinsplit(r.S1, &j1)
+ 			t2 = joinsplit(r.S2, &j2)
+@@ -1742,6 +1742,6 @@ func smallindir(a *obj.Addr, reg *obj.Addr) bool {
+ }
+ 
+ func excise(r *gc.Flow) {
+-	p := (*obj.Prog)(r.Prog)
++	p := r.Prog
+ 	obj.Nopout(p)
+ }
+diff --git a/src/cmd/compile/internal/arm64/cgen.go b/src/cmd/compile/internal/arm64/cgen.go
+index e8a5c14761..4d0071c921 100644
+--- a/src/cmd/compile/internal/arm64/cgen.go
++++ b/src/cmd/compile/internal/arm64/cgen.go
+@@ -48,7 +48,7 @@ func blockcopy(n, res *gc.Node, osrc, odst, w int64) {
+ 	// the src and dst overlap, then reverse direction
+ 	dir := align
+ 
+-	if osrc < odst && int64(odst) < int64(osrc)+w {
++	if osrc < odst && odst < osrc+w {
+ 		dir = -dir
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/arm64/ggen.go b/src/cmd/compile/internal/arm64/ggen.go
+index b8bccd4e88..13be1b6fe1 100644
+--- a/src/cmd/compile/internal/arm64/ggen.go
++++ b/src/cmd/compile/internal/arm64/ggen.go
+@@ -262,8 +262,8 @@ func cgen_hmul(nl *gc.Node, nr *gc.Node, res *gc.Node) {
+ 		nl, nr = nr, nl
+ 	}
+ 
+-	t := (*gc.Type)(nl.Type)
+-	w := int(int(t.Width * 8))
++	t := nl.Type
++	w := int(t.Width * 8)
+ 	var n1 gc.Node
+ 	gc.Cgenr(nl, &n1, res)
+ 	var n2 gc.Node
+@@ -273,7 +273,7 @@ func cgen_hmul(nl *gc.Node, nr *gc.Node, res *gc.Node) {
+ 		gc.TINT16,
+ 		gc.TINT32:
+ 		gins(optoas(gc.OMUL, t), &n2, &n1)
+-		p := (*obj.Prog)(gins(arm64.AASR, nil, &n1))
++		p := gins(arm64.AASR, nil, &n1)
+ 		p.From.Type = obj.TYPE_CONST
+ 		p.From.Offset = int64(w)
+ 
+@@ -281,7 +281,7 @@ func cgen_hmul(nl *gc.Node, nr *gc.Node, res *gc.Node) {
+ 		gc.TUINT16,
+ 		gc.TUINT32:
+ 		gins(optoas(gc.OMUL, t), &n2, &n1)
+-		p := (*obj.Prog)(gins(arm64.ALSR, nil, &n1))
++		p := gins(arm64.ALSR, nil, &n1)
+ 		p.From.Type = obj.TYPE_CONST
+ 		p.From.Offset = int64(w)
+ 
+@@ -308,7 +308,7 @@ func cgen_hmul(nl *gc.Node, nr *gc.Node, res *gc.Node) {
+  *	res = nl >> nr
+  */
+ func cgen_shift(op gc.Op, bounded bool, nl *gc.Node, nr *gc.Node, res *gc.Node) {
+-	a := int(optoas(op, nl.Type))
++	a := optoas(op, nl.Type)
+ 
+ 	if nr.Op == gc.OLITERAL {
+ 		var n1 gc.Node
+@@ -377,7 +377,7 @@ func cgen_shift(op gc.Op, bounded bool, nl *gc.Node, nr *gc.Node, res *gc.Node)
+ 	if !bounded {
+ 		gc.Nodconst(&n3, tcount, nl.Type.Width*8)
+ 		gcmp(optoas(gc.OCMP, tcount), &n1, &n3)
+-		p1 := (*obj.Prog)(gc.Gbranch(optoas(gc.OLT, tcount), nil, +1))
++		p1 := gc.Gbranch(optoas(gc.OLT, tcount), nil, +1)
+ 		if op == gc.ORSH && gc.Issigned[nl.Type.Etype] {
+ 			gc.Nodconst(&n3, gc.Types[gc.TUINT32], nl.Type.Width*8-1)
+ 			gins(a, &n3, &n2)
+@@ -403,15 +403,15 @@ func clearfat(nl *gc.Node) {
+ 		fmt.Printf("clearfat %v (%v, size: %d)\n", nl, nl.Type, nl.Type.Width)
+ 	}
+ 
+-	w := uint64(uint64(nl.Type.Width))
++	w := uint64(nl.Type.Width)
+ 
+ 	// Avoid taking the address for simple enough types.
+ 	if gc.Componentgen(nil, nl) {
+ 		return
+ 	}
+ 
+-	c := uint64(w % 8) // bytes
+-	q := uint64(w / 8) // dwords
++	c := w % 8 // bytes
++	q := w / 8 // dwords
+ 
+ 	var r0 gc.Node
+ 	gc.Nodreg(&r0, gc.Types[gc.TUINT64], arm64.REGZERO)
+@@ -437,7 +437,7 @@ func clearfat(nl *gc.Node) {
+ 		p.To.Type = obj.TYPE_MEM
+ 		p.To.Offset = 8
+ 		p.Scond = arm64.C_XPRE
+-		pl := (*obj.Prog)(p)
++		pl := p
+ 
+ 		p = gcmp(arm64.ACMP, &dst, &end)
+ 		gc.Patch(gc.Gbranch(arm64.ABNE, nil, 0), pl)
+@@ -450,7 +450,7 @@ func clearfat(nl *gc.Node) {
+ 		p := gins(arm64.ASUB, nil, &dst)
+ 		p.From.Type = obj.TYPE_CONST
+ 		p.From.Offset = 8
+-		f := (*gc.Node)(gc.Sysfunc("duffzero"))
++		f := gc.Sysfunc("duffzero")
+ 		p = gins(obj.ADUFFZERO, nil, f)
+ 		gc.Afunclit(&p.To, f)
+ 
+@@ -483,7 +483,7 @@ func clearfat(nl *gc.Node) {
+ func expandchecks(firstp *obj.Prog) {
+ 	var p1 *obj.Prog
+ 
+-	for p := (*obj.Prog)(firstp); p != nil; p = p.Link {
++	for p := firstp; p != nil; p = p.Link {
+ 		if gc.Debug_checknil != 0 && gc.Ctxt.Debugvlog != 0 {
+ 			fmt.Printf("expandchecks: %v\n", p)
+ 		}
+diff --git a/src/cmd/compile/internal/arm64/gsubr.go b/src/cmd/compile/internal/arm64/gsubr.go
+index c0aa45e7c1..97f73f591e 100644
+--- a/src/cmd/compile/internal/arm64/gsubr.go
++++ b/src/cmd/compile/internal/arm64/gsubr.go
+@@ -142,7 +142,7 @@ func gmove(f *gc.Node, t *gc.Node) {
+ 
+ 	ft := int(gc.Simsimtype(f.Type))
+ 	tt := int(gc.Simsimtype(t.Type))
+-	cvt := (*gc.Type)(t.Type)
++	cvt := t.Type
+ 
+ 	if gc.Iscomplex[ft] || gc.Iscomplex[tt] {
+ 		gc.Complexmove(f, t)
+diff --git a/src/cmd/compile/internal/arm64/peep.go b/src/cmd/compile/internal/arm64/peep.go
+index daa626f17b..0d3dc2b59d 100644
+--- a/src/cmd/compile/internal/arm64/peep.go
++++ b/src/cmd/compile/internal/arm64/peep.go
+@@ -40,7 +40,7 @@ import (
+ var gactive uint32
+ 
+ func peep(firstp *obj.Prog) {
+-	g := (*gc.Graph)(gc.Flowstart(firstp, nil))
++	g := gc.Flowstart(firstp, nil)
+ 	if g == nil {
+ 		return
+ 	}
+@@ -91,7 +91,7 @@ loop1:
+ 	 */
+ 	var p1 *obj.Prog
+ 	var r1 *gc.Flow
+-	for r := (*gc.Flow)(g.Start); r != nil; r = r.Link {
++	for r := g.Start; r != nil; r = r.Link {
+ 		p = r.Prog
+ 		switch p.As {
+ 		default:
+@@ -130,7 +130,7 @@ loop1:
+ 	}
+ 
+ 	// MOVD $c, R'; ADD R', R (R' unused) -> ADD $c, R
+-	for r := (*gc.Flow)(g.Start); r != nil; r = r.Link {
++	for r := g.Start; r != nil; r = r.Link {
+ 		p = r.Prog
+ 		switch p.As {
+ 		default:
+@@ -179,7 +179,7 @@ ret:
+ }
+ 
+ func excise(r *gc.Flow) {
+-	p := (*obj.Prog)(r.Prog)
++	p := r.Prog
+ 	if gc.Debug['P'] != 0 && gc.Debug['v'] != 0 {
+ 		fmt.Printf("%v ===delete===\n", p)
+ 	}
+@@ -210,12 +210,12 @@ func regtyp(a *obj.Addr) bool {
+  * above sequences. This returns 1 if it modified any instructions.
+  */
+ func subprop(r0 *gc.Flow) bool {
+-	p := (*obj.Prog)(r0.Prog)
+-	v1 := (*obj.Addr)(&p.From)
++	p := r0.Prog
++	v1 := &p.From
+ 	if !regtyp(v1) {
+ 		return false
+ 	}
+-	v2 := (*obj.Addr)(&p.To)
++	v2 := &p.To
+ 	if !regtyp(v2) {
+ 		return false
+ 	}
+@@ -253,7 +253,7 @@ func subprop(r0 *gc.Flow) bool {
+ 						}
+ 					}
+ 
+-					t := int(int(v1.Reg))
++					t := int(v1.Reg)
+ 					v1.Reg = v2.Reg
+ 					v2.Reg = int16(t)
+ 					if gc.Debug['P'] != 0 {
+@@ -288,9 +288,9 @@ func subprop(r0 *gc.Flow) bool {
+  *	set v2	return success (caller can remove v1->v2 move)
+  */
+ func copyprop(r0 *gc.Flow) bool {
+-	p := (*obj.Prog)(r0.Prog)
+-	v1 := (*obj.Addr)(&p.From)
+-	v2 := (*obj.Addr)(&p.To)
++	p := r0.Prog
++	v1 := &p.From
++	v2 := &p.To
+ 	if copyas(v1, v2) {
+ 		if gc.Debug['P'] != 0 {
+ 			fmt.Printf("eliminating self-move: %v\n", r0.Prog)
+diff --git a/src/cmd/compile/internal/arm64/reg.go b/src/cmd/compile/internal/arm64/reg.go
+index b84359a637..aaf7676404 100644
+--- a/src/cmd/compile/internal/arm64/reg.go
++++ b/src/cmd/compile/internal/arm64/reg.go
+@@ -113,7 +113,7 @@ func regnames(n *int) []string {
+ 
+ func excludedregs() uint64 {
+ 	// Exclude registers with fixed functions
+-	regbits := uint64(RtoB(arm64.REGRT1) | RtoB(arm64.REGRT2) | RtoB(arm64.REGPR))
++	regbits := RtoB(arm64.REGRT1) | RtoB(arm64.REGRT2) | RtoB(arm64.REGPR)
+ 
+ 	// Exclude R26 - R31.
+ 	for r := arm64.REGMAX + 1; r <= arm64.REGZERO; r++ {
+diff --git a/src/cmd/compile/internal/gc/cgen.go b/src/cmd/compile/internal/gc/cgen.go
+index b1f5f9a35e..07996d0069 100644
+--- a/src/cmd/compile/internal/gc/cgen.go
++++ b/src/cmd/compile/internal/gc/cgen.go
+@@ -2963,7 +2963,7 @@ func cgen_append(n, res *Node) {
+ 		} else if w == 1 {
+ 			Thearch.Gins(Thearch.Optoas(OADD, Types[Tptr]), &r2, &r1)
+ 		} else {
+-			Thearch.Ginscon(Thearch.Optoas(OMUL, Types[TUINT]), int64(w), &r2)
++			Thearch.Ginscon(Thearch.Optoas(OMUL, Types[TUINT]), w, &r2)
+ 			Thearch.Gins(Thearch.Optoas(OADD, Types[Tptr]), &r2, &r1)
+ 		}
+ 		Regfree(&r2)
+diff --git a/src/cmd/compile/internal/gc/parser.go b/src/cmd/compile/internal/gc/parser.go
+index a902e4a274..d6acf413d5 100644
+--- a/src/cmd/compile/internal/gc/parser.go
++++ b/src/cmd/compile/internal/gc/parser.go
+@@ -654,7 +654,7 @@ func (p *parser) simple_stmt(labelOk, rangeOk bool) *Node {
+ 			} // it's a colas, so must not re-use an oldname
+ 			return ts
+ 		}
+-		return colas(lhs, rhs, int32(lno))
++		return colas(lhs, rhs, lno)
+ 
+ 	default:
+ 		p.syntax_error("expecting := or = or comma")
+@@ -766,7 +766,7 @@ func (p *parser) case_(tswitch *Node) *Node {
+ 			// done in casebody()
+ 			markdcl() // matching popdcl in caseblock
+ 			stmt := Nod(OXCASE, nil, nil)
+-			stmt.List = list1(colas(cases, list1(rhs), int32(lno)))
++			stmt.List = list1(colas(cases, list1(rhs), lno))
+ 
+ 			p.want(':') // consume ':' after declaring select cases for correct lineno
+ 			return stmt
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index b01c1583a0..432637ab55 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -539,11 +539,11 @@ func compile(fn *Node) {
+ 	allocauto(ptxt)
+ 
+ 	if false {
+-		fmt.Printf("allocauto: %d to %d\n", oldstksize, int64(Stksize))
++		fmt.Printf("allocauto: %d to %d\n", oldstksize, Stksize)
+ 	}
+ 
+ 	setlineno(Curfn)
+-	if int64(Stksize)+Maxarg > 1<<31 {
++	if Stksize+Maxarg > 1<<31 {
+ 		Yyerror("stack frame too large (>2GB)")
+ 		goto ret
+ 	}
+diff --git a/src/cmd/compile/internal/gc/plive.go b/src/cmd/compile/internal/gc/plive.go
+index 3d57c350f1..bebad8fe70 100644
+--- a/src/cmd/compile/internal/gc/plive.go
++++ b/src/cmd/compile/internal/gc/plive.go
+@@ -488,7 +488,7 @@ func newcfg(firstp *obj.Prog) []*BasicBlock {
+ 
+ 	// Add missing successor edges to the selectgo blocks.
+ 	if len(selectgo) != 0 {
+-		fixselectgo([]*BasicBlock(selectgo))
++		fixselectgo(selectgo)
+ 	}
+ 
+ 	// Find a depth-first order and assign a depth-first number to
+@@ -764,13 +764,13 @@ func livenessprintblock(lv *Liveness, bb *BasicBlock) {
+ 	}
+ 	fmt.Printf("\n")
+ 
+-	printvars("\tuevar", bb.uevar, []*Node(lv.vars))
+-	printvars("\tvarkill", bb.varkill, []*Node(lv.vars))
+-	printvars("\tlivein", bb.livein, []*Node(lv.vars))
+-	printvars("\tliveout", bb.liveout, []*Node(lv.vars))
+-	printvars("\tavarinit", bb.avarinit, []*Node(lv.vars))
+-	printvars("\tavarinitany", bb.avarinitany, []*Node(lv.vars))
+-	printvars("\tavarinitall", bb.avarinitall, []*Node(lv.vars))
++	printvars("\tuevar", bb.uevar, lv.vars)
++	printvars("\tvarkill", bb.varkill, lv.vars)
++	printvars("\tlivein", bb.livein, lv.vars)
++	printvars("\tliveout", bb.liveout, lv.vars)
++	printvars("\tavarinit", bb.avarinit, lv.vars)
++	printvars("\tavarinitany", bb.avarinitany, lv.vars)
++	printvars("\tavarinitall", bb.avarinitall, lv.vars)
+ 
+ 	fmt.Printf("\tprog:\n")
+ 	for prog := bb.first; ; prog = prog.Link {
+@@ -1058,7 +1058,7 @@ func livenessprologue(lv *Liveness) {
+ 		// Walk the block instructions backward and update the block
+ 		// effects with the each prog effects.
+ 		for p := bb.last; p != nil; p = p.Opt.(*obj.Prog) {
+-			progeffects(p, []*Node(lv.vars), uevar, varkill, avarinit)
++			progeffects(p, lv.vars, uevar, varkill, avarinit)
+ 			if debuglive >= 3 {
+ 				printeffects(p, uevar, varkill, avarinit)
+ 			}
+@@ -1072,7 +1072,7 @@ func livenessprologue(lv *Liveness) {
+ 		bvresetall(varkill)
+ 
+ 		for p := bb.first; ; p = p.Link {
+-			progeffects(p, []*Node(lv.vars), uevar, varkill, avarinit)
++			progeffects(p, lv.vars, uevar, varkill, avarinit)
+ 			if debuglive >= 3 {
+ 				printeffects(p, uevar, varkill, avarinit)
+ 			}
+@@ -1247,7 +1247,7 @@ func livenessepilogue(lv *Liveness) {
+ 		// allocate liveness maps for those instructions that need them.
+ 		// Seed the maps with information about the addrtaken variables.
+ 		for p = bb.first; ; p = p.Link {
+-			progeffects(p, []*Node(lv.vars), uevar, varkill, avarinit)
++			progeffects(p, lv.vars, uevar, varkill, avarinit)
+ 			bvandnot(any, any, varkill)
+ 			bvandnot(all, all, varkill)
+ 			bvor(any, any, avarinit)
+@@ -1782,7 +1782,7 @@ func liveness(fn *Node, firstp *obj.Prog, argssym *Sym, livesym *Sym) {
+ 	cfg := newcfg(firstp)
+ 
+ 	if debuglive >= 3 {
+-		printcfg([]*BasicBlock(cfg))
++		printcfg(cfg)
+ 	}
+ 	vars := getvariables(fn)
+ 	lv := newliveness(fn, firstp, cfg, vars)
+@@ -1820,7 +1820,7 @@ func liveness(fn *Node, firstp *obj.Prog, argssym *Sym, livesym *Sym) {
+ 	}
+ 	freeliveness(lv)
+ 
+-	freecfg([]*BasicBlock(cfg))
++	freecfg(cfg)
+ 
+ 	debuglive -= debugdelta
+ }
+diff --git a/src/cmd/compile/internal/gc/reg.go b/src/cmd/compile/internal/gc/reg.go
+index 14dc03b5f5..59a4a3e16c 100644
+--- a/src/cmd/compile/internal/gc/reg.go
++++ b/src/cmd/compile/internal/gc/reg.go
+@@ -1525,7 +1525,7 @@ func (bits Bits) String() string {
+ 		} else {
+ 			fmt.Fprintf(&buf, "%s(%d)", v.node.Sym.Name, i)
+ 			if v.offset != 0 {
+-				fmt.Fprintf(&buf, "%+d", int64(v.offset))
++				fmt.Fprintf(&buf, "%+d", v.offset)
+ 			}
+ 		}
+ 		biclr(&bits, uint(i))
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 6997659b57..57f5a449af 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -37,7 +37,7 @@ func adderrorname(n *Node) {
+ 		return
+ 	}
+ 	old := fmt.Sprintf("%v: undefined: %v\n", n.Line(), n.Left)
+-	if len(errors) > 0 && int32(errors[len(errors)-1].lineno) == n.Lineno && errors[len(errors)-1].msg == old {
++	if len(errors) > 0 && errors[len(errors)-1].lineno == n.Lineno && errors[len(errors)-1].msg == old {
+ 		errors[len(errors)-1].msg = fmt.Sprintf("%v: undefined: %v in %v\n", n.Line(), n.Left, n)
+ 	}
+ }
+@@ -2790,7 +2790,7 @@ func isbadimport(path string) bool {
+ 			return true
+ 		}
+ 
+-		if unicode.IsSpace(rune(r)) {
++		if unicode.IsSpace(r) {
+ 			Yyerror("import path contains space character: %q", path)
+ 			return true
+ 		}
+diff --git a/src/cmd/compile/internal/gc/type.go b/src/cmd/compile/internal/gc/type.go
+index 0f7842c5b2..f9ee816377 100644
+--- a/src/cmd/compile/internal/gc/type.go
++++ b/src/cmd/compile/internal/gc/type.go
+@@ -380,7 +380,7 @@ func (t *Type) NumElem() int64 {
+ 	if t.Etype != TARRAY {
+ 		panic("NumElem on non-TARRAY")
+ 	}
+-	return int64(t.Bound)
++	return t.Bound
+ }
+ 
+ func (t *Type) IsMemory() bool { return false }
+diff --git a/src/cmd/compile/internal/mips64/cgen.go b/src/cmd/compile/internal/mips64/cgen.go
+index bdcb565839..67d2e0f302 100644
+--- a/src/cmd/compile/internal/mips64/cgen.go
++++ b/src/cmd/compile/internal/mips64/cgen.go
+@@ -44,7 +44,7 @@ func blockcopy(n, res *gc.Node, osrc, odst, w int64) {
+ 	// the src and dst overlap, then reverse direction
+ 	dir := align
+ 
+-	if osrc < odst && int64(odst) < int64(osrc)+w {
++	if osrc < odst && odst < osrc+w {
+ 		dir = -dir
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/mips64/ggen.go b/src/cmd/compile/internal/mips64/ggen.go
+index 9789629ba1..6ef661a24c 100644
+--- a/src/cmd/compile/internal/mips64/ggen.go
++++ b/src/cmd/compile/internal/mips64/ggen.go
+@@ -203,8 +203,8 @@ func cgen_hmul(nl *gc.Node, nr *gc.Node, res *gc.Node) {
+ 		nl, nr = nr, nl
+ 	}
+ 
+-	t := (*gc.Type)(nl.Type)
+-	w := int(int(t.Width * 8))
++	t := nl.Type
++	w := int(t.Width * 8)
+ 	var n1 gc.Node
+ 	gc.Cgenr(nl, &n1, res)
+ 	var n2 gc.Node
+@@ -217,7 +217,7 @@ func cgen_hmul(nl *gc.Node, nr *gc.Node, res *gc.Node) {
+ 		var lo gc.Node
+ 		gc.Nodreg(&lo, gc.Types[gc.TUINT64], mips.REG_LO)
+ 		gins(mips.AMOVV, &lo, &n1)
+-		p := (*obj.Prog)(gins(mips.ASRAV, nil, &n1))
++		p := gins(mips.ASRAV, nil, &n1)
+ 		p.From.Type = obj.TYPE_CONST
+ 		p.From.Offset = int64(w)
+ 
+@@ -228,7 +228,7 @@ func cgen_hmul(nl *gc.Node, nr *gc.Node, res *gc.Node) {
+ 		var lo gc.Node
+ 		gc.Nodreg(&lo, gc.Types[gc.TUINT64], mips.REG_LO)
+ 		gins(mips.AMOVV, &lo, &n1)
+-		p := (*obj.Prog)(gins(mips.ASRLV, nil, &n1))
++		p := gins(mips.ASRLV, nil, &n1)
+ 		p.From.Type = obj.TYPE_CONST
+ 		p.From.Offset = int64(w)
+ 
+@@ -258,7 +258,7 @@ func cgen_hmul(nl *gc.Node, nr *gc.Node, res *gc.Node) {
+  *	res = nl >> nr
+  */
+ func cgen_shift(op gc.Op, bounded bool, nl *gc.Node, nr *gc.Node, res *gc.Node) {
+-	a := int(optoas(op, nl.Type))
++	a := optoas(op, nl.Type)
+ 
+ 	if nr.Op == gc.OLITERAL {
+ 		var n1 gc.Node
+@@ -355,15 +355,15 @@ func clearfat(nl *gc.Node) {
+ 		fmt.Printf("clearfat %v (%v, size: %d)\n", nl, nl.Type, nl.Type.Width)
+ 	}
+ 
+-	w := uint64(uint64(nl.Type.Width))
++	w := uint64(nl.Type.Width)
+ 
+ 	// Avoid taking the address for simple enough types.
+ 	if gc.Componentgen(nil, nl) {
+ 		return
+ 	}
+ 
+-	c := uint64(w % 8) // bytes
+-	q := uint64(w / 8) // dwords
++	c := w % 8 // bytes
++	q := w / 8 // dwords
+ 
+ 	if gc.Reginuse(mips.REGRT1) {
+ 		gc.Fatalf("%v in use during clearfat", obj.Rconv(mips.REGRT1))
+@@ -391,7 +391,7 @@ func clearfat(nl *gc.Node) {
+ 		p = gins(mips.AMOVV, &r0, &dst)
+ 		p.To.Type = obj.TYPE_MEM
+ 		p.To.Offset = 8
+-		pl := (*obj.Prog)(p)
++		pl := p
+ 
+ 		p = gins(mips.AADDV, nil, &dst)
+ 		p.From.Type = obj.TYPE_CONST
+@@ -410,7 +410,7 @@ func clearfat(nl *gc.Node) {
+ 		p := gins(mips.ASUBV, nil, &dst)
+ 		p.From.Type = obj.TYPE_CONST
+ 		p.From.Offset = 8
+-		f := (*gc.Node)(gc.Sysfunc("duffzero"))
++		f := gc.Sysfunc("duffzero")
+ 		p = gins(obj.ADUFFZERO, nil, f)
+ 		gc.Afunclit(&p.To, f)
+ 
+@@ -445,7 +445,7 @@ func clearfat(nl *gc.Node) {
+ func expandchecks(firstp *obj.Prog) {
+ 	var p1 *obj.Prog
+ 
+-	for p := (*obj.Prog)(firstp); p != nil; p = p.Link {
++	for p := firstp; p != nil; p = p.Link {
+ 		if gc.Debug_checknil != 0 && gc.Ctxt.Debugvlog != 0 {
+ 			fmt.Printf("expandchecks: %v\n", p)
+ 		}
+diff --git a/src/cmd/compile/internal/mips64/gsubr.go b/src/cmd/compile/internal/mips64/gsubr.go
+index d2065d9d2e..c0ed63672d 100644
+--- a/src/cmd/compile/internal/mips64/gsubr.go
++++ b/src/cmd/compile/internal/mips64/gsubr.go
+@@ -223,7 +223,7 @@ func gmove(f *gc.Node, t *gc.Node) {
+ 
+ 	ft := int(gc.Simsimtype(f.Type))
+ 	tt := int(gc.Simsimtype(t.Type))
+-	cvt := (*gc.Type)(t.Type)
++	cvt := t.Type
+ 
+ 	if gc.Iscomplex[ft] || gc.Iscomplex[tt] {
+ 		gc.Complexmove(f, t)
+diff --git a/src/cmd/compile/internal/mips64/peep.go b/src/cmd/compile/internal/mips64/peep.go
+index bf8a4ca979..aa57c15ca8 100644
+--- a/src/cmd/compile/internal/mips64/peep.go
++++ b/src/cmd/compile/internal/mips64/peep.go
+@@ -40,7 +40,7 @@ import (
+ var gactive uint32
+ 
+ func peep(firstp *obj.Prog) {
+-	g := (*gc.Graph)(gc.Flowstart(firstp, nil))
++	g := gc.Flowstart(firstp, nil)
+ 	if g == nil {
+ 		return
+ 	}
+@@ -107,7 +107,7 @@ loop1:
+ 	 */
+ 	var p1 *obj.Prog
+ 	var r1 *gc.Flow
+-	for r := (*gc.Flow)(g.Start); r != nil; r = r.Link {
++	for r := g.Start; r != nil; r = r.Link {
+ 		p = r.Prog
+ 		switch p.As {
+ 		default:
+@@ -145,7 +145,7 @@ loop1:
+ }
+ 
+ func excise(r *gc.Flow) {
+-	p := (*obj.Prog)(r.Prog)
++	p := r.Prog
+ 	if gc.Debug['P'] != 0 && gc.Debug['v'] != 0 {
+ 		fmt.Printf("%v ===delete===\n", p)
+ 	}
+@@ -199,12 +199,12 @@ func isfreg(a *obj.Addr) bool {
+  * above sequences.  This returns 1 if it modified any instructions.
+  */
+ func subprop(r0 *gc.Flow) bool {
+-	p := (*obj.Prog)(r0.Prog)
+-	v1 := (*obj.Addr)(&p.From)
++	p := r0.Prog
++	v1 := &p.From
+ 	if !regtyp(v1) {
+ 		return false
+ 	}
+-	v2 := (*obj.Addr)(&p.To)
++	v2 := &p.To
+ 	if !regtyp(v2) {
+ 		return false
+ 	}
+@@ -242,7 +242,7 @@ func subprop(r0 *gc.Flow) bool {
+ 						}
+ 					}
+ 
+-					t := int(int(v1.Reg))
++					t := int(v1.Reg)
+ 					v1.Reg = v2.Reg
+ 					v2.Reg = int16(t)
+ 					if gc.Debug['P'] != 0 {
+@@ -277,9 +277,9 @@ func subprop(r0 *gc.Flow) bool {
+  *	set v2	return success (caller can remove v1->v2 move)
+  */
+ func copyprop(r0 *gc.Flow) bool {
+-	p := (*obj.Prog)(r0.Prog)
+-	v1 := (*obj.Addr)(&p.From)
+-	v2 := (*obj.Addr)(&p.To)
++	p := r0.Prog
++	v1 := &p.From
++	v2 := &p.To
+ 	if copyas(v1, v2) {
+ 		if gc.Debug['P'] != 0 {
+ 			fmt.Printf("eliminating self-move: %v\n", r0.Prog)
+diff --git a/src/cmd/compile/internal/mips64/reg.go b/src/cmd/compile/internal/mips64/reg.go
+index 5c46588e07..c17f4da735 100644
+--- a/src/cmd/compile/internal/mips64/reg.go
++++ b/src/cmd/compile/internal/mips64/reg.go
+@@ -111,7 +111,7 @@ func regnames(n *int) []string {
+ 
+ func excludedregs() uint64 {
+ 	// Exclude registers with fixed functions
+-	regbits := uint64(1<<0 | RtoB(mips.REGSP) | RtoB(mips.REGG) | RtoB(mips.REGTMP) | RtoB(mips.REGLINK) | RtoB(mips.REG_R26) | RtoB(mips.REG_R27))
++	regbits := 1<<0 | RtoB(mips.REGSP) | RtoB(mips.REGG) | RtoB(mips.REGTMP) | RtoB(mips.REGLINK) | RtoB(mips.REG_R26) | RtoB(mips.REG_R27)
+ 
+ 	// Also exclude floating point registers with fixed constants
+ 	regbits |= RtoB(mips.FREGZERO) | RtoB(mips.FREGHALF) | RtoB(mips.FREGONE) | RtoB(mips.FREGTWO)
+diff --git a/src/cmd/compile/internal/ppc64/cgen.go b/src/cmd/compile/internal/ppc64/cgen.go
+index aea09503a8..c049530eff 100644
+--- a/src/cmd/compile/internal/ppc64/cgen.go
++++ b/src/cmd/compile/internal/ppc64/cgen.go
+@@ -44,7 +44,7 @@ func blockcopy(n, res *gc.Node, osrc, odst, w int64) {
+ 	// the src and dst overlap, then reverse direction
+ 	dir := align
+ 
+-	if osrc < odst && int64(odst) < int64(osrc)+w {
++	if osrc < odst && odst < osrc+w {
+ 		dir = -dir
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/ppc64/ggen.go b/src/cmd/compile/internal/ppc64/ggen.go
+index 4be00c7ee2..ac7ccc0a79 100644
+--- a/src/cmd/compile/internal/ppc64/ggen.go
++++ b/src/cmd/compile/internal/ppc64/ggen.go
+@@ -251,8 +251,8 @@ func cgen_hmul(nl *gc.Node, nr *gc.Node, res *gc.Node) {
+ 		nl, nr = nr, nl
+ 	}
+ 
+-	t := (*gc.Type)(nl.Type)
+-	w := int(int(t.Width * 8))
++	t := nl.Type
++	w := int(t.Width * 8)
+ 	var n1 gc.Node
+ 	gc.Cgenr(nl, &n1, res)
+ 	var n2 gc.Node
+@@ -262,7 +262,7 @@ func cgen_hmul(nl *gc.Node, nr *gc.Node, res *gc.Node) {
+ 		gc.TINT16,
+ 		gc.TINT32:
+ 		gins(optoas(gc.OMUL, t), &n2, &n1)
+-		p := (*obj.Prog)(gins(ppc64.ASRAD, nil, &n1))
++		p := gins(ppc64.ASRAD, nil, &n1)
+ 		p.From.Type = obj.TYPE_CONST
+ 		p.From.Offset = int64(w)
+ 
+@@ -270,7 +270,7 @@ func cgen_hmul(nl *gc.Node, nr *gc.Node, res *gc.Node) {
+ 		gc.TUINT16,
+ 		gc.TUINT32:
+ 		gins(optoas(gc.OMUL, t), &n2, &n1)
+-		p := (*obj.Prog)(gins(ppc64.ASRD, nil, &n1))
++		p := gins(ppc64.ASRD, nil, &n1)
+ 		p.From.Type = obj.TYPE_CONST
+ 		p.From.Offset = int64(w)
+ 
+@@ -297,7 +297,7 @@ func cgen_hmul(nl *gc.Node, nr *gc.Node, res *gc.Node) {
+  *	res = nl >> nr
+  */
+ func cgen_shift(op gc.Op, bounded bool, nl *gc.Node, nr *gc.Node, res *gc.Node) {
+-	a := int(optoas(op, nl.Type))
++	a := optoas(op, nl.Type)
+ 
+ 	if nr.Op == gc.OLITERAL {
+ 		var n1 gc.Node
+@@ -366,7 +366,7 @@ func cgen_shift(op gc.Op, bounded bool, nl *gc.Node, nr *gc.Node, res *gc.Node)
+ 	if !bounded {
+ 		gc.Nodconst(&n3, tcount, nl.Type.Width*8)
+ 		gins(optoas(gc.OCMP, tcount), &n1, &n3)
+-		p1 := (*obj.Prog)(gc.Gbranch(optoas(gc.OLT, tcount), nil, +1))
++		p1 := gc.Gbranch(optoas(gc.OLT, tcount), nil, +1)
+ 		if op == gc.ORSH && gc.Issigned[nl.Type.Etype] {
+ 			gc.Nodconst(&n3, gc.Types[gc.TUINT32], nl.Type.Width*8-1)
+ 			gins(a, &n3, &n2)
+@@ -392,15 +392,15 @@ func clearfat(nl *gc.Node) {
+ 		fmt.Printf("clearfat %v (%v, size: %d)\n", nl, nl.Type, nl.Type.Width)
+ 	}
+ 
+-	w := uint64(uint64(nl.Type.Width))
++	w := uint64(nl.Type.Width)
+ 
+ 	// Avoid taking the address for simple enough types.
+ 	if gc.Componentgen(nil, nl) {
+ 		return
+ 	}
+ 
+-	c := uint64(w % 8) // bytes
+-	q := uint64(w / 8) // dwords
++	c := w % 8 // bytes
++	q := w / 8 // dwords
+ 
+ 	if gc.Reginuse(ppc64.REGRT1) {
+ 		gc.Fatalf("%v in use during clearfat", obj.Rconv(ppc64.REGRT1))
+@@ -428,7 +428,7 @@ func clearfat(nl *gc.Node) {
+ 		p = gins(ppc64.AMOVDU, &r0, &dst)
+ 		p.To.Type = obj.TYPE_MEM
+ 		p.To.Offset = 8
+-		pl := (*obj.Prog)(p)
++		pl := p
+ 
+ 		p = gins(ppc64.ACMP, &dst, &end)
+ 		gc.Patch(gc.Gbranch(ppc64.ABNE, nil, 0), pl)
+@@ -441,7 +441,7 @@ func clearfat(nl *gc.Node) {
+ 		p := gins(ppc64.ASUB, nil, &dst)
+ 		p.From.Type = obj.TYPE_CONST
+ 		p.From.Offset = 8
+-		f := (*gc.Node)(gc.Sysfunc("duffzero"))
++		f := gc.Sysfunc("duffzero")
+ 		p = gins(obj.ADUFFZERO, nil, f)
+ 		gc.Afunclit(&p.To, f)
+ 
+@@ -477,7 +477,7 @@ func expandchecks(firstp *obj.Prog) {
+ 	var p1 *obj.Prog
+ 	var p2 *obj.Prog
+ 
+-	for p := (*obj.Prog)(firstp); p != nil; p = p.Link {
++	for p := firstp; p != nil; p = p.Link {
+ 		if gc.Debug_checknil != 0 && gc.Ctxt.Debugvlog != 0 {
+ 			fmt.Printf("expandchecks: %v\n", p)
+ 		}
+diff --git a/src/cmd/compile/internal/ppc64/gsubr.go b/src/cmd/compile/internal/ppc64/gsubr.go
+index ca8be50632..71ae7e3873 100644
+--- a/src/cmd/compile/internal/ppc64/gsubr.go
++++ b/src/cmd/compile/internal/ppc64/gsubr.go
+@@ -180,7 +180,7 @@ func gmove(f *gc.Node, t *gc.Node) {
+ 
+ 	ft := int(gc.Simsimtype(f.Type))
+ 	tt := int(gc.Simsimtype(t.Type))
+-	cvt := (*gc.Type)(t.Type)
++	cvt := t.Type
+ 
+ 	if gc.Iscomplex[ft] || gc.Iscomplex[tt] {
+ 		gc.Complexmove(f, t)
+@@ -409,7 +409,7 @@ func gmove(f *gc.Node, t *gc.Node) {
+ 			gc.Regalloc(&r2, gc.Types[gc.TFLOAT64], nil)
+ 			gmove(&bigf, &r2)
+ 			gins(ppc64.AFCMPU, &r1, &r2)
+-			p1 := (*obj.Prog)(gc.Gbranch(optoas(gc.OLT, gc.Types[gc.TFLOAT64]), nil, +1))
++			p1 := gc.Gbranch(optoas(gc.OLT, gc.Types[gc.TFLOAT64]), nil, +1)
+ 			gins(ppc64.AFSUB, &r2, &r1)
+ 			gc.Patch(p1, gc.Pc)
+ 			gc.Regfree(&r2)
+@@ -419,7 +419,7 @@ func gmove(f *gc.Node, t *gc.Node) {
+ 		var r3 gc.Node
+ 		gc.Regalloc(&r3, gc.Types[gc.TINT64], t)
+ 		gins(ppc64.AFCTIDZ, &r1, &r2)
+-		p1 := (*obj.Prog)(gins(ppc64.AFMOVD, &r2, nil))
++		p1 := gins(ppc64.AFMOVD, &r2, nil)
+ 		p1.To.Type = obj.TYPE_MEM
+ 		p1.To.Reg = ppc64.REGSP
+ 		p1.To.Offset = -8
+@@ -430,7 +430,7 @@ func gmove(f *gc.Node, t *gc.Node) {
+ 		gc.Regfree(&r2)
+ 		gc.Regfree(&r1)
+ 		if tt == gc.TUINT64 {
+-			p1 := (*obj.Prog)(gc.Gbranch(optoas(gc.OLT, gc.Types[gc.TFLOAT64]), nil, +1)) // use CR0 here again
++			p1 := gc.Gbranch(optoas(gc.OLT, gc.Types[gc.TFLOAT64]), nil, +1) // use CR0 here again
+ 			gc.Nodreg(&r1, gc.Types[gc.TINT64], ppc64.REGTMP)
+ 			gins(ppc64.AMOVD, &bigi, &r1)
+ 			gins(ppc64.AADD, &r1, &r3)
+@@ -474,15 +474,15 @@ func gmove(f *gc.Node, t *gc.Node) {
+ 			gc.Nodreg(&r2, gc.Types[gc.TUINT64], ppc64.REGTMP)
+ 			gmove(&bigi, &r2)
+ 			gins(ppc64.ACMPU, &r1, &r2)
+-			p1 := (*obj.Prog)(gc.Gbranch(optoas(gc.OLT, gc.Types[gc.TUINT64]), nil, +1))
+-			p2 := (*obj.Prog)(gins(ppc64.ASRD, nil, &r1))
++			p1 := gc.Gbranch(optoas(gc.OLT, gc.Types[gc.TUINT64]), nil, +1)
++			p2 := gins(ppc64.ASRD, nil, &r1)
+ 			p2.From.Type = obj.TYPE_CONST
+ 			p2.From.Offset = 1
+ 			gc.Patch(p1, gc.Pc)
+ 		}
+ 
+ 		gc.Regalloc(&r2, gc.Types[gc.TFLOAT64], t)
+-		p1 := (*obj.Prog)(gins(ppc64.AMOVD, &r1, nil))
++		p1 := gins(ppc64.AMOVD, &r1, nil)
+ 		p1.To.Type = obj.TYPE_MEM
+ 		p1.To.Reg = ppc64.REGSP
+ 		p1.To.Offset = -8
+@@ -493,7 +493,7 @@ func gmove(f *gc.Node, t *gc.Node) {
+ 		gins(ppc64.AFCFID, &r2, &r2)
+ 		gc.Regfree(&r1)
+ 		if ft == gc.TUINT64 {
+-			p1 := (*obj.Prog)(gc.Gbranch(optoas(gc.OLT, gc.Types[gc.TUINT64]), nil, +1)) // use CR0 here again
++			p1 := gc.Gbranch(optoas(gc.OLT, gc.Types[gc.TUINT64]), nil, +1) // use CR0 here again
+ 			gc.Nodreg(&r1, gc.Types[gc.TFLOAT64], ppc64.FREGTWO)
+ 			gins(ppc64.AFMUL, &r1, &r2)
+ 			gc.Patch(p1, gc.Pc)
+diff --git a/src/cmd/compile/internal/ppc64/peep.go b/src/cmd/compile/internal/ppc64/peep.go
+index dfd023c766..68ca5149eb 100644
+--- a/src/cmd/compile/internal/ppc64/peep.go
++++ b/src/cmd/compile/internal/ppc64/peep.go
+@@ -40,7 +40,7 @@ import (
+ var gactive uint32
+ 
+ func peep(firstp *obj.Prog) {
+-	g := (*gc.Graph)(gc.Flowstart(firstp, nil))
++	g := gc.Flowstart(firstp, nil)
+ 	if g == nil {
+ 		return
+ 	}
+@@ -107,7 +107,7 @@ loop1:
+ 	 */
+ 	var p1 *obj.Prog
+ 	var r1 *gc.Flow
+-	for r := (*gc.Flow)(g.Start); r != nil; r = r.Link {
++	for r := g.Start; r != nil; r = r.Link {
+ 		p = r.Prog
+ 		switch p.As {
+ 		default:
+@@ -149,7 +149,7 @@ loop1:
+ 	 * look for OP x,y,R; CMP R, $0 -> OPCC x,y,R
+ 	 * when OP can set condition codes correctly
+ 	 */
+-	for r := (*gc.Flow)(g.Start); r != nil; r = r.Link {
++	for r := g.Start; r != nil; r = r.Link {
+ 		p = r.Prog
+ 		switch p.As {
+ 		case ppc64.ACMP,
+@@ -348,7 +348,7 @@ ret:
+ }
+ 
+ func excise(r *gc.Flow) {
+-	p := (*obj.Prog)(r.Prog)
++	p := r.Prog
+ 	if gc.Debug['P'] != 0 && gc.Debug['v'] != 0 {
+ 		fmt.Printf("%v ===delete===\n", p)
+ 	}
+@@ -398,12 +398,12 @@ func regtyp(a *obj.Addr) bool {
+  * above sequences.  This returns 1 if it modified any instructions.
+  */
+ func subprop(r0 *gc.Flow) bool {
+-	p := (*obj.Prog)(r0.Prog)
+-	v1 := (*obj.Addr)(&p.From)
++	p := r0.Prog
++	v1 := &p.From
+ 	if !regtyp(v1) {
+ 		return false
+ 	}
+-	v2 := (*obj.Addr)(&p.To)
++	v2 := &p.To
+ 	if !regtyp(v2) {
+ 		return false
+ 	}
+@@ -441,7 +441,7 @@ func subprop(r0 *gc.Flow) bool {
+ 						}
+ 					}
+ 
+-					t := int(int(v1.Reg))
++					t := int(v1.Reg)
+ 					v1.Reg = v2.Reg
+ 					v2.Reg = int16(t)
+ 					if gc.Debug['P'] != 0 {
+@@ -476,9 +476,9 @@ func subprop(r0 *gc.Flow) bool {
+  *	set v2	return success (caller can remove v1->v2 move)
+  */
+ func copyprop(r0 *gc.Flow) bool {
+-	p := (*obj.Prog)(r0.Prog)
+-	v1 := (*obj.Addr)(&p.From)
+-	v2 := (*obj.Addr)(&p.To)
++	p := r0.Prog
++	v1 := &p.From
++	v2 := &p.To
+ 	if copyas(v1, v2) {
+ 		if gc.Debug['P'] != 0 {
+ 			fmt.Printf("eliminating self-move: %v\n", r0.Prog)
+diff --git a/src/cmd/compile/internal/ppc64/reg.go b/src/cmd/compile/internal/ppc64/reg.go
+index da3f34ade7..447679e207 100644
+--- a/src/cmd/compile/internal/ppc64/reg.go
++++ b/src/cmd/compile/internal/ppc64/reg.go
+@@ -111,7 +111,7 @@ func regnames(n *int) []string {
+ 
+ func excludedregs() uint64 {
+ 	// Exclude registers with fixed functions
+-	regbits := uint64(1<<0 | RtoB(ppc64.REGSP) | RtoB(ppc64.REGG) | RtoB(ppc64.REGTLS) | RtoB(ppc64.REGTMP))
++	regbits := 1<<0 | RtoB(ppc64.REGSP) | RtoB(ppc64.REGG) | RtoB(ppc64.REGTLS) | RtoB(ppc64.REGTMP)
+ 
+ 	if gc.Ctxt.Flag_shared != 0 {
+ 		// When compiling Go into PIC, R2 is reserved to be the TOC pointer
+diff --git a/src/cmd/compile/internal/x86/cgen.go b/src/cmd/compile/internal/x86/cgen.go
+index 1768674e42..90a773d533 100644
+--- a/src/cmd/compile/internal/x86/cgen.go
++++ b/src/cmd/compile/internal/x86/cgen.go
+@@ -85,7 +85,7 @@ func blockcopy(n, res *gc.Node, osrc, odst, w int64) {
+ 
+ 	// if we are copying forward on the stack and
+ 	// the src and dst overlap, then reverse direction
+-	if osrc < odst && int64(odst) < int64(osrc)+w {
++	if osrc < odst && odst < osrc+w {
+ 		// reverse direction
+ 		gins(x86.ASTD, nil, nil) // set direction flag
+ 		if c > 0 {

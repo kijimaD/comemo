@@ -41,7 +41,7 @@ Date:   Fri Sep 2 14:11:09 2022 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/432897
     Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/noder/helpers.go   |  3 +-
  src/cmd/compile/internal/noder/irgen.go     | 26 +++++-----
  src/cmd/compile/internal/noder/writer.go    | 12 ++---
@@ -52,3 +52,541 @@ Date:   Fri Sep 2 14:11:09 2022 -0700
  src/cmd/compile/internal/types2/check.go    | 51 +++++++++++++++++++-
  src/cmd/compile/internal/types2/type.go     | 10 ++--
  9 files changed, 193 insertions(+), 54 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/helpers.go b/src/cmd/compile/internal/noder/helpers.go
+index 764dcb3f85..4ef46a477b 100644
+--- a/src/cmd/compile/internal/noder/helpers.go
++++ b/src/cmd/compile/internal/noder/helpers.go
+@@ -9,6 +9,7 @@ import (
+ 
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/ir"
++	"cmd/compile/internal/syntax"
+ 	"cmd/compile/internal/typecheck"
+ 	"cmd/compile/internal/types"
+ 	"cmd/compile/internal/types2"
+@@ -222,7 +223,7 @@ func IncDec(pos src.XPos, op ir.Op, x ir.Node) *ir.AssignOpStmt {
+ 	return ir.NewAssignOpStmt(pos, op, x, bl)
+ }
+ 
+-func idealType(tv types2.TypeAndValue) types2.Type {
++func idealType(tv syntax.TypeAndValue) types2.Type {
+ 	// The gc backend expects all expressions to have a concrete type, and
+ 	// types2 mostly satisfies this expectation already. But there are a few
+ 	// cases where the Go spec doesn't require converting to concrete type,
+diff --git a/src/cmd/compile/internal/noder/irgen.go b/src/cmd/compile/internal/noder/irgen.go
+index 4f399066e3..57872bce27 100644
+--- a/src/cmd/compile/internal/noder/irgen.go
++++ b/src/cmd/compile/internal/noder/irgen.go
+@@ -59,13 +59,13 @@ func checkFiles(noders []*noder) (posMap, *types2.Package, *types2.Info) {
+ 		Sizes:    &gcSizes{},
+ 	}
+ 	info := &types2.Info{
+-		Types:      make(map[syntax.Expr]types2.TypeAndValue),
+-		Defs:       make(map[*syntax.Name]types2.Object),
+-		Uses:       make(map[*syntax.Name]types2.Object),
+-		Selections: make(map[*syntax.SelectorExpr]*types2.Selection),
+-		Implicits:  make(map[syntax.Node]types2.Object),
+-		Scopes:     make(map[syntax.Node]*types2.Scope),
+-		Instances:  make(map[*syntax.Name]types2.Instance),
++		StoreTypesInSyntax: true,
++		Defs:               make(map[*syntax.Name]types2.Object),
++		Uses:               make(map[*syntax.Name]types2.Object),
++		Selections:         make(map[*syntax.SelectorExpr]*types2.Selection),
++		Implicits:          make(map[syntax.Node]types2.Object),
++		Scopes:             make(map[syntax.Node]*types2.Scope),
++		Instances:          make(map[*syntax.Name]types2.Instance),
+ 		// expand as needed
+ 	}
+ 
+@@ -390,17 +390,17 @@ func (g *irgen) delayTransform() bool {
+ 	return g.topFuncIsGeneric
+ }
+ 
+-func (g *irgen) typeAndValue(x syntax.Expr) types2.TypeAndValue {
+-	tv, ok := g.info.Types[x]
+-	if !ok {
++func (g *irgen) typeAndValue(x syntax.Expr) syntax.TypeAndValue {
++	tv := x.GetTypeInfo()
++	if tv.Type == nil {
+ 		base.FatalfAt(g.pos(x), "missing type for %v (%T)", x, x)
+ 	}
+ 	return tv
+ }
+ 
+-func (g *irgen) type2(x syntax.Expr) types2.Type {
+-	tv, ok := g.info.Types[x]
+-	if !ok {
++func (g *irgen) type2(x syntax.Expr) syntax.Type {
++	tv := x.GetTypeInfo()
++	if tv.Type == nil {
+ 		base.FatalfAt(g.pos(x), "missing type for %v (%T)", x, x)
+ 	}
+ 	return tv.Type
+diff --git a/src/cmd/compile/internal/noder/writer.go b/src/cmd/compile/internal/noder/writer.go
+index b39a57a13f..9f43293527 100644
+--- a/src/cmd/compile/internal/noder/writer.go
++++ b/src/cmd/compile/internal/noder/writer.go
+@@ -120,16 +120,16 @@ func (pw *pkgWriter) unexpected(what string, p poser) {
+ 	pw.fatalf(p, "unexpected %s: %v (%T)", what, p, p)
+ }
+ 
+-func (pw *pkgWriter) typeAndValue(x syntax.Expr) types2.TypeAndValue {
+-	tv, ok := pw.info.Types[x]
+-	if !ok {
++func (pw *pkgWriter) typeAndValue(x syntax.Expr) syntax.TypeAndValue {
++	tv := x.GetTypeInfo()
++	if tv.Type == nil {
+ 		pw.fatalf(x, "missing Types entry: %v", syntax.String(x))
+ 	}
+ 	return tv
+ }
+-func (pw *pkgWriter) maybeTypeAndValue(x syntax.Expr) (types2.TypeAndValue, bool) {
+-	tv, ok := pw.info.Types[x]
+-	return tv, ok
++func (pw *pkgWriter) maybeTypeAndValue(x syntax.Expr) (syntax.TypeAndValue, bool) {
++	tv := x.GetTypeInfo()
++	return tv, tv.Type != nil
+ }
+ 
+ // typeOf returns the Type of the given value expression.
+diff --git a/src/cmd/compile/internal/syntax/nodes.go b/src/cmd/compile/internal/syntax/nodes.go
+index 10af3c597b..e943a9a9e6 100644
+--- a/src/cmd/compile/internal/syntax/nodes.go
++++ b/src/cmd/compile/internal/syntax/nodes.go
+@@ -132,6 +132,7 @@ func NewName(pos Pos, value string) *Name {
+ type (
+ 	Expr interface {
+ 		Node
++		typeInfo
+ 		aExpr()
+ 	}
+ 
+@@ -308,7 +309,10 @@ type (
+ 	}
+ )
+ 
+-type expr struct{ node }
++type expr struct {
++	node
++	typeAndValue // After typechecking, contains the results of typechecking this expression.
++}
+ 
+ func (*expr) aExpr() {}
+ 
+diff --git a/src/cmd/compile/internal/syntax/type.go b/src/cmd/compile/internal/syntax/type.go
+new file mode 100644
+index 0000000000..01eab7ad04
+--- /dev/null
++++ b/src/cmd/compile/internal/syntax/type.go
+@@ -0,0 +1,73 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package syntax
++
++import "go/constant"
++
++// A Type represents a type of Go.
++// All types implement the Type interface.
++// (This type originally lived in types2. We moved it here
++// so we could depend on it from other packages without
++// introducing a circularity.)
++type Type interface {
++	// Underlying returns the underlying type of a type.
++	Underlying() Type
++
++	// String returns a string representation of a type.
++	String() string
++}
++
++// Expressions in the syntax package provide storage for
++// the typechecker to record its results. This interface
++// is the mechanism the typechecker uses to record results,
++// and clients use to retrieve those results.
++type typeInfo interface {
++	SetTypeInfo(TypeAndValue)
++	GetTypeInfo() TypeAndValue
++}
++
++// A TypeAndValue records the type information, constant
++// value if known, and various other flags associated with
++// an expression.
++// This type is similar to types2.TypeAndValue, but exposes
++// none of types2's internals.
++type TypeAndValue struct {
++	Type  Type
++	Value constant.Value
++	exprFlags
++}
++
++type exprFlags uint8
++
++func (f exprFlags) IsVoid() bool      { return f&1 != 0 }
++func (f exprFlags) IsType() bool      { return f&2 != 0 }
++func (f exprFlags) IsBuiltin() bool   { return f&4 != 0 }
++func (f exprFlags) IsValue() bool     { return f&8 != 0 }
++func (f exprFlags) IsNil() bool       { return f&16 != 0 }
++func (f exprFlags) Addressable() bool { return f&32 != 0 }
++func (f exprFlags) Assignable() bool  { return f&64 != 0 }
++func (f exprFlags) HasOk() bool       { return f&128 != 0 }
++
++func (f *exprFlags) SetIsVoid()      { *f |= 1 }
++func (f *exprFlags) SetIsType()      { *f |= 2 }
++func (f *exprFlags) SetIsBuiltin()   { *f |= 4 }
++func (f *exprFlags) SetIsValue()     { *f |= 8 }
++func (f *exprFlags) SetIsNil()       { *f |= 16 }
++func (f *exprFlags) SetAddressable() { *f |= 32 }
++func (f *exprFlags) SetAssignable()  { *f |= 64 }
++func (f *exprFlags) SetHasOk()       { *f |= 128 }
++
++// a typeAndValue contains the results of typechecking an expression.
++// It is embedded in expression nodes.
++type typeAndValue struct {
++	tv TypeAndValue
++}
++
++func (x *typeAndValue) SetTypeInfo(tv TypeAndValue) {
++	x.tv = tv
++}
++func (x *typeAndValue) GetTypeInfo() TypeAndValue {
++	return x.tv
++}
+diff --git a/src/cmd/compile/internal/types2/api.go b/src/cmd/compile/internal/types2/api.go
+index cbd49b68c7..1f19fe0927 100644
+--- a/src/cmd/compile/internal/types2/api.go
++++ b/src/cmd/compile/internal/types2/api.go
+@@ -197,6 +197,12 @@ type Info struct {
+ 	// qualified identifiers are collected in the Uses map.
+ 	Types map[syntax.Expr]TypeAndValue
+ 
++	// If StoreTypesInSyntax is set, type information identical to
++	// that which would be put in the Types map, will be set in
++	// syntax.Expr.TypeAndValue (independently of whether Types
++	// is nil or not).
++	StoreTypesInSyntax bool
++
+ 	// Instances maps identifiers denoting generic types or functions to their
+ 	// type arguments and instantiated type.
+ 	//
+@@ -276,12 +282,24 @@ type Info struct {
+ 	InitOrder []*Initializer
+ }
+ 
++func (info *Info) recordTypes() bool {
++	return info.Types != nil || info.StoreTypesInSyntax
++}
++
+ // TypeOf returns the type of expression e, or nil if not found.
+-// Precondition: the Types, Uses and Defs maps are populated.
++// Precondition 1: the Types map is populated or StoreTypesInSynax is set.
++// Precondition 2: Uses and Defs maps are populated.
+ func (info *Info) TypeOf(e syntax.Expr) Type {
+-	if t, ok := info.Types[e]; ok {
+-		return t.Type
++	if info.Types != nil {
++		if t, ok := info.Types[e]; ok {
++			return t.Type
++		}
++	} else if info.StoreTypesInSyntax {
++		if tv := e.GetTypeInfo(); tv.Type != nil {
++			return tv.Type
++		}
+ 	}
++
+ 	if id, _ := e.(*syntax.Name); id != nil {
+ 		if obj := info.ObjectOf(id); obj != nil {
+ 			return obj.Type()
+diff --git a/src/cmd/compile/internal/types2/builtins.go b/src/cmd/compile/internal/types2/builtins.go
+index 6266fbd67d..9e0a510532 100644
+--- a/src/cmd/compile/internal/types2/builtins.go
++++ b/src/cmd/compile/internal/types2/builtins.go
+@@ -115,7 +115,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 					return
+ 				}
+ 				if t := coreString(x.typ); t != nil && isString(t) {
+-					if check.Types != nil {
++					if check.recordTypes() {
+ 						sig := makeSig(S, S, x.typ)
+ 						sig.variadic = true
+ 						check.recordBuiltinType(call.Fun, sig)
+@@ -147,7 +147,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 
+ 		x.mode = value
+ 		x.typ = S
+-		if check.Types != nil {
++		if check.recordTypes() {
+ 			check.recordBuiltinType(call.Fun, sig)
+ 		}
+ 
+@@ -223,7 +223,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 		}
+ 
+ 		// record the signature before changing x.typ
+-		if check.Types != nil && mode != constant_ {
++		if check.recordTypes() && mode != constant_ {
+ 			check.recordBuiltinType(call.Fun, makeSig(Typ[Int], x.typ))
+ 		}
+ 
+@@ -248,7 +248,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 			return
+ 		}
+ 		x.mode = novalue
+-		if check.Types != nil {
++		if check.recordTypes() {
+ 			check.recordBuiltinType(call.Fun, makeSig(nil, x.typ))
+ 		}
+ 
+@@ -340,7 +340,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 			x.mode = value
+ 		}
+ 
+-		if check.Types != nil && x.mode != constant_ {
++		if check.recordTypes() && x.mode != constant_ {
+ 			check.recordBuiltinType(call.Fun, makeSig(resTyp, x.typ, x.typ))
+ 		}
+ 
+@@ -371,7 +371,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 			return
+ 		}
+ 
+-		if check.Types != nil {
++		if check.recordTypes() {
+ 			check.recordBuiltinType(call.Fun, makeSig(Typ[Int], x.typ, y.typ))
+ 		}
+ 		x.mode = value
+@@ -410,7 +410,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 		}
+ 
+ 		x.mode = novalue
+-		if check.Types != nil {
++		if check.recordTypes() {
+ 			check.recordBuiltinType(call.Fun, makeSig(nil, map_, key))
+ 		}
+ 
+@@ -476,7 +476,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 			x.mode = value
+ 		}
+ 
+-		if check.Types != nil && x.mode != constant_ {
++		if check.recordTypes() && x.mode != constant_ {
+ 			check.recordBuiltinType(call.Fun, makeSig(resTyp, x.typ))
+ 		}
+ 
+@@ -525,7 +525,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 		}
+ 		x.mode = value
+ 		x.typ = T
+-		if check.Types != nil {
++		if check.recordTypes() {
+ 			check.recordBuiltinType(call.Fun, makeSig(x.typ, types...))
+ 		}
+ 
+@@ -539,7 +539,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 
+ 		x.mode = value
+ 		x.typ = &Pointer{base: T}
+-		if check.Types != nil {
++		if check.recordTypes() {
+ 			check.recordBuiltinType(call.Fun, makeSig(x.typ, T))
+ 		}
+ 
+@@ -564,7 +564,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 		}
+ 
+ 		x.mode = novalue
+-		if check.Types != nil {
++		if check.recordTypes() {
+ 			check.recordBuiltinType(call.Fun, makeSig(nil, &emptyInterface))
+ 		}
+ 
+@@ -588,7 +588,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 		}
+ 
+ 		x.mode = novalue
+-		if check.Types != nil {
++		if check.recordTypes() {
+ 			check.recordBuiltinType(call.Fun, makeSig(nil, params...))
+ 		}
+ 
+@@ -596,7 +596,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 		// recover() interface{}
+ 		x.mode = value
+ 		x.typ = &emptyInterface
+-		if check.Types != nil {
++		if check.recordTypes() {
+ 			check.recordBuiltinType(call.Fun, makeSig(x.typ))
+ 		}
+ 
+@@ -620,7 +620,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 
+ 		x.mode = value
+ 		x.typ = Typ[UnsafePointer]
+-		if check.Types != nil {
++		if check.recordTypes() {
+ 			check.recordBuiltinType(call.Fun, makeSig(x.typ, x.typ, y.typ))
+ 		}
+ 
+@@ -633,7 +633,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 
+ 		if hasVarSize(x.typ, nil) {
+ 			x.mode = value
+-			if check.Types != nil {
++			if check.recordTypes() {
+ 				check.recordBuiltinType(call.Fun, makeSig(Typ[Uintptr], x.typ))
+ 			}
+ 		} else {
+@@ -697,7 +697,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 		// arranging struct fields if it wanted to.
+ 		if hasVarSize(base, nil) {
+ 			x.mode = value
+-			if check.Types != nil {
++			if check.recordTypes() {
+ 				check.recordBuiltinType(call.Fun, makeSig(Typ[Uintptr], obj.Type()))
+ 			}
+ 		} else {
+@@ -716,7 +716,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 
+ 		if hasVarSize(x.typ, nil) {
+ 			x.mode = value
+-			if check.Types != nil {
++			if check.recordTypes() {
+ 				check.recordBuiltinType(call.Fun, makeSig(Typ[Uintptr], x.typ))
+ 			}
+ 		} else {
+@@ -747,7 +747,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 
+ 		x.mode = value
+ 		x.typ = NewSlice(ptr.base)
+-		if check.Types != nil {
++		if check.recordTypes() {
+ 			check.recordBuiltinType(call.Fun, makeSig(x.typ, ptr, y.typ))
+ 		}
+ 
+@@ -766,7 +766,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 
+ 		x.mode = value
+ 		x.typ = NewPointer(slice.elem)
+-		if check.Types != nil {
++		if check.recordTypes() {
+ 			check.recordBuiltinType(call.Fun, makeSig(x.typ, slice))
+ 		}
+ 
+@@ -790,7 +790,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 
+ 		x.mode = value
+ 		x.typ = Typ[String]
+-		if check.Types != nil {
++		if check.recordTypes() {
+ 			check.recordBuiltinType(call.Fun, makeSig(x.typ, NewPointer(universeByte), y.typ))
+ 		}
+ 
+@@ -808,7 +808,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 
+ 		x.mode = value
+ 		x.typ = NewPointer(universeByte)
+-		if check.Types != nil {
++		if check.recordTypes() {
+ 			check.recordBuiltinType(call.Fun, makeSig(x.typ, Typ[String]))
+ 		}
+ 
+diff --git a/src/cmd/compile/internal/types2/check.go b/src/cmd/compile/internal/types2/check.go
+index 7b8a6e78c8..2dc960dfc8 100644
+--- a/src/cmd/compile/internal/types2/check.go
++++ b/src/cmd/compile/internal/types2/check.go
+@@ -425,7 +425,7 @@ func (check *Checker) record(x *operand) {
+ }
+ 
+ func (check *Checker) recordUntyped() {
+-	if !debug && check.Types == nil {
++	if !debug && !check.recordTypes() {
+ 		return // nothing to do
+ 	}
+ 
+@@ -453,6 +453,35 @@ func (check *Checker) recordTypeAndValue(x syntax.Expr, mode operandMode, typ Ty
+ 	if m := check.Types; m != nil {
+ 		m[x] = TypeAndValue{mode, typ, val}
+ 	}
++	if check.StoreTypesInSyntax {
++		tv := TypeAndValue{mode, typ, val}
++		stv := syntax.TypeAndValue{Type: typ, Value: val}
++		if tv.IsVoid() {
++			stv.SetIsVoid()
++		}
++		if tv.IsType() {
++			stv.SetIsType()
++		}
++		if tv.IsBuiltin() {
++			stv.SetIsBuiltin()
++		}
++		if tv.IsValue() {
++			stv.SetIsValue()
++		}
++		if tv.IsNil() {
++			stv.SetIsNil()
++		}
++		if tv.Addressable() {
++			stv.SetAddressable()
++		}
++		if tv.Assignable() {
++			stv.SetAssignable()
++		}
++		if tv.HasOk() {
++			stv.SetHasOk()
++		}
++		x.SetTypeInfo(stv)
++	}
+ }
+ 
+ func (check *Checker) recordBuiltinType(f syntax.Expr, sig *Signature) {
+@@ -489,7 +518,25 @@ func (check *Checker) recordCommaOkTypes(x syntax.Expr, a [2]Type) {
+ 				NewVar(pos, check.pkg, "", a[1]),
+ 			)
+ 			m[x] = tv
+-			// if x is a parenthesized expression (p.X), update p.X
++			p, _ := x.(*syntax.ParenExpr)
++			if p == nil {
++				break
++			}
++			x = p.X
++		}
++	}
++	if check.StoreTypesInSyntax {
++		// Note: this loop is duplicated because the type of tv is different.
++		// Above it is types2.TypeAndValue, here it is syntax.TypeAndValue.
++		for {
++			tv := x.GetTypeInfo()
++			assert(tv.Type != nil) // should have been recorded already
++			pos := x.Pos()
++			tv.Type = NewTuple(
++				NewVar(pos, check.pkg, "", a[0]),
++				NewVar(pos, check.pkg, "", a[1]),
++			)
++			x.SetTypeInfo(tv)
+ 			p, _ := x.(*syntax.ParenExpr)
+ 			if p == nil {
+ 				break
+diff --git a/src/cmd/compile/internal/types2/type.go b/src/cmd/compile/internal/types2/type.go
+index 0fe39dbca4..92ecf11559 100644
+--- a/src/cmd/compile/internal/types2/type.go
++++ b/src/cmd/compile/internal/types2/type.go
+@@ -4,15 +4,11 @@
+ 
+ package types2
+ 
++import "cmd/compile/internal/syntax"
++
+ // A Type represents a type of Go.
+ // All types implement the Type interface.
+-type Type interface {
+-	// Underlying returns the underlying type of a type.
+-	Underlying() Type
+-
+-	// String returns a string representation of a type.
+-	String() string
+-}
++type Type = syntax.Type
+ 
+ // under returns the true expanded underlying type.
+ // If it doesn't exist, the result is Typ[Invalid].

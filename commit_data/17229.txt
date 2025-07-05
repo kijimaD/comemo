@@ -12,7 +12,48 @@ Date:   Wed Aug 14 09:27:30 2013 -0700
     R=golang-dev
     CC=bradfitz, golang-dev
     https://golang.org/cl/12646044
-
+---
  src/pkg/database/sql/sql.go      | 7 ++++---
  src/pkg/database/sql/sql_test.go | 1 -
  2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/database/sql/sql.go b/src/pkg/database/sql/sql.go
+index 352a7e82d9..f0c86a8aeb 100644
+--- a/src/pkg/database/sql/sql.go
++++ b/src/pkg/database/sql/sql.go
+@@ -518,12 +518,12 @@ var (
+ func (db *DB) connIfFree(wanted *driverConn) (*driverConn, error) {
+ 	db.mu.Lock()
+ 	defer db.mu.Unlock()
+-	if wanted.inUse {
+-		return nil, errConnBusy
+-	}
+ 	if wanted.dbmuClosed {
+ 		return nil, errConnClosed
+ 	}
++	if wanted.inUse {
++		return nil, errConnBusy
++	}
+ 	for i, conn := range db.freeConn {
+ 		if conn != wanted {
+ 			continue
+@@ -590,6 +590,7 @@ func (db *DB) putConn(dc *driverConn, err error) {
+ 	if err == driver.ErrBadConn {
+ 		// Don't reuse bad connections.
+ 		db.mu.Unlock()
++		dc.Close()
+ 		return
+ 	}
+ 	if putConnHook != nil {
+diff --git a/src/pkg/database/sql/sql_test.go b/src/pkg/database/sql/sql_test.go
+index 2b9347aeda..693f5e3a3c 100644
+--- a/src/pkg/database/sql/sql_test.go
++++ b/src/pkg/database/sql/sql_test.go
+@@ -1112,7 +1112,6 @@ func manyConcurrentQueries(t testOrBench) {
+ }
+ 
+ func TestIssue6081(t *testing.T) {
+-	t.Skip("known broken test")
+ 	db := newTestDB(t, "people")
+ 	defer closeDB(t, db)
+ 

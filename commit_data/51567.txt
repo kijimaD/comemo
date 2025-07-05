@@ -11,7 +11,45 @@ Date:   Mon Feb 14 12:05:46 2022 -0500
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
-
+---
  src/cmd/go/internal/workcmd/init.go               |  5 ++++-
  src/cmd/go/testdata/script/work_init_workfile.txt | 15 +++++++++++++++
  2 files changed, 19 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/workcmd/init.go b/src/cmd/go/internal/workcmd/init.go
+index cefecee832..aa3126319a 100644
+--- a/src/cmd/go/internal/workcmd/init.go
++++ b/src/cmd/go/internal/workcmd/init.go
+@@ -46,7 +46,10 @@ func runInit(ctx context.Context, cmd *base.Command, args []string) {
+ 	// make dirs relative to workFile path before adding the paths to
+ 	// the directory entries
+ 
+-	workFile := filepath.Join(base.Cwd(), "go.work")
++	workFile := modload.WorkFilePath()
++	if workFile == "" {
++		workFile = filepath.Join(base.Cwd(), "go.work")
++	}
+ 
+ 	modload.CreateWorkFile(ctx, workFile, args)
+ }
+diff --git a/src/cmd/go/testdata/script/work_init_workfile.txt b/src/cmd/go/testdata/script/work_init_workfile.txt
+new file mode 100644
+index 0000000000..e6f56716f9
+--- /dev/null
++++ b/src/cmd/go/testdata/script/work_init_workfile.txt
+@@ -0,0 +1,15 @@
++# Test that the workfile flag is used by go work init.
++
++go work init
++exists go.work
++
++go work init -workfile=$GOPATH/src/foo/foo.work
++exists foo/foo.work
++
++cd foo/bar
++! go work init
++stderr 'already exists'
++
++# Create directories to make go.work files in.
++-- foo/dummy.txt --
++-- foo/bar/dummy.txt --

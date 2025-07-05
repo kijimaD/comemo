@@ -11,10 +11,286 @@ Date:   Mon Nov 21 11:31:39 2016 -0500
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/386Ops.go   |  8 ++-
  src/cmd/compile/internal/ssa/gen/AMD64Ops.go | 10 +++-
  src/cmd/compile/internal/ssa/gen/S390XOps.go | 11 ++--
  src/cmd/compile/internal/ssa/opGen.go        | 77 +++++++++++++++++-----------
  test/nilptr3.go                              |  5 ++
  5 files changed, 73 insertions(+), 38 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/386Ops.go b/src/cmd/compile/internal/ssa/gen/386Ops.go
+index 1d150db664..bcbf2cbed3 100644
+--- a/src/cmd/compile/internal/ssa/gen/386Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/386Ops.go
+@@ -373,6 +373,7 @@ func init() {
+ 				clobbers: buildReg("DI CX"),
+ 				// Note: CX is only clobbered when dynamic linking.
+ 			},
++			faultOnNilArg0: true,
+ 		},
+ 
+ 		// arg0 = address of memory to zero
+@@ -387,6 +388,7 @@ func init() {
+ 				inputs:   []regMask{buildReg("DI"), buildReg("CX"), buildReg("AX")},
+ 				clobbers: buildReg("DI CX"),
+ 			},
++			faultOnNilArg0: true,
+ 		},
+ 
+ 		{name: "CALLstatic", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "SymOff", clobberFlags: true, call: true},                                             // call static function aux.(*gc.Sym).  arg0=mem, auxint=argsize, returns mem
+@@ -408,7 +410,9 @@ func init() {
+ 				inputs:   []regMask{buildReg("DI"), buildReg("SI")},
+ 				clobbers: buildReg("DI SI CX"), // uses CX as a temporary
+ 			},
+-			clobberFlags: true,
++			clobberFlags:   true,
++			faultOnNilArg0: true,
++			faultOnNilArg1: true,
+ 		},
+ 
+ 		// arg0 = destination pointer
+@@ -423,6 +427,8 @@ func init() {
+ 				inputs:   []regMask{buildReg("DI"), buildReg("SI"), buildReg("CX")},
+ 				clobbers: buildReg("DI SI CX"),
+ 			},
++			faultOnNilArg0: true,
++			faultOnNilArg1: true,
+ 		},
+ 
+ 		// (InvertFlags (CMPL a b)) == (CMPL b a)
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+index b42ede4ad0..69f3f76955 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+@@ -421,7 +421,8 @@ func init() {
+ 				inputs:   []regMask{buildReg("DI"), buildReg("X0")},
+ 				clobbers: buildReg("DI"),
+ 			},
+-			clobberFlags: true,
++			clobberFlags:   true,
++			faultOnNilArg0: true,
+ 		},
+ 		{name: "MOVOconst", reg: regInfo{nil, 0, []regMask{fp}}, typ: "Int128", aux: "Int128", rematerializeable: true},
+ 
+@@ -437,6 +438,7 @@ func init() {
+ 				inputs:   []regMask{buildReg("DI"), buildReg("CX"), buildReg("AX")},
+ 				clobbers: buildReg("DI CX"),
+ 			},
++			faultOnNilArg0: true,
+ 		},
+ 
+ 		{name: "CALLstatic", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "SymOff", clobberFlags: true, call: true},                                             // call static function aux.(*gc.Sym).  arg0=mem, auxint=argsize, returns mem
+@@ -458,7 +460,9 @@ func init() {
+ 				inputs:   []regMask{buildReg("DI"), buildReg("SI")},
+ 				clobbers: buildReg("DI SI X0"), // uses X0 as a temporary
+ 			},
+-			clobberFlags: true,
++			clobberFlags:   true,
++			faultOnNilArg0: true,
++			faultOnNilArg1: true,
+ 		},
+ 
+ 		// arg0 = destination pointer
+@@ -473,6 +477,8 @@ func init() {
+ 				inputs:   []regMask{buildReg("DI"), buildReg("SI"), buildReg("CX")},
+ 				clobbers: buildReg("DI SI CX"),
+ 			},
++			faultOnNilArg0: true,
++			faultOnNilArg1: true,
+ 		},
+ 
+ 		// (InvertFlags (CMPQ a b)) == (CMPQ b a)
+diff --git a/src/cmd/compile/internal/ssa/gen/S390XOps.go b/src/cmd/compile/internal/ssa/gen/S390XOps.go
+index 7a25c26784..99c3a4da4a 100644
+--- a/src/cmd/compile/internal/ssa/gen/S390XOps.go
++++ b/src/cmd/compile/internal/ssa/gen/S390XOps.go
+@@ -568,8 +568,10 @@ func init() {
+ 				inputs:   []regMask{buildReg("R1"), buildReg("R2"), gpsp},
+ 				clobbers: buildReg("R1 R2"),
+ 			},
+-			clobberFlags: true,
+-			typ:          "Mem",
++			clobberFlags:   true,
++			typ:            "Mem",
++			faultOnNilArg0: true,
++			faultOnNilArg1: true,
+ 		},
+ 
+ 		// large clear
+@@ -592,8 +594,9 @@ func init() {
+ 				inputs:   []regMask{buildReg("R1"), gpsp},
+ 				clobbers: buildReg("R1"),
+ 			},
+-			clobberFlags: true,
+-			typ:          "Mem",
++			clobberFlags:   true,
++			typ:            "Mem",
++			faultOnNilArg0: true,
+ 		},
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 510fcfea10..f4cc1c0b81 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -4071,9 +4071,10 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "DUFFZERO",
+-		auxType: auxInt64,
+-		argLen:  3,
++		name:           "DUFFZERO",
++		auxType:        auxInt64,
++		argLen:         3,
++		faultOnNilArg0: true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 128}, // DI
+@@ -4083,8 +4084,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "REPSTOSL",
+-		argLen: 4,
++		name:           "REPSTOSL",
++		argLen:         4,
++		faultOnNilArg0: true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 128}, // DI
+@@ -4152,10 +4154,12 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:         "DUFFCOPY",
+-		auxType:      auxInt64,
+-		argLen:       3,
+-		clobberFlags: true,
++		name:           "DUFFCOPY",
++		auxType:        auxInt64,
++		argLen:         3,
++		clobberFlags:   true,
++		faultOnNilArg0: true,
++		faultOnNilArg1: true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 128}, // DI
+@@ -4165,8 +4169,10 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "REPMOVSL",
+-		argLen: 4,
++		name:           "REPMOVSL",
++		argLen:         4,
++		faultOnNilArg0: true,
++		faultOnNilArg1: true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 128}, // DI
+@@ -7062,10 +7068,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:         "DUFFZERO",
+-		auxType:      auxInt64,
+-		argLen:       3,
+-		clobberFlags: true,
++		name:           "DUFFZERO",
++		auxType:        auxInt64,
++		argLen:         3,
++		clobberFlags:   true,
++		faultOnNilArg0: true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 128},   // DI
+@@ -7086,8 +7093,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "REPSTOSQ",
+-		argLen: 4,
++		name:           "REPSTOSQ",
++		argLen:         4,
++		faultOnNilArg0: true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 128}, // DI
+@@ -7155,10 +7163,12 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:         "DUFFCOPY",
+-		auxType:      auxInt64,
+-		argLen:       3,
+-		clobberFlags: true,
++		name:           "DUFFCOPY",
++		auxType:        auxInt64,
++		argLen:         3,
++		clobberFlags:   true,
++		faultOnNilArg0: true,
++		faultOnNilArg1: true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 128}, // DI
+@@ -7168,8 +7178,10 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "REPMOVSQ",
+-		argLen: 4,
++		name:           "REPMOVSQ",
++		argLen:         4,
++		faultOnNilArg0: true,
++		faultOnNilArg1: true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 128}, // DI
+@@ -19714,10 +19726,12 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:         "LoweredMove",
+-		auxType:      auxInt64,
+-		argLen:       4,
+-		clobberFlags: true,
++		name:           "LoweredMove",
++		auxType:        auxInt64,
++		argLen:         4,
++		clobberFlags:   true,
++		faultOnNilArg0: true,
++		faultOnNilArg1: true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 2},     // R1
+@@ -19728,10 +19742,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:         "LoweredZero",
+-		auxType:      auxInt64,
+-		argLen:       3,
+-		clobberFlags: true,
++		name:           "LoweredZero",
++		auxType:        auxInt64,
++		argLen:         3,
++		clobberFlags:   true,
++		faultOnNilArg0: true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 2},     // R1
+diff --git a/test/nilptr3.go b/test/nilptr3.go
+index c681cba50c..7af226b5f4 100644
+--- a/test/nilptr3.go
++++ b/test/nilptr3.go
+@@ -254,3 +254,8 @@ func f7() (*Struct, float64) {
+ 	p := &t.Y    // ERROR "removed nil check"
+ 	return t, *p // ERROR "removed nil check"
+ }
++
++// make sure to remove nil check for memory move (issue #18003)
++func f8(t *[8]int) [8]int {
++	return *t // ERROR "removed nil check"
++}

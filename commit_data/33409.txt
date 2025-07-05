@@ -19,8 +19,168 @@ Date:   Sun May 21 15:18:08 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/subr.go |  4 +++
  src/cmd/compile/internal/gc/walk.go | 54 +++++++++++++++++++++++--------------
  src/runtime/print.go                | 18 ++++++-------
  3 files changed, 47 insertions(+), 29 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 309470f7b6..b7b27d64d8 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -448,6 +448,10 @@ func nodbool(b bool) *Node {
+ 	return c
+ }
+ 
++func nodstr(s string) *Node {
++	return nodlit(Val{s})
++}
++
+ // treecopy recursively copies n, with the exception of
+ // ONAME, OLITERAL, OTYPE, and non-iota ONONAME leaves.
+ // Copies of iota ONONAME nodes are assigned the current
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 482adb9e04..667dd2acb1 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -2022,15 +2022,22 @@ func walkprint(nn *Node, init *Nodes) *Node {
+ 	// Hoist all the argument evaluation up before the lock.
+ 	walkexprlistcheap(nn.List.Slice(), init)
+ 
+-	notfirst := false
+-	calls := []*Node{mkcall("printlock", nil, init)}
+-	for i, n := range nn.List.Slice() {
+-		if notfirst {
+-			calls = append(calls, mkcall("printsp", nil, init))
++	// For println, add " " between elements and "\n" at the end.
++	if nn.Op == OPRINTN {
++		s := nn.List.Slice()
++		t := make([]*Node, 0, len(s)*2)
++		for i, n := range s {
++			x := " "
++			if len(s)-1 == i {
++				x = "\n"
++			}
++			t = append(t, n, nodstr(x))
+ 		}
++		nn.List.Set(t)
++	}
+ 
+-		notfirst = nn.Op == OPRINTN
+-
++	calls := []*Node{mkcall("printlock", nil, init)}
++	for i, n := range nn.List.Slice() {
+ 		if n.Op == OLITERAL {
+ 			switch n.Val().Ctype() {
+ 			case CTRUNE:
+@@ -2083,28 +2090,35 @@ func walkprint(nn *Node, init *Nodes) *Node {
+ 		case TBOOL:
+ 			on = syslook("printbool")
+ 		case TSTRING:
+-			on = syslook("printstring")
++			cs := ""
++			if Isconst(n, CTSTR) {
++				cs = n.Val().U.(string)
++			}
++			switch cs {
++			case " ":
++				on = syslook("printsp")
++			case "\n":
++				on = syslook("printnl")
++			default:
++				on = syslook("printstring")
++			}
+ 		default:
+ 			badtype(OPRINT, n.Type, nil)
+ 			continue
+ 		}
+ 
+-		t := on.Type.Params().Field(0).Type
+-
+-		if !eqtype(t, n.Type) {
+-			n = nod(OCONV, n, nil)
+-			n.Type = t
+-		}
+-
+ 		r := nod(OCALL, on, nil)
+-		r.List.Append(n)
++		if params := on.Type.Params().FieldSlice(); len(params) > 0 {
++			t := params[0].Type
++			if !eqtype(t, n.Type) {
++				n = nod(OCONV, n, nil)
++				n.Type = t
++			}
++			r.List.Append(n)
++		}
+ 		calls = append(calls, r)
+ 	}
+ 
+-	if nn.Op == OPRINTN {
+-		calls = append(calls, mkcall("printnl", nil, nil))
+-	}
+-
+ 	calls = append(calls, mkcall("printunlock", nil, init))
+ 
+ 	typecheckslice(calls, Etop)
+diff --git a/src/runtime/print.go b/src/runtime/print.go
+index 8fa3d39905..a698fcb0e0 100644
+--- a/src/runtime/print.go
++++ b/src/runtime/print.go
+@@ -56,7 +56,7 @@ var debuglock mutex
+ 
+ // The compiler emits calls to printlock and printunlock around
+ // the multiple calls that implement a single Go print or println
+-// statement. Some of the print helpers (printsp, for example)
++// statement. Some of the print helpers (printslice, for example)
+ // call print recursively. There is also the problem of a crash
+ // happening during the print routines and needing to acquire
+ // the print lock to print information about the crash.
+@@ -98,31 +98,31 @@ func gwrite(b []byte) {
+ }
+ 
+ func printsp() {
+-	print(" ")
++	printstring(" ")
+ }
+ 
+ func printnl() {
+-	print("\n")
++	printstring("\n")
+ }
+ 
+ func printbool(v bool) {
+ 	if v {
+-		print("true")
++		printstring("true")
+ 	} else {
+-		print("false")
++		printstring("false")
+ 	}
+ }
+ 
+ func printfloat(v float64) {
+ 	switch {
+ 	case v != v:
+-		print("NaN")
++		printstring("NaN")
+ 		return
+ 	case v+v == v && v > 0:
+-		print("+Inf")
++		printstring("+Inf")
+ 		return
+ 	case v+v == v && v < 0:
+-		print("-Inf")
++		printstring("-Inf")
+ 		return
+ 	}
+ 
+@@ -204,7 +204,7 @@ func printuint(v uint64) {
+ 
+ func printint(v int64) {
+ 	if v < 0 {
+-		print("-")
++		printstring("-")
+ 		v = -v
+ 	}
+ 	printuint(uint64(v))

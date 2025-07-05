@@ -7,7 +7,43 @@ Date:   Thu Jan 7 09:36:52 2016 +0900
     Change-Id: Idf02428591f61dc58f654fdaf0e3a55f8b8a1060
     Reviewed-on: https://go-review.googlesource.com/18350
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/httputil/reverseproxy_test.go | 2 +-
  src/net/http/serve_test.go                 | 4 ++--
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/net/http/httputil/reverseproxy_test.go b/src/net/http/httputil/reverseproxy_test.go
+index a944e8e0f5..7f203d878f 100644
+--- a/src/net/http/httputil/reverseproxy_test.go
++++ b/src/net/http/httputil/reverseproxy_test.go
+@@ -392,7 +392,7 @@ func TestReverseProxy_Post(t *testing.T) {
+ 	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+ 		slurp, err := ioutil.ReadAll(r.Body)
+ 		if err != nil {
+-			t.Error("Backend body read = %v", err)
++			t.Errorf("Backend body read = %v", err)
+ 		}
+ 		if len(slurp) != len(requestBody) {
+ 			t.Errorf("Backend read %d request body bytes; want %d", len(slurp), len(requestBody))
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index 772d527576..cbe85d255b 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -1077,7 +1077,7 @@ Try:
+ 		}
+ 	}
+ 	if !ok {
+-		t.Fatal("Failed to start up after %d tries", maxTries)
++		t.Fatalf("Failed to start up after %d tries", maxTries)
+ 	}
+ 	defer ln.Close()
+ 	c, err := tls.Dial("tcp", ln.Addr().String(), &tls.Config{
+@@ -2496,7 +2496,7 @@ func TestHijackBeforeRequestBodyRead(t *testing.T) {
+ 		gone := w.(CloseNotifier).CloseNotify()
+ 		slurp, err := ioutil.ReadAll(reqBody)
+ 		if err != nil {
+-			t.Error("Body read: %v", err)
++			t.Errorf("Body read: %v", err)
+ 			return
+ 		}
+ 		if len(slurp) != len(requestBody) {

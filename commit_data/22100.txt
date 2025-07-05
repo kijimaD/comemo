@@ -15,6 +15,20 @@ Date:   Mon Feb 23 14:33:56 2015 -0500
     Change-Id: Iedd336f7d529a27d3abeb83e77dfb32a285ea73a
     Reviewed-on: https://go-review.googlesource.com/5636
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/mbitmap.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/mbitmap.go b/src/runtime/mbitmap.go
+index dce0bd59ff..369b5ed218 100644
+--- a/src/runtime/mbitmap.go
++++ b/src/runtime/mbitmap.go
+@@ -198,7 +198,7 @@ func heapBitsForObject(p uintptr) (base uintptr, hbits heapBits) {
+ 		return
+ 	}
+ 	base = s.base()
+-	if p-base > s.elemsize {
++	if p-base >= s.elemsize {
+ 		base += (p - base) / s.elemsize * s.elemsize
+ 	}
+ 	if base == p {

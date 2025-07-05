@@ -17,8 +17,59 @@ Date:   Thu Jan 11 12:52:16 2024 -0800
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Keith Randall <khr@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/internal/abi/type.go            | 6 ++++++
  src/runtime/mbitmap_allocheaders.go | 1 +
  src/runtime/mgcsweep.go             | 3 ++-
  3 files changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/src/internal/abi/type.go b/src/internal/abi/type.go
+index 86f055cb91..659fb7bffd 100644
+--- a/src/internal/abi/type.go
++++ b/src/internal/abi/type.go
+@@ -111,6 +111,12 @@ const (
+ 	// TFlagRegularMemory means that equal and hash functions can treat
+ 	// this type as a single region of t.size bytes.
+ 	TFlagRegularMemory TFlag = 1 << 3
++
++	// TFlagUnrolledBitmap marks special types that are unrolled-bitmap
++	// versions of types with GC programs.
++	// These types need to be deallocated when the underlying object
++	// is freed.
++	TFlagUnrolledBitmap TFlag = 1 << 4
+ )
+ 
+ // NameOff is the offset to a name from moduledata.types.  See resolveNameOff in runtime.
+diff --git a/src/runtime/mbitmap_allocheaders.go b/src/runtime/mbitmap_allocheaders.go
+index bc574ad689..1ec055352e 100644
+--- a/src/runtime/mbitmap_allocheaders.go
++++ b/src/runtime/mbitmap_allocheaders.go
+@@ -886,6 +886,7 @@ func heapSetType(x, dataSize uintptr, typ *_type, header **_type, span *mspan) (
+ 			gctyp.Size_ = typ.Size_
+ 			gctyp.PtrBytes = typ.PtrBytes
+ 			gctyp.GCData = (*byte)(add(unsafe.Pointer(progSpan.base()), heapBitsOff))
++			gctyp.TFlag = abi.TFlagUnrolledBitmap
+ 
+ 			// Expand the GC program into space reserved at the end of the new span.
+ 			runGCProg(addb(typ.GCData, 4), gctyp.GCData)
+diff --git a/src/runtime/mgcsweep.go b/src/runtime/mgcsweep.go
+index 0fbb23d573..3dbe9bcec7 100644
+--- a/src/runtime/mgcsweep.go
++++ b/src/runtime/mgcsweep.go
+@@ -25,6 +25,7 @@
+ package runtime
+ 
+ import (
++	"internal/abi"
+ 	"internal/goexperiment"
+ 	"runtime/internal/atomic"
+ 	"unsafe"
+@@ -789,7 +790,7 @@ func (sl *sweepLocked) sweep(preserve bool) bool {
+ 			} else {
+ 				mheap_.freeSpan(s)
+ 			}
+-			if goexperiment.AllocHeaders && s.largeType != nil && s.largeType.Kind_&kindGCProg != 0 {
++			if goexperiment.AllocHeaders && s.largeType != nil && s.largeType.TFlag&abi.TFlagUnrolledBitmap != 0 {
+ 				// In the allocheaders experiment, the unrolled GCProg bitmap is allocated separately.
+ 				// Free the space for the unrolled bitmap.
+ 				systemstack(func() {

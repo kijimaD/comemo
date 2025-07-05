@@ -15,9 +15,80 @@ Date:   Thu Apr 17 08:19:48 2025 +0000
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Keith Randall <khr@golang.org>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/internal/profile/graph.go | 8 ++------
  src/internal/zstd/xxhash.go   | 4 +---
  src/runtime/mstats.go         | 4 +---
  src/runtime/proc.go           | 8 ++------
  4 files changed, 6 insertions(+), 18 deletions(-)
+
+diff --git a/src/internal/profile/graph.go b/src/internal/profile/graph.go
+index 0e8e33c1ac..e3c755a65d 100644
+--- a/src/internal/profile/graph.go
++++ b/src/internal/profile/graph.go
+@@ -253,12 +253,8 @@ func NewGraph(prof *Profile, o *Options) *Graph {
+ 		if dw == 0 && w == 0 {
+ 			continue
+ 		}
+-		for k := range seenNode {
+-			delete(seenNode, k)
+-		}
+-		for k := range seenEdge {
+-			delete(seenEdge, k)
+-		}
++		clear(seenNode)
++		clear(seenEdge)
+ 		var parent *Node
+ 		// A residual edge goes over one or more nodes that were not kept.
+ 		residual := false
+diff --git a/src/internal/zstd/xxhash.go b/src/internal/zstd/xxhash.go
+index 4d579ee2d5..51d5ff8960 100644
+--- a/src/internal/zstd/xxhash.go
++++ b/src/internal/zstd/xxhash.go
+@@ -41,9 +41,7 @@ func (xh *xxhash64) reset() {
+ 	xh.v[3] = xxhPrime64c1
+ 	xh.v[3] = -xh.v[3]
+ 
+-	for i := range xh.buf {
+-		xh.buf[i] = 0
+-	}
++	clear(xh.buf[:])
+ 	xh.cnt = 0
+ }
+ 
+diff --git a/src/runtime/mstats.go b/src/runtime/mstats.go
+index c10ca40221..888798c600 100644
+--- a/src/runtime/mstats.go
++++ b/src/runtime/mstats.go
+@@ -834,9 +834,7 @@ func (m *consistentHeapStats) unsafeRead(out *heapStatsDelta) {
+ func (m *consistentHeapStats) unsafeClear() {
+ 	assertWorldStopped()
+ 
+-	for i := range m.stats {
+-		m.stats[i] = heapStatsDelta{}
+-	}
++	clear(m.stats[:])
+ }
+ 
+ // read takes a globally consistent snapshot of m
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 8f07b39360..db7a5b2bb1 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -5690,14 +5690,10 @@ func (pp *p) destroy() {
+ 		wbBufFlush1(pp)
+ 		pp.gcw.dispose()
+ 	}
+-	for i := range pp.sudogbuf {
+-		pp.sudogbuf[i] = nil
+-	}
++	clear(pp.sudogbuf[:])
+ 	pp.sudogcache = pp.sudogbuf[:0]
+ 	pp.pinnerCache = nil
+-	for j := range pp.deferpoolbuf {
+-		pp.deferpoolbuf[j] = nil
+-	}
++	clear(pp.deferpoolbuf[:])
+ 	pp.deferpool = pp.deferpoolbuf[:0]
+ 	systemstack(func() {
+ 		for i := 0; i < pp.mspancache.len; i++ {

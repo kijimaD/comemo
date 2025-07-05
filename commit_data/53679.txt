@@ -15,7 +15,100 @@ Date:   Tue Jun 21 18:50:35 2022 +0200
     Run-TryBot: Damien Neil <dneil@google.com>
     Reviewed-by: Damien Neil <dneil@google.com>
     Reviewed-by: Heschi Kreinick <heschi@google.com>
-
+---
  src/net/http/fs.go      | 20 +++++++++++++++-----
  src/net/http/fs_test.go | 42 ++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 57 insertions(+), 5 deletions(-)
+
+diff --git a/src/net/http/fs.go b/src/net/http/fs.go
+index 87caeb7e90..cf80018b5e 100644
+--- a/src/net/http/fs.go
++++ b/src/net/http/fs.go
+@@ -843,12 +843,22 @@ func FileServer(root FileSystem) Handler {
+ }
+ 
+ func (f *fileHandler) ServeHTTP(w ResponseWriter, r *Request) {
+-	upath := r.URL.Path
+-	if !strings.HasPrefix(upath, "/") {
+-		upath = "/" + upath
+-		r.URL.Path = upath
++	const options = MethodOptions + ", " + MethodGet + ", " + MethodHead
++
++	switch r.Method {
++	case MethodGet, MethodHead:
++		if !strings.HasPrefix(r.URL.Path, "/") {
++			r.URL.Path = "/" + r.URL.Path
++		}
++		serveFile(w, r, f.root, path.Clean(r.URL.Path), true)
++
++	case MethodOptions:
++		w.Header().Set("Allow", options)
++
++	default:
++		w.Header().Set("Allow", options)
++		Error(w, "read-only", StatusMethodNotAllowed)
+ 	}
+-	serveFile(w, r, f.root, path.Clean(upath), true)
+ }
+ 
+ // httpRange specifies the byte range to be sent to the client.
+diff --git a/src/net/http/fs_test.go b/src/net/http/fs_test.go
+index 4be561cdfa..077c037c85 100644
+--- a/src/net/http/fs_test.go
++++ b/src/net/http/fs_test.go
+@@ -24,6 +24,7 @@ import (
+ 	"reflect"
+ 	"regexp"
+ 	"runtime"
++	"sort"
+ 	"strings"
+ 	"testing"
+ 	"time"
+@@ -404,6 +405,47 @@ func TestFileServerImplicitLeadingSlash(t *testing.T) {
+ 	}
+ }
+ 
++func TestFileServerMethodOptions(t *testing.T) {
++	defer afterTest(t)
++	const want = "GET, HEAD, OPTIONS"
++	ts := httptest.NewServer(FileServer(Dir(".")))
++	defer ts.Close()
++
++	tests := []struct {
++		method     string
++		wantStatus int
++	}{
++		{MethodOptions, StatusOK},
++
++		{MethodDelete, StatusMethodNotAllowed},
++		{MethodPut, StatusMethodNotAllowed},
++		{MethodPost, StatusMethodNotAllowed},
++	}
++
++	for _, test := range tests {
++		req, err := NewRequest(test.method, ts.URL, nil)
++		if err != nil {
++			t.Fatal(err)
++		}
++		res, err := ts.Client().Do(req)
++		if err != nil {
++			t.Fatal(err)
++		}
++		defer res.Body.Close()
++
++		if res.StatusCode != test.wantStatus {
++			t.Errorf("%s got status %q, want code %d", test.method, res.Status, test.wantStatus)
++		}
++
++		a := strings.Split(res.Header.Get("Allow"), ", ")
++		sort.Strings(a)
++		got := strings.Join(a, ", ")
++		if got != want {
++			t.Errorf("%s got Allow header %q, want %q", test.method, got, want)
++		}
++	}
++}
++
+ func TestDirJoin(t *testing.T) {
+ 	if runtime.GOOS == "windows" {
+ 		t.Skip("skipping test on windows")

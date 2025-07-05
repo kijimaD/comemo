@@ -7,6 +7,20 @@ Date:   Thu Feb 5 19:09:04 2009 -0800
     R=ken
     OCL=24507
     CL=24507
-
+---
  src/cmd/cc/sub.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/cc/sub.c b/src/cmd/cc/sub.c
+index 171c75232f..cad5eda729 100644
+--- a/src/cmd/cc/sub.c
++++ b/src/cmd/cc/sub.c
+@@ -722,7 +722,7 @@ arith(Node *n, int f)
+ 		if(w < 1 || n->left->type->link == T || n->left->type->link->width < 1)
+ 			goto bad;
+ 		n->type = types[ewidth[TIND] <= ewidth[TLONG]? TLONG: TVLONG];
+-		if(1 && ewidth[TIND] > ewidth[TLONG]){
++		if(0 && ewidth[TIND] > ewidth[TLONG]){
+ 			n1 = new1(OXXX, Z, Z);
+ 			*n1 = *n;
+ 			n->op = OCAST;

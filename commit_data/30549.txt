@@ -11,10 +11,208 @@ Date:   Fri Aug 26 22:21:00 2016 +0100
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/client_test.go       |  1 +
  src/net/http/clientserver_test.go |  6 +++++-
  src/net/http/main_test.go         |  4 ++++
  src/net/http/serve_test.go        | 25 +++++++++++++++++--------
  src/net/http/server.go            | 37 +++++++++++++++++++++++++++++--------
  5 files changed, 56 insertions(+), 17 deletions(-)
+
+diff --git a/src/net/http/client_test.go b/src/net/http/client_test.go
+index d96e2670e2..943f6f89c7 100644
+--- a/src/net/http/client_test.go
++++ b/src/net/http/client_test.go
+@@ -1017,6 +1017,7 @@ func TestResponseSetsTLSConnectionState(t *testing.T) {
+ func TestHTTPSClientDetectsHTTPServer(t *testing.T) {
+ 	defer afterTest(t)
+ 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {}))
++	ts.Config.ErrorLog = quietLog
+ 	defer ts.Close()
+ 
+ 	_, err := Get(strings.Replace(ts.URL, "http", "https", 1))
+diff --git a/src/net/http/clientserver_test.go b/src/net/http/clientserver_test.go
+index d70aabea74..3c4b7773a1 100644
+--- a/src/net/http/clientserver_test.go
++++ b/src/net/http/clientserver_test.go
+@@ -56,6 +56,10 @@ const (
+ 	h2Mode = true
+ )
+ 
++var optQuietLog = func(ts *httptest.Server) {
++	ts.Config.ErrorLog = quietLog
++}
++
+ func newClientServerTest(t *testing.T, h2 bool, h Handler, opts ...interface{}) *clientServerTest {
+ 	cst := &clientServerTest{
+ 		t:  t,
+@@ -1077,7 +1081,7 @@ func testTransportRejectsInvalidHeaders(t *testing.T, h2 bool) {
+ 	defer afterTest(t)
+ 	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
+ 		fmt.Fprintf(w, "Handler saw headers: %q", r.Header)
+-	}))
++	}), optQuietLog)
+ 	defer cst.close()
+ 	cst.tr.DisableKeepAlives = true
+ 
+diff --git a/src/net/http/main_test.go b/src/net/http/main_test.go
+index 59bf09027b..fc0437e211 100644
+--- a/src/net/http/main_test.go
++++ b/src/net/http/main_test.go
+@@ -6,6 +6,8 @@ package http_test
+ 
+ import (
+ 	"fmt"
++	"io/ioutil"
++	"log"
+ 	"net/http"
+ 	"os"
+ 	"runtime"
+@@ -15,6 +17,8 @@ import (
+ 	"time"
+ )
+ 
++var quietLog = log.New(ioutil.Discard, "", 0)
++
+ func TestMain(m *testing.M) {
+ 	v := m.Run()
+ 	if v == 0 && goroutineLeaked() {
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index 6fd9912b5e..fd2dd6cea5 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -759,7 +759,7 @@ func TestServeHTTP10Close(t *testing.T) {
+ 
+ // TestClientCanClose verifies that clients can also force a connection to close.
+ func TestClientCanClose(t *testing.T) {
+-	testTCPConnectionCloses(t, "GET / HTTP/1.1\r\nConnection: close\r\n\r\n", HandlerFunc(func(w ResponseWriter, r *Request) {
++	testTCPConnectionCloses(t, "GET / HTTP/1.1\r\nHost: foo\r\nConnection: close\r\n\r\n", HandlerFunc(func(w ResponseWriter, r *Request) {
+ 		// Nothing.
+ 	}))
+ }
+@@ -767,7 +767,7 @@ func TestClientCanClose(t *testing.T) {
+ // TestHandlersCanSetConnectionClose verifies that handlers can force a connection to close,
+ // even for HTTP/1.1 requests.
+ func TestHandlersCanSetConnectionClose11(t *testing.T) {
+-	testTCPConnectionCloses(t, "GET / HTTP/1.1\r\n\r\n", HandlerFunc(func(w ResponseWriter, r *Request) {
++	testTCPConnectionCloses(t, "GET / HTTP/1.1\r\nHost: foo\r\n\r\n\r\n", HandlerFunc(func(w ResponseWriter, r *Request) {
+ 		w.Header().Set("Connection", "close")
+ 	}))
+ }
+@@ -2377,7 +2377,7 @@ func testRequestLimit(t *testing.T, h2 bool) {
+ 	defer afterTest(t)
+ 	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
+ 		t.Fatalf("didn't expect to get request in Handler")
+-	}))
++	}), optQuietLog)
+ 	defer cst.close()
+ 	req, _ := NewRequest("GET", cst.ts.URL, nil)
+ 	var bytesPerHeader = len("header12345: val12345\r\n")
+@@ -4119,7 +4119,11 @@ func TestServerValidatesHostHeader(t *testing.T) {
+ 		io.WriteString(&conn.readBuf, methodTarget+tt.proto+"\r\n"+tt.host+"\r\n")
+ 
+ 		ln := &oneConnListener{conn}
+-		go Serve(ln, HandlerFunc(func(ResponseWriter, *Request) {}))
++		srv := Server{
++			ErrorLog: quietLog,
++			Handler:  HandlerFunc(func(ResponseWriter, *Request) {}),
++		}
++		go srv.Serve(ln)
+ 		<-conn.closec
+ 		res, err := ReadResponse(bufio.NewReader(&conn.writeBuf), nil)
+ 		if err != nil {
+@@ -4184,9 +4188,10 @@ func TestServerValidatesHeaders(t *testing.T) {
+ 		{"X-Foo: bar\r\n", 200},
+ 		{"Foo: a space\r\n", 200},
+ 
+-		{"A space: foo\r\n", 400},    // space in header
+-		{"foo\xffbar: foo\r\n", 400}, // binary in header
+-		{"foo\x00bar: foo\r\n", 400}, // binary in header
++		{"A space: foo\r\n", 400},                            // space in header
++		{"foo\xffbar: foo\r\n", 400},                         // binary in header
++		{"foo\x00bar: foo\r\n", 400},                         // binary in header
++		{"Foo: " + strings.Repeat("x", 1<<21) + "\r\n", 431}, // header too large
+ 
+ 		{"foo: foo foo\r\n", 200},    // LWS space is okay
+ 		{"foo: foo\tfoo\r\n", 200},   // LWS tab is okay
+@@ -4199,7 +4204,11 @@ func TestServerValidatesHeaders(t *testing.T) {
+ 		io.WriteString(&conn.readBuf, "GET / HTTP/1.1\r\nHost: foo\r\n"+tt.header+"\r\n")
+ 
+ 		ln := &oneConnListener{conn}
+-		go Serve(ln, HandlerFunc(func(ResponseWriter, *Request) {}))
++		srv := Server{
++			ErrorLog: quietLog,
++			Handler:  HandlerFunc(func(ResponseWriter, *Request) {}),
++		}
++		go srv.Serve(ln)
+ 		<-conn.closec
+ 		res, err := ReadResponse(bufio.NewReader(&conn.writeBuf), nil)
+ 		if err != nil {
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index 257d82f8ac..8a79a6c6a4 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -1682,6 +1682,23 @@ func (e badRequestError) Error() string { return "Bad Request: " + string(e) }
+ // trace to the server's error log.
+ var ErrAbortHandler = errors.New("net/http: abort Handler")
+ 
++// isCommonNetReadError reports whether err is a common error
++// encountered during reading a request off the network when the
++// client has gone away or had its read fail somehow. This is used to
++// determine which logs are interesting enough to log about.
++func isCommonNetReadError(err error) bool {
++	if err == io.EOF {
++		return true
++	}
++	if neterr, ok := err.(net.Error); ok && neterr.Timeout() {
++		return true
++	}
++	if oe, ok := err.(*net.OpError); ok && oe.Op == "read" {
++		return true
++	}
++	return false
++}
++
+ // Serve a new connection.
+ func (c *conn) serve(ctx context.Context) {
+ 	c.remoteAddr = c.rwc.RemoteAddr().String()
+@@ -1737,27 +1754,31 @@ func (c *conn) serve(ctx context.Context) {
+ 			c.setState(c.rwc, StateActive)
+ 		}
+ 		if err != nil {
++			const errorHeaders = "\r\nContent-Type: text/plain; charset=utf-8\r\nConnection: close\r\n\r\n"
++
+ 			if err == errTooLarge {
+ 				// Their HTTP client may or may not be
+ 				// able to read this if we're
+ 				// responding to them and hanging up
+ 				// while they're still writing their
+ 				// request. Undefined behavior.
+-				io.WriteString(c.rwc, "HTTP/1.1 431 Request Header Fields Too Large\r\nContent-Type: text/plain\r\nConnection: close\r\n\r\n431 Request Header Fields Too Large")
++				const publicErr = "431 Request Header Fields Too Large"
++				c.server.logf("http: %s", publicErr)
++				fmt.Fprintf(c.rwc, "HTTP/1.1 "+publicErr+errorHeaders+publicErr)
+ 				c.closeWriteAndWait()
+ 				return
+ 			}
+-			if err == io.EOF {
++			if isCommonNetReadError(err) {
+ 				return // don't reply
+ 			}
+-			if neterr, ok := err.(net.Error); ok && neterr.Timeout() {
+-				return // don't reply
+-			}
+-			var publicErr string
++
++			publicErr := "400 Bad Request"
+ 			if v, ok := err.(badRequestError); ok {
+-				publicErr = ": " + string(v)
++				publicErr = publicErr + ": " + string(v)
+ 			}
+-			io.WriteString(c.rwc, "HTTP/1.1 400 Bad Request\r\nContent-Type: text/plain\r\nConnection: close\r\n\r\n400 Bad Request"+publicErr)
++
++			c.server.logf("http: %s", publicErr)
++			fmt.Fprintf(c.rwc, "HTTP/1.1 "+publicErr+errorHeaders+publicErr)
+ 			return
+ 		}
+ 

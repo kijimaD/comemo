@@ -17,7 +17,34 @@ Date:   Wed Jul 7 12:03:41 2021 -0700
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Trust: Dan Scales <danscales@google.com>
-
+---
  src/cmd/compile/internal/types2/subst.go | 3 ---
  test/run.go                              | 1 -
  2 files changed, 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/subst.go b/src/cmd/compile/internal/types2/subst.go
+index db01c36f7a..7b4796fa2e 100644
+--- a/src/cmd/compile/internal/types2/subst.go
++++ b/src/cmd/compile/internal/types2/subst.go
+@@ -313,9 +313,6 @@ func (subst *subster) typ(typ Type) Type {
+ 		embeddeds, ecopied := subst.typeList(t.embeddeds)
+ 		if mcopied || ecopied {
+ 			iface := &Interface{methods: methods, embeddeds: embeddeds, complete: t.complete}
+-			if subst.check == nil {
+-				panic("internal error: cannot instantiate interfaces yet")
+-			}
+ 			return iface
+ 		}
+ 
+diff --git a/test/run.go b/test/run.go
+index 713e2006dc..0251dc1c6a 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -2209,7 +2209,6 @@ var g3Failures = setOf(
+ 	"typeparam/mdempsky/3.go",
+ 	"typeparam/mdempsky/4.go",
+ 	"typeparam/mdempsky/5.go",
+-	"typeparam/mdempsky/7.go",
+ 	"typeparam/mdempsky/9.go",
+ 	"typeparam/mdempsky/11.go",
+ 	"typeparam/mdempsky/12.go",

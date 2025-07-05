@@ -7,6 +7,20 @@ Date:   Fri Jul 16 21:38:51 2010 -0700
     R=ken2
     CC=golang-dev
     https://golang.org/cl/1872041
-
+---
  src/cmd/gc/lex.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 68aa915a91..1499c0426e 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -384,7 +384,7 @@ importfile(Val *f, int line)
+ 
+ 	imp = Bopen(namebuf, OREAD);
+ 	if(imp == nil) {
+-		yyerror("can't open import: %Z", f->u.sval);
++		yyerror("can't open import: %Z: %r", f->u.sval);
+ 		errorexit();
+ 	}
+ 	file = strdup(namebuf);

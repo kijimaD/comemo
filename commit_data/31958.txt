@@ -14,10 +14,191 @@ Date:   Sat Mar 25 16:55:42 2017 -0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/amd64/ssa.go | 15 ---------------
  src/cmd/compile/internal/gc/ssa.go    | 30 +++++++-----------------------
  src/cmd/compile/internal/ppc64/ssa.go | 15 ---------------
  src/cmd/compile/internal/s390x/ssa.go |  2 --
  src/cmd/compile/internal/x86/ssa.go   | 15 ---------------
  5 files changed, 7 insertions(+), 70 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/ssa.go b/src/cmd/compile/internal/amd64/ssa.go
+index df99e9e3e0..20fc49c926 100644
+--- a/src/cmd/compile/internal/amd64/ssa.go
++++ b/src/cmd/compile/internal/amd64/ssa.go
+@@ -956,12 +956,10 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
+ 		ssa.BlockAMD64ULT, ssa.BlockAMD64UGT,
+ 		ssa.BlockAMD64ULE, ssa.BlockAMD64UGE:
+ 		jmp := blockJump[b.Kind]
+-		likely := b.Likely
+ 		var p *obj.Prog
+ 		switch next {
+ 		case b.Succs[0].Block():
+ 			p = s.Prog(jmp.invasm)
+-			likely *= -1
+ 			p.To.Type = obj.TYPE_BRANCH
+ 			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[1].Block()})
+ 		case b.Succs[1].Block():
+@@ -977,19 +975,6 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
+ 			s.Branches = append(s.Branches, gc.Branch{P: q, B: b.Succs[1].Block()})
+ 		}
+ 
+-		// liblink reorders the instruction stream as it sees fit.
+-		// Pass along what we know so liblink can make use of it.
+-		// TODO: Once we've fully switched to SSA,
+-		// make liblink leave our output alone.
+-		switch likely {
+-		case ssa.BranchUnlikely:
+-			p.From.Type = obj.TYPE_CONST
+-			p.From.Offset = 0
+-		case ssa.BranchLikely:
+-			p.From.Type = obj.TYPE_CONST
+-			p.From.Offset = 1
+-		}
+-
+ 	default:
+ 		b.Fatalf("branch not implemented: %s. Control: %s", b.LongString(), b.Control.LongString())
+ 	}
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 5c932c786f..23aa436543 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -4419,40 +4419,24 @@ type FloatingEQNEJump struct {
+ 	Index int
+ }
+ 
+-func (s *SSAGenState) oneFPJump(b *ssa.Block, jumps *FloatingEQNEJump, likely ssa.BranchPrediction) {
++func (s *SSAGenState) oneFPJump(b *ssa.Block, jumps *FloatingEQNEJump) {
+ 	p := s.Prog(jumps.Jump)
+ 	p.To.Type = obj.TYPE_BRANCH
+ 	to := jumps.Index
+ 	s.Branches = append(s.Branches, Branch{p, b.Succs[to].Block()})
+-	if to == 1 {
+-		likely = -likely
+-	}
+-	// liblink reorders the instruction stream as it sees fit.
+-	// Pass along what we know so liblink can make use of it.
+-	// TODO: Once we've fully switched to SSA,
+-	// make liblink leave our output alone.
+-	switch likely {
+-	case ssa.BranchUnlikely:
+-		p.From.Type = obj.TYPE_CONST
+-		p.From.Offset = 0
+-	case ssa.BranchLikely:
+-		p.From.Type = obj.TYPE_CONST
+-		p.From.Offset = 1
+-	}
+ }
+ 
+ func (s *SSAGenState) FPJump(b, next *ssa.Block, jumps *[2][2]FloatingEQNEJump) {
+-	likely := b.Likely
+ 	switch next {
+ 	case b.Succs[0].Block():
+-		s.oneFPJump(b, &jumps[0][0], likely)
+-		s.oneFPJump(b, &jumps[0][1], likely)
++		s.oneFPJump(b, &jumps[0][0])
++		s.oneFPJump(b, &jumps[0][1])
+ 	case b.Succs[1].Block():
+-		s.oneFPJump(b, &jumps[1][0], likely)
+-		s.oneFPJump(b, &jumps[1][1], likely)
++		s.oneFPJump(b, &jumps[1][0])
++		s.oneFPJump(b, &jumps[1][1])
+ 	default:
+-		s.oneFPJump(b, &jumps[1][0], likely)
+-		s.oneFPJump(b, &jumps[1][1], likely)
++		s.oneFPJump(b, &jumps[1][0])
++		s.oneFPJump(b, &jumps[1][1])
+ 		q := s.Prog(obj.AJMP)
+ 		q.To.Type = obj.TYPE_BRANCH
+ 		s.Branches = append(s.Branches, Branch{q, b.Succs[1].Block()})
+diff --git a/src/cmd/compile/internal/ppc64/ssa.go b/src/cmd/compile/internal/ppc64/ssa.go
+index 2d7ea63a76..5f7b168ef7 100644
+--- a/src/cmd/compile/internal/ppc64/ssa.go
++++ b/src/cmd/compile/internal/ppc64/ssa.go
+@@ -1110,12 +1110,10 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
+ 		ssa.BlockPPC64FLT, ssa.BlockPPC64FGE,
+ 		ssa.BlockPPC64FLE, ssa.BlockPPC64FGT:
+ 		jmp := blockJump[b.Kind]
+-		likely := b.Likely
+ 		var p *obj.Prog
+ 		switch next {
+ 		case b.Succs[0].Block():
+ 			p = s.Prog(jmp.invasm)
+-			likely *= -1
+ 			p.To.Type = obj.TYPE_BRANCH
+ 			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[1].Block()})
+ 			if jmp.invasmun {
+@@ -1147,19 +1145,6 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
+ 			s.Branches = append(s.Branches, gc.Branch{P: q, B: b.Succs[1].Block()})
+ 		}
+ 
+-		// liblink reorders the instruction stream as it sees fit.
+-		// Pass along what we know so liblink can make use of it.
+-		// TODO: Once we've fully switched to SSA,
+-		// make liblink leave our output alone.
+-		//switch likely {
+-		//case ssa.BranchUnlikely:
+-		//	p.From.Type = obj.TYPE_CONST
+-		//	p.From.Offset = 0
+-		//case ssa.BranchLikely:
+-		//	p.From.Type = obj.TYPE_CONST
+-		//	p.From.Offset = 1
+-		//}
+-
+ 	default:
+ 		b.Fatalf("branch not implemented: %s. Control: %s", b.LongString(), b.Control.LongString())
+ 	}
+diff --git a/src/cmd/compile/internal/s390x/ssa.go b/src/cmd/compile/internal/s390x/ssa.go
+index 422ac614ce..3c26dc4f4e 100644
+--- a/src/cmd/compile/internal/s390x/ssa.go
++++ b/src/cmd/compile/internal/s390x/ssa.go
+@@ -789,12 +789,10 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
+ 		ssa.BlockS390XLE, ssa.BlockS390XGT,
+ 		ssa.BlockS390XGEF, ssa.BlockS390XGTF:
+ 		jmp := blockJump[b.Kind]
+-		likely := b.Likely
+ 		var p *obj.Prog
+ 		switch next {
+ 		case b.Succs[0].Block():
+ 			p = s.Prog(jmp.invasm)
+-			likely *= -1
+ 			p.To.Type = obj.TYPE_BRANCH
+ 			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[1].Block()})
+ 		case b.Succs[1].Block():
+diff --git a/src/cmd/compile/internal/x86/ssa.go b/src/cmd/compile/internal/x86/ssa.go
+index 906534b4cf..d11cf5cad7 100644
+--- a/src/cmd/compile/internal/x86/ssa.go
++++ b/src/cmd/compile/internal/x86/ssa.go
+@@ -818,12 +818,10 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
+ 		ssa.Block386ULT, ssa.Block386UGT,
+ 		ssa.Block386ULE, ssa.Block386UGE:
+ 		jmp := blockJump[b.Kind]
+-		likely := b.Likely
+ 		var p *obj.Prog
+ 		switch next {
+ 		case b.Succs[0].Block():
+ 			p = s.Prog(jmp.invasm)
+-			likely *= -1
+ 			p.To.Type = obj.TYPE_BRANCH
+ 			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[1].Block()})
+ 		case b.Succs[1].Block():
+@@ -839,19 +837,6 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
+ 			s.Branches = append(s.Branches, gc.Branch{P: q, B: b.Succs[1].Block()})
+ 		}
+ 
+-		// liblink reorders the instruction stream as it sees fit.
+-		// Pass along what we know so liblink can make use of it.
+-		// TODO: Once we've fully switched to SSA,
+-		// make liblink leave our output alone.
+-		switch likely {
+-		case ssa.BranchUnlikely:
+-			p.From.Type = obj.TYPE_CONST
+-			p.From.Offset = 0
+-		case ssa.BranchLikely:
+-			p.From.Type = obj.TYPE_CONST
+-			p.From.Offset = 1
+-		}
+-
+ 	default:
+ 		b.Fatalf("branch not implemented: %s. Control: %s", b.LongString(), b.Control.LongString())
+ 	}

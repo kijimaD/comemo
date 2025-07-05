@@ -23,8 +23,135 @@ Date:   Thu May 18 15:51:57 2023 +0000
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/runtime/lock_js.go      |  6 +++++
  src/runtime/metrics_test.go | 59 +++++++++++++++++++++++++++++++++++++++++++++
  src/runtime/proc.go         |  7 ++++--
  3 files changed, 70 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/lock_js.go b/src/runtime/lock_js.go
+index fd2abee7c4..91ad7be317 100644
+--- a/src/runtime/lock_js.go
++++ b/src/runtime/lock_js.go
+@@ -242,7 +242,10 @@ func beforeIdle(now, pollUntil int64) (gp *g, otherReady bool) {
+ 	return nil, false
+ }
+ 
++var idleStart int64
++
+ func handleAsyncEvent() {
++	idleStart = nanotime()
+ 	pause(getcallersp() - 16)
+ }
+ 
+@@ -271,6 +274,8 @@ func clearTimeoutEvent(id int32)
+ // When no other goroutine is awake any more, beforeIdle resumes the handler goroutine. Now that the same goroutine
+ // is running as was running when the call came in from JavaScript, execution can be safely passed back to JavaScript.
+ func handleEvent() {
++	sched.idleTime.Add(nanotime() - idleStart)
++
+ 	e := &event{
+ 		gp:       getg(),
+ 		returned: false,
+@@ -290,6 +295,7 @@ func handleEvent() {
+ 	events = events[:len(events)-1]
+ 
+ 	// return execution to JavaScript
++	idleStart = nanotime()
+ 	pause(getcallersp() - 16)
+ }
+ 
+diff --git a/src/runtime/metrics_test.go b/src/runtime/metrics_test.go
+index 4b58914032..b7262cb1ad 100644
+--- a/src/runtime/metrics_test.go
++++ b/src/runtime/metrics_test.go
+@@ -636,3 +636,62 @@ func generateMutexWaitTime(mu locker2) time.Duration {
+ 	*runtime.CasGStatusAlwaysTrack = false
+ 	return blockTime
+ }
++
++// See issue #60276.
++func TestCPUMetricsSleep(t *testing.T) {
++	if runtime.GOOS == "wasip1" {
++		// Since wasip1 busy-waits in the scheduler, there's no meaningful idle
++		// time. This is accurately reflected in the metrics, but it means this
++		// test is basically meaningless on this platform.
++		t.Skip("wasip1 currently busy-waits in idle time; test not applicable")
++	}
++	names := []string{
++		"/cpu/classes/idle:cpu-seconds",
++
++		"/cpu/classes/gc/mark/assist:cpu-seconds",
++		"/cpu/classes/gc/mark/dedicated:cpu-seconds",
++		"/cpu/classes/gc/mark/idle:cpu-seconds",
++		"/cpu/classes/gc/pause:cpu-seconds",
++		"/cpu/classes/gc/total:cpu-seconds",
++		"/cpu/classes/scavenge/assist:cpu-seconds",
++		"/cpu/classes/scavenge/background:cpu-seconds",
++		"/cpu/classes/scavenge/total:cpu-seconds",
++		"/cpu/classes/total:cpu-seconds",
++		"/cpu/classes/user:cpu-seconds",
++	}
++	prep := func() []metrics.Sample {
++		mm := make([]metrics.Sample, len(names))
++		for i := range names {
++			mm[i].Name = names[i]
++		}
++		return mm
++	}
++	m1, m2 := prep(), prep()
++
++	// Read 1.
++	runtime.GC() // Update /cpu/classes metrics.
++	metrics.Read(m1)
++
++	// Sleep.
++	const dur = 100 * time.Millisecond
++	time.Sleep(dur)
++
++	// Read 2.
++	runtime.GC() // Update /cpu/classes metrics.
++	metrics.Read(m2)
++
++	// If the bug we expect is happening, then the Sleep CPU time will be accounted for
++	// as user time rather than idle time. Because we're doing this on one core, the
++	// maximum amount of time that can be attributed to user time is the time spent asleep.
++	minIdleCPUSeconds := dur.Seconds() * float64(runtime.GOMAXPROCS(-1))
++
++	if dt := m2[0].Value.Float64() - m1[0].Value.Float64(); dt < minIdleCPUSeconds {
++		for i := range names {
++			if m1[i].Value.Kind() == metrics.KindBad {
++				continue
++			}
++			t.Logf("%s %0.3f\n", names[i], m2[i].Value.Float64()-m1[i].Value.Float64())
++		}
++		t.Errorf(`time.Sleep did not contribute enough to "idle" class: %.5fs < %.5fs`, dt, minIdleCPUSeconds)
++	}
++}
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 276d7355e9..56518fd3af 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -3145,10 +3145,11 @@ top:
+ 		if mp.spinning {
+ 			throw("findrunnable: netpoll with spinning")
+ 		}
+-		// Refresh now.
+-		now = nanotime()
+ 		delay := int64(-1)
+ 		if pollUntil != 0 {
++			if now == 0 {
++				now = nanotime()
++			}
+ 			delay = pollUntil - now
+ 			if delay < 0 {
+ 				delay = 0
+@@ -3159,6 +3160,8 @@ top:
+ 			delay = 0
+ 		}
+ 		list := netpoll(delay) // block until new work is available
++		// Refresh now again, after potentially blocking.
++		now = nanotime()
+ 		sched.pollUntil.Store(0)
+ 		sched.lastpoll.Store(now)
+ 		if faketime != 0 && list.empty() {

@@ -11,6 +11,30 @@ Date:   Mon Apr 8 00:16:40 2019 +0200
     Run-TryBot: Elias Naur <mail@eliasnaur.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  misc/cgo/test/cgo_linux_test.go | 12 ++++++++++--
  1 file changed, 10 insertions(+), 2 deletions(-)
+
+diff --git a/misc/cgo/test/cgo_linux_test.go b/misc/cgo/test/cgo_linux_test.go
+index c2e96b5387..7b56e11a27 100644
+--- a/misc/cgo/test/cgo_linux_test.go
++++ b/misc/cgo/test/cgo_linux_test.go
+@@ -4,8 +4,16 @@
+ 
+ package cgotest
+ 
+-import "testing"
++import (
++	"runtime"
++	"testing"
++)
+ 
+-func TestSetgid(t *testing.T)  { testSetgid(t) }
++func TestSetgid(t *testing.T) {
++	if runtime.GOOS == "android" {
++		t.Skip("unsupported on Android")
++	}
++	testSetgid(t)
++}
+ func Test6997(t *testing.T)    { test6997(t) }
+ func TestBuildID(t *testing.T) { testBuildID(t) }

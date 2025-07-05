@@ -32,7 +32,38 @@ Date:   Thu Apr 21 10:11:33 2016 +0200
     Run-TryBot: Alexandru Moșoi <alexandru@mosoi.ro>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/phielim.go | 6 +-----
  src/cmd/compile/internal/ssa/rewrite.go | 2 ++
  2 files changed, 3 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/phielim.go b/src/cmd/compile/internal/ssa/phielim.go
+index ce3b5a199a..77013c6481 100644
+--- a/src/cmd/compile/internal/ssa/phielim.go
++++ b/src/cmd/compile/internal/ssa/phielim.go
+@@ -40,11 +40,7 @@ func phielimValue(v *Value) bool {
+ 	// are not v itself, then the phi must remain.
+ 	// Otherwise, we can replace it with a copy.
+ 	var w *Value
+-	for i, x := range v.Args {
+-		if b := v.Block.Preds[i]; b.Kind == BlockFirst && b.Succs[1] == v.Block {
+-			// This branch is never taken so we can just eliminate it.
+-			continue
+-		}
++	for _, x := range v.Args {
+ 		if x == v {
+ 			continue
+ 		}
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index 9c625825b9..c2f8ceadaf 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -40,6 +40,8 @@ func applyRewrite(f *Func, rb func(*Block) bool, rv func(*Value, *Config) bool)
+ 			}
+ 			curb = nil
+ 			for _, v := range b.Values {
++				change = phielimValue(v) || change
++
+ 				// Eliminate copy inputs.
+ 				// If any copy input becomes unused, mark it
+ 				// as invalid and discard its argument. Repeat

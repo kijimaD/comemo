@@ -7,8 +7,132 @@ Date:   Sat Mar 14 20:03:29 2015 -0700
     Change-Id: I5a49f56518adf7d64ba8610b51ea1621ad888fc4
     Reviewed-on: https://go-review.googlesource.com/7771
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/mgc0.h     | 22 ----------------------
  src/runtime/stack.h    | 43 -------------------------------------------
  src/runtime/typekind.h | 40 ----------------------------------------
  3 files changed, 105 deletions(-)
+
+diff --git a/src/runtime/mgc0.h b/src/runtime/mgc0.h
+deleted file mode 100644
+index dd0c460246..0000000000
+--- a/src/runtime/mgc0.h
++++ /dev/null
+@@ -1,22 +0,0 @@
+-// Copyright 2012 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Used by cmd/gc.
+-
+-enum {
+-	gcBits = 4,
+-	BitsPerPointer = 2,
+-	BitsDead = 0,
+-	BitsScalar = 1,
+-	BitsPointer = 2,
+-	BitsMask = 3,
+-	PointersPerByte = 8/BitsPerPointer,
+-	insData = 1,
+-	insArray,
+-	insArrayEnd,
+-	insEnd,
+-
+-	// 64 bytes cover objects of size 1024/512 on 64/32 bits, respectively.
+-	MaxGCMask	= 65536, // TODO(rsc): change back to 64
+-};
+diff --git a/src/runtime/stack.h b/src/runtime/stack.h
+deleted file mode 100644
+index b64123e80f..0000000000
+--- a/src/runtime/stack.h
++++ /dev/null
+@@ -1,43 +0,0 @@
+-// Copyright 2011 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// For the linkers. Must match Go definitions.
+-// TODO(rsc): Share Go definitions with linkers directly.
+-
+-enum {
+-#ifdef GOOS_windows
+-#define STACKSYSTEM (512 * sizeof(uintptr))
+-#endif // GOOS_windows
+-#ifdef GOOS_plan9
+-#define STACKSYSTEM	512
+-#endif // GOOS_plan9
+-#ifdef GOOS_darwin
+-#ifdef GOARCH_arm
+-#define STACKSYSTEM 1024
+-#endif // GOARCH_arm
+-#endif // GOOS_darwin
+-
+-#ifndef STACKSYSTEM
+-#define STACKSYSTEM 0
+-#endif
+-
+-	/*c2go
+-	STACKSYSTEM = 0,
+-	*/
+-
+-	StackSystem = STACKSYSTEM,
+-
+-	StackBig = 4096,
+-	StackGuard = 640 + StackSystem,
+-	StackSmall = 128,
+-	StackLimit = StackGuard - StackSystem - StackSmall,
+-};
+-
+-#define StackPreempt ((uint64)-1314)
+-/*c2go
+-enum
+-{
+-	StackPreempt = 1, // TODO: Change to (uint64)-1314 in Go translation
+-};
+-*/
+diff --git a/src/runtime/typekind.h b/src/runtime/typekind.h
+deleted file mode 100644
+index 39cd45c2e9..0000000000
+--- a/src/runtime/typekind.h
++++ /dev/null
+@@ -1,40 +0,0 @@
+-// Copyright 2012 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Must match runtime and reflect.
+-// Included by cmd/gc.
+-
+-enum {
+-	KindBool = 1,
+-	KindInt,
+-	KindInt8,
+-	KindInt16,
+-	KindInt32,
+-	KindInt64,
+-	KindUint,
+-	KindUint8,
+-	KindUint16,
+-	KindUint32,
+-	KindUint64,
+-	KindUintptr,
+-	KindFloat32,
+-	KindFloat64,
+-	KindComplex64,
+-	KindComplex128,
+-	KindArray,
+-	KindChan,
+-	KindFunc,
+-	KindInterface,
+-	KindMap,
+-	KindPtr,
+-	KindSlice,
+-	KindString,
+-	KindStruct,
+-	KindUnsafePointer,
+-
+-	KindDirectIface = 1 << 5,
+-	KindGCProg      = 1 << 6, // Type.gc points to GC program
+-	KindNoPointers  = 1 << 7,
+-	KindMask        = (1 << 5) - 1,
+-};

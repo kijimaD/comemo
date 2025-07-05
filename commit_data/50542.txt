@@ -11,10 +11,199 @@ Date:   Sun Oct 31 12:08:32 2021 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/360276
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/api_test.go      | 14 ++++++-------
  src/cmd/compile/internal/types2/builtins_test.go |  6 +++---
  src/cmd/compile/internal/types2/errors.go        | 12 +++++------
  src/cmd/compile/internal/types2/instantiate.go   |  2 +-
  src/cmd/compile/internal/types2/typestring.go    | 26 ++++++++++++++++--------
  5 files changed, 35 insertions(+), 25 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/api_test.go b/src/cmd/compile/internal/types2/api_test.go
+index 26652f3e74..5e111d6d87 100644
+--- a/src/cmd/compile/internal/types2/api_test.go
++++ b/src/cmd/compile/internal/types2/api_test.go
+@@ -326,25 +326,25 @@ func TestTypesInfo(t *testing.T) {
+ 		{brokenPkg + `x5; func _() { var x map[string][...]int; x = map[string][...]int{"": {1,2,3}} }`, `x`, `map[string]invalid type`},
+ 
+ 		// parameterized functions
+-		{genericPkg + `p0; func f[T any](T) {}; var _ = f[int]`, `f`, `func[generic_p0.T₁ interface{}](generic_p0.T₁)`},
++		{genericPkg + `p0; func f[T any](T) {}; var _ = f[int]`, `f`, `func[generic_p0.T interface{}](generic_p0.T)`},
+ 		{genericPkg + `p1; func f[T any](T) {}; var _ = f[int]`, `f[int]`, `func(int)`},
+ 		{genericPkg + `p2; func f[T any](T) {}; func _() { f(42) }`, `f`, `func(int)`},
+ 		{genericPkg + `p3; func f[T any](T) {}; func _() { f[int](42) }`, `f[int]`, `func(int)`},
+-		{genericPkg + `p4; func f[T any](T) {}; func _() { f[int](42) }`, `f`, `func[generic_p4.T₁ interface{}](generic_p4.T₁)`},
++		{genericPkg + `p4; func f[T any](T) {}; func _() { f[int](42) }`, `f`, `func[generic_p4.T interface{}](generic_p4.T)`},
+ 		{genericPkg + `p5; func f[T any](T) {}; func _() { f(42) }`, `f(42)`, `()`},
+ 
+ 		// type parameters
+ 		{genericPkg + `t0; type t[] int; var _ t`, `t`, `generic_t0.t`}, // t[] is a syntax error that is ignored in this test in favor of t
+-		{genericPkg + `t1; type t[P any] int; var _ t[int]`, `t`, `generic_t1.t[generic_t1.P₁ interface{}]`},
+-		{genericPkg + `t2; type t[P interface{}] int; var _ t[int]`, `t`, `generic_t2.t[generic_t2.P₁ interface{}]`},
+-		{genericPkg + `t3; type t[P, Q interface{}] int; var _ t[int, int]`, `t`, `generic_t3.t[generic_t3.P₁, generic_t3.Q₂ interface{}]`},
+-		{brokenPkg + `t4; type t[P, Q interface{ m() }] int; var _ t[int, int]`, `t`, `broken_t4.t[broken_t4.P₁, broken_t4.Q₂ interface{m()}]`},
++		{genericPkg + `t1; type t[P any] int; var _ t[int]`, `t`, `generic_t1.t[generic_t1.P interface{}]`},
++		{genericPkg + `t2; type t[P interface{}] int; var _ t[int]`, `t`, `generic_t2.t[generic_t2.P interface{}]`},
++		{genericPkg + `t3; type t[P, Q interface{}] int; var _ t[int, int]`, `t`, `generic_t3.t[generic_t3.P, generic_t3.Q interface{}]`},
++		{brokenPkg + `t4; type t[P, Q interface{ m() }] int; var _ t[int, int]`, `t`, `broken_t4.t[broken_t4.P, broken_t4.Q interface{m()}]`},
+ 
+ 		// instantiated types must be sanitized
+ 		{genericPkg + `g0; type t[P any] int; var x struct{ f t[int] }; var _ = x.f`, `x.f`, `generic_g0.t[int]`},
+ 
+ 		// issue 45096
+-		{genericPkg + `issue45096; func _[T interface{ ~int8 | ~int16 | ~int32 }](x T) { _ = x < 0 }`, `0`, `generic_issue45096.T₁`},
++		{genericPkg + `issue45096; func _[T interface{ ~int8 | ~int16 | ~int32 }](x T) { _ = x < 0 }`, `0`, `generic_issue45096.T`},
+ 
+ 		// issue 47895
+ 		{`package p; import "unsafe"; type S struct { f int }; var s S; var _ = unsafe.Offsetof(s.f)`, `s.f`, `int`},
+diff --git a/src/cmd/compile/internal/types2/builtins_test.go b/src/cmd/compile/internal/types2/builtins_test.go
+index 52dbba1cb9..dd71715a27 100644
+--- a/src/cmd/compile/internal/types2/builtins_test.go
++++ b/src/cmd/compile/internal/types2/builtins_test.go
+@@ -112,15 +112,15 @@ var builtinCalls = []struct {
+ 
+ 	{"Alignof", `_ = unsafe.Alignof(0)`, `invalid type`},                 // constant
+ 	{"Alignof", `var x struct{}; _ = unsafe.Alignof(x)`, `invalid type`}, // constant
+-	{"Alignof", `var x P; _ = unsafe.Alignof(x)`, `func(p.P₁) uintptr`},
++	{"Alignof", `var x P; _ = unsafe.Alignof(x)`, `func(p.P) uintptr`},
+ 
+ 	{"Offsetof", `var x struct{f bool}; _ = unsafe.Offsetof(x.f)`, `invalid type`},           // constant
+ 	{"Offsetof", `var x struct{_ int; f bool}; _ = unsafe.Offsetof((&x).f)`, `invalid type`}, // constant
+-	{"Offsetof", `var x struct{_ int; f P}; _ = unsafe.Offsetof((&x).f)`, `func(p.P₁) uintptr`},
++	{"Offsetof", `var x struct{_ int; f P}; _ = unsafe.Offsetof((&x).f)`, `func(p.P) uintptr`},
+ 
+ 	{"Sizeof", `_ = unsafe.Sizeof(0)`, `invalid type`},                 // constant
+ 	{"Sizeof", `var x struct{}; _ = unsafe.Sizeof(x)`, `invalid type`}, // constant
+-	{"Sizeof", `var x P; _ = unsafe.Sizeof(x)`, `func(p.P₁) uintptr`},
++	{"Sizeof", `var x P; _ = unsafe.Sizeof(x)`, `func(p.P) uintptr`},
+ 
+ 	{"Slice", `var p *int; _ = unsafe.Slice(p, 1)`, `func(*int, int) []int`},
+ 	{"Slice", `var p *byte; var n uintptr; _ = unsafe.Slice(p, n)`, `func(*byte, uintptr) []byte`},
+diff --git a/src/cmd/compile/internal/types2/errors.go b/src/cmd/compile/internal/types2/errors.go
+index 0c8a4a90ff..b56d11a28b 100644
+--- a/src/cmd/compile/internal/types2/errors.go
++++ b/src/cmd/compile/internal/types2/errors.go
+@@ -66,7 +66,7 @@ func (err *error_) msg(qf Qualifier) string {
+ 				fmt.Fprintf(&buf, "%s: ", p.pos)
+ 			}
+ 		}
+-		buf.WriteString(sprintf(qf, p.format, p.args...))
++		buf.WriteString(sprintf(qf, false, p.format, p.args...))
+ 	}
+ 	return buf.String()
+ }
+@@ -85,7 +85,7 @@ func (err *error_) errorf(at poser, format string, args ...interface{}) {
+ 	err.desc = append(err.desc, errorDesc{posFor(at), format, args})
+ }
+ 
+-func sprintf(qf Qualifier, format string, args ...interface{}) string {
++func sprintf(qf Qualifier, debug bool, format string, args ...interface{}) string {
+ 	for i, arg := range args {
+ 		switch a := arg.(type) {
+ 		case nil:
+@@ -101,7 +101,7 @@ func sprintf(qf Qualifier, format string, args ...interface{}) string {
+ 		case Object:
+ 			arg = ObjectString(a, qf)
+ 		case Type:
+-			arg = TypeString(a, qf)
++			arg = typeString(a, qf, debug)
+ 		}
+ 		args[i] = arg
+ 	}
+@@ -146,7 +146,7 @@ func (check *Checker) markImports(pkg *Package) {
+ }
+ 
+ func (check *Checker) sprintf(format string, args ...interface{}) string {
+-	return sprintf(check.qualifier, format, args...)
++	return sprintf(check.qualifier, false, format, args...)
+ }
+ 
+ func (check *Checker) report(err *error_) {
+@@ -160,13 +160,13 @@ func (check *Checker) trace(pos syntax.Pos, format string, args ...interface{})
+ 	fmt.Printf("%s:\t%s%s\n",
+ 		pos,
+ 		strings.Repeat(".  ", check.indent),
+-		check.sprintf(format, args...),
++		sprintf(check.qualifier, true, format, args...),
+ 	)
+ }
+ 
+ // dump is only needed for debugging
+ func (check *Checker) dump(format string, args ...interface{}) {
+-	fmt.Println(check.sprintf(format, args...))
++	fmt.Println(sprintf(check.qualifier, true, format, args...))
+ }
+ 
+ func (check *Checker) err(at poser, msg string, soft bool) {
+diff --git a/src/cmd/compile/internal/types2/instantiate.go b/src/cmd/compile/internal/types2/instantiate.go
+index 8228ef2c31..44cf593ffb 100644
+--- a/src/cmd/compile/internal/types2/instantiate.go
++++ b/src/cmd/compile/internal/types2/instantiate.go
+@@ -155,7 +155,7 @@ func (check *Checker) satisfies(pos syntax.Pos, targ Type, tpar *TypeParam, smap
+ 		qf = check.qualifier
+ 	}
+ 	errorf := func(format string, args ...interface{}) error {
+-		return errors.New(sprintf(qf, format, args...))
++		return errors.New(sprintf(qf, false, format, args...))
+ 	}
+ 
+ 	// No type argument with non-empty type set satisfies the empty type set.
+diff --git a/src/cmd/compile/internal/types2/typestring.go b/src/cmd/compile/internal/types2/typestring.go
+index 709499792b..56bf4124fd 100644
+--- a/src/cmd/compile/internal/types2/typestring.go
++++ b/src/cmd/compile/internal/types2/typestring.go
+@@ -43,8 +43,14 @@ func RelativeTo(pkg *Package) Qualifier {
+ // The Qualifier controls the printing of
+ // package-level objects, and may be nil.
+ func TypeString(typ Type, qf Qualifier) string {
++	return typeString(typ, qf, false)
++}
++
++func typeString(typ Type, qf Qualifier, debug bool) string {
+ 	var buf bytes.Buffer
+-	WriteType(&buf, typ, qf)
++	w := newTypeWriter(&buf, qf)
++	w.debug = debug
++	w.typ(typ)
+ 	return buf.String()
+ }
+ 
+@@ -64,19 +70,20 @@ func WriteSignature(buf *bytes.Buffer, sig *Signature, qf Qualifier) {
+ }
+ 
+ type typeWriter struct {
+-	buf  *bytes.Buffer
+-	seen map[Type]bool
+-	qf   Qualifier
+-	ctxt *Context // if non-nil, we are type hashing
++	buf   *bytes.Buffer
++	seen  map[Type]bool
++	qf    Qualifier
++	ctxt  *Context // if non-nil, we are type hashing
++	debug bool     // if true, write debug annotations
+ }
+ 
+ func newTypeWriter(buf *bytes.Buffer, qf Qualifier) *typeWriter {
+-	return &typeWriter{buf, make(map[Type]bool), qf, nil}
++	return &typeWriter{buf, make(map[Type]bool), qf, nil, false}
+ }
+ 
+ func newTypeHasher(buf *bytes.Buffer, ctxt *Context) *typeWriter {
+ 	assert(ctxt != nil)
+-	return &typeWriter{buf, make(map[Type]bool), nil, ctxt}
++	return &typeWriter{buf, make(map[Type]bool), nil, ctxt, false}
+ }
+ 
+ func (w *typeWriter) byte(b byte) {
+@@ -270,7 +277,10 @@ func (w *typeWriter) typ(typ Type) {
+ 		if t.obj.pkg != nil {
+ 			writePackage(w.buf, t.obj.pkg, w.qf)
+ 		}
+-		w.string(t.obj.name + subscript(t.id))
++		w.string(t.obj.name)
++		if w.debug || w.ctxt != nil {
++			w.string(subscript(t.id))
++		}
+ 
+ 	default:
+ 		// For externally defined implementations of Type.

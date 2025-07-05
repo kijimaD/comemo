@@ -35,7 +35,7 @@ Date:   Sat Oct 20 16:30:57 2018 +1100
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Kirill Kolyshkin <kolyshkin@gmail.com>
-
+---
  src/internal/syscall/windows/mksyscall.go        |  2 +-
  src/internal/syscall/windows/symlink_windows.go  | 25 +++++++
  src/internal/syscall/windows/zsyscall_windows.go | 57 ++++++++++------
@@ -43,3 +43,366 @@ Date:   Sat Oct 20 16:30:57 2018 +1100
  src/os/stat_windows.go                           | 85 +++++++++++++++---------
  src/os/types_windows.go                          | 69 +++----------------
  6 files changed, 126 insertions(+), 122 deletions(-)
+
+diff --git a/src/internal/syscall/windows/mksyscall.go b/src/internal/syscall/windows/mksyscall.go
+index 23efb6a01a..a8edafb3c3 100644
+--- a/src/internal/syscall/windows/mksyscall.go
++++ b/src/internal/syscall/windows/mksyscall.go
+@@ -4,4 +4,4 @@
+ 
+ package windows
+ 
+-//go:generate go run $GOROOT/src/syscall/mksyscall_windows.go -output zsyscall_windows.go syscall_windows.go security_windows.go psapi_windows.go
++//go:generate go run $GOROOT/src/syscall/mksyscall_windows.go -output zsyscall_windows.go syscall_windows.go security_windows.go psapi_windows.go symlink_windows.go
+diff --git a/src/internal/syscall/windows/symlink_windows.go b/src/internal/syscall/windows/symlink_windows.go
+index cc2163e933..b64d058d13 100644
+--- a/src/internal/syscall/windows/symlink_windows.go
++++ b/src/internal/syscall/windows/symlink_windows.go
+@@ -11,4 +11,29 @@ const (
+ 
+ 	// symlink support for CreateSymbolicLink() starting with Windows 10 (1703, v10.0.14972)
+ 	SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE = 0x2
++
++	// FileInformationClass values
++	FileBasicInfo                  = 0    // FILE_BASIC_INFO
++	FileStandardInfo               = 1    // FILE_STANDARD_INFO
++	FileNameInfo                   = 2    // FILE_NAME_INFO
++	FileStreamInfo                 = 7    // FILE_STREAM_INFO
++	FileCompressionInfo            = 8    // FILE_COMPRESSION_INFO
++	FileAttributeTagInfo           = 9    // FILE_ATTRIBUTE_TAG_INFO
++	FileIdBothDirectoryInfo        = 0xa  // FILE_ID_BOTH_DIR_INFO
++	FileIdBothDirectoryRestartInfo = 0xb  // FILE_ID_BOTH_DIR_INFO
++	FileRemoteProtocolInfo         = 0xd  // FILE_REMOTE_PROTOCOL_INFO
++	FileFullDirectoryInfo          = 0xe  // FILE_FULL_DIR_INFO
++	FileFullDirectoryRestartInfo   = 0xf  // FILE_FULL_DIR_INFO
++	FileStorageInfo                = 0x10 // FILE_STORAGE_INFO
++	FileAlignmentInfo              = 0x11 // FILE_ALIGNMENT_INFO
++	FileIdInfo                     = 0x12 // FILE_ID_INFO
++	FileIdExtdDirectoryInfo        = 0x13 // FILE_ID_EXTD_DIR_INFO
++	FileIdExtdDirectoryRestartInfo = 0x14 // FILE_ID_EXTD_DIR_INFO
+ )
++
++type FILE_ATTRIBUTE_TAG_INFO struct {
++	FileAttributes uint32
++	ReparseTag     uint32
++}
++
++//sys	GetFileInformationByHandleEx(handle syscall.Handle, class uint32, info *byte, bufsize uint32) (err error)
+diff --git a/src/internal/syscall/windows/zsyscall_windows.go b/src/internal/syscall/windows/zsyscall_windows.go
+index 550a8a5bd4..2212697b1b 100644
+--- a/src/internal/syscall/windows/zsyscall_windows.go
++++ b/src/internal/syscall/windows/zsyscall_windows.go
+@@ -44,28 +44,29 @@ var (
+ 	moduserenv  = syscall.NewLazyDLL(sysdll.Add("userenv.dll"))
+ 	modpsapi    = syscall.NewLazyDLL(sysdll.Add("psapi.dll"))
+ 
+-	procGetAdaptersAddresses      = modiphlpapi.NewProc("GetAdaptersAddresses")
+-	procGetComputerNameExW        = modkernel32.NewProc("GetComputerNameExW")
+-	procMoveFileExW               = modkernel32.NewProc("MoveFileExW")
+-	procGetModuleFileNameW        = modkernel32.NewProc("GetModuleFileNameW")
+-	procWSASocketW                = modws2_32.NewProc("WSASocketW")
+-	procGetACP                    = modkernel32.NewProc("GetACP")
+-	procGetConsoleCP              = modkernel32.NewProc("GetConsoleCP")
+-	procMultiByteToWideChar       = modkernel32.NewProc("MultiByteToWideChar")
+-	procGetCurrentThread          = modkernel32.NewProc("GetCurrentThread")
+-	procNetShareAdd               = modnetapi32.NewProc("NetShareAdd")
+-	procNetShareDel               = modnetapi32.NewProc("NetShareDel")
+-	procGetFinalPathNameByHandleW = modkernel32.NewProc("GetFinalPathNameByHandleW")
+-	procImpersonateSelf           = modadvapi32.NewProc("ImpersonateSelf")
+-	procRevertToSelf              = modadvapi32.NewProc("RevertToSelf")
+-	procOpenThreadToken           = modadvapi32.NewProc("OpenThreadToken")
+-	procLookupPrivilegeValueW     = modadvapi32.NewProc("LookupPrivilegeValueW")
+-	procAdjustTokenPrivileges     = modadvapi32.NewProc("AdjustTokenPrivileges")
+-	procDuplicateTokenEx          = modadvapi32.NewProc("DuplicateTokenEx")
+-	procSetTokenInformation       = modadvapi32.NewProc("SetTokenInformation")
+-	procGetProfilesDirectoryW     = moduserenv.NewProc("GetProfilesDirectoryW")
+-	procNetUserGetLocalGroups     = modnetapi32.NewProc("NetUserGetLocalGroups")
+-	procGetProcessMemoryInfo      = modpsapi.NewProc("GetProcessMemoryInfo")
++	procGetAdaptersAddresses         = modiphlpapi.NewProc("GetAdaptersAddresses")
++	procGetComputerNameExW           = modkernel32.NewProc("GetComputerNameExW")
++	procMoveFileExW                  = modkernel32.NewProc("MoveFileExW")
++	procGetModuleFileNameW           = modkernel32.NewProc("GetModuleFileNameW")
++	procWSASocketW                   = modws2_32.NewProc("WSASocketW")
++	procGetACP                       = modkernel32.NewProc("GetACP")
++	procGetConsoleCP                 = modkernel32.NewProc("GetConsoleCP")
++	procMultiByteToWideChar          = modkernel32.NewProc("MultiByteToWideChar")
++	procGetCurrentThread             = modkernel32.NewProc("GetCurrentThread")
++	procNetShareAdd                  = modnetapi32.NewProc("NetShareAdd")
++	procNetShareDel                  = modnetapi32.NewProc("NetShareDel")
++	procGetFinalPathNameByHandleW    = modkernel32.NewProc("GetFinalPathNameByHandleW")
++	procImpersonateSelf              = modadvapi32.NewProc("ImpersonateSelf")
++	procRevertToSelf                 = modadvapi32.NewProc("RevertToSelf")
++	procOpenThreadToken              = modadvapi32.NewProc("OpenThreadToken")
++	procLookupPrivilegeValueW        = modadvapi32.NewProc("LookupPrivilegeValueW")
++	procAdjustTokenPrivileges        = modadvapi32.NewProc("AdjustTokenPrivileges")
++	procDuplicateTokenEx             = modadvapi32.NewProc("DuplicateTokenEx")
++	procSetTokenInformation          = modadvapi32.NewProc("SetTokenInformation")
++	procGetProfilesDirectoryW        = moduserenv.NewProc("GetProfilesDirectoryW")
++	procNetUserGetLocalGroups        = modnetapi32.NewProc("NetUserGetLocalGroups")
++	procGetProcessMemoryInfo         = modpsapi.NewProc("GetProcessMemoryInfo")
++	procGetFileInformationByHandleEx = modkernel32.NewProc("GetFileInformationByHandleEx")
+ )
+ 
+ func GetAdaptersAddresses(family uint32, flags uint32, reserved uintptr, adapterAddresses *IpAdapterAddresses, sizePointer *uint32) (errcode error) {
+@@ -321,3 +322,15 @@ func GetProcessMemoryInfo(handle syscall.Handle, memCounters *PROCESS_MEMORY_COU
+ 	}
+ 	return
+ }
++
++func GetFileInformationByHandleEx(handle syscall.Handle, class uint32, info *byte, bufsize uint32) (err error) {
++	r1, _, e1 := syscall.Syscall6(procGetFileInformationByHandleEx.Addr(), 4, uintptr(handle), uintptr(class), uintptr(unsafe.Pointer(info)), uintptr(bufsize), 0, 0)
++	if r1 == 0 {
++		if e1 != 0 {
++			err = errnoErr(e1)
++		} else {
++			err = syscall.EINVAL
++		}
++	}
++	return
++}
+diff --git a/src/os/stat_test.go b/src/os/stat_test.go
+index da20a4fdbf..60f3b4c587 100644
+--- a/src/os/stat_test.go
++++ b/src/os/stat_test.go
+@@ -250,10 +250,6 @@ func TestFileAndSymlinkStats(t *testing.T) {
+ 
+ // see issue 27225 for details
+ func TestSymlinkWithTrailingSlash(t *testing.T) {
+-	if runtime.GOOS == "windows" {
+-		t.Skip("skipping on windows; issue 27225")
+-	}
+-
+ 	testenv.MustHaveSymlink(t)
+ 
+ 	tmpdir, err := ioutil.TempDir("", "TestSymlinkWithTrailingSlash")
+@@ -274,7 +270,11 @@ func TestSymlinkWithTrailingSlash(t *testing.T) {
+ 	}
+ 	dirlinkWithSlash := dirlink + string(os.PathSeparator)
+ 
+-	testDirStats(t, dirlinkWithSlash)
++	if runtime.GOOS == "windows" {
++		testSymlinkStats(t, dirlinkWithSlash, true)
++	} else {
++		testDirStats(t, dirlinkWithSlash)
++	}
+ 
+ 	fi1, err := os.Stat(dir)
+ 	if err != nil {
+diff --git a/src/os/stat_windows.go b/src/os/stat_windows.go
+index 19cc0cf6b7..f4700f5818 100644
+--- a/src/os/stat_windows.go
++++ b/src/os/stat_windows.go
+@@ -5,7 +5,9 @@
+ package os
+ 
+ import (
++	"internal/syscall/windows"
+ 	"syscall"
++	"unsafe"
+ )
+ 
+ // isNulName returns true if name is NUL file name.
+@@ -58,33 +60,59 @@ func (file *File) Stat() (FileInfo, error) {
+ 	return fs, err
+ }
+ 
+-// statNolog implements Stat for Windows.
+-func statNolog(name string) (FileInfo, error) {
++// stat implements both Stat and Lstat of a file.
++func stat(funcname, name string, createFileAttrs uint32) (FileInfo, error) {
+ 	if len(name) == 0 {
+-		return nil, &PathError{"Stat", name, syscall.Errno(syscall.ERROR_PATH_NOT_FOUND)}
++		return nil, &PathError{funcname, name, syscall.Errno(syscall.ERROR_PATH_NOT_FOUND)}
+ 	}
+ 	if isNulName(name) {
+ 		return &devNullStat, nil
+ 	}
+ 	namep, err := syscall.UTF16PtrFromString(fixLongPath(name))
+ 	if err != nil {
+-		return nil, &PathError{"Stat", name, err}
++		return nil, &PathError{funcname, name, err}
+ 	}
+-	fs, err := newFileStatFromGetFileAttributesExOrFindFirstFile(name, namep)
+-	if err != nil {
+-		return nil, err
++
++	// Try GetFileAttributesEx first, because it is faster than CreateFile.
++	// See https://golang.org/issues/19922#issuecomment-300031421 for details.
++	var fa syscall.Win32FileAttributeData
++	err = syscall.GetFileAttributesEx(namep, syscall.GetFileExInfoStandard, (*byte)(unsafe.Pointer(&fa)))
++	if err == nil && fa.FileAttributes&syscall.FILE_ATTRIBUTE_REPARSE_POINT == 0 {
++		// Not a symlink.
++		fs := &fileStat{
++			path:           name,
++			FileAttributes: fa.FileAttributes,
++			CreationTime:   fa.CreationTime,
++			LastAccessTime: fa.LastAccessTime,
++			LastWriteTime:  fa.LastWriteTime,
++			FileSizeHigh:   fa.FileSizeHigh,
++			FileSizeLow:    fa.FileSizeLow,
++		}
++		// Gather full path to be used by os.SameFile later.
++		if !isAbs(fs.path) {
++			fs.path, err = syscall.FullPath(fs.path)
++			if err != nil {
++				return nil, &PathError{"FullPath", name, err}
++			}
++		}
++		fs.name = basename(name)
++		return fs, nil
+ 	}
+-	if !fs.isSymlink() {
+-		err = fs.updatePathAndName(name)
++	// GetFileAttributesEx fails with ERROR_SHARING_VIOLATION error for
++	// files, like c:\pagefile.sys. Use FindFirstFile for such files.
++	if err == windows.ERROR_SHARING_VIOLATION {
++		var fd syscall.Win32finddata
++		sh, err := syscall.FindFirstFile(namep, &fd)
+ 		if err != nil {
+-			return nil, err
++			return nil, &PathError{"FindFirstFile", name, err}
+ 		}
+-		return fs, nil
++		syscall.FindClose(sh)
++		return newFileStatFromWin32finddata(&fd), nil
+ 	}
+-	// Use Windows I/O manager to dereference the symbolic link, as per
+-	// https://blogs.msdn.microsoft.com/oldnewthing/20100212-00/?p=14963/
++
++	// Finally use CreateFile.
+ 	h, err := syscall.CreateFile(namep, 0, 0, nil,
+-		syscall.OPEN_EXISTING, syscall.FILE_FLAG_BACKUP_SEMANTICS, 0)
++		syscall.OPEN_EXISTING, createFileAttrs, 0)
+ 	if err != nil {
+ 		return nil, &PathError{"CreateFile", name, err}
+ 	}
+@@ -93,25 +121,16 @@ func statNolog(name string) (FileInfo, error) {
+ 	return newFileStatFromGetFileInformationByHandle(name, h)
+ }
+ 
++// statNolog implements Stat for Windows.
++func statNolog(name string) (FileInfo, error) {
++	return stat("Stat", name, syscall.FILE_FLAG_BACKUP_SEMANTICS)
++}
++
+ // lstatNolog implements Lstat for Windows.
+ func lstatNolog(name string) (FileInfo, error) {
+-	if len(name) == 0 {
+-		return nil, &PathError{"Lstat", name, syscall.Errno(syscall.ERROR_PATH_NOT_FOUND)}
+-	}
+-	if isNulName(name) {
+-		return &devNullStat, nil
+-	}
+-	namep, err := syscall.UTF16PtrFromString(fixLongPath(name))
+-	if err != nil {
+-		return nil, &PathError{"Lstat", name, err}
+-	}
+-	fs, err := newFileStatFromGetFileAttributesExOrFindFirstFile(name, namep)
+-	if err != nil {
+-		return nil, err
+-	}
+-	err = fs.updatePathAndName(name)
+-	if err != nil {
+-		return nil, err
+-	}
+-	return fs, nil
++	attrs := uint32(syscall.FILE_FLAG_BACKUP_SEMANTICS)
++	// Use FILE_FLAG_OPEN_REPARSE_POINT, otherwise CreateFile will follow symlink.
++	// See https://docs.microsoft.com/en-us/windows/desktop/FileIO/symbolic-link-effects-on-file-systems-functions#createfile-and-createfiletransacted
++	attrs |= syscall.FILE_FLAG_OPEN_REPARSE_POINT
++	return stat("Lstat", name, attrs)
+ }
+diff --git a/src/os/types_windows.go b/src/os/types_windows.go
+index 7ebeec50ef..8636dc7f05 100644
+--- a/src/os/types_windows.go
++++ b/src/os/types_windows.go
+@@ -47,6 +47,13 @@ func newFileStatFromGetFileInformationByHandle(path string, h syscall.Handle) (f
+ 	if err != nil {
+ 		return nil, &PathError{"GetFileInformationByHandle", path, err}
+ 	}
++
++	var ti windows.FILE_ATTRIBUTE_TAG_INFO
++	err = windows.GetFileInformationByHandleEx(h, windows.FileAttributeTagInfo, (*byte)(unsafe.Pointer(&ti)), uint32(unsafe.Sizeof(ti)))
++	if err != nil {
++		return nil, &PathError{"GetFileInformationByHandleEx", path, err}
++	}
++
+ 	return &fileStat{
+ 		name:           basename(path),
+ 		FileAttributes: d.FileAttributes,
+@@ -58,6 +65,7 @@ func newFileStatFromGetFileInformationByHandle(path string, h syscall.Handle) (f
+ 		vol:            d.VolumeSerialNumber,
+ 		idxhi:          d.FileIndexHigh,
+ 		idxlo:          d.FileIndexLow,
++		Reserved0:      ti.ReparseTag,
+ 		// fileStat.path is used by os.SameFile to decide if it needs
+ 		// to fetch vol, idxhi and idxlo. But these are already set,
+ 		// so set fileStat.path to "" to prevent os.SameFile doing it again.
+@@ -78,67 +86,6 @@ func newFileStatFromWin32finddata(d *syscall.Win32finddata) *fileStat {
+ 	}
+ }
+ 
+-// newFileStatFromGetFileAttributesExOrFindFirstFile calls GetFileAttributesEx
+-// and FindFirstFile to gather all required information about the provided file path pathp.
+-func newFileStatFromGetFileAttributesExOrFindFirstFile(path string, pathp *uint16) (*fileStat, error) {
+-	// As suggested by Microsoft, use GetFileAttributes() to acquire the file information,
+-	// and if it's a reparse point use FindFirstFile() to get the tag:
+-	// https://msdn.microsoft.com/en-us/library/windows/desktop/aa363940(v=vs.85).aspx
+-	// Notice that always calling FindFirstFile can create performance problems
+-	// (https://golang.org/issues/19922#issuecomment-300031421)
+-	var fa syscall.Win32FileAttributeData
+-	err := syscall.GetFileAttributesEx(pathp, syscall.GetFileExInfoStandard, (*byte)(unsafe.Pointer(&fa)))
+-	if err == nil && fa.FileAttributes&syscall.FILE_ATTRIBUTE_REPARSE_POINT == 0 {
+-		// Not a symlink.
+-		return &fileStat{
+-			FileAttributes: fa.FileAttributes,
+-			CreationTime:   fa.CreationTime,
+-			LastAccessTime: fa.LastAccessTime,
+-			LastWriteTime:  fa.LastWriteTime,
+-			FileSizeHigh:   fa.FileSizeHigh,
+-			FileSizeLow:    fa.FileSizeLow,
+-		}, nil
+-	}
+-	// GetFileAttributesEx returns ERROR_INVALID_NAME if called
+-	// for invalid file name like "*.txt". Do not attempt to call
+-	// FindFirstFile with "*.txt", because FindFirstFile will
+-	// succeed. So just return ERROR_INVALID_NAME instead.
+-	// see https://golang.org/issue/24999 for details.
+-	if errno, _ := err.(syscall.Errno); errno == windows.ERROR_INVALID_NAME {
+-		return nil, &PathError{"GetFileAttributesEx", path, err}
+-	}
+-	// We might have symlink here. But some directories also have
+-	// FileAttributes FILE_ATTRIBUTE_REPARSE_POINT bit set.
+-	// For example, OneDrive directory is like that
+-	// (see golang.org/issue/22579 for details).
+-	// So use FindFirstFile instead to distinguish directories like
+-	// OneDrive from real symlinks (see instructions described at
+-	// https://blogs.msdn.microsoft.com/oldnewthing/20100212-00/?p=14963/
+-	// and in particular bits about using both FileAttributes and
+-	// Reserved0 fields).
+-	var fd syscall.Win32finddata
+-	sh, err := syscall.FindFirstFile(pathp, &fd)
+-	if err != nil {
+-		return nil, &PathError{"FindFirstFile", path, err}
+-	}
+-	syscall.FindClose(sh)
+-
+-	return newFileStatFromWin32finddata(&fd), nil
+-}
+-
+-func (fs *fileStat) updatePathAndName(name string) error {
+-	fs.path = name
+-	if !isAbs(fs.path) {
+-		var err error
+-		fs.path, err = syscall.FullPath(fs.path)
+-		if err != nil {
+-			return &PathError{"FullPath", name, err}
+-		}
+-	}
+-	fs.name = basename(name)
+-	return nil
+-}
+-
+ func (fs *fileStat) isSymlink() bool {
+ 	// Use instructions described at
+ 	// https://blogs.msdn.microsoft.com/oldnewthing/20100212-00/?p=14963/

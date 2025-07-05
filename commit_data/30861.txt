@@ -17,7 +17,68 @@ Date:   Mon Dec 12 14:37:40 2016 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/build.go   | 16 +++++++++-------
  src/cmd/go/go_test.go | 16 ++++++++++++++++
  2 files changed, 25 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index e053b28c98..0027ca0fc0 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -2406,8 +2406,7 @@ func (gcToolchain) gc(b *builder, p *Package, archive, obj string, asmhdr bool,
+ func (gcToolchain) asm(b *builder, p *Package, obj string, sfiles []string) ([]string, error) {
+ 	// Add -I pkg/GOOS_GOARCH so #include "textflag.h" works in .s files.
+ 	inc := filepath.Join(goroot, "pkg", "include")
+-	ofile := obj + "asm.o"
+-	args := []interface{}{buildToolExec, tool("asm"), "-o", ofile, "-trimpath", b.work, "-I", obj, "-I", inc, "-D", "GOOS_" + goos, "-D", "GOARCH_" + goarch, buildAsmflags}
++	args := []interface{}{buildToolExec, tool("asm"), "-trimpath", b.work, "-I", obj, "-I", inc, "-D", "GOOS_" + goos, "-D", "GOARCH_" + goarch, buildAsmflags}
+ 	if p.ImportPath == "runtime" && goarch == "386" {
+ 		for _, arg := range buildAsmflags {
+ 			if arg == "-dynlink" {
+@@ -2415,13 +2414,16 @@ func (gcToolchain) asm(b *builder, p *Package, obj string, sfiles []string) ([]s
+ 			}
+ 		}
+ 	}
++	var ofiles []string
+ 	for _, sfile := range sfiles {
+-		args = append(args, mkAbs(p.Dir, sfile))
+-	}
+-	if err := b.run(p.Dir, p.ImportPath, nil, args...); err != nil {
+-		return nil, err
++		ofile := obj + sfile[:len(sfile)-len(".s")] + ".o"
++		ofiles = append(ofiles, ofile)
++		a := append(args, "-o", ofile, mkAbs(p.Dir, sfile))
++		if err := b.run(p.Dir, p.ImportPath, nil, a...); err != nil {
++			return nil, err
++		}
+ 	}
+-	return []string{ofile}, nil
++	return ofiles, nil
+ }
+ 
+ // toolVerify checks that the command line args writes the same output file
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 1c84512ed4..88c54432fb 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -3727,3 +3727,19 @@ func TestLdBindNow(t *testing.T) {
+ 	tg.setenv("LD_BIND_NOW", "1")
+ 	tg.run("help")
+ }
++
++// Issue 18225.
++// This is really a cmd/asm issue but this is a convenient place to test it.
++func TestConcurrentAsm(t *testing.T) {
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.parallel()
++	asm := `DATA ·constants<>+0x0(SB)/8,$0
++GLOBL ·constants<>(SB),8,$8
++`
++	tg.tempFile("go/src/p/a.s", asm)
++	tg.tempFile("go/src/p/b.s", asm)
++	tg.tempFile("go/src/p/p.go", `package p`)
++	tg.setenv("GOPATH", tg.path("go"))
++	tg.run("build", "p")
++}

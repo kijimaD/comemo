@@ -8,6 +8,21 @@ Date:   Tue Sep 16 12:50:05 2014 -0700
     R=r, bradfitz, khr
     CC=golang-codereviews
     https://golang.org/cl/136660044
-
+---
  src/runtime/panic.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/panic.go b/src/runtime/panic.go
+index 12c85e7caf..927b6db44b 100644
+--- a/src/runtime/panic.go
++++ b/src/runtime/panic.go
+@@ -238,7 +238,8 @@ func deferreturn(arg0 uintptr) {
+ }
+ 
+ // Goexit terminates the goroutine that calls it.  No other goroutine is affected.
+-// Goexit runs all deferred calls before terminating the goroutine.
++// Goexit runs all deferred calls before terminating the goroutine.  Because Goexit
++// is not panic, however, any recover calls in those deferred functions will return nil.
+ //
+ // Calling Goexit from the main goroutine terminates that goroutine
+ // without func main returning. Since func main has not returned,

@@ -14,9 +14,218 @@ Date:   Tue Oct 22 10:13:29 2024 -0700
     Auto-Submit: Robert Griesemer <gri@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Tim King <taking@google.com>
-
+---
  src/cmd/compile/internal/types2/expr.go    | 36 ++++++------------------------
  src/cmd/compile/internal/types2/operand.go | 32 ++++++++++++++++++++++++++
  src/go/types/expr.go                       | 36 ++++++------------------------
  src/go/types/operand.go                    | 32 ++++++++++++++++++++++++++
  4 files changed, 78 insertions(+), 58 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/expr.go b/src/cmd/compile/internal/types2/expr.go
+index 76d7891b73..2bf42d1c6f 100644
+--- a/src/cmd/compile/internal/types2/expr.go
++++ b/src/cmd/compile/internal/types2/expr.go
+@@ -566,7 +566,12 @@ Error:
+ 			}
+ 			cause = check.sprintf("type parameter %s cannot use operator %s", errOp.typ, op)
+ 		} else {
+-			cause = check.sprintf("operator %s not defined on %s", op, check.kindString(errOp.typ)) // catch-all
++			// catch-all: neither x nor y is a type parameter
++			what := compositeKind(errOp.typ)
++			if what == "" {
++				what = check.sprintf("%s", errOp.typ)
++			}
++			cause = check.sprintf("operator %s not defined on %s", op, what)
+ 		}
+ 	}
+ 	if switchCase {
+@@ -582,7 +587,7 @@ Error:
+ func (check *Checker) incomparableCause(typ Type) string {
+ 	switch under(typ).(type) {
+ 	case *Slice, *Signature, *Map:
+-		return check.kindString(typ) + " can only be compared to nil"
++		return compositeKind(typ) + " can only be compared to nil"
+ 	}
+ 	// see if we can extract a more specific error
+ 	var cause string
+@@ -592,33 +597,6 @@ func (check *Checker) incomparableCause(typ Type) string {
+ 	return cause
+ }
+ 
+-// kindString returns the type kind as a string.
+-func (check *Checker) kindString(typ Type) string {
+-	switch under(typ).(type) {
+-	case *Array:
+-		return "array"
+-	case *Slice:
+-		return "slice"
+-	case *Struct:
+-		return "struct"
+-	case *Pointer:
+-		return "pointer"
+-	case *Signature:
+-		return "func"
+-	case *Interface:
+-		if isTypeParam(typ) {
+-			return check.sprintf("type parameter %s", typ)
+-		}
+-		return "interface"
+-	case *Map:
+-		return "map"
+-	case *Chan:
+-		return "chan"
+-	default:
+-		return check.sprintf("%s", typ) // catch-all
+-	}
+-}
+-
+ // If e != nil, it must be the shift expression; it may be nil for non-constant shifts.
+ func (check *Checker) shift(x, y *operand, e syntax.Expr, op syntax.Operator) {
+ 	// TODO(gri) This function seems overly complex. Revisit.
+diff --git a/src/cmd/compile/internal/types2/operand.go b/src/cmd/compile/internal/types2/operand.go
+index a34af9104e..1ee0f499f6 100644
+--- a/src/cmd/compile/internal/types2/operand.go
++++ b/src/cmd/compile/internal/types2/operand.go
+@@ -207,6 +207,38 @@ func operandString(x *operand, qf Qualifier) string {
+ 	return buf.String()
+ }
+ 
++// compositeKind returns the kind of the given composite type
++// ("array", "slice", etc.) or the empty string if typ is not
++// composite but a basic type.
++func compositeKind(typ Type) string {
++	switch under(typ).(type) {
++	case *Basic:
++		return ""
++	case *Array:
++		return "array"
++	case *Slice:
++		return "slice"
++	case *Struct:
++		return "struct"
++	case *Pointer:
++		return "pointer"
++	case *Signature:
++		return "func"
++	case *Interface:
++		return "interface"
++	case *Map:
++		return "map"
++	case *Chan:
++		return "chan"
++	case *Tuple:
++		return "tuple"
++	case *Union:
++		return "union"
++	default:
++		panic("unreachable")
++	}
++}
++
+ func (x *operand) String() string {
+ 	return operandString(x, nil)
+ }
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index 8cfacca6f4..d4a0892701 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -556,7 +556,12 @@ Error:
+ 			}
+ 			cause = check.sprintf("type parameter %s cannot use operator %s", errOp.typ, op)
+ 		} else {
+-			cause = check.sprintf("operator %s not defined on %s", op, check.kindString(errOp.typ)) // catch-all
++			// catch-all neither x nor y is a type parameter
++			what := compositeKind(errOp.typ)
++			if what == "" {
++				what = check.sprintf("%s", errOp.typ)
++			}
++			cause = check.sprintf("operator %s not defined on %s", op, what)
+ 		}
+ 	}
+ 	if switchCase {
+@@ -572,7 +577,7 @@ Error:
+ func (check *Checker) incomparableCause(typ Type) string {
+ 	switch under(typ).(type) {
+ 	case *Slice, *Signature, *Map:
+-		return check.kindString(typ) + " can only be compared to nil"
++		return compositeKind(typ) + " can only be compared to nil"
+ 	}
+ 	// see if we can extract a more specific error
+ 	var cause string
+@@ -582,33 +587,6 @@ func (check *Checker) incomparableCause(typ Type) string {
+ 	return cause
+ }
+ 
+-// kindString returns the type kind as a string.
+-func (check *Checker) kindString(typ Type) string {
+-	switch under(typ).(type) {
+-	case *Array:
+-		return "array"
+-	case *Slice:
+-		return "slice"
+-	case *Struct:
+-		return "struct"
+-	case *Pointer:
+-		return "pointer"
+-	case *Signature:
+-		return "func"
+-	case *Interface:
+-		if isTypeParam(typ) {
+-			return check.sprintf("type parameter %s", typ)
+-		}
+-		return "interface"
+-	case *Map:
+-		return "map"
+-	case *Chan:
+-		return "chan"
+-	default:
+-		return check.sprintf("%s", typ) // catch-all
+-	}
+-}
+-
+ // If e != nil, it must be the shift expression; it may be nil for non-constant shifts.
+ func (check *Checker) shift(x, y *operand, e ast.Expr, op token.Token) {
+ 	// TODO(gri) This function seems overly complex. Revisit.
+diff --git a/src/go/types/operand.go b/src/go/types/operand.go
+index 2fca5f4ffc..b6e0566b1a 100644
+--- a/src/go/types/operand.go
++++ b/src/go/types/operand.go
+@@ -211,6 +211,38 @@ func operandString(x *operand, qf Qualifier) string {
+ 	return buf.String()
+ }
+ 
++// compositeKind returns the kind of the given composite type
++// ("array", "slice", etc.) or the empty string if typ is not
++// composite but a basic type.
++func compositeKind(typ Type) string {
++	switch under(typ).(type) {
++	case *Basic:
++		return ""
++	case *Array:
++		return "array"
++	case *Slice:
++		return "slice"
++	case *Struct:
++		return "struct"
++	case *Pointer:
++		return "pointer"
++	case *Signature:
++		return "func"
++	case *Interface:
++		return "interface"
++	case *Map:
++		return "map"
++	case *Chan:
++		return "chan"
++	case *Tuple:
++		return "tuple"
++	case *Union:
++		return "union"
++	default:
++		panic("unreachable")
++	}
++}
++
+ func (x *operand) String() string {
+ 	return operandString(x, nil)
+ }

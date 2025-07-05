@@ -9,9 +9,89 @@ Date:   Wed Jan 2 15:34:28 2013 -0500
     R=ken2
     CC=golang-dev
     https://golang.org/cl/7001054
-
+---
  src/cmd/gc/dcl.c                   | 20 +++++++++++++++++---
  test/fixedbugs/issue4510.dir/f1.go |  9 +++++++++
  test/fixedbugs/issue4510.dir/f2.go |  7 +++++++
  test/fixedbugs/issue4510.go        |  7 +++++++
  4 files changed, 40 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index 7bc9ce988e..1c15e1eb6e 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -151,16 +151,30 @@ void
+ redeclare(Sym *s, char *where)
+ {
+ 	Strlit *pkgstr;
++	int line1, line2;
+ 
+ 	if(s->lastlineno == 0) {
+ 		pkgstr = s->origpkg ? s->origpkg->path : s->pkg->path;
+ 		yyerror("%S redeclared %s\n"
+ 			"\tprevious declaration during import \"%Z\"",
+ 			s, where, pkgstr);
+-	} else
+-		yyerror("%S redeclared %s\n"
++	} else {
++		line1 = parserline();
++		line2 = s->lastlineno;
++		
++		// When an import and a declaration collide in separate files,
++		// present the import as the "redeclared", because the declaration
++		// is visible where the import is, but not vice versa.
++		// See issue 4510.
++		if(s->def == N) {
++			line2 = line1;
++			line1 = s->lastlineno;
++		}
++
++		yyerrorl(line1, "%S redeclared %s (%#N)\n"
+ 			"\tprevious declaration at %L",
+-			s, where, s->lastlineno);
++			s, where, s->def, line2);
++	}
+ }
+ 
+ static int vargen;
+diff --git a/test/fixedbugs/issue4510.dir/f1.go b/test/fixedbugs/issue4510.dir/f1.go
+new file mode 100644
+index 0000000000..1e642e4cee
+--- /dev/null
++++ b/test/fixedbugs/issue4510.dir/f1.go
+@@ -0,0 +1,9 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++import "fmt" // ERROR "fmt redeclared"
++
++var _ = fmt.Printf
+diff --git a/test/fixedbugs/issue4510.dir/f2.go b/test/fixedbugs/issue4510.dir/f2.go
+new file mode 100644
+index 0000000000..895fc342ba
+--- /dev/null
++++ b/test/fixedbugs/issue4510.dir/f2.go
+@@ -0,0 +1,7 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func fmt() {}
+diff --git a/test/fixedbugs/issue4510.go b/test/fixedbugs/issue4510.go
+new file mode 100644
+index 0000000000..003f9e8e16
+--- /dev/null
++++ b/test/fixedbugs/issue4510.go
+@@ -0,0 +1,7 @@
++// errorcheckdir
++
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ignored

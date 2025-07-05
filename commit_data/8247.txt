@@ -7,6 +7,30 @@ Date:   Wed Apr 27 15:36:39 2011 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4432076
-
+---
  src/pkg/http/request.go | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/http/request.go b/src/pkg/http/request.go
+index 26039cb623..14a505d9f8 100644
+--- a/src/pkg/http/request.go
++++ b/src/pkg/http/request.go
+@@ -596,13 +596,17 @@ func (r *Request) ParseForm() (err os.Error) {
+ 		ct := r.Header.Get("Content-Type")
+ 		switch strings.Split(ct, ";", 2)[0] {
+ 		case "text/plain", "application/x-www-form-urlencoded", "":
+-			b, e := ioutil.ReadAll(r.Body)
++			const maxFormSize = int64(10 << 20) // 10 MB is a lot of text.
++			b, e := ioutil.ReadAll(io.LimitReader(r.Body, maxFormSize+1))
+ 			if e != nil {
+ 				if err == nil {
+ 					err = e
+ 				}
+ 				break
+ 			}
++			if int64(len(b)) > maxFormSize {
++				return os.NewError("http: POST too large")
++			}
+ 			e = parseQuery(r.Form, string(b))
+ 			if err == nil {
+ 				err = e

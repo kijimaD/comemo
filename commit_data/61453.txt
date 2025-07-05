@@ -41,7 +41,7 @@ Date:   Mon Nov 4 18:14:00 2024 +0800
     Reviewed-by: sophie zhao <zhaoxiaolin@loongson.cn>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/asm/internal/arch/loong64.go            |  78 +++++++
  src/cmd/asm/internal/asm/parse.go               |  18 +-
  src/cmd/asm/internal/asm/testdata/loong64enc1.s |  60 +++++
@@ -53,3 +53,960 @@ Date:   Mon Nov 4 18:14:00 2024 +0800
  src/cmd/internal/obj/loong64/list.go            |  93 ++++++--
  src/cmd/internal/obj/util.go                    |   8 +-
  10 files changed, 663 insertions(+), 41 deletions(-)
+
+diff --git a/src/cmd/asm/internal/arch/loong64.go b/src/cmd/asm/internal/arch/loong64.go
+index e68a2e9ef8..1fef6baf42 100644
+--- a/src/cmd/asm/internal/arch/loong64.go
++++ b/src/cmd/asm/internal/arch/loong64.go
+@@ -11,6 +11,8 @@ package arch
+ import (
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/loong64"
++	"errors"
++	"fmt"
+ )
+ 
+ func jumpLoong64(word string) bool {
+@@ -48,6 +50,82 @@ func IsLoong64AMO(op obj.As) bool {
+ 	return loong64.IsAtomicInst(op)
+ }
+ 
++var loong64ElemExtMap = map[string]int16{
++	"B":  loong64.ARNG_B,
++	"H":  loong64.ARNG_H,
++	"W":  loong64.ARNG_W,
++	"V":  loong64.ARNG_V,
++	"BU": loong64.ARNG_BU,
++	"HU": loong64.ARNG_HU,
++	"WU": loong64.ARNG_WU,
++	"VU": loong64.ARNG_VU,
++}
++
++var loong64LsxArngExtMap = map[string]int16{
++	"B16": loong64.ARNG_16B,
++	"H8":  loong64.ARNG_8H,
++	"W4":  loong64.ARNG_4W,
++	"V2":  loong64.ARNG_2V,
++}
++
++var loong64LasxArngExtMap = map[string]int16{
++	"B32": loong64.ARNG_32B,
++	"H16": loong64.ARNG_16H,
++	"W8":  loong64.ARNG_8W,
++	"V4":  loong64.ARNG_4V,
++	"Q2":  loong64.ARNG_2Q,
++}
++
++// Loong64RegisterExtension constructs an Loong64 register with extension or arrangement.
++func Loong64RegisterExtension(a *obj.Addr, ext string, reg, num int16, isAmount, isIndex bool) error {
++	var ok bool
++	var arng_type int16
++	var simd_type int16
++
++	switch {
++	case reg >= loong64.REG_V0 && reg <= loong64.REG_V31:
++		simd_type = loong64.LSX
++	case reg >= loong64.REG_X0 && reg <= loong64.REG_X31:
++		simd_type = loong64.LASX
++	default:
++		return errors.New("Loong64 extension: invalid LSX/LASX register: " + fmt.Sprintf("%p", reg))
++	}
++
++	if isIndex {
++		arng_type, ok = loong64ElemExtMap[ext]
++		if !ok {
++			return errors.New("Loong64 extension: invalid LSX/LASX arrangement type: " + ext)
++		}
++
++		a.Reg = loong64.REG_ELEM
++		a.Reg += ((reg & loong64.EXT_REG_MASK) << loong64.EXT_REG_SHIFT)
++		a.Reg += ((arng_type & loong64.EXT_TYPE_MASK) << loong64.EXT_TYPE_SHIFT)
++		a.Reg += ((simd_type & loong64.EXT_SIMDTYPE_MASK) << loong64.EXT_SIMDTYPE_SHIFT)
++		a.Index = num
++	} else {
++		switch simd_type {
++		case loong64.LSX:
++			arng_type, ok = loong64LsxArngExtMap[ext]
++			if !ok {
++				return errors.New("Loong64 extension: invalid LSX arrangement type: " + ext)
++			}
++
++		case loong64.LASX:
++			arng_type, ok = loong64LasxArngExtMap[ext]
++			if !ok {
++				return errors.New("Loong64 extension: invalid LASX arrangement type: " + ext)
++			}
++		}
++
++		a.Reg = loong64.REG_ARNG
++		a.Reg += ((reg & loong64.EXT_REG_MASK) << loong64.EXT_REG_SHIFT)
++		a.Reg += ((arng_type & loong64.EXT_TYPE_MASK) << loong64.EXT_TYPE_SHIFT)
++		a.Reg += ((simd_type & loong64.EXT_SIMDTYPE_MASK) << loong64.EXT_SIMDTYPE_SHIFT)
++	}
++
++	return nil
++}
++
+ func loong64RegisterNumber(name string, n int16) (int16, bool) {
+ 	switch name {
+ 	case "F":
+diff --git a/src/cmd/asm/internal/asm/parse.go b/src/cmd/asm/internal/asm/parse.go
+index 257311fed9..638f4e2fc4 100644
+--- a/src/cmd/asm/internal/asm/parse.go
++++ b/src/cmd/asm/internal/asm/parse.go
+@@ -217,8 +217,8 @@ next:
+ 		for {
+ 			tok = p.nextToken()
+ 			if len(operands) == 0 && len(items) == 0 {
+-				if p.arch.InFamily(sys.ARM, sys.ARM64, sys.AMD64, sys.I386, sys.RISCV64) && tok == '.' {
+-					// Suffixes: ARM conditionals, RISCV rounding mode or x86 modifiers.
++				if p.arch.InFamily(sys.ARM, sys.ARM64, sys.AMD64, sys.I386, sys.Loong64, sys.RISCV64) && tok == '.' {
++					// Suffixes: ARM conditionals, Loong64 vector instructions, RISCV rounding mode or x86 modifiers.
+ 					tok = p.nextToken()
+ 					str := p.lex.Text()
+ 					if tok != scanner.Ident {
+@@ -570,12 +570,13 @@ func (p *Parser) atRegisterShift() bool {
+ // atRegisterExtension reports whether we are at the start of an ARM64 extended register.
+ // We have consumed the register or R prefix.
+ func (p *Parser) atRegisterExtension() bool {
+-	// ARM64 only.
+-	if p.arch.Family != sys.ARM64 {
++	switch p.arch.Family {
++	case sys.ARM64, sys.Loong64:
++		// R1.xxx
++		return p.peek() == '.'
++	default:
+ 		return false
+ 	}
+-	// R1.xxx
+-	return p.peek() == '.'
+ }
+ 
+ // registerReference parses a register given either the name, R10, or a parenthesized form, SPR(10).
+@@ -772,6 +773,11 @@ func (p *Parser) registerExtension(a *obj.Addr, name string, prefix rune) {
+ 		if err != nil {
+ 			p.errorf("%v", err)
+ 		}
++	case sys.Loong64:
++		err := arch.Loong64RegisterExtension(a, ext, reg, num, isAmount, isIndex)
++		if err != nil {
++			p.errorf("%v", err)
++		}
+ 	default:
+ 		p.errorf("register extension not supported on this architecture")
+ 	}
+diff --git a/src/cmd/asm/internal/asm/testdata/loong64enc1.s b/src/cmd/asm/internal/asm/testdata/loong64enc1.s
+index 4b16aae576..4a88aca031 100644
+--- a/src/cmd/asm/internal/asm/testdata/loong64enc1.s
++++ b/src/cmd/asm/internal/asm/testdata/loong64enc1.s
+@@ -437,6 +437,66 @@ lable2:
+ 	XVMOVQ		y+16(FP), X6    // 0660802c
+ 	XVMOVQ		x+2030(FP), X7  // 07d89f2c
+ 
++	// Move vector element to general-purpose register: VMOVQ  <Vn>.<T>[index], Rd
++	VMOVQ		V0.B[0], R4     // 0480ef72
++	VMOVQ		V3.B[3], R5     // 658cef72
++	VMOVQ		V4.H[2], R6     // 86c8ef72
++	VMOVQ		V5.W[2], R7     // a7e8ef72
++	VMOVQ		V6.V[1], R8     // c8f4ef72
++	VMOVQ		V7.BU[0], R4    // e480f372
++	VMOVQ		V7.BU[1], R4    // e484f372
++	VMOVQ		V9.BU[3], R5    // 258df372
++	VMOVQ		V10.HU[2], R6   // 46c9f372
++	VMOVQ		V11.WU[2], R7   // 67e9f372
++	VMOVQ		V31.VU[1], R8   // e8f7f372
++	XVMOVQ		X1.W[2], R7     // 27c8ef76
++	XVMOVQ		X6.V[2], R8     // c8e8ef76
++	XVMOVQ		X8.WU[2], R7    // 07c9f376
++	XVMOVQ		X31.VU[2], R8   // e8ebf376
++
++	// Move general-purpose register to a vector element: VMOVQ  Rn, <Vd>.<T>[index]
++	VMOVQ		R4, V2.B[0]     // 8280eb72
++	VMOVQ		R4, V3.B[1]     // 8384eb72
++	VMOVQ		R5, V4.B[3]     // a48ceb72
++	VMOVQ		R6, V5.H[2]     // c5c8eb72
++	VMOVQ		R7, V6.W[2]     // e6e8eb72
++	VMOVQ		R8, V7.V[1]     // 07f5eb72
++	XVMOVQ		R7, X9.W[2]     // e9c8eb76
++	XVMOVQ		R8, X10.V[2]    // 0ae9eb76
++
++	// Duplicate general-purpose register to vector
++	VMOVQ		R4, V2.B16      // 82009f72
++	VMOVQ		R5, V3.H8       // a3049f72
++	VMOVQ		R6, V4.W4       // c4089f72
++	VMOVQ		R7, V5.V2       // e50c9f72
++	XVMOVQ		R16, X31.B32    // 1f029f76
++	XVMOVQ		R17, X28.H16    // 3c069f76
++	XVMOVQ		R18, X10.W8     // 4a0a9f76
++	XVMOVQ		R19, X9.V4      // 690e9f76
++
++	// Move vector
++	XVMOVQ		X0, X31.B32     // 1f000777
++	XVMOVQ		X1, X30.H16     // 3e800777
++	XVMOVQ		X2, X29.W8      // 5dc00777
++	XVMOVQ		X3, X28.V4      // 7ce00777
++	XVMOVQ		X3, X27.Q2      // 7bf00777
++
++	// Move vector element to scalar.
++	XVMOVQ		X0, X31.W[7]    // 1fdcff76
++	XVMOVQ		X1, X29.W[0]    // 3dc0ff76
++	XVMOVQ		X3, X28.V[3]    // 7cecff76
++	XVMOVQ		X4, X27.V[0]    // 9be0ff76
++	XVMOVQ		X31.W[7], X0    // e0df0377
++	XVMOVQ		X29.W[0], X1    // a1c30377
++	XVMOVQ		X28.V[3], X8    // 88ef0377
++	XVMOVQ		X27.V[0], X9    // 69e30377
++
++	//Move vector element to vector.
++	VMOVQ		V1.B[3], V9.B16 // 298cf772
++	VMOVQ		V2.H[2], V8.H8  // 48c8f772
++	VMOVQ		V3.W[1], V7.W4  // 67e4f772
++	VMOVQ		V4.V[0], V6.V2  // 86f0f772
++
+ 	// VSEQ{B,H,W,V}, XVSEQ{B,H,W,V} instruction
+ 	VSEQB		V1, V2, V3      // 43040070
+ 	VSEQH		V1, V2, V3      // 43840070
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index b70d308317..1b2d344eaf 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -180,14 +180,16 @@ import (
+ //			offset = ((reg&31) << 16) | (exttype << 13) | (amount<<10)
+ //
+ //	reg.<T>
+-//		Register arrangement for ARM64 SIMD register
+-//		e.g.: V1.S4, V2.S2, V7.D2, V2.H4, V6.B16
++//		Register arrangement for ARM64 and Loong64 SIMD register
++//		e.g.:
++//			On ARM64: V1.S4, V2.S2, V7.D2, V2.H4, V6.B16
++//			On Loong64: X1.B32, X1.H16, X1.W8, X2.V4, X1.Q1, V1.B16, V1.H8, V1.W4, V1.V2
+ //		Encoding:
+ //			type = TYPE_REG
+ //			reg = REG_ARNG + register + arrangement
+ //
+ //	reg.<T>[index]
+-//		Register element for ARM64
++//		Register element for ARM64 and Loong64
+ //		Encoding:
+ //			type = TYPE_REG
+ //			reg = REG_ELEM + register + arrangement
+diff --git a/src/cmd/internal/obj/loong64/a.out.go b/src/cmd/internal/obj/loong64/a.out.go
+index 80fba3c7b7..efd5b1b3cc 100644
+--- a/src/cmd/internal/obj/loong64/a.out.go
++++ b/src/cmd/internal/obj/loong64/a.out.go
+@@ -220,8 +220,6 @@ const (
+ 	REG_X30
+ 	REG_X31
+ 
+-	REG_LAST = REG_X31 // the last defined register
+-
+ 	REG_SPECIAL = REG_FCSR0
+ 
+ 	REGZERO = REG_R0 // set to zero
+@@ -266,6 +264,58 @@ const (
+ 	BRANCH = 1 << 3
+ )
+ 
++// Arrangement for Loong64 SIMD instructions
++const (
++	// arrangement types
++	ARNG_32B int16 = iota
++	ARNG_16H
++	ARNG_8W
++	ARNG_4V
++	ARNG_2Q
++	ARNG_16B
++	ARNG_8H
++	ARNG_4W
++	ARNG_2V
++	ARNG_B
++	ARNG_H
++	ARNG_W
++	ARNG_V
++	ARNG_BU
++	ARNG_HU
++	ARNG_WU
++	ARNG_VU
++)
++
++// LoongArch64 SIMD extension type
++const (
++	LSX int16 = iota
++	LASX
++)
++
++// bits 0-4 indicates register: Vn or Xn
++// bits 5-9 indicates arrangement: <T>
++// bits 10 indicates SMID type: 0: LSX, 1: LASX
++const (
++	REG_ARNG = obj.RBaseLOONG64 + (1 << 10) + (iota << 11) // Vn.<T>
++	REG_ELEM                                               // Vn.<T>[index]
++	REG_ELEM_END
++)
++
++const (
++	EXT_REG_SHIFT = 0
++	EXT_REG_MASK  = 0x1f
++
++	EXT_TYPE_SHIFT = 5
++	EXT_TYPE_MASK  = 0x1f
++
++	EXT_SIMDTYPE_SHIFT = 10
++	EXT_SIMDTYPE_MASK  = 0x1
++)
++
++const (
++	REG_LAST = REG_ELEM_END // the last defined register
++)
++
+ const (
+ 	C_NONE = iota
+ 	C_REG
+@@ -274,6 +324,8 @@ const (
+ 	C_FCCREG
+ 	C_VREG
+ 	C_XREG
++	C_ARNG // Vn.<T>
++	C_ELEM // Vn.<T>[index]
+ 	C_ZCON
+ 	C_SCON // 12 bit signed
+ 	C_UCON // 32 bit signed, low 12 bits 0
+diff --git a/src/cmd/internal/obj/loong64/asm.go b/src/cmd/internal/obj/loong64/asm.go
+index 7d8b18116f..9024c5e53e 100644
+--- a/src/cmd/internal/obj/loong64/asm.go
++++ b/src/cmd/internal/obj/loong64/asm.go
+@@ -96,8 +96,8 @@ var optab = []Optab{
+ 	{AVPCNTB, C_VREG, C_NONE, C_NONE, C_VREG, C_NONE, 9, 4, 0, 0},
+ 	{AXVPCNTB, C_XREG, C_NONE, C_NONE, C_XREG, C_NONE, 9, 4, 0, 0},
+ 
+-	{AFMADDF, C_FREG, C_FREG, C_NONE, C_FREG, C_NONE, 39, 4, 0, 0},
+-	{AFMADDF, C_FREG, C_FREG, C_FREG, C_FREG, C_NONE, 39, 4, 0, 0},
++	{AFMADDF, C_FREG, C_FREG, C_NONE, C_FREG, C_NONE, 37, 4, 0, 0},
++	{AFMADDF, C_FREG, C_FREG, C_FREG, C_FREG, C_NONE, 37, 4, 0, 0},
+ 
+ 	{AMOVW, C_REG, C_NONE, C_NONE, C_SAUTO, C_NONE, 7, 4, REGSP, 0},
+ 	{AMOVWU, C_REG, C_NONE, C_NONE, C_SAUTO, C_NONE, 7, 4, REGSP, 0},
+@@ -300,7 +300,7 @@ var optab = []Optab{
+ 	{AMOVBU, C_TLS_IE, C_NONE, C_NONE, C_REG, C_NONE, 57, 16, 0, 0},
+ 	{AMOVWU, C_TLS_IE, C_NONE, C_NONE, C_REG, C_NONE, 57, 16, 0, 0},
+ 
+-	{AWORD, C_LCON, C_NONE, C_NONE, C_NONE, C_NONE, 40, 4, 0, 0},
++	{AWORD, C_LCON, C_NONE, C_NONE, C_NONE, C_NONE, 38, 4, 0, 0},
+ 	{AWORD, C_DCON, C_NONE, C_NONE, C_NONE, C_NONE, 61, 4, 0, 0},
+ 
+ 	{AMOVV, C_GOTADDR, C_NONE, C_NONE, C_REG, C_NONE, 65, 8, 0, 0},
+@@ -332,6 +332,20 @@ var optab = []Optab{
+ 	{AVMOVQ, C_ROFF, C_NONE, C_NONE, C_VREG, C_NONE, 21, 4, 0, 0},
+ 	{AXVMOVQ, C_ROFF, C_NONE, C_NONE, C_XREG, C_NONE, 21, 4, 0, 0},
+ 
++	{AVMOVQ, C_REG, C_NONE, C_NONE, C_ELEM, C_NONE, 39, 4, 0, 0},
++	{AVMOVQ, C_ELEM, C_NONE, C_NONE, C_REG, C_NONE, 40, 4, 0, 0},
++	{AXVMOVQ, C_REG, C_NONE, C_NONE, C_ELEM, C_NONE, 39, 4, 0, 0},
++	{AXVMOVQ, C_ELEM, C_NONE, C_NONE, C_REG, C_NONE, 40, 4, 0, 0},
++
++	{AXVMOVQ, C_XREG, C_NONE, C_NONE, C_ELEM, C_NONE, 43, 4, 0, 0},
++	{AXVMOVQ, C_ELEM, C_NONE, C_NONE, C_XREG, C_NONE, 44, 4, 0, 0},
++
++	{AVMOVQ, C_REG, C_NONE, C_NONE, C_ARNG, C_NONE, 41, 4, 0, 0},
++	{AXVMOVQ, C_REG, C_NONE, C_NONE, C_ARNG, C_NONE, 41, 4, 0, 0},
++	{AXVMOVQ, C_XREG, C_NONE, C_NONE, C_ARNG, C_NONE, 42, 4, 0, 0},
++
++	{AVMOVQ, C_ELEM, C_NONE, C_NONE, C_ARNG, C_NONE, 45, 4, 0, 0},
++
+ 	{obj.APCALIGN, C_SCON, C_NONE, C_NONE, C_NONE, C_NONE, 0, 0, 0, 0},
+ 	{obj.APCDATA, C_LCON, C_NONE, C_NONE, C_LCON, C_NONE, 0, 0, 0, 0},
+ 	{obj.APCDATA, C_DCON, C_NONE, C_NONE, C_DCON, C_NONE, 0, 0, 0, 0},
+@@ -832,6 +846,10 @@ func (c *ctxt0) rclass(r int16) int {
+ 		return C_VREG
+ 	case REG_X0 <= r && r <= REG_X31:
+ 		return C_XREG
++	case r >= REG_ARNG && r < REG_ELEM:
++		return C_ARNG
++	case r >= REG_ELEM && r < REG_ELEM_END:
++		return C_ELEM
+ 	}
+ 
+ 	return C_GOK
+@@ -1673,7 +1691,7 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		}
+ 
+ 	case 30: // mov gr/fr/fcc/fcsr, fr/fcc/fcsr/gr
+-		a := c.specailFpMovInst(p.As, oclass(&p.From), oclass(&p.To))
++		a := c.specialFpMovInst(p.As, oclass(&p.From), oclass(&p.To))
+ 		o1 = OP_RR(a, uint32(p.From.Reg), uint32(p.To.Reg))
+ 
+ 	case 34: // mov $con,fr
+@@ -1682,7 +1700,7 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		if o.from1 == C_ANDCON {
+ 			a = AOR
+ 		}
+-		a2 := c.specailFpMovInst(p.As, C_REG, oclass(&p.To))
++		a2 := c.specialFpMovInst(p.As, C_REG, oclass(&p.To))
+ 		o1 = OP_12IRR(c.opirr(a), uint32(v), uint32(0), uint32(REGTMP))
+ 		o2 = OP_RR(a2, uint32(REGTMP), uint32(p.To.Reg))
+ 
+@@ -1706,16 +1724,96 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		o2 = OP_RRR(c.oprrr(add), uint32(r), uint32(REGTMP), uint32(REGTMP))
+ 		o3 = OP_12IRR(c.opirr(-p.As), uint32(v), uint32(REGTMP), uint32(p.To.Reg))
+ 
+-	case 39: // fmadd r1, r2, [r3], r4
++	case 37: // fmadd r1, r2, [r3], r4
+ 		r := int(p.To.Reg)
+ 		if len(p.RestArgs) > 0 {
+ 			r = int(p.GetFrom3().Reg)
+ 		}
+ 		o1 = OP_RRRR(c.oprrrr(p.As), uint32(p.From.Reg), uint32(p.Reg), uint32(r), uint32(p.To.Reg))
+ 
+-	case 40: // word
++	case 38: // word
+ 		o1 = uint32(c.regoff(&p.From))
+ 
++	case 39: // vmov Rn, Vd.<T>[index]
++		v, m := c.specialLsxMovInst(p.As, p.From.Reg, p.To.Reg)
++		if v == 0 {
++			c.ctxt.Diag("illegal arng type combination: %v\n", p)
++		}
++
++		Rj := uint32(p.From.Reg & EXT_REG_MASK)
++		Vd := uint32(p.To.Reg & EXT_REG_MASK)
++		index := uint32(p.To.Index)
++		c.checkindex(p, index, m)
++		o1 = v | (index << 10) | (Rj << 5) | Vd
++
++	case 40: // vmov Vd.<T>[index], Rn
++		v, m := c.specialLsxMovInst(p.As, p.From.Reg, p.To.Reg)
++		if v == 0 {
++			c.ctxt.Diag("illegal arng type combination: %v\n", p)
++		}
++
++		Vj := uint32(p.From.Reg & EXT_REG_MASK)
++		Rd := uint32(p.To.Reg & EXT_REG_MASK)
++		index := uint32(p.From.Index)
++		c.checkindex(p, index, m)
++		o1 = v | (index << 10) | (Vj << 5) | Rd
++
++	case 41: // vmov Rn, Vd.<T>
++		v, _ := c.specialLsxMovInst(p.As, p.From.Reg, p.To.Reg)
++		if v == 0 {
++			c.ctxt.Diag("illegal arng type combination: %v\n", p)
++		}
++
++		Rj := uint32(p.From.Reg & EXT_REG_MASK)
++		Vd := uint32(p.To.Reg & EXT_REG_MASK)
++		o1 = v | (Rj << 5) | Vd
++
++	case 42: // vmov  xj, xd.<T>
++		v, _ := c.specialLsxMovInst(p.As, p.From.Reg, p.To.Reg)
++		if v == 0 {
++			c.ctxt.Diag("illegal arng type combination: %v\n", p)
++		}
++
++		Xj := uint32(p.From.Reg & EXT_REG_MASK)
++		Xd := uint32(p.To.Reg & EXT_REG_MASK)
++		o1 = v | (Xj << 5) | Xd
++
++	case 43: // vmov  xj, xd.<T>[index]
++		v, m := c.specialLsxMovInst(p.As, p.From.Reg, p.To.Reg)
++		if v == 0 {
++			c.ctxt.Diag("illegal arng type combination: %v\n", p)
++		}
++
++		Xj := uint32(p.From.Reg & EXT_REG_MASK)
++		Xd := uint32(p.To.Reg & EXT_REG_MASK)
++		index := uint32(p.To.Index)
++		c.checkindex(p, index, m)
++		o1 = v | (index << 10) | (Xj << 5) | Xd
++
++	case 44: // vmov  xj.<T>[index], xd
++		v, m := c.specialLsxMovInst(p.As, p.From.Reg, p.To.Reg)
++		if v == 0 {
++			c.ctxt.Diag("illegal arng type combination: %v\n", p)
++		}
++
++		Xj := uint32(p.From.Reg & EXT_REG_MASK)
++		Xd := uint32(p.To.Reg & EXT_REG_MASK)
++		index := uint32(p.From.Index)
++		c.checkindex(p, index, m)
++		o1 = v | (index << 10) | (Xj << 5) | Xd
++
++	case 45: // vmov  vj.<T>[index], vd.<T>
++		v, m := c.specialLsxMovInst(p.As, p.From.Reg, p.To.Reg)
++		if v == 0 {
++			c.ctxt.Diag("illegal arng type combination: %v\n", p)
++		}
++
++		vj := uint32(p.From.Reg & EXT_REG_MASK)
++		vd := uint32(p.To.Reg & EXT_REG_MASK)
++		index := uint32(p.From.Index)
++		c.checkindex(p, index, m)
++		o1 = v | (index << 10) | (vj << 5) | vd
++
+ 	case 49:
+ 		if p.As == ANOOP {
+ 			// andi r0, r0, 0
+@@ -1926,6 +2024,13 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 	out[4] = o5
+ }
+ 
++// checkindex checks if index >= 0 && index <= maxindex
++func (c *ctxt0) checkindex(p *obj.Prog, index uint32, mask uint32) {
++	if (index & ^mask) != 0 {
++		c.ctxt.Diag("register element index out of range 0 to %d: %v", mask, p)
++	}
++}
++
+ func (c *ctxt0) vregoff(a *obj.Addr) int64 {
+ 	c.instoffset = 0
+ 	c.aclass(a)
+@@ -2518,7 +2623,7 @@ func (c *ctxt0) opirir(a obj.As) uint32 {
+ 	return 0
+ }
+ 
+-func (c *ctxt0) specailFpMovInst(a obj.As, fclass int, tclass int) uint32 {
++func (c *ctxt0) specialFpMovInst(a obj.As, fclass int, tclass int) uint32 {
+ 	switch a {
+ 	case AMOVV:
+ 		switch fclass {
+@@ -2572,6 +2677,168 @@ func (c *ctxt0) specailFpMovInst(a obj.As, fclass int, tclass int) uint32 {
+ 	return 0
+ }
+ 
++func (c *ctxt0) specialLsxMovInst(a obj.As, fReg, tReg int16) (op_code, index_mask uint32) {
++	farng := (fReg >> EXT_TYPE_SHIFT) & EXT_TYPE_MASK
++	tarng := (tReg >> EXT_TYPE_SHIFT) & EXT_TYPE_MASK
++	fclass := c.rclass(fReg)
++	tclass := c.rclass(tReg)
++
++	switch fclass | (tclass << 16) {
++	case C_REG | (C_ELEM << 16):
++		// vmov Rn, Vd.<T>[index]
++		switch a {
++		case AVMOVQ:
++			switch tarng {
++			case ARNG_B:
++				return (0x01CBAE << 14), 0xf // vinsgr2vr.b
++			case ARNG_H:
++				return (0x03975E << 13), 0x7 // vinsgr2vr.h
++			case ARNG_W:
++				return (0x072EBE << 12), 0x3 // vinsgr2vr.w
++			case ARNG_V:
++				return (0x0E5D7E << 11), 0x1 // vinsgr2vr.d
++			}
++		case AXVMOVQ:
++			switch tarng {
++			case ARNG_W:
++				return (0x03B75E << 13), 0x7 // xvinsgr2vr.w
++			case ARNG_V:
++				return (0x076EBE << 12), 0x3 // xvinsgr2vr.d
++			}
++		}
++
++	case C_ELEM | (C_REG << 16):
++		// vmov Vd.<T>[index], Rn
++		switch a {
++		case AVMOVQ:
++			switch farng {
++			case ARNG_B:
++				return (0x01CBBE << 14), 0xf // vpickve2gr.b
++			case ARNG_H:
++				return (0x03977E << 13), 0x7 // vpickve2gr.h
++			case ARNG_W:
++				return (0x072EFE << 12), 0x3 // vpickve2gr.w
++			case ARNG_V:
++				return (0x0E5DFE << 11), 0x1 // vpickve2gr.d
++			case ARNG_BU:
++				return (0x01CBCE << 14), 0xf // vpickve2gr.bu
++			case ARNG_HU:
++				return (0x03979E << 13), 0x7 // vpickve2gr.hu
++			case ARNG_WU:
++				return (0x072F3E << 12), 0x3 // vpickve2gr.wu
++			case ARNG_VU:
++				return (0x0E5E7E << 11), 0x1 // vpickve2gr.du
++			}
++		case AXVMOVQ:
++			switch farng {
++			case ARNG_W:
++				return (0x03B77E << 13), 0x7 // xvpickve2gr.w
++			case ARNG_V:
++				return (0x076EFE << 12), 0x3 // xvpickve2gr.d
++			case ARNG_WU:
++				return (0x03B79E << 13), 0x7 // xvpickve2gr.wu
++			case ARNG_VU:
++				return (0x076F3E << 12), 0x3 // xvpickve2gr.du
++			}
++		}
++
++	case C_REG | (C_ARNG << 16):
++		// vmov Rn, Vd.<T>
++		switch a {
++		case AVMOVQ:
++			switch tarng {
++			case ARNG_16B:
++				return (0x1CA7C0 << 10), 0x0 // vreplgr2vr.b
++			case ARNG_8H:
++				return (0x1CA7C1 << 10), 0x0 // vreplgr2vr.h
++			case ARNG_4W:
++				return (0x1CA7C2 << 10), 0x0 // vreplgr2vr.w
++			case ARNG_2V:
++				return (0x1CA7C3 << 10), 0x0 // vreplgr2vr.d
++			}
++		case AXVMOVQ:
++			switch tarng {
++			case ARNG_32B:
++				return (0x1DA7C0 << 10), 0x0 // xvreplgr2vr.b
++			case ARNG_16H:
++				return (0x1DA7C1 << 10), 0x0 // xvreplgr2vr.h
++			case ARNG_8W:
++				return (0x1DA7C2 << 10), 0x0 // xvreplgr2vr.w
++			case ARNG_4V:
++				return (0x1DA7C3 << 10), 0x0 // xvreplgr2vr.d
++			}
++		}
++
++	case C_XREG | (C_ARNG << 16):
++		// vmov  xj, xd.<T>
++		switch a {
++		case AVMOVQ:
++			return 0, 0 // unsupported op
++		case AXVMOVQ:
++			switch tarng {
++			case ARNG_32B:
++				return (0x1DC1C0 << 10), 0x0 // xvreplve0.b
++			case ARNG_16H:
++				return (0x1DC1E0 << 10), 0x0 // xvreplve0.h
++			case ARNG_8W:
++				return (0x1DC1F0 << 10), 0x0 // xvreplve0.w
++			case ARNG_4V:
++				return (0x1DC1F8 << 10), 0x0 // xvreplve0.d
++			case ARNG_2Q:
++				return (0x1DC1FC << 10), 0x0 // xvreplve0.q
++			}
++		}
++
++	case C_XREG | (C_ELEM << 16):
++		// vmov  xj, xd.<T>[index]
++		switch a {
++		case AVMOVQ:
++			return 0, 0 // unsupported op
++		case AXVMOVQ:
++			switch tarng {
++			case ARNG_W:
++				return (0x03B7FE << 13), 0x7 // xvinsve0.w
++			case ARNG_V:
++				return (0x076FFE << 12), 0x3 // xvinsve0.d
++			}
++		}
++
++	case C_ELEM | (C_XREG << 16):
++		// vmov  xj.<T>[index], xd
++		switch a {
++		case AVMOVQ:
++			return 0, 0 // unsupported op
++		case AXVMOVQ:
++			switch farng {
++			case ARNG_W:
++				return (0x03B81E << 13), 0x7 // xvpickve.w
++			case ARNG_V:
++				return (0x07703E << 12), 0x3 // xvpickve.d
++			}
++		}
++
++	case C_ELEM | (C_ARNG << 16):
++		// vmov  vj.<T>[index], vd.<T>
++		switch a {
++		case AVMOVQ:
++			switch int32(farng) | (int32(tarng) << 16) {
++			case int32(ARNG_B) | (int32(ARNG_16B) << 16):
++				return (0x01CBDE << 14), 0xf // vreplvei.b
++			case int32(ARNG_H) | (int32(ARNG_8H) << 16):
++				return (0x0397BE << 13), 0x7 // vreplvei.h
++			case int32(ARNG_W) | (int32(ARNG_4W) << 16):
++				return (0x072F7E << 12), 0x3 // vreplvei.w
++			case int32(ARNG_V) | (int32(ARNG_2V) << 16):
++				return (0x0E5EFE << 11), 0x1 // vreplvei.d
++			}
++		case AXVMOVQ:
++			return 0, 0 // unsupported op
++		}
++	}
++
++	return 0, 0
++}
++
+ func vshift(a obj.As) bool {
+ 	switch a {
+ 	case ASLLV,
+diff --git a/src/cmd/internal/obj/loong64/cnames.go b/src/cmd/internal/obj/loong64/cnames.go
+index 90a50d2d81..6e7101860a 100644
+--- a/src/cmd/internal/obj/loong64/cnames.go
++++ b/src/cmd/internal/obj/loong64/cnames.go
+@@ -13,6 +13,8 @@ var cnames0 = []string{
+ 	"FCCREG",
+ 	"VREG",
+ 	"XREG",
++	"ARNG",
++	"ELEM",
+ 	"ZCON",
+ 	"SCON",
+ 	"UCON",
+diff --git a/src/cmd/internal/obj/loong64/doc.go b/src/cmd/internal/obj/loong64/doc.go
+index e657f63d03..0896168fa1 100644
+--- a/src/cmd/internal/obj/loong64/doc.go
++++ b/src/cmd/internal/obj/loong64/doc.go
+@@ -105,6 +105,104 @@ Examples:
+ 	MOVV R6, (R4)(R5)  <=>  stx.d R6, R5, R5
+ 	MOVV F6, (R4)(R5)  <=>  fstx.d F6, R5, R5
+ 
++3. Alphabetical list of SIMD instructions
++
++Note: In the following sections 3.1 to 3.6, "ui4" (4-bit unsigned int immediate),
++"ui3", "ui2", and "ui1" represent the related "index".
++
++3.1 Move general-purpose register to a vector element:
++
++	Instruction format:
++	        VMOVQ  Rj, <Vd>.<T>[index]
++
++	Mapping between Go and platform assembly:
++	       Go assembly       |      platform assembly     |          semantics
++	-------------------------------------------------------------------------------------
++	 VMOVQ  Rj, Vd.B[index]  |  vinsgr2vr.b  Vd, Rj, ui4  |  VR[vd].b[ui4] = GR[rj][7:0]
++	 VMOVQ  Rj, Vd.H[index]  |  vinsgr2vr.h  Vd, Rj, ui3  |  VR[vd].h[ui3] = GR[rj][15:0]
++	 VMOVQ  Rj, Vd.W[index]  |  vinsgr2vr.w  Vd, Rj, ui2  |  VR[vd].w[ui2] = GR[rj][31:0]
++	 VMOVQ  Rj, Vd.V[index]  |  vinsgr2vr.d  Vd, Rj, ui1  |  VR[vd].d[ui1] = GR[rj][63:0]
++	XVMOVQ  Rj, Xd.W[index]  | xvinsgr2vr.w  Xd, Rj, ui3  |  XR[xd].w[ui3] = GR[rj][31:0]
++	XVMOVQ  Rj, Xd.V[index]  | xvinsgr2vr.d  Xd, Rj, ui2  |  XR[xd].d[ui2] = GR[rj][63:0]
++
++3.2 Move vector element to general-purpose register
++
++	Instruction format:
++	        VMOVQ     <Vj>.<T>[index], Rd
++
++	Mapping between Go and platform assembly:
++	        Go assembly       |       platform assembly      |            semantics
++	---------------------------------------------------------------------------------------------
++	 VMOVQ  Vj.B[index],  Rd  |   vpickve2gr.b   rd, vj, ui4 | GR[rd] = SignExtend(VR[vj].b[ui4])
++	 VMOVQ  Vj.H[index],  Rd  |   vpickve2gr.h   rd, vj, ui3 | GR[rd] = SignExtend(VR[vj].h[ui3])
++	 VMOVQ  Vj.W[index],  Rd  |   vpickve2gr.w   rd, vj, ui2 | GR[rd] = SignExtend(VR[vj].w[ui2])
++	 VMOVQ  Vj.V[index],  Rd  |   vpickve2gr.d   rd, vj, ui1 | GR[rd] = SignExtend(VR[vj].d[ui1])
++	 VMOVQ  Vj.BU[index], Rd  |   vpickve2gr.bu  rd, vj, ui4 | GR[rd] = ZeroExtend(VR[vj].bu[ui4])
++	 VMOVQ  Vj.HU[index], Rd  |   vpickve2gr.hu  rd, vj, ui3 | GR[rd] = ZeroExtend(VR[vj].hu[ui3])
++	 VMOVQ  Vj.WU[index], Rd  |   vpickve2gr.wu  rd, vj, ui2 | GR[rd] = ZeroExtend(VR[vj].wu[ui2])
++	 VMOVQ  Vj.VU[index], Rd  |   vpickve2gr.du  rd, vj, ui1 | GR[rd] = ZeroExtend(VR[vj].du[ui1])
++	XVMOVQ  Xj.W[index],  Rd  |  xvpickve2gr.w   rd, xj, ui3 | GR[rd] = SignExtend(VR[xj].w[ui3])
++	XVMOVQ  Xj.V[index],  Rd  |  xvpickve2gr.d   rd, xj, ui2 | GR[rd] = SignExtend(VR[xj].d[ui2])
++	XVMOVQ  Xj.WU[index], Rd  |  xvpickve2gr.wu  rd, xj, ui3 | GR[rd] = ZeroExtend(VR[xj].wu[ui3])
++	XVMOVQ  Xj.VU[index], Rd  |  xvpickve2gr.du  rd, xj, ui2 | GR[rd] = ZeroExtend(VR[xj].du[ui2])
++
++3.3 Duplicate general-purpose register to vector.
++
++	Instruction format:
++	        VMOVQ    Rj, <Vd>.<T>
++
++	Mapping between Go and platform assembly:
++	   Go assembly      |    platform assembly    |                    semantics
++	------------------------------------------------------------------------------------------------
++	 VMOVQ  Rj, Vd.B16  |   vreplgr2vr.b  Vd, Rj  |  for i in range(16): VR[vd].b[i] = GR[rj][7:0]
++	 VMOVQ  Rj, Vd.H8   |   vreplgr2vr.h  Vd, Rj  |  for i in range(8) : VR[vd].h[i] = GR[rj][16:0]
++	 VMOVQ  Rj, Vd.W4   |   vreplgr2vr.w  Vd, Rj  |  for i in range(4) : VR[vd].w[i] = GR[rj][31:0]
++	 VMOVQ  Rj, Vd.V2   |   vreplgr2vr.d  Vd, Rj  |  for i in range(2) : VR[vd].d[i] = GR[rj][63:0]
++	XVMOVQ  Rj, Xd.B32  |  xvreplgr2vr.b  Xd, Rj  |  for i in range(32): XR[xd].b[i] = GR[rj][7:0]
++	XVMOVQ  Rj, Xd.H16  |  xvreplgr2vr.h  Xd, Rj  |  for i in range(16): XR[xd].h[i] = GR[rj][16:0]
++	XVMOVQ  Rj, Xd.W8   |  xvreplgr2vr.w  Xd, Rj  |  for i in range(8) : XR[xd].w[i] = GR[rj][31:0]
++	XVMOVQ  Rj, Xd.V4   |  xvreplgr2vr.d  Xd, Rj  |  for i in range(4) : XR[xd].d[i] = GR[rj][63:0]
++
++3.4 Replace vector elements
++
++	Instruction format:
++	        XVMOVQ    Xj, <Xd>.<T>
++
++	Mapping between Go and platform assembly:
++	   Go assembly      |   platform assembly   |                semantics
++	------------------------------------------------------------------------------------------------
++	XVMOVQ  Xj, Xd.B32  |  xvreplve0.b  Xd, Xj  | for i in range(32): XR[xd].b[i] = XR[xj].b[0]
++	XVMOVQ  Xj, Xd.H16  |  xvreplve0.h  Xd, Xj  | for i in range(16): XR[xd].h[i] = XR[xj].h[0]
++	XVMOVQ  Xj, Xd.W8   |  xvreplve0.w  Xd, Xj  | for i in range(8) : XR[xd].w[i] = XR[xj].w[0]
++	XVMOVQ  Xj, Xd.V4   |  xvreplve0.d  Xd, Xj  | for i in range(4) : XR[xd].d[i] = XR[xj].d[0]
++	XVMOVQ  Xj, Xd.Q2   |  xvreplve0.q  Xd, Xj  | for i in range(2) : XR[xd].q[i] = XR[xj].q[0]
++
++3.5 Move vector element to scalar
++
++	Instruction format:
++	        XVMOVQ  Xj, <Xd>.<T>[index]
++	        XVMOVQ  Xj.<T>[index], Xd
++
++	Mapping between Go and platform assembly:
++	       Go assembly        |     platform assembly     |               semantics
++	------------------------------------------------------------------------------------------------
++	 XVMOVQ  Xj, Xd.W[index]  |  xvinsve0.w   xd, xj, ui3 | XR[xd].w[ui3] = XR[xj].w[0]
++	 XVMOVQ  Xj, Xd.V[index]  |  xvinsve0.d   xd, xj, ui2 | XR[xd].d[ui2] = XR[xj].d[0]
++	 XVMOVQ  Xj.W[index], Xd  |  xvpickve.w   xd, xj, ui3 | XR[xd].w[0] = XR[xj].w[ui3], XR[xd][255:32] = 0
++	 XVMOVQ  Xj.V[index], Xd  |  xvpickve.d   xd, xj, ui2 | XR[xd].d[0] = XR[xj].d[ui2], XR[xd][255:64] = 0
++
++3.6 Move vector element to vector register.
++
++	Instruction format:
++	VMOVQ     <Vn>.<T>[index], Vn.<T>
++
++	Mapping between Go and platform assembly:
++	         Go assembly      |    platform assembly   |               semantics
++	VMOVQ Vj.B[index], Vd.B16 | vreplvei.b vd, vj, ui4 | for i in range(16): VR[vd].b[i] = VR[vj].b[ui4]
++	VMOVQ Vj.H[index], Vd.H8  | vreplvei.h vd, vj, ui3 | for i in range(8) : VR[vd].h[i] = VR[vj].h[ui3]
++	VMOVQ Vj.W[index], Vd.W4  | vreplvei.w vd, vj, ui2 | for i in range(4) : VR[vd].w[i] = VR[vj].w[ui2]
++	VMOVQ Vj.V[index], Vd.V2  | vreplvei.d vd, vj, ui1 | for i in range(2) : VR[vd].d[i] = VR[vj].d[ui1]
++
+ # Special instruction encoding definition and description on LoongArch
+ 
+  1. DBAR hint encoding for LA664(Loongson 3A6000) and later micro-architectures, paraphrased
+diff --git a/src/cmd/internal/obj/loong64/list.go b/src/cmd/internal/obj/loong64/list.go
+index 73b9c1d4d2..dba8aab029 100644
+--- a/src/cmd/internal/obj/loong64/list.go
++++ b/src/cmd/internal/obj/loong64/list.go
+@@ -10,44 +10,95 @@ import (
+ )
+ 
+ func init() {
+-	obj.RegisterRegister(obj.RBaseLOONG64, REG_LAST+1, rconv)
++	obj.RegisterRegister(obj.RBaseLOONG64, REG_LAST, rconv)
+ 	obj.RegisterOpcode(obj.ABaseLoong64, Anames)
+ }
+ 
++func arrange(a int16) string {
++	switch a {
++	case ARNG_32B:
++		return "B32"
++	case ARNG_16H:
++		return "H16"
++	case ARNG_8W:
++		return "W8"
++	case ARNG_4V:
++		return "V4"
++	case ARNG_2Q:
++		return "Q2"
++	case ARNG_16B:
++		return "B16"
++	case ARNG_8H:
++		return "H8"
++	case ARNG_4W:
++		return "W4"
++	case ARNG_2V:
++		return "V2"
++	case ARNG_B:
++		return "B"
++	case ARNG_H:
++		return "H"
++	case ARNG_W:
++		return "W"
++	case ARNG_V:
++		return "V"
++	case ARNG_BU:
++		return "BU"
++	case ARNG_HU:
++		return "HU"
++	case ARNG_WU:
++		return "WU"
++	case ARNG_VU:
++		return "VU"
++	default:
++		return "ARNG_???"
++	}
++}
++
+ func rconv(r int) string {
+-	if r == 0 {
++	switch {
++	case r == 0:
+ 		return "NONE"
+-	}
+-	if r == REGG {
++	case r == REGG:
+ 		// Special case.
+ 		return "g"
+-	}
+-
+-	if REG_R0 <= r && r <= REG_R31 {
++	case REG_R0 <= r && r <= REG_R31:
+ 		return fmt.Sprintf("R%d", r-REG_R0)
+-	}
+-
+-	if REG_F0 <= r && r <= REG_F31 {
++	case REG_F0 <= r && r <= REG_F31:
+ 		return fmt.Sprintf("F%d", r-REG_F0)
+-	}
+-
+-	if REG_FCSR0 <= r && r <= REG_FCSR31 {
++	case REG_FCSR0 <= r && r <= REG_FCSR31:
+ 		return fmt.Sprintf("FCSR%d", r-REG_FCSR0)
+-	}
+-
+-	if REG_FCC0 <= r && r <= REG_FCC31 {
++	case REG_FCC0 <= r && r <= REG_FCC31:
+ 		return fmt.Sprintf("FCC%d", r-REG_FCC0)
++	case REG_V0 <= r && r <= REG_V31:
++		return fmt.Sprintf("V%d", r-REG_V0)
++	case REG_X0 <= r && r <= REG_X31:
++		return fmt.Sprintf("X%d", r-REG_X0)
+ 	}
+ 
+-	if REG_V0 <= r && r <= REG_V31 {
+-		return fmt.Sprintf("V%d", r-REG_V0)
++	// bits 0-4 indicates register: Vn or Xn
++	// bits 5-9 indicates arrangement: <T>
++	// bits 10 indicates SMID type: 0: LSX, 1: LASX
++	simd_type := (int16(r) >> EXT_SIMDTYPE_SHIFT) & EXT_SIMDTYPE_MASK
++	reg_num := (int16(r) >> EXT_REG_SHIFT) & EXT_REG_MASK
++	arng_type := (int16(r) >> EXT_TYPE_SHIFT) & EXT_TYPE_MASK
++	reg_prefix := "#"
++	switch simd_type {
++	case LSX:
++		reg_prefix = "V"
++	case LASX:
++		reg_prefix = "X"
+ 	}
+ 
+-	if REG_X0 <= r && r <= REG_X31 {
+-		return fmt.Sprintf("X%d", r-REG_X0)
++	switch {
++	case REG_ARNG <= r && r < REG_ELEM:
++		return fmt.Sprintf("%s%d.%s", reg_prefix, reg_num, arrange(arng_type))
++
++	case REG_ELEM <= r && r < REG_ELEM_END:
++		return fmt.Sprintf("%s%d.%s", reg_prefix, reg_num, arrange(arng_type))
+ 	}
+ 
+-	return fmt.Sprintf("Rgok(%d)", r-obj.RBaseLOONG64)
++	return fmt.Sprintf("badreg(%d)", r-obj.RBaseLOONG64)
+ }
+ 
+ func DRconv(a int) string {
+diff --git a/src/cmd/internal/obj/util.go b/src/cmd/internal/obj/util.go
+index 0512d78ca0..dfbb636766 100644
+--- a/src/cmd/internal/obj/util.go
++++ b/src/cmd/internal/obj/util.go
+@@ -272,11 +272,17 @@ func writeDconv(w io.Writer, p *Prog, a *Addr, abiDetail bool) {
+ 		} else {
+ 			io.WriteString(w, Rconv(int(a.Reg)))
+ 		}
++
+ 		if (RBaseARM64+1<<10+1<<9) /* arm64.REG_ELEM */ <= a.Reg &&
+ 			a.Reg < (RBaseARM64+1<<11) /* arm64.REG_ELEM_END */ {
+ 			fmt.Fprintf(w, "[%d]", a.Index)
+ 		}
+ 
++		if (RBaseLOONG64+(1<<10)+(1<<11)) /* loong64.REG_ELEM */ <= a.Reg &&
++			a.Reg < (RBaseLOONG64+(1<<10)+(2<<11)) /* loong64.REG_ELEM_END */ {
++			fmt.Fprintf(w, "[%d]", a.Index)
++		}
++
+ 	case TYPE_BRANCH:
+ 		if a.Sym != nil {
+ 			fmt.Fprintf(w, "%s%s(SB)", a.Sym.Name, abiDecorate(a, abiDetail))
+@@ -513,7 +519,7 @@ const (
+ 	RBaseS390X   = 14 * 1024 // range [14k, 15k)
+ 	RBaseRISCV   = 15 * 1024 // range [15k, 16k)
+ 	RBaseWasm    = 16 * 1024
+-	RBaseLOONG64 = 17 * 1024
++	RBaseLOONG64 = 19 * 1024 // range [19K, 22k)
+ )
+ 
+ // RegisterRegister binds a pretty-printer (Rconv) for register

@@ -32,7 +32,7 @@ Date:   Sat Dec 26 18:56:36 2020 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/inline/inl.go          | 24 ++++++++++----------
  src/cmd/compile/internal/ir/fmt.go              |  4 ++--
  src/cmd/compile/internal/typecheck/expr.go      |  8 +++----
@@ -42,3 +42,259 @@ Date:   Sat Dec 26 18:56:36 2020 -0800
  src/cmd/compile/internal/types/fmt.go           | 14 ++++--------
  test/fixedbugs/issue31053.dir/main.go           |  6 ++---
  8 files changed, 38 insertions(+), 70 deletions(-)
+
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index 9ffb08048a..67162771e9 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -324,19 +324,17 @@ func (v *hairyVisitor) doNode(n ir.Node) error {
+ 		if t == nil {
+ 			base.Fatalf("no function type for [%p] %+v\n", n.X, n.X)
+ 		}
+-		if types.IsRuntimePkg(n.X.Sym().Pkg) {
+-			fn := n.X.Sym().Name
+-			if fn == "heapBits.nextArena" {
+-				// Special case: explicitly allow
+-				// mid-stack inlining of
+-				// runtime.heapBits.next even though
+-				// it calls slow-path
+-				// runtime.heapBits.nextArena.
+-				break
+-			}
++		fn := ir.MethodExprName(n.X).Func
++		if types.IsRuntimePkg(fn.Sym().Pkg) && fn.Sym().Name == "heapBits.nextArena" {
++			// Special case: explicitly allow
++			// mid-stack inlining of
++			// runtime.heapBits.next even though
++			// it calls slow-path
++			// runtime.heapBits.nextArena.
++			break
+ 		}
+-		if inlfn := ir.MethodExprName(n.X).Func; inlfn.Inl != nil {
+-			v.budget -= inlfn.Inl.Cost
++		if fn.Inl != nil {
++			v.budget -= fn.Inl.Cost
+ 			break
+ 		}
+ 		// Call cost for non-leaf inlining.
+@@ -531,7 +529,7 @@ func inlnode(n ir.Node, maxCost int32, inlMap map[*ir.Func]bool, edit func(ir.No
+ 		// Prevent inlining some reflect.Value methods when using checkptr,
+ 		// even when package reflect was compiled without it (#35073).
+ 		n := n.(*ir.CallExpr)
+-		if s := n.X.Sym(); base.Debug.Checkptr != 0 && types.IsReflectPkg(s.Pkg) && (s.Name == "Value.UnsafeAddr" || s.Name == "Value.Pointer") {
++		if s := ir.MethodExprName(n.X).Sym(); base.Debug.Checkptr != 0 && types.IsReflectPkg(s.Pkg) && (s.Name == "Value.UnsafeAddr" || s.Name == "Value.Pointer") {
+ 			return n
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/ir/fmt.go b/src/cmd/compile/internal/ir/fmt.go
+index 2b73c5ac1b..f52c639c51 100644
+--- a/src/cmd/compile/internal/ir/fmt.go
++++ b/src/cmd/compile/internal/ir/fmt.go
+@@ -756,7 +756,7 @@ func exprFmt(n Node, s fmt.State, prec int) {
+ 			fmt.Fprint(s, ".<nil>")
+ 			return
+ 		}
+-		fmt.Fprintf(s, ".%s", types.SymMethodName(n.Method.Sym))
++		fmt.Fprintf(s, ".%s", n.Method.Sym.Name)
+ 
+ 	case OXDOT, ODOT, ODOTPTR, ODOTINTER, ODOTMETH:
+ 		n := n.(*SelectorExpr)
+@@ -765,7 +765,7 @@ func exprFmt(n Node, s fmt.State, prec int) {
+ 			fmt.Fprint(s, ".<nil>")
+ 			return
+ 		}
+-		fmt.Fprintf(s, ".%s", types.SymMethodName(n.Sel))
++		fmt.Fprintf(s, ".%s", n.Sel.Name)
+ 
+ 	case ODOTTYPE, ODOTTYPE2:
+ 		n := n.(*TypeAssertExpr)
+diff --git a/src/cmd/compile/internal/typecheck/expr.go b/src/cmd/compile/internal/typecheck/expr.go
+index 879ae385c7..3e7a880c2a 100644
+--- a/src/cmd/compile/internal/typecheck/expr.go
++++ b/src/cmd/compile/internal/typecheck/expr.go
+@@ -571,7 +571,6 @@ func tcDot(n *ir.SelectorExpr, top int) ir.Node {
+ 	}
+ 
+ 	n.X = typecheck(n.X, ctxExpr|ctxType)
+-
+ 	n.X = DefaultLit(n.X, nil)
+ 
+ 	t := n.X.Type()
+@@ -581,8 +580,6 @@ func tcDot(n *ir.SelectorExpr, top int) ir.Node {
+ 		return n
+ 	}
+ 
+-	s := n.Sel
+-
+ 	if n.X.Op() == ir.OTYPE {
+ 		return typecheckMethodExpr(n)
+ 	}
+@@ -629,7 +626,10 @@ func tcDot(n *ir.SelectorExpr, top int) ir.Node {
+ 	}
+ 
+ 	if (n.Op() == ir.ODOTINTER || n.Op() == ir.ODOTMETH) && top&ctxCallee == 0 {
+-		return tcCallPart(n, s)
++		// Create top-level function.
++		fn := makepartialcall(n)
++
++		return ir.NewCallPartExpr(n.Pos(), n.X, n.Selection, fn)
+ 	}
+ 	return n
+ }
+diff --git a/src/cmd/compile/internal/typecheck/func.go b/src/cmd/compile/internal/typecheck/func.go
+index fdac719ad9..50f514a6db 100644
+--- a/src/cmd/compile/internal/typecheck/func.go
++++ b/src/cmd/compile/internal/typecheck/func.go
+@@ -249,7 +249,9 @@ var globClosgen int32
+ 
+ // makepartialcall returns a DCLFUNC node representing the wrapper function (*-fm) needed
+ // for partial calls.
+-func makepartialcall(dot *ir.SelectorExpr, t0 *types.Type, meth *types.Sym) *ir.Func {
++func makepartialcall(dot *ir.SelectorExpr) *ir.Func {
++	t0 := dot.Type()
++	meth := dot.Sel
+ 	rcvrtype := dot.X.Type()
+ 	sym := ir.MethodSymSuffix(rcvrtype, meth, "-fm")
+ 
+@@ -263,11 +265,10 @@ func makepartialcall(dot *ir.SelectorExpr, t0 *types.Type, meth *types.Sym) *ir.
+ 	ir.CurFunc = nil
+ 
+ 	// Set line number equal to the line number where the method is declared.
+-	var m *types.Field
+-	if lookdot0(meth, rcvrtype, &m, false) == 1 && m.Pos.IsKnown() {
+-		base.Pos = m.Pos
++	if pos := dot.Selection.Pos; pos.IsKnown() {
++		base.Pos = pos
+ 	}
+-	// Note: !m.Pos.IsKnown() happens for method expressions where
++	// Note: !dot.Selection.Pos.IsKnown() happens for method expressions where
+ 	// the method is implicitly declared. The Error method of the
+ 	// built-in error type is one such method.  We leave the line
+ 	// number at the use of the method expression in this
+@@ -280,6 +281,7 @@ func makepartialcall(dot *ir.SelectorExpr, t0 *types.Type, meth *types.Sym) *ir.
+ 	fn := DeclFunc(sym, tfn)
+ 	fn.SetDupok(true)
+ 	fn.SetNeedctxt(true)
++	fn.SetWrapper(true)
+ 
+ 	// Declare and initialize variable holding receiver.
+ 	cr := ir.NewClosureRead(rcvrtype, types.Rnd(int64(types.PtrSize), int64(rcvrtype.Align)))
+@@ -382,23 +384,6 @@ func tcClosure(clo *ir.ClosureExpr, top int) {
+ 	Target.Decls = append(Target.Decls, fn)
+ }
+ 
+-func tcCallPart(n ir.Node, sym *types.Sym) *ir.CallPartExpr {
+-	switch n.Op() {
+-	case ir.ODOTINTER, ir.ODOTMETH:
+-		break
+-
+-	default:
+-		base.Fatalf("invalid typecheckpartialcall")
+-	}
+-	dot := n.(*ir.SelectorExpr)
+-
+-	// Create top-level function.
+-	fn := makepartialcall(dot, dot.Type(), sym)
+-	fn.SetWrapper(true)
+-
+-	return ir.NewCallPartExpr(dot.Pos(), dot.X, dot.Selection, fn)
+-}
+-
+ // type check function definition
+ // To be called by typecheck, not directly.
+ // (Call typecheckFunc instead.)
+diff --git a/src/cmd/compile/internal/typecheck/iexport.go b/src/cmd/compile/internal/typecheck/iexport.go
+index 449d99266d..0c813a71ef 100644
+--- a/src/cmd/compile/internal/typecheck/iexport.go
++++ b/src/cmd/compile/internal/typecheck/iexport.go
+@@ -594,23 +594,15 @@ func (w *exportWriter) selector(s *types.Sym) {
+ 		base.Fatalf("missing currPkg")
+ 	}
+ 
+-	// Method selectors are rewritten into method symbols (of the
+-	// form T.M) during typechecking, but we want to write out
+-	// just the bare method name.
+-	name := s.Name
+-	if i := strings.LastIndex(name, "."); i >= 0 {
+-		name = name[i+1:]
+-	} else {
+-		pkg := w.currPkg
+-		if types.IsExported(name) {
+-			pkg = types.LocalPkg
+-		}
+-		if s.Pkg != pkg {
+-			base.Fatalf("package mismatch in selector: %v in package %q, but want %q", s, s.Pkg.Path, pkg.Path)
+-		}
++	pkg := w.currPkg
++	if types.IsExported(s.Name) {
++		pkg = types.LocalPkg
++	}
++	if s.Pkg != pkg {
++		base.Fatalf("package mismatch in selector: %v in package %q, but want %q", s, s.Pkg.Path, pkg.Path)
+ 	}
+ 
+-	w.string(name)
++	w.string(s.Name)
+ }
+ 
+ func (w *exportWriter) typ(t *types.Type) {
+diff --git a/src/cmd/compile/internal/typecheck/typecheck.go b/src/cmd/compile/internal/typecheck/typecheck.go
+index 1d070507fa..b779f9ceb0 100644
+--- a/src/cmd/compile/internal/typecheck/typecheck.go
++++ b/src/cmd/compile/internal/typecheck/typecheck.go
+@@ -1297,7 +1297,6 @@ func lookdot(n *ir.SelectorExpr, t *types.Type, dostrcmp int) *types.Field {
+ 			return nil
+ 		}
+ 
+-		n.Sel = ir.MethodSym(n.X.Type(), f2.Sym)
+ 		n.Selection = f2
+ 		n.SetType(f2.Type)
+ 		n.SetOp(ir.ODOTMETH)
+diff --git a/src/cmd/compile/internal/types/fmt.go b/src/cmd/compile/internal/types/fmt.go
+index bf37f01922..cd0679f6b9 100644
+--- a/src/cmd/compile/internal/types/fmt.go
++++ b/src/cmd/compile/internal/types/fmt.go
+@@ -180,15 +180,6 @@ func symfmt(b *bytes.Buffer, s *Sym, verb rune, mode fmtMode) {
+ 	b.WriteString(s.Name)
+ }
+ 
+-func SymMethodName(s *Sym) string {
+-	// Skip leading "type." in method name
+-	name := s.Name
+-	if i := strings.LastIndex(name, "."); i >= 0 {
+-		name = name[i+1:]
+-	}
+-	return name
+-}
+-
+ // Type
+ 
+ var BasicTypeNames = []string{
+@@ -595,7 +586,10 @@ func fldconv(b *bytes.Buffer, f *Field, verb rune, mode fmtMode, visited map[*Ty
+ 			if funarg != FunargNone {
+ 				name = fmt.Sprint(f.Nname)
+ 			} else if verb == 'L' {
+-				name = SymMethodName(s)
++				name = s.Name
++				if name == ".F" {
++					name = "F" // Hack for toolstash -cmp.
++				}
+ 				if !IsExported(name) && mode != fmtTypeIDName {
+ 					name = sconv(s, 0, mode) // qualify non-exported names (used on structs, not on funarg)
+ 				}
+diff --git a/test/fixedbugs/issue31053.dir/main.go b/test/fixedbugs/issue31053.dir/main.go
+index 895c262164..3bc75d17d2 100644
+--- a/test/fixedbugs/issue31053.dir/main.go
++++ b/test/fixedbugs/issue31053.dir/main.go
+@@ -35,8 +35,8 @@ func main() {
+ 	_ = f.Exported
+ 	_ = f.exported    // ERROR "f.exported undefined .type f1.Foo has no field or method exported, but does have Exported."
+ 	_ = f.Unexported  // ERROR "f.Unexported undefined .type f1.Foo has no field or method Unexported."
+-	_ = f.unexported  // ERROR "f.unexported undefined .cannot refer to unexported field or method f1..\*Foo..unexported."
+-	f.unexported = 10 // ERROR "f.unexported undefined .cannot refer to unexported field or method f1..\*Foo..unexported."
+-	f.unexported()    // ERROR "f.unexported undefined .cannot refer to unexported field or method f1..\*Foo..unexported."
++	_ = f.unexported  // ERROR "f.unexported undefined .cannot refer to unexported field or method unexported."
++	f.unexported = 10 // ERROR "f.unexported undefined .cannot refer to unexported field or method unexported."
++	f.unexported()    // ERROR "f.unexported undefined .cannot refer to unexported field or method unexported."
+ 	_ = f.hook        // ERROR "f.hook undefined .cannot refer to unexported field or method hook."
+ }

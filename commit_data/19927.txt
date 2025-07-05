@@ -10,8 +10,132 @@ Date:   Wed Aug 6 16:22:52 2014 -0400
     R=golang-codereviews, adonovan, khr
     CC=golang-codereviews, iant, khr, r
     https://golang.org/cl/125720044
-
+---
  src/pkg/runtime/alg.go    | 17 ++++++++++++++++-
  src/pkg/runtime/iface.goc | 38 --------------------------------------
  src/pkg/runtime/runtime.h | 28 +++++++++++++---------------
  3 files changed, 29 insertions(+), 54 deletions(-)
+
+diff --git a/src/pkg/runtime/alg.go b/src/pkg/runtime/alg.go
+index 000d4a18b7..e2917dabb6 100644
+--- a/src/pkg/runtime/alg.go
++++ b/src/pkg/runtime/alg.go
+@@ -111,7 +111,22 @@ func nohash(a unsafe.Pointer, s uintptr, h uintptr) uintptr {
+ func interhash(a *interface {
+ 	f()
+ }, s uintptr, h uintptr) uintptr {
+-	return 0
++	tab := (*iface)(unsafe.Pointer(a)).tab
++	if tab == nil {
++		return h
++	}
++	t := tab._type
++	fn := goalg(t.alg).hash
++	if **(**uintptr)(unsafe.Pointer(&fn)) == nohashcode {
++		// calling nohash will panic too,
++		// but we can print a better error.
++		panic(errorString("hash of unhashable type " + *t._string))
++	}
++	if uintptr(t.size) <= ptrSize {
++		return c1 * fn(unsafe.Pointer(&(*eface)(unsafe.Pointer(a)).data), uintptr(t.size), h^c0)
++	} else {
++		return c1 * fn((*eface)(unsafe.Pointer(a)).data, uintptr(t.size), h^c0)
++	}
+ }
+ 
+ func nilinterhash(a *interface{}, s uintptr, h uintptr) uintptr {
+diff --git a/src/pkg/runtime/iface.goc b/src/pkg/runtime/iface.goc
+index ec89746470..89c116e127 100644
+--- a/src/pkg/runtime/iface.goc
++++ b/src/pkg/runtime/iface.goc
+@@ -475,44 +475,6 @@ func assertE2E2(inter *InterfaceType, e Eface) (ret Eface, ok bool) {
+ 	ok = e.type != nil;
+ }
+ 
+-static uintptr
+-ifacehash1(void *data, Type *t, uintptr h)
+-{
+-	Alg *alg;
+-	uintptr size;
+-	Eface err;
+-
+-	if(t == nil)
+-		return 0;
+-
+-	alg = t->alg;
+-	size = t->size;
+-	if(alg->hash->fn == (void(*)())runtime·nohash) {
+-		// calling nohash will panic too,
+-		// but we can print a better error.
+-		runtime·newErrorString(runtime·catstring(runtime·gostringnocopy((byte*)"hash of unhashable type "), *t->string), &err);
+-		runtime·panic(err);
+-	}
+-	if(size <= sizeof(data))
+-		return ((uintptr(*)(void**,uintptr,uintptr))alg->hash)(&data, size, h);
+-	else
+-		return ((uintptr(*)(void*,uintptr,uintptr))alg->hash)(data, size, h);
+-}
+-
+-uintptr
+-runtime·ifacehash(Iface a, uintptr h)
+-{
+-	if(a.tab == nil)
+-		return h;
+-	return ifacehash1(a.data, a.tab->type, h);
+-}
+-
+-uintptr
+-runtime·efacehash(Eface a, uintptr h)
+-{
+-	return ifacehash1(a.data, a.type, h);
+-}
+-
+ static bool
+ ifaceeq1(void *data1, void *data2, Type *t)
+ {
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index e6354d7e9c..1d1618b0d6 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -651,19 +651,19 @@ enum {
+ };
+ void	runtime·hashinit(void);
+ 
+-uintptr	runtime·memhash(void*, uintptr, uintptr);
+-uintptr	runtime·nohash(void*, uintptr, uintptr);
+-uintptr	runtime·strhash(void*, uintptr, uintptr);
+-uintptr	runtime·interhash(void*, uintptr, uintptr);
+-uintptr	runtime·nilinterhash(void*, uintptr, uintptr);
+-uintptr	runtime·f32hash(void*, uintptr, uintptr);
+-uintptr	runtime·f64hash(void*, uintptr, uintptr);
+-uintptr	runtime·c64hash(void*, uintptr, uintptr);
+-uintptr	runtime·c128hash(void*, uintptr, uintptr);
+-uintptr	runtime·aeshash(void*, uintptr, uintptr);
+-uintptr	runtime·aeshash32(void*, uintptr, uintptr);
+-uintptr	runtime·aeshash64(void*, uintptr, uintptr);
+-uintptr	runtime·aeshashstr(void*, uintptr, uintptr);
++void	runtime·memhash(void*, uintptr, uintptr, uintptr);
++void	runtime·nohash(void*, uintptr, uintptr, uintptr);
++void	runtime·strhash(void*, uintptr, uintptr, uintptr);
++void	runtime·interhash(void*, uintptr, uintptr, uintptr);
++void	runtime·nilinterhash(void*, uintptr, uintptr, uintptr);
++void	runtime·f32hash(void*, uintptr, uintptr, uintptr);
++void	runtime·f64hash(void*, uintptr, uintptr, uintptr);
++void	runtime·c64hash(void*, uintptr, uintptr, uintptr);
++void	runtime·c128hash(void*, uintptr, uintptr, uintptr);
++void	runtime·aeshash(void*, uintptr, uintptr, uintptr);
++void	runtime·aeshash32(void*, uintptr, uintptr, uintptr);
++void	runtime·aeshash64(void*, uintptr, uintptr, uintptr);
++void	runtime·aeshashstr(void*, uintptr, uintptr, uintptr);
+ 
+ void	runtime·memequal(bool*, uintptr, void*, void*);
+ void	runtime·noequal(bool*, uintptr, void*, void*);
+@@ -876,8 +876,6 @@ void	runtime·mallocinit(void);
+ void	runtime·chaninit(void);
+ bool	runtime·ifaceeq_c(Iface, Iface);
+ bool	runtime·efaceeq_c(Eface, Eface);
+-uintptr	runtime·ifacehash(Iface, uintptr);
+-uintptr	runtime·efacehash(Eface, uintptr);
+ void*	runtime·malloc(uintptr size);
+ void	runtime·runpanic(Panic*);
+ uintptr	runtime·getcallersp(void*);

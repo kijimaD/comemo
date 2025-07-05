@@ -16,8 +16,103 @@ Date:   Mon Dec 8 07:28:40 2014 -0800
     Change-Id: I343a145a9771a5ccbaa958e4a1ecd1716fcae52d
     Reviewed-on: https://go-review.googlesource.com/1756
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/cgo/doc.go         | 12 ++++++++++++
  src/go/build/build.go      | 12 +++++++++++-
  src/go/build/build_test.go | 30 ++++++++++++++++++++++++++++++
  3 files changed, 53 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/cgo/doc.go b/src/cmd/cgo/doc.go
+index 6179c7afd1..06d5be675b 100644
+--- a/src/cmd/cgo/doc.go
++++ b/src/cmd/cgo/doc.go
+@@ -60,6 +60,18 @@ concatenated and used at link time.  All the pkg-config directives are
+ concatenated and sent to pkg-config simultaneously to add to each appropriate
+ set of command-line flags.
+ 
++When the cgo directives are parsed, any occurrence of the string ${SRCDIR}
++will be replaced by the absolute path to the directory containing the source
++file. This allows pre-compiled static libraries to be included in the package
++directory and linked properly.
++For example if package foo is in the directory /go/src/foo:
++
++       // #cgo LDFLAGS: -L${SRCDIR}/libs -lfoo
++
++Will be expanded to:
++
++       // #cgo LDFLAGS: -L/go/src/foo/libs -lfoo
++
+ When the Go tool sees that one or more Go files use the special import
+ "C", it will look for other non-Go files in the directory and compile
+ them as part of the Go package.  Any .c, .s, or .S files will be
+diff --git a/src/go/build/build.go b/src/go/build/build.go
+index 9fb4b52e14..7cf2f1f774 100644
+--- a/src/go/build/build.go
++++ b/src/go/build/build.go
+@@ -1120,10 +1120,12 @@ func (ctxt *Context) saveCgo(filename string, di *Package, cg *ast.CommentGroup)
+ 		if err != nil {
+ 			return fmt.Errorf("%s: invalid #cgo line: %s", filename, orig)
+ 		}
+-		for _, arg := range args {
++		for i, arg := range args {
++			arg = expandSrcDir(arg, di.Dir)
+ 			if !safeCgoName(arg) {
+ 				return fmt.Errorf("%s: malformed #cgo argument: %s", filename, arg)
+ 			}
++			args[i] = arg
+ 		}
+ 
+ 		switch verb {
+@@ -1144,6 +1146,14 @@ func (ctxt *Context) saveCgo(filename string, di *Package, cg *ast.CommentGroup)
+ 	return nil
+ }
+ 
++func expandSrcDir(str string, srcdir string) string {
++	// "\" delimited paths cause safeCgoName to fail
++	// so convert native paths with a different delimeter
++	// to "/" before starting (eg: on windows)
++	srcdir = filepath.ToSlash(srcdir)
++	return strings.Replace(str, "${SRCDIR}", srcdir, -1)
++}
++
+ // NOTE: $ is not safe for the shell, but it is allowed here because of linker options like -Wl,$ORIGIN.
+ // We never pass these arguments to a shell (just to programs we construct argv for), so this should be okay.
+ // See golang.org/issue/6038.
+diff --git a/src/go/build/build_test.go b/src/go/build/build_test.go
+index bdd4c05675..3985638189 100644
+--- a/src/go/build/build_test.go
++++ b/src/go/build/build_test.go
+@@ -231,3 +231,33 @@ func TestImportCmd(t *testing.T) {
+ 		t.Fatalf("Import cmd/internal/objfile returned Dir=%q, want %q", filepath.ToSlash(p.Dir), ".../src/cmd/internal/objfile")
+ 	}
+ }
++
++var (
++	expandSrcDirPath = filepath.Join(string(filepath.Separator)+"projects", "src", "add")
++)
++
++var expandSrcDirTests = []struct {
++	input, expected string
++}{
++	{"-L ${SRCDIR}/libs -ladd", "-L /projects/src/add/libs -ladd"},
++	{"${SRCDIR}/add_linux_386.a -pthread -lstdc++", "/projects/src/add/add_linux_386.a -pthread -lstdc++"},
++	{"Nothing to expand here!", "Nothing to expand here!"},
++	{"$", "$"},
++	{"$$", "$$"},
++	{"${", "${"},
++	{"$}", "$}"},
++	{"$FOO ${BAR}", "$FOO ${BAR}"},
++	{"Find me the $SRCDIRECTORY.", "Find me the $SRCDIRECTORY."},
++	{"$SRCDIR is missing braces", "$SRCDIR is missing braces"},
++}
++
++func TestExpandSrcDir(t *testing.T) {
++	for _, test := range expandSrcDirTests {
++		output := expandSrcDir(test.input, expandSrcDirPath)
++		if output != test.expected {
++			t.Errorf("%q expands to %q with SRCDIR=%q when %q is expected", test.input, output, expandSrcDirPath, test.expected)
++		} else {
++			t.Logf("%q expands to %q with SRCDIR=%q", test.input, output, expandSrcDirPath)
++		}
++	}
++}

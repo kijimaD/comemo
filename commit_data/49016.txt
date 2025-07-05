@@ -10,8 +10,78 @@ Date:   Wed Jul 7 14:42:26 2021 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/333164
     Trust: Dan Scales <danscales@google.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/importer/support.go  | 5 +++--
  src/cmd/compile/internal/typecheck/bexport.go | 5 +++--
  src/go/internal/gcimporter/support.go         | 5 +++--
  3 files changed, 9 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/importer/support.go b/src/cmd/compile/internal/importer/support.go
+index 7eecae15a6..6ceb413601 100644
+--- a/src/cmd/compile/internal/importer/support.go
++++ b/src/cmd/compile/internal/importer/support.go
+@@ -101,8 +101,6 @@ var predeclared = []types2.Type{
+ 
+ 	// error
+ 	types2.Universe.Lookup("error").Type(),
+-	// comparable
+-	types2.Universe.Lookup("comparable").Type(),
+ 
+ 	// untyped types
+ 	types2.Typ[types2.UntypedBool],
+@@ -121,6 +119,9 @@ var predeclared = []types2.Type{
+ 
+ 	// used internally by gc; never used by this package or in .a files
+ 	anyType{},
++
++	// comparable
++	types2.Universe.Lookup("comparable").Type(),
+ }
+ 
+ type anyType struct{}
+diff --git a/src/cmd/compile/internal/typecheck/bexport.go b/src/cmd/compile/internal/typecheck/bexport.go
+index 45d67f6ea2..cc7f91f937 100644
+--- a/src/cmd/compile/internal/typecheck/bexport.go
++++ b/src/cmd/compile/internal/typecheck/bexport.go
+@@ -78,8 +78,6 @@ func predeclared() []*types.Type {
+ 
+ 			// error
+ 			types.ErrorType,
+-			// comparable
+-			types.ComparableType,
+ 
+ 			// untyped types
+ 			types.UntypedBool,
+@@ -98,6 +96,9 @@ func predeclared() []*types.Type {
+ 
+ 			// any type, for builtin export data
+ 			types.Types[types.TANY],
++
++			// comparable
++			types.ComparableType,
+ 		}
+ 	}
+ 	return predecl
+diff --git a/src/go/internal/gcimporter/support.go b/src/go/internal/gcimporter/support.go
+index bb2058172a..09810dd85b 100644
+--- a/src/go/internal/gcimporter/support.go
++++ b/src/go/internal/gcimporter/support.go
+@@ -104,8 +104,6 @@ var predeclared = []types.Type{
+ 
+ 	// error
+ 	types.Universe.Lookup("error").Type(),
+-	// comparable
+-	types.Universe.Lookup("comparable").Type(),
+ 
+ 	// untyped types
+ 	types.Typ[types.UntypedBool],
+@@ -124,6 +122,9 @@ var predeclared = []types.Type{
+ 
+ 	// used internally by gc; never used by this package or in .a files
+ 	anyType{},
++
++	// comparable
++	types.Universe.Lookup("comparable").Type(),
+ }
+ 
+ type anyType struct{}

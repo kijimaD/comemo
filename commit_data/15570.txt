@@ -9,6 +9,20 @@ Date:   Mon Mar 4 10:31:01 2013 -0500
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/7453048
-
+---
  misc/dashboard/builder/main.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/misc/dashboard/builder/main.go b/misc/dashboard/builder/main.go
+index 9096b66a23..b2b8f43a6f 100644
+--- a/misc/dashboard/builder/main.go
++++ b/misc/dashboard/builder/main.go
+@@ -83,7 +83,7 @@ func main() {
+ 	}
+ 
+ 	// set up work environment, use existing enviroment if possible
+-	if goroot.Exists() {
++	if goroot.Exists() || *failAll {
+ 		log.Print("Found old workspace, will use it")
+ 	} else {
+ 		if err := os.RemoveAll(*buildroot); err != nil {

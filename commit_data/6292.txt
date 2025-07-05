@@ -9,6 +9,32 @@ Date:   Thu Sep 16 13:38:23 2010 -0400
     R=rsc
     CC=golang-dev
     https://golang.org/cl/2112046
-
+---
  src/cmd/cgo/gcc.go | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index ae3e4de740..46316ea782 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -204,6 +204,9 @@ func (p *Package) guessKinds(f *File) []*Name {
+ 
+ 	for _, line := range strings.Split(stderr, "\n", -1) {
+ 		if len(line) < 9 || line[0:9] != "cgo-test:" {
++			if len(line) > 8 && line[0:8] == "<stdin>:" {
++				fatal("gcc produced unexpected output:\n%s\non input:\n%s", line, b.Bytes())
++			}
+ 			continue
+ 		}
+ 		line = line[9:]
+@@ -439,8 +442,9 @@ func (p *Package) rewriteRef(f *File) {
+ 		case "type":
+ 			if r.Name.Kind != "type" {
+ 				error(r.Pos(), "expression C.%s used as type", r.Name.Go)
++			} else {
++				expr = r.Name.Type.Go
+ 			}
+-			expr = r.Name.Type.Go
+ 		default:
+ 			if r.Name.Kind == "func" {
+ 				error(r.Pos(), "must call C.%s", r.Name.Go)

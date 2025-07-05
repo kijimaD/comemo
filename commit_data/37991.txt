@@ -14,6 +14,47 @@ Date:   Thu Sep 20 01:26:17 2018 +0000
     Run-TryBot: Ben Shi <powerman1st@163.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/x86/ssa.go | 26 +++++++++++++-------------
  1 file changed, 13 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/compile/internal/x86/ssa.go b/src/cmd/compile/internal/x86/ssa.go
+index a53b63ab92..e0bb4418ec 100644
+--- a/src/cmd/compile/internal/x86/ssa.go
++++ b/src/cmd/compile/internal/x86/ssa.go
+@@ -547,22 +547,22 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.To.Reg = v.Args[0].Reg()
+ 		gc.AddAux(&p.To, v)
+ 	case ssa.Op386ADDLconstmodify:
+-		var p *obj.Prog = nil
+ 		sc := v.AuxValAndOff()
+-		off := sc.Off()
+ 		val := sc.Val()
+-		if val == 1 {
+-			p = s.Prog(x86.AINCL)
+-		} else if val == -1 {
+-			p = s.Prog(x86.ADECL)
+-		} else {
+-			p = s.Prog(v.Op.Asm())
+-			p.From.Type = obj.TYPE_CONST
+-			p.From.Offset = val
++		if val == 1 || val == -1 {
++			var p *obj.Prog
++			if val == 1 {
++				p = s.Prog(x86.AINCL)
++			} else {
++				p = s.Prog(x86.ADECL)
++			}
++			off := sc.Off()
++			p.To.Type = obj.TYPE_MEM
++			p.To.Reg = v.Args[0].Reg()
++			gc.AddAux2(&p.To, v, off)
++			break
+ 		}
+-		p.To.Type = obj.TYPE_MEM
+-		p.To.Reg = v.Args[0].Reg()
+-		gc.AddAux2(&p.To, v, off)
++		fallthrough
+ 	case ssa.Op386ANDLconstmodify, ssa.Op386ORLconstmodify, ssa.Op386XORLconstmodify:
+ 		sc := v.AuxValAndOff()
+ 		off := sc.Off()

@@ -7,8 +7,102 @@ Date:   Thu Jul 2 11:37:51 2015 +1200
     Change-Id: I5a1864a27ad917aa65c8e65a133f6cc0a980d05f
     Reviewed-on: https://go-review.googlesource.com/13998
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/link/internal/ld/decodesym.go |  8 ++++++++
  src/cmd/link/internal/ld/lib.go       | 29 ++++++++++++++++++++++++++++-
  src/cmd/link/internal/ld/link.go      |  9 +++++----
  3 files changed, 41 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/decodesym.go b/src/cmd/link/internal/ld/decodesym.go
+index 6081ecc5c4..52eb46bb5c 100644
+--- a/src/cmd/link/internal/ld/decodesym.go
++++ b/src/cmd/link/internal/ld/decodesym.go
+@@ -110,6 +110,14 @@ func decodetype_gcprog(s *LSym) []byte {
+ }
+ 
+ func decodetype_gcprog_shlib(s *LSym) uint64 {
++	if Thearch.Thechar == '7' {
++		for _, shlib := range Ctxt.Shlibs {
++			if shlib.Path == s.File {
++				return shlib.gcdata_addresses[s]
++			}
++		}
++		return 0
++	}
+ 	return decode_inuxi(s.P[2*int32(Thearch.Ptrsize)+8+1*int32(Thearch.Ptrsize):], Thearch.Ptrsize)
+ }
+ 
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 3620b1598e..e1be2630e9 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -1400,6 +1400,7 @@ func ldshlibsyms(shlib string) {
+ 		Diag("cannot read symbols from shared library: %s", libpath)
+ 		return
+ 	}
++	gcdata_locations := make(map[uint64]*LSym)
+ 	for _, elfsym := range syms {
+ 		if elf.ST_TYPE(elfsym.Info) == elf.STT_NOTYPE || elf.ST_TYPE(elfsym.Info) == elf.STT_SECTION {
+ 			continue
+@@ -1428,6 +1429,32 @@ func ldshlibsyms(shlib string) {
+ 			// the type data.
+ 			if strings.HasPrefix(lsym.Name, "type.") && !strings.HasPrefix(lsym.Name, "type..") {
+ 				lsym.P = readelfsymboldata(f, &elfsym)
++				gcdata_locations[elfsym.Value+2*uint64(Thearch.Ptrsize)+8+1*uint64(Thearch.Ptrsize)] = lsym
++			}
++		}
++	}
++	gcdata_addresses := make(map[*LSym]uint64)
++	if Thearch.Thechar == '7' {
++		for _, sect := range f.Sections {
++			if sect.Type == elf.SHT_RELA {
++				var rela elf.Rela64
++				rdr := sect.Open()
++				for {
++					err := binary.Read(rdr, f.ByteOrder, &rela)
++					if err == io.EOF {
++						break
++					} else if err != nil {
++						Diag("reading relocation failed %v", err)
++						return
++					}
++					t := elf.R_AARCH64(rela.Info & 0xffff)
++					if t != elf.R_AARCH64_RELATIVE {
++						continue
++					}
++					if lsym, ok := gcdata_locations[rela.Off]; ok {
++						gcdata_addresses[lsym] = uint64(rela.Addend)
++					}
++				}
+ 			}
+ 		}
+ 	}
+@@ -1459,7 +1486,7 @@ func ldshlibsyms(shlib string) {
+ 		Ctxt.Etextp = last
+ 	}
+ 
+-	Ctxt.Shlibs = append(Ctxt.Shlibs, Shlib{Path: libpath, Hash: hash, Deps: deps, File: f})
++	Ctxt.Shlibs = append(Ctxt.Shlibs, Shlib{Path: libpath, Hash: hash, Deps: deps, File: f, gcdata_addresses: gcdata_addresses})
+ }
+ 
+ func mywhatsys() {
+diff --git a/src/cmd/link/internal/ld/link.go b/src/cmd/link/internal/ld/link.go
+index 495d11ac7e..a9ea2d9589 100644
+--- a/src/cmd/link/internal/ld/link.go
++++ b/src/cmd/link/internal/ld/link.go
+@@ -124,10 +124,11 @@ type Auto struct {
+ }
+ 
+ type Shlib struct {
+-	Path string
+-	Hash []byte
+-	Deps []string
+-	File *elf.File
++	Path             string
++	Hash             []byte
++	Deps             []string
++	File             *elf.File
++	gcdata_addresses map[*LSym]uint64
+ }
+ 
+ type Link struct {

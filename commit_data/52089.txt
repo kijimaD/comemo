@@ -14,7 +14,24 @@ Date:   Fri Apr 1 19:23:52 2022 -0400
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/runtime/race/README                  |   2 +-
  src/runtime/race/race_linux_ppc64le.syso | Bin 624648 -> 669736 bytes
  2 files changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/race/README b/src/runtime/race/README
+index cb82210c6f..7ec2f80d3b 100644
+--- a/src/runtime/race/README
++++ b/src/runtime/race/README
+@@ -7,7 +7,7 @@ To update the .syso files use golang.org/x/build/cmd/racebuild.
+ race_darwin_amd64.syso built with LLVM 41cb504b7c4b18ac15830107431a0c1eec73a6b2 and Go 851ecea4cc99ab276109493477b2c7e30c253ea8.
+ race_freebsd_amd64.syso built with LLVM 41cb504b7c4b18ac15830107431a0c1eec73a6b2 and Go 851ecea4cc99ab276109493477b2c7e30c253ea8.
+ race_linux_amd64.syso built with LLVM 41cb504b7c4b18ac15830107431a0c1eec73a6b2 and Go 851ecea4cc99ab276109493477b2c7e30c253ea8.
+-race_linux_ppc64le.syso built with LLVM 89f7ccea6f6488c443655880229c54db1f180153 and Go f62d3202bf9dbb3a00ad2a2c63ff4fa4188c5d3b.
++race_linux_ppc64le.syso built with LLVM 41cb504b7c4b18ac15830107431a0c1eec73a6b2 and Go 851ecea4cc99ab276109493477b2c7e30c253ea8.
+ race_netbsd_amd64.syso built with LLVM 41cb504b7c4b18ac15830107431a0c1eec73a6b2 and Go 851ecea4cc99ab276109493477b2c7e30c253ea8.
+ race_windows_amd64.syso built with LLVM 89f7ccea6f6488c443655880229c54db1f180153 and Go f62d3202bf9dbb3a00ad2a2c63ff4fa4188c5d3b.
+ race_linux_arm64.syso built with LLVM 41cb504b7c4b18ac15830107431a0c1eec73a6b2 and Go 851ecea4cc99ab276109493477b2c7e30c253ea8.
+diff --git a/src/runtime/race/race_linux_ppc64le.syso b/src/runtime/race/race_linux_ppc64le.syso
+index b562656d56..1939f29ac0 100644
+Binary files a/src/runtime/race/race_linux_ppc64le.syso and b/src/runtime/race/race_linux_ppc64le.syso differ

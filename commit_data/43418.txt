@@ -42,7 +42,43 @@ Date:   Sat Mar 7 11:08:06 2020 +1100
     Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/internal/poll/fd_windows.go                 | 4 ++--
  src/internal/syscall/windows/syscall_windows.go | 2 +-
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/internal/poll/fd_windows.go b/src/internal/poll/fd_windows.go
+index 4b2623ea8f..1a0bdb34fe 100644
+--- a/src/internal/poll/fd_windows.go
++++ b/src/internal/poll/fd_windows.go
+@@ -999,7 +999,7 @@ func (fd *FD) ReadMsg(p []byte, oob []byte) (int, int, int, syscall.Sockaddr, er
+ 	o := &fd.rop
+ 	o.InitMsg(p, oob)
+ 	o.rsa = new(syscall.RawSockaddrAny)
+-	o.msg.Name = o.rsa
++	o.msg.Name = (syscall.Pointer)(unsafe.Pointer(o.rsa))
+ 	o.msg.Namelen = int32(unsafe.Sizeof(*o.rsa))
+ 	n, err := execIO(o, func(o *operation) error {
+ 		return windows.WSARecvMsg(o.fd.Sysfd, &o.msg, &o.qty, &o.o, nil)
+@@ -1030,7 +1030,7 @@ func (fd *FD) WriteMsg(p []byte, oob []byte, sa syscall.Sockaddr) (int, int, err
+ 		if err != nil {
+ 			return 0, 0, err
+ 		}
+-		o.msg.Name = (*syscall.RawSockaddrAny)(rsa)
++		o.msg.Name = (syscall.Pointer)(rsa)
+ 		o.msg.Namelen = len
+ 	}
+ 	n, err := execIO(o, func(o *operation) error {
+diff --git a/src/internal/syscall/windows/syscall_windows.go b/src/internal/syscall/windows/syscall_windows.go
+index dc641116ba..f299adc45f 100644
+--- a/src/internal/syscall/windows/syscall_windows.go
++++ b/src/internal/syscall/windows/syscall_windows.go
+@@ -176,7 +176,7 @@ var sendRecvMsgFunc struct {
+ }
+ 
+ type WSAMsg struct {
+-	Name        *syscall.RawSockaddrAny
++	Name        syscall.Pointer
+ 	Namelen     int32
+ 	Buffers     *syscall.WSABuf
+ 	BufferCount uint32

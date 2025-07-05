@@ -9,6 +9,53 @@ Date:   Tue Dec 20 17:00:52 2011 -0500
     TBR=r
     CC=golang-dev
     https://golang.org/cl/5505047
-
+---
  src/buildinfo.sh | 40 ++++++++++++++++++++++++++++++++++++++++
  1 file changed, 40 insertions(+)
+
+diff --git a/src/buildinfo.sh b/src/buildinfo.sh
+new file mode 100644
+index 0000000000..4725b39720
+--- /dev/null
++++ b/src/buildinfo.sh
+@@ -0,0 +1,40 @@
++# Copyright 2011 The Go Authors.  All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++# This file is included by shell scripts that need to know the
++# full list of architectures, operating systems, and combinations
++# that Go runs on.
++
++GOARCHES="
++	386
++	amd64
++	arm
++"
++
++GOOSES="
++	darwin
++	freebsd
++	linux
++	netbsd
++	openbsd
++	plan9
++	windows
++"
++
++GOOSARCHES="
++	darwin_386
++	darwin_amd64
++	freebsd_386
++	freebsd_amd64
++	linux_386
++	linux_amd64
++	linux_arm
++	netbsd_386
++	netbsd_amd64
++	openbsd_386
++	openbsd_amd64
++	plan9_386
++	windows_386
++	windows_amd64
++"

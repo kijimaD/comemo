@@ -10,8 +10,37 @@ Date:   Tue Apr 24 09:24:19 2012 -0700
     R=golang-dev
     CC=golang-dev
     https://golang.org/cl/6116043
-
+---
  misc/dist/bindist.go              |   1 +
  misc/dist/darwin/Distribution     |   1 +
  misc/dist/darwin/Resources/bg.png | Bin 0 -> 11466 bytes
  3 files changed, 2 insertions(+)
+
+diff --git a/misc/dist/bindist.go b/misc/dist/bindist.go
+index a2cfdd6a54..b623449a4e 100644
+--- a/misc/dist/bindist.go
++++ b/misc/dist/bindist.go
+@@ -256,6 +256,7 @@ func (b *Build) Do() error {
+ 		targ := base + ".pkg"
+ 		_, err = b.run("", "productbuild",
+ 			"--distribution", filepath.Join(dist, "darwin/Distribution"),
++			"--resources", filepath.Join(dist, "darwin/Resources"),
+ 			"--package-path", pkgdest,
+ 			targ)
+ 		if err != nil {
+diff --git a/misc/dist/darwin/Distribution b/misc/dist/darwin/Distribution
+index 915d72da3d..1468a629a2 100644
+--- a/misc/dist/darwin/Distribution
++++ b/misc/dist/darwin/Distribution
+@@ -1,6 +1,7 @@
+ <?xml version="1.0" encoding="utf-8" standalone="no"?>
+ <installer-script minSpecVersion="1.000000">
+     <title>Go</title>
++    <background mime-type="image/png" file="bg.png"/>
+     <options customize="never" allow-external-scripts="no"/>
+     <domains enable_localSystem="true" />
+     <installation-check script="installCheck();"/>
+diff --git a/misc/dist/darwin/Resources/bg.png b/misc/dist/darwin/Resources/bg.png
+new file mode 100644
+index 0000000000..c3d8ea93ac
+Binary files /dev/null and b/misc/dist/darwin/Resources/bg.png differ

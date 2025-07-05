@@ -11,6 +11,20 @@ Date:   Fri Jul 16 21:25:28 2021 +0000
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: Robert Griesemer <gri@golang.org>
-
+---
  src/text/scanner/scanner.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/text/scanner/scanner.go b/src/text/scanner/scanner.go
+index e0847a7239..c5fc4ff93b 100644
+--- a/src/text/scanner/scanner.go
++++ b/src/text/scanner/scanner.go
+@@ -23,7 +23,7 @@ import (
+ 	"unicode/utf8"
+ )
+ 
+-// A source position is represented by a Position value.
++// Position is a value that represents a source position.
+ // A position is valid if Line > 0.
+ type Position struct {
+ 	Filename string // filename, if any

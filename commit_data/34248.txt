@@ -26,10 +26,341 @@ Date:   Mon Sep 18 14:54:10 2017 -0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Hugues Bruant <hugues.bruant@gmail.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/bitset.go |  10 +++
  src/cmd/compile/internal/gc/inl.go    | 128 +++++++++++++++++++++++++++++++++-
  src/cmd/compile/internal/gc/syntax.go |  45 ++++++------
  test/escape4.go                       |   6 +-
  test/inline.go                        |  49 ++++++++++++-
  5 files changed, 211 insertions(+), 27 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/bitset.go b/src/cmd/compile/internal/gc/bitset.go
+index 90babd5a9f..ed5eea0a11 100644
+--- a/src/cmd/compile/internal/gc/bitset.go
++++ b/src/cmd/compile/internal/gc/bitset.go
+@@ -14,6 +14,16 @@ func (f *bitset8) set(mask uint8, b bool) {
+ 	}
+ }
+ 
++type bitset16 uint16
++
++func (f *bitset16) set(mask uint16, b bool) {
++	if b {
++		*(*uint16)(f) |= mask
++	} else {
++		*(*uint16)(f) &^= mask
++	}
++}
++
+ type bitset32 uint32
+ 
+ func (f *bitset32) set(mask uint32, b bool) {
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index da02f73ecd..f172492128 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -149,6 +149,12 @@ func caninl(fn *Node) {
+ 		return
+ 	}
+ 
++	n := fn.Func.Nname
++	if n.Func.InlinabilityChecked() {
++		return
++	}
++	defer n.Func.SetInlinabilityChecked(true)
++
+ 	const maxBudget = 80
+ 	visitor := hairyVisitor{budget: maxBudget}
+ 	if visitor.visitList(fn.Nbody) {
+@@ -163,8 +169,6 @@ func caninl(fn *Node) {
+ 	savefn := Curfn
+ 	Curfn = fn
+ 
+-	n := fn.Func.Nname
+-
+ 	n.Func.Inl.Set(fn.Nbody.Slice())
+ 	fn.Nbody.Set(inlcopylist(n.Func.Inl.Slice()))
+ 	inldcl := inlcopylist(n.Name.Defn.Func.Dcl)
+@@ -522,6 +526,37 @@ func inlnode(n *Node) *Node {
+ 			n = mkinlcall(n, n.Left, n.Isddd())
+ 		} else if n.isMethodCalledAsFunction() && asNode(n.Left.Sym.Def) != nil {
+ 			n = mkinlcall(n, asNode(n.Left.Sym.Def), n.Isddd())
++		} else if n.Left.Op == OCLOSURE {
++			if f := inlinableClosure(n.Left); f != nil {
++				n = mkinlcall(n, f, n.Isddd())
++			}
++		} else if n.Left.Op == ONAME && n.Left.Name != nil && n.Left.Name.Defn != nil {
++			if d := n.Left.Name.Defn; d.Op == OAS && d.Right.Op == OCLOSURE {
++				if f := inlinableClosure(d.Right); f != nil {
++					// NB: this check is necessary to prevent indirect re-assignment of the variable
++					// having the address taken after the invocation or only used for reads is actually fine
++					// but we have no easy way to distinguish the safe cases
++					if d.Left.Addrtaken() {
++						if Debug['m'] > 1 {
++							fmt.Printf("%v: cannot inline escaping closure variable %v\n", n.Line(), n.Left)
++						}
++						break
++					}
++
++					// ensure the variable is never re-assigned
++					if unsafe, a := reassigned(n.Left); unsafe {
++						if Debug['m'] > 1 {
++							if a != nil {
++								fmt.Printf("%v: cannot inline re-assigned closure variable at %v: %v\n", n.Line(), a.Line(), a)
++							} else {
++								fmt.Printf("%v: cannot inline global closure variable %v\n", n.Line(), n.Left)
++							}
++						}
++						break
++					}
++					n = mkinlcall(n, f, n.Isddd())
++				}
++			}
+ 		}
+ 
+ 	case OCALLMETH:
+@@ -545,6 +580,95 @@ func inlnode(n *Node) *Node {
+ 	return n
+ }
+ 
++func inlinableClosure(n *Node) *Node {
++	c := n.Func.Closure
++	caninl(c)
++	f := c.Func.Nname
++	if f != nil && f.Func.Inl.Len() != 0 {
++		if n.Func.Cvars.Len() != 0 {
++			// FIXME: support closure with captured variables
++			// they currently result in invariant violation in the SSA phase
++			if Debug['m'] > 1 {
++				fmt.Printf("%v: cannot inline closure w/ captured vars %v\n", n.Line(), n.Left)
++			}
++			return nil
++		}
++		return f
++	}
++	return nil
++}
++
++// reassigned takes an ONAME node, walks the function in which it is defined, and returns a boolean
++// indicating whether the name has any assignments other than its declaration.
++// The second return value is the first such assignment encountered in the walk, if any. It is mostly
++// useful for -m output documenting the reason for inhibited optimizations.
++// NB: global variables are always considered to be re-assigned.
++// TODO: handle initial declaration not including an assignment and followed by a single assignment?
++func reassigned(n *Node) (bool, *Node) {
++	if n.Op != ONAME {
++		Fatalf("reassigned %v", n)
++	}
++	// no way to reliably check for no-reassignment of globals, assume it can be
++	if n.Name.Curfn == nil {
++		return true, nil
++	}
++	v := reassignVisitor{name: n}
++	a := v.visitList(n.Name.Curfn.Nbody)
++	return a != nil, a
++}
++
++type reassignVisitor struct {
++	name *Node
++}
++
++func (v *reassignVisitor) visit(n *Node) *Node {
++	if n == nil {
++		return nil
++	}
++	switch n.Op {
++	case OAS:
++		if n.Left == v.name && n != v.name.Name.Defn {
++			return n
++		}
++		return nil
++	case OAS2, OAS2FUNC:
++		for _, p := range n.List.Slice() {
++			if p == v.name && n != v.name.Name.Defn {
++				return n
++			}
++		}
++		return nil
++	}
++	if a := v.visit(n.Left); a != nil {
++		return a
++	}
++	if a := v.visit(n.Right); a != nil {
++		return a
++	}
++	if a := v.visitList(n.List); a != nil {
++		return a
++	}
++	if a := v.visitList(n.Rlist); a != nil {
++		return a
++	}
++	if a := v.visitList(n.Ninit); a != nil {
++		return a
++	}
++	if a := v.visitList(n.Nbody); a != nil {
++		return a
++	}
++	return nil
++}
++
++func (v *reassignVisitor) visitList(l Nodes) *Node {
++	for _, n := range l.Slice() {
++		if a := v.visit(n); a != nil {
++			return a
++		}
++	}
++	return nil
++}
++
+ // The result of mkinlcall MUST be assigned back to n, e.g.
+ // 	n.Left = mkinlcall(n.Left, fn, isddd)
+ func mkinlcall(n *Node, fn *Node, isddd bool) *Node {
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index 826dd1fb22..3640eb7381 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -384,7 +384,7 @@ type Func struct {
+ 
+ 	Pragma syntax.Pragma // go:xxx function annotations
+ 
+-	flags bitset8
++	flags bitset16
+ }
+ 
+ // A Mark represents a scope boundary.
+@@ -406,28 +406,31 @@ const (
+ 	funcNeedctxt                  // function uses context register (has closure variables)
+ 	funcReflectMethod             // function calls reflect.Type.Method or MethodByName
+ 	funcIsHiddenClosure
+-	funcNoFramePointer   // Must not use a frame pointer for this function
+-	funcHasDefer         // contains a defer statement
+-	funcNilCheckDisabled // disable nil checks when compiling this function
++	funcNoFramePointer      // Must not use a frame pointer for this function
++	funcHasDefer            // contains a defer statement
++	funcNilCheckDisabled    // disable nil checks when compiling this function
++	funcInlinabilityChecked // inliner has already determined whether the function is inlinable
+ )
+ 
+-func (f *Func) Dupok() bool            { return f.flags&funcDupok != 0 }
+-func (f *Func) Wrapper() bool          { return f.flags&funcWrapper != 0 }
+-func (f *Func) Needctxt() bool         { return f.flags&funcNeedctxt != 0 }
+-func (f *Func) ReflectMethod() bool    { return f.flags&funcReflectMethod != 0 }
+-func (f *Func) IsHiddenClosure() bool  { return f.flags&funcIsHiddenClosure != 0 }
+-func (f *Func) NoFramePointer() bool   { return f.flags&funcNoFramePointer != 0 }
+-func (f *Func) HasDefer() bool         { return f.flags&funcHasDefer != 0 }
+-func (f *Func) NilCheckDisabled() bool { return f.flags&funcNilCheckDisabled != 0 }
+-
+-func (f *Func) SetDupok(b bool)            { f.flags.set(funcDupok, b) }
+-func (f *Func) SetWrapper(b bool)          { f.flags.set(funcWrapper, b) }
+-func (f *Func) SetNeedctxt(b bool)         { f.flags.set(funcNeedctxt, b) }
+-func (f *Func) SetReflectMethod(b bool)    { f.flags.set(funcReflectMethod, b) }
+-func (f *Func) SetIsHiddenClosure(b bool)  { f.flags.set(funcIsHiddenClosure, b) }
+-func (f *Func) SetNoFramePointer(b bool)   { f.flags.set(funcNoFramePointer, b) }
+-func (f *Func) SetHasDefer(b bool)         { f.flags.set(funcHasDefer, b) }
+-func (f *Func) SetNilCheckDisabled(b bool) { f.flags.set(funcNilCheckDisabled, b) }
++func (f *Func) Dupok() bool               { return f.flags&funcDupok != 0 }
++func (f *Func) Wrapper() bool             { return f.flags&funcWrapper != 0 }
++func (f *Func) Needctxt() bool            { return f.flags&funcNeedctxt != 0 }
++func (f *Func) ReflectMethod() bool       { return f.flags&funcReflectMethod != 0 }
++func (f *Func) IsHiddenClosure() bool     { return f.flags&funcIsHiddenClosure != 0 }
++func (f *Func) NoFramePointer() bool      { return f.flags&funcNoFramePointer != 0 }
++func (f *Func) HasDefer() bool            { return f.flags&funcHasDefer != 0 }
++func (f *Func) NilCheckDisabled() bool    { return f.flags&funcNilCheckDisabled != 0 }
++func (f *Func) InlinabilityChecked() bool { return f.flags&funcInlinabilityChecked != 0 }
++
++func (f *Func) SetDupok(b bool)               { f.flags.set(funcDupok, b) }
++func (f *Func) SetWrapper(b bool)             { f.flags.set(funcWrapper, b) }
++func (f *Func) SetNeedctxt(b bool)            { f.flags.set(funcNeedctxt, b) }
++func (f *Func) SetReflectMethod(b bool)       { f.flags.set(funcReflectMethod, b) }
++func (f *Func) SetIsHiddenClosure(b bool)     { f.flags.set(funcIsHiddenClosure, b) }
++func (f *Func) SetNoFramePointer(b bool)      { f.flags.set(funcNoFramePointer, b) }
++func (f *Func) SetHasDefer(b bool)            { f.flags.set(funcHasDefer, b) }
++func (f *Func) SetNilCheckDisabled(b bool)    { f.flags.set(funcNilCheckDisabled, b) }
++func (f *Func) SetInlinabilityChecked(b bool) { f.flags.set(funcInlinabilityChecked, b) }
+ 
+ type Op uint8
+ 
+diff --git a/test/escape4.go b/test/escape4.go
+index 69a54ac721..22a37c1d0a 100644
+--- a/test/escape4.go
++++ b/test/escape4.go
+@@ -22,9 +22,9 @@ func f1() {
+ 
+ 	// Escape analysis used to miss inlined code in closures.
+ 
+-	func() { // ERROR "func literal does not escape" "can inline f1.func1"
+-		p = alloc(3) // ERROR "inlining call to alloc" "&x escapes to heap" "moved to heap: x"
+-	}()
++	func() { // ERROR "can inline f1.func1"
++		p = alloc(3) // ERROR "inlining call to alloc"
++	}() // ERROR "inlining call to f1.func1" "inlining call to alloc" "&x escapes to heap" "moved to heap: x"
+ 
+ 	f = func() { // ERROR "func literal escapes to heap" "can inline f1.func2"
+ 		p = alloc(3) // ERROR "inlining call to alloc" "&x escapes to heap" "moved to heap: x"
+diff --git a/test/inline.go b/test/inline.go
+index 7bb86ef8b2..7d8b2ceba9 100644
+--- a/test/inline.go
++++ b/test/inline.go
+@@ -9,7 +9,10 @@
+ 
+ package foo
+ 
+-import "unsafe"
++import (
++	"errors"
++	"unsafe"
++)
+ 
+ func add2(p *byte, n uintptr) *byte { // ERROR "can inline add2" "leaking param: p to result"
+ 	return (*byte)(add1(unsafe.Pointer(p), n)) // ERROR "inlining call to add1"
+@@ -46,6 +49,50 @@ func j(x int) int { // ERROR "can inline j"
+ 	}
+ }
+ 
++var somethingWrong error = errors.New("something went wrong")
++
++// local closures can be inlined
++func l(x, y int) (int, int, error) {
++	e := func(err error) (int, int, error) { // ERROR "can inline l.func1" "func literal does not escape" "leaking param: err to result"
++		return 0, 0, err
++	}
++	if x == y {
++		e(somethingWrong) // ERROR "inlining call to l.func1"
++	}
++	return y, x, nil
++}
++
++// any re-assignment prevents closure inlining
++func m() int {
++	foo := func() int { return 1 } // ERROR "can inline m.func1" "func literal does not escape"
++	x := foo()
++	foo = func() int { return 2 } // ERROR "can inline m.func2" "func literal does not escape"
++	return x + foo()
++}
++
++// address taking prevents closure inlining
++func n() int {
++	foo := func() int { return 1 } // ERROR "can inline n.func1" "func literal does not escape"
++	bar := &foo                    // ERROR "&foo does not escape"
++	x := (*bar)() + foo()
++	return x
++}
++
++// make sure assignment inside closure is detected
++func o() int {
++	foo := func() int { return 1 } // ERROR "can inline o.func1" "func literal does not escape"
++	func(x int) {                  // ERROR "func literal does not escape"
++		if x > 10 {
++			foo = func() int { return 2 } // ERROR "can inline o.func2" "func literal escapes"
++		}
++	}(11)
++	return foo()
++}
++
++func p() int {
++	return func() int { return 42 }() // ERROR "can inline p.func1" "inlining call to p.func1"
++}
++
+ // can't currently inline functions with a break statement
+ func switchBreak(x, y int) int {
+ 	var n int

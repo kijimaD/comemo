@@ -11,6 +11,46 @@ Date:   Thu Oct 17 13:54:39 2019 +0100
     Run-TryBot: Michael Munday <mike.munday@ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/asm/internal/arch/s390x.go | 21 ---------------------
  1 file changed, 21 deletions(-)
+
+diff --git a/src/cmd/asm/internal/arch/s390x.go b/src/cmd/asm/internal/arch/s390x.go
+index 0a4d278899..519d20877c 100644
+--- a/src/cmd/asm/internal/arch/s390x.go
++++ b/src/cmd/asm/internal/arch/s390x.go
+@@ -9,7 +9,6 @@
+ package arch
+ 
+ import (
+-	"cmd/internal/obj"
+ 	"cmd/internal/obj/s390x"
+ )
+ 
+@@ -59,26 +58,6 @@ func jumpS390x(word string) bool {
+ 	return false
+ }
+ 
+-// IsS390xCMP reports whether the op (as defined by an s390x.A* constant) is
+-// one of the CMP instructions that require special handling.
+-func IsS390xCMP(op obj.As) bool {
+-	switch op {
+-	case s390x.ACMP, s390x.ACMPU, s390x.ACMPW, s390x.ACMPWU:
+-		return true
+-	}
+-	return false
+-}
+-
+-// IsS390xNEG reports whether the op (as defined by an s390x.A* constant) is
+-// one of the NEG-like instructions that require special handling.
+-func IsS390xNEG(op obj.As) bool {
+-	switch op {
+-	case s390x.ANEG, s390x.ANEGW:
+-		return true
+-	}
+-	return false
+-}
+-
+ func s390xRegisterNumber(name string, n int16) (int16, bool) {
+ 	switch name {
+ 	case "AR":

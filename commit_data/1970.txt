@@ -19,9 +19,367 @@ Date:   Tue Apr 7 00:40:07 2009 -0700
     DELTA=288  (286 added, 0 deleted, 2 changed)
     OCL=27142
     CL=27152
-
+---
  src/lib/Makefile       |   3 +-
  src/lib/http/server.go |  31 ++++++++++-
  src/lib/path.go        | 139 +++++++++++++++++++++++++++++++++++++++++++++++++
  src/lib/path_test.go   | 119 ++++++++++++++++++++++++++++++++++++++++++
  4 files changed, 290 insertions(+), 2 deletions(-)
+
+diff --git a/src/lib/Makefile b/src/lib/Makefile
+index 4e47f2409a..5dc32168af 100644
+--- a/src/lib/Makefile
++++ b/src/lib/Makefile
+@@ -96,6 +96,7 @@ bufio.6: io.dirinstall os.dirinstall
+ exec.6: os.dirinstall
+ flag.6: fmt.dirinstall os.dirinstall strconv.dirinstall
+ log.6: fmt.dirinstall io.dirinstall os.dirinstall time.dirinstall
++path.6: io.dirinstall
+ once.6: sync.dirinstall
+ strings.6: utf8.install
+ testing.6: flag.install fmt.dirinstall
+@@ -103,7 +104,7 @@ testing.6: flag.install fmt.dirinstall
+ fmt.dirinstall: io.dirinstall reflect.dirinstall strconv.dirinstall
+ go.dirinstall: strconv.dirinstall utf8.install unicode.dirinstall fmt.dirinstall
+ hash.dirinstall: os.dirinstall
+-http.dirinstall: bufio.install io.dirinstall net.dirinstall os.dirinstall strings.install log.install
++http.dirinstall: bufio.install io.dirinstall net.dirinstall os.dirinstall path.install strings.install log.install
+ io.dirinstall: os.dirinstall sync.dirinstall
+ json.dirinstall: container.dirinstall fmt.dirinstall io.dirinstall math.dirinstall \
+ 	strconv.dirinstall strings.install utf8.install
+diff --git a/src/lib/http/server.go b/src/lib/http/server.go
+index df2ce3698a..fa29e9bc1c 100644
+--- a/src/lib/http/server.go
++++ b/src/lib/http/server.go
+@@ -19,6 +19,7 @@ import (
+ 	"log";
+ 	"net";
+ 	"os";
++	"path";
+ 	"strconv";
+ )
+ 
+@@ -209,7 +210,7 @@ func (c *Conn) serve() {
+ 		}
+ 		// HTTP cannot have multiple simultaneous active requests.
+ 		// Until the server replies to this request, it can't read another,
+-		// so we might as well run the handler in this thread.
++		// so we might as well run the handler in this goroutine.
+ 		c.handler.ServeHTTP(c, req);
+ 		if c.hijacked {
+ 			return;
+@@ -300,6 +301,10 @@ func RedirectHandler(url string) Handler {
+ // so that a handler might register for the two patterns
+ // "/codesearch" and "codesearch.google.com/"
+ // without taking over requests for http://www.google.com/.
++//
++// ServeMux also takes care of sanitizing the URL request path,
++// redirecting any request containing . or .. elements to an
++// equivalent .- and ..-free URL.
+ type ServeMux struct {
+ 	m map[string] Handler
+ }
+@@ -325,9 +330,33 @@ func pathMatch(pattern, path string) bool {
+ 	return len(path) >= n && path[0:n] == pattern;
+ }
+ 
++// Return the canonical path for p, eliminating . and .. elements.
++func cleanPath(p string) string {
++	if p == "" {
++		return "/";
++	}
++	if p[0] != '/' {
++		p = "/" + p;
++	}
++	np := path.Clean(p);
++	// path.Clean removes trailing slash except for root;
++	// put the trailing slash back if necessary.
++	if p[len(p)-1] == '/' && np != "/" {
++		np += "/";
++	}
++	return np;
++}
++
+ // ServeHTTP dispatches the request to the handler whose
+ // pattern most closely matches the request URL.
+ func (mux *ServeMux) ServeHTTP(c *Conn, req *Request) {
++	// Clean path to canonical form and redirect.
++	if p := cleanPath(req.Url.Path); p != req.Url.Path {
++		c.SetHeader("Location", p);
++		c.WriteHeader(StatusMovedPermanently);
++		return;
++	}
++
+ 	// Most-specific (longest) pattern wins.
+ 	var h Handler;
+ 	var n = 0;
+diff --git a/src/lib/path.go b/src/lib/path.go
+new file mode 100644
+index 0000000000..fdfcd4bfdf
+--- /dev/null
++++ b/src/lib/path.go
+@@ -0,0 +1,139 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// The path package implements utility routines for manipulating
++// slash-separated filename paths.
++package path
++
++import "io"
++
++// Clean returns the shortest path name equivalent to path
++// by purely lexical processing.  It applies the following rules
++// iteratively until no further processing can be done:
++//
++//	1. Replace multiple slashes by a single slash.
++//	2. Eliminate each . path name element (the current directory).
++//	3. Eliminate each .. path name element (the parent directory)
++//	   along with the non-.. element that precedes it.
++//	4. Eliminate .. elements that begin a rooted path:
++//	   that is, replace "/.." by "/" at the beginning of a path.
++//
++// If the result of this process is an empty string, Clean
++// returns the string ".".
++//
++// See also Rob Pike, ``Lexical File Names in Plan 9 or
++// Getting Dot-Dot right,''
++// http://plan9.bell-labs.com/sys/doc/lexnames.html
++func Clean(path string) string {
++	if path == "" {
++		return "."
++	}
++
++	rooted := path[0] == '/';
++	n := len(path);
++
++	// Invariants:
++	//	reading from path; r is index of next byte to process.
++	//	writing to buf; w is index of next byte to write.
++	//	dotdot is index in buf where .. must stop, either because
++	//		it is the leading slash or it is a leading ../../.. prefix.
++	buf := io.StringBytes(path);
++	r, w, dotdot := 0, 0, 0;
++	if rooted {
++		r, w, dotdot = 1, 1, 1;
++	}
++
++	for r < n {
++		switch {
++		case path[r] == '/':
++			// empty path element
++			r++;
++		case path[r] == '.' && (r+1 == n || path[r+1] == '/'):
++			// . element
++			r++;
++		case path[r] == '.' && path[r+1] == '.' && (r+2 == n || path[r+2] == '/'):
++			// .. element: remove to last /
++			r += 2;
++			switch {
++			case w > dotdot:
++				// can backtrack
++				w--;
++				for w > dotdot && buf[w] != '/' {
++					w--;
++				}
++			case !rooted:
++				// cannot backtrack, but not rooted, so append .. element.
++				if w > 0 {
++					buf[w] = '/';
++					w++;
++				}
++				buf[w] = '.';
++				w++;
++				buf[w] = '.';
++				w++;
++				dotdot = w;
++			}
++		default:
++			// real path element.
++			// add slash if needed
++			if rooted && w != 1 || !rooted && w != 0 {
++				buf[w] = '/';
++				w++;
++			}
++			// copy element
++			for ; r < n && path[r] != '/'; r++ {
++				buf[w] = path[r];
++				w++;
++			}
++		}
++	}
++
++	// Turn empty string into "."
++	if w == 0 {
++		buf[w] = '.';
++		w++;
++	}
++
++	return string(buf[0:w]);
++}
++
++// Split splits path immediately following the final slash,
++// separating it into a directory and file name component.
++// If there is no slash in path, DirFile returns an empty dir and
++// file set to path.
++func Split(path string) (dir, file string) {
++	for i := len(path)-1; i >= 0; i-- {
++		if path[i] == '/' {
++			return path[0:i+1], path[i+1:len(path)];
++		}
++	}
++	return "", path
++}
++
++// Join joins dir and file into a single path, adding a separating
++// slash if necessary.  If dir is empty, it returns file.
++func Join(dir, file string) string {
++	switch {
++	case dir == "":
++		return file;
++	case dir[len(dir)-1] == '/':
++		return dir + file;
++	}
++	return dir + "/" + file;
++}
++
++// Ext returns the file name extension used by path.
++// The extension is the suffix beginning at the final dot
++// in the final slash-separated element of path;
++// it is empty if there is no dot.
++func Ext(path string) string {
++	dot := -1;
++	for i := len(path)-1; i >= 0 && path[i] != '/'; i-- {
++		if path[i] == '.' {
++			return path[i:len(path)];
++		}
++	}
++	return ""
++}
++
+diff --git a/src/lib/path_test.go b/src/lib/path_test.go
+new file mode 100644
+index 0000000000..067b1d068c
+--- /dev/null
++++ b/src/lib/path_test.go
+@@ -0,0 +1,119 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package path
++
++import (
++	"path";
++	"testing"
++)
++
++type CleanTest struct {
++	path, clean string
++}
++
++var cleantests = []CleanTest {
++	// Already clean
++	CleanTest{"", "."},
++	CleanTest{"abc", "abc"},
++	CleanTest{"abc/def", "abc/def"},
++	CleanTest{"a/b/c", "a/b/c"},
++	CleanTest{".", "."},
++	CleanTest{"..", ".."},
++	CleanTest{"../..", "../.."},
++	CleanTest{"../../abc", "../../abc"},
++	CleanTest{"/abc", "/abc"},
++	CleanTest{"/", "/"},
++
++	// Remove trailing slash
++	CleanTest{"abc/", "abc"},
++	CleanTest{"abc/def/", "abc/def"},
++	CleanTest{"a/b/c/", "a/b/c"},
++	CleanTest{"./", "."},
++	CleanTest{"../", ".."},
++	CleanTest{"../../", "../.."},
++	CleanTest{"/abc/", "/abc"},
++
++	// Remove doubled slash
++	CleanTest{"abc//def//ghi", "abc/def/ghi"},
++	CleanTest{"//abc", "/abc"},
++	CleanTest{"///abc", "/abc"},
++	CleanTest{"//abc//", "/abc"},
++	CleanTest{"abc//", "abc"},
++
++	// Remove . elements
++	CleanTest{"abc/./def", "abc/def"},
++	CleanTest{"/./abc/def", "/abc/def"},
++	CleanTest{"abc/.", "abc"},
++
++	// Remove .. elements
++	CleanTest{"abc/def/ghi/../jkl", "abc/def/jkl"},
++	CleanTest{"abc/def/../ghi/../jkl", "abc/jkl"},
++	CleanTest{"abc/def/..", "abc"},
++	CleanTest{"abc/def/../..", "."},
++	CleanTest{"/abc/def/../..", "/"},
++	CleanTest{"abc/def/../../..", ".."},
++	CleanTest{"/abc/def/../../..", "/"},
++	CleanTest{"abc/def/../../../ghi/jkl/../../../mno", "../../mno"},
++
++	// Combinations
++	CleanTest{"abc/./../def", "def"},
++	CleanTest{"abc//./../def", "def"},
++	CleanTest{"abc/../../././../def", "../../def"},
++}
++
++func TestClean(t *testing.T) {
++	for i, test := range cleantests {
++		if s := Clean(test.path); s != test.clean {
++			t.Errorf("Clean(%q) = %q, want %q", test.path, s, test.clean);
++		}
++	}
++}
++
++type SplitTest struct {
++	path, dir, file string
++}
++
++var splittests = []SplitTest {
++	SplitTest{"a/b", "a/", "b"},
++	SplitTest{"a/b/", "a/b/", ""},
++	SplitTest{"a/", "a/", ""},
++	SplitTest{"a", "", "a"},
++	SplitTest{"/", "/", ""},
++}
++
++func TestSplit(t *testing.T) {
++	for i, test := range splittests {
++		if d, f := Split(test.path); d != test.dir || f != test.file {
++			t.Errorf("Split(%q) = %q, %q, want %q, %q", test.path, d, f, test.dir, test.file);
++		}
++	}
++}
++
++type JoinTest struct {
++	dir, file, path string
++}
++
++var jointests = []JoinTest {
++	JoinTest{"a", "b", "a/b"},
++	JoinTest{"a", "", "a/"},
++	JoinTest{"", "b", "b"},
++	JoinTest{"/", "a", "/a"},
++	JoinTest{"/", "", "/"},
++	JoinTest{"a/", "b", "a/b"},
++	JoinTest{"a/", "", "a/"},
++}
++
++type ExtTest struct {
++	path, ext string
++}
++
++var exttests = []ExtTest {
++	ExtTest{"path.go", ".go"},
++	ExtTest{"path.pb.go", ".go"},
++	ExtTest{"path", ""},
++	ExtTest{"a.dir/b", ""},
++	ExtTest{"a.dir/b.go", ".go"},
++	ExtTest{"a.dir/", ""},
++}

@@ -14,7 +14,7 @@ Date:   Wed Oct 7 09:44:16 2020 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/260539
     Trust: David Chase <drchase@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/ssa/config.go         | 56 +++++++++++++----------
  src/cmd/compile/internal/ssa/gen/AMD64Ops.go   | 25 ++++++-----
  src/cmd/compile/internal/ssa/gen/genericOps.go |  6 +++
@@ -23,3 +23,427 @@ Date:   Wed Oct 7 09:44:16 2020 -0400
  src/cmd/compile/internal/ssa/opGen.go          | 36 +++++++++++++++
  src/runtime/stack.go                           |  2 +-
  7 files changed, 141 insertions(+), 50 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/config.go b/src/cmd/compile/internal/ssa/config.go
+index f3a3a88a66..07508d6e83 100644
+--- a/src/cmd/compile/internal/ssa/config.go
++++ b/src/cmd/compile/internal/ssa/config.go
+@@ -5,6 +5,7 @@
+ package ssa
+ 
+ import (
++	"cmd/compile/internal/abi"
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/ir"
+ 	"cmd/compile/internal/types"
+@@ -21,29 +22,33 @@ type Config struct {
+ 	PtrSize        int64  // 4 or 8; copy of cmd/internal/sys.Arch.PtrSize
+ 	RegSize        int64  // 4 or 8; copy of cmd/internal/sys.Arch.RegSize
+ 	Types          Types
+-	lowerBlock     blockRewriter // lowering function
+-	lowerValue     valueRewriter // lowering function
+-	splitLoad      valueRewriter // function for splitting merged load ops; only used on some architectures
+-	registers      []Register    // machine registers
+-	gpRegMask      regMask       // general purpose integer register mask
+-	fpRegMask      regMask       // floating point register mask
+-	fp32RegMask    regMask       // floating point register mask
+-	fp64RegMask    regMask       // floating point register mask
+-	specialRegMask regMask       // special register mask
+-	GCRegMap       []*Register   // garbage collector register map, by GC register index
+-	FPReg          int8          // register number of frame pointer, -1 if not used
+-	LinkReg        int8          // register number of link register if it is a general purpose register, -1 if not used
+-	hasGReg        bool          // has hardware g register
+-	ctxt           *obj.Link     // Generic arch information
+-	optimize       bool          // Do optimization
+-	noDuffDevice   bool          // Don't use Duff's device
+-	useSSE         bool          // Use SSE for non-float operations
+-	useAvg         bool          // Use optimizations that need Avg* operations
+-	useHmul        bool          // Use optimizations that need Hmul* operations
+-	SoftFloat      bool          //
+-	Race           bool          // race detector enabled
+-	BigEndian      bool          //
+-	UseFMA         bool          // Use hardware FMA operation
++	lowerBlock     blockRewriter  // lowering function
++	lowerValue     valueRewriter  // lowering function
++	splitLoad      valueRewriter  // function for splitting merged load ops; only used on some architectures
++	registers      []Register     // machine registers
++	gpRegMask      regMask        // general purpose integer register mask
++	fpRegMask      regMask        // floating point register mask
++	fp32RegMask    regMask        // floating point register mask
++	fp64RegMask    regMask        // floating point register mask
++	specialRegMask regMask        // special register mask
++	intParamRegs   []int8         // register numbers of integer param (in/out) registers
++	floatParamRegs []int8         // register numbers of floating param (in/out) registers
++	ABI1           *abi.ABIConfig // "ABIInternal" under development // TODO change comment when this becomes current
++	ABI0           *abi.ABIConfig
++	GCRegMap       []*Register // garbage collector register map, by GC register index
++	FPReg          int8        // register number of frame pointer, -1 if not used
++	LinkReg        int8        // register number of link register if it is a general purpose register, -1 if not used
++	hasGReg        bool        // has hardware g register
++	ctxt           *obj.Link   // Generic arch information
++	optimize       bool        // Do optimization
++	noDuffDevice   bool        // Don't use Duff's device
++	useSSE         bool        // Use SSE for non-float operations
++	useAvg         bool        // Use optimizations that need Avg* operations
++	useHmul        bool        // Use optimizations that need Hmul* operations
++	SoftFloat      bool        //
++	Race           bool        // race detector enabled
++	BigEndian      bool        //
++	UseFMA         bool        // Use hardware FMA operation
+ }
+ 
+ type (
+@@ -195,6 +200,8 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize bool) *Config
+ 		c.gpRegMask = gpRegMaskAMD64
+ 		c.fpRegMask = fpRegMaskAMD64
+ 		c.specialRegMask = specialRegMaskAMD64
++		c.intParamRegs = paramIntRegAMD64
++		c.floatParamRegs = paramFloatRegAMD64
+ 		c.FPReg = framepointerRegAMD64
+ 		c.LinkReg = linkRegAMD64
+ 		c.hasGReg = base.Flag.ABIWrap
+@@ -326,6 +333,9 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize bool) *Config
+ 	c.useSSE = true
+ 	c.UseFMA = true
+ 
++	c.ABI0 = abi.NewABIConfig(0, 0)
++	c.ABI1 = abi.NewABIConfig(len(c.intParamRegs), len(c.floatParamRegs))
++
+ 	// On Plan 9, floating point operations are not allowed in note handler.
+ 	if objabi.GOOS == "plan9" {
+ 		// Don't use FMA on Plan 9
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+index 043162e544..96475672a8 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build ignore
+ // +build ignore
+ 
+ package main
+@@ -929,16 +930,18 @@ func init() {
+ 	}
+ 
+ 	archs = append(archs, arch{
+-		name:            "AMD64",
+-		pkg:             "cmd/internal/obj/x86",
+-		genfile:         "../../amd64/ssa.go",
+-		ops:             AMD64ops,
+-		blocks:          AMD64blocks,
+-		regnames:        regNamesAMD64,
+-		gpregmask:       gp,
+-		fpregmask:       fp,
+-		specialregmask:  x15,
+-		framepointerreg: int8(num["BP"]),
+-		linkreg:         -1, // not used
++		name:               "AMD64",
++		pkg:                "cmd/internal/obj/x86",
++		genfile:            "../../amd64/ssa.go",
++		ops:                AMD64ops,
++		blocks:             AMD64blocks,
++		regnames:           regNamesAMD64,
++		ParamIntRegNames:   "AX BX CX DI SI R8 R9 R10 R11",
++		ParamFloatRegNames: "X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14",
++		gpregmask:          gp,
++		fpregmask:          fp,
++		specialregmask:     x15,
++		framepointerreg:    int8(num["BP"]),
++		linkreg:            -1, // not used
+ 	})
+ }
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index 8cfda35c22..23a2d74b14 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build ignore
+ // +build ignore
+ 
+ package main
+@@ -332,6 +333,11 @@ var genericOps = []opData{
+ 	{name: "InitMem", zeroWidth: true},                               // memory input to the function.
+ 	{name: "Arg", aux: "SymOff", symEffect: "Read", zeroWidth: true}, // argument to the function.  aux=GCNode of arg, off = offset in that arg.
+ 
++	// Like Arg, these are generic ops that survive lowering. AuxInt is a register index, and the actual output register for each index is defined by the architecture.
++	// AuxInt = integer argument index (not a register number). ABI-specified spill loc obtained from function
++	{name: "ArgIntReg", aux: "Int8", zeroWidth: true},   // argument to the function in an int reg.
++	{name: "ArgFloatReg", aux: "Int8", zeroWidth: true}, // argument to the function in a float reg.
++
+ 	// The address of a variable.  arg0 is the base pointer.
+ 	// If the variable is a global, the base pointer will be SB and
+ 	// the Aux field will be a *obj.LSym.
+diff --git a/src/cmd/compile/internal/ssa/gen/main.go b/src/cmd/compile/internal/ssa/gen/main.go
+index e7a4ef0629..f5385389c3 100644
+--- a/src/cmd/compile/internal/ssa/gen/main.go
++++ b/src/cmd/compile/internal/ssa/gen/main.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build ignore
+ // +build ignore
+ 
+ // The gen command generates Go code (in the parent directory) for all
+@@ -30,21 +31,23 @@ import (
+ // apart from type names, and avoid awkward func parameters like "arch arch".
+ 
+ type arch struct {
+-	name            string
+-	pkg             string // obj package to import for this arch.
+-	genfile         string // source file containing opcode code generation.
+-	ops             []opData
+-	blocks          []blockData
+-	regnames        []string
+-	gpregmask       regMask
+-	fpregmask       regMask
+-	fp32regmask     regMask
+-	fp64regmask     regMask
+-	specialregmask  regMask
+-	framepointerreg int8
+-	linkreg         int8
+-	generic         bool
+-	imports         []string
++	name               string
++	pkg                string // obj package to import for this arch.
++	genfile            string // source file containing opcode code generation.
++	ops                []opData
++	blocks             []blockData
++	regnames           []string
++	ParamIntRegNames   string
++	ParamFloatRegNames string
++	gpregmask          regMask
++	fpregmask          regMask
++	fp32regmask        regMask
++	fp64regmask        regMask
++	specialregmask     regMask
++	framepointerreg    int8
++	linkreg            int8
++	generic            bool
++	imports            []string
+ }
+ 
+ type opData struct {
+@@ -412,7 +415,9 @@ func genOp() {
+ 		}
+ 		fmt.Fprintf(w, "var registers%s = [...]Register {\n", a.name)
+ 		var gcRegN int
++		num := map[string]int8{}
+ 		for i, r := range a.regnames {
++			num[r] = int8(i)
+ 			pkg := a.pkg[len("cmd/internal/obj/"):]
+ 			var objname string // name in cmd/internal/obj/$ARCH
+ 			switch r {
+@@ -435,11 +440,38 @@ func genOp() {
+ 			}
+ 			fmt.Fprintf(w, "  {%d, %s, %d, \"%s\"},\n", i, objname, gcRegIdx, r)
+ 		}
++		parameterRegisterList := func(paramNamesString string) []int8 {
++			paramNamesString = strings.TrimSpace(paramNamesString)
++			if paramNamesString == "" {
++				return nil
++			}
++			paramNames := strings.Split(paramNamesString, " ")
++			var paramRegs []int8
++			for _, regName := range paramNames {
++				if regName == "" {
++					// forgive extra spaces
++					continue
++				}
++				if regNum, ok := num[regName]; ok {
++					paramRegs = append(paramRegs, regNum)
++					delete(num, regName)
++				} else {
++					log.Fatalf("parameter register %s for architecture %s not a register name (or repeated in parameter list)", regName, a.name)
++				}
++			}
++			return paramRegs
++		}
++
++		paramIntRegs := parameterRegisterList(a.ParamIntRegNames)
++		paramFloatRegs := parameterRegisterList(a.ParamFloatRegNames)
++
+ 		if gcRegN > 32 {
+ 			// Won't fit in a uint32 mask.
+ 			log.Fatalf("too many GC registers (%d > 32) on %s", gcRegN, a.name)
+ 		}
+ 		fmt.Fprintln(w, "}")
++		fmt.Fprintf(w, "var paramIntReg%s = %#v\n", a.name, paramIntRegs)
++		fmt.Fprintf(w, "var paramFloatReg%s = %#v\n", a.name, paramFloatRegs)
+ 		fmt.Fprintf(w, "var gpRegMask%s = regMask(%d)\n", a.name, a.gpregmask)
+ 		fmt.Fprintf(w, "var fpRegMask%s = regMask(%d)\n", a.name, a.fpregmask)
+ 		if a.fp32regmask != 0 {
+diff --git a/src/cmd/compile/internal/ssa/op.go b/src/cmd/compile/internal/ssa/op.go
+index f41d014d41..cf0d2affc7 100644
+--- a/src/cmd/compile/internal/ssa/op.go
++++ b/src/cmd/compile/internal/ssa/op.go
+@@ -79,6 +79,7 @@ type AuxCall struct {
+ 	Fn      *obj.LSym
+ 	args    []Param // Includes receiver for method calls.  Does NOT include hidden closure pointer.
+ 	results []Param
++	reg     *regInfo // regInfo for this call // TODO for now nil means ignore
+ }
+ 
+ // ResultForOffset returns the index of the result at a particular offset among the results
+@@ -186,16 +187,19 @@ func (a *AuxCall) String() string {
+ 
+ // StaticAuxCall returns an AuxCall for a static call.
+ func StaticAuxCall(sym *obj.LSym, args []Param, results []Param) *AuxCall {
++	// TODO Create regInfo for AuxCall
+ 	return &AuxCall{Fn: sym, args: args, results: results}
+ }
+ 
+ // InterfaceAuxCall returns an AuxCall for an interface call.
+ func InterfaceAuxCall(args []Param, results []Param) *AuxCall {
++	// TODO Create regInfo for AuxCall
+ 	return &AuxCall{Fn: nil, args: args, results: results}
+ }
+ 
+ // ClosureAuxCall returns an AuxCall for a closure call.
+ func ClosureAuxCall(args []Param, results []Param) *AuxCall {
++	// TODO Create regInfo for AuxCall
+ 	return &AuxCall{Fn: nil, args: args, results: results}
+ }
+ 
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index e4087bd021..ba170968ae 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -2747,6 +2747,8 @@ const (
+ 	OpConstSlice
+ 	OpInitMem
+ 	OpArg
++	OpArgIntReg
++	OpArgFloatReg
+ 	OpAddr
+ 	OpLocalAddr
+ 	OpSP
+@@ -35253,6 +35255,20 @@ var opcodeTable = [...]opInfo{
+ 		symEffect: SymRead,
+ 		generic:   true,
+ 	},
++	{
++		name:      "ArgIntReg",
++		auxType:   auxInt8,
++		argLen:    0,
++		zeroWidth: true,
++		generic:   true,
++	},
++	{
++		name:      "ArgFloatReg",
++		auxType:   auxInt8,
++		argLen:    0,
++		zeroWidth: true,
++		generic:   true,
++	},
+ 	{
+ 		name:      "Addr",
+ 		auxType:   auxSym,
+@@ -36141,6 +36157,8 @@ var registers386 = [...]Register{
+ 	{15, x86.REG_X7, -1, "X7"},
+ 	{16, 0, -1, "SB"},
+ }
++var paramIntReg386 = []int8(nil)
++var paramFloatReg386 = []int8(nil)
+ var gpRegMask386 = regMask(239)
+ var fpRegMask386 = regMask(65280)
+ var specialRegMask386 = regMask(0)
+@@ -36181,6 +36199,8 @@ var registersAMD64 = [...]Register{
+ 	{31, x86.REG_X15, -1, "X15"},
+ 	{32, 0, -1, "SB"},
+ }
++var paramIntRegAMD64 = []int8{0, 3, 1, 7, 6, 8, 9, 10, 11}
++var paramFloatRegAMD64 = []int8{16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30}
+ var gpRegMaskAMD64 = regMask(49135)
+ var fpRegMaskAMD64 = regMask(2147418112)
+ var specialRegMaskAMD64 = regMask(2147483648)
+@@ -36221,6 +36241,8 @@ var registersARM = [...]Register{
+ 	{31, arm.REG_F15, -1, "F15"},
+ 	{32, 0, -1, "SB"},
+ }
++var paramIntRegARM = []int8(nil)
++var paramFloatRegARM = []int8(nil)
+ var gpRegMaskARM = regMask(21503)
+ var fpRegMaskARM = regMask(4294901760)
+ var specialRegMaskARM = regMask(0)
+@@ -36292,6 +36314,8 @@ var registersARM64 = [...]Register{
+ 	{62, arm64.REG_F31, -1, "F31"},
+ 	{63, 0, -1, "SB"},
+ }
++var paramIntRegARM64 = []int8(nil)
++var paramFloatRegARM64 = []int8(nil)
+ var gpRegMaskARM64 = regMask(670826495)
+ var fpRegMaskARM64 = regMask(9223372034707292160)
+ var specialRegMaskARM64 = regMask(0)
+@@ -36347,6 +36371,8 @@ var registersMIPS = [...]Register{
+ 	{46, mips.REG_LO, -1, "LO"},
+ 	{47, 0, -1, "SB"},
+ }
++var paramIntRegMIPS = []int8(nil)
++var paramFloatRegMIPS = []int8(nil)
+ var gpRegMaskMIPS = regMask(335544318)
+ var fpRegMaskMIPS = regMask(35183835217920)
+ var specialRegMaskMIPS = regMask(105553116266496)
+@@ -36417,6 +36443,8 @@ var registersMIPS64 = [...]Register{
+ 	{61, mips.REG_LO, -1, "LO"},
+ 	{62, 0, -1, "SB"},
+ }
++var paramIntRegMIPS64 = []int8(nil)
++var paramFloatRegMIPS64 = []int8(nil)
+ var gpRegMaskMIPS64 = regMask(167772158)
+ var fpRegMaskMIPS64 = regMask(1152921504338411520)
+ var specialRegMaskMIPS64 = regMask(3458764513820540928)
+@@ -36488,6 +36516,8 @@ var registersPPC64 = [...]Register{
+ 	{62, ppc64.REG_F30, -1, "F30"},
+ 	{63, ppc64.REG_F31, -1, "F31"},
+ }
++var paramIntRegPPC64 = []int8(nil)
++var paramFloatRegPPC64 = []int8(nil)
+ var gpRegMaskPPC64 = regMask(1073733624)
+ var fpRegMaskPPC64 = regMask(576460743713488896)
+ var specialRegMaskPPC64 = regMask(0)
+@@ -36559,6 +36589,8 @@ var registersRISCV64 = [...]Register{
+ 	{62, riscv.REG_F31, -1, "F31"},
+ 	{63, 0, -1, "SB"},
+ }
++var paramIntRegRISCV64 = []int8(nil)
++var paramFloatRegRISCV64 = []int8(nil)
+ var gpRegMaskRISCV64 = regMask(1006632948)
+ var fpRegMaskRISCV64 = regMask(9223372034707292160)
+ var specialRegMaskRISCV64 = regMask(0)
+@@ -36599,6 +36631,8 @@ var registersS390X = [...]Register{
+ 	{31, s390x.REG_F15, -1, "F15"},
+ 	{32, 0, -1, "SB"},
+ }
++var paramIntRegS390X = []int8(nil)
++var paramFloatRegS390X = []int8(nil)
+ var gpRegMaskS390X = regMask(23551)
+ var fpRegMaskS390X = regMask(4294901760)
+ var specialRegMaskS390X = regMask(0)
+@@ -36657,6 +36691,8 @@ var registersWasm = [...]Register{
+ 	{49, wasm.REGG, -1, "g"},
+ 	{50, 0, -1, "SB"},
+ }
++var paramIntRegWasm = []int8(nil)
++var paramFloatRegWasm = []int8(nil)
+ var gpRegMaskWasm = regMask(65535)
+ var fpRegMaskWasm = regMask(281474976645120)
+ var fp32RegMaskWasm = regMask(4294901760)
+diff --git a/src/runtime/stack.go b/src/runtime/stack.go
+index d971e5e26f..c572f7296f 100644
+--- a/src/runtime/stack.go
++++ b/src/runtime/stack.go
+@@ -112,7 +112,7 @@ const (
+ 	stackDebug       = 0
+ 	stackFromSystem  = 0 // allocate stacks from system memory instead of the heap
+ 	stackFaultOnFree = 0 // old stacks are mapped noaccess to detect use after free
+-	stackPoisonCopy  = 0 // fill stack that should not be accessed with garbage, to detect bad dereferences during copy
++	stackPoisonCopy  = 1 // fill stack that should not be accessed with garbage, to detect bad dereferences during copy
+ 	stackNoCache     = 0 // disable per-P small stack caches
+ 
+ 	// check the BP links during traceback.

@@ -12,10 +12,880 @@ Date:   Sun Oct 11 20:01:11 2009 -0700
     DELTA=415  (240 added, 29 deleted, 146 changed)
     OCL=35576
     CL=35588
-
+---
  src/cmd/5g/cgen.c   |  43 +++++-
  src/cmd/5g/cgen64.c | 417 +++++++++++++++++++++++++++++++++++-----------------
  src/cmd/5g/gsubr.c  |  62 +++++---
  src/make-arm.bash   |   2 +-
  test/arm-pass.txt   |  13 +-
  5 files changed, 374 insertions(+), 163 deletions(-)
+
+diff --git a/src/cmd/5g/cgen.c b/src/cmd/5g/cgen.c
+index 0fa69b69ee..b8556e5618 100644
+--- a/src/cmd/5g/cgen.c
++++ b/src/cmd/5g/cgen.c
+@@ -182,7 +182,6 @@ cgen(Node *n, Node *res)
+ 
+ 	if(nl != N && isfloat[n->type->etype] && isfloat[nl->type->etype])
+ 		goto flt;
+-
+ 	switch(n->op) {
+ 	default:
+ 		dump("cgen", n);
+@@ -252,6 +251,7 @@ cgen(Node *n, Node *res)
+ 			cgen(nl, res);
+ 			break;
+ 		}
++
+ 		mgen(nl, &n1, res);
+ 		gmove(&n1, res);
+ 		mfree(&n1);
+@@ -886,7 +886,7 @@ bgen(Node *n, int true, Prog *to)
+ 			regfree(&n1);
+ 			break;
+ 		}
+-		
++
+ 		if(isinter(nl->type)) {
+ 			// front end shold only leave cmp to literal nil
+ 			if((a != OEQ && a != ONE) || nr->op != OLITERAL) {
+@@ -1010,6 +1010,7 @@ stkof(Node *n)
+ /*
+  * block copy:
+  *	memmove(&res, &n, w);
++ * NB: character copy assumed little endian architecture
+  */
+ void
+ sgen(Node *n, Node *res, int32 w)
+@@ -1136,8 +1137,42 @@ sgen(Node *n, Node *res, int32 w)
+ 			q--;
+ 		}
+ 
+-		if (c != 0)
+-			fatal("sgen: character copy not implemented");
++		if (c != 0) {
++			//	MOVW	(src), tmp
++			p = gins(AMOVW, &src, &tmp);
++			p->from.type = D_OREG;
++
++			//	MOVW	tmp>>((4-c)*8),src
++			p = gins(AMOVW, N, &src);
++			p->from.type = D_SHIFT;
++			p->from.offset = SHIFT_LR | ((4-c)*8)<<7 | tmp.val.u.reg;
++
++			//	MOVW	src<<((4-c)*8),src
++			p = gins(AMOVW, N, &src);
++			p->from.type = D_SHIFT;
++			p->from.offset = SHIFT_LL | ((4-c)*8)<<7 | tmp.val.u.reg;
++
++			//	MOVW	(dst), tmp
++			p = gins(AMOVW, &dst, &tmp);
++			p->from.type = D_OREG;
++
++			//	MOVW	tmp<<(c*8),tmp
++			p = gins(AMOVW, N, &tmp);
++			p->from.type = D_SHIFT;
++			p->from.offset = SHIFT_LL | (c*8)<<7 | tmp.val.u.reg;
++
++			//	MOVW	tmp>>(c*8),tmp
++			p = gins(AMOVW, N, &tmp);
++			p->from.type = D_SHIFT;
++			p->from.offset = SHIFT_LR | (c*8)<<7 | tmp.val.u.reg;
++
++			//	ORR		src, tmp
++			gins(AORR, &src, &tmp);
++
++			//	MOVW	tmp, (dst)
++			p = gins(AMOVW, &tmp, &dst);
++			p->to.type = D_OREG;
++		}
+ 	}
+  	regfree(&dst);
+ 	regfree(&src);
+diff --git a/src/cmd/5g/cgen64.c b/src/cmd/5g/cgen64.c
+index a5f0a5974a..8e768198db 100644
+--- a/src/cmd/5g/cgen64.c
++++ b/src/cmd/5g/cgen64.c
+@@ -14,23 +14,30 @@ cgen64(Node *n, Node *res)
+ {
+ 	Node t1, t2, *l, *r;
+ 	Node lo1, lo2, hi1, hi2;
+-	Node al, ah, bl, bh, cl, ch; //, s1, s2;
+-	Prog *p1;
+- //, *p2;
++	Node al, ah, bl, bh, cl, ch, s, n1, creg;
++	Prog *p1, *p2, *p3;
++
+ 	uint64 v;
+-//	uint32 lv, hv;
+ 
+ 	if(res->op != OINDREG && res->op != ONAME) {
+ 		dump("n", n);
+ 		dump("res", res);
+ 		fatal("cgen64 %O of %O", n->op, res->op);
+ 	}
++
++	l = n->left;
++	if(!l->addable) {
++		tempalloc(&t1, l->type);
++		cgen(l, &t1);
++		l = &t1;
++	}
++
++	split64(l, &lo1, &hi1);
+ 	switch(n->op) {
+ 	default:
+ 		fatal("cgen64 %O", n->op);
+ 
+ 	case OMINUS:
+-		split64(n->left, &lo1, &hi1);
+ 		split64(res, &lo2, &hi2);
+ 
+ 		regalloc(&t1, lo1.type, N);
+@@ -55,13 +62,22 @@ cgen64(Node *n, Node *res)
+ 		splitclean();
+ 		return;
+ 
+-//	case OCOM:
+-//		cgen(n->left, res);
+-//		split64(res, &lo1, &hi1);
+-//		gins(ANOTL, N, &lo1);
+-//		gins(ANOTL, N, &hi1);
+-//		splitclean();
+-//		return;
++	case OCOM:
++		split64(res, &lo2, &hi2);
++		regalloc(&n1, lo1.type, N);
++
++		gins(AMOVW, &lo1, &n1);
++		gins(AMVN, &n1, &n1);
++		gins(AMOVW, &n1, &lo2);
++
++		gins(AMOVW, &hi1, &n1);
++		gins(AMVN, &n1, &n1);
++		gins(AMOVW, &n1, &hi2);
++
++		regfree(&n1);
++		splitclean();
++		splitclean();
++		return;
+ 
+ 	case OADD:
+ 	case OSUB:
+@@ -76,21 +92,13 @@ cgen64(Node *n, Node *res)
+ 		break;
+ 	}
+ 
+-	l = n->left;
++	// setup for binary operators
+ 	r = n->right;
+-	if(!l->addable) {
+-		tempalloc(&t1, l->type);
+-		cgen(l, &t1);
+-		l = &t1;
+-	}
+ 	if(r != N && !r->addable) {
+ 		tempalloc(&t2, r->type);
+ 		cgen(r, &t2);
+ 		r = &t2;
+ 	}
+-
+-	// Setup for binary operation.
+-	split64(l, &lo1, &hi1);
+ 	if(is64(r->type))
+ 		split64(r, &lo2, &hi2);
+ 
+@@ -117,10 +125,16 @@ cgen64(Node *n, Node *res)
+ 
+ 	case OSUB:
+ 		// TODO: Constants.
++		regalloc(&bl, types[TPTR32], N);
++		regalloc(&bh, types[TPTR32], N);
+ 		gins(AMOVW, &lo1, &al);
+ 		gins(AMOVW, &hi1, &ah);
+-		gins(ASUB, &lo2, &al);
+-		gins(ASBC, &hi2, &ah);
++		gins(AMOVW, &lo2, &bl);
++		gins(AMOVW, &hi2, &bh);
++		gins(ASUB, &bl, &al);
++		gins(ASBC, &bh, &ah);
++		regfree(&bl);
++		regfree(&bh);
+ 		break;
+ 
+ 	case OMUL:
+@@ -174,6 +188,11 @@ cgen64(Node *n, Node *res)
+ 		break;
+ 
+ 	case OLSH:
++		regalloc(&bh, hi1.type, N);
++		regalloc(&bl, lo1.type, N);
++		gins(AMOVW, &hi1, &bh);
++		gins(AMOVW, &lo1, &bl);
++
+ 		if(r->op == OLITERAL) {
+ 			v = mpgetfix(r->val.u.xval);
+ 			if(v >= 64) {
+@@ -181,173 +200,297 @@ cgen64(Node *n, Node *res)
+ 				// here and below (verify it optimizes to EOR)
+ 				gins(AEOR, &al, &al);
+ 				gins(AEOR, &ah, &ah);
+-				break;
++				goto olsh_break;
+ 			}
+ 			if(v >= 32) {
+ 				gins(AEOR, &al, &al);
+-				//	MOVW	lo1<<(v-32), ah
+-				p1 = gins(AMOVW, &lo1, &ah);
++				//	MOVW	bl<<(v-32), ah
++				p1 = gins(AMOVW, &bl, &ah);
+ 				p1->from.type = D_SHIFT;
+-				p1->from.offset = SHIFT_LL | (v-32)<<7 | lo1.val.u.reg;
++				p1->from.offset = SHIFT_LL | (v-32)<<7 | bl.val.u.reg;
+ 				p1->from.reg = NREG;
+-				break;
++				goto olsh_break;
+ 			}
+ 
+ 			// general literal left shift
+ 
+-			//	MOVW	lo1<<v, al
+-			p1 = gins(AMOVW, &lo1, &al);
++			//	MOVW	bl<<v, al
++			p1 = gins(AMOVW, &bl, &al);
+ 			p1->from.type = D_SHIFT;
+-			p1->from.offset = SHIFT_LL | v<<7 | lo1.val.u.reg;
++			p1->from.offset = SHIFT_LL | v<<7 | bl.val.u.reg;
+ 			p1->from.reg = NREG;
+-			break;
+ 
+-			//	MOVW	hi1<<v, ah
+-			p1 = gins(AMOVW, &hi1, &ah);
++			//	MOVW	bh<<v, ah
++			p1 = gins(AMOVW, &bh, &ah);
+ 			p1->from.type = D_SHIFT;
+-			p1->from.offset = SHIFT_LL | v<<7 | hi1.val.u.reg;
++			p1->from.offset = SHIFT_LL | v<<7 | bh.val.u.reg;
+ 			p1->from.reg = NREG;
+-			break;
+ 
+-			//	OR		lo1>>(32-v), ah
+-			p1 = gins(AORR, &lo1, &ah);
++			//	OR		bl>>(32-v), ah
++			p1 = gins(AORR, &bl, &ah);
+ 			p1->from.type = D_SHIFT;
+-			p1->from.offset = SHIFT_LR | (32-v)<<7 | lo1.val.u.reg;
++			p1->from.offset = SHIFT_LR | (32-v)<<7 | bl.val.u.reg;
+ 			p1->from.reg = NREG;
+-			break;
++			goto olsh_break;
+ 		}
+ 
+-		fatal("cgen64 OLSH, !OLITERAL not implemented");
++		regalloc(&s, types[TUINT32], N);
++		regalloc(&creg, types[TUINT32], N);
++		gmove(r, &s);
++
++		// check if shift is < 32
++		nodconst(&n1, types[TUINT32], 32);
++		gmove(&n1, &creg);
++		gcmp(ACMP, &s, &creg);
++
++		//	MOVW.LT		bl<<s, al
++		p1 = gins(AMOVW, N, &al);
++		p1->from.type = D_SHIFT;
++		p1->from.offset = SHIFT_LL | s.val.u.reg << 8 | 1<<4 | bl.val.u.reg;
++		p1->scond = C_SCOND_LT;
++
++		//	MOVW.LT		bh<<s, al
++		p1 = gins(AMOVW, N, &al);
++		p1->from.type = D_SHIFT;
++		p1->from.offset = SHIFT_LL | s.val.u.reg << 8 | 1<<4 | bh.val.u.reg;
++		p1->scond = C_SCOND_LT;
++
++		//	SUB.LT		creg, s
++		p1 = gins(ASUB, &creg, &s);
++		p1->scond = C_SCOND_LT;
++
++		//	OR.LT		bl>>(32-s), ah
++		p1 = gins(AMOVW, N, &ah);
++		p1->from.type = D_SHIFT;
++		p1->from.offset = SHIFT_LR | t1.val.u.reg<<8| 1<<4 | bl.val.u.reg;
++		p1->scond = C_SCOND_LT;
++
++		//	BLT	end
++		p2 = gbranch(ABLT, T);
++
++		// check if shift is < 64
++		nodconst(&n1, types[TUINT32], 64);
++		gmove(&n1, &creg);
++		gcmp(ACMP, &s, &creg);
++
++		//	EOR.LT	al, al
++		p1 = gins(AEOR, &al, &al);
++		p1->scond = C_SCOND_LT;
++
++		//	MOVW.LT		creg>>1, creg
++		p1 = gins(AMOVW, N, &creg);
++		p1->from.type = D_SHIFT;
++		p1->from.offset = SHIFT_LR | 1<<7 | creg.val.u.reg;
++		p1->scond = C_SCOND_LT;
++
++		//	SUB.LT		creg, s
++		p1 = gins(ASUB, &s, &creg);
++		p1->scond = C_SCOND_LT;
++
++		//	MOVW	bl<<(s-32), ah
++		p1 = gins(AMOVW, N, &ah);
++		p1->from.type = D_SHIFT;
++		p1->from.offset = SHIFT_LL | s.val.u.reg<<8 | 1<<4 | bl.val.u.reg;
++		p1->scond = C_SCOND_LT;
++
++		p3 = gbranch(ABLT, T);
++
++		gins(AEOR, &al, &al);
++		gins(AEOR, &ah, &ah);
++
++		patch(p2, pc);
++		patch(p3, pc);
++		regfree(&s);
++		regfree(&creg);
++
++olsh_break:
++		regfree(&bl);
++		regfree(&bh);
+ 		break;
+ 
+ 
+ 	case ORSH:
++		regalloc(&bh, hi1.type, N);
++		regalloc(&bl, lo1.type, N);
++		gins(AMOVW, &hi1, &bh);
++		gins(AMOVW, &lo1, &bl);
++
+ 		if(r->op == OLITERAL) {
+ 			v = mpgetfix(r->val.u.xval);
+ 			if(v >= 64) {
+-				if(hi1.type->etype == TINT32) {
+-					//	MOVW	hi1->31, al
+-					p1 = gins(AMOVW, &hi1, &al);
++				if(bh.type->etype == TINT32) {
++					//	MOVW	bh->31, al
++					p1 = gins(AMOVW, N, &al);
+ 					p1->from.type = D_SHIFT;
+-					p1->from.offset = SHIFT_AR | 31 << 7 | hi1.val.u.reg;
+-					p1->from.reg = NREG;
++					p1->from.offset = SHIFT_AR | 31 << 7 | bh.val.u.reg;
+ 
+-					//	MOVW	hi1->31, ah
+-					p1 = gins(AMOVW, &hi1, &ah);
++					//	MOVW	bh->31, ah
++					p1 = gins(AMOVW, N, &ah);
+ 					p1->from.type = D_SHIFT;
+-					p1->from.offset = SHIFT_AR | 31 << 7 | hi1.val.u.reg;
+-					p1->from.reg = NREG;
++					p1->from.offset = SHIFT_AR | 31 << 7 | bh.val.u.reg;
+ 				} else {
+ 					gins(AEOR, &al, &al);
+ 					gins(AEOR, &ah, &ah);
+ 				}
+-				break;
++				goto orsh_break;
+ 			}
+ 			if(v >= 32) {
+-				if(hi1.type->etype == TINT32) {
+-					//	MOVW	hi1->(v-32), al
+-					p1 = gins(AMOVW, &hi1, &al);
++				if(bh.type->etype == TINT32) {
++					//	MOVW	bh->(v-32), al
++					p1 = gins(AMOVW, N, &al);
+ 					p1->from.type = D_SHIFT;
+-					p1->from.offset = SHIFT_AR | (v-32)<<7 | hi1.val.u.reg;
+-					p1->from.reg = NREG;
++					p1->from.offset = SHIFT_AR | (v-32)<<7 | bh.val.u.reg;
+ 
+-					//	MOVW	hi1->31, ah
+-					p1 = gins(AMOVW, &hi1, &ah);
++					//	MOVW	bh->31, ah
++					p1 = gins(AMOVW, N, &ah);
+ 					p1->from.type = D_SHIFT;
+-					p1->from.offset = SHIFT_AR | 31<<7 | hi1.val.u.reg;
+-					p1->from.reg = NREG;
++					p1->from.offset = SHIFT_AR | 31<<7 | bh.val.u.reg;
+ 				} else {
+-					//	MOVW	hi1>>(v-32), al
+-					p1 = gins(AMOVW, &hi1, &al);
++					//	MOVW	bh>>(v-32), al
++					p1 = gins(AMOVW, N, &al);
+ 					p1->from.type = D_SHIFT;
+-					p1->from.offset = SHIFT_LR | (v-32)<<7 | hi1.val.u.reg;
+-					p1->from.reg = NREG;
++					p1->from.offset = SHIFT_LR | (v-32)<<7 | bh.val.u.reg;
+ 					gins(AEOR, &ah, &ah);
+ 				}
+-				break;
++				goto orsh_break;
+ 			}
+ 
+ 			// general literal right shift
+ 
+-			//	MOVW	lo1>>v, al
+-			p1 = gins(AMOVW, &lo1, &al);
++			//	MOVW	bl>>v, al
++			p1 = gins(AMOVW, N, &al);
+ 			p1->from.type = D_SHIFT;
+-			p1->from.offset = SHIFT_LR | v<<7 | lo1.val.u.reg;
+-			p1->from.reg = NREG;
++			p1->from.offset = SHIFT_LR | v<<7 | bl.val.u.reg;
+ 
+-			//	OR		hi1<<(32-v), al, al
+-			p1 = gins(AORR, &hi1, &al);
++			//	OR		bh<<(32-v), al, al
++			p1 = gins(AORR, N, &al);
+ 			p1->from.type = D_SHIFT;
+-			p1->from.offset = SHIFT_LL | (32-v)<<7 | hi1.val.u.reg;
+-			p1->from.reg = NREG;
++			p1->from.offset = SHIFT_LL | (32-v)<<7 | bh.val.u.reg;
+ 			p1->reg = al.val.u.reg;
+ 
+-			if(hi1.type->etype == TINT32) {
+-				//	MOVW	hi1->v, ah
+-				p1 = gins(AMOVW, &hi1, &ah);
++			if(bh.type->etype == TINT32) {
++				//	MOVW	bh->v, ah
++				p1 = gins(AMOVW, N, &ah);
+ 				p1->from.type = D_SHIFT;
+-				p1->from.offset = SHIFT_AR | v<<7 | hi1.val.u.reg;
+-				p1->from.reg = NREG;
++				p1->from.offset = SHIFT_AR | v<<7 | bh.val.u.reg;
+ 			} else {
+-				//	MOVW	hi1>>v, ah
+-				p1 = gins(AMOVW, &hi1, &ah);
++				//	MOVW	bh>>v, ah
++				p1 = gins(AMOVW, N, &ah);
+ 				p1->from.type = D_SHIFT;
+-				p1->from.offset = SHIFT_LR | v<<7 | hi1.val.u.reg;
+-				p1->from.reg = NREG;
++				p1->from.offset = SHIFT_LR | v<<7 | bh.val.u.reg;
+ 			}
+-			break;
++			goto orsh_break;
+ 		}
+-		fatal("cgen64 ORSH, !OLITERAL not implemented");
+-
+-//		// load value into DX:AX.
+-//		gins(AMOVL, &lo1, &ax);
+-//		gins(AMOVL, &hi1, &dx);
+-
+-//		// load shift value into register.
+-//		// if high bits are set, zero value.
+-//		p1 = P;
+-//		if(is64(r->type)) {
+-//			gins(ACMPL, &hi2, ncon(0));
+-//			p1 = gbranch(AJNE, T);
+-//			gins(AMOVL, &lo2, &cx);
+-//		} else
+-//			gins(AMOVL, r, &cx);
+-
+-//		// if shift count is >=64, zero or sign-extend value
+-//		gins(ACMPL, &cx, ncon(64));
+-//		p2 = gbranch(optoas(OLT, types[TUINT32]), T);
+-//		if(p1 != P)
+-//			patch(p1, pc);
+-//		if(hi1.type->etype == TINT32) {
+-//			gins(ASARL, ncon(31), &dx);
+-//			gins(AMOVL, &dx, &ax);
+-//		} else {
+-//			gins(AXORL, &dx, &dx);
+-//			gins(AXORL, &ax, &ax);
+-//		}
+-//		patch(p2, pc);
+-
+-//		// if shift count is >= 32, sign-extend hi.
+-//		gins(ACMPL, &cx, ncon(32));
+-//		p1 = gbranch(optoas(OLT, types[TUINT32]), T);
+-//		gins(AMOVL, &dx, &ax);
+-//		if(hi1.type->etype == TINT32) {
+-//			gins(ASARL, &cx, &ax);	// SARL only uses bottom 5 bits of count
+-//			gins(ASARL, ncon(31), &dx);
+-//		} else {
+-//			gins(ASHRL, &cx, &ax);
+-//			gins(AXORL, &dx, &dx);
+-//		}
+-//		p2 = gbranch(AJMP, T);
+-//		patch(p1, pc);
+ 
+-//		// general shift
+-//		p1 = gins(ASHRL, &cx, &ax);
+-//		p1->from.index = D_DX;	// double-width shift
+-//		p1->from.scale = 0;
+-//		gins(optoas(ORSH, hi1.type), &cx, &dx);
+-//		patch(p2, pc);
+-//		break;
++		regalloc(&s, types[TUINT32], N);
++		regalloc(&creg, types[TUINT32], N);
++		gmove(r, &s);
++
++		// check if shift is < 32
++		nodconst(&n1, types[TUINT32], 32);
++		gmove(&n1, &creg);
++		gcmp(ACMP, &s, &creg);
++
++		//	MOVW.LT		bl>>s, al
++		p1 = gins(AMOVW, N, &al);
++		p1->from.type = D_SHIFT;
++		p1->from.offset = SHIFT_LR | s.val.u.reg << 8 | 1<<4 | bl.val.u.reg;
++		p1->scond = C_SCOND_LT;
++
++		//	SUB.LT		creg, s
++		p1 = gins(ASUB, &creg, &s);
++		p1->scond = C_SCOND_LT;
++
++		//	OR.LT		bh<<(32-s), al, al
++		p1 = gins(AORR, N, &al);
++		p1->from.type = D_SHIFT;
++		p1->from.offset = SHIFT_LL | creg.val.u.reg << 8 | 1<<4 | bh.val.u.reg;
++		p1->reg = al.val.u.reg;
++		p1->scond = C_SCOND_LT;
++
++		if(bh.type->etype == TINT32) {
++			//	MOVW	bh->s, ah
++			p1 = gins(AMOVW, N, &ah);
++			p1->from.type = D_SHIFT;
++			p1->from.offset = SHIFT_AR | s.val.u.reg << 8 | 1<<4 | bh.val.u.reg;
++		} else {
++			//	MOVW	bh>>s, ah
++			p1 = gins(AMOVW, N, &ah);
++			p1->from.type = D_SHIFT;
++			p1->from.offset = SHIFT_LR | s.val.u.reg << 8 | 1<<4 | bh.val.u.reg;
++		}
++		p1->scond = C_SCOND_LT;
++
++		//	BLT	end
++		p2 = gbranch(ABLT, T);
++
++		// check if shift is < 64
++		nodconst(&n1, types[TUINT32], 64);
++		gmove(&n1, &creg);
++		gcmp(ACMP, &s, &creg);
++
++		//	MOVW.LT		creg>>1, creg
++		p1 = gins(AMOVW, N, &creg);
++		p1->from.type = D_SHIFT;
++		p1->from.offset = SHIFT_LR | 1<<7 | creg.val.u.reg;
++		p1->scond = C_SCOND_LT;
++
++		//	SUB.LT		s, creg
++		p1 = gins(ASUB, &s, &creg);
++		p1->scond = C_SCOND_LT;
++
++		if(bh.type->etype == TINT32) {
++			//	MOVW	bh->(s-32), al
++			p1 = gins(AMOVW, N, &al);
++			p1->from.type = D_SHIFT;
++			p1->from.offset = SHIFT_AR | s.val.u.reg <<8 | 1<<4 | bh.val.u.reg;
++			p1->scond = C_SCOND_LT;
++
++			//	MOVW	bh->31, ah
++			p1 = gins(AMOVW, N, &ah);
++			p1->from.type = D_SHIFT;
++			p1->from.offset = SHIFT_AR | 31<<7 | bh.val.u.reg;
++			p1->scond = C_SCOND_LT;
++		} else {
++			//	MOVW	bh>>(v-32), al
++			p1 = gins(AMOVW, N, &al);
++			p1->from.type = D_SHIFT;
++			p1->from.offset = SHIFT_LR | s.val.u.reg<<8 | 1<<4 | bh.val.u.reg;
++			p1->scond = C_SCOND_LT;
++
++			p1 = gins(AEOR, &ah, &ah);
++			p1->scond = C_SCOND_LT;
++		}
++
++		//	BLT	end
++		p3 = gbranch(ABLT, T);
++
++		// s >= 64
++		if(bh.type->etype == TINT32) {
++			//	MOVW	bh->31, al
++			p1 = gins(AMOVW, N, &al);
++			p1->from.type = D_SHIFT;
++			p1->from.offset = SHIFT_AR | 31 << 7 | bh.val.u.reg;
++
++			//	MOVW	bh->31, ah
++			p1 = gins(AMOVW, N, &ah);
++			p1->from.type = D_SHIFT;
++			p1->from.offset = SHIFT_AR | 31 << 7 | bh.val.u.reg;
++		} else {
++			gins(AEOR, &al, &al);
++			gins(AEOR, &ah, &ah);
++		}
++
++		patch(p2, pc);
++		patch(p3, pc);
++		regfree(&s);
++		regfree(&creg);
++
++
++orsh_break:
++		regfree(&bl);
++		regfree(&bh);
++		break;
+ 
+ 	case OXOR:
+ 	case OAND:
+@@ -444,10 +587,14 @@ cgen64(Node *n, Node *res)
+ //			splitclean();
+ //			goto out;
+ //		}
++		regalloc(&n1, lo1.type, N);
+ 		gins(AMOVW, &lo1, &al);
+ 		gins(AMOVW, &hi1, &ah);
+-		gins(optoas(n->op, lo1.type), &lo2, &al);
+-		gins(optoas(n->op, lo1.type), &hi2, &ah);
++		gins(AMOVW, &lo2, &n1);
++		gins(optoas(n->op, lo1.type), &n1, &al);
++		gins(AMOVW, &hi2, &n1);
++		gins(optoas(n->op, lo1.type), &n1, &ah);
++		regfree(&n1);
+ 		break;
+ 	}
+ 	if(is64(r->type))
+diff --git a/src/cmd/5g/gsubr.c b/src/cmd/5g/gsubr.c
+index f0a1b2485e..df175349fe 100644
+--- a/src/cmd/5g/gsubr.c
++++ b/src/cmd/5g/gsubr.c
+@@ -514,7 +514,7 @@ splitclean(void)
+ void
+ gmove(Node *f, Node *t)
+ {
+-	int a, ft, tt;
++	int a, ft, tt, fa, ta;
+ 	Type *cvt;
+ 	Node r1, r2, flo, fhi, tlo, thi, con;
+ 	Prog *p1;
+@@ -526,9 +526,9 @@ gmove(Node *f, Node *t)
+ 	tt = simsimtype(t->type);
+ 	cvt = t->type;
+ 
+-	// cannot have two integer memory operands;
++	// cannot have two memory operands;
+ 	// except 64-bit, which always copies via registers anyway.
+-	if(isint[ft] && isint[tt] && !is64(f->type) && !is64(t->type) && ismem(f) && ismem(t))
++	if(!is64(f->type) && !is64(t->type) && ismem(f) && ismem(t))
+ 		goto hard;
+ 
+ 	// convert constant to desired type
+@@ -538,10 +538,6 @@ gmove(Node *f, Node *t)
+ 			convconst(&con, t->type, &f->val);
+ 			break;
+ 
+-		case TFLOAT32:
+-			convconst(&con, types[TFLOAT64], &f->val);
+-			break;
+-
+ 		case TINT16:
+ 		case TINT8:
+ 			convconst(&con, types[TINT32], &f->val);
+@@ -752,8 +748,10 @@ gmove(Node *f, Node *t)
+ 	case CASE(TFLOAT32, TUINT8):
+ 	case CASE(TFLOAT32, TUINT16):
+ 	case CASE(TFLOAT32, TUINT32):
++		fa = AMOVF;
+ 		a = AMOVFW;
+-		break;
++		ta = AMOVW;
++		goto fltconv;
+ 
+ 	case CASE(TFLOAT64, TINT8):
+ 	case CASE(TFLOAT64, TINT16):
+@@ -761,14 +759,14 @@ gmove(Node *f, Node *t)
+ 	case CASE(TFLOAT64, TUINT8):
+ 	case CASE(TFLOAT64, TUINT16):
+ 	case CASE(TFLOAT64, TUINT32):
++		fa = AMOVD;
+ 		a = AMOVDW;
+-		break;
++		ta = AMOVW;
++		goto fltconv;
+ 
+-	case CASE(TFLOAT32, TINT64):
+ 	case CASE(TFLOAT32, TUINT64):
+-	case CASE(TFLOAT64, TINT64):
+ 	case CASE(TFLOAT64, TUINT64):
+-		fatal("gmove TFLOAT, INT64 not implemented");
++		fatal("gmove TFLOAT, UINT64 not implemented");
+ 		return;
+ 
+ 	/*
+@@ -780,8 +778,10 @@ gmove(Node *f, Node *t)
+ 	case CASE(TUINT8, TFLOAT32):
+ 	case CASE(TUINT16, TFLOAT32):
+ 	case CASE(TUINT32, TFLOAT32):
++		fa = AMOVW;
+ 		a = AMOVWF;
+-		break;
++		ta = AMOVF;
++		goto fltconv;
+ 
+ 	case CASE(TINT8, TFLOAT64):
+ 	case CASE(TINT16, TFLOAT64):
+@@ -789,14 +789,14 @@ gmove(Node *f, Node *t)
+ 	case CASE(TUINT8, TFLOAT64):
+ 	case CASE(TUINT16, TFLOAT64):
+ 	case CASE(TUINT32, TFLOAT64):
++		fa = AMOVW;
+ 		a = AMOVWD;
+-		break;
++		ta = AMOVW;
++		goto fltconv;;
+ 
+-	case CASE(TINT64, TFLOAT32):
+-	case CASE(TINT64, TFLOAT64):
+ 	case CASE(TUINT64, TFLOAT32):
+ 	case CASE(TUINT64, TFLOAT64):
+-		fatal("gmove INT64, TFLOAT not implemented");
++		fatal("gmove UINT64, TFLOAT not implemented");
+ 		return;
+ 
+ 
+@@ -812,12 +812,20 @@ gmove(Node *f, Node *t)
+ 		break;
+ 
+ 	case CASE(TFLOAT32, TFLOAT64):
+-		a = AMOVFD;
+-		break;
++		regalloc(&r1, types[TFLOAT64], t);
++		gins(AMOVF, f, &r1);
++		gins(AMOVFD, &r1, &r1);
++		gins(AMOVD, &r1, t);
++		regfree(&r1);
++		return;
+ 
+ 	case CASE(TFLOAT64, TFLOAT32):
+-		a = AMOVDF;
+-		break;
++		regalloc(&r1, types[TFLOAT64], t);
++		gins(AMOVD, f, &r1);
++		gins(AMOVDF, &r1, &r1);
++		gins(AMOVF, &r1, t);
++		regfree(&r1);
++		return;
+ 	}
+ 
+ 	gins(a, f, t);
+@@ -835,7 +843,7 @@ rdst:
+ 
+ hard:
+ 	// requires register intermediate
+-	regalloc(&r1, cvt, N);
++	regalloc(&r1, cvt, t);
+ 	gmove(f, &r1);
+ 	gmove(&r1, t);
+ 	regfree(&r1);
+@@ -851,6 +859,16 @@ trunc64:
+ 	splitclean();
+ 	return;
+ 
++fltconv:
++	regalloc(&r1, types[ft], f);
++	regalloc(&r2, types[tt], t);
++	gins(fa, f, &r1);
++	gins(a, &r1, &r2);
++	gins(ta, &r2, t);
++	regfree(&r1);
++	regfree(&r2);
++	return;
++
+ fatal:
+ 	// should not happen
+ 	fatal("gmove %N -> %N", f, t);
+diff --git a/src/make-arm.bash b/src/make-arm.bash
+index a0e6375998..732993e9b2 100755
+--- a/src/make-arm.bash
++++ b/src/make-arm.bash
+@@ -21,7 +21,7 @@ chmod +x $GOBIN/quietgcc
+ 
+ # TODO(kaib): converge with normal build
+ #for i in lib9 libbio libmach libregexp cmd pkg cmd/ebnflint cmd/godoc cmd/gofmt
+-for i in lib9 libbio libmach libregexp cmd pkg/runtime pkg/sync pkg/once pkg/syscall pkg/os pkg/unicode pkg/utf8 pkg/bytes pkg/strings pkg/io pkg/malloc pkg/time
++for i in lib9 libbio libmach libregexp cmd pkg/runtime pkg/sync pkg/once pkg/syscall pkg/os pkg/unicode pkg/utf8 pkg/bytes pkg/strings pkg/io pkg/malloc pkg/time pkg/math pkg/strconv pkg/reflect pkg/fmt pkg/bufio
+ #for i in lib9 libbio libmach libregexp cmd pkg/runtime pkg/sync pkg/once pkg/malloc pkg/sort pkg/unicode
+ # pkg/hash
+ # pkg/math
+diff --git a/test/arm-pass.txt b/test/arm-pass.txt
+index 514248bef2..d16071006d 100644
+--- a/test/arm-pass.txt
++++ b/test/arm-pass.txt
+@@ -9,7 +9,6 @@ bugs/bug169.go
+ bugs/bug190.go
+ bugs/bug193.go
+ bugs/bug196.go
+-bugs/bug198.go
+ chan/perm.go
+ char_lit.go
+ cmp1.go
+@@ -38,6 +37,8 @@ fixedbugs/bug006.go
+ fixedbugs/bug007.go
+ fixedbugs/bug008.go
+ fixedbugs/bug009.go
++fixedbugs/bug010.go
++fixedbugs/bug011.go
+ fixedbugs/bug012.go
+ fixedbugs/bug013.go
+ fixedbugs/bug014.go
+@@ -62,6 +63,7 @@ fixedbugs/bug039.go
+ fixedbugs/bug040.go
+ fixedbugs/bug045.go
+ fixedbugs/bug046.go
++fixedbugs/bug047.go
+ fixedbugs/bug048.go
+ fixedbugs/bug049.go
+ fixedbugs/bug050.go
+@@ -193,6 +195,7 @@ fixedbugs/bug192.go
+ fixedbugs/bug194.go
+ fixedbugs/bug195.go
+ fixedbugs/bug197.go
++fixedbugs/bug198.go
+ fixedbugs/bug199.go
+ fixedbugs/bug200.go
+ fixedbugs/bug201.go
+@@ -201,7 +204,11 @@ fixedbugs/bug203.go
+ fixedbugs/bug204.go
+ fixedbugs/bug205.go
+ fixedbugs/bug206.go
++fixedbugs/bug208.go
++fixedbugs/bug209.go
++float_lit.go
+ for.go
++func.go
+ func1.go
+ func2.go
+ func3.go
+@@ -247,6 +254,7 @@ ken/ptrvar.go
+ ken/rob1.go
+ ken/rob2.go
+ ken/robfor.go
++ken/robfunc.go
+ ken/robif.go
+ ken/shift.go
+ ken/simpbool.go
+@@ -259,10 +267,12 @@ method.go
+ method1.go
+ method2.go
+ method3.go
++named.go
+ named1.go
+ nil.go
+ parentype.go
+ printbig.go
++rename.go
+ rename1.go
+ sieve.go
+ sigchld.go
+@@ -271,4 +281,5 @@ string_lit.go
+ switch.go
+ switch1.go
+ test0.go
++typeswitch.go
+ varinit.go

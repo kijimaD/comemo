@@ -18,6 +18,23 @@ Date:   Wed Sep 8 10:41:56 2021 +0200
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/syscall/syscall_linux_arm.go | 4 ----
  1 file changed, 4 deletions(-)
+
+diff --git a/src/syscall/syscall_linux_arm.go b/src/syscall/syscall_linux_arm.go
+index e887cf788f..fffa4b29b9 100644
+--- a/src/syscall/syscall_linux_arm.go
++++ b/src/syscall/syscall_linux_arm.go
+@@ -29,11 +29,7 @@ func Pipe(p []int) (err error) {
+ 		return EINVAL
+ 	}
+ 	var pp [2]_C_int
+-	// Try pipe2 first for Android O, then try pipe for kernel 2.6.23.
+ 	err = pipe2(&pp, 0)
+-	if err == ENOSYS {
+-		err = pipe(&pp)
+-	}
+ 	p[0] = int(pp[0])
+ 	p[1] = int(pp[1])
+ 	return

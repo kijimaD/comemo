@@ -24,7 +24,7 @@ Date:   Wed Jun 9 20:14:15 2021 -0400
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/gc/main.go          |  3 ---
  src/cmd/compile/internal/ssa/config.go       |  6 +++++-
  src/cmd/compile/internal/ssa/expand_calls.go | 14 ++++++++++----
@@ -34,3 +34,180 @@ Date:   Wed Jun 9 20:14:15 2021 -0400
  test/fixedbugs/issue26163.go                 |  2 +-
  test/fixedbugs/issue28688.go                 |  2 +-
  8 files changed, 43 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 68017516df..6a373ce33d 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -160,9 +160,6 @@ func Main(archInit func(*ssagen.ArchInfo)) {
+ 		dwarf.EnableLogging(base.Debug.DwarfInl != 0)
+ 	}
+ 	if base.Debug.SoftFloat != 0 {
+-		if buildcfg.Experiment.RegabiArgs {
+-			log.Fatalf("softfloat mode with GOEXPERIMENT=regabiargs not implemented ")
+-		}
+ 		ssagen.Arch.SoftFloat = true
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/ssa/config.go b/src/cmd/compile/internal/ssa/config.go
+index b08a394368..32e3a0860e 100644
+--- a/src/cmd/compile/internal/ssa/config.go
++++ b/src/cmd/compile/internal/ssa/config.go
+@@ -171,7 +171,7 @@ type Frontend interface {
+ }
+ 
+ // NewConfig returns a new configuration object for the given architecture.
+-func NewConfig(arch string, types Types, ctxt *obj.Link, optimize bool) *Config {
++func NewConfig(arch string, types Types, ctxt *obj.Link, optimize, softfloat bool) *Config {
+ 	c := &Config{arch: arch, Types: types}
+ 	c.useAvg = true
+ 	c.useHmul = true
+@@ -320,6 +320,10 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize bool) *Config
+ 	c.optimize = optimize
+ 	c.useSSE = true
+ 	c.UseFMA = true
++	c.SoftFloat = softfloat
++	if softfloat {
++		c.floatParamRegs = nil // no FP registers in softfloat mode
++	}
+ 
+ 	c.ABI0 = abi.NewABIConfig(0, 0, ctxt.FixedFrameSize())
+ 	c.ABI1 = abi.NewABIConfig(len(c.intParamRegs), len(c.floatParamRegs), ctxt.FixedFrameSize())
+diff --git a/src/cmd/compile/internal/ssa/expand_calls.go b/src/cmd/compile/internal/ssa/expand_calls.go
+index 7e973ab205..a8c6c26dad 100644
+--- a/src/cmd/compile/internal/ssa/expand_calls.go
++++ b/src/cmd/compile/internal/ssa/expand_calls.go
+@@ -215,7 +215,7 @@ func (x *expandState) isAlreadyExpandedAggregateType(t *types.Type) bool {
+ 		return false
+ 	}
+ 	return t.IsStruct() || t.IsArray() || t.IsComplex() || t.IsInterface() || t.IsString() || t.IsSlice() ||
+-		t.Size() > x.regSize && t.IsInteger()
++		(t.Size() > x.regSize && (t.IsInteger() || (x.f.Config.SoftFloat && t.IsFloat())))
+ }
+ 
+ // offsetFrom creates an offset from a pointer, simplifying chained offsets and offsets from SP
+@@ -380,6 +380,12 @@ func (x *expandState) rewriteSelect(leaf *Value, selector *Value, offset int64,
+ 		// The OpLoad was created to load the single field of the IData
+ 		// This case removes that StructSelect.
+ 		if leafType != selector.Type {
++			if x.f.Config.SoftFloat && selector.Type.IsFloat() {
++				if x.debug {
++					x.Printf("---OpLoad, break\n")
++				}
++				break // softfloat pass will take care of that
++			}
+ 			x.f.Fatalf("Unexpected Load as selector, leaf=%s, selector=%s\n", leaf.LongString(), selector.LongString())
+ 		}
+ 		leaf.copyOf(selector)
+@@ -525,11 +531,11 @@ func (x *expandState) rewriteSelect(leaf *Value, selector *Value, offset int64,
+ 
+ 	case OpComplexReal:
+ 		ls := x.rewriteSelect(leaf, selector.Args[0], offset, regOffset)
+-		locs = x.splitSlots(ls, ".real", 0, leafType)
++		locs = x.splitSlots(ls, ".real", 0, selector.Type)
+ 
+ 	case OpComplexImag:
+-		ls := x.rewriteSelect(leaf, selector.Args[0], offset+leafType.Width, regOffset+RO_complex_imag) // result is FloatNN, width of result is offset of imaginary part.
+-		locs = x.splitSlots(ls, ".imag", leafType.Width, leafType)
++		ls := x.rewriteSelect(leaf, selector.Args[0], offset+selector.Type.Width, regOffset+RO_complex_imag) // result is FloatNN, width of result is offset of imaginary part.
++		locs = x.splitSlots(ls, ".imag", selector.Type.Width, selector.Type)
+ 
+ 	case OpStringLen, OpSliceLen:
+ 		ls := x.rewriteSelect(leaf, selector.Args[0], offset+x.ptrSize, regOffset+RO_slice_len)
+diff --git a/src/cmd/compile/internal/ssa/export_test.go b/src/cmd/compile/internal/ssa/export_test.go
+index 8ed8a0c4a6..6d3c0f3ccb 100644
+--- a/src/cmd/compile/internal/ssa/export_test.go
++++ b/src/cmd/compile/internal/ssa/export_test.go
+@@ -39,7 +39,7 @@ func testConfigArch(tb testing.TB, arch string) *Conf {
+ 		tb.Fatal("testTypes is 64-bit only")
+ 	}
+ 	c := &Conf{
+-		config: NewConfig(arch, testTypes, ctxt, true),
++		config: NewConfig(arch, testTypes, ctxt, true, false),
+ 		tb:     tb,
+ 	}
+ 	return c
+diff --git a/src/cmd/compile/internal/ssa/softfloat.go b/src/cmd/compile/internal/ssa/softfloat.go
+index a8a8f83629..351f824a9f 100644
+--- a/src/cmd/compile/internal/ssa/softfloat.go
++++ b/src/cmd/compile/internal/ssa/softfloat.go
+@@ -63,6 +63,7 @@ func softfloat(f *Func) {
+ 					v.Aux = f.Config.Types.UInt32
+ 				case 8:
+ 					v.Aux = f.Config.Types.UInt64
++					newInt64 = true
+ 				default:
+ 					v.Fatalf("bad float type with size %d", size)
+ 				}
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 7e2f6a7471..1a0a98f6aa 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -87,8 +87,7 @@ func InitConfig() {
+ 	_ = types.NewPtr(types.Types[types.TINT64])                             // *int64
+ 	_ = types.NewPtr(types.ErrorType)                                       // *error
+ 	types.NewPtrCacheEnabled = false
+-	ssaConfig = ssa.NewConfig(base.Ctxt.Arch.Name, *types_, base.Ctxt, base.Flag.N == 0)
+-	ssaConfig.SoftFloat = Arch.SoftFloat
++	ssaConfig = ssa.NewConfig(base.Ctxt.Arch.Name, *types_, base.Ctxt, base.Flag.N == 0, Arch.SoftFloat)
+ 	ssaConfig.Race = base.Flag.Race
+ 	ssaCaches = make([]ssa.Cache, base.Flag.LowerC)
+ 
+@@ -3653,6 +3652,16 @@ func softfloatInit() {
+ // TODO: do not emit sfcall if operation can be optimized to constant in later
+ // opt phase
+ func (s *state) sfcall(op ssa.Op, args ...*ssa.Value) (*ssa.Value, bool) {
++	f2i := func(t *types.Type) *types.Type {
++		switch t.Kind() {
++		case types.TFLOAT32:
++			return types.Types[types.TUINT32]
++		case types.TFLOAT64:
++			return types.Types[types.TUINT64]
++		}
++		return t
++	}
++
+ 	if callDef, ok := softFloatOps[op]; ok {
+ 		switch op {
+ 		case ssa.OpLess32F,
+@@ -3665,7 +3674,19 @@ func (s *state) sfcall(op ssa.Op, args ...*ssa.Value) (*ssa.Value, bool) {
+ 			args[1] = s.newValue1(s.ssaOp(ir.ONEG, types.Types[callDef.rtype]), args[1].Type, args[1])
+ 		}
+ 
+-		result := s.rtcall(callDef.rtfn, true, []*types.Type{types.Types[callDef.rtype]}, args...)[0]
++		// runtime functions take uints for floats and returns uints.
++		// Convert to uints so we use the right calling convention.
++		for i, a := range args {
++			if a.Type.IsFloat() {
++				args[i] = s.newValue1(ssa.OpCopy, f2i(a.Type), a)
++			}
++		}
++
++		rt := types.Types[callDef.rtype]
++		result := s.rtcall(callDef.rtfn, true, []*types.Type{f2i(rt)}, args...)[0]
++		if rt.IsFloat() {
++			result = s.newValue1(ssa.OpCopy, rt, result)
++		}
+ 		if op == ssa.OpNeq32F || op == ssa.OpNeq64F {
+ 			result = s.newValue1(ssa.OpNot, result.Type, result)
+ 		}
+diff --git a/test/fixedbugs/issue26163.go b/test/fixedbugs/issue26163.go
+index d141a2797d..3f3d77859d 100644
+--- a/test/fixedbugs/issue26163.go
++++ b/test/fixedbugs/issue26163.go
+@@ -1,4 +1,4 @@
+-// compile -N -d=softfloat -goexperiment noregabiargs
++// compile -N -d=softfloat
+ 
+ // Copyright 2018 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/issue28688.go b/test/fixedbugs/issue28688.go
+index 8ef0802812..0d2000e149 100644
+--- a/test/fixedbugs/issue28688.go
++++ b/test/fixedbugs/issue28688.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-d=softfloat -goexperiment noregabiargs
++// run -gcflags=-d=softfloat
+ 
+ // Copyright 2018 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style

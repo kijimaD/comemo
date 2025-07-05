@@ -16,7 +16,34 @@ Date:   Tue Oct 20 17:10:04 2015 -0400
     Change-Id: I99a9c401c6ecca3c4adc7b21708adaf3dd601279
     Reviewed-on: https://go-review.googlesource.com/16115
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/os/os_test.go   | 2 +-
  src/os/path_test.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index 6b726745cf..be9fa91028 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -672,7 +672,7 @@ func TestSymlink(t *testing.T) {
+ 
+ func TestLongSymlink(t *testing.T) {
+ 	switch runtime.GOOS {
+-	case "plan9", "nacl":
++	case "android", "plan9", "nacl":
+ 		t.Skipf("skipping on %s", runtime.GOOS)
+ 	case "windows":
+ 		if !supportsSymlinks {
+diff --git a/src/os/path_test.go b/src/os/path_test.go
+index f9853810c6..b4531314d0 100644
+--- a/src/os/path_test.go
++++ b/src/os/path_test.go
+@@ -170,7 +170,7 @@ func TestRemoveAll(t *testing.T) {
+ 
+ func TestMkdirAllWithSymlink(t *testing.T) {
+ 	switch runtime.GOOS {
+-	case "nacl", "plan9":
++	case "android", "nacl", "plan9":
+ 		t.Skipf("skipping on %s", runtime.GOOS)
+ 	case "windows":
+ 		if !supportsSymlinks {

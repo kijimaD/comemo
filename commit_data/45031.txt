@@ -26,7 +26,7 @@ Date:   Fri Sep 25 13:24:08 2020 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/257618
     Trust: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/cmd/go.mod                                     |  2 +-
  src/cmd/go.sum                                     |  4 ++--
  src/cmd/vendor/golang.org/x/sys/unix/mkerrors.sh   |  1 +
@@ -60,3 +60,513 @@ Date:   Fri Sep 25 13:24:08 2020 -0400
  src/vendor/golang.org/x/sys/cpu/cpu_arm64.go       |  2 +-
  src/vendor/modules.txt                             |  4 ++--
  32 files changed, 90 insertions(+), 50 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index c228b04b42..59d6152e2a 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -8,6 +8,6 @@ require (
+ 	golang.org/x/arch v0.0.0-20200826200359-b19915210f00
+ 	golang.org/x/crypto v0.0.0-20200820211705-5c72a883971a
+ 	golang.org/x/mod v0.3.1-0.20200828183125-ce943fd02449
+-	golang.org/x/sys v0.0.0-20200918174421-af09f7315aff // indirect
++	golang.org/x/sys v0.0.0-20200923182605-d9f96fdee20d // indirect
+ 	golang.org/x/tools v0.0.0-20200918232735-d647fc253266
+ )
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index d41f36e147..1b6d680d62 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -26,8 +26,8 @@ golang.org/x/sys v0.0.0-20190215142949-d0b11bdaac8a/go.mod h1:STP8DvDyc/dI5b8T5h
+ golang.org/x/sys v0.0.0-20190412213103-97732733099d/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+ golang.org/x/sys v0.0.0-20191204072324-ce4227a45e2e/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+ golang.org/x/sys v0.0.0-20200323222414-85ca7c5b95cd/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+-golang.org/x/sys v0.0.0-20200918174421-af09f7315aff h1:1CPUrky56AcgSpxz/KfgzQWzfG09u5YOL8MvPYBlrL8=
+-golang.org/x/sys v0.0.0-20200918174421-af09f7315aff/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
++golang.org/x/sys v0.0.0-20200923182605-d9f96fdee20d h1:L/IKR6COd7ubZrs2oTnTi73IhgqJ71c9s80WsQnh0Es=
++golang.org/x/sys v0.0.0-20200923182605-d9f96fdee20d/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+ golang.org/x/text v0.3.0/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
+ golang.org/x/tools v0.0.0-20191119224855-298f0cb1881e/go.mod h1:b+2E5dAYhXwXZwtnZ6UAqBI28+e2cm9otk0dWdXHAEo=
+ golang.org/x/tools v0.0.0-20200918232735-d647fc253266 h1:k7tVuG0g1JwmD3Jh8oAl1vQ1C3jb4Hi/dUl1wWDBJpQ=
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/mkerrors.sh b/src/cmd/vendor/golang.org/x/sys/unix/mkerrors.sh
+index e7c51aa409..1bef7148d2 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/mkerrors.sh
++++ b/src/cmd/vendor/golang.org/x/sys/unix/mkerrors.sh
+@@ -517,6 +517,7 @@ ccflags="$@"
+ 		$2 ~ /^CP_/ ||
+ 		$2 ~ /^CPUSTATES$/ ||
+ 		$2 ~ /^ALG_/ ||
++		$2 ~ /^FI(CLONE|DEDUPERANGE)/ ||
+ 		$2 ~ /^FS_(POLICY_FLAGS|KEY_DESC|ENCRYPTION_MODE|[A-Z0-9_]+_KEY_SIZE)/ ||
+ 		$2 ~ /^FS_IOC_.*(ENCRYPTION|VERITY|[GS]ETFLAGS)/ ||
+ 		$2 ~ /^FS_VERITY_/ ||
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/sockcmsg_unix_other.go b/src/cmd/vendor/golang.org/x/sys/unix/sockcmsg_unix_other.go
+index 7d08dae5ba..abdedcf1d5 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/sockcmsg_unix_other.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/sockcmsg_unix_other.go
+@@ -20,7 +20,7 @@ func cmsgAlignOf(salen int) int {
+ 	case "aix":
+ 		// There is no alignment on AIX.
+ 		salign = 1
+-	case "darwin", "illumos", "solaris":
++	case "darwin", "ios", "illumos", "solaris":
+ 		// NOTE: It seems like 64-bit Darwin, Illumos and Solaris
+ 		// kernels still require 32-bit aligned access to network
+ 		// subsystem.
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/syscall_bsd.go b/src/cmd/vendor/golang.org/x/sys/unix/syscall_bsd.go
+index 60bbe10adf..9ebe92e4da 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/syscall_bsd.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/syscall_bsd.go
+@@ -272,7 +272,7 @@ func Accept(fd int) (nfd int, sa Sockaddr, err error) {
+ 	if err != nil {
+ 		return
+ 	}
+-	if runtime.GOOS == "darwin" && len == 0 {
++	if (runtime.GOOS == "darwin" || runtime.GOOS == "ios") && len == 0 {
+ 		// Accepted socket has no address.
+ 		// This is likely due to a bug in xnu kernels,
+ 		// where instead of ECONNABORTED error socket
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/syscall_illumos.go b/src/cmd/vendor/golang.org/x/sys/unix/syscall_illumos.go
+index 16e40091ce..bbc4f3ea54 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/syscall_illumos.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/syscall_illumos.go
+@@ -56,7 +56,7 @@ func Pwritev(fd int, iovs [][]byte, off int64) (n int, err error) {
+ 	return n, err
+ }
+ 
+-//sys	accept4(s int, rsa *RawSockaddrAny, addrlen *_Socklen, flags int) (fd int, err error)
++//sys	accept4(s int, rsa *RawSockaddrAny, addrlen *_Socklen, flags int) (fd int, err error) = libsocket.accept4
+ 
+ func Accept4(fd int, flags int) (nfd int, sa Sockaddr, err error) {
+ 	var rsa RawSockaddrAny
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux.go b/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux.go
+index ec7e4c4d36..94dafa4e52 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux.go
+@@ -112,6 +112,31 @@ func IoctlGetRTCWkAlrm(fd int) (*RTCWkAlrm, error) {
+ 	return &value, err
+ }
+ 
++// IoctlFileClone performs an FICLONERANGE ioctl operation to clone the range of
++// data conveyed in value to the file associated with the file descriptor
++// destFd. See the ioctl_ficlonerange(2) man page for details.
++func IoctlFileCloneRange(destFd int, value *FileCloneRange) error {
++	err := ioctl(destFd, FICLONERANGE, uintptr(unsafe.Pointer(value)))
++	runtime.KeepAlive(value)
++	return err
++}
++
++// IoctlFileClone performs an FICLONE ioctl operation to clone the entire file
++// associated with the file description srcFd to the file associated with the
++// file descriptor destFd. See the ioctl_ficlone(2) man page for details.
++func IoctlFileClone(destFd, srcFd int) error {
++	return ioctl(destFd, FICLONE, uintptr(srcFd))
++}
++
++// IoctlFileClone performs an FIDEDUPERANGE ioctl operation to share the range of
++// data conveyed in value with the file associated with the file descriptor
++// destFd. See the ioctl_fideduperange(2) man page for details.
++func IoctlFileDedupeRange(destFd int, value *FileDedupeRange) error {
++	err := ioctl(destFd, FIDEDUPERANGE, uintptr(unsafe.Pointer(value)))
++	runtime.KeepAlive(value)
++	return err
++}
++
+ //sys	Linkat(olddirfd int, oldpath string, newdirfd int, newpath string, flags int) (err error)
+ 
+ func Link(oldpath string, newpath string) (err error) {
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux.go
+index 388050a0f6..79e032f4fb 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux.go
+@@ -686,6 +686,7 @@ const (
+ 	FD_CLOEXEC                                  = 0x1
+ 	FD_SETSIZE                                  = 0x400
+ 	FF0                                         = 0x0
++	FIDEDUPERANGE                               = 0xc0189436
+ 	FSCRYPT_KEY_DESCRIPTOR_SIZE                 = 0x8
+ 	FSCRYPT_KEY_DESC_PREFIX                     = "fscrypt:"
+ 	FSCRYPT_KEY_DESC_PREFIX_SIZE                = 0x8
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_386.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_386.go
+index 11b25f68c2..dd282c08b7 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_386.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_386.go
+@@ -71,6 +71,8 @@ const (
+ 	EXTPROC                          = 0x10000
+ 	FF1                              = 0x8000
+ 	FFDLY                            = 0x8000
++	FICLONE                          = 0x40049409
++	FICLONERANGE                     = 0x4020940d
+ 	FLUSHO                           = 0x1000
+ 	FP_XSTATE_MAGIC2                 = 0x46505845
+ 	FS_IOC_ENABLE_VERITY             = 0x40806685
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_amd64.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_amd64.go
+index f92cff6ea0..82fc93c7bb 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_amd64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_amd64.go
+@@ -71,6 +71,8 @@ const (
+ 	EXTPROC                          = 0x10000
+ 	FF1                              = 0x8000
+ 	FFDLY                            = 0x8000
++	FICLONE                          = 0x40049409
++	FICLONERANGE                     = 0x4020940d
+ 	FLUSHO                           = 0x1000
+ 	FP_XSTATE_MAGIC2                 = 0x46505845
+ 	FS_IOC_ENABLE_VERITY             = 0x40806685
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_arm.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_arm.go
+index 12bcbf88d6..fe7094f276 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_arm.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_arm.go
+@@ -71,6 +71,8 @@ const (
+ 	EXTPROC                          = 0x10000
+ 	FF1                              = 0x8000
+ 	FFDLY                            = 0x8000
++	FICLONE                          = 0x40049409
++	FICLONERANGE                     = 0x4020940d
+ 	FLUSHO                           = 0x1000
+ 	FS_IOC_ENABLE_VERITY             = 0x40806685
+ 	FS_IOC_GETFLAGS                  = 0x80046601
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_arm64.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_arm64.go
+index 84f71e99fe..3b6cc58803 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_arm64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_arm64.go
+@@ -73,6 +73,8 @@ const (
+ 	EXTRA_MAGIC                      = 0x45585401
+ 	FF1                              = 0x8000
+ 	FFDLY                            = 0x8000
++	FICLONE                          = 0x40049409
++	FICLONERANGE                     = 0x4020940d
+ 	FLUSHO                           = 0x1000
+ 	FPSIMD_MAGIC                     = 0x46508001
+ 	FS_IOC_ENABLE_VERITY             = 0x40806685
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mips.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mips.go
+index eeadea943f..ce3d9ae156 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mips.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mips.go
+@@ -71,6 +71,8 @@ const (
+ 	EXTPROC                          = 0x10000
+ 	FF1                              = 0x8000
+ 	FFDLY                            = 0x8000
++	FICLONE                          = 0x80049409
++	FICLONERANGE                     = 0x8020940d
+ 	FLUSHO                           = 0x2000
+ 	FS_IOC_ENABLE_VERITY             = 0x80806685
+ 	FS_IOC_GETFLAGS                  = 0x40046601
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mips64.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mips64.go
+index 0be6c4ccc0..7a85215ce5 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mips64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mips64.go
+@@ -71,6 +71,8 @@ const (
+ 	EXTPROC                          = 0x10000
+ 	FF1                              = 0x8000
+ 	FFDLY                            = 0x8000
++	FICLONE                          = 0x80049409
++	FICLONERANGE                     = 0x8020940d
+ 	FLUSHO                           = 0x2000
+ 	FS_IOC_ENABLE_VERITY             = 0x80806685
+ 	FS_IOC_GETFLAGS                  = 0x40086601
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mips64le.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mips64le.go
+index 0880b745c1..07d4cc1bd5 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mips64le.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mips64le.go
+@@ -71,6 +71,8 @@ const (
+ 	EXTPROC                          = 0x10000
+ 	FF1                              = 0x8000
+ 	FFDLY                            = 0x8000
++	FICLONE                          = 0x80049409
++	FICLONERANGE                     = 0x8020940d
+ 	FLUSHO                           = 0x2000
+ 	FS_IOC_ENABLE_VERITY             = 0x80806685
+ 	FS_IOC_GETFLAGS                  = 0x40086601
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mipsle.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mipsle.go
+index c8a66627aa..d4842ba1c2 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mipsle.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mipsle.go
+@@ -71,6 +71,8 @@ const (
+ 	EXTPROC                          = 0x10000
+ 	FF1                              = 0x8000
+ 	FFDLY                            = 0x8000
++	FICLONE                          = 0x80049409
++	FICLONERANGE                     = 0x8020940d
+ 	FLUSHO                           = 0x2000
+ 	FS_IOC_ENABLE_VERITY             = 0x80806685
+ 	FS_IOC_GETFLAGS                  = 0x40046601
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_ppc64.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_ppc64.go
+index 97aae63f16..941e20dace 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_ppc64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_ppc64.go
+@@ -71,6 +71,8 @@ const (
+ 	EXTPROC                          = 0x10000000
+ 	FF1                              = 0x4000
+ 	FFDLY                            = 0x4000
++	FICLONE                          = 0x80049409
++	FICLONERANGE                     = 0x8020940d
+ 	FLUSHO                           = 0x800000
+ 	FS_IOC_ENABLE_VERITY             = 0x80806685
+ 	FS_IOC_GETFLAGS                  = 0x40086601
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_ppc64le.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_ppc64le.go
+index b0c3b0664f..63d3bc5662 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_ppc64le.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_ppc64le.go
+@@ -71,6 +71,8 @@ const (
+ 	EXTPROC                          = 0x10000000
+ 	FF1                              = 0x4000
+ 	FFDLY                            = 0x4000
++	FICLONE                          = 0x80049409
++	FICLONERANGE                     = 0x8020940d
+ 	FLUSHO                           = 0x800000
+ 	FS_IOC_ENABLE_VERITY             = 0x80806685
+ 	FS_IOC_GETFLAGS                  = 0x40086601
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_riscv64.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_riscv64.go
+index 0c05181935..490bee1ab1 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_riscv64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_riscv64.go
+@@ -71,6 +71,8 @@ const (
+ 	EXTPROC                          = 0x10000
+ 	FF1                              = 0x8000
+ 	FFDLY                            = 0x8000
++	FICLONE                          = 0x40049409
++	FICLONERANGE                     = 0x4020940d
+ 	FLUSHO                           = 0x1000
+ 	FS_IOC_ENABLE_VERITY             = 0x40806685
+ 	FS_IOC_GETFLAGS                  = 0x80086601
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_s390x.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_s390x.go
+index 0b96bd462e..467b8218e8 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_s390x.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_s390x.go
+@@ -71,6 +71,8 @@ const (
+ 	EXTPROC                          = 0x10000
+ 	FF1                              = 0x8000
+ 	FFDLY                            = 0x8000
++	FICLONE                          = 0x40049409
++	FICLONERANGE                     = 0x4020940d
+ 	FLUSHO                           = 0x1000
+ 	FS_IOC_ENABLE_VERITY             = 0x40806685
+ 	FS_IOC_GETFLAGS                  = 0x80086601
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_sparc64.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_sparc64.go
+index bd5c305779..79fbafbcf6 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_sparc64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_sparc64.go
+@@ -75,6 +75,8 @@ const (
+ 	EXTPROC                          = 0x10000
+ 	FF1                              = 0x8000
+ 	FFDLY                            = 0x8000
++	FICLONE                          = 0x80049409
++	FICLONERANGE                     = 0x8020940d
+ 	FLUSHO                           = 0x1000
+ 	FS_IOC_ENABLE_VERITY             = 0x80806685
+ 	FS_IOC_GETFLAGS                  = 0x40086601
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_illumos_amd64.go b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_illumos_amd64.go
+index 8b329c4589..d3af083f4e 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_illumos_amd64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_illumos_amd64.go
+@@ -13,7 +13,7 @@ import (
+ //go:cgo_import_dynamic libc_preadv preadv "libc.so"
+ //go:cgo_import_dynamic libc_writev writev "libc.so"
+ //go:cgo_import_dynamic libc_pwritev pwritev "libc.so"
+-//go:cgo_import_dynamic libc_accept4 accept4 "libc.so"
++//go:cgo_import_dynamic libc_accept4 accept4 "libsocket.so"
+ //go:cgo_import_dynamic libc_pipe2 pipe2 "libc.so"
+ 
+ //go:linkname procreadv libc_readv
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux.go b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux.go
+index 68e4974a9a..a92a5019af 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux.go
+@@ -76,6 +76,21 @@ type Fsid struct {
+ 	Val [2]int32
+ }
+ 
++type FileCloneRange struct {
++	Src_fd      int64
++	Src_offset  uint64
++	Src_length  uint64
++	Dest_offset uint64
++}
++
++type FileDedupeRange struct {
++	Src_offset uint64
++	Src_length uint64
++	Dest_count uint16
++	Reserved1  uint16
++	Reserved2  uint32
++}
++
+ type FscryptPolicy struct {
+ 	Version                   uint8
+ 	Contents_encryption_mode  uint8
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index 6482962593..21326f7521 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -40,7 +40,7 @@ golang.org/x/mod/sumdb/dirhash
+ golang.org/x/mod/sumdb/note
+ golang.org/x/mod/sumdb/tlog
+ golang.org/x/mod/zip
+-# golang.org/x/sys v0.0.0-20200918174421-af09f7315aff
++# golang.org/x/sys v0.0.0-20200923182605-d9f96fdee20d
+ ## explicit
+ golang.org/x/sys/internal/unsafeheader
+ golang.org/x/sys/unix
+diff --git a/src/go.mod b/src/go.mod
+index b7de1ff5a4..86e3c8c5b7 100644
+--- a/src/go.mod
++++ b/src/go.mod
+@@ -4,7 +4,7 @@ go 1.16
+ 
+ require (
+ 	golang.org/x/crypto v0.0.0-20200820211705-5c72a883971a
+-	golang.org/x/net v0.0.0-20200904194848-62affa334b73
+-	golang.org/x/sys v0.0.0-20200918174421-af09f7315aff // indirect
++	golang.org/x/net v0.0.0-20200925080053-05aa5d4ee321
++	golang.org/x/sys v0.0.0-20200923182605-d9f96fdee20d // indirect
+ 	golang.org/x/text v0.3.4-0.20200826142016-a8b467125457 // indirect
+ )
+diff --git a/src/go.sum b/src/go.sum
+index 305c856f64..86a8c4be2a 100644
+--- a/src/go.sum
++++ b/src/go.sum
+@@ -3,13 +3,13 @@ golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9/go.mod h1:LzIPMQfyMNhhGPh
+ golang.org/x/crypto v0.0.0-20200820211705-5c72a883971a h1:vclmkQCjlDX5OydZ9wv8rBCcS0QyQY66Mpf/7BZbInM=
+ golang.org/x/crypto v0.0.0-20200820211705-5c72a883971a/go.mod h1:LzIPMQfyMNhhGPhUkYOs5KpL4U8rLKemX1yGLhDgUto=
+ golang.org/x/net v0.0.0-20190404232315-eb5bcb51f2a3/go.mod h1:t9HGtf8HONx5eT2rtn7q6eTqICYqUVnKs3thJo3Qplg=
+-golang.org/x/net v0.0.0-20200904194848-62affa334b73 h1:MXfv8rhZWmFeqX3GNZRsd6vOLoaCHjYEX3qkRo3YBUA=
+-golang.org/x/net v0.0.0-20200904194848-62affa334b73/go.mod h1:/O7V0waA8r7cgGh81Ro3o1hOxt32SMVPicZroKQ2sZA=
++golang.org/x/net v0.0.0-20200925080053-05aa5d4ee321 h1:lleNcKRbcaC8MqgLwghIkzZ2JBQAb7QQ9MiwRt1BisA=
++golang.org/x/net v0.0.0-20200925080053-05aa5d4ee321/go.mod h1:/O7V0waA8r7cgGh81Ro3o1hOxt32SMVPicZroKQ2sZA=
+ golang.org/x/sys v0.0.0-20190215142949-d0b11bdaac8a/go.mod h1:STP8DvDyc/dI5b8T5hshtkjS+E42TnysNCUPdjciGhY=
+ golang.org/x/sys v0.0.0-20190412213103-97732733099d/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+ golang.org/x/sys v0.0.0-20200323222414-85ca7c5b95cd/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+-golang.org/x/sys v0.0.0-20200918174421-af09f7315aff h1:1CPUrky56AcgSpxz/KfgzQWzfG09u5YOL8MvPYBlrL8=
+-golang.org/x/sys v0.0.0-20200918174421-af09f7315aff/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
++golang.org/x/sys v0.0.0-20200923182605-d9f96fdee20d h1:L/IKR6COd7ubZrs2oTnTi73IhgqJ71c9s80WsQnh0Es=
++golang.org/x/sys v0.0.0-20200923182605-d9f96fdee20d/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+ golang.org/x/text v0.3.0/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
+ golang.org/x/text v0.3.4-0.20200826142016-a8b467125457 h1:K2Vq+FTHFbV5auJiAahir8LO9HUqufuVbQYSNzZopos=
+ golang.org/x/text v0.3.4-0.20200826142016-a8b467125457/go.mod h1:5Zoc/QRtKVWzQhOtBMvqHzDpF6irO9z98xDceosuGiQ=
+diff --git a/src/vendor/golang.org/x/net/nettest/nettest.go b/src/vendor/golang.org/x/net/nettest/nettest.go
+index a402a46bb3..953562f769 100644
+--- a/src/vendor/golang.org/x/net/nettest/nettest.go
++++ b/src/vendor/golang.org/x/net/nettest/nettest.go
+@@ -97,7 +97,7 @@ func TestableNetwork(network string) bool {
+ 		switch runtime.GOOS {
+ 		case "android", "fuchsia", "hurd", "js", "nacl", "plan9", "windows":
+ 			return false
+-		case "darwin":
++		case "darwin", "ios":
+ 			// iOS doesn't support it.
+ 			if runtime.GOARCH == "arm" || runtime.GOARCH == "arm64" {
+ 				return false
+@@ -118,7 +118,7 @@ func TestableNetwork(network string) bool {
+ 			return false
+ 		case "aix":
+ 			return unixStrmDgramEnabled()
+-		case "darwin":
++		case "darwin", "ios":
+ 			// iOS does not support unix, unixgram.
+ 			if runtime.GOARCH == "arm" || runtime.GOARCH == "arm64" {
+ 				return false
+@@ -126,7 +126,7 @@ func TestableNetwork(network string) bool {
+ 		}
+ 	case "unixpacket":
+ 		switch runtime.GOOS {
+-		case "aix", "android", "fuchsia", "hurd", "darwin", "js", "nacl", "plan9", "windows":
++		case "aix", "android", "fuchsia", "hurd", "darwin", "ios", "js", "nacl", "plan9", "windows":
+ 			return false
+ 		case "netbsd":
+ 			// It passes on amd64 at least. 386 fails
+diff --git a/src/vendor/golang.org/x/net/route/address.go b/src/vendor/golang.org/x/net/route/address.go
+index e3125a473b..3c2fe15a97 100644
+--- a/src/vendor/golang.org/x/net/route/address.go
++++ b/src/vendor/golang.org/x/net/route/address.go
+@@ -221,7 +221,7 @@ func parseKernelInetAddr(af int, b []byte) (int, Addr, error) {
+ 	//   to make the <length, prefix> tuple to be conformed with
+ 	//   the routing message boundary
+ 	l := int(b[0])
+-	if runtime.GOOS == "darwin" {
++	if runtime.GOOS == "darwin" || runtime.GOOS == "ios" {
+ 		// On Darwin, an address in the kernel form is also
+ 		// used as a message filler.
+ 		if l == 0 || len(b) > roundup(l) {
+diff --git a/src/vendor/golang.org/x/net/route/route_classic.go b/src/vendor/golang.org/x/net/route/route_classic.go
+index a7d3864646..b83add668e 100644
+--- a/src/vendor/golang.org/x/net/route/route_classic.go
++++ b/src/vendor/golang.org/x/net/route/route_classic.go
+@@ -17,7 +17,7 @@ func (m *RouteMessage) marshal() ([]byte, error) {
+ 		return nil, errUnsupportedMessage
+ 	}
+ 	l := w.bodyOff + addrsSpace(m.Addrs)
+-	if runtime.GOOS == "darwin" {
++	if runtime.GOOS == "darwin" || runtime.GOOS == "ios" {
+ 		// Fix stray pointer writes on macOS.
+ 		// See golang.org/issue/22456.
+ 		l += 1024
+diff --git a/src/vendor/golang.org/x/net/route/syscall_go1_11_darwin.go b/src/vendor/golang.org/x/net/route/syscall_go1_11_darwin.go
+deleted file mode 100644
+index 7228e443cd..0000000000
+--- a/src/vendor/golang.org/x/net/route/syscall_go1_11_darwin.go
++++ /dev/null
+@@ -1,28 +0,0 @@
+-// Copyright 2018 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build !go1.12
+-
+-package route
+-
+-import (
+-	"syscall"
+-	"unsafe"
+-)
+-
+-var zero uintptr
+-
+-func sysctl(mib []int32, old *byte, oldlen *uintptr, new *byte, newlen uintptr) error {
+-	var p unsafe.Pointer
+-	if len(mib) > 0 {
+-		p = unsafe.Pointer(&mib[0])
+-	} else {
+-		p = unsafe.Pointer(&zero)
+-	}
+-	_, _, errno := syscall.Syscall6(syscall.SYS___SYSCTL, uintptr(p), uintptr(len(mib)), uintptr(unsafe.Pointer(old)), uintptr(unsafe.Pointer(oldlen)), uintptr(unsafe.Pointer(new)), newlen)
+-	if errno != 0 {
+-		return error(errno)
+-	}
+-	return nil
+-}
+diff --git a/src/vendor/golang.org/x/sys/cpu/cpu_arm64.go b/src/vendor/golang.org/x/sys/cpu/cpu_arm64.go
+index 2d90024387..951078f2e8 100644
+--- a/src/vendor/golang.org/x/sys/cpu/cpu_arm64.go
++++ b/src/vendor/golang.org/x/sys/cpu/cpu_arm64.go
+@@ -39,7 +39,7 @@ func initOptions() {
+ 
+ func archInit() {
+ 	switch runtime.GOOS {
+-	case "android", "darwin", "netbsd":
++	case "android", "darwin", "ios", "netbsd":
+ 		// Android and iOS don't seem to allow reading these registers.
+ 		//
+ 		// NetBSD:
+diff --git a/src/vendor/modules.txt b/src/vendor/modules.txt
+index 46f82829f0..d53b647310 100644
+--- a/src/vendor/modules.txt
++++ b/src/vendor/modules.txt
+@@ -8,7 +8,7 @@ golang.org/x/crypto/curve25519
+ golang.org/x/crypto/hkdf
+ golang.org/x/crypto/internal/subtle
+ golang.org/x/crypto/poly1305
+-# golang.org/x/net v0.0.0-20200904194848-62affa334b73
++# golang.org/x/net v0.0.0-20200925080053-05aa5d4ee321
+ ## explicit
+ golang.org/x/net/dns/dnsmessage
+ golang.org/x/net/http/httpguts
+@@ -18,7 +18,7 @@ golang.org/x/net/idna
+ golang.org/x/net/lif
+ golang.org/x/net/nettest
+ golang.org/x/net/route
+-# golang.org/x/sys v0.0.0-20200918174421-af09f7315aff
++# golang.org/x/sys v0.0.0-20200923182605-d9f96fdee20d
+ ## explicit
+ golang.org/x/sys/cpu
+ # golang.org/x/text v0.3.4-0.20200826142016-a8b467125457

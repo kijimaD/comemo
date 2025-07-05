@@ -14,7 +14,47 @@ Date:   Wed Mar 2 16:58:40 2016 +1100
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  misc/cgo/test/callback_c.c         |  2 +-
  misc/cgo/test/sleep_windows_386.go | 20 --------------------
  2 files changed, 1 insertion(+), 21 deletions(-)
+
+diff --git a/misc/cgo/test/callback_c.c b/misc/cgo/test/callback_c.c
+index 5ae237b14c..7694c833f9 100644
+--- a/misc/cgo/test/callback_c.c
++++ b/misc/cgo/test/callback_c.c
+@@ -36,7 +36,7 @@ IntoC(void)
+ long long
+ mysleep(int seconds) {
+ 	long long st = GetTickCount();
+-	sleep(seconds);
++	Sleep(1000 * seconds);
+ 	return st;
+ }
+ #else
+diff --git a/misc/cgo/test/sleep_windows_386.go b/misc/cgo/test/sleep_windows_386.go
+deleted file mode 100644
+index 75687d7831..0000000000
+--- a/misc/cgo/test/sleep_windows_386.go
++++ /dev/null
+@@ -1,20 +0,0 @@
+-// Copyright 2011 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package cgotest
+-
+-/*
+-// mingw32 on windows/386 provides usleep() but not sleep(),
+-// as we don't want to require all other OSes to provide usleep,
+-// we emulate sleep(int s) using win32 API Sleep(int ms).
+-
+-#include <windows.h>
+-
+-unsigned int sleep(unsigned int seconds) {
+-	Sleep(1000 * seconds);
+-	return 0;
+-}
+-
+-*/
+-import "C"

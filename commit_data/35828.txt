@@ -15,8 +15,86 @@ Date:   Fri Mar 9 22:28:55 2018 +0000
     Reviewed-by: Andrew Bonventre <andybons@golang.org>
     Run-TryBot: Andrew Bonventre <andybons@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/mime/multipart/formdata.go      |  3 +--
  src/mime/multipart/formdata_test.go | 24 ++++++++++++++++++++++++
  src/mime/multipart/multipart.go     | 10 ++++++++++
  3 files changed, 35 insertions(+), 2 deletions(-)
+
+diff --git a/src/mime/multipart/formdata.go b/src/mime/multipart/formdata.go
+index 2a4ebdd4a0..22e2c8d323 100644
+--- a/src/mime/multipart/formdata.go
++++ b/src/mime/multipart/formdata.go
+@@ -58,8 +58,7 @@ func (r *Reader) readForm(maxMemory int64) (_ *Form, err error) {
+ 
+ 		var b bytes.Buffer
+ 
+-		_, hasContentTypeHeader := p.Header["Content-Type"]
+-		if !hasContentTypeHeader && filename == "" {
++		if !p.hasFileName() {
+ 			// value, store as string in memory
+ 			n, err := io.CopyN(&b, p, maxValueBytes+1)
+ 			if err != nil && err != io.EOF {
+diff --git a/src/mime/multipart/formdata_test.go b/src/mime/multipart/formdata_test.go
+index 69333d3d0d..5e3c3330f3 100644
+--- a/src/mime/multipart/formdata_test.go
++++ b/src/mime/multipart/formdata_test.go
+@@ -55,6 +55,21 @@ func TestReadFormWithNamelessFile(t *testing.T) {
+ 
+ }
+ 
++func TestReadFormWithTextContentType(t *testing.T) {
++	// From https://github.com/golang/go/issues/24041
++	b := strings.NewReader(strings.Replace(messageWithTextContentType, "\n", "\r\n", -1))
++	r := NewReader(b, boundary)
++	f, err := r.ReadForm(25)
++	if err != nil {
++		t.Fatal("ReadForm:", err)
++	}
++	defer f.RemoveAll()
++
++	if g, e := f.Value["texta"][0], textaValue; g != e {
++		t.Errorf("texta value = %q, want %q", g, e)
++	}
++}
++
+ func testFile(t *testing.T, fh *FileHeader, efn, econtent string) File {
+ 	if fh.Filename != efn {
+ 		t.Errorf("filename = %q, want %q", fh.Filename, efn)
+@@ -94,6 +109,15 @@ Content-Type: text/plain
+ --MyBoundary--
+ `
+ 
++const messageWithTextContentType = `
++--MyBoundary
++Content-Disposition: form-data; name="texta"
++Content-Type: text/plain
++
++` + textaValue + `
++--MyBoundary
++`
++
+ const message = `
+ --MyBoundary
+ Content-Disposition: form-data; name="filea"; filename="filea.txt"
+diff --git a/src/mime/multipart/multipart.go b/src/mime/multipart/multipart.go
+index 1954808176..06fa736f95 100644
+--- a/src/mime/multipart/multipart.go
++++ b/src/mime/multipart/multipart.go
+@@ -81,6 +81,16 @@ func (p *Part) FileName() string {
+ 	return p.dispositionParams["filename"]
+ }
+ 
++// hasFileName determines if a (empty or otherwise)
++// filename parameter was included in the Content-Disposition header
++func (p *Part) hasFileName() bool {
++	if p.dispositionParams == nil {
++		p.parseContentDisposition()
++	}
++	_, ok := p.dispositionParams["filename"]
++	return ok
++}
++
+ func (p *Part) parseContentDisposition() {
+ 	v := p.Header.Get("Content-Disposition")
+ 	var err error

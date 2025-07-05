@@ -7,7 +7,7 @@ Date:   Thu Nov 5 09:40:28 2009 -0800
     
     R=r
     http://go/go-review/1018060
-
+---
  src/pkg/flag/flag.go       |  2 +-
  src/pkg/flag/flag_test.go  |  4 ++--
  src/pkg/fmt/fmt_test.go    | 10 +++++-----
@@ -16,3 +16,117 @@ Date:   Thu Nov 5 09:40:28 2009 -0800
  src/pkg/time/tick_test.go  |  4 ++--
  src/pkg/unsafe/unsafe.go   |  2 +-
  7 files changed, 18 insertions(+), 18 deletions(-)
+
+diff --git a/src/pkg/flag/flag.go b/src/pkg/flag/flag.go
+index 02f8187d66..5dc698ce20 100644
+--- a/src/pkg/flag/flag.go
++++ b/src/pkg/flag/flag.go
+@@ -39,7 +39,7 @@
+ 
+ 	Integer flags accept 1234, 0664, 0x1234 and may be negative.
+ 	Boolean flags may be 1, 0, t, f, true, false, TRUE, FALSE, True, False.
+- */
++*/
+ package flag
+ 
+ import (
+diff --git a/src/pkg/flag/flag_test.go b/src/pkg/flag/flag_test.go
+index bb013b780b..59014dcd38 100644
+--- a/src/pkg/flag/flag_test.go
++++ b/src/pkg/flag/flag_test.go
+@@ -5,8 +5,8 @@
+ package flag_test
+ 
+ import (
+-	.	"flag";
+-		"testing";
++	. "flag";
++	"testing";
+ )
+ 
+ var (
+diff --git a/src/pkg/fmt/fmt_test.go b/src/pkg/fmt/fmt_test.go
+index 43bdb82993..07b1b221a9 100644
+--- a/src/pkg/fmt/fmt_test.go
++++ b/src/pkg/fmt/fmt_test.go
+@@ -5,11 +5,11 @@
+ package fmt_test
+ 
+ import (
+-	.	"fmt";
+-		"io";
+-		"math";
+-		"strings";
+-		"testing";
++	. "fmt";
++	"io";
++	"math";
++	"strings";
++	"testing";
+ )
+ 
+ func TestFmtInterface(t *testing.T) {
+diff --git a/src/pkg/fmt/print.go b/src/pkg/fmt/print.go
+index cfd2849b80..58163124c4 100644
+--- a/src/pkg/fmt/print.go
++++ b/src/pkg/fmt/print.go
+@@ -422,8 +422,8 @@ func (p *pp) printField(field reflect.Value, plus, sharp bool, depth int) (was_s
+ 				return false;	// this value is not a string
+ 			}
+ 		}
+-		}
+-		s := "";
++	}
++	s := "";
+ BigSwitch:
+ 	switch f := field.(type) {
+ 	case *reflect.BoolValue:
+diff --git a/src/pkg/template/format.go b/src/pkg/template/format.go
+index bcffc66ac5..c5174e2943 100644
+--- a/src/pkg/template/format.go
++++ b/src/pkg/template/format.go
+@@ -22,11 +22,11 @@ func StringFormatter(w io.Writer, value interface{}, format string) {
+ }
+ 
+ var (
+-	esc_quot = strings.Bytes("&#34;");  // shorter than "&quot;"
+-	esc_apos = strings.Bytes("&#39;");  // shorter than "&apos;"
+-	esc_amp = strings.Bytes("&amp;");
+-	esc_lt = strings.Bytes("&lt;");
+-	esc_gt = strings.Bytes("&gt;");
++	esc_quot	= strings.Bytes("&#34;");	// shorter than "&quot;"
++	esc_apos	= strings.Bytes("&#39;");	// shorter than "&apos;"
++	esc_amp		= strings.Bytes("&amp;");
++	esc_lt		= strings.Bytes("&lt;");
++	esc_gt		= strings.Bytes("&gt;");
+ )
+ 
+ // HtmlEscape writes to w the properly escaped HTML equivalent
+diff --git a/src/pkg/time/tick_test.go b/src/pkg/time/tick_test.go
+index a672ee4693..5694a76090 100644
+--- a/src/pkg/time/tick_test.go
++++ b/src/pkg/time/tick_test.go
+@@ -5,8 +5,8 @@
+ package time_test
+ 
+ import (
+-		"testing";
+-	.	"time";
++	"testing";
++	. "time";
+ )
+ 
+ func TestTicker(t *testing.T) {
+diff --git a/src/pkg/unsafe/unsafe.go b/src/pkg/unsafe/unsafe.go
+index c9b8c9a073..a766e546a4 100644
+--- a/src/pkg/unsafe/unsafe.go
++++ b/src/pkg/unsafe/unsafe.go
+@@ -4,7 +4,7 @@
+ 
+ /*
+ 	The unsafe package contains operations that step around the type safety of Go programs.
+- */
++*/
+ package unsafe
+ 
+ // ArbitraryType is here for the purposes of documentation only and is not actually

@@ -17,7 +17,7 @@ Date:   Fri May 13 11:25:07 2016 -0400
     Change-Id: Id7c8805c30dbb8107baedb485ed0f71f59ed6ea8
     Reviewed-on: https://go-review.googlesource.com/23093
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/arm/ssa.go          |  34 +-
  src/cmd/compile/internal/gc/ssa.go           |   2 +
  src/cmd/compile/internal/ssa/config.go       |   3 +
@@ -30,3 +30,1209 @@ Date:   Fri May 13 11:25:07 2016 -0400
  src/cmd/compile/internal/ssa/regalloc.go     |   2 +-
  src/cmd/compile/internal/ssa/rewriteARM.go   | 478 +++++++++++++++++++++++++++
  11 files changed, 616 insertions(+), 49 deletions(-)
+
+diff --git a/src/cmd/compile/internal/arm/ssa.go b/src/cmd/compile/internal/arm/ssa.go
+index 6f8d40b5a1..1edcbdb38b 100644
+--- a/src/cmd/compile/internal/arm/ssa.go
++++ b/src/cmd/compile/internal/arm/ssa.go
+@@ -193,7 +193,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 	case ssa.OpARMMOVBreg,
+ 		ssa.OpARMMOVBUreg,
+ 		ssa.OpARMMOVHreg,
+-		ssa.OpARMMOVHUreg:
++		ssa.OpARMMOVHUreg,
++		ssa.OpARMMVN:
+ 		if v.Type.IsMemory() {
+ 			v.Fatalf("memory operand for %s", v.LongString())
+ 		}
+@@ -270,12 +271,37 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		ssa.OpARMLessEqualU,
+ 		ssa.OpARMGreaterThanU,
+ 		ssa.OpARMGreaterEqualU:
+-		v.Fatalf("pseudo-op made it to output: %s", v.LongString())
++		// generate boolean values
++		// use conditional move
++		p := gc.Prog(arm.AMOVW)
++		p.From.Type = obj.TYPE_CONST
++		p.From.Offset = 0
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = gc.SSARegNum(v)
++		p = gc.Prog(arm.AMOVW)
++		p.Scond = condBits[v.Op]
++		p.From.Type = obj.TYPE_CONST
++		p.From.Offset = 1
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = gc.SSARegNum(v)
+ 	default:
+ 		v.Unimplementedf("genValue not implemented: %s", v.LongString())
+ 	}
+ }
+ 
++var condBits = map[ssa.Op]uint8{
++	ssa.OpARMEqual:         arm.C_SCOND_EQ,
++	ssa.OpARMNotEqual:      arm.C_SCOND_NE,
++	ssa.OpARMLessThan:      arm.C_SCOND_LT,
++	ssa.OpARMLessThanU:     arm.C_SCOND_LO,
++	ssa.OpARMLessEqual:     arm.C_SCOND_LE,
++	ssa.OpARMLessEqualU:    arm.C_SCOND_LS,
++	ssa.OpARMGreaterThan:   arm.C_SCOND_GT,
++	ssa.OpARMGreaterThanU:  arm.C_SCOND_HI,
++	ssa.OpARMGreaterEqual:  arm.C_SCOND_GE,
++	ssa.OpARMGreaterEqualU: arm.C_SCOND_HS,
++}
++
+ var blockJump = map[ssa.BlockKind]struct {
+ 	asm, invasm obj.As
+ }{
+@@ -285,8 +311,8 @@ var blockJump = map[ssa.BlockKind]struct {
+ 	ssa.BlockARMGE:  {arm.ABGE, arm.ABLT},
+ 	ssa.BlockARMLE:  {arm.ABLE, arm.ABGT},
+ 	ssa.BlockARMGT:  {arm.ABGT, arm.ABLE},
+-	ssa.BlockARMULT: {arm.ABCS, arm.ABCC},
+-	ssa.BlockARMUGE: {arm.ABCC, arm.ABCS},
++	ssa.BlockARMULT: {arm.ABLO, arm.ABHS},
++	ssa.BlockARMUGE: {arm.ABHS, arm.ABLO},
+ 	ssa.BlockARMUGT: {arm.ABHI, arm.ABLS},
+ 	ssa.BlockARMULE: {arm.ABLS, arm.ABHI},
+ }
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 96cf2177a6..eb056be7f6 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -1135,6 +1135,7 @@ var opToSSA = map[opAndType]ssa.Op{
+ 	opAndType{OEQ, TFUNC}:      ssa.OpEqPtr,
+ 	opAndType{OEQ, TMAP}:       ssa.OpEqPtr,
+ 	opAndType{OEQ, TCHAN}:      ssa.OpEqPtr,
++	opAndType{OEQ, TPTR32}:     ssa.OpEqPtr,
+ 	opAndType{OEQ, TPTR64}:     ssa.OpEqPtr,
+ 	opAndType{OEQ, TUINTPTR}:   ssa.OpEqPtr,
+ 	opAndType{OEQ, TUNSAFEPTR}: ssa.OpEqPtr,
+@@ -1155,6 +1156,7 @@ var opToSSA = map[opAndType]ssa.Op{
+ 	opAndType{ONE, TFUNC}:      ssa.OpNeqPtr,
+ 	opAndType{ONE, TMAP}:       ssa.OpNeqPtr,
+ 	opAndType{ONE, TCHAN}:      ssa.OpNeqPtr,
++	opAndType{ONE, TPTR32}:     ssa.OpNeqPtr,
+ 	opAndType{ONE, TPTR64}:     ssa.OpNeqPtr,
+ 	opAndType{ONE, TUINTPTR}:   ssa.OpNeqPtr,
+ 	opAndType{ONE, TUNSAFEPTR}: ssa.OpNeqPtr,
+diff --git a/src/cmd/compile/internal/ssa/config.go b/src/cmd/compile/internal/ssa/config.go
+index 2a676e39b3..26f16bae58 100644
+--- a/src/cmd/compile/internal/ssa/config.go
++++ b/src/cmd/compile/internal/ssa/config.go
+@@ -19,6 +19,7 @@ type Config struct {
+ 	lowerBlock   func(*Block) bool          // lowering function
+ 	lowerValue   func(*Value, *Config) bool // lowering function
+ 	registers    []Register                 // machine registers
++	flagRegMask  regMask                    // flag register mask
+ 	fe           Frontend                   // callbacks into compiler frontend
+ 	HTML         *HTMLWriter                // html writer, for debugging
+ 	ctxt         *obj.Link                  // Generic arch information
+@@ -126,6 +127,7 @@ func NewConfig(arch string, fe Frontend, ctxt *obj.Link, optimize bool) *Config
+ 		c.lowerBlock = rewriteBlockAMD64
+ 		c.lowerValue = rewriteValueAMD64
+ 		c.registers = registersAMD64[:]
++		c.flagRegMask = flagRegMaskAMD64
+ 	case "386":
+ 		c.IntSize = 4
+ 		c.PtrSize = 4
+@@ -137,6 +139,7 @@ func NewConfig(arch string, fe Frontend, ctxt *obj.Link, optimize bool) *Config
+ 		c.lowerBlock = rewriteBlockARM
+ 		c.lowerValue = rewriteValueARM
+ 		c.registers = registersARM[:]
++		c.flagRegMask = flagRegMaskARM
+ 	default:
+ 		fe.Unimplementedf(0, "arch %s not implemented", arch)
+ 	}
+diff --git a/src/cmd/compile/internal/ssa/flagalloc.go b/src/cmd/compile/internal/ssa/flagalloc.go
+index f6c457dc9e..c6dc8d7f91 100644
+--- a/src/cmd/compile/internal/ssa/flagalloc.go
++++ b/src/cmd/compile/internal/ssa/flagalloc.go
+@@ -4,8 +4,6 @@
+ 
+ package ssa
+ 
+-const flagRegMask = regMask(1) << 33 // TODO: arch-specific
+-
+ // flagalloc allocates the flag register among all the flag-generating
+ // instructions. Flag values are recomputed if they need to be
+ // spilled/restored.
+@@ -33,7 +31,7 @@ func flagalloc(f *Func) {
+ 				if v == flag {
+ 					flag = nil
+ 				}
+-				if opcodeTable[v.Op].reg.clobbers&flagRegMask != 0 {
++				if opcodeTable[v.Op].reg.clobbers&f.Config.flagRegMask != 0 {
+ 					flag = nil
+ 				}
+ 				for _, a := range v.Args {
+@@ -105,7 +103,7 @@ func flagalloc(f *Func) {
+ 			}
+ 			// Issue v.
+ 			b.Values = append(b.Values, v)
+-			if opcodeTable[v.Op].reg.clobbers&flagRegMask != 0 {
++			if opcodeTable[v.Op].reg.clobbers&f.Config.flagRegMask != 0 {
+ 				flag = nil
+ 			}
+ 			if v.Type.IsFlags() {
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+index b684b9ccdf..c84a37d368 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+@@ -551,5 +551,6 @@ func init() {
+ 		ops:      AMD64ops,
+ 		blocks:   AMD64blocks,
+ 		regnames: regNamesAMD64,
++		flagmask: flags,
+ 	})
+ }
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM.rules b/src/cmd/compile/internal/ssa/gen/ARM.rules
+index 9f894ab323..13508f7cc7 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM.rules
+@@ -2,11 +2,43 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++(AddPtr x y) -> (ADD x y)
+ (Add32 x y) -> (ADD x y)
++(Add16 x y) -> (ADD x y)
++(Add8 x y) -> (ADD x y)
++
++(SubPtr x y) -> (SUB x y)
+ (Sub32 x y) -> (SUB x y)
++(Sub16 x y) -> (SUB x y)
++(Sub8 x y) -> (SUB x y)
++
+ (And32 x y) -> (AND x y)
+-(Or32 x y)  -> (OR x y)
++(And16 x y) -> (AND x y)
++(And8 x y) -> (AND x y)
++
++(Or32 x y) -> (OR x y)
++(Or16 x y) -> (OR x y)
++(Or8 x y) -> (OR x y)
++
+ (Xor32 x y) -> (XOR x y)
++(Xor16 x y) -> (XOR x y)
++(Xor8 x y) -> (XOR x y)
++
++// unary ops
++(Neg32 x) -> (RSBconst [0] x)
++(Neg16 x) -> (RSBconst [0] x)
++(Neg8 x) -> (RSBconst [0] x)
++
++(Com32 x) -> (MVN x)
++(Com16 x) -> (MVN x)
++(Com8 x) -> (MVN x)
++
++// boolean ops -- booleans are represented with 0=false, 1=true
++(AndB x y) -> (AND x y)
++(OrB x y) -> (OR x y)
++(EqB x y) -> (XORconst [1] (XOR <config.fe.TypeBool()> x y))
++(NeqB x y) -> (XOR x y)
++(Not x) -> (XORconst [1] x)
+ 
+ (Const8 [val]) -> (MOVWconst [val])
+ (Const16 [val]) -> (MOVWconst [val])
+@@ -29,10 +61,12 @@
+ (Eq8 x y)  -> (Equal (CMP (ZeroExt8to32 x) (ZeroExt8to32 y)))
+ (Eq16 x y) -> (Equal (CMP (ZeroExt16to32 x) (ZeroExt16to32 y)))
+ (Eq32 x y) -> (Equal (CMP x y))
++(EqPtr x y) -> (Equal (CMP x y))
+ 
+ (Neq8 x y)  -> (NotEqual (CMP (ZeroExt8to32 x) (ZeroExt8to32 y)))
+ (Neq16 x y) -> (NotEqual (CMP (ZeroExt16to32 x) (ZeroExt16to32 y)))
+ (Neq32 x y) -> (NotEqual (CMP x y))
++(NeqPtr x y) -> (NotEqual (CMP x y))
+ 
+ (Less8 x y)  -> (LessThan (CMP (SignExt8to32 x) (SignExt8to32 y)))
+ (Less16 x y) -> (LessThan (CMP (SignExt16to32 x) (SignExt16to32 y)))
+@@ -89,6 +123,9 @@
+ 
+ // checks
+ (NilCheck ptr mem) -> (LoweredNilCheck ptr mem)
++(IsNonNil ptr) -> (NotEqual (CMPconst [0] ptr))
++(IsInBounds idx len) -> (LessThanU (CMP idx len))
++(IsSliceInBounds idx len) -> (LessEqualU (CMP idx len))
+ 
+ // Absorb pseudo-ops into blocks.
+ (If (Equal cc) yes no) -> (EQ cc yes no)
+diff --git a/src/cmd/compile/internal/ssa/gen/ARMOps.go b/src/cmd/compile/internal/ssa/gen/ARMOps.go
+index 07261437cb..db36958f32 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARMOps.go
++++ b/src/cmd/compile/internal/ssa/gen/ARMOps.go
+@@ -80,12 +80,12 @@ func init() {
+ 		gp01      = regInfo{inputs: []regMask{}, outputs: []regMask{gp}}
+ 		gp11      = regInfo{inputs: []regMask{gp}, outputs: []regMask{gp}}
+ 		gp11sb    = regInfo{inputs: []regMask{gpspsb}, outputs: []regMask{gp}}
+-		gp11flags = regInfo{inputs: []regMask{gp}, outputs: []regMask{gp | flags}}
++		gp1flags  = regInfo{inputs: []regMask{gp}, outputs: []regMask{flags}}
+ 		gp21      = regInfo{inputs: []regMask{gp, gp}, outputs: []regMask{gp}}
+-		gp2flags  = regInfo{inputs: []regMask{gp, gp}, outputs: []regMask{gp | flags}}
++		gp2flags  = regInfo{inputs: []regMask{gp, gp}, outputs: []regMask{flags}}
+ 		gpload    = regInfo{inputs: []regMask{gpspsb}, outputs: []regMask{gp}}
+ 		gpstore   = regInfo{inputs: []regMask{gpspsb, gp}, outputs: []regMask{}}
+-		flagsgp   = regInfo{inputs: []regMask{gp | flags}, outputs: []regMask{gp}}
++		readflags = regInfo{inputs: []regMask{flags}, outputs: []regMask{gp}}
+ 	)
+ 	ops := []opData{
+ 		// binary ops
+@@ -105,14 +105,17 @@ func init() {
+ 		{name: "BIC", argLength: 2, reg: gp21, asm: "BIC"},                    // arg0 &^ arg1
+ 		{name: "BICconst", argLength: 1, reg: gp11, asm: "BIC", aux: "Int32"}, // arg0 &^ auxInt
+ 
+-		{name: "CMP", argLength: 2, reg: gp2flags, asm: "CMP", typ: "Flags"},                     // arg0 compare to arg1
+-		{name: "CMPconst", argLength: 1, reg: gp11flags, asm: "CMP", aux: "Int32", typ: "Flags"}, // arg0 compare to auxInt
+-		{name: "CMN", argLength: 2, reg: gp2flags, asm: "CMN", typ: "Flags"},                     // arg0 compare to -arg1
+-		{name: "CMNconst", argLength: 1, reg: gp11flags, asm: "CMN", aux: "Int32", typ: "Flags"}, // arg0 compare to -auxInt
+-		{name: "TST", argLength: 2, reg: gp2flags, asm: "TST", typ: "Flags", commutative: true},  // arg0 & arg1 compare to 0
+-		{name: "TSTconst", argLength: 1, reg: gp11flags, asm: "TST", aux: "Int32", typ: "Flags"}, // arg0 & auxInt compare to 0
+-		{name: "TEQ", argLength: 2, reg: gp2flags, asm: "TEQ", typ: "Flags", commutative: true},  // arg0 ^ arg1 compare to 0
+-		{name: "TEQconst", argLength: 1, reg: gp11flags, asm: "TEQ", aux: "Int32", typ: "Flags"}, // arg0 ^ auxInt compare to 0
++		// unary ops
++		{name: "MVN", argLength: 1, reg: gp11, asm: "MVN"}, // ^arg0
++
++		{name: "CMP", argLength: 2, reg: gp2flags, asm: "CMP", typ: "Flags"},                    // arg0 compare to arg1
++		{name: "CMPconst", argLength: 1, reg: gp1flags, asm: "CMP", aux: "Int32", typ: "Flags"}, // arg0 compare to auxInt
++		{name: "CMN", argLength: 2, reg: gp2flags, asm: "CMN", typ: "Flags"},                    // arg0 compare to -arg1
++		{name: "CMNconst", argLength: 1, reg: gp1flags, asm: "CMN", aux: "Int32", typ: "Flags"}, // arg0 compare to -auxInt
++		{name: "TST", argLength: 2, reg: gp2flags, asm: "TST", typ: "Flags", commutative: true}, // arg0 & arg1 compare to 0
++		{name: "TSTconst", argLength: 1, reg: gp1flags, asm: "TST", aux: "Int32", typ: "Flags"}, // arg0 & auxInt compare to 0
++		{name: "TEQ", argLength: 2, reg: gp2flags, asm: "TEQ", typ: "Flags", commutative: true}, // arg0 ^ arg1 compare to 0
++		{name: "TEQconst", argLength: 1, reg: gp1flags, asm: "TEQ", aux: "Int32", typ: "Flags"}, // arg0 ^ auxInt compare to 0
+ 
+ 		{name: "MOVWconst", argLength: 0, reg: gp01, aux: "Int32", asm: "MOVW", rematerializeable: true}, // 32 low bits of auxint
+ 
+@@ -140,16 +143,16 @@ func init() {
+ 		// pseudo-ops
+ 		{name: "LoweredNilCheck", argLength: 2, reg: regInfo{inputs: []regMask{gpsp}, clobbers: flags}}, // panic if arg0 is nil.  arg1=mem.
+ 
+-		{name: "Equal", argLength: 1, reg: flagsgp},         // bool, true flags encode x==y false otherwise.
+-		{name: "NotEqual", argLength: 1, reg: flagsgp},      // bool, true flags encode x!=y false otherwise.
+-		{name: "LessThan", argLength: 1, reg: flagsgp},      // bool, true flags encode signed x<y false otherwise.
+-		{name: "LessEqual", argLength: 1, reg: flagsgp},     // bool, true flags encode signed x<=y false otherwise.
+-		{name: "GreaterThan", argLength: 1, reg: flagsgp},   // bool, true flags encode signed x>y false otherwise.
+-		{name: "GreaterEqual", argLength: 1, reg: flagsgp},  // bool, true flags encode signed x>=y false otherwise.
+-		{name: "LessThanU", argLength: 1, reg: flagsgp},     // bool, true flags encode unsigned x<y false otherwise.
+-		{name: "LessEqualU", argLength: 1, reg: flagsgp},    // bool, true flags encode unsigned x<=y false otherwise.
+-		{name: "GreaterThanU", argLength: 1, reg: flagsgp},  // bool, true flags encode unsigned x>y false otherwise.
+-		{name: "GreaterEqualU", argLength: 1, reg: flagsgp}, // bool, true flags encode unsigned x>=y false otherwise.
++		{name: "Equal", argLength: 1, reg: readflags},         // bool, true flags encode x==y false otherwise.
++		{name: "NotEqual", argLength: 1, reg: readflags},      // bool, true flags encode x!=y false otherwise.
++		{name: "LessThan", argLength: 1, reg: readflags},      // bool, true flags encode signed x<y false otherwise.
++		{name: "LessEqual", argLength: 1, reg: readflags},     // bool, true flags encode signed x<=y false otherwise.
++		{name: "GreaterThan", argLength: 1, reg: readflags},   // bool, true flags encode signed x>y false otherwise.
++		{name: "GreaterEqual", argLength: 1, reg: readflags},  // bool, true flags encode signed x>=y false otherwise.
++		{name: "LessThanU", argLength: 1, reg: readflags},     // bool, true flags encode unsigned x<y false otherwise.
++		{name: "LessEqualU", argLength: 1, reg: readflags},    // bool, true flags encode unsigned x<=y false otherwise.
++		{name: "GreaterThanU", argLength: 1, reg: readflags},  // bool, true flags encode unsigned x>y false otherwise.
++		{name: "GreaterEqualU", argLength: 1, reg: readflags}, // bool, true flags encode unsigned x>=y false otherwise.
+ 	}
+ 
+ 	blocks := []blockData{
+@@ -172,5 +175,6 @@ func init() {
+ 		ops:      ops,
+ 		blocks:   blocks,
+ 		regnames: regNamesARM,
++		flagmask: flags,
+ 	})
+ }
+diff --git a/src/cmd/compile/internal/ssa/gen/main.go b/src/cmd/compile/internal/ssa/gen/main.go
+index 2aec4a324b..948cd89d2f 100644
+--- a/src/cmd/compile/internal/ssa/gen/main.go
++++ b/src/cmd/compile/internal/ssa/gen/main.go
+@@ -27,6 +27,7 @@ type arch struct {
+ 	ops      []opData
+ 	blocks   []blockData
+ 	regnames []string
++	flagmask regMask
+ 	generic  bool
+ }
+ 
+@@ -223,6 +224,7 @@ func genOp() {
+ 			fmt.Fprintf(w, "  {%d, \"%s\"},\n", i, r)
+ 		}
+ 		fmt.Fprintln(w, "}")
++		fmt.Fprintf(w, "var flagRegMask%s = regMask(%d)\n", a.name, a.flagmask)
+ 	}
+ 
+ 	// gofmt result
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index a36794feff..830f2769dc 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -337,6 +337,7 @@ const (
+ 	OpARMXORconst
+ 	OpARMBIC
+ 	OpARMBICconst
++	OpARMMVN
+ 	OpARMCMP
+ 	OpARMCMPconst
+ 	OpARMCMN
+@@ -4040,6 +4041,19 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:   "MVN",
++		argLen: 1,
++		asm:    arm.AMVN,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
++			},
++			outputs: []regMask{
++				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
++			},
++		},
++	},
+ 	{
+ 		name:   "CMP",
+ 		argLen: 2,
+@@ -4050,7 +4064,7 @@ var opcodeTable = [...]opInfo{
+ 				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+ 			},
+ 			outputs: []regMask{
+-				70655, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 FLAGS
++				65536, // FLAGS
+ 			},
+ 		},
+ 	},
+@@ -4064,7 +4078,7 @@ var opcodeTable = [...]opInfo{
+ 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+ 			},
+ 			outputs: []regMask{
+-				70655, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 FLAGS
++				65536, // FLAGS
+ 			},
+ 		},
+ 	},
+@@ -4078,7 +4092,7 @@ var opcodeTable = [...]opInfo{
+ 				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+ 			},
+ 			outputs: []regMask{
+-				70655, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 FLAGS
++				65536, // FLAGS
+ 			},
+ 		},
+ 	},
+@@ -4092,7 +4106,7 @@ var opcodeTable = [...]opInfo{
+ 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+ 			},
+ 			outputs: []regMask{
+-				70655, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 FLAGS
++				65536, // FLAGS
+ 			},
+ 		},
+ 	},
+@@ -4107,7 +4121,7 @@ var opcodeTable = [...]opInfo{
+ 				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+ 			},
+ 			outputs: []regMask{
+-				70655, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 FLAGS
++				65536, // FLAGS
+ 			},
+ 		},
+ 	},
+@@ -4121,7 +4135,7 @@ var opcodeTable = [...]opInfo{
+ 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+ 			},
+ 			outputs: []regMask{
+-				70655, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 FLAGS
++				65536, // FLAGS
+ 			},
+ 		},
+ 	},
+@@ -4136,7 +4150,7 @@ var opcodeTable = [...]opInfo{
+ 				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+ 			},
+ 			outputs: []regMask{
+-				70655, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 FLAGS
++				65536, // FLAGS
+ 			},
+ 		},
+ 	},
+@@ -4150,7 +4164,7 @@ var opcodeTable = [...]opInfo{
+ 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+ 			},
+ 			outputs: []regMask{
+-				70655, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 FLAGS
++				65536, // FLAGS
+ 			},
+ 		},
+ 	},
+@@ -4386,7 +4400,7 @@ var opcodeTable = [...]opInfo{
+ 		argLen: 1,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 70655}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 FLAGS
++				{0, 65536}, // FLAGS
+ 			},
+ 			outputs: []regMask{
+ 				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+@@ -4398,7 +4412,7 @@ var opcodeTable = [...]opInfo{
+ 		argLen: 1,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 70655}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 FLAGS
++				{0, 65536}, // FLAGS
+ 			},
+ 			outputs: []regMask{
+ 				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+@@ -4410,7 +4424,7 @@ var opcodeTable = [...]opInfo{
+ 		argLen: 1,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 70655}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 FLAGS
++				{0, 65536}, // FLAGS
+ 			},
+ 			outputs: []regMask{
+ 				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+@@ -4422,7 +4436,7 @@ var opcodeTable = [...]opInfo{
+ 		argLen: 1,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 70655}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 FLAGS
++				{0, 65536}, // FLAGS
+ 			},
+ 			outputs: []regMask{
+ 				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+@@ -4434,7 +4448,7 @@ var opcodeTable = [...]opInfo{
+ 		argLen: 1,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 70655}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 FLAGS
++				{0, 65536}, // FLAGS
+ 			},
+ 			outputs: []regMask{
+ 				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+@@ -4446,7 +4460,7 @@ var opcodeTable = [...]opInfo{
+ 		argLen: 1,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 70655}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 FLAGS
++				{0, 65536}, // FLAGS
+ 			},
+ 			outputs: []regMask{
+ 				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+@@ -4458,7 +4472,7 @@ var opcodeTable = [...]opInfo{
+ 		argLen: 1,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 70655}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 FLAGS
++				{0, 65536}, // FLAGS
+ 			},
+ 			outputs: []regMask{
+ 				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+@@ -4470,7 +4484,7 @@ var opcodeTable = [...]opInfo{
+ 		argLen: 1,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 70655}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 FLAGS
++				{0, 65536}, // FLAGS
+ 			},
+ 			outputs: []regMask{
+ 				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+@@ -4482,7 +4496,7 @@ var opcodeTable = [...]opInfo{
+ 		argLen: 1,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 70655}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 FLAGS
++				{0, 65536}, // FLAGS
+ 			},
+ 			outputs: []regMask{
+ 				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+@@ -4494,7 +4508,7 @@ var opcodeTable = [...]opInfo{
+ 		argLen: 1,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 70655}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 FLAGS
++				{0, 65536}, // FLAGS
+ 			},
+ 			outputs: []regMask{
+ 				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+@@ -6027,6 +6041,7 @@ var registersAMD64 = [...]Register{
+ 	{32, "SB"},
+ 	{33, "FLAGS"},
+ }
++var flagRegMaskAMD64 = regMask(8589934592)
+ var registersARM = [...]Register{
+ 	{0, "R0"},
+ 	{1, "R1"},
+@@ -6047,3 +6062,4 @@ var registersARM = [...]Register{
+ 	{16, "FLAGS"},
+ 	{17, "SB"},
+ }
++var flagRegMaskARM = regMask(65536)
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index 1b12c6f300..e0dc1009af 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -985,7 +985,7 @@ func (s *regAllocState) regalloc(f *Func) {
+ 			args = append(args[:0], v.Args...)
+ 			for _, i := range regspec.inputs {
+ 				mask := i.regs
+-				if mask == flagRegMask {
++				if mask == f.Config.flagRegMask {
+ 					// TODO: remove flag input from regspec.inputs.
+ 					continue
+ 				}
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM.go b/src/cmd/compile/internal/ssa/rewriteARM.go
+index a15301b95d..2ae076d089 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM.go
+@@ -10,14 +10,32 @@ func rewriteValueARM(v *Value, config *Config) bool {
+ 	switch v.Op {
+ 	case OpARMADD:
+ 		return rewriteValueARM_OpARMADD(v, config)
++	case OpAdd16:
++		return rewriteValueARM_OpAdd16(v, config)
+ 	case OpAdd32:
+ 		return rewriteValueARM_OpAdd32(v, config)
++	case OpAdd8:
++		return rewriteValueARM_OpAdd8(v, config)
++	case OpAddPtr:
++		return rewriteValueARM_OpAddPtr(v, config)
+ 	case OpAddr:
+ 		return rewriteValueARM_OpAddr(v, config)
++	case OpAnd16:
++		return rewriteValueARM_OpAnd16(v, config)
+ 	case OpAnd32:
+ 		return rewriteValueARM_OpAnd32(v, config)
++	case OpAnd8:
++		return rewriteValueARM_OpAnd8(v, config)
++	case OpAndB:
++		return rewriteValueARM_OpAndB(v, config)
+ 	case OpClosureCall:
+ 		return rewriteValueARM_OpClosureCall(v, config)
++	case OpCom16:
++		return rewriteValueARM_OpCom16(v, config)
++	case OpCom32:
++		return rewriteValueARM_OpCom32(v, config)
++	case OpCom8:
++		return rewriteValueARM_OpCom8(v, config)
+ 	case OpConst16:
+ 		return rewriteValueARM_OpConst16(v, config)
+ 	case OpConst32:
+@@ -36,6 +54,10 @@ func rewriteValueARM(v *Value, config *Config) bool {
+ 		return rewriteValueARM_OpEq32(v, config)
+ 	case OpEq8:
+ 		return rewriteValueARM_OpEq8(v, config)
++	case OpEqB:
++		return rewriteValueARM_OpEqB(v, config)
++	case OpEqPtr:
++		return rewriteValueARM_OpEqPtr(v, config)
+ 	case OpGeq16:
+ 		return rewriteValueARM_OpGeq16(v, config)
+ 	case OpGeq16U:
+@@ -64,6 +86,12 @@ func rewriteValueARM(v *Value, config *Config) bool {
+ 		return rewriteValueARM_OpGreater8U(v, config)
+ 	case OpInterCall:
+ 		return rewriteValueARM_OpInterCall(v, config)
++	case OpIsInBounds:
++		return rewriteValueARM_OpIsInBounds(v, config)
++	case OpIsNonNil:
++		return rewriteValueARM_OpIsNonNil(v, config)
++	case OpIsSliceInBounds:
++		return rewriteValueARM_OpIsSliceInBounds(v, config)
+ 	case OpLeq16:
+ 		return rewriteValueARM_OpLeq16(v, config)
+ 	case OpLeq16U:
+@@ -106,18 +134,36 @@ func rewriteValueARM(v *Value, config *Config) bool {
+ 		return rewriteValueARM_OpARMMOVWload(v, config)
+ 	case OpARMMOVWstore:
+ 		return rewriteValueARM_OpARMMOVWstore(v, config)
++	case OpNeg16:
++		return rewriteValueARM_OpNeg16(v, config)
++	case OpNeg32:
++		return rewriteValueARM_OpNeg32(v, config)
++	case OpNeg8:
++		return rewriteValueARM_OpNeg8(v, config)
+ 	case OpNeq16:
+ 		return rewriteValueARM_OpNeq16(v, config)
+ 	case OpNeq32:
+ 		return rewriteValueARM_OpNeq32(v, config)
+ 	case OpNeq8:
+ 		return rewriteValueARM_OpNeq8(v, config)
++	case OpNeqB:
++		return rewriteValueARM_OpNeqB(v, config)
++	case OpNeqPtr:
++		return rewriteValueARM_OpNeqPtr(v, config)
+ 	case OpNilCheck:
+ 		return rewriteValueARM_OpNilCheck(v, config)
++	case OpNot:
++		return rewriteValueARM_OpNot(v, config)
+ 	case OpOffPtr:
+ 		return rewriteValueARM_OpOffPtr(v, config)
++	case OpOr16:
++		return rewriteValueARM_OpOr16(v, config)
+ 	case OpOr32:
+ 		return rewriteValueARM_OpOr32(v, config)
++	case OpOr8:
++		return rewriteValueARM_OpOr8(v, config)
++	case OpOrB:
++		return rewriteValueARM_OpOrB(v, config)
+ 	case OpSignExt16to32:
+ 		return rewriteValueARM_OpSignExt16to32(v, config)
+ 	case OpSignExt8to16:
+@@ -128,16 +174,26 @@ func rewriteValueARM(v *Value, config *Config) bool {
+ 		return rewriteValueARM_OpStaticCall(v, config)
+ 	case OpStore:
+ 		return rewriteValueARM_OpStore(v, config)
++	case OpSub16:
++		return rewriteValueARM_OpSub16(v, config)
+ 	case OpSub32:
+ 		return rewriteValueARM_OpSub32(v, config)
++	case OpSub8:
++		return rewriteValueARM_OpSub8(v, config)
++	case OpSubPtr:
++		return rewriteValueARM_OpSubPtr(v, config)
+ 	case OpTrunc16to8:
+ 		return rewriteValueARM_OpTrunc16to8(v, config)
+ 	case OpTrunc32to16:
+ 		return rewriteValueARM_OpTrunc32to16(v, config)
+ 	case OpTrunc32to8:
+ 		return rewriteValueARM_OpTrunc32to8(v, config)
++	case OpXor16:
++		return rewriteValueARM_OpXor16(v, config)
+ 	case OpXor32:
+ 		return rewriteValueARM_OpXor32(v, config)
++	case OpXor8:
++		return rewriteValueARM_OpXor8(v, config)
+ 	case OpZeroExt16to32:
+ 		return rewriteValueARM_OpZeroExt16to32(v, config)
+ 	case OpZeroExt8to16:
+@@ -182,6 +238,21 @@ func rewriteValueARM_OpARMADD(v *Value, config *Config) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueARM_OpAdd16(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Add16 x y)
++	// cond:
++	// result: (ADD x y)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpARMADD)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
+ func rewriteValueARM_OpAdd32(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -197,6 +268,36 @@ func rewriteValueARM_OpAdd32(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueARM_OpAdd8(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Add8 x y)
++	// cond:
++	// result: (ADD x y)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpARMADD)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
++func rewriteValueARM_OpAddPtr(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (AddPtr x y)
++	// cond:
++	// result: (ADD x y)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpARMADD)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
+ func rewriteValueARM_OpAddr(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -212,6 +313,21 @@ func rewriteValueARM_OpAddr(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueARM_OpAnd16(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (And16 x y)
++	// cond:
++	// result: (AND x y)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpARMAND)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
+ func rewriteValueARM_OpAnd32(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -227,6 +343,36 @@ func rewriteValueARM_OpAnd32(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueARM_OpAnd8(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (And8 x y)
++	// cond:
++	// result: (AND x y)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpARMAND)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
++func rewriteValueARM_OpAndB(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (AndB x y)
++	// cond:
++	// result: (AND x y)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpARMAND)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
+ func rewriteValueARM_OpClosureCall(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -246,6 +392,45 @@ func rewriteValueARM_OpClosureCall(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueARM_OpCom16(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Com16 x)
++	// cond:
++	// result: (MVN x)
++	for {
++		x := v.Args[0]
++		v.reset(OpARMMVN)
++		v.AddArg(x)
++		return true
++	}
++}
++func rewriteValueARM_OpCom32(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Com32 x)
++	// cond:
++	// result: (MVN x)
++	for {
++		x := v.Args[0]
++		v.reset(OpARMMVN)
++		v.AddArg(x)
++		return true
++	}
++}
++func rewriteValueARM_OpCom8(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Com8 x)
++	// cond:
++	// result: (MVN x)
++	for {
++		x := v.Args[0]
++		v.reset(OpARMMVN)
++		v.AddArg(x)
++		return true
++	}
++}
+ func rewriteValueARM_OpConst16(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -384,6 +569,41 @@ func rewriteValueARM_OpEq8(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueARM_OpEqB(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (EqB x y)
++	// cond:
++	// result: (XORconst [1] (XOR <config.fe.TypeBool()> x y))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpARMXORconst)
++		v.AuxInt = 1
++		v0 := b.NewValue0(v.Line, OpARMXOR, config.fe.TypeBool())
++		v0.AddArg(x)
++		v0.AddArg(y)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValueARM_OpEqPtr(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (EqPtr x y)
++	// cond:
++	// result: (Equal (CMP x y))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpARMEqual)
++		v0 := b.NewValue0(v.Line, OpARMCMP, TypeFlags)
++		v0.AddArg(x)
++		v0.AddArg(y)
++		v.AddArg(v0)
++		return true
++	}
++}
+ func rewriteValueARM_OpGeq16(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -652,6 +872,56 @@ func rewriteValueARM_OpInterCall(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueARM_OpIsInBounds(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (IsInBounds idx len)
++	// cond:
++	// result: (LessThanU (CMP idx len))
++	for {
++		idx := v.Args[0]
++		len := v.Args[1]
++		v.reset(OpARMLessThanU)
++		v0 := b.NewValue0(v.Line, OpARMCMP, TypeFlags)
++		v0.AddArg(idx)
++		v0.AddArg(len)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValueARM_OpIsNonNil(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (IsNonNil ptr)
++	// cond:
++	// result: (NotEqual (CMPconst [0] ptr))
++	for {
++		ptr := v.Args[0]
++		v.reset(OpARMNotEqual)
++		v0 := b.NewValue0(v.Line, OpARMCMPconst, TypeFlags)
++		v0.AuxInt = 0
++		v0.AddArg(ptr)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValueARM_OpIsSliceInBounds(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (IsSliceInBounds idx len)
++	// cond:
++	// result: (LessEqualU (CMP idx len))
++	for {
++		idx := v.Args[0]
++		len := v.Args[1]
++		v.reset(OpARMLessEqualU)
++		v0 := b.NewValue0(v.Line, OpARMCMP, TypeFlags)
++		v0.AddArg(idx)
++		v0.AddArg(len)
++		v.AddArg(v0)
++		return true
++	}
++}
+ func rewriteValueARM_OpLeq16(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -1221,6 +1491,48 @@ func rewriteValueARM_OpARMMOVWstore(v *Value, config *Config) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueARM_OpNeg16(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Neg16 x)
++	// cond:
++	// result: (RSBconst [0] x)
++	for {
++		x := v.Args[0]
++		v.reset(OpARMRSBconst)
++		v.AuxInt = 0
++		v.AddArg(x)
++		return true
++	}
++}
++func rewriteValueARM_OpNeg32(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Neg32 x)
++	// cond:
++	// result: (RSBconst [0] x)
++	for {
++		x := v.Args[0]
++		v.reset(OpARMRSBconst)
++		v.AuxInt = 0
++		v.AddArg(x)
++		return true
++	}
++}
++func rewriteValueARM_OpNeg8(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Neg8 x)
++	// cond:
++	// result: (RSBconst [0] x)
++	for {
++		x := v.Args[0]
++		v.reset(OpARMRSBconst)
++		v.AuxInt = 0
++		v.AddArg(x)
++		return true
++	}
++}
+ func rewriteValueARM_OpNeq16(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -1280,6 +1592,38 @@ func rewriteValueARM_OpNeq8(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueARM_OpNeqB(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (NeqB x y)
++	// cond:
++	// result: (XOR x y)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpARMXOR)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
++func rewriteValueARM_OpNeqPtr(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (NeqPtr x y)
++	// cond:
++	// result: (NotEqual (CMP x y))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpARMNotEqual)
++		v0 := b.NewValue0(v.Line, OpARMCMP, TypeFlags)
++		v0.AddArg(x)
++		v0.AddArg(y)
++		v.AddArg(v0)
++		return true
++	}
++}
+ func rewriteValueARM_OpNilCheck(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -1295,6 +1639,20 @@ func rewriteValueARM_OpNilCheck(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueARM_OpNot(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Not x)
++	// cond:
++	// result: (XORconst [1] x)
++	for {
++		x := v.Args[0]
++		v.reset(OpARMXORconst)
++		v.AuxInt = 1
++		v.AddArg(x)
++		return true
++	}
++}
+ func rewriteValueARM_OpOffPtr(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -1312,6 +1670,21 @@ func rewriteValueARM_OpOffPtr(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueARM_OpOr16(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Or16 x y)
++	// cond:
++	// result: (OR x y)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpARMOR)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
+ func rewriteValueARM_OpOr32(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -1327,6 +1700,36 @@ func rewriteValueARM_OpOr32(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueARM_OpOr8(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Or8 x y)
++	// cond:
++	// result: (OR x y)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpARMOR)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
++func rewriteValueARM_OpOrB(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (OrB x y)
++	// cond:
++	// result: (OR x y)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpARMOR)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
+ func rewriteValueARM_OpSignExt16to32(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -1436,6 +1839,21 @@ func rewriteValueARM_OpStore(v *Value, config *Config) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueARM_OpSub16(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Sub16 x y)
++	// cond:
++	// result: (SUB x y)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpARMSUB)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
+ func rewriteValueARM_OpSub32(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -1451,6 +1869,36 @@ func rewriteValueARM_OpSub32(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueARM_OpSub8(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Sub8 x y)
++	// cond:
++	// result: (SUB x y)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpARMSUB)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
++func rewriteValueARM_OpSubPtr(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (SubPtr x y)
++	// cond:
++	// result: (SUB x y)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpARMSUB)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
+ func rewriteValueARM_OpTrunc16to8(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -1493,6 +1941,21 @@ func rewriteValueARM_OpTrunc32to8(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueARM_OpXor16(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Xor16 x y)
++	// cond:
++	// result: (XOR x y)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpARMXOR)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
+ func rewriteValueARM_OpXor32(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -1508,6 +1971,21 @@ func rewriteValueARM_OpXor32(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueARM_OpXor8(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Xor8 x y)
++	// cond:
++	// result: (XOR x y)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpARMXOR)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
+ func rewriteValueARM_OpZeroExt16to32(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b

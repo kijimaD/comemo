@@ -9,6 +9,21 @@ Date:   Wed Sep 19 12:46:09 2018 +0530
     Change-Id: If932718ca8a2b230ab52495c1a7a82d86ab1325b
     Reviewed-on: https://go-review.googlesource.com/136215
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/go/build/doc.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/go/build/doc.go b/src/go/build/doc.go
+index 69613e359c..d803b8967b 100644
+--- a/src/go/build/doc.go
++++ b/src/go/build/doc.go
+@@ -110,6 +110,9 @@
+ //	- "go1.11", from Go version 1.11 onward
+ //	- any additional words listed in ctxt.BuildTags
+ //
++// There are no build tags for beta or minor releases. Programs that need the
++// minor release number can call runtime.Version.
++//
+ // If a file's name, after stripping the extension and a possible _test suffix,
+ // matches any of the following patterns:
+ //	*_GOOS

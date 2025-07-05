@@ -19,10 +19,298 @@ Date:   Thu Mar 9 13:38:10 2017 -0800
     Change-Id: Ia3d136a8ec8d9372ed9c05ca47d3dff222cf030e
     Reviewed-on: https://go-review.googlesource.com/37996
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/syntax/nodes_test.go   |   4 +-
  src/cmd/compile/internal/syntax/parser_test.go  |  28 ++---
  src/cmd/compile/internal/syntax/scanner.go      |   6 +-
  src/cmd/compile/internal/syntax/scanner_test.go | 130 ++++++++++++------------
  src/cmd/compile/internal/syntax/source.go       |  10 +-
  5 files changed, 91 insertions(+), 87 deletions(-)
+
+diff --git a/src/cmd/compile/internal/syntax/nodes_test.go b/src/cmd/compile/internal/syntax/nodes_test.go
+index 6b4119c70b..47283bc4d2 100644
+--- a/src/cmd/compile/internal/syntax/nodes_test.go
++++ b/src/cmd/compile/internal/syntax/nodes_test.go
+@@ -297,8 +297,8 @@ func testPos(t *testing.T, list []test, prefix, suffix string, extract func(*Fil
+ 		}
+ 
+ 		// verify node position with expected position as indicated by @
+-		if col := int(node.Pos().Col()); col != index {
+-			t.Errorf("pos error: %s: col = %d, want %d", src, col, index)
++		if col := int(node.Pos().Col()); col != index+colbase {
++			t.Errorf("pos error: %s: col = %d, want %d", src, col, index+colbase)
+ 			continue
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/syntax/parser_test.go b/src/cmd/compile/internal/syntax/parser_test.go
+index f7ada181dd..9028c41f37 100644
+--- a/src/cmd/compile/internal/syntax/parser_test.go
++++ b/src/cmd/compile/internal/syntax/parser_test.go
+@@ -188,20 +188,20 @@ func TestLineDirectives(t *testing.T) {
+ 	for _, test := range []struct {
+ 		src, msg  string
+ 		filename  string
+-		line, col uint
++		line, col uint // 0-based
+ 	}{
+ 		// test validity of //line directive
+-		{`//line :`, "invalid line number: ", "", 1, 8},
+-		{`//line :x`, "invalid line number: x", "", 1, 8},
+-		{`//line foo :`, "invalid line number: ", "", 1, 12},
+-		{`//line foo:123abc`, "invalid line number: 123abc", "", 1, 11},
+-		{`/**///line foo:x`, "syntax error: package statement must be first", "", 1, 16}, //line directive not at start of line - ignored
+-		{`//line foo:0`, "invalid line number: 0", "", 1, 11},
+-		{fmt.Sprintf(`//line foo:%d`, lineMax+1), fmt.Sprintf("invalid line number: %d", lineMax+1), "", 1, 11},
++		{`//line :`, "invalid line number: ", "", 0, 8},
++		{`//line :x`, "invalid line number: x", "", 0, 8},
++		{`//line foo :`, "invalid line number: ", "", 0, 12},
++		{`//line foo:123abc`, "invalid line number: 123abc", "", 0, 11},
++		{`/**///line foo:x`, "syntax error: package statement must be first", "", 0, 16}, //line directive not at start of line - ignored
++		{`//line foo:0`, "invalid line number: 0", "", 0, 11},
++		{fmt.Sprintf(`//line foo:%d`, lineMax+1), fmt.Sprintf("invalid line number: %d", lineMax+1), "", 0, 11},
+ 
+ 		// test effect of //line directive on (relative) position information
+-		{"//line foo:123\n   foo", "syntax error: package statement must be first", "foo", 123, 3},
+-		{"//line foo:123\n//line bar:345\nfoo", "syntax error: package statement must be first", "bar", 345, 0},
++		{"//line foo:123\n   foo", "syntax error: package statement must be first", "foo", 123 - linebase, 3},
++		{"//line foo:123\n//line bar:345\nfoo", "syntax error: package statement must be first", "bar", 345 - linebase, 0},
+ 	} {
+ 		_, err := ParseBytes(nil, []byte(test.src), nil, nil, 0)
+ 		if err == nil {
+@@ -219,11 +219,11 @@ func TestLineDirectives(t *testing.T) {
+ 		if filename := perr.Pos.RelFilename(); filename != test.filename {
+ 			t.Errorf("%s: got filename = %q; want %q", test.src, filename, test.filename)
+ 		}
+-		if line := perr.Pos.RelLine(); line != test.line {
+-			t.Errorf("%s: got line = %d; want %d", test.src, line, test.line)
++		if line := perr.Pos.RelLine(); line != test.line+linebase {
++			t.Errorf("%s: got line = %d; want %d", test.src, line, test.line+linebase)
+ 		}
+-		if col := perr.Pos.Col(); col != test.col {
+-			t.Errorf("%s: got col = %d; want %d", test.src, col, test.col)
++		if col := perr.Pos.Col(); col != test.col+colbase {
++			t.Errorf("%s: got col = %d; want %d", test.src, col, test.col+colbase)
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/syntax/scanner.go b/src/cmd/compile/internal/syntax/scanner.go
+index c2de9ce686..05391e5efb 100644
+--- a/src/cmd/compile/internal/syntax/scanner.go
++++ b/src/cmd/compile/internal/syntax/scanner.go
+@@ -577,12 +577,12 @@ func (s *scanner) skipLine(r rune) {
+ 
+ func (s *scanner) lineComment() {
+ 	r := s.getr()
+-	// directives must start at the beginning of the line (s.col == 0)
+-	if s.col != 0 || s.pragh == nil || (r != 'g' && r != 'l') {
++	// directives must start at the beginning of the line (s.col == colbase)
++	if s.col != colbase || s.pragh == nil || (r != 'g' && r != 'l') {
+ 		s.skipLine(r)
+ 		return
+ 	}
+-	// s.col == 0 && s.pragh != nil && (r == 'g' || r == 'l')
++	// s.col == colbase && s.pragh != nil && (r == 'g' || r == 'l')
+ 
+ 	// recognize directives
+ 	prefix := "go:"
+diff --git a/src/cmd/compile/internal/syntax/scanner_test.go b/src/cmd/compile/internal/syntax/scanner_test.go
+index 4d04e62875..e434db9a91 100644
+--- a/src/cmd/compile/internal/syntax/scanner_test.go
++++ b/src/cmd/compile/internal/syntax/scanner_test.go
+@@ -56,8 +56,8 @@ func TestTokens(t *testing.T) {
+ 	for i, want := range sampleTokens {
+ 		nlsemi := false
+ 
+-		if got.line != uint(i+1) {
+-			t.Errorf("got line %d; want %d", got.line, i+1)
++		if got.line != uint(i+linebase) {
++			t.Errorf("got line %d; want %d", got.line, i+linebase)
+ 		}
+ 
+ 		if got.tok != want.tok {
+@@ -264,75 +264,75 @@ var sampleTokens = [...]struct {
+ func TestScanErrors(t *testing.T) {
+ 	for _, test := range []struct {
+ 		src, msg  string
+-		line, col uint
++		line, col uint // 0-based
+ 	}{
+ 		// Note: Positions for lexical errors are the earliest position
+ 		// where the error is apparent, not the beginning of the respective
+ 		// token.
+ 
+ 		// rune-level errors
+-		{"fo\x00o", "invalid NUL character", 1, 2},
+-		{"foo\n\ufeff bar", "invalid BOM in the middle of the file", 2, 0},
+-		{"foo\n\n\xff    ", "invalid UTF-8 encoding", 3, 0},
++		{"fo\x00o", "invalid NUL character", 0, 2},
++		{"foo\n\ufeff bar", "invalid BOM in the middle of the file", 1, 0},
++		{"foo\n\n\xff    ", "invalid UTF-8 encoding", 2, 0},
+ 
+ 		// token-level errors
+-		{"\u00BD" /* ½ */, "invalid identifier character U+00BD '½'", 1, 0},
+-		{"\U0001d736\U0001d737\U0001d738_½" /* 𝜶𝜷𝜸_½ */, "invalid identifier character U+00BD '½'", 1, 13 /* byte offset */},
+-		{"\U0001d7d8" /* 𝟘 */, "identifier cannot begin with digit U+1D7D8 '𝟘'", 1, 0},
+-		{"foo\U0001d7d8_½" /* foo𝟘_½ */, "invalid identifier character U+00BD '½'", 1, 8 /* byte offset */},
+-
+-		{"x + ~y", "bitwise complement operator is ^", 1, 4},
+-		{"foo$bar = 0", "invalid character U+0024 '$'", 1, 3},
+-		{"const x = 0xyz", "malformed hex constant", 1, 12},
+-		{"0123456789", "malformed octal constant", 1, 10},
+-		{"0123456789. /* foobar", "comment not terminated", 1, 12},   // valid float constant
+-		{"0123456789e0 /*\nfoobar", "comment not terminated", 1, 13}, // valid float constant
+-		{"var a, b = 08, 07\n", "malformed octal constant", 1, 13},
+-		{"(x + 1.0e+x)", "malformed floating-point constant exponent", 1, 10},
+-
+-		{`''`, "empty character literal or unescaped ' in character literal", 1, 1},
+-		{"'\n", "newline in character literal", 1, 1},
+-		{`'\`, "invalid character literal (missing closing ')", 1, 0},
+-		{`'\'`, "invalid character literal (missing closing ')", 1, 0},
+-		{`'\x`, "invalid character literal (missing closing ')", 1, 0},
+-		{`'\x'`, "non-hex character in escape sequence: '", 1, 3},
+-		{`'\y'`, "unknown escape sequence", 1, 2},
+-		{`'\x0'`, "non-hex character in escape sequence: '", 1, 4},
+-		{`'\00'`, "non-octal character in escape sequence: '", 1, 4},
+-		{`'\377' /*`, "comment not terminated", 1, 7}, // valid octal escape
+-		{`'\378`, "non-octal character in escape sequence: 8", 1, 4},
+-		{`'\400'`, "octal escape value > 255: 256", 1, 5},
+-		{`'xx`, "invalid character literal (missing closing ')", 1, 0},
+-		{`'xx'`, "invalid character literal (more than one character)", 1, 0},
+-
+-		{"\"\n", "newline in string", 1, 1},
+-		{`"`, "string not terminated", 1, 0},
+-		{`"foo`, "string not terminated", 1, 0},
+-		{"`", "string not terminated", 1, 0},
+-		{"`foo", "string not terminated", 1, 0},
+-		{"/*/", "comment not terminated", 1, 0},
+-		{"/*\n\nfoo", "comment not terminated", 1, 0},
+-		{"/*\n\nfoo", "comment not terminated", 1, 0},
+-		{`"\`, "string not terminated", 1, 0},
+-		{`"\"`, "string not terminated", 1, 0},
+-		{`"\x`, "string not terminated", 1, 0},
+-		{`"\x"`, "non-hex character in escape sequence: \"", 1, 3},
+-		{`"\y"`, "unknown escape sequence", 1, 2},
+-		{`"\x0"`, "non-hex character in escape sequence: \"", 1, 4},
+-		{`"\00"`, "non-octal character in escape sequence: \"", 1, 4},
+-		{`"\377" /*`, "comment not terminated", 1, 7}, // valid octal escape
+-		{`"\378"`, "non-octal character in escape sequence: 8", 1, 4},
+-		{`"\400"`, "octal escape value > 255: 256", 1, 5},
+-
+-		{`s := "foo\z"`, "unknown escape sequence", 1, 10},
+-		{`s := "foo\z00\nbar"`, "unknown escape sequence", 1, 10},
+-		{`"\x`, "string not terminated", 1, 0},
+-		{`"\x"`, "non-hex character in escape sequence: \"", 1, 3},
+-		{`var s string = "\x"`, "non-hex character in escape sequence: \"", 1, 18},
+-		{`return "\Uffffffff"`, "escape sequence is invalid Unicode code point", 1, 18},
++		{"\u00BD" /* ½ */, "invalid identifier character U+00BD '½'", 0, 0},
++		{"\U0001d736\U0001d737\U0001d738_½" /* 𝜶𝜷𝜸_½ */, "invalid identifier character U+00BD '½'", 0, 13 /* byte offset */},
++		{"\U0001d7d8" /* 𝟘 */, "identifier cannot begin with digit U+1D7D8 '𝟘'", 0, 0},
++		{"foo\U0001d7d8_½" /* foo𝟘_½ */, "invalid identifier character U+00BD '½'", 0, 8 /* byte offset */},
++
++		{"x + ~y", "bitwise complement operator is ^", 0, 4},
++		{"foo$bar = 0", "invalid character U+0024 '$'", 0, 3},
++		{"const x = 0xyz", "malformed hex constant", 0, 12},
++		{"0123456789", "malformed octal constant", 0, 10},
++		{"0123456789. /* foobar", "comment not terminated", 0, 12},   // valid float constant
++		{"0123456789e0 /*\nfoobar", "comment not terminated", 0, 13}, // valid float constant
++		{"var a, b = 08, 07\n", "malformed octal constant", 0, 13},
++		{"(x + 1.0e+x)", "malformed floating-point constant exponent", 0, 10},
++
++		{`''`, "empty character literal or unescaped ' in character literal", 0, 1},
++		{"'\n", "newline in character literal", 0, 1},
++		{`'\`, "invalid character literal (missing closing ')", 0, 0},
++		{`'\'`, "invalid character literal (missing closing ')", 0, 0},
++		{`'\x`, "invalid character literal (missing closing ')", 0, 0},
++		{`'\x'`, "non-hex character in escape sequence: '", 0, 3},
++		{`'\y'`, "unknown escape sequence", 0, 2},
++		{`'\x0'`, "non-hex character in escape sequence: '", 0, 4},
++		{`'\00'`, "non-octal character in escape sequence: '", 0, 4},
++		{`'\377' /*`, "comment not terminated", 0, 7}, // valid octal escape
++		{`'\378`, "non-octal character in escape sequence: 8", 0, 4},
++		{`'\400'`, "octal escape value > 255: 256", 0, 5},
++		{`'xx`, "invalid character literal (missing closing ')", 0, 0},
++		{`'xx'`, "invalid character literal (more than one character)", 0, 0},
++
++		{"\"\n", "newline in string", 0, 1},
++		{`"`, "string not terminated", 0, 0},
++		{`"foo`, "string not terminated", 0, 0},
++		{"`", "string not terminated", 0, 0},
++		{"`foo", "string not terminated", 0, 0},
++		{"/*/", "comment not terminated", 0, 0},
++		{"/*\n\nfoo", "comment not terminated", 0, 0},
++		{"/*\n\nfoo", "comment not terminated", 0, 0},
++		{`"\`, "string not terminated", 0, 0},
++		{`"\"`, "string not terminated", 0, 0},
++		{`"\x`, "string not terminated", 0, 0},
++		{`"\x"`, "non-hex character in escape sequence: \"", 0, 3},
++		{`"\y"`, "unknown escape sequence", 0, 2},
++		{`"\x0"`, "non-hex character in escape sequence: \"", 0, 4},
++		{`"\00"`, "non-octal character in escape sequence: \"", 0, 4},
++		{`"\377" /*`, "comment not terminated", 0, 7}, // valid octal escape
++		{`"\378"`, "non-octal character in escape sequence: 8", 0, 4},
++		{`"\400"`, "octal escape value > 255: 256", 0, 5},
++
++		{`s := "foo\z"`, "unknown escape sequence", 0, 10},
++		{`s := "foo\z00\nbar"`, "unknown escape sequence", 0, 10},
++		{`"\x`, "string not terminated", 0, 0},
++		{`"\x"`, "non-hex character in escape sequence: \"", 0, 3},
++		{`var s string = "\x"`, "non-hex character in escape sequence: \"", 0, 18},
++		{`return "\Uffffffff"`, "escape sequence is invalid Unicode code point", 0, 18},
+ 
+ 		// former problem cases
+-		{"package p\n\n\xef", "invalid UTF-8 encoding", 3, 0},
++		{"package p\n\n\xef", "invalid UTF-8 encoding", 2, 0},
+ 	} {
+ 		var s scanner
+ 		nerrors := 0
+@@ -343,11 +343,11 @@ func TestScanErrors(t *testing.T) {
+ 				if msg != test.msg {
+ 					t.Errorf("%q: got msg = %q; want %q", test.src, msg, test.msg)
+ 				}
+-				if line != test.line {
+-					t.Errorf("%q: got line = %d; want %d", test.src, line, test.line)
++				if line != test.line+linebase {
++					t.Errorf("%q: got line = %d; want %d", test.src, line, test.line+linebase)
+ 				}
+-				if col != test.col {
+-					t.Errorf("%q: got col = %d; want %d", test.src, col, test.col)
++				if col != test.col+colbase {
++					t.Errorf("%q: got col = %d; want %d", test.src, col, test.col+colbase)
+ 				}
+ 			} else if nerrors > 1 {
+ 				// TODO(gri) make this use position info
+diff --git a/src/cmd/compile/internal/syntax/source.go b/src/cmd/compile/internal/syntax/source.go
+index 4ce35a3615..93547213c0 100644
+--- a/src/cmd/compile/internal/syntax/source.go
++++ b/src/cmd/compile/internal/syntax/source.go
+@@ -18,6 +18,10 @@ import (
+ 	"unicode/utf8"
+ )
+ 
++// starting points for line and column numbers
++const linebase = 1
++const colbase = 1
++
+ // buf [...read...|...|...unread...|s|...free...]
+ //         ^      ^   ^            ^
+ //         |      |   |            |
+@@ -49,8 +53,8 @@ func (s *source) init(src io.Reader, errh func(line, pos uint, msg string)) {
+ 	s.buf[0] = utf8.RuneSelf // terminate with sentinel
+ 	s.offs = 0
+ 	s.r0, s.r, s.w = 0, 0, 0
+-	s.line0, s.line = 1, 1
+-	s.col0, s.col = 0, 0
++	s.line0, s.line = 0, linebase
++	s.col0, s.col = 0, colbase
+ 	s.ioerr = nil
+ 
+ 	s.lit = s.lit[:0]
+@@ -112,7 +116,7 @@ redo:
+ 		}
+ 		if b == '\n' {
+ 			s.line++
+-			s.col = 0
++			s.col = colbase
+ 		}
+ 		return rune(b)
+ 	}

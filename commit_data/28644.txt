@@ -9,6 +9,21 @@ Date:   Mon Jun 20 15:43:21 2016 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  test/fixedbugs/issue16008.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/test/fixedbugs/issue16008.go b/test/fixedbugs/issue16008.go
+index 1b516fbabe..0e369efcbb 100644
+--- a/test/fixedbugs/issue16008.go
++++ b/test/fixedbugs/issue16008.go
+@@ -1,5 +1,9 @@
+ // errorcheck -0 -race
+ 
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package foo
+ 
+ const benchmarkNumNodes = 10000

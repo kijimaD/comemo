@@ -12,6 +12,21 @@ Date:   Fri Nov 12 10:15:21 2021 +0800
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
     Trust: Jeremy Faller <jeremy@golang.org>
-
+---
  doc/go1.18.html | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/doc/go1.18.html b/doc/go1.18.html
+index e796215c78..e266889cad 100644
+--- a/doc/go1.18.html
++++ b/doc/go1.18.html
+@@ -441,7 +441,8 @@ Do not send CLs removing the interior tags from such phrases.
+ <dl id="unicode/utf8"><dt><a href="/pkg/unicode/utf8/">unicode/utf8</a></dt>
+   <dd>
+     <p><!-- CL 345571 -->
+-      TODO: <a href="https://golang.org/cl/345571">https://golang.org/cl/345571</a>: add AppendRune
++      The <a href="/pkg/unicode/utf8/#AppendRune"><code>AppendRune</code></a> function appends the UTF-8 new
++      encoding of a <code>rune</code> to a <code>[]byte</code>.
+     </p>
+   </dd>
+ </dl><!-- unicode/utf8 -->

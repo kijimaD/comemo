@@ -29,7 +29,7 @@ Date:   Thu Nov 16 17:03:06 2023 -0500
     Auto-Submit: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/go/internal/modfetch/codehost/codehost.go  | 15 -----
  src/cmd/go/internal/modfetch/coderepo.go           |  2 +-
  src/cmd/go/internal/modload/build.go               | 64 +++++++++++-----------
@@ -37,3 +37,224 @@ Date:   Thu Nov 16 17:03:06 2023 -0500
  src/cmd/go/internal/modload/query.go               |  9 ++-
  src/cmd/go/testdata/script/mod_list_issue61423.txt | 13 ++++-
  6 files changed, 52 insertions(+), 54 deletions(-)
+
+diff --git a/src/cmd/go/internal/modfetch/codehost/codehost.go b/src/cmd/go/internal/modfetch/codehost/codehost.go
+index 6ef9d298d4..69a3c57e26 100644
+--- a/src/cmd/go/internal/modfetch/codehost/codehost.go
++++ b/src/cmd/go/internal/modfetch/codehost/codehost.go
+@@ -122,21 +122,6 @@ type Origin struct {
+ 	RepoSum string `json:",omitempty"`
+ }
+ 
+-// Checkable reports whether the Origin contains anything that can be checked.
+-// If not, the Origin is purely informational and should fail a CheckReuse call.
+-func (o *Origin) Checkable() bool {
+-	return o != nil && (o.TagSum != "" || o.Ref != "" || o.Hash != "" || o.RepoSum != "")
+-}
+-
+-// ClearCheckable clears the Origin enough to make Checkable return false.
+-func (o *Origin) ClearCheckable() {
+-	o.TagSum = ""
+-	o.TagPrefix = ""
+-	o.Ref = ""
+-	o.Hash = ""
+-	o.RepoSum = ""
+-}
+-
+ // A Tags describes the available tags in a code repository.
+ type Tags struct {
+ 	Origin *Origin
+diff --git a/src/cmd/go/internal/modfetch/coderepo.go b/src/cmd/go/internal/modfetch/coderepo.go
+index 4f10f1f5dd..7d83ac6971 100644
+--- a/src/cmd/go/internal/modfetch/coderepo.go
++++ b/src/cmd/go/internal/modfetch/coderepo.go
+@@ -362,7 +362,7 @@ func (r *codeRepo) convert(ctx context.Context, info *codehost.RevInfo, statVers
+ 			}
+ 			tags, tagsErr := r.code.Tags(ctx, prefix)
+ 			if tagsErr != nil {
+-				origin.ClearCheckable()
++				revInfo.Origin = nil
+ 				if err == nil {
+ 					err = tagsErr
+ 				}
+diff --git a/src/cmd/go/internal/modload/build.go b/src/cmd/go/internal/modload/build.go
+index 4244a767a7..5cf1487c3e 100644
+--- a/src/cmd/go/internal/modload/build.go
++++ b/src/cmd/go/internal/modload/build.go
+@@ -161,53 +161,53 @@ func addUpdate(ctx context.Context, m *modinfo.ModulePublic) {
+ 	}
+ }
+ 
+-// mergeOrigin merges two origins,
++// mergeOrigin returns the union of data from two origins,
+ // returning either a new origin or one of its unmodified arguments.
+-// If the two origins conflict, mergeOrigin returns a non-specific one
+-// that will not pass CheckReuse.
+-// If m1 or m2 is nil, the other is returned unmodified.
+-// But if m1 or m2 is non-nil and uncheckable, the result is also uncheckable,
+-// to preserve uncheckability.
++// If the two origins conflict including if either is nil,
++// mergeOrigin returns nil.
+ func mergeOrigin(m1, m2 *codehost.Origin) *codehost.Origin {
+-	if m1 == nil {
+-		return m2
+-	}
+-	if m2 == nil {
+-		return m1
+-	}
+-	if !m1.Checkable() {
+-		return m1
+-	}
+-	if !m2.Checkable() {
+-		return m2
++	if m1 == nil || m2 == nil {
++		return nil
+ 	}
+ 
+-	merged := new(codehost.Origin)
+-	*merged = *m1 // Clone to avoid overwriting fields in cached results.
++	if m2.VCS != m1.VCS ||
++		m2.URL != m1.URL ||
++		m2.Subdir != m1.Subdir {
++		return nil
++	}
+ 
++	merged := *m1
++	if m2.Hash != "" {
++		if m1.Hash != "" && m1.Hash != m2.Hash {
++			return nil
++		}
++		merged.Hash = m2.Hash
++	}
+ 	if m2.TagSum != "" {
+ 		if m1.TagSum != "" && (m1.TagSum != m2.TagSum || m1.TagPrefix != m2.TagPrefix) {
+-			merged.ClearCheckable()
+-			return merged
++			return nil
+ 		}
+ 		merged.TagSum = m2.TagSum
+ 		merged.TagPrefix = m2.TagPrefix
+ 	}
+-	if m2.Hash != "" {
+-		if m1.Hash != "" && m1.Hash != m2.Hash {
+-			merged.ClearCheckable()
+-			return merged
+-		}
+-		merged.Hash = m2.Hash
+-	}
+ 	if m2.Ref != "" {
+ 		if m1.Ref != "" && m1.Ref != m2.Ref {
+-			merged.ClearCheckable()
+-			return merged
++			return nil
+ 		}
+ 		merged.Ref = m2.Ref
+ 	}
+-	return merged
++
++	switch {
++	case merged == *m1:
++		return m1
++	case merged == *m2:
++		return m2
++	default:
++		// Clone the result to avoid an alloc for merged
++		// if the result is equal to one of the arguments.
++		clone := merged
++		return &clone
++	}
+ }
+ 
+ // addVersions fills in m.Versions with the list of known versions.
+@@ -331,7 +331,7 @@ func moduleInfo(ctx context.Context, rs *Requirements, m module.Version, mode Li
+ 		mod := module.Version{Path: m.Path, Version: m.Version}
+ 
+ 		if m.Version != "" {
+-			if old := reuse[mod]; old != nil && old.Origin.Checkable() {
++			if old := reuse[mod]; old != nil {
+ 				if err := checkReuse(ctx, mod, old.Origin); err == nil {
+ 					*m = *old
+ 					m.Query = ""
+diff --git a/src/cmd/go/internal/modload/list.go b/src/cmd/go/internal/modload/list.go
+index e8872ba4b8..ef93c25121 100644
+--- a/src/cmd/go/internal/modload/list.go
++++ b/src/cmd/go/internal/modload/list.go
+@@ -57,8 +57,7 @@ func ListModules(ctx context.Context, args []string, mode ListMode, reuseFile st
+ 				}
+ 				return nil, fmt.Errorf("parsing %s: %v", reuseFile, err)
+ 			}
+-			if m.Origin == nil || !m.Origin.Checkable() {
+-				// Nothing to check to validate reuse.
++			if m.Origin == nil {
+ 				continue
+ 			}
+ 			m.Reuse = true
+diff --git a/src/cmd/go/internal/modload/query.go b/src/cmd/go/internal/modload/query.go
+index 21e4db87fe..895c6c0032 100644
+--- a/src/cmd/go/internal/modload/query.go
++++ b/src/cmd/go/internal/modload/query.go
+@@ -111,8 +111,8 @@ func checkReuse(ctx context.Context, m module.Version, old *codehost.Origin) err
+ }
+ 
+ func checkReuseRepo(ctx context.Context, repo versionRepo, path, query string, origin *codehost.Origin) error {
+-	if !origin.Checkable() {
+-		return errors.New("Origin is not checkable")
++	if origin == nil {
++		return errors.New("nil Origin")
+ 	}
+ 
+ 	// Ensure that the Origin actually includes enough fields to resolve the query.
+@@ -138,6 +138,9 @@ func checkReuseRepo(ctx context.Context, repo versionRepo, path, query string, o
+ 		// If the version did not successfully resolve, the origin may indicate
+ 		// a TagSum and/or RepoSum instead of a Hash, in which case we still need
+ 		// to check those to ensure that the error is still applicable.
++		if origin.Hash == "" && origin.Ref == "" && origin.TagSum == "" {
++			return errors.New("no Origin information to check")
++		}
+ 
+ 	case IsRevisionQuery(path, query):
+ 		// This query may refer to a branch, non-version tag, or commit ID.
+@@ -225,7 +228,7 @@ func queryProxy(ctx context.Context, proxy, path, query, current string, allowed
+ 		return nil, err
+ 	}
+ 
+-	if old := reuse[module.Version{Path: path, Version: query}]; old != nil && old.Origin.Checkable() {
++	if old := reuse[module.Version{Path: path, Version: query}]; old != nil {
+ 		if err := checkReuseRepo(ctx, repo, path, query, old.Origin); err == nil {
+ 			info := &modfetch.RevInfo{
+ 				Version: old.Version,
+diff --git a/src/cmd/go/testdata/script/mod_list_issue61423.txt b/src/cmd/go/testdata/script/mod_list_issue61423.txt
+index b788d70c85..2888391f6d 100644
+--- a/src/cmd/go/testdata/script/mod_list_issue61423.txt
++++ b/src/cmd/go/testdata/script/mod_list_issue61423.txt
+@@ -51,10 +51,20 @@ env GOMODCACHE=$WORK/modcache2
+ # it is only going to have Git origin information about the one
+ # commit — not the other tags that would go into resolving
+ # the underlying version list.
++# 'go list' should not emit the partial information,
++# since it isn't enough to reconstruct the result.
+ 
+ go list -m -json vcs-test.golang.org/git/issue61415.git@latest
+ cp stdout proxy-latest.json
+ stdout '"Version": "v0.0.0-20231114180000-08a4fa6bb9c0"'
++! stdout '"Origin":'
++
++# However, if we list a specific, stable version, we should get
++# whatever origin metadata the proxy has for the version.
++
++go list -m -json vcs-test.golang.org/git/issue61415.git@v0.0.0-20231114180000-08a4fa6bb9c0
++cp stdout proxy-version.json
++stdout '"Version": "v0.0.0-20231114180000-08a4fa6bb9c0"'
+ stdout '"Origin":'
+ stdout '"VCS": "git"'
+ stdout '"Hash": "08a4fa6bb9c04ffba03b26ae427b0d6335d90a2a"'
+@@ -63,7 +73,8 @@ stdout '"Hash": "08a4fa6bb9c04ffba03b26ae427b0d6335d90a2a"'
+ 
+ # The -reuse flag has no effect with a proxy, since the proxy can serve
+ # metadata about a given module version cheaply anyway.
+-go list -reuse=proxy-latest.json -m -json vcs-test.golang.org/git/issue61415.git@latest
++
++go list -reuse=proxy-version.json -m -json vcs-test.golang.org/git/issue61415.git@v0.0.0-20231114180000-08a4fa6bb9c0
+ stdout '"Version": "v0.0.0-20231114180000-08a4fa6bb9c0"'
+ stdout '"Origin":'
+ stdout '"VCS": "git"'

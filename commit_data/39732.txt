@@ -37,6 +37,20 @@ Date:   Fri Mar 15 13:29:40 2019 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/167743
     Run-TryBot: Austin Clements <austin@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/runtime/asm_wasm.s | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/asm_wasm.s b/src/runtime/asm_wasm.s
+index 1d25ee899d..a40efc2c2e 100644
+--- a/src/runtime/asm_wasm.s
++++ b/src/runtime/asm_wasm.s
+@@ -443,7 +443,7 @@ TEXT runtime·gcWriteBarrier(SB), NOSPLIT, $16
+ 	// Record value
+ 	MOVD R1, 0(R5)
+ 	// Record *slot
+-	MOVD R0, 8(R5)
++	MOVD (R0), 8(R5)
+ 
+ 	// Increment wbBuf.next
+ 	Get R5

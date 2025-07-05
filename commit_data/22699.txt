@@ -22,7 +22,7 @@ Date:   Wed Mar 25 17:50:35 2015 -0700
     Run-TryBot: Srdjan Petrovic <spetrovic@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/cgo/doc.go                    |  5 ++++-
  src/cmd/cgo/out.go                    | 10 ++++++---
  src/runtime/cgo.go                    | 12 ++++++----
@@ -42,3 +42,540 @@ Date:   Wed Mar 25 17:50:35 2015 -0700
  src/runtime/sys_linux_arm64.s         |  6 +++++
  src/runtime/sys_linux_ppc64x.s        |  6 +++++
  18 files changed, 263 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/cgo/doc.go b/src/cmd/cgo/doc.go
+index dca0ff3109..77092dd2cd 100644
+--- a/src/cmd/cgo/doc.go
++++ b/src/cmd/cgo/doc.go
+@@ -428,6 +428,7 @@ file compiled by gcc, the file x.cgo2.c:
+ 	void
+ 	_cgo_be59f0f25121_Cfunc_puts(void *v)
+ 	{
++		_cgo_wait_runtime_init_done();
+ 		struct {
+ 			char* p0;
+ 			int r;
+@@ -436,7 +437,8 @@ file compiled by gcc, the file x.cgo2.c:
+ 		a->r = puts((void*)a->p0);
+ 	}
+ 
+-It extracts the arguments from the pointer to _Cfunc_puts's argument
++It waits for Go runtime to be initialized (required for shared libraries),
++extracts the arguments from the pointer to _Cfunc_puts's argument
+ frame, invokes the system C function (in this case, puts), stores the
+ result in the frame, and returns.
+ 
+@@ -455,6 +457,7 @@ _cgo_main.c:
+ 
+ 	int main() { return 0; }
+ 	void crosscall2(void(*fn)(void*, int), void *a, int c) { }
++	void _cgo_wait_runtime_init_done() { }
+ 	void _cgo_allocate(void *a, int c) { }
+ 	void _cgo_panic(void *a, int c) { }
+ 
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index 346ae94546..11a1cffd18 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -52,11 +52,13 @@ func (p *Package) writeDefs() {
+ 	fmt.Fprintf(fm, "int main() { return 0; }\n")
+ 	if *importRuntimeCgo {
+ 		fmt.Fprintf(fm, "void crosscall2(void(*fn)(void*, int), void *a, int c) { }\n")
++		fmt.Fprintf(fm, "void _cgo_wait_runtime_init_done() { }\n")
+ 		fmt.Fprintf(fm, "char* _cgo_topofstack(void) { return (char*)0; }\n")
+ 	} else {
+ 		// If we're not importing runtime/cgo, we *are* runtime/cgo,
+-		// which provides crosscall2.  We just need a prototype.
++		// which provides these functions.  We just need a prototype.
+ 		fmt.Fprintf(fm, "void crosscall2(void(*fn)(void*, int), void *a, int c);\n")
++		fmt.Fprintf(fm, "void _cgo_wait_runtime_init_done();\n")
+ 	}
+ 	fmt.Fprintf(fm, "void _cgo_allocate(void *a, int c) { }\n")
+ 	fmt.Fprintf(fm, "void _cgo_panic(void *a, int c) { }\n")
+@@ -641,9 +643,10 @@ func (p *Package) writeExports(fgo2, fm io.Writer) {
+ 	fmt.Fprintf(fgcch, "%s\n", p.gccExportHeaderProlog())
+ 
+ 	fmt.Fprintf(fgcc, "/* Created by cgo - DO NOT EDIT. */\n")
+-	fmt.Fprintf(fgcc, "#include \"_cgo_export.h\"\n")
++	fmt.Fprintf(fgcc, "#include \"_cgo_export.h\"\n\n")
+ 
+-	fmt.Fprintf(fgcc, "\nextern void crosscall2(void (*fn)(void *, int), void *, int);\n\n")
++	fmt.Fprintf(fgcc, "extern void crosscall2(void (*fn)(void *, int), void *, int);\n")
++	fmt.Fprintf(fgcc, "extern void _cgo_wait_runtime_init_done();\n\n")
+ 
+ 	for _, exp := range p.ExpFunc {
+ 		fn := exp.Func
+@@ -739,6 +742,7 @@ func (p *Package) writeExports(fgo2, fm io.Writer) {
+ 		fmt.Fprintf(fgcc, "extern void _cgoexp%s_%s(void *, int);\n", cPrefix, exp.ExpName)
+ 		fmt.Fprintf(fgcc, "\n%s\n", s)
+ 		fmt.Fprintf(fgcc, "{\n")
++		fmt.Fprintf(fgcc, "\t_cgo_wait_runtime_init_done();\n")
+ 		fmt.Fprintf(fgcc, "\t%s %v a;\n", ctype, p.packedAttribute())
+ 		if gccResult != "void" && (len(fntype.Results.List) > 1 || len(fntype.Results.List[0].Names) > 1) {
+ 			fmt.Fprintf(fgcc, "\t%s r;\n", gccResult)
+diff --git a/src/runtime/cgo.go b/src/runtime/cgo.go
+index 5dc83c0be1..d8ae6ec94b 100644
+--- a/src/runtime/cgo.go
++++ b/src/runtime/cgo.go
+@@ -14,12 +14,16 @@ import "unsafe"
+ //go:linkname _cgo_malloc _cgo_malloc
+ //go:linkname _cgo_free _cgo_free
+ //go:linkname _cgo_thread_start _cgo_thread_start
++//go:linkname _cgo_sys_thread_create _cgo_sys_thread_create
++//go:linkname _cgo_notify_runtime_init_done _cgo_notify_runtime_init_done
+ 
+ var (
+-	_cgo_init         unsafe.Pointer
+-	_cgo_malloc       unsafe.Pointer
+-	_cgo_free         unsafe.Pointer
+-	_cgo_thread_start unsafe.Pointer
++	_cgo_init                     unsafe.Pointer
++	_cgo_malloc                   unsafe.Pointer
++	_cgo_free                     unsafe.Pointer
++	_cgo_thread_start             unsafe.Pointer
++	_cgo_sys_thread_create        unsafe.Pointer
++	_cgo_notify_runtime_init_done unsafe.Pointer
+ )
+ 
+ // iscgo is set to true by the runtime/cgo package
+diff --git a/src/runtime/cgo/callbacks.go b/src/runtime/cgo/callbacks.go
+index 1e8b59054f..cbaf064bd8 100644
+--- a/src/runtime/cgo/callbacks.go
++++ b/src/runtime/cgo/callbacks.go
+@@ -91,5 +91,31 @@ var _cgo_free = &x_cgo_free
+ var x_cgo_thread_start byte
+ var _cgo_thread_start = &x_cgo_thread_start
+ 
++// Creates a new system thread without updating any Go state.
++//
++// This method is invoked during shared library loading to create a new OS
++// thread to perform the runtime initialization.  This method is similar to
++// _cgo_sys_thread_start except that it doesn't update any Go state.
++
++//go:cgo_import_static x_cgo_sys_thread_create
++//go:linkname x_cgo_sys_thread_create x_cgo_sys_thread_create
++//go:linkname _cgo_sys_thread_create _cgo_sys_thread_create
++var x_cgo_sys_thread_create byte
++var _cgo_sys_thread_create = &x_cgo_sys_thread_create
++
++// Notifies that the runtime has been intialized.
++//
++// We currently block at every CGO entry point (via _cgo_wait_runtime_init_done)
++// to ensure that the runtime has been initialized before the CGO call is
++// executed.  This is necessary for shared libraries where we kickoff runtime
++// initialization in a separate thread and return without waiting for this
++// thread to complete the init.
++
++//go:cgo_import_static x_cgo_notify_runtime_init_done
++//go:linkname x_cgo_notify_runtime_init_done x_cgo_notify_runtime_init_done
++//go:linkname _cgo_notify_runtime_init_done _cgo_notify_runtime_init_done
++var x_cgo_notify_runtime_init_done byte
++var _cgo_notify_runtime_init_done = &x_cgo_notify_runtime_init_done
++
+ //go:cgo_export_static _cgo_topofstack
+ //go:cgo_export_dynamic _cgo_topofstack
+diff --git a/src/runtime/cgo/gcc_libinit.c b/src/runtime/cgo/gcc_libinit.c
+new file mode 100644
+index 0000000000..1126e1b596
+--- /dev/null
++++ b/src/runtime/cgo/gcc_libinit.c
+@@ -0,0 +1,41 @@
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build darwin dragonfly freebsd linux netbsd
++
++#include <pthread.h>
++#include <stdio.h>
++#include <stdlib.h>
++#include <string.h> // strerror
++
++static pthread_cond_t runtime_init_cond;
++static pthread_mutex_t runtime_init_mu;
++static int runtime_init_done;
++
++void
++x_cgo_sys_thread_create(void* (*func)(void*), void* arg) {
++	pthread_t p;
++	int err = pthread_create(&p, NULL, func, arg);
++	if (err != 0) {
++		fprintf(stderr, "pthread_create failed: %s", strerror(err));
++		abort();
++	}
++}
++
++void
++_cgo_wait_runtime_init_done() {
++	pthread_mutex_lock(&runtime_init_mu);
++	while (runtime_init_done == 0) {
++		pthread_cond_wait(&runtime_init_cond, &runtime_init_mu);
++	}
++	pthread_mutex_unlock(&runtime_init_mu);
++}
++
++void
++x_cgo_notify_runtime_init_done(void* dummy) {
++	pthread_mutex_lock(&runtime_init_mu);
++	runtime_init_done = 1;
++	pthread_cond_broadcast(&runtime_init_cond);
++	pthread_mutex_unlock(&runtime_init_mu);
++}
+\ No newline at end of file
+diff --git a/src/runtime/cgo/gcc_libinit_openbsd.c b/src/runtime/cgo/gcc_libinit_openbsd.c
+new file mode 100644
+index 0000000000..7e5b6468a6
+--- /dev/null
++++ b/src/runtime/cgo/gcc_libinit_openbsd.c
+@@ -0,0 +1,22 @@
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include <stdio.h>
++#include <stdlib.h>
++
++void
++x_cgo_sys_thread_create(void* (*func)(void*), void* arg) {
++	fprintf(stderr, "x_cgo_sys_thread_create not implemented");
++	abort();
++}
++
++void
++_cgo_wait_runtime_init_done() {
++	// TODO(spetrovic): implement this method.
++}
++
++void
++x_cgo_notify_runtime_init_done(void* dummy) {
++	// TODO(spetrovic): implement this method.
++}
+\ No newline at end of file
+diff --git a/src/runtime/cgo/gcc_libinit_windows.c b/src/runtime/cgo/gcc_libinit_windows.c
+new file mode 100644
+index 0000000000..7e5b6468a6
+--- /dev/null
++++ b/src/runtime/cgo/gcc_libinit_windows.c
+@@ -0,0 +1,22 @@
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include <stdio.h>
++#include <stdlib.h>
++
++void
++x_cgo_sys_thread_create(void* (*func)(void*), void* arg) {
++	fprintf(stderr, "x_cgo_sys_thread_create not implemented");
++	abort();
++}
++
++void
++_cgo_wait_runtime_init_done() {
++	// TODO(spetrovic): implement this method.
++}
++
++void
++x_cgo_notify_runtime_init_done(void* dummy) {
++	// TODO(spetrovic): implement this method.
++}
+\ No newline at end of file
+diff --git a/src/runtime/cgo/libcgo.h b/src/runtime/cgo/libcgo.h
+index 6d4f23e29b..bda2499c73 100644
+--- a/src/runtime/cgo/libcgo.h
++++ b/src/runtime/cgo/libcgo.h
+@@ -44,11 +44,22 @@ struct ThreadStart
+  */
+ extern void (*_cgo_thread_start)(ThreadStart *ts);
+ 
++/*
++ * Creates a new operating system thread without updating any Go state
++ * (OS dependent).
++ */
++extern void (*_cgo_sys_thread_create)(void* (*func)(void*), void* arg);
++
+ /*
+  * Creates the new operating system thread (OS, arch dependent).
+  */
+ void _cgo_sys_thread_start(ThreadStart *ts);
+ 
++/*
++ * Waits for the Go runtime to be initialized (OS dependent).
++ */
++void _cgo_wait_runtime_init_done();
++
+ /*
+  * Call fn in the 6c world.
+  */
+diff --git a/src/runtime/os1_linux.go b/src/runtime/os1_linux.go
+index 735f595ae3..44e7698bcf 100644
+--- a/src/runtime/os1_linux.go
++++ b/src/runtime/os1_linux.go
+@@ -111,6 +111,12 @@ const (
+ 	_CLONE_STOPPED        = 0x2000000
+ 	_CLONE_NEWUTS         = 0x4000000
+ 	_CLONE_NEWIPC         = 0x8000000
++
++	cloneFlags = _CLONE_VM | /* share memory */
++		_CLONE_FS | /* share cwd, etc */
++		_CLONE_FILES | /* share fd table */
++		_CLONE_SIGHAND | /* share sig handler table */
++		_CLONE_THREAD /* revisit - okay for now */
+ )
+ 
+ // May run with m.p==nil, so write barriers are not allowed.
+@@ -119,12 +125,6 @@ func newosproc(mp *m, stk unsafe.Pointer) {
+ 	/*
+ 	 * note: strace gets confused if we use CLONE_PTRACE here.
+ 	 */
+-	var flags int32 = _CLONE_VM | /* share memory */
+-		_CLONE_FS | /* share cwd, etc */
+-		_CLONE_FILES | /* share fd table */
+-		_CLONE_SIGHAND | /* share sig handler table */
+-		_CLONE_THREAD /* revisit - okay for now */
+-
+ 	mp.tls[0] = uintptr(mp.id) // so 386 asm can find it
+ 	if false {
+ 		print("newosproc stk=", stk, " m=", mp, " g=", mp.g0, " clone=", funcPC(clone), " id=", mp.id, "/", mp.tls[0], " ostk=", &mp, "\n")
+@@ -134,7 +134,7 @@ func newosproc(mp *m, stk unsafe.Pointer) {
+ 	// with signals disabled.  It will enable them in minit.
+ 	var oset sigset
+ 	rtsigprocmask(_SIG_SETMASK, &sigset_all, &oset, int32(unsafe.Sizeof(oset)))
+-	ret := clone(flags, stk, unsafe.Pointer(mp), unsafe.Pointer(mp.g0), unsafe.Pointer(funcPC(mstart)))
++	ret := clone(cloneFlags, stk, unsafe.Pointer(mp), unsafe.Pointer(mp.g0), unsafe.Pointer(funcPC(mstart)))
+ 	rtsigprocmask(_SIG_SETMASK, &oset, nil, int32(unsafe.Sizeof(oset)))
+ 
+ 	if ret < 0 {
+@@ -143,6 +143,25 @@ func newosproc(mp *m, stk unsafe.Pointer) {
+ 	}
+ }
+ 
++// Version of newosproc that doesn't require any Go structs to be allocated.
++//go:nosplit
++func newosproc0(stacksize uintptr, fn unsafe.Pointer, fnarg unsafe.Pointer) {
++	var dummy uint64
++	stack := sysAlloc(stacksize, &dummy)
++	if stack == nil {
++		write(2, unsafe.Pointer(&failallocatestack[0]), int32(len(failallocatestack)))
++		exit(1)
++	}
++	ret := clone0(cloneFlags, unsafe.Pointer(uintptr(stack)+stacksize), fn, fnarg)
++	if ret < 0 {
++		write(2, unsafe.Pointer(&failthreadcreate[0]), int32(len(failthreadcreate)))
++		exit(1)
++	}
++}
++
++var failallocatestack = []byte("runtime: failed to allocate stack for the new OS thread\n")
++var failthreadcreate = []byte("runtime: failed to create new OS thread\n")
++
+ func osinit() {
+ 	ncpu = getproccount()
+ }
+diff --git a/src/runtime/os_linux.go b/src/runtime/os_linux.go
+index abea5d61aa..8e4c05db93 100644
+--- a/src/runtime/os_linux.go
++++ b/src/runtime/os_linux.go
+@@ -12,6 +12,9 @@ func futex(addr unsafe.Pointer, op int32, val uint32, ts, addr2 unsafe.Pointer,
+ //go:noescape
+ func clone(flags int32, stk, mm, gg, fn unsafe.Pointer) int32
+ 
++//go:noescape
++func clone0(flags int32, stk, fn, fnarg unsafe.Pointer) int32
++
+ //go:noescape
+ func rt_sigaction(sig uintptr, new, old *sigactiont, size uintptr) int32
+ 
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 968d5e925b..e596cab9bd 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -66,6 +66,10 @@ func main() {
+ 
+ 	gcenable()
+ 
++	if islibrary {
++		// Allocate new M as main_main() is expected to block forever.
++		systemstack(newextram)
++	}
+ 	if iscgo {
+ 		if _cgo_thread_start == nil {
+ 			throw("_cgo_thread_start missing")
+@@ -84,6 +88,10 @@ func main() {
+ 				throw("_cgo_unsetenv missing")
+ 			}
+ 		}
++		if _cgo_notify_runtime_init_done == nil {
++			throw("_cgo_notify_runtime_init_done missing")
++		}
++		cgocall(_cgo_notify_runtime_init_done, nil)
+ 	}
+ 
+ 	main_init()
+diff --git a/src/runtime/rt0_linux_amd64.s b/src/runtime/rt0_linux_amd64.s
+index 9d9cb34128..0fdb393ee5 100644
+--- a/src/runtime/rt0_linux_amd64.s
++++ b/src/runtime/rt0_linux_amd64.s
+@@ -12,11 +12,38 @@ TEXT _rt0_amd64_linux(SB),NOSPLIT,$-8
+ 
+ // When linking with -shared, this symbol is called when the shared library
+ // is loaded.
+-TEXT _rt0_amd64_linux_lib(SB),NOSPLIT,$0
+-	// TODO(spetrovic): Do something useful, like calling $main.  (Note that
+-	// this has to be done in a separate thread, as main is expected to block.)
++TEXT _rt0_amd64_linux_lib(SB),NOSPLIT,$40
++	MOVQ	DI, _rt0_amd64_linux_lib_argc<>(SB)
++	MOVQ	SI, _rt0_amd64_linux_lib_argv<>(SB)
++
++	// Create a new thread to do the runtime initialization and return.
++	MOVQ	_cgo_sys_thread_create(SB), AX
++	TESTQ	AX, AX
++	JZ	nocgo
++	MOVQ	$_rt0_amd64_linux_lib_go(SB), DI
++	MOVQ	$0, SI
++	CALL	AX
++	RET
++nocgo:
++	MOVQ	$8388608, 0(SP)                    // stacksize
++	MOVQ	$_rt0_amd64_linux_lib_go(SB), AX
++	MOVQ	AX, 8(SP)                          // fn
++	MOVQ	$0, 16(SP)                         // fnarg
++	MOVQ	$runtime·newosproc0(SB), AX
++	CALL	AX
+ 	RET
+ 
++TEXT _rt0_amd64_linux_lib_go(SB),NOSPLIT,$0
++	MOVQ	_rt0_amd64_linux_lib_argc<>(SB), DI
++	MOVQ	_rt0_amd64_linux_lib_argv<>(SB), SI
++	MOVQ	$runtime·rt0_go(SB), AX
++	JMP	AX
++
++DATA _rt0_amd64_linux_lib_argc<>(SB)/8, $0
++GLOBL _rt0_amd64_linux_lib_argc<>(SB),NOPTR, $8
++DATA _rt0_amd64_linux_lib_argv<>(SB)/8, $0
++GLOBL _rt0_amd64_linux_lib_argv<>(SB),NOPTR, $8
++
+ TEXT main(SB),NOSPLIT,$-8
+ 	MOVQ	$runtime·rt0_go(SB), AX
+ 	JMP	AX
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 6a2c52143f..842ebe52f5 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -621,6 +621,9 @@ var (
+ 	cpuid_ecx         uint32
+ 	cpuid_edx         uint32
+ 	lfenceBeforeRdtsc bool
++
++	// Set by the linker when linking with -shared.
++	islibrary bool
+ )
+ 
+ /*
+diff --git a/src/runtime/sys_linux_386.s b/src/runtime/sys_linux_386.s
+index d4bd142134..e3fae4cb93 100644
+--- a/src/runtime/sys_linux_386.s
++++ b/src/runtime/sys_linux_386.s
+@@ -369,6 +369,12 @@ TEXT runtime·clone(SB),NOSPLIT,$0
+ 	CALL	runtime·exit1(SB)
+ 	MOVL	$0x1234, 0x1005
+ 
++// int32 clone0(int32 flags, void *stack, void* fn, void* fnarg);
++TEXT runtime·clone0(SB),NOSPLIT,$0
++	// TODO(spetrovic): Implement this method.
++	MOVL	$-1, ret+16(FP)
++	RET
++
+ TEXT runtime·sigaltstack(SB),NOSPLIT,$-8
+ 	MOVL	$186, AX	// sigaltstack
+ 	MOVL	new+4(SP), BX
+diff --git a/src/runtime/sys_linux_amd64.s b/src/runtime/sys_linux_amd64.s
+index 75e1c4284e..e170b2e7f7 100644
+--- a/src/runtime/sys_linux_amd64.s
++++ b/src/runtime/sys_linux_amd64.s
+@@ -347,6 +347,34 @@ TEXT runtime·clone(SB),NOSPLIT,$0
+ 	SYSCALL
+ 	JMP	-3(PC)	// keep exiting
+ 
++// int32 clone0(int32 flags, void *stack, void* fn, void* fnarg);
++TEXT runtime·clone0(SB),NOSPLIT,$16-36
++	MOVL	flags+0(FP), DI
++	MOVQ	stack+8(FP), SI
++	MOVQ	fn+16(FP), R12      // used by the child
++	MOVQ	fnarg+24(FP), R13   // used by the child
++	MOVL	$0, DX
++	MOVL	$0, R10
++	MOVL	$56, AX
++	SYSCALL
++
++	CMPQ	AX, $0
++	JEQ	child
++	// In parent, return.
++	MOVL	AX, ret+32(FP)
++	RET
++child:
++	MOVQ	SI, SP
++	MOVQ	R12, AX  // fn
++	MOVQ	R13, DI  // fnarg
++	CALL	AX
++
++	// fn shouldn't return; if it does, exit.
++	MOVL	$111, DI
++	MOVL	$60, AX
++	SYSCALL
++	JMP	-3(PC)	// keep exiting
++
+ TEXT runtime·sigaltstack(SB),NOSPLIT,$-8
+ 	MOVQ	new+8(SP), DI
+ 	MOVQ	old+16(SP), SI
+diff --git a/src/runtime/sys_linux_arm.s b/src/runtime/sys_linux_arm.s
+index fa07ef88d6..242da45d92 100644
+--- a/src/runtime/sys_linux_arm.s
++++ b/src/runtime/sys_linux_arm.s
+@@ -309,6 +309,12 @@ TEXT runtime·clone(SB),NOSPLIT,$0
+ 	MOVW	$1005, R1
+ 	MOVW	R0, (R1)
+ 
++// int32 clone0(int32 flags, void *stack, void* fn, void* fnarg);
++TEXT runtime·clone0(SB),NOSPLIT,$0
++	// TODO(spetrovic): Implement this method.
++	MOVW	$-1, ret+16(FP)
++	RET
++
+ TEXT runtime·sigaltstack(SB),NOSPLIT,$0
+ 	MOVW	new+0(FP), R0
+ 	MOVW	old+4(FP), R1
+diff --git a/src/runtime/sys_linux_arm64.s b/src/runtime/sys_linux_arm64.s
+index 0d0131b820..06797c275d 100644
+--- a/src/runtime/sys_linux_arm64.s
++++ b/src/runtime/sys_linux_arm64.s
+@@ -356,6 +356,12 @@ again:
+ 	SVC
+ 	B	again	// keep exiting
+ 
++// int32 clone0(int32 flags, void *stack, void* fn, void* fnarg);
++TEXT runtime·clone0(SB),NOSPLIT,$0
++	// TODO(spetrovic): Implement this method.
++	MOVW	$-1, ret+32(FP)
++	RET
++
+ TEXT runtime·sigaltstack(SB),NOSPLIT,$-8
+ 	MOVD	new+0(FP), R0
+ 	MOVD	old+8(FP), R1
+diff --git a/src/runtime/sys_linux_ppc64x.s b/src/runtime/sys_linux_ppc64x.s
+index 3070893258..1b8abb3f50 100644
+--- a/src/runtime/sys_linux_ppc64x.s
++++ b/src/runtime/sys_linux_ppc64x.s
+@@ -345,6 +345,12 @@ TEXT runtime·clone(SB),NOSPLIT,$-8
+ 	SYSCALL $SYS_exit_group
+ 	BR	-2(PC)	// keep exiting
+ 
++// int32 clone0(int32 flags, void *stack, void* fn, void* fnarg);
++TEXT runtime·clone0(SB),NOSPLIT,$0
++	// TODO(spetrovic): Implement this method.
++	MOVW	$-1, ret+32(FP)
++	RETURN
++
+ TEXT runtime·sigaltstack(SB),NOSPLIT,$-8
+ 	MOVD	new+0(FP), R3
+ 	MOVD	old+8(FP), R4

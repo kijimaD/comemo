@@ -25,7 +25,7 @@ Date:   Tue Oct 25 10:28:50 2022 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
     Auto-Submit: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/go/testdata/vcstest/git/commit-after-tag.txt    | 2 +-
  src/cmd/go/testdata/vcstest/git/empty-v2-without-v1.txt | 2 +-
  src/cmd/go/testdata/vcstest/git/emptytest.txt           | 2 +-
@@ -51,3 +51,487 @@ Date:   Tue Oct 25 10:28:50 2022 -0400
  src/cmd/go/testdata/vcstest/svn/test1-svn-git.txt       | 2 +-
  src/cmd/go/testdata/vcstest/svn/test2-svn-git.txt       | 2 +-
  24 files changed, 41 insertions(+), 35 deletions(-)
+
+diff --git a/src/cmd/go/testdata/vcstest/git/commit-after-tag.txt b/src/cmd/go/testdata/vcstest/git/commit-after-tag.txt
+index b408a4f43d..eb13a6326e 100644
+--- a/src/cmd/go/testdata/vcstest/git/commit-after-tag.txt
++++ b/src/cmd/go/testdata/vcstest/git/commit-after-tag.txt
+@@ -6,11 +6,11 @@ env GIT_COMMITTER_NAME=$GIT_AUTHOR_NAME
+ env GIT_COMMITTER_EMAIL=$GIT_AUTHOR_EMAIL
+ 
+ git init
+-git branch -m master
+ 
+ at 2019-07-15T17:16:47-04:00
+ git add go.mod main.go
+ git commit -m 'all: add go.mod and main.go'
++git branch -m master
+ git tag v1.0.0
+ 
+ at 2019-07-15T17:17:27-04:00
+diff --git a/src/cmd/go/testdata/vcstest/git/empty-v2-without-v1.txt b/src/cmd/go/testdata/vcstest/git/empty-v2-without-v1.txt
+index 17a207f2bf..afe407ee55 100644
+--- a/src/cmd/go/testdata/vcstest/git/empty-v2-without-v1.txt
++++ b/src/cmd/go/testdata/vcstest/git/empty-v2-without-v1.txt
+@@ -6,11 +6,11 @@ env GIT_COMMITTER_NAME=$GIT_AUTHOR_NAME
+ env GIT_COMMITTER_EMAIL=$GIT_AUTHOR_EMAIL
+ 
+ git init
+-git branch -m master
+ 
+ at 2019-10-07T14:15:32-04:00
+ git add go.mod
+ git commit -m 'add go.mod file without go source files'
++git branch -m master
+ git tag v2.0.0
+ 
+ git log --oneline --decorate=short
+diff --git a/src/cmd/go/testdata/vcstest/git/emptytest.txt b/src/cmd/go/testdata/vcstest/git/emptytest.txt
+index af9bff3690..4526202a7b 100644
+--- a/src/cmd/go/testdata/vcstest/git/emptytest.txt
++++ b/src/cmd/go/testdata/vcstest/git/emptytest.txt
+@@ -6,11 +6,11 @@ env GIT_COMMITTER_NAME=$GIT_AUTHOR_NAME
+ env GIT_COMMITTER_EMAIL=$GIT_AUTHOR_EMAIL
+ 
+ git init
+-git branch -m master
+ 
+ at 2018-07-03T22:35:49-04:00
+ git add go.mod
+ git commit -m 'initial'
++git branch -m master
+ 
+ git log --oneline
+ cmp stdout .git-log
+diff --git a/src/cmd/go/testdata/vcstest/git/gitrepo1.txt b/src/cmd/go/testdata/vcstest/git/gitrepo1.txt
+index e909d1208d..7919089792 100644
+--- a/src/cmd/go/testdata/vcstest/git/gitrepo1.txt
++++ b/src/cmd/go/testdata/vcstest/git/gitrepo1.txt
+@@ -6,17 +6,17 @@ env GIT_COMMITTER_NAME=$GIT_AUTHOR_NAME
+ env GIT_COMMITTER_EMAIL=$GIT_AUTHOR_EMAIL
+ 
+ git init
+-git branch -m master
+ 
+ at 2018-04-17T15:43:22-04:00
+ unquote ''
+ cp stdout README
+ git add README
+ git commit -a -m 'empty README'
++git branch -m master
+ git tag v1.2.3
+ 
+ at 2018-04-17T15:45:48-04:00
+-git branch -c v2
++git branch v2
+ git checkout v2
+ echo 'v2'
+ cp stdout v2
+@@ -24,7 +24,7 @@ git add v2
+ git commit -a -m 'v2'
+ git tag v2.3
+ git tag v2.0.1
+-git branch -c v2.3.4
++git branch v2.3.4
+ 
+ at 2018-04-17T16:00:19-04:00
+ echo 'intermediate'
+@@ -40,7 +40,8 @@ git commit -a -m 'another'
+ git tag v2.0.2
+ 
+ at 2018-04-17T16:16:52-04:00
+-git branch -c master v3
++git checkout master
++git branch v3
+ git checkout v3
+ mkdir v3/sub/dir
+ echo 'v3/sub/dir/file'
+diff --git a/src/cmd/go/testdata/vcstest/git/hello.txt b/src/cmd/go/testdata/vcstest/git/hello.txt
+index a010585ac7..17ba09cd9e 100644
+--- a/src/cmd/go/testdata/vcstest/git/hello.txt
++++ b/src/cmd/go/testdata/vcstest/git/hello.txt
+@@ -6,11 +6,11 @@ env GIT_COMMITTER_NAME='Russ Cox'
+ env GIT_COMMITTER_EMAIL='rsc@golang.org'
+ 
+ git init
+-git branch -m master
+ 
+ at 2017-09-21T21:05:58-04:00
+ git add hello.go
+ git commit -a -m 'hello'
++git branch -m master
+ 
+ git log --oneline --decorate=short
+ cmp stdout .git-log
+diff --git a/src/cmd/go/testdata/vcstest/git/insecurerepo.txt b/src/cmd/go/testdata/vcstest/git/insecurerepo.txt
+index 2cf3782992..e0ea62c14d 100644
+--- a/src/cmd/go/testdata/vcstest/git/insecurerepo.txt
++++ b/src/cmd/go/testdata/vcstest/git/insecurerepo.txt
+@@ -6,11 +6,11 @@ env GIT_COMMITTER_NAME=$GIT_AUTHOR_NAME
+ env GIT_COMMITTER_EMAIL=$GIT_AUTHOR_EMAIL
+ 
+ git init
+-git branch -m master
+ 
+ at 2019-04-03T13:30:35-04:00
+ git add go.mod
+ git commit -m 'all: initialize module'
++git branch -m master
+ 
+ at 2019-09-04T14:39:48-04:00
+ git add main.go
+diff --git a/src/cmd/go/testdata/vcstest/git/mainonly.txt b/src/cmd/go/testdata/vcstest/git/mainonly.txt
+index 47b72f8b38..d294e34e13 100644
+--- a/src/cmd/go/testdata/vcstest/git/mainonly.txt
++++ b/src/cmd/go/testdata/vcstest/git/mainonly.txt
+@@ -6,11 +6,11 @@ env GIT_COMMITTER_NAME=$GIT_AUTHOR_NAME
+ env GIT_COMMITTER_EMAIL=$GIT_AUTHOR_EMAIL
+ 
+ git init
+-git branch -m master
+ 
+ at 2019-09-05T14:07:43-04:00
+ git add main.go
+ git commit -a -m 'add main.go'
++git branch -m master
+ 
+ git log --oneline --decorate=short
+ cmp stdout .git-log
+diff --git a/src/cmd/go/testdata/vcstest/git/modlegacy1-new.txt b/src/cmd/go/testdata/vcstest/git/modlegacy1-new.txt
+index 52fdfa724b..ee14454b19 100644
+--- a/src/cmd/go/testdata/vcstest/git/modlegacy1-new.txt
++++ b/src/cmd/go/testdata/vcstest/git/modlegacy1-new.txt
+@@ -6,11 +6,11 @@ env GIT_COMMITTER_NAME=$GIT_AUTHOR_NAME
+ env GIT_COMMITTER_EMAIL=$GIT_AUTHOR_EMAIL
+ 
+ git init
+-git branch -m master
+ 
+ at 2018-04-25T11:00:57-04:00
+ git add go.mod new.go p1 p2
+ git commit -m 'initial commit'
++git branch -m master
+ 
+ git log --oneline --decorate=short
+ cmp stdout .git-log
+diff --git a/src/cmd/go/testdata/vcstest/git/modlegacy1-old.txt b/src/cmd/go/testdata/vcstest/git/modlegacy1-old.txt
+index 06a5179106..bca8f061ef 100644
+--- a/src/cmd/go/testdata/vcstest/git/modlegacy1-old.txt
++++ b/src/cmd/go/testdata/vcstest/git/modlegacy1-old.txt
+@@ -6,11 +6,11 @@ env GIT_COMMITTER_NAME=$GIT_AUTHOR_NAME
+ env GIT_COMMITTER_EMAIL=$GIT_AUTHOR_EMAIL
+ 
+ git init
+-git branch -m master
+ 
+ at 2018-04-25T10:59:24-04:00
+ git add p1 p2
+ git commit -m 'initial commit'
++git branch -m master
+ 
+ git log --oneline --decorate=short
+ cmp stdout .git-log
+diff --git a/src/cmd/go/testdata/vcstest/git/no-tags.txt b/src/cmd/go/testdata/vcstest/git/no-tags.txt
+index 8d4fd4c634..5ff0091616 100644
+--- a/src/cmd/go/testdata/vcstest/git/no-tags.txt
++++ b/src/cmd/go/testdata/vcstest/git/no-tags.txt
+@@ -6,11 +6,11 @@ env GIT_COMMITTER_NAME=$GIT_AUTHOR_NAME
+ env GIT_COMMITTER_EMAIL=$GIT_AUTHOR_EMAIL
+ 
+ git init
+-git branch -m master
+ 
+ at 2019-07-15T17:20:47-04:00
+ git add go.mod main.go
+ git commit -m 'all: add go.mod and main.go'
++git branch -m master
+ 
+ git log --oneline --decorate=short
+ cmp stdout .git-log
+diff --git a/src/cmd/go/testdata/vcstest/git/odd-tags.txt b/src/cmd/go/testdata/vcstest/git/odd-tags.txt
+index 9775849cf7..8e2486741e 100644
+--- a/src/cmd/go/testdata/vcstest/git/odd-tags.txt
++++ b/src/cmd/go/testdata/vcstest/git/odd-tags.txt
+@@ -10,6 +10,7 @@ git init
+ at 2022-02-23T13:48:02-05:00
+ git add README.txt
+ git commit -m 'initial state'
++git branch -m main
+ git tag 'v2.0.0+incompatible'
+ 
+ at 2022-02-23T13:48:35-05:00
+@@ -19,7 +20,7 @@ git commit -m 'migrate to Go modules'
+ git tag 'v0.1.0+build-metadata'
+ 
+ at 2022-02-23T14:41:55-05:00
+-git branch -c v3-dev
++git branch v3-dev
+ git checkout v3-dev
+ cp v3/go.mod go.mod
+ git commit go.mod -m 'update to /v3'
+diff --git a/src/cmd/go/testdata/vcstest/git/prefixtagtests.txt b/src/cmd/go/testdata/vcstest/git/prefixtagtests.txt
+index 372711c73f..6c89c857f4 100644
+--- a/src/cmd/go/testdata/vcstest/git/prefixtagtests.txt
++++ b/src/cmd/go/testdata/vcstest/git/prefixtagtests.txt
+@@ -8,10 +8,10 @@ env GIT_COMMITTER_EMAIL=$GIT_AUTHOR_EMAIL
+ at 2019-05-09T18:35:00-04:00
+ 
+ git init
+-git branch -m master
+ 
+ git add sub
+ git commit -m 'create module sub'
++git branch -m master
+ 
+ echo 'v0.1.0'
+ cp stdout status
+diff --git a/src/cmd/go/testdata/vcstest/git/querytest.txt b/src/cmd/go/testdata/vcstest/git/querytest.txt
+index b079027b42..b0f708a016 100644
+--- a/src/cmd/go/testdata/vcstest/git/querytest.txt
++++ b/src/cmd/go/testdata/vcstest/git/querytest.txt
+@@ -6,14 +6,14 @@ env GIT_COMMITTER_NAME=$GIT_AUTHOR_NAME
+ env GIT_COMMITTER_EMAIL=$GIT_AUTHOR_EMAIL
+ 
+ git init
+-git branch -m master
+ 
+ at 2018-07-03T22:31:01-04:00
+ git add go.mod
+ git commit -a -m 'v1'
++git branch -m master
+ git tag start
+ 
+-git branch -c v2
++git branch v2
+ 
+ at 2018-07-03T22:33:47-04:00
+ echo 'before v0.0.0-pre1'
+diff --git a/src/cmd/go/testdata/vcstest/git/retract-pseudo.txt b/src/cmd/go/testdata/vcstest/git/retract-pseudo.txt
+index 3f07d6cce3..e189484869 100644
+--- a/src/cmd/go/testdata/vcstest/git/retract-pseudo.txt
++++ b/src/cmd/go/testdata/vcstest/git/retract-pseudo.txt
+@@ -11,6 +11,7 @@ git init
+ 
+ git add go.mod p.go
+ git commit -m 'create module retract-pseudo'
++git branch -m main
+ git tag v1.0.0
+ 
+ git mv p.go q.go
+diff --git a/src/cmd/go/testdata/vcstest/git/semver-branch.txt b/src/cmd/go/testdata/vcstest/git/semver-branch.txt
+index 86bdd8c9f0..69e1762a31 100644
+--- a/src/cmd/go/testdata/vcstest/git/semver-branch.txt
++++ b/src/cmd/go/testdata/vcstest/git/semver-branch.txt
+@@ -10,17 +10,18 @@ git init
+ at 2022-02-02T14:15:21-05:00
+ git add pkg go.mod
+ git commit -a -m 'pkg: add empty package'
++git branch -m main
+ git tag 'v0.1.0'
+ 
+ at 2022-02-02T14:19:44-05:00
+-git branch -c 'v1.0.0'
+-git branch -c 'v2.0.0'
++git branch 'v1.0.0'
++git branch 'v2.0.0'
+ git checkout 'v1.0.0'
+ cp v1/pkg/pkg.go pkg/pkg.go
+ git commit -a -m 'pkg: start developing toward v1.0.0'
+ 
+ at 2022-02-03T10:53:13-05:00
+-git branch -c 'v3.0.0-devel'
++git branch 'v3.0.0-devel'
+ git checkout 'v3.0.0-devel'
+ git checkout v0.1.0 pkg/pkg.go
+ git commit -a -m 'pkg: remove panic'
+diff --git a/src/cmd/go/testdata/vcstest/git/tagtests.txt b/src/cmd/go/testdata/vcstest/git/tagtests.txt
+index b0babb50e2..92e79cda87 100644
+--- a/src/cmd/go/testdata/vcstest/git/tagtests.txt
++++ b/src/cmd/go/testdata/vcstest/git/tagtests.txt
+@@ -8,11 +8,11 @@ env GIT_COMMITTER_EMAIL=$GIT_AUTHOR_EMAIL
+ at 2019-05-09T18:56:25-04:00
+ 
+ git init
+-git branch -m master
+ 
+ git add go.mod tagtests.go
+ git commit -m 'create module tagtests'
+-git branch -c b
++git branch -m master
++git branch b
+ 
+ git add v0.2.1
+ git commit -m 'v0.2.1'
+diff --git a/src/cmd/go/testdata/vcstest/git/v2repo.txt b/src/cmd/go/testdata/vcstest/git/v2repo.txt
+index 6a2216d127..6cbe924148 100644
+--- a/src/cmd/go/testdata/vcstest/git/v2repo.txt
++++ b/src/cmd/go/testdata/vcstest/git/v2repo.txt
+@@ -6,12 +6,12 @@ env GIT_COMMITTER_NAME=$GIT_AUTHOR_NAME
+ env GIT_COMMITTER_EMAIL=$GIT_AUTHOR_EMAIL
+ 
+ git init
+-git branch -m master
+ 
+ at 2019-04-03T11:52:15-04:00
+ env GIT_AUTHOR_DATE=2019-04-03T11:44:11-04:00
+ git add go.mod
+ git commit -m 'all: add go.mod'
++git branch -m master
+ git tag 'v2.0.0'
+ 
+ git show-ref --tags --heads
+diff --git a/src/cmd/go/testdata/vcstest/git/v2sub.txt b/src/cmd/go/testdata/vcstest/git/v2sub.txt
+index 5ad197a114..5d4ab5832f 100644
+--- a/src/cmd/go/testdata/vcstest/git/v2sub.txt
++++ b/src/cmd/go/testdata/vcstest/git/v2sub.txt
+@@ -10,6 +10,7 @@ git init
+ at 2022-02-22T15:53:33-05:00
+ git add v2sub.go v2
+ git commit -m 'all: add package v2sub and v2sub/v2'
++git branch -m main
+ git tag v2.0.0
+ 
+ at 2022-02-22T15:55:07-05:00
+diff --git a/src/cmd/go/testdata/vcstest/git/v3pkg.txt b/src/cmd/go/testdata/vcstest/git/v3pkg.txt
+index b5276db4da..af18e01b9c 100644
+--- a/src/cmd/go/testdata/vcstest/git/v3pkg.txt
++++ b/src/cmd/go/testdata/vcstest/git/v3pkg.txt
+@@ -6,12 +6,12 @@ env GIT_COMMITTER_NAME=$GIT_AUTHOR_NAME
+ env GIT_COMMITTER_EMAIL=$GIT_AUTHOR_EMAIL
+ 
+ git init
+-git branch -m master
+ 
+ at 2019-07-15T14:01:24-04:00
+ env GIT_AUTHOR_DATE=2019-07-15T13:59:34-04:00
+ git add go.mod v3pkg.go
+ git commit -a -m 'all: add go.mod with v3 path'
++git branch -m master
+ git tag 'v3.0.0'
+ 
+ git show-ref --tags --heads
+diff --git a/src/cmd/go/testdata/vcstest/git/vgotest1.txt b/src/cmd/go/testdata/vcstest/git/vgotest1.txt
+index a9730ba1ef..d2fc741c3c 100644
+--- a/src/cmd/go/testdata/vcstest/git/vgotest1.txt
++++ b/src/cmd/go/testdata/vcstest/git/vgotest1.txt
+@@ -6,11 +6,11 @@ env GIT_COMMITTER_NAME=$GIT_AUTHOR_NAME
+ env GIT_COMMITTER_EMAIL=$GIT_AUTHOR_EMAIL
+ 
+ git init
+-git branch -m master
+ 
+ at 2018-02-19T17:21:09-05:00
+ git add LICENSE README.md
+ git commit -m 'initial commit'
++git branch -m master
+ 
+ git checkout --detach HEAD
+ 
+diff --git a/src/cmd/go/testdata/vcstest/hg/hgrepo1.txt b/src/cmd/go/testdata/vcstest/hg/hgrepo1.txt
+index 0022cf52cb..ab10875a83 100644
+--- a/src/cmd/go/testdata/vcstest/hg/hgrepo1.txt
++++ b/src/cmd/go/testdata/vcstest/hg/hgrepo1.txt
+@@ -9,17 +9,17 @@ env GIT_COMMITTER_NAME=$GIT_AUTHOR_NAME
+ env GIT_COMMITTER_EMAIL=$GIT_AUTHOR_EMAIL
+ 
+ git init
+-git branch -m master
+ 
+ at 2018-04-17T15:43:22-04:00
+ unquote ''
+ cp stdout README
+ git add README
+ git commit -a -m 'empty README'
++git branch -m master
+ git tag v1.2.3
+ 
+ at 2018-04-17T15:45:48-04:00
+-git branch -c v2
++git branch v2
+ git checkout v2
+ echo 'v2'
+ cp stdout v2
+@@ -27,7 +27,7 @@ git add v2
+ git commit -a -m 'v2'
+ git tag v2.3
+ git tag v2.0.1
+-git branch -c v2.3.4
++git branch v2.3.4
+ git tag branch-v2.3.4
+ 
+ at 2018-04-17T16:00:19-04:00
+@@ -45,7 +45,8 @@ git tag v2.0.2
+ git tag branch-v2
+ 
+ at 2018-04-17T16:16:52-04:00
+-git branch -c master v3
++git checkout master
++git branch v3
+ git checkout v3
+ mkdir v3/sub/dir
+ echo 'v3/sub/dir/file'
+diff --git a/src/cmd/go/testdata/vcstest/hg/vgotest1.txt b/src/cmd/go/testdata/vcstest/hg/vgotest1.txt
+index 5e10cefa7b..ec5d5f4357 100644
+--- a/src/cmd/go/testdata/vcstest/hg/vgotest1.txt
++++ b/src/cmd/go/testdata/vcstest/hg/vgotest1.txt
+@@ -8,15 +8,15 @@ env GIT_COMMITTER_NAME=$GIT_AUTHOR_NAME
+ env GIT_COMMITTER_EMAIL=$GIT_AUTHOR_EMAIL
+ 
+ git init
+-git branch -m master
+ 
+ # 0
+ at 2018-02-19T17:21:09-05:00
+ git add LICENSE README.md
+ git commit -m 'initial commit'
++git branch -m master
+ 
+ # 1
+-git branch -c mybranch
++git branch mybranch
+ git checkout mybranch
+ 
+ at 2018-02-19T18:10:06-05:00
+@@ -30,8 +30,8 @@ git tag v1.0.0
+ git tag v2.0.0
+ git tag mytag
+ 
+-git branch -c v1
+-git branch -c v2
++git branch v1
++git branch v2
+ git checkout v2
+ 
+ # 2
+diff --git a/src/cmd/go/testdata/vcstest/svn/test1-svn-git.txt b/src/cmd/go/testdata/vcstest/svn/test1-svn-git.txt
+index 84abbe0ce5..06ceef1a41 100644
+--- a/src/cmd/go/testdata/vcstest/svn/test1-svn-git.txt
++++ b/src/cmd/go/testdata/vcstest/svn/test1-svn-git.txt
+@@ -28,10 +28,10 @@ git init
+ git config --add core.ignorecase true
+ git config --add core.precomposeunicode true
+ 
+-git branch -m master
+ git add README
+ at 2017-09-22T11:39:03-04:00
+ git commit -a -m 'README'
++git branch -m master
+ 
+ git rev-parse HEAD
+ stdout '^7f800d2ac276dd7042ea0e8d7438527d236fd098$'
+diff --git a/src/cmd/go/testdata/vcstest/svn/test2-svn-git.txt b/src/cmd/go/testdata/vcstest/svn/test2-svn-git.txt
+index ee173fcc40..71d84c45c2 100644
+--- a/src/cmd/go/testdata/vcstest/svn/test2-svn-git.txt
++++ b/src/cmd/go/testdata/vcstest/svn/test2-svn-git.txt
+@@ -27,10 +27,10 @@ git init
+ git config --add core.ignorecase true
+ git config --add core.precomposeunicode true
+ 
+-git branch -m master
+ git add README
+ at 2017-09-22T11:39:03-04:00
+ git commit -a -m 'README'
++git branch -m master
+ 
+ git rev-parse HEAD
+ stdout '^7f800d2ac276dd7042ea0e8d7438527d236fd098$'

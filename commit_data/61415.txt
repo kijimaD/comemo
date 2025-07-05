@@ -26,7 +26,7 @@ Date:   Tue Nov 5 13:33:17 2024 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/625616
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/dwarfgen/dwarf.go         |   6 +-
  src/cmd/compile/internal/pkginit/init.go           |   4 +-
  .../compile/internal/reflectdata/map_noswiss.go    |   4 +-
@@ -53,3 +53,2101 @@ Date:   Tue Nov 5 13:33:17 2024 -0500
  src/cmd/internal/obj/x86/asm6.go                   | 158 +++++++--------
  src/cmd/internal/obj/x86/seh.go                    |  11 +-
  25 files changed, 615 insertions(+), 574 deletions(-)
+
+diff --git a/src/cmd/compile/internal/dwarfgen/dwarf.go b/src/cmd/compile/internal/dwarfgen/dwarf.go
+index 0451534a4c..fa13f07fdf 100644
+--- a/src/cmd/compile/internal/dwarfgen/dwarf.go
++++ b/src/cmd/compile/internal/dwarfgen/dwarf.go
+@@ -26,7 +26,7 @@ import (
+ 	"cmd/internal/src"
+ )
+ 
+-func Info(fnsym *obj.LSym, infosym *obj.LSym, curfn obj.Func) (scopes []dwarf.Scope, inlcalls dwarf.InlCalls) {
++func Info(ctxt *obj.Link, fnsym *obj.LSym, infosym *obj.LSym, curfn obj.Func) (scopes []dwarf.Scope, inlcalls dwarf.InlCalls) {
+ 	fn := curfn.(*ir.Func)
+ 
+ 	if fn.Nname != nil {
+@@ -136,9 +136,7 @@ func Info(fnsym *obj.LSym, infosym *obj.LSym, curfn obj.Func) (scopes []dwarf.Sc
+ 		return strings.Compare(a.Name, b.Name)
+ 	})
+ 	for _, sym := range typesyms {
+-		r := obj.Addrel(infosym)
+-		r.Sym = sym
+-		r.Type = objabi.R_USETYPE
++		infosym.AddRel(ctxt, obj.Reloc{Type: objabi.R_USETYPE, Sym: sym})
+ 	}
+ 	fnsym.Func().Autot = nil
+ 
+diff --git a/src/cmd/compile/internal/pkginit/init.go b/src/cmd/compile/internal/pkginit/init.go
+index 9278890b63..04f6a5d350 100644
+--- a/src/cmd/compile/internal/pkginit/init.go
++++ b/src/cmd/compile/internal/pkginit/init.go
+@@ -138,9 +138,7 @@ func MakeTask() {
+ 	// that this package depends on (and thus, all of the packages
+ 	// that need to be initialized before this one).
+ 	for _, d := range deps {
+-		r := obj.Addrel(lsym)
+-		r.Type = objabi.R_INITORDER
+-		r.Sym = d
++		lsym.AddRel(base.Ctxt, obj.Reloc{Type: objabi.R_INITORDER, Sym: d})
+ 	}
+ 	// An initTask has pointers, but none into the Go heap.
+ 	// It's not quite read only, the state field must be modifiable.
+diff --git a/src/cmd/compile/internal/reflectdata/map_noswiss.go b/src/cmd/compile/internal/reflectdata/map_noswiss.go
+index e2dc4ecace..07d0bb9049 100644
+--- a/src/cmd/compile/internal/reflectdata/map_noswiss.go
++++ b/src/cmd/compile/internal/reflectdata/map_noswiss.go
+@@ -296,8 +296,6 @@ func writeOldMapType(t *types.Type, lsym *obj.LSym, c rttype.Cursor) {
+ 		// type live in the binary. This is important to make sure that
+ 		// a named map and that same map cast to its underlying type via
+ 		// reflection, use the same hash function. See issue 37716.
+-		r := obj.Addrel(lsym)
+-		r.Sym = writeType(u)
+-		r.Type = objabi.R_KEEP
++		lsym.AddRel(base.Ctxt, obj.Reloc{Type: objabi.R_KEEP, Sym: writeType(u)})
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/reflectdata/map_swiss.go b/src/cmd/compile/internal/reflectdata/map_swiss.go
+index 173f06adfb..98abd69c34 100644
+--- a/src/cmd/compile/internal/reflectdata/map_swiss.go
++++ b/src/cmd/compile/internal/reflectdata/map_swiss.go
+@@ -298,8 +298,6 @@ func writeSwissMapType(t *types.Type, lsym *obj.LSym, c rttype.Cursor) {
+ 		// type live in the binary. This is important to make sure that
+ 		// a named map and that same map cast to its underlying type via
+ 		// reflection, use the same hash function. See issue 37716.
+-		r := obj.Addrel(lsym)
+-		r.Sym = writeType(u)
+-		r.Type = objabi.R_KEEP
++		lsym.AddRel(base.Ctxt, obj.Reloc{Type: objabi.R_KEEP, Sym: writeType(u)})
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/reflectdata/reflect.go b/src/cmd/compile/internal/reflectdata/reflect.go
+index c2dc0174d5..3662a8a43a 100644
+--- a/src/cmd/compile/internal/reflectdata/reflect.go
++++ b/src/cmd/compile/internal/reflectdata/reflect.go
+@@ -385,9 +385,7 @@ func typePkg(t *types.Type) *types.Pkg {
+ 
+ func dmethodptrOff(c rttype.Cursor, x *obj.LSym) {
+ 	c.WriteInt32(0)
+-	r := c.Reloc()
+-	r.Sym = x
+-	r.Type = objabi.R_METHODOFF
++	c.Reloc(obj.Reloc{Type: objabi.R_METHODOFF, Sym: x})
+ }
+ 
+ var kinds = []abi.Kind{
+@@ -1533,9 +1531,7 @@ func MarkTypeUsedInInterface(t *types.Type, from *obj.LSym) {
+ func MarkTypeSymUsedInInterface(tsym *obj.LSym, from *obj.LSym) {
+ 	// Emit a marker relocation. The linker will know the type is converted
+ 	// to an interface if "from" is reachable.
+-	r := obj.Addrel(from)
+-	r.Sym = tsym
+-	r.Type = objabi.R_USEIFACE
++	from.AddRel(base.Ctxt, obj.Reloc{Type: objabi.R_USEIFACE, Sym: tsym})
+ }
+ 
+ // MarkUsedIfaceMethod marks that an interface method is used in the current
+@@ -1567,20 +1563,20 @@ func MarkUsedIfaceMethod(n *ir.CallExpr) {
+ 		// type, and the linker could do more complicated matching using
+ 		// some sort of fuzzy shape matching. For now, only use the name
+ 		// of the method for matching.
+-		r := obj.Addrel(ir.CurFunc.LSym)
+-		r.Sym = staticdata.StringSymNoCommon(dot.Sel.Name)
+-		r.Type = objabi.R_USENAMEDMETHOD
++		ir.CurFunc.LSym.AddRel(base.Ctxt, obj.Reloc{
++			Type: objabi.R_USENAMEDMETHOD,
++			Sym:  staticdata.StringSymNoCommon(dot.Sel.Name),
++		})
+ 		return
+ 	}
+ 
+-	tsym := TypeLinksym(ityp)
+-	r := obj.Addrel(ir.CurFunc.LSym)
+-	r.Sym = tsym
+-	// dot.Offset() is the method index * PtrSize (the offset of code pointer
+-	// in itab).
++	// dot.Offset() is the method index * PtrSize (the offset of code pointer in itab).
+ 	midx := dot.Offset() / int64(types.PtrSize)
+-	r.Add = InterfaceMethodOffset(ityp, midx)
+-	r.Type = objabi.R_USEIFACEMETHOD
++	ir.CurFunc.LSym.AddRel(base.Ctxt, obj.Reloc{
++		Type: objabi.R_USEIFACEMETHOD,
++		Sym:  TypeLinksym(ityp),
++		Add:  InterfaceMethodOffset(ityp, midx),
++	})
+ }
+ 
+ func deref(t *types.Type) *types.Type {
+diff --git a/src/cmd/compile/internal/rttype/rttype.go b/src/cmd/compile/internal/rttype/rttype.go
+index 7a57f4a077..a5aecb2535 100644
+--- a/src/cmd/compile/internal/rttype/rttype.go
++++ b/src/cmd/compile/internal/rttype/rttype.go
+@@ -245,11 +245,10 @@ func (c Cursor) WriteSlice(target *obj.LSym, off, len, cap int64) {
+ 
+ // Reloc adds a relocation from the current cursor position.
+ // Reloc fills in Off and Siz fields. Caller should fill in the rest (Type, others).
+-func (c Cursor) Reloc() *obj.Reloc {
+-	r := obj.Addrel(c.lsym)
+-	r.Off = int32(c.offset)
+-	r.Siz = uint8(c.typ.Size())
+-	return r
++func (c Cursor) Reloc(rel obj.Reloc) {
++	rel.Off = int32(c.offset)
++	rel.Siz = uint8(c.typ.Size())
++	c.lsym.AddRel(base.Ctxt, rel)
+ }
+ 
+ // Field selects the field with the given name from the struct pointed to by c.
+diff --git a/src/cmd/compile/internal/ssagen/pgen.go b/src/cmd/compile/internal/ssagen/pgen.go
+index 3c0cfa16f1..0a2010363f 100644
+--- a/src/cmd/compile/internal/ssagen/pgen.go
++++ b/src/cmd/compile/internal/ssagen/pgen.go
+@@ -418,9 +418,7 @@ func fieldtrack(fnsym *obj.LSym, tracked map[*obj.LSym]struct{}) {
+ 	}
+ 	slices.SortFunc(trackSyms, func(a, b *obj.LSym) int { return strings.Compare(a.Name, b.Name) })
+ 	for _, sym := range trackSyms {
+-		r := obj.Addrel(fnsym)
+-		r.Sym = sym
+-		r.Type = objabi.R_USEFIELD
++		fnsym.AddRel(base.Ctxt, obj.Reloc{Type: objabi.R_USEFIELD, Sym: sym})
+ 	}
+ }
+ 
+diff --git a/src/cmd/compile/internal/staticinit/sched.go b/src/cmd/compile/internal/staticinit/sched.go
+index 4f01abc45e..0e2f7119c6 100644
+--- a/src/cmd/compile/internal/staticinit/sched.go
++++ b/src/cmd/compile/internal/staticinit/sched.go
+@@ -1189,9 +1189,7 @@ func AddKeepRelocations() {
+ 		if vs == nil {
+ 			base.Fatalf("bad: mapvar %v has no linksym", k)
+ 		}
+-		r := obj.Addrel(vs)
+-		r.Sym = fs
+-		r.Type = objabi.R_KEEP
++		vs.AddRel(base.Ctxt, obj.Reloc{Type: objabi.R_KEEP, Sym: fs})
+ 		if base.Debug.WrapGlobalMapDbg > 1 {
+ 			fmt.Fprintf(os.Stderr, "=-= add R_KEEP relo from %s to %s\n",
+ 				vs.Name, fs.Name)
+diff --git a/src/cmd/compile/internal/walk/expr.go b/src/cmd/compile/internal/walk/expr.go
+index ec35ba735c..7afbc11042 100644
+--- a/src/cmd/compile/internal/walk/expr.go
++++ b/src/cmd/compile/internal/walk/expr.go
+@@ -1062,10 +1062,10 @@ func usemethod(n *ir.CallExpr) {
+ 
+ 	if ir.IsConst(targetName, constant.String) {
+ 		name := constant.StringVal(targetName.Val())
+-
+-		r := obj.Addrel(ir.CurFunc.LSym)
+-		r.Type = objabi.R_USENAMEDMETHOD
+-		r.Sym = staticdata.StringSymNoCommon(name)
++		ir.CurFunc.LSym.AddRel(base.Ctxt, obj.Reloc{
++			Type: objabi.R_USENAMEDMETHOD,
++			Sym:  staticdata.StringSymNoCommon(name),
++		})
+ 	} else {
+ 		ir.CurFunc.LSym.Set(obj.AttrReflectMethod, true)
+ 	}
+diff --git a/src/cmd/internal/obj/arm/asm5.go b/src/cmd/internal/obj/arm/asm5.go
+index bf9623c206..0ef13b81f6 100644
+--- a/src/cmd/internal/obj/arm/asm5.go
++++ b/src/cmd/internal/obj/arm/asm5.go
+@@ -1589,13 +1589,14 @@ func (c *ctxt5) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 
+ 		v := int32(-8)
+ 		if p.To.Sym != nil {
+-			rel := obj.Addrel(c.cursym)
+-			rel.Off = int32(c.pc)
+-			rel.Siz = 4
+-			rel.Sym = p.To.Sym
+ 			v += int32(p.To.Offset)
+-			rel.Add = int64(o1) | (int64(v)>>2)&0xffffff
+-			rel.Type = objabi.R_CALLARM
++			c.cursym.AddRel(c.ctxt, obj.Reloc{
++				Type: objabi.R_CALLARM,
++				Off:  int32(c.pc),
++				Siz:  4,
++				Sym:  p.To.Sym,
++				Add:  int64(o1) | (int64(v)>>2)&0xffffff,
++			})
+ 			break
+ 		}
+ 
+@@ -1620,10 +1621,10 @@ func (c *ctxt5) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		}
+ 		o1 = c.oprrr(p, ABL, int(p.Scond))
+ 		o1 |= (uint32(p.To.Reg) & 15) << 0
+-		rel := obj.Addrel(c.cursym)
+-		rel.Off = int32(c.pc)
+-		rel.Siz = 0
+-		rel.Type = objabi.R_CALLIND
++		c.cursym.AddRel(c.ctxt, obj.Reloc{
++			Type: objabi.R_CALLIND,
++			Off:  int32(c.pc),
++		})
+ 
+ 	case 8: /* sll $c,[R],R -> mov (R<<$c),R */
+ 		c.aclass(&p.From)
+@@ -1663,23 +1664,23 @@ func (c *ctxt5) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		if p.To.Sym != nil {
+ 			// This case happens with words generated
+ 			// in the PC stream as part of the literal pool (c.pool).
+-			rel := obj.Addrel(c.cursym)
+-
+-			rel.Off = int32(c.pc)
+-			rel.Siz = 4
+-			rel.Sym = p.To.Sym
+-			rel.Add = p.To.Offset
+-
++			typ := objabi.R_ADDR
++			add := p.To.Offset
+ 			if c.ctxt.Flag_shared {
+ 				if p.To.Name == obj.NAME_GOTREF {
+-					rel.Type = objabi.R_GOTPCREL
++					typ = objabi.R_GOTPCREL
+ 				} else {
+-					rel.Type = objabi.R_PCREL
++					typ = objabi.R_PCREL
+ 				}
+-				rel.Add += c.pc - p.Rel.Pc - 8
+-			} else {
+-				rel.Type = objabi.R_ADDR
++				add += c.pc - p.Rel.Pc - 8
+ 			}
++			c.cursym.AddRel(c.ctxt, obj.Reloc{
++				Type: typ,
++				Off:  int32(c.pc),
++				Siz:  4,
++				Sym:  p.To.Sym,
++				Add:  add,
++			})
+ 			o1 = 0
+ 		}
+ 
+@@ -2159,12 +2160,12 @@ func (c *ctxt5) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		}
+ 		// This case happens with words generated in the PC stream as part of
+ 		// the literal c.pool.
+-		rel := obj.Addrel(c.cursym)
+-
+-		rel.Off = int32(c.pc)
+-		rel.Siz = 4
+-		rel.Sym = p.To.Sym
+-		rel.Type = objabi.R_TLS_LE
++		c.cursym.AddRel(c.ctxt, obj.Reloc{
++			Type: objabi.R_TLS_LE,
++			Off:  int32(c.pc),
++			Siz:  4,
++			Sym:  p.To.Sym,
++		})
+ 		o1 = 0
+ 
+ 	case 104: /* word tlsvar, initial exec */
+@@ -2174,12 +2175,13 @@ func (c *ctxt5) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		if p.To.Offset != 0 {
+ 			c.ctxt.Diag("offset against tls var in %v", p)
+ 		}
+-		rel := obj.Addrel(c.cursym)
+-		rel.Off = int32(c.pc)
+-		rel.Siz = 4
+-		rel.Sym = p.To.Sym
+-		rel.Type = objabi.R_TLS_IE
+-		rel.Add = c.pc - p.Rel.Pc - 8 - int64(rel.Siz)
++		c.cursym.AddRel(c.ctxt, obj.Reloc{
++			Type: objabi.R_TLS_IE,
++			Off:  int32(c.pc),
++			Siz:  4,
++			Sym:  p.To.Sym,
++			Add:  c.pc - p.Rel.Pc - 8 - 4,
++		})
+ 
+ 	case 68: /* floating point store -> ADDR */
+ 		o1 = c.omvl(p, &p.To, REGTMP)
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index dc46de9bec..37de7706e8 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -3580,21 +3580,22 @@ func (c *ctxt7) asmout(p *obj.Prog, out []uint32) (count int) {
+ 			break
+ 		}
+ 
+-		rel := obj.Addrel(c.cursym)
+-		rel.Off = int32(c.pc)
+-		rel.Siz = 4
+-		rel.Sym = p.To.Sym
+-		rel.Add = p.To.Offset
+-		rel.Type = objabi.R_CALLARM64
++		c.cursym.AddRel(c.ctxt, obj.Reloc{
++			Type: objabi.R_CALLARM64,
++			Off:  int32(c.pc),
++			Siz:  4,
++			Sym:  p.To.Sym,
++			Add:  p.To.Offset,
++		})
+ 
+ 	case 6: /* b ,O(R); bl ,O(R) */
+ 		o1 = c.opbrr(p, p.As)
+ 		o1 |= uint32(p.To.Reg&31) << 5
+ 		if p.As == obj.ACALL {
+-			rel := obj.Addrel(c.cursym)
+-			rel.Off = int32(c.pc)
+-			rel.Siz = 0
+-			rel.Type = objabi.R_CALLIND
++			c.cursym.AddRel(c.ctxt, obj.Reloc{
++				Type: objabi.R_CALLIND,
++				Off:  int32(c.pc),
++			})
+ 		}
+ 
+ 	case 7: /* beq s */
+@@ -3660,12 +3661,13 @@ func (c *ctxt7) asmout(p *obj.Prog, out []uint32) (count int) {
+ 		o1 = uint32(c.instoffset)
+ 		o2 = uint32(c.instoffset >> 32)
+ 		if p.To.Sym != nil {
+-			rel := obj.Addrel(c.cursym)
+-			rel.Off = int32(c.pc)
+-			rel.Siz = 8
+-			rel.Sym = p.To.Sym
+-			rel.Add = p.To.Offset
+-			rel.Type = objabi.R_ADDR
++			c.cursym.AddRel(c.ctxt, obj.Reloc{
++				Type: objabi.R_ADDR,
++				Off:  int32(c.pc),
++				Siz:  8,
++				Sym:  p.To.Sym,
++				Add:  p.To.Offset,
++			})
+ 			o2 = 0
+ 			o1 = o2
+ 		}
+@@ -3736,13 +3738,13 @@ func (c *ctxt7) asmout(p *obj.Prog, out []uint32) (count int) {
+ 		if p.To.Sym != nil {
+ 			// This case happens with words generated
+ 			// in the PC stream as part of the literal pool.
+-			rel := obj.Addrel(c.cursym)
+-
+-			rel.Off = int32(c.pc)
+-			rel.Siz = 4
+-			rel.Sym = p.To.Sym
+-			rel.Add = p.To.Offset
+-			rel.Type = objabi.R_ADDR
++			c.cursym.AddRel(c.ctxt, obj.Reloc{
++				Type: objabi.R_ADDR,
++				Off:  int32(c.pc),
++				Siz:  4,
++				Sym:  p.To.Sym,
++				Add:  p.To.Offset,
++			})
+ 			o1 = 0
+ 		}
+ 
+@@ -4659,37 +4661,43 @@ func (c *ctxt7) asmout(p *obj.Prog, out []uint32) (count int) {
+ 			c.ctxt.Diag("cannot use REGTMP as source: %v\n", p)
+ 		}
+ 		o1 = ADR(1, 0, REGTMP)
+-		rel := obj.Addrel(c.cursym)
+-		rel.Off = int32(c.pc)
+-		rel.Siz = 8
+-		rel.Sym = p.To.Sym
+-		rel.Add = p.To.Offset
++		var typ objabi.RelocType
+ 		// For unaligned access, fall back to adrp + add + movT R, (REGTMP).
+ 		if o.size(c.ctxt, p) != 8 {
+ 			o2 = c.opirr(p, AADD) | REGTMP&31<<5 | REGTMP&31
+ 			o3 = c.olsr12u(p, c.opstr(p, p.As), 0, REGTMP, p.From.Reg)
+-			rel.Type = objabi.R_ADDRARM64
+-			break
++			typ = objabi.R_ADDRARM64
++		} else {
++			o2 = c.olsr12u(p, c.opstr(p, p.As), 0, REGTMP, p.From.Reg)
++			typ = c.addrRelocType(p)
+ 		}
+-		o2 = c.olsr12u(p, c.opstr(p, p.As), 0, REGTMP, p.From.Reg)
+-		rel.Type = c.addrRelocType(p)
++		c.cursym.AddRel(c.ctxt, obj.Reloc{
++			Type: typ,
++			Off:  int32(c.pc),
++			Siz:  8,
++			Sym:  p.To.Sym,
++			Add:  p.To.Offset,
++		})
+ 
+ 	case 65: /* movT addr,R -> adrp + movT (REGTMP), R */
+ 		o1 = ADR(1, 0, REGTMP)
+-		rel := obj.Addrel(c.cursym)
+-		rel.Off = int32(c.pc)
+-		rel.Siz = 8
+-		rel.Sym = p.From.Sym
+-		rel.Add = p.From.Offset
++		var typ objabi.RelocType
+ 		// For unaligned access, fall back to adrp + add + movT (REGTMP), R.
+ 		if o.size(c.ctxt, p) != 8 {
+ 			o2 = c.opirr(p, AADD) | REGTMP&31<<5 | REGTMP&31
+ 			o3 = c.olsr12u(p, c.opldr(p, p.As), 0, REGTMP, p.To.Reg)
+-			rel.Type = objabi.R_ADDRARM64
+-			break
++			typ = objabi.R_ADDRARM64
++		} else {
++			o2 = c.olsr12u(p, c.opldr(p, p.As), 0, REGTMP, p.To.Reg)
++			typ = c.addrRelocType(p)
+ 		}
+-		o2 = c.olsr12u(p, c.opldr(p, p.As), 0, REGTMP, p.To.Reg)
+-		rel.Type = c.addrRelocType(p)
++		c.cursym.AddRel(c.ctxt, obj.Reloc{
++			Type: typ,
++			Off:  int32(c.pc),
++			Siz:  8,
++			Sym:  p.From.Sym,
++			Add:  p.From.Offset,
++		})
+ 
+ 	case 66: /* ldp O(R)!, (r1, r2); ldp (R)O!, (r1, r2) */
+ 		rf, rt1, rt2 := p.From.Reg, p.To.Reg, int16(p.To.Offset)
+@@ -4721,21 +4729,23 @@ func (c *ctxt7) asmout(p *obj.Prog, out []uint32) (count int) {
+ 		}
+ 		o1 = ADR(1, 0, uint32(p.To.Reg))
+ 		o2 = c.opirr(p, AADD) | uint32(p.To.Reg&31)<<5 | uint32(p.To.Reg&31)
+-		rel := obj.Addrel(c.cursym)
+-		rel.Off = int32(c.pc)
+-		rel.Siz = 8
+-		rel.Sym = p.From.Sym
+-		rel.Add = p.From.Offset
+-		rel.Type = objabi.R_ADDRARM64
++		c.cursym.AddRel(c.ctxt, obj.Reloc{
++			Type: objabi.R_ADDRARM64,
++			Off:  int32(c.pc),
++			Siz:  8,
++			Sym:  p.From.Sym,
++			Add:  p.From.Offset,
++		})
+ 
+ 	case 69: /* LE model movd $tlsvar, reg -> movz reg, 0 + reloc */
+ 		o1 = c.opirr(p, AMOVZ)
+ 		o1 |= uint32(p.To.Reg & 31)
+-		rel := obj.Addrel(c.cursym)
+-		rel.Off = int32(c.pc)
+-		rel.Siz = 4
+-		rel.Sym = p.From.Sym
+-		rel.Type = objabi.R_ARM64_TLS_LE
++		c.cursym.AddRel(c.ctxt, obj.Reloc{
++			Type: objabi.R_ARM64_TLS_LE,
++			Off:  int32(c.pc),
++			Siz:  4,
++			Sym:  p.From.Sym,
++		})
+ 		if p.From.Offset != 0 {
+ 			c.ctxt.Diag("invalid offset on MOVW $tlsvar")
+ 		}
+@@ -4743,12 +4753,12 @@ func (c *ctxt7) asmout(p *obj.Prog, out []uint32) (count int) {
+ 	case 70: /* IE model movd $tlsvar, reg -> adrp REGTMP, 0; ldr reg, [REGTMP, #0] + relocs */
+ 		o1 = ADR(1, 0, REGTMP)
+ 		o2 = c.olsr12u(p, c.opldr(p, AMOVD), 0, REGTMP, p.To.Reg)
+-		rel := obj.Addrel(c.cursym)
+-		rel.Off = int32(c.pc)
+-		rel.Siz = 8
+-		rel.Sym = p.From.Sym
+-		rel.Add = 0
+-		rel.Type = objabi.R_ARM64_TLS_IE
++		c.cursym.AddRel(c.ctxt, obj.Reloc{
++			Type: objabi.R_ARM64_TLS_IE,
++			Off:  int32(c.pc),
++			Siz:  8,
++			Sym:  p.From.Sym,
++		})
+ 		if p.From.Offset != 0 {
+ 			c.ctxt.Diag("invalid offset on MOVW $tlsvar")
+ 		}
+@@ -4756,12 +4766,12 @@ func (c *ctxt7) asmout(p *obj.Prog, out []uint32) (count int) {
+ 	case 71: /* movd sym@GOT, reg -> adrp REGTMP, #0; ldr reg, [REGTMP, #0] + relocs */
+ 		o1 = ADR(1, 0, REGTMP)
+ 		o2 = c.olsr12u(p, c.opldr(p, AMOVD), 0, REGTMP, p.To.Reg)
+-		rel := obj.Addrel(c.cursym)
+-		rel.Off = int32(c.pc)
+-		rel.Siz = 8
+-		rel.Sym = p.From.Sym
+-		rel.Add = 0
+-		rel.Type = objabi.R_ARM64_GOTPCREL
++		c.cursym.AddRel(c.ctxt, obj.Reloc{
++			Type: objabi.R_ARM64_GOTPCREL,
++			Off:  int32(c.pc),
++			Siz:  8,
++			Sym:  p.From.Sym,
++		})
+ 
+ 	case 72: /* vaddp/vand/vcmeq/vorr/vadd/veor/vfmla/vfmls/vbit/vbsl/vcmtst/vsub/vbif/vuzip1/vuzip2/vrax1 Vm.<T>, Vn.<T>, Vd.<T> */
+ 		af := int((p.From.Reg >> 5) & 15)
+@@ -5295,24 +5305,26 @@ func (c *ctxt7) asmout(p *obj.Prog, out []uint32) (count int) {
+ 		}
+ 		o1 = ADR(1, 0, REGTMP)
+ 		o2 = c.opirr(p, AADD) | REGTMP&31<<5 | REGTMP&31
+-		rel := obj.Addrel(c.cursym)
+-		rel.Off = int32(c.pc)
+-		rel.Siz = 8
+-		rel.Sym = p.To.Sym
+-		rel.Add = p.To.Offset
+-		rel.Type = objabi.R_ADDRARM64
++		c.cursym.AddRel(c.ctxt, obj.Reloc{
++			Type: objabi.R_ADDRARM64,
++			Off:  int32(c.pc),
++			Siz:  8,
++			Sym:  p.To.Sym,
++			Add:  p.To.Offset,
++		})
+ 		o3 = c.opldpstp(p, o, 0, REGTMP, rf1, rf2, 0)
+ 
+ 	case 88: /* ldp addr(SB), (r,r) -> adrp + add + ldp */
+ 		rt1, rt2 := p.To.Reg, int16(p.To.Offset)
+ 		o1 = ADR(1, 0, REGTMP)
+ 		o2 = c.opirr(p, AADD) | REGTMP&31<<5 | REGTMP&31
+-		rel := obj.Addrel(c.cursym)
+-		rel.Off = int32(c.pc)
+-		rel.Siz = 8
+-		rel.Sym = p.From.Sym
+-		rel.Add = p.From.Offset
+-		rel.Type = objabi.R_ADDRARM64
++		c.cursym.AddRel(c.ctxt, obj.Reloc{
++			Type: objabi.R_ADDRARM64,
++			Off:  int32(c.pc),
++			Siz:  8,
++			Sym:  p.From.Sym,
++			Add:  p.From.Offset,
++		})
+ 		o3 = c.opldpstp(p, o, 0, REGTMP, rt1, rt2, 1)
+ 
+ 	case 89: /* vadd/vsub Vm, Vn, Vd */
+diff --git a/src/cmd/internal/obj/data.go b/src/cmd/internal/obj/data.go
+index bcba53c3a4..361ea05a0f 100644
+--- a/src/cmd/internal/obj/data.go
++++ b/src/cmd/internal/obj/data.go
+@@ -118,15 +118,16 @@ func (s *LSym) writeAddr(ctxt *Link, off int64, siz int, rsym *LSym, roff int64,
+ 		ctxt.Diag("WriteAddr: bad address size %d in %s", siz, s.Name)
+ 	}
+ 	s.prepwrite(ctxt, off, siz)
+-	r := Addrel(s)
+-	r.Off = int32(off)
+-	if int64(r.Off) != off {
++	if int64(int32(off)) != off {
+ 		ctxt.Diag("WriteAddr: off overflow %d in %s", off, s.Name)
+ 	}
+-	r.Siz = uint8(siz)
+-	r.Sym = rsym
+-	r.Type = rtype
+-	r.Add = roff
++	s.AddRel(ctxt, Reloc{
++		Type: rtype,
++		Off:  int32(off),
++		Siz:  uint8(siz),
++		Sym:  rsym,
++		Add:  roff,
++	})
+ }
+ 
+ // WriteAddr writes an address of size siz into s at offset off.
+@@ -155,15 +156,16 @@ func (s *LSym) WriteCURelativeAddr(ctxt *Link, off int64, rsym *LSym, roff int64
+ // rsym+roff-(start of section that s is in).
+ func (s *LSym) WriteOff(ctxt *Link, off int64, rsym *LSym, roff int64) {
+ 	s.prepwrite(ctxt, off, 4)
+-	r := Addrel(s)
+-	r.Off = int32(off)
+-	if int64(r.Off) != off {
++	if int64(int32(off)) != off {
+ 		ctxt.Diag("WriteOff: off overflow %d in %s", off, s.Name)
+ 	}
+-	r.Siz = 4
+-	r.Sym = rsym
+-	r.Type = objabi.R_ADDROFF
+-	r.Add = roff
++	s.AddRel(ctxt, Reloc{
++		Type: objabi.R_ADDROFF,
++		Off:  int32(off),
++		Siz:  4,
++		Sym:  rsym,
++		Add:  roff,
++	})
+ }
+ 
+ // WriteWeakOff writes a weak 4 byte offset to rsym+roff into s at offset off.
+@@ -171,15 +173,16 @@ func (s *LSym) WriteOff(ctxt *Link, off int64, rsym *LSym, roff int64) {
+ // rsym+roff-(start of section that s is in).
+ func (s *LSym) WriteWeakOff(ctxt *Link, off int64, rsym *LSym, roff int64) {
+ 	s.prepwrite(ctxt, off, 4)
+-	r := Addrel(s)
+-	r.Off = int32(off)
+-	if int64(r.Off) != off {
+-		ctxt.Diag("WriteOff: off overflow %d in %s", off, s.Name)
++	if int64(int32(off)) != off {
++		ctxt.Diag("WriteWeakOff: off overflow %d in %s", off, s.Name)
+ 	}
+-	r.Siz = 4
+-	r.Sym = rsym
+-	r.Type = objabi.R_WEAKADDROFF
+-	r.Add = roff
++	s.AddRel(ctxt, Reloc{
++		Type: objabi.R_WEAKADDROFF,
++		Off:  int32(off),
++		Siz:  4,
++		Sym:  rsym,
++		Add:  roff,
++	})
+ }
+ 
+ // WriteString writes a string of size siz into s at offset off.
+@@ -198,10 +201,7 @@ func (s *LSym) WriteBytes(ctxt *Link, off int64, b []byte) int64 {
+ 	return off + int64(len(b))
+ }
+ 
+-func Addrel(s *LSym) *Reloc {
+-	if s.R == nil {
+-		s.R = make([]Reloc, 0, 4)
+-	}
+-	s.R = append(s.R, Reloc{})
+-	return &s.R[len(s.R)-1]
++// AddRel adds the relocation rel to s.
++func (s *LSym) AddRel(ctxt *Link, rel Reloc) {
++	s.R = append(s.R, rel)
+ }
+diff --git a/src/cmd/internal/obj/dwarf.go b/src/cmd/internal/obj/dwarf.go
+index 9b38cebf83..0cf4addb60 100644
+--- a/src/cmd/internal/obj/dwarf.go
++++ b/src/cmd/internal/obj/dwarf.go
+@@ -344,7 +344,7 @@ func (ctxt *Link) populateDWARF(curfn Func, s *LSym) {
+ 	var scopes []dwarf.Scope
+ 	var inlcalls dwarf.InlCalls
+ 	if ctxt.DebugInfo != nil {
+-		scopes, inlcalls = ctxt.DebugInfo(s, info, curfn)
++		scopes, inlcalls = ctxt.DebugInfo(ctxt, s, info, curfn)
+ 	}
+ 	var err error
+ 	dwctxt := dwCtxt{ctxt}
+@@ -421,7 +421,7 @@ func (ctxt *Link) DwarfAbstractFunc(curfn Func, s *LSym) {
+ 	if s.Func() == nil {
+ 		s.NewFuncInfo()
+ 	}
+-	scopes, _ := ctxt.DebugInfo(s, absfn, curfn)
++	scopes, _ := ctxt.DebugInfo(ctxt, s, absfn, curfn)
+ 	dwctxt := dwCtxt{ctxt}
+ 	fnstate := dwarf.FnState{
+ 		Name:          s.Name,
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index 462b9b2bd2..bde8d3d280 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -1138,7 +1138,7 @@ type Link struct {
+ 	Imports            []goobj.ImportedPkg
+ 	DiagFunc           func(string, ...interface{})
+ 	DiagFlush          func()
+-	DebugInfo          func(fn *LSym, info *LSym, curfn Func) ([]dwarf.Scope, dwarf.InlCalls)
++	DebugInfo          func(ctxt *Link, fn *LSym, info *LSym, curfn Func) ([]dwarf.Scope, dwarf.InlCalls)
+ 	GenAbstractFunc    func(fn *LSym)
+ 	Errors             int
+ 
+diff --git a/src/cmd/internal/obj/loong64/asm.go b/src/cmd/internal/obj/loong64/asm.go
+index be316ff763..48a9a5389f 100644
+--- a/src/cmd/internal/obj/loong64/asm.go
++++ b/src/cmd/internal/obj/loong64/asm.go
+@@ -1489,12 +1489,13 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		}
+ 		o1 = OP_B_BL(c.opirr(p.As), uint32(v))
+ 		if p.To.Sym != nil {
+-			rel := obj.Addrel(c.cursym)
+-			rel.Off = int32(c.pc)
+-			rel.Siz = 4
+-			rel.Sym = p.To.Sym
+-			rel.Add = p.To.Offset
+-			rel.Type = objabi.R_CALLLOONG64
++			c.cursym.AddRel(c.ctxt, obj.Reloc{
++				Type: objabi.R_CALLLOONG64,
++				Off:  int32(c.pc),
++				Siz:  4,
++				Sym:  p.To.Sym,
++				Add:  p.To.Offset,
++			})
+ 		}
+ 
+ 	case 12: // movbs r,r
+@@ -1583,10 +1584,10 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		}
+ 		o1 = OP_RRR(c.oprrr(p.As), uint32(0), uint32(p.To.Reg), uint32(r))
+ 		if p.As == obj.ACALL {
+-			rel := obj.Addrel(c.cursym)
+-			rel.Off = int32(c.pc)
+-			rel.Siz = 0
+-			rel.Type = objabi.R_CALLIND
++			c.cursym.AddRel(c.ctxt, obj.Reloc{
++				Type: objabi.R_CALLIND,
++				Off:  int32(c.pc),
++			})
+ 		}
+ 
+ 	case 19: // mov $lcon,r
+@@ -1723,72 +1724,79 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 	// relocation operations
+ 	case 50: // mov r,addr ==> pcalau12i + sw
+ 		o1 = OP_IR(c.opir(APCALAU12I), uint32(0), uint32(REGTMP))
+-		rel := obj.Addrel(c.cursym)
+-		rel.Off = int32(c.pc)
+-		rel.Siz = 4
+-		rel.Sym = p.To.Sym
+-		rel.Add = p.To.Offset
+-		rel.Type = objabi.R_LOONG64_ADDR_HI
+-
++		c.cursym.AddRel(c.ctxt, obj.Reloc{
++			Type: objabi.R_LOONG64_ADDR_HI,
++			Off:  int32(c.pc),
++			Siz:  4,
++			Sym:  p.To.Sym,
++			Add:  p.To.Offset,
++		})
+ 		o2 = OP_12IRR(c.opirr(p.As), uint32(0), uint32(REGTMP), uint32(p.From.Reg))
+-		rel2 := obj.Addrel(c.cursym)
+-		rel2.Off = int32(c.pc + 4)
+-		rel2.Siz = 4
+-		rel2.Sym = p.To.Sym
+-		rel2.Add = p.To.Offset
+-		rel2.Type = objabi.R_LOONG64_ADDR_LO
++		c.cursym.AddRel(c.ctxt, obj.Reloc{
++			Type: objabi.R_LOONG64_ADDR_LO,
++			Off:  int32(c.pc + 4),
++			Siz:  4,
++			Sym:  p.To.Sym,
++			Add:  p.To.Offset,
++		})
+ 
+ 	case 51: // mov addr,r ==> pcalau12i + lw
+ 		o1 = OP_IR(c.opir(APCALAU12I), uint32(0), uint32(REGTMP))
+-		rel := obj.Addrel(c.cursym)
+-		rel.Off = int32(c.pc)
+-		rel.Siz = 4
+-		rel.Sym = p.From.Sym
+-		rel.Add = p.From.Offset
+-		rel.Type = objabi.R_LOONG64_ADDR_HI
++		c.cursym.AddRel(c.ctxt, obj.Reloc{
++			Type: objabi.R_LOONG64_ADDR_HI,
++			Off:  int32(c.pc),
++			Siz:  4,
++			Sym:  p.From.Sym,
++			Add:  p.From.Offset,
++		})
+ 		o2 = OP_12IRR(c.opirr(-p.As), uint32(0), uint32(REGTMP), uint32(p.To.Reg))
+-		rel2 := obj.Addrel(c.cursym)
+-		rel2.Off = int32(c.pc + 4)
+-		rel2.Siz = 4
+-		rel2.Sym = p.From.Sym
+-		rel2.Add = p.From.Offset
+-		rel2.Type = objabi.R_LOONG64_ADDR_LO
++		c.cursym.AddRel(c.ctxt, obj.Reloc{
++			Type: objabi.R_LOONG64_ADDR_LO,
++			Off:  int32(c.pc + 4),
++			Siz:  4,
++			Sym:  p.From.Sym,
++			Add:  p.From.Offset,
++		})
+ 
+ 	case 52: // mov $ext, r
+ 		// NOTE: this case does not use REGTMP. If it ever does,
+ 		// remove the NOTUSETMP flag in optab.
+ 		o1 = OP_IR(c.opir(APCALAU12I), uint32(0), uint32(p.To.Reg))
+-		rel := obj.Addrel(c.cursym)
+-		rel.Off = int32(c.pc)
+-		rel.Siz = 4
+-		rel.Sym = p.From.Sym
+-		rel.Add = p.From.Offset
+-		rel.Type = objabi.R_LOONG64_ADDR_HI
++		c.cursym.AddRel(c.ctxt, obj.Reloc{
++			Type: objabi.R_LOONG64_ADDR_HI,
++			Off:  int32(c.pc),
++			Siz:  4,
++			Sym:  p.From.Sym,
++			Add:  p.From.Offset,
++		})
+ 		o2 = OP_12IRR(c.opirr(add), uint32(0), uint32(p.To.Reg), uint32(p.To.Reg))
+-		rel2 := obj.Addrel(c.cursym)
+-		rel2.Off = int32(c.pc + 4)
+-		rel2.Siz = 4
+-		rel2.Sym = p.From.Sym
+-		rel2.Add = p.From.Offset
+-		rel2.Type = objabi.R_LOONG64_ADDR_LO
++		c.cursym.AddRel(c.ctxt, obj.Reloc{
++			Type: objabi.R_LOONG64_ADDR_LO,
++			Off:  int32(c.pc + 4),
++			Siz:  4,
++			Sym:  p.From.Sym,
++			Add:  p.From.Offset,
++		})
+ 
+ 	case 53: // mov r, tlsvar ==>  lu12i.w + ori + add r2, regtmp + sw o(regtmp)
+ 		// NOTE: this case does not use REGTMP. If it ever does,
+ 		// remove the NOTUSETMP flag in optab.
+ 		o1 = OP_IR(c.opir(ALU12IW), uint32(0), uint32(REGTMP))
+-		rel := obj.Addrel(c.cursym)
+-		rel.Off = int32(c.pc)
+-		rel.Siz = 4
+-		rel.Sym = p.To.Sym
+-		rel.Add = p.To.Offset
+-		rel.Type = objabi.R_LOONG64_TLS_LE_HI
++		c.cursym.AddRel(c.ctxt, obj.Reloc{
++			Type: objabi.R_LOONG64_TLS_LE_HI,
++			Off:  int32(c.pc),
++			Siz:  4,
++			Sym:  p.To.Sym,
++			Add:  p.To.Offset,
++		})
+ 		o2 = OP_12IRR(c.opirr(AOR), uint32(0), uint32(REGTMP), uint32(REGTMP))
+-		rel2 := obj.Addrel(c.cursym)
+-		rel2.Off = int32(c.pc + 4)
+-		rel2.Siz = 4
+-		rel2.Sym = p.To.Sym
+-		rel2.Add = p.To.Offset
+-		rel2.Type = objabi.R_LOONG64_TLS_LE_LO
++		c.cursym.AddRel(c.ctxt, obj.Reloc{
++			Type: objabi.R_LOONG64_TLS_LE_LO,
++			Off:  int32(c.pc + 4),
++			Siz:  4,
++			Sym:  p.To.Sym,
++			Add:  p.To.Offset,
++		})
+ 		o3 = OP_RRR(c.oprrr(AADDV), uint32(REG_R2), uint32(REGTMP), uint32(REGTMP))
+ 		o4 = OP_12IRR(c.opirr(p.As), uint32(0), uint32(REGTMP), uint32(p.From.Reg))
+ 
+@@ -1796,55 +1804,57 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		// NOTE: this case does not use REGTMP. If it ever does,
+ 		// remove the NOTUSETMP flag in optab.
+ 		o1 = OP_IR(c.opir(ALU12IW), uint32(0), uint32(REGTMP))
+-		rel := obj.Addrel(c.cursym)
+-		rel.Off = int32(c.pc)
+-		rel.Siz = 4
+-		rel.Sym = p.From.Sym
+-		rel.Add = p.From.Offset
+-		rel.Type = objabi.R_LOONG64_TLS_LE_HI
++		c.cursym.AddRel(c.ctxt, obj.Reloc{
++			Type: objabi.R_LOONG64_TLS_LE_HI,
++			Off:  int32(c.pc),
++			Siz:  4,
++			Sym:  p.From.Sym,
++			Add:  p.From.Offset,
++		})
+ 		o2 = OP_12IRR(c.opirr(AOR), uint32(0), uint32(REGTMP), uint32(REGTMP))
+-		rel2 := obj.Addrel(c.cursym)
+-		rel2.Off = int32(c.pc + 4)
+-		rel2.Siz = 4
+-		rel2.Sym = p.From.Sym
+-		rel2.Add = p.From.Offset
+-		rel2.Type = objabi.R_LOONG64_TLS_LE_LO
++		c.cursym.AddRel(c.ctxt, obj.Reloc{
++			Type: objabi.R_LOONG64_TLS_LE_LO,
++			Off:  int32(c.pc + 4),
++			Siz:  4,
++			Sym:  p.From.Sym,
++			Add:  p.From.Offset,
++		})
+ 		o3 = OP_RRR(c.oprrr(AADDV), uint32(REG_R2), uint32(REGTMP), uint32(REGTMP))
+ 		o4 = OP_12IRR(c.opirr(-p.As), uint32(0), uint32(REGTMP), uint32(p.To.Reg))
+ 
+ 	case 56: // mov r, tlsvar IE model ==> (pcalau12i + ld.d)tlsvar@got + add.d + st.d
+ 		o1 = OP_IR(c.opir(APCALAU12I), uint32(0), uint32(REGTMP))
+-		rel := obj.Addrel(c.cursym)
+-		rel.Off = int32(c.pc)
+-		rel.Siz = 4
+-		rel.Sym = p.To.Sym
+-		rel.Add = 0x0
+-		rel.Type = objabi.R_LOONG64_TLS_IE_HI
++		c.cursym.AddRel(c.ctxt, obj.Reloc{
++			Type: objabi.R_LOONG64_TLS_IE_HI,
++			Off:  int32(c.pc),
++			Siz:  4,
++			Sym:  p.To.Sym,
++		})
+ 		o2 = OP_12IRR(c.opirr(-p.As), uint32(0), uint32(REGTMP), uint32(REGTMP))
+-		rel2 := obj.Addrel(c.cursym)
+-		rel2.Off = int32(c.pc + 4)
+-		rel2.Siz = 4
+-		rel2.Sym = p.To.Sym
+-		rel2.Add = 0x0
+-		rel2.Type = objabi.R_LOONG64_TLS_IE_LO
++		c.cursym.AddRel(c.ctxt, obj.Reloc{
++			Type: objabi.R_LOONG64_TLS_IE_LO,
++			Off:  int32(c.pc + 4),
++			Siz:  4,
++			Sym:  p.To.Sym,
++		})
+ 		o3 = OP_RRR(c.oprrr(AADDVU), uint32(REGTMP), uint32(REG_R2), uint32(REGTMP))
+ 		o4 = OP_12IRR(c.opirr(p.As), uint32(0), uint32(REGTMP), uint32(p.From.Reg))
+ 
+ 	case 57: // mov tlsvar, r IE model ==> (pcalau12i + ld.d)tlsvar@got + add.d + ld.d
+ 		o1 = OP_IR(c.opir(APCALAU12I), uint32(0), uint32(REGTMP))
+-		rel := obj.Addrel(c.cursym)
+-		rel.Off = int32(c.pc)
+-		rel.Siz = 4
+-		rel.Sym = p.From.Sym
+-		rel.Add = 0x0
+-		rel.Type = objabi.R_LOONG64_TLS_IE_HI
++		c.cursym.AddRel(c.ctxt, obj.Reloc{
++			Type: objabi.R_LOONG64_TLS_IE_HI,
++			Off:  int32(c.pc),
++			Siz:  4,
++			Sym:  p.From.Sym,
++		})
+ 		o2 = OP_12IRR(c.opirr(-p.As), uint32(0), uint32(REGTMP), uint32(REGTMP))
+-		rel2 := obj.Addrel(c.cursym)
+-		rel2.Off = int32(c.pc + 4)
+-		rel2.Siz = 4
+-		rel2.Sym = p.From.Sym
+-		rel2.Add = 0x0
+-		rel2.Type = objabi.R_LOONG64_TLS_IE_LO
++		c.cursym.AddRel(c.ctxt, obj.Reloc{
++			Type: objabi.R_LOONG64_TLS_IE_LO,
++			Off:  int32(c.pc + 4),
++			Siz:  4,
++			Sym:  p.From.Sym,
++		})
+ 		o3 = OP_RRR(c.oprrr(AADDVU), uint32(REGTMP), uint32(REG_R2), uint32(REGTMP))
+ 		o4 = OP_12IRR(c.opirr(-p.As), uint32(0), uint32(REGTMP), uint32(p.To.Reg))
+ 
+@@ -1878,19 +1888,19 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 
+ 	case 65: // mov sym@GOT, r ==> pcalau12i + ld.d
+ 		o1 = OP_IR(c.opir(APCALAU12I), uint32(0), uint32(p.To.Reg))
+-		rel := obj.Addrel(c.cursym)
+-		rel.Off = int32(c.pc)
+-		rel.Siz = 4
+-		rel.Sym = p.From.Sym
+-		rel.Type = objabi.R_LOONG64_GOT_HI
+-		rel.Add = 0x0
++		c.cursym.AddRel(c.ctxt, obj.Reloc{
++			Type: objabi.R_LOONG64_GOT_HI,
++			Off:  int32(c.pc),
++			Siz:  4,
++			Sym:  p.From.Sym,
++		})
+ 		o2 = OP_12IRR(c.opirr(-p.As), uint32(0), uint32(p.To.Reg), uint32(p.To.Reg))
+-		rel2 := obj.Addrel(c.cursym)
+-		rel2.Off = int32(c.pc + 4)
+-		rel2.Siz = 4
+-		rel2.Sym = p.From.Sym
+-		rel2.Type = objabi.R_LOONG64_GOT_LO
+-		rel2.Add = 0x0
++		c.cursym.AddRel(c.ctxt, obj.Reloc{
++			Type: objabi.R_LOONG64_GOT_LO,
++			Off:  int32(c.pc + 4),
++			Siz:  4,
++			Sym:  p.From.Sym,
++		})
+ 
+ 	case 66: // am* From, To, RegTo2 ==> am* RegTo2, From, To
+ 		rk := p.From.Reg
+diff --git a/src/cmd/internal/obj/mips/asm0.go b/src/cmd/internal/obj/mips/asm0.go
+index 5c52ee63a4..2de5a4d6c0 100644
+--- a/src/cmd/internal/obj/mips/asm0.go
++++ b/src/cmd/internal/obj/mips/asm0.go
+@@ -1296,16 +1296,17 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 			p.To.Sym = c.cursym.Func().Text.From.Sym
+ 			p.To.Offset = p.To.Target().Pc
+ 		}
+-		rel := obj.Addrel(c.cursym)
+-		rel.Off = int32(c.pc)
+-		rel.Siz = 4
+-		rel.Sym = p.To.Sym
+-		rel.Add = p.To.Offset
++		typ := objabi.R_JMPMIPS
+ 		if p.As == AJAL {
+-			rel.Type = objabi.R_CALLMIPS
+-		} else {
+-			rel.Type = objabi.R_JMPMIPS
++			typ = objabi.R_CALLMIPS
+ 		}
++		c.cursym.AddRel(c.ctxt, obj.Reloc{
++			Type: typ,
++			Off:  int32(c.pc),
++			Siz:  4,
++			Sym:  p.To.Sym,
++			Add:  p.To.Offset,
++		})
+ 
+ 	case 12: /* movbs r,r */
+ 		// NOTE: this case does not use REGTMP. If it ever does,
+@@ -1363,10 +1364,10 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		}
+ 		o1 = OP_RRR(c.oprrr(p.As), obj.REG_NONE, p.To.Reg, r)
+ 		if p.As == obj.ACALL {
+-			rel := obj.Addrel(c.cursym)
+-			rel.Off = int32(c.pc)
+-			rel.Siz = 0
+-			rel.Type = objabi.R_CALLIND
++			c.cursym.AddRel(c.ctxt, obj.Reloc{
++				Type: objabi.R_CALLIND,
++				Off:  int32(c.pc),
++			})
+ 		}
+ 
+ 	case 19: /* mov $lcon,r ==> lu+or */
+@@ -1559,71 +1560,80 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 	/* relocation operations */
+ 	case 50: /* mov r,addr ==> lu + add REGSB, REGTMP + sw o(REGTMP) */
+ 		o1 = OP_IRR(c.opirr(ALUI), 0, REGZERO, REGTMP)
+-		rel := obj.Addrel(c.cursym)
+-		rel.Off = int32(c.pc)
+-		rel.Siz = 4
+-		rel.Sym = p.To.Sym
+-		rel.Add = p.To.Offset
+-		rel.Type = objabi.R_ADDRMIPSU
+-		o2 = OP_IRR(c.opirr(p.As), 0, REGTMP, p.From.Reg)
+-		rel2 := obj.Addrel(c.cursym)
+-		rel2.Off = int32(c.pc + 4)
+-		rel2.Siz = 4
+-		rel2.Sym = p.To.Sym
+-		rel2.Add = p.To.Offset
+-		rel2.Type = objabi.R_ADDRMIPS
++		c.cursym.AddRel(c.ctxt, obj.Reloc{
++			Type: objabi.R_ADDRMIPSU,
++			Off:  int32(c.pc),
++			Siz:  4,
++			Sym:  p.To.Sym,
++			Add:  p.To.Offset,
++		})
+ 
++		o2 = OP_IRR(c.opirr(p.As), 0, REGTMP, p.From.Reg)
++		off := int32(c.pc + 4)
+ 		if o.size == 12 {
+ 			o3 = o2
+ 			o2 = OP_RRR(c.oprrr(AADDVU), REGSB, REGTMP, REGTMP)
+-			rel2.Off += 4
++			off += 4
+ 		}
++		c.cursym.AddRel(c.ctxt, obj.Reloc{
++			Type: objabi.R_ADDRMIPS,
++			Off:  off,
++			Siz:  4,
++			Sym:  p.To.Sym,
++			Add:  p.To.Offset,
++		})
+ 
+ 	case 51: /* mov addr,r ==> lu + add REGSB, REGTMP + lw o(REGTMP) */
+ 		o1 = OP_IRR(c.opirr(ALUI), 0, REGZERO, REGTMP)
+-		rel := obj.Addrel(c.cursym)
+-		rel.Off = int32(c.pc)
+-		rel.Siz = 4
+-		rel.Sym = p.From.Sym
+-		rel.Add = p.From.Offset
+-		rel.Type = objabi.R_ADDRMIPSU
+-		o2 = OP_IRR(c.opirr(-p.As), 0, REGTMP, p.To.Reg)
+-		rel2 := obj.Addrel(c.cursym)
+-		rel2.Off = int32(c.pc + 4)
+-		rel2.Siz = 4
+-		rel2.Sym = p.From.Sym
+-		rel2.Add = p.From.Offset
+-		rel2.Type = objabi.R_ADDRMIPS
++		c.cursym.AddRel(c.ctxt, obj.Reloc{
++			Type: objabi.R_ADDRMIPSU,
++			Off:  int32(c.pc),
++			Siz:  4,
++			Sym:  p.From.Sym,
++			Add:  p.From.Offset,
++		})
+ 
++		o2 = OP_IRR(c.opirr(-p.As), 0, REGTMP, p.To.Reg)
++		off := int32(c.pc + 4)
+ 		if o.size == 12 {
+ 			o3 = o2
+ 			o2 = OP_RRR(c.oprrr(AADDVU), REGSB, REGTMP, REGTMP)
+-			rel2.Off += 4
++			off += 4
+ 		}
++		c.cursym.AddRel(c.ctxt, obj.Reloc{
++			Type: objabi.R_ADDRMIPS,
++			Off:  off,
++			Siz:  4,
++			Sym:  p.From.Sym,
++			Add:  p.From.Offset,
++		})
+ 
+ 	case 52: /* mov $lext, r ==> lu + add REGSB, r + add */
+ 		// NOTE: this case does not use REGTMP. If it ever does,
+ 		// remove the NOTUSETMP flag in optab.
+ 		o1 = OP_IRR(c.opirr(ALUI), 0, REGZERO, p.To.Reg)
+-		rel := obj.Addrel(c.cursym)
+-		rel.Off = int32(c.pc)
+-		rel.Siz = 4
+-		rel.Sym = p.From.Sym
+-		rel.Add = p.From.Offset
+-		rel.Type = objabi.R_ADDRMIPSU
+-		o2 = OP_IRR(c.opirr(add), 0, p.To.Reg, p.To.Reg)
+-		rel2 := obj.Addrel(c.cursym)
+-		rel2.Off = int32(c.pc + 4)
+-		rel2.Siz = 4
+-		rel2.Sym = p.From.Sym
+-		rel2.Add = p.From.Offset
+-		rel2.Type = objabi.R_ADDRMIPS
++		c.cursym.AddRel(c.ctxt, obj.Reloc{
++			Type: objabi.R_ADDRMIPSU,
++			Off:  int32(c.pc),
++			Siz:  4,
++			Sym:  p.From.Sym,
++			Add:  p.From.Offset,
++		})
+ 
++		o2 = OP_IRR(c.opirr(add), 0, p.To.Reg, p.To.Reg)
++		off := int32(c.pc + 4)
+ 		if o.size == 12 {
+ 			o3 = o2
+ 			o2 = OP_RRR(c.oprrr(AADDVU), REGSB, p.To.Reg, p.To.Reg)
+-			rel2.Off += 4
++			off += 4
+ 		}
++		c.cursym.AddRel(c.ctxt, obj.Reloc{
++			Type: objabi.R_ADDRMIPS,
++			Off:  off,
++			Siz:  4,
++			Sym:  p.From.Sym,
++			Add:  p.From.Offset,
++		})
+ 
+ 	case 53: /* mov r, tlsvar ==> rdhwr + sw o(r3) */
+ 		// clobbers R3 !
+@@ -1632,12 +1642,13 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		// remove the NOTUSETMP flag in optab.
+ 		o1 = (037<<26 + 073) | (29 << 11) | (3 << 16) // rdhwr $29, r3
+ 		o2 = OP_IRR(c.opirr(p.As), 0, REG_R3, p.From.Reg)
+-		rel := obj.Addrel(c.cursym)
+-		rel.Off = int32(c.pc + 4)
+-		rel.Siz = 4
+-		rel.Sym = p.To.Sym
+-		rel.Add = p.To.Offset
+-		rel.Type = objabi.R_ADDRMIPSTLS
++		c.cursym.AddRel(c.ctxt, obj.Reloc{
++			Type: objabi.R_ADDRMIPSTLS,
++			Off:  int32(c.pc + 4),
++			Siz:  4,
++			Sym:  p.To.Sym,
++			Add:  p.To.Offset,
++		})
+ 
+ 	case 54: /* mov tlsvar, r ==> rdhwr + lw o(r3) */
+ 		// clobbers R3 !
+@@ -1645,12 +1656,13 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		// remove the NOTUSETMP flag in optab.
+ 		o1 = (037<<26 + 073) | (29 << 11) | (3 << 16) // rdhwr $29, r3
+ 		o2 = OP_IRR(c.opirr(-p.As), 0, REG_R3, p.To.Reg)
+-		rel := obj.Addrel(c.cursym)
+-		rel.Off = int32(c.pc + 4)
+-		rel.Siz = 4
+-		rel.Sym = p.From.Sym
+-		rel.Add = p.From.Offset
+-		rel.Type = objabi.R_ADDRMIPSTLS
++		c.cursym.AddRel(c.ctxt, obj.Reloc{
++			Type: objabi.R_ADDRMIPSTLS,
++			Off:  int32(c.pc + 4),
++			Siz:  4,
++			Sym:  p.From.Sym,
++			Add:  p.From.Offset,
++		})
+ 
+ 	case 55: /* mov $tlsvar, r ==> rdhwr + add */
+ 		// clobbers R3 !
+@@ -1658,12 +1670,13 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		// remove the NOTUSETMP flag in optab.
+ 		o1 = (037<<26 + 073) | (29 << 11) | (3 << 16) // rdhwr $29, r3
+ 		o2 = OP_IRR(c.opirr(add), 0, REG_R3, p.To.Reg)
+-		rel := obj.Addrel(c.cursym)
+-		rel.Off = int32(c.pc + 4)
+-		rel.Siz = 4
+-		rel.Sym = p.From.Sym
+-		rel.Add = p.From.Offset
+-		rel.Type = objabi.R_ADDRMIPSTLS
++		c.cursym.AddRel(c.ctxt, obj.Reloc{
++			Type: objabi.R_ADDRMIPSTLS,
++			Off:  int32(c.pc + 4),
++			Siz:  4,
++			Sym:  p.From.Sym,
++			Add:  p.From.Offset,
++		})
+ 
+ 	case 56: /* vmov{b,h,w,d} $scon, wr */
+ 
+diff --git a/src/cmd/internal/obj/mips/obj0.go b/src/cmd/internal/obj/mips/obj0.go
+index d3a8566958..b9152fe57e 100644
+--- a/src/cmd/internal/obj/mips/obj0.go
++++ b/src/cmd/internal/obj/mips/obj0.go
+@@ -40,7 +40,7 @@ import (
+ )
+ 
+ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
+-	c := ctxt0{ctxt: ctxt, newprog: newprog}
++	c := ctxt0{ctxt: ctxt}
+ 
+ 	p.From.Class = 0
+ 	p.To.Class = 0
+diff --git a/src/cmd/internal/obj/objfile_test.go b/src/cmd/internal/obj/objfile_test.go
+index e4286837ad..ca1ff4039d 100644
+--- a/src/cmd/internal/obj/objfile_test.go
++++ b/src/cmd/internal/obj/objfile_test.go
+@@ -52,17 +52,13 @@ func TestContentHash(t *testing.T) {
+ 		s.PkgIdx = goobj.PkgIdxHashed
+ 	}
+ 	// s3 references s0
+-	r := Addrel(syms[3])
+-	r.Sym = syms[0]
++	syms[3].R = []Reloc{{Sym: syms[0]}}
+ 	// s4 references s0
+-	r = Addrel(syms[4])
+-	r.Sym = syms[0]
++	syms[4].R = []Reloc{{Sym: syms[0]}}
+ 	// s5 references s1
+-	r = Addrel(syms[5])
+-	r.Sym = syms[1]
++	syms[5].R = []Reloc{{Sym: syms[1]}}
+ 	// s6 references s2
+-	r = Addrel(syms[6])
+-	r.Sym = syms[2]
++	syms[6].R = []Reloc{{Sym: syms[2]}}
+ 
+ 	// compute hashes
+ 	h := make([]goobj.HashType, len(syms))
+diff --git a/src/cmd/internal/obj/ppc64/asm9.go b/src/cmd/internal/obj/ppc64/asm9.go
+index 7399106c74..a9ef420e3d 100644
+--- a/src/cmd/internal/obj/ppc64/asm9.go
++++ b/src/cmd/internal/obj/ppc64/asm9.go
+@@ -2409,7 +2409,8 @@ func (c *ctxt9) opform(insn uint32) int {
+ 
+ // Encode instructions and create relocation for accessing s+d according to the
+ // instruction op with source or destination (as appropriate) register reg.
+-func (c *ctxt9) symbolAccess(s *obj.LSym, d int64, reg int16, op uint32, reuse bool) (o1, o2 uint32, rel *obj.Reloc) {
++// The caller must call c.cursym.AddRel(c.ctxt, rel) when finished editing rel.
++func (c *ctxt9) symbolAccess(s *obj.LSym, d int64, reg int16, op uint32, reuse bool) (o1, o2 uint32, rel obj.Reloc) {
+ 	if c.ctxt.Headtype == objabi.Haix {
+ 		// Every symbol access must be made via a TOC anchor.
+ 		c.ctxt.Diag("symbolAccess called for %s", s.Name)
+@@ -2430,27 +2431,29 @@ func (c *ctxt9) symbolAccess(s *obj.LSym, d int64, reg int16, op uint32, reuse b
+ 		o1 = AOP_IRR(OP_ADDIS, uint32(reg), base, 0)
+ 		o2 = AOP_IRR(op, uint32(reg), uint32(reg), 0)
+ 	}
+-	rel = obj.Addrel(c.cursym)
+-	rel.Off = int32(c.pc)
+-	rel.Siz = 8
+-	rel.Sym = s
+-	rel.Add = d
++	var typ objabi.RelocType
+ 	if c.ctxt.Flag_shared {
+ 		switch form {
+ 		case D_FORM:
+-			rel.Type = objabi.R_ADDRPOWER_TOCREL
++			typ = objabi.R_ADDRPOWER_TOCREL
+ 		case DS_FORM:
+-			rel.Type = objabi.R_ADDRPOWER_TOCREL_DS
++			typ = objabi.R_ADDRPOWER_TOCREL_DS
+ 		}
+-
+ 	} else {
+ 		switch form {
+ 		case D_FORM:
+-			rel.Type = objabi.R_ADDRPOWER
++			typ = objabi.R_ADDRPOWER
+ 		case DS_FORM:
+-			rel.Type = objabi.R_ADDRPOWER_DS
++			typ = objabi.R_ADDRPOWER_DS
+ 		}
+ 	}
++	rel = obj.Reloc{
++		Type: typ,
++		Off:  int32(c.pc),
++		Siz:  8,
++		Sym:  s,
++		Add:  d,
++	}
+ 	return
+ }
+ 
+@@ -2668,18 +2671,18 @@ func asmout(c *ctxt9, p *obj.Prog, o *Optab, out *[5]uint32) {
+ 
+ 		o1 = OP_BR(c.opirr(p.As), uint32(v), 0)
+ 		if p.To.Sym != nil {
+-			rel := obj.Addrel(c.cursym)
+-			rel.Off = int32(c.pc)
+-			rel.Siz = 4
+-			rel.Sym = p.To.Sym
+ 			v += int32(p.To.Offset)
+ 			if v&03 != 0 {
+ 				c.ctxt.Diag("odd branch target address\n%v", p)
+ 				v &^= 03
+ 			}
+-
+-			rel.Add = int64(v)
+-			rel.Type = objabi.R_CALLPOWER
++			c.cursym.AddRel(c.ctxt, obj.Reloc{
++				Type: objabi.R_CALLPOWER,
++				Off:  int32(c.pc),
++				Siz:  4,
++				Sym:  p.To.Sym,
++				Add:  int64(v),
++			})
+ 		}
+ 		o2 = NOP // nop, sometimes overwritten by ld r2, 24(r1) when dynamic linking
+ 
+@@ -3052,7 +3055,9 @@ func asmout(c *ctxt9, p *obj.Prog, o *Optab, out *[5]uint32) {
+ 		switch p.From.Name {
+ 		case obj.NAME_EXTERN, obj.NAME_STATIC:
+ 			// Load a 32 bit constant, or relocation depending on if a symbol is attached
+-			o1, o2, rel = c.symbolAccess(p.From.Sym, v, p.To.Reg, OP_ADDI, true)
++			var rel1 obj.Reloc
++			o1, o2, rel1 = c.symbolAccess(p.From.Sym, v, p.To.Reg, OP_ADDI, true)
++			rel = &rel1
+ 		default:
+ 			// Add a 32 bit offset to a register.
+ 			o1 = AOP_IRR(OP_ADDIS, uint32(p.To.Reg), uint32(r), uint32(high16adjusted(int32(v))))
+@@ -3067,6 +3072,9 @@ func asmout(c *ctxt9, p *obj.Prog, o *Optab, out *[5]uint32) {
+ 				rel.Type = objabi.R_ADDRPOWER_PCREL34
+ 			}
+ 		}
++		if rel != nil {
++			c.cursym.AddRel(c.ctxt, *rel)
++		}
+ 
+ 	case 27: /* subc ra,$simm,rd => subfic rd,ra,$simm */
+ 		v := c.regoff(p.GetFrom3())
+@@ -3146,12 +3154,13 @@ func asmout(c *ctxt9, p *obj.Prog, o *Optab, out *[5]uint32) {
+ 		}
+ 
+ 		if p.From.Sym != nil {
+-			rel := obj.Addrel(c.cursym)
+-			rel.Off = int32(c.pc)
+-			rel.Siz = 8
+-			rel.Sym = p.From.Sym
+-			rel.Add = p.From.Offset
+-			rel.Type = objabi.R_ADDR
++			c.cursym.AddRel(c.ctxt, obj.Reloc{
++				Type: objabi.R_ADDR,
++				Off:  int32(c.pc),
++				Siz:  8,
++				Sym:  p.From.Sym,
++				Add:  p.From.Offset,
++			})
+ 			o2 = 0
+ 			o1 = o2
+ 		}
+@@ -3537,12 +3546,12 @@ func asmout(c *ctxt9, p *obj.Prog, o *Optab, out *[5]uint32) {
+ 
+ 	/* relocation operations */
+ 	case 74:
+-		var rel *obj.Reloc
+ 		v := c.vregoff(&p.To)
+ 		// Offsets in DS form stores must be a multiple of 4
+ 		inst := c.opstore(p.As)
+ 
+ 		// Can't reuse base for store instructions.
++		var rel obj.Reloc
+ 		o1, o2, rel = c.symbolAccess(p.To.Sym, v, p.From.Reg, inst, false)
+ 
+ 		// Rewrite as a prefixed store if supported.
+@@ -3552,13 +3561,14 @@ func asmout(c *ctxt9, p *obj.Prog, o *Optab, out *[5]uint32) {
+ 		} else if c.opform(inst) == DS_FORM && v&0x3 != 0 {
+ 			log.Fatalf("invalid offset for DS form load/store %v", p)
+ 		}
++		c.cursym.AddRel(c.ctxt, rel)
+ 
+ 	case 75: // 32 bit offset symbol loads (got/toc/addr)
+-		var rel *obj.Reloc
+ 		v := p.From.Offset
+ 
+ 		// Offsets in DS form loads must be a multiple of 4
+ 		inst := c.opload(p.As)
++		var rel obj.Reloc
+ 		switch p.From.Name {
+ 		case obj.NAME_GOTREF, obj.NAME_TOCREF:
+ 			if v != 0 {
+@@ -3566,7 +3576,6 @@ func asmout(c *ctxt9, p *obj.Prog, o *Optab, out *[5]uint32) {
+ 			}
+ 			o1 = AOP_IRR(OP_ADDIS, uint32(p.To.Reg), REG_R2, 0)
+ 			o2 = AOP_IRR(inst, uint32(p.To.Reg), uint32(p.To.Reg), 0)
+-			rel = obj.Addrel(c.cursym)
+ 			rel.Off = int32(c.pc)
+ 			rel.Siz = 8
+ 			rel.Sym = p.From.Sym
+@@ -3602,6 +3611,7 @@ func asmout(c *ctxt9, p *obj.Prog, o *Optab, out *[5]uint32) {
+ 		} else if c.opform(inst) == DS_FORM && v&0x3 != 0 {
+ 			log.Fatalf("invalid offset for DS form load/store %v", p)
+ 		}
++		c.cursym.AddRel(c.ctxt, rel)
+ 
+ 		o3 = LOP_RRR(OP_EXTSB, uint32(p.To.Reg), uint32(p.To.Reg), 0)
+ 
+@@ -3609,41 +3619,47 @@ func asmout(c *ctxt9, p *obj.Prog, o *Optab, out *[5]uint32) {
+ 		if p.From.Offset != 0 {
+ 			c.ctxt.Diag("invalid offset against tls var %v", p)
+ 		}
+-		rel := obj.Addrel(c.cursym)
+-		rel.Off = int32(c.pc)
+-		rel.Siz = 8
+-		rel.Sym = p.From.Sym
++		var typ objabi.RelocType
+ 		if !o.ispfx {
+ 			o1 = AOP_IRR(OP_ADDIS, uint32(p.To.Reg), REG_R13, 0)
+ 			o2 = AOP_IRR(OP_ADDI, uint32(p.To.Reg), uint32(p.To.Reg), 0)
+-			rel.Type = objabi.R_POWER_TLS_LE
++			typ = objabi.R_POWER_TLS_LE
+ 		} else {
+ 			o1, o2 = pfxadd(p.To.Reg, REG_R13, PFX_R_ABS, 0)
+-			rel.Type = objabi.R_POWER_TLS_LE_TPREL34
++			typ = objabi.R_POWER_TLS_LE_TPREL34
+ 		}
++		c.cursym.AddRel(c.ctxt, obj.Reloc{
++			Type: typ,
++			Off:  int32(c.pc),
++			Siz:  8,
++			Sym:  p.From.Sym,
++		})
+ 
+ 	case 80:
+ 		if p.From.Offset != 0 {
+ 			c.ctxt.Diag("invalid offset against tls var %v", p)
+ 		}
+-		rel := obj.Addrel(c.cursym)
+-		rel.Off = int32(c.pc)
+-		rel.Siz = 8
+-		rel.Sym = p.From.Sym
+-		rel.Type = objabi.R_POWER_TLS_IE
++		typ := objabi.R_POWER_TLS_IE
+ 		if !o.ispfx {
+ 			o1 = AOP_IRR(OP_ADDIS, uint32(p.To.Reg), REG_R2, 0)
+ 			o2 = AOP_IRR(c.opload(AMOVD), uint32(p.To.Reg), uint32(p.To.Reg), 0)
+ 		} else {
+ 			o1, o2 = pfxload(p.As, p.To.Reg, REG_R0, PFX_R_PCREL)
+-			rel.Type = objabi.R_POWER_TLS_IE_PCREL34
+-		}
++			typ = objabi.R_POWER_TLS_IE_PCREL34
++		}
++		c.cursym.AddRel(c.ctxt, obj.Reloc{
++			Type: typ,
++			Off:  int32(c.pc),
++			Siz:  8,
++			Sym:  p.From.Sym,
++		})
+ 		o3 = AOP_RRR(OP_ADD, uint32(p.To.Reg), uint32(p.To.Reg), REG_R13)
+-		rel = obj.Addrel(c.cursym)
+-		rel.Off = int32(c.pc) + 8
+-		rel.Siz = 4
+-		rel.Sym = p.From.Sym
+-		rel.Type = objabi.R_POWER_TLS
++		c.cursym.AddRel(c.ctxt, obj.Reloc{
++			Type: objabi.R_POWER_TLS,
++			Off:  int32(c.pc) + 8,
++			Siz:  4,
++			Sym:  p.From.Sym,
++		})
+ 
+ 	case 82: /* vector instructions, VX-form and VC-form */
+ 		if p.From.Type == obj.TYPE_REG {
+diff --git a/src/cmd/internal/obj/ppc64/obj9.go b/src/cmd/internal/obj/ppc64/obj9.go
+index bf52e72009..2d2c198ab9 100644
+--- a/src/cmd/internal/obj/ppc64/obj9.go
++++ b/src/cmd/internal/obj/ppc64/obj9.go
+@@ -867,11 +867,12 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 				q.Pos = p.Pos
+ 				q.From.Type = obj.TYPE_CONST
+ 				q.From.Offset = 0x38420000
+-				rel := obj.Addrel(c.cursym)
+-				rel.Off = 0
+-				rel.Siz = 8
+-				rel.Sym = c.ctxt.Lookup(".TOC.")
+-				rel.Type = objabi.R_ADDRPOWER_PCREL
++				c.cursym.AddRel(c.ctxt, obj.Reloc{
++					Type: objabi.R_ADDRPOWER_PCREL,
++					Off:  0,
++					Siz:  8,
++					Sym:  c.ctxt.Lookup(".TOC."),
++				})
+ 			}
+ 
+ 			if !c.cursym.Func().Text.From.Sym.NoSplit() {
+diff --git a/src/cmd/internal/obj/riscv/obj.go b/src/cmd/internal/obj/riscv/obj.go
+index eb413d9ec7..a78c1c63a4 100644
+--- a/src/cmd/internal/obj/riscv/obj.go
++++ b/src/cmd/internal/obj/riscv/obj.go
+@@ -2625,12 +2625,13 @@ func assemble(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 		switch p.As {
+ 		case AJAL:
+ 			if p.Mark&NEED_JAL_RELOC == NEED_JAL_RELOC {
+-				rel := obj.Addrel(cursym)
+-				rel.Off = int32(p.Pc)
+-				rel.Siz = 4
+-				rel.Sym = p.To.Sym
+-				rel.Add = p.To.Offset
+-				rel.Type = objabi.R_RISCV_JAL
++				cursym.AddRel(ctxt, obj.Reloc{
++					Type: objabi.R_RISCV_JAL,
++					Off:  int32(p.Pc),
++					Siz:  4,
++					Sym:  p.To.Sym,
++					Add:  p.To.Offset,
++				})
+ 			}
+ 		case AJALR:
+ 			if p.To.Sym != nil {
+@@ -2671,12 +2672,13 @@ func assemble(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 				}
+ 			}
+ 
+-			rel := obj.Addrel(cursym)
+-			rel.Off = int32(p.Pc)
+-			rel.Siz = 8
+-			rel.Sym = addr.Sym
+-			rel.Add = addr.Offset
+-			rel.Type = rt
++			cursym.AddRel(ctxt, obj.Reloc{
++				Type: rt,
++				Off:  int32(p.Pc),
++				Siz:  8,
++				Sym:  addr.Sym,
++				Add:  addr.Offset,
++			})
+ 
+ 		case obj.APCALIGN:
+ 			alignedValue := p.From.Offset
+diff --git a/src/cmd/internal/obj/s390x/asmz.go b/src/cmd/internal/obj/s390x/asmz.go
+index fdcd1d5fd1..98dbc7c834 100644
+--- a/src/cmd/internal/obj/s390x/asmz.go
++++ b/src/cmd/internal/obj/s390x/asmz.go
+@@ -2643,48 +2643,48 @@ func oclass(a *obj.Addr) int {
+ 
+ // Add a relocation for the immediate in a RIL style instruction.
+ // The addend will be adjusted as required.
+-func (c *ctxtz) addrilreloc(sym *obj.LSym, add int64) *obj.Reloc {
++func (c *ctxtz) addrilreloc(sym *obj.LSym, add int64) {
+ 	if sym == nil {
+ 		c.ctxt.Diag("require symbol to apply relocation")
+ 	}
+ 	offset := int64(2) // relocation offset from start of instruction
+-	rel := obj.Addrel(c.cursym)
+-	rel.Off = int32(c.pc + offset)
+-	rel.Siz = 4
+-	rel.Sym = sym
+-	rel.Add = add + offset + int64(rel.Siz)
+-	rel.Type = objabi.R_PCRELDBL
+-	return rel
++	c.cursym.AddRel(c.ctxt, obj.Reloc{
++		Type: objabi.R_PCRELDBL,
++		Off:  int32(c.pc + offset),
++		Siz:  4,
++		Sym:  sym,
++		Add:  add + offset + 4,
++	})
+ }
+ 
+-func (c *ctxtz) addrilrelocoffset(sym *obj.LSym, add, offset int64) *obj.Reloc {
++func (c *ctxtz) addrilrelocoffset(sym *obj.LSym, add, offset int64) {
+ 	if sym == nil {
+ 		c.ctxt.Diag("require symbol to apply relocation")
+ 	}
+ 	offset += int64(2) // relocation offset from start of instruction
+-	rel := obj.Addrel(c.cursym)
+-	rel.Off = int32(c.pc + offset)
+-	rel.Siz = 4
+-	rel.Sym = sym
+-	rel.Add = add + offset + int64(rel.Siz)
+-	rel.Type = objabi.R_PCRELDBL
+-	return rel
++	c.cursym.AddRel(c.ctxt, obj.Reloc{
++		Type: objabi.R_PCRELDBL,
++		Off:  int32(c.pc + offset),
++		Siz:  4,
++		Sym:  sym,
++		Add:  add + offset + 4,
++	})
+ }
+ 
+ // Add a CALL relocation for the immediate in a RIL style instruction.
+ // The addend will be adjusted as required.
+-func (c *ctxtz) addcallreloc(sym *obj.LSym, add int64) *obj.Reloc {
++func (c *ctxtz) addcallreloc(sym *obj.LSym, add int64) {
+ 	if sym == nil {
+ 		c.ctxt.Diag("require symbol to apply relocation")
+ 	}
+ 	offset := int64(2) // relocation offset from start of instruction
+-	rel := obj.Addrel(c.cursym)
+-	rel.Off = int32(c.pc + offset)
+-	rel.Siz = 4
+-	rel.Sym = sym
+-	rel.Add = add + offset + int64(rel.Siz)
+-	rel.Type = objabi.R_CALL
+-	return rel
++	c.cursym.AddRel(c.ctxt, obj.Reloc{
++		Type: objabi.R_CALL,
++		Off:  int32(c.pc + offset),
++		Siz:  4,
++		Sym:  sym,
++		Add:  add + offset + int64(4),
++	})
+ }
+ 
+ func (c *ctxtz) branchMask(p *obj.Prog) CCMask {
+@@ -4008,24 +4008,25 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
+ 			c.ctxt.Diag("invalid offset against GOT slot %v", p)
+ 		}
+ 		zRIL(_b, op_LGRL, uint32(p.To.Reg), 0, asm)
+-		rel := obj.Addrel(c.cursym)
+-		rel.Off = int32(c.pc + 2)
+-		rel.Siz = 4
+-		rel.Sym = p.From.Sym
+-		rel.Type = objabi.R_GOTPCREL
+-		rel.Add = 2 + int64(rel.Siz)
++		c.cursym.AddRel(c.ctxt, obj.Reloc{
++			Type: objabi.R_GOTPCREL,
++			Off:  int32(c.pc + 2),
++			Siz:  4,
++			Sym:  p.From.Sym,
++			Add:  2 + 4,
++		})
+ 
+ 	case 94: // TLS local exec model
+ 		zRIL(_b, op_LARL, regtmp(p), (sizeRIL+sizeRXY+sizeRI)>>1, asm)
+ 		zRXY(op_LG, uint32(p.To.Reg), regtmp(p), 0, 0, asm)
+ 		zRI(op_BRC, 0xF, (sizeRI+8)>>1, asm)
+ 		*asm = append(*asm, 0, 0, 0, 0, 0, 0, 0, 0)
+-		rel := obj.Addrel(c.cursym)
+-		rel.Off = int32(c.pc + sizeRIL + sizeRXY + sizeRI)
+-		rel.Siz = 8
+-		rel.Sym = p.From.Sym
+-		rel.Type = objabi.R_TLS_LE
+-		rel.Add = 0
++		c.cursym.AddRel(c.ctxt, obj.Reloc{
++			Type: objabi.R_TLS_LE,
++			Off:  int32(c.pc + sizeRIL + sizeRXY + sizeRI),
++			Siz:  8,
++			Sym:  p.From.Sym,
++		})
+ 
+ 	case 95: // TLS initial exec model
+ 		// Assembly                   | Relocation symbol    | Done Here?
+@@ -4040,12 +4041,13 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
+ 
+ 		// R_390_TLS_IEENT
+ 		zRIL(_b, op_LARL, regtmp(p), 0, asm)
+-		ieent := obj.Addrel(c.cursym)
+-		ieent.Off = int32(c.pc + 2)
+-		ieent.Siz = 4
+-		ieent.Sym = p.From.Sym
+-		ieent.Type = objabi.R_TLS_IE
+-		ieent.Add = 2 + int64(ieent.Siz)
++		c.cursym.AddRel(c.ctxt, obj.Reloc{
++			Type: objabi.R_TLS_IE,
++			Off:  int32(c.pc + 2),
++			Siz:  4,
++			Sym:  p.From.Sym,
++			Add:  2 + 4,
++		})
+ 
+ 		// R_390_TLS_LOAD
+ 		zRXY(op_LGF, uint32(p.To.Reg), regtmp(p), 0, 0, asm)
+diff --git a/src/cmd/internal/obj/wasm/wasmobj.go b/src/cmd/internal/obj/wasm/wasmobj.go
+index 0189ffe6f5..47d5fbd0a6 100644
+--- a/src/cmd/internal/obj/wasm/wasmobj.go
++++ b/src/cmd/internal/obj/wasm/wasmobj.go
+@@ -1276,14 +1276,16 @@ func assemble(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
+ 					fmt.Println(p.To)
+ 					panic("bad name for Call")
+ 				}
+-				r := obj.Addrel(s)
+-				r.Siz = 1 // actually variable sized
+-				r.Off = int32(w.Len())
+-				r.Type = objabi.R_CALL
++				typ := objabi.R_CALL
+ 				if p.Mark&WasmImport != 0 {
+-					r.Type = objabi.R_WASMIMPORT
++					typ = objabi.R_WASMIMPORT
+ 				}
+-				r.Sym = p.To.Sym
++				s.AddRel(ctxt, obj.Reloc{
++					Type: typ,
++					Off:  int32(w.Len()),
++					Siz:  1, // actually variable sized
++					Sym:  p.To.Sym,
++				})
+ 				if hasLocalSP {
+ 					// The stack may have moved, which changes SP. Update the local SP variable.
+ 					updateLocalSP(w)
+@@ -1303,12 +1305,13 @@ func assemble(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
+ 
+ 		case AI32Const, AI64Const:
+ 			if p.From.Name == obj.NAME_EXTERN {
+-				r := obj.Addrel(s)
+-				r.Siz = 1 // actually variable sized
+-				r.Off = int32(w.Len())
+-				r.Type = objabi.R_ADDR
+-				r.Sym = p.From.Sym
+-				r.Add = p.From.Offset
++				s.AddRel(ctxt, obj.Reloc{
++					Type: objabi.R_ADDR,
++					Off:  int32(w.Len()),
++					Siz:  1, // actually variable sized
++					Sym:  p.From.Sym,
++					Add:  p.From.Offset,
++				})
+ 				break
+ 			}
+ 			writeSleb128(w, p.From.Offset)
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index 657408439a..95020915ca 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -3518,9 +3518,8 @@ func (ab *AsmBuf) relput4(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, a *obj.
+ 		if rel.Siz != 4 {
+ 			ctxt.Diag("bad reloc")
+ 		}
+-		r := obj.Addrel(cursym)
+-		*r = rel
+-		r.Off = int32(p.Pc + int64(ab.Len()))
++		rel.Off = int32(p.Pc + int64(ab.Len()))
++		cursym.AddRel(ctxt, rel)
+ 	}
+ 
+ 	ab.PutInt32(int32(v))
+@@ -3779,9 +3778,8 @@ putrelv:
+ 			goto bad
+ 		}
+ 
+-		r := obj.Addrel(cursym)
+-		*r = rel
+-		r.Off = int32(p.Pc + int64(ab.Len()))
++		rel.Off = int32(p.Pc + int64(ab.Len()))
++		cursym.AddRel(ctxt, rel)
+ 	}
+ 
+ 	ab.PutInt32(v)
+@@ -4298,18 +4296,10 @@ func (ab *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
+ 	}
+ 
+ 	ft := int(p.Ft) * Ymax
+-	var f3t int
+ 	tt := int(p.Tt) * Ymax
+ 
+ 	xo := obj.Bool2int(o.op[0] == 0x0f)
+ 	z := 0
+-	var a *obj.Addr
+-	var l int
+-	var op int
+-	var q *obj.Prog
+-	var r *obj.Reloc
+-	var rel obj.Reloc
+-	var v int64
+ 
+ 	args := make([]int, 0, argListMax)
+ 	if ft != Ynone*Ymax {
+@@ -4322,6 +4312,7 @@ func (ab *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
+ 		args = append(args, tt)
+ 	}
+ 
++	var f3t int
+ 	for _, yt := range o.ytab {
+ 		// ytab matching is purely args-based,
+ 		// but AVX512 suffixes like "Z" or "RU_SAE" will
+@@ -4440,7 +4431,7 @@ func (ab *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
+ 			if z >= len(o.op) {
+ 				log.Fatalf("asmins bad table %v", p)
+ 			}
+-			op = int(o.op[z])
++			op := int(o.op[z])
+ 			if op == 0x0f {
+ 				ab.Put1(byte(op))
+ 				z++
+@@ -4698,10 +4689,10 @@ func (ab *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
+ 				ab.asmando(ctxt, cursym, p, &p.To, int(o.op[z+1]))
+ 
+ 			case Zcallindreg:
+-				r = obj.Addrel(cursym)
+-				r.Off = int32(p.Pc)
+-				r.Type = objabi.R_CALLIND
+-				r.Siz = 0
++				cursym.AddRel(ctxt, obj.Reloc{
++					Type: objabi.R_CALLIND,
++					Off:  int32(p.Pc),
++				})
+ 				fallthrough
+ 
+ 			case Zo_m64:
+@@ -4724,6 +4715,7 @@ func (ab *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
+ 				ab.Put1(byte(vaddr(ctxt, p, &p.From, nil)))
+ 
+ 			case Z_ib, Zib_:
++				var a *obj.Addr
+ 				if yt.zcase == Zib_ {
+ 					a = &p.From
+ 				} else {
+@@ -4743,7 +4735,7 @@ func (ab *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
+ 				ab.rexflag |= regrex[p.To.Reg] & Rxb
+ 				ab.Put1(byte(op + reg[p.To.Reg]))
+ 				if o.prefix == Pe {
+-					v = vaddr(ctxt, p, &p.From, nil)
++					v := vaddr(ctxt, p, &p.From, nil)
+ 					ab.PutInt16(int16(v))
+ 				} else {
+ 					ab.relput4(ctxt, cursym, p, &p.From)
+@@ -4752,22 +4744,22 @@ func (ab *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
+ 			case Zo_iw:
+ 				ab.Put1(byte(op))
+ 				if p.From.Type != obj.TYPE_NONE {
+-					v = vaddr(ctxt, p, &p.From, nil)
++					v := vaddr(ctxt, p, &p.From, nil)
+ 					ab.PutInt16(int16(v))
+ 				}
+ 
+ 			case Ziq_rp:
+-				v = vaddr(ctxt, p, &p.From, &rel)
+-				l = int(v >> 32)
++				var rel obj.Reloc
++				v := vaddr(ctxt, p, &p.From, &rel)
++				l := int(v >> 32)
+ 				if l == 0 && rel.Siz != 8 {
+ 					ab.rexflag &^= (0x40 | Rxw)
+ 
+ 					ab.rexflag |= regrex[p.To.Reg] & Rxb
+ 					ab.Put1(byte(0xb8 + reg[p.To.Reg]))
+ 					if rel.Type != 0 {
+-						r = obj.Addrel(cursym)
+-						*r = rel
+-						r.Off = int32(p.Pc + int64(ab.Len()))
++						rel.Off = int32(p.Pc + int64(ab.Len()))
++						cursym.AddRel(ctxt, rel)
+ 					}
+ 
+ 					ab.PutInt32(int32(v))
+@@ -4780,9 +4772,8 @@ func (ab *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
+ 					ab.rexflag |= regrex[p.To.Reg] & Rxb
+ 					ab.Put1(byte(op + reg[p.To.Reg]))
+ 					if rel.Type != 0 {
+-						r = obj.Addrel(cursym)
+-						*r = rel
+-						r.Off = int32(p.Pc + int64(ab.Len()))
++						rel.Off = int32(p.Pc + int64(ab.Len()))
++						cursym.AddRel(ctxt, rel)
+ 					}
+ 
+ 					ab.PutInt64(v)
+@@ -4794,6 +4785,7 @@ func (ab *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
+ 				ab.Put1(byte(vaddr(ctxt, p, &p.From, nil)))
+ 
+ 			case Z_il, Zil_:
++				var a *obj.Addr
+ 				if yt.zcase == Zil_ {
+ 					a = &p.From
+ 				} else {
+@@ -4801,13 +4793,14 @@ func (ab *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
+ 				}
+ 				ab.Put1(byte(op))
+ 				if o.prefix == Pe {
+-					v = vaddr(ctxt, p, a, nil)
++					v := vaddr(ctxt, p, a, nil)
+ 					ab.PutInt16(int16(v))
+ 				} else {
+ 					ab.relput4(ctxt, cursym, p, a)
+ 				}
+ 
+ 			case Zm_ilo, Zilo_m:
++				var a *obj.Addr
+ 				ab.Put1(byte(op))
+ 				if yt.zcase == Zilo_m {
+ 					a = &p.From
+@@ -4818,7 +4811,7 @@ func (ab *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
+ 				}
+ 
+ 				if o.prefix == Pe {
+-					v = vaddr(ctxt, p, a, nil)
++					v := vaddr(ctxt, p, a, nil)
+ 					ab.PutInt16(int16(v))
+ 				} else {
+ 					ab.relput4(ctxt, cursym, p, a)
+@@ -4828,7 +4821,7 @@ func (ab *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
+ 				ab.Put1(byte(op))
+ 				ab.asmand(ctxt, cursym, p, &p.To, &p.To)
+ 				if o.prefix == Pe {
+-					v = vaddr(ctxt, p, &p.From, nil)
++					v := vaddr(ctxt, p, &p.From, nil)
+ 					ab.PutInt16(int16(v))
+ 				} else {
+ 					ab.relput4(ctxt, cursym, p, &p.From)
+@@ -4848,25 +4841,27 @@ func (ab *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
+ 				} else {
+ 					ab.Put1(o.op[z+1])
+ 				}
+-				r = obj.Addrel(cursym)
+-				r.Off = int32(p.Pc + int64(ab.Len()))
+-				r.Type = objabi.R_PCREL
+-				r.Siz = 4
+-				r.Add = p.To.Offset
++				cursym.AddRel(ctxt, obj.Reloc{
++					Type: objabi.R_PCREL,
++					Off:  int32(p.Pc + int64(ab.Len())),
++					Siz:  4,
++					Add:  p.To.Offset,
++				})
+ 				ab.PutInt32(0)
+ 
+ 			case Zcallind:
+ 				ab.Put2(byte(op), o.op[z+1])
+-				r = obj.Addrel(cursym)
+-				r.Off = int32(p.Pc + int64(ab.Len()))
++				typ := objabi.R_ADDR
+ 				if ctxt.Arch.Family == sys.AMD64 {
+-					r.Type = objabi.R_PCREL
+-				} else {
+-					r.Type = objabi.R_ADDR
++					typ = objabi.R_PCREL
+ 				}
+-				r.Siz = 4
+-				r.Add = p.To.Offset
+-				r.Sym = p.To.Sym
++				cursym.AddRel(ctxt, obj.Reloc{
++					Type: typ,
++					Off:  int32(p.Pc + int64(ab.Len())),
++					Siz:  4,
++					Sym:  p.To.Sym,
++					Add:  p.To.Offset,
++				})
+ 				ab.PutInt32(0)
+ 
+ 			case Zcall, Zcallduff:
+@@ -4891,12 +4886,13 @@ func (ab *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
+ 					ab.Put(bpduff1)
+ 				}
+ 				ab.Put1(byte(op))
+-				r = obj.Addrel(cursym)
+-				r.Off = int32(p.Pc + int64(ab.Len()))
+-				r.Sym = p.To.Sym
+-				r.Add = p.To.Offset
+-				r.Type = objabi.R_CALL
+-				r.Siz = 4
++				cursym.AddRel(ctxt, obj.Reloc{
++					Type: objabi.R_CALL,
++					Off:  int32(p.Pc + int64(ab.Len())),
++					Siz:  4,
++					Sym:  p.To.Sym,
++					Add:  p.To.Offset,
++				})
+ 				ab.PutInt32(0)
+ 
+ 				if yt.zcase == Zcallduff && ctxt.Arch.Family == sys.AMD64 {
+@@ -4918,13 +4914,14 @@ func (ab *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
+ 					}
+ 
+ 					ab.Put1(o.op[z+1])
+-					r = obj.Addrel(cursym)
+-					r.Off = int32(p.Pc + int64(ab.Len()))
+-					r.Sym = p.To.Sym
+-					// Note: R_CALL instead of R_PCREL. R_CALL is more permissive in that
+-					// it can point to a trampoline instead of the destination itself.
+-					r.Type = objabi.R_CALL
+-					r.Siz = 4
++					cursym.AddRel(ctxt, obj.Reloc{
++						// Note: R_CALL instead of R_PCREL. R_CALL is more permissive in that
++						// it can point to a trampoline instead of the destination itself.
++						Type: objabi.R_CALL,
++						Off:  int32(p.Pc + int64(ab.Len())),
++						Siz:  4,
++						Sym:  p.To.Sym,
++					})
+ 					ab.PutInt32(0)
+ 					break
+ 				}
+@@ -4933,7 +4930,7 @@ func (ab *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
+ 				// TODO: Check in input, preserve in brchain.
+ 
+ 				// Fill in backward jump now.
+-				q = p.To.Target()
++				q := p.To.Target()
+ 
+ 				if q == nil {
+ 					ctxt.Diag("jmp/branch/loop without target")
+@@ -4942,7 +4939,7 @@ func (ab *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
+ 				}
+ 
+ 				if p.Back&branchBackwards != 0 {
+-					v = q.Pc - (p.Pc + 2)
++					v := q.Pc - (p.Pc + 2)
+ 					if v >= -128 && p.As != AXBEGIN {
+ 						if p.As == AJCXZL {
+ 							ab.Put1(0x67)
+@@ -4987,12 +4984,12 @@ func (ab *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
+ 				}
+ 
+ 			case Zbyte:
+-				v = vaddr(ctxt, p, &p.From, &rel)
++				var rel obj.Reloc
++				v := vaddr(ctxt, p, &p.From, &rel)
+ 				if rel.Siz != 0 {
+ 					rel.Siz = uint8(op)
+-					r = obj.Addrel(cursym)
+-					*r = rel
+-					r.Off = int32(p.Pc + int64(ab.Len()))
++					rel.Off = int32(p.Pc + int64(ab.Len()))
++					cursym.AddRel(ctxt, rel)
+ 				}
+ 
+ 				ab.Put1(byte(v))
+@@ -5138,19 +5135,21 @@ func (ab *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
+ 								// instruction.
+ 								dst := p.To.Reg
+ 								ab.Put1(0xe8)
+-								r = obj.Addrel(cursym)
+-								r.Off = int32(p.Pc + int64(ab.Len()))
+-								r.Type = objabi.R_CALL
+-								r.Siz = 4
+-								r.Sym = ctxt.Lookup("__x86.get_pc_thunk." + strings.ToLower(rconv(int(dst))))
++								cursym.AddRel(ctxt, obj.Reloc{
++									Type: objabi.R_CALL,
++									Off:  int32(p.Pc + int64(ab.Len())),
++									Siz:  4,
++									Sym:  ctxt.Lookup("__x86.get_pc_thunk." + strings.ToLower(rconv(int(dst)))),
++								})
+ 								ab.PutInt32(0)
+ 
+ 								ab.Put2(0x8B, byte(2<<6|reg[dst]|(reg[dst]<<3)))
+-								r = obj.Addrel(cursym)
+-								r.Off = int32(p.Pc + int64(ab.Len()))
+-								r.Type = objabi.R_TLS_IE
+-								r.Siz = 4
+-								r.Add = 2
++								cursym.AddRel(ctxt, obj.Reloc{
++									Type: objabi.R_TLS_IE,
++									Off:  int32(p.Pc + int64(ab.Len())),
++									Siz:  4,
++									Add:  2,
++								})
+ 								ab.PutInt32(0)
+ 							} else {
+ 								// ELF TLS base is 0(GS).
+@@ -5198,11 +5197,12 @@ func (ab *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
+ 						ab.rexflag = Pw | (regrex[p.To.Reg] & Rxr)
+ 
+ 						ab.Put2(0x8B, byte(0x05|(reg[p.To.Reg]<<3)))
+-						r = obj.Addrel(cursym)
+-						r.Off = int32(p.Pc + int64(ab.Len()))
+-						r.Type = objabi.R_TLS_IE
+-						r.Siz = 4
+-						r.Add = -4
++						cursym.AddRel(ctxt, obj.Reloc{
++							Type: objabi.R_TLS_IE,
++							Off:  int32(p.Pc + int64(ab.Len())),
++							Siz:  4,
++							Add:  -4,
++						})
+ 						ab.PutInt32(0)
+ 
+ 					case objabi.Hplan9:
+diff --git a/src/cmd/internal/obj/x86/seh.go b/src/cmd/internal/obj/x86/seh.go
+index 11963e53f9..ceca949363 100644
+--- a/src/cmd/internal/obj/x86/seh.go
++++ b/src/cmd/internal/obj/x86/seh.go
+@@ -153,11 +153,12 @@ func populateSeh(ctxt *obj.Link, s *obj.LSym) (sehsym *obj.LSym) {
+ 		s.Set(obj.AttrLocal, true)
+ 		s.Set(obj.AttrContentAddressable, true)
+ 		if exceptionHandler != nil {
+-			r := obj.Addrel(s)
+-			r.Off = int32(len(buf.data) - 4)
+-			r.Siz = 4
+-			r.Sym = exceptionHandler
+-			r.Type = objabi.R_PEIMAGEOFF
++			s.AddRel(ctxt, obj.Reloc{
++				Type: objabi.R_PEIMAGEOFF,
++				Off:  int32(len(buf.data) - 4),
++				Siz:  4,
++				Sym:  exceptionHandler,
++			})
+ 		}
+ 		ctxt.SEHSyms = append(ctxt.SEHSyms, s)
+ 	})

@@ -9,6 +9,20 @@ Date:   Wed Oct 16 21:43:54 2019 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/dist/test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 46556f2f79..83bcc86172 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -681,7 +681,7 @@ func (t *tester) registerTests() {
+ 		if t.supportedBuildmode("c-shared") {
+ 			t.registerHostTest("testcshared", "../misc/cgo/testcshared", "misc/cgo/testcshared", ".")
+ 		}
+-		if t.supportedBuildmode("shared") && false { // TODO: newobj
++		if t.supportedBuildmode("shared") {
+ 			t.registerTest("testshared", "../misc/cgo/testshared", t.goTest(), t.timeout(600), ".")
+ 		}
+ 		if t.supportedBuildmode("plugin") {

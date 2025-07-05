@@ -10,6 +10,20 @@ Date:   Sun Sep 1 13:57:21 2019 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/192797
     Reviewed-by: Ingo Oeser <nightlyone@googlemail.com>
     Reviewed-by: Andrew Bonventre <andybons@golang.org>
-
+---
  doc/go1.13.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go1.13.html b/doc/go1.13.html
+index 220f34f31d..97f2448c10 100644
+--- a/doc/go1.13.html
++++ b/doc/go1.13.html
+@@ -20,7 +20,7 @@ Do not send CLs removing the interior tags from such phrases.
+ <p>
+   <strong>
+     Go 1.13 is not yet released. These are work-in-progress
+-    release notes. Go 1.13 is expected to be released in August 2019.
++    release notes. Go 1.13 is expected to be released in September 2019.
+   </strong>
+ </p>
+ 

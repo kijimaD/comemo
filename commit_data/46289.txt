@@ -16,7 +16,7 @@ Date:   Mon Dec 21 01:29:02 2020 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/alg.go     |  4 +--
  src/cmd/compile/internal/gc/bexport.go |  2 +-
  src/cmd/compile/internal/gc/closure.go |  8 +++---
@@ -36,3 +36,725 @@ Date:   Mon Dec 21 01:29:02 2020 -0500
  src/cmd/compile/internal/gc/walk.go    |  2 +-
  src/cmd/compile/internal/ir/package.go | 35 ++++++++++++++++++++++++
  18 files changed, 116 insertions(+), 96 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/alg.go b/src/cmd/compile/internal/gc/alg.go
+index f03aec3237..036a1e7491 100644
+--- a/src/cmd/compile/internal/gc/alg.go
++++ b/src/cmd/compile/internal/gc/alg.go
+@@ -394,7 +394,7 @@ func genhash(t *types.Type) *obj.LSym {
+ 	}
+ 
+ 	fn.SetNilCheckDisabled(true)
+-	xtop = append(xtop, fn)
++	Target.Decls = append(Target.Decls, fn)
+ 
+ 	// Build closure. It doesn't close over any variables, so
+ 	// it contains just the function pointer.
+@@ -774,7 +774,7 @@ func geneq(t *types.Type) *obj.LSym {
+ 	// neither of which can be nil, and our comparisons
+ 	// are shallow.
+ 	fn.SetNilCheckDisabled(true)
+-	xtop = append(xtop, fn)
++	Target.Decls = append(Target.Decls, fn)
+ 
+ 	// Generate a closure which points at the function we just generated.
+ 	dsymptr(closure, 0, sym.Linksym(), 0)
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index 31fd251c5e..2347971fc2 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -18,7 +18,7 @@ func (p *exporter) markObject(n ir.Node) {
+ 	if n.Op() == ir.ONAME {
+ 		n := n.(*ir.Name)
+ 		if n.Class() == ir.PFUNC {
+-			inlFlood(n)
++			inlFlood(n, exportsym)
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/closure.go b/src/cmd/compile/internal/gc/closure.go
+index 85c594787b..e07ed4cd24 100644
+--- a/src/cmd/compile/internal/gc/closure.go
++++ b/src/cmd/compile/internal/gc/closure.go
+@@ -89,7 +89,7 @@ func typecheckclosure(clo ir.Node, top int) {
+ 	fn.SetClosureCalled(top&ctxCallee != 0)
+ 
+ 	// Do not typecheck fn twice, otherwise, we will end up pushing
+-	// fn to xtop multiple times, causing initLSym called twice.
++	// fn to Target.Decls multiple times, causing initLSym called twice.
+ 	// See #30709
+ 	if fn.Typecheck() == 1 {
+ 		return
+@@ -118,7 +118,7 @@ func typecheckclosure(clo ir.Node, top int) {
+ 	// Type check the body now, but only if we're inside a function.
+ 	// At top level (in a variable initialization: curfn==nil) we're not
+ 	// ready to type check code yet; we'll check it later, because the
+-	// underlying closure function we create is added to xtop.
++	// underlying closure function we create is added to Target.Decls.
+ 	if Curfn != nil && clo.Type() != nil {
+ 		oldfn := Curfn
+ 		Curfn = fn
+@@ -129,7 +129,7 @@ func typecheckclosure(clo ir.Node, top int) {
+ 		Curfn = oldfn
+ 	}
+ 
+-	xtop = append(xtop, fn)
++	Target.Decls = append(Target.Decls, fn)
+ }
+ 
+ // globClosgen is like Func.Closgen, but for the global scope.
+@@ -499,7 +499,7 @@ func makepartialcall(dot *ir.SelectorExpr, t0 *types.Type, meth *types.Sym) *ir.
+ 	Curfn = fn
+ 	typecheckslice(fn.Body().Slice(), ctxStmt)
+ 	sym.Def = fn
+-	xtop = append(xtop, fn)
++	Target.Decls = append(Target.Decls, fn)
+ 	Curfn = savecurfn
+ 	base.Pos = saveLineNo
+ 
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index 34ba372843..20e5edc4cb 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -17,8 +17,6 @@ import (
+ 
+ // Declaration stack & operations
+ 
+-var externdcl []ir.Node
+-
+ func testdclstack() {
+ 	if !types.IsDclstackValid() {
+ 		base.Fatalf("mark left on the dclstack")
+@@ -75,7 +73,7 @@ func declare(n *ir.Name, ctxt ir.Class) {
+ 		if s.Name == "main" && s.Pkg.Name == "main" {
+ 			base.ErrorfAt(n.Pos(), "cannot declare main - must be func")
+ 		}
+-		externdcl = append(externdcl, n)
++		Target.Externs = append(Target.Externs, n)
+ 	} else {
+ 		if Curfn == nil && ctxt == ir.PAUTO {
+ 			base.Pos = n.Pos()
+@@ -850,7 +848,7 @@ func newNowritebarrierrecChecker() *nowritebarrierrecChecker {
+ 	// important to handle it for this check, so we model it
+ 	// directly. This has to happen before transformclosure since
+ 	// it's a lot harder to work out the argument after.
+-	for _, n := range xtop {
++	for _, n := range Target.Decls {
+ 		if n.Op() != ir.ODCLFUNC {
+ 			continue
+ 		}
+@@ -925,7 +923,7 @@ func (c *nowritebarrierrecChecker) check() {
+ 	// q is the queue of ODCLFUNC Nodes to visit in BFS order.
+ 	var q ir.NameQueue
+ 
+-	for _, n := range xtop {
++	for _, n := range Target.Decls {
+ 		if n.Op() != ir.ODCLFUNC {
+ 			continue
+ 		}
+diff --git a/src/cmd/compile/internal/gc/embed.go b/src/cmd/compile/internal/gc/embed.go
+index b9c88c0d5b..7d67d2dfd0 100644
+--- a/src/cmd/compile/internal/gc/embed.go
++++ b/src/cmd/compile/internal/gc/embed.go
+@@ -17,8 +17,6 @@ import (
+ 	"strings"
+ )
+ 
+-var embedlist []ir.Node
+-
+ const (
+ 	embedUnknown = iota
+ 	embedBytes
+@@ -117,12 +115,12 @@ func varEmbed(p *noder, names []ir.Node, typ ir.Ntype, exprs []ir.Node, embeds [
+ 		v.Sym().Def = v
+ 		v.Name().Ntype = typ
+ 		v.SetClass(ir.PEXTERN)
+-		externdcl = append(externdcl, v)
++		Target.Externs = append(Target.Externs, v)
+ 		exprs = []ir.Node{v}
+ 	}
+ 
+ 	v.Name().SetEmbedFiles(list)
+-	embedlist = append(embedlist, v)
++	Target.Embeds = append(Target.Embeds, v)
+ 	return exprs
+ }
+ 
+@@ -187,7 +185,7 @@ func embedFileLess(x, y string) bool {
+ }
+ 
+ func dumpembeds() {
+-	for _, v := range embedlist {
++	for _, v := range Target.Embeds {
+ 		initEmbed(v)
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/gc/export.go b/src/cmd/compile/internal/gc/export.go
+index 16d45a00aa..42e0db2b20 100644
+--- a/src/cmd/compile/internal/gc/export.go
++++ b/src/cmd/compile/internal/gc/export.go
+@@ -21,8 +21,6 @@ func exportf(bout *bio.Writer, format string, args ...interface{}) {
+ 	}
+ }
+ 
+-var asmlist []ir.Node
+-
+ // exportsym marks n for export (or reexport).
+ func exportsym(n *ir.Name) {
+ 	if n.Sym().OnExportList() {
+@@ -34,7 +32,7 @@ func exportsym(n *ir.Name) {
+ 		fmt.Printf("export symbol %v\n", n.Sym())
+ 	}
+ 
+-	exportlist = append(exportlist, n)
++	Target.Exports = append(Target.Exports, n)
+ }
+ 
+ func initname(s string) bool {
+@@ -57,7 +55,7 @@ func autoexport(n *ir.Name, ctxt ir.Class) {
+ 	}
+ 	if base.Flag.AsmHdr != "" && !n.Sym().Asm() {
+ 		n.Sym().SetAsm(true)
+-		asmlist = append(asmlist, n)
++		Target.Asms = append(Target.Asms, n)
+ 	}
+ }
+ 
+@@ -202,7 +200,7 @@ func dumpasmhdr() {
+ 		base.Fatalf("%v", err)
+ 	}
+ 	fmt.Fprintf(b, "// generated by compile -asmhdr from package %s\n\n", types.LocalPkg.Name)
+-	for _, n := range asmlist {
++	for _, n := range Target.Asms {
+ 		if n.Sym().IsBlank() {
+ 			continue
+ 		}
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index b00a7ca14c..b092e6933c 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -128,10 +128,6 @@ var (
+ 	iscmp [ir.OEND]bool
+ )
+ 
+-var xtop []ir.Node
+-
+-var exportlist []*ir.Name
+-
+ var importlist []*ir.Func // imported functions and methods with inlinable bodies
+ 
+ var (
+diff --git a/src/cmd/compile/internal/gc/iexport.go b/src/cmd/compile/internal/gc/iexport.go
+index b54eeca7cb..969f6bc3b2 100644
+--- a/src/cmd/compile/internal/gc/iexport.go
++++ b/src/cmd/compile/internal/gc/iexport.go
+@@ -251,7 +251,7 @@ func iexport(out *bufio.Writer) {
+ 	{
+ 		// TODO(mdempsky): Separate from bexport logic.
+ 		p := &exporter{marked: make(map[*types.Type]bool)}
+-		for _, n := range exportlist {
++		for _, n := range Target.Exports {
+ 			p.markObject(n)
+ 		}
+ 	}
+@@ -272,7 +272,7 @@ func iexport(out *bufio.Writer) {
+ 	}
+ 
+ 	// Initialize work queue with exported declarations.
+-	for _, n := range exportlist {
++	for _, n := range Target.Exports {
+ 		p.pushDecl(n)
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/iimport.go b/src/cmd/compile/internal/gc/iimport.go
+index 154c4e3a84..549751335e 100644
+--- a/src/cmd/compile/internal/gc/iimport.go
++++ b/src/cmd/compile/internal/gc/iimport.go
+@@ -1111,7 +1111,7 @@ func (r *importReader) exprsOrNil() (a, b ir.Node) {
+ }
+ 
+ func builtinCall(pos src.XPos, op ir.Op) *ir.CallExpr {
+-	return ir.NewCallExpr(pos, ir.OCALL, mkname(types.BuiltinPkg.Lookup(ir.OpNames[op])), nil)
++	return ir.NewCallExpr(pos, ir.OCALL, ir.NewIdent(base.Pos, types.BuiltinPkg.Lookup(ir.OpNames[op])), nil)
+ }
+ 
+ func npos(pos src.XPos, n ir.Node) ir.Node {
+diff --git a/src/cmd/compile/internal/gc/init.go b/src/cmd/compile/internal/gc/init.go
+index 8de4d84f2d..f1398f8644 100644
+--- a/src/cmd/compile/internal/gc/init.go
++++ b/src/cmd/compile/internal/gc/init.go
+@@ -27,9 +27,6 @@ func renameinit() *types.Sym {
+ 	return s
+ }
+ 
+-// List of imported packages, in source code order. See #31636.
+-var sourceOrderImports []*types.Pkg
+-
+ // fninit makes an initialization record for the package.
+ // See runtime/proc.go:initTask for its layout.
+ // The 3 tasks for initialization are:
+@@ -43,7 +40,7 @@ func fninit(n []ir.Node) {
+ 	var fns []*obj.LSym  // functions to call for package initialization
+ 
+ 	// Find imported packages with init tasks.
+-	for _, pkg := range sourceOrderImports {
++	for _, pkg := range Target.Imports {
+ 		n := resolve(oldname(pkg.Lookup(".inittask")))
+ 		if n.Op() == ir.ONONAME {
+ 			continue
+@@ -72,7 +69,7 @@ func fninit(n []ir.Node) {
+ 		Curfn = fn
+ 		typecheckslice(nf, ctxStmt)
+ 		Curfn = nil
+-		xtop = append(xtop, fn)
++		Target.Decls = append(Target.Decls, fn)
+ 		fns = append(fns, initializers.Linksym())
+ 	}
+ 	if initTodo.Dcl != nil {
+@@ -84,16 +81,14 @@ func fninit(n []ir.Node) {
+ 	initTodo = nil
+ 
+ 	// Record user init functions.
+-	for i := 0; i < renameinitgen; i++ {
+-		s := lookupN("init.", i)
+-		fn := ir.AsNode(s.Def).Name().Defn.(*ir.Func)
++	for _, fn := range Target.Inits {
+ 		// Skip init functions with empty bodies.
+ 		if fn.Body().Len() == 1 {
+ 			if stmt := fn.Body().First(); stmt.Op() == ir.OBLOCK && stmt.(*ir.BlockStmt).List().Len() == 0 {
+ 				continue
+ 			}
+ 		}
+-		fns = append(fns, s.Linksym())
++		fns = append(fns, fn.Nname.Sym().Linksym())
+ 	}
+ 
+ 	if len(deps) == 0 && len(fns) == 0 && types.LocalPkg.Name != "main" && types.LocalPkg.Name != "runtime" {
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index b571c2b914..6c8f380d87 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -230,7 +230,7 @@ func caninl(fn *ir.Func) {
+ 
+ // inlFlood marks n's inline body for export and recursively ensures
+ // all called functions are marked too.
+-func inlFlood(n *ir.Name) {
++func inlFlood(n *ir.Name, exportsym func(*ir.Name)) {
+ 	if n == nil {
+ 		return
+ 	}
+@@ -258,13 +258,13 @@ func inlFlood(n *ir.Name) {
+ 	ir.VisitList(ir.AsNodes(fn.Inl.Body), func(n ir.Node) {
+ 		switch n.Op() {
+ 		case ir.OMETHEXPR, ir.ODOTMETH:
+-			inlFlood(methodExprName(n))
++			inlFlood(methodExprName(n), exportsym)
+ 
+ 		case ir.ONAME:
+ 			n := n.(*ir.Name)
+ 			switch n.Class() {
+ 			case ir.PFUNC:
+-				inlFlood(n)
++				inlFlood(n, exportsym)
+ 				exportsym(n)
+ 			case ir.PEXTERN:
+ 				exportsym(n)
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 03e787f718..2c598a2329 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -51,6 +51,9 @@ func hidePanic() {
+ 	}
+ }
+ 
++// Target is the package being compiled.
++var Target *ir.Package
++
+ // timing data for compiler phases
+ var timings Timings
+ 
+@@ -207,6 +210,8 @@ func Main(archInit func(*Arch)) {
+ 	Widthptr = thearch.LinkArch.PtrSize
+ 	Widthreg = thearch.LinkArch.RegSize
+ 
++	Target = new(ir.Package)
++
+ 	// initialize types package
+ 	// (we need to do this to break dependencies that otherwise
+ 	// would lead to import cycles)
+@@ -240,33 +245,33 @@ func Main(archInit func(*Arch)) {
+ 	//   to avoid cycles like #18640.
+ 	//   TODO(gri) Remove this again once we have a fix for #25838.
+ 
+-	// Don't use range--typecheck can add closures to xtop.
++	// Don't use range--typecheck can add closures to Target.Decls.
+ 	timings.Start("fe", "typecheck", "top1")
+-	for i := 0; i < len(xtop); i++ {
+-		n := xtop[i]
++	for i := 0; i < len(Target.Decls); i++ {
++		n := Target.Decls[i]
+ 		if op := n.Op(); op != ir.ODCL && op != ir.OAS && op != ir.OAS2 && (op != ir.ODCLTYPE || !n.(*ir.Decl).Left().Name().Alias()) {
+-			xtop[i] = typecheck(n, ctxStmt)
++			Target.Decls[i] = typecheck(n, ctxStmt)
+ 		}
+ 	}
+ 
+ 	// Phase 2: Variable assignments.
+ 	//   To check interface assignments, depends on phase 1.
+ 
+-	// Don't use range--typecheck can add closures to xtop.
++	// Don't use range--typecheck can add closures to Target.Decls.
+ 	timings.Start("fe", "typecheck", "top2")
+-	for i := 0; i < len(xtop); i++ {
+-		n := xtop[i]
++	for i := 0; i < len(Target.Decls); i++ {
++		n := Target.Decls[i]
+ 		if op := n.Op(); op == ir.ODCL || op == ir.OAS || op == ir.OAS2 || op == ir.ODCLTYPE && n.(*ir.Decl).Left().Name().Alias() {
+-			xtop[i] = typecheck(n, ctxStmt)
++			Target.Decls[i] = typecheck(n, ctxStmt)
+ 		}
+ 	}
+ 
+ 	// Phase 3: Type check function bodies.
+-	// Don't use range--typecheck can add closures to xtop.
++	// Don't use range--typecheck can add closures to Target.Decls.
+ 	timings.Start("fe", "typecheck", "func")
+ 	var fcount int64
+-	for i := 0; i < len(xtop); i++ {
+-		n := xtop[i]
++	for i := 0; i < len(Target.Decls); i++ {
++		n := Target.Decls[i]
+ 		if n.Op() == ir.ODCLFUNC {
+ 			Curfn = n.(*ir.Func)
+ 			decldepth = 1
+@@ -287,9 +292,9 @@ func Main(archInit func(*Arch)) {
+ 	// TODO(mdempsky): This should be handled when type checking their
+ 	// corresponding ODCL nodes.
+ 	timings.Start("fe", "typecheck", "externdcls")
+-	for i, n := range externdcl {
++	for i, n := range Target.Externs {
+ 		if n.Op() == ir.ONAME {
+-			externdcl[i] = typecheck(externdcl[i], ctxExpr)
++			Target.Externs[i] = typecheck(Target.Externs[i], ctxExpr)
+ 		}
+ 	}
+ 
+@@ -301,13 +306,13 @@ func Main(archInit func(*Arch)) {
+ 
+ 	timings.AddEvent(fcount, "funcs")
+ 
+-	fninit(xtop)
++	fninit(Target.Decls)
+ 
+ 	// Phase 4: Decide how to capture closed variables.
+ 	// This needs to run before escape analysis,
+ 	// because variables captured by value do not escape.
+ 	timings.Start("fe", "capturevars")
+-	for _, n := range xtop {
++	for _, n := range Target.Decls {
+ 		if n.Op() == ir.ODCLFUNC && n.Func().OClosure != nil {
+ 			Curfn = n.(*ir.Func)
+ 			capturevars(Curfn)
+@@ -332,7 +337,7 @@ func Main(archInit func(*Arch)) {
+ 
+ 	if base.Flag.LowerL != 0 {
+ 		// Find functions that can be inlined and clone them before walk expands them.
+-		visitBottomUp(xtop, func(list []*ir.Func, recursive bool) {
++		visitBottomUp(Target.Decls, func(list []*ir.Func, recursive bool) {
+ 			numfns := numNonClosures(list)
+ 			for _, n := range list {
+ 				if !recursive || numfns > 1 {
+@@ -350,7 +355,7 @@ func Main(archInit func(*Arch)) {
+ 		})
+ 	}
+ 
+-	for _, n := range xtop {
++	for _, n := range Target.Decls {
+ 		if n.Op() == ir.ODCLFUNC {
+ 			devirtualize(n.(*ir.Func))
+ 		}
+@@ -366,7 +371,7 @@ func Main(archInit func(*Arch)) {
+ 	// Large values are also moved off stack in escape analysis;
+ 	// because large values may contain pointers, it must happen early.
+ 	timings.Start("fe", "escapes")
+-	escapes(xtop)
++	escapes(Target.Decls)
+ 
+ 	// Collect information for go:nowritebarrierrec
+ 	// checking. This must happen before transformclosure.
+@@ -380,7 +385,7 @@ func Main(archInit func(*Arch)) {
+ 	// This needs to happen before walk, because closures must be transformed
+ 	// before walk reaches a call of a closure.
+ 	timings.Start("fe", "xclosures")
+-	for _, n := range xtop {
++	for _, n := range Target.Decls {
+ 		if n.Op() == ir.ODCLFUNC && n.Func().OClosure != nil {
+ 			Curfn = n.(*ir.Func)
+ 			transformclosure(Curfn)
+@@ -399,11 +404,11 @@ func Main(archInit func(*Arch)) {
+ 	peekitabs()
+ 
+ 	// Phase 8: Compile top level functions.
+-	// Don't use range--walk can add functions to xtop.
++	// Don't use range--walk can add functions to Target.Decls.
+ 	timings.Start("be", "compilefuncs")
+ 	fcount = 0
+-	for i := 0; i < len(xtop); i++ {
+-		n := xtop[i]
++	for i := 0; i < len(Target.Decls); i++ {
++		n := Target.Decls[i]
+ 		if n.Op() == ir.ODCLFUNC {
+ 			funccompile(n.(*ir.Func))
+ 			fcount++
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index 43ec2ce350..10eac6e815 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -27,7 +27,7 @@ import (
+ 
+ // parseFiles concurrently parses files into *syntax.File structures.
+ // Each declaration in every *syntax.File is converted to a syntax tree
+-// and its root represented by *Node is appended to xtop.
++// and its root represented by *Node is appended to Target.Decls.
+ // Returns the total count of parsed lines.
+ func parseFiles(filenames []string) uint {
+ 	noders := make([]*noder, 0, len(filenames))
+@@ -260,7 +260,7 @@ func (p *noder) node() {
+ 		p.checkUnused(pragma)
+ 	}
+ 
+-	xtop = append(xtop, p.decls(p.file.DeclList)...)
++	Target.Decls = append(Target.Decls, p.decls(p.file.DeclList)...)
+ 
+ 	base.Pos = src.NoXPos
+ 	clearImports()
+@@ -297,7 +297,7 @@ func (p *noder) processPragmas() {
+ 		}
+ 	}
+ 
+-	pragcgobuf = append(pragcgobuf, p.pragcgobuf...)
++	Target.CgoPragmas = append(Target.CgoPragmas, p.pragcgobuf...)
+ }
+ 
+ func (p *noder) decls(decls []syntax.Decl) (l []ir.Node) {
+@@ -354,7 +354,7 @@ func (p *noder) importDecl(imp *syntax.ImportDecl) {
+ 	}
+ 
+ 	if !ipkg.Direct {
+-		sourceOrderImports = append(sourceOrderImports, ipkg)
++		Target.Imports = append(Target.Imports, ipkg)
+ 	}
+ 	ipkg.Direct = true
+ 
+@@ -530,6 +530,7 @@ func (p *noder) funcDecl(fun *syntax.FuncDecl) ir.Node {
+ 			if len(t.Params) > 0 || len(t.Results) > 0 {
+ 				base.ErrorfAt(f.Pos(), "func init must have no arguments and no return values")
+ 			}
++			Target.Inits = append(Target.Inits, f)
+ 		}
+ 
+ 		if types.LocalPkg.Name == "main" && name.Name == "main" {
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index cd1500d1ed..094c386218 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -117,13 +117,14 @@ func dumpCompilerObj(bout *bio.Writer) {
+ }
+ 
+ func dumpdata() {
+-	externs := len(externdcl)
+-	xtops := len(xtop)
++	numExterns := len(Target.Externs)
++	numDecls := len(Target.Decls)
+ 
+-	dumpglobls()
++	dumpglobls(Target.Externs)
++	dumpfuncsyms()
+ 	addptabs()
+-	exportlistLen := len(exportlist)
+-	addsignats(externdcl)
++	numExports := len(Target.Exports)
++	addsignats(Target.Externs)
+ 	dumpsignats()
+ 	dumptabs()
+ 	ptabsLen := len(ptabs)
+@@ -140,28 +141,22 @@ func dumpdata() {
+ 	// In the typical case, we loop 0 or 1 times.
+ 	// It was not until issue 24761 that we found any code that required a loop at all.
+ 	for {
+-		for i := xtops; i < len(xtop); i++ {
+-			n := xtop[i]
++		for i := numDecls; i < len(Target.Decls); i++ {
++			n := Target.Decls[i]
+ 			if n.Op() == ir.ODCLFUNC {
+ 				funccompile(n.(*ir.Func))
+ 			}
+ 		}
+-		xtops = len(xtop)
++		numDecls = len(Target.Decls)
+ 		compileFunctions()
+ 		dumpsignats()
+-		if xtops == len(xtop) {
++		if numDecls == len(Target.Decls) {
+ 			break
+ 		}
+ 	}
+ 
+ 	// Dump extra globals.
+-	tmp := externdcl
+-
+-	if externdcl != nil {
+-		externdcl = externdcl[externs:]
+-	}
+-	dumpglobls()
+-	externdcl = tmp
++	dumpglobls(Target.Externs[numExterns:])
+ 
+ 	if zerosize > 0 {
+ 		zero := mappkg.Lookup("zero")
+@@ -170,8 +165,8 @@ func dumpdata() {
+ 
+ 	addGCLocals()
+ 
+-	if exportlistLen != len(exportlist) {
+-		base.Fatalf("exportlist changed after compile functions loop")
++	if numExports != len(Target.Exports) {
++		base.Fatalf("Target.Exports changed after compile functions loop")
+ 	}
+ 	if ptabsLen != len(ptabs) {
+ 		base.Fatalf("ptabs changed after compile functions loop")
+@@ -184,11 +179,11 @@ func dumpdata() {
+ func dumpLinkerObj(bout *bio.Writer) {
+ 	printObjHeader(bout)
+ 
+-	if len(pragcgobuf) != 0 {
++	if len(Target.CgoPragmas) != 0 {
+ 		// write empty export section; must be before cgo section
+ 		fmt.Fprintf(bout, "\n$$\n\n$$\n\n")
+ 		fmt.Fprintf(bout, "\n$$  // cgo\n")
+-		if err := json.NewEncoder(bout).Encode(pragcgobuf); err != nil {
++		if err := json.NewEncoder(bout).Encode(Target.CgoPragmas); err != nil {
+ 			base.Fatalf("serializing pragcgobuf: %v", err)
+ 		}
+ 		fmt.Fprintf(bout, "\n$$\n\n")
+@@ -203,7 +198,7 @@ func addptabs() {
+ 	if !base.Ctxt.Flag_dynlink || types.LocalPkg.Name != "main" {
+ 		return
+ 	}
+-	for _, exportn := range exportlist {
++	for _, exportn := range Target.Exports {
+ 		s := exportn.Sym()
+ 		nn := ir.AsNode(s.Def)
+ 		if nn == nil {
+@@ -267,9 +262,9 @@ func dumpGlobalConst(n ir.Node) {
+ 	base.Ctxt.DwarfIntConst(base.Ctxt.Pkgpath, n.Sym().Name, typesymname(t), ir.IntVal(t, v))
+ }
+ 
+-func dumpglobls() {
++func dumpglobls(externs []ir.Node) {
+ 	// add globals
+-	for _, n := range externdcl {
++	for _, n := range externs {
+ 		switch n.Op() {
+ 		case ir.ONAME:
+ 			dumpGlobal(n.(*ir.Name))
+@@ -277,7 +272,9 @@ func dumpglobls() {
+ 			dumpGlobalConst(n)
+ 		}
+ 	}
++}
+ 
++func dumpfuncsyms() {
+ 	sort.Slice(funcsyms, func(i, j int) bool {
+ 		return funcsyms[i].LinksymName() < funcsyms[j].LinksymName()
+ 	})
+@@ -286,9 +283,6 @@ func dumpglobls() {
+ 		dsymptr(sf, 0, s.Linksym(), 0)
+ 		ggloblsym(sf, int32(Widthptr), obj.DUPOK|obj.RODATA)
+ 	}
+-
+-	// Do not reprocess funcsyms on next dumpglobls call.
+-	funcsyms = nil
+ }
+ 
+ // addGCLocals adds gcargs, gclocals, gcregs, and stack object symbols to Ctxt.Data.
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index 901af567fa..5b5288c389 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -287,7 +287,7 @@ func compilenow(fn *ir.Func) bool {
+ 	// candidate AND was not inlined (yet), put it onto the compile
+ 	// queue instead of compiling it immediately. This is in case we
+ 	// wind up inlining it into a method wrapper that is generated by
+-	// compiling a function later on in the xtop list.
++	// compiling a function later on in the Target.Decls list.
+ 	if ir.IsMethod(fn) && isInlinableButNotInlined(fn) {
+ 		return false
+ 	}
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 9c26edf136..2b0047e150 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -1275,7 +1275,7 @@ func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym) {
+ 	escapeFuncs([]*ir.Func{fn}, false)
+ 
+ 	Curfn = nil
+-	xtop = append(xtop, fn)
++	Target.Decls = append(Target.Decls, fn)
+ }
+ 
+ func paramNnames(ft *types.Type) []ir.Node {
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index a4ecc0c44d..657a744e68 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -3942,7 +3942,7 @@ func wrapCall(n *ir.CallExpr, init *ir.Nodes) ir.Node {
+ 
+ 	typecheckFunc(fn)
+ 	typecheckslice(fn.Body().Slice(), ctxStmt)
+-	xtop = append(xtop, fn)
++	Target.Decls = append(Target.Decls, fn)
+ 
+ 	call = ir.NewCallExpr(base.Pos, ir.OCALL, fn.Nname, n.List().Slice())
+ 	return walkexpr(typecheck(call, ctxStmt), init)
+diff --git a/src/cmd/compile/internal/ir/package.go b/src/cmd/compile/internal/ir/package.go
+new file mode 100644
+index 0000000000..3896e2b91b
+--- /dev/null
++++ b/src/cmd/compile/internal/ir/package.go
+@@ -0,0 +1,35 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ir
++
++import "cmd/compile/internal/types"
++
++// A Package holds information about the package being compiled.
++type Package struct {
++	// Imports, listed in source order.
++	// See golang.org/issue/31636.
++	Imports []*types.Pkg
++
++	// Init functions, listed in source order.
++	Inits []*Func
++
++	// Top-level declarations.
++	Decls []Node
++
++	// Extern (package global) declarations.
++	Externs []Node
++
++	// Assembly function declarations.
++	Asms []*Name
++
++	// Cgo directives.
++	CgoPragmas [][]string
++
++	// Variables with //go:embed lines.
++	Embeds []*Name
++
++	// Exported (or re-exported) symbols.
++	Exports []*Name
++}

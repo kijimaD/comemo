@@ -9,7 +9,42 @@ Date:   Wed Mar 7 23:15:55 2012 +0100
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5784044
-
+---
  src/cmd/go/list.go | 1 +
  src/cmd/go/pkg.go  | 4 ++--
  2 files changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/list.go b/src/cmd/go/list.go
+index 99a8704021..446e2304be 100644
+--- a/src/cmd/go/list.go
++++ b/src/cmd/go/list.go
+@@ -86,6 +86,7 @@ For more about specifying packages, see 'go help packages'.
+ 
+ func init() {
+ 	cmdList.Run = runList // break init cycle
++	cmdList.Flag.Var(buildCompiler{}, "compiler", "")
+ }
+ 
+ var listE = cmdList.Flag.Bool("e", false, "")
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index 5878d8f71e..09d84e5f27 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -372,7 +372,7 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package
+ 	}
+ 
+ 	// unsafe is a fake package.
+-	if p.Standard && p.ImportPath == "unsafe" {
++	if p.Standard && (p.ImportPath == "unsafe" || buildContext.Compiler == "gccgo") {
+ 		p.target = ""
+ 	}
+ 
+@@ -417,7 +417,7 @@ func computeStale(pkgs ...*Package) {
+ 
+ // isStale reports whether package p needs to be rebuilt.
+ func isStale(p *Package, topRoot map[string]bool) bool {
+-	if p.Standard && p.ImportPath == "unsafe" {
++	if p.Standard && (p.ImportPath == "unsafe" || buildContext.Compiler == "gccgo") {
+ 		// fake, builtin package
+ 		return false
+ 	}

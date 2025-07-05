@@ -10,9 +10,70 @@ Date:   Sun Apr 11 13:13:11 2021 +0300
     Reviewed-on: https://go-review.googlesource.com/c/go/+/308997
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: Alex Brainman <alex.brainman@gmail.com>
-
+---
  src/runtime/sys_windows_386.s   | 4 +++-
  src/runtime/sys_windows_amd64.s | 4 +++-
  src/runtime/sys_windows_arm.s   | 4 +++-
  src/runtime/sys_windows_arm64.s | 4 +++-
  4 files changed, 12 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/sys_windows_386.s b/src/runtime/sys_windows_386.s
+index e3fd90e05f..be4268a9c0 100644
+--- a/src/runtime/sys_windows_386.s
++++ b/src/runtime/sys_windows_386.s
+@@ -400,7 +400,9 @@ TEXT runtime·switchtothread(SB),NOSPLIT,$0
+ 	MOVL	BP, SP
+ 	RET
+ 
+-// See https://www.dcl.hpi.uni-potsdam.de/research/WRK/2007/08/getting-os-information-the-kuser_shared_data-structure/
++// See https://wrkhpi.wordpress.com/2007/08/09/getting-os-information-the-kuser_shared_data-structure/
++// Archived copy at:
++// http://web.archive.org/web/20210411000829/https://wrkhpi.wordpress.com/2007/08/09/getting-os-information-the-kuser_shared_data-structure/
+ // Must read hi1, then lo, then hi2. The snapshot is valid if hi1 == hi2.
+ #define _INTERRUPT_TIME 0x7ffe0008
+ #define _SYSTEM_TIME 0x7ffe0014
+diff --git a/src/runtime/sys_windows_amd64.s b/src/runtime/sys_windows_amd64.s
+index 099894efe7..1fd8bf5c5c 100644
+--- a/src/runtime/sys_windows_amd64.s
++++ b/src/runtime/sys_windows_amd64.s
+@@ -440,7 +440,9 @@ TEXT runtime·switchtothread(SB),NOSPLIT|NOFRAME,$0
+ 	MOVQ	32(SP), SP
+ 	RET
+ 
+-// See https://www.dcl.hpi.uni-potsdam.de/research/WRK/2007/08/getting-os-information-the-kuser_shared_data-structure/
++// See https://wrkhpi.wordpress.com/2007/08/09/getting-os-information-the-kuser_shared_data-structure/
++// Archived copy at:
++// http://web.archive.org/web/20210411000829/https://wrkhpi.wordpress.com/2007/08/09/getting-os-information-the-kuser_shared_data-structure/
+ // Must read hi1, then lo, then hi2. The snapshot is valid if hi1 == hi2.
+ #define _INTERRUPT_TIME 0x7ffe0008
+ #define _SYSTEM_TIME 0x7ffe0014
+diff --git a/src/runtime/sys_windows_arm.s b/src/runtime/sys_windows_arm.s
+index 22c6d63bdd..72de89dc84 100644
+--- a/src/runtime/sys_windows_arm.s
++++ b/src/runtime/sys_windows_arm.s
+@@ -416,7 +416,9 @@ TEXT runtime·read_tls_fallback(SB),NOSPLIT|NOFRAME,$0
+ 	MOVW	R0, (R0)
+ 	RET
+ 
+-// See http://www.dcl.hpi.uni-potsdam.de/research/WRK/2007/08/getting-os-information-the-kuser_shared_data-structure/
++// See https://wrkhpi.wordpress.com/2007/08/09/getting-os-information-the-kuser_shared_data-structure/
++// Archived copy at:
++// http://web.archive.org/web/20210411000829/https://wrkhpi.wordpress.com/2007/08/09/getting-os-information-the-kuser_shared_data-structure/
+ // Must read hi1, then lo, then hi2. The snapshot is valid if hi1 == hi2.
+ #define _INTERRUPT_TIME 0x7ffe0008
+ #define _SYSTEM_TIME 0x7ffe0014
+diff --git a/src/runtime/sys_windows_arm64.s b/src/runtime/sys_windows_arm64.s
+index 0b77e6d048..f54c868b26 100644
+--- a/src/runtime/sys_windows_arm64.s
++++ b/src/runtime/sys_windows_arm64.s
+@@ -470,7 +470,9 @@ TEXT runtime·switchtothread(SB),NOSPLIT,$16-0
+ 	ADD	$16, RSP
+ 	RET
+ 
+-// See http://www.dcl.hpi.uni-potsdam.de/research/WRK/2007/08/getting-os-information-the-kuser_shared_data-structure/
++// See https://wrkhpi.wordpress.com/2007/08/09/getting-os-information-the-kuser_shared_data-structure/
++// Archived copy at:
++// http://web.archive.org/web/20210411000829/https://wrkhpi.wordpress.com/2007/08/09/getting-os-information-the-kuser_shared_data-structure/
+ // Must read hi1, then lo, then hi2. The snapshot is valid if hi1 == hi2.
+ #define _INTERRUPT_TIME 0x7ffe0008
+ #define _SYSTEM_TIME 0x7ffe0014

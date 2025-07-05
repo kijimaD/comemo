@@ -27,6 +27,33 @@ Date:   Wed Aug 16 10:46:11 2023 -0400
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Bryan Mills <bcmills@google.com>
     Run-TryBot: Bryan Mills <bcmills@google.com>
-
+---
  src/runtime/testdata/testprog/syscalls_linux.go | 8 +++-----
  1 file changed, 3 insertions(+), 5 deletions(-)
+
+diff --git a/src/runtime/testdata/testprog/syscalls_linux.go b/src/runtime/testdata/testprog/syscalls_linux.go
+index 48f8014237..3939b160df 100644
+--- a/src/runtime/testdata/testprog/syscalls_linux.go
++++ b/src/runtime/testdata/testprog/syscalls_linux.go
+@@ -7,6 +7,7 @@ package main
+ import (
+ 	"bytes"
+ 	"fmt"
++	"internal/testenv"
+ 	"os"
+ 	"syscall"
+ )
+@@ -44,11 +45,8 @@ func getcwd() (string, error) {
+ 
+ func unshareFs() error {
+ 	err := syscall.Unshare(syscall.CLONE_FS)
+-	if err != nil {
+-		errno, ok := err.(syscall.Errno)
+-		if ok && errno == syscall.EPERM {
+-			return errNotPermitted
+-		}
++	if testenv.SyscallIsNotSupported(err) {
++		return errNotPermitted
+ 	}
+ 	return err
+ }

@@ -7,6 +7,35 @@ Date:   Wed Aug 5 00:11:24 2009 -0700
     R=ken
     OCL=32771
     CL=32771
-
+---
  src/cmd/6g/gobj.c | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/6g/gobj.c b/src/cmd/6g/gobj.c
+index 6199d2f2f0..9977b0ff15 100644
+--- a/src/cmd/6g/gobj.c
++++ b/src/cmd/6g/gobj.c
+@@ -360,9 +360,9 @@ datastring(char *s, int len, Addr *a)
+ 	*a = ao;
+ 
+ 	// only generate data the first time.
+-	if(ao.sym->uniq)
++	if(ao.sym->flags & SymUniq)
+ 		return;
+-	ao.sym->uniq = 1;
++	ao.sym->flags |= SymUniq;
+ 
+ 	data();
+ 	for(w=0; w<len; w+=8) {
+@@ -440,9 +440,9 @@ datagostring(Strlit *sval, Addr *a)
+ 	}
+ 
+ 	*a = ao;
+-	if(ao.sym->uniq)
++	if(ao.sym->flags & SymUniq)
+ 		return;
+-	ao.sym->uniq = 1;
++	ao.sym->flags |= SymUniq;
+ 
+ 	data();
+ 	// DATA gostring, wp, $cstring

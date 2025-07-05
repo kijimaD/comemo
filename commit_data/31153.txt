@@ -13,7 +13,7 @@ Date:   Wed Feb 1 15:17:32 2017 -0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/lex.go      | 13 +++++++------
  src/cmd/compile/internal/gc/lex_test.go |  8 ++++++--
  src/cmd/compile/internal/gc/noder.go    |  7 ++++---
@@ -21,3 +21,169 @@ Date:   Wed Feb 1 15:17:32 2017 -0800
  test/fixedbugs/issue18459.go            |  2 +-
  test/fixedbugs/issue18882.go            | 13 +++++++++++++
  6 files changed, 32 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/lex.go b/src/cmd/compile/internal/gc/lex.go
+index c0039fd880..bcb2445bc4 100644
+--- a/src/cmd/compile/internal/gc/lex.go
++++ b/src/cmd/compile/internal/gc/lex.go
+@@ -115,7 +115,8 @@ func internString(b []byte) string {
+ 	return s
+ }
+ 
+-func pragcgo(text string) string {
++// pragcgo is called concurrently if files are parsed concurrently.
++func (p *noder) pragcgo(pos src.Pos, text string) string {
+ 	f := pragmaFields(text)
+ 
+ 	verb := f[0][3:] // skip "go:"
+@@ -132,7 +133,7 @@ func pragcgo(text string) string {
+ 			return fmt.Sprintln(verb, local, remote)
+ 
+ 		default:
+-			yyerror(`usage: //go:%s local [remote]`, verb)
++			p.error(syntax.Error{Pos: pos, Msg: fmt.Sprintf(`usage: //go:%s local [remote]`, verb)})
+ 		}
+ 	case "cgo_import_dynamic":
+ 		switch {
+@@ -152,7 +153,7 @@ func pragcgo(text string) string {
+ 			return fmt.Sprintln(verb, local, remote, library)
+ 
+ 		default:
+-			yyerror(`usage: //go:cgo_import_dynamic local [remote ["library"]]`)
++			p.error(syntax.Error{Pos: pos, Msg: `usage: //go:cgo_import_dynamic local [remote ["library"]]`})
+ 		}
+ 	case "cgo_import_static":
+ 		switch {
+@@ -161,7 +162,7 @@ func pragcgo(text string) string {
+ 			return fmt.Sprintln(verb, local)
+ 
+ 		default:
+-			yyerror(`usage: //go:cgo_import_static local`)
++			p.error(syntax.Error{Pos: pos, Msg: `usage: //go:cgo_import_static local`})
+ 		}
+ 	case "cgo_dynamic_linker":
+ 		switch {
+@@ -170,7 +171,7 @@ func pragcgo(text string) string {
+ 			return fmt.Sprintln(verb, path)
+ 
+ 		default:
+-			yyerror(`usage: //go:cgo_dynamic_linker "path"`)
++			p.error(syntax.Error{Pos: pos, Msg: `usage: //go:cgo_dynamic_linker "path"`})
+ 		}
+ 	case "cgo_ldflag":
+ 		switch {
+@@ -179,7 +180,7 @@ func pragcgo(text string) string {
+ 			return fmt.Sprintln(verb, arg)
+ 
+ 		default:
+-			yyerror(`usage: //go:cgo_ldflag "arg"`)
++			p.error(syntax.Error{Pos: pos, Msg: `usage: //go:cgo_ldflag "arg"`})
+ 		}
+ 	}
+ 	return ""
+diff --git a/src/cmd/compile/internal/gc/lex_test.go b/src/cmd/compile/internal/gc/lex_test.go
+index 9230b30dad..a56f3963ba 100644
+--- a/src/cmd/compile/internal/gc/lex_test.go
++++ b/src/cmd/compile/internal/gc/lex_test.go
+@@ -4,7 +4,10 @@
+ 
+ package gc
+ 
+-import "testing"
++import (
++	"cmd/internal/src"
++	"testing"
++)
+ 
+ func eq(a, b []string) bool {
+ 	if len(a) != len(b) {
+@@ -69,8 +72,9 @@ func TestPragcgo(t *testing.T) {
+ 		{`go:cgo_ldflag "a rg"`, "cgo_ldflag 'a rg'\n"},
+ 	}
+ 
++	var p noder
+ 	for _, tt := range tests {
+-		got := pragcgo(tt.in)
++		got := p.pragcgo(src.NoPos, tt.in)
+ 		if got != tt.want {
+ 			t.Errorf("pragcgo(%q) = %q; want %q", tt.in, got, tt.want)
+ 			continue
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index 482578d10a..ebb4810f00 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -1105,10 +1105,12 @@ func (p *noder) lineno(n syntax.Node) {
+ 	lineno = Ctxt.PosTable.XPos(pos)
+ }
+ 
++// error is called concurrently if files are parsed concurrently.
+ func (p *noder) error(err error) {
+ 	p.err <- err.(syntax.Error)
+ }
+ 
++// pragma is called concurrently if files are parsed concurrently.
+ func (p *noder) pragma(pos src.Pos, text string) syntax.Pragma {
+ 	switch {
+ 	case strings.HasPrefix(text, "line "):
+@@ -1124,8 +1126,7 @@ func (p *noder) pragma(pos src.Pos, text string) syntax.Pragma {
+ 		p.linknames = append(p.linknames, linkname{pos, f[1], f[2]})
+ 
+ 	case strings.HasPrefix(text, "go:cgo_"):
+-		// TODO(gri): lineno = p.baseline + int32(line) - 1 // pragcgo may call yyerror
+-		p.pragcgobuf += pragcgo(text)
++		p.pragcgobuf += p.pragcgo(pos, text)
+ 		fallthrough // because of //go:cgo_unsafe_args
+ 	default:
+ 		verb := text
+@@ -1135,7 +1136,7 @@ func (p *noder) pragma(pos src.Pos, text string) syntax.Pragma {
+ 		prag := pragmaValue(verb)
+ 		const runtimePragmas = Systemstack | Nowritebarrier | Nowritebarrierrec | Yeswritebarrierrec
+ 		if !compiling_runtime && prag&runtimePragmas != 0 {
+-			p.error(syntax.Error{Pos: pos, Msg: fmt.Sprintf("//go:%s only allowed in runtime", verb)})
++			p.error(syntax.Error{Pos: pos, Msg: fmt.Sprintf("//%s only allowed in runtime", verb)})
+ 		}
+ 		return prag
+ 	}
+diff --git a/src/go/types/stdlib_test.go b/src/go/types/stdlib_test.go
+index 06d2c93dda..ed09e4644b 100644
+--- a/src/go/types/stdlib_test.go
++++ b/src/go/types/stdlib_test.go
+@@ -158,6 +158,7 @@ func TestStdFixed(t *testing.T) {
+ 		"issue15002.go", // uses Mmap; testTestDir should consult build tags
+ 		"issue16369.go", // go/types handles this correctly - not an issue
+ 		"issue18459.go", // go/types doesn't check validity of //go:xxx directives
++		"issue18882.go", // go/types doesn't check validity of //go:xxx directives
+ 	)
+ }
+ 
+diff --git a/test/fixedbugs/issue18459.go b/test/fixedbugs/issue18459.go
+index ac07661d63..46601e70a4 100644
+--- a/test/fixedbugs/issue18459.go
++++ b/test/fixedbugs/issue18459.go
+@@ -8,6 +8,6 @@
+ 
+ package main
+ 
+-//go:nowritebarrier // ERROR "go:nowritebarrier only allowed in runtime"
++//go:nowritebarrier // ERROR "//go:nowritebarrier only allowed in runtime"
+ func main() {
+ }
+diff --git a/test/fixedbugs/issue18882.go b/test/fixedbugs/issue18882.go
+new file mode 100644
+index 0000000000..9c3658d67c
+--- /dev/null
++++ b/test/fixedbugs/issue18882.go
+@@ -0,0 +1,13 @@
++// errorcheck
++
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Verify that we have a line number for this error.
++
++package main
++
++//go:cgo_ldflag // ERROR "usage: //go:cgo_ldflag"
++func main() {
++}

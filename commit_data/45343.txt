@@ -17,8 +17,107 @@ Date:   Mon Oct 19 10:40:24 2020 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/internal/obj/objfile.go      |  7 +++++++
  src/cmd/internal/obj/objfile_test.go | 36 ++++++++++++++++++++++++++++++++++++
  test/fixedbugs/issue4348.go          |  4 +++-
  3 files changed, 46 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index a08de891d3..a24a7b878f 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -261,6 +261,10 @@ func (w *writer) StringTable() {
+ 	}
+ }
+ 
++// cutoff is the maximum data section size permitted by the linker
++// (see issue #9862).
++const cutoff = int64(2e9) // 2 GB (or so; looks better in errors than 2^31)
++
+ func (w *writer) Sym(s *LSym) {
+ 	abi := uint16(s.ABI())
+ 	if s.Static() {
+@@ -325,6 +329,9 @@ func (w *writer) Sym(s *LSym) {
+ 			// don't bother setting align to 1.
+ 		}
+ 	}
++	if s.Size > cutoff {
++		w.ctxt.Diag("%s: symbol too large (%d bytes > %d bytes)", s.Name, s.Size, cutoff)
++	}
+ 	var o goobj.Sym
+ 	o.SetName(name, w.Writer)
+ 	o.SetABI(abi)
+diff --git a/src/cmd/internal/obj/objfile_test.go b/src/cmd/internal/obj/objfile_test.go
+index 155701fa4e..146627b62b 100644
+--- a/src/cmd/internal/obj/objfile_test.go
++++ b/src/cmd/internal/obj/objfile_test.go
+@@ -5,9 +5,16 @@
+ package obj
+ 
+ import (
++	"bytes"
+ 	"cmd/internal/goobj"
+ 	"cmd/internal/sys"
++	"internal/testenv"
++	"io/ioutil"
++	"os"
++	"os/exec"
++	"path/filepath"
+ 	"testing"
++	"unsafe"
+ )
+ 
+ var dummyArch = LinkArch{Arch: sys.ArchAMD64}
+@@ -85,3 +92,32 @@ func TestContentHash(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestSymbolTooLarge(t *testing.T) { // Issue 42054
++	testenv.MustHaveGoBuild(t)
++	if unsafe.Sizeof(uintptr(0)) < 8 {
++		t.Skip("skip on 32-bit architectures")
++	}
++
++	tmpdir, err := ioutil.TempDir("", "TestSymbolTooLarge")
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer os.RemoveAll(tmpdir)
++
++	src := filepath.Join(tmpdir, "p.go")
++	err = ioutil.WriteFile(src, []byte("package p; var x [1<<32]byte"), 0666)
++	if err != nil {
++		t.Fatalf("failed to write source file: %v\n", err)
++	}
++	obj := filepath.Join(tmpdir, "p.o")
++	cmd := exec.Command(testenv.GoToolPath(t), "tool", "compile", "-o", obj, src)
++	out, err := cmd.CombinedOutput()
++	if err == nil {
++		t.Fatalf("did not fail\noutput: %s", out)
++	}
++	const want = "symbol too large"
++	if !bytes.Contains(out, []byte(want)) {
++		t.Errorf("unexpected error message: want: %q, got: %s", want, out)
++	}
++}
+diff --git a/test/fixedbugs/issue4348.go b/test/fixedbugs/issue4348.go
+index c59b6b8caa..8b1a56c1d5 100644
+--- a/test/fixedbugs/issue4348.go
++++ b/test/fixedbugs/issue4348.go
+@@ -1,4 +1,4 @@
+-// compile
++// skip
+ 
+ // Copyright 2012 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+@@ -7,6 +7,8 @@
+ // Issue 4348. After switch to 64-bit ints the compiler generates
+ // illegal instructions when using large array bounds or indexes.
+ 
++// Skip. We reject symbols larger that 2GB (Issue #9862).
++
+ package main
+ 
+ // 1<<32 on a 64-bit machine, 1 otherwise.

@@ -8,7 +8,7 @@ Date:   Sun Feb 19 17:33:41 2012 +1100
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/5676102
-
+---
  test/interface/bigdata.go    | 3 +--
  test/interface/convert.go    | 3 +--
  test/interface/convert1.go   | 3 +--
@@ -31,3 +31,288 @@ Date:   Sun Feb 19 17:33:41 2012 +1100
  test/interface/returntype.go | 2 +-
  test/interface/struct.go     | 2 +-
  21 files changed, 30 insertions(+), 23 deletions(-)
+
+diff --git a/test/interface/bigdata.go b/test/interface/bigdata.go
+index 0d8c408c81..0f2e9a990e 100644
+--- a/test/interface/bigdata.go
++++ b/test/interface/bigdata.go
+@@ -4,8 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// check that big vs small, pointer vs not
+-// interface methods work.
++// Test big vs. small, pointer vs. value interface methods.
+ 
+ package main
+ 
+diff --git a/test/interface/convert.go b/test/interface/convert.go
+index 2b4f45d14f..eb6fd1d554 100644
+--- a/test/interface/convert.go
++++ b/test/interface/convert.go
+@@ -4,8 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Check uses of all the different interface
+-// conversion runtime functions.
++// Test all the different interface conversion runtime functions.
+ 
+ package main
+ 
+diff --git a/test/interface/convert1.go b/test/interface/convert1.go
+index 4833e847a2..4a3ec8a375 100644
+--- a/test/interface/convert1.go
++++ b/test/interface/convert1.go
+@@ -4,8 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Check that static interface conversion of
+-// interface value nil succeeds.
++// Test static interface conversion of interface value nil.
+ 
+ package main
+ 
+diff --git a/test/interface/convert2.go b/test/interface/convert2.go
+index 4833e847a2..4a3ec8a375 100644
+--- a/test/interface/convert2.go
++++ b/test/interface/convert2.go
+@@ -4,8 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Check that static interface conversion of
+-// interface value nil succeeds.
++// Test static interface conversion of interface value nil.
+ 
+ package main
+ 
+diff --git a/test/interface/embed.go b/test/interface/embed.go
+index 46c02cc80e..5c52ac0232 100644
+--- a/test/interface/embed.go
++++ b/test/interface/embed.go
+@@ -4,7 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Check methods derived from embedded interface values.
++// Test methods derived from embedded interface values.
+ 
+ package main
+ 
+diff --git a/test/interface/embed0.go b/test/interface/embed0.go
+index bbd81e7603..dee8319e4e 100644
+--- a/test/interface/embed0.go
++++ b/test/interface/embed0.go
+@@ -4,7 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Check that embedded interface types can have local methods.
++// Test that embedded interface types can have local methods.
+ 
+ package p
+ 
+diff --git a/test/interface/embed1.go b/test/interface/embed1.go
+index 24e50471f2..ee502a162f 100644
+--- a/test/interface/embed1.go
++++ b/test/interface/embed1.go
+@@ -4,7 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Check that embedded interface types can have local methods.
++// Test that embedded interface types can have local methods.
+ 
+ package main
+ 
+diff --git a/test/interface/embed2.go b/test/interface/embed2.go
+index bac214397a..1636db78eb 100644
+--- a/test/interface/embed2.go
++++ b/test/interface/embed2.go
+@@ -4,7 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Check methods derived from embedded interface and *interface values.
++// Test methods derived from embedded interface and *interface values.
+ 
+ package main
+ 
+diff --git a/test/interface/explicit.go b/test/interface/explicit.go
+index fbe65e7e39..d19480a685 100644
+--- a/test/interface/explicit.go
++++ b/test/interface/explicit.go
+@@ -4,7 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Static error messages about interface conversions.
++// Verify compiler messages about erroneous static interface conversions.
++// Does not compile.
+ 
+ package main
+ 
+diff --git a/test/interface/fail.go b/test/interface/fail.go
+index 5a2f57fe9f..72b854dc00 100644
+--- a/test/interface/fail.go
++++ b/test/interface/fail.go
+@@ -4,7 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Check that interface conversion fails when method is missing.
++// Test that interface conversion fails when method is missing.
+ 
+ package main
+ 
+diff --git a/test/interface/fake.go b/test/interface/fake.go
+index 55650cc8dd..861a640842 100644
+--- a/test/interface/fake.go
++++ b/test/interface/fake.go
+@@ -4,7 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Interface comparisons using types hidden
++// Test interface comparisons using types hidden
+ // inside reflected-on structs.
+ 
+ package main
+diff --git a/test/interface/noeq.go b/test/interface/noeq.go
+index b89fd0e824..1c5166eded 100644
+--- a/test/interface/noeq.go
++++ b/test/interface/noeq.go
+@@ -4,7 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Interface values containing types that cannot be compared for equality.
++// Test run-time error detection for interface values containing types
++// that cannot be compared for equality.
+ 
+ package main
+ 
+diff --git a/test/interface/pointer.go b/test/interface/pointer.go
+index 0548c24046..2927050669 100644
+--- a/test/interface/pointer.go
++++ b/test/interface/pointer.go
+@@ -4,7 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Check that interface{M()} = *interface{M()} produces a compiler error.
++// Test that interface{M()} = *interface{M()} produces a compiler error.
++// Does not compile.
+ 
+ package main
+ 
+diff --git a/test/interface/private.go b/test/interface/private.go
+index 37890c923a..14dfc1ae55 100644
+--- a/test/interface/private.go
++++ b/test/interface/private.go
+@@ -4,6 +4,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test that unexported methods are not visible outside the package.
++// Does not compile.
++
+ package main
+ 
+ import "./private1"
+diff --git a/test/interface/private1.go b/test/interface/private1.go
+index 3173fbef41..9c831a2f47 100644
+--- a/test/interface/private1.go
++++ b/test/interface/private1.go
+@@ -4,6 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Imported by private.go, which should not be able to see the private method.
++
+ package p
+ 
+ type Exported interface {
+diff --git a/test/interface/receiver.go b/test/interface/receiver.go
+index dc2e7808f7..4511ab3b47 100644
+--- a/test/interface/receiver.go
++++ b/test/interface/receiver.go
+@@ -4,8 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Implicit methods for embedded types.
+-// Mixed pointer and non-pointer receivers.
++// Test Implicit methods for embedded types and
++// mixed pointer and non-pointer receivers.
+ 
+ package main
+ 
+diff --git a/test/interface/receiver1.go b/test/interface/receiver1.go
+index 19ca6d4626..2b7ccdc1a7 100644
+--- a/test/interface/receiver1.go
++++ b/test/interface/receiver1.go
+@@ -4,7 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Error messages about missing implicit methods.
++// Verify compiler complains about missing implicit methods.
++// Does not compile.
+ 
+ package main
+ 
+diff --git a/test/interface/recursive1.go b/test/interface/recursive1.go
+index 2c93a28363..524dda82c6 100644
+--- a/test/interface/recursive1.go
++++ b/test/interface/recursive1.go
+@@ -4,6 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Mutually recursive type definitions imported and used by recursive1.go.
++
+ package p
+ 
+ type I1 interface {
+diff --git a/test/interface/recursive2.go b/test/interface/recursive2.go
+index a7f9ab5dbd..5129ceb022 100644
+--- a/test/interface/recursive2.go
++++ b/test/interface/recursive2.go
+@@ -4,7 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Check that the mutually recursive types in recursive1.go made it
++// Test that the mutually recursive types in recursive1.go made it
+ // intact and with the same meaning, by assigning to or using them.
+ 
+ package main
+diff --git a/test/interface/returntype.go b/test/interface/returntype.go
+index b7bebe4f61..4d86f39184 100644
+--- a/test/interface/returntype.go
++++ b/test/interface/returntype.go
+@@ -4,7 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Check methods with different return types.
++// Test interface methods with different return types are distinct.
+ 
+ package main
+ 
+diff --git a/test/interface/struct.go b/test/interface/struct.go
+index 3c9d01da4a..f60819ca81 100644
+--- a/test/interface/struct.go
++++ b/test/interface/struct.go
+@@ -4,7 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Interface values containing structures.
++// Test interface values containing structures.
+ 
+ package main
+ 

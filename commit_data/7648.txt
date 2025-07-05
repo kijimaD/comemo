@@ -7,7 +7,66 @@ Date:   Sat Mar 5 17:55:53 2011 -0800
     R=golang-dev, bradfitzgo
     CC=golang-dev
     https://golang.org/cl/4235052
-
+---
  src/pkg/fmt/format.go    |  4 ++--
  src/pkg/fmt/scan_test.go | 12 +-----------
  2 files changed, 3 insertions(+), 13 deletions(-)
+
+diff --git a/src/pkg/fmt/format.go b/src/pkg/fmt/format.go
+index 86057bf693..caaa7ac1a8 100644
+--- a/src/pkg/fmt/format.go
++++ b/src/pkg/fmt/format.go
+@@ -107,7 +107,7 @@ func (f *fmt) writePadding(n int, padding []byte) {
+ }
+ 
+ // Append b to f.buf, padded on left (w > 0) or right (w < 0 or f.minus)
+-// clear flags aftewards.
++// clear flags afterwards.
+ func (f *fmt) pad(b []byte) {
+ 	var padding []byte
+ 	var left, right int
+@@ -124,7 +124,7 @@ func (f *fmt) pad(b []byte) {
+ }
+ 
+ // append s to buf, padded on left (w > 0) or right (w < 0 or f.minus).
+-// clear flags aftewards.
++// clear flags afterwards.
+ func (f *fmt) padString(s string) {
+ 	var padding []byte
+ 	var left, right int
+diff --git a/src/pkg/fmt/scan_test.go b/src/pkg/fmt/scan_test.go
+index 65adb02368..cab86dd986 100644
+--- a/src/pkg/fmt/scan_test.go
++++ b/src/pkg/fmt/scan_test.go
+@@ -476,22 +476,12 @@ func verifyInf(str string, t *testing.T) {
+ 	}
+ }
+ 
+-
+ func TestInf(t *testing.T) {
+ 	for _, s := range []string{"inf", "+inf", "-inf", "INF", "-INF", "+INF", "Inf", "-Inf", "+Inf"} {
+ 		verifyInf(s, t)
+ 	}
+ }
+ 
+-// TODO: there's no conversion from []T to ...T, but we can fake it.  These
+-// functions do the faking.  We index the table by the length of the param list.
+-var fscanf = []func(io.Reader, string, []interface{}) (int, os.Error){
+-	0: func(r io.Reader, f string, i []interface{}) (int, os.Error) { return Fscanf(r, f) },
+-	1: func(r io.Reader, f string, i []interface{}) (int, os.Error) { return Fscanf(r, f, i[0]) },
+-	2: func(r io.Reader, f string, i []interface{}) (int, os.Error) { return Fscanf(r, f, i[0], i[1]) },
+-	3: func(r io.Reader, f string, i []interface{}) (int, os.Error) { return Fscanf(r, f, i[0], i[1], i[2]) },
+-}
+-
+ func testScanfMulti(name string, t *testing.T) {
+ 	sliceType := reflect.Typeof(make([]interface{}, 1)).(*reflect.SliceType)
+ 	for _, test := range multiTests {
+@@ -501,7 +491,7 @@ func testScanfMulti(name string, t *testing.T) {
+ 		} else {
+ 			r = newReader(test.text)
+ 		}
+-		n, err := fscanf[len(test.in)](r, test.format, test.in)
++		n, err := Fscanf(r, test.format, test.in...)
+ 		if err != nil {
+ 			if test.err == "" {
+ 				t.Errorf("got error scanning (%q, %q): %q", test.format, test.text, err)

@@ -29,7 +29,39 @@ Date:   Tue Nov 19 12:41:51 2019 -0800
     Change-Id: Ia4d10cec5cf1e186a0fe5aab2858c6e0e5b80fdc
     Reviewed-on: https://go-review.googlesource.com/c/go/+/207844
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/cgo_mmap.go   | 5 +++++
  src/runtime/sys_darwin.go | 4 ++++
  2 files changed, 9 insertions(+)
+
+diff --git a/src/runtime/cgo_mmap.go b/src/runtime/cgo_mmap.go
+index 048621f306..d5e0cc1e3e 100644
+--- a/src/runtime/cgo_mmap.go
++++ b/src/runtime/cgo_mmap.go
+@@ -20,6 +20,11 @@ var _cgo_mmap unsafe.Pointer
+ //go:linkname _cgo_munmap _cgo_munmap
+ var _cgo_munmap unsafe.Pointer
+ 
++// mmap is used to route the mmap system call through C code when using cgo, to
++// support sanitizer interceptors. Don't allow stack splits, since this function
++// (used by sysAlloc) is called in a lot of low-level parts of the runtime and
++// callers often assume it won't acquire any locks.
++//go:nosplit
+ func mmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) (unsafe.Pointer, int) {
+ 	if _cgo_mmap != nil {
+ 		// Make ret a uintptr so that writing to it in the
+diff --git a/src/runtime/sys_darwin.go b/src/runtime/sys_darwin.go
+index 31304ce737..d2d1822aab 100644
+--- a/src/runtime/sys_darwin.go
++++ b/src/runtime/sys_darwin.go
+@@ -170,6 +170,10 @@ func pthread_kill(t pthread, sig uint32) {
+ }
+ func pthread_kill_trampoline()
+ 
++// mmap is used to do low-level memory allocation via mmap. Don't allow stack
++// splits, since this function (used by sysAlloc) is called in a lot of low-level
++// parts of the runtime and callers often assume it won't acquire any locks.
++// go:nosplit
+ func mmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) (unsafe.Pointer, int) {
+ 	args := struct {
+ 		addr            unsafe.Pointer

@@ -10,6 +10,22 @@ Date:   Fri Oct 30 18:44:22 2020 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/mcentral.go | 4 ----
  1 file changed, 4 deletions(-)
+
+diff --git a/src/runtime/mcentral.go b/src/runtime/mcentral.go
+index 97fe92c2ab..cd20dec539 100644
+--- a/src/runtime/mcentral.go
++++ b/src/runtime/mcentral.go
+@@ -20,10 +20,6 @@ import "runtime/internal/atomic"
+ type mcentral struct {
+ 	spanclass spanClass
+ 
+-	// For !go115NewMCentralImpl.
+-	nonempty mSpanList // list of spans with a free object, ie a nonempty free list
+-	empty    mSpanList // list of spans with no free objects (or cached in an mcache)
+-
+ 	// partial and full contain two mspan sets: one of swept in-use
+ 	// spans, and one of unswept in-use spans. These two trade
+ 	// roles on each GC cycle. The unswept set is drained either by

@@ -7,6 +7,21 @@ Date:   Tue Jul 20 23:51:07 2010 -0700
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/1848045
-
+---
  src/pkg/net/fd_windows.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/pkg/net/fd_windows.go b/src/pkg/net/fd_windows.go
+index 90887b0a9a..cdf446294a 100644
+--- a/src/pkg/net/fd_windows.go
++++ b/src/pkg/net/fd_windows.go
+@@ -232,6 +232,9 @@ func (fd *netFD) Read(p []byte) (n int, err os.Error) {
+ 		err = &OpError{"WSARecv", fd.net, fd.laddr, os.Errno(r.errno)}
+ 	}
+ 	n = int(r.qty)
++	if err == nil && n == 0 {
++		err = os.EOF
++	}
+ 	return
+ }
+ 

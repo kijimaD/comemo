@@ -7,6 +7,24 @@ Date:   Wed Mar 21 10:10:44 2012 +1100
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5866044
-
+---
  src/pkg/html/template/content.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/html/template/content.go b/src/pkg/html/template/content.go
+index 539664f972..c1bd2e4949 100644
+--- a/src/pkg/html/template/content.go
++++ b/src/pkg/html/template/content.go
+@@ -26,10 +26,10 @@ type (
+ 	HTML string
+ 
+ 	// HTMLAttr encapsulates an HTML attribute from a trusted source,
+-	// for example: ` dir="ltr"`.
++	// for example, ` dir="ltr"`.
+ 	HTMLAttr string
+ 
+-	// JS encapsulates a known safe EcmaScript5 Expression, or example,
++	// JS encapsulates a known safe EcmaScript5 Expression, for example,
+ 	// `(x + y * z())`. 
+ 	// Template authors are responsible for ensuring that typed expressions
+ 	// do not break the intended precedence and that there is no

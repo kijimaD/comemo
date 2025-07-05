@@ -12,8 +12,70 @@ Date:   Fri May 28 22:23:00 2021 -0400
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/ssa/gen/ARM64Ops.go | 6 +++---
  src/cmd/compile/internal/ssa/opGen.go        | 6 +++---
  src/cmd/compile/internal/ssa/rewriteARM64.go | 2 +-
  3 files changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64Ops.go b/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
+index a91ece1c9f..414c429db6 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
+@@ -482,9 +482,9 @@ func init() {
+ 		{name: "CSETM", argLength: 1, reg: readflags, asm: "CSETM", aux: "CCop"}, // auxint(flags) ? -1 : 0
+ 
+ 		// function calls
+-		{name: "CALLstatic", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true},                                               // call static function aux.(*obj.LSym).  arg0=mem, auxint=argsize, returns mem
+-		{name: "CALLclosure", argLength: 3, reg: regInfo{inputs: []regMask{gpsp, buildReg("R26"), 0}, clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true}, // call function via closure.  arg0=codeptr, arg1=closure, arg2=mem, auxint=argsize, returns mem
+-		{name: "CALLinter", argLength: 2, reg: regInfo{inputs: []regMask{gp}, clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true},                         // call fn by pointer.  arg0=codeptr, arg1=mem, auxint=argsize, returns mem
++		{name: "CALLstatic", argLength: -1, reg: regInfo{clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true},                                               // call static function aux.(*obj.LSym).  last arg=mem, auxint=argsize, returns mem
++		{name: "CALLclosure", argLength: -1, reg: regInfo{inputs: []regMask{gpsp, buildReg("R26"), 0}, clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true}, // call function via closure.  arg0=codeptr, arg1=closure, last arg=mem, auxint=argsize, returns mem
++		{name: "CALLinter", argLength: -1, reg: regInfo{inputs: []regMask{gp}, clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true},                         // call fn by pointer.  arg0=codeptr, last arg=mem, auxint=argsize, returns mem
+ 
+ 		// pseudo-ops
+ 		{name: "LoweredNilCheck", argLength: 2, reg: regInfo{inputs: []regMask{gpg}}, nilCheck: true, faultOnNilArg0: true}, // panic if arg0 is nil.  arg1=mem.
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index cf31dfacf6..df15c2edda 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -20664,7 +20664,7 @@ var opcodeTable = [...]opInfo{
+ 	{
+ 		name:         "CALLstatic",
+ 		auxType:      auxCallOff,
+-		argLen:       1,
++		argLen:       -1,
+ 		clobberFlags: true,
+ 		call:         true,
+ 		reg: regInfo{
+@@ -20674,7 +20674,7 @@ var opcodeTable = [...]opInfo{
+ 	{
+ 		name:         "CALLclosure",
+ 		auxType:      auxCallOff,
+-		argLen:       3,
++		argLen:       -1,
+ 		clobberFlags: true,
+ 		call:         true,
+ 		reg: regInfo{
+@@ -20688,7 +20688,7 @@ var opcodeTable = [...]opInfo{
+ 	{
+ 		name:         "CALLinter",
+ 		auxType:      auxCallOff,
+-		argLen:       2,
++		argLen:       -1,
+ 		clobberFlags: true,
+ 		call:         true,
+ 		reg: regInfo{
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM64.go b/src/cmd/compile/internal/ssa/rewriteARM64.go
+index 3cdc4d36cb..debe5f2c2a 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM64.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM64.go
+@@ -25997,7 +25997,7 @@ func rewriteValueARM64_OpSelectN(v *Value) bool {
+ 			break
+ 		}
+ 		call := v_0
+-		if call.Op != OpARM64CALLstatic {
++		if call.Op != OpARM64CALLstatic || len(call.Args) != 1 {
+ 			break
+ 		}
+ 		sym := auxToCall(call.Aux)

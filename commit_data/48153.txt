@@ -13,6 +13,19 @@ Date:   Wed Apr 28 05:21:33 2021 +0000
     Trust: Cherry Zhang <cherryyz@google.com>
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/walk/range.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/walk/range.go b/src/cmd/compile/internal/walk/range.go
+index 0c651c6289..b1169fdae8 100644
+--- a/src/cmd/compile/internal/walk/range.go
++++ b/src/cmd/compile/internal/walk/range.go
+@@ -421,7 +421,6 @@ func arrayClear(loop *ir.RangeStmt, v1, v2, a ir.Node) ir.Node {
+ 	// 	i = len(a) - 1
+ 	// }
+ 	n := ir.NewIfStmt(base.Pos, nil, nil, nil)
+-	n.Body = nil
+ 	n.Cond = ir.NewBinaryExpr(base.Pos, ir.ONE, ir.NewUnaryExpr(base.Pos, ir.OLEN, a), ir.NewInt(0))
+ 
+ 	// hp = &a[0]

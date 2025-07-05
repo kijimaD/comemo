@@ -7,7 +7,33 @@ Date:   Fri Feb 18 10:58:47 2011 +1100
     R=rsc, brainman
     CC=golang-dev
     https://golang.org/cl/4182061
-
+---
  src/cmd/6l/pass.c | 2 +-
  src/cmd/ld/pe.c   | 1 +
  2 files changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/6l/pass.c b/src/cmd/6l/pass.c
+index 5eb221a35d..d6d93ee4bd 100644
+--- a/src/cmd/6l/pass.c
++++ b/src/cmd/6l/pass.c
+@@ -289,7 +289,7 @@ patch(void)
+ 			// a different method is used to access them.
+ 			if(p->from.type == D_INDIR+D_GS
+ 			&& p->to.type >= D_AX && p->to.type <= D_DI 
+-			&& p->from.offset != 0x58) {
++			&& p->from.offset <= 8) {
+ 				q = appendp(p);
+ 				q->from = p->from;
+ 				q->from.type = D_INDIR + p->to.type;
+diff --git a/src/cmd/ld/pe.c b/src/cmd/ld/pe.c
+index 995809f5f2..425fd9e091 100644
+--- a/src/cmd/ld/pe.c
++++ b/src/cmd/ld/pe.c
+@@ -500,6 +500,7 @@ asmbpe(void)
+ 		IMAGE_FILE_EXECUTABLE_IMAGE|IMAGE_FILE_DEBUG_STRIPPED;
+ 	if (pe64) {
+ 		fh.SizeOfOptionalHeader = sizeof(oh64);
++		fh.Characteristics |= IMAGE_FILE_LARGE_ADDRESS_AWARE;
+ 		set(Magic, 0x20b);	// PE32+
+ 	} else {
+ 		fh.SizeOfOptionalHeader = sizeof(oh);

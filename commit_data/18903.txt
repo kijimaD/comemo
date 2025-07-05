@@ -12,9 +12,58 @@ Date:   Wed Mar 19 12:13:47 2014 -0700
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/77900043
-
+---
  src/pkg/bytes/reader.go         | 1 -
  src/pkg/bytes/reader_test.go    | 1 -
  src/pkg/strings/reader.go       | 1 -
  src/pkg/strings/strings_test.go | 1 -
  4 files changed, 4 deletions(-)
+
+diff --git a/src/pkg/bytes/reader.go b/src/pkg/bytes/reader.go
+index 8041a3b324..1151ffcd69 100644
+--- a/src/pkg/bytes/reader.go
++++ b/src/pkg/bytes/reader.go
+@@ -43,7 +43,6 @@ func (r *Reader) Read(b []byte) (n int, err error) {
+ }
+ 
+ func (r *Reader) ReadAt(b []byte, off int64) (n int, err error) {
+-	r.prevRune = -1
+ 	if off < 0 {
+ 		return 0, errors.New("bytes: invalid offset")
+ 	}
+diff --git a/src/pkg/bytes/reader_test.go b/src/pkg/bytes/reader_test.go
+index 01cfa6deb5..fc502d7fe5 100644
+--- a/src/pkg/bytes/reader_test.go
++++ b/src/pkg/bytes/reader_test.go
+@@ -138,7 +138,6 @@ var UnreadRuneErrorTests = []struct {
+ 	f    func(*Reader)
+ }{
+ 	{"Read", func(r *Reader) { r.Read([]byte{}) }},
+-	{"ReadAt", func(r *Reader) { r.ReadAt([]byte{}, 0) }},
+ 	{"ReadByte", func(r *Reader) { r.ReadByte() }},
+ 	{"UnreadRune", func(r *Reader) { r.UnreadRune() }},
+ 	{"Seek", func(r *Reader) { r.Seek(0, 1) }},
+diff --git a/src/pkg/strings/reader.go b/src/pkg/strings/reader.go
+index df4d807120..75bf07b377 100644
+--- a/src/pkg/strings/reader.go
++++ b/src/pkg/strings/reader.go
+@@ -42,7 +42,6 @@ func (r *Reader) Read(b []byte) (n int, err error) {
+ }
+ 
+ func (r *Reader) ReadAt(b []byte, off int64) (n int, err error) {
+-	r.prevRune = -1
+ 	if off < 0 {
+ 		return 0, errors.New("strings: invalid offset")
+ 	}
+diff --git a/src/pkg/strings/strings_test.go b/src/pkg/strings/strings_test.go
+index 5c38965775..8347818d59 100644
+--- a/src/pkg/strings/strings_test.go
++++ b/src/pkg/strings/strings_test.go
+@@ -863,7 +863,6 @@ var UnreadRuneErrorTests = []struct {
+ 	f    func(*Reader)
+ }{
+ 	{"Read", func(r *Reader) { r.Read([]byte{}) }},
+-	{"ReadAt", func(r *Reader) { r.ReadAt([]byte{}, 0) }},
+ 	{"ReadByte", func(r *Reader) { r.ReadByte() }},
+ 	{"UnreadRune", func(r *Reader) { r.UnreadRune() }},
+ 	{"Seek", func(r *Reader) { r.Seek(0, 1) }},

@@ -13,7 +13,7 @@ Date:   Mon May 2 18:39:07 2022 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/ir/expr.go             | 10 ++++++----
  src/cmd/compile/internal/ir/fmt.go              |  4 ----
  src/cmd/compile/internal/ir/node_gen.go         |  6 ------
@@ -24,3 +24,175 @@ Date:   Mon May 2 18:39:07 2022 -0700
  src/cmd/compile/internal/typecheck/typecheck.go |  4 ----
  src/cmd/compile/internal/walk/switch.go         |  3 +--
  9 files changed, 17 insertions(+), 41 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/expr.go b/src/cmd/compile/internal/ir/expr.go
+index 086be13afd..e54b6f0675 100644
+--- a/src/cmd/compile/internal/ir/expr.go
++++ b/src/cmd/compile/internal/ir/expr.go
+@@ -648,18 +648,20 @@ func (n *StarExpr) SetOTYPE(t *types.Type) {
+ // Before type-checking, the type is Ntype.
+ type TypeAssertExpr struct {
+ 	miniExpr
+-	X     Node
+-	Ntype Ntype
++	X Node
+ 
+ 	// Runtime type information provided by walkDotType for
+ 	// assertions from non-empty interface to concrete type.
+ 	Itab *AddrExpr `mknode:"-"` // *runtime.itab for Type implementing X's type
+ }
+ 
+-func NewTypeAssertExpr(pos src.XPos, x Node, typ Ntype) *TypeAssertExpr {
+-	n := &TypeAssertExpr{X: x, Ntype: typ}
++func NewTypeAssertExpr(pos src.XPos, x Node, typ *types.Type) *TypeAssertExpr {
++	n := &TypeAssertExpr{X: x}
+ 	n.pos = pos
+ 	n.op = ODOTTYPE
++	if typ != nil {
++		n.SetType(typ)
++	}
+ 	return n
+ }
+ 
+diff --git a/src/cmd/compile/internal/ir/fmt.go b/src/cmd/compile/internal/ir/fmt.go
+index 681404bc64..c97bc5831b 100644
+--- a/src/cmd/compile/internal/ir/fmt.go
++++ b/src/cmd/compile/internal/ir/fmt.go
+@@ -717,10 +717,6 @@ func exprFmt(n Node, s fmt.State, prec int) {
+ 	case ODOTTYPE, ODOTTYPE2:
+ 		n := n.(*TypeAssertExpr)
+ 		exprFmt(n.X, s, nprec)
+-		if n.Ntype != nil {
+-			fmt.Fprintf(s, ".(%v)", n.Ntype)
+-			return
+-		}
+ 		fmt.Fprintf(s, ".(%v)", n.Type())
+ 
+ 	case OINDEX, OINDEXMAP:
+diff --git a/src/cmd/compile/internal/ir/node_gen.go b/src/cmd/compile/internal/ir/node_gen.go
+index cf27f48bfc..0d094ae76b 100644
+--- a/src/cmd/compile/internal/ir/node_gen.go
++++ b/src/cmd/compile/internal/ir/node_gen.go
+@@ -1249,9 +1249,6 @@ func (n *TypeAssertExpr) doChildren(do func(Node) bool) bool {
+ 	if n.X != nil && do(n.X) {
+ 		return true
+ 	}
+-	if n.Ntype != nil && do(n.Ntype) {
+-		return true
+-	}
+ 	return false
+ }
+ func (n *TypeAssertExpr) editChildren(edit func(Node) Node) {
+@@ -1259,9 +1256,6 @@ func (n *TypeAssertExpr) editChildren(edit func(Node) Node) {
+ 	if n.X != nil {
+ 		n.X = edit(n.X).(Node)
+ 	}
+-	if n.Ntype != nil {
+-		n.Ntype = edit(n.Ntype).(Ntype)
+-	}
+ }
+ 
+ func (n *TypeSwitchGuard) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index 9474568b27..2c038b0689 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -1638,7 +1638,7 @@ func (r *reader) expr() (res ir.Node) {
+ 		if typ, ok := typ.(*ir.DynamicType); ok && typ.Op() == ir.ODYNAMICTYPE {
+ 			return typed(typ.Type(), ir.NewDynamicTypeAssertExpr(pos, ir.ODYNAMICDOTTYPE, x, typ.X))
+ 		}
+-		return typecheck.Expr(ir.NewTypeAssertExpr(pos, x, typ.(ir.Ntype)))
++		return typecheck.Expr(ir.NewTypeAssertExpr(pos, x, typ.Type()))
+ 
+ 	case exprUnaryOp:
+ 		op := r.op()
+diff --git a/src/cmd/compile/internal/noder/stencil.go b/src/cmd/compile/internal/noder/stencil.go
+index c57a8760c7..66e48b0e7e 100644
+--- a/src/cmd/compile/internal/noder/stencil.go
++++ b/src/cmd/compile/internal/noder/stencil.go
+@@ -2266,15 +2266,12 @@ func closureSym(outer *ir.Func, prefix string, n int) *types.Sym {
+ // assertToBound returns a new node that converts a node rcvr with interface type to
+ // the 'dst' interface type.
+ func assertToBound(info *instInfo, dictVar *ir.Name, pos src.XPos, rcvr ir.Node, dst *types.Type) ir.Node {
+-	if dst.HasShape() {
+-		ix := findDictType(info, dst)
+-		assert(ix >= 0)
+-		rt := getDictionaryType(info, dictVar, pos, ix)
+-		rcvr = ir.NewDynamicTypeAssertExpr(pos, ir.ODYNAMICDOTTYPE, rcvr, rt)
+-		typed(dst, rcvr)
+-	} else {
+-		rcvr = ir.NewTypeAssertExpr(pos, rcvr, nil)
+-		typed(dst, rcvr)
++	if !dst.HasShape() {
++		return typed(dst, ir.NewTypeAssertExpr(pos, rcvr, nil))
+ 	}
+-	return rcvr
++
++	ix := findDictType(info, dst)
++	assert(ix >= 0)
++	rt := getDictionaryType(info, dictVar, pos, ix)
++	return typed(dst, ir.NewDynamicTypeAssertExpr(pos, ir.ODYNAMICDOTTYPE, rcvr, rt))
+ }
+diff --git a/src/cmd/compile/internal/typecheck/expr.go b/src/cmd/compile/internal/typecheck/expr.go
+index 4d96a7df5c..ccad9bf3b8 100644
+--- a/src/cmd/compile/internal/typecheck/expr.go
++++ b/src/cmd/compile/internal/typecheck/expr.go
+@@ -532,14 +532,7 @@ func tcDotType(n *ir.TypeAssertExpr) ir.Node {
+ 		return n
+ 	}
+ 
+-	if n.Ntype != nil {
+-		n.Ntype = typecheckNtype(n.Ntype)
+-		n.SetType(n.Ntype.Type())
+-		n.Ntype = nil
+-		if n.Type() == nil {
+-			return n
+-		}
+-	}
++	base.AssertfAt(n.Type() != nil, n.Pos(), "missing type: %v", n)
+ 
+ 	if n.Type() != nil && !n.Type().IsInterface() {
+ 		var missing, have *types.Field
+diff --git a/src/cmd/compile/internal/typecheck/iimport.go b/src/cmd/compile/internal/typecheck/iimport.go
+index 962b6cbb12..d2ea954a50 100644
+--- a/src/cmd/compile/internal/typecheck/iimport.go
++++ b/src/cmd/compile/internal/typecheck/iimport.go
+@@ -1480,8 +1480,7 @@ func (r *importReader) node() ir.Node {
+ 		return n
+ 
+ 	case ir.ODOTTYPE, ir.ODOTTYPE2:
+-		n := ir.NewTypeAssertExpr(r.pos(), r.expr(), nil)
+-		n.SetType(r.typ())
++		n := ir.NewTypeAssertExpr(r.pos(), r.expr(), r.typ())
+ 		n.SetOp(op)
+ 		return n
+ 
+diff --git a/src/cmd/compile/internal/typecheck/typecheck.go b/src/cmd/compile/internal/typecheck/typecheck.go
+index 44a0717fa6..eccbf24ce4 100644
+--- a/src/cmd/compile/internal/typecheck/typecheck.go
++++ b/src/cmd/compile/internal/typecheck/typecheck.go
+@@ -234,10 +234,6 @@ func Func(fn *ir.Func) {
+ 	}
+ }
+ 
+-func typecheckNtype(n ir.Ntype) ir.Ntype {
+-	return typecheck(n, ctxType).(ir.Ntype)
+-}
+-
+ // typecheck type checks node n.
+ // The result of typecheck MUST be assigned back to n, e.g.
+ //
+diff --git a/src/cmd/compile/internal/walk/switch.go b/src/cmd/compile/internal/walk/switch.go
+index 5067d5eb49..75c4ceaf02 100644
+--- a/src/cmd/compile/internal/walk/switch.go
++++ b/src/cmd/compile/internal/walk/switch.go
+@@ -567,8 +567,7 @@ func (s *typeSwitch) Add(pos src.XPos, n1 ir.Node, caseVar *ir.Name, jmp ir.Node
+ 	switch n1.Op() {
+ 	case ir.OTYPE:
+ 		// Static type assertion (non-generic)
+-		dot := ir.NewTypeAssertExpr(pos, s.facename, nil)
+-		dot.SetType(typ) // iface.(type)
++		dot := ir.NewTypeAssertExpr(pos, s.facename, typ) // iface.(type)
+ 		as.Rhs = []ir.Node{dot}
+ 	case ir.ODYNAMICTYPE:
+ 		// Dynamic type assertion (generic)

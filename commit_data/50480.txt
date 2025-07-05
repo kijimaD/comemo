@@ -16,7 +16,7 @@ Date:   Wed Oct 27 11:14:24 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/types2/interface.go       |  2 +-
  src/cmd/compile/internal/types2/predicates.go      |  2 +-
  .../internal/types2/testdata/check/typeinst2.go2   | 10 +++---
@@ -46,3 +46,759 @@ Date:   Wed Oct 27 11:14:24 2021 -0400
  src/go/types/testdata/fixedbugs/issue39711.go2     |  4 +--
  src/go/types/union.go                              | 20 +++--------
  28 files changed, 66 insertions(+), 220 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/interface.go b/src/cmd/compile/internal/types2/interface.go
+index 048fcab024..96c92ccaec 100644
+--- a/src/cmd/compile/internal/types2/interface.go
++++ b/src/cmd/compile/internal/types2/interface.go
+@@ -116,7 +116,7 @@ func (check *Checker) interfaceType(ityp *Interface, iface *syntax.InterfaceType
+ 		}
+ 		// f.Name != nil
+ 
+-		// We have a method with name f.Name, or a type of a type list (f.Name.Value == "type").
++		// We have a method with name f.Name.
+ 		name := f.Name.Value
+ 		if name == "_" {
+ 			if check.conf.CompilerErrorMessages {
+diff --git a/src/cmd/compile/internal/types2/predicates.go b/src/cmd/compile/internal/types2/predicates.go
+index 409715ad9d..380fb6489c 100644
+--- a/src/cmd/compile/internal/types2/predicates.go
++++ b/src/cmd/compile/internal/types2/predicates.go
+@@ -44,7 +44,7 @@ func isNumeric(typ Type) bool  { return is(typ, IsNumeric) }
+ func isString(typ Type) bool   { return is(typ, IsString) }
+ 
+ // Note that if typ is a type parameter, isInteger(typ) || isFloat(typ) does not
+-// produce the expected result because a type list that contains both an integer
++// produce the expected result because a type set that contains both an integer
+ // and a floating-point type is neither (all) integers, nor (all) floats.
+ // Use isIntegerOrFloat instead.
+ func isIntegerOrFloat(typ Type) bool { return is(typ, IsInteger|IsFloat) }
+diff --git a/src/cmd/compile/internal/types2/testdata/check/typeinst2.go2 b/src/cmd/compile/internal/types2/testdata/check/typeinst2.go2
+index 5529bd093d..cd56c81bb9 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/typeinst2.go2
++++ b/src/cmd/compile/internal/types2/testdata/check/typeinst2.go2
+@@ -172,7 +172,7 @@ type _ interface {
+ 	~struct{f int} | ~struct{g int} | ~struct /* ERROR overlapping terms */ {f int}
+ }
+ 
+-// Interface type lists can contain any type, incl. *Named types.
++// Interface term lists can contain any type, incl. *Named types.
+ // Verify that we use the underlying type to compute the operational type.
+ type MyInt int
+ func add1[T interface{MyInt}](x T) T {
+@@ -184,9 +184,9 @@ func double[T interface{MyInt|MyString}](x T) T {
+ 	return x + x
+ }
+ 
+-// Embedding of interfaces with type lists leads to interfaces
+-// with type lists that are the intersection of the embedded
+-// type lists.
++// Embedding of interfaces with term lists leads to interfaces
++// with term lists that are the intersection of the embedded
++// term lists.
+ 
+ type E0 interface {
+ 	~int | ~bool | ~string
+@@ -277,4 +277,4 @@ func _[T none]() {
+         _ = gg[T]
+ 	_ = hh[int]
+ 	_ = hh[T]
+-}
+\ No newline at end of file
++}
+diff --git a/src/cmd/compile/internal/types2/testdata/examples/types.go2 b/src/cmd/compile/internal/types2/testdata/examples/types.go2
+index 72b74cee01..077fcfdbb7 100644
+--- a/src/cmd/compile/internal/types2/testdata/examples/types.go2
++++ b/src/cmd/compile/internal/types2/testdata/examples/types.go2
+@@ -276,8 +276,8 @@ func _() {
+ 
+ // Type parameters are never const types, i.e., it's
+ // not possible to declare a constant of type parameter type.
+-// (If a type list contains just a single const type, we could
+-// allow it, but such type lists don't make much sense in the
++// (If a type set contains just a single const type, we could
++// allow it, but such type sets don't make much sense in the
+ // first place.)
+ func _[T interface{~int|~float64}]() {
+ 	// not valid
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39711.go2 b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39711.go2
+index 85eb0a78fe..8f31012354 100644
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39711.go2
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39711.go2
+@@ -4,10 +4,10 @@
+ 
+ package p
+ 
+-// Do not report a duplicate type error for this type list.
++// Do not report a duplicate type error for this term list.
+ // (Check types after interfaces have been completed.)
+ type _ interface {
+ 	// TODO(gri) Once we have full type sets we can enable this again.
+-	// Fow now we don't permit interfaces in type lists.
++	// Fow now we don't permit interfaces in term lists.
+ 	// type interface{ Error() string }, interface{ String() string }
+ }
+diff --git a/src/cmd/gofmt/testdata/typeparams.golden b/src/cmd/gofmt/testdata/typeparams.golden
+index f71bd130db..d57a2ba59b 100644
+--- a/src/cmd/gofmt/testdata/typeparams.golden
++++ b/src/cmd/gofmt/testdata/typeparams.golden
+@@ -21,7 +21,7 @@ func f[P1, P2, P3 any](x1 P1, x2 P2, x3 P3) struct{}
+ func f[P interface{}](x P)
+ func f[P1, P2, P3 interface {
+ 	m1(P1)
+-	type P2, P3
++	~P2 | ~P3
+ }](x1 P1, x2 P2, x3 P3) struct{}
+ func f[P any](T1[P], T2[P]) T3[P]
+ 
+diff --git a/src/cmd/gofmt/testdata/typeparams.input b/src/cmd/gofmt/testdata/typeparams.input
+index 5d4c53d9f7..775cf9eb7b 100644
+--- a/src/cmd/gofmt/testdata/typeparams.input
++++ b/src/cmd/gofmt/testdata/typeparams.input
+@@ -19,7 +19,7 @@ func f[P any](x P)
+ func f[P1, P2, P3 any](x1 P1, x2 P2, x3 P3) struct{}
+ 
+ func f[P interface{}](x P)
+-func f[P1, P2, P3 interface{ m1(P1); type P2, P3 }](x1 P1, x2 P2, x3 P3) struct{}
++func f[P1, P2, P3 interface{ m1(P1); ~P2|~P3 }](x1 P1, x2 P2, x3 P3) struct{}
+ func f[P any](T1[P], T2[P]) T3[P]
+ 
+ func (x T[P]) m()
+diff --git a/src/go/ast/ast.go b/src/go/ast/ast.go
+index 38b6de57d3..bc140473d5 100644
+--- a/src/go/ast/ast.go
++++ b/src/go/ast/ast.go
+@@ -193,14 +193,10 @@ func isDirective(c string) bool {
+ // in a signature.
+ // Field.Names is nil for unnamed parameters (parameter lists which only contain types)
+ // and embedded struct fields. In the latter case, the field name is the type name.
+-// Field.Names contains a single name "type" for elements of interface type lists.
+-// Types belonging to the same type list share the same "type" identifier which also
+-// records the position of that keyword.
+-//
+ type Field struct {
+ 	Doc     *CommentGroup // associated documentation; or nil
+-	Names   []*Ident      // field/method/(type) parameter names, or type "type"; or nil
+-	Type    Expr          // field/method/parameter type, type list type; or nil
++	Names   []*Ident      // field/method/(type) parameter names; or nil
++	Type    Expr          // field/method/parameter type; or nil
+ 	Tag     *BasicLit     // field tag; or nil
+ 	Comment *CommentGroup // line comments; or nil
+ }
+diff --git a/src/go/parser/parser.go b/src/go/parser/parser.go
+index 999663b98c..792fe4141c 100644
+--- a/src/go/parser/parser.go
++++ b/src/go/parser/parser.go
+@@ -1128,18 +1128,6 @@ parseElements:
+ 			p.expectSemi()
+ 			comment := p.lineComment
+ 			list = append(list, &ast.Field{Type: typ, Comment: comment})
+-		case p.tok == token.TYPE && p.allowGenerics():
+-			// TODO(rfindley): remove TypeList syntax and refactor the clauses above.
+-
+-			// all types in a type list share the same field name "type"
+-			// (since type is a keyword, a Go program cannot have that field name)
+-			name := []*ast.Ident{{NamePos: p.pos, Name: "type"}}
+-			p.next()
+-			// add each type as a field named "type"
+-			for _, typ := range p.parseTypeList() {
+-				list = append(list, &ast.Field{Names: name, Type: typ})
+-			}
+-			p.expectSemi()
+ 		case p.allowGenerics():
+ 			if t := p.tryIdentOrType(); t != nil {
+ 				typ := p.embeddedElem(t)
+diff --git a/src/go/parser/resolver.go b/src/go/parser/resolver.go
+index 527f1691bd..54732a7fd6 100644
+--- a/src/go/parser/resolver.go
++++ b/src/go/parser/resolver.go
+@@ -117,12 +117,6 @@ func (r *resolver) closeLabelScope() {
+ 
+ func (r *resolver) declare(decl, data interface{}, scope *ast.Scope, kind ast.ObjKind, idents ...*ast.Ident) {
+ 	for _, ident := range idents {
+-		// "type" is used for type lists in interfaces, and is otherwise an invalid
+-		// identifier. The 'type' identifier is also artificially duplicated in the
+-		// type list, so could cause panics below if we were to proceed.
+-		if ident.Name == "type" {
+-			continue
+-		}
+ 		assert(ident.Obj == nil, "identifier already declared or resolved")
+ 		obj := ast.NewObj(kind, ident.Name)
+ 		// remember the corresponding declaration for redeclaration
+@@ -188,10 +182,9 @@ func (r *resolver) resolve(ident *ast.Ident, collectUnresolved bool) {
+ 	if ident.Obj != nil {
+ 		panic(fmt.Sprintf("%s: identifier %s already declared or resolved", r.handle.Position(ident.Pos()), ident.Name))
+ 	}
+-	// '_' and 'type' should never refer to existing declarations: '_' because it
+-	// has special handling in the spec, and 'type' because it is a keyword, and
+-	// only valid in an interface type list.
+-	if ident.Name == "_" || ident.Name == "type" {
++	// '_' should never refer to existing declarations, because it has special
++	// handling in the spec.
++	if ident.Name == "_" {
+ 		return
+ 	}
+ 	for s := r.topScope; s != nil; s = s.Outer {
+diff --git a/src/go/parser/short_test.go b/src/go/parser/short_test.go
+index bfc6f6714b..20450bfe8e 100644
+--- a/src/go/parser/short_test.go
++++ b/src/go/parser/short_test.go
+@@ -119,8 +119,7 @@ var validWithTParamsOnly = []string{
+ 	`package p; func _(T[P] /* ERROR "missing element type" */ ) T[P]`,
+ 	`package p; type _ struct{ T[P] /* ERROR "missing element type" */ }`,
+ 	`package p; type _ struct{ T[struct /* ERROR "expected expression" */ {a, b, c int}] }`,
+-	`package p; type _ interface{type /* ERROR "expected '}', found 'type'" */ int}`,
+-	`package p; type _ interface{type /* ERROR "expected '}', found 'type'" */ int, float32; type bool; m(); type string;}`,
++	`package p; type _ interface{int| /* ERROR "expected ';'" */ float32; bool; m(); string;}`,
+ 	`package p; type I1[T any /* ERROR "expected ']', found any" */ ] interface{}; type I2 interface{ I1[int] }`,
+ 	`package p; type I1[T any /* ERROR "expected ']', found any" */ ] interface{}; type I2[T any] interface{ I1[T] }`,
+ 	`package p; type _ interface { f[ /* ERROR "expected ';', found '\['" */ T any]() }`,
+diff --git a/src/go/parser/testdata/interface.go2 b/src/go/parser/testdata/interface.go2
+index b399d75148..2ed9339c52 100644
+--- a/src/go/parser/testdata/interface.go2
++++ b/src/go/parser/testdata/interface.go2
+@@ -4,16 +4,13 @@
+ 
+ // This file contains test cases for interfaces containing
+ // constraint elements.
+-//
+-// For now, we accept both ordinary type lists and the
+-// more complex constraint elements.
+ 
+ package p
+ 
+ type _ interface {
+ 	m()
+-	type int
+-	type int, string
++	~int
++	~int|string
+ 	E
+ }
+ 
+@@ -31,7 +28,6 @@ type _ interface {
+ 	T[int, string] | string
+ 	int | ~T[string, struct{}]
+ 	~int | ~string
+-	type bool, int, float64
+ }
+ 
+ type _ interface {
+diff --git a/src/go/parser/testdata/linalg.go2 b/src/go/parser/testdata/linalg.go2
+index fba0d02eb2..7ccb19c08d 100644
+--- a/src/go/parser/testdata/linalg.go2
++++ b/src/go/parser/testdata/linalg.go2
+@@ -9,10 +9,10 @@ import "math"
+ // Numeric is type bound that matches any numeric type.
+ // It would likely be in a constraints package in the standard library.
+ type Numeric interface {
+-	type int, int8, int16, int32, int64,
+-		uint, uint8, uint16, uint32, uint64, uintptr,
+-		float32, float64,
+-		complex64, complex128
++	~int|~int8|~int16|~int32|~int64|
++		~uint|~uint8|~uint16|~uint32|~uint64|~uintptr|
++		~float32|~float64|
++		~complex64|~complex128
+ }
+ 
+ func DotProduct[T Numeric](s1, s2 []T) T {
+@@ -42,14 +42,14 @@ func AbsDifference[T NumericAbs](a, b T) T {
+ 
+ // OrderedNumeric is a type bound that matches numeric types that support the < operator.
+ type OrderedNumeric interface {
+-	type int, int8, int16, int32, int64,
+-		uint, uint8, uint16, uint32, uint64, uintptr,
+-		float32, float64
++	~int|~int8|~int16|~int32|~int64|
++		~uint|~uint8|~uint16|~uint32|~uint64|~uintptr|
++		~float32|~float64
+ }
+ 
+ // Complex is a type bound that matches the two complex types, which do not have a < operator.
+ type Complex interface {
+-	type complex64, complex128
++	~complex64|~complex128
+ }
+ 
+ // OrderedAbs is a helper type that defines an Abs method for
+diff --git a/src/go/parser/testdata/resolution/typeparams.go2 b/src/go/parser/testdata/resolution/typeparams.go2
+index 0ffecd69b5..8c243afda7 100644
+--- a/src/go/parser/testdata/resolution/typeparams.go2
++++ b/src/go/parser/testdata/resolution/typeparams.go2
+@@ -15,7 +15,7 @@ type Pair /* =@Pair */ [L /* =@L */, R /* =@R */ any] struct {
+ var _ = Pair /* @Pair */ [int, string]{}
+ 
+ type Addable /* =@Addable */ interface {
+-	type int64, float64
++	~int64|~float64
+ }
+ 
+ func Add /* =@AddDecl */[T /* =@T */ Addable /* @Addable */](l /* =@l */, r /* =@r */ T /* @T */) T /* @T */ {
+@@ -30,7 +30,7 @@ type Receiver /* =@Receiver */[P /* =@P */ any] struct {}
+ // parameter below.
+ func (r /* =@recv */ Receiver /* @Receiver */ [P]) m() P {}
+ 
+-func f /* =@f */[T1 /* =@T1 */ interface{type []T2 /* @T2 */}, T2 /* =@T2 */ any](
++func f /* =@f */[T1 /* =@T1 */ interface{~[]T2 /* @T2 */}, T2 /* =@T2 */ any](
+   x /* =@x */ T1 /* @T1 */, T1 /* =@T1_duplicate */ y,  // Note that this is a bug:
+                                                         // the duplicate T1 should
+ 							// not be allowed.
+diff --git a/src/go/printer/nodes.go b/src/go/printer/nodes.go
+index 567b2339b4..19d4ab6663 100644
+--- a/src/go/printer/nodes.go
++++ b/src/go/printer/nodes.go
+@@ -471,17 +471,9 @@ func (p *printer) fieldList(fields *ast.FieldList, isStruct, isIncomplete bool)
+ 				p.expr(f.Type)
+ 			} else { // interface
+ 				if len(f.Names) > 0 {
+-					// type list type or method
+-					name := f.Names[0] // "type" or method name
++					name := f.Names[0] // method name
+ 					p.expr(name)
+-					if name.Name == "type" {
+-						// type list type
+-						p.print(blank)
+-						p.expr(f.Type)
+-					} else {
+-						// method
+-						p.signature(f.Type.(*ast.FuncType)) // don't print "func"
+-					}
++					p.signature(f.Type.(*ast.FuncType)) // don't print "func"
+ 				} else {
+ 					// embedded interface
+ 					p.expr(f.Type)
+@@ -568,24 +560,10 @@ func (p *printer) fieldList(fields *ast.FieldList, isStruct, isIncomplete bool)
+ 			p.setComment(f.Doc)
+ 			p.recordLine(&line)
+ 			if name != nil {
+-				// type list type or method
+-				if name.Name == "type" {
+-					// type list type
+-					if name == prev {
+-						// type is part of a list of types
+-						p.print(token.COMMA, blank)
+-					} else {
+-						// type starts a new list of types
+-						p.print(name, blank)
+-					}
+-					p.expr(f.Type)
+-					prev = name
+-				} else {
+-					// method
+-					p.expr(name)
+-					p.signature(f.Type.(*ast.FuncType)) // don't print "func"
+-					prev = nil
+-				}
++				// method
++				p.expr(name)
++				p.signature(f.Type.(*ast.FuncType)) // don't print "func"
++				prev = nil
+ 			} else {
+ 				// embedded interface
+ 				p.expr(f.Type)
+diff --git a/src/go/printer/testdata/generics.golden b/src/go/printer/testdata/generics.golden
+index 31ab7716dd..3d95eda5b2 100644
+--- a/src/go/printer/testdata/generics.golden
++++ b/src/go/printer/testdata/generics.golden
+@@ -22,7 +22,7 @@ func f[P1, P2, P3 any](x1 P1, x2 P2, x3 P3) struct{}
+ func f[P interface{}](x P)
+ func f[P1, P2, P3 interface {
+ 	m1(P1)
+-	type P2, P3
++	~P2 | ~P3
+ }](x1 P1, x2 P2, x3 P3) struct{}
+ func f[P any](T1[P], T2[P]) T3[P]
+ 
+@@ -35,14 +35,6 @@ func _() {
+ 	_ = []T[P]{}
+ }
+ 
+-// properly format one-line type lists
+-// TODO(rfindley): remove support for type lists
+-type _ interface{ type a }
+-
+-type _ interface {
+-	type a, b, c
+-}
+-
+ // type constraint literals with elided interfaces
+ func _[P ~int, Q int | string]()	{}
+ func _[P struct{ f int }, Q *P]()	{}
+diff --git a/src/go/printer/testdata/generics.input b/src/go/printer/testdata/generics.input
+index 11431c5a0a..746dfdd235 100644
+--- a/src/go/printer/testdata/generics.input
++++ b/src/go/printer/testdata/generics.input
+@@ -20,7 +20,7 @@ func f[P any](x P)
+ func f[P1, P2, P3 any](x1 P1, x2 P2, x3 P3) struct{}
+ 
+ func f[P interface{}](x P)
+-func f[P1, P2, P3 interface{ m1(P1); type P2, P3 }](x1 P1, x2 P2, x3 P3) struct{}
++func f[P1, P2, P3 interface{ m1(P1); ~P2|~P3 }](x1 P1, x2 P2, x3 P3) struct{}
+ func f[P any](T1[P], T2[P]) T3[P]
+ 
+ func (x T[P]) m()
+@@ -32,12 +32,6 @@ func _() {
+ 	_ = []T[P]{}
+ }
+ 
+-// properly format one-line type lists
+-// TODO(rfindley): remove support for type lists
+-type _ interface { type a }
+-
+-type _ interface { type a,b,c }
+-
+ // type constraint literals with elided interfaces
+ func _[P ~int, Q int | string]() {}
+ func _[P struct{f int}, Q *P]() {}
+diff --git a/src/go/types/call.go b/src/go/types/call.go
+index 4731c69619..6894f1c182 100644
+--- a/src/go/types/call.go
++++ b/src/go/types/call.go
+@@ -141,6 +141,7 @@ func (check *Checker) callExpr(x *operand, call *ast.CallExpr) exprKind {
+ 				}
+ 				if t := asInterface(T); t != nil {
+ 					if !t.IsMethodSet() {
++						// TODO(rfindley): remove the phrase "type list" from this error.
+ 						check.errorf(call, _Todo, "cannot use interface %s in conversion (contains type list or is comparable)", T)
+ 						break
+ 					}
+diff --git a/src/go/types/exprstring.go b/src/go/types/exprstring.go
+index 06e7a9dcb4..aa4f403c1f 100644
+--- a/src/go/types/exprstring.go
++++ b/src/go/types/exprstring.go
+@@ -145,29 +145,8 @@ func WriteExpr(buf *bytes.Buffer, x ast.Expr) {
+ 		writeSigExpr(buf, x)
+ 
+ 	case *ast.InterfaceType:
+-		// separate type list types from method list
+-		// TODO(gri) we can get rid of this extra code if writeExprList does the separation
+-		var types []ast.Expr
+-		var methods []*ast.Field
+-		for _, f := range x.Methods.List {
+-			if len(f.Names) > 1 && f.Names[0].Name == "type" {
+-				// type list type
+-				types = append(types, f.Type)
+-			} else {
+-				// method or embedded interface
+-				methods = append(methods, f)
+-			}
+-		}
+-
+ 		buf.WriteString("interface{")
+-		writeFieldList(buf, methods, "; ", true)
+-		if len(types) > 0 {
+-			if len(methods) > 0 {
+-				buf.WriteString("; ")
+-			}
+-			buf.WriteString("type ")
+-			writeExprList(buf, types)
+-		}
++		writeFieldList(buf, x.Methods.List, "; ", true)
+ 		buf.WriteByte('}')
+ 
+ 	case *ast.MapType:
+diff --git a/src/go/types/exprstring_test.go b/src/go/types/exprstring_test.go
+index a67f6a978a..27cd532c97 100644
+--- a/src/go/types/exprstring_test.go
++++ b/src/go/types/exprstring_test.go
+@@ -36,15 +36,8 @@ var testExprs = []testEntry{
+ 	dup("func(int, float32) string"),
+ 	dup("interface{m()}"),
+ 	dup("interface{m() string; n(x int)}"),
+-	dup("interface{type int}"),
+-
+-	// The following exprs do not get formatted correctly: each element in the
+-	// type list is printed on a separate line. This is left as a placeholder
+-	// until type lists are removed.
+-	// TODO(rfindley): remove this once type lists are gone.
+-	// dup("interface{type int, float64, string}"),
+-	// dup("interface{type int; m()}"),
+-	// dup("interface{type int, float64, string; m() string; n(x int)}"),
++	dup("interface{~int}"),
++
+ 	dup("map[string]int"),
+ 	dup("chan E"),
+ 	dup("<-chan E"),
+diff --git a/src/go/types/interface.go b/src/go/types/interface.go
+index 3d5573373f..c170ed4a60 100644
+--- a/src/go/types/interface.go
++++ b/src/go/types/interface.go
+@@ -142,9 +142,6 @@ func (t *Interface) String() string   { return TypeString(t, nil) }
+ // Implementation
+ 
+ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, def *Named) {
+-	var tlist []ast.Expr
+-	var tname *ast.Ident // "type" name of first entry in a type list declaration
+-
+ 	addEmbedded := func(pos token.Pos, typ Type) {
+ 		ityp.embeddeds = append(ityp.embeddeds, typ)
+ 		if ityp.embedPos == nil {
+@@ -158,41 +155,15 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
+ 			addEmbedded(f.Type.Pos(), parseUnion(check, flattenUnion(nil, f.Type)))
+ 			continue
+ 		}
++		// f.Name != nil
+ 
+-		// We have a method with name f.Names[0], or a type
+-		// of a type list (name.Name == "type").
+-		// (The parser ensures that there's only one method
+-		// and we don't care if a constructed AST has more.)
++		// We have a method with name f.Names[0].
+ 		name := f.Names[0]
+ 		if name.Name == "_" {
+ 			check.errorf(name, _BlankIfaceMethod, "invalid method name _")
+ 			continue // ignore
+ 		}
+ 
+-		// TODO(rfindley) Remove type list handling once the parser doesn't accept type lists anymore.
+-		if name.Name == "type" {
+-			// Report an error for the first type list per interface
+-			// if we don't allow type lists, but continue.
+-			if !allowTypeLists && tlist == nil {
+-				check.softErrorf(name, _Todo, "use generalized embedding syntax instead of a type list")
+-			}
+-			// For now, collect all type list entries as if it
+-			// were a single union, where each union element is
+-			// of the form ~T.
+-			// TODO(rfindley) remove once we disallow type lists
+-			op := new(ast.UnaryExpr)
+-			op.Op = token.TILDE
+-			op.X = f.Type
+-			tlist = append(tlist, op)
+-			// Report an error if we have multiple type lists in an
+-			// interface, but only if they are permitted in the first place.
+-			if allowTypeLists && tname != nil && tname != name {
+-				check.errorf(name, _Todo, "cannot have multiple type lists in an interface")
+-			}
+-			tname = name
+-			continue
+-		}
+-
+ 		typ := check.typ(f.Type)
+ 		sig, _ := typ.(*Signature)
+ 		if sig == nil {
+@@ -225,13 +196,6 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
+ 		ityp.methods = append(ityp.methods, m)
+ 	}
+ 
+-	// type constraints
+-	if tlist != nil {
+-		// TODO(rfindley): this differs from types2 due to the use of Pos() below,
+-		// which should actually be on the ~. Confirm that this position is correct.
+-		addEmbedded(tlist[0].Pos(), parseUnion(check, tlist))
+-	}
+-
+ 	// All methods and embedded elements for this interface are collected;
+ 	// i.e., this interface may be used in a type set computation.
+ 	ityp.complete = true
+diff --git a/src/go/types/predicates.go b/src/go/types/predicates.go
+index a5d4be9bcc..b687c151c7 100644
+--- a/src/go/types/predicates.go
++++ b/src/go/types/predicates.go
+@@ -45,7 +45,7 @@ func isNumeric(typ Type) bool  { return is(typ, IsNumeric) }
+ func isString(typ Type) bool   { return is(typ, IsString) }
+ 
+ // Note that if typ is a type parameter, isInteger(typ) || isFloat(typ) does not
+-// produce the expected result because a type list that contains both an integer
++// produce the expected result because a type set that contains both an integer
+ // and a floating-point type is neither (all) integers, nor (all) floats.
+ // Use isIntegerOrFloat instead.
+ func isIntegerOrFloat(typ Type) bool { return is(typ, IsInteger|IsFloat) }
+diff --git a/src/go/types/testdata/check/issues.go2 b/src/go/types/testdata/check/issues.go2
+index c46a34e2eb..6a93bcc9ac 100644
+--- a/src/go/types/testdata/check/issues.go2
++++ b/src/go/types/testdata/check/issues.go2
+@@ -53,8 +53,8 @@ func _() {
+ }
+ 
+ // When a type parameter is used as an argument to instantiate a parameterized
+-// type with a type list constraint, all of the type argument's types in its
+-// bound, but at least one (!), must be in the type list of the bound of the
++// type with a type set constraint, all of the type argument's types in its
++// bound, but at least one (!), must be in the type set of the bound of the
+ // corresponding parameterized type's type parameter.
+ type T1[P interface{~uint}] struct{}
+ 
+@@ -152,7 +152,7 @@ type inf2 /* ERROR illegal cycle */ [T any] struct{ inf2[T] }
+ // The implementation of conversions T(x) between integers and floating-point
+ // numbers checks that both T and x have either integer or floating-point
+ // type. When the type of T or x is a type parameter, the respective simple
+-// predicate disjunction in the implementation was wrong because if a type list
++// predicate disjunction in the implementation was wrong because if a term list
+ // contains both an integer and a floating-point type, the type parameter is
+ // neither an integer or a floating-point number.
+ func convert[T1, T2 interface{~int | ~uint | ~float32}](v T1) T2 {
+@@ -185,13 +185,13 @@ func _[T interface{}, PT interface{~*T}] (x T) PT {
+     return &x
+ }
+ 
+-// Indexing of generic types containing type parameters in their type list:
++// Indexing of generic types containing type parameters in their term list:
+ func at[T interface{ ~[]E }, E interface{}](x T, i int) E {
+         return x[i]
+ }
+ 
+ // A generic type inside a function acts like a named type. Its underlying
+-// type is itself, its "operational type" is defined by the type list in
++// type is itself, its "operational type" is defined by the term list in
+ // the tybe bound, if any.
+ func _[T interface{~int}](x T) {
+ 	type myint int
+@@ -224,9 +224,9 @@ func _[T interface{ ~func() }](f T) {
+ 	go f()
+ }
+ 
+-// We must compare against the underlying type of type list entries
++// We must compare against the underlying type of term list entries
+ // when checking if a constraint is satisfied by a type. The under-
+-// lying type of each type list entry must be computed after the
++// lying type of each term list entry must be computed after the
+ // interface has been instantiated as its typelist may contain a
+ // type parameter that was substituted with a defined type.
+ // Test case from an (originally) failing example.
+diff --git a/src/go/types/testdata/check/typeinst2.go2 b/src/go/types/testdata/check/typeinst2.go2
+index 88913785c8..37d32263d4 100644
+--- a/src/go/types/testdata/check/typeinst2.go2
++++ b/src/go/types/testdata/check/typeinst2.go2
+@@ -159,10 +159,7 @@ type _ interface {
+ 	~rune
+ }
+ 
+-// Interface type lists may contain each type at most once.
+-// (If there are multiple lists, we assume the author intended
+-// for them to be all in a single list, and we report the error
+-// as well.)
++// Type sets may contain each type at most once.
+ type _ interface {
+ 	~int|~ /* ERROR overlapping terms ~int */ int
+ 	~int|int /* ERROR overlapping terms int */
+@@ -173,7 +170,7 @@ type _ interface {
+ 	~struct{f int} | ~struct{g int} | ~ /* ERROR overlapping terms */ struct {f int}
+ }
+ 
+-// Interface type lists can contain any type, incl. *Named types.
++// Interface term lists can contain any type, incl. *Named types.
+ // Verify that we use the underlying type to compute the operational type.
+ type MyInt int
+ func add1[T interface{MyInt}](x T) T {
+@@ -185,9 +182,9 @@ func double[T interface{MyInt|MyString}](x T) T {
+ 	return x + x
+ }
+ 
+-// Embedding of interfaces with type lists leads to interfaces
+-// with type lists that are the intersection of the embedded
+-// type lists.
++// Embedding of interfaces with term lists leads to interfaces
++// with term lists that are the intersection of the embedded
++// term lists.
+ 
+ type E0 interface {
+ 	~int | ~bool | ~string
+diff --git a/src/go/types/testdata/examples/constraints.go2 b/src/go/types/testdata/examples/constraints.go2
+index ecc75c1a46..4d7f70313a 100644
+--- a/src/go/types/testdata/examples/constraints.go2
++++ b/src/go/types/testdata/examples/constraints.go2
+@@ -6,18 +6,6 @@
+ 
+ package p
+ 
+-type (
+-	// Type lists are processed as unions but an error is reported.
+-	// TODO(gri) remove this once the parser doesn't accept type lists anymore.
+-	_ interface{
+-		type /* ERROR use generalized embedding syntax instead of a type list */ int
+-	}
+-	_ interface{
+-		type /* ERROR use generalized embedding syntax instead of a type list */ int
+-		type float32
+-	}
+-)
+-
+ type MyInt int
+ 
+ type (
+diff --git a/src/go/types/testdata/examples/types.go2 b/src/go/types/testdata/examples/types.go2
+index 807c03238f..367b73120c 100644
+--- a/src/go/types/testdata/examples/types.go2
++++ b/src/go/types/testdata/examples/types.go2
+@@ -281,8 +281,8 @@ func _() {
+ 
+ // Type parameters are never const types, i.e., it's
+ // not possible to declare a constant of type parameter type.
+-// (If a type list contains just a single const type, we could
+-// allow it, but such type lists don't make much sense in the
++// (If a type set contains just a single const type, we could
++// allow it, but such type sets don't make much sense in the
+ // first place.)
+ func _[T interface {~int|~float64}]() {
+ 	// not valid
+diff --git a/src/go/types/testdata/fixedbugs/issue39711.go2 b/src/go/types/testdata/fixedbugs/issue39711.go2
+index cf1f90545f..d85fa03fc4 100644
+--- a/src/go/types/testdata/fixedbugs/issue39711.go2
++++ b/src/go/types/testdata/fixedbugs/issue39711.go2
+@@ -4,10 +4,10 @@
+ 
+ package p
+ 
+-// Do not report a duplicate type error for this type list.
++// Do not report a duplicate type error for this term list.
+ // (Check types after interfaces have been completed.)
+ type _ interface {
+ 	// TODO(rfindley) Once we have full type sets we can enable this again.
+-	// Fow now we don't permit interfaces in type lists.
++	// Fow now we don't permit interfaces in term lists.
+ 	// type interface{ Error() string }, interface{ String() string }
+ }
+diff --git a/src/go/types/union.go b/src/go/types/union.go
+index 88b2a9ff8f..c715839315 100644
+--- a/src/go/types/union.go
++++ b/src/go/types/union.go
+@@ -78,28 +78,16 @@ func parseUnion(check *Checker, tlist []ast.Expr) Type {
+ 				continue
+ 			}
+ 
+-			x := tlist[i]
+-			pos := x.Pos()
+-			// We may not know the position of x if it was a typechecker-
+-			// introduced ~T term for a type list entry T. Use the position
+-			// of T instead.
+-			// TODO(rfindley) remove this test once we don't support type lists anymore
+-			if !pos.IsValid() {
+-				if op, _ := x.(*ast.UnaryExpr); op != nil {
+-					pos = op.X.Pos()
+-				}
+-			}
+-
+ 			u := under(t.typ)
+ 			f, _ := u.(*Interface)
+ 			if t.tilde {
+ 				if f != nil {
+-					check.errorf(x, _Todo, "invalid use of ~ (%s is an interface)", t.typ)
++					check.errorf(tlist[i], _Todo, "invalid use of ~ (%s is an interface)", t.typ)
+ 					continue // don't report another error for t
+ 				}
+ 
+ 				if !Identical(u, t.typ) {
+-					check.errorf(x, _Todo, "invalid use of ~ (underlying type of %s is %s)", t.typ, u)
++					check.errorf(tlist[i], _Todo, "invalid use of ~ (underlying type of %s is %s)", t.typ, u)
+ 					continue // don't report another error for t
+ 				}
+ 			}
+@@ -108,14 +96,14 @@ func parseUnion(check *Checker, tlist []ast.Expr) Type {
+ 			// in the beginning. Embedded interfaces with tilde are excluded above. If we reach
+ 			// here, we must have at least two terms in the union.
+ 			if f != nil && !f.typeSet().IsTypeSet() {
+-				check.errorf(atPos(pos), _Todo, "cannot use %s in union (interface contains methods)", t)
++				check.errorf(tlist[i], _Todo, "cannot use %s in union (interface contains methods)", t)
+ 				continue // don't report another error for t
+ 			}
+ 
+ 			// Report overlapping (non-disjoint) terms such as
+ 			// a|a, a|~a, ~a|~a, and ~a|A (where under(A) == a).
+ 			if j := overlappingTerm(terms[:i], t); j >= 0 {
+-				check.softErrorf(atPos(pos), _Todo, "overlapping terms %s and %s", t, terms[j])
++				check.softErrorf(tlist[i], _Todo, "overlapping terms %s and %s", t, terms[j])
+ 			}
+ 		}
+ 	})

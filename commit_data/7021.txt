@@ -10,6 +10,20 @@ Date:   Tue Jan 4 14:22:18 2011 +1100
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/3852041
-
+---
  src/cmd/goinstall/download.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/goinstall/download.go b/src/cmd/goinstall/download.go
+index 61cabca17e..889f9d857b 100644
+--- a/src/cmd/goinstall/download.go
++++ b/src/cmd/goinstall/download.go
+@@ -140,7 +140,7 @@ var svn = vcs{
+ var bzr = vcs{
+ 	cmd:               "bzr",
+ 	metadir:           ".bzr",
+-	checkout:          "checkout",
++	checkout:          "update",
+ 	clone:             "branch",
+ 	update:            "update",
+ 	updateReleaseFlag: "-rrelease",

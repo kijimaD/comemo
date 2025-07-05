@@ -14,6 +14,26 @@ Date:   Fri Jul 15 14:08:49 2022 +0000
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  test/run.go | 8 --------
  1 file changed, 8 deletions(-)
+
+diff --git a/test/run.go b/test/run.go
+index 3665a186a4..559caee784 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -1887,14 +1887,6 @@ func checkShouldTest() {
+ 	assert(shouldTest("// +build !windows !plan9", "windows", "amd64"))
+ }
+ 
+-func getenv(key, def string) string {
+-	value := os.Getenv(key)
+-	if value != "" {
+-		return value
+-	}
+-	return def
+-}
+-
+ // overlayDir makes a minimal-overhead copy of srcRoot in which new files may be added.
+ func overlayDir(dstRoot, srcRoot string) error {
+ 	dstRoot = filepath.Clean(dstRoot)

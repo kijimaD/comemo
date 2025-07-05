@@ -8,7 +8,42 @@ Date:   Thu Dec 4 13:14:09 2008 -0800
     DELTA=8  (8 added, 0 deleted, 0 changed)
     OCL=20468
     CL=20473
-
+---
  src/lib/Makefile | 4 ++++
  src/run.bash     | 4 ++++
  2 files changed, 8 insertions(+)
+
+diff --git a/src/lib/Makefile b/src/lib/Makefile
+index a50bdf0316..7079433897 100644
+--- a/src/lib/Makefile
++++ b/src/lib/Makefile
+@@ -34,6 +34,10 @@ FILES=\
+ 	utf8\
+ 
+ TEST=\
++	bignum\
++	bufio\
++	sort\
++	strings\
+ 	utf8\
+ 
+ clean.dirs: $(addsuffix .dirclean, $(DIRS))
+diff --git a/src/run.bash b/src/run.bash
+index 64795b5e72..dccc924eb2 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -24,10 +24,14 @@ maketest() {
+ }
+ 
+ maketest \
++	lib/fmt\
++	lib/hash\
+ 	lib/math\
+ 	lib/reflect\
+ 	lib/regexp\
+ 	lib/strconv\
++	lib/tabwriter\
++	lib/time\
+ 
+ # all of these are subtly different
+ # from what maketest does.

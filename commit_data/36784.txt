@@ -11,6 +11,20 @@ Date:   Mon May 28 11:36:29 2018 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/dist/build.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index 99d1db5909..effea903e9 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -1438,7 +1438,7 @@ func checkCC() {
+ 		fatalf("cannot invoke C compiler %q: %v\n\n"+
+ 			"Go needs a system C compiler for use with cgo.\n"+
+ 			"To set a C compiler, set CC=the-compiler.\n"+
+-			"To disable cgo, set CGO_ENABLED=0.\n%s%s", defaultcc, err, outputHdr, output)
++			"To disable cgo, set CGO_ENABLED=0.\n%s%s", defaultcc[""], err, outputHdr, output)
+ 	}
+ }
+ 

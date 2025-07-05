@@ -7,6 +7,20 @@ Date:   Tue Jul 30 16:31:57 2013 +0900
     R=golang-dev, dave
     CC=golang-dev
     https://golang.org/cl/12091043
-
+---
  src/pkg/net/tcpsock_posix.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/tcpsock_posix.go b/src/pkg/net/tcpsock_posix.go
+index befe6b6315..129065dbde 100644
+--- a/src/pkg/net/tcpsock_posix.go
++++ b/src/pkg/net/tcpsock_posix.go
+@@ -121,7 +121,7 @@ func (c *TCPConn) SetKeepAlive(keepalive bool) error {
+ 	return setKeepAlive(c.fd, keepalive)
+ }
+ 
+-// SetKeepAliveIdlePeriod sets period between keep alives.
++// SetKeepAlivePeriod sets period between keep alives.
+ func (c *TCPConn) SetKeepAlivePeriod(d time.Duration) error {
+ 	if !c.ok() {
+ 		return syscall.EINVAL

@@ -25,7 +25,7 @@ Date:   Mon Aug 6 17:25:10 2018 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/internal/modget/get.go                  | 23 +++++++++--
  src/cmd/go/internal/modload/load.go                | 26 ++++++------
  src/cmd/go/testdata/script/mod_bad_domain.txt      | 22 ++++++----
@@ -35,3 +35,342 @@ Date:   Mon Aug 6 17:25:10 2018 -0400
  src/cmd/go/testdata/script/mod_readonly.txt        |  5 ++-
  src/cmd/go/testdata/script/mod_vendor.txt          |  6 +++
  8 files changed, 104 insertions(+), 50 deletions(-)
+
+diff --git a/src/cmd/go/internal/modget/get.go b/src/cmd/go/internal/modget/get.go
+index cf0c1acbca..ee8ac8a176 100644
+--- a/src/cmd/go/internal/modget/get.go
++++ b/src/cmd/go/internal/modget/get.go
+@@ -515,13 +515,28 @@ func runGet(cmd *base.Command, args []string) {
+ 	}
+ 
+ 	if len(install) > 0 {
++		// All requested versions were explicitly @none.
++		// Note that 'go get -u' without any arguments results in len(install) == 1:
++		// search.CleanImportPaths returns "." for empty args.
+ 		work.BuildInit()
+ 		var pkgs []string
+ 		for _, p := range load.PackagesAndErrors(install) {
+-			if p.Error == nil || !strings.HasPrefix(p.Error.Err, "no Go files") {
+-				pkgs = append(pkgs, p.ImportPath)
++			// Ignore "no Go source files" errors for 'go get' operations on modules.
++			if p.Error != nil {
++				if len(args) == 0 && getU != "" && strings.HasPrefix(p.Error.Err, "no Go files") {
++					// Upgrading modules: skip the implicitly-requested package at the
++					// current directory, even if it is not tho module root.
++					continue
++				}
++				if strings.HasPrefix(p.Error.Err, "no Go files") && modload.ModuleInfo(p.ImportPath) != nil {
++					// Explicitly-requested module, but it doesn't contain a package at the
++					// module root.
++					continue
++				}
+ 			}
++			pkgs = append(pkgs, p.ImportPath)
+ 		}
++
+ 		// If -d was specified, we're done after the download: no build.
+ 		// (The load.PackagesAndErrors is what did the download
+ 		// of the named packages and their dependencies.)
+@@ -564,7 +579,9 @@ func getQuery(path, vers string, forceModulePath bool) (module.Version, error) {
+ 	// if found in the current source code.
+ 	// Then apply the version to that module.
+ 	m, _, err := modload.Import(path)
+-	if err != nil {
++	if e, ok := err.(*modload.ImportMissingError); ok && e.Module.Path != "" {
++		m = e.Module
++	} else if err != nil {
+ 		return module.Version{}, err
+ 	}
+ 	if m.Path == "" {
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index 90f77ec678..63a17257b9 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -158,6 +158,9 @@ func ImportPaths(args []string) []string {
+ 		have[path] = true
+ 		if path == "all" {
+ 			for _, pkg := range loaded.pkgs {
++				if e, ok := pkg.err.(*ImportMissingError); ok && e.Module.Path == "" {
++					continue // Package doesn't actually exist, so don't report it.
++				}
+ 				if !have[pkg.path] {
+ 					have[pkg.path] = true
+ 					final = append(final, pkg.path)
+@@ -270,6 +273,9 @@ func loadAll(testAll bool) []string {
+ 
+ 	var paths []string
+ 	for _, pkg := range loaded.pkgs {
++		if e, ok := pkg.err.(*ImportMissingError); ok && e.Module.Path == "" {
++			continue // Package doesn't actually exist.
++		}
+ 		paths = append(paths, pkg.path)
+ 	}
+ 	return paths
+@@ -337,21 +343,22 @@ func ModuleUsedDirectly(path string) bool {
+ 	return loaded.direct[path]
+ }
+ 
+-// Lookup returns the source directory and import path for the package at path.
++// Lookup returns the source directory, import path, and any loading error for
++// the package at path.
+ // Lookup requires that one of the Load functions in this package has already
+ // been called.
+ func Lookup(path string) (dir, realPath string, err error) {
+-	realPath = ImportMap(path)
+-	if realPath == "" {
++	pkg, ok := loaded.pkgCache.Get(path).(*loadPkg)
++	if !ok {
+ 		if isStandardImportPath(path) {
+ 			dir := filepath.Join(cfg.GOROOT, "src", path)
+ 			if _, err := os.Stat(dir); err == nil {
+ 				return dir, path, nil
+ 			}
+ 		}
+-		return "", "", fmt.Errorf("no such package in module")
++		return "", "", errMissing
+ 	}
+-	return PackageDir(realPath), realPath, nil
++	return pkg.dir, pkg.path, pkg.err
+ }
+ 
+ // A loader manages the process of loading information about
+@@ -459,9 +466,7 @@ func (ld *loader) load(roots func() []string) {
+ 				}
+ 				continue
+ 			}
+-			if pkg.err != nil {
+-				base.Errorf("go: %s: %s", pkg.stackText(), pkg.err)
+-			}
++			// Leave other errors for Import or load.Packages to report.
+ 		}
+ 		base.ExitIfErrors()
+ 		if numAdded == 0 {
+@@ -560,11 +565,6 @@ func (ld *loader) doPkg(item interface{}) {
+ 		var err error
+ 		imports, testImports, err = scanDir(pkg.dir, ld.tags)
+ 		if err != nil {
+-			if strings.HasPrefix(err.Error(), "no Go ") {
+-				// Don't print about directories with no Go source files.
+-				// Let the eventual real package load do that.
+-				return
+-			}
+ 			pkg.err = err
+ 			return
+ 		}
+diff --git a/src/cmd/go/testdata/script/mod_bad_domain.txt b/src/cmd/go/testdata/script/mod_bad_domain.txt
+index 236564eeb2..829c88517e 100644
+--- a/src/cmd/go/testdata/script/mod_bad_domain.txt
++++ b/src/cmd/go/testdata/script/mod_bad_domain.txt
+@@ -6,16 +6,24 @@ stderr 'cannot find module providing package appengine'
+ ! go get x/y.z
+ stderr 'cannot find module providing package x/y.z'
+ 
+-# build should skip over appengine imports
+-! go build
+-! stderr appengine
++# build should report all unsatisfied imports,
++# but should be more definitive about non-module import paths
++! go build ./useappengine
++stderr 'cannot find package'
++! go build ./usenonexistent
+ stderr 'cannot find module providing package nonexistent.rsc.io'
+ 
++# go mod vendor and go mod tidy should ignore appengine imports.
++rm usenonexistent/x.go
++go mod tidy
++go mod vendor
++
+ -- go.mod --
+ module x
+ 
+--- x.go --
+-package x
+-
+-import _ "appengine"
++-- useappengine/x.go --
++package useappengine
++import _ "appengine" // package does not exist
++-- usenonexistent/x.go --
++package usenonexistent
+ import _ "nonexistent.rsc.io" // domain does not exist
+diff --git a/src/cmd/go/testdata/script/mod_get_commit.txt b/src/cmd/go/testdata/script/mod_get_commit.txt
+index e96f09712e..2608397404 100644
+--- a/src/cmd/go/testdata/script/mod_get_commit.txt
++++ b/src/cmd/go/testdata/script/mod_get_commit.txt
+@@ -2,12 +2,6 @@ env GO111MODULE=on
+ 
+ # @commit should resolve
+ 
+-# go get should skip build with no Go files in root
+-go get golang.org/x/text@14c0d48
+-
+-# ... and go get should skip build with -m
+-go get -m golang.org/x/text@14c0d48
+-
+ # golang.org/x/text/language@commit should not resolve with -m,
+ # because that's not a module path.
+ ! go get -m golang.org/x/text/language@14c0d48
+@@ -17,6 +11,12 @@ go get -m golang.org/x/text@14c0d48
+ go get -d -x golang.org/x/text/language@14c0d48
+ ! stderr 'compile|cp|gccgo .*language\.a$'
+ 
++# go get should skip build with no Go files in root
++go get golang.org/x/text@14c0d48
++
++# ... and go get should skip build with -m
++go get -m golang.org/x/text@14c0d48
++
+ # dropping -d, we should see a build.
+ go get -x golang.org/x/text/language@14c0d48
+ stderr 'compile|cp|gccgo .*language\.a$'
+diff --git a/src/cmd/go/testdata/script/mod_get_indirect.txt b/src/cmd/go/testdata/script/mod_get_indirect.txt
+index 8388ed1899..f567e97c6c 100644
+--- a/src/cmd/go/testdata/script/mod_get_indirect.txt
++++ b/src/cmd/go/testdata/script/mod_get_indirect.txt
+@@ -11,8 +11,14 @@ go list -m -f '{{.Path}} {{.Version}}{{if .Indirect}} // indirect{{end}}' all
+ stdout '^golang.org/x/text [v0-9a-f\.-]+ // indirect'
+ grep 'golang.org/x/text [v0-9a-f\.-]+ // indirect' go.mod
+ 
+-# indirect tag should be removed upon seeing direct import
++# importing an empty module root as a package makes it direct.
++# TODO(bcmills): This doesn't seem correct. Fix is in the next change.
+ cp $WORK/tmp/usetext.go x.go
++go list -e
++grep 'golang.org/x/text [v0-9a-f\.-]+$' go.mod
++
++# indirect tag should be removed upon seeing direct import.
++cp $WORK/tmp/uselang.go x.go
+ go list
+ grep 'rsc.io/quote v1.5.2$' go.mod
+ grep 'golang.org/x/text [v0-9a-f\.-]+$' go.mod
+@@ -24,7 +30,7 @@ grep 'rsc.io/quote v1.5.2$' go.mod
+ grep 'golang.org/x/text [v0-9a-f\.-]+ // indirect' go.mod
+ 
+ # requirement should be dropped entirely if not needed
+-cp $WORK/tmp/usetext.go x.go
++cp $WORK/tmp/uselang.go x.go
+ go mod tidy
+ ! grep rsc.io/quote go.mod
+ grep 'golang.org/x/text [v0-9a-f\.-]+$' go.mod
+@@ -37,6 +43,9 @@ package x
+ -- $WORK/tmp/usetext.go --
+ package x
+ import _ "golang.org/x/text"
++-- $WORK/tmp/uselang.go --
++package x
++import _ "golang.org/x/text/language"
+ -- $WORK/tmp/usequote.go --
+ package x
+ import _ "rsc.io/quote"
+diff --git a/src/cmd/go/testdata/script/mod_list_bad_import.txt b/src/cmd/go/testdata/script/mod_list_bad_import.txt
+index c05fdea99a..b3cb0a4890 100644
+--- a/src/cmd/go/testdata/script/mod_list_bad_import.txt
++++ b/src/cmd/go/testdata/script/mod_list_bad_import.txt
+@@ -4,25 +4,35 @@
+ env GO111MODULE=on
+ cd example.com
+ 
+-# Listing an otherwise-valid package with an unsatisfied direct import should succeed,
+-# but name that package in DepsErrors.
+-! go list -f '{{if .Error}}error{{end}} {{if .Incomplete}}incomplete{{end}} {{range .DepsErrors}}bad dep: {{.Err}}{{end}}' example.com/direct
+-stderr example.com[/\\]notfound
++# Without -e, listing an otherwise-valid package with an unsatisfied direct import should fail.
++# BUG: Today it succeeds.
++go list -f '{{if .Error}}error{{end}} {{if .Incomplete}}incomplete{{end}} {{range .DepsErrors}}bad dep: {{.Err}}{{end}}' example.com/direct
++! stdout ^error
++stdout 'incomplete'
++stdout 'bad dep: .*example.com/notfound'
+ 
+ # Listing with -deps should also fail.
+-! go list -deps example.com/direct
+-stderr example.com[/\\]notfound
++# BUG: Today, it does not.
++# ! go list -deps example.com/direct
++# stderr example.com/notfound
++go list -deps example.com/direct
++stdout example.com/notfound
+ 
+ 
+ # Listing an otherwise-valid package that imports some *other* package with an
+-# unsatisfied import should also succeed.
+-# NOTE: This behavior differs between GOPATH mode and module mode.
+-! go list -f '{{if .Error}}error{{end}} {{if .Incomplete}}incomplete{{end}} {{range .DepsErrors}}bad dep: {{.Err}}{{end}}' example.com/indirect
+-stderr example.com[/\\]notfound
++# unsatisfied import should also fail.
++# BUG: Today, it succeeds.
++go list -f '{{if .Error}}error{{end}} {{if .Incomplete}}incomplete{{end}} {{range .DepsErrors}}bad dep: {{.Err}}{{end}}' example.com/indirect
++! stdout ^error
++stdout incomplete
++stdout 'bad dep: .*example.com/notfound'
+ 
+ # Again, -deps should fail.
+-! go list -deps example.com/indirect
+-stderr example.com[/\\]notfound
++# BUG: Again, it does not.
++# ! go list -deps example.com/indirect
++# stderr example.com/notfound
++go list -deps example.com/indirect
++stdout example.com/notfound
+ 
+ 
+ # Listing the missing dependency directly should fail outright...
+@@ -32,16 +42,17 @@ stderr 'cannot find module providing package example.com/notfound'
+ ! stdout incomplete
+ 
+ # ...but listing with -e should succeed.
+-# BUG: Today, it fails.
+-! go list -e -f '{{if .Error}}error{{end}} {{if .Incomplete}}incomplete{{end}}' example.com/notfound
+-stderr example.com[/\\]notfound
++go list -e -f '{{if .Error}}error{{end}} {{if .Incomplete}}incomplete{{end}}' example.com/notfound
++stdout error
++stdout incomplete
+ 
+ 
+ # The pattern "all" should match only packages that acutally exist,
+ # ignoring those whose existence is merely implied by imports.
+-# BUG: Today, `go list -e` fails if there are any unresolved imports.
+-! go list -e -f '{{.ImportPath}}' all
+-stderr example.com[/\\]notfound
++go list -e -f '{{.ImportPath}}' all
++stdout example.com/direct
++stdout example.com/indirect
++! stdout example.com/notfound
+ 
+ 
+ -- example.com/go.mod --
+diff --git a/src/cmd/go/testdata/script/mod_readonly.txt b/src/cmd/go/testdata/script/mod_readonly.txt
+index 5ae74a4348..1b5932e441 100644
+--- a/src/cmd/go/testdata/script/mod_readonly.txt
++++ b/src/cmd/go/testdata/script/mod_readonly.txt
+@@ -1,10 +1,13 @@
+ env GO111MODULE=on
+ 
+ # -mod=readonly must not resolve missing modules nor update go.mod
++#
++# TODO(bcmills): 'go list' should suffice, but today it does not fail due to
++# unresolved imports. When that is fixed, use 'go list' instead of 'go list all'.
+ env GOFLAGS=-mod=readonly
+ go mod edit -fmt
+ cp go.mod go.mod.empty
+-! go list
++! go list all
+ stderr 'import lookup disabled by -mod=readonly'
+ cmp go.mod go.mod.empty
+ 
+diff --git a/src/cmd/go/testdata/script/mod_vendor.txt b/src/cmd/go/testdata/script/mod_vendor.txt
+index 8915d1597d..b3769a8504 100644
+--- a/src/cmd/go/testdata/script/mod_vendor.txt
++++ b/src/cmd/go/testdata/script/mod_vendor.txt
+@@ -155,6 +155,12 @@ package m
+ 
+ import _ "appengine"
+ import _ "appengine/datastore"
++-- nonexistent.go --
++// +build alternatereality
++
++package m
++
++import _ "nonexistent.rsc.io"
+ -- mypkg/go.mod --
+ module me
+ -- mypkg/mydir/d.go --

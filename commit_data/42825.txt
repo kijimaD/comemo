@@ -33,7 +33,93 @@ Date:   Sat Jan 4 19:45:38 2020 +0900
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/cover.bash | 26 ++++++++++++++++++++++++++
  src/cmd/compile/internal/ssa/gen/rulegen.go | 24 +++++++++---------------
  2 files changed, 35 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/cover.bash b/src/cmd/compile/internal/ssa/gen/cover.bash
+new file mode 100755
+index 0000000000..6c860fc864
+--- /dev/null
++++ b/src/cmd/compile/internal/ssa/gen/cover.bash
+@@ -0,0 +1,26 @@
++#!/usr/bin/env bash 
++# Copyright 2020 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++# A quick and dirty way to obtain code coverage from rulegen's main func. For
++# example:
++#
++#     ./cover.bash && go tool cover -html=cover.out
++#
++# This script is needed to set up a temporary test file, so that we don't break
++# regular 'go run *.go' usage to run the generator.
++
++cat >main_test.go <<-EOF
++	// +build ignore
++
++	package main
++
++	import "testing"
++
++	func TestCoverage(t *testing.T) { main() }
++EOF
++
++go test -run='^TestCoverage$' -coverprofile=cover.out "$@" *.go
++
++rm -f main_test.go
+diff --git a/src/cmd/compile/internal/ssa/gen/rulegen.go b/src/cmd/compile/internal/ssa/gen/rulegen.go
+index 0d51458f60..2530a61c76 100644
+--- a/src/cmd/compile/internal/ssa/gen/rulegen.go
++++ b/src/cmd/compile/internal/ssa/gen/rulegen.go
+@@ -386,23 +386,13 @@ func (u *unusedInspector) exprs(list []ast.Expr) {
+ 	}
+ }
+ 
+-func (u *unusedInspector) stmts(list []ast.Stmt) {
+-	for _, x := range list {
+-		u.node(x)
+-	}
+-}
+-
+-func (u *unusedInspector) decls(list []ast.Decl) {
+-	for _, x := range list {
+-		u.node(x)
+-	}
+-}
+-
+ func (u *unusedInspector) node(node ast.Node) {
+ 	switch node := node.(type) {
+ 	case *ast.File:
+ 		defer u.scoped()()
+-		u.decls(node.Decls)
++		for _, decl := range node.Decls {
++			u.node(decl)
++		}
+ 	case *ast.GenDecl:
+ 		for _, spec := range node.Specs {
+ 			u.node(spec)
+@@ -437,7 +427,9 @@ func (u *unusedInspector) node(node ast.Node) {
+ 
+ 	case *ast.BlockStmt:
+ 		defer u.scoped()()
+-		u.stmts(node.List)
++		for _, stmt := range node.List {
++			u.node(stmt)
++		}
+ 	case *ast.IfStmt:
+ 		if node.Init != nil {
+ 			u.node(node.Init)
+@@ -469,7 +461,9 @@ func (u *unusedInspector) node(node ast.Node) {
+ 	case *ast.CaseClause:
+ 		u.exprs(node.List)
+ 		defer u.scoped()()
+-		u.stmts(node.Body)
++		for _, stmt := range node.Body {
++			u.node(stmt)
++		}
+ 	case *ast.BranchStmt:
+ 	case *ast.ExprStmt:
+ 		u.node(node.X)

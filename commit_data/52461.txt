@@ -12,6 +12,28 @@ Date:   Wed May 4 07:26:21 2022 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/runtime/trace.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/trace.go b/src/runtime/trace.go
+index 19c966800c..10436d80c2 100644
+--- a/src/runtime/trace.go
++++ b/src/runtime/trace.go
+@@ -745,6 +745,7 @@ func traceReadCPU() {
+ 			}
+ 			goid := data[3]
+ 			stk := data[4:data[0]]
++			empty := len(stk) == 1 && data[2] == 0 && data[3] == 0
+ 			data = data[data[0]:]
+ 			// No support here for reporting goroutine tags at the moment; if
+ 			// that information is to be part of the execution trace, we'd
+@@ -752,7 +753,7 @@ func traceReadCPU() {
+ 			// change, instead of only seeing them when we get a CPU sample.
+ 			tags = tags[1:]
+ 
+-			if len(stk) == 1 && data[2] == 0 && data[3] == 0 {
++			if empty {
+ 				// Looks like an overflow record from the profBuf. Not much to
+ 				// do here, we only want to report full records.
+ 				//

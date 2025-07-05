@@ -18,7 +18,7 @@ Date:   Sat Oct 6 12:56:04 2012 +0400
     R=rsc, dave, minux.ma, r
     CC=gobot, golang-dev, r, remyoudompheng
     https://golang.org/cl/6443115
-
+---
  src/cmd/go/test.go                 |  12 ++++
  src/cmd/go/testflag.go             |   4 ++
  src/pkg/net/http/pprof/pprof.go    |   4 ++
@@ -32,3 +32,780 @@ Date:   Sat Oct 6 12:56:04 2012 +0400
  src/pkg/runtime/signal_linux_arm.c |  14 ++---
  src/pkg/testing/testing.go         |  33 +++++++---
  12 files changed, 350 insertions(+), 52 deletions(-)
+
+diff --git a/src/cmd/go/test.go b/src/cmd/go/test.go
+index 48cef3a944..0051fe1b93 100644
+--- a/src/cmd/go/test.go
++++ b/src/cmd/go/test.go
+@@ -112,6 +112,18 @@ directory containing the package sources, has its own flags:
+ 	    garbage collector, provided the test can run in the available
+ 	    memory without garbage collection.
+ 
++	-test.blockprofile block.out
++	    Write a goroutine blocking profile to the specified file
++	    when all tests are complete.
++
++	-test.blockprofilerate n
++	    Control the detail provided in goroutine blocking profiles by setting
++	    runtime.BlockProfileRate to n.  See 'godoc runtime BlockProfileRate'.
++	    The profiler aims to sample, on average, one blocking event every
++	    n nanoseconds the program spends blocked.  By default,
++	    if -test.blockprofile is set without this flag, all blocking events
++	    are recorded, equivalent to -test.blockprofilerate=1.
++
+ 	-test.parallel n
+ 	    Allow parallel execution of test functions that call t.Parallel.
+ 	    The value of this flag is the maximum number of tests to run
+diff --git a/src/cmd/go/testflag.go b/src/cmd/go/testflag.go
+index 5a7e401a1a..48840cee51 100644
+--- a/src/cmd/go/testflag.go
++++ b/src/cmd/go/testflag.go
+@@ -31,6 +31,8 @@ var usageMessage = `Usage of go test:
+   -cpuprofile="": passes -test.cpuprofile to test
+   -memprofile="": passes -test.memprofile to test
+   -memprofilerate=0: passes -test.memprofilerate to test
++  -blockprofile="": pases -test.blockprofile to test
++  -blockprofilerate=0: passes -test.blockprofilerate to test
+   -parallel=0: passes -test.parallel to test
+   -run="": passes -test.run to test
+   -short=false: passes -test.short to test
+@@ -82,6 +84,8 @@ var testFlagDefn = []*testFlagSpec{
+ 	{name: "cpuprofile", passToTest: true},
+ 	{name: "memprofile", passToTest: true},
+ 	{name: "memprofilerate", passToTest: true},
++	{name: "blockprofile", passToTest: true},
++	{name: "blockprofilerate", passToTest: true},
+ 	{name: "parallel", passToTest: true},
+ 	{name: "run", passToTest: true},
+ 	{name: "short", boolVar: new(bool), passToTest: true},
+diff --git a/src/pkg/net/http/pprof/pprof.go b/src/pkg/net/http/pprof/pprof.go
+index 7a9f465c47..d70bf4ed9d 100644
+--- a/src/pkg/net/http/pprof/pprof.go
++++ b/src/pkg/net/http/pprof/pprof.go
+@@ -30,6 +30,10 @@
+ //
+ //	go tool pprof http://localhost:6060/debug/pprof/profile
+ //
++// Or to look at the goroutine blocking profile:
++//
++//	go tool pprof http://localhost:6060/debug/pprof/block
++//
+ // Or to view all available profiles:
+ //
+ //	go tool pprof http://localhost:6060/debug/pprof/
+diff --git a/src/pkg/runtime/chan.c b/src/pkg/runtime/chan.c
+index 77ad4142ae..05543a3dc9 100644
+--- a/src/pkg/runtime/chan.c
++++ b/src/pkg/runtime/chan.c
+@@ -22,6 +22,7 @@ struct	SudoG
+ 	G*	g;		// g and selgen constitute
+ 	uint32	selgen;		// a weak pointer to g
+ 	SudoG*	link;
++	int64	releasetime;
+ 	byte*	elem;		// data element
+ };
+ 
+@@ -154,6 +155,7 @@ runtime·chansend(ChanType *t, Hchan *c, byte *ep, bool *pres)
+ 	SudoG *sg;
+ 	SudoG mysg;
+ 	G* gp;
++	int64 t0;
+ 
+ 	if(c == nil) {
+ 		USED(t);
+@@ -174,6 +176,13 @@ runtime·chansend(ChanType *t, Hchan *c, byte *ep, bool *pres)
+ 		runtime·prints("\n");
+ 	}
+ 
++	t0 = 0;
++	mysg.releasetime = 0;
++	if(runtime·blockprofilerate > 0) {
++		t0 = runtime·cputicks();
++		mysg.releasetime = -1;
++	}
++
+ 	runtime·lock(c);
+ 	if(c->closed)
+ 		goto closed;
+@@ -189,6 +198,8 @@ runtime·chansend(ChanType *t, Hchan *c, byte *ep, bool *pres)
+ 		gp->param = sg;
+ 		if(sg->elem != nil)
+ 			c->elemalg->copy(c->elemsize, sg->elem, ep);
++		if(sg->releasetime)
++			sg->releasetime = runtime·cputicks();
+ 		runtime·ready(gp);
+ 
+ 		if(pres != nil)
+@@ -216,6 +227,9 @@ runtime·chansend(ChanType *t, Hchan *c, byte *ep, bool *pres)
+ 		goto closed;
+ 	}
+ 
++	if(mysg.releasetime > 0)
++		runtime·blockevent(mysg.releasetime - t0, 2);
++
+ 	return;
+ 
+ asynch:
+@@ -246,11 +260,15 @@ asynch:
+ 	if(sg != nil) {
+ 		gp = sg->g;
+ 		runtime·unlock(c);
++		if(sg->releasetime)
++			sg->releasetime = runtime·cputicks();
+ 		runtime·ready(gp);
+ 	} else
+ 		runtime·unlock(c);
+ 	if(pres != nil)
+ 		*pres = true;
++	if(mysg.releasetime > 0)
++		runtime·blockevent(mysg.releasetime - t0, 2);
+ 	return;
+ 
+ closed:
+@@ -265,6 +283,7 @@ runtime·chanrecv(ChanType *t, Hchan* c, byte *ep, bool *selected, bool *receive
+ 	SudoG *sg;
+ 	SudoG mysg;
+ 	G *gp;
++	int64 t0;
+ 
+ 	if(runtime·gcwaiting)
+ 		runtime·gosched();
+@@ -282,6 +301,13 @@ runtime·chanrecv(ChanType *t, Hchan* c, byte *ep, bool *selected, bool *receive
+ 		return;  // not reached
+ 	}
+ 
++	t0 = 0;
++	mysg.releasetime = 0;
++	if(runtime·blockprofilerate > 0) {
++		t0 = runtime·cputicks();
++		mysg.releasetime = -1;
++	}
++
+ 	runtime·lock(c);
+ 	if(c->dataqsiz > 0)
+ 		goto asynch;
+@@ -297,6 +323,8 @@ runtime·chanrecv(ChanType *t, Hchan* c, byte *ep, bool *selected, bool *receive
+ 			c->elemalg->copy(c->elemsize, ep, sg->elem);
+ 		gp = sg->g;
+ 		gp->param = sg;
++		if(sg->releasetime)
++			sg->releasetime = runtime·cputicks();
+ 		runtime·ready(gp);
+ 
+ 		if(selected != nil)
+@@ -328,6 +356,8 @@ runtime·chanrecv(ChanType *t, Hchan* c, byte *ep, bool *selected, bool *receive
+ 
+ 	if(received != nil)
+ 		*received = true;
++	if(mysg.releasetime > 0)
++		runtime·blockevent(mysg.releasetime - t0, 2);
+ 	return;
+ 
+ asynch:
+@@ -362,6 +392,8 @@ asynch:
+ 	if(sg != nil) {
+ 		gp = sg->g;
+ 		runtime·unlock(c);
++		if(sg->releasetime)
++			sg->releasetime = runtime·cputicks();
+ 		runtime·ready(gp);
+ 	} else
+ 		runtime·unlock(c);
+@@ -370,6 +402,8 @@ asynch:
+ 		*selected = true;
+ 	if(received != nil)
+ 		*received = true;
++	if(mysg.releasetime > 0)
++		runtime·blockevent(mysg.releasetime - t0, 2);
+ 	return;
+ 
+ closed:
+@@ -380,6 +414,8 @@ closed:
+ 	if(received != nil)
+ 		*received = false;
+ 	runtime·unlock(c);
++	if(mysg.releasetime > 0)
++		runtime·blockevent(mysg.releasetime - t0, 2);
+ }
+ 
+ // chansend1(hchan *chan any, elem any);
+diff --git a/src/pkg/runtime/debug.go b/src/pkg/runtime/debug.go
+index b802fc63f7..e9d7601710 100644
+--- a/src/pkg/runtime/debug.go
++++ b/src/pkg/runtime/debug.go
+@@ -138,6 +138,31 @@ func CPUProfile() []byte
+ // SetCPUProfileRate directly.
+ func SetCPUProfileRate(hz int)
+ 
++// SetBlockProfileRate controls the fraction of goroutine blocking events
++// that are reported in the blocking profile.  The profiler aims to sample
++// an average of one blocking event per rate nanoseconds spent blocked.
++//
++// To include every blocking event in the profile, pass rate = 1.
++// To turn off profiling entirely, pass rate <= 0.
++func SetBlockProfileRate(rate int)
++
++// BlockProfileRecord describes blocking events originated
++// at a particular call sequence (stack trace).
++type BlockProfileRecord struct {
++	Count  int64
++	Cycles int64
++	StackRecord
++}
++
++// BlockProfile returns n, the number of records in the current blocking profile.
++// If len(p) >= n, BlockProfile copies the profile into p and returns n, true.
++// If len(p) < n, BlockProfile does not change p and returns n, false.
++//
++// Most clients should use the runtime/pprof package or
++// the testing package's -test.blockprofile flag instead
++// of calling BlockProfile directly.
++func BlockProfile(p []BlockProfileRecord) (n int, ok bool)
++
+ // Stack formats a stack trace of the calling goroutine into buf
+ // and returns the number of bytes written to buf.
+ // If all is true, Stack formats stack traces of all other goroutines
+diff --git a/src/pkg/runtime/mprof.goc b/src/pkg/runtime/mprof.goc
+index 50aa0fe487..89308076df 100644
+--- a/src/pkg/runtime/mprof.goc
++++ b/src/pkg/runtime/mprof.goc
+@@ -15,21 +15,35 @@ package runtime
+ // NOTE(rsc): Everything here could use cas if contention became an issue.
+ static Lock proflock;
+ 
+-// Per-call-stack allocation information.
++enum { MProf, BProf };  // profile types
++
++// Per-call-stack profiling information.
+ // Lookup by hashing call stack into a linked-list hash table.
+ typedef struct Bucket Bucket;
+ struct Bucket
+ {
+ 	Bucket	*next;	// next in hash list
+-	Bucket	*allnext;	// next in list of all buckets
+-	uintptr	allocs;
+-	uintptr	frees;
+-	uintptr	alloc_bytes;
+-	uintptr	free_bytes;
+-	uintptr	recent_allocs;  // since last gc
+-	uintptr	recent_frees;
+-	uintptr	recent_alloc_bytes;
+-	uintptr	recent_free_bytes;
++	Bucket	*allnext;	// next in list of all mbuckets/bbuckets
++	int32	typ;
++	union
++	{
++		struct  // typ == MProf
++		{
++			uintptr	allocs;
++			uintptr	frees;
++			uintptr	alloc_bytes;
++			uintptr	free_bytes;
++			uintptr	recent_allocs;  // since last gc
++			uintptr	recent_frees;
++			uintptr	recent_alloc_bytes;
++			uintptr	recent_free_bytes;
++		};
++		struct  // typ == BProf
++		{
++			int64	count;
++			int64	cycles;
++		};
++	};
+ 	uintptr	hash;
+ 	uintptr	nstk;
+ 	uintptr	stk[1];
+@@ -38,12 +52,13 @@ enum {
+ 	BuckHashSize = 179999,
+ };
+ static Bucket **buckhash;
+-static Bucket *buckets;
++static Bucket *mbuckets;  // memory profile buckets
++static Bucket *bbuckets;  // blocking profile buckets
+ static uintptr bucketmem;
+ 
+ // Return the bucket for stk[0:nstk], allocating new bucket if needed.
+ static Bucket*
+-stkbucket(uintptr *stk, int32 nstk, bool alloc)
++stkbucket(int32 typ, uintptr *stk, int32 nstk, bool alloc)
+ {
+ 	int32 i;
+ 	uintptr h;
+@@ -66,7 +81,7 @@ stkbucket(uintptr *stk, int32 nstk, bool alloc)
+ 
+ 	i = h%BuckHashSize;
+ 	for(b = buckhash[i]; b; b=b->next)
+-		if(b->hash == h && b->nstk == nstk &&
++		if(b->typ == typ && b->hash == h && b->nstk == nstk &&
+ 		   runtime·mcmp((byte*)b->stk, (byte*)stk, nstk*sizeof stk[0]) == 0)
+ 			return b;
+ 
+@@ -76,12 +91,18 @@ stkbucket(uintptr *stk, int32 nstk, bool alloc)
+ 	b = runtime·mallocgc(sizeof *b + nstk*sizeof stk[0], FlagNoProfiling, 0, 1);
+ 	bucketmem += sizeof *b + nstk*sizeof stk[0];
+ 	runtime·memmove(b->stk, stk, nstk*sizeof stk[0]);
++	b->typ = typ;
+ 	b->hash = h;
+ 	b->nstk = nstk;
+ 	b->next = buckhash[i];
+ 	buckhash[i] = b;
+-	b->allnext = buckets;
+-	buckets = b;
++	if(typ == MProf) {
++		b->allnext = mbuckets;
++		mbuckets = b;
++	} else {
++		b->allnext = bbuckets;
++		bbuckets = b;
++	}
+ 	return b;
+ }
+ 
+@@ -92,7 +113,7 @@ runtime·MProf_GC(void)
+ 	Bucket *b;
+ 	
+ 	runtime·lock(&proflock);
+-	for(b=buckets; b; b=b->allnext) {
++	for(b=mbuckets; b; b=b->allnext) {
+ 		b->allocs += b->recent_allocs;
+ 		b->frees += b->recent_frees;
+ 		b->alloc_bytes += b->recent_alloc_bytes;
+@@ -228,7 +249,7 @@ runtime·MProf_Malloc(void *p, uintptr size)
+ 	m->nomemprof++;
+ 	nstk = runtime·callers(1, stk, 32);
+ 	runtime·lock(&proflock);
+-	b = stkbucket(stk, nstk, true);
++	b = stkbucket(MProf, stk, nstk, true);
+ 	b->recent_allocs++;
+ 	b->recent_alloc_bytes += size;
+ 	setaddrbucket((uintptr)p, b);
+@@ -256,6 +277,35 @@ runtime·MProf_Free(void *p, uintptr size)
+ 	m->nomemprof--;
+ }
+ 
++int64 runtime·blockprofilerate;  // in CPU ticks
++
++void
++runtime·SetBlockProfileRate(intgo rate)
++{
++	runtime·atomicstore64((uint64*)&runtime·blockprofilerate, rate * runtime·tickspersecond() / (1000*1000*1000));
++}
++
++void
++runtime·blockevent(int64 cycles, int32 skip)
++{
++	int32 nstk;
++	int64 rate;
++	uintptr stk[32];
++	Bucket *b;
++
++	if(cycles <= 0)
++		return;
++	rate = runtime·atomicload64((uint64*)&runtime·blockprofilerate);
++	if(rate <= 0 || (rate > cycles && runtime·fastrand1()%rate > cycles))
++		return;
++
++	nstk = runtime·callers(skip, stk, 32);
++	runtime·lock(&proflock);
++	b = stkbucket(BProf, stk, nstk, true);
++	b->count++;
++	b->cycles += cycles;
++	runtime·unlock(&proflock);
++}
+ 
+ // Go interface to profile data.  (Declared in extern.go)
+ // Assumes Go sizeof(int) == sizeof(int32)
+@@ -290,20 +340,53 @@ func MemProfile(p Slice, include_inuse_zero bool) (n int, ok bool) {
+ 
+ 	runtime·lock(&proflock);
+ 	n = 0;
+-	for(b=buckets; b; b=b->allnext)
++	for(b=mbuckets; b; b=b->allnext)
+ 		if(include_inuse_zero || b->alloc_bytes != b->free_bytes)
+ 			n++;
+ 	ok = false;
+ 	if(n <= p.len) {
+ 		ok = true;
+ 		r = (Record*)p.array;
+-		for(b=buckets; b; b=b->allnext)
++		for(b=mbuckets; b; b=b->allnext)
+ 			if(include_inuse_zero || b->alloc_bytes != b->free_bytes)
+ 				record(r++, b);
+ 	}
+ 	runtime·unlock(&proflock);
+ }
+ 
++// Must match BlockProfileRecord in debug.go.
++typedef struct BRecord BRecord;
++struct BRecord {
++	int64 count;
++	int64 cycles;
++	uintptr stk[32];
++};
++
++func BlockProfile(p Slice) (n int, ok bool) {
++	Bucket *b;
++	BRecord *r;
++	int32 i;
++
++	runtime·lock(&proflock);
++	n = 0;
++	for(b=bbuckets; b; b=b->allnext)
++		n++;
++	ok = false;
++	if(n <= p.len) {
++		ok = true;
++		r = (BRecord*)p.array;
++		for(b=bbuckets; b; b=b->allnext, r++) {
++			r->count = b->count;
++			r->cycles = b->cycles;
++			for(i=0; i<b->nstk && i<nelem(r->stk); i++)
++				r->stk[i] = b->stk[i];
++			for(; i<nelem(r->stk); i++)
++				r->stk[i] = 0;			
++		}
++	}
++	runtime·unlock(&proflock);
++}
++
+ // Must match StackRecord in debug.go.
+ typedef struct TRecord TRecord;
+ struct TRecord {
+diff --git a/src/pkg/runtime/pprof/pprof.go b/src/pkg/runtime/pprof/pprof.go
+index 189500adbb..952ccf6d89 100644
+--- a/src/pkg/runtime/pprof/pprof.go
++++ b/src/pkg/runtime/pprof/pprof.go
+@@ -36,6 +36,7 @@ import (
+ //	goroutine    - stack traces of all current goroutines
+ //	heap         - a sampling of all heap allocations
+ //	threadcreate - stack traces that led to the creation of new OS threads
++//	block        - stack traces that led to blocking on synchronization primitives
+ //
+ // These predefine profiles maintain themselves and panic on an explicit
+ // Add or Remove method call.
+@@ -76,6 +77,12 @@ var heapProfile = &Profile{
+ 	write: writeHeap,
+ }
+ 
++var blockProfile = &Profile{
++	name:  "block",
++	count: countBlock,
++	write: writeBlock,
++}
++
+ func lockProfiles() {
+ 	profiles.mu.Lock()
+ 	if profiles.m == nil {
+@@ -84,6 +91,7 @@ func lockProfiles() {
+ 			"goroutine":    goroutineProfile,
+ 			"threadcreate": threadcreateProfile,
+ 			"heap":         heapProfile,
++			"block":        blockProfile,
+ 		}
+ 	}
+ }
+@@ -600,3 +608,60 @@ func StopCPUProfile() {
+ 	runtime.SetCPUProfileRate(0)
+ 	<-cpu.done
+ }
++
++type byCycles []runtime.BlockProfileRecord
++
++func (x byCycles) Len() int           { return len(x) }
++func (x byCycles) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
++func (x byCycles) Less(i, j int) bool { return x[i].Cycles > x[j].Cycles }
++
++// countBlock returns the number of records in the blocking profile.
++func countBlock() int {
++	n, _ := runtime.BlockProfile(nil)
++	return n
++}
++
++// writeBlock writes the current blocking profile to w.
++func writeBlock(w io.Writer, debug int) error {
++	var p []runtime.BlockProfileRecord
++	n, ok := runtime.BlockProfile(nil)
++	for {
++		p = make([]runtime.BlockProfileRecord, n+50)
++		n, ok = runtime.BlockProfile(p)
++		if ok {
++			p = p[:n]
++			break
++		}
++	}
++
++	sort.Sort(byCycles(p))
++
++	b := bufio.NewWriter(w)
++	var tw *tabwriter.Writer
++	w = b
++	if debug > 0 {
++		tw = tabwriter.NewWriter(w, 1, 8, 1, '\t', 0)
++		w = tw
++	}
++
++	fmt.Fprintf(w, "--- contention:\n")
++	fmt.Fprintf(w, "cycles/second=%v\n", runtime_cyclesPerSecond())
++	for i := range p {
++		r := &p[i]
++		fmt.Fprintf(w, "%v %v @", r.Cycles, r.Count)
++		for _, pc := range r.Stack() {
++			fmt.Fprintf(w, " %#x", pc)
++		}
++		fmt.Fprint(w, "\n")
++		if debug > 0 {
++			printStackRecord(w, r.Stack(), false)
++		}
++	}
++
++	if tw != nil {
++		tw.Flush()
++	}
++	return b.Flush()
++}
++
++func runtime_cyclesPerSecond() int64
+diff --git a/src/pkg/runtime/runtime.c b/src/pkg/runtime/runtime.c
+index 080343fb9e..e4346f03bf 100644
+--- a/src/pkg/runtime/runtime.c
++++ b/src/pkg/runtime/runtime.c
+@@ -358,3 +358,40 @@ runtime·fastrand1(void)
+ 	m->fastrand = x;
+ 	return x;
+ }
++
++static Lock ticksLock;
++static int64 ticks;
++
++int64
++runtime·tickspersecond(void)
++{
++	int64 res, t0, t1, c0, c1;
++
++	res = (int64)runtime·atomicload64((uint64*)&ticks);
++	if(res != 0)
++		return ticks;
++	runtime·lock(&ticksLock);
++	res = ticks;
++	if(res == 0) {
++		t0 = runtime·nanotime();
++		c0 = runtime·cputicks();
++		runtime·usleep(100*1000);
++		t1 = runtime·nanotime();
++		c1 = runtime·cputicks();
++		if(t1 == t0)
++			t1++;
++		res = (c1-c0)*1000*1000*1000/(t1-t0);
++		if(res == 0)
++			res++;
++		runtime·atomicstore64((uint64*)&ticks, res);
++	}
++	runtime·unlock(&ticksLock);
++	return res;
++}
++
++void
++runtime∕pprof·runtime_cyclesPerSecond(int64 res)
++{
++	res = runtime·tickspersecond();
++	FLUSH(&res);
++}
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 4bcd860168..f808b590ed 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -642,6 +642,9 @@ void	runtime·resetcpuprofiler(int32);
+ void	runtime·setcpuprofilerate(void(*)(uintptr*, int32), int32);
+ void	runtime·usleep(uint32);
+ int64	runtime·cputicks(void);
++int64	runtime·tickspersecond(void);
++void	runtime·blockevent(int64, int32);
++extern int64 runtime·blockprofilerate;
+ 
+ #pragma	varargck	argpos	runtime·printf	1
+ #pragma	varargck	type	"d"	int32
+diff --git a/src/pkg/runtime/sema.goc b/src/pkg/runtime/sema.goc
+index 5fac830fcf..c4b5247b3d 100644
+--- a/src/pkg/runtime/sema.goc
++++ b/src/pkg/runtime/sema.goc
+@@ -24,20 +24,21 @@ package sync
+ typedef struct Sema Sema;
+ struct Sema
+ {
+-	uint32 volatile *addr;
+-	G *g;
+-	Sema *prev;
+-	Sema *next;
++	uint32 volatile*	addr;
++	G*	g;
++	int64	releasetime;
++	Sema*	prev;
++	Sema*	next;
+ };
+ 
+ typedef struct SemaRoot SemaRoot;
+ struct SemaRoot
+ {
+-        Lock;
+-	Sema *head;
+-	Sema *tail;
++	Lock;
++	Sema*	head;
++	Sema*	tail;
+ 	// Number of waiters. Read w/o the lock.
+-	uint32 volatile nwait;
++	uint32 volatile	nwait;
+ };
+ 
+ // Prime to not correlate with any user patterns.
+@@ -97,12 +98,13 @@ cansemacquire(uint32 *addr)
+ 	return 0;
+ }
+ 
+-void
+-runtime·semacquire(uint32 volatile *addr)
++static void
++semacquireimpl(uint32 volatile *addr, int32 profile)
+ {
+ 	Sema s;	// Needs to be allocated on stack, otherwise garbage collector could deallocate it
+ 	SemaRoot *root;
+-
++	int64 t0;
++	
+ 	// Easy case.
+ 	if(cansemacquire(addr))
+ 		return;
+@@ -114,6 +116,12 @@ runtime·semacquire(uint32 volatile *addr)
+ 	//	sleep
+ 	//	(waiter descriptor is dequeued by signaler)
+ 	root = semroot(addr);
++	t0 = 0;
++	s.releasetime = 0;
++	if(profile && runtime·blockprofilerate > 0) {
++		t0 = runtime·cputicks();
++		s.releasetime = -1;
++	}
+ 	for(;;) {
+ 		runtime·lock(root);
+ 		// Add ourselves to nwait to disable "easy case" in semrelease.
+@@ -128,11 +136,20 @@ runtime·semacquire(uint32 volatile *addr)
+ 		// (we set nwait above), so go to sleep.
+ 		semqueue(root, addr, &s);
+ 		runtime·park(runtime·unlock, root, "semacquire");
+-		if(cansemacquire(addr))
++		if(cansemacquire(addr)) {
++			if(t0)
++				runtime·blockevent(s.releasetime - t0, 3);
+ 			return;
++		}
+ 	}
+ }
+ 
++void
++runtime·semacquire(uint32 volatile *addr)
++{
++	semacquireimpl(addr, 0);
++}
++
+ void
+ runtime·semrelease(uint32 volatile *addr)
+ {
+@@ -164,12 +181,15 @@ runtime·semrelease(uint32 volatile *addr)
+ 		}
+ 	}
+ 	runtime·unlock(root);
+-	if(s)
++	if(s) {
++		if(s->releasetime)
++			s->releasetime = runtime·cputicks();
+ 		runtime·ready(s->g);
++	}
+ }
+ 
+ func runtime_Semacquire(addr *uint32) {
+-	runtime·semacquire(addr);
++	semacquireimpl(addr, 1);
+ }
+ 
+ func runtime_Semrelease(addr *uint32) {
+diff --git a/src/pkg/runtime/signal_linux_arm.c b/src/pkg/runtime/signal_linux_arm.c
+index 786af82e19..e12c54d972 100644
+--- a/src/pkg/runtime/signal_linux_arm.c
++++ b/src/pkg/runtime/signal_linux_arm.c
+@@ -206,14 +206,8 @@ runtime·setup_auxv(int32 argc, void *argv_list)
+ #pragma textflag 7
+ int64
+ runtime·cputicks() {
+-	// copied from runtime.c:/^fastrand1
+-	uint32 x;
+-
+-	x = runtime·randomNumber;
+-	x += x;
+-	if(x & 0x80000000L)
+-		x ^= 0x88888eefUL;
+-	runtime·randomNumber = x;
+-
+-	return ((int64)x) << 32 | x;
++	// Currently cputicks() is used in blocking profiler and to seed runtime·fastrand1().
++	// runtime·nanotime() is a poor approximation of CPU ticks that is enough for the profiler.
++	// runtime·randomNumber provides better seeding of fastrand1.
++	return runtime·nanotime() + runtime·randomNumber;
+ }
+diff --git a/src/pkg/testing/testing.go b/src/pkg/testing/testing.go
+index b30505d76a..aeb3266c7e 100644
+--- a/src/pkg/testing/testing.go
++++ b/src/pkg/testing/testing.go
+@@ -102,14 +102,16 @@ var (
+ 	short = flag.Bool("test.short", false, "run smaller test suite to save time")
+ 
+ 	// Report as tests are run; default is silent for success.
+-	chatty         = flag.Bool("test.v", false, "verbose: print additional output")
+-	match          = flag.String("test.run", "", "regular expression to select tests and examples to run")
+-	memProfile     = flag.String("test.memprofile", "", "write a memory profile to the named file after execution")
+-	memProfileRate = flag.Int("test.memprofilerate", 0, "if >=0, sets runtime.MemProfileRate")
+-	cpuProfile     = flag.String("test.cpuprofile", "", "write a cpu profile to the named file during execution")
+-	timeout        = flag.Duration("test.timeout", 0, "if positive, sets an aggregate time limit for all tests")
+-	cpuListStr     = flag.String("test.cpu", "", "comma-separated list of number of CPUs to use for each test")
+-	parallel       = flag.Int("test.parallel", runtime.GOMAXPROCS(0), "maximum test parallelism")
++	chatty           = flag.Bool("test.v", false, "verbose: print additional output")
++	match            = flag.String("test.run", "", "regular expression to select tests and examples to run")
++	memProfile       = flag.String("test.memprofile", "", "write a memory profile to the named file after execution")
++	memProfileRate   = flag.Int("test.memprofilerate", 0, "if >=0, sets runtime.MemProfileRate")
++	cpuProfile       = flag.String("test.cpuprofile", "", "write a cpu profile to the named file during execution")
++	blockProfile     = flag.String("test.blockprofile", "", "write a goroutine blocking profile to the named file after execution")
++	blockProfileRate = flag.Int("test.blockprofilerate", 1, "if >= 0, calls runtime.SetBlockProfileRate()")
++	timeout          = flag.Duration("test.timeout", 0, "if positive, sets an aggregate time limit for all tests")
++	cpuListStr       = flag.String("test.cpu", "", "comma-separated list of number of CPUs to use for each test")
++	parallel         = flag.Int("test.parallel", runtime.GOMAXPROCS(0), "maximum test parallelism")
+ 
+ 	haveExamples bool // are there examples?
+ 
+@@ -420,7 +422,9 @@ func before() {
+ 		}
+ 		// Could save f so after can call f.Close; not worth the effort.
+ 	}
+-
++	if *blockProfile != "" && *blockProfileRate >= 0 {
++		runtime.SetBlockProfileRate(*blockProfileRate)
++	}
+ }
+ 
+ // after runs after all testing.
+@@ -439,6 +443,17 @@ func after() {
+ 		}
+ 		f.Close()
+ 	}
++	if *blockProfile != "" && *blockProfileRate >= 0 {
++		f, err := os.Create(*blockProfile)
++		if err != nil {
++			fmt.Fprintf(os.Stderr, "testing: %s", err)
++			return
++		}
++		if err = pprof.Lookup("block").WriteTo(f, 0); err != nil {
++			fmt.Fprintf(os.Stderr, "testing: can't write %s: %s", *blockProfile, err)
++		}
++		f.Close()
++	}
+ }
+ 
+ var timer *time.Timer

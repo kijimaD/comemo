@@ -9,6 +9,20 @@ Date:   Thu Aug 4 08:20:53 2011 -0400
     R=golang-dev, alex.brainman, rsc
     CC=golang-dev
     https://golang.org/cl/4810064
-
+---
  src/pkg/http/fs.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/http/fs.go b/src/pkg/http/fs.go
+index 26d9311370..2c7c636fda 100644
+--- a/src/pkg/http/fs.go
++++ b/src/pkg/http/fs.go
+@@ -149,7 +149,7 @@ func serveFile(w ResponseWriter, r *Request, fs FileSystem, name string, redirec
+ 
+ 	// use contents of index.html for directory, if present
+ 	if d.IsDirectory() {
+-		index := name + filepath.FromSlash(indexPage)
++		index := name + indexPage
+ 		ff, err := fs.Open(index)
+ 		if err == nil {
+ 			defer ff.Close()

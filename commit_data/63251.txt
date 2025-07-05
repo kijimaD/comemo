@@ -49,6 +49,10 @@ Date:   Thu May 29 15:42:23 2025 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/677375
     Reviewed-by: David Chase <drchase@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/compile/default.pgo | Bin 241719 -> 293923 bytes
  1 file changed, 0 insertions(+), 0 deletions(-)
+
+diff --git a/src/cmd/compile/default.pgo b/src/cmd/compile/default.pgo
+index 65c28706ea..2c2588704f 100644
+Binary files a/src/cmd/compile/default.pgo and b/src/cmd/compile/default.pgo differ

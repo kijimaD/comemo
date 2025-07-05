@@ -18,7 +18,7 @@ Date:   Fri Apr 14 17:43:42 2017 +0900
     Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/dial_test.go       |  18 +++----
  src/net/error_test.go      |   2 +-
  src/net/external_test.go   |   4 +-
@@ -40,3 +40,927 @@ Date:   Fri Apr 14 17:43:42 2017 +0900
  src/net/tcpsock_test.go    |  12 ++---
  src/net/udpsock_test.go    |   4 +-
  20 files changed, 157 insertions(+), 181 deletions(-)
+
+diff --git a/src/net/dial_test.go b/src/net/dial_test.go
+index 22140005eb..669a368521 100644
+--- a/src/net/dial_test.go
++++ b/src/net/dial_test.go
+@@ -31,7 +31,7 @@ func TestProhibitionaryDialArg(t *testing.T) {
+ 	case "plan9":
+ 		t.Skipf("not supported on %s", runtime.GOOS)
+ 	}
+-	if !supportsIPv4map {
++	if !supportsIPv4map() {
+ 		t.Skip("mapping ipv4 address inside ipv6 address not supported")
+ 	}
+ 
+@@ -81,7 +81,7 @@ func TestDialerDualStackFDLeak(t *testing.T) {
+ 	case "openbsd":
+ 		testenv.SkipFlaky(t, 15157)
+ 	}
+-	if !supportsIPv4 || !supportsIPv6 {
++	if !supportsIPv4() || !supportsIPv6() {
+ 		t.Skip("both IPv4 and IPv6 are required")
+ 	}
+ 
+@@ -190,7 +190,7 @@ func dialClosedPort() (actual, expected time.Duration) {
+ func TestDialParallel(t *testing.T) {
+ 	testenv.MustHaveExternalNetwork(t)
+ 
+-	if !supportsIPv4 || !supportsIPv6 {
++	if !supportsIPv4() || !supportsIPv6() {
+ 		t.Skip("both IPv4 and IPv6 are required")
+ 	}
+ 
+@@ -361,7 +361,7 @@ func lookupSlowFast(ctx context.Context, fn func(context.Context, string) ([]IPA
+ func TestDialerFallbackDelay(t *testing.T) {
+ 	testenv.MustHaveExternalNetwork(t)
+ 
+-	if !supportsIPv4 || !supportsIPv6 {
++	if !supportsIPv4() || !supportsIPv6() {
+ 		t.Skip("both IPv4 and IPv6 are required")
+ 	}
+ 
+@@ -427,7 +427,7 @@ func TestDialerFallbackDelay(t *testing.T) {
+ }
+ 
+ func TestDialParallelSpuriousConnection(t *testing.T) {
+-	if !supportsIPv4 || !supportsIPv6 {
++	if !supportsIPv4() || !supportsIPv6() {
+ 		t.Skip("both IPv4 and IPv6 are required")
+ 	}
+ 
+@@ -536,7 +536,7 @@ func TestDialerPartialDeadline(t *testing.T) {
+ }
+ 
+ func TestDialerLocalAddr(t *testing.T) {
+-	if !supportsIPv4 || !supportsIPv6 {
++	if !supportsIPv4() || !supportsIPv6() {
+ 		t.Skip("both IPv4 and IPv6 are required")
+ 	}
+ 
+@@ -590,7 +590,7 @@ func TestDialerLocalAddr(t *testing.T) {
+ 		{"tcp", "::1", &UnixAddr{}, &AddrError{Err: "some error"}},
+ 	}
+ 
+-	if supportsIPv4map {
++	if supportsIPv4map() {
+ 		tests = append(tests, test{
+ 			"tcp", "127.0.0.1", &TCPAddr{IP: ParseIP("::")}, nil,
+ 		})
+@@ -652,7 +652,7 @@ func TestDialerLocalAddr(t *testing.T) {
+ func TestDialerDualStack(t *testing.T) {
+ 	testenv.SkipFlaky(t, 13324)
+ 
+-	if !supportsIPv4 || !supportsIPv6 {
++	if !supportsIPv4() || !supportsIPv6() {
+ 		t.Skip("both IPv4 and IPv6 are required")
+ 	}
+ 
+@@ -755,7 +755,7 @@ func TestDialCancel(t *testing.T) {
+ 	}
+ 
+ 	blackholeIPPort := JoinHostPort(slowDst4, "1234")
+-	if !supportsIPv4 {
++	if !supportsIPv4() {
+ 		blackholeIPPort = JoinHostPort(slowDst6, "1234")
+ 	}
+ 
+diff --git a/src/net/error_test.go b/src/net/error_test.go
+index 61abfae5f0..021968b079 100644
+--- a/src/net/error_test.go
++++ b/src/net/error_test.go
+@@ -214,7 +214,7 @@ func TestDialAddrError(t *testing.T) {
+ 	case "nacl", "plan9":
+ 		t.Skipf("not supported on %s", runtime.GOOS)
+ 	}
+-	if !supportsIPv4 || !supportsIPv6 {
++	if !supportsIPv4() || !supportsIPv6() {
+ 		t.Skip("both IPv4 and IPv6 are required")
+ 	}
+ 
+diff --git a/src/net/external_test.go b/src/net/external_test.go
+index e18b547cac..38788efc3d 100644
+--- a/src/net/external_test.go
++++ b/src/net/external_test.go
+@@ -15,7 +15,7 @@ import (
+ func TestResolveGoogle(t *testing.T) {
+ 	testenv.MustHaveExternalNetwork(t)
+ 
+-	if !supportsIPv4 || !supportsIPv6 || !*testIPv4 || !*testIPv6 {
++	if !supportsIPv4() || !supportsIPv6() || !*testIPv4 || !*testIPv6 {
+ 		t.Skip("both IPv4 and IPv6 are required")
+ 	}
+ 
+@@ -62,7 +62,7 @@ var dialGoogleTests = []struct {
+ func TestDialGoogle(t *testing.T) {
+ 	testenv.MustHaveExternalNetwork(t)
+ 
+-	if !supportsIPv4 || !supportsIPv6 || !*testIPv4 || !*testIPv6 {
++	if !supportsIPv4() || !supportsIPv6() || !*testIPv4 || !*testIPv6 {
+ 		t.Skip("both IPv4 and IPv6 are required")
+ 	}
+ 
+diff --git a/src/net/fd_plan9.go b/src/net/fd_plan9.go
+index 7496e36ca7..46ee5d9740 100644
+--- a/src/net/fd_plan9.go
++++ b/src/net/fd_plan9.go
+@@ -24,13 +24,7 @@ type netFD struct {
+ 	isStream          bool
+ }
+ 
+-var (
+-	netdir string // default network
+-)
+-
+-func sysInit() {
+-	netdir = "/net"
+-}
++var netdir = "/net" // default network
+ 
+ func newFD(net, name string, listen, ctl, data *os.File, laddr, raddr Addr) (*netFD, error) {
+ 	ret := &netFD{
+diff --git a/src/net/fd_unix.go b/src/net/fd_unix.go
+index 5363ab5057..505a1f1a02 100644
+--- a/src/net/fd_unix.go
++++ b/src/net/fd_unix.go
+@@ -28,9 +28,6 @@ type netFD struct {
+ 	raddr       Addr
+ }
+ 
+-func sysInit() {
+-}
+-
+ func newFD(sysfd, family, sotype int, net string) (*netFD, error) {
+ 	ret := &netFD{
+ 		pfd: poll.FD{
+diff --git a/src/net/fd_windows.go b/src/net/fd_windows.go
+index 19ebd60ecd..a444f93e50 100644
+--- a/src/net/fd_windows.go
++++ b/src/net/fd_windows.go
+@@ -13,9 +13,6 @@ import (
+ 	"unsafe"
+ )
+ 
+-func sysInit() {
+-}
+-
+ // canUseConnectEx reports whether we can use the ConnectEx Windows API call
+ // for the given network type.
+ func canUseConnectEx(net string) bool {
+diff --git a/src/net/interface_test.go b/src/net/interface_test.go
+index 38a2ca4656..534137a913 100644
+--- a/src/net/interface_test.go
++++ b/src/net/interface_test.go
+@@ -262,13 +262,13 @@ func validateInterfaceMulticastAddrs(ifat []Addr) (*routeStats, error) {
+ 
+ func checkUnicastStats(ifStats *ifStats, uniStats *routeStats) error {
+ 	// Test the existence of connected unicast routes for IPv4.
+-	if supportsIPv4 && ifStats.loop+ifStats.other > 0 && uniStats.ipv4 == 0 {
++	if supportsIPv4() && ifStats.loop+ifStats.other > 0 && uniStats.ipv4 == 0 {
+ 		return fmt.Errorf("num IPv4 unicast routes = 0; want >0; summary: %+v, %+v", ifStats, uniStats)
+ 	}
+ 	// Test the existence of connected unicast routes for IPv6.
+ 	// We can assume the existence of ::1/128 when at least one
+ 	// loopback interface is installed.
+-	if supportsIPv6 && ifStats.loop > 0 && uniStats.ipv6 == 0 {
++	if supportsIPv6() && ifStats.loop > 0 && uniStats.ipv6 == 0 {
+ 		return fmt.Errorf("num IPv6 unicast routes = 0; want >0; summary: %+v, %+v", ifStats, uniStats)
+ 	}
+ 	return nil
+@@ -290,7 +290,7 @@ func checkMulticastStats(ifStats *ifStats, uniStats, multiStats *routeStats) err
+ 		// We can assume the existence of connected multicast
+ 		// route clones when at least two connected unicast
+ 		// routes, ::1/128 and other, are installed.
+-		if supportsIPv6 && ifStats.loop > 0 && uniStats.ipv6 > 1 && multiStats.ipv6 == 0 {
++		if supportsIPv6() && ifStats.loop > 0 && uniStats.ipv6 > 1 && multiStats.ipv6 == 0 {
+ 			return fmt.Errorf("num IPv6 multicast route clones = 0; want >0; summary: %+v, %+v, %+v", ifStats, uniStats, multiStats)
+ 		}
+ 	}
+diff --git a/src/net/ipsock.go b/src/net/ipsock.go
+index 9618c66440..ade6eab62a 100644
+--- a/src/net/ipsock.go
++++ b/src/net/ipsock.go
+@@ -2,12 +2,11 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Internet protocol family sockets
+-
+ package net
+ 
+ import (
+ 	"context"
++	"sync"
+ )
+ 
+ // BUG(rsc,mikio): On DragonFly BSD and OpenBSD, listening on the
+@@ -17,20 +16,36 @@ import (
+ // both address families are to be supported.
+ // See inet6(4) for details.
+ 
+-var (
+-	// supportsIPv4 reports whether the platform supports IPv4
+-	// networking functionality.
+-	supportsIPv4 bool
++type ipStackCapabilities struct {
++	sync.Once             // guards following
++	ipv4Enabled           bool
++	ipv6Enabled           bool
++	ipv4MappedIPv6Enabled bool
++}
+ 
+-	// supportsIPv6 reports whether the platform supports IPv6
+-	// networking functionality.
+-	supportsIPv6 bool
++var ipStackCaps ipStackCapabilities
+ 
+-	// supportsIPv4map reports whether the platform supports
+-	// mapping an IPv4 address inside an IPv6 address at transport
+-	// layer protocols. See RFC 4291, RFC 4038 and RFC 3493.
+-	supportsIPv4map bool
+-)
++// supportsIPv4 reports whether the platform supports IPv4 networking
++// functionality.
++func supportsIPv4() bool {
++	ipStackCaps.Once.Do(ipStackCaps.probe)
++	return ipStackCaps.ipv4Enabled
++}
++
++// supportsIPv6 reports whether the platform supports IPv6 networking
++// functionality.
++func supportsIPv6() bool {
++	ipStackCaps.Once.Do(ipStackCaps.probe)
++	return ipStackCaps.ipv6Enabled
++}
++
++// supportsIPv4map reports whether the platform supports mapping an
++// IPv4 address inside an IPv6 address at transport layer
++// protocols. See RFC 4291, RFC 4038 and RFC 3493.
++func supportsIPv4map() bool {
++	ipStackCaps.Once.Do(ipStackCaps.probe)
++	return ipStackCaps.ipv4MappedIPv6Enabled
++}
+ 
+ // An addrList represents a list of network endpoint addresses.
+ type addrList []Addr
+diff --git a/src/net/ipsock_plan9.go b/src/net/ipsock_plan9.go
+index 1cd8fa23ff..7e24fbc227 100644
+--- a/src/net/ipsock_plan9.go
++++ b/src/net/ipsock_plan9.go
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Internet protocol family sockets for Plan 9
+-
+ package net
+ 
+ import (
+@@ -12,6 +10,18 @@ import (
+ 	"syscall"
+ )
+ 
++// Probe probes IPv4, IPv6 and IPv4-mapped IPv6 communication
++// capabilities.
++//
++// Plan 9 uses IPv6 natively, see ip(3).
++func (p *ipStackCapabilities) probe() {
++	p.ipv4Enabled = probe(netdir+"/iproute", "4i")
++	p.ipv6Enabled = probe(netdir+"/iproute", "6i")
++	if p.ipv4Enabled && p.ipv6Enabled {
++		p.ipv4MappedIPv6Enabled = true
++	}
++}
++
+ func probe(filename, query string) bool {
+ 	var file *file
+ 	var err error
+@@ -36,23 +46,6 @@ func probe(filename, query string) bool {
+ 	return r
+ }
+ 
+-func probeIPv4Stack() bool {
+-	return probe(netdir+"/iproute", "4i")
+-}
+-
+-// probeIPv6Stack returns two boolean values. If the first boolean
+-// value is true, kernel supports basic IPv6 functionality. If the
+-// second boolean value is true, kernel supports IPv6 IPv4-mapping.
+-func probeIPv6Stack() (supportsIPv6, supportsIPv4map bool) {
+-	// Plan 9 uses IPv6 natively, see ip(3).
+-	r := probe(netdir+"/iproute", "6i")
+-	v := false
+-	if r {
+-		v = probe(netdir+"/iproute", "4i")
+-	}
+-	return r, v
+-}
+-
+ // parsePlan9Addr parses address of the form [ip!]port (e.g. 127.0.0.1!80).
+ func parsePlan9Addr(s string) (ip IP, iport int, err error) {
+ 	addr := IPv4zero // address contains port only
+diff --git a/src/net/ipsock_posix.go b/src/net/ipsock_posix.go
+index 5cb85f8c15..f1a701329e 100644
+--- a/src/net/ipsock_posix.go
++++ b/src/net/ipsock_posix.go
+@@ -13,31 +13,24 @@ import (
+ 	"syscall"
+ )
+ 
+-func probeIPv4Stack() bool {
++// Probe probes IPv4, IPv6 and IPv4-mapped IPv6 communication
++// capabilities which are controlled by the IPV6_V6ONLY socket option
++// and kernel configuration.
++//
++// Should we try to use the IPv4 socket interface if we're only
++// dealing with IPv4 sockets? As long as the host system understands
++// IPv4-mapped IPv6, it's okay to pass IPv4-mapeed IPv6 addresses to
++// the IPv6 interface. That simplifies our code and is most
++// general. Unfortunately, we need to run on kernels built without
++// IPv6 support too. So probe the kernel to figure it out.
++func (p *ipStackCapabilities) probe() {
+ 	s, err := socketFunc(syscall.AF_INET, syscall.SOCK_STREAM, syscall.IPPROTO_TCP)
+ 	switch err {
+ 	case syscall.EAFNOSUPPORT, syscall.EPROTONOSUPPORT:
+-		return false
+ 	case nil:
+ 		poll.CloseFunc(s)
++		p.ipv4Enabled = true
+ 	}
+-	return true
+-}
+-
+-// Should we try to use the IPv4 socket interface if we're
+-// only dealing with IPv4 sockets?  As long as the host system
+-// understands IPv6, it's okay to pass IPv4 addresses to the IPv6
+-// interface. That simplifies our code and is most general.
+-// Unfortunately, we need to run on kernels built without IPv6
+-// support too. So probe the kernel to figure it out.
+-//
+-// probeIPv6Stack probes both basic IPv6 capability and IPv6 IPv4-
+-// mapping capability which is controlled by IPV6_V6ONLY socket
+-// option and/or kernel state "net.inet6.ip6.v6only".
+-// It returns two boolean values. If the first boolean value is
+-// true, kernel supports basic IPv6 functionality. If the second
+-// boolean value is true, kernel supports IPv6 IPv4-mapping.
+-func probeIPv6Stack() (supportsIPv6, supportsIPv4map bool) {
+ 	var probes = []struct {
+ 		laddr TCPAddr
+ 		value int
+@@ -47,23 +40,13 @@ func probeIPv6Stack() (supportsIPv6, supportsIPv4map bool) {
+ 		// IPv4-mapped IPv6 address communication capability
+ 		{laddr: TCPAddr{IP: IPv4(127, 0, 0, 1)}, value: 0},
+ 	}
+-	var supps [2]bool
+ 	switch runtime.GOOS {
+ 	case "dragonfly", "openbsd":
+-		// Some released versions of DragonFly BSD pretend to
+-		// accept IPV6_V6ONLY=0 successfully, but the state
+-		// still stays IPV6_V6ONLY=1. Eventually DragonFly BSD
+-		// stops pretending, but the transition period would
+-		// cause unpredictable behavior and we need to avoid
+-		// it.
+-		//
+-		// OpenBSD also doesn't support IPV6_V6ONLY=0 but it
+-		// never pretends to accept IPV6_V6OLY=0. It always
+-		// returns an error and we don't need to probe the
+-		// capability.
++		// The latest DragonFly BSD and OpenBSD kernels don't
++		// support IPV6_V6ONLY=0. They always return an error
++		// and we don't need to probe the capability.
+ 		probes = probes[:1]
+ 	}
+-
+ 	for i := range probes {
+ 		s, err := socketFunc(syscall.AF_INET6, syscall.SOCK_STREAM, syscall.IPPROTO_TCP)
+ 		if err != nil {
+@@ -78,51 +61,55 @@ func probeIPv6Stack() (supportsIPv6, supportsIPv4map bool) {
+ 		if err := syscall.Bind(s, sa); err != nil {
+ 			continue
+ 		}
+-		supps[i] = true
++		if i == 0 {
++			p.ipv6Enabled = true
++		} else {
++			p.ipv4MappedIPv6Enabled = true
++		}
+ 	}
+-
+-	return supps[0], supps[1]
+ }
+ 
+-// favoriteAddrFamily returns the appropriate address family to
+-// the given net, laddr, raddr and mode. At first it figures
+-// address family out from the net. If mode indicates "listen"
+-// and laddr is a wildcard, it assumes that the user wants to
+-// make a passive connection with a wildcard address family, both
+-// AF_INET and AF_INET6, and a wildcard address like following:
++// favoriteAddrFamily returns the appropriate address family for the
++// given network, laddr, raddr and mode.
++//
++// If mode indicates "listen" and laddr is a wildcard, we assume that
++// the user wants to make a passive-open connection with a wildcard
++// address family, both AF_INET and AF_INET6, and a wildcard address
++// like the following:
+ //
+-//	1. A wild-wild listen, "tcp" + ""
+-//	If the platform supports both IPv6 and IPv6 IPv4-mapping
+-//	capabilities, or does not support IPv4, we assume that
+-//	the user wants to listen on both IPv4 and IPv6 wildcard
+-//	addresses over an AF_INET6 socket with IPV6_V6ONLY=0.
+-//	Otherwise we prefer an IPv4 wildcard address listen over
+-//	an AF_INET socket.
++//	- A listen for a wildcard communication domain, "tcp" or
++//	  "udp", with a wildcard address: If the platform supports
++//	  both IPv6 and IPv4-mapped IPv6 communication capabilities,
++//	  or does not support IPv4, we use a dual stack, AF_INET6 and
++//	  IPV6_V6ONLY=0, wildcard address listen. The dual stack
++//	  wildcard address listen may fall back to an IPv6-only,
++//	  AF_INET6 and IPV6_V6ONLY=1, wildcard address listen.
++//	  Otherwise we prefer an IPv4-only, AF_INET, wildcard address
++//	  listen.
+ //
+-//	2. A wild-ipv4wild listen, "tcp" + "0.0.0.0"
+-//	Same as 1.
++//	- A listen for a wildcard communication domain, "tcp" or
++//	  "udp", with an IPv4 wildcard address: same as above.
+ //
+-//	3. A wild-ipv6wild listen, "tcp" + "[::]"
+-//	Almost same as 1 but we prefer an IPv6 wildcard address
+-//	listen over an AF_INET6 socket with IPV6_V6ONLY=0 when
+-//	the platform supports IPv6 capability but not IPv6 IPv4-
+-//	mapping capability.
++//	- A listen for a wildcard communication domain, "tcp" or
++//	  "udp", with an IPv6 wildcard address: same as above.
+ //
+-//	4. A ipv4-ipv4wild listen, "tcp4" + "" or "0.0.0.0"
+-//	We use an IPv4 (AF_INET) wildcard address listen.
++//	- A listen for an IPv4 communication domain, "tcp4" or "udp4",
++//	  with an IPv4 wildcard address: We use an IPv4-only, AF_INET,
++//	  wildcard address listen.
+ //
+-//	5. A ipv6-ipv6wild listen, "tcp6" + "" or "[::]"
+-//	We use an IPv6 (AF_INET6, IPV6_V6ONLY=1) wildcard address
+-//	listen.
++//	- A listen for an IPv6 communication domain, "tcp6" or "udp6",
++//	  with an IPv6 wildcard address: We use an IPv6-only, AF_INET6
++//	  and IPV6_V6ONLY=1, wildcard address listen.
+ //
+-// Otherwise guess: if the addresses are IPv4 then returns AF_INET,
+-// or else returns AF_INET6.  It also returns a boolean value what
++// Otherwise guess: If the addresses are IPv4 then returns AF_INET,
++// or else returns AF_INET6. It also returns a boolean value what
+ // designates IPV6_V6ONLY option.
+ //
+-// Note that OpenBSD allows neither "net.inet6.ip6.v6only=1" change
+-// nor IPPROTO_IPV6 level IPV6_V6ONLY socket option setting.
+-func favoriteAddrFamily(net string, laddr, raddr sockaddr, mode string) (family int, ipv6only bool) {
+-	switch net[len(net)-1] {
++// Note that the latest DragonFly BSD and OpenBSD kernels allow
++// neither "net.inet6.ip6.v6only=1" change nor IPPROTO_IPV6 level
++// IPV6_V6ONLY socket option setting.
++func favoriteAddrFamily(network string, laddr, raddr sockaddr, mode string) (family int, ipv6only bool) {
++	switch network[len(network)-1] {
+ 	case '4':
+ 		return syscall.AF_INET, false
+ 	case '6':
+@@ -130,7 +117,7 @@ func favoriteAddrFamily(net string, laddr, raddr sockaddr, mode string) (family
+ 	}
+ 
+ 	if mode == "listen" && (laddr == nil || laddr.isWildcard()) {
+-		if supportsIPv4map || !supportsIPv4 {
++		if supportsIPv4map() || !supportsIPv4() {
+ 			return syscall.AF_INET6, false
+ 		}
+ 		if laddr == nil {
+@@ -146,7 +133,6 @@ func favoriteAddrFamily(net string, laddr, raddr sockaddr, mode string) (family
+ 	return syscall.AF_INET6, false
+ }
+ 
+-// Internet sockets (TCP, UDP, IP)
+ func internetSocket(ctx context.Context, net string, laddr, raddr sockaddr, sotype, proto int, mode string) (fd *netFD, err error) {
+ 	if (runtime.GOOS == "windows" || runtime.GOOS == "openbsd" || runtime.GOOS == "nacl") && mode == "dial" && raddr.isWildcard() {
+ 		raddr = raddr.toLocal(net)
+diff --git a/src/net/ipsock_test.go b/src/net/ipsock_test.go
+index 1d0f00ff5e..aede354844 100644
+--- a/src/net/ipsock_test.go
++++ b/src/net/ipsock_test.go
+@@ -215,7 +215,7 @@ var addrListTests = []struct {
+ }
+ 
+ func TestAddrList(t *testing.T) {
+-	if !supportsIPv4 || !supportsIPv6 {
++	if !supportsIPv4() || !supportsIPv6() {
+ 		t.Skip("both IPv4 and IPv6 are required")
+ 	}
+ 
+diff --git a/src/net/listen_test.go b/src/net/listen_test.go
+index 6037f3600d..21ad4462f6 100644
+--- a/src/net/listen_test.go
++++ b/src/net/listen_test.go
+@@ -225,7 +225,7 @@ func TestDualStackTCPListener(t *testing.T) {
+ 	case "nacl", "plan9":
+ 		t.Skipf("not supported on %s", runtime.GOOS)
+ 	}
+-	if !supportsIPv4 || !supportsIPv6 {
++	if !supportsIPv4() || !supportsIPv6() {
+ 		t.Skip("both IPv4 and IPv6 are required")
+ 	}
+ 
+@@ -235,7 +235,7 @@ func TestDualStackTCPListener(t *testing.T) {
+ 			continue
+ 		}
+ 
+-		if !supportsIPv4map && differentWildcardAddr(tt.address1, tt.address2) {
++		if !supportsIPv4map() && differentWildcardAddr(tt.address1, tt.address2) {
+ 			tt.xerr = nil
+ 		}
+ 		var firstErr, secondErr error
+@@ -315,7 +315,7 @@ func TestDualStackUDPListener(t *testing.T) {
+ 	case "nacl", "plan9":
+ 		t.Skipf("not supported on %s", runtime.GOOS)
+ 	}
+-	if !supportsIPv4 || !supportsIPv6 {
++	if !supportsIPv4() || !supportsIPv6() {
+ 		t.Skip("both IPv4 and IPv6 are required")
+ 	}
+ 
+@@ -325,7 +325,7 @@ func TestDualStackUDPListener(t *testing.T) {
+ 			continue
+ 		}
+ 
+-		if !supportsIPv4map && differentWildcardAddr(tt.address1, tt.address2) {
++		if !supportsIPv4map() && differentWildcardAddr(tt.address1, tt.address2) {
+ 			tt.xerr = nil
+ 		}
+ 		var firstErr, secondErr error
+@@ -454,7 +454,7 @@ func checkDualStackAddrFamily(fd *netFD) error {
+ 		// and IPv6 IPv4-mapping capability, we can assume
+ 		// that the node listens on a wildcard address with an
+ 		// AF_INET6 socket.
+-		if supportsIPv4map && fd.laddr.(*TCPAddr).isWildcard() {
++		if supportsIPv4map() && fd.laddr.(*TCPAddr).isWildcard() {
+ 			if fd.family != syscall.AF_INET6 {
+ 				return fmt.Errorf("Listen(%s, %v) returns %v; want %v", fd.net, fd.laddr, fd.family, syscall.AF_INET6)
+ 			}
+@@ -468,7 +468,7 @@ func checkDualStackAddrFamily(fd *netFD) error {
+ 		// and IPv6 IPv4-mapping capability, we can assume
+ 		// that the node listens on a wildcard address with an
+ 		// AF_INET6 socket.
+-		if supportsIPv4map && fd.laddr.(*UDPAddr).isWildcard() {
++		if supportsIPv4map() && fd.laddr.(*UDPAddr).isWildcard() {
+ 			if fd.family != syscall.AF_INET6 {
+ 				return fmt.Errorf("ListenPacket(%s, %v) returns %v; want %v", fd.net, fd.laddr, fd.family, syscall.AF_INET6)
+ 			}
+@@ -535,7 +535,7 @@ func TestIPv4MulticastListener(t *testing.T) {
+ 	case "solaris":
+ 		t.Skipf("not supported on solaris, see golang.org/issue/7399")
+ 	}
+-	if !supportsIPv4 {
++	if !supportsIPv4() {
+ 		t.Skip("IPv4 is not supported")
+ 	}
+ 
+@@ -610,7 +610,7 @@ func TestIPv6MulticastListener(t *testing.T) {
+ 	case "solaris":
+ 		t.Skipf("not supported on solaris, see issue 7399")
+ 	}
+-	if !supportsIPv6 {
++	if !supportsIPv6() {
+ 		t.Skip("IPv6 is not supported")
+ 	}
+ 	if os.Getuid() != 0 {
+diff --git a/src/net/lookup_test.go b/src/net/lookup_test.go
+index 36db56acd0..68a7abe95d 100644
+--- a/src/net/lookup_test.go
++++ b/src/net/lookup_test.go
+@@ -63,7 +63,7 @@ func TestLookupGoogleSRV(t *testing.T) {
+ 		testenv.MustHaveExternalNetwork(t)
+ 	}
+ 
+-	if !supportsIPv4 || !*testIPv4 {
++	if !supportsIPv4() || !*testIPv4 {
+ 		t.Skip("IPv4 is required")
+ 	}
+ 
+@@ -99,7 +99,7 @@ func TestLookupGmailMX(t *testing.T) {
+ 		testenv.MustHaveExternalNetwork(t)
+ 	}
+ 
+-	if !supportsIPv4 || !*testIPv4 {
++	if !supportsIPv4() || !*testIPv4 {
+ 		t.Skip("IPv4 is required")
+ 	}
+ 
+@@ -131,7 +131,7 @@ func TestLookupGmailNS(t *testing.T) {
+ 		testenv.MustHaveExternalNetwork(t)
+ 	}
+ 
+-	if !supportsIPv4 || !*testIPv4 {
++	if !supportsIPv4() || !*testIPv4 {
+ 		t.Skip("IPv4 is required")
+ 	}
+ 
+@@ -164,7 +164,7 @@ func TestLookupGmailTXT(t *testing.T) {
+ 		testenv.MustHaveExternalNetwork(t)
+ 	}
+ 
+-	if !supportsIPv4 || !*testIPv4 {
++	if !supportsIPv4() || !*testIPv4 {
+ 		t.Skip("IPv4 is required")
+ 	}
+ 
+@@ -199,7 +199,7 @@ func TestLookupGooglePublicDNSAddr(t *testing.T) {
+ 		testenv.MustHaveExternalNetwork(t)
+ 	}
+ 
+-	if !supportsIPv4 || !supportsIPv6 || !*testIPv4 || !*testIPv6 {
++	if !supportsIPv4() || !supportsIPv6() || !*testIPv4 || !*testIPv6 {
+ 		t.Skip("both IPv4 and IPv6 are required")
+ 	}
+ 
+@@ -220,7 +220,7 @@ func TestLookupGooglePublicDNSAddr(t *testing.T) {
+ }
+ 
+ func TestLookupIPv6LinkLocalAddr(t *testing.T) {
+-	if !supportsIPv6 || !*testIPv6 {
++	if !supportsIPv6() || !*testIPv6 {
+ 		t.Skip("IPv6 is required")
+ 	}
+ 
+@@ -256,7 +256,7 @@ func TestLookupCNAME(t *testing.T) {
+ 		testenv.MustHaveExternalNetwork(t)
+ 	}
+ 
+-	if !supportsIPv4 || !*testIPv4 {
++	if !supportsIPv4() || !*testIPv4 {
+ 		t.Skip("IPv4 is required")
+ 	}
+ 
+@@ -283,7 +283,7 @@ func TestLookupGoogleHost(t *testing.T) {
+ 		testenv.MustHaveExternalNetwork(t)
+ 	}
+ 
+-	if !supportsIPv4 || !*testIPv4 {
++	if !supportsIPv4() || !*testIPv4 {
+ 		t.Skip("IPv4 is required")
+ 	}
+ 
+@@ -315,7 +315,7 @@ func TestLookupGoogleIP(t *testing.T) {
+ 		testenv.MustHaveExternalNetwork(t)
+ 	}
+ 
+-	if !supportsIPv4 || !*testIPv4 {
++	if !supportsIPv4() || !*testIPv4 {
+ 		t.Skip("IPv4 is required")
+ 	}
+ 
+@@ -450,7 +450,7 @@ func TestDNSFlood(t *testing.T) {
+ }
+ 
+ func TestLookupDotsWithLocalSource(t *testing.T) {
+-	if !supportsIPv4 || !*testIPv4 {
++	if !supportsIPv4() || !*testIPv4 {
+ 		t.Skip("IPv4 is required")
+ 	}
+ 
+@@ -499,7 +499,7 @@ func TestLookupDotsWithRemoteSource(t *testing.T) {
+ 		testenv.MustHaveExternalNetwork(t)
+ 	}
+ 
+-	if !supportsIPv4 || !*testIPv4 {
++	if !supportsIPv4() || !*testIPv4 {
+ 		t.Skip("IPv4 is required")
+ 	}
+ 
+diff --git a/src/net/main_test.go b/src/net/main_test.go
+index 28a8ff66d6..1d3f73a266 100644
+--- a/src/net/main_test.go
++++ b/src/net/main_test.go
+@@ -70,7 +70,7 @@ var (
+ )
+ 
+ func setupTestData() {
+-	if supportsIPv4 {
++	if supportsIPv4() {
+ 		resolveTCPAddrTests = append(resolveTCPAddrTests, []resolveTCPAddrTest{
+ 			{"tcp", "localhost:1", &TCPAddr{IP: IPv4(127, 0, 0, 1), Port: 1}, nil},
+ 			{"tcp4", "localhost:2", &TCPAddr{IP: IPv4(127, 0, 0, 1), Port: 2}, nil},
+@@ -85,7 +85,7 @@ func setupTestData() {
+ 		}...)
+ 	}
+ 
+-	if supportsIPv6 {
++	if supportsIPv6() {
+ 		resolveTCPAddrTests = append(resolveTCPAddrTests, resolveTCPAddrTest{"tcp6", "localhost:3", &TCPAddr{IP: IPv6loopback, Port: 3}, nil})
+ 		resolveUDPAddrTests = append(resolveUDPAddrTests, resolveUDPAddrTest{"udp6", "localhost:3", &UDPAddr{IP: IPv6loopback, Port: 3}, nil})
+ 		resolveIPAddrTests = append(resolveIPAddrTests, resolveIPAddrTest{"ip6", "localhost", &IPAddr{IP: IPv6loopback}, nil})
+diff --git a/src/net/mockserver_test.go b/src/net/mockserver_test.go
+index 766de6a815..44581d9049 100644
+--- a/src/net/mockserver_test.go
++++ b/src/net/mockserver_test.go
+@@ -31,20 +31,20 @@ func testUnixAddr() string {
+ func newLocalListener(network string) (Listener, error) {
+ 	switch network {
+ 	case "tcp":
+-		if supportsIPv4 {
++		if supportsIPv4() {
+ 			if ln, err := Listen("tcp4", "127.0.0.1:0"); err == nil {
+ 				return ln, nil
+ 			}
+ 		}
+-		if supportsIPv6 {
++		if supportsIPv6() {
+ 			return Listen("tcp6", "[::1]:0")
+ 		}
+ 	case "tcp4":
+-		if supportsIPv4 {
++		if supportsIPv4() {
+ 			return Listen("tcp4", "127.0.0.1:0")
+ 		}
+ 	case "tcp6":
+-		if supportsIPv6 {
++		if supportsIPv6() {
+ 			return Listen("tcp6", "[::1]:0")
+ 		}
+ 	case "unix", "unixpacket":
+@@ -333,18 +333,18 @@ func timeoutTransmitter(c Conn, d, min, max time.Duration, ch chan<- error) {
+ func newLocalPacketListener(network string) (PacketConn, error) {
+ 	switch network {
+ 	case "udp":
+-		if supportsIPv4 {
++		if supportsIPv4() {
+ 			return ListenPacket("udp4", "127.0.0.1:0")
+ 		}
+-		if supportsIPv6 {
++		if supportsIPv6() {
+ 			return ListenPacket("udp6", "[::1]:0")
+ 		}
+ 	case "udp4":
+-		if supportsIPv4 {
++		if supportsIPv4() {
+ 			return ListenPacket("udp4", "127.0.0.1:0")
+ 		}
+ 	case "udp6":
+-		if supportsIPv6 {
++		if supportsIPv6() {
+ 			return ListenPacket("udp6", "[::1]:0")
+ 		}
+ 	case "unixgram":
+diff --git a/src/net/net.go b/src/net/net.go
+index bfb9c291b8..91ec048e0b 100644
+--- a/src/net/net.go
++++ b/src/net/net.go
+@@ -96,12 +96,6 @@ var (
+ 	netCgo bool // set true in conf_netcgo.go for build tag "netcgo"
+ )
+ 
+-func init() {
+-	sysInit()
+-	supportsIPv4 = probeIPv4Stack()
+-	supportsIPv6, supportsIPv4map = probeIPv6Stack()
+-}
+-
+ // Addr represents a network end point address.
+ //
+ // The two methods Network and String conventionally return strings
+diff --git a/src/net/platform_test.go b/src/net/platform_test.go
+index 2a14095cc2..5841ca35a0 100644
+--- a/src/net/platform_test.go
++++ b/src/net/platform_test.go
+@@ -50,11 +50,11 @@ func testableNetwork(network string) bool {
+ 	}
+ 	switch ss[0] {
+ 	case "tcp4", "udp4", "ip4":
+-		if !supportsIPv4 {
++		if !supportsIPv4() {
+ 			return false
+ 		}
+ 	case "tcp6", "udp6", "ip6":
+-		if !supportsIPv6 {
++		if !supportsIPv6() {
+ 			return false
+ 		}
+ 	}
+@@ -117,25 +117,25 @@ func testableListenArgs(network, address, client string) bool {
+ 
+ 	// Test functionality of IPv4 communication using AF_INET and
+ 	// IPv6 communication using AF_INET6 sockets.
+-	if !supportsIPv4 && ip.To4() != nil {
++	if !supportsIPv4() && ip.To4() != nil {
+ 		return false
+ 	}
+-	if !supportsIPv6 && ip.To16() != nil && ip.To4() == nil {
++	if !supportsIPv6() && ip.To16() != nil && ip.To4() == nil {
+ 		return false
+ 	}
+ 	cip := ParseIP(client)
+ 	if cip != nil {
+-		if !supportsIPv4 && cip.To4() != nil {
++		if !supportsIPv4() && cip.To4() != nil {
+ 			return false
+ 		}
+-		if !supportsIPv6 && cip.To16() != nil && cip.To4() == nil {
++		if !supportsIPv6() && cip.To16() != nil && cip.To4() == nil {
+ 			return false
+ 		}
+ 	}
+ 
+ 	// Test functionality of IPv4 communication using AF_INET6
+ 	// sockets.
+-	if !supportsIPv4map && supportsIPv4 && (network == "tcp" || network == "udp" || network == "ip") && wildcard {
++	if !supportsIPv4map() && supportsIPv4() && (network == "tcp" || network == "udp" || network == "ip") && wildcard {
+ 		// At this point, we prefer IPv4 when ip is nil.
+ 		// See favoriteAddrFamily for further information.
+ 		if ip.To16() != nil && ip.To4() == nil && cip.To4() != nil { // a pair of IPv6 server and IPv4 client
+diff --git a/src/net/sockopt_bsd.go b/src/net/sockopt_bsd.go
+index 567e4e1b7c..4ecc8cb1cf 100644
+--- a/src/net/sockopt_bsd.go
++++ b/src/net/sockopt_bsd.go
+@@ -25,7 +25,7 @@ func setDefaultSockopts(s, family, sotype int, ipv6only bool) error {
+ 			syscall.SetsockoptInt(s, syscall.IPPROTO_IPV6, syscall.IPV6_PORTRANGE, syscall.IPV6_PORTRANGE_HIGH)
+ 		}
+ 	}
+-	if supportsIPv4map && family == syscall.AF_INET6 && sotype != syscall.SOCK_RAW {
++	if supportsIPv4map() && family == syscall.AF_INET6 && sotype != syscall.SOCK_RAW {
+ 		// Allow both IP versions even if the OS default
+ 		// is otherwise. Note that some operating systems
+ 		// never admit this option.
+diff --git a/src/net/tcpsock_test.go b/src/net/tcpsock_test.go
+index 54bf0cfccc..09f6516451 100644
+--- a/src/net/tcpsock_test.go
++++ b/src/net/tcpsock_test.go
+@@ -32,28 +32,28 @@ func BenchmarkTCP4PersistentTimeout(b *testing.B) {
+ }
+ 
+ func BenchmarkTCP6OneShot(b *testing.B) {
+-	if !supportsIPv6 {
++	if !supportsIPv6() {
+ 		b.Skip("ipv6 is not supported")
+ 	}
+ 	benchmarkTCP(b, false, false, "[::1]:0")
+ }
+ 
+ func BenchmarkTCP6OneShotTimeout(b *testing.B) {
+-	if !supportsIPv6 {
++	if !supportsIPv6() {
+ 		b.Skip("ipv6 is not supported")
+ 	}
+ 	benchmarkTCP(b, false, true, "[::1]:0")
+ }
+ 
+ func BenchmarkTCP6Persistent(b *testing.B) {
+-	if !supportsIPv6 {
++	if !supportsIPv6() {
+ 		b.Skip("ipv6 is not supported")
+ 	}
+ 	benchmarkTCP(b, true, false, "[::1]:0")
+ }
+ 
+ func BenchmarkTCP6PersistentTimeout(b *testing.B) {
+-	if !supportsIPv6 {
++	if !supportsIPv6() {
+ 		b.Skip("ipv6 is not supported")
+ 	}
+ 	benchmarkTCP(b, true, true, "[::1]:0")
+@@ -163,7 +163,7 @@ func BenchmarkTCP4ConcurrentReadWrite(b *testing.B) {
+ }
+ 
+ func BenchmarkTCP6ConcurrentReadWrite(b *testing.B) {
+-	if !supportsIPv6 {
++	if !supportsIPv6() {
+ 		b.Skip("ipv6 is not supported")
+ 	}
+ 	benchmarkTCPConcurrentReadWrite(b, "[::1]:0")
+@@ -372,7 +372,7 @@ func TestTCPListenerName(t *testing.T) {
+ func TestIPv6LinkLocalUnicastTCP(t *testing.T) {
+ 	testenv.MustHaveExternalNetwork(t)
+ 
+-	if !supportsIPv6 {
++	if !supportsIPv6() {
+ 		t.Skip("IPv6 is not supported")
+ 	}
+ 
+diff --git a/src/net/udpsock_test.go b/src/net/udpsock_test.go
+index 708cc10120..6d4974e3e4 100644
+--- a/src/net/udpsock_test.go
++++ b/src/net/udpsock_test.go
+@@ -15,7 +15,7 @@ import (
+ func BenchmarkUDP6LinkLocalUnicast(b *testing.B) {
+ 	testHookUninstaller.Do(uninstallTestHooks)
+ 
+-	if !supportsIPv6 {
++	if !supportsIPv6() {
+ 		b.Skip("IPv6 is not supported")
+ 	}
+ 	ifi := loopbackInterface()
+@@ -279,7 +279,7 @@ func TestUDPConnLocalAndRemoteNames(t *testing.T) {
+ func TestIPv6LinkLocalUnicastUDP(t *testing.T) {
+ 	testenv.MustHaveExternalNetwork(t)
+ 
+-	if !supportsIPv6 {
++	if !supportsIPv6() {
+ 		t.Skip("IPv6 is not supported")
+ 	}
+ 

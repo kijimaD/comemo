@@ -20,7 +20,7 @@ Date:   Wed Feb 20 15:15:18 2019 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/go_test.go               | 39 +++++++++++++++++++++++++++++++++++--
  src/cmd/go/internal/base/base.go    |  3 ++-
  src/cmd/go/internal/cmdflag/flag.go |  3 ++-
@@ -32,3 +32,276 @@ Date:   Wed Feb 20 15:15:18 2019 -0800
  src/cmd/go/internal/work/init.go    | 15 +++++++++-----
  src/cmd/go/script_test.go           |  1 +
  10 files changed, 71 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 866241bf39..dfada6c806 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -146,7 +146,18 @@ func TestMain(m *testing.M) {
+ 		select {}
+ 	}
+ 
+-	dir, err := ioutil.TempDir(os.Getenv("GOTMPDIR"), "cmd-go-test-")
++	// Run with a temporary TMPDIR to check that the tests don't
++	// leave anything behind.
++	topTmpdir, err := ioutil.TempDir("", "cmd-go-test-")
++	if err != nil {
++		log.Fatal(err)
++	}
++	if !*testWork {
++		defer removeAll(topTmpdir)
++	}
++	os.Setenv(tempEnvName(), topTmpdir)
++
++	dir, err := ioutil.TempDir(topTmpdir, "tmpdir")
+ 	if err != nil {
+ 		log.Fatal(err)
+ 	}
+@@ -258,6 +269,23 @@ func TestMain(m *testing.M) {
+ 		removeAll(testTmpDir) // os.Exit won't run defer
+ 	}
+ 
++	if !*testWork {
++		// There shouldn't be anything left in topTmpdir.
++		dirf, err := os.Open(topTmpdir)
++		if err != nil {
++			log.Fatal(err)
++		}
++		names, err := dirf.Readdirnames(0)
++		if err != nil {
++			log.Fatal(err)
++		}
++		if len(names) > 0 {
++			log.Fatalf("unexpected files left in tmpdir: %v", names)
++		}
++
++		removeAll(topTmpdir)
++	}
++
+ 	os.Exit(r)
+ }
+ 
+@@ -5059,7 +5087,8 @@ func TestExecBuildX(t *testing.T) {
+ 	obj := tg.path("main")
+ 	tg.run("build", "-x", "-o", obj, src)
+ 	sh := tg.path("test.sh")
+-	err := ioutil.WriteFile(sh, []byte("set -e\n"+tg.getStderr()), 0666)
++	cmds := tg.getStderr()
++	err := ioutil.WriteFile(sh, []byte("set -e\n"+cmds), 0666)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -5090,6 +5119,12 @@ func TestExecBuildX(t *testing.T) {
+ 	if string(out) != "hello" {
+ 		t.Fatalf("got %q; want %q", out, "hello")
+ 	}
++
++	matches := regexp.MustCompile(`^WORK=(.*)\n`).FindStringSubmatch(cmds)
++	if len(matches) == 0 {
++		t.Fatal("no WORK directory")
++	}
++	tg.must(os.RemoveAll(matches[1]))
+ }
+ 
+ func TestParallelNumber(t *testing.T) {
+diff --git a/src/cmd/go/internal/base/base.go b/src/cmd/go/internal/base/base.go
+index e7f54c9a36..bf810ff762 100644
+--- a/src/cmd/go/internal/base/base.go
++++ b/src/cmd/go/internal/base/base.go
+@@ -82,7 +82,8 @@ func (c *Command) Name() string {
+ func (c *Command) Usage() {
+ 	fmt.Fprintf(os.Stderr, "usage: %s\n", c.UsageLine)
+ 	fmt.Fprintf(os.Stderr, "Run 'go help %s' for details.\n", c.LongName())
+-	os.Exit(2)
++	SetExitStatus(2)
++	Exit()
+ }
+ 
+ // Runnable reports whether the command can be run; otherwise
+diff --git a/src/cmd/go/internal/cmdflag/flag.go b/src/cmd/go/internal/cmdflag/flag.go
+index 7f2c53def8..3f934328fe 100644
+--- a/src/cmd/go/internal/cmdflag/flag.go
++++ b/src/cmd/go/internal/cmdflag/flag.go
+@@ -66,7 +66,8 @@ func SyntaxError(cmd, msg string) {
+ 	} else {
+ 		fmt.Fprintf(os.Stderr, `run "go help %s" for more information`+"\n", cmd)
+ 	}
+-	os.Exit(2)
++	base.SetExitStatus(2)
++	base.Exit()
+ }
+ 
+ // AddKnownFlags registers the flags in defns with base.AddKnownFlag.
+diff --git a/src/cmd/go/internal/help/help.go b/src/cmd/go/internal/help/help.go
+index 312a29590f..121deb70a5 100644
+--- a/src/cmd/go/internal/help/help.go
++++ b/src/cmd/go/internal/help/help.go
+@@ -63,7 +63,8 @@ Args:
+ 			helpSuccess = " " + strings.Join(args[:i], " ")
+ 		}
+ 		fmt.Fprintf(os.Stderr, "go help %s: unknown help topic. Run '%s'.\n", strings.Join(args, " "), helpSuccess)
+-		os.Exit(2) // failed at 'go help cmd'
++		base.SetExitStatus(2) // failed at 'go help cmd'
++		base.Exit()
+ 	}
+ 
+ 	if len(cmd.Commands) > 0 {
+@@ -167,7 +168,8 @@ func tmpl(w io.Writer, text string, data interface{}) {
+ 	if ew.err != nil {
+ 		// I/O error writing. Ignore write on closed pipe.
+ 		if strings.Contains(ew.err.Error(), "pipe") {
+-			os.Exit(1)
++			base.SetExitStatus(1)
++			base.Exit()
+ 		}
+ 		base.Fatalf("writing output: %v", ew.err)
+ 	}
+diff --git a/src/cmd/go/internal/vet/vetflag.go b/src/cmd/go/internal/vet/vetflag.go
+index 37342f4163..cbe7f8ce08 100644
+--- a/src/cmd/go/internal/vet/vetflag.go
++++ b/src/cmd/go/internal/vet/vetflag.go
+@@ -76,7 +76,8 @@ func vetFlags(usage func(), args []string) (passToVet, packageNames []string) {
+ 	vetcmd.Stdout = out
+ 	if err := vetcmd.Run(); err != nil {
+ 		fmt.Fprintf(os.Stderr, "go vet: can't execute %s -flags: %v\n", tool, err)
+-		os.Exit(2)
++		base.SetExitStatus(2)
++		base.Exit()
+ 	}
+ 	var analysisFlags []struct {
+ 		Name  string
+@@ -85,7 +86,8 @@ func vetFlags(usage func(), args []string) (passToVet, packageNames []string) {
+ 	}
+ 	if err := json.Unmarshal(out.Bytes(), &analysisFlags); err != nil {
+ 		fmt.Fprintf(os.Stderr, "go vet: can't unmarshal JSON from %s -flags: %v", tool, err)
+-		os.Exit(2)
++		base.SetExitStatus(2)
++		base.Exit()
+ 	}
+ 
+ 	// Add vet's flags to vetflagDefn.
+@@ -134,7 +136,8 @@ func vetFlags(usage func(), args []string) (passToVet, packageNames []string) {
+ 		if f == nil {
+ 			fmt.Fprintf(os.Stderr, "vet: flag %q not defined\n", args[i])
+ 			fmt.Fprintf(os.Stderr, "Run \"go help vet\" for more information\n")
+-			os.Exit(2)
++			base.SetExitStatus(2)
++			base.Exit()
+ 		}
+ 		if f.Value != nil {
+ 			if err := f.Value.Set(value); err != nil {
+@@ -182,5 +185,6 @@ func usage() {
+ 	}
+ 	fmt.Fprintf(os.Stderr, "Run '%s -help' for the vet tool's flags.\n", cmd)
+ 
+-	os.Exit(2)
++	base.SetExitStatus(2)
++	base.Exit()
+ }
+diff --git a/src/cmd/go/internal/work/action.go b/src/cmd/go/internal/work/action.go
+index 1f91046eb1..a47b9ba370 100644
+--- a/src/cmd/go/internal/work/action.go
++++ b/src/cmd/go/internal/work/action.go
+@@ -248,12 +248,14 @@ func (b *Builder) Init() {
+ 
+ 	if _, ok := cfg.OSArchSupportsCgo[cfg.Goos+"/"+cfg.Goarch]; !ok && cfg.BuildContext.Compiler == "gc" {
+ 		fmt.Fprintf(os.Stderr, "cmd/go: unsupported GOOS/GOARCH pair %s/%s\n", cfg.Goos, cfg.Goarch)
+-		os.Exit(2)
++		base.SetExitStatus(2)
++		base.Exit()
+ 	}
+ 	for _, tag := range cfg.BuildContext.BuildTags {
+ 		if strings.Contains(tag, ",") {
+ 			fmt.Fprintf(os.Stderr, "cmd/go: -tags space-separated list contains comma\n")
+-			os.Exit(2)
++			base.SetExitStatus(2)
++			base.Exit()
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 37766c2ce5..bb71faac9c 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -2327,7 +2327,7 @@ func (b *Builder) gccSupportsFlag(compiler []string, flag string) bool {
+ 	// version of GCC, so some systems have frozen on it.
+ 	// Now we pass an empty file on stdin, which should work at least for
+ 	// GCC and clang.
+-	cmdArgs := str.StringList(compiler, flag, "-c", "-x", "c", "-")
++	cmdArgs := str.StringList(compiler, flag, "-c", "-x", "c", "-", "-o", os.DevNull)
+ 	if cfg.BuildN || cfg.BuildX {
+ 		b.Showcmd(b.WorkDir, "%s || true", joinUnambiguously(cmdArgs))
+ 		if cfg.BuildN {
+diff --git a/src/cmd/go/internal/work/gccgo.go b/src/cmd/go/internal/work/gccgo.go
+index 184d2919ca..053d32dc0b 100644
+--- a/src/cmd/go/internal/work/gccgo.go
++++ b/src/cmd/go/internal/work/gccgo.go
+@@ -56,7 +56,8 @@ func checkGccgoBin() {
+ 		return
+ 	}
+ 	fmt.Fprintf(os.Stderr, "cmd/go: gccgo: %s\n", gccgoErr)
+-	os.Exit(2)
++	base.SetExitStatus(2)
++	base.Exit()
+ }
+ 
+ func (tools gccgoToolchain) gc(b *Builder, a *Action, archive string, importcfg []byte, symabis string, asmhdr bool, gofiles []string) (ofile string, output []byte, err error) {
+diff --git a/src/cmd/go/internal/work/init.go b/src/cmd/go/internal/work/init.go
+index 693a53e9ab..3381ab544c 100644
+--- a/src/cmd/go/internal/work/init.go
++++ b/src/cmd/go/internal/work/init.go
+@@ -29,7 +29,8 @@ func BuildInit() {
+ 		p, err := filepath.Abs(cfg.BuildPkgdir)
+ 		if err != nil {
+ 			fmt.Fprintf(os.Stderr, "go %s: evaluating -pkgdir: %v\n", flag.Args()[0], err)
+-			os.Exit(2)
++			base.SetExitStatus(2)
++			base.Exit()
+ 		}
+ 		cfg.BuildPkgdir = p
+ 	}
+@@ -41,16 +42,19 @@ func instrumentInit() {
+ 	}
+ 	if cfg.BuildRace && cfg.BuildMSan {
+ 		fmt.Fprintf(os.Stderr, "go %s: may not use -race and -msan simultaneously\n", flag.Args()[0])
+-		os.Exit(2)
++		base.SetExitStatus(2)
++		base.Exit()
+ 	}
+ 	if cfg.BuildMSan && !sys.MSanSupported(cfg.Goos, cfg.Goarch) {
+ 		fmt.Fprintf(os.Stderr, "-msan is not supported on %s/%s\n", cfg.Goos, cfg.Goarch)
+-		os.Exit(2)
++		base.SetExitStatus(2)
++		base.Exit()
+ 	}
+ 	if cfg.BuildRace {
+ 		if !sys.RaceDetectorSupported(cfg.Goos, cfg.Goarch) {
+ 			fmt.Fprintf(os.Stderr, "go %s: -race is only supported on linux/amd64, linux/ppc64le, linux/arm64, freebsd/amd64, netbsd/amd64, darwin/amd64 and windows/amd64\n", flag.Args()[0])
+-			os.Exit(2)
++			base.SetExitStatus(2)
++			base.Exit()
+ 		}
+ 	}
+ 	mode := "race"
+@@ -61,7 +65,8 @@ func instrumentInit() {
+ 
+ 	if !cfg.BuildContext.CgoEnabled {
+ 		fmt.Fprintf(os.Stderr, "go %s: %s requires cgo; enable cgo by setting CGO_ENABLED=1\n", flag.Args()[0], modeFlag)
+-		os.Exit(2)
++		base.SetExitStatus(2)
++		base.Exit()
+ 	}
+ 	forcedGcflags = append(forcedGcflags, modeFlag)
+ 	forcedLdflags = append(forcedLdflags, modeFlag)
+diff --git a/src/cmd/go/script_test.go b/src/cmd/go/script_test.go
+index c5e0064036..e204471beb 100644
+--- a/src/cmd/go/script_test.go
++++ b/src/cmd/go/script_test.go
+@@ -399,6 +399,7 @@ func (ts *testScript) cmdCc(neg bool, args []string) {
+ 	var b work.Builder
+ 	b.Init()
+ 	ts.cmdExec(neg, append(b.GccCmd(".", ""), args...))
++	os.RemoveAll(b.WorkDir)
+ }
+ 
+ // cd changes to a different directory.

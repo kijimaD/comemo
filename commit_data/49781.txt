@@ -22,7 +22,46 @@ Date:   Wed Sep 1 13:48:48 2021 +0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/347269
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Trust: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/compile/internal/ir/fmt.go   |  1 +
  src/cmd/compile/internal/ssa/html.go | 15 ++++++---------
  2 files changed, 7 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/fmt.go b/src/cmd/compile/internal/ir/fmt.go
+index 22fbf39975..a99cb5ed98 100644
+--- a/src/cmd/compile/internal/ir/fmt.go
++++ b/src/cmd/compile/internal/ir/fmt.go
+@@ -1147,6 +1147,7 @@ func dumpNodeHeader(w io.Writer, n Node) {
+ 			}
+ 			// TODO(mdempsky): Print line pragma details too.
+ 			file := filepath.Base(pos.Filename())
++			// Note: this output will be parsed by ssa/html.go:(*HTMLWriter).WriteAST. Keep in sync.
+ 			fmt.Fprintf(w, "%s:%d:%d", file, pos.Line(), pos.Col())
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/ssa/html.go b/src/cmd/compile/internal/ssa/html.go
+index 6fd898636c..d9a78b3962 100644
+--- a/src/cmd/compile/internal/ssa/html.go
++++ b/src/cmd/compile/internal/ssa/html.go
+@@ -903,15 +903,12 @@ func (w *HTMLWriter) WriteAST(phase string, buf *bytes.Buffer) {
+ 			if strings.HasPrefix(l, "buildssa") {
+ 				escaped = fmt.Sprintf("<b>%v</b>", l)
+ 			} else {
+-				// Parse the line number from the format l(123).
+-				idx := strings.Index(l, " l(")
+-				if idx != -1 {
+-					subl := l[idx+3:]
+-					idxEnd := strings.Index(subl, ")")
+-					if idxEnd != -1 {
+-						if _, err := strconv.Atoi(subl[:idxEnd]); err == nil {
+-							lineNo = subl[:idxEnd]
+-						}
++				// Parse the line number from the format file:line:col.
++				// See the implementation in ir/fmt.go:dumpNodeHeader.
++				sl := strings.Split(l, ":")
++				if len(sl) >= 3 {
++					if _, err := strconv.Atoi(sl[len(sl)-2]); err == nil {
++						lineNo = sl[len(sl)-2]
+ 					}
+ 				}
+ 				escaped = html.EscapeString(l)

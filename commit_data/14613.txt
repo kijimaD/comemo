@@ -10,7 +10,7 @@ Date:   Tue Dec 11 10:17:33 2012 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/6920046
-
+---
  src/pkg/exp/gotype/gotype_test.go       |  6 ++--
  src/pkg/exp/types/builtins.go           | 50 ++++++++++++++++++++++++++++--
  src/pkg/exp/types/const.go              | 16 ++++++++++
@@ -18,3 +18,279 @@ Date:   Tue Dec 11 10:17:33 2012 -0800
  src/pkg/exp/types/testdata/builtins.src | 31 ++++++++++++++++---
  src/pkg/exp/types/testdata/stmt0.src    | 26 +++++++++++++++-
  6 files changed, 163 insertions(+), 21 deletions(-)
+
+diff --git a/src/pkg/exp/gotype/gotype_test.go b/src/pkg/exp/gotype/gotype_test.go
+index 2d58f32883..8a90082206 100644
+--- a/src/pkg/exp/gotype/gotype_test.go
++++ b/src/pkg/exp/gotype/gotype_test.go
+@@ -99,9 +99,9 @@ var tests = []string{
+ 	"encoding/asn1",
+ 	"encoding/base32",
+ 	"encoding/base64",
+-	// "encoding/binary", // complex() doesn't work yet
++	"encoding/binary",
+ 	"encoding/csv",
+-	// "encoding/gob", // complex() doesn't work yet
++	"encoding/gob",
+ 	"encoding/hex",
+ 	"encoding/json",
+ 	"encoding/pem",
+@@ -146,7 +146,7 @@ var tests = []string{
+ 
+ 	"math",
+ 	// "math/big", // investigate
+-	// "math/cmplx", // complex doesn't work yet
++	"math/cmplx",
+ 	"math/rand",
+ 
+ 	"mime",
+diff --git a/src/pkg/exp/types/builtins.go b/src/pkg/exp/types/builtins.go
+index 88267042e4..f86ae6ac38 100644
+--- a/src/pkg/exp/types/builtins.go
++++ b/src/pkg/exp/types/builtins.go
+@@ -128,13 +128,50 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *builtin, iota
+ 		x.mode = novalue
+ 
+ 	case _Complex:
++		if !check.complexArg(x) {
++			goto Error
++		}
++
+ 		var y operand
+ 		check.expr(&y, args[1], nil, iota)
+ 		if y.mode == invalid {
+ 			goto Error
+ 		}
+-		// TODO(gri) handle complex(a, b) like (a + toImag(b))
+-		unimplemented()
++		if !check.complexArg(&y) {
++			goto Error
++		}
++
++		check.convertUntyped(x, y.typ)
++		if x.mode == invalid {
++			goto Error
++		}
++		check.convertUntyped(&y, x.typ)
++		if y.mode == invalid {
++			goto Error
++		}
++
++		if !isIdentical(x.typ, y.typ) {
++			check.invalidArg(x.pos(), "mismatched types %s and %s", x.typ, y.typ)
++			goto Error
++		}
++
++		if x.mode == constant && y.mode == constant {
++			x.val = binaryOpConst(x.val, toImagConst(y.val), token.ADD, false)
++		} else {
++			x.mode = value
++		}
++
++		switch underlying(x.typ).(*Basic).Kind {
++		case Float32:
++			x.typ = Typ[Complex64]
++		case Float64:
++			x.typ = Typ[Complex128]
++		case UntypedInt, UntypedRune, UntypedFloat:
++			x.typ = Typ[UntypedComplex]
++		default:
++			check.invalidArg(x.pos(), "float32 or float64 arguments expected")
++			goto Error
++		}
+ 
+ 	case _Copy:
+ 		// TODO(gri) implements checks
+@@ -361,3 +398,12 @@ func unparen(x ast.Expr) ast.Expr {
+ 	}
+ 	return x
+ }
++
++func (check *checker) complexArg(x *operand) bool {
++	t, _ := underlying(x.typ).(*Basic)
++	if t != nil && (t.Info&IsFloat != 0 || t.Kind == UntypedInt || t.Kind == UntypedRune) {
++		return true
++	}
++	check.invalidArg(x.pos(), "%s must be a float32, float64, or an untyped non-complex numeric constant", x)
++	return false
++}
+diff --git a/src/pkg/exp/types/const.go b/src/pkg/exp/types/const.go
+index c678e4749b..cab6bbcbd0 100644
+--- a/src/pkg/exp/types/const.go
++++ b/src/pkg/exp/types/const.go
+@@ -157,6 +157,22 @@ func makeStringConst(lit string) interface{} {
+ 	return nil
+ }
+ 
++// toImagConst returns the constant complex(0, x) for a non-complex x.
++func toImagConst(x interface{}) interface{} {
++	var im *big.Rat
++	switch x := x.(type) {
++	case int64:
++		im = big.NewRat(x, 1)
++	case *big.Int:
++		im = new(big.Rat).SetFrac(x, int1)
++	case *big.Rat:
++		im = x
++	default:
++		unreachable()
++	}
++	return complex{rat0, im}
++}
++
+ // isZeroConst reports whether the value of constant x is 0.
+ // x must be normalized.
+ //
+diff --git a/src/pkg/exp/types/stmt.go b/src/pkg/exp/types/stmt.go
+index e2c6448deb..edad87f2e0 100644
+--- a/src/pkg/exp/types/stmt.go
++++ b/src/pkg/exp/types/stmt.go
+@@ -427,25 +427,58 @@ func (check *checker) stmt(s ast.Stmt) {
+ 	case *ast.SwitchStmt:
+ 		check.optionalStmt(s.Init)
+ 		var x operand
+-		if s.Tag != nil {
+-			check.expr(&x, s.Tag, nil, -1)
+-		} else {
+-			// TODO(gri) should provide a position (see IncDec) for good error messages
+-			x.mode = constant
+-			x.typ = Typ[UntypedBool]
+-			x.val = true
++		tag := s.Tag
++		if tag == nil {
++			// create true tag value and position it at the opening { of the switch
++			tag = &ast.Ident{NamePos: s.Body.Lbrace, Name: "true", Obj: Universe.Lookup("true")}
+ 		}
++		check.expr(&x, tag, nil, -1)
+ 
+ 		check.multipleDefaults(s.Body.List)
++		seen := make(map[interface{}]token.Pos)
+ 		for _, s := range s.Body.List {
+ 			clause, _ := s.(*ast.CaseClause)
+ 			if clause == nil {
+ 				continue // error reported before
+ 			}
+-			for _, expr := range clause.List {
+-				var y operand
+-				check.expr(&y, expr, nil, -1)
+-				// TODO(gri) x and y must be comparable
++			if x.mode != invalid {
++				for _, expr := range clause.List {
++					x := x // copy of x (don't modify original)
++					var y operand
++					check.expr(&y, expr, nil, -1)
++					if y.mode == invalid {
++						continue // error reported before
++					}
++					// If we have a constant case value, it must appear only
++					// once in the switch statement. Determine if there is a
++					// duplicate entry, but only report an error there are no
++					// other errors.
++					var dupl token.Pos
++					if y.mode == constant {
++						// TODO(gri) This code doesn't work correctly for
++						//           large integer, floating point, or
++						//           complex values - the respective struct
++						//           comparison is shallow. Need to use a
++						//           has function to index the seen map.
++						dupl = seen[y.val]
++						seen[y.val] = y.pos()
++					}
++					// TODO(gri) The convertUntyped call pair below appears in other places. Factor!
++					// Order matters: By comparing y against x, error positions are at the case values.
++					check.convertUntyped(&y, x.typ)
++					if y.mode == invalid {
++						continue // error reported before
++					}
++					check.convertUntyped(&x, y.typ)
++					if x.mode == invalid {
++						continue // error reported before
++					}
++					check.comparison(&y, &x, token.EQL)
++					if y.mode != invalid && dupl.IsValid() {
++						check.errorf(y.pos(), "%s is duplicate case in switch\n\tprevious case at %s",
++							&y, check.fset.Position(dupl))
++					}
++				}
+ 			}
+ 			check.stmtList(clause.Body)
+ 		}
+diff --git a/src/pkg/exp/types/testdata/builtins.src b/src/pkg/exp/types/testdata/builtins.src
+index a07af89f41..a9518530de 100644
+--- a/src/pkg/exp/types/testdata/builtins.src
++++ b/src/pkg/exp/types/testdata/builtins.src
+@@ -46,10 +46,33 @@ func _close() {
+ }
+ 
+ func _complex() {
+-	_0 := complex /* ERROR "argument" */ ()
+-	_1 := complex /* ERROR "argument" */ (1)
+-	_2 := complex(1, 2)
+-	// TODO(gri) add tests checking types
++	var i32 int32
++	var f32 float32
++	var f64 float64
++	var c64 complex64
++	_ = complex /* ERROR "argument" */ ()
++	_ = complex /* ERROR "argument" */ (1)
++	_ = complex(true /* ERROR "invalid argument" */ , 0)
++	_ = complex(i32 /* ERROR "invalid argument" */ , 0)
++	_ = complex("foo" /* ERROR "invalid argument" */ , 0)
++	_ = complex(c64 /* ERROR "invalid argument" */ , 0)
++	_ = complex(0, true /* ERROR "invalid argument" */ )
++	_ = complex(0, i32 /* ERROR "invalid argument" */ )
++	_ = complex(0, "foo" /* ERROR "invalid argument" */ )
++	_ = complex(0, c64 /* ERROR "invalid argument" */ )
++	_ = complex(f32, f32)
++	_ = complex(f32, 1)
++	_ = complex(f32, 1.0)
++	_ = complex(f32, 'a')
++	_ = complex(f64, f64)
++	_ = complex(f64, 1)
++	_ = complex(f64, 1.0)
++	_ = complex(f64, 'a')
++	_ = complex(f32 /* ERROR "mismatched types" */, f64)
++	_ = complex(f64 /* ERROR "mismatched types" */, f32)
++	_ = complex(1, 1)
++	_ = complex(1, 1.1)
++	_ = complex(1, 'a')
+ 	complex /* ERROR "not used" */ (1, 2)
+ }
+ 
+diff --git a/src/pkg/exp/types/testdata/stmt0.src b/src/pkg/exp/types/testdata/stmt0.src
+index d3cc3acce4..c0e023671b 100644
+--- a/src/pkg/exp/types/testdata/stmt0.src
++++ b/src/pkg/exp/types/testdata/stmt0.src
+@@ -101,7 +101,31 @@ func _switches() {
+ 	default /* ERROR "multiple defaults" */ :
+ 	}
+ 
+-	// TODO(gri) more tests
++	switch {
++	case 1  /* ERROR "cannot convert" */ :
++	}
++
++	switch int32(x) {
++	case 1, 2:
++	case x /* ERROR "cannot compare" */ :
++	}
++
++	switch x {
++	case 1 /* ERROR "overflows int" */ << 100:
++	}
++
++	switch x {
++	case 1:
++	case 1 /* ERROR "duplicate case" */ :
++	case 2, 3, 4:
++	case 1 /* ERROR "duplicate case" */ :
++	}
++
++	// TODO(gri) duplicate 64bit values that don't fit into an int64 are not yet detected
++	switch uint64(x) {
++	case 1<<64-1:
++	case 1<<64-1:
++	}
+ }
+ 
+ type I interface {

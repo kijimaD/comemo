@@ -7,6 +7,20 @@ Date:   Thu Oct 22 22:19:22 2009 -0700
     
     R=gri
     http://go/go-review/1015001
-
+---
  src/pkg/go/printer/printer_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/go/printer/printer_test.go b/src/pkg/go/printer/printer_test.go
+index 8f1080a759..1941f86ef9 100644
+--- a/src/pkg/go/printer/printer_test.go
++++ b/src/pkg/go/printer/printer_test.go
+@@ -62,7 +62,7 @@ func check(t *testing.T, source, golden string, mode checkMode) {
+ 
+ 	// format source
+ 	var buf bytes.Buffer;
+-	if _, err := Fprint(&buf, prog, &cfg); err != nil {
++	if _, err := cfg.Fprint(&buf, prog); err != nil {
+ 		t.Error(err);
+ 	}
+ 	res := buf.Bytes();

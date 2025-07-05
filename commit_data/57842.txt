@@ -12,7 +12,39 @@ Date:   Wed Sep 6 11:31:53 2023 +0200
     Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/go/go_test.go           | 12 ------------
  src/cmd/go/testdata/failssh/ssh |  2 --
  2 files changed, 14 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 5492b04c32..3cb6131e8c 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -926,18 +926,6 @@ func removeAll(dir string) error {
+ 	return robustio.RemoveAll(dir)
+ }
+ 
+-// failSSH puts an ssh executable in the PATH that always fails.
+-// This is to stub out uses of ssh by go get.
+-func (tg *testgoData) failSSH() {
+-	tg.t.Helper()
+-	wd, err := os.Getwd()
+-	if err != nil {
+-		tg.t.Fatal(err)
+-	}
+-	fail := filepath.Join(wd, "testdata/failssh")
+-	tg.setenv("PATH", fmt.Sprintf("%v%c%v", fail, filepath.ListSeparator, os.Getenv("PATH")))
+-}
+-
+ func TestNewReleaseRebuildsStalePackagesInGOPATH(t *testing.T) {
+ 	if testing.Short() {
+ 		t.Skip("skipping lengthy test in short mode")
+diff --git a/src/cmd/go/testdata/failssh/ssh b/src/cmd/go/testdata/failssh/ssh
+deleted file mode 100755
+index ecdbef95dd..0000000000
+--- a/src/cmd/go/testdata/failssh/ssh
++++ /dev/null
+@@ -1,2 +0,0 @@
+-#!/bin/sh
+-exit 1

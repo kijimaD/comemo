@@ -13,7 +13,108 @@ Date:   Fri Aug 9 10:54:43 2019 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/link/internal/ld/lib.go |  2 +-
  test/fixedbugs/issue33555.go    | 81 +++++++++++++++++++++++++++++++++++++++++
  2 files changed, 82 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 9c71a4f51e..3fa258d275 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -2066,7 +2066,7 @@ func stkcheck(ctxt *Link, up *chain, depth int) int {
+ 		s.Attr |= sym.AttrStackCheck
+ 	}
+ 
+-	if depth > 100 {
++	if depth > 500 {
+ 		Errorf(s, "nosplit stack check too deep")
+ 		stkbroke(ctxt, up, 0)
+ 		return -1
+diff --git a/test/fixedbugs/issue33555.go b/test/fixedbugs/issue33555.go
+new file mode 100644
+index 0000000000..7debd2049c
+--- /dev/null
++++ b/test/fixedbugs/issue33555.go
+@@ -0,0 +1,81 @@
++// +build !nacl,!js
++// run
++
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test that the linker permits long call sequences.
++package main
++
++import (
++	"bytes"
++	"fmt"
++	"io/ioutil"
++	"os"
++	"os/exec"
++	"path/filepath"
++	"strconv"
++)
++
++const start = `
++package main
++
++func main() {
++	println(f0() + 1)
++}
++`
++
++const fn = `
++//go:noinline
++func f%d() int {
++	return f%d() + 1
++}`
++
++const fnlast = `
++//go:noinline
++func f%d() int {
++	return 0
++}
++`
++
++const count = 400
++
++func main() {
++	if err := test(); err != nil {
++		fmt.Fprintln(os.Stderr, err)
++		os.Exit(1)
++	}
++}
++
++func test() error {
++	var buf bytes.Buffer
++	buf.WriteString(start)
++	for i := 0; i < count; i++ {
++		fmt.Fprintf(&buf, fn, i, i + 1)
++	}
++	fmt.Fprintf(&buf, fnlast, count)
++
++	dir, err := ioutil.TempDir("", "issue33555")
++	if err != nil {
++		return err
++	}
++	defer os.RemoveAll(dir)
++
++	fn := filepath.Join(dir, "x.go")
++	if err := ioutil.WriteFile(fn, buf.Bytes(), 0644); err != nil {
++		return err
++	}
++
++	out, err := exec.Command("go", "run", fn).CombinedOutput()
++	if err != nil {
++		return err
++	}
++
++	want := strconv.Itoa(count + 1)
++	if got := string(bytes.TrimSpace(out)); got != want {
++		return fmt.Errorf("got %q want %q", got, want)
++	}
++
++	return nil
++}

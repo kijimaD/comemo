@@ -13,7 +13,7 @@ Date:   Sun Nov 5 10:35:12 2023 +0100
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  doc/next/3-tools.md                                |  6 +++
  src/cmd/addr2line/addr2line_test.go                | 20 ++------
  src/cmd/dist/build.go                              | 19 +-------
@@ -46,3 +46,878 @@ Date:   Sun Nov 5 10:35:12 2023 +0100
  src/runtime/runtime-gdb_test.go                    | 21 ---------
  src/runtime/runtime-lldb_test.go                   |  3 --
  31 files changed, 71 insertions(+), 262 deletions(-)
+
+diff --git a/doc/next/3-tools.md b/doc/next/3-tools.md
+index 5638f240a5..bdbe6c0771 100644
+--- a/doc/next/3-tools.md
++++ b/doc/next/3-tools.md
+@@ -2,5 +2,11 @@
+ 
+ ### Go command {#go-command}
+ 
++Setting the `GOROOT_FINAL` environment variable no longer has an effect
++([#62047](https://go.dev/issue/62047)).
++Distributions that install the `go` command to a location other than
++`$GOROOT/bin/go` should install a symlink instead of relocating
++or copying the `go` binary.
++
+ ### Cgo {#cgo}
+ 
+diff --git a/src/cmd/addr2line/addr2line_test.go b/src/cmd/addr2line/addr2line_test.go
+index 0ea8994b6a..e5b0a0fdae 100644
+--- a/src/cmd/addr2line/addr2line_test.go
++++ b/src/cmd/addr2line/addr2line_test.go
+@@ -109,32 +109,18 @@ func testAddr2Line(t *testing.T, dbgExePath, addr string) {
+ 	srcPath = filepath.FromSlash(srcPath)
+ 	fi2, err := os.Stat(srcPath)
+ 
+-	// If GOROOT_FINAL is set and srcPath is not the file we expect, perhaps
+-	// srcPath has had GOROOT_FINAL substituted for GOROOT and GOROOT hasn't been
+-	// moved to its final location yet. If so, try the original location instead.
+-	if gorootFinal := os.Getenv("GOROOT_FINAL"); gorootFinal != "" &&
+-		(os.IsNotExist(err) || (err == nil && !os.SameFile(fi1, fi2))) {
+-		// srcPath is clean, but GOROOT_FINAL itself might not be.
+-		// (See https://golang.org/issue/41447.)
+-		gorootFinal = filepath.Clean(gorootFinal)
+-
+-		if strings.HasPrefix(srcPath, gorootFinal) {
+-			fi2, err = os.Stat(runtime.GOROOT() + strings.TrimPrefix(srcPath, gorootFinal))
+-		}
+-	}
+-
+ 	if err != nil {
+ 		t.Fatalf("Stat failed: %v", err)
+ 	}
+ 	if !os.SameFile(fi1, fi2) {
+ 		t.Fatalf("addr2line_test.go and %s are not same file", srcPath)
+ 	}
+-	if srcLineNo != "138" {
+-		t.Fatalf("line number = %v; want 138", srcLineNo)
++	if want := "124"; srcLineNo != want {
++		t.Fatalf("line number = %v; want %s", srcLineNo, want)
+ 	}
+ }
+ 
+-// This is line 137. The test depends on that.
++// This is line 123. The test depends on that.
+ func TestAddr2Line(t *testing.T) {
+ 	testenv.MustHaveGoBuild(t)
+ 
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index 4181d33112..d4d1bd8f0b 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -40,7 +40,6 @@ var (
+ 	goppc64          string
+ 	goriscv64        string
+ 	goroot           string
+-	goroot_final     string
+ 	goextlinkenabled string
+ 	gogcflags        string // For running built compiler
+ 	goldflags        string
+@@ -127,12 +126,6 @@ func xinit() {
+ 	// All exec calls rewrite "go" into gorootBinGo.
+ 	gorootBinGo = pathf("%s/bin/go", goroot)
+ 
+-	b = os.Getenv("GOROOT_FINAL")
+-	if b == "" {
+-		b = goroot
+-	}
+-	goroot_final = b
+-
+ 	b = os.Getenv("GOOS")
+ 	if b == "" {
+ 		b = gohostos
+@@ -245,7 +238,6 @@ func xinit() {
+ 	os.Setenv("GOPPC64", goppc64)
+ 	os.Setenv("GORISCV64", goriscv64)
+ 	os.Setenv("GOROOT", goroot)
+-	os.Setenv("GOROOT_FINAL", goroot_final)
+ 
+ 	// Set GOBIN to GOROOT/bin. The meaning of GOBIN has drifted over time
+ 	// (see https://go.dev/issue/3269, https://go.dev/cl/183058,
+@@ -1879,10 +1871,7 @@ func banner() {
+ 	xprintf("Installed Go for %s/%s in %s\n", goos, goarch, goroot)
+ 	xprintf("Installed commands in %s\n", gorootBin)
+ 
+-	if !xsamefile(goroot_final, goroot) {
+-		// If the files are to be moved, don't check that gobin
+-		// is on PATH; assume they know what they are doing.
+-	} else if gohostos == "plan9" {
++	if gohostos == "plan9" {
+ 		// Check that GOROOT/bin is bound before /bin.
+ 		pid := strings.Replace(readfile("#c/pid"), " ", "", -1)
+ 		ns := fmt.Sprintf("/proc/%s/ns", pid)
+@@ -1907,12 +1896,6 @@ func banner() {
+ 			xprintf("*** You need to add %s to your PATH.\n", gorootBin)
+ 		}
+ 	}
+-
+-	if !xsamefile(goroot_final, goroot) {
+-		xprintf("\n"+
+-			"The binaries expect %s to be copied or moved to %s\n",
+-			goroot, goroot_final)
+-	}
+ }
+ 
+ // Version prints the Go version.
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 5e6d54ee2e..153128e715 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -2331,11 +2331,6 @@
+ //		See src/internal/goexperiment/flags.go for currently valid values.
+ //		Warning: This variable is provided for the development and testing
+ //		of the Go toolchain itself. Use beyond that purpose is unsupported.
+-//	GOROOT_FINAL
+-//		The root of the installed Go tree, when it is
+-//		installed in a location other than where it is built.
+-//		File names in stack traces are rewritten from GOROOT to
+-//		GOROOT_FINAL.
+ //	GO_EXTLINK_ENABLED
+ //		Whether the linker should use external linking mode
+ //		when using -linkmode=auto with code that uses cgo.
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 32822950f1..4f38ec3def 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -90,10 +90,6 @@ func tooSlow(t *testing.T, reason string) {
+ // (temp) directory.
+ var testGOROOT string
+ 
+-// testGOROOT_FINAL is the GOROOT_FINAL with which the test binary is assumed to
+-// have been built.
+-var testGOROOT_FINAL = os.Getenv("GOROOT_FINAL")
+-
+ var testGOCACHE string
+ 
+ var testGo string
+@@ -223,10 +219,6 @@ func TestMain(m *testing.M) {
+ 		}
+ 		testGOROOT = goEnv("GOROOT")
+ 		os.Setenv("TESTGO_GOROOT", testGOROOT)
+-		// Ensure that GOROOT is set explicitly.
+-		// Otherwise, if the toolchain was built with GOROOT_FINAL set but has not
+-		// yet been moved to its final location, programs that invoke runtime.GOROOT
+-		// may accidentally use the wrong path.
+ 		os.Setenv("GOROOT", testGOROOT)
+ 
+ 		// The whole GOROOT/pkg tree was installed using the GOHOSTOS/GOHOSTARCH
+diff --git a/src/cmd/go/internal/cfg/cfg.go b/src/cmd/go/internal/cfg/cfg.go
+index 58432335e4..e0da810c73 100644
+--- a/src/cmd/go/internal/cfg/cfg.go
++++ b/src/cmd/go/internal/cfg/cfg.go
+@@ -199,7 +199,6 @@ func SetGOROOT(goroot string, isTestGo bool) {
+ 		GOROOTpkg = filepath.Join(goroot, "pkg")
+ 		GOROOTsrc = filepath.Join(goroot, "src")
+ 	}
+-	GOROOT_FINAL = findGOROOT_FINAL(goroot)
+ 
+ 	installedGOOS = runtime.GOOS
+ 	installedGOARCH = runtime.GOARCH
+@@ -398,8 +397,6 @@ var (
+ 	GOROOTpkg string
+ 	GOROOTsrc string
+ 
+-	GOROOT_FINAL string
+-
+ 	GOBIN      = Getenv("GOBIN")
+ 	GOMODCACHE = envOr("GOMODCACHE", gopathDir("pkg/mod"))
+ 
+@@ -532,16 +529,6 @@ func findGOROOT(env string) string {
+ 	return def
+ }
+ 
+-func findGOROOT_FINAL(goroot string) string {
+-	// $GOROOT_FINAL is only for use during make.bash
+-	// so it is not settable using go/env, so we use os.Getenv here.
+-	def := goroot
+-	if env := os.Getenv("GOROOT_FINAL"); env != "" {
+-		def = filepath.Clean(env)
+-	}
+-	return def
+-}
+-
+ // isSameDir reports whether dir1 and dir2 are the same directory.
+ func isSameDir(dir1, dir2 string) bool {
+ 	if dir1 == dir2 {
+diff --git a/src/cmd/go/internal/help/helpdoc.go b/src/cmd/go/internal/help/helpdoc.go
+index a53e078d79..ddaca3807a 100644
+--- a/src/cmd/go/internal/help/helpdoc.go
++++ b/src/cmd/go/internal/help/helpdoc.go
+@@ -645,11 +645,6 @@ Special-purpose environment variables:
+ 		See src/internal/goexperiment/flags.go for currently valid values.
+ 		Warning: This variable is provided for the development and testing
+ 		of the Go toolchain itself. Use beyond that purpose is unsupported.
+-	GOROOT_FINAL
+-		The root of the installed Go tree, when it is
+-		installed in a location other than where it is built.
+-		File names in stack traces are rewritten from GOROOT to
+-		GOROOT_FINAL.
+ 	GO_EXTLINK_ENABLED
+ 		Whether the linker should use external linking mode
+ 		when using -linkmode=auto with code that uses cgo.
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index f6aa2b3534..92aa0c1dc5 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -258,9 +258,12 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
+ 		// when building things in GOROOT.
+ 		//
+ 		// The C compiler does not, but for packages in GOROOT we rewrite the path
+-		// as though -trimpath were set, so that we don't invalidate the build cache
+-		// (and especially any precompiled C archive files) when changing
+-		// GOROOT_FINAL. (See https://go.dev/issue/50183.)
++		// as though -trimpath were set. This used to be so that we did not invalidate
++		// the build cache (and especially precompiled archive files) when changing
++		// GOROOT_FINAL, but we no longer ship precompiled archive files as of Go 1.20
++		// (https://go.dev/issue/47257) and no longer support GOROOT_FINAL
++		// (https://go.dev/issue/62047).
++		// TODO(bcmills): Figure out whether this behavior is still useful.
+ 		//
+ 		// b.WorkDir is always either trimmed or rewritten to
+ 		// the literal string "/tmp/go-build".
+@@ -1403,11 +1406,11 @@ func (b *Builder) printLinkerConfig(h io.Writer, p *load.Package) {
+ 			fmt.Fprintf(h, "GOEXPERIMENT=%q\n", cfg.CleanGOEXPERIMENT)
+ 		}
+ 
+-		// The linker writes source file paths that say GOROOT_FINAL, but
+-		// only if -trimpath is not specified (see ld() in gc.go).
+-		gorootFinal := cfg.GOROOT_FINAL
++		// The linker writes source file paths that refer to GOROOT,
++		// but only if -trimpath is not specified (see [gctoolchain.ld] in gc.go).
++		gorootFinal := cfg.GOROOT
+ 		if cfg.BuildTrimpath {
+-			gorootFinal = trimPathGoRootFinal
++			gorootFinal = ""
+ 		}
+ 		fmt.Fprintf(h, "GOROOT=%s\n", gorootFinal)
+ 
+@@ -2130,7 +2133,7 @@ func (b *Builder) ccompile(a *Action, outfile string, flags []string, file strin
+ 	file = mkAbs(p.Dir, file)
+ 	outfile = mkAbs(p.Dir, outfile)
+ 
+-	// Elide source directory paths if -trimpath or GOROOT_FINAL is set.
++	// Elide source directory paths if -trimpath is set.
+ 	// This is needed for source files (e.g., a .c file in a package directory).
+ 	// TODO(golang.org/issue/36072): cgo also generates files with #line
+ 	// directives pointing to the source directory. It should not generate those
+diff --git a/src/cmd/go/internal/work/gc.go b/src/cmd/go/internal/work/gc.go
+index a054f44cbe..a85b262374 100644
+--- a/src/cmd/go/internal/work/gc.go
++++ b/src/cmd/go/internal/work/gc.go
+@@ -29,9 +29,6 @@ import (
+ // Tests can override this by setting $TESTGO_TOOLCHAIN_VERSION.
+ var ToolchainVersion = runtime.Version()
+ 
+-// The 'path' used for GOROOT_FINAL when -trimpath is specified
+-const trimPathGoRootFinal string = "$GOROOT"
+-
+ // The Go toolchain.
+ 
+ type gcToolchain struct{}
+@@ -669,8 +666,11 @@ func (gcToolchain) ld(b *Builder, root *Action, targetPath, importcfg, mainpkg s
+ 	}
+ 
+ 	env := []string{}
++	// When -trimpath is used, GOROOT is cleared
+ 	if cfg.BuildTrimpath {
+-		env = append(env, "GOROOT_FINAL="+trimPathGoRootFinal)
++		env = append(env, "GOROOT=")
++	} else {
++		env = append(env, "GOROOT="+cfg.GOROOT)
+ 	}
+ 	return b.Shell(root).run(dir, root.Package.ImportPath, env, cfg.BuildToolexec, base.Tool("link"), "-o", targetPath, "-importcfg", importcfg, ldflags, mainpkg)
+ }
+diff --git a/src/cmd/go/script_test.go b/src/cmd/go/script_test.go
+index 624c5bf501..f50e85f575 100644
+--- a/src/cmd/go/script_test.go
++++ b/src/cmd/go/script_test.go
+@@ -223,7 +223,6 @@ func scriptEnv(srv *vcstest.Server, srvCertFile string) ([]string, error) {
+ 		"GOPROXY=" + proxyURL,
+ 		"GOPRIVATE=",
+ 		"GOROOT=" + testGOROOT,
+-		"GOROOT_FINAL=" + testGOROOT_FINAL, // causes spurious rebuilds and breaks the "stale" built-in if not propagated
+ 		"GOTRACEBACK=system",
+ 		"TESTGONETWORK=panic", // allow only local connections by default; the [net] condition resets this
+ 		"TESTGO_GOROOT=" + testGOROOT,
+diff --git a/src/cmd/go/scriptconds_test.go b/src/cmd/go/scriptconds_test.go
+index 13007daba5..3f11af272b 100644
+--- a/src/cmd/go/scriptconds_test.go
++++ b/src/cmd/go/scriptconds_test.go
+@@ -51,7 +51,6 @@ func scriptConditions() map[string]script.Cond {
+ 	add("GOEXPERIMENT", script.PrefixCondition("GOEXPERIMENT <suffix> is enabled", hasGoexperiment))
+ 	add("go-builder", script.BoolCondition("GO_BUILDER_NAME is non-empty", testenv.Builder() != ""))
+ 	add("link", lazyBool("testenv.HasLink()", testenv.HasLink))
+-	add("mismatched-goroot", script.Condition("test's GOROOT_FINAL does not match the real GOROOT", isMismatchedGoroot))
+ 	add("msan", sysCondition("-msan", platform.MSanSupported, true))
+ 	add("mustlinkext", script.Condition("platform always requires external linking", mustLinkExt))
+ 	add("net", script.PrefixCondition("can connect to external network host <suffix>", hasNet))
+@@ -85,14 +84,6 @@ func ccIs(s *script.State, want string) (bool, error) {
+ 	return cfg.DefaultCC(GOOS, GOARCH) == want, nil
+ }
+ 
+-func isMismatchedGoroot(s *script.State) (bool, error) {
+-	gorootFinal, _ := s.LookupEnv("GOROOT_FINAL")
+-	if gorootFinal == "" {
+-		gorootFinal, _ = s.LookupEnv("GOROOT")
+-	}
+-	return gorootFinal != testGOROOT, nil
+-}
+-
+ func sysCondition(flag string, f func(goos, goarch string) bool, needsCgo bool) script.Cond {
+ 	return script.Condition(
+ 		"GOOS/GOARCH supports "+flag,
+diff --git a/src/cmd/go/scriptreadme_test.go b/src/cmd/go/scriptreadme_test.go
+index 2a842fbc0f..26c7aa19f0 100644
+--- a/src/cmd/go/scriptreadme_test.go
++++ b/src/cmd/go/scriptreadme_test.go
+@@ -120,7 +120,6 @@ Scripts also have access to other environment variables, including:
+ 	GOPATH=$WORK/gopath
+ 	GOPROXY=<local module proxy serving from cmd/go/testdata/mod>
+ 	GOROOT=<actual GOROOT>
+-	GOROOT_FINAL=<actual GOROOT_FINAL>
+ 	TESTGO_GOROOT=<GOROOT used to build cmd/go, for use in tests that may change GOROOT>
+ 	HOME=/no-home
+ 	PATH=<actual PATH>
+diff --git a/src/cmd/go/testdata/script/README b/src/cmd/go/testdata/script/README
+index 39971f8029..8c95945ebe 100644
+--- a/src/cmd/go/testdata/script/README
++++ b/src/cmd/go/testdata/script/README
+@@ -35,7 +35,6 @@ Scripts also have access to other environment variables, including:
+ 	GOPATH=$WORK/gopath
+ 	GOPROXY=<local module proxy serving from cmd/go/testdata/mod>
+ 	GOROOT=<actual GOROOT>
+-	GOROOT_FINAL=<actual GOROOT_FINAL>
+ 	TESTGO_GOROOT=<GOROOT used to build cmd/go, for use in tests that may change GOROOT>
+ 	HOME=/no-home
+ 	PATH=<actual PATH>
+@@ -402,8 +401,6 @@ The available conditions are:
+ 	GO_BUILDER_NAME is non-empty
+ [link]
+ 	testenv.HasLink()
+-[mismatched-goroot]
+-	test's GOROOT_FINAL does not match the real GOROOT
+ [msan]
+ 	GOOS/GOARCH supports -msan
+ [mustlinkext]
+diff --git a/src/cmd/go/testdata/script/build_issue48319.txt b/src/cmd/go/testdata/script/build_issue48319.txt
+deleted file mode 100644
+index 148d8f0ff6..0000000000
+--- a/src/cmd/go/testdata/script/build_issue48319.txt
++++ /dev/null
+@@ -1,53 +0,0 @@
+-# Regression test for https://go.dev/issue/48319:
+-# cgo builds should not include debug information from a stale GOROOT_FINAL.
+-
+-[short] skip
+-[!cgo] skip
+-
+-# This test has problems when run on the LUCI darwin longtest builder,
+-# which uses a more contemporary Xcode version that is unfriendly to
+-# reproducible builds (see issue #64947 for the gory details). Note
+-# that individual developers running "go test cmd/go" on Darwin may
+-# still run into failures depending on their Xcode version.
+-[GOOS:darwin] [go-builder] skip
+-
+-# This test is sensitive to cache invalidation,
+-# so use a separate build cache that we can control.
+-env GOCACHE=$WORK/gocache
+-mkdir $GOCACHE
+-
+-# Build a binary using a specific value of GOROOT_FINAL.
+-env GOROOT_FINAL=$WORK${/}goroot1
+-go build -o main.exe
+-mv main.exe main1.exe
+-
+-# Now clean the cache and build using a different GOROOT_FINAL.
+-# The resulting binaries should differ in their debug metadata.
+-go clean -cache
+-env GOROOT_FINAL=$WORK${/}goroot2
+-go build -o main.exe
+-mv main.exe main2.exe
+-! cmp -q main2.exe main1.exe
+-
+-# Set GOROOT_FINAL back to the first value.
+-# If the build is properly reproducible, the two binaries should match.
+-env GOROOT_FINAL=$WORK${/}goroot1
+-go build -o main.exe
+-cmp -q main.exe main1.exe
+-
+--- go.mod --
+-module main
+-
+-go 1.18
+--- main.go --
+-package main
+-
+-import "C"
+-
+-import "runtime"
+-
+-var _ C.int
+-
+-func main() {
+-	println(runtime.GOROOT())
+-}
+diff --git a/src/cmd/go/testdata/script/build_trimpath.txt b/src/cmd/go/testdata/script/build_trimpath.txt
+index 2a2aa2080a..1f4dde98cb 100644
+--- a/src/cmd/go/testdata/script/build_trimpath.txt
++++ b/src/cmd/go/testdata/script/build_trimpath.txt
+@@ -1,8 +1,8 @@
+ [short] skip
+ 
+-# If GOROOT_FINAL is set, 'go build -trimpath' bakes that into the resulting
+-# binary instead of GOROOT. Explicitly unset it here.
+-env GOROOT_FINAL=
++# If GOROOT is set, 'go build -trimpath' bakes that into the resulting
++# binary. Explicitly unset it here.
++env GOROOT=
+ 
+ # Set up two identical directories that can be used as GOPATH.
+ env GO111MODULE=on
+@@ -21,14 +21,13 @@ cd $WORK/a/src/paths
+ go build -o $WORK/paths-dbg.exe .
+ exec $WORK/paths-dbg.exe $WORK/paths-dbg.exe
+ stdout 'binary contains module root: true'
+-stdout 'binary contains GOROOT: true'
++stdout 'binary contains an empty GOROOT'
+ 
+-# A binary built with -trimpath should not contain the current workspace
+-# or GOROOT.
++# A binary built with -trimpath should not contain the current workspace.
+ go build -trimpath -o $WORK/paths-a.exe .
+ exec $WORK/paths-a.exe $WORK/paths-a.exe
+ stdout 'binary contains module root: false'
+-stdout 'binary contains GOROOT: false'
++stdout 'binary contains an empty GOROOT'
+ 
+ # A binary from an external module built with -trimpath should not contain
+ # the current workspace or GOROOT.
+@@ -36,7 +35,7 @@ go get rsc.io/fortune
+ go install -trimpath rsc.io/fortune
+ exec $WORK/paths-a.exe $GOPATH/bin/fortune$GOEXE
+ stdout 'binary contains module root: false'
+-stdout 'binary contains GOROOT: false'
++stdout 'binary contains an empty GOROOT'
+ go mod edit -droprequire rsc.io/fortune
+ 
+ # Two binaries built from identical packages in different directories
+@@ -53,14 +52,13 @@ cd $WORK/a/src/paths
+ go build -overlay overlay.json -o $WORK/paths-dbg.exe ./overlaydir
+ exec $WORK/paths-dbg.exe $WORK/paths-dbg.exe
+ stdout 'binary contains module root: true'
+-stdout 'binary contains GOROOT: true'
++stdout 'binary contains an empty GOROOT'
+ 
+-# A binary built with -trimpath should not contain the current workspace
+-# or GOROOT.
++# A binary built with -trimpath should not contain the current workspace.
+ go build -overlay overlay.json -trimpath -o $WORK/paths-a.exe ./overlaydir
+ exec $WORK/paths-a.exe $WORK/paths-a.exe
+ stdout 'binary contains module root: false'
+-stdout 'binary contains GOROOT: false'
++stdout 'binary contains an empty GOROOT'
+ 
+ # Two binaries built from identical packages in different directories
+ # should be identical.
+@@ -77,13 +75,13 @@ env GOPATH=$WORK/a
+ go build -o paths-dbg.exe paths
+ exec ./paths-dbg.exe paths-dbg.exe
+ stdout 'binary contains GOPATH: true'
+-stdout 'binary contains GOROOT: true'
++stdout 'binary contains an empty GOROOT'
+ 
+-# A binary built with -trimpath should not contain GOPATH or GOROOT.
++# A binary built with -trimpath should not contain GOPATH.
+ go build -trimpath -o paths-a.exe paths
+ exec ./paths-a.exe paths-a.exe
+ stdout 'binary contains GOPATH: false'
+-stdout 'binary contains GOROOT: false'
++stdout 'binary contains an empty GOROOT'
+ 
+ # Two binaries built from identical packages in different GOPATH roots
+ # should be identical.
+@@ -103,13 +101,14 @@ env GOPATH=$WORK/a
+ go build -compiler=gccgo -o paths-dbg.exe paths
+ exec ./paths-dbg.exe paths-dbg.exe
+ stdout 'binary contains GOPATH: true'
+-stdout 'binary contains GOROOT: false' # gccgo doesn't load std from GOROOT.
++stdout 'binary contains an empty GOROOT'
+ 
++# gccgo doesn't load std from GOROOT.
+ # A binary built with gccgo with -trimpath should not contain GOPATH or GOROOT.
+ go build -compiler=gccgo -trimpath -o paths-a.exe paths
+ exec ./paths-a.exe paths-a.exe
+ stdout 'binary contains GOPATH: false'
+-stdout 'binary contains GOROOT: false'
++stdout 'binary contains an empty GOROOT'
+ 
+ # Two binaries built from identical packages in different directories
+ # should be identical.
+@@ -152,6 +151,10 @@ func main() {
+ }
+ 
+ func check(data []byte, desc, dir string) {
++	if dir == "" {
++		fmt.Printf("binary contains an empty %s\n", desc)
++		return
++	}
+ 	containsDir := bytes.Contains(data, []byte(dir))
+ 	containsSlashDir := bytes.Contains(data, []byte(filepath.ToSlash(dir)))
+ 	fmt.Printf("binary contains %s: %v\n", desc, containsDir || containsSlashDir)
+diff --git a/src/cmd/go/testdata/script/build_trimpath_goroot.txt b/src/cmd/go/testdata/script/build_trimpath_goroot.txt
+index a26cfd23be..e31eccec06 100644
+--- a/src/cmd/go/testdata/script/build_trimpath_goroot.txt
++++ b/src/cmd/go/testdata/script/build_trimpath_goroot.txt
+@@ -4,11 +4,6 @@
+ # if GOROOT was not set explicitly in the environment.
+ # It should instead return the empty string, since we know that we don't
+ # have a valid path to return.
+-#
+-# TODO(#51483): when runtime.GOROOT() returns the empty string,
+-# go/build should default to 'go env GOROOT' instead.
+-
+-env GOROOT_FINAL=
+ 
+ [trimpath] env GOROOT=
+ [trimpath] ! go env GOROOT
+@@ -17,7 +12,7 @@ env GOROOT_FINAL=
+ 
+ [short] stop
+ 
+-# With GOROOT still set but GOROOT_FINAL unset, 'go build' and 'go test -c'
++# With GOROOT still set, 'go build' and 'go test -c'
+ # should cause runtime.GOROOT() to report either the correct GOROOT
+ # (without -trimpath) or no GOROOT at all (with -trimpath).
+ 
+@@ -52,7 +47,6 @@ stderr 'cannot find package "runtime" in any of:\n\t\(\$GOROOT not set\)\n\t'$WO
+ # code).
+ 
+ [trimpath] stop
+-[mismatched-goroot] stop
+ 
+ ! go run -trimpath .
+ stdout '^GOROOT $'
+diff --git a/src/cmd/go/testdata/script/cgo_stale_precompiled.txt b/src/cmd/go/testdata/script/cgo_stale_precompiled.txt
+index b2a0e0c8d5..7f0b515f2e 100644
+--- a/src/cmd/go/testdata/script/cgo_stale_precompiled.txt
++++ b/src/cmd/go/testdata/script/cgo_stale_precompiled.txt
+@@ -1,5 +1,5 @@
+ # Regression test for https://go.dev/issue/47215 and https://go.dev/issue/50183:
+-# A mismatched $GOROOT_FINAL or missing $CC caused the C dependencies of the net
++# A missing $CC caused the C dependencies of the net
+ # package to appear stale, and it could not be rebuilt due to a missing $CC.
+ 
+ [!cgo] skip
+@@ -16,14 +16,6 @@
+ go build -x runtime/cgo
+ [!short] stderr '[/\\]cgo'$GOEXE'["]? .* -importpath runtime/cgo'
+ 
+-# https://go.dev/issue/50183: a mismatched GOROOT_FINAL caused net to be stale.
+-env oldGOROOT_FINAL=$GOROOT_FINAL
+-env GOROOT_FINAL=$WORK${/}goroot
+-go build -x runtime/cgo
+-! stderr '[/\\]cgo'$GOEXE'["]? .* -importpath runtime/cgo'
+-
+-env GOROOT_FINAL=$oldGOROOT_FINAL
+-
+ # https://go.dev/issue/47215: a missing $(go env CC) caused the precompiled net
+ # to be stale. But as of https://go.dev/cl/452457 the precompiled libraries are
+ # no longer installed anyway! Since we're requiring a C compiler in order to
+diff --git a/src/cmd/go/testdata/script/goroot_executable.txt b/src/cmd/go/testdata/script/goroot_executable.txt
+index e20dbd87ac..ea0f920a37 100644
+--- a/src/cmd/go/testdata/script/goroot_executable.txt
++++ b/src/cmd/go/testdata/script/goroot_executable.txt
+@@ -3,16 +3,9 @@
+ 
+ mkdir $WORK/new/bin
+ 
+-# In this test, we are specifically checking the logic for deriving
+-# the value of GOROOT from runtime.GOROOT.
+-# GOROOT_FINAL changes the default behavior of runtime.GOROOT,
+-# and will thus cause the test to fail if it is set when our
+-# new cmd/go is built.
+-env GOROOT_FINAL=
+-
+ # $GOROOT/bin/go is whatever the user has already installed
+ # (using make.bash or similar). We can't make assumptions about what
+-# options it may have been built with, such as -trimpath or GOROOT_FINAL.
++# options it may have been built with, such as -trimpath or not.
+ # Instead, we build a fresh copy of the binary with known settings.
+ go build -o $WORK/new/bin/go$GOEXE cmd/go &
+ go build -trimpath -o $WORK/bin/check$GOEXE check.go &
+diff --git a/src/cmd/go/testdata/script/goroot_executable_trimpath.txt b/src/cmd/go/testdata/script/goroot_executable_trimpath.txt
+index a3f0c39a83..6b859a6207 100644
+--- a/src/cmd/go/testdata/script/goroot_executable_trimpath.txt
++++ b/src/cmd/go/testdata/script/goroot_executable_trimpath.txt
+@@ -14,13 +14,10 @@ mkdir $WORK/new/bin/${GOOS}_${GOARCH}
+ # In this test, we are specifically checking the logic for deriving
+ # the value of GOROOT from os.Executable when runtime.GOROOT is
+ # trimmed away.
+-# GOROOT_FINAL changes the default behavior of runtime.GOROOT,
+-# so we explicitly clear it to remove it as a confounding variable.
+-env GOROOT_FINAL=
+ 
+ # $GOROOT/bin/go is whatever the user has already installed
+ # (using make.bash or similar). We can't make assumptions about what
+-# options it may have been built with, such as -trimpath or GOROOT_FINAL.
++# options it may have been built with, such as -trimpath or not.
+ # Instead, we build a fresh copy of the binary with known settings.
+ go build -trimpath -o $WORK/new/bin/go$GOEXE cmd/go &
+ go build -trimpath -o $WORK/bin/check$GOEXE check.go &
+diff --git a/src/cmd/internal/bootstrap_test/reboot_test.go b/src/cmd/internal/bootstrap_test/reboot_test.go
+index fedf58c05c..6b2b58d1c6 100644
+--- a/src/cmd/internal/bootstrap_test/reboot_test.go
++++ b/src/cmd/internal/bootstrap_test/reboot_test.go
+@@ -75,7 +75,7 @@ func TestRepeatBootstrap(t *testing.T) {
+ 	var stdout strings.Builder
+ 	cmd := exec.Command(filepath.Join(goroot, "src", makeScript))
+ 	cmd.Dir = gorootSrc
+-	cmd.Env = append(cmd.Environ(), "GOROOT=", "GOROOT_FINAL=", "GOROOT_BOOTSTRAP="+realGoroot)
++	cmd.Env = append(cmd.Environ(), "GOROOT=", "GOROOT_BOOTSTRAP="+realGoroot)
+ 	cmd.Stderr = os.Stderr
+ 	cmd.Stdout = io.MultiWriter(os.Stdout, &stdout)
+ 	if err := cmd.Run(); err != nil {
+diff --git a/src/cmd/internal/moddeps/moddeps_test.go b/src/cmd/internal/moddeps/moddeps_test.go
+index f9693a4954..2def029325 100644
+--- a/src/cmd/internal/moddeps/moddeps_test.go
++++ b/src/cmd/internal/moddeps/moddeps_test.go
+@@ -195,8 +195,6 @@ func TestAllDependencies(t *testing.T) {
+ 				Env: append(append(os.Environ(), modcacheEnv...),
+ 					// Set GOROOT.
+ 					"GOROOT="+gorootCopyDir,
+-					// Explicitly clear GOROOT_FINAL so that GOROOT=gorootCopyDir is definitely used.
+-					"GOROOT_FINAL=",
+ 					// Add GOROOTcopy/bin and bundleDir to front of PATH.
+ 					"PATH="+filepath.Join(gorootCopyDir, "bin")+string(filepath.ListSeparator)+
+ 						bundleDir+string(filepath.ListSeparator)+os.Getenv("PATH"),
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index 877b3a6be8..a0cc52a029 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -168,12 +168,12 @@ func Main(arch *sys.Arch, theArch Arch) {
+ 		}
+ 	}
+ 
+-	if final := gorootFinal(); final == "$GOROOT" {
+-		// cmd/go sets GOROOT_FINAL to the dummy value "$GOROOT" when -trimpath is set,
+-		// but runtime.GOROOT() should return the empty string, not a bogus value.
+-		// (See https://go.dev/issue/51461.)
++	if buildcfg.GOROOT == "" {
++		// cmd/go clears the GOROOT variable when -trimpath is set,
++		// so omit it from the binary even if cmd/link itself has an
++		// embedded GOROOT value reported by runtime.GOROOT.
+ 	} else {
+-		addstrdata1(ctxt, "runtime.defaultGOROOT="+final)
++		addstrdata1(ctxt, "runtime.defaultGOROOT="+buildcfg.GOROOT)
+ 	}
+ 
+ 	buildVersion := buildcfg.Version
+diff --git a/src/cmd/link/internal/ld/pcln.go b/src/cmd/link/internal/ld/pcln.go
+index c5996f11d3..57c88c03af 100644
+--- a/src/cmd/link/internal/ld/pcln.go
++++ b/src/cmd/link/internal/ld/pcln.go
+@@ -13,7 +13,6 @@ import (
+ 	"fmt"
+ 	"internal/abi"
+ 	"internal/buildcfg"
+-	"os"
+ 	"path/filepath"
+ 	"strings"
+ )
+@@ -808,18 +807,10 @@ func (ctxt *Link) pclntab(container loader.Bitmap) *pclntab {
+ 	return state
+ }
+ 
+-func gorootFinal() string {
+-	root := buildcfg.GOROOT
+-	if final := os.Getenv("GOROOT_FINAL"); final != "" {
+-		root = final
+-	}
+-	return root
+-}
+-
+ func expandGoroot(s string) string {
+ 	const n = len("$GOROOT")
+ 	if len(s) >= n+1 && s[:n] == "$GOROOT" && (s[n] == '/' || s[n] == '\\') {
+-		if final := gorootFinal(); final != "" {
++		if final := buildcfg.GOROOT; final != "" {
+ 			return filepath.ToSlash(filepath.Join(final, s[n:]))
+ 		}
+ 	}
+diff --git a/src/cmd/objdump/objdump_test.go b/src/cmd/objdump/objdump_test.go
+index 6e781c924d..a755ec3b64 100644
+--- a/src/cmd/objdump/objdump_test.go
++++ b/src/cmd/objdump/objdump_test.go
+@@ -152,9 +152,6 @@ func testDisasm(t *testing.T, srcfname string, printCode bool, printGnuAsm bool,
+ 	cmd := testenv.Command(t, testenv.GoToolPath(t), args...)
+ 	// "Bad line" bug #36683 is sensitive to being run in the source directory.
+ 	cmd.Dir = "testdata"
+-	// Ensure that the source file location embedded in the binary matches our
+-	// actual current GOROOT, instead of GOROOT_FINAL if set.
+-	cmd.Env = append(os.Environ(), "GOROOT_FINAL=")
+ 	t.Logf("Running %v", cmd.Args)
+ 	out, err := cmd.CombinedOutput()
+ 	if err != nil {
+diff --git a/src/internal/buildcfg/cfg.go b/src/internal/buildcfg/cfg.go
+index 0bf5b8f75c..ac731f0e99 100644
+--- a/src/internal/buildcfg/cfg.go
++++ b/src/internal/buildcfg/cfg.go
+@@ -15,26 +15,25 @@ import (
+ 	"fmt"
+ 	"os"
+ 	"path/filepath"
+-	"runtime"
+ 	"strconv"
+ 	"strings"
+ )
+ 
+ var (
+-	GOROOT    = runtime.GOROOT() // cached for efficiency
+-	GOARCH    = envOr("GOARCH", defaultGOARCH)
+-	GOOS      = envOr("GOOS", defaultGOOS)
+-	GO386     = envOr("GO386", defaultGO386)
+-	GOAMD64   = goamd64()
+-	GOARM     = goarm()
+-	GOMIPS    = gomips()
+-	GOMIPS64  = gomips64()
+-	GOPPC64   = goppc64()
++	GOROOT   = os.Getenv("GOROOT") // cached for efficiency
++	GOARCH   = envOr("GOARCH", defaultGOARCH)
++	GOOS     = envOr("GOOS", defaultGOOS)
++	GO386    = envOr("GO386", defaultGO386)
++	GOAMD64  = goamd64()
++	GOARM    = goarm()
++	GOMIPS   = gomips()
++	GOMIPS64 = gomips64()
++	GOPPC64  = goppc64()
+ 	GORISCV64 = goriscv64()
+-	GOWASM    = gowasm()
+-	ToolTags  = toolTags()
+-	GO_LDSO   = defaultGO_LDSO
+-	Version   = version
++	GOWASM   = gowasm()
++	ToolTags = toolTags()
++	GO_LDSO  = defaultGO_LDSO
++	Version  = version
+ )
+ 
+ // Error is one of the errors found (if any) in the build configuration.
+diff --git a/src/internal/testenv/testenv.go b/src/internal/testenv/testenv.go
+index 5c8013740e..f767ac590c 100644
+--- a/src/internal/testenv/testenv.go
++++ b/src/internal/testenv/testenv.go
+@@ -189,15 +189,13 @@ func findGOROOT() (string, error) {
+ 			// If runtime.GOROOT() is non-empty, assume that it is valid.
+ 			//
+ 			// (It might not be: for example, the user may have explicitly set GOROOT
+-			// to the wrong directory, or explicitly set GOROOT_FINAL but not GOROOT
+-			// and hasn't moved the tree to GOROOT_FINAL yet. But those cases are
++			// to the wrong directory. But this case is
+ 			// rare, and if that happens the user can fix what they broke.)
+ 			return
+ 		}
+ 
+ 		// runtime.GOROOT doesn't know where GOROOT is (perhaps because the test
+-		// binary was built with -trimpath, or perhaps because GOROOT_FINAL was set
+-		// without GOROOT and the tree hasn't been moved there yet).
++		// binary was built with -trimpath).
+ 		//
+ 		// Since this is internal/testenv, we can cheat and assume that the caller
+ 		// is a test of some package in a subdirectory of GOROOT/src. ('go test'
+diff --git a/src/make.bash b/src/make.bash
+index 76ad51624a..933573dd9d 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -7,9 +7,6 @@
+ 
+ # Environment variables that control make.bash:
+ #
+-# GOROOT_FINAL: The expected final Go root, baked into binaries.
+-# The default is the location of the Go tree during the build.
+-#
+ # GOHOSTARCH: The architecture for host tools (compilers and
+ # binaries).  Binaries of this type must be executable on the current
+ # system, so the only common reason to set this is to set
+diff --git a/src/make.bat b/src/make.bat
+index d9f9b6cb6a..53122cbaef 100644
+--- a/src/make.bat
++++ b/src/make.bat
+@@ -4,9 +4,6 @@
+ 
+ :: Environment variables that control make.bat:
+ ::
+-:: GOROOT_FINAL: The expected final Go root, baked into binaries.
+-:: The default is the location of the Go tree during the build.
+-::
+ :: GOHOSTARCH: The architecture for host tools (compilers and
+ :: binaries).  Binaries of this type must be executable on the current
+ :: system, so the only common reason to set this is to set
+diff --git a/src/make.rc b/src/make.rc
+index b10be7dbd1..607e9360dc 100755
+--- a/src/make.rc
++++ b/src/make.rc
+@@ -7,9 +7,6 @@
+ 
+ # Environment variables that control make.rc:
+ #
+-# GOROOT_FINAL: The expected final Go root, baked into binaries.
+-# The default is the location of the Go tree during the build.
+-#
+ # GOHOSTARCH: The architecture for host tools (compilers and
+ # binaries).  Binaries of this type must be executable on the current
+ # system, so the only common reason to set this is to set
+diff --git a/src/runtime/runtime-gdb_test.go b/src/runtime/runtime-gdb_test.go
+index 1ae6ff041a..5defe2f615 100644
+--- a/src/runtime/runtime-gdb_test.go
++++ b/src/runtime/runtime-gdb_test.go
+@@ -54,9 +54,6 @@ func checkGdbEnvironment(t *testing.T) {
+ 	case "plan9":
+ 		t.Skip("there is no gdb on Plan 9")
+ 	}
+-	if final := os.Getenv("GOROOT_FINAL"); final != "" && testenv.GOROOT(t) != final {
+-		t.Skip("gdb test can fail with GOROOT_FINAL pending")
+-	}
+ }
+ 
+ func checkGdbVersion(t *testing.T) {
+@@ -297,24 +294,6 @@ func testGdbPython(t *testing.T, cgo bool) {
+ 	}
+ 
+ 	got = bytes.ReplaceAll(got, []byte("\r\n"), []byte("\n")) // normalize line endings
+-	firstLine, _, _ := bytes.Cut(got, []byte("\n"))
+-	if string(firstLine) != "Loading Go Runtime support." {
+-		// This can happen when using all.bash with
+-		// GOROOT_FINAL set, because the tests are run before
+-		// the final installation of the files.
+-		cmd := exec.Command(testenv.GoToolPath(t), "env", "GOROOT")
+-		cmd.Env = []string{}
+-		out, err := cmd.CombinedOutput()
+-		if err != nil && bytes.Contains(out, []byte("cannot find GOROOT")) {
+-			t.Skipf("skipping because GOROOT=%s does not exist", testenv.GOROOT(t))
+-		}
+-
+-		_, file, _, _ := runtime.Caller(1)
+-
+-		t.Logf("package testing source file: %s", file)
+-		t.Fatalf("failed to load Go runtime support: %s\n%s", firstLine, got)
+-	}
+-
+ 	// Extract named BEGIN...END blocks from output
+ 	partRe := regexp.MustCompile(`(?ms)^BEGIN ([^\n]*)\n(.*?)\nEND`)
+ 	blocks := map[string]string{}
+diff --git a/src/runtime/runtime-lldb_test.go b/src/runtime/runtime-lldb_test.go
+index 19a6cc6f8d..e00d6cf202 100644
+--- a/src/runtime/runtime-lldb_test.go
++++ b/src/runtime/runtime-lldb_test.go
+@@ -135,9 +135,6 @@ intvar = 42
+ 
+ func TestLldbPython(t *testing.T) {
+ 	testenv.MustHaveGoBuild(t)
+-	if final := os.Getenv("GOROOT_FINAL"); final != "" && runtime.GOROOT() != final {
+-		t.Skip("gdb test can fail with GOROOT_FINAL pending")
+-	}
+ 	testenv.SkipFlaky(t, 31188)
+ 
+ 	checkLldbPython(t)

@@ -14,6 +14,52 @@ Date:   Sun Dec 13 23:01:34 2020 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/compile/internal/gc/main.go | 27 ++++++++++++---------------
  1 file changed, 12 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 368fe1fcab..fa4dba4935 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -282,9 +282,18 @@ func Main(archInit func(*Arch)) {
+ 			fcount++
+ 		}
+ 	}
+-	// With all types checked, it's now safe to verify map keys. One single
+-	// check past phase 9 isn't sufficient, as we may exit with other errors
+-	// before then, thus skipping map key errors.
++
++	// Phase 3.11: Check external declarations.
++	// TODO(mdempsky): This should be handled when type checking their
++	// corresponding ODCL nodes.
++	timings.Start("fe", "typecheck", "externdcls")
++	for i, n := range externdcl {
++		if n.Op() == ir.ONAME {
++			externdcl[i] = typecheck(externdcl[i], ctxExpr)
++		}
++	}
++
++	// Phase 3.14: With all user code type-checked, it's now safe to verify map keys.
+ 	checkMapKeys()
+ 	base.ExitIfErrors()
+ 
+@@ -418,18 +427,6 @@ func Main(archInit func(*Arch)) {
+ 		base.Flag.GenDwarfInl = 0
+ 	}
+ 
+-	// Phase 9: Check external declarations.
+-	timings.Start("be", "externaldcls")
+-	for i, n := range externdcl {
+-		if n.Op() == ir.ONAME {
+-			externdcl[i] = typecheck(externdcl[i], ctxExpr)
+-		}
+-	}
+-	// Check the map keys again, since we typechecked the external
+-	// declarations.
+-	checkMapKeys()
+-	base.ExitIfErrors()
+-
+ 	// Write object data to disk.
+ 	timings.Start("be", "dumpobj")
+ 	dumpdata()

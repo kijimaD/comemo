@@ -10,6 +10,20 @@ Date:   Tue Mar 24 00:04:42 2015 -0400
     Signed-off-by: Shenghou Ma <minux@golang.org>
     Reviewed-on: https://go-review.googlesource.com/7974
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/url/url.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/url/url.go b/src/net/url/url.go
+index 737c95bab9..0ad68ccc2b 100644
+--- a/src/net/url/url.go
++++ b/src/net/url/url.go
+@@ -443,7 +443,7 @@ func parseAuthority(authority string) (user *Userinfo, host string, err error) {
+ // String reassembles the URL into a valid URL string.
+ // The general form of the result is one of:
+ //
+-//	scheme:opaque
++//	scheme:opaque?query#fragment
+ //	scheme://userinfo@host/path?query#fragment
+ //
+ // If u.Opaque is non-empty, String uses the first form;

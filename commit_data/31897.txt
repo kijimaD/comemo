@@ -29,9 +29,426 @@ Date:   Tue Mar 21 15:22:13 2017 -0700
     Change-Id: Ib8a7f90bbe79de33d83684e33b1bf8dbc32e644a
     Reviewed-on: https://go-review.googlesource.com/38435
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/syntax/nodes.go       | 72 ++++++++++++++------------
  src/cmd/compile/internal/syntax/nodes_test.go  | 70 ++++++++++++++-----------
  src/cmd/compile/internal/syntax/parser.go      | 25 ++++++---
  src/cmd/compile/internal/syntax/parser_test.go |  2 +-
  4 files changed, 95 insertions(+), 74 deletions(-)
+
+diff --git a/src/cmd/compile/internal/syntax/nodes.go b/src/cmd/compile/internal/syntax/nodes.go
+index 0f7e8c2f17..a99cb008f2 100644
+--- a/src/cmd/compile/internal/syntax/nodes.go
++++ b/src/cmd/compile/internal/syntax/nodes.go
+@@ -28,11 +28,8 @@ type node struct {
+ 	pos src.Pos
+ }
+ 
+-func (n *node) Pos() src.Pos {
+-	return n.pos
+-}
+-
+-func (*node) aNode() {}
++func (n *node) Pos() src.Pos { return n.pos }
++func (*node) aNode()         {}
+ 
+ // ----------------------------------------------------------------------------
+ // Files
+@@ -100,13 +97,13 @@ type (
+ 	// func Receiver Name Type { Body }
+ 	// func Receiver Name Type
+ 	FuncDecl struct {
+-		Attr   map[string]bool // go:attr map
+-		Recv   *Field          // nil means regular function
+-		Name   *Name
+-		Type   *FuncType
+-		Body   []Stmt  // nil means no body (forward declaration)
+-		Pragma Pragma  // TODO(mdempsky): Cleaner solution.
+-		Rbrace src.Pos // TODO(mdempsky): Cleaner solution.
++		Attr           map[string]bool // go:attr map
++		Recv           *Field          // nil means regular function
++		Name           *Name
++		Type           *FuncType
++		Body           []Stmt // nil means no body (forward declaration)
++		Lbrace, Rbrace src.Pos
++		Pragma         Pragma // TODO(mdempsky): Cleaner solution.
+ 		decl
+ 	}
+ )
+@@ -144,10 +141,10 @@ type (
+ 
+ 	// Type { ElemList[0], ElemList[1], ... }
+ 	CompositeLit struct {
+-		Type     Expr // nil means no literal type
+-		ElemList []Expr
+-		NKeys    int     // number of elements with keys
+-		Rbrace   src.Pos // TODO(mdempsky): Cleaner solution.
++		Type           Expr // nil means no literal type
++		ElemList       []Expr
++		NKeys          int // number of elements with keys
++		Lbrace, Rbrace src.Pos
+ 		expr
+ 	}
+ 
+@@ -159,9 +156,9 @@ type (
+ 
+ 	// func Type { Body }
+ 	FuncLit struct {
+-		Type   *FuncType
+-		Body   []Stmt
+-		Rbrace src.Pos // TODO(mdempsky): Cleaner solution.
++		Type           *FuncType
++		Body           []Stmt
++		Lbrace, Rbrace src.Pos
+ 		expr
+ 	}
+ 
+@@ -326,7 +323,8 @@ type (
+ 	}
+ 
+ 	BlockStmt struct {
+-		Body []Stmt
++		Body   []Stmt
++		Rbrace src.Pos
+ 		stmt
+ 	}
+ 
+@@ -369,30 +367,34 @@ type (
+ 	}
+ 
+ 	IfStmt struct {
+-		Init SimpleStmt
+-		Cond Expr
+-		Then []Stmt
+-		Else Stmt // either *IfStmt or *BlockStmt
++		Init           SimpleStmt
++		Cond           Expr
++		Then           []Stmt
++		Lbrace, Rbrace src.Pos // of Then branch
++		Else           Stmt    // either *IfStmt or *BlockStmt
+ 		stmt
+ 	}
+ 
+ 	ForStmt struct {
+-		Init SimpleStmt // incl. *RangeClause
+-		Cond Expr
+-		Post SimpleStmt
+-		Body []Stmt
++		Init           SimpleStmt // incl. *RangeClause
++		Cond           Expr
++		Post           SimpleStmt
++		Body           []Stmt
++		Lbrace, Rbrace src.Pos
+ 		stmt
+ 	}
+ 
+ 	SwitchStmt struct {
+-		Init SimpleStmt
+-		Tag  Expr
+-		Body []*CaseClause
++		Init   SimpleStmt
++		Tag    Expr
++		Body   []*CaseClause
++		Rbrace src.Pos
+ 		stmt
+ 	}
+ 
+ 	SelectStmt struct {
+-		Body []*CommClause
++		Body   []*CommClause
++		Rbrace src.Pos
+ 		stmt
+ 	}
+ )
+@@ -415,12 +417,14 @@ type (
+ 	CaseClause struct {
+ 		Cases Expr // nil means default clause
+ 		Body  []Stmt
++		Colon src.Pos
+ 		node
+ 	}
+ 
+ 	CommClause struct {
+-		Comm SimpleStmt // send or receive stmt; nil means default clause
+-		Body []Stmt
++		Comm  SimpleStmt // send or receive stmt; nil means default clause
++		Body  []Stmt
++		Colon src.Pos
+ 		node
+ 	}
+ )
+diff --git a/src/cmd/compile/internal/syntax/nodes_test.go b/src/cmd/compile/internal/syntax/nodes_test.go
+index 47283bc4d2..935a1096c6 100644
+--- a/src/cmd/compile/internal/syntax/nodes_test.go
++++ b/src/cmd/compile/internal/syntax/nodes_test.go
+@@ -145,7 +145,7 @@ var fields = []test{
+ }
+ 
+ var stmts = []test{
+-	{"EmptyStmt", `@;`},
++	{"EmptyStmt", `@`},
+ 
+ 	{"LabeledStmt", `L@:`},
+ 	{"LabeledStmt", `L@: ;`},
+@@ -189,44 +189,52 @@ var stmts = []test{
+ 
+ 	{"ReturnStmt", `@return`},
+ 	{"ReturnStmt", `@return x`},
+-	{"ReturnStmt", `@return a, b, c`},
++	{"ReturnStmt", `@return a, b, a + b*f(1, 2, 3)`},
+ 
+ 	{"IfStmt", `@if cond {}`},
++	{"IfStmt", `@if cond { f() } else {}`},
++	{"IfStmt", `@if cond { f() } else { g(); h() }`},
+ 	{"ForStmt", `@for {}`},
++	{"ForStmt", `@for { f() }`},
+ 	{"SwitchStmt", `@switch {}`},
++	{"SwitchStmt", `@switch { default: }`},
++	{"SwitchStmt", `@switch { default: x++ }`},
+ 	{"SelectStmt", `@select {}`},
++	{"SelectStmt", `@select { default: }`},
++	{"SelectStmt", `@select { default: ch <- false }`},
+ }
+ 
+ var ranges = []test{
+-	{"RangeClause", `for @range s {}`},
+-	{"RangeClause", `for _, i = @range s {}`},
+-	{"RangeClause", `for x, i = @range s {}`},
+-	{"RangeClause", `for _, i := @range s {}`},
+-	{"RangeClause", `for x, i := @range s {}`},
++	{"RangeClause", `@range s`},
++	{"RangeClause", `i = @range s`},
++	{"RangeClause", `i := @range s`},
++	{"RangeClause", `_, x = @range s`},
++	{"RangeClause", `i, x = @range s`},
++	{"RangeClause", `_, x := @range s.f`},
++	{"RangeClause", `i, x := @range f(i)`},
+ }
+ 
+ var guards = []test{
+-	{"TypeSwitchGuard", `switch x@.(type) {}`},
+-	{"TypeSwitchGuard", `switch x := x@.(type) {}`},
+-	{"TypeSwitchGuard", `switch a = b; x@.(type) {}`},
+-	{"TypeSwitchGuard", `switch a := b; x := x@.(type) {}`},
++	{"TypeSwitchGuard", `x@.(type)`},
++	{"TypeSwitchGuard", `x := x@.(type)`},
+ }
+ 
+ var cases = []test{
+-	{"CaseClause", ` switch { @case x: }`},
+-	{"CaseClause", ` switch { @case x, y, z: }`},
+-	{"CaseClause", ` switch { @case x == 1, y == 2: }`},
+-	{"CaseClause", ` switch { @default: }`},
++	{"CaseClause", `@case x:`},
++	{"CaseClause", `@case x, y, z:`},
++	{"CaseClause", `@case x == 1, y == 2:`},
++	{"CaseClause", `@default:`},
+ }
+ 
+ var comms = []test{
+-	{"CommClause", `select { @case <-ch: }`},
+-	{"CommClause", `select { @case x <- ch: }`},
+-	{"CommClause", `select { @case x = <-ch: }`},
+-	{"CommClause", `select { @case x := <-ch: }`},
+-	{"CommClause", `select { @case x, ok = <-ch: }`},
+-	{"CommClause", `select { @case x, ok := <-ch: }`},
+-	{"CommClause", `select { @default: }`},
++	{"CommClause", `@case <-ch:`},
++	{"CommClause", `@case x <- ch:`},
++	{"CommClause", `@case x = <-ch:`},
++	{"CommClause", `@case x := <-ch:`},
++	{"CommClause", `@case x, ok = <-ch: f(1, 2, 3)`},
++	{"CommClause", `@case x, ok := <-ch: x++`},
++	{"CommClause", `@default:`},
++	{"CommClause", `@default: ch <- true`},
+ }
+ 
+ func TestPos(t *testing.T) {
+@@ -252,23 +260,23 @@ func TestPos(t *testing.T) {
+ 		func(f *File) Node { return f.DeclList[0].(*FuncDecl).Type.ParamList[0] },
+ 	)
+ 
+-	testPos(t, stmts, "package p; func _() { ", " } ",
++	testPos(t, stmts, "package p; func _() { ", "; }",
+ 		func(f *File) Node { return f.DeclList[0].(*FuncDecl).Body[0] },
+ 	)
+ 
+-	testPos(t, ranges, "package p; func _() { ", " } ",
++	testPos(t, ranges, "package p; func _() { for ", " {} }",
+ 		func(f *File) Node { return f.DeclList[0].(*FuncDecl).Body[0].(*ForStmt).Init.(*RangeClause) },
+ 	)
+ 
+-	testPos(t, guards, "package p; func _() { ", " } ",
++	testPos(t, guards, "package p; func _() { switch ", " {} }",
+ 		func(f *File) Node { return f.DeclList[0].(*FuncDecl).Body[0].(*SwitchStmt).Tag.(*TypeSwitchGuard) },
+ 	)
+ 
+-	testPos(t, cases, "package p; func _() { ", " } ",
++	testPos(t, cases, "package p; func _() { switch { ", " } }",
+ 		func(f *File) Node { return f.DeclList[0].(*FuncDecl).Body[0].(*SwitchStmt).Body[0] },
+ 	)
+ 
+-	testPos(t, comms, "package p; func _() { ", " } ",
++	testPos(t, comms, "package p; func _() { select { ", " } }",
+ 		func(f *File) Node { return f.DeclList[0].(*FuncDecl).Body[0].(*SelectStmt).Body[0] },
+ 	)
+ }
+@@ -278,14 +286,14 @@ func testPos(t *testing.T, list []test, prefix, suffix string, extract func(*Fil
+ 		// complete source, compute @ position, and strip @ from source
+ 		src, index := stripAt(prefix + test.snippet + suffix)
+ 		if index < 0 {
+-			t.Errorf("missing @: %s", src)
++			t.Errorf("missing @: %s (%s)", src, test.nodetyp)
+ 			continue
+ 		}
+ 
+ 		// build syntaxt tree
+ 		file, err := ParseBytes(nil, []byte(src), nil, nil, 0)
+ 		if err != nil {
+-			t.Errorf("parse error: %s: %v", src, err)
++			t.Errorf("parse error: %s: %v (%s)", src, err, test.nodetyp)
+ 			continue
+ 		}
+ 
+@@ -297,8 +305,8 @@ func testPos(t *testing.T, list []test, prefix, suffix string, extract func(*Fil
+ 		}
+ 
+ 		// verify node position with expected position as indicated by @
+-		if col := int(node.Pos().Col()); col != index+colbase {
+-			t.Errorf("pos error: %s: col = %d, want %d", src, col, index+colbase)
++		if pos := int(node.Pos().Col()); pos != index+colbase {
++			t.Errorf("pos error: %s: pos = %d, want %d (%s)", src, pos, index+colbase, test.nodetyp)
+ 			continue
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/syntax/parser.go b/src/cmd/compile/internal/syntax/parser.go
+index 66987bbfd7..8232be64ff 100644
+--- a/src/cmd/compile/internal/syntax/parser.go
++++ b/src/cmd/compile/internal/syntax/parser.go
+@@ -480,7 +480,8 @@ func (p *parser) funcDecl() *FuncDecl {
+ 
+ 	f.Name = p.name()
+ 	f.Type = p.funcType()
+-	if p.got(_Lbrace) {
++	if lbrace := p.pos(); p.got(_Lbrace) {
++		f.Lbrace = lbrace
+ 		f.Body = p.funcBody()
+ 		f.Rbrace = p.pos()
+ 		p.want(_Rbrace)
+@@ -703,11 +704,12 @@ func (p *parser) operand(keep_parens bool) Expr {
+ 		pos := p.pos()
+ 		p.next()
+ 		t := p.funcType()
+-		if p.got(_Lbrace) {
++		if lbrace := p.pos(); p.got(_Lbrace) {
+ 			p.xnest++
+ 
+ 			f := new(FuncLit)
+ 			f.pos = pos
++			f.Lbrace = lbrace
+ 			f.Type = t
+ 			f.Body = p.funcBody()
+ 			f.Rbrace = p.pos()
+@@ -900,6 +902,7 @@ func (p *parser) complitexpr() *CompositeLit {
+ 	x := new(CompositeLit)
+ 	x.pos = p.pos()
+ 
++	x.Lbrace = p.pos()
+ 	p.want(_Lbrace)
+ 	p.xnest++
+ 
+@@ -1625,6 +1628,7 @@ func (p *parser) blockStmt() *BlockStmt {
+ 	s.pos = p.pos()
+ 	p.want(_Lbrace)
+ 	s.Body = p.stmtList()
++	s.Rbrace = p.pos()
+ 	p.want(_Rbrace)
+ 
+ 	return s
+@@ -1653,26 +1657,27 @@ func (p *parser) forStmt() Stmt {
+ 	s.pos = p.pos()
+ 
+ 	s.Init, s.Cond, s.Post = p.header(_For)
+-	s.Body = p.stmtBody("for clause")
++	s.Body, s.Lbrace, s.Rbrace = p.stmtBody("for clause")
+ 
+ 	return s
+ }
+ 
+ // stmtBody parses if and for statement bodies.
+-func (p *parser) stmtBody(context string) []Stmt {
++func (p *parser) stmtBody(context string) (body []Stmt, lbrace, rbrace src.Pos) {
+ 	if trace {
+ 		defer p.trace("stmtBody")()
+ 	}
+ 
++	lbrace = p.pos()
+ 	if !p.got(_Lbrace) {
+ 		p.syntax_error("expecting { after " + context)
+ 		p.advance(_Name, _Rbrace)
+ 	}
+-
+-	body := p.stmtList()
++	body = p.stmtList()
++	rbrace = p.pos()
+ 	p.want(_Rbrace)
+ 
+-	return body
++	return
+ }
+ 
+ func (p *parser) header(keyword token) (init SimpleStmt, cond Expr, post SimpleStmt) {
+@@ -1764,7 +1769,7 @@ func (p *parser) ifStmt() *IfStmt {
+ 	s.pos = p.pos()
+ 
+ 	s.Init, s.Cond, _ = p.header(_If)
+-	s.Then = p.stmtBody("if clause")
++	s.Then, s.Lbrace, s.Rbrace = p.stmtBody("if clause")
+ 
+ 	if p.got(_Else) {
+ 		switch p.tok {
+@@ -1798,6 +1803,7 @@ func (p *parser) switchStmt() *SwitchStmt {
+ 	for p.tok != _EOF && p.tok != _Rbrace {
+ 		s.Body = append(s.Body, p.caseClause())
+ 	}
++	s.Rbrace = p.pos()
+ 	p.want(_Rbrace)
+ 
+ 	return s
+@@ -1819,6 +1825,7 @@ func (p *parser) selectStmt() *SelectStmt {
+ 	for p.tok != _EOF && p.tok != _Rbrace {
+ 		s.Body = append(s.Body, p.commClause())
+ 	}
++	s.Rbrace = p.pos()
+ 	p.want(_Rbrace)
+ 
+ 	return s
+@@ -1845,6 +1852,7 @@ func (p *parser) caseClause() *CaseClause {
+ 		p.advance(_Case, _Default, _Rbrace)
+ 	}
+ 
++	c.Colon = p.pos()
+ 	p.want(_Colon)
+ 	c.Body = p.stmtList()
+ 
+@@ -1884,6 +1892,7 @@ func (p *parser) commClause() *CommClause {
+ 		p.advance(_Case, _Default, _Rbrace)
+ 	}
+ 
++	c.Colon = p.pos()
+ 	p.want(_Colon)
+ 	c.Body = p.stmtList()
+ 
+diff --git a/src/cmd/compile/internal/syntax/parser_test.go b/src/cmd/compile/internal/syntax/parser_test.go
+index 9028c41f37..06c74cbfba 100644
+--- a/src/cmd/compile/internal/syntax/parser_test.go
++++ b/src/cmd/compile/internal/syntax/parser_test.go
+@@ -81,7 +81,7 @@ func TestStdLib(t *testing.T) {
+ 	dm := float64(m2.TotalAlloc-m1.TotalAlloc) / 1e6
+ 
+ 	fmt.Printf("parsed %d lines (%d files) in %v (%d lines/s)\n", lines, count, dt, int64(float64(lines)/dt.Seconds()))
+-	fmt.Printf("allocated %.3fMb (%.3fMb/s)\n", dm, dm/dt.Seconds())
++	fmt.Printf("allocated %.3fMb (%dB/line, %.3fMb/s)\n", dm, uint64(dm*(1<<20)/float64(lines)), dm/dt.Seconds())
+ }
+ 
+ func walkDirs(t *testing.T, dir string, action func(string)) {

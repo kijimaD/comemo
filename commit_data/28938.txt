@@ -18,7 +18,63 @@ Date:   Wed Aug 17 13:29:19 2016 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/cse.go | 11 +++++++++++
  test/fixedbugs/issue16741.go        | 17 +++++++++++++++++
  2 files changed, 28 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/cse.go b/src/cmd/compile/internal/ssa/cse.go
+index a000c577d1..c0ddc83681 100644
+--- a/src/cmd/compile/internal/ssa/cse.go
++++ b/src/cmd/compile/internal/ssa/cse.go
+@@ -166,7 +166,10 @@ func cse(f *Func) {
+ 	// if we rewrite a tuple generator to a new one in a different block,
+ 	// copy its selectors to the new generator's block, so tuple generator
+ 	// and selectors stay together.
++	// be careful not to copy same selectors more than once (issue 16741).
++	copiedSelects := make(map[ID][]*Value)
+ 	for _, b := range f.Blocks {
++	out:
+ 		for _, v := range b.Values {
+ 			if rewrite[v.ID] != nil {
+ 				continue
+@@ -180,8 +183,16 @@ func cse(f *Func) {
+ 			t := rewrite[v.Args[0].ID]
+ 			if t != nil && t.Block != b {
+ 				// v.Args[0] is tuple generator, CSE'd into a different block as t, v is left behind
++				for _, c := range copiedSelects[t.ID] {
++					if v.Op == c.Op {
++						// an equivalent selector is already copied
++						rewrite[v.ID] = c
++						continue out
++					}
++				}
+ 				c := v.copyInto(t.Block)
+ 				rewrite[v.ID] = c
++				copiedSelects[t.ID] = append(copiedSelects[t.ID], c)
+ 			}
+ 		}
+ 	}
+diff --git a/test/fixedbugs/issue16741.go b/test/fixedbugs/issue16741.go
+new file mode 100644
+index 0000000000..9946062df7
+--- /dev/null
++++ b/test/fixedbugs/issue16741.go
+@@ -0,0 +1,17 @@
++// compile
++
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Make sure CSE of multi-output opcodes works correctly
++// with select0/1 operations.
++
++package main
++
++func div(d, r int64) int64 {
++	if m := d % r; m > 0 {
++		return d/r + 1
++	}
++	return d / r
++}

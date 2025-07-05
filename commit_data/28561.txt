@@ -13,6 +13,22 @@ Date:   Tue May 31 12:28:57 2016 -0700
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/encoding/json/encode.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/encoding/json/encode.go b/src/encoding/json/encode.go
+index 3917084dc3..d864022730 100644
+--- a/src/encoding/json/encode.go
++++ b/src/encoding/json/encode.go
+@@ -90,8 +90,8 @@ import (
+ //    Int64String int64 `json:",string"`
+ //
+ // The key name will be used if it's a non-empty string consisting of
+-// only Unicode letters, digits, dollar signs, percent signs, hyphens,
+-// underscores and slashes.
++// only Unicode letters, digits, and ASCII punctuation except quotation
++// marks, backslash, and comma.
+ //
+ // Anonymous struct fields are usually marshaled as if their inner exported fields
+ // were fields in the outer struct, subject to the usual Go visibility rules amended

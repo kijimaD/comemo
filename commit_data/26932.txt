@@ -20,8 +20,179 @@ Date:   Thu Mar 3 19:45:24 2016 +0100
     Reviewed-by: Keith Randall <khr@golang.org>
     Run-TryBot: David du Colombier <0intro@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ssa/config.go       | 27 +++++++++++++++++----------
  src/cmd/compile/internal/ssa/gen/AMD64.rules | 10 +++++-----
  src/cmd/compile/internal/ssa/rewriteAMD64.go | 20 ++++++++++----------
  3 files changed, 32 insertions(+), 25 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/config.go b/src/cmd/compile/internal/ssa/config.go
+index 7d345ae280..5e54f4f96f 100644
+--- a/src/cmd/compile/internal/ssa/config.go
++++ b/src/cmd/compile/internal/ssa/config.go
+@@ -13,16 +13,17 @@ import (
+ )
+ 
+ type Config struct {
+-	arch       string                     // "amd64", etc.
+-	IntSize    int64                      // 4 or 8
+-	PtrSize    int64                      // 4 or 8
+-	lowerBlock func(*Block) bool          // lowering function
+-	lowerValue func(*Value, *Config) bool // lowering function
+-	fe         Frontend                   // callbacks into compiler frontend
+-	HTML       *HTMLWriter                // html writer, for debugging
+-	ctxt       *obj.Link                  // Generic arch information
+-	optimize   bool                       // Do optimization
+-	curFunc    *Func
++	arch         string                     // "amd64", etc.
++	IntSize      int64                      // 4 or 8
++	PtrSize      int64                      // 4 or 8
++	lowerBlock   func(*Block) bool          // lowering function
++	lowerValue   func(*Value, *Config) bool // lowering function
++	fe           Frontend                   // callbacks into compiler frontend
++	HTML         *HTMLWriter                // html writer, for debugging
++	ctxt         *obj.Link                  // Generic arch information
++	optimize     bool                       // Do optimization
++	noDuffDevice bool                       // Don't use Duff's device
++	curFunc      *Func
+ 
+ 	// TODO: more stuff. Compiler flags of interest, ...
+ 
+@@ -122,6 +123,12 @@ func NewConfig(arch string, fe Frontend, ctxt *obj.Link, optimize bool) *Config
+ 	c.ctxt = ctxt
+ 	c.optimize = optimize
+ 
++	// Don't use Duff's device on Plan 9, because floating
++	// point operations are not allowed in note handler.
++	if obj.Getgoos() == "plan9" {
++		c.noDuffDevice = true
++	}
++
+ 	// Assign IDs to preallocated values/blocks.
+ 	for i := range c.values {
+ 		c.values[i].ID = ID(i)
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index 25a8861130..73fa700d93 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -328,7 +328,7 @@
+ 		(MOVOstore dst (MOVOload src mem) mem))
+ 
+ // Medium copying uses a duff device.
+-(Move [size] dst src mem) && size >= 32 && size <= 16*64 && size%16 == 0 ->
++(Move [size] dst src mem) && size >= 32 && size <= 16*64 && size%16 == 0 && !config.noDuffDevice ->
+ 	(DUFFCOPY [14*(64-size/16)] dst src mem)
+ // 14 and 64 are magic constants.  14 is the number of bytes to encode:
+ //	MOVUPS	(SI), X0
+@@ -338,7 +338,7 @@
+ // and 64 is the number of such blocks. See src/runtime/duff_amd64.s:duffcopy.
+ 
+ // Large copying uses REP MOVSQ.
+-(Move [size] dst src mem) && size > 16*64 && size%8 == 0 ->
++(Move [size] dst src mem) && (size > 16*64 || config.noDuffDevice) && size%8 == 0 ->
+ 	(REPMOVSQ dst src (MOVQconst [size/8]) mem)
+ 
+ (Not x) -> (XORBconst [1] x)
+@@ -869,13 +869,13 @@
+ 				(MOVQstoreconst [0] destptr mem))))
+ 
+ // Medium zeroing uses a duff device.
+-(Zero [size] destptr mem) && size <= 1024 && size%8 == 0 && size%16 != 0 ->
++(Zero [size] destptr mem) && size <= 1024 && size%8 == 0 && size%16 != 0 && !config.noDuffDevice ->
+ 	(Zero [size-8] (ADDQconst [8] destptr) (MOVQstore destptr (MOVQconst [0]) mem))
+-(Zero [size] destptr mem) && size <= 1024 && size%16 == 0 ->
++(Zero [size] destptr mem) && size <= 1024 && size%16 == 0 && !config.noDuffDevice ->
+ 	(DUFFZERO [duffStart(size)] (ADDQconst [duffAdj(size)] destptr) (MOVOconst [0]) mem)
+ 
+ // Large zeroing uses REP STOSQ.
+-(Zero [size] destptr mem) && size > 1024 && size%8 == 0 ->
++(Zero [size] destptr mem) && (size > 1024 || (config.noDuffDevice && size > 32)) && size%8 == 0 ->
+ 	(REPSTOSQ destptr (MOVQconst [size/8]) (MOVQconst [0]) mem)
+ 
+ // Absorb InvertFlags into branches.
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 83fc437747..bed44ef103 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -8811,14 +8811,14 @@ func rewriteValueAMD64_OpMove(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ 	// match: (Move [size] dst src mem)
+-	// cond: size >= 32 && size <= 16*64 && size%16 == 0
++	// cond: size >= 32 && size <= 16*64 && size%16 == 0 && !config.noDuffDevice
+ 	// result: (DUFFCOPY [14*(64-size/16)] dst src mem)
+ 	for {
+ 		size := v.AuxInt
+ 		dst := v.Args[0]
+ 		src := v.Args[1]
+ 		mem := v.Args[2]
+-		if !(size >= 32 && size <= 16*64 && size%16 == 0) {
++		if !(size >= 32 && size <= 16*64 && size%16 == 0 && !config.noDuffDevice) {
+ 			break
+ 		}
+ 		v.reset(OpAMD64DUFFCOPY)
+@@ -8829,14 +8829,14 @@ func rewriteValueAMD64_OpMove(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ 	// match: (Move [size] dst src mem)
+-	// cond: size > 16*64 && size%8 == 0
++	// cond: (size > 16*64 || config.noDuffDevice) && size%8 == 0
+ 	// result: (REPMOVSQ dst src (MOVQconst [size/8]) mem)
+ 	for {
+ 		size := v.AuxInt
+ 		dst := v.Args[0]
+ 		src := v.Args[1]
+ 		mem := v.Args[2]
+-		if !(size > 16*64 && size%8 == 0) {
++		if !((size > 16*64 || config.noDuffDevice) && size%8 == 0) {
+ 			break
+ 		}
+ 		v.reset(OpAMD64REPMOVSQ)
+@@ -13693,13 +13693,13 @@ func rewriteValueAMD64_OpZero(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ 	// match: (Zero [size] destptr mem)
+-	// cond: size <= 1024 && size%8 == 0 && size%16 != 0
++	// cond: size <= 1024 && size%8 == 0 && size%16 != 0 && !config.noDuffDevice
+ 	// result: (Zero [size-8] (ADDQconst [8] destptr) (MOVQstore destptr (MOVQconst [0]) mem))
+ 	for {
+ 		size := v.AuxInt
+ 		destptr := v.Args[0]
+ 		mem := v.Args[1]
+-		if !(size <= 1024 && size%8 == 0 && size%16 != 0) {
++		if !(size <= 1024 && size%8 == 0 && size%16 != 0 && !config.noDuffDevice) {
+ 			break
+ 		}
+ 		v.reset(OpZero)
+@@ -13718,13 +13718,13 @@ func rewriteValueAMD64_OpZero(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ 	// match: (Zero [size] destptr mem)
+-	// cond: size <= 1024 && size%16 == 0
++	// cond: size <= 1024 && size%16 == 0 && !config.noDuffDevice
+ 	// result: (DUFFZERO [duffStart(size)] (ADDQconst [duffAdj(size)] destptr) (MOVOconst [0]) mem)
+ 	for {
+ 		size := v.AuxInt
+ 		destptr := v.Args[0]
+ 		mem := v.Args[1]
+-		if !(size <= 1024 && size%16 == 0) {
++		if !(size <= 1024 && size%16 == 0 && !config.noDuffDevice) {
+ 			break
+ 		}
+ 		v.reset(OpAMD64DUFFZERO)
+@@ -13740,13 +13740,13 @@ func rewriteValueAMD64_OpZero(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ 	// match: (Zero [size] destptr mem)
+-	// cond: size > 1024 && size%8 == 0
++	// cond: (size > 1024 || (config.noDuffDevice && size > 32)) && size%8 == 0
+ 	// result: (REPSTOSQ destptr (MOVQconst [size/8]) (MOVQconst [0]) mem)
+ 	for {
+ 		size := v.AuxInt
+ 		destptr := v.Args[0]
+ 		mem := v.Args[1]
+-		if !(size > 1024 && size%8 == 0) {
++		if !((size > 1024 || (config.noDuffDevice && size > 32)) && size%8 == 0) {
+ 			break
+ 		}
+ 		v.reset(OpAMD64REPSTOSQ)

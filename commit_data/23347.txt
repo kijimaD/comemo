@@ -8,6 +8,19 @@ Date:   Thu May 7 15:41:01 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/9825
     Reviewed-by: Rick Hudson <rlh@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/runtime1.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/runtime/runtime1.go b/src/runtime/runtime1.go
+index 3bf0b95f6d..ea3883018b 100644
+--- a/src/runtime/runtime1.go
++++ b/src/runtime/runtime1.go
+@@ -336,7 +336,6 @@ var dbgvars = []dbgVar{
+ }
+ 
+ func parsedebugvars() {
+-	debug.gccheckmark=1
+ 	for p := gogetenv("GODEBUG"); p != ""; {
+ 		field := ""
+ 		i := index(p, ",")

@@ -15,6 +15,23 @@ Date:   Fri Oct 15 13:52:05 2021 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/internal/obj/x86/asm6.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index 43ce832b17..6555756fd3 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -2035,6 +2035,11 @@ type nopPad struct {
+ }
+ 
+ func span6(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
++	if ctxt.Retpoline && ctxt.Arch.Family == sys.I386 {
++		ctxt.Diag("-spectre=ret not supported on 386")
++		ctxt.Retpoline = false // don't keep printing
++	}
++
+ 	pjc := makePjcCtx(ctxt)
+ 
+ 	if s.P != nil {

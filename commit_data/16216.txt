@@ -11,7 +11,26 @@ Date:   Mon Apr 22 16:28:42 2013 -0700
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/8621044
-
+---
  lib/time/update.bash  |   4 ++--
  lib/time/zoneinfo.zip | Bin 374065 -> 374530 bytes
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/lib/time/update.bash b/lib/time/update.bash
+index c2377e1243..e0eb891e3d 100755
+--- a/lib/time/update.bash
++++ b/lib/time/update.bash
+@@ -7,8 +7,8 @@
+ # downloaded from the ICANN/IANA distribution.
+ 
+ # Versions to use.
+-CODE=2013b
+-DATA=2013b
++CODE=2013c
++DATA=2013c
+ 
+ set -e
+ rm -rf work
+diff --git a/lib/time/zoneinfo.zip b/lib/time/zoneinfo.zip
+index c10a42576e..e9ddfff818 100644
+Binary files a/lib/time/zoneinfo.zip and b/lib/time/zoneinfo.zip differ

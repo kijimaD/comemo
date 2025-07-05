@@ -10,8 +10,134 @@ Date:   Thu Jul 11 11:31:46 2024 -0700
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/bytes/buffer.go | 16 ++++++++--------
  src/bytes/bytes.go  |  8 ++++----
  src/bytes/reader.go |  4 ++--
  3 files changed, 14 insertions(+), 14 deletions(-)
+
+diff --git a/src/bytes/buffer.go b/src/bytes/buffer.go
+index ba844ba9d3..4176d670ec 100644
+--- a/src/bytes/buffer.go
++++ b/src/bytes/buffer.go
+@@ -62,7 +62,7 @@ func (b *Buffer) AvailableBuffer() []byte { return b.buf[len(b.buf):] }
+ // String returns the contents of the unread portion of the buffer
+ // as a string. If the [Buffer] is a nil pointer, it returns "<nil>".
+ //
+-// To build strings more efficiently, see the strings.Builder type.
++// To build strings more efficiently, see the [strings.Builder] type.
+ func (b *Buffer) String() string {
+ 	if b == nil {
+ 		// Special case, useful in debugging.
+@@ -193,9 +193,9 @@ func (b *Buffer) WriteString(s string) (n int, err error) {
+ 	return copy(b.buf[m:], s), nil
+ }
+ 
+-// MinRead is the minimum slice size passed to a Read call by
++// MinRead is the minimum slice size passed to a [Buffer.Read] call by
+ // [Buffer.ReadFrom]. As long as the [Buffer] has at least MinRead bytes beyond
+-// what is required to hold the contents of r, ReadFrom will not grow the
++// what is required to hold the contents of r, [Buffer.ReadFrom] will not grow the
+ // underlying buffer.
+ const MinRead = 512
+ 
+@@ -253,7 +253,7 @@ func growSlice(b []byte, n int) []byte {
+ 
+ // WriteTo writes data to w until the buffer is drained or an error occurs.
+ // The return value n is the number of bytes written; it always fits into an
+-// int, but it is int64 to match the io.WriterTo interface. Any error
++// int, but it is int64 to match the [io.WriterTo] interface. Any error
+ // encountered during the write is also returned.
+ func (b *Buffer) WriteTo(w io.Writer) (n int64, err error) {
+ 	b.lastRead = opInvalid
+@@ -313,7 +313,7 @@ func (b *Buffer) WriteRune(r rune) (n int, err error) {
+ 
+ // Read reads the next len(p) bytes from the buffer or until the buffer
+ // is drained. The return value n is the number of bytes read. If the
+-// buffer has no data to return, err is io.EOF (unless len(p) is zero);
++// buffer has no data to return, err is [io.EOF] (unless len(p) is zero);
+ // otherwise it is nil.
+ func (b *Buffer) Read(p []byte) (n int, err error) {
+ 	b.lastRead = opInvalid
+@@ -352,7 +352,7 @@ func (b *Buffer) Next(n int) []byte {
+ }
+ 
+ // ReadByte reads and returns the next byte from the buffer.
+-// If no byte is available, it returns error io.EOF.
++// If no byte is available, it returns error [io.EOF].
+ func (b *Buffer) ReadByte() (byte, error) {
+ 	if b.empty() {
+ 		// Buffer is empty, reset to recover space.
+@@ -424,7 +424,7 @@ func (b *Buffer) UnreadByte() error {
+ // ReadBytes reads until the first occurrence of delim in the input,
+ // returning a slice containing the data up to and including the delimiter.
+ // If ReadBytes encounters an error before finding a delimiter,
+-// it returns the data read before the error and the error itself (often io.EOF).
++// it returns the data read before the error and the error itself (often [io.EOF]).
+ // ReadBytes returns err != nil if and only if the returned data does not end in
+ // delim.
+ func (b *Buffer) ReadBytes(delim byte) (line []byte, err error) {
+@@ -452,7 +452,7 @@ func (b *Buffer) readSlice(delim byte) (line []byte, err error) {
+ // ReadString reads until the first occurrence of delim in the input,
+ // returning a string containing the data up to and including the delimiter.
+ // If ReadString encounters an error before finding a delimiter,
+-// it returns the data read before the error and the error itself (often io.EOF).
++// it returns the data read before the error and the error itself (often [io.EOF]).
+ // ReadString returns err != nil if and only if the returned data does not end
+ // in delim.
+ func (b *Buffer) ReadString(delim byte) (line string, err error) {
+diff --git a/src/bytes/bytes.go b/src/bytes/bytes.go
+index a90390b96e..45d8d07475 100644
+--- a/src/bytes/bytes.go
++++ b/src/bytes/bytes.go
+@@ -133,7 +133,7 @@ func LastIndexByte(s []byte, c byte) int {
+ // IndexRune interprets s as a sequence of UTF-8-encoded code points.
+ // It returns the byte index of the first occurrence in s of the given rune.
+ // It returns -1 if rune is not present in s.
+-// If r is utf8.RuneError, it returns the first instance of any
++// If r is [utf8.RuneError], it returns the first instance of any
+ // invalid UTF-8 byte sequence.
+ func IndexRune(s []byte, r rune) int {
+ 	switch {
+@@ -359,7 +359,7 @@ func genSplit(s, sep []byte, sepSave, n int) [][]byte {
+ //   - n == 0: the result is nil (zero subslices);
+ //   - n < 0: all subslices.
+ //
+-// To split around the first instance of a separator, see Cut.
++// To split around the first instance of a separator, see [Cut].
+ func SplitN(s, sep []byte, n int) [][]byte { return genSplit(s, sep, 0, n) }
+ 
+ // SplitAfterN slices s into subslices after each instance of sep and
+@@ -378,7 +378,7 @@ func SplitAfterN(s, sep []byte, n int) [][]byte {
+ // If sep is empty, Split splits after each UTF-8 sequence.
+ // It is equivalent to SplitN with a count of -1.
+ //
+-// To split around the first instance of a separator, see Cut.
++// To split around the first instance of a separator, see [Cut].
+ func Split(s, sep []byte) [][]byte { return genSplit(s, sep, 0, -1) }
+ 
+ // SplitAfter slices s into all subslices after each instance of sep and
+@@ -393,7 +393,7 @@ var asciiSpace = [256]uint8{'\t': 1, '\n': 1, '\v': 1, '\f': 1, '\r': 1, ' ': 1}
+ 
+ // Fields interprets s as a sequence of UTF-8-encoded code points.
+ // It splits the slice s around each instance of one or more consecutive white space
+-// characters, as defined by unicode.IsSpace, returning a slice of subslices of s or an
++// characters, as defined by [unicode.IsSpace], returning a slice of subslices of s or an
+ // empty slice if s contains only white space.
+ func Fields(s []byte) [][]byte {
+ 	// First count the fields.
+diff --git a/src/bytes/reader.go b/src/bytes/reader.go
+index 30c46fa6b3..d4c3066e06 100644
+--- a/src/bytes/reader.go
++++ b/src/bytes/reader.go
+@@ -10,8 +10,8 @@ import (
+ 	"unicode/utf8"
+ )
+ 
+-// A Reader implements the io.Reader, io.ReaderAt, io.WriterTo, io.Seeker,
+-// io.ByteScanner, and io.RuneScanner interfaces by reading from
++// A Reader implements the [io.Reader], [io.ReaderAt], [io.WriterTo], [io.Seeker],
++// [io.ByteScanner], and [io.RuneScanner] interfaces by reading from
+ // a byte slice.
+ // Unlike a [Buffer], a Reader is read-only and supports seeking.
+ // The zero value for Reader operates like a Reader of an empty slice.

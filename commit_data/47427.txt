@@ -10,6 +10,20 @@ Date:   Wed Mar 17 14:15:28 2021 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/link/internal/loader/loader.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index 5df4348a36..668e698cbf 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -2208,7 +2208,7 @@ func loadObjRefs(l *Loader, r *oReader, arch *sys.Arch) {
+ 		pkg := r.Pkg(i)
+ 		objidx, ok := l.objByPkg[pkg]
+ 		if !ok {
+-			log.Fatalf("reference of nonexisted package %s, from %v", pkg, r.unit.Lib)
++			log.Fatalf("%v: reference to nonexistent package %s", r.unit.Lib, pkg)
+ 		}
+ 		r.pkg[i] = objidx
+ 	}

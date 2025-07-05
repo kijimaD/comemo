@@ -8,8 +8,101 @@ Date:   Mon Apr 1 14:34:03 2013 -0700
     R=golang-dev, dave, rsc, daniel.morsing
     CC=golang-dev
     https://golang.org/cl/7718043
-
+---
  src/pkg/sync/atomic/asm_arm.s       | 16 ++++++++++++++++
  src/pkg/sync/atomic/asm_linux_arm.s |  8 ++++++++
  src/pkg/sync/atomic/atomic_test.go  |  6 +++---
  3 files changed, 27 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/sync/atomic/asm_arm.s b/src/pkg/sync/atomic/asm_arm.s
+index 4faf5b5d97..a0525881e8 100644
+--- a/src/pkg/sync/atomic/asm_arm.s
++++ b/src/pkg/sync/atomic/asm_arm.s
+@@ -29,6 +29,10 @@ casfail:
+ TEXT ·armCompareAndSwapUint64(SB),7,$0
+ 	BL	fastCheck64<>(SB)
+ 	MOVW	addr+0(FP), R1
++	// make unaligned atomic access panic
++	AND.S	$7, R1, R2
++	BEQ 	2(PC)
++	MOVW	R2, (R2)
+ 	MOVW	oldlo+4(FP), R2
+ 	MOVW	oldhi+8(FP), R3
+ 	MOVW	newlo+12(FP), R4
+@@ -67,6 +71,10 @@ addloop:
+ TEXT ·armAddUint64(SB),7,$0
+ 	BL	fastCheck64<>(SB)
+ 	MOVW	addr+0(FP), R1
++	// make unaligned atomic access panic
++	AND.S	$7, R1, R2
++	BEQ 	2(PC)
++	MOVW	R2, (R2)
+ 	MOVW	deltalo+4(FP), R2
+ 	MOVW	deltahi+8(FP), R3
+ add64loop:
+@@ -84,6 +92,10 @@ add64loop:
+ TEXT ·armLoadUint64(SB),7,$0
+ 	BL	fastCheck64<>(SB)
+ 	MOVW	addr+0(FP), R1
++	// make unaligned atomic access panic
++	AND.S	$7, R1, R2
++	BEQ 	2(PC)
++	MOVW	R2, (R2)
+ load64loop:
+ 	LDREXD	(R1), R2	// loads R2 and R3
+ 	STREXD	R2, (R1), R0	// stores R2 and R3
+@@ -96,6 +108,10 @@ load64loop:
+ TEXT ·armStoreUint64(SB),7,$0
+ 	BL	fastCheck64<>(SB)
+ 	MOVW	addr+0(FP), R1
++	// make unaligned atomic access panic
++	AND.S	$7, R1, R2
++	BEQ 	2(PC)
++	MOVW	R2, (R2)
+ 	MOVW	vallo+4(FP), R2
+ 	MOVW	valhi+8(FP), R3
+ store64loop:
+diff --git a/src/pkg/sync/atomic/asm_linux_arm.s b/src/pkg/sync/atomic/asm_linux_arm.s
+index 098acf35bd..5b16894b99 100644
+--- a/src/pkg/sync/atomic/asm_linux_arm.s
++++ b/src/pkg/sync/atomic/asm_linux_arm.s
+@@ -80,6 +80,10 @@ TEXT cas64<>(SB),7,$0
+ TEXT kernelCAS64<>(SB),7,$0
+ 	// int (*__kuser_cmpxchg64_t)(const int64_t *oldval, const int64_t *newval, volatile int64_t *ptr);
+ 	MOVW	addr+0(FP), R2 // ptr
++	// make unaligned atomic access panic
++	AND.S	$7, R2, R1
++	BEQ 	2(PC)
++	MOVW	R1, (R1)
+ 	MOVW	$4(FP), R0 // oldval
+ 	MOVW	$12(FP), R1 // newval
+ 	BL		cas64<>(SB)
+@@ -91,6 +95,10 @@ TEXT kernelCAS64<>(SB),7,$0
+ TEXT generalCAS64<>(SB),7,$20
+ 	// bool runtime·cas64(uint64 volatile *addr, uint64 *old, uint64 new)
+ 	MOVW	addr+0(FP), R0
++	// make unaligned atomic access panic
++	AND.S	$7, R0, R1
++	BEQ 	2(PC)
++	MOVW	R1, (R1)
+ 	MOVW	R0, 4(R13)
+ 	MOVW	$4(FP), R1 // oldval
+ 	MOVW	R1, 8(R13)
+diff --git a/src/pkg/sync/atomic/atomic_test.go b/src/pkg/sync/atomic/atomic_test.go
+index 72f303040f..b392df595e 100644
+--- a/src/pkg/sync/atomic/atomic_test.go
++++ b/src/pkg/sync/atomic/atomic_test.go
+@@ -1189,10 +1189,10 @@ func shouldPanic(t *testing.T, name string, f func()) {
+ 
+ func TestUnaligned64(t *testing.T) {
+ 	// Unaligned 64-bit atomics on 32-bit systems are
+-	// a continual source of pain. Test that on 386 they crash
++	// a continual source of pain. Test that on 32-bit systems they crash
+ 	// instead of failing silently.
+-	if runtime.GOARCH != "386" {
+-		t.Skip("test only runs on 386")
++	if unsafe.Sizeof(int(0)) != 4 {
++		t.Skip("test only runs on 32-bit systems")
+ 	}
+ 
+ 	x := make([]uint32, 4)

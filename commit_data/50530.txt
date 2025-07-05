@@ -29,7 +29,57 @@ Date:   Fri Sep 17 09:56:21 2021 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/base/flag.go | 4 +++-
  src/cmd/compile/internal/gc/util.go   | 9 +++------
  2 files changed, 6 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/base/flag.go b/src/cmd/compile/internal/base/flag.go
+index 51938e8fd5..9d630ce97a 100644
+--- a/src/cmd/compile/internal/base/flag.go
++++ b/src/cmd/compile/internal/base/flag.go
+@@ -109,7 +109,7 @@ type CmdFlags struct {
+ 	Live               CountFlag    "help:\"debug liveness analysis\""
+ 	MSan               bool         "help:\"build code compatible with C/C++ memory sanitizer\""
+ 	MemProfile         string       "help:\"write memory profile to `file`\""
+-	MemProfileRate     int64        "help:\"set runtime.MemProfileRate to `rate`\""
++	MemProfileRate     int          "help:\"set runtime.MemProfileRate to `rate`\""
+ 	MutexProfile       string       "help:\"write mutex profile to `file`\""
+ 	NoLocalImports     bool         "help:\"reject local (relative) imports\""
+ 	Pack               bool         "help:\"write to file.a instead of file.o\""
+@@ -330,6 +330,8 @@ func registerFlags() {
+ 		case funcType:
+ 			f := v.Field(i).Interface().(func(string))
+ 			objabi.Flagfn1(name, help, f)
++		default:
++			panic(fmt.Sprintf("base.Flag.%s has unexpected type %s", f.Name, f.Type))
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/gc/util.go b/src/cmd/compile/internal/gc/util.go
+index 4baddbc029..56fd137de2 100644
+--- a/src/cmd/compile/internal/gc/util.go
++++ b/src/cmd/compile/internal/gc/util.go
+@@ -12,10 +12,7 @@ import (
+ 	"cmd/compile/internal/base"
+ )
+ 
+-var (
+-	memprofilerate int64
+-	traceHandler   func(string)
+-)
++var traceHandler func(string)
+ 
+ func startProfile() {
+ 	if base.Flag.CPUProfile != "" {
+@@ -29,8 +26,8 @@ func startProfile() {
+ 		base.AtExit(pprof.StopCPUProfile)
+ 	}
+ 	if base.Flag.MemProfile != "" {
+-		if memprofilerate != 0 {
+-			runtime.MemProfileRate = int(memprofilerate)
++		if base.Flag.MemProfileRate != 0 {
++			runtime.MemProfileRate = base.Flag.MemProfileRate
+ 		}
+ 		f, err := os.Create(base.Flag.MemProfile)
+ 		if err != nil {

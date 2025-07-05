@@ -11,6 +11,31 @@ Date:   Tue Oct 19 21:25:28 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/2597041
-
+---
  src/pkg/reflect/value.go | 10 ++++++++--
  1 file changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/reflect/value.go b/src/pkg/reflect/value.go
+index dd677b4ea8..60e0d90deb 100644
+--- a/src/pkg/reflect/value.go
++++ b/src/pkg/reflect/value.go
+@@ -843,11 +843,17 @@ type InterfaceValue struct {
+ 	value "interface"
+ }
+ 
+-// No Get because v.Interface() is available.
+-
+ // IsNil returns whether v is a nil interface value.
+ func (v *InterfaceValue) IsNil() bool { return v.Interface() == nil }
+ 
++// No single uinptr Get because v.Interface() is available.
++
++// Get returns the two words that represent an interface in the runtime.
++// Those words are useful only when playing unsafe games.
++func (v *InterfaceValue) Get() [2]uintptr {
++	return *(*[2]uintptr)(v.addr)
++}
++
+ // Elem returns the concrete value stored in the interface value v.
+ func (v *InterfaceValue) Elem() Value { return NewValue(v.Interface()) }
+ 

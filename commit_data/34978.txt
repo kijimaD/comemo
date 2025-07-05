@@ -12,7 +12,64 @@ Date:   Thu Nov 30 15:47:46 2017 -0800
     Change-Id: Ifafad2c0c65975e0200ce7e28d1db210e0eacd9d
     Reviewed-on: https://go-review.googlesource.com/81277
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/typecheck.go | 20 +++++++++-----------
  test/shift1.go                           |  3 +--
  2 files changed, 10 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index ec4db17b1c..5285cb22d9 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -243,21 +243,15 @@ func callrecvlist(l Nodes) bool {
+ }
+ 
+ // indexlit implements typechecking of untyped values as
+-// array/slice indexes. It is equivalent to defaultlit
+-// except for constants of numerical kind, which are acceptable
+-// whenever they can be represented by a value of type int.
++// array/slice indexes. It is almost equivalent to defaultlit
++// but also accepts untyped numeric values representable as
++// value of type int (see also checkmake for comparison).
+ // The result of indexlit MUST be assigned back to n, e.g.
+ // 	n.Left = indexlit(n.Left)
+ func indexlit(n *Node) *Node {
+-	if n == nil || !n.Type.IsUntyped() {
+-		return n
++	if n != nil && n.Type != nil && n.Type.Etype == TIDEAL {
++		return defaultlit(n, types.Types[TINT])
+ 	}
+-	switch consttype(n) {
+-	case CTINT, CTRUNE, CTFLT, CTCPLX:
+-		n = defaultlit(n, types.Types[TINT])
+-	}
+-
+-	n = defaultlit(n, nil)
+ 	return n
+ }
+ 
+@@ -3783,6 +3777,10 @@ func checkmake(t *types.Type, arg string, n *Node) bool {
+ 	}
+ 
+ 	// defaultlit is necessary for non-constants too: n might be 1.1<<k.
++	// TODO(gri) The length argument requirements for (array/slice) make
++	// are the same as for index expressions. Factor the code better;
++	// for instance, indexlit might be called here and incorporate some
++	// of the bounds checks done for make.
+ 	n = defaultlit(n, types.Types[TINT])
+ 
+ 	return true
+diff --git a/test/shift1.go b/test/shift1.go
+index c81ee5154d..01ecbed53a 100644
+--- a/test/shift1.go
++++ b/test/shift1.go
+@@ -152,8 +152,7 @@ func _() {
+ 	var a []int
+ 	_ = a[1<<s]
+ 	_ = a[1.]
+-	// For now, the spec disallows these. We may revisit past Go 1.1.
+-	_ = a[1.<<s]  // ERROR "integer|shift of type float64"
++	_ = a[1.<<s]
+ 	_ = a[1.1<<s] // ERROR "integer|shift of type float64"
+ 
+ 	_ = make([]int, 1)

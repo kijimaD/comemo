@@ -12,6 +12,20 @@ Date:   Mon Jan 28 18:26:26 2013 -0500
     R=rsc, bradfitz, bradfitz
     CC=golang-dev
     https://golang.org/cl/7220057
-
+---
  src/pkg/exp/gotype/gotype_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/exp/gotype/gotype_test.go b/src/pkg/exp/gotype/gotype_test.go
+index 405093b2ae..67ab7cfa74 100644
+--- a/src/pkg/exp/gotype/gotype_test.go
++++ b/src/pkg/exp/gotype/gotype_test.go
+@@ -150,7 +150,7 @@ var tests = []string{
+ 	"log/syslog",
+ 
+ 	// "math",
+-	"math/big",
++	//"math/big",
+ 	"math/cmplx",
+ 	"math/rand",
+ 

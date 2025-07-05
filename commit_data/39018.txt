@@ -21,6 +21,45 @@ Date:   Mon Dec 17 14:17:20 2018 -0500
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/mwbbuf.go | 24 +++++++++++++++++++++++-
  1 file changed, 23 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/mwbbuf.go b/src/runtime/mwbbuf.go
+index 6f01bf68fd..78ce54452d 100644
+--- a/src/runtime/mwbbuf.go
++++ b/src/runtime/mwbbuf.go
+@@ -197,10 +197,32 @@ func wbBufFlush(dst *uintptr, src uintptr) {
+ 	// Switch to the system stack so we don't have to worry about
+ 	// the untyped stack slots or safe points.
+ 	systemstack(func() {
+-		wbBufFlush1(getg().m.p.ptr())
++		if debugCachedWork {
++			// For debugging, include the old value of the
++			// slot and some other data in the traceback.
++			wbBuf := &getg().m.p.ptr().wbBuf
++			var old uintptr
++			if dst != nil {
++				// dst may be nil in direct calls to wbBufFlush.
++				old = *dst
++			}
++			wbBufFlush1Debug(old, wbBuf.buf[0], wbBuf.buf[1], &wbBuf.buf[0], wbBuf.next)
++		} else {
++			wbBufFlush1(getg().m.p.ptr())
++		}
+ 	})
+ }
+ 
++// wbBufFlush1Debug is a temporary function for debugging issue
++// #27993. It exists solely to add some context to the traceback.
++//
++//go:nowritebarrierrec
++//go:systemstack
++//go:noinline
++func wbBufFlush1Debug(old, buf1, buf2 uintptr, start *uintptr, next uintptr) {
++	wbBufFlush1(getg().m.p.ptr())
++}
++
+ // wbBufFlush1 flushes p's write barrier buffer to the GC work queue.
+ //
+ // This must not have write barriers because it is part of the write

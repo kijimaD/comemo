@@ -17,6 +17,24 @@ Date:   Wed Mar 11 14:49:37 2020 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/shortcircuit.go | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/shortcircuit.go b/src/cmd/compile/internal/ssa/shortcircuit.go
+index 0faaa5a309..9f18117066 100644
+--- a/src/cmd/compile/internal/ssa/shortcircuit.go
++++ b/src/cmd/compile/internal/ssa/shortcircuit.go
+@@ -237,7 +237,11 @@ func shortcircuitBlock(b *Block) bool {
+ 					}
+ 				}
+ 			}
+-			phielimValue(phi)
++			if phi.Uses != 0 {
++				phielimValue(phi)
++			} else {
++				phi.reset(OpInvalid)
++			}
+ 			i-- // v.moveTo put a new value at index i; reprocess
+ 		}
+ 

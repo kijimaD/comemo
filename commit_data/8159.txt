@@ -9,8 +9,94 @@ Date:   Wed Apr 20 11:01:21 2011 -0700
     R=rsc, r
     CC=golang-dev
     https://golang.org/cl/4431055
-
+---
  src/cmd/gofix/doc.go   |  4 +++-
  src/cmd/gofmt/doc.go   | 26 +++++++++++++++++---------
  src/cmd/gofmt/gofmt.go |  2 +-
  3 files changed, 21 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/gofix/doc.go b/src/cmd/gofix/doc.go
+index 902fe76f22..a9790e6854 100644
+--- a/src/cmd/gofix/doc.go
++++ b/src/cmd/gofix/doc.go
+@@ -18,6 +18,9 @@ If the named path is a directory, gofix rewrites all .go files in that
+ directory tree.  When gofix rewrites a file, it prints a line to standard
+ error giving the name of the file and the rewrite applied.
+ 
++If the -diff flag is set, no files are rewritten. Instead gofix prints
++the differences a rewrite would introduce.
++
+ The -r flag restricts the set of rewrites considered to those in the
+ named list.  By default gofix considers all known rewrites.  Gofix's
+ rewrites are idempotent, so that it is safe to apply gofix to updated
+@@ -29,6 +32,5 @@ to see them, run gofix -?.
+ Gofix does not make backup copies of the files that it edits.
+ Instead, use a version control system's ``diff'' functionality to inspect
+ the changes that gofix makes before committing them.
+-
+ */
+ package documentation
+diff --git a/src/cmd/gofmt/doc.go b/src/cmd/gofmt/doc.go
+index e44030eee9..1373b26576 100644
+--- a/src/cmd/gofmt/doc.go
++++ b/src/cmd/gofmt/doc.go
+@@ -8,29 +8,37 @@ Gofmt formats Go programs.
+ Without an explicit path, it processes the standard input.  Given a file,
+ it operates on that file; given a directory, it operates on all .go files in
+ that directory, recursively.  (Files starting with a period are ignored.)
++By default, gofmt prints the reformatted sources to standard output.
+ 
+ Usage:
+ 	gofmt [flags] [path ...]
+ 
+ The flags are:
+ 
++	-d
++		Do not print reformatted sources to standard output.
++		If a file's formatting is different than gofmt's, print diffs
++		to standard output.
+ 	-l
+-		just list files whose formatting differs from gofmt's;
+-		generate no other output unless -w is also set.
++		Do not print reformatted sources to standard output.
++		If a file's formatting is different from gofmt's, print its name
++		to standard output.
+ 	-r rule
+-		apply the rewrite rule to the source before reformatting.
++		Apply the rewrite rule to the source before reformatting.
+ 	-s
+-		try to simplify code (after applying the rewrite rule, if any).
++		Try to simplify code (after applying the rewrite rule, if any).
+ 	-w
+-		if set, overwrite each input file with its output.
++		Do not print reformatted sources to standard output.
++		If a file's formatting is different from gofmt's, overwrite it
++		with gofmt's version.
+ 	-comments=true
+-		print comments; if false, all comments are elided from the output.
++		Print comments; if false, all comments are elided from the output.
+ 	-spaces
+-		align with spaces instead of tabs.
++		Align with spaces instead of tabs.
+ 	-tabindent
+-		indent with tabs independent of -spaces.
++		Indent with tabs independent of -spaces.
+ 	-tabwidth=8
+-		tab width in spaces.
++		Tab width in spaces.
+ 
+ The rewrite rule specified with the -r flag must be a string of the form:
+ 
+diff --git a/src/cmd/gofmt/gofmt.go b/src/cmd/gofmt/gofmt.go
+index 953a6dcd6b..5dd801d904 100644
+--- a/src/cmd/gofmt/gofmt.go
++++ b/src/cmd/gofmt/gofmt.go
+@@ -141,7 +141,7 @@ func processFile(filename string, in io.Reader, out io.Writer) os.Error {
+ 			if err != nil {
+ 				return fmt.Errorf("computing diff: %s", err)
+ 			}
+-			fmt.Printf("diff %s fixed/%s\n", filename, filename)
++			fmt.Printf("diff %s gofmt/%s\n", filename, filename)
+ 			out.Write(data)
+ 		}
+ 	}

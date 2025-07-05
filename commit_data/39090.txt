@@ -13,6 +13,16 @@ Date:   Sat Dec 29 13:11:34 2018 +0100
     Reviewed-on: https://go-review.googlesource.com/c/155957
     Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  test/fixedbugs/issue29329.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/test/fixedbugs/issue29329.go b/test/fixedbugs/issue29329.go
+index 1c2825e3bc..7818bca30a 100644
+--- a/test/fixedbugs/issue29329.go
++++ b/test/fixedbugs/issue29329.go
+@@ -1,3 +1,4 @@
++// +build cgo
+ // run -race
+ 
+ // Copyright 2018 The Go Authors. All rights reserved.

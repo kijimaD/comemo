@@ -49,10 +49,225 @@ Date:   Tue Apr 1 18:43:38 2025 +0300
     Auto-Submit: Carlos Amedee <carlos@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/_gen/generic.rules | 14 ++++++-------
  src/cmd/compile/internal/ssa/deadstore.go       |  2 +-
  src/cmd/compile/internal/ssa/rewrite.go         | 26 ++++++++++++++++++++++-
  src/cmd/compile/internal/ssa/rewritegeneric.go  | 16 +++++++-------
  test/codegen/stack.go                           | 28 ++++++++++++++++++++++++-
  5 files changed, 68 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/_gen/generic.rules b/src/cmd/compile/internal/ssa/_gen/generic.rules
+index 02e4290b9d..eb04d03e49 100644
+--- a/src/cmd/compile/internal/ssa/_gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/_gen/generic.rules
+@@ -736,26 +736,26 @@
+ // Load of store of same address, with compatibly typed value and same size
+ (Load <t1> p1 (Store {t2} p2 x _))
+ 	&& isSamePtr(p1, p2)
+-	&& t1.Compare(x.Type) == types.CMPeq
++	&& copyCompatibleType(t1, x.Type)
+ 	&& t1.Size() == t2.Size()
+ 	=> x
+ (Load <t1> p1 (Store {t2} p2 _ (Store {t3} p3 x _)))
+ 	&& isSamePtr(p1, p3)
+-	&& t1.Compare(x.Type) == types.CMPeq
+-	&& t1.Size() == t2.Size()
++	&& copyCompatibleType(t1, x.Type)
++	&& t1.Size() == t3.Size()
+ 	&& disjoint(p3, t3.Size(), p2, t2.Size())
+ 	=> x
+ (Load <t1> p1 (Store {t2} p2 _ (Store {t3} p3 _ (Store {t4} p4 x _))))
+ 	&& isSamePtr(p1, p4)
+-	&& t1.Compare(x.Type) == types.CMPeq
+-	&& t1.Size() == t2.Size()
++	&& copyCompatibleType(t1, x.Type)
++	&& t1.Size() == t4.Size()
+ 	&& disjoint(p4, t4.Size(), p2, t2.Size())
+ 	&& disjoint(p4, t4.Size(), p3, t3.Size())
+ 	=> x
+ (Load <t1> p1 (Store {t2} p2 _ (Store {t3} p3 _ (Store {t4} p4 _ (Store {t5} p5 x _)))))
+ 	&& isSamePtr(p1, p5)
+-	&& t1.Compare(x.Type) == types.CMPeq
+-	&& t1.Size() == t2.Size()
++	&& copyCompatibleType(t1, x.Type)
++	&& t1.Size() == t5.Size()
+ 	&& disjoint(p5, t5.Size(), p2, t2.Size())
+ 	&& disjoint(p5, t5.Size(), p3, t3.Size())
+ 	&& disjoint(p5, t5.Size(), p4, t4.Size())
+diff --git a/src/cmd/compile/internal/ssa/deadstore.go b/src/cmd/compile/internal/ssa/deadstore.go
+index 29cf1e91e0..f8c69dc698 100644
+--- a/src/cmd/compile/internal/ssa/deadstore.go
++++ b/src/cmd/compile/internal/ssa/deadstore.go
+@@ -55,7 +55,7 @@ func dse(f *Func) {
+ 					}
+ 					continue
+ 				}
+-				if v.Op == OpInlMark {
++				if v.Op == OpInlMark || v.Op == OpConvert {
+ 					// Not really a use of the memory. See #67957.
+ 					continue
+ 				}
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index dd09330717..ed79d51546 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -246,6 +246,19 @@ func isPtr(t *types.Type) bool {
+ 	return t.IsPtrShaped()
+ }
+ 
++func copyCompatibleType(t1, t2 *types.Type) bool {
++	if t1.Size() != t2.Size() {
++		return false
++	}
++	if t1.IsInteger() {
++		return t2.IsInteger()
++	}
++	if isPtr(t1) {
++		return isPtr(t2)
++	}
++	return t1.Compare(t2) == types.CMPeq
++}
++
+ // mergeSym merges two symbolic offsets. There is no real merging of
+ // offsets, we just pick the non-nil one.
+ func mergeSym(x, y Sym) Sym {
+@@ -822,7 +835,18 @@ func isSamePtr(p1, p2 *Value) bool {
+ 		return true
+ 	}
+ 	if p1.Op != p2.Op {
+-		return false
++		for p1.Op == OpOffPtr && p1.AuxInt == 0 {
++			p1 = p1.Args[0]
++		}
++		for p2.Op == OpOffPtr && p2.AuxInt == 0 {
++			p2 = p2.Args[0]
++		}
++		if p1 == p2 {
++			return true
++		}
++		if p1.Op != p2.Op {
++			return false
++		}
+ 	}
+ 	switch p1.Op {
+ 	case OpOffPtr:
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index 6f3cd659ef..4fdb22b868 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -13599,7 +13599,7 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
+ 	config := b.Func.Config
+ 	typ := &b.Func.Config.Types
+ 	// match: (Load <t1> p1 (Store {t2} p2 x _))
+-	// cond: isSamePtr(p1, p2) && t1.Compare(x.Type) == types.CMPeq && t1.Size() == t2.Size()
++	// cond: isSamePtr(p1, p2) && copyCompatibleType(t1, x.Type) && t1.Size() == t2.Size()
+ 	// result: x
+ 	for {
+ 		t1 := v.Type
+@@ -13610,14 +13610,14 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
+ 		t2 := auxToType(v_1.Aux)
+ 		x := v_1.Args[1]
+ 		p2 := v_1.Args[0]
+-		if !(isSamePtr(p1, p2) && t1.Compare(x.Type) == types.CMPeq && t1.Size() == t2.Size()) {
++		if !(isSamePtr(p1, p2) && copyCompatibleType(t1, x.Type) && t1.Size() == t2.Size()) {
+ 			break
+ 		}
+ 		v.copyOf(x)
+ 		return true
+ 	}
+ 	// match: (Load <t1> p1 (Store {t2} p2 _ (Store {t3} p3 x _)))
+-	// cond: isSamePtr(p1, p3) && t1.Compare(x.Type) == types.CMPeq && t1.Size() == t2.Size() && disjoint(p3, t3.Size(), p2, t2.Size())
++	// cond: isSamePtr(p1, p3) && copyCompatibleType(t1, x.Type) && t1.Size() == t3.Size() && disjoint(p3, t3.Size(), p2, t2.Size())
+ 	// result: x
+ 	for {
+ 		t1 := v.Type
+@@ -13635,14 +13635,14 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
+ 		t3 := auxToType(v_1_2.Aux)
+ 		x := v_1_2.Args[1]
+ 		p3 := v_1_2.Args[0]
+-		if !(isSamePtr(p1, p3) && t1.Compare(x.Type) == types.CMPeq && t1.Size() == t2.Size() && disjoint(p3, t3.Size(), p2, t2.Size())) {
++		if !(isSamePtr(p1, p3) && copyCompatibleType(t1, x.Type) && t1.Size() == t3.Size() && disjoint(p3, t3.Size(), p2, t2.Size())) {
+ 			break
+ 		}
+ 		v.copyOf(x)
+ 		return true
+ 	}
+ 	// match: (Load <t1> p1 (Store {t2} p2 _ (Store {t3} p3 _ (Store {t4} p4 x _))))
+-	// cond: isSamePtr(p1, p4) && t1.Compare(x.Type) == types.CMPeq && t1.Size() == t2.Size() && disjoint(p4, t4.Size(), p2, t2.Size()) && disjoint(p4, t4.Size(), p3, t3.Size())
++	// cond: isSamePtr(p1, p4) && copyCompatibleType(t1, x.Type) && t1.Size() == t4.Size() && disjoint(p4, t4.Size(), p2, t2.Size()) && disjoint(p4, t4.Size(), p3, t3.Size())
+ 	// result: x
+ 	for {
+ 		t1 := v.Type
+@@ -13667,14 +13667,14 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
+ 		t4 := auxToType(v_1_2_2.Aux)
+ 		x := v_1_2_2.Args[1]
+ 		p4 := v_1_2_2.Args[0]
+-		if !(isSamePtr(p1, p4) && t1.Compare(x.Type) == types.CMPeq && t1.Size() == t2.Size() && disjoint(p4, t4.Size(), p2, t2.Size()) && disjoint(p4, t4.Size(), p3, t3.Size())) {
++		if !(isSamePtr(p1, p4) && copyCompatibleType(t1, x.Type) && t1.Size() == t4.Size() && disjoint(p4, t4.Size(), p2, t2.Size()) && disjoint(p4, t4.Size(), p3, t3.Size())) {
+ 			break
+ 		}
+ 		v.copyOf(x)
+ 		return true
+ 	}
+ 	// match: (Load <t1> p1 (Store {t2} p2 _ (Store {t3} p3 _ (Store {t4} p4 _ (Store {t5} p5 x _)))))
+-	// cond: isSamePtr(p1, p5) && t1.Compare(x.Type) == types.CMPeq && t1.Size() == t2.Size() && disjoint(p5, t5.Size(), p2, t2.Size()) && disjoint(p5, t5.Size(), p3, t3.Size()) && disjoint(p5, t5.Size(), p4, t4.Size())
++	// cond: isSamePtr(p1, p5) && copyCompatibleType(t1, x.Type) && t1.Size() == t5.Size() && disjoint(p5, t5.Size(), p2, t2.Size()) && disjoint(p5, t5.Size(), p3, t3.Size()) && disjoint(p5, t5.Size(), p4, t4.Size())
+ 	// result: x
+ 	for {
+ 		t1 := v.Type
+@@ -13706,7 +13706,7 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
+ 		t5 := auxToType(v_1_2_2_2.Aux)
+ 		x := v_1_2_2_2.Args[1]
+ 		p5 := v_1_2_2_2.Args[0]
+-		if !(isSamePtr(p1, p5) && t1.Compare(x.Type) == types.CMPeq && t1.Size() == t2.Size() && disjoint(p5, t5.Size(), p2, t2.Size()) && disjoint(p5, t5.Size(), p3, t3.Size()) && disjoint(p5, t5.Size(), p4, t4.Size())) {
++		if !(isSamePtr(p1, p5) && copyCompatibleType(t1, x.Type) && t1.Size() == t5.Size() && disjoint(p5, t5.Size(), p2, t2.Size()) && disjoint(p5, t5.Size(), p3, t3.Size()) && disjoint(p5, t5.Size(), p4, t4.Size())) {
+ 			break
+ 		}
+ 		v.copyOf(x)
+diff --git a/test/codegen/stack.go b/test/codegen/stack.go
+index 65c9868d67..4e45d68f38 100644
+--- a/test/codegen/stack.go
++++ b/test/codegen/stack.go
+@@ -6,7 +6,10 @@
+ 
+ package codegen
+ 
+-import "runtime"
++import (
++	"runtime"
++	"unsafe"
++)
+ 
+ // This file contains code generation tests related to the use of the
+ // stack.
+@@ -128,6 +131,29 @@ func spillSlotReuse() {
+ 	getp2()[nopInt()] = 0
+ }
+ 
++// Check that no stack frame space is needed for simple slice initialization with underlying structure.
++type mySlice struct {
++	array unsafe.Pointer
++	len   int
++	cap   int
++}
++
++// amd64:"TEXT\t.*, [$]0-"
++func sliceInit(base uintptr) []uintptr {
++	const ptrSize = 8
++	size := uintptr(4096)
++	bitmapSize := size / ptrSize / 8
++	elements := int(bitmapSize / ptrSize)
++	var sl mySlice
++	sl = mySlice{
++		unsafe.Pointer(base + size - bitmapSize),
++		elements,
++		elements,
++	}
++	// amd64:-"POPQ",-"SP"
++	return *(*[]uintptr)(unsafe.Pointer(&sl))
++}
++
+ //go:noinline
+ func nopInt() int {
+ 	return 0

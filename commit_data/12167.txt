@@ -7,6 +7,35 @@ Date:   Wed Feb 22 23:51:25 2012 -0800
     R=rsc, r, r, adg
     CC=golang-dev
     https://golang.org/cl/5688074
-
+---
  doc/go_spec.html | 11 ++++++++++-
  1 file changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 6cc1b2c3d0..797e4038f0 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1,6 +1,6 @@
+ <!--{
+ 	"Title": "The Go Programming Language Specification",
+-	"Subtitle": "Version of February 22, 2012"
++	"Subtitle": "Version of February 23, 2012"
+ }-->
+ 
+ <!--
+@@ -5096,6 +5096,15 @@ it is typically a substring of the full file name of the compiled
+ package and may be relative to a repository of installed packages.
+ </p>
+ 
++<p>
++Implementation restriction: A compiler may restrict ImportPaths to
++non-empty strings using only characters belonging to
++<a href="http://www.unicode.org/versions/Unicode6.0.0/">Unicode's</a>
++L, M, N, P, and S general categories (the Graphic characters without
++spaces) and may also exclude the ASCII characters
++<code>!"#$%&amp;'()*,:;&lt;=&gt;?[\]^`{|}</code>.
++</p>
++
+ <p>
+ Assume we have compiled a package containing the package clause
+ <code>package math</code>, which exports function <code>Sin</code>, and

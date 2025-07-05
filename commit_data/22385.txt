@@ -10,9 +10,95 @@ Date:   Tue Mar 10 20:38:32 2015 +0300
     Change-Id: I93fea75d3072cf68de66110d0b59d07101badcb5
     Reviewed-on: https://go-review.googlesource.com/7302
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/trace/trace.go          | 9 ++++++++-
  src/internal/trace/parser.go    | 4 ++--
  src/runtime/pprof/trace_test.go | 3 ++-
  src/runtime/trace.go            | 4 ++--
  4 files changed, 14 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/trace/trace.go b/src/cmd/trace/trace.go
+index 41a56b92bb..a572ed8f28 100644
+--- a/src/cmd/trace/trace.go
++++ b/src/cmd/trace/trace.go
+@@ -391,7 +391,14 @@ func (ctx *traceContext) emitThreadCounters(ev *trace.Event) {
+ }
+ 
+ func (ctx *traceContext) emitInstant(ev *trace.Event, name string) {
+-	ctx.emit(&ViewerEvent{Name: name, Phase: "I", Scope: "t", Time: ctx.time(ev), Tid: ctx.proc(ev), Stack: ctx.stack(ev.Stk)})
++	var arg interface{}
++	if ev.Type == trace.EvProcStart {
++		type Arg struct {
++			ThreadID uint64
++		}
++		arg = &Arg{ev.Args[0]}
++	}
++	ctx.emit(&ViewerEvent{Name: name, Phase: "I", Scope: "t", Time: ctx.time(ev), Tid: ctx.proc(ev), Stack: ctx.stack(ev.Stk), Arg: arg})
+ }
+ 
+ func (ctx *traceContext) emitArrow(ev *trace.Event, name string) {
+diff --git a/src/internal/trace/parser.go b/src/internal/trace/parser.go
+index 4e5f534d4c..44a2e66cfe 100644
+--- a/src/internal/trace/parser.go
++++ b/src/internal/trace/parser.go
+@@ -584,7 +584,7 @@ const (
+ 	EvFrequency      = 2  // contains tracer timer frequency [frequency (ticks per second)]
+ 	EvStack          = 3  // stack [stack id, number of PCs, array of PCs]
+ 	EvGomaxprocs     = 4  // current value of GOMAXPROCS [timestamp, GOMAXPROCS, stack id]
+-	EvProcStart      = 5  // start of P [timestamp]
++	EvProcStart      = 5  // start of P [timestamp, thread id]
+ 	EvProcStop       = 6  // stop of P [timestamp]
+ 	EvGCStart        = 7  // GC start [timestamp, stack id]
+ 	EvGCDone         = 8  // GC done [timestamp]
+@@ -628,7 +628,7 @@ var EventDescriptions = [EvCount]struct {
+ 	EvFrequency:      {"Frequency", false, []string{"freq"}},
+ 	EvStack:          {"Stack", false, []string{"id", "siz"}},
+ 	EvGomaxprocs:     {"Gomaxprocs", true, []string{"procs"}},
+-	EvProcStart:      {"ProcStart", false, []string{}},
++	EvProcStart:      {"ProcStart", false, []string{"thread"}},
+ 	EvProcStop:       {"ProcStop", false, []string{}},
+ 	EvGCStart:        {"GCStart", true, []string{}},
+ 	EvGCDone:         {"GCDone", false, []string{}},
+diff --git a/src/runtime/pprof/trace_test.go b/src/runtime/pprof/trace_test.go
+index efec9a6ba2..c57f4b8db1 100644
+--- a/src/runtime/pprof/trace_test.go
++++ b/src/runtime/pprof/trace_test.go
+@@ -101,7 +101,7 @@ func TestTraceStress(t *testing.T) {
+ 		<-done
+ 		wg.Done()
+ 	}()
+-	time.Sleep(time.Millisecond)
++	time.Sleep(time.Millisecond) // give the goroutine above time to block
+ 
+ 	buf := new(bytes.Buffer)
+ 	if err := StartTrace(buf); err != nil {
+@@ -109,6 +109,7 @@ func TestTraceStress(t *testing.T) {
+ 	}
+ 
+ 	procs := runtime.GOMAXPROCS(10)
++	time.Sleep(50 * time.Millisecond) // test proc stop/start events
+ 
+ 	go func() {
+ 		runtime.LockOSThread()
+diff --git a/src/runtime/trace.go b/src/runtime/trace.go
+index ea35343552..eb3ceb2f38 100644
+--- a/src/runtime/trace.go
++++ b/src/runtime/trace.go
+@@ -21,7 +21,7 @@ const (
+ 	traceEvFrequency      = 2  // contains tracer timer frequency [frequency (ticks per second)]
+ 	traceEvStack          = 3  // stack [stack id, number of PCs, array of PCs]
+ 	traceEvGomaxprocs     = 4  // current value of GOMAXPROCS [timestamp, GOMAXPROCS, stack id]
+-	traceEvProcStart      = 5  // start of P [timestamp]
++	traceEvProcStart      = 5  // start of P [timestamp, thread id]
+ 	traceEvProcStop       = 6  // stop of P [timestamp]
+ 	traceEvGCStart        = 7  // GC start [timestamp, stack id]
+ 	traceEvGCDone         = 8  // GC done [timestamp]
+@@ -716,7 +716,7 @@ func traceGomaxprocs(procs int32) {
+ }
+ 
+ func traceProcStart() {
+-	traceEvent(traceEvProcStart, -1)
++	traceEvent(traceEvProcStart, -1, uint64(getg().m.id))
+ }
+ 
+ func traceProcStop(pp *p) {

@@ -13,7 +13,7 @@ Date:   Mon May 22 10:32:31 2023 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  .../overlaydir_test.go => cgotest/overlaydir.go}   |  9 +--
  src/cmd/cgo/internal/testcarchive/carchive_test.go |  3 +-
  .../cgo/internal/testcarchive/overlaydir_test.go   | 78 ----------------------
@@ -29,3 +29,694 @@ Date:   Mon May 22 10:32:31 2023 -0400
  src/cmd/cgo/internal/teststdio/overlaydir_test.go  | 78 ----------------------
  src/cmd/cgo/internal/teststdio/stdio_test.go       |  3 +-
  14 files changed, 18 insertions(+), 482 deletions(-)
+
+diff --git a/src/cmd/cgo/internal/testso/overlaydir_test.go b/src/cmd/cgo/internal/cgotest/overlaydir.go
+similarity index 85%
+rename from src/cmd/cgo/internal/testso/overlaydir_test.go
+rename to src/cmd/cgo/internal/cgotest/overlaydir.go
+index 09a1d512f1..c6b161545d 100644
+--- a/src/cmd/cgo/internal/testso/overlaydir_test.go
++++ b/src/cmd/cgo/internal/cgotest/overlaydir.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package so_test
++package cgotest
+ 
+ import (
+ 	"io"
+@@ -11,11 +11,8 @@ import (
+ 	"strings"
+ )
+ 
+-// overlayDir makes a minimal-overhead copy of srcRoot in which new files may be added.
+-//
+-// TODO: Once we no longer need to support the misc module in GOPATH mode,
+-// factor this function out into a package to reduce duplication.
+-func overlayDir(dstRoot, srcRoot string) error {
++// OverlayDir makes a minimal-overhead copy of srcRoot in which new files may be added.
++func OverlayDir(dstRoot, srcRoot string) error {
+ 	dstRoot = filepath.Clean(dstRoot)
+ 	if err := os.MkdirAll(dstRoot, 0777); err != nil {
+ 		return err
+diff --git a/src/cmd/cgo/internal/testcarchive/carchive_test.go b/src/cmd/cgo/internal/testcarchive/carchive_test.go
+index cdb90fd130..ef59101b1c 100644
+--- a/src/cmd/cgo/internal/testcarchive/carchive_test.go
++++ b/src/cmd/cgo/internal/testcarchive/carchive_test.go
+@@ -12,6 +12,7 @@ package carchive_test
+ import (
+ 	"bufio"
+ 	"bytes"
++	"cmd/cgo/internal/cgotest"
+ 	"debug/elf"
+ 	"flag"
+ 	"fmt"
+@@ -82,7 +83,7 @@ func testMain(m *testing.M) int {
+ 	// Copy testdata into GOPATH/src/testarchive, along with a go.mod file
+ 	// declaring the same path.
+ 	modRoot := filepath.Join(GOPATH, "src", "testcarchive")
+-	if err := overlayDir(modRoot, "testdata"); err != nil {
++	if err := cgotest.OverlayDir(modRoot, "testdata"); err != nil {
+ 		log.Panic(err)
+ 	}
+ 	if err := os.Chdir(modRoot); err != nil {
+diff --git a/src/cmd/cgo/internal/testcarchive/overlaydir_test.go b/src/cmd/cgo/internal/testcarchive/overlaydir_test.go
+deleted file mode 100644
+index 67974c5ed8..0000000000
+--- a/src/cmd/cgo/internal/testcarchive/overlaydir_test.go
++++ /dev/null
+@@ -1,78 +0,0 @@
+-// Copyright 2019 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package carchive_test
+-
+-import (
+-	"io"
+-	"os"
+-	"path/filepath"
+-	"strings"
+-)
+-
+-// overlayDir makes a minimal-overhead copy of srcRoot in which new files may be added.
+-//
+-// TODO: Once we no longer need to support the misc module in GOPATH mode,
+-// factor this function out into a package to reduce duplication.
+-func overlayDir(dstRoot, srcRoot string) error {
+-	dstRoot = filepath.Clean(dstRoot)
+-	if err := os.MkdirAll(dstRoot, 0777); err != nil {
+-		return err
+-	}
+-
+-	srcRoot, err := filepath.Abs(srcRoot)
+-	if err != nil {
+-		return err
+-	}
+-
+-	return filepath.Walk(srcRoot, func(srcPath string, info os.FileInfo, err error) error {
+-		if err != nil || srcPath == srcRoot {
+-			return err
+-		}
+-
+-		suffix := strings.TrimPrefix(srcPath, srcRoot)
+-		for len(suffix) > 0 && suffix[0] == filepath.Separator {
+-			suffix = suffix[1:]
+-		}
+-		dstPath := filepath.Join(dstRoot, suffix)
+-
+-		perm := info.Mode() & os.ModePerm
+-		if info.Mode()&os.ModeSymlink != 0 {
+-			info, err = os.Stat(srcPath)
+-			if err != nil {
+-				return err
+-			}
+-			perm = info.Mode() & os.ModePerm
+-		}
+-
+-		// Always copy directories (don't symlink them).
+-		// If we add a file in the overlay, we don't want to add it in the original.
+-		if info.IsDir() {
+-			return os.MkdirAll(dstPath, perm|0200)
+-		}
+-
+-		// If the OS supports symlinks, use them instead of copying bytes.
+-		if err := os.Symlink(srcPath, dstPath); err == nil {
+-			return nil
+-		}
+-
+-		// Otherwise, copy the bytes.
+-		src, err := os.Open(srcPath)
+-		if err != nil {
+-			return err
+-		}
+-		defer src.Close()
+-
+-		dst, err := os.OpenFile(dstPath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, perm)
+-		if err != nil {
+-			return err
+-		}
+-
+-		_, err = io.Copy(dst, src)
+-		if closeErr := dst.Close(); err == nil {
+-			err = closeErr
+-		}
+-		return err
+-	})
+-}
+diff --git a/src/cmd/cgo/internal/testcshared/cshared_test.go b/src/cmd/cgo/internal/testcshared/cshared_test.go
+index d1d79b72b0..0f98f2c1dc 100644
+--- a/src/cmd/cgo/internal/testcshared/cshared_test.go
++++ b/src/cmd/cgo/internal/testcshared/cshared_test.go
+@@ -7,6 +7,7 @@ package cshared_test
+ import (
+ 	"bufio"
+ 	"bytes"
++	"cmd/cgo/internal/cgotest"
+ 	"debug/elf"
+ 	"debug/pe"
+ 	"encoding/binary"
+@@ -137,7 +138,7 @@ func testMain(m *testing.M) int {
+ 	os.Setenv("GOPATH", GOPATH)
+ 
+ 	modRoot := filepath.Join(GOPATH, "src", "testcshared")
+-	if err := overlayDir(modRoot, "testdata"); err != nil {
++	if err := cgotest.OverlayDir(modRoot, "testdata"); err != nil {
+ 		log.Panic(err)
+ 	}
+ 	if err := os.Chdir(modRoot); err != nil {
+diff --git a/src/cmd/cgo/internal/testcshared/overlaydir_test.go b/src/cmd/cgo/internal/testcshared/overlaydir_test.go
+deleted file mode 100644
+index 85d6b44eef..0000000000
+--- a/src/cmd/cgo/internal/testcshared/overlaydir_test.go
++++ /dev/null
+@@ -1,78 +0,0 @@
+-// Copyright 2019 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package cshared_test
+-
+-import (
+-	"io"
+-	"os"
+-	"path/filepath"
+-	"strings"
+-)
+-
+-// overlayDir makes a minimal-overhead copy of srcRoot in which new files may be added.
+-//
+-// TODO: Once we no longer need to support the misc module in GOPATH mode,
+-// factor this function out into a package to reduce duplication.
+-func overlayDir(dstRoot, srcRoot string) error {
+-	dstRoot = filepath.Clean(dstRoot)
+-	if err := os.MkdirAll(dstRoot, 0777); err != nil {
+-		return err
+-	}
+-
+-	srcRoot, err := filepath.Abs(srcRoot)
+-	if err != nil {
+-		return err
+-	}
+-
+-	return filepath.Walk(srcRoot, func(srcPath string, info os.FileInfo, err error) error {
+-		if err != nil || srcPath == srcRoot {
+-			return err
+-		}
+-
+-		suffix := strings.TrimPrefix(srcPath, srcRoot)
+-		for len(suffix) > 0 && suffix[0] == filepath.Separator {
+-			suffix = suffix[1:]
+-		}
+-		dstPath := filepath.Join(dstRoot, suffix)
+-
+-		perm := info.Mode() & os.ModePerm
+-		if info.Mode()&os.ModeSymlink != 0 {
+-			info, err = os.Stat(srcPath)
+-			if err != nil {
+-				return err
+-			}
+-			perm = info.Mode() & os.ModePerm
+-		}
+-
+-		// Always copy directories (don't symlink them).
+-		// If we add a file in the overlay, we don't want to add it in the original.
+-		if info.IsDir() {
+-			return os.MkdirAll(dstPath, perm|0200)
+-		}
+-
+-		// If the OS supports symlinks, use them instead of copying bytes.
+-		if err := os.Symlink(srcPath, dstPath); err == nil {
+-			return nil
+-		}
+-
+-		// Otherwise, copy the bytes.
+-		src, err := os.Open(srcPath)
+-		if err != nil {
+-			return err
+-		}
+-		defer src.Close()
+-
+-		dst, err := os.OpenFile(dstPath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, perm)
+-		if err != nil {
+-			return err
+-		}
+-
+-		_, err = io.Copy(dst, src)
+-		if closeErr := dst.Close(); err == nil {
+-			err = closeErr
+-		}
+-		return err
+-	})
+-}
+diff --git a/src/cmd/cgo/internal/testlife/life_test.go b/src/cmd/cgo/internal/testlife/life_test.go
+index 7beeaa9823..e93d29c4d9 100644
+--- a/src/cmd/cgo/internal/testlife/life_test.go
++++ b/src/cmd/cgo/internal/testlife/life_test.go
+@@ -6,6 +6,7 @@ package life_test
+ 
+ import (
+ 	"bytes"
++	"cmd/cgo/internal/cgotest"
+ 	"internal/testenv"
+ 	"log"
+ 	"os"
+@@ -30,7 +31,7 @@ func testMain(m *testing.M) int {
+ 	// Copy testdata into GOPATH/src/cgolife, along with a go.mod file
+ 	// declaring the same path.
+ 	modRoot := filepath.Join(GOPATH, "src", "cgolife")
+-	if err := overlayDir(modRoot, "testdata"); err != nil {
++	if err := cgotest.OverlayDir(modRoot, "testdata"); err != nil {
+ 		log.Panic(err)
+ 	}
+ 	if err := os.Chdir(modRoot); err != nil {
+diff --git a/src/cmd/cgo/internal/testlife/overlaydir_test.go b/src/cmd/cgo/internal/testlife/overlaydir_test.go
+deleted file mode 100644
+index 034c836248..0000000000
+--- a/src/cmd/cgo/internal/testlife/overlaydir_test.go
++++ /dev/null
+@@ -1,78 +0,0 @@
+-// Copyright 2019 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package life_test
+-
+-import (
+-	"io"
+-	"os"
+-	"path/filepath"
+-	"strings"
+-)
+-
+-// overlayDir makes a minimal-overhead copy of srcRoot in which new files may be added.
+-//
+-// TODO: Once we no longer need to support the misc module in GOPATH mode,
+-// factor this function out into a package to reduce duplication.
+-func overlayDir(dstRoot, srcRoot string) error {
+-	dstRoot = filepath.Clean(dstRoot)
+-	if err := os.MkdirAll(dstRoot, 0777); err != nil {
+-		return err
+-	}
+-
+-	srcRoot, err := filepath.Abs(srcRoot)
+-	if err != nil {
+-		return err
+-	}
+-
+-	return filepath.Walk(srcRoot, func(srcPath string, info os.FileInfo, err error) error {
+-		if err != nil || srcPath == srcRoot {
+-			return err
+-		}
+-
+-		suffix := strings.TrimPrefix(srcPath, srcRoot)
+-		for len(suffix) > 0 && suffix[0] == filepath.Separator {
+-			suffix = suffix[1:]
+-		}
+-		dstPath := filepath.Join(dstRoot, suffix)
+-
+-		perm := info.Mode() & os.ModePerm
+-		if info.Mode()&os.ModeSymlink != 0 {
+-			info, err = os.Stat(srcPath)
+-			if err != nil {
+-				return err
+-			}
+-			perm = info.Mode() & os.ModePerm
+-		}
+-
+-		// Always copy directories (don't symlink them).
+-		// If we add a file in the overlay, we don't want to add it in the original.
+-		if info.IsDir() {
+-			return os.MkdirAll(dstPath, perm|0200)
+-		}
+-
+-		// If the OS supports symlinks, use them instead of copying bytes.
+-		if err := os.Symlink(srcPath, dstPath); err == nil {
+-			return nil
+-		}
+-
+-		// Otherwise, copy the bytes.
+-		src, err := os.Open(srcPath)
+-		if err != nil {
+-			return err
+-		}
+-		defer src.Close()
+-
+-		dst, err := os.OpenFile(dstPath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, perm)
+-		if err != nil {
+-			return err
+-		}
+-
+-		_, err = io.Copy(dst, src)
+-		if closeErr := dst.Close(); err == nil {
+-			err = closeErr
+-		}
+-		return err
+-	})
+-}
+diff --git a/src/cmd/cgo/internal/testplugin/overlaydir_test.go b/src/cmd/cgo/internal/testplugin/overlaydir_test.go
+deleted file mode 100644
+index e2c32d83ce..0000000000
+--- a/src/cmd/cgo/internal/testplugin/overlaydir_test.go
++++ /dev/null
+@@ -1,78 +0,0 @@
+-// Copyright 2019 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package plugin_test
+-
+-import (
+-	"io"
+-	"os"
+-	"path/filepath"
+-	"strings"
+-)
+-
+-// overlayDir makes a minimal-overhead copy of srcRoot in which new files may be added.
+-//
+-// TODO: Once we no longer need to support the misc module in GOPATH mode,
+-// factor this function out into a package to reduce duplication.
+-func overlayDir(dstRoot, srcRoot string) error {
+-	dstRoot = filepath.Clean(dstRoot)
+-	if err := os.MkdirAll(dstRoot, 0777); err != nil {
+-		return err
+-	}
+-
+-	srcRoot, err := filepath.Abs(srcRoot)
+-	if err != nil {
+-		return err
+-	}
+-
+-	return filepath.Walk(srcRoot, func(srcPath string, info os.FileInfo, err error) error {
+-		if err != nil || srcPath == srcRoot {
+-			return err
+-		}
+-
+-		suffix := strings.TrimPrefix(srcPath, srcRoot)
+-		for len(suffix) > 0 && suffix[0] == filepath.Separator {
+-			suffix = suffix[1:]
+-		}
+-		dstPath := filepath.Join(dstRoot, suffix)
+-
+-		perm := info.Mode() & os.ModePerm
+-		if info.Mode()&os.ModeSymlink != 0 {
+-			info, err = os.Stat(srcPath)
+-			if err != nil {
+-				return err
+-			}
+-			perm = info.Mode() & os.ModePerm
+-		}
+-
+-		// Always copy directories (don't symlink them).
+-		// If we add a file in the overlay, we don't want to add it in the original.
+-		if info.IsDir() {
+-			return os.MkdirAll(dstPath, perm|0200)
+-		}
+-
+-		// If the OS supports symlinks, use them instead of copying bytes.
+-		if err := os.Symlink(srcPath, dstPath); err == nil {
+-			return nil
+-		}
+-
+-		// Otherwise, copy the bytes.
+-		src, err := os.Open(srcPath)
+-		if err != nil {
+-			return err
+-		}
+-		defer src.Close()
+-
+-		dst, err := os.OpenFile(dstPath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, perm)
+-		if err != nil {
+-			return err
+-		}
+-
+-		_, err = io.Copy(dst, src)
+-		if closeErr := dst.Close(); err == nil {
+-			err = closeErr
+-		}
+-		return err
+-	})
+-}
+diff --git a/src/cmd/cgo/internal/testplugin/plugin_test.go b/src/cmd/cgo/internal/testplugin/plugin_test.go
+index e211a96304..4c8e3d7833 100644
+--- a/src/cmd/cgo/internal/testplugin/plugin_test.go
++++ b/src/cmd/cgo/internal/testplugin/plugin_test.go
+@@ -6,6 +6,7 @@ package plugin_test
+ 
+ import (
+ 	"bytes"
++	"cmd/cgo/internal/cgotest"
+ 	"context"
+ 	"flag"
+ 	"fmt"
+@@ -80,7 +81,7 @@ func testMain(m *testing.M) int {
+ 		"testdata":                           modRoot,
+ 		filepath.Join("altpath", "testdata"): altRoot,
+ 	} {
+-		if err := overlayDir(dstRoot, srcRoot); err != nil {
++		if err := cgotest.OverlayDir(dstRoot, srcRoot); err != nil {
+ 			log.Panic(err)
+ 		}
+ 		prettyPrintf("mkdir -p %s\n", dstRoot)
+diff --git a/src/cmd/cgo/internal/testshared/overlaydir_test.go b/src/cmd/cgo/internal/testshared/overlaydir_test.go
+deleted file mode 100644
+index eb587a2d44..0000000000
+--- a/src/cmd/cgo/internal/testshared/overlaydir_test.go
++++ /dev/null
+@@ -1,78 +0,0 @@
+-// Copyright 2019 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package shared_test
+-
+-import (
+-	"io"
+-	"os"
+-	"path/filepath"
+-	"strings"
+-)
+-
+-// overlayDir makes a minimal-overhead copy of srcRoot in which new files may be added.
+-//
+-// TODO: Once we no longer need to support the misc module in GOPATH mode,
+-// factor this function out into a package to reduce duplication.
+-func overlayDir(dstRoot, srcRoot string) error {
+-	dstRoot = filepath.Clean(dstRoot)
+-	if err := os.MkdirAll(dstRoot, 0777); err != nil {
+-		return err
+-	}
+-
+-	srcRoot, err := filepath.Abs(srcRoot)
+-	if err != nil {
+-		return err
+-	}
+-
+-	return filepath.Walk(srcRoot, func(srcPath string, info os.FileInfo, err error) error {
+-		if err != nil || srcPath == srcRoot {
+-			return err
+-		}
+-
+-		suffix := strings.TrimPrefix(srcPath, srcRoot)
+-		for len(suffix) > 0 && suffix[0] == filepath.Separator {
+-			suffix = suffix[1:]
+-		}
+-		dstPath := filepath.Join(dstRoot, suffix)
+-
+-		perm := info.Mode() & os.ModePerm
+-		if info.Mode()&os.ModeSymlink != 0 {
+-			info, err = os.Stat(srcPath)
+-			if err != nil {
+-				return err
+-			}
+-			perm = info.Mode() & os.ModePerm
+-		}
+-
+-		// Always copy directories (don't symlink them).
+-		// If we add a file in the overlay, we don't want to add it in the original.
+-		if info.IsDir() {
+-			return os.MkdirAll(dstPath, perm|0200)
+-		}
+-
+-		// If the OS supports symlinks, use them instead of copying bytes.
+-		if err := os.Symlink(srcPath, dstPath); err == nil {
+-			return nil
+-		}
+-
+-		// Otherwise, copy the bytes.
+-		src, err := os.Open(srcPath)
+-		if err != nil {
+-			return err
+-		}
+-		defer src.Close()
+-
+-		dst, err := os.OpenFile(dstPath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, perm)
+-		if err != nil {
+-			return err
+-		}
+-
+-		_, err = io.Copy(dst, src)
+-		if closeErr := dst.Close(); err == nil {
+-			err = closeErr
+-		}
+-		return err
+-	})
+-}
+diff --git a/src/cmd/cgo/internal/testshared/shared_test.go b/src/cmd/cgo/internal/testshared/shared_test.go
+index 05e87b9d50..6596d88952 100644
+--- a/src/cmd/cgo/internal/testshared/shared_test.go
++++ b/src/cmd/cgo/internal/testshared/shared_test.go
+@@ -7,6 +7,7 @@ package shared_test
+ import (
+ 	"bufio"
+ 	"bytes"
++	"cmd/cgo/internal/cgotest"
+ 	"debug/elf"
+ 	"encoding/binary"
+ 	"flag"
+@@ -203,7 +204,7 @@ func TestMain(m *testing.M) {
+ // It returns the directory within gopath at which the module root is located.
+ func cloneTestdataModule(gopath string) (string, error) {
+ 	modRoot := filepath.Join(gopath, "src", "testshared")
+-	if err := overlayDir(modRoot, "testdata"); err != nil {
++	if err := cgotest.OverlayDir(modRoot, "testdata"); err != nil {
+ 		return "", err
+ 	}
+ 	if err := os.WriteFile(filepath.Join(modRoot, "go.mod"), []byte("module testshared\n"), 0644); err != nil {
+@@ -255,7 +256,7 @@ func cloneGOROOTDeps(goroot string) error {
+ 		if testing.Verbose() {
+ 			fmt.Fprintf(os.Stderr, "+ cp -r %s %s\n", filepath.Join(oldGOROOT, dir), filepath.Join(goroot, dir))
+ 		}
+-		if err := overlayDir(filepath.Join(goroot, dir), filepath.Join(oldGOROOT, dir)); err != nil {
++		if err := cgotest.OverlayDir(filepath.Join(goroot, dir), filepath.Join(oldGOROOT, dir)); err != nil {
+ 			return err
+ 		}
+ 	}
+diff --git a/src/cmd/cgo/internal/testso/so_test.go b/src/cmd/cgo/internal/testso/so_test.go
+index e7fa0cadc3..e011167f38 100644
+--- a/src/cmd/cgo/internal/testso/so_test.go
++++ b/src/cmd/cgo/internal/testso/so_test.go
+@@ -5,6 +5,7 @@
+ package so_test
+ 
+ import (
++	"cmd/cgo/internal/cgotest"
+ 	"internal/testenv"
+ 	"log"
+ 	"os"
+@@ -38,7 +39,7 @@ func testSO(t *testing.T, dir string) {
+ 	defer os.RemoveAll(GOPATH)
+ 
+ 	modRoot := filepath.Join(GOPATH, "src", "cgosotest")
+-	if err := overlayDir(modRoot, filepath.Join("testdata", dir)); err != nil {
++	if err := cgotest.OverlayDir(modRoot, filepath.Join("testdata", dir)); err != nil {
+ 		log.Panic(err)
+ 	}
+ 	if err := os.WriteFile(filepath.Join(modRoot, "go.mod"), []byte("module cgosotest\n"), 0666); err != nil {
+diff --git a/src/cmd/cgo/internal/teststdio/overlaydir_test.go b/src/cmd/cgo/internal/teststdio/overlaydir_test.go
+deleted file mode 100644
+index 027ebf17c3..0000000000
+--- a/src/cmd/cgo/internal/teststdio/overlaydir_test.go
++++ /dev/null
+@@ -1,78 +0,0 @@
+-// Copyright 2019 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package stdio_test
+-
+-import (
+-	"io"
+-	"os"
+-	"path/filepath"
+-	"strings"
+-)
+-
+-// overlayDir makes a minimal-overhead copy of srcRoot in which new files may be added.
+-//
+-// TODO: Once we no longer need to support the misc module in GOPATH mode,
+-// factor this function out into a package to reduce duplication.
+-func overlayDir(dstRoot, srcRoot string) error {
+-	dstRoot = filepath.Clean(dstRoot)
+-	if err := os.MkdirAll(dstRoot, 0777); err != nil {
+-		return err
+-	}
+-
+-	srcRoot, err := filepath.Abs(srcRoot)
+-	if err != nil {
+-		return err
+-	}
+-
+-	return filepath.Walk(srcRoot, func(srcPath string, info os.FileInfo, err error) error {
+-		if err != nil || srcPath == srcRoot {
+-			return err
+-		}
+-
+-		suffix := strings.TrimPrefix(srcPath, srcRoot)
+-		for len(suffix) > 0 && suffix[0] == filepath.Separator {
+-			suffix = suffix[1:]
+-		}
+-		dstPath := filepath.Join(dstRoot, suffix)
+-
+-		perm := info.Mode() & os.ModePerm
+-		if info.Mode()&os.ModeSymlink != 0 {
+-			info, err = os.Stat(srcPath)
+-			if err != nil {
+-				return err
+-			}
+-			perm = info.Mode() & os.ModePerm
+-		}
+-
+-		// Always copy directories (don't symlink them).
+-		// If we add a file in the overlay, we don't want to add it in the original.
+-		if info.IsDir() {
+-			return os.MkdirAll(dstPath, perm|0200)
+-		}
+-
+-		// If the OS supports symlinks, use them instead of copying bytes.
+-		if err := os.Symlink(srcPath, dstPath); err == nil {
+-			return nil
+-		}
+-
+-		// Otherwise, copy the bytes.
+-		src, err := os.Open(srcPath)
+-		if err != nil {
+-			return err
+-		}
+-		defer src.Close()
+-
+-		dst, err := os.OpenFile(dstPath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, perm)
+-		if err != nil {
+-			return err
+-		}
+-
+-		_, err = io.Copy(dst, src)
+-		if closeErr := dst.Close(); err == nil {
+-			err = closeErr
+-		}
+-		return err
+-	})
+-}
+diff --git a/src/cmd/cgo/internal/teststdio/stdio_test.go b/src/cmd/cgo/internal/teststdio/stdio_test.go
+index f191c50a42..3883422d6f 100644
+--- a/src/cmd/cgo/internal/teststdio/stdio_test.go
++++ b/src/cmd/cgo/internal/teststdio/stdio_test.go
+@@ -6,6 +6,7 @@ package stdio_test
+ 
+ import (
+ 	"bytes"
++	"cmd/cgo/internal/cgotest"
+ 	"internal/testenv"
+ 	"log"
+ 	"os"
+@@ -31,7 +32,7 @@ func testMain(m *testing.M) int {
+ 	// Copy testdata into GOPATH/src/cgostdio, along with a go.mod file
+ 	// declaring the same path.
+ 	modRoot := filepath.Join(GOPATH, "src", "cgostdio")
+-	if err := overlayDir(modRoot, "testdata"); err != nil {
++	if err := cgotest.OverlayDir(modRoot, "testdata"); err != nil {
+ 		log.Panic(err)
+ 	}
+ 	if err := os.Chdir(modRoot); err != nil {

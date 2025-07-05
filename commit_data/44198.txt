@@ -8,10 +8,212 @@ Date:   Thu May 21 16:12:44 2020 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/234883
     Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/link/internal/amd64/asm.go | 19 ++-----------------
  src/cmd/link/internal/arm64/asm.go | 15 ++-------------
  src/cmd/link/internal/ld/asmb.go   | 22 ++++++++++++++++++++++
  src/cmd/link/internal/ld/main.go   |  4 +++-
  src/cmd/link/internal/x86/asm.go   | 16 ++--------------
  5 files changed, 31 insertions(+), 45 deletions(-)
+
+diff --git a/src/cmd/link/internal/amd64/asm.go b/src/cmd/link/internal/amd64/asm.go
+index 43601563e1..f414b8d914 100644
+--- a/src/cmd/link/internal/amd64/asm.go
++++ b/src/cmd/link/internal/amd64/asm.go
+@@ -680,9 +680,8 @@ func addgotsym(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
+ }
+ 
+ func asmb2(ctxt *ld.Link, _ *loader.Loader) {
+-	machlink := int64(0)
+-	if ctxt.HeadType == objabi.Hdarwin {
+-		machlink = ld.Domacholink(ctxt)
++	if ctxt.IsDarwin() {
++		panic("darwin should be generic")
+ 	}
+ 
+ 	switch ctxt.HeadType {
+@@ -693,9 +692,6 @@ func asmb2(ctxt *ld.Link, _ *loader.Loader) {
+ 	case objabi.Hplan9:
+ 		break
+ 
+-	case objabi.Hdarwin:
+-		ld.Flag8 = true /* 64-bit addresses */
+-
+ 	case objabi.Hlinux,
+ 		objabi.Hfreebsd,
+ 		objabi.Hnetbsd,
+@@ -719,9 +715,6 @@ func asmb2(ctxt *ld.Link, _ *loader.Loader) {
+ 			*ld.FlagS = true
+ 			symo = int64(ld.Segdata.Fileoff + ld.Segdata.Filelen)
+ 
+-		case objabi.Hdarwin:
+-			symo = int64(ld.Segdwarf.Fileoff + uint64(ld.Rnd(int64(ld.Segdwarf.Filelen), int64(*ld.FlagRound))) + uint64(machlink))
+-
+ 		case objabi.Hlinux,
+ 			objabi.Hfreebsd,
+ 			objabi.Hnetbsd,
+@@ -754,11 +747,6 @@ func asmb2(ctxt *ld.Link, _ *loader.Loader) {
+ 
+ 		case objabi.Hwindows:
+ 			// Do nothing
+-
+-		case objabi.Hdarwin:
+-			if ctxt.LinkMode == ld.LinkExternal {
+-				ld.Machoemitreloc(ctxt)
+-			}
+ 		}
+ 	}
+ 
+@@ -769,9 +757,6 @@ func asmb2(ctxt *ld.Link, _ *loader.Loader) {
+ 		magic := uint32(4*26*26 + 7)
+ 		ld.WritePlan9Header(ctxt.Out, magic, ld.Entryvalue(ctxt), true)
+ 
+-	case objabi.Hdarwin:
+-		ld.Asmbmacho(ctxt)
+-
+ 	case objabi.Hlinux,
+ 		objabi.Hfreebsd,
+ 		objabi.Hnetbsd,
+diff --git a/src/cmd/link/internal/arm64/asm.go b/src/cmd/link/internal/arm64/asm.go
+index 1822d29f28..b919e5e88e 100644
+--- a/src/cmd/link/internal/arm64/asm.go
++++ b/src/cmd/link/internal/arm64/asm.go
+@@ -797,9 +797,8 @@ func addgotsym(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
+ }
+ 
+ func asmb2(ctxt *ld.Link, _ *loader.Loader) {
+-	machlink := uint32(0)
+-	if ctxt.HeadType == objabi.Hdarwin {
+-		machlink = uint32(ld.Domacholink(ctxt))
++	if ctxt.IsDarwin() {
++		panic("darwin should be generic")
+ 	}
+ 
+ 	/* output symbol table */
+@@ -816,8 +815,6 @@ func asmb2(ctxt *ld.Link, _ *loader.Loader) {
+ 				symo = uint32(ld.Rnd(int64(symo), int64(*ld.FlagRound)))
+ 			}
+ 
+-		case objabi.Hdarwin:
+-			symo = uint32(ld.Segdwarf.Fileoff + uint64(ld.Rnd(int64(ld.Segdwarf.Filelen), int64(*ld.FlagRound))) + uint64(machlink))
+ 		}
+ 
+ 		ctxt.Out.SeekSet(int64(symo))
+@@ -831,11 +828,6 @@ func asmb2(ctxt *ld.Link, _ *loader.Loader) {
+ 					ld.Elfemitreloc(ctxt)
+ 				}
+ 			}
+-
+-		case objabi.Hdarwin:
+-			if ctxt.LinkMode == ld.LinkExternal {
+-				ld.Machoemitreloc(ctxt)
+-			}
+ 		}
+ 	}
+ 
+@@ -847,9 +839,6 @@ func asmb2(ctxt *ld.Link, _ *loader.Loader) {
+ 		objabi.Hnetbsd,
+ 		objabi.Hopenbsd:
+ 		ld.Asmbelf(ctxt, int64(symo))
+-
+-	case objabi.Hdarwin:
+-		ld.Asmbmacho(ctxt)
+ 	}
+ 
+ 	if *ld.FlagC {
+diff --git a/src/cmd/link/internal/ld/asmb.go b/src/cmd/link/internal/ld/asmb.go
+index 6d553e8ccb..888d453d7b 100644
+--- a/src/cmd/link/internal/ld/asmb.go
++++ b/src/cmd/link/internal/ld/asmb.go
+@@ -69,6 +69,28 @@ func asmb(ctxt *Link, ldr *loader.Loader) {
+ 	wg.Wait()
+ }
+ 
++// Assembling the binary is broken into two steps:
++//  - writing out the code/data/dwarf Segments
++//  - writing out the architecture specific pieces.
++// This function handles the second part.
++func asmb2(ctxt *Link) bool {
++	if ctxt.IsDarwin() {
++		machlink := Domacholink(ctxt)
++		Symsize = 0
++		Spsize = 0
++		Lcsize = 0
++		if !*FlagS && ctxt.IsExternal() {
++			symo := int64(Segdwarf.Fileoff + uint64(Rnd(int64(Segdwarf.Filelen), int64(*FlagRound))) + uint64(machlink))
++			ctxt.Out.SeekSet(symo)
++			Machoemitreloc(ctxt)
++		}
++		ctxt.Out.SeekSet(0)
++		Asmbmacho(ctxt)
++		return true
++	}
++	return false
++}
++
+ // WritePlan9Header writes out the plan9 header at the present position in the OutBuf.
+ func WritePlan9Header(buf *OutBuf, magic uint32, entry int64, is64Bit bool) {
+ 	if is64Bit {
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index ee5cc19bad..17c7821d70 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -321,7 +321,9 @@ func Main(arch *sys.Arch, theArch Arch) {
+ 	bench.Start("reloc")
+ 	ctxt.reloc()
+ 	bench.Start("Asmb2")
+-	thearch.Asmb2(ctxt, ctxt.loader)
++	if !asmb2(ctxt) {
++		thearch.Asmb2(ctxt, ctxt.loader)
++	}
+ 
+ 	bench.Start("Munmap")
+ 	ctxt.Out.Close() // Close handles Munmapping if necessary.
+diff --git a/src/cmd/link/internal/x86/asm.go b/src/cmd/link/internal/x86/asm.go
+index 6e2d18f518..a3b40f5a06 100644
+--- a/src/cmd/link/internal/x86/asm.go
++++ b/src/cmd/link/internal/x86/asm.go
+@@ -511,9 +511,8 @@ func addgotsym(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
+ }
+ 
+ func asmb2(ctxt *ld.Link, _ *loader.Loader) {
+-	machlink := uint32(0)
+-	if ctxt.HeadType == objabi.Hdarwin {
+-		machlink = uint32(ld.Domacholink(ctxt))
++	if ctxt.IsDarwin() {
++		panic("darwin should be generic")
+ 	}
+ 
+ 	ld.Symsize = 0
+@@ -532,9 +531,6 @@ func asmb2(ctxt *ld.Link, _ *loader.Loader) {
+ 		case objabi.Hplan9:
+ 			symo = uint32(ld.Segdata.Fileoff + ld.Segdata.Filelen)
+ 
+-		case objabi.Hdarwin:
+-			symo = uint32(ld.Segdwarf.Fileoff + uint64(ld.Rnd(int64(ld.Segdwarf.Filelen), int64(*ld.FlagRound))) + uint64(machlink))
+-
+ 		case objabi.Hwindows:
+ 			symo = uint32(ld.Segdwarf.Fileoff + ld.Segdwarf.Filelen)
+ 			symo = uint32(ld.Rnd(int64(symo), ld.PEFILEALIGN))
+@@ -557,11 +553,6 @@ func asmb2(ctxt *ld.Link, _ *loader.Loader) {
+ 
+ 		case objabi.Hwindows:
+ 			// Do nothing
+-
+-		case objabi.Hdarwin:
+-			if ctxt.LinkMode == ld.LinkExternal {
+-				ld.Machoemitreloc(ctxt)
+-			}
+ 		}
+ 	}
+ 
+@@ -572,9 +563,6 @@ func asmb2(ctxt *ld.Link, _ *loader.Loader) {
+ 		magic := uint32(4*11*11 + 7)
+ 		ld.WritePlan9Header(ctxt.Out, magic, ld.Entryvalue(ctxt), false)
+ 
+-	case objabi.Hdarwin:
+-		ld.Asmbmacho(ctxt)
+-
+ 	case objabi.Hlinux,
+ 		objabi.Hfreebsd,
+ 		objabi.Hnetbsd,

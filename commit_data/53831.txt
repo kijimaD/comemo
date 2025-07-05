@@ -18,10 +18,170 @@ Date:   Wed Apr 13 21:14:22 2022 +0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/export_test.go |  5 +----
  src/runtime/mfinal.go      | 49 ++++++++++++++++++++++++++--------------------
  src/runtime/mprof.go       |  2 +-
  src/runtime/proc.go        |  2 +-
  src/runtime/traceback.go   |  2 +-
  5 files changed, 32 insertions(+), 28 deletions(-)
+
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index 77e4279b9d..c29d64a885 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -1264,10 +1264,7 @@ func SetIntArgRegs(a int) int {
+ }
+ 
+ func FinalizerGAsleep() bool {
+-	lock(&finlock)
+-	result := fingwait
+-	unlock(&finlock)
+-	return result
++	return fingStatus.Load()&fingWait != 0
+ }
+ 
+ // For GCTestMoveStackOnNextCall, it's important not to introduce an
+diff --git a/src/runtime/mfinal.go b/src/runtime/mfinal.go
+index 9de364c260..ef11b7df96 100644
+--- a/src/runtime/mfinal.go
++++ b/src/runtime/mfinal.go
+@@ -29,13 +29,23 @@ type finblock struct {
+ 	fin     [(_FinBlockSize - 2*goarch.PtrSize - 2*4) / unsafe.Sizeof(finalizer{})]finalizer
+ }
+ 
++var fingStatus atomic.Uint32
++
++// finalizer goroutine status.
++const (
++	fingUninitialized uint32 = iota
++	fingCreated       uint32 = 1 << (iota - 1)
++	fingRunningFinalizer
++	fingWait
++	fingWake
++)
++
+ var finlock mutex  // protects the following variables
+ var fing *g        // goroutine that runs finalizers
+ var finq *finblock // list of finalizers that are to be executed
+ var finc *finblock // cache of free blocks
+ var finptrmask [_FinBlockSize / goarch.PtrSize / 8]byte
+-var fingwait bool
+-var fingwake bool
++
+ var allfin *finblock // list of all blocks
+ 
+ // NOTE: Layout known to queuefinalizer.
+@@ -126,8 +136,8 @@ func queuefinalizer(p unsafe.Pointer, fn *funcval, nret uintptr, fint *_type, ot
+ 	f.fint = fint
+ 	f.ot = ot
+ 	f.arg = p
+-	fingwake = true
+ 	unlock(&finlock)
++	fingStatus.Or(fingWake)
+ }
+ 
+ //go:nowritebarrier
+@@ -141,29 +151,27 @@ func iterate_finq(callback func(*funcval, unsafe.Pointer, uintptr, *_type, *ptrt
+ }
+ 
+ func wakefing() *g {
+-	var res *g
+-	lock(&finlock)
+-	if fingwait && fingwake {
+-		fingwait = false
+-		fingwake = false
+-		res = fing
++	if ok := fingStatus.CompareAndSwap(fingCreated|fingWait|fingWake, fingCreated); ok {
++		return fing
+ 	}
+-	unlock(&finlock)
+-	return res
++	return nil
+ }
+ 
+-var (
+-	fingCreate  uint32
+-	fingRunning bool
+-)
+-
+ func createfing() {
+ 	// start the finalizer goroutine exactly once
+-	if fingCreate == 0 && atomic.Cas(&fingCreate, 0, 1) {
++	if fingStatus.Load() == fingUninitialized && fingStatus.CompareAndSwap(fingUninitialized, fingCreated) {
+ 		go runfinq()
+ 	}
+ }
+ 
++func finalizercommit(gp *g, lock unsafe.Pointer) bool {
++	unlock((*mutex)(lock))
++	// fingStatus should be modified after fing is put into a waiting state
++	// to avoid waking fing in running state, even if it is about to be parked.
++	fingStatus.Or(fingWait)
++	return true
++}
++
+ // This is the goroutine that runs all of the finalizers
+ func runfinq() {
+ 	var (
+@@ -182,8 +190,7 @@ func runfinq() {
+ 		fb := finq
+ 		finq = nil
+ 		if fb == nil {
+-			fingwait = true
+-			goparkunlock(&finlock, waitReasonFinalizerWait, traceEvGoBlock, 1)
++			gopark(finalizercommit, unsafe.Pointer(&finlock), waitReasonFinalizerWait, traceEvGoBlock, 1)
+ 			continue
+ 		}
+ 		argRegs = intArgRegs
+@@ -244,9 +251,9 @@ func runfinq() {
+ 				default:
+ 					throw("bad kind in runfinq")
+ 				}
+-				fingRunning = true
++				fingStatus.Or(fingRunningFinalizer)
+ 				reflectcall(nil, unsafe.Pointer(f.fn), frame, uint32(framesz), uint32(framesz), uint32(framesz), &regs)
+-				fingRunning = false
++				fingStatus.And(^fingRunningFinalizer)
+ 
+ 				// Drop finalizer queue heap references
+ 				// before hiding them from markroot.
+diff --git a/src/runtime/mprof.go b/src/runtime/mprof.go
+index 6547b6b56b..8cef0b0601 100644
+--- a/src/runtime/mprof.go
++++ b/src/runtime/mprof.go
+@@ -917,7 +917,7 @@ func goroutineProfileWithLabelsConcurrent(p []StackRecord, labels []unsafe.Point
+ 	// doesn't change during the collection. So, check the finalizer goroutine
+ 	// in particular.
+ 	n = int(gcount())
+-	if fingRunning {
++	if fingStatus.Load()&fingRunningFinalizer != 0 {
+ 		n++
+ 	}
+ 
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 49f2caceac..9ebb25bfd0 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -2628,7 +2628,7 @@ top:
+ 	}
+ 
+ 	// Wake up the finalizer G.
+-	if fingwait && fingwake {
++	if fingStatus.Load()&(fingWait|fingWake) == fingWait|fingWake {
+ 		if gp := wakefing(); gp != nil {
+ 			ready(gp, 0, true)
+ 		}
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index a9bec426d1..4cc5eb91c8 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -1051,7 +1051,7 @@ func isSystemGoroutine(gp *g, fixed bool) bool {
+ 			// always consider it a user goroutine.
+ 			return false
+ 		}
+-		return !fingRunning
++		return fingStatus.Load()&fingRunningFinalizer == 0
+ 	}
+ 	return hasPrefix(funcname(f), "runtime.")
+ }

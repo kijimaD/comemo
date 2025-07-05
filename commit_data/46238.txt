@@ -16,8 +16,94 @@ Date:   Wed Dec 16 17:19:44 2020 -0500
     Reviewed-by: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Robert Findley <rfindley@google.com>
-
+---
  src/go/types/errorcodes.go            | 10 ++++++++
  src/go/types/fixedbugs/issue43110.src | 43 +++++++++++++++++++++++++++++++++++
  src/go/types/stmt.go                  |  4 ++++
  3 files changed, 57 insertions(+)
+
+diff --git a/src/go/types/errorcodes.go b/src/go/types/errorcodes.go
+index e4c8311d62..c01a12c346 100644
+--- a/src/go/types/errorcodes.go
++++ b/src/go/types/errorcodes.go
+@@ -1207,6 +1207,16 @@ const (
+ 	//  }
+ 	_InvalidTypeSwitch
+ 
++	// _InvalidExprSwitch occurs when a switch expression is not comparable.
++	//
++	// Example:
++	//  func _() {
++	//  	var a struct{ _ func() }
++	//  	switch a /* ERROR cannot switch on a */ {
++	//  	}
++	//  }
++	_InvalidExprSwitch
++
+ 	/* control flow > select */
+ 
+ 	// _InvalidSelectCase occurs when a select case is not a channel send or
+diff --git a/src/go/types/fixedbugs/issue43110.src b/src/go/types/fixedbugs/issue43110.src
+new file mode 100644
+index 0000000000..4a46945239
+--- /dev/null
++++ b/src/go/types/fixedbugs/issue43110.src
+@@ -0,0 +1,43 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type P *struct{}
++
++func _() {
++	// want an error even if the switch is empty
++	var a struct{ _ func() }
++	switch a /* ERROR cannot switch on a */ {
++	}
++
++	switch a /* ERROR cannot switch on a */ {
++	case a: // no follow-on error here
++	}
++
++	// this is ok because f can be compared to nil
++	var f func()
++	switch f {
++	}
++
++	switch f {
++	case nil:
++	}
++
++	switch (func())(nil) {
++	case nil:
++	}
++
++	switch (func())(nil) {
++	case f /* ERROR cannot compare */ :
++	}
++
++	switch nil /* ERROR use of untyped nil in switch expression */ {
++	}
++
++	// this is ok
++	switch P(nil) {
++	case P(nil):
++	}
++}
+diff --git a/src/go/types/stmt.go b/src/go/types/stmt.go
+index 7b3f322ced..d88e47170c 100644
+--- a/src/go/types/stmt.go
++++ b/src/go/types/stmt.go
+@@ -528,6 +528,10 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
+ 			// By checking assignment of x to an invisible temporary
+ 			// (as a compiler would), we get all the relevant checks.
+ 			check.assignment(&x, nil, "switch expression")
++			if x.mode != invalid && !Comparable(x.typ) && !hasNil(x.typ) {
++				check.errorf(&x, _InvalidExprSwitch, "cannot switch on %s (%s is not comparable)", &x, x.typ)
++				x.mode = invalid
++			}
+ 		} else {
+ 			// spec: "A missing switch expression is
+ 			// equivalent to the boolean value true."

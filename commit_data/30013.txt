@@ -7,7 +7,57 @@ Date:   Thu Oct 20 15:27:26 2016 -0700
     Change-Id: If1d08a84c9295816489b1cfdd031ba12892ae963
     Reviewed-on: https://go-review.googlesource.com/31598
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/go.go        | 4 ++--
  src/cmd/compile/internal/gc/typecheck.go | 9 ++-------
  2 files changed, 4 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index 32b62fa293..782e56e009 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -30,7 +30,7 @@ type Pkg struct {
+ // an object declared within a package, but Syms are also used to name internal
+ // synthesized objects.
+ //
+-// As a special exception, field and method names that are exported use the Sym
++// As an exception, field and method names that are exported use the Sym
+ // associated with localpkg instead of the package that declared them. This
+ // allows using Sym pointer equality to test for Go identifier uniqueness when
+ // handling selector expressions.
+@@ -42,7 +42,7 @@ type Sym struct {
+ 
+ 	// saved and restored by dcopy
+ 	Pkg        *Pkg
+-	Name       string // variable name
++	Name       string // object name
+ 	Def        *Node  // definition: ONAME OTYPE OPACK or OLITERAL
+ 	Block      int32  // blocknumber to catch redeclaration
+ 	Lastlineno int32  // last declaration for diagnostic
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index ea9ef6c654..182bf0727a 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -3660,9 +3660,8 @@ func typecheckdef(n *Node) *Node {
+ 	default:
+ 		Fatalf("typecheckdef %v", n.Op)
+ 
+-		// not really syms
+-	case OGOTO, OLABEL:
+-		break
++	case OGOTO, OLABEL, OPACK:
++		// nothing to do here
+ 
+ 	case OLITERAL:
+ 		if n.Name.Param.Ntype != nil {
+@@ -3770,10 +3769,6 @@ func typecheckdef(n *Node) *Node {
+ 		if Curfn != nil {
+ 			resumecheckwidth()
+ 		}
+-
+-		// nothing to see here
+-	case OPACK:
+-		break
+ 	}
+ 
+ ret:

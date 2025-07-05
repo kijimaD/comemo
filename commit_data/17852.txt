@@ -15,10 +15,94 @@ Date:   Tue Oct 29 17:11:51 2013 -0400
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/19280043
-
+---
  src/pkg/time/export_test.go      |  5 ++++-
  src/pkg/time/time_test.go        | 10 ++++++++++
  src/pkg/time/zoneinfo_plan9.go   |  4 ++++
  src/pkg/time/zoneinfo_unix.go    | 14 +++++++++++++-
  src/pkg/time/zoneinfo_windows.go |  4 ++++
  5 files changed, 35 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/time/export_test.go b/src/pkg/time/export_test.go
+index dbd553af49..6cd535f6b1 100644
+--- a/src/pkg/time/export_test.go
++++ b/src/pkg/time/export_test.go
+@@ -18,4 +18,7 @@ func ForceUSPacificForTesting() {
+ 	localOnce.Do(initTestingZone)
+ }
+ 
+-var ParseTimeZone = parseTimeZone
++var (
++	ForceZipFileForTesting = forceZipFileForTesting
++	ParseTimeZone          = parseTimeZone
++)
+diff --git a/src/pkg/time/time_test.go b/src/pkg/time/time_test.go
+index 22b751c525..334c4b0cf7 100644
+--- a/src/pkg/time/time_test.go
++++ b/src/pkg/time/time_test.go
+@@ -578,6 +578,16 @@ func TestParseInSydney(t *testing.T) {
+ 	}
+ }
+ 
++func TestLoadLocationZipFile(t *testing.T) {
++	ForceZipFileForTesting(true)
++	defer ForceZipFileForTesting(false)
++
++	_, err := LoadLocation("Australia/Sydney")
++	if err != nil {
++		t.Fatal(err)
++	}
++}
++
+ var rubyTests = []ParseTest{
+ 	{"RubyDate", RubyDate, "Thu Feb 04 21:00:57 -0800 2010", true, true, 1, 0},
+ 	// Ignore the time zone in the test. If it parses, it'll be OK.
+diff --git a/src/pkg/time/zoneinfo_plan9.go b/src/pkg/time/zoneinfo_plan9.go
+index 6855238dc8..0e8f3811be 100644
+--- a/src/pkg/time/zoneinfo_plan9.go
++++ b/src/pkg/time/zoneinfo_plan9.go
+@@ -154,3 +154,7 @@ func loadLocation(name string) (*Location, error) {
+ 	}
+ 	return nil, errors.New("unknown time zone " + name)
+ }
++
++func forceZipFileForTesting(zipOnly bool) {
++	// We only use the zip file anyway.
++}
+diff --git a/src/pkg/time/zoneinfo_unix.go b/src/pkg/time/zoneinfo_unix.go
+index 53b5dc82cb..fc5ae89fe5 100644
+--- a/src/pkg/time/zoneinfo_unix.go
++++ b/src/pkg/time/zoneinfo_unix.go
+@@ -32,7 +32,19 @@ var zoneDirs = []string{
+ 	"/usr/share/zoneinfo/",
+ 	"/usr/share/lib/zoneinfo/",
+ 	"/usr/lib/locale/TZ/",
+-	runtime.GOROOT() + "/lib/time/zoneinfo/",
++	runtime.GOROOT() + "/lib/time/zoneinfo.zip",
++}
++
++var origZoneDirs = zoneDirs
++
++func forceZipFileForTesting(zipOnly bool) {
++	zoneDirs = make([]string, len(origZoneDirs))
++	copy(zoneDirs, origZoneDirs)
++	if zipOnly {
++		for i := 0; i < len(zoneDirs)-1; i++ {
++			zoneDirs[i] = "/XXXNOEXIST"
++		}
++	}
+ }
+ 
+ func initLocal() {
+diff --git a/src/pkg/time/zoneinfo_windows.go b/src/pkg/time/zoneinfo_windows.go
+index 1e18ad295d..be4e5c13ff 100644
+--- a/src/pkg/time/zoneinfo_windows.go
++++ b/src/pkg/time/zoneinfo_windows.go
+@@ -264,3 +264,7 @@ func loadLocation(name string) (*Location, error) {
+ 	}
+ 	return nil, errors.New("unknown time zone " + name)
+ }
++
++func forceZipFileForTesting(zipOnly bool) {
++	// We only use the zip file anyway.
++}

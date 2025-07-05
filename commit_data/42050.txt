@@ -12,6 +12,19 @@ Date:   Thu Nov 7 12:42:43 2019 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/205877
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/cmd/go/go_test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index f646beff47..5ff50556c2 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -917,6 +917,7 @@ func TestNewReleaseRebuildsStalePackagesInGOPATH(t *testing.T) {
+ 		"src/runtime",
+ 		"src/internal/bytealg",
+ 		"src/internal/cpu",
++		"src/math/bits",
+ 		"src/unsafe",
+ 		filepath.Join("pkg", runtime.GOOS+"_"+runtime.GOARCH),
+ 		filepath.Join("pkg/tool", runtime.GOOS+"_"+runtime.GOARCH),

@@ -7,6 +7,20 @@ Date:   Thu Jan 31 13:42:26 2013 -0800
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/7221079
-
+---
  doc/codewalk/pig.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/codewalk/pig.go b/doc/codewalk/pig.go
+index 10963b4e40..941daaed16 100644
+--- a/doc/codewalk/pig.go
++++ b/doc/codewalk/pig.go
+@@ -23,7 +23,7 @@ type score struct {
+ // An action transitions stochastically to a resulting score.
+ type action func(current score) (result score, turnIsOver bool)
+ 
+-// roll returns the (result, turnIsOver) outcome of simulating a die roll. 
++// roll returns the (result, turnIsOver) outcome of simulating a die roll.
+ // If the roll value is 1, then thisTurn score is abandoned, and the players'
+ // roles swap.  Otherwise, the roll value is added to thisTurn.
+ func roll(s score) (score, bool) {

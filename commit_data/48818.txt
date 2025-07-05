@@ -14,7 +14,7 @@ Date:   Wed Jun 16 21:47:33 2021 +0000
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/internal/goarch/gengoarch.go           |  2 +-
  src/internal/goarch/goarch.go              |  4 +-
  src/internal/goarch/zgoarch_386.go         | 46 ++++++++---------
@@ -59,3 +59,2026 @@ Date:   Wed Jun 16 21:47:33 2021 +0000
  src/internal/goos/zgoos_zos.go             | 34 ++++++-------
  src/runtime/internal/sys/consts.go         | 82 +++++++++++++++---------------
  43 files changed, 824 insertions(+), 824 deletions(-)
+
+diff --git a/src/internal/goarch/gengoarch.go b/src/internal/goarch/gengoarch.go
+index 58c3b1104c..af15518ad8 100644
+--- a/src/internal/goarch/gengoarch.go
++++ b/src/internal/goarch/gengoarch.go
+@@ -49,7 +49,7 @@ func main() {
+ 			if goarch == target {
+ 				value = 1
+ 			}
+-			fmt.Fprintf(&buf, "const Goarch%s = %d\n", strings.Title(goarch), value)
++			fmt.Fprintf(&buf, "const Is%s = %d\n", strings.Title(goarch), value)
+ 		}
+ 		err := os.WriteFile("zgoarch_"+target+".go", buf.Bytes(), 0666)
+ 		if err != nil {
+diff --git a/src/internal/goarch/goarch.go b/src/internal/goarch/goarch.go
+index 8e240295b3..921f5a208f 100644
+--- a/src/internal/goarch/goarch.go
++++ b/src/internal/goarch/goarch.go
+@@ -6,7 +6,7 @@
+ package goarch
+ 
+ // The next line makes 'go generate' write the zgoarch*.go files with
+-// per-arch information, including constants named Goarch$GOARCH for every
++// per-arch information, including constants named $GOARCH for every
+ // GOARCH. The constant is 1 on the current system, 0 otherwise; multiplying
+ // by them is useful for defining GOARCH-specific constants.
+ //go:generate go run gengoarch.go
+@@ -34,7 +34,7 @@ const PtrSize = 4 << (^uintptr(0) >> 63)
+ const ArchFamily ArchFamilyType = _ArchFamily
+ 
+ // BigEndian reports whether the architecture is big-endian.
+-const BigEndian = GoarchArmbe|GoarchArm64be|GoarchMips|GoarchMips64|GoarchPpc|GoarchPpc64|GoarchS390|GoarchS390x|GoarchSparc|GoarchSparc64 == 1
++const BigEndian = IsArmbe|IsArm64be|IsMips|IsMips64|IsPpc|IsPpc64|IsS390|IsS390x|IsSparc|IsSparc64 == 1
+ 
+ // DefaultPhysPageSize is the default physical page size.
+ const DefaultPhysPageSize = _DefaultPhysPageSize
+diff --git a/src/internal/goarch/zgoarch_386.go b/src/internal/goarch/zgoarch_386.go
+index f424b5a6b9..7fa23b07ef 100644
+--- a/src/internal/goarch/zgoarch_386.go
++++ b/src/internal/goarch/zgoarch_386.go
+@@ -7,26 +7,26 @@ package goarch
+ 
+ const GOARCH = `386`
+ 
+-const Goarch386 = 1
+-const GoarchAmd64 = 0
+-const GoarchAmd64p32 = 0
+-const GoarchArm = 0
+-const GoarchArmbe = 0
+-const GoarchArm64 = 0
+-const GoarchArm64be = 0
+-const GoarchPpc64 = 0
+-const GoarchPpc64le = 0
+-const GoarchMips = 0
+-const GoarchMipsle = 0
+-const GoarchMips64 = 0
+-const GoarchMips64le = 0
+-const GoarchMips64p32 = 0
+-const GoarchMips64p32le = 0
+-const GoarchPpc = 0
+-const GoarchRiscv = 0
+-const GoarchRiscv64 = 0
+-const GoarchS390 = 0
+-const GoarchS390x = 0
+-const GoarchSparc = 0
+-const GoarchSparc64 = 0
+-const GoarchWasm = 0
++const Is386 = 1
++const IsAmd64 = 0
++const IsAmd64p32 = 0
++const IsArm = 0
++const IsArmbe = 0
++const IsArm64 = 0
++const IsArm64be = 0
++const IsPpc64 = 0
++const IsPpc64le = 0
++const IsMips = 0
++const IsMipsle = 0
++const IsMips64 = 0
++const IsMips64le = 0
++const IsMips64p32 = 0
++const IsMips64p32le = 0
++const IsPpc = 0
++const IsRiscv = 0
++const IsRiscv64 = 0
++const IsS390 = 0
++const IsS390x = 0
++const IsSparc = 0
++const IsSparc64 = 0
++const IsWasm = 0
+diff --git a/src/internal/goarch/zgoarch_amd64.go b/src/internal/goarch/zgoarch_amd64.go
+index 728896c367..a6bf1cc6f4 100644
+--- a/src/internal/goarch/zgoarch_amd64.go
++++ b/src/internal/goarch/zgoarch_amd64.go
+@@ -7,26 +7,26 @@ package goarch
+ 
+ const GOARCH = `amd64`
+ 
+-const Goarch386 = 0
+-const GoarchAmd64 = 1
+-const GoarchAmd64p32 = 0
+-const GoarchArm = 0
+-const GoarchArmbe = 0
+-const GoarchArm64 = 0
+-const GoarchArm64be = 0
+-const GoarchPpc64 = 0
+-const GoarchPpc64le = 0
+-const GoarchMips = 0
+-const GoarchMipsle = 0
+-const GoarchMips64 = 0
+-const GoarchMips64le = 0
+-const GoarchMips64p32 = 0
+-const GoarchMips64p32le = 0
+-const GoarchPpc = 0
+-const GoarchRiscv = 0
+-const GoarchRiscv64 = 0
+-const GoarchS390 = 0
+-const GoarchS390x = 0
+-const GoarchSparc = 0
+-const GoarchSparc64 = 0
+-const GoarchWasm = 0
++const Is386 = 0
++const IsAmd64 = 1
++const IsAmd64p32 = 0
++const IsArm = 0
++const IsArmbe = 0
++const IsArm64 = 0
++const IsArm64be = 0
++const IsPpc64 = 0
++const IsPpc64le = 0
++const IsMips = 0
++const IsMipsle = 0
++const IsMips64 = 0
++const IsMips64le = 0
++const IsMips64p32 = 0
++const IsMips64p32le = 0
++const IsPpc = 0
++const IsRiscv = 0
++const IsRiscv64 = 0
++const IsS390 = 0
++const IsS390x = 0
++const IsSparc = 0
++const IsSparc64 = 0
++const IsWasm = 0
+diff --git a/src/internal/goarch/zgoarch_arm.go b/src/internal/goarch/zgoarch_arm.go
+index 9d388b0554..dcdaa1f44d 100644
+--- a/src/internal/goarch/zgoarch_arm.go
++++ b/src/internal/goarch/zgoarch_arm.go
+@@ -7,26 +7,26 @@ package goarch
+ 
+ const GOARCH = `arm`
+ 
+-const Goarch386 = 0
+-const GoarchAmd64 = 0
+-const GoarchAmd64p32 = 0
+-const GoarchArm = 1
+-const GoarchArmbe = 0
+-const GoarchArm64 = 0
+-const GoarchArm64be = 0
+-const GoarchPpc64 = 0
+-const GoarchPpc64le = 0
+-const GoarchMips = 0
+-const GoarchMipsle = 0
+-const GoarchMips64 = 0
+-const GoarchMips64le = 0
+-const GoarchMips64p32 = 0
+-const GoarchMips64p32le = 0
+-const GoarchPpc = 0
+-const GoarchRiscv = 0
+-const GoarchRiscv64 = 0
+-const GoarchS390 = 0
+-const GoarchS390x = 0
+-const GoarchSparc = 0
+-const GoarchSparc64 = 0
+-const GoarchWasm = 0
++const Is386 = 0
++const IsAmd64 = 0
++const IsAmd64p32 = 0
++const IsArm = 1
++const IsArmbe = 0
++const IsArm64 = 0
++const IsArm64be = 0
++const IsPpc64 = 0
++const IsPpc64le = 0
++const IsMips = 0
++const IsMipsle = 0
++const IsMips64 = 0
++const IsMips64le = 0
++const IsMips64p32 = 0
++const IsMips64p32le = 0
++const IsPpc = 0
++const IsRiscv = 0
++const IsRiscv64 = 0
++const IsS390 = 0
++const IsS390x = 0
++const IsSparc = 0
++const IsSparc64 = 0
++const IsWasm = 0
+diff --git a/src/internal/goarch/zgoarch_arm64.go b/src/internal/goarch/zgoarch_arm64.go
+index a375ac8076..dd8d9806ab 100644
+--- a/src/internal/goarch/zgoarch_arm64.go
++++ b/src/internal/goarch/zgoarch_arm64.go
+@@ -7,26 +7,26 @@ package goarch
+ 
+ const GOARCH = `arm64`
+ 
+-const Goarch386 = 0
+-const GoarchAmd64 = 0
+-const GoarchAmd64p32 = 0
+-const GoarchArm = 0
+-const GoarchArmbe = 0
+-const GoarchArm64 = 1
+-const GoarchArm64be = 0
+-const GoarchPpc64 = 0
+-const GoarchPpc64le = 0
+-const GoarchMips = 0
+-const GoarchMipsle = 0
+-const GoarchMips64 = 0
+-const GoarchMips64le = 0
+-const GoarchMips64p32 = 0
+-const GoarchMips64p32le = 0
+-const GoarchPpc = 0
+-const GoarchRiscv = 0
+-const GoarchRiscv64 = 0
+-const GoarchS390 = 0
+-const GoarchS390x = 0
+-const GoarchSparc = 0
+-const GoarchSparc64 = 0
+-const GoarchWasm = 0
++const Is386 = 0
++const IsAmd64 = 0
++const IsAmd64p32 = 0
++const IsArm = 0
++const IsArmbe = 0
++const IsArm64 = 1
++const IsArm64be = 0
++const IsPpc64 = 0
++const IsPpc64le = 0
++const IsMips = 0
++const IsMipsle = 0
++const IsMips64 = 0
++const IsMips64le = 0
++const IsMips64p32 = 0
++const IsMips64p32le = 0
++const IsPpc = 0
++const IsRiscv = 0
++const IsRiscv64 = 0
++const IsS390 = 0
++const IsS390x = 0
++const IsSparc = 0
++const IsSparc64 = 0
++const IsWasm = 0
+diff --git a/src/internal/goarch/zgoarch_arm64be.go b/src/internal/goarch/zgoarch_arm64be.go
+index 6fcc4f6bfa..a37df97031 100644
+--- a/src/internal/goarch/zgoarch_arm64be.go
++++ b/src/internal/goarch/zgoarch_arm64be.go
+@@ -7,26 +7,26 @@ package goarch
+ 
+ const GOARCH = `arm64be`
+ 
+-const Goarch386 = 0
+-const GoarchAmd64 = 0
+-const GoarchAmd64p32 = 0
+-const GoarchArm = 0
+-const GoarchArmbe = 0
+-const GoarchArm64 = 0
+-const GoarchArm64be = 1
+-const GoarchPpc64 = 0
+-const GoarchPpc64le = 0
+-const GoarchMips = 0
+-const GoarchMipsle = 0
+-const GoarchMips64 = 0
+-const GoarchMips64le = 0
+-const GoarchMips64p32 = 0
+-const GoarchMips64p32le = 0
+-const GoarchPpc = 0
+-const GoarchRiscv = 0
+-const GoarchRiscv64 = 0
+-const GoarchS390 = 0
+-const GoarchS390x = 0
+-const GoarchSparc = 0
+-const GoarchSparc64 = 0
+-const GoarchWasm = 0
++const Is386 = 0
++const IsAmd64 = 0
++const IsAmd64p32 = 0
++const IsArm = 0
++const IsArmbe = 0
++const IsArm64 = 0
++const IsArm64be = 1
++const IsPpc64 = 0
++const IsPpc64le = 0
++const IsMips = 0
++const IsMipsle = 0
++const IsMips64 = 0
++const IsMips64le = 0
++const IsMips64p32 = 0
++const IsMips64p32le = 0
++const IsPpc = 0
++const IsRiscv = 0
++const IsRiscv64 = 0
++const IsS390 = 0
++const IsS390x = 0
++const IsSparc = 0
++const IsSparc64 = 0
++const IsWasm = 0
+diff --git a/src/internal/goarch/zgoarch_armbe.go b/src/internal/goarch/zgoarch_armbe.go
+index a3ac487d80..909b114330 100644
+--- a/src/internal/goarch/zgoarch_armbe.go
++++ b/src/internal/goarch/zgoarch_armbe.go
+@@ -7,26 +7,26 @@ package goarch
+ 
+ const GOARCH = `armbe`
+ 
+-const Goarch386 = 0
+-const GoarchAmd64 = 0
+-const GoarchAmd64p32 = 0
+-const GoarchArm = 0
+-const GoarchArmbe = 1
+-const GoarchArm64 = 0
+-const GoarchArm64be = 0
+-const GoarchPpc64 = 0
+-const GoarchPpc64le = 0
+-const GoarchMips = 0
+-const GoarchMipsle = 0
+-const GoarchMips64 = 0
+-const GoarchMips64le = 0
+-const GoarchMips64p32 = 0
+-const GoarchMips64p32le = 0
+-const GoarchPpc = 0
+-const GoarchRiscv = 0
+-const GoarchRiscv64 = 0
+-const GoarchS390 = 0
+-const GoarchS390x = 0
+-const GoarchSparc = 0
+-const GoarchSparc64 = 0
+-const GoarchWasm = 0
++const Is386 = 0
++const IsAmd64 = 0
++const IsAmd64p32 = 0
++const IsArm = 0
++const IsArmbe = 1
++const IsArm64 = 0
++const IsArm64be = 0
++const IsPpc64 = 0
++const IsPpc64le = 0
++const IsMips = 0
++const IsMipsle = 0
++const IsMips64 = 0
++const IsMips64le = 0
++const IsMips64p32 = 0
++const IsMips64p32le = 0
++const IsPpc = 0
++const IsRiscv = 0
++const IsRiscv64 = 0
++const IsS390 = 0
++const IsS390x = 0
++const IsSparc = 0
++const IsSparc64 = 0
++const IsWasm = 0
+diff --git a/src/internal/goarch/zgoarch_mips.go b/src/internal/goarch/zgoarch_mips.go
+index 00cfd90c3b..0ff91f201a 100644
+--- a/src/internal/goarch/zgoarch_mips.go
++++ b/src/internal/goarch/zgoarch_mips.go
+@@ -7,26 +7,26 @@ package goarch
+ 
+ const GOARCH = `mips`
+ 
+-const Goarch386 = 0
+-const GoarchAmd64 = 0
+-const GoarchAmd64p32 = 0
+-const GoarchArm = 0
+-const GoarchArmbe = 0
+-const GoarchArm64 = 0
+-const GoarchArm64be = 0
+-const GoarchPpc64 = 0
+-const GoarchPpc64le = 0
+-const GoarchMips = 1
+-const GoarchMipsle = 0
+-const GoarchMips64 = 0
+-const GoarchMips64le = 0
+-const GoarchMips64p32 = 0
+-const GoarchMips64p32le = 0
+-const GoarchPpc = 0
+-const GoarchRiscv = 0
+-const GoarchRiscv64 = 0
+-const GoarchS390 = 0
+-const GoarchS390x = 0
+-const GoarchSparc = 0
+-const GoarchSparc64 = 0
+-const GoarchWasm = 0
++const Is386 = 0
++const IsAmd64 = 0
++const IsAmd64p32 = 0
++const IsArm = 0
++const IsArmbe = 0
++const IsArm64 = 0
++const IsArm64be = 0
++const IsPpc64 = 0
++const IsPpc64le = 0
++const IsMips = 1
++const IsMipsle = 0
++const IsMips64 = 0
++const IsMips64le = 0
++const IsMips64p32 = 0
++const IsMips64p32le = 0
++const IsPpc = 0
++const IsRiscv = 0
++const IsRiscv64 = 0
++const IsS390 = 0
++const IsS390x = 0
++const IsSparc = 0
++const IsSparc64 = 0
++const IsWasm = 0
+diff --git a/src/internal/goarch/zgoarch_mips64.go b/src/internal/goarch/zgoarch_mips64.go
+index 947db612eb..3b61356b18 100644
+--- a/src/internal/goarch/zgoarch_mips64.go
++++ b/src/internal/goarch/zgoarch_mips64.go
+@@ -7,26 +7,26 @@ package goarch
+ 
+ const GOARCH = `mips64`
+ 
+-const Goarch386 = 0
+-const GoarchAmd64 = 0
+-const GoarchAmd64p32 = 0
+-const GoarchArm = 0
+-const GoarchArmbe = 0
+-const GoarchArm64 = 0
+-const GoarchArm64be = 0
+-const GoarchPpc64 = 0
+-const GoarchPpc64le = 0
+-const GoarchMips = 0
+-const GoarchMipsle = 0
+-const GoarchMips64 = 1
+-const GoarchMips64le = 0
+-const GoarchMips64p32 = 0
+-const GoarchMips64p32le = 0
+-const GoarchPpc = 0
+-const GoarchRiscv = 0
+-const GoarchRiscv64 = 0
+-const GoarchS390 = 0
+-const GoarchS390x = 0
+-const GoarchSparc = 0
+-const GoarchSparc64 = 0
+-const GoarchWasm = 0
++const Is386 = 0
++const IsAmd64 = 0
++const IsAmd64p32 = 0
++const IsArm = 0
++const IsArmbe = 0
++const IsArm64 = 0
++const IsArm64be = 0
++const IsPpc64 = 0
++const IsPpc64le = 0
++const IsMips = 0
++const IsMipsle = 0
++const IsMips64 = 1
++const IsMips64le = 0
++const IsMips64p32 = 0
++const IsMips64p32le = 0
++const IsPpc = 0
++const IsRiscv = 0
++const IsRiscv64 = 0
++const IsS390 = 0
++const IsS390x = 0
++const IsSparc = 0
++const IsSparc64 = 0
++const IsWasm = 0
+diff --git a/src/internal/goarch/zgoarch_mips64le.go b/src/internal/goarch/zgoarch_mips64le.go
+index 35ffbe2d3f..14c9330cad 100644
+--- a/src/internal/goarch/zgoarch_mips64le.go
++++ b/src/internal/goarch/zgoarch_mips64le.go
+@@ -7,26 +7,26 @@ package goarch
+ 
+ const GOARCH = `mips64le`
+ 
+-const Goarch386 = 0
+-const GoarchAmd64 = 0
+-const GoarchAmd64p32 = 0
+-const GoarchArm = 0
+-const GoarchArmbe = 0
+-const GoarchArm64 = 0
+-const GoarchArm64be = 0
+-const GoarchPpc64 = 0
+-const GoarchPpc64le = 0
+-const GoarchMips = 0
+-const GoarchMipsle = 0
+-const GoarchMips64 = 0
+-const GoarchMips64le = 1
+-const GoarchMips64p32 = 0
+-const GoarchMips64p32le = 0
+-const GoarchPpc = 0
+-const GoarchRiscv = 0
+-const GoarchRiscv64 = 0
+-const GoarchS390 = 0
+-const GoarchS390x = 0
+-const GoarchSparc = 0
+-const GoarchSparc64 = 0
+-const GoarchWasm = 0
++const Is386 = 0
++const IsAmd64 = 0
++const IsAmd64p32 = 0
++const IsArm = 0
++const IsArmbe = 0
++const IsArm64 = 0
++const IsArm64be = 0
++const IsPpc64 = 0
++const IsPpc64le = 0
++const IsMips = 0
++const IsMipsle = 0
++const IsMips64 = 0
++const IsMips64le = 1
++const IsMips64p32 = 0
++const IsMips64p32le = 0
++const IsPpc = 0
++const IsRiscv = 0
++const IsRiscv64 = 0
++const IsS390 = 0
++const IsS390x = 0
++const IsSparc = 0
++const IsSparc64 = 0
++const IsWasm = 0
+diff --git a/src/internal/goarch/zgoarch_mips64p32.go b/src/internal/goarch/zgoarch_mips64p32.go
+index c7c712032b..b7429f2bf3 100644
+--- a/src/internal/goarch/zgoarch_mips64p32.go
++++ b/src/internal/goarch/zgoarch_mips64p32.go
+@@ -7,26 +7,26 @@ package goarch
+ 
+ const GOARCH = `mips64p32`
+ 
+-const Goarch386 = 0
+-const GoarchAmd64 = 0
+-const GoarchAmd64p32 = 0
+-const GoarchArm = 0
+-const GoarchArmbe = 0
+-const GoarchArm64 = 0
+-const GoarchArm64be = 0
+-const GoarchPpc64 = 0
+-const GoarchPpc64le = 0
+-const GoarchMips = 0
+-const GoarchMipsle = 0
+-const GoarchMips64 = 0
+-const GoarchMips64le = 0
+-const GoarchMips64p32 = 1
+-const GoarchMips64p32le = 0
+-const GoarchPpc = 0
+-const GoarchRiscv = 0
+-const GoarchRiscv64 = 0
+-const GoarchS390 = 0
+-const GoarchS390x = 0
+-const GoarchSparc = 0
+-const GoarchSparc64 = 0
+-const GoarchWasm = 0
++const Is386 = 0
++const IsAmd64 = 0
++const IsAmd64p32 = 0
++const IsArm = 0
++const IsArmbe = 0
++const IsArm64 = 0
++const IsArm64be = 0
++const IsPpc64 = 0
++const IsPpc64le = 0
++const IsMips = 0
++const IsMipsle = 0
++const IsMips64 = 0
++const IsMips64le = 0
++const IsMips64p32 = 1
++const IsMips64p32le = 0
++const IsPpc = 0
++const IsRiscv = 0
++const IsRiscv64 = 0
++const IsS390 = 0
++const IsS390x = 0
++const IsSparc = 0
++const IsSparc64 = 0
++const IsWasm = 0
+diff --git a/src/internal/goarch/zgoarch_mips64p32le.go b/src/internal/goarch/zgoarch_mips64p32le.go
+index f605a6ff78..35c21c1675 100644
+--- a/src/internal/goarch/zgoarch_mips64p32le.go
++++ b/src/internal/goarch/zgoarch_mips64p32le.go
+@@ -7,26 +7,26 @@ package goarch
+ 
+ const GOARCH = `mips64p32le`
+ 
+-const Goarch386 = 0
+-const GoarchAmd64 = 0
+-const GoarchAmd64p32 = 0
+-const GoarchArm = 0
+-const GoarchArmbe = 0
+-const GoarchArm64 = 0
+-const GoarchArm64be = 0
+-const GoarchPpc64 = 0
+-const GoarchPpc64le = 0
+-const GoarchMips = 0
+-const GoarchMipsle = 0
+-const GoarchMips64 = 0
+-const GoarchMips64le = 0
+-const GoarchMips64p32 = 0
+-const GoarchMips64p32le = 1
+-const GoarchPpc = 0
+-const GoarchRiscv = 0
+-const GoarchRiscv64 = 0
+-const GoarchS390 = 0
+-const GoarchS390x = 0
+-const GoarchSparc = 0
+-const GoarchSparc64 = 0
+-const GoarchWasm = 0
++const Is386 = 0
++const IsAmd64 = 0
++const IsAmd64p32 = 0
++const IsArm = 0
++const IsArmbe = 0
++const IsArm64 = 0
++const IsArm64be = 0
++const IsPpc64 = 0
++const IsPpc64le = 0
++const IsMips = 0
++const IsMipsle = 0
++const IsMips64 = 0
++const IsMips64le = 0
++const IsMips64p32 = 0
++const IsMips64p32le = 1
++const IsPpc = 0
++const IsRiscv = 0
++const IsRiscv64 = 0
++const IsS390 = 0
++const IsS390x = 0
++const IsSparc = 0
++const IsSparc64 = 0
++const IsWasm = 0
+diff --git a/src/internal/goarch/zgoarch_mipsle.go b/src/internal/goarch/zgoarch_mipsle.go
+index 56e24dc7b3..ba7be189bc 100644
+--- a/src/internal/goarch/zgoarch_mipsle.go
++++ b/src/internal/goarch/zgoarch_mipsle.go
+@@ -7,26 +7,26 @@ package goarch
+ 
+ const GOARCH = `mipsle`
+ 
+-const Goarch386 = 0
+-const GoarchAmd64 = 0
+-const GoarchAmd64p32 = 0
+-const GoarchArm = 0
+-const GoarchArmbe = 0
+-const GoarchArm64 = 0
+-const GoarchArm64be = 0
+-const GoarchPpc64 = 0
+-const GoarchPpc64le = 0
+-const GoarchMips = 0
+-const GoarchMipsle = 1
+-const GoarchMips64 = 0
+-const GoarchMips64le = 0
+-const GoarchMips64p32 = 0
+-const GoarchMips64p32le = 0
+-const GoarchPpc = 0
+-const GoarchRiscv = 0
+-const GoarchRiscv64 = 0
+-const GoarchS390 = 0
+-const GoarchS390x = 0
+-const GoarchSparc = 0
+-const GoarchSparc64 = 0
+-const GoarchWasm = 0
++const Is386 = 0
++const IsAmd64 = 0
++const IsAmd64p32 = 0
++const IsArm = 0
++const IsArmbe = 0
++const IsArm64 = 0
++const IsArm64be = 0
++const IsPpc64 = 0
++const IsPpc64le = 0
++const IsMips = 0
++const IsMipsle = 1
++const IsMips64 = 0
++const IsMips64le = 0
++const IsMips64p32 = 0
++const IsMips64p32le = 0
++const IsPpc = 0
++const IsRiscv = 0
++const IsRiscv64 = 0
++const IsS390 = 0
++const IsS390x = 0
++const IsSparc = 0
++const IsSparc64 = 0
++const IsWasm = 0
+diff --git a/src/internal/goarch/zgoarch_ppc.go b/src/internal/goarch/zgoarch_ppc.go
+index 4617d12792..ab19982a12 100644
+--- a/src/internal/goarch/zgoarch_ppc.go
++++ b/src/internal/goarch/zgoarch_ppc.go
+@@ -7,26 +7,26 @@ package goarch
+ 
+ const GOARCH = `ppc`
+ 
+-const Goarch386 = 0
+-const GoarchAmd64 = 0
+-const GoarchAmd64p32 = 0
+-const GoarchArm = 0
+-const GoarchArmbe = 0
+-const GoarchArm64 = 0
+-const GoarchArm64be = 0
+-const GoarchPpc64 = 0
+-const GoarchPpc64le = 0
+-const GoarchMips = 0
+-const GoarchMipsle = 0
+-const GoarchMips64 = 0
+-const GoarchMips64le = 0
+-const GoarchMips64p32 = 0
+-const GoarchMips64p32le = 0
+-const GoarchPpc = 1
+-const GoarchRiscv = 0
+-const GoarchRiscv64 = 0
+-const GoarchS390 = 0
+-const GoarchS390x = 0
+-const GoarchSparc = 0
+-const GoarchSparc64 = 0
+-const GoarchWasm = 0
++const Is386 = 0
++const IsAmd64 = 0
++const IsAmd64p32 = 0
++const IsArm = 0
++const IsArmbe = 0
++const IsArm64 = 0
++const IsArm64be = 0
++const IsPpc64 = 0
++const IsPpc64le = 0
++const IsMips = 0
++const IsMipsle = 0
++const IsMips64 = 0
++const IsMips64le = 0
++const IsMips64p32 = 0
++const IsMips64p32le = 0
++const IsPpc = 1
++const IsRiscv = 0
++const IsRiscv64 = 0
++const IsS390 = 0
++const IsS390x = 0
++const IsSparc = 0
++const IsSparc64 = 0
++const IsWasm = 0
+diff --git a/src/internal/goarch/zgoarch_ppc64.go b/src/internal/goarch/zgoarch_ppc64.go
+index f3cb16e9b6..d3e35ca877 100644
+--- a/src/internal/goarch/zgoarch_ppc64.go
++++ b/src/internal/goarch/zgoarch_ppc64.go
+@@ -7,26 +7,26 @@ package goarch
+ 
+ const GOARCH = `ppc64`
+ 
+-const Goarch386 = 0
+-const GoarchAmd64 = 0
+-const GoarchAmd64p32 = 0
+-const GoarchArm = 0
+-const GoarchArmbe = 0
+-const GoarchArm64 = 0
+-const GoarchArm64be = 0
+-const GoarchPpc64 = 1
+-const GoarchPpc64le = 0
+-const GoarchMips = 0
+-const GoarchMipsle = 0
+-const GoarchMips64 = 0
+-const GoarchMips64le = 0
+-const GoarchMips64p32 = 0
+-const GoarchMips64p32le = 0
+-const GoarchPpc = 0
+-const GoarchRiscv = 0
+-const GoarchRiscv64 = 0
+-const GoarchS390 = 0
+-const GoarchS390x = 0
+-const GoarchSparc = 0
+-const GoarchSparc64 = 0
+-const GoarchWasm = 0
++const Is386 = 0
++const IsAmd64 = 0
++const IsAmd64p32 = 0
++const IsArm = 0
++const IsArmbe = 0
++const IsArm64 = 0
++const IsArm64be = 0
++const IsPpc64 = 1
++const IsPpc64le = 0
++const IsMips = 0
++const IsMipsle = 0
++const IsMips64 = 0
++const IsMips64le = 0
++const IsMips64p32 = 0
++const IsMips64p32le = 0
++const IsPpc = 0
++const IsRiscv = 0
++const IsRiscv64 = 0
++const IsS390 = 0
++const IsS390x = 0
++const IsSparc = 0
++const IsSparc64 = 0
++const IsWasm = 0
+diff --git a/src/internal/goarch/zgoarch_ppc64le.go b/src/internal/goarch/zgoarch_ppc64le.go
+index b70abfb953..ef24e95c4d 100644
+--- a/src/internal/goarch/zgoarch_ppc64le.go
++++ b/src/internal/goarch/zgoarch_ppc64le.go
+@@ -7,26 +7,26 @@ package goarch
+ 
+ const GOARCH = `ppc64le`
+ 
+-const Goarch386 = 0
+-const GoarchAmd64 = 0
+-const GoarchAmd64p32 = 0
+-const GoarchArm = 0
+-const GoarchArmbe = 0
+-const GoarchArm64 = 0
+-const GoarchArm64be = 0
+-const GoarchPpc64 = 0
+-const GoarchPpc64le = 1
+-const GoarchMips = 0
+-const GoarchMipsle = 0
+-const GoarchMips64 = 0
+-const GoarchMips64le = 0
+-const GoarchMips64p32 = 0
+-const GoarchMips64p32le = 0
+-const GoarchPpc = 0
+-const GoarchRiscv = 0
+-const GoarchRiscv64 = 0
+-const GoarchS390 = 0
+-const GoarchS390x = 0
+-const GoarchSparc = 0
+-const GoarchSparc64 = 0
+-const GoarchWasm = 0
++const Is386 = 0
++const IsAmd64 = 0
++const IsAmd64p32 = 0
++const IsArm = 0
++const IsArmbe = 0
++const IsArm64 = 0
++const IsArm64be = 0
++const IsPpc64 = 0
++const IsPpc64le = 1
++const IsMips = 0
++const IsMipsle = 0
++const IsMips64 = 0
++const IsMips64le = 0
++const IsMips64p32 = 0
++const IsMips64p32le = 0
++const IsPpc = 0
++const IsRiscv = 0
++const IsRiscv64 = 0
++const IsS390 = 0
++const IsS390x = 0
++const IsSparc = 0
++const IsSparc64 = 0
++const IsWasm = 0
+diff --git a/src/internal/goarch/zgoarch_riscv.go b/src/internal/goarch/zgoarch_riscv.go
+index f72973fbc5..fe6b385c50 100644
+--- a/src/internal/goarch/zgoarch_riscv.go
++++ b/src/internal/goarch/zgoarch_riscv.go
+@@ -7,26 +7,26 @@ package goarch
+ 
+ const GOARCH = `riscv`
+ 
+-const Goarch386 = 0
+-const GoarchAmd64 = 0
+-const GoarchAmd64p32 = 0
+-const GoarchArm = 0
+-const GoarchArmbe = 0
+-const GoarchArm64 = 0
+-const GoarchArm64be = 0
+-const GoarchPpc64 = 0
+-const GoarchPpc64le = 0
+-const GoarchMips = 0
+-const GoarchMipsle = 0
+-const GoarchMips64 = 0
+-const GoarchMips64le = 0
+-const GoarchMips64p32 = 0
+-const GoarchMips64p32le = 0
+-const GoarchPpc = 0
+-const GoarchRiscv = 1
+-const GoarchRiscv64 = 0
+-const GoarchS390 = 0
+-const GoarchS390x = 0
+-const GoarchSparc = 0
+-const GoarchSparc64 = 0
+-const GoarchWasm = 0
++const Is386 = 0
++const IsAmd64 = 0
++const IsAmd64p32 = 0
++const IsArm = 0
++const IsArmbe = 0
++const IsArm64 = 0
++const IsArm64be = 0
++const IsPpc64 = 0
++const IsPpc64le = 0
++const IsMips = 0
++const IsMipsle = 0
++const IsMips64 = 0
++const IsMips64le = 0
++const IsMips64p32 = 0
++const IsMips64p32le = 0
++const IsPpc = 0
++const IsRiscv = 1
++const IsRiscv64 = 0
++const IsS390 = 0
++const IsS390x = 0
++const IsSparc = 0
++const IsSparc64 = 0
++const IsWasm = 0
+diff --git a/src/internal/goarch/zgoarch_riscv64.go b/src/internal/goarch/zgoarch_riscv64.go
+index 5d09b63a03..85299a6b4b 100644
+--- a/src/internal/goarch/zgoarch_riscv64.go
++++ b/src/internal/goarch/zgoarch_riscv64.go
+@@ -7,26 +7,26 @@ package goarch
+ 
+ const GOARCH = `riscv64`
+ 
+-const Goarch386 = 0
+-const GoarchAmd64 = 0
+-const GoarchAmd64p32 = 0
+-const GoarchArm = 0
+-const GoarchArmbe = 0
+-const GoarchArm64 = 0
+-const GoarchArm64be = 0
+-const GoarchPpc64 = 0
+-const GoarchPpc64le = 0
+-const GoarchMips = 0
+-const GoarchMipsle = 0
+-const GoarchMips64 = 0
+-const GoarchMips64le = 0
+-const GoarchMips64p32 = 0
+-const GoarchMips64p32le = 0
+-const GoarchPpc = 0
+-const GoarchRiscv = 0
+-const GoarchRiscv64 = 1
+-const GoarchS390 = 0
+-const GoarchS390x = 0
+-const GoarchSparc = 0
+-const GoarchSparc64 = 0
+-const GoarchWasm = 0
++const Is386 = 0
++const IsAmd64 = 0
++const IsAmd64p32 = 0
++const IsArm = 0
++const IsArmbe = 0
++const IsArm64 = 0
++const IsArm64be = 0
++const IsPpc64 = 0
++const IsPpc64le = 0
++const IsMips = 0
++const IsMipsle = 0
++const IsMips64 = 0
++const IsMips64le = 0
++const IsMips64p32 = 0
++const IsMips64p32le = 0
++const IsPpc = 0
++const IsRiscv = 0
++const IsRiscv64 = 1
++const IsS390 = 0
++const IsS390x = 0
++const IsSparc = 0
++const IsSparc64 = 0
++const IsWasm = 0
+diff --git a/src/internal/goarch/zgoarch_s390.go b/src/internal/goarch/zgoarch_s390.go
+index 0ceffe6c2e..39325c473e 100644
+--- a/src/internal/goarch/zgoarch_s390.go
++++ b/src/internal/goarch/zgoarch_s390.go
+@@ -7,26 +7,26 @@ package goarch
+ 
+ const GOARCH = `s390`
+ 
+-const Goarch386 = 0
+-const GoarchAmd64 = 0
+-const GoarchAmd64p32 = 0
+-const GoarchArm = 0
+-const GoarchArmbe = 0
+-const GoarchArm64 = 0
+-const GoarchArm64be = 0
+-const GoarchPpc64 = 0
+-const GoarchPpc64le = 0
+-const GoarchMips = 0
+-const GoarchMipsle = 0
+-const GoarchMips64 = 0
+-const GoarchMips64le = 0
+-const GoarchMips64p32 = 0
+-const GoarchMips64p32le = 0
+-const GoarchPpc = 0
+-const GoarchRiscv = 0
+-const GoarchRiscv64 = 0
+-const GoarchS390 = 1
+-const GoarchS390x = 0
+-const GoarchSparc = 0
+-const GoarchSparc64 = 0
+-const GoarchWasm = 0
++const Is386 = 0
++const IsAmd64 = 0
++const IsAmd64p32 = 0
++const IsArm = 0
++const IsArmbe = 0
++const IsArm64 = 0
++const IsArm64be = 0
++const IsPpc64 = 0
++const IsPpc64le = 0
++const IsMips = 0
++const IsMipsle = 0
++const IsMips64 = 0
++const IsMips64le = 0
++const IsMips64p32 = 0
++const IsMips64p32le = 0
++const IsPpc = 0
++const IsRiscv = 0
++const IsRiscv64 = 0
++const IsS390 = 1
++const IsS390x = 0
++const IsSparc = 0
++const IsSparc64 = 0
++const IsWasm = 0
+diff --git a/src/internal/goarch/zgoarch_s390x.go b/src/internal/goarch/zgoarch_s390x.go
+index 142bc0f1e3..64d714ace2 100644
+--- a/src/internal/goarch/zgoarch_s390x.go
++++ b/src/internal/goarch/zgoarch_s390x.go
+@@ -7,26 +7,26 @@ package goarch
+ 
+ const GOARCH = `s390x`
+ 
+-const Goarch386 = 0
+-const GoarchAmd64 = 0
+-const GoarchAmd64p32 = 0
+-const GoarchArm = 0
+-const GoarchArmbe = 0
+-const GoarchArm64 = 0
+-const GoarchArm64be = 0
+-const GoarchPpc64 = 0
+-const GoarchPpc64le = 0
+-const GoarchMips = 0
+-const GoarchMipsle = 0
+-const GoarchMips64 = 0
+-const GoarchMips64le = 0
+-const GoarchMips64p32 = 0
+-const GoarchMips64p32le = 0
+-const GoarchPpc = 0
+-const GoarchRiscv = 0
+-const GoarchRiscv64 = 0
+-const GoarchS390 = 0
+-const GoarchS390x = 1
+-const GoarchSparc = 0
+-const GoarchSparc64 = 0
+-const GoarchWasm = 0
++const Is386 = 0
++const IsAmd64 = 0
++const IsAmd64p32 = 0
++const IsArm = 0
++const IsArmbe = 0
++const IsArm64 = 0
++const IsArm64be = 0
++const IsPpc64 = 0
++const IsPpc64le = 0
++const IsMips = 0
++const IsMipsle = 0
++const IsMips64 = 0
++const IsMips64le = 0
++const IsMips64p32 = 0
++const IsMips64p32le = 0
++const IsPpc = 0
++const IsRiscv = 0
++const IsRiscv64 = 0
++const IsS390 = 0
++const IsS390x = 1
++const IsSparc = 0
++const IsSparc64 = 0
++const IsWasm = 0
+diff --git a/src/internal/goarch/zgoarch_sparc.go b/src/internal/goarch/zgoarch_sparc.go
+index 62452b9d38..9ccd362414 100644
+--- a/src/internal/goarch/zgoarch_sparc.go
++++ b/src/internal/goarch/zgoarch_sparc.go
+@@ -7,26 +7,26 @@ package goarch
+ 
+ const GOARCH = `sparc`
+ 
+-const Goarch386 = 0
+-const GoarchAmd64 = 0
+-const GoarchAmd64p32 = 0
+-const GoarchArm = 0
+-const GoarchArmbe = 0
+-const GoarchArm64 = 0
+-const GoarchArm64be = 0
+-const GoarchPpc64 = 0
+-const GoarchPpc64le = 0
+-const GoarchMips = 0
+-const GoarchMipsle = 0
+-const GoarchMips64 = 0
+-const GoarchMips64le = 0
+-const GoarchMips64p32 = 0
+-const GoarchMips64p32le = 0
+-const GoarchPpc = 0
+-const GoarchRiscv = 0
+-const GoarchRiscv64 = 0
+-const GoarchS390 = 0
+-const GoarchS390x = 0
+-const GoarchSparc = 1
+-const GoarchSparc64 = 0
+-const GoarchWasm = 0
++const Is386 = 0
++const IsAmd64 = 0
++const IsAmd64p32 = 0
++const IsArm = 0
++const IsArmbe = 0
++const IsArm64 = 0
++const IsArm64be = 0
++const IsPpc64 = 0
++const IsPpc64le = 0
++const IsMips = 0
++const IsMipsle = 0
++const IsMips64 = 0
++const IsMips64le = 0
++const IsMips64p32 = 0
++const IsMips64p32le = 0
++const IsPpc = 0
++const IsRiscv = 0
++const IsRiscv64 = 0
++const IsS390 = 0
++const IsS390x = 0
++const IsSparc = 1
++const IsSparc64 = 0
++const IsWasm = 0
+diff --git a/src/internal/goarch/zgoarch_sparc64.go b/src/internal/goarch/zgoarch_sparc64.go
+index 5149507917..490a714eb6 100644
+--- a/src/internal/goarch/zgoarch_sparc64.go
++++ b/src/internal/goarch/zgoarch_sparc64.go
+@@ -7,26 +7,26 @@ package goarch
+ 
+ const GOARCH = `sparc64`
+ 
+-const Goarch386 = 0
+-const GoarchAmd64 = 0
+-const GoarchAmd64p32 = 0
+-const GoarchArm = 0
+-const GoarchArmbe = 0
+-const GoarchArm64 = 0
+-const GoarchArm64be = 0
+-const GoarchPpc64 = 0
+-const GoarchPpc64le = 0
+-const GoarchMips = 0
+-const GoarchMipsle = 0
+-const GoarchMips64 = 0
+-const GoarchMips64le = 0
+-const GoarchMips64p32 = 0
+-const GoarchMips64p32le = 0
+-const GoarchPpc = 0
+-const GoarchRiscv = 0
+-const GoarchRiscv64 = 0
+-const GoarchS390 = 0
+-const GoarchS390x = 0
+-const GoarchSparc = 0
+-const GoarchSparc64 = 1
+-const GoarchWasm = 0
++const Is386 = 0
++const IsAmd64 = 0
++const IsAmd64p32 = 0
++const IsArm = 0
++const IsArmbe = 0
++const IsArm64 = 0
++const IsArm64be = 0
++const IsPpc64 = 0
++const IsPpc64le = 0
++const IsMips = 0
++const IsMipsle = 0
++const IsMips64 = 0
++const IsMips64le = 0
++const IsMips64p32 = 0
++const IsMips64p32le = 0
++const IsPpc = 0
++const IsRiscv = 0
++const IsRiscv64 = 0
++const IsS390 = 0
++const IsS390x = 0
++const IsSparc = 0
++const IsSparc64 = 1
++const IsWasm = 0
+diff --git a/src/internal/goarch/zgoarch_wasm.go b/src/internal/goarch/zgoarch_wasm.go
+index fd25e93e74..a4b4a38401 100644
+--- a/src/internal/goarch/zgoarch_wasm.go
++++ b/src/internal/goarch/zgoarch_wasm.go
+@@ -7,26 +7,26 @@ package goarch
+ 
+ const GOARCH = `wasm`
+ 
+-const Goarch386 = 0
+-const GoarchAmd64 = 0
+-const GoarchAmd64p32 = 0
+-const GoarchArm = 0
+-const GoarchArmbe = 0
+-const GoarchArm64 = 0
+-const GoarchArm64be = 0
+-const GoarchPpc64 = 0
+-const GoarchPpc64le = 0
+-const GoarchMips = 0
+-const GoarchMipsle = 0
+-const GoarchMips64 = 0
+-const GoarchMips64le = 0
+-const GoarchMips64p32 = 0
+-const GoarchMips64p32le = 0
+-const GoarchPpc = 0
+-const GoarchRiscv = 0
+-const GoarchRiscv64 = 0
+-const GoarchS390 = 0
+-const GoarchS390x = 0
+-const GoarchSparc = 0
+-const GoarchSparc64 = 0
+-const GoarchWasm = 1
++const Is386 = 0
++const IsAmd64 = 0
++const IsAmd64p32 = 0
++const IsArm = 0
++const IsArmbe = 0
++const IsArm64 = 0
++const IsArm64be = 0
++const IsPpc64 = 0
++const IsPpc64le = 0
++const IsMips = 0
++const IsMipsle = 0
++const IsMips64 = 0
++const IsMips64le = 0
++const IsMips64p32 = 0
++const IsMips64p32le = 0
++const IsPpc = 0
++const IsRiscv = 0
++const IsRiscv64 = 0
++const IsS390 = 0
++const IsS390x = 0
++const IsSparc = 0
++const IsSparc64 = 0
++const IsWasm = 1
+diff --git a/src/internal/goos/gengoos.go b/src/internal/goos/gengoos.go
+index ebcdfec3ba..1860cd700d 100644
+--- a/src/internal/goos/gengoos.go
++++ b/src/internal/goos/gengoos.go
+@@ -60,7 +60,7 @@ func main() {
+ 			if goos == target {
+ 				value = 1
+ 			}
+-			fmt.Fprintf(&buf, "const Goos%s = %d\n", strings.Title(goos), value)
++			fmt.Fprintf(&buf, "const Is%s = %d\n", strings.Title(goos), value)
+ 		}
+ 		err := os.WriteFile("zgoos_"+target+".go", buf.Bytes(), 0666)
+ 		if err != nil {
+diff --git a/src/internal/goos/goos.go b/src/internal/goos/goos.go
+index 332cf51e5d..ebb521fec6 100644
+--- a/src/internal/goos/goos.go
++++ b/src/internal/goos/goos.go
+@@ -6,7 +6,7 @@
+ package goos
+ 
+ // The next line makes 'go generate' write the zgoos*.go files with
+-// per-OS information, including constants named Goos$GOOS for every
++// per-OS information, including constants named Is$GOOS for every
+ // known GOOS. The constant is 1 on the current system, 0 otherwise;
+ // multiplying by them is useful for defining GOOS-specific constants.
+ //go:generate go run gengoos.go
+diff --git a/src/internal/goos/zgoos_aix.go b/src/internal/goos/zgoos_aix.go
+index f453a8a0a8..063e698b82 100644
+--- a/src/internal/goos/zgoos_aix.go
++++ b/src/internal/goos/zgoos_aix.go
+@@ -7,20 +7,20 @@ package goos
+ 
+ const GOOS = `aix`
+ 
+-const GoosAix = 1
+-const GoosAndroid = 0
+-const GoosDarwin = 0
+-const GoosDragonfly = 0
+-const GoosFreebsd = 0
+-const GoosHurd = 0
+-const GoosIllumos = 0
+-const GoosIos = 0
+-const GoosJs = 0
+-const GoosLinux = 0
+-const GoosNacl = 0
+-const GoosNetbsd = 0
+-const GoosOpenbsd = 0
+-const GoosPlan9 = 0
+-const GoosSolaris = 0
+-const GoosWindows = 0
+-const GoosZos = 0
++const IsAix = 1
++const IsAndroid = 0
++const IsDarwin = 0
++const IsDragonfly = 0
++const IsFreebsd = 0
++const IsHurd = 0
++const IsIllumos = 0
++const IsIos = 0
++const IsJs = 0
++const IsLinux = 0
++const IsNacl = 0
++const IsNetbsd = 0
++const IsOpenbsd = 0
++const IsPlan9 = 0
++const IsSolaris = 0
++const IsWindows = 0
++const IsZos = 0
+diff --git a/src/internal/goos/zgoos_android.go b/src/internal/goos/zgoos_android.go
+index d90c04f758..e9e4864978 100644
+--- a/src/internal/goos/zgoos_android.go
++++ b/src/internal/goos/zgoos_android.go
+@@ -7,20 +7,20 @@ package goos
+ 
+ const GOOS = `android`
+ 
+-const GoosAix = 0
+-const GoosAndroid = 1
+-const GoosDarwin = 0
+-const GoosDragonfly = 0
+-const GoosFreebsd = 0
+-const GoosHurd = 0
+-const GoosIllumos = 0
+-const GoosIos = 0
+-const GoosJs = 0
+-const GoosLinux = 0
+-const GoosNacl = 0
+-const GoosNetbsd = 0
+-const GoosOpenbsd = 0
+-const GoosPlan9 = 0
+-const GoosSolaris = 0
+-const GoosWindows = 0
+-const GoosZos = 0
++const IsAix = 0
++const IsAndroid = 1
++const IsDarwin = 0
++const IsDragonfly = 0
++const IsFreebsd = 0
++const IsHurd = 0
++const IsIllumos = 0
++const IsIos = 0
++const IsJs = 0
++const IsLinux = 0
++const IsNacl = 0
++const IsNetbsd = 0
++const IsOpenbsd = 0
++const IsPlan9 = 0
++const IsSolaris = 0
++const IsWindows = 0
++const IsZos = 0
+diff --git a/src/internal/goos/zgoos_darwin.go b/src/internal/goos/zgoos_darwin.go
+index 18f6c28b12..309d6a2717 100644
+--- a/src/internal/goos/zgoos_darwin.go
++++ b/src/internal/goos/zgoos_darwin.go
+@@ -7,20 +7,20 @@ package goos
+ 
+ const GOOS = `darwin`
+ 
+-const GoosAix = 0
+-const GoosAndroid = 0
+-const GoosDarwin = 1
+-const GoosDragonfly = 0
+-const GoosFreebsd = 0
+-const GoosHurd = 0
+-const GoosIllumos = 0
+-const GoosIos = 0
+-const GoosJs = 0
+-const GoosLinux = 0
+-const GoosNacl = 0
+-const GoosNetbsd = 0
+-const GoosOpenbsd = 0
+-const GoosPlan9 = 0
+-const GoosSolaris = 0
+-const GoosWindows = 0
+-const GoosZos = 0
++const IsAix = 0
++const IsAndroid = 0
++const IsDarwin = 1
++const IsDragonfly = 0
++const IsFreebsd = 0
++const IsHurd = 0
++const IsIllumos = 0
++const IsIos = 0
++const IsJs = 0
++const IsLinux = 0
++const IsNacl = 0
++const IsNetbsd = 0
++const IsOpenbsd = 0
++const IsPlan9 = 0
++const IsSolaris = 0
++const IsWindows = 0
++const IsZos = 0
+diff --git a/src/internal/goos/zgoos_dragonfly.go b/src/internal/goos/zgoos_dragonfly.go
+index a658d1d07f..4e8711b94c 100644
+--- a/src/internal/goos/zgoos_dragonfly.go
++++ b/src/internal/goos/zgoos_dragonfly.go
+@@ -7,20 +7,20 @@ package goos
+ 
+ const GOOS = `dragonfly`
+ 
+-const GoosAix = 0
+-const GoosAndroid = 0
+-const GoosDarwin = 0
+-const GoosDragonfly = 1
+-const GoosFreebsd = 0
+-const GoosHurd = 0
+-const GoosIllumos = 0
+-const GoosIos = 0
+-const GoosJs = 0
+-const GoosLinux = 0
+-const GoosNacl = 0
+-const GoosNetbsd = 0
+-const GoosOpenbsd = 0
+-const GoosPlan9 = 0
+-const GoosSolaris = 0
+-const GoosWindows = 0
+-const GoosZos = 0
++const IsAix = 0
++const IsAndroid = 0
++const IsDarwin = 0
++const IsDragonfly = 1
++const IsFreebsd = 0
++const IsHurd = 0
++const IsIllumos = 0
++const IsIos = 0
++const IsJs = 0
++const IsLinux = 0
++const IsNacl = 0
++const IsNetbsd = 0
++const IsOpenbsd = 0
++const IsPlan9 = 0
++const IsSolaris = 0
++const IsWindows = 0
++const IsZos = 0
+diff --git a/src/internal/goos/zgoos_freebsd.go b/src/internal/goos/zgoos_freebsd.go
+index 2534eb8c6f..f312bd1608 100644
+--- a/src/internal/goos/zgoos_freebsd.go
++++ b/src/internal/goos/zgoos_freebsd.go
+@@ -7,20 +7,20 @@ package goos
+ 
+ const GOOS = `freebsd`
+ 
+-const GoosAix = 0
+-const GoosAndroid = 0
+-const GoosDarwin = 0
+-const GoosDragonfly = 0
+-const GoosFreebsd = 1
+-const GoosHurd = 0
+-const GoosIllumos = 0
+-const GoosIos = 0
+-const GoosJs = 0
+-const GoosLinux = 0
+-const GoosNacl = 0
+-const GoosNetbsd = 0
+-const GoosOpenbsd = 0
+-const GoosPlan9 = 0
+-const GoosSolaris = 0
+-const GoosWindows = 0
+-const GoosZos = 0
++const IsAix = 0
++const IsAndroid = 0
++const IsDarwin = 0
++const IsDragonfly = 0
++const IsFreebsd = 1
++const IsHurd = 0
++const IsIllumos = 0
++const IsIos = 0
++const IsJs = 0
++const IsLinux = 0
++const IsNacl = 0
++const IsNetbsd = 0
++const IsOpenbsd = 0
++const IsPlan9 = 0
++const IsSolaris = 0
++const IsWindows = 0
++const IsZos = 0
+diff --git a/src/internal/goos/zgoos_hurd.go b/src/internal/goos/zgoos_hurd.go
+index 3fefb1fbb1..0f0dd28b81 100644
+--- a/src/internal/goos/zgoos_hurd.go
++++ b/src/internal/goos/zgoos_hurd.go
+@@ -7,20 +7,20 @@ package goos
+ 
+ const GOOS = `hurd`
+ 
+-const GoosAix = 0
+-const GoosAndroid = 0
+-const GoosDarwin = 0
+-const GoosDragonfly = 0
+-const GoosFreebsd = 0
+-const GoosHurd = 1
+-const GoosIllumos = 0
+-const GoosIos = 0
+-const GoosJs = 0
+-const GoosLinux = 0
+-const GoosNacl = 0
+-const GoosNetbsd = 0
+-const GoosOpenbsd = 0
+-const GoosPlan9 = 0
+-const GoosSolaris = 0
+-const GoosWindows = 0
+-const GoosZos = 0
++const IsAix = 0
++const IsAndroid = 0
++const IsDarwin = 0
++const IsDragonfly = 0
++const IsFreebsd = 0
++const IsHurd = 1
++const IsIllumos = 0
++const IsIos = 0
++const IsJs = 0
++const IsLinux = 0
++const IsNacl = 0
++const IsNetbsd = 0
++const IsOpenbsd = 0
++const IsPlan9 = 0
++const IsSolaris = 0
++const IsWindows = 0
++const IsZos = 0
+diff --git a/src/internal/goos/zgoos_illumos.go b/src/internal/goos/zgoos_illumos.go
+index 77495a3369..17e7c53a40 100644
+--- a/src/internal/goos/zgoos_illumos.go
++++ b/src/internal/goos/zgoos_illumos.go
+@@ -7,20 +7,20 @@ package goos
+ 
+ const GOOS = `illumos`
+ 
+-const GoosAix = 0
+-const GoosAndroid = 0
+-const GoosDarwin = 0
+-const GoosDragonfly = 0
+-const GoosFreebsd = 0
+-const GoosHurd = 0
+-const GoosIllumos = 1
+-const GoosIos = 0
+-const GoosJs = 0
+-const GoosLinux = 0
+-const GoosNacl = 0
+-const GoosNetbsd = 0
+-const GoosOpenbsd = 0
+-const GoosPlan9 = 0
+-const GoosSolaris = 0
+-const GoosWindows = 0
+-const GoosZos = 0
++const IsAix = 0
++const IsAndroid = 0
++const IsDarwin = 0
++const IsDragonfly = 0
++const IsFreebsd = 0
++const IsHurd = 0
++const IsIllumos = 1
++const IsIos = 0
++const IsJs = 0
++const IsLinux = 0
++const IsNacl = 0
++const IsNetbsd = 0
++const IsOpenbsd = 0
++const IsPlan9 = 0
++const IsSolaris = 0
++const IsWindows = 0
++const IsZos = 0
+diff --git a/src/internal/goos/zgoos_ios.go b/src/internal/goos/zgoos_ios.go
+index 92820fe77e..e4745ca413 100644
+--- a/src/internal/goos/zgoos_ios.go
++++ b/src/internal/goos/zgoos_ios.go
+@@ -7,20 +7,20 @@ package goos
+ 
+ const GOOS = `ios`
+ 
+-const GoosAix = 0
+-const GoosAndroid = 0
+-const GoosDarwin = 0
+-const GoosDragonfly = 0
+-const GoosFreebsd = 0
+-const GoosHurd = 0
+-const GoosIllumos = 0
+-const GoosIos = 1
+-const GoosJs = 0
+-const GoosLinux = 0
+-const GoosNacl = 0
+-const GoosNetbsd = 0
+-const GoosOpenbsd = 0
+-const GoosPlan9 = 0
+-const GoosSolaris = 0
+-const GoosWindows = 0
+-const GoosZos = 0
++const IsAix = 0
++const IsAndroid = 0
++const IsDarwin = 0
++const IsDragonfly = 0
++const IsFreebsd = 0
++const IsHurd = 0
++const IsIllumos = 0
++const IsIos = 1
++const IsJs = 0
++const IsLinux = 0
++const IsNacl = 0
++const IsNetbsd = 0
++const IsOpenbsd = 0
++const IsPlan9 = 0
++const IsSolaris = 0
++const IsWindows = 0
++const IsZos = 0
+diff --git a/src/internal/goos/zgoos_js.go b/src/internal/goos/zgoos_js.go
+index 6331a5c3f1..bd2417e9ce 100644
+--- a/src/internal/goos/zgoos_js.go
++++ b/src/internal/goos/zgoos_js.go
+@@ -7,20 +7,20 @@ package goos
+ 
+ const GOOS = `js`
+ 
+-const GoosAix = 0
+-const GoosAndroid = 0
+-const GoosDarwin = 0
+-const GoosDragonfly = 0
+-const GoosFreebsd = 0
+-const GoosHurd = 0
+-const GoosIllumos = 0
+-const GoosIos = 0
+-const GoosJs = 1
+-const GoosLinux = 0
+-const GoosNacl = 0
+-const GoosNetbsd = 0
+-const GoosOpenbsd = 0
+-const GoosPlan9 = 0
+-const GoosSolaris = 0
+-const GoosWindows = 0
+-const GoosZos = 0
++const IsAix = 0
++const IsAndroid = 0
++const IsDarwin = 0
++const IsDragonfly = 0
++const IsFreebsd = 0
++const IsHurd = 0
++const IsIllumos = 0
++const IsIos = 0
++const IsJs = 1
++const IsLinux = 0
++const IsNacl = 0
++const IsNetbsd = 0
++const IsOpenbsd = 0
++const IsPlan9 = 0
++const IsSolaris = 0
++const IsWindows = 0
++const IsZos = 0
+diff --git a/src/internal/goos/zgoos_linux.go b/src/internal/goos/zgoos_linux.go
+index aa4e2d3145..476702f442 100644
+--- a/src/internal/goos/zgoos_linux.go
++++ b/src/internal/goos/zgoos_linux.go
+@@ -7,20 +7,20 @@ package goos
+ 
+ const GOOS = `linux`
+ 
+-const GoosAix = 0
+-const GoosAndroid = 0
+-const GoosDarwin = 0
+-const GoosDragonfly = 0
+-const GoosFreebsd = 0
+-const GoosHurd = 0
+-const GoosIllumos = 0
+-const GoosIos = 0
+-const GoosJs = 0
+-const GoosLinux = 1
+-const GoosNacl = 0
+-const GoosNetbsd = 0
+-const GoosOpenbsd = 0
+-const GoosPlan9 = 0
+-const GoosSolaris = 0
+-const GoosWindows = 0
+-const GoosZos = 0
++const IsAix = 0
++const IsAndroid = 0
++const IsDarwin = 0
++const IsDragonfly = 0
++const IsFreebsd = 0
++const IsHurd = 0
++const IsIllumos = 0
++const IsIos = 0
++const IsJs = 0
++const IsLinux = 1
++const IsNacl = 0
++const IsNetbsd = 0
++const IsOpenbsd = 0
++const IsPlan9 = 0
++const IsSolaris = 0
++const IsWindows = 0
++const IsZos = 0
+diff --git a/src/internal/goos/zgoos_netbsd.go b/src/internal/goos/zgoos_netbsd.go
+index 39635104c0..97b7564bab 100644
+--- a/src/internal/goos/zgoos_netbsd.go
++++ b/src/internal/goos/zgoos_netbsd.go
+@@ -7,20 +7,20 @@ package goos
+ 
+ const GOOS = `netbsd`
+ 
+-const GoosAix = 0
+-const GoosAndroid = 0
+-const GoosDarwin = 0
+-const GoosDragonfly = 0
+-const GoosFreebsd = 0
+-const GoosHurd = 0
+-const GoosIllumos = 0
+-const GoosIos = 0
+-const GoosJs = 0
+-const GoosLinux = 0
+-const GoosNacl = 0
+-const GoosNetbsd = 1
+-const GoosOpenbsd = 0
+-const GoosPlan9 = 0
+-const GoosSolaris = 0
+-const GoosWindows = 0
+-const GoosZos = 0
++const IsAix = 0
++const IsAndroid = 0
++const IsDarwin = 0
++const IsDragonfly = 0
++const IsFreebsd = 0
++const IsHurd = 0
++const IsIllumos = 0
++const IsIos = 0
++const IsJs = 0
++const IsLinux = 0
++const IsNacl = 0
++const IsNetbsd = 1
++const IsOpenbsd = 0
++const IsPlan9 = 0
++const IsSolaris = 0
++const IsWindows = 0
++const IsZos = 0
+diff --git a/src/internal/goos/zgoos_openbsd.go b/src/internal/goos/zgoos_openbsd.go
+index 61d4ac8bb0..384a96480d 100644
+--- a/src/internal/goos/zgoos_openbsd.go
++++ b/src/internal/goos/zgoos_openbsd.go
+@@ -7,20 +7,20 @@ package goos
+ 
+ const GOOS = `openbsd`
+ 
+-const GoosAix = 0
+-const GoosAndroid = 0
+-const GoosDarwin = 0
+-const GoosDragonfly = 0
+-const GoosFreebsd = 0
+-const GoosHurd = 0
+-const GoosIllumos = 0
+-const GoosIos = 0
+-const GoosJs = 0
+-const GoosLinux = 0
+-const GoosNacl = 0
+-const GoosNetbsd = 0
+-const GoosOpenbsd = 1
+-const GoosPlan9 = 0
+-const GoosSolaris = 0
+-const GoosWindows = 0
+-const GoosZos = 0
++const IsAix = 0
++const IsAndroid = 0
++const IsDarwin = 0
++const IsDragonfly = 0
++const IsFreebsd = 0
++const IsHurd = 0
++const IsIllumos = 0
++const IsIos = 0
++const IsJs = 0
++const IsLinux = 0
++const IsNacl = 0
++const IsNetbsd = 0
++const IsOpenbsd = 1
++const IsPlan9 = 0
++const IsSolaris = 0
++const IsWindows = 0
++const IsZos = 0
+diff --git a/src/internal/goos/zgoos_plan9.go b/src/internal/goos/zgoos_plan9.go
+index 7f0dc2fa04..fcc279a79e 100644
+--- a/src/internal/goos/zgoos_plan9.go
++++ b/src/internal/goos/zgoos_plan9.go
+@@ -7,20 +7,20 @@ package goos
+ 
+ const GOOS = `plan9`
+ 
+-const GoosAix = 0
+-const GoosAndroid = 0
+-const GoosDarwin = 0
+-const GoosDragonfly = 0
+-const GoosFreebsd = 0
+-const GoosHurd = 0
+-const GoosIllumos = 0
+-const GoosIos = 0
+-const GoosJs = 0
+-const GoosLinux = 0
+-const GoosNacl = 0
+-const GoosNetbsd = 0
+-const GoosOpenbsd = 0
+-const GoosPlan9 = 1
+-const GoosSolaris = 0
+-const GoosWindows = 0
+-const GoosZos = 0
++const IsAix = 0
++const IsAndroid = 0
++const IsDarwin = 0
++const IsDragonfly = 0
++const IsFreebsd = 0
++const IsHurd = 0
++const IsIllumos = 0
++const IsIos = 0
++const IsJs = 0
++const IsLinux = 0
++const IsNacl = 0
++const IsNetbsd = 0
++const IsOpenbsd = 0
++const IsPlan9 = 1
++const IsSolaris = 0
++const IsWindows = 0
++const IsZos = 0
+diff --git a/src/internal/goos/zgoos_solaris.go b/src/internal/goos/zgoos_solaris.go
+index 7497324a4f..3f366cf710 100644
+--- a/src/internal/goos/zgoos_solaris.go
++++ b/src/internal/goos/zgoos_solaris.go
+@@ -7,20 +7,20 @@ package goos
+ 
+ const GOOS = `solaris`
+ 
+-const GoosAix = 0
+-const GoosAndroid = 0
+-const GoosDarwin = 0
+-const GoosDragonfly = 0
+-const GoosFreebsd = 0
+-const GoosHurd = 0
+-const GoosIllumos = 0
+-const GoosIos = 0
+-const GoosJs = 0
+-const GoosLinux = 0
+-const GoosNacl = 0
+-const GoosNetbsd = 0
+-const GoosOpenbsd = 0
+-const GoosPlan9 = 0
+-const GoosSolaris = 1
+-const GoosWindows = 0
+-const GoosZos = 0
++const IsAix = 0
++const IsAndroid = 0
++const IsDarwin = 0
++const IsDragonfly = 0
++const IsFreebsd = 0
++const IsHurd = 0
++const IsIllumos = 0
++const IsIos = 0
++const IsJs = 0
++const IsLinux = 0
++const IsNacl = 0
++const IsNetbsd = 0
++const IsOpenbsd = 0
++const IsPlan9 = 0
++const IsSolaris = 1
++const IsWindows = 0
++const IsZos = 0
+diff --git a/src/internal/goos/zgoos_windows.go b/src/internal/goos/zgoos_windows.go
+index e316b80c82..dfa55339d3 100644
+--- a/src/internal/goos/zgoos_windows.go
++++ b/src/internal/goos/zgoos_windows.go
+@@ -7,20 +7,20 @@ package goos
+ 
+ const GOOS = `windows`
+ 
+-const GoosAix = 0
+-const GoosAndroid = 0
+-const GoosDarwin = 0
+-const GoosDragonfly = 0
+-const GoosFreebsd = 0
+-const GoosHurd = 0
+-const GoosIllumos = 0
+-const GoosIos = 0
+-const GoosJs = 0
+-const GoosLinux = 0
+-const GoosNacl = 0
+-const GoosNetbsd = 0
+-const GoosOpenbsd = 0
+-const GoosPlan9 = 0
+-const GoosSolaris = 0
+-const GoosWindows = 1
+-const GoosZos = 0
++const IsAix = 0
++const IsAndroid = 0
++const IsDarwin = 0
++const IsDragonfly = 0
++const IsFreebsd = 0
++const IsHurd = 0
++const IsIllumos = 0
++const IsIos = 0
++const IsJs = 0
++const IsLinux = 0
++const IsNacl = 0
++const IsNetbsd = 0
++const IsOpenbsd = 0
++const IsPlan9 = 0
++const IsSolaris = 0
++const IsWindows = 1
++const IsZos = 0
+diff --git a/src/internal/goos/zgoos_zos.go b/src/internal/goos/zgoos_zos.go
+index 26471f4f36..714f24963a 100644
+--- a/src/internal/goos/zgoos_zos.go
++++ b/src/internal/goos/zgoos_zos.go
+@@ -7,20 +7,20 @@ package goos
+ 
+ const GOOS = `zos`
+ 
+-const GoosAix = 0
+-const GoosAndroid = 0
+-const GoosDarwin = 0
+-const GoosDragonfly = 0
+-const GoosFreebsd = 0
+-const GoosHurd = 0
+-const GoosIllumos = 0
+-const GoosIos = 0
+-const GoosJs = 0
+-const GoosLinux = 0
+-const GoosNacl = 0
+-const GoosNetbsd = 0
+-const GoosOpenbsd = 0
+-const GoosPlan9 = 0
+-const GoosSolaris = 0
+-const GoosWindows = 0
+-const GoosZos = 1
++const IsAix = 0
++const IsAndroid = 0
++const IsDarwin = 0
++const IsDragonfly = 0
++const IsFreebsd = 0
++const IsHurd = 0
++const IsIllumos = 0
++const IsIos = 0
++const IsJs = 0
++const IsLinux = 0
++const IsNacl = 0
++const IsNetbsd = 0
++const IsOpenbsd = 0
++const IsPlan9 = 0
++const IsSolaris = 0
++const IsWindows = 0
++const IsZos = 1
+diff --git a/src/runtime/internal/sys/consts.go b/src/runtime/internal/sys/consts.go
+index 6400c10748..ab0a02671a 100644
+--- a/src/runtime/internal/sys/consts.go
++++ b/src/runtime/internal/sys/consts.go
+@@ -10,7 +10,7 @@ import (
+ )
+ 
+ // AIX requires a larger stack for syscalls.
+-const StackGuardMultiplier = StackGuardMultiplierDefault*(1-goos.GoosAix) + 2*goos.GoosAix
++const StackGuardMultiplier = StackGuardMultiplierDefault*(1-goos.IsAix) + 2*goos.IsAix
+ 
+ // DefaultPhysPageSize is the default physical page size.
+ const DefaultPhysPageSize = goarch.DefaultPhysPageSize
+@@ -34,47 +34,47 @@ const MinFrameSize = goarch.MinFrameSize
+ const StackAlign = goarch.StackAlign
+ 
+ const (
+-	Goarch386         = goarch.Goarch386
+-	GoarchAmd64       = goarch.GoarchAmd64
+-	GoarchAmd64p32    = goarch.GoarchAmd64p32
+-	GoarchArm         = goarch.GoarchArm
+-	GoarchArmbe       = goarch.GoarchArmbe
+-	GoarchArm64       = goarch.GoarchArm64
+-	GoarchArm64be     = goarch.GoarchArm64be
+-	GoarchPpc64       = goarch.GoarchPpc64
+-	GoarchPpc64le     = goarch.GoarchPpc64le
+-	GoarchMips        = goarch.GoarchMips
+-	GoarchMipsle      = goarch.GoarchMipsle
+-	GoarchMips64      = goarch.GoarchMips64
+-	GoarchMips64le    = goarch.GoarchMips64le
+-	GoarchMips64p32   = goarch.GoarchMips64p32
+-	GoarchMips64p32le = goarch.GoarchMips64p32le
+-	GoarchPpc         = goarch.GoarchPpc
+-	GoarchRiscv       = goarch.GoarchRiscv
+-	GoarchRiscv64     = goarch.GoarchRiscv64
+-	GoarchS390        = goarch.GoarchS390
+-	GoarchS390x       = goarch.GoarchS390x
+-	GoarchSparc       = goarch.GoarchSparc
+-	GoarchSparc64     = goarch.GoarchSparc64
+-	GoarchWasm        = goarch.GoarchWasm
++	Goarch386         = goarch.Is386
++	GoarchAmd64       = goarch.IsAmd64
++	GoarchAmd64p32    = goarch.IsAmd64p32
++	GoarchArm         = goarch.IsArm
++	GoarchArmbe       = goarch.IsArmbe
++	GoarchArm64       = goarch.IsArm64
++	GoarchArm64be     = goarch.IsArm64be
++	GoarchPpc64       = goarch.IsPpc64
++	GoarchPpc64le     = goarch.IsPpc64le
++	GoarchMips        = goarch.IsMips
++	GoarchMipsle      = goarch.IsMipsle
++	GoarchMips64      = goarch.IsMips64
++	GoarchMips64le    = goarch.IsMips64le
++	GoarchMips64p32   = goarch.IsMips64p32
++	GoarchMips64p32le = goarch.IsMips64p32le
++	GoarchPpc         = goarch.IsPpc
++	GoarchRiscv       = goarch.IsRiscv
++	GoarchRiscv64     = goarch.IsRiscv64
++	GoarchS390        = goarch.IsS390
++	GoarchS390x       = goarch.IsS390x
++	GoarchSparc       = goarch.IsSparc
++	GoarchSparc64     = goarch.IsSparc64
++	GoarchWasm        = goarch.IsWasm
+ )
+ 
+ const (
+-	GoosAix       = goos.GoosAix
+-	GoosAndroid   = goos.GoosAndroid
+-	GoosDarwin    = goos.GoosDarwin
+-	GoosDragonfly = goos.GoosDragonfly
+-	GoosFreebsd   = goos.GoosFreebsd
+-	GoosHurd      = goos.GoosHurd
+-	GoosIllumos   = goos.GoosIllumos
+-	GoosIos       = goos.GoosIos
+-	GoosJs        = goos.GoosJs
+-	GoosLinux     = goos.GoosLinux
+-	GoosNacl      = goos.GoosNacl
+-	GoosNetbsd    = goos.GoosNetbsd
+-	GoosOpenbsd   = goos.GoosOpenbsd
+-	GoosPlan9     = goos.GoosPlan9
+-	GoosSolaris   = goos.GoosSolaris
+-	GoosWindows   = goos.GoosWindows
+-	GoosZos       = goos.GoosZos
++	GoosAix       = goos.IsAix
++	GoosAndroid   = goos.IsAndroid
++	GoosDarwin    = goos.IsDarwin
++	GoosDragonfly = goos.IsDragonfly
++	GoosFreebsd   = goos.IsFreebsd
++	GoosHurd      = goos.IsHurd
++	GoosIllumos   = goos.IsIllumos
++	GoosIos       = goos.IsIos
++	GoosJs        = goos.IsJs
++	GoosLinux     = goos.IsLinux
++	GoosNacl      = goos.IsNacl
++	GoosNetbsd    = goos.IsNetbsd
++	GoosOpenbsd   = goos.IsOpenbsd
++	GoosPlan9     = goos.IsPlan9
++	GoosSolaris   = goos.IsSolaris
++	GoosWindows   = goos.IsWindows
++	GoosZos       = goos.IsZos
+ )

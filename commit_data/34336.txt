@@ -14,9 +14,155 @@ Date:   Tue Oct 17 17:09:54 2017 -0400
     Change-Id: I1b994ef2262aa9b88b68eb6e883695d1103acc58
     Reviewed-on: https://go-review.googlesource.com/71430
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/compile/internal/gc/main.go | 58 +++++++++++++++++++++++++++++++++++++
  src/cmd/internal/dwarf/dwarf.go     |  6 +++-
  src/cmd/internal/objabi/flag.go     |  8 +++++
  src/cmd/link/internal/ld/dwarf.go   | 10 +++++++
  4 files changed, 81 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 2dbb8155f5..8a02e98e0e 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -11,6 +11,7 @@ import (
+ 	"bytes"
+ 	"cmd/compile/internal/ssa"
+ 	"cmd/compile/internal/types"
++	"cmd/internal/dwarf"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/objabi"
+ 	"cmd/internal/src"
+@@ -239,6 +240,11 @@ func Main(archInit func(*Arch)) {
+ 	flag.StringVar(&benchfile, "bench", "", "append benchmark times to `file`")
+ 	objabi.Flagparse(usage)
+ 
++	// Record flags that affect the build result. (And don't
++	// record flags that don't, since that would cause spurious
++	// changes in the binary.)
++	recordFlags("B", "N", "l", "msan", "race", "shared", "dynlink", "dwarflocationlists")
++
+ 	Ctxt.Flag_shared = flag_dynlink || flag_shared
+ 	Ctxt.Flag_dynlink = flag_dynlink
+ 	Ctxt.Flag_optimize = Debug['N'] == 0
+@@ -1195,3 +1201,55 @@ func concurrentBackendAllowed() bool {
+ 	}
+ 	return true
+ }
++
++// recordFlags records the specified command-line flags to be placed
++// in the DWARF info.
++func recordFlags(flags ...string) {
++	if myimportpath == "" {
++		// We can't record the flags if we don't know what the
++		// package name is.
++		return
++	}
++
++	type BoolFlag interface {
++		IsBoolFlag() bool
++	}
++	type CountFlag interface {
++		IsCountFlag() bool
++	}
++	var cmd bytes.Buffer
++	for _, name := range flags {
++		f := flag.Lookup(name)
++		if f == nil {
++			continue
++		}
++		getter := f.Value.(flag.Getter)
++		if getter.String() == f.DefValue {
++			// Flag has default value, so omit it.
++			continue
++		}
++		if bf, ok := f.Value.(BoolFlag); ok && bf.IsBoolFlag() {
++			val, ok := getter.Get().(bool)
++			if ok && val {
++				fmt.Fprintf(&cmd, " -%s", f.Name)
++				continue
++			}
++		}
++		if cf, ok := f.Value.(CountFlag); ok && cf.IsCountFlag() {
++			val, ok := getter.Get().(int)
++			if ok && val == 1 {
++				fmt.Fprintf(&cmd, " -%s", f.Name)
++				continue
++			}
++		}
++		fmt.Fprintf(&cmd, " -%s=%v", f.Name, getter.Get())
++	}
++
++	if cmd.Len() == 0 {
++		return
++	}
++	s := Ctxt.Lookup(dwarf.CUInfoPrefix + "producer." + myimportpath)
++	s.Type = objabi.SDWARFINFO
++	Ctxt.Data = append(Ctxt.Data, s)
++	s.P = cmd.Bytes()[1:]
++}
+diff --git a/src/cmd/internal/dwarf/dwarf.go b/src/cmd/internal/dwarf/dwarf.go
+index 149cfc790d..aab8000792 100644
+--- a/src/cmd/internal/dwarf/dwarf.go
++++ b/src/cmd/internal/dwarf/dwarf.go
+@@ -21,10 +21,14 @@ const LocPrefix = "go.loc."
+ // RangePrefix is the prefix for all the symbols containing DWARF range lists.
+ const RangePrefix = "go.range."
+ 
+-// InfoConstPrefix is the prefix for all symbols containing DWARF info
++// ConstInfoPrefix is the prefix for all symbols containing DWARF info
+ // entries that contain constants.
+ const ConstInfoPrefix = "go.constinfo."
+ 
++// CUInfoPrefix is the prefix for symbols containing information to
++// populate the DWARF compilation unit info entries.
++const CUInfoPrefix = "go.cuinfo."
++
+ // Sym represents a symbol.
+ type Sym interface {
+ 	Len() int64
+diff --git a/src/cmd/internal/objabi/flag.go b/src/cmd/internal/objabi/flag.go
+index 388698332d..8f611c9ec9 100644
+--- a/src/cmd/internal/objabi/flag.go
++++ b/src/cmd/internal/objabi/flag.go
+@@ -94,10 +94,18 @@ func (c *count) Set(s string) error {
+ 	return nil
+ }
+ 
++func (c *count) Get() interface{} {
++	return int(*c)
++}
++
+ func (c *count) IsBoolFlag() bool {
+ 	return true
+ }
+ 
++func (c *count) IsCountFlag() bool {
++	return true
++}
++
+ type fn0 func()
+ 
+ func (f fn0) Set(s string) error {
+diff --git a/src/cmd/link/internal/ld/dwarf.go b/src/cmd/link/internal/ld/dwarf.go
+index 41f20e27ee..3059e7caf1 100644
+--- a/src/cmd/link/internal/ld/dwarf.go
++++ b/src/cmd/link/internal/ld/dwarf.go
+@@ -1059,7 +1059,17 @@ func writelines(ctxt *Link, lib *sym.Library, textp []*sym.Symbol, ls *sym.Symbo
+ 	// the linker directory. If we move CU construction into the
+ 	// compiler, this should happen naturally.
+ 	newattr(dwinfo, dwarf.DW_AT_comp_dir, dwarf.DW_CLS_STRING, int64(len(compDir)), compDir)
++	producerExtra := ctxt.Syms.Lookup(dwarf.CUInfoPrefix+"producer."+lib.Pkg, 0)
+ 	producer := "Go cmd/compile " + objabi.Version
++	if len(producerExtra.P) > 0 {
++		// We put a semicolon before the flags to clearly
++		// separate them from the version, which can be long
++		// and have lots of weird things in it in development
++		// versions. We promise not to put a semicolon in the
++		// version, so it should be safe for readers to scan
++		// forward to the semicolon.
++		producer += "; " + string(producerExtra.P)
++	}
+ 	newattr(dwinfo, dwarf.DW_AT_producer, dwarf.DW_CLS_STRING, int64(len(producer)), producer)
+ 
+ 	// Write .debug_line Line Number Program Header (sec 6.2.4)

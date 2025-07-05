@@ -18,6 +18,30 @@ Date:   Wed Oct 18 15:31:42 2017 -0700
     Reviewed-by: Rob Pike <r@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go_spec.html | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index fd3830dcf0..3cb221ce6c 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1,6 +1,6 @@
+ <!--{
+ 	"Title": "The Go Programming Language Specification",
+-	"Subtitle": "Version of October 17, 2017",
++	"Subtitle": "Version of October 18, 2017",
+ 	"Path": "/ref/spec"
+ }-->
+ 
+@@ -1866,8 +1866,8 @@ const (
+ <p>
+ Within a <a href="#Constant_declarations">constant declaration</a>, the predeclared identifier
+ <code>iota</code> represents successive untyped integer <a href="#Constants">
+-constants</a>. It is reset to 0 whenever the reserved word <code>const</code>
+-appears in the source and increments after each <a href="#ConstSpec">ConstSpec</a>.
++constants</a>. Its value is the index of the respective <a href="#ConstSpec">ConstSpec</a>
++in that constant declaration, starting at zero.
+ It can be used to construct a set of related constants:
+ </p>
+ 

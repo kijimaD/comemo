@@ -13,9 +13,139 @@ Date:   Mon Jan 13 15:39:20 2020 -0500
     Change-Id: Ib386838081abad8bc6b01c1f0a4656553d0b6ff3
     Reviewed-on: https://go-review.googlesource.com/c/go/+/214579
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/go_test.go                              | 44 ----------------------
  .../script/build_link_x_import_path_escape.txt     | 18 +++++++++
  src/cmd/go/testdata/src/my.pkg/main/main.go        |  7 ----
  src/cmd/go/testdata/src/my.pkg/pkg.go              |  3 --
  4 files changed, 18 insertions(+), 54 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 8389f86b6e..9d9d898ae3 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -317,7 +317,6 @@ var mtimeTick time.Duration = 1 * time.Second
+ type testgoData struct {
+ 	t              *testing.T
+ 	temps          []string
+-	wd             string
+ 	env            []string
+ 	tempdir        string
+ 	ran            bool
+@@ -367,9 +366,6 @@ func (tg *testgoData) parallel() {
+ 	if tg.ran {
+ 		tg.t.Fatal("internal testsuite error: call to parallel after run")
+ 	}
+-	if tg.wd != "" {
+-		tg.t.Fatal("internal testsuite error: call to parallel after cd")
+-	}
+ 	for _, e := range tg.env {
+ 		if strings.HasPrefix(e, "GOROOT=") || strings.HasPrefix(e, "GOPATH=") || strings.HasPrefix(e, "GOBIN=") {
+ 			val := e[strings.Index(e, "=")+1:]
+@@ -680,15 +676,6 @@ func (tg *testgoData) creatingTemp(path string) {
+ 	if filepath.IsAbs(path) && !strings.HasPrefix(path, tg.tempdir) {
+ 		tg.t.Fatalf("internal testsuite error: creatingTemp(%q) with absolute path not in temporary directory", path)
+ 	}
+-	// If we have changed the working directory, make sure we have
+-	// an absolute path, because we are going to change directory
+-	// back before we remove the temporary.
+-	if !filepath.IsAbs(path) {
+-		if tg.wd == "" || strings.HasPrefix(tg.wd, testGOROOT) {
+-			tg.t.Fatalf("internal testsuite error: creatingTemp(%q) within GOROOT/src", path)
+-		}
+-		path = filepath.Join(tg.wd, path)
+-	}
+ 	tg.must(robustio.RemoveAll(path))
+ 	tg.temps = append(tg.temps, path)
+ }
+@@ -842,16 +829,6 @@ var testWork = flag.Bool("testwork", false, "")
+ // cleanup cleans up a test that runs testgo.
+ func (tg *testgoData) cleanup() {
+ 	tg.t.Helper()
+-	if tg.wd != "" {
+-		wd, _ := os.Getwd()
+-		tg.t.Logf("ended in %s", wd)
+-
+-		if err := os.Chdir(tg.wd); err != nil {
+-			// We are unlikely to be able to continue.
+-			fmt.Fprintln(os.Stderr, "could not restore working directory, crashing:", err)
+-			os.Exit(2)
+-		}
+-	}
+ 	if *testWork {
+ 		tg.t.Logf("TESTWORK=%s\n", tg.path("."))
+ 		return
+@@ -2093,27 +2070,6 @@ const (
+ 	okPattern        = `(?m)^ok`
+ )
+ 
+-func TestLinkXImportPathEscape(t *testing.T) {
+-	// golang.org/issue/16710
+-	skipIfGccgo(t, "gccgo does not support -ldflags -X")
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.parallel()
+-	tg.makeTempdir()
+-	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
+-	exe := tg.path("linkx" + exeSuffix)
+-	tg.creatingTemp(exe)
+-	tg.run("build", "-o", exe, "-ldflags", "-X=my.pkg.Text=linkXworked", "my.pkg/main")
+-	out, err := exec.Command(exe).CombinedOutput()
+-	if err != nil {
+-		tg.t.Fatal(err)
+-	}
+-	if string(out) != "linkXworked\n" {
+-		tg.t.Log(string(out))
+-		tg.t.Fatal(`incorrect output: expected "linkXworked\n"`)
+-	}
+-}
+-
+ // Issue 18044.
+ func TestLdBindNow(t *testing.T) {
+ 	tg := testgo(t)
+diff --git a/src/cmd/go/testdata/script/build_link_x_import_path_escape.txt b/src/cmd/go/testdata/script/build_link_x_import_path_escape.txt
+new file mode 100644
+index 0000000000..daa544d3f0
+--- /dev/null
++++ b/src/cmd/go/testdata/script/build_link_x_import_path_escape.txt
+@@ -0,0 +1,18 @@
++[gccgo] skip 'gccgo does not support -ldflags -X'
++
++go build -o linkx$GOEXE -ldflags -X=my.pkg.Text=linkXworked my.pkg/main
++exec ./linkx$GOEXE
++stderr '^linkXworked$'
++
++-- my.pkg/main/main.go --
++package main
++
++import "my.pkg"
++
++func main() {
++	println(pkg.Text)
++}
++-- my.pkg/pkg.go --
++package pkg
++
++var Text = "unset"
+diff --git a/src/cmd/go/testdata/src/my.pkg/main/main.go b/src/cmd/go/testdata/src/my.pkg/main/main.go
+deleted file mode 100644
+index c3e8de1276..0000000000
+--- a/src/cmd/go/testdata/src/my.pkg/main/main.go
++++ /dev/null
+@@ -1,7 +0,0 @@
+-package main
+-
+-import "my.pkg"
+-
+-func main() {
+-	println(pkg.Text)
+-}
+diff --git a/src/cmd/go/testdata/src/my.pkg/pkg.go b/src/cmd/go/testdata/src/my.pkg/pkg.go
+deleted file mode 100644
+index 17702a680b..0000000000
+--- a/src/cmd/go/testdata/src/my.pkg/pkg.go
++++ /dev/null
+@@ -1,3 +0,0 @@
+-package pkg
+-
+-var Text = "unset"

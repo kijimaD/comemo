@@ -8,9 +8,63 @@ Date:   Fri Sep 21 13:50:02 2012 +0800
     R=r, dave, rsc
     CC=golang-dev
     https://golang.org/cl/6499118
-
+---
  src/pkg/runtime/runtime.h         | 3 +++
  src/pkg/runtime/sys_freebsd_386.s | 2 +-
  src/pkg/runtime/sys_netbsd_386.s  | 2 +-
  src/pkg/runtime/sys_openbsd_386.s | 2 +-
  4 files changed, 6 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 96da29a00c..37427fb92d 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -728,6 +728,9 @@ void	runtime·parfordo(ParFor *desc);
+ /*
+  * low level C-called
+  */
++// for mmap, we only pass the lower 32 bits of file offset to the 
++// assembly routine; the higher bits (if required), should be provided
++// by the assembly routine as 0.
+ uint8*	runtime·mmap(byte*, uintptr, int32, int32, int32, uint32);
+ void	runtime·munmap(byte*, uintptr);
+ void	runtime·madvise(byte*, uintptr, int32);
+diff --git a/src/pkg/runtime/sys_freebsd_386.s b/src/pkg/runtime/sys_freebsd_386.s
+index 2cfce09f44..c386268ff5 100644
+--- a/src/pkg/runtime/sys_freebsd_386.s
++++ b/src/pkg/runtime/sys_freebsd_386.s
+@@ -89,7 +89,7 @@ TEXT runtime·mmap(SB),7,$32
+ 	MOVSL
+ 	MOVSL
+ 	MOVSL
+-	MOVL	$0, AX	// top 64 bits of file offset
++	MOVL	$0, AX	// top 32 bits of file offset
+ 	STOSL
+ 	MOVL	$477, AX
+ 	INT	$0x80
+diff --git a/src/pkg/runtime/sys_netbsd_386.s b/src/pkg/runtime/sys_netbsd_386.s
+index 5f6738ee2d..c4bc80933a 100644
+--- a/src/pkg/runtime/sys_netbsd_386.s
++++ b/src/pkg/runtime/sys_netbsd_386.s
+@@ -68,7 +68,7 @@ TEXT runtime·mmap(SB),7,$36
+ 	MOVL	$0, AX
+ 	STOSL				// arg 6 - pad
+ 	MOVSL				// arg 7 - offset
+-	MOVL	$0, AX			// top 64 bits of file offset
++	MOVL	$0, AX			// top 32 bits of file offset
+ 	STOSL
+ 	MOVL	$197, AX		// sys_mmap
+ 	INT	$0x80
+diff --git a/src/pkg/runtime/sys_openbsd_386.s b/src/pkg/runtime/sys_openbsd_386.s
+index d04b5e653a..7888638dff 100644
+--- a/src/pkg/runtime/sys_openbsd_386.s
++++ b/src/pkg/runtime/sys_openbsd_386.s
+@@ -69,7 +69,7 @@ TEXT runtime·mmap(SB),7,$36
+ 	MOVL	$0, AX
+ 	STOSL				// arg 6 - pad
+ 	MOVSL				// arg 7 - offset
+-	MOVL	$0, AX			// top 64 bits of file offset
++	MOVL	$0, AX			// top 32 bits of file offset
+ 	STOSL
+ 	MOVL	$197, AX		// sys_mmap
+ 	INT	$0x80

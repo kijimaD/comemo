@@ -11,7 +11,34 @@ Date:   Mon Dec 2 09:38:30 2019 +0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/fmt.go  | 2 +-
  src/cmd/compile/internal/gc/main.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index fd6b9ce53c..95576b6395 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -94,7 +94,7 @@ func fmtFlag(s fmt.State, verb rune) FmtFlag {
+ 
+ // *types.Sym, *types.Type, and *Node types use the flags below to set the format mode
+ const (
+-	FErr = iota
++	FErr fmtMode = iota
+ 	FDbg
+ 	FTypeId
+ 	FTypeIdName // same as FTypeId, but use package name instead of prefix
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 4b6c8f2565..8d7110b892 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -526,7 +526,7 @@ func Main(archInit func(*Arch)) {
+ 	}
+ 	types.FmtLeft = int(FmtLeft)
+ 	types.FmtUnsigned = int(FmtUnsigned)
+-	types.FErr = FErr
++	types.FErr = int(FErr)
+ 	types.Ctxt = Ctxt
+ 
+ 	initUniverse()

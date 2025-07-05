@@ -17,7 +17,56 @@ Date:   Thu Sep 21 12:33:11 2017 +1000
     Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/go_test.go | 21 +++++++++++++++++++++
  src/cmd/go/main.go    |  5 +++++
  2 files changed, 26 insertions(+)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 1a47b72083..2145ffb275 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -1689,6 +1689,27 @@ func TestRejectRelativePathsInGOPATHCommandLinePackage(t *testing.T) {
+ 	tg.grepStderr("GOPATH entry is relative", "expected an error message rejecting relative GOPATH entries")
+ }
+ 
++// Issue 21928.
++func TestRejectBlankPathsInGOPATH(t *testing.T) {
++	tg := testgo(t)
++	defer tg.cleanup()
++	sep := string(filepath.ListSeparator)
++	tg.setenv("GOPATH", " "+sep+filepath.Join(tg.pwd(), "testdata"))
++	tg.runFail("build", "go-cmd-test")
++	tg.grepStderr("GOPATH entry is relative", "expected an error message rejecting relative GOPATH entries")
++}
++
++// Issue 21928.
++func TestIgnoreEmptyPathsInGOPATH(t *testing.T) {
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.creatingTemp("testdata/bin/go-cmd-test" + exeSuffix)
++	sep := string(filepath.ListSeparator)
++	tg.setenv("GOPATH", ""+sep+filepath.Join(tg.pwd(), "testdata"))
++	tg.run("install", "go-cmd-test")
++	tg.wantExecutable("testdata/bin/go-cmd-test"+exeSuffix, "go install go-cmd-test did not write to testdata/bin/go-cmd-test")
++}
++
+ // Issue 4104.
+ func TestGoTestWithPackageListedMultipleTimes(t *testing.T) {
+ 	tg := testgo(t)
+diff --git a/src/cmd/go/main.go b/src/cmd/go/main.go
+index 75a46db98f..f5b64869ea 100644
+--- a/src/cmd/go/main.go
++++ b/src/cmd/go/main.go
+@@ -89,6 +89,11 @@ func main() {
+ 		fmt.Fprintf(os.Stderr, "warning: GOPATH set to GOROOT (%s) has no effect\n", gopath)
+ 	} else {
+ 		for _, p := range filepath.SplitList(gopath) {
++			// Some GOPATHs have empty directory elements - ignore them.
++			// See issue 21928 for details.
++			if p == "" {
++				continue
++			}
+ 			// Note: using HasPrefix instead of Contains because a ~ can appear
+ 			// in the middle of directory elements, such as /tmp/git-1.8.2~rc3
+ 			// or C:\PROGRA~1. Only ~ as a path prefix has meaning to the shell.

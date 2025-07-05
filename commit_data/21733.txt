@@ -7,6 +7,20 @@ Date:   Fri Jan 30 16:01:14 2015 +0000
     Change-Id: I257211f10b334eb4828be96cd434d588bfb1a378
     Reviewed-on: https://go-review.googlesource.com/3605
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  doc/go1.5.txt | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go1.5.txt b/doc/go1.5.txt
+index 19ce060164..68149ad4ce 100644
+--- a/doc/go1.5.txt
++++ b/doc/go1.5.txt
+@@ -9,7 +9,7 @@ crypto/cipher: clarify what will happen if len(src) != len(dst) for the Stream i
+ crypto/elliptic: add Name field to CurveParams struct (https://golang.org/cl/2133)
+ crypto/tls: change default minimum version to TLS 1.0. (https://golang.org/cl/1791)
+ encoding/base64: add unpadded encodings (https://golang.org/cl/1511)
+-log: add global Output function (https://golang.org/cl/2686)
++log: add SetOutput functions (https://golang.org/cl/2686, https://golang.org/cl/3023)
+ net/http: support for setting trailers from a server Handler (https://golang.org/cl/2157)
+ net/smtp: add TLSConnectionState accessor (https://golang.org/cl/2151)
+ runtime, syscall: use SYSCALL instruction on FreeBSD (Go 1.5 now requires FreeBSD 8-STABLE+) (https://golang.org/cl/3020)

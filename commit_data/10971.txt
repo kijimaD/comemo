@@ -9,6 +9,65 @@ Date:   Thu Dec 22 17:31:54 2011 +0100
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5498068
-
+---
  src/cmd/gc/inl.c | 34 +++++++++++++++++++++++++++++++++-
  1 file changed, 33 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/inl.c b/src/cmd/gc/inl.c
+index e2d122c91d..982013619d 100644
+--- a/src/cmd/gc/inl.c
++++ b/src/cmd/gc/inl.c
+@@ -28,6 +28,8 @@ static Node*	newlabel(void);
+ static Node*	inlsubst(Node *n);
+ static NodeList* inlsubstlist(NodeList *ll);
+ 
++static void	setlno(Node*, int);
++
+ // Used during inlsubst[list]
+ static Node *inlfn;		// function currently being inlined
+ static Node *inlretlabel;	// target of the goto substituted in place of a return
+@@ -496,9 +498,10 @@ mkinlcall(Node **np, Node *fn)
+ 	call->nbody = body;
+ 	call->rlist = inlretvars;
+ 	call->type = n->type;
+-	call->lineno = n->lineno;
+ 	call->typecheck = 1;
+ 
++	setlno(call, n->lineno);
++
+ 	*np = call;
+ 
+ 	inlfn =	saveinlfn;
+@@ -686,3 +689,32 @@ inlsubst(Node *n)
+ 
+ 	return m;
+ }
++
++// Plaster over linenumbers
++static void
++setlnolist(NodeList *ll, int lno)
++{
++	for(;ll;ll=ll->next)
++		setlno(ll->n, lno);
++}
++
++static void
++setlno(Node *n, int lno)
++{
++	if(!n)
++		return;
++
++	// don't clobber names, unless they're freshly synthesized
++	if(n->op != ONAME || n->lineno == 0)
++		n->lineno = lno;
++	
++	setlno(n->left, lno);
++	setlno(n->right, lno);
++	setlnolist(n->list, lno);
++	setlnolist(n->rlist, lno);
++	setlnolist(n->ninit, lno);
++	setlno(n->ntest, lno);
++	setlno(n->nincr, lno);
++	setlnolist(n->nbody, lno);
++	setlnolist(n->nelse, lno);
++}

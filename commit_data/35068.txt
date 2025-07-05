@@ -17,7 +17,69 @@ Date:   Sun Dec 10 10:35:44 2017 +1100
     Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/protoconn_test.go | 15 ++++++++++-----
  src/net/udpsock_test.go   | 10 ++++++++++
  2 files changed, 20 insertions(+), 5 deletions(-)
+
+diff --git a/src/net/protoconn_test.go b/src/net/protoconn_test.go
+index 05c45d02b9..def8d657f1 100644
+--- a/src/net/protoconn_test.go
++++ b/src/net/protoconn_test.go
+@@ -8,6 +8,7 @@
+ package net
+ 
+ import (
++	"internal/testenv"
+ 	"os"
+ 	"runtime"
+ 	"testing"
+@@ -138,11 +139,15 @@ func TestUDPConnSpecificMethods(t *testing.T) {
+ 	if _, _, err := c.ReadFromUDP(rb); err != nil {
+ 		t.Fatal(err)
+ 	}
+-	if _, _, err := c.WriteMsgUDP(wb, nil, c.LocalAddr().(*UDPAddr)); err != nil {
+-		condFatalf(t, c.LocalAddr().Network(), "%v", err)
+-	}
+-	if _, _, _, _, err := c.ReadMsgUDP(rb, nil); err != nil {
+-		condFatalf(t, c.LocalAddr().Network(), "%v", err)
++	if testenv.IsWindowsXP() {
++		t.Log("skipping broken test on Windows XP (see golang.org/issue/23072)")
++	} else {
++		if _, _, err := c.WriteMsgUDP(wb, nil, c.LocalAddr().(*UDPAddr)); err != nil {
++			condFatalf(t, c.LocalAddr().Network(), "%v", err)
++		}
++		if _, _, _, _, err := c.ReadMsgUDP(rb, nil); err != nil {
++			condFatalf(t, c.LocalAddr().Network(), "%v", err)
++		}
+ 	}
+ 
+ 	if f, err := c.File(); err != nil {
+diff --git a/src/net/udpsock_test.go b/src/net/udpsock_test.go
+index 4ae014c01d..769576cd97 100644
+--- a/src/net/udpsock_test.go
++++ b/src/net/udpsock_test.go
+@@ -163,6 +163,11 @@ func testWriteToConn(t *testing.T, raddr string) {
+ 	switch runtime.GOOS {
+ 	case "nacl": // see golang.org/issue/9252
+ 		t.Skipf("not implemented yet on %s", runtime.GOOS)
++	case "windows":
++		if testenv.IsWindowsXP() {
++			t.Log("skipping broken test on Windows XP (see golang.org/issue/23072)")
++			return
++		}
+ 	default:
+ 		if err != nil {
+ 			t.Fatal(err)
+@@ -206,6 +211,11 @@ func testWriteToPacketConn(t *testing.T, raddr string) {
+ 	switch runtime.GOOS {
+ 	case "nacl": // see golang.org/issue/9252
+ 		t.Skipf("not implemented yet on %s", runtime.GOOS)
++	case "windows":
++		if testenv.IsWindowsXP() {
++			t.Log("skipping broken test on Windows XP (see golang.org/issue/23072)")
++			return
++		}
+ 	default:
+ 		if err != nil {
+ 			t.Fatal(err)

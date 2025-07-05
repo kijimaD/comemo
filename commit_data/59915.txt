@@ -9,6 +9,20 @@ Date:   Wed May 8 14:51:39 2024 -0400
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Auto-Submit: Michael Pratt <mpratt@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/runtime/proc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 618669ce82..ebc07bb1ab 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -924,7 +924,7 @@ func mcommoninit(mp *m, id int64) {
+ 	mProfStackInit(mp)
+ }
+ 
+-// mProfStackInit is used to eagilery initialize stack trace buffers for
++// mProfStackInit is used to eagerly initialize stack trace buffers for
+ // profiling. Lazy allocation would have to deal with reentrancy issues in
+ // malloc and runtime locks for mLockProfile.
+ // TODO(mknyszek): Implement lazy allocation if this becomes a problem.

@@ -8,7 +8,123 @@ Date:   Tue Jul 13 10:29:41 2010 +1000
     R=r, ukai, rsc
     CC=golang-dev, gri
     https://golang.org/cl/1738048
-
+---
  src/pkg/websocket/client.go | 31 +++++++++++++++----------------
  src/pkg/websocket/server.go | 13 +++++++------
  2 files changed, 22 insertions(+), 22 deletions(-)
+
+diff --git a/src/pkg/websocket/client.go b/src/pkg/websocket/client.go
+index 2966450a6f..c74fe934f1 100644
+--- a/src/pkg/websocket/client.go
++++ b/src/pkg/websocket/client.go
+@@ -61,8 +61,9 @@ func newClient(resourceName, host, origin, location, protocol string, rwc io.Rea
+ }
+ 
+ /*
+-	Dial opens a new client connection to a Web Socket.
+-	A trivial example client is:
++Dial opens a new client connection to a Web Socket.
++
++A trivial example client:
+ 
+ 	package main
+ 
+@@ -99,9 +100,8 @@ func Dial(url, protocol, origin string) (ws *Conn, err os.Error) {
+ }
+ 
+ /*
+- 	Generates handshake key as described in 4.1 Opening handshake
+-        step 16 to 22.
+-	cf. http://www.whatwg.org/specs/web-socket-protocol/
++Generates handshake key as described in 4.1 Opening handshake step 16 to 22.
++cf. http://www.whatwg.org/specs/web-socket-protocol/
+ */
+ func generateKeyNumber() (key string, number uint32) {
+ 	// 16.  Let /spaces_n/ be a random integer from 1 to 12 inclusive.
+@@ -143,9 +143,8 @@ func generateKeyNumber() (key string, number uint32) {
+ }
+ 
+ /*
+- 	Generates handshake key_3 as described in 4.1 Opening handshake
+-        step 26.
+-	cf. http://www.whatwg.org/specs/web-socket-protocol/
++Generates handshake key_3 as described in 4.1 Opening handshake step 26.
++cf. http://www.whatwg.org/specs/web-socket-protocol/
+ */
+ func generateKey3() (key []byte) {
+ 	// 26. Let /key3/ be a string consisting of eight random bytes (or
+@@ -158,9 +157,9 @@ func generateKey3() (key []byte) {
+ }
+ 
+ /*
+- 	Gets expected from challenge as described in 4.1 Opening handshake
+-        Step 42 to 43.
+-	cf. http://www.whatwg.org/specs/web-socket-protocol/
++Gets expected from challenge as described in 4.1 Opening handshake
++step 42 to 43.
++cf. http://www.whatwg.org/specs/web-socket-protocol/
+ */
+ func getExpectedForChallenge(number1, number2 uint32, key3 []byte) (expected []byte, err os.Error) {
+ 	// 41. Let /challenge/ be the concatenation of /number_1/, expressed
+@@ -184,9 +183,9 @@ func getExpectedForChallenge(number1, number2 uint32, key3 []byte) (expected []b
+ }
+ 
+ /*
+- 	Web Socket protocol handshake based on
+-	http://www.whatwg.org/specs/web-socket-protocol/
+-        (draft of http://tools.ietf.org/html/draft-hixie-thewebsocketprotocol)
++Web Socket protocol handshake based on
++http://www.whatwg.org/specs/web-socket-protocol/
++(draft of http://tools.ietf.org/html/draft-hixie-thewebsocketprotocol)
+ */
+ func handshake(resourceName, host, origin, location, protocol string, br *bufio.Reader, bw *bufio.Writer) (err os.Error) {
+ 	// 4.1. Opening handshake.
+@@ -278,8 +277,8 @@ func handshake(resourceName, host, origin, location, protocol string, br *bufio.
+ }
+ 
+ /*
+-	Handhake described in (soon obsolete)
+-	draft-hixie-thewebsocket-protocol-75.
++Handhake described in (soon obsolete)
++draft-hixie-thewebsocket-protocol-75.
+ */
+ func draft75handshake(resourceName, host, origin, location, protocol string, br *bufio.Reader, bw *bufio.Writer) (err os.Error) {
+ 	bw.WriteString("GET " + resourceName + " HTTP/1.1\r\n")
+diff --git a/src/pkg/websocket/server.go b/src/pkg/websocket/server.go
+index 00b537e277..8b255c9290 100644
+--- a/src/pkg/websocket/server.go
++++ b/src/pkg/websocket/server.go
+@@ -14,8 +14,9 @@ import (
+ )
+ 
+ /*
+-	Handler is an interface to a WebSocket.
+-	A trivial example server is:
++Handler is an interface to a WebSocket.
++
++A trivial example server:
+ 
+ 	package main
+ 
+@@ -41,8 +42,8 @@ import (
+ type Handler func(*Conn)
+ 
+ /*
+-	Gets key number from Sec-WebSocket-Key<n>: field as described
+- 	in 5.2 Sending the server's opening handshake, 4.
++Gets key number from Sec-WebSocket-Key<n>: field as described
++in 5.2 Sending the server's opening handshake, 4.
+ */
+ func getKeyNumber(s string) (r uint32) {
+ 	// 4. Let /key-number_n/ be the digits (characters in the range
+@@ -166,8 +167,8 @@ func (f Handler) ServeHTTP(c *http.Conn, req *http.Request) {
+ 
+ 
+ /*
+- 	Draft75Handler is an interface to a WebSocket based on
+-        (soon obsolete) draft-hixie-thewebsocketprotocol-75.
++Draft75Handler is an interface to a WebSocket based on the
++(soon obsolete) draft-hixie-thewebsocketprotocol-75.
+ */
+ type Draft75Handler func(*Conn)
+ 

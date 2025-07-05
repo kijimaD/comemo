@@ -7,6 +7,20 @@ Date:   Wed Nov 6 09:33:02 2019 -0800
     Change-Id: Ib29da1ad77c9a243a623d25113c6f8dd0261f42a
     Reviewed-on: https://go-review.googlesource.com/c/go/+/205601
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/internal/modload/init.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index 26e482c9d7..428d7e4b30 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -441,7 +441,7 @@ func InitMod() {
+ // fixVersion returns a modfile.VersionFixer implemented using the Query function.
+ //
+ // It resolves commit hashes and branch names to versions,
+-// canonicalizes verisons that appeared in early vgo drafts,
++// canonicalizes versions that appeared in early vgo drafts,
+ // and does nothing for versions that already appear to be canonical.
+ //
+ // The VersionFixer sets 'fixed' if it ever returns a non-canonical version.

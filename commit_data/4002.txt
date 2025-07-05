@@ -6,6 +6,22 @@ Date:   Wed Nov 11 16:58:27 2009 -0800
     
     R=r
     https://golang.org/cl/152084
-
+---
  src/cmd/cgo/gcc.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 6e9ba13b76..d6b5c6bc85 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -96,6 +96,10 @@ func (p *Prog) loadDebugInfo() {
+ 		}
+ 	}
+ 
++	if nerrors > 0 {
++		fatal("failed to interpret gcc output:\n%s", stderr)
++	}
++
+ 	// Extract the types from the DWARF section of an object
+ 	// from a well-formed C program.  Gcc only generates DWARF info
+ 	// for symbols in the object file, so it is not enough to print the

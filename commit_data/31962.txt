@@ -13,7 +13,7 @@ Date:   Sun Mar 26 08:05:40 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/internal/obj/arm/obj5.go   |  1 -
  src/cmd/internal/obj/arm64/obj7.go |  1 -
  src/cmd/internal/obj/ld.go         |  1 -
@@ -22,3 +22,597 @@ Date:   Sun Mar 26 08:05:40 2017 -0700
  src/cmd/internal/obj/x86/asm6.go   | 80 +++++++++++++++++++-------------------
  src/cmd/internal/obj/x86/obj6.go   | 51 +++++++++++-------------
  7 files changed, 63 insertions(+), 73 deletions(-)
+
+diff --git a/src/cmd/internal/obj/arm/obj5.go b/src/cmd/internal/obj/arm/obj5.go
+index dfc31010fc..0d798e4400 100644
+--- a/src/cmd/internal/obj/arm/obj5.go
++++ b/src/cmd/internal/obj/arm/obj5.go
+@@ -832,7 +832,6 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32) *obj.Prog {
+ 
+ 	pcdata := obj.Appendp(ctxt, spfix)
+ 	pcdata.Pos = ctxt.Cursym.Text.Pos
+-	pcdata.Mode = ctxt.Cursym.Text.Mode
+ 	pcdata.As = obj.APCDATA
+ 	pcdata.From.Type = obj.TYPE_CONST
+ 	pcdata.From.Offset = obj.PCDATA_StackMapIndex
+diff --git a/src/cmd/internal/obj/arm64/obj7.go b/src/cmd/internal/obj/arm64/obj7.go
+index 7b0a08a1da..2d195b19de 100644
+--- a/src/cmd/internal/obj/arm64/obj7.go
++++ b/src/cmd/internal/obj/arm64/obj7.go
+@@ -169,7 +169,6 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32) *obj.Prog {
+ 
+ 	pcdata := obj.Appendp(ctxt, spfix)
+ 	pcdata.Pos = ctxt.Cursym.Text.Pos
+-	pcdata.Mode = ctxt.Cursym.Text.Mode
+ 	pcdata.As = obj.APCDATA
+ 	pcdata.From.Type = obj.TYPE_CONST
+ 	pcdata.From.Offset = obj.PCDATA_StackMapIndex
+diff --git a/src/cmd/internal/obj/ld.go b/src/cmd/internal/obj/ld.go
+index dbc924d630..c9294ee40f 100644
+--- a/src/cmd/internal/obj/ld.go
++++ b/src/cmd/internal/obj/ld.go
+@@ -87,6 +87,5 @@ func Appendp(ctxt *Link, q *Prog) *Prog {
+ 	p.Link = q.Link
+ 	q.Link = p
+ 	p.Pos = q.Pos
+-	p.Mode = q.Mode
+ 	return p
+ }
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index 9e926abc9c..56b6f391fd 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -250,7 +250,6 @@ type Prog struct {
+ 	Ft     uint8    // for x86 back end: type index of Prog.From
+ 	Tt     uint8    // for x86 back end: type index of Prog.To
+ 	Isize  uint8    // for x86 back end: size of the instruction in bytes
+-	Mode   int8     // for x86 back end: 32- or 64-bit mode
+ }
+ 
+ // From3Type returns From3.Type, or TYPE_NONE when From3 is nil.
+diff --git a/src/cmd/internal/obj/s390x/objz.go b/src/cmd/internal/obj/s390x/objz.go
+index 6cb3718cdf..3ca6d19f99 100644
+--- a/src/cmd/internal/obj/s390x/objz.go
++++ b/src/cmd/internal/obj/s390x/objz.go
+@@ -676,7 +676,6 @@ func stacksplitPost(ctxt *obj.Link, p *obj.Prog, pPre *obj.Prog, pPreempt *obj.P
+ 
+ 	pcdata := obj.Appendp(ctxt, spfix)
+ 	pcdata.Pos = ctxt.Cursym.Text.Pos
+-	pcdata.Mode = ctxt.Cursym.Text.Mode
+ 	pcdata.As = obj.APCDATA
+ 	pcdata.From.Type = obj.TYPE_CONST
+ 	pcdata.From.Offset = obj.PCDATA_StackMapIndex
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index e1de8a633d..8754b1bcb5 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -1756,7 +1756,7 @@ func naclpad(ctxt *obj.Link, s *obj.LSym, c int32, pad int32) int32 {
+ }
+ 
+ func spadjop(ctxt *obj.Link, p *obj.Prog, l, q obj.As) obj.As {
+-	if p.Mode != 64 || ctxt.Arch.PtrSize == 4 {
++	if ctxt.Arch.Family != sys.AMD64 || ctxt.Arch.PtrSize == 4 {
+ 		return l
+ 	}
+ 	return q
+@@ -2143,7 +2143,7 @@ func prefixof(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) int {
+ 			// the initial-exec model, where you load the TLS base into
+ 			// a register and then index from that register, do not reach
+ 			// this code and should not be listed.
+-			if p.Mode == 32 {
++			if ctxt.Arch.Family == sys.I386 {
+ 				switch ctxt.Headtype {
+ 				default:
+ 					if isAndroid {
+@@ -2188,7 +2188,7 @@ func prefixof(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) int {
+ 		}
+ 	}
+ 
+-	if p.Mode == 32 {
++	if ctxt.Arch.Family == sys.I386 {
+ 		if a.Index == REG_TLS && ctxt.Flag_shared {
+ 			// When building for inclusion into a shared library, an instruction of the form
+ 			//     MOVL 0(CX)(TLS*1), AX
+@@ -2292,7 +2292,7 @@ func oclass(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) int {
+ 
+ 		case obj.NAME_EXTERN,
+ 			obj.NAME_STATIC:
+-			if a.Sym != nil && isextern(a.Sym) || (p.Mode == 32 && !ctxt.Flag_shared) {
++			if a.Sym != nil && isextern(a.Sym) || (ctxt.Arch.Family == sys.I386 && !ctxt.Flag_shared) {
+ 				return Yi32
+ 			}
+ 			return Yiauto // use pc-relative addressing
+@@ -2322,7 +2322,7 @@ func oclass(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) int {
+ 		}
+ 
+ 		v := a.Offset
+-		if p.Mode == 32 {
++		if ctxt.Arch.Family == sys.I386 {
+ 			v = int64(int32(v))
+ 		}
+ 		if v == 0 {
+@@ -2344,7 +2344,7 @@ func oclass(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) int {
+ 		if v >= -128 && v <= 127 {
+ 			return Yi8
+ 		}
+-		if p.Mode == 32 {
++		if ctxt.Arch.Family == sys.I386 {
+ 			return Yi32
+ 		}
+ 		l := int32(v)
+@@ -2422,7 +2422,7 @@ func oclass(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) int {
+ 		fallthrough
+ 
+ 	case REG_SP, REG_BP, REG_SI, REG_DI:
+-		if p.Mode == 32 {
++		if ctxt.Arch.Family == sys.I386 {
+ 			return Yrl32
+ 		}
+ 		return Yrl
+@@ -2793,7 +2793,7 @@ func vaddr(ctxt *obj.Link, p *obj.Prog, a *obj.Addr, r *obj.Reloc) int64 {
+ 		if a.Name == obj.NAME_GOTREF {
+ 			r.Siz = 4
+ 			r.Type = obj.R_GOTPCREL
+-		} else if isextern(s) || (p.Mode != 64 && !ctxt.Flag_shared) {
++		} else if isextern(s) || (ctxt.Arch.Family != sys.AMD64 && !ctxt.Flag_shared) {
+ 			r.Siz = 4
+ 			r.Type = obj.R_ADDR
+ 		} else {
+@@ -2876,10 +2876,10 @@ func (asmbuf *AsmBuf) asmandsz(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, a
+ 		case obj.NAME_EXTERN,
+ 			obj.NAME_GOTREF,
+ 			obj.NAME_STATIC:
+-			if !isextern(a.Sym) && p.Mode == 64 {
++			if !isextern(a.Sym) && ctxt.Arch.Family == sys.AMD64 {
+ 				goto bad
+ 			}
+-			if p.Mode == 32 && ctxt.Flag_shared {
++			if ctxt.Arch.Family == sys.I386 && ctxt.Flag_shared {
+ 				// The base register has already been set. It holds the PC
+ 				// of this instruction returned by a PC-reading thunk.
+ 				// See obj6.go:rewriteToPcrel.
+@@ -2926,7 +2926,7 @@ func (asmbuf *AsmBuf) asmandsz(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, a
+ 		if a.Sym == nil {
+ 			ctxt.Diag("bad addr: %v", p)
+ 		}
+-		if p.Mode == 32 && ctxt.Flag_shared {
++		if ctxt.Arch.Family == sys.I386 && ctxt.Flag_shared {
+ 			// The base register has already been set. It holds the PC
+ 			// of this instruction returned by a PC-reading thunk.
+ 			// See obj6.go:rewriteToPcrel.
+@@ -2946,7 +2946,7 @@ func (asmbuf *AsmBuf) asmandsz(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, a
+ 
+ 	asmbuf.rexflag |= regrex[base]&Rxb | rex
+ 	if base == REG_NONE || (REG_CS <= base && base <= REG_GS) || base == REG_TLS {
+-		if (a.Sym == nil || !isextern(a.Sym)) && base == REG_NONE && (a.Name == obj.NAME_STATIC || a.Name == obj.NAME_EXTERN || a.Name == obj.NAME_GOTREF) || p.Mode != 64 {
++		if (a.Sym == nil || !isextern(a.Sym)) && base == REG_NONE && (a.Name == obj.NAME_STATIC || a.Name == obj.NAME_EXTERN || a.Name == obj.NAME_GOTREF) || ctxt.Arch.Family != sys.AMD64 {
+ 			if a.Name == obj.NAME_GOTREF && (a.Offset != 0 || a.Index != 0 || a.Scale != 0) {
+ 				ctxt.Diag("%v has offset against gotref", p)
+ 			}
+@@ -3419,21 +3419,21 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
+ 				asmbuf.Put1(Pe)
+ 
+ 			case Pw: /* 64-bit escape */
+-				if p.Mode != 64 {
++				if ctxt.Arch.Family != sys.AMD64 {
+ 					ctxt.Diag("asmins: illegal 64: %v", p)
+ 				}
+ 				asmbuf.rexflag |= Pw
+ 
+ 			case Pw8: /* 64-bit escape if z >= 8 */
+ 				if z >= 8 {
+-					if p.Mode != 64 {
++					if ctxt.Arch.Family != sys.AMD64 {
+ 						ctxt.Diag("asmins: illegal 64: %v", p)
+ 					}
+ 					asmbuf.rexflag |= Pw
+ 				}
+ 
+ 			case Pb: /* botch */
+-				if p.Mode != 64 && (isbadbyte(&p.From) || isbadbyte(&p.To)) {
++				if ctxt.Arch.Family != sys.AMD64 && (isbadbyte(&p.From) || isbadbyte(&p.To)) {
+ 					goto bad
+ 				}
+ 				// NOTE(rsc): This is probably safe to do always,
+@@ -3444,29 +3444,29 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
+ 				// in the original obj/i386, and it would encode
+ 				// (using a valid, shorter form) as 3c 00 if we enabled
+ 				// the call to bytereg here.
+-				if p.Mode == 64 {
++				if ctxt.Arch.Family == sys.AMD64 {
+ 					bytereg(&p.From, &p.Ft)
+ 					bytereg(&p.To, &p.Tt)
+ 				}
+ 
+ 			case P32: /* 32 bit but illegal if 64-bit mode */
+-				if p.Mode == 64 {
++				if ctxt.Arch.Family == sys.AMD64 {
+ 					ctxt.Diag("asmins: illegal in 64-bit mode: %v", p)
+ 				}
+ 
+ 			case Py: /* 64-bit only, no prefix */
+-				if p.Mode != 64 {
+-					ctxt.Diag("asmins: illegal in %d-bit mode: %v", p.Mode, p)
++				if ctxt.Arch.Family != sys.AMD64 {
++					ctxt.Diag("asmins: illegal in %d-bit mode: %v", ctxt.Arch.RegSize*8, p)
+ 				}
+ 
+ 			case Py1: /* 64-bit only if z < 1, no prefix */
+-				if z < 1 && p.Mode != 64 {
+-					ctxt.Diag("asmins: illegal in %d-bit mode: %v", p.Mode, p)
++				if z < 1 && ctxt.Arch.Family != sys.AMD64 {
++					ctxt.Diag("asmins: illegal in %d-bit mode: %v", ctxt.Arch.RegSize*8, p)
+ 				}
+ 
+ 			case Py3: /* 64-bit only if z < 3, no prefix */
+-				if z < 3 && p.Mode != 64 {
+-					ctxt.Diag("asmins: illegal in %d-bit mode: %v", p.Mode, p)
++				if z < 3 && ctxt.Arch.Family != sys.AMD64 {
++					ctxt.Diag("asmins: illegal in %d-bit mode: %v", ctxt.Arch.RegSize*8, p)
+ 				}
+ 			}
+ 
+@@ -3787,7 +3787,7 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
+ 				asmbuf.Put2(byte(op), o.op[z+1])
+ 				r = obj.Addrel(cursym)
+ 				r.Off = int32(p.Pc + int64(asmbuf.Len()))
+-				if p.Mode == 64 {
++				if ctxt.Arch.Family == sys.AMD64 {
+ 					r.Type = obj.R_PCREL
+ 				} else {
+ 					r.Type = obj.R_ADDR
+@@ -3807,7 +3807,7 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
+ 					ctxt.Diag("directly calling duff when dynamically linking Go")
+ 				}
+ 
+-				if ctxt.Framepointer_enabled && yt.zcase == Zcallduff && p.Mode == 64 {
++				if ctxt.Framepointer_enabled && yt.zcase == Zcallduff && ctxt.Arch.Family == sys.AMD64 {
+ 					// Maintain BP around call, since duffcopy/duffzero can't do it
+ 					// (the call jumps into the middle of the function).
+ 					// This makes it possible to see call sites for duffcopy/duffzero in
+@@ -3826,7 +3826,7 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
+ 				r.Siz = 4
+ 				asmbuf.PutInt32(0)
+ 
+-				if ctxt.Framepointer_enabled && yt.zcase == Zcallduff && p.Mode == 64 {
++				if ctxt.Framepointer_enabled && yt.zcase == Zcallduff && ctxt.Arch.Family == sys.AMD64 {
+ 					// Pop BP pushed above.
+ 					// MOVQ 0(BP), BP
+ 					asmbuf.Put(bpduff2)
+@@ -4016,7 +4016,7 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
+ 
+ 				case 6: /* double shift */
+ 					if t[0] == Pw {
+-						if p.Mode != 64 {
++						if ctxt.Arch.Family != sys.AMD64 {
+ 							ctxt.Diag("asmins: illegal 64: %v", p)
+ 						}
+ 						asmbuf.rexflag |= Pw
+@@ -4051,11 +4051,11 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
+ 				// register to access the actual TLS variables. Systems that allow direct TLS access
+ 				// are handled in prefixof above and should not be listed here.
+ 				case 7: /* mov tls, r */
+-					if p.Mode == 64 && p.As != AMOVQ || p.Mode == 32 && p.As != AMOVL {
++					if ctxt.Arch.Family == sys.AMD64 && p.As != AMOVQ || ctxt.Arch.Family == sys.I386 && p.As != AMOVL {
+ 						ctxt.Diag("invalid load of TLS: %v", p)
+ 					}
+ 
+-					if p.Mode == 32 {
++					if ctxt.Arch.Family == sys.I386 {
+ 						// NOTE: The systems listed here are the ones that use the "TLS initial exec" model,
+ 						// where you load the TLS base register into a register and then index off that
+ 						// register to access the actual TLS variables. Systems that allow direct TLS access
+@@ -4215,7 +4215,7 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
+ 	goto bad
+ 
+ bad:
+-	if p.Mode != 64 {
++	if ctxt.Arch.Family != sys.AMD64 {
+ 		/*
+ 		 * here, the assembly has failed.
+ 		 * if its a byte instruction that has
+@@ -4232,7 +4232,7 @@ bad:
+ 		if p.From.Type == obj.TYPE_REG && z >= REG_BP && z <= REG_DI {
+ 			// TODO(rsc): Use this code for x86-64 too. It has bug fixes not present in the amd64 code base.
+ 			// For now, different to keep bit-for-bit compatibility.
+-			if p.Mode == 32 {
++			if ctxt.Arch.Family == sys.I386 {
+ 				breg := byteswapreg(ctxt, &p.To)
+ 				if breg != REG_AX {
+ 					asmbuf.Put1(0x87) // xchg lhs,bx
+@@ -4272,7 +4272,7 @@ bad:
+ 		if p.To.Type == obj.TYPE_REG && z >= REG_BP && z <= REG_DI {
+ 			// TODO(rsc): Use this code for x86-64 too. It has bug fixes not present in the amd64 code base.
+ 			// For now, different to keep bit-for-bit compatibility.
+-			if p.Mode == 32 {
++			if ctxt.Arch.Family == sys.I386 {
+ 				breg := byteswapreg(ctxt, &p.From)
+ 				if breg != REG_AX {
+ 					asmbuf.Put1(0x87) //xchg rhs,bx
+@@ -4447,7 +4447,7 @@ func (asmbuf *AsmBuf) nacltrunc(ctxt *obj.Link, reg int) {
+ func (asmbuf *AsmBuf) asmins(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
+ 	asmbuf.Reset()
+ 
+-	if ctxt.Headtype == obj.Hnacl && p.Mode == 32 {
++	if ctxt.Headtype == obj.Hnacl && ctxt.Arch.Family == sys.I386 {
+ 		switch p.As {
+ 		case obj.ARET:
+ 			asmbuf.Put(naclret8)
+@@ -4465,7 +4465,7 @@ func (asmbuf *AsmBuf) asmins(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
+ 		}
+ 	}
+ 
+-	if ctxt.Headtype == obj.Hnacl && p.Mode == 64 {
++	if ctxt.Headtype == obj.Hnacl && ctxt.Arch.Family == sys.AMD64 {
+ 		if p.As == AREP {
+ 			asmbuf.rep++
+ 			return
+@@ -4557,8 +4557,8 @@ func (asmbuf *AsmBuf) asmins(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
+ 		 * before the 0f opcode escape!), or it might be ignored.
+ 		 * note that the handbook often misleadingly shows 66/f2/f3 in `opcode'.
+ 		 */
+-		if p.Mode != 64 {
+-			ctxt.Diag("asmins: illegal in mode %d: %v (%d %d)", p.Mode, p, p.Ft, p.Tt)
++		if ctxt.Arch.Family != sys.AMD64 {
++			ctxt.Diag("asmins: illegal in mode %d: %v (%d %d)", ctxt.Arch.RegSize*8, p, p.Ft, p.Tt)
+ 		}
+ 		n := asmbuf.Len()
+ 		var np int
+@@ -4581,7 +4581,7 @@ func (asmbuf *AsmBuf) asmins(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
+ 			r.Off++
+ 		}
+ 		if r.Type == obj.R_PCREL {
+-			if p.Mode == 64 || p.As == obj.AJMP || p.As == obj.ACALL {
++			if ctxt.Arch.Family == sys.AMD64 || p.As == obj.AJMP || p.As == obj.ACALL {
+ 				// PC-relative addressing is relative to the end of the instruction,
+ 				// but the relocations applied by the linker are relative to the end
+ 				// of the relocation. Because immediate instruction
+@@ -4590,7 +4590,7 @@ func (asmbuf *AsmBuf) asmins(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
+ 				// adjust addend so that linker can keep relocating relative to the
+ 				// end of the relocation.
+ 				r.Add -= p.Pc + int64(n) - (int64(r.Off) + int64(r.Siz))
+-			} else if p.Mode == 32 {
++			} else if ctxt.Arch.Family == sys.I386 {
+ 				// On 386 PC-relative addressing (for non-call/jmp instructions)
+ 				// assumes that the previous instruction loaded the PC of the end
+ 				// of that instruction into CX, so the adjustment is relative to
+@@ -4598,14 +4598,14 @@ func (asmbuf *AsmBuf) asmins(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
+ 				r.Add += int64(r.Off) - p.Pc + int64(r.Siz)
+ 			}
+ 		}
+-		if r.Type == obj.R_GOTPCREL && p.Mode == 32 {
++		if r.Type == obj.R_GOTPCREL && ctxt.Arch.Family == sys.I386 {
+ 			// On 386, R_GOTPCREL makes the same assumptions as R_PCREL.
+ 			r.Add += int64(r.Off) - p.Pc + int64(r.Siz)
+ 		}
+ 
+ 	}
+ 
+-	if p.Mode == 64 && ctxt.Headtype == obj.Hnacl && p.As != ACMPL && p.As != ACMPQ && p.To.Type == obj.TYPE_REG {
++	if ctxt.Arch.Family == sys.AMD64 && ctxt.Headtype == obj.Hnacl && p.As != ACMPL && p.As != ACMPQ && p.To.Type == obj.TYPE_REG {
+ 		switch p.To.Reg {
+ 		case REG_SP:
+ 			asmbuf.Put(naclspfix)
+diff --git a/src/cmd/internal/obj/x86/obj6.go b/src/cmd/internal/obj/x86/obj6.go
+index 5b82100981..f4093130a1 100644
+--- a/src/cmd/internal/obj/x86/obj6.go
++++ b/src/cmd/internal/obj/x86/obj6.go
+@@ -49,7 +49,7 @@ func CanUse1InsnTLS(ctxt *obj.Link) bool {
+ 		return true
+ 	}
+ 
+-	if ctxt.Arch.RegSize == 4 {
++	if ctxt.Arch.Family == sys.I386 {
+ 		switch ctxt.Headtype {
+ 		case obj.Hlinux,
+ 			obj.Hnacl,
+@@ -73,9 +73,6 @@ func CanUse1InsnTLS(ctxt *obj.Link) bool {
+ }
+ 
+ func progedit(ctxt *obj.Link, p *obj.Prog) {
+-	// TODO(josharian): eliminate Prog.Mode
+-	p.Mode = int8(ctxt.Arch.RegSize * 8)
+-
+ 	// Thread-local storage references use the TLS pseudo-register.
+ 	// As a register, TLS refers to the thread-local storage base, and it
+ 	// can only be loaded into another register:
+@@ -166,7 +163,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
+ 	}
+ 
+ 	// TODO: Remove.
+-	if (ctxt.Headtype == obj.Hwindows || ctxt.Headtype == obj.Hwindowsgui) && p.Mode == 64 || ctxt.Headtype == obj.Hplan9 {
++	if (ctxt.Headtype == obj.Hwindows || ctxt.Headtype == obj.Hwindowsgui) && ctxt.Arch.Family == sys.AMD64 || ctxt.Headtype == obj.Hplan9 {
+ 		if p.From.Scale == 1 && p.From.Index == REG_TLS {
+ 			p.From.Scale = 2
+ 		}
+@@ -204,7 +201,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
+ 		}
+ 	}
+ 
+-	if ctxt.Headtype == obj.Hnacl && p.Mode == 64 {
++	if ctxt.Headtype == obj.Hnacl && ctxt.Arch.Family == sys.AMD64 {
+ 		if p.From3 != nil {
+ 			nacladdr(ctxt, p, p.From3)
+ 		}
+@@ -300,7 +297,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
+ 		rewriteToUseGot(ctxt, p)
+ 	}
+ 
+-	if ctxt.Flag_shared && p.Mode == 32 {
++	if ctxt.Flag_shared && ctxt.Arch.Family == sys.I386 {
+ 		rewriteToPcrel(ctxt, p)
+ 	}
+ }
+@@ -309,7 +306,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
+ func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog) {
+ 	var add, lea, mov obj.As
+ 	var reg int16
+-	if p.Mode == 64 {
++	if ctxt.Arch.Family == sys.AMD64 {
+ 		add = AADDQ
+ 		lea = ALEAQ
+ 		mov = AMOVQ
+@@ -377,7 +374,7 @@ func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog) {
+ 		pAs := p.As
+ 		var dest obj.Addr
+ 		if p.To.Type != obj.TYPE_REG || pAs != mov {
+-			if p.Mode == 64 {
++			if ctxt.Arch.Family == sys.AMD64 {
+ 				ctxt.Diag("do not know how to handle LEA-type insn to non-register in %v with -dynlink", p)
+ 			}
+ 			cmplxdest = true
+@@ -430,7 +427,7 @@ func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog) {
+ 		// to a PLT, so make sure the GOT pointer is loaded into BX.
+ 		// RegTo2 is set on the replacement call insn to stop it being
+ 		// processed when it is in turn passed to progedit.
+-		if p.Mode == 64 || (p.To.Sym != nil && p.To.Sym.Local()) || p.RegTo2 != 0 {
++		if ctxt.Arch.Family == sys.AMD64 || (p.To.Sym != nil && p.To.Sym.Local()) || p.RegTo2 != 0 {
+ 			return
+ 		}
+ 		p1 := obj.Appendp(ctxt, p)
+@@ -624,7 +621,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 	}
+ 
+ 	var bpsize int
+-	if p.Mode == 64 && ctxt.Framepointer_enabled &&
++	if ctxt.Arch.Family == sys.AMD64 && ctxt.Framepointer_enabled &&
+ 		p.From3.Offset&obj.NOFRAME == 0 && // (1) below
+ 		!(autoffset == 0 && p.From3.Offset&obj.NOSPLIT != 0) && // (2) below
+ 		!(autoffset == 0 && !hasCall) { // (3) below
+@@ -648,12 +645,12 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 	cursym.Locals = int32(p.To.Offset)
+ 
+ 	// TODO(rsc): Remove.
+-	if p.Mode == 32 && cursym.Locals < 0 {
++	if ctxt.Arch.Family == sys.I386 && cursym.Locals < 0 {
+ 		cursym.Locals = 0
+ 	}
+ 
+-	// TODO(rsc): Remove 'p.Mode == 64 &&'.
+-	if p.Mode == 64 && autoffset < obj.StackSmall && p.From3Offset()&obj.NOSPLIT == 0 {
++	// TODO(rsc): Remove 'ctxt.Arch.Family == sys.AMD64 &&'.
++	if ctxt.Arch.Family == sys.AMD64 && autoffset < obj.StackSmall && p.From3Offset()&obj.NOSPLIT == 0 {
+ 		leaf := true
+ 	LeafSearch:
+ 		for q := p; q != nil; q = q.Link {
+@@ -757,14 +754,14 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 		p.From.Offset = 4 * int64(ctxt.Arch.PtrSize) // g_panic
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = REG_BX
+-		if ctxt.Headtype == obj.Hnacl && p.Mode == 64 {
++		if ctxt.Headtype == obj.Hnacl && ctxt.Arch.Family == sys.AMD64 {
+ 			p.As = AMOVL
+ 			p.From.Type = obj.TYPE_MEM
+ 			p.From.Reg = REG_R15
+ 			p.From.Scale = 1
+ 			p.From.Index = REG_CX
+ 		}
+-		if p.Mode == 32 {
++		if ctxt.Arch.Family == sys.I386 {
+ 			p.As = AMOVL
+ 		}
+ 
+@@ -775,7 +772,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 		p.From.Reg = REG_BX
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = REG_BX
+-		if ctxt.Headtype == obj.Hnacl || p.Mode == 32 {
++		if ctxt.Headtype == obj.Hnacl || ctxt.Arch.Family == sys.I386 {
+ 			p.As = ATESTL
+ 		}
+ 
+@@ -802,7 +799,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 		p.From.Offset = int64(autoffset) + int64(ctxt.Arch.RegSize)
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = REG_DI
+-		if ctxt.Headtype == obj.Hnacl || p.Mode == 32 {
++		if ctxt.Headtype == obj.Hnacl || ctxt.Arch.Family == sys.I386 {
+ 			p.As = ALEAL
+ 		}
+ 
+@@ -817,14 +814,14 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 		p.From.Offset = 0 // Panic.argp
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = REG_DI
+-		if ctxt.Headtype == obj.Hnacl && p.Mode == 64 {
++		if ctxt.Headtype == obj.Hnacl && ctxt.Arch.Family == sys.AMD64 {
+ 			p.As = ACMPL
+ 			p.From.Type = obj.TYPE_MEM
+ 			p.From.Reg = REG_R15
+ 			p.From.Scale = 1
+ 			p.From.Index = REG_BX
+ 		}
+-		if p.Mode == 32 {
++		if ctxt.Arch.Family == sys.I386 {
+ 			p.As = ACMPL
+ 		}
+ 
+@@ -842,14 +839,14 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 		p.To.Type = obj.TYPE_MEM
+ 		p.To.Reg = REG_BX
+ 		p.To.Offset = 0 // Panic.argp
+-		if ctxt.Headtype == obj.Hnacl && p.Mode == 64 {
++		if ctxt.Headtype == obj.Hnacl && ctxt.Arch.Family == sys.AMD64 {
+ 			p.As = AMOVL
+ 			p.To.Type = obj.TYPE_MEM
+ 			p.To.Reg = REG_R15
+ 			p.To.Scale = 1
+ 			p.To.Index = REG_BX
+ 		}
+-		if p.Mode == 32 {
++		if ctxt.Arch.Family == sys.I386 {
+ 			p.As = AMOVL
+ 		}
+ 
+@@ -864,7 +861,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 	}
+ 
+ 	for ; p != nil; p = p.Link {
+-		pcsize := int(p.Mode) / 8
++		pcsize := ctxt.Arch.RegSize
+ 		switch p.From.Name {
+ 		case obj.NAME_AUTO:
+ 			p.From.Offset += int64(deltasp) - int64(bpsize)
+@@ -974,7 +971,7 @@ func isZeroArgRuntimeCall(s *obj.LSym) bool {
+ }
+ 
+ func indir_cx(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) {
+-	if ctxt.Headtype == obj.Hnacl && p.Mode == 64 {
++	if ctxt.Headtype == obj.Hnacl && ctxt.Arch.Family == sys.AMD64 {
+ 		a.Type = obj.TYPE_MEM
+ 		a.Reg = REG_R15
+ 		a.Index = REG_CX
+@@ -1025,7 +1022,7 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, framesize int32,
+ 	mov := AMOVQ
+ 	sub := ASUBQ
+ 
+-	if ctxt.Headtype == obj.Hnacl || p.Mode == 32 {
++	if ctxt.Headtype == obj.Hnacl || ctxt.Arch.Family == sys.I386 {
+ 		cmp = ACMPL
+ 		lea = ALEAL
+ 		mov = AMOVL
+@@ -1101,7 +1098,7 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, framesize int32,
+ 		p.From.Reg = REG_SI
+ 		p.To.Type = obj.TYPE_CONST
+ 		p.To.Offset = obj.StackPreempt
+-		if p.Mode == 32 {
++		if ctxt.Arch.Family == sys.I386 {
+ 			p.To.Offset = int64(uint32(obj.StackPreempt & (1<<32 - 1)))
+ 		}
+ 
+@@ -1151,7 +1148,6 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, framesize int32,
+ 
+ 	pcdata := obj.Appendp(ctxt, spfix)
+ 	pcdata.Pos = cursym.Text.Pos
+-	pcdata.Mode = cursym.Text.Mode
+ 	pcdata.As = obj.APCDATA
+ 	pcdata.From.Type = obj.TYPE_CONST
+ 	pcdata.From.Offset = obj.PCDATA_StackMapIndex
+@@ -1160,7 +1156,6 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, framesize int32,
+ 
+ 	call := obj.Appendp(ctxt, pcdata)
+ 	call.Pos = cursym.Text.Pos
+-	call.Mode = cursym.Text.Mode
+ 	call.As = obj.ACALL
+ 	call.To.Type = obj.TYPE_BRANCH
+ 	call.To.Name = obj.NAME_EXTERN

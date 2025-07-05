@@ -8,7 +8,51 @@ Date:   Sun Nov 23 17:27:44 2008 -0800
     DELTA=11  (10 added, 0 deleted, 1 changed)
     OCL=19885
     CL=19887
-
+---
  src/lib/strconv/ftoa.go      | 9 ++++++++-
  src/lib/strconv/ftoa_test.go | 3 +++
  2 files changed, 11 insertions(+), 1 deletion(-)
+
+diff --git a/src/lib/strconv/ftoa.go b/src/lib/strconv/ftoa.go
+index 5dd057d494..c1c8af3179 100644
+--- a/src/lib/strconv/ftoa.go
++++ b/src/lib/strconv/ftoa.go
+@@ -94,7 +94,9 @@ func GenericFtoa(bits uint64, fmt byte, prec int, flt *FloatInfo) string {
+ 
+ 	// Round appropriately.
+ 	// Negative precision means "only as much as needed to be exact."
++	shortest := false;
+ 	if prec < 0 {
++		shortest = true;
+ 		RoundShortest(d, mant, exp, flt);
+ 		switch fmt {
+ 		case 'e':
+@@ -130,8 +132,13 @@ func GenericFtoa(bits uint64, fmt byte, prec int, flt *FloatInfo) string {
+ 		}
+ 		// %e is used if the exponent from the conversion
+ 		// is less than -4 or greater than or equal to the precision.
++		// if precision was the shortest possible, use precision 6 for this decision.
++		eprec := prec;
++		if shortest {
++			eprec = 6
++		}
+ 		exp := d.dp - 1;
+-		if exp < -4 || exp >= prec {
++		if exp < -4 || exp >= eprec {
+ 			return FmtE(neg, d, prec - 1);
+ 		}
+ 		return FmtF(neg, d, Max(prec - d.dp, 0));
+diff --git a/src/lib/strconv/ftoa_test.go b/src/lib/strconv/ftoa_test.go
+index a85a1a1160..914ecd9e33 100644
+--- a/src/lib/strconv/ftoa_test.go
++++ b/src/lib/strconv/ftoa_test.go
+@@ -24,6 +24,9 @@ var ftests = []Test {
+ 	Test{ 1, 'f', 5, "1.00000" },
+ 	Test{ 1, 'g', 5, "1" },
+ 	Test{ 1, 'g', -1, "1" },
++	Test{ 20, 'g', -1, "20" },
++	Test{ 200000, 'g', -1, "200000" },
++	Test{ 2000000, 'g', -1, "2e+06" },
+ 
+ 	Test{ 0, 'e', 5, "0.00000e+00" },
+ 	Test{ 0, 'f', 5, "0.00000" },

@@ -9,6 +9,62 @@ Date:   Tue Jan 9 14:49:08 2018 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/internal/load/icfg.go | 27 +++++++++++++++------------
  1 file changed, 15 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/go/internal/load/icfg.go b/src/cmd/go/internal/load/icfg.go
+index 0b346df077..d8dd66426b 100644
+--- a/src/cmd/go/internal/load/icfg.go
++++ b/src/cmd/go/internal/load/icfg.go
+@@ -19,7 +19,8 @@ var DebugDeprecatedImportcfg debugDeprecatedImportcfgFlag
+ 
+ type debugDeprecatedImportcfgFlag struct {
+ 	enabled bool
+-	pkgs    map[string]*debugDeprecatedImportcfgPkg
++	Import  map[string]string
++	Pkg     map[string]*debugDeprecatedImportcfgPkg
+ }
+ 
+ type debugDeprecatedImportcfgPkg struct {
+@@ -49,8 +50,9 @@ func (f *debugDeprecatedImportcfgFlag) Set(x string) error {
+ 	}
+ 	data = data[len(debugDeprecatedImportcfgMagic):]
+ 
+-	f.pkgs = nil
+-	if err := json.Unmarshal(data, &f.pkgs); err != nil {
++	f.Import = nil
++	f.Pkg = nil
++	if err := json.Unmarshal(data, &f); err != nil {
+ 		return errImportcfgSyntax
+ 	}
+ 	f.enabled = true
+@@ -58,18 +60,19 @@ func (f *debugDeprecatedImportcfgFlag) Set(x string) error {
+ }
+ 
+ func (f *debugDeprecatedImportcfgFlag) lookup(parent *Package, path string) (dir, newPath string) {
+-	if parent == nil {
+-		if p1 := f.pkgs[path]; p1 != nil {
+-			return p1.Dir, path
+-		}
+-		return "", ""
++	newPath = path
++	if p := f.Import[path]; p != "" {
++		newPath = p
+ 	}
+-	if p1 := f.pkgs[parent.ImportPath]; p1 != nil {
+-		if newPath := p1.Import[path]; newPath != "" {
+-			if p2 := f.pkgs[newPath]; p2 != nil {
+-				return p2.Dir, newPath
++	if parent != nil {
++		if p1 := f.Pkg[parent.ImportPath]; p1 != nil {
++			if p := p1.Import[path]; p != "" {
++				newPath = p
+ 			}
+ 		}
+ 	}
++	if p2 := f.Pkg[newPath]; p2 != nil {
++		return p2.Dir, newPath
++	}
+ 	return "", ""
+ }

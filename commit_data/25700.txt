@@ -9,7 +9,53 @@ Date:   Wed Nov 4 15:47:48 2015 -0500
     Change-Id: I4144107334604a2cc98c7984df3b5d4cde3d30af
     Reviewed-on: https://go-review.googlesource.com/16920
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/compile/internal/gc/const.go |  3 +--
  test/fixedbugs/issue11590.go         | 11 +++++++++++
  2 files changed, 12 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/const.go b/src/cmd/compile/internal/gc/const.go
+index 6fe249f171..03c52a078c 100644
+--- a/src/cmd/compile/internal/gc/const.go
++++ b/src/cmd/compile/internal/gc/const.go
+@@ -259,7 +259,6 @@ func convlit1(np **Node, t *Type, explicit bool) {
+ 				n.SetVal(toint(n.Val()))
+ 				fallthrough
+ 
+-				// flowthrough
+ 			case CTINT:
+ 				overflow(n.Val(), t)
+ 			}
+@@ -272,7 +271,6 @@ func convlit1(np **Node, t *Type, explicit bool) {
+ 				n.SetVal(toflt(n.Val()))
+ 				fallthrough
+ 
+-				// flowthrough
+ 			case CTFLT:
+ 				n.SetVal(Val{truncfltlit(n.Val().U.(*Mpflt), t)})
+ 			}
+@@ -283,6 +281,7 @@ func convlit1(np **Node, t *Type, explicit bool) {
+ 
+ 			case CTFLT, CTINT, CTRUNE:
+ 				n.SetVal(tocplx(n.Val()))
++				fallthrough
+ 
+ 			case CTCPLX:
+ 				overflow(n.Val(), t)
+diff --git a/test/fixedbugs/issue11590.go b/test/fixedbugs/issue11590.go
+new file mode 100644
+index 0000000000..9776704b2a
+--- /dev/null
++++ b/test/fixedbugs/issue11590.go
+@@ -0,0 +1,11 @@
++// errorcheck
++
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++var _ = int8(4) * 300         // ERROR "constant overflows int8"
++var _ = complex64(1) * 1e200  // ERROR "constant overflows complex64"
++var _ = complex128(1) * 1e500 // ERROR "constant overflows complex128"

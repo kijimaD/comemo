@@ -20,7 +20,7 @@ Date:   Thu Dec 31 18:25:35 2020 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/dwarfgen/dwarf.go      | 22 +++++++++----------
  src/cmd/compile/internal/escape/escape.go       |  2 +-
  src/cmd/compile/internal/gc/obj.go              |  4 ++--
@@ -39,3 +39,496 @@ Date:   Thu Dec 31 18:25:35 2020 -0800
  src/cmd/compile/internal/walk/order.go          |  4 ++--
  src/cmd/compile/internal/walk/stmt.go           |  2 +-
  17 files changed, 59 insertions(+), 59 deletions(-)
+
+diff --git a/src/cmd/compile/internal/dwarfgen/dwarf.go b/src/cmd/compile/internal/dwarfgen/dwarf.go
+index d0bee58442..42c83b1f23 100644
+--- a/src/cmd/compile/internal/dwarfgen/dwarf.go
++++ b/src/cmd/compile/internal/dwarfgen/dwarf.go
+@@ -127,7 +127,7 @@ func Info(fnsym *obj.LSym, infosym *obj.LSym, curfn interface{}) ([]dwarf.Scope,
+ }
+ 
+ func declPos(decl *ir.Name) src.XPos {
+-	if decl.Name().Defn != nil && (decl.Name().Captured() || decl.Name().Byval()) {
++	if decl.Defn != nil && (decl.Captured() || decl.Byval()) {
+ 		// It's not clear which position is correct for captured variables here:
+ 		// * decl.Pos is the wrong position for captured variables, in the inner
+ 		//   function, but it is the right position in the outer function.
+@@ -142,7 +142,7 @@ func declPos(decl *ir.Name) src.XPos {
+ 		//   case statement.
+ 		// This code is probably wrong for type switch variables that are also
+ 		// captured.
+-		return decl.Name().Defn.Pos()
++		return decl.Defn.Pos()
+ 	}
+ 	return decl.Pos()
+ }
+@@ -211,7 +211,7 @@ func createDwarfVars(fnsym *obj.LSym, complexOK bool, fn *ir.Func, apDecls []*ir
+ 			// misleading location for the param (we want pointer-to-heap
+ 			// and not stack).
+ 			// TODO(thanm): generate a better location expression
+-			stackcopy := n.Name().Stackcopy
++			stackcopy := n.Stackcopy
+ 			if stackcopy != nil && (stackcopy.Class_ == ir.PPARAM || stackcopy.Class_ == ir.PPARAMOUT) {
+ 				abbrev = dwarf.DW_ABRV_PARAM_LOCLIST
+ 				isReturnValue = (stackcopy.Class_ == ir.PPARAMOUT)
+@@ -219,9 +219,9 @@ func createDwarfVars(fnsym *obj.LSym, complexOK bool, fn *ir.Func, apDecls []*ir
+ 		}
+ 		inlIndex := 0
+ 		if base.Flag.GenDwarfInl > 1 {
+-			if n.Name().InlFormal() || n.Name().InlLocal() {
++			if n.InlFormal() || n.InlLocal() {
+ 				inlIndex = posInlIndex(n.Pos()) + 1
+-				if n.Name().InlFormal() {
++				if n.InlFormal() {
+ 					abbrev = dwarf.DW_ABRV_PARAM_LOCLIST
+ 				}
+ 			}
+@@ -312,9 +312,9 @@ func createSimpleVar(fnsym *obj.LSym, n *ir.Name) *dwarf.Var {
+ 	delete(fnsym.Func().Autot, reflectdata.TypeLinksym(n.Type()))
+ 	inlIndex := 0
+ 	if base.Flag.GenDwarfInl > 1 {
+-		if n.Name().InlFormal() || n.Name().InlLocal() {
++		if n.InlFormal() || n.InlLocal() {
+ 			inlIndex = posInlIndex(n.Pos()) + 1
+-			if n.Name().InlFormal() {
++			if n.InlFormal() {
+ 				abbrev = dwarf.DW_ABRV_PARAM
+ 			}
+ 		}
+@@ -323,7 +323,7 @@ func createSimpleVar(fnsym *obj.LSym, n *ir.Name) *dwarf.Var {
+ 	return &dwarf.Var{
+ 		Name:          n.Sym().Name,
+ 		IsReturnValue: n.Class_ == ir.PPARAMOUT,
+-		IsInlFormal:   n.Name().InlFormal(),
++		IsInlFormal:   n.InlFormal(),
+ 		Abbrev:        abbrev,
+ 		StackOffset:   int32(offs),
+ 		Type:          base.Ctxt.Lookup(typename),
+@@ -381,9 +381,9 @@ func createComplexVar(fnsym *obj.LSym, fn *ir.Func, varID ssa.VarID) *dwarf.Var
+ 	typename := dwarf.InfoPrefix + gotype.Name[len("type."):]
+ 	inlIndex := 0
+ 	if base.Flag.GenDwarfInl > 1 {
+-		if n.Name().InlFormal() || n.Name().InlLocal() {
++		if n.InlFormal() || n.InlLocal() {
+ 			inlIndex = posInlIndex(n.Pos()) + 1
+-			if n.Name().InlFormal() {
++			if n.InlFormal() {
+ 				abbrev = dwarf.DW_ABRV_PARAM_LOCLIST
+ 			}
+ 		}
+@@ -392,7 +392,7 @@ func createComplexVar(fnsym *obj.LSym, fn *ir.Func, varID ssa.VarID) *dwarf.Var
+ 	dvar := &dwarf.Var{
+ 		Name:          n.Sym().Name,
+ 		IsReturnValue: n.Class_ == ir.PPARAMOUT,
+-		IsInlFormal:   n.Name().InlFormal(),
++		IsInlFormal:   n.InlFormal(),
+ 		Abbrev:        abbrev,
+ 		Type:          base.Ctxt.Lookup(typename),
+ 		// The stack offset is used as a sorting key, so for decomposed
+diff --git a/src/cmd/compile/internal/escape/escape.go b/src/cmd/compile/internal/escape/escape.go
+index b5b09beb5a..98dbf54b75 100644
+--- a/src/cmd/compile/internal/escape/escape.go
++++ b/src/cmd/compile/internal/escape/escape.go
+@@ -1158,7 +1158,7 @@ func (e *escape) newLoc(n ir.Node, transient bool) *location {
+ 		if n.Op() == ir.ONAME {
+ 			n := n.(*ir.Name)
+ 			if n.Curfn != e.curfn {
+-				base.Fatalf("curfn mismatch: %v != %v", n.Name().Curfn, e.curfn)
++				base.Fatalf("curfn mismatch: %v != %v", n.Curfn, e.curfn)
+ 			}
+ 
+ 			if n.Opt != nil {
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index 1e8ac8ebb2..30cfac1b71 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -264,14 +264,14 @@ func ggloblnod(nam *ir.Name) {
+ 	s := nam.Linksym()
+ 	s.Gotype = reflectdata.TypeLinksym(nam.Type())
+ 	flags := 0
+-	if nam.Name().Readonly() {
++	if nam.Readonly() {
+ 		flags = obj.RODATA
+ 	}
+ 	if nam.Type() != nil && !nam.Type().HasPointers() {
+ 		flags |= obj.NOPTR
+ 	}
+ 	base.Ctxt.Globl(s, nam.Type().Width, flags)
+-	if nam.Name().LibfuzzerExtraCounter() {
++	if nam.LibfuzzerExtraCounter() {
+ 		s.Type = objabi.SLIBFUZZER_EXTRA_COUNTER
+ 	}
+ 	if nam.Sym().Linkname != "" {
+diff --git a/src/cmd/compile/internal/ir/expr.go b/src/cmd/compile/internal/ir/expr.go
+index f435a5bb26..88fbdff1e0 100644
+--- a/src/cmd/compile/internal/ir/expr.go
++++ b/src/cmd/compile/internal/ir/expr.go
+@@ -771,11 +771,11 @@ func staticValue1(nn Node) Node {
+ 		return nil
+ 	}
+ 	n := nn.(*Name)
+-	if n.Class_ != PAUTO || n.Name().Addrtaken() {
++	if n.Class_ != PAUTO || n.Addrtaken() {
+ 		return nil
+ 	}
+ 
+-	defn := n.Name().Defn
++	defn := n.Defn
+ 	if defn == nil {
+ 		return nil
+ 	}
+diff --git a/src/cmd/compile/internal/ir/name.go b/src/cmd/compile/internal/ir/name.go
+index c79b7e52e5..5acb2d0762 100644
+--- a/src/cmd/compile/internal/ir/name.go
++++ b/src/cmd/compile/internal/ir/name.go
+@@ -312,7 +312,7 @@ func (n *Name) MarkReadonly() {
+ 	if n.Op() != ONAME {
+ 		base.Fatalf("Node.MarkReadonly %v", n.Op())
+ 	}
+-	n.Name().setReadonly(true)
++	n.setReadonly(true)
+ 	// Mark the linksym as readonly immediately
+ 	// so that the SSA backend can use this information.
+ 	// It will be overridden later during dumpglobls.
+@@ -433,7 +433,7 @@ func IsParamHeapCopy(n Node) bool {
+ 		return false
+ 	}
+ 	name := n.(*Name)
+-	return name.Class_ == PAUTOHEAP && name.Name().Stackcopy != nil
++	return name.Class_ == PAUTOHEAP && name.Stackcopy != nil
+ }
+ 
+ var RegFP *Name
+diff --git a/src/cmd/compile/internal/liveness/plive.go b/src/cmd/compile/internal/liveness/plive.go
+index 89c70df65a..91f10b0a9d 100644
+--- a/src/cmd/compile/internal/liveness/plive.go
++++ b/src/cmd/compile/internal/liveness/plive.go
+@@ -255,7 +255,7 @@ func (lv *liveness) valueEffects(v *ssa.Value) (int32, liveEffect) {
+ 	// variable" ICEs (issue 19632).
+ 	switch v.Op {
+ 	case ssa.OpVarDef, ssa.OpVarKill, ssa.OpVarLive, ssa.OpKeepAlive:
+-		if !n.Name().Used() {
++		if !n.Used() {
+ 			return -1, 0
+ 		}
+ 	}
+@@ -688,11 +688,11 @@ func (lv *liveness) epilogue() {
+ 	if lv.fn.HasDefer() {
+ 		for i, n := range lv.vars {
+ 			if n.Class_ == ir.PPARAMOUT {
+-				if n.Name().IsOutputParamHeapAddr() {
++				if n.IsOutputParamHeapAddr() {
+ 					// Just to be paranoid.  Heap addresses are PAUTOs.
+ 					base.Fatalf("variable %v both output param and heap output param", n)
+ 				}
+-				if n.Name().Heapaddr != nil {
++				if n.Heapaddr != nil {
+ 					// If this variable moved to the heap, then
+ 					// its stack copy is not live.
+ 					continue
+@@ -700,21 +700,21 @@ func (lv *liveness) epilogue() {
+ 				// Note: zeroing is handled by zeroResults in walk.go.
+ 				livedefer.Set(int32(i))
+ 			}
+-			if n.Name().IsOutputParamHeapAddr() {
++			if n.IsOutputParamHeapAddr() {
+ 				// This variable will be overwritten early in the function
+ 				// prologue (from the result of a mallocgc) but we need to
+ 				// zero it in case that malloc causes a stack scan.
+-				n.Name().SetNeedzero(true)
++				n.SetNeedzero(true)
+ 				livedefer.Set(int32(i))
+ 			}
+-			if n.Name().OpenDeferSlot() {
++			if n.OpenDeferSlot() {
+ 				// Open-coded defer args slots must be live
+ 				// everywhere in a function, since a panic can
+ 				// occur (almost) anywhere. Because it is live
+ 				// everywhere, it must be zeroed on entry.
+ 				livedefer.Set(int32(i))
+ 				// It was already marked as Needzero when created.
+-				if !n.Name().Needzero() {
++				if !n.Needzero() {
+ 					base.Fatalf("all pointer-containing defer arg slots should have Needzero set")
+ 				}
+ 			}
+diff --git a/src/cmd/compile/internal/noder/noder.go b/src/cmd/compile/internal/noder/noder.go
+index f4b5e0cf91..748fd96380 100644
+--- a/src/cmd/compile/internal/noder/noder.go
++++ b/src/cmd/compile/internal/noder/noder.go
+@@ -1835,7 +1835,7 @@ func oldname(s *types.Sym) ir.Node {
+ 		// the := it looks like a reference to the outer x so we'll
+ 		// make x a closure variable unnecessarily.
+ 		n := n.(*ir.Name)
+-		c := n.Name().Innermost
++		c := n.Innermost
+ 		if c == nil || c.Curfn != ir.CurFunc {
+ 			// Do not have a closure var for the active closure yet; make one.
+ 			c = typecheck.NewName(s)
+@@ -1845,8 +1845,8 @@ func oldname(s *types.Sym) ir.Node {
+ 
+ 			// Link into list of active closure variables.
+ 			// Popped from list in func funcLit.
+-			c.Outer = n.Name().Innermost
+-			n.Name().Innermost = c
++			c.Outer = n.Innermost
++			n.Innermost = c
+ 
+ 			ir.CurFunc.ClosureVars = append(ir.CurFunc.ClosureVars, c)
+ 		}
+diff --git a/src/cmd/compile/internal/pkginit/initorder.go b/src/cmd/compile/internal/pkginit/initorder.go
+index c6e223954d..1c222c1de4 100644
+--- a/src/cmd/compile/internal/pkginit/initorder.go
++++ b/src/cmd/compile/internal/pkginit/initorder.go
+@@ -197,7 +197,7 @@ func (o *InitOrder) findInitLoopAndExit(n *ir.Name, path *[]*ir.Name) {
+ 
+ 	// There might be multiple loops involving n; by sorting
+ 	// references, we deterministically pick the one reported.
+-	refers := collectDeps(n.Name().Defn, false).Sorted(func(ni, nj *ir.Name) bool {
++	refers := collectDeps(n.Defn, false).Sorted(func(ni, nj *ir.Name) bool {
+ 		return ni.Pos().Before(nj.Pos())
+ 	})
+ 
+diff --git a/src/cmd/compile/internal/ssagen/nowb.go b/src/cmd/compile/internal/ssagen/nowb.go
+index 7b2e68c8e7..26858fac87 100644
+--- a/src/cmd/compile/internal/ssagen/nowb.go
++++ b/src/cmd/compile/internal/ssagen/nowb.go
+@@ -76,7 +76,7 @@ func (c *nowritebarrierrecChecker) findExtraCalls(nn ir.Node) {
+ 		return
+ 	}
+ 	fn := n.X.(*ir.Name)
+-	if fn.Class_ != ir.PFUNC || fn.Name().Defn == nil {
++	if fn.Class_ != ir.PFUNC || fn.Defn == nil {
+ 		return
+ 	}
+ 	if !types.IsRuntimePkg(fn.Sym().Pkg) || fn.Sym().Name != "systemstack" {
+@@ -88,7 +88,7 @@ func (c *nowritebarrierrecChecker) findExtraCalls(nn ir.Node) {
+ 	switch arg.Op() {
+ 	case ir.ONAME:
+ 		arg := arg.(*ir.Name)
+-		callee = arg.Name().Defn.(*ir.Func)
++		callee = arg.Defn.(*ir.Func)
+ 	case ir.OCLOSURE:
+ 		arg := arg.(*ir.ClosureExpr)
+ 		callee = arg.Func
+diff --git a/src/cmd/compile/internal/ssagen/pgen.go b/src/cmd/compile/internal/ssagen/pgen.go
+index 72ce233fda..2be10ff7af 100644
+--- a/src/cmd/compile/internal/ssagen/pgen.go
++++ b/src/cmd/compile/internal/ssagen/pgen.go
+@@ -86,7 +86,7 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
+ 
+ 	for _, l := range f.RegAlloc {
+ 		if ls, ok := l.(ssa.LocalSlot); ok {
+-			ls.N.Name().SetUsed(true)
++			ls.N.SetUsed(true)
+ 		}
+ 	}
+ 
+@@ -98,10 +98,10 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
+ 				case ir.PPARAM, ir.PPARAMOUT:
+ 					// Don't modify nodfp; it is a global.
+ 					if n != ir.RegFP {
+-						n.Name().SetUsed(true)
++						n.SetUsed(true)
+ 					}
+ 				case ir.PAUTO:
+-					n.Name().SetUsed(true)
++					n.SetUsed(true)
+ 				}
+ 			}
+ 			if !scratchUsed {
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 022959a934..8e3b09aac3 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -6223,7 +6223,7 @@ func (s *state) addNamedValue(n *ir.Name, v *ssa.Value) {
+ 		// from being assigned too early. See #14591 and #14762. TODO: allow this.
+ 		return
+ 	}
+-	loc := ssa.LocalSlot{N: n.Name(), Type: n.Type(), Off: 0}
++	loc := ssa.LocalSlot{N: n, Type: n.Type(), Off: 0}
+ 	values, ok := s.f.NamedValues[loc]
+ 	if !ok {
+ 		s.f.Names = append(s.f.Names, loc)
+@@ -7198,7 +7198,7 @@ func (e *ssafn) DerefItab(it *obj.LSym, offset int64) *obj.LSym {
+ func (e *ssafn) SplitSlot(parent *ssa.LocalSlot, suffix string, offset int64, t *types.Type) ssa.LocalSlot {
+ 	node := parent.N
+ 
+-	if node.Class_ != ir.PAUTO || node.Name().Addrtaken() {
++	if node.Class_ != ir.PAUTO || node.Addrtaken() {
+ 		// addressed things and non-autos retain their parents (i.e., cannot truly be split)
+ 		return ssa.LocalSlot{N: node, Type: t, Off: parent.Off + offset}
+ 	}
+diff --git a/src/cmd/compile/internal/typecheck/func.go b/src/cmd/compile/internal/typecheck/func.go
+index 75f38d588d..3552bcf924 100644
+--- a/src/cmd/compile/internal/typecheck/func.go
++++ b/src/cmd/compile/internal/typecheck/func.go
+@@ -131,10 +131,10 @@ func CaptureVars(fn *ir.Func) {
+ 		outermost := v.Defn.(*ir.Name)
+ 
+ 		// out parameters will be assigned to implicitly upon return.
+-		if outermost.Class_ != ir.PPARAMOUT && !outermost.Name().Addrtaken() && !outermost.Name().Assigned() && v.Type().Width <= 128 {
++		if outermost.Class_ != ir.PPARAMOUT && !outermost.Addrtaken() && !outermost.Assigned() && v.Type().Width <= 128 {
+ 			v.SetByval(true)
+ 		} else {
+-			outermost.Name().SetAddrtaken(true)
++			outermost.SetAddrtaken(true)
+ 			outer = NodAddr(outer)
+ 		}
+ 
+@@ -147,7 +147,7 @@ func CaptureVars(fn *ir.Func) {
+ 			if v.Byval() {
+ 				how = "value"
+ 			}
+-			base.WarnfAt(v.Pos(), "%v capturing by %s: %v (addr=%v assign=%v width=%d)", name, how, v.Sym(), outermost.Name().Addrtaken(), outermost.Name().Assigned(), int32(v.Type().Width))
++			base.WarnfAt(v.Pos(), "%v capturing by %s: %v (addr=%v assign=%v width=%d)", name, how, v.Sym(), outermost.Addrtaken(), outermost.Assigned(), int32(v.Type().Width))
+ 		}
+ 
+ 		outer = Expr(outer)
+diff --git a/src/cmd/compile/internal/typecheck/iexport.go b/src/cmd/compile/internal/typecheck/iexport.go
+index aa16a54bb8..50acb10a9a 100644
+--- a/src/cmd/compile/internal/typecheck/iexport.go
++++ b/src/cmd/compile/internal/typecheck/iexport.go
+@@ -1521,8 +1521,8 @@ func (w *exportWriter) localName(n *ir.Name) {
+ 	// PPARAM/PPARAMOUT, because we only want to include vargen in
+ 	// non-param names.
+ 	var v int32
+-	if n.Class_ == ir.PAUTO || (n.Class_ == ir.PAUTOHEAP && n.Name().Stackcopy == nil) {
+-		v = n.Name().Vargen
++	if n.Class_ == ir.PAUTO || (n.Class_ == ir.PAUTOHEAP && n.Stackcopy == nil) {
++		v = n.Vargen
+ 	}
+ 
+ 	w.localIdent(n.Sym(), v)
+diff --git a/src/cmd/compile/internal/typecheck/typecheck.go b/src/cmd/compile/internal/typecheck/typecheck.go
+index cf9b48f5a6..519d8ddfd9 100644
+--- a/src/cmd/compile/internal/typecheck/typecheck.go
++++ b/src/cmd/compile/internal/typecheck/typecheck.go
+@@ -57,7 +57,7 @@ func Package() {
+ 	base.Timer.Start("fe", "typecheck", "top1")
+ 	for i := 0; i < len(Target.Decls); i++ {
+ 		n := Target.Decls[i]
+-		if op := n.Op(); op != ir.ODCL && op != ir.OAS && op != ir.OAS2 && (op != ir.ODCLTYPE || !n.(*ir.Decl).X.Name().Alias()) {
++		if op := n.Op(); op != ir.ODCL && op != ir.OAS && op != ir.OAS2 && (op != ir.ODCLTYPE || !n.(*ir.Decl).X.Alias()) {
+ 			Target.Decls[i] = Stmt(n)
+ 		}
+ 	}
+@@ -69,7 +69,7 @@ func Package() {
+ 	base.Timer.Start("fe", "typecheck", "top2")
+ 	for i := 0; i < len(Target.Decls); i++ {
+ 		n := Target.Decls[i]
+-		if op := n.Op(); op == ir.ODCL || op == ir.OAS || op == ir.OAS2 || op == ir.ODCLTYPE && n.(*ir.Decl).X.Name().Alias() {
++		if op := n.Op(); op == ir.ODCL || op == ir.OAS || op == ir.OAS2 || op == ir.ODCLTYPE && n.(*ir.Decl).X.Alias() {
+ 			Target.Decls[i] = Stmt(n)
+ 		}
+ 	}
+@@ -636,7 +636,7 @@ func typecheck1(n ir.Node, top int) ir.Node {
+ 				n.SetType(nil)
+ 				return n
+ 			}
+-			n.Name().SetUsed(true)
++			n.SetUsed(true)
+ 		}
+ 		return n
+ 
+@@ -1729,9 +1729,9 @@ func checkassign(stmt ir.Node, n ir.Node) {
+ 		r := ir.OuterValue(n)
+ 		if r.Op() == ir.ONAME {
+ 			r := r.(*ir.Name)
+-			r.Name().SetAssigned(true)
+-			if r.Name().IsClosureVar() {
+-				r.Name().Defn.Name().SetAssigned(true)
++			r.SetAssigned(true)
++			if r.IsClosureVar() {
++				r.Defn.Name().SetAssigned(true)
+ 			}
+ 		}
+ 	}
+@@ -1938,9 +1938,9 @@ func typecheckdef(n ir.Node) {
+ 
+ 	case ir.ONAME:
+ 		n := n.(*ir.Name)
+-		if n.Name().Ntype != nil {
+-			n.Name().Ntype = typecheckNtype(n.Name().Ntype)
+-			n.SetType(n.Name().Ntype.Type())
++		if n.Ntype != nil {
++			n.Ntype = typecheckNtype(n.Ntype)
++			n.SetType(n.Ntype.Type())
+ 			if n.Type() == nil {
+ 				n.SetDiag(true)
+ 				goto ret
+@@ -1950,7 +1950,7 @@ func typecheckdef(n ir.Node) {
+ 		if n.Type() != nil {
+ 			break
+ 		}
+-		if n.Name().Defn == nil {
++		if n.Defn == nil {
+ 			if n.BuiltinOp != 0 { // like OPRINTN
+ 				break
+ 			}
+@@ -1965,13 +1965,13 @@ func typecheckdef(n ir.Node) {
+ 			base.Fatalf("var without type, init: %v", n.Sym())
+ 		}
+ 
+-		if n.Name().Defn.Op() == ir.ONAME {
+-			n.Name().Defn = Expr(n.Name().Defn)
+-			n.SetType(n.Name().Defn.Type())
++		if n.Defn.Op() == ir.ONAME {
++			n.Defn = Expr(n.Defn)
++			n.SetType(n.Defn.Type())
+ 			break
+ 		}
+ 
+-		n.Name().Defn = Stmt(n.Name().Defn) // fills in n.Type
++		n.Defn = Stmt(n.Defn) // fills in n.Type
+ 
+ 	case ir.OTYPE:
+ 		n := n.(*ir.Name)
+diff --git a/src/cmd/compile/internal/walk/expr.go b/src/cmd/compile/internal/walk/expr.go
+index 0d7ffca15d..f06a87c37f 100644
+--- a/src/cmd/compile/internal/walk/expr.go
++++ b/src/cmd/compile/internal/walk/expr.go
+@@ -54,7 +54,7 @@ func walkExpr(n ir.Node, init *ir.Nodes) ir.Node {
+ 
+ 	if n.Op() == ir.ONAME && n.(*ir.Name).Class_ == ir.PAUTOHEAP {
+ 		n := n.(*ir.Name)
+-		nn := ir.NewStarExpr(base.Pos, n.Name().Heapaddr)
++		nn := ir.NewStarExpr(base.Pos, n.Heapaddr)
+ 		nn.X.MarkNonNil()
+ 		return walkExpr(typecheck.Expr(nn), init)
+ 	}
+diff --git a/src/cmd/compile/internal/walk/order.go b/src/cmd/compile/internal/walk/order.go
+index a2bd0cf10a..e40c877ea9 100644
+--- a/src/cmd/compile/internal/walk/order.go
++++ b/src/cmd/compile/internal/walk/order.go
+@@ -406,7 +406,7 @@ func (o *orderState) edge() {
+ 	// Create a new uint8 counter to be allocated in section
+ 	// __libfuzzer_extra_counters.
+ 	counter := staticinit.StaticName(types.Types[types.TUINT8])
+-	counter.Name().SetLibfuzzerExtraCounter(true)
++	counter.SetLibfuzzerExtraCounter(true)
+ 
+ 	// counter += 1
+ 	incr := ir.NewAssignOpStmt(base.Pos, ir.OADD, counter, ir.NewInt(1))
+@@ -517,7 +517,7 @@ func (o *orderState) call(nn ir.Node) {
+ 			if arg.X.Type().IsUnsafePtr() {
+ 				x := o.copyExpr(arg.X)
+ 				arg.X = x
+-				x.Name().SetAddrtaken(true) // ensure SSA keeps the x variable
++				x.SetAddrtaken(true) // ensure SSA keeps the x variable
+ 				n.KeepAlive = append(n.KeepAlive, x)
+ 			}
+ 		}
+diff --git a/src/cmd/compile/internal/walk/stmt.go b/src/cmd/compile/internal/walk/stmt.go
+index cfd1da46d2..8641a58e2e 100644
+--- a/src/cmd/compile/internal/walk/stmt.go
++++ b/src/cmd/compile/internal/walk/stmt.go
+@@ -181,7 +181,7 @@ func walkDecl(n *ir.Decl) ir.Node {
+ 		if base.Flag.CompilingRuntime {
+ 			base.Errorf("%v escapes to heap, not allowed in runtime", v)
+ 		}
+-		nn := ir.NewAssignStmt(base.Pos, v.Name().Heapaddr, callnew(v.Type()))
++		nn := ir.NewAssignStmt(base.Pos, v.Heapaddr, callnew(v.Type()))
+ 		nn.Def = true
+ 		return walkStmt(typecheck.Stmt(nn))
+ 	}

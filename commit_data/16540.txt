@@ -16,7 +16,7 @@ Date:   Tue Jun 11 09:35:10 2013 -0700
     R=rsc
     CC=gobot, golang-dev, remyoudompheng
     https://golang.org/cl/10050045
-
+---
  src/cmd/go/build.go    |  32 +++++++++++++-
  src/cmd/go/doc.go      |  12 ++++++
  src/cmd/go/pkg.go      |  36 ++++++++++------
@@ -24,3 +24,356 @@ Date:   Tue Jun 11 09:35:10 2013 -0700
  src/cmd/go/testflag.go |   8 ++++
  src/cmd/go/tool.go     |   2 +-
  6 files changed, 184 insertions(+), 20 deletions(-)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index dcff893857..3a6577d1ee 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -786,7 +786,26 @@ func (b *builder) build(a *action) (err error) {
+ 	}
+ 
+ 	var gofiles, cfiles, sfiles, objects, cgoObjects []string
+-	gofiles = append(gofiles, a.p.GoFiles...)
++
++	// If we're doing coverage, preprocess the .go files and put them in the work directory
++	if a.p.coverMode != "" {
++		for _, file := range a.p.GoFiles {
++			sourceFile := filepath.Join(a.p.Dir, file)
++			cover := a.p.coverVars[file]
++			if cover == nil {
++				// Not covering this file
++				gofiles = append(gofiles, file)
++				continue
++			}
++			coverFile := filepath.Join(obj, file)
++			if err := b.cover(a, coverFile, sourceFile, 0666, cover.Count, cover.Pos); err != nil {
++				return err
++			}
++			gofiles = append(gofiles, coverFile)
++		}
++	} else {
++		gofiles = append(gofiles, a.p.GoFiles...)
++	}
+ 	cfiles = append(cfiles, a.p.CFiles...)
+ 	sfiles = append(sfiles, a.p.SFiles...)
+ 
+@@ -1090,6 +1109,17 @@ func (b *builder) copyFile(a *action, dst, src string, perm os.FileMode) error {
+ 	return nil
+ }
+ 
++// cover runs, in effect,
++//	go tool cover -mode=b.coverMode -count="count" -pos="pos" src.go >dst.go
++func (b *builder) cover(a *action, dst, src string, perm os.FileMode, count, pos string) error {
++	out, err := b.runOut(a.objdir, "cover "+a.p.ImportPath, nil, tool("cover"), "-mode="+a.p.coverMode, "-count="+count, "-pos="+pos, src)
++	if err != nil {
++		return err
++	}
++	// Output is processed source code. Write it to destination.
++	return ioutil.WriteFile(dst, out, perm)
++}
++
+ var objectMagic = [][]byte{
+ 	{'!', '<', 'a', 'r', 'c', 'h', '>', '\n'},        // Package archive
+ 	{'\x7F', 'E', 'L', 'F'},                          // ELF
+diff --git a/src/cmd/go/doc.go b/src/cmd/go/doc.go
+index 52bb4f1d45..eb22fe583d 100644
+--- a/src/cmd/go/doc.go
++++ b/src/cmd/go/doc.go
+@@ -738,6 +738,18 @@ control the execution of any test:
+ 	    if -test.blockprofile is set without this flag, all blocking events
+ 	    are recorded, equivalent to -test.blockprofilerate=1.
+ 
++	-cover set,count,atomic
++	    TODO: This feature is not yet fully implemented.
++	    TODO: Must run with -v to see output.
++	    TODO: Need control over output format,
++	    Set the mode for coverage analysis for the package[s] being tested.
++	    The default is to do none.
++	    The values:
++		set: boolean: does this statement execute?
++		count: integer: how many times does this statement execute?
++		atomic: integer: like count, but correct in multithreaded tests;
++			significantly more expensive.
++
+ 	-cpu 1,2,4
+ 	    Specify a list of GOMAXPROCS values for which the tests or
+ 	    benchmarks should be executed.  The default is the current value
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index 32d56e96e1..b399577a5a 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -76,14 +76,23 @@ type Package struct {
+ 	deps         []*Package
+ 	gofiles      []string // GoFiles+CgoFiles+TestGoFiles+XTestGoFiles files, absolute paths
+ 	sfiles       []string
+-	allgofiles   []string // gofiles + IgnoredGoFiles, absolute paths
+-	target       string   // installed file for this package (may be executable)
+-	fake         bool     // synthesized package
+-	forceBuild   bool     // this package must be rebuilt
+-	forceLibrary bool     // this package is a library (even if named "main")
+-	local        bool     // imported via local path (./ or ../)
+-	localPrefix  string   // interpret ./ and ../ imports relative to this prefix
+-	exeName      string   // desired name for temporary executable
++	allgofiles   []string             // gofiles + IgnoredGoFiles, absolute paths
++	target       string               // installed file for this package (may be executable)
++	fake         bool                 // synthesized package
++	forceBuild   bool                 // this package must be rebuilt
++	forceLibrary bool                 // this package is a library (even if named "main")
++	local        bool                 // imported via local path (./ or ../)
++	localPrefix  string               // interpret ./ and ../ imports relative to this prefix
++	exeName      string               // desired name for temporary executable
++	coverMode    string               // preprocess Go source files with the coverage tool in this mode
++	coverVars    map[string]*CoverVar // variables created by coverage analysis
++}
++
++// CoverVar holds the name of the generated coverage variables targeting the named file.
++type CoverVar struct {
++	File  string // local file name
++	Count string // name of count array
++	Pos   string // name of position array
+ }
+ 
+ func (p *Package) copyBuild(pp *build.Package) {
+@@ -278,11 +287,12 @@ func reusePackage(p *Package, stk *importStack) *Package {
+ // isGoTool is the list of directories for Go programs that are installed in
+ // $GOROOT/pkg/tool.
+ var isGoTool = map[string]bool{
+-	"cmd/api":                            true,
+-	"cmd/cgo":                            true,
+-	"cmd/fix":                            true,
+-	"cmd/yacc":                           true,
+-	"code.google.com/p/go.tools/cmd/vet": true,
++	"cmd/api":                              true,
++	"cmd/cgo":                              true,
++	"cmd/fix":                              true,
++	"cmd/yacc":                             true,
++	"code.google.com/p/go.tools/cmd/cover": true,
++	"code.google.com/p/go.tools/cmd/vet":   true,
+ }
+ 
+ // expandScanner expands a scanner.List error into all the errors in the list.
+diff --git a/src/cmd/go/test.go b/src/cmd/go/test.go
+index ddf9745a3c..6e77f190a6 100644
+--- a/src/cmd/go/test.go
++++ b/src/cmd/go/test.go
+@@ -124,6 +124,18 @@ control the execution of any test:
+ 	    if -test.blockprofile is set without this flag, all blocking events
+ 	    are recorded, equivalent to -test.blockprofilerate=1.
+ 
++	-cover set,count,atomic
++	    TODO: This feature is not yet fully implemented.
++	    TODO: Must run with -v to see output.
++	    TODO: Need control over output format,
++	    Set the mode for coverage analysis for the package[s] being tested.
++	    The default is to do none.
++	    The values:
++		set: boolean: does this statement execute?
++		count: integer: how many times does this statement execute?
++		atomic: integer: like count, but correct in multithreaded tests;
++			significantly more expensive.
++
+ 	-cpu 1,2,4
+ 	    Specify a list of GOMAXPROCS values for which the tests or
+ 	    benchmarks should be executed.  The default is the current value
+@@ -235,6 +247,7 @@ See the documentation of the testing package for more information.
+ 
+ var (
+ 	testC            bool     // -c flag
++	testCover        string   // -cover flag
+ 	testProfile      bool     // some profiling flag
+ 	testI            bool     // -i flag
+ 	testV            bool     // -v flag
+@@ -492,12 +505,18 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
+ 	if err := b.mkdir(ptestDir); err != nil {
+ 		return nil, nil, nil, err
+ 	}
+-	if err := writeTestmain(filepath.Join(testDir, "_testmain.go"), p); err != nil {
++
++	if testCover != "" {
++		p.coverMode = testCover
++		p.coverVars = declareCoverVars(p.GoFiles...)
++	}
++
++	if err := writeTestmain(filepath.Join(testDir, "_testmain.go"), p, p.coverVars); err != nil {
+ 		return nil, nil, nil, err
+ 	}
+ 
+ 	// Test package.
+-	if len(p.TestGoFiles) > 0 {
++	if len(p.TestGoFiles) > 0 || testCover != "" {
+ 		ptest = new(Package)
+ 		*ptest = *p
+ 		ptest.GoFiles = nil
+@@ -629,6 +648,23 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
+ 	return pmainAction, runAction, printAction, nil
+ }
+ 
++var coverIndex = 0
++
++// declareCoverVars attaches the required cover variables names
++// to the files, to be used when annotating the files.
++func declareCoverVars(files ...string) map[string]*CoverVar {
++	coverVars := make(map[string]*CoverVar)
++	for _, file := range files {
++		coverVars[file] = &CoverVar{
++			File:  file,
++			Count: fmt.Sprintf("GoCoverCount_%d", coverIndex),
++			Pos:   fmt.Sprintf("GoCoverPos_%d", coverIndex),
++		}
++		coverIndex++
++	}
++	return coverVars
++}
++
+ // runTest is the action for running a test binary.
+ func (b *builder) runTest(a *action) error {
+ 	args := stringList(a.deps[0].target, testArgs)
+@@ -767,9 +803,10 @@ func isTest(name, prefix string) bool {
+ 
+ // writeTestmain writes the _testmain.go file for package p to
+ // the file named out.
+-func writeTestmain(out string, p *Package) error {
++func writeTestmain(out string, p *Package, coverVars map[string]*CoverVar) error {
+ 	t := &testFuncs{
+-		Package: p,
++		Package:   p,
++		CoverVars: coverVars,
+ 	}
+ 	for _, file := range p.TestGoFiles {
+ 		if err := t.load(filepath.Join(p.Dir, file), "_test", &t.NeedTest); err != nil {
+@@ -802,6 +839,11 @@ type testFuncs struct {
+ 	Package    *Package
+ 	NeedTest   bool
+ 	NeedXtest  bool
++	CoverVars  map[string]*CoverVar
++}
++
++func (t *testFuncs) CoverEnabled() bool {
++	return testCover != ""
+ }
+ 
+ type testFunc struct {
+@@ -861,12 +903,15 @@ import (
+ 	"regexp"
+ 	"testing"
+ 
+-{{if .NeedTest}}
++{{if or .CoverEnabled .NeedTest}}
+ 	_test {{.Package.ImportPath | printf "%q"}}
+ {{end}}
+ {{if .NeedXtest}}
+ 	_xtest {{.Package.ImportPath | printf "%s_test" | printf "%q"}}
+ {{end}}
++{{if .CoverEnabled}}
++	_fmt "fmt"
++{{end}}
+ )
+ 
+ var tests = []testing.InternalTest{
+@@ -901,8 +946,67 @@ func matchString(pat, str string) (result bool, err error) {
+ 	return matchRe.MatchString(str), nil
+ }
+ 
++{{if .CoverEnabled}}
++type coverBlock struct {
++	line0 uint32
++	col0 uint16
++	line1 uint32
++	col1 uint16
++}
++
++// Only updated by init functions, so no need for atomicity.
++var (
++	coverCounters = make(map[string][]uint32)
++	coverBlocks = make(map[string][]coverBlock)
++)
++
++func init() {
++	{{range $file, $cover := .CoverVars}}
++	coverRegisterFile({{printf "%q" $file}}, _test.{{$cover.Count}}[:], _test.{{$cover.Pos}}[:]...)
++	{{end}}
++}
++
++func coverRegisterFile(fileName string, counter []uint32, pos ...uint32) {
++	if 3*len(counter) != len(pos) {
++		panic("coverage: mismatched sizes")
++	}
++	if coverCounters[fileName] != nil {
++		panic("coverage: duplicate counter array for " + fileName)
++	}
++	coverCounters[fileName] = counter
++	block := make([]coverBlock, len(counter))
++	for i := range counter {
++		block[i] = coverBlock{
++			line0: pos[3*i+0],
++			col0: uint16(pos[3*i+2]),
++			line1: pos[3*i+1],
++			col1: uint16(pos[3*i+2]>>16),
++		}
++	}
++	coverBlocks[fileName] = block
++}
++
++func coverDump() {
++	for name, counts := range coverCounters {
++		blocks := coverBlocks[name]
++		for i, count := range counts {
++			_, err := _fmt.Printf("%s:%d.%d,%d.%d %d\n", name,
++				blocks[i].line0, blocks[i].col0,
++				blocks[i].line1, blocks[i].col1,
++				count)
++			if err != nil {
++				panic(err)
++			}
++		}
++	}
++}
++{{end}}
++
+ func main() {
+ 	testing.Main(matchString, tests, benchmarks, examples)
++{{if .CoverEnabled}}
++	coverDump()
++{{end}}
+ }
+ 
+ `))
+diff --git a/src/cmd/go/testflag.go b/src/cmd/go/testflag.go
+index b2ca66b094..28b9ef4c20 100644
+--- a/src/cmd/go/testflag.go
++++ b/src/cmd/go/testflag.go
+@@ -62,6 +62,7 @@ var testFlagDefn = []*testFlagSpec{
+ 	{name: "c", boolVar: &testC},
+ 	{name: "file", multiOK: true},
+ 	{name: "i", boolVar: &testI},
++	{name: "cover"},
+ 
+ 	// build flags.
+ 	{name: "a", boolVar: &buildA},
+@@ -169,6 +170,13 @@ func testFlags(args []string) (packageNames, passToTest []string) {
+ 			testTimeout = value
+ 		case "blockprofile", "cpuprofile", "memprofile":
+ 			testProfile = true
++		case "cover":
++			switch value {
++			case "set", "count", "atomic":
++				testCover = value
++			default:
++				fatalf("invalid flag argument for -cover: %q", value)
++			}
+ 		}
+ 		if extraWord {
+ 			i++
+diff --git a/src/cmd/go/tool.go b/src/cmd/go/tool.go
+index f739aa4da7..6d26f7a4b4 100644
+--- a/src/cmd/go/tool.go
++++ b/src/cmd/go/tool.go
+@@ -65,7 +65,7 @@ func tool(toolName string) string {
+ 
+ func isInGoToolsRepo(toolName string) bool {
+ 	switch toolName {
+-	case "vet":
++	case "cover", "vet":
+ 		return true
+ 	}
+ 	return false

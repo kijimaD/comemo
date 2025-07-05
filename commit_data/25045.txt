@@ -9,8 +9,76 @@ Date:   Thu Sep 17 16:08:57 2015 -0700
     Change-Id: I68e73e26da9938606304163ae2637e3c6bacd6f6
     Reviewed-on: https://go-review.googlesource.com/14722
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/go/types/check_test.go        |  5 +++++
  src/go/types/resolver.go          | 10 ++++++++++
  src/go/types/testdata/importC.src | 10 ++++++++++
  3 files changed, 25 insertions(+)
+
+diff --git a/src/go/types/check_test.go b/src/go/types/check_test.go
+index 5e34c65b63..5e2043be84 100644
+--- a/src/go/types/check_test.go
++++ b/src/go/types/check_test.go
+@@ -55,6 +55,7 @@ var tests = [][]string{
+ 	{"testdata/errors.src"},
+ 	{"testdata/importdecl0a.src", "testdata/importdecl0b.src"},
+ 	{"testdata/importdecl1a.src", "testdata/importdecl1b.src"},
++	{"testdata/importC.src"}, // special handling in checkFiles
+ 	{"testdata/cycles.src"},
+ 	{"testdata/cycles1.src"},
+ 	{"testdata/cycles2.src"},
+@@ -245,6 +246,10 @@ func checkFiles(t *testing.T, testfiles []string) {
+ 
+ 	// typecheck and collect typechecker errors
+ 	var conf Config
++	// special case for importC.src
++	if len(testfiles) == 1 && testfiles[0] == "testdata/importC.src" {
++		conf.FakeImportC = true
++	}
+ 	conf.Importer = importer.Default()
+ 	conf.Error = func(err error) {
+ 		if *listErrors {
+diff --git a/src/go/types/resolver.go b/src/go/types/resolver.go
+index c31ef423d9..b52c3b2283 100644
+--- a/src/go/types/resolver.go
++++ b/src/go/types/resolver.go
+@@ -202,6 +202,11 @@ func (check *Checker) collectObjects() {
+ 						name := imp.name
+ 						if s.Name != nil {
+ 							name = s.Name.Name
++							if path == "C" {
++								// match cmd/compile (not prescribed by spec)
++								check.errorf(s.Name.Pos(), `cannot rename import "C"`)
++								continue
++							}
+ 							if name == "init" {
+ 								check.errorf(s.Name.Pos(), "cannot declare init - must be func")
+ 								continue
+@@ -216,6 +221,11 @@ func (check *Checker) collectObjects() {
+ 							check.recordImplicit(s, obj)
+ 						}
+ 
++						if path == "C" {
++							// match cmd/compile (not prescribed by spec)
++							obj.used = true
++						}
++
+ 						// add import to file scope
+ 						if name == "." {
+ 							// merge imported scope with file scope
+diff --git a/src/go/types/testdata/importC.src b/src/go/types/testdata/importC.src
+new file mode 100644
+index 0000000000..31436be6ad
+--- /dev/null
++++ b/src/go/types/testdata/importC.src
+@@ -0,0 +1,10 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package importC
++
++import "C"
++import _ /* ERROR cannot rename import "C" */ "C"
++import foo /* ERROR cannot rename import "C" */ "C"
++import . /* ERROR cannot rename import "C" */ "C"

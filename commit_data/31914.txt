@@ -34,7 +34,121 @@ Date:   Wed Mar 22 14:40:55 2017 -0700
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/syscall/exec_linux.go      | 18 ++++++++++++
  src/syscall/exec_linux_test.go | 62 ++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 80 insertions(+)
+
+diff --git a/src/syscall/exec_linux.go b/src/syscall/exec_linux.go
+index 1ed10dd915..e35ac25580 100644
+--- a/src/syscall/exec_linux.go
++++ b/src/syscall/exec_linux.go
+@@ -42,6 +42,11 @@ type SysProcAttr struct {
+ 	GidMappingsEnableSetgroups bool
+ }
+ 
++var (
++	none  = [...]byte{'n', 'o', 'n', 'e', 0}
++	slash = [...]byte{'/', 0}
++)
++
+ // Implemented in runtime package.
+ func runtime_BeforeFork()
+ func runtime_AfterFork()
+@@ -204,6 +209,19 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
+ 		if err1 != 0 {
+ 			goto childerror
+ 		}
++		// The unshare system call in Linux doesn't unshare mount points
++		// mounted with --shared. Systemd mounts / with --shared. For a
++		// long discussion of the pros and cons of this see debian bug 739593.
++		// The Go model of unsharing is more like Plan 9, where you ask
++		// to unshare and the namespaces are unconditionally unshared.
++		// To make this model work we must further mark / as MS_PRIVATE.
++		// This is what the standard unshare command does.
++		if sys.Unshareflags&CLONE_NEWNS == CLONE_NEWNS {
++			_, _, err1 = RawSyscall6(SYS_MOUNT, uintptr(unsafe.Pointer(&none[0])), uintptr(unsafe.Pointer(&slash[0])), 0, MS_REC|MS_PRIVATE, 0, 0)
++			if err1 != 0 {
++				goto childerror
++			}
++		}
+ 	}
+ 
+ 	// User and groups
+diff --git a/src/syscall/exec_linux_test.go b/src/syscall/exec_linux_test.go
+index 7a4b571760..ed44ddf7f3 100644
+--- a/src/syscall/exec_linux_test.go
++++ b/src/syscall/exec_linux_test.go
+@@ -7,6 +7,8 @@
+ package syscall_test
+ 
+ import (
++	"flag"
++	"fmt"
+ 	"io/ioutil"
+ 	"os"
+ 	"os/exec"
+@@ -253,3 +255,63 @@ func TestGroupCleanupUserNamespace(t *testing.T) {
+ 	}
+ 	t.Errorf("id command output: %q, expected one of %q", strOut, expected)
+ }
++
++// TestUnshareHelperProcess isn't a real test. It's used as a helper process
++// for TestUnshareMountNameSpace.
++func TestUnshareMountNameSpaceHelper(*testing.T) {
++	if os.Getenv("GO_WANT_HELPER_PROCESS") != "1" {
++		return
++	}
++	defer os.Exit(0)
++
++	if err := syscall.Mount("none", flag.Args()[0], "proc", 0, ""); err != nil {
++		fmt.Fprintf(os.Stderr, "unshare: mount %v failed: %v", os.Args, err)
++		os.Exit(2)
++	}
++}
++
++// Test for Issue 38471: unshare fails because systemd has forced / to be shared
++func TestUnshareMountNameSpace(t *testing.T) {
++	// Make sure we are running as root so we have permissions to use unshare
++	// and create a network namespace.
++	if os.Getuid() != 0 {
++		t.Skip("kernel prohibits unshare in unprivileged process, unless using user namespace")
++	}
++
++	// When running under the Go continuous build, skip tests for
++	// now when under Kubernetes. (where things are root but not quite)
++	// Both of these are our own environment variables.
++	// See Issue 12815.
++	if os.Getenv("GO_BUILDER_NAME") != "" && os.Getenv("IN_KUBERNETES") == "1" {
++		t.Skip("skipping test on Kubernetes-based builders; see Issue 12815")
++	}
++
++	d, err := ioutil.TempDir("", "unshare")
++	if err != nil {
++		t.Fatalf("tempdir: %v", err)
++	}
++
++	cmd := exec.Command(os.Args[0], "-test.run=TestUnshareMountNameSpaceHelper", d)
++	cmd.Env = []string{"GO_WANT_HELPER_PROCESS=1"}
++	cmd.SysProcAttr = &syscall.SysProcAttr{Unshareflags: syscall.CLONE_NEWNS}
++
++	o, err := cmd.CombinedOutput()
++	if err != nil {
++		t.Fatalf("unshare failed: %v, %v", o, err)
++	}
++
++	// How do we tell if the namespace was really unshared? It turns out
++	// to be simple: just try to remove the directory. If it's still mounted
++	// on the rm will fail with EBUSY. Then we have some cleanup to do:
++	// we must unmount it, then try to remove it again.
++
++	if err := os.Remove(d); err != nil {
++		t.Errorf("rmdir failed on %v: %v", d, err)
++		if err := syscall.Unmount(d, syscall.MNT_FORCE); err != nil {
++			t.Errorf("Can't unmount %v: %v", d, err)
++		}
++		if err := os.Remove(d); err != nil {
++			t.Errorf("rmdir after unmount failed on %v: %v", d, err)
++		}
++	}
++}

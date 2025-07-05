@@ -16,7 +16,35 @@ Date:   Tue Mar 13 20:37:05 2018 +0000
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/asm/internal/asm/testdata/amd64enc.s | 2 ++
  src/cmd/internal/obj/x86/asm6.go             | 3 +++
  2 files changed, 5 insertions(+)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/amd64enc.s b/src/cmd/asm/internal/asm/testdata/amd64enc.s
+index 65aecf8faf..6ce7ea6550 100644
+--- a/src/cmd/asm/internal/asm/testdata/amd64enc.s
++++ b/src/cmd/asm/internal/asm/testdata/amd64enc.s
+@@ -8742,6 +8742,8 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
+ 	VPERMQ $7, (R11), Y11                   // c443fd001b07
+ 	VPERMQ $7, Y2, Y11                      // c463fd00da07
+ 	VPERMQ $7, Y11, Y11                     // c443fd00db07
++	VPERMQ $-40, Y8, Y8                     // c4407800c0d8
++	VPERMQ $216, Y8, Y8                     // c443fd00c0d8
+ 	VPEXTRB $7, X2, (BX)                    // c4e379141307
+ 	VPEXTRB $7, X11, (BX)                   // c46379141b07
+ 	VPEXTRB $7, X2, (R11)                   // c4c379141307
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index 402349c914..0fbc552dda 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -952,6 +952,9 @@ var yvex_xi3 = []ytab{
+ }
+ 
+ var yvex_vpermpd = []ytab{
++	{Zvex_i_rm_r, 2, argList{Yu8, Yym, Yyr}},
++	// Allow int8 for backwards compatibility with negative values
++	// like $-1.
+ 	{Zvex_i_rm_r, 2, argList{Yi8, Yym, Yyr}},
+ }
+ 

@@ -20,7 +20,45 @@ Date:   Mon Nov 13 00:43:31 2023 +0000
     Auto-Submit: Robert Griesemer <gri@google.com>
     Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/noder/decl.go   | 18 ------------------
  src/cmd/compile/internal/noder/writer.go |  2 +-
  2 files changed, 1 insertion(+), 19 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/decl.go b/src/cmd/compile/internal/noder/decl.go
+deleted file mode 100644
+index 8e23fcefa2..0000000000
+--- a/src/cmd/compile/internal/noder/decl.go
++++ /dev/null
+@@ -1,18 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package noder
+-
+-import (
+-	"cmd/compile/internal/syntax"
+-	"cmd/compile/internal/types2"
+-)
+-
+-// pkgNameOf returns the PkgName associated with the given ImportDecl.
+-func pkgNameOf(info *types2.Info, decl *syntax.ImportDecl) *types2.PkgName {
+-	if name := decl.LocalPkgName; name != nil {
+-		return info.Defs[name].(*types2.PkgName)
+-	}
+-	return info.Implicits[decl].(*types2.PkgName)
+-}
+diff --git a/src/cmd/compile/internal/noder/writer.go b/src/cmd/compile/internal/noder/writer.go
+index d75caf064a..ddbe2f84e4 100644
+--- a/src/cmd/compile/internal/noder/writer.go
++++ b/src/cmd/compile/internal/noder/writer.go
+@@ -2484,7 +2484,7 @@ func (c *declCollector) Visit(n syntax.Node) syntax.Visitor {
+ 	case *syntax.ImportDecl:
+ 		pw.checkPragmas(n.Pragma, 0, false)
+ 
+-		switch pkgNameOf(pw.info, n).Imported().Path() {
++		switch pw.info.PkgNameOf(n).Imported().Path() {
+ 		case "embed":
+ 			c.file.importedEmbed = true
+ 		case "unsafe":

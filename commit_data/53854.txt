@@ -14,6 +14,19 @@ Date:   Mon Sep 5 15:38:57 2022 +0200
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-
+---
  src/net/net_test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/net/net_test.go b/src/net/net_test.go
+index c297c51fb9..05c058a46c 100644
+--- a/src/net/net_test.go
++++ b/src/net/net_test.go
+@@ -430,6 +430,7 @@ func TestZeroByteRead(t *testing.T) {
+ // runs peer1 and peer2 concurrently. withTCPConnPair returns when
+ // both have completed.
+ func withTCPConnPair(t *testing.T, peer1, peer2 func(c *TCPConn) error) {
++	t.Helper()
+ 	ln := newLocalListener(t, "tcp")
+ 	defer ln.Close()
+ 	errc := make(chan error, 2)

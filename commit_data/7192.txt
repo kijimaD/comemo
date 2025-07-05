@@ -7,6 +7,48 @@ Date:   Thu Jan 20 19:18:04 2011 +1100
     R=golang-dev
     CC=golang-dev
     https://golang.org/cl/4089041
-
+---
  src/pkg/net/resolv_windows.go | 27 ++++++++++++++++++++++++++-
  1 file changed, 26 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/resolv_windows.go b/src/pkg/net/resolv_windows.go
+index e9b1145ef8..f3d854ff25 100644
+--- a/src/pkg/net/resolv_windows.go
++++ b/src/pkg/net/resolv_windows.go
+@@ -78,10 +78,35 @@ func LookupPort(network, service string) (port int, err os.Error) {
+ 	return int(syscall.Ntohs(s.Port)), nil
+ }
+ 
++// TODO(brainman): Following code is only to get tests running.
++
+ func isDomainName(s string) bool {
+ 	panic("unimplemented")
+ }
+ 
+-func resolveaddr(addr string) (arpa string, err os.Error) {
++func reverseaddr(addr string) (arpa string, err os.Error) {
+ 	panic("unimplemented")
+ }
++
++// DNSError represents a DNS lookup error.
++type DNSError struct {
++	Error     string // description of the error
++	Name      string // name looked for
++	Server    string // server used
++	IsTimeout bool
++}
++
++func (e *DNSError) String() string {
++	if e == nil {
++		return "<nil>"
++	}
++	s := "lookup " + e.Name
++	if e.Server != "" {
++		s += " on " + e.Server
++	}
++	s += ": " + e.Error
++	return s
++}
++
++func (e *DNSError) Timeout() bool   { return e.IsTimeout }
++func (e *DNSError) Temporary() bool { return e.IsTimeout }

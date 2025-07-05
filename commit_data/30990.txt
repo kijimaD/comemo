@@ -12,8 +12,48 @@ Date:   Fri Jan 6 15:09:10 2017 -0800
     Change-Id: I88a2ce550df7466f8d2388d86bc8476dcf3c2ad6
     Reviewed-on: https://go-review.googlesource.com/34918
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/code.html         | 2 +-
  src/cmd/go/alldocs.go | 2 ++
  src/cmd/go/help.go    | 2 ++
  3 files changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/doc/code.html b/doc/code.html
+index 703f38a21a..796431aa14 100644
+--- a/doc/code.html
++++ b/doc/code.html
+@@ -166,7 +166,7 @@ To learn more about the <code>GOPATH</code> environment variable, see
+ 
+ <p>
+ To use a custom workspace location,
+-<a href="https://golang.org/wiki/EnvVariables#gopath">set the <code>GOPATH</code> environment variable</a>.
++<a href="https://golang.org/wiki/SettingGOPATH">set the <code>GOPATH</code> environment variable</a>.
+ </p>
+ 
+ <h3 id="ImportPaths">Import paths</h3>
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 57716a53f8..e93fd6ebed 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -935,6 +935,8 @@
+ // unless that directory holds a Go distribution.
+ // Run "go env GOPATH" to see the current GOPATH.
+ //
++// See https://golang.org/wiki/SettingGOPATH to set a custom GOPATH.
++//
+ // Each directory listed in GOPATH must have a prescribed structure:
+ //
+ // The src directory holds source code.  The path below src
+diff --git a/src/cmd/go/help.go b/src/cmd/go/help.go
+index fb69d8ec54..0c663ad463 100644
+--- a/src/cmd/go/help.go
++++ b/src/cmd/go/help.go
+@@ -295,6 +295,8 @@ to a subdirectory named "go" in the user's home directory
+ unless that directory holds a Go distribution.
+ Run "go env GOPATH" to see the current GOPATH.
+ 
++See https://golang.org/wiki/SettingGOPATH to set a custom GOPATH.
++
+ Each directory listed in GOPATH must have a prescribed structure:
+ 
+ The src directory holds source code.  The path below src

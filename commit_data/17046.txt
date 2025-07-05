@@ -11,7 +11,33 @@ Date:   Mon Aug 5 17:53:08 2013 -0700
     R=golang-dev
     CC=golang-dev
     https://golang.org/cl/12496043
-
+---
  misc/cgo/test/callback.go | 1 -
  src/pkg/runtime/cgocall.c | 2 +-
  2 files changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/misc/cgo/test/callback.go b/misc/cgo/test/callback.go
+index 467edfbae5..838105155a 100644
+--- a/misc/cgo/test/callback.go
++++ b/misc/cgo/test/callback.go
+@@ -151,7 +151,6 @@ func testCallbackCallers(t *testing.T) {
+ 	n := 0
+ 	name := []string{
+ 		"test.goCallback",
+-		"runtime.call16",
+ 		"runtime.cgocallbackg1",
+ 		"runtime.cgocallbackg",
+ 		"runtime.cgocallback_gofunc",
+diff --git a/src/pkg/runtime/cgocall.c b/src/pkg/runtime/cgocall.c
+index 91a55131e6..a9daf80914 100644
+--- a/src/pkg/runtime/cgocall.c
++++ b/src/pkg/runtime/cgocall.c
+@@ -295,7 +295,7 @@ runtime·cgocallbackg1(void)
+ 
+ 	// Invoke callback.
+ 	cb = CBARGS;
+-	reflect·call(cb->fn, cb->arg, cb->argsize);
++	runtime·newstackcall(cb->fn, cb->arg, cb->argsize);
+ 
+ 	if(raceenabled && !m->racecall)
+ 		runtime·racereleasemerge(&cgosync);

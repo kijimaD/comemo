@@ -7,6 +7,28 @@ Date:   Fri Mar 19 16:33:27 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/661041
-
+---
  src/Make.cmd | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/Make.cmd b/src/Make.cmd
+index 97df328700..b2a184b822 100644
+--- a/src/Make.cmd
++++ b/src/Make.cmd
+@@ -2,6 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
++all: $(TARG)
+ 
+ # ugly hack to deal with whitespaces in $GOROOT
+ nullstring :=
+@@ -12,8 +13,6 @@ include $(QUOTED_GOROOT)/src/Make.common
+ 
+ PREREQ+=$(patsubst %,%.make,$(DEPS))
+ 
+-all: $(TARG)
+-
+ $(TARG): _go_.$O $(OFILES)
+ 	$(QUOTED_GOBIN)/$(LD) -o $@ _go_.$O $(OFILES)
+ 

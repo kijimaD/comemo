@@ -7,7 +7,7 @@ Date:   Mon Aug 17 13:30:22 2009 -0700
     R=rsc
     OCL=33382
     CL=33391
-
+---
  test/bugs/bug132.go               |   2 +-
  test/bugs/bug187.go               |   6 +-
  test/chan/select.go               |  65 ++++++++--------
@@ -48,3 +48,1129 @@ Date:   Mon Aug 17 13:30:22 2009 -0700
  test/test0.go                     |  92 +++++++++++-----------
  test/varinit.go                   |  20 ++---
  39 files changed, 317 insertions(+), 316 deletions(-)
+
+diff --git a/test/bugs/bug132.go b/test/bugs/bug132.go
+index 58ebfcb448..58bbe077ec 100644
+--- a/test/bugs/bug132.go
++++ b/test/bugs/bug132.go
+@@ -1,4 +1,4 @@
+-// errchk $G $D/$F.go
++// ! $G $D/$F.go || echo BUG: compilation succeeds incorrectly
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/bugs/bug187.go b/test/bugs/bug187.go
+index dafe6eaca7..73d73dbb87 100644
+--- a/test/bugs/bug187.go
++++ b/test/bugs/bug187.go
+@@ -1,9 +1,9 @@
+-// Copyright 2009 The Go Authors.  All rights reserved.
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// $G $D/$F.go && $L $F.$A && ./$A.out
+-
+ package main
+ 
+ import "os"
+diff --git a/test/chan/select.go b/test/chan/select.go
+index d8a462551a..4c4ffa549a 100644
+--- a/test/chan/select.go
++++ b/test/chan/select.go
+@@ -10,42 +10,43 @@ var counter uint
+ var shift uint
+ 
+ func GetValue() uint {
+-  counter++;
+-  return 1 << shift
++	counter++;
++	return 1 << shift
+ }
+ 
+ func Send(a, b chan uint) int {
+-  var i int;
+-  LOOP:
+-    for {
+-      select {
+-      case a <- GetValue():
+-	i++;
+-	a = nil;
+-      case b <- GetValue():
+-	i++;
+-	b = nil;
+-      default:
+-	break LOOP;
+-      }
+-      shift++;
+-    }
+-  return i;
++	var i int;
++
++LOOP:
++	for {
++		select {
++		case a <- GetValue():
++			i++;
++			a = nil;
++		case b <- GetValue():
++			i++;
++			b = nil;
++		default:
++			break LOOP;
++		}
++		shift++;
++	}
++	return i;
+ }
+ 
+ func main() {
+-  a := make(chan uint, 1);
+-  b := make(chan uint, 1);
+-  if v := Send(a, b); v != 2 {
+-    panicln("Send returned", v, "!= 2");
+-  }
+-  if av, bv := <- a, <- b; av | bv != 3 {
+-    panicln("bad values", av, bv);
+-  }
+-  if v := Send(a, nil); v != 1 {
+-    panicln("Send returned", v, "!= 1");
+-  }
+-  if counter != 10 {
+-    panicln("counter is", counter, "!= 10");
+-  }
++	a := make(chan uint, 1);
++	b := make(chan uint, 1);
++	if v := Send(a, b); v != 2 {
++		panicln("Send returned", v, "!= 2");
++	}
++	if av, bv := <- a, <- b; av | bv != 3 {
++		panicln("bad values", av, bv);
++	}
++	if v := Send(a, nil); v != 1 {
++		panicln("Send returned", v, "!= 1");
++	}
++	if counter != 10 {
++		panicln("counter is", counter, "!= 10");
++	}
+ }
+diff --git a/test/char_lit.go b/test/char_lit.go
+index 6699442dc8..689a54a2fa 100644
+--- a/test/char_lit.go
++++ b/test/char_lit.go
+@@ -9,36 +9,36 @@ package main
+ import "os"
+ 
+ func main() {
+-  var i uint64 =
+-    ' ' +
+-    'a' +
+-    'ä' +
+-    '本' +
+-    '\a' +
+-    '\b' +
+-    '\f' +
+-    '\n' +
+-    '\r' +
+-    '\t' +
+-    '\v' +
+-    '\\' +
+-    '\'' +
+-    '\000' +
+-    '\123' +
+-    '\x00' +
+-    '\xca' +
+-    '\xFE' +
+-    '\u0123' +
+-    '\ubabe' +
+-    '\U0123ABCD' +
+-    '\Ucafebabe'
+-  ;
+-  if '\Ucafebabe' != 0xcafebabe {
+-  	print("cafebabe wrong\n");
+-  	os.Exit(1)
+-  }
+-  if i != 0xcc238de1 {
+-  	print("number is ", i, " should be ", 0xcc238de1, "\n");
+-  	os.Exit(1)
+-  }
++	var i uint64 =
++		' ' +
++		'a' +
++		'ä' +
++		'本' +
++		'\a' +
++		'\b' +
++		'\f' +
++		'\n' +
++		'\r' +
++		'\t' +
++		'\v' +
++		'\\' +
++		'\'' +
++		'\000' +
++		'\123' +
++		'\x00' +
++		'\xca' +
++		'\xFE' +
++		'\u0123' +
++		'\ubabe' +
++		'\U0123ABCD' +
++		'\Ucafebabe'
++		;
++	if '\Ucafebabe' != 0xcafebabe {
++		print("cafebabe wrong\n");
++		os.Exit(1)
++	}
++	if i != 0xcc238de1 {
++		print("number is ", i, " should be ", 0xcc238de1, "\n");
++		os.Exit(1)
++		}
+ }
+diff --git a/test/fixedbugs/bug024.go b/test/fixedbugs/bug024.go
+index 51bf5296ff..0f4b2ca178 100644
+--- a/test/fixedbugs/bug024.go
++++ b/test/fixedbugs/bug024.go
+@@ -7,11 +7,11 @@
+ package main
+ 
+ func main() {
+-  var i int;
+-  i = '\'';
+-  i = '\\';
+-  var s string;
+-  s = "\"";
++	var i int;
++	i = '\'';
++	i = '\\';
++	var s string;
++	s = "\"";
+ }
+ /*
+ bug.go:5: unknown escape sequence: '
+diff --git a/test/fixedbugs/bug030.go b/test/fixedbugs/bug030.go
+index 4ee65d0033..e1fce0180d 100644
+--- a/test/fixedbugs/bug030.go
++++ b/test/fixedbugs/bug030.go
+@@ -7,6 +7,6 @@
+ package main
+ 
+ func main() {
+-  var x int;
+-  x := 0; // ERROR "declar|:="
++	var x int;
++	x := 0; // ERROR "declar|:="
+ }
+diff --git a/test/fixedbugs/bug039.go b/test/fixedbugs/bug039.go
+index 591b7fe7db..30fbdbd3fa 100644
+--- a/test/fixedbugs/bug039.go
++++ b/test/fixedbugs/bug039.go
+@@ -7,5 +7,5 @@
+ package main
+ 
+ func main (x int) {	// GCCGO_ERROR "previous"
+-  var x int;  // ERROR "redecl|redefinition"
++	var x int;	// ERROR "redecl|redefinition"
+ }
+diff --git a/test/fixedbugs/bug051.go b/test/fixedbugs/bug051.go
+index 199a4b95c1..dd1662306d 100644
+--- a/test/fixedbugs/bug051.go
++++ b/test/fixedbugs/bug051.go
+@@ -7,9 +7,9 @@
+ package main
+ 
+ func f() int {
+-  return 0;
++	return 0;
+ }
+ 
+ func main() {
+-  const n = f();  // ERROR "const"
++	const n = f();	// ERROR "const"
+ }
+diff --git a/test/fixedbugs/bug052.go b/test/fixedbugs/bug052.go
+index 07c651d4ac..d2c1b50617 100644
+--- a/test/fixedbugs/bug052.go
++++ b/test/fixedbugs/bug052.go
+@@ -7,14 +7,14 @@
+ package main
+ 
+ func main() {
+-  c := 10;
+-  d := 7;
+-  var x [10]int;
+-  i := 0;
+-  /* this works:
+-  q := c/d;
+-  x[i] = q;
+-  */
+-  // this doesn't:
+-  x[i] = c/d;  // BUG segmentation fault
++	c := 10;
++	d := 7;
++	var x [10]int;
++	i := 0;
++	/* this works:
++	q := c/d;
++	x[i] = q;
++	*/
++	// this doesn't:
++	x[i] = c/d;	// BUG segmentation fault
+ }
+diff --git a/test/fixedbugs/bug053.go b/test/fixedbugs/bug053.go
+index fe6ca49999..602b0a130f 100644
+--- a/test/fixedbugs/bug053.go
++++ b/test/fixedbugs/bug053.go
+@@ -7,5 +7,5 @@
+ package main
+ 
+ func main() {
+-  var len int;  // len should not be a keyword - this doesn't compile
++	var len int;	// len should not be a keyword - this doesn't compile
+ }
+diff --git a/test/fixedbugs/bug057.go b/test/fixedbugs/bug057.go
+index 1c959b8c83..3847dffb85 100644
+--- a/test/fixedbugs/bug057.go
++++ b/test/fixedbugs/bug057.go
+@@ -7,15 +7,15 @@
+ package main
+ 
+ type T struct {
+-  s string;
++	s string;
+ }
+ 
+ 
+ func main() {
+-  s := "";
+-  l1 := len(s);
+-  var t T;
+-  l2 := len(t.s);  // BUG: cannot take len() of a string field
++	s := "";
++	l1 := len(s);
++	var t T;
++	l2 := len(t.s);	// BUG: cannot take len() of a string field
+ }
+ 
+ /*
+diff --git a/test/fixedbugs/bug058.go b/test/fixedbugs/bug058.go
+index da47ae5687..e2b4a241a6 100644
+--- a/test/fixedbugs/bug058.go
++++ b/test/fixedbugs/bug058.go
+@@ -10,10 +10,10 @@ type Box struct {};
+ var m map[string] *Box;
+ 
+ func main() {
+-  m := make(map[string] *Box);
+-  s := "foo";
+-  var x *Box = nil;
+-  m[s] = x;
++	m := make(map[string] *Box);
++	s := "foo";
++	var x *Box = nil;
++	m[s] = x;
+ }
+ 
+ /*
+diff --git a/test/fixedbugs/bug062.go b/test/fixedbugs/bug062.go
+index c869eb2224..8ee5c84cb9 100644
+--- a/test/fixedbugs/bug062.go
++++ b/test/fixedbugs/bug062.go
+@@ -7,5 +7,5 @@
+ package main
+ 
+ func main() {
+-  var s string = nil;  // ERROR "illegal|invalid|incompatible|cannot"
++	var s string = nil;	// ERROR "illegal|invalid|incompatible|cannot"
+ }
+diff --git a/test/fixedbugs/bug097.go b/test/fixedbugs/bug097.go
+index 70bd6e2b47..d5e40999ce 100644
+--- a/test/fixedbugs/bug097.go
++++ b/test/fixedbugs/bug097.go
+@@ -41,7 +41,7 @@ pc: 0x4558
+ */
+ 
+ /* An array composite literal needs to be created freshly every time.
+-   It is a "construction" of an array after all. If I pass the address
+-   of the array to some function, it may store it globally. Same applies
+-   to struct literals.
++	 It is a "construction" of an array after all. If I pass the address
++	 of the array to some function, it may store it globally. Same applies
++	 to struct literals.
+ */
+diff --git a/test/fixedbugs/bug106.dir/bug0.go b/test/fixedbugs/bug106.dir/bug0.go
+index 7daf209448..d9c26a00bd 100644
+--- a/test/fixedbugs/bug106.dir/bug0.go
++++ b/test/fixedbugs/bug106.dir/bug0.go
+@@ -3,4 +3,5 @@
+ // license that can be found in the LICENSE file.
+ 
+ package bug0
++
+ const A = -1
+diff --git a/test/fixedbugs/bug106.dir/bug1.go b/test/fixedbugs/bug106.dir/bug1.go
+index 6ef40e94a2..87f4fbb9db 100644
+--- a/test/fixedbugs/bug106.dir/bug1.go
++++ b/test/fixedbugs/bug106.dir/bug1.go
+@@ -3,5 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ package bug1
++
+ import "./bug0"
+ 
+diff --git a/test/fixedbugs/bug107.go b/test/fixedbugs/bug107.go
+index 80fa966479..87cdca7fc3 100644
+--- a/test/fixedbugs/bug107.go
++++ b/test/fixedbugs/bug107.go
+@@ -7,8 +7,8 @@
+ package main
+ import os "os"
+ func f() (os int) {
+-     // In the next line "os" should refer to the result variable, not
+-     // to the package.
+-     v := os.Open("", 0, 0);	// ERROR "undefined"
+-     return 0
++	 // In the next line "os" should refer to the result variable, not
++	 // to the package.
++	 v := os.Open("", 0, 0);	// ERROR "undefined"
++	 return 0
+ }
+diff --git a/test/fixedbugs/bug109.go b/test/fixedbugs/bug109.go
+index 61ede1b513..c679771f2e 100644
+--- a/test/fixedbugs/bug109.go
++++ b/test/fixedbugs/bug109.go
+@@ -14,11 +14,11 @@ func f(a float) float {
+ /*
+ 6g bugs/bug109.go
+ bugs/bug109.go:5: illegal types for operand: MUL
+-        (<float64>FLOAT64)
+-        (<float32>FLOAT32)
++	(<float64>FLOAT64)
++	(<float32>FLOAT32)
+ bugs/bug109.go:5: illegal types for operand: AS
+-        (<float64>FLOAT64)
++	(<float64>FLOAT64)
+ bugs/bug109.go:6: illegal types for operand: RETURN
+-        (<float32>FLOAT32)
+-        (<float64>FLOAT64)
++	(<float32>FLOAT32)
++	(<float64>FLOAT64)
+ */
+diff --git a/test/fixedbugs/bug113.go b/test/fixedbugs/bug113.go
+index 14bd076926..4b9b1397a8 100644
+--- a/test/fixedbugs/bug113.go
++++ b/test/fixedbugs/bug113.go
+@@ -9,12 +9,12 @@ type I interface { };
+ func foo1(i int) int { return i }
+ func foo2(i int32) int32 { return i }
+ func main() {
+-  var i I;
+-  i = 1;
+-  var v1 = i.(int);
+-  if foo1(v1) != 1 { panicln(1) }
+-  var v2 = int32(i.(int));
+-  if foo2(v2) != 1 { panicln(2) }
+-  var v3 = i.(int32); // This type conversion should fail at runtime.
+-  if foo2(v3) != 1 { panicln(3) }
++	var i I;
++	i = 1;
++	var v1 = i.(int);
++	if foo1(v1) != 1 { panicln(1) }
++	var v2 = int32(i.(int));
++	if foo2(v2) != 1 { panicln(2) }
++	var v3 = i.(int32); // This type conversion should fail at runtime.
++	if foo2(v3) != 1 { panicln(3) }
+ }
+diff --git a/test/fixedbugs/bug117.go b/test/fixedbugs/bug117.go
+index 8e447cd455..2cb6d6c31b 100644
+--- a/test/fixedbugs/bug117.go
++++ b/test/fixedbugs/bug117.go
+@@ -8,18 +8,18 @@ package main
+ type S struct { a int }
+ type PS *S
+ func (p *S) get() int {
+-  return p.a
++	return p.a
+ }
+ 
+ func fn(p PS) int {
+-  // p has type PS, and PS has no methods.
+-  // (a compiler might see that p is a pointer
+-  // and go looking in S without noticing PS.)
+-  return p.get()	// ERROR "undefined"
++	// p has type PS, and PS has no methods.
++	// (a compiler might see that p is a pointer
++	// and go looking in S without noticing PS.)
++	return p.get()	// ERROR "undefined"
+ }
+ func main() {
+-  s := S{1};
+-  if s.get() != 1 {
+-    panic()
+-  }
++	s := S{1};
++	if s.get() != 1 {
++		panic()
++	}
+ }
+diff --git a/test/fixedbugs/bug118.go b/test/fixedbugs/bug118.go
+index 94f5ffd353..1271f5b0cb 100644
+--- a/test/fixedbugs/bug118.go
++++ b/test/fixedbugs/bug118.go
+@@ -7,9 +7,9 @@
+ package main
+ 
+ func Send(c chan int) int {
+-  select {
+-  default:
+-    return 1;
+-  }
+-  return 2;
++	select {
++	default:
++		return 1;
++	}
++	return 2;
+ }
+diff --git a/test/fixedbugs/bug123.go b/test/fixedbugs/bug123.go
+index f26a046369..bdac67417f 100644
+--- a/test/fixedbugs/bug123.go
++++ b/test/fixedbugs/bug123.go
+@@ -7,8 +7,8 @@
+ package main
+ const ( F = 1 )
+ func fn(i int) int {
+-  if i == F() {		// ERROR "func"
+-    return 0
+-  }
+-  return 1
++	if i == F() {		// ERROR "func"
++		return 0
++	}
++	return 1
+ }
+diff --git a/test/fixedbugs/bug127.go b/test/fixedbugs/bug127.go
+index ca7b134de2..25b48114d6 100644
+--- a/test/fixedbugs/bug127.go
++++ b/test/fixedbugs/bug127.go
+@@ -6,7 +6,7 @@
+ 
+ package main
+ func main() {
+-        var x int64 = 0;
+-        println(x != nil);	// ERROR "illegal|incompatible|nil"
+-        println(0 != nil);	// ERROR "illegal|incompatible|nil"
++	var x int64 = 0;
++	println(x != nil);	// ERROR "illegal|incompatible|nil"
++	println(0 != nil);	// ERROR "illegal|incompatible|nil"
+ }
+diff --git a/test/fixedbugs/bug130.go b/test/fixedbugs/bug130.go
+index 3d13cb8ab1..855c7072bc 100644
+--- a/test/fixedbugs/bug130.go
++++ b/test/fixedbugs/bug130.go
+@@ -14,9 +14,9 @@ type S struct { v int }
+ func (p *S) send(c chan <- int) { c <- p.v }
+ 
+ func main() {
+-  s := S{0};
+-  var i I = &s;
+-  c := make(chan int);
+-  go i.send(c);
+-  os.Exit(<-c);
++	s := S{0};
++	var i I = &s;
++	c := make(chan int);
++	go i.send(c);
++	os.Exit(<-c);
+ }
+diff --git a/test/fixedbugs/bug131.go b/test/fixedbugs/bug131.go
+index 8205aa56f3..e5d4ca07d7 100644
+--- a/test/fixedbugs/bug131.go
++++ b/test/fixedbugs/bug131.go
+@@ -7,6 +7,6 @@
+ package main
+ 
+ func main() {
+-  const a uint64 = 10;
+-  var b int64 = a;	// ERROR "convert|cannot|incompatible"
++	const a uint64 = 10;
++	var b int64 = a;	// ERROR "convert|cannot|incompatible"
+ }
+diff --git a/test/fixedbugs/bug135.go b/test/fixedbugs/bug135.go
+index d7115c4f27..252aa87e66 100644
+--- a/test/fixedbugs/bug135.go
++++ b/test/fixedbugs/bug135.go
+@@ -12,7 +12,7 @@ type T struct {}
+ func (t *T) foo() {}
+ 
+ func main() {
+-  t := new(T);
+-  var i interface {};
+-  f, ok := i.(Foo);
++	t := new(T);
++	var i interface {};
++	f, ok := i.(Foo);
+ }
+diff --git a/test/golden.out b/test/golden.out
+index 4ced667c85..81b1bc8c6e 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -96,7 +96,7 @@ panic PC=xxx
+ == fixedbugs/
+ 
+ =========== fixedbugs/bug016.go
+-fixedbugs/bug016.go:7: constant -3 overflows uint
++fixedbugs/bug016.go:11: constant -3 overflows uint
+ 
+ =========== fixedbugs/bug027.go
+ hi
+@@ -121,7 +121,7 @@ do break
+ broke
+ 
+ =========== fixedbugs/bug081.go
+-fixedbugs/bug081.go:5: fatal error: typecheck loop
++fixedbugs/bug081.go:9: fatal error: typecheck loop
+ 
+ =========== fixedbugs/bug093.go
+ M
+diff --git a/test/int_lit.go b/test/int_lit.go
+index 1f4d318afe..1cb42f5d11 100644
+--- a/test/int_lit.go
++++ b/test/int_lit.go
+@@ -9,17 +9,16 @@ package main
+ import "os"
+ 
+ func main() {
+-  s :=
+-    0 +
+-    123 +
+-    0123 +
+-    0000 +
+-    0x0 +
+-    0x123 +
+-    0X0 +
+-    0X123;
+-  if s != 788 {
+-    print("s is ", s, "; should be 788\n");
+-    os.Exit(1);
+-  }
++	s := 	0 +
++		123 +
++		0123 +
++		0000 +
++		0x0 +
++		0x123 +
++		0X0 +
++		0X123;
++	if s != 788 {
++		print("s is ", s, "; should be 788\n");
++		os.Exit(1);
++	}
+ }
+diff --git a/test/interface/struct.go b/test/interface/struct.go
+index 49926f0a2f..32f95b9326 100644
+--- a/test/interface/struct.go
++++ b/test/interface/struct.go
+@@ -13,10 +13,10 @@ import "os"
+ var fail int
+ 
+ func check(b bool, msg string) {
+-  if (!b) {
+-    println("failure in", msg);
+-    fail++;
+-  }
++	if (!b) {
++		println("failure in", msg);
++		fail++;
++	}
+ }
+ 
+ type I1 interface { Get() int; Put(int); }
+@@ -26,27 +26,27 @@ func (p S1) Get() int { return p.i }
+ func (p S1) Put(i int) { p.i = i }
+ 
+ func f1() {
+-  s := S1{1};
+-  var i I1 = s;
+-  i.Put(2);
+-  check(i.Get() == 1, "f1 i");
+-  check(s.i == 1, "f1 s");
++	s := S1{1};
++	var i I1 = s;
++	i.Put(2);
++	check(i.Get() == 1, "f1 i");
++	check(s.i == 1, "f1 s");
+ }
+ 
+ func f2() {
+-  s := S1{1};
+-  var i I1 = &s;
+-  i.Put(2);
+-  check(i.Get() == 1, "f2 i");
+-  check(s.i == 1, "f2 s");
++	s := S1{1};
++	var i I1 = &s;
++	i.Put(2);
++	check(i.Get() == 1, "f2 i");
++	check(s.i == 1, "f2 s");
+ }
+ 
+ func f3() {
+-  s := &S1{1};
+-  var i I1 = s;
+-  i.Put(2);
+-  check(i.Get() == 1, "f3 i");
+-  check(s.i == 1, "f3 s");
++	s := &S1{1};
++	var i I1 = s;
++	i.Put(2);
++	check(i.Get() == 1, "f3 i");
++	check(s.i == 1, "f3 s");
+ }
+ 
+ type S2 struct { i int }
+@@ -54,27 +54,27 @@ func (p *S2) Get() int { return p.i }
+ func (p *S2) Put(i int) { p.i = i }
+ 
+ // func f4() {
+-//   s := S2{1};
+-//   var i I1 = s;
+-//   i.Put(2);
+-//   check(i.Get() == 2, "f4 i");
+-//   check(s.i == 1, "f4 s");
++//	 s := S2{1};
++//	 var i I1 = s;
++//	 i.Put(2);
++//	 check(i.Get() == 2, "f4 i");
++//	 check(s.i == 1, "f4 s");
+ // }
+ 
+ func f5() {
+-  s := S2{1};
+-  var i I1 = &s;
+-  i.Put(2);
+-  check(i.Get() == 2, "f5 i");
+-  check(s.i == 2, "f5 s");
++	s := S2{1};
++	var i I1 = &s;
++	i.Put(2);
++	check(i.Get() == 2, "f5 i");
++	check(s.i == 2, "f5 s");
+ }
+ 
+ func f6() {
+-  s := &S2{1};
+-  var i I1 = s;
+-  i.Put(2);
+-  check(i.Get() == 2, "f6 i");
+-  check(s.i == 2, "f6 s");
++	s := &S2{1};
++	var i I1 = s;
++	i.Put(2);
++	check(i.Get() == 2, "f6 i");
++	check(s.i == 2, "f6 s");
+ }
+ 
+ type I2 interface { Get() int64; Put(int64); }
+@@ -84,27 +84,27 @@ func (p S3) Get() int64 { return p.l }
+ func (p S3) Put(i int64) { p.l = i }
+ 
+ func f7() {
+-  s := S3{1, 2, 3, 4};
+-  var i I2 = s;
+-  i.Put(5);
+-  check(i.Get() == 4, "f7 i");
+-  check(s.l == 4, "f7 s");
++	s := S3{1, 2, 3, 4};
++	var i I2 = s;
++	i.Put(5);
++	check(i.Get() == 4, "f7 i");
++	check(s.l == 4, "f7 s");
+ }
+ 
+ func f8() {
+-  s := S3{1, 2, 3, 4};
+-  var i I2 = &s;
+-  i.Put(5);
+-  check(i.Get() == 4, "f8 i");
+-  check(s.l == 4, "f8 s");
++	s := S3{1, 2, 3, 4};
++	var i I2 = &s;
++	i.Put(5);
++	check(i.Get() == 4, "f8 i");
++	check(s.l == 4, "f8 s");
+ }
+ 
+ func f9() {
+-  s := &S3{1, 2, 3, 4};
+-  var i I2 = s;
+-  i.Put(5);
+-  check(i.Get() == 4, "f9 i");
+-  check(s.l == 4, "f9 s");
++	s := &S3{1, 2, 3, 4};
++	var i I2 = s;
++	i.Put(5);
++	check(i.Get() == 4, "f9 i");
++	check(s.l == 4, "f9 s");
+ }
+ 
+ type S4 struct { i, j, k, l int64 }
+@@ -112,43 +112,43 @@ func (p *S4) Get() int64 { return p.l }
+ func (p *S4) Put(i int64) { p.l = i }
+ 
+ // func f10() {
+-//   s := S4{1, 2, 3, 4};
+-//   var i I2 = s;
+-//   i.Put(5);
+-//   check(i.Get() == 5, "f10 i");
+-//   check(s.l == 4, "f10 s");
++//	 s := S4{1, 2, 3, 4};
++//	 var i I2 = s;
++//	 i.Put(5);
++//	 check(i.Get() == 5, "f10 i");
++//	 check(s.l == 4, "f10 s");
+ // }
+ 
+ func f11() {
+-  s := S4{1, 2, 3, 4};
+-  var i I2 = &s;
+-  i.Put(5);
+-  check(i.Get() == 5, "f11 i");
+-  check(s.l == 5, "f11 s");
++	s := S4{1, 2, 3, 4};
++	var i I2 = &s;
++	i.Put(5);
++	check(i.Get() == 5, "f11 i");
++	check(s.l == 5, "f11 s");
+ }
+ 
+ func f12() {
+-  s := &S4{1, 2, 3, 4};
+-  var i I2 = s;
+-  i.Put(5);
+-  check(i.Get() == 5, "f12 i");
+-  check(s.l == 5, "f12 s");
++	s := &S4{1, 2, 3, 4};
++	var i I2 = s;
++	i.Put(5);
++	check(i.Get() == 5, "f12 i");
++	check(s.l == 5, "f12 s");
+ }
+ 
+ func main() {
+-  f1();
+-  f2();
+-  f3();
+-//  f4();
+-  f5();
+-  f6();
+-  f7();
+-  f8();
+-  f9();
+-//  f10();
+-  f11();
+-  f12();
+-  if fail > 0 {
+-    os.Exit(1)
+-  }
++	f1();
++	f2();
++	f3();
++//	f4();
++	f5();
++	f6();
++	f7();
++	f8();
++	f9();
++//	f10();
++	f11();
++	f12();
++	if fail > 0 {
++		os.Exit(1)
++	}
+ }
+diff --git a/test/ken/chan1.go b/test/ken/chan1.go
+index 5a59de1c0e..2905e08c54 100644
+--- a/test/ken/chan1.go
++++ b/test/ken/chan1.go
+@@ -17,7 +17,7 @@ func
+ r(c chan int, m int)
+ {
+ 	for {
+-	       	select {
++		select {
+ 		case r := <- c:
+ 			if h[r] != 1 {
+ 				panicln("r",
+@@ -28,7 +28,7 @@ r(c chan int, m int)
+ 			}
+ 			h[r] = 2;
+ 		}
+-        }
++	}
+ }
+ 
+ func
+diff --git a/test/ken/divconst.go b/test/ken/divconst.go
+index 34d7d430b4..5801975eb3 100644
+--- a/test/ken/divconst.go
++++ b/test/ken/divconst.go
+@@ -4,7 +4,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-
+ package main
+ 
+ import	"rand"
+diff --git a/test/ken/modconst.go b/test/ken/modconst.go
+index 7a9ebed0e4..ad720f448b 100644
+--- a/test/ken/modconst.go
++++ b/test/ken/modconst.go
+@@ -4,7 +4,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-
+ package main
+ 
+ import	"rand"
+diff --git a/test/method1.go b/test/method1.go
+index c88607d425..b6aacfea4d 100644
+--- a/test/method1.go
++++ b/test/method1.go
+@@ -1,4 +1,4 @@
+-// errchk $G $D/$F.go
++// # errchk $G $D/$F.go
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/run b/test/run
+index 5dc98d75ba..2bbac60a0d 100755
+--- a/test/run
++++ b/test/run
+@@ -1,8 +1,9 @@
+-#!/bin/sh
+ # Copyright 2009 The Go Authors. All rights reserved.
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
++#!/bin/sh
++
+ case X"$GOARCH" in
+ Xamd64)
+ 	export A=6
+diff --git a/test/sieve.go b/test/sieve.go
+index e163456176..ec2ce446e5 100644
+--- a/test/sieve.go
++++ b/test/sieve.go
+@@ -38,5 +38,5 @@ func Sieve() {
+ }
+ 
+ func main() {
+-  Sieve()
++	Sieve()
+ }
+diff --git a/test/string_lit.go b/test/string_lit.go
+index 18f539dce6..e9e7cff23e 100644
+--- a/test/string_lit.go
++++ b/test/string_lit.go
+@@ -68,14 +68,14 @@ func main() {
+ 	       "\a\b\f\n\r\t\v\\\"",
+ 	       "backslashes");
+ 	assert("\\a\\b\\f\\n\\r\\t\\v\\\\\\\"",
+-	       `\a\b\f\n\r\t\v\\\"`,
++		`\a\b\f\n\r\t\v\\\"`,
+ 	       "backslashes (backquote)");
+ 	assert("\x00\x53\000\xca\376S몾몾",
+-	       "\000\123\x00\312\xFE\u0053\ubabe\U0000babe",
+-		   "backslashes 2");
++		"\000\123\x00\312\xFE\u0053\ubabe\U0000babe",
++		"backslashes 2");
+ 	assert("\\000\\123\\x00\\312\\xFE\\u0123\\ubabe\\U0000babe",
+-	       `\000\123\x00\312\xFE\u0123\ubabe\U0000babe`,
+-           "backslashes 2 (backquote)");
++		`\000\123\x00\312\xFE\u0123\ubabe\U0000babe`,
++		"backslashes 2 (backquote)");
+ 	assert("\\x\\u\\U\\", `\x\u\U\`, "backslash 3 (backquote)");
+ 
+ 	// test large runes. perhaps not the most logical place for this test.
+diff --git a/test/stringrange.go b/test/stringrange.go
+index 6169e973b8..5d5b3a3b8c 100644
+--- a/test/stringrange.go
++++ b/test/stringrange.go
+@@ -6,10 +6,10 @@
+ 
+ package main
+ 
+-import(
+-        "fmt";
+-        "os";
+-        "utf8";
++import (
++	"fmt";
++	"os";
++	"utf8";
+ )
+ 
+ func main() {
+diff --git a/test/test0.go b/test/test0.go
+index 95d225444f..9e2021485d 100644
+--- a/test/test0.go
++++ b/test/test0.go
+@@ -7,77 +7,77 @@
+ package main
+ 
+ const
+-  a_const = 0
++	a_const = 0
+ 
+ const (
+-  pi = /* the usual */ 3.14159265358979323;
+-  e = 2.718281828;
+-  mask1 int = 1 << iota;
+-  mask2 = 1 << iota;
+-  mask3 = 1 << iota;
+-  mask4 = 1 << iota;
++	pi = /* the usual */ 3.14159265358979323;
++	e = 2.718281828;
++	mask1 int = 1 << iota;
++	mask2 = 1 << iota;
++	mask3 = 1 << iota;
++	mask4 = 1 << iota;
+ )
+ 
+ type (
+-  Empty interface {};
+-  Point struct {
+-    x, y int;
+-  };
+-  Point2 Point
++	Empty interface {};
++	Point struct {
++		x, y int;
++	};
++	Point2 Point
+ )
+ 
+ func (p *Point) Initialize(x, y int) *Point {
+-  p.x, p.y = x, y;
+-  return p;
++	p.x, p.y = x, y;
++	return p;
+ }
+ 
+ func (p *Point) Distance() int {
+-  return p.x * p.x + p.y * p.y;
++	return p.x * p.x + p.y * p.y;
+ }
+ 
+ var (
+-  x1 int;
+-  x2 int;
+-  u, v, w float
++	x1 int;
++	x2 int;
++	u, v, w float
+ )
+ 
+ func foo() {}
+ 
+ func min(x, y int) int {
+-  if x < y { return x; }
+-  return y;
++	if x < y { return x; }
++	return y;
+ }
+ 
+ func swap(x, y int) (u, v int) {
+-  u = y;
+-  v = x;
+-  return;
++	u = y;
++	v = x;
++	return;
+ }
+ 
+ func control_structs() {
+-  var p *Point = new(Point).Initialize(2, 3);
+-  i := p.Distance();
+-  var f float = 0.3;
+-  for {}
+-  for {};
+-  for j := 0; j < i; j++ {
+-    if i == 0 {
+-    } else i = 0;
+-    var x float;
+-  }
+-  foo:  // a label
+-  var j int;
+-  switch y := 0; true {
+-  case i < y:
+-    fallthrough;
+-  case i < j:
+-  case i == 0, i == 1, i == j:
+-    i++; i++;
+-    goto foo;
+-  default:
+-    i = -+-+i;
+-    break;
+-  }
++	var p *Point = new(Point).Initialize(2, 3);
++	i := p.Distance();
++	var f float = 0.3;
++	for {}
++	for {};
++	for j := 0; j < i; j++ {
++		if i == 0 {
++		} else i = 0;
++		var x float;
++	}
++	foo:	// a label
++	var j int;
++	switch y := 0; true {
++	case i < y:
++		fallthrough;
++	case i < j:
++	case i == 0, i == 1, i == j:
++		i++; i++;
++		goto foo;
++	default:
++		i = -+-+i;
++		break;
++	}
+ }
+ 
+ func main() {
+diff --git a/test/varinit.go b/test/varinit.go
+index a494100514..004f9c01b2 100644
+--- a/test/varinit.go
++++ b/test/varinit.go
+@@ -7,14 +7,14 @@
+ package main
+ 
+ func main() {
+-   var x int = 1;
+-   if x != 1 { panic("found ", x, ", expected 1\n"); }
+-   {
+-	   var x int = x + 1;
+-	   if x != 2 { panic("found ", x, ", expected 2\n"); }
+-   }
+-   {
+-	   x := x + 1;
+-	   if x != 2 { panic("found ", x, ", expected 2\n"); }
+-   }
++	var x int = 1;
++	if x != 1 { panic("found ", x, ", expected 1\n"); }
++	{
++		var x int = x + 1;
++		if x != 2 { panic("found ", x, ", expected 2\n"); }
++	}
++	{
++		x := x + 1;
++		if x != 2 { panic("found ", x, ", expected 2\n"); }
++	}
+ }

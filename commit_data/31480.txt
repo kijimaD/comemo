@@ -12,8 +12,51 @@ Date:   Fri Feb 17 10:17:42 2017 -0500
     Reviewed-on: https://go-review.googlesource.com/37162
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/proc.go     | 1 +
  src/runtime/runtime2.go | 1 +
  src/runtime/time.go     | 7 ++++++-
  3 files changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 89244cfa7d..bf1466b9de 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -2330,6 +2330,7 @@ func goexit0(gp *g) {
+ 	gp.waitreason = ""
+ 	gp.param = nil
+ 	gp.labels = nil
++	gp.timer = nil
+ 
+ 	// Note that gp's stack scan is now "valid" because it has no
+ 	// stack.
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 86176fd2ac..5c05c20d94 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -376,6 +376,7 @@ type g struct {
+ 	waiting        *sudog         // sudog structures this g is waiting on (that have a valid elem ptr); in lock order
+ 	cgoCtxt        []uintptr      // cgo traceback context
+ 	labels         unsafe.Pointer // profiler labels
++	timer          *timer         // cached timer for time.Sleep
+ 
+ 	// Per-G GC state
+ 
+diff --git a/src/runtime/time.go b/src/runtime/time.go
+index c296338e9b..88ab8b9c02 100644
+--- a/src/runtime/time.go
++++ b/src/runtime/time.go
+@@ -50,7 +50,12 @@ func timeSleep(ns int64) {
+ 		return
+ 	}
+ 
+-	t := new(timer)
++	t := getg().timer
++	if t == nil {
++		t = new(timer)
++		getg().timer = t
++	}
++	*t = timer{}
+ 	t.when = nanotime() + ns
+ 	t.f = goroutineReady
+ 	t.arg = getg()

@@ -7,6 +7,29 @@ Date:   Mon Aug 14 16:01:41 2017 +0200
     Change-Id: Iffb52a0bdc479642eda3b5a12ba5da6590d0f0ec
     Reviewed-on: https://go-review.googlesource.com/55330
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/syntax/tokens.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/syntax/tokens.go b/src/cmd/compile/internal/syntax/tokens.go
+index bd0118a141..e49a027029 100644
+--- a/src/cmd/compile/internal/syntax/tokens.go
++++ b/src/cmd/compile/internal/syntax/tokens.go
+@@ -25,7 +25,7 @@ const (
+ 	_Arrow
+ 	_Star
+ 
+-	// delimitors
++	// delimiters
+ 	_Lparen
+ 	_Lbrack
+ 	_Lbrace
+@@ -97,7 +97,7 @@ var tokstrings = [...]string{
+ 	_Arrow:    "<-",
+ 	_Star:     "*",
+ 
+-	// delimitors
++	// delimiters
+ 	_Lparen:    "(",
+ 	_Lbrack:    "[",
+ 	_Lbrace:    "{",

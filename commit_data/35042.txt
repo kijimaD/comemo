@@ -19,7 +19,84 @@ Date:   Wed Dec 6 20:10:51 2017 -0500
     Reviewed-on: https://go-review.googlesource.com/82396
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/gc/dwinl.go   |  6 ++++++
  src/cmd/link/internal/ld/dwarf_test.go | 25 ++++++++++++++++++++++++-
  2 files changed, 30 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/dwinl.go b/src/cmd/compile/internal/gc/dwinl.go
+index f76bacc5b9..dd91b6c0fc 100644
+--- a/src/cmd/compile/internal/gc/dwinl.go
++++ b/src/cmd/compile/internal/gc/dwinl.go
+@@ -14,6 +14,7 @@ import (
+ 
+ // To identify variables by original source position.
+ type varPos struct {
++	DeclName string
+ 	DeclFile string
+ 	DeclLine uint
+ 	DeclCol  uint
+@@ -96,14 +97,19 @@ func assembleInlines(fnsym *obj.LSym, fn *Node, dwVars []*dwarf.Var) dwarf.InlCa
+ 				n := dcl[i]
+ 				pos := Ctxt.InnermostPos(n.Pos)
+ 				vp := varPos{
++					DeclName: n.Sym.Name,
+ 					DeclFile: pos.Base().SymFilename(),
+ 					DeclLine: pos.Line(),
+ 					DeclCol:  pos.Col(),
+ 				}
++				if _, found := m[vp]; found {
++					Fatalf("child dcl collision on symbol %s within %v\n", n.Sym.Name, fnsym.Name)
++				}
+ 				m[vp] = i
+ 			}
+ 			for j := 0; j < len(sl); j++ {
+ 				vp := varPos{
++					DeclName: sl[j].Name,
+ 					DeclFile: sl[j].DeclFile,
+ 					DeclLine: sl[j].DeclLine,
+ 					DeclCol:  sl[j].DeclCol,
+diff --git a/src/cmd/link/internal/ld/dwarf_test.go b/src/cmd/link/internal/ld/dwarf_test.go
+index 0bd5133f48..4332a3dfba 100644
+--- a/src/cmd/link/internal/ld/dwarf_test.go
++++ b/src/cmd/link/internal/ld/dwarf_test.go
+@@ -522,8 +522,13 @@ package main
+ 
+ var G int
+ 
++func noinline(x int) int {
++	defer func() { G += x }()
++	return x
++}
++
+ func cand(x, y int) int {
+-    return (x + y) ^ (y - x)
++	return noinline(x+y) ^ (y - x)
+ }
+ 
+ func main() {
+@@ -599,6 +604,24 @@ func main() {
+ 				}
+ 			}
+ 			exCount++
++
++			omap := make(map[dwarf.Offset]bool)
++
++			// Walk the child variables of the inlined routine. Each
++			// of them should have a distinct abstract origin-- if two
++			// vars point to the same origin things are definitely broken.
++			inlIdx := ex.idxFromOffset(child.Offset)
++			inlChildDies := ex.Children(inlIdx)
++			for _, k := range inlChildDies {
++				ooff, originOK := k.Val(dwarf.AttrAbstractOrigin).(dwarf.Offset)
++				if !originOK {
++					t.Fatalf("no abstract origin attr for child of inlined subroutine at offset %v", k.Offset)
++				}
++				if _, found := omap[ooff]; found {
++					t.Fatalf("duplicate abstract origin at child of inlined subroutine at offset %v", k.Offset)
++				}
++				omap[ooff] = true
++			}
+ 		}
+ 	}
+ 	if exCount != len(expectedInl) {

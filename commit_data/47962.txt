@@ -12,8 +12,91 @@ Date:   Mon Apr 19 18:39:52 2021 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/net/fcntl_libc_test.go       | 14 ++++++++++++++
  src/net/fcntl_syscall_test.go    | 21 +++++++++++++++++++++
  src/net/unixsock_readmsg_test.go | 16 ++++++++--------
  3 files changed, 43 insertions(+), 8 deletions(-)
+
+diff --git a/src/net/fcntl_libc_test.go b/src/net/fcntl_libc_test.go
+new file mode 100644
+index 0000000000..0320d63a86
+--- /dev/null
++++ b/src/net/fcntl_libc_test.go
+@@ -0,0 +1,14 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build aix || darwin || solaris
++// +build aix darwin solaris
++
++package net
++
++import _ "unsafe" // for go:linkname
++
++// Implemented in the syscall package.
++//go:linkname fcntl syscall.fcntl
++func fcntl(fd int, cmd int, arg int) (int, error)
+diff --git a/src/net/fcntl_syscall_test.go b/src/net/fcntl_syscall_test.go
+new file mode 100644
+index 0000000000..0f04bb4ed6
+--- /dev/null
++++ b/src/net/fcntl_syscall_test.go
+@@ -0,0 +1,21 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build dragonfly || freebsd || linux || netbsd || openbsd
++// +build dragonfly freebsd linux netbsd openbsd
++
++package net
++
++import (
++	"internal/syscall/unix"
++	"syscall"
++)
++
++func fcntl(fd int, cmd int, arg int) (int, error) {
++	r, _, e := syscall.Syscall(unix.FcntlSyscall, uintptr(fd), uintptr(cmd), uintptr(arg))
++	if e != 0 {
++		return int(r), syscall.Errno(e)
++	}
++	return int(r), nil
++}
+diff --git a/src/net/unixsock_readmsg_test.go b/src/net/unixsock_readmsg_test.go
+index 4961ecbe10..a4d2fca69c 100644
+--- a/src/net/unixsock_readmsg_test.go
++++ b/src/net/unixsock_readmsg_test.go
+@@ -82,22 +82,22 @@ func TestUnixConnReadMsgUnixSCMRightsCloseOnExec(t *testing.T) {
+ 		t.Fatalf("got scms = %#v; expected 1 SocketControlMessage", scms)
+ 	}
+ 	scm := scms[0]
+-	gotFds, err := syscall.ParseUnixRights(&scm)
++	gotFDs, err := syscall.ParseUnixRights(&scm)
+ 	if err != nil {
+ 		t.Fatalf("syscall.ParseUnixRights: %v", err)
+ 	}
+-	if len(gotFds) != 1 {
+-		t.Fatalf("got FDs %#v: wanted only 1 fd", gotFds)
++	if len(gotFDs) != 1 {
++		t.Fatalf("got FDs %#v: wanted only 1 fd", gotFDs)
+ 	}
+ 	defer func() {
+-		if err := syscall.Close(int(gotFds[0])); err != nil {
+-			t.Fatalf("fail to close gotFds: %v", err)
++		if err := syscall.Close(gotFDs[0]); err != nil {
++			t.Fatalf("fail to close gotFDs: %v", err)
+ 		}
+ 	}()
+ 
+-	flags, _, errno := syscall.Syscall(syscall.SYS_FCNTL, uintptr(gotFds[0]), uintptr(syscall.F_GETFD), 0)
+-	if errno != 0 {
+-		t.Fatalf("Can't get flags of fd:%#v, with err:%v", gotFds[0], errno)
++	flags, err := fcntl(gotFDs[0], syscall.F_GETFD, 0)
++	if err != nil {
++		t.Fatalf("Can't get flags of fd:%#v, with err:%v", gotFDs[0], err)
+ 	}
+ 	if flags&syscall.FD_CLOEXEC == 0 {
+ 		t.Fatalf("got flags %#x, want %#x (FD_CLOEXEC) set", flags, syscall.FD_CLOEXEC)

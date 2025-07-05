@@ -11,6 +11,20 @@ Date:   Wed Oct 26 23:18:53 2016 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/memmove_linux_amd64_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/memmove_linux_amd64_test.go b/src/runtime/memmove_linux_amd64_test.go
+index 1dd5d49b5f..b69e8fc8de 100644
+--- a/src/runtime/memmove_linux_amd64_test.go
++++ b/src/runtime/memmove_linux_amd64_test.go
+@@ -40,7 +40,7 @@ func TestMemmoveOverflow(t *testing.T) {
+ 		_, _, errno := syscall.Syscall6(syscall.SYS_MMAP,
+ 			base+off, 65536, syscall.PROT_READ|syscall.PROT_WRITE, syscall.MAP_SHARED|syscall.MAP_FIXED, tmp.Fd(), 0)
+ 		if errno != 0 {
+-			t.Fatalf("could not map a page at requested 0x%x: %s", base+off, errno)
++			t.Skipf("could not map a page at requested 0x%x: %s", base+off, errno)
+ 		}
+ 		defer syscall.Syscall(syscall.SYS_MUNMAP, base+off, 65536, 0)
+ 	}

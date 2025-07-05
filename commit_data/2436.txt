@@ -8,7 +8,7 @@ Date:   Tue Jun 9 09:53:44 2009 -0700
     R=rsc
     OCL=30096
     CL=30102
-
+---
  src/clean.bash                                    |   2 +-
  src/cmd/gobuild/gobuild.go                        |   4 ++--
  src/lib/syscall/types_darwin_386.c                |   5 -----
@@ -401,3 +401,1763 @@ Date:   Tue Jun 9 09:53:44 2009 -0700
  usr/gri/pretty/astprinter.go                      |   2 +-
  usr/gri/pretty/godoc.go                           |   2 +-
  391 files changed, 14 insertions(+), 48 deletions(-)
+
+diff --git a/src/clean.bash b/src/clean.bash
+index 15a46a76a1..e67fe14035 100755
+--- a/src/clean.bash
++++ b/src/clean.bash
+@@ -5,7 +5,7 @@
+ 
+ rm -rf $GOROOT/pkg/[0-9a-zA-Z_]*
+ rm -f $GOROOT/lib/*.[6a]
+-for i in lib9 libbio libmach_amd64 libregexp cmd lib
++for i in lib9 libbio libmach_amd64 libregexp cmd pkg
+ do
+ 	cd $i
+ 	case $i in
+diff --git a/src/cmd/gobuild/gobuild.go b/src/cmd/gobuild/gobuild.go
+index c84c7e9277..d7e9de8ffa 100644
+--- a/src/cmd/gobuild/gobuild.go
++++ b/src/cmd/gobuild/gobuild.go
+@@ -103,14 +103,14 @@ func (a FileArray) Swap(i, j int) {
+ 	a[i], a[j] = a[j], a[i]
+ }
+ 
+-// If current directory is under $GOROOT/src/lib, return the
++// If current directory is under $GOROOT/src/pkg, return the
+ // path relative to there.  Otherwise return "".
+ func PkgDir() string {
+ 	goroot, err := os.Getenv("GOROOT");
+ 	if err != nil || goroot == "" {
+ 		return ""
+ 	}
+-	srcroot := path.Clean(goroot + "/src/lib/");
++	srcroot := path.Clean(goroot + "/src/pkg/");
+ 	pwd, err1 := os.Getenv("PWD");	// TODO(rsc): real pwd
+ 	if err1 != nil || pwd == "" {
+ 		return ""
+diff --git a/src/lib/syscall/types_darwin_386.c b/src/lib/syscall/types_darwin_386.c
+deleted file mode 100644
+index 71f98e413e..0000000000
+--- a/src/lib/syscall/types_darwin_386.c
++++ /dev/null
+@@ -1,5 +0,0 @@
+-// Copyright 2009 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Nothing to see here.
+diff --git a/src/lib/syscall/types_darwin_amd64.c b/src/lib/syscall/types_darwin_amd64.c
+deleted file mode 100644
+index 71f98e413e..0000000000
+--- a/src/lib/syscall/types_darwin_amd64.c
++++ /dev/null
+@@ -1,5 +0,0 @@
+-// Copyright 2009 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Nothing to see here.
+diff --git a/src/lib/syscall/types_linux_386.c b/src/lib/syscall/types_linux_386.c
+deleted file mode 100644
+index 37ce7d76e9..0000000000
+--- a/src/lib/syscall/types_linux_386.c
++++ /dev/null
+@@ -1,5 +0,0 @@
+-// Copyright 2009 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Nothing to see here
+diff --git a/src/lib/syscall/types_linux_amd64.c b/src/lib/syscall/types_linux_amd64.c
+deleted file mode 100644
+index 37ce7d76e9..0000000000
+--- a/src/lib/syscall/types_linux_amd64.c
++++ /dev/null
+@@ -1,5 +0,0 @@
+-// Copyright 2009 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Nothing to see here
+diff --git a/src/make.bash b/src/make.bash
+index f6ee91ad07..841a136c7d 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -18,7 +18,7 @@ rm -f $HOME/bin/quietgcc
+ cp quietgcc.bash $HOME/bin/quietgcc
+ chmod +x $HOME/bin/quietgcc
+ 
+-for i in lib9 libbio libmach_amd64 libregexp cmd lib cmd/gobuild
++for i in lib9 libbio libmach_amd64 libregexp cmd pkg cmd/gobuild
+ do
+ 	echo; echo; echo %%%% making $i %%%%; echo
+ 	cd $i
+diff --git a/src/lib/Make.deps b/src/pkg/Make.deps
+similarity index 100%
+rename from src/lib/Make.deps
+rename to src/pkg/Make.deps
+diff --git a/src/lib/Makefile b/src/pkg/Makefile
+similarity index 100%
+rename from src/lib/Makefile
+rename to src/pkg/Makefile
+diff --git a/src/lib/archive/tar/Makefile b/src/pkg/archive/tar/Makefile
+similarity index 100%
+rename from src/lib/archive/tar/Makefile
+rename to src/pkg/archive/tar/Makefile
+diff --git a/src/lib/archive/tar/testdata/small.txt b/src/pkg/archive/tar/testdata/small.txt
+similarity index 100%
+rename from src/lib/archive/tar/testdata/small.txt
+rename to src/pkg/archive/tar/testdata/small.txt
+diff --git a/src/lib/archive/tar/testdata/small2.txt b/src/pkg/archive/tar/testdata/small2.txt
+similarity index 100%
+rename from src/lib/archive/tar/testdata/small2.txt
+rename to src/pkg/archive/tar/testdata/small2.txt
+diff --git a/src/lib/archive/tar/testdata/test.tar b/src/pkg/archive/tar/testdata/test.tar
+similarity index 100%
+rename from src/lib/archive/tar/testdata/test.tar
+rename to src/pkg/archive/tar/testdata/test.tar
+diff --git a/src/lib/archive/tar/untar.go b/src/pkg/archive/tar/untar.go
+similarity index 100%
+rename from src/lib/archive/tar/untar.go
+rename to src/pkg/archive/tar/untar.go
+diff --git a/src/lib/archive/tar/untar_test.go b/src/pkg/archive/tar/untar_test.go
+similarity index 100%
+rename from src/lib/archive/tar/untar_test.go
+rename to src/pkg/archive/tar/untar_test.go
+diff --git a/src/lib/bignum/Makefile b/src/pkg/bignum/Makefile
+similarity index 100%
+rename from src/lib/bignum/Makefile
+rename to src/pkg/bignum/Makefile
+diff --git a/src/lib/bignum/bignum.go b/src/pkg/bignum/bignum.go
+similarity index 100%
+rename from src/lib/bignum/bignum.go
+rename to src/pkg/bignum/bignum.go
+diff --git a/src/lib/bignum/bignum_test.go b/src/pkg/bignum/bignum_test.go
+similarity index 100%
+rename from src/lib/bignum/bignum_test.go
+rename to src/pkg/bignum/bignum_test.go
+diff --git a/src/lib/bufio/Makefile b/src/pkg/bufio/Makefile
+similarity index 100%
+rename from src/lib/bufio/Makefile
+rename to src/pkg/bufio/Makefile
+diff --git a/src/lib/bufio/bufio.go b/src/pkg/bufio/bufio.go
+similarity index 100%
+rename from src/lib/bufio/bufio.go
+rename to src/pkg/bufio/bufio.go
+diff --git a/src/lib/bufio/bufio_test.go b/src/pkg/bufio/bufio_test.go
+similarity index 100%
+rename from src/lib/bufio/bufio_test.go
+rename to src/pkg/bufio/bufio_test.go
+diff --git a/src/lib/bytes/Makefile b/src/pkg/bytes/Makefile
+similarity index 100%
+rename from src/lib/bytes/Makefile
+rename to src/pkg/bytes/Makefile
+diff --git a/src/lib/bytes/bytes.go b/src/pkg/bytes/bytes.go
+similarity index 100%
+rename from src/lib/bytes/bytes.go
+rename to src/pkg/bytes/bytes.go
+diff --git a/src/lib/bytes/bytes_test.go b/src/pkg/bytes/bytes_test.go
+similarity index 100%
+rename from src/lib/bytes/bytes_test.go
+rename to src/pkg/bytes/bytes_test.go
+diff --git a/src/lib/compress/flate/Makefile b/src/pkg/compress/flate/Makefile
+similarity index 100%
+rename from src/lib/compress/flate/Makefile
+rename to src/pkg/compress/flate/Makefile
+diff --git a/src/lib/compress/flate/flate_test.go b/src/pkg/compress/flate/flate_test.go
+similarity index 100%
+rename from src/lib/compress/flate/flate_test.go
+rename to src/pkg/compress/flate/flate_test.go
+diff --git a/src/lib/compress/flate/inflate.go b/src/pkg/compress/flate/inflate.go
+similarity index 100%
+rename from src/lib/compress/flate/inflate.go
+rename to src/pkg/compress/flate/inflate.go
+diff --git a/src/lib/compress/gzip/Makefile b/src/pkg/compress/gzip/Makefile
+similarity index 100%
+rename from src/lib/compress/gzip/Makefile
+rename to src/pkg/compress/gzip/Makefile
+diff --git a/src/lib/compress/gzip/gunzip.go b/src/pkg/compress/gzip/gunzip.go
+similarity index 100%
+rename from src/lib/compress/gzip/gunzip.go
+rename to src/pkg/compress/gzip/gunzip.go
+diff --git a/src/lib/compress/gzip/gunzip_test.go b/src/pkg/compress/gzip/gunzip_test.go
+similarity index 100%
+rename from src/lib/compress/gzip/gunzip_test.go
+rename to src/pkg/compress/gzip/gunzip_test.go
+diff --git a/src/lib/container/list/Makefile b/src/pkg/container/list/Makefile
+similarity index 100%
+rename from src/lib/container/list/Makefile
+rename to src/pkg/container/list/Makefile
+diff --git a/src/lib/container/list/list.go b/src/pkg/container/list/list.go
+similarity index 100%
+rename from src/lib/container/list/list.go
+rename to src/pkg/container/list/list.go
+diff --git a/src/lib/container/list/list_test.go b/src/pkg/container/list/list_test.go
+similarity index 100%
+rename from src/lib/container/list/list_test.go
+rename to src/pkg/container/list/list_test.go
+diff --git a/src/lib/container/vector/Makefile b/src/pkg/container/vector/Makefile
+similarity index 100%
+rename from src/lib/container/vector/Makefile
+rename to src/pkg/container/vector/Makefile
+diff --git a/src/lib/container/vector/intvector.go b/src/pkg/container/vector/intvector.go
+similarity index 100%
+rename from src/lib/container/vector/intvector.go
+rename to src/pkg/container/vector/intvector.go
+diff --git a/src/lib/container/vector/stringvector.go b/src/pkg/container/vector/stringvector.go
+similarity index 100%
+rename from src/lib/container/vector/stringvector.go
+rename to src/pkg/container/vector/stringvector.go
+diff --git a/src/lib/container/vector/vector.go b/src/pkg/container/vector/vector.go
+similarity index 100%
+rename from src/lib/container/vector/vector.go
+rename to src/pkg/container/vector/vector.go
+diff --git a/src/lib/container/vector/vector_test.go b/src/pkg/container/vector/vector_test.go
+similarity index 100%
+rename from src/lib/container/vector/vector_test.go
+rename to src/pkg/container/vector/vector_test.go
+diff --git a/src/lib/crypto/aes/Makefile b/src/pkg/crypto/aes/Makefile
+similarity index 100%
+rename from src/lib/crypto/aes/Makefile
+rename to src/pkg/crypto/aes/Makefile
+diff --git a/src/lib/crypto/aes/aes_test.go b/src/pkg/crypto/aes/aes_test.go
+similarity index 100%
+rename from src/lib/crypto/aes/aes_test.go
+rename to src/pkg/crypto/aes/aes_test.go
+diff --git a/src/lib/crypto/aes/block.go b/src/pkg/crypto/aes/block.go
+similarity index 100%
+rename from src/lib/crypto/aes/block.go
+rename to src/pkg/crypto/aes/block.go
+diff --git a/src/lib/crypto/aes/cipher.go b/src/pkg/crypto/aes/cipher.go
+similarity index 100%
+rename from src/lib/crypto/aes/cipher.go
+rename to src/pkg/crypto/aes/cipher.go
+diff --git a/src/lib/crypto/aes/const.go b/src/pkg/crypto/aes/const.go
+similarity index 100%
+rename from src/lib/crypto/aes/const.go
+rename to src/pkg/crypto/aes/const.go
+diff --git a/src/lib/crypto/block/Makefile b/src/pkg/crypto/block/Makefile
+similarity index 100%
+rename from src/lib/crypto/block/Makefile
+rename to src/pkg/crypto/block/Makefile
+diff --git a/src/lib/crypto/block/cbc.go b/src/pkg/crypto/block/cbc.go
+similarity index 100%
+rename from src/lib/crypto/block/cbc.go
+rename to src/pkg/crypto/block/cbc.go
+diff --git a/src/lib/crypto/block/cbc_aes_test.go b/src/pkg/crypto/block/cbc_aes_test.go
+similarity index 100%
+rename from src/lib/crypto/block/cbc_aes_test.go
+rename to src/pkg/crypto/block/cbc_aes_test.go
+diff --git a/src/lib/crypto/block/cfb.go b/src/pkg/crypto/block/cfb.go
+similarity index 100%
+rename from src/lib/crypto/block/cfb.go
+rename to src/pkg/crypto/block/cfb.go
+diff --git a/src/lib/crypto/block/cfb_aes_test.go b/src/pkg/crypto/block/cfb_aes_test.go
+similarity index 100%
+rename from src/lib/crypto/block/cfb_aes_test.go
+rename to src/pkg/crypto/block/cfb_aes_test.go
+diff --git a/src/lib/crypto/block/cipher.go b/src/pkg/crypto/block/cipher.go
+similarity index 100%
+rename from src/lib/crypto/block/cipher.go
+rename to src/pkg/crypto/block/cipher.go
+diff --git a/src/lib/crypto/block/cmac.go b/src/pkg/crypto/block/cmac.go
+similarity index 100%
+rename from src/lib/crypto/block/cmac.go
+rename to src/pkg/crypto/block/cmac.go
+diff --git a/src/lib/crypto/block/cmac_aes_test.go b/src/pkg/crypto/block/cmac_aes_test.go
+similarity index 100%
+rename from src/lib/crypto/block/cmac_aes_test.go
+rename to src/pkg/crypto/block/cmac_aes_test.go
+diff --git a/src/lib/crypto/block/ctr.go b/src/pkg/crypto/block/ctr.go
+similarity index 100%
+rename from src/lib/crypto/block/ctr.go
+rename to src/pkg/crypto/block/ctr.go
+diff --git a/src/lib/crypto/block/ctr_aes_test.go b/src/pkg/crypto/block/ctr_aes_test.go
+similarity index 100%
+rename from src/lib/crypto/block/ctr_aes_test.go
+rename to src/pkg/crypto/block/ctr_aes_test.go
+diff --git a/src/lib/crypto/block/eax.go b/src/pkg/crypto/block/eax.go
+similarity index 100%
+rename from src/lib/crypto/block/eax.go
+rename to src/pkg/crypto/block/eax.go
+diff --git a/src/lib/crypto/block/eax_aes_test.go b/src/pkg/crypto/block/eax_aes_test.go
+similarity index 100%
+rename from src/lib/crypto/block/eax_aes_test.go
+rename to src/pkg/crypto/block/eax_aes_test.go
+diff --git a/src/lib/crypto/block/ecb.go b/src/pkg/crypto/block/ecb.go
+similarity index 100%
+rename from src/lib/crypto/block/ecb.go
+rename to src/pkg/crypto/block/ecb.go
+diff --git a/src/lib/crypto/block/ecb_aes_test.go b/src/pkg/crypto/block/ecb_aes_test.go
+similarity index 100%
+rename from src/lib/crypto/block/ecb_aes_test.go
+rename to src/pkg/crypto/block/ecb_aes_test.go
+diff --git a/src/lib/crypto/block/ecb_test.go b/src/pkg/crypto/block/ecb_test.go
+similarity index 100%
+rename from src/lib/crypto/block/ecb_test.go
+rename to src/pkg/crypto/block/ecb_test.go
+diff --git a/src/lib/crypto/block/ofb.go b/src/pkg/crypto/block/ofb.go
+similarity index 100%
+rename from src/lib/crypto/block/ofb.go
+rename to src/pkg/crypto/block/ofb.go
+diff --git a/src/lib/crypto/block/ofb_aes_test.go b/src/pkg/crypto/block/ofb_aes_test.go
+similarity index 100%
+rename from src/lib/crypto/block/ofb_aes_test.go
+rename to src/pkg/crypto/block/ofb_aes_test.go
+diff --git a/src/lib/crypto/block/xor.go b/src/pkg/crypto/block/xor.go
+similarity index 100%
+rename from src/lib/crypto/block/xor.go
+rename to src/pkg/crypto/block/xor.go
+diff --git a/src/lib/crypto/block/xor_test.go b/src/pkg/crypto/block/xor_test.go
+similarity index 100%
+rename from src/lib/crypto/block/xor_test.go
+rename to src/pkg/crypto/block/xor_test.go
+diff --git a/src/lib/crypto/hmac/Makefile b/src/pkg/crypto/hmac/Makefile
+similarity index 100%
+rename from src/lib/crypto/hmac/Makefile
+rename to src/pkg/crypto/hmac/Makefile
+diff --git a/src/lib/crypto/hmac/hmac.go b/src/pkg/crypto/hmac/hmac.go
+similarity index 100%
+rename from src/lib/crypto/hmac/hmac.go
+rename to src/pkg/crypto/hmac/hmac.go
+diff --git a/src/lib/crypto/hmac/hmac_test.go b/src/pkg/crypto/hmac/hmac_test.go
+similarity index 100%
+rename from src/lib/crypto/hmac/hmac_test.go
+rename to src/pkg/crypto/hmac/hmac_test.go
+diff --git a/src/lib/crypto/md5/Makefile b/src/pkg/crypto/md5/Makefile
+similarity index 100%
+rename from src/lib/crypto/md5/Makefile
+rename to src/pkg/crypto/md5/Makefile
+diff --git a/src/lib/crypto/md5/md5.go b/src/pkg/crypto/md5/md5.go
+similarity index 100%
+rename from src/lib/crypto/md5/md5.go
+rename to src/pkg/crypto/md5/md5.go
+diff --git a/src/lib/crypto/md5/md5_test.go b/src/pkg/crypto/md5/md5_test.go
+similarity index 100%
+rename from src/lib/crypto/md5/md5_test.go
+rename to src/pkg/crypto/md5/md5_test.go
+diff --git a/src/lib/crypto/md5/md5block.go b/src/pkg/crypto/md5/md5block.go
+similarity index 100%
+rename from src/lib/crypto/md5/md5block.go
+rename to src/pkg/crypto/md5/md5block.go
+diff --git a/src/lib/crypto/sha1/Makefile b/src/pkg/crypto/sha1/Makefile
+similarity index 100%
+rename from src/lib/crypto/sha1/Makefile
+rename to src/pkg/crypto/sha1/Makefile
+diff --git a/src/lib/crypto/sha1/sha1.go b/src/pkg/crypto/sha1/sha1.go
+similarity index 100%
+rename from src/lib/crypto/sha1/sha1.go
+rename to src/pkg/crypto/sha1/sha1.go
+diff --git a/src/lib/crypto/sha1/sha1_test.go b/src/pkg/crypto/sha1/sha1_test.go
+similarity index 100%
+rename from src/lib/crypto/sha1/sha1_test.go
+rename to src/pkg/crypto/sha1/sha1_test.go
+diff --git a/src/lib/crypto/sha1/sha1block.go b/src/pkg/crypto/sha1/sha1block.go
+similarity index 100%
+rename from src/lib/crypto/sha1/sha1block.go
+rename to src/pkg/crypto/sha1/sha1block.go
+diff --git a/src/lib/datafmt/Makefile b/src/pkg/datafmt/Makefile
+similarity index 100%
+rename from src/lib/datafmt/Makefile
+rename to src/pkg/datafmt/Makefile
+diff --git a/src/lib/datafmt/datafmt.go b/src/pkg/datafmt/datafmt.go
+similarity index 100%
+rename from src/lib/datafmt/datafmt.go
+rename to src/pkg/datafmt/datafmt.go
+diff --git a/src/lib/datafmt/datafmt_test.go b/src/pkg/datafmt/datafmt_test.go
+similarity index 100%
+rename from src/lib/datafmt/datafmt_test.go
+rename to src/pkg/datafmt/datafmt_test.go
+diff --git a/src/lib/datafmt/parser.go b/src/pkg/datafmt/parser.go
+similarity index 100%
+rename from src/lib/datafmt/parser.go
+rename to src/pkg/datafmt/parser.go
+diff --git a/src/lib/exec/Makefile b/src/pkg/exec/Makefile
+similarity index 100%
+rename from src/lib/exec/Makefile
+rename to src/pkg/exec/Makefile
+diff --git a/src/lib/exec/exec.go b/src/pkg/exec/exec.go
+similarity index 100%
+rename from src/lib/exec/exec.go
+rename to src/pkg/exec/exec.go
+diff --git a/src/lib/exec/exec_test.go b/src/pkg/exec/exec_test.go
+similarity index 100%
+rename from src/lib/exec/exec_test.go
+rename to src/pkg/exec/exec_test.go
+diff --git a/src/lib/exvar/Makefile b/src/pkg/exvar/Makefile
+similarity index 100%
+rename from src/lib/exvar/Makefile
+rename to src/pkg/exvar/Makefile
+diff --git a/src/lib/exvar/exvar.go b/src/pkg/exvar/exvar.go
+similarity index 100%
+rename from src/lib/exvar/exvar.go
+rename to src/pkg/exvar/exvar.go
+diff --git a/src/lib/exvar/exvar_test.go b/src/pkg/exvar/exvar_test.go
+similarity index 100%
+rename from src/lib/exvar/exvar_test.go
+rename to src/pkg/exvar/exvar_test.go
+diff --git a/src/lib/flag/Makefile b/src/pkg/flag/Makefile
+similarity index 100%
+rename from src/lib/flag/Makefile
+rename to src/pkg/flag/Makefile
+diff --git a/src/lib/flag/flag.go b/src/pkg/flag/flag.go
+similarity index 100%
+rename from src/lib/flag/flag.go
+rename to src/pkg/flag/flag.go
+diff --git a/src/lib/flag/flag_test.go b/src/pkg/flag/flag_test.go
+similarity index 100%
+rename from src/lib/flag/flag_test.go
+rename to src/pkg/flag/flag_test.go
+diff --git a/src/lib/fmt/Makefile b/src/pkg/fmt/Makefile
+similarity index 100%
+rename from src/lib/fmt/Makefile
+rename to src/pkg/fmt/Makefile
+diff --git a/src/lib/fmt/fmt_test.go b/src/pkg/fmt/fmt_test.go
+similarity index 100%
+rename from src/lib/fmt/fmt_test.go
+rename to src/pkg/fmt/fmt_test.go
+diff --git a/src/lib/fmt/format.go b/src/pkg/fmt/format.go
+similarity index 100%
+rename from src/lib/fmt/format.go
+rename to src/pkg/fmt/format.go
+diff --git a/src/lib/fmt/print.go b/src/pkg/fmt/print.go
+similarity index 100%
+rename from src/lib/fmt/print.go
+rename to src/pkg/fmt/print.go
+diff --git a/src/lib/go/ast/Makefile b/src/pkg/go/ast/Makefile
+similarity index 100%
+rename from src/lib/go/ast/Makefile
+rename to src/pkg/go/ast/Makefile
+diff --git a/src/lib/go/ast/ast.go b/src/pkg/go/ast/ast.go
+similarity index 100%
+rename from src/lib/go/ast/ast.go
+rename to src/pkg/go/ast/ast.go
+diff --git a/src/lib/go/ast/format.go b/src/pkg/go/ast/format.go
+similarity index 100%
+rename from src/lib/go/ast/format.go
+rename to src/pkg/go/ast/format.go
+diff --git a/src/lib/go/doc/Makefile b/src/pkg/go/doc/Makefile
+similarity index 100%
+rename from src/lib/go/doc/Makefile
+rename to src/pkg/go/doc/Makefile
+diff --git a/src/lib/go/doc/comment.go b/src/pkg/go/doc/comment.go
+similarity index 100%
+rename from src/lib/go/doc/comment.go
+rename to src/pkg/go/doc/comment.go
+diff --git a/src/lib/go/doc/doc.go b/src/pkg/go/doc/doc.go
+similarity index 100%
+rename from src/lib/go/doc/doc.go
+rename to src/pkg/go/doc/doc.go
+diff --git a/src/lib/go/parser/Makefile b/src/pkg/go/parser/Makefile
+similarity index 100%
+rename from src/lib/go/parser/Makefile
+rename to src/pkg/go/parser/Makefile
+diff --git a/src/lib/go/parser/parser.go b/src/pkg/go/parser/parser.go
+similarity index 100%
+rename from src/lib/go/parser/parser.go
+rename to src/pkg/go/parser/parser.go
+diff --git a/src/lib/go/parser/parser_test.go b/src/pkg/go/parser/parser_test.go
+similarity index 100%
+rename from src/lib/go/parser/parser_test.go
+rename to src/pkg/go/parser/parser_test.go
+diff --git a/src/lib/go/scanner/Makefile b/src/pkg/go/scanner/Makefile
+similarity index 100%
+rename from src/lib/go/scanner/Makefile
+rename to src/pkg/go/scanner/Makefile
+diff --git a/src/lib/go/scanner/scanner.go b/src/pkg/go/scanner/scanner.go
+similarity index 100%
+rename from src/lib/go/scanner/scanner.go
+rename to src/pkg/go/scanner/scanner.go
+diff --git a/src/lib/go/scanner/scanner_test.go b/src/pkg/go/scanner/scanner_test.go
+similarity index 100%
+rename from src/lib/go/scanner/scanner_test.go
+rename to src/pkg/go/scanner/scanner_test.go
+diff --git a/src/lib/go/token/Makefile b/src/pkg/go/token/Makefile
+similarity index 100%
+rename from src/lib/go/token/Makefile
+rename to src/pkg/go/token/Makefile
+diff --git a/src/lib/go/token/token.go b/src/pkg/go/token/token.go
+similarity index 100%
+rename from src/lib/go/token/token.go
+rename to src/pkg/go/token/token.go
+diff --git a/src/lib/hash/Makefile b/src/pkg/hash/Makefile
+similarity index 100%
+rename from src/lib/hash/Makefile
+rename to src/pkg/hash/Makefile
+diff --git a/src/lib/hash/adler32/Makefile b/src/pkg/hash/adler32/Makefile
+similarity index 100%
+rename from src/lib/hash/adler32/Makefile
+rename to src/pkg/hash/adler32/Makefile
+diff --git a/src/lib/hash/adler32/adler32.go b/src/pkg/hash/adler32/adler32.go
+similarity index 100%
+rename from src/lib/hash/adler32/adler32.go
+rename to src/pkg/hash/adler32/adler32.go
+diff --git a/src/lib/hash/adler32/adler32_test.go b/src/pkg/hash/adler32/adler32_test.go
+similarity index 100%
+rename from src/lib/hash/adler32/adler32_test.go
+rename to src/pkg/hash/adler32/adler32_test.go
+diff --git a/src/lib/hash/crc32/Makefile b/src/pkg/hash/crc32/Makefile
+similarity index 100%
+rename from src/lib/hash/crc32/Makefile
+rename to src/pkg/hash/crc32/Makefile
+diff --git a/src/lib/hash/crc32/crc32.go b/src/pkg/hash/crc32/crc32.go
+similarity index 100%
+rename from src/lib/hash/crc32/crc32.go
+rename to src/pkg/hash/crc32/crc32.go
+diff --git a/src/lib/hash/crc32/crc32_test.go b/src/pkg/hash/crc32/crc32_test.go
+similarity index 100%
+rename from src/lib/hash/crc32/crc32_test.go
+rename to src/pkg/hash/crc32/crc32_test.go
+diff --git a/src/lib/hash/hash.go b/src/pkg/hash/hash.go
+similarity index 100%
+rename from src/lib/hash/hash.go
+rename to src/pkg/hash/hash.go
+diff --git a/src/lib/hash/test_cases.txt b/src/pkg/hash/test_cases.txt
+similarity index 100%
+rename from src/lib/hash/test_cases.txt
+rename to src/pkg/hash/test_cases.txt
+diff --git a/src/lib/hash/test_gen.awk b/src/pkg/hash/test_gen.awk
+similarity index 100%
+rename from src/lib/hash/test_gen.awk
+rename to src/pkg/hash/test_gen.awk
+diff --git a/src/lib/http/Makefile b/src/pkg/http/Makefile
+similarity index 100%
+rename from src/lib/http/Makefile
+rename to src/pkg/http/Makefile
+diff --git a/src/lib/http/fs.go b/src/pkg/http/fs.go
+similarity index 100%
+rename from src/lib/http/fs.go
+rename to src/pkg/http/fs.go
+diff --git a/src/lib/http/request.go b/src/pkg/http/request.go
+similarity index 100%
+rename from src/lib/http/request.go
+rename to src/pkg/http/request.go
+diff --git a/src/lib/http/server.go b/src/pkg/http/server.go
+similarity index 100%
+rename from src/lib/http/server.go
+rename to src/pkg/http/server.go
+diff --git a/src/lib/http/status.go b/src/pkg/http/status.go
+similarity index 100%
+rename from src/lib/http/status.go
+rename to src/pkg/http/status.go
+diff --git a/src/lib/http/triv.go b/src/pkg/http/triv.go
+similarity index 100%
+rename from src/lib/http/triv.go
+rename to src/pkg/http/triv.go
+diff --git a/src/lib/http/url.go b/src/pkg/http/url.go
+similarity index 100%
+rename from src/lib/http/url.go
+rename to src/pkg/http/url.go
+diff --git a/src/lib/http/url_test.go b/src/pkg/http/url_test.go
+similarity index 100%
+rename from src/lib/http/url_test.go
+rename to src/pkg/http/url_test.go
+diff --git a/src/lib/io/Makefile b/src/pkg/io/Makefile
+similarity index 100%
+rename from src/lib/io/Makefile
+rename to src/pkg/io/Makefile
+diff --git a/src/lib/io/bytebuffer.go b/src/pkg/io/bytebuffer.go
+similarity index 100%
+rename from src/lib/io/bytebuffer.go
+rename to src/pkg/io/bytebuffer.go
+diff --git a/src/lib/io/bytebuffer_test.go b/src/pkg/io/bytebuffer_test.go
+similarity index 100%
+rename from src/lib/io/bytebuffer_test.go
+rename to src/pkg/io/bytebuffer_test.go
+diff --git a/src/lib/io/io.go b/src/pkg/io/io.go
+similarity index 100%
+rename from src/lib/io/io.go
+rename to src/pkg/io/io.go
+diff --git a/src/lib/io/pipe.go b/src/pkg/io/pipe.go
+similarity index 100%
+rename from src/lib/io/pipe.go
+rename to src/pkg/io/pipe.go
+diff --git a/src/lib/io/pipe_test.go b/src/pkg/io/pipe_test.go
+similarity index 100%
+rename from src/lib/io/pipe_test.go
+rename to src/pkg/io/pipe_test.go
+diff --git a/src/lib/io/utils.go b/src/pkg/io/utils.go
+similarity index 100%
+rename from src/lib/io/utils.go
+rename to src/pkg/io/utils.go
+diff --git a/src/lib/io/utils_test.go b/src/pkg/io/utils_test.go
+similarity index 100%
+rename from src/lib/io/utils_test.go
+rename to src/pkg/io/utils_test.go
+diff --git a/src/lib/json/Makefile b/src/pkg/json/Makefile
+similarity index 100%
+rename from src/lib/json/Makefile
+rename to src/pkg/json/Makefile
+diff --git a/src/lib/json/generic.go b/src/pkg/json/generic.go
+similarity index 100%
+rename from src/lib/json/generic.go
+rename to src/pkg/json/generic.go
+diff --git a/src/lib/json/generic_test.go b/src/pkg/json/generic_test.go
+similarity index 100%
+rename from src/lib/json/generic_test.go
+rename to src/pkg/json/generic_test.go
+diff --git a/src/lib/json/parse.go b/src/pkg/json/parse.go
+similarity index 100%
+rename from src/lib/json/parse.go
+rename to src/pkg/json/parse.go
+diff --git a/src/lib/json/struct.go b/src/pkg/json/struct.go
+similarity index 100%
+rename from src/lib/json/struct.go
+rename to src/pkg/json/struct.go
+diff --git a/src/lib/json/struct_test.go b/src/pkg/json/struct_test.go
+similarity index 100%
+rename from src/lib/json/struct_test.go
+rename to src/pkg/json/struct_test.go
+diff --git a/src/lib/log/Makefile b/src/pkg/log/Makefile
+similarity index 100%
+rename from src/lib/log/Makefile
+rename to src/pkg/log/Makefile
+diff --git a/src/lib/log/log.go b/src/pkg/log/log.go
+similarity index 100%
+rename from src/lib/log/log.go
+rename to src/pkg/log/log.go
+diff --git a/src/lib/log/log_test.go b/src/pkg/log/log_test.go
+similarity index 100%
+rename from src/lib/log/log_test.go
+rename to src/pkg/log/log_test.go
+diff --git a/src/lib/malloc/Makefile b/src/pkg/malloc/Makefile
+similarity index 100%
+rename from src/lib/malloc/Makefile
+rename to src/pkg/malloc/Makefile
+diff --git a/src/lib/malloc/malloc.go b/src/pkg/malloc/malloc.go
+similarity index 100%
+rename from src/lib/malloc/malloc.go
+rename to src/pkg/malloc/malloc.go
+diff --git a/src/lib/math/Makefile b/src/pkg/math/Makefile
+similarity index 100%
+rename from src/lib/math/Makefile
+rename to src/pkg/math/Makefile
+diff --git a/src/lib/math/all_test.go b/src/pkg/math/all_test.go
+similarity index 100%
+rename from src/lib/math/all_test.go
+rename to src/pkg/math/all_test.go
+diff --git a/src/lib/math/asin.go b/src/pkg/math/asin.go
+similarity index 100%
+rename from src/lib/math/asin.go
+rename to src/pkg/math/asin.go
+diff --git a/src/lib/math/atan.go b/src/pkg/math/atan.go
+similarity index 100%
+rename from src/lib/math/atan.go
+rename to src/pkg/math/atan.go
+diff --git a/src/lib/math/atan2.go b/src/pkg/math/atan2.go
+similarity index 100%
+rename from src/lib/math/atan2.go
+rename to src/pkg/math/atan2.go
+diff --git a/src/lib/math/const.go b/src/pkg/math/const.go
+similarity index 100%
+rename from src/lib/math/const.go
+rename to src/pkg/math/const.go
+diff --git a/src/lib/math/exp.go b/src/pkg/math/exp.go
+similarity index 100%
+rename from src/lib/math/exp.go
+rename to src/pkg/math/exp.go
+diff --git a/src/lib/math/fabs.go b/src/pkg/math/fabs.go
+similarity index 100%
+rename from src/lib/math/fabs.go
+rename to src/pkg/math/fabs.go
+diff --git a/src/lib/math/floor.go b/src/pkg/math/floor.go
+similarity index 100%
+rename from src/lib/math/floor.go
+rename to src/pkg/math/floor.go
+diff --git a/src/lib/math/fmod.go b/src/pkg/math/fmod.go
+similarity index 100%
+rename from src/lib/math/fmod.go
+rename to src/pkg/math/fmod.go
+diff --git a/src/lib/math/hypot.go b/src/pkg/math/hypot.go
+similarity index 100%
+rename from src/lib/math/hypot.go
+rename to src/pkg/math/hypot.go
+diff --git a/src/lib/math/log.go b/src/pkg/math/log.go
+similarity index 100%
+rename from src/lib/math/log.go
+rename to src/pkg/math/log.go
+diff --git a/src/lib/math/pow.go b/src/pkg/math/pow.go
+similarity index 100%
+rename from src/lib/math/pow.go
+rename to src/pkg/math/pow.go
+diff --git a/src/lib/math/pow10.go b/src/pkg/math/pow10.go
+similarity index 100%
+rename from src/lib/math/pow10.go
+rename to src/pkg/math/pow10.go
+diff --git a/src/lib/math/runtime.go b/src/pkg/math/runtime.go
+similarity index 100%
+rename from src/lib/math/runtime.go
+rename to src/pkg/math/runtime.go
+diff --git a/src/lib/math/sin.go b/src/pkg/math/sin.go
+similarity index 100%
+rename from src/lib/math/sin.go
+rename to src/pkg/math/sin.go
+diff --git a/src/lib/math/sinh.go b/src/pkg/math/sinh.go
+similarity index 100%
+rename from src/lib/math/sinh.go
+rename to src/pkg/math/sinh.go
+diff --git a/src/lib/math/sqrt.go b/src/pkg/math/sqrt.go
+similarity index 100%
+rename from src/lib/math/sqrt.go
+rename to src/pkg/math/sqrt.go
+diff --git a/src/lib/math/tan.go b/src/pkg/math/tan.go
+similarity index 100%
+rename from src/lib/math/tan.go
+rename to src/pkg/math/tan.go
+diff --git a/src/lib/math/tanh.go b/src/pkg/math/tanh.go
+similarity index 100%
+rename from src/lib/math/tanh.go
+rename to src/pkg/math/tanh.go
+diff --git a/src/lib/net/Makefile b/src/pkg/net/Makefile
+similarity index 100%
+rename from src/lib/net/Makefile
+rename to src/pkg/net/Makefile
+diff --git a/src/lib/net/dialgoogle_test.go b/src/pkg/net/dialgoogle_test.go
+similarity index 100%
+rename from src/lib/net/dialgoogle_test.go
+rename to src/pkg/net/dialgoogle_test.go
+diff --git a/src/lib/net/dnsclient.go b/src/pkg/net/dnsclient.go
+similarity index 100%
+rename from src/lib/net/dnsclient.go
+rename to src/pkg/net/dnsclient.go
+diff --git a/src/lib/net/dnsconfig.go b/src/pkg/net/dnsconfig.go
+similarity index 100%
+rename from src/lib/net/dnsconfig.go
+rename to src/pkg/net/dnsconfig.go
+diff --git a/src/lib/net/dnsmsg.go b/src/pkg/net/dnsmsg.go
+similarity index 100%
+rename from src/lib/net/dnsmsg.go
+rename to src/pkg/net/dnsmsg.go
+diff --git a/src/lib/net/fd.go b/src/pkg/net/fd.go
+similarity index 100%
+rename from src/lib/net/fd.go
+rename to src/pkg/net/fd.go
+diff --git a/src/lib/net/fd_darwin.go b/src/pkg/net/fd_darwin.go
+similarity index 100%
+rename from src/lib/net/fd_darwin.go
+rename to src/pkg/net/fd_darwin.go
+diff --git a/src/lib/net/fd_linux.go b/src/pkg/net/fd_linux.go
+similarity index 100%
+rename from src/lib/net/fd_linux.go
+rename to src/pkg/net/fd_linux.go
+diff --git a/src/lib/net/ip.go b/src/pkg/net/ip.go
+similarity index 100%
+rename from src/lib/net/ip.go
+rename to src/pkg/net/ip.go
+diff --git a/src/lib/net/ip_test.go b/src/pkg/net/ip_test.go
+similarity index 100%
+rename from src/lib/net/ip_test.go
+rename to src/pkg/net/ip_test.go
+diff --git a/src/lib/net/net.go b/src/pkg/net/net.go
+similarity index 100%
+rename from src/lib/net/net.go
+rename to src/pkg/net/net.go
+diff --git a/src/lib/net/parse.go b/src/pkg/net/parse.go
+similarity index 100%
+rename from src/lib/net/parse.go
+rename to src/pkg/net/parse.go
+diff --git a/src/lib/net/parse_test.go b/src/pkg/net/parse_test.go
+similarity index 100%
+rename from src/lib/net/parse_test.go
+rename to src/pkg/net/parse_test.go
+diff --git a/src/lib/net/port.go b/src/pkg/net/port.go
+similarity index 100%
+rename from src/lib/net/port.go
+rename to src/pkg/net/port.go
+diff --git a/src/lib/net/port_test.go b/src/pkg/net/port_test.go
+similarity index 100%
+rename from src/lib/net/port_test.go
+rename to src/pkg/net/port_test.go
+diff --git a/src/lib/net/server_test.go b/src/pkg/net/server_test.go
+similarity index 100%
+rename from src/lib/net/server_test.go
+rename to src/pkg/net/server_test.go
+diff --git a/src/lib/net/timeout_test.go b/src/pkg/net/timeout_test.go
+similarity index 100%
+rename from src/lib/net/timeout_test.go
+rename to src/pkg/net/timeout_test.go
+diff --git a/src/lib/once/Makefile b/src/pkg/once/Makefile
+similarity index 100%
+rename from src/lib/once/Makefile
+rename to src/pkg/once/Makefile
+diff --git a/src/lib/once/once.go b/src/pkg/once/once.go
+similarity index 100%
+rename from src/lib/once/once.go
+rename to src/pkg/once/once.go
+diff --git a/src/lib/once/once_test.go b/src/pkg/once/once_test.go
+similarity index 100%
+rename from src/lib/once/once_test.go
+rename to src/pkg/once/once_test.go
+diff --git a/src/lib/os/Makefile b/src/pkg/os/Makefile
+similarity index 100%
+rename from src/lib/os/Makefile
+rename to src/pkg/os/Makefile
+diff --git a/src/lib/os/dir_darwin_386.go b/src/pkg/os/dir_darwin_386.go
+similarity index 100%
+rename from src/lib/os/dir_darwin_386.go
+rename to src/pkg/os/dir_darwin_386.go
+diff --git a/src/lib/os/dir_darwin_amd64.go b/src/pkg/os/dir_darwin_amd64.go
+similarity index 100%
+rename from src/lib/os/dir_darwin_amd64.go
+rename to src/pkg/os/dir_darwin_amd64.go
+diff --git a/src/lib/os/dir_linux_386.go b/src/pkg/os/dir_linux_386.go
+similarity index 100%
+rename from src/lib/os/dir_linux_386.go
+rename to src/pkg/os/dir_linux_386.go
+diff --git a/src/lib/os/dir_linux_amd64.go b/src/pkg/os/dir_linux_amd64.go
+similarity index 100%
+rename from src/lib/os/dir_linux_amd64.go
+rename to src/pkg/os/dir_linux_amd64.go
+diff --git a/src/lib/os/env.go b/src/pkg/os/env.go
+similarity index 100%
+rename from src/lib/os/env.go
+rename to src/pkg/os/env.go
+diff --git a/src/lib/os/error.go b/src/pkg/os/error.go
+similarity index 100%
+rename from src/lib/os/error.go
+rename to src/pkg/os/error.go
+diff --git a/src/lib/os/exec.go b/src/pkg/os/exec.go
+similarity index 100%
+rename from src/lib/os/exec.go
+rename to src/pkg/os/exec.go
+diff --git a/src/lib/os/file.go b/src/pkg/os/file.go
+similarity index 100%
+rename from src/lib/os/file.go
+rename to src/pkg/os/file.go
+diff --git a/src/lib/os/getwd.go b/src/pkg/os/getwd.go
+similarity index 100%
+rename from src/lib/os/getwd.go
+rename to src/pkg/os/getwd.go
+diff --git a/src/lib/os/os_test.go b/src/pkg/os/os_test.go
+similarity index 100%
+rename from src/lib/os/os_test.go
+rename to src/pkg/os/os_test.go
+diff --git a/src/lib/os/path.go b/src/pkg/os/path.go
+similarity index 100%
+rename from src/lib/os/path.go
+rename to src/pkg/os/path.go
+diff --git a/src/lib/os/path_test.go b/src/pkg/os/path_test.go
+similarity index 100%
+rename from src/lib/os/path_test.go
+rename to src/pkg/os/path_test.go
+diff --git a/src/lib/os/proc.go b/src/pkg/os/proc.go
+similarity index 100%
+rename from src/lib/os/proc.go
+rename to src/pkg/os/proc.go
+diff --git a/src/lib/os/proc_linux.go b/src/pkg/os/proc_linux.go
+similarity index 100%
+rename from src/lib/os/proc_linux.go
+rename to src/pkg/os/proc_linux.go
+diff --git a/src/lib/os/stat_darwin_386.go b/src/pkg/os/stat_darwin_386.go
+similarity index 100%
+rename from src/lib/os/stat_darwin_386.go
+rename to src/pkg/os/stat_darwin_386.go
+diff --git a/src/lib/os/stat_darwin_amd64.go b/src/pkg/os/stat_darwin_amd64.go
+similarity index 100%
+rename from src/lib/os/stat_darwin_amd64.go
+rename to src/pkg/os/stat_darwin_amd64.go
+diff --git a/src/lib/os/stat_linux_386.go b/src/pkg/os/stat_linux_386.go
+similarity index 100%
+rename from src/lib/os/stat_linux_386.go
+rename to src/pkg/os/stat_linux_386.go
+diff --git a/src/lib/os/stat_linux_amd64.go b/src/pkg/os/stat_linux_amd64.go
+similarity index 100%
+rename from src/lib/os/stat_linux_amd64.go
+rename to src/pkg/os/stat_linux_amd64.go
+diff --git a/src/lib/os/time.go b/src/pkg/os/time.go
+similarity index 100%
+rename from src/lib/os/time.go
+rename to src/pkg/os/time.go
+diff --git a/src/lib/os/types.go b/src/pkg/os/types.go
+similarity index 100%
+rename from src/lib/os/types.go
+rename to src/pkg/os/types.go
+diff --git a/src/lib/path/Makefile b/src/pkg/path/Makefile
+similarity index 100%
+rename from src/lib/path/Makefile
+rename to src/pkg/path/Makefile
+diff --git a/src/lib/path/path.go b/src/pkg/path/path.go
+similarity index 100%
+rename from src/lib/path/path.go
+rename to src/pkg/path/path.go
+diff --git a/src/lib/path/path_test.go b/src/pkg/path/path_test.go
+similarity index 100%
+rename from src/lib/path/path_test.go
+rename to src/pkg/path/path_test.go
+diff --git a/src/lib/rand/Makefile b/src/pkg/rand/Makefile
+similarity index 100%
+rename from src/lib/rand/Makefile
+rename to src/pkg/rand/Makefile
+diff --git a/src/lib/rand/rand.go b/src/pkg/rand/rand.go
+similarity index 100%
+rename from src/lib/rand/rand.go
+rename to src/pkg/rand/rand.go
+diff --git a/src/lib/reflect/Makefile b/src/pkg/reflect/Makefile
+similarity index 100%
+rename from src/lib/reflect/Makefile
+rename to src/pkg/reflect/Makefile
+diff --git a/src/lib/reflect/all_test.go b/src/pkg/reflect/all_test.go
+similarity index 100%
+rename from src/lib/reflect/all_test.go
+rename to src/pkg/reflect/all_test.go
+diff --git a/src/lib/reflect/deepequal.go b/src/pkg/reflect/deepequal.go
+similarity index 100%
+rename from src/lib/reflect/deepequal.go
+rename to src/pkg/reflect/deepequal.go
+diff --git a/src/lib/reflect/tostring.go b/src/pkg/reflect/tostring.go
+similarity index 100%
+rename from src/lib/reflect/tostring.go
+rename to src/pkg/reflect/tostring.go
+diff --git a/src/lib/reflect/type.go b/src/pkg/reflect/type.go
+similarity index 100%
+rename from src/lib/reflect/type.go
+rename to src/pkg/reflect/type.go
+diff --git a/src/lib/reflect/typestring.c b/src/pkg/reflect/typestring.c
+similarity index 100%
+rename from src/lib/reflect/typestring.c
+rename to src/pkg/reflect/typestring.c
+diff --git a/src/lib/reflect/value.go b/src/pkg/reflect/value.go
+similarity index 100%
+rename from src/lib/reflect/value.go
+rename to src/pkg/reflect/value.go
+diff --git a/src/lib/regexp/Makefile b/src/pkg/regexp/Makefile
+similarity index 100%
+rename from src/lib/regexp/Makefile
+rename to src/pkg/regexp/Makefile
+diff --git a/src/lib/regexp/all_test.go b/src/pkg/regexp/all_test.go
+similarity index 100%
+rename from src/lib/regexp/all_test.go
+rename to src/pkg/regexp/all_test.go
+diff --git a/src/lib/regexp/regexp.go b/src/pkg/regexp/regexp.go
+similarity index 100%
+rename from src/lib/regexp/regexp.go
+rename to src/pkg/regexp/regexp.go
+diff --git a/src/lib/runtime/386/asm.s b/src/pkg/runtime/386/asm.s
+similarity index 100%
+rename from src/lib/runtime/386/asm.s
+rename to src/pkg/runtime/386/asm.s
+diff --git a/src/lib/runtime/386/closure.c b/src/pkg/runtime/386/closure.c
+similarity index 100%
+rename from src/lib/runtime/386/closure.c
+rename to src/pkg/runtime/386/closure.c
+diff --git a/src/lib/runtime/386/traceback.c b/src/pkg/runtime/386/traceback.c
+similarity index 100%
+rename from src/lib/runtime/386/traceback.c
+rename to src/pkg/runtime/386/traceback.c
+diff --git a/src/lib/runtime/386/vlop.s b/src/pkg/runtime/386/vlop.s
+similarity index 100%
+rename from src/lib/runtime/386/vlop.s
+rename to src/pkg/runtime/386/vlop.s
+diff --git a/src/lib/runtime/386/vlrt.c b/src/pkg/runtime/386/vlrt.c
+similarity index 100%
+rename from src/lib/runtime/386/vlrt.c
+rename to src/pkg/runtime/386/vlrt.c
+diff --git a/src/lib/runtime/Makefile b/src/pkg/runtime/Makefile
+similarity index 100%
+rename from src/lib/runtime/Makefile
+rename to src/pkg/runtime/Makefile
+diff --git a/src/lib/runtime/amd64/asm.s b/src/pkg/runtime/amd64/asm.s
+similarity index 100%
+rename from src/lib/runtime/amd64/asm.s
+rename to src/pkg/runtime/amd64/asm.s
+diff --git a/src/lib/runtime/amd64/closure.c b/src/pkg/runtime/amd64/closure.c
+similarity index 100%
+rename from src/lib/runtime/amd64/closure.c
+rename to src/pkg/runtime/amd64/closure.c
+diff --git a/src/lib/runtime/amd64/traceback.c b/src/pkg/runtime/amd64/traceback.c
+similarity index 100%
+rename from src/lib/runtime/amd64/traceback.c
+rename to src/pkg/runtime/amd64/traceback.c
+diff --git a/src/lib/runtime/arm/asm.s b/src/pkg/runtime/arm/asm.s
+similarity index 100%
+rename from src/lib/runtime/arm/asm.s
+rename to src/pkg/runtime/arm/asm.s
+diff --git a/src/lib/runtime/arm/closure.c b/src/pkg/runtime/arm/closure.c
+similarity index 99%
+rename from src/lib/runtime/arm/closure.c
+rename to src/pkg/runtime/arm/closure.c
+index 024018d5a4..bfa9df67f0 100644
+--- a/src/lib/runtime/arm/closure.c
++++ b/src/pkg/runtime/arm/closure.c
+@@ -1,4 +1,3 @@
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+-
+diff --git a/src/lib/runtime/arm/traceback.s b/src/pkg/runtime/arm/traceback.s
+similarity index 100%
+rename from src/lib/runtime/arm/traceback.s
+rename to src/pkg/runtime/arm/traceback.s
+diff --git a/src/lib/runtime/array.c b/src/pkg/runtime/array.c
+similarity index 100%
+rename from src/lib/runtime/array.c
+rename to src/pkg/runtime/array.c
+diff --git a/src/lib/runtime/cgo2c.c b/src/pkg/runtime/cgo2c.c
+similarity index 100%
+rename from src/lib/runtime/cgo2c.c
+rename to src/pkg/runtime/cgo2c.c
+diff --git a/src/lib/runtime/chan.c b/src/pkg/runtime/chan.c
+similarity index 100%
+rename from src/lib/runtime/chan.c
+rename to src/pkg/runtime/chan.c
+diff --git a/src/lib/runtime/darwin/386/defs.h b/src/pkg/runtime/darwin/386/defs.h
+similarity index 100%
+rename from src/lib/runtime/darwin/386/defs.h
+rename to src/pkg/runtime/darwin/386/defs.h
+diff --git a/src/lib/runtime/darwin/386/rt0.s b/src/pkg/runtime/darwin/386/rt0.s
+similarity index 100%
+rename from src/lib/runtime/darwin/386/rt0.s
+rename to src/pkg/runtime/darwin/386/rt0.s
+diff --git a/src/lib/runtime/darwin/386/signal.c b/src/pkg/runtime/darwin/386/signal.c
+similarity index 100%
+rename from src/lib/runtime/darwin/386/signal.c
+rename to src/pkg/runtime/darwin/386/signal.c
+diff --git a/src/lib/runtime/darwin/386/sys.s b/src/pkg/runtime/darwin/386/sys.s
+similarity index 100%
+rename from src/lib/runtime/darwin/386/sys.s
+rename to src/pkg/runtime/darwin/386/sys.s
+diff --git a/src/lib/runtime/darwin/amd64/defs.h b/src/pkg/runtime/darwin/amd64/defs.h
+similarity index 100%
+rename from src/lib/runtime/darwin/amd64/defs.h
+rename to src/pkg/runtime/darwin/amd64/defs.h
+diff --git a/src/lib/runtime/darwin/amd64/rt0.s b/src/pkg/runtime/darwin/amd64/rt0.s
+similarity index 100%
+rename from src/lib/runtime/darwin/amd64/rt0.s
+rename to src/pkg/runtime/darwin/amd64/rt0.s
+diff --git a/src/lib/runtime/darwin/amd64/signal.c b/src/pkg/runtime/darwin/amd64/signal.c
+similarity index 100%
+rename from src/lib/runtime/darwin/amd64/signal.c
+rename to src/pkg/runtime/darwin/amd64/signal.c
+diff --git a/src/lib/runtime/darwin/amd64/sys.s b/src/pkg/runtime/darwin/amd64/sys.s
+similarity index 100%
+rename from src/lib/runtime/darwin/amd64/sys.s
+rename to src/pkg/runtime/darwin/amd64/sys.s
+diff --git a/src/lib/runtime/darwin/defs.c b/src/pkg/runtime/darwin/defs.c
+similarity index 100%
+rename from src/lib/runtime/darwin/defs.c
+rename to src/pkg/runtime/darwin/defs.c
+diff --git a/src/lib/runtime/darwin/os.h b/src/pkg/runtime/darwin/os.h
+similarity index 100%
+rename from src/lib/runtime/darwin/os.h
+rename to src/pkg/runtime/darwin/os.h
+diff --git a/src/lib/runtime/darwin/signals.h b/src/pkg/runtime/darwin/signals.h
+similarity index 99%
+rename from src/lib/runtime/darwin/signals.h
+rename to src/pkg/runtime/darwin/signals.h
+index 4051dc4dc4..8cca361f75 100644
+--- a/src/lib/runtime/darwin/signals.h
++++ b/src/pkg/runtime/darwin/signals.h
+@@ -2,7 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-
+ #define C SigCatch
+ #define I SigIgnore
+ #define R SigRestart
+diff --git a/src/lib/runtime/darwin/thread.c b/src/pkg/runtime/darwin/thread.c
+similarity index 100%
+rename from src/lib/runtime/darwin/thread.c
+rename to src/pkg/runtime/darwin/thread.c
+diff --git a/src/lib/runtime/extern.go b/src/pkg/runtime/extern.go
+similarity index 100%
+rename from src/lib/runtime/extern.go
+rename to src/pkg/runtime/extern.go
+diff --git a/src/lib/runtime/float.c b/src/pkg/runtime/float.c
+similarity index 100%
+rename from src/lib/runtime/float.c
+rename to src/pkg/runtime/float.c
+diff --git a/src/lib/runtime/float_go.cgo b/src/pkg/runtime/float_go.cgo
+similarity index 100%
+rename from src/lib/runtime/float_go.cgo
+rename to src/pkg/runtime/float_go.cgo
+diff --git a/src/lib/runtime/hashmap.c b/src/pkg/runtime/hashmap.c
+similarity index 100%
+rename from src/lib/runtime/hashmap.c
+rename to src/pkg/runtime/hashmap.c
+diff --git a/src/lib/runtime/hashmap.h b/src/pkg/runtime/hashmap.h
+similarity index 99%
+rename from src/lib/runtime/hashmap.h
+rename to src/pkg/runtime/hashmap.h
+index ff93e9ee30..e8bcfab293 100644
+--- a/src/lib/runtime/hashmap.h
++++ b/src/pkg/runtime/hashmap.h
+@@ -2,7 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-
+ /* A hash table.
+    Example, hashing nul-terminated char*s:
+ 	hash_hash_t str_hash (void *v) {
+diff --git a/src/lib/runtime/iface.c b/src/pkg/runtime/iface.c
+similarity index 100%
+rename from src/lib/runtime/iface.c
+rename to src/pkg/runtime/iface.c
+diff --git a/src/lib/runtime/linux/386/defs.h b/src/pkg/runtime/linux/386/defs.h
+similarity index 100%
+rename from src/lib/runtime/linux/386/defs.h
+rename to src/pkg/runtime/linux/386/defs.h
+diff --git a/src/lib/runtime/linux/386/rt0.s b/src/pkg/runtime/linux/386/rt0.s
+similarity index 100%
+rename from src/lib/runtime/linux/386/rt0.s
+rename to src/pkg/runtime/linux/386/rt0.s
+diff --git a/src/lib/runtime/linux/386/signal.c b/src/pkg/runtime/linux/386/signal.c
+similarity index 100%
+rename from src/lib/runtime/linux/386/signal.c
+rename to src/pkg/runtime/linux/386/signal.c
+diff --git a/src/lib/runtime/linux/386/sys.s b/src/pkg/runtime/linux/386/sys.s
+similarity index 100%
+rename from src/lib/runtime/linux/386/sys.s
+rename to src/pkg/runtime/linux/386/sys.s
+diff --git a/src/lib/runtime/linux/amd64/defs.h b/src/pkg/runtime/linux/amd64/defs.h
+similarity index 100%
+rename from src/lib/runtime/linux/amd64/defs.h
+rename to src/pkg/runtime/linux/amd64/defs.h
+diff --git a/src/lib/runtime/linux/amd64/rt0.s b/src/pkg/runtime/linux/amd64/rt0.s
+similarity index 100%
+rename from src/lib/runtime/linux/amd64/rt0.s
+rename to src/pkg/runtime/linux/amd64/rt0.s
+diff --git a/src/lib/runtime/linux/amd64/signal.c b/src/pkg/runtime/linux/amd64/signal.c
+similarity index 100%
+rename from src/lib/runtime/linux/amd64/signal.c
+rename to src/pkg/runtime/linux/amd64/signal.c
+diff --git a/src/lib/runtime/linux/amd64/sys.s b/src/pkg/runtime/linux/amd64/sys.s
+similarity index 100%
+rename from src/lib/runtime/linux/amd64/sys.s
+rename to src/pkg/runtime/linux/amd64/sys.s
+diff --git a/src/lib/runtime/linux/arm/defs.h b/src/pkg/runtime/linux/arm/defs.h
+similarity index 100%
+rename from src/lib/runtime/linux/arm/defs.h
+rename to src/pkg/runtime/linux/arm/defs.h
+diff --git a/src/lib/runtime/linux/arm/rt0.s b/src/pkg/runtime/linux/arm/rt0.s
+similarity index 100%
+rename from src/lib/runtime/linux/arm/rt0.s
+rename to src/pkg/runtime/linux/arm/rt0.s
+diff --git a/src/lib/runtime/linux/arm/signal.c b/src/pkg/runtime/linux/arm/signal.c
+similarity index 100%
+rename from src/lib/runtime/linux/arm/signal.c
+rename to src/pkg/runtime/linux/arm/signal.c
+diff --git a/src/lib/runtime/linux/arm/sys.s b/src/pkg/runtime/linux/arm/sys.s
+similarity index 100%
+rename from src/lib/runtime/linux/arm/sys.s
+rename to src/pkg/runtime/linux/arm/sys.s
+diff --git a/src/lib/runtime/linux/defs.c b/src/pkg/runtime/linux/defs.c
+similarity index 100%
+rename from src/lib/runtime/linux/defs.c
+rename to src/pkg/runtime/linux/defs.c
+diff --git a/src/lib/runtime/linux/defs1.c b/src/pkg/runtime/linux/defs1.c
+similarity index 100%
+rename from src/lib/runtime/linux/defs1.c
+rename to src/pkg/runtime/linux/defs1.c
+diff --git a/src/lib/runtime/linux/defs2.c b/src/pkg/runtime/linux/defs2.c
+similarity index 100%
+rename from src/lib/runtime/linux/defs2.c
+rename to src/pkg/runtime/linux/defs2.c
+diff --git a/src/lib/runtime/linux/defs_arm.c b/src/pkg/runtime/linux/defs_arm.c
+similarity index 100%
+rename from src/lib/runtime/linux/defs_arm.c
+rename to src/pkg/runtime/linux/defs_arm.c
+diff --git a/src/lib/runtime/linux/os.h b/src/pkg/runtime/linux/os.h
+similarity index 100%
+rename from src/lib/runtime/linux/os.h
+rename to src/pkg/runtime/linux/os.h
+diff --git a/src/lib/runtime/linux/signals.h b/src/pkg/runtime/linux/signals.h
+similarity index 99%
+rename from src/lib/runtime/linux/signals.h
+rename to src/pkg/runtime/linux/signals.h
+index 1fb49c5135..8f1112b991 100644
+--- a/src/lib/runtime/linux/signals.h
++++ b/src/pkg/runtime/linux/signals.h
+@@ -2,7 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-
+ #define C SigCatch
+ #define I SigIgnore
+ #define R SigRestart
+diff --git a/src/lib/runtime/linux/thread.c b/src/pkg/runtime/linux/thread.c
+similarity index 100%
+rename from src/lib/runtime/linux/thread.c
+rename to src/pkg/runtime/linux/thread.c
+diff --git a/src/lib/runtime/malloc.c b/src/pkg/runtime/malloc.c
+similarity index 100%
+rename from src/lib/runtime/malloc.c
+rename to src/pkg/runtime/malloc.c
+diff --git a/src/lib/runtime/malloc.h b/src/pkg/runtime/malloc.h
+similarity index 99%
+rename from src/lib/runtime/malloc.h
+rename to src/pkg/runtime/malloc.h
+index 9b3d6b811c..5b657a4953 100644
+--- a/src/lib/runtime/malloc.h
++++ b/src/pkg/runtime/malloc.h
+@@ -155,7 +155,7 @@ void	FixAlloc_Free(FixAlloc *f, void *p);
+ 
+ 
+ // Statistics.
+-// Shared with Go: if you edit this structure, also edit ../lib/malloc.go.
++// Shared with Go: if you edit this structure, also edit ../malloc/malloc.go.
+ struct MStats
+ {
+ 	uint64	alloc;
+diff --git a/src/lib/runtime/malloc_go.cgo b/src/pkg/runtime/malloc_go.cgo
+similarity index 100%
+rename from src/lib/runtime/malloc_go.cgo
+rename to src/pkg/runtime/malloc_go.cgo
+diff --git a/src/lib/runtime/mcache.c b/src/pkg/runtime/mcache.c
+similarity index 100%
+rename from src/lib/runtime/mcache.c
+rename to src/pkg/runtime/mcache.c
+diff --git a/src/lib/runtime/mcentral.c b/src/pkg/runtime/mcentral.c
+similarity index 100%
+rename from src/lib/runtime/mcentral.c
+rename to src/pkg/runtime/mcentral.c
+diff --git a/src/lib/runtime/mem.c b/src/pkg/runtime/mem.c
+similarity index 100%
+rename from src/lib/runtime/mem.c
+rename to src/pkg/runtime/mem.c
+diff --git a/src/lib/runtime/mfixalloc.c b/src/pkg/runtime/mfixalloc.c
+similarity index 100%
+rename from src/lib/runtime/mfixalloc.c
+rename to src/pkg/runtime/mfixalloc.c
+diff --git a/src/lib/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+similarity index 100%
+rename from src/lib/runtime/mgc0.c
+rename to src/pkg/runtime/mgc0.c
+diff --git a/src/lib/runtime/mheap.c b/src/pkg/runtime/mheap.c
+similarity index 100%
+rename from src/lib/runtime/mheap.c
+rename to src/pkg/runtime/mheap.c
+diff --git a/src/lib/runtime/mheapmap32.c b/src/pkg/runtime/mheapmap32.c
+similarity index 100%
+rename from src/lib/runtime/mheapmap32.c
+rename to src/pkg/runtime/mheapmap32.c
+diff --git a/src/lib/runtime/mheapmap32.h b/src/pkg/runtime/mheapmap32.h
+similarity index 100%
+rename from src/lib/runtime/mheapmap32.h
+rename to src/pkg/runtime/mheapmap32.h
+diff --git a/src/lib/runtime/mheapmap64.c b/src/pkg/runtime/mheapmap64.c
+similarity index 100%
+rename from src/lib/runtime/mheapmap64.c
+rename to src/pkg/runtime/mheapmap64.c
+diff --git a/src/lib/runtime/mheapmap64.h b/src/pkg/runtime/mheapmap64.h
+similarity index 100%
+rename from src/lib/runtime/mheapmap64.h
+rename to src/pkg/runtime/mheapmap64.h
+diff --git a/src/lib/runtime/msize.c b/src/pkg/runtime/msize.c
+similarity index 100%
+rename from src/lib/runtime/msize.c
+rename to src/pkg/runtime/msize.c
+diff --git a/src/lib/runtime/print.c b/src/pkg/runtime/print.c
+similarity index 100%
+rename from src/lib/runtime/print.c
+rename to src/pkg/runtime/print.c
+diff --git a/src/lib/runtime/proc.c b/src/pkg/runtime/proc.c
+similarity index 100%
+rename from src/lib/runtime/proc.c
+rename to src/pkg/runtime/proc.c
+diff --git a/src/lib/runtime/rune.c b/src/pkg/runtime/rune.c
+similarity index 87%
+rename from src/lib/runtime/rune.c
+rename to src/pkg/runtime/rune.c
+index ca4f9ac6aa..652ccdfa66 100644
+--- a/src/lib/runtime/rune.c
++++ b/src/pkg/runtime/rune.c
+@@ -13,20 +13,6 @@
+  * OF THIS SOFTWARE OR ITS FITNESS FOR ANY PARTICULAR PURPOSE.
+  */
+ 
+-/*
+- * The authors of this software are Rob Pike and Ken Thompson.
+- *              Copyright (c) 2002 by Lucent Technologies.
+- * Permission to use, copy, modify, and distribute this software for any
+- * purpose without fee is hereby granted, provided that this entire notice
+- * is included in all copies of any software which is or includes a copy
+- * or modification of this software and in all copies of the supporting
+- * documentation for such software.
+- * THIS SOFTWARE IS BEING PROVIDED "AS IS", WITHOUT ANY EXPRESS OR IMPLIED
+- * WARRANTY.  IN PARTICULAR, NEITHER THE AUTHORS NOR LUCENT TECHNOLOGIES MAKE ANY
+- * REPRESENTATION OR WARRANTY OF ANY KIND CONCERNING THE MERCHANTABILITY
+- * OF THIS SOFTWARE OR ITS FITNESS FOR ANY PARTICULAR PURPOSE.
+- */
+-
+ /*
+  * This code is copied, with slight editing due to type differences,
+  * from a subset of ../lib9/utf/rune.c
+@@ -71,7 +57,7 @@ enum
+  * Modified by Wei-Hwa Huang, Google Inc., on 2004-09-24
+  * This is a slower but "safe" version of the old chartorune
+  * that works on strings that are not necessarily null-terminated.
+- * 
++ *
+  * If you know for sure that your string is null-terminated,
+  * chartorune will be a bit faster.
+  *
+diff --git a/src/lib/runtime/runtime.c b/src/pkg/runtime/runtime.c
+similarity index 100%
+rename from src/lib/runtime/runtime.c
+rename to src/pkg/runtime/runtime.c
+diff --git a/src/lib/runtime/runtime.h b/src/pkg/runtime/runtime.h
+similarity index 100%
+rename from src/lib/runtime/runtime.h
+rename to src/pkg/runtime/runtime.h
+diff --git a/src/lib/runtime/sema.c b/src/pkg/runtime/sema.c
+similarity index 100%
+rename from src/lib/runtime/sema.c
+rename to src/pkg/runtime/sema.c
+diff --git a/src/lib/runtime/sema_go.cgo b/src/pkg/runtime/sema_go.cgo
+similarity index 100%
+rename from src/lib/runtime/sema_go.cgo
+rename to src/pkg/runtime/sema_go.cgo
+diff --git a/src/lib/runtime/string.c b/src/pkg/runtime/string.c
+similarity index 100%
+rename from src/lib/runtime/string.c
+rename to src/pkg/runtime/string.c
+diff --git a/src/lib/runtime/symtab.c b/src/pkg/runtime/symtab.c
+similarity index 100%
+rename from src/lib/runtime/symtab.c
+rename to src/pkg/runtime/symtab.c
+diff --git a/src/lib/sort/Makefile b/src/pkg/sort/Makefile
+similarity index 100%
+rename from src/lib/sort/Makefile
+rename to src/pkg/sort/Makefile
+diff --git a/src/lib/sort/sort.go b/src/pkg/sort/sort.go
+similarity index 100%
+rename from src/lib/sort/sort.go
+rename to src/pkg/sort/sort.go
+diff --git a/src/lib/sort/sort_test.go b/src/pkg/sort/sort_test.go
+similarity index 100%
+rename from src/lib/sort/sort_test.go
+rename to src/pkg/sort/sort_test.go
+diff --git a/src/lib/strconv/Makefile b/src/pkg/strconv/Makefile
+similarity index 100%
+rename from src/lib/strconv/Makefile
+rename to src/pkg/strconv/Makefile
+diff --git a/src/lib/strconv/atof.go b/src/pkg/strconv/atof.go
+similarity index 100%
+rename from src/lib/strconv/atof.go
+rename to src/pkg/strconv/atof.go
+diff --git a/src/lib/strconv/atof_test.go b/src/pkg/strconv/atof_test.go
+similarity index 100%
+rename from src/lib/strconv/atof_test.go
+rename to src/pkg/strconv/atof_test.go
+diff --git a/src/lib/strconv/atoi.go b/src/pkg/strconv/atoi.go
+similarity index 100%
+rename from src/lib/strconv/atoi.go
+rename to src/pkg/strconv/atoi.go
+diff --git a/src/lib/strconv/atoi_test.go b/src/pkg/strconv/atoi_test.go
+similarity index 100%
+rename from src/lib/strconv/atoi_test.go
+rename to src/pkg/strconv/atoi_test.go
+diff --git a/src/lib/strconv/decimal.go b/src/pkg/strconv/decimal.go
+similarity index 100%
+rename from src/lib/strconv/decimal.go
+rename to src/pkg/strconv/decimal.go
+diff --git a/src/lib/strconv/decimal_test.go b/src/pkg/strconv/decimal_test.go
+similarity index 100%
+rename from src/lib/strconv/decimal_test.go
+rename to src/pkg/strconv/decimal_test.go
+diff --git a/src/lib/strconv/fp_test.go b/src/pkg/strconv/fp_test.go
+similarity index 100%
+rename from src/lib/strconv/fp_test.go
+rename to src/pkg/strconv/fp_test.go
+diff --git a/src/lib/strconv/ftoa.go b/src/pkg/strconv/ftoa.go
+similarity index 100%
+rename from src/lib/strconv/ftoa.go
+rename to src/pkg/strconv/ftoa.go
+diff --git a/src/lib/strconv/ftoa_test.go b/src/pkg/strconv/ftoa_test.go
+similarity index 100%
+rename from src/lib/strconv/ftoa_test.go
+rename to src/pkg/strconv/ftoa_test.go
+diff --git a/src/lib/strconv/itoa.go b/src/pkg/strconv/itoa.go
+similarity index 100%
+rename from src/lib/strconv/itoa.go
+rename to src/pkg/strconv/itoa.go
+diff --git a/src/lib/strconv/itoa_test.go b/src/pkg/strconv/itoa_test.go
+similarity index 100%
+rename from src/lib/strconv/itoa_test.go
+rename to src/pkg/strconv/itoa_test.go
+diff --git a/src/lib/strconv/quote.go b/src/pkg/strconv/quote.go
+similarity index 100%
+rename from src/lib/strconv/quote.go
+rename to src/pkg/strconv/quote.go
+diff --git a/src/lib/strconv/quote_test.go b/src/pkg/strconv/quote_test.go
+similarity index 100%
+rename from src/lib/strconv/quote_test.go
+rename to src/pkg/strconv/quote_test.go
+diff --git a/src/lib/strconv/testfp.txt b/src/pkg/strconv/testfp.txt
+similarity index 100%
+rename from src/lib/strconv/testfp.txt
+rename to src/pkg/strconv/testfp.txt
+diff --git a/src/lib/strings/Makefile b/src/pkg/strings/Makefile
+similarity index 100%
+rename from src/lib/strings/Makefile
+rename to src/pkg/strings/Makefile
+diff --git a/src/lib/strings/strings.go b/src/pkg/strings/strings.go
+similarity index 100%
+rename from src/lib/strings/strings.go
+rename to src/pkg/strings/strings.go
+diff --git a/src/lib/strings/strings_test.go b/src/pkg/strings/strings_test.go
+similarity index 100%
+rename from src/lib/strings/strings_test.go
+rename to src/pkg/strings/strings_test.go
+diff --git a/src/lib/sync/Makefile b/src/pkg/sync/Makefile
+similarity index 100%
+rename from src/lib/sync/Makefile
+rename to src/pkg/sync/Makefile
+diff --git a/src/lib/sync/asm_386.s b/src/pkg/sync/asm_386.s
+similarity index 100%
+rename from src/lib/sync/asm_386.s
+rename to src/pkg/sync/asm_386.s
+diff --git a/src/lib/sync/asm_amd64.s b/src/pkg/sync/asm_amd64.s
+similarity index 100%
+rename from src/lib/sync/asm_amd64.s
+rename to src/pkg/sync/asm_amd64.s
+diff --git a/src/lib/sync/mutex.go b/src/pkg/sync/mutex.go
+similarity index 100%
+rename from src/lib/sync/mutex.go
+rename to src/pkg/sync/mutex.go
+diff --git a/src/lib/sync/mutex_test.go b/src/pkg/sync/mutex_test.go
+similarity index 100%
+rename from src/lib/sync/mutex_test.go
+rename to src/pkg/sync/mutex_test.go
+diff --git a/src/lib/syscall/Makefile b/src/pkg/syscall/Makefile
+similarity index 100%
+rename from src/lib/syscall/Makefile
+rename to src/pkg/syscall/Makefile
+diff --git a/src/lib/syscall/PORT b/src/pkg/syscall/PORT
+similarity index 100%
+rename from src/lib/syscall/PORT
+rename to src/pkg/syscall/PORT
+diff --git a/src/lib/syscall/asm_darwin_386.s b/src/pkg/syscall/asm_darwin_386.s
+similarity index 100%
+rename from src/lib/syscall/asm_darwin_386.s
+rename to src/pkg/syscall/asm_darwin_386.s
+diff --git a/src/lib/syscall/asm_darwin_amd64.s b/src/pkg/syscall/asm_darwin_amd64.s
+similarity index 100%
+rename from src/lib/syscall/asm_darwin_amd64.s
+rename to src/pkg/syscall/asm_darwin_amd64.s
+diff --git a/src/lib/syscall/asm_linux_386.s b/src/pkg/syscall/asm_linux_386.s
+similarity index 100%
+rename from src/lib/syscall/asm_linux_386.s
+rename to src/pkg/syscall/asm_linux_386.s
+diff --git a/src/lib/syscall/asm_linux_amd64.s b/src/pkg/syscall/asm_linux_amd64.s
+similarity index 100%
+rename from src/lib/syscall/asm_linux_amd64.s
+rename to src/pkg/syscall/asm_linux_amd64.s
+diff --git a/src/lib/syscall/errstr.go b/src/pkg/syscall/errstr.go
+similarity index 100%
+rename from src/lib/syscall/errstr.go
+rename to src/pkg/syscall/errstr.go
+diff --git a/src/lib/syscall/exec.go b/src/pkg/syscall/exec.go
+similarity index 100%
+rename from src/lib/syscall/exec.go
+rename to src/pkg/syscall/exec.go
+diff --git a/src/lib/syscall/mkerrors b/src/pkg/syscall/mkerrors
+similarity index 100%
+rename from src/lib/syscall/mkerrors
+rename to src/pkg/syscall/mkerrors
+diff --git a/src/lib/syscall/mksyscall b/src/pkg/syscall/mksyscall
+similarity index 100%
+rename from src/lib/syscall/mksyscall
+rename to src/pkg/syscall/mksyscall
+diff --git a/src/lib/syscall/mksysnum_darwin b/src/pkg/syscall/mksysnum_darwin
+similarity index 100%
+rename from src/lib/syscall/mksysnum_darwin
+rename to src/pkg/syscall/mksysnum_darwin
+diff --git a/src/lib/syscall/mksysnum_linux b/src/pkg/syscall/mksysnum_linux
+similarity index 100%
+rename from src/lib/syscall/mksysnum_linux
+rename to src/pkg/syscall/mksysnum_linux
+diff --git a/src/lib/syscall/syscall.go b/src/pkg/syscall/syscall.go
+similarity index 100%
+rename from src/lib/syscall/syscall.go
+rename to src/pkg/syscall/syscall.go
+diff --git a/src/lib/syscall/syscall_darwin.go b/src/pkg/syscall/syscall_darwin.go
+similarity index 100%
+rename from src/lib/syscall/syscall_darwin.go
+rename to src/pkg/syscall/syscall_darwin.go
+diff --git a/src/lib/syscall/syscall_darwin_386.go b/src/pkg/syscall/syscall_darwin_386.go
+similarity index 100%
+rename from src/lib/syscall/syscall_darwin_386.go
+rename to src/pkg/syscall/syscall_darwin_386.go
+diff --git a/src/lib/syscall/syscall_darwin_amd64.go b/src/pkg/syscall/syscall_darwin_amd64.go
+similarity index 100%
+rename from src/lib/syscall/syscall_darwin_amd64.go
+rename to src/pkg/syscall/syscall_darwin_amd64.go
+diff --git a/src/lib/syscall/syscall_linux.go b/src/pkg/syscall/syscall_linux.go
+similarity index 100%
+rename from src/lib/syscall/syscall_linux.go
+rename to src/pkg/syscall/syscall_linux.go
+diff --git a/src/lib/syscall/syscall_linux_386.go b/src/pkg/syscall/syscall_linux_386.go
+similarity index 100%
+rename from src/lib/syscall/syscall_linux_386.go
+rename to src/pkg/syscall/syscall_linux_386.go
+diff --git a/src/lib/syscall/syscall_linux_amd64.go b/src/pkg/syscall/syscall_linux_amd64.go
+similarity index 100%
+rename from src/lib/syscall/syscall_linux_amd64.go
+rename to src/pkg/syscall/syscall_linux_amd64.go
+diff --git a/src/lib/syscall/types_darwin.c b/src/pkg/syscall/types_darwin.c
+similarity index 100%
+rename from src/lib/syscall/types_darwin.c
+rename to src/pkg/syscall/types_darwin.c
+diff --git a/src/pkg/syscall/types_darwin_386.c b/src/pkg/syscall/types_darwin_386.c
+new file mode 100644
+index 0000000000..dd53569443
+--- /dev/null
++++ b/src/pkg/syscall/types_darwin_386.c
+@@ -0,0 +1 @@
++// Nothing to see here.
+diff --git a/src/pkg/syscall/types_darwin_amd64.c b/src/pkg/syscall/types_darwin_amd64.c
+new file mode 100644
+index 0000000000..dd53569443
+--- /dev/null
++++ b/src/pkg/syscall/types_darwin_amd64.c
+@@ -0,0 +1 @@
++// Nothing to see here.
+diff --git a/src/lib/syscall/types_linux.c b/src/pkg/syscall/types_linux.c
+similarity index 100%
+rename from src/lib/syscall/types_linux.c
+rename to src/pkg/syscall/types_linux.c
+diff --git a/src/pkg/syscall/types_linux_386.c b/src/pkg/syscall/types_linux_386.c
+new file mode 100644
+index 0000000000..3b5481af42
+--- /dev/null
++++ b/src/pkg/syscall/types_linux_386.c
+@@ -0,0 +1 @@
++// Nothing to see here
+diff --git a/src/pkg/syscall/types_linux_amd64.c b/src/pkg/syscall/types_linux_amd64.c
+new file mode 100644
+index 0000000000..3b5481af42
+--- /dev/null
++++ b/src/pkg/syscall/types_linux_amd64.c
+@@ -0,0 +1 @@
++// Nothing to see here
+diff --git a/src/lib/syscall/zerrors_darwin_386.go b/src/pkg/syscall/zerrors_darwin_386.go
+similarity index 100%
+rename from src/lib/syscall/zerrors_darwin_386.go
+rename to src/pkg/syscall/zerrors_darwin_386.go
+diff --git a/src/lib/syscall/zerrors_darwin_amd64.go b/src/pkg/syscall/zerrors_darwin_amd64.go
+similarity index 100%
+rename from src/lib/syscall/zerrors_darwin_amd64.go
+rename to src/pkg/syscall/zerrors_darwin_amd64.go
+diff --git a/src/lib/syscall/zerrors_linux_386.go b/src/pkg/syscall/zerrors_linux_386.go
+similarity index 100%
+rename from src/lib/syscall/zerrors_linux_386.go
+rename to src/pkg/syscall/zerrors_linux_386.go
+diff --git a/src/lib/syscall/zerrors_linux_amd64.go b/src/pkg/syscall/zerrors_linux_amd64.go
+similarity index 100%
+rename from src/lib/syscall/zerrors_linux_amd64.go
+rename to src/pkg/syscall/zerrors_linux_amd64.go
+diff --git a/src/lib/syscall/zsyscall_darwin_386.go b/src/pkg/syscall/zsyscall_darwin_386.go
+similarity index 100%
+rename from src/lib/syscall/zsyscall_darwin_386.go
+rename to src/pkg/syscall/zsyscall_darwin_386.go
+diff --git a/src/lib/syscall/zsyscall_darwin_amd64.go b/src/pkg/syscall/zsyscall_darwin_amd64.go
+similarity index 100%
+rename from src/lib/syscall/zsyscall_darwin_amd64.go
+rename to src/pkg/syscall/zsyscall_darwin_amd64.go
+diff --git a/src/lib/syscall/zsyscall_linux_386.go b/src/pkg/syscall/zsyscall_linux_386.go
+similarity index 100%
+rename from src/lib/syscall/zsyscall_linux_386.go
+rename to src/pkg/syscall/zsyscall_linux_386.go
+diff --git a/src/lib/syscall/zsyscall_linux_amd64.go b/src/pkg/syscall/zsyscall_linux_amd64.go
+similarity index 100%
+rename from src/lib/syscall/zsyscall_linux_amd64.go
+rename to src/pkg/syscall/zsyscall_linux_amd64.go
+diff --git a/src/lib/syscall/zsysnum_darwin_386.go b/src/pkg/syscall/zsysnum_darwin_386.go
+similarity index 100%
+rename from src/lib/syscall/zsysnum_darwin_386.go
+rename to src/pkg/syscall/zsysnum_darwin_386.go
+diff --git a/src/lib/syscall/zsysnum_darwin_amd64.go b/src/pkg/syscall/zsysnum_darwin_amd64.go
+similarity index 100%
+rename from src/lib/syscall/zsysnum_darwin_amd64.go
+rename to src/pkg/syscall/zsysnum_darwin_amd64.go
+diff --git a/src/lib/syscall/zsysnum_linux_386.go b/src/pkg/syscall/zsysnum_linux_386.go
+similarity index 100%
+rename from src/lib/syscall/zsysnum_linux_386.go
+rename to src/pkg/syscall/zsysnum_linux_386.go
+diff --git a/src/lib/syscall/zsysnum_linux_amd64.go b/src/pkg/syscall/zsysnum_linux_amd64.go
+similarity index 100%
+rename from src/lib/syscall/zsysnum_linux_amd64.go
+rename to src/pkg/syscall/zsysnum_linux_amd64.go
+diff --git a/src/lib/syscall/ztypes_darwin_386.go b/src/pkg/syscall/ztypes_darwin_386.go
+similarity index 100%
+rename from src/lib/syscall/ztypes_darwin_386.go
+rename to src/pkg/syscall/ztypes_darwin_386.go
+diff --git a/src/lib/syscall/ztypes_darwin_amd64.go b/src/pkg/syscall/ztypes_darwin_amd64.go
+similarity index 100%
+rename from src/lib/syscall/ztypes_darwin_amd64.go
+rename to src/pkg/syscall/ztypes_darwin_amd64.go
+diff --git a/src/lib/syscall/ztypes_linux_386.go b/src/pkg/syscall/ztypes_linux_386.go
+similarity index 100%
+rename from src/lib/syscall/ztypes_linux_386.go
+rename to src/pkg/syscall/ztypes_linux_386.go
+diff --git a/src/lib/syscall/ztypes_linux_amd64.go b/src/pkg/syscall/ztypes_linux_amd64.go
+similarity index 100%
+rename from src/lib/syscall/ztypes_linux_amd64.go
+rename to src/pkg/syscall/ztypes_linux_amd64.go
+diff --git a/src/lib/tabwriter/Makefile b/src/pkg/tabwriter/Makefile
+similarity index 100%
+rename from src/lib/tabwriter/Makefile
+rename to src/pkg/tabwriter/Makefile
+diff --git a/src/lib/tabwriter/tabwriter.go b/src/pkg/tabwriter/tabwriter.go
+similarity index 100%
+rename from src/lib/tabwriter/tabwriter.go
+rename to src/pkg/tabwriter/tabwriter.go
+diff --git a/src/lib/tabwriter/tabwriter_test.go b/src/pkg/tabwriter/tabwriter_test.go
+similarity index 100%
+rename from src/lib/tabwriter/tabwriter_test.go
+rename to src/pkg/tabwriter/tabwriter_test.go
+diff --git a/src/lib/template/Makefile b/src/pkg/template/Makefile
+similarity index 100%
+rename from src/lib/template/Makefile
+rename to src/pkg/template/Makefile
+diff --git a/src/lib/template/format.go b/src/pkg/template/format.go
+similarity index 100%
+rename from src/lib/template/format.go
+rename to src/pkg/template/format.go
+diff --git a/src/lib/template/template.go b/src/pkg/template/template.go
+similarity index 100%
+rename from src/lib/template/template.go
+rename to src/pkg/template/template.go
+diff --git a/src/lib/template/template_test.go b/src/pkg/template/template_test.go
+similarity index 100%
+rename from src/lib/template/template_test.go
+rename to src/pkg/template/template_test.go
+diff --git a/src/lib/testing/Makefile b/src/pkg/testing/Makefile
+similarity index 100%
+rename from src/lib/testing/Makefile
+rename to src/pkg/testing/Makefile
+diff --git a/src/lib/testing/iotest/Makefile b/src/pkg/testing/iotest/Makefile
+similarity index 100%
+rename from src/lib/testing/iotest/Makefile
+rename to src/pkg/testing/iotest/Makefile
+diff --git a/src/lib/testing/iotest/logger.go b/src/pkg/testing/iotest/logger.go
+similarity index 100%
+rename from src/lib/testing/iotest/logger.go
+rename to src/pkg/testing/iotest/logger.go
+diff --git a/src/lib/testing/iotest/reader.go b/src/pkg/testing/iotest/reader.go
+similarity index 100%
+rename from src/lib/testing/iotest/reader.go
+rename to src/pkg/testing/iotest/reader.go
+diff --git a/src/lib/testing/testing.go b/src/pkg/testing/testing.go
+similarity index 100%
+rename from src/lib/testing/testing.go
+rename to src/pkg/testing/testing.go
+diff --git a/src/lib/time/Makefile b/src/pkg/time/Makefile
+similarity index 100%
+rename from src/lib/time/Makefile
+rename to src/pkg/time/Makefile
+diff --git a/src/lib/time/sleep.go b/src/pkg/time/sleep.go
+similarity index 100%
+rename from src/lib/time/sleep.go
+rename to src/pkg/time/sleep.go
+diff --git a/src/lib/time/tick.go b/src/pkg/time/tick.go
+similarity index 100%
+rename from src/lib/time/tick.go
+rename to src/pkg/time/tick.go
+diff --git a/src/lib/time/tick_test.go b/src/pkg/time/tick_test.go
+similarity index 100%
+rename from src/lib/time/tick_test.go
+rename to src/pkg/time/tick_test.go
+diff --git a/src/lib/time/time.go b/src/pkg/time/time.go
+similarity index 100%
+rename from src/lib/time/time.go
+rename to src/pkg/time/time.go
+diff --git a/src/lib/time/time_test.go b/src/pkg/time/time_test.go
+similarity index 100%
+rename from src/lib/time/time_test.go
+rename to src/pkg/time/time_test.go
+diff --git a/src/lib/time/zoneinfo.go b/src/pkg/time/zoneinfo.go
+similarity index 100%
+rename from src/lib/time/zoneinfo.go
+rename to src/pkg/time/zoneinfo.go
+diff --git a/src/lib/unicode/Makefile b/src/pkg/unicode/Makefile
+similarity index 100%
+rename from src/lib/unicode/Makefile
+rename to src/pkg/unicode/Makefile
+diff --git a/src/lib/unicode/decimaldigit.go b/src/pkg/unicode/decimaldigit.go
+similarity index 100%
+rename from src/lib/unicode/decimaldigit.go
+rename to src/pkg/unicode/decimaldigit.go
+diff --git a/src/lib/unicode/decimaldigit_test.go b/src/pkg/unicode/decimaldigit_test.go
+similarity index 100%
+rename from src/lib/unicode/decimaldigit_test.go
+rename to src/pkg/unicode/decimaldigit_test.go
+diff --git a/src/lib/unicode/letter.go b/src/pkg/unicode/letter.go
+similarity index 100%
+rename from src/lib/unicode/letter.go
+rename to src/pkg/unicode/letter.go
+diff --git a/src/lib/unicode/letter_test.go b/src/pkg/unicode/letter_test.go
+similarity index 100%
+rename from src/lib/unicode/letter_test.go
+rename to src/pkg/unicode/letter_test.go
+diff --git a/src/lib/unsafe/unsafe.go b/src/pkg/unsafe/unsafe.go
+similarity index 100%
+rename from src/lib/unsafe/unsafe.go
+rename to src/pkg/unsafe/unsafe.go
+diff --git a/src/lib/utf8/Makefile b/src/pkg/utf8/Makefile
+similarity index 100%
+rename from src/lib/utf8/Makefile
+rename to src/pkg/utf8/Makefile
+diff --git a/src/lib/utf8/utf8.go b/src/pkg/utf8/utf8.go
+similarity index 100%
+rename from src/lib/utf8/utf8.go
+rename to src/pkg/utf8/utf8.go
+diff --git a/src/lib/utf8/utf8_test.go b/src/pkg/utf8/utf8_test.go
+similarity index 100%
+rename from src/lib/utf8/utf8_test.go
+rename to src/pkg/utf8/utf8_test.go
+diff --git a/src/lib/xml/xml.go b/src/pkg/xml/xml.go
+similarity index 100%
+rename from src/lib/xml/xml.go
+rename to src/pkg/xml/xml.go
+diff --git a/src/run.bash b/src/run.bash
+index 85bd286555..1de6aafc27 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -24,13 +24,13 @@ maketest() {
+ }
+ 
+ maketest \
+-	lib \
++	pkg \
+ 
+ # all of these are subtly different
+ # from what maketest does.
+ 
+ 
+-(xcd lib/sync;
++(xcd pkg/sync;
+ make clean;
+ time make
+ GOMAXPROCS=10 make test
+diff --git a/usr/gri/pretty/astprinter.go b/usr/gri/pretty/astprinter.go
+index 9c1fe74394..867a84034b 100644
+--- a/usr/gri/pretty/astprinter.go
++++ b/usr/gri/pretty/astprinter.go
+@@ -475,7 +475,7 @@ func (P *Printer) HtmlPackageName(pos token.Position, name string) {
+ 	if P.html {
+ 		sname := name[1 : len(name)-1];  // strip quotes  TODO do this elsewhere eventually
+ 		// TODO CAPITAL HACK BELOW FIX THIS
+-		P.TaggedString(pos, `"<a href="/src/lib/` + sname + `.go">`, sname, `</a>"`);
++		P.TaggedString(pos, `"<a href="/src/pkg/` + sname + `.go">`, sname, `</a>"`);
+ 	} else {
+ 		P.String(pos, name);
+ 	}
+diff --git a/usr/gri/pretty/godoc.go b/usr/gri/pretty/godoc.go
+index 97e18952f1..f2d66079a4 100644
+--- a/usr/gri/pretty/godoc.go
++++ b/usr/gri/pretty/godoc.go
+@@ -80,7 +80,7 @@ var (
+ 
+ 	// file system roots
+ 	goroot string;
+-	pkgroot = flag.String("pkgroot", "src/lib", "root package source directory (if unrooted, relative to goroot)");
++	pkgroot = flag.String("pkgroot", "src/pkg", "root package source directory (if unrooted, relative to goroot)");
+ 	tmplroot = flag.String("tmplroot", "usr/gri/pretty", "root template directory (if unrooted, relative to goroot)");
+ 
+ 	// periodic sync

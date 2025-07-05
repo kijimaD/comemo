@@ -13,6 +13,17 @@ Date:   Mon Jul 29 16:52:03 2013 -0400
     TBR=dvyukov
     CC=golang-dev
     https://golang.org/cl/12058046
-
+---
  src/run.bash | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/run.bash b/src/run.bash
+index 4d8d04bfb3..b4f44ffbf1 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -185,3 +185,5 @@ go tool api -c $GOROOT/api/go1.txt,$GOROOT/api/go1.1.txt -next $GOROOT/api/next.
+ 
+ echo
+ echo ALL TESTS PASSED
++
++exit 1

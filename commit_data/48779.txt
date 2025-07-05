@@ -57,3 +57,108 @@ Date:   Wed Jun 16 14:52:05 2021 +0700
  test/fixedbugs/issue46749.go                       | 37 +++++++++++++++++++
  test/run.go                                        |  1 +
  25 files changed, 281 insertions(+), 94 deletions(-)
+
+diff --cc test/run.go
+index 656519e301,d7f5d02391..1273b8edd6
+--- a/test/run.go
++++ b/test/run.go
+@@@ -2088,98 -2002,5 +2088,99 @@@ var excludedFiles = map[string]bool
+  	"fixedbugs/issue7525c.go":  true, // types2 reports init cycle error on different line - ok otherwise
+  	"fixedbugs/issue7525d.go":  true, // types2 reports init cycle error on different line - ok otherwise
+  	"fixedbugs/issue7525e.go":  true, // types2 reports init cycle error on different line - ok otherwise
+ +	"fixedbugs/issue7525.go":   true, // types2 reports init cycle error on different line - ok otherwise
++ 	"fixedbugs/issue46749.go":  true, // types2 reports can not convert error instead of type mismatched
+ +	"fixedbugs/issue9691.go":   true, // "cannot assign to int(.autotmp_4)" (probably irgen's fault)
+ +
+ +	// tests that rely on -m diagnostics, which currently differ with -G=3
+ +	//
+ +	// TODO(mdempsky): Triage, though most of the issues seem to fall into:
+ +	// - Anonymous result parameters given different names (e.g., ~r0 vs ~r1)
+ +	// - Some escape analysis diagnostics being printed without position information
+ +	// - Some expressions printed differently (e.g., "int(100)" instead
+ +	//   of "100" or "&composite literal" instead of "&[4]int{...}").
+ +	"closure3.go":             true,
+ +	"escape2.go":              true,
+ +	"escape2n.go":             true,
+ +	"escape4.go":              true,
+ +	"escape_calls.go":         true,
+ +	"escape_field.go":         true,
+ +	"escape_iface.go":         true,
+ +	"escape_indir.go":         true,
+ +	"escape_level.go":         true,
+ +	"escape_map.go":           true,
+ +	"escape_param.go":         true,
+ +	"escape_slice.go":         true,
+ +	"escape_struct_param1.go": true,
+ +	"escape_struct_param2.go": true,
+ +	"fixedbugs/issue12006.go": true,
+ +	"fixedbugs/issue13799.go": true,
+ +	"fixedbugs/issue21709.go": true,
+ +	"fixedbugs/issue31573.go": true,
+ +	"fixedbugs/issue37837.go": true,
+ +	"fixedbugs/issue39292.go": true,
+ +	"fixedbugs/issue7921.go":  true,
+ +	"inline.go":               true,
+ +}
+ +
+ +// splitQuoted splits the string s around each instance of one or more consecutive
+ +// white space characters while taking into account quotes and escaping, and
+ +// returns an array of substrings of s or an empty list if s contains only white space.
+ +// Single quotes and double quotes are recognized to prevent splitting within the
+ +// quoted region, and are removed from the resulting substrings. If a quote in s
+ +// isn't closed err will be set and r will have the unclosed argument as the
+ +// last element. The backslash is used for escaping.
+ +//
+ +// For example, the following string:
+ +//
+ +//     a b:"c d" 'e''f'  "g\""
+ +//
+ +// Would be parsed as:
+ +//
+ +//     []string{"a", "b:c d", "ef", `g"`}
+ +//
+ +// [copied from src/go/build/build.go]
+ +func splitQuoted(s string) (r []string, err error) {
+ +	var args []string
+ +	arg := make([]rune, len(s))
+ +	escaped := false
+ +	quoted := false
+ +	quote := '\x00'
+ +	i := 0
+ +	for _, rune := range s {
+ +		switch {
+ +		case escaped:
+ +			escaped = false
+ +		case rune == '\\':
+ +			escaped = true
+ +			continue
+ +		case quote != '\x00':
+ +			if rune == quote {
+ +				quote = '\x00'
+ +				continue
+ +			}
+ +		case rune == '"' || rune == '\'':
+ +			quoted = true
+ +			quote = rune
+ +			continue
+ +		case unicode.IsSpace(rune):
+ +			if quoted || i > 0 {
+ +				quoted = false
+ +				args = append(args, string(arg[:i]))
+ +				i = 0
+ +			}
+ +			continue
+ +		}
+ +		arg[i] = rune
+ +		i++
+ +	}
+ +	if quoted || i > 0 {
+ +		args = append(args, string(arg[:i]))
+ +	}
+ +	if quote != 0 {
+ +		err = errors.New("unclosed quote")
+ +	} else if escaped {
+ +		err = errors.New("unfinished escaping")
+ +	}
+ +	return args, err
+  }

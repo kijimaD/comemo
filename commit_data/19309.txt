@@ -22,10 +22,272 @@ Date:   Fri May 9 16:32:38 2014 -0400
     R=golang-codereviews, iant
     CC=golang-codereviews
     https://golang.org/cl/99130043
-
+---
  src/cmd/go/build.go |  6 ++++--
  src/cmd/go/clean.go | 29 ++++++++++++++++-------------
  src/cmd/go/doc.go   | 16 ++++++++--------
  src/cmd/go/get.go   |  5 +----
  src/cmd/go/list.go  | 16 +++-------------
  5 files changed, 32 insertions(+), 40 deletions(-)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 530f5a3796..9cbe089956 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -52,7 +52,8 @@ name is the base name of the containing directory.
+ 
+ The -i flag installs the packages that are dependencies of the target.
+ 
+-The build flags are shared by the build, install, run, and test commands:
++The build flags are shared by the build, clean, get, install, list, run,
++and test commands:
+ 
+ 	-a
+ 		force rebuilding of packages that are already up-to-date.
+@@ -164,7 +165,8 @@ func init() {
+ 	}
+ }
+ 
+-// addBuildFlags adds the flags common to the build and install commands.
++// addBuildFlags adds the flags common to the build, clean, get,
++// install, list, run, and test commands.
+ func addBuildFlags(cmd *Command) {
+ 	// NOTE: If you add flags here, also add them to testflag.go.
+ 	cmd.Flag.BoolVar(&buildA, "a", false, "")
+diff --git a/src/cmd/go/clean.go b/src/cmd/go/clean.go
+index 30a17b87a0..3028193bc7 100644
+--- a/src/cmd/go/clean.go
++++ b/src/cmd/go/clean.go
+@@ -13,7 +13,7 @@ import (
+ )
+ 
+ var cmdClean = &Command{
+-	UsageLine: "clean [-i] [-r] [-n] [-x] [packages]",
++	UsageLine: "clean [-i] [-r] [-n] [-x] [build flags] [packages]",
+ 	Short:     "remove object files",
+ 	Long: `
+ Clean removes object files from package source directories.
+@@ -52,23 +52,26 @@ dependencies of the packages named by the import paths.
+ 
+ The -x flag causes clean to print remove commands as it executes them.
+ 
++For more about build flags, see 'go help build'.
++
+ For more about specifying packages, see 'go help packages'.
+ 	`,
+ }
+ 
+ var cleanI bool // clean -i flag
+-var cleanN bool // clean -n flag
+ var cleanR bool // clean -r flag
+-var cleanX bool // clean -x flag
+ 
+ func init() {
+ 	// break init cycle
+ 	cmdClean.Run = runClean
+ 
+ 	cmdClean.Flag.BoolVar(&cleanI, "i", false, "")
+-	cmdClean.Flag.BoolVar(&cleanN, "n", false, "")
+ 	cmdClean.Flag.BoolVar(&cleanR, "r", false, "")
+-	cmdClean.Flag.BoolVar(&cleanX, "x", false, "")
++	// -n and -x are important enough to be
++	// mentioned explicitly in the docs but they
++	// are part of the build flags.
++
++	addBuildFlags(cmdClean)
+ }
+ 
+ func runClean(cmd *Command, args []string) {
+@@ -169,7 +172,7 @@ func clean(p *Package) {
+ 		}
+ 	}
+ 
+-	if cleanN || cleanX {
++	if buildN || buildX {
+ 		b.showcmd(p.Dir, "rm -f %s", strings.Join(allRemove, " "))
+ 	}
+ 
+@@ -182,9 +185,9 @@ func clean(p *Package) {
+ 		if dir.IsDir() {
+ 			// TODO: Remove once Makefiles are forgotten.
+ 			if cleanDir[name] {
+-				if cleanN || cleanX {
++				if buildN || buildX {
+ 					b.showcmd(p.Dir, "rm -r %s", name)
+-					if cleanN {
++					if buildN {
+ 						continue
+ 					}
+ 				}
+@@ -195,7 +198,7 @@ func clean(p *Package) {
+ 			continue
+ 		}
+ 
+-		if cleanN {
++		if buildN {
+ 			continue
+ 		}
+ 
+@@ -205,10 +208,10 @@ func clean(p *Package) {
+ 	}
+ 
+ 	if cleanI && p.target != "" {
+-		if cleanN || cleanX {
++		if buildN || buildX {
+ 			b.showcmd("", "rm -f %s", p.target)
+ 		}
+-		if !cleanN {
++		if !buildN {
+ 			removeFile(p.target)
+ 		}
+ 	}
+@@ -218,10 +221,10 @@ func clean(p *Package) {
+ 			dir := p.swigDir(&buildContext)
+ 			soname := p.swigSoname(f)
+ 			target := filepath.Join(dir, soname)
+-			if cleanN || cleanX {
++			if buildN || buildX {
+ 				b.showcmd("", "rm -f %s", target)
+ 			}
+-			if !cleanN {
++			if !buildN {
+ 				removeFile(target)
+ 			}
+ 		}
+diff --git a/src/cmd/go/doc.go b/src/cmd/go/doc.go
+index 65b68d93bc..7fe0008a07 100644
+--- a/src/cmd/go/doc.go
++++ b/src/cmd/go/doc.go
+@@ -46,7 +46,7 @@ Compile packages and dependencies
+ 
+ Usage:
+ 
+-	go build [-o output] [build flags] [packages]
++	go build [-o output] [-i] [build flags] [packages]
+ 
+ Build compiles the packages named by the import paths,
+ along with their dependencies, but it does not install the results.
+@@ -67,6 +67,8 @@ derives from the first file name mentioned, such as f1 for 'go build
+ f1.go f2.go'; with no files provided ('go build'), the output file
+ name is the base name of the containing directory.
+ 
++The -i flag installs the packages that are dependencies of the target.
++
+ The build flags are shared by the build, install, run, and test commands:
+ 
+ 	-a
+@@ -122,7 +124,7 @@ Remove object files
+ 
+ Usage:
+ 
+-	go clean [-i] [-r] [-n] [-x] [packages]
++	go clean [-i] [-r] [-n] [-x] [build flags] [packages]
+ 
+ Clean removes object files from package source directories.
+ The go command builds most objects in a temporary directory,
+@@ -160,6 +162,8 @@ dependencies of the packages named by the import paths.
+ 
+ The -x flag causes clean to print remove commands as it executes them.
+ 
++For more about build flags, see 'go help build'.
++
+ For more about specifying packages, see 'go help packages'.
+ 
+ 
+@@ -271,7 +275,7 @@ List packages
+ 
+ Usage:
+ 
+-	go list [-e] [-race] [-f format] [-json] [-tags 'tag list'] [packages]
++	go list [-e] [-f format] [-json] [build flags] [packages]
+ 
+ List lists the packages named by the import paths, one per line.
+ 
+@@ -364,11 +368,7 @@ printing.  Erroneous packages will have a non-empty ImportPath and
+ a non-nil Error field; other information may or may not be missing
+ (zeroed).
+ 
+-The -tags flag specifies a list of build tags, like in the 'go build'
+-command.
+-
+-The -race flag causes the package data to include the dependencies
+-required by the race detector.
++For more about build flags, see 'go help build'.
+ 
+ For more about specifying packages, see 'go help packages'.
+ 
+diff --git a/src/cmd/go/get.go b/src/cmd/go/get.go
+index c4217fe24c..94f8083477 100644
+--- a/src/cmd/go/get.go
++++ b/src/cmd/go/get.go
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// TODO: Dashboard upload
+-
+ package main
+ 
+ import (
+@@ -37,8 +35,7 @@ The -u flag instructs get to use the network to update the named packages
+ and their dependencies.  By default, get uses the network to check out
+ missing packages but does not use it to look for updates to existing packages.
+ 
+-Get also accepts all the flags in the 'go build' and 'go install' commands,
+-to control the installation. See 'go help build'.
++Get also accepts build flags to control the installation. See 'go help build'.
+ 
+ When checking out or updating a package, get looks for a branch or tag
+ that matches the locally installed version of Go. The most important
+diff --git a/src/cmd/go/list.go b/src/cmd/go/list.go
+index e2b0ba0dc1..63cd4f4f6f 100644
+--- a/src/cmd/go/list.go
++++ b/src/cmd/go/list.go
+@@ -14,7 +14,7 @@ import (
+ )
+ 
+ var cmdList = &Command{
+-	UsageLine: "list [-e] [-race] [-f format] [-json] [-tags 'tag list'] [packages]",
++	UsageLine: "list [-e] [-f format] [-json] [build flags] [packages]",
+ 	Short:     "list packages",
+ 	Long: `
+ List lists the packages named by the import paths, one per line.
+@@ -108,11 +108,7 @@ printing.  Erroneous packages will have a non-empty ImportPath and
+ a non-nil Error field; other information may or may not be missing
+ (zeroed).
+ 
+-The -tags flag specifies a list of build tags, like in the 'go build'
+-command.
+-
+-The -race flag causes the package data to include the dependencies
+-required by the race detector.
++For more about build flags, see 'go help build'.
+ 
+ For more about specifying packages, see 'go help packages'.
+ 	`,
+@@ -120,24 +116,18 @@ For more about specifying packages, see 'go help packages'.
+ 
+ func init() {
+ 	cmdList.Run = runList // break init cycle
+-	cmdList.Flag.Var(buildCompiler{}, "compiler", "")
+-	cmdList.Flag.Var((*stringsFlag)(&buildContext.BuildTags), "tags", "")
++	addBuildFlags(cmdList)
+ }
+ 
+ var listE = cmdList.Flag.Bool("e", false, "")
+ var listFmt = cmdList.Flag.String("f", "{{.ImportPath}}", "")
+ var listJson = cmdList.Flag.Bool("json", false, "")
+-var listRace = cmdList.Flag.Bool("race", false, "")
+ var nl = []byte{'\n'}
+ 
+ func runList(cmd *Command, args []string) {
+ 	out := newTrackingWriter(os.Stdout)
+ 	defer out.w.Flush()
+ 
+-	if *listRace {
+-		buildRace = true
+-	}
+-
+ 	var do func(*Package)
+ 	if *listJson {
+ 		do = func(p *Package) {

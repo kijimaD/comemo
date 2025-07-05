@@ -20,8 +20,241 @@ Date:   Mon Sep 17 14:46:07 2018 -0700
     Change-Id: I99f16a93b45f7406ec8053c2dc759a13eba035fa
     Reviewed-on: https://go-review.googlesource.com/135701
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/ssa/gen/generic.rules |   3 -
  src/cmd/compile/internal/ssa/rewritegeneric.go | 108 -------------------------
  test/fixedbugs/issue27718.go                   |  72 +++++++++++++++++
  3 files changed, 72 insertions(+), 111 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index e9677b15c7..2df29192a4 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -1329,9 +1329,6 @@
+ (Mul8  (Const8  <t> [c]) (Mul8  (Const8  <t> [d]) x)) -> (Mul8  (Const8  <t> [int64(int8(c*d))]) x)
+ 
+ // floating point optimizations
+-(Add(32|64)F x (Const(32|64)F [0])) -> x
+-(Sub(32|64)F x (Const(32|64)F [0])) -> x
+-
+ (Mul(32|64)F x (Const(32|64)F [auxFrom64F(1)])) -> x
+ (Mul32F x (Const32F [auxFrom32F(-1)])) -> (Neg32F x)
+ (Mul64F x (Const64F [auxFrom64F(-1)])) -> (Neg64F x)
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index 612d57529e..422be65f9a 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -2445,42 +2445,6 @@ func rewriteValuegeneric_OpAdd32F_0(v *Value) bool {
+ 		v.AuxInt = auxFrom32F(auxTo32F(c) + auxTo32F(d))
+ 		return true
+ 	}
+-	// match: (Add32F x (Const32F [0]))
+-	// cond:
+-	// result: x
+-	for {
+-		_ = v.Args[1]
+-		x := v.Args[0]
+-		v_1 := v.Args[1]
+-		if v_1.Op != OpConst32F {
+-			break
+-		}
+-		if v_1.AuxInt != 0 {
+-			break
+-		}
+-		v.reset(OpCopy)
+-		v.Type = x.Type
+-		v.AddArg(x)
+-		return true
+-	}
+-	// match: (Add32F (Const32F [0]) x)
+-	// cond:
+-	// result: x
+-	for {
+-		_ = v.Args[1]
+-		v_0 := v.Args[0]
+-		if v_0.Op != OpConst32F {
+-			break
+-		}
+-		if v_0.AuxInt != 0 {
+-			break
+-		}
+-		x := v.Args[1]
+-		v.reset(OpCopy)
+-		v.Type = x.Type
+-		v.AddArg(x)
+-		return true
+-	}
+ 	return false
+ }
+ func rewriteValuegeneric_OpAdd64_0(v *Value) bool {
+@@ -3490,42 +3454,6 @@ func rewriteValuegeneric_OpAdd64F_0(v *Value) bool {
+ 		v.AuxInt = auxFrom64F(auxTo64F(c) + auxTo64F(d))
+ 		return true
+ 	}
+-	// match: (Add64F x (Const64F [0]))
+-	// cond:
+-	// result: x
+-	for {
+-		_ = v.Args[1]
+-		x := v.Args[0]
+-		v_1 := v.Args[1]
+-		if v_1.Op != OpConst64F {
+-			break
+-		}
+-		if v_1.AuxInt != 0 {
+-			break
+-		}
+-		v.reset(OpCopy)
+-		v.Type = x.Type
+-		v.AddArg(x)
+-		return true
+-	}
+-	// match: (Add64F (Const64F [0]) x)
+-	// cond:
+-	// result: x
+-	for {
+-		_ = v.Args[1]
+-		v_0 := v.Args[0]
+-		if v_0.Op != OpConst64F {
+-			break
+-		}
+-		if v_0.AuxInt != 0 {
+-			break
+-		}
+-		x := v.Args[1]
+-		v.reset(OpCopy)
+-		v.Type = x.Type
+-		v.AddArg(x)
+-		return true
+-	}
+ 	return false
+ }
+ func rewriteValuegeneric_OpAdd8_0(v *Value) bool {
+@@ -29841,24 +29769,6 @@ func rewriteValuegeneric_OpSub32F_0(v *Value) bool {
+ 		v.AuxInt = auxFrom32F(auxTo32F(c) - auxTo32F(d))
+ 		return true
+ 	}
+-	// match: (Sub32F x (Const32F [0]))
+-	// cond:
+-	// result: x
+-	for {
+-		_ = v.Args[1]
+-		x := v.Args[0]
+-		v_1 := v.Args[1]
+-		if v_1.Op != OpConst32F {
+-			break
+-		}
+-		if v_1.AuxInt != 0 {
+-			break
+-		}
+-		v.reset(OpCopy)
+-		v.Type = x.Type
+-		v.AddArg(x)
+-		return true
+-	}
+ 	return false
+ }
+ func rewriteValuegeneric_OpSub64_0(v *Value) bool {
+@@ -30265,24 +30175,6 @@ func rewriteValuegeneric_OpSub64F_0(v *Value) bool {
+ 		v.AuxInt = auxFrom64F(auxTo64F(c) - auxTo64F(d))
+ 		return true
+ 	}
+-	// match: (Sub64F x (Const64F [0]))
+-	// cond:
+-	// result: x
+-	for {
+-		_ = v.Args[1]
+-		x := v.Args[0]
+-		v_1 := v.Args[1]
+-		if v_1.Op != OpConst64F {
+-			break
+-		}
+-		if v_1.AuxInt != 0 {
+-			break
+-		}
+-		v.reset(OpCopy)
+-		v.Type = x.Type
+-		v.AddArg(x)
+-		return true
+-	}
+ 	return false
+ }
+ func rewriteValuegeneric_OpSub8_0(v *Value) bool {
+diff --git a/test/fixedbugs/issue27718.go b/test/fixedbugs/issue27718.go
+new file mode 100644
+index 0000000000..f7794182f5
+--- /dev/null
++++ b/test/fixedbugs/issue27718.go
+@@ -0,0 +1,72 @@
++// run
++
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// (-0)+0 should be 0, not -0.
++
++package main
++
++//go:noinline
++func add64(x float64) float64 {
++	return x + 0
++}
++
++func testAdd64() {
++	var zero float64
++	inf := 1.0 / zero
++	negZero := -1 / inf
++	if 1/add64(negZero) != inf {
++		panic("negZero+0 != posZero (64 bit)")
++	}
++}
++
++//go:noinline
++func sub64(x float64) float64 {
++	return x - 0
++}
++
++func testSub64() {
++	var zero float64
++	inf := 1.0 / zero
++	negZero := -1 / inf
++	if 1/sub64(negZero) != -inf {
++		panic("negZero-0 != negZero (64 bit)")
++	}
++}
++
++//go:noinline
++func add32(x float32) float32 {
++	return x + 0
++}
++
++func testAdd32() {
++	var zero float32
++	inf := 1.0 / zero
++	negZero := -1 / inf
++	if 1/add32(negZero) != inf {
++		panic("negZero+0 != posZero (32 bit)")
++	}
++}
++
++//go:noinline
++func sub32(x float32) float32 {
++	return x - 0
++}
++
++func testSub32() {
++	var zero float32
++	inf := 1.0 / zero
++	negZero := -1 / inf
++	if 1/sub32(negZero) != -inf {
++		panic("negZero-0 != negZero (32 bit)")
++	}
++}
++
++func main() {
++	testAdd64()
++	testSub64()
++	testAdd32()
++	testSub32()
++}

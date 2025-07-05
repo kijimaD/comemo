@@ -8,7 +8,53 @@ Date:   Fri Aug 7 13:30:20 2009 -0700
     DELTA=7  (3 added, 3 deleted, 1 changed)
     OCL=32885
     CL=32889
-
+---
  test/bench/threadring.go | 11 ++++-------
  test/bench/timing.log    |  3 +++
  2 files changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/test/bench/threadring.go b/test/bench/threadring.go
+index 55d9ad29da..ccd6e0c166 100644
+--- a/test/bench/threadring.go
++++ b/test/bench/threadring.go
+@@ -39,7 +39,6 @@ import (
+ 	"flag";
+ 	"fmt";
+ 	"os";
+-	"time";
+ )
+ 
+ var n = flag.Int("n", 1000, "how many passes")
+@@ -58,17 +57,15 @@ func f(i int, in <-chan int, out chan<- int) {
+ }
+ 
+ func main() {
+-	flag.Parse(); 
++	flag.Parse();
+ 
+ 	one := make(chan int);	// will be input to thread 1
+ 	var in, out chan int = nil, one;
+-	for i := 1; i <= Nthread-1; i++ { 
++	for i := 1; i <= Nthread-1; i++ {
+ 		in, out = out, make(chan int);
+-		go f(i, in, out); 
++		go f(i, in, out);
+ 	}
+ 	go f(Nthread, out, one);
+ 	one <- *n;
+-	for {
+-		time.Sleep(100*1e9);	// wait for ring to run
+-	}
++	<-make(chan int);	// hang until ring completes
+ }
+diff --git a/test/bench/timing.log b/test/bench/timing.log
+index 973c71c0b8..770b4642da 100644
+--- a/test/bench/timing.log
++++ b/test/bench/timing.log
+@@ -120,3 +120,6 @@ threadring 50000000
+ 	gccgo -O2 threadring.go	90.33u 459.95s 448.03r
+ 	gc threadring	33.11u 0.00s 33.14r
+ 	GOMAXPROCS=4 gc threadring	114.48u 226.65s 371.59r
++	# change wait code to do <-make(chan int) instead of time.Sleep
++	gc threadring	28.41u 0.01s 29.35r
++	GOMAXPROCS=4 gc threadring	112.59u 232.83s 384.72r

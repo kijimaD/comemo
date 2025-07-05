@@ -7,6 +7,20 @@ Date:   Wed Sep 23 09:59:39 2015 -0400
     Change-Id: I5ee2953f7d387ef5bc70f6958763f775f0ae72dc
     Reviewed-on: https://go-review.googlesource.com/14880
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/ssa/TODO | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/TODO b/src/cmd/compile/internal/ssa/TODO
+index 3644bf3abd..9d6014e312 100644
+--- a/src/cmd/compile/internal/ssa/TODO
++++ b/src/cmd/compile/internal/ssa/TODO
+@@ -3,8 +3,6 @@ be complete soon.
+ 
+ Coverage
+ --------
+-- Closure args
+-- PHEAP vars
+ 
+ Correctness
+ -----------

@@ -17,7 +17,57 @@ Date:   Sat Jun 30 10:14:49 2018 +0100
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Heschi Kreinick <heschi@google.com>
-
+---
  src/cmd/compile/internal/ssa/deadstore.go |  3 ++-
  test/fixedbugs/issue26153.go              | 29 +++++++++++++++++++++++++++++
  2 files changed, 31 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/deadstore.go b/src/cmd/compile/internal/ssa/deadstore.go
+index 4b2f57dcd9..e92521a79c 100644
+--- a/src/cmd/compile/internal/ssa/deadstore.go
++++ b/src/cmd/compile/internal/ssa/deadstore.go
+@@ -203,7 +203,8 @@ func elimDeadAutosGeneric(f *Func) {
+ 
+ 		// If the address of the auto reaches a memory or control
+ 		// operation not covered above then we probably need to keep it.
+-		if v.Type.IsMemory() || v.Type.IsFlags() || (v.Op != OpPhi && v.MemoryArg() != nil) {
++		// We also need to keep autos if they reach Phis (issue #26153).
++		if v.Type.IsMemory() || v.Type.IsFlags() || v.Op == OpPhi || v.MemoryArg() != nil {
+ 			for _, a := range args {
+ 				if n, ok := addr[a]; ok {
+ 					if !used[n] {
+diff --git a/test/fixedbugs/issue26153.go b/test/fixedbugs/issue26153.go
+new file mode 100644
+index 0000000000..53f53cf8a6
+--- /dev/null
++++ b/test/fixedbugs/issue26153.go
+@@ -0,0 +1,29 @@
++// run
++
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 26153. The write to ps was incorrectly
++// removed by the dead auto elimination pass.
++
++package main
++
++const hello = "hello world"
++
++func main() {
++	var s string
++	mangle(&s)
++	if s != hello {
++		panic("write incorrectly elided")
++	}
++}
++
++//go:noinline
++func mangle(ps *string) {
++	if ps == nil {
++		var s string
++		ps = &s
++	}
++	*ps = hello
++}

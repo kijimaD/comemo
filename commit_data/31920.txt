@@ -13,7 +13,7 @@ Date:   Thu Mar 23 10:54:08 2017 -0700
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/math/big/arith.go           | 36 ++----------------------------------
  src/math/big/arith_386.s        | 11 -----------
  src/math/big/arith_amd64.s      | 11 -----------
@@ -32,3 +32,334 @@ Date:   Thu Mar 23 10:54:08 2017 -0700
  src/math/big/nat.go             |  2 +-
  src/math/big/natconv_test.go    |  8 ++++++++
  17 files changed, 17 insertions(+), 141 deletions(-)
+
+diff --git a/src/math/big/arith.go b/src/math/big/arith.go
+index 8cc0fb6497..ad352403a7 100644
+--- a/src/math/big/arith.go
++++ b/src/math/big/arith.go
+@@ -76,42 +76,10 @@ func mulAddWWW_g(x, y, c Word) (z1, z0 Word) {
+ 	return
+ }
+ 
+-// Length of x in bits.
+-func bitLen_g(x Word) int {
+-	return bits.Len(uint(x))
+-}
+-
+-// log2 computes the integer binary logarithm of x.
+-// The result is the integer n for which 2^n <= x < 2^(n+1).
+-// If x == 0, the result is -1.
+-func log2(x Word) int {
+-	// TODO(gri) Replace with call to bits.Len once we have a fast
+-	// implementation for the same platforms currently supporting math/big.
+-	return bitLen(x) - 1
+-}
+-
+ // nlz returns the number of leading zeros in x.
++// Wraps bits.LeadingZeros call for convenience.
+ func nlz(x Word) uint {
+-	// TODO(gri) Replace with call to bits.LeadingZeros once we have a fast
+-	// implementation for the same platforms currently supporting math/big.
+-	return uint(_W - bitLen(x))
+-}
+-
+-// nlz64 returns the number of leading zeros in x.
+-func nlz64(x uint64) uint {
+-	// TODO(gri) Replace with call to bits.LeadingZeros64 once we have a fast
+-	// implementation for the same platforms currently supporting math/big.
+-	switch _W {
+-	case 32:
+-		w := x >> 32
+-		if w == 0 {
+-			return 32 + nlz(Word(x))
+-		}
+-		return nlz(Word(w))
+-	case 64:
+-		return nlz(Word(x))
+-	}
+-	panic("unreachable")
++	return uint(bits.LeadingZeros(uint(x)))
+ }
+ 
+ // q = (u1<<_W + u0 - r)/y
+diff --git a/src/math/big/arith_386.s b/src/math/big/arith_386.s
+index 7c8ab8feb7..6c080f074a 100644
+--- a/src/math/big/arith_386.s
++++ b/src/math/big/arith_386.s
+@@ -269,14 +269,3 @@ E7:	SUBL $1, BX		// i--
+ 
+ 	MOVL DX, r+32(FP)
+ 	RET
+-
+-// func bitLen(x Word) (n int)
+-TEXT ·bitLen(SB),NOSPLIT,$0
+-	BSRL x+0(FP), AX
+-	JZ Z1
+-	INCL AX
+-	MOVL AX, n+4(FP)
+-	RET
+-
+-Z1:	MOVL $0, n+4(FP)
+-	RET
+diff --git a/src/math/big/arith_amd64.s b/src/math/big/arith_amd64.s
+index a7eba676b0..7e502246c8 100644
+--- a/src/math/big/arith_amd64.s
++++ b/src/math/big/arith_amd64.s
+@@ -450,14 +450,3 @@ E7:	SUBQ $1, BX		// i--
+ 
+ 	MOVQ DX, r+64(FP)
+ 	RET
+-
+-// func bitLen(x Word) (n int)
+-TEXT ·bitLen(SB),NOSPLIT,$0
+-	BSRQ x+0(FP), AX
+-	JZ Z1
+-	ADDQ $1, AX
+-	MOVQ AX, n+8(FP)
+-	RET
+-
+-Z1:	MOVQ $0, n+8(FP)
+-	RET
+diff --git a/src/math/big/arith_amd64p32.s b/src/math/big/arith_amd64p32.s
+index 6006646647..0a672386cc 100644
+--- a/src/math/big/arith_amd64p32.s
++++ b/src/math/big/arith_amd64p32.s
+@@ -38,6 +38,3 @@ TEXT ·addMulVVW(SB),NOSPLIT,$0
+ 
+ TEXT ·divWVW(SB),NOSPLIT,$0
+ 	JMP ·divWVW_g(SB)
+-
+-TEXT ·bitLen(SB),NOSPLIT,$0
+-	JMP ·bitLen_g(SB)
+diff --git a/src/math/big/arith_arm.s b/src/math/big/arith_arm.s
+index 69590ff39e..ba65fd2b1f 100644
+--- a/src/math/big/arith_arm.s
++++ b/src/math/big/arith_arm.s
+@@ -292,11 +292,3 @@ TEXT ·mulWW(SB),NOSPLIT,$0
+ 	MOVW	R4, z1+8(FP)
+ 	MOVW	R3, z0+12(FP)
+ 	RET
+-
+-// func bitLen(x Word) (n int)
+-TEXT ·bitLen(SB),NOSPLIT,$0
+-	MOVW	x+0(FP), R0
+-	CLZ 	R0, R0
+-	RSB	$32, R0
+-	MOVW	R0, n+4(FP)
+-	RET
+diff --git a/src/math/big/arith_arm64.s b/src/math/big/arith_arm64.s
+index 24a717cbb0..397b4630a8 100644
+--- a/src/math/big/arith_arm64.s
++++ b/src/math/big/arith_arm64.s
+@@ -165,13 +165,3 @@ TEXT ·addMulVVW(SB),NOSPLIT,$0
+ // func divWVW(z []Word, xn Word, x []Word, y Word) (r Word)
+ TEXT ·divWVW(SB),NOSPLIT,$0
+ 	B ·divWVW_g(SB)
+-
+-
+-// func bitLen(x Word) (n int)
+-TEXT ·bitLen(SB),NOSPLIT,$0
+-	MOVD	x+0(FP), R0
+-	CLZ	R0, R0
+-	MOVD	$64, R1
+-	SUB	R0, R1, R0
+-	MOVD	R0, n+8(FP)
+-	RET
+diff --git a/src/math/big/arith_decl.go b/src/math/big/arith_decl.go
+index 5433b6d61d..41e592334c 100644
+--- a/src/math/big/arith_decl.go
++++ b/src/math/big/arith_decl.go
+@@ -18,4 +18,3 @@ func shrVU(z, x []Word, s uint) (c Word)
+ func mulAddVWW(z, x []Word, y, r Word) (c Word)
+ func addMulVVW(z, x []Word, y Word) (c Word)
+ func divWVW(z []Word, xn Word, x []Word, y Word) (r Word)
+-func bitLen(x Word) (n int)
+diff --git a/src/math/big/arith_decl_pure.go b/src/math/big/arith_decl_pure.go
+index 21775ddf3e..4ae49c123d 100644
+--- a/src/math/big/arith_decl_pure.go
++++ b/src/math/big/arith_decl_pure.go
+@@ -49,7 +49,3 @@ func addMulVVW(z, x []Word, y Word) (c Word) {
+ func divWVW(z []Word, xn Word, x []Word, y Word) (r Word) {
+ 	return divWVW_g(z, xn, x, y)
+ }
+-
+-func bitLen(x Word) (n int) {
+-	return bitLen_g(x)
+-}
+diff --git a/src/math/big/arith_mips64x.s b/src/math/big/arith_mips64x.s
+index f9288fc26e..983510ee3d 100644
+--- a/src/math/big/arith_mips64x.s
++++ b/src/math/big/arith_mips64x.s
+@@ -41,6 +41,3 @@ TEXT ·addMulVVW(SB),NOSPLIT,$0
+ 
+ TEXT ·divWVW(SB),NOSPLIT,$0
+ 	JMP ·divWVW_g(SB)
+-
+-TEXT ·bitLen(SB),NOSPLIT,$0
+-	JMP ·bitLen_g(SB)
+diff --git a/src/math/big/arith_mipsx.s b/src/math/big/arith_mipsx.s
+index ac2311465f..54cafbd9c0 100644
+--- a/src/math/big/arith_mipsx.s
++++ b/src/math/big/arith_mipsx.s
+@@ -41,6 +41,3 @@ TEXT ·addMulVVW(SB),NOSPLIT,$0
+ 
+ TEXT ·divWVW(SB),NOSPLIT,$0
+ 	JMP	·divWVW_g(SB)
+-
+-TEXT ·bitLen(SB),NOSPLIT,$0
+-	JMP	·bitLen_g(SB)
+diff --git a/src/math/big/arith_ppc64x.s b/src/math/big/arith_ppc64x.s
+index 89d1cbfecd..3606dae068 100644
+--- a/src/math/big/arith_ppc64x.s
++++ b/src/math/big/arith_ppc64x.s
+@@ -175,12 +175,3 @@ end:
+ 
+ TEXT ·divWVW(SB), NOSPLIT, $0
+ 	BR ·divWVW_g(SB)
+-
+-// func bitLen(x Word) int
+-TEXT ·bitLen(SB), NOSPLIT, $0
+-	MOVD   x+0(FP), R4
+-	CNTLZD R4, R4
+-	MOVD   $64, R5
+-	SUB    R4, R5
+-	MOVD   R5, n+8(FP)
+-	RET
+diff --git a/src/math/big/arith_s390x.s b/src/math/big/arith_s390x.s
+index bddfd9e83e..4520d161d7 100644
+--- a/src/math/big/arith_s390x.s
++++ b/src/math/big/arith_s390x.s
+@@ -1237,13 +1237,3 @@ E7:	SUB	$1, R7		// i--
+ 
+ 	MOVD	R10, r+64(FP)
+ 	RET
+-
+-// func bitLen(x Word) (n int)
+-TEXT ·bitLen(SB),NOSPLIT,$0
+-	MOVD  x+0(FP), R2
+-	FLOGR R2, R2 // clobbers R3
+-	MOVD  $64, R3
+-	SUB   R2, R3
+-	MOVD  R3, n+8(FP)
+-	RET
+-
+diff --git a/src/math/big/arith_test.go b/src/math/big/arith_test.go
+index f2b3083000..13b0436ab4 100644
+--- a/src/math/big/arith_test.go
++++ b/src/math/big/arith_test.go
+@@ -395,32 +395,3 @@ func BenchmarkAddMulVVW(b *testing.B) {
+ 		})
+ 	}
+ }
+-
+-func testWordBitLen(t *testing.T, fname string, f func(Word) int) {
+-	for i := 0; i <= _W; i++ {
+-		x := Word(1) << uint(i-1) // i == 0 => x == 0
+-		n := f(x)
+-		if n != i {
+-			t.Errorf("got %d; want %d for %s(%#x)", n, i, fname, x)
+-		}
+-	}
+-}
+-
+-func TestWordBitLen(t *testing.T) {
+-	testWordBitLen(t, "bitLen", bitLen)
+-	testWordBitLen(t, "bitLen_g", bitLen_g)
+-}
+-
+-// runs b.N iterations of bitLen called on a Word containing (1 << nbits)-1.
+-func BenchmarkBitLen(b *testing.B) {
+-	// Individual bitLen tests. Numbers chosen to examine both sides
+-	// of powers-of-two boundaries.
+-	for _, nbits := range []uint{0, 1, 2, 3, 4, 5, 8, 9, 16, 17, 31} {
+-		testword := Word((uint64(1) << nbits) - 1)
+-		b.Run(fmt.Sprint(nbits), func(b *testing.B) {
+-			for i := 0; i < b.N; i++ {
+-				bitLen(testword)
+-			}
+-		})
+-	}
+-}
+diff --git a/src/math/big/float.go b/src/math/big/float.go
+index 6517e2063c..ac5464b127 100644
+--- a/src/math/big/float.go
++++ b/src/math/big/float.go
+@@ -14,6 +14,7 @@ package big
+ import (
+ 	"fmt"
+ 	"math"
++	"math/bits"
+ )
+ 
+ const debugFloat = false // enable for debugging
+@@ -498,8 +499,8 @@ func (z *Float) setBits64(neg bool, x uint64) *Float {
+ 	}
+ 	// x != 0
+ 	z.form = finite
+-	s := nlz64(x)
+-	z.mant = z.mant.setUint64(x << s)
++	s := bits.LeadingZeros64(x)
++	z.mant = z.mant.setUint64(x << uint(s))
+ 	z.exp = int32(64 - s) // always fits
+ 	if z.prec < 64 {
+ 		z.round(0)
+diff --git a/src/math/big/floatconv_test.go b/src/math/big/floatconv_test.go
+index 9911280abc..6d0f17dbe0 100644
+--- a/src/math/big/floatconv_test.go
++++ b/src/math/big/floatconv_test.go
+@@ -8,6 +8,7 @@ import (
+ 	"bytes"
+ 	"fmt"
+ 	"math"
++	"math/bits"
+ 	"strconv"
+ 	"testing"
+ )
+@@ -328,9 +329,9 @@ func TestFloat64Text(t *testing.T) {
+ 
+ // actualPrec returns the number of actually used mantissa bits.
+ func actualPrec(x float64) uint {
+-	if bits := math.Float64bits(x); x != 0 && bits&(0x7ff<<52) == 0 {
++	if mant := math.Float64bits(x); x != 0 && mant&(0x7ff<<52) == 0 {
+ 		// x is denormalized
+-		return 64 - nlz64(bits&(1<<52-1))
++		return 64 - uint(bits.LeadingZeros64(mant&(1<<52-1)))
+ 	}
+ 	return 53
+ }
+diff --git a/src/math/big/nat.go b/src/math/big/nat.go
+index 67176553b0..889eacb90f 100644
+--- a/src/math/big/nat.go
++++ b/src/math/big/nat.go
+@@ -644,7 +644,7 @@ func (z nat) divLarge(u, uIn, v nat) (q, r nat) {
+ // Length of x in bits. x must be normalized.
+ func (x nat) bitLen() int {
+ 	if i := len(x) - 1; i >= 0 {
+-		return i*_W + bitLen(x[i])
++		return i*_W + bits.Len(uint(x[i]))
+ 	}
+ 	return 0
+ }
+diff --git a/src/math/big/natconv_test.go b/src/math/big/natconv_test.go
+index bdb60e68e0..898a39fc2c 100644
+--- a/src/math/big/natconv_test.go
++++ b/src/math/big/natconv_test.go
+@@ -8,10 +8,18 @@ import (
+ 	"bytes"
+ 	"fmt"
+ 	"io"
++	"math/bits"
+ 	"strings"
+ 	"testing"
+ )
+ 
++// log2 computes the integer binary logarithm of x.
++// The result is the integer n for which 2^n <= x < 2^(n+1).
++// If x == 0, the result is -1.
++func log2(x Word) int {
++	return bits.Len(uint(x)) - 1
++}
++
+ func itoa(x nat, base int) []byte {
+ 	// special cases
+ 	switch {

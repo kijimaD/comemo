@@ -25,7 +25,7 @@ Date:   Fri Sep 2 12:39:35 2011 +0200
     R=r
     CC=golang-dev
     https://golang.org/cl/4963041
-
+---
  src/pkg/exp/norm/Makefile           |   1 +
  src/pkg/exp/norm/composition.go     |  27 +++++---
  src/pkg/exp/norm/forminfo.go        |   7 ++-
@@ -36,3 +36,709 @@ Date:   Fri Sep 2 12:39:35 2011 +0200
  src/pkg/exp/norm/trie.go            |  20 ------
  src/pkg/exp/norm/trie_test.go       |   6 +-
  9 files changed, 318 insertions(+), 70 deletions(-)
+
+diff --git a/src/pkg/exp/norm/Makefile b/src/pkg/exp/norm/Makefile
+index a4dfb43f7c..16239a72e2 100644
+--- a/src/pkg/exp/norm/Makefile
++++ b/src/pkg/exp/norm/Makefile
+@@ -9,6 +9,7 @@ GOFILES=\
+ 	composition.go\
+ 	forminfo.go\
+ 	normalize.go\
++	readwriter.go\
+ 	tables.go\
+ 	trie.go\
+ 
+diff --git a/src/pkg/exp/norm/composition.go b/src/pkg/exp/norm/composition.go
+index ecaae61ce1..ea59c81cd8 100644
+--- a/src/pkg/exp/norm/composition.go
++++ b/src/pkg/exp/norm/composition.go
+@@ -7,12 +7,13 @@ package norm
+ import "utf8"
+ 
+ const (
+-	maxCombiningChars = 30 + 2 // +2 to hold CGJ and Hangul overflow.
++	maxCombiningChars = 30
++	maxBufferSize     = maxCombiningChars + 2 // +1 to hold starter +1 to hold CGJ
+ 	maxBackRunes      = maxCombiningChars - 1
+ 	maxNFCExpansion   = 3  // NFC(0x1D160)
+ 	maxNFKCExpansion  = 18 // NFKC(0xFDFA)
+ 
+-	maxByteBufferSize = utf8.UTFMax * maxCombiningChars // 128
++	maxByteBufferSize = utf8.UTFMax * maxBufferSize // 128
+ )
+ 
+ // reorderBuffer is used to normalize a single segment.  Characters inserted with
+@@ -21,10 +22,10 @@ const (
+ // the UTF-8 characters in order.  Only the rune array is maintained in sorted
+ // order. flush writes the resulting segment to a byte array.
+ type reorderBuffer struct {
+-	rune  [maxCombiningChars]runeInfo // Per character info.
+-	byte  [maxByteBufferSize]byte     // UTF-8 buffer. Referenced by runeInfo.pos.
+-	nrune int                         // Number of runeInfos.
+-	nbyte uint8                       // Number or bytes.
++	rune  [maxBufferSize]runeInfo // Per character info.
++	byte  [maxByteBufferSize]byte // UTF-8 buffer. Referenced by runeInfo.pos.
++	nrune int                     // Number of runeInfos.
++	nbyte uint8                   // Number or bytes.
+ 	f     formInfo
+ }
+ 
+@@ -47,10 +48,10 @@ func (rb *reorderBuffer) flush(out []byte) []byte {
+ 
+ // insertOrdered inserts a rune in the buffer, ordered by Canonical Combining Class.
+ // It returns false if the buffer is not large enough to hold the rune.
+-// It is used internally by insert.
++// It is used internally by insert and insertString only.
+ func (rb *reorderBuffer) insertOrdered(info runeInfo) bool {
+ 	n := rb.nrune
+-	if n >= maxCombiningChars {
++	if n >= maxCombiningChars+1 {
+ 		return false
+ 	}
+ 	b := rb.rune[:]
+@@ -92,6 +93,7 @@ func (rb *reorderBuffer) insert(src []byte, info runeInfo) bool {
+ 			i = end
+ 		}
+ 	} else {
++		// insertOrder changes nbyte
+ 		pos := rb.nbyte
+ 		if !rb.insertOrdered(info) {
+ 			return false
+@@ -121,10 +123,12 @@ func (rb *reorderBuffer) insertString(src string, info runeInfo) bool {
+ 			i = end
+ 		}
+ 	} else {
+-		copy(rb.byte[rb.nbyte:], src[:info.size])
++		// insertOrder changes nbyte
++		pos := rb.nbyte
+ 		if !rb.insertOrdered(info) {
+ 			return false
+ 		}
++		copy(rb.byte[pos:], src[:info.size])
+ 	}
+ 	return true
+ }
+@@ -305,9 +309,12 @@ func (rb *reorderBuffer) compose() {
+ 	//  blocked from S if and only if there is some character B between S
+ 	//  and C, and either B is a starter or it has the same or higher
+ 	//  combining class as C."
++	bn := rb.nrune
++	if bn == 0 {
++		return
++	}
+ 	k := 1
+ 	b := rb.rune[:]
+-	bn := rb.nrune
+ 	for s, i := 0, 1; i < bn; i++ {
+ 		if isJamoVT(rb.bytesAt(i)) {
+ 			// Redo from start in Hangul mode. Necessary to support
+diff --git a/src/pkg/exp/norm/forminfo.go b/src/pkg/exp/norm/forminfo.go
+index 84adda5469..5e01e89d1f 100644
+--- a/src/pkg/exp/norm/forminfo.go
++++ b/src/pkg/exp/norm/forminfo.go
+@@ -89,7 +89,7 @@ func compBoundaryBefore(f *formInfo, info runeInfo) bool {
+ func compBoundaryAfter(f *formInfo, info runeInfo) bool {
+ 	// This misses values where the last char in a decomposition is a
+ 	// boundary such as Hangul with JamoT.
+-	return info.flags.isInert()
++	return info.isInert()
+ }
+ 
+ // We pack quick check data in 4 bits:
+@@ -108,12 +108,15 @@ func (i qcInfo) isNoC() bool   { return i&0x6 == 0x2 }
+ func (i qcInfo) isMaybe() bool { return i&0x4 != 0 }
+ func (i qcInfo) isYesD() bool  { return i&0x1 == 0 }
+ func (i qcInfo) isNoD() bool   { return i&0x1 != 0 }
+-func (i qcInfo) isInert() bool { return i&0xf == 0 }
+ 
+ func (i qcInfo) combinesForward() bool  { return i&0x8 != 0 }
+ func (i qcInfo) combinesBackward() bool { return i&0x4 != 0 } // == isMaybe
+ func (i qcInfo) hasDecomposition() bool { return i&0x1 != 0 } // == isNoD
+ 
++func (r runeInfo) isInert() bool {
++	return r.flags&0xf == 0 && r.ccc == 0
++}
++
+ // Wrappers for tables.go
+ 
+ // The 16-bit value of the decompostion tries is an index into a byte
+diff --git a/src/pkg/exp/norm/normalize.go b/src/pkg/exp/norm/normalize.go
+index d173a67233..749d3aa30d 100644
+--- a/src/pkg/exp/norm/normalize.go
++++ b/src/pkg/exp/norm/normalize.go
+@@ -98,7 +98,7 @@ func (f Form) IsNormalString(s string) bool {
+ // have been dropped.
+ func patchTail(rb *reorderBuffer, buf []byte) ([]byte, int) {
+ 	info, p := lastRuneStart(&rb.f, buf)
+-	if p == -1 {
++	if p == -1 || info.size == 0 {
+ 		return buf, 0
+ 	}
+ 	end := p + int(info.size)
+@@ -129,7 +129,10 @@ func (f Form) Append(out []byte, src ...byte) []byte {
+ 	}
+ 	fd := formTable[f]
+ 	rb := &reorderBuffer{f: *fd}
++	return doAppend(rb, out, src)
++}
+ 
++func doAppend(rb *reorderBuffer, out, src []byte) []byte {
+ 	doMerge := len(out) > 0
+ 	p := 0
+ 	if !utf8.RuneStart(src[0]) {
+@@ -145,20 +148,24 @@ func (f Form) Append(out []byte, src ...byte) []byte {
+ 			out = decomposeToLastBoundary(rb, buf) // force decomposition
+ 		}
+ 	}
++	fd := &rb.f
+ 	if doMerge {
+ 		var info runeInfo
+-		if p < len(src[p:]) {
++		if p < len(src) {
+ 			info = fd.info(src[p:])
+ 			if p == 0 && !fd.boundaryBefore(fd, info) {
+ 				out = decomposeToLastBoundary(rb, out)
+ 			}
+ 		}
+-		if info.size == 0 {
++		if info.size == 0 || fd.boundaryBefore(fd, info) {
+ 			if fd.composing {
+ 				rb.compose()
+ 			}
+-			// Append incomplete UTF-8 encoding.
+-			return append(rb.flush(out), src[p:]...)
++			out = rb.flush(out)
++			if info.size == 0 {
++				// Append incomplete UTF-8 encoding.
++				return append(out, src[p:]...)
++			}
+ 		}
+ 	}
+ 	if rb.nrune == 0 {
+@@ -249,8 +256,11 @@ func (f Form) FirstBoundary(b []byte) int {
+ 	}
+ 	fd := formTable[f]
+ 	info := fd.info(b[i:])
+-	for info.size != 0 && !fd.boundaryBefore(fd, info) {
++	for n := 0; info.size != 0 && !fd.boundaryBefore(fd, info); {
+ 		i += int(info.size)
++		if n++; n >= maxCombiningChars {
++			return i
++		}
+ 		if i >= len(b) {
+ 			if !fd.boundaryAfter(fd, info) {
+ 				return -1
+@@ -274,29 +284,42 @@ func (f Form) FirstBoundaryInString(s string) (i int, ok bool) {
+ // LastBoundary returns the position i of the last boundary in b
+ // or -1 if b contains no boundary.
+ func (f Form) LastBoundary(b []byte) int {
+-	fd := formTable[f]
++	return lastBoundary(formTable[f], b)
++}
++
++func lastBoundary(fd *formInfo, b []byte) int {
+ 	i := len(b)
+-	if i == 0 {
++	info, p := lastRuneStart(fd, b)
++	if p == -1 {
+ 		return -1
+ 	}
+-	info, p := lastRuneStart(fd, b)
+-	if int(info.size) != len(b)-p {
+-		if p != -1 {
++	if info.size == 0 { // ends with incomplete rune
++		if p == 0 { // starts wtih incomplete rune
++			return -1
++		}
++		i = p
++		info, p = lastRuneStart(fd, b[:i])
++		if p == -1 { // incomplete UTF-8 encoding or non-starter bytes without a starter
+ 			return i
+ 		}
+-		return -1
++	}
++	if p+int(info.size) != i { // trailing non-starter bytes: illegal UTF-8
++		return i
+ 	}
+ 	if fd.boundaryAfter(fd, info) {
+ 		return i
+ 	}
+ 	i = p
+-	for i >= 0 && !fd.boundaryBefore(fd, info) {
++	for n := 0; i >= 0 && !fd.boundaryBefore(fd, info); {
+ 		info, p = lastRuneStart(fd, b[:i])
+-		if int(info.size) != i-p {
+-			if p != -1 {
+-				return i
++		if n++; n >= maxCombiningChars {
++			return len(b)
++		}
++		if p+int(info.size) != i {
++			if p == -1 { // no boundary found
++				return -1
+ 			}
+-			return -1
++			return i // boundary after an illegal UTF-8 encoding
+ 		}
+ 		i = p
+ 	}
+@@ -349,12 +372,13 @@ func lastRuneStart(fd *formInfo, buf []byte) (runeInfo, int) {
+ // decomposeToLastBoundary finds an open segment at the end of the buffer
+ // and scans it into rb. Returns the buffer minus the last segment.
+ func decomposeToLastBoundary(rb *reorderBuffer, buf []byte) []byte {
+-	info, i := lastRuneStart(&rb.f, buf)
++	fd := &rb.f
++	info, i := lastRuneStart(fd, buf)
+ 	if int(info.size) != len(buf)-i {
+ 		// illegal trailing continuation bytes
+ 		return buf
+ 	}
+-	if rb.f.boundaryAfter(&rb.f, info) {
++	if rb.f.boundaryAfter(fd, info) {
+ 		return buf
+ 	}
+ 	var add [maxBackRunes]runeInfo // stores runeInfo in reverse order
+@@ -362,8 +386,8 @@ func decomposeToLastBoundary(rb *reorderBuffer, buf []byte) []byte {
+ 	padd := 1
+ 	n := 1
+ 	p := len(buf) - int(info.size)
+-	for ; p >= 0 && !rb.f.boundaryBefore(&rb.f, info); p -= int(info.size) {
+-		info, i = lastRuneStart(&rb.f, buf[:p])
++	for ; p >= 0 && !rb.f.boundaryBefore(fd, info); p -= int(info.size) {
++		info, i = lastRuneStart(fd, buf[:p])
+ 		if int(info.size) != p-i {
+ 			break
+ 		}
+diff --git a/src/pkg/exp/norm/normalize_test.go b/src/pkg/exp/norm/normalize_test.go
+index 2b11158c62..9159a90c4d 100644
+--- a/src/pkg/exp/norm/normalize_test.go
++++ b/src/pkg/exp/norm/normalize_test.go
+@@ -53,9 +53,7 @@ var decomposeSegmentTests = []PositionTest{
+ 	{"\u00C0", 2, "A\u0300"},
+ 	{"\u00C0b", 2, "A\u0300"},
+ 	// long
+-	{strings.Repeat("\u0300", 32), 64, strings.Repeat("\u0300", 32)},
+-	// overflow
+-	{strings.Repeat("\u0300", 33), 64, strings.Repeat("\u0300", 32)},
++	{strings.Repeat("\u0300", 31), 62, strings.Repeat("\u0300", 31)},
+ 	// ends with incomplete UTF-8 encoding
+ 	{"\xCC", 0, ""},
+ 	{"\u0300\xCC", 2, "\u0300"},
+@@ -86,6 +84,10 @@ var firstBoundaryTests = []PositionTest{
+ 	{"\u110B\u1173\u11B7", 0, ""},
+ 	{"\u1161\u110B\u1173\u11B7", 3, ""},
+ 	{"\u1173\u11B7\u1103\u1161", 6, ""},
++	// too many combining characters.
++	{strings.Repeat("\u0300", maxCombiningChars-1), -1, ""},
++	{strings.Repeat("\u0300", maxCombiningChars), 60, ""},
++	{strings.Repeat("\u0300", maxCombiningChars+1), 60, ""},
+ }
+ 
+ func firstBoundary(rb *reorderBuffer, s string) int {
+@@ -105,6 +107,7 @@ var decomposeToLastTests = []PositionTest{
+ 	{"a", 0, "a"},
+ 	{"a\u0301a", 3, "a"},
+ 	{"a\u0301\u03B9", 3, "\u03B9"},
++	{"a\u0327", 0, "a\u0327"},
+ 	// illegal runes
+ 	{"\xFF", 1, ""},
+ 	{"aa\xFF", 3, ""},
+@@ -123,7 +126,7 @@ var decomposeToLastTests = []PositionTest{
+ 	{"a\u00C0", 1, "A\u0300"},
+ 	// decomposing
+ 	{"a\u0300\uFDC0", 3, "\u0645\u062C\u064A"},
+-	{"\uFDC0" + strings.Repeat("\u0300", 28), 0, "\u0645\u062C\u064A" + strings.Repeat("\u0300", 28)},
++	{"\uFDC0" + strings.Repeat("\u0300", 26), 0, "\u0645\u062C\u064A" + strings.Repeat("\u0300", 26)},
+ 	// Hangul
+ 	{"a\u1103", 1, "\u1103"},
+ 	{"a\u110B", 1, "\u110B"},
+@@ -138,7 +141,7 @@ var decomposeToLastTests = []PositionTest{
+ 	{"다음음", 6, "\u110B\u1173\u11B7"},
+ 	{"음다다", 6, "\u1103\u1161"},
+ 	// buffer overflow
+-	{"a" + strings.Repeat("\u0300", 35), 9, strings.Repeat("\u0300", 31)},
++	{"a" + strings.Repeat("\u0300", 30), 3, strings.Repeat("\u0300", 29)},
+ 	{"\uFDFA" + strings.Repeat("\u0300", 14), 3, strings.Repeat("\u0300", 14)},
+ 	// weird UTF-8
+ 	{"a\u0300\u11B7", 0, "a\u0300\u11B7"},
+@@ -165,13 +168,21 @@ var lastBoundaryTests = []PositionTest{
+ 	{"a\xff\u0300", 1, ""},
+ 	{"\xc0\x80\x80", 3, ""},
+ 	{"\xc0\x80\x80\u0300", 3, ""},
+-	{"\xc0", 1, ""},
++	// ends with incomplete UTF-8 encoding
++	{"\xCC", -1, ""},
++	{"\xE0\x80", -1, ""},
++	{"\xF0\x80\x80", -1, ""},
++	{"a\xCC", 0, ""},
++	{"\x80\xCC", 1, ""},
++	{"\xCC\xCC", 1, ""},
+ 	// ends with combining characters
+ 	{"a\u0300\u0301", 0, ""},
+ 	{"aaaa\u0300\u0301", 3, ""},
+ 	{"\u0300a\u0300\u0301", 2, ""},
+ 	{"\u00C0", 0, ""},
+ 	{"a\u00C0", 1, ""},
++	// decomposition may recombine
++	{"\u0226", 0, ""},
+ 	// no boundary
+ 	{"", -1, ""},
+ 	{"\u0300\u0301", -1, ""},
+@@ -183,16 +194,18 @@ var lastBoundaryTests = []PositionTest{
+ 	{"다", 0, ""},
+ 	{"\u1103\u1161\u110B\u1173\u11B7", 6, ""},
+ 	{"\u110B\u1173\u11B7\u1103\u1161", 9, ""},
+-	// ends with incomplete UTF-8 encoding
+-	{"\xCC", 1, ""},
++	// too many combining characters.
++	{strings.Repeat("\u0300", maxCombiningChars-1), -1, ""},
++	{strings.Repeat("\u0300", maxCombiningChars), 60, ""},
++	{strings.Repeat("\u0300", maxCombiningChars+1), 62, ""},
+ }
+ 
+-func lastBoundary(rb *reorderBuffer, s string) int {
++func lastBoundaryF(rb *reorderBuffer, s string) int {
+ 	return rb.f.form.LastBoundary([]byte(s))
+ }
+ 
+ func TestLastBoundary(t *testing.T) {
+-	runPosTests(t, "TestLastBoundary", NFC, lastBoundary, lastBoundaryTests)
++	runPosTests(t, "TestLastBoundary", NFC, lastBoundaryF, lastBoundaryTests)
+ }
+ 
+ var quickSpanTests = []PositionTest{
+@@ -342,8 +355,26 @@ func runAppendTests(t *testing.T, name string, f Form, fn appendFunc, tests []Ap
+ 	for i, test := range tests {
+ 		out := []byte(test.left)
+ 		out = fn(f, out, test.right)
+-		if string(out) != test.out {
+-			t.Errorf("%s:%d: result is %X; want %X", name, i, []int(string(out)), []int(test.out))
++		outs := string(out)
++		if len(outs) != len(test.out) {
++			t.Errorf("%s:%d: length is %d; want %d", name, i, len(outs), len(test.out))
++		}
++		if outs != test.out {
++			// Find first rune that differs and show context.
++			ir := []int(outs)
++			ig := []int(test.out)
++			for j := 0; j < len(ir) && j < len(ig); j++ {
++				if ir[j] == ig[j] {
++					continue
++				}
++				if j -= 3; j < 0 {
++					j = 0
++				}
++				for e := j + 7; j < e && j < len(ir) && j < len(ig); j++ {
++					t.Errorf("%s:%d: runeAt(%d) = %U; want %U", name, i, j, ir[j], ig[j])
++				}
++				break
++			}
+ 		}
+ 	}
+ }
+@@ -357,10 +388,14 @@ var appendTests = []AppendTest{
+ 	// segment split across buffers
+ 	{"", "a\u0300b", "\u00E0b"},
+ 	{"a", "\u0300b", "\u00E0b"},
++	{"a", "\u0300\u0316", "\u00E0\u0316"},
++	{"a", "\u0316\u0300", "\u00E0\u0316"},
+ 	{"a", "\u0300a\u0300", "\u00E0\u00E0"},
+ 	{"a", "\u0300a\u0300a\u0300", "\u00E0\u00E0\u00E0"},
+ 	{"a", "\u0300aaa\u0300aaa\u0300", "\u00E0aa\u00E0aa\u00E0"},
+-	{"a\u0300", "\u0316", "\u00E0\u0316"},
++	{"a\u0300", "\u0327", "\u00E0\u0327"},
++	{"a\u0327", "\u0300", "\u00E0\u0327"},
++	{"a\u0316", "\u0300", "\u00E0\u0316"},
+ 	{"\u0041\u0307", "\u0304", "\u01E0"},
+ 	// Hangul
+ 	{"", "\u110B\u1173", "\uC73C"},
+@@ -378,10 +413,12 @@ var appendTests = []AppendTest{
+ 	{"a\xCC", "\x80a\u0300", "\u00E0\u00E0"},
+ 	{"a\xCC", "\x80\x80", "\u00E0\x80"},
+ 	{"a\xCC", "\x80\xCC", "\u00E0\xCC"},
++	{"a\u0316\xCC", "\x80a\u0316\u0300", "\u00E0\u0316\u00E0\u0316"},
+ 	// ending in incomplete UTF-8 encoding
+ 	{"", "\xCC", "\xCC"},
+ 	{"a", "\xCC", "a\xCC"},
+ 	{"a", "b\xCC", "ab\xCC"},
++	{"\u0226", "\xCC", "\u0226\xCC"},
+ 	// illegal runes
+ 	{"", "\x80", "\x80"},
+ 	{"", "\x80\x80\x80", "\x80\x80\x80"},
+@@ -394,12 +431,16 @@ var appendTests = []AppendTest{
+ 	{"", strings.Repeat("\x80", 33), strings.Repeat("\x80", 33)},
+ 	{strings.Repeat("\x80", 33), "", strings.Repeat("\x80", 33)},
+ 	{strings.Repeat("\x80", 33), strings.Repeat("\x80", 33), strings.Repeat("\x80", 66)},
+-	{"", strings.Repeat("\u0300", 33), strings.Repeat("\u0300", 33)},
++	// overflow of combining characters
+ 	{strings.Repeat("\u0300", 33), "", strings.Repeat("\u0300", 33)},
+-	{strings.Repeat("\u0300", 33), strings.Repeat("\u0300", 33), strings.Repeat("\u0300", 66)},
+ 	// weird UTF-8
++	{"\u00E0\xE1", "\x86", "\u00E0\xE1\x86"},
+ 	{"a\u0300\u11B7", "\u0300", "\u00E0\u11B7\u0300"},
+ 	{"a\u0300\u11B7\u0300", "\u0300", "\u00E0\u11B7\u0300\u0300"},
++	{"\u0300", "\xF8\x80\x80\x80\x80\u0300", "\u0300\xF8\x80\x80\x80\x80\u0300"},
++	{"\u0300", "\xFC\x80\x80\x80\x80\x80\u0300", "\u0300\xFC\x80\x80\x80\x80\x80\u0300"},
++	{"\xF8\x80\x80\x80\x80\u0300", "\u0300", "\xF8\x80\x80\x80\x80\u0300\u0300"},
++	{"\xFC\x80\x80\x80\x80\x80\u0300", "\u0300", "\xFC\x80\x80\x80\x80\x80\u0300\u0300"},
+ }
+ 
+ func appendF(f Form, out []byte, s string) []byte {
+diff --git a/src/pkg/exp/norm/readwriter.go b/src/pkg/exp/norm/readwriter.go
+new file mode 100644
+index 0000000000..fce6c40549
+--- /dev/null
++++ b/src/pkg/exp/norm/readwriter.go
+@@ -0,0 +1,121 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package norm
++
++import (
++	"io"
++	"os"
++)
++
++type normWriter struct {
++	rb  reorderBuffer
++	w   io.Writer
++	buf []byte
++}
++
++// Write implements the standard write interface.  If the last characters are
++// not at a normalization boundary, the bytes will be buffered for the next
++// write. The remaining bytes will be written on close.
++func (w *normWriter) Write(data []byte) (n int, err os.Error) {
++	// Process data in pieces to keep w.buf size bounded.
++	const chunk = 4000
++
++	for len(data) > 0 {
++		// Normalize into w.buf.
++		m := len(data)
++		if m > chunk {
++			m = chunk
++		}
++		w.buf = doAppend(&w.rb, w.buf, data[:m])
++		data = data[m:]
++		n += m
++
++		// Write out complete prefix, save remainder.
++		// Note that lastBoundary looks back at most 30 runes.
++		i := lastBoundary(&w.rb.f, w.buf)
++		if i == -1 {
++			i = 0
++		}
++		if i > 0 {
++			if _, err = w.w.Write(w.buf[:i]); err != nil {
++				break
++			}
++			bn := copy(w.buf, w.buf[i:])
++			w.buf = w.buf[:bn]
++		}
++	}
++	return n, err
++}
++
++// Close forces data that remains in the buffer to be written.
++func (w *normWriter) Close() os.Error {
++	if len(w.buf) > 0 {
++		_, err := w.w.Write(w.buf)
++		if err != nil {
++			return err
++		}
++	}
++	return nil
++}
++
++// Writer returns a new writer that implements Write(b)
++// by writing f(b) to w.  The returned writer may use an
++// an internal buffer to maintain state across Write calls.
++// Calling its Close method writes any buffered data to w.
++func (f Form) Writer(w io.Writer) io.WriteCloser {
++	return &normWriter{rb: reorderBuffer{f: *formTable[f]}, w: w}
++}
++
++type normReader struct {
++	rb           reorderBuffer
++	r            io.Reader
++	inbuf        []byte
++	outbuf       []byte
++	bufStart     int
++	lastBoundary int
++	err          os.Error
++}
++
++// Read implements the standard read interface.
++func (r *normReader) Read(p []byte) (int, os.Error) {
++	for {
++		if r.lastBoundary-r.bufStart > 0 {
++			n := copy(p, r.outbuf[r.bufStart:r.lastBoundary])
++			r.bufStart += n
++			if r.lastBoundary-r.bufStart > 0 {
++				return n, nil
++			}
++			return n, r.err
++		}
++		if r.err != nil {
++			return 0, r.err
++		}
++		outn := copy(r.outbuf, r.outbuf[r.lastBoundary:])
++		r.outbuf = r.outbuf[0:outn]
++		r.bufStart = 0
++
++		n, err := r.r.Read(r.inbuf)
++		r.err = err // save error for when done with buffer
++		if n > 0 {
++			r.outbuf = doAppend(&r.rb, r.outbuf, r.inbuf[0:n])
++		}
++		if err == os.EOF {
++			r.lastBoundary = len(r.outbuf)
++		} else {
++			r.lastBoundary = lastBoundary(&r.rb.f, r.outbuf)
++			if r.lastBoundary == -1 {
++				r.lastBoundary = 0
++			}
++		}
++	}
++	panic("should not reach here")
++}
++
++// Reader returns a new reader that implements Read
++// by reading data from r and returning f(data).
++func (f Form) Reader(r io.Reader) io.Reader {
++	const chunk = 4000
++	return &normReader{rb: reorderBuffer{f: *formTable[f]}, r: r, inbuf: make([]byte, chunk)}
++}
+diff --git a/src/pkg/exp/norm/readwriter_test.go b/src/pkg/exp/norm/readwriter_test.go
+new file mode 100644
+index 0000000000..b415f2b8cc
+--- /dev/null
++++ b/src/pkg/exp/norm/readwriter_test.go
+@@ -0,0 +1,69 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package norm
++
++import (
++	"bytes"
++	"fmt"
++	"os"
++	"strings"
++	"testing"
++)
++
++var ioTests = []AppendTest{
++	{"", strings.Repeat("a\u0316\u0300", 6), strings.Repeat("\u00E0\u0316", 6)},
++	{"", strings.Repeat("a\u0300\u0316", 4000), strings.Repeat("\u00E0\u0316", 4000)},
++	{"", strings.Repeat("\x80\x80", 4000), strings.Repeat("\x80\x80", 4000)},
++	{"", "\u0041\u0307\u0304", "\u01E0"},
++}
++
++var bufSizes = []int{1, 2, 3, 4, 5, 6, 7, 8, 100, 101, 102, 103, 4000, 4001, 4002, 4003}
++
++func readFunc(size int) appendFunc {
++	return func(f Form, out []byte, s string) []byte {
++		out = append(out, []byte(s)...)
++		r := f.Reader(bytes.NewBuffer(out))
++		buf := make([]byte, size)
++		result := []byte{}
++		for n, err := 0, os.Error(nil); err == nil; {
++			n, err = r.Read(buf)
++			result = append(result, buf[:n]...)
++		}
++		return result
++	}
++}
++
++func TestReader(t *testing.T) {
++	for _, s := range bufSizes {
++		name := fmt.Sprintf("TestReader%da", s)
++		runAppendTests(t, name, NFKC, readFunc(s), appendTests)
++		name = fmt.Sprintf("TestReader%db", s)
++		runAppendTests(t, name, NFKC, readFunc(s), ioTests)
++	}
++}
++
++func writeFunc(size int) appendFunc {
++	return func(f Form, out []byte, s string) []byte {
++		in := append(out, []byte(s)...)
++		result := new(bytes.Buffer)
++		w := f.Writer(result)
++		buf := make([]byte, size)
++		for n := 0; len(in) > 0; in = in[n:] {
++			n = copy(buf, in)
++			_, _ = w.Write(buf[:n])
++		}
++		w.Close()
++		return result.Bytes()
++	}
++}
++
++func TestWriter(t *testing.T) {
++	for _, s := range bufSizes {
++		name := fmt.Sprintf("TestWriter%da", s)
++		runAppendTests(t, name, NFKC, writeFunc(s), appendTests)
++		name = fmt.Sprintf("TestWriter%db", s)
++		runAppendTests(t, name, NFKC, writeFunc(s), ioTests)
++	}
++}
+diff --git a/src/pkg/exp/norm/trie.go b/src/pkg/exp/norm/trie.go
+index 6b65401875..edae2c212d 100644
+--- a/src/pkg/exp/norm/trie.go
++++ b/src/pkg/exp/norm/trie.go
+@@ -86,16 +86,6 @@ func (t *trie) lookup(s []byte) (v uint16, sz int) {
+ 		}
+ 		o = uint16(i)<<6 + uint16(c3)&maskx
+ 		return t.values[o], 4
+-	case c0 < t6:
+-		if len(s) < 5 {
+-			return 0, 0
+-		}
+-		return 0, 5
+-	case c0 < te:
+-		if len(s) < 6 {
+-			return 0, 0
+-		}
+-		return 0, 6
+ 	}
+ 	// Illegal rune
+ 	return 0, 1
+@@ -162,16 +152,6 @@ func (t *trie) lookupString(s string) (v uint16, sz int) {
+ 		}
+ 		o = uint16(i)<<6 + uint16(c3)&maskx
+ 		return t.values[o], 4
+-	case c0 < t6:
+-		if len(s) < 5 {
+-			return 0, 0
+-		}
+-		return 0, 5
+-	case c0 < te:
+-		if len(s) < 6 {
+-			return 0, 0
+-		}
+-		return 0, 6
+ 	}
+ 	// Illegal rune
+ 	return 0, 1
+diff --git a/src/pkg/exp/norm/trie_test.go b/src/pkg/exp/norm/trie_test.go
+index ad87d972b0..6a309426e7 100644
+--- a/src/pkg/exp/norm/trie_test.go
++++ b/src/pkg/exp/norm/trie_test.go
+@@ -32,8 +32,10 @@ var tests = []trietest{
+ 	{0, []byte{t2}},
+ 	{0, []byte{t3, tx}},
+ 	{0, []byte{t4, tx, tx}},
+-	{0, []byte{t5, tx, tx, tx}},
+-	{0, []byte{t6, tx, tx, tx, tx}},
++
++	// we only support UTF-8 up to utf8.UTFMax bytes (4 bytes)
++	{1, []byte{t5, tx, tx, tx, tx}},
++	{1, []byte{t6, tx, tx, tx, tx, tx}},
+ }
+ 
+ func mkUtf8(rune int) ([]byte, int) {

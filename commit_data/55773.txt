@@ -14,8 +14,59 @@ Date:   Wed Mar 8 19:00:51 2023 +0800
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Auto-Submit: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/go/alldocs.go             | 5 ++++-
  src/cmd/go/internal/get/get.go    | 2 ++
  src/cmd/go/internal/work/build.go | 3 ++-
  3 files changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 523540869a..ca676d5a88 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -758,7 +758,8 @@
+ // Setting GODEBUG=installgoroot=all restores the use of
+ // $GOROOT/pkg/$GOOS_$GOARCH.
+ //
+-// For more about the build flags, see 'go help build'.
++// For more about build flags, see 'go help build'.
++//
+ // For more about specifying packages, see 'go help packages'.
+ //
+ // See also: go build, go get, go clean.
+@@ -2552,6 +2553,8 @@
+ //
+ // Get never checks out or updates code stored in vendor directories.
+ //
++// For more about build flags, see 'go help build'.
++//
+ // For more about specifying packages, see 'go help packages'.
+ //
+ // For more about how 'go get' finds source code to
+diff --git a/src/cmd/go/internal/get/get.go b/src/cmd/go/internal/get/get.go
+index 1c1f10354b..c680dead0f 100644
+--- a/src/cmd/go/internal/get/get.go
++++ b/src/cmd/go/internal/get/get.go
+@@ -69,6 +69,8 @@ it also updates any git submodules referenced by the repository.
+ 
+ Get never checks out or updates code stored in vendor directories.
+ 
++For more about build flags, see 'go help build'.
++
+ For more about specifying packages, see 'go help packages'.
+ 
+ For more about how 'go get' finds source code to
+diff --git a/src/cmd/go/internal/work/build.go b/src/cmd/go/internal/work/build.go
+index 68c780db7e..5a1915afb5 100644
+--- a/src/cmd/go/internal/work/build.go
++++ b/src/cmd/go/internal/work/build.go
+@@ -602,7 +602,8 @@ Starting in Go 1.20, the standard library is built and cached but not installed.
+ Setting GODEBUG=installgoroot=all restores the use of
+ $GOROOT/pkg/$GOOS_$GOARCH.
+ 
+-For more about the build flags, see 'go help build'.
++For more about build flags, see 'go help build'.
++
+ For more about specifying packages, see 'go help packages'.
+ 
+ See also: go build, go get, go clean.

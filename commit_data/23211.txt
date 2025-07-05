@@ -23,9 +23,108 @@ Date:   Wed Apr 29 20:45:55 2015 +0300
     Change-Id: Ida168849acacf8e78dd70c1354bef9eac5effafe
     Reviewed-on: https://go-review.googlesource.com/9500
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/bytes/bytes.go          | 10 ++++++++++
  src/bytes/bytes_test.go     | 17 +++++++++++++++++
  src/strings/strings.go      | 10 ++++++++++
  src/strings/strings_test.go | 17 +++++++++++++++++
  4 files changed, 54 insertions(+)
+
+diff --git a/src/bytes/bytes.go b/src/bytes/bytes.go
+index 60de451504..b86824087e 100644
+--- a/src/bytes/bytes.go
++++ b/src/bytes/bytes.go
+@@ -138,6 +138,16 @@ func LastIndex(s, sep []byte) int {
+ 	return -1
+ }
+ 
++// LastIndexByte returns the index of the last instance of c in s, or -1 if c is not present in s.
++func LastIndexByte(s []byte, c byte) int {
++	for i := len(s) - 1; i >= 0; i-- {
++		if s[i] == c {
++			return i
++		}
++	}
++	return -1
++}
++
+ // IndexRune interprets s as a sequence of UTF-8-encoded Unicode code points.
+ // It returns the byte index of the first occurrence in s of the given rune.
+ // It returns -1 if rune is not present in s.
+diff --git a/src/bytes/bytes_test.go b/src/bytes/bytes_test.go
+index 980c41d754..6245e48180 100644
+--- a/src/bytes/bytes_test.go
++++ b/src/bytes/bytes_test.go
+@@ -265,6 +265,23 @@ func TestIndexByte(t *testing.T) {
+ 	}
+ }
+ 
++func TestLastIndexByte(t *testing.T) {
++	testCases := []BinOpTest{
++		{"", "q", -1},
++		{"abcdef", "q", -1},
++		{"abcdefabcdef", "a", len("abcdef")},      // something in the middle
++		{"abcdefabcdef", "f", len("abcdefabcde")}, // last byte
++		{"zabcdefabcdef", "z", 0},                 // first byte
++		{"a☺b☻c☹d", "b", len("a☺")},               // non-ascii
++	}
++	for _, test := range testCases {
++		actual := LastIndexByte([]byte(test.a), test.b[0])
++		if actual != test.i {
++			t.Errorf("LastIndexByte(%q,%c) = %v; want %v", test.a, test.b[0], actual, test.i)
++		}
++	}
++}
++
+ // test a larger buffer with different sizes and alignments
+ func TestIndexByteBig(t *testing.T) {
+ 	var n = 1024
+diff --git a/src/strings/strings.go b/src/strings/strings.go
+index c6085f51d5..7b8a6b536b 100644
+--- a/src/strings/strings.go
++++ b/src/strings/strings.go
+@@ -271,6 +271,16 @@ func LastIndexAny(s, chars string) int {
+ 	return -1
+ }
+ 
++// LastIndexByte returns the index of the last instance of c in s, or -1 if c is not present in s.
++func LastIndexByte(s string, c byte) int {
++	for i := len(s) - 1; i >= 0; i-- {
++		if s[i] == c {
++			return i
++		}
++	}
++	return -1
++}
++
+ // Generic split: splits after each instance of sep,
+ // including sepSave bytes of sep in the subarrays.
+ func genSplit(s, sep string, sepSave, n int) []string {
+diff --git a/src/strings/strings_test.go b/src/strings/strings_test.go
+index ee0c260753..4e21deaecd 100644
+--- a/src/strings/strings_test.go
++++ b/src/strings/strings_test.go
+@@ -120,6 +120,23 @@ func TestLastIndex(t *testing.T)    { runIndexTests(t, LastIndex, "LastIndex", l
+ func TestIndexAny(t *testing.T)     { runIndexTests(t, IndexAny, "IndexAny", indexAnyTests) }
+ func TestLastIndexAny(t *testing.T) { runIndexTests(t, LastIndexAny, "LastIndexAny", lastIndexAnyTests) }
+ 
++func TestLastIndexByte(t *testing.T) {
++	testCases := []IndexTest{
++		{"", "q", -1},
++		{"abcdef", "q", -1},
++		{"abcdefabcdef", "a", len("abcdef")},      // something in the middle
++		{"abcdefabcdef", "f", len("abcdefabcde")}, // last byte
++		{"zabcdefabcdef", "z", 0},                 // first byte
++		{"a☺b☻c☹d", "b", len("a☺")},               // non-ascii
++	}
++	for _, test := range testCases {
++		actual := LastIndexByte(test.s, test.sep[0])
++		if actual != test.out {
++			t.Errorf("LastIndexByte(%q,%c) = %v; want %v", test.s, test.sep[0], actual, test.out)
++		}
++	}
++}
++
+ var indexRuneTests = []struct {
+ 	s    string
+ 	rune rune

@@ -7,6 +7,20 @@ Date:   Mon May 22 14:00:09 2017 +0200
     Change-Id: I020cd3d10a441ba4047800fdf4f93433c458398a
     Reviewed-on: https://go-review.googlesource.com/43717
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/cmd.html | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/doc/cmd.html b/doc/cmd.html
+index 4d6ac01dc4..214b19e181 100644
+--- a/doc/cmd.html
++++ b/doc/cmd.html
+@@ -22,6 +22,8 @@ using the go <code>tool</code> subcommand, such as <code>go tool vet</code>.
+ This style of invocation allows, for instance, checking a single source file
+ rather than an entire package: <code>go tool vet myprogram.go</code> as
+ compared to <code>go vet mypackage</code>.
++Some of the commands, such as <code>pprof</code>, are accessible only through
++the go <code>tool</code> subcommand.
+ </p>
+ 
+ <p>

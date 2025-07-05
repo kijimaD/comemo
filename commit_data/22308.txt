@@ -16,7 +16,7 @@ Date:   Wed Mar 4 16:28:45 2015 +1300
     Run-TryBot: Minux Ma <minux@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/internal/ld/sym.go        |  2 +-
  src/cmd/internal/obj/sym.go       |  2 +-
  src/runtime/sys_dragonfly_386.s   |  4 ++--
@@ -30,3 +30,184 @@ Date:   Wed Mar 4 16:28:45 2015 +1300
  src/runtime/sys_openbsd_386.s     |  4 ++--
  src/runtime/sys_openbsd_amd64.s   |  2 +-
  12 files changed, 20 insertions(+), 20 deletions(-)
+
+diff --git a/src/cmd/internal/ld/sym.go b/src/cmd/internal/ld/sym.go
+index cbaa364a89..fd02ed0285 100644
+--- a/src/cmd/internal/ld/sym.go
++++ b/src/cmd/internal/ld/sym.go
+@@ -107,7 +107,7 @@ func linknew(arch *LinkArch) *Link {
+ 		Hopenbsd,
+ 		Hdragonfly,
+ 		Hsolaris:
+-		ctxt.Tlsoffset = -2 * ctxt.Arch.Ptrsize
++		ctxt.Tlsoffset = -1 * ctxt.Arch.Ptrsize
+ 
+ 	case Hnacl:
+ 		switch ctxt.Arch.Thechar {
+diff --git a/src/cmd/internal/obj/sym.go b/src/cmd/internal/obj/sym.go
+index 80ef0bf64c..7dafb2de04 100644
+--- a/src/cmd/internal/obj/sym.go
++++ b/src/cmd/internal/obj/sym.go
+@@ -170,7 +170,7 @@ func Linknew(arch *LinkArch) *Link {
+ 		Hopenbsd,
+ 		Hdragonfly,
+ 		Hsolaris:
+-		ctxt.Tlsoffset = -2 * ctxt.Arch.Ptrsize
++		ctxt.Tlsoffset = -1 * ctxt.Arch.Ptrsize
+ 
+ 	case Hnacl:
+ 		switch ctxt.Arch.Thechar {
+diff --git a/src/runtime/sys_dragonfly_386.s b/src/runtime/sys_dragonfly_386.s
+index fa215daf26..afb2ec1f5b 100644
+--- a/src/runtime/sys_dragonfly_386.s
++++ b/src/runtime/sys_dragonfly_386.s
+@@ -295,9 +295,9 @@ TEXT runtime·setldt(SB),NOSPLIT,$4
+ 	RET
+ 
+ TEXT runtime·settls(SB),NOSPLIT,$24
+-	// adjust for ELF: wants to use -8(GS) and -4(GS) for g and m
++	// adjust for ELF: wants to use -4(GS) for g
+ 	MOVL	tlsbase+0(FP), CX
+-	ADDL	$8, CX
++	ADDL	$4, CX
+ 
+ 	// Set up a struct tls_info - a size of -1 maps the whole address
+ 	// space and is required for direct-tls access of variable data
+diff --git a/src/runtime/sys_dragonfly_amd64.s b/src/runtime/sys_dragonfly_amd64.s
+index 9b4e057b62..1227196cb7 100644
+--- a/src/runtime/sys_dragonfly_amd64.s
++++ b/src/runtime/sys_dragonfly_amd64.s
+@@ -272,7 +272,7 @@ TEXT runtime·usleep(SB),NOSPLIT,$16
+ 
+ // set tls base to DI
+ TEXT runtime·settls(SB),NOSPLIT,$16
+-	ADDQ	$16, DI	// adjust for ELF: wants to use -16(FS) and -8(FS) for g and m
++	ADDQ	$8, DI	// adjust for ELF: wants to use -8(FS) for g
+ 	MOVQ	DI, 0(SP)
+ 	MOVQ	$16, 8(SP)
+ 	MOVQ	$0, DI			// arg 1 - which
+diff --git a/src/runtime/sys_freebsd_386.s b/src/runtime/sys_freebsd_386.s
+index bd2cc9438f..eed6b8d691 100644
+--- a/src/runtime/sys_freebsd_386.s
++++ b/src/runtime/sys_freebsd_386.s
+@@ -287,7 +287,7 @@ int i386_set_ldt(int, const union ldt_entry *, int);
+ TEXT runtime·setldt(SB),NOSPLIT,$32
+ 	MOVL	address+4(FP), BX	// aka base
+ 	// see comment in sys_linux_386.s; freebsd is similar
+-	ADDL	$0x8, BX
++	ADDL	$0x4, BX
+ 
+ 	// set up data_desc
+ 	LEAL	16(SP), AX	// struct data_desc
+diff --git a/src/runtime/sys_freebsd_amd64.s b/src/runtime/sys_freebsd_amd64.s
+index f2001f2560..ecc40e3946 100644
+--- a/src/runtime/sys_freebsd_amd64.s
++++ b/src/runtime/sys_freebsd_amd64.s
+@@ -262,7 +262,7 @@ TEXT runtime·usleep(SB),NOSPLIT,$16
+ 
+ // set tls base to DI
+ TEXT runtime·settls(SB),NOSPLIT,$8
+-	ADDQ	$16, DI	// adjust for ELF: wants to use -16(FS) and -8(FS) for g and m
++	ADDQ	$8, DI	// adjust for ELF: wants to use -8(FS) for g and m
+ 	MOVQ	DI, 0(SP)
+ 	MOVQ	SP, SI
+ 	MOVQ	$129, DI	// AMD64_SET_FSBASE
+diff --git a/src/runtime/sys_linux_386.s b/src/runtime/sys_linux_386.s
+index 7d53aad59a..d4bd142134 100644
+--- a/src/runtime/sys_linux_386.s
++++ b/src/runtime/sys_linux_386.s
+@@ -410,16 +410,16 @@ TEXT runtime·setldt(SB),NOSPLIT,$32
+ 	 * When linking against the system libraries,
+ 	 * we use its pthread_create and let it set up %gs
+ 	 * for us.  When we do that, the private storage
+-	 * we get is not at 0(GS), 4(GS), but -8(GS), -4(GS).
++	 * we get is not at 0(GS), but -4(GS).
+ 	 * To insulate the rest of the tool chain from this
+-	 * ugliness, 8l rewrites 0(TLS) into -8(GS) for us.
++	 * ugliness, 8l rewrites 0(TLS) into -4(GS) for us.
+ 	 * To accommodate that rewrite, we translate
+ 	 * the address here and bump the limit to 0xffffffff (no limit)
+-	 * so that -8(GS) maps to 0(address).
+-	 * Also, the final 0(GS) (current 8(CX)) has to point
++	 * so that -4(GS) maps to 0(address).
++	 * Also, the final 0(GS) (current 4(CX)) has to point
+ 	 * to itself, to mimic ELF.
+ 	 */
+-	ADDL	$0x8, CX	// address
++	ADDL	$0x4, CX	// address
+ 	MOVL	CX, 0(CX)
+ 
+ 	// set up user_desc
+diff --git a/src/runtime/sys_linux_amd64.s b/src/runtime/sys_linux_amd64.s
+index 134d649b06..75e1c4284e 100644
+--- a/src/runtime/sys_linux_amd64.s
++++ b/src/runtime/sys_linux_amd64.s
+@@ -359,7 +359,7 @@ TEXT runtime·sigaltstack(SB),NOSPLIT,$-8
+ 
+ // set tls base to DI
+ TEXT runtime·settls(SB),NOSPLIT,$32
+-	ADDQ	$16, DI	// ELF wants to use -16(FS), -8(FS)
++	ADDQ	$8, DI	// ELF wants to use -8(FS)
+ 
+ 	MOVQ	DI, SI
+ 	MOVQ	$0x1002, DI	// ARCH_SET_FS
+diff --git a/src/runtime/sys_netbsd_386.s b/src/runtime/sys_netbsd_386.s
+index e0fc926fb9..bfa7928df7 100644
+--- a/src/runtime/sys_netbsd_386.s
++++ b/src/runtime/sys_netbsd_386.s
+@@ -307,9 +307,9 @@ TEXT runtime·setldt(SB),NOSPLIT,$8
+ 	RET
+ 
+ TEXT runtime·settls(SB),NOSPLIT,$16
+-	// adjust for ELF: wants to use -8(GS) and -4(GS) for g and m
++	// adjust for ELF: wants to use -4(GS) for g
+ 	MOVL	base+0(FP), CX
+-	ADDL	$8, CX
++	ADDL	$4, CX
+ 	MOVL	$0, 0(SP)		// syscall gap
+ 	MOVL	CX, 4(SP)		// arg 1 - ptr
+ 	MOVL	$317, AX		// sys__lwp_setprivate
+diff --git a/src/runtime/sys_netbsd_amd64.s b/src/runtime/sys_netbsd_amd64.s
+index 88ca323aaf..a138286d86 100644
+--- a/src/runtime/sys_netbsd_amd64.s
++++ b/src/runtime/sys_netbsd_amd64.s
+@@ -307,8 +307,8 @@ TEXT runtime·sigaltstack(SB),NOSPLIT,$-8
+ 
+ // set tls base to DI
+ TEXT runtime·settls(SB),NOSPLIT,$8
+-	// adjust for ELF: wants to use -16(FS) and -8(FS) for g and m
+-	ADDQ	$16, DI			// arg 1 - ptr
++	// adjust for ELF: wants to use -8(FS) for g
++	ADDQ	$8, DI			// arg 1 - ptr
+ 	MOVQ	$317, AX		// sys__lwp_setprivate
+ 	SYSCALL
+ 	JCC	2(PC)
+diff --git a/src/runtime/sys_openbsd_386.s b/src/runtime/sys_openbsd_386.s
+index 86774de003..10877096d4 100644
+--- a/src/runtime/sys_openbsd_386.s
++++ b/src/runtime/sys_openbsd_386.s
+@@ -325,9 +325,9 @@ TEXT runtime·setldt(SB),NOSPLIT,$4
+ 	RET
+ 
+ TEXT runtime·settls(SB),NOSPLIT,$8
+-	// adjust for ELF: wants to use -8(GS) and -4(GS) for g and m
++	// adjust for ELF: wants to use -4(GS) for g
+ 	MOVL	tlsbase+0(FP), CX
+-	ADDL	$8, CX
++	ADDL	$4, CX
+ 	MOVL	$0, 0(SP)		// syscall gap
+ 	MOVL	CX, 4(SP)		// arg 1 - tcb
+ 	MOVL	$329, AX		// sys___set_tcb
+diff --git a/src/runtime/sys_openbsd_amd64.s b/src/runtime/sys_openbsd_amd64.s
+index 1e809b7e80..d05782c181 100644
+--- a/src/runtime/sys_openbsd_amd64.s
++++ b/src/runtime/sys_openbsd_amd64.s
+@@ -298,7 +298,7 @@ TEXT runtime·sigaltstack(SB),NOSPLIT,$-8
+ // set tls base to DI
+ TEXT runtime·settls(SB),NOSPLIT,$0
+ 	// adjust for ELF: wants to use -16(FS) and -8(FS) for g and m
+-	ADDQ	$16, DI
++	ADDQ	$8, DI
+ 	MOVQ	$329, AX		// sys___settcb
+ 	SYSCALL
+ 	JCC	2(PC)

@@ -18,7 +18,71 @@ Date:   Mon Nov 14 23:11:30 2022 +0700
     Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Keith Randall <khr@google.com>
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/walk/complit.go |  1 +
  test/fixedbugs/issue56727.go             | 45 ++++++++++++++++++++++++++++++++
  2 files changed, 46 insertions(+)
+
+diff --git a/src/cmd/compile/internal/walk/complit.go b/src/cmd/compile/internal/walk/complit.go
+index 0c5ba97e4a..187c28b62f 100644
+--- a/src/cmd/compile/internal/walk/complit.go
++++ b/src/cmd/compile/internal/walk/complit.go
+@@ -243,6 +243,7 @@ func fixedlit(ctxt initContext, kind initKind, n *ir.CompLitExpr, var_ ir.Node,
+ 					// confuses about variables lifetime. So making sure those expressions
+ 					// are ordered correctly here. See issue #52673.
+ 					orderBlock(&sinit, map[string][]*ir.Name{})
++					typecheck.Stmts(sinit)
+ 					walkStmtList(sinit)
+ 				}
+ 				init.Append(sinit...)
+diff --git a/test/fixedbugs/issue56727.go b/test/fixedbugs/issue56727.go
+new file mode 100644
+index 0000000000..af201c22a8
+--- /dev/null
++++ b/test/fixedbugs/issue56727.go
+@@ -0,0 +1,45 @@
++// compile
++
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type I interface {
++	M()
++}
++
++type S struct{}
++
++func (*S) M() {}
++
++type slice []I
++
++func f() {
++	ss := struct {
++		i I
++	}{
++		i: &S{},
++	}
++
++	_ = [...]struct {
++		s slice
++	}{
++		{
++			s: slice{ss.i},
++		},
++		{
++			s: slice{ss.i},
++		},
++		{
++			s: slice{ss.i},
++		},
++		{
++			s: slice{ss.i},
++		},
++		{
++			s: slice{ss.i},
++		},
++	}
++}

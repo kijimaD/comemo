@@ -11,6 +11,20 @@ Date:   Thu Feb 10 11:56:55 2022 +0530
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/compile/abi-internal.md | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/abi-internal.md b/src/cmd/compile/abi-internal.md
+index 7fe4463665..53eaa84d54 100644
+--- a/src/cmd/compile/abi-internal.md
++++ b/src/cmd/compile/abi-internal.md
+@@ -155,7 +155,7 @@ as follows:
+ 1. Remember I and FP.
+ 1. If T has zero size, add T to the stack sequence S and return.
+ 1. Try to register-assign V.
+-1. If step 2 failed, reset I and FP to the values from step 1, add T
++1. If step 3 failed, reset I and FP to the values from step 1, add T
+    to the stack sequence S, and assign V to this field in S.
+ 
+ Register-assignment of a value V of underlying type T works as follows:

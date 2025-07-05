@@ -19,7 +19,218 @@ Date:   Sun Jan 3 21:34:03 2021 -0800
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssagen/ssa.go   |  41 +++++++++
  src/cmd/compile/internal/walk/closure.go | 139 +++++++++++--------------------
  2 files changed, 91 insertions(+), 89 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index f48909e6be..0c222b12cf 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -470,6 +470,47 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
+ 		}
+ 	}
+ 
++	// Populate closure variables.
++	if !fn.ClosureCalled() {
++		clo := s.entryNewValue0(ssa.OpGetClosurePtr, s.f.Config.Types.BytePtr)
++		offset := int64(types.PtrSize) // PtrSize to skip past function entry PC field
++		for _, n := range fn.ClosureVars {
++			typ := n.Type()
++			if !n.Byval() {
++				typ = types.NewPtr(typ)
++			}
++
++			offset = types.Rnd(offset, typ.Alignment())
++			r := s.newValue1I(ssa.OpOffPtr, types.NewPtr(typ), offset, clo)
++			offset += typ.Size()
++
++			if n.Byval() && TypeOK(n.Type()) {
++				// If it is a small variable captured by value, downgrade it to PAUTO.
++				r = s.load(n.Type(), r)
++
++				n.Class = ir.PAUTO
++			} else {
++				if !n.Byval() {
++					r = s.load(typ, r)
++				}
++
++				// Declare variable holding address taken from closure.
++				addr := ir.NewNameAt(fn.Pos(), &types.Sym{Name: "&" + n.Sym().Name, Pkg: types.LocalPkg})
++				addr.SetType(types.NewPtr(n.Type()))
++				addr.Class = ir.PAUTO
++				addr.SetUsed(true)
++				addr.Curfn = fn
++				types.CalcSize(addr.Type())
++
++				n.Heapaddr = addr
++				n = addr
++			}
++
++			fn.Dcl = append(fn.Dcl, n)
++			s.assign(n, r, false, 0)
++		}
++	}
++
+ 	// Convert the AST-based IR to the SSA-based IR
+ 	s.stmtList(fn.Enter)
+ 	s.stmtList(fn.Body)
+diff --git a/src/cmd/compile/internal/walk/closure.go b/src/cmd/compile/internal/walk/closure.go
+index 449df88f9e..acb74b9901 100644
+--- a/src/cmd/compile/internal/walk/closure.go
++++ b/src/cmd/compile/internal/walk/closure.go
+@@ -15,103 +15,64 @@ import (
+ // Closure is called in a separate phase after escape analysis.
+ // It transform closure bodies to properly reference captured variables.
+ func Closure(fn *ir.Func) {
++	if len(fn.ClosureVars) == 0 {
++		return
++	}
++
++	if !fn.ClosureCalled() {
++		// The closure is not directly called, so it is going to stay as closure.
++		fn.SetNeedctxt(true)
++		return
++	}
++
+ 	lno := base.Pos
+ 	base.Pos = fn.Pos()
+ 
+-	if fn.ClosureCalled() {
+-		// If the closure is directly called, we transform it to a plain function call
+-		// with variables passed as args. This avoids allocation of a closure object.
+-		// Here we do only a part of the transformation. Walk of OCALLFUNC(OCLOSURE)
+-		// will complete the transformation later.
+-		// For illustration, the following closure:
+-		//	func(a int) {
+-		//		println(byval)
+-		//		byref++
+-		//	}(42)
+-		// becomes:
+-		//	func(byval int, &byref *int, a int) {
+-		//		println(byval)
+-		//		(*&byref)++
+-		//	}(byval, &byref, 42)
+-
+-		// f is ONAME of the actual function.
+-		f := fn.Nname
+-
+-		// We are going to insert captured variables before input args.
+-		var params []*types.Field
+-		var decls []*ir.Name
+-		for _, v := range fn.ClosureVars {
+-			if !v.Byval() {
+-				// If v of type T is captured by reference,
+-				// we introduce function param &v *T
+-				// and v remains PAUTOHEAP with &v heapaddr
+-				// (accesses will implicitly deref &v).
+-				addr := typecheck.NewName(typecheck.Lookup("&" + v.Sym().Name))
+-				addr.SetType(types.NewPtr(v.Type()))
+-				v.Heapaddr = addr
+-				v = addr
+-			}
+-
+-			v.Class = ir.PPARAM
+-			decls = append(decls, v)
+-
+-			fld := types.NewField(src.NoXPos, v.Sym(), v.Type())
+-			fld.Nname = v
+-			params = append(params, fld)
+-		}
+-
+-		if len(params) > 0 {
+-			// Prepend params and decls.
+-			f.Type().Params().SetFields(append(params, f.Type().Params().FieldSlice()...))
+-			fn.Dcl = append(decls, fn.Dcl...)
++	// If the closure is directly called, we transform it to a plain function call
++	// with variables passed as args. This avoids allocation of a closure object.
++	// Here we do only a part of the transformation. Walk of OCALLFUNC(OCLOSURE)
++	// will complete the transformation later.
++	// For illustration, the following closure:
++	//	func(a int) {
++	//		println(byval)
++	//		byref++
++	//	}(42)
++	// becomes:
++	//	func(byval int, &byref *int, a int) {
++	//		println(byval)
++	//		(*&byref)++
++	//	}(byval, &byref, 42)
++
++	// f is ONAME of the actual function.
++	f := fn.Nname
++
++	// We are going to insert captured variables before input args.
++	var params []*types.Field
++	var decls []*ir.Name
++	for _, v := range fn.ClosureVars {
++		if !v.Byval() {
++			// If v of type T is captured by reference,
++			// we introduce function param &v *T
++			// and v remains PAUTOHEAP with &v heapaddr
++			// (accesses will implicitly deref &v).
++			addr := typecheck.NewName(typecheck.Lookup("&" + v.Sym().Name))
++			addr.SetType(types.NewPtr(v.Type()))
++			v.Heapaddr = addr
++			v = addr
+ 		}
+ 
+-		types.CalcSize(f.Type())
+-		fn.Nname.SetType(f.Type()) // update type of ODCLFUNC
+-	} else {
+-		// The closure is not called, so it is going to stay as closure.
+-		var body []ir.Node
+-		offset := int64(types.PtrSize)
+-		for _, v := range fn.ClosureVars {
+-			// cv refers to the field inside of closure OSTRUCTLIT.
+-			typ := v.Type()
+-			if !v.Byval() {
+-				typ = types.NewPtr(typ)
+-			}
+-			offset = types.Rnd(offset, int64(typ.Align))
+-			cr := ir.NewClosureRead(typ, offset)
+-			offset += typ.Width
+-
+-			if v.Byval() && v.Type().Width <= int64(2*types.PtrSize) {
+-				// If it is a small variable captured by value, downgrade it to PAUTO.
+-				v.Class = ir.PAUTO
+-				fn.Dcl = append(fn.Dcl, v)
+-				body = append(body, ir.NewAssignStmt(base.Pos, v, cr))
+-			} else {
+-				// Declare variable holding addresses taken from closure
+-				// and initialize in entry prologue.
+-				addr := typecheck.NewName(typecheck.Lookup("&" + v.Sym().Name))
+-				addr.SetType(types.NewPtr(v.Type()))
+-				addr.Class = ir.PAUTO
+-				addr.SetUsed(true)
+-				addr.Curfn = fn
+-				fn.Dcl = append(fn.Dcl, addr)
+-				v.Heapaddr = addr
+-				var src ir.Node = cr
+-				if v.Byval() {
+-					src = typecheck.NodAddr(cr)
+-				}
+-				body = append(body, ir.NewAssignStmt(base.Pos, addr, src))
+-			}
+-		}
++		v.Class = ir.PPARAM
++		decls = append(decls, v)
+ 
+-		if len(body) > 0 {
+-			typecheck.Stmts(body)
+-			fn.Enter = body
+-			fn.SetNeedctxt(true)
+-		}
++		fld := types.NewField(src.NoXPos, v.Sym(), v.Type())
++		fld.Nname = v
++		params = append(params, fld)
+ 	}
+ 
++	// Prepend params and decls.
++	f.Type().Params().SetFields(append(params, f.Type().Params().FieldSlice()...))
++	fn.Dcl = append(decls, fn.Dcl...)
++
+ 	base.Pos = lno
+ }
+ 

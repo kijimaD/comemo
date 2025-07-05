@@ -29,7 +29,62 @@ Date:   Mon Aug 22 18:19:24 2022 -0700
     Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
     Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/time/time_test.go |  8 ++++++++
  src/time/zoneinfo.go  | 21 +++++++++++++++++++++
  2 files changed, 29 insertions(+)
+
+diff --git a/src/time/time_test.go b/src/time/time_test.go
+index 8ab79d3801..f2c6c3977e 100644
+--- a/src/time/time_test.go
++++ b/src/time/time_test.go
+@@ -1494,6 +1494,14 @@ func BenchmarkGoString(b *testing.B) {
+ 	}
+ }
+ 
++func BenchmarkUnmarshalText(b *testing.B) {
++	var t Time
++	in := []byte("2020-08-22T11:27:43.123456789-02:00")
++	for i := 0; i < b.N; i++ {
++		t.UnmarshalText(in)
++	}
++}
++
+ func TestMarshalBinaryZeroTime(t *testing.T) {
+ 	t0 := Time{}
+ 	enc, err := t0.MarshalBinary()
+diff --git a/src/time/zoneinfo.go b/src/time/zoneinfo.go
+index 3c4aac375b..dd3b4edd01 100644
+--- a/src/time/zoneinfo.go
++++ b/src/time/zoneinfo.go
+@@ -100,9 +100,30 @@ func (l *Location) String() string {
+ 	return l.get().name
+ }
+ 
++var unnamedFixedZones []*Location
++var unnamedFixedZonesOnce sync.Once
++
+ // FixedZone returns a Location that always uses
+ // the given zone name and offset (seconds east of UTC).
+ func FixedZone(name string, offset int) *Location {
++	// Most calls to FixedZone have an unnamed zone with an offset by the hour.
++	// Optimize for that case by returning the same *Location for a given hour.
++	const hoursBeforeUTC = 12
++	const hoursAfterUTC = 14
++	hour := offset / 60 / 60
++	if name == "" && -hoursBeforeUTC <= hour && hour <= +hoursAfterUTC && hour*60*60 == offset {
++		unnamedFixedZonesOnce.Do(func() {
++			unnamedFixedZones = make([]*Location, hoursBeforeUTC+1+hoursAfterUTC)
++			for hr := -hoursBeforeUTC; hr <= +hoursAfterUTC; hr++ {
++				unnamedFixedZones[hr+hoursBeforeUTC] = fixedZone("", hr*60*60)
++			}
++		})
++		return unnamedFixedZones[hour+hoursBeforeUTC]
++	}
++	return fixedZone(name, offset)
++}
++
++func fixedZone(name string, offset int) *Location {
+ 	l := &Location{
+ 		name:       name,
+ 		zone:       []zone{{name, offset, false}},

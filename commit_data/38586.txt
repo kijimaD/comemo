@@ -9,6 +9,17 @@ Date:   Thu Nov 8 11:25:20 2018 +0000
     GitHub-Pull-Request: golang/go#28659
     Reviewed-on: https://go-review.googlesource.com/c/148477
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/strings/strings.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/strings/strings.go b/src/strings/strings.go
+index ecc8c97d9e..8ce2abfdf8 100644
+--- a/src/strings/strings.go
++++ b/src/strings/strings.go
+@@ -1040,5 +1040,4 @@ func indexRabinKarp(s, substr string) int {
+ 		}
+ 	}
+ 	return -1
+-
+ }

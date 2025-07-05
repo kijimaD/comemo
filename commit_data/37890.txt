@@ -15,6 +15,27 @@ Date:   Fri Sep 7 12:45:49 2018 +0200
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/debug/elf/elf.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/debug/elf/elf.go b/src/debug/elf/elf.go
+index 07c03e7999..96a67ce732 100644
+--- a/src/debug/elf/elf.go
++++ b/src/debug/elf/elf.go
+@@ -2424,6 +2424,7 @@ const (
+ 	R_RISCV_SET8          R_RISCV = 54 /* Local label subtraction */
+ 	R_RISCV_SET16         R_RISCV = 55 /* Local label subtraction */
+ 	R_RISCV_SET32         R_RISCV = 56 /* Local label subtraction */
++	R_RISCV_32_PCREL      R_RISCV = 57 /* 32-bit PC relative */
+ )
+ 
+ var rriscvStrings = []intName{
+@@ -2480,6 +2481,7 @@ var rriscvStrings = []intName{
+ 	{54, "R_RISCV_SET8"},
+ 	{55, "R_RISCV_SET16"},
+ 	{56, "R_RISCV_SET32"},
++	{57, "R_RISCV_32_PCREL"},
+ }
+ 
+ func (i R_RISCV) String() string   { return stringName(uint32(i), rriscvStrings, false) }

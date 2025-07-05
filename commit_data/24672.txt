@@ -12,7 +12,137 @@ Date:   Fri Aug 21 10:16:35 2015 -0700
     Change-Id: I3c08ae228c33e2f726f615962996f0350c8d592b
     Reviewed-on: https://go-review.googlesource.com/13813
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/ssa/gen/AMD64Ops.go | 27 ++++++++++++++-------------
  src/cmd/compile/internal/ssa/opGen.go        | 10 ----------
  2 files changed, 14 insertions(+), 23 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+index e633f82348..b218c66a64 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+@@ -105,9 +105,10 @@ func init() {
+ 			clobbers: ax | flags}
+ 		gp10 = regInfo{inputs: []regMask{gp}}
+ 
+-		gp2flags = regInfo{inputs: []regMask{gpsp, gpsp}, outputs: flagsonly}
+-		gp1flags = regInfo{inputs: []regMask{gpsp}, outputs: flagsonly}
+-		flagsgp  = regInfo{inputs: flagsonly, outputs: gponly, clobbers: flags}
++		gp2flags  = regInfo{inputs: []regMask{gpsp, gpsp}, outputs: flagsonly}
++		gp1flags  = regInfo{inputs: []regMask{gpsp}, outputs: flagsonly}
++		flagsgp   = regInfo{inputs: flagsonly, outputs: gponly, clobbers: flags}
++		readflags = regInfo{inputs: flagsonly, outputs: gponly}
+ 
+ 		gpload    = regInfo{inputs: []regMask{gpspsb, 0}, outputs: gponly}
+ 		gploadidx = regInfo{inputs: []regMask{gpspsb, gpsp, 0}, outputs: gponly}
+@@ -294,16 +295,16 @@ func init() {
+ 		{name: "SBBLcarrymask", reg: flagsgp, asm: "SBBL"}, // (int32)(-1) if carry is set, 0 if carry is clear.
+ 		// Note: SBBW and SBBB are subsumed by SBBL
+ 
+-		{name: "SETEQ", reg: flagsgp, asm: "SETEQ"}, // extract == condition from arg0
+-		{name: "SETNE", reg: flagsgp, asm: "SETNE"}, // extract != condition from arg0
+-		{name: "SETL", reg: flagsgp, asm: "SETLT"},  // extract signed < condition from arg0
+-		{name: "SETLE", reg: flagsgp, asm: "SETLE"}, // extract signed <= condition from arg0
+-		{name: "SETG", reg: flagsgp, asm: "SETGT"},  // extract signed > condition from arg0
+-		{name: "SETGE", reg: flagsgp, asm: "SETGE"}, // extract signed >= condition from arg0
+-		{name: "SETB", reg: flagsgp, asm: "SETCS"},  // extract unsigned < condition from arg0
+-		{name: "SETBE", reg: flagsgp, asm: "SETLS"}, // extract unsigned <= condition from arg0
+-		{name: "SETA", reg: flagsgp, asm: "SETHI"},  // extract unsigned > condition from arg0
+-		{name: "SETAE", reg: flagsgp, asm: "SETCC"}, // extract unsigned >= condition from arg0
++		{name: "SETEQ", reg: readflags, asm: "SETEQ"}, // extract == condition from arg0
++		{name: "SETNE", reg: readflags, asm: "SETNE"}, // extract != condition from arg0
++		{name: "SETL", reg: readflags, asm: "SETLT"},  // extract signed < condition from arg0
++		{name: "SETLE", reg: readflags, asm: "SETLE"}, // extract signed <= condition from arg0
++		{name: "SETG", reg: readflags, asm: "SETGT"},  // extract signed > condition from arg0
++		{name: "SETGE", reg: readflags, asm: "SETGE"}, // extract signed >= condition from arg0
++		{name: "SETB", reg: readflags, asm: "SETCS"},  // extract unsigned < condition from arg0
++		{name: "SETBE", reg: readflags, asm: "SETLS"}, // extract unsigned <= condition from arg0
++		{name: "SETA", reg: readflags, asm: "SETHI"},  // extract unsigned > condition from arg0
++		{name: "SETAE", reg: readflags, asm: "SETCC"}, // extract unsigned >= condition from arg0
+ 
+ 		{name: "MOVBQSX", reg: gp11, asm: "MOVBQSX"}, // sign extend arg0 from int8 to int64
+ 		{name: "MOVBQZX", reg: gp11, asm: "MOVBQZX"}, // zero extend arg0 from int8 to int64
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 17d4edb221..a2e087246d 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -2202,7 +2202,6 @@ var opcodeTable = [...]opInfo{
+ 			inputs: []inputInfo{
+ 				{0, 8589934592}, // .FLAGS
+ 			},
+-			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -2215,7 +2214,6 @@ var opcodeTable = [...]opInfo{
+ 			inputs: []inputInfo{
+ 				{0, 8589934592}, // .FLAGS
+ 			},
+-			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -2228,7 +2226,6 @@ var opcodeTable = [...]opInfo{
+ 			inputs: []inputInfo{
+ 				{0, 8589934592}, // .FLAGS
+ 			},
+-			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -2241,7 +2238,6 @@ var opcodeTable = [...]opInfo{
+ 			inputs: []inputInfo{
+ 				{0, 8589934592}, // .FLAGS
+ 			},
+-			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -2254,7 +2250,6 @@ var opcodeTable = [...]opInfo{
+ 			inputs: []inputInfo{
+ 				{0, 8589934592}, // .FLAGS
+ 			},
+-			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -2267,7 +2262,6 @@ var opcodeTable = [...]opInfo{
+ 			inputs: []inputInfo{
+ 				{0, 8589934592}, // .FLAGS
+ 			},
+-			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -2280,7 +2274,6 @@ var opcodeTable = [...]opInfo{
+ 			inputs: []inputInfo{
+ 				{0, 8589934592}, // .FLAGS
+ 			},
+-			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -2293,7 +2286,6 @@ var opcodeTable = [...]opInfo{
+ 			inputs: []inputInfo{
+ 				{0, 8589934592}, // .FLAGS
+ 			},
+-			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -2306,7 +2298,6 @@ var opcodeTable = [...]opInfo{
+ 			inputs: []inputInfo{
+ 				{0, 8589934592}, // .FLAGS
+ 			},
+-			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -2319,7 +2310,6 @@ var opcodeTable = [...]opInfo{
+ 			inputs: []inputInfo{
+ 				{0, 8589934592}, // .FLAGS
+ 			},
+-			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},

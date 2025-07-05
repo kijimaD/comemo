@@ -12,6 +12,20 @@ Date:   Fri Sep 2 08:58:16 2022 +0000
     Run-TryBot: Damien Neil <dneil@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Heschi Kreinick <heschi@google.com>
-
+---
  src/net/dnsclient_unix.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/dnsclient_unix.go b/src/net/dnsclient_unix.go
+index bf522e6b28..2bf01b314c 100644
+--- a/src/net/dnsclient_unix.go
++++ b/src/net/dnsclient_unix.go
+@@ -669,7 +669,7 @@ func (r *Resolver) goLookupIPCNAMEOrder(ctx context.Context, network, name strin
+ 			// We asked for recursion, so it should have included all the
+ 			// answers we need in this one packet.
+ 			//
+-			// Further, RFC 1035 section 4.3.1 says that "the recursive
++			// Further, RFC 1034 section 4.3.1 says that "the recursive
+ 			// response to a query will be... The answer to the query,
+ 			// possibly preface by one or more CNAME RRs that specify
+ 			// aliases encountered on the way to an answer."

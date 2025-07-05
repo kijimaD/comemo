@@ -15,7 +15,7 @@ Date:   Thu Jul 28 16:59:02 2022 -0400
     Reviewed-by: Russ Cox <rsc@golang.org>
     Auto-Submit: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/go/scriptconds_test.go                     | 28 +++++++++-------------
  src/cmd/go/testdata/script/README                  |  2 ++
  src/cmd/go/testdata/script/build_buildvcs_auto.txt |  2 +-
@@ -83,3 +83,876 @@ Date:   Thu Jul 28 16:59:02 2022 -0400
  .../testdata/script/version_buildvcs_git_gpg.txt   |  2 +-
  .../go/testdata/script/version_buildvcs_nested.txt |  2 +-
  66 files changed, 85 insertions(+), 89 deletions(-)
+
+diff --git a/src/cmd/go/scriptconds_test.go b/src/cmd/go/scriptconds_test.go
+index 6eb60b8ca2..6e92cd104b 100644
+--- a/src/cmd/go/scriptconds_test.go
++++ b/src/cmd/go/scriptconds_test.go
+@@ -23,23 +23,6 @@ import (
+ func scriptConditions() map[string]script.Cond {
+ 	conds := scripttest.DefaultConds()
+ 
+-	// Our "exec" has a special case for plan9 git, which does not
+-	// behave like git on other platforms.
+-	//
+-	// TODO(bcmills): replace this special-case "exec" with a more tailored "git"
+-	// condition.
+-	conds["exec"] = script.CachedCondition(
+-		conds["exec"].Usage().Summary,
+-		func(name string) (bool, error) {
+-			if runtime.GOOS == "plan9" && name == "git" {
+-				// The Git command is usually not the real Git on Plan 9.
+-				// See https://golang.org/issues/29640.
+-				return false, nil
+-			}
+-			_, err := exec.LookPath(name)
+-			return err == nil, nil
+-		})
+-
+ 	add := func(name string, cond script.Cond) {
+ 		if _, ok := conds[name]; ok {
+ 			panic(fmt.Sprintf("condition %q is already registered", name))
+@@ -60,6 +43,7 @@ func scriptConditions() map[string]script.Cond {
+ 	add("fuzz-instrumented", sysCondition("-fuzz with instrumentation", platform.FuzzInstrumented))
+ 	add("gc", script.BoolCondition(`runtime.Compiler == "gc"`, runtime.Compiler == "gc"))
+ 	add("gccgo", script.BoolCondition(`runtime.Compiler == "gccgo"`, runtime.Compiler == "gccgo"))
++	add("git", lazyBool("the 'git' executable exists and provides the standard CLI", hasWorkingGit))
+ 	add("GODEBUG", script.PrefixCondition("GODEBUG contains <suffix>", hasGodebug))
+ 	add("GOEXPERIMENT", script.PrefixCondition("GOEXPERIMENT <suffix> is enabled", hasGoexperiment))
+ 	add("link", lazyBool("testenv.HasLink()", testenv.HasLink))
+@@ -163,3 +147,13 @@ func isTrimpath() (bool, error) {
+ 	}
+ 	return false, nil
+ }
++
++func hasWorkingGit() bool {
++	if runtime.GOOS == "plan9" {
++		// The Git command is usually not the real Git on Plan 9.
++		// See https://golang.org/issues/29640.
++		return false
++	}
++	_, err := exec.LookPath("git")
++	return err == nil
++}
+diff --git a/src/cmd/go/testdata/script/README b/src/cmd/go/testdata/script/README
+index edbf645476..8724d052e3 100644
+--- a/src/cmd/go/testdata/script/README
++++ b/src/cmd/go/testdata/script/README
+@@ -410,6 +410,8 @@ The available conditions are:
+ 	runtime.Compiler == "gc"
+ [gccgo]
+ 	runtime.Compiler == "gccgo"
++[git]
++	the 'git' executable exists and provides the standard CLI
+ [hurd]
+ 	host GOOS=hurd
+ [illumos]
+diff --git a/src/cmd/go/testdata/script/build_buildvcs_auto.txt b/src/cmd/go/testdata/script/build_buildvcs_auto.txt
+index dd9eef5f82..cfd5d8243b 100644
+--- a/src/cmd/go/testdata/script/build_buildvcs_auto.txt
++++ b/src/cmd/go/testdata/script/build_buildvcs_auto.txt
+@@ -2,7 +2,7 @@
+ # not attempt to stamp VCS information when the VCS tool is not present.
+ 
+ [short] skip
+-[!exec:git] skip
++[!git] skip
+ 
+ cd sub
+ exec git init .
+diff --git a/src/cmd/go/testdata/script/get_404_meta.txt b/src/cmd/go/testdata/script/get_404_meta.txt
+index 29fc5421e1..553afb9ae1 100644
+--- a/src/cmd/go/testdata/script/get_404_meta.txt
++++ b/src/cmd/go/testdata/script/get_404_meta.txt
+@@ -1,7 +1,7 @@
+ # golang.org/issue/13037: 'go get' was not parsing <meta> tags in 404 served over HTTPS.
+ 
+ [!net] skip
+-[!exec:git] skip
++[!git] skip
+ 
+ env GONOSUMDB=bazil.org,github.com,golang.org
+ env GO111MODULE=off
+diff --git a/src/cmd/go/testdata/script/get_brace.txt b/src/cmd/go/testdata/script/get_brace.txt
+index 3449a0c2c8..34f66a62a3 100644
+--- a/src/cmd/go/testdata/script/get_brace.txt
++++ b/src/cmd/go/testdata/script/get_brace.txt
+@@ -1,6 +1,6 @@
+ env GO111MODULE=off
+ 
+-[!exec:git] skip
++[!git] skip
+ 
+ # Set up some empty repositories.
+ cd $WORK/_origin/foo
+diff --git a/src/cmd/go/testdata/script/get_custom_domain_wildcard.txt b/src/cmd/go/testdata/script/get_custom_domain_wildcard.txt
+index cda25e12b0..32ddd92b59 100644
+--- a/src/cmd/go/testdata/script/get_custom_domain_wildcard.txt
++++ b/src/cmd/go/testdata/script/get_custom_domain_wildcard.txt
+@@ -1,5 +1,5 @@
+ [!net] skip
+-[!exec:git] skip
++[!git] skip
+ env GO111MODULE=off
+ 
+ go get -u rsc.io/pdf/...
+diff --git a/src/cmd/go/testdata/script/get_dash_t.txt b/src/cmd/go/testdata/script/get_dash_t.txt
+index baac916868..0a0a6084de 100644
+--- a/src/cmd/go/testdata/script/get_dash_t.txt
++++ b/src/cmd/go/testdata/script/get_dash_t.txt
+@@ -1,7 +1,7 @@
+ # Tests issue 8181
+ 
+ [!net] skip
+-[!exec:git] skip
++[!git] skip
+ env GO111MODULE=off
+ 
+ go get -v -t github.com/rsc/go-get-issue-8181/a github.com/rsc/go-get-issue-8181/b
+diff --git a/src/cmd/go/testdata/script/get_domain_root.txt b/src/cmd/go/testdata/script/get_domain_root.txt
+index 918784869b..250fa6464f 100644
+--- a/src/cmd/go/testdata/script/get_domain_root.txt
++++ b/src/cmd/go/testdata/script/get_domain_root.txt
+@@ -2,7 +2,7 @@
+ # go get foo.io (not foo.io/subdir) was not working consistently.
+ 
+ [!net] skip
+-[!exec:git] skip
++[!git] skip
+ env GO111MODULE=off
+ 
+ # go-get-issue-9357.appspot.com is running
+diff --git a/src/cmd/go/testdata/script/get_dot_slash_download.txt b/src/cmd/go/testdata/script/get_dot_slash_download.txt
+index dbaf46ced3..2af9564fe4 100644
+--- a/src/cmd/go/testdata/script/get_dot_slash_download.txt
++++ b/src/cmd/go/testdata/script/get_dot_slash_download.txt
+@@ -1,5 +1,5 @@
+ [!net] skip
+-[!exec:git] skip
++[!git] skip
+ env GO111MODULE=off
+ 
+ # Tests Issues #9797 and #19769
+diff --git a/src/cmd/go/testdata/script/get_dotfiles.txt b/src/cmd/go/testdata/script/get_dotfiles.txt
+index 6757f9dce3..676a044cdc 100644
+--- a/src/cmd/go/testdata/script/get_dotfiles.txt
++++ b/src/cmd/go/testdata/script/get_dotfiles.txt
+@@ -1,7 +1,7 @@
+ env GO111MODULE=off
+ [short] skip
+ 
+-[!exec:git] skip
++[!git] skip
+ 
+ # Set up a benign repository and a repository with a dotfile name.
+ cd $WORK/_origin/foo
+diff --git a/src/cmd/go/testdata/script/get_insecure.txt b/src/cmd/go/testdata/script/get_insecure.txt
+index 69930f7107..0079220e40 100644
+--- a/src/cmd/go/testdata/script/get_insecure.txt
++++ b/src/cmd/go/testdata/script/get_insecure.txt
+@@ -1,7 +1,7 @@
+ # TODO(matloob): Split this test into two? It's one of the slowest tests we have.
+ 
+ [!net] skip
+-[!exec:git] skip
++[!git] skip
+ 
+ env PATH=$WORK/tmp/bin${:}$PATH
+ go build -o $WORK/tmp/bin/ssh ssh.go
+diff --git a/src/cmd/go/testdata/script/get_insecure_custom_domain.txt b/src/cmd/go/testdata/script/get_insecure_custom_domain.txt
+index 7eba42e873..3a0765f2a1 100644
+--- a/src/cmd/go/testdata/script/get_insecure_custom_domain.txt
++++ b/src/cmd/go/testdata/script/get_insecure_custom_domain.txt
+@@ -1,5 +1,5 @@
+ [!net] skip
+-[!exec:git] skip
++[!git] skip
+ env GO111MODULE=off
+ 
+ ! go get -d insecure.go-get-issue-15410.appspot.com/pkg/p
+diff --git a/src/cmd/go/testdata/script/get_insecure_env.txt b/src/cmd/go/testdata/script/get_insecure_env.txt
+index 8d88427c31..87484404eb 100644
+--- a/src/cmd/go/testdata/script/get_insecure_env.txt
++++ b/src/cmd/go/testdata/script/get_insecure_env.txt
+@@ -1,5 +1,5 @@
+ [!net] skip
+-[!exec:git] skip
++[!git] skip
+ 
+ # GOPATH: Set up
+ env GO111MODULE=off
+diff --git a/src/cmd/go/testdata/script/get_insecure_redirect.txt b/src/cmd/go/testdata/script/get_insecure_redirect.txt
+index fb5f26951c..2e5ec4e0d8 100644
+--- a/src/cmd/go/testdata/script/get_insecure_redirect.txt
++++ b/src/cmd/go/testdata/script/get_insecure_redirect.txt
+@@ -2,7 +2,7 @@
+ # golang.org/issue/34049: 'go get' would panic in case of an insecure redirect in GOPATH mode
+ 
+ [!net] skip
+-[!exec:git] skip
++[!git] skip
+ 
+ env GO111MODULE=off
+ 
+diff --git a/src/cmd/go/testdata/script/get_insecure_update.txt b/src/cmd/go/testdata/script/get_insecure_update.txt
+index e1a1a23d47..01660d58b4 100644
+--- a/src/cmd/go/testdata/script/get_insecure_update.txt
++++ b/src/cmd/go/testdata/script/get_insecure_update.txt
+@@ -1,5 +1,5 @@
+ [!net] skip
+-[!exec:git] skip
++[!git] skip
+ env GO111MODULE=off
+ 
+ # Clone the repo via HTTP manually.
+diff --git a/src/cmd/go/testdata/script/get_internal_wildcard.txt b/src/cmd/go/testdata/script/get_internal_wildcard.txt
+index ff20d4ba04..71ecb8c8fe 100644
+--- a/src/cmd/go/testdata/script/get_internal_wildcard.txt
++++ b/src/cmd/go/testdata/script/get_internal_wildcard.txt
+@@ -1,5 +1,5 @@
+ [!net] skip
+-[!exec:git] skip
++[!git] skip
+ env GO111MODULE=off
+ 
+ # This used to fail with errors about internal packages
+diff --git a/src/cmd/go/testdata/script/get_issue11307.txt b/src/cmd/go/testdata/script/get_issue11307.txt
+index 9d6b7dde01..dc46e74712 100644
+--- a/src/cmd/go/testdata/script/get_issue11307.txt
++++ b/src/cmd/go/testdata/script/get_issue11307.txt
+@@ -1,7 +1,7 @@
+ # go get -u was not working except in checkout directory
+ 
+ [!net] skip
+-[!exec:git] skip
++[!git] skip
+ env GO111MODULE=off
+ 
+ env GOPATH=$WORK/tmp/gopath
+diff --git a/src/cmd/go/testdata/script/get_issue16471.txt b/src/cmd/go/testdata/script/get_issue16471.txt
+index 2a2225a444..60369132f9 100644
+--- a/src/cmd/go/testdata/script/get_issue16471.txt
++++ b/src/cmd/go/testdata/script/get_issue16471.txt
+@@ -1,5 +1,5 @@
+ [!net] skip
+-[!exec:git] skip
++[!git] skip
+ 
+ env GO111MODULE=off
+ 
+diff --git a/src/cmd/go/testdata/script/get_issue22125.txt b/src/cmd/go/testdata/script/get_issue22125.txt
+index 6fdbe81cd3..3418df8429 100644
+--- a/src/cmd/go/testdata/script/get_issue22125.txt
++++ b/src/cmd/go/testdata/script/get_issue22125.txt
+@@ -1,7 +1,7 @@
+ # This test verifies a fix for a security issue; see https://go.dev/issue/22125.
+ 
+ [!net] skip
+-[!exec:git] skip
++[!git] skip
+ [!exec:svn] skip
+ 
+ env GO111MODULE=off
+diff --git a/src/cmd/go/testdata/script/get_legacy.txt b/src/cmd/go/testdata/script/get_legacy.txt
+index 938d42868a..2909b73605 100644
+--- a/src/cmd/go/testdata/script/get_legacy.txt
++++ b/src/cmd/go/testdata/script/get_legacy.txt
+@@ -4,7 +4,7 @@
+ # The test still seems to be useful as a test of direct-mode go get.
+ 
+ [short] skip
+-[!exec:git] skip
++[!git] skip
+ env GO111MODULE=off
+ 
+ env GOPATH=$WORK/tmp/d1
+diff --git a/src/cmd/go/testdata/script/get_non_pkg.txt b/src/cmd/go/testdata/script/get_non_pkg.txt
+index a87853052d..5eac1e337e 100644
+--- a/src/cmd/go/testdata/script/get_non_pkg.txt
++++ b/src/cmd/go/testdata/script/get_non_pkg.txt
+@@ -1,5 +1,5 @@
+ [!net] skip
+-[!exec:git] skip
++[!git] skip
+ 
+ env GOBIN=$WORK/tmp/gobin
+ env GO111MODULE=off
+diff --git a/src/cmd/go/testdata/script/get_race.txt b/src/cmd/go/testdata/script/get_race.txt
+index 16a560afca..87fbf62863 100644
+--- a/src/cmd/go/testdata/script/get_race.txt
++++ b/src/cmd/go/testdata/script/get_race.txt
+@@ -1,7 +1,7 @@
+ # Tests issue #20502
+ 
+ [!net] skip
+-[!exec:git] skip
++[!git] skip
+ [!race] skip
+ env GO111MODULE=off
+ 
+diff --git a/src/cmd/go/testdata/script/get_test_only.txt b/src/cmd/go/testdata/script/get_test_only.txt
+index a3f38ddbab..ec8baf9553 100644
+--- a/src/cmd/go/testdata/script/get_test_only.txt
++++ b/src/cmd/go/testdata/script/get_test_only.txt
+@@ -1,5 +1,5 @@
+ [!net] skip
+-[!exec:git] skip
++[!git] skip
+ env GO111MODULE=off
+ 
+ go get golang.org/x/tour/content...
+diff --git a/src/cmd/go/testdata/script/get_update.txt b/src/cmd/go/testdata/script/get_update.txt
+index 9afce6a443..5aeb99000b 100644
+--- a/src/cmd/go/testdata/script/get_update.txt
++++ b/src/cmd/go/testdata/script/get_update.txt
+@@ -3,7 +3,7 @@
+ # former dependencies, not current ones.
+ 
+ [!net] skip
+-[!exec:git] skip
++[!git] skip
+ env GO111MODULE=off
+ 
+ # Rewind
+diff --git a/src/cmd/go/testdata/script/get_update_unknown_protocol.txt b/src/cmd/go/testdata/script/get_update_unknown_protocol.txt
+index b00adea70b..12807ad675 100644
+--- a/src/cmd/go/testdata/script/get_update_unknown_protocol.txt
++++ b/src/cmd/go/testdata/script/get_update_unknown_protocol.txt
+@@ -1,5 +1,5 @@
+ [!net] skip
+-[!exec:git] skip
++[!git] skip
+ env GO111MODULE=off
+ 
+ # Clone the repo via HTTPS manually.
+diff --git a/src/cmd/go/testdata/script/get_update_wildcard.txt b/src/cmd/go/testdata/script/get_update_wildcard.txt
+index 4e66004014..01e2c374ae 100644
+--- a/src/cmd/go/testdata/script/get_update_wildcard.txt
++++ b/src/cmd/go/testdata/script/get_update_wildcard.txt
+@@ -1,7 +1,7 @@
+ # Issue 14450: go get -u .../ tried to import not downloaded package
+ 
+ [!net] skip
+-[!exec:git] skip
++[!git] skip
+ env GO111MODULE=off
+ 
+ go get github.com/tmwh/go-get-issue-14450/a
+diff --git a/src/cmd/go/testdata/script/get_vendor.txt b/src/cmd/go/testdata/script/get_vendor.txt
+index 4ebb8a26b6..f9a4a6bf7b 100644
+--- a/src/cmd/go/testdata/script/get_vendor.txt
++++ b/src/cmd/go/testdata/script/get_vendor.txt
+@@ -12,7 +12,7 @@ go get -d
+ go get -t -d
+ 
+ [!net] stop
+-[!exec:git] stop
++[!git] stop
+ 
+ cd $GOPATH/src
+ 
+diff --git a/src/cmd/go/testdata/script/get_with_git_trace.txt b/src/cmd/go/testdata/script/get_with_git_trace.txt
+index 98854c72ad..abc7014e45 100644
+--- a/src/cmd/go/testdata/script/get_with_git_trace.txt
++++ b/src/cmd/go/testdata/script/get_with_git_trace.txt
+@@ -3,7 +3,7 @@ env GO111MODULE=off
+ env GIT_TRACE=1
+ 
+ [!net] skip
+-[!exec:git] skip
++[!git] skip
+ 
+ # go get should be success when GIT_TRACE set
+ go get golang.org/x/text
+diff --git a/src/cmd/go/testdata/script/gopath_moved_repo.txt b/src/cmd/go/testdata/script/gopath_moved_repo.txt
+index 99d80bff5d..5815d73a4a 100644
+--- a/src/cmd/go/testdata/script/gopath_moved_repo.txt
++++ b/src/cmd/go/testdata/script/gopath_moved_repo.txt
+@@ -18,14 +18,14 @@ env GIT_ASKPASS=$PWD/replace.exe
+ 
+ # Test that 'go get -u' reports moved git packages.
+ 
+-[exec:git] go get -d rsc.io/pdf
+-[exec:git] go get -d -u rsc.io/pdf
+-[exec:git] exec ./replace.exe pdf rsc.io/pdf/.git/config
+-
+-[exec:git] ! go get -d -u rsc.io/pdf
+-[exec:git] stderr 'is a custom import path for'
+-[exec:git] ! go get -d -f -u rsc.io/pdf
+-[exec:git] stderr 'validating server certificate|[nN]ot [fF]ound'
++[git] go get -d rsc.io/pdf
++[git] go get -d -u rsc.io/pdf
++[git] exec ./replace.exe pdf rsc.io/pdf/.git/config
++
++[git] ! go get -d -u rsc.io/pdf
++[git] stderr 'is a custom import path for'
++[git] ! go get -d -f -u rsc.io/pdf
++[git] stderr 'validating server certificate|[nN]ot [fF]ound'
+ 
+ 
+ # Test that 'go get -u' reports moved Mercurial packages.
+diff --git a/src/cmd/go/testdata/script/govcs.txt b/src/cmd/go/testdata/script/govcs.txt
+index 46f1bd0da2..419a6c5d20 100644
+--- a/src/cmd/go/testdata/script/govcs.txt
++++ b/src/cmd/go/testdata/script/govcs.txt
+@@ -67,7 +67,7 @@ stderr '^go: rsc.io/nonexist.bzr/hello: GOVCS disallows using bzr for public rsc
+ # git is OK by default
+ env GOVCS=
+ env GONOSUMDB='*'
+-[net] [exec:git] [!short] go get rsc.io/sampler
++[net] [git] [!short] go get rsc.io/sampler
+ 
+ # hg is OK by default
+ env GOVCS=
+@@ -150,7 +150,7 @@ stderr '^package rsc.io/nonexist.bzr/hello: GOVCS disallows using bzr for public
+ # git is OK by default
+ env GOVCS=
+ env GONOSUMDB='*'
+-[net] [exec:git] [!short] go get rsc.io/sampler
++[net] [git] [!short] go get rsc.io/sampler
+ 
+ # hg is OK by default
+ env GOVCS=
+diff --git a/src/cmd/go/testdata/script/list_json_fields.txt b/src/cmd/go/testdata/script/list_json_fields.txt
+index 5ddbb7385e..54d2220110 100644
+--- a/src/cmd/go/testdata/script/list_json_fields.txt
++++ b/src/cmd/go/testdata/script/list_json_fields.txt
+@@ -26,7 +26,7 @@ go list -json=Deps
+ stdout '"Deps": \['
+ stdout '"errors",'
+ 
+-[!exec:git] skip
++[!git] skip
+ 
+ # Test -json=<field> without Stale skips computing buildinfo
+ cd repo
+diff --git a/src/cmd/go/testdata/script/mod_convert.txt b/src/cmd/go/testdata/script/mod_convert.txt
+index f60fe87637..1c9d626acd 100644
+--- a/src/cmd/go/testdata/script/mod_convert.txt
++++ b/src/cmd/go/testdata/script/mod_convert.txt
+@@ -1,6 +1,6 @@
+ [short] skip
+ [!net] skip
+-[!exec:git] skip
++[!git] skip
+ 
+ env GO111MODULE=on
+ env GOPROXY=
+diff --git a/src/cmd/go/testdata/script/mod_convert_tsv_insecure.txt b/src/cmd/go/testdata/script/mod_convert_tsv_insecure.txt
+index 283e2d9936..9910ce7699 100644
+--- a/src/cmd/go/testdata/script/mod_convert_tsv_insecure.txt
++++ b/src/cmd/go/testdata/script/mod_convert_tsv_insecure.txt
+@@ -3,7 +3,7 @@ env GOPROXY=direct
+ env GOSUMDB=off
+ 
+ [!net] skip
+-[!exec:git] skip
++[!git] skip
+ 
+ # secure fetch should report insecure warning
+ cd $WORK/test
+diff --git a/src/cmd/go/testdata/script/mod_download_git_decorate_full.txt b/src/cmd/go/testdata/script/mod_download_git_decorate_full.txt
+index 3b19acc1b1..997b502b24 100644
+--- a/src/cmd/go/testdata/script/mod_download_git_decorate_full.txt
++++ b/src/cmd/go/testdata/script/mod_download_git_decorate_full.txt
+@@ -1,7 +1,7 @@
+ env GO111MODULE=on
+ 
+ [!net] skip
+-[!exec:git] skip
++[!git] skip
+ 
+ env GOPROXY=direct
+ env HOME=$WORK/home/gopher
+diff --git a/src/cmd/go/testdata/script/mod_download_hash.txt b/src/cmd/go/testdata/script/mod_download_hash.txt
+index 5a42c4b072..e62a165e75 100644
+--- a/src/cmd/go/testdata/script/mod_download_hash.txt
++++ b/src/cmd/go/testdata/script/mod_download_hash.txt
+@@ -2,7 +2,7 @@ env GO111MODULE=on
+ 
+ # Testing mod download with non semantic versions; turn off proxy.
+ [!net] skip
+-[!exec:git] skip
++[!git] skip
+ env GOPROXY=direct
+ env GOSUMDB=off
+ 
+diff --git a/src/cmd/go/testdata/script/mod_download_insecure_redirect.txt b/src/cmd/go/testdata/script/mod_download_insecure_redirect.txt
+index 46eb666686..fed5b8da4b 100644
+--- a/src/cmd/go/testdata/script/mod_download_insecure_redirect.txt
++++ b/src/cmd/go/testdata/script/mod_download_insecure_redirect.txt
+@@ -1,7 +1,7 @@
+ # golang.org/issue/29591: 'go get' was following plain-HTTP redirects even without -insecure (now replaced by GOINSECURE).
+ 
+ [!net] skip
+-[!exec:git] skip
++[!git] skip
+ 
+ env GO111MODULE=on
+ env GOPROXY=direct
+diff --git a/src/cmd/go/testdata/script/mod_download_issue51114.txt b/src/cmd/go/testdata/script/mod_download_issue51114.txt
+index 92479c6dd3..2aa3c2d19a 100644
+--- a/src/cmd/go/testdata/script/mod_download_issue51114.txt
++++ b/src/cmd/go/testdata/script/mod_download_issue51114.txt
+@@ -1,5 +1,5 @@
+ [short] skip
+-[!exec:git] skip
++[!git] skip
+ [!net] skip
+ [!linux] skip  # Uses XDG_CONFIG_HOME
+ 
+diff --git a/src/cmd/go/testdata/script/mod_download_private_vcs.txt b/src/cmd/go/testdata/script/mod_download_private_vcs.txt
+index da9fe0290b..7459b80a6c 100644
+--- a/src/cmd/go/testdata/script/mod_download_private_vcs.txt
++++ b/src/cmd/go/testdata/script/mod_download_private_vcs.txt
+@@ -2,7 +2,7 @@ env GO111MODULE=on
+ 
+ # Testing stderr for git ls-remote; turn off proxy.
+ [!net] skip
+-[!exec:git] skip
++[!git] skip
+ env GOPROXY=direct
+ 
+ ! go mod download github.com/golang/nonexist@latest
+diff --git a/src/cmd/go/testdata/script/mod_get_direct.txt b/src/cmd/go/testdata/script/mod_get_direct.txt
+index 856e05bc32..b7b052984c 100644
+--- a/src/cmd/go/testdata/script/mod_get_direct.txt
++++ b/src/cmd/go/testdata/script/mod_get_direct.txt
+@@ -4,7 +4,7 @@
+ 
+ [short] skip
+ [!net] skip
+-[!exec:git] skip
++[!git] skip
+ 
+ env GO111MODULE=on
+ env GOPROXY=direct
+diff --git a/src/cmd/go/testdata/script/mod_get_hash.txt b/src/cmd/go/testdata/script/mod_get_hash.txt
+index 3bb3ee7880..63e9e46db1 100644
+--- a/src/cmd/go/testdata/script/mod_get_hash.txt
++++ b/src/cmd/go/testdata/script/mod_get_hash.txt
+@@ -2,7 +2,7 @@ env GO111MODULE=on
+ env GOPROXY=direct
+ env GOSUMDB=off
+ [!net] skip
+-[!exec:git] skip
++[!git] skip
+ 
+ # fetch commit hash reachable from refs/heads/* and refs/tags/* is OK
+ go list -m golang.org/x/time@8be79e1e0910c292df4e79c241bb7e8f7e725959 # on master branch
+diff --git a/src/cmd/go/testdata/script/mod_get_major.txt b/src/cmd/go/testdata/script/mod_get_major.txt
+index 2db13180bd..76c9de5cc7 100644
+--- a/src/cmd/go/testdata/script/mod_get_major.txt
++++ b/src/cmd/go/testdata/script/mod_get_major.txt
+@@ -1,5 +1,5 @@
+ [!net] skip
+-[!exec:git] skip
++[!git] skip
+ 
+ env GO111MODULE=on
+ env GOPROXY=direct
+diff --git a/src/cmd/go/testdata/script/mod_get_pseudo.txt b/src/cmd/go/testdata/script/mod_get_pseudo.txt
+index b964ae4484..7b43c69c1d 100644
+--- a/src/cmd/go/testdata/script/mod_get_pseudo.txt
++++ b/src/cmd/go/testdata/script/mod_get_pseudo.txt
+@@ -2,7 +2,7 @@ env GO111MODULE=on
+ 
+ # Testing git->module converter's generation of +incompatible tags; turn off proxy.
+ [!net] skip
+-[!exec:git] skip
++[!git] skip
+ env GOPROXY=direct
+ env GOSUMDB=off
+ 
+diff --git a/src/cmd/go/testdata/script/mod_get_pseudo_other_branch.txt b/src/cmd/go/testdata/script/mod_get_pseudo_other_branch.txt
+index d085f4fa3c..21f900f303 100644
+--- a/src/cmd/go/testdata/script/mod_get_pseudo_other_branch.txt
++++ b/src/cmd/go/testdata/script/mod_get_pseudo_other_branch.txt
+@@ -7,7 +7,7 @@ env GOSUMDB=off
+ # supplied to 'go get', regardless of branches
+ 
+ [!net] skip
+-[!exec:git] skip
++[!git] skip
+ 
+ # For this test repository:
+ #  tag v0.2.1 is most recent tag on master itself
+diff --git a/src/cmd/go/testdata/script/mod_get_pseudo_prefix.txt b/src/cmd/go/testdata/script/mod_get_pseudo_prefix.txt
+index 8e6cd907f1..513450d4a5 100644
+--- a/src/cmd/go/testdata/script/mod_get_pseudo_prefix.txt
++++ b/src/cmd/go/testdata/script/mod_get_pseudo_prefix.txt
+@@ -7,7 +7,7 @@ env GOSUMDB=off
+ # to 'go get', when using a repo with go.mod in a sub directory.
+ 
+ [!net] skip
+-[!exec:git] skip
++[!git] skip
+ 
+ # For this test repository go.mod resides in sub/ (only):
+ #  master is not tagged
+diff --git a/src/cmd/go/testdata/script/mod_getx.txt b/src/cmd/go/testdata/script/mod_getx.txt
+index b3d06c17c8..dee3f747c6 100644
+--- a/src/cmd/go/testdata/script/mod_getx.txt
++++ b/src/cmd/go/testdata/script/mod_getx.txt
+@@ -1,6 +1,6 @@
+ [short] skip
+ [!net] skip
+-[!exec:git] skip
++[!git] skip
+ 
+ env GO111MODULE=on
+ env GOPROXY=direct
+diff --git a/src/cmd/go/testdata/script/mod_git_export_subst.txt b/src/cmd/go/testdata/script/mod_git_export_subst.txt
+index a28b4f2d67..44fb501fa8 100644
+--- a/src/cmd/go/testdata/script/mod_git_export_subst.txt
++++ b/src/cmd/go/testdata/script/mod_git_export_subst.txt
+@@ -3,7 +3,7 @@ env GOPROXY=direct
+ 
+ # Testing that git export-subst is disabled
+ [!net] skip
+-[!exec:git] skip
++[!git] skip
+ go build
+ 
+ -- x.go --
+diff --git a/src/cmd/go/testdata/script/mod_gonoproxy.txt b/src/cmd/go/testdata/script/mod_gonoproxy.txt
+index d42d668f67..98a1d28b56 100644
+--- a/src/cmd/go/testdata/script/mod_gonoproxy.txt
++++ b/src/cmd/go/testdata/script/mod_gonoproxy.txt
+@@ -37,7 +37,7 @@ stderr '^go: golang.org/x/text: module lookup disabled by GOPROXY=off$'
+ 
+ # GONOPROXY bypasses proxy
+ [!net] skip
+-[!exec:git] skip
++[!git] skip
+ env GOPRIVATE=none
+ env GONOPROXY='*/fortune'
+ ! go get rsc.io/fortune # does not exist in real world, only on test proxy
+diff --git a/src/cmd/go/testdata/script/mod_gopkg_unstable.txt b/src/cmd/go/testdata/script/mod_gopkg_unstable.txt
+index 58bbc7651b..3608bcd796 100644
+--- a/src/cmd/go/testdata/script/mod_gopkg_unstable.txt
++++ b/src/cmd/go/testdata/script/mod_gopkg_unstable.txt
+@@ -8,7 +8,7 @@ cp go.mod.empty go.mod
+ go list
+ 
+ [!net] skip
+-[!exec:git] skip
++[!git] skip
+ 
+ skip  # TODO(#54503): redirect gopkg.in requests to a local server and re-enable.
+ 
+diff --git a/src/cmd/go/testdata/script/mod_init_glide.txt b/src/cmd/go/testdata/script/mod_init_glide.txt
+index 373810c768..2126ae5b48 100644
+--- a/src/cmd/go/testdata/script/mod_init_glide.txt
++++ b/src/cmd/go/testdata/script/mod_init_glide.txt
+@@ -1,5 +1,5 @@
+ [!net] skip
+-[!exec:git] skip
++[!git] skip
+ 
+ env GO111MODULE=on
+ env GOPROXY=direct
+diff --git a/src/cmd/go/testdata/script/mod_invalid_version.txt b/src/cmd/go/testdata/script/mod_invalid_version.txt
+index 8385b08d95..d1e1da4492 100644
+--- a/src/cmd/go/testdata/script/mod_invalid_version.txt
++++ b/src/cmd/go/testdata/script/mod_invalid_version.txt
+@@ -1,5 +1,5 @@
+ [!net] skip
+-[!exec:git] skip
++[!git] skip
+ 
+ env GO111MODULE=on
+ env GOPROXY=direct
+diff --git a/src/cmd/go/testdata/script/mod_list_direct.txt b/src/cmd/go/testdata/script/mod_list_direct.txt
+index 3aa1881554..3e7c479d66 100644
+--- a/src/cmd/go/testdata/script/mod_list_direct.txt
++++ b/src/cmd/go/testdata/script/mod_list_direct.txt
+@@ -3,7 +3,7 @@ env GOPROXY=direct
+ env GOSUMDB=off
+ 
+ [!net] skip
+-[!exec:git] skip
++[!git] skip
+ 
+ # golang.org/issue/33099: if an import path ends in a major-version suffix,
+ # ensure that 'direct' mode can resolve the package to the module.
+diff --git a/src/cmd/go/testdata/script/mod_list_odd_tags.txt b/src/cmd/go/testdata/script/mod_list_odd_tags.txt
+index c1f40cdf3a..b413e87e18 100644
+--- a/src/cmd/go/testdata/script/mod_list_odd_tags.txt
++++ b/src/cmd/go/testdata/script/mod_list_odd_tags.txt
+@@ -1,5 +1,5 @@
+ [short] skip
+-[!exec:git] skip
++[!git] skip
+ [!net] skip
+ 
+ env GOPROXY=direct
+diff --git a/src/cmd/go/testdata/script/mod_missing_repo.txt b/src/cmd/go/testdata/script/mod_missing_repo.txt
+index b91a8dbeda..4b403fe51e 100644
+--- a/src/cmd/go/testdata/script/mod_missing_repo.txt
++++ b/src/cmd/go/testdata/script/mod_missing_repo.txt
+@@ -3,7 +3,7 @@
+ # tags for prefixes of the module path.
+ 
+ [!net] skip
+-[!exec:git] skip
++[!git] skip
+ 
+ env GO111MODULE=on
+ env GOPROXY=direct
+diff --git a/src/cmd/go/testdata/script/mod_prefer_compatible.txt b/src/cmd/go/testdata/script/mod_prefer_compatible.txt
+index 8e88997a3c..7ba5eb4fa9 100644
+--- a/src/cmd/go/testdata/script/mod_prefer_compatible.txt
++++ b/src/cmd/go/testdata/script/mod_prefer_compatible.txt
+@@ -34,7 +34,7 @@ stderr '^go: github.com/russross/blackfriday@patch: can''t query version "patch"
+ # order to determine whether it contains a go.mod file, and part of the point of
+ # the proxy is to avoid fetching unnecessary data.)
+ 
+-[!exec:git] stop
++[!git] stop
+ env GOPROXY=direct
+ 
+ go list -versions -m github.com/russross/blackfriday github.com/russross/blackfriday
+diff --git a/src/cmd/go/testdata/script/mod_pseudo_cache.txt b/src/cmd/go/testdata/script/mod_pseudo_cache.txt
+index dd89614b9f..a7ceac42b4 100644
+--- a/src/cmd/go/testdata/script/mod_pseudo_cache.txt
++++ b/src/cmd/go/testdata/script/mod_pseudo_cache.txt
+@@ -1,5 +1,5 @@
+ [!net] skip
+-[!exec:git] skip
++[!git] skip
+ 
+ env GO111MODULE=on
+ env GOPROXY=direct
+diff --git a/src/cmd/go/testdata/script/mod_replace_gopkgin.txt b/src/cmd/go/testdata/script/mod_replace_gopkgin.txt
+index df752d9716..996dccd29f 100644
+--- a/src/cmd/go/testdata/script/mod_replace_gopkgin.txt
++++ b/src/cmd/go/testdata/script/mod_replace_gopkgin.txt
+@@ -6,7 +6,7 @@
+ 
+ [short] skip
+ [!net] skip
+-[!exec:git] skip
++[!git] skip
+ 
+ env GO111MODULE=on
+ env GOPROXY=direct
+diff --git a/src/cmd/go/testdata/script/mod_retract_pseudo_base.txt b/src/cmd/go/testdata/script/mod_retract_pseudo_base.txt
+index 27c2b67065..c52f0b851e 100644
+--- a/src/cmd/go/testdata/script/mod_retract_pseudo_base.txt
++++ b/src/cmd/go/testdata/script/mod_retract_pseudo_base.txt
+@@ -3,7 +3,7 @@
+ # Verifies golang.org/issue/41700.
+ 
+ [!net] skip
+-[!exec:git] skip
++[!git] skip
+ env GOPROXY=direct
+ env GOSUMDB=off
+ go mod init m
+diff --git a/src/cmd/go/testdata/script/mod_sumdb_golang.txt b/src/cmd/go/testdata/script/mod_sumdb_golang.txt
+index a48a5ba1b0..7dd6cdc066 100644
+--- a/src/cmd/go/testdata/script/mod_sumdb_golang.txt
++++ b/src/cmd/go/testdata/script/mod_sumdb_golang.txt
+@@ -12,7 +12,7 @@ stdout '^sum.golang.org$'
+ # Download direct from github.
+ 
+ [!net] skip
+-[!exec:git] skip
++[!git] skip
+ env GOSUMDB=sum.golang.org
+ env GOPROXY=direct
+ 
+diff --git a/src/cmd/go/testdata/script/reuse_git.txt b/src/cmd/go/testdata/script/reuse_git.txt
+index a5a0c8a9a0..8c23bde49b 100644
+--- a/src/cmd/go/testdata/script/reuse_git.txt
++++ b/src/cmd/go/testdata/script/reuse_git.txt
+@@ -1,5 +1,5 @@
+ [short] skip
+-[!exec:git] skip
++[!git] skip
+ [!net] skip
+ 
+ env GO111MODULE=on
+diff --git a/src/cmd/go/testdata/script/test_buildvcs.txt b/src/cmd/go/testdata/script/test_buildvcs.txt
+index 965f76bf0d..db844f88b3 100644
+--- a/src/cmd/go/testdata/script/test_buildvcs.txt
++++ b/src/cmd/go/testdata/script/test_buildvcs.txt
+@@ -3,7 +3,7 @@
+ # test binaries are almost never distributed to users.)
+ 
+ [short] skip
+-[!exec:git] skip
++[!git] skip
+ 
+ exec git init
+ 
+diff --git a/src/cmd/go/testdata/script/vendor_list_issue11977.txt b/src/cmd/go/testdata/script/vendor_list_issue11977.txt
+index cdab33c089..35c82c7b21 100644
+--- a/src/cmd/go/testdata/script/vendor_list_issue11977.txt
++++ b/src/cmd/go/testdata/script/vendor_list_issue11977.txt
+@@ -1,5 +1,5 @@
+ [!net] skip
+-[!exec:git] skip
++[!git] skip
+ env GO111MODULE=off
+ 
+ go get github.com/rsc/go-get-issue-11864
+diff --git a/src/cmd/go/testdata/script/vendor_test_issue11864.txt b/src/cmd/go/testdata/script/vendor_test_issue11864.txt
+index b9ee434c4c..ff179cbe8b 100644
+--- a/src/cmd/go/testdata/script/vendor_test_issue11864.txt
++++ b/src/cmd/go/testdata/script/vendor_test_issue11864.txt
+@@ -1,5 +1,5 @@
+ [!net] skip
+-[!exec:git] skip
++[!git] skip
+ env GO111MODULE=off
+ 
+ go get github.com/rsc/go-get-issue-11864
+diff --git a/src/cmd/go/testdata/script/vendor_test_issue14613.txt b/src/cmd/go/testdata/script/vendor_test_issue14613.txt
+index 8759445aea..7822deeeda 100644
+--- a/src/cmd/go/testdata/script/vendor_test_issue14613.txt
++++ b/src/cmd/go/testdata/script/vendor_test_issue14613.txt
+@@ -1,5 +1,5 @@
+ [!net] skip
+-[!exec:git] skip
++[!git] skip
+ env GO111MODULE=off
+ 
+ cd $GOPATH
+diff --git a/src/cmd/go/testdata/script/version_buildvcs_git.txt b/src/cmd/go/testdata/script/version_buildvcs_git.txt
+index 44706870e2..e7ca06d422 100644
+--- a/src/cmd/go/testdata/script/version_buildvcs_git.txt
++++ b/src/cmd/go/testdata/script/version_buildvcs_git.txt
+@@ -2,7 +2,7 @@
+ # controlled with -buildvcs. This test focuses on Git. Other tests focus on
+ # other VCS tools but may not cover common functionality.
+ 
+-[!exec:git] skip
++[!git] skip
+ [short] skip
+ env GOBIN=$WORK/gopath/bin
+ env oldpath=$PATH
+diff --git a/src/cmd/go/testdata/script/version_buildvcs_git_gpg.txt b/src/cmd/go/testdata/script/version_buildvcs_git_gpg.txt
+index dcf97d7c44..c88075c5bc 100644
+--- a/src/cmd/go/testdata/script/version_buildvcs_git_gpg.txt
++++ b/src/cmd/go/testdata/script/version_buildvcs_git_gpg.txt
+@@ -2,7 +2,7 @@
+ # the current commit is signed and the use has configured git to display commit
+ # signatures.
+ 
+-[!exec:git] skip
++[!git] skip
+ [!exec:gpg] skip
+ [short] skip
+ env GOBIN=$GOPATH/bin
+diff --git a/src/cmd/go/testdata/script/version_buildvcs_nested.txt b/src/cmd/go/testdata/script/version_buildvcs_nested.txt
+index a0c69f9c12..6dab8474b5 100644
+--- a/src/cmd/go/testdata/script/version_buildvcs_nested.txt
++++ b/src/cmd/go/testdata/script/version_buildvcs_nested.txt
+@@ -1,4 +1,4 @@
+-[!exec:git] skip
++[!git] skip
+ [!exec:hg] skip
+ [short] skip
+ env GOFLAGS='-n -buildvcs'

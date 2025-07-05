@@ -7,6 +7,29 @@ Date:   Sun Apr 7 18:37:32 2013 +1000
     R=golang-dev, iant, dave
     CC=golang-dev
     https://golang.org/cl/8253045
-
+---
  src/pkg/runtime/map_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/runtime/map_test.go b/src/pkg/runtime/map_test.go
+index 209355e930..6b1e700c36 100644
+--- a/src/pkg/runtime/map_test.go
++++ b/src/pkg/runtime/map_test.go
+@@ -30,7 +30,7 @@ func TestNegativeZero(t *testing.T) {
+ 		t.Error("length wrong")
+ 	}
+ 
+-	for k, _ := range m {
++	for k := range m {
+ 		if math.Copysign(1.0, k) > 0 {
+ 			t.Error("wrong sign")
+ 		}
+@@ -44,7 +44,7 @@ func TestNegativeZero(t *testing.T) {
+ 		t.Error("length wrong")
+ 	}
+ 
+-	for k, _ := range m {
++	for k := range m {
+ 		if math.Copysign(1.0, k) < 0 {
+ 			t.Error("wrong sign")
+ 		}

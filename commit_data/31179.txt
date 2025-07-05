@@ -18,8 +18,114 @@ Date:   Wed Jan 18 13:24:01 2017 -0500
     Change-Id: I28b20d53d20dff06eede574eb5c20359db0d3991
     Reviewed-on: https://go-review.googlesource.com/36200
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/cmd/go/bug.go                    |  3 ++-
  src/cmd/go/{ => internal/env}/env.go | 12 ++++++------
  src/cmd/go/main.go                   |  5 +++--
  3 files changed, 11 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/go/bug.go b/src/cmd/go/bug.go
+index 239c27e426..8ceb2ac1f9 100644
+--- a/src/cmd/go/bug.go
++++ b/src/cmd/go/bug.go
+@@ -18,6 +18,7 @@ import (
+ 
+ 	"cmd/go/internal/base"
+ 	"cmd/go/internal/cfg"
++	envcmd "cmd/go/internal/env"
+ )
+ 
+ var cmdBug = &base.Command{
+@@ -42,7 +43,7 @@ func runBug(cmd *base.Command, args []string) {
+ 	fmt.Fprintln(&buf, "```")
+ 	fmt.Fprintf(&buf, "go version %s %s/%s\n", runtime.Version(), runtime.GOOS, runtime.GOARCH)
+ 	env := cfg.NewEnv
+-	env = append(env, extraEnvVars()...)
++	env = append(env, envcmd.ExtraEnvVars()...)
+ 	for _, e := range env {
+ 		// Hide the TERM environment variable from "go bug".
+ 		// See issue #18128
+diff --git a/src/cmd/go/env.go b/src/cmd/go/internal/env/env.go
+similarity index 93%
+rename from src/cmd/go/env.go
+rename to src/cmd/go/internal/env/env.go
+index b2bd091d85..dad158e62c 100644
+--- a/src/cmd/go/env.go
++++ b/src/cmd/go/internal/env/env.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package main
++package env
+ 
+ import (
+ 	"fmt"
+@@ -16,7 +16,7 @@ import (
+ 	"cmd/go/internal/work"
+ )
+ 
+-var cmdEnv = &base.Command{
++var CmdEnv = &base.Command{
+ 	Run:       runEnv,
+ 	UsageLine: "env [var ...]",
+ 	Short:     "print Go environment information",
+@@ -30,7 +30,7 @@ each named variable on its own line.
+ 	`,
+ }
+ 
+-func mkEnv() []cfg.EnvVar {
++func MkEnv() []cfg.EnvVar {
+ 	var b work.Builder
+ 	b.Init()
+ 
+@@ -87,8 +87,8 @@ func findEnv(env []cfg.EnvVar, name string) string {
+ 	return ""
+ }
+ 
+-// extraEnvVars returns environment variables that should not leak into child processes.
+-func extraEnvVars() []cfg.EnvVar {
++// ExtraEnvVars returns environment variables that should not leak into child processes.
++func ExtraEnvVars() []cfg.EnvVar {
+ 	var b work.Builder
+ 	b.Init()
+ 	cppflags, cflags, cxxflags, fflags, ldflags := b.CFlags(&load.Package{})
+@@ -104,7 +104,7 @@ func extraEnvVars() []cfg.EnvVar {
+ 
+ func runEnv(cmd *base.Command, args []string) {
+ 	env := cfg.NewEnv
+-	env = append(env, extraEnvVars()...)
++	env = append(env, ExtraEnvVars()...)
+ 	if len(args) > 0 {
+ 		for _, name := range args {
+ 			fmt.Printf("%s\n", findEnv(env, name))
+diff --git a/src/cmd/go/main.go b/src/cmd/go/main.go
+index 8be210f1d1..68a6976537 100644
+--- a/src/cmd/go/main.go
++++ b/src/cmd/go/main.go
+@@ -15,6 +15,7 @@ import (
+ 
+ 	"cmd/go/internal/base"
+ 	"cmd/go/internal/cfg"
++	"cmd/go/internal/env"
+ 	fmtcmd "cmd/go/internal/fmt"
+ 	"cmd/go/internal/help"
+ 	"cmd/go/internal/test"
+@@ -26,7 +27,7 @@ func init() {
+ 		work.CmdBuild,
+ 		cmdClean,
+ 		cmdDoc,
+-		cmdEnv,
++		env.CmdEnv,
+ 		cmdBug,
+ 		cmdFix,
+ 		fmtcmd.CmdFmt,
+@@ -100,7 +101,7 @@ func main() {
+ 	// but in practice there might be skew
+ 	// This makes sure we all agree.
+ 	cfg.OrigEnv = os.Environ()
+-	cfg.NewEnv = mkEnv()
++	cfg.NewEnv = env.MkEnv()
+ 	for _, env := range cfg.NewEnv {
+ 		if os.Getenv(env.Name) != env.Value {
+ 			os.Setenv(env.Name, env.Value)

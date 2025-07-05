@@ -19,7 +19,91 @@ Date:   Fri Oct 18 11:19:32 2019 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/internal/loader/loader.go      | 33 +++++++++++++++++++----------
  src/runtime/internal/atomic/sys_linux_arm.s |  4 ++--
  2 files changed, 24 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index 6f4bc98234..3f5ec829a0 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -147,6 +147,12 @@ func (l *Loader) AddSym(name string, ver int, i Sym, r *oReader, dupok bool, typ
+ 	if l.extStart != 0 {
+ 		panic("AddSym called after AddExtSym is called")
+ 	}
++	if ver == r.version {
++		// Static symbol. Add its global index but don't
++		// add to name lookup table, as it cannot be
++		// referenced by name.
++		return true
++	}
+ 	nv := nameVer{name, ver}
+ 	if oldi, ok := l.symsByName[nv]; ok {
+ 		if dupok {
+@@ -294,7 +300,10 @@ func (l *Loader) IsDup(i Sym) bool {
+ 		return false
+ 	}
+ 	if osym.Name == "" {
+-		return false
++		return false // Unnamed aux symbol cannot be dup.
++	}
++	if osym.ABI == goobj2.SymABIstatic {
++		return false // Static symbol cannot be dup.
+ 	}
+ 	name := strings.Replace(osym.Name, "\"\".", r.pkgprefix, -1)
+ 	ver := abiToVer(osym.ABI, r.version)
+@@ -656,7 +665,7 @@ func loadObjSyms(l *Loader, syms *sym.Symbols, r *oReader) {
+ 			continue
+ 		}
+ 		ver := abiToVer(osym.ABI, r.version)
+-		if l.symsByName[nameVer{name, ver}] != istart+Sym(i) {
++		if osym.ABI != goobj2.SymABIstatic && l.symsByName[nameVer{name, ver}] != istart+Sym(i) {
+ 			continue
+ 		}
+ 
+@@ -709,17 +718,19 @@ func loadObjFull(l *Loader, r *oReader) {
+ 		}
+ 		ver := abiToVer(osym.ABI, r.version)
+ 		dupok := osym.Dupok()
+-		if dupsym := l.symsByName[nameVer{name, ver}]; dupsym != istart+Sym(i) {
+-			if dupok && l.Reachable.Has(dupsym) {
+-				// A dupok symbol is resolved to another package. We still need
+-				// to record its presence in the current package, as the trampoline
+-				// pass expects packages are laid out in dependency order.
+-				s := l.Syms[dupsym]
+-				if s.Type == sym.STEXT {
+-					lib.DupTextSyms = append(lib.DupTextSyms, s)
++		if dupok {
++			if dupsym := l.symsByName[nameVer{name, ver}]; dupsym != istart+Sym(i) {
++				if l.Reachable.Has(dupsym) {
++					// A dupok symbol is resolved to another package. We still need
++					// to record its presence in the current package, as the trampoline
++					// pass expects packages are laid out in dependency order.
++					s := l.Syms[dupsym]
++					if s.Type == sym.STEXT {
++						lib.DupTextSyms = append(lib.DupTextSyms, s)
++					}
+ 				}
++				continue
+ 			}
+-			continue
+ 		}
+ 
+ 		s := l.Syms[istart+Sym(i)]
+diff --git a/src/runtime/internal/atomic/sys_linux_arm.s b/src/runtime/internal/atomic/sys_linux_arm.s
+index df62f6c8ad..1fd3e832b7 100644
+--- a/src/runtime/internal/atomic/sys_linux_arm.s
++++ b/src/runtime/internal/atomic/sys_linux_arm.s
+@@ -29,9 +29,9 @@ TEXT runtime∕internal∕atomic·Cas(SB),NOSPLIT|NOFRAME,$0
+ 	CMP	$7, R11
+ 	BLT	2(PC)
+ 	JMP	·armcas(SB)
+-	JMP	·kernelcas<>(SB)
++	JMP	kernelcas<>(SB)
+ 
+-TEXT runtime∕internal∕atomic·kernelcas<>(SB),NOSPLIT,$0
++TEXT kernelcas<>(SB),NOSPLIT,$0
+ 	MOVW	ptr+0(FP), R2
+ 	// trigger potential paging fault here,
+ 	// because we don't know how to traceback through __kuser_cmpxchg

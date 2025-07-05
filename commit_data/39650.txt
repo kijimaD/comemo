@@ -11,8 +11,97 @@ Date:   Fri Mar 8 06:17:42 2019 +0000
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
     Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/request_test.go   | 45 +++++++++++++++++++++---------------------
  src/net/http/serve_test.go     |  4 ++++
  src/net/http/transport_test.go |  4 ++++
  3 files changed, 31 insertions(+), 22 deletions(-)
+
+diff --git a/src/net/http/request_test.go b/src/net/http/request_test.go
+index 4e826fad15..b072f95802 100644
+--- a/src/net/http/request_test.go
++++ b/src/net/http/request_test.go
+@@ -135,30 +135,31 @@ func TestParseFormInitializeOnError(t *testing.T) {
+ }
+ 
+ func TestMultipartReader(t *testing.T) {
+-	req := &Request{
+-		Method: "POST",
+-		Header: Header{"Content-Type": {`multipart/form-data; boundary="foo123"`}},
+-		Body:   ioutil.NopCloser(new(bytes.Buffer)),
+-	}
+-	multipart, err := req.MultipartReader()
+-	if multipart == nil {
+-		t.Errorf("expected multipart; error: %v", err)
+-	}
+-
+-	req = &Request{
+-		Method: "POST",
+-		Header: Header{"Content-Type": {`multipart/mixed; boundary="foo123"`}},
+-		Body:   ioutil.NopCloser(new(bytes.Buffer)),
+-	}
+-	multipart, err = req.MultipartReader()
+-	if multipart == nil {
+-		t.Errorf("expected multipart; error: %v", err)
++	tests := []struct {
++		shouldError bool
++		contentType string
++	}{
++		{false, `multipart/form-data; boundary="foo123"`},
++		{false, `multipart/mixed; boundary="foo123"`},
++		{true, `text/plain`},
+ 	}
+ 
+-	req.Header = Header{"Content-Type": {"text/plain"}}
+-	multipart, err = req.MultipartReader()
+-	if multipart != nil {
+-		t.Error("unexpected multipart for text/plain")
++	for i, test := range tests {
++		req := &Request{
++			Method: "POST",
++			Header: Header{"Content-Type": {test.contentType}},
++			Body:   ioutil.NopCloser(new(bytes.Buffer)),
++		}
++		multipart, err := req.MultipartReader()
++		if test.shouldError {
++			if err == nil || multipart != nil {
++				t.Errorf("test %d: unexpectedly got nil-error (%v) or non-nil-multipart (%v)", i, err, multipart)
++			}
++			continue
++		}
++		if err != nil || multipart == nil {
++			t.Errorf("test %d: unexpectedly got error (%v) or nil-multipart (%v)", i, err, multipart)
++		}
+ 	}
+ }
+ 
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index 86cdb34ebb..ea6d7c2fda 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -4706,6 +4706,10 @@ func TestServerHandlersCanHandleH2PRI(t *testing.T) {
+ 	defer afterTest(t)
+ 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+ 		conn, br, err := w.(Hijacker).Hijack()
++		if err != nil {
++			t.Error(err)
++			return
++		}
+ 		defer conn.Close()
+ 		if r.Method != "PRI" || r.RequestURI != "*" {
+ 			t.Errorf("Got method/target %q %q; want PRI *", r.Method, r.RequestURI)
+diff --git a/src/net/http/transport_test.go b/src/net/http/transport_test.go
+index 82741e8537..23864a4957 100644
+--- a/src/net/http/transport_test.go
++++ b/src/net/http/transport_test.go
+@@ -865,6 +865,10 @@ func TestRoundTripGzip(t *testing.T) {
+ 			req.Header.Set("Accept-Encoding", test.accept)
+ 		}
+ 		res, err := tr.RoundTrip(req)
++		if err != nil {
++			t.Errorf("%d. RoundTrip: %v", i, err)
++			continue
++		}
+ 		var body []byte
+ 		if test.compressed {
+ 			var r *gzip.Reader

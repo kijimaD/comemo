@@ -8,6 +8,86 @@ Date:   Thu Sep 24 11:43:38 2009 -0700
     DELTA=30  (24 added, 3 deleted, 3 changed)
     OCL=34950
     CL=34974
-
+---
  src/pkg/debug/dwarf/type.go | 33 +++++++++++++++++++++++++++------
  1 file changed, 27 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/debug/dwarf/type.go b/src/pkg/debug/dwarf/type.go
+index 09672f392f..63b63db04e 100644
+--- a/src/pkg/debug/dwarf/type.go
++++ b/src/pkg/debug/dwarf/type.go
+@@ -13,6 +13,14 @@ import (
+ 	"strconv";
+ )
+ 
++// A Type conventionally represents a pointer to any of the
++// specific Type structures (CharType, StructType, etc.).
++type Type interface {
++	Common() *CommonType;
++	String() string;
++	Size() int64;
++}
++
+ // A CommonType holds fields common to multiple types.
+ // If a field is not known or not applicable for a given type,
+ // the zero value is used.
+@@ -25,6 +33,10 @@ func (c *CommonType) Common() *CommonType {
+ 	return c;
+ }
+ 
++func (c *CommonType) Size() int64 {
++	return c.ByteSize;
++}
++
+ // Basic types
+ 
+ // A BasicType holds fields common to all basic types.
+@@ -98,6 +110,10 @@ func (t *QualType) String() string {
+ 	return t.Qual + " " + t.Type.String();
+ }
+ 
++func (t *QualType) Size() int64 {
++	return t.Type.Size();
++}
++
+ // An ArrayType represents a fixed size array type.
+ type ArrayType struct {
+ 	CommonType;
+@@ -110,6 +126,10 @@ func (t *ArrayType) String() string {
+ 	return "[" + strconv.Itoa64(t.Count) + "]" + t.Type.String();
+ }
+ 
++func (t *ArrayType) Size() int64 {
++	return t.Count * t.Type.Size();
++}
++
+ // A VoidType represents the C void type.
+ type VoidType struct {
+ 	CommonType;
+@@ -252,11 +272,8 @@ func (t *TypedefType) String() string {
+ 	return t.Name;
+ }
+ 
+-// A Type conventionally represents a pointer to any of the
+-// specific Type structures (CharType, StructType, etc.).
+-type Type interface {
+-	Common() *CommonType;
+-	String() string;
++func (t *TypedefType) Size() int64 {
++	return t.Type.Size();
+ }
+ 
+ func (d *Data) Type(off Offset) (Type, os.Error) {
+@@ -589,7 +606,11 @@ func (d *Data) Type(off Offset) (Type, os.Error) {
+ 		goto Error;
+ 	}
+ 
+-	typ.Common().ByteSize, _ = e.Val(AttrByteSize).(int64);
++	b, ok := e.Val(AttrByteSize).(int64);
++	if !ok {
++		b = -1;
++	}
++	typ.Common().ByteSize = b;
+ 
+ 	return typ, nil;
+ 

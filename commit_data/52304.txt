@@ -16,6 +16,20 @@ Date:   Wed Apr 20 15:48:57 2022 -0400
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  misc/boring/build.release | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/misc/boring/build.release b/misc/boring/build.release
+index f421b12206..ae08bab8c9 100755
+--- a/misc/boring/build.release
++++ b/misc/boring/build.release
+@@ -70,7 +70,7 @@ sha() {
+     fi
+ }
+ shortgo=$(echo "$base" | perl -pe 's/(go\d+\.\d+)(\.\d+|rc\d+)/$1/')
+-$dir/release -target linux-amd64 -rev "$commit" -version "$version"
++$dir/release -target linux-amd64 -rev "$commit" -version "$version" -skip_long_tests
+ $dir/release -target src -rev "$commit" -version "$version"
+ output="$version.linux-amd64.tar.gz"
+ ls -l "$output"

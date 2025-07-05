@@ -9,7 +9,7 @@ Date:   Sat Aug 24 02:22:52 2013 +1000
     R=bradfitz
     CC=golang-dev
     https://golang.org/cl/13190043
-
+---
  src/pkg/crypto/rand/rand_unix.go   | 2 +-
  src/pkg/crypto/x509/root_unix.go   | 4 ++--
  src/pkg/mime/type_unix.go          | 2 +-
@@ -17,3 +17,91 @@ Date:   Sat Aug 24 02:22:52 2013 +1000
  src/pkg/time/sys_unix.go           | 2 +-
  src/pkg/time/zoneinfo_unix.go      | 2 +-
  6 files changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/src/pkg/crypto/rand/rand_unix.go b/src/pkg/crypto/rand/rand_unix.go
+index 18f482472d..238ceee557 100644
+--- a/src/pkg/crypto/rand/rand_unix.go
++++ b/src/pkg/crypto/rand/rand_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin freebsd linux netbsd openbsd plan9
++// +build darwin dragonfly freebsd linux netbsd openbsd plan9
+ 
+ // Unix cryptographically secure pseudorandom number
+ // generator.
+diff --git a/src/pkg/crypto/x509/root_unix.go b/src/pkg/crypto/x509/root_unix.go
+index 1b25a94d08..770ca66cd3 100644
+--- a/src/pkg/crypto/x509/root_unix.go
++++ b/src/pkg/crypto/x509/root_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build freebsd linux openbsd netbsd
++// +build dragonfly freebsd linux openbsd netbsd
+ 
+ package x509
+ 
+@@ -14,7 +14,7 @@ var certFiles = []string{
+ 	"/etc/pki/tls/certs/ca-bundle.crt",       // Fedora/RHEL
+ 	"/etc/ssl/ca-bundle.pem",                 // OpenSUSE
+ 	"/etc/ssl/cert.pem",                      // OpenBSD
+-	"/usr/local/share/certs/ca-root-nss.crt", // FreeBSD
++	"/usr/local/share/certs/ca-root-nss.crt", // FreeBSD/DragonFly
+ }
+ 
+ func (c *Certificate) systemVerify(opts *VerifyOptions) (chains [][]*Certificate, err error) {
+diff --git a/src/pkg/mime/type_unix.go b/src/pkg/mime/type_unix.go
+index e0050bb958..713e301cdf 100644
+--- a/src/pkg/mime/type_unix.go
++++ b/src/pkg/mime/type_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin freebsd linux netbsd openbsd
++// +build darwin dragonfly freebsd linux netbsd openbsd
+ 
+ package mime
+ 
+diff --git a/src/pkg/path/filepath/path_unix.go b/src/pkg/path/filepath/path_unix.go
+index cff7b2c65c..d927b342be 100644
+--- a/src/pkg/path/filepath/path_unix.go
++++ b/src/pkg/path/filepath/path_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin freebsd linux netbsd openbsd
++// +build darwin dragonfly freebsd linux netbsd openbsd
+ 
+ package filepath
+ 
+diff --git a/src/pkg/time/sys_unix.go b/src/pkg/time/sys_unix.go
+index 7f69b492c9..60a3ce08f9 100644
+--- a/src/pkg/time/sys_unix.go
++++ b/src/pkg/time/sys_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin freebsd linux netbsd openbsd
++// +build darwin dragonfly freebsd linux netbsd openbsd
+ 
+ package time
+ 
+diff --git a/src/pkg/time/zoneinfo_unix.go b/src/pkg/time/zoneinfo_unix.go
+index 2c951a9834..53b5dc82cb 100644
+--- a/src/pkg/time/zoneinfo_unix.go
++++ b/src/pkg/time/zoneinfo_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin freebsd linux netbsd openbsd
++// +build darwin dragonfly freebsd linux netbsd openbsd
+ 
+ // Parse "zoneinfo" time zone file.
+ // This is a fairly standard file format used on OS X, Linux, BSD, Sun, and others.

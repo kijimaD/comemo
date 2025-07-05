@@ -13,6 +13,31 @@ Date:   Wed Aug 29 03:24:13 2018 +0000
     Change-Id: I6fdb8992d4634ac7e3689360ff114e9431b5e90c
     Reviewed-on: https://go-review.googlesource.com/131995
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/syscall/exec_linux_test.go | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/syscall/exec_linux_test.go b/src/syscall/exec_linux_test.go
+index f551e87736..ac5745bc80 100644
+--- a/src/syscall/exec_linux_test.go
++++ b/src/syscall/exec_linux_test.go
+@@ -16,6 +16,7 @@ import (
+ 	"os/exec"
+ 	"os/user"
+ 	"path/filepath"
++	"runtime"
+ 	"strconv"
+ 	"strings"
+ 	"syscall"
+@@ -524,6 +525,11 @@ func TestAmbientCaps(t *testing.T) {
+ 		t.Skip("skipping test on Kubernetes-based builders; see Issue 12815")
+ 	}
+ 
++	// skip on android, due to lack of lookup support
++	if runtime.GOOS == "android" {
++		t.Skip("skipping test on android; see Issue 27327")
++	}
++
+ 	caps, err := getCaps()
+ 	if err != nil {
+ 		t.Fatal(err)

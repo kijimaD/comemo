@@ -10,7 +10,7 @@ Date:   Wed Dec 21 08:51:18 2011 -0500
     R=golang-dev, ality, mikioh.mikioh
     CC=golang-dev
     https://golang.org/cl/5489100
-
+---
  src/cmd/go/main.go               |  8 +++---
  src/pkg/crypto/tls/root_stub.go  |  2 +-
  src/pkg/debug/gosym/pclinetest.h |  2 ++
@@ -19,3 +19,206 @@ Date:   Wed Dec 21 08:51:18 2011 -0500
  src/pkg/go/build/dir.go          | 54 ++++++++++++++++++++++++++++++++--------
  src/pkg/net/cgo_stub.go          |  2 +-
  7 files changed, 65 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/go/main.go b/src/cmd/go/main.go
+index 2709750fcc..7b7f4a450d 100644
+--- a/src/cmd/go/main.go
++++ b/src/cmd/go/main.go
+@@ -242,11 +242,9 @@ func allPackages(what string) []string {
+ 	have := map[string]bool{
+ 		"builtin": true, // ignore pseudo-package that exists only for documentation
+ 	}
+-	/*
+-		if !build.DefaultContext.CgoEnabled {
+-			have["runtime/cgo"] = true // ignore during walk
+-		}
+-	*/
++	if !build.DefaultContext.CgoEnabled {
++		have["runtime/cgo"] = true // ignore during walk
++	}
+ 	var pkgs []string
+ 
+ 	// Commands
+diff --git a/src/pkg/crypto/tls/root_stub.go b/src/pkg/crypto/tls/root_stub.go
+index 18dcb02043..d00493a573 100644
+--- a/src/pkg/crypto/tls/root_stub.go
++++ b/src/pkg/crypto/tls/root_stub.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build plan9
++// +build plan9 darwin/nocgo
+ 
+ package tls
+ 
+diff --git a/src/pkg/debug/gosym/pclinetest.h b/src/pkg/debug/gosym/pclinetest.h
+index a6c40e76cd..156c0b87b0 100644
+--- a/src/pkg/debug/gosym/pclinetest.h
++++ b/src/pkg/debug/gosym/pclinetest.h
+@@ -1,3 +1,5 @@
++// +build ignore
++
+ // Empty include file to generate z symbols
+ 
+ 
+diff --git a/src/pkg/debug/gosym/pclinetest.s b/src/pkg/debug/gosym/pclinetest.s
+index 6305435b09..c1d4818d40 100644
+--- a/src/pkg/debug/gosym/pclinetest.s
++++ b/src/pkg/debug/gosym/pclinetest.s
+@@ -1,3 +1,5 @@
++// +build ignore
++
+ TEXT linefrompc(SB),7,$0	// Each byte stores its line delta
+ BYTE $2;
+ BYTE $1;
+diff --git a/src/pkg/go/build/build_test.go b/src/pkg/go/build/build_test.go
+index e86cfc012e..fd4030632a 100644
+--- a/src/pkg/go/build/build_test.go
++++ b/src/pkg/go/build/build_test.go
+@@ -46,7 +46,7 @@ var buildPkgs = []struct {
+ 	{
+ 		"go/build/cgotest",
+ 		&DirInfo{
+-			CgoFiles:    []string{"cgotest.go"},
++			CgoFiles:    ifCgo([]string{"cgotest.go"}),
+ 			CFiles:      []string{"cgotest.c"},
+ 			HFiles:      []string{"cgotest.h"},
+ 			Imports:     []string{"C", "unsafe"},
+@@ -56,6 +56,13 @@ var buildPkgs = []struct {
+ 	},
+ }
+ 
++func ifCgo(x []string) []string {
++	if DefaultContext.CgoEnabled {
++		return x
++	}
++	return nil
++}
++
+ const cmdtestOutput = "3"
+ 
+ func TestBuild(t *testing.T) {
+@@ -72,6 +79,10 @@ func TestBuild(t *testing.T) {
+ 			continue
+ 		}
+ 
++		if tt.dir == "go/build/cgotest" && len(info.CgoFiles) == 0 {
++			continue
++		}
++
+ 		s, err := Build(tree, tt.dir, info)
+ 		if err != nil {
+ 			t.Errorf("Build(%#q): %v", tt.dir, err)
+diff --git a/src/pkg/go/build/dir.go b/src/pkg/go/build/dir.go
+index 29d7c4c7d3..b710bc18da 100644
+--- a/src/pkg/go/build/dir.go
++++ b/src/pkg/go/build/dir.go
+@@ -26,9 +26,9 @@ import (
+ 
+ // A Context specifies the supporting context for a build.
+ type Context struct {
+-	GOARCH string // target architecture
+-	GOOS   string // target operating system
+-	// TODO(rsc,adg): GOPATH
++	GOARCH     string // target architecture
++	GOOS       string // target operating system
++	CgoEnabled bool   // whether cgo can be used
+ 
+ 	// By default, ScanDir uses the operating system's
+ 	// file system calls to read directories and files.
+@@ -75,9 +75,34 @@ func (ctxt *Context) readFile(dir, file string) (string, []byte, error) {
+ // The DefaultContext is the default Context for builds.
+ // It uses the GOARCH and GOOS environment variables
+ // if set, or else the compiled code's GOARCH and GOOS.
+-var DefaultContext = Context{
+-	GOARCH: envOr("GOARCH", runtime.GOARCH),
+-	GOOS:   envOr("GOOS", runtime.GOOS),
++var DefaultContext = defaultContext()
++
++var cgoEnabled = map[string]bool{
++	"darwin/386":    true,
++	"darwin/amd64":  true,
++	"linux/386":     true,
++	"linux/amd64":   true,
++	"freebsd/386":   true,
++	"freebsd/amd64": true,
++}
++
++func defaultContext() Context {
++	var c Context
++
++	c.GOARCH = envOr("GOARCH", runtime.GOARCH)
++	c.GOOS = envOr("GOOS", runtime.GOOS)
++
++	s := os.Getenv("CGO_ENABLED")
++	switch s {
++	case "1":
++		c.CgoEnabled = true
++	case "0":
++		c.CgoEnabled = false
++	default:
++		c.CgoEnabled = cgoEnabled[c.GOOS+"/"+c.GOARCH]
++	}
++
++	return c
+ }
+ 
+ func envOr(name, def string) string {
+@@ -264,7 +289,9 @@ func (ctxt *Context) ScanDir(dir string) (info *DirInfo, err error) {
+ 			}
+ 		}
+ 		if isCgo {
+-			di.CgoFiles = append(di.CgoFiles, name)
++			if ctxt.CgoEnabled {
++				di.CgoFiles = append(di.CgoFiles, name)
++			}
+ 		} else if isTest {
+ 			if pkg == string(pf.Name.Name) {
+ 				di.TestGoFiles = append(di.TestGoFiles, name)
+@@ -306,7 +333,6 @@ func (ctxt *Context) ScanDir(dir string) (info *DirInfo, err error) {
+ }
+ 
+ var slashslash = []byte("//")
+-var plusBuild = []byte("+build")
+ 
+ // shouldBuild reports whether it is okay to use this file,
+ // The rule is that in the file's leading run of // comments
+@@ -527,14 +553,22 @@ func splitQuoted(s string) (r []string, err error) {
+ //
+ //	$GOOS
+ //	$GOARCH
+-//	$GOOS/$GOARCH
++//	cgo (if cgo is enabled)
++//	nocgo (if cgo is disabled)
++//	a slash-separated list of any of these
+ //
+ func (ctxt *Context) matchOSArch(name string) bool {
++	if ctxt.CgoEnabled && name == "cgo" {
++		return true
++	}
++	if !ctxt.CgoEnabled && name == "nocgo" {
++		return true
++	}
+ 	if name == ctxt.GOOS || name == ctxt.GOARCH {
+ 		return true
+ 	}
+ 	i := strings.Index(name, "/")
+-	return i >= 0 && name[:i] == ctxt.GOOS && name[i+1:] == ctxt.GOARCH
++	return i >= 0 && ctxt.matchOSArch(name[:i]) && ctxt.matchOSArch(name[i+1:])
+ }
+ 
+ // goodOSArchFile returns false if the name contains a $GOOS or $GOARCH
+diff --git a/src/pkg/net/cgo_stub.go b/src/pkg/net/cgo_stub.go
+index 4c49e63184..66aff837d0 100644
+--- a/src/pkg/net/cgo_stub.go
++++ b/src/pkg/net/cgo_stub.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build netbsd openbsd
++// +build nocgo
+ 
+ // Stub cgo routines for systems that do not use cgo to do network lookups.
+ 

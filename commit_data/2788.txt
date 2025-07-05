@@ -10,7 +10,63 @@ Date:   Mon Jul 27 14:55:14 2009 -0700
     R=ken
     OCL=32240
     CL=32243
-
+---
  src/cmd/gc/walk.c        | 12 +++++++++---
  test/fixedbugs/bug172.go | 12 ++++++++++++
  2 files changed, 21 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index be3f0b9cb7..047ae09928 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -338,7 +338,7 @@ walkexpr(Node *n, int top, NodeList **init)
+ 	NodeList *ll, *lr;
+ 	Type *t;
+ 	Sym *s;
+-	int et, cl, cr, typeok;
++	int et, cl, cr, typeok, op;
+ 	int32 lno;
+ 
+ 	if(n == N)
+@@ -1252,7 +1252,10 @@ reswitch:
+  * ======== second switch ========
+  */
+ 
+-	switch(n->op) {
++	op = n->op;
++	if(op == OASOP)
++		op = n->etype;
++	switch(op) {
+ 	default:
+ 		fatal("walkexpr: switch 2 unknown op %N", n, init);
+ 		goto ret;
+@@ -1423,7 +1426,10 @@ badt:
+ 		badtype(n->op, n->left->type, T);
+ 		goto ret;
+ 	}
+-	badtype(n->op, n->left->type, n->right->type);
++	op = n->op;
++	if(op == OASOP)
++		op = n->etype;
++	badtype(op, n->left->type, n->right->type);
+ 	goto ret;
+ 
+ ret:
+diff --git a/test/fixedbugs/bug172.go b/test/fixedbugs/bug172.go
+new file mode 100644
+index 0000000000..2ee26148f1
+--- /dev/null
++++ b/test/fixedbugs/bug172.go
+@@ -0,0 +1,12 @@
++// errchk $G $D/$F.go
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func f() {
++	a := true;
++	a |= a;	// ERROR "illegal.*OR"
++}

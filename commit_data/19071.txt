@@ -17,7 +17,74 @@ Date:   Tue Apr 8 22:35:41 2014 -0400
     R=golang-codereviews, bradfitz, 0intro
     CC=golang-codereviews
     https://golang.org/cl/85430046
-
+---
  src/pkg/runtime/proc.c    |  4 ++++
  src/pkg/runtime/runtime.c | 35 ++++++++++++++++++++++++-----------
  2 files changed, 28 insertions(+), 11 deletions(-)
+
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 2ab54be70c..6b5c031c87 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -155,6 +155,10 @@ runtime·schedinit(void)
+ 	// in a fault during a garbage collection, it will not
+ 	// need to allocated memory.
+ 	runtime·newErrorCString(0, &i);
++	
++	// Initialize the cached gotraceback value, since
++	// gotraceback calls getenv, which mallocs on Plan 9.
++	runtime·gotraceback(nil);
+ 
+ 	runtime·goargs();
+ 	runtime·goenvs();
+diff --git a/src/pkg/runtime/runtime.c b/src/pkg/runtime/runtime.c
+index d995bf97ae..725c6d838e 100644
+--- a/src/pkg/runtime/runtime.c
++++ b/src/pkg/runtime/runtime.c
+@@ -20,22 +20,35 @@ enum {
+ int32
+ runtime·gotraceback(bool *crash)
+ {
++	// Keep a cached value to make gotraceback fast,
++	// since we call it on every call to gentraceback.
++	// The cached value is a uint32 in which the low bit
++	// is the "crash" setting and the top 31 bits are the
++	// gotraceback value.
++	static uint32 cache = ~(uint32)0;
+ 	byte *p;
++	uint32 x;
+ 
+ 	if(crash != nil)
+ 		*crash = false;
+-	p = runtime·getenv("GOTRACEBACK");
+-	if(p == nil || p[0] == '\0') {
+-		if(m->traceback != 0)
+-			return m->traceback;
+-		return 1;	// default is on
+-	}
+-	if(runtime·strcmp(p, (byte*)"crash") == 0) {
+-		if(crash != nil)
+-			*crash = true;
+-		return 2;	// extra information
++	if(m->traceback != 0)
++		return m->traceback;
++	x = runtime·atomicload(&cache);
++	if(x == ~(uint32)0) {
++		p = runtime·getenv("GOTRACEBACK");
++		if(p == nil)
++			p = (byte*)"";
++		if(p[0] == '\0')
++			x = 1<<1;
++		else if(runtime·strcmp(p, (byte*)"crash") == 0)
++			x = (2<<1) | 1;
++		else
++			x = runtime·atoi(p)<<1;	
++		runtime·atomicstore(&cache, x);
+ 	}
+-	return runtime·atoi(p);
++	if(crash != nil)
++		*crash = x&1;
++	return x>>1;
+ }
+ 
+ int32

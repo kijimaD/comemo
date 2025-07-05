@@ -11,7 +11,7 @@ Date:   Mon Sep 23 22:40:24 2013 -0400
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/13740048
-
+---
  src/pkg/net/cgo_unix.go    |  3 +++
  src/pkg/net/ip.go          |  9 +++++++
  src/pkg/net/ipraw_test.go  |  4 +--
@@ -22,3 +22,319 @@ Date:   Mon Sep 23 22:40:24 2013 -0400
  src/pkg/net/udp_test.go    | 63 +++++++++++++---------------------------------
  src/pkg/net/udpsock.go     |  5 ++--
  9 files changed, 65 insertions(+), 68 deletions(-)
+
+diff --git a/src/pkg/net/cgo_unix.go b/src/pkg/net/cgo_unix.go
+index 8397cd70c2..1f366ee5c6 100644
+--- a/src/pkg/net/cgo_unix.go
++++ b/src/pkg/net/cgo_unix.go
+@@ -155,6 +155,9 @@ func cgoLookupCNAME(name string) (cname string, err error, completed bool) {
+ }
+ 
+ func copyIP(x IP) IP {
++	if len(x) < 16 {
++		return x.To16()
++	}
+ 	y := make(IP, len(x))
+ 	copy(y, x)
+ 	return y
+diff --git a/src/pkg/net/ip.go b/src/pkg/net/ip.go
+index f0f0d9ec6b..fd6a7d4ee8 100644
+--- a/src/pkg/net/ip.go
++++ b/src/pkg/net/ip.go
+@@ -312,6 +312,15 @@ func (ip IP) String() string {
+ 	return s
+ }
+ 
++// ipEmptyString is like ip.String except that it returns
++// an empty string when ip is unset.
++func ipEmptyString(ip IP) string {
++	if len(ip) == 0 {
++		return ""
++	}
++	return ip.String()
++}
++
+ // MarshalText implements the encoding.TextMarshaler interface.
+ // The encoding is the same as returned by String.
+ func (ip IP) MarshalText() ([]byte, error) {
+diff --git a/src/pkg/net/ipraw_test.go b/src/pkg/net/ipraw_test.go
+index c8e3c846f4..13c977cac4 100644
+--- a/src/pkg/net/ipraw_test.go
++++ b/src/pkg/net/ipraw_test.go
+@@ -52,8 +52,8 @@ func init() {
+ 	}
+ 	if ips, err := LookupIP("localhost"); err == nil && len(ips) > 1 && supportsIPv4 && supportsIPv6 {
+ 		resolveIPAddrTests = append(resolveIPAddrTests, []resolveIPAddrTest{
+-			{"ip", "localhost", &IPAddr{IP: IPv4(127, 0, 0, 1).To4()}, nil},
+-			{"ip4", "localhost", &IPAddr{IP: IPv4(127, 0, 0, 1).To4()}, nil},
++			{"ip", "localhost", &IPAddr{IP: IPv4(127, 0, 0, 1)}, nil},
++			{"ip4", "localhost", &IPAddr{IP: IPv4(127, 0, 0, 1)}, nil},
+ 			{"ip6", "localhost", &IPAddr{IP: IPv6loopback}, nil},
+ 		}...)
+ 	}
+diff --git a/src/pkg/net/ipsock.go b/src/pkg/net/ipsock.go
+index a4601bad6d..8b586ef7c3 100644
+--- a/src/pkg/net/ipsock.go
++++ b/src/pkg/net/ipsock.go
+@@ -116,11 +116,11 @@ func firstSupportedAddr(filter func(IP) IP, ips []IP, inetaddr func(IP) netaddr)
+ }
+ 
+ // ipv4only returns IPv4 addresses that we can use with the kernel's
+-// IPv4 addressing modes.  It returns IPv4-mapped IPv6 addresses as
+-// IPv4 addresses and returns other IPv6 address types as nils.
++// IPv4 addressing modes. If ip is an IPv4 address, ipv4only returns ip.
++// Otherwise it returns nil.
+ func ipv4only(ip IP) IP {
+-	if supportsIPv4 {
+-		return ip.To4()
++	if supportsIPv4 && ip.To4() != nil {
++		return ip
+ 	}
+ 	return nil
+ }
+diff --git a/src/pkg/net/ipsock_test.go b/src/pkg/net/ipsock_test.go
+index 3deacaaa72..9ecaaec69f 100644
+--- a/src/pkg/net/ipsock_test.go
++++ b/src/pkg/net/ipsock_test.go
+@@ -26,7 +26,7 @@ var firstFavoriteAddrTests = []struct {
+ 		},
+ 		testInetaddr,
+ 		addrList{
+-			&TCPAddr{IP: IPv4(127, 0, 0, 1).To4(), Port: 5682},
++			&TCPAddr{IP: IPv4(127, 0, 0, 1), Port: 5682},
+ 			&TCPAddr{IP: IPv6loopback, Port: 5682},
+ 		},
+ 		nil,
+@@ -39,7 +39,7 @@ var firstFavoriteAddrTests = []struct {
+ 		},
+ 		testInetaddr,
+ 		addrList{
+-			&TCPAddr{IP: IPv4(127, 0, 0, 1).To4(), Port: 5682},
++			&TCPAddr{IP: IPv4(127, 0, 0, 1), Port: 5682},
+ 			&TCPAddr{IP: IPv6loopback, Port: 5682},
+ 		},
+ 		nil,
+@@ -51,7 +51,7 @@ var firstFavoriteAddrTests = []struct {
+ 			IPv4(192, 168, 0, 1),
+ 		},
+ 		testInetaddr,
+-		&TCPAddr{IP: IPv4(127, 0, 0, 1).To4(), Port: 5682},
++		&TCPAddr{IP: IPv4(127, 0, 0, 1), Port: 5682},
+ 		nil,
+ 	},
+ 	{
+@@ -74,7 +74,7 @@ var firstFavoriteAddrTests = []struct {
+ 		},
+ 		testInetaddr,
+ 		addrList{
+-			&TCPAddr{IP: IPv4(127, 0, 0, 1).To4(), Port: 5682},
++			&TCPAddr{IP: IPv4(127, 0, 0, 1), Port: 5682},
+ 			&TCPAddr{IP: IPv6loopback, Port: 5682},
+ 		},
+ 		nil,
+@@ -89,7 +89,7 @@ var firstFavoriteAddrTests = []struct {
+ 		},
+ 		testInetaddr,
+ 		addrList{
+-			&TCPAddr{IP: IPv4(127, 0, 0, 1).To4(), Port: 5682},
++			&TCPAddr{IP: IPv4(127, 0, 0, 1), Port: 5682},
+ 			&TCPAddr{IP: IPv6loopback, Port: 5682},
+ 		},
+ 		nil,
+@@ -104,7 +104,7 @@ var firstFavoriteAddrTests = []struct {
+ 		},
+ 		testInetaddr,
+ 		addrList{
+-			&TCPAddr{IP: IPv4(127, 0, 0, 1).To4(), Port: 5682},
++			&TCPAddr{IP: IPv4(127, 0, 0, 1), Port: 5682},
+ 			&TCPAddr{IP: IPv6loopback, Port: 5682},
+ 		},
+ 		nil,
+@@ -119,7 +119,7 @@ var firstFavoriteAddrTests = []struct {
+ 		},
+ 		testInetaddr,
+ 		addrList{
+-			&TCPAddr{IP: IPv4(127, 0, 0, 1).To4(), Port: 5682},
++			&TCPAddr{IP: IPv4(127, 0, 0, 1), Port: 5682},
+ 			&TCPAddr{IP: IPv6loopback, Port: 5682},
+ 		},
+ 		nil,
+@@ -132,7 +132,7 @@ var firstFavoriteAddrTests = []struct {
+ 			IPv6loopback,
+ 		},
+ 		testInetaddr,
+-		&TCPAddr{IP: IPv4(127, 0, 0, 1).To4(), Port: 5682},
++		&TCPAddr{IP: IPv4(127, 0, 0, 1), Port: 5682},
+ 		nil,
+ 	},
+ 	{
+@@ -142,7 +142,7 @@ var firstFavoriteAddrTests = []struct {
+ 			IPv4(127, 0, 0, 1),
+ 		},
+ 		testInetaddr,
+-		&TCPAddr{IP: IPv4(127, 0, 0, 1).To4(), Port: 5682},
++		&TCPAddr{IP: IPv4(127, 0, 0, 1), Port: 5682},
+ 		nil,
+ 	},
+ 
+diff --git a/src/pkg/net/tcp_test.go b/src/pkg/net/tcp_test.go
+index a9c7562585..62fd99f5c0 100644
+--- a/src/pkg/net/tcp_test.go
++++ b/src/pkg/net/tcp_test.go
+@@ -292,6 +292,8 @@ var resolveTCPAddrTests = []resolveTCPAddrTest{
+ 	{"", "127.0.0.1:0", &TCPAddr{IP: IPv4(127, 0, 0, 1), Port: 0}, nil}, // Go 1.0 behavior
+ 	{"", "[::1]:0", &TCPAddr{IP: ParseIP("::1"), Port: 0}, nil},         // Go 1.0 behavior
+ 
++	{"tcp", ":12345", &TCPAddr{Port: 12345}, nil},
++
+ 	{"http", "127.0.0.1:0", nil, UnknownNetworkError("http")},
+ }
+ 
+@@ -305,8 +307,8 @@ func init() {
+ 	}
+ 	if ips, err := LookupIP("localhost"); err == nil && len(ips) > 1 && supportsIPv4 && supportsIPv6 {
+ 		resolveTCPAddrTests = append(resolveTCPAddrTests, []resolveTCPAddrTest{
+-			{"tcp", "localhost:5", &TCPAddr{IP: IPv4(127, 0, 0, 1).To4(), Port: 5}, nil},
+-			{"tcp4", "localhost:6", &TCPAddr{IP: IPv4(127, 0, 0, 1).To4(), Port: 6}, nil},
++			{"tcp", "localhost:5", &TCPAddr{IP: IPv4(127, 0, 0, 1), Port: 5}, nil},
++			{"tcp4", "localhost:6", &TCPAddr{IP: IPv4(127, 0, 0, 1), Port: 6}, nil},
+ 			{"tcp6", "localhost:7", &TCPAddr{IP: IPv6loopback, Port: 7}, nil},
+ 		}...)
+ 	}
+@@ -319,7 +321,17 @@ func TestResolveTCPAddr(t *testing.T) {
+ 			t.Fatalf("ResolveTCPAddr(%q, %q) failed: %v", tt.net, tt.litAddrOrName, err)
+ 		}
+ 		if !reflect.DeepEqual(addr, tt.addr) {
+-			t.Fatalf("got %#v; expected %#v", addr, tt.addr)
++			t.Fatalf("ResolveTCPAddr(%q, %q) = %#v, want %#v", tt.net, tt.litAddrOrName, addr, tt.addr)
++		}
++		if err == nil {
++			str := addr.String()
++			addr1, err := ResolveTCPAddr(tt.net, str)
++			if err != nil {
++				t.Fatalf("ResolveTCPAddr(%q, %q) [from %q]: %v", tt.net, str, tt.litAddrOrName, err)
++			}
++			if !reflect.DeepEqual(addr1, addr) {
++				t.Fatalf("ResolveTCPAddr(%q, %q) [from %q] = %#v, want %#v", tt.net, str, tt.litAddrOrName, addr1, addr)
++			}
+ 		}
+ 	}
+ }
+diff --git a/src/pkg/net/tcpsock.go b/src/pkg/net/tcpsock.go
+index 8614c74595..f3dfbd23d3 100644
+--- a/src/pkg/net/tcpsock.go
++++ b/src/pkg/net/tcpsock.go
+@@ -18,10 +18,11 @@ func (a *TCPAddr) String() string {
+ 	if a == nil {
+ 		return "<nil>"
+ 	}
++	ip := ipEmptyString(a.IP)
+ 	if a.Zone != "" {
+-		return JoinHostPort(a.IP.String()+"%"+a.Zone, itoa(a.Port))
++		return JoinHostPort(ip+"%"+a.Zone, itoa(a.Port))
+ 	}
+-	return JoinHostPort(a.IP.String(), itoa(a.Port))
++	return JoinHostPort(ip, itoa(a.Port))
+ }
+ 
+ func (a *TCPAddr) toAddr() Addr {
+diff --git a/src/pkg/net/udp_test.go b/src/pkg/net/udp_test.go
+index fc73a79059..6f4d2152c3 100644
+--- a/src/pkg/net/udp_test.go
++++ b/src/pkg/net/udp_test.go
+@@ -5,60 +5,31 @@
+ package net
+ 
+ import (
+-	"fmt"
+ 	"reflect"
+ 	"runtime"
++	"strings"
+ 	"testing"
+ )
+ 
+-type resolveUDPAddrTest struct {
+-	net           string
+-	litAddrOrName string
+-	addr          *UDPAddr
+-	err           error
+-}
+-
+-var resolveUDPAddrTests = []resolveUDPAddrTest{
+-	{"udp", "127.0.0.1:0", &UDPAddr{IP: IPv4(127, 0, 0, 1), Port: 0}, nil},
+-	{"udp4", "127.0.0.1:65535", &UDPAddr{IP: IPv4(127, 0, 0, 1), Port: 65535}, nil},
+-
+-	{"udp", "[::1]:1", &UDPAddr{IP: ParseIP("::1"), Port: 1}, nil},
+-	{"udp6", "[::1]:65534", &UDPAddr{IP: ParseIP("::1"), Port: 65534}, nil},
+-
+-	{"udp", "[::1%en0]:1", &UDPAddr{IP: ParseIP("::1"), Port: 1, Zone: "en0"}, nil},
+-	{"udp6", "[::1%911]:2", &UDPAddr{IP: ParseIP("::1"), Port: 2, Zone: "911"}, nil},
+-
+-	{"", "127.0.0.1:0", &UDPAddr{IP: IPv4(127, 0, 0, 1), Port: 0}, nil}, // Go 1.0 behavior
+-	{"", "[::1]:0", &UDPAddr{IP: ParseIP("::1"), Port: 0}, nil},         // Go 1.0 behavior
+-
+-	{"sip", "127.0.0.1:0", nil, UnknownNetworkError("sip")},
+-}
+-
+-func init() {
+-	if ifi := loopbackInterface(); ifi != nil {
+-		index := fmt.Sprintf("%v", ifi.Index)
+-		resolveUDPAddrTests = append(resolveUDPAddrTests, []resolveUDPAddrTest{
+-			{"udp6", "[fe80::1%" + ifi.Name + "]:3", &UDPAddr{IP: ParseIP("fe80::1"), Port: 3, Zone: zoneToString(ifi.Index)}, nil},
+-			{"udp6", "[fe80::1%" + index + "]:4", &UDPAddr{IP: ParseIP("fe80::1"), Port: 4, Zone: index}, nil},
+-		}...)
+-	}
+-	if ips, err := LookupIP("localhost"); err == nil && len(ips) > 1 && supportsIPv4 && supportsIPv6 {
+-		resolveUDPAddrTests = append(resolveUDPAddrTests, []resolveUDPAddrTest{
+-			{"udp", "localhost:5", &UDPAddr{IP: IPv4(127, 0, 0, 1).To4(), Port: 5}, nil},
+-			{"udp4", "localhost:6", &UDPAddr{IP: IPv4(127, 0, 0, 1).To4(), Port: 6}, nil},
+-			{"udp6", "localhost:7", &UDPAddr{IP: IPv6loopback, Port: 7}, nil},
+-		}...)
+-	}
+-}
+-
+ func TestResolveUDPAddr(t *testing.T) {
+-	for _, tt := range resolveUDPAddrTests {
+-		addr, err := ResolveUDPAddr(tt.net, tt.litAddrOrName)
++	for _, tt := range resolveTCPAddrTests {
++		net := strings.Replace(tt.net, "tcp", "udp", -1)
++		addr, err := ResolveUDPAddr(net, tt.litAddrOrName)
+ 		if err != tt.err {
+-			t.Fatalf("ResolveUDPAddr(%q, %q) failed: %v", tt.net, tt.litAddrOrName, err)
++			t.Fatalf("ResolveUDPAddr(%q, %q) failed: %v", net, tt.litAddrOrName, err)
++		}
++		if !reflect.DeepEqual(addr, (*UDPAddr)(tt.addr)) {
++			t.Fatalf("ResolveUDPAddr(%q, %q) = %#v, want %#v", net, tt.litAddrOrName, addr, tt.addr)
+ 		}
+-		if !reflect.DeepEqual(addr, tt.addr) {
+-			t.Fatalf("got %#v; expected %#v", addr, tt.addr)
++		if err == nil {
++			str := addr.String()
++			addr1, err := ResolveUDPAddr(net, str)
++			if err != nil {
++				t.Fatalf("ResolveUDPAddr(%q, %q) [from %q]: %v", net, str, tt.litAddrOrName, err)
++			}
++			if !reflect.DeepEqual(addr1, addr) {
++				t.Fatalf("ResolveUDPAddr(%q, %q) [from %q] = %#v, want %#v", net, str, tt.litAddrOrName, addr1, addr)
++			}
+ 		}
+ 	}
+ }
+diff --git a/src/pkg/net/udpsock.go b/src/pkg/net/udpsock.go
+index edbb93be3c..0dd0dbd711 100644
+--- a/src/pkg/net/udpsock.go
++++ b/src/pkg/net/udpsock.go
+@@ -22,10 +22,11 @@ func (a *UDPAddr) String() string {
+ 	if a == nil {
+ 		return "<nil>"
+ 	}
++	ip := ipEmptyString(a.IP)
+ 	if a.Zone != "" {
+-		return JoinHostPort(a.IP.String()+"%"+a.Zone, itoa(a.Port))
++		return JoinHostPort(ip+"%"+a.Zone, itoa(a.Port))
+ 	}
+-	return JoinHostPort(a.IP.String(), itoa(a.Port))
++	return JoinHostPort(ip, itoa(a.Port))
+ }
+ 
+ func (a *UDPAddr) toAddr() Addr {

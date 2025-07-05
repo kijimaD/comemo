@@ -12,7 +12,161 @@ Date:   Wed Apr 10 13:05:34 2013 -0700
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/8617044
-
+---
  src/pkg/encoding/json/encode.go      | 42 +++++++++++++++-----------
  src/pkg/encoding/json/encode_test.go | 58 ++++++++++++++++++++++++++++++++++--
  2 files changed, 81 insertions(+), 19 deletions(-)
+
+diff --git a/src/pkg/encoding/json/encode.go b/src/pkg/encoding/json/encode.go
+index 2e46903c7c..b07dbd1aca 100644
+--- a/src/pkg/encoding/json/encode.go
++++ b/src/pkg/encoding/json/encode.go
+@@ -666,19 +666,17 @@ func typeFields(t reflect.Type) []field {
+ 		// Find the sequence of fields with the name of this first field.
+ 		fi := fields[i]
+ 		name := fi.name
+-		hasTags := fi.tag
+ 		for advance = 1; i+advance < len(fields); advance++ {
+ 			fj := fields[i+advance]
+ 			if fj.name != name {
+ 				break
+ 			}
+-			hasTags = hasTags || fj.tag
+ 		}
+ 		if advance == 1 { // Only one field with this name
+ 			out = append(out, fi)
+ 			continue
+ 		}
+-		dominant, ok := dominantField(fields[i:i+advance], hasTags)
++		dominant, ok := dominantField(fields[i : i+advance])
+ 		if ok {
+ 			out = append(out, dominant)
+ 		}
+@@ -696,23 +694,33 @@ func typeFields(t reflect.Type) []field {
+ // JSON tags. If there are multiple top-level fields, the boolean
+ // will be false: This condition is an error in Go and we skip all
+ // the fields.
+-func dominantField(fields []field, hasTags bool) (field, bool) {
+-	if hasTags {
+-		// If there's a tag, it gets promoted, so delete all fields without tags.
+-		var j int
+-		for i := 0; i < len(fields); i++ {
+-			if fields[i].tag {
+-				fields[j] = fields[i]
+-				j++
++func dominantField(fields []field) (field, bool) {
++	// The fields are sorted in increasing index-length order. The winner
++	// must therefore be one with the shortest index length. Drop all
++	// longer entries, which is easy: just truncate the slice.
++	length := len(fields[0].index)
++	tagged := -1 // Index of first tagged field.
++	for i, f := range fields {
++		if len(f.index) > length {
++			fields = fields[:i]
++			break
++		}
++		if f.tag {
++			if tagged >= 0 {
++				// Multiple tagged fields at the same level: conflict.
++				// Return no field.
++				return field{}, false
+ 			}
++			tagged = i
+ 		}
+-		fields = fields[:j]
+ 	}
+-	// The fields are sorted in increasing index-length order. The first entry
+-	// therefore wins, unless the second entry is of the same length. If that
+-	// is true, then there is a conflict (two fields named "X" at the same level)
+-	// and we have no fields.
+-	if len(fields) > 1 && len(fields[0].index) == len(fields[1].index) {
++	if tagged >= 0 {
++		return fields[tagged], true
++	}
++	// All remaining fields have the same length. If there's more than one,
++	// we have a conflict (two fields named "X" at the same level) and we
++	// return no field.
++	if len(fields) > 1 {
+ 		return field{}, false
+ 	}
+ 	return fields[0], true
+diff --git a/src/pkg/encoding/json/encode_test.go b/src/pkg/encoding/json/encode_test.go
+index f4a7170d8f..5be0a992e1 100644
+--- a/src/pkg/encoding/json/encode_test.go
++++ b/src/pkg/encoding/json/encode_test.go
+@@ -221,7 +221,7 @@ type BugC struct {
+ }
+ 
+ // Legal Go: We never use the repeated embedded field (S).
+-type BugD struct {
++type BugX struct {
+ 	A int
+ 	BugA
+ 	BugB
+@@ -243,7 +243,7 @@ func TestEmbeddedBug(t *testing.T) {
+ 		t.Fatalf("Marshal: got %s want %s", got, want)
+ 	}
+ 	// Now check that the duplicate field, S, does not appear.
+-	x := BugD{
++	x := BugX{
+ 		A: 23,
+ 	}
+ 	b, err = Marshal(x)
+@@ -256,3 +256,57 @@ func TestEmbeddedBug(t *testing.T) {
+ 		t.Fatalf("Marshal: got %s want %s", got, want)
+ 	}
+ }
++
++type BugD struct { // Same as BugA after tagging.
++	XXX string `json:"S"`
++}
++
++// BugD's tagged S field should dominate BugA's.
++type BugY struct {
++	BugA
++	BugD
++}
++
++// Test that a field with a tag dominates untagged fields.
++func TestTaggedFieldDominates(t *testing.T) {
++	v := BugY{
++		BugA{"BugA"},
++		BugD{"BugD"},
++	}
++	b, err := Marshal(v)
++	if err != nil {
++		t.Fatal("Marshal:", err)
++	}
++	want := `{"S":"BugD"}`
++	got := string(b)
++	if got != want {
++		t.Fatalf("Marshal: got %s want %s", got, want)
++	}
++}
++
++// There are no tags here, so S should not appear.
++type BugZ struct {
++	BugA
++	BugC
++	BugY // Contains a tagged S field through BugD; should not dominate.
++}
++
++func TestDuplicatedFieldDisappears(t *testing.T) {
++	v := BugZ{
++		BugA{"BugA"},
++		BugC{"BugC"},
++		BugY{
++			BugA{"nested BugA"},
++			BugD{"nested BugD"},
++		},
++	}
++	b, err := Marshal(v)
++	if err != nil {
++		t.Fatal("Marshal:", err)
++	}
++	want := `{}`
++	got := string(b)
++	if got != want {
++		t.Fatalf("Marshal: got %s want %s", got, want)
++	}
++}

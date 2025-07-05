@@ -13,7 +13,43 @@ Date:   Mon Aug 20 10:15:47 2018 +0900
     Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-
+---
  src/path/filepath/path_test.go    | 4 ++++
  src/path/filepath/path_windows.go | 9 ++++++++-
  2 files changed, 12 insertions(+), 1 deletion(-)
+
+diff --git a/src/path/filepath/path_test.go b/src/path/filepath/path_test.go
+index dde087253d..e50ee97bcb 100644
+--- a/src/path/filepath/path_test.go
++++ b/src/path/filepath/path_test.go
+@@ -271,6 +271,10 @@ var winjointests = []JoinTest{
+ 	{[]string{`C:`, `a`}, `C:a`},
+ 	{[]string{`C:`, `a\b`}, `C:a\b`},
+ 	{[]string{`C:`, `a`, `b`}, `C:a\b`},
++	{[]string{`C:`, ``, `b`}, `C:b`},
++	{[]string{`C:`, ``, ``, `b`}, `C:b`},
++	{[]string{`C:`, ``}, `C:.`},
++	{[]string{`C:`, ``, ``}, `C:.`},
+ 	{[]string{`C:.`, `a`}, `C:a`},
+ 	{[]string{`C:a`, `b`}, `C:a\b`},
+ 	{[]string{`C:a`, `b`, `d`}, `C:a\b\d`},
+diff --git a/src/path/filepath/path_windows.go b/src/path/filepath/path_windows.go
+index 409e8d6466..519b6ebc32 100644
+--- a/src/path/filepath/path_windows.go
++++ b/src/path/filepath/path_windows.go
+@@ -134,7 +134,14 @@ func joinNonEmpty(elem []string) string {
+ 	if len(elem[0]) == 2 && elem[0][1] == ':' {
+ 		// First element is drive letter without terminating slash.
+ 		// Keep path relative to current directory on that drive.
+-		return Clean(elem[0] + strings.Join(elem[1:], string(Separator)))
++		// Skip empty elements.
++		i := 1
++		for ; i < len(elem); i++ {
++			if elem[i] != "" {
++				break
++			}
++		}
++		return Clean(elem[0] + strings.Join(elem[i:], string(Separator)))
+ 	}
+ 	// The following logic prevents Join from inadvertently creating a
+ 	// UNC path on Windows. Unless the first element is a UNC path, Join

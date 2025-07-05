@@ -17,7 +17,56 @@ Date:   Sun Jul 9 17:03:45 2017 +0200
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/esc.go        |  1 +
  src/cmd/compile/internal/gc/scope_test.go | 11 +++++++++++
  2 files changed, 12 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/esc.go b/src/cmd/compile/internal/gc/esc.go
+index c25eb544cf..87a5b7f29f 100644
+--- a/src/cmd/compile/internal/gc/esc.go
++++ b/src/cmd/compile/internal/gc/esc.go
+@@ -2100,6 +2100,7 @@ func moveToHeap(n *Node) {
+ 	heapaddr := temp(types.NewPtr(n.Type))
+ 	heapaddr.Sym = lookup("&" + n.Sym.Name)
+ 	heapaddr.Orig.Sym = heapaddr.Sym
++	heapaddr.Pos = n.Pos
+ 
+ 	// Unset AutoTemp to persist the &foo variable name through SSA to
+ 	// liveness analysis.
+diff --git a/src/cmd/compile/internal/gc/scope_test.go b/src/cmd/compile/internal/gc/scope_test.go
+index f08e900193..9113afe279 100644
+--- a/src/cmd/compile/internal/gc/scope_test.go
++++ b/src/cmd/compile/internal/gc/scope_test.go
+@@ -49,6 +49,7 @@ var testfile = []testline{
+ 	{line: "func f4(x int) { }"},
+ 	{line: "func f5(x int) { }"},
+ 	{line: "func f6(x int) { }"},
++	{line: "func fi(x interface{}) { if a, ok := x.(error); ok { a.Error() } }"},
+ 	{line: "func gret1() int { return 2 }"},
+ 	{line: "func gretbool() bool { return true }"},
+ 	{line: "func gret3() (int, int, int) { return 0, 1, 2 }"},
+@@ -163,6 +164,15 @@ var testfile = []testline{
+ 	{line: "	}"},
+ 	{line: "	f(3); f1(b)"},
+ 	{line: "}"},
++	{line: "func TestEscape() {"},
++	{line: "	a := 1", vars: []string{"var a int"}},
++	{line: "	{"},
++	{line: "		b := 2", scopes: []int{1}, vars: []string{"var &b *int", "var p *int"}},
++	{line: "		p := &b", scopes: []int{1}},
++	{line: "		f1(a)", scopes: []int{1}},
++	{line: "		fi(p)", scopes: []int{1}},
++	{line: "	}"},
++	{line: "}"},
+ 	{line: "func main() {"},
+ 	{line: "	TestNestedFor()"},
+ 	{line: "	TestOas2()"},
+@@ -173,6 +183,7 @@ var testfile = []testline{
+ 	{line: "	TestBlock()"},
+ 	{line: "	TestDiscontiguousRanges()"},
+ 	{line: "	TestClosureScope()"},
++	{line: "	TestEscape()"},
+ 	{line: "}"},
+ }
+ 

@@ -17,6 +17,11 @@ Date:   Wed Feb 28 09:43:52 2024 -0800
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/compile/internal/syntax/testdata/{issue65970.go => issue65790.go} | 0
  1 file changed, 0 insertions(+), 0 deletions(-)
+
+diff --git a/src/cmd/compile/internal/syntax/testdata/issue65970.go b/src/cmd/compile/internal/syntax/testdata/issue65790.go
+similarity index 100%
+rename from src/cmd/compile/internal/syntax/testdata/issue65970.go
+rename to src/cmd/compile/internal/syntax/testdata/issue65790.go

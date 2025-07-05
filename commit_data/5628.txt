@@ -7,7 +7,7 @@ Date:   Tue Jun 8 17:51:57 2010 -0700
     R=gri
     CC=golang-dev
     https://golang.org/cl/1620042
-
+---
  src/pkg/debug/macho/file.go          |  18 +--
  src/pkg/debug/proc/regs_linux_386.go |   4 +-
  src/pkg/http/triv.go                 |  15 ++-
@@ -19,3 +19,668 @@ Date:   Tue Jun 8 17:51:57 2010 -0700
  test/fixedbugs/bug102.go             |  15 +--
  test/ken/string.go                   |   6 +-
  10 files changed, 149 insertions(+), 141 deletions(-)
+
+diff --git a/src/pkg/debug/macho/file.go b/src/pkg/debug/macho/file.go
+index 3aab45f6b1..246dad8e78 100644
+--- a/src/pkg/debug/macho/file.go
++++ b/src/pkg/debug/macho/file.go
+@@ -168,11 +168,11 @@ func NewFile(r io.ReaderAt) (*File, os.Error) {
+ 	// Read and decode Mach magic to determine byte order, size.
+ 	// Magic32 and Magic64 differ only in the bottom bit.
+ 	var ident [4]byte
+-	if _, err := r.ReadAt(&ident, 0); err != nil {
++	if _, err := r.ReadAt(ident[0:], 0); err != nil {
+ 		return nil, err
+ 	}
+-	be := binary.BigEndian.Uint32(&ident)
+-	le := binary.LittleEndian.Uint32(&ident)
++	be := binary.BigEndian.Uint32(ident[0:])
++	le := binary.LittleEndian.Uint32(ident[0:])
+ 	switch Magic32 &^ 1 {
+ 	case be &^ 1:
+ 		f.ByteOrder = binary.BigEndian
+@@ -227,7 +227,7 @@ func NewFile(r io.ReaderAt) (*File, os.Error) {
+ 			s.LoadBytes = cmddat
+ 			s.Cmd = cmd
+ 			s.Len = siz
+-			s.Name = cstring(&seg32.Name)
++			s.Name = cstring(seg32.Name[0:])
+ 			s.Addr = uint64(seg32.Addr)
+ 			s.Memsz = uint64(seg32.Memsz)
+ 			s.Offset = uint64(seg32.Offset)
+@@ -243,8 +243,8 @@ func NewFile(r io.ReaderAt) (*File, os.Error) {
+ 					return nil, err
+ 				}
+ 				sh := new(Section)
+-				sh.Name = cstring(&sh32.Name)
+-				sh.Seg = cstring(&sh32.Seg)
++				sh.Name = cstring(sh32.Name[0:])
++				sh.Seg = cstring(sh32.Seg[0:])
+ 				sh.Addr = uint64(sh32.Addr)
+ 				sh.Size = uint64(sh32.Size)
+ 				sh.Offset = sh32.Offset
+@@ -265,7 +265,7 @@ func NewFile(r io.ReaderAt) (*File, os.Error) {
+ 			s.LoadBytes = cmddat
+ 			s.Cmd = cmd
+ 			s.Len = siz
+-			s.Name = cstring(&seg64.Name)
++			s.Name = cstring(seg64.Name[0:])
+ 			s.Addr = seg64.Addr
+ 			s.Memsz = seg64.Memsz
+ 			s.Offset = seg64.Offset
+@@ -281,8 +281,8 @@ func NewFile(r io.ReaderAt) (*File, os.Error) {
+ 					return nil, err
+ 				}
+ 				sh := new(Section)
+-				sh.Name = cstring(&sh64.Name)
+-				sh.Seg = cstring(&sh64.Seg)
++				sh.Name = cstring(sh64.Name[0:])
++				sh.Seg = cstring(sh64.Seg[0:])
+ 				sh.Addr = sh64.Addr
+ 				sh.Size = sh64.Size
+ 				sh.Offset = sh64.Offset
+diff --git a/src/pkg/debug/proc/regs_linux_386.go b/src/pkg/debug/proc/regs_linux_386.go
+index 6ba1b75180..7cebfa64a9 100644
+--- a/src/pkg/debug/proc/regs_linux_386.go
++++ b/src/pkg/debug/proc/regs_linux_386.go
+@@ -15,7 +15,7 @@ type _386Regs struct {
+ 	setter func(*syscall.PtraceRegs) os.Error
+ }
+ 
+-var names = [...]string{
++var names = []string{
+ 	"eax",
+ 	"ebx",
+ 	"ecx",
+@@ -55,7 +55,7 @@ func (r *_386Regs) SetSP(val Word) os.Error {
+ 	return r.setter(&r.PtraceRegs)
+ }
+ 
+-func (r *_386Regs) Names() []string { return &names }
++func (r *_386Regs) Names() []string { return names }
+ 
+ func (r *_386Regs) Get(i int) Word {
+ 	switch i {
+diff --git a/src/pkg/http/triv.go b/src/pkg/http/triv.go
+index dea2c23b0a..612b6161e3 100644
+--- a/src/pkg/http/triv.go
++++ b/src/pkg/http/triv.go
+@@ -6,13 +6,12 @@ package main
+ 
+ import (
+ 	"bytes"
+-	"bufio"
+ 	"expvar"
+ 	"flag"
+ 	"fmt"
++	"http"
+ 	"io"
+ 	"log"
+-	"net"
+ 	"os"
+ 	"strconv"
+ )
+@@ -67,7 +66,7 @@ func FileServer(c *http.Conn, req *http.Request) {
+ 		fmt.Fprintf(c, "open %s: %v\n", path, err)
+ 		return
+ 	}
+-	n, err1 := io.Copy(c, f)
++	n, _ := io.Copy(c, f)
+ 	fmt.Fprintf(c, "[%d bytes]\n", n)
+ 	f.Close()
+ }
+@@ -89,7 +88,7 @@ func FlagServer(c *http.Conn, req *http.Request) {
+ 
+ // simple argument server
+ func ArgServer(c *http.Conn, req *http.Request) {
+-	for i, s := range os.Args {
++	for _, s := range os.Args {
+ 		fmt.Fprint(c, s, " ")
+ 	}
+ }
+@@ -138,6 +137,13 @@ func DateServer(c *http.Conn, req *http.Request) {
+ 	}
+ }
+ 
++func Logger(c *http.Conn, req *http.Request) {
++	log.Stdout(req.URL.Raw)
++	c.WriteHeader(404)
++	c.Write([]byte("oops"))
++}
++
++
+ func main() {
+ 	flag.Parse()
+ 
+@@ -146,6 +152,7 @@ func main() {
+ 	http.Handle("/counter", ctr)
+ 	expvar.Publish("counter", ctr)
+ 
++	http.Handle("/", http.HandlerFunc(Logger))
+ 	http.Handle("/go/", http.HandlerFunc(FileServer))
+ 	http.Handle("/flags", http.HandlerFunc(FlagServer))
+ 	http.Handle("/args", http.HandlerFunc(ArgServer))
+diff --git a/src/pkg/json/stream_test.go b/src/pkg/json/stream_test.go
+index 86d0142902..ab90b754e1 100644
+--- a/src/pkg/json/stream_test.go
++++ b/src/pkg/json/stream_test.go
+@@ -109,7 +109,7 @@ func TestRawMessage(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatalf("Unmarshal: %v", err)
+ 	}
+-	if string(*data.Id) != raw {
++	if string([]byte(*data.Id)) != raw {
+ 		t.Fatalf("Raw mismatch: have %#q want %#q", []byte(*data.Id), raw)
+ 	}
+ 	b, err := Marshal(&data)
+diff --git a/src/pkg/net/iprawsock.go b/src/pkg/net/iprawsock.go
+index e7eee1a4bf..bd8f8080ad 100644
+--- a/src/pkg/net/iprawsock.go
++++ b/src/pkg/net/iprawsock.go
+@@ -15,9 +15,9 @@ import (
+ func sockaddrToIP(sa syscall.Sockaddr) Addr {
+ 	switch sa := sa.(type) {
+ 	case *syscall.SockaddrInet4:
+-		return &IPAddr{&sa.Addr}
++		return &IPAddr{sa.Addr[0:]}
+ 	case *syscall.SockaddrInet6:
+-		return &IPAddr{&sa.Addr}
++		return &IPAddr{sa.Addr[0:]}
+ 	}
+ 	return nil
+ }
+@@ -176,14 +176,14 @@ func (c *IPConn) ReadFromIP(b []byte) (n int, addr *IPAddr, err os.Error) {
+ 	n, sa, err := c.fd.ReadFrom(b)
+ 	switch sa := sa.(type) {
+ 	case *syscall.SockaddrInet4:
+-		addr = &IPAddr{&sa.Addr}
++		addr = &IPAddr{sa.Addr[0:]}
+ 		if len(b) >= 4 { // discard ipv4 header
+ 			hsize := (int(b[0]) & 0xf) * 4
+ 			copy(b, b[hsize:])
+ 			n -= hsize
+ 		}
+ 	case *syscall.SockaddrInet6:
+-		addr = &IPAddr{&sa.Addr}
++		addr = &IPAddr{sa.Addr[0:]}
+ 	}
+ 	return
+ }
+diff --git a/src/pkg/net/tcpsock.go b/src/pkg/net/tcpsock.go
+index 2221922325..d40035291d 100644
+--- a/src/pkg/net/tcpsock.go
++++ b/src/pkg/net/tcpsock.go
+@@ -14,9 +14,9 @@ import (
+ func sockaddrToTCP(sa syscall.Sockaddr) Addr {
+ 	switch sa := sa.(type) {
+ 	case *syscall.SockaddrInet4:
+-		return &TCPAddr{&sa.Addr, sa.Port}
++		return &TCPAddr{sa.Addr[0:], sa.Port}
+ 	case *syscall.SockaddrInet6:
+-		return &TCPAddr{&sa.Addr, sa.Port}
++		return &TCPAddr{sa.Addr[0:], sa.Port}
+ 	}
+ 	return nil
+ }
+diff --git a/src/pkg/net/udpsock.go b/src/pkg/net/udpsock.go
+index 5e22c778d9..6ea0f27531 100644
+--- a/src/pkg/net/udpsock.go
++++ b/src/pkg/net/udpsock.go
+@@ -14,9 +14,9 @@ import (
+ func sockaddrToUDP(sa syscall.Sockaddr) Addr {
+ 	switch sa := sa.(type) {
+ 	case *syscall.SockaddrInet4:
+-		return &UDPAddr{&sa.Addr, sa.Port}
++		return &UDPAddr{sa.Addr[0:], sa.Port}
+ 	case *syscall.SockaddrInet6:
+-		return &UDPAddr{&sa.Addr, sa.Port}
++		return &UDPAddr{sa.Addr[0:], sa.Port}
+ 	}
+ 	return nil
+ }
+@@ -176,9 +176,9 @@ func (c *UDPConn) ReadFromUDP(b []byte) (n int, addr *UDPAddr, err os.Error) {
+ 	n, sa, err := c.fd.ReadFrom(b)
+ 	switch sa := sa.(type) {
+ 	case *syscall.SockaddrInet4:
+-		addr = &UDPAddr{&sa.Addr, sa.Port}
++		addr = &UDPAddr{sa.Addr[0:], sa.Port}
+ 	case *syscall.SockaddrInet6:
+-		addr = &UDPAddr{&sa.Addr, sa.Port}
++		addr = &UDPAddr{sa.Addr[0:], sa.Port}
+ 	}
+ 	return
+ }
+diff --git a/test/copy.go b/test/copy.go
+index 0930d54d26..037d3f41fe 100644
+--- a/test/copy.go
++++ b/test/copy.go
+@@ -9,8 +9,8 @@
+ package main
+ 
+ import (
+-	"fmt";
+-	"os";
++	"fmt"
++	"os"
+ )
+ 
+ const N = 40
+@@ -25,53 +25,53 @@ var input64 = make([]uint64, N)
+ var output64 = make([]uint64, N)
+ 
+ func u8(i int) uint8 {
+-	i = 'a' + i%26;
+-	return uint8(i);
++	i = 'a' + i%26
++	return uint8(i)
+ }
+ 
+ func u16(ii int) uint16 {
+-	var i = uint16(ii);
+-	i = 'a' + i%26;
+-	i |= i << 8;
+-	return i;
++	var i = uint16(ii)
++	i = 'a' + i%26
++	i |= i << 8
++	return i
+ }
+ 
+ func u32(ii int) uint32 {
+-	var i = uint32(ii);
+-	i = 'a' + i%26;
+-	i |= i << 8;
+-	i |= i << 16;
+-	return i;
++	var i = uint32(ii)
++	i = 'a' + i%26
++	i |= i << 8
++	i |= i << 16
++	return i
+ }
+ 
+ func u64(ii int) uint64 {
+-	var i = uint64(ii);
+-	i = 'a' + i%26;
+-	i |= i << 8;
+-	i |= i << 16;
+-	i |= i << 32;
+-	return i;
++	var i = uint64(ii)
++	i = 'a' + i%26
++	i |= i << 8
++	i |= i << 16
++	i |= i << 32
++	return i
+ }
+ 
+ func reset() {
+ 	// swap in and out to exercise copy-up and copy-down
+-	input8, output8 = output8, input8;
+-	input16, output16 = output16, input16;
+-	input32, output32 = output32, input32;
+-	input64, output64 = output64, input64;
+-	in := 0;
+-	out := 13;
++	input8, output8 = output8, input8
++	input16, output16 = output16, input16
++	input32, output32 = output32, input32
++	input64, output64 = output64, input64
++	in := 0
++	out := 13
+ 	for i := range input8 {
+-		input8[i] = u8(in);
+-		output8[i] = u8(out);
+-		input16[i] = u16(in);
+-		output16[i] = u16(out);
+-		input32[i] = u32(in);
+-		output32[i] = u32(out);
+-		input64[i] = u64(in);
+-		output64[i] = u64(out);
+-		in++;
+-		out++;
++		input8[i] = u8(in)
++		output8[i] = u8(out)
++		input16[i] = u16(in)
++		output16[i] = u16(out)
++		input32[i] = u32(in)
++		output32[i] = u32(out)
++		input64[i] = u64(in)
++		output64[i] = u64(out)
++		in++
++		out++
+ 	}
+ }
+ 
+@@ -79,30 +79,30 @@ func clamp(n int) int {
+ 	if n > N {
+ 		return N
+ 	}
+-	return n;
++	return n
+ }
+ 
+ func ncopied(length, in, out int) int {
+-	n := length;
++	n := length
+ 	if in+n > N {
+-		n = N-in
++		n = N - in
+ 	}
+ 	if out+n > N {
+-		n = N-out
++		n = N - out
+ 	}
+-	return n;
++	return n
+ }
+ 
+ func doAllSlices(length, in, out int) {
+-	reset();
+-	n := copy(output8[out:clamp(out+length)], input8[in:clamp(in+length)]);
+-	verify8(length, in, out, n);
+-	n = copy(output16[out:clamp(out+length)], input16[in:clamp(in+length)]);
+-	verify16(length, in, out, n);
+-	n = copy(output32[out:clamp(out+length)], input32[in:clamp(in+length)]);
+-	verify32(length, in, out, n);
+-	n = copy(output64[out:clamp(out+length)], input64[in:clamp(in+length)]);
+-	verify64(length, in, out, n);
++	reset()
++	n := copy(output8[out:clamp(out+length)], input8[in:clamp(in+length)])
++	verify8(length, in, out, n)
++	n = copy(output16[out:clamp(out+length)], input16[in:clamp(in+length)])
++	verify16(length, in, out, n)
++	n = copy(output32[out:clamp(out+length)], input32[in:clamp(in+length)])
++	verify32(length, in, out, n)
++	n = copy(output64[out:clamp(out+length)], input64[in:clamp(in+length)])
++	verify64(length, in, out, n)
+ }
+ 
+ func bad8(state string, i, length, in, out int) {
+@@ -111,36 +111,36 @@ func bad8(state string, i, length, in, out int) {
+ 		length, in, out,
+ 		output8[i],
+ 		uint8(i+13),
+-		input8, output8);
+-	os.Exit(1);
++		input8, output8)
++	os.Exit(1)
+ }
+ 
+ func verify8(length, in, out, m int) {
+-	n := ncopied(length, in, out);
++	n := ncopied(length, in, out)
+ 	if m != n {
+-		fmt.Printf("count bad(%d %d %d): %d not %d\n", length, in, out, m, n);
+-		return;
++		fmt.Printf("count bad(%d %d %d): %d not %d\n", length, in, out, m, n)
++		return
+ 	}
+ 	// before
+-	var i int;
++	var i int
+ 	for i = 0; i < out; i++ {
+ 		if output8[i] != u8(i+13) {
+-			bad8("before8", i, length, in, out);
+-			return;
++			bad8("before8", i, length, in, out)
++			return
+ 		}
+ 	}
+ 	// copied part
+ 	for ; i < out+n; i++ {
+ 		if output8[i] != u8(i+in-out) {
+-			bad8("copied8", i, length, in, out);
+-			return;
++			bad8("copied8", i, length, in, out)
++			return
+ 		}
+ 	}
+ 	// after
+ 	for ; i < len(output8); i++ {
+ 		if output8[i] != u8(i+13) {
+-			bad8("after8", i, length, in, out);
+-			return;
++			bad8("after8", i, length, in, out)
++			return
+ 		}
+ 	}
+ }
+@@ -151,36 +151,36 @@ func bad16(state string, i, length, in, out int) {
+ 		length, in, out,
+ 		output16[i],
+ 		uint16(i+13),
+-		input16, output16);
+-	os.Exit(1);
++		input16, output16)
++	os.Exit(1)
+ }
+ 
+ func verify16(length, in, out, m int) {
+-	n := ncopied(length, in, out);
++	n := ncopied(length, in, out)
+ 	if m != n {
+-		fmt.Printf("count bad(%d %d %d): %d not %d\n", length, in, out, m, n);
+-		return;
++		fmt.Printf("count bad(%d %d %d): %d not %d\n", length, in, out, m, n)
++		return
+ 	}
+ 	// before
+-	var i int;
++	var i int
+ 	for i = 0; i < out; i++ {
+ 		if output16[i] != u16(i+13) {
+-			bad16("before16", i, length, in, out);
+-			return;
++			bad16("before16", i, length, in, out)
++			return
+ 		}
+ 	}
+ 	// copied part
+ 	for ; i < out+n; i++ {
+ 		if output16[i] != u16(i+in-out) {
+-			bad16("copied16", i, length, in, out);
+-			return;
++			bad16("copied16", i, length, in, out)
++			return
+ 		}
+ 	}
+ 	// after
+ 	for ; i < len(output16); i++ {
+ 		if output16[i] != u16(i+13) {
+-			bad16("after16", i, length, in, out);
+-			return;
++			bad16("after16", i, length, in, out)
++			return
+ 		}
+ 	}
+ }
+@@ -191,36 +191,36 @@ func bad32(state string, i, length, in, out int) {
+ 		length, in, out,
+ 		output32[i],
+ 		uint32(i+13),
+-		input32, output32);
+-	os.Exit(1);
++		input32, output32)
++	os.Exit(1)
+ }
+ 
+ func verify32(length, in, out, m int) {
+-	n := ncopied(length, in, out);
++	n := ncopied(length, in, out)
+ 	if m != n {
+-		fmt.Printf("count bad(%d %d %d): %d not %d\n", length, in, out, m, n);
+-		return;
++		fmt.Printf("count bad(%d %d %d): %d not %d\n", length, in, out, m, n)
++		return
+ 	}
+ 	// before
+-	var i int;
++	var i int
+ 	for i = 0; i < out; i++ {
+ 		if output32[i] != u32(i+13) {
+-			bad32("before32", i, length, in, out);
+-			return;
++			bad32("before32", i, length, in, out)
++			return
+ 		}
+ 	}
+ 	// copied part
+ 	for ; i < out+n; i++ {
+ 		if output32[i] != u32(i+in-out) {
+-			bad32("copied32", i, length, in, out);
+-			return;
++			bad32("copied32", i, length, in, out)
++			return
+ 		}
+ 	}
+ 	// after
+ 	for ; i < len(output32); i++ {
+ 		if output32[i] != u32(i+13) {
+-			bad32("after32", i, length, in, out);
+-			return;
++			bad32("after32", i, length, in, out)
++			return
+ 		}
+ 	}
+ }
+@@ -231,36 +231,36 @@ func bad64(state string, i, length, in, out int) {
+ 		length, in, out,
+ 		output64[i],
+ 		uint64(i+13),
+-		input64, output64);
+-	os.Exit(1);
++		input64, output64)
++	os.Exit(1)
+ }
+ 
+ func verify64(length, in, out, m int) {
+-	n := ncopied(length, in, out);
++	n := ncopied(length, in, out)
+ 	if m != n {
+-		fmt.Printf("count bad(%d %d %d): %d not %d\n", length, in, out, m, n);
+-		return;
++		fmt.Printf("count bad(%d %d %d): %d not %d\n", length, in, out, m, n)
++		return
+ 	}
+ 	// before
+-	var i int;
++	var i int
+ 	for i = 0; i < out; i++ {
+ 		if output64[i] != u64(i+13) {
+-			bad64("before64", i, length, in, out);
+-			return;
++			bad64("before64", i, length, in, out)
++			return
+ 		}
+ 	}
+ 	// copied part
+ 	for ; i < out+n; i++ {
+ 		if output64[i] != u64(i+in-out) {
+-			bad64("copied64", i, length, in, out);
+-			return;
++			bad64("copied64", i, length, in, out)
++			return
+ 		}
+ 	}
+ 	// after
+ 	for ; i < len(output64); i++ {
+ 		if output64[i] != u64(i+13) {
+-			bad64("after64", i, length, in, out);
+-			return;
++			bad64("after64", i, length, in, out)
++			return
+ 		}
+ 	}
+ }
+@@ -275,19 +275,19 @@ func slice() {
+ 	}
+ }
+ 
+-// Array test. Can be much simpler. It's mostly checking for promotion of *[N] to []
++// Array test. Can be much simpler. It's only checking for correct handling of [0:].
+ func array() {
+-	var array [N]uint8;
+-	reset();
+-	copy(&array, input8);
++	var array [N]uint8
++	reset()
++	copy(array[0:], input8)
+ 	for i := 0; i < N; i++ {
+ 		output8[i] = 0
+ 	}
+-	copy(output8, &array);
+-	verify8(N, 0, 0, N);
++	copy(output8, array[0:])
++	verify8(N, 0, 0, N)
+ }
+ 
+ func main() {
+-	slice();
+-	array();
++	slice()
++	array()
+ }
+diff --git a/test/fixedbugs/bug102.go b/test/fixedbugs/bug102.go
+index 92163baa1c..1d97eb4a8d 100644
+--- a/test/fixedbugs/bug102.go
++++ b/test/fixedbugs/bug102.go
+@@ -7,19 +7,20 @@
+ package main
+ 
+ func main() {
+-	var b [0]byte;
+-	s := string(&b);	// out of bounds trap
++	var b [0]byte
++	s := string(b[0:]) // out of bounds trap
+ 	if s != "" {
+ 		panic("bad convert")
+ 	}
+-	var b1 = [5]byte{'h', 'e', 'l', 'l', 'o'};
+-	if string(&b1) != "hello" {
++	var b1 = [5]byte{'h', 'e', 'l', 'l', 'o'}
++	if string(b1[0:]) != "hello" {
+ 		panic("bad convert 1")
+ 	}
+-	var b2 = make([]byte, 5);
+-	for i := 0; i < 5; i++ { b2[i] = b1[i] }
++	var b2 = make([]byte, 5)
++	for i := 0; i < 5; i++ {
++		b2[i] = b1[i]
++	}
+ 	if string(b2) != "hello" {
+ 		panic("bad convert 2")
+ 	}
+ }
+-
+diff --git a/test/ken/string.go b/test/ken/string.go
+index 6c15b16164..cbedad4e88 100644
+--- a/test/ken/string.go
++++ b/test/ken/string.go
+@@ -88,7 +88,7 @@ func main() {
+ 	z1[0] = 'a'
+ 	z1[1] = 'b'
+ 	z1[2] = 'c'
+-	c = string(&z1)
++	c = string(z1[0:])
+ 	if c != "abc" {
+ 		print("create byte array ", c)
+ 		panic("fail")
+@@ -99,7 +99,7 @@ func main() {
+ 	z2[0] = 'a'
+ 	z2[1] = '\u1234'
+ 	z2[2] = 'c'
+-	c = string(&z2)
++	c = string(z2[0:])
+ 	if c != "a\u1234c" {
+ 		print("create int array ", c)
+ 		panic("fail")
+@@ -110,7 +110,7 @@ func main() {
+ 	z3[0] = 'a'
+ 	z3[1] = 'b'
+ 	z3[2] = 'c'
+-	c = string(z3)
++	c = string(z3[0:])
+ 	if c != "abc" {
+ 		print("create array pointer ", c)
+ 		panic("fail")

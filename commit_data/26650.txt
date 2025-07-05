@@ -12,6 +12,32 @@ Date:   Thu Feb 18 16:29:39 2016 -0500
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/sys_linux_amd64.s | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/sys_linux_amd64.s b/src/runtime/sys_linux_amd64.s
+index aed85cb0aa..f407078176 100644
+--- a/src/runtime/sys_linux_amd64.s
++++ b/src/runtime/sys_linux_amd64.s
+@@ -258,7 +258,7 @@ TEXT runtime·sysMmap(SB),NOSPLIT,$0
+ 
+ // Call the function stored in _cgo_mmap using the GCC calling convention.
+ // This must be called on the system stack.
+-TEXT runtime·callCgoMmap(SB),NOSPLIT,$0
++TEXT runtime·callCgoMmap(SB),NOSPLIT,$16
+ 	MOVQ	addr+0(FP), DI
+ 	MOVQ	n+8(FP), SI
+ 	MOVL	prot+16(FP), DX
+@@ -266,7 +266,11 @@ TEXT runtime·callCgoMmap(SB),NOSPLIT,$0
+ 	MOVL	fd+24(FP), R8
+ 	MOVL	off+28(FP), R9
+ 	MOVQ	_cgo_mmap(SB), AX
++	MOVQ	SP, BX
++	ANDQ	$~15, SP	// alignment as per amd64 psABI
++	MOVQ	BX, 0(SP)
+ 	CALL	AX
++	MOVQ	0(SP), SP
+ 	MOVQ	AX, ret+32(FP)
+ 	RET
+ 

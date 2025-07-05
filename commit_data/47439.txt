@@ -12,8 +12,158 @@ Date:   Fri Feb 26 13:28:23 2021 -0500
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/modget/get.go              | 25 +++++++++++++++---
  src/cmd/go/internal/modload/load.go            | 36 ++++++++++++++++++--------
  src/cmd/go/testdata/script/mod_get_pkgtags.txt | 14 ++++++++++
  3 files changed, 60 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/go/internal/modget/get.go b/src/cmd/go/internal/modget/get.go
+index 6b416d3622..4892db8781 100644
+--- a/src/cmd/go/internal/modget/get.go
++++ b/src/cmd/go/internal/modget/get.go
+@@ -369,7 +369,23 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
+ 	// directory.
+ 	if !*getD && len(pkgPatterns) > 0 {
+ 		work.BuildInit()
+-		pkgs := load.PackagesAndErrors(ctx, pkgPatterns)
++
++		var pkgs []*load.Package
++		for _, pkg := range load.PackagesAndErrors(ctx, pkgPatterns) {
++			if pkg.Error != nil {
++				var noGo *load.NoGoError
++				if errors.As(pkg.Error.Err, &noGo) {
++					if m := modload.PackageModule(pkg.ImportPath); m.Path == pkg.ImportPath {
++						// pkg is at the root of a module, and doesn't exist with the current
++						// build tags. Probably the user just wanted to change the version of
++						// that module — not also build the package — so suppress the error.
++						// (See https://golang.org/issue/33526.)
++						continue
++					}
++				}
++			}
++			pkgs = append(pkgs, pkg)
++		}
+ 		load.CheckPackageErrors(pkgs)
+ 		work.InstallPackages(ctx, pkgPatterns, pkgs)
+ 		// TODO(#40276): After Go 1.16, print a deprecation notice when building and
+@@ -1453,6 +1469,7 @@ func (r *resolver) checkPackagesAndRetractions(ctx context.Context, pkgPatterns
+ 			LoadTests:                *getT,
+ 			ResolveMissingImports:    false,
+ 			AllowErrors:              true,
++			SilenceNoGoErrors:        true,
+ 		}
+ 		matches, pkgs := modload.LoadPackages(ctx, pkgOpts, pkgPatterns...)
+ 		for _, m := range matches {
+@@ -1468,9 +1485,9 @@ func (r *resolver) checkPackagesAndRetractions(ctx context.Context, pkgPatterns
+ 					// associated with either the package or its test — ErrNoGo must
+ 					// indicate that none of those source files happen to apply in this
+ 					// configuration. If we are actually building the package (no -d
+-					// flag), the compiler will report the problem; otherwise, assume that
+-					// the user is going to build or test it in some other configuration
+-					// and suppress the error.
++					// flag), we will report the problem then; otherwise, assume that the
++					// user is going to build or test this package in some other
++					// configuration and suppress the error.
+ 					continue
+ 				}
+ 
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index 2e62a7659f..1be6a71bbf 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -181,6 +181,15 @@ type PackageOpts struct {
+ 	// future version).
+ 	SilenceMissingStdImports bool
+ 
++	// SilenceNoGoErrors indicates that LoadPackages should not print
++	// imports.ErrNoGo errors.
++	// This allows the caller to invoke LoadPackages (and report other errors)
++	// without knowing whether the requested packages exist for the given tags.
++	//
++	// Note that if a requested package does not exist *at all*, it will fail
++	// during module resolution and the error will not be suppressed.
++	SilenceNoGoErrors bool
++
+ 	// SilenceUnmatchedWarnings suppresses the warnings normally emitted for
+ 	// patterns that did not match any packages.
+ 	SilenceUnmatchedWarnings bool
+@@ -290,6 +299,10 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
+ 	// Report errors, if any.
+ 	checkMultiplePaths()
+ 	for _, pkg := range loaded.pkgs {
++		if !pkg.isTest() {
++			loadedPackages = append(loadedPackages, pkg.path)
++		}
++
+ 		if pkg.err != nil {
+ 			if sumErr := (*ImportMissingSumError)(nil); errors.As(pkg.err, &sumErr) {
+ 				if importer := pkg.stack; importer != nil {
+@@ -298,23 +311,24 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
+ 					sumErr.importerIsTest = importer.testOf != nil
+ 				}
+ 			}
+-			silence := opts.SilenceErrors
++
++			if opts.SilenceErrors {
++				continue
++			}
+ 			if stdErr := (*ImportMissingError)(nil); errors.As(pkg.err, &stdErr) &&
+ 				stdErr.isStd && opts.SilenceMissingStdImports {
+-				silence = true
++				continue
++			}
++			if opts.SilenceNoGoErrors && errors.Is(pkg.err, imports.ErrNoGo) {
++				continue
+ 			}
+ 
+-			if !silence {
+-				if opts.AllowErrors {
+-					fmt.Fprintf(os.Stderr, "%s: %v\n", pkg.stackText(), pkg.err)
+-				} else {
+-					base.Errorf("%s: %v", pkg.stackText(), pkg.err)
+-				}
++			if opts.AllowErrors {
++				fmt.Fprintf(os.Stderr, "%s: %v\n", pkg.stackText(), pkg.err)
++			} else {
++				base.Errorf("%s: %v", pkg.stackText(), pkg.err)
+ 			}
+ 		}
+-		if !pkg.isTest() {
+-			loadedPackages = append(loadedPackages, pkg.path)
+-		}
+ 	}
+ 	if !opts.SilenceErrors {
+ 		// Also list errors in matching patterns (such as directory permission
+diff --git a/src/cmd/go/testdata/script/mod_get_pkgtags.txt b/src/cmd/go/testdata/script/mod_get_pkgtags.txt
+index c0a57f3fab..0c79ec71b7 100644
+--- a/src/cmd/go/testdata/script/mod_get_pkgtags.txt
++++ b/src/cmd/go/testdata/script/mod_get_pkgtags.txt
+@@ -16,6 +16,7 @@ go mod edit -droprequire example.net/tools
+ # error out if dependencies of tag-guarded files are missing.
+ 
+ go get -d example.net/tools@v0.1.0
++! stderr 'no Go source files'
+ 
+ ! go list example.net/tools
+ stderr '^package example.net/tools: build constraints exclude all Go files in .*[/\\]tools$'
+@@ -30,6 +31,19 @@ go list -deps example.net/cmd/tool
+ stderr '^no required module provides package example.net/missing; to add it:\n\tgo get example.net/missing$'
+ 
+ 
++# https://golang.org/issue/33526: 'go get' without '-d' should succeed
++# for a module whose root is a constrained-out package.
++#
++# Ideally it should silently succeed, but today it logs the "no Go source files"
++# error and succeeds anyway.
++
++go get example.net/tools@v0.1.0
++! stderr .
++
++! go build example.net/tools
++stderr '^package example.net/tools: build constraints exclude all Go files in .*[/\\]tools$'
++
++
+ # https://golang.org/issue/29268
+ # 'go get' should fetch modules whose roots contain test-only packages, but
+ # without the -t flag shouldn't error out if the test has missing dependencies.

@@ -11,7 +11,58 @@ Date:   Thu Sep 10 11:14:27 2020 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/link/link_test.go         | 14 ++++++++++++++
  src/cmd/link/testdata/testRO/x.go | 22 ++++++++++++++++++++++
  2 files changed, 36 insertions(+)
+
+diff --git a/src/cmd/link/link_test.go b/src/cmd/link/link_test.go
+index 98798be465..4e60996d8e 100644
+--- a/src/cmd/link/link_test.go
++++ b/src/cmd/link/link_test.go
+@@ -800,3 +800,17 @@ func TestContentAddressableSymbols(t *testing.T) {
+ 		t.Errorf("command %s failed: %v\n%s", cmd, err, out)
+ 	}
+ }
++
++func TestReadOnly(t *testing.T) {
++	// Test that read-only data is indeed read-only.
++	testenv.MustHaveGoBuild(t)
++
++	t.Parallel()
++
++	src := filepath.Join("testdata", "testRO", "x.go")
++	cmd := exec.Command(testenv.GoToolPath(t), "run", src)
++	out, err := cmd.CombinedOutput()
++	if err == nil {
++		t.Errorf("running test program did not fail. output:\n%s", out)
++	}
++}
+diff --git a/src/cmd/link/testdata/testRO/x.go b/src/cmd/link/testdata/testRO/x.go
+new file mode 100644
+index 0000000000..d77db6d563
+--- /dev/null
++++ b/src/cmd/link/testdata/testRO/x.go
+@@ -0,0 +1,22 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test that read-only data is indeed read-only. This
++// program attempts to modify read-only data, and it
++// should fail.
++
++package main
++
++import "unsafe"
++
++var s = "hello"
++
++func main() {
++	println(s)
++	*(*struct {
++		p *byte
++		l int
++	})(unsafe.Pointer(&s)).p = 'H'
++	println(s)
++}

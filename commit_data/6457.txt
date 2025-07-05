@@ -7,7 +7,7 @@ Date:   Wed Oct 6 09:52:54 2010 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/2373043
-
+---
  src/cmd/5l/asm.c  | 82 ------------------------------------------------------
  src/cmd/5l/l.h    |  1 +
  src/cmd/6l/span.c | 80 -----------------------------------------------------
@@ -15,3 +15,399 @@ Date:   Wed Oct 6 09:52:54 2010 -0400
  src/cmd/ld/lib.c  | 83 ++++++++++++++++++++++++++++++++++++++++++++++++++++++-
  src/cmd/ld/lib.h  |  1 +
  6 files changed, 84 insertions(+), 243 deletions(-)
+
+diff --git a/src/cmd/5l/asm.c b/src/cmd/5l/asm.c
+index aeab60a684..82e7a09899 100644
+--- a/src/cmd/5l/asm.c
++++ b/src/cmd/5l/asm.c
+@@ -1126,88 +1126,6 @@ putsymb(char *s, int t, int32 v, int ver)
+ 	}
+ }
+ 
+-#define	MINLC	4
+-void
+-asmlc(void)
+-{
+-	int32 oldpc, oldlc;
+-	Prog *p;
+-	int32 v, s;
+-
+-	oldpc = INITTEXT;
+-	oldlc = 0;
+-	for(p = firstp; p != P; p = p->link) {
+-		setarch(p);
+-		if(p->line == oldlc || p->as == ATEXT || p->as == ANOP) {
+-			if(p->as == ATEXT)
+-				curtext = p;
+-			if(debug['L'])
+-				Bprint(&bso, "%6lux %P\n",
+-					p->pc, p);
+-			continue;
+-		}
+-		if(debug['L'])
+-			Bprint(&bso, "\t\t%6ld", lcsize);
+-		v = (p->pc - oldpc) / MINLC;
+-		while(v) {
+-			s = 127;
+-			if(v < 127)
+-				s = v;
+-			cput(s+128);	/* 129-255 +pc */
+-			if(debug['L'])
+-				Bprint(&bso, " pc+%ld*%d(%ld)", s, MINLC, s+128);
+-			v -= s;
+-			lcsize++;
+-		}
+-		s = p->line - oldlc;
+-		oldlc = p->line;
+-		oldpc = p->pc + MINLC;
+-		if(s > 64 || s < -64) {
+-			cput(0);	/* 0 vv +lc */
+-			cput(s>>24);
+-			cput(s>>16);
+-			cput(s>>8);
+-			cput(s);
+-			if(debug['L']) {
+-				if(s > 0)
+-					Bprint(&bso, " lc+%ld(%d,%ld)\n",
+-						s, 0, s);
+-				else
+-					Bprint(&bso, " lc%ld(%d,%ld)\n",
+-						s, 0, s);
+-				Bprint(&bso, "%6lux %P\n",
+-					p->pc, p);
+-			}
+-			lcsize += 5;
+-			continue;
+-		}
+-		if(s > 0) {
+-			cput(0+s);	/* 1-64 +lc */
+-			if(debug['L']) {
+-				Bprint(&bso, " lc+%ld(%ld)\n", s, 0+s);
+-				Bprint(&bso, "%6lux %P\n",
+-					p->pc, p);
+-			}
+-		} else {
+-			cput(64-s);	/* 65-128 -lc */
+-			if(debug['L']) {
+-				Bprint(&bso, " lc%ld(%ld)\n", s, 64-s);
+-				Bprint(&bso, "%6lux %P\n",
+-					p->pc, p);
+-			}
+-		}
+-		lcsize++;
+-	}
+-	while(lcsize & 1) {
+-		s = 129;
+-		cput(s);
+-		lcsize++;
+-	}
+-	if(debug['v'] || debug['L'])
+-		Bprint(&bso, "lcsize = %ld\n", lcsize);
+-	Bflush(&bso);
+-}
+-
+ static void
+ outt(int32 f, int32 l)
+ {
+diff --git a/src/cmd/5l/l.h b/src/cmd/5l/l.h
+index c6659cfab3..3cd1cbcd48 100644
+--- a/src/cmd/5l/l.h
++++ b/src/cmd/5l/l.h
+@@ -279,6 +279,7 @@ enum
+ 	NENT		= 100,
+ 	MAXIO		= 8192,
+ 	MAXHIST		= 20,	/* limit of path elements for history symbols */
++	MINLC	= 4,
+ 
+ 	Roffset	= 22,		/* no. bits for offset in relocation address */
+ 	Rindex	= 10,		/* no. bits for index in relocation address */
+diff --git a/src/cmd/6l/span.c b/src/cmd/6l/span.c
+index 49efa9a2e7..60114ece59 100644
+--- a/src/cmd/6l/span.c
++++ b/src/cmd/6l/span.c
+@@ -407,86 +407,6 @@ asmelfsym(void)
+ 	genasmsym(putelfsymb);
+ }
+ 
+-void
+-asmlc(void)
+-{
+-	vlong oldpc;
+-	Prog *p;
+-	int32 oldlc, v, s;
+-
+-	oldpc = INITTEXT;
+-	oldlc = 0;
+-	for(p = firstp; p != P; p = p->link) {
+-		if(p->line == oldlc || p->as == ATEXT || p->as == ANOP) {
+-			if(p->as == ATEXT)
+-				curtext = p;
+-			if(debug['O'])
+-				Bprint(&bso, "%6llux %P\n",
+-					p->pc, p);
+-			continue;
+-		}
+-		if(debug['O'])
+-			Bprint(&bso, "\t\t%6ld", lcsize);
+-		v = (p->pc - oldpc) / MINLC;
+-		while(v) {
+-			s = 127;
+-			if(v < 127)
+-				s = v;
+-			cput(s+128);	/* 129-255 +pc */
+-			if(debug['O'])
+-				Bprint(&bso, " pc+%ld*%d(%ld)", s, MINLC, s+128);
+-			v -= s;
+-			lcsize++;
+-		}
+-		s = p->line - oldlc;
+-		oldlc = p->line;
+-		oldpc = p->pc + MINLC;
+-		if(s > 64 || s < -64) {
+-			cput(0);	/* 0 vv +lc */
+-			cput(s>>24);
+-			cput(s>>16);
+-			cput(s>>8);
+-			cput(s);
+-			if(debug['O']) {
+-				if(s > 0)
+-					Bprint(&bso, " lc+%ld(%d,%ld)\n",
+-						s, 0, s);
+-				else
+-					Bprint(&bso, " lc%ld(%d,%ld)\n",
+-						s, 0, s);
+-				Bprint(&bso, "%6llux %P\n",
+-					p->pc, p);
+-			}
+-			lcsize += 5;
+-			continue;
+-		}
+-		if(s > 0) {
+-			cput(0+s);	/* 1-64 +lc */
+-			if(debug['O']) {
+-				Bprint(&bso, " lc+%ld(%ld)\n", s, 0+s);
+-				Bprint(&bso, "%6llux %P\n",
+-					p->pc, p);
+-			}
+-		} else {
+-			cput(64-s);	/* 65-128 -lc */
+-			if(debug['O']) {
+-				Bprint(&bso, " lc%ld(%ld)\n", s, 64-s);
+-				Bprint(&bso, "%6llux %P\n",
+-					p->pc, p);
+-			}
+-		}
+-		lcsize++;
+-	}
+-	while(lcsize & 1) {
+-		s = 129;
+-		cput(s);
+-		lcsize++;
+-	}
+-	if(debug['v'] || debug['O'])
+-		Bprint(&bso, "lcsize = %ld\n", lcsize);
+-	Bflush(&bso);
+-}
+-
+ int
+ prefixof(Adr *a)
+ {
+diff --git a/src/cmd/8l/span.c b/src/cmd/8l/span.c
+index 105d18b9f8..e0f3ffc90e 100644
+--- a/src/cmd/8l/span.c
++++ b/src/cmd/8l/span.c
+@@ -334,86 +334,6 @@ asmsym(void)
+ 	Bflush(&bso);
+ }
+ 
+-void
+-asmlc(void)
+-{
+-	int32 oldpc, oldlc;
+-	Prog *p;
+-	int32 v, s;
+-
+-	oldpc = INITTEXT;
+-	oldlc = 0;
+-	for(p = firstp; p != P; p = p->link) {
+-		if(p->line == oldlc || p->as == ATEXT || p->as == ANOP) {
+-			if(p->as == ATEXT)
+-				curtext = p;
+-			if(debug['L'])
+-				Bprint(&bso, "%6lux %P\n",
+-					p->pc, p);
+-			continue;
+-		}
+-		if(debug['L'])
+-			Bprint(&bso, "\t\t%6ld", lcsize);
+-		v = (p->pc - oldpc) / MINLC;
+-		while(v) {
+-			s = 127;
+-			if(v < 127)
+-				s = v;
+-			cput(s+128);	/* 129-255 +pc */
+-			if(debug['L'])
+-				Bprint(&bso, " pc+%ld*%d(%ld)", s, MINLC, s+128);
+-			v -= s;
+-			lcsize++;
+-		}
+-		s = p->line - oldlc;
+-		oldlc = p->line;
+-		oldpc = p->pc + MINLC;
+-		if(s > 64 || s < -64) {
+-			cput(0);	/* 0 vv +lc */
+-			cput(s>>24);
+-			cput(s>>16);
+-			cput(s>>8);
+-			cput(s);
+-			if(debug['L']) {
+-				if(s > 0)
+-					Bprint(&bso, " lc+%ld(%d,%ld)\n",
+-						s, 0, s);
+-				else
+-					Bprint(&bso, " lc%ld(%d,%ld)\n",
+-						s, 0, s);
+-				Bprint(&bso, "%6lux %P\n",
+-					p->pc, p);
+-			}
+-			lcsize += 5;
+-			continue;
+-		}
+-		if(s > 0) {
+-			cput(0+s);	/* 1-64 +lc */
+-			if(debug['L']) {
+-				Bprint(&bso, " lc+%ld(%ld)\n", s, 0+s);
+-				Bprint(&bso, "%6lux %P\n",
+-					p->pc, p);
+-			}
+-		} else {
+-			cput(64-s);	/* 65-128 -lc */
+-			if(debug['L']) {
+-				Bprint(&bso, " lc%ld(%ld)\n", s, 64-s);
+-				Bprint(&bso, "%6lux %P\n",
+-					p->pc, p);
+-			}
+-		}
+-		lcsize++;
+-	}
+-	while(lcsize & 1) {
+-		s = 129;
+-		cput(s);
+-		lcsize++;
+-	}
+-	if(debug['v'] || debug['L'])
+-		Bprint(&bso, "lcsize = %ld\n", lcsize);
+-	Bflush(&bso);
+-}
+-
+ int
+ prefixof(Adr *a)
+ {
+diff --git a/src/cmd/ld/lib.c b/src/cmd/ld/lib.c
+index 3e755d7f96..a7f8396fd6 100644
+--- a/src/cmd/ld/lib.c
++++ b/src/cmd/ld/lib.c
+@@ -1,5 +1,6 @@
+-// Derived from Inferno utils/6l/obj.c
++// Derived from Inferno utils/6l/obj.c and utils/6l/span.c
+ // http://code.google.com/p/inferno-os/source/browse/utils/6l/obj.c
++// http://code.google.com/p/inferno-os/source/browse/utils/6l/span.c
+ //
+ //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+ //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+@@ -933,3 +934,83 @@ ewrite(int fd, void *buf, int n)
+ 		errorexit();
+ 	}
+ }
++
++void
++asmlc(void)
++{
++	vlong oldpc;
++	Prog *p;
++	int32 oldlc, v, s;
++
++	oldpc = INITTEXT;
++	oldlc = 0;
++	for(p = firstp; p != P; p = p->link) {
++		if(p->line == oldlc || p->as == ATEXT || p->as == ANOP) {
++			if(p->as == ATEXT)
++				curtext = p;
++			if(debug['O'])
++				Bprint(&bso, "%6llux %P\n",
++					p->pc, p);
++			continue;
++		}
++		if(debug['O'])
++			Bprint(&bso, "\t\t%6ld", lcsize);
++		v = (p->pc - oldpc) / MINLC;
++		while(v) {
++			s = 127;
++			if(v < 127)
++				s = v;
++			cput(s+128);	/* 129-255 +pc */
++			if(debug['O'])
++				Bprint(&bso, " pc+%ld*%d(%ld)", s, MINLC, s+128);
++			v -= s;
++			lcsize++;
++		}
++		s = p->line - oldlc;
++		oldlc = p->line;
++		oldpc = p->pc + MINLC;
++		if(s > 64 || s < -64) {
++			cput(0);	/* 0 vv +lc */
++			cput(s>>24);
++			cput(s>>16);
++			cput(s>>8);
++			cput(s);
++			if(debug['O']) {
++				if(s > 0)
++					Bprint(&bso, " lc+%ld(%d,%ld)\n",
++						s, 0, s);
++				else
++					Bprint(&bso, " lc%ld(%d,%ld)\n",
++						s, 0, s);
++				Bprint(&bso, "%6llux %P\n",
++					p->pc, p);
++			}
++			lcsize += 5;
++			continue;
++		}
++		if(s > 0) {
++			cput(0+s);	/* 1-64 +lc */
++			if(debug['O']) {
++				Bprint(&bso, " lc+%ld(%ld)\n", s, 0+s);
++				Bprint(&bso, "%6llux %P\n",
++					p->pc, p);
++			}
++		} else {
++			cput(64-s);	/* 65-128 -lc */
++			if(debug['O']) {
++				Bprint(&bso, " lc%ld(%ld)\n", s, 64-s);
++				Bprint(&bso, "%6llux %P\n",
++					p->pc, p);
++			}
++		}
++		lcsize++;
++	}
++	while(lcsize & 1) {
++		s = 129;
++		cput(s);
++		lcsize++;
++	}
++	if(debug['v'] || debug['O'])
++		Bprint(&bso, "lcsize = %ld\n", lcsize);
++	Bflush(&bso);
++}
+diff --git a/src/cmd/ld/lib.h b/src/cmd/ld/lib.h
+index b828bed6ea..e26500d204 100644
+--- a/src/cmd/ld/lib.h
++++ b/src/cmd/ld/lib.h
+@@ -103,6 +103,7 @@ void	addlibpath(char *srcref, char *objref, char *file, char *pkg);
+ Section*	addsection(Segment*, char*, int);
+ void	copyhistfrog(char *buf, int nbuf);
+ void	addhist(int32 line, int type);
++void	asmlc(void);
+ void	histtoauto(void);
+ void	collapsefrog(Sym *s);
+ Sym*	lookup(char *symb, int v);

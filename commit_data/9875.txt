@@ -7,6 +7,24 @@ Date:   Wed Oct 5 12:45:56 2011 -0700
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5190045
-
+---
  doc/docs.html | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/doc/docs.html b/doc/docs.html
+index 8b01e90604..4c00545731 100644
+--- a/doc/docs.html
++++ b/doc/docs.html
+@@ -134,6 +134,12 @@ Notable articles from the <a href="http://blog.golang.org/">Go Blog</a>.
+ <li><a href="http://code.google.com/p/ac-me/downloads/detail?name=fango.pdf">Effective Go and Tutorial</a></li>
+ </ul>
+ 
++<h3 id="docs_cz">Czech &mdash; Čeština</h3>
++
++<ul>
++<li><a href="http://www.abclinuxu.cz/clanky/google-go-pravidla-reflexe">Pravidla reflexe</a> - a translation of <a href="http://blog.golang.org/2011/09/laws-of-reflection.html">The Laws of Reflection</a>.</li>
++</ul>
++
+ <h3 id="docs_fr">French &mdash; Français</h3>
+ 
+ <ul>

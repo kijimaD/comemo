@@ -14,6 +14,45 @@ Date:   Wed May 2 23:26:58 2018 +0200
     Run-TryBot: Elias Naur <elias.naur@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  misc/ios/go_darwin_arm_exec.go | 26 ++++++++++++++++++--------
  1 file changed, 18 insertions(+), 8 deletions(-)
+
+diff --git a/misc/ios/go_darwin_arm_exec.go b/misc/ios/go_darwin_arm_exec.go
+index 6c5a913bc6..985c82bf81 100644
+--- a/misc/ios/go_darwin_arm_exec.go
++++ b/misc/ios/go_darwin_arm_exec.go
+@@ -377,15 +377,25 @@ func findDeviceAppPath(bundleID string) (string, error) {
+ }
+ 
+ func install(appdir string) error {
+-	cmd := idevCmd(exec.Command(
+-		"ideviceinstaller",
+-		"-i", appdir,
+-	))
+-	if out, err := cmd.CombinedOutput(); err != nil {
+-		os.Stderr.Write(out)
+-		return fmt.Errorf("ideviceinstaller -i %q: %v", appdir, err)
++	attempt := 0
++	for {
++		cmd := idevCmd(exec.Command(
++			"ideviceinstaller",
++			"-i", appdir,
++		))
++		if out, err := cmd.CombinedOutput(); err != nil {
++			// Sometimes, installing the app fails for some reason.
++			// Give the device a few seconds and try again.
++			if attempt < 5 {
++				time.Sleep(5 * time.Second)
++				attempt++
++				continue
++			}
++			os.Stderr.Write(out)
++			return fmt.Errorf("ideviceinstaller -i %q: %v (%d attempts)", appdir, err, attempt)
++		}
++		return nil
+ 	}
+-	return nil
+ }
+ 
+ func idevCmd(cmd *exec.Cmd) *exec.Cmd {

@@ -10,7 +10,45 @@ Date:   Fri Aug 11 23:08:25 2023 +1000
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/runtime/cgo/gcc_fatalf.c        | 2 +-
  src/runtime/cgo/gcc_solaris_amd64.c | 6 ++----
  2 files changed, 3 insertions(+), 5 deletions(-)
+
+diff --git a/src/runtime/cgo/gcc_fatalf.c b/src/runtime/cgo/gcc_fatalf.c
+index d7425ea480..822c0150bd 100644
+--- a/src/runtime/cgo/gcc_fatalf.c
++++ b/src/runtime/cgo/gcc_fatalf.c
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build aix || (!android && linux) || dragonfly || freebsd || netbsd || openbsd
++//go:build aix || (!android && linux) || dragonfly || freebsd || netbsd || openbsd || solaris
+ 
+ #include <stdarg.h>
+ #include <stdio.h>
+diff --git a/src/runtime/cgo/gcc_solaris_amd64.c b/src/runtime/cgo/gcc_solaris_amd64.c
+index 1773f3fff0..9b106a63ea 100644
+--- a/src/runtime/cgo/gcc_solaris_amd64.c
++++ b/src/runtime/cgo/gcc_solaris_amd64.c
+@@ -31,8 +31,7 @@ x_cgo_init(G *g, void (*setg)(void*))
+ 	// Sanity check the results now, rather than getting a
+ 	// morestack on g0 crash.
+ 	if (g->stacklo >= g->stackhi) {
+-		fprintf(stderr, "runtime/cgo: bad stack bounds: lo=%p hi=%p\n", (void*)(g->stacklo), (void*)(g->stackhi));
+-		abort();
++		fatalf("bad stack bounds: lo=%p hi=%p", (void*)(g->stacklo), (void*)(g->stackhi));
+ 	}
+ }
+ 
+@@ -66,8 +65,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 	pthread_sigmask(SIG_SETMASK, &oset, nil);
+ 
+ 	if (err != 0) {
+-		fprintf(stderr, "runtime/cgo: pthread_create failed: %s\n", strerror(err));
+-		abort();
++		fatalf("pthread_create failed: %s", strerror(err));
+ 	}
+ }
+ 

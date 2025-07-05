@@ -7,6 +7,20 @@ Date:   Mon Aug 3 19:28:48 2015 -0500
     Change-Id: Ibb5169aade15190773ff7dd11b303c1f1345a0c2
     Reviewed-on: https://go-review.googlesource.com/13100
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/regalloc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index 7e8f2ae354..46efa9859e 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -351,7 +351,7 @@ func regalloc(f *Func) {
+ 		if b.Kind == BlockCall {
+ 			call = b.Control
+ 			if call != b.Values[len(b.Values)-1] {
+-				b.Fatalf("call not at end of block %b %v", b, call)
++				b.Fatalf("call not at end of block %v %v", b, call)
+ 			}
+ 			b.Values = b.Values[:len(b.Values)-1]
+ 			// TODO: do this for all control types?

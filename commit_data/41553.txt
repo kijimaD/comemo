@@ -11,7 +11,97 @@ Date:   Fri Oct 11 09:21:36 2019 -0400
     Change-Id: I08cec4c05793a17698b2674068f64837a5bf4477
     Reviewed-on: https://go-review.googlesource.com/c/go/+/200718
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/link/internal/ld/deadcode2.go     | 21 +++++++++++----------
  src/cmd/link/internal/objfile/objfile2.go | 27 ---------------------------
  2 files changed, 11 insertions(+), 37 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/deadcode2.go b/src/cmd/link/internal/ld/deadcode2.go
+index 373cffc25e..354d158371 100644
+--- a/src/cmd/link/internal/ld/deadcode2.go
++++ b/src/cmd/link/internal/ld/deadcode2.go
+@@ -64,9 +64,9 @@ func (d *deadcodePass2) init() {
+ 			// but we do keep the symbols it refers to.
+ 			exportsIdx := d.loader.Lookup("go.plugin.exports", 0)
+ 			if exportsIdx != 0 {
+-				nreloc := d.loader.NReloc(exportsIdx)
+-				for i := 0; i < nreloc; i++ {
+-					d.mark(d.loader.RelocSym(exportsIdx, i))
++				relocs := d.loader.Relocs(exportsIdx)
++				for i := 0; i < relocs.Count; i++ {
++					d.mark(relocs.At(i).Sym)
+ 				}
+ 			}
+ 		}
+@@ -86,17 +86,17 @@ func (d *deadcodePass2) init() {
+ func (d *deadcodePass2) flood() {
+ 	for !d.wq.empty() {
+ 		symIdx := d.wq.pop()
+-		nreloc := d.loader.NReloc(symIdx)
+-		for i := 0; i < nreloc; i++ {
+-			t := d.loader.RelocType(symIdx, i)
+-			if t == objabi.R_WEAKADDROFF {
++		relocs := d.loader.Relocs(symIdx)
++		for i := 0; i < relocs.Count; i++ {
++			r := relocs.At(i)
++			if r.Type == objabi.R_WEAKADDROFF {
+ 				continue
+ 			}
+-			if t == objabi.R_METHODOFF {
++			if r.Type == objabi.R_METHODOFF {
+ 				// TODO: we should do something about it
+ 				// For now, all the methods are considered live
+ 			}
+-			d.mark(d.loader.RelocSym(symIdx, i))
++			d.mark(r.Sym)
+ 		}
+ 		naux := d.loader.NAux(symIdx)
+ 		for i := 0; i < naux; i++ {
+@@ -125,7 +125,8 @@ func deadcode2(ctxt *Link) {
+ 		for i := 1; i < n; i++ {
+ 			s := objfile.Sym(i)
+ 			if strings.HasPrefix(loader.RawSymName(s), "go.itablink.") {
+-				if d.loader.NReloc(s) > 0 && loader.Reachable.Has(loader.RelocSym(s, 0)) {
++				relocs := loader.Relocs(s)
++				if relocs.Count > 0 && loader.Reachable.Has(relocs.At(0).Sym) {
+ 					loader.Reachable.Set(s)
+ 				}
+ 			}
+diff --git a/src/cmd/link/internal/objfile/objfile2.go b/src/cmd/link/internal/objfile/objfile2.go
+index b68c07b65c..ad3ea8577d 100644
+--- a/src/cmd/link/internal/objfile/objfile2.go
++++ b/src/cmd/link/internal/objfile/objfile2.go
+@@ -266,33 +266,6 @@ func (l *Loader) SymType(i Sym) sym.SymKind {
+ 	return sym.AbiSymKindToSymKind[objabi.SymKind(osym.Type)]
+ }
+ 
+-// Returns the number of relocations given a global index.
+-func (l *Loader) NReloc(i Sym) int {
+-	r, li := l.ToLocal(i)
+-	if r == nil {
+-		return 0
+-	}
+-	return r.NReloc(li)
+-}
+-
+-// Returns the referred symbol of the j-th relocation of the i-th
+-// symbol.
+-func (l *Loader) RelocSym(i Sym, j int) Sym {
+-	r, li := l.ToLocal(i)
+-	rel := goobj2.Reloc{}
+-	rel.Read(r.Reader, r.RelocOff(li, j))
+-	return l.Resolve(r, rel.Sym)
+-}
+-
+-// Returns the relocation type of the j-th relocation of the i-th
+-// symbol.
+-func (l *Loader) RelocType(i Sym, j int) objabi.RelocType {
+-	r, li := l.ToLocal(i)
+-	rel := goobj2.Reloc{}
+-	rel.Read(r.Reader, r.RelocOff(li, j))
+-	return objabi.RelocType(rel.Type)
+-}
+-
+ // Returns the number of aux symbols given a global index.
+ func (l *Loader) NAux(i Sym) int {
+ 	r, li := l.ToLocal(i)

@@ -9,6 +9,20 @@ Date:   Fri Oct 25 20:54:20 2019 +0800
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-
+---
  src/cmd/dist/build.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index ea290b1069..6c8e558f29 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -814,7 +814,7 @@ func runInstall(dir string, ch chan struct{}) {
+ 		// Define GOMIPS_value from gomips.
+ 		asmArgs = append(asmArgs, "-D", "GOMIPS_"+gomips)
+ 	}
+-	if goarch == "mips64" || goarch == "mipsle64" {
++	if goarch == "mips64" || goarch == "mips64le" {
+ 		// Define GOMIPS64_value from gomips64.
+ 		asmArgs = append(asmArgs, "-D", "GOMIPS64_"+gomips64)
+ 	}

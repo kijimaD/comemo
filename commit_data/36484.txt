@@ -37,7 +37,63 @@ Date:   Fri Apr 13 19:39:32 2018 +0100
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Elias Naur <elias.naur@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/doc/dirs.go     | 10 +++++++---
  src/cmd/doc/doc_test.go | 14 +++++++++++---
  2 files changed, 18 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/doc/dirs.go b/src/cmd/doc/dirs.go
+index 5088f880e1..f5fb795dc7 100644
+--- a/src/cmd/doc/dirs.go
++++ b/src/cmd/doc/dirs.go
+@@ -24,8 +24,11 @@ type Dirs struct {
+ 
+ var dirs Dirs
+ 
+-func dirsInit() {
++// dirsInit starts the scanning of package directories in GOROOT and GOPATH. Any
++// extra paths passed to it are included in the channel.
++func dirsInit(extra ...string) {
+ 	dirs.paths = make([]string, 0, 1000)
++	dirs.paths = append(dirs.paths, extra...)
+ 	dirs.scan = make(chan string)
+ 	go dirs.walk()
+ }
+@@ -97,8 +100,9 @@ func (d *Dirs) bfsWalkRoot(root string) {
+ 					continue
+ 				}
+ 				// Entry is a directory.
+-				// No .git or other dot nonsense please.
+-				if strings.HasPrefix(name, ".") {
++
++				// The go tool ignores directories starting with ., _, or named "testdata".
++				if name[0] == '.' || name[0] == '_' || name == "testdata" {
+ 					continue
+ 				}
+ 				// Remember this (fully qualified) directory for the next pass.
+diff --git a/src/cmd/doc/doc_test.go b/src/cmd/doc/doc_test.go
+index e68fb017b9..f1072b5e41 100644
+--- a/src/cmd/doc/doc_test.go
++++ b/src/cmd/doc/doc_test.go
+@@ -16,10 +16,18 @@ import (
+ )
+ 
+ func TestMain(m *testing.M) {
+-	// otherwise the tests are brittle, as they may give unexpected
+-	// output or errors when a suffix match with GOPATH takes place
++	// Clear GOPATH so we don't access the user's own packages in the test.
+ 	buildCtx.GOPATH = ""
+-	dirsInit()
++
++	// Add $GOROOT/src/cmd/doc/testdata explicitly so we can access its contents in the test.
++	// Normally testdata directories are ignored, but sending it to dirs.scan directly is
++	// a hack that works around the check.
++	testdataDir, err := filepath.Abs("testdata")
++	if err != nil {
++		panic(err)
++	}
++	dirsInit(testdataDir)
++
+ 	os.Exit(m.Run())
+ }
+ 

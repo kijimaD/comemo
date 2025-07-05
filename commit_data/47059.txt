@@ -10,6 +10,20 @@ Date:   Thu Nov 19 17:30:27 2020 +0800
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: Tobias Klauser <tobias.klauser@gmail.com>
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-
+---
  src/internal/poll/splice_linux.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/internal/poll/splice_linux.go b/src/internal/poll/splice_linux.go
+index 01baf14ed7..968bc44a5f 100644
+--- a/src/internal/poll/splice_linux.go
++++ b/src/internal/poll/splice_linux.go
+@@ -52,7 +52,7 @@ func Splice(dst, src *FD, remain int64) (written int64, handled bool, sc string,
+ 		// If inPipe == 0 && err == nil, src is at EOF, and the
+ 		// transfer is complete.
+ 		handled = handled || (err != syscall.EINVAL)
+-		if err != nil || (inPipe == 0 && err == nil) {
++		if err != nil || inPipe == 0 {
+ 			break
+ 		}
+ 		n, err = splicePump(dst, prfd, inPipe)

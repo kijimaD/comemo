@@ -9,8 +9,118 @@ Date:   Tue Mar 12 16:42:25 2013 -0400
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/7764044
-
+---
  src/pkg/encoding/xml/marshal.go      |  2 +-
  src/pkg/encoding/xml/marshal_test.go | 26 ++++++++++++++++++++++++--
  src/pkg/encoding/xml/typeinfo.go     | 17 ++++++++++-------
  3 files changed, 35 insertions(+), 10 deletions(-)
+
+diff --git a/src/pkg/encoding/xml/marshal.go b/src/pkg/encoding/xml/marshal.go
+index 3db8af00c6..052e10125f 100644
+--- a/src/pkg/encoding/xml/marshal.go
++++ b/src/pkg/encoding/xml/marshal.go
+@@ -301,7 +301,7 @@ func (p *printer) marshalStruct(tinfo *typeInfo, val reflect.Value) error {
+ 	s := parentStack{printer: p}
+ 	for i := range tinfo.fields {
+ 		finfo := &tinfo.fields[i]
+-		if finfo.flags&(fAttr) != 0 {
++		if finfo.flags&fAttr != 0 {
+ 			continue
+ 		}
+ 		vf := finfo.value(val)
+diff --git a/src/pkg/encoding/xml/marshal_test.go b/src/pkg/encoding/xml/marshal_test.go
+index 1373e01d89..ca14a1e53d 100644
+--- a/src/pkg/encoding/xml/marshal_test.go
++++ b/src/pkg/encoding/xml/marshal_test.go
+@@ -272,6 +272,10 @@ type EmbedInt struct {
+ 	MyInt
+ }
+ 
++type Strings struct {
++	X []string `xml:"A>B,omitempty"`
++}
++
+ // Unless explicitly stated as such (or *Plain), all of the
+ // tests below are two-way tests. When introducing new tests,
+ // please try to make them two-way as well to ensure that
+@@ -802,6 +806,11 @@ var marshalTests = []struct {
+ 			MyInt: 42,
+ 		},
+ 	},
++	// Test omitempty with parent chain; see golang.org/issue/4168.
++	{
++		ExpectXML: `<Strings><A></A></Strings>`,
++		Value:     &Strings{},
++	},
+ }
+ 
+ func TestMarshal(t *testing.T) {
+@@ -824,6 +833,10 @@ func TestMarshal(t *testing.T) {
+ 	}
+ }
+ 
++type AttrParent struct {
++	X string `xml:"X>Y,attr"`
++}
++
+ var marshalErrorTests = []struct {
+ 	Value interface{}
+ 	Err   string
+@@ -851,6 +864,11 @@ var marshalErrorTests = []struct {
+ 		Value: &Domain{Comment: []byte("f--bar")},
+ 		Err:   `xml: comments must not contain "--"`,
+ 	},
++	// Reject parent chain with attr, never worked; see golang.org/issue/5033.
++	{
++		Value: &AttrParent{},
++		Err:   `xml: X>Y chain not valid with attr flag`,
++	},
+ }
+ 
+ var marshalIndentTests = []struct {
+@@ -873,8 +891,12 @@ var marshalIndentTests = []struct {
+ 
+ func TestMarshalErrors(t *testing.T) {
+ 	for idx, test := range marshalErrorTests {
+-		_, err := Marshal(test.Value)
+-		if err == nil || err.Error() != test.Err {
++		data, err := Marshal(test.Value)
++		if err == nil {
++			t.Errorf("#%d: marshal(%#v) = [success] %q, want error %v", idx, test.Value, data, test.Err)
++			continue
++		}
++		if err.Error() != test.Err {
+ 			t.Errorf("#%d: marshal(%#v) = [error] %v, want %v", idx, test.Value, err, test.Err)
+ 		}
+ 		if test.Kind != reflect.Invalid {
+diff --git a/src/pkg/encoding/xml/typeinfo.go b/src/pkg/encoding/xml/typeinfo.go
+index e0c7d7bfb2..83e65402c0 100644
+--- a/src/pkg/encoding/xml/typeinfo.go
++++ b/src/pkg/encoding/xml/typeinfo.go
+@@ -192,16 +192,19 @@ func structFieldInfo(typ reflect.Type, f *reflect.StructField) (*fieldInfo, erro
+ 	}
+ 
+ 	// Prepare field name and parents.
+-	tokens = strings.Split(tag, ">")
+-	if tokens[0] == "" {
+-		tokens[0] = f.Name
++	parents := strings.Split(tag, ">")
++	if parents[0] == "" {
++		parents[0] = f.Name
+ 	}
+-	if tokens[len(tokens)-1] == "" {
++	if parents[len(parents)-1] == "" {
+ 		return nil, fmt.Errorf("xml: trailing '>' in field %s of type %s", f.Name, typ)
+ 	}
+-	finfo.name = tokens[len(tokens)-1]
+-	if len(tokens) > 1 {
+-		finfo.parents = tokens[:len(tokens)-1]
++	finfo.name = parents[len(parents)-1]
++	if len(parents) > 1 {
++		if (finfo.flags & fElement) == 0 {
++			return nil, fmt.Errorf("xml: %s chain not valid with %s flag", tag, strings.Join(tokens[1:], ","))
++		}
++		finfo.parents = parents[:len(parents)-1]
+ 	}
+ 
+ 	// If the field type has an XMLName field, the names must match

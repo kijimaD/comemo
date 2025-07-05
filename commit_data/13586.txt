@@ -9,7 +9,7 @@ Date:   Tue Aug 7 09:38:35 2012 +0800
     R=golang-dev, alex.brainman, rsc
     CC=golang-dev
     https://golang.org/cl/6220049
-
+---
  misc/cgo/life/life.go                  |  2 +
  misc/cgo/life/main.go                  |  2 +
  misc/cgo/life/{golden.out => main.out} |  1 -
@@ -27,3 +27,377 @@ Date:   Tue Aug 7 09:38:35 2012 +0800
  src/run.bat                            | 16 ++++++
  test/run.go                            | 17 +++++--
  16 files changed, 189 insertions(+), 42 deletions(-)
+
+diff --git a/misc/cgo/life/life.go b/misc/cgo/life/life.go
+index ec000ce3a3..bbec4c56fa 100644
+--- a/misc/cgo/life/life.go
++++ b/misc/cgo/life/life.go
+@@ -1,3 +1,5 @@
++// skip
++
+ // Copyright 2010 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/misc/cgo/life/main.go b/misc/cgo/life/main.go
+index 47ae0e18c5..dba0965eec 100644
+--- a/misc/cgo/life/main.go
++++ b/misc/cgo/life/main.go
+@@ -1,3 +1,5 @@
++// cmpout
++
+ // Copyright 2010 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/misc/cgo/life/golden.out b/misc/cgo/life/main.out
+similarity index 97%
+rename from misc/cgo/life/golden.out
+rename to misc/cgo/life/main.out
+index 539d2106d6..26fc9c6e3f 100644
+--- a/misc/cgo/life/golden.out
++++ b/misc/cgo/life/main.out
+@@ -1,4 +1,3 @@
+-* life
+                 
+                 
+   XXX     XXX   
+diff --git a/misc/cgo/life/test.bash b/misc/cgo/life/test.bash
+deleted file mode 100755
+index bb483522c1..0000000000
+--- a/misc/cgo/life/test.bash
++++ /dev/null
+@@ -1,14 +0,0 @@
+-#!/bin/sh
+-# Copyright 2010 The Go Authors.  All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-set -e
+-go build -o life main.go
+-
+-echo '*' life >run.out
+-./life >>run.out
+-diff run.out golden.out
+-
+-rm -f life
+-
+diff --git a/misc/cgo/stdio/chain.go b/misc/cgo/stdio/chain.go
+index 1cf0b1fe5f..a55cefa40c 100644
+--- a/misc/cgo/stdio/chain.go
++++ b/misc/cgo/stdio/chain.go
+@@ -1,3 +1,5 @@
++// cmpout
++
+ // Copyright 2009 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/misc/cgo/stdio/chain.out b/misc/cgo/stdio/chain.out
+new file mode 100644
+index 0000000000..963cf9b667
+--- /dev/null
++++ b/misc/cgo/stdio/chain.out
+@@ -0,0 +1,55 @@
++0
++1
++2
++3
++4
++5
++6
++7
++8
++9
++10
++0
++1
++2
++3
++4
++5
++6
++7
++8
++9
++10
++0
++1
++2
++3
++4
++5
++6
++7
++8
++9
++10
++0
++1
++2
++3
++4
++5
++6
++7
++8
++9
++10
++0
++1
++2
++3
++4
++5
++6
++7
++8
++9
++10
+diff --git a/misc/cgo/stdio/fib.go b/misc/cgo/stdio/fib.go
+index 6d3ccfd527..981ffeb9ab 100644
+--- a/misc/cgo/stdio/fib.go
++++ b/misc/cgo/stdio/fib.go
+@@ -1,3 +1,5 @@
++// cmpout
++
+ // Copyright 2009 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/misc/cgo/stdio/fib.out b/misc/cgo/stdio/fib.out
+new file mode 100644
+index 0000000000..17ff503356
+--- /dev/null
++++ b/misc/cgo/stdio/fib.out
+@@ -0,0 +1,91 @@
++0
++1
++1
++2
++3
++5
++8
++13
++21
++34
++55
++89
++144
++233
++377
++610
++987
++1597
++2584
++4181
++6765
++10946
++17711
++28657
++46368
++75025
++121393
++196418
++317811
++514229
++832040
++1346269
++2178309
++3524578
++5702887
++9227465
++14930352
++24157817
++39088169
++63245986
++102334155
++165580141
++267914296
++433494437
++701408733
++1134903170
++1836311903
++2971215073
++4807526976
++7778742049
++12586269025
++20365011074
++32951280099
++53316291173
++86267571272
++139583862445
++225851433717
++365435296162
++591286729879
++956722026041
++1548008755920
++2504730781961
++4052739537881
++6557470319842
++10610209857723
++17167680177565
++27777890035288
++44945570212853
++72723460248141
++117669030460994
++190392490709135
++308061521170129
++498454011879264
++806515533049393
++1304969544928657
++2111485077978050
++3416454622906707
++5527939700884757
++8944394323791464
++14472334024676221
++23416728348467685
++37889062373143906
++61305790721611591
++99194853094755497
++160500643816367088
++259695496911122585
++420196140727489673
++679891637638612258
++1100087778366101931
++1779979416004714189
++2880067194370816120
+diff --git a/misc/cgo/stdio/file.go b/misc/cgo/stdio/file.go
+index a202f358c6..e7bb906a54 100644
+--- a/misc/cgo/stdio/file.go
++++ b/misc/cgo/stdio/file.go
+@@ -1,3 +1,5 @@
++// skip
++
+ // Copyright 2009 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/misc/cgo/stdio/hello.go b/misc/cgo/stdio/hello.go
+index 4ab3c7447f..9cfeefbba7 100644
+--- a/misc/cgo/stdio/hello.go
++++ b/misc/cgo/stdio/hello.go
+@@ -1,3 +1,5 @@
++// cmpout
++
+ // Copyright 2009 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/misc/cgo/stdio/hello.out b/misc/cgo/stdio/hello.out
+new file mode 100644
+index 0000000000..4b5fa63702
+--- /dev/null
++++ b/misc/cgo/stdio/hello.out
+@@ -0,0 +1 @@
++hello, world
+diff --git a/misc/cgo/stdio/golden.out b/misc/cgo/stdio/run.out
+similarity index 100%
+rename from misc/cgo/stdio/golden.out
+rename to misc/cgo/stdio/run.out
+diff --git a/misc/cgo/stdio/test.bash b/misc/cgo/stdio/test.bash
+deleted file mode 100755
+index 21829fa31f..0000000000
+--- a/misc/cgo/stdio/test.bash
++++ /dev/null
+@@ -1,20 +0,0 @@
+-#!/bin/sh
+-# Copyright 2009 The Go Authors.  All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-set -e
+-go build hello.go
+-go build fib.go
+-go build chain.go
+-
+-echo '*' hello >run.out
+-./hello >>run.out
+-echo '*' fib >>run.out
+-./fib >>run.out
+-echo '*' chain >>run.out
+-./chain >>run.out
+-diff run.out golden.out
+-
+-rm -f hello fib chain
+-
+diff --git a/src/run.bash b/src/run.bash
+index ca84b7034d..e818e96ecc 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -49,12 +49,12 @@ xcd() {
+ [ "$CGO_ENABLED" != 1 ] ||
+ [ "$GOHOSTOS" == windows ] ||
+ (xcd ../misc/cgo/stdio
+-./test.bash
++go run $GOROOT/test/run.go - .
+ ) || exit $?
+ 
+ [ "$CGO_ENABLED" != 1 ] ||
+ (xcd ../misc/cgo/life
+-./test.bash
++go run $GOROOT/test/run.go - .
+ ) || exit $?
+ 
+ [ "$CGO_ENABLED" != 1 ] ||
+diff --git a/src/run.bat b/src/run.bat
+index 9a09d435ca..496cbe3d57 100644
+--- a/src/run.bat
++++ b/src/run.bat
+@@ -30,6 +30,13 @@ echo.
+ :: at least runtime/debug test will fail.
+ set GOROOT_FINAL=
+ 
++:: get CGO_ENABLED
++go env > env.bat
++if errorlevel 1 goto fail
++call env.bat
++del env.bat
++echo.
++
+ echo # Testing packages.
+ go test std -short -timeout=120s
+ if errorlevel 1 goto fail
+@@ -56,6 +63,15 @@ echo.
+ ::if errorlevel 1 goto fail
+ ::echo.
+ 
++:: cgo tests
++:: TODO: Other cgo tests
++if x%CGO_ENABLED% == x0 goto nocgo
++echo # ..\misc\cgo\life
++go run %GOROOT%\test\run.go - ..\misc\cgo\life
++if errorlevel 1 goto fail
++echo.
++:nocgo
++
+ :: TODO: The other tests in run.bash.
+ 
+ echo # test
+diff --git a/test/run.go b/test/run.go
+index e3c305690d..325d2ea410 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -77,16 +77,23 @@ func main() {
+ 	if flag.NArg() > 0 {
+ 		for _, arg := range flag.Args() {
+ 			if arg == "-" || arg == "--" {
+-				// Permit running either:
++				// Permit running:
+ 				// $ go run run.go - env.go
+ 				// $ go run run.go -- env.go
++				// $ go run run.go - ./fixedbugs
++				// $ go run run.go -- ./fixedbugs
+ 				continue
+ 			}
+-			if !strings.HasSuffix(arg, ".go") {
+-				log.Fatalf("can't yet deal with non-go file %q", arg)
++			if fi, err := os.Stat(arg); err == nil && fi.IsDir() {
++				for _, baseGoFile := range goFiles(arg) {
++					tests = append(tests, startTest(arg, baseGoFile))
++				}
++			} else if strings.HasSuffix(arg, ".go") {
++				dir, file := filepath.Split(arg)
++				tests = append(tests, startTest(dir, file))
++			} else {
++				log.Fatalf("can't yet deal with non-directory and non-go file %q", arg)
+ 			}
+-			dir, file := filepath.Split(arg)
+-			tests = append(tests, startTest(dir, file))
+ 		}
+ 	} else {
+ 		for _, dir := range dirs {

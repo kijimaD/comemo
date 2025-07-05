@@ -34,7 +34,7 @@ Date:   Thu Nov 1 12:30:23 2018 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/gc/gen.go          | 11 +++++
  src/cmd/compile/internal/gc/gsubr.go        | 63 ++++++++++++++++++++++++++++-
  src/cmd/compile/internal/gc/noder.go        | 13 ++++++
@@ -56,3 +56,545 @@ Date:   Thu Nov 1 12:30:23 2018 -0400
  src/cmd/link/internal/sym/symkind.go        |  4 ++
  src/cmd/link/internal/sym/symkind_string.go |  4 +-
  20 files changed, 196 insertions(+), 34 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/gen.go b/src/cmd/compile/internal/gc/gen.go
+index f9b4584cf6..43d12925eb 100644
+--- a/src/cmd/compile/internal/gc/gen.go
++++ b/src/cmd/compile/internal/gc/gen.go
+@@ -11,7 +11,18 @@ import (
+ 	"strconv"
+ )
+ 
++// sysfunc looks up Go function name in package runtime. This function
++// must follow the internal calling convention.
+ func sysfunc(name string) *obj.LSym {
++	s := Runtimepkg.Lookup(name)
++	s.SetFunc(true)
++	return s.Linksym()
++}
++
++// sysvar looks up a variable (or assembly function) name in package
++// runtime. If this is a function, it may have a special calling
++// convention.
++func sysvar(name string) *obj.LSym {
+ 	return Runtimepkg.Lookup(name).Linksym()
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/gsubr.go b/src/cmd/compile/internal/gc/gsubr.go
+index 16602b9988..01ac4cb929 100644
+--- a/src/cmd/compile/internal/gc/gsubr.go
++++ b/src/cmd/compile/internal/gc/gsubr.go
+@@ -187,7 +187,13 @@ func (pp *Progs) settext(fn *Node) {
+ 	ptxt.From.Sym = fn.Func.lsym
+ }
+ 
+-func (f *Func) initLSym() {
++// initLSym defines f's obj.LSym and initializes it based on the
++// properties of f. This includes setting the symbol flags and ABI and
++// creating and initializing related DWARF symbols.
++//
++// initLSym must be called exactly once per function and must be
++// called for both functions with bodies and functions without bodies.
++func (f *Func) initLSym(hasBody bool) {
+ 	if f.lsym != nil {
+ 		Fatalf("Func.initLSym called twice")
+ 	}
+@@ -197,6 +203,61 @@ func (f *Func) initLSym() {
+ 		if f.Pragma&Systemstack != 0 {
+ 			f.lsym.Set(obj.AttrCFunc, true)
+ 		}
++
++		var aliasABI obj.ABI
++		needABIAlias := false
++		if abi, ok := symabiDefs[f.lsym.Name]; ok && abi == obj.ABI0 {
++			// Symbol is defined as ABI0. Create an
++			// Internal -> ABI0 wrapper.
++			f.lsym.SetABI(obj.ABI0)
++			needABIAlias, aliasABI = true, obj.ABIInternal
++		} else {
++			// No ABI override. Check that the symbol is
++			// using the expected ABI.
++			want := obj.ABIInternal
++			if f.lsym.ABI() != want {
++				Fatalf("function symbol %s has the wrong ABI %v, expected %v", f.lsym, f.lsym.ABI(), want)
++			}
++		}
++
++		if abi, ok := symabiRefs[f.lsym.Name]; ok && abi == obj.ABI0 {
++			// Symbol is referenced as ABI0. Create an
++			// ABI0 -> Internal wrapper if necessary.
++			if f.lsym.ABI() != obj.ABI0 {
++				needABIAlias, aliasABI = true, obj.ABI0
++			}
++		}
++
++		if !needABIAlias && allABIs {
++			// The compiler was asked to produce ABI
++			// wrappers for everything.
++			switch f.lsym.ABI() {
++			case obj.ABI0:
++				needABIAlias, aliasABI = true, obj.ABIInternal
++			case obj.ABIInternal:
++				needABIAlias, aliasABI = true, obj.ABI0
++			}
++		}
++
++		if needABIAlias {
++			// These LSyms have the same name as the
++			// native function, so we create them directly
++			// rather than looking them up. The uniqueness
++			// of f.lsym ensures uniqueness of asym.
++			asym := &obj.LSym{
++				Name: f.lsym.Name,
++				Type: objabi.SABIALIAS,
++				R:    []obj.Reloc{{Sym: f.lsym}}, // 0 size, so "informational"
++			}
++			asym.SetABI(aliasABI)
++			asym.Set(obj.AttrDuplicateOK, true)
++			Ctxt.ABIAliases = append(Ctxt.ABIAliases, asym)
++		}
++	}
++
++	if !hasBody {
++		// For body-less functions, we only create the LSym.
++		return
+ 	}
+ 
+ 	var flag int
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index f13d2cdbb5..a2ed103c80 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -15,6 +15,7 @@ import (
+ 
+ 	"cmd/compile/internal/syntax"
+ 	"cmd/compile/internal/types"
++	"cmd/internal/obj"
+ 	"cmd/internal/objabi"
+ 	"cmd/internal/src"
+ )
+@@ -250,6 +251,18 @@ func (p *noder) node() {
+ 		}
+ 	}
+ 
++	// The linker expects an ABI0 wrapper for all cgo-exported
++	// functions.
++	for _, prag := range p.pragcgobuf {
++		switch prag[0] {
++		case "cgo_export_static", "cgo_export_dynamic":
++			if symabiRefs == nil {
++				symabiRefs = make(map[string]obj.ABI)
++			}
++			symabiRefs[prag[1]] = obj.ABI0
++		}
++	}
++
+ 	pragcgobuf = append(pragcgobuf, p.pragcgobuf...)
+ 	lineno = src.NoXPos
+ 	clearImports()
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index 01dacb783b..d567cfe149 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -198,6 +198,8 @@ func funccompile(fn *Node) {
+ 	dowidth(fn.Type)
+ 
+ 	if fn.Nbody.Len() == 0 {
++		// Initialize ABI wrappers if necessary.
++		fn.Func.initLSym(false)
+ 		emitptrargsmap(fn)
+ 		return
+ 	}
+@@ -231,7 +233,7 @@ func compile(fn *Node) {
+ 	Curfn = nil
+ 
+ 	// Set up the function's LSym early to avoid data races with the assemblers.
+-	fn.Func.initLSym()
++	fn.Func.initLSym(true)
+ 
+ 	// Make sure type syms are declared for all types that might
+ 	// be types of stack objects. We need to do this here
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index 50b741358f..130c83036c 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -801,7 +801,7 @@ var (
+ func dcommontype(lsym *obj.LSym, t *types.Type) int {
+ 	sizeofAlg := 2 * Widthptr
+ 	if algarray == nil {
+-		algarray = sysfunc("algarray")
++		algarray = sysvar("algarray")
+ 	}
+ 	dowidth(t)
+ 	alg := algtype(t)
+@@ -1618,7 +1618,7 @@ func dalgsym(t *types.Type) *obj.LSym {
+ 
+ 		if memhashvarlen == nil {
+ 			memhashvarlen = sysfunc("memhash_varlen")
+-			memequalvarlen = sysfunc("memequal_varlen")
++			memequalvarlen = sysvar("memequal_varlen") // asm func
+ 		}
+ 
+ 		// make hash closure
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index d43dc8e617..883cf7936d 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -68,9 +68,9 @@ func initssaconfig() {
+ 	assertI2I2 = sysfunc("assertI2I2")
+ 	deferproc = sysfunc("deferproc")
+ 	Deferreturn = sysfunc("deferreturn")
+-	Duffcopy = sysfunc("duffcopy")
+-	Duffzero = sysfunc("duffzero")
+-	gcWriteBarrier = sysfunc("gcWriteBarrier")
++	Duffcopy = sysvar("duffcopy")             // asm func with special ABI
++	Duffzero = sysvar("duffzero")             // asm func with special ABI
++	gcWriteBarrier = sysvar("gcWriteBarrier") // asm func with special ABI
+ 	goschedguarded = sysfunc("goschedguarded")
+ 	growslice = sysfunc("growslice")
+ 	msanread = sysfunc("msanread")
+@@ -86,25 +86,25 @@ func initssaconfig() {
+ 	racereadrange = sysfunc("racereadrange")
+ 	racewrite = sysfunc("racewrite")
+ 	racewriterange = sysfunc("racewriterange")
+-	supportPopcnt = sysfunc("support_popcnt")
+-	supportSSE41 = sysfunc("support_sse41")
+-	arm64SupportAtomics = sysfunc("arm64_support_atomics")
++	supportPopcnt = sysvar("support_popcnt")              // bool
++	supportSSE41 = sysvar("support_sse41")                // bool
++	arm64SupportAtomics = sysvar("arm64_support_atomics") // bool
+ 	typedmemclr = sysfunc("typedmemclr")
+ 	typedmemmove = sysfunc("typedmemmove")
+-	Udiv = sysfunc("udiv")
+-	writeBarrier = sysfunc("writeBarrier")
+-
+-	// GO386=387 runtime functions
+-	ControlWord64trunc = sysfunc("controlWord64trunc")
+-	ControlWord32 = sysfunc("controlWord32")
+-
+-	// Wasm
+-	WasmMove = sysfunc("wasmMove")
+-	WasmZero = sysfunc("wasmZero")
+-	WasmDiv = sysfunc("wasmDiv")
+-	WasmTruncS = sysfunc("wasmTruncS")
+-	WasmTruncU = sysfunc("wasmTruncU")
+-	SigPanic = sysfunc("sigpanic")
++	Udiv = sysvar("udiv")                 // asm func with special ABI
++	writeBarrier = sysvar("writeBarrier") // struct { bool; ... }
++
++	// GO386=387 runtime definitions
++	ControlWord64trunc = sysvar("controlWord64trunc") // uint16
++	ControlWord32 = sysvar("controlWord32")           // uint16
++
++	// Wasm (all asm funcs with special ABIs)
++	WasmMove = sysvar("wasmMove")
++	WasmZero = sysvar("wasmZero")
++	WasmDiv = sysvar("wasmDiv")
++	WasmTruncS = sysvar("wasmTruncS")
++	WasmTruncU = sysvar("wasmTruncU")
++	SigPanic = sysvar("sigpanic")
+ }
+ 
+ // buildssa builds an SSA function for fn.
+diff --git a/src/cmd/compile/internal/types/sym.go b/src/cmd/compile/internal/types/sym.go
+index 28583378d9..86f5022b5c 100644
+--- a/src/cmd/compile/internal/types/sym.go
++++ b/src/cmd/compile/internal/types/sym.go
+@@ -77,6 +77,12 @@ func (sym *Sym) Linksym() *obj.LSym {
+ 	if sym == nil {
+ 		return nil
+ 	}
++	if sym.Func() {
++		// This is a function symbol. Mark it as "internal ABI".
++		return Ctxt.LookupInit(sym.LinksymName(), func(s *obj.LSym) {
++			s.SetABI(obj.ABIInternal)
++		})
++	}
+ 	return Ctxt.Lookup(sym.LinksymName())
+ }
+ 
+diff --git a/src/cmd/internal/obj/arm/asm5.go b/src/cmd/internal/obj/arm/asm5.go
+index dd6d9265c4..316937bde0 100644
+--- a/src/cmd/internal/obj/arm/asm5.go
++++ b/src/cmd/internal/obj/arm/asm5.go
+@@ -1530,6 +1530,7 @@ func buildop(ctxt *obj.Link) {
+ 	}
+ 
+ 	deferreturn = ctxt.Lookup("runtime.deferreturn")
++	deferreturn.SetABI(obj.ABIInternal)
+ 
+ 	symdiv = ctxt.Lookup("runtime._div")
+ 	symdivu = ctxt.Lookup("runtime._divu")
+diff --git a/src/cmd/internal/obj/wasm/wasmobj.go b/src/cmd/internal/obj/wasm/wasmobj.go
+index f271101f4b..a1b758836a 100644
+--- a/src/cmd/internal/obj/wasm/wasmobj.go
++++ b/src/cmd/internal/obj/wasm/wasmobj.go
+@@ -126,7 +126,9 @@ func instinit(ctxt *obj.Link) {
+ 	morestackNoCtxt = ctxt.Lookup("runtime.morestack_noctxt")
+ 	gcWriteBarrier = ctxt.Lookup("runtime.gcWriteBarrier")
+ 	sigpanic = ctxt.Lookup("runtime.sigpanic")
++	sigpanic.SetABI(obj.ABIInternal)
+ 	deferreturn = ctxt.Lookup("runtime.deferreturn")
++	deferreturn.SetABI(obj.ABIInternal)
+ 	jmpdefer = ctxt.Lookup(`"".jmpdefer`)
+ }
+ 
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index a4507352f7..520f4be8f5 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -2065,6 +2065,7 @@ func instinit(ctxt *obj.Link) {
+ 		plan9privates = ctxt.Lookup("_privates")
+ 	case objabi.Hnacl:
+ 		deferreturn = ctxt.Lookup("runtime.deferreturn")
++		deferreturn.SetABI(obj.ABIInternal)
+ 	}
+ 
+ 	for i := range avxOptab {
+diff --git a/src/cmd/internal/objabi/symkind.go b/src/cmd/internal/objabi/symkind.go
+index b95a0d3c70..16b4c535ed 100644
+--- a/src/cmd/internal/objabi/symkind.go
++++ b/src/cmd/internal/objabi/symkind.go
+@@ -60,6 +60,13 @@ const (
+ 	SDWARFRANGE
+ 	SDWARFLOC
+ 	SDWARFMISC
++	// ABI alias. An ABI alias symbol is an empty symbol with a
++	// single relocation with 0 size that references the native
++	// function implementation symbol.
++	//
++	// TODO(austin): Remove this and all uses once the compiler
++	// generates real ABI wrappers rather than symbol aliases.
++	SABIALIAS
+ 	// Update cmd/link/internal/sym/AbiSymKindToSymKind for new SymKind values.
+ 
+ )
+diff --git a/src/cmd/internal/objabi/symkind_string.go b/src/cmd/internal/objabi/symkind_string.go
+index 7152d6c006..2b9a9080e8 100644
+--- a/src/cmd/internal/objabi/symkind_string.go
++++ b/src/cmd/internal/objabi/symkind_string.go
+@@ -4,9 +4,9 @@ package objabi
+ 
+ import "strconv"
+ 
+-const _SymKind_name = "SxxxSTEXTSRODATASNOPTRDATASDATASBSSSNOPTRBSSSTLSBSSSDWARFINFOSDWARFRANGESDWARFLOCSDWARFMISC"
++const _SymKind_name = "SxxxSTEXTSRODATASNOPTRDATASDATASBSSSNOPTRBSSSTLSBSSSDWARFINFOSDWARFRANGESDWARFLOCSDWARFMISCSABIALIAS"
+ 
+-var _SymKind_index = [...]uint8{0, 4, 9, 16, 26, 31, 35, 44, 51, 61, 72, 81, 91}
++var _SymKind_index = [...]uint8{0, 4, 9, 16, 26, 31, 35, 44, 51, 61, 72, 81, 91, 100}
+ 
+ func (i SymKind) String() string {
+ 	if i >= SymKind(len(_SymKind_index)-1) {
+diff --git a/src/cmd/link/internal/ld/deadcode.go b/src/cmd/link/internal/ld/deadcode.go
+index df989cc944..8f582174c5 100644
+--- a/src/cmd/link/internal/ld/deadcode.go
++++ b/src/cmd/link/internal/ld/deadcode.go
+@@ -60,8 +60,8 @@ func deadcode(ctxt *Link) {
+ 	d.init()
+ 	d.flood()
+ 
+-	callSym := ctxt.Syms.ROLookup("reflect.Value.Call", 0)
+-	methSym := ctxt.Syms.ROLookup("reflect.Value.Method", 0)
++	callSym := ctxt.Syms.ROLookup("reflect.Value.Call", sym.SymVerABIInternal)
++	methSym := ctxt.Syms.ROLookup("reflect.Value.Method", sym.SymVerABIInternal)
+ 	reflectSeen := false
+ 
+ 	if ctxt.DynlinkingGo() {
+@@ -257,7 +257,10 @@ func (d *deadcodepass) init() {
+ 	}
+ 
+ 	for _, name := range names {
++		// Mark symbol as an data/ABI0 symbol.
+ 		d.mark(d.ctxt.Syms.ROLookup(name, 0), nil)
++		// Also mark any Go functions (internal ABI).
++		d.mark(d.ctxt.Syms.ROLookup(name, sym.SymVerABIInternal), nil)
+ 	}
+ }
+ 
+@@ -308,6 +311,11 @@ func (d *deadcodepass) flood() {
+ 				// reachable.
+ 				continue
+ 			}
++			if r.Sym.Type == sym.SABIALIAS {
++				// Patch this relocation through the
++				// ABI alias before marking.
++				r.Sym = resolveABIAlias(r.Sym)
++			}
+ 			if r.Type != objabi.R_METHODOFF {
+ 				d.mark(r.Sym, s)
+ 				continue
+diff --git a/src/cmd/link/internal/ld/go.go b/src/cmd/link/internal/ld/go.go
+index d6c6b53a44..c942956cc4 100644
+--- a/src/cmd/link/internal/ld/go.go
++++ b/src/cmd/link/internal/ld/go.go
+@@ -25,6 +25,17 @@ func expandpkg(t0 string, pkg string) string {
+ 	return strings.Replace(t0, `"".`, pkg+".", -1)
+ }
+ 
++func resolveABIAlias(s *sym.Symbol) *sym.Symbol {
++	if s.Type != sym.SABIALIAS {
++		return s
++	}
++	target := s.R[0].Sym
++	if target.Type == sym.SABIALIAS {
++		panic(fmt.Sprintf("ABI alias %s references another ABI alias %s", s, target))
++	}
++	return target
++}
++
+ // TODO:
+ //	generate debugging section in binary.
+ //	once the dust settles, try to move some code to
+@@ -191,6 +202,11 @@ func loadcgo(ctxt *Link, file string, pkg string, p string) {
+ 			}
+ 			local = expandpkg(local, pkg)
+ 
++			// The compiler arranges for an ABI0 wrapper
++			// to be available for all cgo-exported
++			// functions. Link.loadlib will resolve any
++			// ABI aliases we find here (since we may not
++			// yet know it's an alias).
+ 			s := ctxt.Syms.Lookup(local, 0)
+ 
+ 			switch ctxt.BuildMode {
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index aa472ee07f..3038b79574 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -169,7 +169,7 @@ func (ctxt *Link) DynlinkingGo() bool {
+ 
+ // CanUsePlugins returns whether a plugins can be used
+ func (ctxt *Link) CanUsePlugins() bool {
+-	return ctxt.Syms.ROLookup("plugin.Open", 0) != nil
++	return ctxt.Syms.ROLookup("plugin.Open", sym.SymVerABIInternal) != nil
+ }
+ 
+ // UseRelro returns whether to make use of "read only relocations" aka
+@@ -635,6 +635,19 @@ func (ctxt *Link) loadlib() {
+ 		}
+ 		ctxt.Textp = textp
+ 	}
++
++	// Resolve ABI aliases in the list of cgo-exported functions.
++	// This is necessary because we load the ABI0 symbol for all
++	// cgo exports.
++	for i, s := range dynexp {
++		if s.Type != sym.SABIALIAS {
++			continue
++		}
++		t := resolveABIAlias(s)
++		t.Attr |= s.Attr
++		t.SetExtname(s.Extname())
++		dynexp[i] = t
++	}
+ }
+ 
+ // mangleTypeSym shortens the names of symbols that represent Go types
+@@ -651,7 +664,7 @@ func (ctxt *Link) loadlib() {
+ // those programs loaded dynamically in multiple parts need these
+ // symbols to have entries in the symbol table.
+ func (ctxt *Link) mangleTypeSym() {
+-	if ctxt.BuildMode != BuildModeShared && !ctxt.linkShared && ctxt.BuildMode != BuildModePlugin && ctxt.Syms.ROLookup("plugin.Open", 0) == nil {
++	if ctxt.BuildMode != BuildModeShared && !ctxt.linkShared && ctxt.BuildMode != BuildModePlugin && !ctxt.CanUsePlugins() {
+ 		return
+ 	}
+ 
+@@ -1801,6 +1814,21 @@ func ldshlibsyms(ctxt *Link, shlib string) {
+ 				gcdataLocations[elfsym.Value+2*uint64(ctxt.Arch.PtrSize)+8+1*uint64(ctxt.Arch.PtrSize)] = lsym
+ 			}
+ 		}
++		// For function symbols, we don't know what ABI is
++		// available, so alias it under both ABIs.
++		//
++		// TODO(austin): This is almost certainly wrong once
++		// the ABIs are actually different. We might have to
++		// mangle Go function names in the .so to include the
++		// ABI.
++		if elf.ST_TYPE(elfsym.Info) == elf.STT_FUNC {
++			alias := ctxt.Syms.Lookup(elfsym.Name, sym.SymVerABIInternal)
++			if alias.Type != 0 {
++				continue
++			}
++			alias.Type = sym.SABIALIAS
++			alias.R = []sym.Reloc{{Sym: lsym}}
++		}
+ 	}
+ 	gcdataAddresses := make(map[*sym.Symbol]uint64)
+ 	if ctxt.Arch.Family == sys.ARM64 {
+diff --git a/src/cmd/link/internal/ld/symtab.go b/src/cmd/link/internal/ld/symtab.go
+index 276a3a1cbb..7c296d766c 100644
+--- a/src/cmd/link/internal/ld/symtab.go
++++ b/src/cmd/link/internal/ld/symtab.go
+@@ -506,7 +506,7 @@ func (ctxt *Link) symtab() {
+ 		abihashgostr.AddAddr(ctxt.Arch, hashsym)
+ 		abihashgostr.AddUint(ctxt.Arch, uint64(hashsym.Size))
+ 	}
+-	if ctxt.BuildMode == BuildModePlugin || ctxt.Syms.ROLookup("plugin.Open", 0) != nil {
++	if ctxt.BuildMode == BuildModePlugin || ctxt.CanUsePlugins() {
+ 		for _, l := range ctxt.Library {
+ 			s := ctxt.Syms.Lookup("go.link.pkghashbytes."+l.Pkg, 0)
+ 			s.Attr |= sym.AttrReachable
+diff --git a/src/cmd/link/internal/ppc64/asm.go b/src/cmd/link/internal/ppc64/asm.go
+index c4a49c6a1e..11a7aa2164 100644
+--- a/src/cmd/link/internal/ppc64/asm.go
++++ b/src/cmd/link/internal/ppc64/asm.go
+@@ -133,7 +133,7 @@ func genplt(ctxt *ld.Link) {
+ }
+ 
+ func genaddmoduledata(ctxt *ld.Link) {
+-	addmoduledata := ctxt.Syms.ROLookup("runtime.addmoduledata", 0)
++	addmoduledata := ctxt.Syms.ROLookup("runtime.addmoduledata", sym.SymVerABI0)
+ 	if addmoduledata.Type == sym.STEXT && ctxt.BuildMode != ld.BuildModePlugin {
+ 		return
+ 	}
+diff --git a/src/cmd/link/internal/sym/symbols.go b/src/cmd/link/internal/sym/symbols.go
+index d7266c840b..f0fcf2361b 100644
+--- a/src/cmd/link/internal/sym/symbols.go
++++ b/src/cmd/link/internal/sym/symbols.go
+@@ -43,6 +43,8 @@ func NewSymbols() *Symbols {
+ 	hash := make([]map[string]*Symbol, SymVerStatic)
+ 	// Preallocate about 2mb for hash of non static symbols
+ 	hash[0] = make(map[string]*Symbol, 100000)
++	// And another 1mb for internal ABI text symbols.
++	hash[SymVerABIInternal] = make(map[string]*Symbol, 50000)
+ 	return &Symbols{
+ 		hash:   hash,
+ 		Allsym: make([]*Symbol, 0, 100000),
+diff --git a/src/cmd/link/internal/sym/symkind.go b/src/cmd/link/internal/sym/symkind.go
+index b1756d6145..6e1e1b58a1 100644
+--- a/src/cmd/link/internal/sym/symkind.go
++++ b/src/cmd/link/internal/sym/symkind.go
+@@ -109,6 +109,9 @@ const (
+ 	SDWARFRANGE
+ 	SDWARFLOC
+ 	SDWARFMISC // Not really a section; informs/affects other DWARF section generation
++
++	// ABI aliases (these never appear in the output)
++	SABIALIAS
+ )
+ 
+ // AbiSymKindToSymKind maps values read from object files (which are
+@@ -126,6 +129,7 @@ var AbiSymKindToSymKind = [...]SymKind{
+ 	SDWARFRANGE,
+ 	SDWARFLOC,
+ 	SDWARFMISC,
++	SABIALIAS,
+ }
+ 
+ // ReadOnly are the symbol kinds that form read-only sections. In some
+diff --git a/src/cmd/link/internal/sym/symkind_string.go b/src/cmd/link/internal/sym/symkind_string.go
+index 7428503b1c..4da6c656f7 100644
+--- a/src/cmd/link/internal/sym/symkind_string.go
++++ b/src/cmd/link/internal/sym/symkind_string.go
+@@ -4,9 +4,9 @@ package sym
+ 
+ import "strconv"
+ 
+-const _SymKind_name = "SxxxSTEXTSELFRXSECTSTYPESSTRINGSGOSTRINGSGOFUNCSGCBITSSRODATASFUNCTABSELFROSECTSMACHOPLTSTYPERELROSSTRINGRELROSGOSTRINGRELROSGOFUNCRELROSGCBITSRELROSRODATARELROSFUNCTABRELROSTYPELINKSITABLINKSSYMTABSPCLNTABSELFSECTSMACHOSMACHOGOTSWINDOWSSELFGOTSNOPTRDATASINITARRSDATASBSSSNOPTRBSSSTLSBSSSXCOFFTOCSXREFSMACHOSYMSTRSMACHOSYMTABSMACHOINDIRECTPLTSMACHOINDIRECTGOTSFILEPATHSCONSTSDYNIMPORTSHOSTOBJSDWARFSECTSDWARFINFOSDWARFRANGESDWARFLOCSDWARFMISC"
++const _SymKind_name = "SxxxSTEXTSELFRXSECTSTYPESSTRINGSGOSTRINGSGOFUNCSGCBITSSRODATASFUNCTABSELFROSECTSMACHOPLTSTYPERELROSSTRINGRELROSGOSTRINGRELROSGOFUNCRELROSGCBITSRELROSRODATARELROSFUNCTABRELROSTYPELINKSITABLINKSSYMTABSPCLNTABSELFSECTSMACHOSMACHOGOTSWINDOWSSELFGOTSNOPTRDATASINITARRSDATASBSSSNOPTRBSSSTLSBSSSXCOFFTOCSXREFSMACHOSYMSTRSMACHOSYMTABSMACHOINDIRECTPLTSMACHOINDIRECTGOTSFILEPATHSCONSTSDYNIMPORTSHOSTOBJSDWARFSECTSDWARFINFOSDWARFRANGESDWARFLOCSDWARFMISCSABIALIAS"
+ 
+-var _SymKind_index = [...]uint16{0, 4, 9, 19, 24, 31, 40, 47, 54, 61, 69, 79, 88, 98, 110, 124, 136, 148, 160, 173, 182, 191, 198, 206, 214, 220, 229, 237, 244, 254, 262, 267, 271, 280, 287, 296, 301, 313, 325, 342, 359, 368, 374, 384, 392, 402, 412, 423, 432, 442}
++var _SymKind_index = [...]uint16{0, 4, 9, 19, 24, 31, 40, 47, 54, 61, 69, 79, 88, 98, 110, 124, 136, 148, 160, 173, 182, 191, 198, 206, 214, 220, 229, 237, 244, 254, 262, 267, 271, 280, 287, 296, 301, 313, 325, 342, 359, 368, 374, 384, 392, 402, 412, 423, 432, 442, 451}
+ 
+ func (i SymKind) String() string {
+ 	if i >= SymKind(len(_SymKind_index)-1) {

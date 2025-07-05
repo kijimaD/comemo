@@ -19,8 +19,136 @@ Date:   Fri Nov 3 16:00:40 2023 -0400
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Auto-Submit: Michael Pratt <mpratt@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/compile/internal/ir/func.go    | 55 ++++++++++++++++++++++++++++++++++
  src/cmd/compile/internal/walk/expr.go  | 27 +++--------------
  src/cmd/compile/internal/walk/order.go |  7 +----
  3 files changed, 60 insertions(+), 29 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/func.go b/src/cmd/compile/internal/ir/func.go
+index a4a31f314d..c28761255f 100644
+--- a/src/cmd/compile/internal/ir/func.go
++++ b/src/cmd/compile/internal/ir/func.go
+@@ -505,6 +505,61 @@ func IsFuncPCIntrinsic(n *CallExpr) bool {
+ 		fn.Pkg.Path == "internal/abi"
+ }
+ 
++// IsIfaceOfFunc inspects whether n is an interface conversion from a direct
++// reference of a func. If so, it returns referenced Func; otherwise nil.
++//
++// This is only usable before walk.walkConvertInterface, which converts to an
++// OMAKEFACE.
++func IsIfaceOfFunc(n Node) *Func {
++	if n, ok := n.(*ConvExpr); ok && n.Op() == OCONVIFACE {
++		if name, ok := n.X.(*Name); ok && name.Op() == ONAME && name.Class == PFUNC {
++			return name.Func
++		}
++	}
++	return nil
++}
++
++// FuncPC returns a uintptr-typed expression that evaluates to the PC of a
++// function as uintptr, as returned by internal/abi.FuncPC{ABI0,ABIInternal}.
++//
++// n should be a Node of an interface type, as is passed to
++// internal/abi.FuncPC{ABI0,ABIInternal}.
++//
++// TODO(prattmic): Since n is simply an interface{} there is no assertion that
++// it is actually a function at all. Perhaps we should emit a runtime type
++// assertion?
++func FuncPC(pos src.XPos, n Node, wantABI obj.ABI) Node {
++	if !n.Type().IsInterface() {
++		base.ErrorfAt(pos, 0, "internal/abi.FuncPC%s expects an interface value, got %v", wantABI, n.Type())
++	}
++
++	if fn := IsIfaceOfFunc(n); fn != nil {
++		name := fn.Nname
++		abi := fn.ABI
++		if abi != wantABI {
++			base.ErrorfAt(pos, 0, "internal/abi.FuncPC%s expects an %v function, %s is defined as %v", wantABI, wantABI, name.Sym().Name, abi)
++		}
++		var e Node = NewLinksymExpr(pos, name.Sym().LinksymABI(abi), types.Types[types.TUINTPTR])
++		e = NewAddrExpr(pos, e)
++		e.SetType(types.Types[types.TUINTPTR].PtrTo())
++		e = NewConvExpr(pos, OCONVNOP, types.Types[types.TUINTPTR], e)
++		e.SetTypecheck(1)
++		return e
++	}
++	// fn is not a defined function. It must be ABIInternal.
++	// Read the address from func value, i.e. *(*uintptr)(idata(fn)).
++	if wantABI != obj.ABIInternal {
++		base.ErrorfAt(pos, 0, "internal/abi.FuncPC%s does not accept func expression, which is ABIInternal", wantABI)
++	}
++	var e Node = NewUnaryExpr(pos, OIDATA, n)
++	e.SetType(types.Types[types.TUINTPTR].PtrTo())
++	e.SetTypecheck(1)
++	e = NewStarExpr(pos, e)
++	e.SetType(types.Types[types.TUINTPTR])
++	e.SetTypecheck(1)
++	return e
++}
++
+ // DeclareParams creates Names for all of the parameters in fn's
+ // signature and adds them to fn.Dcl.
+ //
+diff --git a/src/cmd/compile/internal/walk/expr.go b/src/cmd/compile/internal/walk/expr.go
+index 6c3d9fcd37..64d20b555e 100644
+--- a/src/cmd/compile/internal/walk/expr.go
++++ b/src/cmd/compile/internal/walk/expr.go
+@@ -559,30 +559,11 @@ func walkCall(n *ir.CallExpr, init *ir.Nodes) ir.Node {
+ 		case "FuncPCABIInternal":
+ 			wantABI = obj.ABIInternal
+ 		}
+-		if isIfaceOfFunc(arg) {
+-			fn := arg.(*ir.ConvExpr).X.(*ir.Name)
+-			abi := fn.Func.ABI
+-			if abi != wantABI {
+-				base.ErrorfAt(n.Pos(), 0, "internal/abi.%s expects an %v function, %s is defined as %v", name, wantABI, fn.Sym().Name, abi)
+-			}
+-			var e ir.Node = ir.NewLinksymExpr(n.Pos(), fn.Sym().LinksymABI(abi), types.Types[types.TUINTPTR])
+-			e = ir.NewAddrExpr(n.Pos(), e)
+-			e.SetType(types.Types[types.TUINTPTR].PtrTo())
+-			return typecheck.Expr(ir.NewConvExpr(n.Pos(), ir.OCONVNOP, n.Type(), e))
+-		}
+-		// fn is not a defined function. It must be ABIInternal.
+-		// Read the address from func value, i.e. *(*uintptr)(idata(fn)).
+-		if wantABI != obj.ABIInternal {
+-			base.ErrorfAt(n.Pos(), 0, "internal/abi.%s does not accept func expression, which is ABIInternal", name)
++		if n.Type() != types.Types[types.TUINTPTR] {
++			base.FatalfAt(n.Pos(), "FuncPC intrinsic should return uintptr, got %v", n.Type()) // as expected by typecheck.FuncPC.
+ 		}
+-		arg = walkExpr(arg, init)
+-		var e ir.Node = ir.NewUnaryExpr(n.Pos(), ir.OIDATA, arg)
+-		e.SetType(n.Type().PtrTo())
+-		e.SetTypecheck(1)
+-		e = ir.NewStarExpr(n.Pos(), e)
+-		e.SetType(n.Type())
+-		e.SetTypecheck(1)
+-		return e
++		n := ir.FuncPC(n.Pos(), arg, wantABI)
++		return walkExpr(n, init)
+ 	}
+ 
+ 	if name, ok := n.Fun.(*ir.Name); ok {
+diff --git a/src/cmd/compile/internal/walk/order.go b/src/cmd/compile/internal/walk/order.go
+index 828a1537e2..4d9b2fbee5 100644
+--- a/src/cmd/compile/internal/walk/order.go
++++ b/src/cmd/compile/internal/walk/order.go
+@@ -538,7 +538,7 @@ func (o *orderState) call(nn ir.Node) {
+ 	n := nn.(*ir.CallExpr)
+ 	typecheck.AssertFixedCall(n)
+ 
+-	if ir.IsFuncPCIntrinsic(n) && isIfaceOfFunc(n.Args[0]) {
++	if ir.IsFuncPCIntrinsic(n) && ir.IsIfaceOfFunc(n.Args[0]) != nil {
+ 		// For internal/abi.FuncPCABIxxx(fn), if fn is a defined function,
+ 		// do not introduce temporaries here, so it is easier to rewrite it
+ 		// to symbol address reference later in walk.
+@@ -1502,8 +1502,3 @@ func (o *orderState) as2ok(n *ir.AssignListStmt) {
+ 	o.out = append(o.out, n)
+ 	o.stmt(typecheck.Stmt(as))
+ }
+-
+-// isIfaceOfFunc returns whether n is an interface conversion from a direct reference of a func.
+-func isIfaceOfFunc(n ir.Node) bool {
+-	return n.Op() == ir.OCONVIFACE && n.(*ir.ConvExpr).X.Op() == ir.ONAME && n.(*ir.ConvExpr).X.(*ir.Name).Class == ir.PFUNC
+-}

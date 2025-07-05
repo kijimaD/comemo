@@ -16,7 +16,54 @@ Date:   Wed Feb 8 16:51:34 2023 +0100
     Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/internal/obj/x86/obj6.go | 16 ++--------------
  src/runtime/textflag.h           |  1 -
  2 files changed, 2 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/internal/obj/x86/obj6.go b/src/cmd/internal/obj/x86/obj6.go
+index 395a0a7919..fc0a9c4484 100644
+--- a/src/cmd/internal/obj/x86/obj6.go
++++ b/src/cmd/internal/obj/x86/obj6.go
+@@ -614,27 +614,15 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 		}
+ 	}
+ 
+-	var usefpheuristic bool
+-	switch ctxt.Headtype {
+-	case objabi.Hwindows, objabi.Hdarwin, objabi.Hlinux, objabi.Hdragonfly,
+-		objabi.Hfreebsd, objabi.Hnetbsd, objabi.Hopenbsd, objabi.Hsolaris, objabi.Hplan9:
+-	default:
+-		usefpheuristic = true
+-	}
+-
+ 	var bpsize int
+ 	if ctxt.Arch.Family == sys.AMD64 &&
+ 		!p.From.Sym.NoFrame() && // (1) below
+-		!(autoffset == 0 && p.From.Sym.NoSplit() && usefpheuristic) && // (2) below
+-		!(autoffset == 0 && !hasCall) { // (3) below
++		!(autoffset == 0 && !hasCall) { // (2) below
+ 		// Make room to save a base pointer.
+ 		// There are 2 cases we must avoid:
+ 		// 1) If noframe is set (which we do for functions which tail call).
+-		// 2) Scary runtime internals which would be all messed up by frame pointers.
+-		//    We detect these using a heuristic: frameless nosplit functions.
+-		//    TODO: Maybe someday we label them all with NOFRAME and get rid of this heuristic.
+ 		// For performance, we also want to avoid:
+-		// 3) Frameless leaf functions
++		// 2) Frameless leaf functions
+ 		bpsize = ctxt.Arch.PtrSize
+ 		autoffset += int32(bpsize)
+ 		p.To.Offset += int64(bpsize)
+diff --git a/src/runtime/textflag.h b/src/runtime/textflag.h
+index 214075e360..8930312201 100644
+--- a/src/runtime/textflag.h
++++ b/src/runtime/textflag.h
+@@ -28,7 +28,6 @@
+ #define TLSBSS	256
+ // Do not insert instructions to allocate a stack frame for this function.
+ // Only valid on functions that declare a frame size of 0.
+-// TODO(mwhudson): only implemented for ppc64x at present.
+ #define NOFRAME 512
+ // Function can call reflect.Type.Method or reflect.Type.MethodByName.
+ #define REFLECTMETHOD 1024

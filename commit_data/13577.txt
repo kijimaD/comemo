@@ -17,7 +17,334 @@ Date:   Sun Aug 5 14:35:35 2012 -0400
     R=dsymonds
     CC=golang-dev
     https://golang.org/cl/6446065
-
+---
  misc/dashboard/codereview/dashboard/cl.go    | 129 ++++++++++++++++++++++-----
  misc/dashboard/codereview/dashboard/front.go |  47 +++++++---
  2 files changed, 142 insertions(+), 34 deletions(-)
+
+diff --git a/misc/dashboard/codereview/dashboard/cl.go b/misc/dashboard/codereview/dashboard/cl.go
+index c9cee24527..433232aa4f 100644
+--- a/misc/dashboard/codereview/dashboard/cl.go
++++ b/misc/dashboard/codereview/dashboard/cl.go
+@@ -45,11 +45,12 @@ type CL struct {
+ 
+ 	Created, Modified time.Time
+ 
+-	Description []byte `datastore:",noindex"`
+-	FirstLine   string `datastore:",noindex"`
+-	LGTMs       []string
+-	NotLGTMs    []string
+-	LastUpdate  string
++	Description  []byte `datastore:",noindex"`
++	FirstLine    string `datastore:",noindex"`
++	LGTMs        []string
++	NotLGTMs     []string
++	LastUpdateBy string // author of most recent review message
++	LastUpdate   string `datastore:",noindex"` // first line of most recent review message
+ 
+ 	// Mail information.
+ 	Subject       string   `datastore:",noindex"`
+@@ -61,6 +62,24 @@ type CL struct {
+ 	Reviewer string
+ }
+ 
++// Reviewed reports whether the reviewer has replied to the CL.
++// The heuristic is that the CL has been replied to if it is LGTMed
++// or if the last CL message was from the reviewer.
++func (cl *CL) Reviewed() bool {
++	if cl.LastUpdateBy == cl.Reviewer {
++		return true
++	}
++	if person := emailToPerson[cl.LastUpdateBy]; person != "" && person == cl.Reviewer {
++		return true
++	}
++	for _, who := range cl.LGTMs {
++		if who == cl.Reviewer {
++			return true
++		}
++	}
++	return false
++}
++
+ // DisplayOwner returns the CL's owner, either as their email address
+ // or the person ID if it's a reviewer. It is for display only.
+ func (cl *CL) DisplayOwner() string {
+@@ -129,8 +148,7 @@ func handleAssign(w http.ResponseWriter, r *http.Request) {
+ 	}
+ 
+ 	u := user.Current(c)
+-	person, ok := emailToPerson[u.Email]
+-	if !ok {
++	if _, ok := emailToPerson[u.Email]; !ok {
+ 		http.Error(w, "Not allowed", http.StatusUnauthorized)
+ 		return
+ 	}
+@@ -141,7 +159,8 @@ func handleAssign(w http.ResponseWriter, r *http.Request) {
+ 		http.Error(w, "Bad CL", 400)
+ 		return
+ 	}
+-	if _, ok := preferredEmail[rev]; !ok && rev != "" {
++	person, ok := preferredEmail[rev]
++	if !ok && rev != "" {
+ 		c.Errorf("Unknown reviewer %q", rev)
+ 		http.Error(w, "Unknown reviewer", 400)
+ 		return
+@@ -252,6 +271,23 @@ func handleUpdateCL(w http.ResponseWriter, r *http.Request) {
+ 	io.WriteString(w, "OK")
+ }
+ 
++// apiMessage describes the JSON sent back by Rietveld in the CL messages list.
++type apiMessage struct {
++	Date       string   `json:"date"`
++	Text       string   `json:"text"`
++	Sender     string   `json:"sender"`
++	Recipients []string `json:"recipients"`
++	Approval   bool     `json:"approval"`
++}
++
++// byDate implements sort.Interface to order the messages by date, earliest first.
++// The dates are sent in RFC 3339 format, so string comparison matches time value comparison.
++type byDate []*apiMessage
++
++func (x byDate) Len() int           { return len(x) }
++func (x byDate) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
++func (x byDate) Less(i, j int) bool { return x[i].Date < x[j].Date }
++
+ // updateCL updates a single CL. If a retryable failure occurs, an error is returned.
+ func updateCL(c appengine.Context, n string) error {
+ 	c.Debugf("Updating CL %v", n)
+@@ -282,19 +318,14 @@ func updateCL(c appengine.Context, n string) error {
+ 	}
+ 
+ 	var apiResp struct {
+-		Description string   `json:"description"`
+-		Reviewers   []string `json:"reviewers"`
+-		Created     string   `json:"created"`
+-		OwnerEmail  string   `json:"owner_email"`
+-		Modified    string   `json:"modified"`
+-		Closed      bool     `json:"closed"`
+-		Subject     string   `json:"subject"`
+-		Messages    []struct {
+-			Text       string   `json:"text"`
+-			Sender     string   `json:"sender"`
+-			Recipients []string `json:"recipients"`
+-			Approval   bool     `json:"approval"`
+-		} `json:"messages"`
++		Description string        `json:"description"`
++		Reviewers   []string      `json:"reviewers"`
++		Created     string        `json:"created"`
++		OwnerEmail  string        `json:"owner_email"`
++		Modified    string        `json:"modified"`
++		Closed      bool          `json:"closed"`
++		Subject     string        `json:"subject"`
++		Messages    []*apiMessage `json:"messages"`
+ 	}
+ 	if err := json.Unmarshal(raw, &apiResp); err != nil {
+ 		// probably can't be retried
+@@ -302,6 +333,7 @@ func updateCL(c appengine.Context, n string) error {
+ 		return nil
+ 	}
+ 	//c.Infof("RAW: %+v", apiResp)
++	sort.Sort(byDate(apiResp.Messages))
+ 
+ 	cl := &CL{
+ 		Number:      n,
+@@ -339,6 +371,12 @@ func updateCL(c appengine.Context, n string) error {
+ 			s, rev = p, true
+ 		}
+ 
++		line := firstLine(msg.Text)
++		if line != "" {
++			cl.LastUpdateBy = msg.Sender
++			cl.LastUpdate = line
++		}
++
+ 		// CLs submitted by someone other than the CL owner do not immediately
+ 		// transition to "closed". Let's simulate the intention by treating
+ 		// messages starting with "*** Submitted as " from a reviewer as a
+@@ -392,3 +430,52 @@ func updateCL(c appengine.Context, n string) error {
+ 	c.Infof("Updated CL %v", n)
+ 	return nil
+ }
++
++// trailingSpaceRE matches trailing spaces.
++var trailingSpaceRE = regexp.MustCompile(`(?m)[ \t\r]+$`)
++
++// removeRE is the list of patterns to skip over at the beginning of a 
++// message when looking for message text.
++var removeRE = regexp.MustCompile(`(?m-s)\A(` +
++	// Skip leading "Hello so-and-so," generated by codereview plugin.
++	`(Hello(.|\n)*?\n\n)` +
++
++	// Skip quoted text.
++	`|((On.*|.* writes|.* wrote):\n)` +
++	`|((>.*\n)+)` +
++
++	// Skip lines with no letters.
++	`|(([^A-Za-z]*\n)+)` +
++
++	// Skip links to comments and file info.
++	`|(http://codereview.*\n([^ ]+:[0-9]+:.*\n)?)` +
++	`|(File .*:\n)` +
++
++	`)`,
++)
++
++// firstLine returns the first interesting line of the message text.
++func firstLine(text string) string {
++	// Cut trailing spaces.
++	text = trailingSpaceRE.ReplaceAllString(text, "")
++
++	// Skip uninteresting lines.
++	for {
++		text = strings.TrimSpace(text)
++		m := removeRE.FindStringIndex(text)
++		if m == nil || m[0] != 0 {
++			break
++		}
++		text = text[m[1]:]
++	}
++
++	// Chop line at newline or else at 74 bytes.
++	i := strings.Index(text, "\n")
++	if i >= 0 {
++		text = text[:i]
++	}
++	if len(text) > 74 {
++		text = text[:70] + "..."
++	}
++	return text
++}
+diff --git a/misc/dashboard/codereview/dashboard/front.go b/misc/dashboard/codereview/dashboard/front.go
+index b55d570f6f..1ef7693658 100644
+--- a/misc/dashboard/codereview/dashboard/front.go
++++ b/misc/dashboard/codereview/dashboard/front.go
+@@ -11,6 +11,7 @@ import (
+ 	"html/template"
+ 	"io"
+ 	"net/http"
++	"strings"
+ 	"sync"
+ 	"time"
+ 
+@@ -36,7 +37,13 @@ func handleFront(w http.ResponseWriter, r *http.Request) {
+ 		IsAdmin:   user.IsAdmin(c),
+ 	}
+ 	var currentPerson string
+-	currentPerson, data.UserIsReviewer = emailToPerson[data.User]
++	u := data.User
++	you := "you"
++	if e := r.FormValue("email"); e != "" {
++		u = e
++		you = e
++	}
++	currentPerson, data.UserIsReviewer = emailToPerson[u]
+ 
+ 	var wg sync.WaitGroup
+ 	errc := make(chan error, 10)
+@@ -59,7 +66,7 @@ func handleFront(w http.ResponseWriter, r *http.Request) {
+ 	if data.UserIsReviewer {
+ 		tableFetch(0, func(tbl *clTable) error {
+ 			q := activeCLs.Filter("Reviewer =", currentPerson).Limit(maxCLs)
+-			tbl.Title = "CLs assigned to you for review"
++			tbl.Title = "CLs assigned to " + you + " for review"
+ 			tbl.Assignable = true
+ 			_, err := q.GetAll(c, &tbl.CLs)
+ 			return err
+@@ -68,7 +75,7 @@ func handleFront(w http.ResponseWriter, r *http.Request) {
+ 
+ 	tableFetch(1, func(tbl *clTable) error {
+ 		q := activeCLs.Filter("Author =", currentPerson).Limit(maxCLs)
+-		tbl.Title = "CLs sent by you"
++		tbl.Title = "CLs sent by " + you
+ 		tbl.Assignable = true
+ 		_, err := q.GetAll(c, &tbl.CLs)
+ 		return err
+@@ -139,7 +146,7 @@ type frontPageData struct {
+ 	Reviewers      []string
+ 	UserIsReviewer bool
+ 
+-	User, LogoutURL string
++	User, LogoutURL string // actual logged in user
+ 	IsAdmin         bool
+ }
+ 
+@@ -156,6 +163,12 @@ var frontPage = template.Must(template.New("front").Funcs(template.FuncMap{
+ 		}
+ 		return ""
+ 	},
++	"shortemail": func(s string) string {
++		if i := strings.Index(s, "@"); i >= 0 {
++			s = s[:i]
++		}
++		return s
++	},
+ }).Parse(`
+ <!doctype html>
+ <html>
+@@ -175,9 +188,16 @@ var frontPage = template.Must(template.New("front").Funcs(template.FuncMap{
+         color: #777;
+ 	margin-bottom: 0;
+       }
++      table {
++        border-spacing: 0;
++      }
+       td {
++        vertical-align: top;
+         padding: 2px 5px;
+       }
++      tr.unreplied td.email {
++        border-left: 2px solid blue;
++      }
+       tr.pending td {
+         background: #fc8;
+       }
+@@ -209,15 +229,15 @@ var frontPage = template.Must(template.New("front").Funcs(template.FuncMap{
+ <img id="gopherstamp" src="/static/gopherstamp.jpg" />
+ <h1>Go code reviews</h1>
+ 
+-{{range $tbl := .Tables}}
+-<h3>{{$tbl.Title}}</h3>
+-{{if .CLs}}
+ <table class="cls">
++{{range $i, $tbl := .Tables}}
++<tr><td colspan="5"><h3>{{$tbl.Title}}</h3></td></tr>
++{{if .CLs}}
+ {{range $cl := .CLs}}
+-  <tr id="cl-{{$cl.Number}}">
++  <tr id="cl-{{$cl.Number}}" class="{{if not $i}}{{if not .Reviewed}}unreplied{{end}}{{end}}">
+     <td class="email">{{$cl.DisplayOwner}}</td>
+-    {{if $tbl.Assignable}}
+     <td>
++    {{if $tbl.Assignable}}
+     <select id="cl-rev-{{$cl.Number}}" {{if not $.UserIsReviewer}}disabled{{end}}>
+       <option></option>
+       {{range $.Reviewers}}
+@@ -243,22 +263,23 @@ var frontPage = template.Must(template.New("front").Funcs(template.FuncMap{
+       });
+     });
+     </script>
+-    </td>
+     {{end}}
++    </td>
+     <td>
+       <a href="http://codereview.appspot.com/{{.Number}}/" title="{{ printf "%s" .Description}}">{{.Number}}: {{.FirstLineHTML}}</a>
+       {{if and .LGTMs $tbl.Assignable}}<br /><span style="font-size: smaller;">LGTMs: {{.LGTMHTML}}</span>{{end}}
+       {{if and .NotLGTMs $tbl.Assignable}}<br /><span style="font-size: smaller; color: #f74545;">NOT LGTMs: {{.NotLGTMHTML}}</span>{{end}}
++      {{if .LastUpdateBy}}<br /><span style="font-size: smaller; color: #777777;">(<span title="{{.LastUpdateBy}}">{{.LastUpdateBy | shortemail}}</span>) {{.LastUpdate}}</span>{{end}}
+     </td>
+     <td title="Last modified">{{.ModifiedAgo}}</td>
+-    {{if $.IsAdmin}}<td><a href="/update-cl?cl={{.Number}}" title="Update this CL">&#x27f3;</a></td>{{end}}
++    <td>{{if $.IsAdmin}}<a href="/update-cl?cl={{.Number}}" title="Update this CL">&#x27f3;</a>{{end}}</td>
+   </tr>
+ {{end}}
+-</table>
+ {{else}}
+-<em>none</em>
++<tr><td colspan="5"><em>none</em></td></tr>
+ {{end}}
+ {{end}}
++</table>
+ 
+ <hr />
+ <address>

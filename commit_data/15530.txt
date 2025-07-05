@@ -7,7 +7,7 @@ Date:   Fri Mar 1 08:30:11 2013 -0500
     R=devon.odell
     CC=golang-dev
     https://golang.org/cl/7443046
-
+---
  src/pkg/runtime/runtime.h           | 4 ++--
  src/pkg/runtime/sys_freebsd_386.s   | 7 ++++++-
  src/pkg/runtime/sys_freebsd_amd64.s | 8 +++++++-
@@ -22,3 +22,231 @@ Date:   Fri Mar 1 08:30:11 2013 -0500
  src/pkg/runtime/thread_plan9.c      | 2 +-
  src/pkg/runtime/thread_windows.c    | 8 ++++++--
  13 files changed, 45 insertions(+), 17 deletions(-)
+
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 831510fd6f..665f15e924 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -52,7 +52,7 @@ typedef	struct	G		G;
+ typedef	struct	Gobuf		Gobuf;
+ typedef	union	Lock		Lock;
+ typedef	struct	M		M;
+-typedef struct	P		P;
++typedef	struct	P		P;
+ typedef	struct	Mem		Mem;
+ typedef	union	Note		Note;
+ typedef	struct	Slice		Slice;
+@@ -265,7 +265,7 @@ struct	M
+ 	uintptr	cret;		// return value from C
+ 	uint64	procid;		// for debuggers, but offset not hard-coded
+ 	G*	gsignal;	// signal-handling G
+-	uint32	tls[8];		// thread-local storage (for 386 extern register)
++	uint64	tls[4];		// thread-local storage (for x86 extern register)
+ 	G*	curg;		// current running goroutine
+ 	P*	p;		// attached P for executing Go code (nil if not executing Go code)
+ 	P*	nextp;
+diff --git a/src/pkg/runtime/sys_freebsd_386.s b/src/pkg/runtime/sys_freebsd_386.s
+index 4a9d7b40fa..f779c666e7 100644
+--- a/src/pkg/runtime/sys_freebsd_386.s
++++ b/src/pkg/runtime/sys_freebsd_386.s
+@@ -38,7 +38,12 @@ TEXT runtime·thr_start(SB),7,$0
+ 	
+ 	MOVL	AX, m(CX)
+ 	CALL	runtime·stackcheck(SB)		// smashes AX
+-	CALL	runtime·mstart(SB)
++
++	// newosproc left the function we should call in mp->tls[2] for us.
++	get_tls(CX)
++	MOVQ	8(CX), AX
++	CALL	AX
++
+ 	MOVL	0, AX			// crash (not reached)
+ 
+ // Exit the entire program (like C exit)
+diff --git a/src/pkg/runtime/sys_freebsd_amd64.s b/src/pkg/runtime/sys_freebsd_amd64.s
+index e8c0899cf7..94f37021c5 100644
+--- a/src/pkg/runtime/sys_freebsd_amd64.s
++++ b/src/pkg/runtime/sys_freebsd_amd64.s
+@@ -34,12 +34,18 @@ TEXT runtime·thr_start(SB),7,$0
+ 
+ 	// set up m, g
+ 	get_tls(CX)
++	MOVQ	8(CX), AX
+ 	MOVQ	R13, m(CX)
+ 	MOVQ	m_g0(R13), DI
+ 	MOVQ	DI, g(CX)
+ 
+ 	CALL runtime·stackcheck(SB)
+-	CALL runtime·mstart(SB)
++	
++	// newosproc left the function we should call in mp->tls[2] for us.
++	get_tls(CX)
++	MOVQ	16(CX), AX
++	CALL	AX
++
+ 	MOVQ 0, AX			// crash (not reached)
+ 
+ // Exit the entire program (like C exit)
+diff --git a/src/pkg/runtime/sys_freebsd_arm.s b/src/pkg/runtime/sys_freebsd_arm.s
+index b6b007759b..d9e3339324 100644
+--- a/src/pkg/runtime/sys_freebsd_arm.s
++++ b/src/pkg/runtime/sys_freebsd_arm.s
+@@ -33,7 +33,11 @@ TEXT runtime·thr_start(SB),7,$0
+ 	// set up g
+ 	MOVW m_g0(R9), R10
+ 	BL runtime·emptyfunc(SB) // fault if stack check is wrong
+-	BL runtime·mstart(SB)
++
++	// newosproc left the function we should call in mp->tls[2] for us.
++	MOVW	(m_tls+8)(m), R0
++	BL	(R0)
++
+ 	MOVW $2, R9  // crash (not reached)
+ 	MOVW R9, (R9)
+ 	RET
+diff --git a/src/pkg/runtime/sys_windows_386.s b/src/pkg/runtime/sys_windows_386.s
+index a4ac7463a3..4cb725e197 100644
+--- a/src/pkg/runtime/sys_windows_386.s
++++ b/src/pkg/runtime/sys_windows_386.s
+@@ -260,7 +260,10 @@ TEXT runtime·tstart(SB),7,$0
+ 
+ 	CALL	runtime·stackcheck(SB)	// clobbers AX,CX
+ 
+-	CALL	runtime·mstart(SB)
++	// start function is in tls[2]
++	get_tls(CX)
++	MOVL	8(CX), AX
++	CALL	AX
+ 
+ 	RET
+ 
+diff --git a/src/pkg/runtime/sys_windows_amd64.s b/src/pkg/runtime/sys_windows_amd64.s
+index fe88f3b754..94e5d79917 100644
+--- a/src/pkg/runtime/sys_windows_amd64.s
++++ b/src/pkg/runtime/sys_windows_amd64.s
+@@ -329,7 +329,11 @@ TEXT runtime·tstart_stdcall(SB),7,$0
+ 	CLD
+ 
+ 	CALL	runtime·stackcheck(SB)	// clobbers AX,CX
+-	CALL	runtime·mstart(SB)
++
++	// start function is in tls[2]
++	get_tls(CX)
++	MOVQ	16(CX), AX
++	CALL	AX
+ 
+ 	XORL	AX, AX			// return 0 == success
+ 	RET
+diff --git a/src/pkg/runtime/thread_darwin.c b/src/pkg/runtime/thread_darwin.c
+index 1a13eba1cd..1400e6e7bc 100644
+--- a/src/pkg/runtime/thread_darwin.c
++++ b/src/pkg/runtime/thread_darwin.c
+@@ -95,7 +95,7 @@ runtime·newosproc(M *mp, G *gp, void *stk, void (*fn)(void))
+ 	mp->tls[0] = mp->id;	// so 386 asm can find it
+ 	if(0){
+ 		runtime·printf("newosproc stk=%p m=%p g=%p fn=%p id=%d/%d ostk=%p\n",
+-			stk, mp, gp, fn, mp->id, mp->tls[0], &mp);
++			stk, mp, gp, fn, mp->id, (int32)mp->tls[0], &mp);
+ 	}
+ 
+ 	runtime·sigprocmask(SIG_SETMASK, &sigset_all, &oset);
+diff --git a/src/pkg/runtime/thread_freebsd.c b/src/pkg/runtime/thread_freebsd.c
+index d7758eaafb..06edc22fe1 100644
+--- a/src/pkg/runtime/thread_freebsd.c
++++ b/src/pkg/runtime/thread_freebsd.c
+@@ -82,12 +82,13 @@ runtime·newosproc(M *mp, G *gp, void *stk, void (*fn)(void))
+ 	ThrParam param;
+ 	Sigset oset;
+ 
+-	USED(fn);	// thr_start assumes fn == mstart
+-	USED(gp);	// thr_start assumes gp == mp->g0
++	// thr_start assumes gp == mp->g0
++	if(gp != mp->g0)
++		runtime·throw("invalid newosproc gp");
+ 
+ 	if(0){
+ 		runtime·printf("newosproc stk=%p m=%p g=%p fn=%p id=%d/%d ostk=%p\n",
+-			stk, mp, gp, fn, mp->id, mp->tls[0], &mp);
++			stk, mp, gp, fn, mp->id, (int32)mp->tls[0], &mp);
+ 	}
+ 
+ 	runtime·sigprocmask(&sigset_all, &oset);
+@@ -103,6 +104,7 @@ runtime·newosproc(M *mp, G *gp, void *stk, void (*fn)(void))
+ 	param.tls_size = sizeof mp->tls;
+ 
+ 	mp->tls[0] = mp->id;	// so 386 asm can find it
++	mp->tls[2] = (uintptr)fn;
+ 
+ 	runtime·thr_new(&param, sizeof param);
+ 	runtime·sigprocmask(&oset, nil);
+diff --git a/src/pkg/runtime/thread_linux.c b/src/pkg/runtime/thread_linux.c
+index 85c3e6b8cf..3f45058069 100644
+--- a/src/pkg/runtime/thread_linux.c
++++ b/src/pkg/runtime/thread_linux.c
+@@ -143,7 +143,7 @@ runtime·newosproc(M *mp, G *gp, void *stk, void (*fn)(void))
+ 	mp->tls[0] = mp->id;	// so 386 asm can find it
+ 	if(0){
+ 		runtime·printf("newosproc stk=%p m=%p g=%p fn=%p clone=%p id=%d/%d ostk=%p\n",
+-			stk, mp, gp, fn, runtime·clone, mp->id, mp->tls[0], &mp);
++			stk, mp, gp, fn, runtime·clone, mp->id, (int32)mp->tls[0], &mp);
+ 	}
+ 
+ 	// Disable signals during clone, so that the new thread starts
+diff --git a/src/pkg/runtime/thread_netbsd.c b/src/pkg/runtime/thread_netbsd.c
+index aba8fea7a2..b9ec33acd5 100644
+--- a/src/pkg/runtime/thread_netbsd.c
++++ b/src/pkg/runtime/thread_netbsd.c
+@@ -153,7 +153,7 @@ runtime·newosproc(M *mp, G *gp, void *stk, void (*fn)(void))
+ 	if(0) {
+ 		runtime·printf(
+ 			"newosproc stk=%p m=%p g=%p fn=%p id=%d/%d ostk=%p\n",
+-			stk, mp, gp, fn, mp->id, mp->tls[0], &mp);
++			stk, mp, gp, fn, mp->id, (int32)mp->tls[0], &mp);
+ 	}
+ 
+ 	mp->tls[0] = mp->id;	// so 386 asm can find it
+diff --git a/src/pkg/runtime/thread_openbsd.c b/src/pkg/runtime/thread_openbsd.c
+index 525dc697e0..f35c3bb441 100644
+--- a/src/pkg/runtime/thread_openbsd.c
++++ b/src/pkg/runtime/thread_openbsd.c
+@@ -132,7 +132,7 @@ runtime·newosproc(M *mp, G *gp, void *stk, void (*fn)(void))
+ 	if(0) {
+ 		runtime·printf(
+ 			"newosproc stk=%p m=%p g=%p fn=%p id=%d/%d ostk=%p\n",
+-			stk, mp, gp, fn, mp->id, mp->tls[0], &mp);
++			stk, mp, gp, fn, mp->id, (int32)mp->tls[0], &mp);
+ 	}
+ 
+ 	mp->tls[0] = mp->id;	// so 386 asm can find it
+diff --git a/src/pkg/runtime/thread_plan9.c b/src/pkg/runtime/thread_plan9.c
+index f2169e8e68..866b1e7806 100644
+--- a/src/pkg/runtime/thread_plan9.c
++++ b/src/pkg/runtime/thread_plan9.c
+@@ -228,7 +228,7 @@ runtime·newosproc(M *mp, G *gp, void *stk, void (*fn)(void))
+ 	mp->tls[0] = mp->id;	// so 386 asm can find it
+ 	if(0){
+ 		runtime·printf("newosproc stk=%p m=%p g=%p fn=%p rfork=%p id=%d/%d ostk=%p\n",
+-			stk, mp, gp, fn, runtime·rfork, mp->id, mp->tls[0], &mp);
++			stk, mp, gp, fn, runtime·rfork, mp->id, (int32)mp->tls[0], &mp);
+ 	}
+ 
+ 	if(runtime·rfork(RFPROC|RFMEM|RFNOWAIT, stk, mp, gp, fn) < 0)
+diff --git a/src/pkg/runtime/thread_windows.c b/src/pkg/runtime/thread_windows.c
+index 4d95e99870..5ff35b811e 100644
+--- a/src/pkg/runtime/thread_windows.c
++++ b/src/pkg/runtime/thread_windows.c
+@@ -192,8 +192,12 @@ runtime·newosproc(M *mp, G *gp, void *stk, void (*fn)(void))
+ 	void *thandle;
+ 
+ 	USED(stk);
+-	USED(gp);	// assuming gp = mp->g0
+-	USED(fn);	// assuming fn = mstart
++
++	// assume gp == mp->g0
++	if(gp != mp->g0)
++		runtime·throw("invalid newosproc gp");
++
++	mp->tls[2] = (uintptr)fn;
+ 
+ 	thandle = runtime·stdcall(runtime·CreateThread, 6,
+ 		nil, (uintptr)0x20000, runtime·tstart_stdcall, mp,

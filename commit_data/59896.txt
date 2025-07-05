@@ -12,7 +12,7 @@ Date:   Tue May 7 11:08:26 2024 +0200
     Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/internal/sysinfo/cpuinfo_bsd.go   | 2 +-
  src/internal/sysinfo/cpuinfo_linux.go | 2 +-
  src/internal/sysinfo/cpuinfo_stub.go  | 2 +-
@@ -20,3 +20,76 @@ Date:   Tue May 7 11:08:26 2024 +0200
  src/internal/sysinfo/sysinfo.go       | 2 +-
  src/internal/sysinfo/sysinfo_test.go  | 2 +-
  6 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/internal/sysinfo/cpuinfo_bsd.go b/src/internal/sysinfo/cpuinfo_bsd.go
+index 2c04c8f7d6..4396a6352a 100644
+--- a/src/internal/sysinfo/cpuinfo_bsd.go
++++ b/src/internal/sysinfo/cpuinfo_bsd.go
+@@ -8,7 +8,7 @@ package sysinfo
+ 
+ import "syscall"
+ 
+-func osCpuInfoName() string {
++func osCPUInfoName() string {
+ 	cpu, _ := syscall.Sysctl("machdep.cpu.brand_string")
+ 	return cpu
+ }
+diff --git a/src/internal/sysinfo/cpuinfo_linux.go b/src/internal/sysinfo/cpuinfo_linux.go
+index 24f0a87875..ae92c51afa 100644
+--- a/src/internal/sysinfo/cpuinfo_linux.go
++++ b/src/internal/sysinfo/cpuinfo_linux.go
+@@ -27,7 +27,7 @@ func readLinuxProcCPUInfo(buf []byte) error {
+ 	return nil
+ }
+ 
+-func osCpuInfoName() string {
++func osCPUInfoName() string {
+ 	modelName := ""
+ 	cpuMHz := ""
+ 
+diff --git a/src/internal/sysinfo/cpuinfo_stub.go b/src/internal/sysinfo/cpuinfo_stub.go
+index 273166ee61..2ac7ffafe4 100644
+--- a/src/internal/sysinfo/cpuinfo_stub.go
++++ b/src/internal/sysinfo/cpuinfo_stub.go
+@@ -6,6 +6,6 @@
+ 
+ package sysinfo
+ 
+-func osCpuInfoName() string {
++func osCPUInfoName() string {
+ 	return ""
+ }
+diff --git a/src/internal/sysinfo/export_test.go b/src/internal/sysinfo/export_test.go
+index 1c668d9c79..809a68379b 100644
+--- a/src/internal/sysinfo/export_test.go
++++ b/src/internal/sysinfo/export_test.go
+@@ -4,4 +4,4 @@
+ 
+ package sysinfo
+ 
+-var XosCpuInfoName = osCpuInfoName
++var XosCPUInfoName = osCPUInfoName
+diff --git a/src/internal/sysinfo/sysinfo.go b/src/internal/sysinfo/sysinfo.go
+index ae0d5a440c..7debaa1e95 100644
+--- a/src/internal/sysinfo/sysinfo.go
++++ b/src/internal/sysinfo/sysinfo.go
+@@ -16,7 +16,7 @@ var CPUName = sync.OnceValue(func() string {
+ 		return name
+ 	}
+ 
+-	if name := osCpuInfoName(); name != "" {
++	if name := osCPUInfoName(); name != "" {
+ 		return name
+ 	}
+ 
+diff --git a/src/internal/sysinfo/sysinfo_test.go b/src/internal/sysinfo/sysinfo_test.go
+index c2f1dd298e..fd9d166261 100644
+--- a/src/internal/sysinfo/sysinfo_test.go
++++ b/src/internal/sysinfo/sysinfo_test.go
+@@ -11,5 +11,5 @@ import (
+ 
+ func TestCPUName(t *testing.T) {
+ 	t.Logf("CPUName: %s", CPUName())
+-	t.Logf("osCpuInfoName: %s", XosCpuInfoName())
++	t.Logf("osCPUInfoName: %s", XosCPUInfoName())
+ }

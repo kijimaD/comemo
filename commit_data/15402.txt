@@ -15,10 +15,401 @@ Date:   Sun Feb 24 12:36:44 2013 +0900
     R=golang-dev, lucio.dere, dave
     CC=golang-dev
     https://golang.org/cl/7365055
-
+---
  src/pkg/syscall/route_bsd.go     | 41 ++++++++++++++----------------------
  src/pkg/syscall/route_darwin.go  | 34 ++++++++----------------------
  src/pkg/syscall/route_freebsd.go | 45 ++++++++++++++++++----------------------
  src/pkg/syscall/route_netbsd.go  | 32 ++++++++++++++--------------
  src/pkg/syscall/route_openbsd.go | 32 ++++++++++++++--------------
  5 files changed, 77 insertions(+), 107 deletions(-)
+
+diff --git a/src/pkg/syscall/route_bsd.go b/src/pkg/syscall/route_bsd.go
+index e17d976b15..62c5ce1a31 100644
+--- a/src/pkg/syscall/route_bsd.go
++++ b/src/pkg/syscall/route_bsd.go
+@@ -8,9 +8,7 @@
+ 
+ package syscall
+ 
+-import (
+-	"unsafe"
+-)
++import "unsafe"
+ 
+ // Round the length of a raw sockaddr up to align it properly.
+ func rsaAlignOf(salen int) int {
+@@ -31,7 +29,6 @@ func rsaAlignOf(salen int) int {
+ // parameters.
+ func RouteRIB(facility, param int) ([]byte, error) {
+ 	mib := []_C_int{CTL_NET, AF_ROUTE, 0, 0, _C_int(facility), _C_int(param)}
+-
+ 	// Find size.
+ 	n := uintptr(0)
+ 	if err := sysctl(mib, nil, &n, nil, 0); err != nil {
+@@ -40,12 +37,10 @@ func RouteRIB(facility, param int) ([]byte, error) {
+ 	if n == 0 {
+ 		return nil, nil
+ 	}
+-
+ 	tab := make([]byte, n)
+ 	if err := sysctl(mib, &tab[0], &n, nil, 0); err != nil {
+ 		return nil, err
+ 	}
+-
+ 	return tab[:n], nil
+ }
+ 
+@@ -76,13 +71,12 @@ func (m *RouteMessage) sockaddr() []Sockaddr {
+ 		af  int
+ 		sas [4]Sockaddr
+ 	)
+-
+-	buf := m.Data[:]
++	b := m.Data[:]
+ 	for i := uint(0); i < RTAX_MAX; i++ {
+ 		if m.Header.Addrs&rtaRtMask&(1<<i) == 0 {
+ 			continue
+ 		}
+-		rsa := (*RawSockaddr)(unsafe.Pointer(&buf[0]))
++		rsa := (*RawSockaddr)(unsafe.Pointer(&b[0]))
+ 		switch i {
+ 		case RTAX_DST, RTAX_GATEWAY:
+ 			sa, err := anyToSockaddr((*RawSockaddrAny)(unsafe.Pointer(rsa)))
+@@ -96,14 +90,14 @@ func (m *RouteMessage) sockaddr() []Sockaddr {
+ 		case RTAX_NETMASK, RTAX_GENMASK:
+ 			switch af {
+ 			case AF_INET:
+-				rsa4 := (*RawSockaddrInet4)(unsafe.Pointer(&buf[0]))
++				rsa4 := (*RawSockaddrInet4)(unsafe.Pointer(&b[0]))
+ 				sa := new(SockaddrInet4)
+ 				for j := 0; rsa4.Len > 0 && j < int(rsa4.Len)-int(unsafe.Offsetof(rsa4.Addr)); j++ {
+ 					sa.Addr[j] = rsa4.Addr[j]
+ 				}
+ 				sas[i] = sa
+ 			case AF_INET6:
+-				rsa6 := (*RawSockaddrInet6)(unsafe.Pointer(&buf[0]))
++				rsa6 := (*RawSockaddrInet6)(unsafe.Pointer(&b[0]))
+ 				sa := new(SockaddrInet6)
+ 				for j := 0; rsa6.Len > 0 && j < int(rsa6.Len)-int(unsafe.Offsetof(rsa6.Addr)); j++ {
+ 					sa.Addr[j] = rsa6.Addr[j]
+@@ -111,9 +105,8 @@ func (m *RouteMessage) sockaddr() []Sockaddr {
+ 				sas[i] = sa
+ 			}
+ 		}
+-		buf = buf[rsaAlignOf(int(rsa.Len)):]
++		b = b[rsaAlignOf(int(rsa.Len)):]
+ 	}
+-
+ 	return sas[:]
+ }
+ 
+@@ -148,13 +141,12 @@ func (m *InterfaceAddrMessage) sockaddr() (sas []Sockaddr) {
+ 	if m.Header.Addrs&rtaIfaMask == 0 {
+ 		return nil
+ 	}
+-
+-	buf := m.Data[:]
++	b := m.Data[:]
+ 	for i := uint(0); i < RTAX_MAX; i++ {
+ 		if m.Header.Addrs&rtaIfaMask&(1<<i) == 0 {
+ 			continue
+ 		}
+-		rsa := (*RawSockaddr)(unsafe.Pointer(&buf[0]))
++		rsa := (*RawSockaddr)(unsafe.Pointer(&b[0]))
+ 		switch i {
+ 		case RTAX_IFA:
+ 			sa, err := anyToSockaddr((*RawSockaddrAny)(unsafe.Pointer(rsa)))
+@@ -174,22 +166,21 @@ func (m *InterfaceAddrMessage) sockaddr() (sas []Sockaddr) {
+ 		case RTAX_BRD:
+ 			// nothing to do
+ 		}
+-		buf = buf[rsaAlignOf(int(rsa.Len)):]
++		b = b[rsaAlignOf(int(rsa.Len)):]
+ 	}
+-
+ 	return sas
+ }
+ 
+-// ParseRoutingMessage parses buf as routing messages and returns
+-// the slice containing the RoutingMessage interfaces.
+-func ParseRoutingMessage(buf []byte) (msgs []RoutingMessage, err error) {
+-	for len(buf) >= anyMessageLen {
+-		any := (*anyMessage)(unsafe.Pointer(&buf[0]))
++// ParseRoutingMessage parses b as routing messages and returns the
++// slice containing the RoutingMessage interfaces.
++func ParseRoutingMessage(b []byte) (msgs []RoutingMessage, err error) {
++	for len(b) >= anyMessageLen {
++		any := (*anyMessage)(unsafe.Pointer(&b[0]))
+ 		if any.Version != RTM_VERSION {
+ 			return nil, EINVAL
+ 		}
+-		msgs = append(msgs, any.toRoutingMessage(buf))
+-		buf = buf[any.Msglen:]
++		msgs = append(msgs, any.toRoutingMessage(b))
++		b = b[any.Msglen:]
+ 	}
+ 	return msgs, nil
+ }
+diff --git a/src/pkg/syscall/route_darwin.go b/src/pkg/syscall/route_darwin.go
+index 410e70a138..ad27907230 100644
+--- a/src/pkg/syscall/route_darwin.go
++++ b/src/pkg/syscall/route_darwin.go
+@@ -6,36 +6,22 @@
+ 
+ package syscall
+ 
+-import (
+-	"unsafe"
+-)
++import "unsafe"
+ 
+-func (any *anyMessage) toRoutingMessage(buf []byte) RoutingMessage {
++func (any *anyMessage) toRoutingMessage(b []byte) RoutingMessage {
+ 	switch any.Type {
+ 	case RTM_ADD, RTM_DELETE, RTM_CHANGE, RTM_GET, RTM_LOSING, RTM_REDIRECT, RTM_MISS, RTM_LOCK, RTM_RESOLVE:
+ 		p := (*RouteMessage)(unsafe.Pointer(any))
+-		rtm := &RouteMessage{}
+-		rtm.Header = p.Header
+-		rtm.Data = buf[SizeofRtMsghdr:any.Msglen]
+-		return rtm
++		return &RouteMessage{Header: p.Header, Data: b[SizeofRtMsghdr:any.Msglen]}
+ 	case RTM_IFINFO:
+ 		p := (*InterfaceMessage)(unsafe.Pointer(any))
+-		ifm := &InterfaceMessage{}
+-		ifm.Header = p.Header
+-		ifm.Data = buf[SizeofIfMsghdr:any.Msglen]
+-		return ifm
++		return &InterfaceMessage{Header: p.Header, Data: b[SizeofIfMsghdr:any.Msglen]}
+ 	case RTM_NEWADDR, RTM_DELADDR:
+ 		p := (*InterfaceAddrMessage)(unsafe.Pointer(any))
+-		ifam := &InterfaceAddrMessage{}
+-		ifam.Header = p.Header
+-		ifam.Data = buf[SizeofIfaMsghdr:any.Msglen]
+-		return ifam
++		return &InterfaceAddrMessage{Header: p.Header, Data: b[SizeofIfaMsghdr:any.Msglen]}
+ 	case RTM_NEWMADDR2, RTM_DELMADDR:
+ 		p := (*InterfaceMulticastAddrMessage)(unsafe.Pointer(any))
+-		ifmam := &InterfaceMulticastAddrMessage{}
+-		ifmam.Header = p.Header
+-		ifmam.Data = buf[SizeofIfmaMsghdr2:any.Msglen]
+-		return ifmam
++		return &InterfaceMulticastAddrMessage{Header: p.Header, Data: b[SizeofIfmaMsghdr2:any.Msglen]}
+ 	}
+ 	return nil
+ }
+@@ -53,13 +39,12 @@ func (m *InterfaceMulticastAddrMessage) sockaddr() (sas []Sockaddr) {
+ 	if m.Header.Addrs&rtaIfmaMask == 0 {
+ 		return nil
+ 	}
+-
+-	buf := m.Data[:]
++	b := m.Data[:]
+ 	for i := uint(0); i < RTAX_MAX; i++ {
+ 		if m.Header.Addrs&rtaIfmaMask&(1<<i) == 0 {
+ 			continue
+ 		}
+-		rsa := (*RawSockaddr)(unsafe.Pointer(&buf[0]))
++		rsa := (*RawSockaddr)(unsafe.Pointer(&b[0]))
+ 		switch i {
+ 		case RTAX_IFA:
+ 			sa, e := anyToSockaddr((*RawSockaddrAny)(unsafe.Pointer(rsa)))
+@@ -70,8 +55,7 @@ func (m *InterfaceMulticastAddrMessage) sockaddr() (sas []Sockaddr) {
+ 		case RTAX_GATEWAY, RTAX_IFP:
+ 			// nothing to do
+ 		}
+-		buf = buf[rsaAlignOf(int(rsa.Len)):]
++		b = b[rsaAlignOf(int(rsa.Len)):]
+ 	}
+-
+ 	return sas
+ }
+diff --git a/src/pkg/syscall/route_freebsd.go b/src/pkg/syscall/route_freebsd.go
+index 094e17044d..d8f80316b8 100644
+--- a/src/pkg/syscall/route_freebsd.go
++++ b/src/pkg/syscall/route_freebsd.go
+@@ -6,40 +6,37 @@
+ 
+ package syscall
+ 
+-import (
+-	"unsafe"
+-)
++import "unsafe"
+ 
+-func (any *anyMessage) toRoutingMessage(buf []byte) RoutingMessage {
++func (any *anyMessage) toRoutingMessage(b []byte) RoutingMessage {
+ 	switch any.Type {
+ 	case RTM_ADD, RTM_DELETE, RTM_CHANGE, RTM_GET, RTM_LOSING, RTM_REDIRECT, RTM_MISS, RTM_LOCK, RTM_RESOLVE:
+ 		p := (*RouteMessage)(unsafe.Pointer(any))
+-		rtm := &RouteMessage{}
+-		rtm.Header = p.Header
+-		rtm.Data = buf[SizeofRtMsghdr:any.Msglen]
+-		return rtm
++		return &RouteMessage{Header: p.Header, Data: b[SizeofRtMsghdr:any.Msglen]}
+ 	case RTM_IFINFO:
+ 		p := (*InterfaceMessage)(unsafe.Pointer(any))
+-		ifm := &InterfaceMessage{}
+-		ifm.Header = p.Header
+-		ifm.Data = buf[SizeofIfMsghdr:any.Msglen]
+-		return ifm
++		return &InterfaceMessage{Header: p.Header, Data: b[SizeofIfMsghdr:any.Msglen]}
++	case RTM_IFANNOUNCE:
++		p := (*InterfaceAnnounceMessage)(unsafe.Pointer(any))
++		return &InterfaceAnnounceMessage{Header: p.Header}
+ 	case RTM_NEWADDR, RTM_DELADDR:
+ 		p := (*InterfaceAddrMessage)(unsafe.Pointer(any))
+-		ifam := &InterfaceAddrMessage{}
+-		ifam.Header = p.Header
+-		ifam.Data = buf[SizeofIfaMsghdr:any.Msglen]
+-		return ifam
++		return &InterfaceAddrMessage{Header: p.Header, Data: b[SizeofIfaMsghdr:any.Msglen]}
+ 	case RTM_NEWMADDR, RTM_DELMADDR:
+ 		p := (*InterfaceMulticastAddrMessage)(unsafe.Pointer(any))
+-		ifmam := &InterfaceMulticastAddrMessage{}
+-		ifmam.Header = p.Header
+-		ifmam.Data = buf[SizeofIfmaMsghdr:any.Msglen]
+-		return ifmam
++		return &InterfaceMulticastAddrMessage{Header: p.Header, Data: b[SizeofIfmaMsghdr:any.Msglen]}
+ 	}
+ 	return nil
+ }
+ 
++// InterfaceAnnounceMessage represents a routing message containing
++// network interface arrival and depature information.
++type InterfaceAnnounceMessage struct {
++	Header IfAnnounceMsghdr
++}
++
++func (m *InterfaceAnnounceMessage) sockaddr() (sas []Sockaddr) { return nil }
++
+ // InterfaceMulticastAddrMessage represents a routing message
+ // containing network interface address entries.
+ type InterfaceMulticastAddrMessage struct {
+@@ -53,13 +50,12 @@ func (m *InterfaceMulticastAddrMessage) sockaddr() (sas []Sockaddr) {
+ 	if m.Header.Addrs&rtaIfmaMask == 0 {
+ 		return nil
+ 	}
+-
+-	buf := m.Data[:]
++	b := m.Data[:]
+ 	for i := uint(0); i < RTAX_MAX; i++ {
+ 		if m.Header.Addrs&rtaIfmaMask&(1<<i) == 0 {
+ 			continue
+ 		}
+-		rsa := (*RawSockaddr)(unsafe.Pointer(&buf[0]))
++		rsa := (*RawSockaddr)(unsafe.Pointer(&b[0]))
+ 		switch i {
+ 		case RTAX_IFA:
+ 			sa, e := anyToSockaddr((*RawSockaddrAny)(unsafe.Pointer(rsa)))
+@@ -70,8 +66,7 @@ func (m *InterfaceMulticastAddrMessage) sockaddr() (sas []Sockaddr) {
+ 		case RTAX_GATEWAY, RTAX_IFP:
+ 			// nothing to do
+ 		}
+-		buf = buf[rsaAlignOf(int(rsa.Len)):]
++		b = b[rsaAlignOf(int(rsa.Len)):]
+ 	}
+-
+ 	return sas
+ }
+diff --git a/src/pkg/syscall/route_netbsd.go b/src/pkg/syscall/route_netbsd.go
+index d6d9031bcb..a6baa02f80 100644
+--- a/src/pkg/syscall/route_netbsd.go
++++ b/src/pkg/syscall/route_netbsd.go
+@@ -6,30 +6,30 @@
+ 
+ package syscall
+ 
+-import (
+-	"unsafe"
+-)
++import "unsafe"
+ 
+-func (any *anyMessage) toRoutingMessage(buf []byte) RoutingMessage {
++func (any *anyMessage) toRoutingMessage(b []byte) RoutingMessage {
+ 	switch any.Type {
+ 	case RTM_ADD, RTM_DELETE, RTM_CHANGE, RTM_GET, RTM_LOSING, RTM_REDIRECT, RTM_MISS, RTM_LOCK, RTM_RESOLVE:
+ 		p := (*RouteMessage)(unsafe.Pointer(any))
+-		rtm := &RouteMessage{}
+-		rtm.Header = p.Header
+-		rtm.Data = buf[SizeofRtMsghdr:any.Msglen]
+-		return rtm
++		return &RouteMessage{Header: p.Header, Data: b[SizeofRtMsghdr:any.Msglen]}
+ 	case RTM_IFINFO:
+ 		p := (*InterfaceMessage)(unsafe.Pointer(any))
+-		ifm := &InterfaceMessage{}
+-		ifm.Header = p.Header
+-		ifm.Data = buf[SizeofIfMsghdr:any.Msglen]
+-		return ifm
++		return &InterfaceMessage{Header: p.Header, Data: b[SizeofIfMsghdr:any.Msglen]}
++	case RTM_IFANNOUNCE:
++		p := (*InterfaceAnnounceMessage)(unsafe.Pointer(any))
++		return &InterfaceAnnounceMessage{Header: p.Header}
+ 	case RTM_NEWADDR, RTM_DELADDR:
+ 		p := (*InterfaceAddrMessage)(unsafe.Pointer(any))
+-		ifam := &InterfaceAddrMessage{}
+-		ifam.Header = p.Header
+-		ifam.Data = buf[SizeofIfaMsghdr:any.Msglen]
+-		return ifam
++		return &InterfaceAddrMessage{Header: p.Header, Data: b[SizeofIfaMsghdr:any.Msglen]}
+ 	}
+ 	return nil
+ }
++
++// InterfaceAnnounceMessage represents a routing message containing
++// network interface arrival and depature information.
++type InterfaceAnnounceMessage struct {
++	Header IfAnnounceMsghdr
++}
++
++func (m *InterfaceAnnounceMessage) sockaddr() (sas []Sockaddr) { return nil }
+diff --git a/src/pkg/syscall/route_openbsd.go b/src/pkg/syscall/route_openbsd.go
+index 30e1cac46f..223c157791 100644
+--- a/src/pkg/syscall/route_openbsd.go
++++ b/src/pkg/syscall/route_openbsd.go
+@@ -6,30 +6,30 @@
+ 
+ package syscall
+ 
+-import (
+-	"unsafe"
+-)
++import "unsafe"
+ 
+-func (any *anyMessage) toRoutingMessage(buf []byte) RoutingMessage {
++func (any *anyMessage) toRoutingMessage(b []byte) RoutingMessage {
+ 	switch any.Type {
+ 	case RTM_ADD, RTM_DELETE, RTM_CHANGE, RTM_GET, RTM_LOSING, RTM_REDIRECT, RTM_MISS, RTM_LOCK, RTM_RESOLVE:
+ 		p := (*RouteMessage)(unsafe.Pointer(any))
+-		rtm := &RouteMessage{}
+-		rtm.Header = p.Header
+-		rtm.Data = buf[SizeofRtMsghdr:any.Msglen]
+-		return rtm
++		return &RouteMessage{Header: p.Header, Data: b[SizeofRtMsghdr:any.Msglen]}
+ 	case RTM_IFINFO:
+ 		p := (*InterfaceMessage)(unsafe.Pointer(any))
+-		ifm := &InterfaceMessage{}
+-		ifm.Header = p.Header
+-		ifm.Data = buf[SizeofIfMsghdr:any.Msglen]
+-		return ifm
++		return &InterfaceMessage{Header: p.Header, Data: b[SizeofIfMsghdr:any.Msglen]}
++	case RTM_IFANNOUNCE:
++		p := (*InterfaceAnnounceMessage)(unsafe.Pointer(any))
++		return &InterfaceAnnounceMessage{Header: p.Header}
+ 	case RTM_NEWADDR, RTM_DELADDR:
+ 		p := (*InterfaceAddrMessage)(unsafe.Pointer(any))
+-		ifam := &InterfaceAddrMessage{}
+-		ifam.Header = p.Header
+-		ifam.Data = buf[SizeofIfaMsghdr:any.Msglen]
+-		return ifam
++		return &InterfaceAddrMessage{Header: p.Header, Data: b[SizeofIfaMsghdr:any.Msglen]}
+ 	}
+ 	return nil
+ }
++
++// InterfaceAnnounceMessage represents a routing message containing
++// network interface arrival and depature information.
++type InterfaceAnnounceMessage struct {
++	Header IfAnnounceMsghdr
++}
++
++func (m *InterfaceAnnounceMessage) sockaddr() (sas []Sockaddr) { return nil }

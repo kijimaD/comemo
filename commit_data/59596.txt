@@ -14,7 +14,38 @@ Date:   Thu Mar 28 12:50:04 2024 +0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/runtime/hash_test.go    | 4 +---
  src/runtime/memmove_test.go | 4 +---
  2 files changed, 2 insertions(+), 6 deletions(-)
+
+diff --git a/src/runtime/hash_test.go b/src/runtime/hash_test.go
+index 08672dbe8a..77f916797f 100644
+--- a/src/runtime/hash_test.go
++++ b/src/runtime/hash_test.go
+@@ -339,9 +339,7 @@ type BytesKey struct {
+ }
+ 
+ func (k *BytesKey) clear() {
+-	for i := range k.b {
+-		k.b[i] = 0
+-	}
++	clear(k.b)
+ }
+ func (k *BytesKey) random(r *rand.Rand) {
+ 	randBytes(r, k.b)
+diff --git a/src/runtime/memmove_test.go b/src/runtime/memmove_test.go
+index 0a97e39d3e..6550c759d6 100644
+--- a/src/runtime/memmove_test.go
++++ b/src/runtime/memmove_test.go
+@@ -451,9 +451,7 @@ func BenchmarkGoMemclr(b *testing.B) {
+ 	benchmarkSizes(b, []int{5, 16, 64, 256}, func(b *testing.B, n int) {
+ 		x := make([]byte, n)
+ 		for i := 0; i < b.N; i++ {
+-			for j := range x {
+-				x[j] = 0
+-			}
++			clear(x)
+ 		}
+ 	})
+ }

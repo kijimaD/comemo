@@ -10,7 +10,117 @@ Date:   Wed Sep 8 13:37:34 2021 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/348573
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/environment.go | 37 ++++++++++++++++++++++++--
  src/cmd/compile/internal/types2/subst.go       | 36 +------------------------
  2 files changed, 36 insertions(+), 37 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/environment.go b/src/cmd/compile/internal/types2/environment.go
+index 070cf34243..816139bbb4 100644
+--- a/src/cmd/compile/internal/types2/environment.go
++++ b/src/cmd/compile/internal/types2/environment.go
+@@ -3,7 +3,10 @@
+ // license that can be found in the LICENSE file.
+ package types2
+ 
+-import "sync"
++import (
++	"bytes"
++	"sync"
++)
+ 
+ // An Environment is an opaque type checking environment. It may be used to
+ // share identical type instances across type-checked packages or calls to
+@@ -25,7 +28,37 @@ func NewEnvironment() *Environment {
+ 	}
+ }
+ 
+-// TODO(rfindley): move Environment.typeHash here.
++// typeHash returns a string representation of typ, which can be used as an exact
++// type hash: types that are identical produce identical string representations.
++// If typ is a *Named type and targs is not empty, typ is printed as if it were
++// instantiated with targs.
++func (env *Environment) typeHash(typ Type, targs []Type) string {
++	assert(env != nil)
++	assert(typ != nil)
++	var buf bytes.Buffer
++
++	h := newTypeHasher(&buf, env)
++	if named, _ := typ.(*Named); named != nil && len(targs) > 0 {
++		// Don't use WriteType because we need to use the provided targs
++		// and not any targs that might already be with the *Named type.
++		h.typePrefix(named)
++		h.typeName(named.obj)
++		h.typeList(targs)
++	} else {
++		assert(targs == nil)
++		h.typ(typ)
++	}
++
++	if debug {
++		// there should be no instance markers in type hashes
++		for _, b := range buf.Bytes() {
++			assert(b != instanceMarker)
++		}
++	}
++
++	return buf.String()
++}
++
+ // typeForHash returns the recorded type for the type hash h, if it exists.
+ // If no type exists for h and n is non-nil, n is recorded for h.
+ func (env *Environment) typeForHash(h string, n *Named) *Named {
+diff --git a/src/cmd/compile/internal/types2/subst.go b/src/cmd/compile/internal/types2/subst.go
+index f86555594d..2032305fab 100644
+--- a/src/cmd/compile/internal/types2/subst.go
++++ b/src/cmd/compile/internal/types2/subst.go
+@@ -6,10 +6,7 @@
+ 
+ package types2
+ 
+-import (
+-	"bytes"
+-	"cmd/compile/internal/syntax"
+-)
++import "cmd/compile/internal/syntax"
+ 
+ type substMap map[*TypeParam]Type
+ 
+@@ -253,37 +250,6 @@ func (subst *subster) typ(typ Type) Type {
+ 	return typ
+ }
+ 
+-// typeHash returns a string representation of typ, which can be used as an exact
+-// type hash: types that are identical produce identical string representations.
+-// If typ is a *Named type and targs is not empty, typ is printed as if it were
+-// instantiated with targs.
+-func (env *Environment) typeHash(typ Type, targs []Type) string {
+-	assert(env != nil)
+-	assert(typ != nil)
+-	var buf bytes.Buffer
+-
+-	h := newTypeHasher(&buf, env)
+-	if named, _ := typ.(*Named); named != nil && len(targs) > 0 {
+-		// Don't use WriteType because we need to use the provided targs
+-		// and not any targs that might already be with the *Named type.
+-		h.typePrefix(named)
+-		h.typeName(named.obj)
+-		h.typeList(targs)
+-	} else {
+-		assert(targs == nil)
+-		h.typ(typ)
+-	}
+-
+-	if debug {
+-		// there should be no instance markers in type hashes
+-		for _, b := range buf.Bytes() {
+-			assert(b != instanceMarker)
+-		}
+-	}
+-
+-	return buf.String()
+-}
+-
+ // typOrNil is like typ but if the argument is nil it is replaced with Typ[Invalid].
+ // A nil type may appear in pathological cases such as type T[P any] []func(_ T([]_))
+ // where an array/slice element is accessed before it is set up.

@@ -13,8 +13,91 @@ Date:   Wed Jul 10 18:46:37 2024 -0700
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/bytes/bytes.go     | 14 ++++++--------
  src/regexp/regexp.go   |  7 +++----
  src/strings/strings.go | 14 ++++++--------
  3 files changed, 15 insertions(+), 20 deletions(-)
+
+diff --git a/src/bytes/bytes.go b/src/bytes/bytes.go
+index 2a07d2084e..a90390b96e 100644
+--- a/src/bytes/bytes.go
++++ b/src/bytes/bytes.go
+@@ -355,10 +355,9 @@ func genSplit(s, sep []byte, sepSave, n int) [][]byte {
+ // the subslices between those separators.
+ // If sep is empty, SplitN splits after each UTF-8 sequence.
+ // The count determines the number of subslices to return:
+-//
+-//	n > 0: at most n subslices; the last subslice will be the unsplit remainder.
+-//	n == 0: the result is nil (zero subslices)
+-//	n < 0: all subslices
++//   - n > 0: at most n subslices; the last subslice will be the unsplit remainder;
++//   - n == 0: the result is nil (zero subslices);
++//   - n < 0: all subslices.
+ //
+ // To split around the first instance of a separator, see Cut.
+ func SplitN(s, sep []byte, n int) [][]byte { return genSplit(s, sep, 0, n) }
+@@ -367,10 +366,9 @@ func SplitN(s, sep []byte, n int) [][]byte { return genSplit(s, sep, 0, n) }
+ // returns a slice of those subslices.
+ // If sep is empty, SplitAfterN splits after each UTF-8 sequence.
+ // The count determines the number of subslices to return:
+-//
+-//	n > 0: at most n subslices; the last subslice will be the unsplit remainder.
+-//	n == 0: the result is nil (zero subslices)
+-//	n < 0: all subslices
++//   - n > 0: at most n subslices; the last subslice will be the unsplit remainder;
++//   - n == 0: the result is nil (zero subslices);
++//   - n < 0: all subslices.
+ func SplitAfterN(s, sep []byte, n int) [][]byte {
+ 	return genSplit(s, sep, len(sep), n)
+ }
+diff --git a/src/regexp/regexp.go b/src/regexp/regexp.go
+index d1218ad0e8..f439540482 100644
+--- a/src/regexp/regexp.go
++++ b/src/regexp/regexp.go
+@@ -1244,10 +1244,9 @@ func (re *Regexp) FindAllStringSubmatchIndex(s string, n int) [][]int {
+ //	// s: ["", "b", "b", "c", "cadaaae"]
+ //
+ // The count determines the number of substrings to return:
+-//
+-//	n > 0: at most n substrings; the last substring will be the unsplit remainder.
+-//	n == 0: the result is nil (zero substrings)
+-//	n < 0: all substrings
++//   - n > 0: at most n substrings; the last substring will be the unsplit remainder;
++//   - n == 0: the result is nil (zero substrings);
++//   - n < 0: all substrings.
+ func (re *Regexp) Split(s string, n int) []string {
+ 
+ 	if n == 0 {
+diff --git a/src/strings/strings.go b/src/strings/strings.go
+index fba303c12a..52a715c66b 100644
+--- a/src/strings/strings.go
++++ b/src/strings/strings.go
+@@ -267,10 +267,9 @@ func genSplit(s, sep string, sepSave, n int) []string {
+ // the substrings between those separators.
+ //
+ // The count determines the number of substrings to return:
+-//
+-//	n > 0: at most n substrings; the last substring will be the unsplit remainder.
+-//	n == 0: the result is nil (zero substrings)
+-//	n < 0: all substrings
++//   - n > 0: at most n substrings; the last substring will be the unsplit remainder;
++//   - n == 0: the result is nil (zero substrings);
++//   - n < 0: all substrings.
+ //
+ // Edge cases for s and sep (for example, empty strings) are handled
+ // as described in the documentation for [Split].
+@@ -282,10 +281,9 @@ func SplitN(s, sep string, n int) []string { return genSplit(s, sep, 0, n) }
+ // returns a slice of those substrings.
+ //
+ // The count determines the number of substrings to return:
+-//
+-//	n > 0: at most n substrings; the last substring will be the unsplit remainder.
+-//	n == 0: the result is nil (zero substrings)
+-//	n < 0: all substrings
++//   - n > 0: at most n substrings; the last substring will be the unsplit remainder;
++//   - n == 0: the result is nil (zero substrings);
++//   - n < 0: all substrings.
+ //
+ // Edge cases for s and sep (for example, empty strings) are handled
+ // as described in the documentation for SplitAfter.

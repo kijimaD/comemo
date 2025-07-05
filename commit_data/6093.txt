@@ -7,7 +7,48 @@ Date:   Wed Aug 25 18:00:42 2010 -0400
     R=r
     CC=golang-dev, stevvooe
     https://golang.org/cl/1995051
-
+---
  src/Make.pkg          | 12 ++++++++----
  src/cmd/gotest/gotest |  6 ++++++
  2 files changed, 14 insertions(+), 4 deletions(-)
+
+diff --git a/src/Make.pkg b/src/Make.pkg
+index 4d64008145..239820b152 100644
+--- a/src/Make.pkg
++++ b/src/Make.pkg
+@@ -138,12 +138,16 @@ _CGO_LDFLAGS_darwin=-dynamiclib -Wl,-undefined,dynamic_lookup
+ _cgo_defun.$O: _cgo_defun.c
+ 	$(CC) $(CFLAGS) $(RUNTIME_CFLAGS) _cgo_defun.c
+ 
+-_cgo_.so: $(GCC_OFILES) $(CGO_DEPS)
++$(CGOTARG).so: $(GCC_OFILES) $(CGO_DEPS)
+ 	$(HOST_CC) $(_CGO_CFLAGS_$(GOARCH)) -o $@ $(GCC_OFILES) $(CGO_LDFLAGS)  $(_CGO_LDFLAGS_$(GOOS))
+ 
+-$(pkgdir)/$(CGOTARG).so: _cgo_.so
+-	@test -d $(QUOTED_GOROOT)/pkg && mkdir -p $(pkgdir)/$(dir)
+-	cp _cgo_.so "$@"
++$(pkgdir)/$(CGOTARG).so: $(CGOTARG).so
++	@test -d $(QUOTED_GOROOT)/pkg && mkdir -p $(pkgdir)
++	cp $(CGOTARG).so "$@"
++
++ifneq ($(CGOFILES),)
++testpackage: $(CGOTARG).so
++endif
+ 
+ # Generic build rules.
+ # These come last so that the rules above can override them
+diff --git a/src/cmd/gotest/gotest b/src/cmd/gotest/gotest
+index 7cc931b2cb..463242e3a7 100755
+--- a/src/cmd/gotest/gotest
++++ b/src/cmd/gotest/gotest
+@@ -174,4 +174,10 @@ importpath=$(gomake -s importpath)
+ 
+ $GC _testmain.go
+ $GL _testmain.$O
++
++# Set dynamic linker library path, no matter what it's called,
++# to include the current directory while running $O.out,
++# so that cgo libraries can be tested without installation.
++LD_LIBRARY_PATH=.:$LD_LIBRARY_PATH \
++DYLD_LIBRARY_PATH=.:$DYLD_LIBRARY_PATH \
+ $E ./$O.out "$@"

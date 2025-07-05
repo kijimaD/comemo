@@ -8,10 +8,282 @@ Date:   Tue Jul 21 18:06:15 2015 +0200
     Reviewed-on: https://go-review.googlesource.com/12474
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/gc/ssa.go           |   2 +-
  src/cmd/compile/internal/ssa/gen/AMD64.rules |   8 ++
  src/cmd/compile/internal/ssa/gen/AMD64Ops.go |   8 +-
  src/cmd/compile/internal/ssa/opGen.go        |  42 +++++++++
  src/cmd/compile/internal/ssa/rewriteAMD64.go | 126 +++++++++++++++++++++++++++
  5 files changed, 183 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 4de0518e6c..91ec5a9a8b 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -1579,7 +1579,7 @@ func genValue(v *ssa.Value) {
+ 		addAux(&p.From, v)
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = regnum(v)
+-	case ssa.OpAMD64CMPQ, ssa.OpAMD64TESTB, ssa.OpAMD64TESTQ:
++	case ssa.OpAMD64CMPQ, ssa.OpAMD64CMPL, ssa.OpAMD64CMPW, ssa.OpAMD64CMPB, ssa.OpAMD64TESTB, ssa.OpAMD64TESTQ:
+ 		p := Prog(v.Op.Asm())
+ 		p.From.Type = obj.TYPE_REG
+ 		p.From.Reg = regnum(v.Args[0])
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index 7f5fd663e3..49140c87f4 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -86,8 +86,16 @@
+ (Leq64 x y) -> (SETLE (CMPQ <TypeFlags> x y))
+ (Greater64 x y) -> (SETG (CMPQ <TypeFlags> x y))
+ (Geq64 x y) -> (SETGE (CMPQ <TypeFlags> x y))
++
+ (Eq64 x y) -> (SETEQ (CMPQ <TypeFlags> x y))
++(Eq32 x y) -> (SETEQ (CMPL <TypeFlags> x y))
++(Eq16 x y) -> (SETEQ (CMPW <TypeFlags> x y))
++(Eq8 x y) -> (SETEQ (CMPB <TypeFlags> x y))
++
+ (Neq64 x y) -> (SETNE (CMPQ <TypeFlags> x y))
++(Neq32 x y) -> (SETNE (CMPL <TypeFlags> x y))
++(Neq16 x y) -> (SETNE (CMPW <TypeFlags> x y))
++(Neq8 x y) -> (SETNE (CMPB <TypeFlags> x y))
+ 
+ (Load <t> ptr mem) && (is64BitInt(t) || isPtr(t)) -> (MOVQload ptr mem)
+ (Load <t> ptr mem) && is32BitInt(t) -> (MOVLload ptr mem)
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+index 382d64c9de..f67a1e0273 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+@@ -111,8 +111,12 @@ func init() {
+ 
+ 		{name: "CMPQ", reg: gp2flags, asm: "CMPQ"},      // arg0 compare to arg1
+ 		{name: "CMPQconst", reg: gp1flags, asm: "CMPQ"}, // arg0 compare to auxint
+-		{name: "TESTQ", reg: gp2flags, asm: "TESTQ"},    // (arg0 & arg1) compare to 0
+-		{name: "TESTB", reg: gp2flags, asm: "TESTB"},    // (arg0 & arg1) compare to 0
++		{name: "CMPL", reg: gp2flags, asm: "CMPL"},      // arg0 compare to arg1
++		{name: "CMPW", reg: gp2flags, asm: "CMPW"},      // arg0 compare to arg1
++		{name: "CMPB", reg: gp2flags, asm: "CMPB"},      // arg0 compare to arg1
++
++		{name: "TESTQ", reg: gp2flags, asm: "TESTQ"}, // (arg0 & arg1) compare to 0
++		{name: "TESTB", reg: gp2flags, asm: "TESTB"}, // (arg0 & arg1) compare to 0
+ 
+ 		{name: "SBBQcarrymask", reg: flagsgp1, asm: "SBBQ"}, // (int64)(-1) if carry is set, 0 if carry is clear.
+ 
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 5302c90442..9f2ad400fa 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -64,6 +64,9 @@ const (
+ 	OpAMD64XORQconst
+ 	OpAMD64CMPQ
+ 	OpAMD64CMPQconst
++	OpAMD64CMPL
++	OpAMD64CMPW
++	OpAMD64CMPB
+ 	OpAMD64TESTQ
+ 	OpAMD64TESTB
+ 	OpAMD64SBBQcarrymask
+@@ -413,6 +416,45 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name: "CMPL",
++		asm:  x86.ACMPL,
++		reg: regInfo{
++			inputs: []regMask{
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++			outputs: []regMask{
++				8589934592, // .FLAGS
++			},
++		},
++	},
++	{
++		name: "CMPW",
++		asm:  x86.ACMPW,
++		reg: regInfo{
++			inputs: []regMask{
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++			outputs: []regMask{
++				8589934592, // .FLAGS
++			},
++		},
++	},
++	{
++		name: "CMPB",
++		asm:  x86.ACMPB,
++		reg: regInfo{
++			inputs: []regMask{
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++			outputs: []regMask{
++				8589934592, // .FLAGS
++			},
++		},
++	},
+ 	{
+ 		name: "TESTQ",
+ 		asm:  x86.ATESTQ,
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 5019e69529..d977f5b9f4 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -615,6 +615,48 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 		goto endcc7894224d4f6b0bcabcece5d0185912
+ 	endcc7894224d4f6b0bcabcece5d0185912:
+ 		;
++	case OpEq16:
++		// match: (Eq16 x y)
++		// cond:
++		// result: (SETEQ (CMPW <TypeFlags> x y))
++		{
++			x := v.Args[0]
++			y := v.Args[1]
++			v.Op = OpAMD64SETEQ
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v0 := v.Block.NewValue0(v.Line, OpAMD64CMPW, TypeInvalid)
++			v0.Type = TypeFlags
++			v0.AddArg(x)
++			v0.AddArg(y)
++			v.AddArg(v0)
++			return true
++		}
++		goto end66a03470b5b3e8457ba205ccfcaccea6
++	end66a03470b5b3e8457ba205ccfcaccea6:
++		;
++	case OpEq32:
++		// match: (Eq32 x y)
++		// cond:
++		// result: (SETEQ (CMPL <TypeFlags> x y))
++		{
++			x := v.Args[0]
++			y := v.Args[1]
++			v.Op = OpAMD64SETEQ
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v0 := v.Block.NewValue0(v.Line, OpAMD64CMPL, TypeInvalid)
++			v0.Type = TypeFlags
++			v0.AddArg(x)
++			v0.AddArg(y)
++			v.AddArg(v0)
++			return true
++		}
++		goto end4d77d0b016f93817fd6e5f60fa0e7ef2
++	end4d77d0b016f93817fd6e5f60fa0e7ef2:
++		;
+ 	case OpEq64:
+ 		// match: (Eq64 x y)
+ 		// cond:
+@@ -636,6 +678,27 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 		goto endae6c62e4e20b4f62694b6ee40dbd9211
+ 	endae6c62e4e20b4f62694b6ee40dbd9211:
+ 		;
++	case OpEq8:
++		// match: (Eq8 x y)
++		// cond:
++		// result: (SETEQ (CMPB <TypeFlags> x y))
++		{
++			x := v.Args[0]
++			y := v.Args[1]
++			v.Op = OpAMD64SETEQ
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v0 := v.Block.NewValue0(v.Line, OpAMD64CMPB, TypeInvalid)
++			v0.Type = TypeFlags
++			v0.AddArg(x)
++			v0.AddArg(y)
++			v.AddArg(v0)
++			return true
++		}
++		goto end84a692e769900e3adbfe00718d2169e0
++	end84a692e769900e3adbfe00718d2169e0:
++		;
+ 	case OpGeq64:
+ 		// match: (Geq64 x y)
+ 		// cond:
+@@ -1741,6 +1804,48 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 		goto enda1ffb93a68702148c5fd18e2b72964d0
+ 	enda1ffb93a68702148c5fd18e2b72964d0:
+ 		;
++	case OpNeq16:
++		// match: (Neq16 x y)
++		// cond:
++		// result: (SETNE (CMPW <TypeFlags> x y))
++		{
++			x := v.Args[0]
++			y := v.Args[1]
++			v.Op = OpAMD64SETNE
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v0 := v.Block.NewValue0(v.Line, OpAMD64CMPW, TypeInvalid)
++			v0.Type = TypeFlags
++			v0.AddArg(x)
++			v0.AddArg(y)
++			v.AddArg(v0)
++			return true
++		}
++		goto endf177c3b3868606824e43e11da7804572
++	endf177c3b3868606824e43e11da7804572:
++		;
++	case OpNeq32:
++		// match: (Neq32 x y)
++		// cond:
++		// result: (SETNE (CMPL <TypeFlags> x y))
++		{
++			x := v.Args[0]
++			y := v.Args[1]
++			v.Op = OpAMD64SETNE
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v0 := v.Block.NewValue0(v.Line, OpAMD64CMPL, TypeInvalid)
++			v0.Type = TypeFlags
++			v0.AddArg(x)
++			v0.AddArg(y)
++			v.AddArg(v0)
++			return true
++		}
++		goto end39c4bf6d063f8a0b6f0064c96ce25173
++	end39c4bf6d063f8a0b6f0064c96ce25173:
++		;
+ 	case OpNeq64:
+ 		// match: (Neq64 x y)
+ 		// cond:
+@@ -1762,6 +1867,27 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 		goto end8ab0bcb910c0d3213dd8726fbcc4848e
+ 	end8ab0bcb910c0d3213dd8726fbcc4848e:
+ 		;
++	case OpNeq8:
++		// match: (Neq8 x y)
++		// cond:
++		// result: (SETNE (CMPB <TypeFlags> x y))
++		{
++			x := v.Args[0]
++			y := v.Args[1]
++			v.Op = OpAMD64SETNE
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v0 := v.Block.NewValue0(v.Line, OpAMD64CMPB, TypeInvalid)
++			v0.Type = TypeFlags
++			v0.AddArg(x)
++			v0.AddArg(y)
++			v.AddArg(v0)
++			return true
++		}
++		goto end4aaff28af59a65b3684f4f1897299932
++	end4aaff28af59a65b3684f4f1897299932:
++		;
+ 	case OpNot:
+ 		// match: (Not x)
+ 		// cond:

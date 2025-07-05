@@ -11,6 +11,20 @@ Date:   Tue Aug 29 05:10:17 2017 +0100
     Run-TryBot: Michael Munday <mike.munday@ibm.com>
     Reviewed-by: Martin Möhrmann <moehrmann@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/hash64.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/hash64.go b/src/runtime/hash64.go
+index 22085d3df0..3cf3f4629b 100644
+--- a/src/runtime/hash64.go
++++ b/src/runtime/hash64.go
+@@ -95,7 +95,7 @@ func memhash32(p unsafe.Pointer, seed uintptr) uintptr {
+ 
+ func memhash64(p unsafe.Pointer, seed uintptr) uintptr {
+ 	h := uint64(seed + 8*hashkey[0])
+-	h ^= readUnaligned64(p)
++	h ^= uint64(readUnaligned32(p)) | uint64(readUnaligned32(add(p, 4)))<<32
+ 	h = rotl_31(h*m1) * m2
+ 	h ^= h >> 29
+ 	h *= m3

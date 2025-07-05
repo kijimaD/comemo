@@ -12,8 +12,48 @@ Date:   Wed Feb 20 16:34:48 2019 -0800
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Mikio Hara <mikioh.public.networking@gmail.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/net/listen_test.go     | 3 +++
  src/net/mockserver_test.go | 2 --
  src/net/splice_test.go     | 1 +
  3 files changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/listen_test.go b/src/net/listen_test.go
+index 6c3f70cc7b..6c9b92a9fc 100644
+--- a/src/net/listen_test.go
++++ b/src/net/listen_test.go
+@@ -780,6 +780,9 @@ func TestListenConfigControl(t *testing.T) {
+ 				continue
+ 			}
+ 			c.Close()
++			if network == "unixgram" {
++				os.Remove(address)
++			}
+ 		}
+ 	})
+ }
+diff --git a/src/net/mockserver_test.go b/src/net/mockserver_test.go
+index 530293578a..e085f4440b 100644
+--- a/src/net/mockserver_test.go
++++ b/src/net/mockserver_test.go
+@@ -17,8 +17,6 @@ import (
+ )
+ 
+ // testUnixAddr uses ioutil.TempFile to get a name that is unique.
+-// It also uses /tmp directory in case it is prohibited to create UNIX
+-// sockets in TMPDIR.
+ func testUnixAddr() string {
+ 	f, err := ioutil.TempFile("", "go-nettest")
+ 	if err != nil {
+diff --git a/src/net/splice_test.go b/src/net/splice_test.go
+index 4c300172c5..e2a6638e8f 100644
+--- a/src/net/splice_test.go
++++ b/src/net/splice_test.go
+@@ -242,6 +242,7 @@ func testSpliceNoUnixgram(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
++	defer os.Remove(addr.Name)
+ 	up, err := ListenUnixgram("unixgram", addr)
+ 	if err != nil {
+ 		t.Fatal(err)

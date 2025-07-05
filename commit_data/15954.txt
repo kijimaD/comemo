@@ -15,7 +15,50 @@ Date:   Tue Mar 26 11:43:09 2013 -0700
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/8023043
-
+---
  misc/cgo/test/callback.go       | 9 +--------
  src/pkg/runtime/traceback_arm.c | 5 +++--
  2 files changed, 4 insertions(+), 10 deletions(-)
+
+diff --git a/misc/cgo/test/callback.go b/misc/cgo/test/callback.go
+index 3feec134b7..b6e2e3c1ce 100644
+--- a/misc/cgo/test/callback.go
++++ b/misc/cgo/test/callback.go
+@@ -160,9 +160,7 @@ func testCallbackCallers(t *testing.T) {
+ 	nestedCall(func() {
+ 		n = runtime.Callers(2, pc)
+ 	})
+-	// The ARM cannot unwind all the way down to runtime.goexit.
+-	// See issue 5124.
+-	if n != len(name) && runtime.GOARCH != "arm" {
++	if n != len(name) {
+ 		t.Errorf("expected %d frames, got %d", len(name), n)
+ 	}
+ 	for i := 0; i < n; i++ {
+@@ -179,10 +177,5 @@ func testCallbackCallers(t *testing.T) {
+ 		if fname != name[i] {
+ 			t.Errorf("expected function name %s, got %s", name[i], fname)
+ 		}
+-		// The ARM cannot unwind frames past runtime.cgocall.
+-		// See issue 5124.
+-		if runtime.GOARCH == "arm" && i == 4 {
+-			break
+-		}
+ 	}
+ }
+diff --git a/src/pkg/runtime/traceback_arm.c b/src/pkg/runtime/traceback_arm.c
+index dd85cc02c4..9c351db605 100644
+--- a/src/pkg/runtime/traceback_arm.c
++++ b/src/pkg/runtime/traceback_arm.c
+@@ -74,8 +74,9 @@ runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *gp, int32 skip, uintptr
+ 			lr = *(uintptr*)sp;
+ 		if(fp == nil) {
+ 			fp = sp;
+-			if(pc > f->entry && f->frame >= 0)
+-				fp += f->frame;
++			if(pc > f->entry && f->frame >= sizeof(uintptr))
++				fp += f->frame - sizeof(uintptr);
++			fp += sizeof(uintptr);
+ 		}
+ 
+ 		if(skip > 0)

@@ -9,9 +9,123 @@ Date:   Tue Jul 28 17:01:46 2009 -0700
     DELTA=50  (32 added, 12 deleted, 6 changed)
     OCL=32263
     CL=32385
-
+---
  src/cmd/gc/reflect.c     |  2 +-
  src/pkg/gob/decode.go    |  2 +-
  src/pkg/reflect/type.go  | 28 ++++++++++++----------------
  test/fixedbugs/bug177.go | 28 ++++++++++++++++++++++++++++
  4 files changed, 42 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/gc/reflect.c b/src/cmd/gc/reflect.c
+index e620623602..563c74082d 100644
+--- a/src/cmd/gc/reflect.c
++++ b/src/cmd/gc/reflect.c
+@@ -627,7 +627,7 @@ ok:
+ 		ot = duint32(s, ot, n);
+ 		for(t1=t->type; t1!=T; t1=t1->down) {
+ 			// ../../pkg/runtime/type.go:/structField
+-			if(t1->sym) {
++			if(t1->sym && !t1->embedded) {
+ 				ot = dgostringptr(s, ot, t1->sym->name);
+ 				if(exportname(t1->sym->name))
+ 					ot = dgostringptr(s, ot, nil);
+diff --git a/src/pkg/gob/decode.go b/src/pkg/gob/decode.go
+index 17afca6072..4469089c45 100644
+--- a/src/pkg/gob/decode.go
++++ b/src/pkg/gob/decode.go
+@@ -666,7 +666,7 @@ func compileDec(wireId typeId, rt reflect.Type) (engine *decEngine, err os.Error
+ 		localField, present := srt.FieldByName(wireField.name);
+ 		ovfl := overflow(wireField.name);
+ 		// TODO(r): anonymous names
+-		if !present || localField.Anonymous {
++		if !present {
+ 			op, err := decIgnoreOpFor(wireField.id);
+ 			if err != nil {
+ 				return nil, err
+diff --git a/src/pkg/reflect/type.go b/src/pkg/reflect/type.go
+index 7e4914cc25..beb5b89470 100644
+--- a/src/pkg/reflect/type.go
++++ b/src/pkg/reflect/type.go
+@@ -477,7 +477,11 @@ func (t *StructType) Field(i int) (f StructField) {
+ 	if p.name != nil {
+ 		f.Name = *p.name;
+ 	} else {
+-		f.Name = f.Type.Name();
++		t := f.Type;
++		if pt, ok := t.(*PtrType); ok {
++			t = pt.Elem();
++		}
++		f.Name = t.Name();
+ 		f.Anonymous = true;
+ 	}
+ 	if p.pkgPath != nil {
+@@ -487,28 +491,20 @@ func (t *StructType) Field(i int) (f StructField) {
+ 		f.Tag = *p.tag;
+ 	}
+ 	f.Offset = p.offset;
++	f.Index = i;
+ 	return;
+ }
+ 
+ // FieldByName returns the field with the provided name and a boolean to indicate
+-// that the field was found..
++// that the field was found.
+ func (t *StructType) FieldByName(name string) (f StructField, present bool) {
+ 	for i, p := range t.fields {
+-		if p.name == nil || *p.name != name {
+-			continue;
+-		}
+-		f.Name = *p.name;
+-		f.Type = toType(*p.typ);
+-		if p.pkgPath != nil {
+-			f.PkgPath = *p.pkgPath;
+-		}
+-		if p.tag != nil {
+-			f.Tag = *p.tag;
++		ff := t.Field(i);
++		if ff.Name == name {
++			f = ff;
++			present = true;
++			break;
+ 		}
+-		f.Offset = p.offset;
+-		f.Index = i;
+-		present = true;
+-		break;
+ 	}
+ 	return;
+ }
+diff --git a/test/fixedbugs/bug177.go b/test/fixedbugs/bug177.go
+new file mode 100644
+index 0000000000..b2c68a0fe8
+--- /dev/null
++++ b/test/fixedbugs/bug177.go
+@@ -0,0 +1,28 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++import "fmt"
++import "reflect"
++type S1 struct { i int }
++type S2 struct { S1 }
++func main() {
++	typ := reflect.Typeof(S2{}).(*reflect.StructType);
++	f := typ.Field(0);
++	if f.Name != "S1" || f.Anonymous != true {
++		println("BUG: ", f.Name, f.Anonymous);
++		return;
++	}
++	f, ok := typ.FieldByName("S1");
++	if !ok {
++		println("BUG: missing S1");
++		return;
++	}
++	if !f.Anonymous {
++		println("BUG: S1 is not anonymous");
++		return;
++	}
++}

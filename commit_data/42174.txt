@@ -18,8 +18,68 @@ Date:   Mon Nov 11 21:16:18 2019 +0530
     Run-TryBot: Agniva De Sarker <agniva.quicksilver@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/doc/doc_test.go                    |  7 +++++++
  src/cmd/doc/pkg.go                         | 10 ++++++++--
  src/cmd/doc/testdata/nested/empty/empty.go |  1 +
  3 files changed, 16 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/doc/doc_test.go b/src/cmd/doc/doc_test.go
+index e425045ba5..c0959acca1 100644
+--- a/src/cmd/doc/doc_test.go
++++ b/src/cmd/doc/doc_test.go
+@@ -211,6 +211,13 @@ var tests = []test{
+ 			`func \(unexportedType\)`,
+ 		},
+ 	},
++	// Package with just the package declaration. Issue 31457.
++	{
++		"only package declaration",
++		[]string{"-all", p + "/nested/empty"},
++		[]string{`package empty .*import`},
++		nil,
++	},
+ 	// Package dump -short
+ 	{
+ 		"full package with -short",
+diff --git a/src/cmd/doc/pkg.go b/src/cmd/doc/pkg.go
+index bfbe765d32..7b8bd1aeb4 100644
+--- a/src/cmd/doc/pkg.go
++++ b/src/cmd/doc/pkg.go
+@@ -53,14 +53,18 @@ type pkgBuffer struct {
+ }
+ 
+ func (pb *pkgBuffer) Write(p []byte) (int, error) {
+-	if !pb.printed && len(p) > 0 {
++	pb.packageClause()
++	return pb.Buffer.Write(p)
++}
++
++func (pb *pkgBuffer) packageClause() {
++	if !pb.printed {
+ 		pb.printed = true
+ 		// Only show package clause for commands if requested explicitly.
+ 		if pb.pkg.pkg.Name != "main" || showCmd {
+ 			pb.pkg.packageClause()
+ 		}
+ 	}
+-	return pb.Buffer.Write(p)
+ }
+ 
+ type PackageError string // type returned by pkg.Fatalf.
+@@ -210,6 +214,8 @@ func (pkg *Package) Printf(format string, args ...interface{}) {
+ }
+ 
+ func (pkg *Package) flush() {
++	// Print the package clause in case it wasn't written already.
++	pkg.buf.packageClause()
+ 	_, err := pkg.writer.Write(pkg.buf.Bytes())
+ 	if err != nil {
+ 		log.Fatal(err)
+diff --git a/src/cmd/doc/testdata/nested/empty/empty.go b/src/cmd/doc/testdata/nested/empty/empty.go
+new file mode 100644
+index 0000000000..609cf0e0a0
+--- /dev/null
++++ b/src/cmd/doc/testdata/nested/empty/empty.go
+@@ -0,0 +1 @@
++package empty

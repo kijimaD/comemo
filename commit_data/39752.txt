@@ -20,8 +20,65 @@ Date:   Mon Mar 18 13:17:35 2019 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/init.go |  2 +-
  src/fmt/errors_test.go              |  2 +-
  test/fixedbugs/issue29919.dir/a.go  | 10 +++++-----
  3 files changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/init.go b/src/cmd/compile/internal/gc/init.go
+index 01421eee36..6467aafd53 100644
+--- a/src/cmd/compile/internal/gc/init.go
++++ b/src/cmd/compile/internal/gc/init.go
+@@ -46,7 +46,7 @@ func fninit(n []*Node) {
+ 	// Make a function that contains all the initialization statements.
+ 	if len(nf) > 0 {
+ 		lineno = nf[0].Pos // prolog/epilog gets line number of first init stmt
+-		initializers := lookup("init.ializers")
++		initializers := lookup("init")
+ 		disableExport(initializers)
+ 		fn := dclfunc(initializers, nod(OTFUNC, nil, nil))
+ 		for _, dcl := range dummyInitFn.Func.Dcl {
+diff --git a/src/fmt/errors_test.go b/src/fmt/errors_test.go
+index ed77709ea0..0183ba77e5 100644
+--- a/src/fmt/errors_test.go
++++ b/src/fmt/errors_test.go
+@@ -157,7 +157,7 @@ func TestErrorFormatter(t *testing.T) {
+ 		want: "fallback:" +
+ 			"\n    somefile.go:123" +
+ 			"\n  - file does not exist:" +
+-			"\n    os.init.ializers" +
++			"\n    os.init" +
+ 			"\n        .+/os/error.go:\\d\\d",
+ 		regexp: true,
+ 	}, {
+diff --git a/test/fixedbugs/issue29919.dir/a.go b/test/fixedbugs/issue29919.dir/a.go
+index 2452127ae6..078f973b4b 100644
+--- a/test/fixedbugs/issue29919.dir/a.go
++++ b/test/fixedbugs/issue29919.dir/a.go
+@@ -34,8 +34,8 @@ func f() int {
+ 	if !strings.Contains(s, "a.go:19") {
+ 		panic("missing a.go:19")
+ 	}
+-	if !strings.Contains(s, "a.init.ializers") {
+-		panic("missing a.init.ializers")
++	if !strings.Contains(s, "a.init") {
++		panic("missing a.init")
+ 	}
+ 
+ 	// Check the CallersFrames results.
+@@ -58,11 +58,11 @@ func f() int {
+ 		panic("traceback truncated after f")
+ 	}
+ 	f, more = iter.Next()
+-	if f.Function != "a.init.ializers" || !strings.HasSuffix(f.File, "a.go") || f.Line != 15 {
+-		panic(fmt.Sprintf("bad init.ializers %v\n", f))
++	if f.Function != "a.init" || !strings.HasSuffix(f.File, "a.go") || f.Line != 15 {
++		panic(fmt.Sprintf("bad init %v\n", f))
+ 	}
+ 	if !more {
+-		panic("traceback truncated after init.ializers")
++		panic("traceback truncated after init")
+ 	}
+ 	f, _ = iter.Next()
+ 	if !strings.HasPrefix(f.Function, "runtime.") {

@@ -13,7 +13,42 @@ Date:   Sat Dec 5 14:29:39 2015 +1100
     Reviewed-by: Russ Cox <rsc@golang.org>
     Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/path/filepath/path_test.go    | 7 ++++++-
  src/path/filepath/path_windows.go | 5 +++++
  2 files changed, 11 insertions(+), 1 deletion(-)
+
+diff --git a/src/path/filepath/path_test.go b/src/path/filepath/path_test.go
+index e41a97da11..201f4fa869 100644
+--- a/src/path/filepath/path_test.go
++++ b/src/path/filepath/path_test.go
+@@ -267,7 +267,12 @@ var winjointests = []JoinTest{
+ 	{[]string{`C:\Windows\`, `System32`}, `C:\Windows\System32`},
+ 	{[]string{`C:\Windows\`, ``}, `C:\Windows`},
+ 	{[]string{`C:\`, `Windows`}, `C:\Windows`},
+-	{[]string{`C:`, `Windows`}, `C:\Windows`},
++	{[]string{`C:`, `a`}, `C:a`},
++	{[]string{`C:`, `a\b`}, `C:a\b`},
++	{[]string{`C:`, `a`, `b`}, `C:a\b`},
++	{[]string{`C:.`, `a`}, `C:a`},
++	{[]string{`C:a`, `b`}, `C:a\b`},
++	{[]string{`C:a`, `b`, `d`}, `C:a\b\d`},
+ 	{[]string{`\\host\share`, `foo`}, `\\host\share\foo`},
+ 	{[]string{`\\host\share\foo`}, `\\host\share\foo`},
+ 	{[]string{`//host/share`, `foo/bar`}, `\\host\share\foo\bar`},
+diff --git a/src/path/filepath/path_windows.go b/src/path/filepath/path_windows.go
+index edf7966d19..ef6e7ca93f 100644
+--- a/src/path/filepath/path_windows.go
++++ b/src/path/filepath/path_windows.go
+@@ -120,6 +120,11 @@ func join(elem []string) string {
+ 
+ // joinNonEmpty is like join, but it assumes that the first element is non-empty.
+ func joinNonEmpty(elem []string) string {
++	if len(elem[0]) == 2 && elem[0][1] == ':' {
++		// First element is drive leter without terminating slash.
++		// Keep path relative to current directory on that drive.
++		return Clean(elem[0] + strings.Join(elem[1:], string(Separator)))
++	}
+ 	// The following logic prevents Join from inadvertently creating a
+ 	// UNC path on Windows. Unless the first element is a UNC path, Join
+ 	// shouldn't create a UNC path. See golang.org/issue/9167.

@@ -17,6 +17,20 @@ Date:   Wed Oct 30 15:21:33 2024 -0700
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Commit-Queue: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/go/main.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/main.go b/src/cmd/go/main.go
+index f2e4d890d3..d519ad99cf 100644
+--- a/src/cmd/go/main.go
++++ b/src/cmd/go/main.go
+@@ -151,7 +151,7 @@ func main() {
+ 	// This setting is equivalent to not setting GOPATH at all,
+ 	// which is not what most people want when they do it.
+ 	if gopath := cfg.BuildContext.GOPATH; filepath.Clean(gopath) == filepath.Clean(cfg.GOROOT) {
+-		fmt.Fprintf(os.Stderr, "warning: GOPATH set to GOROOT (%s) has no effect\n", gopath)
++		fmt.Fprintf(os.Stderr, "warning: both GOPATH and GOROOT are the same directory (%s); see https://go.dev/wiki/InstallTroubleshooting\n", gopath)
+ 	} else {
+ 		for _, p := range filepath.SplitList(gopath) {
+ 			// Some GOPATHs have empty directory elements - ignore them.

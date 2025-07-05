@@ -13,7 +13,79 @@ Date:   Wed Aug 7 08:38:46 2013 +1000
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/12498043
-
+---
  src/pkg/fmt/fmt_test.go | 11 +++++++++++
  src/pkg/fmt/format.go   | 17 +++++++++++++++--
  2 files changed, 26 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/fmt/fmt_test.go b/src/pkg/fmt/fmt_test.go
+index 3b798af808..42c5915120 100644
+--- a/src/pkg/fmt/fmt_test.go
++++ b/src/pkg/fmt/fmt_test.go
+@@ -493,6 +493,17 @@ var fmtTests = []struct {
+ 	// Used to crash because nByte didn't allow for a sign.
+ 	{"%b", int64(-1 << 63), "-1000000000000000000000000000000000000000000000000000000000000000"},
+ 
++	// Used to panic.
++	{"%0100d", 1, "0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001"},
++	{"%0100d", -1, "-000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001"},
++	{"%0.100f", 1.0, "1.0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"},
++	{"%0.100f", -1.0, "-1.0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"},
++
++	// Zero padding floats used to put the minus sign in the middle.
++	{"%020f", -1.0, "-000000000001.000000"},
++	{"%20f", -1.0, "           -1.000000"},
++	{"%0100f", -1.0, "-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001.000000"},
++
+ 	// Complex fmt used to leave the plus flag set for future entries in the array
+ 	// causing +2+0i and +3+0i instead of 2+0i and 3+0i.
+ 	{"%v", []complex64{1, 2, 3}, "[(1+0i) (2+0i) (3+0i)]"},
+diff --git a/src/pkg/fmt/format.go b/src/pkg/fmt/format.go
+index c66a6c8806..736e2bd715 100644
+--- a/src/pkg/fmt/format.go
++++ b/src/pkg/fmt/format.go
+@@ -160,6 +160,11 @@ func (f *fmt) integer(a int64, base uint64, signedness bool, digits string) {
+ 	}
+ 
+ 	var buf []byte = f.intbuf[0:]
++	if f.widPresent && f.wid > nByte {
++		// We're going to need a bigger boat.
++		buf = make([]byte, f.wid)
++	}
++
+ 	negative := signedness == signed && a < 0
+ 	if negative {
+ 		a = -a
+@@ -182,7 +187,7 @@ func (f *fmt) integer(a int64, base uint64, signedness bool, digits string) {
+ 	// a is made into unsigned ua.  we could make things
+ 	// marginally faster by splitting the 32-bit case out into a separate
+ 	// block but it's not worth the duplication, so ua has 64 bits.
+-	i := len(f.intbuf)
++	i := len(buf)
+ 	ua := uint64(a)
+ 	for ua >= base {
+ 		i--
+@@ -191,7 +196,7 @@ func (f *fmt) integer(a int64, base uint64, signedness bool, digits string) {
+ 	}
+ 	i--
+ 	buf[i] = digits[ua]
+-	for i > 0 && prec > nByte-i {
++	for i > 0 && prec > len(buf)-i {
+ 		i--
+ 		buf[i] = '0'
+ 	}
+@@ -354,6 +359,14 @@ func (f *fmt) formatFloat(v float64, verb byte, prec, n int) {
+ 	// The formatted number starts at slice[1].
+ 	switch slice[1] {
+ 	case '-', '+':
++		// If we're zero padding, want the sign before the leading zeros.
++		// Achieve this by writing the sign out and padding the postive number.
++		if f.zero && f.widPresent && f.wid > len(slice) {
++			f.buf.WriteByte(slice[1])
++			f.wid--
++			f.pad(slice[2:])
++			return
++		}
+ 		// We're set; drop the leading space.
+ 		slice = slice[1:]
+ 	default:

@@ -13,8 +13,92 @@ Date:   Mon Mar 5 16:13:33 2012 -0500
     R=ken, ken
     CC=golang-dev
     https://golang.org/cl/5742043
-
+---
  src/cmd/dist/build.c |  3 +++
  src/cmd/gc/obj.c     | 32 +++++++++++++++++++++++++++++++-
  test/run             |  2 ++
  3 files changed, 36 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/dist/build.c b/src/cmd/dist/build.c
+index a40853fad0..27741e4b0f 100644
+--- a/src/cmd/dist/build.c
++++ b/src/cmd/dist/build.c
+@@ -1351,6 +1351,9 @@ cmdbootstrap(int argc, char **argv)
+ 	goversion = findgoversion();
+ 	setup();
+ 
++	xsetenv("GOROOT", goroot);
++	xsetenv("GOROOT_FINAL", goroot_final);
++
+ 	// For the main bootstrap, building for host os/arch.
+ 	oldgoos = goos;
+ 	oldgoarch = goarch;
+diff --git a/src/cmd/gc/obj.c b/src/cmd/gc/obj.c
+index aae566dbb8..e45b4e0d44 100644
+--- a/src/cmd/gc/obj.c
++++ b/src/cmd/gc/obj.c
+@@ -126,10 +126,37 @@ outhist(Biobuf *b)
+ {
+ 	Hist *h;
+ 	char *p, ds[] = {'c', ':', '/', 0};
++	char *tofree;
++	int n;
++	static int first = 1;
++	static char *goroot, *goroot_final;
+ 
++	if(first) {
++		// Decide whether we need to rewrite paths from $GOROOT to $GOROOT_FINAL.
++		first = 0;
++		goroot = getenv("GOROOT");
++		goroot_final = getenv("GOROOT_FINAL");
++		if(goroot == nil)
++			goroot = "";
++		if(goroot_final == nil)
++			goroot_final = goroot;
++		if(strcmp(goroot, goroot_final) == 0) {
++			goroot = nil;
++			goroot_final = nil;
++		}
++	}
++
++	tofree = nil;
+ 	for(h = hist; h != H; h = h->link) {
+ 		p = h->name;
+ 		if(p) {
++			if(goroot != nil) {
++				n = strlen(goroot);
++				if(strncmp(p, goroot, strlen(goroot)) == 0 && p[n] == '/') {
++					tofree = smprint("%s%s", goroot_final, p+n);
++					p = tofree;
++				}
++			}
+ 			if(windows) {
+ 				// if windows variable is set, then, we know already,
+ 				// pathname is started with windows drive specifier
+@@ -161,9 +188,12 @@ outhist(Biobuf *b)
+ 					outzfile(b, p);
+ 				}
+ 			}
+-		
+ 		}
+ 		zhist(b, h->line, h->offset);
++		if(tofree) {
++			free(tofree);
++			tofree = nil;
++		}
+ 	}
+ }
+ 
+diff --git a/test/run b/test/run
+index 8acbc3d45e..302578eaaa 100755
+--- a/test/run
++++ b/test/run
+@@ -29,6 +29,8 @@ export GOTRACEBACK=0
+ export LANG=C
+ unset GREP_OPTIONS	# in case user has a non-standard set
+ 
++unset GOROOT_FINAL  # breaks ./ imports
++
+ failed=0
+ 
+ PATH=${GOBIN:-$GOROOT/bin}:`pwd`:/bin:/usr/bin:/usr/local/bin

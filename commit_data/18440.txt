@@ -7,6 +7,22 @@ Date:   Mon Feb 10 18:59:07 2014 +0400
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/60760048
-
+---
  src/cmd/go/test.go | 4 +---
  1 file changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/test.go b/src/cmd/go/test.go
+index dfd24d836c..8e5d003031 100644
+--- a/src/cmd/go/test.go
++++ b/src/cmd/go/test.go
+@@ -168,9 +168,7 @@ control the execution of any test:
+ 	    Enable more precise (and expensive) memory profiles by setting
+ 	    runtime.MemProfileRate.  See 'godoc runtime MemProfileRate'.
+ 	    To profile all memory allocations, use -test.memprofilerate=1
+-	    and set the environment variable GOGC=off to disable the
+-	    garbage collector, provided the test can run in the available
+-	    memory without garbage collection.
++	    and pass --alloc_space flag to pprof tool.
+ 
+ 	-outputdir directory
+ 	    Place output files from profiling in the specified directory,

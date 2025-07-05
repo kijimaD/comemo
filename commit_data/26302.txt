@@ -11,7 +11,7 @@ Date:   Thu Jan 7 20:28:04 2016 -0800
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/os3_solaris.go     | 2 ++
  src/runtime/signal2_unix.go    | 2 ++
  src/runtime/signal_darwin.go   | 1 +
@@ -20,3 +20,93 @@ Date:   Thu Jan 7 20:28:04 2016 -0800
  src/runtime/signal_sigtramp.go | 2 ++
  src/runtime/sigqueue.go        | 1 +
  7 files changed, 10 insertions(+)
+
+diff --git a/src/runtime/os3_solaris.go b/src/runtime/os3_solaris.go
+index 940a841c10..a112b2edd0 100644
+--- a/src/runtime/os3_solaris.go
++++ b/src/runtime/os3_solaris.go
+@@ -520,6 +520,8 @@ func sigaction(sig int32, act *sigactiont, oact *sigactiont) /* int32 */ {
+ 	sysvicall3(&libc_sigaction, uintptr(sig), uintptr(unsafe.Pointer(act)), uintptr(unsafe.Pointer(oact)))
+ }
+ 
++//go:nosplit
++//go:nowritebarrierrec
+ func sigaltstack(ss *sigaltstackt, oss *sigaltstackt) /* int32 */ {
+ 	sysvicall2(&libc_sigaltstack, uintptr(unsafe.Pointer(ss)), uintptr(unsafe.Pointer(oss)))
+ }
+diff --git a/src/runtime/signal2_unix.go b/src/runtime/signal2_unix.go
+index 490a69d56d..7481b8570a 100644
+--- a/src/runtime/signal2_unix.go
++++ b/src/runtime/signal2_unix.go
+@@ -14,7 +14,9 @@ func sigfwd(fn uintptr, sig uint32, info *siginfo, ctx unsafe.Pointer)
+ // Determines if the signal should be handled by Go and if not, forwards the
+ // signal to the handler that was installed before Go's.  Returns whether the
+ // signal was forwarded.
++// This is called by the signal handler, and the world may be stopped.
+ //go:nosplit
++//go:nowritebarrierrec
+ func sigfwdgo(sig uint32, info *siginfo, ctx unsafe.Pointer) bool {
+ 	if sig >= uint32(len(sigtable)) {
+ 		return false
+diff --git a/src/runtime/signal_darwin.go b/src/runtime/signal_darwin.go
+index 542169c9f8..8d43724e2f 100644
+--- a/src/runtime/signal_darwin.go
++++ b/src/runtime/signal_darwin.go
+@@ -50,6 +50,7 @@ var sigtable = [...]sigTabT{
+ func sigreturn(ctx unsafe.Pointer, infostyle uint32)
+ 
+ //go:nosplit
++//go:nowritebarrierrec
+ func sigtrampgo(fn uintptr, infostyle, sig uint32, info *siginfo, ctx unsafe.Pointer) {
+ 	if sigfwdgo(sig, info, ctx) {
+ 		sigreturn(ctx, infostyle)
+diff --git a/src/runtime/signal_freebsd.go b/src/runtime/signal_freebsd.go
+index 7c98cf372b..f3411aac6a 100644
+--- a/src/runtime/signal_freebsd.go
++++ b/src/runtime/signal_freebsd.go
+@@ -48,6 +48,7 @@ var sigtable = [...]sigTabT{
+ }
+ 
+ //go:nosplit
++//go:nowritebarrierrec
+ func sigtrampgo(sig uint32, info *siginfo, ctx unsafe.Pointer) {
+ 	if sigfwdgo(sig, info, ctx) {
+ 		return
+diff --git a/src/runtime/signal_openbsd.go b/src/runtime/signal_openbsd.go
+index d1e48c43fc..d0239b1d91 100644
+--- a/src/runtime/signal_openbsd.go
++++ b/src/runtime/signal_openbsd.go
+@@ -48,6 +48,7 @@ var sigtable = [...]sigTabT{
+ }
+ 
+ //go:nosplit
++//go:nowritebarrierrec
+ func sigtrampgo(sig uint32, info *siginfo, ctx unsafe.Pointer) {
+ 	if sigfwdgo(sig, info, ctx) {
+ 		return
+diff --git a/src/runtime/signal_sigtramp.go b/src/runtime/signal_sigtramp.go
+index 5197a3d70b..00ab03846e 100644
+--- a/src/runtime/signal_sigtramp.go
++++ b/src/runtime/signal_sigtramp.go
+@@ -9,7 +9,9 @@ package runtime
+ import "unsafe"
+ 
+ // Continuation of the (assembly) sigtramp() logic.
++// This may be called with the world stopped.
+ //go:nosplit
++//go:nowritebarrierrec
+ func sigtrampgo(sig uint32, info *siginfo, ctx unsafe.Pointer) {
+ 	if sigfwdgo(sig, info, ctx) {
+ 		return
+diff --git a/src/runtime/sigqueue.go b/src/runtime/sigqueue.go
+index 84616ebceb..546d3abb24 100644
+--- a/src/runtime/sigqueue.go
++++ b/src/runtime/sigqueue.go
+@@ -180,6 +180,7 @@ func signal_ignored(s uint32) bool {
+ // This runs on a foreign stack, without an m or a g.  No stack split.
+ //go:nosplit
+ //go:norace
++//go:nowritebarrierrec
+ func badsignal(sig uintptr) {
+ 	cgocallback(unsafe.Pointer(funcPC(badsignalgo)), noescape(unsafe.Pointer(&sig)), unsafe.Sizeof(sig))
+ }

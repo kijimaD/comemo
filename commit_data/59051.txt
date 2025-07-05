@@ -20,8 +20,153 @@ Date:   Sat Jan 20 17:34:06 2024 +0100
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Auto-Submit: Michael Knyszek <mknyszek@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/internal/trace/v2/base.go       |  5 +++--
  src/internal/trace/v2/event.go      |  3 ++-
  src/internal/trace/v2/generation.go | 45 ++++++++++++++++++++++++-------------
  3 files changed, 35 insertions(+), 18 deletions(-)
+
+diff --git a/src/internal/trace/v2/base.go b/src/internal/trace/v2/base.go
+index 57e5802902..e2ba09362b 100644
+--- a/src/internal/trace/v2/base.go
++++ b/src/internal/trace/v2/base.go
+@@ -45,6 +45,7 @@ type evTable struct {
+ 	freq    frequency
+ 	strings dataTable[stringID, string]
+ 	stacks  dataTable[stackID, stack]
++	pcs     map[uint64]frame
+ 
+ 	// extraStrings are strings that get generated during
+ 	// parsing but haven't come directly from the trace, so
+@@ -241,12 +242,12 @@ func (s cpuSample) asEvent(table *evTable) Event {
+ 
+ // stack represents a goroutine stack sample.
+ type stack struct {
+-	frames []frame
++	pcs []uint64
+ }
+ 
+ func (s stack) String() string {
+ 	var sb strings.Builder
+-	for _, frame := range s.frames {
++	for _, frame := range s.pcs {
+ 		fmt.Fprintf(&sb, "\t%#v\n", frame)
+ 	}
+ 	return sb.String()
+diff --git a/src/internal/trace/v2/event.go b/src/internal/trace/v2/event.go
+index 763313c332..ec5e27e57a 100644
+--- a/src/internal/trace/v2/event.go
++++ b/src/internal/trace/v2/event.go
+@@ -264,7 +264,8 @@ func (s Stack) Frames(yield func(f StackFrame) bool) bool {
+ 		return true
+ 	}
+ 	stk := s.table.stacks.mustGet(s.id)
+-	for _, f := range stk.frames {
++	for _, pc := range stk.pcs {
++		f := s.table.pcs[pc]
+ 		sf := StackFrame{
+ 			PC:   f.pc,
+ 			Func: s.table.strings.mustGet(f.funcID),
+diff --git a/src/internal/trace/v2/generation.go b/src/internal/trace/v2/generation.go
+index 4cdf76e21c..da31585266 100644
+--- a/src/internal/trace/v2/generation.go
++++ b/src/internal/trace/v2/generation.go
+@@ -43,7 +43,9 @@ type spilledBatch struct {
+ // batch read of the next generation, if any.
+ func readGeneration(r *bufio.Reader, spill *spilledBatch) (*generation, *spilledBatch, error) {
+ 	g := &generation{
+-		evTable: new(evTable),
++		evTable: &evTable{
++			pcs: make(map[uint64]frame),
++		},
+ 		batches: make(map[ThreadID][]batch),
+ 	}
+ 	// Process the spilled batch.
+@@ -106,7 +108,7 @@ func readGeneration(r *bufio.Reader, spill *spilledBatch) (*generation, *spilled
+ 	g.strings.compactify()
+ 
+ 	// Validate stacks.
+-	if err := validateStackStrings(&g.stacks, &g.strings); err != nil {
++	if err := validateStackStrings(&g.stacks, &g.strings, g.pcs); err != nil {
+ 		return nil, nil, err
+ 	}
+ 
+@@ -130,7 +132,7 @@ func processBatch(g *generation, b batch) error {
+ 			return err
+ 		}
+ 	case b.isStacksBatch():
+-		if err := addStacks(&g.stacks, b); err != nil {
++		if err := addStacks(&g.stacks, g.pcs, b); err != nil {
+ 			return err
+ 		}
+ 	case b.isCPUSamplesBatch():
+@@ -156,11 +158,20 @@ func processBatch(g *generation, b batch) error {
+ 
+ // validateStackStrings makes sure all the string references in
+ // the stack table are present in the string table.
+-func validateStackStrings(stacks *dataTable[stackID, stack], strings *dataTable[stringID, string]) error {
++func validateStackStrings(
++	stacks *dataTable[stackID, stack],
++	strings *dataTable[stringID, string],
++	frames map[uint64]frame,
++) error {
+ 	var err error
+ 	stacks.forEach(func(id stackID, stk stack) bool {
+-		for _, frame := range stk.frames {
+-			_, ok := strings.get(frame.funcID)
++		for _, pc := range stk.pcs {
++			frame, ok := frames[pc]
++			if !ok {
++				err = fmt.Errorf("found unknown pc %x for stack %d", pc, id)
++				return false
++			}
++			_, ok = strings.get(frame.funcID)
+ 			if !ok {
+ 				err = fmt.Errorf("found invalid func string ID %d for stack %d", frame.funcID, id)
+ 				return false
+@@ -237,7 +248,7 @@ func addStrings(stringTable *dataTable[stringID, string], b batch) error {
+ // addStacks takes a batch whose first byte is an EvStacks event
+ // (indicating that the batch contains only stacks) and adds each
+ // string contained therein to the provided stacks map.
+-func addStacks(stackTable *dataTable[stackID, stack], b batch) error {
++func addStacks(stackTable *dataTable[stackID, stack], pcs map[uint64]frame, b batch) error {
+ 	if !b.isStacksBatch() {
+ 		return fmt.Errorf("internal error: addStacks called on non-stacks batch")
+ 	}
+@@ -273,7 +284,7 @@ func addStacks(stackTable *dataTable[stackID, stack], b batch) error {
+ 		}
+ 
+ 		// Each frame consists of 4 fields: pc, funcID (string), fileID (string), line.
+-		frames := make([]frame, 0, nFrames)
++		frames := make([]uint64, 0, nFrames)
+ 		for i := uint64(0); i < nFrames; i++ {
+ 			// Read the frame data.
+ 			pc, err := binary.ReadUvarint(r)
+@@ -292,16 +303,20 @@ func addStacks(stackTable *dataTable[stackID, stack], b batch) error {
+ 			if err != nil {
+ 				return fmt.Errorf("reading frame %d's line for stack %d: %w", i+1, id, err)
+ 			}
+-			frames = append(frames, frame{
+-				pc:     pc,
+-				funcID: stringID(funcID),
+-				fileID: stringID(fileID),
+-				line:   line,
+-			})
++			frames = append(frames, pc)
++
++			if _, ok := pcs[pc]; !ok {
++				pcs[pc] = frame{
++					pc:     pc,
++					funcID: stringID(funcID),
++					fileID: stringID(fileID),
++					line:   line,
++				}
++			}
+ 		}
+ 
+ 		// Add the stack to the map.
+-		if err := stackTable.insert(stackID(id), stack{frames: frames}); err != nil {
++		if err := stackTable.insert(stackID(id), stack{pcs: frames}); err != nil {
+ 			return err
+ 		}
+ 	}

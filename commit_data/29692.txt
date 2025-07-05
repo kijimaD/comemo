@@ -20,9 +20,158 @@ Date:   Sat Oct 1 18:01:30 2016 -0700
     Change-Id: I61a80332fc1923de6fc59ff63b953671598071fa
     Reviewed-on: https://go-review.googlesource.com/30161
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/cover/cover.go         | 35 ++++++++++++++---------------------
  src/cmd/cover/cover_test.go    | 19 +++++++++++++++++--
  src/cmd/cover/testdata/main.go |  6 +++++-
  src/cmd/cover/testdata/test.go | 12 ++++++++++++
  4 files changed, 48 insertions(+), 24 deletions(-)
+
+diff --git a/src/cmd/cover/cover.go b/src/cmd/cover/cover.go
+index a9ed66eea0..e48d811ead 100644
+--- a/src/cmd/cover/cover.go
++++ b/src/cmd/cover/cover.go
+@@ -240,6 +240,18 @@ func (f *File) Visit(node ast.Node) ast.Visitor {
+ 			ast.Walk(f, n.Assign)
+ 			return nil
+ 		}
++	case *ast.CommentGroup:
++		var list []*ast.Comment
++		// Drop all but the //go: comments, some of which are semantically important.
++		// We drop all others because they can appear in places that cause our counters
++		// to appear in syntactically incorrect places. //go: appears at the beginning of
++		// the line and is syntactically safe.
++		for _, c := range n.List {
++			if strings.HasPrefix(c.Text, "//go:") && f.fset.Position(c.Slash).Column == 1 {
++				list = append(list, c)
++			}
++		}
++		n.List = list
+ 	}
+ 	return f
+ }
+@@ -348,7 +360,8 @@ func annotate(name string) {
+ 	if err != nil {
+ 		log.Fatalf("cover: %s: %s", name, err)
+ 	}
+-	parsedFile.Comments = trimComments(parsedFile, fset)
++	// Remove comments. Or else they interfere with new AST.
++	parsedFile.Comments = nil
+ 
+ 	file := &File{
+ 		fset:    fset,
+@@ -374,26 +387,6 @@ func annotate(name string) {
+ 	file.addVariables(fd)
+ }
+ 
+-// trimComments drops all but the //go: comments, some of which are semantically important.
+-// We drop all others because they can appear in places that cause our counters
+-// to appear in syntactically incorrect places. //go: appears at the beginning of
+-// the line and is syntactically safe.
+-func trimComments(file *ast.File, fset *token.FileSet) []*ast.CommentGroup {
+-	var comments []*ast.CommentGroup
+-	for _, group := range file.Comments {
+-		var list []*ast.Comment
+-		for _, comment := range group.List {
+-			if strings.HasPrefix(comment.Text, "//go:") && fset.Position(comment.Slash).Column == 1 {
+-				list = append(list, comment)
+-			}
+-		}
+-		if list != nil {
+-			comments = append(comments, &ast.CommentGroup{List: list})
+-		}
+-	}
+-	return comments
+-}
+-
+ func (f *File) print(w io.Writer) {
+ 	printer.Fprint(w, f.fset, f.astFile)
+ }
+diff --git a/src/cmd/cover/cover_test.go b/src/cmd/cover/cover_test.go
+index 910ef5dc96..826d57d6b7 100644
+--- a/src/cmd/cover/cover_test.go
++++ b/src/cmd/cover/cover_test.go
+@@ -12,6 +12,7 @@ import (
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
++	"regexp"
+ 	"testing"
+ )
+ 
+@@ -68,8 +69,8 @@ func TestCover(t *testing.T) {
+ 	// defer removal of testcover
+ 	defer os.Remove(testcover)
+ 
+-	// ./testcover -mode=count -var=coverTest -o ./testdata/test_cover.go testdata/test_line.go
+-	cmd = exec.Command(testcover, "-mode=count", "-var=coverTest", "-o", coverOutput, coverInput)
++	// ./testcover -mode=count -var=thisNameMustBeVeryLongToCauseOverflowOfCounterIncrementStatementOntoNextLineForTest -o ./testdata/test_cover.go testdata/test_line.go
++	cmd = exec.Command(testcover, "-mode=count", "-var=thisNameMustBeVeryLongToCauseOverflowOfCounterIncrementStatementOntoNextLineForTest", "-o", coverOutput, coverInput)
+ 	run(cmd, t)
+ 
+ 	// defer removal of ./testdata/test_cover.go
+@@ -80,6 +81,20 @@ func TestCover(t *testing.T) {
+ 	// go run ./testdata/main.go ./testdata/test.go
+ 	cmd = exec.Command(testenv.GoToolPath(t), "run", testMain, coverOutput)
+ 	run(cmd, t)
++
++	file, err = ioutil.ReadFile(coverOutput)
++	if err != nil {
++		t.Fatal(err)
++	}
++	// compiler directive must appear right next to function declaration.
++	if got, err := regexp.MatchString(".*\n//go:nosplit\nfunc someFunction().*", string(file)); err != nil || !got {
++		t.Errorf("misplaced compiler directive: got=(%v, %v); want=(true; nil)", got, err)
++	}
++	// No other comments should be present in generaed code.
++	c := ".*// This comment shouldn't appear in generated go code.*"
++	if got, err := regexp.MatchString(c, string(file)); err != nil || got {
++		t.Errorf("non compiler directive comment %q found. got=(%v, %v); want=(false; nil)", c, got, err)
++	}
+ }
+ 
+ func run(c *exec.Cmd, t *testing.T) {
+diff --git a/src/cmd/cover/testdata/main.go b/src/cmd/cover/testdata/main.go
+index 6ed39c4f23..be74b4aa65 100644
+--- a/src/cmd/cover/testdata/main.go
++++ b/src/cmd/cover/testdata/main.go
+@@ -3,7 +3,8 @@
+ // license that can be found in the LICENSE file.
+ 
+ // Test runner for coverage test. This file is not coverage-annotated; test.go is.
+-// It knows the coverage counter is called "coverTest".
++// It knows the coverage counter is called
++// "thisNameMustBeVeryLongToCauseOverflowOfCounterIncrementStatementOntoNextLineForTest".
+ 
+ package main
+ 
+@@ -24,6 +25,9 @@ type block struct {
+ 
+ var counters = make(map[block]bool)
+ 
++// shorthand for the long counter variable.
++var coverTest = &thisNameMustBeVeryLongToCauseOverflowOfCounterIncrementStatementOntoNextLineForTest
++
+ // check records the location and expected value for a counter.
+ func check(line, count uint32) {
+ 	b := block{
+diff --git a/src/cmd/cover/testdata/test.go b/src/cmd/cover/testdata/test.go
+index c4c0e15b0b..095ce1d909 100644
+--- a/src/cmd/cover/testdata/test.go
++++ b/src/cmd/cover/testdata/test.go
+@@ -246,3 +246,15 @@ func testFunctionLiteral() {
+ 	}) {
+ 	}
+ }
++
++// This comment shouldn't appear in generated go code.
++func haha() {
++	// Needed for cover to add counter increment here.
++	_ = 42
++}
++
++// Some someFunction.
++//
++//go:nosplit
++func someFunction() {
++}

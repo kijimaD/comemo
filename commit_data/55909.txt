@@ -16,6 +16,20 @@ Date:   Thu Mar 23 10:57:36 2023 +0000
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/crypto/x509/parser.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/crypto/x509/parser.go b/src/crypto/x509/parser.go
+index 5a1819841d..6695212a0b 100644
+--- a/src/crypto/x509/parser.go
++++ b/src/crypto/x509/parser.go
+@@ -342,7 +342,7 @@ func parseBasicConstraintsExtension(der cryptobyte.String) (bool, int, error) {
+ 		}
+ 	}
+ 	maxPathLen := -1
+-	if !der.Empty() && der.PeekASN1Tag(cryptobyte_asn1.INTEGER) {
++	if der.PeekASN1Tag(cryptobyte_asn1.INTEGER) {
+ 		if !der.ReadASN1Integer(&maxPathLen) {
+ 			return false, 0, errors.New("x509: invalid basic constraints")
+ 		}

@@ -14,6 +14,19 @@ Date:   Wed Oct 25 14:36:23 2017 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/internal/vet/vetflag.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/go/internal/vet/vetflag.go b/src/cmd/go/internal/vet/vetflag.go
+index 8cd21bb72b..36ee04ede7 100644
+--- a/src/cmd/go/internal/vet/vetflag.go
++++ b/src/cmd/go/internal/vet/vetflag.go
+@@ -44,6 +44,7 @@ var vetFlagDefn = []*cmdflag.Defn{
+ 	{Name: "rangeloops", BoolVar: new(bool)},
+ 	{Name: "shadow", BoolVar: new(bool)},
+ 	{Name: "shadowstrict", BoolVar: new(bool)},
++	{Name: "shift", BoolVar: new(bool)},
+ 	{Name: "source", BoolVar: new(bool)},
+ 	{Name: "structtags", BoolVar: new(bool)},
+ 	{Name: "tests", BoolVar: new(bool)},

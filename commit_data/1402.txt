@@ -10,6 +10,23 @@ Date:   Mon Jan 5 11:18:15 2009 -0800
     DELTA=3  (0 added, 2 deleted, 1 changed)
     OCL=21984
     CL=22021
-
+---
  src/cmd/cc/lexbody | 4 +---
  1 file changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/src/cmd/cc/lexbody b/src/cmd/cc/lexbody
+index 869bf377cc..27e40fe49d 100644
+--- a/src/cmd/cc/lexbody
++++ b/src/cmd/cc/lexbody
+@@ -462,10 +462,8 @@ l1:
+ 		if(c1 == '/') {
+ 			for(;;) {
+ 				c = GETC();
+-				if(c == '\n') {
+-					lineno++;
++				if(c == '\n')
+ 					goto l1;
+-				}
+ 				if(c == EOF) {
+ 					yyerror("eof in comment");
+ 					errorexit();

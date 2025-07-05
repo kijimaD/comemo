@@ -21,6 +21,28 @@ Date:   Tue Jul 25 15:54:16 2023 -0700
     Auto-Submit: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  misc/wasm/go_wasip1_wasm_exec | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/misc/wasm/go_wasip1_wasm_exec b/misc/wasm/go_wasip1_wasm_exec
+index 97bacfbff1..0351994364 100755
+--- a/misc/wasm/go_wasip1_wasm_exec
++++ b/misc/wasm/go_wasip1_wasm_exec
+@@ -10,12 +10,12 @@ case "$GOWASIRUNTIME" in
+ 	"wasmer")
+ 		exec wasmer run --dir=/ --env PWD="$PWD" --env PATH="$PATH" ${GOWASIRUNTIMEARGS:-} "$1" -- "${@:2}"
+ 		;;
+-	"wasmtime")
+-		exec wasmtime run --dir=/ --env PWD="$PWD" --env PATH="$PATH" --max-wasm-stack 1048576 ${GOWASIRUNTIMEARGS:-} "$1" -- "${@:2}"
+-		;;
+-	"wazero" | "")
++	"wazero")
+ 		exec wazero run -mount /:/ -env-inherit -cachedir "${TMPDIR:-/tmp}"/wazero ${GOWASIRUNTIMEARGS:-} "$1" "${@:2}"
+ 		;;
++	"wasmtime" | "")
++		exec wasmtime run --dir=/ --env PWD="$PWD" --env PATH="$PATH" --max-wasm-stack 1048576 ${GOWASIRUNTIMEARGS:-} "$1" -- "${@:2}"
++		;;
+ 	*)
+ 		echo "Unknown Go WASI runtime specified: $GOWASIRUNTIME"
+ 		exit 1

@@ -7,6 +7,10 @@ Date:   Wed May 2 13:48:49 2012 +1000
     R=dsymonds
     CC=golang-dev
     https://golang.org/cl/6158043
-
+---
  misc/dashboard/codereview/static/icon.png | Bin 4347 -> 412 bytes
  1 file changed, 0 insertions(+), 0 deletions(-)
+
+diff --git a/misc/dashboard/codereview/static/icon.png b/misc/dashboard/codereview/static/icon.png
+index 8e0998f6e4..c929ac8e9e 100644
+Binary files a/misc/dashboard/codereview/static/icon.png and b/misc/dashboard/codereview/static/icon.png differ

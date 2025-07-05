@@ -18,7 +18,52 @@ Date:   Fri Nov 11 12:42:51 2022 -0800
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Auto-Submit: Ian Lance Taylor <iant@golang.org>
-
+---
  src/internal/syscall/unix/net_darwin.go | 14 ++++----------
  src/runtime/string.go                   |  7 +++++++
  2 files changed, 11 insertions(+), 10 deletions(-)
+
+diff --git a/src/internal/syscall/unix/net_darwin.go b/src/internal/syscall/unix/net_darwin.go
+index 9840359693..b9da4f1dc7 100644
+--- a/src/internal/syscall/unix/net_darwin.go
++++ b/src/internal/syscall/unix/net_darwin.go
+@@ -95,17 +95,11 @@ func GaiStrerror(ecode int) string {
+ 	return GoString((*byte)(unsafe.Pointer(r1)))
+ }
+ 
++// Implemented in the runtime package.
++func gostring(*byte) string
++
+ func GoString(p *byte) string {
+-	if p == nil {
+-		return ""
+-	}
+-	x := unsafe.Slice(p, 1e9)
+-	for i, c := range x {
+-		if c == 0 {
+-			return string(x[:i])
+-		}
+-	}
+-	return ""
++	return gostring(p)
+ }
+ 
+ //go:linkname syscall_syscall syscall.syscall
+diff --git a/src/runtime/string.go b/src/runtime/string.go
+index eaade640c4..a00976be59 100644
+--- a/src/runtime/string.go
++++ b/src/runtime/string.go
+@@ -325,6 +325,13 @@ func gostring(p *byte) string {
+ 	return s
+ }
+ 
++// internal_syscall_gostring is a version of gostring for internal/syscall/unix.
++//
++//go:linkname internal_syscall_gostring internal/syscall/unix.gostring
++func internal_syscall_gostring(p *byte) string {
++	return gostring(p)
++}
++
+ func gostringn(p *byte, l int) string {
+ 	if l == 0 {
+ 		return ""

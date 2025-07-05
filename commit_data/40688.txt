@@ -11,6 +11,24 @@ Date:   Sun Jun 16 17:05:11 2019 +0200
     Run-TryBot: Elias Naur <mail@eliasnaur.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/syscall/syscall_ptrace_test.go | 6 ++++--
  1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/syscall/syscall_ptrace_test.go b/src/syscall/syscall_ptrace_test.go
+index dd1f084fcb..6b7f54dcfd 100644
+--- a/src/syscall/syscall_ptrace_test.go
++++ b/src/syscall/syscall_ptrace_test.go
+@@ -28,8 +28,10 @@ func TestExecPtrace(t *testing.T) {
+ 		},
+ 	}
+ 	proc, err := os.StartProcess(bin, []string{bin}, attr)
+-	if err != nil {
++	if err == nil {
++		proc.Kill()
++	}
++	if err != nil && !os.IsPermission(err) {
+ 		t.Fatalf("StartProcess with ptrace enabled failed: %v", err)
+ 	}
+-	proc.Kill()
+ }

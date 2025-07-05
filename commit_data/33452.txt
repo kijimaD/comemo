@@ -13,7 +13,7 @@ Date:   Wed Aug 2 23:14:57 2017 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Adam Langley <agl@golang.org>
-
+---
  src/crypto/internal/boring/LICENSE                 | 200 ++++++++++++++++++
  src/crypto/internal/boring/boring.go               |  39 ++++
  src/crypto/internal/boring/boring_test.go          |  34 +++
@@ -31,3 +31,950 @@ Date:   Wed Aug 2 23:14:57 2017 -0400
  src/go/build/deps_test.go                          |   4 +
  src/runtime/runtime.go                             |   3 +
  16 files changed, 836 insertions(+), 1 deletion(-)
+
+diff --git a/src/crypto/internal/boring/LICENSE b/src/crypto/internal/boring/LICENSE
+new file mode 100644
+index 0000000000..4a618c3e8a
+--- /dev/null
++++ b/src/crypto/internal/boring/LICENSE
+@@ -0,0 +1,200 @@
++The Go source code and supporting files in this directory
++are covered by the usual Go license (see ../../../../LICENSE).
++
++The goboringcrypto_linux_amd64.syso object file is built
++from BoringSSL source code by build/build.sh and is covered
++by the BoringSSL license reproduced below and also at
++https://boringssl.googlesource.com/boringssl/+/fips-20170615/LICENSE.
++
++BoringSSL is a fork of OpenSSL. As such, large parts of it fall under OpenSSL
++licensing. Files that are completely new have a Google copyright and an ISC
++license. This license is reproduced at the bottom of this file.
++
++Contributors to BoringSSL are required to follow the CLA rules for Chromium:
++https://cla.developers.google.com/clas
++
++Some files from Intel are under yet another license, which is also included
++underneath.
++
++The OpenSSL toolkit stays under a dual license, i.e. both the conditions of the
++OpenSSL License and the original SSLeay license apply to the toolkit. See below
++for the actual license texts. Actually both licenses are BSD-style Open Source
++licenses. In case of any license issues related to OpenSSL please contact
++openssl-core@openssl.org.
++
++The following are Google-internal bug numbers where explicit permission from
++some authors is recorded for use of their work. (This is purely for our own
++record keeping.)
++  27287199
++  27287880
++  27287883
++
++  OpenSSL License
++  ---------------
++
++/* ====================================================================
++ * Copyright (c) 1998-2011 The OpenSSL Project.  All rights reserved.
++ *
++ * Redistribution and use in source and binary forms, with or without
++ * modification, are permitted provided that the following conditions
++ * are met:
++ *
++ * 1. Redistributions of source code must retain the above copyright
++ *    notice, this list of conditions and the following disclaimer. 
++ *
++ * 2. Redistributions in binary form must reproduce the above copyright
++ *    notice, this list of conditions and the following disclaimer in
++ *    the documentation and/or other materials provided with the
++ *    distribution.
++ *
++ * 3. All advertising materials mentioning features or use of this
++ *    software must display the following acknowledgment:
++ *    "This product includes software developed by the OpenSSL Project
++ *    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
++ *
++ * 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
++ *    endorse or promote products derived from this software without
++ *    prior written permission. For written permission, please contact
++ *    openssl-core@openssl.org.
++ *
++ * 5. Products derived from this software may not be called "OpenSSL"
++ *    nor may "OpenSSL" appear in their names without prior written
++ *    permission of the OpenSSL Project.
++ *
++ * 6. Redistributions of any form whatsoever must retain the following
++ *    acknowledgment:
++ *    "This product includes software developed by the OpenSSL Project
++ *    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
++ *
++ * THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
++ * EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
++ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
++ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
++ * ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
++ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
++ * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
++ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
++ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
++ * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
++ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
++ * OF THE POSSIBILITY OF SUCH DAMAGE.
++ * ====================================================================
++ *
++ * This product includes cryptographic software written by Eric Young
++ * (eay@cryptsoft.com).  This product includes software written by Tim
++ * Hudson (tjh@cryptsoft.com).
++ *
++ */
++
++ Original SSLeay License
++ -----------------------
++
++/* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
++ * All rights reserved.
++ *
++ * This package is an SSL implementation written
++ * by Eric Young (eay@cryptsoft.com).
++ * The implementation was written so as to conform with Netscapes SSL.
++ * 
++ * This library is free for commercial and non-commercial use as long as
++ * the following conditions are aheared to.  The following conditions
++ * apply to all code found in this distribution, be it the RC4, RSA,
++ * lhash, DES, etc., code; not just the SSL code.  The SSL documentation
++ * included with this distribution is covered by the same copyright terms
++ * except that the holder is Tim Hudson (tjh@cryptsoft.com).
++ * 
++ * Copyright remains Eric Young's, and as such any Copyright notices in
++ * the code are not to be removed.
++ * If this package is used in a product, Eric Young should be given attribution
++ * as the author of the parts of the library used.
++ * This can be in the form of a textual message at program startup or
++ * in documentation (online or textual) provided with the package.
++ * 
++ * Redistribution and use in source and binary forms, with or without
++ * modification, are permitted provided that the following conditions
++ * are met:
++ * 1. Redistributions of source code must retain the copyright
++ *    notice, this list of conditions and the following disclaimer.
++ * 2. Redistributions in binary form must reproduce the above copyright
++ *    notice, this list of conditions and the following disclaimer in the
++ *    documentation and/or other materials provided with the distribution.
++ * 3. All advertising materials mentioning features or use of this software
++ *    must display the following acknowledgement:
++ *    "This product includes cryptographic software written by
++ *     Eric Young (eay@cryptsoft.com)"
++ *    The word 'cryptographic' can be left out if the rouines from the library
++ *    being used are not cryptographic related :-).
++ * 4. If you include any Windows specific code (or a derivative thereof) from 
++ *    the apps directory (application code) you must include an acknowledgement:
++ *    "This product includes software written by Tim Hudson (tjh@cryptsoft.com)"
++ * 
++ * THIS SOFTWARE IS PROVIDED BY ERIC YOUNG ``AS IS'' AND
++ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
++ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
++ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
++ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
++ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
++ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
++ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
++ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
++ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
++ * SUCH DAMAGE.
++ * 
++ * The licence and distribution terms for any publically available version or
++ * derivative of this code cannot be changed.  i.e. this code cannot simply be
++ * copied and put under another distribution licence
++ * [including the GNU Public Licence.]
++ */
++
++
++ISC license used for completely new code in BoringSSL:
++
++/* Copyright (c) 2015, Google Inc.
++ *
++ * Permission to use, copy, modify, and/or distribute this software for any
++ * purpose with or without fee is hereby granted, provided that the above
++ * copyright notice and this permission notice appear in all copies.
++ *
++ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
++ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
++ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
++ * SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
++ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION
++ * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
++ * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE. */
++
++
++Some files from Intel carry the following license:
++
++# Copyright (c) 2012, Intel Corporation
++#
++# All rights reserved.
++#
++# Redistribution and use in source and binary forms, with or without
++# modification, are permitted provided that the following conditions are
++# met:
++#
++# *  Redistributions of source code must retain the above copyright
++#    notice, this list of conditions and the following disclaimer.
++#
++# *  Redistributions in binary form must reproduce the above copyright
++#    notice, this list of conditions and the following disclaimer in the
++#    documentation and/or other materials provided with the
++#    distribution.
++#
++# *  Neither the name of the Intel Corporation nor the names of its
++#    contributors may be used to endorse or promote products derived from
++#    this software without specific prior written permission.
++#
++#
++# THIS SOFTWARE IS PROVIDED BY INTEL CORPORATION ""AS IS"" AND ANY
++# EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
++# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
++# PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL INTEL CORPORATION OR
++# CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
++# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
++# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
++# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
++# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
++# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
++# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+diff --git a/src/crypto/internal/boring/boring.go b/src/crypto/internal/boring/boring.go
+new file mode 100644
+index 0000000000..5982a22743
+--- /dev/null
++++ b/src/crypto/internal/boring/boring.go
+@@ -0,0 +1,39 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build linux,amd64
++// +build !cmd_go_bootstrap
++
++package boring
++
++// #include "goboringcrypto.h"
++import "C"
++
++const available = true
++
++func init() {
++	C._goboringcrypto_BORINGSSL_bcm_power_on_self_test()
++	if C._goboringcrypto_FIPS_mode() != 1 {
++		panic("boringcrypto: not in FIPS mode")
++	}
++}
++
++// Unreachable marks code that should be unreachable
++// when BoringCrypto is in use. It panics.
++func Unreachable() {
++	panic("boringcrypto: invalid code execution")
++}
++
++// provided by runtime to avoid os import
++func runtime_arg0() string
++
++// UnreachableExceptTests marks code that should be unreachable
++// when BoringCrypto is in use. It panics.
++func UnreachableExceptTests() {
++	arg0 := runtime_arg0()
++	if len(arg0) < 5 || arg0[len(arg0)-5:] != ".test" {
++		println("ARG0", arg0)
++		panic("boringcrypto: invalid code execution")
++	}
++}
+diff --git a/src/crypto/internal/boring/boring_test.go b/src/crypto/internal/boring/boring_test.go
+new file mode 100644
+index 0000000000..83bbbd3404
+--- /dev/null
++++ b/src/crypto/internal/boring/boring_test.go
+@@ -0,0 +1,34 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Most functionality in this package is tested by replacing existing code
++// and inheriting that code's tests.
++
++package boring
++
++import "testing"
++
++// Test that func init does not panic.
++func TestInit(t *testing.T) {}
++
++// Test that Unreachable panics.
++func TestUnreachable(t *testing.T) {
++	defer func() {
++		if Enabled {
++			if err := recover(); err == nil {
++				t.Fatal("expected Unreachable to panic")
++			}
++		} else {
++			if err := recover(); err != nil {
++				t.Fatalf("expected Unreachable to be a no-op")
++			}
++		}
++	}()
++	Unreachable()
++}
++
++// Test that UnreachableExceptTests does not panic (this is a test).
++func TestUnreachableExceptTests(t *testing.T) {
++	UnreachableExceptTests()
++}
+diff --git a/src/crypto/internal/boring/build/.gitignore b/src/crypto/internal/boring/build/.gitignore
+new file mode 100644
+index 0000000000..a19e8a9ffe
+--- /dev/null
++++ b/src/crypto/internal/boring/build/.gitignore
+@@ -0,0 +1 @@
++boringssl-24e5886c0edfc409c8083d10f9f1120111efd6f5.tar.xz
+diff --git a/src/crypto/internal/boring/build/README b/src/crypto/internal/boring/build/README
+new file mode 100644
+index 0000000000..22ce944a44
+--- /dev/null
++++ b/src/crypto/internal/boring/build/README
+@@ -0,0 +1,6 @@
++This is not a Go package. The directory must not contain Go sources,
++to prevent it from being considered a Go package.
++
++This directory holds the script for building ../goboringcrypto_*.syso.
++Run build.sh on an Ubuntu system.
++See the comment at the top of build.sh for details.
+diff --git a/src/crypto/internal/boring/build/build.sh b/src/crypto/internal/boring/build/build.sh
+new file mode 100755
+index 0000000000..5aa0c051d9
+--- /dev/null
++++ b/src/crypto/internal/boring/build/build.sh
+@@ -0,0 +1,63 @@
++#!/bin/bash
++# Copyright 2017 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++# Run on Ubuntu system set up with:
++#	sudo apt-get install debootstrap
++#	sudo apt-get install squid-deb-proxy
++#
++# The script sets up an Ubuntu chroot and then runs the build
++# in that chroot, to make sure we know exactly what software
++# is being used for the build. To repeat the script reusing the
++# chroot installation, run build.sh -quick. This mode is useful
++# if all you've modified is goboringcrypto.c and ../goboringcrypto.h
++# (or some of the setup scripts in this directory).
++
++# Comment this setting out if not using squid-deb-proxy,
++# but it will be much slower to repeat the script.
++http_proxy=http://127.0.0.1:8000
++
++chroot=/var/tmp/boringssl
++
++sudo umount -f $chroot/proc
++sudo umount -f $chroot/sys
++sudo umount -f $chroot/dev/pts
++sudo umount -f $chroot/dev
++
++set -e
++if [ "$1" != "-quick" ]; then
++	sudo rm -rf $chroot
++	sudo http_proxy=$http_proxy debootstrap --variant=minbase zesty $chroot
++fi
++
++sudo chown $USER $chroot
++sudo chmod u+w $chroot
++
++sudo mount -t proc proc $chroot/proc
++sudo mount -t sysfs sys $chroot/sys
++sudo mount -o bind /dev $chroot/dev
++sudo mount -t devpts devpts $chroot/dev/pts
++
++sudo cp sources.list $chroot/etc/apt/sources.list
++
++cp *chroot.sh $chroot
++
++# Following http://csrc.nist.gov/groups/STM/cmvp/documents/140-1/140sp/140sp2964.pdf page 18.
++if [ ! -e $chroot/boringssl-24e5886c0edfc409c8083d10f9f1120111efd6f5.tar.xz ]; then
++	wget -O $chroot/boringssl-24e5886c0edfc409c8083d10f9f1120111efd6f5.tar.xz https://commondatastorage.googleapis.com/chromium-boringssl-docs/fips/boringssl-24e5886c0edfc409c8083d10f9f1120111efd6f5.tar.xz
++fi
++if [ "$(sha256sum $chroot/boringssl-24e5886c0edfc409c8083d10f9f1120111efd6f5.tar.xz | awk '{print $1}')" != 15a65d676eeae27618e231183a1ce9804fc9c91bcc3abf5f6ca35216c02bf4da ]; then
++	echo WRONG SHA256SUM
++	exit 2
++fi
++
++rm -rf $chroot/godriver
++mkdir $chroot/godriver
++cp ../goboringcrypto.h $chroot/godriver
++
++sudo http_proxy=$http_proxy chroot $chroot /root_setup_in_chroot.sh
++sudo chroot --userspec=$USER:$USER $chroot /build_in_chroot.sh
++cp $chroot/godriver/goboringcrypto_linux_amd64.syso ..
++sha256sum ../goboringcrypto_linux_amd64.syso
++echo DONE
+diff --git a/src/crypto/internal/boring/build/build_in_chroot.sh b/src/crypto/internal/boring/build/build_in_chroot.sh
+new file mode 100755
+index 0000000000..84ad953ae7
+--- /dev/null
++++ b/src/crypto/internal/boring/build/build_in_chroot.sh
+@@ -0,0 +1,196 @@
++#!/bin/bash
++# Copyright 2017 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++set -e
++echo running build_in_chroot.sh
++id
++date
++export LANG=C
++unset LANGUAGE
++
++# Build BoringCrypto libcrypto.a.
++# Following http://csrc.nist.gov/groups/STM/cmvp/documents/140-1/140sp/140sp2964.pdf page 18.
++if ! [ -e ./boringssl/build/tool/bssl ]; then
++	export PATH=$PATH:/usr/lib/go-1.8/bin:/clangbin
++
++	# Go requires -fPIC for linux/amd64 cgo builds.
++	# Setting -fPIC only affects the compilation of the non-module code in libcrypto.a,
++	# because the FIPS module itself is already built with -fPIC.
++	mkdir /clangbin
++	echo '#!/bin/bash
++	exec clang-4.0 -fPIC "$@"
++	' >/clangbin/clang
++	echo '#!/bin/bash
++	exec clang++-4.0 -fPIC "$@"
++	' >/clangbin/clang++
++	chmod +x /clangbin/clang /clangbin/clang++
++
++	rm -rf boringssl
++	tar xJf ../boringssl-*z
++	cd boringssl
++
++	# Verbatim instructions from BoringCrypto build docs.
++	printf "set(CMAKE_C_COMPILER \"clang\")\nset(CMAKE_CXX_COMPILER \"clang++\")\n" >/toolchain
++	mkdir build && cd build && cmake -GNinja -DCMAKE_TOOLCHAIN_FILE=/toolchain -DFIPS=1 -DCMAKE_BUILD_TYPE=Release ..
++	ninja -v
++	ninja run_tests
++
++	cd ../..
++fi
++if [ "$(./boringssl/build/tool/bssl isfips)" != 1 ]; then
++	echo "NOT FIPS"
++	exit 2
++fi
++
++
++# Build and run test C++ program to make sure goboringcrypto.h matches openssl/*.h.
++# Also collect list of checked symbols in syms.txt
++set -x
++set -e
++cd godriver
++cat >goboringcrypto.cc <<'EOF'
++#include <cassert>
++#include "goboringcrypto0.h"
++#include "goboringcrypto1.h"
++#define check_size(t) if(sizeof(t) != sizeof(GO_ ## t)) {printf("sizeof(" #t ")=%d, but sizeof(GO_" #t ")=%d\n", (int)sizeof(t), (int)sizeof(GO_ ## t)); ret=1;}
++#define check_func(f) { auto x = f; x = _goboringcrypto_ ## f ; }
++#define check_value(n, v) if(n != v) {printf(#n "=%d, but goboringcrypto.h defines it as %d\n", (int)n, (int)v); ret=1;}
++int main() {
++int ret = 0;
++#include "goboringcrypto.x"
++return ret;
++}
++EOF
++
++awk '
++BEGIN {
++	exitcode = 0
++}
++
++# Ignore comments, #includes, blank lines.
++/^\/\// || /^#/ || NF == 0 { next }
++
++# Ignore unchecked declarations.
++/\/\*unchecked/ { next }
++
++# Check enum values.
++!enum && $1 == "enum" && $NF == "{" {
++	enum = 1
++	next
++}
++enum && $1 == "};" {
++	enum = 0
++	next
++}
++enum && NF == 3 && $2 == "=" {
++	name = $1
++	sub(/^GO_/, "", name)
++	val = $3
++	sub(/,$/, "", val)
++	print "check_value(" name ", " val ")" > "goboringcrypto.x"
++	next
++}
++enum {
++	print FILENAME ":" NR ": unexpected line in enum: " $0 > "/dev/stderr"
++	exitcode = 1
++	next
++}
++
++# Check struct sizes.
++/^typedef struct / && $NF ~ /^GO_/ {
++	name = $NF
++	sub(/^GO_/, "", name)
++	sub(/;$/, "", name)
++	print "check_size(" name ")" > "goboringcrypto.x"
++	next
++}
++
++# Check function prototypes.
++/^(const )?[^ ]+ \**_goboringcrypto_.*\(/ {
++	name = $2
++	if($1 == "const")
++		name = $3
++	sub(/^\**_goboringcrypto_/, "", name)
++	sub(/\(.*/, "", name)
++	print "check_func(" name ")" > "goboringcrypto.x"
++	print name > "syms.txt"
++	next
++}
++
++{
++	print FILENAME ":" NR ": unexpected line: " $0 > "/dev/stderr"
++	exitcode = 1
++}
++
++END {
++	exit exitcode
++}
++' goboringcrypto.h
++
++cat goboringcrypto.h | awk '
++	/^\/\/ #include/ {sub(/\/\//, ""); print > "goboringcrypto0.h"; next}
++	/typedef struct|enum ([a-z_]+ )?{|^[ \t]/ {print;next}
++	{gsub(/GO_/, ""); gsub(/enum go_/, "enum "); print}
++' >goboringcrypto1.h
++clang++-4.0 -std=c++11 -fPIC -I../boringssl/include -O2 -o a.out  goboringcrypto.cc
++./a.out || exit 2
++
++# Prepare copy of libcrypto.a with only the checked functions renamed and exported.
++# All other symbols are left alone and hidden.
++echo BORINGSSL_bcm_power_on_self_test >>syms.txt
++awk '{print "_goboringcrypto_" $0 }' syms.txt >globals.txt
++awk '{print $0 " _goboringcrypto_" $0 }' syms.txt >renames.txt
++objcopy --globalize-symbol=BORINGSSL_bcm_power_on_self_test ../boringssl/build/crypto/libcrypto.a libcrypto.a
++
++# clang implements u128 % u128 -> u128 by calling __umodti3,
++# which is in libgcc. To make the result self-contained even if linking
++# against a different compiler version, link our own __umodti3 into the syso.
++# This one is specialized so it only expects divisors below 2^64,
++# which is all BoringCrypto uses. (Otherwise it will seg fault.)
++cat >umod.s <<'EOF'
++# tu_int __umodti3(tu_int x, tu_int y)
++# x is rsi:rdi, y is rcx:rdx, return result is rdx:rax.
++.globl __umodti3
++__umodti3:
++	# specialized to u128 % u64, so verify that
++	test %rcx,%rcx
++	jne 1f
++
++	# save divisor
++	movq %rdx, %r8
++
++	# reduce top 64 bits mod divisor
++	movq %rsi, %rax
++	xorl %edx, %edx
++	divq %r8
++
++	# reduce full 128-bit mod divisor
++	# quotient fits in 64 bits because top 64 bits have been reduced < divisor.
++	# (even though we only care about the remainder, divq also computes
++	# the quotient, and it will trap if the quotient is too large.)
++	movq %rdi, %rax
++	divq %r8
++
++	# expand remainder to 128 for return
++	movq %rdx, %rax
++	xorl %edx, %edx
++	ret
++
++1:
++	# crash - only want 64-bit divisor
++	xorl %ecx, %ecx
++	movl %ecx, 0(%ecx)
++	jmp 1b
++EOF
++clang-4.0 -c -o umod.o umod.s
++
++ld -r -nostdlib --whole-archive -o goboringcrypto.o libcrypto.a umod.o
++echo __umodti3 _goboringcrypto___umodti3 >>renames.txt
++objcopy --redefine-syms=renames.txt goboringcrypto.o goboringcrypto2.o
++objcopy --keep-global-symbols=globals.txt goboringcrypto2.o goboringcrypto_linux_amd64.syso
++
++# Done!
++ls -l goboringcrypto_linux_amd64.syso
++sha256sum goboringcrypto_linux_amd64.syso
+diff --git a/src/crypto/internal/boring/build/root_setup_in_chroot.sh b/src/crypto/internal/boring/build/root_setup_in_chroot.sh
+new file mode 100755
+index 0000000000..fef91f5680
+--- /dev/null
++++ b/src/crypto/internal/boring/build/root_setup_in_chroot.sh
+@@ -0,0 +1,13 @@
++#!/bin/bash
++# Copyright 2017 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++set -e
++id
++date
++echo http_proxy=$http_proxy
++export LANG=C
++unset LANGUAGE
++apt-get update
++apt-get install --no-install-recommends -y cmake clang-4.0 golang-1.8-go ninja-build xz-utils
+diff --git a/src/crypto/internal/boring/build/sources.list b/src/crypto/internal/boring/build/sources.list
+new file mode 100644
+index 0000000000..35df0f2a58
+--- /dev/null
++++ b/src/crypto/internal/boring/build/sources.list
+@@ -0,0 +1,10 @@
++deb http://archive.ubuntu.com/ubuntu/ zesty main restricted
++deb http://archive.ubuntu.com/ubuntu/ zesty-updates main restricted
++deb http://archive.ubuntu.com/ubuntu/ zesty universe
++deb http://archive.ubuntu.com/ubuntu/ zesty-updates universe
++deb http://archive.ubuntu.com/ubuntu/ zesty multiverse
++deb http://archive.ubuntu.com/ubuntu/ zesty-updates multiverse
++deb http://archive.ubuntu.com/ubuntu/ zesty-backports main restricted universe multiverse
++deb http://security.ubuntu.com/ubuntu zesty-security main restricted
++deb http://security.ubuntu.com/ubuntu zesty-security universe
++deb http://security.ubuntu.com/ubuntu zesty-security multiverse
+diff --git a/src/crypto/internal/boring/doc.go b/src/crypto/internal/boring/doc.go
+new file mode 100644
+index 0000000000..64f41e3c82
+--- /dev/null
++++ b/src/crypto/internal/boring/doc.go
+@@ -0,0 +1,14 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package boring provides access to BoringCrypto implementation functions.
++// Check the constant Enabled to find out whether BoringCrypto is available.
++// If BoringCrypto is not available, the functions in this package all panic.
++package boring
++
++// Enabled reports whether BoringCrypto is available.
++// When enabled is false, all functions in this package panic.
++//
++// BoringCrypto is only available on linux/amd64 systems.
++const Enabled = available
+diff --git a/src/crypto/internal/boring/goboringcrypto.h b/src/crypto/internal/boring/goboringcrypto.h
+new file mode 100644
+index 0000000000..1a25da9f35
+--- /dev/null
++++ b/src/crypto/internal/boring/goboringcrypto.h
+@@ -0,0 +1,233 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This header file describes the BoringCrypto ABI as built for use in Go.
++// The BoringCrypto build for Go (which generates goboringcrypto_*.syso)
++// takes the standard libcrypto.a from BoringCrypto and adds the prefix
++// _goboringcrypto_ to every symbol, to avoid possible conflicts with
++// code wrapping a different BoringCrypto or OpenSSL.
++//
++// To make this header standalone (so that building Go does not require
++// having a full set of BoringCrypto headers), the struct details are not here.
++// Instead, while building the syso, we compile and run a C++ program
++// that checks that the sizes match. The program also checks (during compilation)
++// that all the function prototypes match the BoringCrypto equivalents.
++// The generation of the checking program depends on the declaration
++// forms used below (one line for most, multiline for enums).
++
++#include <stdlib.h> // size_t
++#include <stdint.h> // uint8_t
++
++// This symbol is hidden in BoringCrypto and marked as a constructor,
++// but cmd/link's internal linking mode doesn't handle constructors.
++// Until it does, we've exported the symbol and can call it explicitly.
++// (If using external linking mode, it will therefore be called twice,
++// once explicitly and once as a constructor, but that's OK.)
++/*unchecked*/ void _goboringcrypto_BORINGSSL_bcm_power_on_self_test(void);
++
++// #include <openssl/crypto.h>
++int _goboringcrypto_FIPS_mode(void);
++
++// #include <openssl/rand.h>
++int _goboringcrypto_RAND_bytes(uint8_t*, size_t);
++
++// #include <openssl/nid.h>
++enum {
++	GO_NID_md5_sha1 = 114,
++
++	GO_NID_secp224r1 = 713,
++	GO_NID_X9_62_prime256v1 = 415,
++	GO_NID_secp384r1 = 715,
++	GO_NID_secp521r1 = 716,
++
++	GO_NID_sha224 = 675,
++	GO_NID_sha256 = 672,
++	GO_NID_sha384 = 673,
++	GO_NID_sha512 = 674,
++};
++
++// #include <openssl/sha.h>
++typedef struct GO_SHA_CTX { char data[96]; } GO_SHA_CTX;
++int _goboringcrypto_SHA1_Init(GO_SHA_CTX*);
++int _goboringcrypto_SHA1_Update(GO_SHA_CTX*, const void*, size_t);
++int _goboringcrypto_SHA1_Final(uint8_t*, GO_SHA_CTX*);
++
++typedef struct GO_SHA256_CTX { char data[48+64]; } GO_SHA256_CTX;
++int _goboringcrypto_SHA224_Init(GO_SHA256_CTX*);
++int _goboringcrypto_SHA224_Update(GO_SHA256_CTX*, const void*, size_t);
++int _goboringcrypto_SHA224_Final(uint8_t*, GO_SHA256_CTX*);
++int _goboringcrypto_SHA256_Init(GO_SHA256_CTX*);
++int _goboringcrypto_SHA256_Update(GO_SHA256_CTX*, const void*, size_t);
++int _goboringcrypto_SHA256_Final(uint8_t*, GO_SHA256_CTX*);
++
++typedef struct GO_SHA512_CTX { char data[88+128]; } GO_SHA512_CTX;
++int _goboringcrypto_SHA384_Init(GO_SHA512_CTX*);
++int _goboringcrypto_SHA384_Update(GO_SHA512_CTX*, const void*, size_t);
++int _goboringcrypto_SHA384_Final(uint8_t*, GO_SHA512_CTX*);
++int _goboringcrypto_SHA512_Init(GO_SHA512_CTX*);
++int _goboringcrypto_SHA512_Update(GO_SHA512_CTX*, const void*, size_t);
++int _goboringcrypto_SHA512_Final(uint8_t*, GO_SHA512_CTX*);
++
++// #include <openssl/digest.h>
++/*unchecked (opaque)*/ typedef struct GO_EVP_MD { char data[1]; } GO_EVP_MD;
++const GO_EVP_MD* _goboringcrypto_EVP_md4(void);
++const GO_EVP_MD* _goboringcrypto_EVP_md5(void);
++const GO_EVP_MD* _goboringcrypto_EVP_md5_sha1(void);
++const GO_EVP_MD* _goboringcrypto_EVP_sha1(void);
++const GO_EVP_MD* _goboringcrypto_EVP_sha224(void);
++const GO_EVP_MD* _goboringcrypto_EVP_sha256(void);
++const GO_EVP_MD* _goboringcrypto_EVP_sha384(void);
++const GO_EVP_MD* _goboringcrypto_EVP_sha512(void);
++int _goboringcrypto_EVP_MD_type(const GO_EVP_MD*);
++size_t _goboringcrypto_EVP_MD_size(const GO_EVP_MD*);
++
++// #include <openssl/hmac.h>
++typedef struct GO_HMAC_CTX { char data[104]; } GO_HMAC_CTX;
++void _goboringcrypto_HMAC_CTX_init(GO_HMAC_CTX*);
++void _goboringcrypto_HMAC_CTX_cleanup(GO_HMAC_CTX*);
++int _goboringcrypto_HMAC_Init(GO_HMAC_CTX*, const void*, int, const GO_EVP_MD*);
++int _goboringcrypto_HMAC_Update(GO_HMAC_CTX*, const uint8_t*, size_t);
++int _goboringcrypto_HMAC_Final(GO_HMAC_CTX*, uint8_t*, unsigned int*);
++size_t _goboringcrypto_HMAC_size(const GO_HMAC_CTX*);
++
++// #include <openssl/aes.h>
++typedef struct GO_AES_KEY { char data[244]; } GO_AES_KEY;
++int _goboringcrypto_AES_set_encrypt_key(const uint8_t*, unsigned int, GO_AES_KEY*);
++int _goboringcrypto_AES_set_decrypt_key(const uint8_t*, unsigned int, GO_AES_KEY*);
++void _goboringcrypto_AES_encrypt(const uint8_t*, uint8_t*, const GO_AES_KEY*);
++void _goboringcrypto_AES_decrypt(const uint8_t*, uint8_t*, const GO_AES_KEY*);
++void _goboringcrypto_AES_ctr128_encrypt(const uint8_t*, uint8_t*, size_t, const GO_AES_KEY*, uint8_t*, uint8_t*, unsigned int*);
++enum {
++	GO_AES_ENCRYPT = 1,
++	GO_AES_DECRYPT = 0
++};
++void _goboringcrypto_AES_cbc_encrypt(const uint8_t*, uint8_t*, size_t, const GO_AES_KEY*, uint8_t*, const int);
++
++// #include <openssl/aead.h>
++/*unchecked (opaque)*/ typedef struct GO_EVP_AEAD { char data[1]; } GO_EVP_AEAD;
++/*unchecked (opaque)*/ typedef struct GO_ENGINE { char data[1]; } GO_ENGINE;
++const GO_EVP_AEAD* _goboringcrypto_EVP_aead_aes_128_gcm(void);
++const GO_EVP_AEAD* _goboringcrypto_EVP_aead_aes_256_gcm(void);
++enum {
++	GO_EVP_AEAD_DEFAULT_TAG_LENGTH = 0
++};
++size_t _goboringcrypto_EVP_AEAD_key_length(const GO_EVP_AEAD*);
++size_t _goboringcrypto_EVP_AEAD_nonce_length(const GO_EVP_AEAD*);
++size_t _goboringcrypto_EVP_AEAD_max_overhead(const GO_EVP_AEAD*);
++size_t _goboringcrypto_EVP_AEAD_max_tag_len(const GO_EVP_AEAD*);
++typedef struct GO_EVP_AEAD_CTX { char data[24]; } GO_EVP_AEAD_CTX;
++void _goboringcrypto_EVP_AEAD_CTX_zero(GO_EVP_AEAD_CTX*);
++int _goboringcrypto_EVP_AEAD_CTX_init(GO_EVP_AEAD_CTX*, const GO_EVP_AEAD*, const uint8_t*, size_t, size_t, GO_ENGINE*);
++void _goboringcrypto_EVP_AEAD_CTX_cleanup(GO_EVP_AEAD_CTX*);
++int _goboringcrypto_EVP_AEAD_CTX_seal(const GO_EVP_AEAD_CTX*, uint8_t*, size_t*, size_t, const uint8_t*, size_t, const uint8_t*, size_t, const uint8_t*, size_t);
++int _goboringcrypto_EVP_AEAD_CTX_open(const GO_EVP_AEAD_CTX*, uint8_t*, size_t*, size_t, const uint8_t*, size_t, const uint8_t*, size_t, const uint8_t*, size_t);
++const GO_EVP_AEAD* _goboringcrypto_EVP_aead_aes_128_gcm_tls12(void);
++const GO_EVP_AEAD* _goboringcrypto_EVP_aead_aes_256_gcm_tls12(void);
++enum go_evp_aead_direction_t {
++	go_evp_aead_open = 0,
++	go_evp_aead_seal = 1
++};
++int _goboringcrypto_EVP_AEAD_CTX_init_with_direction(GO_EVP_AEAD_CTX*, const GO_EVP_AEAD*, const uint8_t*, size_t, size_t, enum go_evp_aead_direction_t);
++
++// #include <openssl/bn.h>
++/*unchecked (opaque)*/ typedef struct GO_BN_CTX { char data[1]; } GO_BN_CTX;
++typedef struct GO_BIGNUM { char data[24]; } GO_BIGNUM;
++GO_BIGNUM* _goboringcrypto_BN_new(void);
++void _goboringcrypto_BN_free(GO_BIGNUM*);
++unsigned _goboringcrypto_BN_num_bits(const GO_BIGNUM*);
++unsigned _goboringcrypto_BN_num_bytes(const GO_BIGNUM*);
++int _goboringcrypto_BN_is_negative(const GO_BIGNUM*);
++GO_BIGNUM* _goboringcrypto_BN_bin2bn(const uint8_t*, size_t, GO_BIGNUM*);
++size_t _goboringcrypto_BN_bn2bin(const GO_BIGNUM*, uint8_t*);
++
++// #include <openssl/ec.h>
++/*unchecked (opaque)*/ typedef struct GO_EC_GROUP { char data[1]; } GO_EC_GROUP;
++GO_EC_GROUP* _goboringcrypto_EC_GROUP_new_by_curve_name(int);
++void _goboringcrypto_EC_GROUP_free(GO_EC_GROUP*);
++
++/*unchecked (opaque)*/ typedef struct GO_EC_POINT { char data[1]; } GO_EC_POINT;
++GO_EC_POINT* _goboringcrypto_EC_POINT_new(const GO_EC_GROUP*);
++void _goboringcrypto_EC_POINT_free(GO_EC_POINT*);
++int _goboringcrypto_EC_POINT_get_affine_coordinates_GFp(const GO_EC_GROUP*, const GO_EC_POINT*, GO_BIGNUM*, GO_BIGNUM*, GO_BN_CTX*);
++int _goboringcrypto_EC_POINT_set_affine_coordinates_GFp(const GO_EC_GROUP*, GO_EC_POINT*, const GO_BIGNUM*, const GO_BIGNUM*, GO_BN_CTX*);
++
++// #include <openssl/ec_key.h>
++/*unchecked (opaque)*/ typedef struct GO_EC_KEY { char data[1]; } GO_EC_KEY;
++GO_EC_KEY* _goboringcrypto_EC_KEY_new(void);
++GO_EC_KEY* _goboringcrypto_EC_KEY_new_by_curve_name(int);
++void _goboringcrypto_EC_KEY_free(GO_EC_KEY*);
++const GO_EC_GROUP* _goboringcrypto_EC_KEY_get0_group(const GO_EC_KEY*);
++int _goboringcrypto_EC_KEY_generate_key_fips(GO_EC_KEY*);
++int _goboringcrypto_EC_KEY_set_private_key(GO_EC_KEY*, const GO_BIGNUM*);
++int _goboringcrypto_EC_KEY_set_public_key(GO_EC_KEY*, const GO_EC_POINT*);
++int _goboringcrypto_EC_KEY_is_opaque(const GO_EC_KEY*);
++const GO_BIGNUM* _goboringcrypto_EC_KEY_get0_private_key(const GO_EC_KEY*);
++const GO_EC_POINT* _goboringcrypto_EC_KEY_get0_public_key(const GO_EC_KEY*);
++// TODO: EC_KEY_check_fips?
++
++// #include <openssl/ecdsa.h>
++typedef struct GO_ECDSA_SIG { char data[16]; } GO_ECDSA_SIG;
++GO_ECDSA_SIG* _goboringcrypto_ECDSA_SIG_new(void);
++void _goboringcrypto_ECDSA_SIG_free(GO_ECDSA_SIG*);
++GO_ECDSA_SIG* _goboringcrypto_ECDSA_do_sign(const uint8_t*, size_t, const GO_EC_KEY*);
++int _goboringcrypto_ECDSA_do_verify(const uint8_t*, size_t, const GO_ECDSA_SIG*, const GO_EC_KEY*);
++int _goboringcrypto_ECDSA_sign(int, const uint8_t*, size_t, uint8_t*, unsigned int*, const GO_EC_KEY*);
++size_t _goboringcrypto_ECDSA_size(const GO_EC_KEY*);
++int _goboringcrypto_ECDSA_verify(int, const uint8_t*, size_t, const uint8_t*, size_t, const GO_EC_KEY*);
++
++// #include <openssl/rsa.h>
++/*unchecked (opaque)*/ typedef struct GO_RSA { char data[1]; } GO_RSA;
++/*unchecked (opaque)*/ typedef struct GO_BN_GENCB { char data[1]; } GO_BN_GENCB;
++GO_RSA* _goboringcrypto_RSA_new(void);
++void _goboringcrypto_RSA_free(GO_RSA*);
++void _goboringcrypto_RSA_get0_key(const GO_RSA*, const GO_BIGNUM **n, const GO_BIGNUM **e, const GO_BIGNUM **d);
++void _goboringcrypto_RSA_get0_factors(const GO_RSA*, const GO_BIGNUM **p, const GO_BIGNUM **q);
++void _goboringcrypto_RSA_get0_crt_params(const GO_RSA*, const GO_BIGNUM **dmp1, const GO_BIGNUM **dmp2, const GO_BIGNUM **iqmp);
++int _goboringcrypto_RSA_generate_key_ex(GO_RSA*, int, GO_BIGNUM*, GO_BN_GENCB*);
++int _goboringcrypto_RSA_generate_key_fips(GO_RSA*, int, GO_BN_GENCB*);
++enum {
++	GO_RSA_PKCS1_PADDING = 1,
++	GO_RSA_NO_PADDING = 3,
++	GO_RSA_PKCS1_OAEP_PADDING = 4,
++	GO_RSA_PKCS1_PSS_PADDING = 6,
++};
++int _goboringcrypto_RSA_encrypt(GO_RSA*, size_t *out_len, uint8_t *out, size_t max_out, const uint8_t *in, size_t in_len, int padding);
++int _goboringcrypto_RSA_decrypt(GO_RSA*, size_t *out_len, uint8_t *out, size_t max_out, const uint8_t *in, size_t in_len, int padding);
++int _goboringcrypto_RSA_sign(int hash_nid, const uint8_t* in, unsigned int in_len, uint8_t *out, unsigned int *out_len, GO_RSA*);
++int _goboringcrypto_RSA_sign_pss_mgf1(GO_RSA*, size_t *out_len, uint8_t *out, size_t max_out, const uint8_t *in, size_t in_len, const GO_EVP_MD *md, const GO_EVP_MD *mgf1_md, int salt_len);
++int _goboringcrypto_RSA_sign_raw(GO_RSA*, size_t *out_len, uint8_t *out, size_t max_out, const uint8_t *in, size_t in_len, int padding);
++int _goboringcrypto_RSA_verify(int hash_nid, const uint8_t *msg, size_t msg_len, const uint8_t *sig, size_t sig_len, GO_RSA*);
++int _goboringcrypto_RSA_verify_pss_mgf1(GO_RSA*, const uint8_t *msg, size_t msg_len, const GO_EVP_MD *md, const GO_EVP_MD *mgf1_md, int salt_len, const uint8_t *sig, size_t sig_len);
++int _goboringcrypto_RSA_verify_raw(GO_RSA*, size_t *out_len, uint8_t *out, size_t max_out, const uint8_t *in, size_t in_len, int padding);
++unsigned _goboringcrypto_RSA_size(const GO_RSA*);
++int _goboringcrypto_RSA_is_opaque(const GO_RSA*);
++int _goboringcrypto_RSA_check_key(const GO_RSA*);
++int _goboringcrypto_RSA_check_fips(GO_RSA*);
++GO_RSA* _goboringcrypto_RSA_public_key_from_bytes(const uint8_t*, size_t);
++GO_RSA* _goboringcrypto_RSA_private_key_from_bytes(const uint8_t*, size_t);
++int _goboringcrypto_RSA_public_key_to_bytes(uint8_t**, size_t*, const GO_RSA*);
++int _goboringcrypto_RSA_private_key_to_bytes(uint8_t**, size_t*, const GO_RSA*);
++
++// #include <openssl/evp.h>
++/*unchecked (opaque)*/ typedef struct GO_EVP_PKEY { char data[1]; } GO_EVP_PKEY;
++GO_EVP_PKEY* _goboringcrypto_EVP_PKEY_new(void);
++void _goboringcrypto_EVP_PKEY_free(GO_EVP_PKEY*);
++int _goboringcrypto_EVP_PKEY_set1_RSA(GO_EVP_PKEY*, GO_RSA*);
++
++/*unchecked (opaque)*/ typedef struct GO_EVP_PKEY_CTX { char data[1]; } GO_EVP_PKEY_CTX;
++
++GO_EVP_PKEY_CTX* _goboringcrypto_EVP_PKEY_CTX_new(GO_EVP_PKEY*, GO_ENGINE*);
++void _goboringcrypto_EVP_PKEY_CTX_free(GO_EVP_PKEY_CTX*);
++int _goboringcrypto_EVP_PKEY_CTX_set0_rsa_oaep_label(GO_EVP_PKEY_CTX*, uint8_t*, size_t);
++int _goboringcrypto_EVP_PKEY_CTX_set_rsa_oaep_md(GO_EVP_PKEY_CTX*, const GO_EVP_MD*);
++int _goboringcrypto_EVP_PKEY_CTX_set_rsa_padding(GO_EVP_PKEY_CTX*, int padding);
++int _goboringcrypto_EVP_PKEY_decrypt(GO_EVP_PKEY_CTX*, uint8_t*, size_t*, const uint8_t*, size_t);
++int _goboringcrypto_EVP_PKEY_encrypt(GO_EVP_PKEY_CTX*, uint8_t*, size_t*, const uint8_t*, size_t);
++int _goboringcrypto_EVP_PKEY_decrypt_init(GO_EVP_PKEY_CTX*);
++int _goboringcrypto_EVP_PKEY_encrypt_init(GO_EVP_PKEY_CTX*);
++int _goboringcrypto_EVP_PKEY_CTX_set_rsa_mgf1_md(GO_EVP_PKEY_CTX*, const GO_EVP_MD*);
++int _goboringcrypto_EVP_PKEY_CTX_set_rsa_pss_saltlen(GO_EVP_PKEY_CTX*, int);
++int _goboringcrypto_EVP_PKEY_sign_init(GO_EVP_PKEY_CTX*);
++int _goboringcrypto_EVP_PKEY_verify_init(GO_EVP_PKEY_CTX*);
++int _goboringcrypto_EVP_PKEY_sign(GO_EVP_PKEY_CTX*, uint8_t*, size_t*, const uint8_t*, size_t);
+diff --git a/src/crypto/internal/boring/goboringcrypto_linux_amd64.syso b/src/crypto/internal/boring/goboringcrypto_linux_amd64.syso
+new file mode 100644
+index 0000000000..b1e56a526a
+Binary files /dev/null and b/src/crypto/internal/boring/goboringcrypto_linux_amd64.syso differ
+diff --git a/src/crypto/internal/boring/notboring.go b/src/crypto/internal/boring/notboring.go
+new file mode 100644
+index 0000000000..42c10c667b
+--- /dev/null
++++ b/src/crypto/internal/boring/notboring.go
+@@ -0,0 +1,17 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !linux !amd64 cmd_go_bootstrap
++
++package boring
++
++const available = false
++
++// Unreachable marks code that should be unreachable
++// when BoringCrypto is in use. It is a no-op without BoringCrypto.
++func Unreachable() {}
++
++// UnreachableExceptTests marks code that should be unreachable
++// when BoringCrypto is in use. It is a no-op without BoringCrypto.
++func UnreachableExceptTests() {}
+diff --git a/src/crypto/internal/cipherhw/generic.go b/src/crypto/internal/cipherhw/generic.go
+index 64d90d3b41..4e7d2cb041 100644
+--- a/src/crypto/internal/cipherhw/generic.go
++++ b/src/crypto/internal/cipherhw/generic.go
+@@ -6,6 +6,8 @@
+ 
+ package cipherhw
+ 
++import "crypto/internal/boring"
++
+ func AESGCMSupport() bool {
+-	return false
++	return boring.Enabled
+ }
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 87abfba921..4279e484ac 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -114,10 +114,14 @@ var pkgDeps = map[string][]string{
+ 	"reflect":             {"L2"},
+ 	"sort":                {"reflect"},
+ 
++	"crypto/internal/boring":   {"L2", "C", "crypto", "crypto/cipher", "crypto/subtle", "encoding/asn1", "hash", "math/big"},
++	"crypto/internal/cipherhw": {"crypto/internal/boring"},
++
+ 	"L3": {
+ 		"L2",
+ 		"crypto",
+ 		"crypto/cipher",
++		"crypto/internal/boring",
+ 		"crypto/internal/cipherhw",
+ 		"crypto/subtle",
+ 		"encoding/base32",
+diff --git a/src/runtime/runtime.go b/src/runtime/runtime.go
+index d8fe2f451f..5b5e7de840 100644
+--- a/src/runtime/runtime.go
++++ b/src/runtime/runtime.go
+@@ -57,3 +57,6 @@ func syscall_Getpagesize() int { return int(physPageSize) }
+ 
+ //go:linkname os_runtime_args os.runtime_args
+ func os_runtime_args() []string { return append([]string{}, argslice...) }
++
++//go:linkname boring_runtime_arg0 crypto/internal/boring.runtime_arg0
++func boring_runtime_arg0() string { return argslice[0] }

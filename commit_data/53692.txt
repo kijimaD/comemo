@@ -18,8 +18,95 @@ Date:   Mon Aug 29 16:27:00 2022 -0400
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     Auto-Submit: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/go/internal/modfetch/codehost/codehost.go | 13 +++++++++++++
  src/cmd/go/internal/modfetch/codehost/vcs.go      | 12 ++++++------
  src/cmd/go/internal/modfetch/coderepo.go          |  2 +-
  3 files changed, 20 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/go/internal/modfetch/codehost/codehost.go b/src/cmd/go/internal/modfetch/codehost/codehost.go
+index 3a6e55e9a3..855b6946ca 100644
+--- a/src/cmd/go/internal/modfetch/codehost/codehost.go
++++ b/src/cmd/go/internal/modfetch/codehost/codehost.go
+@@ -201,6 +201,19 @@ func (noCommitsError) Is(err error) bool {
+ 	return err == fs.ErrNotExist
+ }
+ 
++// ErrUnsupported indicates that a requested operation cannot be performed,
++// because it is unsupported. This error indicates that there is no alternative
++// way to perform the operation.
++//
++// TODO(#41198): Remove this declaration and use errors.ErrUnsupported instead.
++var ErrUnsupported = unsupportedOperationError{}
++
++type unsupportedOperationError struct{}
++
++func (unsupportedOperationError) Error() string {
++	return "unsupported operation"
++}
++
+ // AllHex reports whether the revision rev is entirely lower-case hexadecimal digits.
+ func AllHex(rev string) bool {
+ 	for i := 0; i < len(rev); i++ {
+diff --git a/src/cmd/go/internal/modfetch/codehost/vcs.go b/src/cmd/go/internal/modfetch/codehost/vcs.go
+index f1c40998b2..4d0e863182 100644
+--- a/src/cmd/go/internal/modfetch/codehost/vcs.go
++++ b/src/cmd/go/internal/modfetch/codehost/vcs.go
+@@ -38,6 +38,8 @@ type VCSError struct {
+ 
+ func (e *VCSError) Error() string { return e.Err.Error() }
+ 
++func (e *VCSError) Unwrap() error { return e.Err }
++
+ func vcsErrorf(format string, a ...any) error {
+ 	return &VCSError{Err: fmt.Errorf(format, a...)}
+ }
+@@ -290,10 +292,8 @@ func (r *vcsRepo) loadBranches() {
+ 	}
+ }
+ 
+-var ErrNoRepoHash = errors.New("RepoHash not supported")
+-
+ func (r *vcsRepo) CheckReuse(old *Origin, subdir string) error {
+-	return fmt.Errorf("vcs %s does not implement CheckReuse", r.cmd.vcs)
++	return fmt.Errorf("vcs %s: CheckReuse: %w", r.cmd.vcs, ErrUnsupported)
+ }
+ 
+ func (r *vcsRepo) Tags(prefix string) (*Tags, error) {
+@@ -417,7 +417,7 @@ func (r *vcsRepo) RecentTag(rev, prefix string, allowed func(string) bool) (tag
+ 	}
+ 	defer unlock()
+ 
+-	return "", vcsErrorf("RecentTag not implemented")
++	return "", vcsErrorf("vcs %s: RecentTag: %w", r.cmd.vcs, ErrUnsupported)
+ }
+ 
+ func (r *vcsRepo) DescendsFrom(rev, tag string) (bool, error) {
+@@ -427,12 +427,12 @@ func (r *vcsRepo) DescendsFrom(rev, tag string) (bool, error) {
+ 	}
+ 	defer unlock()
+ 
+-	return false, vcsErrorf("DescendsFrom not implemented")
++	return false, vcsErrorf("vcs %s: DescendsFrom: %w", r.cmd.vcs, ErrUnsupported)
+ }
+ 
+ func (r *vcsRepo) ReadZip(rev, subdir string, maxSize int64) (zip io.ReadCloser, err error) {
+ 	if r.cmd.readZip == nil && r.cmd.doReadZip == nil {
+-		return nil, vcsErrorf("ReadZip not implemented for %s", r.cmd.vcs)
++		return nil, vcsErrorf("vcs %s: ReadZip: %w", r.cmd.vcs, ErrUnsupported)
+ 	}
+ 
+ 	unlock, err := r.mu.Lock()
+diff --git a/src/cmd/go/internal/modfetch/coderepo.go b/src/cmd/go/internal/modfetch/coderepo.go
+index 138c00da19..b72989b2a8 100644
+--- a/src/cmd/go/internal/modfetch/coderepo.go
++++ b/src/cmd/go/internal/modfetch/coderepo.go
+@@ -608,7 +608,7 @@ func (r *codeRepo) convert(info *codehost.RevInfo, statVers string) (*RevInfo, e
+ 	}
+ 	if pseudoBase == "" {
+ 		tag, err := r.code.RecentTag(info.Name, tagPrefix, tagAllowed)
+-		if err != nil {
++		if err != nil && !errors.Is(err, codehost.ErrUnsupported) {
+ 			return nil, err
+ 		}
+ 		if tag != "" {

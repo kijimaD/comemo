@@ -14,8 +14,53 @@ Date:   Wed Jul 31 15:00:08 2013 +1000
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/12142043
-
+---
  src/pkg/fmt/doc.go       | 4 ++++
  src/pkg/fmt/scan.go      | 3 +++
  src/pkg/fmt/scan_test.go | 4 ++++
  3 files changed, 11 insertions(+)
+
+diff --git a/src/pkg/fmt/doc.go b/src/pkg/fmt/doc.go
+index 29fc6e5e3a..e1fca445e3 100644
+--- a/src/pkg/fmt/doc.go
++++ b/src/pkg/fmt/doc.go
+@@ -215,6 +215,10 @@
+ 	stops if it does not, with the return value of the function
+ 	indicating the number of arguments scanned.
+ 
++	In all the scanning functions, a carriage return followed
++	immediately by a newline is treated as a plain newline
++	(\r\n means the same as \n).
++
+ 	In all the scanning functions, if an operand implements method
+ 	Scan (that is, it implements the Scanner interface) that
+ 	method will be used to scan the text for that operand.  Also,
+diff --git a/src/pkg/fmt/scan.go b/src/pkg/fmt/scan.go
+index f223897a91..93621e24c8 100644
+--- a/src/pkg/fmt/scan.go
++++ b/src/pkg/fmt/scan.go
+@@ -437,6 +437,9 @@ func (s *ss) skipSpace(stopAtNewline bool) {
+ 		if r == eof {
+ 			return
+ 		}
++		if r == '\r' && s.peek("\n") {
++			continue
++		}
+ 		if r == '\n' {
+ 			if stopAtNewline {
+ 				break
+diff --git a/src/pkg/fmt/scan_test.go b/src/pkg/fmt/scan_test.go
+index 4e2c0feb2c..e60cc347aa 100644
+--- a/src/pkg/fmt/scan_test.go
++++ b/src/pkg/fmt/scan_test.go
+@@ -192,6 +192,10 @@ var scanTests = []ScanTest{
+ 	{"-.45e1-1e2i\n", &complex128Val, complex128(-.45e1 - 100i)},
+ 	{"hello\n", &stringVal, "hello"},
+ 
++	// Carriage-return followed by newline. (We treat \r\n as \n always.)
++	{"hello\r\n", &stringVal, "hello"},
++	{"27\r\n", &uint8Val, uint8(27)},
++
+ 	// Renamed types
+ 	{"true\n", &renamedBoolVal, renamedBool(true)},
+ 	{"F\n", &renamedBoolVal, renamedBool(false)},

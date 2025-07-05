@@ -12,10 +12,220 @@ Date:   Tue Mar 31 02:00:50 2020 +1100
     Reviewed-on: https://go-review.googlesource.com/c/go/+/226399
     Reviewed-by: Keith Randall <khr@golang.org>
     Run-TryBot: Joel Sing <joel@sing.id.au>
-
+---
  src/cmd/compile/internal/riscv64/ssa.go        | 50 +++++++++++++++++++++-----
  src/cmd/compile/internal/ssa/gen/RISCV64.rules |  6 ++--
  src/cmd/compile/internal/ssa/gen/RISCV64Ops.go | 14 +++++++-
  src/cmd/compile/internal/ssa/opGen.go          | 24 ++++++++++++-
  src/cmd/compile/internal/ssa/rewriteRISCV64.go | 12 +++----
  5 files changed, 86 insertions(+), 20 deletions(-)
+
+diff --git a/src/cmd/compile/internal/riscv64/ssa.go b/src/cmd/compile/internal/riscv64/ssa.go
+index 25bfd05ced..73f0dbc195 100644
+--- a/src/cmd/compile/internal/riscv64/ssa.go
++++ b/src/cmd/compile/internal/riscv64/ssa.go
+@@ -577,6 +577,21 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 	}
+ }
+ 
++var blockBranch = [...]obj.As{
++	ssa.BlockRISCV64BEQ:  riscv.ABEQ,
++	ssa.BlockRISCV64BEQZ: riscv.ABEQZ,
++	ssa.BlockRISCV64BGE:  riscv.ABGE,
++	ssa.BlockRISCV64BGEU: riscv.ABGEU,
++	ssa.BlockRISCV64BGEZ: riscv.ABGEZ,
++	ssa.BlockRISCV64BGTZ: riscv.ABGTZ,
++	ssa.BlockRISCV64BLEZ: riscv.ABLEZ,
++	ssa.BlockRISCV64BLT:  riscv.ABLT,
++	ssa.BlockRISCV64BLTU: riscv.ABLTU,
++	ssa.BlockRISCV64BLTZ: riscv.ABLTZ,
++	ssa.BlockRISCV64BNE:  riscv.ABNE,
++	ssa.BlockRISCV64BNEZ: riscv.ABNEZ,
++}
++
+ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
+ 	s.SetPos(b.Pos)
+ 
+@@ -610,27 +625,44 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
+ 		p.To.Type = obj.TYPE_MEM
+ 		p.To.Name = obj.NAME_EXTERN
+ 		p.To.Sym = b.Aux.(*obj.LSym)
+-	case ssa.BlockRISCV64BNE:
++	case ssa.BlockRISCV64BEQ, ssa.BlockRISCV64BEQZ, ssa.BlockRISCV64BNE, ssa.BlockRISCV64BNEZ,
++		ssa.BlockRISCV64BLT, ssa.BlockRISCV64BLEZ, ssa.BlockRISCV64BGE, ssa.BlockRISCV64BGEZ,
++		ssa.BlockRISCV64BLTZ, ssa.BlockRISCV64BGTZ, ssa.BlockRISCV64BLTU, ssa.BlockRISCV64BGEU:
++
++		as := blockBranch[b.Kind]
++		invAs := riscv.InvertBranch(as)
++
+ 		var p *obj.Prog
+ 		switch next {
+ 		case b.Succs[0].Block():
+-			p = s.Br(riscv.ABNE, b.Succs[1].Block())
+-			p.As = riscv.InvertBranch(p.As)
++			p = s.Br(invAs, b.Succs[1].Block())
+ 		case b.Succs[1].Block():
+-			p = s.Br(riscv.ABNE, b.Succs[0].Block())
++			p = s.Br(as, b.Succs[0].Block())
+ 		default:
+ 			if b.Likely != ssa.BranchUnlikely {
+-				p = s.Br(riscv.ABNE, b.Succs[0].Block())
++				p = s.Br(as, b.Succs[0].Block())
+ 				s.Br(obj.AJMP, b.Succs[1].Block())
+ 			} else {
+-				p = s.Br(riscv.ABNE, b.Succs[1].Block())
+-				p.As = riscv.InvertBranch(p.As)
++				p = s.Br(invAs, b.Succs[1].Block())
+ 				s.Br(obj.AJMP, b.Succs[0].Block())
+ 			}
+ 		}
+-		p.Reg = b.Controls[0].Reg()
++
+ 		p.From.Type = obj.TYPE_REG
+-		p.From.Reg = riscv.REG_ZERO
++		switch b.Kind {
++		case ssa.BlockRISCV64BEQ, ssa.BlockRISCV64BNE, ssa.BlockRISCV64BLT, ssa.BlockRISCV64BGE, ssa.BlockRISCV64BLTU, ssa.BlockRISCV64BGEU:
++			if b.NumControls() != 2 {
++				b.Fatalf("Unexpected number of controls (%d != 2): %s", b.NumControls(), b.LongString())
++			}
++			p.From.Reg = b.Controls[0].Reg()
++			p.Reg = b.Controls[1].Reg()
++
++		case ssa.BlockRISCV64BEQZ, ssa.BlockRISCV64BNEZ, ssa.BlockRISCV64BGEZ, ssa.BlockRISCV64BLEZ, ssa.BlockRISCV64BLTZ, ssa.BlockRISCV64BGTZ:
++			if b.NumControls() != 1 {
++				b.Fatalf("Unexpected number of controls (%d != 1): %s", b.NumControls(), b.LongString())
++			}
++			p.From.Reg = b.Controls[0].Reg()
++		}
+ 
+ 	default:
+ 		b.Fatalf("Unhandled block: %s", b.LongString())
+diff --git a/src/cmd/compile/internal/ssa/gen/RISCV64.rules b/src/cmd/compile/internal/ssa/gen/RISCV64.rules
+index f18283680f..845ca58b6e 100644
+--- a/src/cmd/compile/internal/ssa/gen/RISCV64.rules
++++ b/src/cmd/compile/internal/ssa/gen/RISCV64.rules
+@@ -447,13 +447,13 @@
+ 
+ // Conditional branches
+ //
+-// cond is 1 if true. BNE compares against 0.
++// cond is 1 if true.
+ //
+ // TODO(prattmic): RISCV branch instructions take two operands to compare,
+ // so we could generate more efficient code by computing the condition in the
+ // branch itself. This should be revisited now that the compiler has support
+ // for two control values (https://golang.org/cl/196557).
+-(If cond yes no) => (BNE cond yes no)
++(If cond yes no) => (BNEZ cond yes no)
+ 
+ // Calls
+ (StaticCall  ...) => (CALLstatic  ...)
+@@ -483,7 +483,7 @@
+ // Optimizations
+ 
+ // Absorb SNEZ into branch.
+-(BNE (SNEZ x) yes no) => (BNE x yes no)
++(BNEZ (SNEZ x) yes no) => (BNEZ x yes no)
+ 
+ // Store zero
+ (MOVBstore [off] {sym} ptr (MOVBconst [0]) mem) => (MOVBstorezero [off] {sym} ptr mem)
+diff --git a/src/cmd/compile/internal/ssa/gen/RISCV64Ops.go b/src/cmd/compile/internal/ssa/gen/RISCV64Ops.go
+index e191273e23..2f29230746 100644
+--- a/src/cmd/compile/internal/ssa/gen/RISCV64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/RISCV64Ops.go
+@@ -382,7 +382,19 @@ func init() {
+ 	}
+ 
+ 	RISCV64blocks := []blockData{
+-		{name: "BNE", controls: 1}, // Control != 0 (take a register)
++		{name: "BEQ", controls: 2},
++		{name: "BNE", controls: 2},
++		{name: "BLT", controls: 2},
++		{name: "BGE", controls: 2},
++		{name: "BLTU", controls: 2},
++		{name: "BGEU", controls: 2},
++
++		{name: "BEQZ", controls: 1},
++		{name: "BNEZ", controls: 1},
++		{name: "BLEZ", controls: 1},
++		{name: "BGEZ", controls: 1},
++		{name: "BLTZ", controls: 1},
++		{name: "BGTZ", controls: 1},
+ 	}
+ 
+ 	archs = append(archs, arch{
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 44c427ebe3..d708c8480f 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -112,7 +112,18 @@ const (
+ 	BlockPPC64FGT
+ 	BlockPPC64FGE
+ 
++	BlockRISCV64BEQ
+ 	BlockRISCV64BNE
++	BlockRISCV64BLT
++	BlockRISCV64BGE
++	BlockRISCV64BLTU
++	BlockRISCV64BGEU
++	BlockRISCV64BEQZ
++	BlockRISCV64BNEZ
++	BlockRISCV64BLEZ
++	BlockRISCV64BGEZ
++	BlockRISCV64BLTZ
++	BlockRISCV64BGTZ
+ 
+ 	BlockS390XBRC
+ 	BlockS390XCRJ
+@@ -231,7 +242,18 @@ var blockString = [...]string{
+ 	BlockPPC64FGT: "FGT",
+ 	BlockPPC64FGE: "FGE",
+ 
+-	BlockRISCV64BNE: "BNE",
++	BlockRISCV64BEQ:  "BEQ",
++	BlockRISCV64BNE:  "BNE",
++	BlockRISCV64BLT:  "BLT",
++	BlockRISCV64BGE:  "BGE",
++	BlockRISCV64BLTU: "BLTU",
++	BlockRISCV64BGEU: "BGEU",
++	BlockRISCV64BEQZ: "BEQZ",
++	BlockRISCV64BNEZ: "BNEZ",
++	BlockRISCV64BLEZ: "BLEZ",
++	BlockRISCV64BGEZ: "BGEZ",
++	BlockRISCV64BLTZ: "BLTZ",
++	BlockRISCV64BGTZ: "BGTZ",
+ 
+ 	BlockS390XBRC:   "BRC",
+ 	BlockS390XCRJ:   "CRJ",
+diff --git a/src/cmd/compile/internal/ssa/rewriteRISCV64.go b/src/cmd/compile/internal/ssa/rewriteRISCV64.go
+index bfc00309fe..db9f529bae 100644
+--- a/src/cmd/compile/internal/ssa/rewriteRISCV64.go
++++ b/src/cmd/compile/internal/ssa/rewriteRISCV64.go
+@@ -5132,21 +5132,21 @@ func rewriteValueRISCV64_OpZeroExt8to64(v *Value) bool {
+ }
+ func rewriteBlockRISCV64(b *Block) bool {
+ 	switch b.Kind {
+-	case BlockRISCV64BNE:
+-		// match: (BNE (SNEZ x) yes no)
+-		// result: (BNE x yes no)
++	case BlockRISCV64BNEZ:
++		// match: (BNEZ (SNEZ x) yes no)
++		// result: (BNEZ x yes no)
+ 		for b.Controls[0].Op == OpRISCV64SNEZ {
+ 			v_0 := b.Controls[0]
+ 			x := v_0.Args[0]
+-			b.resetWithControl(BlockRISCV64BNE, x)
++			b.resetWithControl(BlockRISCV64BNEZ, x)
+ 			return true
+ 		}
+ 	case BlockIf:
+ 		// match: (If cond yes no)
+-		// result: (BNE cond yes no)
++		// result: (BNEZ cond yes no)
+ 		for {
+ 			cond := b.Controls[0]
+-			b.resetWithControl(BlockRISCV64BNE, cond)
++			b.resetWithControl(BlockRISCV64BNEZ, cond)
+ 			return true
+ 		}
+ 	}

@@ -19,7 +19,7 @@ Date:   Sun Dec 13 08:02:29 2015 -0500
     Reviewed-on: https://go-review.googlesource.com/18057
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/cgo/testcarchive/carchive_test.go             |  7 +-
  src/cmd/dist/test.go                               |  2 +-
  src/cmd/link/internal/ld/data.go                   |  6 ++
@@ -31,3 +31,481 @@ Date:   Sun Dec 13 08:02:29 2015 -0500
  src/runtime/rt0_windows_amd64.s                    | 31 +++++++++
  .../testdata/testprogcgo/threadpanic_windows.c     |  3 +-
  10 files changed, 248 insertions(+), 18 deletions(-)
+
+diff --git a/misc/cgo/testcarchive/carchive_test.go b/misc/cgo/testcarchive/carchive_test.go
+index 97e0c782f2..47e0ceb5c9 100644
+--- a/misc/cgo/testcarchive/carchive_test.go
++++ b/misc/cgo/testcarchive/carchive_test.go
+@@ -118,13 +118,12 @@ func goEnv(key string) string {
+ }
+ 
+ func compilemain(t *testing.T, libgo string) {
+-	ccArgs := append(cc, "-o", "testp"+exeSuffix)
++	ccArgs := append(cc, "-o", "testp"+exeSuffix, "main.c")
+ 	if GOOS == "windows" {
+-		ccArgs = append(ccArgs, "main_windows.c")
++		ccArgs = append(ccArgs, "main_windows.c", libgo, "-lntdll", "-lws2_32")
+ 	} else {
+-		ccArgs = append(ccArgs, "main_unix.c")
++		ccArgs = append(ccArgs, "main_unix.c", libgo)
+ 	}
+-	ccArgs = append(ccArgs, "main.c", libgo)
+ 	t.Log(ccArgs)
+ 
+ 	if out, err := exec.Command(ccArgs[0], ccArgs[1:]...).CombinedOutput(); err != nil {
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 6049057bae..9a9cf2d7e4 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -667,7 +667,7 @@ func (t *tester) supportedBuildmode(mode string) bool {
+ 		}
+ 		switch pair {
+ 		case "darwin-386", "darwin-amd64", "darwin-arm", "darwin-arm64",
+-			"linux-amd64", "linux-386":
++			"linux-amd64", "linux-386", "windows-amd64", "windows-386":
+ 			return true
+ 		}
+ 		return false
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 91f0107626..b658cc4f5c 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -1745,6 +1745,9 @@ func textaddress() {
+ 	sect.Align = int32(Funcalign)
+ 	Linklookup(Ctxt, "runtime.text", 0).Sect = sect
+ 	Linklookup(Ctxt, "runtime.etext", 0).Sect = sect
++	if HEADTYPE == obj.Hwindows {
++		Linklookup(Ctxt, ".text", 0).Sect = sect
++	}
+ 	va := uint64(INITTEXT)
+ 	sect.Vaddr = va
+ 	for sym := Ctxt.Textp; sym != nil; sym = sym.Next {
+@@ -1891,6 +1894,9 @@ func address() {
+ 
+ 	xdefine("runtime.text", obj.STEXT, int64(text.Vaddr))
+ 	xdefine("runtime.etext", obj.STEXT, int64(text.Vaddr+text.Length))
++	if HEADTYPE == obj.Hwindows {
++		xdefine(".text", obj.STEXT, int64(text.Vaddr))
++	}
+ 	xdefine("runtime.rodata", obj.SRODATA, int64(rodata.Vaddr))
+ 	xdefine("runtime.erodata", obj.SRODATA, int64(rodata.Vaddr+rodata.Length))
+ 	xdefine("runtime.typelink", obj.SRODATA, int64(typelink.Vaddr))
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 30ed0f51a4..2a3f4298f5 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -324,6 +324,12 @@ func (mode *BuildMode) Set(s string) error {
+ 	case "c-archive":
+ 		switch goos {
+ 		case "darwin", "linux":
++		case "windows":
++			switch goarch {
++			case "amd64", "386":
++			default:
++				return badmode()
++			}
+ 		default:
+ 			return badmode()
+ 		}
+@@ -1020,6 +1026,15 @@ func archive() {
+ 	}
+ 
+ 	mayberemoveoutfile()
++
++	// Force the buffer to flush here so that external
++	// tools will see a complete file.
++	Cflush()
++	if err := coutbuf.f.Close(); err != nil {
++		Exitf("close: %v", err)
++	}
++	coutbuf.f = nil
++
+ 	argv := []string{extar, "-q", "-c", "-s", outfile}
+ 	argv = append(argv, filepath.Join(tmpdir, "go.o"))
+ 	argv = append(argv, hostobjCopy()...)
+@@ -1890,7 +1905,6 @@ func genasmsym(put func(*LSym, string, int, int64, int64, int, *LSym)) {
+ 	// These symbols won't show up in the first loop below because we
+ 	// skip STEXT symbols. Normal STEXT symbols are emitted by walking textp.
+ 	s := Linklookup(Ctxt, "runtime.text", 0)
+-
+ 	if s.Type == obj.STEXT {
+ 		put(s, s.Name, 'T', s.Value, s.Size, int(s.Version), nil)
+ 	}
+diff --git a/src/cmd/link/internal/ld/pe.go b/src/cmd/link/internal/ld/pe.go
+index 94c7a13208..56698361d0 100644
+--- a/src/cmd/link/internal/ld/pe.go
++++ b/src/cmd/link/internal/ld/pe.go
+@@ -8,6 +8,7 @@ import (
+ 	"cmd/internal/obj"
+ 	"encoding/binary"
+ 	"fmt"
++	"os"
+ 	"sort"
+ 	"strconv"
+ 	"strings"
+@@ -820,7 +821,7 @@ func perelocsect(sect *Section, first *LSym) int {
+ }
+ 
+ // peemitreloc emits relocation entries for go.o in external linking.
+-func peemitreloc(text, data *IMAGE_SECTION_HEADER) {
++func peemitreloc(text, data, ctors *IMAGE_SECTION_HEADER) {
+ 	for Cpos()&7 != 0 {
+ 		Cput(0)
+ 	}
+@@ -870,6 +871,22 @@ func peemitreloc(text, data *IMAGE_SECTION_HEADER) {
+ 		data.PointerToRelocations += 10 // skip the extend reloc entry
+ 	}
+ 	data.NumberOfRelocations = uint16(n - 1)
++
++	dottext := Linklookup(Ctxt, ".text", 0)
++	ctors.NumberOfRelocations = 1
++	ctors.PointerToRelocations = uint32(Cpos())
++	sectoff := ctors.VirtualAddress
++	Lputl(uint32(sectoff))
++	Lputl(uint32(dottext.Dynid))
++	switch obj.Getgoarch() {
++	default:
++		fmt.Fprintf(os.Stderr, "link: unknown architecture for PE: %q\n", obj.Getgoarch())
++		os.Exit(2)
++	case "386":
++		Wputl(IMAGE_REL_I386_DIR32)
++	case "amd64":
++		Wputl(IMAGE_REL_AMD64_ADDR64)
++	}
+ }
+ 
+ func dope() {
+@@ -929,7 +946,11 @@ func writePESymTableRecords() int {
+ 		}
+ 
+ 		// only windows/386 requires underscore prefix on external symbols
+-		if Thearch.Thechar == '8' && Linkmode == LinkExternal && (s.Type == obj.SHOSTOBJ || s.Attr.CgoExport()) && s.Name == s.Extname {
++		if Thearch.Thechar == '8' &&
++			Linkmode == LinkExternal &&
++			(s.Type != obj.SDYNIMPORT || s.Attr.CgoExport()) &&
++			s.Name == s.Extname &&
++			s.Name != "_main" {
+ 			s.Name = "_" + s.Name
+ 		}
+ 
+@@ -984,6 +1005,11 @@ func writePESymTableRecords() int {
+ 				put(s, s.Name, 'U', 0, int64(Thearch.Ptrsize), 0, nil)
+ 			}
+ 		}
++
++		s := Linklookup(Ctxt, ".text", 0)
++		if s.Type == obj.STEXT {
++			put(s, s.Name, 'T', s.Value, s.Size, int(s.Version), nil)
++		}
+ 	}
+ 
+ 	genasmsym(put)
+@@ -1066,6 +1092,42 @@ func addpersrc() {
+ 	dd[IMAGE_DIRECTORY_ENTRY_RESOURCE].Size = h.VirtualSize
+ }
+ 
++func addinitarray() (c *IMAGE_SECTION_HEADER) {
++	// The size below was determined by the specification for array relocations,
++	// and by observing what GCC writes here. If the initarray section grows to
++	// contain more than one constructor entry, the size will need to be 8 * constructor_count.
++	// However, the entire Go runtime is initialized from just one function, so it is unlikely
++	// that this will need to grow in the future.
++	var size int
++	switch obj.Getgoarch() {
++	default:
++		fmt.Fprintf(os.Stderr, "link: unknown architecture for PE: %q\n", obj.Getgoarch())
++		os.Exit(2)
++	case "386":
++		size = 4
++	case "amd64":
++		size = 8
++	}
++
++	c = addpesection(".ctors", size, size)
++	c.Characteristics = IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ
++	c.SizeOfRawData = uint32(size)
++
++	Cseek(int64(c.PointerToRawData))
++	chksectoff(c, Cpos())
++	init_entry := Linklookup(Ctxt, INITENTRY, 0)
++	addr := uint64(init_entry.Value) - init_entry.Sect.Vaddr
++
++	switch obj.Getgoarch() {
++	case "386":
++		Lputl(uint32(addr))
++	case "amd64":
++		Vputl(addr)
++	}
++
++	return c
++}
++
+ func Asmbpe() {
+ 	switch Thearch.Thechar {
+ 	default:
+@@ -1087,6 +1149,7 @@ func Asmbpe() {
+ 	textsect = pensect
+ 
+ 	var d *IMAGE_SECTION_HEADER
++	var c *IMAGE_SECTION_HEADER
+ 	if Linkmode != LinkExternal {
+ 		d = addpesection(".data", int(Segdata.Length), int(Segdata.Filelen))
+ 		d.Characteristics = IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE
+@@ -1102,6 +1165,8 @@ func Asmbpe() {
+ 		b.Characteristics = IMAGE_SCN_CNT_UNINITIALIZED_DATA | IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE | IMAGE_SCN_ALIGN_32BYTES
+ 		b.PointerToRawData = 0
+ 		bsssect = pensect
++
++		c = addinitarray()
+ 	}
+ 
+ 	if Debug['s'] == 0 {
+@@ -1116,7 +1181,7 @@ func Asmbpe() {
+ 	addpesymtable()
+ 	addpersrc()
+ 	if Linkmode == LinkExternal {
+-		peemitreloc(t, d)
++		peemitreloc(t, d, c)
+ 	}
+ 
+ 	fh.NumberOfSections = uint16(pensect)
+diff --git a/src/runtime/cgo/gcc_libinit_windows.c b/src/runtime/cgo/gcc_libinit_windows.c
+index eb798ce5e8..50887b844d 100644
+--- a/src/runtime/cgo/gcc_libinit_windows.c
++++ b/src/runtime/cgo/gcc_libinit_windows.c
+@@ -2,21 +2,89 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build cgo
++#define WIN64_LEAN_AND_MEAN
++#include <windows.h>
++#include <process.h>
++
+ #include <stdio.h>
+ #include <stdlib.h>
+ 
++static volatile long runtime_init_once_gate = 0;
++static volatile long runtime_init_once_done = 0;
++
++static CRITICAL_SECTION runtime_init_cs;
++
++static HANDLE runtime_init_wait;
++static int runtime_init_done;
++
++// Pre-initialize the runtime synchronization objects
++void
++_cgo_preinit_init() {
++	 runtime_init_wait = CreateEvent(NULL, TRUE, FALSE, NULL);
++	 if (runtime_init_wait == NULL) {
++		fprintf(stderr, "runtime: failed to create runtime initialization wait event.\n");
++		abort();
++	 }
++
++	 InitializeCriticalSection(&runtime_init_cs);
++}
++
++// Make sure that the preinit sequence has run.
++void
++_cgo_maybe_run_preinit() {
++	 if (!InterlockedExchangeAdd(&runtime_init_once_done, 0)) {
++			if (InterlockedIncrement(&runtime_init_once_gate) == 1) {
++				 _cgo_preinit_init();
++				 InterlockedIncrement(&runtime_init_once_done);
++			} else {
++				 // Decrement to avoid overflow.
++				 InterlockedDecrement(&runtime_init_once_gate);
++				 while(!InterlockedExchangeAdd(&runtime_init_once_done, 0)) {
++						Sleep(0);
++				 }
++			}
++	 }
++}
++
+ void
+-x_cgo_sys_thread_create(void* (*func)(void*), void* arg) {
+-	fprintf(stderr, "x_cgo_sys_thread_create not implemented");
+-	abort();
++x_cgo_sys_thread_create(void (*func)(void*), void* arg) {
++	uintptr_t thandle;
++
++	thandle = _beginthread(func, 0, arg);
++	if(thandle == -1) {
++		fprintf(stderr, "runtime: failed to create new OS thread (%d)\n", errno);
++		abort();
++	}
++}
++
++int
++_cgo_is_runtime_initialized() {
++	 EnterCriticalSection(&runtime_init_cs);
++	 int status = runtime_init_done;
++	 LeaveCriticalSection(&runtime_init_cs);
++	 return status;
+ }
+ 
+ void
+ _cgo_wait_runtime_init_done() {
+-	// TODO(spetrovic): implement this method.
++	 _cgo_maybe_run_preinit();
++	while (!_cgo_is_runtime_initialized()) {
++			WaitForSingleObject(runtime_init_wait, INFINITE);
++	}
+ }
+ 
+ void
+ x_cgo_notify_runtime_init_done(void* dummy) {
+-	// TODO(spetrovic): implement this method.
+-}
+\ No newline at end of file
++	 _cgo_maybe_run_preinit();
++
++	 EnterCriticalSection(&runtime_init_cs);
++	runtime_init_done = 1;
++	 LeaveCriticalSection(&runtime_init_cs);
++
++	 if (!SetEvent(runtime_init_wait)) {
++		fprintf(stderr, "runtime: failed to signal runtime initialization complete.\n");
++		abort();
++	}
++}
++
+diff --git a/src/runtime/os1_windows.go b/src/runtime/os1_windows.go
+index 3adaebe9de..e6b1a30ecf 100644
+--- a/src/runtime/os1_windows.go
++++ b/src/runtime/os1_windows.go
+@@ -396,8 +396,11 @@ func semacreate(mp *m) {
+ 	mp.waitsema = stdcall4(_CreateEventA, 0, 0, 0, 0)
+ }
+ 
+-// May run with m.p==nil, so write barriers are not allowed.
+-//go:nowritebarrier
++// May run with m.p==nil, so write barriers are not allowed. This
++// function is called by newosproc0, so it is also required to
++// operate without stack guards.
++//go:nowritebarrierc
++//go:nosplit
+ func newosproc(mp *m, stk unsafe.Pointer) {
+ 	const _STACK_SIZE_PARAM_IS_A_RESERVATION = 0x00010000
+ 	thandle := stdcall6(_CreateThread, 0, 0x20000,
+@@ -409,6 +412,15 @@ func newosproc(mp *m, stk unsafe.Pointer) {
+ 	}
+ }
+ 
++// Used by the C library build mode. On Linux this function would allocate a
++// stack, but that's not necessary for Windows. No stack guards are present
++// and the GC has not been initialized, so write barriers will fail.
++//go:nowritebarrierc
++//go:nosplit
++func newosproc0(mp *m, stk unsafe.Pointer) {
++	newosproc(mp, stk)
++}
++
+ // Called to initialize a new m (including the bootstrap m).
+ // Called on the parent thread (main thread in case of bootstrap), can allocate memory.
+ func mpreinit(mp *m) {
+diff --git a/src/runtime/rt0_windows_386.s b/src/runtime/rt0_windows_386.s
+index 0150cc2918..b9407a9879 100644
+--- a/src/runtime/rt0_windows_386.s
++++ b/src/runtime/rt0_windows_386.s
+@@ -12,5 +12,39 @@ TEXT _rt0_386_windows(SB),NOSPLIT,$12
+ 	MOVL	$-1, 0(SP) // return PC for main
+ 	JMP	_main(SB)
+ 
++// When building with -buildmode=(c-shared or c-archive), this
++// symbol is called. For dynamic libraries it is called when the
++// library is loaded. For static libraries it is called when the
++// final executable starts, during the C runtime initialization
++// phase.
++TEXT _rt0_386_windows_lib(SB),NOSPLIT,$0x1C
++	MOVL	BP, 0x08(SP)
++	MOVL	BX, 0x0C(SP)
++	MOVL	AX, 0x10(SP)
++	MOVL  CX, 0x14(SP)
++	MOVL  DX, 0x18(SP)
++
++	// Create a new thread to do the runtime initialization and return.
++	MOVL	_cgo_sys_thread_create(SB), AX
++	MOVL	$_rt0_386_windows_lib_go(SB), 0x00(SP)
++	MOVL	$0, 0x04(SP)
++
++	 // Top two items on the stack are passed to _cgo_sys_thread_create
++	 // as parameters. This is the calling convention on 32-bit Windows.
++	CALL	AX
++
++	MOVL	0x08(SP), BP
++	MOVL	0x0C(SP), BX
++	MOVL	0x10(SP), AX
++	MOVL	0x14(SP), CX
++	MOVL	0x18(SP), DX
++	RET
++
++TEXT _rt0_386_windows_lib_go(SB),NOSPLIT,$0
++	MOVL  $0, DI
++	MOVL	$0, SI
++	MOVL	$runtime·rt0_go(SB), AX
++	JMP	AX
++
+ TEXT _main(SB),NOSPLIT,$0
+ 	JMP	runtime·rt0_go(SB)
+diff --git a/src/runtime/rt0_windows_amd64.s b/src/runtime/rt0_windows_amd64.s
+index 95dce06d71..2f73b37f31 100644
+--- a/src/runtime/rt0_windows_amd64.s
++++ b/src/runtime/rt0_windows_amd64.s
+@@ -12,6 +12,37 @@ TEXT _rt0_amd64_windows(SB),NOSPLIT,$-8
+ 	MOVQ	$main(SB), AX
+ 	JMP	AX
+ 
++// When building with -buildmode=(c-shared or c-archive), this
++// symbol is called. For dynamic libraries it is called when the
++// library is loaded. For static libraries it is called when the
++// final executable starts, during the C runtime initialization
++// phase.
++TEXT _rt0_amd64_windows_lib(SB),NOSPLIT,$0x28
++	MOVQ	BP, 0x00(SP)
++	MOVQ	BX, 0x08(SP)
++	MOVQ	AX, 0x10(SP)
++	MOVQ  CX, 0x18(SP)
++	MOVQ  DX, 0x20(SP)
++
++	// Create a new thread to do the runtime initialization and return.
++	MOVQ	_cgo_sys_thread_create(SB), AX
++	MOVQ	$_rt0_amd64_windows_lib_go(SB), CX
++	MOVQ	$0, DX
++	CALL	AX
++
++	MOVQ	0x00(SP), BP
++	MOVQ	0x08(SP), BX
++	MOVQ	0x10(SP), AX
++	MOVQ	0x18(SP), CX
++	MOVQ	0x20(SP), DX
++	RET
++
++TEXT _rt0_amd64_windows_lib_go(SB),NOSPLIT,$0
++	MOVQ  $0, DI
++	MOVQ	$0, SI
++	MOVQ	$runtime·rt0_go(SB), AX
++	JMP	AX
++
+ TEXT main(SB),NOSPLIT,$-8
+ 	MOVQ	$runtime·rt0_go(SB), AX
+ 	JMP	AX
+diff --git a/src/runtime/testdata/testprogcgo/threadpanic_windows.c b/src/runtime/testdata/testprogcgo/threadpanic_windows.c
+index cf960db53a..6f896634a6 100644
+--- a/src/runtime/testdata/testprogcgo/threadpanic_windows.c
++++ b/src/runtime/testdata/testprogcgo/threadpanic_windows.c
+@@ -2,12 +2,13 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++#include <process.h>
+ #include <stdlib.h>
+ #include <stdio.h>
+ 
+ void gopanic(void);
+ 
+-static void*
++static unsigned int
+ die(void* x)
+ {
+ 	gopanic();

@@ -9,7 +9,7 @@ Date:   Thu Dec 18 09:54:32 2014 -0800
     Reviewed-by: Minux Ma <minux@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  test/fixedbugs/gcc61204.go | 17 +++++++++++++++++
  test/fixedbugs/gcc61244.go | 19 +++++++++++++++++++
  test/fixedbugs/gcc61246.go | 17 +++++++++++++++++
@@ -22,3 +22,241 @@ Date:   Thu Dec 18 09:54:32 2014 -0800
  test/fixedbugs/gcc61265.go | 16 ++++++++++++++++
  test/fixedbugs/gcc61273.go | 16 ++++++++++++++++
  11 files changed, 171 insertions(+)
+
+diff --git a/test/fixedbugs/gcc61204.go b/test/fixedbugs/gcc61204.go
+new file mode 100644
+index 0000000000..5a5bb16924
+--- /dev/null
++++ b/test/fixedbugs/gcc61204.go
+@@ -0,0 +1,17 @@
++// compile
++
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// PR61204: Making temporaries for zero-sized types caused an ICE in gccgo.
++// This is a reduction of a program reported by GoSmith.
++
++package main
++
++func main() {
++	type t [0]int
++	var v t
++	v, _ = [0]int{}, 0
++	_ = v
++}
+diff --git a/test/fixedbugs/gcc61244.go b/test/fixedbugs/gcc61244.go
+new file mode 100644
+index 0000000000..7fbc872002
+--- /dev/null
++++ b/test/fixedbugs/gcc61244.go
+@@ -0,0 +1,19 @@
++// compile
++
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// PR61244: Type descriptors expressions were not traversed, causing an ICE
++// in gccgo when producing the backend representation.
++// This is a reduction of a program reported by GoSmith.
++
++package main
++
++const a = 0
++
++func main() {
++	switch i := (interface{})(a); i.(type) {
++	case [0]string:
++	}
++}
+diff --git a/test/fixedbugs/gcc61246.go b/test/fixedbugs/gcc61246.go
+new file mode 100644
+index 0000000000..4866570b42
+--- /dev/null
++++ b/test/fixedbugs/gcc61246.go
+@@ -0,0 +1,17 @@
++// compile
++
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// PR61246: Switch conditions could be untyped, causing an ICE when the
++// conditions were lowered into temporaries.
++// This is a reduction of a program reported by GoSmith.
++
++package main
++
++func main() {
++	switch 1 != 1 {
++	default:
++	}
++}
+diff --git a/test/fixedbugs/gcc61248.go b/test/fixedbugs/gcc61248.go
+new file mode 100644
+index 0000000000..593c634187
+--- /dev/null
++++ b/test/fixedbugs/gcc61248.go
+@@ -0,0 +1,14 @@
++// compile
++
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// PR61248: Transformations to recover calls made them fail typechecking in gccgo.
++
++package main
++
++func main() {
++	var f func(int, interface{})
++	go f(0, recover())
++}
+diff --git a/test/fixedbugs/gcc61253.go b/test/fixedbugs/gcc61253.go
+new file mode 100644
+index 0000000000..dc125ac6e8
+--- /dev/null
++++ b/test/fixedbugs/gcc61253.go
+@@ -0,0 +1,20 @@
++// compile
++
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// PR61253: gccgo incorrectly parsed the
++// `RecvStmt = ExpressionList "=" RecvExpr` production.
++
++package main
++
++func main() {
++	c := make(chan int)
++	v := new(int)
++	b := new(bool)
++	select {
++	case (*v), (*b) = <-c:
++	}
++
++}
+diff --git a/test/fixedbugs/gcc61254.go b/test/fixedbugs/gcc61254.go
+new file mode 100644
+index 0000000000..36ac7d48e6
+--- /dev/null
++++ b/test/fixedbugs/gcc61254.go
+@@ -0,0 +1,13 @@
++// compile
++
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// PR61254: gccgo failed to compile a slice expression with missing indices.
++
++package main
++
++func main() {
++	[][]int{}[:][0][0]++
++}
+diff --git a/test/fixedbugs/gcc61255.go b/test/fixedbugs/gcc61255.go
+new file mode 100644
+index 0000000000..a0e6d18900
+--- /dev/null
++++ b/test/fixedbugs/gcc61255.go
+@@ -0,0 +1,13 @@
++// compile
++
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// PR61255: gccgo failed to compile IncDec statements on variadic functions.
++
++package main
++
++func main() {
++	append([]byte{}, 0)[0]++
++}
+diff --git a/test/fixedbugs/gcc61258.go b/test/fixedbugs/gcc61258.go
+new file mode 100644
+index 0000000000..8474665c95
+--- /dev/null
++++ b/test/fixedbugs/gcc61258.go
+@@ -0,0 +1,13 @@
++// run
++
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// PR61258: gccgo crashed when deleting a zero-sized key from a map.
++
++package main
++
++func main() {
++	delete(make(map[[0]bool]int), [0]bool{})
++}
+diff --git a/test/fixedbugs/gcc61264.go b/test/fixedbugs/gcc61264.go
+new file mode 100644
+index 0000000000..d4e05f4d1e
+--- /dev/null
++++ b/test/fixedbugs/gcc61264.go
+@@ -0,0 +1,13 @@
++// compile
++
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// PR61264: IncDec statements involving composite literals caused in ICE in gccgo.
++
++package main
++
++func main() {
++        map[int]int{}[0]++
++}
+diff --git a/test/fixedbugs/gcc61265.go b/test/fixedbugs/gcc61265.go
+new file mode 100644
+index 0000000000..42fae369b6
+--- /dev/null
++++ b/test/fixedbugs/gcc61265.go
+@@ -0,0 +1,16 @@
++// compile
++
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// PR61265: The gccgo middle-end failed to represent array composite literals
++// where the elements are zero-sized values.
++// This is a reduction of a program reported by GoSmith.
++
++package p
++
++var a = [1][0]int{B}[0]
++var B = [0]int{}
++var c = [1]struct{}{D}[0]
++var D = struct{}{}
+diff --git a/test/fixedbugs/gcc61273.go b/test/fixedbugs/gcc61273.go
+new file mode 100644
+index 0000000000..2983222337
+--- /dev/null
++++ b/test/fixedbugs/gcc61273.go
+@@ -0,0 +1,16 @@
++// compile
++
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// PR61273: gccgo failed to compile a SendStmt in the PostStmt of a ForClause
++// that involved predefined constants.
++
++package main
++
++func main() {
++	c := make(chan bool, 1)
++	for ; false; c <- false {
++	}
++}

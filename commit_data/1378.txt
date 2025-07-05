@@ -11,7 +11,7 @@ Date:   Fri Dec 19 03:13:39 2008 -0800
     DELTA=424  (333 added, 29 deleted, 62 changed)
     OCL=21553
     CL=21584
-
+---
  src/lib/malloc.go       |   2 +-
  src/runtime/malloc.c    | 141 +++++++++++++++++++++++++++++++++++++++++++-----
  src/runtime/malloc.h    |  19 +++++--
@@ -25,3 +25,856 @@ Date:   Fri Dec 19 03:13:39 2008 -0800
  test/mallocrep.go       |   4 +-
  test/mallocrep1.go      | 130 ++++++++++++++++++++++++++++++++++++++++++++
  12 files changed, 394 insertions(+), 89 deletions(-)
+
+diff --git a/src/lib/malloc.go b/src/lib/malloc.go
+index 11e2e28df0..14d372b4f7 100644
+--- a/src/lib/malloc.go
++++ b/src/lib/malloc.go
+@@ -16,4 +16,4 @@ type Stats struct {
+ export func Alloc(uint64) *byte;
+ export func Free(*byte);
+ export func GetStats() *Stats;
+-
++export func Lookup(*byte) (*byte, uint64);
+diff --git a/src/runtime/malloc.c b/src/runtime/malloc.c
+index 6246fa9d52..744e1222b7 100644
+--- a/src/runtime/malloc.c
++++ b/src/runtime/malloc.c
+@@ -25,6 +25,10 @@ malloc(uintptr size)
+ 	MSpan *s;
+ 	void *v;
+ 
++	if(m->mallocing)
++		throw("malloc - deadlock");
++	m->mallocing = 1;
++
+ 	if(size == 0)
+ 		size = 1;
+ 
+@@ -35,22 +39,24 @@ malloc(uintptr size)
+ 		c = m->mcache;
+ 		v = MCache_Alloc(c, sizeclass, size);
+ 		if(v == nil)
+-			return nil;
++			throw("out of memory");
+ 		mstats.alloc += size;
+-		return v;
++	} else {
++		// TODO(rsc): Report tracebacks for very large allocations.
++
++		// Allocate directly from heap.
++		npages = size >> PageShift;
++		if((size & PageMask) != 0)
++			npages++;
++		s = MHeap_Alloc(&mheap, npages, 0);
++		if(s == nil)
++			throw("out of memory");
++		mstats.alloc += npages<<PageShift;
++		v = (void*)(s->start << PageShift);
+ 	}
+ 
+-	// TODO(rsc): Report tracebacks for very large allocations.
+-
+-	// Allocate directly from heap.
+-	npages = size >> PageShift;
+-	if((size & PageMask) != 0)
+-		npages++;
+-	s = MHeap_Alloc(&mheap, npages, 0);
+-	if(s == nil)
+-		return nil;
+-	mstats.alloc += npages<<PageShift;
+-	return (void*)(s->start << PageShift);
++	m->mallocing = 0;
++	return v;
+ }
+ 
+ // Free the object whose base pointer is v.
+@@ -89,6 +95,34 @@ free(void *v)
+ 	MCache_Free(c, v, sizeclass, size);
+ }
+ 
++void
++mlookup(void *v, byte **base, uintptr *size)
++{
++	uintptr n, off;
++	byte *p;
++	MSpan *s;
++
++	s = MHeap_Lookup(&mheap, (uintptr)v>>PageShift);
++	if(s == nil) {
++		*base = nil;
++		*size = 0;
++		return;
++	}
++
++	p = (byte*)((uintptr)s->start<<PageShift);
++	if(s->sizeclass == 0) {
++		// Large object.
++		*base = p;
++		*size = s->npages<<PageShift;
++		return;
++	}
++
++	n = class_to_size[s->sizeclass];
++	off = ((byte*)v - p)/n * n;
++	*base = p+off;
++	*size = n;
++}
++
+ MCache*
+ allocmcache(void)
+ {
+@@ -144,6 +178,80 @@ SysFree(void *v, uintptr n)
+ 	// TODO(rsc): call munmap
+ }
+ 
++// Runtime stubs.
++
++extern void *oldmal(uint32);
++
++void*
++mal(uint32 n)
++{
++//return oldmal(n);
++	void *v;
++
++	v = malloc(n);
++
++	if(0) {
++		byte *p;
++		int32 i;
++		p = v;
++		for(i=0; i<n; i++) {
++			if(p[i] != 0) {
++				printf("mal %d => %p: byte %d is non-zero\n", n, v, i);
++				throw("mal");
++			}
++		}
++	}
++
++//printf("mal %d %p\n", n, v);  // |checkmal to check for overlapping returns.
++	return v;
++}
++
++// Stack allocator uses malloc/free most of the time,
++// but if we're in the middle of malloc and need stack,
++// we have to do something else to avoid deadlock.
++// In that case, we fall back on a fixed-size free-list
++// allocator, assuming that inside malloc all the stack
++// frames are small, so that all the stack allocations
++// will be a single size, the minimum (right now, 5k).
++struct {
++	Lock;
++	FixAlloc;
++} stacks;
++
++void*
++stackalloc(uint32 n)
++{
++	void *v;
++
++//return oldmal(n);
++	if(m->mallocing) {
++		lock(&stacks);
++		if(stacks.size == 0)
++			FixAlloc_Init(&stacks, n, SysAlloc);
++		if(stacks.size != n) {
++			printf("stackalloc: in malloc, size=%D want %d", stacks.size, n);
++			throw("stackalloc");
++		}
++		v = FixAlloc_Alloc(&stacks);
++		unlock(&stacks);
++		return v;
++	}
++	return malloc(n);
++}
++
++void
++stackfree(void *v)
++{
++//return;
++
++	if(m->mallocing) {
++		lock(&stacks);
++		FixAlloc_Free(&stacks, v);
++		unlock(&stacks);
++		return;
++	}
++	free(v);
++}
+ 
+ // Go function stubs.
+ 
+@@ -160,10 +268,15 @@ malloc·Free(byte *p)
+ 	free(p);
+ }
+ 
++void
++malloc·Lookup(byte *p, byte *base, uintptr size)
++{
++	mlookup(p, &base, &size);
++}
++
+ void
+ malloc·GetStats(MStats *s)
+ {
+ 	s = &mstats;
+ 	FLUSH(&s);
+ }
+-
+diff --git a/src/runtime/malloc.h b/src/runtime/malloc.h
+index e2a4af9ef8..9c71e631ac 100644
+--- a/src/runtime/malloc.h
++++ b/src/runtime/malloc.h
+@@ -62,7 +62,7 @@
+ //	4. If the heap has too much memory, return some to the
+ //	   operating system.
+ //
+-//	TODO(rsc): Steps 2, 3, 4 are not implemented.
++//	TODO(rsc): Step 4 is not implemented.
+ //
+ // Allocating and freeing a large object uses the page heap
+ // directly, bypassing the MCache and MCentral free lists.
+@@ -79,6 +79,7 @@ typedef struct MHeapMap	MHeapMap;
+ typedef struct MHeapMapCache	MHeapMapCache;
+ typedef struct MSpan	MSpan;
+ typedef struct MStats	MStats;
++typedef struct MLink	MLink;
+ 
+ enum
+ {
+@@ -102,6 +103,12 @@ enum
+ };
+ 
+ 
++// A generic linked list of blocks.  (Typically the block is bigger than sizeof(MLink).)
++struct MLink
++{
++	MLink *next;
++};
++
+ // SysAlloc obtains a large chunk of memory from the operating system,
+ // typically on the order of a hundred kilobytes or a megabyte.
+ //
+@@ -129,7 +136,7 @@ struct FixAlloc
+ {
+ 	uintptr size;
+ 	void *(*alloc)(uintptr);
+-	void *list;
++	MLink *list;
+ 	byte *chunk;
+ 	uint32 nchunk;
+ };
+@@ -146,6 +153,7 @@ struct MStats
+ {
+ 	uint64	alloc;
+ 	uint64	sys;
++	uint64	stacks;
+ };
+ extern MStats mstats;
+ 
+@@ -175,8 +183,9 @@ extern	void	InitSizes(void);
+ typedef struct MCacheList MCacheList;
+ struct MCacheList
+ {
+-	void *list;
++	MLink *list;
+ 	uint32 nlist;
++	uint32 nlistmin;
+ };
+ 
+ struct MCache
+@@ -230,8 +239,8 @@ struct MCentral
+ };
+ 
+ void	MCentral_Init(MCentral *c, int32 sizeclass);
+-int32	MCentral_AllocList(MCentral *c, int32 n, void **start, void **end);
+-void	MCentral_FreeList(MCentral *c, int32 n, void *start, void *end);
++int32	MCentral_AllocList(MCentral *c, int32 n, MLink **first);
++void	MCentral_FreeList(MCentral *c, int32 n, MLink *first);
+ 
+ 
+ // Free(v) must be able to determine the MSpan containing v.
+diff --git a/src/runtime/mcache.c b/src/runtime/mcache.c
+index 01a718ac34..ae25940230 100644
+--- a/src/runtime/mcache.c
++++ b/src/runtime/mcache.c
+@@ -13,7 +13,7 @@ void*
+ MCache_Alloc(MCache *c, int32 sizeclass, uintptr size)
+ {
+ 	MCacheList *l;
+-	void *v, *start, *end;
++	MLink *first, *v;
+ 	int32 n;
+ 
+ 	// Allocate from list.
+@@ -21,41 +21,85 @@ MCache_Alloc(MCache *c, int32 sizeclass, uintptr size)
+ 	if(l->list == nil) {
+ 		// Replenish using central lists.
+ 		n = MCentral_AllocList(&mheap.central[sizeclass],
+-			class_to_transfercount[sizeclass], &start, &end);
+-		if(n == 0)
+-			return nil;
+-		l->list = start;
++			class_to_transfercount[sizeclass], &first);
++		l->list = first;
+ 		l->nlist = n;
+ 		c->size += n*size;
+ 	}
+ 	v = l->list;
+-	l->list = *(void**)v;
++	l->list = v->next;
+ 	l->nlist--;
++	if(l->nlist < l->nlistmin)
++		l->nlistmin = l->nlist;
+ 	c->size -= size;
+ 
+ 	// v is zeroed except for the link pointer
+ 	// that we used above; zero that.
+-	*(void**)v = nil;
++	v->next = nil;
+ 	return v;
+ }
+ 
++// Take n elements off l and return them to the central free list.
++static void
++ReleaseN(MCache *c, MCacheList *l, int32 n, int32 sizeclass)
++{
++	MLink *first, **lp;
++	int32 i;
++
++	// Cut off first n elements.
++	first = l->list;
++	lp = &l->list;
++	for(i=0; i<n; i++)
++		lp = &(*lp)->next;
++	l->list = *lp;
++	*lp = nil;
++	l->nlist -= n;
++	if(l->nlist < l->nlistmin)
++		l->nlistmin = l->nlist;
++	c->size -= n*class_to_size[sizeclass];
++
++	// Return them to central free list.
++	MCentral_FreeList(&mheap.central[sizeclass], n, first);
++}
++
+ void
+-MCache_Free(MCache *c, void *p, int32 sizeclass, uintptr size)
++MCache_Free(MCache *c, void *v, int32 sizeclass, uintptr size)
+ {
++	int32 i, n;
+ 	MCacheList *l;
++	MLink *p;
+ 
+ 	// Put back on list.
+ 	l = &c->list[sizeclass];
+-	*(void**)p = l->list;
++	p = v;
++	p->next = l->list;
+ 	l->list = p;
+ 	l->nlist++;
+ 	c->size += size;
+ 
+ 	if(l->nlist >= MaxMCacheListLen) {
+-		// TODO(rsc): Release to central cache.
++		// Release a chunk back.
++		ReleaseN(c, l, class_to_transfercount[sizeclass], sizeclass);
+ 	}
++
+ 	if(c->size >= MaxMCacheSize) {
+-		// TODO(rsc): Scavenge.
++		// Scavenge.
++		for(i=0; i<NumSizeClasses; i++) {
++			l = &c->list[i];
++			n = l->nlistmin;
++
++			// n is the minimum number of elements we've seen on
++			// the list since the last scavenge.  If n > 0, it means that
++			// we could have gotten by with n fewer elements
++			// without needing to consult the central free list.
++			// Move toward that situation by releasing n/2 of them.
++			if(n > 0) {
++				if(n > 1)
++					n /= 2;
++				ReleaseN(c, l, n, i);
++			}
++			l->nlistmin = l->nlist;
++		}
+ 	}
+ }
+ 
+diff --git a/src/runtime/mcentral.c b/src/runtime/mcentral.c
+index 775ccb32d5..badf68eae2 100644
+--- a/src/runtime/mcentral.c
++++ b/src/runtime/mcentral.c
+@@ -35,42 +35,35 @@ MCentral_Init(MCentral *c, int32 sizeclass)
+ // The objects are linked together by their first words.
+ // On return, *pstart points at the first object and *pend at the last.
+ int32
+-MCentral_AllocList(MCentral *c, int32 n, void **pstart, void **pend)
++MCentral_AllocList(MCentral *c, int32 n, MLink **pfirst)
+ {
+-	void *start, *end, *v;
++	MLink *first, *last, *v;
+ 	int32 i;
+ 
+-	*pstart = nil;
+-	*pend = nil;
+ 
+ 	lock(c);
+-
+ 	// Replenish central list if empty.
+ 	if(MSpanList_IsEmpty(&c->nonempty)) {
+ 		if(!MCentral_Grow(c)) {
+ 			unlock(c);
++			*pfirst = nil;
+ 			return 0;
+ 		}
+ 	}
+ 
+ 	// Copy from list, up to n.
+-	start = nil;
+-	end = nil;
+-	for(i=0; i<n; i++) {
+-		v = MCentral_Alloc(c);
+-		if(v == nil)
+-			break;
+-		if(start == nil)
+-			start = v;
+-		else
+-			*(void**)end = v;
+-		end = v;
++	// First one is guaranteed to work, because we just grew the list.
++	first = MCentral_Alloc(c);
++	last = first;
++	for(i=1; i<n && (v = MCentral_Alloc(c)) != nil; i++) {
++		last->next = v;
++		last = v;
+ 	}
++	last->next = nil;
+ 	c->nfree -= i;
+ 
+ 	unlock(c);
+-	*pstart = start;
+-	*pend = end;
++	*pfirst = first;
+ 	return i;
+ }
+ 
+@@ -79,18 +72,18 @@ static void*
+ MCentral_Alloc(MCentral *c)
+ {
+ 	MSpan *s;
+-	void *v;
++	MLink *v;
+ 
+ 	if(MSpanList_IsEmpty(&c->nonempty))
+ 		return nil;
+ 	s = c->nonempty.next;
++	s->ref++;
+ 	v = s->freelist;
+-	s->freelist = *(void**)v;
++	s->freelist = v->next;
+ 	if(s->freelist == nil) {
+ 		MSpanList_Remove(s);
+ 		MSpanList_Insert(&c->empty, s);
+ 	}
+-	s->ref++;
+ 	return v;
+ }
+ 
+@@ -99,19 +92,18 @@ MCentral_Alloc(MCentral *c)
+ // The objects are linked together by their first words.
+ // On return, *pstart points at the first object and *pend at the last.
+ void
+-MCentral_FreeList(MCentral *c, int32 n, void *start, void *end)
++MCentral_FreeList(MCentral *c, int32 n, void *start)
+ {
+-	void *v, *next;
++	MLink *v, *next;
+ 
+-	// Assume *(void**)end = nil marks end of list.
++	// Assume next == nil marks end of list.
+ 	// n and end would be useful if we implemented
+ 	// the transfer cache optimization in the TODO above.
+ 	USED(n);
+-	USED(end);
+ 
+ 	lock(c);
+ 	for(v=start; v; v=next) {
+-		next = *(void**)v;
++		next = v->next;
+ 		MCentral_Free(c, v);
+ 	}
+ 	unlock(c);
+@@ -122,11 +114,12 @@ static void
+ MCentral_Free(MCentral *c, void *v)
+ {
+ 	MSpan *s;
+-	PageID p;
++	PageID page;
++	MLink *p, *next;
+ 
+ 	// Find span for v.
+-	p = (uintptr)v >> PageShift;
+-	s = MHeap_Lookup(&mheap, p);
++	page = (uintptr)v >> PageShift;
++	s = MHeap_Lookup(&mheap, page);
+ 	if(s == nil || s->ref == 0)
+ 		throw("invalid free");
+ 
+@@ -137,13 +130,21 @@ MCentral_Free(MCentral *c, void *v)
+ 	}
+ 
+ 	// Add v back to s's free list.
+-	*(void**)v = s->freelist;
+-	s->freelist = v;
++	p = v;
++	p->next = s->freelist;
++	s->freelist = p;
+ 	c->nfree++;
+ 
+ 	// If s is completely freed, return it to the heap.
+ 	if(--s->ref == 0) {
+ 		MSpanList_Remove(s);
++		// Freed blocks are zeroed except for the link pointer.
++		// Zero the link pointers so that the page is all zero.
++		for(p=s->freelist; p; p=next) {
++			next = p->next;
++			p->next = nil;
++		}
++		s->freelist = nil;
+ 		c->nfree -= (s->npages << PageShift) / class_to_size[c->sizeclass];
+ 		unlock(c);
+ 		MHeap_Free(&mheap, s);
+@@ -157,7 +158,7 @@ static bool
+ MCentral_Grow(MCentral *c)
+ {
+ 	int32 n, npages, size;
+-	void **tail;
++	MLink **tailp, *v;
+ 	byte *p, *end;
+ 	MSpan *s;
+ 
+@@ -171,17 +172,18 @@ MCentral_Grow(MCentral *c)
+ 	}
+ 
+ 	// Carve span into sequence of blocks.
+-	tail = &s->freelist;
++	tailp = &s->freelist;
+ 	p = (byte*)(s->start << PageShift);
+ 	end = p + (npages << PageShift);
+ 	size = class_to_size[c->sizeclass];
+ 	n = 0;
+ 	for(; p + size <= end; p += size) {
+-		*tail = p;
+-		tail = (void**)p;
++		v = (MLink*)p;
++		*tailp = v;
++		tailp = &v->next;
+ 		n++;
+ 	}
+-	*tail = nil;
++	*tailp = nil;
+ 
+ 	lock(c);
+ 	c->nfree += n;
+diff --git a/src/runtime/mem.c b/src/runtime/mem.c
+index 0db941e81d..8e7a472545 100644
+--- a/src/runtime/mem.c
++++ b/src/runtime/mem.c
+@@ -23,17 +23,6 @@ enum
+ 	MAP_ANON	= 0x1000,	// not on Linux - TODO(rsc)
+ };
+ 
+-void*
+-stackalloc(uint32 n)
+-{
+-	return mal(n);
+-}
+-
+-void
+-stackfree(void*)
+-{
+-}
+-
+ // Convenient wrapper around mmap.
+ static void*
+ brk(uint32 n)
+@@ -51,7 +40,7 @@ brk(uint32 n)
+ // right here?"  The answer is yes unless we're in the middle of
+ // editing the malloc state in m->mem.
+ void*
+-mal(uint32 n)
++oldmal(uint32 n)
+ {
+ 	byte* v;
+ 
+diff --git a/src/runtime/mheap.c b/src/runtime/mheap.c
+index 9c6de16afc..427d11082f 100644
+--- a/src/runtime/mheap.c
++++ b/src/runtime/mheap.c
+@@ -98,9 +98,20 @@ HaveSpan:
+ 	// No matter what, cache span info, because gc needs to be
+ 	// able to map interior pointer to containing span.
+ 	s->sizeclass = sizeclass;
+-	for(n=0; n<npage; n++) {
++	for(n=0; n<npage; n++)
+ 		MHeapMap_Set(&h->map, s->start+n, s);
+-		if(sizeclass != 0)
++	if(sizeclass == 0) {
++		uintptr tmp;
++
++		// If there are entries for this span, invalidate them,
++		// but don't blow out cache entries about other spans.
++		for(n=0; n<npage; n++)
++			if(MHeapMapCache_GET(&h->mapcache, s->start+n, tmp) != 0)
++				MHeapMapCache_SET(&h->mapcache, s->start+n, 0);
++	} else {
++		// Save cache entries for this span.
++		// If there's a size class, there aren't that many pages.
++		for(n=0; n<npage; n++)
+ 			MHeapMapCache_SET(&h->mapcache, s->start+n, sizeclass);
+ 	}
+ 
+@@ -168,6 +179,8 @@ MHeap_Grow(MHeap *h, uintptr npage)
+ 		return false;
+ 	}
+ 
++	// Create a fake "in use" span and free it, so that the
++	// right coalescing happens.
+ 	s = FixAlloc_Alloc(&h->spanalloc);
+ 	MSpan_Init(s, (uintptr)v>>PageShift, ask>>PageShift);
+ 	MHeapMap_Set(&h->map, s->start, s);
+@@ -198,8 +211,10 @@ MHeap_FreeLocked(MHeap *h, MSpan *s)
+ {
+ 	MSpan *t;
+ 
+-	if(s->state != MSpanInUse || s->ref != 0)
++	if(s->state != MSpanInUse || s->ref != 0) {
++		printf("MHeap_FreeLocked - span %p ptr %p state %d ref %d\n", s, s->start<<PageShift, s->state, s->ref);
+ 		throw("MHeap_FreeLocked - invalid free");
++	}
+ 	s->state = MSpanFree;
+ 	MSpanList_Remove(s);
+ 
+diff --git a/src/runtime/proc.c b/src/runtime/proc.c
+index 2d9ce77efd..01581569f7 100644
+--- a/src/runtime/proc.c
++++ b/src/runtime/proc.c
+@@ -97,6 +97,10 @@ schedinit(void)
+ 	byte *p;
+ 
+ 	mallocinit();
++	
++	// Allocate internal symbol table representation now,
++	// so that we don't need to call malloc when we crash.
++	findfunc(0);
+ 
+ 	sched.gomaxprocs = 1;
+ 	p = getenv("GOMAXPROCS");
+@@ -440,7 +444,7 @@ matchmg(void)
+ 			notewakeup(&m->havenextg);
+ 		}else{
+ 			m = mal(sizeof(M));
+-			m->g0 = malg(1024);
++			m->g0 = malg(8192);
+ 			m->nextg = g;
+ 			m->id = sched.mcount++;
+ 			if(debug) {
+diff --git a/src/runtime/rt0_amd64.s b/src/runtime/rt0_amd64.s
+index 61a768f7e2..61f9255a51 100644
+--- a/src/runtime/rt0_amd64.s
++++ b/src/runtime/rt0_amd64.s
+@@ -22,7 +22,7 @@ TEXT	_rt0_amd64(SB),7,$-8
+ 
+ 	// create istack out of the given (operating system) stack
+ 
+-	LEAQ	(-1024+104)(SP), AX
++	LEAQ	(-8192+104)(SP), AX
+ 	MOVQ	AX, 0(R15)		// 0(R15) is stack limit (w 104b guard)
+ 	MOVQ	SP, 8(R15)		// 8(R15) is base
+ 
+diff --git a/src/runtime/runtime.h b/src/runtime/runtime.h
+index a8d40f84ff..fc4e5ba462 100644
+--- a/src/runtime/runtime.h
++++ b/src/runtime/runtime.h
+@@ -76,10 +76,6 @@ enum
+ 	true	= 1,
+ 	false	= 0,
+ };
+-enum
+-{
+-	SmallFreeClasses = 168,	// number of small free lists in malloc
+-};
+ 
+ /*
+  * structures
+@@ -158,6 +154,7 @@ struct	M
+ 	int32	siz1;
+ 	int32	siz2;
+ 	int32	id;
++	int32	mallocing;
+ 	Note	havenextg;
+ 	G*	nextg;
+ 	M*	schedlink;
+diff --git a/test/mallocrep.go b/test/mallocrep.go
+index 2911b4a051..8373cc0eb9 100644
+--- a/test/mallocrep.go
++++ b/test/mallocrep.go
+@@ -31,15 +31,17 @@ func bigger() {
+ 
+ func main() {
+ 	flag.Parse();
++	malloc.GetStats().alloc = 0;	// ignore stacks
+ 	for i := 0; i < 1<<8; i++ {
+ 		for j := 1; j <= 1<<22; j<<=1 {
+ 			if i == 0 && chatty {
+ 				println("First alloc:", j);
+ 			}
+ 			b := malloc.Alloc(uint64(j));
++			during := malloc.GetStats().alloc;
+ 			malloc.Free(b);
+ 			if a := malloc.GetStats().alloc; a != 0 {
+-				panicln("malloc wrong count", a);
++				panicln("malloc wrong count", a, "after", j, "during", during);
+ 			}
+ 			bigger();
+ 		}
+diff --git a/test/mallocrep1.go b/test/mallocrep1.go
+new file mode 100644
+index 0000000000..50f557b7a7
+--- /dev/null
++++ b/test/mallocrep1.go
+@@ -0,0 +1,130 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Repeated malloc test.
++
++package main
++
++import (
++	"flag";
++	"fmt";
++	"malloc";
++	"strconv"
++)
++
++var chatty bool;
++var chatty_flag = flag.Bool("v", false, &chatty, "chatty");
++var reverse bool;
++var reverse_flag = flag.Bool("r", false, &reverse, "reverse");
++var longtest bool;
++var longtest_flag = flag.Bool("l", false, &longtest, "long test");
++
++var b *[]*byte;
++var stats = malloc.GetStats();
++
++func OkAmount(size, n uint64) bool {
++	if n < size {
++		return false
++	}
++	if size < 16*8 {
++		if n > size+16 {
++			return false
++		}
++	} else {
++		if n > size*9/8 {
++			return false
++		}
++	}
++	return true
++}
++
++func AllocAndFree(size, count int) {
++	if chatty {
++		fmt.printf("size=%d count=%d ...\n", size, count);
++	}
++	n1 := stats.alloc;
++	for i := 0; i < count; i++ {
++		b[i] = malloc.Alloc(uint64(size));
++		base, n := malloc.Lookup(b[i]);
++		if base != b[i] || !OkAmount(uint64(size), n) {
++			panicln("lookup failed: got", base, n, "for", b[i]);
++		}
++		if malloc.GetStats().sys > 1e9 {
++			panicln("too much memory allocated");
++		}
++	}
++	n2 := stats.alloc;
++	if chatty {
++		fmt.printf("size=%d count=%d stats=%+v\n", size, count, *stats);
++	}
++	n3 := stats.alloc;
++	for j := 0; j < count; j++ {
++		i := j;
++		if reverse {
++			i = count - 1 - j;
++		}
++		alloc := stats.alloc;
++		base, n := malloc.Lookup(b[i]);
++		if base != b[i] || !OkAmount(uint64(size), n) {
++			panicln("lookup failed: got", base, n, "for", b[i]);
++		}
++		malloc.Free(b[i]);
++		if stats.alloc != alloc - n {
++			panicln("free alloc got", stats.alloc, "expected", alloc - n, "after free of", n);
++		}
++		if malloc.GetStats().sys > 1e9 {
++			panicln("too much memory allocated");
++		}
++	}
++	n4 := stats.alloc;
++
++	if chatty {
++		fmt.printf("size=%d count=%d stats=%+v\n", size, count, *stats);
++	}
++	if n2-n1 != n3-n4 {
++		panicln("wrong alloc count: ", n2-n1, n3-n4);
++	}
++}
++
++func atoi(s string) int {
++	i, xx1 := strconv.atoi(s);
++	return i
++}
++
++func main() {
++	flag.Parse();
++	b = new([]*byte, 10000);
++	if flag.NArg() > 0 {
++		AllocAndFree(atoi(flag.Arg(0)), atoi(flag.Arg(1)));
++		return;
++	}
++	for j := 1; j <= 1<<22; j<<=1 {
++		n := len(b);
++		max := uint64(1<<28);
++		if !longtest {
++			max = 1<<22;
++		}
++		if uint64(j)*uint64(n) > max {
++			n = int(max / uint64(j));
++		}
++		if n < 10 {
++			n = 10;
++		}
++		for m := 1; m <= n; {
++			AllocAndFree(j, m);
++			if m == n {
++				break
++			}
++			m = 5*m/4;
++			if m < 4 {
++				m++
++			}
++			if m > n {
++				m = n
++			}
++		}
++	}
++}

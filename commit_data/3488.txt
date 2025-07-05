@@ -9,7 +9,24 @@ Date:   Fri Oct 9 15:16:00 2009 -0700
     DELTA=637  (318 added, 318 deleted, 1 changed)
     OCL=35534
     CL=35536
-
+---
  src/pkg/rand/Makefile            | 2 +-
  src/pkg/rand/{rand.go => rng.go} | 0
  2 files changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/rand/Makefile b/src/pkg/rand/Makefile
+index 142aa7f4cd..29557caa7e 100644
+--- a/src/pkg/rand/Makefile
++++ b/src/pkg/rand/Makefile
+@@ -6,6 +6,6 @@ include $(GOROOT)/src/Make.$(GOARCH)
+ 
+ TARG=rand
+ GOFILES=\
+-	rand.go\
++	rng.go\
+ 
+ include $(GOROOT)/src/Make.pkg
+diff --git a/src/pkg/rand/rand.go b/src/pkg/rand/rng.go
+similarity index 100%
+rename from src/pkg/rand/rand.go
+rename to src/pkg/rand/rng.go

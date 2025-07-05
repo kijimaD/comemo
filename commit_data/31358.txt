@@ -11,7 +11,7 @@ Date:   Mon Feb 13 09:06:08 2017 -0800
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/sys_freebsd_386.s   | 4 ++--
  src/runtime/sys_linux_arm.s     | 4 ++--
  src/runtime/sys_nacl_386.s      | 4 ++--
@@ -20,3 +20,113 @@ Date:   Mon Feb 13 09:06:08 2017 -0800
  src/runtime/sys_openbsd_386.s   | 4 ++--
  src/runtime/sys_plan9_386.s     | 4 ++--
  7 files changed, 15 insertions(+), 15 deletions(-)
+
+diff --git a/src/runtime/sys_freebsd_386.s b/src/runtime/sys_freebsd_386.s
+index 2c056feb46..9ed14cca2b 100644
+--- a/src/runtime/sys_freebsd_386.s
++++ b/src/runtime/sys_freebsd_386.s
+@@ -170,8 +170,8 @@ TEXT runtime·walltime(SB), NOSPLIT, $32
+ 	MOVL	16(SP), BX	// nsec
+ 
+ 	// sec is in AX, nsec in BX
+-	MOVL	AX, sec+0(FP)
+-	MOVL	$0, sec+4(FP)
++	MOVL	AX, sec_lo+0(FP)
++	MOVL	$0, sec_hi+4(FP)
+ 	MOVL	BX, nsec+8(FP)
+ 	RET
+ 
+diff --git a/src/runtime/sys_linux_arm.s b/src/runtime/sys_linux_arm.s
+index 1712e9d76c..8afc71f059 100644
+--- a/src/runtime/sys_linux_arm.s
++++ b/src/runtime/sys_linux_arm.s
+@@ -206,9 +206,9 @@ TEXT runtime·walltime(SB), NOSPLIT, $32
+ 	MOVW	8(R13), R0  // sec
+ 	MOVW	12(R13), R2  // nsec
+ 	
+-	MOVW	R0, sec+0(FP)
++	MOVW	R0, sec_lo+0(FP)
+ 	MOVW	$0, R1
+-	MOVW	R1, loc+4(FP)
++	MOVW	R1, sec_hi+4(FP)
+ 	MOVW	R2, nsec+8(FP)
+ 	RET	
+ 
+diff --git a/src/runtime/sys_nacl_386.s b/src/runtime/sys_nacl_386.s
+index 31e9b97a09..d945453970 100644
+--- a/src/runtime/sys_nacl_386.s
++++ b/src/runtime/sys_nacl_386.s
+@@ -243,8 +243,8 @@ TEXT runtime·walltime(SB),NOSPLIT,$20
+ 	MOVL 16(SP), BX // nsec
+ 
+ 	// sec is in AX, nsec in BX
+-	MOVL	AX, sec+0(FP)
+-	MOVL	CX, sec+4(FP)
++	MOVL	AX, sec_lo+0(FP)
++	MOVL	CX, sec_hi+4(FP)
+ 	MOVL	BX, nsec+8(FP)
+ 	RET
+ 
+diff --git a/src/runtime/sys_nacl_amd64p32.s b/src/runtime/sys_nacl_amd64p32.s
+index 8ec5510625..2a3998391c 100644
+--- a/src/runtime/sys_nacl_amd64p32.s
++++ b/src/runtime/sys_nacl_amd64p32.s
+@@ -262,8 +262,8 @@ realtime:
+ 	MOVL 8(SP), BX // nsec
+ 
+ 	// sec is in AX, nsec in BX
+-	MOVL	AX, sec+0(FP)
+-	MOVL	CX, sec+4(FP)
++	MOVL	AX, sec_lo+0(FP)
++	MOVL	CX, sec_hi+4(FP)
+ 	MOVL	BX, nsec+8(FP)
+ 	RET
+ 
+diff --git a/src/runtime/sys_nacl_arm.s b/src/runtime/sys_nacl_arm.s
+index aa3a09876a..6a6ef4e6b2 100644
+--- a/src/runtime/sys_nacl_arm.s
++++ b/src/runtime/sys_nacl_arm.s
+@@ -203,9 +203,9 @@ TEXT runtime·walltime(SB),NOSPLIT,$16
+ 	MOVW	4(R13), R0 // low 32-bit sec
+ 	MOVW	8(R13), R1 // high 32-bit sec
+ 	MOVW	12(R13), R2 // nsec
+-	MOVW	R0, sec+0(FP)
+-	MOVW	R1, sec+4(FP)
+-	MOVW	R2, sec+8(FP)
++	MOVW	R0, sec_lo+0(FP)
++	MOVW	R1, sec_hi+4(FP)
++	MOVW	R2, nsec+8(FP)
+ 	RET
+ 
+ TEXT syscall·now(SB),NOSPLIT,$0
+diff --git a/src/runtime/sys_openbsd_386.s b/src/runtime/sys_openbsd_386.s
+index b86875fd7d..fb2a6883df 100644
+--- a/src/runtime/sys_openbsd_386.s
++++ b/src/runtime/sys_openbsd_386.s
+@@ -149,9 +149,9 @@ TEXT runtime·walltime(SB), NOSPLIT, $32
+ 	INT	$0x80
+ 
+ 	MOVL	12(SP), AX		// sec - l32
+-	MOVL	AX, sec+0(FP)
++	MOVL	AX, sec_lo+0(FP)
+ 	MOVL	16(SP), AX		// sec - h32
+-	MOVL	AX, sec+4(FP)
++	MOVL	AX, sec_hi+4(FP)
+ 
+ 	MOVL	20(SP), BX		// nsec
+ 	MOVL	BX, nsec+8(FP)
+diff --git a/src/runtime/sys_plan9_386.s b/src/runtime/sys_plan9_386.s
+index 6baa8138d6..688bd2371a 100644
+--- a/src/runtime/sys_plan9_386.s
++++ b/src/runtime/sys_plan9_386.s
+@@ -110,8 +110,8 @@ TEXT runtime·walltime(SB),NOSPLIT,$8-12
+ 
+ 	MOVL	$1000000000, CX
+ 	DIVL	CX
+-	MOVL	AX, sec+0(FP)
+-	MOVL	$0, sec+4(FP)
++	MOVL	AX, sec_lo+0(FP)
++	MOVL	$0, sec_hi+4(FP)
+ 	MOVL	DX, nsec+8(FP)
+ 	RET
+ 

@@ -14,9 +14,141 @@ Date:   Fri Mar 9 11:44:59 2018 +0100
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/os_freebsd.go        | 39 ++++++++++++++++++++++++++++++++++++++-
  src/runtime/os_freebsd_arm.go    | 28 ++++++++++++++++++++++++++--
  src/runtime/os_freebsd_noauxv.go | 11 +++++++++++
  src/runtime/vdso_none.go         |  1 +
  4 files changed, 76 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/os_freebsd.go b/src/runtime/os_freebsd.go
+index 2bd9b9a509..230da3e755 100644
+--- a/src/runtime/os_freebsd.go
++++ b/src/runtime/os_freebsd.go
+@@ -207,7 +207,9 @@ func newosproc(mp *m, stk unsafe.Pointer) {
+ 
+ func osinit() {
+ 	ncpu = getncpu()
+-	physPageSize = getPageSize()
++	if physPageSize == 0 {
++		physPageSize = getPageSize()
++	}
+ }
+ 
+ var urandom_dev = []byte("/dev/urandom\x00")
+@@ -317,3 +319,38 @@ func sigdelset(mask *sigset, i int) {
+ 
+ func (c *sigctxt) fixsigcode(sig uint32) {
+ }
++
++func sysargs(argc int32, argv **byte) {
++	n := argc + 1
++
++	// skip over argv, envp to get to auxv
++	for argv_index(argv, n) != nil {
++		n++
++	}
++
++	// skip NULL separator
++	n++
++
++	// now argv+n is auxv
++	auxv := (*[1 << 28]uintptr)(add(unsafe.Pointer(argv), uintptr(n)*sys.PtrSize))
++	sysauxv(auxv[:])
++}
++
++const (
++	_AT_NULL   = 0  // Terminates the vector
++	_AT_PAGESZ = 6  // Page size in bytes
++	_AT_HWCAP  = 16 // CPU feature flags
++)
++
++func sysauxv(auxv []uintptr) {
++	for i := 0; auxv[i] != _AT_NULL; i += 2 {
++		tag, val := auxv[i], auxv[i+1]
++		switch tag {
++		// _AT_NCPUS from auxv shouldn't be used due to golang.org/issue/15206
++		case _AT_PAGESZ:
++			physPageSize = val
++		}
++
++		archauxv(tag, val)
++	}
++}
+diff --git a/src/runtime/os_freebsd_arm.go b/src/runtime/os_freebsd_arm.go
+index 6e2bc97470..a8581b1c8e 100644
+--- a/src/runtime/os_freebsd_arm.go
++++ b/src/runtime/os_freebsd_arm.go
+@@ -4,10 +4,26 @@
+ 
+ package runtime
+ 
+-var hardDiv bool // TODO: set if a hardware divider is available
++const (
++	_HWCAP_VFP   = 1 << 6
++	_HWCAP_VFPv3 = 1 << 13
++	_HWCAP_IDIVA = 1 << 17
++)
++
++var hwcap uint32 // set by archauxv
++var hardDiv bool // set if a hardware divider is available
+ 
+ func checkgoarm() {
+-	// TODO(minux): FP checks like in os_linux_arm.go.
++	if goarm > 5 && hwcap&_HWCAP_VFP == 0 {
++		print("runtime: this CPU has no floating point hardware, so it cannot run\n")
++		print("this GOARM=", goarm, " binary. Recompile using GOARM=5.\n")
++		exit(1)
++	}
++	if goarm > 6 && hwcap&_HWCAP_VFPv3 == 0 {
++		print("runtime: this CPU has no VFPv3 floating point hardware, so it cannot run\n")
++		print("this GOARM=", goarm, " binary. Recompile using GOARM=5.\n")
++		exit(1)
++	}
+ 
+ 	// osinit not called yet, so ncpu not set: must use getncpu directly.
+ 	if getncpu() > 1 && goarm < 7 {
+@@ -17,6 +33,14 @@ func checkgoarm() {
+ 	}
+ }
+ 
++func archauxv(tag, val uintptr) {
++	switch tag {
++	case _AT_HWCAP: // CPU capability bit flags
++		hwcap = uint32(val)
++		hardDiv = (hwcap & _HWCAP_IDIVA) != 0
++	}
++}
++
+ //go:nosplit
+ func cputicks() int64 {
+ 	// Currently cputicks() is used in blocking profiler and to seed runtime·fastrand().
+diff --git a/src/runtime/os_freebsd_noauxv.go b/src/runtime/os_freebsd_noauxv.go
+new file mode 100644
+index 0000000000..01efb9b7c9
+--- /dev/null
++++ b/src/runtime/os_freebsd_noauxv.go
+@@ -0,0 +1,11 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build freebsd
++// +build !arm
++
++package runtime
++
++func archauxv(tag, val uintptr) {
++}
+diff --git a/src/runtime/vdso_none.go b/src/runtime/vdso_none.go
+index fc2124040f..a709758f64 100644
+--- a/src/runtime/vdso_none.go
++++ b/src/runtime/vdso_none.go
+@@ -4,6 +4,7 @@
+ 
+ // +build !linux
+ // +build !darwin
++// +build !freebsd
+ 
+ package runtime
+ 

@@ -15,6 +15,20 @@ Date:   Wed Oct 5 01:35:25 2022 +0000
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/internal/obj/arm64/doc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/internal/obj/arm64/doc.go b/src/cmd/internal/obj/arm64/doc.go
+index c12f618e93..4606e98aa9 100644
+--- a/src/cmd/internal/obj/arm64/doc.go
++++ b/src/cmd/internal/obj/arm64/doc.go
+@@ -13,7 +13,7 @@ using different register names.
+ 
+ Examples:
+ 
+-	ADC R24, R14, R12          <=>     adc x12, x24
++	ADC R24, R14, R12          <=>     adc x12, x14, x24
+ 	ADDW R26->24, R21, R15     <=>     add w15, w21, w26, asr #24
+ 	FCMPS F2, F3               <=>     fcmp s3, s2
+ 	FCMPD F2, F3               <=>     fcmp d3, d2

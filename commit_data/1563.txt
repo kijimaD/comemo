@@ -7,8 +7,111 @@ Date:   Mon Jan 26 17:06:20 2009 -0800
     R=ken
     OCL=23532
     CL=23532
-
+---
  src/cmd/gc/dcl.c         | 19 +++++++++++++------
  src/cmd/gc/go.h          |  2 +-
  test/fixedbugs/bug134.go | 11 +++++++++++
  3 files changed, 25 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index a60637c258..edac4ca2c0 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -313,9 +313,9 @@ addmethod(Node *n, Type *t, int local)
+ 	}
+ 
+ 	if(d == T)
+-		stotype(n, &pa->method);
++		stotype(n, 0, &pa->method);
+ 	else
+-		stotype(n, &d->down);
++		stotype(n, 0, &d->down);
+ 
+ 	if(dflag())
+ 		print("method         %S of type %T\n", sf, pa);
+@@ -472,36 +472,43 @@ funcbody(Node *n)
+  * turn a parsed struct into a type
+  */
+ Type**
+-stotype(Node *n, Type **t)
++stotype(Node *n, int et, Type **t)
+ {
+ 	Type *f;
+ 	Iter save;
+ 	String *note;
++	int lno;
+ 
++	lno = lineno;
+ 	n = listfirst(&save, &n);
+ 
+ loop:
+ 	note = nil;
+ 	if(n == N) {
+ 		*t = T;
++		lineno = lno;
+ 		return t;
+ 	}
+ 
++	lineno = n->lineno;
+ 	if(n->op == OLIST) {
+ 		// recursive because it can be lists of lists
+-		t = stotype(n, t);
++		t = stotype(n, et, t);
+ 		goto next;
+ 	}
+ 
+ 	if(n->op != ODCLFIELD || n->type == T)
+ 		fatal("stotype: oops %N\n", n);
+ 
++	if(et == TSTRUCT && n->type->etype == TFUNC)
++		yyerror("bad structure field type: %T", n->type);
++
+ 	switch(n->val.ctype) {
+ 	case CTSTR:
+ 		note = n->val.u.sval;
+ 		break;
+ 	default:
+-		yyerror("structure field annotation must be string");
++		yyerror("field annotation must be string");
+ 	case CTxxx:
+ 		note = nil;
+ 		break;
+@@ -546,7 +553,7 @@ dostruct(Node *n, int et)
+ 	}
+ 	t = typ(et);
+ 	t->funarg = funarg;
+-	stotype(n, &t->type);
++	stotype(n, et, &t->type);
+ 	if(!funarg)
+ 		checkwidth(t);
+ 	return t;
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index e1f64b5424..461c00b217 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -707,7 +707,7 @@ void	funchdr(Node*);
+ void	funcargs(Type*);
+ void	funcbody(Node*);
+ Type*	dostruct(Node*, int);
+-Type**	stotype(Node*, Type**);
++Type**	stotype(Node*, int, Type**);
+ Type*	sortinter(Type*);
+ void	markdcl(void);
+ void	popdcl(void);
+diff --git a/test/fixedbugs/bug134.go b/test/fixedbugs/bug134.go
+new file mode 100644
+index 0000000000..e0817a41e8
+--- /dev/null
++++ b/test/fixedbugs/bug134.go
+@@ -0,0 +1,11 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// errchk $G $D/$F.go
++
++package main
++
++type T struct {
++	v ();  // ERROR "field type"
++}

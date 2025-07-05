@@ -12,8 +12,58 @@ Date:   Wed Aug 17 17:33:39 2022 +0700
     Reviewed-by: Keith Randall <khr@google.com>
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/runtime/proc.go        | 2 +-
  src/runtime/runtime2.go    | 3 +--
  src/runtime/signal_unix.go | 4 ++--
  3 files changed, 4 insertions(+), 5 deletions(-)
+
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 1de1ed781f..0e74eb1075 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -1547,7 +1547,7 @@ found:
+ 	if GOOS == "darwin" || GOOS == "ios" {
+ 		// Make sure pendingPreemptSignals is correct when an M exits.
+ 		// For #41702.
+-		if atomic.Load(&mp.signalPending) != 0 {
++		if mp.signalPending.Load() != 0 {
+ 			pendingPreemptSignals.Add(-1)
+ 		}
+ 	}
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 2fbb1d1744..3cf0e8e98b 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -587,8 +587,7 @@ type m struct {
+ 	preemptGen uint32
+ 
+ 	// Whether this is a pending preemption signal on this M.
+-	// Accessed atomically.
+-	signalPending uint32
++	signalPending atomic.Uint32
+ 
+ 	dlogPerM
+ 
+diff --git a/src/runtime/signal_unix.go b/src/runtime/signal_unix.go
+index 66a4650b58..4c3f43a819 100644
+--- a/src/runtime/signal_unix.go
++++ b/src/runtime/signal_unix.go
+@@ -350,7 +350,7 @@ func doSigPreempt(gp *g, ctxt *sigctxt) {
+ 
+ 	// Acknowledge the preemption.
+ 	atomic.Xadd(&gp.m.preemptGen, 1)
+-	atomic.Store(&gp.m.signalPending, 0)
++	gp.m.signalPending.Store(0)
+ 
+ 	if GOOS == "darwin" || GOOS == "ios" {
+ 		pendingPreemptSignals.Add(-1)
+@@ -372,7 +372,7 @@ func preemptM(mp *m) {
+ 		execLock.rlock()
+ 	}
+ 
+-	if atomic.Cas(&mp.signalPending, 0, 1) {
++	if mp.signalPending.CompareAndSwap(0, 1) {
+ 		if GOOS == "darwin" || GOOS == "ios" {
+ 			pendingPreemptSignals.Add(1)
+ 		}

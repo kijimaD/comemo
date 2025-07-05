@@ -11,9 +11,150 @@ Date:   Sun Jan 8 17:18:20 2017 +0900
     Change-Id: I2e378182948fbe221f6ae786ab55e77ae90c3f3b
     Reviewed-on: https://go-review.googlesource.com/34877
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/iprawsock.go | 16 ++++++++++------
  src/net/tcpsock.go   | 22 +++++++++++++---------
  src/net/udpsock.go   | 22 +++++++++++++---------
  src/net/unixsock.go  | 19 +++++++++++--------
  4 files changed, 47 insertions(+), 32 deletions(-)
+
+diff --git a/src/net/iprawsock.go b/src/net/iprawsock.go
+index 408d63fb34..e703d5609a 100644
+--- a/src/net/iprawsock.go
++++ b/src/net/iprawsock.go
+@@ -200,13 +200,17 @@ func (c *IPConn) WriteMsgIP(b, oob []byte, addr *IPAddr) (n, oobn int, err error
+ 
+ func newIPConn(fd *netFD) *IPConn { return &IPConn{conn{fd}} }
+ 
+-// DialIP connects to the remote address raddr on the network protocol
+-// netProto, which must be "ip", "ip4", or "ip6" followed by a colon
+-// and a protocol number or name.
+-func DialIP(netProto string, laddr, raddr *IPAddr) (*IPConn, error) {
+-	c, err := dialIP(context.Background(), netProto, laddr, raddr)
++// DialIP acts like Dial for IP networks.
++//
++// The network must be an IP network name; see func Dial for details.
++//
++// If laddr is nil, a local address is automatically chosen.
++// If the IP field of raddr is nil or an unspecified IP address, the
++// local system is assumed.
++func DialIP(network string, laddr, raddr *IPAddr) (*IPConn, error) {
++	c, err := dialIP(context.Background(), network, laddr, raddr)
+ 	if err != nil {
+-		return nil, &OpError{Op: "dial", Net: netProto, Source: laddr.opAddr(), Addr: raddr.opAddr(), Err: err}
++		return nil, &OpError{Op: "dial", Net: network, Source: laddr.opAddr(), Addr: raddr.opAddr(), Err: err}
+ 	}
+ 	return c, nil
+ }
+diff --git a/src/net/tcpsock.go b/src/net/tcpsock.go
+index 91571bd25c..717bfff72b 100644
+--- a/src/net/tcpsock.go
++++ b/src/net/tcpsock.go
+@@ -190,21 +190,25 @@ func newTCPConn(fd *netFD) *TCPConn {
+ 	return c
+ }
+ 
+-// DialTCP connects to the remote address raddr on the network net,
+-// which must be "tcp", "tcp4", or "tcp6".  If laddr is not nil, it is
+-// used as the local address for the connection.
+-func DialTCP(net string, laddr, raddr *TCPAddr) (*TCPConn, error) {
+-	switch net {
++// DialTCP acts like Dial for TCP networks.
++//
++// The network must be a TCP network name; see func Dial for details.
++//
++// If laddr is nil, a local address is automatically chosen.
++// If the IP field of raddr is nil or an unspecified IP address, the
++// local system is assumed.
++func DialTCP(network string, laddr, raddr *TCPAddr) (*TCPConn, error) {
++	switch network {
+ 	case "tcp", "tcp4", "tcp6":
+ 	default:
+-		return nil, &OpError{Op: "dial", Net: net, Source: laddr.opAddr(), Addr: raddr.opAddr(), Err: UnknownNetworkError(net)}
++		return nil, &OpError{Op: "dial", Net: network, Source: laddr.opAddr(), Addr: raddr.opAddr(), Err: UnknownNetworkError(network)}
+ 	}
+ 	if raddr == nil {
+-		return nil, &OpError{Op: "dial", Net: net, Source: laddr.opAddr(), Addr: nil, Err: errMissingAddress}
++		return nil, &OpError{Op: "dial", Net: network, Source: laddr.opAddr(), Addr: nil, Err: errMissingAddress}
+ 	}
+-	c, err := dialTCP(context.Background(), net, laddr, raddr)
++	c, err := dialTCP(context.Background(), network, laddr, raddr)
+ 	if err != nil {
+-		return nil, &OpError{Op: "dial", Net: net, Source: laddr.opAddr(), Addr: raddr.opAddr(), Err: err}
++		return nil, &OpError{Op: "dial", Net: network, Source: laddr.opAddr(), Addr: raddr.opAddr(), Err: err}
+ 	}
+ 	return c, nil
+ }
+diff --git a/src/net/udpsock.go b/src/net/udpsock.go
+index 33959d5630..18c6597c50 100644
+--- a/src/net/udpsock.go
++++ b/src/net/udpsock.go
+@@ -193,21 +193,25 @@ func (c *UDPConn) WriteMsgUDP(b, oob []byte, addr *UDPAddr) (n, oobn int, err er
+ 
+ func newUDPConn(fd *netFD) *UDPConn { return &UDPConn{conn{fd}} }
+ 
+-// DialUDP connects to the remote address raddr on the network net,
+-// which must be "udp", "udp4", or "udp6".  If laddr is not nil, it is
+-// used as the local address for the connection.
+-func DialUDP(net string, laddr, raddr *UDPAddr) (*UDPConn, error) {
+-	switch net {
++// DialUDP acts like Dial for UDP networks.
++//
++// The network must be a UDP network name; see func Dial for details.
++//
++// If laddr is nil, a local address is automatically chosen.
++// If the IP field of raddr is nil or an unspecified IP address, the
++// local system is assumed.
++func DialUDP(network string, laddr, raddr *UDPAddr) (*UDPConn, error) {
++	switch network {
+ 	case "udp", "udp4", "udp6":
+ 	default:
+-		return nil, &OpError{Op: "dial", Net: net, Source: laddr.opAddr(), Addr: raddr.opAddr(), Err: UnknownNetworkError(net)}
++		return nil, &OpError{Op: "dial", Net: network, Source: laddr.opAddr(), Addr: raddr.opAddr(), Err: UnknownNetworkError(network)}
+ 	}
+ 	if raddr == nil {
+-		return nil, &OpError{Op: "dial", Net: net, Source: laddr.opAddr(), Addr: nil, Err: errMissingAddress}
++		return nil, &OpError{Op: "dial", Net: network, Source: laddr.opAddr(), Addr: nil, Err: errMissingAddress}
+ 	}
+-	c, err := dialUDP(context.Background(), net, laddr, raddr)
++	c, err := dialUDP(context.Background(), network, laddr, raddr)
+ 	if err != nil {
+-		return nil, &OpError{Op: "dial", Net: net, Source: laddr.opAddr(), Addr: raddr.opAddr(), Err: err}
++		return nil, &OpError{Op: "dial", Net: network, Source: laddr.opAddr(), Addr: raddr.opAddr(), Err: err}
+ 	}
+ 	return c, nil
+ }
+diff --git a/src/net/unixsock.go b/src/net/unixsock.go
+index 2485bab709..04d6ae3a8e 100644
+--- a/src/net/unixsock.go
++++ b/src/net/unixsock.go
+@@ -196,18 +196,21 @@ func (c *UnixConn) WriteMsgUnix(b, oob []byte, addr *UnixAddr) (n, oobn int, err
+ 
+ func newUnixConn(fd *netFD) *UnixConn { return &UnixConn{conn{fd}} }
+ 
+-// DialUnix connects to the remote address raddr on the network net,
+-// which must be "unix", "unixgram" or "unixpacket".  If laddr is not
+-// nil, it is used as the local address for the connection.
+-func DialUnix(net string, laddr, raddr *UnixAddr) (*UnixConn, error) {
+-	switch net {
++// DialUnix acts like Dial for Unix networks.
++//
++// The network must be a Unix network name; see func Dial for details.
++//
++// If laddr is non-nil, it is used as the local address for the
++// connection.
++func DialUnix(network string, laddr, raddr *UnixAddr) (*UnixConn, error) {
++	switch network {
+ 	case "unix", "unixgram", "unixpacket":
+ 	default:
+-		return nil, &OpError{Op: "dial", Net: net, Source: laddr.opAddr(), Addr: raddr.opAddr(), Err: UnknownNetworkError(net)}
++		return nil, &OpError{Op: "dial", Net: network, Source: laddr.opAddr(), Addr: raddr.opAddr(), Err: UnknownNetworkError(network)}
+ 	}
+-	c, err := dialUnix(context.Background(), net, laddr, raddr)
++	c, err := dialUnix(context.Background(), network, laddr, raddr)
+ 	if err != nil {
+-		return nil, &OpError{Op: "dial", Net: net, Source: laddr.opAddr(), Addr: raddr.opAddr(), Err: err}
++		return nil, &OpError{Op: "dial", Net: network, Source: laddr.opAddr(), Addr: raddr.opAddr(), Err: err}
+ 	}
+ 	return c, nil
+ }

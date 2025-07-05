@@ -7,6 +7,29 @@ Date:   Mon Mar 30 00:30:28 2015 -0400
     Change-Id: I624b336a9eb27fbbc8ef13f141023b4f60966245
     Reviewed-on: https://go-review.googlesource.com/8240
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  test/fixedbugs/issue10284.go | 16 ++++++++++++++++
  1 file changed, 16 insertions(+)
+
+diff --git a/test/fixedbugs/issue10284.go b/test/fixedbugs/issue10284.go
+new file mode 100644
+index 0000000000..e89d6f4418
+--- /dev/null
++++ b/test/fixedbugs/issue10284.go
+@@ -0,0 +1,16 @@
++// compile
++
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 10284: gccgo failed to allow converting a user-defined
++// type whose underlying type is uintptr to unsafe.Pointer.
++
++package p
++
++import "unsafe"
++
++type T uintptr
++
++var _ unsafe.Pointer = unsafe.Pointer(T(0))

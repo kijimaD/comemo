@@ -29,8 +29,98 @@ Date:   Tue May 25 11:10:25 2021 -0400
     Run-TryBot: Katie Hockman <katie@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/load/flag.go |  5 +++--
  src/cmd/go/internal/load/pkg.go  | 25 +++++++++++++------------
  src/cmd/go/internal/test/test.go | 16 +++++++++++++---
  3 files changed, 29 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/go/internal/load/flag.go b/src/cmd/go/internal/load/flag.go
+index 440cb86134..274c0f23e2 100644
+--- a/src/cmd/go/internal/load/flag.go
++++ b/src/cmd/go/internal/load/flag.go
+@@ -22,8 +22,9 @@ var (
+ // that allows specifying different effective flags for different packages.
+ // See 'go help build' for more details about per-package flags.
+ type PerPackageFlag struct {
+-	present bool
+-	values  []ppfValue
++	present      bool
++	values       []ppfValue
++	seenPackages map[*Package]bool // the packages for which the flags have already been set
+ }
+ 
+ // A ppfValue is a single <pattern>=<flags> per-package flag value.
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 193a27a713..9d7d32b5d1 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -210,7 +210,6 @@ type PackageInternal struct {
+ 	BuildInfo         string               // add this info to package main
+ 	TestmainGo        *[]byte              // content for _testmain.go
+ 	Embed             map[string][]string  // //go:embed comment mapping
+-	FlagsSet          bool                 // whether the flags have been set
+ 	OrigImportPath    string               // original import path before adding '_test' suffix
+ 
+ 	Asmflags   []string // -asmflags for this package
+@@ -2628,18 +2627,20 @@ func (e *mainPackageError) ImportPath() string {
+ 
+ func setToolFlags(pkgs ...*Package) {
+ 	for _, p := range PackageList(pkgs) {
+-		// TODO(jayconrod,katiehockman): See if there's a better way to do this.
+-		if p.Internal.FlagsSet {
+-			// The flags have already been set, so don't re-run this and
+-			// potentially clear existing flags.
+-			continue
+-		} else {
+-			p.Internal.FlagsSet = true
++		appendFlags(p, &p.Internal.Asmflags, &BuildAsmflags)
++		appendFlags(p, &p.Internal.Gcflags, &BuildGcflags)
++		appendFlags(p, &p.Internal.Ldflags, &BuildLdflags)
++		appendFlags(p, &p.Internal.Gccgoflags, &BuildGccgoflags)
++	}
++}
++
++func appendFlags(p *Package, flags *[]string, packageFlag *PerPackageFlag) {
++	if !packageFlag.seenPackages[p] {
++		if packageFlag.seenPackages == nil {
++			packageFlag.seenPackages = make(map[*Package]bool)
+ 		}
+-		p.Internal.Asmflags = BuildAsmflags.For(p)
+-		p.Internal.Gcflags = BuildGcflags.For(p)
+-		p.Internal.Ldflags = BuildLdflags.For(p)
+-		p.Internal.Gccgoflags = BuildGccgoflags.For(p)
++		packageFlag.seenPackages[p] = true
++		*flags = append(*flags, packageFlag.For(p)...)
+ 	}
+ }
+ 
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index d5afae782b..012a75123b 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -826,11 +826,21 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
+ 		}
+ 	}
+ 
++	// Inform the compiler that it should instrument the binary at
++	// build-time when fuzzing is enabled.
+ 	fuzzFlags := work.FuzzInstrumentFlags()
+ 	if testFuzz != "" && fuzzFlags != nil {
+-		// Inform the compiler that it should instrument the binary at
+-		// build-time when fuzzing is enabled.
+-		for _, p := range load.PackageList(pkgs) {
++		// Don't instrument packages which may affect coverage guidance but are
++		// unlikely to be useful.
++		var fuzzNoInstrument = map[string]bool{
++			"testing":       true,
++			"internal/fuzz": true,
++			"runtime":       true,
++		}
++		for _, p := range load.TestPackageList(ctx, pkgOpts, pkgs) {
++			if fuzzNoInstrument[p.ImportPath] {
++				continue
++			}
+ 			p.Internal.Gcflags = append(p.Internal.Gcflags, fuzzFlags...)
+ 		}
+ 	}

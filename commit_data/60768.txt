@@ -14,6 +14,28 @@ Date:   Thu Aug 22 13:38:25 2024 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/607498
     Reviewed-by: David Chase <drchase@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/go/internal/gcimporter/iimport.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/go/internal/gcimporter/iimport.go b/src/go/internal/gcimporter/iimport.go
+index b36210c817..b2c2ad476b 100644
+--- a/src/go/internal/gcimporter/iimport.go
++++ b/src/go/internal/gcimporter/iimport.go
+@@ -77,6 +77,7 @@ const (
+ 	typeParamType
+ 	instanceType
+ 	unionType
++	aliasType
+ )
+ 
+ // iImportData imports a package from the serialized package data
+@@ -619,7 +620,7 @@ func (r *importReader) doType(base *types.Named) types.Type {
+ 		errorf("unexpected kind tag in %q: %v", r.p.ipath, k)
+ 		return nil
+ 
+-	case definedType:
++	case aliasType, definedType:
+ 		pkg, name := r.qualifiedIdent()
+ 		r.p.doDecl(pkg, name)
+ 		return pkg.Scope().Lookup(name).(*types.TypeName).Type()

@@ -14,10 +14,143 @@ Date:   Mon Feb 24 10:19:39 2025 -0800
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Stapelberg <stapelberg@google.com>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/cmd/compile/internal/ssagen/ssa.go |  4 ++--
  src/cmd/internal/sys/arch.go           | 33 +++++++++++++++++----------------
  src/internal/abi/switch.go             |  8 +++++---
  src/internal/goarch/goarch.go          |  2 ++
  src/runtime/iface.go                   |  4 ++--
  5 files changed, 28 insertions(+), 23 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 7c67bc5579..306244424c 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -2033,7 +2033,7 @@ func (s *state) stmt(n ir.Node) {
+ 
+ 		// Check the cache first.
+ 		var merge *ssa.Block
+-		if base.Flag.N == 0 && rtabi.UseInterfaceSwitchCache(Arch.LinkArch.Name) {
++		if base.Flag.N == 0 && rtabi.UseInterfaceSwitchCache(Arch.LinkArch.Family) {
+ 			// Note: we can only use the cache if we have the right atomic load instruction.
+ 			// Double-check that here.
+ 			if intrinsics.lookup(Arch.LinkArch.Arch, "internal/runtime/atomic", "Loadp") == nil {
+@@ -5768,7 +5768,7 @@ func (s *state) dottype1(pos src.XPos, src, dst *types.Type, iface, source, targ
+ 		var d *ssa.Value
+ 		if descriptor != nil {
+ 			d = s.newValue1A(ssa.OpAddr, byteptr, descriptor, s.sb)
+-			if base.Flag.N == 0 && rtabi.UseInterfaceSwitchCache(Arch.LinkArch.Name) {
++			if base.Flag.N == 0 && rtabi.UseInterfaceSwitchCache(Arch.LinkArch.Family) {
+ 				// Note: we can only use the cache if we have the right atomic load instruction.
+ 				// Double-check that here.
+ 				if intrinsics.lookup(Arch.LinkArch.Arch, "internal/runtime/atomic", "Loadp") == nil {
+diff --git a/src/cmd/internal/sys/arch.go b/src/cmd/internal/sys/arch.go
+index ee7089b544..3c28ff0405 100644
+--- a/src/cmd/internal/sys/arch.go
++++ b/src/cmd/internal/sys/arch.go
+@@ -4,25 +4,26 @@
+ 
+ package sys
+ 
+-import "encoding/binary"
++import (
++	"encoding/binary"
++	"internal/goarch"
++)
+ 
+-// ArchFamily represents a family of one or more related architectures.
+-// For example, ppc64 and ppc64le are both members of the PPC64 family.
+-type ArchFamily byte
++// TODO: just use goarch.ArchFamilyType directly
++type ArchFamily = goarch.ArchFamilyType
+ 
+ const (
+-	NoArch ArchFamily = iota
+-	AMD64
+-	ARM
+-	ARM64
+-	I386
+-	Loong64
+-	MIPS
+-	MIPS64
+-	PPC64
+-	RISCV64
+-	S390X
+-	Wasm
++	AMD64   = goarch.AMD64
++	ARM     = goarch.ARM
++	ARM64   = goarch.ARM64
++	I386    = goarch.I386
++	Loong64 = goarch.LOONG64
++	MIPS    = goarch.MIPS
++	MIPS64  = goarch.MIPS64
++	PPC64   = goarch.PPC64
++	RISCV64 = goarch.RISCV64
++	S390X   = goarch.S390X
++	Wasm    = goarch.WASM
+ )
+ 
+ // Arch represents an individual architecture.
+diff --git a/src/internal/abi/switch.go b/src/internal/abi/switch.go
+index df6f99c945..a30fdd078b 100644
+--- a/src/internal/abi/switch.go
++++ b/src/internal/abi/switch.go
+@@ -4,6 +4,8 @@
+ 
+ package abi
+ 
++import "internal/goarch"
++
+ type InterfaceSwitch struct {
+ 	Cache  *InterfaceSwitchCache
+ 	NCases int
+@@ -27,11 +29,11 @@ type InterfaceSwitchCacheEntry struct {
+ 	Itab uintptr
+ }
+ 
+-func UseInterfaceSwitchCache(goarch string) bool {
++func UseInterfaceSwitchCache(arch goarch.ArchFamilyType) bool {
+ 	// We need an atomic load instruction to make the cache multithreaded-safe.
+ 	// (AtomicLoadPtr needs to be implemented in cmd/compile/internal/ssa/_gen/ARCH.rules.)
+-	switch goarch {
+-	case "amd64", "arm64", "loong64", "mips", "mipsle", "mips64", "mips64le", "ppc64", "ppc64le", "riscv64", "s390x":
++	switch arch {
++	case goarch.AMD64, goarch.ARM64, goarch.LOONG64, goarch.MIPS, goarch.MIPS64, goarch.PPC64, goarch.RISCV64, goarch.S390X:
+ 		return true
+ 	default:
+ 		return false
+diff --git a/src/internal/goarch/goarch.go b/src/internal/goarch/goarch.go
+index 3dda62fadc..f52fe6c42e 100644
+--- a/src/internal/goarch/goarch.go
++++ b/src/internal/goarch/goarch.go
+@@ -12,6 +12,8 @@ package goarch
+ //
+ //go:generate go run gengoarch.go
+ 
++// ArchFamilyType represents a family of one or more related architectures.
++// For example, ppc64 and ppc64le are both members of the PPC64 family.
+ type ArchFamilyType int
+ 
+ const (
+diff --git a/src/runtime/iface.go b/src/runtime/iface.go
+index 9986686417..0665c4b984 100644
+--- a/src/runtime/iface.go
++++ b/src/runtime/iface.go
+@@ -474,7 +474,7 @@ func typeAssert(s *abi.TypeAssert, t *_type) *itab {
+ 		tab = getitab(s.Inter, t, s.CanFail)
+ 	}
+ 
+-	if !abi.UseInterfaceSwitchCache(GOARCH) {
++	if !abi.UseInterfaceSwitchCache(goarch.ArchFamily) {
+ 		return tab
+ 	}
+ 
+@@ -574,7 +574,7 @@ func interfaceSwitch(s *abi.InterfaceSwitch, t *_type) (int, *itab) {
+ 		}
+ 	}
+ 
+-	if !abi.UseInterfaceSwitchCache(GOARCH) {
++	if !abi.UseInterfaceSwitchCache(goarch.ArchFamily) {
+ 		return case_, tab
+ 	}
+ 

@@ -11,6 +11,20 @@ Date:   Wed Jul 31 13:42:16 2019 -0700
     Change-Id: Ife9ab997809048784f35872b09905bc209a05eff
     Reviewed-on: https://go-review.googlesource.com/c/go/+/188417
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/encoding/json/encode.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/encoding/json/encode.go b/src/encoding/json/encode.go
+index 3474d4a667..67412763d6 100644
+--- a/src/encoding/json/encode.go
++++ b/src/encoding/json/encode.go
+@@ -137,7 +137,7 @@ import (
+ // string, an integer type, or implement encoding.TextMarshaler. The map keys
+ // are sorted and used as JSON object keys by applying the following rules,
+ // subject to the UTF-8 coercion described for string values above:
+-//   - string keys are used directly
++//   - keys of any string type are used directly
+ //   - encoding.TextMarshalers are marshaled
+ //   - integer keys are converted to strings
+ //

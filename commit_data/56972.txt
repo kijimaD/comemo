@@ -11,6 +11,20 @@ Date:   Mon Jun 5 10:33:50 2023 +0200
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-
+---
  doc/go1.21.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go1.21.html b/doc/go1.21.html
+index 39787e51f1..47edb6d402 100644
+--- a/doc/go1.21.html
++++ b/doc/go1.21.html
+@@ -486,7 +486,7 @@ Do not send CLs removing the interior tags from such phrases.
+   <dd>
+     <p><!-- https://go.dev/issue/56892, CL 452617 -->
+       The new
+-      <a href="https:/pkg/debug/elf/#File.DynValue"><code>File.DynValue</code></a>
++      <a href="/pkg/debug/elf/#File.DynValue"><code>File.DynValue</code></a>
+       method may be used to retrieve the numeric values listed with a
+       given dynamic tag.
+     </p>

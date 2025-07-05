@@ -13,7 +13,7 @@ Date:   Tue Jun 13 11:32:17 2017 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/mgc.go      |  4 ++--
  src/runtime/mgcmark.go  |  2 +-
  src/runtime/mstats.go   |  6 +++++-
@@ -21,3 +21,184 @@ Date:   Tue Jun 13 11:32:17 2017 -0400
  src/runtime/runtime2.go |  3 ++-
  src/runtime/trace.go    |  6 ++++--
  6 files changed, 47 insertions(+), 9 deletions(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 48ccfe8df2..23dc79d79a 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -465,7 +465,7 @@ func (c *gcControllerState) startCycle() {
+ 	}
+ 
+ 	// Clear per-P state
+-	for _, p := range &allp {
++	for _, p := range allp {
+ 		if p == nil {
+ 			break
+ 		}
+@@ -1662,7 +1662,7 @@ func gcMarkTermination(nextTriggerRatio float64) {
+ func gcBgMarkStartWorkers() {
+ 	// Background marking is performed by per-P G's. Ensure that
+ 	// each P has a background GC G.
+-	for _, p := range &allp {
++	for _, p := range allp {
+ 		if p == nil || p.status == _Pdead {
+ 			break
+ 		}
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 9029d19d43..efc1a042f9 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -1356,7 +1356,7 @@ func gcmarknewobject(obj, size, scanSize uintptr) {
+ //
+ // The world must be stopped.
+ func gcMarkTinyAllocs() {
+-	for _, p := range &allp {
++	for _, p := range allp {
+ 		if p == nil || p.status == _Pdead {
+ 			break
+ 		}
+diff --git a/src/runtime/mstats.go b/src/runtime/mstats.go
+index 1cb44a15dd..8538bad0db 100644
+--- a/src/runtime/mstats.go
++++ b/src/runtime/mstats.go
+@@ -589,9 +589,13 @@ func updatememstats() {
+ 	memstats.heap_objects = memstats.nmalloc - memstats.nfree
+ }
+ 
++// cachestats flushes all mcache stats.
++//
++// The world must be stopped.
++//
+ //go:nowritebarrier
+ func cachestats() {
+-	for _, p := range &allp {
++	for _, p := range allp {
+ 		if p == nil {
+ 			break
+ 		}
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index c58e806e0d..188c897723 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -3231,7 +3231,7 @@ func badunlockosthread() {
+ 
+ func gcount() int32 {
+ 	n := int32(allglen) - sched.ngfree - int32(atomic.Load(&sched.ngsys))
+-	for _, _p_ := range &allp {
++	for _, _p_ := range allp {
+ 		if _p_ == nil {
+ 			break
+ 		}
+@@ -3543,6 +3543,23 @@ func procresize(nprocs int32) *p {
+ 	}
+ 	sched.procresizetime = now
+ 
++	// Grow allp if necessary.
++	if nprocs > int32(len(allp)) {
++		// Synchronize with retake, which could be running
++		// concurrently since it doesn't run on a P.
++		lock(&allpLock)
++		if nprocs <= int32(cap(allp)) {
++			allp = allp[:nprocs]
++		} else {
++			nallp := make([]*p, nprocs)
++			// Copy everything up to allp's cap so we
++			// never lose old allocated Ps.
++			copy(nallp, allp[:cap(allp)])
++			allp = nallp
++		}
++		unlock(&allpLock)
++	}
++
+ 	// initialize new P's
+ 	for i := int32(0); i < nprocs; i++ {
+ 		pp := allp[i]
+@@ -3631,6 +3648,13 @@ func procresize(nprocs int32) *p {
+ 		// can't free P itself because it can be referenced by an M in syscall
+ 	}
+ 
++	// Trim allp.
++	if int32(len(allp)) != nprocs {
++		lock(&allpLock)
++		allp = allp[:nprocs]
++		unlock(&allpLock)
++	}
++
+ 	_g_ := getg()
+ 	if _g_.m.p != 0 && _g_.m.p.ptr().id < nprocs {
+ 		// continue to use the current P
+@@ -3956,7 +3980,10 @@ const forcePreemptNS = 10 * 1000 * 1000 // 10ms
+ 
+ func retake(now int64) uint32 {
+ 	n := 0
+-	for i := int32(0); i < gomaxprocs; i++ {
++	// Prevent allp slice changes. This lock will be completely
++	// uncontended unless we're already stopping the world.
++	lock(&allpLock)
++	for i := 0; i < len(allp); i++ {
+ 		_p_ := allp[i]
+ 		if _p_ == nil {
+ 			continue
+@@ -3977,6 +4004,8 @@ func retake(now int64) uint32 {
+ 			if runqempty(_p_) && atomic.Load(&sched.nmspinning)+atomic.Load(&sched.npidle) > 0 && pd.syscallwhen+10*1000*1000 > now {
+ 				continue
+ 			}
++			// Drop allpLock so we can take sched.lock.
++			unlock(&allpLock)
+ 			// Need to decrement number of idle locked M's
+ 			// (pretending that one more is running) before the CAS.
+ 			// Otherwise the M from which we retake can exit the syscall,
+@@ -3992,6 +4021,7 @@ func retake(now int64) uint32 {
+ 				handoffp(_p_)
+ 			}
+ 			incidlelocked(1)
++			lock(&allpLock)
+ 		} else if s == _Prunning {
+ 			// Preempt G if it's running for too long.
+ 			t := int64(_p_.schedtick)
+@@ -4006,6 +4036,7 @@ func retake(now int64) uint32 {
+ 			preemptone(_p_)
+ 		}
+ 	}
++	unlock(&allpLock)
+ 	return uint32(n)
+ }
+ 
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 27b1e37803..269c5b1c4d 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -722,7 +722,8 @@ const _TracebackMaxFrames = 100
+ var (
+ 	allglen    uintptr
+ 	allm       *m
+-	allp       [_MaxGomaxprocs + 1]*p
++	allp       []*p  // len(allp) == gomaxprocs; may change at safe points, otherwise immutable
++	allpLock   mutex // Protects P-less reads of allp and all writes
+ 	gomaxprocs int32
+ 	ncpu       int32
+ 	forcegc    forcegcstate
+diff --git a/src/runtime/trace.go b/src/runtime/trace.go
+index 50e4c73c83..398d0449b4 100644
+--- a/src/runtime/trace.go
++++ b/src/runtime/trace.go
+@@ -277,7 +277,9 @@ func StopTrace() {
+ 
+ 	traceGoSched()
+ 
+-	for _, p := range &allp {
++	// Loop over all allocated Ps because dead Ps may still have
++	// trace buffers.
++	for _, p := range allp[:cap(allp)] {
+ 		if p == nil {
+ 			break
+ 		}
+@@ -320,7 +322,7 @@ func StopTrace() {
+ 
+ 	// The lock protects us from races with StartTrace/StopTrace because they do stop-the-world.
+ 	lock(&trace.lock)
+-	for _, p := range &allp {
++	for _, p := range allp[:cap(allp)] {
+ 		if p == nil {
+ 			break
+ 		}

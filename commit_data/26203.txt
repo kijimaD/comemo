@@ -15,6 +15,21 @@ Date:   Mon Jan 4 15:03:45 2016 -0500
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/dist/test.go | 3 ---
  1 file changed, 3 deletions(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index eb99103f7f..eeec7e3a9d 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -844,9 +844,6 @@ func (t *tester) runPending(nextTest *distTest) {
+ 		if w.err != nil {
+ 			log.Printf("Failed: %v", w.err)
+ 			t.failed = true
+-			if !t.keepGoing {
+-				break
+-			}
+ 		}
+ 	}
+ 	if t.failed && !t.keepGoing {

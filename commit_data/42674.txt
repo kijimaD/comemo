@@ -9,6 +9,23 @@ Date:   Mon Feb 3 19:26:31 2020 -0500
     Change-Id: Ib3ea1ef21c4b8ada3d354a0022a19914c1311399
     Reviewed-on: https://go-review.googlesource.com/c/go/+/217637
     Reviewed-by: Carlos Amedee <carlos@golang.org>
-
+---
  doc/go1.14.html | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/doc/go1.14.html b/doc/go1.14.html
+index c6daba4988..f99aaf4cd9 100644
+--- a/doc/go1.14.html
++++ b/doc/go1.14.html
+@@ -540,7 +540,10 @@ TODO
+ <dl id="encoding/asn1"><dt><a href="/pkg/encoding/asn1/">encoding/asn1</a></dt>
+   <dd>
+     <p><!-- CL 126624 -->
+-      TODO: <a href="https://golang.org/cl/126624">https://golang.org/cl/126624</a>: handle ASN1&#39;s string type BMPString
++      <a href="/pkg/encoding/asn1/#Unmarshal"><code>Unmarshal</code></a>
++      now supports ASN.1 string type BMPString, represented by the new
++      <a href="/pkg/encoding/asn1/#TagBMPString"><code>TagBMPString</code></a>
++      constant.
+     </p>
+ 
+ </dl><!-- encoding/asn1 -->

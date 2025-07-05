@@ -17,7 +17,7 @@ Date:   Wed Feb 15 12:25:37 2012 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5675062
-
+---
  misc/dashboard/builder/main.go                 |  2 +-
  src/cmd/gofmt/gofmt_test.go                    |  1 +
  src/cmd/gofmt/testdata/rewrite4.golden         | 74 +++++++++++++++++++++++++
@@ -26,3 +26,354 @@ Date:   Wed Feb 15 12:25:37 2012 -0800
  src/pkg/go/printer/testdata/expressions.golden |  6 +--
  src/pkg/go/printer/testdata/expressions.raw    |  6 +--
  7 files changed, 166 insertions(+), 72 deletions(-)
+
+diff --git a/misc/dashboard/builder/main.go b/misc/dashboard/builder/main.go
+index 84f44a3b0a..7ca627670b 100644
+--- a/misc/dashboard/builder/main.go
++++ b/misc/dashboard/builder/main.go
+@@ -494,7 +494,7 @@ func (b *Builder) envvWindows() []string {
+ 		"GOOS":         b.goos,
+ 		"GOARCH":       b.goarch,
+ 		"GOROOT_FINAL": `c:\go`,
+-		"GOBUILDEXIT": "1", // exit all.bat with completion status.
++		"GOBUILDEXIT":  "1", // exit all.bat with completion status.
+ 	}
+ 	for _, name := range extraEnv {
+ 		s, err := os.Getenverror(name)
+diff --git a/src/cmd/gofmt/gofmt_test.go b/src/cmd/gofmt/gofmt_test.go
+index 303c4f1e1c..4b28050097 100644
+--- a/src/cmd/gofmt/gofmt_test.go
++++ b/src/cmd/gofmt/gofmt_test.go
+@@ -77,6 +77,7 @@ var tests = []struct {
+ 	{"testdata/rewrite1.input", "-r=Foo->Bar"},
+ 	{"testdata/rewrite2.input", "-r=int->bool"},
+ 	{"testdata/rewrite3.input", "-r=x->x"},
++	{"testdata/rewrite4.input", "-r=(x)->x"},
+ 	{"testdata/stdin*.input", "-stdin"},
+ 	{"testdata/comments.input", ""},
+ 	{"testdata/import.input", ""},
+diff --git a/src/cmd/gofmt/testdata/rewrite4.golden b/src/cmd/gofmt/testdata/rewrite4.golden
+new file mode 100644
+index 0000000000..8dfc81a074
+--- /dev/null
++++ b/src/cmd/gofmt/testdata/rewrite4.golden
+@@ -0,0 +1,74 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Rewriting of parenthesized expressions (x) -> x
++// must not drop parentheses if that would lead to
++// wrong association of the operands.
++// Was issue 1847.
++
++package main
++
++// From example 1 of issue 1847.
++func _() {
++	var t = (&T{1000}).Id()
++}
++
++// From example 2 of issue 1847.
++func _() {
++	fmt.Println((*xpp).a)
++}
++
++// Some more test cases.
++func _() {
++	_ = (-x).f
++	_ = (*x).f
++	_ = (&x).f
++	_ = (!x).f
++	_ = -x.f
++	_ = *x.f
++	_ = &x.f
++	_ = !x.f
++	(-x).f()
++	(*x).f()
++	(&x).f()
++	(!x).f()
++	_ = -x.f()
++	_ = *x.f()
++	_ = &x.f()
++	_ = !x.f()
++
++	_ = (-x).f
++	_ = (*x).f
++	_ = (&x).f
++	_ = (!x).f
++	_ = -x.f
++	_ = *x.f
++	_ = &x.f
++	_ = !x.f
++	(-x).f()
++	(*x).f()
++	(&x).f()
++	(!x).f()
++	_ = -x.f()
++	_ = *x.f()
++	_ = &x.f()
++	_ = !x.f()
++
++	_ = -x.f
++	_ = *x.f
++	_ = &x.f
++	_ = !x.f
++	_ = -x.f
++	_ = *x.f
++	_ = &x.f
++	_ = !x.f
++	_ = -x.f()
++	_ = *x.f()
++	_ = &x.f()
++	_ = !x.f()
++	_ = -x.f()
++	_ = *x.f()
++	_ = &x.f()
++	_ = !x.f()
++}
+diff --git a/src/cmd/gofmt/testdata/rewrite4.input b/src/cmd/gofmt/testdata/rewrite4.input
+new file mode 100644
+index 0000000000..164cc0451f
+--- /dev/null
++++ b/src/cmd/gofmt/testdata/rewrite4.input
+@@ -0,0 +1,74 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Rewriting of parenthesized expressions (x) -> x
++// must not drop parentheses if that would lead to
++// wrong association of the operands.
++// Was issue 1847.
++
++package main
++
++// From example 1 of issue 1847.
++func _() {
++	var t = (&T{1000}).Id()
++}
++
++// From example 2 of issue 1847.
++func _() {
++       fmt.Println((*xpp).a)
++}
++
++// Some more test cases.
++func _() {
++	_ = (-x).f
++	_ = (*x).f
++	_ = (&x).f
++	_ = (!x).f
++	_ = (-x.f)
++	_ = (*x.f)
++	_ = (&x.f)
++	_ = (!x.f)
++	(-x).f()
++	(*x).f()
++	(&x).f()
++	(!x).f()
++	_ = (-x.f())
++	_ = (*x.f())
++	_ = (&x.f())
++	_ = (!x.f())
++
++	_ = ((-x)).f
++	_ = ((*x)).f
++	_ = ((&x)).f
++	_ = ((!x)).f
++	_ = ((-x.f))
++	_ = ((*x.f))
++	_ = ((&x.f))
++	_ = ((!x.f))
++	((-x)).f()
++	((*x)).f()
++	((&x)).f()
++	((!x)).f()
++	_ = ((-x.f()))
++	_ = ((*x.f()))
++	_ = ((&x.f()))
++	_ = ((!x.f()))
++
++	_ = -(x).f
++	_ = *(x).f
++	_ = &(x).f
++	_ = !(x).f
++	_ = -x.f
++	_ = *x.f
++	_ = &x.f
++	_ = !x.f
++	_ = -(x).f()
++	_ = *(x).f()
++	_ = &(x).f()
++	_ = !(x).f()
++	_ = -x.f()
++	_ = *x.f()
++	_ = &x.f()
++	_ = !x.f()
++}
+diff --git a/src/pkg/go/printer/nodes.go b/src/pkg/go/printer/nodes.go
+index 25935fb42b..b095f508da 100644
+--- a/src/pkg/go/printer/nodes.go
++++ b/src/pkg/go/printer/nodes.go
+@@ -87,7 +87,6 @@ const (
+ 	commaSep                            // elements are separated by commas
+ 	commaTerm                           // list is optionally terminated by a comma
+ 	noIndent                            // no extra indentation in multi-line lists
+-	periodSep                           // elements are separated by periods
+ )
+ 
+ // Sets multiLine to true if the identifier list spans multiple lines.
+@@ -213,13 +212,10 @@ func (p *printer) exprList(prev0 token.Pos, list []ast.Expr, depth int, mode exp
+ 		}
+ 
+ 		if i > 0 {
+-			switch {
+-			case mode&commaSep != 0:
++			if mode&commaSep != 0 {
+ 				p.print(token.COMMA)
+-			case mode&periodSep != 0:
+-				p.print(token.PERIOD)
+ 			}
+-			needsBlank := mode&periodSep == 0 // period-separated list elements don't need a blank
++			needsBlank := true
+ 			if prevLine < line && prevLine > 0 && line > 0 {
+ 				// lines are broken using newlines so comments remain aligned
+ 				// unless forceFF is set or there are multiple expressions on
+@@ -668,63 +664,6 @@ func isBinary(expr ast.Expr) bool {
+ 	return ok
+ }
+ 
+-// If the expression contains one or more selector expressions, splits it into
+-// two expressions at the rightmost period. Writes entire expr to suffix when
+-// selector isn't found. Rewrites AST nodes for calls, index expressions and
+-// type assertions, all of which may be found in selector chains, to make them
+-// parts of the chain.
+-func splitSelector(expr ast.Expr) (body, suffix ast.Expr) {
+-	switch x := expr.(type) {
+-	case *ast.SelectorExpr:
+-		body, suffix = x.X, x.Sel
+-		return
+-	case *ast.CallExpr:
+-		body, suffix = splitSelector(x.Fun)
+-		if body != nil {
+-			suffix = &ast.CallExpr{suffix, x.Lparen, x.Args, x.Ellipsis, x.Rparen}
+-			return
+-		}
+-	case *ast.IndexExpr:
+-		body, suffix = splitSelector(x.X)
+-		if body != nil {
+-			suffix = &ast.IndexExpr{suffix, x.Lbrack, x.Index, x.Rbrack}
+-			return
+-		}
+-	case *ast.SliceExpr:
+-		body, suffix = splitSelector(x.X)
+-		if body != nil {
+-			suffix = &ast.SliceExpr{suffix, x.Lbrack, x.Low, x.High, x.Rbrack}
+-			return
+-		}
+-	case *ast.TypeAssertExpr:
+-		body, suffix = splitSelector(x.X)
+-		if body != nil {
+-			suffix = &ast.TypeAssertExpr{suffix, x.Type}
+-			return
+-		}
+-	}
+-	suffix = expr
+-	return
+-}
+-
+-// Convert an expression into an expression list split at the periods of
+-// selector expressions.
+-func selectorExprList(expr ast.Expr) (list []ast.Expr) {
+-	// split expression
+-	for expr != nil {
+-		var suffix ast.Expr
+-		expr, suffix = splitSelector(expr)
+-		list = append(list, suffix)
+-	}
+-
+-	// reverse list
+-	for i, j := 0, len(list)-1; i < j; i, j = i+1, j-1 {
+-		list[i], list[j] = list[j], list[i]
+-	}
+-
+-	return
+-}
+-
+ // Sets multiLine to true if the expression spans multiple lines.
+ func (p *printer) expr1(expr ast.Expr, prec1, depth int, multiLine *bool) {
+ 	p.print(expr.Pos())
+@@ -798,8 +737,14 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int, multiLine *bool) {
+ 		}
+ 
+ 	case *ast.SelectorExpr:
+-		parts := selectorExprList(expr)
+-		p.exprList(token.NoPos, parts, depth, periodSep, multiLine, token.NoPos)
++		p.expr1(x.X, token.HighestPrec, depth, multiLine)
++		p.print(token.PERIOD)
++		if line := p.lineFor(x.Sel.Pos()); p.pos.IsValid() && p.pos.Line < line {
++			p.print(indent, newline, x.Sel.Pos(), x.Sel, unindent)
++			*multiLine = true
++		} else {
++			p.print(x.Sel.Pos(), x.Sel)
++		}
+ 
+ 	case *ast.TypeAssertExpr:
+ 		p.expr1(x.X, token.HighestPrec, depth, multiLine)
+diff --git a/src/pkg/go/printer/testdata/expressions.golden b/src/pkg/go/printer/testdata/expressions.golden
+index d0cf24ad6f..95fdd95ffb 100644
+--- a/src/pkg/go/printer/testdata/expressions.golden
++++ b/src/pkg/go/printer/testdata/expressions.golden
+@@ -545,7 +545,7 @@ func _() {
+ 	// handle multiline argument list correctly
+ 	_ = new(T).
+ 		foo(
+-			1).
++		1).
+ 		foo(2)
+ 
+ 	_ = new(T).foo(
+@@ -587,12 +587,12 @@ func _() {
+ 	_ = new(T).
+ 		Field.
+ 		Array[3+
+-			4].
++		4].
+ 		Table["foo"].
+ 		Blob.(*Type).
+ 		Slices[1:4].
+ 		Method(1, 2,
+-			3).
++		3).
+ 		Thingy
+ 
+ 	_ = a.b.c
+diff --git a/src/pkg/go/printer/testdata/expressions.raw b/src/pkg/go/printer/testdata/expressions.raw
+index d7819a3baa..3442ba9b95 100644
+--- a/src/pkg/go/printer/testdata/expressions.raw
++++ b/src/pkg/go/printer/testdata/expressions.raw
+@@ -545,7 +545,7 @@ func _() {
+ 	// handle multiline argument list correctly
+ 	_ = new(T).
+ 		foo(
+-			1).
++		1).
+ 		foo(2)
+ 
+ 	_ = new(T).foo(
+@@ -587,12 +587,12 @@ func _() {
+ 	_ = new(T).
+ 		Field.
+ 		Array[3+
+-			4].
++		4].
+ 		Table["foo"].
+ 		Blob.(*Type).
+ 		Slices[1:4].
+ 		Method(1, 2,
+-			3).
++		3).
+ 		Thingy
+ 
+ 	_ = a.b.c

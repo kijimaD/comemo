@@ -15,6 +15,22 @@ Date:   Tue Apr 3 22:33:03 2018 +0300
     Reviewed-on: https://go-review.googlesource.com/104555
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/math/big/nat.go | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/math/big/nat.go b/src/math/big/nat.go
+index 1f259410c4..1208ea76c8 100644
+--- a/src/math/big/nat.go
++++ b/src/math/big/nat.go
+@@ -1245,9 +1245,8 @@ func (z nat) bytes(buf []byte) (i int) {
+ func bigEndianWord(buf []byte) Word {
+ 	if _W == 64 {
+ 		return Word(binary.BigEndian.Uint64(buf))
+-	} else { // Explicit else is required to get inlining. See #23521
+-		return Word(binary.BigEndian.Uint32(buf))
+ 	}
++	return Word(binary.BigEndian.Uint32(buf))
+ }
+ 
+ // setBytes interprets buf as the bytes of a big-endian unsigned

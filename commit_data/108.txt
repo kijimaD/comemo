@@ -5,7 +5,7 @@ Date:   Fri Jun 6 16:56:18 2008 -0700
     check in the bugs and fixed bugs
     
     SVN=121543
-
+---
  test/bugs/bug001.go      |  11 +++++
  test/bugs/bug002.go      |  11 +++++
  test/bugs/bug003.go      |  15 ++++++
@@ -40,3 +40,1006 @@ Date:   Fri Jun 6 16:56:18 2008 -0700
  test/ken/robliteral.go   |  14 +++++-
  test/run                 |   6 +--
  33 files changed, 746 insertions(+), 6 deletions(-)
+
+diff --git a/test/bugs/bug001.go b/test/bugs/bug001.go
+new file mode 100644
+index 0000000000..2df8791fff
+--- /dev/null
++++ b/test/bugs/bug001.go
+@@ -0,0 +1,11 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func main() {
++	if {}  // compiles; should be an error (must be an expression)
++}
+diff --git a/test/bugs/bug002.go b/test/bugs/bug002.go
+new file mode 100644
+index 0000000000..230841974f
+--- /dev/null
++++ b/test/bugs/bug002.go
+@@ -0,0 +1,11 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func main() {
++	if ; false {}  // compiles; should be an error (should be simplevardecl before ;)
++}
+diff --git a/test/bugs/bug003.go b/test/bugs/bug003.go
+new file mode 100644
+index 0000000000..07f04d227d
+--- /dev/null
++++ b/test/bugs/bug003.go
+@@ -0,0 +1,15 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func main() {
++	switch ; {}  // compiles; should be an error (should be simplevardecl before ;)
++}
++/*
++bug003.go:6: switch statement must have case labels
++bug003.go:6: fatal error: walkswitch: not case EMPTY
++*/
+diff --git a/test/bugs/bug004.go b/test/bugs/bug004.go
+new file mode 100644
+index 0000000000..20f467a5f4
+--- /dev/null
++++ b/test/bugs/bug004.go
+@@ -0,0 +1,11 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func main() {
++	switch ; { case false: return; }  // compiles; should be an error (should be simplevardecl before ;)
++}
+diff --git a/test/bugs/bug006.go b/test/bugs/bug006.go
+new file mode 100644
+index 0000000000..8f74526357
+--- /dev/null
++++ b/test/bugs/bug006.go
+@@ -0,0 +1,28 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++const (
++	g float = 4.5 * iota;
++);
++
++func main() {
++}
++/*
++should 4.5 * iota be ok? perhaps, perhaps not. but (all!) error msgs are bad:
++bug6.go:4: illegal combination of literals 0 0
++bug6.go:4: expression must be a constant
++bug6.go:4: expression must be a constant
++bug6.go:4: expression must be a constant
++bug6.go:4: expression must be a constant
++bug6.go:4: expression must be a constant
++bug6.go:4: expression must be a constant
++bug6.go:4: expression must be a constant
++bug6.go:4: expression must be a constant
++bug6.go:4: expression must be a constant
++bug6.go:4: fatal error: too many errors
++*/
+diff --git a/test/bugs/bug010.go b/test/bugs/bug010.go
+new file mode 100644
+index 0000000000..6143ca1cdf
+--- /dev/null
++++ b/test/bugs/bug010.go
+@@ -0,0 +1,19 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++
++func f() (i int, f float) {
++	i = 8;
++	f = 8.0;
++	return;
++}
++/*
++bug10.go:5: i undefined
++bug10.go:6: illegal conversion of constant to 020({},<_o001>{<i><int32>INT32;<f><float32>FLOAT32;},{})
++bug10.go:7: error in shape across assignment
++*/
+diff --git a/test/bugs/bug014.go b/test/bugs/bug014.go
+new file mode 100644
+index 0000000000..25a8af292f
+--- /dev/null
++++ b/test/bugs/bug014.go
+@@ -0,0 +1,14 @@
++// errchk $G $D/$F.go
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func main() {
++	var c00 uint8 = '\0';  // three octal required; should not compile
++	var c01 uint8 = '\07';  // three octal required; should not compile
++	var cx0 uint8 = '\x0';  // two hex required; should not compile
++	var cx1 uint8 = '\x';  // two hex required; REALLY should not compile
++}
+diff --git a/test/bugs/bug015.go b/test/bugs/bug015.go
+new file mode 100644
+index 0000000000..cbb9652c06
+--- /dev/null
++++ b/test/bugs/bug015.go
+@@ -0,0 +1,13 @@
++// errchk $G $D/$F.go
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func main() {
++	var i33 int64;
++	if i33 == (1<<64) -1 {  // BUG: should not compile; constant too large
++	}
++}
+diff --git a/test/bugs/bug016.go b/test/bugs/bug016.go
+new file mode 100644
+index 0000000000..3bb8692262
+--- /dev/null
++++ b/test/bugs/bug016.go
+@@ -0,0 +1,16 @@
++// ! $G $D/$F.go
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func main() {
++	var i int = 100;
++	i = i << -3;  // BUG: should not compile (negative shift)
++}
++
++/*
++bug016.go:7: fatal error: optoas: no entry LSH-<int32>INT32
++*/
+diff --git a/test/bugs/bug022.go b/test/bugs/bug022.go
+new file mode 100644
+index 0000000000..5215d35899
+--- /dev/null
++++ b/test/bugs/bug022.go
+@@ -0,0 +1,20 @@
++// errchk $G $D/$F.go
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func putint(digits *string) {
++	var i byte;
++	i = (*digits)[7];  // compiles
++	i = digits[7];  // doesn't compile
++}
++
++/*
++bug022.go:8: illegal types for operand
++	(*<string>*STRING) INDEXPTR (<int32>INT32)
++bug022.go:8: illegal types for operand
++	(<uint8>UINT8) AS 
++*/
+diff --git a/test/bugs/bug023.go b/test/bugs/bug023.go
+new file mode 100644
+index 0000000000..cce8c4543e
+--- /dev/null
++++ b/test/bugs/bug023.go
+@@ -0,0 +1,29 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++type Type interface {
++	TypeName() string;
++}
++
++type TInt struct {
++}
++
++// TInt
++func (i *TInt) TypeName() string {
++	return "int";
++}
++
++
++func main() {
++	var t Type;
++	t = nil;
++}
++
++/*
++bug023.go:20: fatal error: naddr: const <Type>I{<TypeName>110(<_t117>{},<_o119>{},{});}
++*/
+diff --git a/test/bugs/bug024.go b/test/bugs/bug024.go
+new file mode 100644
+index 0000000000..51bf5296ff
+--- /dev/null
++++ b/test/bugs/bug024.go
+@@ -0,0 +1,20 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func main() {
++  var i int;
++  i = '\'';
++  i = '\\';
++  var s string;
++  s = "\"";
++}
++/*
++bug.go:5: unknown escape sequence: '
++bug.go:6: unknown escape sequence: \
++bug.go:8: unknown escape sequence: "
++*/
+diff --git a/test/bugs/bug025.go b/test/bugs/bug025.go
+new file mode 100644
+index 0000000000..93c886ae7b
+--- /dev/null
++++ b/test/bugs/bug025.go
+@@ -0,0 +1,16 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// $G $D/$F.go || echo BUG: known to fail incorrectly or at least with a bad message
++
++package main
++
++export Foo
++
++func main() {}
++
++/*
++bug25.go:5: fatal error: dumpexportvar: oname nil: Foo
++
++*/
+diff --git a/test/bugs/bug026.go b/test/bugs/bug026.go
+new file mode 100644
+index 0000000000..05925ef3f0
+--- /dev/null
++++ b/test/bugs/bug026.go
+@@ -0,0 +1,28 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++export Vector;
++
++type Element interface {
++}
++
++type Vector struct {
++}
++
++func (v *Vector) Insert(i int, e Element) {
++}
++
++
++func main() {
++	type I struct { val int; };  // BUG: can't be local; works if global
++	v := new(Vector);
++	v.Insert(0, new(I));
++}
++/*
++check: main_sigs_I: not defined
++*/
+diff --git a/test/bugs/bug027.go b/test/bugs/bug027.go
+new file mode 100644
+index 0000000000..e260e2d48a
+--- /dev/null
++++ b/test/bugs/bug027.go
+@@ -0,0 +1,62 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++type Element interface {
++}
++
++type Vector struct {
++	nelem int;
++	elem *[]Element;
++}
++
++func New() *Vector {
++	v := new(Vector);
++	v.nelem = 0;
++	v.elem = new([10]Element);
++	return v;
++}
++
++func (v *Vector) At(i int) Element {
++	return v.elem[i];
++}
++
++func (v *Vector) Insert(e Element) {
++	v.elem[v.nelem] = e;
++	v.nelem++;
++}
++
++type I struct { val int; };  // BUG: can't be local;
++
++func main() {
++	i0 := new(I); i0.val = 0;
++	i1 := new(I); i1.val = 11;
++	i2 := new(I); i2.val = 222;
++	i3 := new(I); i3.val = 3333;
++	i4 := new(I); i4.val = 44444;
++	v := New();
++	print "hi\n";
++	v.Insert(i4);
++	v.Insert(i3);
++	v.Insert(i2);
++	v.Insert(i1);
++	v.Insert(i0);
++	for i := 0; i < v.nelem; i++ {
++		var x *I;
++		x = v.At(i);
++		print i, " ", x.val, "\n";  // prints correct list
++	}
++	for i := 0; i < v.nelem; i++ {
++		print i, " ", I(v.At(i)).val, "\n"; // always prints 5 - bad code - should be *I()
++	}
++}
++/*
++bug027.go:50: illegal types for operand
++	(<Element>I{}) CONV (<I>{})
++bug027.go:50: illegal types for operand
++	(<Element>I{}) CONV (<I>{})
++*/
+diff --git a/test/bugs/bug028.go b/test/bugs/bug028.go
+new file mode 100644
+index 0000000000..06abeded2a
+--- /dev/null
++++ b/test/bugs/bug028.go
+@@ -0,0 +1,23 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++
++func Alloc(i int) int {
++	switch i {
++	default:
++		return 5;
++	case 1:
++		return 1;
++	case 10:
++		return 10;
++	}
++}
++
++/*
++bug028.go:7: unreachable statements in a switch
++*/
+diff --git a/test/bugs/bug029.go b/test/bugs/bug029.go
+new file mode 100644
+index 0000000000..87e0f689f0
+--- /dev/null
++++ b/test/bugs/bug029.go
+@@ -0,0 +1,14 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// $G $D/$F.go && echo BUG: known to succeed incorrectly
++
++package main
++
++//should be f *func but compiler accepts it
++func iterate(f func(int)) {
++}
++
++func main() {
++}
+diff --git a/test/bugs/bug030.go b/test/bugs/bug030.go
+new file mode 100644
+index 0000000000..4f5b7946b9
+--- /dev/null
++++ b/test/bugs/bug030.go
+@@ -0,0 +1,12 @@
++// errchk $G $D/$F.go
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func main() {
++  var x int;
++  x := 0; // BUG: redeclaration - should not compile
++}
+diff --git a/test/fixedbugs/bug000.go b/test/fixedbugs/bug000.go
+new file mode 100644
+index 0000000000..ccb24e8e9b
+--- /dev/null
++++ b/test/fixedbugs/bug000.go
+@@ -0,0 +1,20 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func main() {
++	var x int;
++	switch x {
++	case 0:
++		{}
++	case 1:
++		x = 0;
++	}
++}
++/*
++bug0.go:8: case statement out of place
++*/
+diff --git a/test/fixedbugs/bug005.go b/test/fixedbugs/bug005.go
+new file mode 100644
+index 0000000000..3bd2fe815e
+--- /dev/null
++++ b/test/fixedbugs/bug005.go
+@@ -0,0 +1,18 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func main() {
++	Foo: {
++		return;
++	}
++	goto Foo;
++}
++/*
++bug5.go:4: Foo undefined
++bug5.go:4: fatal error: walktype: switch 1 unknown op GOTO l(4)
++*/
+diff --git a/test/fixedbugs/bug007.go b/test/fixedbugs/bug007.go
+new file mode 100644
+index 0000000000..bd970de5f9
+--- /dev/null
++++ b/test/fixedbugs/bug007.go
+@@ -0,0 +1,22 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++type (
++	Point struct { x, y float };
++	Polar Point
++)
++
++func main() {
++}
++
++/*
++bug7.go:5: addtyp: renaming Point to Polar
++main.go.c:14: error: redefinition of typedef ‘_T_2’
++main.go.c:13: error: previous declaration of ‘_T_2’ was here
++main.go.c:16: error: redefinition of ‘struct _T_2’
++*/
+diff --git a/test/fixedbugs/bug008.go b/test/fixedbugs/bug008.go
+new file mode 100644
+index 0000000000..7e7c5ca796
+--- /dev/null
++++ b/test/fixedbugs/bug008.go
+@@ -0,0 +1,20 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func main() {
++	i5 := 5;
++
++	switch {  // compiler crash fixable with 'switch true'
++	case i5 < 5: dummy := 0;
++	case i5 == 5: dummy := 0;
++	case i5 > 5: dummy := 0;
++	}
++}
++/*
++Segmentation fault
++*/
+diff --git a/test/fixedbugs/bug009.go b/test/fixedbugs/bug009.go
+new file mode 100644
+index 0000000000..f52cd84daa
+--- /dev/null
++++ b/test/fixedbugs/bug009.go
+@@ -0,0 +1,16 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++
++func main() {
++	fired := false;
++}
++/*
++bug9.go:5: defaultlit: unknown literal: LITERAL-B0 a(1)
++bug9.go:5: fatal error: addvar: n=NAME-fired G0 a(1) l(5) t=<N> nil
++*/
+diff --git a/test/fixedbugs/bug011.go b/test/fixedbugs/bug011.go
+new file mode 100644
+index 0000000000..63673c0865
+--- /dev/null
++++ b/test/fixedbugs/bug011.go
+@@ -0,0 +1,26 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++
++type T struct {
++	x, y int;
++}
++
++func (t *T) m(a int, b float) int {
++	return (t.x+a) * (t.y+int(b));
++}
++
++func main() {
++	var t *T = new(T);
++	t.x = 1;
++	t.y = 2;
++	r10 := t.m(1, 3.0);
++}
++/*
++bug11.go:16: fatal error: walktype: switch 1 unknown op CALLMETH l(16) <int32>INT32
++*/
+diff --git a/test/fixedbugs/bug012.go b/test/fixedbugs/bug012.go
+new file mode 100644
+index 0000000000..7f5fd84b36
+--- /dev/null
++++ b/test/fixedbugs/bug012.go
+@@ -0,0 +1,23 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++
++func main() {
++	var u30 uint64 = 0;
++	var u31 uint64 = 1;
++	var u32 uint64 = 18446744073709551615;
++	var u33 uint64 = +18446744073709551615;
++	if u32 != ^0 { panic "u32\n"; }
++	if u33 != ^0 { panic "u33\n"; }
++}
++/*
++bug12.go:5: overflow converting constant to <uint64>UINT64
++bug12.go:6: overflow converting constant to <uint64>UINT64
++bug12.go:7: overflow converting constant to <uint64>UINT64
++bug12.go:8: overflow converting constant to <uint64>UINT64
++*/
+diff --git a/test/fixedbugs/bug013.go b/test/fixedbugs/bug013.go
+new file mode 100644
+index 0000000000..33b532b2a3
+--- /dev/null
++++ b/test/fixedbugs/bug013.go
+@@ -0,0 +1,19 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func main() {
++	var cu0 uint16 = '\u1234';
++	var cU1 uint32 = '\U00101234';
++}
++/*
++bug13.go:4: missing '
++bug13.go:4: syntax error
++bug13.go:5: newline in string
++bug13.go:5: missing '
++bug13.go:6: newline in string
++*/
+diff --git a/test/fixedbugs/bug017.go b/test/fixedbugs/bug017.go
+new file mode 100644
+index 0000000000..eedc6d7e23
+--- /dev/null
++++ b/test/fixedbugs/bug017.go
+@@ -0,0 +1,24 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func main() {
++	var s2 string = "\a\b\f\n\r\t\v";  // \r is miscompiled
++}
++/*
++main.go.c: In function ‘main_main’:
++main.go.c:20: error: missing terminating " character
++main.go.c:21: error: missing terminating " character
++main.go.c:24: error: ‘def’ undeclared (first use in this function)
++main.go.c:24: error: (Each undeclared identifier is reported only once
++main.go.c:24: error: for each function it appears in.)
++main.go.c:24: error: syntax error before ‘def’
++main.go.c:24: error: missing terminating " character
++main.go.c:25: warning: excess elements in struct initializer
++main.go.c:25: warning: (near initialization for ‘slit’)
++main.go.c:36: error: syntax error at end of input
++*/
+diff --git a/test/fixedbugs/bug020.go b/test/fixedbugs/bug020.go
+new file mode 100644
+index 0000000000..b791f5d958
+--- /dev/null
++++ b/test/fixedbugs/bug020.go
+@@ -0,0 +1,22 @@
++// $G $D/$F.go || echo BUG should compile
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++var digits string;
++
++func putint(buf []byte, i, base, val int, digits string) {
++		buf[i] = digits[val];
++}
++
++func main() {
++}
++
++/*
++x.go :
++main.go.c: In function ‘main_putint’:
++main.go.c:41: error: syntax error before ‘)’ token
++*/
+diff --git a/test/fixedbugs/bug021.go b/test/fixedbugs/bug021.go
+new file mode 100644
+index 0000000000..201fa5f039
+--- /dev/null
++++ b/test/fixedbugs/bug021.go
+@@ -0,0 +1,13 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func main() {
++	s1 := "hi";
++	s2 := "ho";
++	s1 += s2;
++}
+diff --git a/test/fixedbugs/bug031.go b/test/fixedbugs/bug031.go
+new file mode 100644
+index 0000000000..061a89da83
+--- /dev/null
++++ b/test/fixedbugs/bug031.go
+@@ -0,0 +1,28 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func main() {
++prog := "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"+
++"xxxxxxxxxx"+
++"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"+
++"xxxxxxxxxxxxxxxxxxxxxx"+
++"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"+
++"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"+
++"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"+
++"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"+
++"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"+
++"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"+
++"xxxxxxxxxxxxxxxxxxx"+
++"xxxxxx"+
++"xxxxxxxxxxxxxxxxxxxx"+
++"xxxxxxxx"+
++"xxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
++;
++}
++
++/* Segmentation fault */
+diff --git a/test/golden.out b/test/golden.out
+index cc611d402b..581ccf6afc 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -117,6 +117,9 @@ BUG: known to fail incorrectly
+ =========== ken/robiota.go
+ 
+ =========== ken/robliteral.go
++assertion fail: sj1
++assertion fail: sj2
++BUG: known to fail incorrectly
+ 
+ =========== ken/robswitch.go
+ 
+@@ -140,3 +143,119 @@ hello world
+ abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz
+ 
+ =========== ken/strvar.go
++
++=========== bugs/bug001.go
++BUG: known to succeed incorrectly
++
++=========== bugs/bug002.go
++BUG: known to succeed incorrectly
++
++=========== bugs/bug003.go
++bugs/bug003.go:6: switch statement must have case labels
++bugs/bug003.go:6: fatal error: walkswitch: not case EMPTY
++
++BUG: fatal error
++
++=========== bugs/bug004.go
++BUG: known to succeed incorrectly
++
++=========== bugs/bug006.go
++bugs/bug006.go:6: illegal combination of literals 0 0
++bugs/bug006.go:6: expression must be a constant
++bugs/bug006.go:6: expression must be a constant
++bugs/bug006.go:6: expression must be a constant
++bugs/bug006.go:6: expression must be a constant
++bugs/bug006.go:6: expression must be a constant
++bugs/bug006.go:6: expression must be a constant
++bugs/bug006.go:6: expression must be a constant
++bugs/bug006.go:6: expression must be a constant
++bugs/bug006.go:6: expression must be a constant
++bugs/bug006.go:6: fatal error: too many errors
++BUG: known to fail incorrectly
++
++=========== bugs/bug010.go
++bugs/bug010.go:7: i undefined
++bugs/bug010.go:8: illegal conversion of constant to 020({},<_o114>{},{})
++bugs/bug010.go:9: error in shape across assignment
++BUG: known to fail incorrectly
++
++=========== bugs/bug014.go
++bugs/bug014.go:6: non-oct character in escape sequence: '
++bugs/bug014.go:6: non-oct character in escape sequence: '
++bugs/bug014.go:7: non-oct character in escape sequence: '
++bugs/bug014.go:8: non-hex character in escape sequence: '
++bugs/bug014.go:9: non-hex character in escape sequence: '
++BUG: errors caught but exit code should be non-zero
++
++=========== bugs/bug015.go
++BUG: known to succeed incorrectly
++
++=========== bugs/bug016.go
++bugs/bug016.go:7: fatal error: optoas: no entry LSH-<int32>INT32
++BUG: fatal error
++
++=========== bugs/bug022.go
++bugs/bug022.go:8: illegal types for operand
++	(*<string>*STRING) INDEXPTR (<int32>INT32)
++bugs/bug022.go:8: illegal types for operand
++	(<uint8>UINT8) AS 
++BUG: known to fail incorrectly
++
++=========== bugs/bug023.go
++bugs/bug023.go:20: fatal error: naddr: const <Type>I{<TypeName>110(<_t117>{},<_o119>{},{});}
++BUG: known to fail incorrectly
++
++=========== bugs/bug024.go
++bugs/bug024.go:8: unknown escape sequence: \
++BUG: erroneous errors but compiles anyway
++
++=========== bugs/bug025.go
++bugs/bug025.go:7: fatal error: dumpexportvar: oname nil: Foo
++
++BUG: known to fail incorrectly or at least with a bad message
++
++=========== bugs/bug026.go
++check: main_sigs_I: not defined
++BUG: known to fail incorrectly
++
++=========== bugs/bug027.go
++bugs/bug027.go:50: illegal types for operand
++	(<Element>I{}) CONV (<I>{})
++bugs/bug027.go:50: illegal types for operand
++	(<Element>I{}) CONV (<I>{})
++BUG: known to fail incorrectly
++
++=========== bugs/bug028.go
++bugs/bug028.go:9: unreachable statements in a switch
++BUG: known to fail incorrectly
++
++=========== bugs/bug029.go
++BUG: known to succeed incorrectly
++
++=========== bugs/bug030.go
++BUG: known to succeed incorrectly
++
++=========== fixedbugs/bug000.go
++
++=========== fixedbugs/bug005.go
++
++=========== fixedbugs/bug007.go
++fixedbugs/bug007.go:7: addtyp: renaming Point/<Point>{<x><float32>FLOAT32;<y><float32>FLOAT32;} to Polar/<Polar>FORW
++
++=========== fixedbugs/bug008.go
++
++=========== fixedbugs/bug009.go
++
++=========== fixedbugs/bug011.go
++
++=========== fixedbugs/bug012.go
++
++=========== fixedbugs/bug013.go
++
++=========== fixedbugs/bug017.go
++
++=========== fixedbugs/bug020.go
++
++=========== fixedbugs/bug021.go
++
++=========== fixedbugs/bug031.go
+diff --git a/test/ken/robliteral.go b/test/ken/robliteral.go
+index 18fc353b03..10c44b4e07 100644
+--- a/test/ken/robliteral.go
++++ b/test/ken/robliteral.go
+@@ -2,18 +2,23 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// $G $D/$F.go && $L $F.$A && ./$A.out
++// $G $D/$F.go && $L $F.$A && ! ./$A.out && echo BUG: known to fail incorrectly
+ 
+ package main
+ 
++var code int;
++
+ func assert(cond bool, msg string) {
+ 	if !cond {
+ 		print "assertion fail: " + msg + "\n";
++		code = 1;
+ 		//panic 1;  this file has errors; print them all
+ 	}
+ }
+ 
+-func main() {
++func main() int {
++	code = 0;
++
+ 	// bool
+ 	var t bool = true;
+ 	var f bool = false;
+@@ -207,4 +212,9 @@ func main() {
+ 	var sj1 string = "\u65e5\u672c\u8a9e";
+ 	var sj2 string = "\U000065e5\U0000672c\U00008a9e";
+ 	var sj3 string = "\xe6\x97\xa5\xe6\x9c\xac\xe8\xaa\x9e";
++	assert(sj0 == sj1, "sj1");
++	assert(sj0 == sj2, "sj2");
++	assert(sj0 == sj3, "sj3");
++
++	return code;
+ }
+diff --git a/test/run b/test/run
+index 641daf00cb..acfc25c70d 100755
+--- a/test/run
++++ b/test/run
+@@ -3,7 +3,6 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-
+ case X"$GOARCH" in
+ Xamd64)
+ 	export A=6
+@@ -13,13 +12,12 @@ Xamd64)
+ 	exit 1
+ esac
+ 
+-export A=6
+ export G=${A}g
+ export L=${A}l
+ 
+ failed=0
+ 
+-for dir in . ken
++for dir in . ken bugs fixedbugs
+ do
+ 	for i in $dir/*.go
+ 	do
+@@ -45,6 +43,6 @@ then
+ 	failed=1
+ fi
+ 
+-echo 2>&1 $(grep -c '^BUG' run.out) tests are failing incorrectly
++echo 2>&1 $(grep -c '^BUG' run.out) tests are behaving incorrectly
+ 
+ exit $failed

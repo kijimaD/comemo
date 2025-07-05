@@ -45,7 +45,7 @@ Date:   Thu Dec 19 08:15:06 2019 +0000
     Reviewed-by: Keith Randall <khr@golang.org>
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/internal/goobj/read.go           |   2 +
  src/cmd/internal/goobj/readnew.go        |   1 +
  src/cmd/internal/goobj2/funcinfo.go      |   3 +
@@ -62,3 +62,413 @@ Date:   Thu Dec 19 08:15:06 2019 +0000
  src/cmd/link/link_test.go                | 101 +++++++++++++++++++++++++++++++
  src/runtime/textflag.h                   |   5 ++
  15 files changed, 168 insertions(+), 25 deletions(-)
+
+diff --git a/src/cmd/internal/goobj/read.go b/src/cmd/internal/goobj/read.go
+index e61e95dcc8..48537d2b1c 100644
+--- a/src/cmd/internal/goobj/read.go
++++ b/src/cmd/internal/goobj/read.go
+@@ -95,6 +95,7 @@ type Var struct {
+ type Func struct {
+ 	Args     int64      // size in bytes of argument frame: inputs and outputs
+ 	Frame    int64      // size in bytes of local variable frame
++	Align    uint32     // alignment requirement in bytes for the address of the function
+ 	Leaf     bool       // function omits save of link register (ARM)
+ 	NoSplit  bool       // function omits stack split prologue
+ 	TopFrame bool       // function is the top of the call stack
+@@ -590,6 +591,7 @@ func (r *objReader) parseObject(prefix []byte) error {
+ 			s.Func = f
+ 			f.Args = r.readInt()
+ 			f.Frame = r.readInt()
++			f.Align = uint32(r.readInt())
+ 			flags := r.readInt()
+ 			f.Leaf = flags&(1<<0) != 0
+ 			f.TopFrame = flags&(1<<4) != 0
+diff --git a/src/cmd/internal/goobj/readnew.go b/src/cmd/internal/goobj/readnew.go
+index 3f9d0d1db6..1acf18a594 100644
+--- a/src/cmd/internal/goobj/readnew.go
++++ b/src/cmd/internal/goobj/readnew.go
+@@ -149,6 +149,7 @@ func (r *objReader) readNew() {
+ 		f := &Func{
+ 			Args:     int64(info.Args),
+ 			Frame:    int64(info.Locals),
++			Align:    info.Align,
+ 			NoSplit:  info.NoSplit != 0,
+ 			Leaf:     osym.Leaf(),
+ 			TopFrame: osym.TopFrame(),
+diff --git a/src/cmd/internal/goobj2/funcinfo.go b/src/cmd/internal/goobj2/funcinfo.go
+index 8620931970..946415b246 100644
+--- a/src/cmd/internal/goobj2/funcinfo.go
++++ b/src/cmd/internal/goobj2/funcinfo.go
+@@ -18,6 +18,7 @@ type FuncInfo struct {
+ 
+ 	Args   uint32
+ 	Locals uint32
++	Align  uint32
+ 
+ 	Pcsp        uint32
+ 	Pcfile      uint32
+@@ -42,6 +43,7 @@ func (a *FuncInfo) Write(w *bytes.Buffer) {
+ 
+ 	writeUint32(a.Args)
+ 	writeUint32(a.Locals)
++	writeUint32(a.Align)
+ 
+ 	writeUint32(a.Pcsp)
+ 	writeUint32(a.Pcfile)
+@@ -79,6 +81,7 @@ func (a *FuncInfo) Read(b []byte) {
+ 
+ 	a.Args = readUint32()
+ 	a.Locals = readUint32()
++	a.Align = readUint32()
+ 
+ 	a.Pcsp = readUint32()
+ 	a.Pcfile = readUint32()
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index e8b092a2a8..dbe816e735 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -886,25 +886,10 @@ const OP_NOOP = 0xd503201f
+ 
+ // align code to a certain length by padding bytes.
+ func pcAlignPadLength(pc int64, alignedValue int64, ctxt *obj.Link) int {
+-	switch alignedValue {
+-	case 8:
+-		if pc%8 == 4 {
+-			return 4
+-		}
+-	case 16:
+-		switch pc % 16 {
+-		case 4:
+-			return 12
+-		case 8:
+-			return 8
+-		case 12:
+-			return 4
+-		}
+-	default:
+-		ctxt.Diag("Unexpected alignment: %d for PCALIGN directive\n", alignedValue)
++	if !((alignedValue&(alignedValue-1) == 0) && 8 <= alignedValue && alignedValue <= 2048) {
++		ctxt.Diag("alignment value of an instruction must be a power of two and in the range [8, 2048], got %d\n", alignedValue)
+ 	}
+-
+-	return 0
++	return int(-pc & (alignedValue - 1))
+ }
+ 
+ func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+@@ -940,8 +925,12 @@ func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 		if m == 0 {
+ 			switch p.As {
+ 			case obj.APCALIGN:
+-				a := p.From.Offset
+-				m = pcAlignPadLength(pc, a, ctxt)
++				alignedValue := p.From.Offset
++				m = pcAlignPadLength(pc, alignedValue, ctxt)
++				// Update the current text symbol ailgnment value.
++				if int32(alignedValue) > cursym.Func.Align {
++					cursym.Func.Align = int32(alignedValue)
++				}
+ 				break
+ 			case obj.ANOP, obj.AFUNCDATA, obj.APCDATA:
+ 				continue
+@@ -1017,8 +1006,8 @@ func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 			if m == 0 {
+ 				switch p.As {
+ 				case obj.APCALIGN:
+-					a := p.From.Offset
+-					m = pcAlignPadLength(pc, a, ctxt)
++					alignedValue := p.From.Offset
++					m = pcAlignPadLength(pc, alignedValue, ctxt)
+ 					break
+ 				case obj.ANOP, obj.AFUNCDATA, obj.APCDATA:
+ 					continue
+diff --git a/src/cmd/internal/obj/arm64/asm_test.go b/src/cmd/internal/obj/arm64/asm_test.go
+index 1691828739..9efdb0217f 100644
+--- a/src/cmd/internal/obj/arm64/asm_test.go
++++ b/src/cmd/internal/obj/arm64/asm_test.go
+@@ -18,7 +18,9 @@ import (
+ 
+ // TestLarge generates a very large file to verify that large
+ // program builds successfully, in particular, too-far
+-// conditional branches are fixed.
++// conditional branches are fixed, and also verify that the
++// instruction's pc can be correctly aligned even when branches
++// need to be fixed.
+ func TestLarge(t *testing.T) {
+ 	if testing.Short() {
+ 		t.Skip("Skip in short mode")
+@@ -41,10 +43,27 @@ func TestLarge(t *testing.T) {
+ 		t.Fatalf("can't write output: %v\n", err)
+ 	}
+ 
+-	// build generated file
+-	cmd := exec.Command(testenv.GoToolPath(t), "tool", "asm", "-o", filepath.Join(dir, "x.o"), tmpfile)
++	pattern := `0x0080\s00128\s\(.*\)\tMOVD\t\$3,\sR3`
++
++	// assemble generated file
++	cmd := exec.Command(testenv.GoToolPath(t), "tool", "asm", "-S", "-o", filepath.Join(dir, "test.o"), tmpfile)
+ 	cmd.Env = append(os.Environ(), "GOARCH=arm64", "GOOS=linux")
+ 	out, err := cmd.CombinedOutput()
++	if err != nil {
++		t.Errorf("Assemble failed: %v, output: %s", err, out)
++	}
++	matched, err := regexp.MatchString(pattern, string(out))
++	if err != nil {
++		t.Fatal(err)
++	}
++	if !matched {
++		t.Errorf("The alignment is not correct: %t, output:%s\n", matched, out)
++	}
++
++	// build generated file
++	cmd = exec.Command(testenv.GoToolPath(t), "tool", "asm", "-o", filepath.Join(dir, "x.o"), tmpfile)
++	cmd.Env = append(os.Environ(), "GOARCH=arm64", "GOOS=linux")
++	out, err = cmd.CombinedOutput()
+ 	if err != nil {
+ 		t.Errorf("Build failed: %v, output: %s", err, out)
+ 	}
+@@ -56,6 +75,8 @@ func gen(buf *bytes.Buffer) {
+ 	fmt.Fprintln(buf, "TBZ $5, R0, label")
+ 	fmt.Fprintln(buf, "CBZ R0, label")
+ 	fmt.Fprintln(buf, "BEQ label")
++	fmt.Fprintln(buf, "PCALIGN $128")
++	fmt.Fprintln(buf, "MOVD $3, R3")
+ 	for i := 0; i < 1<<19; i++ {
+ 		fmt.Fprintln(buf, "MOVD R0, R1")
+ 	}
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index d1cc536a8c..0879c611ba 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -398,6 +398,7 @@ type LSym struct {
+ type FuncInfo struct {
+ 	Args     int32
+ 	Locals   int32
++	Align    int32
+ 	Text     *Prog
+ 	Autot    map[*LSym]struct{}
+ 	Pcln     Pcln
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index 7fd97f7363..46e8a551ad 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -346,6 +346,7 @@ func (w *objWriter) writeSym(s *LSym) {
+ 
+ 	w.writeInt(int64(s.Func.Args))
+ 	w.writeInt(int64(s.Func.Locals))
++	w.writeInt(int64(s.Func.Align))
+ 	w.writeBool(s.NoSplit())
+ 	flags = int64(0)
+ 	if s.Leaf() {
+diff --git a/src/cmd/internal/obj/objfile2.go b/src/cmd/internal/obj/objfile2.go
+index 69019e033d..626df56bd4 100644
+--- a/src/cmd/internal/obj/objfile2.go
++++ b/src/cmd/internal/obj/objfile2.go
+@@ -374,6 +374,7 @@ func genFuncInfoSyms(ctxt *Link) {
+ 			NoSplit: nosplit,
+ 			Args:    uint32(s.Func.Args),
+ 			Locals:  uint32(s.Func.Locals),
++			Align:   uint32(s.Func.Align),
+ 		}
+ 		pc := &s.Func.Pcln
+ 		o.Pcsp = pcdataoff
+diff --git a/src/cmd/internal/obj/plist.go b/src/cmd/internal/obj/plist.go
+index 7579dd0390..be19221a13 100644
+--- a/src/cmd/internal/obj/plist.go
++++ b/src/cmd/internal/obj/plist.go
+@@ -133,6 +133,13 @@ func (ctxt *Link) InitTextSym(s *LSym, flag int) {
+ 	s.Set(AttrNeedCtxt, flag&NEEDCTXT != 0)
+ 	s.Set(AttrNoFrame, flag&NOFRAME != 0)
+ 	s.Set(AttrTopFrame, flag&TOPFRAME != 0)
++	if flag&ALIGN2048 != 0 {
++		if objabi.GOARCH != "arm64" {
++			ctxt.Diag("ALIGN2048 flag only works on ARM64 at present.")
++		}
++		s.Func.Align = 2048
++	}
++
+ 	s.Type = objabi.STEXT
+ 	ctxt.Text = append(ctxt.Text, s)
+ 
+diff --git a/src/cmd/internal/obj/textflag.go b/src/cmd/internal/obj/textflag.go
+index d2cec734b1..3681a3b67b 100644
+--- a/src/cmd/internal/obj/textflag.go
++++ b/src/cmd/internal/obj/textflag.go
+@@ -51,4 +51,9 @@ const (
+ 	// Function is the top of the call stack. Call stack unwinders should stop
+ 	// at this function.
+ 	TOPFRAME = 2048
++
++	// ALIGN2048 means that the address of the function must be aligned to a
++	// 2048 bytes boundary.
++	// Only works on arm64 at present.
++	ALIGN2048 = 4096
+ )
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 7ca01c8c25..31613e5cef 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -2119,6 +2119,10 @@ func assignAddress(ctxt *Link, sect *sym.Section, n int, s *sym.Symbol, va uint6
+ 		funcsize = uint64(s.Size)
+ 	}
+ 
++	if sect.Align < s.Align {
++		sect.Align = s.Align
++	}
++
+ 	// On ppc64x a text section should not be larger than 2^26 bytes due to the size of
+ 	// call target offset field in the bl instruction.  Splitting into smaller text
+ 	// sections smaller than this limit allows the GNU linker to modify the long calls
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index 0adc395fef..bd9c6b4fe9 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -1227,6 +1227,7 @@ func loadObjFull(l *Loader, r *oReader) {
+ 		info.Pcdata = append(info.Pcdata, info.PcdataEnd) // for the ease of knowing where it ends
+ 		pc.Args = int32(info.Args)
+ 		pc.Locals = int32(info.Locals)
++		s.Align = int32(info.Align)
+ 
+ 		npc := len(info.Pcdata) - 1 // -1 as we appended one above
+ 		pc.Pcdata = pcDataBatch[:npc:npc]
+diff --git a/src/cmd/link/internal/objfile/objfile.go b/src/cmd/link/internal/objfile/objfile.go
+index a15d3c3e07..295acb2d29 100644
+--- a/src/cmd/link/internal/objfile/objfile.go
++++ b/src/cmd/link/internal/objfile/objfile.go
+@@ -312,6 +312,7 @@ overwrite:
+ 
+ 		pc.Args = r.readInt32()
+ 		pc.Locals = r.readInt32()
++		s.Align = r.readInt32()
+ 		if r.readUint8() != 0 {
+ 			s.Attr |= sym.AttrNoSplit
+ 		}
+diff --git a/src/cmd/link/link_test.go b/src/cmd/link/link_test.go
+index 4f792bd1f1..025e882106 100644
+--- a/src/cmd/link/link_test.go
++++ b/src/cmd/link/link_test.go
+@@ -3,6 +3,7 @@ package main
+ import (
+ 	"bufio"
+ 	"bytes"
++	"cmd/internal/objabi"
+ 	"debug/macho"
+ 	"internal/testenv"
+ 	"io/ioutil"
+@@ -447,3 +448,103 @@ func TestStrictDup(t *testing.T) {
+ 		t.Errorf("unexpected output:\n%s", out)
+ 	}
+ }
++
++const testFuncAlignSrc = `
++package main
++import (
++	"fmt"
++	"reflect"
++)
++func alignFunc()
++func alignPc()
++
++func main() {
++	addr1 := reflect.ValueOf(alignFunc).Pointer()
++	addr2 := reflect.ValueOf(alignPc).Pointer()
++	switch {
++	case (addr1 % 2048) != 0 && (addr2 % 512) != 0:
++		fmt.Printf("expected 2048 bytes alignment, got %v; expected 512 bytes alignment, got %v\n", addr1, addr2)
++	case (addr2 % 512) != 0:
++		fmt.Printf("expected 512 bytes alignment, got %v\n", addr2)
++	case (addr1 % 2048) != 0:
++		fmt.Printf("expected 2048 bytes alignment, got %v\n", addr1)
++	default:
++		fmt.Printf("PASS")
++	}
++}
++`
++
++const testFuncAlignAsmSrc = `
++#include "textflag.h"
++TEXT	·alignFunc(SB),NOSPLIT|ALIGN2048, $0-0
++	MOVD	$1, R0
++	MOVD	$2, R1
++	RET
++
++TEXT	·alignPc(SB),NOSPLIT, $0-0
++	MOVD	$2, R0
++	PCALIGN	$512
++	MOVD	$3, R1
++	RET
++`
++
++// TestFuncAlign verifies that the address of a function can be aligned
++// with a specfic value on arm64.
++func TestFuncAlign(t *testing.T) {
++	if objabi.GOARCH != "arm64" {
++		t.Skipf("Skipping FuncAlign test on %s", objabi.GOARCH)
++	}
++	testenv.MustHaveGoBuild(t)
++
++	tmpdir, err := ioutil.TempDir("", "TestFuncAlign")
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer os.RemoveAll(tmpdir)
++
++	src := filepath.Join(tmpdir, "falign.go")
++	err = ioutil.WriteFile(src, []byte(testFuncAlignSrc), 0666)
++	if err != nil {
++		t.Fatal(err)
++	}
++	src = filepath.Join(tmpdir, "falign.s")
++	err = ioutil.WriteFile(src, []byte(testFuncAlignAsmSrc), 0666)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	// Build and run with old object file format.
++	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", "falign")
++	cmd.Env = append(os.Environ(), "GOARCH=arm64", "GOOS=linux")
++	cmd.Dir = tmpdir
++	out, err := cmd.CombinedOutput()
++	if err != nil {
++		t.Errorf("build failed: %v", err)
++	}
++	cmd = exec.Command(tmpdir + "/falign")
++	out, err = cmd.CombinedOutput()
++	if err != nil {
++		t.Errorf("failed to run with err %v, output: %s", err, out)
++	}
++	if string(out) != "PASS" {
++		t.Errorf("unexpected output: %s\n", out)
++	}
++
++	// Build and run with new object file format.
++	cmd = exec.Command(testenv.GoToolPath(t), "build", "-o", "falign", "-gcflags=all=-newobj", "-asmflags=all=-newobj", "-ldflags=-newobj")
++	cmd.Env = append(os.Environ(), "GOARCH=arm64", "GOOS=linux")
++	cmd.Dir = tmpdir
++	out, err = cmd.CombinedOutput()
++	if err != nil {
++		t.Errorf("build with newobj failed: %v", err)
++	}
++	cmd = exec.Command(tmpdir + "/falign")
++	out, err = cmd.CombinedOutput()
++	if err != nil {
++		t.Errorf("failed to run with -newobj, err: %v, output: %s", err, out)
++	}
++	if string(out) != "PASS" {
++		t.Errorf("unexpected output with -newobj: %s\n", out)
++	}
++
++}
+diff --git a/src/runtime/textflag.h b/src/runtime/textflag.h
+index daca36d948..bbbef6357a 100644
+--- a/src/runtime/textflag.h
++++ b/src/runtime/textflag.h
+@@ -35,3 +35,8 @@
+ // Function is the top of the call stack. Call stack unwinders should stop
+ // at this function.
+ #define TOPFRAME 2048
++// ALIGN2048 means that the address of the function must be aligned to a
++// 2048 bytes boundary.
++// Only works on arm64 at present.
++#define ALIGN2048 4096
++

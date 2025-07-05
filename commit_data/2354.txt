@@ -10,8 +10,173 @@ Date:   Mon Jun 1 19:12:10 2009 -0700
     DELTA=58  (42 added, 2 deleted, 14 changed)
     OCL=29688
     CL=29703
-
+---
  src/lib/go/parser/parser.go        | 11 ++++++++++-
  src/lib/go/scanner/scanner.go      | 32 +++++++++++++++++++++-----------
  src/lib/go/scanner/scanner_test.go | 27 ++++++++++++++++++++++++---
  3 files changed, 55 insertions(+), 15 deletions(-)
+
+diff --git a/src/lib/go/parser/parser.go b/src/lib/go/parser/parser.go
+index 37fd431eda..622268d1ec 100644
+--- a/src/lib/go/parser/parser.go
++++ b/src/lib/go/parser/parser.go
+@@ -1921,6 +1921,15 @@ func readSource(src interface{}) ([]byte, os.Error) {
+ }
+ 
+ 
++// scannerMode returns the scanner mode bits given the parser's mode bits.
++func scannerMode(mode uint) uint {
++	if mode & ParseComments != 0 {
++		return scanner.ScanComments;
++	}
++	return 0;
++}
++
++
+ // Parse parses a Go program.
+ //
+ // The program source src may be provided in a variety of formats. At the
+@@ -1944,7 +1953,7 @@ func Parse(src interface{}, mode uint) (*ast.Program, os.Error) {
+ 	// initialize parser state
+ 	var p parser;
+ 	p.errors.Init(0);
+-	p.scanner.Init(data, &p, mode & ParseComments != 0);
++	p.scanner.Init(data, &p, scannerMode(mode));
+ 	p.mode = mode;
+ 	p.trace = mode & Trace != 0;  // for convenience (p.trace is used frequently)
+ 	p.comments.Init(0);
+diff --git a/src/lib/go/scanner/scanner.go b/src/lib/go/scanner/scanner.go
+index 7cfc48d88f..a90e6f2592 100644
+--- a/src/lib/go/scanner/scanner.go
++++ b/src/lib/go/scanner/scanner.go
+@@ -35,7 +35,7 @@ type Scanner struct {
+ 	// immutable state
+ 	src []byte;  // source
+ 	err ErrorHandler;  // error reporting; or nil
+-	scan_comments bool;  // if set, comments are reported as tokens
++	mode uint;  // scanning mode
+ 
+ 	// scanning state
+ 	pos token.Position;  // previous reading position (position before ch)
+@@ -72,19 +72,26 @@ func (S *Scanner) next() {
+ }
+ 
+ 
++// The mode parameter to the Init function is a set of flags (or 0).
++// They control scanner behavior.
++//
++const (
++	ScanComments = 1 << iota;  // return comments as COMMENT tokens
++	AllowIllegalChars;  // do not report an error for illegal chars
++)
++
++
+ // Init prepares the scanner S to tokenize the text src. Calls to Scan
+ // will use the error handler err if they encounter a syntax error and
+ // err is not nil. Also, for each error encountered, the Scanner field
+-// ErrorCount is incremented by one. The boolean scan_comments specifies
+-// whether comments should be recognized and returned by Scan as COMMENT
+-// tokens. If scan_comments is false, they are treated as white space and
+-// ignored.
++// ErrorCount is incremented by one. The mode parameter determines how
++// comments and illegal characters are handled.
+ //
+-func (S *Scanner) Init(src []byte, err ErrorHandler, scan_comments bool) {
++func (S *Scanner) Init(src []byte, err ErrorHandler, mode uint) {
+ 	// Explicitly initialize all fields since a scanner may be reused.
+ 	S.src = src;
+ 	S.err = err;
+-	S.scan_comments = scan_comments;
++	S.mode = mode;
+ 	S.pos = token.Position{0, 1, 0};
+ 	S.offset = 0;
+ 	S.ErrorCount = 0;
+@@ -441,7 +448,7 @@ scan_again:
+ 			if S.ch == '/' || S.ch == '*' {
+ 				S.scanComment(pos);
+ 				tok = token.COMMENT;
+-				if !S.scan_comments {
++				if S.mode & ScanComments == 0 {
+ 					goto scan_again;
+ 				}
+ 			} else {
+@@ -467,7 +474,10 @@ scan_again:
+ 				tok = S.switch3(token.AND, token.AND_ASSIGN, '&', token.LAND);
+ 			}
+ 		case '|': tok = S.switch3(token.OR, token.OR_ASSIGN, '|', token.LOR);
+-		default: S.error(pos, "illegal character " + charString(ch));
++		default:
++			if S.mode & AllowIllegalChars == 0 {
++				S.error(pos, "illegal character " + charString(ch));
++			}
+ 		}
+ 	}
+ 
+@@ -481,9 +491,9 @@ scan_again:
+ // false (usually when the token value is token.EOF). The result is the number
+ // of errors encountered.
+ //
+-func Tokenize(src []byte, err ErrorHandler, scan_comments bool, f func (pos token.Position, tok token.Token, lit []byte) bool) int {
++func Tokenize(src []byte, err ErrorHandler, mode uint, f func (pos token.Position, tok token.Token, lit []byte) bool) int {
+ 	var s Scanner;
+-	s.Init(src, err, scan_comments);
++	s.Init(src, err, mode);
+ 	for f(s.Scan()) {
+ 		// action happens in f
+ 	}
+diff --git a/src/lib/go/scanner/scanner_test.go b/src/lib/go/scanner/scanner_test.go
+index 19fe9864f1..0defece8b0 100644
+--- a/src/lib/go/scanner/scanner_test.go
++++ b/src/lib/go/scanner/scanner_test.go
+@@ -188,7 +188,7 @@ func TestScan(t *testing.T) {
+ 	// verify scan
+ 	index := 0;
+ 	eloc := token.Position{0, 1, 1};
+-	nerrors := scanner.Tokenize(io.StringBytes(src), &TestErrorHandler{t}, true,
++	nerrors := scanner.Tokenize(io.StringBytes(src), &TestErrorHandler{t}, scanner.ScanComments,
+ 		func (pos token.Position, tok token.Token, litb []byte) bool {
+ 			e := elt{token.EOF, "", special};
+ 			if index < len(tokens) {
+@@ -234,7 +234,7 @@ func TestInit(t *testing.T) {
+ 	var s scanner.Scanner;
+ 
+ 	// 1st init
+-	s.Init(io.StringBytes("if true { }"), nil, false);
++	s.Init(io.StringBytes("if true { }"), nil, 0);
+ 	s.Scan();  // if
+ 	s.Scan();  // true
+ 	pos, tok, lit := s.Scan();  // {
+@@ -243,7 +243,7 @@ func TestInit(t *testing.T) {
+ 	}
+ 
+ 	// 2nd init
+-	s.Init(io.StringBytes("go true { ]"), nil, false);
++	s.Init(io.StringBytes("go true { ]"), nil, 0);
+ 	pos, tok, lit = s.Scan();  // go
+ 	if tok != token.GO {
+ 		t.Errorf("bad token: got %s, expected %s", tok.String(), token.GO);
+@@ -253,3 +253,24 @@ func TestInit(t *testing.T) {
+ 		t.Errorf("found %d errors", s.ErrorCount);
+ 	}
+ }
++
++
++func TestIllegalChars(t *testing.T) {
++	var s scanner.Scanner;
++
++	const src = "*?*$*@*";
++	s.Init(io.StringBytes(src), &TestErrorHandler{t}, scanner.AllowIllegalChars);
++	for offs, ch := range src {
++		pos, tok, lit := s.Scan();
++		if pos.Offset != offs {
++			t.Errorf("bad position for %s: got %d, expected %d", string(lit), pos.Offset, offs);
++		}
++		if tok == token.ILLEGAL && string(lit) != string(ch) {
++			t.Errorf("bad token: got %s, expected %s", string(lit), string(ch));
++		}
++	}
++
++	if s.ErrorCount != 0 {
++		t.Errorf("found %d errors", s.ErrorCount);
++	}
++}

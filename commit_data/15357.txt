@@ -11,7 +11,105 @@ Date:   Thu Feb 21 10:43:00 2013 -0800
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/7383046
-
+---
  src/pkg/database/sql/convert.go  | 25 ++++++++++++++++++++++++-
  src/pkg/database/sql/sql_test.go | 12 ++++++++++++
  2 files changed, 36 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/database/sql/convert.go b/src/pkg/database/sql/convert.go
+index 964dc18485..853a7826c5 100644
+--- a/src/pkg/database/sql/convert.go
++++ b/src/pkg/database/sql/convert.go
+@@ -14,6 +14,8 @@ import (
+ 	"strconv"
+ )
+ 
++var errNilPtr = errors.New("destination pointer is nil") // embedded in descriptive error
++
+ // driverArgs converts arguments from callers of Stmt.Exec and
+ // Stmt.Query into driver Values.
+ //
+@@ -75,34 +77,52 @@ func driverArgs(si driver.Stmt, args []interface{}) ([]driver.Value, error) {
+ // An error is returned if the copy would result in loss of information.
+ // dest should be a pointer type.
+ func convertAssign(dest, src interface{}) error {
+-	// Common cases, without reflect.  Fall through.
++	// Common cases, without reflect.
+ 	switch s := src.(type) {
+ 	case string:
+ 		switch d := dest.(type) {
+ 		case *string:
++			if d == nil {
++				return errNilPtr
++			}
+ 			*d = s
+ 			return nil
+ 		case *[]byte:
++			if d == nil {
++				return errNilPtr
++			}
+ 			*d = []byte(s)
+ 			return nil
+ 		}
+ 	case []byte:
+ 		switch d := dest.(type) {
+ 		case *string:
++			if d == nil {
++				return errNilPtr
++			}
+ 			*d = string(s)
+ 			return nil
+ 		case *interface{}:
++			if d == nil {
++				return errNilPtr
++			}
+ 			bcopy := make([]byte, len(s))
+ 			copy(bcopy, s)
+ 			*d = bcopy
+ 			return nil
+ 		case *[]byte:
++			if d == nil {
++				return errNilPtr
++			}
+ 			*d = s
+ 			return nil
+ 		}
+ 	case nil:
+ 		switch d := dest.(type) {
+ 		case *[]byte:
++			if d == nil {
++				return errNilPtr
++			}
+ 			*d = nil
+ 			return nil
+ 		}
+@@ -140,6 +160,9 @@ func convertAssign(dest, src interface{}) error {
+ 	if dpv.Kind() != reflect.Ptr {
+ 		return errors.New("destination not a pointer")
+ 	}
++	if dpv.IsNil() {
++		return errNilPtr
++	}
+ 
+ 	if !sv.IsValid() {
+ 		sv = reflect.ValueOf(src)
+diff --git a/src/pkg/database/sql/sql_test.go b/src/pkg/database/sql/sql_test.go
+index 74ba8e0ce7..53b229600d 100644
+--- a/src/pkg/database/sql/sql_test.go
++++ b/src/pkg/database/sql/sql_test.go
+@@ -696,3 +696,15 @@ func nullTestRun(t *testing.T, spec nullTestSpec) {
+ 		}
+ 	}
+ }
++
++// golang.org/issue/4859
++func TestQueryRowNilScanDest(t *testing.T) {
++	db := newTestDB(t, "people")
++	defer closeDB(t, db)
++	var name *string // nil pointer
++	err := db.QueryRow("SELECT|people|name|").Scan(name)
++	want := "sql: Scan error on column index 0: destination pointer is nil"
++	if err == nil || err.Error() != want {
++		t.Errorf("error = %q; want %q", err.Error(), want)
++	}
++}

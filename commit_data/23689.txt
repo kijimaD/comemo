@@ -7,7 +7,36 @@ Date:   Thu Jun 4 14:30:30 2015 -0400
     Change-Id: I3c9b05879fe0b6e94b63e9b65e4411ba2a917134
     Reviewed-on: https://go-review.googlesource.com/10705
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/link/internal/ld/lib.go  | 4 +++-
  src/cmd/link/internal/ld/pobj.go | 1 +
  2 files changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 95a2ce6279..18c02f8f01 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -1949,8 +1949,10 @@ func Diag(format string, args ...interface{}) {
+ 		sep = ": "
+ 	}
+ 	fmt.Printf("%s%s%s\n", tn, sep, fmt.Sprintf(format, args...))
+-
+ 	nerrors++
++	if Debug['h'] != 0 {
++		panic("error")
++	}
+ 	if nerrors > 20 {
+ 		Exitf("too many errors")
+ 	}
+diff --git a/src/cmd/link/internal/ld/pobj.go b/src/cmd/link/internal/ld/pobj.go
+index cbb4fa2109..ed8e30e9ff 100644
+--- a/src/cmd/link/internal/ld/pobj.go
++++ b/src/cmd/link/internal/ld/pobj.go
+@@ -111,6 +111,7 @@ func Ldmain() {
+ 	obj.Flagstr("extldflags", "pass `flags` to external linker", &extldflags)
+ 	obj.Flagcount("f", "ignore version mismatch", &Debug['f'])
+ 	obj.Flagcount("g", "disable go package data checks", &Debug['g'])
++	obj.Flagcount("h", "halt on error", &Debug['h'])
+ 	obj.Flagstr("installsuffix", "set package directory `suffix`", &flag_installsuffix)
+ 	obj.Flagstr("k", "set field tracking `symbol`", &tracksym)
+ 	obj.Flagfn1("linkmode", "set link `mode` (internal, external, auto)", setlinkmode)

@@ -12,7 +12,7 @@ Date:   Fri Jul 22 00:55:01 2011 -0400
     R=golang-dev, dvyukov, r
     CC=golang-dev
     https://golang.org/cl/4811045
-
+---
  src/pkg/runtime/mem.go |  7 ++++++-
  src/pkg/runtime/mgc0.c | 16 ++++++++++++++++
  test/gc2.go            |  3 ++-
@@ -21,3 +21,171 @@ Date:   Fri Jul 22 00:55:01 2011 -0400
  test/mallocrep.go      |  6 ++++--
  test/mallocrep1.go     |  9 ++++++---
  7 files changed, 36 insertions(+), 7 deletions(-)
+
+diff --git a/src/pkg/runtime/mem.go b/src/pkg/runtime/mem.go
+index c3316d44c0..93d155a7f8 100644
+--- a/src/pkg/runtime/mem.go
++++ b/src/pkg/runtime/mem.go
+@@ -62,8 +62,13 @@ func init() {
+ }
+ 
+ // MemStats holds statistics about the memory system.
+-// The statistics are only approximate, as they are not interlocked on update.
++// The statistics may be out of date, as the information is
++// updated lazily from per-thread caches.
++// Use UpdateMemStats to bring the statistics up to date.
+ var MemStats MemStatsType
+ 
++// UpdateMemStats brings MemStats up to date.
++func UpdateMemStats()
++
+ // GC runs a garbage collection.
+ func GC()
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index bc373d8909..6325aadc67 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -663,6 +663,22 @@ runtime·gc(int32 force)
+ 		runtime·gc(1);
+ }
+ 
++void
++runtime·UpdateMemStats(void)
++{
++	// Have to acquire gcsema to stop the world,
++	// because stoptheworld can only be used by
++	// one goroutine at a time, and there might be
++	// a pending garbage collection already calling it.
++	runtime·semacquire(&gcsema);
++	m->gcing = 1;
++	runtime·stoptheworld();
++	cachestats();
++	m->gcing = 0;
++	runtime·semrelease(&gcsema);
++	runtime·starttheworld();
++}
++
+ static void
+ runfinq(void)
+ {
+diff --git a/test/gc2.go b/test/gc2.go
+index c5c6cbe4bb..c54d807df7 100644
+--- a/test/gc2.go
++++ b/test/gc2.go
+@@ -32,7 +32,8 @@ func main() {
+ 			}
+ 		}
+ 	}
+-	
++
++	runtime.UpdateMemStats()
+ 	obj := runtime.MemStats.HeapObjects - st.HeapObjects
+ 	if obj > N/5 {
+ 		fmt.Println("too many objects left:", obj)
+diff --git a/test/malloc1.go b/test/malloc1.go
+index 146976467b..61f1797c75 100644
+--- a/test/malloc1.go
++++ b/test/malloc1.go
+@@ -18,6 +18,7 @@ var chatty = flag.Bool("v", false, "chatty")
+ 
+ func main() {
+ 	runtime.Free(runtime.Alloc(1))
++	runtime.UpdateMemStats()
+ 	if *chatty {
+ 		fmt.Printf("%+v %v\n", runtime.MemStats, uint64(0))
+ 	}
+diff --git a/test/mallocrand.go b/test/mallocrand.go
+index e6b422e224..f014b441b2 100644
+--- a/test/mallocrand.go
++++ b/test/mallocrand.go
+@@ -21,6 +21,7 @@ var footprint uint64
+ var allocated uint64
+ 
+ func bigger() {
++	runtime.UpdateMemStats()
+ 	if f := runtime.MemStats.Sys; footprint < f {
+ 		footprint = f
+ 		if *chatty {
+diff --git a/test/mallocrep.go b/test/mallocrep.go
+index 43233b7b74..9f47e52e2b 100644
+--- a/test/mallocrep.go
++++ b/test/mallocrep.go
+@@ -18,6 +18,7 @@ var chatty = flag.Bool("v", false, "chatty")
+ var oldsys uint64
+ 
+ func bigger() {
++	runtime.UpdateMemStats()
+ 	if st := runtime.MemStats; oldsys < st.Sys {
+ 		oldsys = st.Sys
+ 		if *chatty {
+@@ -31,7 +32,7 @@ func bigger() {
+ }
+ 
+ func main() {
+-	runtime.GC()		   // clean up garbage from init
++	runtime.GC()               // clean up garbage from init
+ 	runtime.MemProfileRate = 0 // disable profiler
+ 	runtime.MemStats.Alloc = 0 // ignore stacks
+ 	flag.Parse()
+@@ -45,9 +46,10 @@ func main() {
+ 				panic("fail")
+ 			}
+ 			b := runtime.Alloc(uintptr(j))
++			runtime.UpdateMemStats()
+ 			during := runtime.MemStats.Alloc
+ 			runtime.Free(b)
+-			runtime.GC()
++			runtime.UpdateMemStats()
+ 			if a := runtime.MemStats.Alloc; a != 0 {
+ 				println("allocated ", j, ": wrong stats: during=", during, " after=", a, " (want 0)")
+ 				panic("fail")
+diff --git a/test/mallocrep1.go b/test/mallocrep1.go
+index 079ae94226..0b1479900e 100644
+--- a/test/mallocrep1.go
++++ b/test/mallocrep1.go
+@@ -42,6 +42,7 @@ func AllocAndFree(size, count int) {
+ 	if *chatty {
+ 		fmt.Printf("size=%d count=%d ...\n", size, count)
+ 	}
++	runtime.UpdateMemStats()
+ 	n1 := stats.Alloc
+ 	for i := 0; i < count; i++ {
+ 		b[i] = runtime.Alloc(uintptr(size))
+@@ -50,17 +51,18 @@ func AllocAndFree(size, count int) {
+ 			println("lookup failed: got", base, n, "for", b[i])
+ 			panic("fail")
+ 		}
+-		if runtime.MemStats.Sys > 1e9 {
++		runtime.UpdateMemStats()
++		if stats.Sys > 1e9 {
+ 			println("too much memory allocated")
+ 			panic("fail")
+ 		}
+ 	}
++	runtime.UpdateMemStats()
+ 	n2 := stats.Alloc
+ 	if *chatty {
+ 		fmt.Printf("size=%d count=%d stats=%+v\n", size, count, *stats)
+ 	}
+ 	n3 := stats.Alloc
+-	runtime.GC()
+ 	for j := 0; j < count; j++ {
+ 		i := j
+ 		if *reverse {
+@@ -73,7 +75,7 @@ func AllocAndFree(size, count int) {
+ 			panic("fail")
+ 		}
+ 		runtime.Free(b[i])
+-		runtime.GC()
++		runtime.UpdateMemStats()
+ 		if stats.Alloc != uint64(alloc-n) {
+ 			println("free alloc got", stats.Alloc, "expected", alloc-n, "after free of", n)
+ 			panic("fail")
+@@ -83,6 +85,7 @@ func AllocAndFree(size, count int) {
+ 			panic("fail")
+ 		}
+ 	}
++	runtime.UpdateMemStats()
+ 	n4 := stats.Alloc
+ 
+ 	if *chatty {

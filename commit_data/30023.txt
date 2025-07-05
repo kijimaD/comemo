@@ -11,10 +11,484 @@ Date:   Fri Oct 21 10:27:57 2016 -0700
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/lookup.go         | 37 +++++++++++++++----------------------
  src/net/lookup_nacl.go    | 22 +++++++++-------------
  src/net/lookup_plan9.go   | 22 ++++++++++------------
  src/net/lookup_unix.go    | 29 ++++++++++++++++-------------
  src/net/lookup_windows.go | 30 ++++++++++++++----------------
  5 files changed, 64 insertions(+), 76 deletions(-)
+
+diff --git a/src/net/lookup.go b/src/net/lookup.go
+index d1e2e0063d..28e23fa1c1 100644
+--- a/src/net/lookup.go
++++ b/src/net/lookup.go
+@@ -101,13 +101,6 @@ type Resolver struct {
+ 	// TODO(bradfitz): Timeout time.Duration?
+ }
+ 
+-func (r *Resolver) lookupIPFunc() func(context.Context, string) ([]IPAddr, error) {
+-	if r != nil && r.PreferGo {
+-		return goLookupIP
+-	}
+-	return lookupIP
+-}
+-
+ // LookupHost looks up the given host using the local resolver.
+ // It returns a slice of that host's addresses.
+ func LookupHost(host string) (addrs []string, err error) {
+@@ -125,7 +118,7 @@ func (r *Resolver) LookupHost(ctx context.Context, host string) (addrs []string,
+ 	if ip := ParseIP(host); ip != nil {
+ 		return []string{host}, nil
+ 	}
+-	return lookupHost(ctx, host)
++	return r.lookupHost(ctx, host)
+ }
+ 
+ // LookupIP looks up host using the local resolver.
+@@ -160,7 +153,7 @@ func (r *Resolver) LookupIPAddr(ctx context.Context, host string) ([]IPAddr, err
+ 	// The underlying resolver func is lookupIP by default but it
+ 	// can be overridden by tests. This is needed by net/http, so it
+ 	// uses a context key instead of unexported variables.
+-	resolverFunc := r.lookupIPFunc()
++	resolverFunc := r.lookupIP
+ 	if alt, _ := ctx.Value(nettrace.LookupIPAltResolverKey{}).(func(context.Context, string) ([]IPAddr, error)); alt != nil {
+ 		resolverFunc = alt
+ 	}
+@@ -229,7 +222,7 @@ func LookupPort(network, service string) (port int, err error) {
+ func (r *Resolver) LookupPort(ctx context.Context, network, service string) (port int, err error) {
+ 	port, needsLookup := parsePort(service)
+ 	if needsLookup {
+-		port, err = lookupPort(ctx, network, service)
++		port, err = r.lookupPort(ctx, network, service)
+ 		if err != nil {
+ 			return 0, err
+ 		}
+@@ -245,7 +238,7 @@ func (r *Resolver) LookupPort(ctx context.Context, network, service string) (por
+ // LookupHost or LookupIP directly; both take care of resolving
+ // the canonical name as part of the lookup.
+ func LookupCNAME(name string) (cname string, err error) {
+-	return lookupCNAME(context.Background(), name)
++	return DefaultResolver.lookupCNAME(context.Background(), name)
+ }
+ 
+ // LookupCNAME returns the canonical DNS host for the given name.
+@@ -253,7 +246,7 @@ func LookupCNAME(name string) (cname string, err error) {
+ // LookupHost or LookupIP directly; both take care of resolving
+ // the canonical name as part of the lookup.
+ func (r *Resolver) LookupCNAME(ctx context.Context, name string) (cname string, err error) {
+-	return lookupCNAME(ctx, name)
++	return r.lookupCNAME(ctx, name)
+ }
+ 
+ // LookupSRV tries to resolve an SRV query of the given service,
+@@ -266,7 +259,7 @@ func (r *Resolver) LookupCNAME(ctx context.Context, name string) (cname string,
+ // publishing SRV records under non-standard names, if both service
+ // and proto are empty strings, LookupSRV looks up name directly.
+ func LookupSRV(service, proto, name string) (cname string, addrs []*SRV, err error) {
+-	return lookupSRV(context.Background(), service, proto, name)
++	return DefaultResolver.lookupSRV(context.Background(), service, proto, name)
+ }
+ 
+ // LookupSRV tries to resolve an SRV query of the given service,
+@@ -279,47 +272,47 @@ func LookupSRV(service, proto, name string) (cname string, addrs []*SRV, err err
+ // publishing SRV records under non-standard names, if both service
+ // and proto are empty strings, LookupSRV looks up name directly.
+ func (r *Resolver) LookupSRV(ctx context.Context, service, proto, name string) (cname string, addrs []*SRV, err error) {
+-	return lookupSRV(ctx, service, proto, name)
++	return r.lookupSRV(ctx, service, proto, name)
+ }
+ 
+ // LookupMX returns the DNS MX records for the given domain name sorted by preference.
+ func LookupMX(name string) ([]*MX, error) {
+-	return lookupMX(context.Background(), name)
++	return DefaultResolver.lookupMX(context.Background(), name)
+ }
+ 
+ // LookupMX returns the DNS MX records for the given domain name sorted by preference.
+ func (r *Resolver) LookupMX(ctx context.Context, name string) ([]*MX, error) {
+-	return lookupMX(ctx, name)
++	return r.lookupMX(ctx, name)
+ }
+ 
+ // LookupNS returns the DNS NS records for the given domain name.
+ func LookupNS(name string) ([]*NS, error) {
+-	return lookupNS(context.Background(), name)
++	return DefaultResolver.lookupNS(context.Background(), name)
+ }
+ 
+ // LookupNS returns the DNS NS records for the given domain name.
+ func (r *Resolver) LookupNS(ctx context.Context, name string) ([]*NS, error) {
+-	return lookupNS(ctx, name)
++	return r.lookupNS(ctx, name)
+ }
+ 
+ // LookupTXT returns the DNS TXT records for the given domain name.
+ func LookupTXT(name string) ([]string, error) {
+-	return lookupTXT(context.Background(), name)
++	return DefaultResolver.lookupTXT(context.Background(), name)
+ }
+ 
+ // LookupTXT returns the DNS TXT records for the given domain name.
+ func (r *Resolver) LookupTXT(ctx context.Context, name string) ([]string, error) {
+-	return lookupTXT(ctx, name)
++	return r.lookupTXT(ctx, name)
+ }
+ 
+ // LookupAddr performs a reverse lookup for the given address, returning a list
+ // of names mapping to that address.
+ func LookupAddr(addr string) (names []string, err error) {
+-	return lookupAddr(context.Background(), addr)
++	return DefaultResolver.lookupAddr(context.Background(), addr)
+ }
+ 
+ // LookupAddr performs a reverse lookup for the given address, returning a list
+ // of names mapping to that address.
+ func (r *Resolver) LookupAddr(ctx context.Context, addr string) (names []string, err error) {
+-	return lookupAddr(ctx, addr)
++	return r.lookupAddr(ctx, addr)
+ }
+diff --git a/src/net/lookup_nacl.go b/src/net/lookup_nacl.go
+index 83ecdb50f5..43cebad760 100644
+--- a/src/net/lookup_nacl.go
++++ b/src/net/lookup_nacl.go
+@@ -15,42 +15,38 @@ func lookupProtocol(ctx context.Context, name string) (proto int, err error) {
+ 	return lookupProtocolMap(name)
+ }
+ 
+-func lookupHost(ctx context.Context, host string) (addrs []string, err error) {
++func (*Resolver) lookupHost(ctx context.Context, host string) (addrs []string, err error) {
+ 	return nil, syscall.ENOPROTOOPT
+ }
+ 
+-func goLookupIP(ctx context.Context, host string) (addrs []IPAddr, err error) {
++func (*Resolver) lookupIP(ctx context.Context, host string) (addrs []IPAddr, err error) {
+ 	return nil, syscall.ENOPROTOOPT
+ }
+ 
+-func lookupIP(ctx context.Context, host string) (addrs []IPAddr, err error) {
+-	return nil, syscall.ENOPROTOOPT
+-}
+-
+-func lookupPort(ctx context.Context, network, service string) (port int, err error) {
++func (*Resolver) lookupPort(ctx context.Context, network, service string) (port int, err error) {
+ 	return goLookupPort(network, service)
+ }
+ 
+-func lookupCNAME(ctx context.Context, name string) (cname string, err error) {
++func (*Resolver) lookupCNAME(ctx context.Context, name string) (cname string, err error) {
+ 	return "", syscall.ENOPROTOOPT
+ }
+ 
+-func lookupSRV(ctx context.Context, service, proto, name string) (cname string, srvs []*SRV, err error) {
++func (*Resolver) lookupSRV(ctx context.Context, service, proto, name string) (cname string, srvs []*SRV, err error) {
+ 	return "", nil, syscall.ENOPROTOOPT
+ }
+ 
+-func lookupMX(ctx context.Context, name string) (mxs []*MX, err error) {
++func (*Resolver) lookupMX(ctx context.Context, name string) (mxs []*MX, err error) {
+ 	return nil, syscall.ENOPROTOOPT
+ }
+ 
+-func lookupNS(ctx context.Context, name string) (nss []*NS, err error) {
++func (*Resolver) lookupNS(ctx context.Context, name string) (nss []*NS, err error) {
+ 	return nil, syscall.ENOPROTOOPT
+ }
+ 
+-func lookupTXT(ctx context.Context, name string) (txts []string, err error) {
++func (*Resolver) lookupTXT(ctx context.Context, name string) (txts []string, err error) {
+ 	return nil, syscall.ENOPROTOOPT
+ }
+ 
+-func lookupAddr(ctx context.Context, addr string) (ptrs []string, err error) {
++func (*Resolver) lookupAddr(ctx context.Context, addr string) (ptrs []string, err error) {
+ 	return nil, syscall.ENOPROTOOPT
+ }
+diff --git a/src/net/lookup_plan9.go b/src/net/lookup_plan9.go
+index 3abaf090ba..b5cf7aaab5 100644
+--- a/src/net/lookup_plan9.go
++++ b/src/net/lookup_plan9.go
+@@ -117,7 +117,7 @@ func lookupProtocol(ctx context.Context, name string) (proto int, err error) {
+ 	return 0, UnknownNetworkError(name)
+ }
+ 
+-func lookupHost(ctx context.Context, host string) (addrs []string, err error) {
++func (*Resolver) lookupHost(ctx context.Context, host string) (addrs []string, err error) {
+ 	// Use netdir/cs instead of netdir/dns because cs knows about
+ 	// host names in local network (e.g. from /lib/ndb/local)
+ 	lines, err := queryCS(ctx, "net", host, "1")
+@@ -148,10 +148,8 @@ loop:
+ 	return
+ }
+ 
+-var goLookupIP = lookupIP
+-
+-func lookupIP(ctx context.Context, host string) (addrs []IPAddr, err error) {
+-	lits, err := lookupHost(ctx, host)
++func (r *Resolver) lookupIP(ctx context.Context, host string) (addrs []IPAddr, err error) {
++	lits, err := r.lookupHost(ctx, host)
+ 	if err != nil {
+ 		return
+ 	}
+@@ -165,7 +163,7 @@ func lookupIP(ctx context.Context, host string) (addrs []IPAddr, err error) {
+ 	return
+ }
+ 
+-func lookupPort(ctx context.Context, network, service string) (port int, err error) {
++func (*Resolver) lookupPort(ctx context.Context, network, service string) (port int, err error) {
+ 	switch network {
+ 	case "tcp4", "tcp6":
+ 		network = "tcp"
+@@ -194,7 +192,7 @@ func lookupPort(ctx context.Context, network, service string) (port int, err err
+ 	return 0, unknownPortError
+ }
+ 
+-func lookupCNAME(ctx context.Context, name string) (cname string, err error) {
++func (*Resolver) lookupCNAME(ctx context.Context, name string) (cname string, err error) {
+ 	lines, err := queryDNS(ctx, name, "cname")
+ 	if err != nil {
+ 		return
+@@ -207,7 +205,7 @@ func lookupCNAME(ctx context.Context, name string) (cname string, err error) {
+ 	return "", errors.New("bad response from ndb/dns")
+ }
+ 
+-func lookupSRV(ctx context.Context, service, proto, name string) (cname string, addrs []*SRV, err error) {
++func (*Resolver) lookupSRV(ctx context.Context, service, proto, name string) (cname string, addrs []*SRV, err error) {
+ 	var target string
+ 	if service == "" && proto == "" {
+ 		target = name
+@@ -236,7 +234,7 @@ func lookupSRV(ctx context.Context, service, proto, name string) (cname string,
+ 	return
+ }
+ 
+-func lookupMX(ctx context.Context, name string) (mx []*MX, err error) {
++func (*Resolver) lookupMX(ctx context.Context, name string) (mx []*MX, err error) {
+ 	lines, err := queryDNS(ctx, name, "mx")
+ 	if err != nil {
+ 		return
+@@ -254,7 +252,7 @@ func lookupMX(ctx context.Context, name string) (mx []*MX, err error) {
+ 	return
+ }
+ 
+-func lookupNS(ctx context.Context, name string) (ns []*NS, err error) {
++func (*Resolver) lookupNS(ctx context.Context, name string) (ns []*NS, err error) {
+ 	lines, err := queryDNS(ctx, name, "ns")
+ 	if err != nil {
+ 		return
+@@ -269,7 +267,7 @@ func lookupNS(ctx context.Context, name string) (ns []*NS, err error) {
+ 	return
+ }
+ 
+-func lookupTXT(ctx context.Context, name string) (txt []string, err error) {
++func (*Resolver) lookupTXT(ctx context.Context, name string) (txt []string, err error) {
+ 	lines, err := queryDNS(ctx, name, "txt")
+ 	if err != nil {
+ 		return
+@@ -282,7 +280,7 @@ func lookupTXT(ctx context.Context, name string) (txt []string, err error) {
+ 	return
+ }
+ 
+-func lookupAddr(ctx context.Context, addr string) (name []string, err error) {
++func (*Resolver) lookupAddr(ctx context.Context, addr string) (name []string, err error) {
+ 	arpa, err := reverseaddr(addr)
+ 	if err != nil {
+ 		return
+diff --git a/src/net/lookup_unix.go b/src/net/lookup_unix.go
+index fe84a64208..35f253c1da 100644
+--- a/src/net/lookup_unix.go
++++ b/src/net/lookup_unix.go
+@@ -48,9 +48,9 @@ func lookupProtocol(_ context.Context, name string) (int, error) {
+ 	return lookupProtocolMap(name)
+ }
+ 
+-func lookupHost(ctx context.Context, host string) (addrs []string, err error) {
++func (r *Resolver) lookupHost(ctx context.Context, host string) (addrs []string, err error) {
+ 	order := systemConf().hostLookupOrder(host)
+-	if order == hostLookupCgo {
++	if !r.PreferGo && order == hostLookupCgo {
+ 		if addrs, err, ok := cgoLookupHost(ctx, host); ok {
+ 			return addrs, err
+ 		}
+@@ -60,7 +60,10 @@ func lookupHost(ctx context.Context, host string) (addrs []string, err error) {
+ 	return goLookupHostOrder(ctx, host, order)
+ }
+ 
+-func lookupIP(ctx context.Context, host string) (addrs []IPAddr, err error) {
++func (r *Resolver) lookupIP(ctx context.Context, host string) (addrs []IPAddr, err error) {
++	if r.PreferGo {
++		return goLookupIP(ctx, host)
++	}
+ 	order := systemConf().hostLookupOrder(host)
+ 	if order == hostLookupCgo {
+ 		if addrs, err, ok := cgoLookupIP(ctx, host); ok {
+@@ -72,13 +75,13 @@ func lookupIP(ctx context.Context, host string) (addrs []IPAddr, err error) {
+ 	return goLookupIPOrder(ctx, host, order)
+ }
+ 
+-func lookupPort(ctx context.Context, network, service string) (int, error) {
++func (r *Resolver) lookupPort(ctx context.Context, network, service string) (int, error) {
+ 	// TODO: use the context if there ever becomes a need. Related
+ 	// is issue 15321. But port lookup generally just involves
+ 	// local files, and the os package has no context support. The
+ 	// files might be on a remote filesystem, though. This should
+ 	// probably race goroutines if ctx != context.Background().
+-	if systemConf().canUseCgo() {
++	if !r.PreferGo && systemConf().canUseCgo() {
+ 		if port, err, ok := cgoLookupPort(ctx, network, service); ok {
+ 			return port, err
+ 		}
+@@ -86,8 +89,8 @@ func lookupPort(ctx context.Context, network, service string) (int, error) {
+ 	return goLookupPort(network, service)
+ }
+ 
+-func lookupCNAME(ctx context.Context, name string) (string, error) {
+-	if systemConf().canUseCgo() {
++func (r *Resolver) lookupCNAME(ctx context.Context, name string) (string, error) {
++	if !r.PreferGo && systemConf().canUseCgo() {
+ 		if cname, err, ok := cgoLookupCNAME(ctx, name); ok {
+ 			return cname, err
+ 		}
+@@ -95,7 +98,7 @@ func lookupCNAME(ctx context.Context, name string) (string, error) {
+ 	return goLookupCNAME(ctx, name)
+ }
+ 
+-func lookupSRV(ctx context.Context, service, proto, name string) (string, []*SRV, error) {
++func (*Resolver) lookupSRV(ctx context.Context, service, proto, name string) (string, []*SRV, error) {
+ 	var target string
+ 	if service == "" && proto == "" {
+ 		target = name
+@@ -115,7 +118,7 @@ func lookupSRV(ctx context.Context, service, proto, name string) (string, []*SRV
+ 	return cname, srvs, nil
+ }
+ 
+-func lookupMX(ctx context.Context, name string) ([]*MX, error) {
++func (*Resolver) lookupMX(ctx context.Context, name string) ([]*MX, error) {
+ 	_, rrs, err := lookup(ctx, name, dnsTypeMX)
+ 	if err != nil {
+ 		return nil, err
+@@ -129,7 +132,7 @@ func lookupMX(ctx context.Context, name string) ([]*MX, error) {
+ 	return mxs, nil
+ }
+ 
+-func lookupNS(ctx context.Context, name string) ([]*NS, error) {
++func (*Resolver) lookupNS(ctx context.Context, name string) ([]*NS, error) {
+ 	_, rrs, err := lookup(ctx, name, dnsTypeNS)
+ 	if err != nil {
+ 		return nil, err
+@@ -141,7 +144,7 @@ func lookupNS(ctx context.Context, name string) ([]*NS, error) {
+ 	return nss, nil
+ }
+ 
+-func lookupTXT(ctx context.Context, name string) ([]string, error) {
++func (r *Resolver) lookupTXT(ctx context.Context, name string) ([]string, error) {
+ 	_, rrs, err := lookup(ctx, name, dnsTypeTXT)
+ 	if err != nil {
+ 		return nil, err
+@@ -153,8 +156,8 @@ func lookupTXT(ctx context.Context, name string) ([]string, error) {
+ 	return txts, nil
+ }
+ 
+-func lookupAddr(ctx context.Context, addr string) ([]string, error) {
+-	if systemConf().canUseCgo() {
++func (r *Resolver) lookupAddr(ctx context.Context, addr string) ([]string, error) {
++	if !r.PreferGo && systemConf().canUseCgo() {
+ 		if ptrs, err, ok := cgoLookupPTR(ctx, addr); ok {
+ 			return ptrs, err
+ 		}
+diff --git a/src/net/lookup_windows.go b/src/net/lookup_windows.go
+index 5abfc844f7..4bf748e726 100644
+--- a/src/net/lookup_windows.go
++++ b/src/net/lookup_windows.go
+@@ -54,8 +54,8 @@ func lookupProtocol(ctx context.Context, name string) (int, error) {
+ 	}
+ }
+ 
+-func lookupHost(ctx context.Context, name string) ([]string, error) {
+-	ips, err := lookupIP(ctx, name)
++func (r *Resolver) lookupHost(ctx context.Context, name string) ([]string, error) {
++	ips, err := r.lookupIP(ctx, name)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+@@ -66,13 +66,7 @@ func lookupHost(ctx context.Context, name string) ([]string, error) {
+ 	return addrs, nil
+ }
+ 
+-// goLookupIP isn't a Pure Go implementation on Windows.
+-// TODO(bradfitz): should it be? Not sure it can be. It's always used syscall.GetAddrInfoW.
+-func goLookupIP(ctx context.Context, host string) (addrs []IPAddr, err error) {
+-	return lookupIP(ctx, host)
+-}
+-
+-func lookupIP(ctx context.Context, name string) ([]IPAddr, error) {
++func (r *Resolver) lookupIP(ctx context.Context, name string) ([]IPAddr, error) {
+ 	// TODO(bradfitz,brainman): use ctx more. See TODO below.
+ 
+ 	type ret struct {
+@@ -131,7 +125,11 @@ func lookupIP(ctx context.Context, name string) ([]IPAddr, error) {
+ 	}
+ }
+ 
+-func lookupPort(ctx context.Context, network, service string) (int, error) {
++func (r *Resolver) lookupPort(ctx context.Context, network, service string) (int, error) {
++	if r.PreferGo {
++		return lookupPortMap(network, service)
++	}
++
+ 	// TODO(bradfitz): finish ctx plumbing. Nothing currently depends on this.
+ 	acquireThread()
+ 	defer releaseThread()
+@@ -171,7 +169,7 @@ func lookupPort(ctx context.Context, network, service string) (int, error) {
+ 	return 0, &DNSError{Err: syscall.EINVAL.Error(), Name: network + "/" + service}
+ }
+ 
+-func lookupCNAME(ctx context.Context, name string) (string, error) {
++func (*Resolver) lookupCNAME(ctx context.Context, name string) (string, error) {
+ 	// TODO(bradfitz): finish ctx plumbing. Nothing currently depends on this.
+ 	acquireThread()
+ 	defer releaseThread()
+@@ -192,7 +190,7 @@ func lookupCNAME(ctx context.Context, name string) (string, error) {
+ 	return absDomainName([]byte(cname)), nil
+ }
+ 
+-func lookupSRV(ctx context.Context, service, proto, name string) (string, []*SRV, error) {
++func (*Resolver) lookupSRV(ctx context.Context, service, proto, name string) (string, []*SRV, error) {
+ 	// TODO(bradfitz): finish ctx plumbing. Nothing currently depends on this.
+ 	acquireThread()
+ 	defer releaseThread()
+@@ -218,7 +216,7 @@ func lookupSRV(ctx context.Context, service, proto, name string) (string, []*SRV
+ 	return absDomainName([]byte(target)), srvs, nil
+ }
+ 
+-func lookupMX(ctx context.Context, name string) ([]*MX, error) {
++func (*Resolver) lookupMX(ctx context.Context, name string) ([]*MX, error) {
+ 	// TODO(bradfitz): finish ctx plumbing. Nothing currently depends on this.
+ 	acquireThread()
+ 	defer releaseThread()
+@@ -238,7 +236,7 @@ func lookupMX(ctx context.Context, name string) ([]*MX, error) {
+ 	return mxs, nil
+ }
+ 
+-func lookupNS(ctx context.Context, name string) ([]*NS, error) {
++func (*Resolver) lookupNS(ctx context.Context, name string) ([]*NS, error) {
+ 	// TODO(bradfitz): finish ctx plumbing. Nothing currently depends on this.
+ 	acquireThread()
+ 	defer releaseThread()
+@@ -257,7 +255,7 @@ func lookupNS(ctx context.Context, name string) ([]*NS, error) {
+ 	return nss, nil
+ }
+ 
+-func lookupTXT(ctx context.Context, name string) ([]string, error) {
++func (*Resolver) lookupTXT(ctx context.Context, name string) ([]string, error) {
+ 	// TODO(bradfitz): finish ctx plumbing. Nothing currently depends on this.
+ 	acquireThread()
+ 	defer releaseThread()
+@@ -279,7 +277,7 @@ func lookupTXT(ctx context.Context, name string) ([]string, error) {
+ 	return txts, nil
+ }
+ 
+-func lookupAddr(ctx context.Context, addr string) ([]string, error) {
++func (*Resolver) lookupAddr(ctx context.Context, addr string) ([]string, error) {
+ 	// TODO(bradfitz): finish ctx plumbing. Nothing currently depends on this.
+ 	acquireThread()
+ 	defer releaseThread()

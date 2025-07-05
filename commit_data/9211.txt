@@ -9,8 +9,128 @@ Date:   Tue Jul 26 00:52:17 2011 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/4811054
-
+---
  src/cmd/gc/go.y          |  1 +
  src/cmd/gc/select.c      |  6 ++++++
  test/fixedbugs/bug347.go | 49 ++++++++++++++++++++++++++++++++++++++++++++++++
  3 files changed, 56 insertions(+)
+
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index d3e363d370..ce1d4f5f58 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -685,6 +685,7 @@ select_stmt:
+ 	LBODY caseblock_list '}'
+ 	{
+ 		$$ = nod(OSELECT, N, N);
++		$$->lineno = typesw->lineno;
+ 		$$->list = $4;
+ 		typesw = typesw->left;
+ 	}
+diff --git a/src/cmd/gc/select.c b/src/cmd/gc/select.c
+index 095c764159..8395dda319 100644
+--- a/src/cmd/gc/select.c
++++ b/src/cmd/gc/select.c
+@@ -108,6 +108,7 @@ walkselect(Node *sel)
+ 	// optimization: one-case select: single op.
+ 	if(i == 1) {
+ 		cas = sel->list->n;
++		setlineno(cas);
+ 		l = cas->ninit;
+ 		if(cas->left != N) {  // not default:
+ 			n = cas->left;
+@@ -165,6 +166,7 @@ walkselect(Node *sel)
+ 	// this rewrite is used by both the general code and the next optimization.
+ 	for(l=sel->list; l; l=l->next) {
+ 		cas = l->n;
++		setlineno(cas);
+ 		n = cas->left;
+ 		if(n == N)
+ 			continue;
+@@ -238,6 +240,7 @@ walkselect(Node *sel)
+ 		}
+ 		
+ 		n = cas->left;
++		setlineno(n);
+ 		r = nod(OIF, N, N);
+ 		r->ninit = cas->ninit;
+ 		switch(n->op) {
+@@ -283,6 +286,7 @@ walkselect(Node *sel)
+ 	sel->ninit = nil;
+ 
+ 	// generate sel-struct
++	setlineno(sel);
+ 	var = nod(OXXX, N, N);
+ 	tempname(var, ptrto(types[TUINT8]));
+ 	r = nod(OAS, var, mkcall("newselect", var->type, nil, nodintconst(sel->xoffset)));
+@@ -292,6 +296,7 @@ walkselect(Node *sel)
+ 	// register cases
+ 	for(l=sel->list; l; l=l->next) {
+ 		cas = l->n;
++		setlineno(cas);
+ 		n = cas->left;
+ 		r = nod(OIF, N, N);
+ 		r->nbody = cas->ninit;
+@@ -338,6 +343,7 @@ walkselect(Node *sel)
+ 	}
+ 
+ 	// run the select
++	setlineno(sel);
+ 	init = list(init, mkcall("selectgo", T, nil, var));
+ 	sel->nbody = init;
+ 
+diff --git a/test/fixedbugs/bug347.go b/test/fixedbugs/bug347.go
+new file mode 100644
+index 0000000000..5532cee831
+--- /dev/null
++++ b/test/fixedbugs/bug347.go
+@@ -0,0 +1,49 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"runtime"
++	"strings"
++)
++
++var t *struct {
++	c chan int
++}
++
++var c chan int
++
++func f() {
++	select {
++	case <-t.c:  // THIS IS LINE 22
++		break
++	case <-c:
++		break
++	}
++}
++
++func main() {
++	defer func() {
++		recover()
++		for i := 0;; i++ {
++			pc, file, line, ok := runtime.Caller(i)
++			if !ok {
++				print("BUG: bug347: cannot find caller\n")
++				return
++			}
++			if !strings.Contains(file, "bug347.go") || runtime.FuncForPC(pc).Name() != "main.f" {
++				// walk past runtime frames
++				continue
++			}
++			if line != 22 {
++				print("BUG: bug347: panic at ", file, ":", line, " in ", runtime.FuncForPC(pc).Name(), "\n")
++			}
++			return
++		}
++	}()
++	f()
++}

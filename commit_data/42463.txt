@@ -18,6 +18,27 @@ Date:   Wed Jan 1 00:00:00 2020 -0500
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: David Symonds <dsymonds@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/contribute.html | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/contribute.html b/doc/contribute.html
+index abb2b9bf77..551d510288 100644
+--- a/doc/contribute.html
++++ b/doc/contribute.html
+@@ -925,13 +925,13 @@ New files that you contribute should use the standard copyright header:
+ </p>
+ 
+ <pre>
+-// Copyright 2019 The Go Authors. All rights reserved.
++// Copyright 2020 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ </pre>
+ 
+ <p>
+-(Use the current year if you're reading this in 2020 or beyond.)
++(Use the current year if you're reading this in 2021 or beyond.)
+ Files in the repository are copyrighted the year they are added.
+ Do not update the copyright year on files that you change.
+ </p>

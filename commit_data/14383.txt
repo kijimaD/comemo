@@ -14,9 +14,180 @@ Date:   Mon Nov 12 23:56:11 2012 +0100
     R=golang-dev, dave, rsc
     CC=golang-dev
     https://golang.org/cl/6817080
-
+---
  src/cmd/5g/cgen.c  | 15 +++++++++++++++
  src/cmd/5g/gsubr.c |  1 +
  src/cmd/6g/cgen.c  | 44 ++++++++++++++++++++++++++------------------
  test/torture.go    | 31 +++++++++++++++----------------
  4 files changed, 57 insertions(+), 34 deletions(-)
+
+diff --git a/src/cmd/5g/cgen.c b/src/cmd/5g/cgen.c
+index b7abc9e4ec..008d1b9489 100644
+--- a/src/cmd/5g/cgen.c
++++ b/src/cmd/5g/cgen.c
+@@ -893,6 +893,21 @@ agenr(Node *n, Node *a, Node *res)
+ 	nr = n->right;
+ 
+ 	switch(n->op) {
++	case ODOT:
++	case ODOTPTR:
++	case OCALLFUNC:
++	case OCALLMETH:
++	case OCALLINTER:
++		igen(n, &n1, res);
++		regalloc(a, types[tptr], &n1);
++		agen(&n1, a);
++		regfree(&n1);
++		break;
++
++	case OIND:
++		cgenr(n->left, a, res);
++		break;
++
+ 	case OINDEX:
+ 		p2 = nil;  // to be patched to panicindex.
+ 		w = n->type->width;
+diff --git a/src/cmd/5g/gsubr.c b/src/cmd/5g/gsubr.c
+index 8340e8a98b..916d2a7453 100644
+--- a/src/cmd/5g/gsubr.c
++++ b/src/cmd/5g/gsubr.c
+@@ -361,6 +361,7 @@ regalloc(Node *n, Type *t, Node *o)
+ 				regpc[i] = (uintptr)getcallerpc(&n);
+ 				goto out;
+ 			}
++		print("registers allocated at\n");
+ 		for(i=REGALLOC_R0; i<=REGALLOC_RMAX; i++)
+ 			print("%d %p\n", i, regpc[i]);
+ 		yyerror("out of fixed registers");
+diff --git a/src/cmd/6g/cgen.c b/src/cmd/6g/cgen.c
+index 751a5b7f13..1333dc194f 100644
+--- a/src/cmd/6g/cgen.c
++++ b/src/cmd/6g/cgen.c
+@@ -576,6 +576,21 @@ agenr(Node *n, Node *a, Node *res)
+ 	nr = n->right;
+ 
+ 	switch(n->op) {
++	case ODOT:
++	case ODOTPTR:
++	case OCALLFUNC:
++	case OCALLMETH:
++	case OCALLINTER:
++		igen(n, &n1, res);
++		regalloc(a, types[tptr], &n1);
++		agen(&n1, a);
++		regfree(&n1);
++		break;
++
++	case OIND:
++		cgenr(n->left, a, res);
++		break;
++
+ 	case OINDEX:
+ 		freelen = 0;
+ 		w = n->type->width;
+@@ -1309,7 +1324,7 @@ stkof(Node *n)
+ void
+ sgen(Node *n, Node *ns, int64 w)
+ {
+-	Node nodl, nodr, oldl, oldr, cx, oldcx, tmp;
++	Node nodl, nodr, nodsi, noddi, cx, oldcx, tmp;
+ 	int32 c, q, odst, osrc;
+ 
+ 	if(debug['g']) {
+@@ -1353,22 +1368,18 @@ sgen(Node *n, Node *ns, int64 w)
+ 	}
+ 
+ 	if(n->ullman >= ns->ullman) {
+-		savex(D_SI, &nodr, &oldr, N, types[tptr]);
+-		agen(n, &nodr);
+-
+-		regalloc(&nodr, types[tptr], &nodr);	// mark nodr as live
+-		savex(D_DI, &nodl, &oldl, N, types[tptr]);
+-		agen(ns, &nodl);
+-		regfree(&nodr);
++		agenr(n, &nodr, N);
++		agenr(ns, &nodl, N);
+ 	} else {
+-		savex(D_DI, &nodl, &oldl, N, types[tptr]);
+-		agen(ns, &nodl);
+-
+-		regalloc(&nodl, types[tptr], &nodl);	// mark nodl as live
+-		savex(D_SI, &nodr, &oldr, N, types[tptr]);
+-		agen(n, &nodr);
+-		regfree(&nodl);
++		agenr(ns, &nodl, N);
++		agenr(n, &nodr, N);
+ 	}
++	nodreg(&noddi, types[tptr], D_DI);
++	nodreg(&nodsi, types[tptr], D_SI);
++	gmove(&nodl, &noddi);
++	gmove(&nodr, &nodsi);
++	regfree(&nodl);
++	regfree(&nodr);
+ 
+ 	c = w % 8;	// bytes
+ 	q = w / 8;	// quads
+@@ -1425,9 +1436,6 @@ sgen(Node *n, Node *ns, int64 w)
+ 		}
+ 	}
+ 
+-
+-	restx(&nodl, &oldl);
+-	restx(&nodr, &oldr);
+ 	restx(&cx, &oldcx);
+ }
+ 
+diff --git a/test/torture.go b/test/torture.go
+index c510bb9237..d14d78fd14 100644
+--- a/test/torture.go
++++ b/test/torture.go
+@@ -279,12 +279,12 @@ func ChainAssertArrayIndex(u *UArr) J {
+ 		Children[0].(*UArr).
+ 		Children[0].(*UArr).
+ 		Children[0].(*UArr).
+-		// Children[0].(*UArr).
+-		// Children[0].(*UArr).
+-		// Children[0].(*UArr).
+-		// Children[0].(*UArr).
+-		// Children[0].(*UArr).
+-		// Children[0].(*UArr).
++		Children[0].(*UArr).
++		Children[0].(*UArr).
++		Children[0].(*UArr).
++		Children[0].(*UArr).
++		Children[0].(*UArr).
++		Children[0].(*UArr).
+ 		Children[0]
+ }
+ 
+@@ -295,21 +295,20 @@ type UArrPtr struct {
+ func (u *UArrPtr) Child(n int) J { return u.Children[n] }
+ 
+ func ChainAssertArrayptrIndex(u *UArrPtr) J {
+-	// TODO: don't crash on longer chains.
+ 	return u.
+ 		Children[0].(*UArrPtr).
+ 		Children[0].(*UArrPtr).
+ 		Children[0].(*UArrPtr).
+ 		Children[0].(*UArrPtr).
+-		// Children[0].(*UArrPtr).
+-		// Children[0].(*UArrPtr).
+-		// Children[0].(*UArrPtr).
+-		// Children[0].(*UArrPtr).
+-		// Children[0].(*UArrPtr).
+-		// Children[0].(*UArrPtr).
+-		// Children[0].(*UArrPtr).
+-		// Children[0].(*UArrPtr).
+-		// Children[0].(*UArrPtr).
++		Children[0].(*UArrPtr).
++		Children[0].(*UArrPtr).
++		Children[0].(*UArrPtr).
++		Children[0].(*UArrPtr).
++		Children[0].(*UArrPtr).
++		Children[0].(*UArrPtr).
++		Children[0].(*UArrPtr).
++		Children[0].(*UArrPtr).
++		Children[0].(*UArrPtr).
+ 		Children[0]
+ }
+ 

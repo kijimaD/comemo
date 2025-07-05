@@ -7,6 +7,22 @@ Date:   Thu Aug 2 20:17:21 2018 +0000
     Change-Id: I23e5d87648a4091fb4f6616bf80aa6c800974900
     Reviewed-on: https://go-review.googlesource.com/127662
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/encoding/xml/xml.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/encoding/xml/xml.go b/src/encoding/xml/xml.go
+index 452caefab4..bc1a658bc5 100644
+--- a/src/encoding/xml/xml.go
++++ b/src/encoding/xml/xml.go
+@@ -167,8 +167,8 @@ type Decoder struct {
+ 	//
+ 	// Setting:
+ 	//
+-	//	d.Strict = false;
+-	//	d.AutoClose = HTMLAutoClose;
++	//	d.Strict = false
++	//	d.AutoClose = HTMLAutoClose
+ 	//	d.Entity = HTMLEntity
+ 	//
+ 	// creates a parser that can handle typical HTML.

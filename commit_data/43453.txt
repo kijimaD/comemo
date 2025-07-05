@@ -18,7 +18,125 @@ Date:   Wed Apr 1 15:57:46 2020 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/227018
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/link/internal/loader/loader.go        | 47 ++++++++++++++++++++++++---
  src/cmd/link/internal/loader/symbolbuilder.go |  7 +++-
  2 files changed, 49 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index 7cc846a19e..fdc020dd2a 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -248,6 +248,8 @@ type Loader struct {
+ 	got        map[Sym]int32       // stores got for pe objects
+ 	dynid      map[Sym]int32       // stores Dynid for symbol
+ 
++	relocVariant map[relocId]sym.RelocVariant // stores variant relocs
++
+ 	// Used to implement field tracking; created during deadcode if
+ 	// field tracking is enabled. Reachparent[K] contains the index of
+ 	// the symbol that triggered the marking of symbol K as live.
+@@ -1741,7 +1743,7 @@ func (l *Loader) LoadFull(arch *sys.Arch, syms *sym.Symbols) {
+ 		s.R = batch[:len(pp.relocs):len(pp.relocs)]
+ 		l.relocBatch = batch[len(pp.relocs):]
+ 		relocs := l.Relocs(i)
+-		l.convertRelocations(&relocs, s, false)
++		l.convertRelocations(i, &relocs, s, false)
+ 
+ 		// Copy data
+ 		s.P = pp.data
+@@ -1941,7 +1943,7 @@ func (l *Loader) PropagateLoaderChangesToSymbols(toconvert []Sym, anonVerReplace
+ 		if len(s.R) != relocs.Count() {
+ 			s.R = make([]sym.Reloc, relocs.Count())
+ 		}
+-		l.convertRelocations(&relocs, s, true)
++		l.convertRelocations(cand, &relocs, s, true)
+ 	}
+ 
+ 	return result
+@@ -2356,7 +2358,7 @@ func loadObjFull(l *Loader, r *oReader) {
+ 		batch := l.relocBatch
+ 		s.R = batch[:relocs.Count():relocs.Count()]
+ 		l.relocBatch = batch[relocs.Count():]
+-		l.convertRelocations(&relocs, s, false)
++		l.convertRelocations(gi, &relocs, s, false)
+ 
+ 		// Aux symbol info
+ 		isym := -1
+@@ -2525,7 +2527,7 @@ func loadObjFull(l *Loader, r *oReader) {
+ // etc. It is assumed that the caller has pre-allocated the dst symbol
+ // relocations slice. If 'strict' is set, then this method will
+ // panic if it finds a relocation targeting a nil symbol.
+-func (l *Loader) convertRelocations(src *Relocs, dst *sym.Symbol, strict bool) {
++func (l *Loader) convertRelocations(symIdx Sym, src *Relocs, dst *sym.Symbol, strict bool) {
+ 	for j := range dst.R {
+ 		r := src.At2(j)
+ 		rs := r.Sym()
+@@ -2557,7 +2559,44 @@ func (l *Loader) convertRelocations(src *Relocs, dst *sym.Symbol, strict bool) {
+ 			Add:  r.Add(),
+ 			Sym:  l.Syms[rs],
+ 		}
++		if rv := l.RelocVariant(symIdx, j); rv != 0 {
++			dst.R[j].InitExt()
++			dst.R[j].Variant = rv
++		}
++	}
++}
++
++// relocId is essentially a <S,R> tuple identifying the Rth
++// relocation of symbol S.
++type relocId struct {
++	sym  Sym
++	ridx int
++}
++
++// SetRelocVariant sets the 'variant' property of a relocation on
++// some specific symbol.
++func (l *Loader) SetRelocVariant(s Sym, ri int, v sym.RelocVariant) {
++	// sanity check
++	if relocs := l.Relocs(s); ri >= relocs.Count() {
++		panic("invalid relocation ID")
++	}
++	if l.relocVariant == nil {
++		l.relocVariant = make(map[relocId]sym.RelocVariant)
++	}
++	if v != 0 {
++		l.relocVariant[relocId{s, ri}] = v
++	} else {
++		delete(l.relocVariant, relocId{s, ri})
++	}
++}
++
++// RelocVariant returns the 'variant' property of a relocation on
++// some specific symbol.
++func (l *Loader) RelocVariant(s Sym, ri int) sym.RelocVariant {
++	if relocs := l.Relocs(s); ri >= relocs.Count() {
++		panic("invalid relocation ID")
+ 	}
++	return l.relocVariant[relocId{s, ri}]
+ }
+ 
+ // UndefinedRelocTargets iterates through the global symbol index
+diff --git a/src/cmd/link/internal/loader/symbolbuilder.go b/src/cmd/link/internal/loader/symbolbuilder.go
+index 0ce5c6bde8..cb7dd1cb3c 100644
+--- a/src/cmd/link/internal/loader/symbolbuilder.go
++++ b/src/cmd/link/internal/loader/symbolbuilder.go
+@@ -140,12 +140,17 @@ func (sb *SymbolBuilder) SetRelocs(rslice []Reloc) {
+ 	}
+ }
+ 
+-func (sb *SymbolBuilder) AddReloc(r Reloc) {
++// AddReloc appends the specified reloc to the symbols list of
++// relocations. Return value is the index of the newly created
++// reloc.
++func (sb *SymbolBuilder) AddReloc(r Reloc) uint32 {
+ 	// Populate a goobj2.Reloc from external reloc record.
++	rval := uint32(len(sb.relocs))
+ 	var b goobj2.Reloc2
+ 	b.Set(r.Off, r.Size, 0, r.Add, goobj2.SymRef{PkgIdx: 0, SymIdx: uint32(r.Sym)})
+ 	sb.relocs = append(sb.relocs, b)
+ 	sb.reltypes = append(sb.reltypes, r.Type)
++	return rval
+ }
+ 
+ // Update the j-th relocation in place.

@@ -11,7 +11,60 @@ Date:   Fri Jun 9 16:25:59 2017 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Dave Cheney <dave@cheney.net>
-
+---
  src/cmd/go/internal/load/pkg.go  | 14 +++-----------
  src/cmd/go/internal/test/test.go |  5 ++---
  2 files changed, 5 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index d10c6974c4..e1c9e01142 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -93,15 +93,13 @@ type PackagePublic struct {
+ type PackageInternal struct {
+ 	// Unexported fields are not part of the public API.
+ 	Build        *build.Package
+-	Pkgdir       string     // overrides build.PkgDir
+-	Imports      []*Package // this package's direct imports
+-	GoFiles      []string   // GoFiles+CgoFiles+TestGoFiles+XTestGoFiles files, absolute paths
+-	SFiles       []string
++	Pkgdir       string               // overrides build.PkgDir
++	Imports      []*Package           // this package's direct imports
++	GoFiles      []string             // GoFiles+CgoFiles+TestGoFiles+XTestGoFiles files, absolute paths
+ 	AllGoFiles   []string             // gofiles + IgnoredGoFiles, absolute paths
+ 	Target       string               // installed file for this package (may be executable)
+ 	Pkgfile      string               // where package will be (or is already) built or installed
+ 	Fake         bool                 // synthesized package
+-	External     bool                 // synthesized external test package
+ 	ForceLibrary bool                 // this package is a library (even if named "main")
+ 	Cmdline      bool                 // defined by files listed on command line
+ 	Local        bool                 // imported via local path (./ or ../)
+@@ -991,12 +989,6 @@ func (p *Package) load(stk *ImportStack, bp *build.Package, err error) {
+ 	}
+ 	sort.Strings(p.Internal.GoFiles)
+ 
+-	p.Internal.SFiles = str.StringList(p.SFiles)
+-	for i := range p.Internal.SFiles {
+-		p.Internal.SFiles[i] = filepath.Join(p.Dir, p.Internal.SFiles[i])
+-	}
+-	sort.Strings(p.Internal.SFiles)
+-
+ 	p.Internal.AllGoFiles = str.StringList(p.IgnoredGoFiles)
+ 	for i := range p.Internal.AllGoFiles {
+ 		p.Internal.AllGoFiles[i] = filepath.Join(p.Dir, p.Internal.AllGoFiles[i])
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index 6fed6ac837..7572b07324 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -832,9 +832,8 @@ func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, prin
+ 				Build: &build.Package{
+ 					ImportPos: p.Internal.Build.XTestImportPos,
+ 				},
+-				Imports:  ximports,
+-				Fake:     true,
+-				External: true,
++				Imports: ximports,
++				Fake:    true,
+ 			},
+ 		}
+ 		if pxtestNeedsPtest {

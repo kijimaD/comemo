@@ -21,9 +21,102 @@ Date:   Tue Apr 20 10:41:37 2021 -0700
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Michael Matloob <matloob@golang.org>
     Trust: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/go/internal/modload/search.go              |  2 +-
  src/cmd/go/internal/search/search.go               |  2 +-
  .../go/testdata/script/list_symlink_issue35941.txt | 18 +++++++++++
  .../script/mod_tidy_symlink_issue35941.txt         | 36 ++++++++++++++++++++++
  4 files changed, 56 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/search.go b/src/cmd/go/internal/modload/search.go
+index c34f745a24..658fc6f55a 100644
+--- a/src/cmd/go/internal/modload/search.go
++++ b/src/cmd/go/internal/modload/search.go
+@@ -86,7 +86,7 @@ func matchPackages(ctx context.Context, m *search.Match, tags map[string]bool, f
+ 			}
+ 
+ 			if !fi.IsDir() {
+-				if fi.Mode()&fs.ModeSymlink != 0 && want {
++				if fi.Mode()&fs.ModeSymlink != 0 && want && strings.Contains(m.Pattern(), "...") {
+ 					if target, err := fsys.Stat(path); err == nil && target.IsDir() {
+ 						fmt.Fprintf(os.Stderr, "warning: ignoring symlink %s\n", path)
+ 					}
+diff --git a/src/cmd/go/internal/search/search.go b/src/cmd/go/internal/search/search.go
+index faf3a321dd..f1152080a7 100644
+--- a/src/cmd/go/internal/search/search.go
++++ b/src/cmd/go/internal/search/search.go
+@@ -155,7 +155,7 @@ func (m *Match) MatchPackages() {
+ 			}
+ 
+ 			if !fi.IsDir() {
+-				if fi.Mode()&fs.ModeSymlink != 0 && want {
++				if fi.Mode()&fs.ModeSymlink != 0 && want && strings.Contains(m.pattern, "...") {
+ 					if target, err := fsys.Stat(path); err == nil && target.IsDir() {
+ 						fmt.Fprintf(os.Stderr, "warning: ignoring symlink %s\n", path)
+ 					}
+diff --git a/src/cmd/go/testdata/script/list_symlink_issue35941.txt b/src/cmd/go/testdata/script/list_symlink_issue35941.txt
+new file mode 100644
+index 0000000000..eb12bde6ce
+--- /dev/null
++++ b/src/cmd/go/testdata/script/list_symlink_issue35941.txt
+@@ -0,0 +1,18 @@
++[!symlink] skip
++env GO111MODULE=off
++
++# Issue 35941: suppress symlink warnings when running 'go list all'.
++symlink goproj/css -> $GOPATH/src/css
++
++go list all
++! stderr 'warning: ignoring symlink'
++
++# Show symlink warnings when patterns contain '...'.
++go list goproj/...
++stderr 'warning: ignoring symlink'
++
++-- goproj/a.go --
++package a
++
++-- css/index.css --
++body {}
+diff --git a/src/cmd/go/testdata/script/mod_tidy_symlink_issue35941.txt b/src/cmd/go/testdata/script/mod_tidy_symlink_issue35941.txt
+new file mode 100644
+index 0000000000..d4658c65d4
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_tidy_symlink_issue35941.txt
+@@ -0,0 +1,36 @@
++env GO111MODULE=on
++[!symlink] skip
++
++cd m
++symlink symlink -> ../outside
++
++cp go.mod go.mod.orig
++
++# Issue 35941: suppress symlink warnings when running 'go mod tidy'.
++# 'go mod tidy' should not scan packages in symlinked subdirectories.
++go mod tidy
++! stderr 'warning: ignoring symlink'
++cmp go.mod go.mod.orig
++
++! go build ./symlink
++stderr '^symlink[\\/]symlink.go:3:8: module example.net/unresolved provides package example.net/unresolved and is replaced but not required; to add it:\n\tgo get example.net/unresolved@v0.1.0$'
++
++-- m/go.mod --
++module example.net/m
++
++go 1.16
++
++replace example.net/unresolved v0.1.0 => ../unresolved
++-- m/a.go --
++package a
++-- outside/symlink.go --
++package symlink
++
++import _ "example.net/unresolved"
++-- unresolved/go.mod --
++module example.net/unresolved
++
++go 1.16
++-- unresolved/unresolved.go --
++// Package unresolved exists, but 'go mod tidy' won't add it.
++package unresolved

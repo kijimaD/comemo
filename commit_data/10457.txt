@@ -11,9 +11,123 @@ Date:   Fri Nov 18 13:10:15 2011 -0800
     R=golang-dev, rsc, gri, r
     CC=golang-dev
     https://golang.org/cl/5415052
-
+---
  src/pkg/text/template/parse/Makefile |  1 -
  src/pkg/text/template/parse/parse.go | 27 +++++++++++++++++++--------
  src/pkg/text/template/parse/set.go   | 15 ---------------
  src/pkg/text/template/set.go         |  3 ++-
  4 files changed, 21 insertions(+), 25 deletions(-)
+
+diff --git a/src/pkg/text/template/parse/Makefile b/src/pkg/text/template/parse/Makefile
+index 72bb55064d..75cade83e0 100644
+--- a/src/pkg/text/template/parse/Makefile
++++ b/src/pkg/text/template/parse/Makefile
+@@ -9,6 +9,5 @@ GOFILES=\
+ 	lex.go\
+ 	node.go\
+ 	parse.go\
+-	set.go\
+ 
+ include ../../../../Make.pkg
+diff --git a/src/pkg/text/template/parse/parse.go b/src/pkg/text/template/parse/parse.go
+index e906ee83aa..c0491e51e9 100644
+--- a/src/pkg/text/template/parse/parse.go
++++ b/src/pkg/text/template/parse/parse.go
+@@ -13,10 +13,10 @@ import (
+ 	"unicode"
+ )
+ 
+-// Tree is the representation of a parsed template.
++// Tree is the representation of a single parsed template.
+ type Tree struct {
+-	Name string    // Name is the name of the template.
+-	Root *ListNode // Root is the top-level root of the parse tree.
++	Name string    // name of the template represented by the tree.
++	Root *ListNode // top-level root of the tree.
+ 	// Parsing only; cleared after parse.
+ 	funcs     []map[string]interface{}
+ 	lex       *lexer
+@@ -25,6 +25,16 @@ type Tree struct {
+ 	vars      []string // variables defined at the moment.
+ }
+ 
++// Parse returns a map from template name to parse.Tree, created by parsing the
++// templates described in the argument string. The top-level template will be
++// given the specified name. If an error is encountered, parsing stops and an
++// empty map is returned with the error.
++func Parse(name, text, leftDelim, rightDelim string, funcs ...map[string]interface{}) (treeSet map[string]*Tree, err error) {
++	treeSet = make(map[string]*Tree)
++	_, err = New(name).Parse(text, leftDelim, rightDelim, treeSet, funcs...)
++	return
++}
++
+ // next returns the next token.
+ func (t *Tree) next() item {
+ 	if t.peekCount > 0 {
+@@ -58,7 +68,7 @@ func (t *Tree) peek() item {
+ 
+ // Parsing.
+ 
+-// New allocates a new template with the given name.
++// New allocates a new parse tree with the given name.
+ func New(name string, funcs ...map[string]interface{}) *Tree {
+ 	return &Tree{
+ 		Name:  name,
+@@ -107,7 +117,7 @@ func (t *Tree) recover(errp *error) {
+ 	return
+ }
+ 
+-// startParse starts the template parsing from the lexer.
++// startParse initializes the parser, using the lexer.
+ func (t *Tree) startParse(funcs []map[string]interface{}, lex *lexer) {
+ 	t.Root = nil
+ 	t.lex = lex
+@@ -143,9 +153,10 @@ func (t *Tree) atEOF() bool {
+ 	return false
+ }
+ 
+-// Parse parses the template definition string to construct an internal
+-// representation of the template for execution. If either action delimiter
+-// string is empty, the default ("{{" or "}}") is used.
++// Parse parses the template definition string to construct a representation of
++// the template for execution. If either action delimiter string is empty, the
++// default ("{{" or "}}") is used. Embedded template definitions are added to
++// the treeSet map.
+ func (t *Tree) Parse(s, leftDelim, rightDelim string, treeSet map[string]*Tree, funcs ...map[string]interface{}) (tree *Tree, err error) {
+ 	defer t.recover(&err)
+ 	t.startParse(funcs, lex(t.Name, s, leftDelim, rightDelim))
+diff --git a/src/pkg/text/template/parse/set.go b/src/pkg/text/template/parse/set.go
+deleted file mode 100644
+index 55f3ceb3d5..0000000000
+--- a/src/pkg/text/template/parse/set.go
++++ /dev/null
+@@ -1,15 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package parse
+-
+-// Set returns a slice of Trees created by parsing the template set
+-// definition in the argument string. If an error is encountered,
+-// parsing stops and an empty slice is returned with the error.
+-func Set(text, leftDelim, rightDelim string, funcs ...map[string]interface{}) (tree map[string]*Tree, err error) {
+-	tree = make(map[string]*Tree)
+-	// Top-level template name is needed but unused. TODO: clean this up.
+-	_, err = New("ROOT").Parse(text, leftDelim, rightDelim, tree, funcs...)
+-	return
+-}
+diff --git a/src/pkg/text/template/set.go b/src/pkg/text/template/set.go
+index 48417044e7..b1ae7ddee3 100644
+--- a/src/pkg/text/template/set.go
++++ b/src/pkg/text/template/set.go
+@@ -104,7 +104,8 @@ func (s *Set) Execute(wr io.Writer, name string, data interface{}) error {
+ // multiple times for a given set, adding the templates defined in the string
+ // to the set.  It is an error if a template has a name already defined in the set.
+ func (s *Set) Parse(text string) (*Set, error) {
+-	trees, err := parse.Set(text, s.leftDelim, s.rightDelim, s.parseFuncs, builtins)
++	// TODO: "ROOT" is just a placeholder while we rejig the API.
++	trees, err := parse.Parse("ROOT", text, s.leftDelim, s.rightDelim, s.parseFuncs, builtins)
+ 	if err != nil {
+ 		return nil, err
+ 	}

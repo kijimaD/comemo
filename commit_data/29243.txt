@@ -12,6 +12,30 @@ Date:   Sat Sep 3 18:32:51 2016 -0700
     Run-TryBot: Michael Pratt <mpratt@google.com>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ppc64/ssa.go | 12 +-----------
  1 file changed, 1 insertion(+), 11 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ppc64/ssa.go b/src/cmd/compile/internal/ppc64/ssa.go
+index 1d81d39b30..78047269d3 100644
+--- a/src/cmd/compile/internal/ppc64/ssa.go
++++ b/src/cmd/compile/internal/ppc64/ssa.go
+@@ -854,17 +854,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		gc.Gvarlive(n)
+ 
+ 	case ssa.OpPhi:
+-		// just check to make sure regalloc and stackalloc did it right
+-		if v.Type.IsMemory() {
+-			return
+-		}
+-		f := v.Block.Func
+-		loc := f.RegAlloc[v.ID]
+-		for _, a := range v.Args {
+-			if aloc := f.RegAlloc[a.ID]; aloc != loc { // TODO: .Equal() instead?
+-				v.Fatalf("phi arg at different location than phi: %v @ %v, but arg %v @ %v\n%s\n", v, loc, a, aloc, v.Block.Func)
+-			}
+-		}
++		gc.CheckLoweredPhi(v)
+ 
+ 	case ssa.OpPPC64LoweredNilCheck:
+ 		// Optimization - if the subsequent block has a load or store

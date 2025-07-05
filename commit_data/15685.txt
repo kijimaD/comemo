@@ -9,6 +9,42 @@ Date:   Mon Mar 11 11:10:43 2013 -0700
     R=golang-dev, minux.ma
     CC=golang-dev
     https://golang.org/cl/7712043
-
+---
  src/pkg/net/http/requestwrite_test.go | 24 ++++++++++++++++++++++++
  1 file changed, 24 insertions(+)
+
+diff --git a/src/pkg/net/http/requestwrite_test.go b/src/pkg/net/http/requestwrite_test.go
+index f78d3882a8..b27b1f7ce3 100644
+--- a/src/pkg/net/http/requestwrite_test.go
++++ b/src/pkg/net/http/requestwrite_test.go
+@@ -391,6 +391,30 @@ var reqWriteTests = []reqWriteTest{
+ 			"Host: x.google.com\r\n" +
+ 			"User-Agent: Go 1.1 package http\r\n\r\n",
+ 	},
++
++	// Testing custom case in header keys. Issue 5022.
++	{
++		Req: Request{
++			Method: "GET",
++			URL: &url.URL{
++				Scheme: "http",
++				Host:   "www.google.com",
++				Path:   "/",
++			},
++			Proto:      "HTTP/1.1",
++			ProtoMajor: 1,
++			ProtoMinor: 1,
++			Header: Header{
++				"ALL-CAPS": {"x"},
++			},
++		},
++
++		WantWrite: "GET / HTTP/1.1\r\n" +
++			"Host: www.google.com\r\n" +
++			"User-Agent: Go 1.1 package http\r\n" +
++			"ALL-CAPS: x\r\n" +
++			"\r\n",
++	},
+ }
+ 
+ func TestRequestWrite(t *testing.T) {

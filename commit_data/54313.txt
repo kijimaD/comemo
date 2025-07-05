@@ -15,8 +15,314 @@ Date:   Tue Oct 4 15:10:30 2022 -0400
     Reviewed-by: Russ Cox <rsc@golang.org>
     Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  api/next/51430.txt                       | 10 ++---
  src/runtime/coverage/apis.go             | 74 ++++++++++++++++----------------
  src/runtime/coverage/testdata/harness.go | 46 ++++++++++----------
  3 files changed, 65 insertions(+), 65 deletions(-)
+
+diff --git a/api/next/51430.txt b/api/next/51430.txt
+index 99ec4170f9..fd220b8d5e 100644
+--- a/api/next/51430.txt
++++ b/api/next/51430.txt
+@@ -1,5 +1,5 @@
+-pkg runtime/coverage, func EmitMetaDataToDir(string) error #51430
+-pkg runtime/coverage, func EmitMetaDataToWriter(io.Writer) error #51430
+-pkg runtime/coverage, func EmitCounterDataToDir(string) error #51430
+-pkg runtime/coverage, func EmitCounterDataToWriter(io.Writer) error #51430
+-pkg runtime/coverage, func ClearCoverageCounters() error #51430
++pkg runtime/coverage, func WriteMetaDir(string) error #51430
++pkg runtime/coverage, func WriteMeta(io.Writer) error #51430
++pkg runtime/coverage, func WriteCountersDir(string) error #51430
++pkg runtime/coverage, func WriteCounters(io.Writer) error #51430
++pkg runtime/coverage, func ClearCounters() error #51430
+diff --git a/src/runtime/coverage/apis.go b/src/runtime/coverage/apis.go
+index 0a20b99ef0..7d851f9362 100644
+--- a/src/runtime/coverage/apis.go
++++ b/src/runtime/coverage/apis.go
+@@ -13,27 +13,27 @@ import (
+ 	"unsafe"
+ )
+ 
+-// EmitMetaDataToDir writes a coverage meta-data file for the
+-// currently running program to the directory specified in 'dir'. An
+-// error will be returned if the operation can't be completed
+-// successfully (for example, if the currently running program was not
+-// built with "-cover", or if the directory does not exist).
+-func EmitMetaDataToDir(dir string) error {
++// WriteMetaDir writes a coverage meta-data file for the currently
++// running program to the directory specified in 'dir'. An error will
++// be returned if the operation can't be completed successfully (for
++// example, if the currently running program was not built with
++// "-cover", or if the directory does not exist).
++func WriteMetaDir(dir string) error {
+ 	if !finalHashComputed {
+ 		return fmt.Errorf("error: no meta-data available (binary not built with -cover?)")
+ 	}
+ 	return emitMetaDataToDirectory(dir, getCovMetaList())
+ }
+ 
+-// EmitMetaDataToWriter writes the meta-data content (the payload that
+-// would normally be emitted to a meta-data file) for currently
+-// running program to the the writer 'w'. An error will be returned if
+-// the operation can't be completed successfully (for example, if the
++// WriteMeta writes the meta-data content (the payload that would
++// normally be emitted to a meta-data file) for the currently running
++// program to the the writer 'w'. An error will be returned if the
++// operation can't be completed successfully (for example, if the
+ // currently running program was not built with "-cover", or if a
+ // write fails).
+-func EmitMetaDataToWriter(w io.Writer) error {
++func WriteMeta(w io.Writer) error {
+ 	if w == nil {
+-		return fmt.Errorf("error: nil writer in EmitMetaDataToWriter")
++		return fmt.Errorf("error: nil writer in WriteMeta")
+ 	}
+ 	if !finalHashComputed {
+ 		return fmt.Errorf("error: no meta-data available (binary not built with -cover?)")
+@@ -42,26 +42,26 @@ func EmitMetaDataToWriter(w io.Writer) error {
+ 	return writeMetaData(w, ml, cmode, cgran, finalHash)
+ }
+ 
+-// EmitCounterDataToDir writes a coverage counter-data file for the
++// WriteCountersDir writes a coverage counter-data file for the
+ // currently running program to the directory specified in 'dir'. An
+ // error will be returned if the operation can't be completed
+ // successfully (for example, if the currently running program was not
+ // built with "-cover", or if the directory does not exist). The
+ // counter data written will be a snapshot taken at the point of the
+ // call.
+-func EmitCounterDataToDir(dir string) error {
++func WriteCountersDir(dir string) error {
+ 	return emitCounterDataToDirectory(dir)
+ }
+ 
+-// EmitCounterDataToWriter writes coverage counter-data content for
++// WriteCounters writes coverage counter-data content for
+ // the currently running program to the writer 'w'. An error will be
+ // returned if the operation can't be completed successfully (for
+ // example, if the currently running program was not built with
+ // "-cover", or if a write fails). The counter data written will be a
+ // snapshot taken at the point of the invocation.
+-func EmitCounterDataToWriter(w io.Writer) error {
++func WriteCounters(w io.Writer) error {
+ 	if w == nil {
+-		return fmt.Errorf("error: nil writer in EmitCounterDataToWriter")
++		return fmt.Errorf("error: nil writer in WriteCounters")
+ 	}
+ 	// Ask the runtime for the list of coverage counter symbols.
+ 	cl := getCovCounterList()
+@@ -80,19 +80,19 @@ func EmitCounterDataToWriter(w io.Writer) error {
+ 	return s.emitCounterDataToWriter(w)
+ }
+ 
+-// ClearCoverageCounters clears/resets all coverage counter variables
+-// in the currently running program. It returns an error if the
+-// program in question was not built with the "-cover" flag. Clearing
+-// of coverage counters is also not supported for programs not using
+-// atomic counter mode (see more detailed comments below for the
+-// rationale here).
+-func ClearCoverageCounters() error {
++// ClearCounters clears/resets all coverage counter variables in the
++// currently running program. It returns an error if the program in
++// question was not built with the "-cover" flag. Clearing of coverage
++// counters is also not supported for programs not using atomic
++// counter mode (see more detailed comments below for the rationale
++// here).
++func ClearCounters() error {
+ 	cl := getCovCounterList()
+ 	if len(cl) == 0 {
+ 		return fmt.Errorf("program not built with -cover")
+ 	}
+ 	if cmode != coverage.CtrModeAtomic {
+-		return fmt.Errorf("ClearCoverageCounters invoked for program build with -covermode=%s (please use -covermode=atomic)", cmode.String())
++		return fmt.Errorf("ClearCounters invoked for program build with -covermode=%s (please use -covermode=atomic)", cmode.String())
+ 	}
+ 
+ 	// Implementation note: this function would be faster and simpler
+@@ -101,19 +101,19 @@ func ClearCoverageCounters() error {
+ 	// corresponding to the counter values. We do this to avoid the
+ 	// following bad scenario: suppose that a user builds their Go
+ 	// program with "-cover", and that program has a function (call it
+-	// main.XYZ) that invokes ClearCoverageCounters:
++	// main.XYZ) that invokes ClearCounters:
+ 	//
+ 	//     func XYZ() {
+ 	//       ... do some stuff ...
+-	//       coverage.ClearCoverageCounters()
++	//       coverage.ClearCounters()
+ 	//       if someCondition {   <<--- HERE
+ 	//         ...
+ 	//       }
+ 	//     }
+ 	//
+-	// At the point where ClearCoverageCounters executes, main.XYZ has
+-	// not yet finished running, thus as soon as the call returns the
+-	// line marked "HERE" above will trigger the writing of a non-zero
++	// At the point where ClearCounters executes, main.XYZ has not yet
++	// finished running, thus as soon as the call returns the line
++	// marked "HERE" above will trigger the writing of a non-zero
+ 	// value into main.XYZ's counter slab. However since we've just
+ 	// finished clearing the entire counter segment, we will have lost
+ 	// the values in the prolog portion of main.XYZ's counter slab
+@@ -121,14 +121,14 @@ func ClearCoverageCounters() error {
+ 	// program execution as we walk through the entire counter array
+ 	// for the program looking for executed functions, we'll zoom past
+ 	// main.XYZ's prolog (which was zero'd) and hit the non-zero
+-	// counter value corresponding to the "HERE" block, which will then
+-	// be interpreted as the start of another live function. Things
+-	// will go downhill from there.
++	// counter value corresponding to the "HERE" block, which will
++	// then be interpreted as the start of another live function.
++	// Things will go downhill from there.
+ 	//
+ 	// This same scenario is also a potential risk if the program is
+-	// running on an architecture that permits reordering of writes/stores,
+-	// since the inconsistency described above could arise here. Example
+-	// scenario:
++	// running on an architecture that permits reordering of
++	// writes/stores, since the inconsistency described above could
++	// arise here. Example scenario:
+ 	//
+ 	//     func ABC() {
+ 	//       ...                    // prolog
+@@ -150,7 +150,7 @@ func ClearCoverageCounters() error {
+ 	// will always be observed to happen in exactly that order by
+ 	// another thread". Thus we can be sure that there will be no
+ 	// inconsistency when reading the counter array from the thread
+-	// running ClearCoverageCounters.
++	// running ClearCounters.
+ 
+ 	var sd []atomic.Uint32
+ 
+diff --git a/src/runtime/coverage/testdata/harness.go b/src/runtime/coverage/testdata/harness.go
+index 529c2c9de9..5c87e4cf7d 100644
+--- a/src/runtime/coverage/testdata/harness.go
++++ b/src/runtime/coverage/testdata/harness.go
+@@ -23,16 +23,16 @@ var outdirflag = flag.String("o", "", "Output dir into which to emit")
+ func emitToWriter() {
+ 	log.SetPrefix("emitToWriter: ")
+ 	var slwm slicewriter.WriteSeeker
+-	if err := coverage.EmitMetaDataToWriter(&slwm); err != nil {
+-		log.Fatalf("error: EmitMetaDataToWriter returns %v", err)
++	if err := coverage.WriteMeta(&slwm); err != nil {
++		log.Fatalf("error: WriteMeta returns %v", err)
+ 	}
+ 	mf := filepath.Join(*outdirflag, "covmeta.0abcdef")
+ 	if err := ioutil.WriteFile(mf, slwm.BytesWritten(), 0666); err != nil {
+ 		log.Fatalf("error: writing %s: %v", mf, err)
+ 	}
+ 	var slwc slicewriter.WriteSeeker
+-	if err := coverage.EmitCounterDataToWriter(&slwc); err != nil {
+-		log.Fatalf("error: EmitCounterDataToWriter returns %v", err)
++	if err := coverage.WriteCounters(&slwc); err != nil {
++		log.Fatalf("error: WriteCounters returns %v", err)
+ 	}
+ 	cf := filepath.Join(*outdirflag, "covcounters.0abcdef.99.77")
+ 	if err := ioutil.WriteFile(cf, slwc.BytesWritten(), 0666); err != nil {
+@@ -42,11 +42,11 @@ func emitToWriter() {
+ 
+ func emitToDir() {
+ 	log.SetPrefix("emitToDir: ")
+-	if err := coverage.EmitMetaDataToDir(*outdirflag); err != nil {
+-		log.Fatalf("error: EmitMetaDataToDir returns %v", err)
++	if err := coverage.WriteMetaDir(*outdirflag); err != nil {
++		log.Fatalf("error: WriteMetaDir returns %v", err)
+ 	}
+-	if err := coverage.EmitCounterDataToDir(*outdirflag); err != nil {
+-		log.Fatalf("error: EmitCounterDataToDir returns %v", err)
++	if err := coverage.WriteCountersDir(*outdirflag); err != nil {
++		log.Fatalf("error: WriteCountersDir returns %v", err)
+ 	}
+ }
+ 
+@@ -74,15 +74,15 @@ func emitToNonexistentDir() {
+ 
+ 	// Mangle the output directory to produce something nonexistent.
+ 	mangled := *outdirflag + "_MANGLED"
+-	if err := coverage.EmitMetaDataToDir(mangled); err == nil {
+-		log.Fatal("expected error from EmitMetaDataToDir to nonexistent dir")
++	if err := coverage.WriteMetaDir(mangled); err == nil {
++		log.Fatal("expected error from WriteMetaDir to nonexistent dir")
+ 	} else {
+ 		got := fmt.Sprintf("%v", err)
+ 		checkWant("meta data", got)
+ 	}
+ 
+ 	// Now try to emit counter data file to a bad dir.
+-	if err := coverage.EmitCounterDataToDir(mangled); err == nil {
++	if err := coverage.WriteCountersDir(mangled); err == nil {
+ 		log.Fatal("expected error emitting counter data to bad dir")
+ 	} else {
+ 		got := fmt.Sprintf("%v", err)
+@@ -95,8 +95,8 @@ func emitToUnwritableDir() {
+ 
+ 	want := "permission denied"
+ 
+-	if err := coverage.EmitMetaDataToDir(*outdirflag); err == nil {
+-		log.Fatal("expected error from EmitMetaDataToDir to unwritable dir")
++	if err := coverage.WriteMetaDir(*outdirflag); err == nil {
++		log.Fatal("expected error from WriteMetaDir to unwritable dir")
+ 	} else {
+ 		got := fmt.Sprintf("%v", err)
+ 		if !strings.Contains(got, want) {
+@@ -105,7 +105,7 @@ func emitToUnwritableDir() {
+ 	}
+ 
+ 	// Similarly with writing counter data.
+-	if err := coverage.EmitCounterDataToDir(*outdirflag); err == nil {
++	if err := coverage.WriteCountersDir(*outdirflag); err == nil {
+ 		log.Fatal("expected error emitting counter data to unwritable dir")
+ 	} else {
+ 		got := fmt.Sprintf("%v", err)
+@@ -119,7 +119,7 @@ func emitToNilWriter() {
+ 	log.SetPrefix("emitToWriter: ")
+ 	want := "nil writer"
+ 	var bad io.WriteSeeker
+-	if err := coverage.EmitMetaDataToWriter(bad); err == nil {
++	if err := coverage.WriteMeta(bad); err == nil {
+ 		log.Fatal("expected error passing nil writer for meta emit")
+ 	} else {
+ 		got := fmt.Sprintf("%v", err)
+@@ -128,7 +128,7 @@ func emitToNilWriter() {
+ 		}
+ 	}
+ 
+-	if err := coverage.EmitCounterDataToWriter(bad); err == nil {
++	if err := coverage.WriteCounters(bad); err == nil {
+ 		log.Fatal("expected error passing nil writer for counter emit")
+ 	} else {
+ 		got := fmt.Sprintf("%v", err)
+@@ -201,25 +201,25 @@ func emitToFailingWriter() {
+ 	log.SetPrefix("emitToFailingWriter: ")
+ 
+ 	writeStressTest("emit-meta", func(f *failingWriter) error {
+-		return coverage.EmitMetaDataToWriter(f)
++		return coverage.WriteMeta(f)
+ 	})
+ 	writeStressTest("emit-counter", func(f *failingWriter) error {
+-		return coverage.EmitCounterDataToWriter(f)
++		return coverage.WriteCounters(f)
+ 	})
+ }
+ 
+ func emitWithCounterClear() {
+ 	log.SetPrefix("emitWitCounterClear: ")
+ 	preClear()
+-	if err := coverage.ClearCoverageCounters(); err != nil {
++	if err := coverage.ClearCounters(); err != nil {
+ 		log.Fatalf("clear failed: %v", err)
+ 	}
+ 	postClear()
+-	if err := coverage.EmitMetaDataToDir(*outdirflag); err != nil {
+-		log.Fatalf("error: EmitMetaDataToDir returns %v", err)
++	if err := coverage.WriteMetaDir(*outdirflag); err != nil {
++		log.Fatalf("error: WriteMetaDir returns %v", err)
+ 	}
+-	if err := coverage.EmitCounterDataToDir(*outdirflag); err != nil {
+-		log.Fatalf("error: EmitCounterDataToDir returns %v", err)
++	if err := coverage.WriteCountersDir(*outdirflag); err != nil {
++		log.Fatalf("error: WriteCountersDir returns %v", err)
+ 	}
+ }
+ 

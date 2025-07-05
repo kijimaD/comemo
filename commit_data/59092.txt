@@ -19,6 +19,19 @@ Date:   Sun Jan 21 17:20:02 2024 +1100
     Reviewed-by: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/fmt/doc.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/fmt/doc.go b/src/fmt/doc.go
+index ea2da97da6..c47bee1080 100644
+--- a/src/fmt/doc.go
++++ b/src/fmt/doc.go
+@@ -16,6 +16,7 @@ General:
+ 	%v	the value in a default format
+ 		when printing structs, the plus flag (%+v) adds field names
+ 	%#v	a Go-syntax representation of the value
++		(floating-point infinities and NaNs print as ±Inf and NaN)
+ 	%T	a Go-syntax representation of the type of the value
+ 	%%	a literal percent sign; consumes no value
+ 

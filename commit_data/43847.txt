@@ -39,6 +39,29 @@ Date:   Fri Apr 24 09:54:13 2020 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/alg.go | 11 ++++++++++-
  1 file changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/alg.go b/src/cmd/compile/internal/gc/alg.go
+index 1130a4c17b..33e8eca54e 100644
+--- a/src/cmd/compile/internal/gc/alg.go
++++ b/src/cmd/compile/internal/gc/alg.go
+@@ -578,7 +578,16 @@ func geneq(t *types.Type) *obj.LSym {
+ 
+ 			// Compare non-memory fields with field equality.
+ 			if !IsRegularMemory(f.Type) {
+-				and(eqfield(np, nq, f.Sym))
++				p := nodSym(OXDOT, np, f.Sym)
++				q := nodSym(OXDOT, nq, f.Sym)
++				switch {
++				case f.Type.IsString():
++					eqlen, eqmem := eqstring(p, q)
++					and(eqlen)
++					and(eqmem)
++				default:
++					and(nod(OEQ, p, q))
++				}
+ 				i++
+ 				continue
+ 			}

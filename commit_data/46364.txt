@@ -19,7 +19,207 @@ Date:   Wed Dec 23 02:48:57 2020 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/typecheck/dcl.go  | 87 ------------------------------
  src/cmd/compile/internal/typecheck/type.go | 72 +++++++++++++++++++++++--
  2 files changed, 69 insertions(+), 90 deletions(-)
+
+diff --git a/src/cmd/compile/internal/typecheck/dcl.go b/src/cmd/compile/internal/typecheck/dcl.go
+index bfdd76ba10..db18c17e13 100644
+--- a/src/cmd/compile/internal/typecheck/dcl.go
++++ b/src/cmd/compile/internal/typecheck/dcl.go
+@@ -281,72 +281,6 @@ func CheckFuncStack() {
+ 	}
+ }
+ 
+-// turn a parsed function declaration into a type
+-func NewFuncType(nrecv *ir.Field, nparams, nresults []*ir.Field) *types.Type {
+-	funarg := func(n *ir.Field) *types.Field {
+-		lno := base.Pos
+-		base.Pos = n.Pos
+-
+-		if n.Ntype != nil {
+-			n.Type = typecheckNtype(n.Ntype).Type()
+-			n.Ntype = nil
+-		}
+-
+-		f := types.NewField(n.Pos, n.Sym, n.Type)
+-		f.SetIsDDD(n.IsDDD)
+-		if n.Decl != nil {
+-			n.Decl.SetType(f.Type)
+-			f.Nname = n.Decl
+-		}
+-
+-		base.Pos = lno
+-		return f
+-	}
+-	funargs := func(nn []*ir.Field) []*types.Field {
+-		res := make([]*types.Field, len(nn))
+-		for i, n := range nn {
+-			res[i] = funarg(n)
+-		}
+-		return res
+-	}
+-
+-	var recv *types.Field
+-	if nrecv != nil {
+-		recv = funarg(nrecv)
+-	}
+-
+-	t := types.NewSignature(types.LocalPkg, recv, funargs(nparams), funargs(nresults))
+-	checkdupfields("argument", t.Recvs().FieldSlice(), t.Params().FieldSlice(), t.Results().FieldSlice())
+-	return t
+-}
+-
+-// convert a parsed id/type list into
+-// a type for struct/interface/arglist
+-func NewStructType(l []*ir.Field) *types.Type {
+-	lno := base.Pos
+-
+-	fields := make([]*types.Field, len(l))
+-	for i, n := range l {
+-		base.Pos = n.Pos
+-
+-		if n.Ntype != nil {
+-			n.Type = typecheckNtype(n.Ntype).Type()
+-			n.Ntype = nil
+-		}
+-		f := types.NewField(n.Pos, n.Sym, n.Type)
+-		if n.Embedded {
+-			checkembeddedtype(n.Type)
+-			f.Embedded = 1
+-		}
+-		f.Note = n.Note
+-		fields[i] = f
+-	}
+-	checkdupfields("field", fields)
+-
+-	base.Pos = lno
+-	return types.NewStruct(types.LocalPkg, fields)
+-}
+-
+ // Add a method, declared as a function.
+ // - msym is the method symbol
+ // - t is function type (with receiver)
+@@ -604,27 +538,6 @@ func initname(s string) bool {
+ 	return s == "init"
+ }
+ 
+-func tointerface(nmethods []*ir.Field) *types.Type {
+-	if len(nmethods) == 0 {
+-		return types.Types[types.TINTER]
+-	}
+-
+-	lno := base.Pos
+-
+-	methods := make([]*types.Field, len(nmethods))
+-	for i, n := range nmethods {
+-		base.Pos = n.Pos
+-		if n.Ntype != nil {
+-			n.Type = typecheckNtype(n.Ntype).Type()
+-			n.Ntype = nil
+-		}
+-		methods[i] = types.NewField(n.Pos, n.Sym, n.Type)
+-	}
+-
+-	base.Pos = lno
+-	return types.NewInterface(types.LocalPkg, methods)
+-}
+-
+ var vargen int
+ 
+ func Temp(t *types.Type) *ir.Name {
+diff --git a/src/cmd/compile/internal/typecheck/type.go b/src/cmd/compile/internal/typecheck/type.go
+index 4782bb9c31..0c2ebb8b26 100644
+--- a/src/cmd/compile/internal/typecheck/type.go
++++ b/src/cmd/compile/internal/typecheck/type.go
+@@ -73,13 +73,42 @@ func tcChanType(n *ir.ChanType) ir.Node {
+ 
+ // tcFuncType typechecks an OTFUNC node.
+ func tcFuncType(n *ir.FuncType) ir.Node {
+-	n.SetOTYPE(NewFuncType(n.Recv, n.Params, n.Results))
++	misc := func(f *types.Field, nf *ir.Field) {
++		f.SetIsDDD(nf.IsDDD)
++		if nf.Decl != nil {
++			nf.Decl.SetType(f.Type)
++			f.Nname = nf.Decl
++		}
++	}
++
++	lno := base.Pos
++
++	var recv *types.Field
++	if n.Recv != nil {
++		recv = tcField(n.Recv, misc)
++	}
++
++	t := types.NewSignature(types.LocalPkg, recv, tcFields(n.Params, misc), tcFields(n.Results, misc))
++	checkdupfields("argument", t.Recvs().FieldSlice(), t.Params().FieldSlice(), t.Results().FieldSlice())
++
++	base.Pos = lno
++
++	n.SetOTYPE(t)
+ 	return n
+ }
+ 
+ // tcInterfaceType typechecks an OTINTER node.
+ func tcInterfaceType(n *ir.InterfaceType) ir.Node {
+-	n.SetOTYPE(tointerface(n.Methods))
++	if len(n.Methods) == 0 {
++		n.SetOTYPE(types.Types[types.TINTER])
++		return n
++	}
++	
++	lno := base.Pos
++	methods := tcFields(n.Methods, nil)
++	base.Pos = lno
++
++	n.SetOTYPE(types.NewInterface(types.LocalPkg, methods))
+ 	return n
+ }
+ 
+@@ -117,6 +146,43 @@ func tcSliceType(n *ir.SliceType) ir.Node {
+ 
+ // tcStructType typechecks an OTSTRUCT node.
+ func tcStructType(n *ir.StructType) ir.Node {
+-	n.SetOTYPE(NewStructType(n.Fields))
++	lno := base.Pos
++
++	fields := tcFields(n.Fields, func(f *types.Field, nf *ir.Field) {
++		if nf.Embedded {
++			checkembeddedtype(f.Type)
++			f.Embedded = 1
++		}
++		f.Note = nf.Note
++	})
++	checkdupfields("field", fields)
++
++	base.Pos = lno
++	n.SetOTYPE(types.NewStruct(types.LocalPkg, fields))
+ 	return n
+ }
++
++// tcField typechecks a generic Field.
++// misc can be provided to handle specialized typechecking.
++func tcField(n *ir.Field, misc func(*types.Field, *ir.Field)) *types.Field {
++	base.Pos = n.Pos
++	if n.Ntype != nil {
++		n.Type = typecheckNtype(n.Ntype).Type()
++		n.Ntype = nil
++	}
++	f := types.NewField(n.Pos, n.Sym, n.Type)
++	if misc != nil {
++		misc(f, n)
++	}
++	return f
++}
++
++// tcFields typechecks a slice of generic Fields.
++// misc can be provided to handle specialized typechecking.
++func tcFields(l []*ir.Field, misc func(*types.Field, *ir.Field)) []*types.Field {
++	fields := make([]*types.Field, len(l))
++	for i, n := range l {
++		fields[i] = tcField(n, misc)
++	}
++	return fields
++}

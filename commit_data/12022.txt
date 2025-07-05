@@ -13,7 +13,84 @@ Date:   Sat Feb 18 12:43:08 2012 +1100
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/5675083
-
+---
  src/pkg/encoding/gob/encoder_test.go | 27 +++++++++++++++++++++++++++
  src/pkg/encoding/gob/type.go         | 16 ++++++++++++++++
  2 files changed, 43 insertions(+)
+
+diff --git a/src/pkg/encoding/gob/encoder_test.go b/src/pkg/encoding/gob/encoder_test.go
+index 9a62cf9c2a..7911dad90d 100644
+--- a/src/pkg/encoding/gob/encoder_test.go
++++ b/src/pkg/encoding/gob/encoder_test.go
+@@ -685,3 +685,30 @@ func TestSliceIncompatibility(t *testing.T) {
+ 		t.Error("expected compatibility error")
+ 	}
+ }
++
++// Mutually recursive slices of structs caused problems.
++type Bug3 struct {
++	Num      int
++	Children []*Bug3
++}
++
++func TestGobPtrSlices(t *testing.T) {
++	in := []*Bug3{
++		&Bug3{1, nil},
++		&Bug3{2, nil},
++	}
++	b := new(bytes.Buffer)
++	err := NewEncoder(b).Encode(&in)
++	if err != nil {
++		t.Fatal("encode:", err)
++	}
++
++	var out []*Bug3
++	err = NewDecoder(b).Decode(&out)
++	if err != nil {
++		t.Fatal("decode:", err)
++	}
++	if !reflect.DeepEqual(in, out) {
++		t.Fatal("got %v; wanted %v", out, in)
++	}
++}
+diff --git a/src/pkg/encoding/gob/type.go b/src/pkg/encoding/gob/type.go
+index 39006efdb2..0dd7a0a770 100644
+--- a/src/pkg/encoding/gob/type.go
++++ b/src/pkg/encoding/gob/type.go
+@@ -152,6 +152,10 @@ var idToType = make(map[typeId]gobType)
+ var builtinIdToType map[typeId]gobType // set in init() after builtins are established
+ 
+ func setTypeId(typ gobType) {
++	// When building recursive types, someone may get there before us.
++	if typ.id() != 0 {
++		return
++	}
+ 	nextId++
+ 	typ.setId(nextId)
+ 	idToType[nextId] = typ
+@@ -346,6 +350,11 @@ func newSliceType(name string) *sliceType {
+ func (s *sliceType) init(elem gobType) {
+ 	// Set our type id before evaluating the element's, in case it's our own.
+ 	setTypeId(s)
++	// See the comments about ids in newTypeObject. Only slices and
++	// structs have mutual recursion.
++	if elem.id() == 0 {
++		setTypeId(elem)
++	}
+ 	s.Elem = elem.id()
+ }
+ 
+@@ -503,6 +512,13 @@ func newTypeObject(name string, ut *userTypeInfo, rt reflect.Type) (gobType, err
+ 			if err != nil {
+ 				return nil, err
+ 			}
++			// Some mutually recursive types can cause us to be here while
++			// still defining the element. Fix the element type id here.
++			// We could do this more neatly by setting the id at the start of
++			// building every type, but that would break binary compatibility.
++			if gt.id() == 0 {
++				setTypeId(gt)
++			}
+ 			st.Field = append(st.Field, &fieldType{f.Name, gt.id()})
+ 		}
+ 		return st, nil

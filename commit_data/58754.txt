@@ -14,7 +14,7 @@ Date:   Mon Nov 20 19:43:13 2023 -0600
     Reviewed-by: Robert Griesemer <gri@google.com>
     Run-TryBot: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/types2/instantiate.go     | 35 ++++++++++++++--------
  src/cmd/compile/internal/types2/typexpr.go         |  2 +-
  src/go/types/instantiate.go                        | 35 ++++++++++++++--------
@@ -29,3 +29,409 @@ Date:   Mon Nov 20 19:43:13 2023 -0600
  test/typeparam/issue51232.go                       | 10 +++----
  test/typeparam/issue51233.go                       |  8 ++---
  13 files changed, 100 insertions(+), 70 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/instantiate.go b/src/cmd/compile/internal/types2/instantiate.go
+index 0c6b202ff9..e33d4b41c2 100644
+--- a/src/cmd/compile/internal/types2/instantiate.go
++++ b/src/cmd/compile/internal/types2/instantiate.go
+@@ -122,7 +122,8 @@ func (check *Checker) instance(pos syntax.Pos, orig Type, targs []Type, expandin
+ 		assert(expanding == nil) // function instances cannot be reached from Named types
+ 
+ 		tparams := orig.TypeParams()
+-		if !check.validateTArgLen(pos, tparams.Len(), len(targs)) {
++		// TODO(gri) investigate if this is needed (type argument and parameter count seem to be correct here)
++		if !check.validateTArgLen(pos, orig.String(), tparams.Len(), len(targs)) {
+ 			return Typ[Invalid]
+ 		}
+ 		if tparams.Len() == 0 {
+@@ -150,19 +151,27 @@ func (check *Checker) instance(pos syntax.Pos, orig Type, targs []Type, expandin
+ 	return updateContexts(res)
+ }
+ 
+-// validateTArgLen verifies that the length of targs and tparams matches,
+-// reporting an error if not. If validation fails and check is nil,
+-// validateTArgLen panics.
+-func (check *Checker) validateTArgLen(pos syntax.Pos, ntparams, ntargs int) bool {
+-	if ntargs != ntparams {
+-		// TODO(gri) provide better error message
+-		if check != nil {
+-			check.errorf(pos, WrongTypeArgCount, "got %d arguments but %d type parameters", ntargs, ntparams)
+-			return false
+-		}
+-		panic(fmt.Sprintf("%v: got %d arguments but %d type parameters", pos, ntargs, ntparams))
++// validateTArgLen checks that the number of type arguments (got) matches the
++// number of type parameters (want); if they don't match an error is reported.
++// If validation fails and check is nil, validateTArgLen panics.
++func (check *Checker) validateTArgLen(pos syntax.Pos, name string, want, got int) bool {
++	var qual string
++	switch {
++	case got < want:
++		qual = "not enough"
++	case got > want:
++		qual = "too many"
++	default:
++		return true
+ 	}
+-	return true
++
++	msg := check.sprintf("%s type arguments for type %s: have %d, want %d", qual, name, got, want)
++	if check != nil {
++		check.error(atPos(pos), WrongTypeArgCount, msg)
++		return false
++	}
++
++	panic(fmt.Sprintf("%v: %s", pos, msg))
+ }
+ 
+ func (check *Checker) verify(pos syntax.Pos, tparams []*TypeParam, targs []Type, ctxt *Context) (int, error) {
+diff --git a/src/cmd/compile/internal/types2/typexpr.go b/src/cmd/compile/internal/types2/typexpr.go
+index 0ee92be6ee..81adcbd9cf 100644
+--- a/src/cmd/compile/internal/types2/typexpr.go
++++ b/src/cmd/compile/internal/types2/typexpr.go
+@@ -463,7 +463,7 @@ func (check *Checker) instantiatedType(x syntax.Expr, xlist []syntax.Expr, def *
+ 		// errors.
+ 		check.recordInstance(x, inst.TypeArgs().list(), inst)
+ 
+-		if check.validateTArgLen(x.Pos(), inst.TypeParams().Len(), inst.TypeArgs().Len()) {
++		if check.validateTArgLen(x.Pos(), inst.obj.name, inst.TypeParams().Len(), inst.TypeArgs().Len()) {
+ 			if i, err := check.verify(x.Pos(), inst.TypeParams().list(), inst.TypeArgs().list(), check.context()); err != nil {
+ 				// best position for error reporting
+ 				pos := x.Pos()
+diff --git a/src/go/types/instantiate.go b/src/go/types/instantiate.go
+index 34dfd85a26..bf7ecc5316 100644
+--- a/src/go/types/instantiate.go
++++ b/src/go/types/instantiate.go
+@@ -124,7 +124,8 @@ func (check *Checker) instance(pos token.Pos, orig Type, targs []Type, expanding
+ 		assert(expanding == nil) // function instances cannot be reached from Named types
+ 
+ 		tparams := orig.TypeParams()
+-		if !check.validateTArgLen(pos, tparams.Len(), len(targs)) {
++		// TODO(gri) investigate if this is needed (type argument and parameter count seem to be correct here)
++		if !check.validateTArgLen(pos, orig.String(), tparams.Len(), len(targs)) {
+ 			return Typ[Invalid]
+ 		}
+ 		if tparams.Len() == 0 {
+@@ -152,19 +153,27 @@ func (check *Checker) instance(pos token.Pos, orig Type, targs []Type, expanding
+ 	return updateContexts(res)
+ }
+ 
+-// validateTArgLen verifies that the length of targs and tparams matches,
+-// reporting an error if not. If validation fails and check is nil,
+-// validateTArgLen panics.
+-func (check *Checker) validateTArgLen(pos token.Pos, ntparams, ntargs int) bool {
+-	if ntargs != ntparams {
+-		// TODO(gri) provide better error message
+-		if check != nil {
+-			check.errorf(atPos(pos), WrongTypeArgCount, "got %d arguments but %d type parameters", ntargs, ntparams)
+-			return false
+-		}
+-		panic(fmt.Sprintf("%v: got %d arguments but %d type parameters", pos, ntargs, ntparams))
++// validateTArgLen checks that the number of type arguments (got) matches the
++// number of type parameters (want); if they don't match an error is reported.
++// If validation fails and check is nil, validateTArgLen panics.
++func (check *Checker) validateTArgLen(pos token.Pos, name string, want, got int) bool {
++	var qual string
++	switch {
++	case got < want:
++		qual = "not enough"
++	case got > want:
++		qual = "too many"
++	default:
++		return true
+ 	}
+-	return true
++
++	msg := check.sprintf("%s type arguments for type %s: have %d, want %d", qual, name, got, want)
++	if check != nil {
++		check.error(atPos(pos), WrongTypeArgCount, msg)
++		return false
++	}
++
++	panic(fmt.Sprintf("%v: %s", pos, msg))
+ }
+ 
+ func (check *Checker) verify(pos token.Pos, tparams []*TypeParam, targs []Type, ctxt *Context) (int, error) {
+diff --git a/src/go/types/typexpr.go b/src/go/types/typexpr.go
+index 2835958d98..c887b5115a 100644
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@ -454,7 +454,7 @@ func (check *Checker) instantiatedType(ix *typeparams.IndexExpr, def *TypeName)
+ 		// errors.
+ 		check.recordInstance(ix.Orig, inst.TypeArgs().list(), inst)
+ 
+-		if check.validateTArgLen(ix.Pos(), inst.TypeParams().Len(), inst.TypeArgs().Len()) {
++		if check.validateTArgLen(ix.Pos(), inst.obj.name, inst.TypeParams().Len(), inst.TypeArgs().Len()) {
+ 			if i, err := check.verify(ix.Pos(), inst.TypeParams().list(), inst.TypeArgs().list(), check.context()); err != nil {
+ 				// best position for error reporting
+ 				pos := ix.Pos()
+diff --git a/src/internal/types/testdata/check/typeinference.go b/src/internal/types/testdata/check/typeinference.go
+index 0478d9390f..8dac938ef9 100644
+--- a/src/internal/types/testdata/check/typeinference.go
++++ b/src/internal/types/testdata/check/typeinference.go
+@@ -8,8 +8,9 @@ package typeInference
+ 
+ // basic inference
+ type Tb[P ~*Q, Q any] int
++
+ func _() {
+-	var x Tb /* ERROR "got 1 arguments" */ [*int]
++	var x Tb /* ERROR "not enough type arguments for type Tb: have 1, want 2" */ [*int]
+ 	var y Tb[*int, int]
+ 	x = y /* ERRORx `cannot use y .* in assignment` */
+ 	_ = x
+@@ -17,8 +18,9 @@ func _() {
+ 
+ // recursive inference
+ type Tr[A any, B *C, C *D, D *A] int
++
+ func _() {
+-	var x Tr /* ERROR "got 1 arguments" */ [string]
++	var x Tr /* ERROR "not enough type arguments for type Tr: have 1, want 4" */ [string]
+ 	var y Tr[string, ***string, **string, *string]
+ 	var z Tr[int, ***int, **int, *int]
+ 	x = y /* ERRORx `cannot use y .* in assignment` */
+@@ -28,22 +30,30 @@ func _() {
+ 
+ // other patterns of inference
+ type To0[A any, B []A] int
+-type To1[A any, B struct{a A}] int
++type To1[A any, B struct{ a A }] int
+ type To2[A any, B [][]A] int
+ type To3[A any, B [3]*A] int
+-type To4[A any, B any, C struct{a A; b B}] int
++type To4[A any, B any, C struct {
++	a A
++	b B
++}] int
++
+ func _() {
+-	var _ To0 /* ERROR "got 1 arguments" */ [int]
+-	var _ To1 /* ERROR "got 1 arguments" */ [int]
+-	var _ To2 /* ERROR "got 1 arguments" */ [int]
+-	var _ To3 /* ERROR "got 1 arguments" */ [int]
+-	var _ To4 /* ERROR "got 2 arguments" */ [int, string]
++	var _ To0 /* ERROR "not enough type arguments for type To0: have 1, want 2" */ [int]
++	var _ To1 /* ERROR "not enough type arguments for type To1: have 1, want 2" */ [int]
++	var _ To2 /* ERROR "not enough type arguments for type To2: have 1, want 2" */ [int]
++	var _ To3 /* ERROR "not enough type arguments for type To3: have 1, want 2" */ [int]
++	var _ To4 /* ERROR "not enough type arguments for type To4: have 2, want 3" */ [int, string]
+ }
+ 
+ // failed inference
+ type Tf0[A, B any] int
+-type Tf1[A any, B ~struct{a A; c C}, C any] int
++type Tf1[A any, B ~struct {
++	a A
++	c C
++}, C any] int
++
+ func _() {
+-	var _ Tf0 /* ERROR "got 1 arguments but 2 type parameters" */ [int]
+-	var _ Tf1 /* ERROR "got 1 arguments but 3 type parameters" */ [int]
++	var _ Tf0 /* ERROR "not enough type arguments for type Tf0: have 1, want 2" */ [int]
++	var _ Tf1 /* ERROR "not enough type arguments for type Tf1: have 1, want 3" */ [int]
+ }
+diff --git a/src/internal/types/testdata/check/typeinst0.go b/src/internal/types/testdata/check/typeinst0.go
+index bbcdaec04a..155f1ef440 100644
+--- a/src/internal/types/testdata/check/typeinst0.go
++++ b/src/internal/types/testdata/check/typeinst0.go
+@@ -42,7 +42,7 @@ type _ myInt /* ERROR "not a generic type" */ [] // ERROR "expected type argumen
+ // TODO(gri) better error messages
+ type _ T1[] // ERROR "expected type argument list"
+ type _ T1[x /* ERROR "not a type" */ ]
+-type _ T1 /* ERROR "got 2 arguments but 1 type parameters" */ [int, float32]
++type _ T1 /* ERROR "too many type arguments for type T1: have 2, want 1" */ [int, float32]
+ 
+ var _ T2[int] = T2[int]{}
+ 
+diff --git a/src/internal/types/testdata/fixedbugs/issue49541.go b/src/internal/types/testdata/fixedbugs/issue49541.go
+index da3731195b..665ed1da7c 100644
+--- a/src/internal/types/testdata/fixedbugs/issue49541.go
++++ b/src/internal/types/testdata/fixedbugs/issue49541.go
+@@ -13,7 +13,7 @@ func (S[A, B]) m() {}
+ // TODO(gri): with type-type inference enabled we should only report one error
+ // below. See issue #50588.
+ 
+-func _[A any](s S /* ERROR "got 1 arguments but 2 type parameters" */ [A]) {
++func _[A any](s S /* ERROR "not enough type arguments for type S: have 1, want 2" */ [A]) {
+ 	// we should see no follow-on errors below
+ 	s.f = 1
+ 	s.m()
+@@ -22,7 +22,7 @@ func _[A any](s S /* ERROR "got 1 arguments but 2 type parameters" */ [A]) {
+ // another test case from the issue
+ 
+ func _() {
+-	X /* ERROR "cannot infer Q" */ (Interface[*F /* ERROR "got 1 arguments but 2 type parameters" */ [string]](Impl{}))
++	X /* ERROR "cannot infer Q" */ (Interface[*F /* ERROR "not enough type arguments for type F: have 1, want 2" */ [string]](Impl{}))
+ }
+ 
+ func X[Q Qer](fs Interface[Q]) {
+diff --git a/src/internal/types/testdata/fixedbugs/issue50929.go b/src/internal/types/testdata/fixedbugs/issue50929.go
+index 64c7cd664f..a665e229be 100644
+--- a/src/internal/types/testdata/fixedbugs/issue50929.go
++++ b/src/internal/types/testdata/fixedbugs/issue50929.go
+@@ -16,7 +16,7 @@ func G[A, B any](F[A, B]) {
+ 
+ func _() {
+ 	// TODO(gri) only report one error below (issue #50932)
+-	var x F /* ERROR "got 1 arguments but 2 type parameters" */ [int]
++	var x F /* ERROR "not enough type arguments for type F: have 1, want 2" */ [int]
+ 	G(x /* ERROR "does not match" */)
+ }
+ 
+@@ -46,9 +46,9 @@ func NSG[G any](c RSC[G]) {
+ 	fmt.Println(c)
+ }
+ 
+-func MMD[Rc RC /* ERROR "got 1 arguments" */ [RG], RG any, G any]() M /* ERROR "got 2 arguments" */ [Rc, RG] {
++func MMD[Rc RC /* ERROR "not enough type arguments for type RC: have 1, want 2" */ [RG], RG any, G any]() M /* ERROR "not enough type arguments for type" */ [Rc, RG] {
+ 
+-	var nFn NFn /* ERROR "got 2 arguments" */ [Rc, RG]
++	var nFn NFn /* ERROR "not enough type arguments for type NFn: have 2, want 3" */ [Rc, RG]
+ 
+ 	var empty Rc
+ 	switch any(empty).(type) {
+@@ -58,11 +58,11 @@ func MMD[Rc RC /* ERROR "got 1 arguments" */ [RG], RG any, G any]() M /* ERROR "
+ 		nFn = NSG /* ERROR "cannot use NSG[G]" */ [G]
+ 	}
+ 
+-	return M /* ERROR "got 2 arguments" */ [Rc, RG]{
++	return M /* ERROR "not enough type arguments for type M: have 2, want 3" */ [Rc, RG]{
+ 		Fn: func(rc Rc) {
+-			NC(nFn /* ERROR "does not match" */ )
++			NC(nFn /* ERROR "does not match" */)
+ 		},
+ 	}
+ 
+-	return M /* ERROR "got 2 arguments" */ [Rc, RG]{}
++	return M /* ERROR "not enough type arguments for type M: have 2, want 3" */ [Rc, RG]{}
+ }
+diff --git a/src/internal/types/testdata/fixedbugs/issue51232.go b/src/internal/types/testdata/fixedbugs/issue51232.go
+index 27693a3e4d..c5832d2976 100644
+--- a/src/internal/types/testdata/fixedbugs/issue51232.go
++++ b/src/internal/types/testdata/fixedbugs/issue51232.go
+@@ -11,20 +11,20 @@ type RC[RG any] interface {
+ type Fn[RCT RC[RG], RG any] func(RCT)
+ 
+ type F[RCT RC[RG], RG any] interface {
+-	Fn() Fn /* ERROR "got 1 arguments" */ [RCT]
++	Fn() Fn /* ERROR "not enough type arguments for type Fn: have 1, want 2" */ [RCT]
+ }
+ 
+ type concreteF[RCT RC[RG], RG any] struct {
+-	makeFn func() Fn /* ERROR "got 1 arguments" */ [RCT]
++	makeFn func() Fn /* ERROR "not enough type arguments for type Fn: have 1, want 2" */ [RCT]
+ }
+ 
+-func (c *concreteF[RCT, RG]) Fn() Fn /* ERROR "got 1 arguments" */ [RCT] {
++func (c *concreteF[RCT, RG]) Fn() Fn /* ERROR "not enough type arguments for type Fn: have 1, want 2" */ [RCT] {
+ 	return c.makeFn()
+ }
+ 
+-func NewConcrete[RCT RC[RG], RG any](Rc RCT) F /* ERROR "got 1 arguments" */ [RCT] {
++func NewConcrete[RCT RC[RG], RG any](Rc RCT) F /* ERROR "not enough type arguments for type F: have 1, want 2" */ [RCT] {
+ 	// TODO(rfindley): eliminate the duplicate error below.
+-	return & /* ERRORx `cannot use .* as F\[RCT\]` */ concreteF /* ERROR "got 1 arguments" */ [RCT]{
++	return & /* ERRORx `cannot use .* as F\[RCT\]` */ concreteF /* ERROR "not enough type arguments for type concreteF: have 1, want 2" */ [RCT]{
+ 		makeFn: nil,
+ 	}
+ }
+diff --git a/src/internal/types/testdata/fixedbugs/issue51233.go b/src/internal/types/testdata/fixedbugs/issue51233.go
+index e2f97fc456..d96d3d1aa0 100644
+--- a/src/internal/types/testdata/fixedbugs/issue51233.go
++++ b/src/internal/types/testdata/fixedbugs/issue51233.go
+@@ -12,16 +12,16 @@ type RC[RG any] interface {
+ 
+ type Fn[RCT RC[RG], RG any] func(RCT)
+ 
+-type FFn[RCT RC[RG], RG any] func() Fn /* ERROR "got 1 arguments" */ [RCT]
++type FFn[RCT RC[RG], RG any] func() Fn /* ERROR "not enough type arguments for type Fn: have 1, want 2" */ [RCT]
+ 
+ type F[RCT RC[RG], RG any] interface {
+-	Fn() Fn /* ERROR "got 1 arguments" */ [RCT]
++	Fn() Fn /* ERROR "not enough type arguments for type Fn: have 1, want 2" */ [RCT]
+ }
+ 
+ type concreteF[RCT RC[RG], RG any] struct {
+-	makeFn FFn /* ERROR "got 1 arguments" */ [RCT]
++	makeFn FFn /* ERROR "not enough type arguments for type FFn: have 1, want 2" */ [RCT]
+ }
+ 
+-func (c *concreteF[RCT, RG]) Fn() Fn /* ERROR "got 1 arguments" */ [RCT] {
++func (c *concreteF[RCT, RG]) Fn() Fn /* ERROR "not enough type arguments for type Fn: have 1, want 2" */ [RCT] {
+ 	return c.makeFn()
+ }
+diff --git a/src/internal/types/testdata/fixedbugs/issue51339.go b/src/internal/types/testdata/fixedbugs/issue51339.go
+index 65c213462b..fd10daa2c2 100644
+--- a/src/internal/types/testdata/fixedbugs/issue51339.go
++++ b/src/internal/types/testdata/fixedbugs/issue51339.go
+@@ -9,10 +9,12 @@ package p
+ 
+ type T[P any, B *P] struct{}
+ 
+-func (T /* ERROR "cannot use generic type" */ ) m0() {}
++func (T /* ERROR "cannot use generic type" */) m0() {}
+ 
+ // TODO(rfindley): eliminate the duplicate errors here.
+-func (/* ERROR "got 1 type parameter, but receiver base type declares 2" */ T /* ERROR "got 1 arguments but 2 type parameters" */ [_]) m1() {}
++func ( /* ERROR "got 1 type parameter, but receiver base type declares 2" */ T /* ERROR "not enough type arguments for type" */ [_]) m1() {
++}
+ func (T[_, _]) m2() {}
++
+ // TODO(gri) this error is unfortunate (issue #51343)
+-func (T /* ERROR "got 3 arguments but 2 type parameters" */ [_, _, _]) m3() {}
++func (T /* ERROR "too many type arguments for type" */ [_, _, _]) m3() {}
+diff --git a/test/typeparam/issue51232.go b/test/typeparam/issue51232.go
+index 0d25e1863d..f4728f6e7c 100644
+--- a/test/typeparam/issue51232.go
++++ b/test/typeparam/issue51232.go
+@@ -13,19 +13,19 @@ type RC[RG any] interface {
+ type Fn[RCT RC[RG], RG any] func(RCT)
+ 
+ type F[RCT RC[RG], RG any] interface {
+-	Fn() Fn[RCT] // ERROR "got 1 arguments"
++	Fn() Fn[RCT] // ERROR "not enough type arguments for type Fn: have 1, want 2"
+ }
+ 
+ type concreteF[RCT RC[RG], RG any] struct {
+-	makeFn func() Fn[RCT] // ERROR "got 1 arguments"
++	makeFn func() Fn[RCT] // ERROR "not enough type arguments for type Fn: have 1, want 2"
+ }
+ 
+-func (c *concreteF[RCT, RG]) Fn() Fn[RCT] { // ERROR "got 1 arguments"
++func (c *concreteF[RCT, RG]) Fn() Fn[RCT] { // ERROR "not enough type arguments for type Fn: have 1, want 2"
+ 	return c.makeFn()
+ }
+ 
+-func NewConcrete[RCT RC[RG], RG any](Rc RCT) F[RCT] { // ERROR "got 1 arguments"
+-	return &concreteF[RCT]{ // ERROR "cannot use" "got 1 arguments"
++func NewConcrete[RCT RC[RG], RG any](Rc RCT) F[RCT] { // ERROR "not enough type arguments for type F: have 1, want 2"
++	return &concreteF[RCT]{ // ERROR "cannot use" "not enough type arguments for type concreteF: have 1, want 2"
+ 		makeFn: nil,
+ 	}
+ }
+diff --git a/test/typeparam/issue51233.go b/test/typeparam/issue51233.go
+index 96a25ddb9c..5f2a045d84 100644
+--- a/test/typeparam/issue51233.go
++++ b/test/typeparam/issue51233.go
+@@ -13,16 +13,16 @@ type RC[RG any] interface {
+ 
+ type Fn[RCT RC[RG], RG any] func(RCT)
+ 
+-type FFn[RCT RC[RG], RG any] func() Fn[RCT] // ERROR "got 1 arguments"
++type FFn[RCT RC[RG], RG any] func() Fn[RCT] // ERROR "not enough type arguments for type Fn: have 1, want 2"
+ 
+ type F[RCT RC[RG], RG any] interface {
+-	Fn() Fn[RCT] // ERROR "got 1 arguments"
++	Fn() Fn[RCT] // ERROR "not enough type arguments for type Fn: have 1, want 2"
+ }
+ 
+ type concreteF[RCT RC[RG], RG any] struct {
+-	makeFn FFn[RCT] // ERROR "got 1 arguments"
++	makeFn FFn[RCT] // ERROR "not enough type arguments for type FFn: have 1, want 2"
+ }
+ 
+-func (c *concreteF[RCT, RG]) Fn() Fn[RCT] { // ERROR "got 1 arguments"
++func (c *concreteF[RCT, RG]) Fn() Fn[RCT] { // ERROR "not enough type arguments for type Fn: have 1, want 2"
+ 	return c.makeFn()
+ }

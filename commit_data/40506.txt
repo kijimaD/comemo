@@ -9,6 +9,24 @@ Date:   Mon May 20 16:27:13 2019 +0530
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/math/bits/example_test.go | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/math/bits/example_test.go b/src/math/bits/example_test.go
+index 18e026b9b4..b2ed2cba4b 100644
+--- a/src/math/bits/example_test.go
++++ b/src/math/bits/example_test.go
+@@ -59,6 +59,12 @@ func ExampleTrailingZeros64() {
+ 	// TrailingZeros64(0000000000000000000000000000000000000000000000000000000000001110) = 1
+ }
+ 
++func ExampleOnesCount() {
++	fmt.Printf("OnesCount(%b) = %d\n", 14, bits.OnesCount(14))
++	// Output:
++	// OnesCount(1110) = 3
++}
++
+ func ExampleOnesCount8() {
+ 	fmt.Printf("OnesCount8(%08b) = %d\n", 14, bits.OnesCount8(14))
+ 	// Output:

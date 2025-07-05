@@ -18,9 +18,77 @@ Date:   Wed Jun 14 19:57:11 2017 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/bexport.go |  5 +++--
  test/fixedbugs/issue18895.dir/p.go     | 14 ++++++++++++++
  test/fixedbugs/issue18895.dir/q.go     | 11 +++++++++++
  test/fixedbugs/issue18895.go           |  7 +++++++
  4 files changed, 35 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index 0c19ad9ed6..a1eea64837 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -367,9 +367,10 @@ func export(out *bufio.Writer, trace bool) int {
+ 	}
+ 
+ 	// write inlineable function bodies
++	// Don't use range since funcList may grow.
+ 	objcount = 0
+-	for i, f := range p.funcList {
+-		if f != nil {
++	for i := 0; i < len(p.funcList); i++ {
++		if f := p.funcList[i]; f != nil {
+ 			// function has inlineable body:
+ 			// write index and body
+ 			if p.trace {
+diff --git a/test/fixedbugs/issue18895.dir/p.go b/test/fixedbugs/issue18895.dir/p.go
+new file mode 100644
+index 0000000000..b721f357d2
+--- /dev/null
++++ b/test/fixedbugs/issue18895.dir/p.go
+@@ -0,0 +1,14 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func F() { // ERROR "can inline"
++	var v t
++	v.m() // ERROR "inlining call"
++}
++
++type t int
++
++func (t) m() {} // ERROR "can inline"
+diff --git a/test/fixedbugs/issue18895.dir/q.go b/test/fixedbugs/issue18895.dir/q.go
+new file mode 100644
+index 0000000000..1e0f2f9dfe
+--- /dev/null
++++ b/test/fixedbugs/issue18895.dir/q.go
+@@ -0,0 +1,11 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package q
++
++import "./p"
++
++func x() { // ERROR "can inline x"
++	p.F() // ERROR "inlining call to .*\.F" "inlining call to .*\.m"
++}
+diff --git a/test/fixedbugs/issue18895.go b/test/fixedbugs/issue18895.go
+new file mode 100644
+index 0000000000..61cff6e1b0
+--- /dev/null
++++ b/test/fixedbugs/issue18895.go
+@@ -0,0 +1,7 @@
++// errorcheckdir -0 -m
++
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ignored

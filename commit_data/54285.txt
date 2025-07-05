@@ -19,7 +19,131 @@ Date:   Sat Oct 1 11:37:36 2022 +0000
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Benny Siegert <bsiegert@gmail.com>
     Run-TryBot: hopehook <hopehook@golangcn.org>
-
+---
  src/go/token/position.go      |  2 +-
  src/go/token/position_test.go | 95 +++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 96 insertions(+), 1 deletion(-)
+
+diff --git a/src/go/token/position.go b/src/go/token/position.go
+index b12a8e4086..cbc2ddb5eb 100644
+--- a/src/go/token/position.go
++++ b/src/go/token/position.go
+@@ -245,7 +245,7 @@ func (f *File) AddLineInfo(offset int, filename string, line int) {
+ // information for line directives such as //line filename:line:column.
+ func (f *File) AddLineColumnInfo(offset int, filename string, line, column int) {
+ 	f.mutex.Lock()
+-	if i := len(f.infos); i == 0 || f.infos[i-1].Offset < offset && offset < f.size {
++	if i := len(f.infos); (i == 0 || f.infos[i-1].Offset < offset) && offset < f.size {
+ 		f.infos = append(f.infos, lineInfo{offset, filename, line, column})
+ 	}
+ 	f.mutex.Unlock()
+diff --git a/src/go/token/position_test.go b/src/go/token/position_test.go
+index 10831b2e20..65cb242808 100644
+--- a/src/go/token/position_test.go
++++ b/src/go/token/position_test.go
+@@ -7,6 +7,7 @@ package token
+ import (
+ 	"fmt"
+ 	"math/rand"
++	"reflect"
+ 	"sync"
+ 	"testing"
+ )
+@@ -380,3 +381,97 @@ func TestRemoveFile(t *testing.T) {
+ 	checkPos(bpos3, "fileB:1:4")
+ 	checkNumFiles(1)
+ }
++
++func TestFileAddLineColumnInfo(t *testing.T) {
++	const (
++		filename = "test.go"
++		filesize = 100
++	)
++
++	tests := []struct {
++		name  string
++		infos []lineInfo
++		want  []lineInfo
++	}{
++		{
++			name: "normal",
++			infos: []lineInfo{
++				{Offset: 10, Filename: filename, Line: 2, Column: 1},
++				{Offset: 50, Filename: filename, Line: 3, Column: 1},
++				{Offset: 80, Filename: filename, Line: 4, Column: 2},
++			},
++			want: []lineInfo{
++				{Offset: 10, Filename: filename, Line: 2, Column: 1},
++				{Offset: 50, Filename: filename, Line: 3, Column: 1},
++				{Offset: 80, Filename: filename, Line: 4, Column: 2},
++			},
++		},
++		{
++			name: "offset1 == file size",
++			infos: []lineInfo{
++				{Offset: filesize, Filename: filename, Line: 2, Column: 1},
++			},
++			want: nil,
++		},
++		{
++			name: "offset1 > file size",
++			infos: []lineInfo{
++				{Offset: filesize + 1, Filename: filename, Line: 2, Column: 1},
++			},
++			want: nil,
++		},
++		{
++			name: "offset2 == file size",
++			infos: []lineInfo{
++				{Offset: 10, Filename: filename, Line: 2, Column: 1},
++				{Offset: filesize, Filename: filename, Line: 3, Column: 1},
++			},
++			want: []lineInfo{
++				{Offset: 10, Filename: filename, Line: 2, Column: 1},
++			},
++		},
++		{
++			name: "offset2 > file size",
++			infos: []lineInfo{
++				{Offset: 10, Filename: filename, Line: 2, Column: 1},
++				{Offset: filesize + 1, Filename: filename, Line: 3, Column: 1},
++			},
++			want: []lineInfo{
++				{Offset: 10, Filename: filename, Line: 2, Column: 1},
++			},
++		},
++		{
++			name: "offset2 == offset1",
++			infos: []lineInfo{
++				{Offset: 10, Filename: filename, Line: 2, Column: 1},
++				{Offset: 10, Filename: filename, Line: 3, Column: 1},
++			},
++			want: []lineInfo{
++				{Offset: 10, Filename: filename, Line: 2, Column: 1},
++			},
++		},
++		{
++			name: "offset2 < offset1",
++			infos: []lineInfo{
++				{Offset: 10, Filename: filename, Line: 2, Column: 1},
++				{Offset: 9, Filename: filename, Line: 3, Column: 1},
++			},
++			want: []lineInfo{
++				{Offset: 10, Filename: filename, Line: 2, Column: 1},
++			},
++		},
++	}
++
++	for _, test := range tests {
++		t.Run(test.name, func(t *testing.T) {
++			fs := NewFileSet()
++			f := fs.AddFile(filename, -1, filesize)
++			for _, info := range test.infos {
++				f.AddLineColumnInfo(info.Offset, info.Filename, info.Line, info.Column)
++			}
++			if !reflect.DeepEqual(f.infos, test.want) {
++				t.Errorf("\ngot %+v, \nwant %+v", f.infos, test.want)
++			}
++		})
++	}
++}

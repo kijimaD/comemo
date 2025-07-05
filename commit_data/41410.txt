@@ -24,7 +24,100 @@ Date:   Tue Oct 1 18:39:29 2019 +0300
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
     Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/text/template/parse/node.go       | 20 ++++++++++++--------
  src/text/template/parse/parse_test.go | 22 +++++++++++++++++++---
  2 files changed, 31 insertions(+), 11 deletions(-)
+
+diff --git a/src/text/template/parse/node.go b/src/text/template/parse/node.go
+index 2eb1af0a95..61c6853679 100644
+--- a/src/text/template/parse/node.go
++++ b/src/text/template/parse/node.go
+@@ -7,7 +7,6 @@
+ package parse
+ 
+ import (
+-	"bytes"
+ 	"fmt"
+ 	"strconv"
+ 	"strings"
+@@ -94,11 +93,11 @@ func (l *ListNode) tree() *Tree {
+ }
+ 
+ func (l *ListNode) String() string {
+-	b := new(bytes.Buffer)
++	var sb strings.Builder
+ 	for _, n := range l.Nodes {
+-		fmt.Fprint(b, n)
++		sb.WriteString(n.String())
+ 	}
+-	return b.String()
++	return sb.String()
+ }
+ 
+ func (l *ListNode) CopyList() *ListNode {
+@@ -472,14 +471,19 @@ func (c *ChainNode) Add(field string) {
+ }
+ 
+ func (c *ChainNode) String() string {
+-	s := c.Node.String()
++	var sb strings.Builder
+ 	if _, ok := c.Node.(*PipeNode); ok {
+-		s = "(" + s + ")"
++		sb.WriteByte('(')
++		sb.WriteString(c.Node.String())
++		sb.WriteByte(')')
++	} else {
++		sb.WriteString(c.Node.String())
+ 	}
+ 	for _, field := range c.Field {
+-		s += "." + field
++		sb.WriteByte('.')
++		sb.WriteString(field)
+ 	}
+-	return s
++	return sb.String()
+ }
+ 
+ func (c *ChainNode) tree() *Tree {
+diff --git a/src/text/template/parse/parse_test.go b/src/text/template/parse/parse_test.go
+index 371de5d67c..86a100bb5f 100644
+--- a/src/text/template/parse/parse_test.go
++++ b/src/text/template/parse/parse_test.go
+@@ -554,7 +554,7 @@ func BenchmarkParseLarge(b *testing.B) {
+ 	}
+ }
+ 
+-var sink string
++var sinkv, sinkl string
+ 
+ func BenchmarkVariableString(b *testing.B) {
+ 	v := &VariableNode{
+@@ -563,9 +563,25 @@ func BenchmarkVariableString(b *testing.B) {
+ 	b.ResetTimer()
+ 	b.ReportAllocs()
+ 	for i := 0; i < b.N; i++ {
+-		sink = v.String()
++		sinkv = v.String()
+ 	}
+-	if sink == "" {
++	if sinkv == "" {
++		b.Fatal("Benchmark was not run")
++	}
++}
++
++func BenchmarkListString(b *testing.B) {
++	text := `{{ (printf .Field1.Field2.Field3).Value }}`
++	tree, err := New("bench").Parse(text, "", "", make(map[string]*Tree), builtins)
++	if err != nil {
++		b.Fatal(err)
++	}
++	b.ResetTimer()
++	b.ReportAllocs()
++	for i := 0; i < b.N; i++ {
++		sinkl = tree.Root.String()
++	}
++	if sinkl == "" {
+ 		b.Fatal("Benchmark was not run")
+ 	}
+ }

@@ -9,7 +9,102 @@ Date:   Tue Jul 3 10:17:55 2012 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/6354068
-
+---
  src/pkg/net/http/fs_test.go    | 23 ++++++++++++++---------
  src/pkg/net/http/serve_test.go |  6 +++---
  2 files changed, 17 insertions(+), 12 deletions(-)
+
+diff --git a/src/pkg/net/http/fs_test.go b/src/pkg/net/http/fs_test.go
+index 12b51aea72..35c6ba617e 100644
+--- a/src/pkg/net/http/fs_test.go
++++ b/src/pkg/net/http/fs_test.go
+@@ -81,6 +81,7 @@ func TestServeFile(t *testing.T) {
+ 	}
+ 
+ 	// Range tests
++Cases:
+ 	for _, rt := range ServeFileRangeTests {
+ 		if rt.r != "" {
+ 			req.Header.Set("Range", rt.r)
+@@ -109,7 +110,7 @@ func TestServeFile(t *testing.T) {
+ 				t.Errorf("range=%q: body = %q, want %q", rt.r, body, wantBody)
+ 			}
+ 			if strings.HasPrefix(ct, "multipart/byteranges") {
+-				t.Errorf("range=%q content-type = %q; unexpected multipart/byteranges", rt.r)
++				t.Errorf("range=%q content-type = %q; unexpected multipart/byteranges", rt.r, ct)
+ 			}
+ 		}
+ 		if len(rt.ranges) > 1 {
+@@ -119,37 +120,41 @@ func TestServeFile(t *testing.T) {
+ 				continue
+ 			}
+ 			if typ != "multipart/byteranges" {
+-				t.Errorf("range=%q content-type = %q; want multipart/byteranges", rt.r)
++				t.Errorf("range=%q content-type = %q; want multipart/byteranges", rt.r, typ)
+ 				continue
+ 			}
+ 			if params["boundary"] == "" {
+ 				t.Errorf("range=%q content-type = %q; lacks boundary", rt.r, ct)
++				continue
+ 			}
+ 			if g, w := resp.ContentLength, int64(len(body)); g != w {
+ 				t.Errorf("range=%q Content-Length = %d; want %d", rt.r, g, w)
++				continue
+ 			}
+ 			mr := multipart.NewReader(bytes.NewReader(body), params["boundary"])
+ 			for ri, rng := range rt.ranges {
+ 				part, err := mr.NextPart()
+ 				if err != nil {
+-					t.Fatalf("range=%q, reading part index %d: %v", rt.r, ri, err)
++					t.Errorf("range=%q, reading part index %d: %v", rt.r, ri, err)
++					continue Cases
++				}
++				wantContentRange = fmt.Sprintf("bytes %d-%d/%d", rng.start, rng.end-1, testFileLen)
++				if g, w := part.Header.Get("Content-Range"), wantContentRange; g != w {
++					t.Errorf("range=%q: part Content-Range = %q; want %q", rt.r, g, w)
+ 				}
+ 				body, err := ioutil.ReadAll(part)
+ 				if err != nil {
+-					t.Fatalf("range=%q, reading part index %d body: %v", rt.r, ri, err)
++					t.Errorf("range=%q, reading part index %d body: %v", rt.r, ri, err)
++					continue Cases
+ 				}
+-				wantContentRange = fmt.Sprintf("bytes %d-%d/%d", rng.start, rng.end-1, testFileLen)
+ 				wantBody := file[rng.start:rng.end]
+ 				if !bytes.Equal(body, wantBody) {
+ 					t.Errorf("range=%q: body = %q, want %q", rt.r, body, wantBody)
+ 				}
+-				if g, w := part.Header.Get("Content-Range"), wantContentRange; g != w {
+-					t.Errorf("range=%q: part Content-Range = %q; want %q", rt.r, g, w)
+-				}
+ 			}
+ 			_, err = mr.NextPart()
+ 			if err != io.EOF {
+-				t.Errorf("range=%q; expected final error io.EOF; got %v", err)
++				t.Errorf("range=%q; expected final error io.EOF; got %v", rt.r, err)
+ 			}
+ 		}
+ 	}
+diff --git a/src/pkg/net/http/serve_test.go b/src/pkg/net/http/serve_test.go
+index b6e8b6cf73..77ab2eb334 100644
+--- a/src/pkg/net/http/serve_test.go
++++ b/src/pkg/net/http/serve_test.go
+@@ -1283,15 +1283,15 @@ func BenchmarkServer(b *testing.B) {
+ 		for i := 0; i < n; i++ {
+ 			res, err := Get(url)
+ 			if err != nil {
+-				log.Panicf("Get:", err)
++				log.Panicf("Get: %v", err)
+ 			}
+ 			all, err := ioutil.ReadAll(res.Body)
+ 			if err != nil {
+-				log.Panicf("ReadAll:", err)
++				log.Panicf("ReadAll: %v", err)
+ 			}
+ 			body := string(all)
+ 			if body != "Hello world.\n" {
+-				log.Panicf("Got body:", body)
++				log.Panicf("Got body: %q", body)
+ 			}
+ 		}
+ 		os.Exit(0)

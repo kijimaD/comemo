@@ -11,6 +11,21 @@ Date:   Sat Oct 1 15:41:03 2016 +0900
     Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/syscall/syscall_unix_test.go | 3 ---
  1 file changed, 3 deletions(-)
+
+diff --git a/src/syscall/syscall_unix_test.go b/src/syscall/syscall_unix_test.go
+index 80544f3319..0be07c6e90 100644
+--- a/src/syscall/syscall_unix_test.go
++++ b/src/syscall/syscall_unix_test.go
+@@ -126,9 +126,6 @@ func TestFcntlFlock(t *testing.T) {
+ // that the test should become the child process instead.
+ func TestPassFD(t *testing.T) {
+ 	switch runtime.GOOS {
+-	case "dragonfly":
+-		// TODO(jsing): Figure out why sendmsg is returning EINVAL.
+-		t.Skip("skipping test on dragonfly")
+ 	case "solaris":
+ 		// TODO(aram): Figure out why ReadMsgUnix is returning empty message.
+ 		t.Skip("skipping test on solaris, see issue 7402")

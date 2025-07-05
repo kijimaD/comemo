@@ -27,10 +27,527 @@ Date:   Thu Dec 22 15:28:15 2011 -0800
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5502072
-
+---
  src/cmd/godoc/godoc.go    |  24 +++----
  src/pkg/go/doc/Makefile   |   2 +
  src/pkg/go/doc/doc.go     | 126 ++++------------------------------
  src/pkg/go/doc/exports.go | 167 ++++++++++++++++++++++++++++++++++++++++++++++
  src/pkg/go/doc/filter.go  | 105 +++++++++++++++++++++++++++++
  5 files changed, 297 insertions(+), 127 deletions(-)
+
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index f6626a00fb..1785a1f98f 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -961,16 +961,6 @@ func inList(name string, list []string) bool {
+ 	return false
+ }
+ 
+-func stripFunctionBodies(pkg *ast.Package) {
+-	for _, f := range pkg.Files {
+-		for _, d := range f.Decls {
+-			if f, ok := d.(*ast.FuncDecl); ok {
+-				f.Body = nil
+-			}
+-		}
+-	}
+-}
+-
+ // getPageInfo returns the PageInfo for a package directory abspath. If the
+ // parameter genAST is set, an AST containing only the package exports is
+ // computed (PageInfo.PAst), otherwise package documentation (PageInfo.Doc)
+@@ -1096,13 +1086,17 @@ func (h *httpHandler) getPageInfo(abspath, relpath, pkgname string, mode PageInf
+ 	var past *ast.File
+ 	var pdoc *doc.PackageDoc
+ 	if pkg != nil {
+-		if mode&noFiltering == 0 {
+-			ast.PackageExports(pkg)
+-		}
++		exportsOnly := mode&noFiltering == 0
+ 		if mode&showSource == 0 {
+-			stripFunctionBodies(pkg)
+-			pdoc = doc.NewPackageDoc(pkg, path.Clean(relpath)) // no trailing '/' in importpath
++			// show extracted documentation
++			pdoc = doc.NewPackageDoc(pkg, path.Clean(relpath), exportsOnly) // no trailing '/' in importpath
+ 		} else {
++			// show source code
++			// TODO(gri) Consider eliminating export filtering in this mode,
++			//           or perhaps eliminating the mode altogether.
++			if exportsOnly {
++				ast.PackageExports(pkg)
++			}
+ 			past = ast.MergePackageFiles(pkg, ast.FilterUnassociatedComments)
+ 		}
+ 	}
+diff --git a/src/pkg/go/doc/Makefile b/src/pkg/go/doc/Makefile
+index 2a421c3e6b..b27b85abea 100644
+--- a/src/pkg/go/doc/Makefile
++++ b/src/pkg/go/doc/Makefile
+@@ -9,6 +9,8 @@ GOFILES=\
+ 	comment.go\
+ 	doc.go\
+ 	example.go\
++	exports.go\
++	filter.go\
+ 
+ include ../../../Make.pkg
+ 
+diff --git a/src/pkg/go/doc/doc.go b/src/pkg/go/doc/doc.go
+index 888fbe1bfb..1bb22416c7 100644
+--- a/src/pkg/go/doc/doc.go
++++ b/src/pkg/go/doc/doc.go
+@@ -13,6 +13,7 @@ import (
+ )
+ 
+ // ----------------------------------------------------------------------------
++// Collection of documentation info
+ 
+ // embeddedType describes the type of an anonymous field.
+ //
+@@ -34,6 +35,10 @@ type typeInfo struct {
+ 	methods   map[string]*ast.FuncDecl
+ }
+ 
++func (info *typeInfo) addEmbeddedType(embedded *typeInfo, isPtr bool) {
++	info.embedded = append(info.embedded, embeddedType{embedded, isPtr})
++}
++
+ // docReader accumulates documentation for a single package.
+ // It modifies the AST: Comments (declaration documentation)
+ // that have been collected by the DocReader are set to nil
+@@ -171,6 +176,9 @@ func setFunc(table map[string]*ast.FuncDecl, f *ast.FuncDecl) {
+ }
+ 
+ func (doc *docReader) addFunc(fun *ast.FuncDecl) {
++	// strip function body
++	fun.Body = nil
++
+ 	// determine if it should be associated with a type
+ 	if fun.Recv != nil {
+ 		// method
+@@ -257,10 +265,9 @@ func (doc *docReader) addDecl(decl ast.Decl) {
+ 								// anonymous field - add corresponding type
+ 								// to the info and collect it in doc
+ 								name := baseTypeName(field.Type, true)
+-								edoc := doc.lookupTypeInfo(name)
+-								if edoc != nil {
++								if embedded := doc.lookupTypeInfo(name); embedded != nil {
+ 									_, ptr := field.Type.(*ast.StarExpr)
+-									info.embedded = append(info.embedded, embeddedType{edoc, ptr})
++									info.addEmbeddedType(embedded, ptr)
+ 								}
+ 							}
+ 						}
+@@ -313,19 +320,15 @@ func (doc *docReader) addFile(src *ast.File) {
+ 	src.Comments = nil // consumed unassociated comments - remove from ast.File node
+ }
+ 
+-func NewFileDoc(file *ast.File) *PackageDoc {
+-	var r docReader
+-	r.init(file.Name.Name)
+-	r.addFile(file)
+-	return r.newDoc("", nil)
+-}
+-
+-func NewPackageDoc(pkg *ast.Package, importpath string) *PackageDoc {
++func NewPackageDoc(pkg *ast.Package, importpath string, exportsOnly bool) *PackageDoc {
+ 	var r docReader
+ 	r.init(pkg.Name)
+ 	filenames := make([]string, len(pkg.Files))
+ 	i := 0
+ 	for filename, f := range pkg.Files {
++		if exportsOnly {
++			r.fileExports(f)
++		}
+ 		r.addFile(f)
+ 		filenames[i] = filename
+ 		i++
+@@ -674,104 +677,3 @@ func (doc *docReader) newDoc(importpath string, filenames []string) *PackageDoc
+ 	p.Bugs = makeBugDocs(doc.bugs)
+ 	return p
+ }
+-
+-// ----------------------------------------------------------------------------
+-// Filtering by name
+-
+-type Filter func(string) bool
+-
+-func matchFields(fields *ast.FieldList, f Filter) bool {
+-	if fields != nil {
+-		for _, field := range fields.List {
+-			for _, name := range field.Names {
+-				if f(name.Name) {
+-					return true
+-				}
+-			}
+-		}
+-	}
+-	return false
+-}
+-
+-func matchDecl(d *ast.GenDecl, f Filter) bool {
+-	for _, d := range d.Specs {
+-		switch v := d.(type) {
+-		case *ast.ValueSpec:
+-			for _, name := range v.Names {
+-				if f(name.Name) {
+-					return true
+-				}
+-			}
+-		case *ast.TypeSpec:
+-			if f(v.Name.Name) {
+-				return true
+-			}
+-			switch t := v.Type.(type) {
+-			case *ast.StructType:
+-				if matchFields(t.Fields, f) {
+-					return true
+-				}
+-			case *ast.InterfaceType:
+-				if matchFields(t.Methods, f) {
+-					return true
+-				}
+-			}
+-		}
+-	}
+-	return false
+-}
+-
+-func filterValueDocs(a []*ValueDoc, f Filter) []*ValueDoc {
+-	w := 0
+-	for _, vd := range a {
+-		if matchDecl(vd.Decl, f) {
+-			a[w] = vd
+-			w++
+-		}
+-	}
+-	return a[0:w]
+-}
+-
+-func filterFuncDocs(a []*FuncDoc, f Filter) []*FuncDoc {
+-	w := 0
+-	for _, fd := range a {
+-		if f(fd.Name) {
+-			a[w] = fd
+-			w++
+-		}
+-	}
+-	return a[0:w]
+-}
+-
+-func filterTypeDocs(a []*TypeDoc, f Filter) []*TypeDoc {
+-	w := 0
+-	for _, td := range a {
+-		n := 0 // number of matches
+-		if matchDecl(td.Decl, f) {
+-			n = 1
+-		} else {
+-			// type name doesn't match, but we may have matching consts, vars, factories or methods
+-			td.Consts = filterValueDocs(td.Consts, f)
+-			td.Vars = filterValueDocs(td.Vars, f)
+-			td.Factories = filterFuncDocs(td.Factories, f)
+-			td.Methods = filterFuncDocs(td.Methods, f)
+-			n += len(td.Consts) + len(td.Vars) + len(td.Factories) + len(td.Methods)
+-		}
+-		if n > 0 {
+-			a[w] = td
+-			w++
+-		}
+-	}
+-	return a[0:w]
+-}
+-
+-// Filter eliminates documentation for names that don't pass through the filter f.
+-// TODO: Recognize "Type.Method" as a name.
+-//
+-func (p *PackageDoc) Filter(f Filter) {
+-	p.Consts = filterValueDocs(p.Consts, f)
+-	p.Vars = filterValueDocs(p.Vars, f)
+-	p.Types = filterTypeDocs(p.Types, f)
+-	p.Funcs = filterFuncDocs(p.Funcs, f)
+-	p.Doc = "" // don't show top-level package doc
+-}
+diff --git a/src/pkg/go/doc/exports.go b/src/pkg/go/doc/exports.go
+new file mode 100644
+index 0000000000..9cd186a9c7
+--- /dev/null
++++ b/src/pkg/go/doc/exports.go
+@@ -0,0 +1,167 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This file implements export filtering of an AST.
++
++package doc
++
++import "go/ast"
++
++func filterIdentList(list []*ast.Ident) []*ast.Ident {
++	j := 0
++	for _, x := range list {
++		if ast.IsExported(x.Name) {
++			list[j] = x
++			j++
++		}
++	}
++	return list[0:j]
++}
++
++func baseName(x ast.Expr) *ast.Ident {
++	switch t := x.(type) {
++	case *ast.Ident:
++		return t
++	case *ast.SelectorExpr:
++		if _, ok := t.X.(*ast.Ident); ok {
++			return t.Sel
++		}
++	case *ast.StarExpr:
++		return baseName(t.X)
++	}
++	return nil
++}
++
++func (doc *docReader) filterFieldList(fields *ast.FieldList) (removedFields bool) {
++	if fields == nil {
++		return false
++	}
++	list := fields.List
++	j := 0
++	for _, f := range list {
++		keepField := false
++		if len(f.Names) == 0 {
++			// anonymous field
++			name := baseName(f.Type)
++			keepField = name != nil && name.IsExported()
++		} else {
++			n := len(f.Names)
++			f.Names = filterIdentList(f.Names)
++			if len(f.Names) < n {
++				removedFields = true
++			}
++			keepField = len(f.Names) > 0
++		}
++		if keepField {
++			doc.filterType(f.Type)
++			list[j] = f
++			j++
++		}
++	}
++	if j < len(list) {
++		removedFields = true
++	}
++	fields.List = list[0:j]
++	return
++}
++
++func (doc *docReader) filterParamList(fields *ast.FieldList) bool {
++	if fields == nil {
++		return false
++	}
++	var b bool
++	for _, f := range fields.List {
++		if doc.filterType(f.Type) {
++			b = true
++		}
++	}
++	return b
++}
++
++func (doc *docReader) filterType(typ ast.Expr) bool {
++	switch t := typ.(type) {
++	case *ast.Ident:
++		return ast.IsExported(t.Name)
++	case *ast.ParenExpr:
++		return doc.filterType(t.X)
++	case *ast.ArrayType:
++		return doc.filterType(t.Elt)
++	case *ast.StructType:
++		if doc.filterFieldList(t.Fields) {
++			t.Incomplete = true
++		}
++		return len(t.Fields.List) > 0
++	case *ast.FuncType:
++		b1 := doc.filterParamList(t.Params)
++		b2 := doc.filterParamList(t.Results)
++		return b1 || b2
++	case *ast.InterfaceType:
++		if doc.filterFieldList(t.Methods) {
++			t.Incomplete = true
++		}
++		return len(t.Methods.List) > 0
++	case *ast.MapType:
++		b1 := doc.filterType(t.Key)
++		b2 := doc.filterType(t.Value)
++		return b1 || b2
++	case *ast.ChanType:
++		return doc.filterType(t.Value)
++	}
++	return false
++}
++
++func (doc *docReader) filterSpec(spec ast.Spec) bool {
++	switch s := spec.(type) {
++	case *ast.ValueSpec:
++		s.Names = filterIdentList(s.Names)
++		if len(s.Names) > 0 {
++			doc.filterType(s.Type)
++			return true
++		}
++	case *ast.TypeSpec:
++		if ast.IsExported(s.Name.Name) {
++			doc.filterType(s.Type)
++			return true
++		}
++	}
++	return false
++}
++
++func (doc *docReader) filterSpecList(list []ast.Spec) []ast.Spec {
++	j := 0
++	for _, s := range list {
++		if doc.filterSpec(s) {
++			list[j] = s
++			j++
++		}
++	}
++	return list[0:j]
++}
++
++func (doc *docReader) filterDecl(decl ast.Decl) bool {
++	switch d := decl.(type) {
++	case *ast.GenDecl:
++		d.Specs = doc.filterSpecList(d.Specs)
++		return len(d.Specs) > 0
++	case *ast.FuncDecl:
++		return ast.IsExported(d.Name.Name)
++	}
++	return false
++}
++
++// fileExports trims the AST for a Go file in place such that
++// only exported nodes remain. fileExports returns true if
++// there are exported declarations; otherwise it returns false.
++//
++func (doc *docReader) fileExports(src *ast.File) bool {
++	j := 0
++	for _, d := range src.Decls {
++		if doc.filterDecl(d) {
++			src.Decls[j] = d
++			j++
++		}
++	}
++	src.Decls = src.Decls[0:j]
++	return j > 0
++}
+diff --git a/src/pkg/go/doc/filter.go b/src/pkg/go/doc/filter.go
+new file mode 100644
+index 0000000000..71c2ebb68b
+--- /dev/null
++++ b/src/pkg/go/doc/filter.go
+@@ -0,0 +1,105 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package doc
++
++import "go/ast"
++
++type Filter func(string) bool
++
++func matchFields(fields *ast.FieldList, f Filter) bool {
++	if fields != nil {
++		for _, field := range fields.List {
++			for _, name := range field.Names {
++				if f(name.Name) {
++					return true
++				}
++			}
++		}
++	}
++	return false
++}
++
++func matchDecl(d *ast.GenDecl, f Filter) bool {
++	for _, d := range d.Specs {
++		switch v := d.(type) {
++		case *ast.ValueSpec:
++			for _, name := range v.Names {
++				if f(name.Name) {
++					return true
++				}
++			}
++		case *ast.TypeSpec:
++			if f(v.Name.Name) {
++				return true
++			}
++			switch t := v.Type.(type) {
++			case *ast.StructType:
++				if matchFields(t.Fields, f) {
++					return true
++				}
++			case *ast.InterfaceType:
++				if matchFields(t.Methods, f) {
++					return true
++				}
++			}
++		}
++	}
++	return false
++}
++
++func filterValueDocs(a []*ValueDoc, f Filter) []*ValueDoc {
++	w := 0
++	for _, vd := range a {
++		if matchDecl(vd.Decl, f) {
++			a[w] = vd
++			w++
++		}
++	}
++	return a[0:w]
++}
++
++func filterFuncDocs(a []*FuncDoc, f Filter) []*FuncDoc {
++	w := 0
++	for _, fd := range a {
++		if f(fd.Name) {
++			a[w] = fd
++			w++
++		}
++	}
++	return a[0:w]
++}
++
++func filterTypeDocs(a []*TypeDoc, f Filter) []*TypeDoc {
++	w := 0
++	for _, td := range a {
++		n := 0 // number of matches
++		if matchDecl(td.Decl, f) {
++			n = 1
++		} else {
++			// type name doesn't match, but we may have matching consts, vars, factories or methods
++			td.Consts = filterValueDocs(td.Consts, f)
++			td.Vars = filterValueDocs(td.Vars, f)
++			td.Factories = filterFuncDocs(td.Factories, f)
++			td.Methods = filterFuncDocs(td.Methods, f)
++			n += len(td.Consts) + len(td.Vars) + len(td.Factories) + len(td.Methods)
++		}
++		if n > 0 {
++			a[w] = td
++			w++
++		}
++	}
++	return a[0:w]
++}
++
++// Filter eliminates documentation for names that don't pass through the filter f.
++// TODO: Recognize "Type.Method" as a name.
++//
++func (p *PackageDoc) Filter(f Filter) {
++	p.Consts = filterValueDocs(p.Consts, f)
++	p.Vars = filterValueDocs(p.Vars, f)
++	p.Types = filterTypeDocs(p.Types, f)
++	p.Funcs = filterFuncDocs(p.Funcs, f)
++	p.Doc = "" // don't show top-level package doc
++}

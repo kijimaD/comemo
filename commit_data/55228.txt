@@ -11,8 +11,143 @@ Date:   Thu Nov 10 09:38:50 2022 -0500
     Run-TryBot: Sameer Ajmani <sameer@golang.org>
     Reviewed-by: Damien Neil <dneil@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  api/next/56661.txt          |  2 ++
  src/context/context.go      | 18 ++++++++++++--
  src/context/context_test.go | 59 +++++++++++++++++++++++++++++++++++++++++++--
  3 files changed, 75 insertions(+), 4 deletions(-)
+
+diff --git a/api/next/56661.txt b/api/next/56661.txt
+new file mode 100644
+index 0000000000..af74d7c9e9
+--- /dev/null
++++ b/api/next/56661.txt
+@@ -0,0 +1,2 @@
++pkg context, func WithDeadlineCause(Context, time.Time, error) (Context, CancelFunc) #56661
++pkg context, func WithTimeoutCause(Context, time.Duration, error) (Context, CancelFunc) #56661
+diff --git a/src/context/context.go b/src/context/context.go
+index f3fe1a474e..6bf6ec8dcc 100644
+--- a/src/context/context.go
++++ b/src/context/context.go
+@@ -492,6 +492,13 @@ func (c *cancelCtx) cancel(removeFromParent bool, err, cause error) {
+ // Canceling this context releases resources associated with it, so code should
+ // call cancel as soon as the operations running in this Context complete.
+ func WithDeadline(parent Context, d time.Time) (Context, CancelFunc) {
++	return WithDeadlineCause(parent, d, nil)
++}
++
++// WithDeadlineCause behaves like WithDeadline but also sets the cause of the
++// returned Context when the deadline is exceeded. The returned CancelFunc does
++// not set the cause.
++func WithDeadlineCause(parent Context, d time.Time, cause error) (Context, CancelFunc) {
+ 	if parent == nil {
+ 		panic("cannot create context from nil parent")
+ 	}
+@@ -506,14 +513,14 @@ func WithDeadline(parent Context, d time.Time) (Context, CancelFunc) {
+ 	propagateCancel(parent, c)
+ 	dur := time.Until(d)
+ 	if dur <= 0 {
+-		c.cancel(true, DeadlineExceeded, nil) // deadline has already passed
++		c.cancel(true, DeadlineExceeded, cause) // deadline has already passed
+ 		return c, func() { c.cancel(false, Canceled, nil) }
+ 	}
+ 	c.mu.Lock()
+ 	defer c.mu.Unlock()
+ 	if c.err == nil {
+ 		c.timer = time.AfterFunc(dur, func() {
+-			c.cancel(true, DeadlineExceeded, nil)
++			c.cancel(true, DeadlineExceeded, cause)
+ 		})
+ 	}
+ 	return c, func() { c.cancel(true, Canceled, nil) }
+@@ -567,6 +574,13 @@ func WithTimeout(parent Context, timeout time.Duration) (Context, CancelFunc) {
+ 	return WithDeadline(parent, time.Now().Add(timeout))
+ }
+ 
++// WithTimeoutCause behaves like WithTimeout but also sets the cause of the
++// returned Context when the timout expires. The returned CancelFunc does
++// not set the cause.
++func WithTimeoutCause(parent Context, timeout time.Duration, cause error) (Context, CancelFunc) {
++	return WithDeadlineCause(parent, time.Now().Add(timeout), cause)
++}
++
+ // WithValue returns a copy of parent in which the value associated with key is
+ // val.
+ //
+diff --git a/src/context/context_test.go b/src/context/context_test.go
+index eb5a86b3c6..5311d8d4f4 100644
+--- a/src/context/context_test.go
++++ b/src/context/context_test.go
+@@ -793,8 +793,11 @@ func XTestCustomContextGoroutines(t testingT) {
+ 
+ func XTestCause(t testingT) {
+ 	var (
+-		parentCause = fmt.Errorf("parentCause")
+-		childCause  = fmt.Errorf("childCause")
++		forever       = 1e6 * time.Second
++		parentCause   = fmt.Errorf("parentCause")
++		childCause    = fmt.Errorf("childCause")
++		tooSlow       = fmt.Errorf("tooSlow")
++		finishedEarly = fmt.Errorf("finishedEarly")
+ 	)
+ 	for _, test := range []struct {
+ 		name  string
+@@ -926,6 +929,58 @@ func XTestCause(t testingT) {
+ 			err:   DeadlineExceeded,
+ 			cause: DeadlineExceeded,
+ 		},
++		{
++			name: "WithTimeout canceled",
++			ctx: func() Context {
++				ctx, cancel := WithTimeout(Background(), forever)
++				cancel()
++				return ctx
++			}(),
++			err:   Canceled,
++			cause: Canceled,
++		},
++		{
++			name: "WithTimeoutCause",
++			ctx: func() Context {
++				ctx, cancel := WithTimeoutCause(Background(), 0, tooSlow)
++				cancel()
++				return ctx
++			}(),
++			err:   DeadlineExceeded,
++			cause: tooSlow,
++		},
++		{
++			name: "WithTimeoutCause canceled",
++			ctx: func() Context {
++				ctx, cancel := WithTimeoutCause(Background(), forever, tooSlow)
++				cancel()
++				return ctx
++			}(),
++			err:   Canceled,
++			cause: Canceled,
++		},
++		{
++			name: "WithTimeoutCause stacked",
++			ctx: func() Context {
++				ctx, cancel := WithCancelCause(Background())
++				ctx, _ = WithTimeoutCause(ctx, 0, tooSlow)
++				cancel(finishedEarly)
++				return ctx
++			}(),
++			err:   DeadlineExceeded,
++			cause: tooSlow,
++		},
++		{
++			name: "WithTimeoutCause stacked canceled",
++			ctx: func() Context {
++				ctx, cancel := WithCancelCause(Background())
++				ctx, _ = WithTimeoutCause(ctx, forever, tooSlow)
++				cancel(finishedEarly)
++				return ctx
++			}(),
++			err:   Canceled,
++			cause: finishedEarly,
++		},
+ 	} {
+ 		if got, want := test.ctx.Err(), test.err; want != got {
+ 			t.Errorf("%s: ctx.Err() = %v want %v", test.name, got, want)

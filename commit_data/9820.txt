@@ -7,6 +7,20 @@ Date:   Wed Sep 28 12:00:45 2011 -0400
     R=golang-dev, bradfitz, iant
     CC=golang-dev
     https://golang.org/cl/5127043
-
+---
  src/pkg/json/decode.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/json/decode.go b/src/pkg/json/decode.go
+index 5ac01e8598..31b15a400d 100644
+--- a/src/pkg/json/decode.go
++++ b/src/pkg/json/decode.go
+@@ -504,7 +504,7 @@ func (d *decodeState) object(v reflect.Value) {
+ 				}
+ 				// Third, case-insensitive field name match,
+ 				// but only if a better match hasn't already been seen
+-				if !ok && strings.ToLower(sf.Name) == strings.ToLower(key) {
++				if !ok && strings.EqualFold(sf.Name, key) {
+ 					f = sf
+ 					ok = true
+ 				}

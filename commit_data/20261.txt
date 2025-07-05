@@ -8,7 +8,7 @@ Date:   Thu Aug 28 10:46:59 2014 -0400
     R=golang-codereviews, bradfitz, dvyukov
     CC=golang-codereviews, iant, khr
     https://golang.org/cl/135070043
-
+---
  src/pkg/runtime/asm_386.s      |   2 +-
  src/pkg/runtime/asm_amd64.s    |   2 +-
  src/pkg/runtime/asm_amd64p32.s |   2 +-
@@ -22,3 +22,529 @@ Date:   Thu Aug 28 10:46:59 2014 -0400
  src/pkg/runtime/stubs.goc      |   5 ++
  src/pkg/runtime/thunk.s        |   6 +++
  12 files changed, 167 insertions(+), 201 deletions(-)
+
+diff --git a/src/pkg/runtime/asm_386.s b/src/pkg/runtime/asm_386.s
+index 25f92d4541..e18d877895 100644
+--- a/src/pkg/runtime/asm_386.s
++++ b/src/pkg/runtime/asm_386.s
+@@ -1327,7 +1327,7 @@ TEXT runtime·cmpstring(SB),NOSPLIT,$0-20
+ 	MOVL	AX, ret+16(FP)
+ 	RET
+ 
+-TEXT bytes·Compare(SB),NOSPLIT,$0-28
++TEXT runtime·cmpbytes(SB),NOSPLIT,$0-28
+ 	MOVL	s1+0(FP), SI
+ 	MOVL	s1+4(FP), BX
+ 	MOVL	s2+12(FP), DI
+diff --git a/src/pkg/runtime/asm_amd64.s b/src/pkg/runtime/asm_amd64.s
+index 7e3ff1c55f..3dafc83708 100644
+--- a/src/pkg/runtime/asm_amd64.s
++++ b/src/pkg/runtime/asm_amd64.s
+@@ -1291,7 +1291,7 @@ TEXT runtime·cmpstring(SB),NOSPLIT,$0-40
+ 	MOVQ	AX, ret+32(FP)
+ 	RET
+ 
+-TEXT bytes·Compare(SB),NOSPLIT,$0-56
++TEXT runtime·cmpbytes(SB),NOSPLIT,$0-56
+ 	MOVQ	s1+0(FP), SI
+ 	MOVQ	s1+8(FP), BX
+ 	MOVQ	s2+24(FP), DI
+diff --git a/src/pkg/runtime/asm_amd64p32.s b/src/pkg/runtime/asm_amd64p32.s
+index 343edb1eae..0a5819b059 100644
+--- a/src/pkg/runtime/asm_amd64p32.s
++++ b/src/pkg/runtime/asm_amd64p32.s
+@@ -953,7 +953,7 @@ TEXT runtime·cmpstring(SB),NOSPLIT,$0-20
+ 	MOVL	AX, ret+16(FP)
+ 	RET
+ 
+-TEXT bytes·Compare(SB),NOSPLIT,$0-28
++TEXT runtime·cmpbytes(SB),NOSPLIT,$0-28
+ 	MOVL	s1+0(FP), SI
+ 	MOVL	s1+4(FP), BX
+ 	MOVL	s2+12(FP), DI
+diff --git a/src/pkg/runtime/debug.go b/src/pkg/runtime/debug.go
+index af44a64741..181fac4615 100644
+--- a/src/pkg/runtime/debug.go
++++ b/src/pkg/runtime/debug.go
+@@ -4,6 +4,8 @@
+ 
+ package runtime
+ 
++import "unsafe"
++
+ // Breakpoint executes a breakpoint trap.
+ func Breakpoint()
+ 
+@@ -21,16 +23,32 @@ func UnlockOSThread()
+ // change the current setting.
+ // The number of logical CPUs on the local machine can be queried with NumCPU.
+ // This call will go away when the scheduler improves.
+-func GOMAXPROCS(n int) int
++func GOMAXPROCS(n int) int {
++	return int(gomaxprocsfunc(int32(n)))
++}
++
++func gomaxprocsfunc(int32) int32 // proc.c
+ 
+ // NumCPU returns the number of logical CPUs on the local machine.
+-func NumCPU() int
++func NumCPU() int {
++	return int(ncpu)
++}
+ 
+ // NumCgoCall returns the number of cgo calls made by the current process.
+-func NumCgoCall() int64
++func NumCgoCall() int64 {
++	var n int64
++	for mp := (*m)(atomicloadp(unsafe.Pointer(&allm))); mp != nil; mp = mp.alllink {
++		n += int64(mp.ncgocall)
++	}
++	return n
++}
+ 
+ // NumGoroutine returns the number of goroutines that currently exist.
+-func NumGoroutine() int
++func NumGoroutine() int {
++	return int(gcount())
++}
++
++func gcount() int32
+ 
+ // MemProfileRate controls the fraction of memory allocations
+ // that are recorded and reported in the memory profile.
+diff --git a/src/pkg/runtime/error.go b/src/pkg/runtime/error.go
+index 0fe882d0fa..54591ee43e 100644
+--- a/src/pkg/runtime/error.go
++++ b/src/pkg/runtime/error.go
+@@ -97,7 +97,10 @@ type stringer interface {
+ 	String() string
+ }
+ 
+-func typestring(interface{}) string
++func typestring(x interface{}) string {
++	e := (*eface)(unsafe.Pointer(&x))
++	return *e._type._string
++}
+ 
+ // For calling from C.
+ // Prints an argument passed to panic.
+diff --git a/src/pkg/runtime/extern.go b/src/pkg/runtime/extern.go
+index 1a2d9c21a2..0e48bb9d88 100644
+--- a/src/pkg/runtime/extern.go
++++ b/src/pkg/runtime/extern.go
+@@ -75,6 +75,8 @@ of the run-time system.
+ */
+ package runtime
+ 
++import "unsafe"
++
+ // Goexit terminates the goroutine that calls it.  No other goroutine is affected.
+ // Goexit runs all deferred calls before terminating the goroutine.
+ //
+@@ -84,28 +86,89 @@ package runtime
+ // If all other goroutines exit, the program crashes.
+ func Goexit()
+ 
++// We assume that all architectures turn faults and the like
++// into apparent calls to runtime.sigpanic.  If we see a "call"
++// to runtime.sigpanic, we do not back up the PC to find the
++// line number of the CALL instruction, because there is no CALL.
++var sigpanic byte
++
+ // Caller reports file and line number information about function invocations on
+ // the calling goroutine's stack.  The argument skip is the number of stack frames
+ // to ascend, with 0 identifying the caller of Caller.  (For historical reasons the
+ // meaning of skip differs between Caller and Callers.) The return values report the
+ // program counter, file name, and line number within the file of the corresponding
+ // call.  The boolean ok is false if it was not possible to recover the information.
+-func Caller(skip int) (pc uintptr, file string, line int, ok bool)
++func Caller(skip int) (pc uintptr, file string, line int, ok bool) {
++	// Ask for two PCs: the one we were asked for
++	// and what it called, so that we can see if it
++	// "called" sigpanic.
++	var rpc [2]uintptr
++	if callers(int32(1+skip-1), &rpc[0], 2) < 2 {
++		return
++	}
++	f := findfunc(rpc[1])
++	if f == nil {
++		// TODO(rsc): Probably a bug?
++		// The C version said "have retpc at least"
++		// but actually returned pc=0.
++		ok = true
++		return
++	}
++	pc = rpc[1]
++	xpc := pc
++	g := findfunc(rpc[0])
++	if xpc > f.entry && (g == nil || g.entry != uintptr(unsafe.Pointer(&sigpanic))) {
++		xpc--
++	}
++	line = int(funcline(f, xpc, &file))
++	ok = true
++	return
++}
++
++func findfunc(uintptr) *_func
++
++//go:noescape
++func funcline(*_func, uintptr, *string) int32
+ 
+ // Callers fills the slice pc with the program counters of function invocations
+ // on the calling goroutine's stack.  The argument skip is the number of stack frames
+ // to skip before recording in pc, with 0 identifying the frame for Callers itself and
+ // 1 identifying the caller of Callers.
+ // It returns the number of entries written to pc.
+-func Callers(skip int, pc []uintptr) int
++func Callers(skip int, pc []uintptr) int {
++	// runtime.callers uses pc.array==nil as a signal
++	// to print a stack trace.  Pick off 0-length pc here
++	// so that we don't let a nil pc slice get to it.
++	if len(pc) == 0 {
++		return 0
++	}
++	return int(callers(int32(skip), &pc[0], int32(len(pc))))
++}
++
++//go:noescape
++func callers(int32, *uintptr, int32) int32
+ 
+ func getgoroot() string
++func environ() []string
++
++func gogetenv(key string) string {
++	env := environ()
++	if env == nil {
++		gothrow("getenv before env init")
++	}
++	for _, s := range env {
++		if len(s) > len(key) && s[len(key)] == '=' && s[:len(key)] == key {
++			return s[len(key)+1:]
++		}
++	}
++	return ""
++}
+ 
+ // GOROOT returns the root of the Go tree.
+ // It uses the GOROOT environment variable, if set,
+ // or else the root used during the Go build.
+ func GOROOT() string {
+-	s := getgoroot()
++	s := gogetenv("GOROOT")
+ 	if s != "" {
+ 		return s
+ 	}
+diff --git a/src/pkg/runtime/noasm_arm.go b/src/pkg/runtime/noasm_arm.go
+new file mode 100644
+index 0000000000..01f4116f2a
+--- /dev/null
++++ b/src/pkg/runtime/noasm_arm.go
+@@ -0,0 +1,54 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Routines that are implemented in assembly in asm_{amd64,386}.s
++// but are implemented in Go for arm.
++
++package runtime
++
++func cmpstring(s1, s2 string) int {
++	l := len(s1)
++	if l < len(s2) {
++		l = len(s2)
++	}
++	for i := 0; i < l; i++ {
++		c1, c2 := s1[i], s2[i]
++		if c1 < c2 {
++			return -1
++		}
++		if c1 > c2 {
++			return +1
++		}
++	}
++	if len(s1) < len(s2) {
++		return -1
++	}
++	if len(s1) > len(s2) {
++		return +1
++	}
++	return 0
++}
++
++func cmpbytes(s1, s2 []byte) int {
++	l := len(s1)
++	if l < len(s2) {
++		l = len(s2)
++	}
++	for i := 0; i < l; i++ {
++		c1, c2 := s1[i], s2[i]
++		if c1 < c2 {
++			return -1
++		}
++		if c1 > c2 {
++			return +1
++		}
++	}
++	if len(s1) < len(s2) {
++		return -1
++	}
++	if len(s1) > len(s2) {
++		return +1
++	}
++	return 0
++}
+diff --git a/src/pkg/runtime/noasm_arm.goc b/src/pkg/runtime/noasm_arm.goc
+deleted file mode 100644
+index fe3591e8a3..0000000000
+--- a/src/pkg/runtime/noasm_arm.goc
++++ /dev/null
+@@ -1,74 +0,0 @@
+-// Copyright 2013 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Routines that are implemented in assembly in asm_{amd64,386}.s
+-// but are implemented in C for arm.
+-
+-package runtime
+-#include "runtime.h"
+-#include "../../cmd/ld/textflag.h"
+-
+-#pragma textflag NOSPLIT
+-func cmpstring(s1 String, s2 String) (v int) {
+-	uintgo i, l;
+-	byte c1, c2;
+-	
+-	l = s1.len;
+-        if(s2.len < l)
+-		l = s2.len;
+-        for(i=0; i<l; i++) {
+-		c1 = s1.str[i];
+-		c2 = s2.str[i];
+-		if(c1 < c2) {
+-			v = -1;
+-			goto done;
+-		}
+-		if(c1 > c2) {
+-			v = +1;
+-			goto done;
+-		}
+-	}
+-        if(s1.len < s2.len) {
+-		v = -1;
+-		goto done;
+-	}
+-        if(s1.len > s2.len) {
+-		v = +1;
+-		goto done;
+-	}
+-        v = 0;
+- done:;
+-}
+-
+-#pragma textflag NOSPLIT
+-func bytes·Compare(s1 Slice, s2 Slice) (v int) {
+-	uintgo i, l;
+-	byte c1, c2;
+-	
+-	l = s1.len;
+-        if(s2.len < l)
+-		l = s2.len;
+-        for(i=0; i<l; i++) {
+-		c1 = s1.array[i];
+-		c2 = s2.array[i];
+-		if(c1 < c2) {
+-			v = -1;
+-			goto done;
+-		}
+-		if(c1 > c2) {
+-			v = +1;
+-			goto done;
+-		}
+-	}
+-        if(s1.len < s2.len) {
+-		v = -1;
+-		goto done;
+-	}
+-	if(s1.len > s2.len) {
+-		v = +1;
+-		goto done;
+-	}
+-	v = 0;
+- done:;
+-}
+diff --git a/src/pkg/runtime/runtime.c b/src/pkg/runtime/runtime.c
+index 4f6381297d..8bef7dc076 100644
+--- a/src/pkg/runtime/runtime.c
++++ b/src/pkg/runtime/runtime.c
+@@ -120,6 +120,12 @@ runtime·goenvs_unix(void)
+ 	syscall·envs.cap = n;
+ }
+ 
++Slice
++runtime·environ()
++{
++	return syscall·envs;
++}
++
+ int32
+ runtime·atoi(byte *p)
+ {
+@@ -275,6 +281,7 @@ runtime·fastrand1(void)
+ static Mutex ticksLock;
+ static int64 ticks;
+ 
++// Note: Called by runtime/pprof in addition to runtime code.
+ int64
+ runtime·tickspersecond(void)
+ {
+diff --git a/src/pkg/runtime/runtime1.goc b/src/pkg/runtime/runtime1.goc
+deleted file mode 100644
+index 9529d6504b..0000000000
+--- a/src/pkg/runtime/runtime1.goc
++++ /dev/null
+@@ -1,116 +0,0 @@
+-// Copyright 2010 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package runtime
+-#include "runtime.h"
+-#include "arch_GOARCH.h"
+-#include "type.h"
+-
+-func GOMAXPROCS(n int) (ret int) {
+-	ret = runtime·gomaxprocsfunc(n);
+-}
+-
+-func NumCPU() (ret int) {
+-	ret = runtime·ncpu;
+-}
+-
+-func NumCgoCall() (ret int64) {
+-	M *mp;
+-
+-	ret = 0;
+-	for(mp=runtime·atomicloadp(&runtime·allm); mp; mp=mp->alllink)
+-		ret += mp->ncgocall;
+-}
+-
+-func newParFor(nthrmax uint32) (desc *ParFor) {
+-	desc = runtime·parforalloc(nthrmax);
+-}
+-
+-func parForSetup(desc *ParFor, nthr uint32, n uint32, ctx *byte, wait bool, body *byte) {
+-	runtime·parforsetup(desc, nthr, n, ctx, wait, *(void(**)(ParFor*, uint32))body);
+-}
+-
+-func parForDo(desc *ParFor) {
+-	runtime·parfordo(desc);
+-}
+-
+-func parForIters(desc *ParFor, tid uintptr) (start uintptr, end uintptr) {
+-	runtime·parforiters(desc, tid, &start, &end);
+-}
+-
+-func gogoBytes() (x int32) {
+-	x = RuntimeGogoBytes;
+-}
+-
+-func typestring(e Eface) (s String) {
+-	s = *e.type->string;
+-}
+-
+-func golockedOSThread() (ret bool) {
+-	ret = runtime·lockedOSThread();
+-}
+-
+-func NumGoroutine() (ret int) {
+-	ret = runtime·gcount();
+-}
+-
+-func getgoroot() (out String) {
+-	byte *p;
+-
+-	p = runtime·getenv("GOROOT");
+-	out = runtime·gostringnocopy(p);
+-}
+-
+-/*
+- * We assume that all architectures turn faults and the like
+- * into apparent calls to runtime.sigpanic.  If we see a "call"
+- * to runtime.sigpanic, we do not back up the PC to find the
+- * line number of the CALL instruction, because there is no CALL.
+- */
+-void	runtime·sigpanic(void);
+-
+-func Caller(skip int) (retpc uintptr, retfile String, retline int, retbool bool) {
+-	Func *f, *g;
+-	uintptr pc;
+-	uintptr rpc[2];
+-
+-	/*
+-	 * Ask for two PCs: the one we were asked for
+-	 * and what it called, so that we can see if it
+-	 * "called" sigpanic.
+-	 */
+-	retpc = 0;
+-	if(runtime·callers(1+skip-1, rpc, 2) < 2) {
+-		retfile = runtime·emptystring;
+-		retline = 0;
+-		retbool = false;
+-	} else if((f = runtime·findfunc(rpc[1])) == nil) {
+-		retfile = runtime·emptystring;
+-		retline = 0;
+-		retbool = true;  // have retpc at least
+-	} else {
+-		retpc = rpc[1];
+-		pc = retpc;
+-		g = runtime·findfunc(rpc[0]);
+-		if(pc > f->entry && (g == nil || g->entry != (uintptr)runtime·sigpanic))
+-			pc--;
+-		retline = runtime·funcline(f, pc, &retfile);
+-		retbool = true;
+-	}
+-}
+-
+-func Callers(skip int, pc Slice) (retn int) {
+-	// runtime.callers uses pc.array==nil as a signal
+-	// to print a stack trace.  Pick off 0-length pc here
+-	// so that we don't let a nil pc slice get to it.
+-	if(pc.len == 0)
+-		retn = 0;
+-	else
+-		retn = runtime·callers(skip, (uintptr*)pc.array, pc.len);
+-}
+-
+-func runtime∕pprof·runtime_cyclesPerSecond() (res int64) {
+-	res = runtime·tickspersecond();
+-}
+-
+diff --git a/src/pkg/runtime/stubs.goc b/src/pkg/runtime/stubs.goc
+index af2b155642..f8b2a9f0ad 100644
+--- a/src/pkg/runtime/stubs.goc
++++ b/src/pkg/runtime/stubs.goc
+@@ -68,3 +68,8 @@ func reflect·typelinks() (ret Slice) {
+         ret.len = runtime·etypelink - runtime·typelink;
+         ret.cap = ret.len;
+ }
++
++// For testing.
++func gogoBytes() (x int32) {
++	x = RuntimeGogoBytes;
++}
+diff --git a/src/pkg/runtime/thunk.s b/src/pkg/runtime/thunk.s
+index 7e7aa84335..46d0fb28e7 100644
+--- a/src/pkg/runtime/thunk.s
++++ b/src/pkg/runtime/thunk.s
+@@ -43,3 +43,9 @@ TEXT net·runtime_Semacquire(SB),NOSPLIT,$0-0
+ 
+ TEXT net·runtime_Semrelease(SB),NOSPLIT,$0-0
+ 	JMP	runtime·asyncsemrelease(SB)
++
++TEXT runtime∕pprof·runtime_cyclesPerSecond(SB),NOSPLIT,$0-0
++	JMP	runtime·tickspersecond(SB)
++
++TEXT bytes·Compare(SB),NOSPLIT,$0-0
++	JMP	runtime·cmpbytes(SB)

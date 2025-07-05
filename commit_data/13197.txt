@@ -13,7 +13,133 @@ Date:   Tue May 29 12:40:13 2012 -0700
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/6256066
-
+---
  src/pkg/net/http/serve_test.go | 46 ++++++++++++++++++++++++++++++++++++++++++
  src/pkg/net/http/server.go     | 33 +++++++++++++++++++++++++++---
  2 files changed, 76 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/net/http/serve_test.go b/src/pkg/net/http/serve_test.go
+index d2c9a03751..cea3387a14 100644
+--- a/src/pkg/net/http/serve_test.go
++++ b/src/pkg/net/http/serve_test.go
+@@ -1140,6 +1140,52 @@ func TestServerBufferedChunking(t *testing.T) {
+ 	}
+ }
+ 
++// Tests that the server flushes its response headers out when it's
++// ignoring the response body and waits a bit before forcefully
++// closing the TCP connection, causing the client to get a RST.
++// See http://golang.org/issue/3595
++func TestServerGracefulClose(t *testing.T) {
++	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
++		Error(w, "bye", StatusUnauthorized)
++	}))
++	defer ts.Close()
++
++	conn, err := net.Dial("tcp", ts.Listener.Addr().String())
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer conn.Close()
++	const bodySize = 5 << 20
++	req := []byte(fmt.Sprintf("POST / HTTP/1.1\r\nHost: foo.com\r\nContent-Length: %d\r\n\r\n", bodySize))
++	for i := 0; i < bodySize; i++ {
++		req = append(req, 'x')
++	}
++	writeErr := make(chan error)
++	go func() {
++		_, err := conn.Write(req)
++		writeErr <- err
++	}()
++	br := bufio.NewReader(conn)
++	lineNum := 0
++	for {
++		line, err := br.ReadString('\n')
++		if err == io.EOF {
++			break
++		}
++		if err != nil {
++			t.Fatalf("ReadLine: %v", err)
++		}
++		lineNum++
++		if lineNum == 1 && !strings.Contains(line, "401 Unauthorized") {
++			t.Errorf("Response line = %q; want a 401", line)
++		}
++	}
++	// Wait for write to finish. This is a broken pipe on both
++	// Darwin and Linux, but checking this isn't the point of
++	// the test.
++	<-writeErr
++}
++
+ // goTimeout runs f, failing t if f takes more than ns to complete.
+ func goTimeout(t *testing.T, d time.Duration, f func()) {
+ 	ch := make(chan bool, 2)
+diff --git a/src/pkg/net/http/server.go b/src/pkg/net/http/server.go
+index a0cdb7c569..905a833c95 100644
+--- a/src/pkg/net/http/server.go
++++ b/src/pkg/net/http/server.go
+@@ -129,7 +129,7 @@ type response struct {
+ 	// maxBytesReader hits its max size. It is checked in
+ 	// WriteHeader, to make sure we don't consume the the
+ 	// remaining request body to try to advance to the next HTTP
+-	// request. Instead, when this is set, we stop doing
++	// request. Instead, when this is set, we stop reading
+ 	// subsequent requests on this connection and stop reading
+ 	// input from it.
+ 	requestBodyLimitHit bool
+@@ -555,18 +555,31 @@ func (w *response) Flush() {
+ 	w.conn.buf.Flush()
+ }
+ 
+-// Close the connection.
+-func (c *conn) close() {
++func (c *conn) finalFlush() {
+ 	if c.buf != nil {
+ 		c.buf.Flush()
+ 		c.buf = nil
+ 	}
++}
++
++// Close the connection.
++func (c *conn) close() {
++	c.finalFlush()
+ 	if c.rwc != nil {
+ 		c.rwc.Close()
+ 		c.rwc = nil
+ 	}
+ }
+ 
++// closeWrite flushes any outstanding data and sends a FIN packet (if client
++// is connected via TCP), signalling that we're done.
++func (c *conn) closeWrite() {
++	c.finalFlush()
++	if tcp, ok := c.rwc.(*net.TCPConn); ok {
++		tcp.CloseWrite()
++	}
++}
++
+ // Serve a new connection.
+ func (c *conn) serve() {
+ 	defer func() {
+@@ -663,6 +676,20 @@ func (c *conn) serve() {
+ 		}
+ 		w.finishRequest()
+ 		if w.closeAfterReply {
++			if w.requestBodyLimitHit {
++				// Flush our response and send a FIN packet and wait a bit
++				// before closing the connection, so the client has a chance
++				// to read our response before they possibly get a RST from
++				// our TCP stack from ignoring their unread body.
++				// See http://golang.org/issue/3595
++				c.closeWrite()
++				// Now wait a bit for our machine to send the FIN and the client's
++				// machine's HTTP client to read the request before we close
++				// the connection, which might send a RST (on BSDs, at least).
++				// 250ms is somewhat arbitrary (~latency around half the planet),
++				// but this doesn't need to be a full second probably.
++				time.Sleep(250 * time.Millisecond)
++			}
+ 			break
+ 		}
+ 	}

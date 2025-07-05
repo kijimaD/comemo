@@ -8,9 +8,106 @@ Date:   Mon Feb 27 12:49:10 2012 +1100
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/5697069
-
+---
  src/cmd/go/test.go         |  5 +++++
  src/cmd/go/testflag.go     |  2 ++
  src/pkg/testing/example.go | 16 +++++++++++++++-
  src/pkg/testing/testing.go |  2 +-
  4 files changed, 23 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/test.go b/src/cmd/go/test.go
+index 22315e9822..a84013f209 100644
+--- a/src/cmd/go/test.go
++++ b/src/cmd/go/test.go
+@@ -99,6 +99,11 @@ directory containing the package sources, has its own flags:
+ 	    Run benchmarks matching the regular expression.
+ 	    By default, no benchmarks run.
+ 
++	-test.example pattern
++	    Run examples matching the regular expression.
++	    By default, all examples run, but if -test.run is set,
++	    no examples are run.
++
+ 	-test.cpuprofile cpu.out
+ 	    Write a CPU profile to the specified file before exiting.
+ 
+diff --git a/src/cmd/go/testflag.go b/src/cmd/go/testflag.go
+index 7c9b7f16dd..916e34649f 100644
+--- a/src/cmd/go/testflag.go
++++ b/src/cmd/go/testflag.go
+@@ -28,6 +28,7 @@ var usageMessage = `Usage of go test:
+   -benchtime=1: passes -test.benchtime to test
+   -cpu="": passes -test.cpu to test
+   -cpuprofile="": passes -test.cpuprofile to test
++  -example="": passes -test.example to test
+   -memprofile="": passes -test.memprofile to test
+   -memprofilerate=0: passes -test.memprofilerate to test
+   -parallel=0: passes -test.parallel to test
+@@ -67,6 +68,7 @@ var testFlagDefn = []*testFlagSpec{
+ 	{name: "benchtime", passToTest: true},
+ 	{name: "cpu", passToTest: true},
+ 	{name: "cpuprofile", passToTest: true},
++	{name: "example", passToTest: true},
+ 	{name: "memprofile", passToTest: true},
+ 	{name: "memprofilerate", passToTest: true},
+ 	{name: "parallel", passToTest: true},
+diff --git a/src/pkg/testing/example.go b/src/pkg/testing/example.go
+index 7f8ff2d054..c48d0d8159 100644
+--- a/src/pkg/testing/example.go
++++ b/src/pkg/testing/example.go
+@@ -6,6 +6,7 @@ package testing
+ 
+ import (
+ 	"bytes"
++	"flag"
+ 	"fmt"
+ 	"io"
+ 	"os"
+@@ -13,13 +14,18 @@ import (
+ 	"time"
+ )
+ 
++var matchExamples = flag.String("test.example", "", "regular expression to select examples to run")
++
+ type InternalExample struct {
+ 	Name   string
+ 	F      func()
+ 	Output string
+ }
+ 
+-func RunExamples(examples []InternalExample) (ok bool) {
++func RunExamples(matchString func(pat, str string) (bool, error), examples []InternalExample) (ok bool) {
++	if *match != "" {
++		return // Don't run examples if testing is restricted: we're debugging.
++	}
+ 	ok = true
+ 
+ 	var eg InternalExample
+@@ -27,6 +33,14 @@ func RunExamples(examples []InternalExample) (ok bool) {
+ 	stdout, stderr := os.Stdout, os.Stderr
+ 
+ 	for _, eg = range examples {
++		matched, err := matchString(*matchExamples, eg.Name)
++		if err != nil {
++			fmt.Fprintf(os.Stderr, "testing: invalid regexp for -test.example: %s\n", err)
++			os.Exit(1)
++		}
++		if !matched {
++			continue
++		}
+ 		if *chatty {
+ 			fmt.Printf("=== RUN: %s\n", eg.Name)
+ 		}
+diff --git a/src/pkg/testing/testing.go b/src/pkg/testing/testing.go
+index adc8c09f21..2bcf9d96a8 100644
+--- a/src/pkg/testing/testing.go
++++ b/src/pkg/testing/testing.go
+@@ -280,7 +280,7 @@ func Main(matchString func(pat, str string) (bool, error), tests []InternalTest,
+ 	before()
+ 	startAlarm()
+ 	testOk := RunTests(matchString, tests)
+-	exampleOk := RunExamples(examples)
++	exampleOk := RunExamples(matchString, examples)
+ 	if !testOk || !exampleOk {
+ 		fmt.Println("FAIL")
+ 		os.Exit(1)

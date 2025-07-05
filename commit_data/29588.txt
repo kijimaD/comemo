@@ -9,6 +9,20 @@ Date:   Sat Sep 24 15:53:09 2016 +0200
     Change-Id: Idaa2af6b8646651ea72195671d1a4b5c370a5a22
     Reviewed-on: https://go-review.googlesource.com/29711
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/math/big/doc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/math/big/doc.go b/src/math/big/doc.go
+index a3c23751ba..65ed019b74 100644
+--- a/src/math/big/doc.go
++++ b/src/math/big/doc.go
+@@ -31,7 +31,7 @@ setters, for instance:
+ 
+ 	var z1 Int
+ 	z1.SetUint64(123)                 // z1 := 123
+-	z2 := new(Rat).SetFloat64(1.2)    // z2 := 6/5
++	z2 := new(Rat).SetFloat64(1.25)   // z2 := 5/4
+ 	z3 := new(Float).SetInt(z1)       // z3 := 123.0
+ 
+ Setters, numeric operations and predicates are represented as methods of

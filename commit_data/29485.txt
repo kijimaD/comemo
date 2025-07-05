@@ -13,6 +13,20 @@ Date:   Fri Sep 16 17:10:44 2016 -0400
     Reviewed-by: Keith Randall <khr@golang.org>
     Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/dist/test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 4a1aa2ece2..779140f446 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -729,7 +729,7 @@ func (t *tester) supportedBuildmode(mode string) bool {
+ 		return false
+ 	case "plugin":
+ 		switch pair {
+-		case "linux-386", "linux-amd64", "linux-arm", "linux-arm64", "linux-ppc64le", "linux-s390x":
++		case "linux-386", "linux-amd64", "linux-arm", "linux-arm64":
+ 			return true
+ 		}
+ 		return false

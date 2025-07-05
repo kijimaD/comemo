@@ -8,7 +8,59 @@ Date:   Mon May 7 11:41:40 2012 +0200
     R=r, r
     CC=golang-dev
     https://golang.org/cl/6163045
-
+---
  src/pkg/exp/norm/maketables.go  | 3 ++-
  src/pkg/exp/norm/normregtest.go | 5 +++--
  2 files changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/exp/norm/maketables.go b/src/pkg/exp/norm/maketables.go
+index 35d42c1ab5..8ac64ba967 100644
+--- a/src/pkg/exp/norm/maketables.go
++++ b/src/pkg/exp/norm/maketables.go
+@@ -23,6 +23,7 @@ import (
+ 	"sort"
+ 	"strconv"
+ 	"strings"
++	"unicode"
+ )
+ 
+ func main() {
+@@ -38,7 +39,7 @@ func main() {
+ }
+ 
+ var url = flag.String("url",
+-	"http://www.unicode.org/Public/6.0.0/ucd/",
++	"http://www.unicode.org/Public/"+unicode.Version+"/ucd/",
+ 	"URL of Unicode database directory")
+ var tablelist = flag.String("tables",
+ 	"all",
+diff --git a/src/pkg/exp/norm/normregtest.go b/src/pkg/exp/norm/normregtest.go
+index 507de1ae83..6d2188498b 100644
+--- a/src/pkg/exp/norm/normregtest.go
++++ b/src/pkg/exp/norm/normregtest.go
+@@ -22,6 +22,7 @@ import (
+ 	"strconv"
+ 	"strings"
+ 	"time"
++	"unicode"
+ 	"unicode/utf8"
+ )
+ 
+@@ -39,7 +40,7 @@ func main() {
+ const file = "NormalizationTest.txt"
+ 
+ var url = flag.String("url",
+-	"http://www.unicode.org/Public/6.0.0/ucd/"+file,
++	"http://www.unicode.org/Public/"+unicode.Version+"/ucd/"+file,
+ 	"URL of Unicode database directory")
+ var localFiles = flag.Bool("local",
+ 	false,
+@@ -48,7 +49,7 @@ var localFiles = flag.Bool("local",
+ var logger = log.New(os.Stderr, "", log.Lshortfile)
+ 
+ // This regression test runs the test set in NormalizationTest.txt
+-// (taken from http://www.unicode.org/Public/6.0.0/ucd/).
++// (taken from http://www.unicode.org/Public/<unicode.Version>/ucd/).
+ //
+ // NormalizationTest.txt has form:
+ // @Part0 # Specific cases

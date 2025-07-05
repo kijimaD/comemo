@@ -12,9 +12,112 @@ Date:   Fri Mar 17 09:10:57 2017 -0700
     Reviewed-on: https://go-review.googlesource.com/38330
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/dcl.go  |  3 ---
  src/cmd/compile/internal/gc/go.go   |  2 --
  src/cmd/compile/internal/gc/pgen.go | 16 ++++++++--------
  src/cmd/compile/internal/gc/ssa.go  |  7 ++++---
  4 files changed, 12 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index e47cf194a1..94d18e2256 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -1199,8 +1199,6 @@ func addmethod(msym *Sym, t *Type, local, nointerface bool) {
+ }
+ 
+ func funccompile(n *Node) {
+-	Stksize = BADWIDTH
+-
+ 	if n.Type == nil {
+ 		if nerrors == 0 {
+ 			Fatalf("funccompile missing type")
+@@ -1215,7 +1213,6 @@ func funccompile(n *Node) {
+ 		Fatalf("funccompile %v inside %v", n.Func.Nname.Sym, Curfn.Func.Nname.Sym)
+ 	}
+ 
+-	Stksize = 0
+ 	dclcontext = PAUTO
+ 	funcdepth = n.Func.Depth + 1
+ 	compile(n)
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index 57408e665d..c9fe228feb 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -245,8 +245,6 @@ var dclcontext Class // PEXTERN/PAUTO
+ 
+ var statuniqgen int // name generator for static temps
+ 
+-var Stksize int64 // stack size for current frame
+-
+ var stkptrsize int64 // prefix of stack containing pointers
+ 
+ var Curfn *Node
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index be3b8ac369..c1cda86ed0 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -221,7 +221,7 @@ func (s byStackVar) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+ var scratchFpMem *Node
+ 
+ func (s *ssafn) AllocFrame(f *ssa.Func) {
+-	Stksize = 0
++	s.stksize = 0
+ 	stkptrsize = 0
+ 	fn := s.curfn.Func
+ 
+@@ -277,22 +277,22 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
+ 		if w >= thearch.MAXWIDTH || w < 0 {
+ 			Fatalf("bad width")
+ 		}
+-		Stksize += w
+-		Stksize = Rnd(Stksize, int64(n.Type.Align))
++		s.stksize += w
++		s.stksize = Rnd(s.stksize, int64(n.Type.Align))
+ 		if haspointers(n.Type) {
+-			stkptrsize = Stksize
++			stkptrsize = s.stksize
+ 		}
+ 		if thearch.LinkArch.InFamily(sys.MIPS, sys.MIPS64, sys.ARM, sys.ARM64, sys.PPC64, sys.S390X) {
+-			Stksize = Rnd(Stksize, int64(Widthptr))
++			s.stksize = Rnd(s.stksize, int64(Widthptr))
+ 		}
+-		if Stksize >= 1<<31 {
++		if s.stksize >= 1<<31 {
+ 			yyerrorl(s.curfn.Pos, "stack frame too large (>2GB)")
+ 		}
+ 
+-		n.Xoffset = -Stksize
++		n.Xoffset = -s.stksize
+ 	}
+ 
+-	Stksize = Rnd(Stksize, int64(Widthreg))
++	s.stksize = Rnd(s.stksize, int64(Widthreg))
+ 	stkptrsize = Rnd(stkptrsize, int64(Widthreg))
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 29a2728caf..dff0d664ac 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -4357,7 +4357,7 @@ func genssa(f *ssa.Func, ptxt *obj.Prog, gcargs, gclocals *Sym) {
+ 	liveness(e.curfn, ptxt, gcargs, gclocals)
+ 
+ 	// Add frame prologue. Zero ambiguously live variables.
+-	thearch.Defframe(ptxt, e.curfn, Stksize+s.maxarg)
++	thearch.Defframe(ptxt, e.curfn, e.stksize+s.maxarg)
+ 	if Debug['f'] != 0 {
+ 		frame(0)
+ 	}
+@@ -4667,8 +4667,9 @@ func fieldIdx(n *Node) int {
+ // ssafn holds frontend information about a function that the backend is processing.
+ // It also exports a bunch of compiler services for the ssa backend.
+ type ssafn struct {
+-	curfn *Node
+-	log   bool
++	curfn   *Node
++	stksize int64 // stack size for current frame
++	log     bool
+ }
+ 
+ func (s *ssafn) TypeBool() ssa.Type    { return Types[TBOOL] }

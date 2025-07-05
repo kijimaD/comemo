@@ -14,7 +14,7 @@ Date:   Wed Nov 1 13:31:44 2017 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/cmd/dist/util.go                |  2 +-
  src/cmd/go/alldocs.go               |  8 ++++++++
  src/cmd/go/go_test.go               | 14 ++++++++++++++
@@ -22,3 +22,129 @@ Date:   Wed Nov 1 13:31:44 2017 -0400
  src/cmd/go/internal/help/helpdoc.go |  6 ++++++
  src/cmd/go/internal/work/action.go  |  2 +-
  6 files changed, 34 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/dist/util.go b/src/cmd/dist/util.go
+index 296b993de8..7e27bbb064 100644
+--- a/src/cmd/dist/util.go
++++ b/src/cmd/dist/util.go
+@@ -326,7 +326,7 @@ func xreaddirfiles(dir string) []string {
+ // xworkdir creates a new temporary directory to hold object files
+ // and returns the name of that directory.
+ func xworkdir() string {
+-	name, err := ioutil.TempDir("", "go-tool-dist-")
++	name, err := ioutil.TempDir(os.Getenv("GOTMPDIR"), "go-tool-dist-")
+ 	if err != nil {
+ 		fatalf("%v", err)
+ 	}
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index a61aba8249..0124199e18 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -331,6 +331,8 @@
+ // The -json flag prints the environment in JSON format
+ // instead of as a shell script.
+ //
++// For more about environment variables, see 'go help environment'.
++//
+ //
+ // Start a bug report
+ //
+@@ -1103,6 +1105,12 @@
+ // 		See https://golang.org/doc/articles/race_detector.html.
+ // 	GOROOT
+ // 		The root of the go tree.
++// 	GOTMPDIR
++// 		The directory where the go command will write
++// 		temporary source files, packages, and binaries.
++// 	GOCACHE
++// 		The directory where the go command will store
++// 		cached information for reuse in future builds.
+ //
+ // Environment variables for use with cgo:
+ //
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 51696db6c2..2978659019 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -4690,6 +4690,20 @@ func TestUpxCompression(t *testing.T) {
+ 	}
+ }
+ 
++func TestGOTMPDIR(t *testing.T) {
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.parallel()
++	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
++	tg.makeTempdir()
++	tg.setenv("GOTMPDIR", tg.tempdir)
++	tg.setenv("GOCACHE", "off")
++
++	// complex/x is a trivial non-main package.
++	tg.run("build", "-work", "-x", "complex/w")
++	tg.grepStderr("WORK="+regexp.QuoteMeta(tg.tempdir), "did not work in $GOTMPDIR")
++}
++
+ func TestBuildCache(t *testing.T) {
+ 	if strings.Contains(os.Getenv("GODEBUG"), "gocacheverify") {
+ 		t.Skip("GODEBUG gocacheverify")
+diff --git a/src/cmd/go/internal/envcmd/env.go b/src/cmd/go/internal/envcmd/env.go
+index cd3f9000c2..90ab2d718f 100644
+--- a/src/cmd/go/internal/envcmd/env.go
++++ b/src/cmd/go/internal/envcmd/env.go
+@@ -32,6 +32,8 @@ each named variable on its own line.
+ 
+ The -json flag prints the environment in JSON format
+ instead of as a shell script.
++
++For more about environment variables, see 'go help environment'.
+ 	`,
+ }
+ 
+@@ -48,6 +50,7 @@ func MkEnv() []cfg.EnvVar {
+ 	env := []cfg.EnvVar{
+ 		{Name: "GOARCH", Value: cfg.Goarch},
+ 		{Name: "GOBIN", Value: cfg.GOBIN},
++		{Name: "GOCACHE", Value: cache.DefaultDir()},
+ 		{Name: "GOEXE", Value: cfg.ExeSuffix},
+ 		{Name: "GOHOSTARCH", Value: runtime.GOARCH},
+ 		{Name: "GOHOSTOS", Value: runtime.GOOS},
+@@ -55,8 +58,8 @@ func MkEnv() []cfg.EnvVar {
+ 		{Name: "GOPATH", Value: cfg.BuildContext.GOPATH},
+ 		{Name: "GORACE", Value: os.Getenv("GORACE")},
+ 		{Name: "GOROOT", Value: cfg.GOROOT},
++		{Name: "GOTMPDIR", Value: os.Getenv("GOTMPDIR")},
+ 		{Name: "GOTOOLDIR", Value: base.ToolDir},
+-		{Name: "GOCACHE", Value: cache.DefaultDir()},
+ 
+ 		// disable escape codes in clang errors
+ 		{Name: "TERM", Value: "dumb"},
+diff --git a/src/cmd/go/internal/help/helpdoc.go b/src/cmd/go/internal/help/helpdoc.go
+index 508ff60862..76f3137c12 100644
+--- a/src/cmd/go/internal/help/helpdoc.go
++++ b/src/cmd/go/internal/help/helpdoc.go
+@@ -471,6 +471,12 @@ General-purpose environment variables:
+ 		See https://golang.org/doc/articles/race_detector.html.
+ 	GOROOT
+ 		The root of the go tree.
++	GOTMPDIR
++		The directory where the go command will write
++		temporary source files, packages, and binaries.
++	GOCACHE
++		The directory where the go command will store
++		cached information for reuse in future builds.
+ 
+ Environment variables for use with cgo:
+ 
+diff --git a/src/cmd/go/internal/work/action.go b/src/cmd/go/internal/work/action.go
+index 71d5ef3e79..883c454340 100644
+--- a/src/cmd/go/internal/work/action.go
++++ b/src/cmd/go/internal/work/action.go
+@@ -200,7 +200,7 @@ func (b *Builder) Init() {
+ 	if cfg.BuildN {
+ 		b.WorkDir = "$WORK"
+ 	} else {
+-		b.WorkDir, err = ioutil.TempDir("", "go-build")
++		b.WorkDir, err = ioutil.TempDir(os.Getenv("GOTMPDIR"), "go-build")
+ 		if err != nil {
+ 			base.Fatalf("%s", err)
+ 		}

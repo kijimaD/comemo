@@ -12,7 +12,48 @@ Date:   Tue Sep 5 19:01:16 2017 +0300
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/encoding/json/encode.go       |  2 ++
  src/encoding/json/example_test.go | 19 +++++++++++++++++++
  2 files changed, 21 insertions(+)
+
+diff --git a/src/encoding/json/encode.go b/src/encoding/json/encode.go
+index 141b23c6c6..9a2f841335 100644
+--- a/src/encoding/json/encode.go
++++ b/src/encoding/json/encode.go
+@@ -166,6 +166,8 @@ func Marshal(v interface{}) ([]byte, error) {
+ }
+ 
+ // MarshalIndent is like Marshal but applies Indent to format the output.
++// Each JSON element in the output will begin on a new line beginning with prefix
++// followed by one or more copies of indent according to the indentation nesting.
+ func MarshalIndent(v interface{}, prefix, indent string) ([]byte, error) {
+ 	b, err := Marshal(v)
+ 	if err != nil {
+diff --git a/src/encoding/json/example_test.go b/src/encoding/json/example_test.go
+index 2bbc292c6d..39b3231850 100644
+--- a/src/encoding/json/example_test.go
++++ b/src/encoding/json/example_test.go
+@@ -273,3 +273,22 @@ func ExampleIndent() {
+ 	// =	}
+ 	// =]
+ }
++
++func ExampleMarshalIndent() {
++	data := map[string]int{
++		"a": 1,
++		"b": 2,
++	}
++
++	json, err := json.MarshalIndent(data, "<prefix>", "<indent>")
++	if err != nil {
++		log.Fatal(err)
++	}
++
++	fmt.Println(string(json))
++	// Output:
++	// {
++	// <prefix><indent>"a": 1,
++	// <prefix><indent>"b": 2
++	// <prefix>}
++}

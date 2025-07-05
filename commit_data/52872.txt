@@ -8,6 +8,22 @@ Date:   Sat May 28 12:39:35 2022 +0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/409195
     Reviewed-by: Austin Clements <austin@google.com>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  doc/go1.19.html | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/doc/go1.19.html b/doc/go1.19.html
+index b9dfa59297..d73f635344 100644
+--- a/doc/go1.19.html
++++ b/doc/go1.19.html
+@@ -188,7 +188,9 @@ Do not send CLs removing the interior tags from such phrases.
+   (<code>GOARCH=amd64</code> and <code>GOARCH=arm64</code> only)
+ </p>
+ <p><!-- CL 402374 -->
+-  TODO: <a href="https://go.dev/cl/402374">https://go.dev/cl/402374</a>: enable regabi on riscv64 by default
++  The <code>riscv64</code> port now supports passing function arguments
++  and result using registers. Benchmarking shows typical performance
++  improvements of 10% or more on <code>riscv64</code>.
+ </p>
+ <p><!-- CL 391014 -->
+   The Go compiler now requires the <code>-p=importpath</code> flag to

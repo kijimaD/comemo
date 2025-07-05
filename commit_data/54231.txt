@@ -14,6 +14,22 @@ Date:   Wed Sep 28 08:47:08 2022 +0000
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
-
+---
  src/cmd/fix/main.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/fix/main.go b/src/cmd/fix/main.go
+index 70874d4306..0f36fcc312 100644
+--- a/src/cmd/fix/main.go
++++ b/src/cmd/fix/main.go
+@@ -75,8 +75,8 @@ func main() {
+ 		}
+ 		majorStr := (*goVersionStr)[len("go"):]
+ 		minorStr := "0"
+-		if i := strings.Index(majorStr, "."); i >= 0 {
+-			majorStr, minorStr = majorStr[:i], majorStr[i+len("."):]
++		if before, after, found := strings.Cut(majorStr, "."); found {
++			majorStr, minorStr = before, after
+ 		}
+ 		major, err1 := strconv.Atoi(majorStr)
+ 		minor, err2 := strconv.Atoi(minorStr)

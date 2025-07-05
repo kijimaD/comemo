@@ -16,7 +16,7 @@ Date:   Wed Oct 27 14:29:29 2021 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  doc/go1.18.html                                    |    7 +
  misc/cgo/testshared/overlaydir_test.go             |   78 --
  misc/cgo/testshared/shared_test.go                 | 1080 --------------------
@@ -62,3 +62,2161 @@ Date:   Wed Oct 27 14:29:29 2021 -0400
  src/cmd/go/testdata/script/list_linkshared.txt     |   16 -
  src/cmd/internal/sys/supported.go                  |    7 -
  44 files changed, 30 insertions(+), 1786 deletions(-)
+
+diff --git a/doc/go1.18.html b/doc/go1.18.html
+index 985689cf31..63a6ed8fcd 100644
+--- a/doc/go1.18.html
++++ b/doc/go1.18.html
+@@ -89,6 +89,13 @@ Do not send CLs removing the interior tags from such phrases.
+   package.
+ </p>
+ 
++<p><!-- golang.org/issue/47788 -->
++  The <code>go</code> command no longer supports <code>-linkshared</code>
++  and <code>-buildmode=shared</code>.
++  (<code>shared<code> building and linking has never worked in module mode or
++  when <code>GOROOT</code> is not writable.)
++<p>
++
+ <p>
+   TODO: complete this section, or delete if not needed
+ </p>
+diff --git a/misc/cgo/testshared/overlaydir_test.go b/misc/cgo/testshared/overlaydir_test.go
+deleted file mode 100644
+index eb587a2d44..0000000000
+--- a/misc/cgo/testshared/overlaydir_test.go
++++ /dev/null
+@@ -1,78 +0,0 @@
+-// Copyright 2019 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package shared_test
+-
+-import (
+-	"io"
+-	"os"
+-	"path/filepath"
+-	"strings"
+-)
+-
+-// overlayDir makes a minimal-overhead copy of srcRoot in which new files may be added.
+-//
+-// TODO: Once we no longer need to support the misc module in GOPATH mode,
+-// factor this function out into a package to reduce duplication.
+-func overlayDir(dstRoot, srcRoot string) error {
+-	dstRoot = filepath.Clean(dstRoot)
+-	if err := os.MkdirAll(dstRoot, 0777); err != nil {
+-		return err
+-	}
+-
+-	srcRoot, err := filepath.Abs(srcRoot)
+-	if err != nil {
+-		return err
+-	}
+-
+-	return filepath.Walk(srcRoot, func(srcPath string, info os.FileInfo, err error) error {
+-		if err != nil || srcPath == srcRoot {
+-			return err
+-		}
+-
+-		suffix := strings.TrimPrefix(srcPath, srcRoot)
+-		for len(suffix) > 0 && suffix[0] == filepath.Separator {
+-			suffix = suffix[1:]
+-		}
+-		dstPath := filepath.Join(dstRoot, suffix)
+-
+-		perm := info.Mode() & os.ModePerm
+-		if info.Mode()&os.ModeSymlink != 0 {
+-			info, err = os.Stat(srcPath)
+-			if err != nil {
+-				return err
+-			}
+-			perm = info.Mode() & os.ModePerm
+-		}
+-
+-		// Always copy directories (don't symlink them).
+-		// If we add a file in the overlay, we don't want to add it in the original.
+-		if info.IsDir() {
+-			return os.MkdirAll(dstPath, perm|0200)
+-		}
+-
+-		// If the OS supports symlinks, use them instead of copying bytes.
+-		if err := os.Symlink(srcPath, dstPath); err == nil {
+-			return nil
+-		}
+-
+-		// Otherwise, copy the bytes.
+-		src, err := os.Open(srcPath)
+-		if err != nil {
+-			return err
+-		}
+-		defer src.Close()
+-
+-		dst, err := os.OpenFile(dstPath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, perm)
+-		if err != nil {
+-			return err
+-		}
+-
+-		_, err = io.Copy(dst, src)
+-		if closeErr := dst.Close(); err == nil {
+-			err = closeErr
+-		}
+-		return err
+-	})
+-}
+diff --git a/misc/cgo/testshared/shared_test.go b/misc/cgo/testshared/shared_test.go
+deleted file mode 100644
+index 672811fe0e..0000000000
+--- a/misc/cgo/testshared/shared_test.go
++++ /dev/null
+@@ -1,1080 +0,0 @@
+-// Copyright 2015 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package shared_test
+-
+-import (
+-	"bufio"
+-	"bytes"
+-	"debug/elf"
+-	"encoding/binary"
+-	"flag"
+-	"fmt"
+-	"go/build"
+-	"io"
+-	"log"
+-	"os"
+-	"os/exec"
+-	"path/filepath"
+-	"regexp"
+-	"runtime"
+-	"sort"
+-	"strings"
+-	"testing"
+-	"time"
+-)
+-
+-var gopathInstallDir, gorootInstallDir string
+-
+-// This is the smallest set of packages we can link into a shared
+-// library (runtime/cgo is built implicitly).
+-var minpkgs = []string{"runtime", "sync/atomic"}
+-var soname = "libruntime,sync-atomic.so"
+-
+-var testX = flag.Bool("testx", false, "if true, pass -x to 'go' subcommands invoked by the test")
+-var testWork = flag.Bool("testwork", false, "if true, log and do not delete the temporary working directory")
+-
+-// run runs a command and calls t.Errorf if it fails.
+-func run(t *testing.T, msg string, args ...string) {
+-	runWithEnv(t, msg, nil, args...)
+-}
+-
+-// runWithEnv runs a command under the given environment and calls t.Errorf if it fails.
+-func runWithEnv(t *testing.T, msg string, env []string, args ...string) {
+-	c := exec.Command(args[0], args[1:]...)
+-	if len(env) != 0 {
+-		c.Env = append(os.Environ(), env...)
+-	}
+-	if output, err := c.CombinedOutput(); err != nil {
+-		t.Errorf("executing %s (%s) failed %s:\n%s", strings.Join(args, " "), msg, err, output)
+-	}
+-}
+-
+-// goCmd invokes the go tool with the installsuffix set up by TestMain. It calls
+-// t.Fatalf if the command fails.
+-func goCmd(t *testing.T, args ...string) string {
+-	newargs := []string{args[0]}
+-	if *testX {
+-		newargs = append(newargs, "-x")
+-	}
+-	newargs = append(newargs, args[1:]...)
+-	c := exec.Command("go", newargs...)
+-	stderr := new(strings.Builder)
+-	c.Stderr = stderr
+-
+-	if testing.Verbose() && t == nil {
+-		fmt.Fprintf(os.Stderr, "+ go %s\n", strings.Join(args, " "))
+-		c.Stderr = os.Stderr
+-	}
+-	output, err := c.Output()
+-
+-	if err != nil {
+-		if t != nil {
+-			t.Helper()
+-			t.Fatalf("executing %s failed %v:\n%s", strings.Join(c.Args, " "), err, stderr)
+-		} else {
+-			// Panic instead of using log.Fatalf so that deferred cleanup may run in testMain.
+-			log.Panicf("executing %s failed %v:\n%s", strings.Join(c.Args, " "), err, stderr)
+-		}
+-	}
+-	if testing.Verbose() && t != nil {
+-		t.Logf("go %s", strings.Join(args, " "))
+-		if stderr.Len() > 0 {
+-			t.Logf("%s", stderr)
+-		}
+-	}
+-	return string(bytes.TrimSpace(output))
+-}
+-
+-// TestMain calls testMain so that the latter can use defer (TestMain exits with os.Exit).
+-func testMain(m *testing.M) (int, error) {
+-	workDir, err := os.MkdirTemp("", "shared_test")
+-	if err != nil {
+-		return 0, err
+-	}
+-	if *testWork || testing.Verbose() {
+-		fmt.Printf("+ mkdir -p %s\n", workDir)
+-	}
+-	if !*testWork {
+-		defer os.RemoveAll(workDir)
+-	}
+-
+-	// Some tests need to edit the source in GOPATH, so copy this directory to a
+-	// temporary directory and chdir to that.
+-	gopath := filepath.Join(workDir, "gopath")
+-	modRoot, err := cloneTestdataModule(gopath)
+-	if err != nil {
+-		return 0, err
+-	}
+-	if testing.Verbose() {
+-		fmt.Printf("+ export GOPATH=%s\n", gopath)
+-		fmt.Printf("+ cd %s\n", modRoot)
+-	}
+-	os.Setenv("GOPATH", gopath)
+-	// Explicitly override GOBIN as well, in case it was set through a GOENV file.
+-	os.Setenv("GOBIN", filepath.Join(gopath, "bin"))
+-	os.Chdir(modRoot)
+-	os.Setenv("PWD", modRoot)
+-
+-	// The test also needs to install libraries into GOROOT/pkg, so copy the
+-	// subset of GOROOT that we need.
+-	//
+-	// TODO(golang.org/issue/28553): Rework -buildmode=shared so that it does not
+-	// need to write to GOROOT.
+-	goroot := filepath.Join(workDir, "goroot")
+-	if err := cloneGOROOTDeps(goroot); err != nil {
+-		return 0, err
+-	}
+-	if testing.Verbose() {
+-		fmt.Fprintf(os.Stderr, "+ export GOROOT=%s\n", goroot)
+-	}
+-	os.Setenv("GOROOT", goroot)
+-
+-	myContext := build.Default
+-	myContext.GOROOT = goroot
+-	myContext.GOPATH = gopath
+-	runtimeP, err := myContext.Import("runtime", ".", build.ImportComment)
+-	if err != nil {
+-		return 0, fmt.Errorf("import failed: %v", err)
+-	}
+-	gorootInstallDir = runtimeP.PkgTargetRoot + "_dynlink"
+-
+-	// All tests depend on runtime being built into a shared library. Because
+-	// that takes a few seconds, do it here and have all tests use the version
+-	// built here.
+-	goCmd(nil, append([]string{"install", "-buildmode=shared"}, minpkgs...)...)
+-
+-	myContext.InstallSuffix = "_dynlink"
+-	depP, err := myContext.Import("./depBase", ".", build.ImportComment)
+-	if err != nil {
+-		return 0, fmt.Errorf("import failed: %v", err)
+-	}
+-	if depP.PkgTargetRoot == "" {
+-		gopathInstallDir = filepath.Dir(goCmd(nil, "list", "-buildmode=shared", "-f", "{{.Target}}", "./depBase"))
+-	} else {
+-		gopathInstallDir = filepath.Join(depP.PkgTargetRoot, "testshared")
+-	}
+-	return m.Run(), nil
+-}
+-
+-func TestMain(m *testing.M) {
+-	log.SetFlags(log.Lshortfile)
+-	flag.Parse()
+-
+-	exitCode, err := testMain(m)
+-	if err != nil {
+-		log.Fatal(err)
+-	}
+-	os.Exit(exitCode)
+-}
+-
+-// cloneTestdataModule clones the packages from src/testshared into gopath.
+-// It returns the directory within gopath at which the module root is located.
+-func cloneTestdataModule(gopath string) (string, error) {
+-	modRoot := filepath.Join(gopath, "src", "testshared")
+-	if err := overlayDir(modRoot, "testdata"); err != nil {
+-		return "", err
+-	}
+-	if err := os.WriteFile(filepath.Join(modRoot, "go.mod"), []byte("module testshared\n"), 0644); err != nil {
+-		return "", err
+-	}
+-	return modRoot, nil
+-}
+-
+-// cloneGOROOTDeps copies (or symlinks) the portions of GOROOT/src and
+-// GOROOT/pkg relevant to this test into the given directory.
+-// It must be run from within the testdata module.
+-func cloneGOROOTDeps(goroot string) error {
+-	oldGOROOT := strings.TrimSpace(goCmd(nil, "env", "GOROOT"))
+-	if oldGOROOT == "" {
+-		return fmt.Errorf("go env GOROOT returned an empty string")
+-	}
+-
+-	// Before we clone GOROOT, figure out which packages we need to copy over.
+-	listArgs := []string{
+-		"list",
+-		"-deps",
+-		"-f", "{{if and .Standard (not .ForTest)}}{{.ImportPath}}{{end}}",
+-	}
+-	stdDeps := goCmd(nil, append(listArgs, minpkgs...)...)
+-	testdataDeps := goCmd(nil, append(listArgs, "-test", "./...")...)
+-
+-	pkgs := append(strings.Split(strings.TrimSpace(stdDeps), "\n"),
+-		strings.Split(strings.TrimSpace(testdataDeps), "\n")...)
+-	sort.Strings(pkgs)
+-	var pkgRoots []string
+-	for _, pkg := range pkgs {
+-		parentFound := false
+-		for _, prev := range pkgRoots {
+-			if strings.HasPrefix(pkg, prev) {
+-				// We will copy in the source for pkg when we copy in prev.
+-				parentFound = true
+-				break
+-			}
+-		}
+-		if !parentFound {
+-			pkgRoots = append(pkgRoots, pkg)
+-		}
+-	}
+-
+-	gorootDirs := []string{
+-		"pkg/tool",
+-		"pkg/include",
+-	}
+-	for _, pkg := range pkgRoots {
+-		gorootDirs = append(gorootDirs, filepath.Join("src", pkg))
+-	}
+-
+-	for _, dir := range gorootDirs {
+-		if testing.Verbose() {
+-			fmt.Fprintf(os.Stderr, "+ cp -r %s %s\n", filepath.Join(oldGOROOT, dir), filepath.Join(goroot, dir))
+-		}
+-		if err := overlayDir(filepath.Join(goroot, dir), filepath.Join(oldGOROOT, dir)); err != nil {
+-			return err
+-		}
+-	}
+-
+-	return nil
+-}
+-
+-// The shared library was built at the expected location.
+-func TestSOBuilt(t *testing.T) {
+-	_, err := os.Stat(filepath.Join(gorootInstallDir, soname))
+-	if err != nil {
+-		t.Error(err)
+-	}
+-}
+-
+-func hasDynTag(f *elf.File, tag elf.DynTag) bool {
+-	ds := f.SectionByType(elf.SHT_DYNAMIC)
+-	if ds == nil {
+-		return false
+-	}
+-	d, err := ds.Data()
+-	if err != nil {
+-		return false
+-	}
+-	for len(d) > 0 {
+-		var t elf.DynTag
+-		switch f.Class {
+-		case elf.ELFCLASS32:
+-			t = elf.DynTag(f.ByteOrder.Uint32(d[0:4]))
+-			d = d[8:]
+-		case elf.ELFCLASS64:
+-			t = elf.DynTag(f.ByteOrder.Uint64(d[0:8]))
+-			d = d[16:]
+-		}
+-		if t == tag {
+-			return true
+-		}
+-	}
+-	return false
+-}
+-
+-// The shared library does not have relocations against the text segment.
+-func TestNoTextrel(t *testing.T) {
+-	sopath := filepath.Join(gorootInstallDir, soname)
+-	f, err := elf.Open(sopath)
+-	if err != nil {
+-		t.Fatal("elf.Open failed: ", err)
+-	}
+-	defer f.Close()
+-	if hasDynTag(f, elf.DT_TEXTREL) {
+-		t.Errorf("%s has DT_TEXTREL set", soname)
+-	}
+-}
+-
+-// The shared library does not contain symbols called ".dup"
+-// (See golang.org/issue/14841.)
+-func TestNoDupSymbols(t *testing.T) {
+-	sopath := filepath.Join(gorootInstallDir, soname)
+-	f, err := elf.Open(sopath)
+-	if err != nil {
+-		t.Fatal("elf.Open failed: ", err)
+-	}
+-	defer f.Close()
+-	syms, err := f.Symbols()
+-	if err != nil {
+-		t.Errorf("error reading symbols %v", err)
+-		return
+-	}
+-	for _, s := range syms {
+-		if s.Name == ".dup" {
+-			t.Fatalf("%s contains symbol called .dup", sopath)
+-		}
+-	}
+-}
+-
+-// The install command should have created a "shlibname" file for the
+-// listed packages (and runtime/cgo, and math on arm) indicating the
+-// name of the shared library containing it.
+-func TestShlibnameFiles(t *testing.T) {
+-	pkgs := append([]string{}, minpkgs...)
+-	pkgs = append(pkgs, "runtime/cgo")
+-	if runtime.GOARCH == "arm" {
+-		pkgs = append(pkgs, "math")
+-	}
+-	for _, pkg := range pkgs {
+-		shlibnamefile := filepath.Join(gorootInstallDir, pkg+".shlibname")
+-		contentsb, err := os.ReadFile(shlibnamefile)
+-		if err != nil {
+-			t.Errorf("error reading shlibnamefile for %s: %v", pkg, err)
+-			continue
+-		}
+-		contents := strings.TrimSpace(string(contentsb))
+-		if contents != soname {
+-			t.Errorf("shlibnamefile for %s has wrong contents: %q", pkg, contents)
+-		}
+-	}
+-}
+-
+-// Is a given offset into the file contained in a loaded segment?
+-func isOffsetLoaded(f *elf.File, offset uint64) bool {
+-	for _, prog := range f.Progs {
+-		if prog.Type == elf.PT_LOAD {
+-			if prog.Off <= offset && offset < prog.Off+prog.Filesz {
+-				return true
+-			}
+-		}
+-	}
+-	return false
+-}
+-
+-func rnd(v int32, r int32) int32 {
+-	if r <= 0 {
+-		return v
+-	}
+-	v += r - 1
+-	c := v % r
+-	if c < 0 {
+-		c += r
+-	}
+-	v -= c
+-	return v
+-}
+-
+-func readwithpad(r io.Reader, sz int32) ([]byte, error) {
+-	data := make([]byte, rnd(sz, 4))
+-	_, err := io.ReadFull(r, data)
+-	if err != nil {
+-		return nil, err
+-	}
+-	data = data[:sz]
+-	return data, nil
+-}
+-
+-type note struct {
+-	name    string
+-	tag     int32
+-	desc    string
+-	section *elf.Section
+-}
+-
+-// Read all notes from f. As ELF section names are not supposed to be special, one
+-// looks for a particular note by scanning all SHT_NOTE sections looking for a note
+-// with a particular "name" and "tag".
+-func readNotes(f *elf.File) ([]*note, error) {
+-	var notes []*note
+-	for _, sect := range f.Sections {
+-		if sect.Type != elf.SHT_NOTE {
+-			continue
+-		}
+-		r := sect.Open()
+-		for {
+-			var namesize, descsize, tag int32
+-			err := binary.Read(r, f.ByteOrder, &namesize)
+-			if err != nil {
+-				if err == io.EOF {
+-					break
+-				}
+-				return nil, fmt.Errorf("read namesize failed: %v", err)
+-			}
+-			err = binary.Read(r, f.ByteOrder, &descsize)
+-			if err != nil {
+-				return nil, fmt.Errorf("read descsize failed: %v", err)
+-			}
+-			err = binary.Read(r, f.ByteOrder, &tag)
+-			if err != nil {
+-				return nil, fmt.Errorf("read type failed: %v", err)
+-			}
+-			name, err := readwithpad(r, namesize)
+-			if err != nil {
+-				return nil, fmt.Errorf("read name failed: %v", err)
+-			}
+-			desc, err := readwithpad(r, descsize)
+-			if err != nil {
+-				return nil, fmt.Errorf("read desc failed: %v", err)
+-			}
+-			notes = append(notes, &note{name: string(name), tag: tag, desc: string(desc), section: sect})
+-		}
+-	}
+-	return notes, nil
+-}
+-
+-func dynStrings(t *testing.T, path string, flag elf.DynTag) []string {
+-	t.Helper()
+-	f, err := elf.Open(path)
+-	if err != nil {
+-		t.Fatalf("elf.Open(%q) failed: %v", path, err)
+-	}
+-	defer f.Close()
+-	dynstrings, err := f.DynString(flag)
+-	if err != nil {
+-		t.Fatalf("DynString(%s) failed on %s: %v", flag, path, err)
+-	}
+-	return dynstrings
+-}
+-
+-func AssertIsLinkedToRegexp(t *testing.T, path string, re *regexp.Regexp) {
+-	t.Helper()
+-	for _, dynstring := range dynStrings(t, path, elf.DT_NEEDED) {
+-		if re.MatchString(dynstring) {
+-			return
+-		}
+-	}
+-	t.Errorf("%s is not linked to anything matching %v", path, re)
+-}
+-
+-func AssertIsLinkedTo(t *testing.T, path, lib string) {
+-	t.Helper()
+-	AssertIsLinkedToRegexp(t, path, regexp.MustCompile(regexp.QuoteMeta(lib)))
+-}
+-
+-func AssertHasRPath(t *testing.T, path, dir string) {
+-	t.Helper()
+-	for _, tag := range []elf.DynTag{elf.DT_RPATH, elf.DT_RUNPATH} {
+-		for _, dynstring := range dynStrings(t, path, tag) {
+-			for _, rpath := range strings.Split(dynstring, ":") {
+-				if filepath.Clean(rpath) == filepath.Clean(dir) {
+-					return
+-				}
+-			}
+-		}
+-	}
+-	t.Errorf("%s does not have rpath %s", path, dir)
+-}
+-
+-// Build a trivial program that links against the shared runtime and check it runs.
+-func TestTrivialExecutable(t *testing.T) {
+-	goCmd(t, "install", "-linkshared", "./trivial")
+-	run(t, "trivial executable", "../../bin/trivial")
+-	AssertIsLinkedTo(t, "../../bin/trivial", soname)
+-	AssertHasRPath(t, "../../bin/trivial", gorootInstallDir)
+-	checkSize(t, "../../bin/trivial", 100000) // it is 19K on linux/amd64, 100K should be enough
+-}
+-
+-// Build a trivial program in PIE mode that links against the shared runtime and check it runs.
+-func TestTrivialExecutablePIE(t *testing.T) {
+-	goCmd(t, "build", "-buildmode=pie", "-o", "trivial.pie", "-linkshared", "./trivial")
+-	run(t, "trivial executable", "./trivial.pie")
+-	AssertIsLinkedTo(t, "./trivial.pie", soname)
+-	AssertHasRPath(t, "./trivial.pie", gorootInstallDir)
+-	checkSize(t, "./trivial.pie", 100000) // it is 19K on linux/amd64, 100K should be enough
+-}
+-
+-// Check that the file size does not exceed a limit.
+-func checkSize(t *testing.T, f string, limit int64) {
+-	fi, err := os.Stat(f)
+-	if err != nil {
+-		t.Fatalf("stat failed: %v", err)
+-	}
+-	if sz := fi.Size(); sz > limit {
+-		t.Errorf("file too large: got %d, want <= %d", sz, limit)
+-	}
+-}
+-
+-// Build a division test program and check it runs.
+-func TestDivisionExecutable(t *testing.T) {
+-	goCmd(t, "install", "-linkshared", "./division")
+-	run(t, "division executable", "../../bin/division")
+-}
+-
+-// Build an executable that uses cgo linked against the shared runtime and check it
+-// runs.
+-func TestCgoExecutable(t *testing.T) {
+-	goCmd(t, "install", "-linkshared", "./execgo")
+-	run(t, "cgo executable", "../../bin/execgo")
+-}
+-
+-func checkPIE(t *testing.T, name string) {
+-	f, err := elf.Open(name)
+-	if err != nil {
+-		t.Fatal("elf.Open failed: ", err)
+-	}
+-	defer f.Close()
+-	if f.Type != elf.ET_DYN {
+-		t.Errorf("%s has type %v, want ET_DYN", name, f.Type)
+-	}
+-	if hasDynTag(f, elf.DT_TEXTREL) {
+-		t.Errorf("%s has DT_TEXTREL set", name)
+-	}
+-}
+-
+-func TestTrivialPIE(t *testing.T) {
+-	name := "trivial_pie"
+-	goCmd(t, "build", "-buildmode=pie", "-o="+name, "./trivial")
+-	defer os.Remove(name)
+-	run(t, name, "./"+name)
+-	checkPIE(t, name)
+-}
+-
+-func TestCgoPIE(t *testing.T) {
+-	name := "cgo_pie"
+-	goCmd(t, "build", "-buildmode=pie", "-o="+name, "./execgo")
+-	defer os.Remove(name)
+-	run(t, name, "./"+name)
+-	checkPIE(t, name)
+-}
+-
+-// Build a GOPATH package into a shared library that links against the goroot runtime
+-// and an executable that links against both.
+-func TestGopathShlib(t *testing.T) {
+-	goCmd(t, "install", "-buildmode=shared", "-linkshared", "./depBase")
+-	shlib := goCmd(t, "list", "-f", "{{.Shlib}}", "-buildmode=shared", "-linkshared", "./depBase")
+-	AssertIsLinkedTo(t, shlib, soname)
+-	goCmd(t, "install", "-linkshared", "./exe")
+-	AssertIsLinkedTo(t, "../../bin/exe", soname)
+-	AssertIsLinkedTo(t, "../../bin/exe", filepath.Base(shlib))
+-	AssertHasRPath(t, "../../bin/exe", gorootInstallDir)
+-	AssertHasRPath(t, "../../bin/exe", filepath.Dir(gopathInstallDir))
+-	// And check it runs.
+-	run(t, "executable linked to GOPATH library", "../../bin/exe")
+-}
+-
+-// The shared library contains a note listing the packages it contains in a section
+-// that is not mapped into memory.
+-func testPkgListNote(t *testing.T, f *elf.File, note *note) {
+-	if note.section.Flags != 0 {
+-		t.Errorf("package list section has flags %v, want 0", note.section.Flags)
+-	}
+-	if isOffsetLoaded(f, note.section.Offset) {
+-		t.Errorf("package list section contained in PT_LOAD segment")
+-	}
+-	if note.desc != "testshared/depBase\n" {
+-		t.Errorf("incorrect package list %q, want %q", note.desc, "testshared/depBase\n")
+-	}
+-}
+-
+-// The shared library contains a note containing the ABI hash that is mapped into
+-// memory and there is a local symbol called go.link.abihashbytes that points 16
+-// bytes into it.
+-func testABIHashNote(t *testing.T, f *elf.File, note *note) {
+-	if note.section.Flags != elf.SHF_ALLOC {
+-		t.Errorf("abi hash section has flags %v, want SHF_ALLOC", note.section.Flags)
+-	}
+-	if !isOffsetLoaded(f, note.section.Offset) {
+-		t.Errorf("abihash section not contained in PT_LOAD segment")
+-	}
+-	var hashbytes elf.Symbol
+-	symbols, err := f.Symbols()
+-	if err != nil {
+-		t.Errorf("error reading symbols %v", err)
+-		return
+-	}
+-	for _, sym := range symbols {
+-		if sym.Name == "go.link.abihashbytes" {
+-			hashbytes = sym
+-		}
+-	}
+-	if hashbytes.Name == "" {
+-		t.Errorf("no symbol called go.link.abihashbytes")
+-		return
+-	}
+-	if elf.ST_BIND(hashbytes.Info) != elf.STB_LOCAL {
+-		t.Errorf("%s has incorrect binding %v, want STB_LOCAL", hashbytes.Name, elf.ST_BIND(hashbytes.Info))
+-	}
+-	if f.Sections[hashbytes.Section] != note.section {
+-		t.Errorf("%s has incorrect section %v, want %s", hashbytes.Name, f.Sections[hashbytes.Section].Name, note.section.Name)
+-	}
+-	if hashbytes.Value-note.section.Addr != 16 {
+-		t.Errorf("%s has incorrect offset into section %d, want 16", hashbytes.Name, hashbytes.Value-note.section.Addr)
+-	}
+-}
+-
+-// A Go shared library contains a note indicating which other Go shared libraries it
+-// was linked against in an unmapped section.
+-func testDepsNote(t *testing.T, f *elf.File, note *note) {
+-	if note.section.Flags != 0 {
+-		t.Errorf("package list section has flags %v, want 0", note.section.Flags)
+-	}
+-	if isOffsetLoaded(f, note.section.Offset) {
+-		t.Errorf("package list section contained in PT_LOAD segment")
+-	}
+-	// libdepBase.so just links against the lib containing the runtime.
+-	if note.desc != soname {
+-		t.Errorf("incorrect dependency list %q, want %q", note.desc, soname)
+-	}
+-}
+-
+-// The shared library contains notes with defined contents; see above.
+-func TestNotes(t *testing.T) {
+-	goCmd(t, "install", "-buildmode=shared", "-linkshared", "./depBase")
+-	shlib := goCmd(t, "list", "-f", "{{.Shlib}}", "-buildmode=shared", "-linkshared", "./depBase")
+-	f, err := elf.Open(shlib)
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	defer f.Close()
+-	notes, err := readNotes(f)
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	pkgListNoteFound := false
+-	abiHashNoteFound := false
+-	depsNoteFound := false
+-	for _, note := range notes {
+-		if note.name != "Go\x00\x00" {
+-			continue
+-		}
+-		switch note.tag {
+-		case 1: // ELF_NOTE_GOPKGLIST_TAG
+-			if pkgListNoteFound {
+-				t.Error("multiple package list notes")
+-			}
+-			testPkgListNote(t, f, note)
+-			pkgListNoteFound = true
+-		case 2: // ELF_NOTE_GOABIHASH_TAG
+-			if abiHashNoteFound {
+-				t.Error("multiple abi hash notes")
+-			}
+-			testABIHashNote(t, f, note)
+-			abiHashNoteFound = true
+-		case 3: // ELF_NOTE_GODEPS_TAG
+-			if depsNoteFound {
+-				t.Error("multiple dependency list notes")
+-			}
+-			testDepsNote(t, f, note)
+-			depsNoteFound = true
+-		}
+-	}
+-	if !pkgListNoteFound {
+-		t.Error("package list note not found")
+-	}
+-	if !abiHashNoteFound {
+-		t.Error("abi hash note not found")
+-	}
+-	if !depsNoteFound {
+-		t.Error("deps note not found")
+-	}
+-}
+-
+-// Build a GOPATH package (depBase) into a shared library that links against the goroot
+-// runtime, another package (dep2) that links against the first, and an
+-// executable that links against dep2.
+-func TestTwoGopathShlibs(t *testing.T) {
+-	goCmd(t, "install", "-buildmode=shared", "-linkshared", "./depBase")
+-	goCmd(t, "install", "-buildmode=shared", "-linkshared", "./dep2")
+-	goCmd(t, "install", "-linkshared", "./exe2")
+-	run(t, "executable linked to GOPATH library", "../../bin/exe2")
+-}
+-
+-func TestThreeGopathShlibs(t *testing.T) {
+-	goCmd(t, "install", "-buildmode=shared", "-linkshared", "./depBase")
+-	goCmd(t, "install", "-buildmode=shared", "-linkshared", "./dep2")
+-	goCmd(t, "install", "-buildmode=shared", "-linkshared", "./dep3")
+-	goCmd(t, "install", "-linkshared", "./exe3")
+-	run(t, "executable linked to GOPATH library", "../../bin/exe3")
+-}
+-
+-// If gccgo is not available or not new enough, call t.Skip.
+-func requireGccgo(t *testing.T) {
+-	t.Helper()
+-
+-	gccgoName := os.Getenv("GCCGO")
+-	if gccgoName == "" {
+-		gccgoName = "gccgo"
+-	}
+-	gccgoPath, err := exec.LookPath(gccgoName)
+-	if err != nil {
+-		t.Skip("gccgo not found")
+-	}
+-	cmd := exec.Command(gccgoPath, "-dumpversion")
+-	output, err := cmd.CombinedOutput()
+-	if err != nil {
+-		t.Fatalf("%s -dumpversion failed: %v\n%s", gccgoPath, err, output)
+-	}
+-	if string(output) < "5" {
+-		t.Skipf("gccgo too old (%s)", strings.TrimSpace(string(output)))
+-	}
+-
+-	gomod, err := exec.Command("go", "env", "GOMOD").Output()
+-	if err != nil {
+-		t.Fatalf("go env GOMOD: %v", err)
+-	}
+-	if len(bytes.TrimSpace(gomod)) > 0 {
+-		t.Skipf("gccgo not supported in module mode; see golang.org/issue/30344")
+-	}
+-}
+-
+-// Build a GOPATH package into a shared library with gccgo and an executable that
+-// links against it.
+-func TestGoPathShlibGccgo(t *testing.T) {
+-	requireGccgo(t)
+-
+-	libgoRE := regexp.MustCompile("libgo.so.[0-9]+")
+-
+-	goCmd(t, "install", "-compiler=gccgo", "-buildmode=shared", "-linkshared", "./depBase")
+-
+-	// Run 'go list' after 'go install': with gccgo, we apparently don't know the
+-	// shlib location until after we've installed it.
+-	shlib := goCmd(t, "list", "-compiler=gccgo", "-buildmode=shared", "-linkshared", "-f", "{{.Shlib}}", "./depBase")
+-
+-	AssertIsLinkedToRegexp(t, shlib, libgoRE)
+-	goCmd(t, "install", "-compiler=gccgo", "-linkshared", "./exe")
+-	AssertIsLinkedToRegexp(t, "../../bin/exe", libgoRE)
+-	AssertIsLinkedTo(t, "../../bin/exe", filepath.Base(shlib))
+-	AssertHasRPath(t, "../../bin/exe", filepath.Dir(shlib))
+-	// And check it runs.
+-	run(t, "gccgo-built", "../../bin/exe")
+-}
+-
+-// The gccgo version of TestTwoGopathShlibs: build a GOPATH package into a shared
+-// library with gccgo, another GOPATH package that depends on the first and an
+-// executable that links the second library.
+-func TestTwoGopathShlibsGccgo(t *testing.T) {
+-	requireGccgo(t)
+-
+-	libgoRE := regexp.MustCompile("libgo.so.[0-9]+")
+-
+-	goCmd(t, "install", "-compiler=gccgo", "-buildmode=shared", "-linkshared", "./depBase")
+-	goCmd(t, "install", "-compiler=gccgo", "-buildmode=shared", "-linkshared", "./dep2")
+-	goCmd(t, "install", "-compiler=gccgo", "-linkshared", "./exe2")
+-
+-	// Run 'go list' after 'go install': with gccgo, we apparently don't know the
+-	// shlib location until after we've installed it.
+-	dep2 := goCmd(t, "list", "-compiler=gccgo", "-buildmode=shared", "-linkshared", "-f", "{{.Shlib}}", "./dep2")
+-	depBase := goCmd(t, "list", "-compiler=gccgo", "-buildmode=shared", "-linkshared", "-f", "{{.Shlib}}", "./depBase")
+-
+-	AssertIsLinkedToRegexp(t, depBase, libgoRE)
+-	AssertIsLinkedToRegexp(t, dep2, libgoRE)
+-	AssertIsLinkedTo(t, dep2, filepath.Base(depBase))
+-	AssertIsLinkedToRegexp(t, "../../bin/exe2", libgoRE)
+-	AssertIsLinkedTo(t, "../../bin/exe2", filepath.Base(dep2))
+-	AssertIsLinkedTo(t, "../../bin/exe2", filepath.Base(depBase))
+-
+-	// And check it runs.
+-	run(t, "gccgo-built", "../../bin/exe2")
+-}
+-
+-// Testing rebuilding of shared libraries when they are stale is a bit more
+-// complicated that it seems like it should be. First, we make everything "old": but
+-// only a few seconds old, or it might be older than gc (or the runtime source) and
+-// everything will get rebuilt. Then define a timestamp slightly newer than this
+-// time, which is what we set the mtime to of a file to cause it to be seen as new,
+-// and finally another slightly even newer one that we can compare files against to
+-// see if they have been rebuilt.
+-var oldTime = time.Now().Add(-9 * time.Second)
+-var nearlyNew = time.Now().Add(-6 * time.Second)
+-var stampTime = time.Now().Add(-3 * time.Second)
+-
+-// resetFileStamps makes "everything" (bin, src, pkg from GOPATH and the
+-// test-specific parts of GOROOT) appear old.
+-func resetFileStamps() {
+-	chtime := func(path string, info os.FileInfo, err error) error {
+-		return os.Chtimes(path, oldTime, oldTime)
+-	}
+-	reset := func(path string) {
+-		if err := filepath.Walk(path, chtime); err != nil {
+-			log.Panicf("resetFileStamps failed: %v", err)
+-		}
+-
+-	}
+-	reset("../../bin")
+-	reset("../../pkg")
+-	reset("../../src")
+-	reset(gorootInstallDir)
+-}
+-
+-// touch changes path and returns a function that changes it back.
+-// It also sets the time of the file, so that we can see if it is rewritten.
+-func touch(t *testing.T, path string) (cleanup func()) {
+-	t.Helper()
+-	data, err := os.ReadFile(path)
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	old := make([]byte, len(data))
+-	copy(old, data)
+-	if bytes.HasPrefix(data, []byte("!<arch>\n")) {
+-		// Change last digit of build ID.
+-		// (Content ID in the new content-based build IDs.)
+-		const marker = `build id "`
+-		i := bytes.Index(data, []byte(marker))
+-		if i < 0 {
+-			t.Fatal("cannot find build id in archive")
+-		}
+-		j := bytes.IndexByte(data[i+len(marker):], '"')
+-		if j < 0 {
+-			t.Fatal("cannot find build id in archive")
+-		}
+-		i += len(marker) + j - 1
+-		if data[i] == 'a' {
+-			data[i] = 'b'
+-		} else {
+-			data[i] = 'a'
+-		}
+-	} else {
+-		// assume it's a text file
+-		data = append(data, '\n')
+-	}
+-
+-	// If the file is still a symlink from an overlay, delete it so that we will
+-	// replace it with a regular file instead of overwriting the symlinked one.
+-	fi, err := os.Lstat(path)
+-	if err == nil && !fi.Mode().IsRegular() {
+-		fi, err = os.Stat(path)
+-		if err := os.Remove(path); err != nil {
+-			t.Fatal(err)
+-		}
+-	}
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-
+-	// If we're replacing a symlink to a read-only file, make the new file
+-	// user-writable.
+-	perm := fi.Mode().Perm() | 0200
+-
+-	if err := os.WriteFile(path, data, perm); err != nil {
+-		t.Fatal(err)
+-	}
+-	if err := os.Chtimes(path, nearlyNew, nearlyNew); err != nil {
+-		t.Fatal(err)
+-	}
+-	return func() {
+-		if err := os.WriteFile(path, old, perm); err != nil {
+-			t.Fatal(err)
+-		}
+-	}
+-}
+-
+-// isNew returns if the path is newer than the time stamp used by touch.
+-func isNew(t *testing.T, path string) bool {
+-	t.Helper()
+-	fi, err := os.Stat(path)
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	return fi.ModTime().After(stampTime)
+-}
+-
+-// Fail unless path has been rebuilt (i.e. is newer than the time stamp used by
+-// isNew)
+-func AssertRebuilt(t *testing.T, msg, path string) {
+-	t.Helper()
+-	if !isNew(t, path) {
+-		t.Errorf("%s was not rebuilt (%s)", msg, path)
+-	}
+-}
+-
+-// Fail if path has been rebuilt (i.e. is newer than the time stamp used by isNew)
+-func AssertNotRebuilt(t *testing.T, msg, path string) {
+-	t.Helper()
+-	if isNew(t, path) {
+-		t.Errorf("%s was rebuilt (%s)", msg, path)
+-	}
+-}
+-
+-func TestRebuilding(t *testing.T) {
+-	goCmd(t, "install", "-buildmode=shared", "-linkshared", "./depBase")
+-	goCmd(t, "install", "-linkshared", "./exe")
+-	info := strings.Fields(goCmd(t, "list", "-buildmode=shared", "-linkshared", "-f", "{{.Target}} {{.Shlib}}", "./depBase"))
+-	if len(info) != 2 {
+-		t.Fatalf("go list failed to report Target and/or Shlib")
+-	}
+-	target := info[0]
+-	shlib := info[1]
+-
+-	// If the source is newer than both the .a file and the .so, both are rebuilt.
+-	t.Run("newsource", func(t *testing.T) {
+-		resetFileStamps()
+-		cleanup := touch(t, "./depBase/dep.go")
+-		defer func() {
+-			cleanup()
+-			goCmd(t, "install", "-linkshared", "./exe")
+-		}()
+-		goCmd(t, "install", "-linkshared", "./exe")
+-		AssertRebuilt(t, "new source", target)
+-		AssertRebuilt(t, "new source", shlib)
+-	})
+-
+-	// If the .a file is newer than the .so, the .so is rebuilt (but not the .a)
+-	t.Run("newarchive", func(t *testing.T) {
+-		resetFileStamps()
+-		AssertNotRebuilt(t, "new .a file before build", target)
+-		goCmd(t, "list", "-linkshared", "-f={{.ImportPath}} {{.Stale}} {{.StaleReason}} {{.Target}}", "./depBase")
+-		AssertNotRebuilt(t, "new .a file before build", target)
+-		cleanup := touch(t, target)
+-		defer func() {
+-			cleanup()
+-			goCmd(t, "install", "-v", "-linkshared", "./exe")
+-		}()
+-		goCmd(t, "install", "-v", "-linkshared", "./exe")
+-		AssertNotRebuilt(t, "new .a file", target)
+-		AssertRebuilt(t, "new .a file", shlib)
+-	})
+-}
+-
+-func appendFile(t *testing.T, path, content string) {
+-	t.Helper()
+-	f, err := os.OpenFile(path, os.O_WRONLY|os.O_APPEND, 0660)
+-	if err != nil {
+-		t.Fatalf("os.OpenFile failed: %v", err)
+-	}
+-	defer func() {
+-		err := f.Close()
+-		if err != nil {
+-			t.Fatalf("f.Close failed: %v", err)
+-		}
+-	}()
+-	_, err = f.WriteString(content)
+-	if err != nil {
+-		t.Fatalf("f.WriteString failed: %v", err)
+-	}
+-}
+-
+-func createFile(t *testing.T, path, content string) {
+-	t.Helper()
+-	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0644)
+-	if err != nil {
+-		t.Fatalf("os.OpenFile failed: %v", err)
+-	}
+-	_, err = f.WriteString(content)
+-	if closeErr := f.Close(); err == nil {
+-		err = closeErr
+-	}
+-	if err != nil {
+-		t.Fatalf("WriteString failed: %v", err)
+-	}
+-}
+-
+-func TestABIChecking(t *testing.T) {
+-	goCmd(t, "install", "-buildmode=shared", "-linkshared", "./depBase")
+-	goCmd(t, "install", "-linkshared", "./exe")
+-
+-	// If we make an ABI-breaking change to depBase and rebuild libp.so but not exe,
+-	// exe will abort with a complaint on startup.
+-	// This assumes adding an exported function breaks ABI, which is not true in
+-	// some senses but suffices for the narrow definition of ABI compatibility the
+-	// toolchain uses today.
+-	resetFileStamps()
+-
+-	createFile(t, "./depBase/break.go", "package depBase\nfunc ABIBreak() {}\n")
+-	defer os.Remove("./depBase/break.go")
+-
+-	goCmd(t, "install", "-buildmode=shared", "-linkshared", "./depBase")
+-	c := exec.Command("../../bin/exe")
+-	output, err := c.CombinedOutput()
+-	if err == nil {
+-		t.Fatal("executing exe did not fail after ABI break")
+-	}
+-	scanner := bufio.NewScanner(bytes.NewReader(output))
+-	foundMsg := false
+-	const wantPrefix = "abi mismatch detected between the executable and lib"
+-	for scanner.Scan() {
+-		if strings.HasPrefix(scanner.Text(), wantPrefix) {
+-			foundMsg = true
+-			break
+-		}
+-	}
+-	if err = scanner.Err(); err != nil {
+-		t.Errorf("scanner encountered error: %v", err)
+-	}
+-	if !foundMsg {
+-		t.Fatalf("exe failed, but without line %q; got output:\n%s", wantPrefix, output)
+-	}
+-
+-	// Rebuilding exe makes it work again.
+-	goCmd(t, "install", "-linkshared", "./exe")
+-	run(t, "rebuilt exe", "../../bin/exe")
+-
+-	// If we make a change which does not break ABI (such as adding an unexported
+-	// function) and rebuild libdepBase.so, exe still works, even if new function
+-	// is in a file by itself.
+-	resetFileStamps()
+-	createFile(t, "./depBase/dep2.go", "package depBase\nfunc noABIBreak() {}\n")
+-	goCmd(t, "install", "-buildmode=shared", "-linkshared", "./depBase")
+-	run(t, "after non-ABI breaking change", "../../bin/exe")
+-}
+-
+-// If a package 'explicit' imports a package 'implicit', building
+-// 'explicit' into a shared library implicitly includes implicit in
+-// the shared library. Building an executable that imports both
+-// explicit and implicit builds the code from implicit into the
+-// executable rather than fetching it from the shared library. The
+-// link still succeeds and the executable still runs though.
+-func TestImplicitInclusion(t *testing.T) {
+-	goCmd(t, "install", "-buildmode=shared", "-linkshared", "./explicit")
+-	goCmd(t, "install", "-linkshared", "./implicitcmd")
+-	run(t, "running executable linked against library that contains same package as it", "../../bin/implicitcmd")
+-}
+-
+-// Tests to make sure that the type fields of empty interfaces and itab
+-// fields of nonempty interfaces are unique even across modules,
+-// so that interface equality works correctly.
+-func TestInterface(t *testing.T) {
+-	goCmd(t, "install", "-buildmode=shared", "-linkshared", "./iface_a")
+-	// Note: iface_i gets installed implicitly as a dependency of iface_a.
+-	goCmd(t, "install", "-buildmode=shared", "-linkshared", "./iface_b")
+-	goCmd(t, "install", "-linkshared", "./iface")
+-	run(t, "running type/itab uniqueness tester", "../../bin/iface")
+-}
+-
+-// Access a global variable from a library.
+-func TestGlobal(t *testing.T) {
+-	goCmd(t, "install", "-buildmode=shared", "-linkshared", "./globallib")
+-	goCmd(t, "install", "-linkshared", "./global")
+-	run(t, "global executable", "../../bin/global")
+-	AssertIsLinkedTo(t, "../../bin/global", soname)
+-	AssertHasRPath(t, "../../bin/global", gorootInstallDir)
+-}
+-
+-// Run a test using -linkshared of an installed shared package.
+-// Issue 26400.
+-func TestTestInstalledShared(t *testing.T) {
+-	goCmd(t, "test", "-linkshared", "-test.short", "sync/atomic")
+-}
+-
+-// Test generated pointer method with -linkshared.
+-// Issue 25065.
+-func TestGeneratedMethod(t *testing.T) {
+-	goCmd(t, "install", "-buildmode=shared", "-linkshared", "./issue25065")
+-}
+-
+-// Test use of shared library struct with generated hash function.
+-// Issue 30768.
+-func TestGeneratedHash(t *testing.T) {
+-	goCmd(t, "install", "-buildmode=shared", "-linkshared", "./issue30768/issue30768lib")
+-	goCmd(t, "test", "-linkshared", "./issue30768")
+-}
+-
+-// Test that packages can be added not in dependency order (here a depends on b, and a adds
+-// before b). This could happen with e.g. go build -buildmode=shared std. See issue 39777.
+-func TestPackageOrder(t *testing.T) {
+-	goCmd(t, "install", "-buildmode=shared", "-linkshared", "./issue39777/a", "./issue39777/b")
+-}
+-
+-// Test that GC data are generated correctly by the linker when it needs a type defined in
+-// a shared library. See issue 39927.
+-func TestGCData(t *testing.T) {
+-	goCmd(t, "install", "-buildmode=shared", "-linkshared", "./gcdata/p")
+-	goCmd(t, "build", "-linkshared", "./gcdata/main")
+-	runWithEnv(t, "running gcdata/main", []string{"GODEBUG=clobberfree=1"}, "./main")
+-}
+-
+-// Test that we don't decode type symbols from shared libraries (which has no data,
+-// causing panic). See issue 44031.
+-func TestIssue44031(t *testing.T) {
+-	goCmd(t, "install", "-buildmode=shared", "-linkshared", "./issue44031/a")
+-	goCmd(t, "install", "-buildmode=shared", "-linkshared", "./issue44031/b")
+-	goCmd(t, "run", "-linkshared", "./issue44031/main")
+-}
+-
+-// Test that we use a variable from shared libraries (which implement an
+-// interface in shared libraries.). A weak reference is used in the itab
+-// in main process. It can cause unreacheble panic. See issue 47873.
+-func TestIssue47873(t *testing.T) {
+-	goCmd(t, "install", "-buildmode=shared", "-linkshared", "./issue47837/a")
+-	goCmd(t, "run", "-linkshared", "./issue47837/main")
+-}
+diff --git a/misc/cgo/testshared/testdata/dep2/dep2.go b/misc/cgo/testshared/testdata/dep2/dep2.go
+deleted file mode 100644
+index 94f38cf507..0000000000
+--- a/misc/cgo/testshared/testdata/dep2/dep2.go
++++ /dev/null
+@@ -1,15 +0,0 @@
+-package dep2
+-
+-import "testshared/depBase"
+-
+-var W int = 1
+-
+-var hasProg depBase.HasProg
+-
+-type Dep2 struct {
+-	depBase.Dep
+-}
+-
+-func G() int {
+-	return depBase.F() + 1
+-}
+diff --git a/misc/cgo/testshared/testdata/dep3/dep3.go b/misc/cgo/testshared/testdata/dep3/dep3.go
+deleted file mode 100644
+index 6b02ad2ee5..0000000000
+--- a/misc/cgo/testshared/testdata/dep3/dep3.go
++++ /dev/null
+@@ -1,22 +0,0 @@
+-package dep3
+-
+-// The point of this test file is that it references a type from
+-// depBase that is also referenced in dep2, but dep2 is loaded by the
+-// linker before depBase (because it is earlier in the import list).
+-// There was a bug in the linker where it would not correctly read out
+-// the type data in this case and later crash.
+-
+-import (
+-	"testshared/dep2"
+-	"testshared/depBase"
+-)
+-
+-type Dep3 struct {
+-	dep  depBase.Dep
+-	dep2 dep2.Dep2
+-}
+-
+-func D3() int {
+-	var x Dep3
+-	return x.dep.X + x.dep2.X
+-}
+diff --git a/misc/cgo/testshared/testdata/depBase/asm.s b/misc/cgo/testshared/testdata/depBase/asm.s
+deleted file mode 100644
+index 0f1111f392..0000000000
+--- a/misc/cgo/testshared/testdata/depBase/asm.s
++++ /dev/null
+@@ -1,10 +0,0 @@
+-// Copyright 2014 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build gc
+-
+-#include "textflag.h"
+-
+-TEXT ·ImplementedInAsm(SB),NOSPLIT,$0-0
+-       RET
+diff --git a/misc/cgo/testshared/testdata/depBase/dep.go b/misc/cgo/testshared/testdata/depBase/dep.go
+deleted file mode 100644
+index e7cc7c81eb..0000000000
+--- a/misc/cgo/testshared/testdata/depBase/dep.go
++++ /dev/null
+@@ -1,37 +0,0 @@
+-// Copyright 2016 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package depBase
+-
+-import (
+-	"os"
+-	"reflect"
+-)
+-
+-var SlicePtr interface{} = &[]int{}
+-
+-var V int = 1
+-
+-var HasMask []string = []string{"hi"}
+-
+-type HasProg struct {
+-	array [1024]*byte
+-}
+-
+-type Dep struct {
+-	X int
+-}
+-
+-func (d *Dep) Method() int {
+-	// This code below causes various go.itab.* symbols to be generated in
+-	// the shared library. Similar code in ../exe/exe.go results in
+-	// exercising https://golang.org/issues/17594
+-	reflect.TypeOf(os.Stdout).Elem()
+-	return 10
+-}
+-
+-func F() int {
+-	defer func() {}()
+-	return V
+-}
+diff --git a/misc/cgo/testshared/testdata/depBase/gccgo.go b/misc/cgo/testshared/testdata/depBase/gccgo.go
+deleted file mode 100644
+index 2b02a1e83b..0000000000
+--- a/misc/cgo/testshared/testdata/depBase/gccgo.go
++++ /dev/null
+@@ -1,9 +0,0 @@
+-// Copyright 2016 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build gccgo
+-
+-package depBase
+-
+-func ImplementedInAsm() {}
+diff --git a/misc/cgo/testshared/testdata/depBase/stubs.go b/misc/cgo/testshared/testdata/depBase/stubs.go
+deleted file mode 100644
+index c77953803b..0000000000
+--- a/misc/cgo/testshared/testdata/depBase/stubs.go
++++ /dev/null
+@@ -1,9 +0,0 @@
+-// Copyright 2016 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build gc
+-
+-package depBase
+-
+-func ImplementedInAsm()
+diff --git a/misc/cgo/testshared/testdata/division/division.go b/misc/cgo/testshared/testdata/division/division.go
+deleted file mode 100644
+index bb5fc98460..0000000000
+--- a/misc/cgo/testshared/testdata/division/division.go
++++ /dev/null
+@@ -1,17 +0,0 @@
+-// Copyright 2017 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-//go:noinline
+-func div(x, y uint32) uint32 {
+-	return x / y
+-}
+-
+-func main() {
+-	a := div(97, 11)
+-	if a != 8 {
+-		panic("FAIL")
+-	}
+-}
+diff --git a/misc/cgo/testshared/testdata/exe/exe.go b/misc/cgo/testshared/testdata/exe/exe.go
+deleted file mode 100644
+index ee95f97bc9..0000000000
+--- a/misc/cgo/testshared/testdata/exe/exe.go
++++ /dev/null
+@@ -1,45 +0,0 @@
+-package main
+-
+-import (
+-	"os"
+-	"reflect"
+-	"runtime"
+-
+-	"testshared/depBase"
+-)
+-
+-// Having a function declared in the main package triggered
+-// golang.org/issue/18250
+-func DeclaredInMain() {
+-}
+-
+-type C struct {
+-}
+-
+-func F() *C {
+-	return nil
+-}
+-
+-var slicePtr interface{} = &[]int{}
+-
+-func main() {
+-	defer depBase.ImplementedInAsm()
+-	// This code below causes various go.itab.* symbols to be generated in
+-	// the executable. Similar code in ../depBase/dep.go results in
+-	// exercising https://golang.org/issues/17594
+-	reflect.TypeOf(os.Stdout).Elem()
+-	runtime.GC()
+-	depBase.V = depBase.F() + 1
+-
+-	var c *C
+-	if reflect.TypeOf(F).Out(0) != reflect.TypeOf(c) {
+-		panic("bad reflection results, see golang.org/issue/18252")
+-	}
+-
+-	sp := reflect.New(reflect.TypeOf(slicePtr).Elem())
+-	s := sp.Interface()
+-
+-	if reflect.TypeOf(s) != reflect.TypeOf(slicePtr) {
+-		panic("bad reflection results, see golang.org/issue/18729")
+-	}
+-}
+diff --git a/misc/cgo/testshared/testdata/exe2/exe2.go b/misc/cgo/testshared/testdata/exe2/exe2.go
+deleted file mode 100644
+index 433f331e36..0000000000
+--- a/misc/cgo/testshared/testdata/exe2/exe2.go
++++ /dev/null
+@@ -1,8 +0,0 @@
+-package main
+-
+-import "testshared/dep2"
+-
+-func main() {
+-	d := &dep2.Dep2{}
+-	dep2.W = dep2.G() + 1 + d.Method()
+-}
+diff --git a/misc/cgo/testshared/testdata/exe3/exe3.go b/misc/cgo/testshared/testdata/exe3/exe3.go
+deleted file mode 100644
+index 533e3a9e3d..0000000000
+--- a/misc/cgo/testshared/testdata/exe3/exe3.go
++++ /dev/null
+@@ -1,7 +0,0 @@
+-package main
+-
+-import "testshared/dep3"
+-
+-func main() {
+-	dep3.D3()
+-}
+diff --git a/misc/cgo/testshared/testdata/execgo/exe.go b/misc/cgo/testshared/testdata/execgo/exe.go
+deleted file mode 100644
+index 0427be8bdf..0000000000
+--- a/misc/cgo/testshared/testdata/execgo/exe.go
++++ /dev/null
+@@ -1,8 +0,0 @@
+-package main
+-
+-/*
+- */
+-import "C"
+-
+-func main() {
+-}
+diff --git a/misc/cgo/testshared/testdata/explicit/explicit.go b/misc/cgo/testshared/testdata/explicit/explicit.go
+deleted file mode 100644
+index af969fcb23..0000000000
+--- a/misc/cgo/testshared/testdata/explicit/explicit.go
++++ /dev/null
+@@ -1,9 +0,0 @@
+-package explicit
+-
+-import (
+-	"testshared/implicit"
+-)
+-
+-func E() int {
+-	return implicit.I()
+-}
+diff --git a/misc/cgo/testshared/testdata/gcdata/main/main.go b/misc/cgo/testshared/testdata/gcdata/main/main.go
+deleted file mode 100644
+index 394862fd94..0000000000
+--- a/misc/cgo/testshared/testdata/gcdata/main/main.go
++++ /dev/null
+@@ -1,37 +0,0 @@
+-// Copyright 2020 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Test that GC data is generated correctly for global
+-// variables with types defined in a shared library.
+-// See issue 39927.
+-
+-// This test run under GODEBUG=clobberfree=1. The check
+-// *x[i] == 12345 depends on this debug mode to clobber
+-// the value if the object is freed prematurely.
+-
+-package main
+-
+-import (
+-	"fmt"
+-	"runtime"
+-	"testshared/gcdata/p"
+-)
+-
+-var x p.T
+-
+-func main() {
+-	for i := range x {
+-		x[i] = new(int)
+-		*x[i] = 12345
+-	}
+-	runtime.GC()
+-	runtime.GC()
+-	runtime.GC()
+-	for i := range x {
+-		if *x[i] != 12345 {
+-			fmt.Printf("x[%d] == %d, want 12345\n", i, *x[i])
+-			panic("FAIL")
+-		}
+-	}
+-}
+diff --git a/misc/cgo/testshared/testdata/gcdata/p/p.go b/misc/cgo/testshared/testdata/gcdata/p/p.go
+deleted file mode 100644
+index 1fee75429e..0000000000
+--- a/misc/cgo/testshared/testdata/gcdata/p/p.go
++++ /dev/null
+@@ -1,7 +0,0 @@
+-// Copyright 2020 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-type T [10]*int
+diff --git a/misc/cgo/testshared/testdata/global/main.go b/misc/cgo/testshared/testdata/global/main.go
+deleted file mode 100644
+index f43e7c3fb3..0000000000
+--- a/misc/cgo/testshared/testdata/global/main.go
++++ /dev/null
+@@ -1,71 +0,0 @@
+-// Copyright 2017 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-import (
+-	"testshared/globallib"
+-)
+-
+-//go:noinline
+-func testLoop() {
+-	for i, s := range globallib.Data {
+-		if s != int64(i) {
+-			panic("testLoop: mismatch")
+-		}
+-	}
+-}
+-
+-//go:noinline
+-func ptrData() *[1<<20 + 10]int64 {
+-	return &globallib.Data
+-}
+-
+-//go:noinline
+-func testMediumOffset() {
+-	for i, s := range globallib.Data[1<<16-2:] {
+-		if s != int64(i)+1<<16-2 {
+-			panic("testMediumOffset: index mismatch")
+-		}
+-	}
+-
+-	x := globallib.Data[1<<16-1]
+-	if x != 1<<16-1 {
+-		panic("testMediumOffset: direct mismatch")
+-	}
+-
+-	y := &globallib.Data[1<<16-3]
+-	if y != &ptrData()[1<<16-3] {
+-		panic("testMediumOffset: address mismatch")
+-	}
+-}
+-
+-//go:noinline
+-func testLargeOffset() {
+-	for i, s := range globallib.Data[1<<20:] {
+-		if s != int64(i)+1<<20 {
+-			panic("testLargeOffset: index mismatch")
+-		}
+-	}
+-
+-	x := globallib.Data[1<<20+1]
+-	if x != 1<<20+1 {
+-		panic("testLargeOffset: direct mismatch")
+-	}
+-
+-	y := &globallib.Data[1<<20+2]
+-	if y != &ptrData()[1<<20+2] {
+-		panic("testLargeOffset: address mismatch")
+-	}
+-}
+-
+-func main() {
+-	testLoop()
+-
+-	// SSA rules commonly merge offsets into addresses. These
+-	// tests access global data in different ways to try
+-	// and exercise different SSA rules.
+-	testMediumOffset()
+-	testLargeOffset()
+-}
+diff --git a/misc/cgo/testshared/testdata/globallib/global.go b/misc/cgo/testshared/testdata/globallib/global.go
+deleted file mode 100644
+index b4372a2e9e..0000000000
+--- a/misc/cgo/testshared/testdata/globallib/global.go
++++ /dev/null
+@@ -1,17 +0,0 @@
+-// Copyright 2017 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package globallib
+-
+-// Data is large enough to that offsets into it do not fit into
+-// 16-bit or 20-bit immediates. Ideally we'd also try and overrun
+-// 32-bit immediates, but that requires the test machine to have
+-// too much memory.
+-var Data [1<<20 + 10]int64
+-
+-func init() {
+-	for i := range Data {
+-		Data[i] = int64(i)
+-	}
+-}
+diff --git a/misc/cgo/testshared/testdata/iface/main.go b/misc/cgo/testshared/testdata/iface/main.go
+deleted file mode 100644
+index d26ebbcc9c..0000000000
+--- a/misc/cgo/testshared/testdata/iface/main.go
++++ /dev/null
+@@ -1,17 +0,0 @@
+-// Copyright 2017 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-import "testshared/iface_a"
+-import "testshared/iface_b"
+-
+-func main() {
+-	if iface_a.F() != iface_b.F() {
+-		panic("empty interfaces not equal")
+-	}
+-	if iface_a.G() != iface_b.G() {
+-		panic("non-empty interfaces not equal")
+-	}
+-}
+diff --git a/misc/cgo/testshared/testdata/iface_a/a.go b/misc/cgo/testshared/testdata/iface_a/a.go
+deleted file mode 100644
+index e2cef1ecda..0000000000
+--- a/misc/cgo/testshared/testdata/iface_a/a.go
++++ /dev/null
+@@ -1,17 +0,0 @@
+-// Copyright 2017 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package iface_a
+-
+-import "testshared/iface_i"
+-
+-//go:noinline
+-func F() interface{} {
+-	return (*iface_i.T)(nil)
+-}
+-
+-//go:noinline
+-func G() iface_i.I {
+-	return (*iface_i.T)(nil)
+-}
+diff --git a/misc/cgo/testshared/testdata/iface_b/b.go b/misc/cgo/testshared/testdata/iface_b/b.go
+deleted file mode 100644
+index dd3e027b37..0000000000
+--- a/misc/cgo/testshared/testdata/iface_b/b.go
++++ /dev/null
+@@ -1,17 +0,0 @@
+-// Copyright 2017 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package iface_b
+-
+-import "testshared/iface_i"
+-
+-//go:noinline
+-func F() interface{} {
+-	return (*iface_i.T)(nil)
+-}
+-
+-//go:noinline
+-func G() iface_i.I {
+-	return (*iface_i.T)(nil)
+-}
+diff --git a/misc/cgo/testshared/testdata/iface_i/i.go b/misc/cgo/testshared/testdata/iface_i/i.go
+deleted file mode 100644
+index 31c80387c7..0000000000
+--- a/misc/cgo/testshared/testdata/iface_i/i.go
++++ /dev/null
+@@ -1,17 +0,0 @@
+-// Copyright 2017 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package iface_i
+-
+-type I interface {
+-	M()
+-}
+-
+-type T struct {
+-}
+-
+-func (t *T) M() {
+-}
+-
+-// *T implements I
+diff --git a/misc/cgo/testshared/testdata/implicit/implicit.go b/misc/cgo/testshared/testdata/implicit/implicit.go
+deleted file mode 100644
+index 5360188c56..0000000000
+--- a/misc/cgo/testshared/testdata/implicit/implicit.go
++++ /dev/null
+@@ -1,5 +0,0 @@
+-package implicit
+-
+-func I() int {
+-	return 42
+-}
+diff --git a/misc/cgo/testshared/testdata/implicitcmd/implicitcmd.go b/misc/cgo/testshared/testdata/implicitcmd/implicitcmd.go
+deleted file mode 100644
+index 4d4296738e..0000000000
+--- a/misc/cgo/testshared/testdata/implicitcmd/implicitcmd.go
++++ /dev/null
+@@ -1,10 +0,0 @@
+-package main
+-
+-import (
+-	"testshared/explicit"
+-	"testshared/implicit"
+-)
+-
+-func main() {
+-	println(implicit.I() + explicit.E())
+-}
+diff --git a/misc/cgo/testshared/testdata/issue25065/a.go b/misc/cgo/testshared/testdata/issue25065/a.go
+deleted file mode 100644
+index 979350ff24..0000000000
+--- a/misc/cgo/testshared/testdata/issue25065/a.go
++++ /dev/null
+@@ -1,20 +0,0 @@
+-// Copyright 2018 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Package issue25065 has a type with a method that is
+-//  1) referenced in a method expression
+-//  2) not called
+-//  3) not converted to an interface
+-//  4) is a value method but the reference is to the pointer method
+-// These cases avoid the call to makefuncsym from typecheckfunc, but we
+-// still need to call makefuncsym somehow or the symbol will not be defined.
+-package issue25065
+-
+-type T int
+-
+-func (t T) M() {}
+-
+-func F() func(*T) {
+-	return (*T).M
+-}
+diff --git a/misc/cgo/testshared/testdata/issue30768/issue30768lib/lib.go b/misc/cgo/testshared/testdata/issue30768/issue30768lib/lib.go
+deleted file mode 100644
+index 9e45ebe683..0000000000
+--- a/misc/cgo/testshared/testdata/issue30768/issue30768lib/lib.go
++++ /dev/null
+@@ -1,11 +0,0 @@
+-// Copyright 2019 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package issue30768lib
+-
+-// S is a struct that requires a generated hash function.
+-type S struct {
+-	A string
+-	B int
+-}
+diff --git a/misc/cgo/testshared/testdata/issue30768/x_test.go b/misc/cgo/testshared/testdata/issue30768/x_test.go
+deleted file mode 100644
+index 1bbd139d3e..0000000000
+--- a/misc/cgo/testshared/testdata/issue30768/x_test.go
++++ /dev/null
+@@ -1,22 +0,0 @@
+-// Copyright 2019 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package issue30768_test
+-
+-import (
+-	"testing"
+-
+-	"testshared/issue30768/issue30768lib"
+-)
+-
+-type s struct {
+-	s issue30768lib.S
+-}
+-
+-func Test30768(t *testing.T) {
+-	// Calling t.Log will convert S to an empty interface,
+-	// which will force a reference to the generated hash function,
+-	// defined in the shared library.
+-	t.Log(s{})
+-}
+diff --git a/misc/cgo/testshared/testdata/issue39777/a/a.go b/misc/cgo/testshared/testdata/issue39777/a/a.go
+deleted file mode 100644
+index c7bf835951..0000000000
+--- a/misc/cgo/testshared/testdata/issue39777/a/a.go
++++ /dev/null
+@@ -1,9 +0,0 @@
+-// Copyright 2020 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package a
+-
+-import "testshared/issue39777/b"
+-
+-func F() { b.F() }
+diff --git a/misc/cgo/testshared/testdata/issue39777/b/b.go b/misc/cgo/testshared/testdata/issue39777/b/b.go
+deleted file mode 100644
+index 4e681965e6..0000000000
+--- a/misc/cgo/testshared/testdata/issue39777/b/b.go
++++ /dev/null
+@@ -1,7 +0,0 @@
+-// Copyright 2020 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package b
+-
+-func F() {}
+diff --git a/misc/cgo/testshared/testdata/issue44031/a/a.go b/misc/cgo/testshared/testdata/issue44031/a/a.go
+deleted file mode 100644
+index 48827e682f..0000000000
+--- a/misc/cgo/testshared/testdata/issue44031/a/a.go
++++ /dev/null
+@@ -1,9 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package a
+-
+-type ATypeWithALoooooongName interface { // a long name, so the type descriptor symbol name is mangled
+-	M()
+-}
+diff --git a/misc/cgo/testshared/testdata/issue44031/b/b.go b/misc/cgo/testshared/testdata/issue44031/b/b.go
+deleted file mode 100644
+index ad3ebec2b9..0000000000
+--- a/misc/cgo/testshared/testdata/issue44031/b/b.go
++++ /dev/null
+@@ -1,17 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package b
+-
+-import "testshared/issue44031/a"
+-
+-type T int
+-
+-func (T) M() {}
+-
+-var i = a.ATypeWithALoooooongName(T(0))
+-
+-func F() {
+-	i.M()
+-}
+diff --git a/misc/cgo/testshared/testdata/issue44031/main/main.go b/misc/cgo/testshared/testdata/issue44031/main/main.go
+deleted file mode 100644
+index 47f2e3a98e..0000000000
+--- a/misc/cgo/testshared/testdata/issue44031/main/main.go
++++ /dev/null
+@@ -1,20 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-import "testshared/issue44031/b"
+-
+-type t int
+-
+-func (t) m() {}
+-
+-type i interface{ m() } // test that unexported method is correctly marked
+-
+-var v interface{} = t(0)
+-
+-func main() {
+-	b.F()
+-	v.(i).m()
+-}
+diff --git a/misc/cgo/testshared/testdata/issue47837/a/a.go b/misc/cgo/testshared/testdata/issue47837/a/a.go
+deleted file mode 100644
+index 68588eda2f..0000000000
+--- a/misc/cgo/testshared/testdata/issue47837/a/a.go
++++ /dev/null
+@@ -1,19 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package a
+-
+-type A interface {
+-	M()
+-}
+-
+-//go:noinline
+-func TheFuncWithArgA(a A) {
+-	a.M()
+-}
+-
+-type ImplA struct{}
+-
+-//go:noinline
+-func (A *ImplA) M() {}
+diff --git a/misc/cgo/testshared/testdata/issue47837/main/main.go b/misc/cgo/testshared/testdata/issue47837/main/main.go
+deleted file mode 100644
+index 77c6f34379..0000000000
+--- a/misc/cgo/testshared/testdata/issue47837/main/main.go
++++ /dev/null
+@@ -1,14 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-import (
+-	"testshared/issue47837/a"
+-)
+-
+-func main() {
+-	var vara a.ImplA
+-	a.TheFuncWithArgA(&vara)
+-}
+diff --git a/misc/cgo/testshared/testdata/trivial/trivial.go b/misc/cgo/testshared/testdata/trivial/trivial.go
+deleted file mode 100644
+index 6ade47ce36..0000000000
+--- a/misc/cgo/testshared/testdata/trivial/trivial.go
++++ /dev/null
+@@ -1,9 +0,0 @@
+-package main
+-
+-func main() {
+-	// This is enough to make sure that the executable references
+-	// a type descriptor, which was the cause of
+-	// https://golang.org/issue/25970.
+-	c := make(chan int)
+-	_ = c
+-}
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 5935011e19..87238cc74f 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -762,9 +762,6 @@ func (t *tester) registerTests() {
+ 		if t.supportedBuildmode("c-shared") {
+ 			t.registerHostTest("testcshared", "../misc/cgo/testcshared", "misc/cgo/testcshared", ".")
+ 		}
+-		if t.supportedBuildmode("shared") {
+-			t.registerTest("testshared", "../misc/cgo/testshared", t.goTest(), t.timeout(600), ".")
+-		}
+ 		if t.supportedBuildmode("plugin") {
+ 			t.registerTest("testplugin", "../misc/cgo/testplugin", t.goTest(), t.timeout(600), ".")
+ 		}
+@@ -1047,12 +1044,6 @@ func (t *tester) supportedBuildmode(mode string) bool {
+ 			return true
+ 		}
+ 		return false
+-	case "shared":
+-		switch pair {
+-		case "linux-386", "linux-amd64", "linux-arm", "linux-arm64", "linux-ppc64le", "linux-s390x":
+-			return true
+-		}
+-		return false
+ 	case "plugin":
+ 		// linux-arm64 is missing because it causes the external linker
+ 		// to crash, see https://golang.org/issue/17138
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 9d8c321307..685ccac826 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -162,9 +162,6 @@
+ // 		flags has a similar effect.
+ // 	-ldflags '[pattern=]arg list'
+ // 		arguments to pass on each go tool link invocation.
+-// 	-linkshared
+-// 		build code that will be linked against shared libraries previously
+-// 		created with -buildmode=shared.
+ // 	-mod mode
+ // 		module download mode to use: readonly, vendor, or mod.
+ // 		By default, if a vendor directory is present and the go version in go.mod
+@@ -778,7 +775,6 @@
+ //         Name          string   // package name
+ //         Doc           string   // package documentation string
+ //         Target        string   // install path
+-//         Shlib         string   // the shared library that contains this package (only set when -linkshared)
+ //         Goroot        bool     // is this package in the Go root?
+ //         Standard      bool     // is this package part of the standard Go library?
+ //         Stale         bool     // would 'go install' do anything for this package?
+@@ -1799,11 +1795,6 @@
+ // 		non-main packages are built into .a files (the default
+ // 		behavior).
+ //
+-// 	-buildmode=shared
+-// 		Combine all the listed non-main packages into a single shared
+-// 		library that will be used when building with the -linkshared
+-// 		option. Packages named main are ignored.
+-//
+ // 	-buildmode=exe
+ // 		Build the listed main packages and everything they import into
+ // 		executables. Packages not named main are ignored.
+diff --git a/src/cmd/go/internal/help/helpdoc.go b/src/cmd/go/internal/help/helpdoc.go
+index 035235fe1b..2bb3584eba 100644
+--- a/src/cmd/go/internal/help/helpdoc.go
++++ b/src/cmd/go/internal/help/helpdoc.go
+@@ -726,11 +726,6 @@ are:
+ 		non-main packages are built into .a files (the default
+ 		behavior).
+ 
+-	-buildmode=shared
+-		Combine all the listed non-main packages into a single shared
+-		library that will be used when building with the -linkshared
+-		option. Packages named main are ignored.
+-
+ 	-buildmode=exe
+ 		Build the listed main packages and everything they import into
+ 		executables. Packages not named main are ignored.
+diff --git a/src/cmd/go/internal/list/list.go b/src/cmd/go/internal/list/list.go
+index 8c85ddcf21..f23fbe5fea 100644
+--- a/src/cmd/go/internal/list/list.go
++++ b/src/cmd/go/internal/list/list.go
+@@ -23,8 +23,8 @@ import (
+ 	"cmd/go/internal/load"
+ 	"cmd/go/internal/modinfo"
+ 	"cmd/go/internal/modload"
+-	"cmd/go/internal/work"
+ 	"cmd/go/internal/str"
++	"cmd/go/internal/work"
+ )
+ 
+ var CmdList = &base.Command{
+@@ -56,7 +56,6 @@ to -f '{{.ImportPath}}'. The struct being passed to the template is:
+         Name          string   // package name
+         Doc           string   // package documentation string
+         Target        string   // install path
+-        Shlib         string   // the shared library that contains this package (only set when -linkshared)
+         Goroot        bool     // is this package in the Go root?
+         Standard      bool     // is this package part of the standard Go library?
+         Stale         bool     // would 'go install' do anything for this package?
+diff --git a/src/cmd/go/internal/work/build.go b/src/cmd/go/internal/work/build.go
+index 9d0ad27f0d..e39ffcbd50 100644
+--- a/src/cmd/go/internal/work/build.go
++++ b/src/cmd/go/internal/work/build.go
+@@ -116,9 +116,6 @@ and test commands:
+ 		flags has a similar effect.
+ 	-ldflags '[pattern=]arg list'
+ 		arguments to pass on each go tool link invocation.
+-	-linkshared
+-		build code that will be linked against shared libraries previously
+-		created with -buildmode=shared.
+ 	-mod mode
+ 		module download mode to use: readonly, vendor, or mod.
+ 		By default, if a vendor directory is present and the go version in go.mod
+diff --git a/src/cmd/go/internal/work/init.go b/src/cmd/go/internal/work/init.go
+index 4dbbd2a13f..b2ee00d53c 100644
+--- a/src/cmd/go/internal/work/init.go
++++ b/src/cmd/go/internal/work/init.go
+@@ -246,16 +246,20 @@ func buildModeInit() {
+ 		}
+ 		ldBuildmode = "pie"
+ 	case "shared":
+-		pkgsFilter = pkgsNotMain
+-		if gccgo {
+-			codegenArg = "-fPIC"
+-		} else {
+-			codegenArg = "-dynlink"
+-		}
+-		if cfg.BuildO != "" {
+-			base.Fatalf("-buildmode=shared and -o not supported together")
++		if cfg.Goos == "linux" {
++			switch cfg.Goarch {
++			case "386", "amd64", "arm", "arm64", "ppc64le", "s390x":
++				// -buildmode=shared was supported on these platforms at one point, but
++				// never really worked in module mode.
++				// Support was officially dropped as of Go 1.18.
++				// (See https://golang.org/issue/47788.)
++				base.Fatalf("-buildmode=shared no longer supported as of Go 1.18")
++
++				// TODO(#47788): Remove supporting code for -buildmode=shared.
++				// (For the Go 1.18 release, we will keep most of the code around but
++				// disabled to avoid merge conflicts in case we need to revert quickly.)
++			}
+ 		}
+-		ldBuildmode = "shared"
+ 	case "plugin":
+ 		pkgsFilter = oneMainPkg
+ 		if gccgo {
+@@ -274,6 +278,15 @@ func buildModeInit() {
+ 	}
+ 
+ 	if cfg.BuildLinkshared {
++		if cfg.Goos == "linux" {
++			switch cfg.Goarch {
++			case "386", "amd64", "arm", "arm64", "ppc64le", "s390x":
++				base.Fatalf("-linkshared no longer supported as of Go 1.18")
++				// TODO(#47788): Remove supporting code for linkshared.
++				// (For the Go 1.18 release, we will keep most of the code around but
++				// disabled to avoid merge conflicts in case we need to revert quickly.)
++			}
++		}
+ 		if !sys.BuildModeSupported(cfg.BuildToolchainName, "shared", cfg.Goos, cfg.Goarch) {
+ 			base.Fatalf("-linkshared not supported on %s/%s\n", cfg.Goos, cfg.Goarch)
+ 		}
+diff --git a/src/cmd/go/testdata/script/list_linkshared.txt b/src/cmd/go/testdata/script/list_linkshared.txt
+deleted file mode 100644
+index baae1e2be8..0000000000
+--- a/src/cmd/go/testdata/script/list_linkshared.txt
++++ /dev/null
+@@ -1,16 +0,0 @@
+-env GO111MODULE=on
+-
+-# golang.org/issue/35759: 'go list -linkshared'
+-# panicked if invoked on a test-only package.
+-
+-[!buildmode:shared] skip
+-
+-go list -f '{{.ImportPath}}: {{.Target}} {{.Shlib}}' -linkshared .
+-stdout '^example.com:  $'
+-
+--- go.mod --
+-module example.com
+-
+-go 1.14
+--- x.go --
+-package x
+diff --git a/src/cmd/internal/sys/supported.go b/src/cmd/internal/sys/supported.go
+index e6c56fbc56..473e390587 100644
+--- a/src/cmd/internal/sys/supported.go
++++ b/src/cmd/internal/sys/supported.go
+@@ -109,13 +109,6 @@ func BuildModeSupported(compiler, buildmode, goos, goarch string) bool {
+ 		}
+ 		return false
+ 
+-	case "shared":
+-		switch platform {
+-		case "linux/386", "linux/amd64", "linux/arm", "linux/arm64", "linux/ppc64le", "linux/s390x":
+-			return true
+-		}
+-		return false
+-
+ 	case "plugin":
+ 		switch platform {
+ 		case "linux/amd64", "linux/arm", "linux/arm64", "linux/386", "linux/s390x", "linux/ppc64le",

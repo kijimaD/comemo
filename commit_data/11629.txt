@@ -7,7 +7,7 @@ Date:   Mon Feb 6 09:26:32 2012 +1100
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/5624056
-
+---
  misc/dashboard/app/app.yaml         |  2 +-
  misc/dashboard/app/build/build.go   | 45 ++++++++++++++++++-----------------
  misc/dashboard/app/build/handler.go | 47 +++++++++++++++++++------------------
@@ -18,3 +18,596 @@ Date:   Mon Feb 6 09:26:32 2012 +1100
  misc/dashboard/app/build/ui.go      | 18 +++++++-------
  misc/dashboard/app/cache/cache.go   |  4 ++--
  9 files changed, 78 insertions(+), 77 deletions(-)
+
+diff --git a/misc/dashboard/app/app.yaml b/misc/dashboard/app/app.yaml
+index 685ca6e3d6..6e19db09c6 100644
+--- a/misc/dashboard/app/app.yaml
++++ b/misc/dashboard/app/app.yaml
+@@ -6,7 +6,7 @@
+ application: golang-org
+ version: build
+ runtime: go
+-api_version: 3
++api_version: go1beta
+ 
+ handlers:
+ - url: /static
+diff --git a/misc/dashboard/app/build/build.go b/misc/dashboard/app/build/build.go
+index 7b73a25215..c49fa8bb2a 100644
+--- a/misc/dashboard/app/build/build.go
++++ b/misc/dashboard/app/build/build.go
+@@ -8,11 +8,12 @@ import (
+ 	"bytes"
+ 	"compress/gzip"
+ 	"crypto/sha1"
++	"errors"
+ 	"fmt"
+ 	"io"
+ 	"io/ioutil"
+-	"os"
+ 	"strings"
++	"time"
+ 
+ 	"appengine"
+ 	"appengine/datastore"
+@@ -41,7 +42,7 @@ func (p *Package) Key(c appengine.Context) *datastore.Key {
+ }
+ 
+ // LastCommit returns the most recent Commit for this Package.
+-func (p *Package) LastCommit(c appengine.Context) (*Commit, os.Error) {
++func (p *Package) LastCommit(c appengine.Context) (*Commit, error) {
+ 	var commits []*Commit
+ 	_, err := datastore.NewQuery("Commit").
+ 		Ancestor(p.Key(c)).
+@@ -58,7 +59,7 @@ func (p *Package) LastCommit(c appengine.Context) (*Commit, os.Error) {
+ }
+ 
+ // GetPackage fetches a Package by path from the datastore.
+-func GetPackage(c appengine.Context, path string) (*Package, os.Error) {
++func GetPackage(c appengine.Context, path string) (*Package, error) {
+ 	p := &Package{Path: path}
+ 	err := datastore.Get(c, p.Key(c), p)
+ 	if err == datastore.ErrNoSuchEntity {
+@@ -80,7 +81,7 @@ type Commit struct {
+ 
+ 	User string
+ 	Desc string `datastore:",noindex"`
+-	Time datastore.Time
++	Time time.Time
+ 
+ 	// ResultData is the Data string of each build Result for this Commit.
+ 	// For non-Go commits, only the Results for the current Go tip, weekly,
+@@ -100,19 +101,19 @@ func (com *Commit) Key(c appengine.Context) *datastore.Key {
+ 	return datastore.NewKey(c, "Commit", key, 0, p.Key(c))
+ }
+ 
+-func (c *Commit) Valid() os.Error {
++func (c *Commit) Valid() error {
+ 	if !validHash(c.Hash) {
+-		return os.NewError("invalid Hash")
++		return errors.New("invalid Hash")
+ 	}
+ 	if c.ParentHash != "" && !validHash(c.ParentHash) { // empty is OK
+-		return os.NewError("invalid ParentHash")
++		return errors.New("invalid ParentHash")
+ 	}
+ 	return nil
+ }
+ 
+ // AddResult adds the denormalized Reuslt data to the Commit's Result field.
+ // It must be called from inside a datastore transaction.
+-func (com *Commit) AddResult(c appengine.Context, r *Result) os.Error {
++func (com *Commit) AddResult(c appengine.Context, r *Result) error {
+ 	if err := datastore.Get(c, com.Key(c), com); err != nil {
+ 		return fmt.Errorf("getting Commit: %v", err)
+ 	}
+@@ -192,12 +193,12 @@ func (r *Result) Key(c appengine.Context) *datastore.Key {
+ 	return datastore.NewKey(c, "Result", key, 0, p.Key(c))
+ }
+ 
+-func (r *Result) Valid() os.Error {
++func (r *Result) Valid() error {
+ 	if !validHash(r.Hash) {
+-		return os.NewError("invalid Hash")
++		return errors.New("invalid Hash")
+ 	}
+ 	if r.PackagePath != "" && !validHash(r.GoHash) {
+-		return os.NewError("invalid GoHash")
++		return errors.New("invalid GoHash")
+ 	}
+ 	return nil
+ }
+@@ -214,7 +215,7 @@ type Log struct {
+ 	CompressedLog []byte
+ }
+ 
+-func (l *Log) Text() ([]byte, os.Error) {
++func (l *Log) Text() ([]byte, error) {
+ 	d, err := gzip.NewReader(bytes.NewBuffer(l.CompressedLog))
+ 	if err != nil {
+ 		return nil, fmt.Errorf("reading log data: %v", err)
+@@ -226,14 +227,14 @@ func (l *Log) Text() ([]byte, os.Error) {
+ 	return b, nil
+ }
+ 
+-func PutLog(c appengine.Context, text string) (hash string, err os.Error) {
++func PutLog(c appengine.Context, text string) (hash string, err error) {
+ 	h := sha1.New()
+ 	io.WriteString(h, text)
+ 	b := new(bytes.Buffer)
+ 	z, _ := gzip.NewWriterLevel(b, gzip.BestCompression)
+ 	io.WriteString(z, text)
+ 	z.Close()
+-	hash = fmt.Sprintf("%x", h.Sum())
++	hash = fmt.Sprintf("%x", h.Sum(nil))
+ 	key := datastore.NewKey(c, "Log", hash, 0, nil)
+ 	_, err = datastore.Put(c, key, &Log{b.Bytes()})
+ 	return
+@@ -252,29 +253,29 @@ func (t *Tag) Key(c appengine.Context) *datastore.Key {
+ 	return datastore.NewKey(c, "Tag", t.Kind, 0, p.Key(c))
+ }
+ 
+-func (t *Tag) Valid() os.Error {
++func (t *Tag) Valid() error {
+ 	if t.Kind != "weekly" && t.Kind != "release" && t.Kind != "tip" {
+-		return os.NewError("invalid Kind")
++		return errors.New("invalid Kind")
+ 	}
+ 	if !validHash(t.Hash) {
+-		return os.NewError("invalid Hash")
++		return errors.New("invalid Hash")
+ 	}
+ 	return nil
+ }
+ 
+ // Commit returns the Commit that corresponds with this Tag.
+-func (t *Tag) Commit(c appengine.Context) (*Commit, os.Error) {
++func (t *Tag) Commit(c appengine.Context) (*Commit, error) {
+ 	com := &Commit{Hash: t.Hash}
+ 	err := datastore.Get(c, com.Key(c), com)
+ 	return com, err
+ }
+ 
+ // GetTag fetches a Tag by name from the datastore.
+-func GetTag(c appengine.Context, tag string) (*Tag, os.Error) {
++func GetTag(c appengine.Context, tag string) (*Tag, error) {
+ 	t := &Tag{Kind: tag}
+ 	if err := datastore.Get(c, t.Key(c), t); err != nil {
+ 		if err == datastore.ErrNoSuchEntity {
+-			return nil, os.NewError("tag not found: " + tag)
++			return nil, errors.New("tag not found: " + tag)
+ 		}
+ 		return nil, err
+ 	}
+@@ -286,11 +287,11 @@ func GetTag(c appengine.Context, tag string) (*Tag, os.Error) {
+ 
+ // Packages returns packages of the specified kind.
+ // Kind must be one of "external" or "subrepo".
+-func Packages(c appengine.Context, kind string) ([]*Package, os.Error) {
++func Packages(c appengine.Context, kind string) ([]*Package, error) {
+ 	switch kind {
+ 	case "external", "subrepo":
+ 	default:
+-		return nil, os.NewError(`kind must be one of "external" or "subrepo"`)
++		return nil, errors.New(`kind must be one of "external" or "subrepo"`)
+ 	}
+ 	var pkgs []*Package
+ 	q := datastore.NewQuery("Package").Filter("Kind=", kind)
+diff --git a/misc/dashboard/app/build/handler.go b/misc/dashboard/app/build/handler.go
+index c74c54a98f..5d1e3094cf 100644
+--- a/misc/dashboard/app/build/handler.go
++++ b/misc/dashboard/app/build/handler.go
+@@ -6,10 +6,11 @@ package build
+ 
+ import (
+ 	"crypto/hmac"
++	"crypto/md5"
++	"encoding/json"
++	"errors"
+ 	"fmt"
+-	"http"
+-	"json"
+-	"os"
++	"net/http"
+ 
+ 	"appengine"
+ 	"appengine/datastore"
+@@ -28,7 +29,7 @@ const commitsPerPage = 30
+ // each new commit at tip.
+ //
+ // This handler is used by a gobuilder process in -commit mode.
+-func commitHandler(r *http.Request) (interface{}, os.Error) {
++func commitHandler(r *http.Request) (interface{}, error) {
+ 	c := appengine.NewContext(r)
+ 	com := new(Commit)
+ 
+@@ -56,7 +57,7 @@ func commitHandler(r *http.Request) (interface{}, os.Error) {
+ 		return nil, fmt.Errorf("validating Commit: %v", err)
+ 	}
+ 	defer cache.Tick(c)
+-	tx := func(c appengine.Context) os.Error {
++	tx := func(c appengine.Context) error {
+ 		return addCommit(c, com)
+ 	}
+ 	return nil, datastore.RunInTransaction(c, tx, nil)
+@@ -64,7 +65,7 @@ func commitHandler(r *http.Request) (interface{}, os.Error) {
+ 
+ // addCommit adds the Commit entity to the datastore and updates the tip Tag.
+ // It must be run inside a datastore transaction.
+-func addCommit(c appengine.Context, com *Commit) os.Error {
++func addCommit(c appengine.Context, com *Commit) error {
+ 	var tc Commit // temp value so we don't clobber com
+ 	err := datastore.Get(c, com.Key(c), &tc)
+ 	if err != datastore.ErrNoSuchEntity {
+@@ -94,7 +95,7 @@ func addCommit(c appengine.Context, com *Commit) os.Error {
+ 			return fmt.Errorf("testing for parent Commit: %v", err)
+ 		}
+ 		if n == 0 {
+-			return os.NewError("parent commit not found")
++			return errors.New("parent commit not found")
+ 		}
+ 	}
+ 	// update the tip Tag if this is the Go repo
+@@ -115,7 +116,7 @@ func addCommit(c appengine.Context, com *Commit) os.Error {
+ // request body and updates the Tag entity for the Kind of tag provided.
+ //
+ // This handler is used by a gobuilder process in -commit mode.
+-func tagHandler(r *http.Request) (interface{}, os.Error) {
++func tagHandler(r *http.Request) (interface{}, error) {
+ 	if r.Method != "POST" {
+ 		return nil, errBadMethod(r.Method)
+ 	}
+@@ -143,7 +144,7 @@ type Todo struct {
+ // todoHandler returns the next action to be performed by a builder.
+ // It expects "builder" and "kind" query parameters and returns a *Todo value.
+ // Multiple "kind" parameters may be specified.
+-func todoHandler(r *http.Request) (interface{}, os.Error) {
++func todoHandler(r *http.Request) (interface{}, error) {
+ 	c := appengine.NewContext(r)
+ 	now := cache.Now(c)
+ 	key := "build-todo-" + r.Form.Encode()
+@@ -151,7 +152,7 @@ func todoHandler(r *http.Request) (interface{}, os.Error) {
+ 	if cache.Get(r, now, key, &todo) {
+ 		return todo, nil
+ 	}
+-	var err os.Error
++	var err error
+ 	builder := r.FormValue("builder")
+ 	for _, kind := range r.Form["kind"] {
+ 		var data interface{}
+@@ -183,7 +184,7 @@ func todoHandler(r *http.Request) (interface{}, os.Error) {
+ // If provided with non-empty packagePath and goHash args, it scans the first
+ // 20 Commits in Num-descending order for the specified packagePath and
+ // returns the first that doesn't have a Result for this builder and goHash.
+-func buildTodo(c appengine.Context, builder, packagePath, goHash string) (interface{}, os.Error) {
++func buildTodo(c appengine.Context, builder, packagePath, goHash string) (interface{}, error) {
+ 	p, err := GetPackage(c, packagePath)
+ 	if err != nil {
+ 		return nil, err
+@@ -251,7 +252,7 @@ func buildTodo(c appengine.Context, builder, packagePath, goHash string) (interf
+ 
+ // packagesHandler returns a list of the non-Go Packages monitored
+ // by the dashboard.
+-func packagesHandler(r *http.Request) (interface{}, os.Error) {
++func packagesHandler(r *http.Request) (interface{}, error) {
+ 	kind := r.FormValue("kind")
+ 	c := appengine.NewContext(r)
+ 	now := cache.Now(c)
+@@ -273,7 +274,7 @@ func packagesHandler(r *http.Request) (interface{}, os.Error) {
+ // creates a new Result entity, and updates the relevant Commit entity.
+ // If the Log field is not empty, resultHandler creates a new Log entity
+ // and updates the LogHash field before putting the Commit entity.
+-func resultHandler(r *http.Request) (interface{}, os.Error) {
++func resultHandler(r *http.Request) (interface{}, error) {
+ 	if r.Method != "POST" {
+ 		return nil, errBadMethod(r.Method)
+ 	}
+@@ -296,7 +297,7 @@ func resultHandler(r *http.Request) (interface{}, os.Error) {
+ 		}
+ 		res.LogHash = hash
+ 	}
+-	tx := func(c appengine.Context) os.Error {
++	tx := func(c appengine.Context) error {
+ 		// check Package exists
+ 		if _, err := GetPackage(c, res.PackagePath); err != nil {
+ 			return fmt.Errorf("GetPackage: %v", err)
+@@ -338,7 +339,7 @@ func logHandler(w http.ResponseWriter, r *http.Request) {
+ 	w.Write(b)
+ }
+ 
+-type dashHandler func(*http.Request) (interface{}, os.Error)
++type dashHandler func(*http.Request) (interface{}, error)
+ 
+ type dashResponse struct {
+ 	Response interface{}
+@@ -349,7 +350,7 @@ type dashResponse struct {
+ // the request has an unsuitable method.
+ type errBadMethod string
+ 
+-func (e errBadMethod) String() string {
++func (e errBadMethod) Error() string {
+ 	return "bad method: " + string(e)
+ }
+ 
+@@ -363,14 +364,14 @@ func AuthHandler(h dashHandler) http.HandlerFunc {
+ 		// request body when calling r.FormValue.
+ 		r.Form = r.URL.Query()
+ 
+-		var err os.Error
++		var err error
+ 		var resp interface{}
+ 
+ 		// Validate key query parameter for POST requests only.
+ 		key := r.FormValue("key")
+ 		builder := r.FormValue("builder")
+ 		if r.Method == "POST" && !validKey(c, key, builder) {
+-			err = os.NewError("invalid key: " + key)
++			err = errors.New("invalid key: " + key)
+ 		}
+ 
+ 		// Call the original HandlerFunc and return the response.
+@@ -382,7 +383,7 @@ func AuthHandler(h dashHandler) http.HandlerFunc {
+ 		dashResp := &dashResponse{Response: resp}
+ 		if err != nil {
+ 			c.Errorf("%v", err)
+-			dashResp.Error = err.String()
++			dashResp.Error = err.Error()
+ 		}
+ 		w.Header().Set("Content-Type", "application/json")
+ 		if err = json.NewEncoder(w).Encode(dashResp); err != nil {
+@@ -394,7 +395,7 @@ func AuthHandler(h dashHandler) http.HandlerFunc {
+ func keyHandler(w http.ResponseWriter, r *http.Request) {
+ 	builder := r.FormValue("builder")
+ 	if builder == "" {
+-		logErr(w, r, os.NewError("must supply builder in query string"))
++		logErr(w, r, errors.New("must supply builder in query string"))
+ 		return
+ 	}
+ 	c := appengine.NewContext(r)
+@@ -433,12 +434,12 @@ func validKey(c appengine.Context, key, builder string) bool {
+ }
+ 
+ func builderKey(c appengine.Context, builder string) string {
+-	h := hmac.NewMD5([]byte(secretKey(c)))
++	h := hmac.New(md5.New, []byte(secretKey(c)))
+ 	h.Write([]byte(builder))
+-	return fmt.Sprintf("%x", h.Sum())
++	return fmt.Sprintf("%x", h.Sum(nil))
+ }
+ 
+-func logErr(w http.ResponseWriter, r *http.Request, err os.Error) {
++func logErr(w http.ResponseWriter, r *http.Request, err error) {
+ 	appengine.NewContext(r).Errorf("Error: %v", err)
+ 	w.WriteHeader(http.StatusInternalServerError)
+ 	fmt.Fprint(w, "Error: ", err)
+diff --git a/misc/dashboard/app/build/init.go b/misc/dashboard/app/build/init.go
+index 58c5382de7..494585b0ea 100644
+--- a/misc/dashboard/app/build/init.go
++++ b/misc/dashboard/app/build/init.go
+@@ -6,7 +6,7 @@ package build
+ 
+ import (
+ 	"fmt"
+-	"http"
++	"net/http"
+ 
+ 	"appengine"
+ 	"appengine/datastore"
+diff --git a/misc/dashboard/app/build/key.go b/misc/dashboard/app/build/key.go
+index 5306c3b6bd..49ab236d4b 100644
+--- a/misc/dashboard/app/build/key.go
++++ b/misc/dashboard/app/build/key.go
+@@ -55,7 +55,7 @@ func secretKey(c appengine.Context) string {
+ 			datastore.Put(c, theKey.Key(c), &theKey.BuilderKey)
+ 			return theKey.Secret
+ 		}
+-		panic("cannot load builder key: " + err.String())
++		panic("cannot load builder key: " + err.Error())
+ 	}
+ 
+ 	return theKey.Secret
+diff --git a/misc/dashboard/app/build/notify.go b/misc/dashboard/app/build/notify.go
+index 826132be2a..e02344ca82 100644
+--- a/misc/dashboard/app/build/notify.go
++++ b/misc/dashboard/app/build/notify.go
+@@ -10,10 +10,9 @@ import (
+ 	"appengine/delay"
+ 	"appengine/mail"
+ 	"bytes"
++	"encoding/gob"
+ 	"fmt"
+-	"gob"
+-	"os"
+-	"template"
++	"text/template"
+ )
+ 
+ const (
+@@ -30,7 +29,7 @@ const (
+ //
+ // This must be run in a datastore transaction, and the provided *Commit must
+ // have been retrieved from the datastore within that transaction.
+-func notifyOnFailure(c appengine.Context, com *Commit, builder string) os.Error {
++func notifyOnFailure(c appengine.Context, com *Commit, builder string) error {
+ 	// TODO(adg): implement notifications for packages
+ 	if com.PackagePath != "" {
+ 		return nil
+@@ -73,7 +72,7 @@ func notifyOnFailure(c appengine.Context, com *Commit, builder string) os.Error
+ 			broken = com
+ 		}
+ 	}
+-	var err os.Error
++	var err error
+ 	if broken != nil && !broken.FailNotificationSent {
+ 		c.Infof("%s is broken commit; notifying", broken.Hash)
+ 		sendFailMailLater.Call(c, broken, builder) // add task to queue
+@@ -84,7 +83,7 @@ func notifyOnFailure(c appengine.Context, com *Commit, builder string) os.Error
+ }
+ 
+ // firstMatch executes the query q and loads the first entity into v.
+-func firstMatch(c appengine.Context, q *datastore.Query, v interface{}) os.Error {
++func firstMatch(c appengine.Context, q *datastore.Query, v interface{}) error {
+ 	t := q.Limit(1).Run(c)
+ 	_, err := t.Next(v)
+ 	if err == datastore.Done {
+@@ -96,7 +95,9 @@ func firstMatch(c appengine.Context, q *datastore.Query, v interface{}) os.Error
+ var (
+ 	sendFailMailLater = delay.Func("sendFailMail", sendFailMail)
+ 	sendFailMailTmpl  = template.Must(
+-		template.New("notify").Funcs(tmplFuncs).ParseFile("build/notify.txt"),
++		template.New("notify.txt").
++			Funcs(template.FuncMap(tmplFuncs)).
++			ParseFiles("build/notify.txt"),
+ 	)
+ )
+ 
+diff --git a/misc/dashboard/app/build/test.go b/misc/dashboard/app/build/test.go
+index 6f17de02bc..4114c25c52 100644
+--- a/misc/dashboard/app/build/test.go
++++ b/misc/dashboard/app/build/test.go
+@@ -10,15 +10,15 @@ import (
+ 	"appengine"
+ 	"appengine/datastore"
+ 	"bytes"
++	"encoding/json"
++	"errors"
+ 	"fmt"
+-	"http"
+-	"http/httptest"
+ 	"io"
+-	"json"
+-	"os"
++	"net/http"
++	"net/http/httptest"
++	"net/url"
+ 	"strings"
+ 	"time"
+-	"url"
+ )
+ 
+ func init() {
+@@ -41,14 +41,14 @@ var testPackages = []*Package{
+ 	testPackage,
+ }
+ 
+-var tCommitTime = time.Seconds() - 60*60*24*7
++var tCommitTime = time.Now().Add(-time.Hour * 24 * 7)
+ 
+ func tCommit(hash, parentHash string) *Commit {
+-	tCommitTime += 60 * 60 * 12 // each commit should have a different time
++	tCommitTime.Add(time.Hour) // each commit should have a different time
+ 	return &Commit{
+ 		Hash:       hash,
+ 		ParentHash: parentHash,
+-		Time:       datastore.Time(tCommitTime * 1e6),
++		Time:       tCommitTime,
+ 		User:       "adg",
+ 		Desc:       "change description",
+ 	}
+@@ -233,9 +233,9 @@ func testHandler(w http.ResponseWriter, r *http.Request) {
+ 	fmt.Fprint(w, "PASS")
+ }
+ 
+-func nukeEntities(c appengine.Context, kinds []string) os.Error {
++func nukeEntities(c appengine.Context, kinds []string) error {
+ 	if !appengine.IsDevAppServer() {
+-		return os.NewError("can't nuke production data")
++		return errors.New("can't nuke production data")
+ 	}
+ 	var keys []*datastore.Key
+ 	for _, kind := range kinds {
+diff --git a/misc/dashboard/app/build/ui.go b/misc/dashboard/app/build/ui.go
+index 05bccdc294..0337aa3063 100644
+--- a/misc/dashboard/app/build/ui.go
++++ b/misc/dashboard/app/build/ui.go
+@@ -9,14 +9,13 @@ package build
+ 
+ import (
+ 	"bytes"
+-	"exp/template/html"
+-	"http"
+-	"os"
++	"errors"
++	"html/template"
++	"net/http"
+ 	"regexp"
+ 	"sort"
+ 	"strconv"
+ 	"strings"
+-	"template"
+ 
+ 	"appengine"
+ 	"appengine/datastore"
+@@ -25,7 +24,6 @@ import (
+ 
+ func init() {
+ 	http.HandleFunc("/", uiHandler)
+-	html.Escape(uiTemplate)
+ }
+ 
+ // uiHandler draws the build status page.
+@@ -96,7 +94,7 @@ type Pagination struct {
+ 
+ // goCommits gets a slice of the latest Commits to the Go repository.
+ // If page > 0 it paginates by commitsPerPage.
+-func goCommits(c appengine.Context, page int) ([]*Commit, os.Error) {
++func goCommits(c appengine.Context, page int) ([]*Commit, error) {
+ 	q := datastore.NewQuery("Commit").
+ 		Ancestor((&Package{}).Key(c)).
+ 		Order("-Time").
+@@ -140,7 +138,7 @@ type PackageState struct {
+ }
+ 
+ // TagStateByName fetches the results for all Go subrepos at the specified Tag.
+-func TagStateByName(c appengine.Context, name string) (*TagState, os.Error) {
++func TagStateByName(c appengine.Context, name string) (*TagState, error) {
+ 	tag, err := GetTag(c, name)
+ 	if err != nil {
+ 		return nil, err
+@@ -173,7 +171,7 @@ type uiTemplateData struct {
+ }
+ 
+ var uiTemplate = template.Must(
+-	template.New("ui").Funcs(tmplFuncs).ParseFile("build/ui.html"),
++	template.New("ui.html").Funcs(tmplFuncs).ParseFiles("build/ui.html"),
+ )
+ 
+ var tmplFuncs = template.FuncMap{
+@@ -293,13 +291,13 @@ func shortUser(user string) string {
+ var repoRe = regexp.MustCompile(`^code\.google\.com/p/([a-z0-9\-]+)(\.[a-z0-9\-]+)?$`)
+ 
+ // repoURL returns the URL of a change at a Google Code repository or subrepo.
+-func repoURL(hash, packagePath string) (string, os.Error) {
++func repoURL(hash, packagePath string) (string, error) {
+ 	if packagePath == "" {
+ 		return "https://code.google.com/p/go/source/detail?r=" + hash, nil
+ 	}
+ 	m := repoRe.FindStringSubmatch(packagePath)
+ 	if m == nil {
+-		return "", os.NewError("unrecognized package: " + packagePath)
++		return "", errors.New("unrecognized package: " + packagePath)
+ 	}
+ 	url := "https://code.google.com/p/" + m[1] + "/source/detail?r=" + hash
+ 	if len(m) > 2 {
+diff --git a/misc/dashboard/app/cache/cache.go b/misc/dashboard/app/cache/cache.go
+index d290ed416c..8bd3020f3c 100644
+--- a/misc/dashboard/app/cache/cache.go
++++ b/misc/dashboard/app/cache/cache.go
+@@ -6,7 +6,7 @@ package cache
+ 
+ import (
+ 	"fmt"
+-	"http"
++	"net/http"
+ 	"time"
+ 
+ 	"appengine"
+@@ -19,7 +19,7 @@ const (
+ 	expiry  = 600 // 10 minutes
+ )
+ 
+-func newTime() uint64 { return uint64(time.Seconds()) << 32 }
++func newTime() uint64 { return uint64(time.Now().Unix()) << 32 }
+ 
+ // Now returns the current logical datastore time to use for cache lookups.
+ func Now(c appengine.Context) uint64 {

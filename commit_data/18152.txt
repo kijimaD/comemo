@@ -7,6 +7,19 @@ Date:   Thu Jan 2 10:34:21 2014 -0800
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/46880043
-
+---
  src/pkg/encoding/hex/hex_test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/pkg/encoding/hex/hex_test.go b/src/pkg/encoding/hex/hex_test.go
+index cef4ef41b7..b969636cd5 100644
+--- a/src/pkg/encoding/hex/hex_test.go
++++ b/src/pkg/encoding/hex/hex_test.go
+@@ -82,6 +82,7 @@ type errTest struct {
+ var errTests = []errTest{
+ 	{"0", "encoding/hex: odd length hex string"},
+ 	{"0g", "encoding/hex: invalid byte: U+0067 'g'"},
++	{"00gg", "encoding/hex: invalid byte: U+0067 'g'"},
+ 	{"0\x01", "encoding/hex: invalid byte: U+0001"},
+ }
+ 

@@ -23,7 +23,7 @@ Date:   Mon Feb 12 15:27:02 2018 -0500
     Change-Id: Icb9e1039acc92adbb2a371c34baaf0b79551c3ea
     Reviewed-on: https://go-review.googlesource.com/93637
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/internal/atomic/asm_386.s       |  68 ++++++++-
  src/runtime/internal/atomic/asm_amd64p32.s  |   3 +
  src/runtime/internal/atomic/atomic_386.go   |  24 +--
@@ -49,3 +49,2643 @@ Date:   Mon Feb 12 15:27:02 2018 -0500
  src/sync/atomic/atomic_linux_arm_test.go    |  14 --
  src/sync/atomic/export_linux_arm_test.go    |   7 -
  24 files changed, 175 insertions(+), 2271 deletions(-)
+
+diff --git a/src/runtime/internal/atomic/asm_386.s b/src/runtime/internal/atomic/asm_386.s
+index c3ef79f913..86a3ef33b9 100644
+--- a/src/runtime/internal/atomic/asm_386.s
++++ b/src/runtime/internal/atomic/asm_386.s
+@@ -94,6 +94,42 @@ TEXT runtime∕internal∕atomic·Xadd(SB), NOSPLIT, $0-12
+ 	MOVL	AX, ret+8(FP)
+ 	RET
+ 
++TEXT runtime∕internal∕atomic·Xadd64(SB), NOSPLIT, $0-20
++	// no XADDQ so use CMPXCHG8B loop
++	MOVL	ptr+0(FP), BP
++	TESTL	$7, BP
++	JZ	2(PC)
++	MOVL	0, AX // crash when unaligned
++	// DI:SI = delta
++	MOVL	delta_lo+4(FP), SI
++	MOVL	delta_hi+8(FP), DI
++	// DX:AX = *addr
++	MOVL	0(BP), AX
++	MOVL	4(BP), DX
++addloop:
++	// CX:BX = DX:AX (*addr) + DI:SI (delta)
++	MOVL	AX, BX
++	MOVL	DX, CX
++	ADDL	SI, BX
++	ADCL	DI, CX
++
++	// if *addr == DX:AX {
++	//	*addr = CX:BX
++	// } else {
++	//	DX:AX = *addr
++	// }
++	// all in one instruction
++	LOCK
++	CMPXCHG8B	0(BP)
++
++	JNZ	addloop
++
++	// success
++	// return CX:BX
++	MOVL	BX, ret_lo+12(FP)
++	MOVL	CX, ret_hi+16(FP)
++	RET
++
+ TEXT runtime∕internal∕atomic·Xchg(SB), NOSPLIT, $0-12
+ 	MOVL	ptr+0(FP), BX
+ 	MOVL	new+4(FP), AX
+@@ -104,6 +140,33 @@ TEXT runtime∕internal∕atomic·Xchg(SB), NOSPLIT, $0-12
+ TEXT runtime∕internal∕atomic·Xchguintptr(SB), NOSPLIT, $0-12
+ 	JMP	runtime∕internal∕atomic·Xchg(SB)
+ 
++TEXT  runtime∕internal∕atomic·Xchg64(SB),NOSPLIT,$0-20
++	// no XCHGQ so use CMPXCHG8B loop
++	MOVL	ptr+0(FP), BP
++	TESTL	$7, BP
++	JZ	2(PC)
++	MOVL	0, AX // crash when unaligned
++	// CX:BX = new
++	MOVL	new_lo+4(FP), BX
++	MOVL	new_hi+8(FP), CX
++	// DX:AX = *addr
++	MOVL	0(BP), AX
++	MOVL	4(BP), DX
++swaploop:
++	// if *addr == DX:AX
++	//	*addr = CX:BX
++	// else
++	//	DX:AX = *addr
++	// all in one instruction
++	LOCK
++	CMPXCHG8B	0(BP)
++	JNZ	swaploop
++
++	// success
++	// return DX:AX
++	MOVL	AX, ret_lo+12(FP)
++	MOVL	DX, ret_hi+16(FP)
++	RET
+ 
+ TEXT runtime∕internal∕atomic·StorepNoWB(SB), NOSPLIT, $0-8
+ 	MOVL	ptr+0(FP), BX
+@@ -123,9 +186,8 @@ TEXT runtime∕internal∕atomic·Load64(SB), NOSPLIT, $0-12
+ 	TESTL	$7, AX
+ 	JZ	2(PC)
+ 	MOVL	0, AX // crash with nil ptr deref
+-	LEAL	ret_lo+4(FP), BX
+ 	MOVQ	(AX), M0
+-	MOVQ	M0, (BX)
++	MOVQ	M0, ret+4(FP)
+ 	EMMS
+ 	RET
+ 
+@@ -141,7 +203,7 @@ TEXT runtime∕internal∕atomic·Store64(SB), NOSPLIT, $0-12
+ 	EMMS
+ 	// This is essentially a no-op, but it provides required memory fencing.
+ 	// It can be replaced with MFENCE, but MFENCE was introduced only on the Pentium4 (SSE2).
+-	MOVL	$0, AX
++	XORL	AX, AX
+ 	LOCK
+ 	XADDL	AX, (SP)
+ 	RET
+diff --git a/src/runtime/internal/atomic/asm_amd64p32.s b/src/runtime/internal/atomic/asm_amd64p32.s
+index 87f7a079ca..ff590e601b 100644
+--- a/src/runtime/internal/atomic/asm_amd64p32.s
++++ b/src/runtime/internal/atomic/asm_amd64p32.s
+@@ -108,6 +108,9 @@ TEXT runtime∕internal∕atomic·Xchg(SB), NOSPLIT, $0-12
+ TEXT runtime∕internal∕atomic·Xchg64(SB), NOSPLIT, $0-24
+ 	MOVL	ptr+0(FP), BX
+ 	MOVQ	new+8(FP), AX
++	TESTL	$7, BX
++	JZ	2(PC)
++	MOVL	0, BX // crash when unaligned
+ 	XCHGQ	AX, 0(BX)
+ 	MOVQ	AX, ret+16(FP)
+ 	RET
+diff --git a/src/runtime/internal/atomic/atomic_386.go b/src/runtime/internal/atomic/atomic_386.go
+index 23a8479515..4284d2bd7d 100644
+--- a/src/runtime/internal/atomic/atomic_386.go
++++ b/src/runtime/internal/atomic/atomic_386.go
+@@ -20,32 +20,18 @@ func Loadp(ptr unsafe.Pointer) unsafe.Pointer {
+ 	return *(*unsafe.Pointer)(ptr)
+ }
+ 
+-//go:nosplit
+-func Xadd64(ptr *uint64, delta int64) uint64 {
+-	for {
+-		old := *ptr
+-		if Cas64(ptr, old, old+uint64(delta)) {
+-			return old + uint64(delta)
+-		}
+-	}
+-}
++//go:noescape
++func Xadd64(ptr *uint64, delta int64) uint64
+ 
+ //go:noescape
+ func Xadduintptr(ptr *uintptr, delta uintptr) uintptr
+ 
+-//go:nosplit
+-func Xchg64(ptr *uint64, new uint64) uint64 {
+-	for {
+-		old := *ptr
+-		if Cas64(ptr, old, new) {
+-			return old
+-		}
+-	}
+-}
+-
+ //go:noescape
+ func Xadd(ptr *uint32, delta int32) uint32
+ 
++//go:noescape
++func Xchg64(ptr *uint64, new uint64) uint64
++
+ //go:noescape
+ func Xchg(ptr *uint32, new uint32) uint32
+ 
+diff --git a/src/runtime/internal/atomic/sys_linux_arm.s b/src/runtime/internal/atomic/sys_linux_arm.s
+index 1d6439a6ba..60f28e7216 100644
+--- a/src/runtime/internal/atomic/sys_linux_arm.s
++++ b/src/runtime/internal/atomic/sys_linux_arm.s
+@@ -4,8 +4,23 @@
+ 
+ #include "textflag.h"
+ 
+-// Use kernel version instead of native armcas in asm_arm.s.
+-// See ../../../sync/atomic/asm_linux_arm.s for details.
++// Linux/ARM atomic operations.
++
++// Because there is so much variation in ARM devices,
++// the Linux kernel provides an appropriate compare-and-swap
++// implementation at address 0xffff0fc0.  Caller sets:
++//	R0 = old value
++//	R1 = new value
++//	R2 = addr
++//	LR = return address
++// The function returns with CS true if the swap happened.
++// http://lxr.linux.no/linux+v2.6.37.2/arch/arm/kernel/entry-armv.S#L850
++// On older kernels (before 2.6.24) the function can incorrectly
++// report a conflict, so we have to double-check the compare ourselves
++// and retry if necessary.
++//
++// http://git.kernel.org/?p=linux/kernel/git/torvalds/linux-2.6.git;a=commit;h=b49c0f24cf6744a3f4fd09289fe7cade349dead5
++//
+ TEXT cas<>(SB),NOSPLIT,$0
+ 	MOVW	$0xffff0fc0, R15 // R15 is hardware PC.
+ 
+diff --git a/src/sync/atomic/64bit_arm.go b/src/sync/atomic/64bit_arm.go
+deleted file mode 100644
+index 4ef11747bb..0000000000
+--- a/src/sync/atomic/64bit_arm.go
++++ /dev/null
+@@ -1,58 +0,0 @@
+-// Copyright 2012 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package atomic
+-
+-func loadUint64(addr *uint64) (val uint64) {
+-	for {
+-		val = *addr
+-		if CompareAndSwapUint64(addr, val, val) {
+-			break
+-		}
+-	}
+-	return
+-}
+-
+-func storeUint64(addr *uint64, val uint64) {
+-	for {
+-		old := *addr
+-		if CompareAndSwapUint64(addr, old, val) {
+-			break
+-		}
+-	}
+-	return
+-}
+-
+-func addUint64(val *uint64, delta uint64) (new uint64) {
+-	for {
+-		old := *val
+-		new = old + delta
+-		if CompareAndSwapUint64(val, old, new) {
+-			break
+-		}
+-	}
+-	return
+-}
+-
+-func swapUint64(addr *uint64, new uint64) (old uint64) {
+-	for {
+-		old = *addr
+-		if CompareAndSwapUint64(addr, old, new) {
+-			break
+-		}
+-	}
+-	return
+-}
+-
+-// Additional ARM-specific assembly routines.
+-// Declaration here to give assembly routines correct stack maps for arguments.
+-func armCompareAndSwapUint32(addr *uint32, old, new uint32) (swapped bool)
+-func armCompareAndSwapUint64(addr *uint64, old, new uint64) (swapped bool)
+-func generalCAS64(addr *uint64, old, new uint64) (swapped bool)
+-func armAddUint32(addr *uint32, delta uint32) (new uint32)
+-func armAddUint64(addr *uint64, delta uint64) (new uint64)
+-func armSwapUint32(addr *uint32, new uint32) (old uint32)
+-func armSwapUint64(addr *uint64, new uint64) (old uint64)
+-func armLoadUint64(addr *uint64) (val uint64)
+-func armStoreUint64(addr *uint64, val uint64)
+diff --git a/src/sync/atomic/asm.s b/src/sync/atomic/asm.s
+new file mode 100644
+index 0000000000..f86726f3a1
+--- /dev/null
++++ b/src/sync/atomic/asm.s
+@@ -0,0 +1,85 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !race
++
++#include "textflag.h"
++
++TEXT ·SwapInt32(SB),NOSPLIT,$0
++	JMP	runtime∕internal∕atomic·Xchg(SB)
++
++TEXT ·SwapUint32(SB),NOSPLIT,$0
++	JMP	runtime∕internal∕atomic·Xchg(SB)
++
++TEXT ·SwapInt64(SB),NOSPLIT,$0
++	JMP	runtime∕internal∕atomic·Xchg64(SB)
++
++TEXT ·SwapUint64(SB),NOSPLIT,$0
++	JMP	runtime∕internal∕atomic·Xchg64(SB)
++
++TEXT ·SwapUintptr(SB),NOSPLIT,$0
++	JMP	runtime∕internal∕atomic·Xchguintptr(SB)
++
++TEXT ·CompareAndSwapInt32(SB),NOSPLIT,$0
++	JMP	runtime∕internal∕atomic·Cas(SB)
++
++TEXT ·CompareAndSwapUint32(SB),NOSPLIT,$0
++	JMP	runtime∕internal∕atomic·Cas(SB)
++
++TEXT ·CompareAndSwapUintptr(SB),NOSPLIT,$0
++	JMP	runtime∕internal∕atomic·Casuintptr(SB)
++
++TEXT ·CompareAndSwapInt64(SB),NOSPLIT,$0
++	JMP	runtime∕internal∕atomic·Cas64(SB)
++
++TEXT ·CompareAndSwapUint64(SB),NOSPLIT,$0
++	JMP	runtime∕internal∕atomic·Cas64(SB)
++
++TEXT ·AddInt32(SB),NOSPLIT,$0
++	JMP	runtime∕internal∕atomic·Xadd(SB)
++
++TEXT ·AddUint32(SB),NOSPLIT,$0
++	JMP	runtime∕internal∕atomic·Xadd(SB)
++
++TEXT ·AddUintptr(SB),NOSPLIT,$0
++	JMP	runtime∕internal∕atomic·Xadduintptr(SB)
++
++TEXT ·AddInt64(SB),NOSPLIT,$0
++	JMP	runtime∕internal∕atomic·Xadd64(SB)
++
++TEXT ·AddUint64(SB),NOSPLIT,$0
++	JMP	runtime∕internal∕atomic·Xadd64(SB)
++
++TEXT ·LoadInt32(SB),NOSPLIT,$0
++	JMP	runtime∕internal∕atomic·Load(SB)
++
++TEXT ·LoadUint32(SB),NOSPLIT,$0
++	JMP	runtime∕internal∕atomic·Load(SB)
++
++TEXT ·LoadInt64(SB),NOSPLIT,$0
++	JMP	runtime∕internal∕atomic·Load64(SB)
++
++TEXT ·LoadUint64(SB),NOSPLIT,$0
++	JMP	runtime∕internal∕atomic·Load64(SB)
++
++TEXT ·LoadUintptr(SB),NOSPLIT,$0
++	JMP	runtime∕internal∕atomic·Loaduintptr(SB)
++
++TEXT ·LoadPointer(SB),NOSPLIT,$0
++	JMP	runtime∕internal∕atomic·Loadp(SB)
++
++TEXT ·StoreInt32(SB),NOSPLIT,$0
++	JMP	runtime∕internal∕atomic·Store(SB)
++
++TEXT ·StoreUint32(SB),NOSPLIT,$0
++	JMP	runtime∕internal∕atomic·Store(SB)
++
++TEXT ·StoreInt64(SB),NOSPLIT,$0
++	JMP	runtime∕internal∕atomic·Store64(SB)
++
++TEXT ·StoreUint64(SB),NOSPLIT,$0
++	JMP	runtime∕internal∕atomic·Store64(SB)
++
++TEXT ·StoreUintptr(SB),NOSPLIT,$0
++	JMP	runtime∕internal∕atomic·Storeuintptr(SB)
+diff --git a/src/sync/atomic/asm_386.s b/src/sync/atomic/asm_386.s
+deleted file mode 100644
+index b2dc558aa2..0000000000
+--- a/src/sync/atomic/asm_386.s
++++ /dev/null
+@@ -1,201 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build !race
+-
+-#include "textflag.h"
+-
+-TEXT ·SwapInt32(SB),NOSPLIT,$0-12
+-	JMP	·SwapUint32(SB)
+-
+-TEXT ·SwapUint32(SB),NOSPLIT,$0-12
+-	MOVL	addr+0(FP), BP
+-	MOVL	new+4(FP), AX
+-	XCHGL	AX, 0(BP)
+-	MOVL	AX, old+8(FP)
+-	RET
+-
+-TEXT ·SwapInt64(SB),NOSPLIT,$0-20
+-	JMP	·SwapUint64(SB)
+-
+-TEXT ·SwapUint64(SB),NOSPLIT,$0-20
+-	// no XCHGQ so use CMPXCHG8B loop
+-	MOVL	addr+0(FP), BP
+-	TESTL	$7, BP
+-	JZ	2(PC)
+-	MOVL	0, AX // crash with nil ptr deref
+-	// CX:BX = new
+-	MOVL	new_lo+4(FP), BX
+-	MOVL	new_hi+8(FP), CX
+-	// DX:AX = *addr
+-	MOVL	0(BP), AX
+-	MOVL	4(BP), DX
+-swaploop:
+-	// if *addr == DX:AX
+-	//	*addr = CX:BX
+-	// else
+-	//	DX:AX = *addr
+-	// all in one instruction
+-	LOCK
+-	CMPXCHG8B	0(BP)
+-	JNZ	swaploop
+-
+-	// success
+-	// return DX:AX
+-	MOVL	AX, old_lo+12(FP)
+-	MOVL	DX, old_hi+16(FP)
+-	RET
+-
+-TEXT ·SwapUintptr(SB),NOSPLIT,$0-12
+-	JMP	·SwapUint32(SB)
+-
+-TEXT ·CompareAndSwapInt32(SB),NOSPLIT,$0-13
+-	JMP	·CompareAndSwapUint32(SB)
+-
+-TEXT ·CompareAndSwapUint32(SB),NOSPLIT,$0-13
+-	MOVL	addr+0(FP), BP
+-	MOVL	old+4(FP), AX
+-	MOVL	new+8(FP), CX
+-	// CMPXCHGL was introduced on the 486.
+-	LOCK
+-	CMPXCHGL	CX, 0(BP)
+-	SETEQ	swapped+12(FP)
+-	RET
+-
+-TEXT ·CompareAndSwapUintptr(SB),NOSPLIT,$0-13
+-	JMP	·CompareAndSwapUint32(SB)
+-
+-TEXT ·CompareAndSwapInt64(SB),NOSPLIT,$0-21
+-	JMP	·CompareAndSwapUint64(SB)
+-
+-TEXT ·CompareAndSwapUint64(SB),NOSPLIT,$0-21
+-	MOVL	addr+0(FP), BP
+-	TESTL	$7, BP
+-	JZ	2(PC)
+-	MOVL	0, AX // crash with nil ptr deref
+-	MOVL	old_lo+4(FP), AX
+-	MOVL	old_hi+8(FP), DX
+-	MOVL	new_lo+12(FP), BX
+-	MOVL	new_hi+16(FP), CX
+-	// CMPXCHG8B was introduced on the Pentium.
+-	LOCK
+-	CMPXCHG8B	0(BP)
+-	SETEQ	swapped+20(FP)
+-	RET
+-
+-TEXT ·AddInt32(SB),NOSPLIT,$0-12
+-	JMP	·AddUint32(SB)
+-
+-TEXT ·AddUint32(SB),NOSPLIT,$0-12
+-	MOVL	addr+0(FP), BP
+-	MOVL	delta+4(FP), AX
+-	MOVL	AX, CX
+-	// XADD was introduced on the 486.
+-	LOCK
+-	XADDL	AX, 0(BP)
+-	ADDL	AX, CX
+-	MOVL	CX, new+8(FP)
+-	RET
+-
+-TEXT ·AddUintptr(SB),NOSPLIT,$0-12
+-	JMP	·AddUint32(SB)
+-
+-TEXT ·AddInt64(SB),NOSPLIT,$0-20
+-	JMP	·AddUint64(SB)
+-
+-TEXT ·AddUint64(SB),NOSPLIT,$0-20
+-	// no XADDQ so use CMPXCHG8B loop
+-	MOVL	addr+0(FP), BP
+-	TESTL	$7, BP
+-	JZ	2(PC)
+-	MOVL	0, AX // crash with nil ptr deref
+-	// DI:SI = delta
+-	MOVL	delta_lo+4(FP), SI
+-	MOVL	delta_hi+8(FP), DI
+-	// DX:AX = *addr
+-	MOVL	0(BP), AX
+-	MOVL	4(BP), DX
+-addloop:
+-	// CX:BX = DX:AX (*addr) + DI:SI (delta)
+-	MOVL	AX, BX
+-	MOVL	DX, CX
+-	ADDL	SI, BX
+-	ADCL	DI, CX
+-
+-	// if *addr == DX:AX {
+-	//	*addr = CX:BX
+-	// } else {
+-	//	DX:AX = *addr
+-	// }
+-	// all in one instruction
+-	LOCK
+-	CMPXCHG8B	0(BP)
+-
+-	JNZ	addloop
+-
+-	// success
+-	// return CX:BX
+-	MOVL	BX, new_lo+12(FP)
+-	MOVL	CX, new_hi+16(FP)
+-	RET
+-
+-TEXT ·LoadInt32(SB),NOSPLIT,$0-8
+-	JMP	·LoadUint32(SB)
+-
+-TEXT ·LoadUint32(SB),NOSPLIT,$0-8
+-	MOVL	addr+0(FP), AX
+-	MOVL	0(AX), AX
+-	MOVL	AX, val+4(FP)
+-	RET
+-
+-TEXT ·LoadInt64(SB),NOSPLIT,$0-12
+-	JMP	·LoadUint64(SB)
+-
+-TEXT ·LoadUint64(SB),NOSPLIT,$0-12
+-	MOVL	addr+0(FP), AX
+-	TESTL	$7, AX
+-	JZ	2(PC)
+-	MOVL	0, AX // crash with nil ptr deref
+-	// MOVQ and EMMS were introduced on the Pentium MMX.
+-	MOVQ	(AX), M0
+-	MOVQ	M0, val+4(FP)
+-	EMMS
+-	RET
+-
+-TEXT ·LoadUintptr(SB),NOSPLIT,$0-8
+-	JMP	·LoadUint32(SB)
+-
+-TEXT ·LoadPointer(SB),NOSPLIT,$0-8
+-	JMP	·LoadUint32(SB)
+-
+-TEXT ·StoreInt32(SB),NOSPLIT,$0-8
+-	JMP	·StoreUint32(SB)
+-
+-TEXT ·StoreUint32(SB),NOSPLIT,$0-8
+-	MOVL	addr+0(FP), BP
+-	MOVL	val+4(FP), AX
+-	XCHGL	AX, 0(BP)
+-	RET
+-
+-TEXT ·StoreInt64(SB),NOSPLIT,$0-12
+-	JMP	·StoreUint64(SB)
+-
+-TEXT ·StoreUint64(SB),NOSPLIT,$0-12
+-	MOVL	addr+0(FP), AX
+-	TESTL	$7, AX
+-	JZ	2(PC)
+-	MOVL	0, AX // crash with nil ptr deref
+-	// MOVQ and EMMS were introduced on the Pentium MMX.
+-	MOVQ	val+4(FP), M0
+-	MOVQ	M0, (AX)
+-	EMMS
+-	// This is essentially a no-op, but it provides required memory fencing.
+-	// It can be replaced with MFENCE, but MFENCE was introduced only on the Pentium4 (SSE2).
+-	XORL	AX, AX
+-	LOCK
+-	XADDL	AX, (SP)
+-	RET
+-
+-TEXT ·StoreUintptr(SB),NOSPLIT,$0-8
+-	JMP	·StoreUint32(SB)
+diff --git a/src/sync/atomic/asm_amd64.s b/src/sync/atomic/asm_amd64.s
+deleted file mode 100644
+index eddc6c52cb..0000000000
+--- a/src/sync/atomic/asm_amd64.s
++++ /dev/null
+@@ -1,137 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Note: some of these functions are semantically inlined
+-// by the compiler (in src/cmd/compile/internal/gc/ssa.go).
+-
+-// +build !race
+-
+-#include "textflag.h"
+-
+-TEXT ·SwapInt32(SB),NOSPLIT,$0-20
+-	JMP	·SwapUint32(SB)
+-
+-TEXT ·SwapUint32(SB),NOSPLIT,$0-20
+-	MOVQ	addr+0(FP), BP
+-	MOVL	new+8(FP), AX
+-	XCHGL	AX, 0(BP)
+-	MOVL	AX, old+16(FP)
+-	RET
+-
+-TEXT ·SwapInt64(SB),NOSPLIT,$0-24
+-	JMP	·SwapUint64(SB)
+-
+-TEXT ·SwapUint64(SB),NOSPLIT,$0-24
+-	MOVQ	addr+0(FP), BP
+-	MOVQ	new+8(FP), AX
+-	XCHGQ	AX, 0(BP)
+-	MOVQ	AX, old+16(FP)
+-	RET
+-
+-TEXT ·SwapUintptr(SB),NOSPLIT,$0-24
+-	JMP	·SwapUint64(SB)
+-
+-TEXT ·CompareAndSwapInt32(SB),NOSPLIT,$0-17
+-	JMP	·CompareAndSwapUint32(SB)
+-
+-TEXT ·CompareAndSwapUint32(SB),NOSPLIT,$0-17
+-	MOVQ	addr+0(FP), BP
+-	MOVL	old+8(FP), AX
+-	MOVL	new+12(FP), CX
+-	LOCK
+-	CMPXCHGL	CX, 0(BP)
+-	SETEQ	swapped+16(FP)
+-	RET
+-
+-TEXT ·CompareAndSwapUintptr(SB),NOSPLIT,$0-25
+-	JMP	·CompareAndSwapUint64(SB)
+-
+-TEXT ·CompareAndSwapInt64(SB),NOSPLIT,$0-25
+-	JMP	·CompareAndSwapUint64(SB)
+-
+-TEXT ·CompareAndSwapUint64(SB),NOSPLIT,$0-25
+-	MOVQ	addr+0(FP), BP
+-	MOVQ	old+8(FP), AX
+-	MOVQ	new+16(FP), CX
+-	LOCK
+-	CMPXCHGQ	CX, 0(BP)
+-	SETEQ	swapped+24(FP)
+-	RET
+-
+-TEXT ·AddInt32(SB),NOSPLIT,$0-20
+-	JMP	·AddUint32(SB)
+-
+-TEXT ·AddUint32(SB),NOSPLIT,$0-20
+-	MOVQ	addr+0(FP), BP
+-	MOVL	delta+8(FP), AX
+-	MOVL	AX, CX
+-	LOCK
+-	XADDL	AX, 0(BP)
+-	ADDL	AX, CX
+-	MOVL	CX, new+16(FP)
+-	RET
+-
+-TEXT ·AddUintptr(SB),NOSPLIT,$0-24
+-	JMP	·AddUint64(SB)
+-
+-TEXT ·AddInt64(SB),NOSPLIT,$0-24
+-	JMP	·AddUint64(SB)
+-
+-TEXT ·AddUint64(SB),NOSPLIT,$0-24
+-	MOVQ	addr+0(FP), BP
+-	MOVQ	delta+8(FP), AX
+-	MOVQ	AX, CX
+-	LOCK
+-	XADDQ	AX, 0(BP)
+-	ADDQ	AX, CX
+-	MOVQ	CX, new+16(FP)
+-	RET
+-
+-TEXT ·LoadInt32(SB),NOSPLIT,$0-12
+-	JMP	·LoadUint32(SB)
+-
+-TEXT ·LoadUint32(SB),NOSPLIT,$0-12
+-	MOVQ	addr+0(FP), AX
+-	MOVL	0(AX), AX
+-	MOVL	AX, val+8(FP)
+-	RET
+-
+-TEXT ·LoadInt64(SB),NOSPLIT,$0-16
+-	JMP	·LoadUint64(SB)
+-
+-TEXT ·LoadUint64(SB),NOSPLIT,$0-16
+-	MOVQ	addr+0(FP), AX
+-	MOVQ	0(AX), AX
+-	MOVQ	AX, val+8(FP)
+-	RET
+-
+-TEXT ·LoadUintptr(SB),NOSPLIT,$0-16
+-	JMP	·LoadPointer(SB)
+-
+-TEXT ·LoadPointer(SB),NOSPLIT,$0-16
+-	MOVQ	addr+0(FP), AX
+-	MOVQ	0(AX), AX
+-	MOVQ	AX, val+8(FP)
+-	RET
+-
+-TEXT ·StoreInt32(SB),NOSPLIT,$0-12
+-	JMP	·StoreUint32(SB)
+-
+-TEXT ·StoreUint32(SB),NOSPLIT,$0-12
+-	MOVQ	addr+0(FP), BP
+-	MOVL	val+8(FP), AX
+-	XCHGL	AX, 0(BP)
+-	RET
+-
+-TEXT ·StoreInt64(SB),NOSPLIT,$0-16
+-	JMP	·StoreUint64(SB)
+-
+-TEXT ·StoreUint64(SB),NOSPLIT,$0-16
+-	MOVQ	addr+0(FP), BP
+-	MOVQ	val+8(FP), AX
+-	XCHGQ	AX, 0(BP)
+-	RET
+-
+-TEXT ·StoreUintptr(SB),NOSPLIT,$0-16
+-	JMP	·StoreUint64(SB)
+diff --git a/src/sync/atomic/asm_amd64p32.s b/src/sync/atomic/asm_amd64p32.s
+deleted file mode 100644
+index 5c64dc015a..0000000000
+--- a/src/sync/atomic/asm_amd64p32.s
++++ /dev/null
+@@ -1,138 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Note: some of these functions are semantically inlined
+-// by the compiler (in src/cmd/compile/internal/gc/ssa.go).
+-
+-#include "textflag.h"
+-
+-TEXT ·SwapInt32(SB),NOSPLIT,$0-12
+-	JMP	·SwapUint32(SB)
+-
+-TEXT ·SwapUint32(SB),NOSPLIT,$0-12
+-	MOVL	addr+0(FP), BX
+-	MOVL	new+4(FP), AX
+-	XCHGL	AX, 0(BX)
+-	MOVL	AX, old+8(FP)
+-	RET
+-
+-TEXT ·SwapInt64(SB),NOSPLIT,$0-24
+-	JMP	·SwapUint64(SB)
+-
+-TEXT ·SwapUint64(SB),NOSPLIT,$0-24
+-	MOVL	addr+0(FP), BX
+-	TESTL	$7, BX
+-	JZ	2(PC)
+-	MOVL	0, BX // crash with nil ptr deref
+-	MOVQ	new+8(FP), AX
+-	XCHGQ	AX, 0(BX)
+-	MOVQ	AX, old+16(FP)
+-	RET
+-
+-TEXT ·SwapUintptr(SB),NOSPLIT,$0-12
+-	JMP	·SwapUint32(SB)
+-
+-TEXT ·CompareAndSwapInt32(SB),NOSPLIT,$0-17
+-	JMP	·CompareAndSwapUint32(SB)
+-
+-TEXT ·CompareAndSwapUint32(SB),NOSPLIT,$0-17
+-	MOVL	addr+0(FP), BX
+-	MOVL	old+4(FP), AX
+-	MOVL	new+8(FP), CX
+-	LOCK
+-	CMPXCHGL	CX, 0(BX)
+-	SETEQ	swapped+16(FP)
+-	RET
+-
+-TEXT ·CompareAndSwapUintptr(SB),NOSPLIT,$0-17
+-	JMP	·CompareAndSwapUint32(SB)
+-
+-TEXT ·CompareAndSwapInt64(SB),NOSPLIT,$0-25
+-	JMP	·CompareAndSwapUint64(SB)
+-
+-TEXT ·CompareAndSwapUint64(SB),NOSPLIT,$0-25
+-	MOVL	addr+0(FP), BX
+-	MOVQ	old+8(FP), AX
+-	MOVQ	new+16(FP), CX
+-	LOCK
+-	CMPXCHGQ	CX, 0(BX)
+-	SETEQ	swapped+24(FP)
+-	RET
+-
+-TEXT ·AddInt32(SB),NOSPLIT,$0-12
+-	JMP	·AddUint32(SB)
+-
+-TEXT ·AddUint32(SB),NOSPLIT,$0-12
+-	MOVL	addr+0(FP), BX
+-	MOVL	delta+4(FP), AX
+-	MOVL	AX, CX
+-	LOCK
+-	XADDL	AX, 0(BX)
+-	ADDL	AX, CX
+-	MOVL	CX, new+8(FP)
+-	RET
+-
+-TEXT ·AddUintptr(SB),NOSPLIT,$0-12
+-	JMP	·AddUint32(SB)
+-
+-TEXT ·AddInt64(SB),NOSPLIT,$0-24
+-	JMP	·AddUint64(SB)
+-
+-TEXT ·AddUint64(SB),NOSPLIT,$0-24
+-	MOVL	addr+0(FP), BX
+-	MOVQ	delta+8(FP), AX
+-	MOVQ	AX, CX
+-	LOCK
+-	XADDQ	AX, 0(BX)
+-	ADDQ	AX, CX
+-	MOVQ	CX, new+16(FP)
+-	RET
+-
+-TEXT ·LoadInt32(SB),NOSPLIT,$0-12
+-	JMP	·LoadUint32(SB)
+-
+-TEXT ·LoadUint32(SB),NOSPLIT,$0-12
+-	MOVL	addr+0(FP), AX
+-	MOVL	0(AX), AX
+-	MOVL	AX, val+8(FP)
+-	RET
+-
+-TEXT ·LoadInt64(SB),NOSPLIT,$0-16
+-	JMP	·LoadUint64(SB)
+-
+-TEXT ·LoadUint64(SB),NOSPLIT,$0-16
+-	MOVL	addr+0(FP), AX
+-	MOVQ	0(AX), AX
+-	MOVQ	AX, val+8(FP)
+-	RET
+-
+-TEXT ·LoadUintptr(SB),NOSPLIT,$0-12
+-	JMP	·LoadPointer(SB)
+-
+-TEXT ·LoadPointer(SB),NOSPLIT,$0-12
+-	MOVL	addr+0(FP), AX
+-	MOVL	0(AX), AX
+-	MOVL	AX, val+8(FP)
+-	RET
+-
+-TEXT ·StoreInt32(SB),NOSPLIT,$0-8
+-	JMP	·StoreUint32(SB)
+-
+-TEXT ·StoreUint32(SB),NOSPLIT,$0-8
+-	MOVL	addr+0(FP), BX
+-	MOVL	val+4(FP), AX
+-	XCHGL	AX, 0(BX)
+-	RET
+-
+-TEXT ·StoreInt64(SB),NOSPLIT,$0-16
+-	JMP	·StoreUint64(SB)
+-
+-TEXT ·StoreUint64(SB),NOSPLIT,$0-16
+-	MOVL	addr+0(FP), BX
+-	MOVQ	val+8(FP), AX
+-	XCHGQ	AX, 0(BX)
+-	RET
+-
+-TEXT ·StoreUintptr(SB),NOSPLIT,$0-8
+-	JMP	·StoreUint32(SB)
+diff --git a/src/sync/atomic/asm_arm.s b/src/sync/atomic/asm_arm.s
+deleted file mode 100644
+index 568156627a..0000000000
+--- a/src/sync/atomic/asm_arm.s
++++ /dev/null
+@@ -1,228 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build !race
+-
+-#include "textflag.h"
+-
+-// ARM atomic operations, for use by asm_$(GOOS)_arm.s.
+-
+-#define DMB_ISHST_7 \
+-	MOVB	runtime·goarm(SB), R11; \
+-	CMP	$7, R11; \
+-	BLT	2(PC); \
+-	DMB	MB_ISHST
+-
+-#define DMB_ISH_7 \
+-	MOVB	runtime·goarm(SB), R11; \
+-	CMP	$7, R11; \
+-	BLT	2(PC); \
+-	DMB	MB_ISH
+-
+-TEXT ·LoadUint32(SB),NOSPLIT|NOFRAME,$0
+-	JMP	runtime∕internal∕atomic·Load(SB)
+-
+-TEXT ·armCompareAndSwapUint32(SB),NOSPLIT,$0-13
+-	MOVW	addr+0(FP), R1
+-	MOVW	old+4(FP), R2
+-	MOVW	new+8(FP), R3
+-casloop:
+-	// LDREX and STREX were introduced in ARMv6.
+-	LDREX	(R1), R0
+-	CMP	R0, R2
+-	BNE	casfail
+-	DMB_ISHST_7
+-	STREX	R3, (R1), R0
+-	CMP	$0, R0
+-	BNE	casloop
+-	MOVW	$1, R0
+-	DMB_ISH_7
+-	MOVBU	R0, swapped+12(FP)
+-	RET
+-casfail:
+-	MOVW	$0, R0
+-	MOVBU	R0, swapped+12(FP)
+-	RET
+-
+-TEXT ·armCompareAndSwapUint64(SB),NOSPLIT,$0-21
+-	BL	fastCheck64<>(SB)
+-	MOVW	addr+0(FP), R1
+-	// make unaligned atomic access panic
+-	AND.S	$7, R1, R2
+-	BEQ 	2(PC)
+-	MOVW	R2, (R2)
+-	MOVW	old_lo+4(FP), R2
+-	MOVW	old_hi+8(FP), R3
+-	MOVW	new_lo+12(FP), R4
+-	MOVW	new_hi+16(FP), R5
+-cas64loop:
+-	// LDREXD and STREXD were introduced in ARMv6k.
+-	LDREXD	(R1), R6  // loads R6 and R7
+-	CMP	R2, R6
+-	BNE	cas64fail
+-	CMP	R3, R7
+-	BNE	cas64fail
+-	DMB_ISHST_7
+-	STREXD	R4, (R1), R0	// stores R4 and R5
+-	CMP	$0, R0
+-	BNE	cas64loop
+-	MOVW	$1, R0
+-	DMB_ISH_7
+-	MOVBU	R0, swapped+20(FP)
+-	RET
+-cas64fail:
+-	MOVW	$0, R0
+-	MOVBU	R0, swapped+20(FP)
+-	RET
+-
+-TEXT ·armAddUint32(SB),NOSPLIT,$0-12
+-	MOVW	addr+0(FP), R1
+-	MOVW	delta+4(FP), R2
+-addloop:
+-	// LDREX and STREX were introduced in ARMv6.
+-	LDREX	(R1), R3
+-	ADD	R2, R3
+-	DMB_ISHST_7
+-	STREX	R3, (R1), R0
+-	CMP	$0, R0
+-	BNE	addloop
+-	DMB_ISH_7
+-	MOVW	R3, new+8(FP)
+-	RET
+-
+-TEXT ·armAddUint64(SB),NOSPLIT,$0-20
+-	BL	fastCheck64<>(SB)
+-	MOVW	addr+0(FP), R1
+-	// make unaligned atomic access panic
+-	AND.S	$7, R1, R2
+-	BEQ 	2(PC)
+-	MOVW	R2, (R2)
+-	MOVW	delta_lo+4(FP), R2
+-	MOVW	delta_hi+8(FP), R3
+-add64loop:
+-	// LDREXD and STREXD were introduced in ARMv6k.
+-	LDREXD	(R1), R4	// loads R4 and R5
+-	ADD.S	R2, R4
+-	ADC	R3, R5
+-	DMB_ISHST_7
+-	STREXD	R4, (R1), R0	// stores R4 and R5
+-	CMP	$0, R0
+-	BNE	add64loop
+-	DMB_ISH_7
+-	MOVW	R4, new_lo+12(FP)
+-	MOVW	R5, new_hi+16(FP)
+-	RET
+-
+-TEXT ·armSwapUint32(SB),NOSPLIT,$0-12
+-	MOVW	addr+0(FP), R1
+-	MOVW	new+4(FP), R2
+-swaploop:
+-	// LDREX and STREX were introduced in ARMv6.
+-	LDREX	(R1), R3
+-	DMB_ISHST_7
+-	STREX	R2, (R1), R0
+-	CMP	$0, R0
+-	BNE	swaploop
+-	DMB_ISH_7
+-	MOVW	R3, old+8(FP)
+-	RET
+-
+-TEXT ·armSwapUint64(SB),NOSPLIT,$0-20
+-	BL	fastCheck64<>(SB)
+-	MOVW	addr+0(FP), R1
+-	// make unaligned atomic access panic
+-	AND.S	$7, R1, R2
+-	BEQ 	2(PC)
+-	MOVW	R2, (R2)
+-	MOVW	new_lo+4(FP), R2
+-	MOVW	new_hi+8(FP), R3
+-swap64loop:
+-	// LDREXD and STREXD were introduced in ARMv6k.
+-	LDREXD	(R1), R4	// loads R4 and R5
+-	DMB_ISHST_7
+-	STREXD	R2, (R1), R0	// stores R2 and R3
+-	CMP	$0, R0
+-	BNE	swap64loop
+-	DMB_ISH_7
+-	MOVW	R4, old_lo+12(FP)
+-	MOVW	R5, old_hi+16(FP)
+-	RET
+-
+-TEXT ·armLoadUint64(SB),NOSPLIT,$0-12
+-	BL	fastCheck64<>(SB)
+-	MOVW	addr+0(FP), R1
+-	// make unaligned atomic access panic
+-	AND.S	$7, R1, R2
+-	BEQ 	2(PC)
+-	MOVW	R2, (R2)
+-load64loop:
+-	LDREXD	(R1), R2	// loads R2 and R3
+-	DMB_ISHST_7
+-	STREXD	R2, (R1), R0	// stores R2 and R3
+-	CMP	$0, R0
+-	BNE	load64loop
+-	DMB_ISH_7
+-	MOVW	R2, val_lo+4(FP)
+-	MOVW	R3, val_hi+8(FP)
+-	RET
+-
+-TEXT ·armStoreUint64(SB),NOSPLIT,$0-12
+-	BL	fastCheck64<>(SB)
+-	MOVW	addr+0(FP), R1
+-	// make unaligned atomic access panic
+-	AND.S	$7, R1, R2
+-	BEQ 	2(PC)
+-	MOVW	R2, (R2)
+-	MOVW	val_lo+4(FP), R2
+-	MOVW	val_hi+8(FP), R3
+-store64loop:
+-	LDREXD	(R1), R4	// loads R4 and R5
+-	DMB_ISHST_7
+-	STREXD	R2, (R1), R0	// stores R2 and R3
+-	CMP	$0, R0
+-	BNE	store64loop
+-	DMB_ISH_7
+-	RET
+-
+-// Check for broken 64-bit LDREXD as found in QEMU.
+-// LDREXD followed by immediate STREXD should succeed.
+-// If it fails, try a few times just to be sure (maybe our thread got
+-// rescheduled between the two instructions) and then panic.
+-// A bug in some copies of QEMU makes STREXD never succeed,
+-// which will make uses of the 64-bit atomic operations loop forever.
+-// If things are working, set okLDREXD to avoid future checks.
+-// https://bugs.launchpad.net/qemu/+bug/670883.
+-TEXT	check64<>(SB),NOSPLIT,$16-0
+-	MOVW	$10, R1
+-	// 8-aligned stack address scratch space.
+-	MOVW	$8(R13), R5
+-	AND	$~7, R5
+-loop:
+-	LDREXD	(R5), R2
+-	STREXD	R2, (R5), R0
+-	CMP	$0, R0
+-	BEQ	ok
+-	SUB	$1, R1
+-	CMP	$0, R1
+-	BNE	loop
+-	// Must be buggy QEMU.
+-	BL	·panic64(SB)
+-ok:
+-	RET
+-
+-// Fast, cached version of check. No frame, just MOVW CMP RET after first time.
+-TEXT	fastCheck64<>(SB),NOSPLIT|NOFRAME,$0
+-	MOVW	ok64<>(SB), R0
+-	CMP	$0, R0	// have we been here before?
+-	RET.NE
+-	B	slowCheck64<>(SB)
+-
+-TEXT slowCheck64<>(SB),NOSPLIT,$0-0
+-	BL	check64<>(SB)
+-	// Still here, must be okay.
+-	MOVW	$1, R0
+-	MOVW	R0, ok64<>(SB)
+-	RET
+-
+-GLOBL ok64<>(SB), NOPTR, $4
+diff --git a/src/sync/atomic/asm_arm64.s b/src/sync/atomic/asm_arm64.s
+deleted file mode 100644
+index b351603146..0000000000
+--- a/src/sync/atomic/asm_arm64.s
++++ /dev/null
+@@ -1,149 +0,0 @@
+-// Copyright 2014 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "textflag.h"
+-
+-TEXT ·SwapInt32(SB),NOSPLIT,$0-20
+-	B	·SwapUint32(SB)
+-
+-TEXT ·SwapUint32(SB),NOSPLIT,$0-20
+-	MOVD	addr+0(FP), R0
+-	MOVW	new+8(FP), R1
+-again:
+-	LDAXRW	(R0), R2
+-	STLXRW	R1, (R0), R3
+-	CBNZ	R3, again
+-	MOVW	R2, old+16(FP)
+-	RET
+-
+-TEXT ·SwapInt64(SB),NOSPLIT,$0-24
+-	B	·SwapUint64(SB)
+-
+-TEXT ·SwapUint64(SB),NOSPLIT,$0-24
+-	MOVD	addr+0(FP), R0
+-	MOVD	new+8(FP), R1
+-again:
+-	LDAXR	(R0), R2
+-	STLXR	R1, (R0), R3
+-	CBNZ	R3, again
+-	MOVD	R2, old+16(FP)
+-	RET
+-
+-TEXT ·SwapUintptr(SB),NOSPLIT,$0-24
+-	B	·SwapUint64(SB)
+-
+-TEXT ·CompareAndSwapInt32(SB),NOSPLIT,$0-17
+-	B	·CompareAndSwapUint32(SB)
+-
+-TEXT ·CompareAndSwapUint32(SB),NOSPLIT,$0-17
+-	MOVD	addr+0(FP), R0
+-	MOVW	old+8(FP), R1
+-	MOVW	new+12(FP), R2
+-again:
+-	LDAXRW	(R0), R3
+-	CMPW	R1, R3
+-	BNE	ok
+-	STLXRW	R2, (R0), R3
+-	CBNZ	R3, again
+-ok:
+-	CSET	EQ, R0
+-	MOVB	R0, swapped+16(FP)
+-	RET
+-
+-TEXT ·CompareAndSwapUintptr(SB),NOSPLIT,$0-25
+-	B	·CompareAndSwapUint64(SB)
+-
+-TEXT ·CompareAndSwapInt64(SB),NOSPLIT,$0-25
+-	B	·CompareAndSwapUint64(SB)
+-
+-TEXT ·CompareAndSwapUint64(SB),NOSPLIT,$0-25
+-	MOVD	addr+0(FP), R0
+-	MOVD	old+8(FP), R1
+-	MOVD	new+16(FP), R2
+-again:
+-	LDAXR	(R0), R3
+-	CMP	R1, R3
+-	BNE	ok
+-	STLXR	R2, (R0), R3
+-	CBNZ	R3, again
+-ok:
+-	CSET	EQ, R0
+-	MOVB	R0, swapped+24(FP)
+-	RET
+-
+-TEXT ·AddInt32(SB),NOSPLIT,$0-20
+-	B	·AddUint32(SB)
+-
+-TEXT ·AddUint32(SB),NOSPLIT,$0-20
+-	MOVD	addr+0(FP), R0
+-	MOVW	delta+8(FP), R1
+-again:
+-	LDAXRW	(R0), R2
+-	ADDW	R2, R1, R2
+-	STLXRW	R2, (R0), R3
+-	CBNZ	R3, again
+-	MOVW	R2, new+16(FP)
+-	RET
+-
+-TEXT ·AddUintptr(SB),NOSPLIT,$0-24
+-	B	·AddUint64(SB)
+-
+-TEXT ·AddInt64(SB),NOSPLIT,$0-24
+-	B	·AddUint64(SB)
+-
+-TEXT ·AddUint64(SB),NOSPLIT,$0-24
+-	MOVD	addr+0(FP), R0
+-	MOVD	delta+8(FP), R1
+-again:
+-	LDAXR	(R0), R2
+-	ADD	R2, R1, R2
+-	STLXR	R2, (R0), R3
+-	CBNZ	R3, again
+-	MOVD	R2, new+16(FP)
+-	RET
+-
+-TEXT ·LoadInt32(SB),NOSPLIT,$0-12
+-	B	·LoadUint32(SB)
+-
+-TEXT ·LoadUint32(SB),NOSPLIT,$0-12
+-	MOVD	addr+0(FP), R0
+-	LDARW	(R0), R0
+-	MOVW	R0, val+8(FP)
+-	RET
+-
+-TEXT ·LoadInt64(SB),NOSPLIT,$0-16
+-	B	·LoadUint64(SB)
+-
+-TEXT ·LoadUint64(SB),NOSPLIT,$0-16
+-	MOVD	addr+0(FP), R0
+-	LDAR	(R0), R0
+-	MOVD	R0, val+8(FP)
+-	RET
+-
+-TEXT ·LoadUintptr(SB),NOSPLIT,$0-16
+-	B	·LoadPointer(SB)
+-
+-TEXT ·LoadPointer(SB),NOSPLIT,$0-16
+-	B	·LoadUint64(SB)
+-
+-TEXT ·StoreInt32(SB),NOSPLIT,$0-12
+-	B	·StoreUint32(SB)
+-
+-TEXT ·StoreUint32(SB),NOSPLIT,$0-12
+-	MOVD	addr+0(FP), R0
+-	MOVW	val+8(FP), R1
+-	STLRW	R1, (R0)
+-	RET
+-
+-TEXT ·StoreInt64(SB),NOSPLIT,$0-16
+-	B	·StoreUint64(SB)
+-
+-TEXT ·StoreUint64(SB),NOSPLIT,$0-16
+-	MOVD	addr+0(FP), R0
+-	MOVD	val+8(FP), R1
+-	STLR	R1, (R0)
+-	RET
+-
+-TEXT ·StoreUintptr(SB),NOSPLIT,$0-16
+-	B	·StoreUint64(SB)
+diff --git a/src/sync/atomic/asm_darwin_arm.s b/src/sync/atomic/asm_darwin_arm.s
+deleted file mode 100644
+index 7ccb44ad88..0000000000
+--- a/src/sync/atomic/asm_darwin_arm.s
++++ /dev/null
+@@ -1,91 +0,0 @@
+-// Copyright 2012 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "textflag.h"
+-
+-// Darwin/ARM atomic operations.
+-
+-TEXT ·CompareAndSwapInt32(SB),NOSPLIT,$0
+-	B ·CompareAndSwapUint32(SB)
+-
+-TEXT ·CompareAndSwapUint32(SB),NOSPLIT,$0
+-	B ·armCompareAndSwapUint32(SB)
+-
+-TEXT ·CompareAndSwapUintptr(SB),NOSPLIT,$0
+-	B ·CompareAndSwapUint32(SB)
+-
+-TEXT ·AddInt32(SB),NOSPLIT,$0
+-	B ·AddUint32(SB)
+-
+-TEXT ·AddUint32(SB),NOSPLIT,$0
+-	B ·armAddUint32(SB)
+-
+-TEXT ·AddUintptr(SB),NOSPLIT,$0
+-	B ·AddUint32(SB)
+-
+-TEXT ·SwapInt32(SB),NOSPLIT,$0
+-	B ·SwapUint32(SB)
+-
+-TEXT ·SwapUint32(SB),NOSPLIT,$0
+-	B ·armSwapUint32(SB)
+-
+-TEXT ·SwapUintptr(SB),NOSPLIT,$0
+-	B ·SwapUint32(SB)
+-
+-TEXT ·CompareAndSwapInt64(SB),NOSPLIT,$0
+-	B ·CompareAndSwapUint64(SB)
+-
+-TEXT ·CompareAndSwapUint64(SB),NOSPLIT|NOFRAME,$0
+-	B ·armCompareAndSwapUint64(SB)
+-
+-TEXT ·AddInt64(SB),NOSPLIT,$0
+-	B ·addUint64(SB)
+-
+-TEXT ·AddUint64(SB),NOSPLIT,$0
+-	B ·addUint64(SB)
+-
+-TEXT ·SwapInt64(SB),NOSPLIT,$0
+-	B ·swapUint64(SB)
+-
+-TEXT ·SwapUint64(SB),NOSPLIT,$0
+-	B ·swapUint64(SB)
+-
+-TEXT ·LoadInt32(SB),NOSPLIT,$0
+-	B ·LoadUint32(SB)
+-
+-TEXT ·LoadInt64(SB),NOSPLIT,$0
+-	B ·loadUint64(SB)
+-
+-TEXT ·LoadUint64(SB),NOSPLIT,$0
+-	B ·loadUint64(SB)
+-
+-TEXT ·LoadUintptr(SB),NOSPLIT,$0
+-	B ·LoadUint32(SB)
+-
+-TEXT ·LoadPointer(SB),NOSPLIT,$0
+-	B ·LoadUint32(SB)
+-
+-TEXT ·StoreInt32(SB),NOSPLIT,$0
+-	B ·StoreUint32(SB)
+-
+-TEXT ·StoreUint32(SB),NOSPLIT,$0-8
+-	MOVW addr+0(FP), R1
+-	MOVW val+4(FP), R2
+-storeloop:
+-	LDREX (R1), R4		// loads R4
+-	DMB MB_ISHST
+-	STREX R2, (R1), R0	// stores R2
+-	CMP $0, R0
+-	BNE storeloop
+-	DMB MB_ISH
+-	RET
+-
+-TEXT ·StoreInt64(SB),NOSPLIT,$0
+-	B ·storeUint64(SB)
+-
+-TEXT ·StoreUint64(SB),NOSPLIT,$0
+-	B ·storeUint64(SB)
+-
+-TEXT ·StoreUintptr(SB),NOSPLIT,$0
+-	B ·StoreUint32(SB)
+diff --git a/src/sync/atomic/asm_freebsd_arm.s b/src/sync/atomic/asm_freebsd_arm.s
+deleted file mode 100644
+index 2a762ca6fb..0000000000
+--- a/src/sync/atomic/asm_freebsd_arm.s
++++ /dev/null
+@@ -1,90 +0,0 @@
+-// Copyright 2012 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "textflag.h"
+-
+-// FreeBSD/ARM atomic operations.
+-// TODO(minux): this only supports ARMv6K or higher.
+-
+-TEXT ·CompareAndSwapInt32(SB),NOSPLIT,$0
+-	B ·CompareAndSwapUint32(SB)
+-
+-TEXT ·CompareAndSwapUint32(SB),NOSPLIT,$0
+-	B ·armCompareAndSwapUint32(SB)
+-
+-TEXT ·CompareAndSwapUintptr(SB),NOSPLIT,$0
+-	B ·CompareAndSwapUint32(SB)
+-
+-TEXT ·AddInt32(SB),NOSPLIT,$0
+-	B ·AddUint32(SB)
+-
+-TEXT ·AddUint32(SB),NOSPLIT,$0
+-	B ·armAddUint32(SB)
+-
+-TEXT ·AddUintptr(SB),NOSPLIT,$0
+-	B ·AddUint32(SB)
+-
+-TEXT ·SwapInt32(SB),NOSPLIT,$0
+-	B ·SwapUint32(SB)
+-
+-TEXT ·SwapUint32(SB),NOSPLIT,$0
+-	B ·armSwapUint32(SB)
+-
+-TEXT ·SwapUintptr(SB),NOSPLIT,$0
+-	B ·SwapUint32(SB)
+-
+-TEXT ·CompareAndSwapInt64(SB),NOSPLIT,$0
+-	B ·CompareAndSwapUint64(SB)
+-
+-TEXT ·CompareAndSwapUint64(SB),NOSPLIT|NOFRAME,$0
+-	B ·armCompareAndSwapUint64(SB)
+-
+-TEXT ·AddInt64(SB),NOSPLIT,$0
+-	B ·addUint64(SB)
+-
+-TEXT ·AddUint64(SB),NOSPLIT,$0
+-	B ·addUint64(SB)
+-
+-TEXT ·SwapInt64(SB),NOSPLIT,$0
+-	B ·swapUint64(SB)
+-
+-TEXT ·SwapUint64(SB),NOSPLIT,$0
+-	B ·swapUint64(SB)
+-
+-TEXT ·LoadInt32(SB),NOSPLIT,$0
+-	B ·LoadUint32(SB)
+-
+-TEXT ·LoadInt64(SB),NOSPLIT,$0
+-	B ·loadUint64(SB)
+-
+-TEXT ·LoadUint64(SB),NOSPLIT,$0
+-	B ·loadUint64(SB)
+-
+-TEXT ·LoadUintptr(SB),NOSPLIT,$0
+-	B ·LoadUint32(SB)
+-
+-TEXT ·LoadPointer(SB),NOSPLIT,$0
+-	B ·LoadUint32(SB)
+-
+-TEXT ·StoreInt32(SB),NOSPLIT,$0
+-	B ·StoreUint32(SB)
+-
+-TEXT ·StoreUint32(SB),NOSPLIT,$0-8
+-	MOVW addr+0(FP), R1
+-	MOVW val+4(FP), R2
+-storeloop:
+-	LDREX (R1), R4		// loads R4
+-	STREX R2, (R1), R0	// stores R2
+-	CMP $0, R0
+-	BNE storeloop
+-	RET
+-
+-TEXT ·StoreInt64(SB),NOSPLIT,$0
+-	B ·storeUint64(SB)
+-
+-TEXT ·StoreUint64(SB),NOSPLIT,$0
+-	B ·storeUint64(SB)
+-
+-TEXT ·StoreUintptr(SB),NOSPLIT,$0
+-	B ·StoreUint32(SB)
+diff --git a/src/sync/atomic/asm_linux_arm.s b/src/sync/atomic/asm_linux_arm.s
+deleted file mode 100644
+index 60549303e3..0000000000
+--- a/src/sync/atomic/asm_linux_arm.s
++++ /dev/null
+@@ -1,197 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build !race
+-
+-#include "textflag.h"
+-
+-// Linux/ARM atomic operations.
+-
+-// Because there is so much variation in ARM devices,
+-// the Linux kernel provides an appropriate compare-and-swap
+-// implementation at address 0xffff0fc0.  Caller sets:
+-//	R0 = old value
+-//	R1 = new value
+-//	R2 = addr
+-//	LR = return address
+-// The function returns with CS true if the swap happened.
+-// http://lxr.linux.no/linux+v2.6.37.2/arch/arm/kernel/entry-armv.S#L850
+-// On older kernels (before 2.6.24) the function can incorrectly
+-// report a conflict, so we have to double-check the compare ourselves
+-// and retry if necessary.
+-//
+-// http://git.kernel.org/?p=linux/kernel/git/torvalds/linux-2.6.git;a=commit;h=b49c0f24cf6744a3f4fd09289fe7cade349dead5
+-//
+-TEXT cas<>(SB),NOSPLIT,$0
+-	MOVW	$0xffff0fc0, R15
+-
+-TEXT ·CompareAndSwapInt32(SB),NOSPLIT,$0
+-	B	·CompareAndSwapUint32(SB)
+-
+-// Implement using kernel cas for portability.
+-TEXT ·CompareAndSwapUint32(SB),NOSPLIT,$0-13
+-	MOVW	addr+0(FP), R2
+-	// trigger potential paging fault here,
+-	// because we don't know how to traceback through __kuser_cmpxchg
+-	MOVW	(R2), R0
+-	MOVW	old+4(FP), R0
+-casagain:
+-	MOVW	new+8(FP), R1
+-	BL	cas<>(SB)
+-	BCC	cascheck
+-	MOVW	$1, R0
+-casret:
+-	MOVB	R0, swapped+12(FP)
+-	RET
+-cascheck:
+-	// Kernel lies; double-check.
+-	MOVW	addr+0(FP), R2
+-	MOVW	old+4(FP), R0
+-	MOVW	0(R2), R3
+-	CMP	R0, R3
+-	BEQ	casagain
+-	MOVW	$0, R0
+-	B	casret
+-
+-TEXT ·CompareAndSwapUintptr(SB),NOSPLIT,$0
+-	B	·CompareAndSwapUint32(SB)
+-
+-TEXT ·AddInt32(SB),NOSPLIT,$0
+-	B	·AddUint32(SB)
+-
+-// Implement using kernel cas for portability.
+-TEXT ·AddUint32(SB),NOSPLIT,$0-12
+-	MOVW	addr+0(FP), R2
+-	MOVW	delta+4(FP), R4
+-addloop1:
+-	MOVW	0(R2), R0
+-	MOVW	R0, R1
+-	ADD	R4, R1
+-	BL	cas<>(SB)
+-	BCC	addloop1
+-	MOVW	R1, new+8(FP)
+-	RET
+-
+-TEXT ·AddUintptr(SB),NOSPLIT,$0
+-	B	·AddUint32(SB)
+-
+-TEXT ·SwapInt32(SB),NOSPLIT,$0
+-	B	·SwapUint32(SB)
+-
+-// Implement using kernel cas for portability.
+-TEXT ·SwapUint32(SB),NOSPLIT,$0-12
+-	MOVW	addr+0(FP), R2
+-	MOVW	new+4(FP), R1
+-swaploop1:
+-	MOVW	0(R2), R0
+-	MOVW	R0, R4 // cas smashes R0
+-	BL	cas<>(SB)
+-	BCC	swaploop1
+-	MOVW	R4, old+8(FP)
+-	RET
+-
+-TEXT ·SwapUintptr(SB),NOSPLIT,$0
+-	B	·SwapUint32(SB)
+-
+-TEXT cas64<>(SB),NOSPLIT,$0
+-	MOVW	$0xffff0f60, R15 // R15 = hardware PC. __kuser_cmpxchg64: Linux-3.1 and above
+-
+-TEXT kernelCAS64<>(SB),NOSPLIT,$0-21
+-	// int (*__kuser_cmpxchg64_t)(const int64_t *oldval, const int64_t *newval, volatile int64_t *ptr);
+-	MOVW	addr+0(FP), R2 // ptr
+-	// trigger potential paging fault here,
+-	// because we don't know how to traceback through __kuser_cmpxchg64
+-	MOVW	(R2), R0
+-	// make unaligned atomic access panic
+-	AND.S	$7, R2, R1
+-	BEQ 	2(PC)
+-	MOVW	R1, (R1)
+-	MOVW	$oldval+4(FP), R0
+-	MOVW	$newval+12(FP), R1
+-	BL	cas64<>(SB)
+-	MOVW.CS	$1, R0 // C is set if the kernel has changed *ptr
+-	MOVW.CC	$0, R0
+-	MOVW	R0, ret+20(FP)
+-	RET
+-
+-TEXT ·generalCAS64(SB),NOSPLIT,$0-21
+-	B  	runtime∕internal∕atomic·Cas64(SB)
+-
+-GLOBL armCAS64(SB), NOPTR, $4
+-
+-TEXT setupAndCallCAS64<>(SB),NOSPLIT|NOFRAME,$0-21
+-	MOVW	$0xffff0ffc, R0 // __kuser_helper_version
+-	MOVW	(R0), R0
+-	// __kuser_cmpxchg64 only present if helper version >= 5
+-	CMP 	$5, R0
+-	MOVW.CS	$kernelCAS64<>(SB), R1
+-	MOVW.CS	R1, armCAS64(SB)
+-	MOVW.CS	R1, R15 // R15 = hardware PC
+-	MOVB	runtime·armArch(SB), R0
+-	// LDREXD, STREXD only present on ARMv6K or higher
+-	CMP	$6, R0 // TODO(minux): how to differentiate ARMv6 with ARMv6K?
+-	MOVW.CS	$·armCompareAndSwapUint64(SB), R1
+-	MOVW.CS	R1, armCAS64(SB)
+-	MOVW.CS	R1, R15
+-	// we are out of luck, can only use runtime's emulated 64-bit cas
+-	MOVW	$·generalCAS64(SB), R1
+-	MOVW	R1, armCAS64(SB)
+-	MOVW	R1, R15
+-
+-TEXT ·CompareAndSwapInt64(SB),NOSPLIT,$0
+-	B   	·CompareAndSwapUint64(SB)
+-
+-TEXT ·CompareAndSwapUint64(SB),NOSPLIT|NOFRAME,$0-21
+-	MOVW	armCAS64(SB), R0
+-	CMP 	$0, R0
+-	MOVW.NE	R0, R15 // R15 = hardware PC
+-	B	setupAndCallCAS64<>(SB)
+-
+-TEXT ·AddInt64(SB),NOSPLIT,$0
+-	B	·addUint64(SB)
+-
+-TEXT ·AddUint64(SB),NOSPLIT,$0
+-	B	·addUint64(SB)
+-
+-TEXT ·SwapInt64(SB),NOSPLIT,$0
+-	B	·swapUint64(SB)
+-
+-TEXT ·SwapUint64(SB),NOSPLIT,$0
+-	B	·swapUint64(SB)
+-
+-TEXT ·LoadInt32(SB),NOSPLIT,$0
+-	B	·LoadUint32(SB)
+-
+-TEXT ·LoadInt64(SB),NOSPLIT,$0
+-	B	·loadUint64(SB)
+-
+-TEXT ·LoadUint64(SB),NOSPLIT,$0
+-	B	·loadUint64(SB)
+-
+-TEXT ·LoadUintptr(SB),NOSPLIT,$0
+-	B	·LoadUint32(SB)
+-
+-TEXT ·LoadPointer(SB),NOSPLIT,$0
+-	B	·LoadUint32(SB)
+-
+-TEXT ·StoreInt32(SB),NOSPLIT,$0
+-	B	·StoreUint32(SB)
+-
+-TEXT ·StoreUint32(SB),NOSPLIT,$0-8
+-	MOVW	addr+0(FP), R2
+-	MOVW	val+4(FP), R1
+-storeloop1:
+-	MOVW	0(R2), R0
+-	BL	cas<>(SB)
+-	BCC	storeloop1
+-	RET
+-
+-TEXT ·StoreInt64(SB),NOSPLIT,$0
+-	B	·storeUint64(SB)
+-
+-TEXT ·StoreUint64(SB),NOSPLIT,$0
+-	B	·storeUint64(SB)
+-
+-TEXT ·StoreUintptr(SB),NOSPLIT,$0
+-	B	·StoreUint32(SB)
+diff --git a/src/sync/atomic/asm_mips64x.s b/src/sync/atomic/asm_mips64x.s
+deleted file mode 100644
+index 03aac8705f..0000000000
+--- a/src/sync/atomic/asm_mips64x.s
++++ /dev/null
+@@ -1,175 +0,0 @@
+-// Copyright 2015 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build mips64 mips64le
+-
+-#include "textflag.h"
+-
+-TEXT ·SwapInt32(SB),NOSPLIT,$0-20
+-	JMP	·SwapUint32(SB)
+-
+-TEXT ·SwapUint32(SB),NOSPLIT,$0-20
+-	MOVV	addr+0(FP), R2
+-	MOVW	new+8(FP), R5
+-	SYNC
+-	MOVV	R5, R3
+-	LL	(R2), R1
+-	SC	R3, (R2)
+-	BEQ	R3, -3(PC)
+-	MOVW	R1, old+16(FP)
+-	SYNC
+-	RET
+-
+-TEXT ·SwapInt64(SB),NOSPLIT,$0-24
+-	JMP	·SwapUint64(SB)
+-
+-TEXT ·SwapUint64(SB),NOSPLIT,$0-24
+-	MOVV	addr+0(FP), R2
+-	MOVV	new+8(FP), R5
+-	SYNC
+-	MOVV	R5, R3
+-	LLV	(R2), R1
+-	SCV	R3, (R2)
+-	BEQ	R3, -3(PC)
+-	MOVV	R1, old+16(FP)
+-	SYNC
+-	RET
+-
+-TEXT ·SwapUintptr(SB),NOSPLIT,$0-24
+-	JMP	·SwapUint64(SB)
+-
+-TEXT ·CompareAndSwapInt32(SB),NOSPLIT,$0-17
+-	JMP	·CompareAndSwapUint32(SB)
+-
+-TEXT ·CompareAndSwapUint32(SB),NOSPLIT,$0-17
+-	MOVV	addr+0(FP), R1
+-	MOVW	old+8(FP), R2
+-	MOVW	new+12(FP), R5
+-	SYNC
+-cas_again:
+-	MOVV	R5, R3
+-	LL	(R1), R4
+-	BNE	R2, R4, cas_fail
+-	SC	R3, (R1)
+-	BEQ	R3, cas_again
+-	MOVV	$1, R1
+-	MOVB	R1, swapped+16(FP)
+-	SYNC
+-	RET
+-cas_fail:
+-	MOVV	$0, R1
+-	JMP	-4(PC)
+-
+-TEXT ·CompareAndSwapUintptr(SB),NOSPLIT,$0-25
+-	JMP	·CompareAndSwapUint64(SB)
+-
+-TEXT ·CompareAndSwapInt64(SB),NOSPLIT,$0-25
+-	JMP	·CompareAndSwapUint64(SB)
+-
+-TEXT ·CompareAndSwapUint64(SB),NOSPLIT,$0-25
+-	MOVV	addr+0(FP), R1
+-	MOVV	old+8(FP), R2
+-	MOVV	new+16(FP), R5
+-	SYNC
+-cas64_again:
+-	MOVV	R5, R3
+-	LLV	(R1), R4
+-	BNE	R2, R4, cas64_fail
+-	SCV	R3, (R1)
+-	BEQ	R3, cas64_again
+-	MOVV	$1, R1
+-	MOVB	R1, swapped+24(FP)
+-	SYNC
+-	RET
+-cas64_fail:
+-	MOVV	$0, R1
+-	JMP	-4(PC)
+-
+-TEXT ·AddInt32(SB),NOSPLIT,$0-20
+-	JMP	·AddUint32(SB)
+-
+-TEXT ·AddUint32(SB),NOSPLIT,$0-20
+-	MOVV	addr+0(FP), R2
+-	MOVW	delta+8(FP), R3
+-	SYNC
+-	LL	(R2), R1
+-	ADDU	R1, R3, R4
+-	MOVV	R4, R1
+-	SC	R4, (R2)
+-	BEQ	R4, -4(PC)
+-	MOVW	R1, new+16(FP)
+-	SYNC
+-	RET
+-
+-TEXT ·AddUintptr(SB),NOSPLIT,$0-24
+-	JMP	·AddUint64(SB)
+-
+-TEXT ·AddInt64(SB),NOSPLIT,$0-24
+-	JMP	·AddUint64(SB)
+-
+-TEXT ·AddUint64(SB),NOSPLIT,$0-24
+-	MOVV	addr+0(FP), R2
+-	MOVV	delta+8(FP), R3
+-	SYNC
+-	LLV	(R2), R1
+-	ADDVU	R1, R3, R4
+-	MOVV	R4, R1
+-	SCV	R4, (R2)
+-	BEQ	R4, -4(PC)
+-	MOVV	R1, new+16(FP)
+-	SYNC
+-	RET
+-
+-TEXT ·LoadInt32(SB),NOSPLIT,$0-12
+-	JMP	·LoadUint32(SB)
+-
+-TEXT ·LoadUint32(SB),NOSPLIT,$0-12
+-	MOVV	addr+0(FP), R1
+-	SYNC
+-	MOVWU	0(R1), R1
+-	SYNC
+-	MOVW	R1, val+8(FP)
+-	RET
+-
+-TEXT ·LoadInt64(SB),NOSPLIT,$0-16
+-	JMP	·LoadUint64(SB)
+-
+-TEXT ·LoadUint64(SB),NOSPLIT,$0-16
+-	MOVV	addr+0(FP), R1
+-	SYNC
+-	MOVV	0(R1), R1
+-	SYNC
+-	MOVV	R1, val+8(FP)
+-	RET
+-
+-TEXT ·LoadUintptr(SB),NOSPLIT,$0-16
+-	JMP	·LoadPointer(SB)
+-
+-TEXT ·LoadPointer(SB),NOSPLIT,$0-16
+-	JMP	·LoadUint64(SB)
+-
+-TEXT ·StoreInt32(SB),NOSPLIT,$0-12
+-	JMP	·StoreUint32(SB)
+-
+-TEXT ·StoreUint32(SB),NOSPLIT,$0-12
+-	MOVV	addr+0(FP), R1
+-	MOVW	val+8(FP), R2
+-	SYNC
+-	MOVW	R2, 0(R1)
+-	SYNC
+-	RET
+-
+-TEXT ·StoreInt64(SB),NOSPLIT,$0-16
+-	JMP	·StoreUint64(SB)
+-
+-TEXT ·StoreUint64(SB),NOSPLIT,$0-16
+-	MOVV	addr+0(FP), R1
+-	MOVV	val+8(FP), R2
+-	SYNC
+-	MOVV	R2, 0(R1)
+-	SYNC
+-	RET
+-
+-TEXT ·StoreUintptr(SB),NOSPLIT,$0-16
+-	JMP	·StoreUint64(SB)
+diff --git a/src/sync/atomic/asm_mipsx.s b/src/sync/atomic/asm_mipsx.s
+deleted file mode 100644
+index 042b00bb09..0000000000
+--- a/src/sync/atomic/asm_mipsx.s
++++ /dev/null
+@@ -1,85 +0,0 @@
+-// Copyright 2016 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build mips mipsle
+-
+-#include "textflag.h"
+-
+-TEXT ·SwapInt32(SB),NOSPLIT,$0-12
+-	JMP	runtime∕internal∕atomic·Xchg(SB)
+-
+-TEXT ·SwapUint32(SB),NOSPLIT,$0-12
+-	JMP	runtime∕internal∕atomic·Xchg(SB)
+-
+-TEXT ·SwapInt64(SB),NOSPLIT,$0-20
+-	JMP	runtime∕internal∕atomic·Xchg64(SB)
+-
+-TEXT ·SwapUint64(SB),NOSPLIT,$0-20
+-	JMP	runtime∕internal∕atomic·Xchg64(SB)
+-
+-TEXT ·SwapUintptr(SB),NOSPLIT,$0-12
+-	JMP	runtime∕internal∕atomic·Xchg(SB)
+-
+-TEXT ·CompareAndSwapInt32(SB),NOSPLIT,$0-13
+-	JMP	runtime∕internal∕atomic·Cas(SB)
+-
+-TEXT ·CompareAndSwapUint32(SB),NOSPLIT,$0-13
+-	JMP	runtime∕internal∕atomic·Cas(SB)
+-
+-TEXT ·CompareAndSwapUintptr(SB),NOSPLIT,$0-13
+-	JMP	runtime∕internal∕atomic·Cas(SB)
+-
+-TEXT ·CompareAndSwapInt64(SB),NOSPLIT,$0-21
+-	JMP	runtime∕internal∕atomic·Cas64(SB)
+-
+-TEXT ·CompareAndSwapUint64(SB),NOSPLIT,$0-21
+-	JMP	runtime∕internal∕atomic·Cas64(SB)
+-
+-TEXT ·AddInt32(SB),NOSPLIT,$0-12
+-	JMP	runtime∕internal∕atomic·Xadd(SB)
+-
+-TEXT ·AddUint32(SB),NOSPLIT,$0-12
+-	JMP	runtime∕internal∕atomic·Xadd(SB)
+-
+-TEXT ·AddUintptr(SB),NOSPLIT,$0-12
+-	JMP	runtime∕internal∕atomic·Xadd(SB)
+-
+-TEXT ·AddInt64(SB),NOSPLIT,$0-20
+-	JMP	runtime∕internal∕atomic·Xadd64(SB)
+-
+-TEXT ·AddUint64(SB),NOSPLIT,$0-20
+-	JMP	runtime∕internal∕atomic·Xadd64(SB)
+-
+-TEXT ·LoadInt32(SB),NOSPLIT,$0-8
+-	JMP	runtime∕internal∕atomic·Load(SB)
+-
+-TEXT ·LoadUint32(SB),NOSPLIT,$0-8
+-	JMP	runtime∕internal∕atomic·Load(SB)
+-
+-TEXT ·LoadInt64(SB),NOSPLIT,$0-12
+-	JMP	runtime∕internal∕atomic·Load64(SB)
+-
+-TEXT ·LoadUint64(SB),NOSPLIT,$0-12
+-	JMP	runtime∕internal∕atomic·Load64(SB)
+-
+-TEXT ·LoadUintptr(SB),NOSPLIT,$0-8
+-	JMP	runtime∕internal∕atomic·Load(SB)
+-
+-TEXT ·LoadPointer(SB),NOSPLIT,$0-8
+-	JMP	runtime∕internal∕atomic·Load(SB)
+-
+-TEXT ·StoreInt32(SB),NOSPLIT,$0-8
+-	JMP	runtime∕internal∕atomic·Store(SB)
+-
+-TEXT ·StoreUint32(SB),NOSPLIT,$0-8
+-	JMP	runtime∕internal∕atomic·Store(SB)
+-
+-TEXT ·StoreInt64(SB),NOSPLIT,$0-12
+-	JMP	runtime∕internal∕atomic·Store64(SB)
+-
+-TEXT ·StoreUint64(SB),NOSPLIT,$0-12
+-	JMP	runtime∕internal∕atomic·Store64(SB)
+-
+-TEXT ·StoreUintptr(SB),NOSPLIT,$0-8
+-	JMP	runtime∕internal∕atomic·Store(SB)
+diff --git a/src/sync/atomic/asm_nacl_arm.s b/src/sync/atomic/asm_nacl_arm.s
+deleted file mode 100644
+index 5cb953131c..0000000000
+--- a/src/sync/atomic/asm_nacl_arm.s
++++ /dev/null
+@@ -1,90 +0,0 @@
+-// Copyright 2014 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "textflag.h"
+-
+-// NaCl/ARM atomic operations.
+-// NaCl/ARM explicitly targets ARMv7A.
+-
+-TEXT ·CompareAndSwapInt32(SB),NOSPLIT,$0
+-	B ·CompareAndSwapUint32(SB)
+-
+-TEXT ·CompareAndSwapUint32(SB),NOSPLIT,$0
+-	B ·armCompareAndSwapUint32(SB)
+-
+-TEXT ·CompareAndSwapUintptr(SB),NOSPLIT,$0
+-	B ·CompareAndSwapUint32(SB)
+-
+-TEXT ·AddInt32(SB),NOSPLIT,$0
+-	B ·AddUint32(SB)
+-
+-TEXT ·AddUint32(SB),NOSPLIT,$0
+-	B ·armAddUint32(SB)
+-
+-TEXT ·AddUintptr(SB),NOSPLIT,$0
+-	B ·AddUint32(SB)
+-
+-TEXT ·SwapInt32(SB),NOSPLIT,$0
+-	B ·SwapUint32(SB)
+-
+-TEXT ·SwapUint32(SB),NOSPLIT,$0
+-	B ·armSwapUint32(SB)
+-
+-TEXT ·SwapUintptr(SB),NOSPLIT,$0
+-	B ·SwapUint32(SB)
+-
+-TEXT ·CompareAndSwapInt64(SB),NOSPLIT,$0
+-	B ·CompareAndSwapUint64(SB)
+-
+-TEXT ·CompareAndSwapUint64(SB),NOSPLIT|NOFRAME,$0
+-	B ·armCompareAndSwapUint64(SB)
+-
+-TEXT ·AddInt64(SB),NOSPLIT,$0
+-	B ·addUint64(SB)
+-
+-TEXT ·AddUint64(SB),NOSPLIT,$0
+-	B ·addUint64(SB)
+-
+-TEXT ·SwapInt64(SB),NOSPLIT,$0
+-	B ·swapUint64(SB)
+-
+-TEXT ·SwapUint64(SB),NOSPLIT,$0
+-	B ·swapUint64(SB)
+-
+-TEXT ·LoadInt32(SB),NOSPLIT,$0
+-	B ·LoadUint32(SB)
+-
+-TEXT ·LoadInt64(SB),NOSPLIT,$0
+-	B ·loadUint64(SB)
+-
+-TEXT ·LoadUint64(SB),NOSPLIT,$0
+-	B ·loadUint64(SB)
+-
+-TEXT ·LoadUintptr(SB),NOSPLIT,$0
+-	B ·LoadUint32(SB)
+-
+-TEXT ·LoadPointer(SB),NOSPLIT,$0
+-	B ·LoadUint32(SB)
+-
+-TEXT ·StoreInt32(SB),NOSPLIT,$0
+-	B ·StoreUint32(SB)
+-
+-TEXT ·StoreUint32(SB),NOSPLIT,$0-8
+-	MOVW addr+0(FP), R1
+-	MOVW val+4(FP), R2
+-storeloop:
+-	LDREX (R1), R4		// loads R4
+-	STREX R2, (R1), R0	// stores R2
+-	CMP $0, R0
+-	BNE storeloop
+-	RET
+-
+-TEXT ·StoreInt64(SB),NOSPLIT,$0
+-	B ·storeUint64(SB)
+-
+-TEXT ·StoreUint64(SB),NOSPLIT,$0
+-	B ·storeUint64(SB)
+-
+-TEXT ·StoreUintptr(SB),NOSPLIT,$0
+-	B ·StoreUint32(SB)
+diff --git a/src/sync/atomic/asm_netbsd_arm.s b/src/sync/atomic/asm_netbsd_arm.s
+deleted file mode 100644
+index 0528484f3b..0000000000
+--- a/src/sync/atomic/asm_netbsd_arm.s
++++ /dev/null
+@@ -1,90 +0,0 @@
+-// Copyright 2013 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "textflag.h"
+-
+-// NetBSD/ARM atomic operations.
+-// TODO(minux): this only supports ARMv6K or higher.
+-
+-TEXT ·CompareAndSwapInt32(SB),NOSPLIT,$0
+-	B ·CompareAndSwapUint32(SB)
+-
+-TEXT ·CompareAndSwapUint32(SB),NOSPLIT,$0
+-	B ·armCompareAndSwapUint32(SB)
+-
+-TEXT ·CompareAndSwapUintptr(SB),NOSPLIT,$0
+-	B ·CompareAndSwapUint32(SB)
+-
+-TEXT ·AddInt32(SB),NOSPLIT,$0
+-	B ·AddUint32(SB)
+-
+-TEXT ·AddUint32(SB),NOSPLIT,$0
+-	B ·armAddUint32(SB)
+-
+-TEXT ·AddUintptr(SB),NOSPLIT,$0
+-	B ·AddUint32(SB)
+-
+-TEXT ·SwapInt32(SB),NOSPLIT,$0
+-	B ·SwapUint32(SB)
+-
+-TEXT ·SwapUint32(SB),NOSPLIT,$0
+-	B ·armSwapUint32(SB)
+-
+-TEXT ·SwapUintptr(SB),NOSPLIT,$0
+-	B ·SwapUint32(SB)
+-
+-TEXT ·CompareAndSwapInt64(SB),NOSPLIT,$0
+-	B ·CompareAndSwapUint64(SB)
+-
+-TEXT ·CompareAndSwapUint64(SB),NOSPLIT|NOFRAME,$0
+-	B ·armCompareAndSwapUint64(SB)
+-
+-TEXT ·AddInt64(SB),NOSPLIT,$0
+-	B ·addUint64(SB)
+-
+-TEXT ·AddUint64(SB),NOSPLIT,$0
+-	B ·addUint64(SB)
+-
+-TEXT ·SwapInt64(SB),NOSPLIT,$0
+-	B ·swapUint64(SB)
+-
+-TEXT ·SwapUint64(SB),NOSPLIT,$0
+-	B ·swapUint64(SB)
+-
+-TEXT ·LoadInt32(SB),NOSPLIT,$0
+-	B ·LoadUint32(SB)
+-
+-TEXT ·LoadInt64(SB),NOSPLIT,$0
+-	B ·loadUint64(SB)
+-
+-TEXT ·LoadUint64(SB),NOSPLIT,$0
+-	B ·loadUint64(SB)
+-
+-TEXT ·LoadUintptr(SB),NOSPLIT,$0
+-	B ·LoadUint32(SB)
+-
+-TEXT ·LoadPointer(SB),NOSPLIT,$0
+-	B ·LoadUint32(SB)
+-
+-TEXT ·StoreInt32(SB),NOSPLIT,$0
+-	B ·StoreUint32(SB)
+-
+-TEXT ·StoreUint32(SB),NOSPLIT,$0-8
+-	MOVW addr+0(FP), R1
+-	MOVW val+4(FP), R2
+-storeloop:
+-	LDREX (R1), R4		// loads R4
+-	STREX R2, (R1), R0	// stores R2
+-	CMP $0, R0
+-	BNE storeloop
+-	RET
+-
+-TEXT ·StoreInt64(SB),NOSPLIT,$0
+-	B ·storeUint64(SB)
+-
+-TEXT ·StoreUint64(SB),NOSPLIT,$0
+-	B ·storeUint64(SB)
+-
+-TEXT ·StoreUintptr(SB),NOSPLIT,$0
+-	B ·StoreUint32(SB)
+diff --git a/src/sync/atomic/asm_openbsd_arm.s b/src/sync/atomic/asm_openbsd_arm.s
+deleted file mode 100644
+index 541a62a728..0000000000
+--- a/src/sync/atomic/asm_openbsd_arm.s
++++ /dev/null
+@@ -1,90 +0,0 @@
+-// Copyright 2013 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "textflag.h"
+-
+-// OpenBSD/ARM atomic operations.
+-// TODO(minux): this only supports ARMv6K or higher.
+-
+-TEXT ·CompareAndSwapInt32(SB),NOSPLIT,$0
+-	B ·CompareAndSwapUint32(SB)
+-
+-TEXT ·CompareAndSwapUint32(SB),NOSPLIT,$0
+-	B ·armCompareAndSwapUint32(SB)
+-
+-TEXT ·CompareAndSwapUintptr(SB),NOSPLIT,$0
+-	B ·CompareAndSwapUint32(SB)
+-
+-TEXT ·AddInt32(SB),NOSPLIT,$0
+-	B ·AddUint32(SB)
+-
+-TEXT ·AddUint32(SB),NOSPLIT,$0
+-	B ·armAddUint32(SB)
+-
+-TEXT ·AddUintptr(SB),NOSPLIT,$0
+-	B ·AddUint32(SB)
+-
+-TEXT ·SwapInt32(SB),NOSPLIT,$0
+-	B ·SwapUint32(SB)
+-
+-TEXT ·SwapUint32(SB),NOSPLIT,$0
+-	B ·armSwapUint32(SB)
+-
+-TEXT ·SwapUintptr(SB),NOSPLIT,$0
+-	B ·SwapUint32(SB)
+-
+-TEXT ·CompareAndSwapInt64(SB),NOSPLIT,$0
+-	B ·CompareAndSwapUint64(SB)
+-
+-TEXT ·CompareAndSwapUint64(SB),NOSPLIT|NOFRAME,$0
+-	B ·armCompareAndSwapUint64(SB)
+-
+-TEXT ·AddInt64(SB),NOSPLIT,$0
+-	B ·addUint64(SB)
+-
+-TEXT ·AddUint64(SB),NOSPLIT,$0
+-	B ·addUint64(SB)
+-
+-TEXT ·SwapInt64(SB),NOSPLIT,$0
+-	B ·swapUint64(SB)
+-
+-TEXT ·SwapUint64(SB),NOSPLIT,$0
+-	B ·swapUint64(SB)
+-
+-TEXT ·LoadInt32(SB),NOSPLIT,$0
+-	B ·LoadUint32(SB)
+-
+-TEXT ·LoadInt64(SB),NOSPLIT,$0
+-	B ·loadUint64(SB)
+-
+-TEXT ·LoadUint64(SB),NOSPLIT,$0
+-	B ·loadUint64(SB)
+-
+-TEXT ·LoadUintptr(SB),NOSPLIT,$0
+-	B ·LoadUint32(SB)
+-
+-TEXT ·LoadPointer(SB),NOSPLIT,$0
+-	B ·LoadUint32(SB)
+-
+-TEXT ·StoreInt32(SB),NOSPLIT,$0
+-	B ·StoreUint32(SB)
+-
+-TEXT ·StoreUint32(SB),NOSPLIT,$0-8
+-	MOVW addr+0(FP), R1
+-	MOVW val+4(FP), R2
+-storeloop:
+-	LDREX (R1), R4		// loads R4
+-	STREX R2, (R1), R0	// stores R2
+-	CMP $0, R0
+-	BNE storeloop
+-	RET
+-
+-TEXT ·StoreInt64(SB),NOSPLIT,$0
+-	B ·storeUint64(SB)
+-
+-TEXT ·StoreUint64(SB),NOSPLIT,$0
+-	B ·storeUint64(SB)
+-
+-TEXT ·StoreUintptr(SB),NOSPLIT,$0
+-	B ·StoreUint32(SB)
+diff --git a/src/sync/atomic/asm_plan9_arm.s b/src/sync/atomic/asm_plan9_arm.s
+deleted file mode 100644
+index 5b157f5196..0000000000
+--- a/src/sync/atomic/asm_plan9_arm.s
++++ /dev/null
+@@ -1,97 +0,0 @@
+-// Copyright 2012 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "textflag.h"
+-
+-#define DMB_ISH_7 \
+-	MOVB	runtime·goarm(SB), R11; \
+-	CMP	$7, R11; \
+-	BLT	2(PC); \
+-	DMB	MB_ISH
+-
+-// Plan9/ARM atomic operations.
+-// TODO(minux): this only supports ARMv6K or higher.
+-
+-TEXT ·CompareAndSwapInt32(SB),NOSPLIT,$0
+-	B ·CompareAndSwapUint32(SB)
+-
+-TEXT ·CompareAndSwapUint32(SB),NOSPLIT,$0
+-	B ·armCompareAndSwapUint32(SB)
+-
+-TEXT ·CompareAndSwapUintptr(SB),NOSPLIT,$0
+-	B ·CompareAndSwapUint32(SB)
+-
+-TEXT ·AddInt32(SB),NOSPLIT,$0
+-	B ·AddUint32(SB)
+-
+-TEXT ·AddUint32(SB),NOSPLIT,$0
+-	B ·armAddUint32(SB)
+-
+-TEXT ·AddUintptr(SB),NOSPLIT,$0
+-	B ·AddUint32(SB)
+-
+-TEXT ·SwapInt32(SB),NOSPLIT,$0
+-	B ·SwapUint32(SB)
+-
+-TEXT ·SwapUint32(SB),NOSPLIT,$0
+-	B ·armSwapUint32(SB)
+-
+-TEXT ·SwapUintptr(SB),NOSPLIT,$0
+-	B ·SwapUint32(SB)
+-
+-TEXT ·CompareAndSwapInt64(SB),NOSPLIT,$0
+-	B ·CompareAndSwapUint64(SB)
+-
+-TEXT ·CompareAndSwapUint64(SB),NOSPLIT|NOFRAME,$0
+-	B ·armCompareAndSwapUint64(SB)
+-
+-TEXT ·AddInt64(SB),NOSPLIT,$0
+-	B ·addUint64(SB)
+-
+-TEXT ·AddUint64(SB),NOSPLIT,$0
+-	B ·addUint64(SB)
+-
+-TEXT ·SwapInt64(SB),NOSPLIT,$0
+-	B ·swapUint64(SB)
+-
+-TEXT ·SwapUint64(SB),NOSPLIT,$0
+-	B ·swapUint64(SB)
+-
+-TEXT ·LoadInt32(SB),NOSPLIT,$0
+-	B ·LoadUint32(SB)
+-
+-TEXT ·LoadInt64(SB),NOSPLIT,$0
+-	B ·loadUint64(SB)
+-
+-TEXT ·LoadUint64(SB),NOSPLIT,$0
+-	B ·loadUint64(SB)
+-
+-TEXT ·LoadUintptr(SB),NOSPLIT,$0
+-	B ·LoadUint32(SB)
+-
+-TEXT ·LoadPointer(SB),NOSPLIT,$0
+-	B ·LoadUint32(SB)
+-
+-TEXT ·StoreInt32(SB),NOSPLIT,$0
+-	B ·StoreUint32(SB)
+-
+-TEXT ·StoreUint32(SB),NOSPLIT,$0-8
+-	MOVW addr+0(FP), R1
+-	MOVW val+4(FP), R2
+-	DMB_ISH_7
+-storeloop:
+-	LDREX (R1), R4		// loads R4
+-	STREX R2, (R1), R0	// stores R2
+-	CMP $0, R0
+-	BNE storeloop
+-	RET
+-
+-TEXT ·StoreInt64(SB),NOSPLIT,$0
+-	B ·storeUint64(SB)
+-
+-TEXT ·StoreUint64(SB),NOSPLIT,$0
+-	B ·storeUint64(SB)
+-
+-TEXT ·StoreUintptr(SB),NOSPLIT,$0
+-	B ·StoreUint32(SB)
+diff --git a/src/sync/atomic/asm_ppc64x.s b/src/sync/atomic/asm_ppc64x.s
+deleted file mode 100644
+index dc93ed8e1d..0000000000
+--- a/src/sync/atomic/asm_ppc64x.s
++++ /dev/null
+@@ -1,167 +0,0 @@
+-// Copyright 2014 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build ppc64 ppc64le
+-
+-#include "textflag.h"
+-
+-TEXT ·SwapInt32(SB),NOSPLIT,$0-20
+-	BR	·SwapUint32(SB)
+-
+-TEXT ·SwapUint32(SB),NOSPLIT,$0-20
+-	MOVD	addr+0(FP), R3
+-	MOVW	new+8(FP), R4
+-	LWSYNC
+-	LWAR	(R3), R5
+-	STWCCC	R4, (R3)
+-	BNE	-2(PC)
+-	ISYNC
+-	MOVW	R5, old+16(FP)
+-	RET
+-
+-TEXT ·SwapInt64(SB),NOSPLIT,$0-24
+-	BR	·SwapUint64(SB)
+-
+-TEXT ·SwapUint64(SB),NOSPLIT,$0-24
+-	MOVD	addr+0(FP), R3
+-	MOVD	new+8(FP), R4
+-	LWSYNC
+-	LDAR	(R3), R5
+-	STDCCC	R4, (R3)
+-	BNE	-2(PC)
+-	ISYNC
+-	MOVD	R5, old+16(FP)
+-	RET
+-
+-TEXT ·SwapUintptr(SB),NOSPLIT,$0-24
+-	BR	·SwapUint64(SB)
+-
+-TEXT ·CompareAndSwapInt32(SB),NOSPLIT,$0-17
+-	BR	·CompareAndSwapUint32(SB)
+-
+-TEXT ·CompareAndSwapUint32(SB),NOSPLIT,$0-17
+-	MOVD	addr+0(FP), R3
+-	MOVW	old+8(FP), R4
+-	MOVW	new+12(FP), R5
+-	LWSYNC
+-	LWAR	(R3), R6
+-	CMPW	R6, R4
+-	BNE	7(PC)
+-	STWCCC	R5, (R3)
+-	BNE	-4(PC)
+-	LWSYNC
+-	MOVD	$1, R3
+-	MOVB	R3, swapped+16(FP)
+-	RET
+-	MOVB	R0, swapped+16(FP)
+-	RET
+-
+-TEXT ·CompareAndSwapUintptr(SB),NOSPLIT,$0-25
+-	BR	·CompareAndSwapUint64(SB)
+-
+-TEXT ·CompareAndSwapInt64(SB),NOSPLIT,$0-25
+-	BR	·CompareAndSwapUint64(SB)
+-
+-TEXT ·CompareAndSwapUint64(SB),NOSPLIT,$0-25
+-	MOVD	addr+0(FP), R3
+-	MOVD	old+8(FP), R4
+-	MOVD	new+16(FP), R5
+-	LWSYNC
+-	LDAR	(R3), R6
+-	CMP	R6, R4
+-	BNE	7(PC)
+-	STDCCC	R5, (R3)
+-	BNE	-4(PC)
+-	LWSYNC
+-	MOVD	$1, R3
+-	MOVB	R3, swapped+24(FP)
+-	RET
+-	MOVB	R0, swapped+24(FP)
+-	RET
+-
+-TEXT ·AddInt32(SB),NOSPLIT,$0-20
+-	BR	·AddUint32(SB)
+-
+-TEXT ·AddUint32(SB),NOSPLIT,$0-20
+-	MOVD	addr+0(FP), R3
+-	MOVW	delta+8(FP), R4
+-	LWSYNC
+-	LWAR	(R3), R5
+-	ADD	R4, R5
+-	STWCCC	R5, (R3)
+-	BNE	-3(PC)
+-	MOVW	R5, new+16(FP)
+-	RET
+-
+-TEXT ·AddUintptr(SB),NOSPLIT,$0-24
+-	BR	·AddUint64(SB)
+-
+-TEXT ·AddInt64(SB),NOSPLIT,$0-24
+-	BR	·AddUint64(SB)
+-
+-TEXT ·AddUint64(SB),NOSPLIT,$0-24
+-	MOVD	addr+0(FP), R3
+-	MOVD	delta+8(FP), R4
+-	LWSYNC
+-	LDAR	(R3), R5
+-	ADD	R4, R5
+-	STDCCC	R5, (R3)
+-	BNE	-3(PC)
+-	MOVD	R5, new+16(FP)
+-	RET
+-
+-TEXT ·LoadInt32(SB),NOSPLIT,$0-12
+-	BR	·LoadUint32(SB)
+-
+-TEXT ·LoadUint32(SB),NOSPLIT,$0-12
+-	MOVD	addr+0(FP), R3
+-	SYNC
+-	MOVW	0(R3), R3
+-	CMPW	R3, R3, CR7
+-	BC	4, 30, 1(PC)	// bne- cr7,0x4
+-	ISYNC
+-	MOVW	R3, val+8(FP)
+-	RET
+-
+-TEXT ·LoadInt64(SB),NOSPLIT,$0-16
+-	BR	·LoadUint64(SB)
+-
+-TEXT ·LoadUint64(SB),NOSPLIT,$0-16
+-	MOVD	addr+0(FP), R3
+-	SYNC
+-	MOVD	0(R3), R3
+-	CMP	R3, R3, CR7
+-	BC	4, 30, 1(PC)	// bne- cr7,0x4
+-	ISYNC
+-	MOVD	R3, val+8(FP)
+-	RET
+-
+-TEXT ·LoadUintptr(SB),NOSPLIT,$0-16
+-	BR	·LoadPointer(SB)
+-
+-TEXT ·LoadPointer(SB),NOSPLIT,$0-16
+-	BR	·LoadUint64(SB)
+-
+-TEXT ·StoreInt32(SB),NOSPLIT,$0-12
+-	BR	·StoreUint32(SB)
+-
+-TEXT ·StoreUint32(SB),NOSPLIT,$0-12
+-	MOVD	addr+0(FP), R3
+-	MOVW	val+8(FP), R4
+-	SYNC
+-	MOVW	R4, 0(R3)
+-	RET
+-
+-TEXT ·StoreInt64(SB),NOSPLIT,$0-16
+-	BR	·StoreUint64(SB)
+-
+-TEXT ·StoreUint64(SB),NOSPLIT,$0-16
+-	MOVD	addr+0(FP), R3
+-	MOVD	val+8(FP), R4
+-	SYNC
+-	MOVD	R4, 0(R3)
+-	RET
+-
+-TEXT ·StoreUintptr(SB),NOSPLIT,$0-16
+-	BR	·StoreUint64(SB)
+diff --git a/src/sync/atomic/asm_s390x.s b/src/sync/atomic/asm_s390x.s
+deleted file mode 100644
+index cf61013254..0000000000
+--- a/src/sync/atomic/asm_s390x.s
++++ /dev/null
+@@ -1,143 +0,0 @@
+-// Copyright 2016 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "textflag.h"
+-
+-TEXT ·SwapInt32(SB),NOSPLIT,$0-20
+-	BR	·SwapUint32(SB)
+-
+-TEXT ·SwapUint32(SB),NOSPLIT,$0-20
+-	MOVD	addr+0(FP), R3
+-	MOVWZ	new+8(FP), R4
+-	MOVWZ	(R3), R5
+-repeat:
+-	CS	R5, R4, (R3) // if (R3)==R5 then (R3)=R4 else R5=(R3)
+-	BNE	repeat
+-	MOVW	R5, old+16(FP)
+-	RET
+-
+-TEXT ·SwapInt64(SB),NOSPLIT,$0-24
+-	BR	·SwapUint64(SB)
+-
+-TEXT ·SwapUint64(SB),NOSPLIT,$0-24
+-	MOVD	addr+0(FP), R3
+-	MOVD	new+8(FP), R4
+-	MOVD	(R3), R5
+-repeat:
+-	CSG	R5, R4, (R3) // if (R3)==R5 then (R3)=R4 else R5=(R3)
+-	BNE	repeat
+-	MOVD	R5, old+16(FP)
+-	RET
+-
+-TEXT ·SwapUintptr(SB),NOSPLIT,$0-24
+-	BR	·SwapUint64(SB)
+-
+-TEXT ·CompareAndSwapInt32(SB),NOSPLIT,$0-17
+-	BR	·CompareAndSwapUint32(SB)
+-
+-TEXT ·CompareAndSwapUint32(SB),NOSPLIT,$0-17
+-	MOVD	addr+0(FP), R3
+-	MOVWZ	old+8(FP), R4
+-	MOVWZ	new+12(FP), R5
+-	CS	R4, R5, 0(R3) // if R4==(R3) then (R3)=R5 else R4=(R3)
+-	BNE	cas_fail
+-	MOVB	$1, swapped+16(FP)
+-	RET
+-cas_fail:
+-	MOVB	$0, swapped+16(FP)
+-	RET
+-
+-TEXT ·CompareAndSwapUintptr(SB),NOSPLIT,$0-25
+-	BR	·CompareAndSwapUint64(SB)
+-
+-TEXT ·CompareAndSwapInt64(SB),NOSPLIT,$0-25
+-	BR	·CompareAndSwapUint64(SB)
+-
+-TEXT ·CompareAndSwapUint64(SB),NOSPLIT,$0-25
+-	MOVD	addr+0(FP), R3
+-	MOVD	old+8(FP), R4
+-	MOVD	new+16(FP), R5
+-	CSG	R4, R5, 0(R3) // if R4==(R3) then (R3)=R5 else R4=(R3)
+-	BNE	cas64_fail
+-	MOVB	$1, swapped+24(FP)
+-	RET
+-cas64_fail:
+-	MOVB	$0, swapped+24(FP)
+-	RET
+-
+-TEXT ·AddInt32(SB),NOSPLIT,$0-20
+-	BR	·AddUint32(SB)
+-
+-TEXT ·AddUint32(SB),NOSPLIT,$0-20
+-	MOVD	addr+0(FP), R4
+-	MOVWZ	delta+8(FP), R5
+-	MOVWZ	(R4), R3
+-repeat:
+-	ADD	R3, R5, R6
+-	CS	R3, R6, (R4) // if R3==(R4) then (R4)=R6 else R3=(R4)
+-	BNE	repeat
+-	MOVW	R6, new+16(FP)
+-	RET
+-
+-TEXT ·AddUintptr(SB),NOSPLIT,$0-24
+-	BR	·AddUint64(SB)
+-
+-TEXT ·AddInt64(SB),NOSPLIT,$0-24
+-	BR	·AddUint64(SB)
+-
+-TEXT ·AddUint64(SB),NOSPLIT,$0-24
+-	MOVD	addr+0(FP), R4
+-	MOVD	delta+8(FP), R5
+-	MOVD	(R4), R3
+-repeat:
+-	ADD	R3, R5, R6
+-	CSG	R3, R6, (R4) // if R3==(R4) then (R4)=R6 else R3=(R4)
+-	BNE	repeat
+-	MOVD	R6, new+16(FP)
+-	RET
+-
+-TEXT ·LoadInt32(SB),NOSPLIT,$0-12
+-	BR	·LoadUint32(SB)
+-
+-TEXT ·LoadUint32(SB),NOSPLIT,$0-12
+-	MOVD	addr+0(FP), R3
+-	MOVW	0(R3), R4
+-	MOVW	R4, val+8(FP)
+-	RET
+-
+-TEXT ·LoadInt64(SB),NOSPLIT,$0-16
+-	BR	·LoadUint64(SB)
+-
+-TEXT ·LoadUint64(SB),NOSPLIT,$0-16
+-	MOVD	addr+0(FP), R3
+-	MOVD	0(R3), R4
+-	MOVD	R4, val+8(FP)
+-	RET
+-
+-TEXT ·LoadUintptr(SB),NOSPLIT,$0-16
+-	BR	·LoadPointer(SB)
+-
+-TEXT ·LoadPointer(SB),NOSPLIT,$0-16
+-	BR	·LoadUint64(SB)
+-
+-TEXT ·StoreInt32(SB),NOSPLIT,$0-12
+-	BR	·StoreUint32(SB)
+-
+-TEXT ·StoreUint32(SB),NOSPLIT,$0-12
+-	MOVD	addr+0(FP), R3
+-	MOVW	val+8(FP), R4
+-	MOVW	R4, 0(R3)
+-	RET
+-
+-TEXT ·StoreInt64(SB),NOSPLIT,$0-16
+-	BR	·StoreUint64(SB)
+-
+-TEXT ·StoreUint64(SB),NOSPLIT,$0-16
+-	MOVD	addr+0(FP), R3
+-	MOVD	val+8(FP), R4
+-	MOVD	R4, 0(R3)
+-	RET
+-
+-TEXT ·StoreUintptr(SB),NOSPLIT,$0-16
+-	BR	·StoreUint64(SB)
+diff --git a/src/sync/atomic/atomic_linux_arm_test.go b/src/sync/atomic/atomic_linux_arm_test.go
+deleted file mode 100644
+index 922eb171da..0000000000
+--- a/src/sync/atomic/atomic_linux_arm_test.go
++++ /dev/null
+@@ -1,14 +0,0 @@
+-// Copyright 2013 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package atomic_test
+-
+-import (
+-	. "sync/atomic"
+-	"testing"
+-)
+-
+-func TestGeneralCAS64(t *testing.T) {
+-	testCompareAndSwapUint64(t, GeneralCAS64)
+-}
+diff --git a/src/sync/atomic/export_linux_arm_test.go b/src/sync/atomic/export_linux_arm_test.go
+deleted file mode 100644
+index 51f15772be..0000000000
+--- a/src/sync/atomic/export_linux_arm_test.go
++++ /dev/null
+@@ -1,7 +0,0 @@
+-// Copyright 2013 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package atomic
+-
+-var GeneralCAS64 = generalCAS64

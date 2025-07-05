@@ -19,7 +19,7 @@ Date:   Wed Jun 16 16:23:44 2021 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/types2/expr.go            | 28 ++++++++++++++++------
  .../internal/types2/testdata/check/const0.src      |  2 +-
  .../internal/types2/testdata/check/decls1.src      |  2 +-
@@ -32,3 +32,230 @@ Date:   Wed Jun 16 16:23:44 2021 +0700
  test/fixedbugs/issue46749.go                       | 10 ++++----
  test/run.go                                        |  1 -
  11 files changed, 45 insertions(+), 32 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/expr.go b/src/cmd/compile/internal/types2/expr.go
+index b223387f18..d1cb27de16 100644
+--- a/src/cmd/compile/internal/types2/expr.go
++++ b/src/cmd/compile/internal/types2/expr.go
+@@ -972,14 +972,28 @@ func (check *Checker) binary(x *operand, e syntax.Expr, lhs, rhs syntax.Expr, op
+ 		return
+ 	}
+ 
+-	check.convertUntyped(x, y.typ)
+-	if x.mode == invalid {
+-		return
++	canMix := func(x, y *operand) bool {
++		if IsInterface(x.typ) || IsInterface(y.typ) {
++			return true
++		}
++		if isBoolean(x.typ) != isBoolean(y.typ) {
++			return false
++		}
++		if isString(x.typ) != isString(y.typ) {
++			return false
++		}
++		return true
+ 	}
+-	check.convertUntyped(&y, x.typ)
+-	if y.mode == invalid {
+-		x.mode = invalid
+-		return
++	if canMix(x, &y) {
++		check.convertUntyped(x, y.typ)
++		if x.mode == invalid {
++			return
++		}
++		check.convertUntyped(&y, x.typ)
++		if y.mode == invalid {
++			x.mode = invalid
++			return
++		}
+ 	}
+ 
+ 	if isComparison(op) {
+diff --git a/src/cmd/compile/internal/types2/testdata/check/const0.src b/src/cmd/compile/internal/types2/testdata/check/const0.src
+index 5608b1549b..3cffdf904c 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/const0.src
++++ b/src/cmd/compile/internal/types2/testdata/check/const0.src
+@@ -27,7 +27,7 @@ const (
+ 	ub1 = true
+ 	ub2 = 2 < 1
+ 	ub3 = ui1 == uf1
+-	ub4 = true /* ERROR "cannot convert" */ == 0
++	ub4 = true /* ERROR "mismatched types untyped bool and untyped int" */ == 0
+ 
+ 	// integer values
+ 	ui0 = 0
+diff --git a/src/cmd/compile/internal/types2/testdata/check/decls1.src b/src/cmd/compile/internal/types2/testdata/check/decls1.src
+index e6beb78358..1167ced366 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/decls1.src
++++ b/src/cmd/compile/internal/types2/testdata/check/decls1.src
+@@ -83,7 +83,7 @@ var (
+ 
+ // Constant expression initializations
+ var (
+-	v1 = 1 /* ERROR "cannot convert" */ + "foo"
++	v1 = 1 /* ERROR "mismatched types untyped int and untyped string" */ + "foo"
+ 	v2 = c + 255
+ 	v3 = c + 256 /* ERROR "overflows" */
+ 	v4 = r + 2147483647
+diff --git a/src/cmd/compile/internal/types2/testdata/check/expr1.src b/src/cmd/compile/internal/types2/testdata/check/expr1.src
+index 4ead815158..85ad234bbb 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/expr1.src
++++ b/src/cmd/compile/internal/types2/testdata/check/expr1.src
+@@ -111,10 +111,10 @@ type mystring string
+ func _(x, y string, z mystring) {
+ 	x = x + "foo"
+ 	x = x /* ERROR not defined */ - "foo"
+-	x = x + 1 // ERROR cannot convert
++	x = x + 1 // ERROR mismatched types string and untyped int
+ 	x = x + y
+ 	x = x /* ERROR not defined */ - y
+-	x = x * 10 // ERROR cannot convert
++	x = x * 10 // ERROR mismatched types string and untyped int
+ }
+ 
+ func f() (a, b int) { return }
+diff --git a/src/cmd/compile/internal/types2/testdata/check/expr2.src b/src/cmd/compile/internal/types2/testdata/check/expr2.src
+index 0c959e8011..f9726b5de5 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/expr2.src
++++ b/src/cmd/compile/internal/types2/testdata/check/expr2.src
+@@ -10,7 +10,7 @@ func _bool() {
+ 	const t = true == true
+ 	const f = true == false
+ 	_ = t /* ERROR "cannot compare" */ < f
+-	_ = 0 /* ERROR "cannot convert" */ == t
++	_ = 0 /* ERROR "mismatched types untyped int and untyped bool" */ == t
+ 	var b bool
+ 	var x, y float32
+ 	b = x < y
+diff --git a/src/cmd/compile/internal/types2/testdata/check/expr3.src b/src/cmd/compile/internal/types2/testdata/check/expr3.src
+index eab3f72c4d..fd28421dc8 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/expr3.src
++++ b/src/cmd/compile/internal/types2/testdata/check/expr3.src
+@@ -104,7 +104,7 @@ func indexes() {
+ 	var ok mybool
+ 	_, ok = m["bar"]
+ 	_ = ok
+-	_ = m[0 /* ERROR "cannot use 0" */ ] + "foo" // ERROR "cannot convert"
++	_ = m[0 /* ERROR "cannot use 0" */ ] + "foo" // ERROR "mismatched types int and untyped string"
+ 
+ 	var t string
+ 	_ = t[- /* ERROR "negative" */ 1]
+diff --git a/src/cmd/compile/internal/types2/testdata/check/stmt0.src b/src/cmd/compile/internal/types2/testdata/check/stmt0.src
+index bedcbe5fce..d744f2ba81 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/stmt0.src
++++ b/src/cmd/compile/internal/types2/testdata/check/stmt0.src
+@@ -49,18 +49,18 @@ func assignments1() {
+ 	b = true
+ 
+ 	i += 1
+-	i += "foo" /* ERROR "cannot convert.*int" */
++	i += "foo" /* ERROR "mismatched types int and untyped string" */
+ 
+ 	f -= 1
+ 	f /= 0
+ 	f = float32(0)/0 /* ERROR "division by zero" */
+-	f -= "foo" /* ERROR "cannot convert.*float64" */
++	f -= "foo" /* ERROR "mismatched types float64 and untyped string" */
+ 
+ 	c *= 1
+ 	c /= 0
+ 
+ 	s += "bar"
+-	s += 1 /* ERROR "cannot convert.*string" */
++	s += 1 /* ERROR "mismatched types string and untyped int" */
+ 
+ 	var u64 uint64
+ 	u64 += 1<<u64
+@@ -937,13 +937,13 @@ func issue6766b() {
+ // errors reported).
+ func issue10148() {
+ 	for y /* ERROR declared but not used */ := range "" {
+-		_ = "" /* ERROR cannot convert */ + 1
++		_ = "" /* ERROR mismatched types untyped string and untyped int*/ + 1
+ 	}
+ 	for range 1 /* ERROR cannot range over 1 */ {
+-		_ = "" /* ERROR cannot convert */ + 1
++		_ = "" /* ERROR mismatched types untyped string and untyped int*/ + 1
+ 	}
+ 	for y := range 1 /* ERROR cannot range over 1 */ {
+-		_ = "" /* ERROR cannot convert */ + 1
++		_ = "" /* ERROR mismatched types untyped string and untyped int*/ + 1
+ 	}
+ }
+ 
+diff --git a/test/fixedbugs/issue41500.go b/test/fixedbugs/issue41500.go
+index 3ec23a0dfe..b0ae7cfd59 100644
+--- a/test/fixedbugs/issue41500.go
++++ b/test/fixedbugs/issue41500.go
+@@ -13,8 +13,8 @@ type s struct {
+ func f() {
+ 	var x *s
+ 
+-	_ = x == nil || len(x.slice) // ERROR "invalid operation: .+ \(operator \|\| not defined on int\)|incompatible types|cannot convert"
+-	_ = len(x.slice) || x == nil // ERROR "invalid operation: .+ \(operator \|\| not defined on int\)|incompatible types|cannot convert"
+-	_ = x == nil && len(x.slice) // ERROR "invalid operation: .+ \(operator && not defined on int\)|incompatible types|cannot convert"
+-	_ = len(x.slice) && x == nil // ERROR "invalid operation: .+ \(operator && not defined on int\)|incompatible types|cannot convert"
++	_ = x == nil || len(x.slice) // ERROR "invalid operation: .+ \(operator \|\| not defined on int\)|incompatible types|mismatched types untyped bool and int"
++	_ = len(x.slice) || x == nil // ERROR "invalid operation: .+ \(operator \|\| not defined on int\)|incompatible types|mismatched types int and untyped bool"
++	_ = x == nil && len(x.slice) // ERROR "invalid operation: .+ \(operator && not defined on int\)|incompatible types|mismatched types untyped bool and int"
++	_ = len(x.slice) && x == nil // ERROR "invalid operation: .+ \(operator && not defined on int\)|incompatible types|mismatched types int and untyped bool"
+ }
+diff --git a/test/fixedbugs/issue43762.go b/test/fixedbugs/issue43762.go
+index 9f7682ad6a..bf950c8f52 100644
+--- a/test/fixedbugs/issue43762.go
++++ b/test/fixedbugs/issue43762.go
+@@ -6,6 +6,6 @@
+ 
+ package p
+ 
+-var _ = true == '\\' // ERROR "invalid operation: true == '\\\\'|cannot convert true"
+-var _ = true == '\'' // ERROR "invalid operation: true == '\\''|cannot convert true"
+-var _ = true == '\n' // ERROR "invalid operation: true == '\\n'|cannot convert true"
++var _ = true == '\\' // ERROR "invalid operation: (cannot compare true)|(true) == '\\\\' \(mismatched types untyped bool and untyped rune\)"
++var _ = true == '\'' // ERROR "invalid operation: (cannot compare true)|(true) == '\\'' \(mismatched types untyped bool and untyped rune\)"
++var _ = true == '\n' // ERROR "invalid operation: (cannot compare true)|(true) == '\\n' \(mismatched types untyped bool and untyped rune\)"
+diff --git a/test/fixedbugs/issue46749.go b/test/fixedbugs/issue46749.go
+index 63ed19795e..faf1f884a6 100644
+--- a/test/fixedbugs/issue46749.go
++++ b/test/fixedbugs/issue46749.go
+@@ -14,13 +14,13 @@ var iface interface{}
+ var (
+ 	_ = "" + b   // ERROR "invalid operation.*mismatched types.*untyped string and bool"
+ 	_ = "" + i   // ERROR "invalid operation.*mismatched types.*untyped string and int"
+-	_ = "" + nil // ERROR "invalid operation.*mismatched types.*untyped string and nil"
++	_ = "" + nil // ERROR "invalid operation.*mismatched types.*untyped string and nil|(untyped nil)"
+ )
+ 
+ var (
+ 	_ = s + false // ERROR "invalid operation.*mismatched types.*string and untyped bool"
+ 	_ = s + 1     // ERROR "invalid operation.*mismatched types.*string and untyped int"
+-	_ = s + nil   // ERROR "invalid operation.*mismatched types.*string and nil"
++	_ = s + nil   // ERROR "invalid operation.*mismatched types.*string and nil|(untyped nil)"
+ )
+ 
+ var (
+@@ -31,7 +31,7 @@ var (
+ var (
+ 	_ = b + 1         // ERROR "invalid operation.*mismatched types.*bool and untyped int"
+ 	_ = i + false     // ERROR "invalid operation.*mismatched types.*int and untyped bool"
+-	_ = iface + 1     // ERROR "invalid operation.*mismatched types.*interface {} and int"
+-	_ = iface + 1.0   // ERROR "invalid operation.*mismatched types.*interface {} and float64"
+-	_ = iface + false // ERROR "invalid operation.*mismatched types.*interface {} and bool"
++	_ = iface + 1     // ERROR "invalid operation.*mismatched types.*interface *{} and int"
++	_ = iface + 1.0   // ERROR "invalid operation.*mismatched types.*interface *{} and float64"
++	_ = iface + false // ERROR "invalid operation.*mismatched types.*interface *{} and bool"
+ )
+diff --git a/test/run.go b/test/run.go
+index 1273b8edd6..656519e301 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -2089,7 +2089,6 @@ var excludedFiles = map[string]bool{
+ 	"fixedbugs/issue7525d.go":  true, // types2 reports init cycle error on different line - ok otherwise
+ 	"fixedbugs/issue7525e.go":  true, // types2 reports init cycle error on different line - ok otherwise
+ 	"fixedbugs/issue7525.go":   true, // types2 reports init cycle error on different line - ok otherwise
+-	"fixedbugs/issue46749.go":  true, // types2 reports can not convert error instead of type mismatched
+ 	"fixedbugs/issue9691.go":   true, // "cannot assign to int(.autotmp_4)" (probably irgen's fault)
+ 
+ 	// tests that rely on -m diagnostics, which currently differ with -G=3

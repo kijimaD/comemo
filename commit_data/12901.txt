@@ -7,6 +7,41 @@ Date:   Mon Apr 16 17:36:02 2012 -0700
     R=golang-dev, bradfitz, akumar
     CC=golang-dev
     https://golang.org/cl/6017043
-
+---
  src/pkg/os/error_plan9.go | 9 +++++++++
  1 file changed, 9 insertions(+)
+
+diff --git a/src/pkg/os/error_plan9.go b/src/pkg/os/error_plan9.go
+index 3c9dfb0b15..f083a2d1de 100644
+--- a/src/pkg/os/error_plan9.go
++++ b/src/pkg/os/error_plan9.go
+@@ -5,6 +5,9 @@
+ package os
+ 
+ func isExist(err error) bool {
++	if err == nil {
++		return false
++	}
+ 	if pe, ok := err.(*PathError); ok {
+ 		err = pe.Err
+ 	}
+@@ -12,6 +15,9 @@ func isExist(err error) bool {
+ }
+ 
+ func isNotExist(err error) bool {
++	if err == nil {
++		return false
++	}
+ 	if pe, ok := err.(*PathError); ok {
+ 		err = pe.Err
+ 	}
+@@ -19,6 +25,9 @@ func isNotExist(err error) bool {
+ }
+ 
+ func isPermission(err error) bool {
++	if err == nil {
++		return false
++	}
+ 	if pe, ok := err.(*PathError); ok {
+ 		err = pe.Err
+ 	}

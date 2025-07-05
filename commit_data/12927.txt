@@ -18,9 +18,70 @@ Date:   Sat Apr 21 10:01:32 2012 +1000
     R=rsc, fullung, alex.brainman, mikioh.mikioh
     CC=golang-dev
     https://golang.org/cl/6002053
-
+---
  src/pkg/net/iprawsock_posix.go | 4 +---
  src/pkg/net/tcpsock_posix.go   | 4 +---
  src/pkg/net/udpsock_posix.go   | 4 +---
  src/pkg/net/unixsock_posix.go  | 4 +---
  4 files changed, 4 insertions(+), 12 deletions(-)
+
+diff --git a/src/pkg/net/iprawsock_posix.go b/src/pkg/net/iprawsock_posix.go
+index 6bbe67c3d9..9fc7ecdb94 100644
+--- a/src/pkg/net/iprawsock_posix.go
++++ b/src/pkg/net/iprawsock_posix.go
+@@ -83,9 +83,7 @@ func (c *IPConn) Close() error {
+ 	if !c.ok() {
+ 		return syscall.EINVAL
+ 	}
+-	err := c.fd.Close()
+-	c.fd = nil
+-	return err
++	return c.fd.Close()
+ }
+ 
+ // LocalAddr returns the local network address.
+diff --git a/src/pkg/net/tcpsock_posix.go b/src/pkg/net/tcpsock_posix.go
+index 15f8efdd70..f886a6b5c5 100644
+--- a/src/pkg/net/tcpsock_posix.go
++++ b/src/pkg/net/tcpsock_posix.go
+@@ -108,9 +108,7 @@ func (c *TCPConn) Close() error {
+ 	if !c.ok() {
+ 		return syscall.EINVAL
+ 	}
+-	err := c.fd.Close()
+-	c.fd = nil
+-	return err
++	return c.fd.Close()
+ }
+ 
+ // CloseRead shuts down the reading side of the TCP connection.
+diff --git a/src/pkg/net/udpsock_posix.go b/src/pkg/net/udpsock_posix.go
+index 9e820e1c57..9c6b6d3933 100644
+--- a/src/pkg/net/udpsock_posix.go
++++ b/src/pkg/net/udpsock_posix.go
+@@ -88,9 +88,7 @@ func (c *UDPConn) Close() error {
+ 	if !c.ok() {
+ 		return syscall.EINVAL
+ 	}
+-	err := c.fd.Close()
+-	c.fd = nil
+-	return err
++	return c.fd.Close()
+ }
+ 
+ // LocalAddr returns the local network address.
+diff --git a/src/pkg/net/unixsock_posix.go b/src/pkg/net/unixsock_posix.go
+index 37a2b1e09e..ea411a65f0 100644
+--- a/src/pkg/net/unixsock_posix.go
++++ b/src/pkg/net/unixsock_posix.go
+@@ -141,9 +141,7 @@ func (c *UnixConn) Close() error {
+ 	if !c.ok() {
+ 		return syscall.EINVAL
+ 	}
+-	err := c.fd.Close()
+-	c.fd = nil
+-	return err
++	return c.fd.Close()
+ }
+ 
+ // LocalAddr returns the local network address, a *UnixAddr.

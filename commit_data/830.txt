@@ -7,6 +7,20 @@ Date:   Wed Oct 8 09:46:31 2008 -0700
     R=r
     OCL=16721
     CL=16727
-
+---
  src/lib/make.bash | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/lib/make.bash b/src/lib/make.bash
+index c2037e0dc6..c791b23930 100755
+--- a/src/lib/make.bash
++++ b/src/lib/make.bash
+@@ -33,7 +33,7 @@ do
+ 	6g -o $GOROOT/pkg/$base.6 $i
+ done
+ 
+-for i in net time
++for i in net time http
+ do
+ 	echo; echo; echo %%%% making lib/$i %%%%; echo
+ 	cd $i

@@ -7,6 +7,20 @@ Date:   Tue Sep 14 13:33:27 2010 +1000
     R=rsc, r2
     CC=golang-dev
     https://golang.org/cl/2186041
-
+---
  doc/go_programming_faq.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go_programming_faq.html b/doc/go_programming_faq.html
+index 3c4f0e1ba6..9ef5168253 100644
+--- a/doc/go_programming_faq.html
++++ b/doc/go_programming_faq.html
+@@ -3,7 +3,7 @@
+ <h2 id="Pointers">Pointers and Allocation</h2>
+ 
+ <h3 id="pass_by_value">
+-When are function paramters passed by value?</h3>
++When are function parameters passed by value?</h3>
+ 
+ <p>
+ Everything in Go is passed by value.  A function always gets a copy of the

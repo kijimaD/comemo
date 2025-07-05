@@ -24,6 +24,19 @@ Date:   Wed Oct 20 19:18:03 2021 +0000
     Run-TryBot: Damien Neil <dneil@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/net/http/fs.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/net/http/fs.go b/src/net/http/fs.go
+index 4f144ebad2..87caeb7e90 100644
+--- a/src/net/http/fs.go
++++ b/src/net/http/fs.go
+@@ -818,6 +818,7 @@ func (f ioFile) Readdir(count int) ([]fs.FileInfo, error) {
+ 
+ // FS converts fsys to a FileSystem implementation,
+ // for use with FileServer and NewFileTransport.
++// The files provided by fsys must implement io.Seeker.
+ func FS(fsys fs.FS) FileSystem {
+ 	return ioFS{fsys}
+ }

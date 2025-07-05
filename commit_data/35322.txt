@@ -15,10 +15,104 @@ Date:   Fri Dec 8 15:55:27 2017 -0800
     Change-Id: If9d4f0af537cb181f73735e709ebc8258b2a1378
     Reviewed-on: https://go-review.googlesource.com/83017
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/go/types/call.go       | 2 +-
  src/go/types/check.go      | 8 +++++++-
  src/go/types/interfaces.go | 4 ++--
  src/go/types/stmt.go       | 2 +-
  src/go/types/typexpr.go    | 2 ++
  5 files changed, 13 insertions(+), 5 deletions(-)
+
+diff --git a/src/go/types/call.go b/src/go/types/call.go
+index 8fe65e41d5..9a785212f8 100644
+--- a/src/go/types/call.go
++++ b/src/go/types/call.go
+@@ -314,7 +314,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
+ 	// can only appear in qualified identifiers which are mapped to
+ 	// selector expressions.
+ 	if ident, ok := e.X.(*ast.Ident); ok {
+-		_, obj := check.scope.LookupParent(ident.Name, check.pos)
++		obj := check.lookup(ident.Name)
+ 		if pname, _ := obj.(*PkgName); pname != nil {
+ 			assert(pname.pkg == check.pkg)
+ 			check.recordUse(ident, pname)
+diff --git a/src/go/types/check.go b/src/go/types/check.go
+index 6234d5a0b5..b046458cf7 100644
+--- a/src/go/types/check.go
++++ b/src/go/types/check.go
+@@ -51,12 +51,19 @@ type funcInfo struct {
+ type context struct {
+ 	decl          *declInfo      // package-level declaration whose init expression/function body is checked
+ 	scope         *Scope         // top-most scope for lookups
++	pos           token.Pos      // if valid, identifiers are looked up as if at position pos (used by Eval)
+ 	iota          constant.Value // value of iota in a constant declaration; nil otherwise
+ 	sig           *Signature     // function signature if inside a function; nil otherwise
+ 	hasLabel      bool           // set if a function makes use of labels (only ~1% of functions); unused outside functions
+ 	hasCallOrRecv bool           // set if an expression contains a function call or channel receive operation
+ }
+ 
++// lookup looks up name in the current context and returns the matching object, or nil.
++func (ctxt *context) lookup(name string) Object {
++	_, obj := ctxt.scope.LookupParent(name, ctxt.pos)
++	return obj
++}
++
+ // An importKey identifies an imported package by import path and source directory
+ // (directory containing the file containing the import). In practice, the directory
+ // may always be the same, or may not matter. Given an (import path, directory), an
+@@ -95,7 +102,6 @@ type Checker struct {
+ 	// context within which the current object is type-checked
+ 	// (valid only for the duration of type-checking a specific object)
+ 	context
+-	pos token.Pos // if valid, identifiers are looked up as if at position pos (used by Eval)
+ 
+ 	// debugging
+ 	indent int // indentation for tracing
+diff --git a/src/go/types/interfaces.go b/src/go/types/interfaces.go
+index f529377b9c..33f6524b16 100644
+--- a/src/go/types/interfaces.go
++++ b/src/go/types/interfaces.go
+@@ -288,7 +288,7 @@ func (check *Checker) infoFromTypeName(name *ast.Ident, path []*TypeName) *iface
+ 
+ typenameLoop:
+ 	// name must be a type name denoting a type whose underlying type is an interface
+-	_, obj := check.scope.LookupParent(name.Name, check.pos /* use Eval position, if any */)
++	obj := check.lookup(name.Name)
+ 	if obj == nil {
+ 		return nil
+ 	}
+@@ -363,7 +363,7 @@ func (check *Checker) infoFromQualifiedTypeName(qname *ast.SelectorExpr) *ifaceI
+ 	if name == nil {
+ 		return nil
+ 	}
+-	_, obj1 := check.scope.LookupParent(name.Name, check.pos /* use Eval position, if any */)
++	obj1 := check.lookup(name.Name)
+ 	if obj1 == nil {
+ 		return nil
+ 	}
+diff --git a/src/go/types/stmt.go b/src/go/types/stmt.go
+index 5221bcc7c1..af43c804a8 100644
+--- a/src/go/types/stmt.go
++++ b/src/go/types/stmt.go
+@@ -440,7 +440,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
+ 				// list in a "return" statement if a different entity (constant, type, or variable)
+ 				// with the same name as a result parameter is in scope at the place of the return."
+ 				for _, obj := range res.vars {
+-					if _, alt := check.scope.LookupParent(obj.name, check.pos); alt != nil && alt != obj {
++					if alt := check.lookup(obj.name); alt != nil && alt != obj {
+ 						check.errorf(s.Pos(), "result parameter %s not in scope at return", obj.name)
+ 						check.errorf(alt.Pos(), "\tinner declaration of %s", obj)
+ 						// ok to continue
+diff --git a/src/go/types/typexpr.go b/src/go/types/typexpr.go
+index 0d95e8018d..883e62e0ba 100644
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@ -22,6 +22,8 @@ func (check *Checker) ident(x *operand, e *ast.Ident, def *Named, path []*TypeNa
+ 	x.mode = invalid
+ 	x.expr = e
+ 
++	// Note that we cannot use check.lookup here because the returned scope
++	// may be different from obj.Parent(). See also Scope.LookupParent doc.
+ 	scope, obj := check.scope.LookupParent(e.Name, check.pos)
+ 	if obj == nil {
+ 		if e.Name == "_" {

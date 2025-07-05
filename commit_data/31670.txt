@@ -18,7 +18,102 @@ Date:   Sat Mar 4 19:47:19 2017 +0900
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/mail/message.go      | 24 ++++++++++++++++--------
  src/net/mail/message_test.go | 10 ++++++++++
  2 files changed, 26 insertions(+), 8 deletions(-)
+
+diff --git a/src/net/mail/message.go b/src/net/mail/message.go
+index 702b765c34..6db8a397e9 100644
+--- a/src/net/mail/message.go
++++ b/src/net/mail/message.go
+@@ -387,6 +387,7 @@ func (p *addrParser) consumePhrase() (phrase string, err error) {
+ 	debug.Printf("consumePhrase: [%s]", p.s)
+ 	// phrase = 1*word
+ 	var words []string
++	var isPrevEncoded bool
+ 	for {
+ 		// word = atom / quoted-string
+ 		var word string
+@@ -394,6 +395,7 @@ func (p *addrParser) consumePhrase() (phrase string, err error) {
+ 		if p.empty() {
+ 			return "", errors.New("mail: missing phrase")
+ 		}
++		isEncoded := false
+ 		if p.peek() == '"' {
+ 			// quoted-string
+ 			word, err = p.consumeQuotedString()
+@@ -403,7 +405,7 @@ func (p *addrParser) consumePhrase() (phrase string, err error) {
+ 			// than what RFC 5322 specifies.
+ 			word, err = p.consumeAtom(true, true)
+ 			if err == nil {
+-				word, err = p.decodeRFC2047Word(word)
++				word, isEncoded, err = p.decodeRFC2047Word(word)
+ 			}
+ 		}
+ 
+@@ -411,7 +413,12 @@ func (p *addrParser) consumePhrase() (phrase string, err error) {
+ 			break
+ 		}
+ 		debug.Printf("consumePhrase: consumed %q", word)
+-		words = append(words, word)
++		if isPrevEncoded && isEncoded {
++			words[len(words)-1] += word
++		} else {
++			words = append(words, word)
++		}
++		isPrevEncoded = isEncoded
+ 	}
+ 	// Ignore any error if we got at least one word.
+ 	if err != nil && len(words) == 0 {
+@@ -540,22 +547,23 @@ func (p *addrParser) len() int {
+ 	return len(p.s)
+ }
+ 
+-func (p *addrParser) decodeRFC2047Word(s string) (string, error) {
++func (p *addrParser) decodeRFC2047Word(s string) (word string, isEncoded bool, err error) {
+ 	if p.dec != nil {
+-		return p.dec.DecodeHeader(s)
++		word, err = p.dec.Decode(s)
++	} else {
++		word, err = rfc2047Decoder.Decode(s)
+ 	}
+ 
+-	dec, err := rfc2047Decoder.Decode(s)
+ 	if err == nil {
+-		return dec, nil
++		return word, true, nil
+ 	}
+ 
+ 	if _, ok := err.(charsetError); ok {
+-		return s, err
++		return s, true, err
+ 	}
+ 
+ 	// Ignore invalid RFC 2047 encoded-word errors.
+-	return s, nil
++	return s, false, nil
+ }
+ 
+ var rfc2047Decoder = mime.WordDecoder{
+diff --git a/src/net/mail/message_test.go b/src/net/mail/message_test.go
+index f0761ab09f..0ed36b02f8 100644
+--- a/src/net/mail/message_test.go
++++ b/src/net/mail/message_test.go
+@@ -235,6 +235,16 @@ func TestAddressParsing(t *testing.T) {
+ 				},
+ 			},
+ 		},
++		// RFC 2047 "Q"-encoded UTF-8 address with multiple encoded-words.
++		{
++			`=?utf-8?q?J=C3=B6rg?=  =?utf-8?q?Doe?= <joerg@example.com>`,
++			[]*Address{
++				{
++					Name:    `JörgDoe`,
++					Address: "joerg@example.com",
++				},
++			},
++		},
+ 		// RFC 2047, Section 8.
+ 		{
+ 			`=?ISO-8859-1?Q?Andr=E9?= Pirard <PIRARD@vm1.ulg.ac.be>`,

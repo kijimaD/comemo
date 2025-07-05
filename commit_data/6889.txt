@@ -12,7 +12,7 @@ Date:   Wed Dec 8 14:33:17 2010 -0500
     TBR=r
     CC=golang-dev
     https://golang.org/cl/3497042
-
+---
  src/libcgo/386.S                                |  61 ----------
  src/libcgo/Makefile                             |  53 ---------
  src/libcgo/amd64.S                              |  73 ------------
@@ -32,3 +32,868 @@ Date:   Wed Dec 8 14:33:17 2010 -0500
  src/{libcgo => pkg/runtime/cgo}/windows_386.c   |   0
  src/{libcgo => pkg/runtime/cgo}/windows_amd64.c |  26 ++---
  18 files changed, 14 insertions(+), 713 deletions(-)
+
+diff --git a/src/libcgo/386.S b/src/libcgo/386.S
+deleted file mode 100755
+index 02cbe34534..0000000000
+--- a/src/libcgo/386.S
++++ /dev/null
+@@ -1,61 +0,0 @@
+-// Copyright 2009 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-/*
+- * Apple still insists on underscore prefixes for C function names.
+- */
+-#if defined(__APPLE__) || defined(_WIN32)
+-#define EXT(s) _##s
+-#else
+-#define EXT(s) s
+-#endif
+-
+-/*
+- * void crosscall_386(void (*fn)(void))
+- *
+- * Calling into the 8c tool chain, where all registers are caller save.
+- * Called from standard x86 ABI, where %ebp, %ebx, %esi,
+- * and %edi are callee-save, so they must be saved explicitly.
+- */
+-.globl EXT(crosscall_386)
+-EXT(crosscall_386):
+-	pushl %ebp
+-	movl %esp, %ebp
+-	pushl %ebx
+-	pushl %esi
+-	pushl %edi
+-
+-	movl 8(%ebp), %eax	/* fn */
+-	call *%eax
+-
+-	popl %edi
+-	popl %esi
+-	popl %ebx
+-	popl %ebp
+-	ret
+-
+-/*
+- * void crosscall2(void (*fn)(void*, int32), void*, int32)
+- *
+- * Save registers and call fn with two arguments.
+- */
+-.globl EXT(crosscall2)
+-EXT(crosscall2):
+-	pushl %ebp
+-	movl %esp, %ebp
+-	pushl %ebx
+-	pushl %esi
+-	pushl %edi
+-
+-	pushl 16(%ebp)
+-	pushl 12(%ebp)
+-	mov 8(%ebp), %eax
+-	call *%eax
+-	addl $8,%esp
+-
+-	popl %edi
+-	popl %esi
+-	popl %ebx
+-	popl %ebp
+-	ret
+diff --git a/src/libcgo/Makefile b/src/libcgo/Makefile
+deleted file mode 100755
+index 0c0f484115..0000000000
+--- a/src/libcgo/Makefile
++++ /dev/null
+@@ -1,53 +0,0 @@
+-# Copyright 2009 The Go Authors.  All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-ifeq ($(GOOS),nacl)
+-
+-# Nothing for NaCl
+-all clean install:
+-	@true
+-
+-else ifeq ($(GOARCH),arm)
+-
+-# Nothing for ARM - usually cross compiling anyway
+-all clean install:
+-	@true
+-
+-else
+-include ../Make.inc
+-
+-all: libcgo.so
+-
+-install: $(QUOTED_GOROOT)/pkg/$(GOOS)_$(GOARCH)/libcgo.so
+-
+-OFILES=\
+-	$(GOOS)_$(GOARCH).o\
+-	$(GOARCH).o\
+-	util.o\
+-
+-HOST_CFLAGS_386=-m32
+-HOST_CFLAGS_amd64=-m64
+-
+-LDFLAGS_darwin=-dynamiclib -Wl,-undefined,dynamic_lookup /usr/lib/libpthread.dylib
+-LDFLAGS_freebsd=-shared -lm -pthread
+-LDFLAGS_linux=-shared -lm -lpthread
+-LDFLAGS_nacl=-shared -lm -lpthread
+-LDFLAGS_windows=-shared -lm -mthreads
+-
+-%.o: %.c
+-	$(HOST_CC) $(HOST_CFLAGS_$(GOARCH)) -g -O2 -fPIC -o $@ -c $*.c
+-
+-%.o: %.S
+-	$(HOST_CC) $(HOST_CFLAGS_$(GOARCH)) -g -O2 -fPIC -o $@ -c $*.S
+-
+-libcgo.so: $(OFILES)
+-	$(HOST_CC) $(HOST_CFLAGS_$(GOARCH)) -o libcgo.so $(OFILES) $(LDFLAGS_$(GOOS))
+-
+-$(QUOTED_GOROOT)/pkg/$(GOOS)_$(GOARCH)/libcgo.so: libcgo.so
+-	cp libcgo.so $(QUOTED_GOROOT)/pkg/$(GOOS)_$(GOARCH)
+-
+-clean:
+-	rm -f *.o *.so
+-
+-endif
+diff --git a/src/libcgo/amd64.S b/src/libcgo/amd64.S
+deleted file mode 100644
+index 083c2bc941..0000000000
+--- a/src/libcgo/amd64.S
++++ /dev/null
+@@ -1,73 +0,0 @@
+-// Copyright 2009 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-/*
+- * Apple still insists on underscore prefixes for C function names.
+- */
+-#if defined(__APPLE__) || defined(_WIN32)
+-#define EXT(s) _##s
+-#else
+-#define EXT(s) s
+-#endif
+-
+-/*
+- * void crosscall_amd64(void (*fn)(void))
+- *
+- * Calling into the 6c tool chain, where all registers are caller save.
+- * Called from standard x86-64 ABI, where %rbx, %rbp, %r12-%r15
+- * are callee-save so they must be saved explicitly.
+- * The standard x86-64 ABI passes the three arguments m, g, fn
+- * in %rdi, %rsi, %rdx.
+- *
+- * Also need to set %r15 to g and %r14 to m (see ../pkg/runtime/mkasmh.sh)
+- * during the call.
+- */
+-.globl EXT(crosscall_amd64)
+-EXT(crosscall_amd64):
+-	pushq %rbx
+-	pushq %rbp
+-	pushq %r12
+-	pushq %r13
+-	pushq %r14
+-	pushq %r15
+-
+-	call *%rdi	/* fn */
+-
+-	popq %r15
+-	popq %r14
+-	popq %r13
+-	popq %r12
+-	popq %rbp
+-	popq %rbx
+-	ret
+-
+-/*
+- * void crosscall2(void (*fn)(void*, int32), void *arg, int32 argsize)
+- *
+- * Save registers and call fn with two arguments.  fn is a Go function
+- * which takes parameters on the stack rather than in registers.
+- */
+-.globl EXT(crosscall2)
+-EXT(crosscall2):
+-	subq  $0x58, %rsp	/* keeps stack pointer 32-byte aligned */
+-	movq  %rbx, 0x10(%rsp)
+-	movq  %rbp, 0x18(%rsp)
+-	movq  %r12, 0x20(%rsp)
+-	movq  %r13, 0x28(%rsp)
+-	movq  %r14, 0x30(%rsp)
+-	movq  %r15, 0x38(%rsp)
+-
+-	movq  %rsi, 0(%rsp)	/* arg */
+-	movq  %rdx, 8(%rsp)	/* argsize (includes padding) */
+-
+-	call *%rdi	/* fn */
+-
+-	movq  0x10(%rsp), %rbx
+-	movq  0x18(%rsp), %rbp
+-	movq  0x20(%rsp), %r12
+-	movq  0x28(%rsp), %r13
+-	movq  0x30(%rsp), %r14
+-	movq  0x38(%rsp), %r15
+-	addq  $0x58, %rsp
+-	ret
+diff --git a/src/libcgo/arm.S b/src/libcgo/arm.S
+deleted file mode 100644
+index 32d8629849..0000000000
+--- a/src/libcgo/arm.S
++++ /dev/null
+@@ -1 +0,0 @@
+-/* unimplemented */
+diff --git a/src/libcgo/darwin_386.c b/src/libcgo/darwin_386.c
+deleted file mode 100644
+index 28a4283090..0000000000
+--- a/src/libcgo/darwin_386.c
++++ /dev/null
+@@ -1,144 +0,0 @@
+-// Copyright 2009 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include <pthread.h>
+-#include "libcgo.h"
+-
+-static void* threadentry(void*);
+-static pthread_key_t k1, k2;
+-
+-/* gccism: arrange for inittls to be called at dynamic load time */
+-static void inittls(void) __attribute__((constructor));
+-
+-static void
+-inittls(void)
+-{
+-	uint32 x, y;
+-	pthread_key_t tofree[16], k;
+-	int i, ntofree;
+-	int havek1, havek2;
+-
+-	/*
+-	 * Allocate thread-local storage slots for m, g.
+-	 * The key numbers start at 0x100, and we expect to be
+-	 * one of the early calls to pthread_key_create, so we
+-	 * should be able to get pretty low numbers.
+-	 *
+-	 * In Darwin/386 pthreads, %gs points at the thread
+-	 * structure, and each key is an index into the thread-local
+-	 * storage array that begins at offset 0x48 within in that structure.
+-	 * It may happen that we are not quite the first function to try
+-	 * to allocate thread-local storage keys, so instead of depending
+-	 * on getting 0x100 and 0x101, we try for 0x108 and 0x109,
+-	 * allocating keys until we get the ones we want and then freeing
+-	 * the ones we didn't want.
+-	 *
+-	 * Thus the final offsets to use in %gs references are
+-	 * 0x48+4*0x108 = 0x468 and 0x48+4*0x109 = 0x46c.
+-	 *
+-	 * The linker and runtime hard-code these constant offsets
+-	 * from %gs where we expect to find m and g.  The code
+-	 * below verifies that the constants are correct once it has
+-	 * obtained the keys.  Known to ../cmd/8l/obj.c:/468
+-	 * and to ../pkg/runtime/darwin/386/sys.s:/468
+-	 *
+-	 * This is truly disgusting and a bit fragile, but taking care
+-	 * of it here protects the rest of the system from damage.
+-	 * The alternative would be to use a global variable that
+-	 * held the offset and refer to that variable each time we
+-	 * need a %gs variable (m or g).  That approach would
+-	 * require an extra instruction and memory reference in
+-	 * every stack growth prolog and would also require
+-	 * rewriting the code that 8c generates for extern registers.
+-	 */
+-	havek1 = 0;
+-	havek2 = 0;
+-	ntofree = 0;
+-	while(!havek1 || !havek2) {
+-		if(pthread_key_create(&k, nil) < 0) {
+-			fprintf(stderr, "libcgo: pthread_key_create failed\n");
+-			abort();
+-		}
+-		if(k == 0x108) {
+-			havek1 = 1;
+-			k1 = k;
+-			continue;
+-		}
+-		if(k == 0x109) {
+-			havek2 = 1;
+-			k2 = k;
+-			continue;
+-		}
+-		if(ntofree >= nelem(tofree)) {
+-			fprintf(stderr, "libcgo: could not obtain pthread_keys\n");
+-			fprintf(stderr, "\twanted 0x108 and 0x109\n");
+-			fprintf(stderr, "\tgot");
+-			for(i=0; i<ntofree; i++)
+-				fprintf(stderr, " %#x", tofree[i]);
+-			fprintf(stderr, "\n");
+-			abort();
+-		}
+-		tofree[ntofree++] = k;
+-	}
+-
+-	for(i=0; i<ntofree; i++)
+-		pthread_key_delete(tofree[i]);
+-
+-	/*
+-	 * We got the keys we wanted.  Make sure that we observe
+-	 * updates to k1 at 0x468, to verify that the TLS array
+-	 * offset from %gs hasn't changed.
+-	 */
+-	pthread_setspecific(k1, (void*)0x12345678);
+-	asm volatile("movl %%gs:0x468, %0" : "=r"(x));
+-
+-	pthread_setspecific(k1, (void*)0x87654321);
+-	asm volatile("movl %%gs:0x468, %0" : "=r"(y));
+-
+-	if(x != 0x12345678 || y != 0x87654321) {
+-		printf("libcgo: thread-local storage %#x not at %%gs:0x468 - x=%#x y=%#x\n", k1, x, y);
+-		abort();
+-	}
+-}
+-
+-void
+-initcgo(void)
+-{
+-}
+-
+-void
+-libcgo_sys_thread_start(ThreadStart *ts)
+-{
+-	pthread_attr_t attr;
+-	pthread_t p;
+-	size_t size;
+-
+-	pthread_attr_init(&attr);
+-	pthread_attr_getstacksize(&attr, &size);
+-	ts->g->stackguard = size;
+-	pthread_create(&p, &attr, threadentry, ts);
+-}
+-
+-static void*
+-threadentry(void *v)
+-{
+-	ThreadStart ts;
+-
+-	ts = *(ThreadStart*)v;
+-	free(v);
+-
+-	ts.g->stackbase = (uintptr)&ts;
+-
+-	/*
+-	 * libcgo_sys_thread_start set stackguard to stack size;
+-	 * change to actual guard pointer.
+-	 */
+-	ts.g->stackguard = (uintptr)&ts - ts.g->stackguard + 4096;
+-
+-	pthread_setspecific(k1, (void*)ts.g);
+-	pthread_setspecific(k2, (void*)ts.m);
+-
+-	crosscall_386(ts.fn);
+-	return nil;
+-}
+diff --git a/src/libcgo/darwin_amd64.c b/src/libcgo/darwin_amd64.c
+deleted file mode 100644
+index 59fff059ae..0000000000
+--- a/src/libcgo/darwin_amd64.c
++++ /dev/null
+@@ -1,125 +0,0 @@
+-// Copyright 2009 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include <pthread.h>
+-#include "libcgo.h"
+-
+-static void* threadentry(void*);
+-static pthread_key_t k1, k2;
+-
+-/* gccism: arrange for inittls to be called at dynamic load time */
+-static void inittls(void) __attribute__((constructor));
+-
+-static void
+-inittls(void)
+-{
+-	uint64 x, y;
+-	pthread_key_t tofree[16], k;
+-	int i, ntofree;
+-	int havek1, havek2;
+-
+-	/*
+-	 * Same logic, code as darwin_386.c:/inittls, except that words
+-	 * are 8 bytes long now, and the thread-local storage starts at 0x60.
+-	 * So the offsets are
+-	 * 0x60+8*0x108 = 0x8a0 and 0x60+8*0x109 = 0x8a8.
+-	 *
+-	 * The linker and runtime hard-code these constant offsets
+-	 * from %gs where we expect to find m and g.  The code
+-	 * below verifies that the constants are correct once it has
+-	 * obtained the keys.  Known to ../cmd/6l/obj.c:/8a0
+-	 * and to ../pkg/runtime/darwin/amd64/sys.s:/8a0
+-	 *
+-	 * As disgusting as on the 386; same justification.
+-	 */
+-	havek1 = 0;
+-	havek2 = 0;
+-	ntofree = 0;
+-	while(!havek1 || !havek2) {
+-		if(pthread_key_create(&k, nil) < 0) {
+-			fprintf(stderr, "libcgo: pthread_key_create failed\n");
+-			abort();
+-		}
+-		if(k == 0x108) {
+-			havek1 = 1;
+-			k1 = k;
+-			continue;
+-		}
+-		if(k == 0x109) {
+-			havek2 = 1;
+-			k2 = k;
+-			continue;
+-		}
+-		if(ntofree >= nelem(tofree)) {
+-			fprintf(stderr, "libcgo: could not obtain pthread_keys\n");
+-			fprintf(stderr, "\twanted 0x108 and 0x109\n");
+-			fprintf(stderr, "\tgot");
+-			for(i=0; i<ntofree; i++)
+-				fprintf(stderr, " %#x", (unsigned)tofree[i]);
+-			fprintf(stderr, "\n");
+-			abort();
+-		}
+-		tofree[ntofree++] = k;
+-	}
+-
+-	for(i=0; i<ntofree; i++)
+-		pthread_key_delete(tofree[i]);
+-
+-	/*
+-	 * We got the keys we wanted.  Make sure that we observe
+-	 * updates to k1 at 0x8a0, to verify that the TLS array
+-	 * offset from %gs hasn't changed.
+-	 */
+-	pthread_setspecific(k1, (void*)0x123456789abcdef0ULL);
+-	asm volatile("movq %%gs:0x8a0, %0" : "=r"(x));
+-
+-	pthread_setspecific(k2, (void*)0x0fedcba987654321);
+-	asm volatile("movq %%gs:0x8a8, %0" : "=r"(y));
+-
+-	if(x != 0x123456789abcdef0ULL || y != 0x0fedcba987654321) {
+-		printf("libcgo: thread-local storage %#x not at %%gs:0x8a0 - x=%#llx y=%#llx\n", (unsigned)k1, x, y);
+-		abort();
+-	}
+-}
+-
+-void
+-initcgo(void)
+-{
+-}
+-
+-void
+-libcgo_sys_thread_start(ThreadStart *ts)
+-{
+-	pthread_attr_t attr;
+-	pthread_t p;
+-	size_t size;
+-
+-	pthread_attr_init(&attr);
+-	pthread_attr_getstacksize(&attr, &size);
+-	ts->g->stackguard = size;
+-	pthread_create(&p, &attr, threadentry, ts);
+-}
+-
+-static void*
+-threadentry(void *v)
+-{
+-	ThreadStart ts;
+-
+-	ts = *(ThreadStart*)v;
+-	free(v);
+-
+-	ts.g->stackbase = (uintptr)&ts;
+-
+-	/*
+-	 * libcgo_sys_thread_start set stackguard to stack size;
+-	 * change to actual guard pointer.
+-	 */
+-	ts.g->stackguard = (uintptr)&ts - ts.g->stackguard + 4096;
+-
+-	pthread_setspecific(k1, (void*)ts.g);
+-	pthread_setspecific(k2, (void*)ts.m);
+-
+-	crosscall_amd64(ts.fn);
+-	return nil;
+-}
+diff --git a/src/libcgo/libcgo.h b/src/libcgo/libcgo.h
+deleted file mode 100644
+index 611f4ad475..0000000000
+--- a/src/libcgo/libcgo.h
++++ /dev/null
+@@ -1,60 +0,0 @@
+-// Copyright 2009 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include <stdint.h>
+-#include <stdlib.h>
+-#include <stdio.h>
+-
+-#define nil ((void*)0)
+-#define nelem(x) (sizeof(x)/sizeof((x)[0]))
+-
+-typedef uint32_t uint32;
+-typedef uint64_t uint64;
+-typedef uintptr_t uintptr;
+-
+-/*
+- * The beginning of the per-goroutine structure,
+- * as defined in ../pkg/runtime/runtime.h.
+- * Just enough to edit these two fields.
+- */
+-typedef struct G G;
+-struct G
+-{
+-	uintptr stackguard;
+-	uintptr stackbase;
+-};
+-
+-/*
+- * Arguments to the libcgo_thread_start call.
+- * Also known to ../pkg/runtime/runtime.h.
+- */
+-typedef struct ThreadStart ThreadStart;
+-struct ThreadStart
+-{
+-	uintptr m;
+-	G *g;
+-	void (*fn)(void);
+-};
+-
+-/*
+- * Called by 5c/6c/8c world.
+- * Makes a local copy of the ThreadStart and
+- * calls libcgo_sys_thread_start(ts).
+- */
+-void libcgo_thread_start(ThreadStart *ts);
+-
+-/*
+- * Creates the new operating system thread (OS, arch dependent).
+- */
+-void libcgo_sys_thread_start(ThreadStart *ts);
+-
+-/*
+- * Call fn in the 6c world.
+- */
+-void crosscall_amd64(void (*fn)(void));
+-
+-/*
+- * Call fn in the 8c world.
+- */
+-void crosscall_386(void (*fn)(void));
+diff --git a/src/libcgo/linux_386.c b/src/libcgo/linux_386.c
+deleted file mode 100644
+index bca649a7e2..0000000000
+--- a/src/libcgo/linux_386.c
++++ /dev/null
+@@ -1,60 +0,0 @@
+-// Copyright 2009 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include <pthread.h>
+-#include "libcgo.h"
+-
+-static void *threadentry(void*);
+-
+-void
+-initcgo(void)
+-{
+-}
+-
+-void
+-libcgo_sys_thread_start(ThreadStart *ts)
+-{
+-	pthread_attr_t attr;
+-	pthread_t p;
+-	size_t size;
+-
+-	pthread_attr_init(&attr);
+-	pthread_attr_getstacksize(&attr, &size);
+-	ts->g->stackguard = size;
+-	pthread_create(&p, &attr, threadentry, ts);
+-}
+-
+-static void*
+-threadentry(void *v)
+-{
+-	ThreadStart ts;
+-
+-	ts = *(ThreadStart*)v;
+-	free(v);
+-
+-	ts.g->stackbase = (uintptr)&ts;
+-
+-	/*
+-	 * libcgo_sys_thread_start set stackguard to stack size;
+-	 * change to actual guard pointer.
+-	 */
+-	ts.g->stackguard = (uintptr)&ts - ts.g->stackguard + 4096;
+-
+-	/*
+-	 * Set specific keys.  On Linux/ELF, the thread local storage
+-	 * is just before %gs:0.  Our dynamic 8.out's reserve 8 bytes
+-	 * for the two words g and m at %gs:-8 and %gs:-4.
+-	 * Xen requires us to access those words indirect from %gs:0
+-	 * which points at itself.
+-	 */
+-	asm volatile (
+-		"movl %%gs:0, %%eax\n"		// MOVL 0(GS), tmp
+-		"movl %0, -8(%%eax)\n"	// MOVL g, -8(GS)
+-		"movl %1, -4(%%eax)\n"	// MOVL m, -4(GS)
+-		:: "r"(ts.g), "r"(ts.m) : "%eax"
+-	);
+-
+-	crosscall_386(ts.fn);
+-	return nil;
+-}
+diff --git a/src/libcgo/linux_amd64.c b/src/libcgo/linux_amd64.c
+deleted file mode 100644
+index a4e0fe57a9..0000000000
+--- a/src/libcgo/linux_amd64.c
++++ /dev/null
+@@ -1,56 +0,0 @@
+-// Copyright 2009 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include <pthread.h>
+-#include "libcgo.h"
+-
+-static void* threadentry(void*);
+-
+-void
+-initcgo(void)
+-{
+-}
+-
+-void
+-libcgo_sys_thread_start(ThreadStart *ts)
+-{
+-	pthread_attr_t attr;
+-	pthread_t p;
+-	size_t size;
+-
+-	pthread_attr_init(&attr);
+-	pthread_attr_getstacksize(&attr, &size);
+-	ts->g->stackguard = size;
+-	pthread_create(&p, &attr, threadentry, ts);
+-}
+-
+-static void*
+-threadentry(void *v)
+-{
+-	ThreadStart ts;
+-
+-	ts = *(ThreadStart*)v;
+-	free(v);
+-
+-	ts.g->stackbase = (uintptr)&ts;
+-
+-	/*
+-	 * libcgo_sys_thread_start set stackguard to stack size;
+-	 * change to actual guard pointer.
+-	 */
+-	ts.g->stackguard = (uintptr)&ts - ts.g->stackguard + 4096;
+-
+-	/*
+-	 * Set specific keys.  On Linux/ELF, the thread local storage
+-	 * is just before %fs:0.  Our dynamic 6.out's reserve 16 bytes
+-	 * for the two words g and m at %fs:-16 and %fs:-8.
+-	 */
+-	asm volatile (
+-		"movq %0, %%fs:-16\n"	// MOVL g, -16(FS)
+-		"movq %1, %%fs:-8\n"	// MOVL m, -8(FS)
+-		:: "r"(ts.g), "r"(ts.m)
+-	);
+-	crosscall_amd64(ts.fn);
+-	return nil;
+-}
+diff --git a/src/libcgo/linux_arm.c b/src/libcgo/linux_arm.c
+deleted file mode 100644
+index d674aca1df..0000000000
+--- a/src/libcgo/linux_arm.c
++++ /dev/null
+@@ -1,17 +0,0 @@
+-// Copyright 2010 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "libcgo.h"
+-
+-void
+-initcgo(void)
+-{
+-}
+-
+-void
+-libcgo_sys_thread_start(ThreadStart *ts)
+-{
+-	// unimplemented
+-	*(int*)0 = 0;
+-}
+diff --git a/src/libcgo/util.c b/src/libcgo/util.c
+deleted file mode 100644
+index c296b493da..0000000000
+--- a/src/libcgo/util.c
++++ /dev/null
+@@ -1,46 +0,0 @@
+-// Copyright 2009 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "libcgo.h"
+-
+-/* Stub for calling malloc from Go */
+-void
+-_cgo_malloc(void *p)
+-{
+-	struct a {
+-		long long n;
+-		void *ret;
+-	} *a = p;
+-
+-	a->ret = malloc(a->n);
+-}
+-
+-/* Stub for calling from Go */
+-void
+-_cgo_free(void *p)
+-{
+-	struct a {
+-		void *arg;
+-	} *a = p;
+-
+-	free(a->arg);
+-}
+-
+-/* Stub for creating a new thread */
+-void
+-libcgo_thread_start(ThreadStart *arg)
+-{
+-	ThreadStart *ts;
+-
+-	/* Make our own copy that can persist after we return. */
+-	ts = malloc(sizeof *ts);
+-	if(ts == nil) {
+-		fprintf(stderr, "libcgo: out of memory in thread_start\n");
+-		abort();
+-	}
+-	*ts = *arg;
+-
+-	libcgo_sys_thread_start(ts);	/* OS-dependent half */
+-}
+-
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index 22da9f98c5..d2a8789c5f 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -132,7 +132,6 @@ DIRS=\
+ 	utf8\
+ 	websocket\
+ 	xml\
+-	../libcgo\
+ 	../cmd/cgo\
+ 	../cmd/ebnflint\
+ 	../cmd/godoc\
+@@ -159,7 +158,6 @@ NOTEST=\
+ 	testing\
+ 	testing/iotest\
+ 	try\
+-	../libcgo\
+ 	../cmd/cgo\
+ 	../cmd/ebnflint\
+ 	../cmd/godoc\
+@@ -248,5 +246,4 @@ deps:
+ 
+ -include Make.deps
+ 
+-../cmd/cgo.install: ../libcgo.install
+ runtime/cgo.install: ../cmd/cgo.install
+diff --git a/src/pkg/deps.bash b/src/pkg/deps.bash
+index 8267e4bde1..fadc032de1 100755
+--- a/src/pkg/deps.bash
++++ b/src/pkg/deps.bash
+@@ -33,7 +33,7 @@ for dir in $dirs; do (
+ 		egrep "$dirpat" |
+ 		grep -v "^$dir\$" |
+ 		sed 's/$/.install/' |
+-		sed 's;^C\.install;../cmd/cgo.install;' |
++		sed 's;^C\.install;runtime/cgo.install;' |
+ 		sort -u
+ 	)
+ 
+diff --git a/src/libcgo/freebsd_386.c b/src/pkg/runtime/cgo/freebsd_386.c
+similarity index 100%
+rename from src/libcgo/freebsd_386.c
+rename to src/pkg/runtime/cgo/freebsd_386.c
+diff --git a/src/libcgo/freebsd_amd64.c b/src/pkg/runtime/cgo/freebsd_amd64.c
+similarity index 100%
+rename from src/libcgo/freebsd_amd64.c
+rename to src/pkg/runtime/cgo/freebsd_amd64.c
+diff --git a/src/libcgo/nacl_386.c b/src/pkg/runtime/cgo/nacl_386.c
+similarity index 100%
+rename from src/libcgo/nacl_386.c
+rename to src/pkg/runtime/cgo/nacl_386.c
+diff --git a/src/libcgo/windows_386.c b/src/pkg/runtime/cgo/windows_386.c
+similarity index 100%
+rename from src/libcgo/windows_386.c
+rename to src/pkg/runtime/cgo/windows_386.c
+diff --git a/src/libcgo/windows_amd64.c b/src/pkg/runtime/cgo/windows_amd64.c
+similarity index 57%
+rename from src/libcgo/windows_amd64.c
+rename to src/pkg/runtime/cgo/windows_amd64.c
+index 56417e178b..1f34f85005 100755
+--- a/src/libcgo/windows_amd64.c
++++ b/src/pkg/runtime/cgo/windows_amd64.c
+@@ -20,26 +20,26 @@ initcgo(void)
+ void
+ libcgo_sys_thread_start(ThreadStart *ts)
+ {
+-    ts->g->stackguard = STACKSIZE;
+-    _beginthread(threadentry, STACKSIZE, ts);
++	ts->g->stackguard = STACKSIZE;
++	_beginthread(threadentry, STACKSIZE, ts);
+ }
+ 
+ static void*
+ threadentry(void *v)
+ {
+-    ThreadStart ts;
++	ThreadStart ts;
+ 
+-    ts = *(ThreadStart*)v;
+-    free(v);
++	ts = *(ThreadStart*)v;
++	free(v);
+ 
+-    ts.g->stackbase = (uintptr)&ts;
++	ts.g->stackbase = (uintptr)&ts;
+ 
+-    /*
+-     * libcgo_sys_thread_start set stackguard to stack size;
+-     * change to actual guard pointer.
+-     */
+-    ts.g->stackguard = (uintptr)&ts - ts.g->stackguard + 4096;
++	/*
++	* libcgo_sys_thread_start set stackguard to stack size;
++	* change to actual guard pointer.
++	*/
++	ts.g->stackguard = (uintptr)&ts - ts.g->stackguard + 4096;
+ 
+-    crosscall_386(ts.fn);
+-    return nil;
++	crosscall_386(ts.fn);
++	return nil;
+ }

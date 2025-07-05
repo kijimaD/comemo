@@ -8,7 +8,7 @@ Date:   Mon Feb 8 14:32:22 2010 -0800
     R=iant
     CC=golang-dev
     https://golang.org/cl/204053
-
+---
  src/pkg/runtime/darwin/386/sys.s    |  16 +++
  src/pkg/runtime/darwin/amd64/sys.s  |  13 ++-
  src/pkg/runtime/extern.go           |   9 ++
@@ -24,3 +24,541 @@ Date:   Mon Feb 8 14:32:22 2010 -0800
  src/pkg/runtime/runtime.h           |   2 +
  test/garbage/parser.go              | 201 ++++++++++++++++++++++++++++++++++++
  14 files changed, 340 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/runtime/darwin/386/sys.s b/src/pkg/runtime/darwin/386/sys.s
+index 326cc23e52..79628a463f 100644
+--- a/src/pkg/runtime/darwin/386/sys.s
++++ b/src/pkg/runtime/darwin/386/sys.s
+@@ -42,6 +42,22 @@ TEXT ·mmap(SB),7,$0
+ 	CALL	notok(SB)
+ 	RET
+ 
++// void gettime(int64 *sec, int32 *usec)
++TEXT gettime(SB), 7, $32
++	LEAL	12(SP), AX	// must be non-nil, unused
++	MOVL	AX, 4(SP)
++	MOVL	$0, 8(SP)	// time zone pointer
++	MOVL	$116, AX
++	INT	$0x80
++
++	MOVL	sec+0(FP), DI
++	MOVL	AX, (DI)
++	MOVL	$0, 4(DI)	// zero extend 32 -> 64
++
++	MOVL	usec+4(FP), DI
++	MOVL	DX, (DI)
++	RET
++
+ TEXT sigaction(SB),7,$0
+ 	MOVL	$46, AX
+ 	INT	$0x80
+diff --git a/src/pkg/runtime/darwin/amd64/sys.s b/src/pkg/runtime/darwin/amd64/sys.s
+index 223790a523..50b50d5de0 100644
+--- a/src/pkg/runtime/darwin/amd64/sys.s
++++ b/src/pkg/runtime/darwin/amd64/sys.s
+@@ -37,6 +37,18 @@ TEXT	write(SB),7,$0
+ 	CALL	notok(SB)
+ 	RET
+ 
++// void gettime(int64 *sec, int32 *usec)
++TEXT gettime(SB), 7, $32
++	MOVQ	SP, DI	// must be non-nil, unused
++	MOVQ	$0, SI
++	MOVQ	$(0x2000000+116), AX
++	SYSCALL
++	MOVQ	sec+0(FP), DI
++	MOVQ	AX, (DI)
++	MOVQ	usec+8(FP), DI
++	MOVL	DX, (DI)
++	RET
++
+ TEXT	sigaction(SB),7,$0
+ 	MOVL	8(SP), DI		// arg 1 sig
+ 	MOVQ	16(SP), SI		// arg 2 act
+@@ -226,4 +238,3 @@ TEXT mach_semaphore_signal_all(SB),7,$0
+ 	MOVL	$(0x1000000+34), AX	// semaphore_signal_all_trap
+ 	SYSCALL
+ 	RET
+-
+diff --git a/src/pkg/runtime/extern.go b/src/pkg/runtime/extern.go
+index a397c3b905..0834f78791 100644
+--- a/src/pkg/runtime/extern.go
++++ b/src/pkg/runtime/extern.go
+@@ -73,13 +73,22 @@ func Siginit()
+ 
+ type MemStatsType struct {
+ 	Alloc      uint64
++	TotalAlloc uint64
+ 	Sys        uint64
+ 	Stacks     uint64
+ 	InusePages uint64
+ 	NextGC     uint64
+ 	Lookups    uint64
+ 	Mallocs    uint64
++	PauseNs    uint64
++	NumGC      uint32
+ 	EnableGC   bool
++	DebugGC    bool
++	BySize     [67]struct {
++		Size    uint32
++		Mallocs uint64
++		Frees   uint64
++	}
+ }
+ 
+ // MemStats holds statistics about the memory system.
+diff --git a/src/pkg/runtime/freebsd/386/sys.s b/src/pkg/runtime/freebsd/386/sys.s
+index d0afeae3a9..a0860db81b 100644
+--- a/src/pkg/runtime/freebsd/386/sys.s
++++ b/src/pkg/runtime/freebsd/386/sys.s
+@@ -73,6 +73,23 @@ TEXT ·mmap(SB),7,$-4
+ 	CALL	notok(SB)
+ 	RET
+ 
++TEXT	gettime(SB), 7, $32
++	MOVL	$116, AX
++	LEAL	12(SP), BX
++	MOVL	BX, 4(SP)
++	MOVL	$0, 8(SP)
++	INT	$0x80
++
++	MOVL	12(SP), BX	// sec
++	MOVL	sec+0(FP), DI
++	MOVL	BX, (DI)
++	MOVL	$0, 4(DI)	// zero extend 32 -> 64 bits
++
++	MOVL	16(SP), BX	// usec
++	MOVL	usec+4(FP), DI
++	MOVL	BX, (DI)
++	RET
++
+ TEXT sigaction(SB),7,$-4
+ 	MOVL	$416, AX
+ 	INT	$0x80
+diff --git a/src/pkg/runtime/freebsd/amd64/sys.s b/src/pkg/runtime/freebsd/amd64/sys.s
+index 53773b99f3..02c3e91436 100644
+--- a/src/pkg/runtime/freebsd/amd64/sys.s
++++ b/src/pkg/runtime/freebsd/amd64/sys.s
+@@ -58,6 +58,21 @@ TEXT	write(SB),7,$-8
+ 	CALL	notok(SB)
+ 	RET
+ 
++TEXT gettime(SB), 7, $32
++	MOVL	$116, AX
++	LEAQ	8(SP), DI
++	SYSCALL
++
++	MOVQ	8(SP), BX	// sec
++	MOVQ	sec+0(FP), DI
++	MOVQ	BX, (DI)
++
++	MOVL	16(SP), BX	// usec
++	MOVQ	usec+8(FP), DI
++	MOVL	BX, (DI)
++	RET
++
++
+ TEXT	sigaction(SB),7,$-8
+ 	MOVL	8(SP), DI		// arg 1 sig
+ 	MOVQ	16(SP), SI		// arg 2 act
+diff --git a/src/pkg/runtime/linux/386/sys.s b/src/pkg/runtime/linux/386/sys.s
+index 7f644cbf3f..ed7c155f1f 100644
+--- a/src/pkg/runtime/linux/386/sys.s
++++ b/src/pkg/runtime/linux/386/sys.s
+@@ -30,6 +30,23 @@ TEXT write(SB),7,$0
+ 	INT	$0x80
+ 	RET
+ 
++TEXT	gettime(SB), 7, $32
++	MOVL	$78, AX			// syscall - gettimeofday
++	LEAL	8(SP), BX
++	MOVL	$0, CX
++	MOVL	$0, DX
++	INT	$0x80
++
++	MOVL	8(SP), BX	// sec
++	MOVL	sec+0(FP), DI
++	MOVL	BX, (DI)
++	MOVL	$0, 4(DI)	// zero extend 32 -> 64 bits
++
++	MOVL	12(SP), BX	// usec
++	MOVL	usec+4(FP), DI
++	MOVL	BX, (DI)
++	RET
++
+ TEXT rt_sigaction(SB),7,$0
+ 	MOVL	$174, AX		// syscall - rt_sigaction
+ 	MOVL	4(SP), BX
+diff --git a/src/pkg/runtime/linux/amd64/sys.s b/src/pkg/runtime/linux/amd64/sys.s
+index 8e0905ee15..18bf5b5092 100644
+--- a/src/pkg/runtime/linux/amd64/sys.s
++++ b/src/pkg/runtime/linux/amd64/sys.s
+@@ -44,6 +44,21 @@ TEXT	·write(SB),7,$0-24
+ 	SYSCALL
+ 	RET
+ 
++TEXT gettime(SB), 7, $32
++	LEAQ	8(SP), DI
++	MOVQ	$0, SI
++	MOVQ	$0xffffffffff600000, AX
++	CALL	AX
++
++	MOVQ	8(SP), BX	// sec
++	MOVQ	sec+0(FP), DI
++	MOVQ	BX, (DI)
++
++	MOVL	16(SP), BX	// usec
++	MOVQ	usec+8(FP), DI
++	MOVL	BX, (DI)
++	RET
++
+ TEXT	rt_sigaction(SB),7,$0-32
+ 	MOVL	8(SP), DI
+ 	MOVQ	16(SP), SI
+diff --git a/src/pkg/runtime/malloc.cgo b/src/pkg/runtime/malloc.cgo
+index d7e3e4151d..286aa2bf3c 100644
+--- a/src/pkg/runtime/malloc.cgo
++++ b/src/pkg/runtime/malloc.cgo
+@@ -46,6 +46,8 @@ mallocgc(uintptr size, uint32 refflag, int32 dogc)
+ 		if(v == nil)
+ 			throw("out of memory");
+ 		mstats.alloc += size;
++		mstats.total_alloc += size;
++		mstats.by_size[sizeclass].nmalloc++;
+ 	} else {
+ 		// TODO(rsc): Report tracebacks for very large allocations.
+ 
+@@ -57,6 +59,7 @@ mallocgc(uintptr size, uint32 refflag, int32 dogc)
+ 		if(s == nil)
+ 			throw("out of memory");
+ 		mstats.alloc += npages<<PageShift;
++		mstats.total_alloc += npages<<PageShift;
+ 		v = (void*)(s->start << PageShift);
+ 	}
+ 
+@@ -127,6 +130,7 @@ free(void *v)
+ 	size = class_to_size[sizeclass];
+ 	runtime_memclr(v, size);
+ 	mstats.alloc -= size;
++	mstats.by_size[sizeclass].nfree++;
+ 	MCache_Free(c, v, sizeclass, size);
+ 
+ out:
+diff --git a/src/pkg/runtime/malloc.h b/src/pkg/runtime/malloc.h
+index 133ed02329..05f500a1e7 100644
+--- a/src/pkg/runtime/malloc.h
++++ b/src/pkg/runtime/malloc.h
+@@ -156,17 +156,26 @@ void	FixAlloc_Free(FixAlloc *f, void *p);
+ 
+ 
+ // Statistics.
+-// Shared with Go: if you edit this structure, also edit ../malloc/malloc.go.
++// Shared with Go: if you edit this structure, also edit extern.go.
+ struct MStats
+ {
+ 	uint64	alloc;
++	uint64	total_alloc;
+ 	uint64	sys;
+ 	uint64	stacks;
+ 	uint64	inuse_pages;	// protected by mheap.Lock
+ 	uint64	next_gc;	// protected by mheap.Lock
+ 	uint64	nlookup;	// unprotected (approximate)
+ 	uint64	nmalloc;	// unprotected (approximate)
++	uint64	pause_ns;
++	uint32	numgc;
+ 	bool	enablegc;
++	bool	debuggc;
++	struct {
++		uint32 size;
++		uint64 nmalloc;
++		uint64 nfree;
++	} by_size[NumSizeClasses];
+ };
+ 
+ #define mstats ·MemStats	/* name shared with Go */
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index d8a943e2a2..83d217320d 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -240,6 +240,7 @@ static int32 gcpercent = -2;
+ void
+ gc(int32 force)
+ {
++	int64 t0, t1;
+ 	byte *p;
+ 	void **fp;
+ 
+@@ -268,6 +269,7 @@ gc(int32 force)
+ 
+ //printf("gc...\n");
+ 	semacquire(&gcsema);
++	t0 = nanotime();
+ 	m->gcing = 1;
+ 	stoptheworld();
+ 	if(mheap.Lock.key != 0)
+@@ -289,6 +291,11 @@ gc(int32 force)
+ 	pfinq = finq;
+ 	m->locks--;
+ 
++	t1 = nanotime();
++	mstats.numgc++;
++	mstats.pause_ns += t1 - t0;
++	if(mstats.debuggc)
++		printf("pause %D\n", t1-t0);
+ 	semrelease(&gcsema);
+ 	starttheworld();
+ }
+diff --git a/src/pkg/runtime/msize.c b/src/pkg/runtime/msize.c
+index 25e22637d2..aebc15416d 100644
+--- a/src/pkg/runtime/msize.c
++++ b/src/pkg/runtime/msize.c
+@@ -134,6 +134,10 @@ InitSizes(void)
+ 		}
+ 	}
+ 
++	// Copy out for statistics table.
++	for(i=0; i<nelem(class_to_size); i++)
++		mstats.by_size[i].size = class_to_size[i];
++
+ 	// Initialize the class_to_transfercount table.
+ 	for(sizeclass = 1; sizeclass < NumSizeClasses; sizeclass++) {
+ 		n = 64*1024 / class_to_size[sizeclass];
+diff --git a/src/pkg/runtime/runtime.c b/src/pkg/runtime/runtime.c
+index 2d840aab37..3a94c8bce2 100644
+--- a/src/pkg/runtime/runtime.c
++++ b/src/pkg/runtime/runtime.c
+@@ -461,3 +461,14 @@ FLUSH(void *v)
+ 	USED(v);
+ }
+ 
++int64
++nanotime(void)
++{
++	int64 sec;
++	int32 usec;
++	
++	sec = 0;
++	usec = 0;
++	gettime(&sec, &usec);
++	return sec*1000000000 + (int64)usec*1000;
++}
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 2d6d42ee62..a526c04927 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -393,6 +393,8 @@ void	·exitsyscall(void);
+ void	·newproc(int32, byte*, byte*);
+ void	siginit(void);
+ bool	sigsend(int32 sig);
++void	gettime(int64*, int32*);
++int64	nanotime(void);
+ 
+ #pragma	varargck	argpos	printf	1
+ 
+diff --git a/test/garbage/parser.go b/test/garbage/parser.go
+new file mode 100644
+index 0000000000..3a21f97a85
+--- /dev/null
++++ b/test/garbage/parser.go
+@@ -0,0 +1,201 @@
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Garbage collection benchmark: parse Go packages repeatedly.
++
++package main
++
++import (
++	"flag"
++	"fmt"
++	"go/ast"
++	"go/parser"
++	"os"
++	"path"
++	"runtime"
++	"strings"
++)
++
++func isGoFile(dir *os.Dir) bool {
++	return dir.IsRegular() &&
++		!strings.HasPrefix(dir.Name, ".") && // ignore .files
++		path.Ext(dir.Name) == ".go"
++}
++
++func isPkgFile(dir *os.Dir) bool {
++	return isGoFile(dir) &&
++		!strings.HasSuffix(dir.Name, "_test.go") // ignore test files
++}
++
++func pkgName(filename string) string {
++	file, err := parser.ParseFile(filename, nil, nil, parser.PackageClauseOnly)
++	if err != nil || file == nil {
++		return ""
++	}
++	return file.Name.Name()
++}
++
++func parseDir(dirpath string) map[string]*ast.Package {
++	// the package name is the directory name within its parent
++	// (use dirname instead of path because dirname is clean; i.e. has no trailing '/')
++	_, pkgname := path.Split(dirpath)
++
++	// filter function to select the desired .go files
++	filter := func(d *os.Dir) bool {
++		if isPkgFile(d) {
++			// Some directories contain main packages: Only accept
++			// files that belong to the expected package so that
++			// parser.ParsePackage doesn't return "multiple packages
++			// found" errors.
++			// Additionally, accept the special package name
++			// fakePkgName if we are looking at cmd documentation.
++			name := pkgName(dirpath + "/" + d.Name)
++			return name == pkgname
++		}
++		return false
++	}
++
++	// get package AST
++	pkgs, err := parser.ParseDir(dirpath, filter, parser.ParseComments)
++	if err != nil {
++		panicln("parse", dirpath, err.String())
++	}
++	return pkgs
++}
++
++func main() {
++	st := &runtime.MemStats
++	n := flag.Int("n", 10, "iterations")
++	p := flag.Int("p", len(packages), "# of packages to keep in memory")
++	flag.BoolVar(&st.DebugGC, "d", st.DebugGC, "print GC debugging info (pause times)")
++	flag.Parse()
++
++	pkgroot := os.Getenv("GOROOT") + "/src/pkg/"
++	for i := -1; i < *n; i++ {
++		parsed := make([]map[string]*ast.Package, *p)
++		for j := range parsed {
++			parsed[j] = parseDir(pkgroot + packages[j%len(packages)])
++		}
++		if i == -1 {
++			// Now that heap is grown to full size, reset counters.
++			// This hides the start-up pauses, which are much smaller
++			// than the normal pauses and would otherwise make
++			// the average look much better than it actually is.
++			st.NumGC = 0
++			st.PauseNs = 0
++		}
++	}
++
++	fmt.Printf("Alloc=%d/%d Heap=%d/%d Mallocs=%d PauseTime=%.3f/%d = %.3f\n",
++		st.Alloc, st.TotalAlloc,
++		st.InusePages<<12, st.Sys,
++		st.Mallocs, float64(st.PauseNs)/1e9,
++		st.NumGC, float64(st.PauseNs)/1e9/float64(st.NumGC))
++
++	fmt.Printf("%10s %10s %10s\n", "size", "#alloc", "#free")
++	for _, s := range st.BySize {
++		fmt.Printf("%10d %10d %10d\n", s.Size, s.Mallocs, s.Frees)
++	}
++}
++
++
++var packages = []string{
++	"archive/tar",
++	"asn1",
++	"big",
++	"bignum",
++	"bufio",
++	"bytes",
++	"compress/flate",
++	"compress/gzip",
++	"compress/zlib",
++	"container/heap",
++	"container/list",
++	"container/ring",
++	"container/vector",
++	"crypto/aes",
++	"crypto/block",
++	"crypto/hmac",
++	"crypto/md4",
++	"crypto/md5",
++	"crypto/rc4",
++	"crypto/rsa",
++	"crypto/sha1",
++	"crypto/sha256",
++	"crypto/subtle",
++	"crypto/tls",
++	"crypto/x509",
++	"crypto/xtea",
++	"debug/dwarf",
++	"debug/macho",
++	"debug/elf",
++	"debug/gosym",
++	"debug/proc",
++	"ebnf",
++	"encoding/ascii85",
++	"encoding/base64",
++	"encoding/binary",
++	"encoding/git85",
++	"encoding/hex",
++	"encoding/pem",
++	"exec",
++	"exp/datafmt",
++	"exp/draw",
++	"exp/eval",
++	"exp/exception",
++	"exp/iterable",
++	"exp/parser",
++	"expvar",
++	"flag",
++	"fmt",
++	"go/ast",
++	"go/doc",
++	"go/parser",
++	"go/printer",
++	"go/scanner",
++	"go/token",
++	"gob",
++	"hash",
++	"hash/adler32",
++	"hash/crc32",
++	"http",
++	"image",
++	"image/jpeg",
++	"image/png",
++	"io",
++	"io/ioutil",
++	"json",
++	"log",
++	"math",
++	"net",
++	"once",
++	"os",
++	"os/signal",
++	"patch",
++	"path",
++	"rand",
++	"reflect",
++	"regexp",
++	"rpc",
++	"runtime",
++	"scanner",
++	"sort",
++	"strconv",
++	"strings",
++	"sync",
++	"syscall",
++	"syslog",
++	"tabwriter",
++	"template",
++	"testing",
++	"testing/iotest",
++	"testing/quick",
++	"testing/script",
++	"time",
++	"unicode",
++	"utf8",
++	"websocket",
++	"xgb",
++	"xml",
++}

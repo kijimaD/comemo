@@ -27,10 +27,94 @@ Date:   Tue Oct 27 18:12:03 2020 +0000
     Reviewed-by: Russ Cox <rsc@golang.org>
     Trust: Jay Conrod <jayconrod@google.com>
     Trust: Daniel Martí <mvdan@mvdan.cc>
-
+---
  src/cmd/go/alldocs.go                    |  2 ++
  src/cmd/go/go_test.go                    | 12 ++++++++++++
  src/cmd/go/internal/envcmd/env.go        |  3 ++-
  src/cmd/go/internal/help/helpdoc.go      |  2 ++
  src/cmd/go/testdata/script/env_write.txt |  2 ++
  5 files changed, 20 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index e8bfff1e69..47076570a6 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -1916,6 +1916,8 @@
+ // 		If module-aware mode is disabled, GOMOD will be the empty string.
+ // 	GOTOOLDIR
+ // 		The directory where the go tools (compile, cover, doc, etc...) are installed.
++// 	GOVERSION
++// 		The version of the installed Go tree, as reported by runtime.Version.
+ //
+ //
+ // File types
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index ee0cd8e2c7..a02231fa98 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -1886,6 +1886,18 @@ func TestGoEnv(t *testing.T) {
+ 	tg.grepStdout("gcc", "CC not found")
+ 	tg.run("env", "GOGCCFLAGS")
+ 	tg.grepStdout("-ffaster", "CC arguments not found")
++
++	tg.run("env", "GOVERSION")
++	envVersion := strings.TrimSpace(tg.stdout.String())
++
++	tg.run("version")
++	cmdVersion := strings.TrimSpace(tg.stdout.String())
++
++	// If 'go version' is "go version <version> <goos>/<goarch>", then
++	// 'go env GOVERSION' is just "<version>".
++	if cmdVersion == envVersion || !strings.Contains(cmdVersion, envVersion) {
++		t.Fatalf("'go env GOVERSION' %q should be a shorter substring of 'go version' %q", envVersion, cmdVersion)
++	}
+ }
+ 
+ const (
+diff --git a/src/cmd/go/internal/envcmd/env.go b/src/cmd/go/internal/envcmd/env.go
+index d65ace879d..46af36eb11 100644
+--- a/src/cmd/go/internal/envcmd/env.go
++++ b/src/cmd/go/internal/envcmd/env.go
+@@ -88,6 +88,7 @@ func MkEnv() []cfg.EnvVar {
+ 		{Name: "GOTMPDIR", Value: cfg.Getenv("GOTMPDIR")},
+ 		{Name: "GOTOOLDIR", Value: base.ToolDir},
+ 		{Name: "GOVCS", Value: cfg.GOVCS},
++		{Name: "GOVERSION", Value: runtime.Version()},
+ 	}
+ 
+ 	if work.GccgoBin != "" {
+@@ -399,7 +400,7 @@ func getOrigEnv(key string) string {
+ 
+ func checkEnvWrite(key, val string) error {
+ 	switch key {
+-	case "GOEXE", "GOGCCFLAGS", "GOHOSTARCH", "GOHOSTOS", "GOMOD", "GOTOOLDIR":
++	case "GOEXE", "GOGCCFLAGS", "GOHOSTARCH", "GOHOSTOS", "GOMOD", "GOTOOLDIR", "GOVERSION":
+ 		return fmt.Errorf("%s cannot be modified", key)
+ 	case "GOENV":
+ 		return fmt.Errorf("%s can only be set using the OS environment", key)
+diff --git a/src/cmd/go/internal/help/helpdoc.go b/src/cmd/go/internal/help/helpdoc.go
+index 50cf911407..98f58441b4 100644
+--- a/src/cmd/go/internal/help/helpdoc.go
++++ b/src/cmd/go/internal/help/helpdoc.go
+@@ -632,6 +632,8 @@ Additional information available from 'go env' but not read from the environment
+ 		If module-aware mode is disabled, GOMOD will be the empty string.
+ 	GOTOOLDIR
+ 		The directory where the go tools (compile, cover, doc, etc...) are installed.
++	GOVERSION
++		The version of the installed Go tree, as reported by runtime.Version.
+ 	`,
+ }
+ 
+diff --git a/src/cmd/go/testdata/script/env_write.txt b/src/cmd/go/testdata/script/env_write.txt
+index 0af22ed421..bda1e57826 100644
+--- a/src/cmd/go/testdata/script/env_write.txt
++++ b/src/cmd/go/testdata/script/env_write.txt
+@@ -69,6 +69,8 @@ go env -u GOPATH
+ stderr 'unknown go command variable GODEBUG'
+ ! go env -w GOEXE=.bat
+ stderr 'GOEXE cannot be modified'
++! go env -w GOVERSION=customversion
++stderr 'GOVERSION cannot be modified'
+ ! go env -w GOENV=/env
+ stderr 'GOENV can only be set using the OS environment'
+ 

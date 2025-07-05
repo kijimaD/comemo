@@ -13,6 +13,21 @@ Date:   Fri Aug 18 16:34:44 2017 +1000
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  misc/cgo/testcshared/cshared_test.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/misc/cgo/testcshared/cshared_test.go b/misc/cgo/testcshared/cshared_test.go
+index 47dd0c69af..57649a0bfb 100644
+--- a/misc/cgo/testcshared/cshared_test.go
++++ b/misc/cgo/testcshared/cshared_test.go
+@@ -151,7 +151,8 @@ func adbRun(t *testing.T, adbargs ...string) string {
+ 		t.Fatalf("trying to run adb command when operating system is not android.")
+ 	}
+ 	args := []string{"adb", "shell"}
+-	args = append(args, adbargs...)
++	shellcmd := fmt.Sprintf("cd %s; %s", androiddir, strings.Join(adbargs, " "))
++	args = append(args, shellcmd)
+ 	cmd := exec.Command(args[0], args[1:]...)
+ 	out, err := cmd.CombinedOutput()
+ 	if err != nil {

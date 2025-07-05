@@ -11,7 +11,7 @@ Date:   Mon Oct 31 12:07:13 2016 -0400
     Reviewed-on: https://go-review.googlesource.com/32452
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/internal/pprof/driver/driver.go                | 2 +-
  src/cmd/internal/pprof/driver/interactive.go           | 2 +-
  src/cmd/internal/pprof/fetch/fetch.go                  | 2 +-
@@ -31,3 +31,170 @@ Date:   Mon Oct 31 12:07:13 2016 -0400
  src/{cmd => }/internal/pprof/profile/proto_test.go     | 0
  src/{cmd => }/internal/pprof/profile/prune.go          | 0
  18 files changed, 10 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/internal/pprof/driver/driver.go b/src/cmd/internal/pprof/driver/driver.go
+index 8f6c7e1a9c..f3210723cd 100644
+--- a/src/cmd/internal/pprof/driver/driver.go
++++ b/src/cmd/internal/pprof/driver/driver.go
+@@ -23,9 +23,9 @@ import (
+ 
+ 	"cmd/internal/pprof/commands"
+ 	"cmd/internal/pprof/plugin"
+-	"cmd/internal/pprof/profile"
+ 	"cmd/internal/pprof/report"
+ 	"cmd/internal/pprof/tempfile"
++	"internal/pprof/profile"
+ )
+ 
+ // PProf acquires a profile, and symbolizes it using a profile
+diff --git a/src/cmd/internal/pprof/driver/interactive.go b/src/cmd/internal/pprof/driver/interactive.go
+index 1b08226527..81df976fa1 100644
+--- a/src/cmd/internal/pprof/driver/interactive.go
++++ b/src/cmd/internal/pprof/driver/interactive.go
+@@ -14,7 +14,7 @@ import (
+ 
+ 	"cmd/internal/pprof/commands"
+ 	"cmd/internal/pprof/plugin"
+-	"cmd/internal/pprof/profile"
++	"internal/pprof/profile"
+ )
+ 
+ var profileFunctionNames = []string{}
+diff --git a/src/cmd/internal/pprof/fetch/fetch.go b/src/cmd/internal/pprof/fetch/fetch.go
+index ffd282e74d..95d9be6aa2 100644
+--- a/src/cmd/internal/pprof/fetch/fetch.go
++++ b/src/cmd/internal/pprof/fetch/fetch.go
+@@ -17,7 +17,7 @@ import (
+ 	"time"
+ 
+ 	"cmd/internal/pprof/plugin"
+-	"cmd/internal/pprof/profile"
++	"internal/pprof/profile"
+ )
+ 
+ // FetchProfile reads from a data source (network, file) and generates a
+diff --git a/src/cmd/internal/pprof/plugin/plugin.go b/src/cmd/internal/pprof/plugin/plugin.go
+index d5025d5517..ff1e8adfaf 100644
+--- a/src/cmd/internal/pprof/plugin/plugin.go
++++ b/src/cmd/internal/pprof/plugin/plugin.go
+@@ -13,7 +13,7 @@ import (
+ 	"strings"
+ 	"time"
+ 
+-	"cmd/internal/pprof/profile"
++	"internal/pprof/profile"
+ )
+ 
+ // A FlagSet creates and parses command-line flags.
+diff --git a/src/cmd/internal/pprof/report/report.go b/src/cmd/internal/pprof/report/report.go
+index 989665301f..4f5252b28e 100644
+--- a/src/cmd/internal/pprof/report/report.go
++++ b/src/cmd/internal/pprof/report/report.go
+@@ -18,7 +18,7 @@ import (
+ 	"time"
+ 
+ 	"cmd/internal/pprof/plugin"
+-	"cmd/internal/pprof/profile"
++	"internal/pprof/profile"
+ )
+ 
+ // Generate generates a report as directed by the Report.
+diff --git a/src/cmd/internal/pprof/symbolizer/symbolizer.go b/src/cmd/internal/pprof/symbolizer/symbolizer.go
+index bc22800530..d81f3eafaf 100644
+--- a/src/cmd/internal/pprof/symbolizer/symbolizer.go
++++ b/src/cmd/internal/pprof/symbolizer/symbolizer.go
+@@ -14,7 +14,7 @@ import (
+ 	"strings"
+ 
+ 	"cmd/internal/pprof/plugin"
+-	"cmd/internal/pprof/profile"
++	"internal/pprof/profile"
+ )
+ 
+ // Symbolize adds symbol and line number information to all locations
+diff --git a/src/cmd/internal/pprof/symbolz/symbolz.go b/src/cmd/internal/pprof/symbolz/symbolz.go
+index 2f2850afeb..6e58001962 100644
+--- a/src/cmd/internal/pprof/symbolz/symbolz.go
++++ b/src/cmd/internal/pprof/symbolz/symbolz.go
+@@ -15,7 +15,7 @@ import (
+ 	"strconv"
+ 	"strings"
+ 
+-	"cmd/internal/pprof/profile"
++	"internal/pprof/profile"
+ )
+ 
+ var (
+diff --git a/src/cmd/pprof/pprof.go b/src/cmd/pprof/pprof.go
+index 0c979b1831..01f44566ba 100644
+--- a/src/cmd/pprof/pprof.go
++++ b/src/cmd/pprof/pprof.go
+@@ -19,9 +19,9 @@ import (
+ 	"cmd/internal/pprof/driver"
+ 	"cmd/internal/pprof/fetch"
+ 	"cmd/internal/pprof/plugin"
+-	"cmd/internal/pprof/profile"
+ 	"cmd/internal/pprof/symbolizer"
+ 	"cmd/internal/pprof/symbolz"
++	"internal/pprof/profile"
+ )
+ 
+ func main() {
+diff --git a/src/cmd/trace/pprof.go b/src/cmd/trace/pprof.go
+index 3bae15c608..dea3a749fc 100644
+--- a/src/cmd/trace/pprof.go
++++ b/src/cmd/trace/pprof.go
+@@ -8,8 +8,8 @@ package main
+ 
+ import (
+ 	"bufio"
+-	"cmd/internal/pprof/profile"
+ 	"fmt"
++	"internal/pprof/profile"
+ 	"internal/trace"
+ 	"io"
+ 	"io/ioutil"
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index cb101abe7c..1314e551ea 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -257,6 +257,7 @@ var pkgDeps = map[string][]string{
+ 	"index/suffixarray":        {"L4", "regexp"},
+ 	"internal/singleflight":    {"sync"},
+ 	"internal/trace":           {"L4", "OS"},
++	"internal/pprof/profile":   {"L4", "OS", "compress/gzip", "regexp"},
+ 	"math/big":                 {"L4"},
+ 	"mime":                     {"L4", "OS", "syscall", "internal/syscall/windows/registry"},
+ 	"mime/quotedprintable":     {"L4"},
+diff --git a/src/cmd/internal/pprof/profile/encode.go b/src/internal/pprof/profile/encode.go
+similarity index 100%
+rename from src/cmd/internal/pprof/profile/encode.go
+rename to src/internal/pprof/profile/encode.go
+diff --git a/src/cmd/internal/pprof/profile/filter.go b/src/internal/pprof/profile/filter.go
+similarity index 100%
+rename from src/cmd/internal/pprof/profile/filter.go
+rename to src/internal/pprof/profile/filter.go
+diff --git a/src/cmd/internal/pprof/profile/legacy_profile.go b/src/internal/pprof/profile/legacy_profile.go
+similarity index 100%
+rename from src/cmd/internal/pprof/profile/legacy_profile.go
+rename to src/internal/pprof/profile/legacy_profile.go
+diff --git a/src/cmd/internal/pprof/profile/profile.go b/src/internal/pprof/profile/profile.go
+similarity index 100%
+rename from src/cmd/internal/pprof/profile/profile.go
+rename to src/internal/pprof/profile/profile.go
+diff --git a/src/cmd/internal/pprof/profile/profile_test.go b/src/internal/pprof/profile/profile_test.go
+similarity index 100%
+rename from src/cmd/internal/pprof/profile/profile_test.go
+rename to src/internal/pprof/profile/profile_test.go
+diff --git a/src/cmd/internal/pprof/profile/proto.go b/src/internal/pprof/profile/proto.go
+similarity index 100%
+rename from src/cmd/internal/pprof/profile/proto.go
+rename to src/internal/pprof/profile/proto.go
+diff --git a/src/cmd/internal/pprof/profile/proto_test.go b/src/internal/pprof/profile/proto_test.go
+similarity index 100%
+rename from src/cmd/internal/pprof/profile/proto_test.go
+rename to src/internal/pprof/profile/proto_test.go
+diff --git a/src/cmd/internal/pprof/profile/prune.go b/src/internal/pprof/profile/prune.go
+similarity index 100%
+rename from src/cmd/internal/pprof/profile/prune.go
+rename to src/internal/pprof/profile/prune.go

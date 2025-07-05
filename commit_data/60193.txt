@@ -11,6 +11,20 @@ Date:   Fri May 24 12:45:11 2024 -0400
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Robert Findley <rfindley@google.com>
     Auto-Submit: Alan Donovan <adonovan@google.com>
-
+---
  .github/ISSUE_TEMPLATE/03-gopls.yml | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/.github/ISSUE_TEMPLATE/03-gopls.yml b/.github/ISSUE_TEMPLATE/03-gopls.yml
+index 5db1315f27..8ba9712af3 100644
+--- a/.github/ISSUE_TEMPLATE/03-gopls.yml
++++ b/.github/ISSUE_TEMPLATE/03-gopls.yml
+@@ -6,7 +6,7 @@ body:
+   - type: markdown
+     attributes:
+       value: "Please answer these questions before submitting your issue. Thanks!"
+-  - type: input
++  - type: textarea
+     id: gopls-version
+     attributes:
+       label: "gopls version"

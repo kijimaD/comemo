@@ -22,7 +22,7 @@ Date:   Tue Aug 15 11:45:57 2023 -0400
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
     Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/cmd/go.mod                                     |   4 +-
  src/cmd/go.sum                                     |   8 +-
  .../google/pprof/internal/binutils/addr2liner.go   |   2 +-
@@ -48,3 +48,1351 @@ Date:   Tue Aug 15 11:45:57 2023 -0400
  .../github.com/ianlancetaylor/demangle/rust.go     | 100 ++++++++---
  src/cmd/vendor/modules.txt                         |   8 +-
  24 files changed, 457 insertions(+), 193 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index d5870db501..73363bf851 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -3,7 +3,7 @@ module cmd
+ go 1.22
+ 
+ require (
+-	github.com/google/pprof v0.0.0-20221118152302-e6195bd50e26
++	github.com/google/pprof v0.0.0-20230811205829-9131a7e9cc17
+ 	golang.org/x/arch v0.4.0
+ 	golang.org/x/mod v0.12.0
+ 	golang.org/x/sync v0.3.0
+@@ -12,4 +12,4 @@ require (
+ 	golang.org/x/tools v0.12.1-0.20230809190736-59fd05da6bc1
+ )
+ 
+-require github.com/ianlancetaylor/demangle v0.0.0-20220319035150-800ac71e25c2 // indirect
++require github.com/ianlancetaylor/demangle v0.0.0-20230524184225-eabc099b10ab // indirect
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index 5cb7a32fec..9acf4e1c20 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -1,7 +1,7 @@
+-github.com/google/pprof v0.0.0-20221118152302-e6195bd50e26 h1:Xim43kblpZXfIBQsbuBVKCudVG457BR2GZFIz3uw3hQ=
+-github.com/google/pprof v0.0.0-20221118152302-e6195bd50e26/go.mod h1:dDKJzRmX4S37WGHujM7tX//fmj1uioxKzKxz3lo4HJo=
+-github.com/ianlancetaylor/demangle v0.0.0-20220319035150-800ac71e25c2 h1:rcanfLhLDA8nozr/K289V1zcntHr3V+SHlXwzz1ZI2g=
+-github.com/ianlancetaylor/demangle v0.0.0-20220319035150-800ac71e25c2/go.mod h1:aYm2/VgdVmcIU8iMfdMvDMsRAQjcfZSKFby6HOFvi/w=
++github.com/google/pprof v0.0.0-20230811205829-9131a7e9cc17 h1:0h35ESZ02+hN/MFZb7XZOXg+Rl9+Rk8fBIf5YLws9gA=
++github.com/google/pprof v0.0.0-20230811205829-9131a7e9cc17/go.mod h1:Jh3hGz2jkYak8qXPD19ryItVnUgpgeqzdkY/D0EaeuA=
++github.com/ianlancetaylor/demangle v0.0.0-20230524184225-eabc099b10ab h1:BA4a7pe6ZTd9F8kXETBoijjFJ/ntaa//1wiH9BZu4zU=
++github.com/ianlancetaylor/demangle v0.0.0-20230524184225-eabc099b10ab/go.mod h1:gx7rwoVhcfuVKG5uya9Hs3Sxj7EIvldVofAWIUtGouw=
+ golang.org/x/arch v0.4.0 h1:A8WCeEWhLwPBKNbFi5Wv5UTCBx5zzubnXDlMOFAzFMc=
+ golang.org/x/arch v0.4.0/go.mod h1:5om86z9Hs0C8fWVUuoMHwpExlXzs5Tkyp9hOrfG7pp8=
+ golang.org/x/mod v0.12.0 h1:rmsUpXtvNzj340zd98LZ4KntptpfRHwpFOHG188oHXc=
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/binutils/addr2liner.go b/src/cmd/vendor/github.com/google/pprof/internal/binutils/addr2liner.go
+index 0c702398d3..c2e45c6a83 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/binutils/addr2liner.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/binutils/addr2liner.go
+@@ -83,7 +83,7 @@ func (a *addr2LinerJob) close() {
+ 	a.cmd.Wait()
+ }
+ 
+-// newAddr2liner starts the given addr2liner command reporting
++// newAddr2Liner starts the given addr2liner command reporting
+ // information about the given executable file. If file is a shared
+ // library, base should be the address at which it was mapped in the
+ // program under consideration.
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/binutils/addr2liner_llvm.go b/src/cmd/vendor/github.com/google/pprof/internal/binutils/addr2liner_llvm.go
+index 844c7a475d..491422fcda 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/binutils/addr2liner_llvm.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/binutils/addr2liner_llvm.go
+@@ -66,7 +66,7 @@ func (a *llvmSymbolizerJob) close() {
+ 	a.cmd.Wait()
+ }
+ 
+-// newLlvmSymbolizer starts the given llvmSymbolizer command reporting
++// newLLVMSymbolizer starts the given llvmSymbolizer command reporting
+ // information about the given executable file. If file is a shared
+ // library, base should be the address at which it was mapped in the
+ // program under consideration.
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/binutils/disasm.go b/src/cmd/vendor/github.com/google/pprof/internal/binutils/disasm.go
+index e64adf58cd..2709ef877c 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/binutils/disasm.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/binutils/disasm.go
+@@ -95,8 +95,8 @@ func matchSymbol(names []string, start, end uint64, r *regexp.Regexp, address ui
+ 		// Match all possible demangled versions of the name.
+ 		for _, o := range [][]demangle.Option{
+ 			{demangle.NoClones},
+-			{demangle.NoParams},
+-			{demangle.NoParams, demangle.NoTemplateParams},
++			{demangle.NoParams, demangle.NoEnclosingParams},
++			{demangle.NoParams, demangle.NoEnclosingParams, demangle.NoTemplateParams},
+ 		} {
+ 			if demangled, err := demangle.ToString(name, o...); err == nil && r.MatchString(demangled) {
+ 				return []string{demangled}
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/cli.go b/src/cmd/vendor/github.com/google/pprof/internal/driver/cli.go
+index a9cae92d1b..b97ef85169 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/cli.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/cli.go
+@@ -18,7 +18,6 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"os"
+-	"strings"
+ 
+ 	"github.com/google/pprof/internal/binutils"
+ 	"github.com/google/pprof/internal/plugin"
+@@ -67,7 +66,7 @@ func parseFlags(o *plugin.Options) (*source, []string, error) {
+ 	flagTools := flag.String("tools", os.Getenv("PPROF_TOOLS"), "Path for object tool pathnames")
+ 
+ 	flagHTTP := flag.String("http", "", "Present interactive web UI at the specified http host:port")
+-	flagNoBrowser := flag.Bool("no_browser", false, "Skip opening a browswer for the interactive web UI")
++	flagNoBrowser := flag.Bool("no_browser", false, "Skip opening a browser for the interactive web UI")
+ 
+ 	// Flags that set configuration properties.
+ 	cfg := currentConfig()
+@@ -102,9 +101,6 @@ func parseFlags(o *plugin.Options) (*source, []string, error) {
+ 			file.Close()
+ 			execName = arg0
+ 			args = args[1:]
+-		} else if *flagBuildID == "" && isBuildID(arg0) {
+-			*flagBuildID = arg0
+-			args = args[1:]
+ 		}
+ 	}
+ 
+@@ -265,12 +261,6 @@ func installConfigFlags(flag plugin.FlagSet, cfg *config) func() error {
+ 	}
+ }
+ 
+-// isBuildID determines if the profile may contain a build ID, by
+-// checking that it is a string of hex digits.
+-func isBuildID(id string) bool {
+-	return strings.Trim(id, "0123456789abcdefABCDEF") == ""
+-}
+-
+ func sampleIndex(flag *bool, si string, sampleType, option string, ui plugin.UI) string {
+ 	if *flag {
+ 		if si == "" {
+@@ -364,5 +354,7 @@ var usageMsgVars = "\n\n" +
+ 	"   PPROF_BINARY_PATH  Search path for local binary files\n" +
+ 	"                      default: $HOME/pprof/binaries\n" +
+ 	"                      searches $buildid/$name, $buildid/*, $path/$buildid,\n" +
+-	"                      ${buildid:0:2}/${buildid:2}.debug, $name, $path\n" +
++	"                      ${buildid:0:2}/${buildid:2}.debug, $name, $path,\n" +
++	"                      ${name}.debug, $dir/.debug/${name}.debug,\n" +
++	"                      usr/lib/debug/$dir/${name}.debug\n" +
+ 	"   * On Windows, %USERPROFILE% is used instead of $HOME"
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/fetch.go b/src/cmd/vendor/github.com/google/pprof/internal/driver/fetch.go
+index 5ddee33610..584c5d85e0 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/fetch.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/fetch.go
+@@ -389,7 +389,7 @@ func collectMappingSources(p *profile.Profile, source string) plugin.MappingSour
+ // set to the remote source URL by collectMappingSources back to empty string.
+ func unsourceMappings(p *profile.Profile) {
+ 	for _, m := range p.Mapping {
+-		if m.BuildID == "" {
++		if m.BuildID == "" && filepath.VolumeName(m.File) == "" {
+ 			if u, err := url.Parse(m.File); err == nil && u.IsAbs() {
+ 				m.File = ""
+ 			}
+@@ -408,9 +408,13 @@ func locateBinaries(p *profile.Profile, s *source, obj plugin.ObjTool, ui plugin
+ 	}
+ mapping:
+ 	for _, m := range p.Mapping {
++		var noVolumeFile string
+ 		var baseName string
++		var dirName string
+ 		if m.File != "" {
++			noVolumeFile = strings.TrimPrefix(m.File, filepath.VolumeName(m.File))
+ 			baseName = filepath.Base(m.File)
++			dirName = filepath.Dir(noVolumeFile)
+ 		}
+ 
+ 		for _, path := range filepath.SplitList(searchPath) {
+@@ -420,7 +424,7 @@ mapping:
+ 				if matches, err := filepath.Glob(filepath.Join(path, m.BuildID, "*")); err == nil {
+ 					fileNames = append(fileNames, matches...)
+ 				}
+-				fileNames = append(fileNames, filepath.Join(path, m.File, m.BuildID)) // perf path format
++				fileNames = append(fileNames, filepath.Join(path, noVolumeFile, m.BuildID)) // perf path format
+ 				// Llvm buildid protocol: the first two characters of the build id
+ 				// are used as directory, and the remaining part is in the filename.
+ 				// e.g. `/ab/cdef0123456.debug`
+@@ -429,10 +433,13 @@ mapping:
+ 			if m.File != "" {
+ 				// Try both the basename and the full path, to support the same directory
+ 				// structure as the perf symfs option.
+-				if baseName != "" {
+-					fileNames = append(fileNames, filepath.Join(path, baseName))
+-				}
+-				fileNames = append(fileNames, filepath.Join(path, m.File))
++				fileNames = append(fileNames, filepath.Join(path, baseName))
++				fileNames = append(fileNames, filepath.Join(path, noVolumeFile))
++				// Other locations: use the same search paths as GDB, according to
++				// https://sourceware.org/gdb/onlinedocs/gdb/Separate-Debug-Files.html
++				fileNames = append(fileNames, filepath.Join(path, noVolumeFile+".debug"))
++				fileNames = append(fileNames, filepath.Join(path, dirName, ".debug", baseName+".debug"))
++				fileNames = append(fileNames, filepath.Join(path, "usr", "lib", "debug", dirName, baseName+".debug"))
+ 			}
+ 			for _, name := range fileNames {
+ 				if f, err := obj.Open(name, m.Start, m.Limit, m.Offset, m.KernelRelocationSymbol); err == nil {
+@@ -461,8 +468,8 @@ mapping:
+ 			l.Mapping = m
+ 		}
+ 	}
+-	// Replace executable filename/buildID with the overrides from source.
+-	// Assumes the executable is the first Mapping entry.
++	// If configured, apply executable filename override and (maybe, see below)
++	// build ID override from source. Assume the executable is the first mapping.
+ 	if execName, buildID := s.ExecName, s.BuildID; execName != "" || buildID != "" {
+ 		m := p.Mapping[0]
+ 		if execName != "" {
+@@ -470,7 +477,10 @@ mapping:
+ 			// the source override is most likely missing it.
+ 			m.File = execName
+ 		}
+-		if buildID != "" {
++		// Only apply the build ID override if the build ID in the main mapping is
++		// missing. Overwriting the build ID in case it's present is very likely a
++		// wrong thing to do so we refuse to do that.
++		if buildID != "" && m.BuildID == "" {
+ 			m.BuildID = buildID
+ 		}
+ 	}
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/html/common.js b/src/cmd/vendor/github.com/google/pprof/internal/driver/html/common.js
+index 5282c1b363..ff980f66de 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/html/common.js
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/html/common.js
+@@ -563,11 +563,11 @@ function viewer(baseUrl, nodes, options) {
+     return str.replace(/([\\\.?+*\[\](){}|^$])/g, '\\$1');
+   }
+ 
+-  function setSampleIndexLink(id) {
+-    const elem = document.getElementById(id);
++  function setSampleIndexLink(si) {
++    const elem = document.getElementById('sampletype-' + si);
+     if (elem != null) {
+       setHrefParams(elem, function (params) {
+-        params.set("si", id);
++        params.set("si", si);
+       });
+     }
+   }
+@@ -682,8 +682,10 @@ function viewer(baseUrl, nodes, options) {
+     toptable.addEventListener('touchstart', handleTopClick);
+   }
+ 
+-  const ids = ['topbtn', 'graphbtn', 'flamegraph', 'flamegraph2', 'peek', 'list',
+-	       'disasm', 'focus', 'ignore', 'hide', 'show', 'show-from'];
++  const ids = ['topbtn', 'graphbtn',
++               'flamegraph', 'flamegraph2', 'flamegraphold',
++               'peek', 'list',
++               'disasm', 'focus', 'ignore', 'hide', 'show', 'show-from'];
+   ids.forEach(makeSearchLinkDynamic);
+ 
+   const sampleIDs = [{{range .SampleTypes}}'{{.}}', {{end}}];
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/html/header.html b/src/cmd/vendor/github.com/google/pprof/internal/driver/html/header.html
+index 39cb55a1d1..42cb7960e6 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/html/header.html
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/html/header.html
+@@ -12,7 +12,7 @@
+       <a title="{{.Help.top}}"  href="./top" id="topbtn">Top</a>
+       <a title="{{.Help.graph}}" href="./" id="graphbtn">Graph</a>
+       <a title="{{.Help.flamegraph}}" href="./flamegraph" id="flamegraph">Flame Graph</a>
+-      <a title="{{.Help.flamegraph2}}" href="./flamegraph2" id="flamegraph2">Flame Graph (new)</a>
++      <a title="{{.Help.flamegraphold}}" href="./flamegraphold" id="flamegraphold">Flame Graph (old)</a>
+       <a title="{{.Help.peek}}" href="./peek" id="peek">Peek</a>
+       <a title="{{.Help.list}}" href="./source" id="list">Source</a>
+       <a title="{{.Help.disasm}}" href="./disasm" id="disasm">Disassemble</a>
+@@ -28,7 +28,7 @@
+     </div>
+     <div class="submenu">
+       {{range .SampleTypes}}
+-      <a href="?si={{.}}" id="{{.}}">{{.}}</a>
++      <a href="?si={{.}}" id="sampletype-{{.}}">{{.}}</a>
+       {{end}}
+     </div>
+   </div>
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/html/stacks.css b/src/cmd/vendor/github.com/google/pprof/internal/driver/html/stacks.css
+index d142aa789c..f5aeb9857a 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/html/stacks.css
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/html/stacks.css
+@@ -28,7 +28,10 @@ body {
+   position: absolute;
+   overflow: hidden;
+   box-sizing: border-box;
++  background: #d8d8d8;
+ }
++.positive { position: absolute; background: #caa; }
++.negative { position: absolute; background: #aca; }
+ /* Not-inlined frames are visually separated from their caller. */
+ .not-inlined {
+   border-top: 1px solid black;
+@@ -47,11 +50,6 @@ body {
+ /* Box highlighting via shadows to avoid size changes */
+ .hilite { box-shadow: 0px 0px 0px 2px #000; z-index: 1; }
+ .hilite2 { box-shadow: 0px 0px 0px 2px #000; z-index: 1; }
+-/* Self-cost region inside a box */
+-.self {
+-  position: absolute;
+-  background: rgba(0,0,0,0.25); /* Darker hue */
+-}
+ /* Gap left between callers and callees */
+ .separator {
+   position: absolute;
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/html/stacks.js b/src/cmd/vendor/github.com/google/pprof/internal/driver/html/stacks.js
+index 64229a000a..be78edd553 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/html/stacks.js
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/html/stacks.js
+@@ -31,13 +31,20 @@ function stackViewer(stacks, nodes) {
+       ['hrs', 60*60]]]]);
+ 
+   // Fields
+-  let shownTotal = 0;       // Total value of all stacks
+   let pivots = [];          // Indices of currently selected data.Sources entries.
+   let matches = new Set();  // Indices of sources that match search
+   let elems = new Map();    // Mapping from source index to display elements
+   let displayList = [];     // List of boxes to display.
+   let actionMenuOn = false; // Is action menu visible?
+   let actionTarget = null;  // Box on which action menu is operating.
++  let diff = false;         // Are we displaying a diff?
++
++  for (const stack of stacks.Stacks) {
++    if (stack.Value < 0) {
++      diff = true;
++      break;
++    }
++  }
+ 
+   // Setup to allow measuring text width.
+   const textSizer = document.createElement('canvas');
+@@ -177,9 +184,8 @@ function stackViewer(stacks, nodes) {
+   function handleEnter(box, div) {
+     if (actionMenuOn) return;
+     const src = stacks.Sources[box.src];
+-    const d = details(box);
+-    div.title = d + ' ' + src.FullName + (src.Inlined ? "\n(inlined)" : "");
+-    detailBox.innerText = d;
++    div.title = details(box) + ' │ ' + src.FullName + (src.Inlined ? "\n(inlined)" : "");
++    detailBox.innerText = summary(box.sumpos, box.sumneg);
+     // Highlight all boxes that have the same source as box.
+     toggleClass(box.src, 'hilite2', true);
+   }
+@@ -228,16 +234,16 @@ function stackViewer(stacks, nodes) {
+     const width = chart.clientWidth;
+     elems.clear();
+     actionTarget = null;
+-    const total = totalValue(places);
++    const [pos, neg] = totalValue(places);
++    const total = pos + neg;
+     const xscale = (width-2*PADDING) / total; // Converts from profile value to X pixels
+     const x = PADDING;
+     const y = 0;
+-    shownTotal = total;
+ 
+     displayList.length = 0;
+     renderStacks(0, xscale, x, y, places, +1);  // Callees
+     renderStacks(0, xscale, x, y-ROW, places, -1);  // Callers (ROW left for separator)
+-    display(displayList);
++    display(xscale, pos, neg, displayList);
+   }
+ 
+   // renderStacks creates boxes with top-left at x,y with children drawn as
+@@ -256,29 +262,59 @@ function stackViewer(stacks, nodes) {
+     const groups = partitionPlaces(places);
+     for (const g of groups) {
+       renderGroup(depth, xscale, x, y, g, direction);
+-      x += xscale*g.sum;
++      x += groupWidth(xscale, g);
+     }
+   }
+ 
++  // Some of the types used below:
++  //
++  // // Group represents a displayed (sub)tree.
++  // interface Group {
++  //   name: string;     // Full name of source
++  //   src: number;	 // Index in stacks.Sources
++  //   self: number;     // Contribution as leaf (may be < 0 for diffs)
++  //   sumpos: number;	 // Sum of |self| of positive nodes in tree (>= 0)
++  //   sumneg: number;	 // Sum of |self| of negative nodes in tree (>= 0)
++  //   places: Place[];  // Stack slots that contributed to this group
++  // }
++  //
++  // // Box is a rendered item.
++  // interface Box {
++  //   x: number;	   // X coordinate of top-left
++  //   y: number;	   // Y coordinate of top-left
++  //   width: number;	   // Width of box to display
++  //   src: number;	   // Index in stacks.Sources
++  //   sumpos: number;	   // From corresponding Group
++  //   sumneg: number;	   // From corresponding Group
++  //   self: number;	   // From corresponding Group
++  // };
++
++  function groupWidth(xscale, g) {
++    return xscale * (g.sumpos + g.sumneg);
++  }
++
+   function renderGroup(depth, xscale, x, y, g, direction) {
+     // Skip if not wide enough.
+-    const width = xscale * g.sum;
++    const width = groupWidth(xscale, g);
+     if (width < MIN_WIDTH) return;
+ 
+     // Draw the box for g.src (except for selected element in upwards direction
+     // since that duplicates the box we added in downwards direction).
+     if (depth != 0 || direction > 0) {
+       const box = {
+-        x:         x,
+-        y:         y,
+-        src:       g.src,
+-        sum:       g.sum,
+-        selfValue: g.self,
+-        width:     xscale*g.sum,
+-        selfWidth: (direction > 0) ? xscale*g.self : 0,
++        x:      x,
++        y:      y,
++        width:  width,
++        src:    g.src,
++	sumpos: g.sumpos,
++	sumneg: g.sumneg,
++        self:   g.self,
+       };
+       displayList.push(box);
+-      x += box.selfWidth;
++      if (direction > 0) {
++	// Leave gap on left hand side to indicate self contribution.
++	x += xscale*Math.abs(g.self);
++      }
+     }
+     y += direction * ROW;
+ 
+@@ -322,11 +358,15 @@ function stackViewer(stacks, nodes) {
+       let group = groupMap.get(src);
+       if (!group) {
+         const name = stacks.Sources[src].FullName;
+-        group = {name: name, src: src, sum: 0, self: 0, places: []};
++        group = {name: name, src: src, sumpos: 0, sumneg: 0, self: 0, places: []};
+         groupMap.set(src, group);
+         groups.push(group);
+       }
+-      group.sum += stack.Value;
++      if (stack.Value < 0) {
++	group.sumneg += -stack.Value;
++      } else {
++	group.sumpos += stack.Value;
++      }
+       group.self += (place.Pos == stack.Sources.length-1) ? stack.Value : 0;
+       group.places.push(place);
+     }
+@@ -334,12 +374,14 @@ function stackViewer(stacks, nodes) {
+     // Order by decreasing cost (makes it easier to spot heavy functions).
+     // Though alphabetical ordering is a potential alternative that will make
+     // profile comparisons easier.
+-    groups.sort(function(a, b) { return b.sum - a.sum; });
++    groups.sort(function(a, b) {
++      return (b.sumpos + b.sumneg) - (a.sumpos + a.sumneg);
++    });
+ 
+     return groups;
+   }
+ 
+-  function display(list) {
++  function display(xscale, posTotal, negTotal, list) {
+     // Sort boxes so that text selection follows a predictable order.
+     list.sort(function(a, b) {
+       if (a.y != b.y) return a.y - b.y;
+@@ -353,40 +395,46 @@ function stackViewer(stacks, nodes) {
+     const divs = [];
+     for (const box of list) {
+       box.y -= adjust;
+-      divs.push(drawBox(box));
++      divs.push(drawBox(xscale, box));
+     }
+-    divs.push(drawSep(-adjust));
++    divs.push(drawSep(-adjust, posTotal, negTotal));
+ 
+     const h = (list.length > 0 ?  list[list.length-1].y : 0) + 4*ROW;
+     chart.style.height = h+'px';
+     chart.replaceChildren(...divs);
+   }
+ 
+-  function drawBox(box) {
++  function drawBox(xscale, box) {
+     const srcIndex = box.src;
+     const src = stacks.Sources[srcIndex];
+ 
++    function makeRect(cl, x, y, w, h) {
++      const r = document.createElement('div');
++      r.style.left = x+'px';
++      r.style.top = y+'px';
++      r.style.width = w+'px';
++      r.style.height = h+'px';
++      r.classList.add(cl);
++      return r;
++    }
++
+     // Background
+     const w = box.width - 1; // Leave 1px gap
+-    const r = document.createElement('div');
+-    r.style.left = box.x + 'px';
+-    r.style.top = box.y + 'px';
+-    r.style.width = w + 'px';
+-    r.style.height = ROW + 'px';
+-    r.classList.add('boxbg');
+-    r.style.background = makeColor(src.Color);
++    const r = makeRect('boxbg', box.x, box.y, w, ROW);
++    if (!diff) r.style.background = makeColor(src.Color);
+     addElem(srcIndex, r);
+     if (!src.Inlined) {
+       r.classList.add('not-inlined');
+     }
+ 
+-    // Box that shows time spent in self
+-    if (box.selfWidth >= MIN_WIDTH) {
+-      const s = document.createElement('div');
+-      s.style.width = Math.min(box.selfWidth, w)+'px';
+-      s.style.height = (ROW-1)+'px';
+-      s.classList.add('self');
+-      r.appendChild(s);
++    // Positive/negative indicator for diff mode.
++    if (diff) {
++      const delta = box.sumpos - box.sumneg;
++      const partWidth = xscale * Math.abs(delta);
++      if (partWidth >= MIN_WIDTH) {
++	r.appendChild(makeRect((delta < 0 ? 'negative' : 'positive'),
++			       0, 0, partWidth, ROW-1));
++      }
+     }
+ 
+     // Label
+@@ -404,11 +452,9 @@ function stackViewer(stacks, nodes) {
+     return r;
+   }
+ 
+-  function drawSep(y) {
++  function drawSep(y, posTotal, negTotal) {
+     const m = document.createElement('div');
+-    m.innerText = percent(shownTotal, stacks.Total) +
+-	'\xa0\xa0\xa0\xa0' +  // Some non-breaking spaces
+-	valueString(shownTotal);
++    m.innerText = summary(posTotal, negTotal);
+     m.style.top = (y-ROW) + 'px';
+     m.style.left = PADDING + 'px';
+     m.style.width = (chart.clientWidth - PADDING*2) + 'px';
+@@ -458,36 +504,66 @@ function stackViewer(stacks, nodes) {
+     t.innerText = text;
+   }
+ 
+-  // totalValue returns the combined sum of the stacks listed in places.
++  // totalValue returns the positive and negative sums of the Values of stacks
++  // listed in places.
+   function totalValue(places) {
+     const seen = new Set();
+-    let result = 0;
++    let pos = 0;
++    let neg = 0;
+     for (const place of places) {
+       if (seen.has(place.Stack)) continue; // Do not double-count stacks
+       seen.add(place.Stack);
+       const stack = stacks.Stacks[place.Stack];
+-      result += stack.Value;
++      if (stack.Value < 0) {
++	neg += -stack.Value;
++      } else {
++	pos += stack.Value;
++      }
+     }
+-    return result;
++    return [pos, neg];
++  }
++
++  function summary(pos, neg) {
++    // Examples:
++    //    6s (10%)
++    //    12s (20%) 🠆 18s (30%)
++    return diff ? diffText(neg, pos) : percentText(pos);
+   }
+ 
+   function details(box) {
+-    // E.g., 10% 7s
+-    // or    10% 7s (3s self
+-    let result = percent(box.sum, stacks.Total) + ' ' + valueString(box.sum);
+-    if (box.selfValue > 0) {
+-      result += ` (${valueString(box.selfValue)} self)`;
++    // Examples:
++    //    6s (10%)
++    //    6s (10%) │ self 3s (5%)
++    //    6s (10%) │ 12s (20%) 🠆 18s (30%)
++    let result = percentText(box.sumpos - box.sumneg);
++    if (box.self != 0) {
++      result += " │ self " + unitText(box.self);
++    }
++    if (diff && box.sumpos > 0 && box.sumneg > 0) {
++      result += " │ " + diffText(box.sumneg, box.sumpos);
+     }
+     return result;
+   }
+ 
+-  function percent(v, total) {
+-    return Number(((100.0 * v) / total).toFixed(1)) + '%';
++  // diffText returns text that displays from and to alongside their percentages.
++  // E.g., 9s (45%) 🠆 10s (50%)
++  function diffText(from, to) {
++    return percentText(from) + " 🠆 " + percentText(to);
++  }
++
++  // percentText returns text that displays v in appropriate units alongside its
++  // percentange.
++  function percentText(v) {
++    function percent(v, total) {
++      return Number(((100.0 * v) / total).toFixed(1)) + '%';
++    }
++    return unitText(v) + " (" + percent(v, stacks.Total) + ")";
+   }
+ 
+-  // valueString returns a formatted string to display for value.
+-  function valueString(value) {
+-    let v = value * stacks.Scale;
++  // unitText returns a formatted string to display for value.
++  function unitText(value) {
++    const sign = (value < 0) ? "-" : "";
++    let v = Math.abs(value) * stacks.Scale;
+     // Rescale to appropriate display unit.
+     let unit = stacks.Unit;
+     const list = UNITS.get(unit);
+@@ -501,7 +577,7 @@ function stackViewer(stacks, nodes) {
+         }
+       }
+     }
+-    return Number(v.toFixed(2)) + unit;
++    return sign + Number(v.toFixed(2)) + unit;
+   }
+ 
+   function find(name) {
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/webui.go b/src/cmd/vendor/github.com/google/pprof/internal/driver/webui.go
+index 8881e39eb2..41b30021f5 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/webui.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/webui.go
+@@ -112,7 +112,7 @@ func serveWebInterface(hostport string, p *profile.Profile, o *plugin.Options, d
+ 	ui.help["details"] = "Show information about the profile and this view"
+ 	ui.help["graph"] = "Display profile as a directed graph"
+ 	ui.help["flamegraph"] = "Display profile as a flame graph"
+-	ui.help["flamegraph2"] = "Display profile as a flame graph (experimental version that can display caller info on selection)"
++	ui.help["flamegraphold"] = "Display profile as a flame graph (old version; slated for removal)"
+ 	ui.help["reset"] = "Show the entire profile"
+ 	ui.help["save_config"] = "Save current settings"
+ 
+@@ -125,15 +125,16 @@ func serveWebInterface(hostport string, p *profile.Profile, o *plugin.Options, d
+ 		Host:     host,
+ 		Port:     port,
+ 		Handlers: map[string]http.Handler{
+-			"/":             http.HandlerFunc(ui.dot),
+-			"/top":          http.HandlerFunc(ui.top),
+-			"/disasm":       http.HandlerFunc(ui.disasm),
+-			"/source":       http.HandlerFunc(ui.source),
+-			"/peek":         http.HandlerFunc(ui.peek),
+-			"/flamegraph":   http.HandlerFunc(ui.flamegraph),
+-			"/flamegraph2":  http.HandlerFunc(ui.stackView), // Experimental
+-			"/saveconfig":   http.HandlerFunc(ui.saveConfig),
+-			"/deleteconfig": http.HandlerFunc(ui.deleteConfig),
++			"/":              http.HandlerFunc(ui.dot),
++			"/top":           http.HandlerFunc(ui.top),
++			"/disasm":        http.HandlerFunc(ui.disasm),
++			"/source":        http.HandlerFunc(ui.source),
++			"/peek":          http.HandlerFunc(ui.peek),
++			"/flamegraphold": http.HandlerFunc(ui.flamegraph),
++			"/flamegraph":    http.HandlerFunc(ui.stackView),
++			"/flamegraph2":   http.HandlerFunc(ui.stackView), // Support older URL
++			"/saveconfig":    http.HandlerFunc(ui.saveConfig),
++			"/deleteconfig":  http.HandlerFunc(ui.deleteConfig),
+ 			"/download": http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+ 				w.Header().Set("Content-Type", "application/vnd.google.protobuf+gzip")
+ 				w.Header().Set("Content-Disposition", "attachment;filename=profile.pb.gz")
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/graph/graph.go b/src/cmd/vendor/github.com/google/pprof/internal/graph/graph.go
+index 74b904c402..b64ef27991 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/graph/graph.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/graph/graph.go
+@@ -33,7 +33,7 @@ var (
+ 	javaRegExp = regexp.MustCompile(`^(?:[a-z]\w*\.)*([A-Z][\w\$]*\.(?:<init>|[a-z][\w\$]*(?:\$\d+)?))(?:(?:\()|$)`)
+ 	// Removes package name and method arguments for Go function names.
+ 	// See tests for examples.
+-	goRegExp = regexp.MustCompile(`^(?:[\w\-\.]+\/)+(.+)`)
++	goRegExp = regexp.MustCompile(`^(?:[\w\-\.]+\/)+([^.]+\..+)`)
+ 	// Removes potential module versions in a package path.
+ 	goVerRegExp = regexp.MustCompile(`^(.*?)/v(?:[2-9]|[1-9][0-9]+)([./].*)$`)
+ 	// Strips C++ namespace prefix from a C++ function / method name.
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/measurement/measurement.go b/src/cmd/vendor/github.com/google/pprof/internal/measurement/measurement.go
+index b5fcfbc3e4..d9644f9326 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/measurement/measurement.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/measurement/measurement.go
+@@ -121,7 +121,7 @@ func compatibleValueTypes(v1, v2 *profile.ValueType) bool {
+ 	return false
+ }
+ 
+-// Scale a measurement from an unit to a different unit and returns
++// Scale a measurement from a unit to a different unit and returns
+ // the scaled value and the target unit. The returned target unit
+ // will be empty if uninteresting (could be skipped).
+ func Scale(value int64, fromUnit, toUnit string) (float64, string) {
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/report/package.go b/src/cmd/vendor/github.com/google/pprof/internal/report/package.go
+index 6d538599b0..0f6dcf5350 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/report/package.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/report/package.go
+@@ -4,7 +4,7 @@ import "regexp"
+ 
+ // pkgRE extracts package name, It looks for the first "." or "::" that occurs
+ // after the last "/". (Searching after the last / allows us to correctly handle
+-// names that look like "some.url.com/foo.bar".
++// names that look like "some.url.com/foo.bar".)
+ var pkgRE = regexp.MustCompile(`^((.*/)?[\w\d_]+)(\.|::)([^/]*)$`)
+ 
+ // packageName returns the package name of the named symbol, or "" if not found.
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/report/report.go b/src/cmd/vendor/github.com/google/pprof/internal/report/report.go
+index 36ddf2e934..f73e49a176 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/report/report.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/report/report.go
+@@ -433,7 +433,16 @@ func PrintAssembly(w io.Writer, rpt *Report, obj plugin.ObjTool, maxFuncs int) e
+ 	}
+ 
+ 	if len(syms) == 0 {
+-		return fmt.Errorf("no matches found for regexp: %s", o.Symbol)
++		// The symbol regexp case
++		if address == nil {
++			return fmt.Errorf("no matches found for regexp %s", o.Symbol)
++		}
++
++		// The address case
++		if len(symbols) == 0 {
++			return fmt.Errorf("no matches found for address 0x%x", *address)
++		}
++		return fmt.Errorf("address 0x%x found in binary, but the corresponding symbols do not have samples in the profile", *address)
+ 	}
+ 
+ 	// Correlate the symbols from the binary with the profile samples.
+@@ -505,22 +514,26 @@ func PrintAssembly(w io.Writer, rpt *Report, obj plugin.ObjTool, maxFuncs int) e
+ 	return nil
+ }
+ 
+-// symbolsFromBinaries examines the binaries listed on the profile
+-// that have associated samples, and identifies symbols matching rx.
++// symbolsFromBinaries examines the binaries listed on the profile that have
++// associated samples, and returns the identified symbols matching rx.
+ func symbolsFromBinaries(prof *profile.Profile, g *graph.Graph, rx *regexp.Regexp, address *uint64, obj plugin.ObjTool) []*objSymbol {
+-	hasSamples := make(map[string]bool)
+-	// Only examine mappings that have samples that match the
+-	// regexp. This is an optimization to speed up pprof.
++	// fileHasSamplesAndMatched is for optimization to speed up pprof: when later
++	// walking through the profile mappings, it will only examine the ones that have
++	// samples and are matched to the regexp.
++	fileHasSamplesAndMatched := make(map[string]bool)
+ 	for _, n := range g.Nodes {
+ 		if name := n.Info.PrintableName(); rx.MatchString(name) && n.Info.Objfile != "" {
+-			hasSamples[n.Info.Objfile] = true
++			fileHasSamplesAndMatched[n.Info.Objfile] = true
+ 		}
+ 	}
+ 
+ 	// Walk all mappings looking for matching functions with samples.
+ 	var objSyms []*objSymbol
+ 	for _, m := range prof.Mapping {
+-		if !hasSamples[m.File] {
++		// Skip the mapping if its file does not have samples or is not matched to
++		// the regexp (unless the regexp is an address and the mapping's range covers
++		// the address)
++		if !fileHasSamplesAndMatched[m.File] {
+ 			if address == nil || !(m.Start <= *address && *address <= m.Limit) {
+ 				continue
+ 			}
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/symbolizer/symbolizer.go b/src/cmd/vendor/github.com/google/pprof/internal/symbolizer/symbolizer.go
+index 87f202bdd4..c3f6cc6281 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/symbolizer/symbolizer.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/symbolizer/symbolizer.go
+@@ -214,9 +214,9 @@ func Demangle(prof *profile.Profile, force bool, demanglerMode string) {
+ func demanglerModeToOptions(demanglerMode string) []demangle.Option {
+ 	switch demanglerMode {
+ 	case "": // demangled, simplified: no parameters, no templates, no return type
+-		return []demangle.Option{demangle.NoParams, demangle.NoTemplateParams}
++		return []demangle.Option{demangle.NoParams, demangle.NoEnclosingParams, demangle.NoTemplateParams}
+ 	case "templates": // demangled, simplified: no parameters, no return type
+-		return []demangle.Option{demangle.NoParams}
++		return []demangle.Option{demangle.NoParams, demangle.NoEnclosingParams}
+ 	case "full":
+ 		return []demangle.Option{demangle.NoClones}
+ 	case "none": // no demangling
+@@ -371,7 +371,7 @@ type mappingTable struct {
+ 	segments map[*profile.Mapping]plugin.ObjFile
+ }
+ 
+-// Close releases any external processes being used for the mapping.
++// close releases any external processes being used for the mapping.
+ func (mt *mappingTable) close() {
+ 	for _, segment := range mt.segments {
+ 		segment.Close()
+diff --git a/src/cmd/vendor/github.com/google/pprof/profile/encode.go b/src/cmd/vendor/github.com/google/pprof/profile/encode.go
+index c8a1beb8a8..182c926b90 100644
+--- a/src/cmd/vendor/github.com/google/pprof/profile/encode.go
++++ b/src/cmd/vendor/github.com/google/pprof/profile/encode.go
+@@ -258,10 +258,10 @@ func (p *Profile) postDecode() error {
+ 		// If this a main linux kernel mapping with a relocation symbol suffix
+ 		// ("[kernel.kallsyms]_text"), extract said suffix.
+ 		// It is fairly hacky to handle at this level, but the alternatives appear even worse.
+-		if strings.HasPrefix(m.File, "[kernel.kallsyms]") {
+-			m.KernelRelocationSymbol = strings.ReplaceAll(m.File, "[kernel.kallsyms]", "")
++		const prefix = "[kernel.kallsyms]"
++		if strings.HasPrefix(m.File, prefix) {
++			m.KernelRelocationSymbol = m.File[len(prefix):]
+ 		}
+-
+ 	}
+ 
+ 	functions := make(map[uint64]*Function, len(p.Function))
+diff --git a/src/cmd/vendor/github.com/google/pprof/profile/profile.go b/src/cmd/vendor/github.com/google/pprof/profile/profile.go
+index 4ec00fe7d9..60ef7e9268 100644
+--- a/src/cmd/vendor/github.com/google/pprof/profile/profile.go
++++ b/src/cmd/vendor/github.com/google/pprof/profile/profile.go
+@@ -72,9 +72,23 @@ type ValueType struct {
+ type Sample struct {
+ 	Location []*Location
+ 	Value    []int64
+-	Label    map[string][]string
++	// Label is a per-label-key map to values for string labels.
++	//
++	// In general, having multiple values for the given label key is strongly
++	// discouraged - see docs for the sample label field in profile.proto.  The
++	// main reason this unlikely state is tracked here is to make the
++	// decoding->encoding roundtrip not lossy. But we expect that the value
++	// slices present in this map are always of length 1.
++	Label map[string][]string
++	// NumLabel is a per-label-key map to values for numeric labels. See a note
++	// above on handling multiple values for a label.
+ 	NumLabel map[string][]int64
+-	NumUnit  map[string][]string
++	// NumUnit is a per-label-key map to the unit names of corresponding numeric
++	// label values. The unit info may be missing even if the label is in
++	// NumLabel, see the docs in profile.proto for details. When the value is
++	// slice is present and not nil, its length must be equal to the length of
++	// the corresponding value slice in NumLabel.
++	NumUnit map[string][]string
+ 
+ 	locationIDX []uint64
+ 	labelX      []label
+@@ -715,6 +729,35 @@ func (s *Sample) HasLabel(key, value string) bool {
+ 	return false
+ }
+ 
++// SetNumLabel sets the specified key to the specified value for all samples in the
++// profile. "unit" is a slice that describes the units that each corresponding member
++// of "values" is measured in (e.g. bytes or seconds).  If there is no relevant
++// unit for a given value, that member of "unit" should be the empty string.
++// "unit" must either have the same length as "value", or be nil.
++func (p *Profile) SetNumLabel(key string, value []int64, unit []string) {
++	for _, sample := range p.Sample {
++		if sample.NumLabel == nil {
++			sample.NumLabel = map[string][]int64{key: value}
++		} else {
++			sample.NumLabel[key] = value
++		}
++		if sample.NumUnit == nil {
++			sample.NumUnit = map[string][]string{key: unit}
++		} else {
++			sample.NumUnit[key] = unit
++		}
++	}
++}
++
++// RemoveNumLabel removes all numerical labels associated with the specified key for all
++// samples in the profile.
++func (p *Profile) RemoveNumLabel(key string) {
++	for _, sample := range p.Sample {
++		delete(sample.NumLabel, key)
++		delete(sample.NumUnit, key)
++	}
++}
++
+ // DiffBaseSample returns true if a sample belongs to the diff base and false
+ // otherwise.
+ func (s *Sample) DiffBaseSample() bool {
+diff --git a/src/cmd/vendor/github.com/ianlancetaylor/demangle/SECURITY.md b/src/cmd/vendor/github.com/ianlancetaylor/demangle/SECURITY.md
+new file mode 100644
+index 0000000000..f4edf9e4e4
+--- /dev/null
++++ b/src/cmd/vendor/github.com/ianlancetaylor/demangle/SECURITY.md
+@@ -0,0 +1,13 @@
++# Security Policy
++
++## Supported Versions
++
++Security updates are applied only to the latest release.
++
++## Reporting a Vulnerability
++
++If you have discovered a security vulnerability in this project, please report it privately. **Do not disclose it as a public issue.** This gives us time to work with you to fix the issue before public exposure, reducing the chance that the exploit will be used before a patch is released.
++
++Please disclose it at [security advisory](https://github.com/ianlancetaylor/demangle/security/advisories/new).
++
++This project is maintained by volunteers on a reasonable-effort basis. As such, please give us at least 90 days to work on a fix before public exposure.
+diff --git a/src/cmd/vendor/github.com/ianlancetaylor/demangle/ast.go b/src/cmd/vendor/github.com/ianlancetaylor/demangle/ast.go
+index 20d8a9982e..cdc98c3368 100644
+--- a/src/cmd/vendor/github.com/ianlancetaylor/demangle/ast.go
++++ b/src/cmd/vendor/github.com/ianlancetaylor/demangle/ast.go
+@@ -38,25 +38,42 @@ type AST interface {
+ // ASTToString returns the demangled name of the AST.
+ func ASTToString(a AST, options ...Option) string {
+ 	tparams := true
++	enclosingParams := true
+ 	llvmStyle := false
++	max := 0
+ 	for _, o := range options {
+-		switch o {
+-		case NoTemplateParams:
++		switch {
++		case o == NoTemplateParams:
+ 			tparams = false
+-		case LLVMStyle:
++		case o == NoEnclosingParams:
++			enclosingParams = false
++		case o == LLVMStyle:
+ 			llvmStyle = true
++		case isMaxLength(o):
++			max = maxLength(o)
+ 		}
+ 	}
+ 
+-	ps := printState{tparams: tparams, llvmStyle: llvmStyle}
++	ps := printState{
++		tparams:         tparams,
++		enclosingParams: enclosingParams,
++		llvmStyle:       llvmStyle,
++		max:             max,
++	}
+ 	a.print(&ps)
+-	return ps.buf.String()
++	s := ps.buf.String()
++	if max > 0 && len(s) > max {
++		s = s[:max]
++	}
++	return s
+ }
+ 
+ // The printState type holds information needed to print an AST.
+ type printState struct {
+-	tparams   bool // whether to print template parameters
+-	llvmStyle bool
++	tparams         bool // whether to print template parameters
++	enclosingParams bool // whether to print enclosing parameters
++	llvmStyle       bool
++	max             int // maximum output length
+ 
+ 	buf  strings.Builder
+ 	last byte // Last byte written to buffer.
+@@ -88,6 +105,10 @@ func (ps *printState) writeString(s string) {
+ 
+ // Print an AST.
+ func (ps *printState) print(a AST) {
++	if ps.max > 0 && ps.buf.Len() > ps.max {
++		return
++	}
++
+ 	c := 0
+ 	for _, v := range ps.printing {
+ 		if v == a {
+@@ -1144,7 +1165,7 @@ type FunctionType struct {
+ 
+ func (ft *FunctionType) print(ps *printState) {
+ 	retType := ft.Return
+-	if ft.ForLocalName && !ps.llvmStyle {
++	if ft.ForLocalName && (!ps.enclosingParams || !ps.llvmStyle) {
+ 		retType = nil
+ 	}
+ 	if retType != nil {
+@@ -1201,16 +1222,18 @@ func (ft *FunctionType) printArgs(ps *printState) {
+ 	}
+ 
+ 	ps.writeByte('(')
+-	first := true
+-	for _, a := range ft.Args {
+-		if ps.isEmpty(a) {
+-			continue
+-		}
+-		if !first {
+-			ps.writeString(", ")
++	if !ft.ForLocalName || ps.enclosingParams {
++		first := true
++		for _, a := range ft.Args {
++			if ps.isEmpty(a) {
++				continue
++			}
++			if !first {
++				ps.writeString(", ")
++			}
++			ps.print(a)
++			first = false
+ 		}
+-		ps.print(a)
+-		first = false
+ 	}
+ 	ps.writeByte(')')
+ 
+diff --git a/src/cmd/vendor/github.com/ianlancetaylor/demangle/demangle.go b/src/cmd/vendor/github.com/ianlancetaylor/demangle/demangle.go
+index 66ac7dde62..14e77a6ac4 100644
+--- a/src/cmd/vendor/github.com/ianlancetaylor/demangle/demangle.go
++++ b/src/cmd/vendor/github.com/ianlancetaylor/demangle/demangle.go
+@@ -27,11 +27,21 @@ type Option int
+ 
+ const (
+ 	// The NoParams option disables demangling of function parameters.
++	// It only omits the parameters of the function name being demangled,
++	// not the parameter types of other functions that may be mentioned.
++	// Using the option will speed up the demangler and cause it to
++	// use less memory.
+ 	NoParams Option = iota
+ 
+ 	// The NoTemplateParams option disables demangling of template parameters.
++	// This applies to both C++ and Rust.
+ 	NoTemplateParams
+ 
++	// The NoEnclosingParams option disables demangling of the function
++	// parameter types of the enclosing function when demangling a
++	// local name defined within a function.
++	NoEnclosingParams
++
+ 	// The NoClones option disables inclusion of clone suffixes.
+ 	// NoParams implies NoClones.
+ 	NoClones
+@@ -51,6 +61,34 @@ const (
+ 	LLVMStyle
+ )
+ 
++// maxLengthShift is how we shift the MaxLength value.
++const maxLengthShift = 16
++
++// maxLengthMask is a mask for the maxLength value.
++const maxLengthMask = 0x1f << maxLengthShift
++
++// MaxLength returns an Option that limits the maximum length of a
++// demangled string. The maximum length is expressed as a power of 2,
++// so a value of 1 limits the returned string to 2 characters, and
++// a value of 16 limits the returned string to 65,536 characters.
++// The value must be between 1 and 30.
++func MaxLength(pow int) Option {
++	if pow <= 0 || pow > 30 {
++		panic("demangle: invalid MaxLength value")
++	}
++	return Option(pow << maxLengthShift)
++}
++
++// isMaxLength reports whether an Option holds a maximum length.
++func isMaxLength(opt Option) bool {
++	return opt&maxLengthMask != 0
++}
++
++// maxLength returns the maximum length stored in an Option.
++func maxLength(opt Option) int {
++	return 1 << ((opt & maxLengthMask) >> maxLengthShift)
++}
++
+ // Filter demangles a C++ or Rust symbol name,
+ // returning the human-readable C++ or Rust name.
+ // If any error occurs during demangling, the input string is returned.
+@@ -216,17 +254,19 @@ func doDemangle(name string, options ...Option) (ret AST, err error) {
+ 	clones := true
+ 	verbose := false
+ 	for _, o := range options {
+-		switch o {
+-		case NoParams:
++		switch {
++		case o == NoParams:
+ 			params = false
+ 			clones = false
+-		case NoClones:
++		case o == NoClones:
+ 			clones = false
+-		case Verbose:
++		case o == Verbose:
+ 			verbose = true
+-		case NoTemplateParams, LLVMStyle:
++		case o == NoTemplateParams || o == NoEnclosingParams || o == LLVMStyle || isMaxLength(o):
+ 			// These are valid options but only affect
+ 			// printing of the AST.
++		case o == NoRust:
++			// Unimportant here.
+ 		default:
+ 			return nil, fmt.Errorf("unrecognized demangler option %v", o)
+ 		}
+@@ -660,7 +700,7 @@ func (st *state) prefix() AST {
+ 		}
+ 	}
+ 
+-	isCast := false
++	var cast *Cast
+ 	for {
+ 		if len(st.str) == 0 {
+ 			st.fail("expected prefix")
+@@ -672,7 +712,10 @@ func (st *state) prefix() AST {
+ 			un, isUnCast := st.unqualifiedName()
+ 			next = un
+ 			if isUnCast {
+-				isCast = true
++				if tn, ok := un.(*TaggedName); ok {
++					un = tn.Name
++				}
++				cast = un.(*Cast)
+ 			}
+ 		} else {
+ 			switch st.str[0] {
+@@ -726,10 +769,10 @@ func (st *state) prefix() AST {
+ 				var args []AST
+ 				args = st.templateArgs()
+ 				tmpl := &Template{Name: a, Args: args}
+-				if isCast {
+-					st.setTemplate(a, tmpl)
++				if cast != nil {
++					st.setTemplate(cast, tmpl)
+ 					st.clearTemplateArgs(args)
+-					isCast = false
++					cast = nil
+ 				}
+ 				a = nil
+ 				next = tmpl
+@@ -739,8 +782,12 @@ func (st *state) prefix() AST {
+ 				if a == nil {
+ 					st.fail("expected prefix")
+ 				}
+-				if isCast {
+-					st.setTemplate(a, nil)
++				if cast != nil {
++					var toTmpl *Template
++					if castTempl, ok := cast.To.(*Template); ok {
++						toTmpl = castTempl
++					}
++					st.setTemplate(cast, toTmpl)
+ 				}
+ 				return a
+ 			case 'M':
+@@ -770,10 +817,10 @@ func (st *state) prefix() AST {
+ 				}
+ 				st.advance(1)
+ 				tmpl := &Template{Name: a, Args: args}
+-				if isCast {
+-					st.setTemplate(a, tmpl)
++				if cast != nil {
++					st.setTemplate(cast, tmpl)
+ 					st.clearTemplateArgs(args)
+-					isCast = false
++					cast = nil
+ 				}
+ 				a = nil
+ 				next = tmpl
+@@ -1715,7 +1762,7 @@ func (st *state) demangleCastTemplateArgs(tp AST, addSubst bool) AST {
+ 	return tp
+ }
+ 
+-// mergeQualifiers merges two qualifer lists into one.
++// mergeQualifiers merges two qualifier lists into one.
+ func mergeQualifiers(q1AST, q2AST AST) AST {
+ 	if q1AST == nil {
+ 		return q2AST
+diff --git a/src/cmd/vendor/github.com/ianlancetaylor/demangle/rust.go b/src/cmd/vendor/github.com/ianlancetaylor/demangle/rust.go
+index 39792189ac..f3d2d33bd0 100644
+--- a/src/cmd/vendor/github.com/ianlancetaylor/demangle/rust.go
++++ b/src/cmd/vendor/github.com/ianlancetaylor/demangle/rust.go
+@@ -40,6 +40,15 @@ func rustToString(name string, options []Option) (ret string, err error) {
+ 
+ 	name = name[2:]
+ 	rst := &rustState{orig: name, str: name}
++
++	for _, o := range options {
++		if o == NoTemplateParams {
++			rst.noGenericArgs = true
++		} else if isMaxLength(o) {
++			rst.max = maxLength(o)
++		}
++	}
++
+ 	rst.symbolName()
+ 
+ 	if len(rst.str) > 0 {
+@@ -62,18 +71,24 @@ func rustToString(name string, options []Option) (ret string, err error) {
+ 		}
+ 	}
+ 
+-	return rst.buf.String(), nil
++	s := rst.buf.String()
++	if rst.max > 0 && len(s) > rst.max {
++		s = s[:rst.max]
++	}
++	return s, nil
+ }
+ 
+ // A rustState holds the current state of demangling a Rust string.
+ type rustState struct {
+-	orig      string          // the original string being demangled
+-	str       string          // remainder of string to demangle
+-	off       int             // offset of str within original string
+-	buf       strings.Builder // demangled string being built
+-	skip      bool            // don't print, just skip
+-	lifetimes int64           // number of bound lifetimes
+-	last      byte            // last byte written to buffer
++	orig          string          // the original string being demangled
++	str           string          // remainder of string to demangle
++	off           int             // offset of str within original string
++	buf           strings.Builder // demangled string being built
++	skip          bool            // don't print, just skip
++	lifetimes     int64           // number of bound lifetimes
++	last          byte            // last byte written to buffer
++	noGenericArgs bool            // don't demangle generic arguments
++	max           int             // maximum output length
+ }
+ 
+ // fail panics with demangleErr, to be caught in rustToString.
+@@ -104,6 +119,10 @@ func (rst *rustState) writeByte(c byte) {
+ 	if rst.skip {
+ 		return
+ 	}
++	if rst.max > 0 && rst.buf.Len() > rst.max {
++		rst.skip = true
++		return
++	}
+ 	rst.last = c
+ 	rst.buf.WriteByte(c)
+ }
+@@ -113,6 +132,10 @@ func (rst *rustState) writeString(s string) {
+ 	if rst.skip {
+ 		return
+ 	}
++	if rst.max > 0 && rst.buf.Len() > rst.max {
++		rst.skip = true
++		return
++	}
+ 	if len(s) > 0 {
+ 		rst.last = s[len(s)-1]
+ 		rst.buf.WriteString(s)
+@@ -232,15 +255,7 @@ func (rst *rustState) path(needsSeparator bool) {
+ 			rst.writeString("::")
+ 		}
+ 		rst.writeByte('<')
+-		first := true
+-		for len(rst.str) > 0 && rst.str[0] != 'E' {
+-			if first {
+-				first = false
+-			} else {
+-				rst.writeString(", ")
+-			}
+-			rst.genericArg()
+-		}
++		rst.genericArgs()
+ 		rst.writeByte('>')
+ 		rst.checkChar('E')
+ 	case 'B':
+@@ -436,6 +451,27 @@ func (rst *rustState) expandPunycode(s string) string {
+ 	return string(output)
+ }
+ 
++// genericArgs prints a list of generic arguments, without angle brackets.
++func (rst *rustState) genericArgs() {
++	if rst.noGenericArgs {
++		hold := rst.skip
++		rst.skip = true
++		defer func() {
++			rst.skip = hold
++		}()
++	}
++
++	first := true
++	for len(rst.str) > 0 && rst.str[0] != 'E' {
++		if first {
++			first = false
++		} else {
++			rst.writeString(", ")
++		}
++		rst.genericArg()
++	}
++}
++
+ // genericArg parses:
+ //
+ //	<generic-arg> = <lifetime>
+@@ -724,15 +760,7 @@ func (rst *rustState) pathStartGenerics() bool {
+ 		rst.advance(1)
+ 		rst.path(false)
+ 		rst.writeByte('<')
+-		first := true
+-		for len(rst.str) > 0 && rst.str[0] != 'E' {
+-			if first {
+-				first = false
+-			} else {
+-				rst.writeString(", ")
+-			}
+-			rst.genericArg()
+-		}
++		rst.genericArgs()
+ 		rst.checkChar('E')
+ 		return true
+ 	case 'B':
+@@ -944,6 +972,9 @@ func (rst *rustState) backref(demangle func()) {
+ 	if rst.skip {
+ 		return
+ 	}
++	if rst.max > 0 && rst.buf.Len() > rst.max {
++		return
++	}
+ 
+ 	idx := int(idx64)
+ 	if int64(idx) != idx64 {
+@@ -986,6 +1017,13 @@ func (rst *rustState) decimalNumber() int {
+ // oldRustToString demangles a Rust symbol using the old demangling.
+ // The second result reports whether this is a valid Rust mangled name.
+ func oldRustToString(name string, options []Option) (string, bool) {
++	max := 0
++	for _, o := range options {
++		if isMaxLength(o) {
++			max = maxLength(o)
++		}
++	}
++
+ 	// We know that the string starts with _ZN.
+ 	name = name[3:]
+ 
+@@ -1019,6 +1057,10 @@ func oldRustToString(name string, options []Option) (string, bool) {
+ 	// The name is a sequence of length-preceded identifiers.
+ 	var sb strings.Builder
+ 	for len(name) > 0 {
++		if max > 0 && sb.Len() > max {
++			break
++		}
++
+ 		if !isDigit(name[0]) {
+ 			return "", false
+ 		}
+@@ -1115,5 +1157,9 @@ func oldRustToString(name string, options []Option) (string, bool) {
+ 		}
+ 	}
+ 
+-	return sb.String(), true
++	s := sb.String()
++	if max > 0 && len(s) > max {
++		s = s[:max]
++	}
++	return s, true
+ }
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index b740954219..155d95b335 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -1,5 +1,5 @@
+-# github.com/google/pprof v0.0.0-20221118152302-e6195bd50e26
+-## explicit; go 1.18
++# github.com/google/pprof v0.0.0-20230811205829-9131a7e9cc17
++## explicit; go 1.19
+ github.com/google/pprof/driver
+ github.com/google/pprof/internal/binutils
+ github.com/google/pprof/internal/driver
+@@ -14,8 +14,8 @@ github.com/google/pprof/internal/transport
+ github.com/google/pprof/profile
+ github.com/google/pprof/third_party/d3flamegraph
+ github.com/google/pprof/third_party/svgpan
+-# github.com/ianlancetaylor/demangle v0.0.0-20220319035150-800ac71e25c2
+-## explicit; go 1.12
++# github.com/ianlancetaylor/demangle v0.0.0-20230524184225-eabc099b10ab
++## explicit; go 1.13
+ github.com/ianlancetaylor/demangle
+ # golang.org/x/arch v0.4.0
+ ## explicit; go 1.17

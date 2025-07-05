@@ -7,7 +7,34 @@ Date:   Fri Feb 17 00:50:41 2017 +0900
     Change-Id: I0455ffaa51c661803d8013c7961910f920d3c3cc
     Reviewed-on: https://go-review.googlesource.com/37043
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/server.go | 2 +-
  src/reflect/type.go    | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index f4639a6e08..c7710358ad 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -839,7 +839,7 @@ func (srv *Server) initialReadLimitSize() int64 {
+ 	return int64(srv.maxHeaderBytes()) + 4096 // bufio slop
+ }
+ 
+-// wrapper around io.ReaderCloser which on first read, sends an
++// wrapper around io.ReadCloser which on first read, sends an
+ // HTTP/1.1 100 Continue header
+ type expectContinueReader struct {
+ 	resp       *response
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index 40859093be..8df9e0ca6b 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -3156,7 +3156,7 @@ func ifaceIndir(t *rtype) bool {
+ 	return t.kind&kindDirectIface == 0
+ }
+ 
+-// Layout matches runtime.BitVector (well enough).
++// Layout matches runtime.gobitvector (well enough).
+ type bitVector struct {
+ 	n    uint32 // number of bits
+ 	data []byte

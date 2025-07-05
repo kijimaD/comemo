@@ -14,8 +14,69 @@ Date:   Tue Dec 1 20:51:18 2020 -0800
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Dan Scales <danscales@google.com>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/compile/internal/ir/func.go        | 15 ++++++++-------
  src/cmd/compile/internal/ir/name.go        |  1 -
  src/cmd/compile/internal/ir/sizeof_test.go |  2 +-
  3 files changed, 9 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/func.go b/src/cmd/compile/internal/ir/func.go
+index 3fc8597ef0..98830fb502 100644
+--- a/src/cmd/compile/internal/ir/func.go
++++ b/src/cmd/compile/internal/ir/func.go
+@@ -17,13 +17,14 @@ import (
+ //
+ // There are multiple nodes that represent a Func in the IR.
+ //
+-// The ONAME node (Func.Name) is used for plain references to it.
+-// The ODCLFUNC node (Func.Decl) is used for its declaration code.
+-// The OCLOSURE node (Func.Closure) is used for a reference to a
++// The ONAME node (Func.Nname) is used for plain references to it.
++// The ODCLFUNC node (the Func itself) is used for its declaration code.
++// The OCLOSURE node (Func.OClosure) is used for a reference to a
+ // function literal.
+ //
+-// A Func for an imported function will have only an ONAME node.
+-// A declared function or method has an ONAME and an ODCLFUNC.
++// An imported function will have an ONAME node which points to a Func
++// with an empty body.
++// A declared function or method has an ODCLFUNC (the Func itself) and an ONAME.
+ // A function literal is represented directly by an OCLOSURE, but it also
+ // has an ODCLFUNC (and a matching ONAME) representing the compiled
+ // underlying form of the closure, which accesses the captured variables
+@@ -44,8 +45,8 @@ import (
+ // the method name is stored in Sym instead of Right.
+ // Each OCALLPART ends up being implemented as a new
+ // function, a bit like a closure, with its own ODCLFUNC.
+-// The OCALLPART has uses n.Func to record the linkage to
+-// the generated ODCLFUNC (as n.Func.Decl), but there is no
++// The OCALLPART uses n.Func to record the linkage to
++// the generated ODCLFUNC, but there is no
+ // pointer from the Func back to the OCALLPART.
+ type Func struct {
+ 	miniNode
+diff --git a/src/cmd/compile/internal/ir/name.go b/src/cmd/compile/internal/ir/name.go
+index 3c62800ad3..1d886bb9a1 100644
+--- a/src/cmd/compile/internal/ir/name.go
++++ b/src/cmd/compile/internal/ir/name.go
+@@ -21,7 +21,6 @@ type Name struct {
+ 	flags      bitset16
+ 	pragma     PragmaFlag // int16
+ 	sym        *types.Sym
+-	typ        *types.Type
+ 	fn         *Func
+ 	offset     int64
+ 	val        constant.Value
+diff --git a/src/cmd/compile/internal/ir/sizeof_test.go b/src/cmd/compile/internal/ir/sizeof_test.go
+index 4a133cb999..181f1462fe 100644
+--- a/src/cmd/compile/internal/ir/sizeof_test.go
++++ b/src/cmd/compile/internal/ir/sizeof_test.go
+@@ -21,7 +21,7 @@ func TestSizeof(t *testing.T) {
+ 		_64bit uintptr     // size on 64bit platforms
+ 	}{
+ 		{Func{}, 168, 288},
+-		{Name{}, 128, 224},
++		{Name{}, 124, 216},
+ 	}
+ 
+ 	for _, tt := range tests {

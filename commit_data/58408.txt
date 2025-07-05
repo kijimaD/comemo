@@ -17,7 +17,7 @@ Date:   Sun Nov 5 02:32:08 2023 +1100
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Joel Sing <joel@sing.id.au>
     Reviewed-by: Josh Rickmar <jrick@zettaport.com>
-
+---
  src/syscall/bpf_bsd.go                  | 100 ++++++++---------
  src/syscall/bpf_darwin.go               | 185 --------------------------------
  src/syscall/syscall_bsd.go              |   2 +
@@ -50,3 +50,1405 @@ Date:   Sun Nov 5 02:32:08 2023 +1100
  src/syscall/zsyscall_openbsd_riscv64.go |  38 ++++---
  src/syscall/zsyscall_openbsd_riscv64.s  |   4 +-
  31 files changed, 461 insertions(+), 387 deletions(-)
+
+diff --git a/src/syscall/bpf_bsd.go b/src/syscall/bpf_bsd.go
+index 735c078895..27d0ca3768 100644
+--- a/src/syscall/bpf_bsd.go
++++ b/src/syscall/bpf_bsd.go
+@@ -1,8 +1,8 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
++// Copyright 2018 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build dragonfly || freebsd || netbsd || openbsd
++//go:build darwin || dragonfly || freebsd || netbsd || openbsd
+ 
+ // Berkeley packet filter for BSD variants
+ 
+@@ -25,18 +25,18 @@ func BpfJump(code, k, jt, jf int) *BpfInsn {
+ // Deprecated: Use golang.org/x/net/bpf instead.
+ func BpfBuflen(fd int) (int, error) {
+ 	var l int
+-	_, _, err := Syscall(SYS_IOCTL, uintptr(fd), BIOCGBLEN, uintptr(unsafe.Pointer(&l)))
+-	if err != 0 {
+-		return 0, Errno(err)
++	err := ioctlPtr(fd, BIOCGBLEN, unsafe.Pointer(&l))
++	if err != nil {
++		return 0, err
+ 	}
+ 	return l, nil
+ }
+ 
+ // Deprecated: Use golang.org/x/net/bpf instead.
+ func SetBpfBuflen(fd, l int) (int, error) {
+-	_, _, err := Syscall(SYS_IOCTL, uintptr(fd), BIOCSBLEN, uintptr(unsafe.Pointer(&l)))
+-	if err != 0 {
+-		return 0, Errno(err)
++	err := ioctlPtr(fd, BIOCSBLEN, unsafe.Pointer(&l))
++	if err != nil {
++		return 0, err
+ 	}
+ 	return l, nil
+ }
+@@ -44,36 +44,36 @@ func SetBpfBuflen(fd, l int) (int, error) {
+ // Deprecated: Use golang.org/x/net/bpf instead.
+ func BpfDatalink(fd int) (int, error) {
+ 	var t int
+-	_, _, err := Syscall(SYS_IOCTL, uintptr(fd), BIOCGDLT, uintptr(unsafe.Pointer(&t)))
+-	if err != 0 {
+-		return 0, Errno(err)
++	err := ioctlPtr(fd, BIOCGDLT, unsafe.Pointer(&t))
++	if err != nil {
++		return 0, err
+ 	}
+ 	return t, nil
+ }
+ 
+ // Deprecated: Use golang.org/x/net/bpf instead.
+ func SetBpfDatalink(fd, t int) (int, error) {
+-	_, _, err := Syscall(SYS_IOCTL, uintptr(fd), BIOCSDLT, uintptr(unsafe.Pointer(&t)))
+-	if err != 0 {
+-		return 0, Errno(err)
++	err := ioctlPtr(fd, BIOCSDLT, unsafe.Pointer(&t))
++	if err != nil {
++		return 0, err
+ 	}
+ 	return t, nil
+ }
+ 
+ // Deprecated: Use golang.org/x/net/bpf instead.
+ func SetBpfPromisc(fd, m int) error {
+-	_, _, err := Syscall(SYS_IOCTL, uintptr(fd), BIOCPROMISC, uintptr(unsafe.Pointer(&m)))
+-	if err != 0 {
+-		return Errno(err)
++	err := ioctlPtr(fd, BIOCPROMISC, unsafe.Pointer(&m))
++	if err != nil {
++		return err
+ 	}
+ 	return nil
+ }
+ 
+ // Deprecated: Use golang.org/x/net/bpf instead.
+ func FlushBpf(fd int) error {
+-	_, _, err := Syscall(SYS_IOCTL, uintptr(fd), BIOCFLUSH, 0)
+-	if err != 0 {
+-		return Errno(err)
++	err := ioctlPtr(fd, BIOCFLUSH, nil)
++	if err != nil {
++		return err
+ 	}
+ 	return nil
+ }
+@@ -86,9 +86,9 @@ type ivalue struct {
+ // Deprecated: Use golang.org/x/net/bpf instead.
+ func BpfInterface(fd int, name string) (string, error) {
+ 	var iv ivalue
+-	_, _, err := Syscall(SYS_IOCTL, uintptr(fd), BIOCGETIF, uintptr(unsafe.Pointer(&iv)))
+-	if err != 0 {
+-		return "", Errno(err)
++	err := ioctlPtr(fd, BIOCGETIF, unsafe.Pointer(&iv))
++	if err != nil {
++		return "", err
+ 	}
+ 	return name, nil
+ }
+@@ -97,9 +97,9 @@ func BpfInterface(fd int, name string) (string, error) {
+ func SetBpfInterface(fd int, name string) error {
+ 	var iv ivalue
+ 	copy(iv.name[:], []byte(name))
+-	_, _, err := Syscall(SYS_IOCTL, uintptr(fd), BIOCSETIF, uintptr(unsafe.Pointer(&iv)))
+-	if err != 0 {
+-		return Errno(err)
++	err := ioctlPtr(fd, BIOCSETIF, unsafe.Pointer(&iv))
++	if err != nil {
++		return err
+ 	}
+ 	return nil
+ }
+@@ -107,18 +107,18 @@ func SetBpfInterface(fd int, name string) error {
+ // Deprecated: Use golang.org/x/net/bpf instead.
+ func BpfTimeout(fd int) (*Timeval, error) {
+ 	var tv Timeval
+-	_, _, err := Syscall(SYS_IOCTL, uintptr(fd), BIOCGRTIMEOUT, uintptr(unsafe.Pointer(&tv)))
+-	if err != 0 {
+-		return nil, Errno(err)
++	err := ioctlPtr(fd, BIOCGRTIMEOUT, unsafe.Pointer(&tv))
++	if err != nil {
++		return nil, err
+ 	}
+ 	return &tv, nil
+ }
+ 
+ // Deprecated: Use golang.org/x/net/bpf instead.
+ func SetBpfTimeout(fd int, tv *Timeval) error {
+-	_, _, err := Syscall(SYS_IOCTL, uintptr(fd), BIOCSRTIMEOUT, uintptr(unsafe.Pointer(tv)))
+-	if err != 0 {
+-		return Errno(err)
++	err := ioctlPtr(fd, BIOCSRTIMEOUT, unsafe.Pointer(tv))
++	if err != nil {
++		return err
+ 	}
+ 	return nil
+ }
+@@ -126,18 +126,18 @@ func SetBpfTimeout(fd int, tv *Timeval) error {
+ // Deprecated: Use golang.org/x/net/bpf instead.
+ func BpfStats(fd int) (*BpfStat, error) {
+ 	var s BpfStat
+-	_, _, err := Syscall(SYS_IOCTL, uintptr(fd), BIOCGSTATS, uintptr(unsafe.Pointer(&s)))
+-	if err != 0 {
+-		return nil, Errno(err)
++	err := ioctlPtr(fd, BIOCGSTATS, unsafe.Pointer(&s))
++	if err != nil {
++		return nil, err
+ 	}
+ 	return &s, nil
+ }
+ 
+ // Deprecated: Use golang.org/x/net/bpf instead.
+ func SetBpfImmediate(fd, m int) error {
+-	_, _, err := Syscall(SYS_IOCTL, uintptr(fd), BIOCIMMEDIATE, uintptr(unsafe.Pointer(&m)))
+-	if err != 0 {
+-		return Errno(err)
++	err := ioctlPtr(fd, BIOCIMMEDIATE, unsafe.Pointer(&m))
++	if err != nil {
++		return err
+ 	}
+ 	return nil
+ }
+@@ -147,9 +147,9 @@ func SetBpf(fd int, i []BpfInsn) error {
+ 	var p BpfProgram
+ 	p.Len = uint32(len(i))
+ 	p.Insns = (*BpfInsn)(unsafe.Pointer(&i[0]))
+-	_, _, err := Syscall(SYS_IOCTL, uintptr(fd), BIOCSETF, uintptr(unsafe.Pointer(&p)))
+-	if err != 0 {
+-		return Errno(err)
++	err := ioctlPtr(fd, BIOCSETF, unsafe.Pointer(&p))
++	if err != nil {
++		return err
+ 	}
+ 	return nil
+ }
+@@ -157,9 +157,9 @@ func SetBpf(fd int, i []BpfInsn) error {
+ // Deprecated: Use golang.org/x/net/bpf instead.
+ func CheckBpfVersion(fd int) error {
+ 	var v BpfVersion
+-	_, _, err := Syscall(SYS_IOCTL, uintptr(fd), BIOCVERSION, uintptr(unsafe.Pointer(&v)))
+-	if err != 0 {
+-		return Errno(err)
++	err := ioctlPtr(fd, BIOCVERSION, unsafe.Pointer(&v))
++	if err != nil {
++		return err
+ 	}
+ 	if v.Major != BPF_MAJOR_VERSION || v.Minor != BPF_MINOR_VERSION {
+ 		return EINVAL
+@@ -170,18 +170,18 @@ func CheckBpfVersion(fd int) error {
+ // Deprecated: Use golang.org/x/net/bpf instead.
+ func BpfHeadercmpl(fd int) (int, error) {
+ 	var f int
+-	_, _, err := Syscall(SYS_IOCTL, uintptr(fd), BIOCGHDRCMPLT, uintptr(unsafe.Pointer(&f)))
+-	if err != 0 {
+-		return 0, Errno(err)
++	err := ioctlPtr(fd, BIOCGHDRCMPLT, unsafe.Pointer(&f))
++	if err != nil {
++		return 0, err
+ 	}
+ 	return f, nil
+ }
+ 
+ // Deprecated: Use golang.org/x/net/bpf instead.
+ func SetBpfHeadercmpl(fd, f int) error {
+-	_, _, err := Syscall(SYS_IOCTL, uintptr(fd), BIOCSHDRCMPLT, uintptr(unsafe.Pointer(&f)))
+-	if err != 0 {
+-		return Errno(err)
++	err := ioctlPtr(fd, BIOCSHDRCMPLT, unsafe.Pointer(&f))
++	if err != nil {
++		return err
+ 	}
+ 	return nil
+ }
+diff --git a/src/syscall/bpf_darwin.go b/src/syscall/bpf_darwin.go
+deleted file mode 100644
+index fb86049ae9..0000000000
+--- a/src/syscall/bpf_darwin.go
++++ /dev/null
+@@ -1,185 +0,0 @@
+-// Copyright 2018 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Berkeley packet filter for Darwin
+-
+-package syscall
+-
+-import (
+-	"unsafe"
+-)
+-
+-// Deprecated: Use golang.org/x/net/bpf instead.
+-func BpfStmt(code, k int) *BpfInsn {
+-	return &BpfInsn{Code: uint16(code), K: uint32(k)}
+-}
+-
+-// Deprecated: Use golang.org/x/net/bpf instead.
+-func BpfJump(code, k, jt, jf int) *BpfInsn {
+-	return &BpfInsn{Code: uint16(code), Jt: uint8(jt), Jf: uint8(jf), K: uint32(k)}
+-}
+-
+-// Deprecated: Use golang.org/x/net/bpf instead.
+-func BpfBuflen(fd int) (int, error) {
+-	var l int
+-	err := ioctlPtr(fd, BIOCGBLEN, unsafe.Pointer(&l))
+-	if err != nil {
+-		return 0, err
+-	}
+-	return l, nil
+-}
+-
+-// Deprecated: Use golang.org/x/net/bpf instead.
+-func SetBpfBuflen(fd, l int) (int, error) {
+-	err := ioctlPtr(fd, BIOCSBLEN, unsafe.Pointer(&l))
+-	if err != nil {
+-		return 0, err
+-	}
+-	return l, nil
+-}
+-
+-// Deprecated: Use golang.org/x/net/bpf instead.
+-func BpfDatalink(fd int) (int, error) {
+-	var t int
+-	err := ioctlPtr(fd, BIOCGDLT, unsafe.Pointer(&t))
+-	if err != nil {
+-		return 0, err
+-	}
+-	return t, nil
+-}
+-
+-// Deprecated: Use golang.org/x/net/bpf instead.
+-func SetBpfDatalink(fd, t int) (int, error) {
+-	err := ioctlPtr(fd, BIOCSDLT, unsafe.Pointer(&t))
+-	if err != nil {
+-		return 0, err
+-	}
+-	return t, nil
+-}
+-
+-// Deprecated: Use golang.org/x/net/bpf instead.
+-func SetBpfPromisc(fd, m int) error {
+-	err := ioctlPtr(fd, BIOCPROMISC, unsafe.Pointer(&m))
+-	if err != nil {
+-		return err
+-	}
+-	return nil
+-}
+-
+-// Deprecated: Use golang.org/x/net/bpf instead.
+-func FlushBpf(fd int) error {
+-	err := ioctlPtr(fd, BIOCFLUSH, nil)
+-	if err != nil {
+-		return err
+-	}
+-	return nil
+-}
+-
+-type ivalue struct {
+-	name  [IFNAMSIZ]byte
+-	value int16
+-}
+-
+-// Deprecated: Use golang.org/x/net/bpf instead.
+-func BpfInterface(fd int, name string) (string, error) {
+-	var iv ivalue
+-	err := ioctlPtr(fd, BIOCGETIF, unsafe.Pointer(&iv))
+-	if err != nil {
+-		return "", err
+-	}
+-	return name, nil
+-}
+-
+-// Deprecated: Use golang.org/x/net/bpf instead.
+-func SetBpfInterface(fd int, name string) error {
+-	var iv ivalue
+-	copy(iv.name[:], []byte(name))
+-	err := ioctlPtr(fd, BIOCSETIF, unsafe.Pointer(&iv))
+-	if err != nil {
+-		return err
+-	}
+-	return nil
+-}
+-
+-// Deprecated: Use golang.org/x/net/bpf instead.
+-func BpfTimeout(fd int) (*Timeval, error) {
+-	var tv Timeval
+-	err := ioctlPtr(fd, BIOCGRTIMEOUT, unsafe.Pointer(&tv))
+-	if err != nil {
+-		return nil, err
+-	}
+-	return &tv, nil
+-}
+-
+-// Deprecated: Use golang.org/x/net/bpf instead.
+-func SetBpfTimeout(fd int, tv *Timeval) error {
+-	err := ioctlPtr(fd, BIOCSRTIMEOUT, unsafe.Pointer(tv))
+-	if err != nil {
+-		return err
+-	}
+-	return nil
+-}
+-
+-// Deprecated: Use golang.org/x/net/bpf instead.
+-func BpfStats(fd int) (*BpfStat, error) {
+-	var s BpfStat
+-	err := ioctlPtr(fd, BIOCGSTATS, unsafe.Pointer(&s))
+-	if err != nil {
+-		return nil, err
+-	}
+-	return &s, nil
+-}
+-
+-// Deprecated: Use golang.org/x/net/bpf instead.
+-func SetBpfImmediate(fd, m int) error {
+-	err := ioctlPtr(fd, BIOCIMMEDIATE, unsafe.Pointer(&m))
+-	if err != nil {
+-		return err
+-	}
+-	return nil
+-}
+-
+-// Deprecated: Use golang.org/x/net/bpf instead.
+-func SetBpf(fd int, i []BpfInsn) error {
+-	var p BpfProgram
+-	p.Len = uint32(len(i))
+-	p.Insns = (*BpfInsn)(unsafe.Pointer(&i[0]))
+-	err := ioctlPtr(fd, BIOCSETF, unsafe.Pointer(&p))
+-	if err != nil {
+-		return err
+-	}
+-	return nil
+-}
+-
+-// Deprecated: Use golang.org/x/net/bpf instead.
+-func CheckBpfVersion(fd int) error {
+-	var v BpfVersion
+-	err := ioctlPtr(fd, BIOCVERSION, unsafe.Pointer(&v))
+-	if err != nil {
+-		return err
+-	}
+-	if v.Major != BPF_MAJOR_VERSION || v.Minor != BPF_MINOR_VERSION {
+-		return EINVAL
+-	}
+-	return nil
+-}
+-
+-// Deprecated: Use golang.org/x/net/bpf instead.
+-func BpfHeadercmpl(fd int) (int, error) {
+-	var f int
+-	err := ioctlPtr(fd, BIOCGHDRCMPLT, unsafe.Pointer(&f))
+-	if err != nil {
+-		return 0, err
+-	}
+-	return f, nil
+-}
+-
+-// Deprecated: Use golang.org/x/net/bpf instead.
+-func SetBpfHeadercmpl(fd, f int) error {
+-	err := ioctlPtr(fd, BIOCSHDRCMPLT, unsafe.Pointer(&f))
+-	if err != nil {
+-		return err
+-	}
+-	return nil
+-}
+diff --git a/src/syscall/syscall_bsd.go b/src/syscall/syscall_bsd.go
+index f029973160..233c6b21dc 100644
+--- a/src/syscall/syscall_bsd.go
++++ b/src/syscall/syscall_bsd.go
+@@ -516,6 +516,8 @@ func Futimes(fd int, tv []Timeval) (err error) {
+ 
+ //sys	fcntl(fd int, cmd int, arg int) (val int, err error)
+ //sys	fcntlPtr(fd int, cmd int, arg unsafe.Pointer) (val int, err error) = SYS_FCNTL
++//sysnb ioctl(fd int, req int, arg int) (err error)
++//sysnb ioctlPtr(fd int, req uint, arg unsafe.Pointer) (err error) = SYS_IOCTL
+ 
+ var mapper = &mmapper{
+ 	active: make(map[*byte][]byte),
+diff --git a/src/syscall/syscall_darwin.go b/src/syscall/syscall_darwin.go
+index 7202194fcf..2e13b57cd3 100644
+--- a/src/syscall/syscall_darwin.go
++++ b/src/syscall/syscall_darwin.go
+@@ -211,8 +211,6 @@ func Kill(pid int, signum Signal) (err error) { return kill(pid, int(signum), 1)
+ //sys   mmap(addr uintptr, length uintptr, prot int, flag int, fd int, pos int64) (ret uintptr, err error)
+ //sys   munmap(addr uintptr, length uintptr) (err error)
+ //sysnb fork() (pid int, err error)
+-//sysnb ioctl(fd int, req int, arg int) (err error)
+-//sysnb ioctlPtr(fd int, req uint, arg unsafe.Pointer) (err error) = SYS_ioctl
+ //sysnb execve(path *byte, argv **byte, envp **byte) (err error)
+ //sysnb exit(res int) (err error)
+ //sys	sysctl(mib []_C_int, old *byte, oldlen *uintptr, new *byte, newlen uintptr) (err error)
+diff --git a/src/syscall/syscall_openbsd_libc.go b/src/syscall/syscall_openbsd_libc.go
+index 7f450ed867..ddf62f4d3f 100644
+--- a/src/syscall/syscall_openbsd_libc.go
++++ b/src/syscall/syscall_openbsd_libc.go
+@@ -62,7 +62,6 @@ func syscall9X(fn, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2 uintptr,
+ //sys	getcwd(buf []byte) (n int, err error)
+ //sys	sysctl(mib []_C_int, old *byte, oldlen *uintptr, new *byte, newlen uintptr) (err error)
+ //sysnb fork() (pid int, err error)
+-//sysnb ioctl(fd int, req int, arg int) (err error)
+ //sysnb execve(path *byte, argv **byte, envp **byte) (err error)
+ //sysnb exit(res int) (err error)
+ //sys   ptrace(request int, pid int, addr uintptr, data uintptr) (err error)
+diff --git a/src/syscall/zsyscall_darwin_amd64.go b/src/syscall/zsyscall_darwin_amd64.go
+index c2f413568d..3ad9bad076 100644
+--- a/src/syscall/zsyscall_darwin_amd64.go
++++ b/src/syscall/zsyscall_darwin_amd64.go
+@@ -341,6 +341,30 @@ func fcntlPtr(fd int, cmd int, arg unsafe.Pointer) (val int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func ioctl(fd int, req int, arg int) (err error) {
++	_, _, e1 := rawSyscall(abi.FuncPCABI0(libc_ioctl_trampoline), uintptr(fd), uintptr(req), uintptr(arg))
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++func libc_ioctl_trampoline()
++
++//go:cgo_import_dynamic libc_ioctl ioctl "/usr/lib/libSystem.B.dylib"
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func ioctlPtr(fd int, req uint, arg unsafe.Pointer) (err error) {
++	_, _, e1 := rawSyscall(abi.FuncPCABI0(libc_ioctl_trampoline), uintptr(fd), uintptr(req), uintptr(arg))
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func pipe(p *[2]int32) (err error) {
+ 	_, _, e1 := rawSyscall(abi.FuncPCABI0(libc_pipe_trampoline), uintptr(unsafe.Pointer(p)), 0, 0)
+ 	if e1 != 0 {
+@@ -1760,30 +1784,6 @@ func libc_fork_trampoline()
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func ioctl(fd int, req int, arg int) (err error) {
+-	_, _, e1 := rawSyscall(abi.FuncPCABI0(libc_ioctl_trampoline), uintptr(fd), uintptr(req), uintptr(arg))
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-func libc_ioctl_trampoline()
+-
+-//go:cgo_import_dynamic libc_ioctl ioctl "/usr/lib/libSystem.B.dylib"
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+-func ioctlPtr(fd int, req uint, arg unsafe.Pointer) (err error) {
+-	_, _, e1 := rawSyscall(abi.FuncPCABI0(libc_ioctl_trampoline), uintptr(fd), uintptr(req), uintptr(arg))
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func execve(path *byte, argv **byte, envp **byte) (err error) {
+ 	_, _, e1 := rawSyscall(abi.FuncPCABI0(libc_execve_trampoline), uintptr(unsafe.Pointer(path)), uintptr(unsafe.Pointer(argv)), uintptr(unsafe.Pointer(envp)))
+ 	if e1 != 0 {
+diff --git a/src/syscall/zsyscall_darwin_amd64.s b/src/syscall/zsyscall_darwin_amd64.s
+index 90e51fb9a4..3dc0e4e1da 100644
+--- a/src/syscall/zsyscall_darwin_amd64.s
++++ b/src/syscall/zsyscall_darwin_amd64.s
+@@ -49,6 +49,8 @@ TEXT ·libc_futimes_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_futimes(SB)
+ TEXT ·libc_fcntl_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_fcntl(SB)
++TEXT ·libc_ioctl_trampoline(SB),NOSPLIT,$0-0
++	JMP	libc_ioctl(SB)
+ TEXT ·libc_pipe_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_pipe(SB)
+ TEXT ·libc_utimensat_trampoline(SB),NOSPLIT,$0-0
+@@ -223,8 +225,6 @@ TEXT ·libc_munmap_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_munmap(SB)
+ TEXT ·libc_fork_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_fork(SB)
+-TEXT ·libc_ioctl_trampoline(SB),NOSPLIT,$0-0
+-	JMP	libc_ioctl(SB)
+ TEXT ·libc_execve_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_execve(SB)
+ TEXT ·libc_exit_trampoline(SB),NOSPLIT,$0-0
+diff --git a/src/syscall/zsyscall_darwin_arm64.go b/src/syscall/zsyscall_darwin_arm64.go
+index 76dbe11933..c2502c7842 100644
+--- a/src/syscall/zsyscall_darwin_arm64.go
++++ b/src/syscall/zsyscall_darwin_arm64.go
+@@ -341,6 +341,30 @@ func fcntlPtr(fd int, cmd int, arg unsafe.Pointer) (val int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func ioctl(fd int, req int, arg int) (err error) {
++	_, _, e1 := rawSyscall(abi.FuncPCABI0(libc_ioctl_trampoline), uintptr(fd), uintptr(req), uintptr(arg))
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++func libc_ioctl_trampoline()
++
++//go:cgo_import_dynamic libc_ioctl ioctl "/usr/lib/libSystem.B.dylib"
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func ioctlPtr(fd int, req uint, arg unsafe.Pointer) (err error) {
++	_, _, e1 := rawSyscall(abi.FuncPCABI0(libc_ioctl_trampoline), uintptr(fd), uintptr(req), uintptr(arg))
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func pipe(p *[2]int32) (err error) {
+ 	_, _, e1 := rawSyscall(abi.FuncPCABI0(libc_pipe_trampoline), uintptr(unsafe.Pointer(p)), 0, 0)
+ 	if e1 != 0 {
+@@ -1760,30 +1784,6 @@ func libc_fork_trampoline()
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func ioctl(fd int, req int, arg int) (err error) {
+-	_, _, e1 := rawSyscall(abi.FuncPCABI0(libc_ioctl_trampoline), uintptr(fd), uintptr(req), uintptr(arg))
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-func libc_ioctl_trampoline()
+-
+-//go:cgo_import_dynamic libc_ioctl ioctl "/usr/lib/libSystem.B.dylib"
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+-func ioctlPtr(fd int, req uint, arg unsafe.Pointer) (err error) {
+-	_, _, e1 := rawSyscall(abi.FuncPCABI0(libc_ioctl_trampoline), uintptr(fd), uintptr(req), uintptr(arg))
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func execve(path *byte, argv **byte, envp **byte) (err error) {
+ 	_, _, e1 := rawSyscall(abi.FuncPCABI0(libc_execve_trampoline), uintptr(unsafe.Pointer(path)), uintptr(unsafe.Pointer(argv)), uintptr(unsafe.Pointer(envp)))
+ 	if e1 != 0 {
+diff --git a/src/syscall/zsyscall_darwin_arm64.s b/src/syscall/zsyscall_darwin_arm64.s
+index f00747939e..5ac7440b34 100644
+--- a/src/syscall/zsyscall_darwin_arm64.s
++++ b/src/syscall/zsyscall_darwin_arm64.s
+@@ -49,6 +49,8 @@ TEXT ·libc_futimes_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_futimes(SB)
+ TEXT ·libc_fcntl_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_fcntl(SB)
++TEXT ·libc_ioctl_trampoline(SB),NOSPLIT,$0-0
++	JMP	libc_ioctl(SB)
+ TEXT ·libc_pipe_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_pipe(SB)
+ TEXT ·libc_utimensat_trampoline(SB),NOSPLIT,$0-0
+@@ -223,8 +225,6 @@ TEXT ·libc_munmap_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_munmap(SB)
+ TEXT ·libc_fork_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_fork(SB)
+-TEXT ·libc_ioctl_trampoline(SB),NOSPLIT,$0-0
+-	JMP	libc_ioctl(SB)
+ TEXT ·libc_execve_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_execve(SB)
+ TEXT ·libc_exit_trampoline(SB),NOSPLIT,$0-0
+diff --git a/src/syscall/zsyscall_dragonfly_amd64.go b/src/syscall/zsyscall_dragonfly_amd64.go
+index 1866b5a57b..1bbc9d681e 100644
+--- a/src/syscall/zsyscall_dragonfly_amd64.go
++++ b/src/syscall/zsyscall_dragonfly_amd64.go
+@@ -256,6 +256,26 @@ func fcntlPtr(fd int, cmd int, arg unsafe.Pointer) (val int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func ioctl(fd int, req int, arg int) (err error) {
++	_, _, e1 := RawSyscall(SYS_IOCTL, uintptr(fd), uintptr(req), uintptr(arg))
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func ioctlPtr(fd int, req uint, arg unsafe.Pointer) (err error) {
++	_, _, e1 := RawSyscall(SYS_IOCTL, uintptr(fd), uintptr(req), uintptr(arg))
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func pipe() (r int, w int, err error) {
+ 	r0, r1, e1 := RawSyscall(SYS_PIPE, 0, 0, 0)
+ 	r = int(r0)
+diff --git a/src/syscall/zsyscall_freebsd_386.go b/src/syscall/zsyscall_freebsd_386.go
+index c834531dfa..b948c95f2c 100644
+--- a/src/syscall/zsyscall_freebsd_386.go
++++ b/src/syscall/zsyscall_freebsd_386.go
+@@ -256,6 +256,26 @@ func fcntlPtr(fd int, cmd int, arg unsafe.Pointer) (val int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func ioctl(fd int, req int, arg int) (err error) {
++	_, _, e1 := RawSyscall(SYS_IOCTL, uintptr(fd), uintptr(req), uintptr(arg))
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func ioctlPtr(fd int, req uint, arg unsafe.Pointer) (err error) {
++	_, _, e1 := RawSyscall(SYS_IOCTL, uintptr(fd), uintptr(req), uintptr(arg))
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func pipe2(p *[2]_C_int, flags int) (err error) {
+ 	_, _, e1 := RawSyscall(SYS_PIPE2, uintptr(unsafe.Pointer(p)), uintptr(flags), 0)
+ 	if e1 != 0 {
+diff --git a/src/syscall/zsyscall_freebsd_amd64.go b/src/syscall/zsyscall_freebsd_amd64.go
+index ca9098a5b2..f5b73717ad 100644
+--- a/src/syscall/zsyscall_freebsd_amd64.go
++++ b/src/syscall/zsyscall_freebsd_amd64.go
+@@ -256,6 +256,26 @@ func fcntlPtr(fd int, cmd int, arg unsafe.Pointer) (val int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func ioctl(fd int, req int, arg int) (err error) {
++	_, _, e1 := RawSyscall(SYS_IOCTL, uintptr(fd), uintptr(req), uintptr(arg))
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func ioctlPtr(fd int, req uint, arg unsafe.Pointer) (err error) {
++	_, _, e1 := RawSyscall(SYS_IOCTL, uintptr(fd), uintptr(req), uintptr(arg))
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func pipe2(p *[2]_C_int, flags int) (err error) {
+ 	_, _, e1 := RawSyscall(SYS_PIPE2, uintptr(unsafe.Pointer(p)), uintptr(flags), 0)
+ 	if e1 != 0 {
+diff --git a/src/syscall/zsyscall_freebsd_arm.go b/src/syscall/zsyscall_freebsd_arm.go
+index fb25fca2de..330f709059 100644
+--- a/src/syscall/zsyscall_freebsd_arm.go
++++ b/src/syscall/zsyscall_freebsd_arm.go
+@@ -256,6 +256,26 @@ func fcntlPtr(fd int, cmd int, arg unsafe.Pointer) (val int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func ioctl(fd int, req int, arg int) (err error) {
++	_, _, e1 := RawSyscall(SYS_IOCTL, uintptr(fd), uintptr(req), uintptr(arg))
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func ioctlPtr(fd int, req uint, arg unsafe.Pointer) (err error) {
++	_, _, e1 := RawSyscall(SYS_IOCTL, uintptr(fd), uintptr(req), uintptr(arg))
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func pipe2(p *[2]_C_int, flags int) (err error) {
+ 	_, _, e1 := RawSyscall(SYS_PIPE2, uintptr(unsafe.Pointer(p)), uintptr(flags), 0)
+ 	if e1 != 0 {
+diff --git a/src/syscall/zsyscall_freebsd_arm64.go b/src/syscall/zsyscall_freebsd_arm64.go
+index 3d2c6b3ca0..46a0fd3a24 100644
+--- a/src/syscall/zsyscall_freebsd_arm64.go
++++ b/src/syscall/zsyscall_freebsd_arm64.go
+@@ -256,6 +256,26 @@ func fcntlPtr(fd int, cmd int, arg unsafe.Pointer) (val int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func ioctl(fd int, req int, arg int) (err error) {
++	_, _, e1 := RawSyscall(SYS_IOCTL, uintptr(fd), uintptr(req), uintptr(arg))
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func ioctlPtr(fd int, req uint, arg unsafe.Pointer) (err error) {
++	_, _, e1 := RawSyscall(SYS_IOCTL, uintptr(fd), uintptr(req), uintptr(arg))
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func pipe2(p *[2]_C_int, flags int) (err error) {
+ 	_, _, e1 := RawSyscall(SYS_PIPE2, uintptr(unsafe.Pointer(p)), uintptr(flags), 0)
+ 	if e1 != 0 {
+diff --git a/src/syscall/zsyscall_freebsd_riscv64.go b/src/syscall/zsyscall_freebsd_riscv64.go
+index fefa6cea29..f0eceb7ee1 100644
+--- a/src/syscall/zsyscall_freebsd_riscv64.go
++++ b/src/syscall/zsyscall_freebsd_riscv64.go
+@@ -256,6 +256,26 @@ func fcntlPtr(fd int, cmd int, arg unsafe.Pointer) (val int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func ioctl(fd int, req int, arg int) (err error) {
++	_, _, e1 := RawSyscall(SYS_IOCTL, uintptr(fd), uintptr(req), uintptr(arg))
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func ioctlPtr(fd int, req uint, arg unsafe.Pointer) (err error) {
++	_, _, e1 := RawSyscall(SYS_IOCTL, uintptr(fd), uintptr(req), uintptr(arg))
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func pipe2(p *[2]_C_int, flags int) (err error) {
+ 	_, _, e1 := RawSyscall(SYS_PIPE2, uintptr(unsafe.Pointer(p)), uintptr(flags), 0)
+ 	if e1 != 0 {
+diff --git a/src/syscall/zsyscall_netbsd_386.go b/src/syscall/zsyscall_netbsd_386.go
+index 702e2ba1fc..6ca20b49b1 100644
+--- a/src/syscall/zsyscall_netbsd_386.go
++++ b/src/syscall/zsyscall_netbsd_386.go
+@@ -256,6 +256,26 @@ func fcntlPtr(fd int, cmd int, arg unsafe.Pointer) (val int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func ioctl(fd int, req int, arg int) (err error) {
++	_, _, e1 := RawSyscall(SYS_IOCTL, uintptr(fd), uintptr(req), uintptr(arg))
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func ioctlPtr(fd int, req uint, arg unsafe.Pointer) (err error) {
++	_, _, e1 := RawSyscall(SYS_IOCTL, uintptr(fd), uintptr(req), uintptr(arg))
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func pipe2(p *[2]_C_int, flags int) (err error) {
+ 	_, _, e1 := RawSyscall(SYS_PIPE2, uintptr(unsafe.Pointer(p)), uintptr(flags), 0)
+ 	if e1 != 0 {
+diff --git a/src/syscall/zsyscall_netbsd_amd64.go b/src/syscall/zsyscall_netbsd_amd64.go
+index 115bf21f27..1fe69bc666 100644
+--- a/src/syscall/zsyscall_netbsd_amd64.go
++++ b/src/syscall/zsyscall_netbsd_amd64.go
+@@ -256,6 +256,26 @@ func fcntlPtr(fd int, cmd int, arg unsafe.Pointer) (val int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func ioctl(fd int, req int, arg int) (err error) {
++	_, _, e1 := RawSyscall(SYS_IOCTL, uintptr(fd), uintptr(req), uintptr(arg))
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func ioctlPtr(fd int, req uint, arg unsafe.Pointer) (err error) {
++	_, _, e1 := RawSyscall(SYS_IOCTL, uintptr(fd), uintptr(req), uintptr(arg))
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func pipe2(p *[2]_C_int, flags int) (err error) {
+ 	_, _, e1 := RawSyscall(SYS_PIPE2, uintptr(unsafe.Pointer(p)), uintptr(flags), 0)
+ 	if e1 != 0 {
+diff --git a/src/syscall/zsyscall_netbsd_arm.go b/src/syscall/zsyscall_netbsd_arm.go
+index ac22eb7793..fd082bfd2d 100644
+--- a/src/syscall/zsyscall_netbsd_arm.go
++++ b/src/syscall/zsyscall_netbsd_arm.go
+@@ -256,6 +256,26 @@ func fcntlPtr(fd int, cmd int, arg unsafe.Pointer) (val int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func ioctl(fd int, req int, arg int) (err error) {
++	_, _, e1 := RawSyscall(SYS_IOCTL, uintptr(fd), uintptr(req), uintptr(arg))
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func ioctlPtr(fd int, req uint, arg unsafe.Pointer) (err error) {
++	_, _, e1 := RawSyscall(SYS_IOCTL, uintptr(fd), uintptr(req), uintptr(arg))
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func pipe2(p *[2]_C_int, flags int) (err error) {
+ 	_, _, e1 := RawSyscall(SYS_PIPE2, uintptr(unsafe.Pointer(p)), uintptr(flags), 0)
+ 	if e1 != 0 {
+diff --git a/src/syscall/zsyscall_netbsd_arm64.go b/src/syscall/zsyscall_netbsd_arm64.go
+index cd344a381b..8065c8c1ce 100644
+--- a/src/syscall/zsyscall_netbsd_arm64.go
++++ b/src/syscall/zsyscall_netbsd_arm64.go
+@@ -256,6 +256,26 @@ func fcntlPtr(fd int, cmd int, arg unsafe.Pointer) (val int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func ioctl(fd int, req int, arg int) (err error) {
++	_, _, e1 := RawSyscall(SYS_IOCTL, uintptr(fd), uintptr(req), uintptr(arg))
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func ioctlPtr(fd int, req uint, arg unsafe.Pointer) (err error) {
++	_, _, e1 := RawSyscall(SYS_IOCTL, uintptr(fd), uintptr(req), uintptr(arg))
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func pipe2(p *[2]_C_int, flags int) (err error) {
+ 	_, _, e1 := RawSyscall(SYS_PIPE2, uintptr(unsafe.Pointer(p)), uintptr(flags), 0)
+ 	if e1 != 0 {
+diff --git a/src/syscall/zsyscall_openbsd_386.go b/src/syscall/zsyscall_openbsd_386.go
+index ce2586d973..084b4b78e5 100644
+--- a/src/syscall/zsyscall_openbsd_386.go
++++ b/src/syscall/zsyscall_openbsd_386.go
+@@ -341,6 +341,30 @@ func fcntlPtr(fd int, cmd int, arg unsafe.Pointer) (val int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func ioctl(fd int, req int, arg int) (err error) {
++	_, _, e1 := rawSyscall(abi.FuncPCABI0(libc_ioctl_trampoline), uintptr(fd), uintptr(req), uintptr(arg))
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++func libc_ioctl_trampoline()
++
++//go:cgo_import_dynamic libc_ioctl ioctl "libc.so"
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func ioctlPtr(fd int, req uint, arg unsafe.Pointer) (err error) {
++	_, _, e1 := rawSyscall(abi.FuncPCABI0(libc_ioctl_trampoline), uintptr(fd), uintptr(req), uintptr(arg))
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func pipe2(p *[2]_C_int, flags int) (err error) {
+ 	_, _, e1 := rawSyscall(abi.FuncPCABI0(libc_pipe2_trampoline), uintptr(unsafe.Pointer(p)), uintptr(flags), 0)
+ 	if e1 != 0 {
+@@ -1802,20 +1826,6 @@ func libc_fork_trampoline()
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func ioctl(fd int, req int, arg int) (err error) {
+-	_, _, e1 := rawSyscall(abi.FuncPCABI0(libc_ioctl_trampoline), uintptr(fd), uintptr(req), uintptr(arg))
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-func libc_ioctl_trampoline()
+-
+-//go:cgo_import_dynamic libc_ioctl ioctl "libc.so"
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func execve(path *byte, argv **byte, envp **byte) (err error) {
+ 	_, _, e1 := rawSyscall(abi.FuncPCABI0(libc_execve_trampoline), uintptr(unsafe.Pointer(path)), uintptr(unsafe.Pointer(argv)), uintptr(unsafe.Pointer(envp)))
+ 	if e1 != 0 {
+diff --git a/src/syscall/zsyscall_openbsd_386.s b/src/syscall/zsyscall_openbsd_386.s
+index 1496e129b2..319ad205c0 100644
+--- a/src/syscall/zsyscall_openbsd_386.s
++++ b/src/syscall/zsyscall_openbsd_386.s
+@@ -43,6 +43,8 @@ TEXT ·libc_futimes_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_futimes(SB)
+ TEXT ·libc_fcntl_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_fcntl(SB)
++TEXT ·libc_ioctl_trampoline(SB),NOSPLIT,$0-0
++	JMP	libc_ioctl(SB)
+ TEXT ·libc_pipe2_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_pipe2(SB)
+ TEXT ·libc_accept4_trampoline(SB),NOSPLIT,$0-0
+@@ -221,8 +223,6 @@ TEXT ·libc_sysctl_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_sysctl(SB)
+ TEXT ·libc_fork_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_fork(SB)
+-TEXT ·libc_ioctl_trampoline(SB),NOSPLIT,$0-0
+-	JMP	libc_ioctl(SB)
+ TEXT ·libc_execve_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_execve(SB)
+ TEXT ·libc_exit_trampoline(SB),NOSPLIT,$0-0
+diff --git a/src/syscall/zsyscall_openbsd_amd64.go b/src/syscall/zsyscall_openbsd_amd64.go
+index 2bbb04bb38..5a7b4c1122 100644
+--- a/src/syscall/zsyscall_openbsd_amd64.go
++++ b/src/syscall/zsyscall_openbsd_amd64.go
+@@ -341,6 +341,30 @@ func fcntlPtr(fd int, cmd int, arg unsafe.Pointer) (val int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func ioctl(fd int, req int, arg int) (err error) {
++	_, _, e1 := rawSyscall(abi.FuncPCABI0(libc_ioctl_trampoline), uintptr(fd), uintptr(req), uintptr(arg))
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++func libc_ioctl_trampoline()
++
++//go:cgo_import_dynamic libc_ioctl ioctl "libc.so"
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func ioctlPtr(fd int, req uint, arg unsafe.Pointer) (err error) {
++	_, _, e1 := rawSyscall(abi.FuncPCABI0(libc_ioctl_trampoline), uintptr(fd), uintptr(req), uintptr(arg))
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func pipe2(p *[2]_C_int, flags int) (err error) {
+ 	_, _, e1 := rawSyscall(abi.FuncPCABI0(libc_pipe2_trampoline), uintptr(unsafe.Pointer(p)), uintptr(flags), 0)
+ 	if e1 != 0 {
+@@ -1802,20 +1826,6 @@ func libc_fork_trampoline()
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func ioctl(fd int, req int, arg int) (err error) {
+-	_, _, e1 := rawSyscall(abi.FuncPCABI0(libc_ioctl_trampoline), uintptr(fd), uintptr(req), uintptr(arg))
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-func libc_ioctl_trampoline()
+-
+-//go:cgo_import_dynamic libc_ioctl ioctl "libc.so"
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func execve(path *byte, argv **byte, envp **byte) (err error) {
+ 	_, _, e1 := rawSyscall(abi.FuncPCABI0(libc_execve_trampoline), uintptr(unsafe.Pointer(path)), uintptr(unsafe.Pointer(argv)), uintptr(unsafe.Pointer(envp)))
+ 	if e1 != 0 {
+diff --git a/src/syscall/zsyscall_openbsd_amd64.s b/src/syscall/zsyscall_openbsd_amd64.s
+index 06b7ffb3a5..c0e397728a 100644
+--- a/src/syscall/zsyscall_openbsd_amd64.s
++++ b/src/syscall/zsyscall_openbsd_amd64.s
+@@ -43,6 +43,8 @@ TEXT ·libc_futimes_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_futimes(SB)
+ TEXT ·libc_fcntl_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_fcntl(SB)
++TEXT ·libc_ioctl_trampoline(SB),NOSPLIT,$0-0
++	JMP	libc_ioctl(SB)
+ TEXT ·libc_pipe2_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_pipe2(SB)
+ TEXT ·libc_accept4_trampoline(SB),NOSPLIT,$0-0
+@@ -221,8 +223,6 @@ TEXT ·libc_sysctl_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_sysctl(SB)
+ TEXT ·libc_fork_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_fork(SB)
+-TEXT ·libc_ioctl_trampoline(SB),NOSPLIT,$0-0
+-	JMP	libc_ioctl(SB)
+ TEXT ·libc_execve_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_execve(SB)
+ TEXT ·libc_exit_trampoline(SB),NOSPLIT,$0-0
+diff --git a/src/syscall/zsyscall_openbsd_arm.go b/src/syscall/zsyscall_openbsd_arm.go
+index 25eb0caefe..66a3227175 100644
+--- a/src/syscall/zsyscall_openbsd_arm.go
++++ b/src/syscall/zsyscall_openbsd_arm.go
+@@ -341,6 +341,30 @@ func fcntlPtr(fd int, cmd int, arg unsafe.Pointer) (val int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func ioctl(fd int, req int, arg int) (err error) {
++	_, _, e1 := rawSyscall(abi.FuncPCABI0(libc_ioctl_trampoline), uintptr(fd), uintptr(req), uintptr(arg))
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++func libc_ioctl_trampoline()
++
++//go:cgo_import_dynamic libc_ioctl ioctl "libc.so"
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func ioctlPtr(fd int, req uint, arg unsafe.Pointer) (err error) {
++	_, _, e1 := rawSyscall(abi.FuncPCABI0(libc_ioctl_trampoline), uintptr(fd), uintptr(req), uintptr(arg))
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func pipe2(p *[2]_C_int, flags int) (err error) {
+ 	_, _, e1 := rawSyscall(abi.FuncPCABI0(libc_pipe2_trampoline), uintptr(unsafe.Pointer(p)), uintptr(flags), 0)
+ 	if e1 != 0 {
+@@ -1802,20 +1826,6 @@ func libc_fork_trampoline()
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func ioctl(fd int, req int, arg int) (err error) {
+-	_, _, e1 := rawSyscall(abi.FuncPCABI0(libc_ioctl_trampoline), uintptr(fd), uintptr(req), uintptr(arg))
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-func libc_ioctl_trampoline()
+-
+-//go:cgo_import_dynamic libc_ioctl ioctl "libc.so"
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func execve(path *byte, argv **byte, envp **byte) (err error) {
+ 	_, _, e1 := rawSyscall(abi.FuncPCABI0(libc_execve_trampoline), uintptr(unsafe.Pointer(path)), uintptr(unsafe.Pointer(argv)), uintptr(unsafe.Pointer(envp)))
+ 	if e1 != 0 {
+diff --git a/src/syscall/zsyscall_openbsd_arm.s b/src/syscall/zsyscall_openbsd_arm.s
+index 0aad090231..73b6a092ef 100644
+--- a/src/syscall/zsyscall_openbsd_arm.s
++++ b/src/syscall/zsyscall_openbsd_arm.s
+@@ -43,6 +43,8 @@ TEXT ·libc_futimes_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_futimes(SB)
+ TEXT ·libc_fcntl_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_fcntl(SB)
++TEXT ·libc_ioctl_trampoline(SB),NOSPLIT,$0-0
++	JMP	libc_ioctl(SB)
+ TEXT ·libc_pipe2_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_pipe2(SB)
+ TEXT ·libc_accept4_trampoline(SB),NOSPLIT,$0-0
+@@ -221,8 +223,6 @@ TEXT ·libc_sysctl_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_sysctl(SB)
+ TEXT ·libc_fork_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_fork(SB)
+-TEXT ·libc_ioctl_trampoline(SB),NOSPLIT,$0-0
+-	JMP	libc_ioctl(SB)
+ TEXT ·libc_execve_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_execve(SB)
+ TEXT ·libc_exit_trampoline(SB),NOSPLIT,$0-0
+diff --git a/src/syscall/zsyscall_openbsd_arm64.go b/src/syscall/zsyscall_openbsd_arm64.go
+index 21a78db016..a90f144369 100644
+--- a/src/syscall/zsyscall_openbsd_arm64.go
++++ b/src/syscall/zsyscall_openbsd_arm64.go
+@@ -341,6 +341,30 @@ func fcntlPtr(fd int, cmd int, arg unsafe.Pointer) (val int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func ioctl(fd int, req int, arg int) (err error) {
++	_, _, e1 := rawSyscall(abi.FuncPCABI0(libc_ioctl_trampoline), uintptr(fd), uintptr(req), uintptr(arg))
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++func libc_ioctl_trampoline()
++
++//go:cgo_import_dynamic libc_ioctl ioctl "libc.so"
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func ioctlPtr(fd int, req uint, arg unsafe.Pointer) (err error) {
++	_, _, e1 := rawSyscall(abi.FuncPCABI0(libc_ioctl_trampoline), uintptr(fd), uintptr(req), uintptr(arg))
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func pipe2(p *[2]_C_int, flags int) (err error) {
+ 	_, _, e1 := rawSyscall(abi.FuncPCABI0(libc_pipe2_trampoline), uintptr(unsafe.Pointer(p)), uintptr(flags), 0)
+ 	if e1 != 0 {
+@@ -1802,20 +1826,6 @@ func libc_fork_trampoline()
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func ioctl(fd int, req int, arg int) (err error) {
+-	_, _, e1 := rawSyscall(abi.FuncPCABI0(libc_ioctl_trampoline), uintptr(fd), uintptr(req), uintptr(arg))
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-func libc_ioctl_trampoline()
+-
+-//go:cgo_import_dynamic libc_ioctl ioctl "libc.so"
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func execve(path *byte, argv **byte, envp **byte) (err error) {
+ 	_, _, e1 := rawSyscall(abi.FuncPCABI0(libc_execve_trampoline), uintptr(unsafe.Pointer(path)), uintptr(unsafe.Pointer(argv)), uintptr(unsafe.Pointer(envp)))
+ 	if e1 != 0 {
+diff --git a/src/syscall/zsyscall_openbsd_arm64.s b/src/syscall/zsyscall_openbsd_arm64.s
+index fdced16662..66656695d5 100644
+--- a/src/syscall/zsyscall_openbsd_arm64.s
++++ b/src/syscall/zsyscall_openbsd_arm64.s
+@@ -43,6 +43,8 @@ TEXT ·libc_futimes_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_futimes(SB)
+ TEXT ·libc_fcntl_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_fcntl(SB)
++TEXT ·libc_ioctl_trampoline(SB),NOSPLIT,$0-0
++	JMP	libc_ioctl(SB)
+ TEXT ·libc_pipe2_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_pipe2(SB)
+ TEXT ·libc_accept4_trampoline(SB),NOSPLIT,$0-0
+@@ -221,8 +223,6 @@ TEXT ·libc_sysctl_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_sysctl(SB)
+ TEXT ·libc_fork_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_fork(SB)
+-TEXT ·libc_ioctl_trampoline(SB),NOSPLIT,$0-0
+-	JMP	libc_ioctl(SB)
+ TEXT ·libc_execve_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_execve(SB)
+ TEXT ·libc_exit_trampoline(SB),NOSPLIT,$0-0
+diff --git a/src/syscall/zsyscall_openbsd_ppc64.go b/src/syscall/zsyscall_openbsd_ppc64.go
+index fe2b778897..661c8959a6 100644
+--- a/src/syscall/zsyscall_openbsd_ppc64.go
++++ b/src/syscall/zsyscall_openbsd_ppc64.go
+@@ -341,6 +341,30 @@ func fcntlPtr(fd int, cmd int, arg unsafe.Pointer) (val int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func ioctl(fd int, req int, arg int) (err error) {
++	_, _, e1 := rawSyscall(abi.FuncPCABI0(libc_ioctl_trampoline), uintptr(fd), uintptr(req), uintptr(arg))
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++func libc_ioctl_trampoline()
++
++//go:cgo_import_dynamic libc_ioctl ioctl "libc.so"
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func ioctlPtr(fd int, req uint, arg unsafe.Pointer) (err error) {
++	_, _, e1 := rawSyscall(abi.FuncPCABI0(libc_ioctl_trampoline), uintptr(fd), uintptr(req), uintptr(arg))
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func pipe2(p *[2]_C_int, flags int) (err error) {
+ 	_, _, e1 := rawSyscall(abi.FuncPCABI0(libc_pipe2_trampoline), uintptr(unsafe.Pointer(p)), uintptr(flags), 0)
+ 	if e1 != 0 {
+@@ -1802,20 +1826,6 @@ func libc_fork_trampoline()
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func ioctl(fd int, req int, arg int) (err error) {
+-	_, _, e1 := rawSyscall(abi.FuncPCABI0(libc_ioctl_trampoline), uintptr(fd), uintptr(req), uintptr(arg))
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-func libc_ioctl_trampoline()
+-
+-//go:cgo_import_dynamic libc_ioctl ioctl "libc.so"
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func execve(path *byte, argv **byte, envp **byte) (err error) {
+ 	_, _, e1 := rawSyscall(abi.FuncPCABI0(libc_execve_trampoline), uintptr(unsafe.Pointer(path)), uintptr(unsafe.Pointer(argv)), uintptr(unsafe.Pointer(envp)))
+ 	if e1 != 0 {
+diff --git a/src/syscall/zsyscall_openbsd_ppc64.s b/src/syscall/zsyscall_openbsd_ppc64.s
+index 7da17ac531..8f3ff9a28c 100644
+--- a/src/syscall/zsyscall_openbsd_ppc64.s
++++ b/src/syscall/zsyscall_openbsd_ppc64.s
+@@ -64,6 +64,9 @@ TEXT ·libc_futimes_trampoline(SB),NOSPLIT,$0-0
+ TEXT ·libc_fcntl_trampoline(SB),NOSPLIT,$0-0
+ 	CALL	libc_fcntl(SB)
+ 	RET
++TEXT ·libc_ioctl_trampoline(SB),NOSPLIT,$0-0
++	CALL	libc_ioctl(SB)
++	RET
+ TEXT ·libc_pipe2_trampoline(SB),NOSPLIT,$0-0
+ 	CALL	libc_pipe2(SB)
+ 	RET
+@@ -331,9 +334,6 @@ TEXT ·libc_sysctl_trampoline(SB),NOSPLIT,$0-0
+ TEXT ·libc_fork_trampoline(SB),NOSPLIT,$0-0
+ 	CALL	libc_fork(SB)
+ 	RET
+-TEXT ·libc_ioctl_trampoline(SB),NOSPLIT,$0-0
+-	CALL	libc_ioctl(SB)
+-	RET
+ TEXT ·libc_execve_trampoline(SB),NOSPLIT,$0-0
+ 	CALL	libc_execve(SB)
+ 	RET
+diff --git a/src/syscall/zsyscall_openbsd_riscv64.go b/src/syscall/zsyscall_openbsd_riscv64.go
+index 6106d997c4..a24fcba113 100644
+--- a/src/syscall/zsyscall_openbsd_riscv64.go
++++ b/src/syscall/zsyscall_openbsd_riscv64.go
+@@ -341,6 +341,30 @@ func fcntlPtr(fd int, cmd int, arg unsafe.Pointer) (val int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func ioctl(fd int, req int, arg int) (err error) {
++	_, _, e1 := rawSyscall(abi.FuncPCABI0(libc_ioctl_trampoline), uintptr(fd), uintptr(req), uintptr(arg))
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++func libc_ioctl_trampoline()
++
++//go:cgo_import_dynamic libc_ioctl ioctl "libc.so"
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func ioctlPtr(fd int, req uint, arg unsafe.Pointer) (err error) {
++	_, _, e1 := rawSyscall(abi.FuncPCABI0(libc_ioctl_trampoline), uintptr(fd), uintptr(req), uintptr(arg))
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func pipe2(p *[2]_C_int, flags int) (err error) {
+ 	_, _, e1 := rawSyscall(abi.FuncPCABI0(libc_pipe2_trampoline), uintptr(unsafe.Pointer(p)), uintptr(flags), 0)
+ 	if e1 != 0 {
+@@ -1802,20 +1826,6 @@ func libc_fork_trampoline()
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func ioctl(fd int, req int, arg int) (err error) {
+-	_, _, e1 := rawSyscall(abi.FuncPCABI0(libc_ioctl_trampoline), uintptr(fd), uintptr(req), uintptr(arg))
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-func libc_ioctl_trampoline()
+-
+-//go:cgo_import_dynamic libc_ioctl ioctl "libc.so"
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func execve(path *byte, argv **byte, envp **byte) (err error) {
+ 	_, _, e1 := rawSyscall(abi.FuncPCABI0(libc_execve_trampoline), uintptr(unsafe.Pointer(path)), uintptr(unsafe.Pointer(argv)), uintptr(unsafe.Pointer(envp)))
+ 	if e1 != 0 {
+diff --git a/src/syscall/zsyscall_openbsd_riscv64.s b/src/syscall/zsyscall_openbsd_riscv64.s
+index ab6f6fed7f..4f787ee275 100644
+--- a/src/syscall/zsyscall_openbsd_riscv64.s
++++ b/src/syscall/zsyscall_openbsd_riscv64.s
+@@ -43,6 +43,8 @@ TEXT ·libc_futimes_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_futimes(SB)
+ TEXT ·libc_fcntl_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_fcntl(SB)
++TEXT ·libc_ioctl_trampoline(SB),NOSPLIT,$0-0
++	JMP	libc_ioctl(SB)
+ TEXT ·libc_pipe2_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_pipe2(SB)
+ TEXT ·libc_accept4_trampoline(SB),NOSPLIT,$0-0
+@@ -221,8 +223,6 @@ TEXT ·libc_sysctl_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_sysctl(SB)
+ TEXT ·libc_fork_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_fork(SB)
+-TEXT ·libc_ioctl_trampoline(SB),NOSPLIT,$0-0
+-	JMP	libc_ioctl(SB)
+ TEXT ·libc_execve_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_execve(SB)
+ TEXT ·libc_exit_trampoline(SB),NOSPLIT,$0-0

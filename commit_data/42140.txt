@@ -49,7 +49,123 @@ Date:   Sun Jul 28 20:16:14 2019 -0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bjørn Erik Pedersen <bjorn.erik.pedersen@gmail.com>
     Reviewed-by: Andrew Bonventre <andybons@golang.org>
-
+---
  src/encoding/json/encode.go      | 29 +++++++++++++++++++++++++++--
  src/encoding/json/encode_test.go | 35 +++++++++++++++++++++++++++++++++++
  2 files changed, 62 insertions(+), 2 deletions(-)
+
+diff --git a/src/encoding/json/encode.go b/src/encoding/json/encode.go
+index b81e505866..39cdaebde7 100644
+--- a/src/encoding/json/encode.go
++++ b/src/encoding/json/encode.go
+@@ -153,7 +153,7 @@ import (
+ //
+ // JSON cannot represent cyclic data structures and Marshal does not
+ // handle them. Passing cyclic structures to Marshal will result in
+-// an infinite recursion.
++// an error.
+ //
+ func Marshal(v interface{}) ([]byte, error) {
+ 	e := newEncodeState()
+@@ -285,17 +285,31 @@ var hex = "0123456789abcdef"
+ type encodeState struct {
+ 	bytes.Buffer // accumulated output
+ 	scratch      [64]byte
++
++	// Keep track of what pointers we've seen in the current recursive call
++	// path, to avoid cycles that could lead to a stack overflow. Only do
++	// the relatively expensive map operations if ptrLevel is larger than
++	// startDetectingCyclesAfter, so that we skip the work if we're within a
++	// reasonable amount of nested pointers deep.
++	ptrLevel uint
++	ptrSeen  map[interface{}]struct{}
+ }
+ 
++const startDetectingCyclesAfter = 1000
++
+ var encodeStatePool sync.Pool
+ 
+ func newEncodeState() *encodeState {
+ 	if v := encodeStatePool.Get(); v != nil {
+ 		e := v.(*encodeState)
+ 		e.Reset()
++		if len(e.ptrSeen) > 0 {
++			panic("ptrEncoder.encode should have emptied ptrSeen via defers")
++		}
++		e.ptrLevel = 0
+ 		return e
+ 	}
+-	return new(encodeState)
++	return &encodeState{ptrSeen: make(map[interface{}]struct{})}
+ }
+ 
+ // jsonError is an error wrapper type for internal use only.
+@@ -887,7 +901,18 @@ func (pe ptrEncoder) encode(e *encodeState, v reflect.Value, opts encOpts) {
+ 		e.WriteString("null")
+ 		return
+ 	}
++	if e.ptrLevel++; e.ptrLevel > startDetectingCyclesAfter {
++		// We're a large number of nested ptrEncoder.encode calls deep;
++		// start checking if we've run into a pointer cycle.
++		ptr := v.Interface()
++		if _, ok := e.ptrSeen[ptr]; ok {
++			e.error(&UnsupportedValueError{v, fmt.Sprintf("encountered a cycle via %s", v.Type())})
++		}
++		e.ptrSeen[ptr] = struct{}{}
++		defer delete(e.ptrSeen, ptr)
++	}
+ 	pe.elemEnc(e, v.Elem(), opts)
++	e.ptrLevel--
+ }
+ 
+ func newPtrEncoder(t reflect.Type) encoderFunc {
+diff --git a/src/encoding/json/encode_test.go b/src/encoding/json/encode_test.go
+index 40f16d86ff..5110c7de9b 100644
+--- a/src/encoding/json/encode_test.go
++++ b/src/encoding/json/encode_test.go
+@@ -138,10 +138,45 @@ func TestEncodeRenamedByteSlice(t *testing.T) {
+ 	}
+ }
+ 
++type SamePointerNoCycle struct {
++	Ptr1, Ptr2 *SamePointerNoCycle
++}
++
++var samePointerNoCycle = &SamePointerNoCycle{}
++
++type PointerCycle struct {
++	Ptr *PointerCycle
++}
++
++var pointerCycle = &PointerCycle{}
++
++type PointerCycleIndirect struct {
++	Ptrs []interface{}
++}
++
++var pointerCycleIndirect = &PointerCycleIndirect{}
++
++func init() {
++	ptr := &SamePointerNoCycle{}
++	samePointerNoCycle.Ptr1 = ptr
++	samePointerNoCycle.Ptr2 = ptr
++
++	pointerCycle.Ptr = pointerCycle
++	pointerCycleIndirect.Ptrs = []interface{}{pointerCycleIndirect}
++}
++
++func TestSamePointerNoCycle(t *testing.T) {
++	if _, err := Marshal(samePointerNoCycle); err != nil {
++		t.Fatalf("unexpected error: %v", err)
++	}
++}
++
+ var unsupportedValues = []interface{}{
+ 	math.NaN(),
+ 	math.Inf(-1),
+ 	math.Inf(1),
++	pointerCycle,
++	pointerCycleIndirect,
+ }
+ 
+ func TestUnsupportedValues(t *testing.T) {

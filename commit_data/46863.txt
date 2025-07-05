@@ -18,7 +18,7 @@ Date:   Mon Feb 8 22:37:48 2021 -0500
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/eval_test.go          |  2 +-
  src/go/types/expr.go               | 46 +++++++++++++++++++++++++++++---------
  src/go/types/stdlib_test.go        |  1 -
@@ -27,3 +27,235 @@ Date:   Mon Feb 8 22:37:48 2021 -0500
  src/go/types/testdata/const1.src   | 18 ++++++++++++---
  src/go/types/testdata/stmt0.src    |  2 +-
  7 files changed, 69 insertions(+), 26 deletions(-)
+
+diff --git a/src/go/types/eval_test.go b/src/go/types/eval_test.go
+index d940bf0e80..3a97ac0471 100644
+--- a/src/go/types/eval_test.go
++++ b/src/go/types/eval_test.go
+@@ -76,7 +76,7 @@ func TestEvalArith(t *testing.T) {
+ 		`false == false`,
+ 		`12345678 + 87654321 == 99999999`,
+ 		`10 * 20 == 200`,
+-		`(1<<1000)*2 >> 100 == 2<<900`,
++		`(1<<500)*2 >> 100 == 2<<400`,
+ 		`"foo" + "bar" == "foobar"`,
+ 		`"abc" <= "bcd"`,
+ 		`len([10]struct{}{}) == 2*5`,
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index 2741cc635d..5e1fe28a43 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -84,11 +84,6 @@ func (check *Checker) op(m opPredicates, x *operand, op token.Token) bool {
+ func (check *Checker) overflow(x *operand, op token.Token, opPos token.Pos) {
+ 	assert(x.mode == constant_)
+ 
+-	what := "" // operator description, if any
+-	if int(op) < len(op2str) {
+-		what = op2str[op]
+-	}
+-
+ 	if x.val.Kind() == constant.Unknown {
+ 		// TODO(gri) We should report exactly what went wrong. At the
+ 		//           moment we don't have the (go/constant) API for that.
+@@ -105,15 +100,37 @@ func (check *Checker) overflow(x *operand, op token.Token, opPos token.Pos) {
+ 	}
+ 
+ 	// Untyped integer values must not grow arbitrarily.
+-	const limit = 4 * 512 // 512 is the constant precision - we need more because old tests had no limits
+-	if x.val.Kind() == constant.Int && constant.BitLen(x.val) > limit {
+-		check.errorf(atPos(opPos), _InvalidConstVal, "constant %s overflow", what)
++	const prec = 512 // 512 is the constant precision
++	if x.val.Kind() == constant.Int && constant.BitLen(x.val) > prec {
++		check.errorf(atPos(opPos), _InvalidConstVal, "constant %s overflow", opName(x.expr))
+ 		x.val = constant.MakeUnknown()
+ 	}
+ }
+ 
++// opName returns the name of an operation, or the empty string.
++// For now, only operations that might overflow are handled.
++// TODO(gri) Expand this to a general mechanism giving names to
++//           nodes?
++func opName(e ast.Expr) string {
++	switch e := e.(type) {
++	case *ast.BinaryExpr:
++		if int(e.Op) < len(op2str2) {
++			return op2str2[e.Op]
++		}
++	case *ast.UnaryExpr:
++		if int(e.Op) < len(op2str1) {
++			return op2str1[e.Op]
++		}
++	}
++	return ""
++}
++
++var op2str1 = [...]string{
++	token.XOR: "bitwise complement",
++}
++
+ // This is only used for operations that may cause overflow.
+-var op2str = [...]string{
++var op2str2 = [...]string{
+ 	token.ADD: "addition",
+ 	token.SUB: "subtraction",
+ 	token.XOR: "bitwise XOR",
+@@ -763,8 +780,17 @@ func (check *Checker) shift(x, y *operand, e ast.Expr, op token.Token) {
+ 
+ 	if x.mode == constant_ {
+ 		if y.mode == constant_ {
++			// if either x or y has an unknown value, the result is unknown
++			if x.val.Kind() == constant.Unknown || y.val.Kind() == constant.Unknown {
++				x.val = constant.MakeUnknown()
++				// ensure the correct type - see comment below
++				if !isInteger(x.typ) {
++					x.typ = Typ[UntypedInt]
++				}
++				return
++			}
+ 			// rhs must be within reasonable bounds in constant shifts
+-			const shiftBound = 1023 - 1 + 52 // so we can express smallestFloat64
++			const shiftBound = 1023 - 1 + 52 // so we can express smallestFloat64 (see issue #44057)
+ 			s, ok := constant.Uint64Val(yval)
+ 			if !ok || s > shiftBound {
+ 				check.invalidOp(y, _InvalidShiftCount, "invalid shift count %s", y)
+diff --git a/src/go/types/stdlib_test.go b/src/go/types/stdlib_test.go
+index 8a1e2905a7..71e14b85e5 100644
+--- a/src/go/types/stdlib_test.go
++++ b/src/go/types/stdlib_test.go
+@@ -175,7 +175,6 @@ func TestStdFixed(t *testing.T) {
+ 		"issue16369.go",  // go/types handles this correctly - not an issue
+ 		"issue18459.go",  // go/types doesn't check validity of //go:xxx directives
+ 		"issue18882.go",  // go/types doesn't check validity of //go:xxx directives
+-		"issue20232.go",  // go/types handles larger constants than gc
+ 		"issue20529.go",  // go/types does not have constraints on stack size
+ 		"issue22200.go",  // go/types does not have constraints on stack size
+ 		"issue22200b.go", // go/types does not have constraints on stack size
+diff --git a/src/go/types/testdata/builtins.src b/src/go/types/testdata/builtins.src
+index a7613adc35..6ee28f13b4 100644
+--- a/src/go/types/testdata/builtins.src
++++ b/src/go/types/testdata/builtins.src
+@@ -514,7 +514,7 @@ func panic1() {
+ 	panic("foo")
+ 	panic(false)
+ 	panic(1<<10)
+-	panic(1 /* ERROR overflows */ <<1000)
++	panic(1 << /* ERROR constant shift overflow */ 1000)
+ 	_ = panic /* ERROR used as value */ (0)
+ 
+ 	var s []byte
+@@ -538,7 +538,7 @@ func print1() {
+ 	print(2.718281828)
+ 	print(false)
+ 	print(1<<10)
+-	print(1 /* ERROR overflows */ <<1000)
++	print(1 << /* ERROR constant shift overflow */ 1000)
+ 	println(nil /* ERROR untyped nil */ )
+ 
+ 	var s []int
+@@ -564,7 +564,7 @@ func println1() {
+ 	println(2.718281828)
+ 	println(false)
+ 	println(1<<10)
+-	println(1 /* ERROR overflows */ <<1000)
++	println(1 << /* ERROR constant shift overflow */ 1000)
+ 	println(nil /* ERROR untyped nil */ )
+ 
+ 	var s []int
+@@ -695,7 +695,7 @@ func Alignof1() {
+ 	_ = unsafe.Alignof(42)
+ 	_ = unsafe.Alignof(new(struct{}))
+ 	_ = unsafe.Alignof(1<<10)
+-	_ = unsafe.Alignof(1 /* ERROR overflows */ <<1000)
++	_ = unsafe.Alignof(1 << /* ERROR constant shift overflow */ 1000)
+ 	_ = unsafe.Alignof(nil /* ERROR "untyped nil */ )
+ 	unsafe /* ERROR not used */ .Alignof(x)
+ 
+@@ -783,7 +783,7 @@ func Sizeof1() {
+ 	_ = unsafe.Sizeof(42)
+ 	_ = unsafe.Sizeof(new(complex128))
+ 	_ = unsafe.Sizeof(1<<10)
+-	_ = unsafe.Sizeof(1 /* ERROR overflows */ <<1000)
++	_ = unsafe.Sizeof(1 << /* ERROR constant shift overflow */ 1000)
+ 	_ = unsafe.Sizeof(nil /* ERROR untyped nil */ )
+ 	unsafe /* ERROR not used */ .Sizeof(x)
+ 
+diff --git a/src/go/types/testdata/const0.src b/src/go/types/testdata/const0.src
+index 2916af5490..5608b1549b 100644
+--- a/src/go/types/testdata/const0.src
++++ b/src/go/types/testdata/const0.src
+@@ -350,8 +350,14 @@ const _ = unsafe.Sizeof(func() {
+ })
+ 
+ // untyped constants must not get arbitrarily large
+-const (
+-	huge = 1<<1000
+-	_ = huge * huge * /* ERROR constant multiplication overflow */ huge
+-	_ = huge << 1000 << /* ERROR constant shift overflow */ 1000
+-)
++const prec = 512 // internal maximum precision for integers
++const maxInt = (1<<(prec/2) - 1) * (1<<(prec/2) + 1) // == 1<<prec - 1
++
++const _ = maxInt + /* ERROR constant addition overflow */ 1
++const _ = -maxInt - /* ERROR constant subtraction overflow */ 1
++const _ = maxInt ^ /* ERROR constant bitwise XOR overflow */ -1
++const _ = maxInt * /* ERROR constant multiplication overflow */ 2
++const _ = maxInt << /* ERROR constant shift overflow */ 2
++const _ = 1 << /* ERROR constant shift overflow */ prec
++
++const _ = ^ /* ERROR constant bitwise complement overflow */ maxInt
+diff --git a/src/go/types/testdata/const1.src b/src/go/types/testdata/const1.src
+index d82770464f..56b6bd4ca5 100644
+--- a/src/go/types/testdata/const1.src
++++ b/src/go/types/testdata/const1.src
+@@ -43,7 +43,12 @@ const (
+ 
+ const (
+ 	smallestFloat32 = 1.0 / (1<<(127 - 1 + 23))
+-	smallestFloat64 = 1.0 / (1<<(1023 - 1 + 52))
++	// TODO(gri) The compiler limits integers to 512 bit and thus
++	//           we cannot compute the value (1<<(1023 - 1 + 52))
++	//           without overflow. For now we match the compiler.
++	//           See also issue #44057.
++	// smallestFloat64 = 1.0 / (1<<(1023 - 1 + 52))
++	smallestFloat64 = 4.940656458412465441765687928682213723651e-324
+ )
+ 
+ const (
+@@ -53,7 +58,12 @@ const (
+ 
+ const (
+ 	maxFloat32 = 1<<127 * (1<<24 - 1) / (1.0<<23)
+-	maxFloat64 = 1<<1023 * (1<<53 - 1) / (1.0<<52)
++	// TODO(gri) The compiler limits integers to 512 bit and thus
++	//           we cannot compute the value 1<<1023
++	//           without overflow. For now we match the compiler.
++	//           See also issue #44057.
++	// maxFloat64 = 1<<1023 * (1<<53 - 1) / (1.0<<52)
++	maxFloat64 = 1.797693134862315708145274237317043567981e+308
+ )
+ 
+ const (
+@@ -271,7 +281,9 @@ const (
+ 	_ = assert(float64(smallestFloat32) == smallestFloat32)
+ 	_ = assert(float64(smallestFloat32/2) == smallestFloat32/2)
+ 	_ = assert(float64(smallestFloat64) == smallestFloat64)
+-	_ = assert(float64(smallestFloat64/2) == 0)
++	// TODO(gri) With the change to the declaration of smallestFloat64
++	//           this now fails to be true. See issue #44058.
++	// _ = assert(float64(smallestFloat64/2) == 0)
+ )
+ 
+ const (
+diff --git a/src/go/types/testdata/stmt0.src b/src/go/types/testdata/stmt0.src
+index 13777292a9..de8f936a61 100644
+--- a/src/go/types/testdata/stmt0.src
++++ b/src/go/types/testdata/stmt0.src
+@@ -90,7 +90,7 @@ func assignments1() {
+ 
+ 	// assignments to _
+ 	_ = nil /* ERROR "use of untyped nil" */
+-	_ = 1 /* ERROR overflow */ <<1000
++	_ = 1  << /* ERROR constant shift overflow */ 1000
+ 	(_) = 0
+ }
+ 

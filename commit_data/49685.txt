@@ -11,7 +11,183 @@ Date:   Thu Aug 19 08:35:12 2021 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/344453
     Trust: Joel Sing <joel@sing.id.au>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/asm/internal/asm/testdata/riscv64.s |  19 ++++-
  src/cmd/internal/obj/riscv/obj.go           | 115 +++++++++++-----------------
  2 files changed, 62 insertions(+), 72 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/riscv64.s b/src/cmd/asm/internal/asm/testdata/riscv64.s
+index 6f37a940c7..5a209ac17e 100644
+--- a/src/cmd/asm/internal/asm/testdata/riscv64.s
++++ b/src/cmd/asm/internal/asm/testdata/riscv64.s
+@@ -10,20 +10,35 @@ start:
+ 
+ 	// 2.4: Integer Computational Instructions
+ 
+-	ADDI	$2047, X5, X6				// 1383f27f
+-	ADDI	$-2048, X5, X6				// 13830280
+ 	ADDI	$2047, X5				// 9382f27f
+ 	ADDI	$-2048, X5				// 93820280
++	ADDI	$2048, X5				// 9382024093820240
++	ADDI	$-2049, X5				// 938202c09382f2bf
++	ADDI	$4094, X5				// 9382f27f9382f27f
++	ADDI	$-4096, X5				// 9382028093820280
++	ADDI	$4095, X5				// b71f00009b8fffffb382f201
++	ADDI	$-4097, X5				// b7ffffff9b8fffffb382f201
++	ADDI	$2047, X5, X6				// 1383f27f
++	ADDI	$-2048, X5, X6				// 13830280
++	ADDI	$2048, X5, X6				// 1383024013030340
++	ADDI	$-2049, X5, X6				// 138302c01303f3bf
++	ADDI	$4094, X5, X6				// 1383f27f1303f37f
++	ADDI	$-4096, X5, X6				// 1383028013030380
++	ADDI	$4095, X5, X6				// b71f00009b8fffff3383f201
++	ADDI	$-4097, X5, X6				// b7ffffff9b8fffff3383f201
+ 
+ 	SLTI	$55, X5, X7				// 93a37203
+ 	SLTIU	$55, X5, X7				// 93b37203
+ 
+ 	ANDI	$1, X5, X6				// 13f31200
+ 	ANDI	$1, X5					// 93f21200
++	ANDI	$2048, X5				// b71f00009b8f0f80b3f2f201
+ 	ORI	$1, X5, X6				// 13e31200
+ 	ORI	$1, X5					// 93e21200
++	ORI	$2048, X5				// b71f00009b8f0f80b3e2f201
+ 	XORI	$1, X5, X6				// 13c31200
+ 	XORI	$1, X5					// 93c21200
++	XORI	$2048, X5				// b71f00009b8f0f80b3c2f201
+ 
+ 	SLLI	$1, X5, X6				// 13931200
+ 	SLLI	$1, X5					// 93921200
+diff --git a/src/cmd/internal/obj/riscv/obj.go b/src/cmd/internal/obj/riscv/obj.go
+index ba806fca49..d0574edc41 100644
+--- a/src/cmd/internal/obj/riscv/obj.go
++++ b/src/cmd/internal/obj/riscv/obj.go
+@@ -693,76 +693,6 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 		}
+ 	}
+ 
+-	// Split immediates larger than 12-bits.
+-	for p := cursym.Func().Text; p != nil; p = p.Link {
+-		switch p.As {
+-		// <opi> $imm, REG, TO
+-		case AADDI, AANDI, AORI, AXORI:
+-			// LUI $high, TMP
+-			// ADDI $low, TMP, TMP
+-			// <op> TMP, REG, TO
+-			q := *p
+-			low, high, err := Split32BitImmediate(p.From.Offset)
+-			if err != nil {
+-				ctxt.Diag("%v: constant %d too large", p, p.From.Offset, err)
+-			}
+-			if high == 0 {
+-				break // no need to split
+-			}
+-
+-			// Split into two additions if possible.
+-			imm := q.From.Offset
+-			const minInt12, maxInt12 = -(1 << 11), (1 << 11) - 1
+-			if q.As == AADDI && 2*minInt12 <= imm && imm <= 2*maxInt12 {
+-				imm0, imm1 := imm/2, imm-imm/2
+-				// ADDI $(imm/2), REG, TO
+-				p.Spadj = 0 // needed if TO is SP
+-				p.As = AADDI
+-				p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: imm0}
+-				p.Reg = q.Reg
+-				p.To = q.To
+-				p = obj.Appendp(p, newprog)
+-				// ADDI $(imm-imm/2), TO, TO
+-				p.Spadj = q.Spadj
+-				p.As = AADDI
+-				p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: imm1}
+-				p.Reg = q.To.Reg
+-				p.To = q.To
+-				break
+-			}
+-
+-			p.As = ALUI
+-			p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: high}
+-			p.Reg = 0
+-			p.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_TMP}
+-			p.Spadj = 0 // needed if TO is SP
+-			p = obj.Appendp(p, newprog)
+-
+-			p.As = AADDIW
+-			p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: low}
+-			p.Reg = REG_TMP
+-			p.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_TMP}
+-			p = obj.Appendp(p, newprog)
+-
+-			switch q.As {
+-			case AADDI:
+-				p.As = AADD
+-			case AANDI:
+-				p.As = AAND
+-			case AORI:
+-				p.As = AOR
+-			case AXORI:
+-				p.As = AXOR
+-			default:
+-				ctxt.Diag("unsupported instruction %v for splitting", q)
+-			}
+-			p.Spadj = q.Spadj
+-			p.To = q.To
+-			p.Reg = q.Reg
+-			p.From = obj.Addr{Type: obj.TYPE_REG, Reg: REG_TMP}
+-		}
+-	}
+-
+ 	// Compute instruction addresses.  Once we do that, we need to check for
+ 	// overextended jumps and branches.  Within each iteration, Pc differences
+ 	// are always lower bounds (since the program gets monotonically longer,
+@@ -1960,6 +1890,51 @@ func instructionsForProg(p *obj.Prog) []*instruction {
+ 		ins.funct7 = 2
+ 		ins.rs1, ins.rs2 = uint32(p.From.Reg), REG_ZERO
+ 
++	case AADDI, AANDI, AORI, AXORI:
++		// <opi> $imm, REG, TO
++		low, high, err := Split32BitImmediate(ins.imm)
++		if err != nil {
++			p.Ctxt.Diag("%v: constant %d too large", p, ins.imm, err)
++			return nil
++		}
++		if high == 0 {
++			break
++		}
++
++		// Split into two additions if possible.
++		if ins.as == AADDI && ins.imm >= -(1<<12) && ins.imm < 1<<12-1 {
++			imm0 := ins.imm / 2
++			imm1 := ins.imm - imm0
++
++			// ADDI $(imm/2), REG, TO
++			// ADDI $(imm-imm/2), TO, TO
++			ins.imm = imm0
++			insADDI := &instruction{as: AADDI, rd: ins.rd, rs1: ins.rd, imm: imm1}
++			inss = append(inss, insADDI)
++			break
++		}
++
++		// LUI $high, TMP
++		// ADDI $low, TMP, TMP
++		// <op> TMP, REG, TO
++		insLUI := &instruction{as: ALUI, rd: REG_TMP, imm: high}
++		insADDIW := &instruction{as: AADDIW, rd: REG_TMP, rs1: REG_TMP, imm: low}
++		switch ins.as {
++		case AADDI:
++			ins.as = AADD
++		case AANDI:
++			ins.as = AAND
++		case AORI:
++			ins.as = AOR
++		case AXORI:
++			ins.as = AXOR
++		default:
++			p.Ctxt.Diag("unsupported instruction %v for splitting", p)
++			return nil
++		}
++		ins.rs2 = REG_TMP
++		inss = []*instruction{insLUI, insADDIW, ins}
++
+ 	case ASCW, ASCD, AAMOSWAPW, AAMOSWAPD, AAMOADDW, AAMOADDD, AAMOANDW, AAMOANDD, AAMOORW, AAMOORD,
+ 		AAMOXORW, AAMOXORD, AAMOMINW, AAMOMIND, AAMOMINUW, AAMOMINUD, AAMOMAXW, AAMOMAXD, AAMOMAXUW, AAMOMAXUD:
+ 		// Set aq to use acquire access ordering, which matches Go's memory requirements.

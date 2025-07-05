@@ -5,6 +5,26 @@ Date:   Thu Jun 12 13:43:47 2008 -0700
     make paths explicit for easier installation
     
     SVN=122488
-
+---
  src/runtime/make.bash | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/make.bash b/src/runtime/make.bash
+index 903607325f..46a920b731 100644
+--- a/src/runtime/make.bash
++++ b/src/runtime/make.bash
+@@ -4,11 +4,11 @@
+ 
+ set -ex
+ 
+-6a rt0_amd64_darwin.s
++$HOME/bin/6a rt0_amd64_darwin.s
+ mv rt0_amd64_darwin.6 ../../lib/rt0_amd64_darwin.6
+ 
+-6a rt0_amd64_linux.s
++$HOME/bin/6a rt0_amd64_linux.s
+ mv rt0_amd64_linux.6 ../../lib/rt0_amd64_linux.6
+ 
+-6c runtime.c
++$HOME/bin/6c runtime.c
+ mv runtime.6 ../../lib/rt_amd64.6

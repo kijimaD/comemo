@@ -10,7 +10,7 @@ Date:   Tue Nov 29 16:13:09 2016 -0800
     Change-Id: Ibe429e327c7f8554f8ac205c61ce3738013aed98
     Reviewed-on: https://go-review.googlesource.com/34231
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/fmt_test.go                     |   2 +-
  src/cmd/compile/internal/gc/noder.go            |  12 +-
  src/cmd/compile/internal/syntax/nodes.go        |  26 ++--
@@ -23,3 +23,886 @@ Date:   Tue Nov 29 16:13:09 2016 -0800
  src/cmd/compile/internal/syntax/source.go       |  37 ++++--
  src/cmd/compile/internal/syntax/syntax.go       |   9 +-
  11 files changed, 383 insertions(+), 114 deletions(-)
+
+diff --git a/src/cmd/compile/fmt_test.go b/src/cmd/compile/fmt_test.go
+index 1a648084f7..8660e7ae9b 100644
+--- a/src/cmd/compile/fmt_test.go
++++ b/src/cmd/compile/fmt_test.go
+@@ -663,7 +663,6 @@ var knownFormats = map[string]string{
+ 	"int %-12d":                                       "",
+ 	"int %-6d":                                        "",
+ 	"int %-8o":                                        "",
+-	"int %5d":                                         "",
+ 	"int %6d":                                         "",
+ 	"int %c":                                          "",
+ 	"int %d":                                          "",
+@@ -699,6 +698,7 @@ var knownFormats = map[string]string{
+ 	"time.Duration %d": "",
+ 	"time.Duration %v": "",
+ 	"uint %04x":        "",
++	"uint %5d":         "",
+ 	"uint %d":          "",
+ 	"uint16 %d":        "",
+ 	"uint16 %v":        "",
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index 2366cf31f6..ae4425db2d 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -41,7 +41,7 @@ func parseFile(filename string) {
+ // noder transforms package syntax's AST into a Nod tree.
+ type noder struct {
+ 	baseline  int32
+-	linknames []int // tracks //go:linkname lines
++	linknames []uint // tracks //go:linkname lines
+ }
+ 
+ func (p *noder) file(file *syntax.File) {
+@@ -986,7 +986,7 @@ func (p *noder) nod(orig syntax.Node, op Op, left, right *Node) *Node {
+ }
+ 
+ func (p *noder) setlineno(src_ syntax.Node, dst *Node) *Node {
+-	l := src_.Line()
++	l := src_.Pos().Line()
+ 	if l == 0 {
+ 		// TODO(mdempsky): Shouldn't happen. Fix package syntax.
+ 		return dst
+@@ -999,7 +999,7 @@ func (p *noder) lineno(n syntax.Node) {
+ 	if n == nil {
+ 		return
+ 	}
+-	l := n.Line()
++	l := n.Pos().Line()
+ 	if l == 0 {
+ 		// TODO(mdempsky): Shouldn't happen. Fix package syntax.
+ 		return
+@@ -1019,7 +1019,7 @@ func (p *noder) error(err error) {
+ 	yyerrorl(src.MakePos(line), "%s", msg)
+ }
+ 
+-func (p *noder) pragma(pos, line int, text string) syntax.Pragma {
++func (p *noder) pragma(line uint, text string) syntax.Pragma {
+ 	switch {
+ 	case strings.HasPrefix(text, "line "):
+ 		// Want to use LastIndexByte below but it's not defined in Go1.4 and bootstrap fails.
+@@ -1033,7 +1033,7 @@ func (p *noder) pragma(pos, line int, text string) syntax.Pragma {
+ 			break
+ 		}
+ 		if n > 1e8 {
+-			p.error(syntax.Error{Pos: pos, Line: line, Msg: "line number out of range"})
++			p.error(syntax.Error{Line: line, Msg: "line number out of range"})
+ 			errorexit()
+ 		}
+ 		if n <= 0 {
+@@ -1049,7 +1049,7 @@ func (p *noder) pragma(pos, line int, text string) syntax.Pragma {
+ 
+ 		f := strings.Fields(text)
+ 		if len(f) != 3 {
+-			p.error(syntax.Error{Pos: pos, Line: line, Msg: "usage: //go:linkname localname linkname"})
++			p.error(syntax.Error{Line: line, Msg: "usage: //go:linkname localname linkname"})
+ 			break
+ 		}
+ 		lookup(f[1]).Linkname = f[2]
+diff --git a/src/cmd/compile/internal/syntax/nodes.go b/src/cmd/compile/internal/syntax/nodes.go
+index fadba84bce..4cf8cc4202 100644
+--- a/src/cmd/compile/internal/syntax/nodes.go
++++ b/src/cmd/compile/internal/syntax/nodes.go
+@@ -8,7 +8,7 @@ package syntax
+ // Nodes
+ 
+ type Node interface {
+-	Line() uint32
++	Pos() *Pos
+ 	aNode()
+ 	init(p *parser)
+ }
+@@ -16,19 +16,17 @@ type Node interface {
+ type node struct {
+ 	// commented out for now since not yet used
+ 	// doc  *Comment // nil means no comment(s) attached
+-	pos  uint32
+-	line uint32
++	pos Pos
+ }
+ 
+-func (*node) aNode() {}
+-
+-func (n *node) Line() uint32 {
+-	return n.line
++func (n *node) Pos() *Pos {
++	return &n.pos
+ }
+ 
++func (*node) aNode() {}
++
+ func (n *node) init(p *parser) {
+-	n.pos = uint32(p.pos)
+-	n.line = uint32(p.line)
++	n.pos = MakePos(nil, p.line, p.col)
+ }
+ 
+ // ----------------------------------------------------------------------------
+@@ -38,7 +36,7 @@ func (n *node) init(p *parser) {
+ type File struct {
+ 	PkgName  *Name
+ 	DeclList []Decl
+-	Lines    int
++	Lines    uint
+ 	node
+ }
+ 
+@@ -102,7 +100,7 @@ type (
+ 		Type    *FuncType
+ 		Body    []Stmt // nil means no body (forward declaration)
+ 		Pragma  Pragma // TODO(mdempsky): Cleaner solution.
+-		EndLine uint32 // TODO(mdempsky): Cleaner solution.
++		EndLine uint   // TODO(mdempsky): Cleaner solution.
+ 		decl
+ 	}
+ )
+@@ -142,8 +140,8 @@ type (
+ 	CompositeLit struct {
+ 		Type     Expr // nil means no literal type
+ 		ElemList []Expr
+-		NKeys    int    // number of elements with keys
+-		EndLine  uint32 // TODO(mdempsky): Cleaner solution.
++		NKeys    int  // number of elements with keys
++		EndLine  uint // TODO(mdempsky): Cleaner solution.
+ 		expr
+ 	}
+ 
+@@ -157,7 +155,7 @@ type (
+ 	FuncLit struct {
+ 		Type    *FuncType
+ 		Body    []Stmt
+-		EndLine uint32 // TODO(mdempsky): Cleaner solution.
++		EndLine uint // TODO(mdempsky): Cleaner solution.
+ 		expr
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/syntax/parser.go b/src/cmd/compile/internal/syntax/parser.go
+index 121dfb75e5..dddf32f6c2 100644
+--- a/src/cmd/compile/internal/syntax/parser.go
++++ b/src/cmd/compile/internal/syntax/parser.go
+@@ -54,11 +54,11 @@ func (p *parser) want(tok token) {
+ 
+ // syntax_error reports a syntax error at the current line.
+ func (p *parser) syntax_error(msg string) {
+-	p.syntax_error_at(p.pos, p.line, msg)
++	p.syntax_error_at(p.line, p.col, msg)
+ }
+ 
+ // Like syntax_error, but reports error at given line rather than current lexer line.
+-func (p *parser) syntax_error_at(pos, line int, msg string) {
++func (p *parser) syntax_error_at(line, col uint, msg string) {
+ 	if trace {
+ 		defer p.trace("syntax_error (" + msg + ")")()
+ 	}
+@@ -77,7 +77,7 @@ func (p *parser) syntax_error_at(pos, line int, msg string) {
+ 		msg = ", " + msg
+ 	default:
+ 		// plain error - we don't care about current token
+-		p.error_at(pos, line, "syntax error: "+msg)
++		p.error_at(line, col, "syntax error: "+msg)
+ 		return
+ 	}
+ 
+@@ -99,7 +99,7 @@ func (p *parser) syntax_error_at(pos, line int, msg string) {
+ 		tok = tokstring(p.tok)
+ 	}
+ 
+-	p.error_at(pos, line, "syntax error: unexpected "+tok+msg)
++	p.error_at(line, col, "syntax error: unexpected "+tok+msg)
+ }
+ 
+ // The stopset contains keywords that start a statement.
+@@ -428,7 +428,7 @@ func (p *parser) funcDecl() *FuncDecl {
+ 	f.Body = p.funcBody()
+ 
+ 	f.Pragma = p.pragma
+-	f.EndLine = uint32(p.line)
++	f.EndLine = p.line
+ 
+ 	// TODO(gri) deal with function properties
+ 	// if noescape && body != nil {
+@@ -651,7 +651,7 @@ func (p *parser) operand(keep_parens bool) Expr {
+ 			f.init(p)
+ 			f.Type = t
+ 			f.Body = p.funcBody()
+-			f.EndLine = uint32(p.line)
++			f.EndLine = p.line
+ 			p.xnest--
+ 			p.fnest--
+ 			return f
+@@ -872,7 +872,7 @@ func (p *parser) complitexpr() *CompositeLit {
+ 		}
+ 	}
+ 
+-	x.EndLine = uint32(p.line)
++	x.EndLine = p.line
+ 	p.xnest--
+ 	p.want(_Rbrace)
+ 
+@@ -1562,7 +1562,7 @@ func (p *parser) labeledStmt(label *Name) Stmt {
+ 		s.Stmt = p.stmt()
+ 		if s.Stmt == missing_stmt {
+ 			// report error at line of ':' token
+-			p.syntax_error_at(int(label.pos), int(label.line), "missing statement after label")
++			p.syntax_error_at(label.Pos().Line(), label.Pos().Col(), "missing statement after label")
+ 			// we are already at the end of the labeled statement - no need to advance
+ 			return missing_stmt
+ 		}
+diff --git a/src/cmd/compile/internal/syntax/parser_test.go b/src/cmd/compile/internal/syntax/parser_test.go
+index c4b43bfe78..482ab05675 100644
+--- a/src/cmd/compile/internal/syntax/parser_test.go
++++ b/src/cmd/compile/internal/syntax/parser_test.go
+@@ -39,7 +39,7 @@ func TestStdLib(t *testing.T) {
+ 
+ 	type parseResult struct {
+ 		filename string
+-		lines    int
++		lines    uint
+ 	}
+ 
+ 	results := make(chan parseResult)
+@@ -65,7 +65,7 @@ func TestStdLib(t *testing.T) {
+ 		}
+ 	}()
+ 
+-	var count, lines int
++	var count, lines uint
+ 	for res := range results {
+ 		count++
+ 		lines += res.lines
+diff --git a/src/cmd/compile/internal/syntax/pos.go b/src/cmd/compile/internal/syntax/pos.go
+new file mode 100644
+index 0000000000..c964178a77
+--- /dev/null
++++ b/src/cmd/compile/internal/syntax/pos.go
+@@ -0,0 +1,170 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This file implements the encoding of source positions.
++
++package syntax
++
++import "fmt"
++
++// A Pos encodes a source position consisting of a (line, column) number pair
++// and a position base.
++//
++// The (line, column) values refer to a position in a file independent of any
++// position base ("absolute" position). They start at 1, and they are unknown
++// if 0.
++//
++// The position base is used to determine the "relative" position, that is the
++// filename and line number relative to the position base. If the base refers
++// to the current file, there is no difference between absolute and relative
++// positions. If it refers to a //line pragma, a relative position is relative
++// to that pragma. A position base in turn contains the position at which it
++// was introduced in the current file.
++type Pos struct {
++	base *PosBase
++	lico
++}
++
++// MakePos creates a new Pos value with the given base, and (file-absolute)
++// line and column.
++func MakePos(base *PosBase, line, col uint) Pos {
++	return Pos{base, makeLico(line, col)}
++}
++
++// Filename returns the name of the actual file containing this position.
++func (p *Pos) Filename() string {
++	if b := p.base; b != nil {
++		return b.pos.RelFilename()
++	}
++	return ""
++}
++
++// Base returns the position base.
++func (p *Pos) Base() *PosBase { return p.base }
++
++// RelFilename returns the filename recorded with the position's base.
++func (p *Pos) RelFilename() string {
++	if b := p.base; b != nil {
++		return b.filename
++	}
++	return ""
++}
++
++// RelLine returns the line number relative to the positions's base.
++func (p *Pos) RelLine() uint {
++	var line0 uint
++	if b := p.base; b != nil {
++		line0 = b.line - p.base.pos.Line()
++	}
++	return line0 + p.Line()
++}
++
++func (p *Pos) String() string {
++	b := p.base
++
++	if b == nil {
++		return p.lico.String()
++	}
++
++	if b == b.pos.base {
++		// base is file base
++		return fmt.Sprintf("%s:%s", b.filename, p.lico.String())
++	}
++
++	// base is relative
++	return fmt.Sprintf("%s:%s[%s]", b.filename, licoString(p.RelLine(), p.Col()), b.pos.String())
++}
++
++// ----------------------------------------------------------------------------
++// PosBase
++
++// A PosBase encodes a filename and base line number.
++// Typically, each file and line pragma introduce a PosBase.
++// A nil *PosBase is a ready to use file PosBase for an unnamed
++// file with line numbers starting at 1.
++type PosBase struct {
++	pos      Pos
++	filename string
++	line     uint
++}
++
++// NewFileBase returns a new *PosBase for a file with the given filename.
++func NewFileBase(filename string) *PosBase {
++	base := &PosBase{filename: filename}
++	base.pos = MakePos(base, 0, 0)
++	return base
++}
++
++// NewLinePragmaBase returns a new *PosBase for a line pragma of the form
++//      //line filename:line
++// at position pos.
++func NewLinePragmaBase(pos Pos, filename string, line uint) *PosBase {
++	return &PosBase{pos, filename, line - 1}
++}
++
++// Pos returns the position at which base is located.
++// If b == nil, the result is the empty position.
++func (b *PosBase) Pos() Pos {
++	if b != nil {
++		return b.pos
++	}
++	return Pos{}
++}
++
++// Filename returns the filename recorded with the base.
++// If b == nil, the result is the empty string.
++func (b *PosBase) Filename() string {
++	if b != nil {
++		return b.filename
++	}
++	return ""
++}
++
++// Line returns the line number recorded with the base.
++// If b == nil, the result is 0.
++func (b *PosBase) Line() uint {
++	if b != nil {
++		return b.line
++	}
++	return 0
++}
++
++// ----------------------------------------------------------------------------
++// lico
++
++// A lico is a compact encoding of a LIne and COlumn number.
++type lico uint32
++
++// Layout constants: 23 bits for line, 9 bits for column.
++// (If this is too tight, we can either make lico 64b wide,
++// or we can introduce a tiered encoding where we remove column
++// information as line numbers grow bigger; similar to what gcc
++// does.)
++const (
++	lineW, lineM = 23, 1<<lineW - 1
++	colW, colM   = 32 - lineW, 1<<colW - 1
++)
++
++func makeLico(line, col uint) lico {
++	if line > lineM {
++		// cannot represent line, use max. line so we have some information
++		line = lineM
++	}
++	if col > colM {
++		// cannot represent column, use 0 to indicate unknown column
++		col = 0
++	}
++	return lico(line<<colW | col)
++}
++
++func (x lico) Line() uint     { return uint(x) >> colW }
++func (x lico) Col() uint      { return uint(x) & colM }
++func (x lico) String() string { return licoString(x.Line(), x.Col()) }
++
++func licoString(line, col uint) string {
++	if col == 0 {
++		return fmt.Sprintf("%d", line)
++	}
++	return fmt.Sprintf("%d:%d", line, col)
++}
+diff --git a/src/cmd/compile/internal/syntax/pos_test.go b/src/cmd/compile/internal/syntax/pos_test.go
+new file mode 100644
+index 0000000000..65f84113aa
+--- /dev/null
++++ b/src/cmd/compile/internal/syntax/pos_test.go
+@@ -0,0 +1,86 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package syntax
++
++import (
++	"fmt"
++	"testing"
++)
++
++func TestPos(t *testing.T) {
++	f1 := NewFileBase("f1")
++	f2 := NewLinePragmaBase(Pos{}, "f2", 10)
++	f3 := NewLinePragmaBase(MakePos(f1, 10, 1), "f3", 100)
++	f4 := NewLinePragmaBase(MakePos(f3, 10, 1), "f4", 100)
++
++	for _, test := range []struct {
++		pos    Pos
++		string string
++
++		// absolute info
++		filename  string
++		line, col uint
++
++		// relative info
++		relFilename string
++		relLine     uint
++	}{
++		{Pos{}, "0", "", 0, 0, "", 0},
++		{MakePos(nil, 2, 3), "2:3", "", 2, 3, "", 2},
++		{MakePos(f1, 1, 1), "f1:1:1", "f1", 1, 1, "f1", 1},
++		{MakePos(f2, 7, 10), "f2:16:10[0]", "", 7, 10, "f2", 16},
++		{MakePos(f3, 12, 7), "f3:101:7[f1:10:1]", "f1", 12, 7, "f3", 101},
++		{MakePos(f4, 25, 1), "f4:114:1[f3:99:1[f1:10:1]]", "f3", 25, 1, "f4", 114}, // doesn't occur in Go code
++	} {
++		pos := test.pos
++		if got := pos.String(); got != test.string {
++			t.Errorf("%s: got %q", test.string, got)
++		}
++
++		// absolute info
++		if got := pos.Filename(); got != test.filename {
++			t.Errorf("%s: got filename %q; want %q", test.string, got, test.filename)
++		}
++		if got := pos.Line(); got != test.line {
++			t.Errorf("%s: got line %d; want %d", test.string, got, test.line)
++		}
++		if got := pos.Col(); got != test.col {
++			t.Errorf("%s: got col %d; want %d", test.string, got, test.col)
++		}
++
++		// relative info
++		if got := pos.RelFilename(); got != test.relFilename {
++			t.Errorf("%s: got relFilename %q; want %q", test.string, got, test.relFilename)
++		}
++		if got := pos.RelLine(); got != test.relLine {
++			t.Errorf("%s: got relLine %d; want %d", test.string, got, test.relLine)
++		}
++	}
++}
++
++func TestLico(t *testing.T) {
++	for _, test := range []struct {
++		x         lico
++		string    string
++		line, col uint
++	}{
++		{0, "0", 0, 0},
++		{makeLico(0, 0), "0", 0, 0},
++		{makeLico(0, 1), "0:1", 0, 1},
++		{makeLico(1, 0), "1", 1, 0},
++		{makeLico(1, 1), "1:1", 1, 1},
++		{makeLico(2, 3), "2:3", 2, 3},
++		{makeLico(lineM, 1), fmt.Sprintf("%d:1", lineM), lineM, 1},
++		{makeLico(lineM+1, 1), fmt.Sprintf("%d:1", lineM), lineM, 1}, // line too large, stick with max. line
++		{makeLico(1, colM), fmt.Sprintf("1:%d", colM), 1, colM},
++		{makeLico(1, colM+1), "1", 1, 0}, // column too large
++		{makeLico(lineM+1, colM+1), fmt.Sprintf("%d", lineM), lineM, 0},
++	} {
++		x := test.x
++		if got := x.String(); got != test.string {
++			t.Errorf("%s: got %q", test.string, got)
++		}
++	}
++}
+diff --git a/src/cmd/compile/internal/syntax/scanner.go b/src/cmd/compile/internal/syntax/scanner.go
+index b84fcc5fd1..978d7d2c0a 100644
+--- a/src/cmd/compile/internal/syntax/scanner.go
++++ b/src/cmd/compile/internal/syntax/scanner.go
+@@ -18,7 +18,7 @@ type scanner struct {
+ 	pragma Pragma
+ 
+ 	// current token, valid after calling next()
+-	pos, line int
++	line, col uint
+ 	tok       token
+ 	lit       string   // valid if tok is _Name or _Literal
+ 	kind      LitKind  // valid if tok is _Literal
+@@ -46,7 +46,7 @@ redo:
+ 	}
+ 
+ 	// token start
+-	s.pos, s.line = s.source.pos0(), s.source.line0
++	s.line, s.col = s.source.line0, s.source.col0
+ 
+ 	if isLetter(c) || c >= utf8.RuneSelf && (unicode.IsLetter(c) || s.isCompatRune(c, true)) {
+ 		s.ident()
+@@ -114,8 +114,7 @@ redo:
+ 	case '.':
+ 		c = s.getr()
+ 		if isDigit(c) {
+-			s.ungetr()
+-			s.source.r0-- // make sure '.' is part of literal (line cannot have changed)
++			s.ungetr2()
+ 			s.number('.')
+ 			break
+ 		}
+@@ -125,8 +124,7 @@ redo:
+ 				s.tok = _DotDotDot
+ 				break
+ 			}
+-			s.ungetr()
+-			s.source.r0-- // make next ungetr work (line cannot have changed)
++			s.ungetr2()
+ 		}
+ 		s.ungetr()
+ 		s.tok = _Dot
+@@ -460,7 +458,7 @@ func (s *scanner) stdString() {
+ 			break
+ 		}
+ 		if r < 0 {
+-			s.error_at(s.pos, s.line, "string not terminated")
++			s.error_at(s.line, s.col, "string not terminated")
+ 			break
+ 		}
+ 	}
+@@ -480,7 +478,7 @@ func (s *scanner) rawString() {
+ 			break
+ 		}
+ 		if r < 0 {
+-			s.error_at(s.pos, s.line, "string not terminated")
++			s.error_at(s.line, s.col, "string not terminated")
+ 			break
+ 		}
+ 	}
+@@ -559,7 +557,7 @@ func (s *scanner) lineComment() {
+ 		}
+ 		r = s.getr()
+ 	}
+-	s.pragma |= s.pragh(0, s.line, strings.TrimSuffix(string(s.stopLit()), "\r"))
++	s.pragma |= s.pragh(s.line, strings.TrimSuffix(string(s.stopLit()), "\r"))
+ 	return
+ 
+ skip:
+@@ -580,7 +578,7 @@ func (s *scanner) fullComment() {
+ 			}
+ 		}
+ 		if r < 0 {
+-			s.error_at(s.pos, s.line, "comment not terminated")
++			s.error_at(s.line, s.col, "comment not terminated")
+ 			return
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/syntax/scanner_test.go b/src/cmd/compile/internal/syntax/scanner_test.go
+index 0e81c4e613..4c00ddc5d6 100644
+--- a/src/cmd/compile/internal/syntax/scanner_test.go
++++ b/src/cmd/compile/internal/syntax/scanner_test.go
+@@ -56,7 +56,7 @@ func TestTokens(t *testing.T) {
+ 	for i, want := range sampleTokens {
+ 		nlsemi := false
+ 
+-		if got.line != i+1 {
++		if got.line != uint(i+1) {
+ 			t.Errorf("got line %d; want %d", got.line, i+1)
+ 		}
+ 
+@@ -256,69 +256,69 @@ var sampleTokens = [...]struct {
+ func TestScanErrors(t *testing.T) {
+ 	for _, test := range []struct {
+ 		src, msg  string
+-		pos, line int
++		line, col uint
+ 	}{
+ 		// Note: Positions for lexical errors are the earliest position
+ 		// where the error is apparent, not the beginning of the respective
+ 		// token.
+ 
+ 		// rune-level errors
+-		{"fo\x00o", "invalid NUL character", 2, 1},
+-		{"foo\n\ufeff bar", "invalid BOM in the middle of the file", 4, 2},
+-		{"foo\n\n\xff    ", "invalid UTF-8 encoding", 5, 3},
++		{"fo\x00o", "invalid NUL character", 1, 3},
++		{"foo\n\ufeff bar", "invalid BOM in the middle of the file", 2, 1},
++		{"foo\n\n\xff    ", "invalid UTF-8 encoding", 3, 1},
+ 
+ 		// token-level errors
+-		{"x + ~y", "bitwise complement operator is ^", 4, 1},
+-		{"foo$bar = 0", "illegal character U+0024 '$'", 3, 1},
+-		{"const x = 0xyz", "malformed hex constant", 12, 1},
+-		{"0123456789", "malformed octal constant", 10, 1},
+-		{"0123456789. /* foobar", "comment not terminated", 12, 1},   // valid float constant
+-		{"0123456789e0 /*\nfoobar", "comment not terminated", 13, 1}, // valid float constant
+-		{"var a, b = 08, 07\n", "malformed octal constant", 13, 1},
+-		{"(x + 1.0e+x)", "malformed floating-point constant exponent", 10, 1},
+-
+-		{`''`, "empty character literal or unescaped ' in character literal", 1, 1},
+-		{"'\n", "newline in character literal", 1, 1},
+-		{`'\`, "missing '", 2, 1},
+-		{`'\'`, "missing '", 3, 1},
+-		{`'\x`, "missing '", 3, 1},
+-		{`'\x'`, "non-hex character in escape sequence: '", 3, 1},
+-		{`'\y'`, "unknown escape sequence", 2, 1},
+-		{`'\x0'`, "non-hex character in escape sequence: '", 4, 1},
+-		{`'\00'`, "non-octal character in escape sequence: '", 4, 1},
+-		{`'\377' /*`, "comment not terminated", 7, 1}, // valid octal escape
+-		{`'\378`, "non-octal character in escape sequence: 8", 4, 1},
+-		{`'\400'`, "octal escape value > 255: 256", 5, 1},
+-		{`'xx`, "missing '", 2, 1},
+-
+-		{"\"\n", "newline in string", 1, 1},
+-		{`"`, "string not terminated", 0, 1},
+-		{`"foo`, "string not terminated", 0, 1},
+-		{"`", "string not terminated", 0, 1},
+-		{"`foo", "string not terminated", 0, 1},
+-		{"/*/", "comment not terminated", 0, 1},
+-		{"/*\n\nfoo", "comment not terminated", 0, 1},
+-		{"/*\n\nfoo", "comment not terminated", 0, 1},
+-		{`"\`, "string not terminated", 0, 1},
+-		{`"\"`, "string not terminated", 0, 1},
+-		{`"\x`, "string not terminated", 0, 1},
+-		{`"\x"`, "non-hex character in escape sequence: \"", 3, 1},
+-		{`"\y"`, "unknown escape sequence", 2, 1},
+-		{`"\x0"`, "non-hex character in escape sequence: \"", 4, 1},
+-		{`"\00"`, "non-octal character in escape sequence: \"", 4, 1},
+-		{`"\377" /*`, "comment not terminated", 7, 1}, // valid octal escape
+-		{`"\378"`, "non-octal character in escape sequence: 8", 4, 1},
+-		{`"\400"`, "octal escape value > 255: 256", 5, 1},
+-
+-		{`s := "foo\z"`, "unknown escape sequence", 10, 1},
+-		{`s := "foo\z00\nbar"`, "unknown escape sequence", 10, 1},
+-		{`"\x`, "string not terminated", 0, 1},
+-		{`"\x"`, "non-hex character in escape sequence: \"", 3, 1},
+-		{`var s string = "\x"`, "non-hex character in escape sequence: \"", 18, 1},
+-		{`return "\Uffffffff"`, "escape sequence is invalid Unicode code point", 18, 1},
++		{"x + ~y", "bitwise complement operator is ^", 1, 5},
++		{"foo$bar = 0", "illegal character U+0024 '$'", 1, 4},
++		{"const x = 0xyz", "malformed hex constant", 1, 13},
++		{"0123456789", "malformed octal constant", 1, 11},
++		{"0123456789. /* foobar", "comment not terminated", 1, 13},   // valid float constant
++		{"0123456789e0 /*\nfoobar", "comment not terminated", 1, 14}, // valid float constant
++		{"var a, b = 08, 07\n", "malformed octal constant", 1, 14},
++		{"(x + 1.0e+x)", "malformed floating-point constant exponent", 1, 11},
++
++		{`''`, "empty character literal or unescaped ' in character literal", 1, 2},
++		{"'\n", "newline in character literal", 1, 2},
++		{`'\`, "missing '", 1, 3},
++		{`'\'`, "missing '", 1, 4},
++		{`'\x`, "missing '", 1, 4},
++		{`'\x'`, "non-hex character in escape sequence: '", 1, 4},
++		{`'\y'`, "unknown escape sequence", 1, 3},
++		{`'\x0'`, "non-hex character in escape sequence: '", 1, 5},
++		{`'\00'`, "non-octal character in escape sequence: '", 1, 5},
++		{`'\377' /*`, "comment not terminated", 1, 8}, // valid octal escape
++		{`'\378`, "non-octal character in escape sequence: 8", 1, 5},
++		{`'\400'`, "octal escape value > 255: 256", 1, 6},
++		{`'xx`, "missing '", 1, 3},
++
++		{"\"\n", "newline in string", 1, 2},
++		{`"`, "string not terminated", 1, 1},
++		{`"foo`, "string not terminated", 1, 1},
++		{"`", "string not terminated", 1, 1},
++		{"`foo", "string not terminated", 1, 1},
++		{"/*/", "comment not terminated", 1, 1},
++		{"/*\n\nfoo", "comment not terminated", 1, 1},
++		{"/*\n\nfoo", "comment not terminated", 1, 1},
++		{`"\`, "string not terminated", 1, 1},
++		{`"\"`, "string not terminated", 1, 1},
++		{`"\x`, "string not terminated", 1, 1},
++		{`"\x"`, "non-hex character in escape sequence: \"", 1, 4},
++		{`"\y"`, "unknown escape sequence", 1, 3},
++		{`"\x0"`, "non-hex character in escape sequence: \"", 1, 5},
++		{`"\00"`, "non-octal character in escape sequence: \"", 1, 5},
++		{`"\377" /*`, "comment not terminated", 1, 8}, // valid octal escape
++		{`"\378"`, "non-octal character in escape sequence: 8", 1, 5},
++		{`"\400"`, "octal escape value > 255: 256", 1, 6},
++
++		{`s := "foo\z"`, "unknown escape sequence", 1, 11},
++		{`s := "foo\z00\nbar"`, "unknown escape sequence", 1, 11},
++		{`"\x`, "string not terminated", 1, 1},
++		{`"\x"`, "non-hex character in escape sequence: \"", 1, 4},
++		{`var s string = "\x"`, "non-hex character in escape sequence: \"", 1, 19},
++		{`return "\Uffffffff"`, "escape sequence is invalid Unicode code point", 1, 19},
+ 
+ 		// former problem cases
+-		{"package p\n\n\xef", "invalid UTF-8 encoding", 11, 3},
++		{"package p\n\n\xef", "invalid UTF-8 encoding", 3, 1},
+ 	} {
+ 		var s scanner
+ 		nerrors := 0
+@@ -330,14 +330,15 @@ func TestScanErrors(t *testing.T) {
+ 				if e.Msg != test.msg {
+ 					t.Errorf("%q: got msg = %q; want %q", test.src, e.Msg, test.msg)
+ 				}
+-				if e.Pos != test.pos {
+-					t.Errorf("%q: got pos = %d; want %d", test.src, e.Pos, test.pos)
+-				}
+ 				if e.Line != test.line {
+ 					t.Errorf("%q: got line = %d; want %d", test.src, e.Line, test.line)
+ 				}
++				if e.Col != test.col {
++					t.Errorf("%q: got col = %d; want %d", test.src, e.Col, test.col)
++				}
+ 			} else if nerrors > 1 {
+-				t.Errorf("%q: got unexpected %q at pos = %d, line = %d", test.src, e.Msg, e.Pos, e.Line)
++				// TODO(gri) make this use position info
++				t.Errorf("%q: got unexpected %q at line = %d", test.src, e.Msg, e.Line)
+ 			}
+ 		}, nil)
+ 
+diff --git a/src/cmd/compile/internal/syntax/source.go b/src/cmd/compile/internal/syntax/source.go
+index 05a11960c6..db161166ed 100644
+--- a/src/cmd/compile/internal/syntax/source.go
++++ b/src/cmd/compile/internal/syntax/source.go
+@@ -2,6 +2,12 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// This file implements source, a buffered rune reader
++// which is specialized for the needs of the Go scanner:
++// Contiguous sequences of runes (literals) are extracted
++// directly as []byte without the need to re-encode the
++// runes in UTF-8 (as would be necessary with bufio.Reader).
++
+ package syntax
+ 
+ import (
+@@ -23,7 +29,8 @@ type source struct {
+ 	buf         [4 << 10]byte
+ 	offs        int   // source offset of buf
+ 	r0, r, w    int   // previous/current read and write buf positions, excluding sentinel
+-	line0, line int   // previous/current line
++	line0, line uint  // previous/current line
++	col0, col   uint  // previous/current column
+ 	err         error // pending io error
+ 
+ 	// literal buffer
+@@ -40,6 +47,7 @@ func (s *source) init(src io.Reader, errh ErrorHandler) {
+ 	s.offs = 0
+ 	s.r0, s.r, s.w = 0, 0, 0
+ 	s.line0, s.line = 1, 1
++	s.col0, s.col = 1, 1
+ 	s.err = nil
+ 
+ 	s.lit = s.lit[:0]
+@@ -47,11 +55,11 @@ func (s *source) init(src io.Reader, errh ErrorHandler) {
+ }
+ 
+ func (s *source) error(msg string) {
+-	s.error_at(s.pos0(), s.line0, msg)
++	s.error_at(s.line0, s.col0, msg)
+ }
+ 
+-func (s *source) error_at(pos, line int, msg string) {
+-	err := Error{pos, line, msg}
++func (s *source) error_at(line, col uint, msg string) {
++	err := Error{line, col, msg}
+ 	if s.first == nil {
+ 		s.first = err
+ 	}
+@@ -61,18 +69,24 @@ func (s *source) error_at(pos, line int, msg string) {
+ 	s.errh(err)
+ }
+ 
+-// pos0 returns the byte position of the last character read.
+-func (s *source) pos0() int {
+-	return s.offs + s.r0
++// ungetr ungets the most recently read rune.
++func (s *source) ungetr() {
++	s.r, s.line, s.col = s.r0, s.line0, s.col0
+ }
+ 
+-func (s *source) ungetr() {
+-	s.r, s.line = s.r0, s.line0
++// ungetr2 is like ungetr but enables a 2nd ungetr.
++// It must not be called if one of the runes seen
++// was a newline.
++func (s *source) ungetr2() {
++	s.ungetr()
++	// line must not have changed
++	s.r0--
++	s.col0--
+ }
+ 
+ func (s *source) getr() rune {
+ redo:
+-	s.r0, s.line0 = s.r, s.line
++	s.r0, s.line0, s.col0 = s.r, s.line, s.col
+ 
+ 	// We could avoid at least one test that is always taken in the
+ 	// for loop below by duplicating the common case code (ASCII)
+@@ -88,12 +102,14 @@ redo:
+ 	// (invariant: s.buf[s.w] == utf8.RuneSelf)
+ 	if b := s.buf[s.r]; b < utf8.RuneSelf {
+ 		s.r++
++		s.col++
+ 		if b == 0 {
+ 			s.error("invalid NUL character")
+ 			goto redo
+ 		}
+ 		if b == '\n' {
+ 			s.line++
++			s.col = 1
+ 		}
+ 		return rune(b)
+ 	}
+@@ -109,6 +125,7 @@ redo:
+ 	// uncommon case: not ASCII
+ 	r, w := utf8.DecodeRune(s.buf[s.r:s.w])
+ 	s.r += w
++	s.col++
+ 
+ 	if r == utf8.RuneError && w == 1 {
+ 		s.error("invalid UTF-8 encoding")
+diff --git a/src/cmd/compile/internal/syntax/syntax.go b/src/cmd/compile/internal/syntax/syntax.go
+index b1e56ee946..5075861be8 100644
+--- a/src/cmd/compile/internal/syntax/syntax.go
++++ b/src/cmd/compile/internal/syntax/syntax.go
+@@ -15,10 +15,9 @@ type Mode uint
+ 
+ // Error describes a syntax error. Error implements the error interface.
+ type Error struct {
+-	// TODO(gri) decide what we really need here
+-	Pos  int // byte offset from file start
+-	Line int // line (starting with 1)
+-	Msg  string
++	// TODO(gri) Line, Col should be replaced with Pos, eventually.
++	Line, Col uint
++	Msg       string
+ }
+ 
+ func (err Error) Error() string {
+@@ -38,7 +37,7 @@ type Pragma uint16
+ // A PragmaHandler is used to process //line and //go: directives as
+ // they're scanned. The returned Pragma value will be unioned into the
+ // next FuncDecl node.
+-type PragmaHandler func(pos, line int, text string) Pragma
++type PragmaHandler func(line uint, text string) Pragma
+ 
+ // Parse parses a single Go source file from src and returns the corresponding
+ // syntax tree. If there are syntax errors, Parse will return the first error

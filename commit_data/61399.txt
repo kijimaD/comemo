@@ -17,7 +17,7 @@ Date:   Tue Aug 13 17:01:47 2024 +0000
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Matloob <matloob@golang.org>
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/cmd/go/alldocs.go                     |   5 +-
  src/cmd/go/internal/auth/auth.go          |  71 ++++++++++++--
  src/cmd/go/internal/auth/gitauth.go       | 151 ++++++++++++++++++++++++++++++
@@ -26,3 +26,563 @@ Date:   Tue Aug 13 17:01:47 2024 +0000
  src/cmd/go/internal/web/http.go           |  47 +++++++---
  src/cmd/go/testdata/script/goauth_git.txt |  72 ++++++++++++++
  7 files changed, 404 insertions(+), 27 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 71bb838ae1..6e7324345d 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -2277,8 +2277,9 @@
+ //	GOAUTH
+ //		A semicolon-separated list of authentication commands for go-import and
+ //		HTTPS module mirror interactions. Currently supports
+-//		"off" (disables authentication) and
+-//		"netrc" (uses credentials from NETRC or the .netrc file in your home directory).
++//		"off" (disables authentication),
++//		"netrc" (uses credentials from NETRC or the .netrc file in your home directory),
++//		"git dir" (runs 'git credential fill' in dir and uses its credentials).
+ //		The default is netrc.
+ //	GOBIN
+ //		The directory where 'go install' will install a command.
+diff --git a/src/cmd/go/internal/auth/auth.go b/src/cmd/go/internal/auth/auth.go
+index c5c24cf97f..7d8eea07e1 100644
+--- a/src/cmd/go/internal/auth/auth.go
++++ b/src/cmd/go/internal/auth/auth.go
+@@ -8,8 +8,12 @@ package auth
+ import (
+ 	"cmd/go/internal/base"
+ 	"cmd/go/internal/cfg"
++	"fmt"
++	"log"
+ 	"net/http"
++	"os"
+ 	"path"
++	"path/filepath"
+ 	"slices"
+ 	"strings"
+ 	"sync"
+@@ -24,14 +28,21 @@ var (
+ // as specified by the GOAUTH environment variable.
+ // It returns whether any matching credentials were found.
+ // req must use HTTPS or this function will panic.
+-func AddCredentials(req *http.Request) bool {
++func AddCredentials(client *http.Client, req *http.Request, prefix string) bool {
+ 	if req.URL.Scheme != "https" {
+ 		panic("GOAUTH called without https")
+ 	}
+ 	if cfg.GOAUTH == "off" {
+ 		return false
+ 	}
+-	authOnce.Do(runGoAuth)
++	// Run all GOAUTH commands at least once.
++	authOnce.Do(func() {
++		runGoAuth(client, "")
++	})
++	if prefix != "" {
++		// First fetch must have failed; re-invoke GOAUTH commands with prefix.
++		runGoAuth(client, prefix)
++	}
+ 	currentPrefix := strings.TrimPrefix(req.URL.String(), "https://")
+ 	// Iteratively try prefixes, moving up the path hierarchy.
+ 	for currentPrefix != "/" && currentPrefix != "." && currentPrefix != "" {
+@@ -48,20 +59,25 @@ func AddCredentials(req *http.Request) bool {
+ // runGoAuth executes authentication commands specified by the GOAUTH
+ // environment variable handling 'off', 'netrc', and 'git' methods specially,
+ // and storing retrieved credentials for future access.
+-func runGoAuth() {
++func runGoAuth(client *http.Client, prefix string) {
++	var cmdErrs []error // store GOAUTH command errors to log later.
++	goAuthCmds := strings.Split(cfg.GOAUTH, ";")
+ 	// The GOAUTH commands are processed in reverse order to prioritize
+ 	// credentials in the order they were specified.
+-	goAuthCmds := strings.Split(cfg.GOAUTH, ";")
+ 	slices.Reverse(goAuthCmds)
+ 	for _, cmdStr := range goAuthCmds {
+ 		cmdStr = strings.TrimSpace(cmdStr)
+-		switch {
+-		case cmdStr == "off":
++		cmdParts := strings.Fields(cmdStr)
++		if len(cmdParts) == 0 {
++			base.Fatalf("GOAUTH encountered an empty command (GOAUTH=%s)", cfg.GOAUTH)
++		}
++		switch cmdParts[0] {
++		case "off":
+ 			if len(goAuthCmds) != 1 {
+ 				base.Fatalf("GOAUTH=off cannot be combined with other authentication commands (GOAUTH=%s)", cfg.GOAUTH)
+ 			}
+ 			return
+-		case cmdStr == "netrc":
++		case "netrc":
+ 			lines, err := readNetrc()
+ 			if err != nil {
+ 				base.Fatalf("could not parse netrc (GOAUTH=%s): %v", cfg.GOAUTH, err)
+@@ -71,12 +87,49 @@ func runGoAuth() {
+ 				r.SetBasicAuth(l.login, l.password)
+ 				storeCredential([]string{l.machine}, r.Header)
+ 			}
+-		case strings.HasPrefix(cmdStr, "git"):
+-			base.Fatalf("unimplemented: %s", cmdStr)
++		case "git":
++			if len(cmdParts) != 2 {
++				base.Fatalf("GOAUTH=git dir method requires an absolute path to the git working directory")
++			}
++			dir := cmdParts[1]
++			if !filepath.IsAbs(dir) {
++				base.Fatalf("GOAUTH=git dir method requires an absolute path to the git working directory, dir is not absolute")
++			}
++			fs, err := os.Stat(dir)
++			if err != nil {
++				base.Fatalf("GOAUTH=git encountered an error; cannot stat %s: %v", dir, err)
++			}
++			if !fs.IsDir() {
++				base.Fatalf("GOAUTH=git dir method requires an absolute path to the git working directory, dir is not a directory")
++			}
++
++			if prefix == "" {
++				// Skip the initial GOAUTH run since we need to provide an
++				// explicit prefix to runGitAuth.
++				continue
++			}
++			prefix, header, err := runGitAuth(client, dir, prefix)
++			if err != nil {
++				// Save the error, but don't print it yet in case another
++				// GOAUTH command might succeed.
++				cmdErrs = append(cmdErrs, fmt.Errorf("GOAUTH=%s: %v", cmdStr, err))
++			} else {
++				storeCredential([]string{strings.TrimPrefix(prefix, "https://")}, header)
++			}
+ 		default:
+ 			base.Fatalf("unimplemented: %s", cmdStr)
+ 		}
+ 	}
++	// If no GOAUTH command provided a credential for the given prefix
++	// and an error occurred, log the error.
++	if cfg.BuildX && prefix != "" {
++		if _, ok := credentialCache.Load(prefix); !ok && len(cmdErrs) > 0 {
++			log.Printf("GOAUTH encountered errors for %s:", prefix)
++			for _, err := range cmdErrs {
++				log.Printf("  %v", err)
++			}
++		}
++	}
+ }
+ 
+ // loadCredential retrieves cached credentials for the given url prefix and adds
+diff --git a/src/cmd/go/internal/auth/gitauth.go b/src/cmd/go/internal/auth/gitauth.go
+new file mode 100644
+index 0000000000..54a4d02412
+--- /dev/null
++++ b/src/cmd/go/internal/auth/gitauth.go
+@@ -0,0 +1,151 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// gitauth uses 'git credential' to implement the GOAUTH protocol.
++//
++// See https://git-scm.com/docs/gitcredentials or run 'man gitcredentials' for
++// information on how to configure 'git credential'.
++package auth
++
++import (
++	"bytes"
++	"cmd/go/internal/base"
++	"cmd/go/internal/cfg"
++	"cmd/go/internal/web/intercept"
++	"fmt"
++	"log"
++	"net/http"
++	"net/url"
++	"os/exec"
++	"strings"
++)
++
++const maxTries = 3
++
++// runGitAuth retrieves credentials for the given prefix using
++// 'git credential fill', validates them with a HEAD request
++// (using the provided client) and updates the credential helper's cache.
++// It returns the matching credential prefix, the http.Header with the
++// Basic Authentication header set, or an error.
++// The caller must not mutate the header.
++func runGitAuth(client *http.Client, dir, prefix string) (string, http.Header, error) {
++	if prefix == "" {
++		// No explicit prefix was passed, but 'git credential'
++		// provides no way to enumerate existing credentials.
++		// Wait for a request for a specific prefix.
++		return "", nil, fmt.Errorf("no explicit prefix was passed")
++	}
++	if dir == "" {
++		// Prevent config-injection attacks by requiring an explicit working directory.
++		// See https://golang.org/issue/29230 for details.
++		panic("'git' invoked in an arbitrary directory") // this should be caught earlier.
++	}
++	cmd := exec.Command("git", "credential", "fill")
++	cmd.Dir = dir
++	cmd.Stdin = strings.NewReader(fmt.Sprintf("url=%s\n", prefix))
++	out, err := cmd.CombinedOutput()
++	if err != nil {
++		return "", nil, fmt.Errorf("'git credential fill' failed (url=%s): %w\n%s", prefix, err, out)
++	}
++	parsedPrefix, username, password := parseGitAuth(out)
++	if parsedPrefix == "" {
++		return "", nil, fmt.Errorf("'git credential fill' failed for url=%s, could not parse url\n", prefix)
++	}
++	// Check that the URL Git gave us is a prefix of the one we requested.
++	if !strings.HasPrefix(prefix, parsedPrefix) {
++		return "", nil, fmt.Errorf("requested a credential for %s, but 'git credential fill' provided one for %s\n", prefix, parsedPrefix)
++	}
++	req, err := http.NewRequest("HEAD", parsedPrefix, nil)
++	if err != nil {
++		return "", nil, fmt.Errorf("internal error constructing HTTP HEAD request: %v\n", err)
++	}
++	req.SetBasicAuth(username, password)
++	// Asynchronously validate the provided credentials using a HEAD request,
++	// allowing the git credential helper to update its cache without blocking.
++	// This avoids repeatedly prompting the user for valid credentials.
++	// This is a best-effort update; the primary validation will still occur
++	// with the caller's client.
++	// The request is intercepted for testing purposes to simulate interactions
++	// with the credential helper.
++	intercept.Request(req)
++	go updateCredentialHelper(client, req, out)
++
++	// Return the parsed prefix and headers, even if credential validation fails.
++	// The caller is responsible for the primary validation.
++	return parsedPrefix, req.Header, nil
++}
++
++// parseGitAuth parses the output of 'git credential fill', extracting
++// the URL prefix, user, and password.
++// Any of these values may be empty if parsing fails.
++func parseGitAuth(data []byte) (parsedPrefix, username, password string) {
++	prefix := new(url.URL)
++	for _, line := range strings.Split(string(data), "\n") {
++		key, value, ok := strings.Cut(strings.TrimSpace(line), "=")
++		if !ok {
++			continue
++		}
++		switch key {
++		case "protocol":
++			prefix.Scheme = value
++		case "host":
++			prefix.Host = value
++		case "path":
++			prefix.Path = value
++		case "username":
++			username = value
++		case "password":
++			password = value
++		case "url":
++			// Write to a local variable instead of updating prefix directly:
++			// if the url field is malformed, we don't want to invalidate
++			// information parsed from the protocol, host, and path fields.
++			u, err := url.ParseRequestURI(value)
++			if err != nil {
++				if cfg.BuildX {
++					log.Printf("malformed URL from 'git credential fill' (%v): %q\n", err, value)
++					// Proceed anyway: we might be able to parse the prefix from other fields of the response.
++				}
++				continue
++			}
++			prefix = u
++		}
++	}
++	return prefix.String(), username, password
++}
++
++// updateCredentialHelper validates the given credentials by sending a HEAD request
++// and updates the git credential helper's cache accordingly. It retries the
++// request up to maxTries times.
++func updateCredentialHelper(client *http.Client, req *http.Request, credentialOutput []byte) {
++	for range maxTries {
++		release, err := base.AcquireNet()
++		if err != nil {
++			return
++		}
++		res, err := client.Do(req)
++		if err != nil {
++			release()
++			continue
++		}
++		res.Body.Close()
++		release()
++		if res.StatusCode == http.StatusOK || res.StatusCode == http.StatusUnauthorized {
++			approveOrRejectCredential(credentialOutput, res.StatusCode == http.StatusOK)
++			break
++		}
++	}
++}
++
++// approveOrRejectCredential approves or rejects the provided credential using
++// 'git credential approve/reject'.
++func approveOrRejectCredential(credentialOutput []byte, approve bool) {
++	action := "reject"
++	if approve {
++		action = "approve"
++	}
++	cmd := exec.Command("git", "credential", action)
++	cmd.Stdin = bytes.NewReader(credentialOutput)
++	cmd.Run() // ignore error
++}
+diff --git a/src/cmd/go/internal/auth/gitauth_test.go b/src/cmd/go/internal/auth/gitauth_test.go
+new file mode 100644
+index 0000000000..335bff81ba
+--- /dev/null
++++ b/src/cmd/go/internal/auth/gitauth_test.go
+@@ -0,0 +1,80 @@
++package auth
++
++import (
++	"testing"
++)
++
++func TestParseGitAuth(t *testing.T) {
++	testCases := []struct {
++		gitauth      string // contents of 'git credential fill'
++		wantPrefix   string
++		wantUsername string
++		wantPassword string
++	}{
++		{ // Standard case.
++			gitauth: `
++protocol=https
++host=example.com
++username=bob
++password=secr3t
++`,
++			wantPrefix:   "https://example.com",
++			wantUsername: "bob",
++			wantPassword: "secr3t",
++		},
++		{ // Should not use an invalid url.
++			gitauth: `
++protocol=https
++host=example.com
++username=bob
++password=secr3t
++url=invalid
++`,
++			wantPrefix:   "https://example.com",
++			wantUsername: "bob",
++			wantPassword: "secr3t",
++		},
++		{ // Should use the new url.
++			gitauth: `
++protocol=https
++host=example.com
++username=bob
++password=secr3t
++url=https://go.dev
++`,
++			wantPrefix:   "https://go.dev",
++			wantUsername: "bob",
++			wantPassword: "secr3t",
++		},
++		{ // Empty data.
++			gitauth: `
++`,
++			wantPrefix:   "",
++			wantUsername: "",
++			wantPassword: "",
++		},
++		{ // Does not follow the '=' format.
++			gitauth: `
++protocol:https
++host:example.com
++username:bob
++password:secr3t
++`,
++			wantPrefix:   "",
++			wantUsername: "",
++			wantPassword: "",
++		},
++	}
++	for _, tc := range testCases {
++		parsedPrefix, username, password := parseGitAuth([]byte(tc.gitauth))
++		if parsedPrefix != tc.wantPrefix {
++			t.Errorf("parseGitAuth(%s):\nhave %q\nwant %q", tc.gitauth, parsedPrefix, tc.wantPrefix)
++		}
++		if username != tc.wantUsername {
++			t.Errorf("parseGitAuth(%s):\nhave %q\nwant %q", tc.gitauth, username, tc.wantUsername)
++		}
++		if password != tc.wantPassword {
++			t.Errorf("parseGitAuth(%s):\nhave %q\nwant %q", tc.gitauth, password, tc.wantPassword)
++		}
++	}
++}
+diff --git a/src/cmd/go/internal/help/helpdoc.go b/src/cmd/go/internal/help/helpdoc.go
+index ec1567803f..12a12afe41 100644
+--- a/src/cmd/go/internal/help/helpdoc.go
++++ b/src/cmd/go/internal/help/helpdoc.go
+@@ -503,8 +503,9 @@ General-purpose environment variables:
+ 	GOAUTH
+ 		A semicolon-separated list of authentication commands for go-import and
+ 		HTTPS module mirror interactions. Currently supports
+-		"off" (disables authentication) and
+-		"netrc" (uses credentials from NETRC or the .netrc file in your home directory).
++		"off" (disables authentication),
++		"netrc" (uses credentials from NETRC or the .netrc file in your home directory),
++		"git dir" (runs 'git credential fill' in dir and uses its credentials).
+ 		The default is netrc.
+ 	GOBIN
+ 		The directory where 'go install' will install a command.
+diff --git a/src/cmd/go/internal/web/http.go b/src/cmd/go/internal/web/http.go
+index 71eb8b3b28..292cf062be 100644
+--- a/src/cmd/go/internal/web/http.go
++++ b/src/cmd/go/internal/web/http.go
+@@ -129,10 +129,19 @@ func get(security SecurityMode, url *urlpkg.URL) (*Response, error) {
+ 		if err != nil {
+ 			return nil, err
+ 		}
++		t, intercepted := intercept.URL(req.URL)
++		var client *http.Client
++		if security == Insecure && url.Scheme == "https" {
++			client = impatientInsecureHTTPClient
++		} else if intercepted && t.Client != nil {
++			client = securityPreservingHTTPClient(t.Client)
++		} else {
++			client = securityPreservingDefaultClient
++		}
+ 		if url.Scheme == "https" {
+-			auth.AddCredentials(req)
++			// Use initial GOAUTH credentials.
++			auth.AddCredentials(client, req, "")
+ 		}
+-		t, intercepted := intercept.URL(req.URL)
+ 		if intercepted {
+ 			req.Host = req.URL.Host
+ 			req.URL.Host = t.ToHost
+@@ -142,17 +151,28 @@ func get(security SecurityMode, url *urlpkg.URL) (*Response, error) {
+ 		if err != nil {
+ 			return nil, err
+ 		}
+-
+-		var res *http.Response
+-		if security == Insecure && url.Scheme == "https" { // fail earlier
+-			res, err = impatientInsecureHTTPClient.Do(req)
+-		} else {
+-			if intercepted && t.Client != nil {
+-				client := securityPreservingHTTPClient(t.Client)
+-				res, err = client.Do(req)
+-			} else {
+-				res, err = securityPreservingDefaultClient.Do(req)
++		defer func() {
++			if err != nil && release != nil {
++				release()
++			}
++		}()
++		res, err := client.Do(req)
++		// If the initial request fails with a 4xx client error and the
++		// response body didn't satisfy the request
++		// (e.g. a valid <meta name="go-import"> tag),
++		// retry the request with credentials obtained by invoking GOAUTH
++		// with the request URL.
++		if url.Scheme == "https" && err == nil && res.StatusCode >= 400 && res.StatusCode < 500 {
++			// Close the body of the previous response since we
++			// are discarding it and creating a new one.
++			res.Body.Close()
++			req, err = http.NewRequest("GET", url.String(), nil)
++			if err != nil {
++				return nil, err
+ 			}
++			auth.AddCredentials(client, req, url.String())
++			intercept.Request(req)
++			res, err = client.Do(req)
+ 		}
+ 
+ 		if err != nil {
+@@ -160,7 +180,6 @@ func get(security SecurityMode, url *urlpkg.URL) (*Response, error) {
+ 			// ignored. A non-nil Response with a non-nil error only occurs when
+ 			// CheckRedirect fails, and even then the returned Response.Body is
+ 			// already closed.”
+-			release()
+ 			return nil, err
+ 		}
+ 
+@@ -171,7 +190,7 @@ func get(security SecurityMode, url *urlpkg.URL) (*Response, error) {
+ 			ReadCloser: body,
+ 			afterClose: release,
+ 		}
+-		return res, err
++		return res, nil
+ 	}
+ 
+ 	var (
+diff --git a/src/cmd/go/testdata/script/goauth_git.txt b/src/cmd/go/testdata/script/goauth_git.txt
+new file mode 100644
+index 0000000000..4fae39aaa7
+--- /dev/null
++++ b/src/cmd/go/testdata/script/goauth_git.txt
+@@ -0,0 +1,72 @@
++# This test covers the HTTP authentication mechanism over GOAUTH
++# See golang.org/issue/26232
++
++[short] skip 'constructs a local git repo'
++[!git] skip
++
++env GOPROXY=direct
++env GOSUMDB=off
++# Disable 'git credential fill' interactive prompts.
++env GIT_TERMINAL_PROMPT=0
++exec git init
++exec git config credential.helper 'store --file=.git-credentials'
++cp go.mod.orig go.mod
++
++# Set GOAUTH to git without a working directory.
++env GOAUTH='git'
++! go get vcs-test.golang.org/auth/or401
++stderr 'GOAUTH=git dir method requires an absolute path to the git working directory'
++
++# Set GOAUTH to git with a non-existent directory.
++env GOAUTH='git gitDir'
++! go get vcs-test.golang.org/auth/or401
++stderr 'GOAUTH=git dir method requires an absolute path to the git working directory'
++
++# Set GOAUTH to git with a relative working directory.
++mkdir relative
++env GOAUTH='git relative'
++! go get vcs-test.golang.org/auth/or401
++stderr 'GOAUTH=git dir method requires an absolute path to the git working directory'
++
++# Set GOAUTH to git and use a blank .git-credentials.
++# Without credentials, downloading a module from a path that requires HTTPS
++# basic auth should fail.
++env GOAUTH=git' '$PWD''
++! go get -x vcs-test.golang.org/auth/or401
++stderr '^\tserver response: ACCESS DENIED, buddy$'
++stderr 'GOAUTH encountered errors for https://vcs-test.golang.org'
++stderr GOAUTH=git' '$PWD''
++# go imports should fail as well.
++! go mod tidy -x
++stderr '^\tserver response: File\? What file\?$'
++stderr 'GOAUTH encountered errors for https://vcs-test.golang.org'
++stderr GOAUTH=git' '$PWD''
++
++# With credentials from git credentials, it should succeed.
++cp .git-credentials.cred .git-credentials
++go get vcs-test.golang.org/auth/or401
++# go imports should resolve correctly as well.
++go mod tidy
++go list all
++stdout vcs-test.golang.org/auth/or404
++
++# Clearing GOAUTH credentials should result in failures.
++env GOAUTH='off'
++# Without credentials, downloading a module from a path that requires HTTPS
++# basic auth should fail.
++! go get vcs-test.golang.org/auth/or401
++stderr '^\tserver response: ACCESS DENIED, buddy$'
++# go imports should fail as well.
++cp go.mod.orig go.mod
++! go mod tidy
++stderr '^\tserver response: File\? What file\?$'
++
++-- main.go --
++package useprivate
++
++import "vcs-test.golang.org/auth/or404"
++-- go.mod.orig --
++module private.example.com
++-- .git-credentials --
++-- .git-credentials.cred --
++https://aladdin:opensesame@vcs-test.golang.org

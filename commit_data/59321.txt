@@ -12,6 +12,20 @@ Date:   Fri Mar 1 18:27:48 2024 +0000
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  doc/godebug.md | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/godebug.md b/doc/godebug.md
+index a7619c9a3d..184bae4932 100644
+--- a/doc/godebug.md
++++ b/doc/godebug.md
+@@ -148,7 +148,7 @@ for the explicit representation of [type aliases](/ref/spec#Type_declarations).
+ Whether the type checker produces `Alias` types or not is controlled by the
+ [`gotypesalias` setting](/pkg/go/types#Alias).
+ For Go 1.22 it defaults to `gotypesalias=0`.
+-For Go 1.23, `gotypealias=1` will become the default.
++For Go 1.23, `gotypesalias=1` will become the default.
+ This setting will be removed in a future release, Go 1.24 at the earliest.
+ 
+ Go 1.22 changed the default minimum TLS version supported by both servers

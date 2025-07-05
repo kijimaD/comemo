@@ -13,8 +13,85 @@ Date:   Thu Dec 13 09:23:25 2018 -0500
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/testdata/script/get_brace.txt    | 4 ++++
  src/cmd/go/testdata/script/get_dotfiles.txt | 4 ++++
  src/cmd/go/testdata/script/get_unicode.txt  | 9 +++++++++
  3 files changed, 17 insertions(+)
+
+diff --git a/src/cmd/go/testdata/script/get_brace.txt b/src/cmd/go/testdata/script/get_brace.txt
+index 36414d7b55..be81d8f487 100644
+--- a/src/cmd/go/testdata/script/get_brace.txt
++++ b/src/cmd/go/testdata/script/get_brace.txt
+@@ -3,11 +3,15 @@
+ # Set up some empty repositories.
+ cd $WORK/_origin/foo
+ exec git init
++exec git config user.name 'Nameless Gopher'
++exec git config user.email 'nobody@golang.org'
+ exec git commit --allow-empty -m 'create master branch'
+ 
+ cd $WORK
+ cd '_origin/{confusing}'
+ exec git init
++exec git config user.name 'Nameless Gopher'
++exec git config user.email 'nobody@golang.org'
+ exec git commit --allow-empty -m 'create master branch'
+ 
+ # Clone the empty repositories into GOPATH.
+diff --git a/src/cmd/go/testdata/script/get_dotfiles.txt b/src/cmd/go/testdata/script/get_dotfiles.txt
+index c09da8beeb..1876114362 100644
+--- a/src/cmd/go/testdata/script/get_dotfiles.txt
++++ b/src/cmd/go/testdata/script/get_dotfiles.txt
+@@ -3,10 +3,14 @@
+ # Set up a benign repository and a repository with a dotfile name.
+ cd $WORK/_origin/foo
+ exec git init
++exec git config user.name 'Nameless Gopher'
++exec git config user.email 'nobody@golang.org'
+ exec git commit --allow-empty -m 'create master branch'
+ 
+ cd $WORK/_origin/.hidden
+ exec git init
++exec git config user.name 'Nameless Gopher'
++exec git config user.email 'nobody@golang.org'
+ exec git commit --allow-empty -m 'create master branch'
+ 
+ # Clone the empty repositories into GOPATH.
+diff --git a/src/cmd/go/testdata/script/get_unicode.txt b/src/cmd/go/testdata/script/get_unicode.txt
+index a30802b999..31edcdb9f6 100644
+--- a/src/cmd/go/testdata/script/get_unicode.txt
++++ b/src/cmd/go/testdata/script/get_unicode.txt
+@@ -1,23 +1,32 @@
+ [!exec:git] skip
+ 
++# Construct a repository that imports a non-ASCII path.
+ cd $WORK/_origin/example.com/unicode
+ exec git init
++exec git config user.name 'Nameless Gopher'
++exec git config user.email 'nobody@golang.org'
+ exec git add unicode.go
+ exec git commit -m 'add unicode.go'
+ 
++# Clone the repo into GOPATH so that 'go get -u' can find it.
+ mkdir $GOPATH/src/example.com/unicode
+ cd $GOPATH/src/example.com/unicode
+ exec git clone $WORK/_origin/example.com/unicode .
+ 
++# Construct the imported repository.
+ cd $WORK/_origin/example.com/испытание
+ exec git init
++exec git config user.name 'Nameless Gopher'
++exec git config user.email 'nobody@golang.org'
+ exec git add испытание.go
+ exec git commit -m 'add испытание.go'
+ 
++# Clone that repo into GOPATH too.
+ mkdir $GOPATH/src/example.com/испытание
+ cd $GOPATH/src/example.com/испытание
+ exec git clone $WORK/_origin/example.com/испытание .
+ 
++# Upgrading the importer should pull from the non-ASCII repo.
+ cd $GOPATH
+ go get -u example.com/unicode
+ 

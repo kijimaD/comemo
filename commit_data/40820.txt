@@ -22,9 +22,261 @@ Date:   Mon Jul 15 14:06:58 2019 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/modfetch/coderepo.go       | 37 ++++++++-----
  src/cmd/go/internal/modfetch/coderepo_test.go  | 75 +++++++++++++++-----------
  src/cmd/go/internal/modload/query_test.go      | 10 +++-
  src/cmd/go/testdata/script/mod_list_direct.txt | 24 +++++++++
  4 files changed, 100 insertions(+), 46 deletions(-)
+
+diff --git a/src/cmd/go/internal/modfetch/coderepo.go b/src/cmd/go/internal/modfetch/coderepo.go
+index 267b76349d..491fe11f50 100644
+--- a/src/cmd/go/internal/modfetch/coderepo.go
++++ b/src/cmd/go/internal/modfetch/coderepo.go
+@@ -31,7 +31,7 @@ type codeRepo struct {
+ 	codeRoot string
+ 	// codeDir is the directory (relative to root) at which we expect to find the module.
+ 	// If pathMajor is non-empty and codeRoot is not the full modPath,
+-	// then we look in both codeDir and codeDir+modPath
++	// then we look in both codeDir and codeDir/pathMajor[1:].
+ 	codeDir string
+ 
+ 	// pathMajor is the suffix of modPath that indicates its major version,
+@@ -248,20 +248,25 @@ func (r *codeRepo) convert(info *codehost.RevInfo, statVers string) (*RevInfo, e
+ 	// exist as required by info2.Version and the module path represented by r.
+ 	checkGoMod := func() (*RevInfo, error) {
+ 		// If r.codeDir is non-empty, then the go.mod file must exist: the module
+-		// author, not the module consumer, gets to decide how to carve up the repo
++		// author — not the module consumer, — gets to decide how to carve up the repo
+ 		// into modules.
+-		if r.codeDir != "" {
+-			_, _, _, err := r.findDir(info2.Version)
+-			if err != nil {
+-				// TODO: It would be nice to return an error like "not a module".
+-				// Right now we return "missing go.mod", which is a little confusing.
+-				return nil, &module.ModuleError{
+-					Path: r.modPath,
+-					Err: &module.InvalidVersionError{
+-						Version: info2.Version,
+-						Err:     notExistError(err.Error()),
+-					},
+-				}
++		//
++		// Conversely, if the go.mod file exists, the module author — not the module
++		// consumer — gets to determine the module's path
++		//
++		// r.findDir verifies both of these conditions. Execute it now so that
++		// r.Stat will correctly return a notExistError if the go.mod location or
++		// declared module path doesn't match.
++		_, _, _, err := r.findDir(info2.Version)
++		if err != nil {
++			// TODO: It would be nice to return an error like "not a module".
++			// Right now we return "missing go.mod", which is a little confusing.
++			return nil, &module.ModuleError{
++				Path: r.modPath,
++				Err: &module.InvalidVersionError{
++					Version: info2.Version,
++					Err:     notExistError(err.Error()),
++				},
+ 			}
+ 		}
+ 
+@@ -571,6 +576,10 @@ func (r *codeRepo) versionToRev(version string) (rev string, err error) {
+ 	return r.revToRev(version), nil
+ }
+ 
++// findDir locates the directory within the repo containing the module.
++//
++// If r.pathMajor is non-empty, this can be either r.codeDir or — if a go.mod
++// file exists — r.codeDir/r.pathMajor[1:].
+ func (r *codeRepo) findDir(version string) (rev, dir string, gomod []byte, err error) {
+ 	rev, err = r.versionToRev(version)
+ 	if err != nil {
+diff --git a/src/cmd/go/internal/modfetch/coderepo_test.go b/src/cmd/go/internal/modfetch/coderepo_test.go
+index 5fc9bc3439..b5c9be52ad 100644
+--- a/src/cmd/go/internal/modfetch/coderepo_test.go
++++ b/src/cmd/go/internal/modfetch/coderepo_test.go
+@@ -105,7 +105,7 @@ var codeRepoTests = []codeRepoTest{
+ 		name:    "45f53230a74ad275c7127e117ac46914c8126160",
+ 		short:   "45f53230a74a",
+ 		time:    time.Date(2018, 7, 19, 1, 21, 27, 0, time.UTC),
+-		ziperr:  "missing github.com/rsc/vgotest1/go.mod and .../v2/go.mod at revision v2.0.0",
++		err:     "missing github.com/rsc/vgotest1/go.mod and .../v2/go.mod at revision v2.0.0",
+ 	},
+ 	{
+ 		vcs:     "git",
+@@ -136,15 +136,14 @@ var codeRepoTests = []codeRepoTest{
+ 		},
+ 	},
+ 	{
+-		vcs:      "git",
+-		path:     "github.com/rsc/vgotest1/v2",
+-		rev:      "45f53230a",
+-		version:  "v2.0.0",
+-		name:     "45f53230a74ad275c7127e117ac46914c8126160",
+-		short:    "45f53230a74a",
+-		time:     time.Date(2018, 7, 19, 1, 21, 27, 0, time.UTC),
+-		gomoderr: "missing github.com/rsc/vgotest1/go.mod and .../v2/go.mod at revision v2.0.0",
+-		ziperr:   "missing github.com/rsc/vgotest1/go.mod and .../v2/go.mod at revision v2.0.0",
++		vcs:     "git",
++		path:    "github.com/rsc/vgotest1/v2",
++		rev:     "45f53230a",
++		version: "v2.0.0",
++		name:    "45f53230a74ad275c7127e117ac46914c8126160",
++		short:   "45f53230a74a",
++		time:    time.Date(2018, 7, 19, 1, 21, 27, 0, time.UTC),
++		err:     "missing github.com/rsc/vgotest1/go.mod and .../v2/go.mod at revision v2.0.0",
+ 	},
+ 	{
+ 		vcs:     "git",
+@@ -154,7 +153,7 @@ var codeRepoTests = []codeRepoTest{
+ 		name:    "80d85c5d4d17598a0e9055e7c175a32b415d6128",
+ 		short:   "80d85c5d4d17",
+ 		time:    time.Date(2018, 2, 19, 23, 10, 6, 0, time.UTC),
+-		ziperr:  "missing github.com/rsc/vgotest1/go.mod and .../v54321/go.mod at revision 80d85c5d4d17",
++		err:     "missing github.com/rsc/vgotest1/go.mod and .../v54321/go.mod at revision 80d85c5d4d17",
+ 	},
+ 	{
+ 		vcs:  "git",
+@@ -210,24 +209,24 @@ var codeRepoTests = []codeRepoTest{
+ 		gomod:   "module \"github.com/rsc/vgotest1/v2\" // root go.mod\n",
+ 	},
+ 	{
+-		vcs:      "git",
+-		path:     "github.com/rsc/vgotest1/v2",
+-		rev:      "v2.0.3",
+-		version:  "v2.0.3",
+-		name:     "f18795870fb14388a21ef3ebc1d75911c8694f31",
+-		short:    "f18795870fb1",
+-		time:     time.Date(2018, 2, 19, 23, 16, 4, 0, time.UTC),
+-		gomoderr: "github.com/rsc/vgotest1/v2/go.mod has non-.../v2 module path \"github.com/rsc/vgotest\" at revision v2.0.3",
++		vcs:     "git",
++		path:    "github.com/rsc/vgotest1/v2",
++		rev:     "v2.0.3",
++		version: "v2.0.3",
++		name:    "f18795870fb14388a21ef3ebc1d75911c8694f31",
++		short:   "f18795870fb1",
++		time:    time.Date(2018, 2, 19, 23, 16, 4, 0, time.UTC),
++		err:     "github.com/rsc/vgotest1/v2/go.mod has non-.../v2 module path \"github.com/rsc/vgotest\" at revision v2.0.3",
+ 	},
+ 	{
+-		vcs:      "git",
+-		path:     "github.com/rsc/vgotest1/v2",
+-		rev:      "v2.0.4",
+-		version:  "v2.0.4",
+-		name:     "1f863feb76bc7029b78b21c5375644838962f88d",
+-		short:    "1f863feb76bc",
+-		time:     time.Date(2018, 2, 20, 0, 3, 38, 0, time.UTC),
+-		gomoderr: "github.com/rsc/vgotest1/go.mod and .../v2/go.mod both have .../v2 module paths at revision v2.0.4",
++		vcs:     "git",
++		path:    "github.com/rsc/vgotest1/v2",
++		rev:     "v2.0.4",
++		version: "v2.0.4",
++		name:    "1f863feb76bc7029b78b21c5375644838962f88d",
++		short:   "1f863feb76bc",
++		time:    time.Date(2018, 2, 20, 0, 3, 38, 0, time.UTC),
++		err:     "github.com/rsc/vgotest1/go.mod and .../v2/go.mod both have .../v2 module paths at revision v2.0.4",
+ 	},
+ 	{
+ 		vcs:     "git",
+@@ -504,6 +503,7 @@ func TestCodeRepo(t *testing.T) {
+ 					tt.name = remap(tt.name, m)
+ 					tt.short = remap(tt.short, m)
+ 					tt.rev = remap(tt.rev, m)
++					tt.err = remap(tt.err, m)
+ 					tt.gomoderr = remap(tt.gomoderr, m)
+ 					tt.ziperr = remap(tt.ziperr, m)
+ 					t.Run(strings.ReplaceAll(tt.path, "/", "_")+"/"+tt.rev, f(tt))
+@@ -631,15 +631,30 @@ var latestTests = []struct {
+ 		err:  "no commits",
+ 	},
+ 	{
+-		vcs:     "git",
+-		path:    "github.com/rsc/vgotest1",
+-		version: "v0.0.0-20180219223237-a08abb797a67",
++		vcs:  "git",
++		path: "github.com/rsc/vgotest1",
++		err:  `github.com/rsc/vgotest1@v0.0.0-20180219223237-a08abb797a67: invalid version: go.mod has post-v0 module path "github.com/vgotest1/v2" at revision a08abb797a67`,
++	},
++	{
++		vcs:  "git",
++		path: "github.com/rsc/vgotest1/v2",
++		err:  `github.com/rsc/vgotest1/v2@v2.0.0-20180219223237-a08abb797a67: invalid version: github.com/rsc/vgotest1/go.mod and .../v2/go.mod both have .../v2 module paths at revision a08abb797a67`,
+ 	},
+ 	{
+ 		vcs:  "git",
+ 		path: "github.com/rsc/vgotest1/subdir",
+ 		err:  "github.com/rsc/vgotest1/subdir@v0.0.0-20180219223237-a08abb797a67: invalid version: missing github.com/rsc/vgotest1/subdir/go.mod at revision a08abb797a67",
+ 	},
++	{
++		vcs:     "git",
++		path:    "vcs-test.golang.org/git/commit-after-tag.git",
++		version: "v1.0.1-0.20190715211727-b325d8217783",
++	},
++	{
++		vcs:     "git",
++		path:    "vcs-test.golang.org/git/no-tags.git",
++		version: "v0.0.0-20190715212047-e706ba1d9f6d",
++	},
+ 	{
+ 		vcs:     "mod",
+ 		path:    "swtch.com/testmod",
+diff --git a/src/cmd/go/internal/modload/query_test.go b/src/cmd/go/internal/modload/query_test.go
+index 10d947e46f..7940882781 100644
+--- a/src/cmd/go/internal/modload/query_test.go
++++ b/src/cmd/go/internal/modload/query_test.go
+@@ -161,8 +161,11 @@ var queryTests = []struct {
+ 	{path: queryRepoV2, query: "v2.6.0-pre1", vers: "v2.6.0-pre1"},
+ 	{path: queryRepoV2, query: "latest", vers: "v2.5.5"},
+ 
+-	{path: queryRepoV3, query: "e0cf3de987e6", vers: "v3.0.0-20180704024501-e0cf3de987e6"},
+-	{path: queryRepoV3, query: "latest", vers: "v3.0.0-20180704024501-e0cf3de987e6"},
++	// e0cf3de987e6 is the latest commit on the master branch, and it's actually
++	// v1.19.10-pre1, not anything resembling v3: attempting to query it as such
++	// should fail.
++	{path: queryRepoV3, query: "e0cf3de987e6", err: `vcs-test.golang.org/git/querytest.git/v3@v3.0.0-20180704024501-e0cf3de987e6: invalid version: go.mod has non-.../v3 module path "vcs-test.golang.org/git/querytest.git" (and .../v3/go.mod does not exist) at revision e0cf3de987e6`},
++	{path: queryRepoV3, query: "latest", err: `no matching versions for query "latest"`},
+ 
+ 	{path: emptyRepo, query: "latest", vers: "v0.0.0-20180704023549-7bb914627242"},
+ 	{path: emptyRepo, query: ">v0.0.0", err: `no matching versions for query ">v0.0.0"`},
+@@ -182,7 +185,10 @@ func TestQuery(t *testing.T) {
+ 			ok, _ := path.Match(allow, m.Version)
+ 			return ok
+ 		}
++		tt := tt
+ 		t.Run(strings.ReplaceAll(tt.path, "/", "_")+"/"+tt.query+"/"+tt.current+"/"+allow, func(t *testing.T) {
++			t.Parallel()
++
+ 			info, err := Query(tt.path, tt.query, tt.current, allowed)
+ 			if tt.err != "" {
+ 				if err == nil {
+diff --git a/src/cmd/go/testdata/script/mod_list_direct.txt b/src/cmd/go/testdata/script/mod_list_direct.txt
+new file mode 100644
+index 0000000000..8f85871189
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_list_direct.txt
+@@ -0,0 +1,24 @@
++env GO111MODULE=on
++env GOPROXY=direct
++env GOSUMDB=off
++
++[!net] skip
++[!exec:git] skip
++
++# golang.org/issue/33099: if an import path ends in a major-version suffix,
++# ensure that 'direct' mode can resolve the package to the module.
++# For a while, (*modfetch.codeRepo).Stat was not checking for a go.mod file,
++# which would produce a hard error at the subsequent call to GoMod.
++
++go list all
++
++-- go.mod --
++module example.com
++go 1.13
++
++-- main.go --
++package main
++
++import _ "vcs-test.golang.org/git/v3pkg.git/v3"
++
++func main() {}

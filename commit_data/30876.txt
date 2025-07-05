@@ -9,6 +9,20 @@ Date:   Tue Dec 13 23:01:15 2016 -0500
     Change-Id: I0074109fa885976b22c2be9fa39641d4d0657dee
     Reviewed-on: https://go-review.googlesource.com/34375
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/ip.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/ip.go b/src/net/ip.go
+index c5b454d3bd..f73513e1e3 100644
+--- a/src/net/ip.go
++++ b/src/net/ip.go
+@@ -654,7 +654,7 @@ func ParseIP(s string) IP {
+ 	return nil
+ }
+ 
+-// ParseCIDR parses s as a CIDR notation IP address and mask,
++// ParseCIDR parses s as a CIDR notation IP address and prefix length,
+ // like "192.0.2.0/24" or "2001:db8::/32", as defined in
+ // RFC 4632 and RFC 4291.
+ //

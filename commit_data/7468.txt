@@ -7,6 +7,20 @@ Date:   Wed Feb 16 09:41:34 2011 +1100
     R=r, r2
     CC=golang-dev
     https://golang.org/cl/4178055
-
+---
  doc/devel/release.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/devel/release.html b/doc/devel/release.html
+index 57da6ca60b..c1ea967b2c 100644
+--- a/doc/devel/release.html
++++ b/doc/devel/release.html
+@@ -5,7 +5,7 @@
+ <p>This page summarizes the changes between tagged releases of Go.
+ For full details, see the <a href="http://code.google.com/p/go/source/list">Mercurial change log</a>.</p>
+ 
+-<h3 id="2011-02-01">2011-02-15</h3>
++<h3 id="2011-02-15">2011-02-15</h3>
+ 
+ <pre>
+ This release includes changes to the io and template packages.

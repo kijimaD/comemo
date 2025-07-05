@@ -7,7 +7,27 @@ Date:   Wed Feb 25 16:31:42 2009 -0800
     R=ken
     OCL=25448
     CL=25448
-
+---
  test/{bugs => fixedbugs}/bug130.go | 0
  test/golden.out                    | 4 ----
  2 files changed, 4 deletions(-)
+
+diff --git a/test/bugs/bug130.go b/test/fixedbugs/bug130.go
+similarity index 100%
+rename from test/bugs/bug130.go
+rename to test/fixedbugs/bug130.go
+diff --git a/test/golden.out b/test/golden.out
+index e251a708fd..6e2ca9a726 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -150,10 +150,6 @@ BUG: errchk: command succeeded unexpectedly:  6g bugs/bug125.go
+ bugs/bug129.go:6: syscall is package, not var
+ BUG129
+ 
+-=========== bugs/bug130.go
+-bugs/bug130.go:14: fatal error: getoutarg: not a func *<T>
+-BUG: should run
+-
+ =========== bugs/bug131.go
+ BUG: should not compile
+ 

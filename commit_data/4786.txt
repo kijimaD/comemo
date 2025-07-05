@@ -10,9 +10,69 @@ Date:   Thu Feb 4 12:46:11 2010 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/199096
-
+---
  src/cmd/5l/asm.c         | 2 +-
  src/cmd/6l/asm.c         | 2 +-
  src/cmd/ld/lib.h         | 3 +++
  src/pkg/runtime/symtab.c | 7 +------
  4 files changed, 6 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/5l/asm.c b/src/cmd/5l/asm.c
+index bc8b322ab0..498e71b5ac 100644
+--- a/src/cmd/5l/asm.c
++++ b/src/cmd/5l/asm.c
+@@ -68,7 +68,7 @@ asmb(void)
+ 	int np;
+ 	vlong va, fo, w, symo;
+ 	int strtabsize;
+-	vlong symdatva = 0x99LL<<24;
++	vlong symdatva = SYMDATVA;
+ 	Optab *o;
+ 
+ 	strtabsize = 0;
+diff --git a/src/cmd/6l/asm.c b/src/cmd/6l/asm.c
+index 00d7aca2e3..d3f3e358bf 100644
+--- a/src/cmd/6l/asm.c
++++ b/src/cmd/6l/asm.c
+@@ -439,7 +439,7 @@ asmb(void)
+ 	int a, dynsym;
+ 	uchar *op1;
+ 	vlong vl, va, startva, fo, w, symo, elfsymo, elfstro, elfsymsize, machlink;
+-	vlong symdatva = 0x99LL<<32;
++	vlong symdatva = SYMDATVA;
+ 	ElfEhdr *eh;
+ 	ElfPhdr *ph, *pph;
+ 	ElfShdr *sh;
+diff --git a/src/cmd/ld/lib.h b/src/cmd/ld/lib.h
+index 7b08705af7..c89322e38d 100644
+--- a/src/cmd/ld/lib.h
++++ b/src/cmd/ld/lib.h
+@@ -28,6 +28,9 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
++// This magic number also defined in src/pkg/runtime/symtab.c in SYMCOUNTS
++#define SYMDATVA 0x99LL<<24
++
+ typedef struct Library Library;
+ struct Library
+ {
+diff --git a/src/pkg/runtime/symtab.c b/src/pkg/runtime/symtab.c
+index ac4f45ce1e..51d5725956 100644
+--- a/src/pkg/runtime/symtab.c
++++ b/src/pkg/runtime/symtab.c
+@@ -18,13 +18,8 @@
+ 
+ // TODO(rsc): Move this *under* the text segment.
+ // Then define names for these addresses instead of hard-coding magic ones.
+-#ifdef _64BIT
+-#define SYMCOUNTS ((int32*)(0x99LL<<32))	// known to 6l
+-#define SYMDATA ((byte*)(0x99LL<<32) + 8)
+-#else
+-#define SYMCOUNTS ((int32*)(0x99LL<<24))	// known to 8l
++#define SYMCOUNTS ((int32*)(0x99LL<<24))   // known to 6l, 8l; see src/cmd/ld/lib.h
+ #define SYMDATA ((byte*)(0x99LL<<24) + 8)
+-#endif
+ 
+ typedef struct Sym Sym;
+ struct Sym

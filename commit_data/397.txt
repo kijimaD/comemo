@@ -5,8 +5,44 @@ Date:   Sat Jul 19 15:08:56 2008 -0700
     test update
     
     SVN=128120
-
+---
  test/{bugs => fixedbugs}/bug066.go | 0
  test/{bugs => fixedbugs}/bug067.go | 0
  test/golden.out                    | 9 +++++----
  3 files changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/test/bugs/bug066.go b/test/fixedbugs/bug066.go
+similarity index 100%
+rename from test/bugs/bug066.go
+rename to test/fixedbugs/bug066.go
+diff --git a/test/bugs/bug067.go b/test/fixedbugs/bug067.go
+similarity index 100%
+rename from test/bugs/bug067.go
+rename to test/fixedbugs/bug067.go
+diff --git a/test/golden.out b/test/golden.out
+index 66ad449086..19ac022d9c 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -241,10 +241,6 @@ bugs/bug064.go:15: illegal types for operand: CALL
+ 	({<u><int32>INT32;<v><int32>INT32;})
+ BUG: compilation should succeed
+ 
+-=========== bugs/bug066.go
+-
+-=========== bugs/bug067.go
+-
+ =========== bugs/bug068.go
+ bugs/bug068.go:6: unknown escape sequence: '
+ BUG: compilation should succeed
+@@ -357,6 +353,11 @@ fixedbugs/bug051.go:10: expression must be a constant
+ 
+ =========== fixedbugs/bug065.go
+ 
++=========== fixedbugs/bug066.go
++
++=========== fixedbugs/bug067.go
++ok
++
+ =========== fixedbugs/bug069.go
+ 
+ =========== fixedbugs/bug071.go

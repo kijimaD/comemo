@@ -147,6 +147,19 @@ Date:   Fri Dec 13 10:30:29 2019 +0000
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
     Run-TryBot: Filippo Valsorda <filippo@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/crypto/sha512/sha512block_generic.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/crypto/sha512/sha512block_generic.go b/src/crypto/sha512/sha512block_generic.go
+index 08f2e07178..3eabd2c7c0 100644
+--- a/src/crypto/sha512/sha512block_generic.go
++++ b/src/crypto/sha512/sha512block_generic.go
+@@ -6,4 +6,6 @@
+ 
+ package sha512
+ 
+-var block = blockGeneric
++func block(dig *digest, p []byte) {
++	blockGeneric(dig, p)
++}

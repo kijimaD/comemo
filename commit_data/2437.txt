@@ -7,6 +7,11 @@ Date:   Tue Jun 9 10:47:13 2009 -0700
     TBR=r
     OCL=30106
     CL=30106
-
+---
  src/{lib => pkg}/deps.bash | 0
  1 file changed, 0 insertions(+), 0 deletions(-)
+
+diff --git a/src/lib/deps.bash b/src/pkg/deps.bash
+similarity index 100%
+rename from src/lib/deps.bash
+rename to src/pkg/deps.bash

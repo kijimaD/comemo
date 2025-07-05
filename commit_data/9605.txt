@@ -13,7 +13,75 @@ Date:   Tue Sep 6 11:48:05 2011 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4973059
-
+---
  src/pkg/go/parser/parser.go      | 19 ++++++++-----------
  src/pkg/go/parser/parser_test.go |  5 ++++-
  2 files changed, 12 insertions(+), 12 deletions(-)
+
+diff --git a/src/pkg/go/parser/parser.go b/src/pkg/go/parser/parser.go
+index 7a9ed9dedd..be82b2f801 100644
+--- a/src/pkg/go/parser/parser.go
++++ b/src/pkg/go/parser/parser.go
+@@ -610,9 +610,6 @@ func (p *parser) tryVarType(isParam bool) ast.Expr {
+ 			p.error(pos, "'...' parameter is missing type")
+ 			typ = &ast.BadExpr{pos, p.pos}
+ 		}
+-		if p.tok != token.RPAREN {
+-			p.error(pos, "can use '...' with last parameter type only")
+-		}
+ 		return &ast.Ellipsis{pos, typ}
+ 	}
+ 	return p.tryIdentOrType(false)
+@@ -635,21 +632,21 @@ func (p *parser) parseVarList(isParam bool) (list []ast.Expr, typ ast.Expr) {
+ 	}
+ 
+ 	// a list of identifiers looks like a list of type names
+-	for {
+-		// parseVarType accepts any type (including parenthesized ones)
+-		// even though the syntax does not permit them here: we
+-		// accept them all for more robust parsing and complain
+-		// afterwards
+-		list = append(list, p.parseVarType(isParam))
++	//
++	// parse/tryVarType accepts any type (including parenthesized
++	// ones) even though the syntax does not permit them here: we
++	// accept them all for more robust parsing and complain later
++	for typ := p.parseVarType(isParam); typ != nil; {
++		list = append(list, typ)
+ 		if p.tok != token.COMMA {
+ 			break
+ 		}
+ 		p.next()
++		typ = p.tryVarType(isParam) // maybe nil as in: func f(int,) {}
+ 	}
+ 
+ 	// if we had a list of identifiers, it must be followed by a type
+-	typ = p.tryVarType(isParam)
+-	if typ != nil {
++	if typ = p.tryVarType(isParam); typ != nil {
+ 		p.resolve(typ)
+ 	}
+ 
+diff --git a/src/pkg/go/parser/parser_test.go b/src/pkg/go/parser/parser_test.go
+index fb91dd1e7c..9705dcff25 100644
+--- a/src/pkg/go/parser/parser_test.go
++++ b/src/pkg/go/parser/parser_test.go
+@@ -64,6 +64,9 @@ var validPrograms = []interface{}{
+ 	`package p; func f(...T);`,
+ 	`package p; func f(float, ...int);`,
+ 	`package p; func f(x int, a ...int) { f(0, a...); f(1, a...,) };`,
++	`package p; func f(int,) {};`,
++	`package p; func f(...int,) {};`,
++	`package p; func f(x ...int,) {};`,
+ 	`package p; type T []int; var a []bool; func f() { if a[T{42}[0]] {} };`,
+ 	`package p; type T []int; func g(int) bool { return true }; func f() { if g(T{42}[0]) {} };`,
+ 	`package p; type T []int; func f() { for _ = range []int{T{42}[0]} {} };`,
+@@ -77,7 +80,7 @@ var validPrograms = []interface{}{
+ 
+ func TestParseValidPrograms(t *testing.T) {
+ 	for _, src := range validPrograms {
+-		_, err := ParseFile(fset, "", src, 0)
++		_, err := ParseFile(fset, "", src, SpuriousErrors)
+ 		if err != nil {
+ 			t.Errorf("ParseFile(%q): %v", src, err)
+ 		}

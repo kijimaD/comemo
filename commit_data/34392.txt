@@ -14,7 +14,7 @@ Date:   Tue Oct 24 14:45:41 2017 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/bexport.go   | 2 +-
  src/cmd/compile/internal/gc/export.go    | 6 +++---
  src/cmd/compile/internal/gc/inl.go       | 8 ++------
@@ -22,3 +22,107 @@ Date:   Tue Oct 24 14:45:41 2017 -0700
  src/cmd/compile/internal/gc/syntax.go    | 5 +++++
  src/cmd/compile/internal/gc/typecheck.go | 2 +-
  6 files changed, 13 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index 9564a59f4a..9950f8b855 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -1192,7 +1192,7 @@ func (p *exporter) expr(n *Node) {
+ 		// Special case: explicit name of func (*T) method(...) is turned into pkg.(*T).method,
+ 		// but for export, this should be rendered as (*pkg.T).meth.
+ 		// These nodes have the special property that they are names with a left OTYPE and a right ONAME.
+-		if n.Left != nil && n.Left.Op == OTYPE && n.Right != nil && n.Right.Op == ONAME {
++		if n.isMethodExpression() {
+ 			p.op(OXDOT)
+ 			p.pos(n)
+ 			p.expr(n.Left) // n.Left.Op == OTYPE
+diff --git a/src/cmd/compile/internal/gc/export.go b/src/cmd/compile/internal/gc/export.go
+index 8175119eb8..2c44785859 100644
+--- a/src/cmd/compile/internal/gc/export.go
++++ b/src/cmd/compile/internal/gc/export.go
+@@ -112,10 +112,10 @@ func reexportdep(n *Node) {
+ 	switch n.Op {
+ 	case ONAME:
+ 		switch n.Class() {
+-		// methods will be printed along with their type
+-		// nodes for T.Method expressions
+ 		case PFUNC:
+-			if n.Left != nil && n.Left.Op == OTYPE {
++			// methods will be printed along with their type
++			// nodes for T.Method expressions
++			if n.isMethodExpression() {
+ 				break
+ 			}
+ 
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index 9a434601d5..1b52acde3a 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -244,7 +244,7 @@ func (v *hairyVisitor) visit(n *Node) bool {
+ 			break
+ 		}
+ 
+-		if n.isMethodCalledAsFunction() {
++		if n.Left.isMethodExpression() {
+ 			if d := asNode(n.Left.Sym.Def); d != nil && d.Func.Inl.Len() != 0 {
+ 				v.budget -= d.Func.InlCost
+ 				break
+@@ -536,7 +536,7 @@ func inlnode(n *Node) *Node {
+ 		}
+ 		if n.Left.Func != nil && n.Left.Func.Inl.Len() != 0 && !isIntrinsicCall(n) { // normal case
+ 			n = mkinlcall(n, n.Left, n.Isddd())
+-		} else if n.isMethodCalledAsFunction() && asNode(n.Left.Sym.Def) != nil {
++		} else if n.Left.isMethodExpression() && asNode(n.Left.Sym.Def) != nil {
+ 			n = mkinlcall(n, asNode(n.Left.Sym.Def), n.Isddd())
+ 		} else if n.Left.Op == OCLOSURE {
+ 			if f := inlinableClosure(n.Left); f != nil {
+@@ -1095,7 +1095,3 @@ func (subst *inlsubst) updatedPos(xpos src.XPos) src.XPos {
+ 	pos.SetBase(newbase)
+ 	return Ctxt.PosTable.XPos(pos)
+ }
+-
+-func (n *Node) isMethodCalledAsFunction() bool {
+-	return n.Left.Op == ONAME && n.Left.Left != nil && n.Left.Left.Op == OTYPE && n.Left.Right != nil && n.Left.Right.Op == ONAME
+-}
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index e884ab1692..3af2460a80 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -44,7 +44,7 @@ func init1(n *Node, out *[]*Node) {
+ 		init1(n1, out)
+ 	}
+ 
+-	if n.Left != nil && n.Type != nil && n.Left.Op == OTYPE && n.Class() == PFUNC {
++	if n.isMethodExpression() {
+ 		// Methods called as Type.Method(receiver, ...).
+ 		// Definitions for method expressions are stored in type->nname.
+ 		init1(asNode(n.Type.FuncType().Nname), out)
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index 68067bf1b3..9a07f0ec12 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -209,6 +209,11 @@ func (n *Node) mayBeShared() bool {
+ 	return false
+ }
+ 
++// isMethodExpression reports whether n represents a method expression T.M.
++func (n *Node) isMethodExpression() bool {
++	return n.Op == ONAME && n.Left != nil && n.Left.Op == OTYPE && n.Right != nil && n.Right.Op == ONAME
++}
++
+ // funcname returns the name of the function n.
+ func (n *Node) funcname() string {
+ 	if n == nil || n.Func == nil || n.Func.Nname == nil {
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 78c59b5dff..f6e3633b0e 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -2709,7 +2709,7 @@ notenough:
+ 			// call is the expression being called, not the overall call.
+ 			// Method expressions have the form T.M, and the compiler has
+ 			// rewritten those to ONAME nodes but left T in Left.
+-			if call.Op == ONAME && call.Left != nil && call.Left.Op == OTYPE {
++			if call.isMethodExpression() {
+ 				yyerror("not enough arguments in call to method expression %v%s", call, details)
+ 			} else {
+ 				yyerror("not enough arguments in call to %v%s", call, details)

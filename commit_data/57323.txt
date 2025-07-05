@@ -19,6 +19,19 @@ Date:   Thu Jul 27 16:20:58 2023 +0800
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Reviewed-by: David Chase <drchase@google.com>
     Run-TryBot: M Zhuo <mzh@golangcn.org>
-
+---
  src/net/dial_test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/net/dial_test.go b/src/net/dial_test.go
+index 784fb1d899..c36274d4d7 100644
+--- a/src/net/dial_test.go
++++ b/src/net/dial_test.go
+@@ -784,6 +784,7 @@ func TestDialCancel(t *testing.T) {
+ 					"connection refused",
+ 					"unreachable",
+ 					"no route to host",
++					"invalid argument",
+ 				}
+ 				e := err.Error()
+ 				for _, ignore := range ignorable {

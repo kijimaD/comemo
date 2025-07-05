@@ -17,6 +17,20 @@ Date:   Tue Feb 9 17:24:26 2016 -0500
     Reviewed-by: Rick Hudson <rlh@golang.org>
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/mbitmap.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/mbitmap.go b/src/runtime/mbitmap.go
+index 80c267f7bb..35fc82bf4a 100644
+--- a/src/runtime/mbitmap.go
++++ b/src/runtime/mbitmap.go
+@@ -558,7 +558,7 @@ func (h heapBits) clearCheckmarkSpan(size, n, total uintptr) {
+ // heapBitsSweepSpan coordinates the sweeping of a span by reading
+ // and updating the corresponding heap bitmap entries.
+ // For each free object in the span, heapBitsSweepSpan sets the type
+-// bits for the first two words (or one for single-word objects) to typeDead
++// bits for the first four words (less for smaller objects) to scalar/dead
+ // and then calls f(p), where p is the object's base address.
+ // f is expected to add the object to a free list.
+ // For non-free objects, heapBitsSweepSpan turns off the marked bit.

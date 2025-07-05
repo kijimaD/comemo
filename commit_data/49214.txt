@@ -13,7 +13,32 @@ Date:   Thu Jul 29 16:01:30 2021 -0700
     Trust: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/types2/typeparam.go | 1 -
  src/go/types/typeparam.go                    | 1 -
  2 files changed, 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/typeparam.go b/src/cmd/compile/internal/types2/typeparam.go
+index 9f8c921bf1..2614f467b1 100644
+--- a/src/cmd/compile/internal/types2/typeparam.go
++++ b/src/cmd/compile/internal/types2/typeparam.go
+@@ -108,7 +108,6 @@ func (tps *TypeParams) Len() int {
+ }
+ 
+ // At returns the i'th type parameter in the list.
+-// It is safe to call on a nil receiver.
+ func (tps *TypeParams) At(i int) *TypeName {
+ 	return tps.list()[i]
+ }
+diff --git a/src/go/types/typeparam.go b/src/go/types/typeparam.go
+index 8c18b52a9a..a3d60c1648 100644
+--- a/src/go/types/typeparam.go
++++ b/src/go/types/typeparam.go
+@@ -98,7 +98,6 @@ func (tps *TypeParams) Len() int {
+ }
+ 
+ // At returns the i'th type parameter in the list.
+-// It is safe to call on a nil receiver.
+ func (tps *TypeParams) At(i int) *TypeName {
+ 	return tps.list()[i]
+ }

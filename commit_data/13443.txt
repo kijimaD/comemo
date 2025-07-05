@@ -10,6 +10,24 @@ Date:   Tue Jul 3 16:06:24 2012 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/6350073
-
+---
  src/pkg/reflect/value.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/reflect/value.go b/src/pkg/reflect/value.go
+index 79476ad229..c44d408c6b 100644
+--- a/src/pkg/reflect/value.go
++++ b/src/pkg/reflect/value.go
+@@ -1713,10 +1713,11 @@ func ValueOf(i interface{}) Value {
+ 	return Value{typ, unsafe.Pointer(eface.word), fl}
+ }
+ 
+-// Zero returns a Value representing a zero value for the specified type.
++// Zero returns a Value representing the zero value for the specified type.
+ // The result is different from the zero value of the Value struct,
+ // which represents no value at all.
+ // For example, Zero(TypeOf(42)) returns a Value with Kind Int and value 0.
++// The returned value is neither addressable nor settable.
+ func Zero(typ Type) Value {
+ 	if typ == nil {
+ 		panic("reflect: Zero(nil)")

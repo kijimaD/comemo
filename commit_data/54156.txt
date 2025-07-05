@@ -20,7 +20,7 @@ Date:   Mon Sep 26 21:27:20 2022 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/decl.go | 10 +++-------
  src/go/types/decl.go                    |  7 +++++--
  test/alias2.go                          |  6 +++---
@@ -28,3 +28,118 @@ Date:   Mon Sep 26 21:27:20 2022 -0700
  test/fixedbugs/issue18655.go            | 16 ++++++++--------
  test/method1.go                         |  4 ++--
  6 files changed, 23 insertions(+), 24 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/decl.go b/src/cmd/compile/internal/types2/decl.go
+index f9d1431b82..ebce3ee2e2 100644
+--- a/src/cmd/compile/internal/types2/decl.go
++++ b/src/cmd/compile/internal/types2/decl.go
+@@ -675,15 +675,11 @@ func (check *Checker) collectMethods(obj *TypeName) {
+ 		// to it must be unique."
+ 		assert(m.name != "_")
+ 		if alt := mset.insert(m); alt != nil {
+-			var err error_
+-			err.code = _DuplicateMethod
+-			if check.conf.CompilerErrorMessages {
+-				err.errorf(m.pos, "%s.%s redeclared in this block", obj.Name(), m.name)
++			if alt.Pos().IsKnown() {
++				check.errorf(m.pos, _DuplicateMethod, "method %s.%s already declared at %s", obj.Name(), m.name, alt.Pos())
+ 			} else {
+-				err.errorf(m.pos, "method %s already declared for %s", m.name, obj)
++				check.errorf(m.pos, _DuplicateMethod, "method %s.%s already declared", obj.Name(), m.name)
+ 			}
+-			err.recordAltDecl(alt)
+-			check.report(&err)
+ 			continue
+ 		}
+ 
+diff --git a/src/go/types/decl.go b/src/go/types/decl.go
+index a370c5c646..87d4f3fdf4 100644
+--- a/src/go/types/decl.go
++++ b/src/go/types/decl.go
+@@ -749,8 +749,11 @@ func (check *Checker) collectMethods(obj *TypeName) {
+ 		// to it must be unique."
+ 		assert(m.name != "_")
+ 		if alt := mset.insert(m); alt != nil {
+-			check.errorf(m, _DuplicateMethod, "method %s already declared for %s", m.name, obj)
+-			check.reportAltDecl(alt)
++			if alt.Pos().IsValid() {
++				check.errorf(m, _DuplicateMethod, "method %s.%s already declared at %s", obj.Name(), m.name, alt.Pos())
++			} else {
++				check.errorf(m, _DuplicateMethod, "method %s.%s already declared", obj.Name(), m.name)
++			}
+ 			continue
+ 		}
+ 
+diff --git a/test/alias2.go b/test/alias2.go
+index 61c7551f79..d7101420bd 100644
+--- a/test/alias2.go
++++ b/test/alias2.go
+@@ -36,9 +36,9 @@ type (
+ 
+ // Methods can be declared on the original named type and the alias.
+ func (T0) m1()  {} // GCCGO_ERROR "previous"
+-func (*T0) m1() {} // ERROR "method redeclared: T0\.m1|T0\.m1 redeclared in this block|redefinition of .m1."
+-func (A0) m1()  {} // ERROR "T0\.m1 redeclared in this block|redefinition of .m1."
+-func (A0) m1()  {} // ERROR "T0\.m1 redeclared in this block|redefinition of .m1."
++func (*T0) m1() {} // ERROR "method redeclared: T0\.m1|T0\.m1 already declared|redefinition of .m1."
++func (A0) m1()  {} // ERROR "T0\.m1 already declared|redefinition of .m1."
++func (A0) m1()  {} // ERROR "T0\.m1 already declared|redefinition of .m1."
+ func (A0) m2()  {}
+ 
+ // Type aliases and the original type name can be used interchangeably.
+diff --git a/test/fixedbugs/bug350.go b/test/fixedbugs/bug350.go
+index 39f91d43a9..0a84017702 100644
+--- a/test/fixedbugs/bug350.go
++++ b/test/fixedbugs/bug350.go
+@@ -9,7 +9,7 @@ package main
+ type T int
+ 
+ func (T) m() {} // GCCGO_ERROR "previous"
+-func (T) m() {} // ERROR "T[.]m redeclared|redefinition"
++func (T) m() {} // ERROR "T\.m already declared|redefinition"
+ 
+ func (*T) p() {} // GCCGO_ERROR "previous"
+-func (*T) p() {} // ERROR "[(][*]T[)][.]p redeclared|redefinition|redeclared"
++func (*T) p() {} // ERROR "T\.p already declared|redefinition"
+diff --git a/test/fixedbugs/issue18655.go b/test/fixedbugs/issue18655.go
+index 13762f1a94..f34e5a9aeb 100644
+--- a/test/fixedbugs/issue18655.go
++++ b/test/fixedbugs/issue18655.go
+@@ -11,12 +11,12 @@ type A = T
+ type B = T
+ 
+ func (T) m() {}
+-func (T) m() {} // ERROR "redeclared|redefinition"
+-func (A) m() {} // ERROR "redeclared|redefinition"
+-func (A) m() {} // ERROR "redeclared|redefinition"
+-func (B) m() {} // ERROR "redeclared|redefinition"
+-func (B) m() {} // ERROR "redeclared|redefinition"
++func (T) m() {} // ERROR "already declared|redefinition"
++func (A) m() {} // ERROR "already declared|redefinition"
++func (A) m() {} // ERROR "already declared|redefinition"
++func (B) m() {} // ERROR "already declared|redefinition"
++func (B) m() {} // ERROR "already declared|redefinition"
+ 
+-func (*T) m() {} // ERROR "redeclared|redefinition"
+-func (*A) m() {} // ERROR "redeclared|redefinition"
+-func (*B) m() {} // ERROR "redeclared|redefinition"
++func (*T) m() {} // ERROR "already declared|redefinition"
++func (*A) m() {} // ERROR "already declared|redefinition"
++func (*B) m() {} // ERROR "already declared|redefinition"
+diff --git a/test/method1.go b/test/method1.go
+index bb8c81d746..badfa55a7e 100644
+--- a/test/method1.go
++++ b/test/method1.go
+@@ -12,10 +12,10 @@ package main
+ type T struct{}
+ 
+ func (t *T) M(int, string)  // GCCGO_ERROR "previous"
+-func (t *T) M(int, float64) {} // ERROR "redeclared|redefinition"
++func (t *T) M(int, float64) {} // ERROR "already declared|redefinition"
+ 
+ func (t T) H()  // GCCGO_ERROR "previous"
+-func (t *T) H() {} // ERROR "redeclared|redefinition"
++func (t *T) H() {} // ERROR "already declared|redefinition"
+ 
+ func f(int, string)  // GCCGO_ERROR "previous"
+ func f(int, float64) {} // ERROR "redeclared|redefinition"

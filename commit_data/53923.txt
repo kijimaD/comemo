@@ -11,9 +11,98 @@ Date:   Sun Sep 4 19:55:43 2022 +0800
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Keith Randall <khr@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/asm/internal/asm/asm.go           | 4 ++--
  src/cmd/asm/internal/asm/endtoend_test.go | 4 ++--
  src/cmd/asm/internal/asm/pseudo_test.go   | 3 +--
  src/cmd/asm/internal/lex/lex_test.go      | 3 +--
  4 files changed, 6 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/asm.go b/src/cmd/asm/internal/asm/asm.go
+index 050a4f013c..754139c566 100644
+--- a/src/cmd/asm/internal/asm/asm.go
++++ b/src/cmd/asm/internal/asm/asm.go
+@@ -5,9 +5,9 @@
+ package asm
+ 
+ import (
+-	"bytes"
+ 	"fmt"
+ 	"strconv"
++	"strings"
+ 	"text/scanner"
+ 
+ 	"cmd/asm/internal/arch"
+@@ -22,7 +22,7 @@ import (
+ 
+ // TODO: configure the architecture
+ 
+-var testOut *bytes.Buffer // Gathers output when testing.
++var testOut *strings.Builder // Gathers output when testing.
+ 
+ // append adds the Prog to the end of the program-thus-far.
+ // If doLabel is set, it also defines the labels collect for this Prog.
+diff --git a/src/cmd/asm/internal/asm/endtoend_test.go b/src/cmd/asm/internal/asm/endtoend_test.go
+index 33a4465af3..9660a90ab1 100644
+--- a/src/cmd/asm/internal/asm/endtoend_test.go
++++ b/src/cmd/asm/internal/asm/endtoend_test.go
+@@ -34,7 +34,7 @@ func testEndToEnd(t *testing.T, goarch, file string) {
+ 	parser := NewParser(ctxt, architecture, lexer, false)
+ 	pList := new(obj.Plist)
+ 	var ok bool
+-	testOut = new(bytes.Buffer) // The assembler writes test output to this buffer.
++	testOut = new(strings.Builder) // The assembler writes test output to this buffer.
+ 	ctxt.Bso = bufio.NewWriter(os.Stdout)
+ 	ctxt.IsAsm = true
+ 	defer ctxt.Bso.Flush()
+@@ -277,7 +277,7 @@ func testErrors(t *testing.T, goarch, file string, flags ...string) {
+ 	parser := NewParser(ctxt, architecture, lexer, false)
+ 	pList := new(obj.Plist)
+ 	var ok bool
+-	testOut = new(bytes.Buffer) // The assembler writes test output to this buffer.
++	testOut = new(strings.Builder) // The assembler writes test output to this buffer.
+ 	ctxt.Bso = bufio.NewWriter(os.Stdout)
+ 	ctxt.IsAsm = true
+ 	defer ctxt.Bso.Flush()
+diff --git a/src/cmd/asm/internal/asm/pseudo_test.go b/src/cmd/asm/internal/asm/pseudo_test.go
+index fe6ffa6074..5e6fcf8dfe 100644
+--- a/src/cmd/asm/internal/asm/pseudo_test.go
++++ b/src/cmd/asm/internal/asm/pseudo_test.go
+@@ -5,7 +5,6 @@
+ package asm
+ 
+ import (
+-	"bytes"
+ 	"strings"
+ 	"testing"
+ 
+@@ -81,7 +80,7 @@ func TestErroneous(t *testing.T) {
+ 	// Note these errors should be independent of the architecture.
+ 	// Just run the test with amd64.
+ 	parser := newParser("amd64")
+-	var buf bytes.Buffer
++	var buf strings.Builder
+ 	parser.errorWriter = &buf
+ 
+ 	for _, cat := range testcats {
+diff --git a/src/cmd/asm/internal/lex/lex_test.go b/src/cmd/asm/internal/lex/lex_test.go
+index 51679d2fbc..e8dcf4b22f 100644
+--- a/src/cmd/asm/internal/lex/lex_test.go
++++ b/src/cmd/asm/internal/lex/lex_test.go
+@@ -5,7 +5,6 @@
+ package lex
+ 
+ import (
+-	"bytes"
+ 	"strings"
+ 	"testing"
+ 	"text/scanner"
+@@ -275,7 +274,7 @@ func lines(a ...string) string {
+ 
+ // drain returns a single string representing the processed input tokens.
+ func drain(input *Input) string {
+-	var buf bytes.Buffer
++	var buf strings.Builder
+ 	for {
+ 		tok := input.Next()
+ 		if tok == scanner.EOF {

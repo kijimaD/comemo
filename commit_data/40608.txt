@@ -23,9 +23,116 @@ Date:   Tue Jun 4 16:50:59 2019 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/cache/cache.go    |  2 +-
  src/cmd/go/internal/modfetch/cache.go |  4 ++--
  src/cmd/go/internal/modfetch/fetch.go | 10 +++++-----
  src/cmd/go/internal/modload/init.go   |  4 ++--
  4 files changed, 10 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/go/internal/cache/cache.go b/src/cmd/go/internal/cache/cache.go
+index c1d073806e..116279c977 100644
+--- a/src/cmd/go/internal/cache/cache.go
++++ b/src/cmd/go/internal/cache/cache.go
+@@ -261,7 +261,7 @@ func (c *Cache) Trim() {
+ 	// We maintain in dir/trim.txt the time of the last completed cache trim.
+ 	// If the cache has been trimmed recently enough, do nothing.
+ 	// This is the common case.
+-	data, _ := ioutil.ReadFile(filepath.Join(c.dir, "trim.txt"))
++	data, _ := renameio.ReadFile(filepath.Join(c.dir, "trim.txt"))
+ 	t, err := strconv.ParseInt(strings.TrimSpace(string(data)), 10, 64)
+ 	if err == nil && now.Sub(time.Unix(t, 0)) < trimInterval {
+ 		return
+diff --git a/src/cmd/go/internal/modfetch/cache.go b/src/cmd/go/internal/modfetch/cache.go
+index 2b2f86d96a..98d4806b61 100644
+--- a/src/cmd/go/internal/modfetch/cache.go
++++ b/src/cmd/go/internal/modfetch/cache.go
+@@ -482,7 +482,7 @@ func readDiskCache(path, rev, suffix string) (file string, data []byte, err erro
+ 	if err != nil {
+ 		return "", nil, errNotCached
+ 	}
+-	data, err = ioutil.ReadFile(file)
++	data, err = renameio.ReadFile(file)
+ 	if err != nil {
+ 		return file, nil, errNotCached
+ 	}
+@@ -576,7 +576,7 @@ func rewriteVersionList(dir string) {
+ 		buf.WriteString(v)
+ 		buf.WriteString("\n")
+ 	}
+-	old, _ := ioutil.ReadFile(listFile)
++	old, _ := renameio.ReadFile(listFile)
+ 	if bytes.Equal(buf.Bytes(), old) {
+ 		return
+ 	}
+diff --git a/src/cmd/go/internal/modfetch/fetch.go b/src/cmd/go/internal/modfetch/fetch.go
+index 3b2c68b281..94cb0d3a19 100644
+--- a/src/cmd/go/internal/modfetch/fetch.go
++++ b/src/cmd/go/internal/modfetch/fetch.go
+@@ -293,7 +293,7 @@ func initGoSum() bool {
+ 
+ 	goSum.m = make(map[module.Version][]string)
+ 	goSum.checked = make(map[modSum]bool)
+-	data, err := ioutil.ReadFile(GoSumFile)
++	data, err := renameio.ReadFile(GoSumFile)
+ 	if err != nil && !os.IsNotExist(err) {
+ 		base.Fatalf("go: %v", err)
+ 	}
+@@ -303,7 +303,7 @@ func initGoSum() bool {
+ 	// Add old go.modverify file.
+ 	// We'll delete go.modverify in WriteGoSum.
+ 	alt := strings.TrimSuffix(GoSumFile, ".sum") + ".modverify"
+-	if data, err := ioutil.ReadFile(alt); err == nil {
++	if data, err := renameio.ReadFile(alt); err == nil {
+ 		migrate := make(map[module.Version][]string)
+ 		readGoSum(migrate, alt, data)
+ 		for mod, sums := range migrate {
+@@ -363,7 +363,7 @@ func checkMod(mod module.Version) {
+ 	if err != nil {
+ 		base.Fatalf("verifying %s@%s: %v", mod.Path, mod.Version, err)
+ 	}
+-	data, err := ioutil.ReadFile(ziphash)
++	data, err := renameio.ReadFile(ziphash)
+ 	if err != nil {
+ 		if os.IsNotExist(err) {
+ 			// This can happen if someone does rm -rf GOPATH/src/cache/download. So it goes.
+@@ -490,7 +490,7 @@ func Sum(mod module.Version) string {
+ 	if err != nil {
+ 		return ""
+ 	}
+-	data, err := ioutil.ReadFile(ziphash)
++	data, err := renameio.ReadFile(ziphash)
+ 	if err != nil {
+ 		return ""
+ 	}
+@@ -538,7 +538,7 @@ func WriteGoSum() {
+ 	if !goSum.overwrite {
+ 		// Re-read the go.sum file to incorporate any sums added by other processes
+ 		// in the meantime.
+-		data, err := ioutil.ReadFile(GoSumFile)
++		data, err := renameio.ReadFile(GoSumFile)
+ 		if err != nil && !os.IsNotExist(err) {
+ 			base.Fatalf("go: re-reading go.sum: %v", err)
+ 		}
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index 14fadbf74e..6f1d2cee49 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -316,7 +316,7 @@ func InitMod() {
+ 	}
+ 
+ 	gomod := filepath.Join(modRoot, "go.mod")
+-	data, err := ioutil.ReadFile(gomod)
++	data, err := renameio.ReadFile(gomod)
+ 	if err != nil {
+ 		base.Fatalf("go: %v", err)
+ 	}
+@@ -696,7 +696,7 @@ func WriteGoMod() {
+ 	defer unlock()
+ 
+ 	file := filepath.Join(modRoot, "go.mod")
+-	old, err := ioutil.ReadFile(file)
++	old, err := renameio.ReadFile(file)
+ 	if !bytes.Equal(old, modFileData) {
+ 		if bytes.Equal(old, new) {
+ 			// Some other process wrote the same go.mod file that we were about to write.

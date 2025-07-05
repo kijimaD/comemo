@@ -5,8 +5,156 @@ Date:   Sun Jul 13 16:20:27 2008 -0700
     chan
     
     SVN=126959
-
+---
  src/cmd/gc/subr.c  |  1 +
  src/cmd/gc/walk.c  | 64 ++++++++++++++++++++++++++++++++++++++++++++++++++----
  src/runtime/chan.c | 28 ++++++++++++++++++++++++
  3 files changed, 89 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 7816b45d05..7ee6314e2e 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -1364,6 +1364,7 @@ deep(Type *t)
+ 
+ 	case TPTR32:
+ 	case TPTR64:
++	case TCHAN:
+ 		nt = shallow(t);
+ 		nt->type = deep(t->type);
+ 		break;
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 5d39554758..c293568c54 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -1700,12 +1700,16 @@ chanop(Node *n, int top)
+ 		break;
+ 
+ 	case OAS:
+-		// chansend(hchan *chan any, elem any);
++		cl = listcount(n->left);
++		cr = listcount(n->right);
+ 
+-//dump("assign1", n);
+-		if(n->left->op != OSEND)
++		if(cl == 2 && cr == 1 && n->right->op == ORECV)
++			goto recv2;
++		if(cl != 1 || cr != 1 || n->left->op != OSEND)
+ 			goto shape;
+ 
++		// chansend(hchan *chan any, elem any);
++
+ 		t = fixchan(n->left->left->type);
+ 		if(t == T)
+ 			break;
+@@ -1716,14 +1720,54 @@ chanop(Node *n, int top)
+ 		r = nod(OLIST, a, r);
+ 
+ 		on = syslook("chansend", 1);
+-
++print("type=%lT\n", t);
++print("on=%lT\n", on->type);
+ 		argtype(on, t->type);	// any-1
++print("on=%lT\n", on->type);
+ 		argtype(on, t->type);	// any-2
++print("on=%lT\n", on->type);
+ 
+ 		r = nod(OCALL, on, r);
+ 		walktype(r, Erv);
+ 		break;
+ 
++	case ORECV:
++		// chanrecv1(hchan *chan any) (elem any);
++
++		t = fixchan(n->left->type);
++		if(t == T)
++			break;
++
++		a = n->left;			// chan
++		r = a;
++
++		on = syslook("chanrecv1", 1);
++
++		argtype(on, t->type);	// any-1
++		argtype(on, t->type);	// any-2
++		r = nod(OCALL, on, r);
++		walktype(r, Erv);
++		break;
++
++	recv2:
++		// chanrecv2(hchan *chan any) (elem any, pres bool);
++
++		t = fixchan(n->right->left->type);
++		if(t == T)
++			break;
++
++		a = n->right->left;			// chan
++		r = a;
++
++		on = syslook("chanrecv2", 1);
++
++		argtype(on, t->type);	// any-1
++		argtype(on, t->type);	// any-2
++		r = nod(OCALL, on, r);
++		n->right = r;
++		r = n;
++		walktype(r, Etop);
++		break;
+ 	}
+ 	return r;
+ 
+@@ -1950,6 +1994,18 @@ multi:
+ 		a = old2new(nl->right, types[TBOOL]);
+ 		n = nod(OLIST, n, a);
+ 		break;
++
++	case ORECV:
++		if(cl != 2)
++			goto badt;
++		walktype(nr->left, Erv);
++		t = nr->left->type;
++		if(!isptrto(t, TCHAN))
++			goto badt;
++		a = old2new(nl->left, t->type->type);
++		n = a;
++		a = old2new(nl->right, types[TBOOL]);
++		n = nod(OLIST, n, a);
+ 	}
+ 	n = rev(n);
+ 	return n;
+diff --git a/src/runtime/chan.c b/src/runtime/chan.c
+index b491bbda32..7014ebc657 100644
+--- a/src/runtime/chan.c
++++ b/src/runtime/chan.c
+@@ -73,3 +73,31 @@ sys·chansend(Hchan* c, ...)
+ 		prints("\n");
+ 	}
+ }
++
++// chanrecv1(hchan *chan any) (elem any);
++void
++sys·chanrecv1(Hchan* c, ...)
++{
++	byte *ae;
++
++	ae = (byte*)&c + c->eo;
++	if(debug) {
++		prints("chanrecv1: chan=");
++		sys·printpointer(c);
++		prints("\n");
++	}
++}
++
++// chanrecv2(hchan *chan any) (elem any, pres bool);
++void
++sys·chanrecv2(Hchan* c, ...)
++{
++	byte *ae;
++
++	ae = (byte*)&c + c->eo;
++	if(debug) {
++		prints("chanrecv2: chan=");
++		sys·printpointer(c);
++		prints("\n");
++	}
++}

@@ -18,6 +18,20 @@ Date:   Sun Feb 7 17:31:12 2021 +0100
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/runtime/metrics/example_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/metrics/example_test.go b/src/runtime/metrics/example_test.go
+index cade0c38bf..624d9d8a6b 100644
+--- a/src/runtime/metrics/example_test.go
++++ b/src/runtime/metrics/example_test.go
+@@ -88,7 +88,7 @@ func medianBucket(h *metrics.Float64Histogram) float64 {
+ 	total = 0
+ 	for i, count := range h.Counts {
+ 		total += count
+-		if total > thresh {
++		if total >= thresh {
+ 			return h.Buckets[i]
+ 		}
+ 	}

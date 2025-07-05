@@ -7,9 +7,58 @@ Date:   Wed Nov 14 22:04:03 2012 -0800
     R=golang-dev, dave, jsing
     CC=golang-dev
     https://golang.org/cl/6847051
-
+---
  src/pkg/runtime/cgo/gcc_freebsd_386.c   | 1 +
  src/pkg/runtime/cgo/gcc_freebsd_amd64.c | 1 +
  src/pkg/runtime/cgo/gcc_netbsd_386.c    | 1 +
  src/pkg/runtime/cgo/gcc_netbsd_amd64.c  | 1 +
  4 files changed, 4 insertions(+)
+
+diff --git a/src/pkg/runtime/cgo/gcc_freebsd_386.c b/src/pkg/runtime/cgo/gcc_freebsd_386.c
+index 2c97e2a330..5dae2bfe91 100644
+--- a/src/pkg/runtime/cgo/gcc_freebsd_386.c
++++ b/src/pkg/runtime/cgo/gcc_freebsd_386.c
+@@ -6,6 +6,7 @@
+ #include <sys/signalvar.h>
+ #include <pthread.h>
+ #include <signal.h>
++#include <string.h>
+ #include "libcgo.h"
+ 
+ static void* threadentry(void*);
+diff --git a/src/pkg/runtime/cgo/gcc_freebsd_amd64.c b/src/pkg/runtime/cgo/gcc_freebsd_amd64.c
+index 3beb4d7bb8..313e4fae7e 100644
+--- a/src/pkg/runtime/cgo/gcc_freebsd_amd64.c
++++ b/src/pkg/runtime/cgo/gcc_freebsd_amd64.c
+@@ -6,6 +6,7 @@
+ #include <sys/signalvar.h>
+ #include <pthread.h>
+ #include <signal.h>
++#include <string.h>
+ #include "libcgo.h"
+ 
+ static void* threadentry(void*);
+diff --git a/src/pkg/runtime/cgo/gcc_netbsd_386.c b/src/pkg/runtime/cgo/gcc_netbsd_386.c
+index 3b4c75042c..880c02f82c 100644
+--- a/src/pkg/runtime/cgo/gcc_netbsd_386.c
++++ b/src/pkg/runtime/cgo/gcc_netbsd_386.c
+@@ -5,6 +5,7 @@
+ #include <sys/types.h>
+ #include <pthread.h>
+ #include <signal.h>
++#include <string.h>
+ #include "libcgo.h"
+ 
+ static void* threadentry(void*);
+diff --git a/src/pkg/runtime/cgo/gcc_netbsd_amd64.c b/src/pkg/runtime/cgo/gcc_netbsd_amd64.c
+index 2afcf0283a..1020306d02 100644
+--- a/src/pkg/runtime/cgo/gcc_netbsd_amd64.c
++++ b/src/pkg/runtime/cgo/gcc_netbsd_amd64.c
+@@ -5,6 +5,7 @@
+ #include <sys/types.h>
+ #include <pthread.h>
+ #include <signal.h>
++#include <string.h>
+ #include "libcgo.h"
+ 
+ static void* threadentry(void*);

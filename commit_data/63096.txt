@@ -28,6 +28,24 @@ Date:   Fri May 9 11:07:14 2025 -0700
     Auto-Submit: Damien Neil <dneil@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/traceback.go | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index 276e601f7c..b3baa3b4ed 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -1255,7 +1255,11 @@ func goroutineheader(gp *g) {
+ 		print(", locked to thread")
+ 	}
+ 	if bubble := gp.bubble; bubble != nil {
+-		print(", synctest bubble ", bubble.root.goid)
++		print(", synctest bubble ", bubble.root.goid, ", ")
++		if !gp.waitreason.isIdleInSynctest() {
++			print("not ")
++		}
++		print("durably blocked")
+ 	}
+ 	print("]:\n")
+ }

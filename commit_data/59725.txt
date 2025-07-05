@@ -12,6 +12,31 @@ Date:   Tue Apr 16 10:06:09 2024 +0200
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Carlos Amedee <carlos@golang.org>
-
+---
  src/os/os_windows_test.go | 6 ------
  1 file changed, 6 deletions(-)
+
+diff --git a/src/os/os_windows_test.go b/src/os/os_windows_test.go
+index 956ab07f51..f4ee076b81 100644
+--- a/src/os/os_windows_test.go
++++ b/src/os/os_windows_test.go
+@@ -96,7 +96,6 @@ func TestSameWindowsFile(t *testing.T) {
+ type dirLinkTest struct {
+ 	name         string
+ 	mklink       func(link, target string) error
+-	issueNo      int // correspondent issue number (for broken tests)
+ 	isMountPoint bool
+ }
+ 
+@@ -135,11 +134,6 @@ func testDirLinks(t *testing.T, tests []dirLinkTest) {
+ 			continue
+ 		}
+ 
+-		if test.issueNo > 0 {
+-			t.Logf("skipping broken %q test: see issue %d", test.name, test.issueNo)
+-			continue
+-		}
+-
+ 		fi1, err := os.Stat(link)
+ 		if err != nil {
+ 			t.Errorf("failed to stat link %v: %v", link, err)

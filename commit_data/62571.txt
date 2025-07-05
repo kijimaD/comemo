@@ -26,9 +26,252 @@ Date:   Thu Feb 20 17:05:04 2025 -0800
     Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/crypto/x509/parser.go      | 35 +++++++++++++++++++++++++++++++--
  src/crypto/x509/parser_test.go | 28 +++++++++++++++++++++++++--
  src/encoding/asn1/asn1.go      | 37 ++++++++++++++++++++++++++++++++---
  src/encoding/asn1/asn1_test.go | 44 ++++++++++++++++++++++++++----------------
  4 files changed, 120 insertions(+), 24 deletions(-)
+
+diff --git a/src/crypto/x509/parser.go b/src/crypto/x509/parser.go
+index 6bea5cc77b..b99c776f09 100644
+--- a/src/crypto/x509/parser.go
++++ b/src/crypto/x509/parser.go
+@@ -60,7 +60,21 @@ func isPrintable(b byte) bool {
+ func parseASN1String(tag cryptobyte_asn1.Tag, value []byte) (string, error) {
+ 	switch tag {
+ 	case cryptobyte_asn1.T61String:
+-		return string(value), nil
++		// T.61 is a defunct ITU 8-bit character encoding which preceded Unicode.
++		// T.61 uses a code page layout that _almost_ exactly maps to the code
++		// page layout of the ISO 8859-1 (Latin-1) character encoding, with the
++		// exception that a number of characters in Latin-1 are not present
++		// in T.61.
++		//
++		// Instead of mapping which characters are present in Latin-1 but not T.61,
++		// we just treat these strings as being encoded using Latin-1. This matches
++		// what most of the world does, including BoringSSL.
++		buf := make([]byte, 0, len(value))
++		for _, v := range value {
++			// All the 1-byte UTF-8 runes map 1-1 with Latin-1.
++			buf = utf8.AppendRune(buf, rune(v))
++		}
++		return string(buf), nil
+ 	case cryptobyte_asn1.PrintableString:
+ 		for _, b := range value {
+ 			if !isPrintable(b) {
+@@ -74,6 +88,14 @@ func parseASN1String(tag cryptobyte_asn1.Tag, value []byte) (string, error) {
+ 		}
+ 		return string(value), nil
+ 	case cryptobyte_asn1.Tag(asn1.TagBMPString):
++		// BMPString uses the defunct UCS-2 16-bit character encoding, which
++		// covers the Basic Multilingual Plane (BMP). UTF-16 was an extension of
++		// UCS-2, containing all of the same code points, but also including
++		// multi-code point characters (by using surrogate code points). We can
++		// treat a UCS-2 encoded string as a UTF-16 encoded string, as long as
++		// we reject out the UTF-16 specific code points. This matches the
++		// BoringSSL behavior.
++
+ 		if len(value)%2 != 0 {
+ 			return "", errors.New("invalid BMPString")
+ 		}
+@@ -85,7 +107,16 @@ func parseASN1String(tag cryptobyte_asn1.Tag, value []byte) (string, error) {
+ 
+ 		s := make([]uint16, 0, len(value)/2)
+ 		for len(value) > 0 {
+-			s = append(s, uint16(value[0])<<8+uint16(value[1]))
++			point := uint16(value[0])<<8 + uint16(value[1])
++			// Reject UTF-16 code points that are permanently reserved
++			// noncharacters (0xfffe, 0xffff, and 0xfdd0-0xfdef) and surrogates
++			// (0xd800-0xdfff).
++			if point == 0xfffe || point == 0xffff ||
++				(point >= 0xfdd0 && point <= 0xfdef) ||
++				(point >= 0xd800 && point <= 0xdfff) {
++				return "", errors.New("invalid BMPString")
++			}
++			s = append(s, point)
+ 			value = value[2:]
+ 		}
+ 
+diff --git a/src/crypto/x509/parser_test.go b/src/crypto/x509/parser_test.go
+index 1ffc32daef..e7c1d87bfa 100644
+--- a/src/crypto/x509/parser_test.go
++++ b/src/crypto/x509/parser_test.go
+@@ -24,8 +24,8 @@ func TestParseASN1String(t *testing.T) {
+ 		{
+ 			name:     "T61String",
+ 			tag:      cryptobyte_asn1.T61String,
+-			value:    []byte{80, 81, 82},
+-			expected: string("PQR"),
++			value:    []byte{0xbf, 0x61, 0x3f},
++			expected: string("¿a?"),
+ 		},
+ 		{
+ 			name:     "PrintableString",
+@@ -63,6 +63,30 @@ func TestParseASN1String(t *testing.T) {
+ 			value:       []byte{255},
+ 			expectedErr: "invalid BMPString",
+ 		},
++		{
++			name:        "BMPString (invalid surrogate)",
++			tag:         cryptobyte_asn1.Tag(asn1.TagBMPString),
++			value:       []byte{80, 81, 216, 1},
++			expectedErr: "invalid BMPString",
++		},
++		{
++			name:        "BMPString (invalid noncharacter 0xfdd1)",
++			tag:         cryptobyte_asn1.Tag(asn1.TagBMPString),
++			value:       []byte{80, 81, 253, 209},
++			expectedErr: "invalid BMPString",
++		},
++		{
++			name:        "BMPString (invalid noncharacter 0xffff)",
++			tag:         cryptobyte_asn1.Tag(asn1.TagBMPString),
++			value:       []byte{80, 81, 255, 255},
++			expectedErr: "invalid BMPString",
++		},
++		{
++			name:        "BMPString (invalid noncharacter 0xfffe)",
++			tag:         cryptobyte_asn1.Tag(asn1.TagBMPString),
++			value:       []byte{80, 81, 255, 254},
++			expectedErr: "invalid BMPString",
++		},
+ 		{
+ 			name:     "IA5String",
+ 			tag:      cryptobyte_asn1.IA5String,
+diff --git a/src/encoding/asn1/asn1.go b/src/encoding/asn1/asn1.go
+index 488fb9b1e0..4e3f85de13 100644
+--- a/src/encoding/asn1/asn1.go
++++ b/src/encoding/asn1/asn1.go
+@@ -463,7 +463,21 @@ func parseIA5String(bytes []byte) (ret string, err error) {
+ // parseT61String parses an ASN.1 T61String (8-bit clean string) from the given
+ // byte slice and returns it.
+ func parseT61String(bytes []byte) (ret string, err error) {
+-	return string(bytes), nil
++	// T.61 is a defunct ITU 8-bit character encoding which preceded Unicode.
++	// T.61 uses a code page layout that _almost_ exactly maps to the code
++	// page layout of the ISO 8859-1 (Latin-1) character encoding, with the
++	// exception that a number of characters in Latin-1 are not present
++	// in T.61.
++	//
++	// Instead of mapping which characters are present in Latin-1 but not T.61,
++	// we just treat these strings as being encoded using Latin-1. This matches
++	// what most of the world does, including BoringSSL.
++	buf := make([]byte, 0, len(bytes))
++	for _, v := range bytes {
++		// All the 1-byte UTF-8 runes map 1-1 with Latin-1.
++		buf = utf8.AppendRune(buf, rune(v))
++	}
++	return string(buf), nil
+ }
+ 
+ // UTF8String
+@@ -482,8 +496,16 @@ func parseUTF8String(bytes []byte) (ret string, err error) {
+ // parseBMPString parses an ASN.1 BMPString (Basic Multilingual Plane of
+ // ISO/IEC/ITU 10646-1) from the given byte slice and returns it.
+ func parseBMPString(bmpString []byte) (string, error) {
++	// BMPString uses the defunct UCS-2 16-bit character encoding, which
++	// covers the Basic Multilingual Plane (BMP). UTF-16 was an extension of
++	// UCS-2, containing all of the same code points, but also including
++	// multi-code point characters (by using surrogate code points). We can
++	// treat a UCS-2 encoded string as a UTF-16 encoded string, as long as
++	// we reject out the UTF-16 specific code points. This matches the
++	// BoringSSL behavior.
++
+ 	if len(bmpString)%2 != 0 {
+-		return "", errors.New("pkcs12: odd-length BMP string")
++		return "", errors.New("invalid BMPString")
+ 	}
+ 
+ 	// Strip terminator if present.
+@@ -493,7 +515,16 @@ func parseBMPString(bmpString []byte) (string, error) {
+ 
+ 	s := make([]uint16, 0, len(bmpString)/2)
+ 	for len(bmpString) > 0 {
+-		s = append(s, uint16(bmpString[0])<<8+uint16(bmpString[1]))
++		point := uint16(bmpString[0])<<8 + uint16(bmpString[1])
++		// Reject UTF-16 code points that are permanently reserved
++		// noncharacters (0xfffe, 0xffff, and 0xfdd0-0xfdef) and surrogates
++		// (0xd800-0xdfff).
++		if point == 0xfffe || point == 0xffff ||
++			(point >= 0xfdd0 && point <= 0xfdef) ||
++			(point >= 0xd800 && point <= 0xdfff) {
++			return "", errors.New("invalid BMPString")
++		}
++		s = append(s, point)
+ 		bmpString = bmpString[2:]
+ 	}
+ 
+diff --git a/src/encoding/asn1/asn1_test.go b/src/encoding/asn1/asn1_test.go
+index 9a605e245c..60dae71df4 100644
+--- a/src/encoding/asn1/asn1_test.go
++++ b/src/encoding/asn1/asn1_test.go
+@@ -506,6 +506,7 @@ var unmarshalTestData = []struct {
+ 	{[]byte{0x30, 0x05, 0x02, 0x03, 0x12, 0x34, 0x56}, &TestBigInt{big.NewInt(0x123456)}},
+ 	{[]byte{0x30, 0x0b, 0x31, 0x09, 0x02, 0x01, 0x01, 0x02, 0x01, 0x02, 0x02, 0x01, 0x03}, &TestSet{Ints: []int{1, 2, 3}}},
+ 	{[]byte{0x12, 0x0b, '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', ' '}, newString("0123456789 ")},
++	{[]byte{0x14, 0x03, 0xbf, 0x61, 0x3f}, newString("¿a?")},
+ }
+ 
+ func TestUnmarshal(t *testing.T) {
+@@ -1126,34 +1127,43 @@ func TestTaggedRawValue(t *testing.T) {
+ }
+ 
+ var bmpStringTests = []struct {
++	name       string
+ 	decoded    string
+ 	encodedHex string
++	invalid    bool
+ }{
+-	{"", "0000"},
++	{"empty string", "", "0000", false},
+ 	// Example from https://tools.ietf.org/html/rfc7292#appendix-B.
+-	{"Beavis", "0042006500610076006900730000"},
++	{"rfc7292 example", "Beavis", "0042006500610076006900730000", false},
+ 	// Some characters from the "Letterlike Symbols Unicode block".
+-	{"\u2115 - Double-struck N", "21150020002d00200044006f00750062006c0065002d00730074007200750063006b0020004e0000"},
++	{"letterlike symbols", "\u2115 - Double-struck N", "21150020002d00200044006f00750062006c0065002d00730074007200750063006b0020004e0000", false},
++	{"invalid length", "", "ff", true},
++	{"invalid surrogate", "", "5051d801", true},
++	{"invalid noncharacter 0xfdd1", "", "5051fdd1", true},
++	{"invalid noncharacter 0xffff", "", "5051ffff", true},
++	{"invalid noncharacter 0xfffe", "", "5051fffe", true},
+ }
+ 
+ func TestBMPString(t *testing.T) {
+-	for i, test := range bmpStringTests {
+-		encoded, err := hex.DecodeString(test.encodedHex)
+-		if err != nil {
+-			t.Fatalf("#%d: failed to decode from hex string", i)
+-		}
++	for _, test := range bmpStringTests {
++		t.Run(test.name, func(t *testing.T) {
++			encoded, err := hex.DecodeString(test.encodedHex)
++			if err != nil {
++				t.Fatalf("failed to decode from hex string: %s", err)
++			}
+ 
+-		decoded, err := parseBMPString(encoded)
++			decoded, err := parseBMPString(encoded)
+ 
+-		if err != nil {
+-			t.Errorf("#%d: decoding output gave an error: %s", i, err)
+-			continue
+-		}
++			if err != nil && !test.invalid {
++				t.Errorf("parseBMPString failed: %s", err)
++			} else if test.invalid && err == nil {
++				t.Error("parseBMPString didn't fail as expected")
++			}
+ 
+-		if decoded != test.decoded {
+-			t.Errorf("#%d: decoding output resulted in %q, but it should have been %q", i, decoded, test.decoded)
+-			continue
+-		}
++			if decoded != test.decoded {
++				t.Errorf("parseBMPString(%q): got %q, want %q", encoded, decoded, test.decoded)
++			}
++		})
+ 	}
+ }
+ 

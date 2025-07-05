@@ -9,7 +9,44 @@ Date:   Mon Mar 16 21:47:38 2009 -0700
     DELTA=6  (0 added, 0 deleted, 6 changed)
     OCL=26357
     CL=26372
-
+---
  test/bugs/bug140.go | 8 ++++----
  test/golden.out     | 4 ++--
  2 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/test/bugs/bug140.go b/test/bugs/bug140.go
+index 614fabdc30..33d1deb8a0 100644
+--- a/test/bugs/bug140.go
++++ b/test/bugs/bug140.go
+@@ -7,12 +7,12 @@
+ package main
+ 
+ func main() {
+-	if {} else L: ;
+-	if {} else L: main() ;
++	if {} else L1: ;
++	if {} else L2: main() ;
+ }
+ 
+ /*
+ These should be legal according to the spec.
+-bug140.go:6: syntax error near L
+-bug140.go:7: syntax error near L
++bug140.go:6: syntax error near L1
++bug140.go:7: syntax error near L2
+ */
+diff --git a/test/golden.out b/test/golden.out
+index 8e4786c3cc..c41d2d9e17 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -137,8 +137,8 @@ bugs/bug139.go:7: fatal error: naddr: ONAME class x 5
+ BUG should compile
+ 
+ =========== bugs/bug140.go
+-bugs/bug140.go:6: syntax error near L
+-bugs/bug140.go:7: syntax error near L
++bugs/bug140.go:6: syntax error near L1
++bugs/bug140.go:7: syntax error near L2
+ BUG should compile
+ 
+ =========== fixedbugs/bug016.go

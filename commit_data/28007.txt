@@ -15,6 +15,43 @@ Date:   Mon Apr 25 10:55:22 2016 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  test/fixedbugs/issue15084.go | 30 ++++++++++++++++++++++++++++++
  1 file changed, 30 insertions(+)
+
+diff --git a/test/fixedbugs/issue15084.go b/test/fixedbugs/issue15084.go
+new file mode 100644
+index 0000000000..7eb294e6a6
+--- /dev/null
++++ b/test/fixedbugs/issue15084.go
+@@ -0,0 +1,30 @@
++// compile
++
++// Copyright 2016 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package x
++
++type T struct {
++	i int
++	e interface{}
++}
++
++func (t *T) F() bool {
++	if t.i != 0 {
++		return false
++	}
++	_, ok := t.e.(string)
++	return ok
++}
++
++var x int
++
++func g(t *T) {
++	if t.F() || true {
++		if t.F() {
++			x = 0
++		}
++	}
++}

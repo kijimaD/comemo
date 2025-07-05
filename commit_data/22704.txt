@@ -24,7 +24,7 @@ Date:   Wed Apr 1 16:02:34 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/8356
     Reviewed-by: Rob Pike <r@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/5g/gsubr.go           |  3 +++
  src/cmd/5g/peep.go            |  1 +
  src/cmd/5g/prog.go            | 21 ++++++++++----------
@@ -37,3 +37,243 @@ Date:   Wed Apr 1 16:02:34 2015 -0400
  src/math/all_test.go          | 45 +++++++++++++++++++++++++++++++++++++++++--
  src/math/sqrt.go              |  5 +++++
  11 files changed, 91 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/5g/gsubr.go b/src/cmd/5g/gsubr.go
+index 0d22f74c9a..fe4ed8d1f2 100644
+--- a/src/cmd/5g/gsubr.go
++++ b/src/cmd/5g/gsubr.go
+@@ -1055,6 +1055,9 @@ func optoas(op int, t *gc.Type) int {
+ 
+ 	case gc.ODIV<<16 | gc.TFLOAT64:
+ 		a = arm.ADIVD
++
++	case gc.OSQRT<<16 | gc.TFLOAT64:
++		a = arm.ASQRTD
+ 	}
+ 
+ 	return a
+diff --git a/src/cmd/5g/peep.go b/src/cmd/5g/peep.go
+index 5305e4b7f6..9ec3be2eec 100644
+--- a/src/cmd/5g/peep.go
++++ b/src/cmd/5g/peep.go
+@@ -1101,6 +1101,7 @@ func copyu(p *obj.Prog, v *obj.Addr, s *obj.Addr) int {
+ 		return 0
+ 
+ 	case obj.ANOP, /* read,, write */
++		arm.ASQRTD,
+ 		arm.AMOVW,
+ 		arm.AMOVF,
+ 		arm.AMOVD,
+diff --git a/src/cmd/5g/prog.go b/src/cmd/5g/prog.go
+index bfb703e56f..c472cdf042 100644
+--- a/src/cmd/5g/prog.go
++++ b/src/cmd/5g/prog.go
+@@ -70,16 +70,17 @@ var progtable = [arm.ALAST]obj.ProgInfo{
+ 	arm.ATST:    {gc.SizeL | gc.LeftRead | gc.RightRead, 0, 0, 0},
+ 
+ 	// Floating point.
+-	arm.AADDD: {gc.SizeD | gc.LeftRead | RightRdwr, 0, 0, 0},
+-	arm.AADDF: {gc.SizeF | gc.LeftRead | RightRdwr, 0, 0, 0},
+-	arm.ACMPD: {gc.SizeD | gc.LeftRead | gc.RightRead, 0, 0, 0},
+-	arm.ACMPF: {gc.SizeF | gc.LeftRead | gc.RightRead, 0, 0, 0},
+-	arm.ADIVD: {gc.SizeD | gc.LeftRead | RightRdwr, 0, 0, 0},
+-	arm.ADIVF: {gc.SizeF | gc.LeftRead | RightRdwr, 0, 0, 0},
+-	arm.AMULD: {gc.SizeD | gc.LeftRead | RightRdwr, 0, 0, 0},
+-	arm.AMULF: {gc.SizeF | gc.LeftRead | RightRdwr, 0, 0, 0},
+-	arm.ASUBD: {gc.SizeD | gc.LeftRead | RightRdwr, 0, 0, 0},
+-	arm.ASUBF: {gc.SizeF | gc.LeftRead | RightRdwr, 0, 0, 0},
++	arm.AADDD:  {gc.SizeD | gc.LeftRead | RightRdwr, 0, 0, 0},
++	arm.AADDF:  {gc.SizeF | gc.LeftRead | RightRdwr, 0, 0, 0},
++	arm.ACMPD:  {gc.SizeD | gc.LeftRead | gc.RightRead, 0, 0, 0},
++	arm.ACMPF:  {gc.SizeF | gc.LeftRead | gc.RightRead, 0, 0, 0},
++	arm.ADIVD:  {gc.SizeD | gc.LeftRead | RightRdwr, 0, 0, 0},
++	arm.ADIVF:  {gc.SizeF | gc.LeftRead | RightRdwr, 0, 0, 0},
++	arm.AMULD:  {gc.SizeD | gc.LeftRead | RightRdwr, 0, 0, 0},
++	arm.AMULF:  {gc.SizeF | gc.LeftRead | RightRdwr, 0, 0, 0},
++	arm.ASUBD:  {gc.SizeD | gc.LeftRead | RightRdwr, 0, 0, 0},
++	arm.ASUBF:  {gc.SizeF | gc.LeftRead | RightRdwr, 0, 0, 0},
++	arm.ASQRTD: {gc.SizeD | gc.LeftRead | RightRdwr, 0, 0, 0},
+ 
+ 	// Conversions.
+ 	arm.AMOVWD: {gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
+diff --git a/src/cmd/6g/gsubr.go b/src/cmd/6g/gsubr.go
+index b2290af733..323ea69a98 100644
+--- a/src/cmd/6g/gsubr.go
++++ b/src/cmd/6g/gsubr.go
+@@ -1131,6 +1131,9 @@ func optoas(op int, t *gc.Type) int {
+ 
+ 	case gc.ODIV<<16 | gc.TFLOAT64:
+ 		a = x86.ADIVSD
++
++	case gc.OSQRT<<16 | gc.TFLOAT64:
++		a = x86.ASQRTSD
+ 	}
+ 
+ 	return a
+diff --git a/src/cmd/6g/prog.go b/src/cmd/6g/prog.go
+index 0644800257..fe9f013851 100644
+--- a/src/cmd/6g/prog.go
++++ b/src/cmd/6g/prog.go
+@@ -204,6 +204,7 @@ var progtable = [x86.ALAST]obj.ProgInfo{
+ 	x86.ASHRL:     {gc.SizeL | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
+ 	x86.ASHRQ:     {gc.SizeQ | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
+ 	x86.ASHRW:     {gc.SizeW | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry, 0, 0, 0},
++	x86.ASQRTSD:   {gc.SizeD | gc.LeftRead | RightRdwr, 0, 0, 0},
+ 	x86.ASTOSB:    {gc.OK, AX | DI, DI, 0},
+ 	x86.ASTOSL:    {gc.OK, AX | DI, DI, 0},
+ 	x86.ASTOSQ:    {gc.OK, AX | DI, DI, 0},
+diff --git a/src/cmd/internal/gc/cgen.go b/src/cmd/internal/gc/cgen.go
+index b3524c26c4..d3921f7ece 100644
+--- a/src/cmd/internal/gc/cgen.go
++++ b/src/cmd/internal/gc/cgen.go
+@@ -409,6 +409,15 @@ func Cgen(n *Node, res *Node) {
+ 		cgen_norm(n, &n1, res)
+ 		return
+ 
++	case OSQRT:
++		var n1 Node
++		Regalloc(&n1, nl.Type, res)
++		Cgen(n.Left, &n1)
++		Thearch.Gins(Thearch.Optoas(OSQRT, nl.Type), &n1, &n1)
++		Thearch.Gmove(&n1, res)
++		Regfree(&n1)
++		return
++
+ 		// symmetric binary
+ 	case OAND,
+ 		OOR,
+diff --git a/src/cmd/internal/gc/gen.go b/src/cmd/internal/gc/gen.go
+index caae2f1ce1..e0659fc8a4 100644
+--- a/src/cmd/internal/gc/gen.go
++++ b/src/cmd/internal/gc/gen.go
+@@ -1002,6 +1002,9 @@ func gen(n *Node) {
+ 	case ORETURN, ORETJMP:
+ 		cgen_ret(n)
+ 
++	case OSQRT:
++		cgen_discard(n.Left)
++
+ 	case OCHECKNIL:
+ 		Cgen_checknil(n.Left)
+ 
+diff --git a/src/cmd/internal/gc/syntax.go b/src/cmd/internal/gc/syntax.go
+index 8f5b85db1f..671a624c1d 100644
+--- a/src/cmd/internal/gc/syntax.go
++++ b/src/cmd/internal/gc/syntax.go
+@@ -293,7 +293,7 @@ const (
+ 	OREGISTER // a register, such as AX.
+ 	OINDREG   // offset plus indirect of a register, such as 8(SP).
+ 
+-	// 386/amd64-specific opcodes
++	// arch-specific opcodes
+ 	OCMP    // compare: ACMP.
+ 	ODEC    // decrement: ADEC.
+ 	OINC    // increment: AINC.
+@@ -303,6 +303,7 @@ const (
+ 	ORROTC  // right rotate-carry: ARCR.
+ 	ORETJMP // return to other function
+ 	OPS     // compare parity set (for x86 NaN check)
++	OSQRT   // sqrt(float64), on systems that have hw support
+ 
+ 	OEND
+ )
+diff --git a/src/cmd/internal/gc/walk.go b/src/cmd/internal/gc/walk.go
+index c10201aa2e..a0a29d35ac 100644
+--- a/src/cmd/internal/gc/walk.go
++++ b/src/cmd/internal/gc/walk.go
+@@ -622,6 +622,16 @@ func walkexpr(np **Node, init **NodeList) {
+ 		walkexpr(&n.Left, init)
+ 		walkexprlist(n.List, init)
+ 
++		if n.Left.Op == ONAME && n.Left.Sym.Name == "Sqrt" && n.Left.Sym.Pkg.Path == "math" {
++			switch Thearch.Thechar {
++			case '5', '6':
++				n.Op = OSQRT
++				n.Left = n.List.N
++				n.List = nil
++				goto ret
++			}
++		}
++
+ 		ll := ascompatte(int(n.Op), n, n.Isddd, getinarg(t), n.List, 0, init)
+ 		n.List = reorder1(ll)
+ 		goto ret
+diff --git a/src/math/all_test.go b/src/math/all_test.go
+index c07ac740e3..84061be264 100644
+--- a/src/math/all_test.go
++++ b/src/math/all_test.go
+@@ -2977,15 +2977,56 @@ func BenchmarkSinh(b *testing.B) {
+ 	}
+ }
+ 
++var Global float64
++
+ func BenchmarkSqrt(b *testing.B) {
++	x, y := 0.0, 10.0
++	for i := 0; i < b.N; i++ {
++		x += Sqrt(y)
++	}
++	Global = x
++}
++
++func BenchmarkSqrtIndirect(b *testing.B) {
++	x, y := 0.0, 10.0
++	f := Sqrt
+ 	for i := 0; i < b.N; i++ {
+-		Sqrt(10)
++		x += f(y)
+ 	}
++	Global = x
+ }
+ 
+ func BenchmarkSqrtGo(b *testing.B) {
++	x, y := 0.0, 10.0
+ 	for i := 0; i < b.N; i++ {
+-		SqrtGo(10)
++		x += SqrtGo(y)
++	}
++	Global = x
++}
++
++func isPrime(i int) bool {
++	// Yes, this is a dumb way to write this code,
++	// but calling Sqrt repeatedly in this way demonstrates
++	// the benefit of using a direct SQRT instruction on systems
++	// that have one, whereas the obvious loop seems not to
++	// demonstrate such a benefit.
++	for j := 2; float64(j) <= Sqrt(float64(i)); j++ {
++		if i%j == 0 {
++			return false
++		}
++	}
++	return true
++}
++
++func BenchmarkSqrtPrime(b *testing.B) {
++	any := false
++	for i := 0; i < b.N; i++ {
++		if isPrime(100003) {
++			any = true
++		}
++	}
++	if any {
++		Global = 1
+ 	}
+ }
+ 
+diff --git a/src/math/sqrt.go b/src/math/sqrt.go
+index fdc869992e..23cf2996c2 100644
+--- a/src/math/sqrt.go
++++ b/src/math/sqrt.go
+@@ -91,6 +91,11 @@ package math
+ //	Sqrt(NaN) = NaN
+ func Sqrt(x float64) float64
+ 
++// Note: Sqrt is implemented in assembly on some systems.
++// Others have assembly stubs that jump to func sqrt below.
++// On systems where Sqrt is a single instruction, the compiler
++// may turn a direct call into a direct use of that instruction instead.
++
+ func sqrt(x float64) float64 {
+ 	// special cases
+ 	switch {

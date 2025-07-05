@@ -7,7 +7,34 @@ Date:   Fri Jan 11 12:35:58 2013 +0800
     R=golang-dev, dave, rsc
     CC=golang-dev
     https://golang.org/cl/7066052
-
+---
  src/cmd/gc/doc.go | 2 +-
  src/cmd/ld/doc.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/gc/doc.go b/src/cmd/gc/doc.go
+index fad1427339..78bffc8ecb 100644
+--- a/src/cmd/gc/doc.go
++++ b/src/cmd/gc/doc.go
+@@ -54,7 +54,7 @@ Flags:
+ 		disallow importing packages not marked as safe
+ 	-V
+ 		print the compiler version
+-	-b
++	-race
+ 		compile with race detection enabled
+ 
+ There are also a number of debugging flags; run the command with no arguments
+diff --git a/src/cmd/ld/doc.go b/src/cmd/ld/doc.go
+index 357505f0b2..cf22ba8d80 100644
+--- a/src/cmd/ld/doc.go
++++ b/src/cmd/ld/doc.go
+@@ -56,7 +56,7 @@ Options new in this version:
+ 		Set the value of an otherwise uninitialized string variable.
+ 		The symbol name should be of the form importpath.name,
+ 		as displayed in the symbol table printed by "go tool nm".
+-	-b
++	-race
+ 		Link with race detection libraries.
+ 	-B value
+ 		Add a NT_GNU_BUILD_ID note when using ELF.  The value

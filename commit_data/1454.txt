@@ -8,6 +8,28 @@ Date:   Fri Jan 9 13:50:58 2009 -0800
     R=ken
     OCL=22434
     CL=22436
-
+---
  src/cmd/gc/subr.c | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 98127e23b8..9152bfb1ab 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -1556,13 +1556,15 @@ dclmethod(Type *t)
+ 	t->methptr |= 1<<ptr;
+ 
+ 	// check types
+-	// TODO(rsc): map, chan etc are not quite right
+ 	if(!issimple[t->etype])
+ 	switch(t->etype) {
+ 	default:
+ 		return T;
+ 	case TSTRUCT:
+ 	case TARRAY:
++	case TMAP:
++	case TCHAN:
++	case TSTRING:
+ 		break;
+ 	}
+ 

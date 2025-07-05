@@ -20,7 +20,42 @@ Date:   Wed Jun 26 11:11:45 2019 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/sync/export_test.go | 6 +++++-
  src/sync/pool_test.go   | 4 +---
  2 files changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/src/sync/export_test.go b/src/sync/export_test.go
+index 10d3599f47..ffbe567464 100644
+--- a/src/sync/export_test.go
++++ b/src/sync/export_test.go
+@@ -18,9 +18,13 @@ type PoolDequeue interface {
+ }
+ 
+ func NewPoolDequeue(n int) PoolDequeue {
+-	return &poolDequeue{
++	d := &poolDequeue{
+ 		vals: make([]eface, n),
+ 	}
++	// For testing purposes, set the head and tail indexes close
++	// to wrapping around.
++	d.headTail = d.pack(1<<dequeueBits-500, 1<<dequeueBits-500)
++	return d
+ }
+ 
+ func (d *poolDequeue) PushHead(val interface{}) bool {
+diff --git a/src/sync/pool_test.go b/src/sync/pool_test.go
+index ff1174cc15..090f1a8c6a 100644
+--- a/src/sync/pool_test.go
++++ b/src/sync/pool_test.go
+@@ -173,9 +173,7 @@ func TestPoolChain(t *testing.T) {
+ 
+ func testPoolDequeue(t *testing.T, d PoolDequeue) {
+ 	const P = 10
+-	// In long mode, do enough pushes to wrap around the 21-bit
+-	// indexes.
+-	N := 1<<21 + 1000
++	var N int = 2e6
+ 	if testing.Short() {
+ 		N = 1e3
+ 	}

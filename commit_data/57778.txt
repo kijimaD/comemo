@@ -18,8 +18,104 @@ Date:   Tue Aug 29 22:43:02 2023 +0000
     Reviewed-by: Jakub Ciolek <jakub@ciolek.dev>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/compile/internal/ssa/_gen/AMD64.rules |  4 ----
  src/cmd/compile/internal/ssa/rewriteAMD64.go  | 32 ---------------------------
  test/fixedbugs/issue62360.go                  | 24 ++++++++++++++++++++
  3 files changed, 24 insertions(+), 36 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/_gen/AMD64.rules b/src/cmd/compile/internal/ssa/_gen/AMD64.rules
+index 090ad90c64..7840600ef6 100644
+--- a/src/cmd/compile/internal/ssa/_gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/_gen/AMD64.rules
+@@ -1449,10 +1449,6 @@
+ (TESTW (MOVLconst [c]) x) => (TESTWconst [int16(c)] x)
+ (TESTB (MOVLconst [c]) x) => (TESTBconst [int8(c)] x)
+ 
+-// shorten bitwise AND/TESTQ if upper 32 bits are known to be zero.
+-(ANDQ x y) && (zeroUpper32Bits(x, 3) || zeroUpper32Bits(y, 3)) => (ANDL x y)
+-(TESTQ x y) && (zeroUpper32Bits(x, 3) || zeroUpper32Bits(y, 3)) => (TESTL x y)
+-
+ // TEST %reg,%reg is shorter than CMP
+ (CMPQconst x [0]) => (TESTQ x x)
+ (CMPLconst x [0]) => (TESTL x x)
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 0c87a4b1b5..5cf5425fdc 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -3094,22 +3094,6 @@ func rewriteValueAMD64_OpAMD64ANDQ(v *Value) bool {
+ 		v.copyOf(x)
+ 		return true
+ 	}
+-	// match: (ANDQ x y)
+-	// cond: (zeroUpper32Bits(x, 3) || zeroUpper32Bits(y, 3))
+-	// result: (ANDL x y)
+-	for {
+-		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+-			x := v_0
+-			y := v_1
+-			if !(zeroUpper32Bits(x, 3) || zeroUpper32Bits(y, 3)) {
+-				continue
+-			}
+-			v.reset(OpAMD64ANDL)
+-			v.AddArg2(x, y)
+-			return true
+-		}
+-		break
+-	}
+ 	// match: (ANDQ x l:(MOVQload [off] {sym} ptr mem))
+ 	// cond: canMergeLoadClobber(v, l, x) && clobber(l)
+ 	// result: (ANDQload x [off] {sym} ptr mem)
+@@ -22718,22 +22702,6 @@ func rewriteValueAMD64_OpAMD64TESTQ(v *Value) bool {
+ 		}
+ 		break
+ 	}
+-	// match: (TESTQ x y)
+-	// cond: (zeroUpper32Bits(x, 3) || zeroUpper32Bits(y, 3))
+-	// result: (TESTL x y)
+-	for {
+-		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+-			x := v_0
+-			y := v_1
+-			if !(zeroUpper32Bits(x, 3) || zeroUpper32Bits(y, 3)) {
+-				continue
+-			}
+-			v.reset(OpAMD64TESTL)
+-			v.AddArg2(x, y)
+-			return true
+-		}
+-		break
+-	}
+ 	// match: (TESTQ l:(MOVQload {sym} [off] ptr mem) l2)
+ 	// cond: l == l2 && l.Uses == 2 && clobber(l)
+ 	// result: @l.Block (CMPQconstload {sym} [makeValAndOff(0, off)] ptr mem)
+diff --git a/test/fixedbugs/issue62360.go b/test/fixedbugs/issue62360.go
+new file mode 100644
+index 0000000000..e81c60f3aa
+--- /dev/null
++++ b/test/fixedbugs/issue62360.go
+@@ -0,0 +1,24 @@
++// run
++
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"fmt"
++	"math/big"
++)
++
++//go:noinline
++func f(x uint32) *big.Int {
++	return big.NewInt(int64(x))
++}
++func main() {
++	b := f(0xffffffff)
++	c := big.NewInt(0xffffffff)
++	if b.Cmp(c) != 0 {
++		panic(fmt.Sprintf("b:%x c:%x", b, c))
++	}
++}

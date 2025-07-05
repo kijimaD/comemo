@@ -15,8 +15,153 @@ Date:   Tue Aug 9 18:09:46 2022 +1000
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/internal/cpu/cpu_arm64.go         | 38 +++++++++++++++++++++++++++++++++++
  src/internal/cpu/cpu_arm64_freebsd.go | 36 +--------------------------------
  src/internal/cpu/cpu_arm64_openbsd.go | 37 +---------------------------------
  3 files changed, 40 insertions(+), 71 deletions(-)
+
+diff --git a/src/internal/cpu/cpu_arm64.go b/src/internal/cpu/cpu_arm64.go
+index 18ec636112..1d4431753d 100644
+--- a/src/internal/cpu/cpu_arm64.go
++++ b/src/internal/cpu/cpu_arm64.go
+@@ -30,3 +30,41 @@ func doinit() {
+ func getisar0() uint64
+ 
+ func getMIDR() uint64
++
++func extractBits(data uint64, start, end uint) uint {
++	return (uint)(data>>start) & ((1 << (end - start + 1)) - 1)
++}
++
++func parseARM64SystemRegisters(isar0 uint64) {
++	// ID_AA64ISAR0_EL1
++	switch extractBits(isar0, 4, 7) {
++	case 1:
++		ARM64.HasAES = true
++	case 2:
++		ARM64.HasAES = true
++		ARM64.HasPMULL = true
++	}
++
++	switch extractBits(isar0, 8, 11) {
++	case 1:
++		ARM64.HasSHA1 = true
++	}
++
++	switch extractBits(isar0, 12, 15) {
++	case 1:
++		ARM64.HasSHA2 = true
++	case 2:
++		ARM64.HasSHA2 = true
++		ARM64.HasSHA512 = true
++	}
++
++	switch extractBits(isar0, 16, 19) {
++	case 1:
++		ARM64.HasCRC32 = true
++	}
++
++	switch extractBits(isar0, 20, 23) {
++	case 2:
++		ARM64.HasATOMICS = true
++	}
++}
+diff --git a/src/internal/cpu/cpu_arm64_freebsd.go b/src/internal/cpu/cpu_arm64_freebsd.go
+index 40ebfaf6ff..96ed359ca0 100644
+--- a/src/internal/cpu/cpu_arm64_freebsd.go
++++ b/src/internal/cpu/cpu_arm64_freebsd.go
+@@ -10,39 +10,5 @@ func osInit() {
+ 	// Retrieve info from system register ID_AA64ISAR0_EL1.
+ 	isar0 := getisar0()
+ 
+-	// ID_AA64ISAR0_EL1
+-	switch extractBits(isar0, 4, 7) {
+-	case 1:
+-		ARM64.HasAES = true
+-	case 2:
+-		ARM64.HasAES = true
+-		ARM64.HasPMULL = true
+-	}
+-
+-	switch extractBits(isar0, 8, 11) {
+-	case 1:
+-		ARM64.HasSHA1 = true
+-	}
+-
+-	switch extractBits(isar0, 12, 15) {
+-	case 1:
+-		ARM64.HasSHA2 = true
+-	case 2:
+-		ARM64.HasSHA2 = true
+-		ARM64.HasSHA512 = true
+-	}
+-
+-	switch extractBits(isar0, 16, 19) {
+-	case 1:
+-		ARM64.HasCRC32 = true
+-	}
+-
+-	switch extractBits(isar0, 20, 23) {
+-	case 2:
+-		ARM64.HasATOMICS = true
+-	}
+-}
+-
+-func extractBits(data uint64, start, end uint) uint {
+-	return (uint)(data>>start) & ((1 << (end - start + 1)) - 1)
++	parseARM64SystemRegisters(isar0)
+ }
+diff --git a/src/internal/cpu/cpu_arm64_openbsd.go b/src/internal/cpu/cpu_arm64_openbsd.go
+index 54e1f4b931..12593098eb 100644
+--- a/src/internal/cpu/cpu_arm64_openbsd.go
++++ b/src/internal/cpu/cpu_arm64_openbsd.go
+@@ -15,10 +15,6 @@ const (
+ 	_CPU_ID_AA64ISAR1 = 3
+ )
+ 
+-func extractBits(data uint64, start, end uint) uint {
+-	return (uint)(data>>start) & ((1 << (end - start + 1)) - 1)
+-}
+-
+ //go:noescape
+ func sysctlUint64(mib []uint32) (uint64, bool)
+ 
+@@ -28,36 +24,5 @@ func osInit() {
+ 	if !ok {
+ 		return
+ 	}
+-
+-	// ID_AA64ISAR0_EL1
+-	switch extractBits(isar0, 4, 7) {
+-	case 1:
+-		ARM64.HasAES = true
+-	case 2:
+-		ARM64.HasAES = true
+-		ARM64.HasPMULL = true
+-	}
+-
+-	switch extractBits(isar0, 8, 11) {
+-	case 1:
+-		ARM64.HasSHA1 = true
+-	}
+-
+-	switch extractBits(isar0, 12, 15) {
+-	case 1:
+-		ARM64.HasSHA2 = true
+-	case 2:
+-		ARM64.HasSHA2 = true
+-		ARM64.HasSHA512 = true
+-	}
+-
+-	switch extractBits(isar0, 16, 19) {
+-	case 1:
+-		ARM64.HasCRC32 = true
+-	}
+-
+-	switch extractBits(isar0, 20, 23) {
+-	case 2:
+-		ARM64.HasATOMICS = true
+-	}
++	parseARM64SystemRegisters(isar0)
+ }

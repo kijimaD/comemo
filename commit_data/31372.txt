@@ -9,6 +9,20 @@ Date:   Tue Feb 14 15:52:44 2017 +0000
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/math/big/int.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/math/big/int.go b/src/math/big/int.go
+index bed8d60a5e..62f7fc5320 100644
+--- a/src/math/big/int.go
++++ b/src/math/big/int.go
+@@ -570,7 +570,7 @@ func (z *Int) binaryGCD(a, b *Int) *Int {
+ // Rand sets z to a pseudo-random number in [0, n) and returns z.
+ func (z *Int) Rand(rnd *rand.Rand, n *Int) *Int {
+ 	z.neg = false
+-	if n.neg == true || len(n.abs) == 0 {
++	if n.neg || len(n.abs) == 0 {
+ 		z.abs = nil
+ 		return z
+ 	}

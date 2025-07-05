@@ -14,7 +14,59 @@ Date:   Wed May 15 19:03:42 2024 -0400
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Alan Donovan <adonovan@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/internal/coverage/cfile/ts_test.go | 11 +++++------
  src/testing/newcover.go                | 10 ----------
  2 files changed, 5 insertions(+), 16 deletions(-)
+
+diff --git a/src/internal/coverage/cfile/ts_test.go b/src/internal/coverage/cfile/ts_test.go
+index edbc603a1b..621a79de43 100644
+--- a/src/internal/coverage/cfile/ts_test.go
++++ b/src/internal/coverage/cfile/ts_test.go
+@@ -6,6 +6,7 @@ package cfile
+ 
+ import (
+ 	"encoding/json"
++	"flag"
+ 	"internal/coverage"
+ 	"internal/goexperiment"
+ 	"internal/testenv"
+@@ -17,13 +18,11 @@ import (
+ 	_ "unsafe"
+ )
+ 
+-//go:linkname testing_testGoCoverDir testing.testGoCoverDir
+-func testing_testGoCoverDir() string
+-
+ func testGoCoverDir(t *testing.T) string {
+-	tgcd := testing_testGoCoverDir()
+-	if tgcd != "" {
+-		return tgcd
++	if f := flag.Lookup("test.gocoverdir"); f != nil {
++		if dir := f.Value.String(); dir != "" {
++			return dir
++		}
+ 	}
+ 	return t.TempDir()
+ }
+diff --git a/src/testing/newcover.go b/src/testing/newcover.go
+index a7dbcfc65a..ad2f622640 100644
+--- a/src/testing/newcover.go
++++ b/src/testing/newcover.go
+@@ -46,16 +46,6 @@ func coverReport2() {
+ 	}
+ }
+ 
+-// testGoCoverDir is used in runtime/coverage tests.
+-//go:linkname testGoCoverDir
+-
+-// testGoCoverDir returns the value passed to the -test.gocoverdir
+-// flag by the Go command, if goexperiment.CoverageRedesign is
+-// in effect.
+-func testGoCoverDir() string {
+-	return *gocoverdir
+-}
+-
+ // coverage2 returns a rough "coverage percentage so far"
+ // number to support the testing.Coverage() function.
+ func coverage2() float64 {

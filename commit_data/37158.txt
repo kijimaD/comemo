@@ -13,6 +13,35 @@ Date:   Fri Apr 27 17:05:48 2018 +0900
     Change-Id: Ib18529d2fc777d836e74726ff1cfe685e08b063c
     Reviewed-on: https://go-review.googlesource.com/109875
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/README.md | 6 ++++--
  1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/README.md b/src/cmd/compile/README.md
+index b78786e5f2..babc3f7679 100644
+--- a/src/cmd/compile/README.md
++++ b/src/cmd/compile/README.md
+@@ -1,6 +1,8 @@
++<!---
+ // Copyright 2018 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
++-->
+ 
+ ## Introduction to the Go compiler
+ 
+@@ -19,7 +21,7 @@ the `go/*` packages were developed to enable writing tools working with Go code,
+ such as `gofmt` and `vet`.
+ 
+ It should be clarified that the name "gc" stands for "Go compiler", and has
+-little to do with uppercase GC, which stands for garbage collection.
++little to do with uppercase "GC", which stands for garbage collection.
+ 
+ ### 1. Parsing
+ 
+@@ -113,4 +115,4 @@ and debugging information.
+ ### Further reading
+ 
+ To dig deeper into how the SSA package works, including its passes and rules,
+-head to `cmd/compile/internal/ssa/README.md`.
++head to [cmd/compile/internal/ssa/README.md](internal/ssa/README.md).

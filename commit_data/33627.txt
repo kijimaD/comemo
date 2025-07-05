@@ -9,7 +9,7 @@ Date:   Tue Aug 22 18:22:12 2017 -0400
     Change-Id: I0682c92bbb2e229d2636762e49fe73513852d351
     Reviewed-on: https://go-review.googlesource.com/57890
     Reviewed-by: Adam Langley <agl@golang.org>
-
+---
  misc/boring/README.md     |  97 ++++++++++++++++++++++++++++++++++++++++++++
  misc/boring/RELEASES      |   4 ++
  misc/boring/VERSION       |   1 +
@@ -18,3 +18,424 @@ Date:   Tue Aug 22 18:22:12 2017 -0400
  misc/boring/dockerfile.in |  29 ++++++++++++++
  misc/boring/go-wrapper    | 100 ++++++++++++++++++++++++++++++++++++++++++++++
  7 files changed, 378 insertions(+)
+
+diff --git a/misc/boring/README.md b/misc/boring/README.md
+new file mode 100644
+index 0000000000..612323573e
+--- /dev/null
++++ b/misc/boring/README.md
+@@ -0,0 +1,97 @@
++# README.md
++
++This directory holds build scripts for unofficial, unsupported
++distributions of Go+BoringCrypto.
++
++## Version strings
++
++The distribution name for a Go+BoringCrypto release has the form `<GoVersion>b<BoringCryptoVersion>`,
++where `<GoVersion>` is the Go version the release is based on, and `<BoringCryptoVersion>` is
++an integer that increments each time there is a new release with different BoringCrypto bits.
++The `<BoringCryptoVersion>` is stored in the `VERSION` file in this directory.
++
++For example, the first release is based on Go 1.8.3 is `go1.8.3b1`.
++If the BoringCrypto bits are updated, the next would be `go1.8.3b2`.
++If, after that, Go 1.9 is released and the same BoringCrypto code added to it,
++that would result in `go1.9b2`. There would likely not be a `go1.9b1`,
++since that would indicate Go 1.9 with the older BoringCrypto code.
++
++## Releases
++
++The `build.release` script prepares a binary release and publishes it in Google Cloud Storage
++at `gs://go-boringcrypto/`, making it available for download at
++`https://go-boringcrypto.storage.googleapis.com/<FILE>`.
++The script records each published release in the `RELEASES` file in this directory.
++
++The `build.docker` script, which must be run after `build.release`, prepares a Docker image
++and publishes it on hub.docker.com in the goboring organization.
++`go1.8.3b1` is published as `goboring/golang:1.8.3b1`.
++
++## Release process
++
++1. If the BoringCrypto bits have been updated, increment the number in `VERSION`,
++send that change out as a CL for review, get it committed, and run `git sync`.
++
++2. Run `build.release`, which will determine the base Go version and the BoringCrypto
++version, build a release, and upload it.
++
++3. Run `build.docker`, which will build and upload a Docker image from the latest release.
++
++4. Send out a CL with the updated `RELEASES` file and get it committed.
++
++## Release process for dev.boringcrypto.go1.8.
++
++In addition to the dev.boringcrypto branch, we have a dev.boringcrypto.go1.8 branch,
++which is BoringCrypto backported to the Go 1.8 release branch.
++To issue new BoringCrypto releases based on Go 1.8:
++
++1. Do a regular release on the (not Go 1.8) dev.boringcrypto branch.
++
++2. Change to the dev.boringcrypto.go1.8 branch and cherry-pick all
++BoringCrypto updates, including the update of the `VERSION` file.
++Mail them out and get them committed.
++
++3. **Back on the (not Go 1.8) dev.boringcrypto branch**, run `build.release <commit>`,
++where `<commit>` is the latest commit on the dev.boringcrypto.go1.8 branch.
++It will build a release and upload it.
++
++4. Run `build.docker`.
++
++5. Send out a CL with the updated `RELEASES` file and get it committed.
++
++## Building from Docker
++
++A Dockerfile that starts with `FROM golang:1.8.3` can switch
++to `FROM goboring/golang:1.8.3b2` (see [goboring/golang on Docker Hub](https://hub.docker.com/r/goboring/golang/))
++and should need no other modifications.
++
++## Building from Bazel
++
++Using an alternate toolchain from Bazel is not as clean as it might be.
++Today, as of Bazel 0.5.3 and the bazelbuild/rules_go tag 0.5.3,
++it is necessary to define a `go-boringcrypto.bzl` file that duplicates
++some of the rules_go internal guts and then invoke its `go_repositories` rule
++instead of the standard one.
++
++See https://gist.github.com/rsc/6f63d54886c9c50fa924597d7355bc93 for a minimal example.
++
++Note that in the example that the Bazel `WORKSPACE` file still refers to the release as "go1.8.3" not "go1.8.3b2".
++
++## Caveat
++
++BoringCrypto is used for a given build only in limited circumstances:
++
++  - The build must be GOOS=linux, GOARCH=amd64.
++  - The build must have cgo enabled.
++  - The android build tag must not be specified.
++  - The cmd_go_bootstrap build tag must not be specified.
++
++The version string reported by `runtime.Version` does not indicate that BoringCrypto
++was actually used for the build. For example, linux/386 and non-cgo linux/amd64 binaries
++will report a version of `go1.8.3b2` but not be using BoringCrypto.
++
++To check whether a given binary is using BoringCrypto, run `go tool nm` on it and check
++that it has symbols named `*_Cfunc__goboringcrypto_*`.
++
++The program [rsc.io/goversion](https://godoc.org/rsc.io/goversion) will report the
++crypto implementation used by a given binary when invoked with the `-crypto` flag.
+diff --git a/misc/boring/RELEASES b/misc/boring/RELEASES
+new file mode 100644
+index 0000000000..4633ad1bb7
+--- /dev/null
++++ b/misc/boring/RELEASES
+@@ -0,0 +1,4 @@
++# This file lists published Go+BoringCrypto releases.
++# Each line describes a single release: <version> <git commit> <URL> <sha256sum>
++go1.9rc2b2 91753387bdf7 https://go-boringcrypto.storage.googleapis.com/go1.9rc2b2.linux-amd64.tar.gz 59355a45e6970e8013060851ddb3f079afe8db52e90db520a0826a13f1b5ae5b
++go1.8.3b3 f6ff81bac156 https://go-boringcrypto.storage.googleapis.com/go1.8.3b3.linux-amd64.tar.gz 6287ad971cd268bb2684fb8b1275dea928ad527823062bc057e73036c419e7af
+diff --git a/misc/boring/VERSION b/misc/boring/VERSION
+new file mode 100644
+index 0000000000..00750edc07
+--- /dev/null
++++ b/misc/boring/VERSION
+@@ -0,0 +1 @@
++3
+diff --git a/misc/boring/build.docker b/misc/boring/build.docker
+new file mode 100755
+index 0000000000..0ddd8708dd
+--- /dev/null
++++ b/misc/boring/build.docker
+@@ -0,0 +1,57 @@
++#!/bin/bash
++# Copyright 2017 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++# build.docker builds and publishes a Docker image for
++# a given Go+BoringCrypto release.
++
++set -e
++
++# With no arguments, use the most recent release in the RELEASES file.
++case "$#" in
++0)
++	version=$(tail -1 RELEASES | awk '{print $1}');;
++1)
++	version="$1";;
++*)
++	echo 'usage: build.docker [version]' >&2
++	exit 2
++esac
++
++url="$(grep "^$version " RELEASES | awk '{print $3}')"
++sha256="$(grep "^$version " RELEASES | awk '{print $4}')"
++if [ "$sha256" = "" ]; then
++	echo "cannot find $version in RELEASES file" >&2
++	exit 2
++fi
++
++# Build a temporary directory with a Dockerfile.
++dir=$(mktemp -d)
++trap "rm -rf $dir" EXIT
++
++if echo "$url" | grep '!' >/dev/null; then
++	# ! is sed delimiter below. Should never happen.
++	echo "URL contains an exclamation mark!" >&2
++	exit 2
++fi
++
++sed "s!UUU!$url!; s/SSS/$sha256/" dockerfile.in >$dir/Dockerfile
++cp go-wrapper $dir/go-wrapper
++
++dversion=$(echo "$version" | sed 's/^go//')
++docker build -t goboring/golang:$dversion $dir
++docker run goboring/golang:$dversion go version
++docker run goboring/golang:$dversion go tool nm /usr/local/go/bin/go >$dir/nm
++if ! grep crypto/sha1.boringNewSHA1 $dir/nm >/dev/null; then
++	echo 'built docker image but did NOT find sha1.boringNewSHA1 in go command!' >&2
++	exit 2
++fi
++if egrep 'crypto/sha1\.\(\*digest\)' $dir/nm >/dev/null; then
++	echo 'built docker image but DID find sha1.(*digest) in go command unexpectedly!' >&2
++	exit 2
++fi
++docker push goboring/golang:$dversion
++
++echo
++echo published as goboring/golang:$dversion
+diff --git a/misc/boring/build.release b/misc/boring/build.release
+new file mode 100755
+index 0000000000..bf06943f6b
+--- /dev/null
++++ b/misc/boring/build.release
+@@ -0,0 +1,90 @@
++#!/bin/bash
++# Copyright 2017 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++# build.release builds and publishes a new Go+BoringCrypto release.
++# After running this script, the change to the RELEASES file should be
++# sent out for review and committed to the repository (but the release
++# is already done, so there's not much to review).
++
++set -e
++
++case "$#" in
++0)
++	rev=HEAD;;
++1)
++	rev="$1";;
++*)
++	echo 'usage: build.release [git-rev]' >&2
++	exit 2
++esac
++
++# Determine commit to use.
++commit=$(git rev-parse "$rev" | awk '{print substr($1, 1, 12)}')
++if [ "$commit" = "" ]; then
++	echo 'cannot find commit in git history' >&2
++	exit 2
++fi
++
++# Determine base Go release from tags.
++base=$(git log --decorate=short --oneline "$rev" | grep 'tag: go' | sed 1q | sed 's/[),].*//; s/.*tag: //')
++if [ "$base" = "" ]; then
++	echo "cannot find go release tag in git history for $rev" >&2
++	exit 2
++fi
++
++# Determine boring crypto version from file.
++boring=$(git show "$commit:misc/boring/VERSION")
++if [ "$boring" = "" ]; then
++	echo "missing BORINGVERSION file in $commit" >&2
++	exit 2
++fi
++
++# Make sure we're not redefining a published release.
++version="${base}b${boring}"
++if grep "^$version " RELEASES >/dev/null; then
++	echo "found $version in RELEASES - not rereleasing" >&2
++	exit 2
++fi
++
++# Show what's going on, while the release builds.
++# Good time for user to type ^C if something is wrong.
++echo >&2
++echo "building $version from $commit" >&2
++echo >&2
++git log -n1 "$commit" >&2
++echo >&2
++
++# Build the release tool in a temporary GOPATH.
++dir=$(mktemp -d)
++trap "rm -rf $dir" EXIT
++export GOPATH="$dir"
++export GOBIN="$dir"
++go get -u golang.org/x/build/cmd/release
++
++# Build the release.
++shortgo=$(echo "$base" | perl -pe 's/(go\d+\.\d+)(\.\d+|rc\d+)/$1/')
++$dir/release -target linux-amd64 -rev "$commit" -version "$version" -tools "release-branch.$shortgo"
++output="$version.linux-amd64.tar.gz"
++ls -l "$output"
++sha256=$(sha256sum "$output" | awk '{print $1}')
++
++trap "rm -f /tmp/go.release.$$ /tmp/go.nm.$$" EXIT
++tar -xzf "$output" -O go/bin/go >/tmp/go.release.$$
++go tool nm /tmp/go.release.$$ >/tmp/go.nm.$$
++if ! grep crypto/sha1.boringNewSHA1 /tmp/go.nm.$$ >/dev/null; then
++	echo 'built release but did NOT find sha1.boringNewSHA1 in go command!' >&2
++	exit 2
++fi
++if egrep 'crypto/sha1\.\(\*digest\)' /tmp/go.nm.$$ >/dev/null; then
++	echo 'built release but DID find sha1.(*digest) in go command unexpectedly!' >&2
++	exit 2
++fi
++
++# Publish the release.
++gsutil cp "$output" gs://go-boringcrypto/
++url="https://go-boringcrypto.storage.googleapis.com/$output"
++
++# Record that it was published.
++echo "$version $commit $url $sha256" >>RELEASES
+diff --git a/misc/boring/dockerfile.in b/misc/boring/dockerfile.in
+new file mode 100644
+index 0000000000..dc03cd6c2f
+--- /dev/null
++++ b/misc/boring/dockerfile.in
+@@ -0,0 +1,29 @@
++# Template for Dockerfile, used in build.docker script.
++# Based on https://github.com/docker-library/golang/blob/master/1.9-rc/stretch/Dockerfile
++FROM buildpack-deps:stretch-scm
++
++# gcc for cgo
++RUN apt-get update && apt-get install -y --no-install-recommends \
++		g++ \
++		gcc \
++		libc6-dev \
++		make \
++		pkg-config \
++	&& rm -rf /var/lib/apt/lists/*
++
++ADD UUU /go.tgz
++
++RUN set -eux; \
++	\
++	echo "SSS /go.tgz" | sha256sum -c -; \
++	tar -C /usr/local -xzf /go.tgz; \
++	rm /go.tgz; \
++	export PATH="/usr/local/go/bin:$PATH"; \
++	go version
++
++ENV GOPATH /go
++ENV PATH $GOPATH/bin:/usr/local/go/bin:$PATH
++RUN mkdir -p "$GOPATH/src" "$GOPATH/bin" && chmod -R 777 "$GOPATH"
++WORKDIR $GOPATH
++
++COPY go-wrapper /usr/local/bin/
+diff --git a/misc/boring/go-wrapper b/misc/boring/go-wrapper
+new file mode 100755
+index 0000000000..eacd6cc8f6
+--- /dev/null
++++ b/misc/boring/go-wrapper
+@@ -0,0 +1,100 @@
++#!/bin/sh
++# Copied from https://raw.githubusercontent.com/docker-library/golang/master/1.9-rc/stretch/go-wrapper
++# Copied into Docker images.
++
++set -e
++
++usage() {
++	base="$(basename "$0")"
++	cat <<EOUSAGE
++
++usage: $base command [args]
++
++This script assumes that is is run from the root of your Go package (for
++example, "/go/src/app" if your GOPATH is set to "/go").
++
++In Go 1.4, a feature was introduced to supply the canonical "import path" for a
++given package in a comment attached to a package statement
++(https://golang.org/s/go14customimport).
++
++This script allows us to take a generic directory of Go source files such as
++"/go/src/app" and determine that the canonical "import path" of where that code
++expects to live and reference itself is "github.com/jsmith/my-cool-app".  It
++will then ensure that "/go/src/github.com/jsmith/my-cool-app" is a symlink to
++"/go/src/app", which allows us to build and run it under the proper package
++name.
++
++For compatibility with versions of Go older than 1.4, the "import path" may also
++be placed in a file named ".godir".
++
++Available Commands:
++
++  $base download
++  $base download -u
++    (equivalent to "go get -d [args] [godir]")
++
++  $base install
++  $base install -race
++    (equivalent to "go install [args] [godir]")
++
++  $base run
++  $base run -app -specific -arguments
++    (assumes "GOPATH/bin" is in "PATH")
++
++EOUSAGE
++}
++
++# make sure there is a subcommand specified
++if [ "$#" -eq 0 ]; then
++	usage >&2
++	exit 1
++fi
++# "shift" so that "$@" becomes the remaining arguments and can be passed along to other "go" subcommands easily
++cmd="$1"
++shift
++
++goDir="$(go list -e -f '{{.ImportComment}}' 2>/dev/null || true)"
++
++if [ -z "$goDir" -a -s .godir ]; then
++	goDir="$(cat .godir)"
++fi
++
++dir="$(pwd -P)"
++if [ "$goDir" ]; then
++	goPath="${GOPATH%%:*}" # this just grabs the first path listed in GOPATH, if there are multiple (which is the detection logic "go get" itself uses, too)
++	goDirPath="$goPath/src/$goDir"
++	mkdir -p "$(dirname "$goDirPath")"
++	if [ ! -e "$goDirPath" ]; then
++		ln -sfv "$dir" "$goDirPath"
++	elif [ ! -L "$goDirPath" ]; then
++		echo >&2 "error: $goDirPath already exists but is unexpectedly not a symlink!"
++		exit 1
++	fi
++	goBin="$goPath/bin/$(basename "$goDir")"
++else
++	goBin="$(basename "$dir")" # likely "app"
++fi
++
++case "$cmd" in
++	download)
++		set -- go get -v -d "$@"
++		if [ "$goDir" ]; then set -- "$@" "$goDir"; fi
++		set -x; exec "$@"
++		;;
++		
++	install)
++		set -- go install -v "$@"
++		if [ "$goDir" ]; then set -- "$@" "$goDir"; fi
++		set -x; exec "$@"
++		;;
++		
++	run)
++		set -x; exec "$goBin" "$@"
++		;;
++		
++	*)
++		echo >&2 'error: unknown command:' "$cmd"
++		usage >&2
++		exit 1
++		;;
++esac

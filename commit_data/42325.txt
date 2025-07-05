@@ -20,8 +20,86 @@ Date:   Sat Nov 23 12:06:21 2019 -0500
     Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/alldocs.go                       | 4 +++-
  src/cmd/go/internal/modcmd/download.go      | 6 +++++-
  src/cmd/go/testdata/script/mod_download.txt | 7 +++++++
  3 files changed, 15 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index add11a47fe..013f7b3cfe 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -1010,7 +1010,7 @@
+ //
+ // Usage:
+ //
+-// 	go mod download [-json] [modules]
++// 	go mod download [-x] [-json] [modules]
+ //
+ // Download downloads the named modules, which can be module patterns selecting
+ // dependencies of the main module or module queries of the form path@version.
+@@ -1037,6 +1037,8 @@
+ //         GoModSum string // checksum for go.mod (as in go.sum)
+ //     }
+ //
++// The -x flag causes download to print the commands download executes.
++//
+ // See 'go help modules' for more about module queries.
+ //
+ //
+diff --git a/src/cmd/go/internal/modcmd/download.go b/src/cmd/go/internal/modcmd/download.go
+index 768ce94f39..5db0e46c64 100644
+--- a/src/cmd/go/internal/modcmd/download.go
++++ b/src/cmd/go/internal/modcmd/download.go
+@@ -19,7 +19,7 @@ import (
+ )
+ 
+ var cmdDownload = &base.Command{
+-	UsageLine: "go mod download [-json] [modules]",
++	UsageLine: "go mod download [-x] [-json] [modules]",
+ 	Short:     "download modules to local cache",
+ 	Long: `
+ Download downloads the named modules, which can be module patterns selecting
+@@ -47,6 +47,8 @@ corresponding to this Go struct:
+         GoModSum string // checksum for go.mod (as in go.sum)
+     }
+ 
++The -x flag causes download to print the commands download executes.
++
+ See 'go help modules' for more about module queries.
+ 	`,
+ }
+@@ -56,6 +58,8 @@ var downloadJSON = cmdDownload.Flag.Bool("json", false, "")
+ func init() {
+ 	cmdDownload.Run = runDownload // break init cycle
+ 
++	// TODO(jayconrod): https://golang.org/issue/35849 Apply -x to other 'go mod' commands.
++	cmdDownload.Flag.BoolVar(&cfg.BuildX, "x", false, "")
+ 	work.AddModCommonFlags(cmdDownload)
+ }
+ 
+diff --git a/src/cmd/go/testdata/script/mod_download.txt b/src/cmd/go/testdata/script/mod_download.txt
+index e341222d60..3573928a93 100644
+--- a/src/cmd/go/testdata/script/mod_download.txt
++++ b/src/cmd/go/testdata/script/mod_download.txt
+@@ -4,6 +4,7 @@ env GOPROXY=$GOPROXY/quiet
+ # download with version should print nothing
+ go mod download rsc.io/quote@v1.5.0
+ ! stdout .
++! stderr .
+ 
+ exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.0.info
+ exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.0.mod
+@@ -106,5 +107,11 @@ rm $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.2.1.zip
+ go mod download rsc.io/quote@v1.2.1
+ exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.2.1.zip
+ 
++# download -x with version should print
++# the underlying commands such as contacting GOPROXY.
++go mod download -x rsc.io/quote@v1.0.0
++! stdout .
++stderr 'get '$GOPROXY
++
+ -- go.mod --
+ module m

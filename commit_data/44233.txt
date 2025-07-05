@@ -14,7 +14,7 @@ Date:   Sat May 30 16:34:23 2020 +0200
     Run-TryBot: Elias Naur <mail@eliasnaur.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/cgo/test/testdata/issue27054/egl.h        |   1 +
  misc/cgo/test/testdata/issue27054/test27054.go |   6 +-
  src/cmd/cgo/doc.go                             |   9 +-
@@ -22,3 +22,401 @@ Date:   Sat May 30 16:34:23 2020 +0200
  src/cmd/fix/egltype.go                         |  28 ++++-
  src/cmd/fix/egltype_test.go                    | 141 +++++++++++++------------
  6 files changed, 117 insertions(+), 76 deletions(-)
+
+diff --git a/misc/cgo/test/testdata/issue27054/egl.h b/misc/cgo/test/testdata/issue27054/egl.h
+index 33a759ea2a..30796273e8 100644
+--- a/misc/cgo/test/testdata/issue27054/egl.h
++++ b/misc/cgo/test/testdata/issue27054/egl.h
+@@ -5,3 +5,4 @@
+ // This is the relevant part of EGL/egl.h.
+ 
+ typedef void *EGLDisplay;
++typedef void *EGLConfig;
+diff --git a/misc/cgo/test/testdata/issue27054/test27054.go b/misc/cgo/test/testdata/issue27054/test27054.go
+index 186f5bd602..01bf43a913 100644
+--- a/misc/cgo/test/testdata/issue27054/test27054.go
++++ b/misc/cgo/test/testdata/issue27054/test27054.go
+@@ -13,5 +13,9 @@ import (
+ )
+ 
+ func Test27054(t *testing.T) {
+-	var _ C.EGLDisplay = 0 // Note: 0, not nil. That makes sure we use uintptr for this type.
++	var (
++		// Note: 0, not nil. That makes sure we use uintptr for these types.
++		_ C.EGLDisplay = 0
++		_ C.EGLConfig  = 0
++	)
+ }
+diff --git a/src/cmd/cgo/doc.go b/src/cmd/cgo/doc.go
+index 8c3bf81bf7..4366df4b55 100644
+--- a/src/cmd/cgo/doc.go
++++ b/src/cmd/cgo/doc.go
+@@ -413,7 +413,7 @@ type in Go are instead represented by a uintptr. Those include:
+ 	jobjectArray
+ 	jweak
+ 
+-3. The EGLDisplay type from the EGL API.
++3. The EGLDisplay and EGLConfig types from the EGL API.
+ 
+ These types are uintptr on the Go side because they would otherwise
+ confuse the Go garbage collector; they are sometimes not really
+@@ -429,11 +429,16 @@ from Go 1.9 and earlier, use the cftype or jni rewrites in the Go fix tool:
+ 
+ It will replace nil with 0 in the appropriate places.
+ 
+-The EGLDisplay case were introduced in Go 1.12. Use the egl rewrite
++The EGLDisplay case was introduced in Go 1.12. Use the egl rewrite
+ to auto-update code from Go 1.11 and earlier:
+ 
+ 	go tool fix -r egl <pkg>
+ 
++The EGLConfig case was introduced in Go 1.15. Use the eglconf rewrite
++to auto-update code from Go 1.14 and earlier:
++
++	go tool fix -r eglconf <pkg>
++
+ Using cgo directly
+ 
+ Usage:
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index edcbd8d2d1..d903a7afb5 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -3029,7 +3029,7 @@ func (c *typeConv) badPointerTypedef(dt *dwarf.TypedefType) bool {
+ 	if c.badJNI(dt) {
+ 		return true
+ 	}
+-	if c.badEGLDisplay(dt) {
++	if c.badEGLType(dt) {
+ 		return true
+ 	}
+ 	return false
+@@ -3168,11 +3168,11 @@ func (c *typeConv) badJNI(dt *dwarf.TypedefType) bool {
+ 	return false
+ }
+ 
+-func (c *typeConv) badEGLDisplay(dt *dwarf.TypedefType) bool {
+-	if dt.Name != "EGLDisplay" {
++func (c *typeConv) badEGLType(dt *dwarf.TypedefType) bool {
++	if dt.Name != "EGLDisplay" && dt.Name != "EGLConfig" {
+ 		return false
+ 	}
+-	// Check that the typedef is "typedef void *EGLDisplay".
++	// Check that the typedef is "typedef void *<name>".
+ 	if ptr, ok := dt.Type.(*dwarf.PtrType); ok {
+ 		if _, ok := ptr.Type.(*dwarf.VoidType); ok {
+ 			return true
+diff --git a/src/cmd/fix/egltype.go b/src/cmd/fix/egltype.go
+index c8c4f03e97..cb0f7a73de 100644
+--- a/src/cmd/fix/egltype.go
++++ b/src/cmd/fix/egltype.go
+@@ -9,13 +9,14 @@ import (
+ )
+ 
+ func init() {
+-	register(eglFix)
++	register(eglFixDisplay)
++	register(eglFixConfig)
+ }
+ 
+-var eglFix = fix{
++var eglFixDisplay = fix{
+ 	name:     "egl",
+ 	date:     "2018-12-15",
+-	f:        eglfix,
++	f:        eglfixDisp,
+ 	desc:     `Fixes initializers of EGLDisplay`,
+ 	disabled: false,
+ }
+@@ -25,8 +26,27 @@ var eglFix = fix{
+ // New state:
+ //   type EGLDisplay uintptr
+ // This fix finds nils initializing these types and replaces the nils with 0s.
+-func eglfix(f *ast.File) bool {
++func eglfixDisp(f *ast.File) bool {
+ 	return typefix(f, func(s string) bool {
+ 		return s == "C.EGLDisplay"
+ 	})
+ }
++
++var eglFixConfig = fix{
++	name:     "eglconf",
++	date:     "2020-05-30",
++	f:        eglfixConfig,
++	desc:     `Fixes initializers of EGLConfig`,
++	disabled: false,
++}
++
++// Old state:
++//   type EGLConfig unsafe.Pointer
++// New state:
++//   type EGLConfig uintptr
++// This fix finds nils initializing these types and replaces the nils with 0s.
++func eglfixConfig(f *ast.File) bool {
++	return typefix(f, func(s string) bool {
++		return s == "C.EGLConfig"
++	})
++}
+diff --git a/src/cmd/fix/egltype_test.go b/src/cmd/fix/egltype_test.go
+index 35ffe92595..9b64a7c20b 100644
+--- a/src/cmd/fix/egltype_test.go
++++ b/src/cmd/fix/egltype_test.go
+@@ -4,182 +4,193 @@
+ 
+ package main
+ 
++import "strings"
++
+ func init() {
+-	addTestCases(eglTests, eglfix)
++	addTestCases(eglTestsFor("EGLDisplay"), eglfixDisp)
++	addTestCases(eglTestsFor("EGLConfig"), eglfixConfig)
+ }
+ 
+-var eglTests = []testCase{
+-	{
+-		Name: "egl.localVariable",
+-		In: `package main
++func eglTestsFor(tname string) []testCase {
++	var eglTests = []testCase{
++		{
++			Name: "egl.localVariable",
++			In: `package main
+ 
+ import "C"
+ 
+ func f() {
+-	var x C.EGLDisplay = nil
++	var x C.$EGLTYPE = nil
+ 	x = nil
+ 	x, x = nil, nil
+ }
+ `,
+-		Out: `package main
++			Out: `package main
+ 
+ import "C"
+ 
+ func f() {
+-	var x C.EGLDisplay = 0
++	var x C.$EGLTYPE = 0
+ 	x = 0
+ 	x, x = 0, 0
+ }
+ `,
+-	},
+-	{
+-		Name: "egl.globalVariable",
+-		In: `package main
++		},
++		{
++			Name: "egl.globalVariable",
++			In: `package main
+ 
+ import "C"
+ 
+-var x C.EGLDisplay = nil
++var x C.$EGLTYPE = nil
+ 
+ func f() {
+ 	x = nil
+ }
+ `,
+-		Out: `package main
++			Out: `package main
+ 
+ import "C"
+ 
+-var x C.EGLDisplay = 0
++var x C.$EGLTYPE = 0
+ 
+ func f() {
+ 	x = 0
+ }
+ `,
+-	},
+-	{
+-		Name: "egl.EqualArgument",
+-		In: `package main
++		},
++		{
++			Name: "egl.EqualArgument",
++			In: `package main
+ 
+ import "C"
+ 
+-var x C.EGLDisplay
++var x C.$EGLTYPE
+ var y = x == nil
+ var z = x != nil
+ `,
+-		Out: `package main
++			Out: `package main
+ 
+ import "C"
+ 
+-var x C.EGLDisplay
++var x C.$EGLTYPE
+ var y = x == 0
+ var z = x != 0
+ `,
+-	},
+-	{
+-		Name: "egl.StructField",
+-		In: `package main
++		},
++		{
++			Name: "egl.StructField",
++			In: `package main
+ 
+ import "C"
+ 
+ type T struct {
+-	x C.EGLDisplay
++	x C.$EGLTYPE
+ }
+ 
+ var t = T{x: nil}
+ `,
+-		Out: `package main
++			Out: `package main
+ 
+ import "C"
+ 
+ type T struct {
+-	x C.EGLDisplay
++	x C.$EGLTYPE
+ }
+ 
+ var t = T{x: 0}
+ `,
+-	},
+-	{
+-		Name: "egl.FunctionArgument",
+-		In: `package main
++		},
++		{
++			Name: "egl.FunctionArgument",
++			In: `package main
+ 
+ import "C"
+ 
+-func f(x C.EGLDisplay) {
++func f(x C.$EGLTYPE) {
+ }
+ 
+ func g() {
+ 	f(nil)
+ }
+ `,
+-		Out: `package main
++			Out: `package main
+ 
+ import "C"
+ 
+-func f(x C.EGLDisplay) {
++func f(x C.$EGLTYPE) {
+ }
+ 
+ func g() {
+ 	f(0)
+ }
+ `,
+-	},
+-	{
+-		Name: "egl.ArrayElement",
+-		In: `package main
++		},
++		{
++			Name: "egl.ArrayElement",
++			In: `package main
+ 
+ import "C"
+ 
+-var x = [3]C.EGLDisplay{nil, nil, nil}
++var x = [3]C.$EGLTYPE{nil, nil, nil}
+ `,
+-		Out: `package main
++			Out: `package main
+ 
+ import "C"
+ 
+-var x = [3]C.EGLDisplay{0, 0, 0}
++var x = [3]C.$EGLTYPE{0, 0, 0}
+ `,
+-	},
+-	{
+-		Name: "egl.SliceElement",
+-		In: `package main
++		},
++		{
++			Name: "egl.SliceElement",
++			In: `package main
+ 
+ import "C"
+ 
+-var x = []C.EGLDisplay{nil, nil, nil}
++var x = []C.$EGLTYPE{nil, nil, nil}
+ `,
+-		Out: `package main
++			Out: `package main
+ 
+ import "C"
+ 
+-var x = []C.EGLDisplay{0, 0, 0}
++var x = []C.$EGLTYPE{0, 0, 0}
+ `,
+-	},
+-	{
+-		Name: "egl.MapKey",
+-		In: `package main
++		},
++		{
++			Name: "egl.MapKey",
++			In: `package main
+ 
+ import "C"
+ 
+-var x = map[C.EGLDisplay]int{nil: 0}
++var x = map[C.$EGLTYPE]int{nil: 0}
+ `,
+-		Out: `package main
++			Out: `package main
+ 
+ import "C"
+ 
+-var x = map[C.EGLDisplay]int{0: 0}
++var x = map[C.$EGLTYPE]int{0: 0}
+ `,
+-	},
+-	{
+-		Name: "egl.MapValue",
+-		In: `package main
++		},
++		{
++			Name: "egl.MapValue",
++			In: `package main
+ 
+ import "C"
+ 
+-var x = map[int]C.EGLDisplay{0: nil}
++var x = map[int]C.$EGLTYPE{0: nil}
+ `,
+-		Out: `package main
++			Out: `package main
+ 
+ import "C"
+ 
+-var x = map[int]C.EGLDisplay{0: 0}
++var x = map[int]C.$EGLTYPE{0: 0}
+ `,
+-	},
++		},
++	}
++	for i := range eglTests {
++		t := &eglTests[i]
++		t.In = strings.ReplaceAll(t.In, "$EGLTYPE", tname)
++		t.Out = strings.ReplaceAll(t.Out, "$EGLTYPE", tname)
++	}
++	return eglTests
+ }

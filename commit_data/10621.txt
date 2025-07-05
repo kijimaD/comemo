@@ -7,9 +7,64 @@ Date:   Mon Dec 5 19:40:52 2011 -0800
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/5437142
-
+---
  src/pkg/compress/bzip2/bit_reader.go | 2 +-
  src/pkg/exp/ssh/session_test.go      | 2 +-
  src/pkg/fmt/doc.go                   | 2 +-
  src/pkg/unicode/graphic.go           | 4 ++--
  4 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/compress/bzip2/bit_reader.go b/src/pkg/compress/bzip2/bit_reader.go
+index b2c13e50ca..b35c69a1cc 100644
+--- a/src/pkg/compress/bzip2/bit_reader.go
++++ b/src/pkg/compress/bzip2/bit_reader.go
+@@ -20,7 +20,7 @@ type bitReader struct {
+ 	err  error
+ }
+ 
+-// bitReader needs to read bytes from an io.Reader. We attempt to cast the
++// bitReader needs to read bytes from an io.Reader. We attempt to convert the
+ // given io.Reader to this interface and, if it doesn't already fit, we wrap in
+ // a bufio.Reader.
+ type byteReader interface {
+diff --git a/src/pkg/exp/ssh/session_test.go b/src/pkg/exp/ssh/session_test.go
+index 4be7746d17..d4818c29f7 100644
+--- a/src/pkg/exp/ssh/session_test.go
++++ b/src/pkg/exp/ssh/session_test.go
+@@ -61,7 +61,7 @@ func dial(t *testing.T) *ClientConn {
+ 					WantReply bool
+ 					Status    uint32
+ 				}
+-				// TODO(dfc) casting to the concrete type should not be
++				// TODO(dfc) converting to the concrete type should not be
+ 				// necessary to send a packet.
+ 				msg := exitMsg{
+ 					PeersId:   ch.(*channel).theirId,
+diff --git a/src/pkg/fmt/doc.go b/src/pkg/fmt/doc.go
+index 747865c6f9..11e9f19f89 100644
+--- a/src/pkg/fmt/doc.go
++++ b/src/pkg/fmt/doc.go
+@@ -103,7 +103,7 @@
+ 	To avoid recursion in cases such as
+ 		type X string
+ 		func (x X) String() string { return Sprintf("<%s>", x) }
+-	cast the value before recurring:
++	convert the value before recurring:
+ 		func (x X) String() string { return Sprintf("<%s>", string(x)) }
+ 
+ 	Format errors:
+diff --git a/src/pkg/unicode/graphic.go b/src/pkg/unicode/graphic.go
+index 9343bc9b0a..2904da6c6d 100644
+--- a/src/pkg/unicode/graphic.go
++++ b/src/pkg/unicode/graphic.go
+@@ -32,8 +32,8 @@ var PrintRanges = []*RangeTable{
+ // Such characters include letters, marks, numbers, punctuation, symbols, and
+ // spaces, from categories L, M, N, P, S, Zs.
+ func IsGraphic(r rune) bool {
+-	// We cast to uint32 to avoid the extra test for negative,
+-	// and in the index we cast to uint8 to avoid the range check.
++	// We convert to uint32 to avoid the extra test for negative,
++	// and in the index we convert to uint8 to avoid the range check.
+ 	if uint32(r) <= MaxLatin1 {
+ 		return properties[uint8(r)]&pg != 0
+ 	}

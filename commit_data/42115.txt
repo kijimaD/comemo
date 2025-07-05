@@ -31,10 +31,154 @@ Date:   Thu Nov 7 15:54:59 2019 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/205977
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/align.go               |  2 +-
  src/cmd/compile/internal/gc/main.go                | 14 ++++++-
  src/cmd/compile/internal/gc/noder.go               |  4 +-
  src/cmd/compile/internal/gc/typecheck.go           | 19 +++++++++-
  .../go/testdata/script/mod_go_version_mixed.txt    | 43 ++++++++++++++++++++++
  5 files changed, 76 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/align.go b/src/cmd/compile/internal/gc/align.go
+index 44a06fd727..78be1b231e 100644
+--- a/src/cmd/compile/internal/gc/align.go
++++ b/src/cmd/compile/internal/gc/align.go
+@@ -34,7 +34,7 @@ func expandiface(t *types.Type) {
+ 		switch prev := seen[m.Sym]; {
+ 		case prev == nil:
+ 			seen[m.Sym] = m
+-		case langSupported(1, 14) && !explicit && types.Identical(m.Type, prev.Type):
++		case langSupported(1, 14, t.Pkg()) && !explicit && types.Identical(m.Type, prev.Type):
+ 			return
+ 		default:
+ 			yyerrorl(m.Pos, "duplicate method %s", m.Sym.Name)
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 721ebeed6f..428a74f26c 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -1477,8 +1477,18 @@ type lang struct {
+ // any language version is supported.
+ var langWant lang
+ 
+-// langSupported reports whether language version major.minor is supported.
+-func langSupported(major, minor int) bool {
++// langSupported reports whether language version major.minor is
++// supported in a particular package.
++func langSupported(major, minor int, pkg *types.Pkg) bool {
++	if pkg == nil {
++		// TODO(mdempsky): Set Pkg for local types earlier.
++		pkg = localpkg
++	}
++	if pkg != localpkg {
++		// Assume imported packages passed type-checking.
++		return true
++	}
++
+ 	if langWant.major == 0 && langWant.minor == 0 {
+ 		return true
+ 	}
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index e871878e29..b6713ba685 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -446,7 +446,7 @@ func (p *noder) typeDecl(decl *syntax.TypeDecl) *Node {
+ 	}
+ 
+ 	nod := p.nod(decl, ODCLTYPE, n, nil)
+-	if param.Alias && !langSupported(1, 9) {
++	if param.Alias && !langSupported(1, 9, localpkg) {
+ 		yyerrorl(nod.Pos, "type aliases only supported as of -lang=go1.9")
+ 	}
+ 	return nod
+@@ -1321,7 +1321,7 @@ func (p *noder) binOp(op syntax.Operator) Op {
+ // literal is not compatible with the current language version.
+ func checkLangCompat(lit *syntax.BasicLit) {
+ 	s := lit.Value
+-	if len(s) <= 2 || langSupported(1, 13) {
++	if len(s) <= 2 || langSupported(1, 13, localpkg) {
+ 		return
+ 	}
+ 	// len(s) > 2
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 7b851d3d08..ae2e16760d 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -608,7 +608,7 @@ func typecheck1(n *Node, top int) (res *Node) {
+ 				n.Type = nil
+ 				return n
+ 			}
+-			if t.IsSigned() && !langSupported(1, 13) {
++			if t.IsSigned() && !langSupported(1, 13, curpkg()) {
+ 				yyerrorv("go1.13", "invalid operation: %v (signed shift count type %v)", n, r.Type)
+ 				n.Type = nil
+ 				return n
+@@ -3951,3 +3951,20 @@ func getIotaValue() int64 {
+ 
+ 	return -1
+ }
++
++// curpkg returns the current package, based on Curfn.
++func curpkg() *types.Pkg {
++	fn := Curfn
++	if fn == nil {
++		// Initialization expressions for package-scope variables.
++		return localpkg
++	}
++
++	// TODO(mdempsky): Standardize on either ODCLFUNC or ONAME for
++	// Curfn, rather than mixing them.
++	if fn.Op == ODCLFUNC {
++		fn = fn.Func.Nname
++	}
++
++	return fnpkg(fn)
++}
+diff --git a/src/cmd/go/testdata/script/mod_go_version_mixed.txt b/src/cmd/go/testdata/script/mod_go_version_mixed.txt
+new file mode 100644
+index 0000000000..d6216ae244
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_go_version_mixed.txt
+@@ -0,0 +1,43 @@
++# Test that dependencies can use Go language features newer than the
++# Go version specified by the main module.
++
++env GO111MODULE=on
++
++go build
++
++-- go.mod --
++module m
++go 1.12
++require (
++	sub.1 v1.0.0
++)
++replace (
++	sub.1 => ./sub
++)
++
++-- x.go --
++package x
++
++import "sub.1"
++
++func F() { sub.F(0, 0) }
++
++var A sub.Alias
++var D sub.Defined
++
++-- sub/go.mod --
++module m
++go 1.14
++
++-- sub/sub.go --
++package sub
++
++// signed shift counts added in Go 1.13
++func F(l, r int) int { return l << r }
++
++type m1 interface { M() }
++type m2 interface { M() }
++
++// overlapping interfaces added in Go 1.14
++type Alias = interface { m1; m2; M() }
++type Defined interface { m1; m2; M() }

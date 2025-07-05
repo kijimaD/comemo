@@ -9,6 +9,49 @@ Date:   Fri Aug 10 10:34:41 2018 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/chan.go | 13 +++++--------
  1 file changed, 5 insertions(+), 8 deletions(-)
+
+diff --git a/src/runtime/chan.go b/src/runtime/chan.go
+index ce71cee4c5..615643e6a6 100644
+--- a/src/runtime/chan.go
++++ b/src/runtime/chan.go
+@@ -343,7 +343,7 @@ func closechan(c *hchan) {
+ 
+ 	c.closed = 1
+ 
+-	var glist *g
++	var glist gList
+ 
+ 	// release all readers
+ 	for {
+@@ -363,8 +363,7 @@ func closechan(c *hchan) {
+ 		if raceenabled {
+ 			raceacquireg(gp, unsafe.Pointer(c))
+ 		}
+-		gp.schedlink.set(glist)
+-		glist = gp
++		glist.push(gp)
+ 	}
+ 
+ 	// release all writers (they will panic)
+@@ -382,15 +381,13 @@ func closechan(c *hchan) {
+ 		if raceenabled {
+ 			raceacquireg(gp, unsafe.Pointer(c))
+ 		}
+-		gp.schedlink.set(glist)
+-		glist = gp
++		glist.push(gp)
+ 	}
+ 	unlock(&c.lock)
+ 
+ 	// Ready all Gs now that we've dropped the channel lock.
+-	for glist != nil {
+-		gp := glist
+-		glist = glist.schedlink.ptr()
++	for !glist.empty() {
++		gp := glist.pop()
+ 		gp.schedlink = 0
+ 		goready(gp, 3)
+ 	}

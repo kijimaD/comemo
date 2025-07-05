@@ -10,8 +10,46 @@ Date:   Sat May 15 10:06:54 2010 -0700
     R=rsc, r
     CC=golang-dev
     https://golang.org/cl/1235041
-
+---
  src/pkg/cmath/abs.go   | 2 ++
  src/pkg/cmath/phase.go | 2 +-
  src/pkg/cmath/polar.go | 2 +-
  3 files changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/cmath/abs.go b/src/pkg/cmath/abs.go
+index 30995cec60..725dc4e982 100644
+--- a/src/pkg/cmath/abs.go
++++ b/src/pkg/cmath/abs.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// The cmath package provides basic constants
++// and mathematical functions for complex numbers.
+ package cmath
+ 
+ import "math"
+diff --git a/src/pkg/cmath/phase.go b/src/pkg/cmath/phase.go
+index 97a4834927..2d67aa34c7 100644
+--- a/src/pkg/cmath/phase.go
++++ b/src/pkg/cmath/phase.go
+@@ -7,5 +7,5 @@ package cmath
+ import "math"
+ 
+ // Phase returns the phase (also called the argument) of x.
+-// The returned value is in the range (-Pi, Pi].
++// The returned value is in the range [-Pi, Pi].
+ func Phase(x complex128) float64 { return math.Atan2(imag(x), real(x)) }
+diff --git a/src/pkg/cmath/polar.go b/src/pkg/cmath/polar.go
+index f55aef42b0..033676acc5 100644
+--- a/src/pkg/cmath/polar.go
++++ b/src/pkg/cmath/polar.go
+@@ -6,7 +6,7 @@ package cmath
+ 
+ // Polar returns the absolute value r and phase θ of x,
+ // such that x = r * e**θi.
+-// The phase is in the range (-Pi, Pi].
++// The phase is in the range [-Pi, Pi].
+ func Polar(x complex128) (r, θ float64) {
+ 	return Abs(x), Phase(x)
+ }

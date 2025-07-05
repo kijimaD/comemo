@@ -23,9 +23,195 @@ Date:   Wed Jun 14 11:46:35 2017 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/runtime/export_test.go | 14 ++++++++++++++
  src/runtime/proc.go        | 42 ++++++++++++++++++++++++++++--------------
  src/runtime/proc_test.go   | 24 ++++++++++++++++++++++++
  src/runtime/runtime2.go    | 15 ++-------------
  4 files changed, 68 insertions(+), 27 deletions(-)
+
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index 8b061e0a82..9b269d9659 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -381,3 +381,17 @@ func MapBuckets(m map[int]int) int {
+ 	h := *(**hmap)(unsafe.Pointer(&m))
+ 	return 1 << h.B
+ }
++
++func LockOSCounts() (external, internal uint32) {
++	g := getg()
++	if g.m.lockedExt+g.m.lockedInt == 0 {
++		if g.lockedm != 0 {
++			panic("lockedm on non-locked goroutine")
++		}
++	} else {
++		if g.lockedm == 0 {
++			panic("nil lockedm on locked goroutine")
++		}
++	}
++	return g.m.lockedExt, g.m.lockedInt
++}
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index f8716b171e..cb9b1aa0ca 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -1498,7 +1498,7 @@ func oneNewExtraM() {
+ 	casgstatus(gp, _Gidle, _Gdead)
+ 	gp.m = mp
+ 	mp.curg = gp
+-	mp.locked = _LockInternal
++	mp.lockedInt++
+ 	mp.lockedg.set(gp)
+ 	gp.lockedm.set(mp)
+ 	gp.goid = int64(atomic.Xadd64(&sched.goidgen, 1))
+@@ -2402,11 +2402,11 @@ func goexit0(gp *g) {
+ 	gp.gcscanvalid = true
+ 	dropg()
+ 
+-	if _g_.m.locked&^_LockExternal != 0 {
+-		print("invalid m->locked = ", _g_.m.locked, "\n")
++	if _g_.m.lockedInt != 0 {
++		print("invalid m->lockedInt = ", _g_.m.lockedInt, "\n")
+ 		throw("internal lockOSThread error")
+ 	}
+-	_g_.m.locked = 0
++	_g_.m.lockedExt = 0
+ 	gfput(_g_.m.p.ptr(), gp)
+ 	schedule()
+ }
+@@ -3172,16 +3172,23 @@ func dolockOSThread() {
+ //go:nosplit
+ 
+ // LockOSThread wires the calling goroutine to its current operating system thread.
+-// Until the calling goroutine exits or calls UnlockOSThread, it will always
+-// execute in that thread, and no other goroutine can.
++// The calling goroutine will always execute in that thread,
++// and no other goroutine will execute in it,
++// until the calling goroutine exits or has made as many calls to
++// UnlockOSThread as to LockOSThread.
+ func LockOSThread() {
+-	getg().m.locked |= _LockExternal
++	_g_ := getg()
++	_g_.m.lockedExt++
++	if _g_.m.lockedExt == 0 {
++		_g_.m.lockedExt--
++		panic("LockOSThread nesting overflow")
++	}
+ 	dolockOSThread()
+ }
+ 
+ //go:nosplit
+ func lockOSThread() {
+-	getg().m.locked += _LockInternal
++	getg().m.lockedInt++
+ 	dolockOSThread()
+ }
+ 
+@@ -3191,7 +3198,7 @@ func lockOSThread() {
+ //go:nosplit
+ func dounlockOSThread() {
+ 	_g_ := getg()
+-	if _g_.m.locked != 0 {
++	if _g_.m.lockedInt != 0 || _g_.m.lockedExt != 0 {
+ 		return
+ 	}
+ 	_g_.m.lockedg = 0
+@@ -3200,20 +3207,27 @@ func dounlockOSThread() {
+ 
+ //go:nosplit
+ 
+-// UnlockOSThread unwires the calling goroutine from its fixed operating system thread.
+-// If the calling goroutine has not called LockOSThread, UnlockOSThread is a no-op.
++// UnlockOSThread undoes an earlier call to LockOSThread.
++// If this drops the number of active LockOSThread calls on the
++// calling goroutine to zero, it unwires the calling goroutine from
++// its fixed operating system thread.
++// If there are no active LockOSThread calls, this is a no-op.
+ func UnlockOSThread() {
+-	getg().m.locked &^= _LockExternal
++	_g_ := getg()
++	if _g_.m.lockedExt == 0 {
++		return
++	}
++	_g_.m.lockedExt--
+ 	dounlockOSThread()
+ }
+ 
+ //go:nosplit
+ func unlockOSThread() {
+ 	_g_ := getg()
+-	if _g_.m.locked < _LockInternal {
++	if _g_.m.lockedInt == 0 {
+ 		systemstack(badunlockosthread)
+ 	}
+-	_g_.m.locked -= _LockInternal
++	_g_.m.lockedInt--
+ 	dounlockOSThread()
+ }
+ 
+diff --git a/src/runtime/proc_test.go b/src/runtime/proc_test.go
+index 90a6cab874..835b548742 100644
+--- a/src/runtime/proc_test.go
++++ b/src/runtime/proc_test.go
+@@ -722,3 +722,27 @@ func matmult(done chan<- struct{}, A, B, C Matrix, i0, i1, j0, j1, k0, k1, thres
+ func TestStealOrder(t *testing.T) {
+ 	runtime.RunStealOrderTest()
+ }
++
++func TestLockOSThreadNesting(t *testing.T) {
++	go func() {
++		e, i := runtime.LockOSCounts()
++		if e != 0 || i != 0 {
++			t.Errorf("want locked counts 0, 0; got %d, %d", e, i)
++			return
++		}
++		runtime.LockOSThread()
++		runtime.LockOSThread()
++		runtime.UnlockOSThread()
++		e, i = runtime.LockOSCounts()
++		if e != 1 || i != 0 {
++			t.Errorf("want locked counts 1, 0; got %d, %d", e, i)
++			return
++		}
++		runtime.UnlockOSThread()
++		e, i = runtime.LockOSCounts()
++		if e != 0 || i != 0 {
++			t.Errorf("want locked counts 0, 0; got %d, %d", e, i)
++			return
++		}
++	}()
++}
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 055fff18af..f56876fc63 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -430,7 +430,8 @@ type m struct {
+ 	freglo        [16]uint32     // d[i] lsb and f[i]
+ 	freghi        [16]uint32     // d[i] msb and f[i+16]
+ 	fflag         uint32         // floating point compare flags
+-	locked        uint32         // tracking for lockosthread
++	lockedExt     uint32         // tracking for external LockOSThread
++	lockedInt     uint32         // tracking for internal lockOSThread
+ 	nextwaitm     uintptr        // next m waiting for lock
+ 	waitunlockf   unsafe.Pointer // todo go func(*g, unsafe.pointer) bool
+ 	waitlock      unsafe.Pointer
+@@ -576,18 +577,6 @@ type schedt struct {
+ 	totaltime      int64 // ∫gomaxprocs dt up to procresizetime
+ }
+ 
+-// The m.locked word holds two pieces of state counting active calls to LockOSThread/lockOSThread.
+-// The low bit (LockExternal) is a boolean reporting whether any LockOSThread call is active.
+-// External locks are not recursive; a second lock is silently ignored.
+-// The upper bits of m.locked record the nesting depth of calls to lockOSThread
+-// (counting up by LockInternal), popped by unlockOSThread (counting down by LockInternal).
+-// Internal locks can be recursive. For instance, a lock for cgo can occur while the main
+-// goroutine is holding the lock during the initialization phase.
+-const (
+-	_LockExternal = 1
+-	_LockInternal = 2
+-)
+-
+ // Values for the flags field of a sigTabT.
+ const (
+ 	_SigNotify   = 1 << iota // let signal.Notify have signal, even if from kernel

@@ -11,7 +11,7 @@ Date:   Thu Nov 12 12:09:29 2015 -0500
     Change-Id: I7242f6b633e4164f033b67ff471416b9d71c64d2
     Reviewed-on: https://go-review.googlesource.com/16847
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/dist/deps.go                          |  2 +-
  src/go/build/deps_test.go                     |  2 +-
  src/runtime/internal/atomic/arch1_386.go      |  9 ---------
@@ -25,3 +25,195 @@ Date:   Thu Nov 12 12:09:29 2015 -0500
  src/runtime/internal/atomic/arch1_ppc64le.go  |  9 ---------
  src/runtime/internal/atomic/atomic_arm.go     |  7 +++++--
  12 files changed, 7 insertions(+), 90 deletions(-)
+
+diff --git a/src/cmd/dist/deps.go b/src/cmd/dist/deps.go
+index 4e20b5600b..ba360e5b3b 100644
+--- a/src/cmd/dist/deps.go
++++ b/src/cmd/dist/deps.go
+@@ -41,7 +41,7 @@ var builddeps = map[string][]string{
+ 	"regexp":                  {"bytes", "errors", "io", "math", "regexp/syntax", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "unicode", "unicode/utf8"},
+ 	"regexp/syntax":           {"bytes", "errors", "io", "math", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "unicode", "unicode/utf8"},
+ 	"runtime":                 {"runtime/internal/atomic", "runtime/internal/sys"},
+-	"runtime/internal/atomic": {},
++	"runtime/internal/atomic": {"runtime/internal/sys"},
+ 	"runtime/internal/sys":    {},
+ 	"sort":                    {"runtime", "runtime/internal/atomic", "runtime/internal/sys"},
+ 	"strconv":                 {"errors", "math", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "unicode/utf8"},
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 4575b44260..58d7d377e0 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -38,7 +38,7 @@ var pkgDeps = map[string][]string{
+ 	"io":                      {"errors", "sync"},
+ 	"runtime":                 {"unsafe", "runtime/internal/atomic", "runtime/internal/sys"},
+ 	"runtime/internal/sys":    {},
+-	"runtime/internal/atomic": {"unsafe"},
++	"runtime/internal/atomic": {"unsafe", "runtime/internal/sys"},
+ 	"sync":        {"runtime", "sync/atomic", "unsafe"},
+ 	"sync/atomic": {"unsafe"},
+ 	"unsafe":      {},
+diff --git a/src/runtime/internal/atomic/arch1_386.go b/src/runtime/internal/atomic/arch1_386.go
+deleted file mode 100644
+index 76a9e2ecc4..0000000000
+--- a/src/runtime/internal/atomic/arch1_386.go
++++ /dev/null
+@@ -1,9 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package atomic
+-
+-const (
+-	_CacheLineSize = 64
+-)
+diff --git a/src/runtime/internal/atomic/arch1_amd64.go b/src/runtime/internal/atomic/arch1_amd64.go
+deleted file mode 100644
+index 76a9e2ecc4..0000000000
+--- a/src/runtime/internal/atomic/arch1_amd64.go
++++ /dev/null
+@@ -1,9 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package atomic
+-
+-const (
+-	_CacheLineSize = 64
+-)
+diff --git a/src/runtime/internal/atomic/arch1_amd64p32.go b/src/runtime/internal/atomic/arch1_amd64p32.go
+deleted file mode 100644
+index 7bb6e1aaf9..0000000000
+--- a/src/runtime/internal/atomic/arch1_amd64p32.go
++++ /dev/null
+@@ -1,14 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package atomic
+-
+-const (
+-	thechar        = '6'
+-	_BigEndian     = 0
+-	_CacheLineSize = 64
+-	_PCQuantum     = 1
+-	_Int64Align    = 8
+-	hugePageSize   = 1 << 21
+-)
+diff --git a/src/runtime/internal/atomic/arch1_arm.go b/src/runtime/internal/atomic/arch1_arm.go
+deleted file mode 100644
+index d9b997c5ca..0000000000
+--- a/src/runtime/internal/atomic/arch1_arm.go
++++ /dev/null
+@@ -1,9 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package atomic
+-
+-const (
+-	_CacheLineSize = 32
+-)
+diff --git a/src/runtime/internal/atomic/arch1_arm64.go b/src/runtime/internal/atomic/arch1_arm64.go
+deleted file mode 100644
+index d9b997c5ca..0000000000
+--- a/src/runtime/internal/atomic/arch1_arm64.go
++++ /dev/null
+@@ -1,9 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package atomic
+-
+-const (
+-	_CacheLineSize = 32
+-)
+diff --git a/src/runtime/internal/atomic/arch1_mips64.go b/src/runtime/internal/atomic/arch1_mips64.go
+deleted file mode 100644
+index 0fd9510bdc..0000000000
+--- a/src/runtime/internal/atomic/arch1_mips64.go
++++ /dev/null
+@@ -1,9 +0,0 @@
+-// Copyright 2015 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package atomic
+-
+-const (
+-	_CacheLineSize = 32
+-)
+diff --git a/src/runtime/internal/atomic/arch1_mips64le.go b/src/runtime/internal/atomic/arch1_mips64le.go
+deleted file mode 100644
+index 0fd9510bdc..0000000000
+--- a/src/runtime/internal/atomic/arch1_mips64le.go
++++ /dev/null
+@@ -1,9 +0,0 @@
+-// Copyright 2015 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package atomic
+-
+-const (
+-	_CacheLineSize = 32
+-)
+diff --git a/src/runtime/internal/atomic/arch1_ppc64.go b/src/runtime/internal/atomic/arch1_ppc64.go
+deleted file mode 100644
+index 815a5840f7..0000000000
+--- a/src/runtime/internal/atomic/arch1_ppc64.go
++++ /dev/null
+@@ -1,9 +0,0 @@
+-// Copyright 2014 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package atomic
+-
+-const (
+-	_CacheLineSize = 64
+-)
+diff --git a/src/runtime/internal/atomic/arch1_ppc64le.go b/src/runtime/internal/atomic/arch1_ppc64le.go
+deleted file mode 100644
+index 815a5840f7..0000000000
+--- a/src/runtime/internal/atomic/arch1_ppc64le.go
++++ /dev/null
+@@ -1,9 +0,0 @@
+-// Copyright 2014 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package atomic
+-
+-const (
+-	_CacheLineSize = 64
+-)
+diff --git a/src/runtime/internal/atomic/atomic_arm.go b/src/runtime/internal/atomic/atomic_arm.go
+index 1f33eef3c4..c361aef382 100644
+--- a/src/runtime/internal/atomic/atomic_arm.go
++++ b/src/runtime/internal/atomic/atomic_arm.go
+@@ -6,7 +6,10 @@
+ 
+ package atomic
+ 
+-import "unsafe"
++import (
++	"runtime/internal/sys"
++	"unsafe"
++)
+ 
+ type spinlock struct {
+ 	v uint32
+@@ -28,7 +31,7 @@ func (l *spinlock) unlock() {
+ 
+ var locktab [57]struct {
+ 	l   spinlock
+-	pad [_CacheLineSize - unsafe.Sizeof(spinlock{})]byte
++	pad [sys.CacheLineSize - unsafe.Sizeof(spinlock{})]byte
+ }
+ 
+ func addrLock(addr *uint64) *spinlock {

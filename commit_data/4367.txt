@@ -6,7 +6,7 @@ Date:   Wed Dec 9 16:54:07 2009 -0800
     
     R=rsc
     https://golang.org/cl/172041
-
+---
  src/cmd/godoc/main.go                    |   2 +-
  src/cmd/goyacc/goyacc.go                 |   4 +-
  src/pkg/big/int_test.go                  |   4 +-
@@ -28,3 +28,1853 @@ Date:   Wed Dec 9 16:54:07 2009 -0800
  src/pkg/unicode/maketables.go            |  22 +-
  src/pkg/xml/xml_test.go                  |   4 +-
  20 files changed, 620 insertions(+), 621 deletions(-)
+
+diff --git a/src/cmd/godoc/main.go b/src/cmd/godoc/main.go
+index 51be3e9859..b8967e4bf1 100644
+--- a/src/cmd/godoc/main.go
++++ b/src/cmd/godoc/main.go
+@@ -124,7 +124,7 @@ func dosync(c *http.Conn, r *http.Request) {
+ 
+ func usage() {
+ 	fmt.Fprintf(os.Stderr,
+-		"usage: godoc package [name ...]\n"
++		"usage: godoc package [name ...]\n"+
+ 			"	godoc -http=:6060\n");
+ 	flag.PrintDefaults();
+ 	os.Exit(2);
+diff --git a/src/cmd/goyacc/goyacc.go b/src/cmd/goyacc/goyacc.go
+index 0d8d8857eb..719c6de51d 100644
+--- a/src/cmd/goyacc/goyacc.go
++++ b/src/cmd/goyacc/goyacc.go
+@@ -2174,7 +2174,7 @@ func output() {
+ 				} else if temp1[k] < 0 {	// reduce/reduce conflict
+ 					if foutput != nil {
+ 						fmt.Fprintf(foutput,
+-							"\n %v: reduce/reduce conflict  (red'ns "
++							"\n %v: reduce/reduce conflict  (red'ns "+
+ 								"%v and %v) on %v",
+ 							i, -temp1[k], lastred, symnam(k))
+ 					}
+@@ -2734,7 +2734,7 @@ nextn:
+ 					// states are equal
+ 					indgo[i] = n;
+ 					if adb > 1 {
+-						fmt.Fprintf(ftable, "State %v: entry at"
++						fmt.Fprintf(ftable, "State %v: entry at"+
+ 							"%v equals state %v\n",
+ 							i, n, j)
+ 					}
+diff --git a/src/pkg/big/int_test.go b/src/pkg/big/int_test.go
+index 4ce40ef365..e5ed221afc 100644
+--- a/src/pkg/big/int_test.go
++++ b/src/pkg/big/int_test.go
+@@ -99,8 +99,8 @@ var facts = map[int]string{
+ 	2: "2",
+ 	10: "3628800",
+ 	20: "2432902008176640000",
+-	100: "933262154439441526816992388562667004907159682643816214685929"
+-		"638952175999932299156089414639761565182862536979208272237582"
++	100: "933262154439441526816992388562667004907159682643816214685929" +
++		"638952175999932299156089414639761565182862536979208272237582" +
+ 		"51185210916864000000000000000000000000",
+ }
+ 
+diff --git a/src/pkg/bignum/bignum_test.go b/src/pkg/bignum/bignum_test.go
+index 35539b879c..73edc93453 100644
+--- a/src/pkg/bignum/bignum_test.go
++++ b/src/pkg/bignum/bignum_test.go
+@@ -12,8 +12,8 @@ import (
+ const (
+ 	sa	= "991";
+ 	sb	= "2432902008176640000";	// 20!
+-	sc	= "933262154439441526816992388562667004907159682643816214685929"
+-		"638952175999932299156089414639761565182862536979208272237582"
++	sc	= "933262154439441526816992388562667004907159682643816214685929" +
++		"638952175999932299156089414639761565182862536979208272237582" +
+ 		"51185210916864000000000000000000000000";	// 100!
+ 	sp	= "170141183460469231731687303715884105727";	// prime
+ )
+diff --git a/src/pkg/compress/gzip/gunzip_test.go b/src/pkg/compress/gzip/gunzip_test.go
+index 84286ee3f6..67b3b3ce24 100644
+--- a/src/pkg/compress/gzip/gunzip_test.go
++++ b/src/pkg/compress/gzip/gunzip_test.go
+@@ -49,7 +49,7 @@ var gzipTests = []gzipTest{
+ 	gzipTest{	// concatenation
+ 		"hello.txt",
+ 		"hello.txt x2",
+-		"hello world\n"
++		"hello world\n" +
+ 			"hello world\n",
+ 		[]byte{
+ 			0x1f, 0x8b, 0x08, 0x08, 0xc8, 0x58, 0x13, 0x4a,
+@@ -86,34 +86,34 @@ var gzipTests = []gzipTest{
+ 	gzipTest{	// has dynamic huffman blocks
+ 		"gettysburg",
+ 		"gettysburg",
+-		"  Four score and seven years ago our fathers brought forth on\n"
+-			"this continent, a new nation, conceived in Liberty, and dedicated\n"
+-			"to the proposition that all men are created equal.\n"
+-			"  Now we are engaged in a great Civil War, testing whether that\n"
+-			"nation, or any nation so conceived and so dedicated, can long\n"
+-			"endure.\n"
+-			"  We are met on a great battle-field of that war.\n"
+-			"  We have come to dedicate a portion of that field, as a final\n"
+-			"resting place for those who here gave their lives that that\n"
+-			"nation might live.  It is altogether fitting and proper that\n"
+-			"we should do this.\n"
+-			"  But, in a larger sense, we can not dedicate — we can not\n"
+-			"consecrate — we can not hallow — this ground.\n"
+-			"  The brave men, living and dead, who struggled here, have\n"
+-			"consecrated it, far above our poor power to add or detract.\n"
+-			"The world will little note, nor long remember what we say here,\n"
+-			"but it can never forget what they did here.\n"
+-			"  It is for us the living, rather, to be dedicated here to the\n"
+-			"unfinished work which they who fought here have thus far so\n"
+-			"nobly advanced.  It is rather for us to be here dedicated to\n"
+-			"the great task remaining before us — that from these honored\n"
+-			"dead we take increased devotion to that cause for which they\n"
+-			"gave the last full measure of devotion —\n"
+-			"  that we here highly resolve that these dead shall not have\n"
+-			"died in vain — that this nation, under God, shall have a new\n"
+-			"birth of freedom — and that government of the people, by the\n"
+-			"people, for the people, shall not perish from this earth.\n"
+-			"\n"
++		"  Four score and seven years ago our fathers brought forth on\n" +
++			"this continent, a new nation, conceived in Liberty, and dedicated\n" +
++			"to the proposition that all men are created equal.\n" +
++			"  Now we are engaged in a great Civil War, testing whether that\n" +
++			"nation, or any nation so conceived and so dedicated, can long\n" +
++			"endure.\n" +
++			"  We are met on a great battle-field of that war.\n" +
++			"  We have come to dedicate a portion of that field, as a final\n" +
++			"resting place for those who here gave their lives that that\n" +
++			"nation might live.  It is altogether fitting and proper that\n" +
++			"we should do this.\n" +
++			"  But, in a larger sense, we can not dedicate — we can not\n" +
++			"consecrate — we can not hallow — this ground.\n" +
++			"  The brave men, living and dead, who struggled here, have\n" +
++			"consecrated it, far above our poor power to add or detract.\n" +
++			"The world will little note, nor long remember what we say here,\n" +
++			"but it can never forget what they did here.\n" +
++			"  It is for us the living, rather, to be dedicated here to the\n" +
++			"unfinished work which they who fought here have thus far so\n" +
++			"nobly advanced.  It is rather for us to be here dedicated to\n" +
++			"the great task remaining before us — that from these honored\n" +
++			"dead we take increased devotion to that cause for which they\n" +
++			"gave the last full measure of devotion —\n" +
++			"  that we here highly resolve that these dead shall not have\n" +
++			"died in vain — that this nation, under God, shall have a new\n" +
++			"birth of freedom — and that government of the people, by the\n" +
++			"people, for the people, shall not perish from this earth.\n" +
++			"\n" +
+ 			"Abraham Lincoln, November 19, 1863, Gettysburg, Pennsylvania\n",
+ 		[]byte{
+ 			0x1f, 0x8b, 0x08, 0x08, 0xd1, 0x12, 0x2b, 0x4a,
+diff --git a/src/pkg/container/vector/vector_test.go b/src/pkg/container/vector/vector_test.go
+index 24486c58f2..f187f72188 100644
+--- a/src/pkg/container/vector/vector_test.go
++++ b/src/pkg/container/vector/vector_test.go
+@@ -74,7 +74,7 @@ func TestStringResize(t *testing.T) {
+ 	checkSize(t, a.Resize(10, 0), 10, 10);
+ 	for i := 4; i < a.Len(); i++ {
+ 		if a.At(i) != "" {
+-			t.Errorf("expected a.At(%d) == " "; found %s", i, a.At(i))
++			t.Errorf("expected a.At(%d) == "+"; found %s", i, a.At(i))
+ 		}
+ 	}
+ }
+diff --git a/src/pkg/crypto/x509/x509_test.go b/src/pkg/crypto/x509/x509_test.go
+index 17244d6ec1..c6a63253f1 100644
+--- a/src/pkg/crypto/x509/x509_test.go
++++ b/src/pkg/crypto/x509/x509_test.go
+@@ -100,45 +100,45 @@ func TestCertificateParse(t *testing.T) {
+ 	}
+ }
+ 
+-var certBytes = "308203223082028ba00302010202106edf0d9499fd4533dd1297fc42a93be1300d06092a864886"
+-	"f70d0101050500304c310b3009060355040613025a4131253023060355040a131c546861777465"
+-	"20436f6e73756c74696e67202850747929204c74642e311630140603550403130d546861777465"
+-	"20534743204341301e170d3039303332353136343932395a170d3130303332353136343932395a"
+-	"3069310b3009060355040613025553311330110603550408130a43616c69666f726e6961311630"
+-	"140603550407130d4d6f756e7461696e205669657731133011060355040a130a476f6f676c6520"
+-	"496e63311830160603550403130f6d61696c2e676f6f676c652e636f6d30819f300d06092a8648"
+-	"86f70d010101050003818d0030818902818100c5d6f892fccaf5614b064149e80a2c9581a218ef"
+-	"41ec35bd7a58125ae76f9ea54ddc893abbeb029f6b73616bf0ffd868791fba7af9c4aebf3706ba"
+-	"3eeaeed27435b4ddcfb157c05f351d66aa87fee0de072d66d773affbd36ab78bef090e0cc861a9"
+-	"03ac90dd98b51c9c41566c017f0beec3bff391051ffba0f5cc6850ad2a590203010001a381e730"
+-	"81e430280603551d250421301f06082b0601050507030106082b06010505070302060960864801"
+-	"86f842040130360603551d1f042f302d302ba029a0278625687474703a2f2f63726c2e74686177"
+-	"74652e636f6d2f54686177746553474343412e63726c307206082b060105050701010466306430"
+-	"2206082b060105050730018616687474703a2f2f6f6373702e7468617774652e636f6d303e0608"
+-	"2b060105050730028632687474703a2f2f7777772e7468617774652e636f6d2f7265706f736974"
+-	"6f72792f5468617774655f5347435f43412e637274300c0603551d130101ff04023000300d0609"
+-	"2a864886f70d01010505000381810062f1f3050ebc105e497c7aedf87e24d2f4a986bb3b837bd1"
+-	"9b91ebcad98b065992f6bd2b49b7d6d3cb2e427a99d606c7b1d46352527fac39e6a8b6726de5bf"
+-	"70212a52cba07634a5e332011bd1868e78eb5e3c93cf03072276786f207494feaa0ed9d53b2110"
+-	"a76571f90209cdae884385c882587030ee15f33d761e2e45a6bc308203233082028ca003020102"
+-	"020430000002300d06092a864886f70d0101050500305f310b3009060355040613025553311730"
+-	"15060355040a130e566572695369676e2c20496e632e31373035060355040b132e436c61737320"
+-	"33205075626c6963205072696d6172792043657274696669636174696f6e20417574686f726974"
+-	"79301e170d3034303531333030303030305a170d3134303531323233353935395a304c310b3009"
+-	"060355040613025a4131253023060355040a131c54686177746520436f6e73756c74696e672028"
+-	"50747929204c74642e311630140603550403130d5468617774652053474320434130819f300d06"
+-	"092a864886f70d010101050003818d0030818902818100d4d367d08d157faecd31fe7d1d91a13f"
+-	"0b713cacccc864fb63fc324b0794bd6f80ba2fe10493c033fc093323e90b742b71c403c6d2cde2"
+-	"2ff50963cdff48a500bfe0e7f388b72d32de9836e60aad007bc4644a3b847503f270927d0e62f5"
+-	"21ab693684317590f8bfc76c881b06957cc9e5a8de75a12c7a68dfd5ca1c875860190203010001"
+-	"a381fe3081fb30120603551d130101ff040830060101ff020100300b0603551d0f040403020106"
+-	"301106096086480186f842010104040302010630280603551d110421301fa41d301b3119301706"
+-	"035504031310507269766174654c6162656c332d313530310603551d1f042a30283026a024a022"
+-	"8620687474703a2f2f63726c2e766572697369676e2e636f6d2f706361332e63726c303206082b"
+-	"0601050507010104263024302206082b060105050730018616687474703a2f2f6f6373702e7468"
+-	"617774652e636f6d30340603551d25042d302b06082b0601050507030106082b06010505070302"
+-	"06096086480186f8420401060a6086480186f845010801300d06092a864886f70d010105050003"
+-	"81810055ac63eadea1ddd2905f9f0bce76be13518f93d9052bc81b774bad6950a1eededcfddb07"
+-	"e9e83994dcab72792f06bfab8170c4a8edea5334edef1e53d906c7562bd15cf4d18a8eb42bb137"
+-	"9048084225c53e8acb7feb6f04d16dc574a2f7a27c7b603c77cd0ece48027f012fb69b37e02a2a"
++var certBytes = "308203223082028ba00302010202106edf0d9499fd4533dd1297fc42a93be1300d06092a864886" +
++	"f70d0101050500304c310b3009060355040613025a4131253023060355040a131c546861777465" +
++	"20436f6e73756c74696e67202850747929204c74642e311630140603550403130d546861777465" +
++	"20534743204341301e170d3039303332353136343932395a170d3130303332353136343932395a" +
++	"3069310b3009060355040613025553311330110603550408130a43616c69666f726e6961311630" +
++	"140603550407130d4d6f756e7461696e205669657731133011060355040a130a476f6f676c6520" +
++	"496e63311830160603550403130f6d61696c2e676f6f676c652e636f6d30819f300d06092a8648" +
++	"86f70d010101050003818d0030818902818100c5d6f892fccaf5614b064149e80a2c9581a218ef" +
++	"41ec35bd7a58125ae76f9ea54ddc893abbeb029f6b73616bf0ffd868791fba7af9c4aebf3706ba" +
++	"3eeaeed27435b4ddcfb157c05f351d66aa87fee0de072d66d773affbd36ab78bef090e0cc861a9" +
++	"03ac90dd98b51c9c41566c017f0beec3bff391051ffba0f5cc6850ad2a590203010001a381e730" +
++	"81e430280603551d250421301f06082b0601050507030106082b06010505070302060960864801" +
++	"86f842040130360603551d1f042f302d302ba029a0278625687474703a2f2f63726c2e74686177" +
++	"74652e636f6d2f54686177746553474343412e63726c307206082b060105050701010466306430" +
++	"2206082b060105050730018616687474703a2f2f6f6373702e7468617774652e636f6d303e0608" +
++	"2b060105050730028632687474703a2f2f7777772e7468617774652e636f6d2f7265706f736974" +
++	"6f72792f5468617774655f5347435f43412e637274300c0603551d130101ff04023000300d0609" +
++	"2a864886f70d01010505000381810062f1f3050ebc105e497c7aedf87e24d2f4a986bb3b837bd1" +
++	"9b91ebcad98b065992f6bd2b49b7d6d3cb2e427a99d606c7b1d46352527fac39e6a8b6726de5bf" +
++	"70212a52cba07634a5e332011bd1868e78eb5e3c93cf03072276786f207494feaa0ed9d53b2110" +
++	"a76571f90209cdae884385c882587030ee15f33d761e2e45a6bc308203233082028ca003020102" +
++	"020430000002300d06092a864886f70d0101050500305f310b3009060355040613025553311730" +
++	"15060355040a130e566572695369676e2c20496e632e31373035060355040b132e436c61737320" +
++	"33205075626c6963205072696d6172792043657274696669636174696f6e20417574686f726974" +
++	"79301e170d3034303531333030303030305a170d3134303531323233353935395a304c310b3009" +
++	"060355040613025a4131253023060355040a131c54686177746520436f6e73756c74696e672028" +
++	"50747929204c74642e311630140603550403130d5468617774652053474320434130819f300d06" +
++	"092a864886f70d010101050003818d0030818902818100d4d367d08d157faecd31fe7d1d91a13f" +
++	"0b713cacccc864fb63fc324b0794bd6f80ba2fe10493c033fc093323e90b742b71c403c6d2cde2" +
++	"2ff50963cdff48a500bfe0e7f388b72d32de9836e60aad007bc4644a3b847503f270927d0e62f5" +
++	"21ab693684317590f8bfc76c881b06957cc9e5a8de75a12c7a68dfd5ca1c875860190203010001" +
++	"a381fe3081fb30120603551d130101ff040830060101ff020100300b0603551d0f040403020106" +
++	"301106096086480186f842010104040302010630280603551d110421301fa41d301b3119301706" +
++	"035504031310507269766174654c6162656c332d313530310603551d1f042a30283026a024a022" +
++	"8620687474703a2f2f63726c2e766572697369676e2e636f6d2f706361332e63726c303206082b" +
++	"0601050507010104263024302206082b060105050730018616687474703a2f2f6f6373702e7468" +
++	"617774652e636f6d30340603551d25042d302b06082b0601050507030106082b06010505070302" +
++	"06096086480186f8420401060a6086480186f845010801300d06092a864886f70d010105050003" +
++	"81810055ac63eadea1ddd2905f9f0bce76be13518f93d9052bc81b774bad6950a1eededcfddb07" +
++	"e9e83994dcab72792f06bfab8170c4a8edea5334edef1e53d906c7562bd15cf4d18a8eb42bb137" +
++	"9048084225c53e8acb7feb6f04d16dc574a2f7a27c7b603c77cd0ece48027f012fb69b37e02a2a" +
+ 	"36dcd585d6ace53f546f961e05af"
+diff --git a/src/pkg/encoding/ascii85/ascii85_test.go b/src/pkg/encoding/ascii85/ascii85_test.go
+index 294f638255..5ac49c675c 100644
+--- a/src/pkg/encoding/ascii85/ascii85_test.go
++++ b/src/pkg/encoding/ascii85/ascii85_test.go
+@@ -20,14 +20,14 @@ type testpair struct {
+ var pairs = []testpair{
+ 	// Wikipedia example
+ 	testpair{
+-		"Man is distinguished, not only by his reason, but by this singular passion from "
+-			"other animals, which is a lust of the mind, that by a perseverance of delight in "
+-			"the continued and indefatigable generation of knowledge, exceeds the short "
++		"Man is distinguished, not only by his reason, but by this singular passion from " +
++			"other animals, which is a lust of the mind, that by a perseverance of delight in " +
++			"the continued and indefatigable generation of knowledge, exceeds the short " +
+ 			"vehemence of any carnal pleasure.",
+-		"9jqo^BlbD-BleB1DJ+*+F(f,q/0JhKF<GL>Cj@.4Gp$d7F!,L7@<6@)/0JDEF<G%<+EV:2F!,\n"
+-			"O<DJ+*.@<*K0@<6L(Df-\\0Ec5e;DffZ(EZee.Bl.9pF\"AGXBPCsi+DGm>@3BB/F*&OCAfu2/AKY\n"
+-			"i(DIb:@FD,*)+C]U=@3BN#EcYf8ATD3s@q?d$AftVqCh[NqF<G:8+EV:.+Cf>-FD5W8ARlolDIa\n"
+-			"l(DId<j@<?3r@:F%a+D58'ATD4$Bl@l3De:,-DJs`8ARoFb/0JMK@qB4^F!,R<AKZ&-DfTqBG%G\n"
++		"9jqo^BlbD-BleB1DJ+*+F(f,q/0JhKF<GL>Cj@.4Gp$d7F!,L7@<6@)/0JDEF<G%<+EV:2F!,\n" +
++			"O<DJ+*.@<*K0@<6L(Df-\\0Ec5e;DffZ(EZee.Bl.9pF\"AGXBPCsi+DGm>@3BB/F*&OCAfu2/AKY\n" +
++			"i(DIb:@FD,*)+C]U=@3BN#EcYf8ATD3s@q?d$AftVqCh[NqF<G:8+EV:.+Cf>-FD5W8ARlolDIa\n" +
++			"l(DId<j@<?3r@:F%a+D58'ATD4$Bl@l3De:,-DJs`8ARoFb/0JMK@qB4^F!,R<AKZ&-DfTqBG%G\n" +
+ 			">uD.RTpAKYo'+CT/5+Cei#DII?(E,9)oF*2M7/c\n",
+ 	},
+ }
+diff --git a/src/pkg/encoding/git85/git_test.go b/src/pkg/encoding/git85/git_test.go
+index 07367ddec6..564b4915be 100644
+--- a/src/pkg/encoding/git85/git_test.go
++++ b/src/pkg/encoding/git85/git_test.go
+@@ -46,16 +46,16 @@ func TestGitTable(t *testing.T) {
+ var gitPairs = []testpair{
+ 	// Wikipedia example, adapted.
+ 	testpair{
+-		"Man is distinguished, not only by his reason, but by this singular passion from "
+-			"other animals, which is a lust of the mind, that by a perseverance of delight in "
+-			"the continued and indefatigable generation of knowledge, exceeds the short "
++		"Man is distinguished, not only by his reason, but by this singular passion from " +
++			"other animals, which is a lust of the mind, that by a perseverance of delight in " +
++			"the continued and indefatigable generation of knowledge, exceeds the short " +
+ 			"vehemence of any carnal pleasure.",
+ 
+-		"zO<`^zX>%ZCX>)XGZfA9Ab7*B`EFf-gbRchTY<VDJc_3(Mb0BhMVRLV8EFfZabRc4R\n"
+-			"zAarPHb0BkRZfA9DVR9gFVRLh7Z*CxFa&K)QZ**v7av))DX>DO_b1WctXlY|;AZc?T\n"
+-			"zVIXXEb95kYW*~HEWgu;7Ze%PVbZB98AYyqSVIXj2a&u*NWpZI|V`U(3W*}r`Y-wj`\n"
+-			"zbRcPNAarPDAY*TCbZKsNWn>^>Ze$>7Ze(R<VRUI{VPb4$AZKN6WpZJ3X>V>IZ)PBC\n"
+-			"zZf|#NWn^b%EFfigV`XJzb0BnRWgv5CZ*p`Xc4cT~ZDnp_Wgu^6AYpEKAY);2ZeeU7\n"
++		"zO<`^zX>%ZCX>)XGZfA9Ab7*B`EFf-gbRchTY<VDJc_3(Mb0BhMVRLV8EFfZabRc4R\n" +
++			"zAarPHb0BkRZfA9DVR9gFVRLh7Z*CxFa&K)QZ**v7av))DX>DO_b1WctXlY|;AZc?T\n" +
++			"zVIXXEb95kYW*~HEWgu;7Ze%PVbZB98AYyqSVIXj2a&u*NWpZI|V`U(3W*}r`Y-wj`\n" +
++			"zbRcPNAarPDAY*TCbZKsNWn>^>Ze$>7Ze(R<VRUI{VPb4$AZKN6WpZJ3X>V>IZ)PBC\n" +
++			"zZf|#NWn^b%EFfigV`XJzb0BnRWgv5CZ*p`Xc4cT~ZDnp_Wgu^6AYpEKAY);2ZeeU7\n" +
+ 			"IaBO8^b9HiME&u=k\n",
+ 	},
+ }
+diff --git a/src/pkg/exp/datafmt/datafmt_test.go b/src/pkg/exp/datafmt/datafmt_test.go
+index 924250018b..61c0a972d4 100644
+--- a/src/pkg/exp/datafmt/datafmt_test.go
++++ b/src/pkg/exp/datafmt/datafmt_test.go
+@@ -232,8 +232,8 @@ type T1 struct {
+ 	a int;
+ }
+ 
+-const F1 = `datafmt "datafmt";`
+-	`int = "%d";`
++const F1 = `datafmt "datafmt";` +
++	`int = "%d";` +
+ 	`datafmt.T1 = "<" a ">";`
+ 
+ func TestStruct1(t *testing.T)	{ check(t, F1, "<42>", T1{42}) }
+@@ -248,14 +248,14 @@ type T2 struct {
+ }
+ 
+ const F2a = F1 +
+-	`string = "%s";`
+-		`ptr = *;`
+-		`datafmt.T2 = s ["-" p "-"];`
++	`string = "%s";` +
++	`ptr = *;` +
++	`datafmt.T2 = s ["-" p "-"];`
+ 
+ const F2b = F1 +
+-	`string = "%s";`
+-		`ptr = *;`
+-		`datafmt.T2 = s ("-" p "-" | "empty");`
++	`string = "%s";` +
++	`ptr = *;` +
++	`datafmt.T2 = s ("-" p "-" | "empty");`
+ 
+ func TestStruct2(t *testing.T) {
+ 	check(t, F2a, "foo", T2{"foo", nil});
+@@ -272,17 +272,17 @@ type T3 struct {
+ 	a	[]int;
+ }
+ 
+-const F3a = `datafmt "datafmt";`
+-	`default = "%v";`
+-	`array = *;`
++const F3a = `datafmt "datafmt";` +
++	`default = "%v";` +
++	`array = *;` +
+ 	`datafmt.T3 = s  {" " a a / ","};`
+ 
+-const F3b = `datafmt "datafmt";`
+-	`int = "%d";`
+-	`string = "%s";`
+-	`array = *;`
+-	`nil = ;`
+-	`empty = *:nil;`
++const F3b = `datafmt "datafmt";` +
++	`int = "%d";` +
++	`string = "%s";` +
++	`array = *;` +
++	`nil = ;` +
++	`empty = *:nil;` +
+ 	`datafmt.T3 = s [a:empty ": " {a / "-"}]`
+ 
+ func TestStruct3(t *testing.T) {
+@@ -301,20 +301,20 @@ type T4 struct {
+ 	a	[]int;
+ }
+ 
+-const F4a = `datafmt "datafmt";`
+-	`int = "%d";`
+-	`ptr = *;`
+-	`array = *;`
+-	`nil = ;`
+-	`empty = *:nil;`
++const F4a = `datafmt "datafmt";` +
++	`int = "%d";` +
++	`ptr = *;` +
++	`array = *;` +
++	`nil = ;` +
++	`empty = *:nil;` +
+ 	`datafmt.T4 = "<" (x:empty x | "-") ">" `
+ 
+-const F4b = `datafmt "datafmt";`
+-	`int = "%d";`
+-	`ptr = *;`
+-	`array = *;`
+-	`nil = ;`
+-	`empty = *:nil;`
++const F4b = `datafmt "datafmt";` +
++	`int = "%d";` +
++	`ptr = *;` +
++	`array = *;` +
++	`nil = ;` +
++	`empty = *:nil;` +
+ 	`datafmt.T4 = "<" (a:empty {a / ", "} | "-") ">" `
+ 
+ func TestStruct4(t *testing.T) {
+@@ -334,10 +334,10 @@ type Point struct {
+ 	x, y	int;
+ }
+ 
+-const FPoint = `datafmt "datafmt";`
+-	`int = "%d";`
+-	`hexInt = "0x%x";`
+-	`string = "---%s---";`
++const FPoint = `datafmt "datafmt";` +
++	`int = "%d";` +
++	`hexInt = "0x%x";` +
++	`string = "---%s---";` +
+ 	`datafmt.Point = name "{" x ", " y:hexInt "}";`
+ 
+ func TestStructPoint(t *testing.T) {
+@@ -349,7 +349,7 @@ func TestStructPoint(t *testing.T) {
+ // ----------------------------------------------------------------------------
+ // Formatting a slice (documentation example)
+ 
+-const FSlice = `int = "%b";`
++const FSlice = `int = "%b";` +
+ 	`array = { * / ", " }`
+ 
+ func TestSlice(t *testing.T)	{ check(t, FSlice, "10, 11, 101, 111", []int{2, 3, 5, 7}) }
+diff --git a/src/pkg/go/parser/parser.go b/src/pkg/go/parser/parser.go
+index 65b275fc88..98f57d3702 100644
+--- a/src/pkg/go/parser/parser.go
++++ b/src/pkg/go/parser/parser.go
+@@ -87,7 +87,7 @@ func (p *parser) init(filename string, src []byte, mode uint) {
+ // Parsing support
+ 
+ func (p *parser) printTrace(a ...) {
+-	const dots = ". . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . "
++	const dots = ". . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . " +
+ 		". . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . ";
+ 	const n = uint(len(dots));
+ 	fmt.Printf("%5d:%3d: ", p.pos.Line, p.pos.Column);
+diff --git a/src/pkg/go/scanner/scanner_test.go b/src/pkg/go/scanner/scanner_test.go
+index 5ce7bd9bea..c133289268 100644
+--- a/src/pkg/go/scanner/scanner_test.go
++++ b/src/pkg/go/scanner/scanner_test.go
+@@ -66,8 +66,8 @@ var tokens = [...]elt{
+ 	elt{token.CHAR, "'\\uff16'", literal},
+ 	elt{token.CHAR, "'\\U0000ff16'", literal},
+ 	elt{token.STRING, "`foobar`", literal},
+-	elt{token.STRING, "`" `foo
+-	                        bar`
++	elt{token.STRING, "`" + `foo
++	                        bar` +
+ 		"`",
+ 		literal,
+ 	},
+@@ -345,16 +345,15 @@ func TestIllegalChars(t *testing.T) {
+ 
+ 
+ func TestStdErrorHander(t *testing.T) {
+-	const src = "@\n"	// illegal character, cause an error
+-		"@ @\n"	// two errors on the same line
+-		"//line File2:20\n"
+-		"@\n"	// different file, but same line
+-		"//line File2:1\n"
+-		"@ @\n"	// same file, decreasing line number
+-		"//line File1:1\n"
++	const src = "@\n" +	// illegal character, cause an error
++		"@ @\n" +	// two errors on the same line
++		"//line File2:20\n" +
++		"@\n" +	// different file, but same line
++		"//line File2:1\n" +
++		"@ @\n" +	// same file, decreasing line number
++		"//line File1:1\n" +
+ 		"@ @ @";	// original file, line 1 again
+ 
+-
+ 	v := new(ErrorVector);
+ 	nerrors := Tokenize("File1", strings.Bytes(src), v, 0,
+ 		func(pos token.Position, tok token.Token, litb []byte) bool {
+diff --git a/src/pkg/io/ioutil/ioutil_test.go b/src/pkg/io/ioutil/ioutil_test.go
+index d0720f2233..aa57c65609 100644
+--- a/src/pkg/io/ioutil/ioutil_test.go
++++ b/src/pkg/io/ioutil/ioutil_test.go
+@@ -39,8 +39,8 @@ func TestReadFile(t *testing.T) {
+ 
+ func TestWriteFile(t *testing.T) {
+ 	filename := "_obj/rumpelstilzchen";
+-	data := "Programming today is a race between software engineers striving to "
+-		"build bigger and better idiot-proof programs, and the Universe trying "
++	data := "Programming today is a race between software engineers striving to " +
++		"build bigger and better idiot-proof programs, and the Universe trying " +
+ 		"to produce bigger and better idiots. So far, the Universe is winning.";
+ 
+ 	if err := WriteFile(filename, strings.Bytes(data), 0644); err != nil {
+diff --git a/src/pkg/json/struct_test.go b/src/pkg/json/struct_test.go
+index 0c7976eba0..1511bc45c6 100644
+--- a/src/pkg/json/struct_test.go
++++ b/src/pkg/json/struct_test.go
+@@ -35,13 +35,13 @@ type myStruct struct {
+ 	MapPtrStruct	map[string]*myStruct;
+ }
+ 
+-const encoded = `{"t":true,"f":false,"s":"abc","i8":1,"i16":2,"i32":3,"i64":4,`
+-	` "u8":5,"u16":6,"u32":7,"u64":8,`
+-	` "i":-9,"u":10,"bogusfield":"should be ignored",`
+-	` "fl":11.5,"fl32":12.25,"fl64":13.75,`
+-	` "a":["x","y","z"],"my":{"s":"subguy"},`
+-	`"map":{"k1":[1,2,3],"k2":[],"k3":[3,4]},`
+-	`"mapstruct":{"m1":{"u8":8}},`
++const encoded = `{"t":true,"f":false,"s":"abc","i8":1,"i16":2,"i32":3,"i64":4,` +
++	` "u8":5,"u16":6,"u32":7,"u64":8,` +
++	` "i":-9,"u":10,"bogusfield":"should be ignored",` +
++	` "fl":11.5,"fl32":12.25,"fl64":13.75,` +
++	` "a":["x","y","z"],"my":{"s":"subguy"},` +
++	`"map":{"k1":[1,2,3],"k2":[],"k3":[3,4]},` +
++	`"mapstruct":{"m1":{"u8":8}},` +
+ 	`"mapptrstruct":{"m1":{"u8":8}}}`
+ 
+ var decodedMap = map[string][]int{
+diff --git a/src/pkg/patch/patch_test.go b/src/pkg/patch/patch_test.go
+index dd610eed67..046ffa8828 100644
+--- a/src/pkg/patch/patch_test.go
++++ b/src/pkg/patch/patch_test.go
+@@ -43,340 +43,340 @@ var tests = []Test{
+ 	Test{
+ 		"hello, world\n",
+ 		"goodbye, world\n",
+-		"Index: a\n"
+-			"--- a/a\n"
+-			"+++ b/b\n"
+-			"@@ -1 +1 @@\n"
+-			"-hello, world\n"
++		"Index: a\n" +
++			"--- a/a\n" +
++			"+++ b/b\n" +
++			"@@ -1 +1 @@\n" +
++			"-hello, world\n" +
+ 			"+goodbye, world\n",
+ 	},
+ 	Test{
+ 		"hello, world\n",
+ 		"goodbye, world\n",
+-		"diff a/a b/b\n"
+-			"--- a/a\n"
+-			"+++ b/b\n"
+-			"@@ -1,1 +1,1 @@\n"
+-			"-hello, world\n"
++		"diff a/a b/b\n" +
++			"--- a/a\n" +
++			"+++ b/b\n" +
++			"@@ -1,1 +1,1 @@\n" +
++			"-hello, world\n" +
+ 			"+goodbye, world\n",
+ 	},
+ 	Test{
+ 		"hello, world",
+ 		"goodbye, world\n",
+-		"diff --git a/a b/b\n"
+-			"--- a/a\n"
+-			"+++ b/b\n"
+-			"@@ -1 +1 @@\n"
+-			"-hello, world\n"
+-			"\\ No newline at end of file\n"
++		"diff --git a/a b/b\n" +
++			"--- a/a\n" +
++			"+++ b/b\n" +
++			"@@ -1 +1 @@\n" +
++			"-hello, world\n" +
++			"\\ No newline at end of file\n" +
+ 			"+goodbye, world\n",
+ 	},
+ 	Test{
+ 		"hello, world\n",
+ 		"goodbye, world",
+-		"Index: a\n"
+-			"--- a/a\n"
+-			"+++ b/b\n"
+-			"@@ -1 +1 @@\n"
+-			"-hello, world\n"
+-			"+goodbye, world\n"
++		"Index: a\n" +
++			"--- a/a\n" +
++			"+++ b/b\n" +
++			"@@ -1 +1 @@\n" +
++			"-hello, world\n" +
++			"+goodbye, world\n" +
+ 			"\\ No newline at end of file\n",
+ 	},
+ 	Test{
+ 		"hello, world",
+ 		"goodbye, world",
+-		"Index: a\n"
+-			"--- a/a\n"
+-			"+++ b/b\n"
+-			"@@ -1 +1 @@\n"
+-			"-hello, world\n"
+-			"\\ No newline at end of file\n"
+-			"+goodbye, world\n"
++		"Index: a\n" +
++			"--- a/a\n" +
++			"+++ b/b\n" +
++			"@@ -1 +1 @@\n" +
++			"-hello, world\n" +
++			"\\ No newline at end of file\n" +
++			"+goodbye, world\n" +
+ 			"\\ No newline at end of file\n",
+ 	},
+ 	Test{
+ 		"a\nb\nc\nd\ne\nf\ng\nh\ni\nj\nk\nl\nm\nn\n",
+ 		"a\nB\nC\nD\ne\nf\ng\nj\nk\nl\nm\nN\n",
+-		"Index: a\n"
+-			"--- a/a\n"
+-			"+++ b/b\n"
+-			"@@ -1,14 +1,12 @@\n"
+-			" a\n"
+-			"-b\n"
+-			"-c\n"
+-			"-d\n"
+-			"+B\n"
+-			"+C\n"
+-			"+D\n"
+-			" e\n"
+-			" f\n"
+-			" g\n"
+-			"-h\n"
+-			"-i\n"
+-			" j\n"
+-			" k\n"
+-			" l\n"
+-			" m\n"
+-			"-n\n"
++		"Index: a\n" +
++			"--- a/a\n" +
++			"+++ b/b\n" +
++			"@@ -1,14 +1,12 @@\n" +
++			" a\n" +
++			"-b\n" +
++			"-c\n" +
++			"-d\n" +
++			"+B\n" +
++			"+C\n" +
++			"+D\n" +
++			" e\n" +
++			" f\n" +
++			" g\n" +
++			"-h\n" +
++			"-i\n" +
++			" j\n" +
++			" k\n" +
++			" l\n" +
++			" m\n" +
++			"-n\n" +
+ 			"+N\n",
+ 	},
+ 	Test{
+ 		"a\nb\nc\nd\ne\nf\ng\nh\ni\nj\nk\nl\nm\nn\no\np\nq\nr\ns\nt\nu\nv\nw\nx\ny\nz\n",
+ 		"a\nb\nc\ng\nh\ni\nj\nk\nl\nm\nN\nO\np\nq\nr\ns\nt\nu\nv\nw\nd\ne\nf\nx\n",
+-		"Index: a\n"
+-			"--- a/a\n"
+-			"+++ b/b\n"
+-			"@@ -1,9 +1,6 @@\n"
+-			" a\n"
+-			" b\n"
+-			" c\n"
+-			"-d\n"
+-			"-e\n"
+-			"-f\n"
+-			" g\n"
+-			" h\n"
+-			" i\n"
+-			"@@ -11,8 +8,8 @@ j\n"
+-			" k\n"
+-			" l\n"
+-			" m\n"
+-			"-n\n"
+-			"-o\n"
+-			"+N\n"
+-			"+O\n"
+-			" p\n"
+-			" q\n"
+-			" r\n"
+-			"\n"
+-			"@@ -21,6 +18,7 @@ t\n"
+-			" u\n"
+-			" v\n"
+-			" w\n"
+-			"+d\n"
+-			"+e\n"
+-			"+f\n"
+-			" x\n"
+-			"-y\n"
++		"Index: a\n" +
++			"--- a/a\n" +
++			"+++ b/b\n" +
++			"@@ -1,9 +1,6 @@\n" +
++			" a\n" +
++			" b\n" +
++			" c\n" +
++			"-d\n" +
++			"-e\n" +
++			"-f\n" +
++			" g\n" +
++			" h\n" +
++			" i\n" +
++			"@@ -11,8 +8,8 @@ j\n" +
++			" k\n" +
++			" l\n" +
++			" m\n" +
++			"-n\n" +
++			"-o\n" +
++			"+N\n" +
++			"+O\n" +
++			" p\n" +
++			" q\n" +
++			" r\n" +
++			"\n" +
++			"@@ -21,6 +18,7 @@ t\n" +
++			" u\n" +
++			" v\n" +
++			" w\n" +
++			"+d\n" +
++			"+e\n" +
++			"+f\n" +
++			" x\n" +
++			"-y\n" +
+ 			"-z\n",
+ 	},
+ 	Test{
+ 		"a\nb\nc\ng\nh\ni\nj\nk\nl\nm\nN\nO\np\nq\nr\ns\nt\nu\nv\nw\nd\ne\nf\nx\n",
+ 		"a\nb\nc\nd\ne\nf\ng\nh\ni\nj\nk\nl\nm\nn\no\np\nq\nr\ns\nt\nu\nv\nw\nx\ny\nz\n",
+-		"Index: a\n"
+-			"--- a/b\n"
+-			"+++ b/a\n"
+-			"@@ -1,6 +1,9 @@\n"
+-			" a\n"
+-			" b\n"
+-			" c\n"
+-			"+d\n"
+-			"+e\n"
+-			"+f\n"
+-			" g\n"
+-			" h\n"
+-			" i\n"
+-			"@@ -8,8 +11,8 @@ j\n"
+-			" k\n"
+-			" l\n"
+-			" m\n"
+-			"-N\n"
+-			"-O\n"
+-			"+n\n"
+-			"+o\n"
+-			" p\n"
+-			" q\n"
+-			" r\n"
+-			"@@ -18,7 +21,6 @@ t\n"
+-			" u\n"
+-			" v\n"
+-			" w\n"
+-			"-d\n"
+-			"-e\n"
+-			"-f\n"
+-			" x\n"
+-			"+y\n"
++		"Index: a\n" +
++			"--- a/b\n" +
++			"+++ b/a\n" +
++			"@@ -1,6 +1,9 @@\n" +
++			" a\n" +
++			" b\n" +
++			" c\n" +
++			"+d\n" +
++			"+e\n" +
++			"+f\n" +
++			" g\n" +
++			" h\n" +
++			" i\n" +
++			"@@ -8,8 +11,8 @@ j\n" +
++			" k\n" +
++			" l\n" +
++			" m\n" +
++			"-N\n" +
++			"-O\n" +
++			"+n\n" +
++			"+o\n" +
++			" p\n" +
++			" q\n" +
++			" r\n" +
++			"@@ -18,7 +21,6 @@ t\n" +
++			" u\n" +
++			" v\n" +
++			" w\n" +
++			"-d\n" +
++			"-e\n" +
++			"-f\n" +
++			" x\n" +
++			"+y\n" +
+ 			"+z\n",
+ 	},
+ 	Test{
+ 		"a\nb\nc\nd\ne\nf\ng\nh\ni\nj\nk\nl\nm\nn\no\np\nq\nr\ns\nt\nu\nv\nw\nx\ny\nz\n",
+ 		"",
+-		"Index: a\n"
+-			"deleted file mode 100644\n"
+-			"--- a/a\n"
+-			"+++ /dev/null\n"
+-			"@@ -1,26 +0,0 @@\n"
+-			"-a\n"
+-			"-b\n"
+-			"-c\n"
+-			"-d\n"
+-			"-e\n"
+-			"-f\n"
+-			"-g\n"
+-			"-h\n"
+-			"-i\n"
+-			"-j\n"
+-			"-k\n"
+-			"-l\n"
+-			"-m\n"
+-			"-n\n"
+-			"-o\n"
+-			"-p\n"
+-			"-q\n"
+-			"-r\n"
+-			"-s\n"
+-			"-t\n"
+-			"-u\n"
+-			"-v\n"
+-			"-w\n"
+-			"-x\n"
+-			"-y\n"
++		"Index: a\n" +
++			"deleted file mode 100644\n" +
++			"--- a/a\n" +
++			"+++ /dev/null\n" +
++			"@@ -1,26 +0,0 @@\n" +
++			"-a\n" +
++			"-b\n" +
++			"-c\n" +
++			"-d\n" +
++			"-e\n" +
++			"-f\n" +
++			"-g\n" +
++			"-h\n" +
++			"-i\n" +
++			"-j\n" +
++			"-k\n" +
++			"-l\n" +
++			"-m\n" +
++			"-n\n" +
++			"-o\n" +
++			"-p\n" +
++			"-q\n" +
++			"-r\n" +
++			"-s\n" +
++			"-t\n" +
++			"-u\n" +
++			"-v\n" +
++			"-w\n" +
++			"-x\n" +
++			"-y\n" +
+ 			"-z\n",
+ 	},
+ 	Test{
+ 		"",
+ 		"a\nb\nc\nd\ne\nf\ng\nh\ni\nj\nk\nl\nm\nn\no\np\nq\nr\ns\nt\nu\nv\nw\nx\ny\nz\n",
+-		"Index: a\n"
+-			"new file mode 100644\n"
+-			"--- /dev/null\n"
+-			"+++ b/a\n"
+-			"@@ -0,0 +1,26 @@\n"
+-			"+a\n"
+-			"+b\n"
+-			"+c\n"
+-			"+d\n"
+-			"+e\n"
+-			"+f\n"
+-			"+g\n"
+-			"+h\n"
+-			"+i\n"
+-			"+j\n"
+-			"+k\n"
+-			"+l\n"
+-			"+m\n"
+-			"+n\n"
+-			"+o\n"
+-			"+p\n"
+-			"+q\n"
+-			"+r\n"
+-			"+s\n"
+-			"+t\n"
+-			"+u\n"
+-			"+v\n"
+-			"+w\n"
+-			"+x\n"
+-			"+y\n"
++		"Index: a\n" +
++			"new file mode 100644\n" +
++			"--- /dev/null\n" +
++			"+++ b/a\n" +
++			"@@ -0,0 +1,26 @@\n" +
++			"+a\n" +
++			"+b\n" +
++			"+c\n" +
++			"+d\n" +
++			"+e\n" +
++			"+f\n" +
++			"+g\n" +
++			"+h\n" +
++			"+i\n" +
++			"+j\n" +
++			"+k\n" +
++			"+l\n" +
++			"+m\n" +
++			"+n\n" +
++			"+o\n" +
++			"+p\n" +
++			"+q\n" +
++			"+r\n" +
++			"+s\n" +
++			"+t\n" +
++			"+u\n" +
++			"+v\n" +
++			"+w\n" +
++			"+x\n" +
++			"+y\n" +
+ 			"+z\n",
+ 	},
+ 	Test{
+-		"\xc2\xd8\xf9\x63\x8c\xf7\xc6\x9b\xb0\x3c\x39\xfa\x08\x8e\x42\x8f"
+-			"\x1c\x7c\xaf\x54\x22\x87\xc3\xc5\x68\x9b\xe1\xbd\xbc\xc3\xe0\xda"
+-			"\xcc\xe3\x96\xda\xc2\xaf\xbb\x75\x79\x64\x86\x60\x8a\x43\x9e\x07"
+-			"\x9c\xaa\x92\x88\xd4\x30\xb9\x8b\x95\x04\x60\x71\xc7\xbb\x2d\x93"
+-			"\x66\x73\x01\x24\xf3\x63\xbf\xe6\x1d\x38\x15\x56\x98\xc4\x1f\x85"
+-			"\xc3\x60\x39\x3a\x0d\x57\x53\x0c\x29\x3f\xbb\x44\x7e\x56\x56\x9d"
+-			"\x87\xcf\xf6\x88\xe8\x98\x05\x85\xf8\xfe\x44\x21\xfa\x33\xc9\xa4"
+-			"\x22\xbe\x89\x05\x8b\x82\x76\xc9\x7c\xaf\x48\x28\xc4\x86\x15\x89"
+-			"\xb9\x98\xfa\x41\xfc\x3d\x8d\x80\x29\x33\x17\x45\xa5\x7f\x67\x79"
+-			"\x7f\x92\x3b\x2e\x4c\xc1\xd2\x1b\x9e\xcf\xed\x53\x56\xb2\x49\x58"
+-			"\xd8\xe9\x9f\x98\xa3\xfe\x78\xe1\xe8\x74\x71\x04\x1a\x87\xd9\x68"
+-			"\x18\x68\xd0\xae\x7b\xa4\x25\xe3\x06\x03\x7e\x8b\xd3\x50\x1f\xb1"
+-			"\x67\x08\xe3\x93\xf4\x4f\xa1\xfb\x31\xcf\x99\x5a\x43\x9f\x4b\xc4"
+-			"\xaa\x68\x1a\xf9\x8e\x97\x02\x80\x17\xf1\x25\x21\xdf\x94\xbf\x41"
+-			"\x08\x59\x3d\xea\x36\x23\x03\xb5\x62\x4d\xb6\x8f\x9e\xdf\x1f\x03"
++		"\xc2\xd8\xf9\x63\x8c\xf7\xc6\x9b\xb0\x3c\x39\xfa\x08\x8e\x42\x8f" +
++			"\x1c\x7c\xaf\x54\x22\x87\xc3\xc5\x68\x9b\xe1\xbd\xbc\xc3\xe0\xda" +
++			"\xcc\xe3\x96\xda\xc2\xaf\xbb\x75\x79\x64\x86\x60\x8a\x43\x9e\x07" +
++			"\x9c\xaa\x92\x88\xd4\x30\xb9\x8b\x95\x04\x60\x71\xc7\xbb\x2d\x93" +
++			"\x66\x73\x01\x24\xf3\x63\xbf\xe6\x1d\x38\x15\x56\x98\xc4\x1f\x85" +
++			"\xc3\x60\x39\x3a\x0d\x57\x53\x0c\x29\x3f\xbb\x44\x7e\x56\x56\x9d" +
++			"\x87\xcf\xf6\x88\xe8\x98\x05\x85\xf8\xfe\x44\x21\xfa\x33\xc9\xa4" +
++			"\x22\xbe\x89\x05\x8b\x82\x76\xc9\x7c\xaf\x48\x28\xc4\x86\x15\x89" +
++			"\xb9\x98\xfa\x41\xfc\x3d\x8d\x80\x29\x33\x17\x45\xa5\x7f\x67\x79" +
++			"\x7f\x92\x3b\x2e\x4c\xc1\xd2\x1b\x9e\xcf\xed\x53\x56\xb2\x49\x58" +
++			"\xd8\xe9\x9f\x98\xa3\xfe\x78\xe1\xe8\x74\x71\x04\x1a\x87\xd9\x68" +
++			"\x18\x68\xd0\xae\x7b\xa4\x25\xe3\x06\x03\x7e\x8b\xd3\x50\x1f\xb1" +
++			"\x67\x08\xe3\x93\xf4\x4f\xa1\xfb\x31\xcf\x99\x5a\x43\x9f\x4b\xc4" +
++			"\xaa\x68\x1a\xf9\x8e\x97\x02\x80\x17\xf1\x25\x21\xdf\x94\xbf\x41" +
++			"\x08\x59\x3d\xea\x36\x23\x03\xb5\x62\x4d\xb6\x8f\x9e\xdf\x1f\x03" +
+ 			"\x7d\x70\xe0\x6f\x46\x08\x96\x79\x72\xb7\xae\x41\x2b\xbd\x2a\x95",
+ 
+-		"\x8e\x5f\xf8\x79\x36\x8d\xbe\x68\xc4\x2c\x78\x8a\x46\x28\x40\x3e"
+-			"\xcf\x3b\xb9\x14\xaf\xfa\x04\x9e\x4b\xa2\x52\x51\x51\xf0\xad\xd3"
+-			"\x03\x1c\x03\x79\x5f\x53\xc7\x1a\xd5\x28\xe2\xd9\x19\x37\xa4\xfa"
+-			"\xdd\xff\xac\xb5\xa9\x42\x4e\x17\xeb\xb4\x0d\x20\x67\x08\x43\x21"
+-			"\x7d\x12\x27\xfa\x96\x7a\x85\xf8\x04\x5f\xf4\xfe\xda\x9f\x66\xf2"
+-			"\xba\x04\x39\x00\xab\x3f\x23\x20\x84\x53\xb4\x88\xb6\xee\xa2\x9e"
+-			"\xc1\xca\xd4\x09\x2a\x27\x89\x2f\xcb\xba\xa6\x41\xb6\xe9\xc5\x08"
+-			"\xff\xf5\x95\x35\xab\xbb\x5c\x62\x96\xe7\x7c\x8f\xf2\x40\x12\xc9"
+-			"\x2d\xfe\xff\x75\x4f\x70\x47\xc9\xcd\x15\x0a\x1c\x23\xe7\x0f\x15"
+-			"\x95\x75\x30\x8f\x6e\x9f\x7e\xa5\x9d\xd1\x65\x1c\x4d\x4e\xf4\x32"
+-			"\x49\x9b\xa1\x30\x44\x62\x6f\xe2\xe6\x69\x09\xf8\x7c\x7c\xbe\x07"
+-			"\xa9\xb6\x14\x7a\x6b\x85\xe4\xbf\x48\xbe\x5b\x3b\x70\xb3\x79\x3b"
+-			"\xc4\x35\x9d\x86\xf1\xfe\x2b\x6f\x80\x74\x50\xf3\x96\x59\x53\x1a"
+-			"\x75\x46\x9d\x57\x72\xb3\xb1\x26\xf5\x81\xcd\x96\x08\xbc\x2b\x10"
+-			"\xdc\x80\xbd\xd0\xdf\x03\x6d\x8d\xec\x30\x2b\x4c\xdb\x4d\x3b\xef"
++		"\x8e\x5f\xf8\x79\x36\x8d\xbe\x68\xc4\x2c\x78\x8a\x46\x28\x40\x3e" +
++			"\xcf\x3b\xb9\x14\xaf\xfa\x04\x9e\x4b\xa2\x52\x51\x51\xf0\xad\xd3" +
++			"\x03\x1c\x03\x79\x5f\x53\xc7\x1a\xd5\x28\xe2\xd9\x19\x37\xa4\xfa" +
++			"\xdd\xff\xac\xb5\xa9\x42\x4e\x17\xeb\xb4\x0d\x20\x67\x08\x43\x21" +
++			"\x7d\x12\x27\xfa\x96\x7a\x85\xf8\x04\x5f\xf4\xfe\xda\x9f\x66\xf2" +
++			"\xba\x04\x39\x00\xab\x3f\x23\x20\x84\x53\xb4\x88\xb6\xee\xa2\x9e" +
++			"\xc1\xca\xd4\x09\x2a\x27\x89\x2f\xcb\xba\xa6\x41\xb6\xe9\xc5\x08" +
++			"\xff\xf5\x95\x35\xab\xbb\x5c\x62\x96\xe7\x7c\x8f\xf2\x40\x12\xc9" +
++			"\x2d\xfe\xff\x75\x4f\x70\x47\xc9\xcd\x15\x0a\x1c\x23\xe7\x0f\x15" +
++			"\x95\x75\x30\x8f\x6e\x9f\x7e\xa5\x9d\xd1\x65\x1c\x4d\x4e\xf4\x32" +
++			"\x49\x9b\xa1\x30\x44\x62\x6f\xe2\xe6\x69\x09\xf8\x7c\x7c\xbe\x07" +
++			"\xa9\xb6\x14\x7a\x6b\x85\xe4\xbf\x48\xbe\x5b\x3b\x70\xb3\x79\x3b" +
++			"\xc4\x35\x9d\x86\xf1\xfe\x2b\x6f\x80\x74\x50\xf3\x96\x59\x53\x1a" +
++			"\x75\x46\x9d\x57\x72\xb3\xb1\x26\xf5\x81\xcd\x96\x08\xbc\x2b\x10" +
++			"\xdc\x80\xbd\xd0\xdf\x03\x6d\x8d\xec\x30\x2b\x4c\xdb\x4d\x3b\xef" +
+ 			"\x7d\x3a\x39\xc8\x5a\xc4\xcc\x24\x37\xde\xe2\x95\x2b\x04\x97\xb0",
+ 
+ 		// From git diff --binary
+-		"Index: a\n"
+-			"index cb34d9b1743b7c410fa750be8a58eb355987110b..0a01764bc1b2fd29da317f72208f462ad342400f 100644\n"
+-			"GIT binary patch\n"
+-			"literal 256\n"
+-			"zcmV+b0ssDvU-)@8jlO8aEO?4WC_p~XJGm6E`UIX!qEb;&@U7DW90Pe@Q^y+BDB{@}\n"
+-			"zH>CRA|E#sCLQWU!v<)C<2ty%#5-0kWdWHA|U-bUkpJwv91UUe!KO-Q7Q?!V-?xLQ-\n"
+-			"z%G3!eCy6i1x~4(4>BR{D^_4ZNyIf+H=X{UyKoZF<{{MAPa7W3_6$%_9=MNQ?buf=^\n"
+-			"zpMIsC(PbP>PV_QKo1rj7VsGN+X$kmze7*;%wiJ46h2+0TzFRwRvw1tjHJyg>{wr^Q\n"
+-			"zbWrn_SyLKyMx9r3v#}=ifz6f(yekmgfW6S)18t4$Fe^;kO*`*>IyuN%#LOf&-r|)j\n"
+-			"G1edVN^?m&S\n"
+-			"\n"
+-			"literal 256\n"
+-			"zcmV+b0ssEO*!g3O_r{yBJURLZjzW(de6Lg@hr`8ao8i5@!{FM?<CfaOue)`5WQJgh\n"
+-			"zL!Jkms*;G*Fu9AB1YmK;yDgJua{(mtW54DdI2Bfy#2<yjU^zMsS5pirKf6SJR#u&d\n"
+-			"z&-RGum<5IS{zM`AGs&bPzKI2kf_BM#uSh7wh82mqnEFBdJ&k}VGZ#gre`k4rk~=O;\n"
+-			"z!O|O^&+SuIvPoFj>7SUR{&?Z&ba4b4huLTtXwa^Eq$T491AdFsP#>{p2;-CVPoeuU\n"
+-			"z&zV|7pG(B5Xd3yBmjZwn@g*VOl)pg;Sv~4DBLlT!O}3Ao-yZ{gaNuu72$p$rx2{1e\n"
+-			"Gy(*Pb;D3Ms\n"
++		"Index: a\n" +
++			"index cb34d9b1743b7c410fa750be8a58eb355987110b..0a01764bc1b2fd29da317f72208f462ad342400f 100644\n" +
++			"GIT binary patch\n" +
++			"literal 256\n" +
++			"zcmV+b0ssDvU-)@8jlO8aEO?4WC_p~XJGm6E`UIX!qEb;&@U7DW90Pe@Q^y+BDB{@}\n" +
++			"zH>CRA|E#sCLQWU!v<)C<2ty%#5-0kWdWHA|U-bUkpJwv91UUe!KO-Q7Q?!V-?xLQ-\n" +
++			"z%G3!eCy6i1x~4(4>BR{D^_4ZNyIf+H=X{UyKoZF<{{MAPa7W3_6$%_9=MNQ?buf=^\n" +
++			"zpMIsC(PbP>PV_QKo1rj7VsGN+X$kmze7*;%wiJ46h2+0TzFRwRvw1tjHJyg>{wr^Q\n" +
++			"zbWrn_SyLKyMx9r3v#}=ifz6f(yekmgfW6S)18t4$Fe^;kO*`*>IyuN%#LOf&-r|)j\n" +
++			"G1edVN^?m&S\n" +
++			"\n" +
++			"literal 256\n" +
++			"zcmV+b0ssEO*!g3O_r{yBJURLZjzW(de6Lg@hr`8ao8i5@!{FM?<CfaOue)`5WQJgh\n" +
++			"zL!Jkms*;G*Fu9AB1YmK;yDgJua{(mtW54DdI2Bfy#2<yjU^zMsS5pirKf6SJR#u&d\n" +
++			"z&-RGum<5IS{zM`AGs&bPzKI2kf_BM#uSh7wh82mqnEFBdJ&k}VGZ#gre`k4rk~=O;\n" +
++			"z!O|O^&+SuIvPoFj>7SUR{&?Z&ba4b4huLTtXwa^Eq$T491AdFsP#>{p2;-CVPoeuU\n" +
++			"z&zV|7pG(B5Xd3yBmjZwn@g*VOl)pg;Sv~4DBLlT!O}3Ao-yZ{gaNuu72$p$rx2{1e\n" +
++			"Gy(*Pb;D3Ms\n" +
+ 			"\n",
+ 	},
+ 	Test{
+-		"\xc2\xd8\xf9\x63\x8c\xf7\xc6\x9b\xb0\x3c\x39\xfa\x08\x8e\x42\x8f"
+-			"\x1c\x7c\xaf\x54\x22\x87\xc3\xc5\x68\x9b\xe1\xbd\xbc\xc3\xe0\xda"
+-			"\xcc\xe3\x96\xda\xc2\xaf\xbb\x75\x79\x64\x86\x60\x8a\x43\x9e\x07"
+-			"\x9c\xaa\x92\x88\xd4\x30\xb9\x8b\x95\x04\x60\x71\xc7\xbb\x2d\x93"
+-			"\x66\x73\x01\x24\xf3\x63\xbf\xe6\x1d\x38\x15\x56\x98\xc4\x1f\x85"
+-			"\xc3\x60\x39\x3a\x0d\x57\x53\x0c\x29\x3f\xbb\x44\x7e\x56\x56\x9d"
+-			"\x87\xcf\xf6\x88\xe8\x98\x05\x85\xf8\xfe\x44\x21\xfa\x33\xc9\xa4"
+-			"\x22\xbe\x89\x05\x8b\x82\x76\xc9\x7c\xaf\x48\x28\xc4\x86\x15\x89"
+-			"\xb9\x98\xfa\x41\xfc\x3d\x8d\x80\x29\x33\x17\x45\xa5\x7f\x67\x79"
+-			"\x7f\x92\x3b\x2e\x4c\xc1\xd2\x1b\x9e\xcf\xed\x53\x56\xb2\x49\x58"
+-			"\xd8\xe9\x9f\x98\xa3\xfe\x78\xe1\xe8\x74\x71\x04\x1a\x87\xd9\x68"
+-			"\x18\x68\xd0\xae\x7b\xa4\x25\xe3\x06\x03\x7e\x8b\xd3\x50\x1f\xb1"
+-			"\x67\x08\xe3\x93\xf4\x4f\xa1\xfb\x31\xcf\x99\x5a\x43\x9f\x4b\xc4"
+-			"\xaa\x68\x1a\xf9\x8e\x97\x02\x80\x17\xf1\x25\x21\xdf\x94\xbf\x41"
+-			"\x08\x59\x3d\xea\x36\x23\x03\xb5\x62\x4d\xb6\x8f\x9e\xdf\x1f\x03"
++		"\xc2\xd8\xf9\x63\x8c\xf7\xc6\x9b\xb0\x3c\x39\xfa\x08\x8e\x42\x8f" +
++			"\x1c\x7c\xaf\x54\x22\x87\xc3\xc5\x68\x9b\xe1\xbd\xbc\xc3\xe0\xda" +
++			"\xcc\xe3\x96\xda\xc2\xaf\xbb\x75\x79\x64\x86\x60\x8a\x43\x9e\x07" +
++			"\x9c\xaa\x92\x88\xd4\x30\xb9\x8b\x95\x04\x60\x71\xc7\xbb\x2d\x93" +
++			"\x66\x73\x01\x24\xf3\x63\xbf\xe6\x1d\x38\x15\x56\x98\xc4\x1f\x85" +
++			"\xc3\x60\x39\x3a\x0d\x57\x53\x0c\x29\x3f\xbb\x44\x7e\x56\x56\x9d" +
++			"\x87\xcf\xf6\x88\xe8\x98\x05\x85\xf8\xfe\x44\x21\xfa\x33\xc9\xa4" +
++			"\x22\xbe\x89\x05\x8b\x82\x76\xc9\x7c\xaf\x48\x28\xc4\x86\x15\x89" +
++			"\xb9\x98\xfa\x41\xfc\x3d\x8d\x80\x29\x33\x17\x45\xa5\x7f\x67\x79" +
++			"\x7f\x92\x3b\x2e\x4c\xc1\xd2\x1b\x9e\xcf\xed\x53\x56\xb2\x49\x58" +
++			"\xd8\xe9\x9f\x98\xa3\xfe\x78\xe1\xe8\x74\x71\x04\x1a\x87\xd9\x68" +
++			"\x18\x68\xd0\xae\x7b\xa4\x25\xe3\x06\x03\x7e\x8b\xd3\x50\x1f\xb1" +
++			"\x67\x08\xe3\x93\xf4\x4f\xa1\xfb\x31\xcf\x99\x5a\x43\x9f\x4b\xc4" +
++			"\xaa\x68\x1a\xf9\x8e\x97\x02\x80\x17\xf1\x25\x21\xdf\x94\xbf\x41" +
++			"\x08\x59\x3d\xea\x36\x23\x03\xb5\x62\x4d\xb6\x8f\x9e\xdf\x1f\x03" +
+ 			"\x7d\x70\xe0\x6f\x46\x08\x96\x79\x72\xb7\xae\x41\x2b\xbd\x2a\x95",
+ 
+-		"\x8e\x5f\xf8\x79\x36\x8d\xbe\x68\xc4\x2c\x78\x8a\x46\x28\x40\x3e"
+-			"\xcf\x3b\xb9\x14\xaf\xfa\x04\x9e\x4b\xa2\x52\x51\x51\xf0\xad\xd3"
+-			"\x03\x1c\x03\x79\x5f\x53\xc7\x1a\xd5\x28\xe2\xd9\x19\x37\xa4\xfa"
+-			"\xdd\xff\xac\xb5\xa9\x42\x4e\x17\xeb\xb4\x0d\x20\x67\x08\x43\x21"
+-			"\x7d\x12\x27\xfa\x96\x7a\x85\xf8\x04\x5f\xf4\xfe\xda\x9f\x66\xf2"
+-			"\xba\x04\x39\x00\xab\x3f\x23\x20\x84\x53\xb4\x88\xb6\xee\xa2\x9e"
+-			"\xc1\xca\xd4\x09\x2a\x27\x89\x2f\xcb\xba\xa6\x41\xb6\xe9\xc5\x08"
+-			"\xff\xf5\x95\x35\xab\xbb\x5c\x62\x96\xe7\x7c\x8f\xf2\x40\x12\xc9"
+-			"\x2d\xfe\xff\x75\x4f\x70\x47\xc9\xcd\x15\x0a\x1c\x23\xe7\x0f\x15"
+-			"\x95\x75\x30\x8f\x6e\x9f\x7e\xa5\x9d\xd1\x65\x1c\x4d\x4e\xf4\x32"
+-			"\x49\x9b\xa1\x30\x44\x62\x6f\xe2\xe6\x69\x09\xf8\x7c\x7c\xbe\x07"
+-			"\xa9\xb6\x14\x7a\x6b\x85\xe4\xbf\x48\xbe\x5b\x3b\x70\xb3\x79\x3b"
+-			"\xc4\x35\x9d\x86\xf1\xfe\x2b\x6f\x80\x74\x50\xf3\x96\x59\x53\x1a"
+-			"\x75\x46\x9d\x57\x72\xb3\xb1\x26\xf5\x81\xcd\x96\x08\xbc\x2b\x10"
+-			"\xdc\x80\xbd\xd0\xdf\x03\x6d\x8d\xec\x30\x2b\x4c\xdb\x4d\x3b\xef"
++		"\x8e\x5f\xf8\x79\x36\x8d\xbe\x68\xc4\x2c\x78\x8a\x46\x28\x40\x3e" +
++			"\xcf\x3b\xb9\x14\xaf\xfa\x04\x9e\x4b\xa2\x52\x51\x51\xf0\xad\xd3" +
++			"\x03\x1c\x03\x79\x5f\x53\xc7\x1a\xd5\x28\xe2\xd9\x19\x37\xa4\xfa" +
++			"\xdd\xff\xac\xb5\xa9\x42\x4e\x17\xeb\xb4\x0d\x20\x67\x08\x43\x21" +
++			"\x7d\x12\x27\xfa\x96\x7a\x85\xf8\x04\x5f\xf4\xfe\xda\x9f\x66\xf2" +
++			"\xba\x04\x39\x00\xab\x3f\x23\x20\x84\x53\xb4\x88\xb6\xee\xa2\x9e" +
++			"\xc1\xca\xd4\x09\x2a\x27\x89\x2f\xcb\xba\xa6\x41\xb6\xe9\xc5\x08" +
++			"\xff\xf5\x95\x35\xab\xbb\x5c\x62\x96\xe7\x7c\x8f\xf2\x40\x12\xc9" +
++			"\x2d\xfe\xff\x75\x4f\x70\x47\xc9\xcd\x15\x0a\x1c\x23\xe7\x0f\x15" +
++			"\x95\x75\x30\x8f\x6e\x9f\x7e\xa5\x9d\xd1\x65\x1c\x4d\x4e\xf4\x32" +
++			"\x49\x9b\xa1\x30\x44\x62\x6f\xe2\xe6\x69\x09\xf8\x7c\x7c\xbe\x07" +
++			"\xa9\xb6\x14\x7a\x6b\x85\xe4\xbf\x48\xbe\x5b\x3b\x70\xb3\x79\x3b" +
++			"\xc4\x35\x9d\x86\xf1\xfe\x2b\x6f\x80\x74\x50\xf3\x96\x59\x53\x1a" +
++			"\x75\x46\x9d\x57\x72\xb3\xb1\x26\xf5\x81\xcd\x96\x08\xbc\x2b\x10" +
++			"\xdc\x80\xbd\xd0\xdf\x03\x6d\x8d\xec\x30\x2b\x4c\xdb\x4d\x3b\xef" +
+ 			"\x7d\x3a\x39\xc8\x5a\xc4\xcc\x24\x37\xde\xe2\x95\x2b\x04\x97\xb0",
+ 
+ 		// From hg diff --git
+-		"Index: a\n"
+-			"index cb34d9b1743b7c410fa750be8a58eb355987110b..0a01764bc1b2fd29da317f72208f462ad342400f\n"
+-			"GIT binary patch\n"
+-			"literal 256\n"
+-			"zc$@(M0ssDvU-)@8jlO8aEO?4WC_p~XJGm6E`UIX!qEb;&@U7DW90Pe@Q^y+BDB{@}\n"
+-			"zH>CRA|E#sCLQWU!v<)C<2ty%#5-0kWdWHA|U-bUkpJwv91UUe!KO-Q7Q?!V-?xLQ-\n"
+-			"z%G3!eCy6i1x~4(4>BR{D^_4ZNyIf+H=X{UyKoZF<{{MAPa7W3_6$%_9=MNQ?buf=^\n"
+-			"zpMIsC(PbP>PV_QKo1rj7VsGN+X$kmze7*;%wiJ46h2+0TzFRwRvw1tjHJyg>{wr^Q\n"
+-			"zbWrn_SyLKyMx9r3v#}=ifz6f(yekmgfW6S)18t4$Fe^;kO*`*>IyuN%#LOf&-r|)j\n"
+-			"G1edVN^?m&S\n"
++		"Index: a\n" +
++			"index cb34d9b1743b7c410fa750be8a58eb355987110b..0a01764bc1b2fd29da317f72208f462ad342400f\n" +
++			"GIT binary patch\n" +
++			"literal 256\n" +
++			"zc$@(M0ssDvU-)@8jlO8aEO?4WC_p~XJGm6E`UIX!qEb;&@U7DW90Pe@Q^y+BDB{@}\n" +
++			"zH>CRA|E#sCLQWU!v<)C<2ty%#5-0kWdWHA|U-bUkpJwv91UUe!KO-Q7Q?!V-?xLQ-\n" +
++			"z%G3!eCy6i1x~4(4>BR{D^_4ZNyIf+H=X{UyKoZF<{{MAPa7W3_6$%_9=MNQ?buf=^\n" +
++			"zpMIsC(PbP>PV_QKo1rj7VsGN+X$kmze7*;%wiJ46h2+0TzFRwRvw1tjHJyg>{wr^Q\n" +
++			"zbWrn_SyLKyMx9r3v#}=ifz6f(yekmgfW6S)18t4$Fe^;kO*`*>IyuN%#LOf&-r|)j\n" +
++			"G1edVN^?m&S\n" +
+ 			"\n",
+ 	},
+ 	Test{
+ 		"",
+ 		"",
+-		"Index: hello\n"
+-			"===================================================================\n"
+-			"old mode 100644\n"
++		"Index: hello\n" +
++			"===================================================================\n" +
++			"old mode 100644\n" +
+ 			"new mode 100755\n",
+ 	},
+ }
+diff --git a/src/pkg/strconv/decimal_test.go b/src/pkg/strconv/decimal_test.go
+index b86eec683e..9e67aa4c34 100644
+--- a/src/pkg/strconv/decimal_test.go
++++ b/src/pkg/strconv/decimal_test.go
+@@ -20,7 +20,7 @@ var shifttests = []shiftTest{
+ 	shiftTest{0, 100, "0"},
+ 	shiftTest{1, 100, "1267650600228229401496703205376"},
+ 	shiftTest{1, -100,
+-		"0.00000000000000000000000000000078886090522101180541"
++		"0.00000000000000000000000000000078886090522101180541" +
+ 			"17285652827862296732064351090230047702789306640625",
+ 	},
+ 	shiftTest{12345678, 8, "3160493568"},
+diff --git a/src/pkg/tabwriter/tabwriter_test.go b/src/pkg/tabwriter/tabwriter_test.go
+index f60bc18c7a..8503ddd249 100644
+--- a/src/pkg/tabwriter/tabwriter_test.go
++++ b/src/pkg/tabwriter/tabwriter_test.go
+@@ -284,40 +284,40 @@ var tests = []entry{
+ 	entry{
+ 		"9a",
+ 		1, 0, 0, '.', 0,
+-		"1\t2\t3\t4\n"
++		"1\t2\t3\t4\n" +
+ 			"11\t222\t3333\t44444\n",
+ 
+-		"1.2..3...4\n"
++		"1.2..3...4\n" +
+ 			"11222333344444\n",
+ 	},
+ 
+ 	entry{
+ 		"9b",
+ 		1, 0, 0, '.', FilterHTML,
+-		"1\t2<!---\f--->\t3\t4\n"	// \f inside HTML is ignored
++		"1\t2<!---\f--->\t3\t4\n" +	// \f inside HTML is ignored
+ 			"11\t222\t3333\t44444\n",
+ 
+-		"1.2<!---\f--->..3...4\n"
++		"1.2<!---\f--->..3...4\n" +
+ 			"11222333344444\n",
+ 	},
+ 
+ 	entry{
+ 		"9c",
+ 		1, 0, 0, '.', 0,
+-		"1\t2\t3\t4\f"	// \f causes a newline and flush
++		"1\t2\t3\t4\f" +	// \f causes a newline and flush
+ 			"11\t222\t3333\t44444\n",
+ 
+-		"1234\n"
++		"1234\n" +
+ 			"11222333344444\n",
+ 	},
+ 
+ 	entry{
+ 		"9c debug",
+ 		1, 0, 0, '.', Debug,
+-		"1\t2\t3\t4\f"	// \f causes a newline and flush
++		"1\t2\t3\t4\f" +	// \f causes a newline and flush
+ 			"11\t222\t3333\t44444\n",
+ 
+-		"1|2|3|4\n"
++		"1|2|3|4\n" +
+ 			"11|222|3333|44444\n",
+ 	},
+ 
+@@ -338,144 +338,144 @@ var tests = []entry{
+ 	entry{
+ 		"11",
+ 		8, 0, 1, '.', 0,
+-		"本\tb\tc\n"
+-			"aa\t\u672c\u672c\u672c\tcccc\tddddd\n"
++		"本\tb\tc\n" +
++			"aa\t\u672c\u672c\u672c\tcccc\tddddd\n" +
+ 			"aaa\tbbbb\n",
+ 
+-		"本.......b.......c\n"
+-			"aa......本本本.....cccc....ddddd\n"
++		"本.......b.......c\n" +
++			"aa......本本本.....cccc....ddddd\n" +
+ 			"aaa.....bbbb\n",
+ 	},
+ 
+ 	entry{
+ 		"12a",
+ 		8, 0, 1, ' ', AlignRight,
+-		"a\tè\tc\t\n"
+-			"aa\tèèè\tcccc\tddddd\t\n"
++		"a\tè\tc\t\n" +
++			"aa\tèèè\tcccc\tddddd\t\n" +
+ 			"aaa\tèèèè\t\n",
+ 
+-		"       a       è       c\n"
+-			"      aa     èèè    cccc   ddddd\n"
++		"       a       è       c\n" +
++			"      aa     èèè    cccc   ddddd\n" +
+ 			"     aaa    èèèè\n",
+ 	},
+ 
+ 	entry{
+ 		"12b",
+ 		2, 0, 0, ' ', 0,
+-		"a\tb\tc\n"
+-			"aa\tbbb\tcccc\n"
++		"a\tb\tc\n" +
++			"aa\tbbb\tcccc\n" +
+ 			"aaa\tbbbb\n",
+ 
+-		"a  b  c\n"
+-			"aa bbbcccc\n"
++		"a  b  c\n" +
++			"aa bbbcccc\n" +
+ 			"aaabbbb\n",
+ 	},
+ 
+ 	entry{
+ 		"12c",
+ 		8, 0, 1, '_', 0,
+-		"a\tb\tc\n"
+-			"aa\tbbb\tcccc\n"
++		"a\tb\tc\n" +
++			"aa\tbbb\tcccc\n" +
+ 			"aaa\tbbbb\n",
+ 
+-		"a_______b_______c\n"
+-			"aa______bbb_____cccc\n"
++		"a_______b_______c\n" +
++			"aa______bbb_____cccc\n" +
+ 			"aaa_____bbbb\n",
+ 	},
+ 
+ 	entry{
+ 		"13a",
+ 		4, 0, 1, '-', 0,
+-		"4444\t日本語\t22\t1\t333\n"
+-			"999999999\t22\n"
+-			"7\t22\n"
+-			"\t\t\t88888888\n"
+-			"\n"
+-			"666666\t666666\t666666\t4444\n"
++		"4444\t日本語\t22\t1\t333\n" +
++			"999999999\t22\n" +
++			"7\t22\n" +
++			"\t\t\t88888888\n" +
++			"\n" +
++			"666666\t666666\t666666\t4444\n" +
+ 			"1\t1\t999999999\t0000000000\n",
+ 
+-		"4444------日本語-22--1---333\n"
+-			"999999999-22\n"
+-			"7---------22\n"
+-			"------------------88888888\n"
+-			"\n"
+-			"666666-666666-666666----4444\n"
++		"4444------日本語-22--1---333\n" +
++			"999999999-22\n" +
++			"7---------22\n" +
++			"------------------88888888\n" +
++			"\n" +
++			"666666-666666-666666----4444\n" +
+ 			"1------1------999999999-0000000000\n",
+ 	},
+ 
+ 	entry{
+ 		"13b",
+ 		4, 0, 3, '.', 0,
+-		"4444\t333\t22\t1\t333\n"
+-			"999999999\t22\n"
+-			"7\t22\n"
+-			"\t\t\t88888888\n"
+-			"\n"
+-			"666666\t666666\t666666\t4444\n"
++		"4444\t333\t22\t1\t333\n" +
++			"999999999\t22\n" +
++			"7\t22\n" +
++			"\t\t\t88888888\n" +
++			"\n" +
++			"666666\t666666\t666666\t4444\n" +
+ 			"1\t1\t999999999\t0000000000\n",
+ 
+-		"4444........333...22...1...333\n"
+-			"999999999...22\n"
+-			"7...........22\n"
+-			"....................88888888\n"
+-			"\n"
+-			"666666...666666...666666......4444\n"
++		"4444........333...22...1...333\n" +
++			"999999999...22\n" +
++			"7...........22\n" +
++			"....................88888888\n" +
++			"\n" +
++			"666666...666666...666666......4444\n" +
+ 			"1........1........999999999...0000000000\n",
+ 	},
+ 
+ 	entry{
+ 		"13c",
+ 		8, 8, 1, '\t', FilterHTML,
+-		"4444\t333\t22\t1\t333\n"
+-			"999999999\t22\n"
+-			"7\t22\n"
+-			"\t\t\t88888888\n"
+-			"\n"
+-			"666666\t666666\t666666\t4444\n"
++		"4444\t333\t22\t1\t333\n" +
++			"999999999\t22\n" +
++			"7\t22\n" +
++			"\t\t\t88888888\n" +
++			"\n" +
++			"666666\t666666\t666666\t4444\n" +
+ 			"1\t1\t<font color=red attr=日本語>999999999</font>\t0000000000\n",
+ 
+-		"4444\t\t333\t22\t1\t333\n"
+-			"999999999\t22\n"
+-			"7\t\t22\n"
+-			"\t\t\t\t88888888\n"
+-			"\n"
+-			"666666\t666666\t666666\t\t4444\n"
++		"4444\t\t333\t22\t1\t333\n" +
++			"999999999\t22\n" +
++			"7\t\t22\n" +
++			"\t\t\t\t88888888\n" +
++			"\n" +
++			"666666\t666666\t666666\t\t4444\n" +
+ 			"1\t1\t<font color=red attr=日本語>999999999</font>\t0000000000\n",
+ 	},
+ 
+ 	entry{
+ 		"14",
+ 		1, 0, 2, ' ', AlignRight,
+-		".0\t.3\t2.4\t-5.1\t\n"
+-			"23.0\t12345678.9\t2.4\t-989.4\t\n"
+-			"5.1\t12.0\t2.4\t-7.0\t\n"
+-			".0\t0.0\t332.0\t8908.0\t\n"
+-			".0\t-.3\t456.4\t22.1\t\n"
++		".0\t.3\t2.4\t-5.1\t\n" +
++			"23.0\t12345678.9\t2.4\t-989.4\t\n" +
++			"5.1\t12.0\t2.4\t-7.0\t\n" +
++			".0\t0.0\t332.0\t8908.0\t\n" +
++			".0\t-.3\t456.4\t22.1\t\n" +
+ 			".0\t1.2\t44.4\t-13.3\t\t",
+ 
+-		"    .0          .3    2.4    -5.1\n"
+-			"  23.0  12345678.9    2.4  -989.4\n"
+-			"   5.1        12.0    2.4    -7.0\n"
+-			"    .0         0.0  332.0  8908.0\n"
+-			"    .0         -.3  456.4    22.1\n"
++		"    .0          .3    2.4    -5.1\n" +
++			"  23.0  12345678.9    2.4  -989.4\n" +
++			"   5.1        12.0    2.4    -7.0\n" +
++			"    .0         0.0  332.0  8908.0\n" +
++			"    .0         -.3  456.4    22.1\n" +
+ 			"    .0         1.2   44.4   -13.3",
+ 	},
+ 
+ 	entry{
+ 		"14 debug",
+ 		1, 0, 2, ' ', AlignRight | Debug,
+-		".0\t.3\t2.4\t-5.1\t\n"
+-			"23.0\t12345678.9\t2.4\t-989.4\t\n"
+-			"5.1\t12.0\t2.4\t-7.0\t\n"
+-			".0\t0.0\t332.0\t8908.0\t\n"
+-			".0\t-.3\t456.4\t22.1\t\n"
++		".0\t.3\t2.4\t-5.1\t\n" +
++			"23.0\t12345678.9\t2.4\t-989.4\t\n" +
++			"5.1\t12.0\t2.4\t-7.0\t\n" +
++			".0\t0.0\t332.0\t8908.0\t\n" +
++			".0\t-.3\t456.4\t22.1\t\n" +
+ 			".0\t1.2\t44.4\t-13.3\t\t",
+ 
+-		"    .0|          .3|    2.4|    -5.1|\n"
+-			"  23.0|  12345678.9|    2.4|  -989.4|\n"
+-			"   5.1|        12.0|    2.4|    -7.0|\n"
+-			"    .0|         0.0|  332.0|  8908.0|\n"
+-			"    .0|         -.3|  456.4|    22.1|\n"
++		"    .0|          .3|    2.4|    -5.1|\n" +
++			"  23.0|  12345678.9|    2.4|  -989.4|\n" +
++			"   5.1|        12.0|    2.4|    -7.0|\n" +
++			"    .0|         0.0|  332.0|  8908.0|\n" +
++			"    .0|         -.3|  456.4|    22.1|\n" +
+ 			"    .0|         1.2|   44.4|   -13.3|",
+ 	},
+ 
+@@ -510,80 +510,80 @@ var tests = []entry{
+ 	entry{
+ 		"16a",
+ 		100, 100, 0, '\t', 0,
+-		"a\tb\t\td\n"
+-			"a\tb\t\td\te\n"
+-			"a\n"
+-			"a\tb\tc\td\n"
++		"a\tb\t\td\n" +
++			"a\tb\t\td\te\n" +
++			"a\n" +
++			"a\tb\tc\td\n" +
+ 			"a\tb\tc\td\te\n",
+ 
+-		"a\tb\t\td\n"
+-			"a\tb\t\td\te\n"
+-			"a\n"
+-			"a\tb\tc\td\n"
++		"a\tb\t\td\n" +
++			"a\tb\t\td\te\n" +
++			"a\n" +
++			"a\tb\tc\td\n" +
+ 			"a\tb\tc\td\te\n",
+ 	},
+ 
+ 	entry{
+ 		"16b",
+ 		100, 100, 0, '\t', DiscardEmptyColumns,
+-		"a\vb\v\vd\n"
+-			"a\vb\v\vd\ve\n"
+-			"a\n"
+-			"a\vb\vc\vd\n"
++		"a\vb\v\vd\n" +
++			"a\vb\v\vd\ve\n" +
++			"a\n" +
++			"a\vb\vc\vd\n" +
+ 			"a\vb\vc\vd\ve\n",
+ 
+-		"a\tb\td\n"
+-			"a\tb\td\te\n"
+-			"a\n"
+-			"a\tb\tc\td\n"
++		"a\tb\td\n" +
++			"a\tb\td\te\n" +
++			"a\n" +
++			"a\tb\tc\td\n" +
+ 			"a\tb\tc\td\te\n",
+ 	},
+ 
+ 	entry{
+ 		"16b debug",
+ 		100, 100, 0, '\t', DiscardEmptyColumns | Debug,
+-		"a\vb\v\vd\n"
+-			"a\vb\v\vd\ve\n"
+-			"a\n"
+-			"a\vb\vc\vd\n"
++		"a\vb\v\vd\n" +
++			"a\vb\v\vd\ve\n" +
++			"a\n" +
++			"a\vb\vc\vd\n" +
+ 			"a\vb\vc\vd\ve\n",
+ 
+-		"a\t|b\t||d\n"
+-			"a\t|b\t||d\t|e\n"
+-			"a\n"
+-			"a\t|b\t|c\t|d\n"
++		"a\t|b\t||d\n" +
++			"a\t|b\t||d\t|e\n" +
++			"a\n" +
++			"a\t|b\t|c\t|d\n" +
+ 			"a\t|b\t|c\t|d\t|e\n",
+ 	},
+ 
+ 	entry{
+ 		"16c",
+ 		100, 100, 0, '\t', DiscardEmptyColumns,
+-		"a\tb\t\td\n"	// hard tabs - do not discard column
+-			"a\tb\t\td\te\n"
+-			"a\n"
+-			"a\tb\tc\td\n"
++		"a\tb\t\td\n" +	// hard tabs - do not discard column
++			"a\tb\t\td\te\n" +
++			"a\n" +
++			"a\tb\tc\td\n" +
+ 			"a\tb\tc\td\te\n",
+ 
+-		"a\tb\t\td\n"
+-			"a\tb\t\td\te\n"
+-			"a\n"
+-			"a\tb\tc\td\n"
++		"a\tb\t\td\n" +
++			"a\tb\t\td\te\n" +
++			"a\n" +
++			"a\tb\tc\td\n" +
+ 			"a\tb\tc\td\te\n",
+ 	},
+ 
+ 	entry{
+ 		"16c debug",
+ 		100, 100, 0, '\t', DiscardEmptyColumns | Debug,
+-		"a\tb\t\td\n"	// hard tabs - do not discard column
+-			"a\tb\t\td\te\n"
+-			"a\n"
+-			"a\tb\tc\td\n"
++		"a\tb\t\td\n" +	// hard tabs - do not discard column
++			"a\tb\t\td\te\n" +
++			"a\n" +
++			"a\tb\tc\td\n" +
+ 			"a\tb\tc\td\te\n",
+ 
+-		"a\t|b\t|\t|d\n"
+-			"a\t|b\t|\t|d\t|e\n"
+-			"a\n"
+-			"a\t|b\t|c\t|d\n"
++		"a\t|b\t|\t|d\n" +
++			"a\t|b\t|\t|d\t|e\n" +
++			"a\n" +
++			"a\t|b\t|c\t|d\n" +
+ 			"a\t|b\t|c\t|d\t|e\n",
+ 	},
+ }
+diff --git a/src/pkg/template/template_test.go b/src/pkg/template/template_test.go
+index 379f0f3425..4dfdd71e0a 100644
+--- a/src/pkg/template/template_test.go
++++ b/src/pkg/template/template_test.go
+@@ -97,62 +97,62 @@ var tests = []*Test{
+ 
+ 	// Section
+ 	&Test{
+-		in: "{.section data }\n"
+-			"some text for the section\n"
++		in: "{.section data }\n" +
++			"some text for the section\n" +
+ 			"{.end}\n",
+ 
+ 		out: "some text for the section\n",
+ 	},
+ 	&Test{
+-		in: "{.section data }\n"
+-			"{header}={integer}\n"
++		in: "{.section data }\n" +
++			"{header}={integer}\n" +
+ 			"{.end}\n",
+ 
+ 		out: "Header=77\n",
+ 	},
+ 	&Test{
+-		in: "{.section pdata }\n"
+-			"{header}={integer}\n"
++		in: "{.section pdata }\n" +
++			"{header}={integer}\n" +
+ 			"{.end}\n",
+ 
+ 		out: "Header=77\n",
+ 	},
+ 	&Test{
+-		in: "{.section pdata }\n"
+-			"data present\n"
+-			"{.or}\n"
+-			"data not present\n"
++		in: "{.section pdata }\n" +
++			"data present\n" +
++			"{.or}\n" +
++			"data not present\n" +
+ 			"{.end}\n",
+ 
+ 		out: "data present\n",
+ 	},
+ 	&Test{
+-		in: "{.section empty }\n"
+-			"data present\n"
+-			"{.or}\n"
+-			"data not present\n"
++		in: "{.section empty }\n" +
++			"data present\n" +
++			"{.or}\n" +
++			"data not present\n" +
+ 			"{.end}\n",
+ 
+ 		out: "data not present\n",
+ 	},
+ 	&Test{
+-		in: "{.section null }\n"
+-			"data present\n"
+-			"{.or}\n"
+-			"data not present\n"
++		in: "{.section null }\n" +
++			"data present\n" +
++			"{.or}\n" +
++			"data not present\n" +
+ 			"{.end}\n",
+ 
+ 		out: "data not present\n",
+ 	},
+ 	&Test{
+-		in: "{.section pdata }\n"
+-			"{header}={integer}\n"
+-			"{.section @ }\n"
+-			"{header}={integer}\n"
+-			"{.end}\n"
++		in: "{.section pdata }\n" +
++			"{header}={integer}\n" +
++			"{.section @ }\n" +
++			"{header}={integer}\n" +
++			"{.end}\n" +
+ 			"{.end}\n",
+ 
+-		out: "Header=77\n"
++		out: "Header=77\n" +
+ 			"Header=77\n",
+ 	},
+ 	&Test{
+@@ -163,69 +163,69 @@ var tests = []*Test{
+ 
+ 	// Repeated
+ 	&Test{
+-		in: "{.section pdata }\n"
+-			"{.repeated section @ }\n"
+-			"{item}={value}\n"
+-			"{.end}\n"
++		in: "{.section pdata }\n" +
++			"{.repeated section @ }\n" +
++			"{item}={value}\n" +
++			"{.end}\n" +
+ 			"{.end}\n",
+ 
+-		out: "ItemNumber1=ValueNumber1\n"
++		out: "ItemNumber1=ValueNumber1\n" +
+ 			"ItemNumber2=ValueNumber2\n",
+ 	},
+ 	&Test{
+-		in: "{.section pdata }\n"
+-			"{.repeated section @ }\n"
+-			"{item}={value}\n"
+-			"{.or}\n"
+-			"this should not appear\n"
+-			"{.end}\n"
++		in: "{.section pdata }\n" +
++			"{.repeated section @ }\n" +
++			"{item}={value}\n" +
++			"{.or}\n" +
++			"this should not appear\n" +
++			"{.end}\n" +
+ 			"{.end}\n",
+ 
+-		out: "ItemNumber1=ValueNumber1\n"
++		out: "ItemNumber1=ValueNumber1\n" +
+ 			"ItemNumber2=ValueNumber2\n",
+ 	},
+ 	&Test{
+-		in: "{.section @ }\n"
+-			"{.repeated section empty }\n"
+-			"{item}={value}\n"
+-			"{.or}\n"
+-			"this should appear: empty field\n"
+-			"{.end}\n"
++		in: "{.section @ }\n" +
++			"{.repeated section empty }\n" +
++			"{item}={value}\n" +
++			"{.or}\n" +
++			"this should appear: empty field\n" +
++			"{.end}\n" +
+ 			"{.end}\n",
+ 
+ 		out: "this should appear: empty field\n",
+ 	},
+ 	&Test{
+-		in: "{.repeated section pdata }\n"
+-			"{item}\n"
+-			"{.alternates with}\n"
+-			"is\nover\nmultiple\nlines\n"
++		in: "{.repeated section pdata }\n" +
++			"{item}\n" +
++			"{.alternates with}\n" +
++			"is\nover\nmultiple\nlines\n" +
+ 			"{.end}\n",
+ 
+-		out: "ItemNumber1\n"
+-			"is\nover\nmultiple\nlines\n"
++		out: "ItemNumber1\n" +
++			"is\nover\nmultiple\nlines\n" +
+ 			"ItemNumber2\n",
+ 	},
+ 	&Test{
+-		in: "{.section pdata }\n"
+-			"{.repeated section @ }\n"
+-			"{item}={value}\n"
+-			"{.alternates with}DIVIDER\n"
+-			"{.or}\n"
+-			"this should not appear\n"
+-			"{.end}\n"
++		in: "{.section pdata }\n" +
++			"{.repeated section @ }\n" +
++			"{item}={value}\n" +
++			"{.alternates with}DIVIDER\n" +
++			"{.or}\n" +
++			"this should not appear\n" +
++			"{.end}\n" +
+ 			"{.end}\n",
+ 
+-		out: "ItemNumber1=ValueNumber1\n"
+-			"DIVIDER\n"
++		out: "ItemNumber1=ValueNumber1\n" +
++			"DIVIDER\n" +
+ 			"ItemNumber2=ValueNumber2\n",
+ 	},
+ 	&Test{
+-		in: "{.repeated section vec }\n"
+-			"{@}\n"
++		in: "{.repeated section vec }\n" +
++			"{@}\n" +
+ 			"{.end}\n",
+ 
+-		out: "elt1\n"
++		out: "elt1\n" +
+ 			"elt2\n",
+ 	},
+ 	&Test{
+@@ -236,15 +236,15 @@ var tests = []*Test{
+ 
+ 	// Nested names
+ 	&Test{
+-		in: "{.section @ }\n"
+-			"{innerT.item}={innerT.value}\n"
++		in: "{.section @ }\n" +
++			"{innerT.item}={innerT.value}\n" +
+ 			"{.end}",
+ 
+ 		out: "ItemNumber1=ValueNumber1\n",
+ 	},
+ 	&Test{
+-		in: "{.section @ }\n"
+-			"{innerT.item}={.section innerT}{.section value}{@}{.end}{.end}\n"
++		in: "{.section @ }\n" +
++			"{innerT.item}={.section innerT}{.section value}{@}{.end}{.end}\n" +
+ 			"{.end}",
+ 
+ 		out: "ItemNumber1=ValueNumber1\n",
+@@ -253,32 +253,32 @@ var tests = []*Test{
+ 
+ 	// Formatters
+ 	&Test{
+-		in: "{.section pdata }\n"
+-			"{header|uppercase}={integer|+1}\n"
+-			"{header|html}={integer|str}\n"
++		in: "{.section pdata }\n" +
++			"{header|uppercase}={integer|+1}\n" +
++			"{header|html}={integer|str}\n" +
+ 			"{.end}\n",
+ 
+-		out: "HEADER=78\n"
++		out: "HEADER=78\n" +
+ 			"Header=77\n",
+ 	},
+ 
+ 	&Test{
+-		in: "{raw}\n"
++		in: "{raw}\n" +
+ 			"{raw|html}\n",
+ 
+-		out: "&<>!@ #$%^\n"
++		out: "&<>!@ #$%^\n" +
+ 			"&amp;&lt;&gt;!@ #$%^\n",
+ 	},
+ 
+ 	&Test{
+-		in: "{.section emptystring}emptystring{.end}\n"
++		in: "{.section emptystring}emptystring{.end}\n" +
+ 			"{.section header}header{.end}\n",
+ 
+ 		out: "\nheader\n",
+ 	},
+ 
+ 	&Test{
+-		in: "{.section true}1{.or}2{.end}\n"
++		in: "{.section true}1{.or}2{.end}\n" +
+ 			"{.section false}3{.or}4{.end}\n",
+ 
+ 		out: "1\n4\n",
+diff --git a/src/pkg/unicode/maketables.go b/src/pkg/unicode/maketables.go
+index c96c12eb80..486742e64f 100644
+--- a/src/pkg/unicode/maketables.go
++++ b/src/pkg/unicode/maketables.go
+@@ -313,9 +313,9 @@ func printCategories() {
+ 		return;
+ 	}
+ 	fmt.Printf(
+-		"// Generated by running\n"
+-			"//	maketables --tables=%s --data=%s\n"
+-			"// DO NOT EDIT\n\n"
++		"// Generated by running\n"+
++			"//	maketables --tables=%s --data=%s\n"+
++			"// DO NOT EDIT\n\n"+
+ 			"package unicode\n\n",
+ 		*tablelist,
+ 		*dataURL);
+@@ -590,8 +590,8 @@ func printScriptOrProperty(doProps bool) {
+ 	}
+ 
+ 	fmt.Printf(
+-		"// Generated by running\n"
+-			"//	maketables --%s=%s --url=%s\n"
++		"// Generated by running\n"+
++			"//	maketables --%s=%s --url=%s\n"+
+ 			"// DO NOT EDIT\n\n",
+ 		flag,
+ 		flaglist,
+@@ -777,12 +777,12 @@ func printCases() {
+ 		return;
+ 	}
+ 	fmt.Printf(
+-		"// Generated by running\n"
+-			"//	maketables --data=%s\n"
+-			"// DO NOT EDIT\n\n"
+-			"// CaseRanges is the table describing case mappings for all letters with\n"
+-			"// non-self mappings.\n"
+-			"var CaseRanges = _CaseRanges\n"
++		"// Generated by running\n"+
++			"//	maketables --data=%s\n"+
++			"// DO NOT EDIT\n\n"+
++			"// CaseRanges is the table describing case mappings for all letters with\n"+
++			"// non-self mappings.\n"+
++			"var CaseRanges = _CaseRanges\n"+
+ 			"var _CaseRanges = []CaseRange {\n",
+ 		*dataURL);
+ 
+diff --git a/src/pkg/xml/xml_test.go b/src/pkg/xml/xml_test.go
+index 11918428b2..837385b6b2 100644
+--- a/src/pkg/xml/xml_test.go
++++ b/src/pkg/xml/xml_test.go
+@@ -16,8 +16,8 @@ const testInput = `
+ <?xml version="1.0" encoding="UTF-8"?>
+ <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+   "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+-<body xmlns:foo="ns1" xmlns="ns2" xmlns:tag="ns3" `
+-	"\r\n\t" `  >
++<body xmlns:foo="ns1" xmlns="ns2" xmlns:tag="ns3" ` +
++	"\r\n\t" + `  >
+   <hello lang="en">World &lt;&gt;&apos;&quot; &#x767d;&#40300;翔</hello>
+   <goodbye />
+   <outer foo:attr="value" xmlns:tag="ns4">

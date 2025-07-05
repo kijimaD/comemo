@@ -11,6 +11,25 @@ Date:   Mon Nov 13 21:20:23 2017 -0500
     Reviewed-on: https://go-review.googlesource.com/78110
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
-
+---
  src/bytes/example_test.go | 6 ++----
  1 file changed, 2 insertions(+), 4 deletions(-)
+
+diff --git a/src/bytes/example_test.go b/src/bytes/example_test.go
+index 6a7ce59f55..9921a207b1 100644
+--- a/src/bytes/example_test.go
++++ b/src/bytes/example_test.go
+@@ -430,11 +430,9 @@ func ExampleToLower() {
+ }
+ 
+ func ExampleReader_Len() {
+-	fmt.Println(bytes.NewReader([]byte("")).Len())
+ 	fmt.Println(bytes.NewReader([]byte("Hi!")).Len())
+-	fmt.Println(bytes.NewReader([]byte("Hello Gopher!")).Len())
++	fmt.Println(bytes.NewReader([]byte("こんにちは!")).Len())
+ 	// Output:
+-	// 0
+ 	// 3
+-	// 13
++	// 16
+ }

@@ -19,10 +19,76 @@ Date:   Thu Aug 18 13:18:11 2022 +0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
-
+---
  src/cmd/compile/internal/ssa/schedule.go  | 2 +-
  src/cmd/internal/obj/ppc64/doc.go         | 2 +-
  src/cmd/link/internal/ld/outbuf_darwin.go | 2 +-
  src/crypto/tls/common.go                  | 2 +-
  src/net/http/httputil/reverseproxy.go     | 2 +-
  5 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/schedule.go b/src/cmd/compile/internal/ssa/schedule.go
+index 2b74c9e420..7ef04b2c32 100644
+--- a/src/cmd/compile/internal/ssa/schedule.go
++++ b/src/cmd/compile/internal/ssa/schedule.go
+@@ -179,7 +179,7 @@ func schedule(f *Func) {
+ 					// scored CarryChainTail (and prove w is not a tail).
+ 					score[w.ID] = ScoreFlags
+ 				}
+-				// Verify v has not been scored. If v has not been visited, v may be the
++				// Verify v has not been scored. If v has not been visited, v may be
+ 				// the final (tail) operation in a carry chain. If v is not, v will be
+ 				// rescored above when v's carry-using op is scored. When scoring is done,
+ 				// only tail operations will retain the CarryChainTail score.
+diff --git a/src/cmd/internal/obj/ppc64/doc.go b/src/cmd/internal/obj/ppc64/doc.go
+index 48aff3c69f..28340e425d 100644
+--- a/src/cmd/internal/obj/ppc64/doc.go
++++ b/src/cmd/internal/obj/ppc64/doc.go
+@@ -198,7 +198,7 @@ greater than the max then the assembler sets it to the max for that size (31 for
+ 32 bit values, 63 for 64 bit values). If the shift count is in a register, then
+ only the low 5 or 6 bits of the register will be used as the shift count. The
+ Go compiler will add appropriate code to compare the shift value to achieve the
+-the correct result, and the assembler does not add extra checking.
++correct result, and the assembler does not add extra checking.
+ 
+ Examples:
+ 
+diff --git a/src/cmd/link/internal/ld/outbuf_darwin.go b/src/cmd/link/internal/ld/outbuf_darwin.go
+index e372b3724a..9d8cb583e7 100644
+--- a/src/cmd/link/internal/ld/outbuf_darwin.go
++++ b/src/cmd/link/internal/ld/outbuf_darwin.go
+@@ -24,7 +24,7 @@ func (out *OutBuf) fallocate(size uint64) error {
+ 	}
+ 	// F_PEOFPOSMODE allocates from the end of the file, so we want the size difference.
+ 	// Apparently, it uses the end of the allocation, instead of the logical end of the
+-	// the file.
++	// file.
+ 	cursize := uint64(stat.Sys().(*syscall.Stat_t).Blocks * 512) // allocated size
+ 	if size <= cursize {
+ 		return nil
+diff --git a/src/crypto/tls/common.go b/src/crypto/tls/common.go
+index 1861efce66..7d686fd088 100644
+--- a/src/crypto/tls/common.go
++++ b/src/crypto/tls/common.go
+@@ -725,7 +725,7 @@ type Config struct {
+ 
+ 	// mutex protects sessionTicketKeys and autoSessionTicketKeys.
+ 	mutex sync.RWMutex
+-	// sessionTicketKeys contains zero or more ticket keys. If set, it means the
++	// sessionTicketKeys contains zero or more ticket keys. If set, it means
+ 	// the keys were set with SessionTicketKey or SetSessionTicketKeys. The
+ 	// first key is used for new tickets and any subsequent keys can be used to
+ 	// decrypt old tickets. The slice contents are not protected by the mutex
+diff --git a/src/net/http/httputil/reverseproxy.go b/src/net/http/httputil/reverseproxy.go
+index 11711e6f97..9ab7367eb2 100644
+--- a/src/net/http/httputil/reverseproxy.go
++++ b/src/net/http/httputil/reverseproxy.go
+@@ -112,7 +112,7 @@ type ReverseProxy struct {
+ 	// At most one of Rewrite or Director may be set.
+ 	Rewrite func(*ProxyRequest)
+ 
+-	// Director is a function which modifies the
++	// Director is a function which modifies
+ 	// the request into a new request to be sent
+ 	// using Transport. Its response is then copied
+ 	// back to the original client unmodified.

@@ -16,8 +16,66 @@ Date:   Wed Sep 11 13:25:30 2013 -0400
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/13661043
-
+---
  src/cmd/go/test.bash                 | 13 +++++++++++++
  src/cmd/go/testdata/src/cgotest/m.go |  5 +++++
  src/pkg/go/build/build.go            |  4 +++-
  3 files changed, 21 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/test.bash b/src/cmd/go/test.bash
+index a2ba1ca95a..c5effe757e 100755
+--- a/src/cmd/go/test.bash
++++ b/src/cmd/go/test.bash
+@@ -167,6 +167,19 @@ elif ! grep testdata/shadow/root1/src/foo testdata/err >/dev/null; then
+ fi
+ unset GOPATH
+ 
++TEST go install fails with no buildable files
++export GOPATH=$(pwd)/testdata
++export CGO_ENABLED=0
++if ./testgo install cgotest 2>testdata/err; then
++	echo "go install cgotest succeeded unexpectedly"
++elif ! grep 'no buildable Go source files' testdata/err >/dev/null; then
++	echo "go install cgotest did not report 'no buildable Go source files'"
++	cat testdata/err
++	ok=false
++fi
++unset CGO_ENABLED
++unset GOPATH
++
+ # Test that without $GOBIN set, binaries get installed
+ # into the GOPATH bin directory.
+ TEST install into GOPATH
+diff --git a/src/cmd/go/testdata/src/cgotest/m.go b/src/cmd/go/testdata/src/cgotest/m.go
+new file mode 100644
+index 0000000000..4d68307cf0
+--- /dev/null
++++ b/src/cmd/go/testdata/src/cgotest/m.go
+@@ -0,0 +1,5 @@
++package cgotest
++
++import "C"
++
++var _ C.int
+diff --git a/src/pkg/go/build/build.go b/src/pkg/go/build/build.go
+index f259525f5e..be48df9d38 100644
+--- a/src/pkg/go/build/build.go
++++ b/src/pkg/go/build/build.go
+@@ -747,6 +747,8 @@ Found:
+ 			allTags["cgo"] = true
+ 			if ctxt.CgoEnabled {
+ 				p.CgoFiles = append(p.CgoFiles, name)
++			} else {
++				p.IgnoredGoFiles = append(p.IgnoredGoFiles, name)
+ 			}
+ 		} else if isXTest {
+ 			p.XTestGoFiles = append(p.XTestGoFiles, name)
+@@ -756,7 +758,7 @@ Found:
+ 			p.GoFiles = append(p.GoFiles, name)
+ 		}
+ 	}
+-	if p.Name == "" {
++	if len(p.GoFiles)+len(p.CgoFiles)+len(p.TestGoFiles)+len(p.XTestGoFiles) == 0 {
+ 		return p, &NoGoError{p.Dir}
+ 	}
+ 

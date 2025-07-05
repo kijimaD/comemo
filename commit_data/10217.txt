@@ -7,6 +7,10 @@ Date:   Thu Nov 3 10:26:33 2011 +0900
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5330068
-
+---
  test/dwarf/linedirectives.go | 0
  1 file changed, 0 insertions(+), 0 deletions(-)
+
+diff --git a/test/dwarf/linedirectives.go b/test/dwarf/linedirectives.go
+old mode 100755
+new mode 100644

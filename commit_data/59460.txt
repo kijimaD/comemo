@@ -16,8 +16,152 @@ Date:   Wed Nov 29 21:44:34 2023 +0000
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Damien Neil <dneil@google.com>
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-
+---
  src/internal/syscall/windows/syscall_windows.go | 63 ++++++++++++++++---------
  src/net/dnsconfig_windows.go                    | 27 ++++++-----
  src/net/interface_windows.go                    |  3 +-
  3 files changed, 60 insertions(+), 33 deletions(-)
+
+diff --git a/src/internal/syscall/windows/syscall_windows.go b/src/internal/syscall/windows/syscall_windows.go
+index be7ade9e32..be629cc0f9 100644
+--- a/src/internal/syscall/windows/syscall_windows.go
++++ b/src/internal/syscall/windows/syscall_windows.go
+@@ -42,7 +42,10 @@ const (
+ 	ERROR_NO_UNICODE_TRANSLATION syscall.Errno = 1113
+ )
+ 
+-const GAA_FLAG_INCLUDE_PREFIX = 0x00000010
++const (
++	GAA_FLAG_INCLUDE_PREFIX   = 0x00000010
++	GAA_FLAG_INCLUDE_GATEWAYS = 0x0080
++)
+ 
+ const (
+ 	IF_TYPE_OTHER              = 1
+@@ -104,27 +107,45 @@ type IpAdapterPrefix struct {
+ 	PrefixLength uint32
+ }
+ 
++type IpAdapterWinsServerAddress struct {
++	Length   uint32
++	Reserved uint32
++	Next     *IpAdapterWinsServerAddress
++	Address  SocketAddress
++}
++
++type IpAdapterGatewayAddress struct {
++	Length   uint32
++	Reserved uint32
++	Next     *IpAdapterGatewayAddress
++	Address  SocketAddress
++}
++
+ type IpAdapterAddresses struct {
+-	Length                uint32
+-	IfIndex               uint32
+-	Next                  *IpAdapterAddresses
+-	AdapterName           *byte
+-	FirstUnicastAddress   *IpAdapterUnicastAddress
+-	FirstAnycastAddress   *IpAdapterAnycastAddress
+-	FirstMulticastAddress *IpAdapterMulticastAddress
+-	FirstDnsServerAddress *IpAdapterDnsServerAdapter
+-	DnsSuffix             *uint16
+-	Description           *uint16
+-	FriendlyName          *uint16
+-	PhysicalAddress       [syscall.MAX_ADAPTER_ADDRESS_LENGTH]byte
+-	PhysicalAddressLength uint32
+-	Flags                 uint32
+-	Mtu                   uint32
+-	IfType                uint32
+-	OperStatus            uint32
+-	Ipv6IfIndex           uint32
+-	ZoneIndices           [16]uint32
+-	FirstPrefix           *IpAdapterPrefix
++	Length                 uint32
++	IfIndex                uint32
++	Next                   *IpAdapterAddresses
++	AdapterName            *byte
++	FirstUnicastAddress    *IpAdapterUnicastAddress
++	FirstAnycastAddress    *IpAdapterAnycastAddress
++	FirstMulticastAddress  *IpAdapterMulticastAddress
++	FirstDnsServerAddress  *IpAdapterDnsServerAdapter
++	DnsSuffix              *uint16
++	Description            *uint16
++	FriendlyName           *uint16
++	PhysicalAddress        [syscall.MAX_ADAPTER_ADDRESS_LENGTH]byte
++	PhysicalAddressLength  uint32
++	Flags                  uint32
++	Mtu                    uint32
++	IfType                 uint32
++	OperStatus             uint32
++	Ipv6IfIndex            uint32
++	ZoneIndices            [16]uint32
++	FirstPrefix            *IpAdapterPrefix
++	TransmitLinkSpeed      uint64
++	ReceiveLinkSpeed       uint64
++	FirstWinsServerAddress *IpAdapterWinsServerAddress
++	FirstGatewayAddress    *IpAdapterGatewayAddress
+ 	/* more fields might be present here. */
+ }
+ 
+diff --git a/src/net/dnsconfig_windows.go b/src/net/dnsconfig_windows.go
+index f3d242366a..34455309db 100644
+--- a/src/net/dnsconfig_windows.go
++++ b/src/net/dnsconfig_windows.go
+@@ -25,16 +25,19 @@ func dnsReadConfig(ignoredFilename string) (conf *dnsConfig) {
+ 	if err != nil {
+ 		return
+ 	}
+-	// TODO(bradfitz): this just collects all the DNS servers on all
+-	// the interfaces in some random order. It should order it by
+-	// default route, or only use the default route(s) instead.
+-	// In practice, however, it mostly works.
++
+ 	for _, aa := range aas {
++		// Only take interfaces whose OperStatus is IfOperStatusUp(0x01) into DNS configs.
++		if aa.OperStatus != windows.IfOperStatusUp {
++			continue
++		}
++
++		// Only take interfaces which have at least one gateway
++		if aa.FirstGatewayAddress == nil {
++			continue
++		}
++
+ 		for dns := aa.FirstDnsServerAddress; dns != nil; dns = dns.Next {
+-			// Only take interfaces whose OperStatus is IfOperStatusUp(0x01) into DNS configs.
+-			if aa.OperStatus != windows.IfOperStatusUp {
+-				continue
+-			}
+ 			sa, err := dns.Address.Sockaddr.Sockaddr()
+ 			if err != nil {
+ 				continue
+@@ -47,9 +50,11 @@ func dnsReadConfig(ignoredFilename string) (conf *dnsConfig) {
+ 				ip = make(IP, IPv6len)
+ 				copy(ip, sa.Addr[:])
+ 				if ip[0] == 0xfe && ip[1] == 0xc0 {
+-					// Ignore these fec0/10 ones. Windows seems to
+-					// populate them as defaults on its misc rando
+-					// interfaces.
++					// fec0/10 IPv6 addresses are site local anycast DNS
++					// addresses Microsoft sets by default if no other
++					// IPv6 DNS address is set. Site local anycast is
++					// deprecated since 2004, see
++					// https://datatracker.ietf.org/doc/html/rfc3879
+ 					continue
+ 				}
+ 			default:
+diff --git a/src/net/interface_windows.go b/src/net/interface_windows.go
+index 22a1312849..1b487dc474 100644
+--- a/src/net/interface_windows.go
++++ b/src/net/interface_windows.go
+@@ -20,7 +20,8 @@ func adapterAddresses() ([]*windows.IpAdapterAddresses, error) {
+ 	l := uint32(15000) // recommended initial size
+ 	for {
+ 		b = make([]byte, l)
+-		err := windows.GetAdaptersAddresses(syscall.AF_UNSPEC, windows.GAA_FLAG_INCLUDE_PREFIX, 0, (*windows.IpAdapterAddresses)(unsafe.Pointer(&b[0])), &l)
++		const flags = windows.GAA_FLAG_INCLUDE_PREFIX | windows.GAA_FLAG_INCLUDE_GATEWAYS
++		err := windows.GetAdaptersAddresses(syscall.AF_UNSPEC, flags, 0, (*windows.IpAdapterAddresses)(unsafe.Pointer(&b[0])), &l)
+ 		if err == nil {
+ 			if l == 0 {
+ 				return nil, nil

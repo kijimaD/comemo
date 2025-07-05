@@ -27,7 +27,106 @@ Date:   Fri Aug 28 12:53:41 2015 -0700
     Change-Id: I9f340cdabcda8e2e90359fb4f9250877b1fffe98
     Reviewed-on: https://go-review.googlesource.com/13986
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/ssa/check.go   | 41 +++++++++++++++++++++++++++++++++
  src/cmd/compile/internal/ssa/phielim.go | 26 ++++++++-------------
  2 files changed, 51 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/check.go b/src/cmd/compile/internal/ssa/check.go
+index 61626089a6..ad9222f3e2 100644
+--- a/src/cmd/compile/internal/ssa/check.go
++++ b/src/cmd/compile/internal/ssa/check.go
+@@ -181,4 +181,45 @@ func checkFunc(f *Func) {
+ 			f.Fatalf("used value v%d in free list", id)
+ 		}
+ 	}
++
++	// Check to make sure all args dominate uses.
++	if f.RegAlloc == nil {
++		// Note: regalloc introduces non-dominating args.
++		// See TODO in regalloc.go.
++		idom := dominators(f)
++		for _, b := range f.Blocks {
++			for _, v := range b.Values {
++				for i, arg := range v.Args {
++					x := arg.Block
++					y := b
++					if v.Op == OpPhi {
++						y = b.Preds[i]
++					}
++					if !domCheck(f, idom, x, y) {
++						f.Fatalf("arg %d of value %s does not dominate", i, v.LongString())
++					}
++				}
++			}
++			if b.Control != nil && !domCheck(f, idom, b.Control.Block, b) {
++				f.Fatalf("control value %s for %s doesn't dominate", b.Control, b)
++			}
++		}
++	}
++}
++
++// domCheck reports whether x dominates y (including x==y).
++func domCheck(f *Func, idom []*Block, x, y *Block) bool {
++	if y != f.Entry && idom[y.ID] == nil {
++		// unreachable - ignore
++		return true
++	}
++	for {
++		if x == y {
++			return true
++		}
++		y = idom[y.ID]
++		if y == nil {
++			return false
++		}
++	}
+ }
+diff --git a/src/cmd/compile/internal/ssa/phielim.go b/src/cmd/compile/internal/ssa/phielim.go
+index 19c0d077e5..be9503248b 100644
+--- a/src/cmd/compile/internal/ssa/phielim.go
++++ b/src/cmd/compile/internal/ssa/phielim.go
+@@ -11,33 +11,27 @@ package ssa
+ //   v = phi(x,x,x)
+ //   v = phi(x,v,x,v)
+ func phielim(f *Func) {
+-	args := newSparseSet(f.NumValues())
++	argSet := newSparseSet(f.NumValues())
++	var args []*Value
+ 	for _, b := range f.Blocks {
+ 		for _, v := range b.Values {
+ 			if v.Op != OpPhi {
+ 				continue
+ 			}
+-			args.clear()
++			argSet.clear()
++			args = args[:0]
+ 			for _, x := range v.Args {
+ 				for x.Op == OpCopy {
+ 					x = x.Args[0]
+ 				}
+-				args.add(x.ID)
+-			}
+-			switch {
+-			case args.size() == 1:
+-				v.Op = OpCopy
+-				v.SetArgs1(v.Args[0])
+-			case args.size() == 2 && args.contains(v.ID):
+-				var w *Value
+-				for _, x := range v.Args {
+-					if x.ID != v.ID {
+-						w = x
+-						break
+-					}
++				if x != v && !argSet.contains(x.ID) {
++					argSet.add(x.ID)
++					args = append(args, x)
+ 				}
++			}
++			if len(args) == 1 {
+ 				v.Op = OpCopy
+-				v.SetArgs1(w)
++				v.SetArgs1(args[0])
+ 			}
+ 		}
+ 	}

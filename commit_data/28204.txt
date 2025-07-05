@@ -29,7 +29,7 @@ Date:   Thu Apr 28 16:52:47 2016 -0700
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/amd64/ssa.go          |  24 +-
  src/cmd/compile/internal/arm/ssa.go            |   8 +-
  src/cmd/compile/internal/gc/ssa.go             |  11 +-
@@ -64,3 +64,2727 @@ Date:   Thu Apr 28 16:52:47 2016 -0700
  src/cmd/compile/internal/ssa/stackalloc.go     |   3 +-
  src/cmd/compile/internal/ssa/trim.go           |  31 +-
  33 files changed, 637 insertions(+), 561 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/ssa.go b/src/cmd/compile/internal/amd64/ssa.go
+index 1001e14b5c..54d878d92b 100644
+--- a/src/cmd/compile/internal/amd64/ssa.go
++++ b/src/cmd/compile/internal/amd64/ssa.go
+@@ -882,7 +882,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		// Optimization - if the subsequent block has a load or store
+ 		// at the same address, we don't need to issue this instruction.
+ 		mem := v.Args[1]
+-		for _, w := range v.Block.Succs[0].Values {
++		for _, w := range v.Block.Succs[0].Block().Values {
+ 			if w.Op == ssa.OpPhi {
+ 				if w.Type.IsMemory() {
+ 					mem = w
+@@ -978,10 +978,10 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
+ 
+ 	switch b.Kind {
+ 	case ssa.BlockPlain, ssa.BlockCall, ssa.BlockCheck:
+-		if b.Succs[0] != next {
++		if b.Succs[0].Block() != next {
+ 			p := gc.Prog(obj.AJMP)
+ 			p.To.Type = obj.TYPE_BRANCH
+-			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[0]})
++			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[0].Block()})
+ 		}
+ 	case ssa.BlockDefer:
+ 		// defer returns in rax:
+@@ -994,11 +994,11 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
+ 		p.To.Reg = x86.REG_AX
+ 		p = gc.Prog(x86.AJNE)
+ 		p.To.Type = obj.TYPE_BRANCH
+-		s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[1]})
+-		if b.Succs[0] != next {
++		s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[1].Block()})
++		if b.Succs[0].Block() != next {
+ 			p := gc.Prog(obj.AJMP)
+ 			p.To.Type = obj.TYPE_BRANCH
+-			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[0]})
++			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[0].Block()})
+ 		}
+ 	case ssa.BlockExit:
+ 		gc.Prog(obj.AUNDEF) // tell plive.go that we never reach here
+@@ -1025,22 +1025,22 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
+ 		likely := b.Likely
+ 		var p *obj.Prog
+ 		switch next {
+-		case b.Succs[0]:
++		case b.Succs[0].Block():
+ 			p = gc.Prog(jmp.invasm)
+ 			likely *= -1
+ 			p.To.Type = obj.TYPE_BRANCH
+-			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[1]})
+-		case b.Succs[1]:
++			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[1].Block()})
++		case b.Succs[1].Block():
+ 			p = gc.Prog(jmp.asm)
+ 			p.To.Type = obj.TYPE_BRANCH
+-			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[0]})
++			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[0].Block()})
+ 		default:
+ 			p = gc.Prog(jmp.asm)
+ 			p.To.Type = obj.TYPE_BRANCH
+-			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[0]})
++			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[0].Block()})
+ 			q := gc.Prog(obj.AJMP)
+ 			q.To.Type = obj.TYPE_BRANCH
+-			s.Branches = append(s.Branches, gc.Branch{P: q, B: b.Succs[1]})
++			s.Branches = append(s.Branches, gc.Branch{P: q, B: b.Succs[1].Block()})
+ 		}
+ 
+ 		// liblink reorders the instruction stream as it sees fit.
+diff --git a/src/cmd/compile/internal/arm/ssa.go b/src/cmd/compile/internal/arm/ssa.go
+index 665f8ffabc..8f466e338a 100644
+--- a/src/cmd/compile/internal/arm/ssa.go
++++ b/src/cmd/compile/internal/arm/ssa.go
+@@ -136,19 +136,19 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
+ 
+ 	switch b.Kind {
+ 	case ssa.BlockCall:
+-		if b.Succs[0] != next {
++		if b.Succs[0].Block() != next {
+ 			p := gc.Prog(obj.AJMP)
+ 			p.To.Type = obj.TYPE_BRANCH
+-			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[0]})
++			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[0].Block()})
+ 		}
+ 	case ssa.BlockRet:
+ 		gc.Prog(obj.ARET)
+ 	case ssa.BlockARMLT:
+ 		p := gc.Prog(arm.ABLT)
+ 		p.To.Type = obj.TYPE_BRANCH
+-		s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[0]})
++		s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[0].Block()})
+ 		p = gc.Prog(obj.AJMP)
+ 		p.To.Type = obj.TYPE_BRANCH
+-		s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[1]})
++		s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[1].Block()})
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index b05dedcfa9..0664a478c5 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -3799,7 +3799,8 @@ func (s *state) resolveFwdRef(v *ssa.Value) {
+ 	// Find variable value on each predecessor.
+ 	var argstore [4]*ssa.Value
+ 	args := argstore[:0]
+-	for _, p := range b.Preds {
++	for _, e := range b.Preds {
++		p := e.Block()
+ 		args = append(args, s.lookupVarOutgoing(p, v.Type, name, v.Line))
+ 	}
+ 
+@@ -4044,7 +4045,7 @@ func oneFPJump(b *ssa.Block, jumps *FloatingEQNEJump, likely ssa.BranchPredictio
+ 	p := Prog(jumps.Jump)
+ 	p.To.Type = obj.TYPE_BRANCH
+ 	to := jumps.Index
+-	branches = append(branches, Branch{p, b.Succs[to]})
++	branches = append(branches, Branch{p, b.Succs[to].Block()})
+ 	if to == 1 {
+ 		likely = -likely
+ 	}
+@@ -4066,10 +4067,10 @@ func oneFPJump(b *ssa.Block, jumps *FloatingEQNEJump, likely ssa.BranchPredictio
+ func SSAGenFPJump(s *SSAGenState, b, next *ssa.Block, jumps *[2][2]FloatingEQNEJump) {
+ 	likely := b.Likely
+ 	switch next {
+-	case b.Succs[0]:
++	case b.Succs[0].Block():
+ 		s.Branches = oneFPJump(b, &jumps[0][0], likely, s.Branches)
+ 		s.Branches = oneFPJump(b, &jumps[0][1], likely, s.Branches)
+-	case b.Succs[1]:
++	case b.Succs[1].Block():
+ 		s.Branches = oneFPJump(b, &jumps[1][0], likely, s.Branches)
+ 		s.Branches = oneFPJump(b, &jumps[1][1], likely, s.Branches)
+ 	default:
+@@ -4077,7 +4078,7 @@ func SSAGenFPJump(s *SSAGenState, b, next *ssa.Block, jumps *[2][2]FloatingEQNEJ
+ 		s.Branches = oneFPJump(b, &jumps[1][1], likely, s.Branches)
+ 		q := Prog(obj.AJMP)
+ 		q.To.Type = obj.TYPE_BRANCH
+-		s.Branches = append(s.Branches, Branch{q, b.Succs[1]})
++		s.Branches = append(s.Branches, Branch{q, b.Succs[1].Block()})
+ 	}
+ }
+ 
+diff --git a/src/cmd/compile/internal/ssa/block.go b/src/cmd/compile/internal/ssa/block.go
+index ffe4615578..77f8306dc2 100644
+--- a/src/cmd/compile/internal/ssa/block.go
++++ b/src/cmd/compile/internal/ssa/block.go
+@@ -12,18 +12,30 @@ type Block struct {
+ 	// these IDs densely, but no guarantees.
+ 	ID ID
+ 
++	// Line number for block's control operation
++	Line int32
++
+ 	// The kind of block this is.
+ 	Kind BlockKind
+ 
++	// Likely direction for branches.
++	// If BranchLikely, Succs[0] is the most likely branch taken.
++	// If BranchUnlikely, Succs[1] is the most likely branch taken.
++	// Ignored if len(Succs) < 2.
++	// Fatal if not BranchUnknown and len(Succs) > 2.
++	Likely BranchPrediction
++
++	// After flagalloc, records whether flags are live at the end of the block.
++	FlagsLiveAtEnd bool
++
+ 	// Subsequent blocks, if any. The number and order depend on the block kind.
+-	// All successors must be distinct (to make phi values in successors unambiguous).
+-	Succs []*Block
++	Succs []Edge
+ 
+ 	// Inverse of successors.
+ 	// The order is significant to Phi nodes in the block.
+-	Preds []*Block
+ 	// TODO: predecessors is a pain to maintain. Can we somehow order phi
+ 	// arguments by block id and have this field computed explicitly when needed?
++	Preds []Edge
+ 
+ 	// A value that determines how the block is exited. Its value depends on the kind
+ 	// of the block. For instance, a BlockIf has a boolean control value and BlockExit
+@@ -41,23 +53,41 @@ type Block struct {
+ 	// The containing function
+ 	Func *Func
+ 
+-	// Line number for block's control operation
+-	Line int32
+-
+-	// Likely direction for branches.
+-	// If BranchLikely, Succs[0] is the most likely branch taken.
+-	// If BranchUnlikely, Succs[1] is the most likely branch taken.
+-	// Ignored if len(Succs) < 2.
+-	// Fatal if not BranchUnknown and len(Succs) > 2.
+-	Likely BranchPrediction
++	// Storage for Succs, Preds, and Values
++	succstorage [2]Edge
++	predstorage [4]Edge
++	valstorage  [9]*Value
++}
+ 
+-	// After flagalloc, records whether flags are live at the end of the block.
+-	FlagsLiveAtEnd bool
++// Edge represents a CFG edge.
++// Example edges for b branching to either c or d.
++// (c and d have other predecessors.)
++//   b.Succs = [{c,3}, {d,1}]
++//   c.Preds = [?, ?, ?, {b,0}]
++//   d.Preds = [?, {b,1}, ?]
++// These indexes allow us to edit the CFG in constant time.
++// In addition, it informs phi ops in degenerate cases like:
++// b:
++//    if k then c else c
++// c:
++//    v = Phi(x, y)
++// Then the indexes tell you whether x is chosen from
++// the if or else branch from b.
++//   b.Succs = [{c,0},{c,1}]
++//   c.Preds = [{b,0},{b,1}]
++// means x is chosen if k is true.
++type Edge struct {
++	// block edge goes to (in a Succs list) or from (in a Preds list)
++	b *Block
++	// index of reverse edge.  Invariant:
++	//   e := x.Succs[idx]
++	//   e.b.Preds[e.i] = Edge{x,idx}
++	// and similarly for predecessors.
++	i int
++}
+ 
+-	// Storage for Succs, Preds, and Values
+-	succstorage [2]*Block
+-	predstorage [4]*Block
+-	valstorage  [8]*Value
++func (e Edge) Block() *Block {
++	return e.b
+ }
+ 
+ //     kind           control    successors
+@@ -66,7 +96,7 @@ type Block struct {
+ //    Plain               nil            [next]
+ //       If   a boolean Value      [then, else]
+ //     Call               mem  [nopanic, panic]  (control opcode should be OpCall or OpStaticCall)
+-type BlockKind int32
++type BlockKind int8
+ 
+ // short form print
+ func (b *Block) String() string {
+@@ -85,7 +115,7 @@ func (b *Block) LongString() string {
+ 	if len(b.Succs) > 0 {
+ 		s += " ->"
+ 		for _, c := range b.Succs {
+-			s += " " + c.String()
++			s += " " + c.b.String()
+ 		}
+ 	}
+ 	switch b.Likely {
+@@ -110,8 +140,53 @@ func (b *Block) SetControl(v *Value) {
+ // AddEdgeTo adds an edge from block b to block c. Used during building of the
+ // SSA graph; do not use on an already-completed SSA graph.
+ func (b *Block) AddEdgeTo(c *Block) {
+-	b.Succs = append(b.Succs, c)
+-	c.Preds = append(c.Preds, b)
++	i := len(b.Succs)
++	j := len(c.Preds)
++	b.Succs = append(b.Succs, Edge{c, j})
++	c.Preds = append(c.Preds, Edge{b, i})
++}
++
++// removePred removes the ith input edge from b.
++// It is the responsibility of the caller to remove
++// the corresponding successor edge.
++func (b *Block) removePred(i int) {
++	n := len(b.Preds) - 1
++	if i != n {
++		e := b.Preds[n]
++		b.Preds[i] = e
++		// Update the other end of the edge we moved.
++		e.b.Succs[e.i].i = i
++	}
++	b.Preds[n] = Edge{}
++	b.Preds = b.Preds[:n]
++}
++
++// removeSucc removes the ith output edge from b.
++// It is the responsibility of the caller to remove
++// the corresponding predecessor edge.
++func (b *Block) removeSucc(i int) {
++	n := len(b.Succs) - 1
++	if i != n {
++		e := b.Succs[n]
++		b.Succs[i] = e
++		// Update the other end of the edge we moved.
++		e.b.Preds[e.i].i = i
++	}
++	b.Succs[n] = Edge{}
++	b.Succs = b.Succs[:n]
++}
++
++func (b *Block) swapSuccessors() {
++	if len(b.Succs) != 2 {
++		b.Fatalf("swapSuccessors with len(Succs)=%d", len(b.Succs))
++	}
++	e0 := b.Succs[0]
++	e1 := b.Succs[1]
++	b.Succs[0] = e1
++	b.Succs[1] = e0
++	e0.b.Preds[e0.i].i = 1
++	e1.b.Preds[e1.i].i = 0
++	b.Likely *= -1
+ }
+ 
+ func (b *Block) Logf(msg string, args ...interface{})           { b.Func.Logf(msg, args...) }
+diff --git a/src/cmd/compile/internal/ssa/check.go b/src/cmd/compile/internal/ssa/check.go
+index d77b912041..60be3de521 100644
+--- a/src/cmd/compile/internal/ssa/check.go
++++ b/src/cmd/compile/internal/ssa/check.go
+@@ -18,36 +18,14 @@ func checkFunc(f *Func) {
+ 			f.Fatalf("%s.Func=%s, want %s", b, b.Func.Name, f.Name)
+ 		}
+ 
+-		if f.RegAlloc == nil {
+-			for i, c := range b.Succs {
+-				for j, d := range b.Succs {
+-					if i != j && c == d {
+-						f.Fatalf("%s.Succs has duplicate block %s", b, c)
+-					}
+-				}
++		for i, e := range b.Preds {
++			if se := e.b.Succs[e.i]; se.b != b || se.i != i {
++				f.Fatalf("block pred/succ not crosslinked correctly %d:%s %d:%s", i, b, se.i, se.b)
+ 			}
+ 		}
+-		// Note: duplicate successors are hard in the following case:
+-		//      if(...) goto x else goto x
+-		//   x: v = phi(a, b)
+-		// If the conditional is true, does v get the value of a or b?
+-		// We could solve this other ways, but the easiest is just to
+-		// require (by possibly adding empty control-flow blocks) that
+-		// all successors are distinct. They will need to be distinct
+-		// anyway for register allocation (duplicate successors implies
+-		// the existence of critical edges).
+-		// After regalloc we can allow non-distinct predecessors.
+-
+-		for _, p := range b.Preds {
+-			var found bool
+-			for _, c := range p.Succs {
+-				if c == b {
+-					found = true
+-					break
+-				}
+-			}
+-			if !found {
+-				f.Fatalf("block %s is not a succ of its pred block %s", b, p)
++		for i, e := range b.Succs {
++			if pe := e.b.Preds[e.i]; pe.b != b || pe.i != i {
++				f.Fatalf("block succ/pred not crosslinked correctly %d:%s %d:%s", i, b, pe.i, pe.b)
+ 			}
+ 		}
+ 
+@@ -252,12 +230,12 @@ func checkFunc(f *Func) {
+ 	}
+ 	for _, b := range f.Blocks {
+ 		for _, c := range b.Preds {
+-			if !blockMark[c.ID] {
++			if !blockMark[c.b.ID] {
+ 				f.Fatalf("predecessor block %v for %v is missing", c, b)
+ 			}
+ 		}
+ 		for _, c := range b.Succs {
+-			if !blockMark[c.ID] {
++			if !blockMark[c.b.ID] {
+ 				f.Fatalf("successor block %v for %v is missing", c, b)
+ 			}
+ 		}
+@@ -280,7 +258,7 @@ func checkFunc(f *Func) {
+ 			f.Fatalf("control value for %s is missing: %v", b, b.Control)
+ 		}
+ 	}
+-	for b := f.freeBlocks; b != nil; b = b.succstorage[0] {
++	for b := f.freeBlocks; b != nil; b = b.succstorage[0].b {
+ 		if blockMark[b.ID] {
+ 			f.Fatalf("used block b%d in free list", b.ID)
+ 		}
+@@ -303,7 +281,7 @@ func checkFunc(f *Func) {
+ 					x := arg.Block
+ 					y := b
+ 					if v.Op == OpPhi {
+-						y = b.Preds[i]
++						y = b.Preds[i].b
+ 					}
+ 					if !domCheck(f, sdom, x, y) {
+ 						f.Fatalf("arg %d of value %s does not dominate, arg=%s", i, v.LongString(), arg.LongString())
+diff --git a/src/cmd/compile/internal/ssa/critical.go b/src/cmd/compile/internal/ssa/critical.go
+index cd6c58b0b1..38cd3cbb29 100644
+--- a/src/cmd/compile/internal/ssa/critical.go
++++ b/src/cmd/compile/internal/ssa/critical.go
+@@ -40,9 +40,12 @@ func critical(f *Func) {
+ 		}
+ 
+ 		// split input edges coming from multi-output blocks.
+-		for i := 0; i < len(b.Preds); i++ {
+-			c := b.Preds[i]
+-			if c.Kind == BlockPlain {
++		for i := 0; i < len(b.Preds); {
++			e := b.Preds[i]
++			p := e.b
++			pi := e.i
++			if p.Kind == BlockPlain {
++				i++
+ 				continue // only single output block
+ 			}
+ 
+@@ -57,10 +60,10 @@ func critical(f *Func) {
+ 					// since we're iterating over len(f.Blocks) above, this forces
+ 					// the new blocks to be re-examined.
+ 					d = f.NewBlock(BlockPlain)
+-					d.Line = c.Line
++					d.Line = p.Line
+ 					blocks[argID] = d
+ 					if f.pass.debug > 0 {
+-						f.Config.Warnl(c.Line, "split critical edge")
++						f.Config.Warnl(p.Line, "split critical edge")
+ 					}
+ 				} else {
+ 					reusedBlock = true
+@@ -69,9 +72,9 @@ func critical(f *Func) {
+ 				// no existing block, so allocate a new block
+ 				// to place on the edge
+ 				d = f.NewBlock(BlockPlain)
+-				d.Line = c.Line
++				d.Line = p.Line
+ 				if f.pass.debug > 0 {
+-					f.Config.Warnl(c.Line, "split critical edge")
++					f.Config.Warnl(p.Line, "split critical edge")
+ 				}
+ 			}
+ 
+@@ -80,57 +83,34 @@ func critical(f *Func) {
+ 			// corresponding elements from the block
+ 			// predecessors and phi args
+ 			if reusedBlock {
+-				d.Preds = append(d.Preds, c)
+-				b.Preds[i] = nil
++				// Add p->d edge
++				p.Succs[pi] = Edge{d, len(d.Preds)}
++				d.Preds = append(d.Preds, Edge{p, pi})
++
++				// Remove p as a predecessor from b.
++				b.removePred(i)
++
++				// Update corresponding phi args
++				n := len(b.Preds)
+ 				phi.Args[i].Uses--
+-				phi.Args[i] = nil
++				phi.Args[i] = phi.Args[n]
++				phi.Args[n] = nil
++				phi.Args = phi.Args[:n]
++				// splitting occasionally leads to a phi having
++				// a single argument (occurs with -N)
++				if n == 1 {
++					phi.Op = OpCopy
++				}
++				// Don't increment i in this case because we moved
++				// an unprocessed predecessor down into slot i.
+ 			} else {
+ 				// splice it in
+-				d.Preds = append(d.Preds, c)
+-				d.Succs = append(d.Succs, b)
+-				b.Preds[i] = d
+-			}
+-
+-			// replace b with d in c's successor list.
+-			for j, b2 := range c.Succs {
+-				if b2 == b {
+-					c.Succs[j] = d
+-					break
+-				}
++				p.Succs[pi] = Edge{d, 0}
++				b.Preds[i] = Edge{d, 0}
++				d.Preds = append(d.Preds, Edge{p, pi})
++				d.Succs = append(d.Succs, Edge{b, i})
++				i++
+ 			}
+ 		}
+-
+-		// clean up phi's args and b's predecessor list
+-		if phi != nil {
+-			phi.Args = filterNilValues(phi.Args)
+-			b.Preds = filterNilBlocks(b.Preds)
+-			// splitting occasionally leads to a phi having
+-			// a single argument (occurs with -N)
+-			if len(phi.Args) == 1 {
+-				phi.Op = OpCopy
+-			}
+-		}
+-	}
+-}
+-
+-// filterNilValues preserves the order of v, while filtering out nils.
+-func filterNilValues(v []*Value) []*Value {
+-	nv := v[:0]
+-	for i := range v {
+-		if v[i] != nil {
+-			nv = append(nv, v[i])
+-		}
+-	}
+-	return nv
+-}
+-
+-// filterNilBlocks preserves the order of b, while filtering out nils.
+-func filterNilBlocks(b []*Block) []*Block {
+-	nb := b[:0]
+-	for i := range b {
+-		if b[i] != nil {
+-			nb = append(nb, b[i])
+-		}
+ 	}
+-	return nb
+ }
+diff --git a/src/cmd/compile/internal/ssa/deadcode.go b/src/cmd/compile/internal/ssa/deadcode.go
+index ae990026f5..5ccf39027f 100644
+--- a/src/cmd/compile/internal/ssa/deadcode.go
++++ b/src/cmd/compile/internal/ssa/deadcode.go
+@@ -25,7 +25,8 @@ func reachableBlocks(f *Func) []bool {
+ 		if b.Kind == BlockFirst {
+ 			s = s[:1]
+ 		}
+-		for _, c := range s {
++		for _, e := range s {
++			c := e.b
+ 			if !reachable[c.ID] {
+ 				reachable[c.ID] = true
+ 				p = append(p, c) // push
+@@ -69,7 +70,7 @@ func liveValues(f *Func, reachable []bool) []bool {
+ 		v := q[len(q)-1]
+ 		q = q[:len(q)-1]
+ 		for i, x := range v.Args {
+-			if v.Op == OpPhi && !reachable[v.Block.Preds[i].ID] {
++			if v.Op == OpPhi && !reachable[v.Block.Preds[i].b.ID] {
+ 				continue
+ 			}
+ 			if !live[x.ID] {
+@@ -100,9 +101,12 @@ func deadcode(f *Func) {
+ 		if reachable[b.ID] {
+ 			continue
+ 		}
+-		for _, c := range b.Succs {
+-			if reachable[c.ID] {
+-				c.removePred(b)
++		for i := 0; i < len(b.Succs); {
++			e := b.Succs[i]
++			if reachable[e.b.ID] {
++				b.removeEdge(i)
++			} else {
++				i++
+ 			}
+ 		}
+ 	}
+@@ -115,16 +119,9 @@ func deadcode(f *Func) {
+ 		if b.Kind != BlockFirst {
+ 			continue
+ 		}
+-		c := b.Succs[1]
+-		b.Succs[1] = nil
+-		b.Succs = b.Succs[:1]
++		b.removeEdge(1)
+ 		b.Kind = BlockPlain
+ 		b.Likely = BranchUnknown
+-
+-		if reachable[c.ID] {
+-			// Note: c must be reachable through some other edge.
+-			c.removePred(b)
+-		}
+ 	}
+ 
+ 	// Splice out any copies introduced during dead block removal.
+@@ -217,35 +214,28 @@ func deadcode(f *Func) {
+ 	f.Blocks = f.Blocks[:i]
+ }
+ 
+-// removePred removes the predecessor p from b's predecessor list.
+-func (b *Block) removePred(p *Block) {
+-	var i int
+-	found := false
+-	for j, q := range b.Preds {
+-		if q == p {
+-			i = j
+-			found = true
+-			break
+-		}
+-	}
+-	// TODO: the above loop could make the deadcode pass take quadratic time
+-	if !found {
+-		b.Fatalf("can't find predecessor %v of %v\n", p, b)
+-	}
++// removeEdge removes the i'th outgoing edge from b (and
++// the corresponding incoming edge from b.Succs[i].b).
++func (b *Block) removeEdge(i int) {
++	e := b.Succs[i]
++	c := e.b
++	j := e.i
++
++	// Adjust b.Succs
++	b.removeSucc(i)
+ 
+-	n := len(b.Preds) - 1
+-	b.Preds[i] = b.Preds[n]
+-	b.Preds[n] = nil // aid GC
+-	b.Preds = b.Preds[:n]
++	// Adjust c.Preds
++	c.removePred(j)
+ 
+-	// rewrite phi ops to match the new predecessor list
+-	for _, v := range b.Values {
++	// Remove phi args from c's phis.
++	n := len(c.Preds)
++	for _, v := range c.Values {
+ 		if v.Op != OpPhi {
+ 			continue
+ 		}
+-		v.Args[i].Uses--
+-		v.Args[i] = v.Args[n]
+-		v.Args[n] = nil // aid GC
++		v.Args[j].Uses--
++		v.Args[j] = v.Args[n]
++		v.Args[n] = nil
+ 		v.Args = v.Args[:n]
+ 		phielimValue(v)
+ 		// Note: this is trickier than it looks. Replacing
+diff --git a/src/cmd/compile/internal/ssa/deadcode_test.go b/src/cmd/compile/internal/ssa/deadcode_test.go
+index 24934d5ac4..b1d8d0fff0 100644
+--- a/src/cmd/compile/internal/ssa/deadcode_test.go
++++ b/src/cmd/compile/internal/ssa/deadcode_test.go
+@@ -4,7 +4,11 @@
+ 
+ package ssa
+ 
+-import "testing"
++import (
++	"fmt"
++	"strconv"
++	"testing"
++)
+ 
+ func TestDeadLoop(t *testing.T) {
+ 	c := testConfig(t)
+@@ -132,3 +136,26 @@ func TestNestedDeadBlocks(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func BenchmarkDeadCode(b *testing.B) {
++	for _, n := range [...]int{1, 10, 100, 1000, 10000, 100000, 200000} {
++		b.Run(strconv.Itoa(n), func(b *testing.B) {
++			c := testConfig(b)
++			blocks := make([]bloc, 0, n+2)
++			blocks = append(blocks,
++				Bloc("entry",
++					Valu("mem", OpInitMem, TypeMem, 0, nil),
++					Goto("exit")))
++			blocks = append(blocks, Bloc("exit", Exit("mem")))
++			for i := 0; i < n; i++ {
++				blocks = append(blocks, Bloc(fmt.Sprintf("dead%d", i), Goto("exit")))
++			}
++			b.ResetTimer()
++			for i := 0; i < b.N; i++ {
++				fun := Fun(c, "entry", blocks...)
++				Deadcode(fun.f)
++				fun.f.Free()
++			}
++		})
++	}
++}
+diff --git a/src/cmd/compile/internal/ssa/dom.go b/src/cmd/compile/internal/ssa/dom.go
+index c0a4bb4188..78ba2e9e1b 100644
+--- a/src/cmd/compile/internal/ssa/dom.go
++++ b/src/cmd/compile/internal/ssa/dom.go
+@@ -47,7 +47,8 @@ func postorderWithNumbering(f *Func, ponums []int) []*Block {
+ 			// Children have not been visited yet. Mark as explored
+ 			// and queue any children we haven't seen yet.
+ 			mark[b.ID] = explored
+-			for _, c := range b.Succs {
++			for _, e := range b.Succs {
++				c := e.b
+ 				if mark[c.ID] == notFound {
+ 					mark[c.ID] = notExplored
+ 					s = append(s, c)
+@@ -60,7 +61,7 @@ func postorderWithNumbering(f *Func, ponums []int) []*Block {
+ 	return order
+ }
+ 
+-type linkedBlocks func(*Block) []*Block
++type linkedBlocks func(*Block) []Edge
+ 
+ const nscratchslices = 7
+ 
+@@ -101,8 +102,8 @@ func (cfg *Config) scratchBlocksForDom(maxBlockID int) (a, b, c, d, e, f, g []ID
+ }
+ 
+ func dominators(f *Func) []*Block {
+-	preds := func(b *Block) []*Block { return b.Preds }
+-	succs := func(b *Block) []*Block { return b.Succs }
++	preds := func(b *Block) []Edge { return b.Preds }
++	succs := func(b *Block) []Edge { return b.Succs }
+ 
+ 	//TODO: benchmark and try to find criteria for swapping between
+ 	// dominatorsSimple and dominatorsLT
+@@ -135,7 +136,8 @@ func (f *Func) dominatorsLTOrig(entry *Block, predFn linkedBlocks, succFn linked
+ 		w := vertex[i]
+ 
+ 		// step2 in TOPLAS paper
+-		for _, v := range predFn(fromID[w]) {
++		for _, e := range predFn(fromID[w]) {
++			v := e.b
+ 			if semi[v.ID] == 0 {
+ 				// skip unreachable predecessor
+ 				// not in original, but we're using existing pred instead of building one.
+@@ -199,7 +201,8 @@ func (f *Func) dfsOrig(entry *Block, succFn linkedBlocks, semi, vertex, label, p
+ 		vertex[n] = v.ID
+ 		label[v.ID] = v.ID
+ 		// ancestor[v] already zero
+-		for _, w := range succFn(v) {
++		for _, e := range succFn(v) {
++			w := e.b
+ 			// if it has a dfnum, we've already visited it
+ 			if semi[w.ID] == 0 {
+ 				// yes, w can be pushed multiple times.
+@@ -265,7 +268,8 @@ func dominatorsSimple(f *Func) []*Block {
+ 		for i := len(post) - 2; i >= 0; i-- {
+ 			b := post[i]
+ 			var d *Block
+-			for _, p := range b.Preds {
++			for _, e := range b.Preds {
++				p := e.b
+ 				if idom[p.ID] == nil {
+ 					continue
+ 				}
+diff --git a/src/cmd/compile/internal/ssa/flagalloc.go b/src/cmd/compile/internal/ssa/flagalloc.go
+index 6f20bea9ce..f6c457dc9e 100644
+--- a/src/cmd/compile/internal/ssa/flagalloc.go
++++ b/src/cmd/compile/internal/ssa/flagalloc.go
+@@ -43,7 +43,8 @@ func flagalloc(f *Func) {
+ 				}
+ 			}
+ 			if flag != nil {
+-				for _, p := range b.Preds {
++				for _, e := range b.Preds {
++					p := e.b
+ 					end[p.ID] = flag
+ 				}
+ 			}
+@@ -73,9 +74,10 @@ func flagalloc(f *Func) {
+ 		// The current live flag value the pre-flagalloc copy).
+ 		var flag *Value
+ 		if len(b.Preds) > 0 {
+-			flag = end[b.Preds[0].ID]
++			flag = end[b.Preds[0].b.ID]
+ 			// Note: the following condition depends on the lack of critical edges.
+-			for _, p := range b.Preds[1:] {
++			for _, e := range b.Preds[1:] {
++				p := e.b
+ 				if end[p.ID] != flag {
+ 					f.Fatalf("live flag in %s's predecessors not consistent", b)
+ 				}
+diff --git a/src/cmd/compile/internal/ssa/func.go b/src/cmd/compile/internal/ssa/func.go
+index 11ff8d3792..2c7a8a1f11 100644
+--- a/src/cmd/compile/internal/ssa/func.go
++++ b/src/cmd/compile/internal/ssa/func.go
+@@ -34,7 +34,7 @@ type Func struct {
+ 	Names []LocalSlot
+ 
+ 	freeValues *Value // free Values linked by argstorage[0].  All other fields except ID are 0/nil.
+-	freeBlocks *Block // free Blocks linked by succstorage[0].  All other fields except ID are 0/nil.
++	freeBlocks *Block // free Blocks linked by succstorage[0].b.  All other fields except ID are 0/nil.
+ 
+ 	idom []*Block   // precomputed immediate dominators
+ 	sdom sparseTree // precomputed dominator tree
+@@ -146,8 +146,8 @@ func (f *Func) NewBlock(kind BlockKind) *Block {
+ 	var b *Block
+ 	if f.freeBlocks != nil {
+ 		b = f.freeBlocks
+-		f.freeBlocks = b.succstorage[0]
+-		b.succstorage[0] = nil
++		f.freeBlocks = b.succstorage[0].b
++		b.succstorage[0].b = nil
+ 	} else {
+ 		ID := f.bid.get()
+ 		if int(ID) < len(f.Config.blocks) {
+@@ -173,7 +173,7 @@ func (f *Func) freeBlock(b *Block) {
+ 	id := b.ID
+ 	*b = Block{}
+ 	b.ID = id
+-	b.succstorage[0] = f.freeBlocks
++	b.succstorage[0].b = f.freeBlocks
+ 	f.freeBlocks = b
+ }
+ 
+diff --git a/src/cmd/compile/internal/ssa/func_test.go b/src/cmd/compile/internal/ssa/func_test.go
+index ddb9ccbe72..7136d8fb08 100644
+--- a/src/cmd/compile/internal/ssa/func_test.go
++++ b/src/cmd/compile/internal/ssa/func_test.go
+@@ -104,7 +104,7 @@ func Equiv(f, g *Func) bool {
+ 				return false
+ 			}
+ 			for i := range fb.Succs {
+-				if !checkBlk(fb.Succs[i], gb.Succs[i]) {
++				if !checkBlk(fb.Succs[i].b, gb.Succs[i].b) {
+ 					return false
+ 				}
+ 			}
+@@ -112,7 +112,7 @@ func Equiv(f, g *Func) bool {
+ 				return false
+ 			}
+ 			for i := range fb.Preds {
+-				if !checkBlk(fb.Preds[i], gb.Preds[i]) {
++				if !checkBlk(fb.Preds[i].b, gb.Preds[i].b) {
+ 					return false
+ 				}
+ 			}
+diff --git a/src/cmd/compile/internal/ssa/fuse.go b/src/cmd/compile/internal/ssa/fuse.go
+index ce759cdec1..afb8bb21f8 100644
+--- a/src/cmd/compile/internal/ssa/fuse.go
++++ b/src/cmd/compile/internal/ssa/fuse.go
+@@ -25,6 +25,11 @@ func fuse(f *Func) {
+ //
+ // If all Phi ops in ss have identical variables for slots corresponding to
+ // s0, s1 and b then the branch can be dropped.
++// This optimization often comes up in switch statements with multiple
++// expressions in a case clause:
++//   switch n {
++//     case 1,2,3: return 4
++//   }
+ // TODO: If ss doesn't contain any OpPhis, are s0 and s1 dead code anyway.
+ func fuseBlockIf(b *Block) bool {
+ 	if b.Kind != BlockIf {
+@@ -32,17 +37,21 @@ func fuseBlockIf(b *Block) bool {
+ 	}
+ 
+ 	var ss0, ss1 *Block
+-	s0 := b.Succs[0]
++	s0 := b.Succs[0].b
++	i0 := b.Succs[0].i
+ 	if s0.Kind != BlockPlain || len(s0.Preds) != 1 || len(s0.Values) != 0 {
+ 		s0, ss0 = b, s0
+ 	} else {
+-		ss0 = s0.Succs[0]
++		ss0 = s0.Succs[0].b
++		i0 = s0.Succs[0].i
+ 	}
+-	s1 := b.Succs[1]
++	s1 := b.Succs[1].b
++	i1 := b.Succs[1].i
+ 	if s1.Kind != BlockPlain || len(s1.Preds) != 1 || len(s1.Values) != 0 {
+ 		s1, ss1 = b, s1
+ 	} else {
+-		ss1 = s1.Succs[0]
++		ss1 = s1.Succs[0].b
++		i1 = s1.Succs[0].i
+ 	}
+ 
+ 	if ss0 != ss1 {
+@@ -52,18 +61,7 @@ func fuseBlockIf(b *Block) bool {
+ 
+ 	// s0 and s1 are equal with b if the corresponding block is missing
+ 	// (2nd, 3rd and 4th case in the figure).
+-	i0, i1 := -1, -1
+-	for i, p := range ss.Preds {
+-		if p == s0 {
+-			i0 = i
+-		}
+-		if p == s1 {
+-			i1 = i
+-		}
+-	}
+-	if i0 == -1 || i1 == -1 {
+-		b.Fatalf("invalid predecessors")
+-	}
++
+ 	for _, v := range ss.Values {
+ 		if v.Op == OpPhi && v.Uses > 0 && v.Args[i0] != v.Args[i1] {
+ 			return false
+@@ -76,28 +74,23 @@ func fuseBlockIf(b *Block) bool {
+ 	// have identical predecessors (verified above).
+ 	// No critical edge is introduced because b will have one successor.
+ 	if s0 != b && s1 != b {
+-		ss.removePred(s0)
+-
+-		// Replace edge b->s1->ss with b->ss.
++		// Replace edge b->s0->ss with b->ss.
+ 		// We need to keep a slot for Phis corresponding to b.
+-		for i := range b.Succs {
+-			if b.Succs[i] == s1 {
+-				b.Succs[i] = ss
+-			}
+-		}
+-		for i := range ss.Preds {
+-			if ss.Preds[i] == s1 {
+-				ss.Preds[i] = b
+-			}
+-		}
++		b.Succs[0] = Edge{ss, i0}
++		ss.Preds[i0] = Edge{b, 0}
++		b.removeEdge(1)
++		s1.removeEdge(0)
+ 	} else if s0 != b {
+-		ss.removePred(s0)
++		b.removeEdge(0)
++		s0.removeEdge(0)
+ 	} else if s1 != b {
+-		ss.removePred(s1)
++		b.removeEdge(1)
++		s1.removeEdge(0)
++	} else {
++		b.removeEdge(1)
+ 	}
+ 	b.Kind = BlockPlain
+ 	b.SetControl(nil)
+-	b.Succs = append(b.Succs[:0], ss)
+ 
+ 	// Trash the empty blocks s0 & s1.
+ 	if s0 != b {
+@@ -120,30 +113,27 @@ func fuseBlockPlain(b *Block) bool {
+ 		return false
+ 	}
+ 
+-	c := b.Succs[0]
++	c := b.Succs[0].b
+ 	if len(c.Preds) != 1 {
+ 		return false
+ 	}
+ 
+-	// move all of b'c values to c.
++	// move all of b's values to c.
+ 	for _, v := range b.Values {
+ 		v.Block = c
+ 		c.Values = append(c.Values, v)
+ 	}
+ 
+ 	// replace b->c edge with preds(b) -> c
+-	c.predstorage[0] = nil
++	c.predstorage[0] = Edge{}
+ 	if len(b.Preds) > len(b.predstorage) {
+ 		c.Preds = b.Preds
+ 	} else {
+ 		c.Preds = append(c.predstorage[:0], b.Preds...)
+ 	}
+-	for _, p := range c.Preds {
+-		for i, q := range p.Succs {
+-			if q == b {
+-				p.Succs[i] = c
+-			}
+-		}
++	for i, e := range c.Preds {
++		p := e.b
++		p.Succs[e.i] = Edge{c, i}
+ 	}
+ 	if f := b.Func; f.Entry == b {
+ 		f.Entry = c
+diff --git a/src/cmd/compile/internal/ssa/fuse_test.go b/src/cmd/compile/internal/ssa/fuse_test.go
+index 937fb71031..b316a48261 100644
+--- a/src/cmd/compile/internal/ssa/fuse_test.go
++++ b/src/cmd/compile/internal/ssa/fuse_test.go
+@@ -1,6 +1,8 @@
+ package ssa
+ 
+ import (
++	"fmt"
++	"strconv"
+ 	"testing"
+ )
+ 
+@@ -127,3 +129,41 @@ func TestFuseEliminatesEmptyBlocks(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func BenchmarkFuse(b *testing.B) {
++	for _, n := range [...]int{1, 10, 100, 1000, 10000} {
++		b.Run(strconv.Itoa(n), func(b *testing.B) {
++			c := testConfig(b)
++
++			blocks := make([]bloc, 0, 2*n+3)
++			blocks = append(blocks,
++				Bloc("entry",
++					Valu("mem", OpInitMem, TypeMem, 0, nil),
++					Valu("cond", OpArg, TypeBool, 0, nil),
++					Valu("x", OpArg, TypeInt64, 0, nil),
++					Goto("exit")))
++
++			phiArgs := make([]string, 0, 2*n)
++			for i := 0; i < n; i++ {
++				cname := fmt.Sprintf("c%d", i)
++				blocks = append(blocks,
++					Bloc(fmt.Sprintf("b%d", i), If("cond", cname, "merge")),
++					Bloc(cname, Goto("merge")))
++				phiArgs = append(phiArgs, "x", "x")
++			}
++			blocks = append(blocks,
++				Bloc("merge",
++					Valu("phi", OpPhi, TypeMem, 0, nil, phiArgs...),
++					Goto("exit")),
++				Bloc("exit",
++					Exit("mem")))
++
++			b.ResetTimer()
++			for i := 0; i < b.N; i++ {
++				fun := Fun(c, "entry", blocks...)
++				fuse(fun.f)
++				fun.f.Free()
++			}
++		})
++	}
++}
+diff --git a/src/cmd/compile/internal/ssa/gen/rulegen.go b/src/cmd/compile/internal/ssa/gen/rulegen.go
+index 8dd5032c55..fcabdb1dd9 100644
+--- a/src/cmd/compile/internal/ssa/gen/rulegen.go
++++ b/src/cmd/compile/internal/ssa/gen/rulegen.go
+@@ -273,35 +273,30 @@ func genRules(arch arch) {
+ 				log.Fatalf("unmatched successors %v in %s", m, rule)
+ 			}
+ 
+-			// Modify predecessor lists for no-longer-reachable blocks
+-			for succ := range m {
+-				fmt.Fprintf(w, "b.Func.removePredecessor(b, %s)\n", succ)
+-			}
+-
+ 			fmt.Fprintf(w, "b.Kind = %s\n", blockName(t[0], arch))
+ 			if t[1] == "nil" {
+ 				fmt.Fprintf(w, "b.SetControl(nil)\n")
+ 			} else {
+ 				fmt.Fprintf(w, "b.SetControl(%s)\n", genResult0(w, arch, t[1], new(int), false, false, rule.loc))
+ 			}
+-			if len(newsuccs) < len(succs) {
+-				fmt.Fprintf(w, "b.Succs = b.Succs[:%d]\n", len(newsuccs))
++
++			succChanged := false
++			for i := 0; i < len(succs); i++ {
++				if succs[i] != newsuccs[i] {
++					succChanged = true
++				}
+ 			}
+-			for i, a := range newsuccs {
+-				fmt.Fprintf(w, "b.Succs[%d] = %s\n", i, a)
++			if succChanged {
++				if len(succs) != 2 {
++					log.Fatalf("changed successors, len!=2 in %s", rule)
++				}
++				if succs[0] != newsuccs[1] || succs[1] != newsuccs[0] {
++					log.Fatalf("can only handle swapped successors in %s", rule)
++				}
++				fmt.Fprintln(w, "b.swapSuccessors()")
+ 			}
+-			// Update branch prediction
+-			switch {
+-			case len(newsuccs) != 2:
+-				fmt.Fprintln(w, "b.Likely = BranchUnknown")
+-			case newsuccs[0] == succs[0] && newsuccs[1] == succs[1]:
+-				// unchanged
+-			case newsuccs[0] == succs[1] && newsuccs[1] == succs[0]:
+-				// flipped
+-				fmt.Fprintln(w, "b.Likely *= -1")
+-			default:
+-				// unknown
+-				fmt.Fprintln(w, "b.Likely = BranchUnknown")
++			for i := 0; i < len(succs); i++ {
++				fmt.Fprintf(w, "_ = %s\n", newsuccs[i])
+ 			}
+ 
+ 			if *genLog {
+diff --git a/src/cmd/compile/internal/ssa/html.go b/src/cmd/compile/internal/ssa/html.go
+index fee092519b..7432a07054 100644
+--- a/src/cmd/compile/internal/ssa/html.go
++++ b/src/cmd/compile/internal/ssa/html.go
+@@ -383,7 +383,8 @@ func (b *Block) LongHTML() string {
+ 	}
+ 	if len(b.Succs) > 0 {
+ 		s += " &#8594;" // right arrow
+-		for _, c := range b.Succs {
++		for _, e := range b.Succs {
++			c := e.b
+ 			s += " " + c.HTML()
+ 		}
+ 	}
+@@ -423,7 +424,8 @@ func (p htmlFuncPrinter) startBlock(b *Block, reachable bool) {
+ 	fmt.Fprintf(p.w, "<li class=\"ssa-start-block\">%s:", b.HTML())
+ 	if len(b.Preds) > 0 {
+ 		io.WriteString(p.w, " &#8592;") // left arrow
+-		for _, pred := range b.Preds {
++		for _, e := range b.Preds {
++			pred := e.b
+ 			fmt.Fprintf(p.w, " %s", pred.HTML())
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/ssa/layout.go b/src/cmd/compile/internal/ssa/layout.go
+index f784c45c18..55454445c3 100644
+--- a/src/cmd/compile/internal/ssa/layout.go
++++ b/src/cmd/compile/internal/ssa/layout.go
+@@ -39,7 +39,8 @@ blockloop:
+ 			break
+ 		}
+ 
+-		for _, c := range b.Succs {
++		for _, e := range b.Succs {
++			c := e.b
+ 			indegree[c.ID]--
+ 			if indegree[c.ID] == 0 {
+ 				posdegree.remove(c.ID)
+@@ -54,9 +55,9 @@ blockloop:
+ 		var likely *Block
+ 		switch b.Likely {
+ 		case BranchLikely:
+-			likely = b.Succs[0]
++			likely = b.Succs[0].b
+ 		case BranchUnlikely:
+-			likely = b.Succs[1]
++			likely = b.Succs[1].b
+ 		}
+ 		if likely != nil && !scheduled[likely.ID] {
+ 			bid = likely.ID
+@@ -66,7 +67,8 @@ blockloop:
+ 		// Use degree for now.
+ 		bid = 0
+ 		mindegree := f.NumBlocks()
+-		for _, c := range order[len(order)-1].Succs {
++		for _, e := range order[len(order)-1].Succs {
++			c := e.b
+ 			if scheduled[c.ID] {
+ 				continue
+ 			}
+diff --git a/src/cmd/compile/internal/ssa/likelyadjust.go b/src/cmd/compile/internal/ssa/likelyadjust.go
+index 2f52c4c6e6..3f03943a74 100644
+--- a/src/cmd/compile/internal/ssa/likelyadjust.go
++++ b/src/cmd/compile/internal/ssa/likelyadjust.go
+@@ -134,11 +134,11 @@ func likelyadjust(f *Func) {
+ 			// and less influential than inferences from loop structure.
+ 		case BlockCall, BlockDefer:
+ 			local[b.ID] = blCALL
+-			certain[b.ID] = max8(blCALL, certain[b.Succs[0].ID])
++			certain[b.ID] = max8(blCALL, certain[b.Succs[0].b.ID])
+ 
+ 		default:
+ 			if len(b.Succs) == 1 {
+-				certain[b.ID] = certain[b.Succs[0].ID]
++				certain[b.ID] = certain[b.Succs[0].b.ID]
+ 			} else if len(b.Succs) == 2 {
+ 				// If successor is an unvisited backedge, it's in loop and we don't care.
+ 				// Its default unlikely is also zero which is consistent with favoring loop edges.
+@@ -146,8 +146,8 @@ func likelyadjust(f *Func) {
+ 				// default "everything returns" unlikeliness is erased by min with the
+ 				// backedge likeliness; however a loop with calls on every path will be
+ 				// tagged with call cost. Net effect is that loop entry is favored.
+-				b0 := b.Succs[0].ID
+-				b1 := b.Succs[1].ID
++				b0 := b.Succs[0].b.ID
++				b1 := b.Succs[1].b.ID
+ 				certain[b.ID] = min8(certain[b0], certain[b1])
+ 
+ 				l := b2l[b.ID]
+@@ -270,7 +270,8 @@ func loopnestfor(f *Func) *loopnest {
+ 		// and there may be more than one such s.
+ 		// Since there's at most 2 successors, the inner/outer ordering
+ 		// between them can be established with simple comparisons.
+-		for _, bb := range b.Succs {
++		for _, e := range b.Succs {
++			bb := e.b
+ 			l := b2l[bb.ID]
+ 
+ 			if sdom.isAncestorEq(bb, b) { // Found a loop header
+@@ -405,12 +406,12 @@ func (ln *loopnest) findExits() {
+ 	for _, b := range ln.po {
+ 		l := b2l[b.ID]
+ 		if l != nil && len(b.Succs) == 2 {
+-			sl := b2l[b.Succs[0].ID]
+-			if recordIfExit(l, sl, b.Succs[0]) {
++			sl := b2l[b.Succs[0].b.ID]
++			if recordIfExit(l, sl, b.Succs[0].b) {
+ 				continue
+ 			}
+-			sl = b2l[b.Succs[1].ID]
+-			if recordIfExit(l, sl, b.Succs[1]) {
++			sl = b2l[b.Succs[1].b.ID]
++			if recordIfExit(l, sl, b.Succs[1].b) {
+ 				continue
+ 			}
+ 		}
+diff --git a/src/cmd/compile/internal/ssa/loopbce.go b/src/cmd/compile/internal/ssa/loopbce.go
+index 9bd2d3f0de..e94781b5b6 100644
+--- a/src/cmd/compile/internal/ssa/loopbce.go
++++ b/src/cmd/compile/internal/ssa/loopbce.go
+@@ -103,14 +103,14 @@ nextb:
+ 		// First condition: loop entry has a single predecessor, which
+ 		// is the header block.  This implies that b.Succs[entry] is
+ 		// reached iff ind < max.
+-		if len(b.Succs[entry].Preds) != 1 {
++		if len(b.Succs[entry].b.Preds) != 1 {
+ 			// b.Succs[1-entry] must exit the loop.
+ 			continue
+ 		}
+ 
+ 		// Second condition: b.Succs[entry] dominates nxt so that
+ 		// nxt is computed when inc < max, meaning nxt <= max.
+-		if !f.sdom.isAncestorEq(b.Succs[entry], nxt.Block) {
++		if !f.sdom.isAncestorEq(b.Succs[entry].b, nxt.Block) {
+ 			// inc+ind can only be reached through the branch that enters the loop.
+ 			continue
+ 		}
+@@ -150,7 +150,7 @@ nextb:
+ 			nxt:   nxt,
+ 			min:   min,
+ 			max:   max,
+-			entry: b.Succs[entry],
++			entry: b.Succs[entry].b,
+ 		})
+ 		b.Logf("found induction variable %v (inc = %v, min = %v, max = %v)\n", ind, inc, min, max)
+ 	}
+diff --git a/src/cmd/compile/internal/ssa/nilcheck.go b/src/cmd/compile/internal/ssa/nilcheck.go
+index 62eb0c8ea6..00cb75e493 100644
+--- a/src/cmd/compile/internal/ssa/nilcheck.go
++++ b/src/cmd/compile/internal/ssa/nilcheck.go
+@@ -149,11 +149,11 @@ func checkedptr(b *Block) *Value {
+ // predecessor.
+ func nonnilptr(b *Block) *Value {
+ 	if len(b.Preds) == 1 {
+-		bp := b.Preds[0]
++		bp := b.Preds[0].b
+ 		if bp.Kind == BlockCheck {
+ 			return bp.Control.Args[0]
+ 		}
+-		if bp.Kind == BlockIf && bp.Control.Op == OpIsNonNil && bp.Succs[0] == b {
++		if bp.Kind == BlockIf && bp.Control.Op == OpIsNonNil && bp.Succs[0].b == b {
+ 			return bp.Control.Args[0]
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/ssa/phielim.go b/src/cmd/compile/internal/ssa/phielim.go
+index 77013c6481..5fccab9c06 100644
+--- a/src/cmd/compile/internal/ssa/phielim.go
++++ b/src/cmd/compile/internal/ssa/phielim.go
+@@ -31,6 +31,7 @@ func phielim(f *Func) {
+ 	}
+ }
+ 
++// phielimValue tries to convert the phi v to a copy.
+ func phielimValue(v *Value) bool {
+ 	if v.Op != OpPhi {
+ 		return false
+diff --git a/src/cmd/compile/internal/ssa/phiopt.go b/src/cmd/compile/internal/ssa/phiopt.go
+index 3b6728ca86..d6272b4cfc 100644
+--- a/src/cmd/compile/internal/ssa/phiopt.go
++++ b/src/cmd/compile/internal/ssa/phiopt.go
+@@ -30,16 +30,16 @@ func phiopt(f *Func) {
+ 			continue
+ 		}
+ 
+-		pb0, b0 := b, b.Preds[0]
++		pb0, b0 := b, b.Preds[0].b
+ 		for len(b0.Succs) == 1 && len(b0.Preds) == 1 {
+-			pb0, b0 = b0, b0.Preds[0]
++			pb0, b0 = b0, b0.Preds[0].b
+ 		}
+ 		if b0.Kind != BlockIf {
+ 			continue
+ 		}
+-		pb1, b1 := b, b.Preds[1]
++		pb1, b1 := b, b.Preds[1].b
+ 		for len(b1.Succs) == 1 && len(b1.Preds) == 1 {
+-			pb1, b1 = b1, b1.Preds[0]
++			pb1, b1 = b1, b1.Preds[0].b
+ 		}
+ 		if b1 != b0 {
+ 			continue
+@@ -48,9 +48,9 @@ func phiopt(f *Func) {
+ 
+ 		// reverse is the predecessor from which the truth value comes.
+ 		var reverse int
+-		if b0.Succs[0] == pb0 && b0.Succs[1] == pb1 {
++		if b0.Succs[0].b == pb0 && b0.Succs[1].b == pb1 {
+ 			reverse = 0
+-		} else if b0.Succs[0] == pb1 && b0.Succs[1] == pb0 {
++		} else if b0.Succs[0].b == pb1 && b0.Succs[1].b == pb0 {
+ 			reverse = 1
+ 		} else {
+ 			b.Fatalf("invalid predecessors\n")
+diff --git a/src/cmd/compile/internal/ssa/print.go b/src/cmd/compile/internal/ssa/print.go
+index d81dc028ff..21e293ca55 100644
+--- a/src/cmd/compile/internal/ssa/print.go
++++ b/src/cmd/compile/internal/ssa/print.go
+@@ -45,7 +45,8 @@ func (p stringFuncPrinter) startBlock(b *Block, reachable bool) {
+ 	fmt.Fprintf(p.w, "  b%d:", b.ID)
+ 	if len(b.Preds) > 0 {
+ 		io.WriteString(p.w, " <-")
+-		for _, pred := range b.Preds {
++		for _, e := range b.Preds {
++			pred := e.b
+ 			fmt.Fprintf(p.w, " b%d", pred.ID)
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/ssa/prove.go b/src/cmd/compile/internal/ssa/prove.go
+index f4a10b508a..17ef5e461a 100644
+--- a/src/cmd/compile/internal/ssa/prove.go
++++ b/src/cmd/compile/internal/ssa/prove.go
+@@ -502,7 +502,7 @@ func prove(f *Func) {
+ 				b.Kind = BlockFirst
+ 				b.SetControl(nil)
+ 				if succ == negative {
+-					b.Succs[0], b.Succs[1] = b.Succs[1], b.Succs[0]
++					b.swapSuccessors()
+ 				}
+ 			}
+ 
+@@ -525,10 +525,10 @@ func getBranch(sdom sparseTree, p *Block, b *Block) branch {
+ 	// has one predecessor then (apart from the degenerate case),
+ 	// there is no path from entry that can reach b through p.Succs[1].
+ 	// TODO: how about p->yes->b->yes, i.e. a loop in yes.
+-	if sdom.isAncestorEq(p.Succs[0], b) && len(p.Succs[0].Preds) == 1 {
++	if sdom.isAncestorEq(p.Succs[0].b, b) && len(p.Succs[0].b.Preds) == 1 {
+ 		return positive
+ 	}
+-	if sdom.isAncestorEq(p.Succs[1], b) && len(p.Succs[1].Preds) == 1 {
++	if sdom.isAncestorEq(p.Succs[1].b, b) && len(p.Succs[1].b.Preds) == 1 {
+ 		return negative
+ 	}
+ 	return unknown
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index 909ccf41d4..1b12c6f300 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -488,11 +488,12 @@ func (s *regAllocState) init(f *Func) {
+ 	s.primary = make([]int32, f.NumBlocks())
+ 	for _, b := range f.Blocks {
+ 		best := -1
+-		for i, p := range b.Preds {
++		for i, e := range b.Preds {
++			p := e.b
+ 			if blockOrder[p.ID] >= blockOrder[b.ID] {
+ 				continue // backward edge
+ 			}
+-			if best == -1 || blockOrder[p.ID] > blockOrder[b.Preds[best].ID] {
++			if best == -1 || blockOrder[p.ID] > blockOrder[b.Preds[best].b.ID] {
+ 				best = i
+ 			}
+ 		}
+@@ -706,7 +707,7 @@ func (s *regAllocState) regalloc(f *Func) {
+ 			}
+ 		} else if len(b.Preds) == 1 {
+ 			// Start regalloc state with the end state of the previous block.
+-			s.setState(s.endRegs[b.Preds[0].ID])
++			s.setState(s.endRegs[b.Preds[0].b.ID])
+ 			if nphi > 0 {
+ 				f.Fatalf("phis in single-predecessor block")
+ 			}
+@@ -731,7 +732,7 @@ func (s *regAllocState) regalloc(f *Func) {
+ 			if idx < 0 {
+ 				f.Fatalf("block with no primary predecessor %s", b)
+ 			}
+-			p := b.Preds[idx]
++			p := b.Preds[idx].b
+ 			s.setState(s.endRegs[p.ID])
+ 
+ 			if s.f.pass.debug > regDebug {
+@@ -859,13 +860,14 @@ func (s *regAllocState) regalloc(f *Func) {
+ 		// desired registers computed during liveness analysis.
+ 		// Note that we do this phase after startRegs is set above, so that
+ 		// we get the right behavior for a block which branches to itself.
+-		for _, succ := range b.Succs {
++		for _, e := range b.Succs {
++			succ := e.b
+ 			// TODO: prioritize likely successor?
+ 			for _, x := range s.startRegs[succ.ID] {
+ 				desired.add(x.vid, x.r)
+ 			}
+ 			// Process phi ops in succ.
+-			pidx := predIdx(succ, b)
++			pidx := e.i
+ 			for _, v := range succ.Values {
+ 				if v.Op != OpPhi {
+ 					break
+@@ -1194,7 +1196,7 @@ func (s *regAllocState) regalloc(f *Func) {
+ 		// the merge point and promote them to registers now.
+ 		if len(b.Succs) == 1 {
+ 			// For this to be worthwhile, the loop must have no calls in it.
+-			top := b.Succs[0]
++			top := b.Succs[0].b
+ 			loop := s.loopnest.b2l[top.ID]
+ 			if loop == nil || loop.header != top || loop.containsCall {
+ 				goto badloop
+@@ -1452,7 +1454,7 @@ sinking:
+ 			if len(d.Preds) > 1 {
+ 				panic("Should be impossible given critical edges removed")
+ 			}
+-			p := d.Preds[0] // block in loop exiting to d.
++			p := d.Preds[0].b // block in loop exiting to d.
+ 
+ 			endregs := s.endRegs[p.ID]
+ 			for _, regrec := range endregs {
+@@ -1570,7 +1572,8 @@ func (s *regAllocState) shuffle(stacklive [][]ID) {
+ 			continue
+ 		}
+ 		e.b = b
+-		for i, p := range b.Preds {
++		for i, edge := range b.Preds {
++			p := edge.b
+ 			e.p = p
+ 			e.setup(i, s.endRegs[p.ID], s.startRegs[b.ID], stacklive[p.ID])
+ 			e.process()
+@@ -2112,18 +2115,19 @@ func (s *regAllocState) computeLive() {
+ 
+ 			// For each predecessor of b, expand its list of live-at-end values.
+ 			// invariant: live contains the values live at the start of b (excluding phi inputs)
+-			for i, p := range b.Preds {
++			for i, e := range b.Preds {
++				p := e.b
+ 				// Compute additional distance for the edge.
+ 				// Note: delta must be at least 1 to distinguish the control
+ 				// value use from the first user in a successor block.
+ 				delta := int32(normalDistance)
+ 				if len(p.Succs) == 2 {
+-					if p.Succs[0] == b && p.Likely == BranchLikely ||
+-						p.Succs[1] == b && p.Likely == BranchUnlikely {
++					if p.Succs[0].b == b && p.Likely == BranchLikely ||
++						p.Succs[1].b == b && p.Likely == BranchUnlikely {
+ 						delta = likelyDistance
+ 					}
+-					if p.Succs[0] == b && p.Likely == BranchUnlikely ||
+-						p.Succs[1] == b && p.Likely == BranchLikely {
++					if p.Succs[0].b == b && p.Likely == BranchUnlikely ||
++						p.Succs[1].b == b && p.Likely == BranchLikely {
+ 						delta = unlikelyDistance
+ 					}
+ 				}
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index 852be5e934..7d6d2179f7 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -317,7 +317,7 @@ func mergePoint(b *Block, a ...*Value) *Block {
+ 			// Don't know which way to go back. Abort.
+ 			return nil
+ 		}
+-		b = b.Preds[0]
++		b = b.Preds[0].b
+ 		d--
+ 	}
+ 	return nil // too far away
+@@ -341,7 +341,7 @@ found:
+ 		if len(b.Preds) > 1 {
+ 			return nil
+ 		}
+-		b = b.Preds[0]
++		b = b.Preds[0].b
+ 		d--
+ 
+ 	}
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 60ac235022..cefd50ca56 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -17312,8 +17312,8 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			no := b.Succs[1]
+ 			b.Kind = BlockAMD64EQ
+ 			b.SetControl(cmp)
+-			b.Succs[0] = yes
+-			b.Succs[1] = no
++			_ = yes
++			_ = no
+ 			return true
+ 		}
+ 		// match: (EQ (FlagEQ) yes no)
+@@ -17328,8 +17328,8 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			no := b.Succs[1]
+ 			b.Kind = BlockFirst
+ 			b.SetControl(nil)
+-			b.Succs[0] = yes
+-			b.Succs[1] = no
++			_ = yes
++			_ = no
+ 			return true
+ 		}
+ 		// match: (EQ (FlagLT_ULT) yes no)
+@@ -17344,9 +17344,9 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			no := b.Succs[1]
+ 			b.Kind = BlockFirst
+ 			b.SetControl(nil)
+-			b.Succs[0] = no
+-			b.Succs[1] = yes
+-			b.Likely *= -1
++			b.swapSuccessors()
++			_ = no
++			_ = yes
+ 			return true
+ 		}
+ 		// match: (EQ (FlagLT_UGT) yes no)
+@@ -17361,9 +17361,9 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			no := b.Succs[1]
+ 			b.Kind = BlockFirst
+ 			b.SetControl(nil)
+-			b.Succs[0] = no
+-			b.Succs[1] = yes
+-			b.Likely *= -1
++			b.swapSuccessors()
++			_ = no
++			_ = yes
+ 			return true
+ 		}
+ 		// match: (EQ (FlagGT_ULT) yes no)
+@@ -17378,9 +17378,9 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			no := b.Succs[1]
+ 			b.Kind = BlockFirst
+ 			b.SetControl(nil)
+-			b.Succs[0] = no
+-			b.Succs[1] = yes
+-			b.Likely *= -1
++			b.swapSuccessors()
++			_ = no
++			_ = yes
+ 			return true
+ 		}
+ 		// match: (EQ (FlagGT_UGT) yes no)
+@@ -17395,9 +17395,9 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			no := b.Succs[1]
+ 			b.Kind = BlockFirst
+ 			b.SetControl(nil)
+-			b.Succs[0] = no
+-			b.Succs[1] = yes
+-			b.Likely *= -1
++			b.swapSuccessors()
++			_ = no
++			_ = yes
+ 			return true
+ 		}
+ 	case BlockAMD64GE:
+@@ -17414,8 +17414,8 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			no := b.Succs[1]
+ 			b.Kind = BlockAMD64LE
+ 			b.SetControl(cmp)
+-			b.Succs[0] = yes
+-			b.Succs[1] = no
++			_ = yes
++			_ = no
+ 			return true
+ 		}
+ 		// match: (GE (FlagEQ) yes no)
+@@ -17430,8 +17430,8 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			no := b.Succs[1]
+ 			b.Kind = BlockFirst
+ 			b.SetControl(nil)
+-			b.Succs[0] = yes
+-			b.Succs[1] = no
++			_ = yes
++			_ = no
+ 			return true
+ 		}
+ 		// match: (GE (FlagLT_ULT) yes no)
+@@ -17446,9 +17446,9 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			no := b.Succs[1]
+ 			b.Kind = BlockFirst
+ 			b.SetControl(nil)
+-			b.Succs[0] = no
+-			b.Succs[1] = yes
+-			b.Likely *= -1
++			b.swapSuccessors()
++			_ = no
++			_ = yes
+ 			return true
+ 		}
+ 		// match: (GE (FlagLT_UGT) yes no)
+@@ -17463,9 +17463,9 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			no := b.Succs[1]
+ 			b.Kind = BlockFirst
+ 			b.SetControl(nil)
+-			b.Succs[0] = no
+-			b.Succs[1] = yes
+-			b.Likely *= -1
++			b.swapSuccessors()
++			_ = no
++			_ = yes
+ 			return true
+ 		}
+ 		// match: (GE (FlagGT_ULT) yes no)
+@@ -17480,8 +17480,8 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			no := b.Succs[1]
+ 			b.Kind = BlockFirst
+ 			b.SetControl(nil)
+-			b.Succs[0] = yes
+-			b.Succs[1] = no
++			_ = yes
++			_ = no
+ 			return true
+ 		}
+ 		// match: (GE (FlagGT_UGT) yes no)
+@@ -17496,8 +17496,8 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			no := b.Succs[1]
+ 			b.Kind = BlockFirst
+ 			b.SetControl(nil)
+-			b.Succs[0] = yes
+-			b.Succs[1] = no
++			_ = yes
++			_ = no
+ 			return true
+ 		}
+ 	case BlockAMD64GT:
+@@ -17514,8 +17514,8 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			no := b.Succs[1]
+ 			b.Kind = BlockAMD64LT
+ 			b.SetControl(cmp)
+-			b.Succs[0] = yes
+-			b.Succs[1] = no
++			_ = yes
++			_ = no
+ 			return true
+ 		}
+ 		// match: (GT (FlagEQ) yes no)
+@@ -17530,9 +17530,9 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			no := b.Succs[1]
+ 			b.Kind = BlockFirst
+ 			b.SetControl(nil)
+-			b.Succs[0] = no
+-			b.Succs[1] = yes
+-			b.Likely *= -1
++			b.swapSuccessors()
++			_ = no
++			_ = yes
+ 			return true
+ 		}
+ 		// match: (GT (FlagLT_ULT) yes no)
+@@ -17547,9 +17547,9 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			no := b.Succs[1]
+ 			b.Kind = BlockFirst
+ 			b.SetControl(nil)
+-			b.Succs[0] = no
+-			b.Succs[1] = yes
+-			b.Likely *= -1
++			b.swapSuccessors()
++			_ = no
++			_ = yes
+ 			return true
+ 		}
+ 		// match: (GT (FlagLT_UGT) yes no)
+@@ -17564,9 +17564,9 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			no := b.Succs[1]
+ 			b.Kind = BlockFirst
+ 			b.SetControl(nil)
+-			b.Succs[0] = no
+-			b.Succs[1] = yes
+-			b.Likely *= -1
++			b.swapSuccessors()
++			_ = no
++			_ = yes
+ 			return true
+ 		}
+ 		// match: (GT (FlagGT_ULT) yes no)
+@@ -17581,8 +17581,8 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			no := b.Succs[1]
+ 			b.Kind = BlockFirst
+ 			b.SetControl(nil)
+-			b.Succs[0] = yes
+-			b.Succs[1] = no
++			_ = yes
++			_ = no
+ 			return true
+ 		}
+ 		// match: (GT (FlagGT_UGT) yes no)
+@@ -17597,8 +17597,8 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			no := b.Succs[1]
+ 			b.Kind = BlockFirst
+ 			b.SetControl(nil)
+-			b.Succs[0] = yes
+-			b.Succs[1] = no
++			_ = yes
++			_ = no
+ 			return true
+ 		}
+ 	case BlockIf:
+@@ -17615,8 +17615,8 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			no := b.Succs[1]
+ 			b.Kind = BlockAMD64LT
+ 			b.SetControl(cmp)
+-			b.Succs[0] = yes
+-			b.Succs[1] = no
++			_ = yes
++			_ = no
+ 			return true
+ 		}
+ 		// match: (If (SETLE cmp) yes no)
+@@ -17632,8 +17632,8 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			no := b.Succs[1]
+ 			b.Kind = BlockAMD64LE
+ 			b.SetControl(cmp)
+-			b.Succs[0] = yes
+-			b.Succs[1] = no
++			_ = yes
++			_ = no
+ 			return true
+ 		}
+ 		// match: (If (SETG  cmp) yes no)
+@@ -17649,8 +17649,8 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			no := b.Succs[1]
+ 			b.Kind = BlockAMD64GT
+ 			b.SetControl(cmp)
+-			b.Succs[0] = yes
+-			b.Succs[1] = no
++			_ = yes
++			_ = no
+ 			return true
+ 		}
+ 		// match: (If (SETGE cmp) yes no)
+@@ -17666,8 +17666,8 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			no := b.Succs[1]
+ 			b.Kind = BlockAMD64GE
+ 			b.SetControl(cmp)
+-			b.Succs[0] = yes
+-			b.Succs[1] = no
++			_ = yes
++			_ = no
+ 			return true
+ 		}
+ 		// match: (If (SETEQ cmp) yes no)
+@@ -17683,8 +17683,8 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			no := b.Succs[1]
+ 			b.Kind = BlockAMD64EQ
+ 			b.SetControl(cmp)
+-			b.Succs[0] = yes
+-			b.Succs[1] = no
++			_ = yes
++			_ = no
+ 			return true
+ 		}
+ 		// match: (If (SETNE cmp) yes no)
+@@ -17700,8 +17700,8 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			no := b.Succs[1]
+ 			b.Kind = BlockAMD64NE
+ 			b.SetControl(cmp)
+-			b.Succs[0] = yes
+-			b.Succs[1] = no
++			_ = yes
++			_ = no
+ 			return true
+ 		}
+ 		// match: (If (SETB  cmp) yes no)
+@@ -17717,8 +17717,8 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			no := b.Succs[1]
+ 			b.Kind = BlockAMD64ULT
+ 			b.SetControl(cmp)
+-			b.Succs[0] = yes
+-			b.Succs[1] = no
++			_ = yes
++			_ = no
+ 			return true
+ 		}
+ 		// match: (If (SETBE cmp) yes no)
+@@ -17734,8 +17734,8 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			no := b.Succs[1]
+ 			b.Kind = BlockAMD64ULE
+ 			b.SetControl(cmp)
+-			b.Succs[0] = yes
+-			b.Succs[1] = no
++			_ = yes
++			_ = no
+ 			return true
+ 		}
+ 		// match: (If (SETA  cmp) yes no)
+@@ -17751,8 +17751,8 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			no := b.Succs[1]
+ 			b.Kind = BlockAMD64UGT
+ 			b.SetControl(cmp)
+-			b.Succs[0] = yes
+-			b.Succs[1] = no
++			_ = yes
++			_ = no
+ 			return true
+ 		}
+ 		// match: (If (SETAE cmp) yes no)
+@@ -17768,8 +17768,8 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			no := b.Succs[1]
+ 			b.Kind = BlockAMD64UGE
+ 			b.SetControl(cmp)
+-			b.Succs[0] = yes
+-			b.Succs[1] = no
++			_ = yes
++			_ = no
+ 			return true
+ 		}
+ 		// match: (If (SETGF  cmp) yes no)
+@@ -17785,8 +17785,8 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			no := b.Succs[1]
+ 			b.Kind = BlockAMD64UGT
+ 			b.SetControl(cmp)
+-			b.Succs[0] = yes
+-			b.Succs[1] = no
++			_ = yes
++			_ = no
+ 			return true
+ 		}
+ 		// match: (If (SETGEF cmp) yes no)
+@@ -17802,8 +17802,8 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			no := b.Succs[1]
+ 			b.Kind = BlockAMD64UGE
+ 			b.SetControl(cmp)
+-			b.Succs[0] = yes
+-			b.Succs[1] = no
++			_ = yes
++			_ = no
+ 			return true
+ 		}
+ 		// match: (If (SETEQF cmp) yes no)
+@@ -17819,8 +17819,8 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			no := b.Succs[1]
+ 			b.Kind = BlockAMD64EQF
+ 			b.SetControl(cmp)
+-			b.Succs[0] = yes
+-			b.Succs[1] = no
++			_ = yes
++			_ = no
+ 			return true
+ 		}
+ 		// match: (If (SETNEF cmp) yes no)
+@@ -17836,8 +17836,8 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			no := b.Succs[1]
+ 			b.Kind = BlockAMD64NEF
+ 			b.SetControl(cmp)
+-			b.Succs[0] = yes
+-			b.Succs[1] = no
++			_ = yes
++			_ = no
+ 			return true
+ 		}
+ 		// match: (If cond yes no)
+@@ -17853,8 +17853,8 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			v0.AddArg(cond)
+ 			v0.AddArg(cond)
+ 			b.SetControl(v0)
+-			b.Succs[0] = yes
+-			b.Succs[1] = no
++			_ = yes
++			_ = no
+ 			return true
+ 		}
+ 	case BlockAMD64LE:
+@@ -17871,8 +17871,8 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			no := b.Succs[1]
+ 			b.Kind = BlockAMD64GE
+ 			b.SetControl(cmp)
+-			b.Succs[0] = yes
+-			b.Succs[1] = no
++			_ = yes
++			_ = no
+ 			return true
+ 		}
+ 		// match: (LE (FlagEQ) yes no)
+@@ -17887,8 +17887,8 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			no := b.Succs[1]
+ 			b.Kind = BlockFirst
+ 			b.SetControl(nil)
+-			b.Succs[0] = yes
+-			b.Succs[1] = no
++			_ = yes
++			_ = no
+ 			return true
+ 		}
+ 		// match: (LE (FlagLT_ULT) yes no)
+@@ -17903,8 +17903,8 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			no := b.Succs[1]
+ 			b.Kind = BlockFirst
+ 			b.SetControl(nil)
+-			b.Succs[0] = yes
+-			b.Succs[1] = no
++			_ = yes
++			_ = no
+ 			return true
+ 		}
+ 		// match: (LE (FlagLT_UGT) yes no)
+@@ -17919,8 +17919,8 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			no := b.Succs[1]
+ 			b.Kind = BlockFirst
+ 			b.SetControl(nil)
+-			b.Succs[0] = yes
+-			b.Succs[1] = no
++			_ = yes
++			_ = no
+ 			return true
+ 		}
+ 		// match: (LE (FlagGT_ULT) yes no)
+@@ -17935,9 +17935,9 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			no := b.Succs[1]
+ 			b.Kind = BlockFirst
+ 			b.SetControl(nil)
+-			b.Succs[0] = no
+-			b.Succs[1] = yes
+-			b.Likely *= -1
++			b.swapSuccessors()
++			_ = no
++			_ = yes
+ 			return true
+ 		}
+ 		// match: (LE (FlagGT_UGT) yes no)
+@@ -17952,9 +17952,9 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			no := b.Succs[1]
+ 			b.Kind = BlockFirst
+ 			b.SetControl(nil)
+-			b.Succs[0] = no
+-			b.Succs[1] = yes
+-			b.Likely *= -1
++			b.swapSuccessors()
++			_ = no
++			_ = yes
+ 			return true
+ 		}
+ 	case BlockAMD64LT:
+@@ -17971,8 +17971,8 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			no := b.Succs[1]
+ 			b.Kind = BlockAMD64GT
+ 			b.SetControl(cmp)
+-			b.Succs[0] = yes
+-			b.Succs[1] = no
++			_ = yes
++			_ = no
+ 			return true
+ 		}
+ 		// match: (LT (FlagEQ) yes no)
+@@ -17987,9 +17987,9 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			no := b.Succs[1]
+ 			b.Kind = BlockFirst
+ 			b.SetControl(nil)
+-			b.Succs[0] = no
+-			b.Succs[1] = yes
+-			b.Likely *= -1
++			b.swapSuccessors()
++			_ = no
++			_ = yes
+ 			return true
+ 		}
+ 		// match: (LT (FlagLT_ULT) yes no)
+@@ -18004,8 +18004,8 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			no := b.Succs[1]
+ 			b.Kind = BlockFirst
+ 			b.SetControl(nil)
+-			b.Succs[0] = yes
+-			b.Succs[1] = no
++			_ = yes
++			_ = no
+ 			return true
+ 		}
+ 		// match: (LT (FlagLT_UGT) yes no)
+@@ -18020,8 +18020,8 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			no := b.Succs[1]
+ 			b.Kind = BlockFirst
+ 			b.SetControl(nil)
+-			b.Succs[0] = yes
+-			b.Succs[1] = no
++			_ = yes
++			_ = no
+ 			return true
+ 		}
+ 		// match: (LT (FlagGT_ULT) yes no)
+@@ -18036,9 +18036,9 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			no := b.Succs[1]
+ 			b.Kind = BlockFirst
+ 			b.SetControl(nil)
+-			b.Succs[0] = no
+-			b.Succs[1] = yes
+-			b.Likely *= -1
++			b.swapSuccessors()
++			_ = no
++			_ = yes
+ 			return true
+ 		}
+ 		// match: (LT (FlagGT_UGT) yes no)
+@@ -18053,9 +18053,9 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			no := b.Succs[1]
+ 			b.Kind = BlockFirst
+ 			b.SetControl(nil)
+-			b.Succs[0] = no
+-			b.Succs[1] = yes
+-			b.Likely *= -1
++			b.swapSuccessors()
++			_ = no
++			_ = yes
+ 			return true
+ 		}
+ 	case BlockAMD64NE:
+@@ -18083,8 +18083,8 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			no := b.Succs[1]
+ 			b.Kind = BlockAMD64LT
+ 			b.SetControl(cmp)
+-			b.Succs[0] = yes
+-			b.Succs[1] = no
++			_ = yes
++			_ = no
+ 			return true
+ 		}
+ 		// match: (NE (TESTB (SETLE cmp) (SETLE cmp)) yes no)
+@@ -18111,8 +18111,8 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			no := b.Succs[1]
+ 			b.Kind = BlockAMD64LE
+ 			b.SetControl(cmp)
+-			b.Succs[0] = yes
+-			b.Succs[1] = no
++			_ = yes
++			_ = no
+ 			return true
+ 		}
+ 		// match: (NE (TESTB (SETG  cmp) (SETG  cmp)) yes no)
+@@ -18139,8 +18139,8 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			no := b.Succs[1]
+ 			b.Kind = BlockAMD64GT
+ 			b.SetControl(cmp)
+-			b.Succs[0] = yes
+-			b.Succs[1] = no
++			_ = yes
++			_ = no
+ 			return true
+ 		}
+ 		// match: (NE (TESTB (SETGE cmp) (SETGE cmp)) yes no)
+@@ -18167,8 +18167,8 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			no := b.Succs[1]
+ 			b.Kind = BlockAMD64GE
+ 			b.SetControl(cmp)
+-			b.Succs[0] = yes
+-			b.Succs[1] = no
++			_ = yes
++			_ = no
+ 			return true
+ 		}
+ 		// match: (NE (TESTB (SETEQ cmp) (SETEQ cmp)) yes no)
+@@ -18195,8 +18195,8 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			no := b.Succs[1]
+ 			b.Kind = BlockAMD64EQ
+ 			b.SetControl(cmp)
+-			b.Succs[0] = yes
+-			b.Succs[1] = no
++			_ = yes
++			_ = no
+ 			return true
+ 		}
+ 		// match: (NE (TESTB (SETNE cmp) (SETNE cmp)) yes no)
+@@ -18223,8 +18223,8 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			no := b.Succs[1]
+ 			b.Kind = BlockAMD64NE
+ 			b.SetControl(cmp)
+-			b.Succs[0] = yes
+-			b.Succs[1] = no
++			_ = yes
++			_ = no
+ 			return true
+ 		}
+ 		// match: (NE (TESTB (SETB  cmp) (SETB  cmp)) yes no)
+@@ -18251,8 +18251,8 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			no := b.Succs[1]
+ 			b.Kind = BlockAMD64ULT
+ 			b.SetControl(cmp)
+-			b.Succs[0] = yes
+-			b.Succs[1] = no
++			_ = yes
++			_ = no
+ 			return true
+ 		}
+ 		// match: (NE (TESTB (SETBE cmp) (SETBE cmp)) yes no)
+@@ -18279,8 +18279,8 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			no := b.Succs[1]
+ 			b.Kind = BlockAMD64ULE
+ 			b.SetControl(cmp)
+-			b.Succs[0] = yes
+-			b.Succs[1] = no
++			_ = yes
++			_ = no
+ 			return true
+ 		}
+ 		// match: (NE (TESTB (SETA  cmp) (SETA  cmp)) yes no)
+@@ -18307,8 +18307,8 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			no := b.Succs[1]
+ 			b.Kind = BlockAMD64UGT
+ 			b.SetControl(cmp)
+-			b.Succs[0] = yes
+-			b.Succs[1] = no
++			_ = yes
++			_ = no
+ 			return true
+ 		}
+ 		// match: (NE (TESTB (SETAE cmp) (SETAE cmp)) yes no)
+@@ -18335,8 +18335,8 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			no := b.Succs[1]
+ 			b.Kind = BlockAMD64UGE
+ 			b.SetControl(cmp)
+-			b.Succs[0] = yes
+-			b.Succs[1] = no
++			_ = yes
++			_ = no
+ 			return true
+ 		}
+ 		// match: (NE (TESTB (SETGF  cmp) (SETGF  cmp)) yes no)
+@@ -18363,8 +18363,8 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			no := b.Succs[1]
+ 			b.Kind = BlockAMD64UGT
+ 			b.SetControl(cmp)
+-			b.Succs[0] = yes
+-			b.Succs[1] = no
++			_ = yes
++			_ = no
+ 			return true
+ 		}
+ 		// match: (NE (TESTB (SETGEF cmp) (SETGEF cmp)) yes no)
+@@ -18391,8 +18391,8 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			no := b.Succs[1]
+ 			b.Kind = BlockAMD64UGE
+ 			b.SetControl(cmp)
+-			b.Succs[0] = yes
+-			b.Succs[1] = no
++			_ = yes
++			_ = no
+ 			return true
+ 		}
+ 		// match: (NE (TESTB (SETEQF cmp) (SETEQF cmp)) yes no)
+@@ -18419,8 +18419,8 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			no := b.Succs[1]
+ 			b.Kind = BlockAMD64EQF
+ 			b.SetControl(cmp)
+-			b.Succs[0] = yes
+-			b.Succs[1] = no
++			_ = yes
++			_ = no
+ 			return true
+ 		}
+ 		// match: (NE (TESTB (SETNEF cmp) (SETNEF cmp)) yes no)
+@@ -18447,8 +18447,8 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			no := b.Succs[1]
+ 			b.Kind = BlockAMD64NEF
+ 			b.SetControl(cmp)
+-			b.Succs[0] = yes
+-			b.Succs[1] = no
++			_ = yes
++			_ = no
+ 			return true
+ 		}
+ 		// match: (NE (InvertFlags cmp) yes no)
+@@ -18464,8 +18464,8 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			no := b.Succs[1]
+ 			b.Kind = BlockAMD64NE
+ 			b.SetControl(cmp)
+-			b.Succs[0] = yes
+-			b.Succs[1] = no
++			_ = yes
++			_ = no
+ 			return true
+ 		}
+ 		// match: (NE (FlagEQ) yes no)
+@@ -18480,9 +18480,9 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			no := b.Succs[1]
+ 			b.Kind = BlockFirst
+ 			b.SetControl(nil)
+-			b.Succs[0] = no
+-			b.Succs[1] = yes
+-			b.Likely *= -1
++			b.swapSuccessors()
++			_ = no
++			_ = yes
+ 			return true
+ 		}
+ 		// match: (NE (FlagLT_ULT) yes no)
+@@ -18497,8 +18497,8 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			no := b.Succs[1]
+ 			b.Kind = BlockFirst
+ 			b.SetControl(nil)
+-			b.Succs[0] = yes
+-			b.Succs[1] = no
++			_ = yes
++			_ = no
+ 			return true
+ 		}
+ 		// match: (NE (FlagLT_UGT) yes no)
+@@ -18513,8 +18513,8 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			no := b.Succs[1]
+ 			b.Kind = BlockFirst
+ 			b.SetControl(nil)
+-			b.Succs[0] = yes
+-			b.Succs[1] = no
++			_ = yes
++			_ = no
+ 			return true
+ 		}
+ 		// match: (NE (FlagGT_ULT) yes no)
+@@ -18529,8 +18529,8 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			no := b.Succs[1]
+ 			b.Kind = BlockFirst
+ 			b.SetControl(nil)
+-			b.Succs[0] = yes
+-			b.Succs[1] = no
++			_ = yes
++			_ = no
+ 			return true
+ 		}
+ 		// match: (NE (FlagGT_UGT) yes no)
+@@ -18545,8 +18545,8 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			no := b.Succs[1]
+ 			b.Kind = BlockFirst
+ 			b.SetControl(nil)
+-			b.Succs[0] = yes
+-			b.Succs[1] = no
++			_ = yes
++			_ = no
+ 			return true
+ 		}
+ 	case BlockAMD64UGE:
+@@ -18563,8 +18563,8 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			no := b.Succs[1]
+ 			b.Kind = BlockAMD64ULE
+ 			b.SetControl(cmp)
+-			b.Succs[0] = yes
+-			b.Succs[1] = no
++			_ = yes
++			_ = no
+ 			return true
+ 		}
+ 		// match: (UGE (FlagEQ) yes no)
+@@ -18579,8 +18579,8 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			no := b.Succs[1]
+ 			b.Kind = BlockFirst
+ 			b.SetControl(nil)
+-			b.Succs[0] = yes
+-			b.Succs[1] = no
++			_ = yes
++			_ = no
+ 			return true
+ 		}
+ 		// match: (UGE (FlagLT_ULT) yes no)
+@@ -18595,9 +18595,9 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			no := b.Succs[1]
+ 			b.Kind = BlockFirst
+ 			b.SetControl(nil)
+-			b.Succs[0] = no
+-			b.Succs[1] = yes
+-			b.Likely *= -1
++			b.swapSuccessors()
++			_ = no
++			_ = yes
+ 			return true
+ 		}
+ 		// match: (UGE (FlagLT_UGT) yes no)
+@@ -18612,8 +18612,8 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			no := b.Succs[1]
+ 			b.Kind = BlockFirst
+ 			b.SetControl(nil)
+-			b.Succs[0] = yes
+-			b.Succs[1] = no
++			_ = yes
++			_ = no
+ 			return true
+ 		}
+ 		// match: (UGE (FlagGT_ULT) yes no)
+@@ -18628,9 +18628,9 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			no := b.Succs[1]
+ 			b.Kind = BlockFirst
+ 			b.SetControl(nil)
+-			b.Succs[0] = no
+-			b.Succs[1] = yes
+-			b.Likely *= -1
++			b.swapSuccessors()
++			_ = no
++			_ = yes
+ 			return true
+ 		}
+ 		// match: (UGE (FlagGT_UGT) yes no)
+@@ -18645,8 +18645,8 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			no := b.Succs[1]
+ 			b.Kind = BlockFirst
+ 			b.SetControl(nil)
+-			b.Succs[0] = yes
+-			b.Succs[1] = no
++			_ = yes
++			_ = no
+ 			return true
+ 		}
+ 	case BlockAMD64UGT:
+@@ -18663,8 +18663,8 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			no := b.Succs[1]
+ 			b.Kind = BlockAMD64ULT
+ 			b.SetControl(cmp)
+-			b.Succs[0] = yes
+-			b.Succs[1] = no
++			_ = yes
++			_ = no
+ 			return true
+ 		}
+ 		// match: (UGT (FlagEQ) yes no)
+@@ -18679,9 +18679,9 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			no := b.Succs[1]
+ 			b.Kind = BlockFirst
+ 			b.SetControl(nil)
+-			b.Succs[0] = no
+-			b.Succs[1] = yes
+-			b.Likely *= -1
++			b.swapSuccessors()
++			_ = no
++			_ = yes
+ 			return true
+ 		}
+ 		// match: (UGT (FlagLT_ULT) yes no)
+@@ -18696,9 +18696,9 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			no := b.Succs[1]
+ 			b.Kind = BlockFirst
+ 			b.SetControl(nil)
+-			b.Succs[0] = no
+-			b.Succs[1] = yes
+-			b.Likely *= -1
++			b.swapSuccessors()
++			_ = no
++			_ = yes
+ 			return true
+ 		}
+ 		// match: (UGT (FlagLT_UGT) yes no)
+@@ -18713,8 +18713,8 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			no := b.Succs[1]
+ 			b.Kind = BlockFirst
+ 			b.SetControl(nil)
+-			b.Succs[0] = yes
+-			b.Succs[1] = no
++			_ = yes
++			_ = no
+ 			return true
+ 		}
+ 		// match: (UGT (FlagGT_ULT) yes no)
+@@ -18729,9 +18729,9 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			no := b.Succs[1]
+ 			b.Kind = BlockFirst
+ 			b.SetControl(nil)
+-			b.Succs[0] = no
+-			b.Succs[1] = yes
+-			b.Likely *= -1
++			b.swapSuccessors()
++			_ = no
++			_ = yes
+ 			return true
+ 		}
+ 		// match: (UGT (FlagGT_UGT) yes no)
+@@ -18746,8 +18746,8 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			no := b.Succs[1]
+ 			b.Kind = BlockFirst
+ 			b.SetControl(nil)
+-			b.Succs[0] = yes
+-			b.Succs[1] = no
++			_ = yes
++			_ = no
+ 			return true
+ 		}
+ 	case BlockAMD64ULE:
+@@ -18764,8 +18764,8 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			no := b.Succs[1]
+ 			b.Kind = BlockAMD64UGE
+ 			b.SetControl(cmp)
+-			b.Succs[0] = yes
+-			b.Succs[1] = no
++			_ = yes
++			_ = no
+ 			return true
+ 		}
+ 		// match: (ULE (FlagEQ) yes no)
+@@ -18780,8 +18780,8 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			no := b.Succs[1]
+ 			b.Kind = BlockFirst
+ 			b.SetControl(nil)
+-			b.Succs[0] = yes
+-			b.Succs[1] = no
++			_ = yes
++			_ = no
+ 			return true
+ 		}
+ 		// match: (ULE (FlagLT_ULT) yes no)
+@@ -18796,8 +18796,8 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			no := b.Succs[1]
+ 			b.Kind = BlockFirst
+ 			b.SetControl(nil)
+-			b.Succs[0] = yes
+-			b.Succs[1] = no
++			_ = yes
++			_ = no
+ 			return true
+ 		}
+ 		// match: (ULE (FlagLT_UGT) yes no)
+@@ -18812,9 +18812,9 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			no := b.Succs[1]
+ 			b.Kind = BlockFirst
+ 			b.SetControl(nil)
+-			b.Succs[0] = no
+-			b.Succs[1] = yes
+-			b.Likely *= -1
++			b.swapSuccessors()
++			_ = no
++			_ = yes
+ 			return true
+ 		}
+ 		// match: (ULE (FlagGT_ULT) yes no)
+@@ -18829,8 +18829,8 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			no := b.Succs[1]
+ 			b.Kind = BlockFirst
+ 			b.SetControl(nil)
+-			b.Succs[0] = yes
+-			b.Succs[1] = no
++			_ = yes
++			_ = no
+ 			return true
+ 		}
+ 		// match: (ULE (FlagGT_UGT) yes no)
+@@ -18845,9 +18845,9 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			no := b.Succs[1]
+ 			b.Kind = BlockFirst
+ 			b.SetControl(nil)
+-			b.Succs[0] = no
+-			b.Succs[1] = yes
+-			b.Likely *= -1
++			b.swapSuccessors()
++			_ = no
++			_ = yes
+ 			return true
+ 		}
+ 	case BlockAMD64ULT:
+@@ -18864,8 +18864,8 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			no := b.Succs[1]
+ 			b.Kind = BlockAMD64UGT
+ 			b.SetControl(cmp)
+-			b.Succs[0] = yes
+-			b.Succs[1] = no
++			_ = yes
++			_ = no
+ 			return true
+ 		}
+ 		// match: (ULT (FlagEQ) yes no)
+@@ -18880,9 +18880,9 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			no := b.Succs[1]
+ 			b.Kind = BlockFirst
+ 			b.SetControl(nil)
+-			b.Succs[0] = no
+-			b.Succs[1] = yes
+-			b.Likely *= -1
++			b.swapSuccessors()
++			_ = no
++			_ = yes
+ 			return true
+ 		}
+ 		// match: (ULT (FlagLT_ULT) yes no)
+@@ -18897,8 +18897,8 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			no := b.Succs[1]
+ 			b.Kind = BlockFirst
+ 			b.SetControl(nil)
+-			b.Succs[0] = yes
+-			b.Succs[1] = no
++			_ = yes
++			_ = no
+ 			return true
+ 		}
+ 		// match: (ULT (FlagLT_UGT) yes no)
+@@ -18913,9 +18913,9 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			no := b.Succs[1]
+ 			b.Kind = BlockFirst
+ 			b.SetControl(nil)
+-			b.Succs[0] = no
+-			b.Succs[1] = yes
+-			b.Likely *= -1
++			b.swapSuccessors()
++			_ = no
++			_ = yes
+ 			return true
+ 		}
+ 		// match: (ULT (FlagGT_ULT) yes no)
+@@ -18930,8 +18930,8 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			no := b.Succs[1]
+ 			b.Kind = BlockFirst
+ 			b.SetControl(nil)
+-			b.Succs[0] = yes
+-			b.Succs[1] = no
++			_ = yes
++			_ = no
+ 			return true
+ 		}
+ 		// match: (ULT (FlagGT_UGT) yes no)
+@@ -18946,9 +18946,9 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			no := b.Succs[1]
+ 			b.Kind = BlockFirst
+ 			b.SetControl(nil)
+-			b.Succs[0] = no
+-			b.Succs[1] = yes
+-			b.Likely *= -1
++			b.swapSuccessors()
++			_ = no
++			_ = yes
+ 			return true
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM.go b/src/cmd/compile/internal/ssa/rewriteARM.go
+index 598bb9f429..b57283e9bc 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM.go
+@@ -279,8 +279,8 @@ func rewriteBlockARM(b *Block) bool {
+ 			no := b.Succs[1]
+ 			b.Kind = BlockARMLT
+ 			b.SetControl(cc)
+-			b.Succs[0] = yes
+-			b.Succs[1] = no
++			_ = yes
++			_ = no
+ 			return true
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index 311d5b82a8..c702919a57 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -9777,8 +9777,7 @@ func rewriteBlockgeneric(b *Block) bool {
+ 			next := b.Succs[0]
+ 			b.Kind = BlockPlain
+ 			b.SetControl(nil)
+-			b.Succs[0] = next
+-			b.Likely = BranchUnknown
++			_ = next
+ 			return true
+ 		}
+ 	case BlockIf:
+@@ -9795,9 +9794,9 @@ func rewriteBlockgeneric(b *Block) bool {
+ 			no := b.Succs[1]
+ 			b.Kind = BlockIf
+ 			b.SetControl(cond)
+-			b.Succs[0] = no
+-			b.Succs[1] = yes
+-			b.Likely *= -1
++			b.swapSuccessors()
++			_ = no
++			_ = yes
+ 			return true
+ 		}
+ 		// match: (If (ConstBool [c]) yes no)
+@@ -9816,8 +9815,8 @@ func rewriteBlockgeneric(b *Block) bool {
+ 			}
+ 			b.Kind = BlockFirst
+ 			b.SetControl(nil)
+-			b.Succs[0] = yes
+-			b.Succs[1] = no
++			_ = yes
++			_ = no
+ 			return true
+ 		}
+ 		// match: (If (ConstBool [c]) yes no)
+@@ -9836,9 +9835,9 @@ func rewriteBlockgeneric(b *Block) bool {
+ 			}
+ 			b.Kind = BlockFirst
+ 			b.SetControl(nil)
+-			b.Succs[0] = no
+-			b.Succs[1] = yes
+-			b.Likely *= -1
++			b.swapSuccessors()
++			_ = no
++			_ = yes
+ 			return true
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/ssa/shortcircuit.go b/src/cmd/compile/internal/ssa/shortcircuit.go
+index f589b7a07d..ff05a04c47 100644
+--- a/src/cmd/compile/internal/ssa/shortcircuit.go
++++ b/src/cmd/compile/internal/ssa/shortcircuit.go
+@@ -28,14 +28,15 @@ func shortcircuit(f *Func) {
+ 				continue
+ 			}
+ 			for i, a := range v.Args {
+-				p := b.Preds[i]
++				e := b.Preds[i]
++				p := e.b
+ 				if p.Kind != BlockIf {
+ 					continue
+ 				}
+ 				if p.Control != a {
+ 					continue
+ 				}
+-				if p.Succs[0] == b {
++				if e.i == 0 {
+ 					v.SetArg(i, ct)
+ 				} else {
+ 					v.SetArg(i, cf)
+@@ -91,39 +92,37 @@ func shortcircuit(f *Func) {
+ 			}
+ 
+ 			// The predecessor we come in from.
+-			p := b.Preds[i]
++			e1 := b.Preds[i]
++			p := e1.b
++			pi := e1.i
++
+ 			// The successor we always go to when coming in
+ 			// from that predecessor.
+-			t := b.Succs[1-a.AuxInt]
++			e2 := b.Succs[1-a.AuxInt]
++			t := e2.b
++			ti := e2.i
+ 
+-			// Change the edge p->b to p->t.
+-			for j, x := range p.Succs {
+-				if x == b {
+-					p.Succs[j] = t
+-					break
+-				}
+-			}
++			// Remove b's incoming edge from p.
++			b.removePred(i)
++			n := len(b.Preds)
++			v.Args[i].Uses--
++			v.Args[i] = v.Args[n]
++			v.Args[n] = nil
++			v.Args = v.Args[:n]
++
++			// Redirect p's outgoing edge to t.
++			p.Succs[pi] = Edge{t, len(t.Preds)}
+ 
+ 			// Fix up t to have one more predecessor.
+-			j := predIdx(t, b)
+-			t.Preds = append(t.Preds, p)
++			t.Preds = append(t.Preds, Edge{p, pi})
+ 			for _, w := range t.Values {
+ 				if w.Op != OpPhi {
+ 					continue
+ 				}
+-				w.AddArg(w.Args[j])
++				w.AddArg(w.Args[ti])
+ 			}
+ 
+-			// Fix up b to have one less predecessor.
+-			n := len(b.Preds) - 1
+-			b.Preds[i] = b.Preds[n]
+-			b.Preds[n] = nil
+-			b.Preds = b.Preds[:n]
+-			v.Args[i].Uses--
+-			v.Args[i] = v.Args[n]
+-			v.Args[n] = nil
+-			v.Args = v.Args[:n]
+-			if n == 1 {
++			if len(b.Preds) == 1 {
+ 				v.Op = OpCopy
+ 				// No longer a phi, stop optimizing here.
+ 				break
+@@ -132,14 +131,3 @@ func shortcircuit(f *Func) {
+ 		}
+ 	}
+ }
+-
+-// predIdx returns the index where p appears in the predecessor list of b.
+-// p must be in the predecessor list of b.
+-func predIdx(b, p *Block) int {
+-	for i, x := range b.Preds {
+-		if x == p {
+-			return i
+-		}
+-	}
+-	panic("predecessor not found")
+-}
+diff --git a/src/cmd/compile/internal/ssa/sizeof_test.go b/src/cmd/compile/internal/ssa/sizeof_test.go
+index 11b46caf32..4aab923653 100644
+--- a/src/cmd/compile/internal/ssa/sizeof_test.go
++++ b/src/cmd/compile/internal/ssa/sizeof_test.go
+@@ -23,7 +23,7 @@ func TestSizeof(t *testing.T) {
+ 		_64bit uintptr     // size on 64bit platforms
+ 	}{
+ 		{Value{}, 68, 112},
+-		{Block{}, 124, 232},
++		{Block{}, 148, 288},
+ 	}
+ 
+ 	for _, tt := range tests {
+diff --git a/src/cmd/compile/internal/ssa/stackalloc.go b/src/cmd/compile/internal/ssa/stackalloc.go
+index 44f4096cb2..c08ed79cd6 100644
+--- a/src/cmd/compile/internal/ssa/stackalloc.go
++++ b/src/cmd/compile/internal/ssa/stackalloc.go
+@@ -304,7 +304,8 @@ func (s *stackAllocState) computeLive(spillLive [][]ID) {
+ 
+ 			// for each predecessor of b, expand its list of live-at-end values
+ 			// invariant: s contains the values live at the start of b (excluding phi inputs)
+-			for i, p := range b.Preds {
++			for i, e := range b.Preds {
++				p := e.b
+ 				t.clear()
+ 				t.addAll(s.live[p.ID])
+ 				t.addAll(live.contents())
+diff --git a/src/cmd/compile/internal/ssa/trim.go b/src/cmd/compile/internal/ssa/trim.go
+index 594d2aa372..8ffb459074 100644
+--- a/src/cmd/compile/internal/ssa/trim.go
++++ b/src/cmd/compile/internal/ssa/trim.go
+@@ -7,31 +7,26 @@ package ssa
+ // trim removes blocks with no code in them.
+ // These blocks were inserted to remove critical edges.
+ func trim(f *Func) {
+-	i := 0
++	n := 0
+ 	for _, b := range f.Blocks {
+ 		if b.Kind != BlockPlain || len(b.Values) != 0 || len(b.Preds) != 1 {
+-			f.Blocks[i] = b
+-			i++
++			f.Blocks[n] = b
++			n++
+ 			continue
+ 		}
+ 		// TODO: handle len(b.Preds)>1 case.
+ 
+ 		// Splice b out of the graph.
+-		pred := b.Preds[0]
+-		succ := b.Succs[0]
+-		for j, s := range pred.Succs {
+-			if s == b {
+-				pred.Succs[j] = succ
+-			}
+-		}
+-		for j, p := range succ.Preds {
+-			if p == b {
+-				succ.Preds[j] = pred
+-			}
+-		}
++		p := b.Preds[0].b
++		i := b.Preds[0].i
++		s := b.Succs[0].b
++		j := b.Succs[0].i
++		p.Succs[i] = Edge{s, j}
++		s.Preds[j] = Edge{p, i}
+ 	}
+-	for j := i; j < len(f.Blocks); j++ {
+-		f.Blocks[j] = nil
++	tail := f.Blocks[n:]
++	for i := range tail {
++		tail[i] = nil
+ 	}
+-	f.Blocks = f.Blocks[:i]
++	f.Blocks = f.Blocks[:n]
+ }

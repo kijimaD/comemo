@@ -5,6 +5,23 @@ Date:   Thu Jun 26 18:35:22 2008 -0700
     - added calc cmd
     
     SVN=125025
-
+---
  test/bugs/bug058.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/test/bugs/bug058.go b/test/bugs/bug058.go
+index d60e05f42b..f44181546b 100644
+--- a/test/bugs/bug058.go
++++ b/test/bugs/bug058.go
+@@ -7,9 +7,10 @@
+ package main
+ 
+ type Box struct {};
+-var m map[string] *Box;
++var m *map[string] *Box;
+   
+ func main() {
++  m := new(map[string] *Box);
+   s := "foo";
+   var x *Box = nil;
+   m[s] = x;

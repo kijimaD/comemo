@@ -15,6 +15,24 @@ Date:   Mon Jul 6 09:38:17 2020 -0400
     Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
-
+---
  src/cmd/link/internal/ld/data.go | 6 ------
  1 file changed, 6 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index e6ca977991..d9f9ff70d3 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -878,12 +878,6 @@ func writeBlocks(ctxt *Link, out *OutBuf, sem chan int, ldr *loader.Loader, syms
+ }
+ 
+ func writeBlock(ctxt *Link, out *OutBuf, ldr *loader.Loader, syms []loader.Sym, addr, size int64, pad []byte) {
+-	for i, s := range syms {
+-		if ldr.SymValue(s) >= addr && !ldr.AttrSubSymbol(s) {
+-			syms = syms[i:]
+-			break
+-		}
+-	}
+ 
+ 	st := ctxt.makeRelocSymState()
+ 

@@ -12,6 +12,19 @@ Date:   Tue Oct 11 12:53:16 2011 -0400
     R=golang-dev, mikioh.mikioh
     CC=golang-dev
     https://golang.org/cl/5229047
-
+---
  src/pkg/net/sock.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/pkg/net/sock.go b/src/pkg/net/sock.go
+index 366e050ff3..2359014ad6 100644
+--- a/src/pkg/net/sock.go
++++ b/src/pkg/net/sock.go
+@@ -52,6 +52,7 @@ func socket(net string, f, p, t int, la, ra syscall.Sockaddr, toAddr func(syscal
+ 
+ 	if ra != nil {
+ 		if err = fd.connect(ra); err != nil {
++			closesocket(s)
+ 			fd.Close()
+ 			return nil, err
+ 		}

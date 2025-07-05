@@ -13,7 +13,7 @@ Date:   Wed Jan 13 11:14:57 2016 -0800
     Reviewed-on: https://go-review.googlesource.com/18599
     Run-TryBot: Keith Randall <khr@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/gc/ssa.go          | 16 ++++++++++------
  src/cmd/compile/internal/ssa/config.go      | 14 ++++++++------
  src/cmd/compile/internal/ssa/export_test.go |  9 ++++++---
@@ -21,3 +21,182 @@ Date:   Wed Jan 13 11:14:57 2016 -0800
  src/cmd/compile/internal/ssa/html.go        |  6 +++---
  src/cmd/compile/internal/ssa/value.go       | 10 +++++++---
  6 files changed, 39 insertions(+), 24 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index c41a66f1ae..1367b22d89 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -130,7 +130,7 @@ func buildssa(fn *Node) *ssa.Func {
+ 	if name == os.Getenv("GOSSAFUNC") {
+ 		// TODO: tempfile? it is handy to have the location
+ 		// of this file be stable, so you can just reload in the browser.
+-		s.config.HTML = ssa.NewHTMLWriter("ssa.html", &s, name)
++		s.config.HTML = ssa.NewHTMLWriter("ssa.html", s.config, name)
+ 		// TODO: generate and print a mapping from nodes to values and blocks
+ 	}
+ 	defer func() {
+@@ -320,9 +320,11 @@ func (s *state) label(sym *Sym) *ssaLabel {
+ 	return lab
+ }
+ 
+-func (s *state) Logf(msg string, args ...interface{})            { s.config.Logf(msg, args...) }
+-func (s *state) Fatalf(msg string, args ...interface{})          { s.config.Fatalf(msg, args...) }
+-func (s *state) Unimplementedf(msg string, args ...interface{})  { s.config.Unimplementedf(msg, args...) }
++func (s *state) Logf(msg string, args ...interface{})   { s.config.Logf(msg, args...) }
++func (s *state) Fatalf(msg string, args ...interface{}) { s.config.Fatalf(s.peekLine(), msg, args...) }
++func (s *state) Unimplementedf(msg string, args ...interface{}) {
++	s.config.Unimplementedf(s.peekLine(), msg, args...)
++}
+ func (s *state) Warnl(line int, msg string, args ...interface{}) { s.config.Warnl(line, msg, args...) }
+ func (s *state) Debug_checknil() bool                            { return s.config.Debug_checknil() }
+ 
+@@ -4594,17 +4596,19 @@ func (e *ssaExport) Logf(msg string, args ...interface{}) {
+ }
+ 
+ // Fatal reports a compiler error and exits.
+-func (e *ssaExport) Fatalf(msg string, args ...interface{}) {
++func (e *ssaExport) Fatalf(line int32, msg string, args ...interface{}) {
+ 	// If e was marked as unimplemented, anything could happen. Ignore.
+ 	if !e.unimplemented {
++		lineno = line
+ 		Fatalf(msg, args...)
+ 	}
+ }
+ 
+ // Unimplemented reports that the function cannot be compiled.
+ // It will be removed once SSA work is complete.
+-func (e *ssaExport) Unimplementedf(msg string, args ...interface{}) {
++func (e *ssaExport) Unimplementedf(line int32, msg string, args ...interface{}) {
+ 	if e.mustImplement {
++		lineno = line
+ 		Fatalf(msg, args...)
+ 	}
+ 	const alwaysLog = false // enable to calculate top unimplemented features
+diff --git a/src/cmd/compile/internal/ssa/config.go b/src/cmd/compile/internal/ssa/config.go
+index 6d3a949a6a..7ef2fbd2fc 100644
+--- a/src/cmd/compile/internal/ssa/config.go
++++ b/src/cmd/compile/internal/ssa/config.go
+@@ -44,11 +44,11 @@ type Logger interface {
+ 	Logf(string, ...interface{})
+ 
+ 	// Fatal reports a compiler error and exits.
+-	Fatalf(string, ...interface{})
++	Fatalf(line int32, msg string, args ...interface{})
+ 
+ 	// Unimplemented reports that the function cannot be compiled.
+ 	// It will be removed once SSA work is complete.
+-	Unimplementedf(msg string, args ...interface{})
++	Unimplementedf(line int32, msg string, args ...interface{})
+ 
+ 	// Warnl writes compiler messages in the form expected by "errorcheck" tests
+ 	Warnl(line int, fmt_ string, args ...interface{})
+@@ -91,7 +91,7 @@ func NewConfig(arch string, fe Frontend, ctxt *obj.Link) *Config {
+ 		c.lowerBlock = rewriteBlockAMD64
+ 		c.lowerValue = rewriteValueAMD64 // TODO(khr): full 32-bit support
+ 	default:
+-		fe.Unimplementedf("arch %s not implemented", arch)
++		fe.Unimplementedf(0, "arch %s not implemented", arch)
+ 	}
+ 	c.ctxt = ctxt
+ 
+@@ -106,9 +106,11 @@ func (c *Config) NewFunc() *Func {
+ 	return &Func{Config: c, NamedValues: map[LocalSlot][]*Value{}}
+ }
+ 
+-func (c *Config) Logf(msg string, args ...interface{})            { c.fe.Logf(msg, args...) }
+-func (c *Config) Fatalf(msg string, args ...interface{})          { c.fe.Fatalf(msg, args...) }
+-func (c *Config) Unimplementedf(msg string, args ...interface{})  { c.fe.Unimplementedf(msg, args...) }
++func (c *Config) Logf(msg string, args ...interface{})               { c.fe.Logf(msg, args...) }
++func (c *Config) Fatalf(line int32, msg string, args ...interface{}) { c.fe.Fatalf(line, msg, args...) }
++func (c *Config) Unimplementedf(line int32, msg string, args ...interface{}) {
++	c.fe.Unimplementedf(line, msg, args...)
++}
+ func (c *Config) Warnl(line int, msg string, args ...interface{}) { c.fe.Warnl(line, msg, args...) }
+ func (c *Config) Debug_checknil() bool                            { return c.fe.Debug_checknil() }
+ 
+diff --git a/src/cmd/compile/internal/ssa/export_test.go b/src/cmd/compile/internal/ssa/export_test.go
+index c37db75803..f4d8d58549 100644
+--- a/src/cmd/compile/internal/ssa/export_test.go
++++ b/src/cmd/compile/internal/ssa/export_test.go
+@@ -32,9 +32,12 @@ func (DummyFrontend) Auto(t Type) GCNode {
+ 	return nil
+ }
+ 
+-func (d DummyFrontend) Logf(msg string, args ...interface{})            { d.t.Logf(msg, args...) }
+-func (d DummyFrontend) Fatalf(msg string, args ...interface{})          { d.t.Fatalf(msg, args...) }
+-func (d DummyFrontend) Unimplementedf(msg string, args ...interface{})  { d.t.Fatalf(msg, args...) }
++func (d DummyFrontend) Logf(msg string, args ...interface{}) { d.t.Logf(msg, args...) }
++
++func (d DummyFrontend) Fatalf(line int32, msg string, args ...interface{}) { d.t.Fatalf(msg, args...) }
++func (d DummyFrontend) Unimplementedf(line int32, msg string, args ...interface{}) {
++	d.t.Fatalf(msg, args...)
++}
+ func (d DummyFrontend) Warnl(line int, msg string, args ...interface{}) { d.t.Logf(msg, args...) }
+ func (d DummyFrontend) Debug_checknil() bool                            { return false }
+ 
+diff --git a/src/cmd/compile/internal/ssa/func.go b/src/cmd/compile/internal/ssa/func.go
+index e5fbfdb5ff..371dae3b17 100644
+--- a/src/cmd/compile/internal/ssa/func.go
++++ b/src/cmd/compile/internal/ssa/func.go
+@@ -305,6 +305,8 @@ func (f *Func) ConstFloat64(line int32, t Type, c float64) *Value {
+ 	return f.Entry.NewValue0I(line, OpConst64F, t, int64(math.Float64bits(c)))
+ }
+ 
+-func (f *Func) Logf(msg string, args ...interface{})           { f.Config.Logf(msg, args...) }
+-func (f *Func) Fatalf(msg string, args ...interface{})         { f.Config.Fatalf(msg, args...) }
+-func (f *Func) Unimplementedf(msg string, args ...interface{}) { f.Config.Unimplementedf(msg, args...) }
++func (f *Func) Logf(msg string, args ...interface{})   { f.Config.Logf(msg, args...) }
++func (f *Func) Fatalf(msg string, args ...interface{}) { f.Config.Fatalf(f.Entry.Line, msg, args...) }
++func (f *Func) Unimplementedf(msg string, args ...interface{}) {
++	f.Config.Unimplementedf(f.Entry.Line, msg, args...)
++}
+diff --git a/src/cmd/compile/internal/ssa/html.go b/src/cmd/compile/internal/ssa/html.go
+index 9b8fc3750b..bb88a3ebde 100644
+--- a/src/cmd/compile/internal/ssa/html.go
++++ b/src/cmd/compile/internal/ssa/html.go
+@@ -20,7 +20,7 @@ type HTMLWriter struct {
+ func NewHTMLWriter(path string, logger Logger, funcname string) *HTMLWriter {
+ 	out, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+ 	if err != nil {
+-		logger.Fatalf("%v", err)
++		logger.Fatalf(0, "%v", err)
+ 	}
+ 	html := HTMLWriter{File: out, Logger: logger}
+ 	html.start(funcname)
+@@ -326,13 +326,13 @@ func (w *HTMLWriter) WriteColumn(title string, html string) {
+ 
+ func (w *HTMLWriter) Printf(msg string, v ...interface{}) {
+ 	if _, err := fmt.Fprintf(w.File, msg, v...); err != nil {
+-		w.Fatalf("%v", err)
++		w.Fatalf(0, "%v", err)
+ 	}
+ }
+ 
+ func (w *HTMLWriter) WriteString(s string) {
+ 	if _, err := w.File.WriteString(s); err != nil {
+-		w.Fatalf("%v", err)
++		w.Fatalf(0, "%v", err)
+ 	}
+ }
+ 
+diff --git a/src/cmd/compile/internal/ssa/value.go b/src/cmd/compile/internal/ssa/value.go
+index fc318638ad..420c408e88 100644
+--- a/src/cmd/compile/internal/ssa/value.go
++++ b/src/cmd/compile/internal/ssa/value.go
+@@ -135,9 +135,13 @@ func (v *Value) copyInto(b *Block) *Value {
+ 	return c
+ }
+ 
+-func (v *Value) Logf(msg string, args ...interface{})           { v.Block.Logf(msg, args...) }
+-func (v *Value) Fatalf(msg string, args ...interface{})         { v.Block.Fatalf(msg, args...) }
+-func (v *Value) Unimplementedf(msg string, args ...interface{}) { v.Block.Unimplementedf(msg, args...) }
++func (v *Value) Logf(msg string, args ...interface{}) { v.Block.Logf(msg, args...) }
++func (v *Value) Fatalf(msg string, args ...interface{}) {
++	v.Block.Func.Config.Fatalf(v.Line, msg, args...)
++}
++func (v *Value) Unimplementedf(msg string, args ...interface{}) {
++	v.Block.Func.Config.Unimplementedf(v.Line, msg, args...)
++}
+ 
+ // ExternSymbol is an aux value that encodes a variable's
+ // constant offset from the static base pointer.

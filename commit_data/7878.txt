@@ -7,6 +7,20 @@ Date:   Fri Mar 25 18:00:19 2011 -0400
     R=adg, rsc, ality
     CC=golang-dev
     https://golang.org/cl/4281069
-
+---
  src/version.bash | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/version.bash b/src/version.bash
+index b3df0e91a8..7b2c06801a 100755
+--- a/src/version.bash
++++ b/src/version.bash
+@@ -19,7 +19,7 @@ fi
+ # Find most recent known release tag.
+ TAG=$(hg tags |
+ 	sort -rn -k2 |
+-	awk -vver=$VERSION '$2 <= ver && $1~/^(release|weekly)\./ {print $1}' |
++	awk -v ver=$VERSION '$2 <= ver && $1~/^(release|weekly)\./ {print $1}' |
+ 	sed -n 1p)
+ 
+ if [ "$TAG" != "" ]; then

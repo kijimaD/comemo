@@ -8,6 +8,31 @@ Date:   Fri Aug 16 21:14:38 2013 +0400
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/13059043
-
+---
  test/nilptr2.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/test/nilptr2.go b/test/nilptr2.go
+index 3d9ca0a7a0..57a5f8068f 100644
+--- a/test/nilptr2.go
++++ b/test/nilptr2.go
+@@ -87,8 +87,8 @@ var tests = []struct{
+ 	{"&bigstructp.x[i]", func() { println(&bigstructp.x[i]) }},
+ 	{"bigstructp.x[9]", func() { println(bigstructp.x[9]) }},
+ 	{"&bigstructp.x[9]", func() { println(&bigstructp.x[9]) }},
+-	{"bigstructp.x[200<<20]", func() { println(bigstructp.x[200<<20]) }},
+-	{"&bigstructp.x[200<<20]", func() { println(&bigstructp.x[200<<20]) }},
++	{"bigstructp.x[100<<20]", func() { println(bigstructp.x[100<<20]) }},
++	{"&bigstructp.x[100<<20]", func() { println(&bigstructp.x[100<<20]) }},
+ 	{"bigstructp.l", func() { println(bigstructp.l) }},
+ 	{"&bigstructp.l", func() { println(&bigstructp.l) }},
+ 	{"m1.F()", func() { println(m1.F()) }},
+@@ -109,7 +109,7 @@ type BigStruct struct {
+ 	i int
+ 	j float64
+ 	k string
+-	x [256<<20]byte
++	x [128<<20]byte
+ 	l []byte
+ }
+ 

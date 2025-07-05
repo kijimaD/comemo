@@ -49,7 +49,64 @@ Date:   Fri Apr 17 11:07:38 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/9225
     Reviewed-by: Austin Clements <austin@google.com>
     Run-TryBot: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/internal/gc/cgen.go | 9 +++++----
  src/cmd/internal/gc/walk.go | 8 ++++++--
  2 files changed, 11 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/internal/gc/cgen.go b/src/cmd/internal/gc/cgen.go
+index 6c8f7b56a8..d24db5ff68 100644
+--- a/src/cmd/internal/gc/cgen.go
++++ b/src/cmd/internal/gc/cgen.go
+@@ -804,7 +804,7 @@ func cgen_wbptr(n, res *Node) {
+ 	}
+ 
+ 	Thearch.Gins(Thearch.Optoas(OCMP, Types[TUINT8]), syslook("writeBarrierEnabled", 0), Nodintconst(0))
+-	pbr := Gbranch(Thearch.Optoas(ONE, Types[TUINT32]), nil, -1)
++	pbr := Gbranch(Thearch.Optoas(ONE, Types[TUINT8]), nil, -1)
+ 	Thearch.Gins(Thearch.Optoas(OAS, Types[Tptr]), &src, &dst)
+ 	pjmp := Gbranch(obj.AJMP, nil, 0)
+ 	Patch(pbr, Pc)
+@@ -861,13 +861,14 @@ func cgen_wbfat(n, res *Node) {
+ 	p2.To = p.To
+ 	p2.To.Offset += int64(Widthptr)
+ 	Regfree(&dst)
+-	Regfree(&src)
+ 	if needType {
+-		p3 := Thearch.Gins(Thearch.Optoas(OAS, Types[Tptr]), typename(n.Type), nil)
++		src.Type = Types[Tptr]
++		Thearch.Gins(Thearch.Optoas(OAS, Types[Tptr]), typename(n.Type), &src)
++		p3 := Thearch.Gins(Thearch.Optoas(OAS, Types[Tptr]), &src, nil)
+ 		p3.To = p2.To
+ 		p3.To.Offset -= 2 * int64(Widthptr)
+-		Regfree(&src)
+ 	}
++	Regfree(&src)
+ 	Ginscall(writebarrierfn(funcName, Types[Tptr], Types[Tptr]), 0)
+ }
+ 
+diff --git a/src/cmd/internal/gc/walk.go b/src/cmd/internal/gc/walk.go
+index 01319a771f..bc886d9eef 100644
+--- a/src/cmd/internal/gc/walk.go
++++ b/src/cmd/internal/gc/walk.go
+@@ -2218,14 +2218,18 @@ func applywritebarrier(n *Node, init **NodeList) *Node {
+ 		if Curfn != nil && Curfn.Func.Nowritebarrier {
+ 			Yyerror("write barrier prohibited")
+ 		}
+-		t := n.Left.Type
+-		if t.Width == int64(Widthptr) {
++		if flag_race == 0 {
++			if Debug_wb > 1 {
++				Warnl(int(n.Lineno), "marking %v for barrier", Nconv(n.Left, 0))
++			}
+ 			n.Op = OASWB
+ 			return n
+ 		}
++		// Use slow path always for race detector.
+ 		if Debug_wb > 0 {
+ 			Warnl(int(n.Lineno), "write barrier")
+ 		}
++		t := n.Left.Type
+ 		l := Nod(OADDR, n.Left, nil)
+ 		l.Etype = 1 // addr does not escape
+ 		if t.Width == int64(Widthptr) {

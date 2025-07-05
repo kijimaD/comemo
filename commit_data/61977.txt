@@ -12,6 +12,19 @@ Date:   Thu Jan 2 18:22:34 2025 +0000
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/internal/exportdata/exportdata.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/internal/exportdata/exportdata.go b/src/internal/exportdata/exportdata.go
+index 27675923b5..861a47f49f 100644
+--- a/src/internal/exportdata/exportdata.go
++++ b/src/internal/exportdata/exportdata.go
+@@ -85,6 +85,7 @@ func ReadUnified(r *bufio.Reader) (data []byte, err error) {
+ 
+ 	if n < 0 {
+ 		err = fmt.Errorf("invalid size (%d) in the archive file: %d bytes remain without section headers (recompile package)", size, n)
++		return
+ 	}
+ 
+ 	// Read n bytes from buf.

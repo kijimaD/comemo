@@ -10,6 +10,20 @@ Date:   Fri Aug 28 14:51:13 2015 +1000
     Change-Id: I21dda64aec113c35caf1d565f29e3aac8171480a
     Reviewed-on: https://go-review.googlesource.com/14004
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  doc/go1.6.txt | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/doc/go1.6.txt b/doc/go1.6.txt
+new file mode 100644
+index 0000000000..d62d4e4b76
+--- /dev/null
++++ b/doc/go1.6.txt
+@@ -0,0 +1,7 @@
++Ports:
++
++NaCl is no longer restricted to pepper_41 (https://golang.org/cl/13958/)
++
++API additions and behavior changes:
++
++text/template: ExecError (https://golang.org/cl/13957/)

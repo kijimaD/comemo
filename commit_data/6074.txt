@@ -7,7 +7,7 @@ Date:   Tue Aug 24 20:00:33 2010 -0400
     R=r
     CC=golang-dev
     https://golang.org/cl/1982049
-
+---
  bin/~place-holder~            |  4 ++++
  src/Make.ccmd                 | 36 ++++++++++++++++++++++++++++++++++++
  src/Make.cmd                  |  9 ++-------
@@ -50,3 +50,1437 @@ Date:   Tue Aug 24 20:00:33 2010 -0400
  src/make.bash                 |  8 ++++++--
  src/run.bash                  |  7 ++++++-
  41 files changed, 238 insertions(+), 437 deletions(-)
+
+diff --git a/bin/~place-holder~ b/bin/~place-holder~
+new file mode 100644
+index 0000000000..04a214368b
+--- /dev/null
++++ b/bin/~place-holder~
+@@ -0,0 +1,4 @@
++Command binaries are installed in this directory.
++
++Mercurial does not maintain empty directories.
++This file helps.
+diff --git a/src/Make.ccmd b/src/Make.ccmd
+new file mode 100644
+index 0000000000..3797fae6c0
+--- /dev/null
++++ b/src/Make.ccmd
+@@ -0,0 +1,36 @@
++# Copyright 2010 The Go Authors.  All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++# Makefile for commands written in C.
++
++$(TARG): $(OFILES) $(LIB)
++	$(HOST_LD) -o $(TARG) -L"$(GOROOT)"/lib $(OFILES) $(LIB) -lbio -l9 -lm
++
++$(OFILES): $(HFILES)
++
++clean:
++	rm -f *.$(HOST_O) $(TARG) $(CLEANFILES)
++
++install: $(QUOTED_GOBIN)/$(TARG)
++
++$(QUOTED_GOBIN)/$(TARG): $(TARG)
++	cp $(TARG) "$(GOBIN)"/$(TARG)
++
++y.tab.h: $(YFILES)
++	bison -y $(HOST_YFLAGS) $(YFILES)
++
++y.tab.c: y.tab.h
++	test -f y.tab.c && touch y.tab.c
++
++all: $(TARG)
++
++%.$(HOST_O): %.c
++	$(HOST_CC) $(HOST_CFLAGS) -c "$(PWD)/$*.c"
++
++# These are used by enough different Makefiles to be
++# worth writing down in one place, even if they don't
++# apply to every command that builds with Make.ccmd
++../%l/enam.o:
++	cd ../$*l; $(MAKE) enam.o
++
+diff --git a/src/Make.cmd b/src/Make.cmd
+index 1344010936..73622f5a56 100644
+--- a/src/Make.cmd
++++ b/src/Make.cmd
+@@ -8,20 +8,15 @@ endif
+ 
+ all: $(TARG)
+ 
+-# ugly hack to deal with whitespaces in $GOROOT
+-nullstring :=
+-space := $(nullstring) # a space at the end
+-QUOTED_GOROOT:=$(subst $(space),\ ,$(GOROOT))
+-
+ include $(QUOTED_GOROOT)/src/Make.common
+ 
+ PREREQ+=$(patsubst %,%.make,$(DEPS))
+ 
+ $(TARG): _go_.$O $(OFILES)
+-	$(QUOTED_GOBIN)/$(LD) -o $@ _go_.$O $(OFILES)
++	$(LD) -o $@ _go_.$O $(OFILES)
+ 
+ _go_.$O: $(GOFILES) $(PREREQ)
+-	$(QUOTED_GOBIN)/$(GC) -o $@ $(GOFILES)
++	$(GC) -o $@ $(GOFILES)
+ 
+ install: $(QUOTED_GOBIN)/$(TARG)
+ 
+diff --git a/src/Make.common b/src/Make.common
+index 2755005a01..c1cafa5501 100644
+--- a/src/Make.common
++++ b/src/Make.common
+@@ -2,23 +2,6 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-# GNU Make syntax:
+-ifndef GOBIN
+-GOBIN=$(HOME)/bin
+-endif
+-
+-# ugly hack to deal with whitespaces in $GOBIN
+-nullstring :=
+-space := $(nullstring) # a space at the end
+-ifndef GOBIN
+-QUOTED_HOME=$(subst $(space),\ ,$(HOME))
+-GOBIN=$(QUOTED_HOME)/bin
+-endif
+-QUOTED_GOBIN=$(subst $(space),\ ,$(GOBIN))
+-
+-# ugly hack to deal with whitespaces in $GOROOT
+-QUOTED_GOROOT:=$(subst $(space),\ ,$(GOROOT))
+-
+ clean:
+ 	rm -rf *.o *.a *.[$(OS)] [$(OS)].out $(CLEANFILES)
+ 
+diff --git a/src/Make.conf b/src/Make.conf
+deleted file mode 100644
+index fa7177aa83..0000000000
+--- a/src/Make.conf
++++ /dev/null
+@@ -1,22 +0,0 @@
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-CFLAGS=-ggdb -I"$(GOROOT)"/include -O2 -fno-inline
+-O=o
+-YFLAGS=-d
+-# GNU Make syntax:
+-nullstring :=
+-space := $(nullstring) # a space at the end
+-ifndef GOBIN
+-QUOTED_HOME=$(subst $(space),\ ,$(HOME))
+-GOBIN=$(QUOTED_HOME)/bin
+-endif
+-QUOTED_GOBIN=$(subst $(space),\ ,$(GOBIN))
+-
+-CC=$(QUOTED_GOBIN)/quietgcc
+-LD=$(QUOTED_GOBIN)/quietgcc
+-PWD=$(shell pwd)
+-
+-%.$O: %.c
+-	$(CC) $(CFLAGS) -c "$(PWD)"/$*.c
+diff --git a/src/Make.inc.in b/src/Make.inc
+similarity index 70%
+rename from src/Make.inc.in
+rename to src/Make.inc
+index c3e4a45b40..9797dc9421 100644
+--- a/src/Make.inc.in
++++ b/src/Make.inc
+@@ -2,15 +2,18 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-# Makefile included by all other makefiles.
++# Makefile included by all other Go makefiles.
+ # The build converts Make.inc.in to Make.inc.
+ # Only make changes in Make.inc.in.
+ 
+-# Set up GOROOT, GOARCH, GOOS if needed.
++# GOROOT must be set.
+ ifeq ($(GOROOT),)
+-GOROOT:=@@GOROOT@@
++$(error $$GOROOT is not set; use gomake or set $$GOROOT in your environment)
+ endif
+ 
++# Set up GOROOT_FINAL, GOARCH, GOOS if needed.
++GOROOT_FINAL?=$(GOROOT)
++
+ ifeq ($(GOOS),)
+ GOOS:=${shell uname | tr A-Z a-z}
+ endif
+@@ -45,9 +48,20 @@ else
+ $(error Invalid $$GOARCH '$(GOARCH)'; must be 386, amd64, or arm)
+ endif
+ 
+-# Save for recursive make.
++# Save for recursive make to avoid recomputing.
+ export GOARCH GOOS
+ 
++# ugly hack to deal with whitespaces in $GOROOT
++nullstring :=
++space := $(nullstring) # a space at the end
++QUOTED_GOROOT:=$(subst $(space),\ ,$(GOROOT))
++
++# default GOBIN
++ifndef GOBIN
++GOBIN=$(QUOTED_GOROOT)/bin
++endif
++QUOTED_GOBIN=$(subst $(space),\ ,$(GOBIN))
++
+ AS=${O}a
+ CC=${O}c
+ GC=${O}g
+@@ -55,6 +69,13 @@ LD=${O}l
+ OS=568vq
+ CFLAGS=-FVw
+ 
++HOST_CC=quietgcc
++HOST_LD=quietgcc
++HOST_O=o
++HOST_YFLAGS=-d
++HOST_CFLAGS=-ggdb -I"$(GOROOT)/include" -O2 -fno-inline
++PWD=$(shell pwd)
++
+ go-env:
+ 	@echo export GOARCH=$(GOARCH)
+ 	@echo export GOOS=$(GOOS)
+diff --git a/src/Make.pkg b/src/Make.pkg
+index ac1198e161..4d64008145 100644
+--- a/src/Make.pkg
++++ b/src/Make.pkg
+@@ -6,11 +6,6 @@ all: package
+ package: _obj/$(TARG).a
+ testpackage: _test/$(TARG).a
+ 
+-# ugly hack to deal with whitespaces in $GOROOT
+-nullstring :=
+-space := $(nullstring) # a space at the end
+-QUOTED_GOROOT:=$(subst $(space),\ ,$(GOROOT))
+-
+ include $(QUOTED_GOROOT)/src/Make.common
+ 
+ # GNU Make 3.80 has a bug in lastword
+@@ -42,16 +37,16 @@ endif
+ PREREQ+=$(patsubst %,%.make,$(DEPS))
+ 
+ coverage:
+-	$(QUOTED_GOBIN)/gotest
+-	$(QUOTED_GOBIN)/6cov -g $(shell pwd) $O.out | grep -v '_test\.go:'
++	gotest
++	6cov -g $(shell pwd) $O.out | grep -v '_test\.go:'
+ 
+ CLEANFILES+=*.cgo1.go *.cgo2.c _cgo_defun.c _cgo_gotypes.go _cgo_export.* *.so _obj _test _testmain.go
+ 
+ test:
+-	$(QUOTED_GOBIN)/gotest
++	gotest
+ 
+ bench:
+-	$(QUOTED_GOBIN)/gotest -benchmarks=. -match="Do not run tests"
++	gotest -benchmarks=. -match="Do not run tests"
+ 
+ nuke: clean
+ 	rm -f $(pkgdir)/$(TARG).a
+@@ -66,20 +61,20 @@ $(pkgdir)/$(TARG).a: _obj/$(TARG).a
+ 	cp _obj/$(TARG).a "$@"
+ 
+ _go_.$O: $(GOFILES) $(PREREQ)
+-	$(QUOTED_GOBIN)/$(GC) -o $@ $(GOFILES)
++	$(GC) -o $@ $(GOFILES)
+ 
+ _gotest_.$O: $(GOFILES) $(GOTESTFILES) $(PREREQ)
+-	$(QUOTED_GOBIN)/$(GC) -o $@ $(GOFILES) $(GOTESTFILES)
++	$(GC) -o $@ $(GOFILES) $(GOTESTFILES)
+ 
+ _obj/$(TARG).a: _go_.$O $(OFILES)
+ 	@mkdir -p _obj/$(dir)
+ 	rm -f _obj/$(TARG).a
+-	$(QUOTED_GOBIN)/gopack grc $@ _go_.$O $(OFILES)
++	gopack grc $@ _go_.$O $(OFILES)
+ 
+ _test/$(TARG).a: _gotest_.$O $(OFILES)
+ 	@mkdir -p _test/$(dir)
+ 	rm -f _test/$(TARG).a
+-	$(QUOTED_GOBIN)/gopack grc $@ _gotest_.$O $(OFILES)
++	gopack grc $@ _gotest_.$O $(OFILES)
+ 
+ importpath:
+ 	@echo $(TARG)
+@@ -108,7 +103,7 @@ dir:
+ #
+ 
+ _cgo_defun.c _cgo_gotypes.go _cgo_export.c _cgo_export.h: $(CGOFILES)
+-	CGOPKGPATH=$(dir) $(QUOTED_GOBIN)/cgo -- $(CGO_CFLAGS) $(CGOFILES)
++	CGOPKGPATH=$(dir) cgo -- $(CGO_CFLAGS) $(CGOFILES)
+ 
+ # Ugly but necessary
+ %.cgo1.go: _cgo_defun.c _cgo_gotypes.go
+@@ -118,10 +113,10 @@ _cgo_defun.c _cgo_gotypes.go _cgo_export.c _cgo_export.h: $(CGOFILES)
+ 	@true
+ 
+ %.cgo2.o: %.cgo2.c
+-	gcc $(_CGO_CFLAGS_$(GOARCH)) -fPIC -O2 -o $@ -c $(CGO_CFLAGS) $*.cgo2.c
++	$(HOST_CC) $(_CGO_CFLAGS_$(GOARCH)) -fPIC -O2 -o $@ -c $(CGO_CFLAGS) $*.cgo2.c
+ 
+ _cgo_export.o: _cgo_export.c _cgo_export.h
+-	gcc $(_CGO_CFLAGS_$(GOARCH)) -fPIC -O2 -o $@ -c $(CGO_CFLAGS) _cgo_export.c
++	$(HOST_CC) $(_CGO_CFLAGS_$(GOARCH)) -fPIC -O2 -o $@ -c $(CGO_CFLAGS) _cgo_export.c
+ 
+ # The rules above added x.cgo1.go and _cgo_gotypes.go to $(GOFILES),
+ # added _cgo_defun.$O to $OFILES, and added the installed copy of
+@@ -137,15 +132,14 @@ _CGO_LDFLAGS_freebsd=-shared -lpthread -lm
+ _CGO_LDFLAGS_linux=-shared -lpthread -lm
+ _CGO_LDFLAGS_darwin=-dynamiclib -Wl,-undefined,dynamic_lookup
+ 
+-
+ # Compile x.cgo4.c with gcc to make package_x.so.
+ 
+ # Compile _cgo_defun.c with 6c; needs access to the runtime headers.
+ _cgo_defun.$O: _cgo_defun.c
+-	$(QUOTED_GOBIN)/$(CC) $(CFLAGS) $(RUNTIME_CFLAGS) _cgo_defun.c
++	$(CC) $(CFLAGS) $(RUNTIME_CFLAGS) _cgo_defun.c
+ 
+ _cgo_.so: $(GCC_OFILES) $(CGO_DEPS)
+-	gcc $(_CGO_CFLAGS_$(GOARCH)) -o $@ $(GCC_OFILES) $(CGO_LDFLAGS)  $(_CGO_LDFLAGS_$(GOOS))
++	$(HOST_CC) $(_CGO_CFLAGS_$(GOARCH)) -o $@ $(GCC_OFILES) $(CGO_LDFLAGS)  $(_CGO_LDFLAGS_$(GOOS))
+ 
+ $(pkgdir)/$(CGOTARG).so: _cgo_.so
+ 	@test -d $(QUOTED_GOROOT)/pkg && mkdir -p $(pkgdir)/$(dir)
+@@ -155,10 +149,10 @@ $(pkgdir)/$(CGOTARG).so: _cgo_.so
+ # These come last so that the rules above can override them
+ # for more specific file names.
+ %.$O: %.c
+-	$(QUOTED_GOBIN)/$(CC) $(CFLAGS) $*.c
++	$(CC) $(CFLAGS) $*.c
+ 
+ %.$O: %.s
+-	$(QUOTED_GOBIN)/$(AS) $*.s
++	$(AS) $*.s
+ 
+ %.$O: $(HFILES)
+ 
+diff --git a/src/all.bash b/src/all.bash
+index 4a98fe9f6b..00110d2da9 100755
+--- a/src/all.bash
++++ b/src/all.bash
+@@ -9,6 +9,6 @@ if [ ! -f make.bash ]; then
+ 	exit 1
+ fi
+ . ./make.bash
+-bash run.bash --no-rebuild
++bash run.bash --no-env --no-rebuild
+ installed  # function defined by make.bash
+ 
+diff --git a/src/cmd/5a/Makefile b/src/cmd/5a/Makefile
+index f01b017dac..9485e5cf83 100644
+--- a/src/cmd/5a/Makefile
++++ b/src/cmd/5a/Makefile
+@@ -2,7 +2,8 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../Make.conf
++include ../../Make.inc
++O:=$(HOST_O)
+ 
+ TARG=\
+ 	5a\
+@@ -15,26 +16,11 @@ HFILES=\
+ OFILES=\
+ 	y.tab.$O\
+ 	lex.$O\
+-#	../5l/enam.$O\
++	../5l/enam.$O\
+ 
+ YFILES=\
+ 	a.y\
+ 
+-$(TARG): $(OFILES)
+-	$(LD) -o $(TARG) -L"$(GOROOT)"/lib $(OFILES) -lbio -l9
+-
+-$(OFILES): $(HFILES)
++include ../../Make.ccmd
+ 
+ lex.$O:	../cc/macbody ../cc/lexbody
+-
+-y.tab.h: $(YFILES)
+-	bison -y $(YFLAGS) $(YFILES)
+-
+-y.tab.c: y.tab.h
+-	test -f y.tab.c && touch y.tab.c
+-
+-clean:
+-	rm -f *.$O $(TARG) *.5 enam.c 5.out a.out y.tab.h y.tab.c
+-
+-install: $(TARG)
+-	cp $(TARG) "$(GOBIN)"/$(TARG)
+diff --git a/src/cmd/5c/Makefile b/src/cmd/5c/Makefile
+index b534206f35..70b614e8a5 100644
+--- a/src/cmd/5c/Makefile
++++ b/src/cmd/5c/Makefile
+@@ -2,10 +2,10 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../Make.conf
++include ../../Make.inc
++O:=$(HOST_O)
+ 
+-TARG=\
+-	5c\
++TARG=5c
+ 
+ HFILES=\
+ 	gc.h\
+@@ -26,18 +26,9 @@ OFILES=\
+ 	../5l/enam.$O\
+ 
+ LIB=\
+-	../cc/cc.a$O
++	../cc/cc.a\
+ 
+-$(TARG): $(OFILES) $(LIB)
+-	$(LD) -o $(TARG) -L"$(GOROOT)"/lib $(OFILES) $(LIB) -lbio -l9
+-
+-$(OFILES): $(HFILES)
+-
+-clean:
+-	rm -f *.$O $(TARG) *.5 enam.c 5.out a.out
+-
+-install: $(TARG)
+-	cp $(TARG) "$(GOBIN)"/$(TARG)
++include ../../Make.ccmd
+ 
+ %.$O: ../cc/%.c
+-	$(CC) $(CFLAGS) -c -I. -o $@ ../cc/$*.c
++	$(HOST_CC) $(HOST_CFLAGS) -c -I. -o $@ ../cc/$*.c
+diff --git a/src/cmd/5g/Makefile b/src/cmd/5g/Makefile
+index 123af19cda..762b7c5275 100644
+--- a/src/cmd/5g/Makefile
++++ b/src/cmd/5g/Makefile
+@@ -2,10 +2,10 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../Make.conf
++include ../../Make.inc
++O:=$(HOST_O)
+ 
+-TARG=\
+-	5g
++TARG=5g
+ 
+ HFILES=\
+ 	../gc/go.h\
+@@ -24,15 +24,9 @@ OFILES=\
+ 	cgen64.$O
+ 
+ LIB=\
+-	../gc/gc.a$O
++	../gc/gc.a\
+ 
+-$(TARG): $(OFILES) $(LIB)
+-	$(LD) -o $(TARG) -L"$(GOROOT)"/lib $(OFILES) $(LIB) -lbio -l9 -lm
++include ../../Make.ccmd
+ 
+-$(OFILES): $(HFILES)
+-
+-clean:
+-	rm -f *.o $(TARG) *.5 enam.c 5.out a.out
+-
+-install: $(TARG)
+-	cp $(TARG) "$(GOBIN)"/$(TARG)
++%.$O: ../gc/%.c
++	$(HOST_CC) $(HOST_CFLAGS) -c -I. -o $@ ../gc/$*.c
+diff --git a/src/cmd/5l/Makefile b/src/cmd/5l/Makefile
+index b9780f098d..fd0406558e 100644
+--- a/src/cmd/5l/Makefile
++++ b/src/cmd/5l/Makefile
+@@ -2,10 +2,10 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../Make.conf
++include ../../Make.inc
++O:=$(HOST_O)
+ 
+-TARG=\
+-	5l\
++TARG=5l
+ 
+ OFILES=\
+ 	asm.$O\
+@@ -27,19 +27,12 @@ HFILES=\
+ 	../5l/5.out.h\
+ 	../ld/elf.h\
+ 
+-$(TARG): $(OFILES)
+-	$(LD) -o $(TARG) -L"$(GOROOT)"/lib $(OFILES) -lbio -l9
+-
+-$(OFILES): $(HFILES)
++include ../../Make.ccmd
+ 
+ enam.c: 5.out.h
+ 	sh mkenam
+ 
+-clean:
+-	rm -f *.o $(TARG) *.5 enam.c 5.out a.out
+-
+-install: $(TARG)
+-	cp $(TARG) "$(GOBIN)"/$(TARG)
++CLEANFILES+=enam.c
+ 
+ %.$O: ../ld/%.c
+-	$(CC) $(CFLAGS) -c -I. ../ld/$*.c
++	$(HOST_CC) $(HOST_CFLAGS) -c -I. ../ld/$*.c
+diff --git a/src/cmd/6a/Makefile b/src/cmd/6a/Makefile
+index 21d824708e..30180bd247 100644
+--- a/src/cmd/6a/Makefile
++++ b/src/cmd/6a/Makefile
+@@ -2,10 +2,10 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../Make.conf
++include ../../Make.inc
++O:=$(HOST_O)
+ 
+-TARG=\
+-	6a\
++TARG=6a
+ 
+ HFILES=\
+ 	a.h\
+@@ -20,21 +20,6 @@ OFILES=\
+ YFILES=\
+ 	a.y\
+ 
+-$(TARG): $(OFILES)
+-	$(LD) -o $(TARG) -L"$(GOROOT)"/lib $(OFILES) -lbio -l9
+-
+-$(OFILES): $(HFILES)
++include ../../Make.ccmd
+ 
+ lex.$O:	../cc/macbody ../cc/lexbody
+-
+-y.tab.h: $(YFILES)
+-	bison -y $(YFLAGS) $(YFILES)
+-
+-y.tab.c: y.tab.h
+-	test -f y.tab.c && touch y.tab.c
+-
+-clean:
+-	rm -f *.$O $(TARG) *.6 enam.c 6.out a.out y.tab.h y.tab.c
+-
+-install: $(TARG)
+-	cp $(TARG) "$(GOBIN)"/$(TARG)
+diff --git a/src/cmd/6c/Makefile b/src/cmd/6c/Makefile
+index 53a8e80e65..484e16def1 100644
+--- a/src/cmd/6c/Makefile
++++ b/src/cmd/6c/Makefile
+@@ -2,10 +2,10 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../Make.conf
++include ../../Make.inc
++O:=$(HOST_O)
+ 
+-TARG=\
+-	6c\
++TARG=6c
+ 
+ HFILES=\
+ 	gc.h\
+@@ -28,18 +28,9 @@ OFILES=\
+ 	../6l/enam.$O\
+ 
+ LIB=\
+-	../cc/cc.a$O
++	../cc/cc.a\
+ 
+-$(TARG): $(OFILES) $(LIB)
+-	$(LD) -o $(TARG) -L"$(GOROOT)"/lib $(OFILES) $(LIB) -lbio -l9
+-
+-$(OFILES): $(HFILES)
+-
+-clean:
+-	rm -f *.$O $(TARG) *.6 enam.c 6.out a.out
+-
+-install: $(TARG)
+-	cp $(TARG) "$(GOBIN)"/$(TARG)
++include ../../Make.ccmd
+ 
+ %.$O: ../cc/%.c
+-	$(CC) $(CFLAGS) -c -I. -o $@ ../cc/$*.c
++	$(HOST_CC) $(HOST_CFLAGS) -c -I. -o $@ ../cc/$*.c
+diff --git a/src/cmd/6g/Makefile b/src/cmd/6g/Makefile
+index 712cfc60cb..023f5d111b 100644
+--- a/src/cmd/6g/Makefile
++++ b/src/cmd/6g/Makefile
+@@ -2,10 +2,10 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../Make.conf
++include ../../Make.inc
++O:=$(HOST_O)
+ 
+-TARG=\
+-	6g
++TARG=6g
+ 
+ HFILES=\
+ 	../gc/go.h\
+@@ -26,18 +26,9 @@ OFILES=\
+ 	../6l/enam.$O\
+ 
+ LIB=\
+-	../gc/gc.a$O
++	../gc/gc.a\
+ 
+-$(TARG): $(OFILES) $(LIB)
+-	$(LD) -o $(TARG) -L"$(GOROOT)"/lib $(OFILES) $(LIB) -lbio -l9 -lm
+-
+-$(OFILES): $(HFILES)
+-
+-clean:
+-	rm -f $(TARG) enam.c 6.out a.out *.$O *.6
+-
+-install: $(TARG)
+-	cp $(TARG) "$(GOBIN)"/$(TARG)
++include ../../Make.ccmd
+ 
+ %.$O: ../gc/%.c
+-	$(CC) $(CFLAGS) -c -I. -o $@ ../gc/$*.c
++	$(HOST_CC) $(HOST_CFLAGS) -c -I. -o $@ ../gc/$*.c
+diff --git a/src/cmd/6l/Makefile b/src/cmd/6l/Makefile
+index 0ee1a6130a..04d3fb0449 100644
+--- a/src/cmd/6l/Makefile
++++ b/src/cmd/6l/Makefile
+@@ -2,10 +2,10 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../Make.conf
++include ../../Make.inc
++O:=$(HOST_O)
+ 
+-TARG=\
+-	6l\
++TARG=6l
+ 
+ OFILES=\
+ 	asm.$O\
+@@ -29,19 +29,12 @@ HFILES=\
+ 	../ld/macho.h\
+ 	../ld/dwarf.h\
+ 
+-$(TARG): $(OFILES)
+-	$(LD) -o $(TARG) -L"$(GOROOT)"/lib $(OFILES) -lbio -l9
+-
+-$(OFILES): $(HFILES)
++include ../../Make.ccmd
+ 
+ enam.c: 6.out.h
+ 	sh mkenam
+ 
+-clean:
+-	rm -f *.$O $(TARG) *.6 enam.c 6.out a.out
+-
+-install: $(TARG)
+-	cp $(TARG) "$(GOBIN)"/$(TARG)
++CLEANFILES+=enam.c
+ 
+ %.$O: ../ld/%.c
+-	$(CC) $(CFLAGS) -c -I. ../ld/$*.c
++	$(HOST_CC) $(HOST_CFLAGS) -c -I. ../ld/$*.c
+diff --git a/src/cmd/8a/Makefile b/src/cmd/8a/Makefile
+index beb5755446..78d361dbd3 100644
+--- a/src/cmd/8a/Makefile
++++ b/src/cmd/8a/Makefile
+@@ -2,10 +2,10 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../Make.conf
++include ../../Make.inc
++O:=$(HOST_O)
+ 
+-TARG=\
+-	8a\
++TARG=8a
+ 
+ HFILES=\
+ 	a.h\
+@@ -20,21 +20,6 @@ OFILES=\
+ YFILES=\
+ 	a.y\
+ 
+-$(TARG): $(OFILES)
+-	$(LD) -o $(TARG) -L"$(GOROOT)"/lib $(OFILES) -lbio -l9
+-
+-$(OFILES): $(HFILES)
++include ../../Make.ccmd
+ 
+ lex.$O:	../cc/macbody ../cc/lexbody
+-
+-y.tab.h: $(YFILES)
+-	bison -y $(YFLAGS) $(YFILES)
+-
+-y.tab.c: y.tab.h
+-	test -f y.tab.c && touch y.tab.c
+-
+-clean:
+-	rm -f *.$O $(TARG) *.6 enam.c 6.out a.out y.tab.h y.tab.c
+-
+-install: $(TARG)
+-	cp $(TARG) "$(GOBIN)"/$(TARG)
+diff --git a/src/cmd/8c/Makefile b/src/cmd/8c/Makefile
+index 85ea3013b7..60f46d3c98 100644
+--- a/src/cmd/8c/Makefile
++++ b/src/cmd/8c/Makefile
+@@ -2,10 +2,10 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../Make.conf
++include ../../Make.inc
++O:=$(HOST_O)
+ 
+-TARG=\
+-	8c\
++TARG=8c
+ 
+ HFILES=\
+ 	gc.h\
+@@ -29,18 +29,9 @@ OFILES=\
+ 	../8l/enam.$O\
+ 
+ LIB=\
+-	../cc/cc.a$O
++	../cc/cc.a\
+ 
+-$(TARG): $(OFILES) $(LIB)
+-	$(LD) -o $(TARG) -L"$(GOROOT)"/lib $(OFILES) $(LIB) -lm -lbio -l9
+-
+-$(OFILES): $(HFILES)
+-
+-clean:
+-	rm -f *.$O $(TARG) *.8 8.out a.out
+-
+-install: $(TARG)
+-	cp $(TARG) "$(GOBIN)"/$(TARG)
++include ../../Make.ccmd
+ 
+ %.$O: ../cc/%.c
+-	$(CC) $(CFLAGS) -c -I. -o $@ ../cc/$*.c
++	$(HOST_CC) $(HOST_CFLAGS) -c -I. -o $@ ../cc/$*.c
+diff --git a/src/cmd/8g/Makefile b/src/cmd/8g/Makefile
+index d2431182f4..09cf8d4e30 100644
+--- a/src/cmd/8g/Makefile
++++ b/src/cmd/8g/Makefile
+@@ -2,10 +2,10 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../Make.conf
++include ../../Make.inc
++O:=$(HOST_O)
+ 
+-TARG=\
+-	8g
++TARG=8g
+ 
+ HFILES=\
+ 	../gc/go.h\
+@@ -27,18 +27,9 @@ OFILES=\
+ 	reg.$O\
+ 
+ LIB=\
+-	../gc/gc.a$O
++	../gc/gc.a\
+ 
+-$(TARG): $(OFILES) $(LIB)
+-	$(LD) -o $(TARG) -L"$(GOROOT)"/lib $(OFILES) $(LIB) -lbio -l9 -lm
+-
+-$(OFILES): $(HFILES)
+-
+-clean:
+-	rm -f *.$O $(TARG) *.8 enam.c 8.out a.out
+-
+-install: $(TARG)
+-	cp $(TARG) "$(GOBIN)"/$(TARG)
++include ../../Make.ccmd
+ 
+ %.$O: ../gc/%.c
+-	$(CC) $(CFLAGS) -c -I. -o $@ ../gc/$*.c
++	$(HOST_CC) $(HOST_CFLAGS) -c -I. -o $@ ../gc/$*.c
+diff --git a/src/cmd/8l/Makefile b/src/cmd/8l/Makefile
+index 88c7c512bb..2b509b3613 100644
+--- a/src/cmd/8l/Makefile
++++ b/src/cmd/8l/Makefile
+@@ -2,10 +2,10 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../Make.conf
++include ../../Make.inc
++O:=$(HOST_O)
+ 
+-TARG=\
+-	8l\
++TARG=8l
+ 
+ OFILES=\
+ 	asm.$O\
+@@ -28,20 +28,13 @@ HFILES=\
+ 	../ld/macho.h\
+ 	../ld/pe.h\
+ 
+-
+-$(TARG): $(OFILES)
+-	$(LD) -o $(TARG) -L"$(GOROOT)"/lib $(OFILES) -lbio -l9
+-
+-$(OFILES): $(HFILES)
++include ../../Make.ccmd
+ 
+ enam.c: 8.out.h
+ 	sh mkenam
+ 
+-clean:
+-	rm -f *.$O $(TARG) *.8 enam.c 8.out a.out
++CLEANFILES+=enam.c
+ 
+-install: $(TARG)
+-	cp $(TARG) "$(GOBIN)"/$(TARG)
+ 
+ %.$O: ../ld/%.c
+-	$(CC) $(CFLAGS) -c -I. ../ld/$*.c
++	$(HOST_CC) $(HOST_CFLAGS) -c -I. ../ld/$*.c
+diff --git a/src/cmd/cc/Makefile b/src/cmd/cc/Makefile
+index 98b89f0a28..71f23383d1 100644
+--- a/src/cmd/cc/Makefile
++++ b/src/cmd/cc/Makefile
+@@ -2,10 +2,10 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../Make.conf
++include ../../Make.inc
++O:=$(HOST_O)
+ 
+-LIB=\
+-	cc.a$O\
++LIB=cc.a
+ 
+ HFILES=\
+ 	cc.h\
+@@ -30,18 +30,7 @@ OFILES=\
+ 	dpchk.$O\
+ 	omachcap.$O\
+ 
+-$(LIB): $(OFILES)
+-	ar rsc $(LIB) $(OFILES)
+-
+-$(OFILES): $(HFILES)
+-
+-y.tab.h: $(YFILES)
+-	bison -y $(YFLAGS) $(YFILES)
+-
+-y.tab.c: y.tab.h
+-	test -f y.tab.c && touch y.tab.c
+-
+-clean:
+-	rm -f *.$O *.6 enam.c 6.out a.out y.tab.h y.tab.c $(LIB)
++NOINSTALL=1
++include ../../Make.clib
+ 
+ install: $(LIB)
+diff --git a/src/cmd/clean.bash b/src/cmd/clean.bash
+index 9317b8ae5b..6349919a8a 100644
+--- a/src/cmd/clean.bash
++++ b/src/cmd/clean.bash
+@@ -3,11 +3,9 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-GOBIN="${GOBIN:-$HOME/bin}"
+-
+ for i in cc 6l 6a 6c 8l 8a 8c 8g 5l 5a 5c 5g gc 6g gopack nm cgo cov ebnflint godefs godoc gofmt goinstall gotest goyacc hgpatch prof
+ do
+ 	cd $i
+-	"$GOBIN"/gomake clean
++	gomake clean
+ 	cd ..
+ done
+diff --git a/src/cmd/cov/Makefile b/src/cmd/cov/Makefile
+index 4017dba190..fdeb146365 100644
+--- a/src/cmd/cov/Makefile
++++ b/src/cmd/cov/Makefile
+@@ -2,7 +2,8 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../Make.conf
++include ../../Make.inc
++O:=$(HOST_O)
+ 
+ # The directory is cov because the source is portable and general.
+ # We call the binary 6cov to avoid confusion and because this binary
+@@ -16,11 +17,11 @@ OFILES=\
+ HFILES=\
+ 	tree.h\
+ 
+-$(TARG): $(OFILES)
+-	$(LD) -o $(TARG) -L"$(GOROOT)"/lib $(OFILES) -lmach -lbio -l9
++LIB=\
++	../../../lib/libmach.a\
+ 
+-clean:
+-	rm -f *.$O $(TARG)
++NOINSTALL=1
++include ../../Make.ccmd
+ 
+ ifeq ($(GOOS),windows)
+ NAME=windows
+@@ -39,5 +40,3 @@ install-darwin: $(TARG)
+ 
+ install-default: $(TARG)
+ 	cp $(TARG) "$(GOBIN)"/$(TARG)
+-
+-$(OFILES): $(HFILES)
+diff --git a/src/cmd/ebnflint/Makefile b/src/cmd/ebnflint/Makefile
+index 77279db245..8f030aaefa 100644
+--- a/src/cmd/ebnflint/Makefile
++++ b/src/cmd/ebnflint/Makefile
+@@ -11,5 +11,5 @@ GOFILES=\
+ include ../../Make.cmd
+ 
+ test: $(TARG)
+-	$(QUOTED_GOBIN)/$(TARG) -start="SourceFile" "$(GOROOT)"/doc/go_spec.html
++	$(TARG) -start="SourceFile" "$(GOROOT)"/doc/go_spec.html
+ 
+diff --git a/src/cmd/gc/Makefile b/src/cmd/gc/Makefile
+index 46dc6dfbc3..dbfd864744 100644
+--- a/src/cmd/gc/Makefile
++++ b/src/cmd/gc/Makefile
+@@ -2,10 +2,10 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../Make.conf
++include ../../Make.inc
++O:=$(HOST_O)
+ 
+-LIB=\
+-	gc.a$O\
++LIB=gc.a
+ 
+ HFILES=\
+ 	go.h\
+@@ -43,16 +43,10 @@ OFILES=\
+ 	walk.$O\
+ 	y1.tab.$O\
+ 
+-$(LIB): $(OFILES)
+-	ar rsc $(LIB) $(OFILES)
++NOINSTALL=1
++include ../../Make.clib
+ 
+-$(OFILES): $(HFILES)
+-
+-y.tab.h: $(YFILES)
+-	LANG=C LANGUAGE="en_US.UTF8" bison -v -y $(YFLAGS) $(YFILES)
+-
+-y.tab.c: y.tab.h
+-	test -f y.tab.c && touch y.tab.c
++install: $(LIB)
+ 
+ y1.tab.c: y.tab.c	# make yystate global, yytname mutable
+ 	cat y.tab.c | sed '/ int yystate;/d; s/int yychar;/int yychar, yystate;/; s/static const char \*const yytname/const char *yytname/' >y1.tab.c
+@@ -70,7 +64,4 @@ subr.$O: opnames.h
+ opnames.h:	mkopnames go.h
+ 	./mkopnames go.h >opnames.h
+ 
+-clean:
+-	rm -f *.[568o] enam.c [568].out a.out y.tab.h y.tab.c y1.tab.c y.output yerr.h $(LIB) mkbuiltin1 builtin.c _builtin.c opnames.h
+-
+-install: $(LIB)
++CLEANFILES+=*.[568] [568].out y1.tab.c yerr.h mkbuiltin1 builtin.c _builtin.c opnames.h
+diff --git a/src/cmd/gc/mkbuiltin b/src/cmd/gc/mkbuiltin
+index e29487e4bc..8da0da0499 100755
+--- a/src/cmd/gc/mkbuiltin
++++ b/src/cmd/gc/mkbuiltin
+@@ -10,11 +10,9 @@
+ 
+ set -e
+ 
+-GOBIN="${GOBIN:-$HOME/bin}"
+-
+-eval $("$GOBIN"/gomake -f ../../Make.inc go-env)
++eval $(gomake -f ../../Make.inc go-env)
+ if [ -z "$GC" ]; then
+-	echo 'missing $GC - maybe no Make.$GOARCH?' 1>&2
++	echo 'missing $GC - gomake failed?' 1>&2
+ 	exit 1
+ fi
+ 
+diff --git a/src/cmd/godefs/Makefile b/src/cmd/godefs/Makefile
+index 49244f1521..b5c76fb0fe 100644
+--- a/src/cmd/godefs/Makefile
++++ b/src/cmd/godefs/Makefile
+@@ -2,7 +2,8 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../Make.conf
++include ../../Make.inc
++O:=$(HOST_O)
+ 
+ TARG=godefs
+ OFILES=\
+@@ -12,13 +13,4 @@ OFILES=\
+ 
+ HFILES=a.h
+ 
+-$(TARG): $(OFILES)
+-	$(LD) -o $(TARG) -L"$(GOROOT)"/lib $(OFILES) -lbio -l9
+-
+-clean:
+-	rm -f *.$O $(TARG)
+-
+-install: $(TARG)
+-	cp $(TARG) "$(GOBIN)"/$(TARG)
+-
+-$(OFILES): $(HFILES)
++include ../../Make.ccmd
+diff --git a/src/cmd/gofmt/test.sh b/src/cmd/gofmt/test.sh
+index 36f7d6e48e..00121ecb8d 100755
+--- a/src/cmd/gofmt/test.sh
++++ b/src/cmd/gofmt/test.sh
+@@ -3,9 +3,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-GOBIN="${GOBIN:-$HOME/bin}"
+-
+-eval $("$GOBIN"/gomake --no-print-directory -f ../../Make.inc go-env)
++eval $(gomake --no-print-directory -f ../../Make.inc go-env)
+ if [ -z "$O" ]; then
+ 	echo 'missing $O - maybe no Make.$GOARCH?' 1>&2
+ 	exit 1
+diff --git a/src/cmd/goinstall/main.go b/src/cmd/goinstall/main.go
+index ffa6eb7afc..59eeb64bf4 100644
+--- a/src/cmd/goinstall/main.go
++++ b/src/cmd/goinstall/main.go
+@@ -51,10 +51,10 @@ func main() {
+ 		fmt.Fprintf(os.Stderr, "%s: no $GOROOT\n", argv0)
+ 		os.Exit(1)
+ 	}
+-	root += "/src/pkg/"
+ 	if gobin == "" {
+-		gobin = os.Getenv("HOME") + "/bin"
++		gobin = root + "/bin"
+ 	}
++	root += "/src/pkg/"
+ 
+ 	// special case - "unsafe" is already installed
+ 	visit["unsafe"] = done
+diff --git a/src/cmd/gopack/Makefile b/src/cmd/gopack/Makefile
+index c3c136f422..8598095624 100644
+--- a/src/cmd/gopack/Makefile
++++ b/src/cmd/gopack/Makefile
+@@ -2,17 +2,14 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../Make.conf
++include ../../Make.inc
++O:=$(HOST_O)
+ 
+ TARG=gopack
+ OFILES=\
+ 	ar.$O\
+ 
+-$(TARG): $(OFILES)
+-	$(LD) -o $(TARG) -L"$(GOROOT)"/lib $(OFILES) -lmach -lbio -l9
++LIB=\
++	../../../lib/libmach.a\
+ 
+-clean:
+-	rm -f *.$O $(TARG)
+-
+-install: $(TARG)
+-	cp $(TARG) "$(GOBIN)"/$(TARG)
++include ../../Make.ccmd
+diff --git a/src/cmd/gotest/Makefile b/src/cmd/gotest/Makefile
+index 8360fd1841..367c8ce640 100644
+--- a/src/cmd/gotest/Makefile
++++ b/src/cmd/gotest/Makefile
+@@ -2,10 +2,9 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../Make.conf
++include ../../Make.inc
+ 
+ TARG=gotest
+-GOROOT_FINAL?=$(GOROOT)
+ 
+ clean:
+ 	@true
+diff --git a/src/cmd/gotest/gotest b/src/cmd/gotest/gotest
+index 9995496ad6..fcebf044ed 100755
+--- a/src/cmd/gotest/gotest
++++ b/src/cmd/gotest/gotest
+@@ -24,7 +24,7 @@ if [ ! -f [Mm]akefile ]; then
+ fi
+ 
+ export GOROOT=${GOROOT:-"@@GOROOT@@"}
+-eval $("$GOBIN"/gomake --no-print-directory -f "$GOROOT"/src/Make.inc go-env)
++eval $("$GOBIN"/gomake -j1 --no-print-directory -f "$GOROOT"/src/Make.inc go-env)
+ if [ -z "$O" ]; then
+ 	echo 'missing $O - maybe no Make.$GOARCH?' 1>&2
+ 	exit 2
+diff --git a/src/cmd/make.bash b/src/cmd/make.bash
+index 4ee22776b3..18ca845edd 100755
+--- a/src/cmd/make.bash
++++ b/src/cmd/make.bash
+@@ -7,9 +7,7 @@ set -e
+ 
+ bash clean.bash
+ 
+-GOBIN="${GOBIN:-$HOME/bin}"
+-
+-eval $("$GOBIN"/gomake --no-print-directory -f ../Make.inc go-env)
++eval $(gomake --no-print-directory -f ../Make.inc go-env)
+ if [ -z "$O" ]; then
+ 	echo 'missing $O - maybe no Make.$GOARCH?' 1>&2
+ 	exit 1
+@@ -17,7 +15,7 @@ fi
+ 
+ cd ${O}l
+ bash mkenam
+-"$GOBIN"/gomake enam.o
++gomake enam.o
+ cd ..
+ 
+ # Note: commands written in Go are not listed here.
+@@ -27,6 +25,6 @@ for i in cc ${O}l ${O}a ${O}c gc ${O}g cov godefs gopack gotest nm prof
+ do
+ 	echo; echo; echo %%%% making $i %%%%; echo
+ 	cd $i
+-	"$GOBIN"/gomake install
++	gomake install
+ 	cd ..
+ done
+diff --git a/src/cmd/nm/Makefile b/src/cmd/nm/Makefile
+index bb15451222..383dbd973c 100644
+--- a/src/cmd/nm/Makefile
++++ b/src/cmd/nm/Makefile
+@@ -2,23 +2,17 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../Make.conf
++include ../../Make.inc
++O:=$(HOST_O)
+ 
+ # The directory is nm because the source is portable and general.
+-# We call the binary 6nm to avoid confusion and because this binary
+-# is linked only with amd64 and x86 support.
++# We call the binary 6nm to avoid confusion with the host nm.
+ 
+ TARG=6nm
+ OFILES=\
+ 	nm.$O\
+ 
+-$(TARG): $(OFILES)
+-	$(LD) -o $(TARG) -L"$(GOROOT)"/lib $(OFILES) -lmach -lbio -l9
++LIB=\
++	../../../lib/libmach.a\
+ 
+-clean:
+-	rm -f *.$O $(TARG)
+-
+-install: $(TARG)
+-	cp $(TARG) "$(GOBIN)"/$(TARG)
+-
+-$(OFILES): $(HFILES)
++include ../../Make.ccmd
+diff --git a/src/cmd/prof/Makefile b/src/cmd/prof/Makefile
+index 1d1094b5a0..e643f267cc 100644
+--- a/src/cmd/prof/Makefile
++++ b/src/cmd/prof/Makefile
+@@ -2,7 +2,8 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../Make.conf
++include ../../Make.inc
++O:=$(HOST_O)
+ 
+ # The directory is prof because the source is portable and general.
+ # We call the binary 6prof to avoid confusion and because this binary
+@@ -12,15 +13,11 @@ TARG=6prof
+ OFILES=\
+ 	main.$O\
+ 
+-#HFILES=\
+-#	defs.h\
+-#	fns.h\
++LIB=\
++	../../../lib/libmach.a\
+ 
+-$(TARG): $(OFILES)
+-	$(LD) -o $(TARG) -L"$(GOROOT)"/lib $(OFILES) -lmach -lbio -l9
+-
+-clean:
+-	rm -f *.$O $(TARG)
++NOINSTALL=1
++include ../../Make.ccmd
+ 
+ ifeq ($(GOOS),windows)
+ NAME=windows
+@@ -40,7 +37,5 @@ install-darwin: $(TARG)
+ install-default: $(TARG)
+ 	cp $(TARG) "$(GOBIN)"/$(TARG)
+ 
+-$(OFILES): $(HFILES)
+-
+ install-pprof: gopprof
+ 	cp gopprof "$(GOBIN)"/gopprof
+diff --git a/src/env.bash b/src/env.bash
+index fc6f5bea63..b858e069b0 100644
+--- a/src/env.bash
++++ b/src/env.bash
+@@ -3,21 +3,6 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-if test -z "$GOBIN"; then
+-	if ! test -d "$HOME"/bin; then
+-		echo '$GOBIN is not set and $HOME/bin is not a directory or does not exist.' 1>&2
+-		echo 'mkdir $HOME/bin or set $GOBIN to a directory where binaries should' 1>&2
+-		echo 'be installed.' 1>&2
+-		exit 1
+-	fi
+-	GOBIN="$HOME/bin"
+-elif ! test -d "$GOBIN"; then
+-	echo '$GOBIN is not a directory or does not exist' 1>&2
+-	echo 'create it or set $GOBIN differently' 1>&2
+-	exit 1
+-fi
+-export GOBIN
+-
+ export GOROOT=${GOROOT:-$(cd ..; pwd)}
+ 
+ if ! test -f "$GOROOT"/include/u.h
+@@ -36,6 +21,16 @@ if [ "$DIR1" != "$DIR2" ]; then
+ 	exit 1
+ fi
+ 
++export GOBIN=${GOBIN:-"$GOROOT/bin"}
++if [ ! -d "$GOBIN" ]; then
++	echo '$GOBIN is not a directory or does not exist' 1>&2
++	echo 'create it or set $GOBIN differently' 1>&2
++	exit 1
++fi
++
++export OLDPATH=$PATH
++export PATH=/bin:/usr/bin:$GOBIN:$PATH
++
+ MAKE=make
+ if ! make --version 2>/dev/null | grep 'GNU Make' >/dev/null; then
+ 	MAKE=gmake
+@@ -43,7 +38,7 @@ fi
+ 
+ # Tried to use . <($MAKE ...) here, but it cannot set environment
+ # variables in the version of bash that ships with OS X.  Amazing.
+-eval $($MAKE --no-print-directory -f Make.inc.in go-env | egrep 'GOARCH|GOOS|GO_ENV')
++eval $($MAKE --no-print-directory -f Make.inc go-env | egrep 'GOARCH|GOOS|GO_ENV')
+ 
+ # Shell doesn't tell us whether make succeeded,
+ # so Make.inc generates a fake variable name.
+diff --git a/src/lib9/Makefile b/src/lib9/Makefile
+index de0900012f..a10d7730aa 100644
+--- a/src/lib9/Makefile
++++ b/src/lib9/Makefile
+@@ -2,7 +2,8 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../Make.conf
++include ../Make.inc
++O:=$(HOST_O)
+ 
+ LIB=lib9.a
+ 
+@@ -101,40 +102,19 @@ OFILES=\
+ 	$(UTFOFILES)\
+ 
+ HFILES=\
+-	"$(GOROOT)"/include/u.h\
+-	"$(GOROOT)"/include/libc.h\
++	$(QUOTED_GOROOT)/include/u.h\
++	$(QUOTED_GOROOT)/include/libc.h\
+ 
+-GOROOT_FINAL?=$(GOROOT)
+-
+-install: $(LIB)
+-	cp $(LIB) "$(GOROOT)/lib"
++include ../Make.clib
+ 
+-$(LIB): $(OFILES)
+-	ar rsc $(LIB) $(OFILES)
++GOROOT_FINAL?=$(GOROOT)
+ 
+ %.$O: fmt/%.c
+-	$(CC) -c $(CFLAGS) -DPLAN9PORT -Ifmt $<
++	$(HOST_CC) -c $(HOST_CFLAGS) -DPLAN9PORT -Ifmt $<
+ 
+ %.$O: utf/%.c
+-	$(CC) -c $(CFLAGS) $<
++	$(HOST_CC) -c $(HOST_CFLAGS) $<
+ 
+ goos.$O: goos.c
+-	$(CC) -c $(CFLAGS) -DGOOS='"$(GOOS)"' -DGOARCH='"$(GOARCH)"' -DGOROOT='"$(GOROOT_FINAL)"' -DGOVERSION='"'"$$(../version.bash)"'"' $<
+-
+-clean:
+-	rm -f *.$O *.6 6.out $(LIB)
+-
+-nuke: clean
+-	rm -f "$(GOROOT)"/lib/$(LIB)
+-
+-#XLIB=$PLAN9/lib/$LIB
+-
+-#testfmt: testfmt.$O $XLIB
+-#	$LD -o $target testfmt.$O
+-
+-#testfltfmt: testfltfmt.$O $XLIB
+-#	$LD -o $target testfltfmt.$O
+-
+-#testprint: testprint.$O $XLIB
+-#	$LD -o $target testprint.$O
++	$(HOST_CC) -c $(HOST_CFLAGS) -DGOOS='"$(GOOS)"' -DGOARCH='"$(GOARCH)"' -DGOROOT='"$(GOROOT_FINAL)"' -DGOVERSION='"'"$$(../version.bash)"'"' $<
+ 
+diff --git a/src/libbio/Makefile b/src/libbio/Makefile
+index 32fdedd914..4340b0eae8 100644
+--- a/src/libbio/Makefile
++++ b/src/libbio/Makefile
+@@ -22,7 +22,8 @@
+ # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ # THE SOFTWARE.
+ 
+-include ../Make.conf
++include ../Make.inc
++O:=$(HOST_O)
+ 
+ LIB=libbio.a
+ 
+@@ -47,19 +48,4 @@ OFILES=\
+ HFILES=\
+ 	../../include/bio.h
+ 
+-install: $(LIB)
+-	cp $(LIB) ../../lib
+-
+-$(LIB): $(OFILES)
+-	ar rsc $(LIB) $(OFILES)
+-
+-$(OFILES): $(HFILES)
+-
+-y.tab.c: $(YFILES)
+-	yacc $(YFLAGS) $(YFILES)
+-
+-clean:
+-	rm -f $(OFILES) *.6 6.out $(LIB)
+-
+-nuke: clean
+-	rm -f ../../lib/$(LIB)
++include ../Make.clib
+diff --git a/src/libmach/Makefile b/src/libmach/Makefile
+index 74c176ebcf..5d7e87d86f 100644
+--- a/src/libmach/Makefile
++++ b/src/libmach/Makefile
+@@ -26,7 +26,8 @@
+ # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ # THE SOFTWARE.
+ 
+-include ../Make.conf
++include ../Make.inc
++O:=$(HOST_O)
+ 
+ LIB=libmach.a
+ OFILES=\
+@@ -60,17 +61,4 @@ endif
+ 
+ HFILES=../../include/mach.h elf.h macho.h obj.h
+ 
+-install: $(LIB)
+-	cp $(LIB) ../../lib
+-
+-$(LIB): $(OFILES)
+-	ar rsc $(LIB) $(OFILES)
+-
+-$(OFILES): $(HFILES)
+-
+-clean:
+-	rm -f *.$O $(LIB)
+-
+-nuke: clean
+-	rm -f "$(GOROOT)"/lib/$(LIB)
+-
++include ../Make.clib
+diff --git a/src/make.bash b/src/make.bash
+index 6124dbfb79..923c062baa 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -11,8 +11,6 @@ fi
+ . ./env.bash
+ 
+ GOROOT_FINAL=${GOROOT_FINAL:-$GOROOT}
+-rm -f Make.inc
+-sed 's!@@GOROOT@@!'"$GOROOT_FINAL"'!' Make.inc.in >Make.inc
+ 
+ MAKEFLAGS=${MAKEFLAGS:-"-j4"}
+ export MAKEFLAGS
+@@ -90,6 +88,12 @@ installed() {
+ 	echo ---
+ 	echo Installed Go for $GOOS/$GOARCH in "$GOROOT".
+ 	echo Installed commands in "$GOBIN".
++	case "$OLDPATH" in
++	*":$GOBIN" | *":$GOBIN:"*)
++		;;
++	*)
++		echo '***' You need to add $GOBIN to your "'$PATH.' '***'
++	esac
+ 	echo The compiler is $GC.
+ 	if [ "$(uname)" = "Darwin" ]; then
+ 		echo
+diff --git a/src/run.bash b/src/run.bash
+index dc66202983..0b37031c2b 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -4,7 +4,12 @@
+ # license that can be found in the LICENSE file.
+ 
+ set -e
+-. ./env.bash
++if [ "$1" = "--no-env" ]; then
++	# caller has already run env.bash
++	shift
++else
++	. ./env.bash
++fi
+ 
+ unset MAKEFLAGS  # single-threaded make
+ unset CDPATH	# in case user has it set

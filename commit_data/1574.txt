@@ -11,9 +11,155 @@ Date:   Tue Jan 27 15:05:25 2009 -0800
     DELTA=25  (7 added, 5 deleted, 13 changed)
     OCL=23620
     CL=23625
-
+---
  src/cmd/6g/obj.c     |  2 +-
  src/cmd/gc/subr.c    |  6 +++++-
  src/cmd/gc/walk.c    | 18 ++++++++----------
  src/lib/fmt/print.go | 12 ++++++------
  4 files changed, 20 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/6g/obj.c b/src/cmd/6g/obj.c
+index 85e668d668..cd44bd6f84 100644
+--- a/src/cmd/6g/obj.c
++++ b/src/cmd/6g/obj.c
+@@ -941,7 +941,7 @@ dumpsignatures(void)
+ 		s->siggen = 1;
+ 
+ 		// interface is easy
+-		if(et == TINTER) {
++		if(et == TINTER || et == TDDD) {
+ 			if(t->sym && !t->local)
+ 				continue;
+ 			dumpsigi(t, s);
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 98e99ab3b3..870a90167a 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -1609,7 +1609,7 @@ signame(Type *t)
+ 		goto bad;
+ 
+ 	e = "sigt";
+-	if(t->etype == TINTER)
++	if(t->etype == TINTER || t->etype == TDDD)
+ 		e = "sigi";
+ 
+ 	// name is exported name, like *[]byte or *Struct or Interface
+@@ -1620,6 +1620,10 @@ signame(Type *t)
+ 	// so that it can be referred to by the runtime.
+ 	if(strcmp(buf, "interface { }") == 0)
+ 		strcpy(buf, "empty");
++	
++	// special case: sigi.... is just too hard to read in assembly.
++	if(strcmp(buf, "...") == 0)
++		strcpy(buf, "dotdotdot");
+ 
+ 	ss = pkglookup(buf, e);
+ 	if(ss->oname == N) {
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 5004a86f02..1bab4b9cd0 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -348,7 +348,7 @@ loop:
+ 	case OPROC:
+ 		if(top != Etop)
+ 			goto nottop;
+-		walkstate(n->left);
++		walktype(n->left, Etop);
+ 		goto ret;
+ 
+ 	case OCALLMETH:
+@@ -1820,7 +1820,10 @@ mkdotargs(Node *r, Node *rr, Iter *saver, Node *nn, Type *l, int fp)
+ 	var = nod(OXXX, N, N);
+ 	tempname(var, st);
+ 
+-	// assign the fields to the struct
++	// assign the fields to the struct.
++	// use addtop so that reorder1 doesn't reorder
++	// these assignments after the interface conversion
++	// below.
+ 	n = rev(n);
+ 	r = listfirst(&saven, &n);
+ 	t = st->type;
+@@ -1829,7 +1832,7 @@ mkdotargs(Node *r, Node *rr, Iter *saver, Node *nn, Type *l, int fp)
+ 		*r->left = *var;
+ 		r->left->type = r->right->type;
+ 		r->left->xoffset += t->width;
+-		nn = list(r, nn);
++		addtop = list(addtop, r);
+ 		r = listnext(&saven);
+ 		t = t->down;
+ 	}
+@@ -1837,13 +1840,8 @@ mkdotargs(Node *r, Node *rr, Iter *saver, Node *nn, Type *l, int fp)
+ 	// last thing is to put assignment
+ 	// of a pointer to the structure to
+ 	// the DDD parameter
+-
+-	a = nod(OADDR, var, N);
+-	a->type = ptrto(st);
+-	a = nod(OAS, nodarg(l, fp), a);
+-	a = convas(a);
+-
+-	nn = list(a, nn);
++	a = nod(OAS, nodarg(l, fp), var);
++	nn = list(convas(a), nn);
+ 
+ 	return nn;
+ }
+diff --git a/src/lib/fmt/print.go b/src/lib/fmt/print.go
+index a75e0fff25..99dfe76140 100644
+--- a/src/lib/fmt/print.go
++++ b/src/lib/fmt/print.go
+@@ -130,7 +130,7 @@ func (p *pp) doprint(v reflect.StructValue, addspace, addnewline bool);
+ // These routines end in 'f' and take a format string.
+ 
+ func Fprintf(w io.Write, format string, a ...) (n int, error *os.Error) {
+-	v := reflect.NewValue(a).(reflect.PtrValue).Sub().(reflect.StructValue);
++	v := reflect.NewValue(a).(reflect.StructValue);
+ 	p := newPrinter();
+ 	p.doprintf(format, v);
+ 	n, error = w.Write(p.buf[0:p.n]);
+@@ -143,7 +143,7 @@ func Printf(format string, v ...) (n int, errno *os.Error) {
+ }
+ 
+ func Sprintf(format string, a ...) string {
+-	v := reflect.NewValue(a).(reflect.PtrValue).Sub().(reflect.StructValue);
++	v := reflect.NewValue(a).(reflect.StructValue);
+ 	p := newPrinter();
+ 	p.doprintf(format, v);
+ 	s := string(p.buf)[0 : p.n];
+@@ -154,7 +154,7 @@ func Sprintf(format string, a ...) string {
+ // when the operand on neither side is a string.
+ 
+ func Fprint(w io.Write, a ...) (n int, error *os.Error) {
+-	v := reflect.NewValue(a).(reflect.PtrValue).Sub().(reflect.StructValue);
++	v := reflect.NewValue(a).(reflect.StructValue);
+ 	p := newPrinter();
+ 	p.doprint(v, false, false);
+ 	n, error = w.Write(p.buf[0:p.n]);
+@@ -167,7 +167,7 @@ func Print(v ...) (n int, errno *os.Error) {
+ }
+ 
+ func Sprint(a ...) string {
+-	v := reflect.NewValue(a).(reflect.PtrValue).Sub().(reflect.StructValue);
++	v := reflect.NewValue(a).(reflect.StructValue);
+ 	p := newPrinter();
+ 	p.doprint(v, false, false);
+ 	s := string(p.buf)[0 : p.n];
+@@ -179,7 +179,7 @@ func Sprint(a ...) string {
+ // after the last operand.
+ 
+ func Fprintln(w io.Write, a ...) (n int, error *os.Error) {
+-	v := reflect.NewValue(a).(reflect.PtrValue).Sub().(reflect.StructValue);
++	v := reflect.NewValue(a).(reflect.StructValue);
+ 	p := newPrinter();
+ 	p.doprint(v, true, true);
+ 	n, error = w.Write(p.buf[0:p.n]);
+@@ -192,7 +192,7 @@ func Println(v ...) (n int, errno *os.Error) {
+ }
+ 
+ func Sprintln(a ...) string {
+-	v := reflect.NewValue(a).(reflect.PtrValue).Sub().(reflect.StructValue);
++	v := reflect.NewValue(a).(reflect.StructValue);
+ 	p := newPrinter();
+ 	p.doprint(v, true, true);
+ 	s := string(p.buf)[0 : p.n];

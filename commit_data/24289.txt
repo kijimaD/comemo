@@ -7,6 +7,20 @@ Date:   Tue Jul 21 14:05:59 2015 -0700
     Change-Id: I3d5e46d376953fbdd21ce8c161214eaed6378d84
     Reviewed-on: https://go-review.googlesource.com/12490
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/cmd/go/pkg.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index ae9744218d..e6c17036fe 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -359,7 +359,7 @@ func isDir(path string) bool {
+ // If parent is x/y/z, then path might expand to x/y/z/vendor/path, x/y/vendor/path,
+ // x/vendor/path, vendor/path, or else stay x/y/z if none of those exist.
+ // vendoredImportPath returns the expanded path or, if no expansion is found, the original.
+-// If no epxansion is found, vendoredImportPath also returns a list of vendor directories
++// If no expansion is found, vendoredImportPath also returns a list of vendor directories
+ // it searched along the way, to help prepare a useful error message should path turn
+ // out not to exist.
+ func vendoredImportPath(parent *Package, path string) (found string, searched []string) {

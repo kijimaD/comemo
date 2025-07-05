@@ -17,8 +17,75 @@ Date:   Mon Jun 29 13:12:10 2015 -0400
     Change-Id: I2e7b45ab0c28568ddbb1b50581dcc157ae0e7ffe
     Reviewed-on: https://go-review.googlesource.com/11695
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/cmd/dist/test.go            | 19 ++++++++++---------
  src/cmd/link/internal/ld/elf.go |  2 --
  src/cmd/link/internal/ld/lib.go |  6 ++++++
  3 files changed, 16 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 802631dbf9..ff35c6cd40 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -613,21 +613,22 @@ func (t *tester) cgoTest() error {
+ 
+ 	pair := t.gohostos + "-" + t.goarch
+ 	switch pair {
+-	case "openbsd-386", "openbsd-amd64":
++	case "darwin-386", "darwin-amd64",
++		"openbsd-386", "openbsd-amd64",
++		"windows-386", "windows-amd64":
+ 		// test linkmode=external, but __thread not supported, so skip testtls.
++		if !t.extLink() {
++			break
++		}
+ 		cmd := t.dirCmd("misc/cgo/test", "go", "test", "-ldflags", "-linkmode=external")
+ 		cmd.Env = env
+ 		if err := cmd.Run(); err != nil {
+ 			return err
+ 		}
+-	case "darwin-386", "darwin-amd64",
+-		"windows-386", "windows-amd64":
+-		if t.extLink() {
+-			cmd := t.dirCmd("misc/cgo/test", "go", "test", "-ldflags", "-linkmode=external")
+-			cmd.Env = env
+-			if err := cmd.Run(); err != nil {
+-				return err
+-			}
++		cmd = t.dirCmd("misc/cgo/test", "go", "test", "-ldflags", "-linkmode=external -s")
++		cmd.Env = env
++		if err := cmd.Run(); err != nil {
++			return err
+ 		}
+ 	case "android-arm",
+ 		"dragonfly-386", "dragonfly-amd64",
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index 785b1cbd2d..7864d1a68f 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -1693,8 +1693,6 @@ func doelf() {
+ 	Addstring(shstrtab, ".gopclntab")
+ 
+ 	if Linkmode == LinkExternal {
+-		debug_s = Debug['s']
+-		Debug['s'] = 0
+ 		Debug['d'] = 1
+ 
+ 		switch Thearch.Thechar {
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index ac28439d96..866eb67961 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -818,6 +818,12 @@ func hostlinksetup() {
+ 		return
+ 	}
+ 
++	// For external link, record that we need to tell the external linker -s,
++	// and turn off -s internally: the external linker needs the symbol
++	// information for its final link.
++	debug_s = Debug['s']
++	Debug['s'] = 0
++
+ 	// create temporary directory and arrange cleanup
+ 	if tmpdir == "" {
+ 		dir, err := ioutil.TempDir("", "go-link-")

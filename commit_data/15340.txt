@@ -12,6 +12,20 @@ Date:   Wed Feb 20 14:42:37 2013 -0800
     R=golang-dev, bradfitz, sameer
     CC=golang-dev
     https://golang.org/cl/7231055
-
+---
  misc/emacs/go-mode.el | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/misc/emacs/go-mode.el b/misc/emacs/go-mode.el
+index a9d9ef5e00..6f680b24ad 100644
+--- a/misc/emacs/go-mode.el
++++ b/misc/emacs/go-mode.el
+@@ -875,7 +875,7 @@ Replace the current buffer on success; display errors on failure."
+   (with-current-buffer (process-buffer proc)
+     (cond ((string= event "finished\n")  ;; Successful exit.
+            (goto-char (point-min))
+-           (display-buffer (current-buffer) 'not-this-window))
++           (view-buffer (current-buffer) 'kill-buffer))
+           ((not (= (process-exit-status proc) 0))  ;; Error exit.
+            (let ((output (buffer-string)))
+              (kill-buffer (current-buffer))

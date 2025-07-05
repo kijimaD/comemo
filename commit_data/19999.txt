@@ -9,10 +9,248 @@ Date:   Mon Aug 11 16:40:42 2014 -0700
     R=golang-codereviews, agl, ashankar
     CC=agl, golang-codereviews
     https://golang.org/cl/117100043
-
+---
  src/pkg/crypto/tls/common.go           |  8 ++++++
  src/pkg/crypto/tls/conn.go             |  6 +++++
  src/pkg/crypto/tls/handshake_client.go | 14 ++++++-----
  src/pkg/crypto/tls/handshake_server.go | 14 ++++++-----
  src/pkg/crypto/tls/tls_test.go         | 45 ++++++++++++++++++++++++++++++++++
  5 files changed, 75 insertions(+), 12 deletions(-)
+
+diff --git a/src/pkg/crypto/tls/common.go b/src/pkg/crypto/tls/common.go
+index 2b59136e65..f926d57728 100644
+--- a/src/pkg/crypto/tls/common.go
++++ b/src/pkg/crypto/tls/common.go
+@@ -165,6 +165,14 @@ type ConnectionState struct {
+ 	ServerName                 string                // server name requested by client, if any (server side only)
+ 	PeerCertificates           []*x509.Certificate   // certificate chain presented by remote peer
+ 	VerifiedChains             [][]*x509.Certificate // verified chains built from PeerCertificates
++
++	// TLSUnique contains the "tls-unique" channel binding value (see RFC
++	// 5929, section 3). For resumed sessions this value will be nil
++	// because resumption does not include enough context (see
++	// https://secure-resumption.com/#channelbindings). This will change in
++	// future versions of Go once the TLS master-secret fix has been
++	// standardized and implemented.
++	TLSUnique []byte
+ }
+ 
+ // ClientAuthType declares the policy the server will follow for
+diff --git a/src/pkg/crypto/tls/conn.go b/src/pkg/crypto/tls/conn.go
+index 8f7d2c144f..ba8e4c22b7 100644
+--- a/src/pkg/crypto/tls/conn.go
++++ b/src/pkg/crypto/tls/conn.go
+@@ -42,6 +42,9 @@ type Conn struct {
+ 	verifiedChains [][]*x509.Certificate
+ 	// serverName contains the server name indicated by the client, if any.
+ 	serverName string
++	// firstFinished contains the first Finished hash sent during the
++	// handshake. This is the "tls-unique" channel binding value.
++	firstFinished [12]byte
+ 
+ 	clientProtocol         string
+ 	clientProtocolFallback bool
+@@ -994,6 +997,9 @@ func (c *Conn) ConnectionState() ConnectionState {
+ 		state.PeerCertificates = c.peerCertificates
+ 		state.VerifiedChains = c.verifiedChains
+ 		state.ServerName = c.serverName
++		if !c.didResume {
++			state.TLSUnique = c.firstFinished[:]
++		}
+ 	}
+ 
+ 	return state
+diff --git a/src/pkg/crypto/tls/handshake_client.go b/src/pkg/crypto/tls/handshake_client.go
+index 694a9a217f..3d9ef9b14e 100644
+--- a/src/pkg/crypto/tls/handshake_client.go
++++ b/src/pkg/crypto/tls/handshake_client.go
+@@ -187,10 +187,10 @@ NextCipherSuite:
+ 		if err := hs.readSessionTicket(); err != nil {
+ 			return err
+ 		}
+-		if err := hs.readFinished(); err != nil {
++		if err := hs.readFinished(c.firstFinished[:]); err != nil {
+ 			return err
+ 		}
+-		if err := hs.sendFinished(); err != nil {
++		if err := hs.sendFinished(nil); err != nil {
+ 			return err
+ 		}
+ 	} else {
+@@ -200,13 +200,13 @@ NextCipherSuite:
+ 		if err := hs.establishKeys(); err != nil {
+ 			return err
+ 		}
+-		if err := hs.sendFinished(); err != nil {
++		if err := hs.sendFinished(c.firstFinished[:]); err != nil {
+ 			return err
+ 		}
+ 		if err := hs.readSessionTicket(); err != nil {
+ 			return err
+ 		}
+-		if err := hs.readFinished(); err != nil {
++		if err := hs.readFinished(nil); err != nil {
+ 			return err
+ 		}
+ 	}
+@@ -530,7 +530,7 @@ func (hs *clientHandshakeState) processServerHello() (bool, error) {
+ 	return false, nil
+ }
+ 
+-func (hs *clientHandshakeState) readFinished() error {
++func (hs *clientHandshakeState) readFinished(out []byte) error {
+ 	c := hs.c
+ 
+ 	c.readRecord(recordTypeChangeCipherSpec)
+@@ -555,6 +555,7 @@ func (hs *clientHandshakeState) readFinished() error {
+ 		return errors.New("tls: server's Finished message was incorrect")
+ 	}
+ 	hs.finishedHash.Write(serverFinished.marshal())
++	copy(out, verify)
+ 	return nil
+ }
+ 
+@@ -586,7 +587,7 @@ func (hs *clientHandshakeState) readSessionTicket() error {
+ 	return nil
+ }
+ 
+-func (hs *clientHandshakeState) sendFinished() error {
++func (hs *clientHandshakeState) sendFinished(out []byte) error {
+ 	c := hs.c
+ 
+ 	c.writeRecord(recordTypeChangeCipherSpec, []byte{1})
+@@ -605,6 +606,7 @@ func (hs *clientHandshakeState) sendFinished() error {
+ 	finished.verifyData = hs.finishedHash.clientSum(hs.masterSecret)
+ 	hs.finishedHash.Write(finished.marshal())
+ 	c.writeRecord(recordTypeHandshake, finished.marshal())
++	copy(out, finished.verifyData)
+ 	return nil
+ }
+ 
+diff --git a/src/pkg/crypto/tls/handshake_server.go b/src/pkg/crypto/tls/handshake_server.go
+index 39eeb363cd..684ab288f0 100644
+--- a/src/pkg/crypto/tls/handshake_server.go
++++ b/src/pkg/crypto/tls/handshake_server.go
+@@ -57,10 +57,10 @@ func (c *Conn) serverHandshake() error {
+ 		if err := hs.establishKeys(); err != nil {
+ 			return err
+ 		}
+-		if err := hs.sendFinished(); err != nil {
++		if err := hs.sendFinished(c.firstFinished[:]); err != nil {
+ 			return err
+ 		}
+-		if err := hs.readFinished(); err != nil {
++		if err := hs.readFinished(nil); err != nil {
+ 			return err
+ 		}
+ 		c.didResume = true
+@@ -73,13 +73,13 @@ func (c *Conn) serverHandshake() error {
+ 		if err := hs.establishKeys(); err != nil {
+ 			return err
+ 		}
+-		if err := hs.readFinished(); err != nil {
++		if err := hs.readFinished(c.firstFinished[:]); err != nil {
+ 			return err
+ 		}
+ 		if err := hs.sendSessionTicket(); err != nil {
+ 			return err
+ 		}
+-		if err := hs.sendFinished(); err != nil {
++		if err := hs.sendFinished(nil); err != nil {
+ 			return err
+ 		}
+ 	}
+@@ -483,7 +483,7 @@ func (hs *serverHandshakeState) establishKeys() error {
+ 	return nil
+ }
+ 
+-func (hs *serverHandshakeState) readFinished() error {
++func (hs *serverHandshakeState) readFinished(out []byte) error {
+ 	c := hs.c
+ 
+ 	c.readRecord(recordTypeChangeCipherSpec)
+@@ -523,6 +523,7 @@ func (hs *serverHandshakeState) readFinished() error {
+ 	}
+ 
+ 	hs.finishedHash.Write(clientFinished.marshal())
++	copy(out, verify)
+ 	return nil
+ }
+ 
+@@ -552,7 +553,7 @@ func (hs *serverHandshakeState) sendSessionTicket() error {
+ 	return nil
+ }
+ 
+-func (hs *serverHandshakeState) sendFinished() error {
++func (hs *serverHandshakeState) sendFinished(out []byte) error {
+ 	c := hs.c
+ 
+ 	c.writeRecord(recordTypeChangeCipherSpec, []byte{1})
+@@ -563,6 +564,7 @@ func (hs *serverHandshakeState) sendFinished() error {
+ 	c.writeRecord(recordTypeHandshake, finished.marshal())
+ 
+ 	c.cipherSuite = hs.suite.id
++	copy(out, finished.verifyData)
+ 
+ 	return nil
+ }
+diff --git a/src/pkg/crypto/tls/tls_test.go b/src/pkg/crypto/tls/tls_test.go
+index f8c94ff35d..e82579eee9 100644
+--- a/src/pkg/crypto/tls/tls_test.go
++++ b/src/pkg/crypto/tls/tls_test.go
+@@ -5,6 +5,7 @@
+ package tls
+ 
+ import (
++	"bytes"
+ 	"fmt"
+ 	"io"
+ 	"net"
+@@ -235,3 +236,47 @@ func testConnReadNonzeroAndEOF(t *testing.T, delay time.Duration) error {
+ 	}
+ 	return nil
+ }
++
++func TestTLSUniqueMatches(t *testing.T) {
++	ln := newLocalListener(t)
++	defer ln.Close()
++
++	serverTLSUniques := make(chan []byte)
++	go func() {
++		for i := 0; i < 2; i++ {
++			sconn, err := ln.Accept()
++			if err != nil {
++				t.Fatal(err)
++			}
++			serverConfig := *testConfig
++			srv := Server(sconn, &serverConfig)
++			if err := srv.Handshake(); err != nil {
++				t.Fatal(err)
++			}
++			serverTLSUniques <- srv.ConnectionState().TLSUnique
++		}
++	}()
++
++	clientConfig := *testConfig
++	clientConfig.ClientSessionCache = NewLRUClientSessionCache(1)
++	conn, err := Dial("tcp", ln.Addr().String(), &clientConfig)
++	if err != nil {
++		t.Fatal(err)
++	}
++	if !bytes.Equal(conn.ConnectionState().TLSUnique, <-serverTLSUniques) {
++		t.Error("client and server channel bindings differ")
++	}
++	conn.Close()
++
++	conn, err = Dial("tcp", ln.Addr().String(), &clientConfig)
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer conn.Close()
++	if !conn.ConnectionState().DidResume {
++		t.Error("second session did not use resumption")
++	}
++	if !bytes.Equal(conn.ConnectionState().TLSUnique, <-serverTLSUniques) {
++		t.Error("client and server channel bindings differ when session resumption is used")
++	}
++}

@@ -16,7 +16,81 @@ Date:   Mon Mar 3 11:25:57 2014 -0800
     R=josharian
     CC=golang-codereviews
     https://golang.org/cl/70800043
-
+---
  src/pkg/net/http/client.go      |  7 +++++++
  src/pkg/net/http/client_test.go | 40 ++++++++++++++++++++++++++++++++++++++++
  2 files changed, 47 insertions(+)
+
+diff --git a/src/pkg/net/http/client.go b/src/pkg/net/http/client.go
+index 952799a1be..ee0753d35e 100644
+--- a/src/pkg/net/http/client.go
++++ b/src/pkg/net/http/client.go
+@@ -14,6 +14,7 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"io"
++	"io/ioutil"
+ 	"log"
+ 	"net/url"
+ 	"strings"
+@@ -337,6 +338,12 @@ func (c *Client) doFollowingRedirects(ireq *Request, shouldRedirect func(int) bo
+ 		}
+ 
+ 		if shouldRedirect(resp.StatusCode) {
++			// Read the body if small so underlying TCP connection will be re-used.
++			// No need to check for errors: if it fails, Transport won't reuse it anyway.
++			const maxBodySlurpSize = 2 << 10
++			if resp.ContentLength == -1 || resp.ContentLength <= maxBodySlurpSize {
++				io.CopyN(ioutil.Discard, resp.Body, maxBodySlurpSize)
++			}
+ 			resp.Body.Close()
+ 			if urlStr = resp.Header.Get("Location"); urlStr == "" {
+ 				err = errors.New(fmt.Sprintf("%d response missing Location header", resp.StatusCode))
+diff --git a/src/pkg/net/http/client_test.go b/src/pkg/net/http/client_test.go
+index f44fb199dc..db825d21dc 100644
+--- a/src/pkg/net/http/client_test.go
++++ b/src/pkg/net/http/client_test.go
+@@ -879,3 +879,43 @@ func TestClientTimeout(t *testing.T) {
+ 		t.Errorf("timeout after %v waiting for timeout of %v", failTime, timeout)
+ 	}
+ }
++
++func TestClientRedirectEatsBody(t *testing.T) {
++	defer afterTest(t)
++	saw := make(chan string, 2)
++	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
++		saw <- r.RemoteAddr
++		if r.URL.Path == "/" {
++			Redirect(w, r, "/foo", StatusFound) // which includes a body
++		}
++	}))
++	defer ts.Close()
++
++	res, err := Get(ts.URL)
++	if err != nil {
++		t.Fatal(err)
++	}
++	_, err = ioutil.ReadAll(res.Body)
++	if err != nil {
++		t.Fatal(err)
++	}
++	res.Body.Close()
++
++	var first string
++	select {
++	case first = <-saw:
++	default:
++		t.Fatal("server didn't see a request")
++	}
++
++	var second string
++	select {
++	case second = <-saw:
++	default:
++		t.Fatal("server didn't see a second request")
++	}
++
++	if first != second {
++		t.Fatal("server saw different client ports before & after the redirect")
++	}
++}

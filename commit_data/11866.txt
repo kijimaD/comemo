@@ -9,7 +9,81 @@ Date:   Tue Feb 14 12:48:28 2012 +1100
     R=golang-dev, rsc, adg
     CC=golang-dev
     https://golang.org/cl/5663046
-
+---
  src/pkg/mime/grammar.go   | 12 ++++++------
  src/pkg/mime/mediatype.go |  8 ++++----
  2 files changed, 10 insertions(+), 10 deletions(-)
+
+diff --git a/src/pkg/mime/grammar.go b/src/pkg/mime/grammar.go
+index e16a06c86b..83cc411343 100644
+--- a/src/pkg/mime/grammar.go
++++ b/src/pkg/mime/grammar.go
+@@ -14,25 +14,25 @@ func isTSpecial(r rune) bool {
+ 	return strings.IndexRune(`()<>@,;:\"/[]?=`, r) != -1
+ }
+ 
+-// IsTokenChar returns true if rune is in 'token' as defined by RFC
++// isTokenChar returns true if rune is in 'token' as defined by RFC
+ // 1521 and RFC 2045.
+-func IsTokenChar(r rune) bool {
++func isTokenChar(r rune) bool {
+ 	// token := 1*<any (US-ASCII) CHAR except SPACE, CTLs,
+ 	//             or tspecials>
+ 	return r > 0x20 && r < 0x7f && !isTSpecial(r)
+ }
+ 
+-// IsToken returns true if s is a 'token' as as defined by RFC 1521
++// isToken returns true if s is a 'token' as as defined by RFC 1521
+ // and RFC 2045.
+-func IsToken(s string) bool {
++func isToken(s string) bool {
+ 	if s == "" {
+ 		return false
+ 	}
+ 	return strings.IndexFunc(s, isNotTokenChar) < 0
+ }
+ 
+-// IsQText returns true if rune is in 'qtext' as defined by RFC 822.
+-func IsQText(r int) bool {
++// isQText returns true if rune is in 'qtext' as defined by RFC 822.
++func isQText(r int) bool {
+ 	// CHAR        =  <any ASCII character>        ; (  0-177,  0.-127.)
+ 	// qtext       =  <any CHAR excepting <">,     ; => may be folded
+ 	//                "\" & CR, and including
+diff --git a/src/pkg/mime/mediatype.go b/src/pkg/mime/mediatype.go
+index 41844c25f2..9398dece1d 100644
+--- a/src/pkg/mime/mediatype.go
++++ b/src/pkg/mime/mediatype.go
+@@ -23,7 +23,7 @@ func FormatMediaType(t string, param map[string]string) string {
+ 		return ""
+ 	}
+ 	major, sub := t[:slash], t[slash+1:]
+-	if !IsToken(major) || !IsToken(sub) {
++	if !isToken(major) || !isToken(sub) {
+ 		return ""
+ 	}
+ 	var b bytes.Buffer
+@@ -34,12 +34,12 @@ func FormatMediaType(t string, param map[string]string) string {
+ 	for attribute, value := range param {
+ 		b.WriteByte(';')
+ 		b.WriteByte(' ')
+-		if !IsToken(attribute) {
++		if !isToken(attribute) {
+ 			return ""
+ 		}
+ 		b.WriteString(strings.ToLower(attribute))
+ 		b.WriteByte('=')
+-		if IsToken(value) {
++		if isToken(value) {
+ 			b.WriteString(value)
+ 			continue
+ 		}
+@@ -205,7 +205,7 @@ func decode2231Enc(v string) string {
+ }
+ 
+ func isNotTokenChar(r rune) bool {
+-	return !IsTokenChar(r)
++	return !isTokenChar(r)
+ }
+ 
+ // consumeToken consumes a token from the beginning of provided

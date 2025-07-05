@@ -7,6 +7,24 @@ Date:   Fri Nov 23 19:29:22 2012 +0800
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/6851100
-
+---
  src/cmd/go/test.go | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/test.go b/src/cmd/go/test.go
+index a55ecb95d8..efd14609aa 100644
+--- a/src/cmd/go/test.go
++++ b/src/cmd/go/test.go
+@@ -379,7 +379,11 @@ func runTest(cmd *Command, args []string) {
+ 		if args != "" {
+ 			args = " " + args
+ 		}
+-		fmt.Fprintf(os.Stderr, "installing these packages with 'go test -i%s' will speed future tests.\n\n", args)
++		extraOpts := ""
++		if buildRace {
++			extraOpts = "-race "
++		}
++		fmt.Fprintf(os.Stderr, "installing these packages with 'go test %s-i%s' will speed future tests.\n\n", extraOpts, args)
+ 	}
+ 
+ 	b.do(root)

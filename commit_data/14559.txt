@@ -7,7 +7,50 @@ Date:   Wed Dec 5 15:13:03 2012 +1100
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/6868067
-
+---
  src/pkg/net/fd_windows.go   | 5 +++--
  src/pkg/net/timeout_test.go | 1 +
  2 files changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/net/fd_windows.go b/src/pkg/net/fd_windows.go
+index 351f9271c7..b88c5d474b 100644
+--- a/src/pkg/net/fd_windows.go
++++ b/src/pkg/net/fd_windows.go
+@@ -557,7 +557,7 @@ func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (*netFD, error) {
+ 	s, err := syscall.Socket(fd.family, fd.sotype, 0)
+ 	if err != nil {
+ 		syscall.ForkLock.RUnlock()
+-		return nil, err
++		return nil, &OpError{"socket", fd.net, fd.laddr, err}
+ 	}
+ 	syscall.CloseOnExec(s)
+ 	syscall.ForkLock.RUnlock()
+@@ -565,6 +565,7 @@ func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (*netFD, error) {
+ 	// Associate our new socket with IOCP.
+ 	onceStartServer.Do(startServer)
+ 	if _, err := syscall.CreateIoCompletionPort(s, resultsrv.iocp, 0, 0); err != nil {
++		closesocket(s)
+ 		return nil, &OpError{"CreateIoCompletionPort", fd.net, fd.laddr, err}
+ 	}
+ 
+@@ -582,7 +583,7 @@ func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (*netFD, error) {
+ 	err = syscall.Setsockopt(s, syscall.SOL_SOCKET, syscall.SO_UPDATE_ACCEPT_CONTEXT, (*byte)(unsafe.Pointer(&fd.sysfd)), int32(unsafe.Sizeof(fd.sysfd)))
+ 	if err != nil {
+ 		closesocket(s)
+-		return nil, err
++		return nil, &OpError{"Setsockopt", fd.net, fd.laddr, err}
+ 	}
+ 
+ 	// Get local and peer addr out of AcceptEx buffer.
+diff --git a/src/pkg/net/timeout_test.go b/src/pkg/net/timeout_test.go
+index 42a121f3c5..21223cc74a 100644
+--- a/src/pkg/net/timeout_test.go
++++ b/src/pkg/net/timeout_test.go
+@@ -332,6 +332,7 @@ func TestReadWriteDeadline(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatalf("ListenTCP on :0: %v", err)
+ 	}
++	defer ln.Close()
+ 
+ 	lnquit := make(chan bool)
+ 

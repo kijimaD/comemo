@@ -6,6 +6,56 @@ Date:   Mon Nov 16 17:40:47 2009 -0800
     
     R=ken2
     https://golang.org/cl/155074
-
+---
  src/cmd/gc/const.c | 36 ++++++++++++++++++++++++++++++------
  1 file changed, 30 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/gc/const.c b/src/cmd/gc/const.c
+index b11ab1c7f8..cca13b9528 100644
+--- a/src/cmd/gc/const.c
++++ b/src/cmd/gc/const.c
+@@ -329,14 +329,38 @@ evconst(Node *n)
+ 	Val v;
+ 	Mpint b;
+ 
++	// pick off just the opcodes that can be
++	// constant evaluated.
+ 	switch(n->op) {
+-	case OMAKE:
+-	case OMAKEMAP:
+-	case OMAKESLICE:
+-	case OMAKECHAN:
+-	case ODCLCONST:
+-	case OCONVIFACE:
++	default:
+ 		return;
++	case OADD:
++	case OADDSTR:
++	case OAND:
++	case OANDAND:
++	case OANDNOT:
++	case OARRAYBYTESTR:
++	case OCOM:
++	case OCONV:
++	case ODIV:
++	case OEQ:
++	case OGE:
++	case OGT:
++	case OLE:
++	case OLSH:
++	case OLT:
++	case OMINUS:
++	case OMOD:
++	case OMUL:
++	case ONE:
++	case ONOT:
++	case OOR:
++	case OOROR:
++	case OPLUS:
++	case ORSH:
++	case OSUB:
++	case OXOR:
++		break;
+ 	}
+ 
+ 	nl = n->left;

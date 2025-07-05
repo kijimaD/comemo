@@ -21,9 +21,106 @@ Date:   Fri Feb 14 09:20:51 2014 +0400
     R=rsc, alex.brainman
     CC=golang-codereviews
     https://golang.org/cl/63310043
-
+---
  src/pkg/runtime/os_windows.c        | 9 ++++++++-
  src/pkg/runtime/proc.c              | 4 +++-
  src/pkg/runtime/sys_windows_386.s   | 6 ++++--
  src/pkg/runtime/sys_windows_amd64.s | 6 ++++--
  4 files changed, 19 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/runtime/os_windows.c b/src/pkg/runtime/os_windows.c
+index 6c9d687b70..8815aee9f9 100644
+--- a/src/pkg/runtime/os_windows.c
++++ b/src/pkg/runtime/os_windows.c
+@@ -71,6 +71,9 @@ extern void *runtime·WriteFile;
+ 
+ void *runtime·GetQueuedCompletionStatusEx;
+ 
++extern uintptr runtime·externalthreadhandlerp;
++void runtime·externalthreadhandler(void);
++
+ static int32
+ getproccount(void)
+ {
+@@ -86,6 +89,8 @@ runtime·osinit(void)
+ 	void *kernel32;
+ 	void *SetProcessPriorityBoost;
+ 
++	runtime·externalthreadhandlerp = (uintptr)runtime·externalthreadhandler;
++
+ 	runtime·stdcall(runtime·SetConsoleCtrlHandler, 2, runtime·ctrlhandler, (uintptr)1);
+ 	runtime·stdcall(runtime·timeBeginPeriod, 1, (uintptr)1);
+ 	runtime·ncpu = getproccount();
+@@ -293,9 +298,11 @@ runtime·stdcall(void *fn, int32 count, ...)
+ 	m->libcall.args = (uintptr*)&count + 1;
+ 	if(m->profilehz != 0) {
+ 		// leave pc/sp for cpu profiler
++		m->libcallg = g;
+ 		m->libcallpc = (uintptr)runtime·getcallerpc(&fn);
++		// sp must be the last, because once async cpu profiler finds
++		// all three values to be non-zero, it will use them
+ 		m->libcallsp = (uintptr)runtime·getcallersp(&fn);
+-		m->libcallg = g;
+ 	}
+ 	runtime·asmcgocall(runtime·asmstdcall, &m->libcall);
+ 	m->libcallsp = 0;
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 88d6acead3..47cb304083 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -3029,6 +3029,7 @@ runtime·testSchedLocalQueueSteal(void)
+ }
+ 
+ extern void runtime·morestack(void);
++uintptr runtime·externalthreadhandlerp;
+ 
+ // Does f mark the top of a goroutine stack?
+ bool
+@@ -3039,7 +3040,8 @@ runtime·topofstack(Func *f)
+ 		f->entry == (uintptr)runtime·mcall ||
+ 		f->entry == (uintptr)runtime·morestack ||
+ 		f->entry == (uintptr)runtime·lessstack ||
+-		f->entry == (uintptr)_rt0_go;
++		f->entry == (uintptr)_rt0_go ||
++		(runtime·externalthreadhandlerp != 0 && f->entry == runtime·externalthreadhandlerp);
+ }
+ 
+ void
+diff --git a/src/pkg/runtime/sys_windows_386.s b/src/pkg/runtime/sys_windows_386.s
+index af10ca8644..2755d5001c 100644
+--- a/src/pkg/runtime/sys_windows_386.s
++++ b/src/pkg/runtime/sys_windows_386.s
+@@ -347,10 +347,12 @@ TEXT runtime·usleep1(SB),NOSPLIT,$0
+ 	// leave pc/sp for cpu profiler
+ 	MOVL	(SP), SI
+ 	MOVL	SI, m_libcallpc(BP)
++	MOVL	g(CX), SI
++	MOVL	SI, m_libcallg(BP)
++	// sp must be the last, because once async cpu profiler finds
++	// all three values to be non-zero, it will use them
+ 	LEAL	4(SP), SI
+ 	MOVL	SI, m_libcallsp(BP)
+-	MOVL	g(BP), SI
+-	MOVL	SI, m_libcallg(BP)
+ 
+ 	MOVL	m_g0(BP), SI
+ 	CMPL	g(CX), SI
+diff --git a/src/pkg/runtime/sys_windows_amd64.s b/src/pkg/runtime/sys_windows_amd64.s
+index 6576c4283c..288cd7748f 100644
+--- a/src/pkg/runtime/sys_windows_amd64.s
++++ b/src/pkg/runtime/sys_windows_amd64.s
+@@ -342,10 +342,12 @@ TEXT runtime·usleep1(SB),NOSPLIT,$0
+ 	// leave pc/sp for cpu profiler
+ 	MOVQ	(SP), R12
+ 	MOVQ	R12, m_libcallpc(R13)
++	MOVQ	g(R15), R12
++	MOVQ	R12, m_libcallg(R13)
++	// sp must be the last, because once async cpu profiler finds
++	// all three values to be non-zero, it will use them
+ 	LEAQ	8(SP), R12
+ 	MOVQ	R12, m_libcallsp(R13)
+-	MOVQ	g(R13), R12
+-	MOVQ	R12, m_libcallg(R13)
+ 
+ 	MOVQ	m_g0(R13), R14
+ 	CMPQ	g(R15), R14

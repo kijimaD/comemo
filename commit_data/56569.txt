@@ -14,8 +14,55 @@ Date:   Tue May 16 20:53:53 2023 +0000
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/cmd/compile/default.pgo | Bin 355761 -> 0 bytes
  src/cmd/compile/profile.sh  |  21 ---------------------
  src/cmd/dist/buildtool.go   |   4 ----
  3 files changed, 25 deletions(-)
+
+diff --git a/src/cmd/compile/default.pgo b/src/cmd/compile/default.pgo
+deleted file mode 100644
+index 2ba79688d4..0000000000
+Binary files a/src/cmd/compile/default.pgo and /dev/null differ
+diff --git a/src/cmd/compile/profile.sh b/src/cmd/compile/profile.sh
+deleted file mode 100644
+index 37d65d8494..0000000000
+--- a/src/cmd/compile/profile.sh
++++ /dev/null
+@@ -1,21 +0,0 @@
+-# Copyright 2023 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-# This script collects a CPU profile of the compiler
+-# for building all targets in std and cmd, and puts
+-# the profile at cmd/compile/default.pgo.
+-
+-dir=$(mktemp -d)
+-cd $dir
+-seed=$(date)
+-
+-for p in $(go list std cmd); do
+-	h=$(echo $seed $p | md5sum | cut -d ' ' -f 1)
+-	echo $p $h
+-	go build -o /dev/null -gcflags=-cpuprofile=$PWD/prof.$h $p
+-done
+-
+-go tool pprof -proto prof.* > $(go env GOROOT)/src/cmd/compile/default.pgo
+-
+-rm -r $dir
+diff --git a/src/cmd/dist/buildtool.go b/src/cmd/dist/buildtool.go
+index 7ecfb3a811..af3db5f590 100644
+--- a/src/cmd/dist/buildtool.go
++++ b/src/cmd/dist/buildtool.go
+@@ -100,10 +100,6 @@ var ignorePrefixes = []string{
+ var ignoreSuffixes = []string{
+ 	"_test.s",
+ 	"_test.go",
+-	// Skip PGO profile. No need to build toolchain1 compiler
+-	// with PGO. And as it is not a text file the import path
+-	// rewrite will break it.
+-	".pgo",
+ }
+ 
+ var tryDirs = []string{

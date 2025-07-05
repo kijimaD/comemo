@@ -7,8 +7,75 @@ Date:   Thu Dec 18 21:33:45 2008 -0800
     R=r
     OCL=21567
     CL=21567
-
+---
  src/cmd/6g/cgen.c  | 14 ++++++++++++++
  src/cmd/gc/const.c | 14 ++++++++++----
  src/cmd/gc/walk.c  |  4 ++++
  3 files changed, 28 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/6g/cgen.c b/src/cmd/6g/cgen.c
+index e19fdd11b1..a56ba72236 100644
+--- a/src/cmd/6g/cgen.c
++++ b/src/cmd/6g/cgen.c
+@@ -750,6 +750,20 @@ bgen(Node *n, int true, Prog *to)
+ 			nr = r;
+ 		}
+ 
++		if(isdarray(nl->type)) {
++			a = optoas(a, types[tptr]);
++			regalloc(&n1, types[tptr], N);
++			agen(nl, &n1);
++			n2 = n1;
++			n2.op = OINDREG;
++			n2.xoffset = offsetof(Array,array);
++			nodconst(&tmp, types[tptr], 0);
++			gins(optoas(OCMP, types[tptr]), &n2, &tmp);
++			patch(gbranch(a, types[tptr]), to);
++			regfree(&n1);
++			break;
++		}
++
+ 		a = optoas(a, nr->type);
+ 
+ 		if(nr->ullman >= UINF) {
+diff --git a/src/cmd/gc/const.c b/src/cmd/gc/const.c
+index b903d582d6..eefc277a0f 100644
+--- a/src/cmd/gc/const.c
++++ b/src/cmd/gc/const.c
+@@ -63,11 +63,17 @@ convlit1(Node *n, Type *t, int conv)
+ 	case Wlitnil:
+ 		if(isptrto(t, TSTRING))
+ 			goto bad1;
+-		if(isptr[et])
+-			break;
+-		if(et == TINTER)
++		switch(et) {
++		default:
++			goto bad1;
++
++		case TPTR32:
++		case TPTR64:
++		case TINTER:
++		case TARRAY:
+ 			break;
+-		goto bad1;
++		}
++		break;
+ 
+ 	case Wlitstr:
+ 		if(isnilinter(t)) {
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 55fd025f3a..a8f988b049 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -1033,6 +1033,10 @@ loop:
+ 	case ONE:
+ 		if(n->left->type == T)
+ 			goto ret;
++		if(isdarray(n->left->type)) {
++			t = types[TBOOL];
++			break;
++		}
+ 		et = n->left->type->etype;
+ 		if(!okforeq[et])
+ 			goto badt;

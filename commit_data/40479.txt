@@ -15,6 +15,29 @@ Date:   Tue May 14 14:46:15 2019 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/fuse.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/fuse.go b/src/cmd/compile/internal/ssa/fuse.go
+index c451904124..73532ee6e5 100644
+--- a/src/cmd/compile/internal/ssa/fuse.go
++++ b/src/cmd/compile/internal/ssa/fuse.go
+@@ -36,6 +36,9 @@ func fuse(f *Func, typ fuseType) {
+ 				changed = fuseBlockPlain(b) || changed
+ 			}
+ 		}
++		if changed {
++			f.invalidateCFG()
++		}
+ 	}
+ }
+ 
+@@ -207,7 +210,6 @@ func fuseBlockPlain(b *Block) bool {
+ 	if f.Entry == b {
+ 		f.Entry = c
+ 	}
+-	f.invalidateCFG()
+ 
+ 	// trash b, just in case
+ 	b.Kind = BlockInvalid

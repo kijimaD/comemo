@@ -7,7 +7,34 @@ Date:   Thu Apr 2 20:42:59 2015 -0700
     Change-Id: I035e6f1cd159644db5eeef83056b9c34c401e60f
     Reviewed-on: https://go-review.googlesource.com/8441
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/internal/gc/big/arith_decl.go | 2 --
  src/cmd/internal/gc/big/vendor.bash   | 3 +++
  2 files changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/internal/gc/big/arith_decl.go b/src/cmd/internal/gc/big/arith_decl.go
+index 0fc8d13ba8..fe13577203 100644
+--- a/src/cmd/internal/gc/big/arith_decl.go
++++ b/src/cmd/internal/gc/big/arith_decl.go
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-
+-
+ package big
+ 
+ func mulWW(x, y Word) (z1, z0 Word) {
+diff --git a/src/cmd/internal/gc/big/vendor.bash b/src/cmd/internal/gc/big/vendor.bash
+index f7eca5e994..84aa750462 100755
+--- a/src/cmd/internal/gc/big/vendor.bash
++++ b/src/cmd/internal/gc/big/vendor.bash
+@@ -18,5 +18,8 @@ cp $BIGDIR/*.go .
+ sed 's/^\/\/ \+build math_big_pure_go$//' arith_decl_pure.go > arith_decl.go
+ rm arith_decl_pure.go
+ 
++# gofmt to clean up after sed
++gofmt -w .
++
+ # Test that it works
+ go test -short

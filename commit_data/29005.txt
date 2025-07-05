@@ -17,6 +17,24 @@ Date:   Thu May 5 11:45:27 2016 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/main.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index b21daf5ff2..eeadc7e73e 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -438,10 +438,10 @@ func Main() {
+ 		// Find functions that can be inlined and clone them before walk expands them.
+ 		visitBottomUp(xtop, func(list []*Node, recursive bool) {
+ 			for _, n := range list {
+-				if n.Op == ODCLFUNC {
++				if !recursive {
+ 					caninl(n)
+-					inlcalls(n)
+ 				}
++				inlcalls(n)
+ 			}
+ 		})
+ 	}

@@ -14,6 +14,24 @@ Date:   Mon Dec 3 11:23:15 2018 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  misc/cgo/testcshared/cshared_test.go | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/misc/cgo/testcshared/cshared_test.go b/misc/cgo/testcshared/cshared_test.go
+index fa2af2842d..7cc02f6194 100644
+--- a/misc/cgo/testcshared/cshared_test.go
++++ b/misc/cgo/testcshared/cshared_test.go
+@@ -604,6 +604,12 @@ func copyFile(t *testing.T, dst, src string) {
+ }
+ 
+ func TestGo2C2Go(t *testing.T) {
++	if GOOS == "darwin" {
++		// Darwin shared libraries don't support the multiple
++		// copies of the runtime package implied by this test.
++		t.Skip("linking c-shared into Go programs not supported on Darwin; issue 29061")
++	}
++
+ 	t.Parallel()
+ 
+ 	tmpdir, err := ioutil.TempDir("", "cshared-TestGo2C2Go")

@@ -7,6 +7,20 @@ Date:   Thu Jan 11 01:49:45 2018 +0900
     Change-Id: Ib5f5d20200284850c14c2431687bc102696ef8ae
     Reviewed-on: https://go-review.googlesource.com/87215
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/go1.10.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go1.10.html b/doc/go1.10.html
+index 17e68fb472..b9ca02ceb5 100644
+--- a/doc/go1.10.html
++++ b/doc/go1.10.html
+@@ -1223,7 +1223,7 @@ were not indented.
+ <dd>
+ <p>
+ <a href="/pkg/net/url/#ResolveReference"><code>ResolveReference</code></a>
+-now preseves multiple leading slashes in the target URL.
++now preserves multiple leading slashes in the target URL.
+ Previously it rewrote multiple leading slashes to a single slash,
+ which resulted in the <a href="/pkg/net/http/#Client"><code>http.Client</code></a>
+ following certain redirects incorrectly.

@@ -7,8 +7,80 @@ Date:   Fri Jul 27 22:21:33 2012 +1000
     R=golang-dev
     CC=golang-dev
     https://golang.org/cl/6450058
-
+---
  src/pkg/os/file_posix.go   | 11 -----------
  src/pkg/os/file_unix.go    | 11 +++++++++++
  src/pkg/os/file_windows.go |  3 +++
  3 files changed, 14 insertions(+), 11 deletions(-)
+
+diff --git a/src/pkg/os/file_posix.go b/src/pkg/os/file_posix.go
+index ea42cc67b5..1ba3293154 100644
+--- a/src/pkg/os/file_posix.go
++++ b/src/pkg/os/file_posix.go
+@@ -7,23 +7,12 @@
+ package os
+ 
+ import (
+-	"sync/atomic"
+ 	"syscall"
+ 	"time"
+ )
+ 
+ func sigpipe() // implemented in package runtime
+ 
+-func epipecheck(file *File, e error) {
+-	if e == syscall.EPIPE {
+-		if atomic.AddInt32(&file.nepipe, 1) >= 10 {
+-			sigpipe()
+-		}
+-	} else {
+-		atomic.StoreInt32(&file.nepipe, 0)
+-	}
+-}
+-
+ // Link creates newname as a hard link to the oldname file.
+ // If there is an error, it will be of type *LinkError.
+ func Link(oldname, newname string) error {
+diff --git a/src/pkg/os/file_unix.go b/src/pkg/os/file_unix.go
+index 12daa70a76..5a220f66a7 100644
+--- a/src/pkg/os/file_unix.go
++++ b/src/pkg/os/file_unix.go
+@@ -8,6 +8,7 @@ package os
+ 
+ import (
+ 	"runtime"
++	"sync/atomic"
+ 	"syscall"
+ )
+ 
+@@ -53,6 +54,16 @@ type dirInfo struct {
+ 	bufp int    // location of next record in buf.
+ }
+ 
++func epipecheck(file *File, e error) {
++	if e == syscall.EPIPE {
++		if atomic.AddInt32(&file.nepipe, 1) >= 10 {
++			sigpipe()
++		}
++	} else {
++		atomic.StoreInt32(&file.nepipe, 0)
++	}
++}
++
+ // DevNull is the name of the operating system's ``null device.''
+ // On Unix-like systems, it is "/dev/null"; on Windows, "NUL".
+ const DevNull = "/dev/null"
+diff --git a/src/pkg/os/file_windows.go b/src/pkg/os/file_windows.go
+index 320ee22518..6c2bc6639c 100644
+--- a/src/pkg/os/file_windows.go
++++ b/src/pkg/os/file_windows.go
+@@ -54,6 +54,9 @@ type dirInfo struct {
+ 	path     string
+ }
+ 
++func epipecheck(file *File, e error) {
++}
++
+ const DevNull = "NUL"
+ 
+ func (f *file) isdir() bool { return f != nil && f.dirinfo != nil }

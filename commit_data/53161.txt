@@ -14,6 +14,20 @@ Date:   Sun Jul 24 12:38:48 2022 +0000
     Reviewed-by: Keith Randall <khr@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/noder/stencil.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/noder/stencil.go b/src/cmd/compile/internal/noder/stencil.go
+index 1ba561b8b9..280f7cdf1c 100644
+--- a/src/cmd/compile/internal/noder/stencil.go
++++ b/src/cmd/compile/internal/noder/stencil.go
+@@ -623,7 +623,7 @@ func checkFetchBody(nameNode *ir.Name) {
+ 	}
+ }
+ 
+-// getInstantiation gets the instantiantion and dictionary of the function or method nameNode
++// getInstantiation gets the instantiation and dictionary of the function or method nameNode
+ // with the type arguments shapes. If the instantiated function is not already
+ // cached, then it calls genericSubst to create the new instantiation.
+ func (g *genInst) getInstantiation(nameNode *ir.Name, shapes []*types.Type, isMeth bool) *instInfo {

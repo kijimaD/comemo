@@ -11,6 +11,20 @@ Date:   Fri Nov 13 14:59:04 2009 -0800
     
     R=rsc
     https://golang.org/cl/154122
-
+---
  src/pkg/json/struct.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/json/struct.go b/src/pkg/json/struct.go
+index ab07d93399..4e560ec866 100644
+--- a/src/pkg/json/struct.go
++++ b/src/pkg/json/struct.go
+@@ -289,7 +289,7 @@ func Unmarshal(s string, val interface{}) (ok bool, errtok string) {
+ 	v := reflect.NewValue(val);
+ 	var b *structBuilder;
+ 
+-	// If val is a pointer to a slice, we mutate the pointee.
++	// If val is a pointer to a slice, we append to the slice.
+ 	if ptr, ok := v.(*reflect.PtrValue); ok {
+ 		if slice, ok := ptr.Elem().(*reflect.SliceValue); ok {
+ 			b = &structBuilder{val: slice}

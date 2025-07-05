@@ -14,6 +14,57 @@ Date:   Sat May 9 16:41:32 2015 +0300
     Change-Id: I56d42a747319c766f2911508fab3994c3a366d12
     Reviewed-on: https://go-review.googlesource.com/9900
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/go/fmt.go | 29 ++++++++++++++++++++++++++++-
  1 file changed, 28 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/fmt.go b/src/cmd/go/fmt.go
+index 65dc3ca599..e40b0dc65f 100644
+--- a/src/cmd/go/fmt.go
++++ b/src/cmd/go/fmt.go
+@@ -4,6 +4,12 @@
+ 
+ package main
+ 
++import (
++	"os"
++	"path/filepath"
++	"runtime"
++)
++
+ func init() {
+ 	addBuildFlagsNX(cmdFmt)
+ }
+@@ -29,10 +35,31 @@ See also: go fix, go vet.
+ }
+ 
+ func runFmt(cmd *Command, args []string) {
++	gofmt := gofmtPath()
+ 	for _, pkg := range packages(args) {
+ 		// Use pkg.gofiles instead of pkg.Dir so that
+ 		// the command only applies to this package,
+ 		// not to packages in subdirectories.
+-		run(stringList("gofmt", "-l", "-w", relPaths(pkg.allgofiles)))
++		run(stringList(gofmt, "-l", "-w", relPaths(pkg.allgofiles)))
+ 	}
+ }
++
++func gofmtPath() string {
++	gofmt := "gofmt"
++	if toolIsWindows {
++		gofmt += toolWindowsExtension
++	}
++
++	gofmtPath := filepath.Join(gobin, gofmt)
++	if _, err := os.Stat(gofmtPath); err == nil {
++		return gofmtPath
++	}
++
++	gofmtPath = filepath.Join(goroot, "bin", gofmt)
++	if _, err := os.Stat(gofmtPath); err == nil {
++		return gofmtPath
++	}
++
++	// fallback to looking for gofmt in $PATH
++	return "gofmt"
++}

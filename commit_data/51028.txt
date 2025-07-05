@@ -15,7 +15,151 @@ Date:   Tue Mar 30 19:58:35 2021 +0800
     Run-TryBot: Meng Zhuo <mzh@golangcn.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/link/elf_test.go        | 55 +++++++++++++++++++++++++++++++++++++++++
  src/cmd/link/internal/ld/elf.go | 39 ++++++++++++-----------------
  2 files changed, 71 insertions(+), 23 deletions(-)
+
+diff --git a/src/cmd/link/elf_test.go b/src/cmd/link/elf_test.go
+index 012c0b5169..760d9ea60d 100644
+--- a/src/cmd/link/elf_test.go
++++ b/src/cmd/link/elf_test.go
+@@ -201,6 +201,61 @@ func TestMinusRSymsWithSameName(t *testing.T) {
+ 	}
+ }
+ 
++func TestMergeNoteSections(t *testing.T) {
++	testenv.MustHaveGoBuild(t)
++	expected := 1
++
++	switch runtime.GOOS {
++	case "linux", "freebsd", "dragonfly":
++	case "openbsd", "netbsd":
++		// These OSes require independent segment
++		expected = 2
++	default:
++		t.Skip("We should only test on elf output.")
++	}
++	t.Parallel()
++
++	goFile := filepath.Join(t.TempDir(), "notes.go")
++	if err := ioutil.WriteFile(goFile, []byte(goSource), 0444); err != nil {
++		t.Fatal(err)
++	}
++	outFile := filepath.Join(t.TempDir(), "notes.exe")
++	goTool := testenv.GoToolPath(t)
++	// sha1sum of "gopher"
++	id := "0xf4e8cd51ce8bae2996dc3b74639cdeaa1f7fee5f"
++	cmd := exec.Command(goTool, "build", "-o", outFile, "-ldflags",
++		"-B "+id, goFile)
++	cmd.Dir = t.TempDir()
++	if out, err := cmd.CombinedOutput(); err != nil {
++		t.Logf("%s", out)
++		t.Fatal(err)
++	}
++
++	ef, err := elf.Open(outFile)
++	if err != nil {
++		t.Fatalf("open elf file failed:%v", err)
++	}
++	defer ef.Close()
++	sec := ef.Section(".note.gnu.build-id")
++	if sec == nil {
++		t.Fatalf("can't find gnu build id")
++	}
++
++	sec = ef.Section(".note.go.buildid")
++	if sec == nil {
++		t.Fatalf("can't find go build id")
++	}
++	cnt := 0
++	for _, ph := range ef.Progs {
++		if ph.Type == elf.PT_NOTE {
++			cnt += 1
++		}
++	}
++	if cnt != expected {
++		t.Fatalf("want %d PT_NOTE segment, got %d", expected, cnt)
++	}
++}
++
+ const pieSourceTemplate = `
+ package main
+ 
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index fb75c761a1..4a143dfcaa 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -1682,13 +1682,18 @@ func asmbElf(ctxt *Link) {
+ 
+ 	var pph *ElfPhdr
+ 	var pnote *ElfPhdr
++	getpnote := func() *ElfPhdr {
++		if pnote == nil {
++			pnote = newElfPhdr()
++			pnote.Type = elf.PT_NOTE
++			pnote.Flags = elf.PF_R
++		}
++		return pnote
++	}
+ 	if *flagRace && ctxt.IsNetbsd() {
+ 		sh := elfshname(".note.netbsd.pax")
+ 		resoff -= int64(elfnetbsdpax(sh, uint64(startva), uint64(resoff)))
+-		pnote = newElfPhdr()
+-		pnote.Type = elf.PT_NOTE
+-		pnote.Flags = elf.PF_R
+-		phsh(pnote, sh)
++		phsh(getpnote(), sh)
+ 	}
+ 	if ctxt.LinkMode == LinkExternal {
+ 		/* skip program headers */
+@@ -1787,7 +1792,6 @@ func asmbElf(ctxt *Link) {
+ 		phsh(ph, sh)
+ 	}
+ 
+-	pnote = nil
+ 	if ctxt.HeadType == objabi.Hnetbsd || ctxt.HeadType == objabi.Hopenbsd {
+ 		var sh *ElfShdr
+ 		switch ctxt.HeadType {
+@@ -1799,34 +1803,23 @@ func asmbElf(ctxt *Link) {
+ 			sh = elfshname(".note.openbsd.ident")
+ 			resoff -= int64(elfopenbsdsig(sh, uint64(startva), uint64(resoff)))
+ 		}
+-
+-		pnote = newElfPhdr()
+-		pnote.Type = elf.PT_NOTE
+-		pnote.Flags = elf.PF_R
+-		phsh(pnote, sh)
++		// netbsd and openbsd require ident in an independent segment.
++		pnotei := newElfPhdr()
++		pnotei.Type = elf.PT_NOTE
++		pnotei.Flags = elf.PF_R
++		phsh(pnotei, sh)
+ 	}
+ 
+ 	if len(buildinfo) > 0 {
+ 		sh := elfshname(".note.gnu.build-id")
+ 		resoff -= int64(elfbuildinfo(sh, uint64(startva), uint64(resoff)))
+-
+-		if pnote == nil {
+-			pnote = newElfPhdr()
+-			pnote.Type = elf.PT_NOTE
+-			pnote.Flags = elf.PF_R
+-		}
+-
+-		phsh(pnote, sh)
++		phsh(getpnote(), sh)
+ 	}
+ 
+ 	if *flagBuildid != "" {
+ 		sh := elfshname(".note.go.buildid")
+ 		resoff -= int64(elfgobuildid(sh, uint64(startva), uint64(resoff)))
+-
+-		pnote := newElfPhdr()
+-		pnote.Type = elf.PT_NOTE
+-		pnote.Flags = elf.PF_R
+-		phsh(pnote, sh)
++		phsh(getpnote(), sh)
+ 	}
+ 
+ 	// Additions to the reserved area must be above this line.

@@ -17,8 +17,48 @@ Date:   Wed Oct 19 13:14:16 2016 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/html/template/error.go       | 2 +-
  src/html/template/escape.go      | 2 +-
  src/html/template/escape_test.go | 2 +-
  3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/html/template/error.go b/src/html/template/error.go
+index 5637384bd8..cbcaf92e4a 100644
+--- a/src/html/template/error.go
++++ b/src/html/template/error.go
+@@ -44,7 +44,7 @@ const (
+ 	// OK indicates the lack of an error.
+ 	OK ErrorCode = iota
+ 
+-	// ErrAmbigContext: "... appears in an ambiguous URL context"
++	// ErrAmbigContext: "... appears in an ambiguous context within a URL"
+ 	// Example:
+ 	//   <a href="
+ 	//      {{if .C}}
+diff --git a/src/html/template/escape.go b/src/html/template/escape.go
+index dcc0b8a531..0e7d2be143 100644
+--- a/src/html/template/escape.go
++++ b/src/html/template/escape.go
+@@ -161,7 +161,7 @@ func (e *escaper) escapeAction(c context, n *parse.ActionNode) context {
+ 		case urlPartUnknown:
+ 			return context{
+ 				state: stateError,
+-				err:   errorf(ErrAmbigContext, n, n.Line, "%s appears in an ambiguous URL context", n),
++				err:   errorf(ErrAmbigContext, n, n.Line, "%s appears in an ambiguous context within a URL", n),
+ 			}
+ 		default:
+ 			panic(c.urlPart.String())
+diff --git a/src/html/template/escape_test.go b/src/html/template/escape_test.go
+index b7ccd85425..f6ace496e7 100644
+--- a/src/html/template/escape_test.go
++++ b/src/html/template/escape_test.go
+@@ -903,7 +903,7 @@ func TestErrors(t *testing.T) {
+ 		},
+ 		{
+ 			`<a href="{{if .F}}/foo?a={{else}}/bar/{{end}}{{.H}}">`,
+-			"z:1:47: {{.H}} appears in an ambiguous URL context",
++			"z:1:47: {{.H}} appears in an ambiguous context within a URL",
+ 		},
+ 		{
+ 			`<a onclick="alert('Hello \`,

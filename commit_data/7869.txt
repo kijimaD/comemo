@@ -154,6 +154,28 @@ Date:   Fri Mar 25 13:47:07 2011 -0400
     R=r
     CC=golang-dev
     https://golang.org/cl/4273113
-
+---
  src/pkg/runtime/pprof/pprof_test.go | 10 +++++++++-
  1 file changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/pprof/pprof_test.go b/src/pkg/runtime/pprof/pprof_test.go
+index 603465eaa5..a060917a28 100644
+--- a/src/pkg/runtime/pprof/pprof_test.go
++++ b/src/pkg/runtime/pprof/pprof_test.go
+@@ -15,7 +15,15 @@ import (
+ )
+ 
+ func TestCPUProfile(t *testing.T) {
+-	if runtime.GOOS == "windows" || runtime.GOOS == "plan9" {
++	switch runtime.GOOS {
++	case "darwin":
++		// see Apple Bug Report #9177434 (copied into change description)
++		return
++	case "plan9":
++		// unimplemented
++		return
++	case "windows":
++		// unimplemented
+ 		return
+ 	}
+ 

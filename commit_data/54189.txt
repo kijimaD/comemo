@@ -16,8 +16,54 @@ Date:   Wed Sep 28 14:42:16 2022 -0700
     Run-TryBot: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/types2/expr.go | 6 +-----
  src/go/types/expr.go                    | 6 +-----
  test/fixedbugs/issue28079c.go           | 2 +-
  3 files changed, 3 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/expr.go b/src/cmd/compile/internal/types2/expr.go
+index 06fb9bb9f9..5b40b94681 100644
+--- a/src/cmd/compile/internal/types2/expr.go
++++ b/src/cmd/compile/internal/types2/expr.go
+@@ -616,11 +616,7 @@ func (check *Checker) updateExprType0(parent, x syntax.Expr, typ Type, final boo
+ 		// We already know from the shift check that it is representable
+ 		// as an integer if it is a constant.
+ 		if !allInteger(typ) {
+-			if check.conf.CompilerErrorMessages {
+-				check.errorf(x, _InvalidShiftOperand, invalidOp+"%s (shift of type %s)", parent, typ)
+-			} else {
+-				check.errorf(x, _InvalidShiftOperand, invalidOp+"shifted operand %s (type %s) must be integer", x, typ)
+-			}
++			check.errorf(x, _InvalidShiftOperand, invalidOp+"shifted operand %s (type %s) must be integer", x, typ)
+ 			return
+ 		}
+ 		// Even if we have an integer, if the value is a constant we
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index 710205abba..7f95892718 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -579,11 +579,7 @@ func (check *Checker) updateExprType0(parent, x ast.Expr, typ Type, final bool)
+ 		// We already know from the shift check that it is representable
+ 		// as an integer if it is a constant.
+ 		if !allInteger(typ) {
+-			if compilerErrorMessages {
+-				check.invalidOp(x, _InvalidShiftOperand, "%s (shift of type %s)", parent, typ)
+-			} else {
+-				check.invalidOp(x, _InvalidShiftOperand, "shifted operand %s (type %s) must be integer", x, typ)
+-			}
++			check.invalidOp(x, _InvalidShiftOperand, "shifted operand %s (type %s) must be integer", x, typ)
+ 			return
+ 		}
+ 		// Even if we have an integer, if the value is a constant we
+diff --git a/test/fixedbugs/issue28079c.go b/test/fixedbugs/issue28079c.go
+index dfac8d0155..59ba0d1a52 100644
+--- a/test/fixedbugs/issue28079c.go
++++ b/test/fixedbugs/issue28079c.go
+@@ -11,5 +11,5 @@ package p
+ import "unsafe"
+ 
+ func f() {
+-	_ = complex(1<<uintptr(unsafe.Pointer(nil)), 0) // ERROR "invalid operation: .*shift of type float64.*|non-integer type for left operand of shift"
++	_ = complex(1<<uintptr(unsafe.Pointer(nil)), 0) // ERROR "invalid operation: shifted operand 1 \(type float64\) must be integer|non-integer type for left operand of shift"
+ }

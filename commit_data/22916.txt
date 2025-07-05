@@ -9,7 +9,7 @@ Date:   Wed Apr 8 20:21:24 2015 +0900
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/hook_unix.go         | 1 +
  src/net/hook_windows.go      | 1 +
  src/net/main_test.go         | 4 ++--
@@ -17,3 +17,117 @@ Date:   Wed Apr 8 20:21:24 2015 +0900
  src/net/main_windows_test.go | 3 +++
  src/net/sock_posix.go        | 2 +-
  6 files changed, 11 insertions(+), 3 deletions(-)
+
+diff --git a/src/net/hook_unix.go b/src/net/hook_unix.go
+index bb198e0228..361ca5980c 100644
+--- a/src/net/hook_unix.go
++++ b/src/net/hook_unix.go
+@@ -15,6 +15,7 @@ var (
+ 	socketFunc        func(int, int, int) (int, error)         = syscall.Socket
+ 	closeFunc         func(int) error                          = syscall.Close
+ 	connectFunc       func(int, syscall.Sockaddr) error        = syscall.Connect
++	listenFunc        func(int, int) error                     = syscall.Listen
+ 	acceptFunc        func(int) (int, syscall.Sockaddr, error) = syscall.Accept
+ 	getsockoptIntFunc func(int, int, int) (int, error)         = syscall.GetsockoptInt
+ )
+diff --git a/src/net/hook_windows.go b/src/net/hook_windows.go
+index 59c32d2c98..126b0ebdd1 100644
+--- a/src/net/hook_windows.go
++++ b/src/net/hook_windows.go
+@@ -17,4 +17,5 @@ var (
+ 	closeFunc     func(syscall.Handle) error                                                                = syscall.Closesocket
+ 	connectFunc   func(syscall.Handle, syscall.Sockaddr) error                                              = syscall.Connect
+ 	connectExFunc func(syscall.Handle, syscall.Sockaddr, *byte, uint32, *uint32, *syscall.Overlapped) error = syscall.ConnectEx
++	listenFunc    func(syscall.Handle, int) error                                                           = syscall.Listen
+ )
+diff --git a/src/net/main_test.go b/src/net/main_test.go
+index e9d14658f4..1cafd2e85c 100644
+--- a/src/net/main_test.go
++++ b/src/net/main_test.go
+@@ -142,7 +142,7 @@ func printLeakedSockets() {
+ 	}
+ 	fmt.Fprintf(os.Stderr, "Leaked sockets:\n")
+ 	for s, so := range sos {
+-		fmt.Fprintf(os.Stderr, "%v: %+v\n", s, so)
++		fmt.Fprintf(os.Stderr, "%v: %v\n", s, so)
+ 	}
+ 	fmt.Fprintf(os.Stderr, "\n")
+ }
+@@ -154,7 +154,7 @@ func printSocketStats() {
+ 	}
+ 	fmt.Fprintf(os.Stderr, "Socket statistical information:\n")
+ 	for _, st := range sts {
+-		fmt.Fprintf(os.Stderr, "%+v\n", st)
++		fmt.Fprintf(os.Stderr, "%v\n", st)
+ 	}
+ 	fmt.Fprintf(os.Stderr, "\n")
+ }
+diff --git a/src/net/main_unix_test.go b/src/net/main_unix_test.go
+index 637ac3dbc2..bfb4cd0065 100644
+--- a/src/net/main_unix_test.go
++++ b/src/net/main_unix_test.go
+@@ -11,6 +11,7 @@ var (
+ 	origSocket        = socketFunc
+ 	origClose         = closeFunc
+ 	origConnect       = connectFunc
++	origListen        = listenFunc
+ 	origAccept        = acceptFunc
+ 	origGetsockoptInt = getsockoptIntFunc
+ 
+@@ -22,6 +23,7 @@ func installTestHooks() {
+ 	socketFunc = sw.Socket
+ 	closeFunc = sw.Close
+ 	connectFunc = sw.Connect
++	listenFunc = sw.Listen
+ 	acceptFunc = sw.Accept
+ 	getsockoptIntFunc = sw.GetsockoptInt
+ 
+@@ -34,6 +36,7 @@ func uninstallTestHooks() {
+ 	socketFunc = origSocket
+ 	closeFunc = origClose
+ 	connectFunc = origConnect
++	listenFunc = origListen
+ 	acceptFunc = origAccept
+ 	getsockoptIntFunc = origGetsockoptInt
+ 
+diff --git a/src/net/main_windows_test.go b/src/net/main_windows_test.go
+index 03c3796a50..2d829743ec 100644
+--- a/src/net/main_windows_test.go
++++ b/src/net/main_windows_test.go
+@@ -10,6 +10,7 @@ var (
+ 	origClosesocket = closeFunc
+ 	origConnect     = connectFunc
+ 	origConnectEx   = connectExFunc
++	origListen      = listenFunc
+ )
+ 
+ func installTestHooks() {
+@@ -17,6 +18,7 @@ func installTestHooks() {
+ 	closeFunc = sw.Closesocket
+ 	connectFunc = sw.Connect
+ 	connectExFunc = sw.ConnectEx
++	listenFunc = sw.Listen
+ }
+ 
+ func uninstallTestHooks() {
+@@ -24,6 +26,7 @@ func uninstallTestHooks() {
+ 	closeFunc = origClosesocket
+ 	connectFunc = origConnect
+ 	connectExFunc = origConnectEx
++	listenFunc = origListen
+ }
+ 
+ func forceCloseSockets() {
+diff --git a/src/net/sock_posix.go b/src/net/sock_posix.go
+index bbab11bc46..2634a6b646 100644
+--- a/src/net/sock_posix.go
++++ b/src/net/sock_posix.go
+@@ -163,7 +163,7 @@ func (fd *netFD) listenStream(laddr sockaddr, backlog int) error {
+ 			return os.NewSyscallError("bind", err)
+ 		}
+ 	}
+-	if err := syscall.Listen(fd.sysfd, backlog); err != nil {
++	if err := listenFunc(fd.sysfd, backlog); err != nil {
+ 		return os.NewSyscallError("listen", err)
+ 	}
+ 	if err := fd.init(); err != nil {

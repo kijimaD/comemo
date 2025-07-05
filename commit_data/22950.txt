@@ -30,6 +30,31 @@ Date:   Thu Apr 9 17:58:52 2015 -0700
     Reviewed-on: https://go-review.googlesource.com/8733
     Reviewed-by: Dave Cheney <dave@cheney.net>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/internal/gc/gsubr.go | 6 ------
  1 file changed, 6 deletions(-)
+
+diff --git a/src/cmd/internal/gc/gsubr.go b/src/cmd/internal/gc/gsubr.go
+index 4483d4e4f5..99ef74e428 100644
+--- a/src/cmd/internal/gc/gsubr.go
++++ b/src/cmd/internal/gc/gsubr.go
+@@ -466,9 +466,6 @@ func Naddr(a *obj.Addr, n *Node) {
+ 			break // len(nil)
+ 		}
+ 		a.Etype = Simtype[TUINT]
+-		if Thearch.Thechar == '7' || Thearch.Thechar == '9' {
+-			a.Etype = Simtype[TINT]
+-		}
+ 		a.Offset += int64(Array_nel)
+ 		if Thearch.Thechar != '5' { // TODO(rsc): Do this even on arm.
+ 			a.Width = int64(Widthint)
+@@ -482,9 +479,6 @@ func Naddr(a *obj.Addr, n *Node) {
+ 			break // cap(nil)
+ 		}
+ 		a.Etype = Simtype[TUINT]
+-		if Thearch.Thechar == '7' || Thearch.Thechar == '9' {
+-			a.Etype = Simtype[TINT]
+-		}
+ 		a.Offset += int64(Array_cap)
+ 		if Thearch.Thechar != '5' { // TODO(rsc): Do this even on arm.
+ 			a.Width = int64(Widthint)

@@ -23,10 +23,188 @@ Date:   Thu Mar 1 16:52:27 2018 -0600
     Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  misc/cgo/test/basic.go              | 14 ++++++++++
  misc/cgo/test/cgo_test.go           |  4 ++-
  misc/cgo/test/issue24206.go         | 54 +++++++++++++++++++++++++++++++++++++
  misc/cgo/test/issue24206_generic.go | 13 +++++++++
  src/runtime/string.go               | 34 ++++++++++++++++++-----
  5 files changed, 112 insertions(+), 7 deletions(-)
+
+diff --git a/misc/cgo/test/basic.go b/misc/cgo/test/basic.go
+index 3ceb4ce847..2655a66e38 100644
+--- a/misc/cgo/test/basic.go
++++ b/misc/cgo/test/basic.go
+@@ -31,6 +31,8 @@ struct S {
+ 	int x;
+ };
+ 
++const char *cstr = "abcefghijklmnopqrstuvwxyzABCEFGHIJKLMNOPQRSTUVWXYZ1234567890";
++
+ extern enum E myConstFunc(struct S* const ctx, int const id, struct S **const filter);
+ 
+ enum E myConstFunc(struct S *const ctx, int const id, struct S **const filter) { return 0; }
+@@ -149,6 +151,18 @@ func benchCgoCall(b *testing.B) {
+ 	}
+ }
+ 
++var sinkString string
++
++func benchGoString(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		sinkString = C.GoString(C.cstr)
++	}
++	const want = "abcefghijklmnopqrstuvwxyzABCEFGHIJKLMNOPQRSTUVWXYZ1234567890"
++	if sinkString != want {
++		b.Fatalf("%q != %q", sinkString, want)
++	}
++}
++
+ // Issue 2470.
+ func testUnsignedInt(t *testing.T) {
+ 	a := (int64)(C.UINT32VAL)
+diff --git a/misc/cgo/test/cgo_test.go b/misc/cgo/test/cgo_test.go
+index cfacb9c40d..bcea630ad2 100644
+--- a/misc/cgo/test/cgo_test.go
++++ b/misc/cgo/test/cgo_test.go
+@@ -87,5 +87,7 @@ func Test6907(t *testing.T)                  { test6907(t) }
+ func Test6907Go(t *testing.T)                { test6907Go(t) }
+ func Test21897(t *testing.T)                 { test21897(t) }
+ func Test22906(t *testing.T)                 { test22906(t) }
++func Test24206(t *testing.T)                 { test24206(t) }
+ 
+-func BenchmarkCgoCall(b *testing.B) { benchCgoCall(b) }
++func BenchmarkCgoCall(b *testing.B)  { benchCgoCall(b) }
++func BenchmarkGoString(b *testing.B) { benchGoString(b) }
+diff --git a/misc/cgo/test/issue24206.go b/misc/cgo/test/issue24206.go
+new file mode 100644
+index 0000000000..5fec68e880
+--- /dev/null
++++ b/misc/cgo/test/issue24206.go
+@@ -0,0 +1,54 @@
++// +build amd64,linux
++
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cgotest
++
++// Test that C.GoString uses IndexByte in safe manner.
++
++/*
++#include <sys/mman.h>
++
++// Returns string with null byte at the last valid address
++char* dangerousString1() {
++	int pageSize = 4096;
++	char *data = mmap(0, 2 * pageSize, PROT_READ|PROT_WRITE, MAP_ANON|MAP_PRIVATE, 0, 0);
++	mprotect(data + pageSize,pageSize,PROT_NONE);
++	int start = pageSize - 123 - 1; // last 123 bytes of first page + 1 null byte
++	int i = start;
++	for (; i < pageSize; i++) {
++	data[i] = 'x';
++	}
++	data[pageSize -1 ] = 0;
++	return data+start;
++}
++
++char* dangerousString2() {
++	int pageSize = 4096;
++	char *data = mmap(0, 3 * pageSize, PROT_READ|PROT_WRITE, MAP_ANON|MAP_PRIVATE, 0, 0);
++	mprotect(data + 2 * pageSize,pageSize,PROT_NONE);
++	int start = pageSize - 123 - 1; // last 123 bytes of first page + 1 null byte
++	int i = start;
++	for (; i < 2 * pageSize; i++) {
++	data[i] = 'x';
++	}
++	data[2*pageSize -1 ] = 0;
++	return data+start;
++}
++*/
++import "C"
++
++import (
++	"testing"
++)
++
++func test24206(t *testing.T) {
++	if l := len(C.GoString(C.dangerousString1())); l != 123 {
++		t.Errorf("Incorrect string length - got %d, want 123", l)
++	}
++	if l := len(C.GoString(C.dangerousString2())); l != 4096+123 {
++		t.Errorf("Incorrect string length - got %d, want %d", l, 4096+123)
++	}
++}
+diff --git a/misc/cgo/test/issue24206_generic.go b/misc/cgo/test/issue24206_generic.go
+new file mode 100644
+index 0000000000..27c4d65f28
+--- /dev/null
++++ b/misc/cgo/test/issue24206_generic.go
+@@ -0,0 +1,13 @@
++// +build !amd64 !linux
++
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cgotest
++
++import "testing"
++
++func test24206(t *testing.T) {
++	t.Skip("Skipping on non-amd64 or non-linux system")
++}
+diff --git a/src/runtime/string.go b/src/runtime/string.go
+index 5c83895995..e958f763cf 100644
+--- a/src/runtime/string.go
++++ b/src/runtime/string.go
+@@ -4,7 +4,10 @@
+ 
+ package runtime
+ 
+-import "unsafe"
++import (
++	"internal/bytealg"
++	"unsafe"
++)
+ 
+ // The constant is known to the compiler.
+ // There is no fundamental theory behind this number.
+@@ -407,12 +410,31 @@ func findnull(s *byte) int {
+ 	if s == nil {
+ 		return 0
+ 	}
+-	p := (*[maxAlloc/2 - 1]byte)(unsafe.Pointer(s))
+-	l := 0
+-	for p[l] != 0 {
+-		l++
++
++	// pageSize is the unit we scan at a time looking for NULL.
++	// It must be the minimum page size for any architecture Go
++	// runs on. It's okay (just a minor performance loss) if the
++	// actual system page size is larger than this value.
++	const pageSize = 4096
++
++	offset := 0
++	ptr := unsafe.Pointer(s)
++	// IndexByteString uses wide reads, so we need to be careful
++	// with page boundaries. Call IndexByteString on
++	// [ptr, endOfPage) interval.
++	safeLen := int(pageSize - uintptr(ptr)%pageSize)
++
++	for {
++		t := *(*string)(unsafe.Pointer(&stringStruct{ptr, safeLen}))
++		// Check one page at a time.
++		if i := bytealg.IndexByteString(t, 0); i != -1 {
++			return offset + i
++		}
++		// Move to next page
++		ptr = unsafe.Pointer(uintptr(ptr) + uintptr(safeLen))
++		offset += safeLen
++		safeLen = pageSize
+ 	}
+-	return l
+ }
+ 
+ func findnullw(s *uint16) int {

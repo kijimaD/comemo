@@ -10,7 +10,49 @@ Date:   Wed Feb 24 14:07:25 2016 -0800
     Change-Id: I810c6c51414a93f476a18ba07b807e16092bf8cf
     Reviewed-on: https://go-review.googlesource.com/19907
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/asm/internal/asm/endtoend_test.go |  2 +-
  src/cmd/internal/obj/objfile.go           | 10 +++++++++-
  2 files changed, 10 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/endtoend_test.go b/src/cmd/asm/internal/asm/endtoend_test.go
+index 4bc7e2fb74..4a3e0ee265 100644
+--- a/src/cmd/asm/internal/asm/endtoend_test.go
++++ b/src/cmd/asm/internal/asm/endtoend_test.go
+@@ -179,7 +179,7 @@ Diff:
+ 		t.Errorf(format, args...)
+ 		ok = false
+ 	}
+-	obj.Flushplist(ctxt)
++	obj.FlushplistNoFree(ctxt)
+ 
+ 	for p := top; p != nil; p = p.Link {
+ 		if p.As == obj.ATEXT {
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index 2d5c82376b..6757067dd6 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -116,6 +116,12 @@ func Writeobjdirect(ctxt *Link, b *Biobuf) {
+ }
+ 
+ func Flushplist(ctxt *Link) {
++	flushplist(ctxt, true)
++}
++func FlushplistNoFree(ctxt *Link) {
++	flushplist(ctxt, false)
++}
++func flushplist(ctxt *Link, freeProgs bool) {
+ 	var flag int
+ 	var s *LSym
+ 	var p *Prog
+@@ -318,7 +324,9 @@ func Flushplist(ctxt *Link) {
+ 	ctxt.Plist = nil
+ 	ctxt.Plast = nil
+ 	ctxt.Curp = nil
+-	ctxt.freeProgs()
++	if freeProgs {
++		ctxt.freeProgs()
++	}
+ }
+ 
+ func Writeobjfile(ctxt *Link, b *Biobuf) {

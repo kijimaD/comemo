@@ -14,9 +14,85 @@ Date:   Wed May 14 10:15:43 2014 -0700
     R=golang-codereviews, iant
     CC=golang-codereviews
     https://golang.org/cl/99050043
-
+---
  src/pkg/archive/tar/reader.go                    |   6 +++---
  src/pkg/archive/tar/testdata/writer-big-long.tar | Bin 0 -> 4096 bytes
  src/pkg/archive/tar/writer.go                    |   4 ++--
  src/pkg/archive/tar/writer_test.go               |  23 +++++++++++++++++++++++
  4 files changed, 28 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/archive/tar/reader.go b/src/pkg/archive/tar/reader.go
+index d15e120792..e6ac538aad 100644
+--- a/src/pkg/archive/tar/reader.go
++++ b/src/pkg/archive/tar/reader.go
+@@ -468,14 +468,14 @@ func (tr *Reader) readHeader() *Header {
+ 	// so its magic bytes, like the rest of the block, are NULs.
+ 	magic := string(s.next(8)) // contains version field as well.
+ 	var format string
+-	switch magic {
+-	case "ustar\x0000": // POSIX tar (1003.1-1988)
++	switch {
++	case magic[:6] == "ustar\x00": // POSIX tar (1003.1-1988)
+ 		if string(header[508:512]) == "tar\x00" {
+ 			format = "star"
+ 		} else {
+ 			format = "posix"
+ 		}
+-	case "ustar  \x00": // old GNU tar
++	case magic == "ustar  \x00": // old GNU tar
+ 		format = "gnu"
+ 	}
+ 
+diff --git a/src/pkg/archive/tar/testdata/writer-big-long.tar b/src/pkg/archive/tar/testdata/writer-big-long.tar
+new file mode 100644
+index 0000000000..5960ee8247
+Binary files /dev/null and b/src/pkg/archive/tar/testdata/writer-big-long.tar differ
+diff --git a/src/pkg/archive/tar/writer.go b/src/pkg/archive/tar/writer.go
+index 9ee9499297..6eff6f6f84 100644
+--- a/src/pkg/archive/tar/writer.go
++++ b/src/pkg/archive/tar/writer.go
+@@ -218,8 +218,8 @@ func (tw *Writer) writeHeader(hdr *Header, allowPax bool) error {
+ 				tw.cString(prefixHeaderBytes, prefix, false, paxNone, nil)
+ 
+ 				// Use the ustar magic if we used ustar long names.
+-				if len(prefix) > 0 {
+-					copy(header[257:265], []byte("ustar\000"))
++				if len(prefix) > 0 && !tw.usedBinary {
++					copy(header[257:265], []byte("ustar\x00"))
+ 				}
+ 			}
+ 		}
+diff --git a/src/pkg/archive/tar/writer_test.go b/src/pkg/archive/tar/writer_test.go
+index 2b9ea658db..512fab1a6f 100644
+--- a/src/pkg/archive/tar/writer_test.go
++++ b/src/pkg/archive/tar/writer_test.go
+@@ -103,6 +103,29 @@ var writerTests = []*writerTest{
+ 			},
+ 		},
+ 	},
++	// The truncated test file was produced using these commands:
++	//   dd if=/dev/zero bs=1048576 count=16384 > (longname/)*15 /16gig.txt
++	//   tar -b 1 -c -f- (longname/)*15 /16gig.txt | dd bs=512 count=8 > writer-big-long.tar
++	{
++		file: "testdata/writer-big-long.tar",
++		entries: []*writerTestEntry{
++			{
++				header: &Header{
++					Name:     strings.Repeat("longname/", 15) + "16gig.txt",
++					Mode:     0644,
++					Uid:      1000,
++					Gid:      1000,
++					Size:     16 << 30,
++					ModTime:  time.Unix(1399583047, 0),
++					Typeflag: '0',
++					Uname:    "guillaume",
++					Gname:    "guillaume",
++				},
++				// fake contents
++				contents: strings.Repeat("\x00", 4<<10),
++			},
++		},
++	},
+ 	// This file was produced using gnu tar 1.17
+ 	// gnutar  -b 4 --format=ustar (longname/)*15 + file.txt
+ 	{

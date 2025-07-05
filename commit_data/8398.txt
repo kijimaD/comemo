@@ -9,10 +9,111 @@ Date:   Sat May 14 20:43:18 2011 -0700
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/4548042
-
+---
  src/pkg/crypto/openpgp/packet/public_key_test.go |  2 +-
  src/pkg/http/request_test.go                     | 10 +++++-----
  src/pkg/http/response_test.go                    |  4 ++--
  src/pkg/mime/multipart/formdata_test.go          |  2 +-
  src/pkg/os/user/user_test.go                     |  2 +-
  5 files changed, 10 insertions(+), 10 deletions(-)
+
+diff --git a/src/pkg/crypto/openpgp/packet/public_key_test.go b/src/pkg/crypto/openpgp/packet/public_key_test.go
+index 3bbdf92f08..6e8bfbce66 100644
+--- a/src/pkg/crypto/openpgp/packet/public_key_test.go
++++ b/src/pkg/crypto/openpgp/packet/public_key_test.go
+@@ -72,7 +72,7 @@ func TestPublicKeySerialize(t *testing.T) {
+ 		serializeBuf := bytes.NewBuffer(nil)
+ 		err = pk.Serialize(serializeBuf)
+ 		if err != nil {
+-			t.Errorf("#%d: failed to serialize: %s", err)
++			t.Errorf("#%d: failed to serialize: %s", i, err)
+ 			continue
+ 		}
+ 
+diff --git a/src/pkg/http/request_test.go b/src/pkg/http/request_test.go
+index 8429e92eba..e03ed3b053 100644
+--- a/src/pkg/http/request_test.go
++++ b/src/pkg/http/request_test.go
+@@ -222,13 +222,13 @@ func TestEmptyMultipartRequest(t *testing.T) {
+ func testMissingFile(t *testing.T, req *Request) {
+ 	f, fh, err := req.FormFile("missing")
+ 	if f != nil {
+-		t.Errorf("FormFile file = %q, want nil", f, nil)
++		t.Errorf("FormFile file = %q, want nil", f)
+ 	}
+ 	if fh != nil {
+-		t.Errorf("FormFile file header = %q, want nil", fh, nil)
++		t.Errorf("FormFile file header = %q, want nil", fh)
+ 	}
+ 	if err != ErrMissingFile {
+-		t.Errorf("FormFile err = %q, want nil", err, ErrMissingFile)
++		t.Errorf("FormFile err = %q, want ErrMissingFile", err)
+ 	}
+ }
+ 
+@@ -236,7 +236,7 @@ func newTestMultipartRequest(t *testing.T) *Request {
+ 	b := bytes.NewBufferString(strings.Replace(message, "\n", "\r\n", -1))
+ 	req, err := NewRequest("POST", "/", b)
+ 	if err != nil {
+-		t.Fatalf("NewRequest:", err)
++		t.Fatal("NewRequest:", err)
+ 	}
+ 	ctype := fmt.Sprintf(`multipart/form-data; boundary="%s"`, boundary)
+ 	req.Header.Set("Content-type", ctype)
+@@ -276,7 +276,7 @@ func validateTestMultipartContents(t *testing.T, req *Request, allMem bool) {
+ func testMultipartFile(t *testing.T, req *Request, key, expectFilename, expectContent string) multipart.File {
+ 	f, fh, err := req.FormFile(key)
+ 	if err != nil {
+-		t.Fatalf("FormFile(%q):", key, err)
++		t.Fatalf("FormFile(%q): %q", key, err)
+ 	}
+ 	if fh.Filename != expectFilename {
+ 		t.Errorf("filename = %q, want %q", fh.Filename, expectFilename)
+diff --git a/src/pkg/http/response_test.go b/src/pkg/http/response_test.go
+index acf6d739e8..1d4a234235 100644
+--- a/src/pkg/http/response_test.go
++++ b/src/pkg/http/response_test.go
+@@ -376,7 +376,7 @@ func TestReadResponseCloseInMiddle(t *testing.T) {
+ 		rest, err := ioutil.ReadAll(bufr)
+ 		checkErr(err, "ReadAll on remainder")
+ 		if e, g := "Next Request Here", string(rest); e != g {
+-			fatalf("for chunked=%v remainder = %q, expected %q", g, e)
++			fatalf("remainder = %q, expected %q", g, e)
+ 		}
+ 	}
+ }
+@@ -385,7 +385,7 @@ func diff(t *testing.T, prefix string, have, want interface{}) {
+ 	hv := reflect.ValueOf(have).Elem()
+ 	wv := reflect.ValueOf(want).Elem()
+ 	if hv.Type() != wv.Type() {
+-		t.Errorf("%s: type mismatch %v vs %v", prefix, hv.Type(), wv.Type())
++		t.Errorf("%s: type mismatch %v want %v", prefix, hv.Type(), wv.Type())
+ 	}
+ 	for i := 0; i < hv.NumField(); i++ {
+ 		hf := hv.Field(i).Interface()
+diff --git a/src/pkg/mime/multipart/formdata_test.go b/src/pkg/mime/multipart/formdata_test.go
+index b56e2a430e..9424c3778e 100644
+--- a/src/pkg/mime/multipart/formdata_test.go
++++ b/src/pkg/mime/multipart/formdata_test.go
+@@ -33,7 +33,7 @@ func TestReadForm(t *testing.T) {
+ 	}
+ 	fd = testFile(t, f.File["fileb"][0], "fileb.txt", filebContents)
+ 	if _, ok := fd.(*os.File); !ok {
+-		t.Error("file has unexpected underlying type %T", fd)
++		t.Errorf("file has unexpected underlying type %T", fd)
+ 	}
+ }
+ 
+diff --git a/src/pkg/os/user/user_test.go b/src/pkg/os/user/user_test.go
+index 2c142bf181..de953cae3d 100644
+--- a/src/pkg/os/user/user_test.go
++++ b/src/pkg/os/user/user_test.go
+@@ -42,7 +42,7 @@ func TestLookup(t *testing.T) {
+ 	}
+ 	fi, err := os.Stat(u.HomeDir)
+ 	if err != nil || !fi.IsDirectory() {
+-		t.Errorf("expected a valid HomeDir; stat(%q): err=%v, IsDirectory=%v", err, fi.IsDirectory())
++		t.Errorf("expected a valid HomeDir; stat(%q): err=%v, IsDirectory=%v", u.HomeDir, err, fi.IsDirectory())
+ 	}
+ 	if u.Username == "" {
+ 		t.Fatalf("didn't get a username")

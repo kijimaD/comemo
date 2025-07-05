@@ -7,7 +7,7 @@ Date:   Fri Jan 30 14:39:42 2009 -0800
     R=ken
     OCL=23958
     CL=23961
-
+---
  src/cmd/6g/align.c  | 26 ++++++++++++---
  src/cmd/6g/cgen.c   | 10 +++---
  src/cmd/6g/gen.c    | 96 ++++++++++++++++++++---------------------------------
@@ -23,3 +23,774 @@ Date:   Fri Jan 30 14:39:42 2009 -0800
  src/cmd/gc/subr.c   |  9 +++--
  src/cmd/gc/walk.c   | 12 +++++--
  14 files changed, 141 insertions(+), 118 deletions(-)
+
+diff --git a/src/cmd/6g/align.c b/src/cmd/6g/align.c
+index 3aa7212464..5d55e2ca91 100644
+--- a/src/cmd/6g/align.c
++++ b/src/cmd/6g/align.c
+@@ -75,6 +75,7 @@ widstruct(Type *t, uint32 o, int flag)
+ void
+ dowidth(Type *t)
+ {
++	int32 et;
+ 	uint32 w;
+ 
+ 	if(t == T)
+@@ -88,8 +89,22 @@ dowidth(Type *t)
+ 
+ 	t->width = -2;
+ 
++
++	et = t->etype;
++	switch(et) {
++	case TFUNC:
++	case TCHAN:
++	case TMAP:
++	case TSTRING:
++		break;
++
++	default:
++		et = simtype[t->etype];
++		break;
++	}
++
+ 	w = 0;
+-	switch(simtype[t->etype]) {
++	switch(et) {
+ 	default:
+ 		fatal("dowidth: unknown type: %E", t->etype);
+ 		break;
+@@ -162,16 +177,18 @@ dowidth(Type *t)
+ 		w = widstruct(t, 0, 1);
+ 		if(w == 0)
+ 			w = maxround;
+-		offmod(t);
+ 		break;
+ 
+ 	case TFUNC:
+-		// function is 3 cated structures
++		// function is 3 cated structures;
++		// compute their widths as side-effect.
+ 		w = widstruct(*getthis(t), 0, 1);
+ 		w = widstruct(*getinarg(t), w, 0);
+ 		w = widstruct(*getoutarg(t), w, 1);
+ 		t->argwid = w;
+-		w = 0;
++
++		// but width of func type is pointer
++		w = wptr;
+ 		break;
+ 	}
+ 	t->width = w;
+@@ -222,6 +239,7 @@ belexinit(int lextype)
+ 	simtype[TMAP] = tptr;
+ 	simtype[TCHAN] = tptr;
+ 	simtype[TSTRING] = tptr;
++	simtype[TFUNC] = tptr;
+ 
+ 	zprog.link = P;
+ 	zprog.as = AGOK;
+diff --git a/src/cmd/6g/cgen.c b/src/cmd/6g/cgen.c
+index 2774456c0a..ba1427d014 100644
+--- a/src/cmd/6g/cgen.c
++++ b/src/cmd/6g/cgen.c
+@@ -19,8 +19,8 @@ cgen(Node *n, Node *res)
+ 	Addr addr;
+ 
+ 	if(debug['g']) {
+-		dump("\ncgen-res", res);
+-		dump("cgen-r", n);
++		dump("\ncgen-n", n);
++		dump("cgen-res", res);
+ 	}
+ 	if(n == N || n->type == T)
+ 		return;
+@@ -82,6 +82,8 @@ cgen(Node *n, Node *res)
+ 			} else
+ 				p1 = gins(a, n, N);
+ 			p1->to = addr;
++			if(debug['g'])
++				print("%P [ignore previous line]\n", p1);
+ 			sudoclean();
+ 			goto ret;
+ 		}
+@@ -448,7 +450,7 @@ agen(Node *n, Node *res)
+ 					nodconst(&n2, types[TUINT64], v);
+ 					gins(optoas(OCMP, types[TUINT32]), &n1, &n2);
+ 					p1 = gbranch(optoas(OGT, types[TUINT32]), T);
+-					gins(ACALL, N, throwindex);
++					ginscall(throwindex, 0);
+ 					patch(p1, pc);
+ 				}
+ 
+@@ -494,7 +496,7 @@ agen(Node *n, Node *res)
+ 				nodconst(&n1, types[TUINT64], nl->type->bound);
+ 			gins(optoas(OCMP, types[TUINT32]), &n2, &n1);
+ 			p1 = gbranch(optoas(OLT, types[TUINT32]), T);
+-			gins(ACALL, N, throwindex);
++			ginscall(throwindex, 0);
+ 			patch(p1, pc);
+ 		}
+ 
+diff --git a/src/cmd/6g/gen.c b/src/cmd/6g/gen.c
+index e6a6850339..e2c06d1967 100644
+--- a/src/cmd/6g/gen.c
++++ b/src/cmd/6g/gen.c
+@@ -8,6 +8,17 @@
+ #include "gg.h"
+ #include "opt.h"
+ 
++static Node*
++sysfunc(char *name)
++{
++	Node *n;
++
++	n = newname(pkglookup(name, "sys"));
++	n->class = PFUNC;
++	return n;
++}
++
++
+ void
+ compile(Node *fn)
+ {
+@@ -18,45 +29,16 @@ compile(Node *fn)
+ 	Type *t;
+ 	Iter save;
+ 
+-if(newproc == N) {
+-	newproc = nod(ONAME, N, N);
+-	newproc->sym = pkglookup("newproc", "sys");
+-	newproc->class = PEXTERN;
+-	newproc->addable = 1;
+-	newproc->ullman = 1;
+-}
+-
+-if(deferproc == N) {
+-	deferproc = nod(ONAME, N, N);
+-	deferproc->sym = pkglookup("deferproc", "sys");
+-	deferproc->class = PEXTERN;
+-	deferproc->addable = 1;
+-	deferproc->ullman = 1;
+-}
+-
+-if(deferreturn == N) {
+-	deferreturn = nod(ONAME, N, N);
+-	deferreturn->sym = pkglookup("deferreturn", "sys");
+-	deferreturn->class = PEXTERN;
+-	deferreturn->addable = 1;
+-	deferreturn->ullman = 1;
+-}
+-
+-if(throwindex == N) {
+-	throwindex = nod(ONAME, N, N);
+-	throwindex->sym = pkglookup("throwindex", "sys");
+-	throwindex->class = PEXTERN;
+-	throwindex->addable = 1;
+-	throwindex->ullman = 1;
+-}
+-
+-if(throwreturn == N) {
+-	throwreturn = nod(ONAME, N, N);
+-	throwreturn->sym = pkglookup("throwreturn", "sys");
+-	throwreturn->class = PEXTERN;
+-	throwreturn->addable = 1;
+-	throwreturn->ullman = 1;
+-}
++	if(newproc == N)
++		newproc = sysfunc("newproc");
++	if(deferproc == N)
++		deferproc = sysfunc("deferproc");
++	if(deferreturn == N)
++		deferreturn = sysfunc("deferreturn");
++	if(throwindex == N)
++		throwindex = sysfunc("throwindex");
++	if(throwreturn == N)
++		throwreturn = sysfunc("throwreturn");
+ 
+ 	if(fn->nbody == N)
+ 		return;
+@@ -95,6 +77,7 @@ if(throwreturn == N) {
+ 
+ 	nodconst(&nod1, types[TINT32], 0);
+ 	ptxt = gins(ATEXT, curfn->nname, &nod1);
++	afunclit(&ptxt->from);
+ 
+ //	inarggen();
+ 
+@@ -104,12 +87,11 @@ if(throwreturn == N) {
+ 	gclean();
+ 	checklabels();
+ 
+-	if(curfn->type->outtuple != 0) {
+-		gins(ACALL, N, throwreturn);
+-	}
++	if(curfn->type->outtuple != 0)
++		ginscall(throwreturn, 0);
+ 
+ 	if(hasdefer)
+-		gins(ACALL, N, deferreturn);
++		ginscall(deferreturn, 0);
+ 	pc->as = ARET;	// overwrite AEND
+ 	pc->lineno = lineno;
+ 
+@@ -720,6 +702,7 @@ argsize(Type *t)
+ void
+ ginscall(Node *f, int proc)
+ {
++	Prog *p;
+ 	Node reg, con;
+ 
+ 	switch(proc) {
+@@ -728,23 +711,20 @@ ginscall(Node *f, int proc)
+ 		break;
+ 
+ 	case 0:	// normal call
+-		gins(ACALL, N, f);
++		p = gins(ACALL, N, f);
++		afunclit(&p->to);
+ 		break;
+ 
+ 	case 1:	// call in new proc (go)
+ 	case 2:	// defered call (defer)
+ 		nodreg(&reg, types[TINT64], D_AX);
+-		if(f->op != OREGISTER) {
+-			gins(ALEAQ, f, &reg);
+-			gins(APUSHQ, &reg, N);
+-		} else
+-			gins(APUSHQ, f, N);
++		gins(APUSHQ, f, N);
+ 		nodconst(&con, types[TINT32], argsize(f->type));
+ 		gins(APUSHQ, &con, N);
+ 		if(proc == 1)
+-			gins(ACALL, N, newproc);
++			ginscall(newproc, 0);
+ 		else
+-			gins(ACALL, N, deferproc);
++			ginscall(deferproc, 0);
+ 		gins(APOPQ, N, &reg);
+ 		gins(APOPQ, N, &reg);
+ 		break;
+@@ -827,7 +807,7 @@ cgen_callmeth(Node *n, int proc)
+ 	n->left->type = l->type;
+ 
+ 	if(n->left->op == ONAME)
+-		n->left->class = PEXTERN;
++		n->left->class = PFUNC;
+ 	cgen_call(n, proc);
+ }
+ 
+@@ -850,16 +830,11 @@ cgen_call(Node *n, int proc)
+ 		// if name involves a fn call
+ 		// precompute the address of the fn
+ 		tempname(&afun, types[tptr]);
+-		if(isptr[n->left->type->etype])
+-			cgen(n->left, &afun);
+-		else
+-			agen(n->left, &afun);
++		cgen(n->left, &afun);
+ 	}
+ 
+ 	gen(n->right, L);	// assign the args
+ 	t = n->left->type;
+-	if(isptr[t->etype])
+-		t = t->type;
+ 
+ 	setmaxarg(t);
+ 
+@@ -874,7 +849,7 @@ cgen_call(Node *n, int proc)
+ 	}
+ 
+ 	// call pointer
+-	if(isptr[n->left->type->etype]) {
++	if(n->left->op != ONAME || n->left->class != PFUNC) {
+ 		regalloc(&nod, types[tptr], N);
+ 		cgen_as(&nod, n->left);
+ 		nod.type = t;
+@@ -887,6 +862,7 @@ cgen_call(Node *n, int proc)
+ 	n->left->method = 1;
+ 	ginscall(n->left, proc);
+ 
++
+ ret:
+ 	;
+ }
+@@ -992,7 +968,7 @@ cgen_ret(Node *n)
+ {
+ 	gen(n->left, L);	// copy out args
+ 	if(hasdefer)
+-		gins(ACALL, N, deferreturn);
++		ginscall(deferreturn, 0);
+ 	gins(ARET, N, N);
+ }
+ 
+diff --git a/src/cmd/6g/gg.h b/src/cmd/6g/gg.h
+index 602de32b4f..a44f104b8b 100644
+--- a/src/cmd/6g/gg.h
++++ b/src/cmd/6g/gg.h
+@@ -164,6 +164,7 @@ int	needconvert(Type*, Type*);
+ void	genconv(Type*, Type*);
+ void	allocparams(void);
+ void	checklabels();
++void	ginscall(Node*, int);
+ 
+ /*
+  * cgen
+@@ -219,6 +220,7 @@ int	isfat(Type*);
+ void	setmaxarg(Type*);
+ void	sudoclean(void);
+ int	sudoaddable(Node*, Addr*);
++void	afunclit(Addr*);
+ 
+ /*
+  * list.c
+diff --git a/src/cmd/6g/gsubr.c b/src/cmd/6g/gsubr.c
+index cd4f6e294d..0f71c104c8 100644
+--- a/src/cmd/6g/gsubr.c
++++ b/src/cmd/6g/gsubr.c
+@@ -1084,6 +1084,10 @@ naddr(Node *n, Addr *a)
+ 		case PPARAMOUT:
+ 			a->type = D_PARAM;
+ 			break;
++		case PFUNC:
++			a->index = D_EXTERN;
++			a->type = D_ADDR;
++			break;
+ 		}
+ 		break;
+ 
+@@ -1155,6 +1159,20 @@ naddr(Node *n, Addr *a)
+ 	}
+ }
+ 
++/*
++ * naddr of func generates code for address of func.
++ * if using opcode that can take address implicitly,
++ * call afunclit to fix up the argument.
++ */
++void
++afunclit(Addr *a)
++{
++	if(a->type == D_ADDR && a->index == D_EXTERN) {
++		a->type = D_EXTERN;
++		a->index = D_NONE;
++	}
++}
++
+ /*
+  * return Axxx for Oxxx on type t.
+  */
+@@ -1889,6 +1907,10 @@ dotoffset(Node *n, int *oary, Node **nn)
+ 
+ 	switch(n->op) {
+ 	case ODOT:
++		if(n->xoffset == BADWIDTH) {
++			dump("bad width in dotoffset", n);
++			fatal("bad width in dotoffset");
++		}
+ 		i = dotoffset(n->left, oary, nn);
+ 		if(i > 0) {
+ 			if(oary[i-1] >= 0)
+@@ -1902,6 +1924,10 @@ dotoffset(Node *n, int *oary, Node **nn)
+ 		break;
+ 
+ 	case ODOTPTR:
++		if(n->xoffset == BADWIDTH) {
++			dump("bad width in dotoffset", n);
++			fatal("bad width in dotoffset");
++		}
+ 		i = dotoffset(n->left, oary, nn);
+ 		if(i < 10)
+ 			oary[i++] = -(n->xoffset+1);
+@@ -2084,7 +2110,7 @@ oindex:
+ 		}
+ 		gins(optoas(OCMP, types[TUINT32]), reg1, &n2);
+ 		p1 = gbranch(optoas(OLT, types[TUINT32]), T);
+-		gins(ACALL, N, throwindex);
++		ginscall(throwindex, 0);
+ 		patch(p1, pc);
+ 	}
+ 
+@@ -2126,7 +2152,7 @@ oindex_const:
+ 			nodconst(&n2, types[TUINT64], v);
+ 			gins(optoas(OCMP, types[TUINT32]), &n1, &n2);
+ 			p1 = gbranch(optoas(OGT, types[TUINT32]), T);
+-			gins(ACALL, N, throwindex);
++			ginscall(throwindex, 0);
+ 			patch(p1, pc);
+ 		}
+ 
+diff --git a/src/cmd/6g/obj.c b/src/cmd/6g/obj.c
+index cd44bd6f84..02f987de0f 100644
+--- a/src/cmd/6g/obj.c
++++ b/src/cmd/6g/obj.c
+@@ -70,7 +70,7 @@ dumpobj(void)
+ 		if(n == N || n->type == T)
+ 			fatal("external %S nil\n", s);
+ 
+-		if(n->type->etype == TFUNC)
++		if(n->class == PFUNC)
+ 			continue;
+ 
+ 		dowidth(n->type);
+@@ -664,7 +664,7 @@ dumpsigt(Type *progt, Type *ifacet, Type *rcvrt, Type *methodt, Sym *s)
+ 			a->hash += PRIME10*stringhash(package);
+ 		a->perm = o;
+ 		a->sym = methodsym(method, rcvrt);
+-		
++
+ 		sighash = sighash*100003 + a->hash;
+ 
+ 		if(!a->sym->siggen) {
+@@ -803,7 +803,7 @@ dumpsigi(Type *t, Sym *s)
+ 		a->perm = o;
+ 		a->sym = methodsym(f->sym, t);
+ 		a->offset = 0;
+-		
++
+ 		sighash = sighash*100003 + a->hash;
+ 
+ 		o++;
+diff --git a/src/cmd/gc/const.c b/src/cmd/gc/const.c
+index 8552812cbf..85d8a1ded5 100644
+--- a/src/cmd/gc/const.c
++++ b/src/cmd/gc/const.c
+@@ -71,6 +71,7 @@ convlit1(Node *n, Type *t, int conv)
+ 		case TARRAY:
+ 		case TMAP:
+ 		case TCHAN:
++		case TFUNC:
+ 			break;
+ 		}
+ 		break;
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index 2ae8fd3083..1ca2d501b7 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -384,9 +384,9 @@ funchdr(Node *n)
+ 		// declare fun name, argument types and argument names
+ 		n->nname->type = n->type;
+ 		if(n->type->thistuple == 0)
+-			addvar(n->nname, n->type, PEXTERN);
++			addvar(n->nname, n->type, PFUNC);
+ 		else
+-			n->nname->class = PEXTERN;
++			n->nname->class = PFUNC;
+ 	} else {
+ 		// identical redeclaration
+ 		// steal previous names
+@@ -501,9 +501,6 @@ loop:
+ 	if(n->op != ODCLFIELD || n->type == T)
+ 		fatal("stotype: oops %N\n", n);
+ 
+-	if(et == TSTRUCT && n->type->etype == TFUNC)
+-		yyerror("bad structure field type: %T", n->type);
+-
+ 	switch(n->val.ctype) {
+ 	case CTSTR:
+ 		note = n->val.u.sval;
+@@ -742,7 +739,7 @@ addvar(Node *n, Type *t, int ctxt)
+ 
+ 	s = n->sym;
+ 
+-	if(ctxt == PEXTERN) {
++	if(ctxt == PEXTERN || ctxt == PFUNC) {
+ 		r = externdcl;
+ 		gen = 0;
+ 	} else {
+@@ -773,6 +770,8 @@ addvar(Node *n, Type *t, int ctxt)
+ 	if(dflag()) {
+ 		if(ctxt == PEXTERN)
+ 			print("extern var-dcl %S G%ld %T\n", s, s->vargen, t);
++		else if(ctxt == PFUNC)
++			print("extern func-dcl %S G%ld %T\n", s, s->vargen, t);
+ 		else
+ 			print("auto   var-dcl %S G%ld %T\n", s, s->vargen, t);
+ 	}
+@@ -896,6 +895,7 @@ newname(Sym *s)
+ 	n->type = T;
+ 	n->addable = 1;
+ 	n->ullman = 1;
++	n->xoffset = 0;
+ 	return n;
+ }
+ 
+diff --git a/src/cmd/gc/export.c b/src/cmd/gc/export.c
+index 873029264b..ee1ce40da4 100644
+--- a/src/cmd/gc/export.c
++++ b/src/cmd/gc/export.c
+@@ -153,11 +153,11 @@ dumpexportvar(Sym *s)
+ 	dumpprereq(t);
+ 
+ 	Bprint(bout, "\t");
+-	if(t->etype == TFUNC)
+-		Bprint(bout, "func ");
++	if(t->etype == TFUNC && n->class == PFUNC)
++		Bprint(bout, "func %lS %#hhT", s, t);
+ 	else
+-		Bprint(bout, "var ");
+-	Bprint(bout, "%lS %#T\n", s, t);
++		Bprint(bout, "var %lS %#T", s, t);
++	Bprint(bout, "\n");
+ }
+ 
+ void
+@@ -199,7 +199,7 @@ dumpsym(Sym *s)
+ 
+ 		dumpexporttype(s);
+ 		for(f=s->otype->method; f!=T; f=f->down)
+-			Bprint(bout, "\tfunc (%#T) %hS %#hT\n",
++			Bprint(bout, "\tfunc (%#T) %hS %#hhT\n",
+ 				f->type->type->type, f->sym, f->type);
+ 		break;
+ 	case LNAME:
+@@ -368,7 +368,7 @@ importconst(Node *ss, Type *t, Val *v)
+ }
+ 
+ void
+-importvar(Node *ss, Type *t)
++importvar(Node *ss, Type *t, int ctxt)
+ {
+ 	Sym *s;
+ 
+@@ -383,7 +383,7 @@ importvar(Node *ss, Type *t)
+ 			s, s->oname->type, t);
+ 	}
+ 	checkwidth(t);
+-	addvar(newname(s), t, PEXTERN);
++	addvar(newname(s), t, ctxt);
+ 
+ 	if(debug['e'])
+ 		print("import var %S %lT\n", s, t);
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 1e1f4b28fd..1dd041bada 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -414,6 +414,7 @@ enum
+ 	PAUTO,
+ 	PPARAM,
+ 	PPARAMOUT,
++	PFUNC,
+ 
+ 	PHEAP = 1<<7,
+ };
+@@ -778,7 +779,7 @@ void	doimport9(Sym*, Node*);
+ void	importconst(Node *ss, Type *t, Val *v);
+ void	importmethod(Sym *s, Type *t);
+ void	importtype(Node *ss, Type *t);
+-void	importvar(Node *ss, Type *t);
++void	importvar(Node *ss, Type *t, int ctxt);
+ void	checkimports(void);
+ Type*	pkgtype(char*, char*);
+ 
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index 29c9b29d9d..e323276c8d 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -1231,15 +1231,15 @@ fntype:
+ |	Bfntype
+ 
+ Afntype:
+-	'(' oarg_type_list ')' Afnres
++	LFUNC '(' oarg_type_list ')' Afnres
+ 	{
+-		$$ = functype(N, $2, $4);
++		$$ = functype(N, $3, $5);
+ 	}
+ 
+ Bfntype:
+-	'(' oarg_type_list ')' Bfnres
++	LFUNC '(' oarg_type_list ')' Bfnres
+ 	{
+-		$$ = functype(N, $2, $4);
++		$$ = functype(N, $3, $5);
+ 	}
+ 
+ fnlitdcl:
+@@ -1251,7 +1251,7 @@ fnlitdcl:
+ 	}
+ 
+ fnliteral:
+-	LFUNC fnlitdcl '{' ostmt_list '}'
++	fnlitdcl '{' ostmt_list '}'
+ 	{
+ 		popdcl();
+ 
+@@ -1259,21 +1259,19 @@ fnliteral:
+ 		snprint(namebuf, sizeof(namebuf), "_f%.3ld", vargen);
+ 
+ 		$$ = newname(lookup(namebuf));
+-		addvar($$, $2, PEXTERN);
++		addvar($$, $1, PFUNC);
+ 
+ 		{
+ 			Node *n;
+ 
+ 			n = nod(ODCLFUNC, N, N);
+ 			n->nname = $$;
+-			n->type = $2;
+-			n->nbody = $4;
++			n->type = $1;
++			n->nbody = $3;
+ 			if(n->nbody == N)
+ 				n->nbody = nod(ORETURN, N, N);
+ 			compile(n);
+ 		}
+-
+-		$$ = nod(OADDR, $$, N);
+ 	}
+ 
+ fnbody:
+@@ -1417,12 +1415,6 @@ indcl:
+ 		// without func keyword
+ 		$$ = functype(fakethis(), $2, $4);
+ 	}
+-|	latype
+-	{
+-		$$ = oldtype($1);
+-		if($$ == T || $$->etype != TFUNC)
+-			yyerror("illegal type for function literal");
+-	}
+ 
+ /*
+  * function arguments.
+@@ -1733,7 +1725,7 @@ hidden_import:
+ 	/* variables */
+ |	LVAR hidden_pkg_importsym hidden_type
+ 	{
+-		importvar($2, $3);
++		importvar($2, $3, PEXTERN);
+ 	}
+ |	LCONST hidden_pkg_importsym '=' hidden_constant
+ 	{
+@@ -1749,7 +1741,7 @@ hidden_import:
+ 	}
+ |	LFUNC hidden_pkg_importsym '(' ohidden_funarg_list ')' ohidden_funres
+ 	{
+-		importvar($2, functype(N, $4, $6));
++		importvar($2, functype(N, $4, $6), PFUNC);
+ 	}
+ |	LFUNC '(' hidden_funarg_list ')' sym1 '(' ohidden_funarg_list ')' ohidden_funres
+ 	{
+@@ -1829,9 +1821,9 @@ hidden_type2:
+ 		$$->type = $2;
+ 		$$->chan = Cboth;
+ 	}
+-|	'(' ohidden_funarg_list ')' ohidden_funres
++|	LFUNC '(' ohidden_funarg_list ')' ohidden_funres
+ 	{
+-		$$ = functype(N, $2, $4);
++		$$ = functype(N, $3, $5);
+ 	}
+ 
+ hidden_dcl:
+@@ -1980,11 +1972,6 @@ latype:
+ 		yyerror("no type %s", $1->name);
+ 		YYERROR;
+ 	}
+-|	lpack '.' LNAME
+-	{
+-		yyerror("no type %s.%s", context, $3->name);
+-		YYERROR;
+-	}
+ 
+ nametype:
+ 	LNAME
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index b8514549f8..7e16fa9279 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -1154,6 +1154,7 @@ lexinit(void)
+ 		case TINTER:
+ 		case TMAP:
+ 		case TCHAN:
++		case TFUNC:
+ 			okforeq[i] = 1;
+ 			break;
+ 		}
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index d6fb251479..4fdfb78bae 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -283,6 +283,7 @@ nod(int op, Node *nleft, Node *nright)
+ 		n->lineno = lineno;
+ 	else
+ 		n->lineno = prevlineno;
++	n->xoffset = BADWIDTH;
+ 	return n;
+ }
+ 
+@@ -291,7 +292,7 @@ algtype(Type *t)
+ {
+ 	int a;
+ 
+-	if(issimple[t->etype] || isptr[t->etype] || t->etype == TCHAN)
++	if(issimple[t->etype] || isptr[t->etype] || t->etype == TCHAN || t->etype == TFUNC)
+ 		a = AMEM;	// just bytes (int, ptr, etc)
+ 	else
+ 	if(t->etype == TSTRING)
+@@ -1040,6 +1041,8 @@ Tpretty(Fmt *fp, Type *t)
+ 			fmtprint(fp, ")");
+ 		}
+ 
++		if(!(fp->flags&FmtByte))
++			fmtprint(fp, "func");
+ 		fmtprint(fp, "(");
+ 		for(t1=getinargx(t)->type; t1; t1=t1->down) {
+ 			fmtprint(fp, "%T", t1);
+@@ -1052,7 +1055,7 @@ Tpretty(Fmt *fp, Type *t)
+ 			break;
+ 		case 1:
+ 			t1 = getoutargx(t)->type;
+-			if(t1->etype != TFIELD) {
++			if(t1->etype != TFIELD && t1->etype != TFUNC) {
+ 				fmtprint(fp, " %T", t1);
+ 				break;
+ 			}
+@@ -1077,7 +1080,7 @@ Tpretty(Fmt *fp, Type *t)
+ 	case TINTER:
+ 		fmtprint(fp, "interface {");
+ 		for(t1=t->type; t1!=T; t1=t1->down) {
+-			fmtprint(fp, " %hS %hT", t1->sym, t1->type);
++			fmtprint(fp, " %hS %hhT", t1->sym, t1->type);
+ 			if(t1->down)
+ 				fmtprint(fp, ";");
+ 		}
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 1b5ca4746c..24a3a39c27 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -1020,6 +1020,12 @@ loop:
+ 			indir(n, nvar);
+ 			goto ret;
+ 		}
++		if(istype(n->left->type, TFUNC) && n->left->class == PFUNC) {
++			if(!n->diag) {
++				n->diag = 1;
++				yyerror("cannot take address of function");
++			}
++		}
+ 		walktype(n->left, Elv);
+ 		addrescapes(n->left);
+ 		if(n->left == N)
+@@ -1060,10 +1066,8 @@ loop:
+ 			goto ret;
+ 		}
+ 		t = n->type;
+-		if(t == T || t->etype == TFUNC) {
+-			yyerror("cannot new(%T)", t);
++		if(t == T)
+ 			goto ret;
+-		}
+ 		indir(n, callnew(t));
+ 		goto ret;
+ 	}
+@@ -1721,6 +1725,8 @@ loop:
+ 		badtype(op, l->type, r->type);
+ 		return N;
+ 	}
++	if(l->op == ONAME && l->class == PFUNC)
++		yyerror("cannot assign to function");
+ 
+ 	a = nod(OAS, l, r);
+ 	a = convas(a);

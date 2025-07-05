@@ -7,7 +7,120 @@ Date:   Wed Oct 28 12:15:43 2015 +1300
     Change-Id: If1faa2bba28a4e9a8061693173797c4114a7d699
     Reviewed-on: https://go-review.googlesource.com/16387
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/link/internal/x86/asm.go | 75 ++++++++++++++++++++++++++++++++++++++++
  src/runtime/asm_386.s            | 11 ++++++
  2 files changed, 86 insertions(+)
+
+diff --git a/src/cmd/link/internal/x86/asm.go b/src/cmd/link/internal/x86/asm.go
+index 5d214267fb..b41c3514b4 100644
+--- a/src/cmd/link/internal/x86/asm.go
++++ b/src/cmd/link/internal/x86/asm.go
+@@ -37,6 +37,19 @@ import (
+ 	"log"
+ )
+ 
++// Append 4 bytes to s and create a R_CALL relocation targeting t to fill them in.
++func addcall(ctxt *ld.Link, s *ld.LSym, t *ld.LSym) {
++	s.Reachable = true
++	i := s.Size
++	s.Size += 4
++	ld.Symgrow(ctxt, s, s.Size)
++	r := ld.Addrel(s)
++	r.Sym = t
++	r.Off = int32(i)
++	r.Type = obj.R_CALL
++	r.Siz = 4
++}
++
+ func gentext() {
+ 	if !ld.DynlinkingGo() && ld.Buildmode != ld.BuildmodePIE {
+ 		return
+@@ -62,6 +75,68 @@ func gentext() {
+ 		ld.Ctxt.Textp = thunkfunc
+ 	}
+ 	ld.Ctxt.Etextp = thunkfunc
++
++	addmoduledata := ld.Linklookup(ld.Ctxt, "runtime.addmoduledata", 0)
++	if addmoduledata.Type == obj.STEXT {
++		// we're linking a module containing the runtime -> no need for
++		// an init function
++		return
++	}
++
++	addmoduledata.Reachable = true
++
++	initfunc := ld.Linklookup(ld.Ctxt, "go.link.addmoduledata", 0)
++	initfunc.Type = obj.STEXT
++	initfunc.Local = true
++	initfunc.Reachable = true
++	o = func(op ...uint8) {
++		for _, op1 := range op {
++			ld.Adduint8(ld.Ctxt, initfunc, op1)
++		}
++	}
++
++	// go.link.addmoduledata:
++	//      53                      push %ebx
++	//      e8 00 00 00 00          call __x86.get_pc_thunk.cx + R_CALL __x86.get_pc_thunk.cx
++	//      8d 81 00 00 00 00       lea 0x0(%ecx), %eax + R_PCREL ld.Ctxt.Moduledata
++	//      8d 99 00 00 00 00       lea 0x0(%ecx), %ebx + R_GOTPC _GLOBAL_OFFSET_TABLE_
++	//      e8 00 00 00 00          call runtime.addmoduledata@plt + R_CALL runtime.addmoduledata
++	//      5b                      pop %ebx
++	//      c3                      ret
++
++	o(0x53)
++
++	o(0xe8)
++	addcall(ld.Ctxt, initfunc, ld.Linklookup(ld.Ctxt, "__x86.get_pc_thunk.cx", 0))
++
++	o(0x8d, 0x81)
++	ld.Addpcrelplus(ld.Ctxt, initfunc, ld.Ctxt.Moduledata, 6)
++
++	o(0x8d, 0x99)
++	i := initfunc.Size
++	initfunc.Size += 4
++	ld.Symgrow(ld.Ctxt, initfunc, initfunc.Size)
++	r := ld.Addrel(initfunc)
++	r.Sym = ld.Linklookup(ld.Ctxt, "_GLOBAL_OFFSET_TABLE_", 0)
++	r.Off = int32(i)
++	r.Type = obj.R_PCREL
++	r.Add = 12
++	r.Siz = 4
++
++	o(0xe8)
++	addcall(ld.Ctxt, initfunc, addmoduledata)
++
++	o(0x5b)
++
++	o(0xc3)
++
++	ld.Ctxt.Etextp.Next = initfunc
++	ld.Ctxt.Etextp = initfunc
++	initarray_entry := ld.Linklookup(ld.Ctxt, "go.link.addmoduledatainit", 0)
++	initarray_entry.Reachable = true
++	initarray_entry.Local = true
++	initarray_entry.Type = obj.SINITARR
++	ld.Addaddr(ld.Ctxt, initarray_entry, initfunc)
+ }
+ 
+ func adddynrela(rela *ld.LSym, s *ld.LSym, r *ld.Reloc) {
+diff --git a/src/runtime/asm_386.s b/src/runtime/asm_386.s
+index e816f07efc..587219060a 100644
+--- a/src/runtime/asm_386.s
++++ b/src/runtime/asm_386.s
+@@ -1546,3 +1546,14 @@ TEXT runtime·prefetcht2(SB),NOSPLIT,$0-4
+ 
+ TEXT runtime·prefetchnta(SB),NOSPLIT,$0-4
+ 	RET
++
++// Add a module's moduledata to the linked list of moduledata objects.  This
++// is called from .init_array by a function generated in the linker and so
++// follows the platform ABI wrt register preservation -- it only touches AX,
++// CX (implicitly) and DX, but it does not follow the ABI wrt arguments:
++// instead the pointer to the moduledata is passed in AX.
++TEXT runtime·addmoduledata(SB),NOSPLIT,$0-0
++       MOVL    runtime·lastmoduledatap(SB), DX
++       MOVL    AX, moduledata_next(DX)
++       MOVL    AX, runtime·lastmoduledatap(SB)
++       RET

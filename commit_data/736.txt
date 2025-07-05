@@ -9,6 +9,20 @@ Date:   Thu Sep 25 17:36:37 2008 -0700
     DELTA=1  (0 added, 0 deleted, 1 changed)
     OCL=15914
     CL=15914
-
+---
  src/lib/net/net.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/lib/net/net.go b/src/lib/net/net.go
+index 6e8f302c2e..55fc98a8d0 100644
+--- a/src/lib/net/net.go
++++ b/src/lib/net/net.go
+@@ -81,7 +81,7 @@ func dtoi(s string) (n int, ok bool) {
+ // Convert "host:port" into IP address and port.
+ // For now, host and port must be numeric literals.
+ // Eventually, we'll have name resolution.
+-func HostPortToIP(net string, hostport string) (ip *[]byte, iport int, err *os.Error) {
++func HostPortToIP(net string, hostport string) (ipaddr *[]byte, iport int, err *os.Error) {
+ 	var host, port string;
+ 	host, port, err = SplitHostPort(hostport);
+ 	if err != nil {

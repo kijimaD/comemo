@@ -9,6 +9,22 @@ Date:   Tue Feb 7 15:49:43 2017 -0500
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Run-TryBot: Heschi Kreinick <heschi@google.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/ssa/html.go | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/html.go b/src/cmd/compile/internal/ssa/html.go
+index 085094e3ad..28538245d5 100644
+--- a/src/cmd/compile/internal/ssa/html.go
++++ b/src/cmd/compile/internal/ssa/html.go
+@@ -471,5 +471,9 @@ func (p htmlFuncPrinter) endDepCycle() {
+ }
+ 
+ func (p htmlFuncPrinter) named(n LocalSlot, vals []*Value) {
+-	// TODO
++	fmt.Fprintf(p.w, "<li>name %s: ", n.Name())
++	for _, val := range vals {
++		fmt.Fprintf(p.w, "%s ", val.HTML())
++	}
++	fmt.Fprintf(p.w, "</li>")
+ }

@@ -8,7 +8,32 @@ Date:   Tue Apr 12 10:58:54 2011 -0700
     R=rsc, lucio
     CC=golang-dev
     https://golang.org/cl/4368078
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 0ce499f410..33f30135de 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -84,6 +84,7 @@ Kevin Ballard <kevin@sb.org>
+ Kyle Consalus <consalus@gmail.com>
+ Kyle Lemons <kyle@kylelemons.net>
+ Lorenzo Stoakes <lstoakes@gmail.com>
++Lucio De Re <lucio.dere@gmail.com>
+ Luit van Drongelen <luitvd@gmail.com>
+ Markus Duft <markus.duft@salomon.at>
+ Martin Neubauer <m.ne@gmx.net>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index e8e428cbfd..57a5f66c7f 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -131,6 +131,7 @@ Kyle Consalus <consalus@gmail.com>
+ Kyle Lemons <kyle@kylelemons.net> <etherealflaim@gmail.com>
+ Larry Hosken <lahosken@golang.org>
+ Lorenzo Stoakes <lstoakes@gmail.com>
++Lucio De Re <lucio.dere@gmail.com>
+ Luit van Drongelen <luitvd@gmail.com>
+ Luuk van Dijk <lvd@golang.org> <lvd@google.com>
+ Mark Zavislak <zavislak@google.com>

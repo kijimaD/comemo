@@ -23,6 +23,33 @@ Date:   Thu Mar 29 15:00:47 2018 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/regexp/syntax/make_perl_groups.pl | 8 +++++++-
  1 file changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/src/regexp/syntax/make_perl_groups.pl b/src/regexp/syntax/make_perl_groups.pl
+index dc6d232a76..80a2c9ae6b 100755
+--- a/src/regexp/syntax/make_perl_groups.pl
++++ b/src/regexp/syntax/make_perl_groups.pl
+@@ -34,6 +34,12 @@
+ 	"\\w",
+ );
+ 
++%overrides = (
++	# Prior to Perl 5.18, \s did not match vertical tab.
++	# RE2 preserves that original behaviour.
++	"\\s:11" => 0,
++);
++
+ sub ComputeClass($) {
+   my @ranges;
+   my ($class) = @_;
+@@ -41,7 +47,7 @@ sub ComputeClass($) {
+   my $start = -1;
+   for (my $i=0; $i<=129; $i++) {
+     if ($i == 129) { $i = 256; }
+-    if ($i <= 128 && chr($i) =~ $regexp) {
++    if ($i <= 128 && ($overrides{"$class:$i"} // chr($i) =~ $regexp)) {
+       if ($start < 0) {
+         $start = $i;
+       }

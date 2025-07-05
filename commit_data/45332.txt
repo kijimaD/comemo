@@ -15,7 +15,64 @@ Date:   Mon Jul 6 11:27:38 2020 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/243911
     Trust: Russ Cox <rsc@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/os/file.go    | 19 +++++++++++++++++++
  src/os/os_test.go |  7 +++++++
  2 files changed, 26 insertions(+)
+
+diff --git a/src/os/file.go b/src/os/file.go
+index 5f16fc28ee..835d44ab8c 100644
+--- a/src/os/file.go
++++ b/src/os/file.go
+@@ -45,6 +45,7 @@ import (
+ 	"internal/poll"
+ 	"internal/testlog"
+ 	"io"
++	"io/fs"
+ 	"runtime"
+ 	"syscall"
+ 	"time"
+@@ -608,3 +609,21 @@ func isWindowsNulName(name string) bool {
+ 	}
+ 	return true
+ }
++
++// DirFS returns a file system (an fs.FS) for the tree of files rooted at the directory dir.
++func DirFS(dir string) fs.FS {
++	return dirFS(dir)
++}
++
++type dirFS string
++
++func (dir dirFS) Open(name string) (fs.File, error) {
++	if !fs.ValidPath(name) {
++		return nil, &PathError{Op: "open", Path: name, Err: ErrInvalid}
++	}
++	f, err := Open(string(dir) + "/" + name)
++	if err != nil {
++		return nil, err // nil fs.File
++	}
++	return f, nil
++}
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index 8f14263401..378ddf58dd 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -23,6 +23,7 @@ import (
+ 	"sync"
+ 	"syscall"
+ 	"testing"
++	"testing/fstest"
+ 	"time"
+ )
+ 
+@@ -2671,3 +2672,9 @@ func TestOpenFileKeepsPermissions(t *testing.T) {
+ 		t.Errorf("Stat after OpenFile is %v, should be writable", fi.Mode())
+ 	}
+ }
++
++func TestDirFS(t *testing.T) {
++	if err := fstest.TestFS(DirFS("./signal"), "signal.go", "internal/pty/pty.go"); err != nil {
++		t.Fatal(err)
++	}
++}

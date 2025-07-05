@@ -17,7 +17,34 @@ Date:   Tue Feb 14 17:25:48 2023 -0800
     Reviewed-by: Keith Randall <khr@google.com>
     Run-TryBot: Keith Randall <khr@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/ssa/debug_lines_test.go | 2 +-
  src/cmd/compile/internal/ssa/schedule.go         | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/debug_lines_test.go b/src/cmd/compile/internal/ssa/debug_lines_test.go
+index 268c4c41db..cf115107a1 100644
+--- a/src/cmd/compile/internal/ssa/debug_lines_test.go
++++ b/src/cmd/compile/internal/ssa/debug_lines_test.go
+@@ -114,7 +114,7 @@ func TestInlineLines(t *testing.T) {
+ 		t.Skip("only runs for amd64 unless -arch explicitly supplied")
+ 	}
+ 
+-	want := [][]int{{3}, {3}, {4, 10}, {4, 10, 16}, {4, 10}, {4, 11, 16}, {4, 11}, {4}, {5, 10}, {5, 10, 16}, {5, 10}, {5, 11, 16}, {5, 11}, {5}}
++	want := [][]int{{3}, {4, 10}, {4, 10, 16}, {4, 10}, {4, 11, 16}, {4, 11}, {4}, {5, 10}, {5, 10, 16}, {5, 10}, {5, 11, 16}, {5, 11}, {5}}
+ 	testInlineStack(t, "inline-dump.go", "f", want)
+ }
+ 
+diff --git a/src/cmd/compile/internal/ssa/schedule.go b/src/cmd/compile/internal/ssa/schedule.go
+index c291e5c13f..679d1487d0 100644
+--- a/src/cmd/compile/internal/ssa/schedule.go
++++ b/src/cmd/compile/internal/ssa/schedule.go
+@@ -162,7 +162,7 @@ func schedule(f *Func) {
+ 					f.Fatalf("%s appeared outside of entry block, b=%s", v.Op, b.String())
+ 				}
+ 				score[v.ID] = ScorePhi
+-			case v.Op == OpArg:
++			case v.Op == OpArg || v.Op == OpSP || v.Op == OpSB || v.Op == OpInitMem:
+ 				// We want all the args as early as possible, for better debugging.
+ 				score[v.ID] = ScoreArg
+ 			case v.Type.IsMemory():

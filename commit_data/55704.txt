@@ -34,8 +34,93 @@ Date:   Thu Mar 2 19:16:34 2023 -0500
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/list/list.go                    | 9 +++++----
  src/cmd/go/internal/load/pkg.go                     | 5 +++++
  src/cmd/go/testdata/script/build_pgo_auto_multi.txt | 6 ++++++
  3 files changed, 16 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/internal/list/list.go b/src/cmd/go/internal/list/list.go
+index 259fa2c857..6d6deda884 100644
+--- a/src/cmd/go/internal/list/list.go
++++ b/src/cmd/go/internal/list/list.go
+@@ -733,19 +733,20 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
+ 		}
+ 	}
+ 
+-	if *listTest {
++	if *listTest || (cfg.BuildPGO == "auto" && len(cmdline) > 1) {
+ 		all := pkgs
+ 		if !*listDeps {
+ 			all = loadPackageList(pkgs)
+ 		}
+ 		// Update import paths to distinguish the real package p
+-		// from p recompiled for q.test.
++		// from p recompiled for q.test, or to distinguish between
++		// p compiled with different PGO profiles.
+ 		// This must happen only once the build code is done
+ 		// looking at import paths, because it will get very confused
+ 		// if it sees these.
+ 		old := make(map[string]string)
+ 		for _, p := range all {
+-			if p.ForTest != "" {
++			if p.ForTest != "" || p.Internal.ForMain != "" {
+ 				new := p.Desc()
+ 				old[new] = p.ImportPath
+ 				p.ImportPath = new
+@@ -756,7 +757,7 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
+ 		m := make(map[string]string)
+ 		for _, p := range all {
+ 			for _, p1 := range p.Internal.Imports {
+-				if p1.ForTest != "" {
++				if p1.ForTest != "" || p1.Internal.ForMain != "" {
+ 					m[old[p1.ImportPath]] = p1.ImportPath
+ 				}
+ 			}
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 6284955228..40278dda4d 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -195,6 +195,9 @@ func (p *Package) Desc() string {
+ 	if p.ForTest != "" {
+ 		return p.ImportPath + " [" + p.ForTest + ".test]"
+ 	}
++	if p.Internal.ForMain != "" {
++		return p.ImportPath + " [" + p.Internal.ForMain + "]"
++	}
+ 	return p.ImportPath
+ }
+ 
+@@ -234,6 +237,7 @@ type PackageInternal struct {
+ 	Embed             map[string][]string  // //go:embed comment mapping
+ 	OrigImportPath    string               // original import path before adding '_test' suffix
+ 	PGOProfile        string               // path to PGO profile
++	ForMain           string               // the main package if this package is built specifically for it
+ 
+ 	Asmflags   []string // -asmflags for this package
+ 	Gcflags    []string // -gcflags for this package
+@@ -2944,6 +2948,7 @@ func setPGOProfilePath(pkgs []*Package) {
+ 					p1.Internal.Imports = slices.Clone(p.Internal.Imports)
+ 					copied[p] = p1
+ 					p = p1
++					p.Internal.ForMain = pmain.ImportPath
+ 				}
+ 				p.Internal.PGOProfile = file
+ 				// Recurse to dependencies.
+diff --git a/src/cmd/go/testdata/script/build_pgo_auto_multi.txt b/src/cmd/go/testdata/script/build_pgo_auto_multi.txt
+index 6905ad94f6..19f022838d 100644
+--- a/src/cmd/go/testdata/script/build_pgo_auto_multi.txt
++++ b/src/cmd/go/testdata/script/build_pgo_auto_multi.txt
+@@ -40,6 +40,12 @@ stderr 'compile.*-pgoprofile=.*b(/|\\\\)default\.pgo.*b(/|\\\\)b_test\.go'
+ stderr 'compile.*-pgoprofile=.*b(/|\\\\)default\.pgo.*dep(/|\\\\)dep\.go'
+ ! stderr 'compile.*-pgoprofile=.*nopgo(/|\\\\)nopgo_test\.go'
+ 
++# go list -deps prints packages built multiple times.
++go list -pgo=auto -deps ./a ./b ./nopgo
++stdout 'test/dep \[test/a\]'
++stdout 'test/dep \[test/b\]'
++stdout 'test/dep$'
++
+ # Here we have 3 main packages, a, b, and nopgo, where a and b each has
+ # its own default.pgo profile, and nopgo has none.
+ # All 3 main packages import dep and dep2, both of which then import dep3

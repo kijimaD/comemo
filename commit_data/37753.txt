@@ -16,8 +16,156 @@ Date:   Tue Jul 31 18:13:05 2018 +0300
     Run-TryBot: Yury Smolsky <yury@smolsky.by>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/fmt.go   |  5 ++++
  src/cmd/compile/internal/gc/ssa.go   | 14 ++++++---
  src/cmd/compile/internal/ssa/html.go | 55 ++++++++++++++++++++++++++++++++++--
  3 files changed, 68 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index 75194ca6f0..5b7445d4db 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -7,6 +7,7 @@ package gc
+ import (
+ 	"cmd/compile/internal/types"
+ 	"fmt"
++	"io"
+ 	"strconv"
+ 	"strings"
+ 	"unicode/utf8"
+@@ -1836,6 +1837,10 @@ func dumplist(s string, l Nodes) {
+ 	fmt.Printf("%s%+v\n", s, l)
+ }
+ 
++func fdumplist(w io.Writer, s string, l Nodes) {
++	fmt.Fprintf(w, "%s%+v\n", s, l)
++}
++
+ func Dump(s string, n *Node) {
+ 	fmt.Printf("%s [%p]%+v\n", s, n, n)
+ }
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 7292963799..2a8927acd6 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -111,11 +111,16 @@ func initssaconfig() {
+ func buildssa(fn *Node, worker int) *ssa.Func {
+ 	name := fn.funcname()
+ 	printssa := name == ssaDump
++	var astBuf *bytes.Buffer
+ 	if printssa {
+-		fmt.Println("generating SSA for", name)
+-		dumplist("buildssa-enter", fn.Func.Enter)
+-		dumplist("buildssa-body", fn.Nbody)
+-		dumplist("buildssa-exit", fn.Func.Exit)
++		astBuf = &bytes.Buffer{}
++		fdumplist(astBuf, "buildssa-enter", fn.Func.Enter)
++		fdumplist(astBuf, "buildssa-body", fn.Nbody)
++		fdumplist(astBuf, "buildssa-exit", fn.Func.Exit)
++		if ssaDumpStdout {
++			fmt.Println("generating SSA for", name)
++			fmt.Print(astBuf.String())
++		}
+ 	}
+ 
+ 	var s state
+@@ -151,6 +156,7 @@ func buildssa(fn *Node, worker int) *ssa.Func {
+ 		s.f.HTMLWriter = ssa.NewHTMLWriter(ssaDumpFile, s.f.Frontend(), name)
+ 		// TODO: generate and print a mapping from nodes to values and blocks
+ 		dumpSourcesColumn(s.f.HTMLWriter, fn)
++		s.f.HTMLWriter.WriteAST("AST", astBuf)
+ 	}
+ 
+ 	// Allocate starting block
+diff --git a/src/cmd/compile/internal/ssa/html.go b/src/cmd/compile/internal/ssa/html.go
+index 6943e5ef40..c51ea02262 100644
+--- a/src/cmd/compile/internal/ssa/html.go
++++ b/src/cmd/compile/internal/ssa/html.go
+@@ -12,6 +12,7 @@ import (
+ 	"io"
+ 	"os"
+ 	"path/filepath"
++	"strconv"
+ 	"strings"
+ )
+ 
+@@ -103,11 +104,15 @@ td.collapsed  div {
+          text-align: right;
+ }
+ 
+-code, pre, .lines {
++code, pre, .lines, .ast {
+     font-family: Menlo, monospace;
+     font-size: 12px;
+ }
+ 
++.allow-x-scroll {
++    overflow-x: scroll;
++}
++
+ .lines {
+     float: left;
+     overflow: hidden;
+@@ -123,6 +128,10 @@ div.line-number {
+     font-size: 12px;
+ }
+ 
++.ast {
++    white-space: nowrap;
++}
++
+ td.ssa-prog {
+     width: 600px;
+     word-wrap: break-word;
+@@ -521,7 +530,49 @@ func (w *HTMLWriter) WriteSources(phase string, all []*FuncLines) {
+ 		}
+ 	}
+ 	fmt.Fprint(&buf, "</pre></div>")
+-	w.WriteColumn(phase, phase, "", buf.String())
++	w.WriteColumn(phase, phase, "allow-x-scroll", buf.String())
++}
++
++func (w *HTMLWriter) WriteAST(phase string, buf *bytes.Buffer) {
++	if w == nil {
++		return // avoid generating HTML just to discard it
++	}
++	lines := strings.Split(buf.String(), "\n")
++	var out bytes.Buffer
++
++	fmt.Fprint(&out, "<div>")
++	for _, l := range lines {
++		l = strings.TrimSpace(l)
++		var escaped string
++		var lineNo string
++		if l == "" {
++			escaped = "&nbsp;"
++		} else {
++			if strings.HasPrefix(l, "buildssa") {
++				escaped = fmt.Sprintf("<b>%v</b>", l)
++			} else {
++				// Parse the line number from the format l(123).
++				idx := strings.Index(l, " l(")
++				if idx != -1 {
++					subl := l[idx+3:]
++					idxEnd := strings.Index(subl, ")")
++					if idxEnd != -1 {
++						if _, err := strconv.Atoi(subl[:idxEnd]); err == nil {
++							lineNo = subl[:idxEnd]
++						}
++					}
++				}
++				escaped = html.EscapeString(l)
++			}
++		}
++		if lineNo != "" {
++			fmt.Fprintf(&out, "<div class=\"l%v line-number ast\">%v</div>", lineNo, escaped)
++		} else {
++			fmt.Fprintf(&out, "<div class=\"ast\">%v</div>", escaped)
++		}
++	}
++	fmt.Fprint(&out, "</div>")
++	w.WriteColumn(phase, phase, "allow-x-scroll", out.String())
+ }
+ 
+ // WriteColumn writes raw HTML in a column headed by title.

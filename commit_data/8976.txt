@@ -9,7 +9,7 @@ Date:   Fri Jul 8 10:52:50 2011 +1000
     R=golang-dev, gri
     CC=golang-dev
     https://golang.org/cl/4631098
-
+---
  src/cmd/godoc/codewalk.go                     |  2 +-
  src/cmd/godoc/index.go                        |  2 +-
  src/cmd/godoc/mapping.go                      |  2 +-
@@ -30,3 +30,420 @@ Date:   Fri Jul 8 10:52:50 2011 +1000
  src/pkg/time/sleep_test.go                    |  2 +-
  src/pkg/unicode/maketables.go                 |  2 +-
  19 files changed, 126 insertions(+), 33 deletions(-)
+
+diff --git a/src/cmd/godoc/codewalk.go b/src/cmd/godoc/codewalk.go
+index 74178cecd0..50043e2aba 100644
+--- a/src/cmd/godoc/codewalk.go
++++ b/src/cmd/godoc/codewalk.go
+@@ -168,7 +168,7 @@ func loadCodewalk(filename string) (*Codewalk, os.Error) {
+ 		cw.File[i] = f
+ 		i++
+ 	}
+-	sort.SortStrings(cw.File)
++	sort.Strings(cw.File)
+ 
+ 	return cw, nil
+ }
+diff --git a/src/cmd/godoc/index.go b/src/cmd/godoc/index.go
+index 91bd905d8e..e0c89e7949 100644
+--- a/src/cmd/godoc/index.go
++++ b/src/cmd/godoc/index.go
+@@ -954,7 +954,7 @@ func (list positionList) Swap(i, j int)      { list[i], list[j] = list[j], list[
+ 
+ // unique returns the list sorted and with duplicate entries removed
+ func unique(list []int) []int {
+-	sort.SortInts(list)
++	sort.Ints(list)
+ 	var last int
+ 	i := 0
+ 	for _, x := range list {
+diff --git a/src/cmd/godoc/mapping.go b/src/cmd/godoc/mapping.go
+index 83f34810cc..92614e83e8 100644
+--- a/src/cmd/godoc/mapping.go
++++ b/src/cmd/godoc/mapping.go
+@@ -120,7 +120,7 @@ func (m *Mapping) PrefixList() []string {
+ 		}
+ 
+ 		// sort the list and remove duplicate entries
+-		sort.SortStrings(list)
++		sort.Strings(list)
+ 		i := 0
+ 		prev := ""
+ 		for _, path := range list {
+diff --git a/src/cmd/godoc/utils.go b/src/cmd/godoc/utils.go
+index 660bf6d043..e2637ab3d5 100644
+--- a/src/cmd/godoc/utils.go
++++ b/src/cmd/godoc/utils.go
+@@ -80,7 +80,7 @@ func canonicalizePaths(list []string, filter func(path string) bool) []string {
+ 	list = list[0:i]
+ 
+ 	// sort the list and remove duplicate entries
+-	sort.SortStrings(list)
++	sort.Strings(list)
+ 	i = 0
+ 	prev := ""
+ 	for _, path := range list {
+diff --git a/src/cmd/gofix/Makefile b/src/cmd/gofix/Makefile
+index e74b639df4..7ce21e8aab 100644
+--- a/src/cmd/gofix/Makefile
++++ b/src/cmd/gofix/Makefile
+@@ -19,6 +19,7 @@ GOFILES=\
+ 	procattr.go\
+ 	reflect.go\
+ 	signal.go\
++	sorthelpers.go\
+ 	sortslice.go\
+ 	stringssplit.go\
+ 	typecheck.go\
+diff --git a/src/cmd/gofix/sorthelpers.go b/src/cmd/gofix/sorthelpers.go
+new file mode 100644
+index 0000000000..4d0bee6e7b
+--- /dev/null
++++ b/src/cmd/gofix/sorthelpers.go
+@@ -0,0 +1,47 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"go/ast"
++)
++
++func init() {
++	register(fix{
++		"sorthelpers",
++		sorthelpers,
++		`Adapt code from sort.Sort[Ints|Float64s|Strings] to sort.[Ints|Float64s|Strings].
++`,
++	})
++}
++
++
++func sorthelpers(f *ast.File) (fixed bool) {
++	if !imports(f, "sort") {
++		return
++	}
++
++	walk(f, func(n interface{}) {
++		s, ok := n.(*ast.SelectorExpr)
++		if !ok || !isTopName(s.X, "sort") {
++			return
++		}
++
++		switch s.Sel.String() {
++		case "SortFloat64s":
++			s.Sel.Name = "Float64s"
++		case "SortInts":
++			s.Sel.Name = "Ints"
++		case "SortStrings":
++			s.Sel.Name = "Strings"
++		default:
++			return
++		}
++
++		fixed = true
++	})
++
++	return
++}
+diff --git a/src/cmd/gofix/sorthelpers_test.go b/src/cmd/gofix/sorthelpers_test.go
+new file mode 100644
+index 0000000000..6c37858fd4
+--- /dev/null
++++ b/src/cmd/gofix/sorthelpers_test.go
+@@ -0,0 +1,45 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func init() {
++	addTestCases(sorthelpersTests)
++}
++
++var sorthelpersTests = []testCase{
++	{
++		Name: "sortslice.0",
++		In: `package main
++
++import (
++	"sort"
++)
++
++func main() {
++	var s []string
++	sort.SortStrings(s)
++	var i []ints
++	sort.SortInts(i)
++	var f []float64
++	sort.SortFloat64s(f)
++}
++`,
++		Out: `package main
++
++import (
++	"sort"
++)
++
++func main() {
++	var s []string
++	sort.Strings(s)
++	var i []ints
++	sort.Ints(i)
++	var f []float64
++	sort.Float64s(f)
++}
++`,
++	},
++}
+diff --git a/src/cmd/hgpatch/main.go b/src/cmd/hgpatch/main.go
+index 6a197bd54b..4f7aec22b2 100644
+--- a/src/cmd/hgpatch/main.go
++++ b/src/cmd/hgpatch/main.go
+@@ -176,7 +176,7 @@ func main() {
+ 		list[i] = f
+ 		i++
+ 	}
+-	sort.SortStrings(list)
++	sort.Strings(list)
+ 	for _, f := range list {
+ 		fmt.Printf("%s\n", f)
+ 	}
+diff --git a/src/pkg/exp/template/exec_test.go b/src/pkg/exp/template/exec_test.go
+index 8992299ebf..86b958e840 100644
+--- a/src/pkg/exp/template/exec_test.go
++++ b/src/pkg/exp/template/exec_test.go
+@@ -108,7 +108,7 @@ func (t *T) MSort(m map[string]int) []string {
+ 		keys[i] = k
+ 		i++
+ 	}
+-	sort.SortStrings(keys)
++	sort.Strings(keys)
+ 	return keys
+ }
+ 
+diff --git a/src/pkg/go/doc/doc.go b/src/pkg/go/doc/doc.go
+index a7a7e0a325..b26cd2bed5 100644
+--- a/src/pkg/go/doc/doc.go
++++ b/src/pkg/go/doc/doc.go
+@@ -551,7 +551,7 @@ func (doc *docReader) newDoc(importpath string, filenames []string) *PackageDoc
+ 	p := new(PackageDoc)
+ 	p.PackageName = doc.pkgName
+ 	p.ImportPath = importpath
+-	sort.SortStrings(filenames)
++	sort.Strings(filenames)
+ 	p.Filenames = filenames
+ 	p.Doc = CommentText(doc.doc)
+ 	// makeTypeDocs may extend the list of doc.values and
+diff --git a/src/pkg/http/header.go b/src/pkg/http/header.go
+index 95a25a814b..08b0771304 100644
+--- a/src/pkg/http/header.go
++++ b/src/pkg/http/header.go
+@@ -56,7 +56,7 @@ func (h Header) WriteSubset(w io.Writer, exclude map[string]bool) os.Error {
+ 			keys = append(keys, k)
+ 		}
+ 	}
+-	sort.SortStrings(keys)
++	sort.Strings(keys)
+ 	for _, k := range keys {
+ 		for _, v := range h[k] {
+ 			v = strings.Replace(v, "\n", " ", -1)
+diff --git a/src/pkg/index/suffixarray/suffixarray.go b/src/pkg/index/suffixarray/suffixarray.go
+index 079b7d8ed0..9d4e93217b 100644
+--- a/src/pkg/index/suffixarray/suffixarray.go
++++ b/src/pkg/index/suffixarray/suffixarray.go
+@@ -115,7 +115,7 @@ func (x *Index) FindAllIndex(r *regexp.Regexp, n int) (result [][]int) {
+ 			if len(indices) == 0 {
+ 				return
+ 			}
+-			sort.SortInts(indices)
++			sort.Ints(indices)
+ 			pairs := make([]int, 2*len(indices))
+ 			result = make([][]int, len(indices))
+ 			count := 0
+@@ -159,7 +159,7 @@ func (x *Index) FindAllIndex(r *regexp.Regexp, n int) (result [][]int) {
+ 		if len(indices) == 0 {
+ 			return
+ 		}
+-		sort.SortInts(indices)
++		sort.Ints(indices)
+ 		result = result[0:0]
+ 		prev := 0
+ 		for _, i := range indices {
+diff --git a/src/pkg/index/suffixarray/suffixarray_test.go b/src/pkg/index/suffixarray/suffixarray_test.go
+index b1499027ad..385ff0e56a 100644
+--- a/src/pkg/index/suffixarray/suffixarray_test.go
++++ b/src/pkg/index/suffixarray/suffixarray_test.go
+@@ -141,7 +141,7 @@ func testLookup(t *testing.T, tc *testCase, x *Index, s string, n int) {
+ 	// we cannot simply check that the res and exp lists are equal
+ 
+ 	// check that each result is in fact a correct match and there are no duplicates
+-	sort.SortInts(res)
++	sort.Ints(res)
+ 	for i, r := range res {
+ 		if r < 0 || len(tc.source) <= r {
+ 			t.Errorf("test %q, lookup %q, result %d (n = %d): index %d out of range [0, %d[", tc.name, s, i, n, r, len(tc.source))
+diff --git a/src/pkg/net/hosts_test.go b/src/pkg/net/hosts_test.go
+index e5793eef2c..1bd00541c6 100644
+--- a/src/pkg/net/hosts_test.go
++++ b/src/pkg/net/hosts_test.go
+@@ -59,7 +59,7 @@ func TestLookupHost(t *testing.T) {
+ 	// duplicate addresses (a common bug due to the way
+ 	// getaddrinfo works).
+ 	addrs, _ := LookupHost("localhost")
+-	sort.SortStrings(addrs)
++	sort.Strings(addrs)
+ 	for i := 0; i+1 < len(addrs); i++ {
+ 		if addrs[i] == addrs[i+1] {
+ 			t.Fatalf("LookupHost(\"localhost\") = %v, has duplicate addresses", addrs)
+diff --git a/src/pkg/path/filepath/match.go b/src/pkg/path/filepath/match.go
+index 9c344309d2..7fcc214c05 100644
+--- a/src/pkg/path/filepath/match.go
++++ b/src/pkg/path/filepath/match.go
+@@ -272,7 +272,7 @@ func glob(dir, pattern string, matches []string) (m []string, e os.Error) {
+ 	if err != nil {
+ 		return
+ 	}
+-	sort.SortStrings(names)
++	sort.Strings(names)
+ 
+ 	for _, n := range names {
+ 		matched, err := Match(pattern, n)
+diff --git a/src/pkg/sort/sort.go b/src/pkg/sort/sort.go
+index b707579590..daed61ea8d 100644
+--- a/src/pkg/sort/sort.go
++++ b/src/pkg/sort/sort.go
+@@ -190,12 +190,12 @@ func (p StringSlice) Sort() { Sort(p) }
+ 
+ // Convenience wrappers for common cases
+ 
+-// SortInts sorts a slice of ints in increasing order.
+-func SortInts(a []int) { Sort(IntSlice(a)) }
+-// SortFloat64s sorts a slice of float64s in increasing order.
+-func SortFloat64s(a []float64) { Sort(Float64Slice(a)) }
+-// SortStrings sorts a slice of strings in increasing order.
+-func SortStrings(a []string) { Sort(StringSlice(a)) }
++// Ints sorts a slice of ints in increasing order.
++func Ints(a []int) { Sort(IntSlice(a)) }
++// Float64s sorts a slice of float64s in increasing order.
++func Float64s(a []float64) { Sort(Float64Slice(a)) }
++// Strings sorts a slice of strings in increasing order.
++func Strings(a []string) { Sort(StringSlice(a)) }
+ 
+ 
+ // IntsAreSorted tests whether a slice of ints is sorted in increasing order.
+diff --git a/src/pkg/sort/sort_test.go b/src/pkg/sort/sort_test.go
+index 29359c83fb..4da2626377 100644
+--- a/src/pkg/sort/sort_test.go
++++ b/src/pkg/sort/sort_test.go
+@@ -46,27 +46,27 @@ func TestSortStringSlice(t *testing.T) {
+ 	}
+ }
+ 
+-func TestSortInts(t *testing.T) {
++func TestInts(t *testing.T) {
+ 	data := ints
+-	SortInts(data[0:])
++	Ints(data[0:])
+ 	if !IntsAreSorted(data[0:]) {
+ 		t.Errorf("sorted %v", ints)
+ 		t.Errorf("   got %v", data)
+ 	}
+ }
+ 
+-func TestSortFloat64s(t *testing.T) {
++func TestFloat64s(t *testing.T) {
+ 	data := float64s
+-	SortFloat64s(data[0:])
++	Float64s(data[0:])
+ 	if !Float64sAreSorted(data[0:]) {
+ 		t.Errorf("sorted %v", float64s)
+ 		t.Errorf("   got %v", data)
+ 	}
+ }
+ 
+-func TestSortStrings(t *testing.T) {
++func TestStrings(t *testing.T) {
+ 	data := strings
+-	SortStrings(data[0:])
++	Strings(data[0:])
+ 	if !StringsAreSorted(data[0:]) {
+ 		t.Errorf("sorted %v", strings)
+ 		t.Errorf("   got %v", data)
+@@ -85,7 +85,7 @@ func TestSortLarge_Random(t *testing.T) {
+ 	if IntsAreSorted(data) {
+ 		t.Fatalf("terrible rand.rand")
+ 	}
+-	SortInts(data)
++	Ints(data)
+ 	if !IntsAreSorted(data) {
+ 		t.Errorf("sort didn't sort - 1M ints")
+ 	}
+@@ -99,7 +99,7 @@ func BenchmarkSortString1K(b *testing.B) {
+ 			data[i] = strconv.Itoa(i ^ 0x2cc)
+ 		}
+ 		b.StartTimer()
+-		SortStrings(data)
++		Strings(data)
+ 		b.StopTimer()
+ 	}
+ }
+@@ -112,7 +112,7 @@ func BenchmarkSortInt1K(b *testing.B) {
+ 			data[i] = i ^ 0x2cc
+ 		}
+ 		b.StartTimer()
+-		SortInts(data)
++		Ints(data)
+ 		b.StopTimer()
+ 	}
+ }
+@@ -125,7 +125,7 @@ func BenchmarkSortInt64K(b *testing.B) {
+ 			data[i] = i ^ 0xcccc
+ 		}
+ 		b.StartTimer()
+-		SortInts(data)
++		Ints(data)
+ 		b.StopTimer()
+ 	}
+ }
+@@ -241,9 +241,9 @@ func TestBentleyMcIlroy(t *testing.T) {
+ 						for i := 0; i < n; i++ {
+ 							mdata[i] = data[i]
+ 						}
+-						// SortInts is known to be correct
++						// Ints is known to be correct
+ 						// because mode Sort runs after mode _Copy.
+-						SortInts(mdata)
++						Ints(mdata)
+ 					case _Dither:
+ 						for i := 0; i < n; i++ {
+ 							mdata[i] = data[i] + i%5
+diff --git a/src/pkg/time/sleep_test.go b/src/pkg/time/sleep_test.go
+index 25e79f9fbc..a4a1a429fd 100644
+--- a/src/pkg/time/sleep_test.go
++++ b/src/pkg/time/sleep_test.go
+@@ -172,7 +172,7 @@ func testAfterQueuing(t *testing.T) os.Error {
+ 	for _, slot := range slots {
+ 		go await(slot, result, After(int64(slot)*Delta))
+ 	}
+-	sort.SortInts(slots)
++	sort.Ints(slots)
+ 	for _, slot := range slots {
+ 		r := <-result
+ 		if r.slot != slot {
+diff --git a/src/pkg/unicode/maketables.go b/src/pkg/unicode/maketables.go
+index 97fa8e3040..07b931d7ee 100644
+--- a/src/pkg/unicode/maketables.go
++++ b/src/pkg/unicode/maketables.go
+@@ -1042,7 +1042,7 @@ func printCasefold() {
+ 		if orb == nil {
+ 			continue
+ 		}
+-		sort.SortInts(orb)
++		sort.Ints(orb)
+ 		c := orb[len(orb)-1]
+ 		for _, d := range orb {
+ 			chars[c].caseOrbit = d

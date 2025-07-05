@@ -11,6 +11,43 @@ Date:   Mon Feb 6 13:33:22 2012 -0500
     R=gri
     CC=golang-dev
     https://golang.org/cl/5616073
-
+---
  src/cmd/dist/build.c | 18 +++++++++++++++++-
  1 file changed, 17 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/dist/build.c b/src/cmd/dist/build.c
+index 04818e1265..54510db1da 100644
+--- a/src/cmd/dist/build.c
++++ b/src/cmd/dist/build.c
+@@ -555,6 +555,22 @@ install(char *dir)
+ 	// Everything in that directory, and any target-specific
+ 	// additions.
+ 	xreaddir(&files, bstr(&path));
++
++	// Remove files beginning with . or _,
++	// which are likely to be editor temporary files.
++	// This is the same heuristic build.ScanDir uses.
++	// There do exist real C files beginning with _,
++	// so limit that check to just Go files.
++	n = 0;
++	for(i=0; i<files.len; i++) {
++		p = files.p[i];
++		if(hasprefix(p, ".") || (hasprefix(p, "_") && hassuffix(p, ".go")))
++			xfree(p);
++		else
++			files.p[n++] = p;
++	}
++	files.len = n;
++
+ 	for(i=0; i<nelem(deptab); i++) {
+ 		if(hasprefix(dir, deptab[i].prefix)) {
+ 			for(j=0; (p=deptab[i].dep[j])!=nil; j++) {
+@@ -595,7 +611,7 @@ install(char *dir)
+ 		}
+ 	}
+ 	vuniq(&files);
+-
++	
+ 	// Convert to absolute paths.
+ 	for(i=0; i<files.len; i++) {
+ 		if(!isabs(files.p[i])) {

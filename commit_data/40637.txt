@@ -21,6 +21,20 @@ Date:   Fri May 31 10:46:00 2019 +0100
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/internal/modget/get.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/modget/get.go b/src/cmd/go/internal/modget/get.go
+index 2d5eb03cd8..c3537a3f5a 100644
+--- a/src/cmd/go/internal/modget/get.go
++++ b/src/cmd/go/internal/modget/get.go
+@@ -258,7 +258,7 @@ func runGet(cmd *base.Command, args []string) {
+ 		fmt.Fprintf(os.Stderr, "go get: -fix flag is a no-op when using modules\n")
+ 	}
+ 	if *getM {
+-		base.Fatalf("go get: -m flag is no longer supported")
++		base.Fatalf("go get: -m flag is no longer supported; consider -d to skip building packages")
+ 	}
+ 	modload.LoadTests = *getT
+ 

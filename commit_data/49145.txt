@@ -14,7 +14,60 @@ Date:   Thu Jul 22 23:54:19 2021 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/walk/expr.go |  9 ++++++++-
  test/reflectmethod8.go                | 26 ++++++++++++++++++++++++++
  2 files changed, 34 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/walk/expr.go b/src/cmd/compile/internal/walk/expr.go
+index 19fb188526..eed6ef86c2 100644
+--- a/src/cmd/compile/internal/walk/expr.go
++++ b/src/cmd/compile/internal/walk/expr.go
+@@ -957,7 +957,14 @@ func usemethod(n *ir.CallExpr) {
+ 	if t.NumParams() != 1 || t.Params().Field(0).Type.Kind() != pKind {
+ 		return
+ 	}
+-	if t.NumResults() == 2 && t.Results().Field(1).Type.Kind() != types.TBOOL {
++	switch t.NumResults() {
++	case 1:
++		// ok
++	case 2:
++		if t.Results().Field(1).Type.Kind() != types.TBOOL {
++			return
++		}
++	default:
+ 		return
+ 	}
+ 
+diff --git a/test/reflectmethod8.go b/test/reflectmethod8.go
+new file mode 100644
+index 0000000000..482163bae6
+--- /dev/null
++++ b/test/reflectmethod8.go
+@@ -0,0 +1,26 @@
++// compile
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Make sure that the compiler can analyze non-reflect
++// Type.{Method,MethodByName} calls.
++
++package p
++
++type I interface {
++	MethodByName(string)
++	Method(int)
++}
++
++type M struct{}
++
++func (M) MethodByName(string) {}
++func (M) Method(int)          {}
++
++func f() {
++	var m M
++	I.MethodByName(m, "")
++	I.Method(m, 42)
++}

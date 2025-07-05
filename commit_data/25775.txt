@@ -17,7 +17,120 @@ Date:   Fri Nov 20 00:23:52 2015 -0500
     Run-TryBot: Minux Ma <minux@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/os_solaris.go       | 28 ++++++++++++++--------------
  src/runtime/sys_solaris_amd64.s |  4 ++++
  2 files changed, 18 insertions(+), 14 deletions(-)
+
+diff --git a/src/runtime/os_solaris.go b/src/runtime/os_solaris.go
+index 9dbe38a32a..fbf28863f7 100644
+--- a/src/runtime/os_solaris.go
++++ b/src/runtime/os_solaris.go
+@@ -31,71 +31,71 @@ var asmsysvicall6 libcFunc
+ 
+ //go:nosplit
+ func sysvicall0(fn *libcFunc) uintptr {
+-	libcall := &getg().m.libcall
++	var libcall libcall
+ 	libcall.fn = uintptr(unsafe.Pointer(fn))
+ 	libcall.n = 0
+ 	libcall.args = uintptr(unsafe.Pointer(fn)) // it's unused but must be non-nil, otherwise crashes
+-	asmcgocall(unsafe.Pointer(&asmsysvicall6), unsafe.Pointer(libcall))
++	asmcgocall(unsafe.Pointer(&asmsysvicall6), unsafe.Pointer(&libcall))
+ 	return libcall.r1
+ }
+ 
+ //go:nosplit
+ func sysvicall1(fn *libcFunc, a1 uintptr) uintptr {
+-	libcall := &getg().m.libcall
++	var libcall libcall
+ 	libcall.fn = uintptr(unsafe.Pointer(fn))
+ 	libcall.n = 1
+ 	// TODO(rsc): Why is noescape necessary here and below?
+ 	libcall.args = uintptr(noescape(unsafe.Pointer(&a1)))
+-	asmcgocall(unsafe.Pointer(&asmsysvicall6), unsafe.Pointer(libcall))
++	asmcgocall(unsafe.Pointer(&asmsysvicall6), unsafe.Pointer(&libcall))
+ 	return libcall.r1
+ }
+ 
+ //go:nosplit
+ func sysvicall2(fn *libcFunc, a1, a2 uintptr) uintptr {
+-	libcall := &getg().m.libcall
++	var libcall libcall
+ 	libcall.fn = uintptr(unsafe.Pointer(fn))
+ 	libcall.n = 2
+ 	libcall.args = uintptr(noescape(unsafe.Pointer(&a1)))
+-	asmcgocall(unsafe.Pointer(&asmsysvicall6), unsafe.Pointer(libcall))
++	asmcgocall(unsafe.Pointer(&asmsysvicall6), unsafe.Pointer(&libcall))
+ 	return libcall.r1
+ }
+ 
+ //go:nosplit
+ func sysvicall3(fn *libcFunc, a1, a2, a3 uintptr) uintptr {
+-	libcall := &getg().m.libcall
++	var libcall libcall
+ 	libcall.fn = uintptr(unsafe.Pointer(fn))
+ 	libcall.n = 3
+ 	libcall.args = uintptr(noescape(unsafe.Pointer(&a1)))
+-	asmcgocall(unsafe.Pointer(&asmsysvicall6), unsafe.Pointer(libcall))
++	asmcgocall(unsafe.Pointer(&asmsysvicall6), unsafe.Pointer(&libcall))
+ 	return libcall.r1
+ }
+ 
+ //go:nosplit
+ func sysvicall4(fn *libcFunc, a1, a2, a3, a4 uintptr) uintptr {
+-	libcall := &getg().m.libcall
++	var libcall libcall
+ 	libcall.fn = uintptr(unsafe.Pointer(fn))
+ 	libcall.n = 4
+ 	libcall.args = uintptr(noescape(unsafe.Pointer(&a1)))
+-	asmcgocall(unsafe.Pointer(&asmsysvicall6), unsafe.Pointer(libcall))
++	asmcgocall(unsafe.Pointer(&asmsysvicall6), unsafe.Pointer(&libcall))
+ 	return libcall.r1
+ }
+ 
+ //go:nosplit
+ func sysvicall5(fn *libcFunc, a1, a2, a3, a4, a5 uintptr) uintptr {
+-	libcall := &getg().m.libcall
++	var libcall libcall
+ 	libcall.fn = uintptr(unsafe.Pointer(fn))
+ 	libcall.n = 5
+ 	libcall.args = uintptr(noescape(unsafe.Pointer(&a1)))
+-	asmcgocall(unsafe.Pointer(&asmsysvicall6), unsafe.Pointer(libcall))
++	asmcgocall(unsafe.Pointer(&asmsysvicall6), unsafe.Pointer(&libcall))
+ 	return libcall.r1
+ }
+ 
+ //go:nosplit
+ func sysvicall6(fn *libcFunc, a1, a2, a3, a4, a5, a6 uintptr) uintptr {
+-	libcall := &getg().m.libcall
++	var libcall libcall
+ 	libcall.fn = uintptr(unsafe.Pointer(fn))
+ 	libcall.n = 6
+ 	libcall.args = uintptr(noescape(unsafe.Pointer(&a1)))
+-	asmcgocall(unsafe.Pointer(&asmsysvicall6), unsafe.Pointer(libcall))
++	asmcgocall(unsafe.Pointer(&asmsysvicall6), unsafe.Pointer(&libcall))
+ 	return libcall.r1
+ }
+diff --git a/src/runtime/sys_solaris_amd64.s b/src/runtime/sys_solaris_amd64.s
+index 978c9ffeb4..179dfa305f 100644
+--- a/src/runtime/sys_solaris_amd64.s
++++ b/src/runtime/sys_solaris_amd64.s
+@@ -80,6 +80,8 @@ TEXT runtime·asmsysvicall6(SB),NOSPLIT,$0
+ 
+ 	get_tls(CX)
+ 	MOVQ	g(CX), BX
++	CMPQ	BX, $0
++	JEQ	skiperrno1
+ 	MOVQ	g_m(BX), BX
+ 	MOVQ	(m_mOS+mOS_perrno)(BX), DX
+ 	CMPQ	DX, $0
+@@ -108,6 +110,8 @@ skipargs:
+ 
+ 	get_tls(CX)
+ 	MOVQ	g(CX), BX
++	CMPQ	BX, $0
++	JEQ	skiperrno2
+ 	MOVQ	g_m(BX), BX
+ 	MOVQ	(m_mOS+mOS_perrno)(BX), AX
+ 	CMPQ	AX, $0

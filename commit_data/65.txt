@@ -5,6 +5,22 @@ Date:   Thu May 1 18:47:44 2008 -0700
     Fixed a typo (changed ' -> ") and shortened a production name slightly to match the naming convention elsewhere.
     
     SVN=117446
-
+---
  doc/go_lang.txt | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go_lang.txt b/doc/go_lang.txt
+index 132824e14e..248cb1eb51 100644
+--- a/doc/go_lang.txt
++++ b/doc/go_lang.txt
+@@ -1572,8 +1572,8 @@ cases all referring to communication operations.
+   CommClause = CommCase { Statement } .
+   CommCase = ( "default" | ( "case" ( SendCase | RecvCase) ) ) ":" .
+   SendCase = Send .
+-  RecvCase = [ identifier '=' ] RecvExpression .
+-  RecvExpression = '<' Expression .
++  RecvCase = [ identifier "=" ] RecvExpr .
++  RecvExpr = "<" Expression .
+ 
+ The select statement evaluates all the channel (pointers) involved.
+ If any of the channels can proceed, the corresponding communication

@@ -11,7 +11,39 @@ Date:   Tue Oct 8 10:40:51 2013 -0700
     R=golang-dev, iant, dave
     CC=golang-dev
     https://golang.org/cl/14511044
-
+---
  src/cmd/go/build.go           | 2 +-
  src/pkg/runtime/cgo/gcc_arm.S | 7 +++++++
  2 files changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index cfbf30d918..2ce968a46d 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -1903,7 +1903,7 @@ func (b *builder) gccArchArgs() []string {
+ 	case "6":
+ 		return []string{"-m64"}
+ 	case "5":
+-		return []string{"-marm", "-march=armv5t"} // not thumb
++		return []string{"-marm"} // not thumb
+ 	}
+ 	return nil
+ }
+diff --git a/src/pkg/runtime/cgo/gcc_arm.S b/src/pkg/runtime/cgo/gcc_arm.S
+index cfe899b1d2..17e98d91f6 100644
+--- a/src/pkg/runtime/cgo/gcc_arm.S
++++ b/src/pkg/runtime/cgo/gcc_arm.S
+@@ -11,6 +11,13 @@
+ #define EXT(s) s
+ #endif
+ 
++/*
++ * Because the assembler might target an earlier revision of the ISA
++ * by default, we must explicitly specify the ISA revision to ensure
++ * BLX is recognized as a valid instruction.
++ */	
++.arch armv5t
++
+ /*
+  * void crosscall_arm2(void (*fn)(void), void (*setmg_gcc)(void *m, void *g), void *m, void *g)
+  *

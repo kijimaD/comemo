@@ -19,8 +19,79 @@ Date:   Mon Nov 30 00:01:26 2020 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/init.go   | 14 ++++++++++++--
  src/cmd/compile/internal/gc/noder.go  |  3 +++
  src/cmd/compile/internal/types/pkg.go |  6 ------
  3 files changed, 15 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/init.go b/src/cmd/compile/internal/gc/init.go
+index ed0218c0e2..b5fd2e7c75 100644
+--- a/src/cmd/compile/internal/gc/init.go
++++ b/src/cmd/compile/internal/gc/init.go
+@@ -27,6 +27,9 @@ func renameinit() *types.Sym {
+ 	return s
+ }
+ 
++// List of imported packages, in source code order. See #31636.
++var sourceOrderImports []*types.Pkg
++
+ // fninit makes an initialization record for the package.
+ // See runtime/proc.go:initTask for its layout.
+ // The 3 tasks for initialization are:
+@@ -40,8 +43,15 @@ func fninit(n []ir.Node) {
+ 	var fns []*obj.LSym  // functions to call for package initialization
+ 
+ 	// Find imported packages with init tasks.
+-	for _, s := range types.InitSyms {
+-		deps = append(deps, s.Linksym())
++	for _, pkg := range sourceOrderImports {
++		n := resolve(ir.AsNode(pkg.Lookup(".inittask").Def))
++		if n == nil {
++			continue
++		}
++		if n.Op() != ir.ONAME || n.Class() != ir.PEXTERN {
++			base.Fatalf("bad inittask: %v", n)
++		}
++		deps = append(deps, n.Sym().Linksym())
+ 	}
+ 
+ 	// Make a function that contains all the initialization statements.
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index 98a09f4006..6a5afe7687 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -347,6 +347,9 @@ func (p *noder) importDecl(imp *syntax.ImportDecl) {
+ 		p.importedEmbed = true
+ 	}
+ 
++	if !ipkg.Direct {
++		sourceOrderImports = append(sourceOrderImports, ipkg)
++	}
+ 	ipkg.Direct = true
+ 
+ 	var my *types.Sym
+diff --git a/src/cmd/compile/internal/types/pkg.go b/src/cmd/compile/internal/types/pkg.go
+index bcc6789509..bf90570b53 100644
+--- a/src/cmd/compile/internal/types/pkg.go
++++ b/src/cmd/compile/internal/types/pkg.go
+@@ -84,9 +84,6 @@ func (pkg *Pkg) Lookup(name string) *Sym {
+ 	return s
+ }
+ 
+-// List of .inittask entries in imported packages, in source code order.
+-var InitSyms []*Sym
+-
+ // LookupOK looks up name in pkg and reports whether it previously existed.
+ func (pkg *Pkg) LookupOK(name string) (s *Sym, existed bool) {
+ 	// TODO(gri) remove this check in favor of specialized lookup
+@@ -101,9 +98,6 @@ func (pkg *Pkg) LookupOK(name string) (s *Sym, existed bool) {
+ 		Name: name,
+ 		Pkg:  pkg,
+ 	}
+-	if name == ".inittask" {
+-		InitSyms = append(InitSyms, s)
+-	}
+ 	pkg.Syms[name] = s
+ 	return s, false
+ }

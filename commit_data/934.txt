@@ -7,6 +7,20 @@ Date:   Wed Oct 22 13:13:01 2008 -0700
     R=ken
     OCL=17625
     CL=17641
-
+---
  src/cmd/gc/walk.c | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 6c991c6a6a..25f5d79d00 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -937,6 +937,8 @@ loop:
+ 	case OIND:
+ 		if(top == Etop)
+ 			goto nottop;
++		if(top == Elv)	// even if n is lvalue, n->left is rvalue
++			top = Erv;
+ 		walktype(n->left, top);
+ 		if(n->left == N)
+ 			goto ret;

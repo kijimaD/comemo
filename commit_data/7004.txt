@@ -7,7 +7,53 @@ Date:   Mon Dec 20 17:35:21 2010 +1100
     R=adg
     CC=golang-dev
     https://golang.org/cl/3797041
-
+---
  src/pkg/expvar/expvar.go      |  2 +-
  src/pkg/expvar/expvar_test.go | 17 +++++++++++++++--
  2 files changed, 16 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/expvar/expvar.go b/src/pkg/expvar/expvar.go
+index 6068fbb4de..fb20b25b2e 100644
+--- a/src/pkg/expvar/expvar.go
++++ b/src/pkg/expvar/expvar.go
+@@ -152,7 +152,7 @@ func (v IntFunc) String() string { return strconv.Itoa64(v()) }
+ // The function will be called each time the Var is evaluated.
+ type StringFunc func() string
+ 
+-func (f StringFunc) String() string { return f() }
++func (f StringFunc) String() string { return strconv.Quote(f()) }
+ 
+ 
+ // All published variables.
+diff --git a/src/pkg/expvar/expvar_test.go b/src/pkg/expvar/expvar_test.go
+index 3dfc55af36..009f24d1a7 100644
+--- a/src/pkg/expvar/expvar_test.go
++++ b/src/pkg/expvar/expvar_test.go
+@@ -86,8 +86,8 @@ func TestMapCounter(t *testing.T) {
+ }
+ 
+ func TestIntFunc(t *testing.T) {
+-	x := int(4)
+-	ix := IntFunc(func() int64 { return int64(x) })
++	x := int64(4)
++	ix := IntFunc(func() int64 { return x })
+ 	if s := ix.String(); s != "4" {
+ 		t.Errorf("ix.String() = %v, want 4", s)
+ 	}
+@@ -97,3 +97,16 @@ func TestIntFunc(t *testing.T) {
+ 		t.Errorf("ix.String() = %v, want 5", s)
+ 	}
+ }
++
++func TestStringFunc(t *testing.T) {
++	x := "hello"
++	sx := StringFunc(func() string { return x })
++	if s, exp := sx.String(), `"hello"`; s != exp {
++		t.Errorf(`sx.String() = %q, want %q`, s, exp)
++	}
++
++	x = "goodbye"
++	if s, exp := sx.String(), `"goodbye"`; s != exp {
++		t.Errorf(`sx.String() = %q, want %q`, s, exp)
++	}
++}

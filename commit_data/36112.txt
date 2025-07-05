@@ -59,6 +59,21 @@ Date:   Wed Apr 4 14:35:05 2018 +0200
     Change-Id: Iaec0b9471ded61be5eb3c9d1074e804672307644
     Reviewed-on: https://go-review.googlesource.com/104675
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-
+---
  src/cmd/compile/internal/ssa/deadcode.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/deadcode.go b/src/cmd/compile/internal/ssa/deadcode.go
+index 47690f879e..c9951b45f2 100644
+--- a/src/cmd/compile/internal/ssa/deadcode.go
++++ b/src/cmd/compile/internal/ssa/deadcode.go
+@@ -15,7 +15,8 @@ func findlive(f *Func) (reachable []bool, live []bool) {
+ func ReachableBlocks(f *Func) []bool {
+ 	reachable := make([]bool, f.NumBlocks())
+ 	reachable[f.Entry.ID] = true
+-	p := []*Block{f.Entry} // stack-like worklist
++	p := make([]*Block, 0, 64) // stack-like worklist
++	p = append(p, f.Entry)
+ 	for len(p) > 0 {
+ 		// Pop a reachable block
+ 		b := p[len(p)-1]

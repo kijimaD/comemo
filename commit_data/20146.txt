@@ -8,6 +8,20 @@ Date:   Wed Aug 20 14:36:28 2014 -0700
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/128230047
-
+---
  src/pkg/runtime/atomic_arm.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/atomic_arm.c b/src/pkg/runtime/atomic_arm.c
+index 537bf18331..0cb823bb48 100644
+--- a/src/pkg/runtime/atomic_arm.c
++++ b/src/pkg/runtime/atomic_arm.c
+@@ -172,7 +172,7 @@ runtime·atomicstore64(uint64 volatile *addr, uint64 v)
+ void
+ runtime·atomicor8(byte volatile *addr, byte v)
+ {
+-	uint32 *addr32, old, word, shift;
++	uint32 *addr32, old, word;
+ 
+ 	// Align down to 4 bytes and use 32-bit CAS.
+ 	addr32 = (uint32*)((uintptr)addr & ~3);

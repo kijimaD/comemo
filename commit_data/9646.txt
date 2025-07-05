@@ -9,8 +9,212 @@ Date:   Fri Sep 9 17:38:29 2011 +1000
     R=golang-dev, r, rsc, alex.brainman, robert.hencke, jp
     CC=golang-dev
     https://golang.org/cl/4950051
-
+---
  src/pkg/path/filepath/path.go         |  8 +++--
  src/pkg/path/filepath/path_test.go    | 68 +++++++++++++++++++++++++++++++++++
  src/pkg/path/filepath/path_windows.go | 35 ++++++++++++++++--
  3 files changed, 107 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/path/filepath/path.go b/src/pkg/path/filepath/path.go
+index 3d5b915c10..97a89d5191 100644
+--- a/src/pkg/path/filepath/path.go
++++ b/src/pkg/path/filepath/path.go
+@@ -41,9 +41,12 @@ func Clean(path string) string {
+ 	vol := VolumeName(path)
+ 	path = path[len(vol):]
+ 	if path == "" {
++		if len(vol) > 1 && vol[1] != ':' {
++			// should be UNC
++			return FromSlash(vol)
++		}
+ 		return vol + "."
+ 	}
+-
+ 	rooted := os.IsPathSeparator(path[0])
+ 
+ 	// Invariants:
+@@ -144,8 +147,9 @@ func SplitList(path string) []string {
+ // If there is no Separator in path, Split returns an empty dir
+ // and file set to path.
+ func Split(path string) (dir, file string) {
++	vol := VolumeName(path)
+ 	i := len(path) - 1
+-	for i >= 0 && !os.IsPathSeparator(path[i]) {
++	for i >= len(vol) && !os.IsPathSeparator(path[i]) {
+ 		i--
+ 	}
+ 	return path[:i+1], path[i+1:]
+diff --git a/src/pkg/path/filepath/path_test.go b/src/pkg/path/filepath/path_test.go
+index 395b12775a..9d28992454 100644
+--- a/src/pkg/path/filepath/path_test.go
++++ b/src/pkg/path/filepath/path_test.go
+@@ -73,9 +73,17 @@ var wincleantests = []PathTest{
+ 	{`c:\abc`, `c:\abc`},
+ 	{`c:abc\..\..\.\.\..\def`, `c:..\..\def`},
+ 	{`c:\abc\def\..\..`, `c:\`},
++	{`c:\..\abc`, `c:\abc`},
+ 	{`c:..\abc`, `c:..\abc`},
+ 	{`\`, `\`},
+ 	{`/`, `\`},
++	{`\\i\..\c$`, `\c$`},
++	{`\\i\..\i\c$`, `\i\c$`},
++	{`\\i\..\I\c$`, `\I\c$`},
++	{`\\host\share\foo\..\bar`, `\\host\share\bar`},
++	{`//host/share/foo/../baz`, `\\host\share\baz`},
++	{`\\a\b\..\c`, `\\a\b\c`},
++	{`\\a\b`, `\\a\b`},
+ }
+ 
+ func TestClean(t *testing.T) {
+@@ -146,9 +154,25 @@ var unixsplittests = []SplitTest{
+ 	{"/", "/", ""},
+ }
+ 
++var winsplittests = []SplitTest{
++	{`c:`, `c:`, ``},
++	{`c:/`, `c:/`, ``},
++	{`c:/foo`, `c:/`, `foo`},
++	{`c:/foo/bar`, `c:/foo/`, `bar`},
++	{`//host/share`, `//host/share`, ``},
++	{`//host/share/`, `//host/share/`, ``},
++	{`//host/share/foo`, `//host/share/`, `foo`},
++	{`\\host\share`, `\\host\share`, ``},
++	{`\\host\share\`, `\\host\share\`, ``},
++	{`\\host\share\foo`, `\\host\share\`, `foo`},
++}
++
+ func TestSplit(t *testing.T) {
+ 	var splittests []SplitTest
+ 	splittests = unixsplittests
++	if runtime.GOOS == "windows" {
++		splittests = append(splittests, winsplittests...)
++	}
+ 	for _, test := range splittests {
+ 		if d, f := filepath.Split(test.path); d != test.dir || f != test.file {
+ 			t.Errorf("Split(%q) = %q, %q, want %q, %q", test.path, d, f, test.dir, test.file)
+@@ -186,6 +210,8 @@ var winjointests = []JoinTest{
+ 	{[]string{`C:\Windows\`, ``}, `C:\Windows`},
+ 	{[]string{`C:\`, `Windows`}, `C:\Windows`},
+ 	{[]string{`C:`, `Windows`}, `C:\Windows`},
++	{[]string{`\\host\share`, `foo`}, `\\host\share\foo`},
++	{[]string{`//host/share`, `foo/bar`}, `\\host\share\foo\bar`},
+ }
+ 
+ // join takes a []string and passes it to Join.
+@@ -422,6 +448,8 @@ var winisabstests = []IsAbsTest{
+ 	{`\`, false},
+ 	{`\Windows`, false},
+ 	{`c:a\b`, false},
++	{`\\host\share\foo`, true},
++	{`//host/share/foo/bar`, true},
+ }
+ 
+ func TestIsAbs(t *testing.T) {
+@@ -574,3 +602,43 @@ func TestAbs(t *testing.T) {
+ 		}
+ 	}
+ }
++
++type VolumeNameTest struct {
++	path string
++	vol  string
++}
++
++var volumenametests = []VolumeNameTest{
++	{`c:/foo/bar`, `c:`},
++	{`c:`, `c:`},
++	{``, ``},
++	{`\\\host`, ``},
++	{`\\\host\`, ``},
++	{`\\\host\share`, ``},
++	{`\\\host\\share`, ``},
++	{`\\host`, ``},
++	{`//host`, ``},
++	{`\\host\`, ``},
++	{`//host/`, ``},
++	{`\\host\share`, `\\host\share`},
++	{`//host/share`, `//host/share`},
++	{`\\host\share\`, `\\host\share`},
++	{`//host/share/`, `//host/share`},
++	{`\\host\share\foo`, `\\host\share`},
++	{`//host/share/foo`, `//host/share`},
++	{`\\host\share\\foo\\\bar\\\\baz`, `\\host\share`},
++	{`//host/share//foo///bar////baz`, `//host/share`},
++	{`\\host\share\foo\..\bar`, `\\host\share`},
++	{`//host/share/foo/../bar`, `//host/share`},
++}
++
++func TestVolumeName(t *testing.T) {
++	if runtime.GOOS != "windows" {
++		return
++	}
++	for _, v := range volumenametests {
++		if vol := filepath.VolumeName(v.path); vol != v.vol {
++			t.Errorf("VolumeName(%q)=%q, want %q", v.path, vol, v.vol)
++		}
++	}
++}
+diff --git a/src/pkg/path/filepath/path_windows.go b/src/pkg/path/filepath/path_windows.go
+index 2535697fd9..9692fd978c 100644
+--- a/src/pkg/path/filepath/path_windows.go
++++ b/src/pkg/path/filepath/path_windows.go
+@@ -4,7 +4,13 @@
+ 
+ package filepath
+ 
+-import "strings"
++import (
++	"strings"
++)
++
++func isSlash(c uint8) bool {
++	return c == '\\' || c == '/'
++}
+ 
+ // IsAbs returns true if the path is absolute.
+ func IsAbs(path string) (b bool) {
+@@ -16,11 +22,12 @@ func IsAbs(path string) (b bool) {
+ 	if path == "" {
+ 		return false
+ 	}
+-	return path[0] == '/' || path[0] == '\\'
++	return isSlash(path[0])
+ }
+ 
+ // VolumeName returns leading volume name.  
+ // Given "C:\foo\bar" it returns "C:" under windows.
++// Given "\\host\share\foo" it returns "\\host\share".
+ // On other platforms it returns "".
+ func VolumeName(path string) (v string) {
+ 	if len(path) < 2 {
+@@ -33,6 +40,30 @@ func VolumeName(path string) (v string) {
+ 			'A' <= c && c <= 'Z') {
+ 		return path[:2]
+ 	}
++	// is it UNC
++	if l := len(path); l >= 5 && isSlash(path[0]) && isSlash(path[1]) &&
++		!isSlash(path[2]) && path[2] != '.' {
++		// first, leading `\\` and next shouldn't be `\`. its server name.
++		for n := 3; n < l-1; n++ {
++			// second, next '\' shouldn't be repeated.
++			if isSlash(path[n]) {
++				n++
++				// third, following something characters. its share name.
++				if !isSlash(path[n]) {
++					if path[n] == '.' {
++						break
++					}
++					for ; n < l; n++ {
++						if isSlash(path[n]) {
++							break
++						}
++					}
++					return path[:n]
++				}
++				break
++			}
++		}
++	}
+ 	return ""
+ }
+ 

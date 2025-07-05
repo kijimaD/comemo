@@ -10,10 +10,103 @@ Date:   Fri Aug 22 17:14:42 2014 +1000
     R=golang-codereviews, r
     CC=golang-codereviews
     https://golang.org/cl/126440043
-
+---
  src/pkg/path/filepath/path.go         |  4 ++++
  src/pkg/path/filepath/path_plan9.go   |  4 ++++
  src/pkg/path/filepath/path_test.go    | 15 +++++++++++++++
  src/pkg/path/filepath/path_unix.go    |  4 ++++
  src/pkg/path/filepath/path_windows.go |  5 +++++
  5 files changed, 32 insertions(+)
+
+diff --git a/src/pkg/path/filepath/path.go b/src/pkg/path/filepath/path.go
+index 71603cc594..7fa3b9b56a 100644
+--- a/src/pkg/path/filepath/path.go
++++ b/src/pkg/path/filepath/path.go
+@@ -231,6 +231,10 @@ func EvalSymlinks(path string) (string, error) {
+ // working directory to turn it into an absolute path.  The absolute
+ // path name for a given file is not guaranteed to be unique.
+ func Abs(path string) (string, error) {
++	return abs(path)
++}
++
++func unixAbs(path string) (string, error) {
+ 	if IsAbs(path) {
+ 		return Clean(path), nil
+ 	}
+diff --git a/src/pkg/path/filepath/path_plan9.go b/src/pkg/path/filepath/path_plan9.go
+index 12e85aae00..ee8912d58e 100644
+--- a/src/pkg/path/filepath/path_plan9.go
++++ b/src/pkg/path/filepath/path_plan9.go
+@@ -28,3 +28,7 @@ func splitList(path string) []string {
+ 	}
+ 	return strings.Split(path, string(ListSeparator))
+ }
++
++func abs(path string) (string, error) {
++	return unixAbs(path)
++}
+diff --git a/src/pkg/path/filepath/path_test.go b/src/pkg/path/filepath/path_test.go
+index 8cdc763f1b..399284b97d 100644
+--- a/src/pkg/path/filepath/path_test.go
++++ b/src/pkg/path/filepath/path_test.go
+@@ -628,6 +628,8 @@ var winisabstests = []IsAbsTest{
+ 	{`\`, false},
+ 	{`\Windows`, false},
+ 	{`c:a\b`, false},
++	{`c:\a\b`, true},
++	{`c:/a/b`, true},
+ 	{`\\host\share\foo`, true},
+ 	{`//host/share/foo/bar`, true},
+ }
+@@ -807,6 +809,19 @@ func TestAbs(t *testing.T) {
+ 		}
+ 	}
+ 
++	if runtime.GOOS == "windows" {
++		vol := filepath.VolumeName(root)
++		var extra []string
++		for _, path := range absTests {
++			if strings.Index(path, "$") != -1 {
++				continue
++			}
++			path = vol + path
++			extra = append(extra, path)
++		}
++		absTests = append(absTests, extra...)
++	}
++
+ 	err = os.Chdir(absTestDirs[0])
+ 	if err != nil {
+ 		t.Fatal("chdir failed: ", err)
+diff --git a/src/pkg/path/filepath/path_unix.go b/src/pkg/path/filepath/path_unix.go
+index 7aba0ab5b9..4e7d0d1b42 100644
+--- a/src/pkg/path/filepath/path_unix.go
++++ b/src/pkg/path/filepath/path_unix.go
+@@ -30,3 +30,7 @@ func splitList(path string) []string {
+ 	}
+ 	return strings.Split(path, string(ListSeparator))
+ }
++
++func abs(path string) (string, error) {
++	return unixAbs(path)
++}
+diff --git a/src/pkg/path/filepath/path_windows.go b/src/pkg/path/filepath/path_windows.go
+index e99997257d..ec50f6b264 100644
+--- a/src/pkg/path/filepath/path_windows.go
++++ b/src/pkg/path/filepath/path_windows.go
+@@ -6,6 +6,7 @@ package filepath
+ 
+ import (
+ 	"strings"
++	"syscall"
+ )
+ 
+ func isSlash(c uint8) bool {
+@@ -103,3 +104,7 @@ func splitList(path string) []string {
+ 
+ 	return list
+ }
++
++func abs(path string) (string, error) {
++	return syscall.FullPath(path)
++}

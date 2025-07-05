@@ -9,8 +9,70 @@ Date:   Fri Mar 18 11:13:24 2016 -0400
     Change-Id: I64e7fee2e273d387f1c51b87986294489978d250
     Reviewed-on: https://go-review.googlesource.com/20828
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/bexport.go | 6 ++++++
  src/cmd/compile/internal/gc/bimport.go | 3 +++
  src/go/internal/gcimporter/bimport.go  | 5 ++++-
  3 files changed, 13 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index 7e5dbb0dd0..cbe2a812a4 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -1190,6 +1190,7 @@ const (
+ 	complexTag
+ 	stringTag
+ 	nilTag
++	unknownTag // not used by gc (only appears in packages with errors)
+ )
+ 
+ // Debugging support.
+@@ -1218,6 +1219,8 @@ var tagString = [...]string{
+ 	-fractionTag: "fraction",
+ 	-complexTag:  "complex",
+ 	-stringTag:   "string",
++	-nilTag:      "nil",
++	-unknownTag:  "unknown",
+ }
+ 
+ // untype returns the "pseudo" untyped type for a Ctype (import/export use only).
+@@ -1289,6 +1292,9 @@ func predeclared() []*Type {
+ 			// package unsafe
+ 			Types[TUNSAFEPTR],
+ 
++			// invalid type (package contains errors)
++			Types[Txxx],
++
+ 			// any type, for builtin export data
+ 			Types[TANY],
+ 		}
+diff --git a/src/cmd/compile/internal/gc/bimport.go b/src/cmd/compile/internal/gc/bimport.go
+index 377d972932..f063557363 100644
+--- a/src/cmd/compile/internal/gc/bimport.go
++++ b/src/cmd/compile/internal/gc/bimport.go
+@@ -509,6 +509,9 @@ func (p *importer) value(typ *Type) (x Val) {
+ 	case stringTag:
+ 		x.U = p.string()
+ 
++	case unknownTag:
++		Fatalf("importer: unknown constant (importing package with errors)")
++
+ 	case nilTag:
+ 		x.U = new(NilVal)
+ 
+diff --git a/src/go/internal/gcimporter/bimport.go b/src/go/internal/gcimporter/bimport.go
+index ddace33d0c..c982724418 100644
+--- a/src/go/internal/gcimporter/bimport.go
++++ b/src/go/internal/gcimporter/bimport.go
+@@ -681,7 +681,10 @@ var predeclared = []types.Type{
+ 	// package unsafe
+ 	types.Typ[types.UnsafePointer],
+ 
+-	// any type, for builtin export data
++	// invalid type
++	types.Typ[types.Invalid], // only appears in packages with errors
++
+ 	// TODO(mdempsky): Provide an actual Type value to represent "any"?
++	// (Why exactly does gc emit the "any" type?)
+ 	types.Typ[types.Invalid],
+ }

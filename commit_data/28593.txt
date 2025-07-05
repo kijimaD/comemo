@@ -15,6 +15,23 @@ Date:   Wed Jun 8 17:45:55 2016 -0700
     Reviewed-on: https://go-review.googlesource.com/23920
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/cmd/go/go_test.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 1bee5e6609..c46e0c7da5 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -2358,6 +2358,11 @@ func TestGoGetRscIoToolstash(t *testing.T) {
+ // Issue 13037: Was not parsing <meta> tags in 404 served over HTTPS
+ func TestGoGetHTTPS404(t *testing.T) {
+ 	testenv.MustHaveExternalNetwork(t)
++	switch runtime.GOOS {
++	case "darwin", "linux", "freebsd":
++	default:
++		t.Skipf("test case does not work on %s", runtime.GOOS)
++	}
+ 
+ 	tg := testgo(t)
+ 	defer tg.cleanup()

@@ -9,7 +9,62 @@ Date:   Mon Oct 17 23:30:38 2016 -0400
     Change-Id: Iabaeeef3eff2fff6e5ed2d6bc9ef9c2f6d1cb5e7
     Reviewed-on: https://go-review.googlesource.com/31332
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/testing/benchmark.go |  4 ++--
  src/testing/testing.go   | 24 ++++++++++++------------
  2 files changed, 14 insertions(+), 14 deletions(-)
+
+diff --git a/src/testing/benchmark.go b/src/testing/benchmark.go
+index 4d45130516..b1ecd5aaf4 100644
+--- a/src/testing/benchmark.go
++++ b/src/testing/benchmark.go
+@@ -14,8 +14,8 @@ import (
+ 	"time"
+ )
+ 
+-var matchBenchmarks = flag.String("test.bench", "", "regular expression per path component to select benchmarks to run")
+-var benchTime = flag.Duration("test.benchtime", 1*time.Second, "approximate run time for each benchmark")
++var matchBenchmarks = flag.String("test.bench", "", "run only benchmarks matching `regexp`")
++var benchTime = flag.Duration("test.benchtime", 1*time.Second, "run each benchmark for duration `d`")
+ var benchmarkMemory = flag.Bool("test.benchmem", false, "print memory allocations for benchmarks")
+ 
+ // Global lock to ensure only one benchmark runs at a time.
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index 0646108c66..7ca9d49605 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -230,22 +230,22 @@ var (
+ 	// "go test", the binary always runs in the source directory for the package;
+ 	// this flag lets "go test" tell the binary to write the files in the directory where
+ 	// the "go test" command is run.
+-	outputDir = flag.String("test.outputdir", "", "directory in which to write profiles")
++	outputDir = flag.String("test.outputdir", "", "write profiles to `dir`")
+ 
+ 	// Report as tests are run; default is silent for success.
+ 	chatty           = flag.Bool("test.v", false, "verbose: print additional output")
+ 	count            = flag.Uint("test.count", 1, "run tests and benchmarks `n` times")
+-	coverProfile     = flag.String("test.coverprofile", "", "write a coverage profile to the named file after execution")
+-	match            = flag.String("test.run", "", "regular expression to select tests and examples to run")
+-	memProfile       = flag.String("test.memprofile", "", "write a memory profile to the named file after execution")
+-	memProfileRate   = flag.Int("test.memprofilerate", 0, "if >=0, sets runtime.MemProfileRate")
+-	cpuProfile       = flag.String("test.cpuprofile", "", "write a cpu profile to the named file during execution")
+-	blockProfile     = flag.String("test.blockprofile", "", "write a goroutine blocking profile to the named file after execution")
+-	blockProfileRate = flag.Int("test.blockprofilerate", 1, "if >= 0, calls runtime.SetBlockProfileRate()")
+-	traceFile        = flag.String("test.trace", "", "write an execution trace to the named file after execution")
+-	timeout          = flag.Duration("test.timeout", 0, "if positive, sets an aggregate time limit for all tests")
+-	cpuListStr       = flag.String("test.cpu", "", "comma-separated list of number of CPUs to use for each test")
+-	parallel         = flag.Int("test.parallel", runtime.GOMAXPROCS(0), "maximum test parallelism")
++	coverProfile     = flag.String("test.coverprofile", "", "write a coverage profile to `file`")
++	match            = flag.String("test.run", "", "run only tests and examples matching `regexp`")
++	memProfile       = flag.String("test.memprofile", "", "write a memory profile to `file`")
++	memProfileRate   = flag.Int("test.memprofilerate", 0, "set memory profiling `rate` (see runtime.MemProfileRate)")
++	cpuProfile       = flag.String("test.cpuprofile", "", "write a cpu profile to `file`")
++	blockProfile     = flag.String("test.blockprofile", "", "write a goroutine blocking profile to `file`")
++	blockProfileRate = flag.Int("test.blockprofilerate", 1, "set blocking profile `rate` (see runtime.SetBlockProfileRate)")
++	traceFile        = flag.String("test.trace", "", "write an execution trace to `file`")
++	timeout          = flag.Duration("test.timeout", 0, "fail test binary execution after duration `d` (0 means unlimited)")
++	cpuListStr       = flag.String("test.cpu", "", "comma-separated `list` of cpu counts to run each test with")
++	parallel         = flag.Int("test.parallel", runtime.GOMAXPROCS(0), "run at most `n` tests in parallel")
+ 
+ 	haveExamples bool // are there examples?
+ 

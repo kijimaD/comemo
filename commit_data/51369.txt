@@ -16,6 +16,31 @@ Date:   Tue Jan 18 16:27:40 2022 -0500
     Trust: Austin Clements <austin@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/runtime/proc_test.go | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/proc_test.go b/src/runtime/proc_test.go
+index cc899a24c6..719d0d1aee 100644
+--- a/src/runtime/proc_test.go
++++ b/src/runtime/proc_test.go
+@@ -1044,7 +1044,7 @@ func testPreemptionAfterSyscall(t *testing.T, syscallDuration time.Duration) {
+ 		interations = 1
+ 	}
+ 	const (
+-		maxDuration = 3 * time.Second
++		maxDuration = 5 * time.Second
+ 		nroutines   = 8
+ 	)
+ 
+@@ -1080,6 +1080,10 @@ func testPreemptionAfterSyscall(t *testing.T, syscallDuration time.Duration) {
+ }
+ 
+ func TestPreemptionAfterSyscall(t *testing.T) {
++	if runtime.GOOS == "plan9" {
++		testenv.SkipFlaky(t, 41015)
++	}
++
+ 	for _, i := range []time.Duration{10, 100, 1000} {
+ 		d := i * time.Microsecond
+ 		t.Run(fmt.Sprint(d), func(t *testing.T) {

@@ -11,8 +11,83 @@ Date:   Thu Jul 2 12:32:13 2020 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/test/test.go          |  4 +++-
  src/cmd/go/internal/test/testflag.go      | 17 +++++++++++++++++
  src/cmd/go/testdata/script/test_flags.txt |  6 ++++++
  3 files changed, 26 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index 880da2891c..873a76aa38 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -487,6 +487,8 @@ var (
+ 	pkgArgs  []string
+ 	pkgs     []*load.Package
+ 
++	testHelp bool // -help option passed to test via -args
++
+ 	testKillTimeout = 100 * 365 * 24 * time.Hour // backup alarm; defaults to about a century if no timeout is set
+ 	testCacheExpire time.Time                    // ignore cached test results before this time
+ 
+@@ -532,7 +534,7 @@ func testNeedBinary() bool {
+ 
+ // testShowPass reports whether the output for a passing test should be shown.
+ func testShowPass() bool {
+-	return testV || (testList != "")
++	return testV || (testList != "") || testHelp
+ }
+ 
+ var defaultVetFlags = []string{
+diff --git a/src/cmd/go/internal/test/testflag.go b/src/cmd/go/internal/test/testflag.go
+index 9a3042bfe7..1ff34f7445 100644
+--- a/src/cmd/go/internal/test/testflag.go
++++ b/src/cmd/go/internal/test/testflag.go
+@@ -333,6 +333,23 @@ func testFlags(args []string) (packageNames, passToTest []string) {
+ 		injectedFlags = append(injectedFlags, "-test.outputdir="+testOutputDir)
+ 	}
+ 
++	// If the user is explicitly passing -help or -h, show output
++	// of the test binary so that the help output is displayed
++	// even though the test will exit with success.
++	// This loop is imperfect: it will do the wrong thing for a case
++	// like -args -test.outputdir -help. Such cases are probably rare,
++	// and getting this wrong doesn't do too much harm.
++helpLoop:
++	for _, arg := range explicitArgs {
++		switch arg {
++		case "--":
++			break helpLoop
++		case "-h", "-help", "--help":
++			testHelp = true
++			break helpLoop
++		}
++	}
++
+ 	// Ensure that -race and -covermode are compatible.
+ 	if testCoverMode == "" {
+ 		testCoverMode = "set"
+diff --git a/src/cmd/go/testdata/script/test_flags.txt b/src/cmd/go/testdata/script/test_flags.txt
+index 27d718a3b2..d38e37f238 100644
+--- a/src/cmd/go/testdata/script/test_flags.txt
++++ b/src/cmd/go/testdata/script/test_flags.txt
+@@ -57,6 +57,10 @@ stderr -count=1 'invalid value "walrus" for flag -covermode: valid modes are .*$
+ stderr '^usage: go test .*$'
+ stderr '^Run ''go help test'' and ''go help testflag'' for details.$'
+ 
++# Passing -help to the test binary should show flag help.
++go test ./x -args -help
++stdout 'usage_message'
++
+ # -covermode, -coverpkg, and -coverprofile should imply -cover
+ go test -covermode=set ./x
+ stdout '\s+coverage:\s+'
+@@ -98,6 +102,8 @@ import (
+ 	"testing"
+ )
+ 
++var _ = flag.String("usage_message", "", "dummy flag to check usage message")
++
+ func TestLogTimeout(t *testing.T) {
+ 	t.Log(flag.Lookup("test.timeout").Value)
+ }

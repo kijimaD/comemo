@@ -7,7 +7,41 @@ Date:   Thu Oct 29 15:41:02 2009 -0700
     R=r
     CC=go-dev
     http://go/go-review/1016006
-
+---
  test/bugs/bug213.go | 16 ++++++++++++++++
  test/golden.out     |  3 +++
  2 files changed, 19 insertions(+)
+
+diff --git a/test/bugs/bug213.go b/test/bugs/bug213.go
+new file mode 100644
+index 0000000000..07d9f9029d
+--- /dev/null
++++ b/test/bugs/bug213.go
+@@ -0,0 +1,16 @@
++// errchk $G $D/$F.go
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++func main() {
++	var v interface{} = 0;
++	switch x := v.(type) {
++	case int:
++		fallthrough;		// ERROR "fallthrough"
++	default:
++		panic("fell through");
++	}
++}
+diff --git a/test/golden.out b/test/golden.out
+index 4d915e280d..8ace9fdfa0 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -204,3 +204,6 @@ panic PC=xxx
+ 
+ =========== bugs/bug212.go
+ BUG: errchk: command succeeded unexpectedly
++
++=========== bugs/bug213.go
++BUG: errchk: command succeeded unexpectedly

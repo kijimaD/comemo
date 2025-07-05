@@ -12,7 +12,133 @@ Date:   Fri Aug 31 15:52:27 2012 -0400
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/6446051
-
+---
  src/pkg/net/rpc/jsonrpc/all_test.go | 53 ++++++++++++++++++++++++++-----------
  src/pkg/net/rpc/jsonrpc/server.go   | 13 ++++-----
  2 files changed, 45 insertions(+), 21 deletions(-)
+
+diff --git a/src/pkg/net/rpc/jsonrpc/all_test.go b/src/pkg/net/rpc/jsonrpc/all_test.go
+index e6c7441f06..71ae5fc519 100644
+--- a/src/pkg/net/rpc/jsonrpc/all_test.go
++++ b/src/pkg/net/rpc/jsonrpc/all_test.go
+@@ -24,6 +24,12 @@ type Reply struct {
+ 
+ type Arith int
+ 
++type ArithAddResp struct {
++	Id     interface{} `json:"id"`
++	Result Reply       `json:"result"`
++	Error  interface{} `json:"error"`
++}
++
+ func (t *Arith) Add(args *Args, reply *Reply) error {
+ 	reply.C = args.A + args.B
+ 	return nil
+@@ -50,13 +56,39 @@ func init() {
+ 	rpc.Register(new(Arith))
+ }
+ 
+-func TestServer(t *testing.T) {
+-	type addResp struct {
+-		Id     interface{} `json:"id"`
+-		Result Reply       `json:"result"`
+-		Error  interface{} `json:"error"`
++func TestServerNoParams(t *testing.T) {
++	cli, srv := net.Pipe()
++	defer cli.Close()
++	go ServeConn(srv)
++	dec := json.NewDecoder(cli)
++
++	fmt.Fprintf(cli, `{"method": "Arith.Add", "id": "123"}`)
++	var resp ArithAddResp
++	if err := dec.Decode(&resp); err != nil {
++		t.Fatalf("Decode after no params: %s", err)
++	}
++	if resp.Error == nil {
++		t.Fatalf("Expected error, got nil")
++	}
++}
++
++func TestServerEmptyMessage(t *testing.T) {
++	cli, srv := net.Pipe()
++	defer cli.Close()
++	go ServeConn(srv)
++	dec := json.NewDecoder(cli)
++
++	fmt.Fprintf(cli, "{}")
++	var resp ArithAddResp
++	if err := dec.Decode(&resp); err != nil {
++		t.Fatalf("Decode after empty: %s", err)
+ 	}
++	if resp.Error == nil {
++		t.Fatalf("Expected error, got nil")
++	}
++}
+ 
++func TestServer(t *testing.T) {
+ 	cli, srv := net.Pipe()
+ 	defer cli.Close()
+ 	go ServeConn(srv)
+@@ -65,7 +97,7 @@ func TestServer(t *testing.T) {
+ 	// Send hand-coded requests to server, parse responses.
+ 	for i := 0; i < 10; i++ {
+ 		fmt.Fprintf(cli, `{"method": "Arith.Add", "id": "\u%04d", "params": [{"A": %d, "B": %d}]}`, i, i, i+1)
+-		var resp addResp
++		var resp ArithAddResp
+ 		err := dec.Decode(&resp)
+ 		if err != nil {
+ 			t.Fatalf("Decode: %s", err)
+@@ -80,15 +112,6 @@ func TestServer(t *testing.T) {
+ 			t.Fatalf("resp: bad result: %d+%d=%d", i, i+1, resp.Result.C)
+ 		}
+ 	}
+-
+-	fmt.Fprintf(cli, "{}\n")
+-	var resp addResp
+-	if err := dec.Decode(&resp); err != nil {
+-		t.Fatalf("Decode after empty: %s", err)
+-	}
+-	if resp.Error == nil {
+-		t.Fatalf("Expected error, got nil")
+-	}
+ }
+ 
+ func TestClient(t *testing.T) {
+diff --git a/src/pkg/net/rpc/jsonrpc/server.go b/src/pkg/net/rpc/jsonrpc/server.go
+index 4c54553a72..5bc05fd0a7 100644
+--- a/src/pkg/net/rpc/jsonrpc/server.go
++++ b/src/pkg/net/rpc/jsonrpc/server.go
+@@ -12,6 +12,8 @@ import (
+ 	"sync"
+ )
+ 
++var errMissingParams = errors.New("jsonrpc: request body missing params")
++
+ type serverCodec struct {
+ 	dec *json.Decoder // for reading JSON values
+ 	enc *json.Encoder // for writing JSON values
+@@ -50,12 +52,8 @@ type serverRequest struct {
+ 
+ func (r *serverRequest) reset() {
+ 	r.Method = ""
+-	if r.Params != nil {
+-		*r.Params = (*r.Params)[0:0]
+-	}
+-	if r.Id != nil {
+-		*r.Id = (*r.Id)[0:0]
+-	}
++	r.Params = nil
++	r.Id = nil
+ }
+ 
+ type serverResponse struct {
+@@ -88,6 +86,9 @@ func (c *serverCodec) ReadRequestBody(x interface{}) error {
+ 	if x == nil {
+ 		return nil
+ 	}
++	if c.req.Params == nil {
++		return errMissingParams
++	}
+ 	// JSON params is array value.
+ 	// RPC params is struct.
+ 	// Unmarshal into array containing struct for now.

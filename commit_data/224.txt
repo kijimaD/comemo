@@ -6,6 +6,20 @@ Date:   Tue Jun 24 21:44:48 2008 -0700
     internal symbol names
     
     SVN=124461
-
+---
  src/libmach_amd64/sym.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/libmach_amd64/sym.c b/src/libmach_amd64/sym.c
+index e89a2a6690..e43111546e 100644
+--- a/src/libmach_amd64/sym.c
++++ b/src/libmach_amd64/sym.c
+@@ -1189,7 +1189,7 @@ symcomp(const void *a, const void *b)
+ 	i = (*(Sym**)a)->value - (*(Sym**)b)->value;
+ 	if (i)
+ 		return i;
+-	return cdotstrcmp((*(Sym**)a)->name, (*(Sym**)b)->name);
++	return strcmp((*(Sym**)a)->name, (*(Sym**)b)->name);
+ }
+ 
+ /*

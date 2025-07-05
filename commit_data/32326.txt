@@ -10,8 +10,140 @@ Date:   Wed Apr 19 15:15:49 2017 -0700
     Change-Id: I200e85621ff76c111bdeb7eb382fd82da438f3ba
     Reviewed-on: https://go-review.googlesource.com/41135
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/types/scope.go       | 50 ++++++++-------------------
  src/cmd/compile/internal/types/sizeof_test.go |  2 +-
  src/cmd/compile/internal/types/sym.go         |  1 -
  3 files changed, 16 insertions(+), 37 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types/scope.go b/src/cmd/compile/internal/types/scope.go
+index 67de273f25..80e87eb486 100644
+--- a/src/cmd/compile/internal/types/scope.go
++++ b/src/cmd/compile/internal/types/scope.go
+@@ -4,10 +4,7 @@
+ 
+ package types
+ 
+-import (
+-	"cmd/internal/src"
+-	"fmt"
+-)
++import "cmd/internal/src"
+ 
+ // Declaration stack & operations
+ 
+@@ -16,17 +13,11 @@ var Block int32        // current block number
+ 
+ // dclstack maintains a stack of shadowed symbol declarations so that
+ // popdcl can restore their declarations when a block scope ends.
+-// The stack is maintained as a linked list, using Sym's Link field.
+ //
+-// In practice, the "stack" actually ends up forming a tree: goto and label
+-// statements record the current state of dclstack so that checkgoto can
+-// validate that a goto statement does not jump over any declarations or
+-// into a new block scope.
+-//
+-// Finally, the Syms in this list are not "real" Syms as they don't actually
++// The Syms on this stack are not "real" Syms as they don't actually
+ // represent object names. Sym is just a convenient type for saving shadowed
+ // Sym definitions, and only a subset of its fields are actually used.
+-var dclstack *Sym
++var dclstack []*Sym
+ 
+ func dcopy(a, b *Sym) {
+ 	a.Pkg = b.Pkg
+@@ -39,8 +30,7 @@ func dcopy(a, b *Sym) {
+ func push(pos src.XPos) *Sym {
+ 	d := new(Sym)
+ 	d.Lastlineno = pos
+-	d.Link = dclstack
+-	dclstack = d
++	dclstack = append(dclstack, d)
+ 	return d
+ }
+ 
+@@ -54,48 +44,38 @@ func Pushdcl(s *Sym, pos src.XPos) {
+ // Popdcl pops the innermost block scope and restores all symbol declarations
+ // to their previous state.
+ func Popdcl() {
+-	d := dclstack
+-	for ; d != nil && d.Name != ""; d = d.Link {
++	i := len(dclstack)
++	for ; i > 0; i-- {
++		d := dclstack[i-1]
++		if d.Name == "" {
++			break
++		}
+ 		s := d.Pkg.Lookup(d.Name)
+ 		lno := s.Lastlineno
+ 		dcopy(s, d)
+ 		d.Lastlineno = lno
+ 	}
+ 
+-	if d == nil {
++	if i == 0 {
+ 		Fatalf("popdcl: no mark")
+ 	}
+ 
+-	dclstack = d.Link // pop mark
+-	Block = d.Block
++	Block = dclstack[i-1].Block
++	dclstack = dclstack[:i-1] // pop mark
+ }
+ 
+ // Markdcl records the start of a new block scope for declarations.
+ func Markdcl(lineno src.XPos) {
+ 	d := push(lineno)
+-	d.Name = "" // used as a mark in fifo
++	d.Name = "" // used as stack mark
+ 	d.Block = Block
+ 
+ 	blockgen++
+ 	Block = blockgen
+ }
+ 
+-// keep around for debugging
+-func DumpDclstack() {
+-	i := 0
+-	for d := dclstack; d != nil; d = d.Link {
+-		fmt.Printf("%6d  %p", i, d)
+-		if d.Name != "" {
+-			fmt.Printf("  '%s'  %v\n", d.Name, d.Pkg.Lookup(d.Name))
+-		} else {
+-			fmt.Printf("  ---\n")
+-		}
+-		i++
+-	}
+-}
+-
+ func IsDclstackValid() bool {
+-	for d := dclstack; d != nil; d = d.Link {
++	for _, d := range dclstack {
+ 		if d.Name == "" {
+ 			return false
+ 		}
+diff --git a/src/cmd/compile/internal/types/sizeof_test.go b/src/cmd/compile/internal/types/sizeof_test.go
+index e3fa761692..d31e169b00 100644
+--- a/src/cmd/compile/internal/types/sizeof_test.go
++++ b/src/cmd/compile/internal/types/sizeof_test.go
+@@ -22,7 +22,7 @@ func TestSizeof(t *testing.T) {
+ 		_32bit uintptr     // size on 32bit platforms
+ 		_64bit uintptr     // size on 64bit platforms
+ 	}{
+-		{Sym{}, 60, 104},
++		{Sym{}, 56, 96},
+ 		{Type{}, 52, 88},
+ 		{Map{}, 20, 40},
+ 		{Forward{}, 20, 32},
+diff --git a/src/cmd/compile/internal/types/sym.go b/src/cmd/compile/internal/types/sym.go
+index 1086b99fdd..af6eccc485 100644
+--- a/src/cmd/compile/internal/types/sym.go
++++ b/src/cmd/compile/internal/types/sym.go
+@@ -18,7 +18,6 @@ import (
+ // allows using Sym pointer equality to test for Go identifier uniqueness when
+ // handling selector expressions.
+ type Sym struct {
+-	Link      *Sym
+ 	Importdef *Pkg   // where imported definition was found
+ 	Linkname  string // link name
+ 

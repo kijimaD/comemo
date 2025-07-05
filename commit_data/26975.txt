@@ -11,7 +11,7 @@ Date:   Thu May 14 20:11:28 2015 -0700
     Change-Id: I78ea4c6e181b6e571ce70a5f1ae8158844eb197d
     Reviewed-on: https://go-review.googlesource.com/20276
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/amd64/ggen.go  |  6 +++---
  src/cmd/compile/internal/amd64/gsubr.go |  2 +-
  src/cmd/compile/internal/arm/ggen.go    |  6 +++---
@@ -28,3 +28,349 @@ Date:   Thu May 14 20:11:28 2015 -0700
  src/cmd/internal/obj/util.go            |  2 +-
  src/cmd/internal/obj/x86/asm6.go        |  4 ++--
  15 files changed, 39 insertions(+), 42 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/ggen.go b/src/cmd/compile/internal/amd64/ggen.go
+index 6c921dd4c2..a6706eefcc 100644
+--- a/src/cmd/compile/internal/amd64/ggen.go
++++ b/src/cmd/compile/internal/amd64/ggen.go
+@@ -166,15 +166,15 @@ func zerorange(p *obj.Prog, frame int64, lo int64, hi int64, ax *uint32, x0 *uin
+ 	return p
+ }
+ 
+-func appendpp(p *obj.Prog, as int, ftype int, freg int, foffset int64, ttype int, treg int, toffset int64) *obj.Prog {
++func appendpp(p *obj.Prog, as int, ftype obj.AddrType, freg int, foffset int64, ttype obj.AddrType, treg int, toffset int64) *obj.Prog {
+ 	q := gc.Ctxt.NewProg()
+ 	gc.Clearp(q)
+ 	q.As = int16(as)
+ 	q.Lineno = p.Lineno
+-	q.From.Type = int16(ftype)
++	q.From.Type = ftype
+ 	q.From.Reg = int16(freg)
+ 	q.From.Offset = foffset
+-	q.To.Type = int16(ttype)
++	q.To.Type = ttype
+ 	q.To.Reg = int16(treg)
+ 	q.To.Offset = toffset
+ 	q.Link = p.Link
+diff --git a/src/cmd/compile/internal/amd64/gsubr.go b/src/cmd/compile/internal/amd64/gsubr.go
+index 003b0ad0c9..b2fa11388b 100644
+--- a/src/cmd/compile/internal/amd64/gsubr.go
++++ b/src/cmd/compile/internal/amd64/gsubr.go
+@@ -1408,7 +1408,7 @@ func sudoaddable(as int, n *gc.Node, a *obj.Addr) bool {
+ 		}
+ 
+ 		a.Type = obj.TYPE_NONE
+-		a.Index = obj.TYPE_NONE
++		a.Index = x86.REG_NONE
+ 		gc.Fixlargeoffset(&n1)
+ 		gc.Naddr(a, &n1)
+ 		return true
+diff --git a/src/cmd/compile/internal/arm/ggen.go b/src/cmd/compile/internal/arm/ggen.go
+index d4d4e27d09..ffe4f55105 100644
+--- a/src/cmd/compile/internal/arm/ggen.go
++++ b/src/cmd/compile/internal/arm/ggen.go
+@@ -95,15 +95,15 @@ func zerorange(p *obj.Prog, frame int64, lo int64, hi int64, r0 *uint32) *obj.Pr
+ 	return p
+ }
+ 
+-func appendpp(p *obj.Prog, as int, ftype int, freg int, foffset int32, ttype int, treg int, toffset int32) *obj.Prog {
++func appendpp(p *obj.Prog, as int, ftype obj.AddrType, freg int, foffset int32, ttype obj.AddrType, treg int, toffset int32) *obj.Prog {
+ 	q := gc.Ctxt.NewProg()
+ 	gc.Clearp(q)
+ 	q.As = int16(as)
+ 	q.Lineno = p.Lineno
+-	q.From.Type = int16(ftype)
++	q.From.Type = ftype
+ 	q.From.Reg = int16(freg)
+ 	q.From.Offset = int64(foffset)
+-	q.To.Type = int16(ttype)
++	q.To.Type = ttype
+ 	q.To.Reg = int16(treg)
+ 	q.To.Offset = int64(toffset)
+ 	q.Link = p.Link
+diff --git a/src/cmd/compile/internal/arm64/ggen.go b/src/cmd/compile/internal/arm64/ggen.go
+index da2f71cfc3..9e1149de84 100644
+--- a/src/cmd/compile/internal/arm64/ggen.go
++++ b/src/cmd/compile/internal/arm64/ggen.go
+@@ -106,15 +106,15 @@ func zerorange(p *obj.Prog, frame int64, lo int64, hi int64) *obj.Prog {
+ 	return p
+ }
+ 
+-func appendpp(p *obj.Prog, as int, ftype int, freg int, foffset int64, ttype int, treg int, toffset int64) *obj.Prog {
++func appendpp(p *obj.Prog, as int, ftype obj.AddrType, freg int, foffset int64, ttype obj.AddrType, treg int, toffset int64) *obj.Prog {
+ 	q := gc.Ctxt.NewProg()
+ 	gc.Clearp(q)
+ 	q.As = int16(as)
+ 	q.Lineno = p.Lineno
+-	q.From.Type = int16(ftype)
++	q.From.Type = ftype
+ 	q.From.Reg = int16(freg)
+ 	q.From.Offset = foffset
+-	q.To.Type = int16(ttype)
++	q.To.Type = ttype
+ 	q.To.Reg = int16(treg)
+ 	q.To.Offset = toffset
+ 	q.Link = p.Link
+diff --git a/src/cmd/compile/internal/mips64/ggen.go b/src/cmd/compile/internal/mips64/ggen.go
+index 6436ce6a83..57508c8832 100644
+--- a/src/cmd/compile/internal/mips64/ggen.go
++++ b/src/cmd/compile/internal/mips64/ggen.go
+@@ -101,15 +101,15 @@ func zerorange(p *obj.Prog, frame int64, lo int64, hi int64) *obj.Prog {
+ 	return p
+ }
+ 
+-func appendpp(p *obj.Prog, as int, ftype int, freg int, foffset int64, ttype int, treg int, toffset int64) *obj.Prog {
++func appendpp(p *obj.Prog, as int, ftype obj.AddrType, freg int, foffset int64, ttype obj.AddrType, treg int, toffset int64) *obj.Prog {
+ 	q := gc.Ctxt.NewProg()
+ 	gc.Clearp(q)
+ 	q.As = int16(as)
+ 	q.Lineno = p.Lineno
+-	q.From.Type = int16(ftype)
++	q.From.Type = ftype
+ 	q.From.Reg = int16(freg)
+ 	q.From.Offset = foffset
+-	q.To.Type = int16(ttype)
++	q.To.Type = ttype
+ 	q.To.Reg = int16(treg)
+ 	q.To.Offset = toffset
+ 	q.Link = p.Link
+diff --git a/src/cmd/compile/internal/ppc64/ggen.go b/src/cmd/compile/internal/ppc64/ggen.go
+index 8e63d38ce1..5030630921 100644
+--- a/src/cmd/compile/internal/ppc64/ggen.go
++++ b/src/cmd/compile/internal/ppc64/ggen.go
+@@ -93,15 +93,15 @@ func zerorange(p *obj.Prog, frame int64, lo int64, hi int64) *obj.Prog {
+ 	return p
+ }
+ 
+-func appendpp(p *obj.Prog, as int, ftype int, freg int, foffset int64, ttype int, treg int, toffset int64) *obj.Prog {
++func appendpp(p *obj.Prog, as int, ftype obj.AddrType, freg int, foffset int64, ttype obj.AddrType, treg int, toffset int64) *obj.Prog {
+ 	q := gc.Ctxt.NewProg()
+ 	gc.Clearp(q)
+ 	q.As = int16(as)
+ 	q.Lineno = p.Lineno
+-	q.From.Type = int16(ftype)
++	q.From.Type = ftype
+ 	q.From.Reg = int16(freg)
+ 	q.From.Offset = foffset
+-	q.To.Type = int16(ttype)
++	q.To.Type = ttype
+ 	q.To.Reg = int16(treg)
+ 	q.To.Offset = toffset
+ 	q.Link = p.Link
+diff --git a/src/cmd/compile/internal/x86/ggen.go b/src/cmd/compile/internal/x86/ggen.go
+index cf605feefc..f3481c3b87 100644
+--- a/src/cmd/compile/internal/x86/ggen.go
++++ b/src/cmd/compile/internal/x86/ggen.go
+@@ -84,15 +84,15 @@ func zerorange(p *obj.Prog, frame int64, lo int64, hi int64, ax *uint32) *obj.Pr
+ 	return p
+ }
+ 
+-func appendpp(p *obj.Prog, as int, ftype int, freg int, foffset int64, ttype int, treg int, toffset int64) *obj.Prog {
++func appendpp(p *obj.Prog, as int, ftype obj.AddrType, freg int, foffset int64, ttype obj.AddrType, treg int, toffset int64) *obj.Prog {
+ 	q := gc.Ctxt.NewProg()
+ 	gc.Clearp(q)
+ 	q.As = int16(as)
+ 	q.Lineno = p.Lineno
+-	q.From.Type = int16(ftype)
++	q.From.Type = ftype
+ 	q.From.Reg = int16(freg)
+ 	q.From.Offset = foffset
+-	q.To.Type = int16(ttype)
++	q.To.Type = ttype
+ 	q.To.Reg = int16(treg)
+ 	q.To.Offset = toffset
+ 	q.Link = p.Link
+diff --git a/src/cmd/compile/internal/x86/peep.go b/src/cmd/compile/internal/x86/peep.go
+index b9f05d3b47..a11785006b 100644
+--- a/src/cmd/compile/internal/x86/peep.go
++++ b/src/cmd/compile/internal/x86/peep.go
+@@ -733,7 +733,7 @@ func copysub(a *obj.Addr, v *obj.Addr, s *obj.Addr, f int) int {
+ 	if regtyp(v) {
+ 		reg := int(v.Reg)
+ 		if (a.Type == obj.TYPE_MEM || a.Type == obj.TYPE_ADDR) && int(a.Reg) == reg {
+-			if (s.Reg == x86.REG_BP) && a.Index != obj.TYPE_NONE {
++			if (s.Reg == x86.REG_BP) && a.Index != x86.REG_NONE {
+ 				return 1 /* can't use BP-base with index */
+ 			}
+ 			if f != 0 {
+diff --git a/src/cmd/internal/obj/arm/asm5.go b/src/cmd/internal/obj/arm/asm5.go
+index 9da33bc854..8536e7628b 100644
+--- a/src/cmd/internal/obj/arm/asm5.go
++++ b/src/cmd/internal/obj/arm/asm5.go
+@@ -1067,7 +1067,7 @@ func aclass(ctxt *obj.Link, a *obj.Addr) int {
+ 
+ 			return C_LAUTO
+ 
+-		case obj.TYPE_NONE:
++		case obj.NAME_NONE:
+ 			ctxt.Instoffset = a.Offset
+ 			t := int(immaddr(int32(ctxt.Instoffset)))
+ 			if t != 0 {
+@@ -1115,7 +1115,7 @@ func aclass(ctxt *obj.Link, a *obj.Addr) int {
+ 	case obj.TYPE_CONST,
+ 		obj.TYPE_ADDR:
+ 		switch a.Name {
+-		case obj.TYPE_NONE:
++		case obj.NAME_NONE:
+ 			ctxt.Instoffset = a.Offset
+ 			if a.Reg != 0 {
+ 				return aconsize(ctxt)
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index 2b0a9cc287..bc0096d624 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -970,8 +970,7 @@ func aclass(ctxt *obj.Link, a *obj.Addr) int {
+ 
+ 	case obj.TYPE_MEM:
+ 		switch a.Name {
+-		case obj.NAME_EXTERN,
+-			obj.NAME_STATIC:
++		case obj.NAME_EXTERN, obj.NAME_STATIC:
+ 			if a.Sym == nil {
+ 				break
+ 			}
+@@ -999,7 +998,7 @@ func aclass(ctxt *obj.Link, a *obj.Addr) int {
+ 			ctxt.Instoffset = int64(ctxt.Autosize) + a.Offset + 8
+ 			return autoclass(ctxt.Instoffset)
+ 
+-		case obj.TYPE_NONE:
++		case obj.NAME_NONE:
+ 			ctxt.Instoffset = a.Offset
+ 			return oregclass(ctxt.Instoffset)
+ 		}
+@@ -1011,10 +1010,9 @@ func aclass(ctxt *obj.Link, a *obj.Addr) int {
+ 	case obj.TYPE_TEXTSIZE:
+ 		return C_TEXTSIZE
+ 
+-	case obj.TYPE_CONST,
+-		obj.TYPE_ADDR:
++	case obj.TYPE_CONST, obj.TYPE_ADDR:
+ 		switch a.Name {
+-		case obj.TYPE_NONE:
++		case obj.NAME_NONE:
+ 			ctxt.Instoffset = a.Offset
+ 			if a.Reg != 0 && a.Reg != REGZERO {
+ 				goto aconsize
+@@ -1058,8 +1056,7 @@ func aclass(ctxt *obj.Link, a *obj.Addr) int {
+ 			}
+ 			return C_VCON
+ 
+-		case obj.NAME_EXTERN,
+-			obj.NAME_STATIC:
++		case obj.NAME_EXTERN, obj.NAME_STATIC:
+ 			if a.Sym == nil {
+ 				break
+ 			}
+diff --git a/src/cmd/internal/obj/data.go b/src/cmd/internal/obj/data.go
+index 96129fd954..438435fd58 100644
+--- a/src/cmd/internal/obj/data.go
++++ b/src/cmd/internal/obj/data.go
+@@ -66,7 +66,7 @@ func savedata(ctxt *Link, s *LSym, p *Prog, file string) {
+ 	}
+ 	Symgrow(ctxt, s, int64(off+siz))
+ 
+-	switch int(p.To.Type) {
++	switch p.To.Type {
+ 	default:
+ 		ctxt.Diag("bad data: %v", p)
+ 
+@@ -88,7 +88,7 @@ func savedata(ctxt *Link, s *LSym, p *Prog, file string) {
+ 		copy(s.P[off:off+siz], p.To.Val.(string))
+ 
+ 	case TYPE_CONST, TYPE_ADDR:
+-		if p.To.Sym != nil || int(p.To.Type) == TYPE_ADDR {
++		if p.To.Sym != nil || p.To.Type == TYPE_ADDR {
+ 			r := Addrel(s)
+ 			r.Off = off
+ 			r.Siz = uint8(siz)
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index 53a8fa3334..b7683ebaa2 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -144,10 +144,10 @@ import "encoding/binary"
+ //			scale = 1
+ //
+ type Addr struct {
+-	Type   int16
+ 	Reg    int16
+ 	Index  int16
+ 	Scale  int16 // Sometimes holds a register.
++	Type   AddrType
+ 	Name   int8
+ 	Class  int8
+ 	Etype  uint8
+@@ -166,6 +166,8 @@ type Addr struct {
+ 	Node interface{} // for use by compiler
+ }
+ 
++type AddrType uint8
++
+ const (
+ 	NAME_NONE = 0 + iota
+ 	NAME_EXTERN
+@@ -178,11 +180,9 @@ const (
+ )
+ 
+ const (
+-	TYPE_NONE = 0
+-)
++	TYPE_NONE AddrType = 0
+ 
+-const (
+-	TYPE_BRANCH = 5 + iota
++	TYPE_BRANCH AddrType = 5 + iota
+ 	TYPE_TEXTSIZE
+ 	TYPE_MEM
+ 	TYPE_CONST
+@@ -228,7 +228,7 @@ type Prog struct {
+ }
+ 
+ // From3Type returns From3.Type, or TYPE_NONE when From3 is nil.
+-func (p *Prog) From3Type() int16 {
++func (p *Prog) From3Type() AddrType {
+ 	if p.From3 == nil {
+ 		return TYPE_NONE
+ 	}
+diff --git a/src/cmd/internal/obj/ppc64/asm9.go b/src/cmd/internal/obj/ppc64/asm9.go
+index c4e8fdc21d..cf2a6e82b0 100644
+--- a/src/cmd/internal/obj/ppc64/asm9.go
++++ b/src/cmd/internal/obj/ppc64/asm9.go
+@@ -636,7 +636,7 @@ func aclass(ctxt *obj.Link, a *obj.Addr) int {
+ 	case obj.TYPE_CONST,
+ 		obj.TYPE_ADDR:
+ 		switch a.Name {
+-		case obj.TYPE_NONE:
++		case obj.NAME_NONE:
+ 			ctxt.Instoffset = a.Offset
+ 			if a.Reg != 0 {
+ 				if -BIG <= ctxt.Instoffset && ctxt.Instoffset <= BIG {
+diff --git a/src/cmd/internal/obj/util.go b/src/cmd/internal/obj/util.go
+index a1c1cca895..7689d22d7f 100644
+--- a/src/cmd/internal/obj/util.go
++++ b/src/cmd/internal/obj/util.go
+@@ -383,7 +383,7 @@ func Dconv(p *Prog, a *Addr) string {
+ 		}
+ 
+ 		str = Rconv(int(a.Reg))
+-		if a.Name != TYPE_NONE || a.Sym != nil {
++		if a.Name != NAME_NONE || a.Sym != nil {
+ 			str = fmt.Sprintf("%v(%v)(REG)", Mconv(a), Rconv(int(a.Reg)))
+ 		}
+ 
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index c4f2140e9c..0f81bbb74f 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -4621,10 +4621,10 @@ func asmins(ctxt *obj.Link, p *obj.Prog) {
+ 		}
+ 
+ 		if p.As != ALEAQ && p.As != ALEAL {
+-			if p.From.Index != obj.TYPE_NONE && p.From.Scale > 0 {
++			if p.From.Index != REG_NONE && p.From.Scale > 0 {
+ 				nacltrunc(ctxt, int(p.From.Index))
+ 			}
+-			if p.To.Index != obj.TYPE_NONE && p.To.Scale > 0 {
++			if p.To.Index != REG_NONE && p.To.Scale > 0 {
+ 				nacltrunc(ctxt, int(p.To.Index))
+ 			}
+ 		}

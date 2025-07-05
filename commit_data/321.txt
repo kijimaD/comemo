@@ -5,9 +5,65 @@ Date:   Wed Jul 9 16:09:48 2008 -0700
     build packages automatically
     
     SVN=126577
-
+---
  src/clean.bash     |  2 +-
  src/lib/clean.bash |  7 +++++++
  src/lib/make.bash  | 10 ++++++++++
  src/make.bash      |  2 +-
  4 files changed, 19 insertions(+), 2 deletions(-)
+
+diff --git a/src/clean.bash b/src/clean.bash
+index 2378ecb054..4d417eb242 100755
+--- a/src/clean.bash
++++ b/src/clean.bash
+@@ -10,7 +10,7 @@ do
+ 	cd ..
+ done
+ 
+-for i in cmd runtime
++for i in cmd runtime lib
+ do
+ 	cd $i
+ 	bash clean.bash
+diff --git a/src/lib/clean.bash b/src/lib/clean.bash
+new file mode 100755
+index 0000000000..13af347a7d
+--- /dev/null
++++ b/src/lib/clean.bash
+@@ -0,0 +1,7 @@
++# Copyright 2009 The Go Authors.  All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++#!/bin/bash
++
++rm -f $GOROOT/pkg/*
+diff --git a/src/lib/make.bash b/src/lib/make.bash
+new file mode 100755
+index 0000000000..88c97c1388
+--- /dev/null
++++ b/src/lib/make.bash
+@@ -0,0 +1,10 @@
++# Copyright 2009 The Go Authors.  All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++#!/bin/bash
++
++rm -f *.6
++6g fmt.go 
++6g container/vector.go
++mv *.6 $GOROOT/pkg
+diff --git a/src/make.bash b/src/make.bash
+index 14d8188f2e..2d17e798f2 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -12,7 +12,7 @@ do
+ 	cd ..
+ done
+ 
+-for i in cmd runtime
++for i in cmd runtime lib
+ do
+ 	cd $i
+ 	bash make.bash

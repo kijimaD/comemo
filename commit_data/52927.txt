@@ -11,6 +11,20 @@ Date:   Wed Jun 15 14:40:13 2022 +0200
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  doc/go1.19.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go1.19.html b/doc/go1.19.html
+index 727873890b..50bc973c13 100644
+--- a/doc/go1.19.html
++++ b/doc/go1.19.html
+@@ -72,7 +72,7 @@ provides parsing and reformatting of doc comments
+ as well as support for rendering them to HTML, Markdown, and text.
+ </p>
+ 
+-<h3 id="go-unix">New <code>unix</code> build constraint</h4>
++<h3 id="go-unix">New <code>unix</code> build constraint</h3>
+ 
+ <p><!-- CL 389934 --><!-- https://go.dev/issue/20322 --><!-- https://go.dev/issue/51572 -->
+   The build constraint <code>unix</code> is now recognized

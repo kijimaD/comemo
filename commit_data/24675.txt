@@ -10,6 +10,20 @@ Date:   Fri Aug 21 20:31:50 2015 +0200
     Change-Id: I4a2b099e17609394273eff150062c285d76bbac1
     Reviewed-on: https://go-review.googlesource.com/13774
     Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
-
+---
  src/cmd/trace/main.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/trace/main.go b/src/cmd/trace/main.go
+index 27d8699b5a..e493be91b7 100644
+--- a/src/cmd/trace/main.go
++++ b/src/cmd/trace/main.go
+@@ -71,7 +71,7 @@ func main() {
+ 	}
+ 	// Open browser.
+ 	if !startBrowser("http://" + ln.Addr().String()) {
+-		dief("failed to start browser\n")
++		fmt.Fprintf(os.Stderr, "Trace viewer is listening on http://%s\n", ln.Addr().String())
+ 	}
+ 
+ 	// Parse and symbolize trace asynchronously while browser opens.

@@ -8,6 +8,24 @@ Date:   Tue Nov 9 17:39:36 2010 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/2985043
-
+---
  src/cmd/gc/walk.c | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 68c5e84ef8..315319a328 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -1005,9 +1005,11 @@ walkexpr(Node **np, NodeList **init)
+ 		 */
+ 		et = n->left->type->etype;
+ 		if(iscomplex[et] && n->op == ODIV) {
+-			n = mkcall("complex128div", n->type, init,
++			t = n->type;
++			n = mkcall("complex128div", types[TCOMPLEX128], init,
+ 				conv(n->left, types[TCOMPLEX128]),
+ 				conv(n->right, types[TCOMPLEX128]));
++			n = conv(n, t);
+ 			goto ret;
+ 		}
+ 		/*

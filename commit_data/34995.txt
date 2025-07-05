@@ -11,7 +11,44 @@ Date:   Thu Nov 30 16:36:34 2017 +0000
     Change-Id: If011c32211f4bb45d458317e113b9794d5b4a4b1
     Reviewed-on: https://go-review.googlesource.com/81035
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/os/exec_plan9.go | 7 ++++---
  src/os/exec_posix.go | 7 ++++---
  2 files changed, 8 insertions(+), 6 deletions(-)
+
+diff --git a/src/os/exec_plan9.go b/src/os/exec_plan9.go
+index 676be36ac7..6b4d28c93d 100644
+--- a/src/os/exec_plan9.go
++++ b/src/os/exec_plan9.go
+@@ -11,9 +11,10 @@ import (
+ 	"time"
+ )
+ 
+-// The only signal values guaranteed to be present on all systems
+-// are Interrupt (send the process an interrupt) and Kill (force
+-// the process to exit).
++// The only signal values guaranteed to be present in the os package
++// on all systems are Interrupt (send the process an interrupt) and
++// Kill (force the process to exit). Interrupt is not implemented on
++// Windows; using it with os.Process.Signal will return an error.
+ var (
+ 	Interrupt Signal = syscall.Note("interrupt")
+ 	Kill      Signal = syscall.Note("kill")
+diff --git a/src/os/exec_posix.go b/src/os/exec_posix.go
+index 3cf38b68ad..fb220c8a5a 100644
+--- a/src/os/exec_posix.go
++++ b/src/os/exec_posix.go
+@@ -10,9 +10,10 @@ import (
+ 	"syscall"
+ )
+ 
+-// The only signal values guaranteed to be present on all systems
+-// are Interrupt (send the process an interrupt) and Kill (force
+-// the process to exit).
++// The only signal values guaranteed to be present in the os package
++// on all systems are Interrupt (send the process an interrupt) and
++// Kill (force the process to exit). Interrupt is not implemented on
++// Windows; using it with os.Process.Signal will return an error.
+ var (
+ 	Interrupt Signal = syscall.SIGINT
+ 	Kill      Signal = syscall.SIGKILL

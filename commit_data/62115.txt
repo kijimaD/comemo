@@ -18,6 +18,24 @@ Date:   Tue Feb 4 14:23:14 2025 -0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
-
+---
  src/internal/routebsd/interface_classic.go | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/internal/routebsd/interface_classic.go b/src/internal/routebsd/interface_classic.go
+index af9531c0df..2599e5dd59 100644
+--- a/src/internal/routebsd/interface_classic.go
++++ b/src/internal/routebsd/interface_classic.go
+@@ -41,6 +41,12 @@ func (w *wireFormat) parseInterfaceMessage(b []byte) (Message, error) {
+ 		}
+ 		m.Addrs[syscall.RTAX_IFP] = a
+ 		m.Name = a.(*LinkAddr).Name
++	} else {
++		// DragonFly seems to have unnamed interfaces
++		// that we can't look up again. Just skip them.
++		if runtime.GOOS == "dragonfly" {
++			return nil, nil
++		}
+ 	}
+ 
+ 	return m, nil

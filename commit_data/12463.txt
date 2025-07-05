@@ -9,9 +9,100 @@ Date:   Wed Mar 7 01:55:17 2012 -0500
     R=ken2
     CC=golang-dev
     https://golang.org/cl/5756074
-
+---
  src/cmd/gc/dcl.c                                   | 15 +++++++++++----
  test/bugs/424.go                                   |  9 ---------
  test/{bugs/424.dir => fixedbugs/bug424.dir}/lib.go |  0
  test/{bugs/424.dir/main.go => fixedbugs/bug424.go} | 18 ++++++++++++++++--
  4 files changed, 27 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index 4a0e7430ac..b717625903 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -1195,10 +1195,17 @@ methodsym(Sym *nsym, Type *t0, int iface)
+ 		if(t0->width < types[tptr]->width)
+ 			suffix = "·i";
+ 	}
+-	if(t0->sym == S && isptr[t0->etype])
+-		p = smprint("(%-hT).%s%s", t0, nsym->name, suffix);
+-	else
+-		p = smprint("%-hT.%s%s", t0, nsym->name, suffix);
++	if(nsym->pkg != s->pkg && !exportname(nsym->name)) {
++		if(t0->sym == S && isptr[t0->etype])
++			p = smprint("(%-hT).%s.%s%s", t0, nsym->pkg->prefix, nsym->name, suffix);
++		else
++			p = smprint("%-hT.%s.%s%s", t0, nsym->pkg->prefix, nsym->name, suffix);
++	} else {
++		if(t0->sym == S && isptr[t0->etype])
++			p = smprint("(%-hT).%s%s", t0, nsym->name, suffix);
++		else
++			p = smprint("%-hT.%s%s", t0, nsym->name, suffix);
++	}
+ 	s = pkglookup(p, s->pkg);
+ 	free(p);
+ 	return s;
+diff --git a/test/bugs/424.go b/test/bugs/424.go
+deleted file mode 100644
+index b22776086e..0000000000
+--- a/test/bugs/424.go
++++ /dev/null
+@@ -1,9 +0,0 @@
+-// $G $D/$F.dir/lib.go && $G $D/$F.dir/main.go && $L main.$A && $A.out
+-
+-// Copyright 2012 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Test case for embedded method invocation.
+-
+-ignored
+diff --git a/test/bugs/424.dir/lib.go b/test/fixedbugs/bug424.dir/lib.go
+similarity index 100%
+rename from test/bugs/424.dir/lib.go
+rename to test/fixedbugs/bug424.dir/lib.go
+diff --git a/test/bugs/424.dir/main.go b/test/fixedbugs/bug424.go
+similarity index 75%
+rename from test/bugs/424.dir/main.go
+rename to test/fixedbugs/bug424.go
+index 64a600b554..484febc1d2 100644
+--- a/test/bugs/424.dir/main.go
++++ b/test/fixedbugs/bug424.go
+@@ -1,3 +1,5 @@
++// run
++
+ // Copyright 2012 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+@@ -9,7 +11,9 @@
+ 
+ package main
+ 
+-import "./lib"
++import "./bug424.dir"
++import "reflect"
++import "fmt"
+ 
+ type localI interface {
+ 	m() string
+@@ -53,9 +57,19 @@ func main() {
+ 		println("BUG: myT2:", i.m(), "called")
+ 	}
+ 
++	t3 := new(myT3)
++	if t3.m() != "main.localT.m" {
++		println("BUG: t3:", t3.m(), "called")
++	}
++	
+ 	i = new(myT3)
+ 	if i.m() != "main.localT.m" {
++		t := reflect.TypeOf(i)
++		n := t.NumMethod()
++		for j := 0; j < n; j++ {
++			m := t.Method(j)
++			fmt.Printf("#%d: %s.%s %s\n", j, m.PkgPath, m.Name, m.Type)
++		}
+ 		println("BUG: myT3:", i.m(), "called")
+ 	}
+-
+ }

@@ -11,6 +11,27 @@ Date:   Tue Jun 30 09:14:15 2020 -0700
     Change-Id: Ic0e9131016b44ed864629aa8d0a7fddb57146d21
     Reviewed-on: https://go-review.googlesource.com/c/go/+/240518
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
-
+---
  doc/go1.15.html | 7 ++++++-
  1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/doc/go1.15.html b/doc/go1.15.html
+index d9fe3b32d8..fb746be01c 100644
+--- a/doc/go1.15.html
++++ b/doc/go1.15.html
+@@ -598,9 +598,14 @@ Do not send CLs removing the interior tags from such phrases.
+ <dl id="encoding/asn1"><dt><a href="/pkg/encoding/asn1/">encoding/asn1</a></dt>
+   <dd>
+     <p><!-- CL 226984 -->
+-      <a href="/pkg/encoding/asn1/#Marshal">Marshal</a> now sorts the components
++      <a href="/pkg/encoding/asn1/#Marshal"><code>Marshal</code></a> now sorts the components
+       of SET OF according to X.690 DER.
+     </p>
++
++    <p><!-- CL 227320 -->
++      <a href="/pkg/encoding/asn1/#Unmarshal"><code>Unmarshal</code></a> now rejects tags and
++      Object Identifiers which are not minimally encoded according to X.690 DER.
++    </p>
+   </dd>
+ </dl><!-- encoding/asn1 -->
+ 

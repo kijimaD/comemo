@@ -11,6 +11,23 @@ Date:   Mon Mar 13 13:14:35 2023 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/dist/build.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index 25f75804e0..4dc14b9501 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -1742,8 +1742,10 @@ var firstClass = map[string]bool{
+ 	"windows/amd64": true,
+ }
+ 
++// We only need CC if cgo is forced on, or if the platform requires external linking.
++// Otherwise the go command will automatically disable it.
+ func needCC() bool {
+-	return os.Getenv("CGO_ENABLED") == "1"
++	return os.Getenv("CGO_ENABLED") == "1" || mustLinkExternal(gohostos, gohostarch, false)
+ }
+ 
+ func checkCC() {

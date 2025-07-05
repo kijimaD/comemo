@@ -12,6 +12,20 @@ Date:   Mon Dec 3 15:45:10 2018 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/os/pipe_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/os/pipe_test.go b/src/os/pipe_test.go
+index 59d31e5837..779b2bdf85 100644
+--- a/src/os/pipe_test.go
++++ b/src/os/pipe_test.go
+@@ -131,7 +131,7 @@ func testClosedPipeRace(t *testing.T, read bool) {
+ 	if !read {
+ 		// Get the amount we have to write to overload a pipe
+ 		// with no reader.
+-		limit = 65537
++		limit = 131073
+ 		if b, err := ioutil.ReadFile("/proc/sys/fs/pipe-max-size"); err == nil {
+ 			if i, err := strconv.Atoi(strings.TrimSpace(string(b))); err == nil {
+ 				limit = i + 1

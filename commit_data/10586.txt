@@ -10,6 +10,27 @@ Date:   Fri Dec 2 14:29:24 2011 +1100
     R=alex.brainman, rsc
     CC=golang-dev
     https://golang.org/cl/5434093
-
+---
  src/pkg/os/exec/lp_windows.go | 9 ++++-----
  1 file changed, 4 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/os/exec/lp_windows.go b/src/pkg/os/exec/lp_windows.go
+index ef5bd92166..d09e839a39 100644
+--- a/src/pkg/os/exec/lp_windows.go
++++ b/src/pkg/os/exec/lp_windows.go
+@@ -63,11 +63,10 @@ func LookPath(file string) (f string, err error) {
+ 		}
+ 		return ``, &Error{file, err}
+ 	}
+-	if pathenv := os.Getenv(`PATH`); pathenv == `` {
+-		if f, err = findExecutable(`.\`+file, exts); err == nil {
+-			return
+-		}
+-	} else {
++	if f, err = findExecutable(`.\`+file, exts); err == nil {
++		return
++	}
++	if pathenv := os.Getenv(`PATH`); pathenv != `` {
+ 		for _, dir := range strings.Split(pathenv, `;`) {
+ 			if f, err = findExecutable(dir+`\`+file, exts); err == nil {
+ 				return

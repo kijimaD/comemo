@@ -13,6 +13,38 @@ Date:   Tue Oct 29 17:34:52 2019 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/204045
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/netpoll_stub.go | 7 ++++++-
  1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/netpoll_stub.go b/src/runtime/netpoll_stub.go
+index ab92b0424e..fe45cfbd40 100644
+--- a/src/runtime/netpoll_stub.go
++++ b/src/runtime/netpoll_stub.go
+@@ -16,6 +16,7 @@ var netpollNote note
+ var netpollBroken uint32
+ 
+ func netpollGenericInit() {
++	atomic.Store(&netpollInited, 1)
+ }
+ 
+ func netpollBreak() {
+@@ -30,13 +31,17 @@ func netpoll(delay int64) gList {
+ 	// Implementation for platforms that do not support
+ 	// integrated network poller.
+ 	if delay != 0 {
++		// This lock ensures that only one goroutine tries to use
++		// the note. It should normally be completely uncontended.
++		lock(&netpollStubLock)
+ 		noteclear(&netpollNote)
+ 		atomic.Store(&netpollBroken, 0)
+ 		notetsleep(&netpollNote, delay)
++		unlock(&netpollStubLock)
+ 	}
+ 	return gList{}
+ }
+ 
+ func netpollinited() bool {
+-	return false
++	return atomic.Load(&netpollInited) != 0
+ }

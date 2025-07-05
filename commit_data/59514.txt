@@ -12,7 +12,57 @@ Date:   Wed Mar 20 11:25:45 2024 -0700
     Auto-Submit: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/compile/internal/noder/reader.go | 19 +------------------
  src/cmd/compile/internal/noder/writer.go |  1 -
  2 files changed, 1 insertion(+), 19 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index 25d6fb53e3..c33e5226f3 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -2965,7 +2965,7 @@ func (r *reader) compLit() ir.Node {
+ 			*elemp, elemp = kv, &kv.Value
+ 		}
+ 
+-		*elemp = wrapName(r.pos(), r.expr())
++		*elemp = r.expr()
+ 	}
+ 
+ 	lit := typecheck.Expr(ir.NewCompLitExpr(pos, ir.OCOMPLIT, typ, elems))
+@@ -2980,23 +2980,6 @@ func (r *reader) compLit() ir.Node {
+ 	return lit
+ }
+ 
+-func wrapName(pos src.XPos, x ir.Node) ir.Node {
+-	// These nodes do not carry line numbers.
+-	// Introduce a wrapper node to give them the correct line.
+-	switch x.Op() {
+-	case ir.OTYPE, ir.OLITERAL:
+-		if x.Sym() == nil {
+-			break
+-		}
+-		fallthrough
+-	case ir.ONAME, ir.ONONAME, ir.ONIL:
+-		p := ir.NewParenExpr(pos, x)
+-		p.SetImplicit(true)
+-		return p
+-	}
+-	return x
+-}
+-
+ func (r *reader) funcLit() ir.Node {
+ 	r.Sync(pkgbits.SyncFuncLit)
+ 
+diff --git a/src/cmd/compile/internal/noder/writer.go b/src/cmd/compile/internal/noder/writer.go
+index c57ccdf36d..71606a915f 100644
+--- a/src/cmd/compile/internal/noder/writer.go
++++ b/src/cmd/compile/internal/noder/writer.go
+@@ -2304,7 +2304,6 @@ func (w *writer) compLit(lit *syntax.CompositeLit) {
+ 				elem = kv.Value
+ 			}
+ 		}
+-		w.pos(elem)
+ 		w.implicitConvExpr(elemType, elem)
+ 	}
+ }

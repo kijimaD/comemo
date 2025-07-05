@@ -12,9 +12,80 @@ Date:   Wed Aug 1 00:45:26 2012 +0200
     R=rsc
     CC=golang-dev, remy
     https://golang.org/cl/6442049
-
+---
  src/cmd/gc/fmt.c                  |  2 +-
  test/fixedbugs/bug448.dir/pkg1.go | 11 +++++++++++
  test/fixedbugs/bug448.dir/pkg2.go | 14 ++++++++++++++
  test/fixedbugs/bug448.go          |  7 +++++++
  4 files changed, 33 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/fmt.c b/src/cmd/gc/fmt.c
+index 2ac28846ac..c59d1b9fcd 100644
+--- a/src/cmd/gc/fmt.c
++++ b/src/cmd/gc/fmt.c
+@@ -964,7 +964,6 @@ static int opprec[] = {
+ 	[OPAREN] = 8,
+ 	[OPRINTN] = 8,
+ 	[OPRINT] = 8,
+-	[ORECV] = 8,
+ 	[ORUNESTR] = 8,
+ 	[OSTRARRAYBYTE] = 8,
+ 	[OSTRARRAYRUNE] = 8,
+@@ -996,6 +995,7 @@ static int opprec[] = {
+ 	[OMINUS] = 7,
+ 	[OADDR] = 7,
+ 	[OIND] = 7,
++	[ORECV] = 7,
+ 
+ 	[OMUL] = 6,
+ 	[ODIV] = 6,
+diff --git a/test/fixedbugs/bug448.dir/pkg1.go b/test/fixedbugs/bug448.dir/pkg1.go
+new file mode 100644
+index 0000000000..032e5d9de3
+--- /dev/null
++++ b/test/fixedbugs/bug448.dir/pkg1.go
+@@ -0,0 +1,11 @@
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package pkg1
++
++var x = make(chan interface{})
++
++func Do() int {
++	return (<-x).(int)
++}
+diff --git a/test/fixedbugs/bug448.dir/pkg2.go b/test/fixedbugs/bug448.dir/pkg2.go
+new file mode 100644
+index 0000000000..5c78c7d2f3
+--- /dev/null
++++ b/test/fixedbugs/bug448.dir/pkg2.go
+@@ -0,0 +1,14 @@
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 3843: inlining bug due to wrong receive operator precedence.
++
++package pkg2
++
++import "./pkg1"
++
++func F() {
++	pkg1.Do()
++}
++
+diff --git a/test/fixedbugs/bug448.go b/test/fixedbugs/bug448.go
+new file mode 100644
+index 0000000000..242f5999e8
+--- /dev/null
++++ b/test/fixedbugs/bug448.go
+@@ -0,0 +1,7 @@
++// compiledir
++
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ignored

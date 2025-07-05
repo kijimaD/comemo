@@ -14,6 +14,28 @@ Date:   Tue Apr 21 13:46:54 2015 -0400
     Change-Id: I93dfc9e84735682af3e637f6538d1e7602634f09
     Reviewed-on: https://go-review.googlesource.com/9175
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/mgc.go | 10 +++++++++-
  1 file changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 100fbf0b1c..0e4f7cb81b 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -424,7 +424,15 @@ func (c *gcControllerState) endCycle() {
+ 	goalGrowthRatio := float64(gcpercent) / 100
+ 	actualGrowthRatio := float64(memstats.heap_live)/float64(memstats.heap_marked) - 1
+ 	duration := nanotime() - c.bgMarkStartTime
+-	utilization := float64(c.assistTime+c.dedicatedMarkTime+c.fractionalMarkTime) / float64(duration*int64(gomaxprocs))
++	var utilization float64
++	if duration <= 0 {
++		// Avoid divide-by-zero computing utilization. This
++		// has the effect of ignoring the utilization in the
++		// error term.
++		utilization = gcGoalUtilization
++	} else {
++		utilization = float64(c.assistTime+c.dedicatedMarkTime+c.fractionalMarkTime) / float64(duration*int64(gomaxprocs))
++	}
+ 	triggerError := goalGrowthRatio - c.triggerRatio - utilization/gcGoalUtilization*(actualGrowthRatio-c.triggerRatio)
+ 
+ 	// Finally, we adjust the trigger for next time by this error,

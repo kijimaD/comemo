@@ -13,6 +13,28 @@ Date:   Wed Aug 6 14:50:09 2014 -0400
     R=golang-codereviews, minux
     CC=golang-codereviews, iant, r
     https://golang.org/cl/118670043
-
+---
  src/pkg/runtime/traceback_arm.c | 9 +++++++--
  1 file changed, 7 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/runtime/traceback_arm.c b/src/pkg/runtime/traceback_arm.c
+index 757c1c39a3..778d95a28b 100644
+--- a/src/pkg/runtime/traceback_arm.c
++++ b/src/pkg/runtime/traceback_arm.c
+@@ -128,9 +128,14 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip,
+ 				frame.lr = *(uintptr*)frame.sp;
+ 			flr = runtime·findfunc(frame.lr);
+ 			if(flr == nil) {
+-				runtime·printf("runtime: unexpected return pc for %s called from %p\n", runtime·funcname(f), frame.lr);
+-				if(callback != nil)
++				// This happens if you get a profiling interrupt at just the wrong time.
++				// In that context it is okay to stop early.
++				// But if callback is set, we're doing a garbage collection and must
++				// get everything, so crash loudly.
++				if(callback != nil) {
++					runtime·printf("runtime: unexpected return pc for %s called from %p\n", runtime·funcname(f), frame.lr);
+ 					runtime·throw("unknown caller pc");
++				}
+ 			}
+ 		}
+ 

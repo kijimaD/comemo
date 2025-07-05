@@ -27,9 +27,86 @@ Date:   Sun Aug 15 15:53:05 2021 +0800
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Auto-Submit: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/dist/build.go     | 3 +++
  src/cmd/dist/buildtool.go | 2 ++
  src/cmd/dist/main.go      | 2 ++
  src/cmd/dist/test.go      | 4 ++--
  4 files changed, 9 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index bbaf595421..c19714c456 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -64,6 +64,7 @@ var okgoarch = []string{
+ 	"amd64",
+ 	"arm",
+ 	"arm64",
++	"loong64",
+ 	"mips",
+ 	"mipsle",
+ 	"mips64",
+@@ -1554,6 +1555,7 @@ var cgoEnabled = map[string]bool{
+ 	"linux/amd64":     true,
+ 	"linux/arm":       true,
+ 	"linux/arm64":     true,
++	"linux/loong64":   true,
+ 	"linux/ppc64":     false,
+ 	"linux/ppc64le":   true,
+ 	"linux/mips":      true,
+@@ -1593,6 +1595,7 @@ var cgoEnabled = map[string]bool{
+ // filtered out of cgoEnabled for 'dist list'. See golang.org/issue/28944
+ var incomplete = map[string]bool{
+ 	"linux/sparc64": true,
++	"linux/loong64": true,
+ }
+ 
+ // List of platforms which are first class ports. See golang.org/issue/38874.
+diff --git a/src/cmd/dist/buildtool.go b/src/cmd/dist/buildtool.go
+index 79ccf2b167..6450601476 100644
+--- a/src/cmd/dist/buildtool.go
++++ b/src/cmd/dist/buildtool.go
+@@ -87,6 +87,8 @@ var ignorePrefixes = []string{
+ var ignoreSuffixes = []string{
+ 	"_arm64.s",
+ 	"_arm64.go",
++	"_loong64.s",
++	"_loong64.go",
+ 	"_riscv64.s",
+ 	"_riscv64.go",
+ 	"_wasm.s",
+diff --git a/src/cmd/dist/main.go b/src/cmd/dist/main.go
+index 212d5cbe45..2651ecb05f 100644
+--- a/src/cmd/dist/main.go
++++ b/src/cmd/dist/main.go
+@@ -133,6 +133,8 @@ func main() {
+ 			if elfIsLittleEndian(os.Args[0]) {
+ 				gohostarch = "mipsle"
+ 			}
++		case strings.Contains(out, "loongarch64"):
++			gohostarch = "loong64"
+ 		case strings.Contains(out, "riscv64"):
+ 			gohostarch = "riscv64"
+ 		case strings.Contains(out, "s390x"):
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 7c8f1ea46d..afe4b3aebb 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -1035,7 +1035,7 @@ func (t *tester) extLink() bool {
+ 		"darwin-amd64", "darwin-arm64",
+ 		"dragonfly-amd64",
+ 		"freebsd-386", "freebsd-amd64", "freebsd-arm",
+-		"linux-386", "linux-amd64", "linux-arm", "linux-arm64", "linux-ppc64le", "linux-mips64", "linux-mips64le", "linux-mips", "linux-mipsle", "linux-riscv64", "linux-s390x",
++		"linux-386", "linux-amd64", "linux-arm", "linux-arm64", "linux-loong64", "linux-ppc64le", "linux-mips64", "linux-mips64le", "linux-mips", "linux-mipsle", "linux-riscv64", "linux-s390x",
+ 		"netbsd-386", "netbsd-amd64",
+ 		"openbsd-386", "openbsd-amd64",
+ 		"windows-386", "windows-amd64":
+@@ -1061,7 +1061,7 @@ func (t *tester) internalLink() bool {
+ 	// Internally linking cgo is incomplete on some architectures.
+ 	// https://golang.org/issue/10373
+ 	// https://golang.org/issue/14449
+-	if goarch == "mips64" || goarch == "mips64le" || goarch == "mips" || goarch == "mipsle" || goarch == "riscv64" {
++	if goarch == "loong64" || goarch == "mips64" || goarch == "mips64le" || goarch == "mips" || goarch == "mipsle" || goarch == "riscv64" {
+ 		return false
+ 	}
+ 	if goos == "aix" {

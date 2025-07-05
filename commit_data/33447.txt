@@ -15,6 +15,22 @@ Date:   Thu Aug 17 09:16:32 2017 +0900
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/debug/macho/macho.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/debug/macho/macho.go b/src/debug/macho/macho.go
+index 0010775f45..045adb090a 100644
+--- a/src/debug/macho/macho.go
++++ b/src/debug/macho/macho.go
+@@ -84,8 +84,8 @@ const (
+ 	LoadCmdThread     LoadCmd = 0x4
+ 	LoadCmdUnixThread LoadCmd = 0x5 // thread+stack
+ 	LoadCmdDysymtab   LoadCmd = 0xb
+-	LoadCmdDylib      LoadCmd = 0xc
+-	LoadCmdDylinker   LoadCmd = 0xf
++	LoadCmdDylib      LoadCmd = 0xc // load dylib command
++	LoadCmdDylinker   LoadCmd = 0xf // id dylinker command (not load dylinker command)
+ 	LoadCmdSegment64  LoadCmd = 0x19
+ )
+ 

@@ -12,6 +12,19 @@ Date:   Fri Sep 10 15:54:16 2010 -0700
     R=rsc, r2
     CC=golang-dev
     https://golang.org/cl/2110044
-
+---
  test/mallocrep.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/test/mallocrep.go b/test/mallocrep.go
+index b0e0e8f1a3..762f3754f5 100644
+--- a/test/mallocrep.go
++++ b/test/mallocrep.go
+@@ -31,6 +31,7 @@ func bigger() {
+ }
+ 
+ func main() {
++	runtime.GC()		   // clean up garbage from init
+ 	runtime.MemProfileRate = 0 // disable profiler
+ 	runtime.MemStats.Alloc = 0 // ignore stacks
+ 	flag.Parse()

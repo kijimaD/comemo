@@ -7,6 +7,23 @@ Date:   Fri Dec 19 14:26:52 2008 -0800
     R=r
     OCL=21637
     CL=21637
-
+---
  src/cmd/6g/cgen.c | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/cmd/6g/cgen.c b/src/cmd/6g/cgen.c
+index c0a665c072..e735858808 100644
+--- a/src/cmd/6g/cgen.c
++++ b/src/cmd/6g/cgen.c
+@@ -751,6 +751,11 @@ bgen(Node *n, int true, Prog *to)
+ 		}
+ 
+ 		if(isdarray(nl->type)) {
++			// only valid to cmp darray to literal nil
++			if((a != OEQ && a != ONE) || nr->op != OLITERAL) {
++				yyerror("illegal array comparison");
++				break;
++			}
+ 			a = optoas(a, types[tptr]);
+ 			regalloc(&n1, types[tptr], N);
+ 			agen(nl, &n1);

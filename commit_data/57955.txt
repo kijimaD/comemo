@@ -13,10 +13,133 @@ Date:   Mon Sep 11 21:57:45 2023 -0700
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/compile/internal/abi/abiutils.go | 10 +++++++---
  src/cmd/compile/internal/liveness/arg.go |  4 ++--
  src/cmd/compile/internal/ssa/debug.go    |  6 +++---
  src/cmd/compile/internal/ssa/op.go       |  6 +-----
  src/cmd/compile/internal/ssagen/ssa.go   |  6 +++---
  5 files changed, 16 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/compile/internal/abi/abiutils.go b/src/cmd/compile/internal/abi/abiutils.go
+index 16126347cf..04b17fbcc5 100644
+--- a/src/cmd/compile/internal/abi/abiutils.go
++++ b/src/cmd/compile/internal/abi/abiutils.go
+@@ -97,7 +97,7 @@ type RegIndex uint8
+ // (as described above), not architected registers.
+ type ABIParamAssignment struct {
+ 	Type      *types.Type
+-	Name      types.Object // should always be *ir.Name, used to match with a particular ssa.OpArg.
++	Name      *ir.Name
+ 	Registers []RegIndex
+ 	offset    int32
+ }
+@@ -353,7 +353,11 @@ func (config *ABIConfig) ABIAnalyzeFuncType(ft *types.Type) *ABIParamResultInfo
+ 	assignParams := func(params []*types.Field, isResult bool) []ABIParamAssignment {
+ 		res := make([]ABIParamAssignment, len(params))
+ 		for i, param := range params {
+-			res[i] = s.assignParam(param.Type, param.Nname, isResult)
++			var name *ir.Name
++			if param.Nname != nil {
++				name = param.Nname.(*ir.Name)
++			}
++			res[i] = s.assignParam(param.Type, name, isResult)
+ 		}
+ 		return res
+ 	}
+@@ -589,7 +593,7 @@ func setup() {
+ // of field f to determine whether it can be register assigned.
+ // The result of the analysis is recorded in the result
+ // ABIParamResultInfo held in 'state'.
+-func (state *assignState) assignParam(typ *types.Type, name types.Object, isResult bool) ABIParamAssignment {
++func (state *assignState) assignParam(typ *types.Type, name *ir.Name, isResult bool) ABIParamAssignment {
+ 	registers := state.tryAllocRegs(typ)
+ 
+ 	var offset int64 = -1
+diff --git a/src/cmd/compile/internal/liveness/arg.go b/src/cmd/compile/internal/liveness/arg.go
+index 16a4c71f62..e1269a10b7 100644
+--- a/src/cmd/compile/internal/liveness/arg.go
++++ b/src/cmd/compile/internal/liveness/arg.go
+@@ -97,8 +97,8 @@ func ArgLiveness(fn *ir.Func, f *ssa.Func, pp *objw.Progs) (blockIdx, valueIdx m
+ 	}
+ 	// Gather all register arg spill slots.
+ 	for _, a := range f.OwnAux.ABIInfo().InParams() {
+-		n, ok := a.Name.(*ir.Name)
+-		if !ok || len(a.Registers) == 0 {
++		n := a.Name
++		if n == nil || len(a.Registers) == 0 {
+ 			continue
+ 		}
+ 		_, offs := a.RegisterTypesAndOffsets()
+diff --git a/src/cmd/compile/internal/ssa/debug.go b/src/cmd/compile/internal/ssa/debug.go
+index 5dd91cbf54..7e0e1f34a8 100644
+--- a/src/cmd/compile/internal/ssa/debug.go
++++ b/src/cmd/compile/internal/ssa/debug.go
+@@ -519,7 +519,7 @@ func PopulateABIInRegArgOps(f *Func) {
+ 		if !isNamedRegParam(inp) {
+ 			continue
+ 		}
+-		n := inp.Name.(*ir.Name)
++		n := inp.Name
+ 
+ 		// Param is spread across one or more registers. Walk through
+ 		// each piece to see whether we've seen an arg reg op for it.
+@@ -1734,7 +1734,7 @@ func isNamedRegParam(p abi.ABIParamAssignment) bool {
+ 	if p.Name == nil {
+ 		return false
+ 	}
+-	n := p.Name.(*ir.Name)
++	n := p.Name
+ 	if n.Sym() == nil || n.Sym().IsBlank() {
+ 		return false
+ 	}
+@@ -1790,7 +1790,7 @@ func BuildFuncDebugNoOptimized(ctxt *obj.Link, f *Func, loggingEnabled bool, sta
+ 			continue
+ 		}
+ 
+-		n := inp.Name.(*ir.Name)
++		n := inp.Name
+ 		sl := LocalSlot{N: n, Type: inp.Type, Off: 0}
+ 		rval.Vars = append(rval.Vars, n)
+ 		rval.Slots = append(rval.Slots, sl)
+diff --git a/src/cmd/compile/internal/ssa/op.go b/src/cmd/compile/internal/ssa/op.go
+index e2319d78d6..0fe9a9125f 100644
+--- a/src/cmd/compile/internal/ssa/op.go
++++ b/src/cmd/compile/internal/ssa/op.go
+@@ -240,11 +240,7 @@ func (a *AuxCall) RegsOfArg(which int64) []abi.RegIndex {
+ 
+ // NameOfResult returns the type of result which (indexed 0, 1, etc).
+ func (a *AuxCall) NameOfResult(which int64) *ir.Name {
+-	name := a.abiInfo.OutParam(int(which)).Name
+-	if name == nil {
+-		return nil
+-	}
+-	return name.(*ir.Name)
++	return a.abiInfo.OutParam(int(which)).Name
+ }
+ 
+ // TypeOfResult returns the type of result which (indexed 0, 1, etc).
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index b8f48b33a5..805814ab86 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -7194,7 +7194,7 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
+ 		// The results are already in memory, because they are not SSA'd
+ 		// when the function has defers (see canSSAName).
+ 		for _, o := range f.OwnAux.ABIInfo().OutParams() {
+-			n := o.Name.(*ir.Name)
++			n := o.Name
+ 			rts, offs := o.RegisterTypesAndOffsets()
+ 			for i := range o.Registers {
+ 				Arch.LoadRegResult(&s, f, rts[i], ssa.ObjRegForAbiReg(o.Registers[i], f.Config), n, offs[i])
+@@ -7507,8 +7507,8 @@ func defframe(s *State, e *ssafn, f *ssa.Func) {
+ 
+ 		// Then, insert code to spill registers if not already.
+ 		for _, a := range f.OwnAux.ABIInfo().InParams() {
+-			n, ok := a.Name.(*ir.Name)
+-			if !ok || n.Addrtaken() || !ssa.CanSSA(n.Type()) || !s.partLiveArgs[n] || len(a.Registers) <= 1 {
++			n := a.Name
++			if n == nil || n.Addrtaken() || !ssa.CanSSA(n.Type()) || !s.partLiveArgs[n] || len(a.Registers) <= 1 {
+ 				continue
+ 			}
+ 			rts, offs := a.RegisterTypesAndOffsets()

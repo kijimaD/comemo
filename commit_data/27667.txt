@@ -7,6 +7,14 @@ Date:   Wed Apr 6 23:34:32 2016 -0700
     Change-Id: I2da012ed996c669db513a462f014c6f3ffa396ee
     Reviewed-on: https://go-review.googlesource.com/21646
     Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
-
+---
  src/cmd/link/internal/amd64/z.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/amd64/z.go b/src/cmd/link/internal/amd64/z.go
+deleted file mode 100644
+index f70035b9e3..0000000000
+--- a/src/cmd/link/internal/amd64/z.go
++++ /dev/null
+@@ -1 +0,0 @@
+-package amd64

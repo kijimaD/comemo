@@ -21,7 +21,7 @@ Date:   Fri Jan 15 18:19:00 2021 -0800
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/types2/api.go             |  7 ++-
  src/cmd/compile/internal/types2/api_test.go        | 66 ++++++++++++----------
  src/cmd/compile/internal/types2/assignments.go     | 10 +++-
@@ -33,3 +33,410 @@ Date:   Fri Jan 15 18:19:00 2021 -0800
  src/cmd/compile/internal/types2/typexpr.go         |  9 +--
  test/fixedbugs/issue6402.go                        |  2 +-
  10 files changed, 101 insertions(+), 92 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/api.go b/src/cmd/compile/internal/types2/api.go
+index 3348ccb900..7f6653b825 100644
+--- a/src/cmd/compile/internal/types2/api.go
++++ b/src/cmd/compile/internal/types2/api.go
+@@ -325,16 +325,17 @@ func (tv TypeAndValue) IsBuiltin() bool {
+ // nil Value.
+ func (tv TypeAndValue) IsValue() bool {
+ 	switch tv.mode {
+-	case constant_, variable, mapindex, value, commaok, commaerr:
++	case constant_, variable, mapindex, value, nilvalue, commaok, commaerr:
+ 		return true
+ 	}
+ 	return false
+ }
+ 
+ // IsNil reports whether the corresponding expression denotes the
+-// predeclared value nil.
++// predeclared value nil. Depending on context, it may have been
++// given a type different from UntypedNil.
+ func (tv TypeAndValue) IsNil() bool {
+-	return tv.mode == value && tv.Type == Typ[UntypedNil]
++	return tv.mode == nilvalue
+ }
+ 
+ // Addressable reports whether the corresponding expression
+diff --git a/src/cmd/compile/internal/types2/api_test.go b/src/cmd/compile/internal/types2/api_test.go
+index 9fcbfc469f..6f65b84f7c 100644
+--- a/src/cmd/compile/internal/types2/api_test.go
++++ b/src/cmd/compile/internal/types2/api_test.go
+@@ -198,37 +198,41 @@ func TestTypesInfo(t *testing.T) {
+ 		{`package b4; var x interface{} = "foo"`, `"foo"`, `string`},
+ 
+ 		// uses of nil
+-		{`package n0; var _ *int = nil`, `nil`, `untyped nil`},
+-		{`package n1; var _ func() = nil`, `nil`, `untyped nil`},
+-		{`package n2; var _ []byte = nil`, `nil`, `untyped nil`},
+-		{`package n3; var _ map[int]int = nil`, `nil`, `untyped nil`},
+-		{`package n4; var _ chan int = nil`, `nil`, `untyped nil`},
+-		{`package n5; var _ interface{} = nil`, `nil`, `untyped nil`},
+-		{`package n6; import "unsafe"; var _ unsafe.Pointer = nil`, `nil`, `untyped nil`},
+-
+-		{`package n10; var (x *int; _ = x == nil)`, `nil`, `untyped nil`},
+-		{`package n11; var (x func(); _ = x == nil)`, `nil`, `untyped nil`},
+-		{`package n12; var (x []byte; _ = x == nil)`, `nil`, `untyped nil`},
+-		{`package n13; var (x map[int]int; _ = x == nil)`, `nil`, `untyped nil`},
+-		{`package n14; var (x chan int; _ = x == nil)`, `nil`, `untyped nil`},
+-		{`package n15; var (x interface{}; _ = x == nil)`, `nil`, `untyped nil`},
+-		{`package n15; import "unsafe"; var (x unsafe.Pointer; _ = x == nil)`, `nil`, `untyped nil`},
+-
+-		{`package n20; var _ = (*int)(nil)`, `nil`, `untyped nil`},
+-		{`package n21; var _ = (func())(nil)`, `nil`, `untyped nil`},
+-		{`package n22; var _ = ([]byte)(nil)`, `nil`, `untyped nil`},
+-		{`package n23; var _ = (map[int]int)(nil)`, `nil`, `untyped nil`},
+-		{`package n24; var _ = (chan int)(nil)`, `nil`, `untyped nil`},
+-		{`package n25; var _ = (interface{})(nil)`, `nil`, `untyped nil`},
+-		{`package n26; import "unsafe"; var _ = unsafe.Pointer(nil)`, `nil`, `untyped nil`},
+-
+-		{`package n30; func f(*int) { f(nil) }`, `nil`, `untyped nil`},
+-		{`package n31; func f(func()) { f(nil) }`, `nil`, `untyped nil`},
+-		{`package n32; func f([]byte) { f(nil) }`, `nil`, `untyped nil`},
+-		{`package n33; func f(map[int]int) { f(nil) }`, `nil`, `untyped nil`},
+-		{`package n34; func f(chan int) { f(nil) }`, `nil`, `untyped nil`},
+-		{`package n35; func f(interface{}) { f(nil) }`, `nil`, `untyped nil`},
+-		{`package n35; import "unsafe"; func f(unsafe.Pointer) { f(nil) }`, `nil`, `untyped nil`},
++		{`package n0; var _ *int = nil`, `nil`, `*int`},
++		{`package n1; var _ func() = nil`, `nil`, `func()`},
++		{`package n2; var _ []byte = nil`, `nil`, `[]byte`},
++		{`package n3; var _ map[int]int = nil`, `nil`, `map[int]int`},
++		{`package n4; var _ chan int = nil`, `nil`, `chan int`},
++		{`package n5a; var _ interface{} = (*int)(nil)`, `nil`, `*int`},
++		{`package n5b; var _ interface{m()} = nil`, `nil`, `interface{m()}`},
++		{`package n6; import "unsafe"; var _ unsafe.Pointer = nil`, `nil`, `unsafe.Pointer`},
++
++		{`package n10; var (x *int; _ = x == nil)`, `nil`, `*int`},
++		{`package n11; var (x func(); _ = x == nil)`, `nil`, `func()`},
++		{`package n12; var (x []byte; _ = x == nil)`, `nil`, `[]byte`},
++		{`package n13; var (x map[int]int; _ = x == nil)`, `nil`, `map[int]int`},
++		{`package n14; var (x chan int; _ = x == nil)`, `nil`, `chan int`},
++		{`package n15a; var (x interface{}; _ = x == (*int)(nil))`, `nil`, `*int`},
++		{`package n15b; var (x interface{m()}; _ = x == nil)`, `nil`, `interface{m()}`},
++		{`package n15; import "unsafe"; var (x unsafe.Pointer; _ = x == nil)`, `nil`, `unsafe.Pointer`},
++
++		{`package n20; var _ = (*int)(nil)`, `nil`, `*int`},
++		{`package n21; var _ = (func())(nil)`, `nil`, `func()`},
++		{`package n22; var _ = ([]byte)(nil)`, `nil`, `[]byte`},
++		{`package n23; var _ = (map[int]int)(nil)`, `nil`, `map[int]int`},
++		{`package n24; var _ = (chan int)(nil)`, `nil`, `chan int`},
++		{`package n25a; var _ = (interface{})((*int)(nil))`, `nil`, `*int`},
++		{`package n25b; var _ = (interface{m()})(nil)`, `nil`, `interface{m()}`},
++		{`package n26; import "unsafe"; var _ = unsafe.Pointer(nil)`, `nil`, `unsafe.Pointer`},
++
++		{`package n30; func f(*int) { f(nil) }`, `nil`, `*int`},
++		{`package n31; func f(func()) { f(nil) }`, `nil`, `func()`},
++		{`package n32; func f([]byte) { f(nil) }`, `nil`, `[]byte`},
++		{`package n33; func f(map[int]int) { f(nil) }`, `nil`, `map[int]int`},
++		{`package n34; func f(chan int) { f(nil) }`, `nil`, `chan int`},
++		{`package n35a; func f(interface{}) { f((*int)(nil)) }`, `nil`, `*int`},
++		{`package n35b; func f(interface{m()}) { f(nil) }`, `nil`, `interface{m()}`},
++		{`package n35; import "unsafe"; func f(unsafe.Pointer) { f(nil) }`, `nil`, `unsafe.Pointer`},
+ 
+ 		// comma-ok expressions
+ 		{`package p0; var x interface{}; var _, _ = x.(int)`,
+diff --git a/src/cmd/compile/internal/types2/assignments.go b/src/cmd/compile/internal/types2/assignments.go
+index 3238b3ac37..6caa4863d5 100644
+--- a/src/cmd/compile/internal/types2/assignments.go
++++ b/src/cmd/compile/internal/types2/assignments.go
+@@ -20,7 +20,7 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
+ 	switch x.mode {
+ 	case invalid:
+ 		return // error reported before
+-	case constant_, variable, mapindex, value, commaok, commaerr:
++	case constant_, variable, mapindex, value, nilvalue, commaok, commaerr:
+ 		// ok
+ 	default:
+ 		// we may get here because of other problems (issue #39634, crash 12)
+@@ -35,12 +35,13 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
+ 		// bool, rune, int, float64, complex128 or string respectively, depending
+ 		// on whether the value is a boolean, rune, integer, floating-point, complex,
+ 		// or string constant."
+-		if T == nil || IsInterface(T) {
+-			if T == nil && x.typ == Typ[UntypedNil] {
++		if x.isNil() {
++			if T == nil {
+ 				check.errorf(x, "use of untyped nil in %s", context)
+ 				x.mode = invalid
+ 				return
+ 			}
++		} else if T == nil || IsInterface(T) {
+ 			target = Default(x.typ)
+ 		}
+ 		check.convertUntyped(x, target)
+@@ -192,6 +193,9 @@ func (check *Checker) assignVar(lhs syntax.Expr, x *operand) Type {
+ 		return nil
+ 	case variable, mapindex:
+ 		// ok
++	case nilvalue:
++		check.errorf(&z, "cannot assign to nil") // default would print "untyped nil"
++		return nil
+ 	default:
+ 		if sel, ok := z.expr.(*syntax.SelectorExpr); ok {
+ 			var op operand
+diff --git a/src/cmd/compile/internal/types2/conversions.go b/src/cmd/compile/internal/types2/conversions.go
+index 2a7b54a49c..90c08fb72f 100644
+--- a/src/cmd/compile/internal/types2/conversions.go
++++ b/src/cmd/compile/internal/types2/conversions.go
+@@ -49,15 +49,17 @@ func (check *Checker) conversion(x *operand, T Type) {
+ 	// given a type explicitly by a constant declaration or conversion,...".
+ 	if isUntyped(x.typ) {
+ 		final := T
+-		// - For conversions to interfaces, use the argument's default type.
++		// - For conversions to interfaces, except for untyped nil arguments,
++		//   use the argument's default type.
+ 		// - For conversions of untyped constants to non-constant types, also
+ 		//   use the default type (e.g., []byte("foo") should report string
+ 		//   not []byte as type for the constant "foo").
+-		// - Keep untyped nil for untyped nil arguments.
+ 		// - For integer to string conversions, keep the argument type.
+ 		//   (See also the TODO below.)
+-		if IsInterface(T) || constArg && !isConstType(T) || x.isNil() {
+-			final = Default(x.typ) // default type of untyped nil is untyped nil
++		if x.typ == Typ[UntypedNil] {
++			// ok
++		} else if IsInterface(T) || constArg && !isConstType(T) {
++			final = Default(x.typ)
+ 		} else if isInteger(x.typ) && isString(T) {
+ 			final = x.typ
+ 		}
+diff --git a/src/cmd/compile/internal/types2/expr.go b/src/cmd/compile/internal/types2/expr.go
+index 7fca5db7d7..b728238d9f 100644
+--- a/src/cmd/compile/internal/types2/expr.go
++++ b/src/cmd/compile/internal/types2/expr.go
+@@ -606,18 +606,15 @@ func (check *Checker) convertUntyped(x *operand, target Type) {
+ 		}
+ 
+ 		for _, t := range unpack(types) {
+-			check.convertUntypedInternal(x, t)
++			x := *x // make a copy; convertUntypedInternal modifies x
++			check.convertUntypedInternal(&x, t)
+ 			if x.mode == invalid {
+ 				goto Error
+ 			}
+ 		}
+ 
+-		// keep nil untyped (was bug #39755)
+-		if x.isNil() {
+-			target = Typ[UntypedNil]
+-		}
+ 		x.typ = target
+-		check.updateExprType(x.expr, target, true) // UntypedNils are final
++		check.updateExprType(x.expr, target, true)
+ 		return
+ 	}
+ 
+@@ -634,6 +631,14 @@ Error:
+ func (check *Checker) convertUntypedInternal(x *operand, target Type) {
+ 	assert(isTyped(target))
+ 
++	if x.isNil() {
++		assert(isUntyped(x.typ))
++		if hasNil(target) {
++			goto OK
++		}
++		goto Error
++	}
++
+ 	// typed target
+ 	switch t := optype(target.Under()).(type) {
+ 	case *Basic:
+@@ -648,7 +653,7 @@ func (check *Checker) convertUntypedInternal(x *operand, target Type) {
+ 			// Non-constant untyped values may appear as the
+ 			// result of comparisons (untyped bool), intermediate
+ 			// (delayed-checked) rhs operands of shifts, and as
+-			// the value nil.
++			// the value nil. Nil was handled upfront.
+ 			switch x.typ.(*Basic).kind {
+ 			case UntypedBool:
+ 				if !isBoolean(target) {
+@@ -662,12 +667,6 @@ func (check *Checker) convertUntypedInternal(x *operand, target Type) {
+ 				// Non-constant untyped string values are not
+ 				// permitted by the spec and should not occur.
+ 				unreachable()
+-			case UntypedNil:
+-				// Unsafe.Pointer is a basic type that includes nil.
+-				if !hasNil(target) {
+-					goto Error
+-				}
+-				target = Typ[UntypedNil]
+ 			default:
+ 				goto Error
+ 			}
+@@ -678,34 +677,21 @@ func (check *Checker) convertUntypedInternal(x *operand, target Type) {
+ 			return x.mode != invalid
+ 		})
+ 	case *Interface:
+-		// Update operand types to the default type rather then
+-		// the target (interface) type: values must have concrete
+-		// dynamic types. If the value is nil, keep it untyped
+-		// (this is important for tools such as go vet which need
+-		// the dynamic type for argument checking of say, print
+-		// functions)
+-		if x.isNil() {
+-			target = Typ[UntypedNil]
+-		} else {
+-			// cannot assign untyped values to non-empty interfaces
+-			check.completeInterface(nopos, t)
+-			if !t.Empty() {
+-				goto Error
+-			}
+-			target = Default(x.typ)
+-		}
+-	case *Pointer, *Signature, *Slice, *Map, *Chan:
+-		if !x.isNil() {
+-			goto Error
+-		}
+-		// keep nil untyped - see comment for interfaces, above
+-		target = Typ[UntypedNil]
++		// Update operand types to the default type rather then the target
++		// (interface) type: values must have concrete dynamic types.
++		// Untyped nil was handled upfront.
++		check.completeInterface(nopos, t)
++		if !t.Empty() {
++			goto Error // cannot assign untyped values to non-empty interfaces
++		}
++		target = Default(x.typ)
+ 	default:
+ 		goto Error
+ 	}
+ 
++OK:
+ 	x.typ = target
+-	check.updateExprType(x.expr, target, true) // UntypedNils are final
++	check.updateExprType(x.expr, target, true)
+ 	return
+ 
+ Error:
+diff --git a/src/cmd/compile/internal/types2/issues_test.go b/src/cmd/compile/internal/types2/issues_test.go
+index f33b7c4396..9a73a46d11 100644
+--- a/src/cmd/compile/internal/types2/issues_test.go
++++ b/src/cmd/compile/internal/types2/issues_test.go
+@@ -76,7 +76,7 @@ var (
+ 			}
+ 		case *syntax.Name:
+ 			if x.Value == "nil" {
+-				want = Typ[UntypedNil]
++				want = NewInterfaceType(nil, nil) // interface{}
+ 			}
+ 		}
+ 		if want != nil && !Identical(tv.Type, want) {
+diff --git a/src/cmd/compile/internal/types2/operand.go b/src/cmd/compile/internal/types2/operand.go
+index d5a10b2c29..a14120c2c9 100644
+--- a/src/cmd/compile/internal/types2/operand.go
++++ b/src/cmd/compile/internal/types2/operand.go
+@@ -27,6 +27,7 @@ const (
+ 	variable                     // operand is an addressable variable
+ 	mapindex                     // operand is a map index expression (acts like a variable on lhs, commaok on rhs of an assignment)
+ 	value                        // operand is a computed value
++	nilvalue                     // operand is the nil value
+ 	commaok                      // like value, but operand may be used in a comma,ok expression
+ 	commaerr                     // like commaok, but second value is error, not boolean
+ 	cgofunc                      // operand is a cgo function
+@@ -41,6 +42,7 @@ var operandModeString = [...]string{
+ 	variable:  "variable",
+ 	mapindex:  "map index expression",
+ 	value:     "value",
++	nilvalue:  "nil",
+ 	commaok:   "comma, ok expression",
+ 	commaerr:  "comma, error expression",
+ 	cgofunc:   "cgo function",
+@@ -96,6 +98,9 @@ func (x *operand) Pos() syntax.Pos {
+ // value      <expr> (<untyped kind> <mode>                    )
+ // value      <expr> (               <mode>       of type <typ>)
+ //
++// nilvalue   untyped nil
++// nilvalue   nil    (                            of type <typ>)
++//
+ // commaok    <expr> (<untyped kind> <mode>                    )
+ // commaok    <expr> (               <mode>       of type <typ>)
+ //
+@@ -106,6 +111,18 @@ func (x *operand) Pos() syntax.Pos {
+ // cgofunc    <expr> (               <mode>       of type <typ>)
+ //
+ func operandString(x *operand, qf Qualifier) string {
++	// special-case nil
++	if x.mode == nilvalue {
++		switch x.typ {
++		case nil, Typ[Invalid]:
++			return "nil (with invalid type)"
++		case Typ[UntypedNil]:
++			return "untyped nil"
++		default:
++			return fmt.Sprintf("nil (of type %s)", TypeString(x.typ, qf))
++		}
++	}
++
+ 	var buf bytes.Buffer
+ 
+ 	var expr string
+@@ -222,10 +239,8 @@ func (x *operand) setConst(k syntax.LitKind, lit string) {
+ 	x.val = val
+ }
+ 
+-// isNil reports whether x is the nil value.
+-func (x *operand) isNil() bool {
+-	return x.mode == value && x.typ == Typ[UntypedNil]
+-}
++// isNil reports whether x is a typed or the untyped nil value.
++func (x *operand) isNil() bool { return x.mode == nilvalue }
+ 
+ // TODO(gri) The functions operand.assignableTo, checker.convertUntyped,
+ //           checker.representable, and checker.assignment are
+diff --git a/src/cmd/compile/internal/types2/testdata/stmt0.src b/src/cmd/compile/internal/types2/testdata/stmt0.src
+index 959f7d5659..77d4ba1bfe 100644
+--- a/src/cmd/compile/internal/types2/testdata/stmt0.src
++++ b/src/cmd/compile/internal/types2/testdata/stmt0.src
+@@ -69,10 +69,10 @@ func assignments1() {
+ 
+ 	// test cases for issue 5800
+ 	var (
+-		_ int = nil /* ERROR "untyped nil value" */
+-		_ [10]int = nil /* ERROR "untyped nil value" */
++		_ int = nil /* ERROR "cannot convert untyped nil" */
++		_ [10]int = nil /* ERROR "cannot convert untyped nil" */
+ 		_ []byte = nil
+-		_ struct{} = nil /* ERROR "untyped nil value" */
++		_ struct{} = nil /* ERROR "cannot convert untyped nil" */
+ 		_ func() = nil
+ 		_ map[int]string = nil
+ 		_ chan int = nil
+diff --git a/src/cmd/compile/internal/types2/typexpr.go b/src/cmd/compile/internal/types2/typexpr.go
+index d30f2fef26..f0461d5895 100644
+--- a/src/cmd/compile/internal/types2/typexpr.go
++++ b/src/cmd/compile/internal/types2/typexpr.go
+@@ -111,7 +111,7 @@ func (check *Checker) ident(x *operand, e *syntax.Name, def *Named, wantType boo
+ 		x.mode = builtin
+ 
+ 	case *Nil:
+-		x.mode = value
++		x.mode = nilvalue
+ 
+ 	default:
+ 		unreachable()
+@@ -631,11 +631,8 @@ func (check *Checker) typOrNil(e syntax.Expr) Type {
+ 	case typexpr:
+ 		check.instantiatedOperand(&x)
+ 		return x.typ
+-	case value:
+-		if x.isNil() {
+-			return nil
+-		}
+-		fallthrough
++	case nilvalue:
++		return nil
+ 	default:
+ 		check.errorf(&x, "%s is not a type", &x)
+ 	}
+diff --git a/test/fixedbugs/issue6402.go b/test/fixedbugs/issue6402.go
+index db83e94b86..cd8fb218ac 100644
+--- a/test/fixedbugs/issue6402.go
++++ b/test/fixedbugs/issue6402.go
+@@ -9,5 +9,5 @@
+ package p
+ 
+ func f() uintptr {
+-	return nil // ERROR "cannot use nil as type uintptr in return argument|incompatible type|cannot convert nil"
++	return nil // ERROR "cannot use nil as type uintptr in return argument|incompatible type|cannot convert untyped nil"
+ }

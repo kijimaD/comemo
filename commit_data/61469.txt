@@ -18,7 +18,7 @@ Date:   Mon Nov 11 13:40:45 2024 -0800
     Reviewed-by: Robert Findley <rfindley@google.com>
     Reviewed-by: Tim King <taking@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/infer.go           |  2 +-
  src/cmd/compile/internal/types2/instantiate.go     |  2 +-
  src/cmd/compile/internal/types2/lookup.go          | 34 +++++++++++++++++++--
@@ -27,3 +27,201 @@ Date:   Mon Nov 11 13:40:45 2024 -0800
  src/go/types/lookup.go                             | 34 +++++++++++++++++++--
  .../types/testdata/fixedbugs/issue53535.go         | 35 ++++++++++++++++++++++
  7 files changed, 103 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/infer.go b/src/cmd/compile/internal/types2/infer.go
+index 350f46d34b..56f0444686 100644
+--- a/src/cmd/compile/internal/types2/infer.go
++++ b/src/cmd/compile/internal/types2/infer.go
+@@ -299,7 +299,7 @@ func (check *Checker) infer(pos syntax.Pos, tparams []*TypeParam, targs []Type,
+ 				//           Eventually, unify should return an error with cause.
+ 				var cause string
+ 				constraint := tpar.iface()
+-				if m, _ := check.missingMethod(tx, constraint, true, func(x, y Type) bool { return u.unify(x, y, exact) }, &cause); m != nil {
++				if !check.hasAllMethods(tx, constraint, true, func(x, y Type) bool { return u.unify(x, y, exact) }, &cause) {
+ 					// TODO(gri) better error message (see TODO above)
+ 					err.addf(pos, "%s (type %s) does not satisfy %s %s", tpar, tx, tpar.Constraint(), cause)
+ 					return nil
+diff --git a/src/cmd/compile/internal/types2/instantiate.go b/src/cmd/compile/internal/types2/instantiate.go
+index 92f12673c8..e51cf18de6 100644
+--- a/src/cmd/compile/internal/types2/instantiate.go
++++ b/src/cmd/compile/internal/types2/instantiate.go
+@@ -277,7 +277,7 @@ func (check *Checker) implements(V, T Type, constraint bool, cause *string) bool
+ 	}
+ 
+ 	// V must implement T's methods, if any.
+-	if m, _ := check.missingMethod(V, T, true, Identical, cause); m != nil /* !Implements(V, T) */ {
++	if !check.hasAllMethods(V, T, true, Identical, cause) /* !Implements(V, T) */ {
+ 		if cause != nil {
+ 			*cause = check.sprintf("%s does not %s %s %s", V, verb, T, *cause)
+ 		}
+diff --git a/src/cmd/compile/internal/types2/lookup.go b/src/cmd/compile/internal/types2/lookup.go
+index 9d51c44880..b8d120f154 100644
+--- a/src/cmd/compile/internal/types2/lookup.go
++++ b/src/cmd/compile/internal/types2/lookup.go
+@@ -476,6 +476,37 @@ func (check *Checker) missingMethod(V, T Type, static bool, equivalent func(x, y
+ 	return m, state == wrongSig || state == ptrRecv
+ }
+ 
++// hasAllMethods is similar to checkMissingMethod but instead reports whether all methods are present.
++// If V is not a valid type, or if it is a struct containing embedded fields with invalid types, the
++// result is true because it is not possible to say with certainty whether a method is missing or not
++// (an embedded field may have the method in question).
++// If the result is false and cause is not nil, *cause describes the error.
++// Use hasAllMethods to avoid follow-on errors due to incorrect types.
++func (check *Checker) hasAllMethods(V, T Type, static bool, equivalent func(x, y Type) bool, cause *string) bool {
++	if !isValid(V) {
++		return true // we don't know anything about V, assume it implements T
++	}
++	m, _ := check.missingMethod(V, T, static, equivalent, cause)
++	return m == nil || hasInvalidEmbeddedFields(V, nil)
++}
++
++// hasInvalidEmbeddedFields reports whether T is a struct (or a pointer to a struct) that contains
++// (directly or indirectly) embedded fields with invalid types.
++func hasInvalidEmbeddedFields(T Type, seen map[*Struct]bool) bool {
++	if S, _ := under(derefStructPtr(T)).(*Struct); S != nil && !seen[S] {
++		if seen == nil {
++			seen = make(map[*Struct]bool)
++		}
++		seen[S] = true
++		for _, f := range S.fields {
++			if f.embedded && (!isValid(f.typ) || hasInvalidEmbeddedFields(f.typ, seen)) {
++				return true
++			}
++		}
++	}
++	return false
++}
++
+ func isInterfacePtr(T Type) bool {
+ 	p, _ := under(T).(*Pointer)
+ 	return p != nil && IsInterface(p.base)
+@@ -519,8 +550,7 @@ func (check *Checker) assertableTo(V, T Type, cause *string) bool {
+ 		return true
+ 	}
+ 	// TODO(gri) fix this for generalized interfaces
+-	m, _ := check.missingMethod(T, V, false, Identical, cause)
+-	return m == nil
++	return check.hasAllMethods(T, V, false, Identical, cause)
+ }
+ 
+ // newAssertableTo reports whether a value of type V can be asserted to have type T.
+diff --git a/src/go/types/infer.go b/src/go/types/infer.go
+index ebb0a97c63..873e351732 100644
+--- a/src/go/types/infer.go
++++ b/src/go/types/infer.go
+@@ -302,7 +302,7 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
+ 				//           Eventually, unify should return an error with cause.
+ 				var cause string
+ 				constraint := tpar.iface()
+-				if m, _ := check.missingMethod(tx, constraint, true, func(x, y Type) bool { return u.unify(x, y, exact) }, &cause); m != nil {
++				if !check.hasAllMethods(tx, constraint, true, func(x, y Type) bool { return u.unify(x, y, exact) }, &cause) {
+ 					// TODO(gri) better error message (see TODO above)
+ 					err.addf(posn, "%s (type %s) does not satisfy %s %s", tpar, tx, tpar.Constraint(), cause)
+ 					return nil
+diff --git a/src/go/types/instantiate.go b/src/go/types/instantiate.go
+index 9de7756e8b..48eef7ca76 100644
+--- a/src/go/types/instantiate.go
++++ b/src/go/types/instantiate.go
+@@ -280,7 +280,7 @@ func (check *Checker) implements(V, T Type, constraint bool, cause *string) bool
+ 	}
+ 
+ 	// V must implement T's methods, if any.
+-	if m, _ := check.missingMethod(V, T, true, Identical, cause); m != nil /* !Implements(V, T) */ {
++	if !check.hasAllMethods(V, T, true, Identical, cause) /* !Implements(V, T) */ {
+ 		if cause != nil {
+ 			*cause = check.sprintf("%s does not %s %s %s", V, verb, T, *cause)
+ 		}
+diff --git a/src/go/types/lookup.go b/src/go/types/lookup.go
+index 462214c812..6c95a9c8d7 100644
+--- a/src/go/types/lookup.go
++++ b/src/go/types/lookup.go
+@@ -479,6 +479,37 @@ func (check *Checker) missingMethod(V, T Type, static bool, equivalent func(x, y
+ 	return m, state == wrongSig || state == ptrRecv
+ }
+ 
++// hasAllMethods is similar to checkMissingMethod but instead reports whether all methods are present.
++// If V is not a valid type, or if it is a struct containing embedded fields with invalid types, the
++// result is true because it is not possible to say with certainty whether a method is missing or not
++// (an embedded field may have the method in question).
++// If the result is false and cause is not nil, *cause describes the error.
++// Use hasAllMethods to avoid follow-on errors due to incorrect types.
++func (check *Checker) hasAllMethods(V, T Type, static bool, equivalent func(x, y Type) bool, cause *string) bool {
++	if !isValid(V) {
++		return true // we don't know anything about V, assume it implements T
++	}
++	m, _ := check.missingMethod(V, T, static, equivalent, cause)
++	return m == nil || hasInvalidEmbeddedFields(V, nil)
++}
++
++// hasInvalidEmbeddedFields reports whether T is a struct (or a pointer to a struct) that contains
++// (directly or indirectly) embedded fields with invalid types.
++func hasInvalidEmbeddedFields(T Type, seen map[*Struct]bool) bool {
++	if S, _ := under(derefStructPtr(T)).(*Struct); S != nil && !seen[S] {
++		if seen == nil {
++			seen = make(map[*Struct]bool)
++		}
++		seen[S] = true
++		for _, f := range S.fields {
++			if f.embedded && (!isValid(f.typ) || hasInvalidEmbeddedFields(f.typ, seen)) {
++				return true
++			}
++		}
++	}
++	return false
++}
++
+ func isInterfacePtr(T Type) bool {
+ 	p, _ := under(T).(*Pointer)
+ 	return p != nil && IsInterface(p.base)
+@@ -522,8 +553,7 @@ func (check *Checker) assertableTo(V, T Type, cause *string) bool {
+ 		return true
+ 	}
+ 	// TODO(gri) fix this for generalized interfaces
+-	m, _ := check.missingMethod(T, V, false, Identical, cause)
+-	return m == nil
++	return check.hasAllMethods(T, V, false, Identical, cause)
+ }
+ 
+ // newAssertableTo reports whether a value of type V can be asserted to have type T.
+diff --git a/src/internal/types/testdata/fixedbugs/issue53535.go b/src/internal/types/testdata/fixedbugs/issue53535.go
+new file mode 100644
+index 0000000000..127b8a8b45
+--- /dev/null
++++ b/src/internal/types/testdata/fixedbugs/issue53535.go
+@@ -0,0 +1,35 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++import "io"
++
++// test using struct with invalid embedded field
++var _ io.Writer = W{} // no error expected here because W has invalid embedded field
++
++type W struct {
++	*bufio /* ERROR "undefined: bufio" */ .Writer
++}
++
++// test using an invalid type
++var _ interface{ m() } = &M{} // no error expected here because M is invalid
++
++type M undefined // ERROR "undefined: undefined"
++
++// test using struct with invalid embedded field and containing a self-reference (cycle)
++var _ interface{ m() } = &S{} // no error expected here because S is invalid
++
++type S struct {
++	*S
++	undefined // ERROR "undefined: undefined"
++}
++
++// test using a generic struct with invalid embedded field and containing a self-reference (cycle)
++var _ interface{ m() } = &G[int]{} // no error expected here because S is invalid
++
++type G[P any] struct {
++	*G[P]
++	undefined // ERROR "undefined: undefined"
++}

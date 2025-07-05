@@ -10,6 +10,22 @@ Date:   Fri Aug 8 08:57:41 2014 +1000
     R=golang-codereviews, iant
     CC=golang-codereviews
     https://golang.org/cl/122180043
-
+---
  src/pkg/encoding/json/encode.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/encoding/json/encode.go b/src/pkg/encoding/json/encode.go
+index 741ddd89cb..5341a3a01b 100644
+--- a/src/pkg/encoding/json/encode.go
++++ b/src/pkg/encoding/json/encode.go
+@@ -40,8 +40,8 @@ import (
+ //
+ // Floating point, integer, and Number values encode as JSON numbers.
+ //
+-// String values encode as JSON strings. InvalidUTF8Error will be returned
+-// if an invalid UTF-8 sequence is encountered.
++// String values encode as JSON strings coerced to valid UTF-8,
++// replacing invalid bytes with the Unicode replacement rune.
+ // The angle brackets "<" and ">" are escaped to "\u003c" and "\u003e"
+ // to keep some browsers from misinterpreting JSON output as HTML.
+ // Ampersand "&" is also escaped to "\u0026" for the same reason.

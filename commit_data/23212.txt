@@ -7,6 +7,19 @@ Date:   Thu Apr 30 10:19:24 2015 +0300
     Change-Id: I05cfacd746e87011de8b659ab3b2fbe23146a7f3
     Reviewed-on: https://go-review.googlesource.com/9504
     Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
-
+---
  doc/go1.5.txt | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/doc/go1.5.txt b/doc/go1.5.txt
+index 564ac21f69..af6e1b5f9c 100644
+--- a/doc/go1.5.txt
++++ b/doc/go1.5.txt
+@@ -26,6 +26,7 @@ archive/zip: add (*Writer).SetOffset method (https://golang.org/cl/7445)
+ bufio: add Reader.Discard (https://golang.org/cl/2260)
+ bytes: add Buffer.Cap (https://golang.org/cl/8342)
+ bytes, strings: add Reader.Size (https://golang.org/cl/3199)
++bytes, strings: add LastIndexByte (https://golang.org/cl/9500)
+ crypto/cipher: clarify what will happen if len(src) != len(dst) for the Stream interface. (https://golang.org/cl/1754)
+ crypto/elliptic: add Name field to CurveParams struct (https://golang.org/cl/2133)
+ crypto/elliptic: Unmarshaling points now automatically checks that the point is on the curve (https://golang.org/cl/2421)

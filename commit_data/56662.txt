@@ -13,6 +13,22 @@ Date:   Fri May 19 19:39:28 2023 +0000
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Austin Clements <austin@google.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/runtime/trace.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/runtime/trace.go b/src/runtime/trace.go
+index 29b9886b8a..703a447674 100644
+--- a/src/runtime/trace.go
++++ b/src/runtime/trace.go
+@@ -1786,6 +1786,10 @@ type traceTime uint64
+ // traceClockNow returns a monotonic timestamp. The clock this function gets
+ // the timestamp from is specific to tracing, and shouldn't be mixed with other
+ // clock sources.
++//
++// nosplit because it's called from exitsyscall, which is nosplit.
++//
++//go:nosplit
+ func traceClockNow() traceTime {
+ 	return traceTime(cputicks() / traceTimeDiv)
+ }

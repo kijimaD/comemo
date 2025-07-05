@@ -14,7 +14,57 @@ Date:   Wed Aug 7 00:25:23 2013 +0900
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/12332043
-
+---
  src/pkg/net/interface_test.go | 13 ++++++++++++-
  src/pkg/syscall/route_bsd.go  |  9 ++++++++-
  2 files changed, 20 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/net/interface_test.go b/src/pkg/net/interface_test.go
+index e31894abf7..17b28b6456 100644
+--- a/src/pkg/net/interface_test.go
++++ b/src/pkg/net/interface_test.go
+@@ -108,12 +108,23 @@ func testInterfaceMulticastAddrs(t *testing.T, ifi *Interface) {
+ func testAddrs(t *testing.T, ifat []Addr) {
+ 	for _, ifa := range ifat {
+ 		switch ifa := ifa.(type) {
+-		case *IPAddr, *IPNet:
++		case *IPAddr:
+ 			if ifa == nil {
+ 				t.Errorf("\tunexpected value: %v", ifa)
+ 			} else {
+ 				t.Logf("\tinterface address %q", ifa.String())
+ 			}
++		case *IPNet:
++			if ifa == nil {
++				t.Errorf("\tunexpected value: %v", ifa)
++			} else {
++				_, prefixLen := ifa.Mask.Size()
++				if ifa.IP.To4() != nil && prefixLen != 8*IPv4len || ifa.IP.To16() != nil && ifa.IP.To4() == nil && prefixLen != 8*IPv6len {
++					t.Errorf("\tunexpected value: %v, %v, %v, %v", ifa, ifa.IP, ifa.Mask, prefixLen)
++				} else {
++					t.Logf("\tinterface address %q", ifa.String())
++				}
++			}
+ 		default:
+ 			t.Errorf("\tunexpected type: %T", ifa)
+ 		}
+diff --git a/src/pkg/syscall/route_bsd.go b/src/pkg/syscall/route_bsd.go
+index 62c5ce1a31..2a81f85c34 100644
+--- a/src/pkg/syscall/route_bsd.go
++++ b/src/pkg/syscall/route_bsd.go
+@@ -156,7 +156,14 @@ func (m *InterfaceAddrMessage) sockaddr() (sas []Sockaddr) {
+ 			sas = append(sas, sa)
+ 		case RTAX_NETMASK:
+ 			if rsa.Family == AF_UNSPEC {
+-				rsa.Family = AF_INET // an old fasion, AF_UNSPEC means AF_INET
++				switch rsa.Len {
++				case SizeofSockaddrInet4:
++					rsa.Family = AF_INET
++				case SizeofSockaddrInet6:
++					rsa.Family = AF_INET6
++				default:
++					rsa.Family = AF_INET // an old fasion, AF_UNSPEC means AF_INET
++				}
+ 			}
+ 			sa, err := anyToSockaddr((*RawSockaddrAny)(unsafe.Pointer(rsa)))
+ 			if err != nil {

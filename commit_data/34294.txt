@@ -20,7 +20,7 @@ Date:   Wed Oct 11 10:14:31 2017 +0100
     Reviewed-on: https://go-review.googlesource.com/70930
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/fmt.go       |  4 +--
  src/cmd/compile/internal/gc/noder.go     |  2 +-
  src/cmd/compile/internal/gc/order.go     | 47 ++++++++++++--------------------
@@ -30,3 +30,369 @@ Date:   Wed Oct 11 10:14:31 2017 +0100
  src/cmd/compile/internal/gc/typecheck.go | 12 ++++----
  src/cmd/compile/internal/gc/walk.go      | 20 ++++++--------
  8 files changed, 49 insertions(+), 71 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index 0ba1ba3d80..0c93be5064 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -1537,13 +1537,11 @@ func (n *Node) exprfmt(s fmt.State, prec int, mode fmtMode) {
+ 		n.Right.exprfmt(s, nprec+1, mode)
+ 
+ 	case OADDSTR:
+-		i := 0
+-		for _, n1 := range n.List.Slice() {
++		for i, n1 := range n.List.Slice() {
+ 			if i != 0 {
+ 				fmt.Fprint(s, " + ")
+ 			}
+ 			n1.exprfmt(s, nprec, mode)
+-			i++
+ 		}
+ 
+ 	case OCMPSTR, OCMPIFACE:
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index fc49c55275..774bef1064 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -19,7 +19,6 @@ import (
+ )
+ 
+ func parseFiles(filenames []string) uint {
+-	var lines uint
+ 	var noders []*noder
+ 	// Limit the number of simultaneously open files.
+ 	sem := make(chan struct{}, runtime.GOMAXPROCS(0)+10)
+@@ -45,6 +44,7 @@ func parseFiles(filenames []string) uint {
+ 		}(filename)
+ 	}
+ 
++	var lines uint
+ 	for _, p := range noders {
+ 		for e := range p.err {
+ 			yyerrorpos(e.Pos, "%s", e.Msg)
+diff --git a/src/cmd/compile/internal/gc/order.go b/src/cmd/compile/internal/gc/order.go
+index fdee8b89a5..517aa5a8bf 100644
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@ -235,18 +235,16 @@ func poptemp(mark ordermarker, order *Order) {
+ // above the mark on the temporary stack, but it does not pop them
+ // from the stack.
+ func cleantempnopop(mark ordermarker, order *Order, out *[]*Node) {
+-	var kill *Node
+-
+ 	for i := len(order.temp) - 1; i >= int(mark); i-- {
+ 		n := order.temp[i]
+ 		if n.Name.Keepalive() {
+ 			n.Name.SetKeepalive(false)
+ 			n.SetAddrtaken(true) // ensure SSA keeps the n variable
+-			kill = nod(OVARLIVE, n, nil)
++			kill := nod(OVARLIVE, n, nil)
+ 			kill = typecheck(kill, Etop)
+ 			*out = append(*out, kill)
+ 		}
+-		kill = nod(OVARKILL, n, nil)
++		kill := nod(OVARKILL, n, nil)
+ 		kill = typecheck(kill, Etop)
+ 		*out = append(*out, kill)
+ 	}
+@@ -450,26 +448,20 @@ func ordermapassign(n *Node, order *Order) {
+ 
+ 	case OAS2, OAS2DOTTYPE, OAS2MAPR, OAS2FUNC:
+ 		var post []*Node
+-		var m *Node
+-		var a *Node
+-		for i1, n1 := range n.List.Slice() {
+-			if n1.Op == OINDEXMAP {
+-				m = n1
++		for i, m := range n.List.Slice() {
++			switch {
++			case m.Op == OINDEXMAP:
+ 				if !m.Left.IsAutoTmp() {
+ 					m.Left = ordercopyexpr(m.Left, m.Left.Type, order, 0)
+ 				}
+ 				if !m.Right.IsAutoTmp() {
+ 					m.Right = ordercopyexpr(m.Right, m.Right.Type, order, 0)
+ 				}
+-				n.List.SetIndex(i1, ordertemp(m.Type, order, false))
+-				a = nod(OAS, m, n.List.Index(i1))
+-				a = typecheck(a, Etop)
+-				post = append(post, a)
+-			} else if instrumenting && n.Op == OAS2FUNC && !isblank(n.List.Index(i1)) {
+-				m = n.List.Index(i1)
++				fallthrough
++			case instrumenting && n.Op == OAS2FUNC && !isblank(m):
+ 				t := ordertemp(m.Type, order, false)
+-				n.List.SetIndex(i1, t)
+-				a = nod(OAS, m, t)
++				n.List.SetIndex(i, t)
++				a := nod(OAS, m, t)
+ 				a = typecheck(a, Etop)
+ 				post = append(post, a)
+ 			}
+@@ -765,8 +757,8 @@ func orderstmt(n *Node, order *Order) {
+ 			// hiter contains pointers and needs to be zeroed.
+ 			prealloc[n] = ordertemp(hiter(n.Type), order, true)
+ 		}
+-		for i := range n.List.Slice() {
+-			n.List.SetIndex(i, orderexprinplace(n.List.Index(i), order))
++		for i, n1 := range n.List.Slice() {
++			n.List.SetIndex(i, orderexprinplace(n1, order))
+ 		}
+ 		orderblockNodes(&n.Nbody)
+ 		order.out = append(order.out, n)
+@@ -788,14 +780,11 @@ func orderstmt(n *Node, order *Order) {
+ 	case OSELECT:
+ 		t := marktemp(order)
+ 
+-		var tmp1 *Node
+-		var tmp2 *Node
+-		var r *Node
+ 		for _, n2 := range n.List.Slice() {
+ 			if n2.Op != OXCASE {
+ 				Fatalf("order select case %v", n2.Op)
+ 			}
+-			r = n2.Left
++			r := n2.Left
+ 			setlineno(n2)
+ 
+ 			// Append any new body prologue to ninit.
+@@ -856,16 +845,16 @@ func orderstmt(n *Node, order *Order) {
+ 						// use channel element type for temporary to avoid conversions,
+ 						// such as in case interfacevalue = <-intchan.
+ 						// the conversion happens in the OAS instead.
+-						tmp1 = r.Left
++						tmp1 := r.Left
+ 
+ 						if r.Colas() {
+-							tmp2 = nod(ODCL, tmp1, nil)
++							tmp2 := nod(ODCL, tmp1, nil)
+ 							tmp2 = typecheck(tmp2, Etop)
+ 							n2.Ninit.Append(tmp2)
+ 						}
+ 
+ 						r.Left = ordertemp(r.Right.Left.Type.Elem(), order, types.Haspointers(r.Right.Left.Type.Elem()))
+-						tmp2 = nod(OAS, tmp1, r.Left)
++						tmp2 := nod(OAS, tmp1, r.Left)
+ 						tmp2 = typecheck(tmp2, Etop)
+ 						n2.Ninit.Append(tmp2)
+ 					}
+@@ -874,15 +863,15 @@ func orderstmt(n *Node, order *Order) {
+ 						r.List.Set(nil)
+ 					}
+ 					if r.List.Len() != 0 {
+-						tmp1 = r.List.First()
++						tmp1 := r.List.First()
+ 						if r.Colas() {
+-							tmp2 = nod(ODCL, tmp1, nil)
++							tmp2 := nod(ODCL, tmp1, nil)
+ 							tmp2 = typecheck(tmp2, Etop)
+ 							n2.Ninit.Append(tmp2)
+ 						}
+ 
+ 						r.List.Set1(ordertemp(types.Types[TBOOL], order, false))
+-						tmp2 = okas(tmp1, r.List.First())
++						tmp2 := okas(tmp1, r.List.First())
+ 						tmp2 = typecheck(tmp2, Etop)
+ 						n2.Ninit.Append(tmp2)
+ 					}
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index fd9e3e0a8e..41dcfe994a 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -1332,11 +1332,9 @@ func dtypesym(t *types.Type) *obj.LSym {
+ 	// ../../../../runtime/type.go:/structType
+ 	// for security, only the exported fields.
+ 	case TSTRUCT:
+-		n := 0
+-
+-		for _, t1 := range t.Fields().Slice() {
++		fields := t.Fields().Slice()
++		for _, t1 := range fields {
+ 			dtypesym(t1.Type)
+-			n++
+ 		}
+ 
+ 		// All non-exported struct field names within a struct
+@@ -1345,7 +1343,7 @@ func dtypesym(t *types.Type) *obj.LSym {
+ 		// struct type descriptor, we can omit that
+ 		// information from the field descriptors.
+ 		var spkg *types.Pkg
+-		for _, f := range t.Fields().Slice() {
++		for _, f := range fields {
+ 			if !exportname(f.Sym.Name) {
+ 				spkg = f.Sym.Pkg
+ 				break
+@@ -1355,13 +1353,13 @@ func dtypesym(t *types.Type) *obj.LSym {
+ 		ot = dcommontype(lsym, ot, t)
+ 		ot = dgopkgpath(lsym, ot, spkg)
+ 		ot = dsymptr(lsym, ot, lsym, ot+3*Widthptr+uncommonSize(t))
+-		ot = duintptr(lsym, ot, uint64(n))
+-		ot = duintptr(lsym, ot, uint64(n))
++		ot = duintptr(lsym, ot, uint64(len(fields)))
++		ot = duintptr(lsym, ot, uint64(len(fields)))
+ 
+-		dataAdd := n * structfieldSize()
++		dataAdd := len(fields) * structfieldSize()
+ 		ot = dextratype(lsym, ot, t, dataAdd)
+ 
+-		for _, f := range t.Fields().Slice() {
++		for _, f := range fields {
+ 			// ../../../../runtime/type.go:/structField
+ 			ot = dnameField(lsym, ot, spkg, f)
+ 			ot = dsymptr(lsym, ot, dtypesym(f.Type), 0)
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index 3d3899d3c6..6b681f8bf3 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -228,8 +228,7 @@ func init2list(l Nodes, out *[]*Node) {
+ }
+ 
+ func initreorder(l []*Node, out *[]*Node) {
+-	var n *Node
+-	for _, n = range l {
++	for _, n := range l {
+ 		switch n.Op {
+ 		case ODCLFUNC, ODCLCONST, ODCLTYPE:
+ 			continue
+@@ -883,11 +882,10 @@ func slicelit(ctxt initContext, n *Node, var_ *Node, init *Nodes) {
+ 
+ 	// put dynamics into array (5)
+ 	var index int64
+-	for _, r := range n.List.Slice() {
+-		value := r
+-		if r.Op == OKEY {
+-			index = nonnegintconst(r.Left)
+-			value = r.Right
++	for _, value := range n.List.Slice() {
++		if value.Op == OKEY {
++			index = nonnegintconst(value.Left)
++			value = value.Right
+ 		}
+ 		a := nod(OINDEX, vauto, nodintconst(index))
+ 		a.SetBounded(true)
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 81e5bd7e6e..8faec66aa0 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -257,9 +257,6 @@ func restrictlookup(name string, pkg *types.Pkg) *types.Sym {
+ // find all the exported symbols in package opkg
+ // and make them available in the current package
+ func importdot(opkg *types.Pkg, pack *Node) {
+-	var s1 *types.Sym
+-	var pkgerror string
+-
+ 	n := 0
+ 	for _, s := range opkg.Syms {
+ 		if s.Def == nil {
+@@ -268,9 +265,9 @@ func importdot(opkg *types.Pkg, pack *Node) {
+ 		if !exportname(s.Name) || strings.ContainsRune(s.Name, 0xb7) { // 0xb7 = center dot
+ 			continue
+ 		}
+-		s1 = lookup(s.Name)
++		s1 := lookup(s.Name)
+ 		if s1.Def != nil {
+-			pkgerror = fmt.Sprintf("during import %q", opkg.Path)
++			pkgerror := fmt.Sprintf("during import %q", opkg.Path)
+ 			redeclare(s1, pkgerror)
+ 			continue
+ 		}
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index ab2c77a3fb..78c59b5dff 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -3017,7 +3017,7 @@ func typecheckcomplit(n *Node) *Node {
+ 		for i3, l := range n.List.Slice() {
+ 			setlineno(l)
+ 			if l.Op != OKEY {
+-				n.List.SetIndex(i3, typecheck(n.List.Index(i3), Erv))
++				n.List.SetIndex(i3, typecheck(l, Erv))
+ 				yyerror("missing key in map literal")
+ 				continue
+ 			}
+@@ -3044,7 +3044,7 @@ func typecheckcomplit(n *Node) *Node {
+ 		// Need valid field offsets for Xoffset below.
+ 		dowidth(t)
+ 
+-		bad := 0
++		errored := false
+ 		if n.List.Len() != 0 && nokeys(n.List) {
+ 			// simple list of variables
+ 			ls := n.List.Slice()
+@@ -3053,10 +3053,10 @@ func typecheckcomplit(n *Node) *Node {
+ 				n1 = typecheck(n1, Erv)
+ 				ls[i] = n1
+ 				if i >= t.NumFields() {
+-					if bad == 0 {
++					if !errored {
+ 						yyerror("too many values in struct initializer")
++						errored = true
+ 					}
+-					bad++
+ 					continue
+ 				}
+ 
+@@ -3113,10 +3113,10 @@ func typecheckcomplit(n *Node) *Node {
+ 				}
+ 
+ 				if l.Op != OSTRUCTKEY {
+-					if bad == 0 {
++					if !errored {
+ 						yyerror("mixture of field:value and value initializers")
++						errored = true
+ 					}
+-					bad++
+ 					ls[i] = typecheck(ls[i], Erv)
+ 					continue
+ 				}
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 48e6319e43..b7db5b29d4 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -2337,18 +2337,18 @@ out:
+ // then it is done first. otherwise must
+ // make temp variables
+ func reorder1(all []*Node) []*Node {
+-	c := 0 // function calls
+-	t := 0 // total parameters
++	if len(all) == 1 {
++		return all
++	}
+ 
++	funcCalls := 0
+ 	for _, n := range all {
+-		t++
+ 		updateHasCall(n)
+ 		if n.HasCall() {
+-			c++
++			funcCalls++
+ 		}
+ 	}
+-
+-	if c == 0 || t == 1 {
++	if funcCalls == 0 {
+ 		return all
+ 	}
+ 
+@@ -2363,7 +2363,7 @@ func reorder1(all []*Node) []*Node {
+ 		}
+ 
+ 		d++
+-		if d == c {
++		if d == funcCalls {
+ 			f = n
+ 			continue
+ 		}
+@@ -3898,11 +3898,9 @@ func walkprintfunc(n *Node, init *Nodes) *Node {
+ 	}
+ 
+ 	t := nod(OTFUNC, nil, nil)
+-	num := 0
+ 	var printargs []*Node
+-	for _, n1 := range n.List.Slice() {
+-		buf := fmt.Sprintf("a%d", num)
+-		num++
++	for i, n1 := range n.List.Slice() {
++		buf := fmt.Sprintf("a%d", i)
+ 		a := namedfield(buf, n1.Type)
+ 		t.List.Append(a)
+ 		printargs = append(printargs, a.Left)

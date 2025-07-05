@@ -15,6 +15,50 @@ Date:   Fri Oct 23 15:04:37 2015 -0400
     Reviewed-by: Rick Hudson <rlh@golang.org>
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/mgc.go | 25 ++++++++++++++-----------
  1 file changed, 14 insertions(+), 11 deletions(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 2df3d45865..4bbd2d02ba 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -999,6 +999,20 @@ func gcStart(mode gcMode, forceTrigger bool) {
+ 	releasem(mp)
+ 	mp = nil
+ 
++	// Pick up the remaining unswept/not being swept spans concurrently
++	//
++	// This shouldn't happen if we're being invoked in background
++	// mode since proportional sweep should have just finished
++	// sweeping everything, but rounding errors, etc, may leave a
++	// few spans unswept. In forced mode, this is necessary since
++	// GC can be forced at any point in the sweeping cycle.
++	//
++	// We check the transition condition continuously here in case
++	// this G gets delayed in to the next GC cycle.
++	for (mode != gcBackgroundMode || gcShouldStart(forceTrigger)) && gosweepone() != ^uintptr(0) {
++		sweep.nbgsweep++
++	}
++
+ 	// Perform GC initialization and the sweep termination
+ 	// transition.
+ 	//
+@@ -1041,17 +1055,6 @@ func gc(mode gcMode) {
+ 	// Ok, we're doing it!  Stop everybody else
+ 	semacquire(&worldsema, false)
+ 
+-	// Pick up the remaining unswept/not being swept spans concurrently
+-	//
+-	// This shouldn't happen if we're being invoked in background
+-	// mode since proportional sweep should have just finished
+-	// sweeping everything, but rounding errors, etc, may leave a
+-	// few spans unswept. In forced mode, this is necessary since
+-	// GC can be forced at any point in the sweeping cycle.
+-	for gosweepone() != ^uintptr(0) {
+-		sweep.nbgsweep++
+-	}
+-
+ 	if trace.enabled {
+ 		traceGCStart()
+ 	}

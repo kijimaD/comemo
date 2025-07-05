@@ -22,9 +22,283 @@ Date:   Mon Sep 23 14:25:22 2019 -0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/compile/internal/gc/iexport.go | 59 +++++++++++++++++++++-------------
  src/cmd/compile/internal/gc/iimport.go | 25 +++++++-------
  src/go/internal/gcimporter/bimport.go  |  6 ++--
  src/go/internal/gcimporter/iimport.go  | 42 ++++++++++++++++++------
  4 files changed, 85 insertions(+), 47 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/iexport.go b/src/cmd/compile/internal/gc/iexport.go
+index 873de46fa4..a5acd26c7f 100644
+--- a/src/cmd/compile/internal/gc/iexport.go
++++ b/src/cmd/compile/internal/gc/iexport.go
+@@ -184,8 +184,9 @@
+ //     }
+ //
+ //
+-// Pos encodes a file:line pair, incorporating a simple delta encoding
+-// scheme within a data object. See exportWriter.pos for details.
++// Pos encodes a file:line:column triple, incorporating a simple delta
++// encoding scheme within a data object. See exportWriter.pos for
++// details.
+ //
+ //
+ // Compiler-specific details.
+@@ -212,8 +213,9 @@ import (
+ )
+ 
+ // Current indexed export format version. Increase with each format change.
++// 1: added column details to Pos
+ // 0: Go1.11 encoding
+-const iexportVersion = 0
++const iexportVersion = 1
+ 
+ // predeclReserved is the number of type offsets reserved for types
+ // implicitly declared in the universe block.
+@@ -401,10 +403,11 @@ func (p *iexporter) pushDecl(n *Node) {
+ type exportWriter struct {
+ 	p *iexporter
+ 
+-	data     intWriter
+-	currPkg  *types.Pkg
+-	prevFile string
+-	prevLine int64
++	data       intWriter
++	currPkg    *types.Pkg
++	prevFile   string
++	prevLine   int64
++	prevColumn int64
+ }
+ 
+ func (p *iexporter) doDecl(n *Node) {
+@@ -510,29 +513,39 @@ func (w *exportWriter) pos(pos src.XPos) {
+ 	p := Ctxt.PosTable.Pos(pos)
+ 	file := p.Base().AbsFilename()
+ 	line := int64(p.RelLine())
++	column := int64(p.RelCol())
+ 
+-	// When file is the same as the last position (common case),
+-	// we can save a few bytes by delta encoding just the line
+-	// number.
++	// Encode position relative to the last position: column
++	// delta, then line delta, then file name. We reserve the
++	// bottom bit of the column and line deltas to encode whether
++	// the remaining fields are present.
+ 	//
+ 	// Note: Because data objects may be read out of order (or not
+ 	// at all), we can only apply delta encoding within a single
+-	// object. This is handled implicitly by tracking prevFile and
+-	// prevLine as fields of exportWriter.
+-
+-	if file == w.prevFile {
+-		delta := line - w.prevLine
+-		w.int64(delta)
+-		if delta == deltaNewFile {
+-			w.int64(-1)
++	// object. This is handled implicitly by tracking prevFile,
++	// prevLine, and prevColumn as fields of exportWriter.
++
++	deltaColumn := (column - w.prevColumn) << 1
++	deltaLine := (line - w.prevLine) << 1
++
++	if file != w.prevFile {
++		deltaLine |= 1
++	}
++	if deltaLine != 0 {
++		deltaColumn |= 1
++	}
++
++	w.int64(deltaColumn)
++	if deltaColumn&1 != 0 {
++		w.int64(deltaLine)
++		if deltaLine&1 != 0 {
++			w.string(file)
+ 		}
+-	} else {
+-		w.int64(deltaNewFile)
+-		w.int64(line) // line >= 0
+-		w.string(file)
+-		w.prevFile = file
+ 	}
++
++	w.prevFile = file
+ 	w.prevLine = line
++	w.prevColumn = column
+ }
+ 
+ func (w *exportWriter) pkg(pkg *types.Pkg) {
+diff --git a/src/cmd/compile/internal/gc/iimport.go b/src/cmd/compile/internal/gc/iimport.go
+index 28808c51c5..64c554d187 100644
+--- a/src/cmd/compile/internal/gc/iimport.go
++++ b/src/cmd/compile/internal/gc/iimport.go
+@@ -242,9 +242,10 @@ type importReader struct {
+ 	strings.Reader
+ 	p *iimporter
+ 
+-	currPkg  *types.Pkg
+-	prevBase *src.PosBase
+-	prevLine int64
++	currPkg    *types.Pkg
++	prevBase   *src.PosBase
++	prevLine   int64
++	prevColumn int64
+ }
+ 
+ func (p *iimporter) newReader(off uint64, pkg *types.Pkg) *importReader {
+@@ -446,16 +447,16 @@ func (r *importReader) qualifiedIdent() *types.Sym {
+ 
+ func (r *importReader) pos() src.XPos {
+ 	delta := r.int64()
+-	if delta != deltaNewFile {
+-		r.prevLine += delta
+-	} else if l := r.int64(); l == -1 {
+-		r.prevLine += deltaNewFile
+-	} else {
+-		r.prevBase = r.posBase()
+-		r.prevLine = l
++	r.prevColumn += delta >> 1
++	if delta&1 != 0 {
++		delta = r.int64()
++		r.prevLine += delta >> 1
++		if delta&1 != 0 {
++			r.prevBase = r.posBase()
++		}
+ 	}
+ 
+-	if (r.prevBase == nil || r.prevBase.AbsFilename() == "") && r.prevLine == 0 {
++	if (r.prevBase == nil || r.prevBase.AbsFilename() == "") && r.prevLine == 0 && r.prevColumn == 0 {
+ 		// TODO(mdempsky): Remove once we reliably write
+ 		// position information for all nodes.
+ 		return src.NoXPos
+@@ -464,7 +465,7 @@ func (r *importReader) pos() src.XPos {
+ 	if r.prevBase == nil {
+ 		Fatalf("missing posbase")
+ 	}
+-	pos := src.MakePos(r.prevBase, uint(r.prevLine), 0)
++	pos := src.MakePos(r.prevBase, uint(r.prevLine), uint(r.prevColumn))
+ 	return Ctxt.PosTable.XPos(pos)
+ }
+ 
+diff --git a/src/go/internal/gcimporter/bimport.go b/src/go/internal/gcimporter/bimport.go
+index cf03632aa2..1019ccb8f7 100644
+--- a/src/go/internal/gcimporter/bimport.go
++++ b/src/go/internal/gcimporter/bimport.go
+@@ -328,7 +328,7 @@ func (p *importer) pos() token.Pos {
+ 	p.prevFile = file
+ 	p.prevLine = line
+ 
+-	return p.fake.pos(file, line)
++	return p.fake.pos(file, line, 0)
+ }
+ 
+ // Synthesize a token.Pos
+@@ -337,7 +337,9 @@ type fakeFileSet struct {
+ 	files map[string]*token.File
+ }
+ 
+-func (s *fakeFileSet) pos(file string, line int) token.Pos {
++func (s *fakeFileSet) pos(file string, line, column int) token.Pos {
++	// TODO(mdempsky): Make use of column.
++
+ 	// Since we don't know the set of needed file positions, we
+ 	// reserve maxlines positions per file.
+ 	const maxlines = 64 * 1024
+diff --git a/src/go/internal/gcimporter/iimport.go b/src/go/internal/gcimporter/iimport.go
+index bf480641df..c59dd16533 100644
+--- a/src/go/internal/gcimporter/iimport.go
++++ b/src/go/internal/gcimporter/iimport.go
+@@ -61,8 +61,8 @@ const (
+ // If the export data version is not recognized or the format is otherwise
+ // compromised, an error is returned.
+ func iImportData(fset *token.FileSet, imports map[string]*types.Package, data []byte, path string) (_ int, pkg *types.Package, err error) {
+-	const currentVersion = 0
+-	version := -1
++	const currentVersion = 1
++	version := int64(-1)
+ 	defer func() {
+ 		if e := recover(); e != nil {
+ 			if version > currentVersion {
+@@ -75,9 +75,9 @@ func iImportData(fset *token.FileSet, imports map[string]*types.Package, data []
+ 
+ 	r := &intReader{bytes.NewReader(data), path}
+ 
+-	version = int(r.uint64())
++	version = int64(r.uint64())
+ 	switch version {
+-	case currentVersion:
++	case currentVersion, 0:
+ 	default:
+ 		errorf("unknown iexport format version %d", version)
+ 	}
+@@ -91,7 +91,8 @@ func iImportData(fset *token.FileSet, imports map[string]*types.Package, data []
+ 	r.Seek(sLen+dLen, io.SeekCurrent)
+ 
+ 	p := iimporter{
+-		ipath: path,
++		ipath:   path,
++		version: int(version),
+ 
+ 		stringData:  stringData,
+ 		stringCache: make(map[uint64]string),
+@@ -169,7 +170,8 @@ func iImportData(fset *token.FileSet, imports map[string]*types.Package, data []
+ }
+ 
+ type iimporter struct {
+-	ipath string
++	ipath   string
++	version int
+ 
+ 	stringData  []byte
+ 	stringCache map[uint64]string
+@@ -249,6 +251,7 @@ type importReader struct {
+ 	currPkg    *types.Package
+ 	prevFile   string
+ 	prevLine   int64
++	prevColumn int64
+ }
+ 
+ func (r *importReader) obj(name string) {
+@@ -438,6 +441,19 @@ func (r *importReader) qualifiedIdent() (*types.Package, string) {
+ }
+ 
+ func (r *importReader) pos() token.Pos {
++	if r.p.version >= 1 {
++		r.posv1()
++	} else {
++		r.posv0()
++	}
++
++	if r.prevFile == "" && r.prevLine == 0 && r.prevColumn == 0 {
++		return token.NoPos
++	}
++	return r.p.fake.pos(r.prevFile, int(r.prevLine), int(r.prevColumn))
++}
++
++func (r *importReader) posv0() {
+ 	delta := r.int64()
+ 	if delta != deltaNewFile {
+ 		r.prevLine += delta
+@@ -447,12 +463,18 @@ func (r *importReader) pos() token.Pos {
+ 		r.prevFile = r.string()
+ 		r.prevLine = l
+ 	}
++}
+ 
+-	if r.prevFile == "" && r.prevLine == 0 {
+-		return token.NoPos
++func (r *importReader) posv1() {
++	delta := r.int64()
++	r.prevColumn += delta >> 1
++	if delta&1 != 0 {
++		delta = r.int64()
++		r.prevLine += delta >> 1
++		if delta&1 != 0 {
++			r.prevFile = r.string()
++		}
+ 	}
+-
+-	return r.p.fake.pos(r.prevFile, int(r.prevLine))
+ }
+ 
+ func (r *importReader) typ() types.Type {

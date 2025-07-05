@@ -10,6 +10,20 @@ Date:   Thu Feb 9 14:10:36 2012 +1100
     R=golang-dev, mikioh.mikioh, dsymonds, r
     CC=golang-dev
     https://golang.org/cl/5645060
-
+---
  src/pkg/net/http/doc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/http/doc.go b/src/pkg/net/http/doc.go
+index 8962ed31e6..652d729e08 100644
+--- a/src/pkg/net/http/doc.go
++++ b/src/pkg/net/http/doc.go
+@@ -12,7 +12,7 @@ Get, Head, Post, and PostForm make HTTP requests:
+ 	resp, err := http.Post("http://example.com/upload", "image/jpeg", &buf)
+ 	...
+ 	resp, err := http.PostForm("http://example.com/form",
+- 		url.Values{"key": {"Value"}, "id": {"123"}})
++		url.Values{"key": {"Value"}, "id": {"123"}})
+ 
+ The client must close the response body when finished with it:
+ 

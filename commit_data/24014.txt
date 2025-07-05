@@ -10,6 +10,20 @@ Date:   Mon Jun 29 13:09:06 2015 +0200
     Change-Id: I134f6e4a2bf2bba699942883bf6347bc61700bcb
     Reviewed-on: https://go-review.googlesource.com/11634
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/encoding/binary/binary.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/encoding/binary/binary.go b/src/encoding/binary/binary.go
+index ac15fb7415..2bbe07c02f 100644
+--- a/src/encoding/binary/binary.go
++++ b/src/encoding/binary/binary.go
+@@ -13,7 +13,7 @@
+ // The varint functions encode and decode single integer values using
+ // a variable-length encoding; smaller values require fewer bytes.
+ // For a specification, see
+-// http://code.google.com/apis/protocolbuffers/docs/encoding.html.
++// https://developers.google.com/protocol-buffers/docs/encoding.
+ //
+ // This package favors simplicity over efficiency. Clients that require
+ // high-performance serialization, especially for large data structures,

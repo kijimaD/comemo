@@ -9,6 +9,23 @@ Date:   Wed Jul 27 17:38:39 2011 -0400
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/4814056
-
+---
  src/env.bash | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/env.bash b/src/env.bash
+index f83012a266..a01a03e45c 100644
+--- a/src/env.bash
++++ b/src/env.bash
+@@ -88,6 +88,11 @@ if bison --version 2>&1 | grep 'bison++' >/dev/null 2>&1; then
+ 	exit 1
+ fi
+ 
++# Issue 2020: some users configure bash to default to
++#	set +o noclobber
++# which makes >x fail if x already exists.  Restore sanity.
++set -o noclobber
++
+ # Tried to use . <($MAKE ...) here, but it cannot set environment
+ # variables in the version of bash that ships with OS X.  Amazing.
+ eval $($MAKE --no-print-directory -f Make.inc go-env | egrep 'GOARCH|GOOS|GOHOSTARCH|GOHOSTOS|GO_ENV')

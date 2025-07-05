@@ -17,10 +17,81 @@ Date:   Thu Nov 11 19:07:28 2021 -0500
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/types2/context.go     | 4 ++--
  src/cmd/compile/internal/types2/instantiate.go | 2 +-
  src/cmd/compile/internal/types2/named.go       | 2 +-
  src/cmd/compile/internal/types2/subst.go       | 2 +-
  src/cmd/compile/internal/types2/typexpr.go     | 2 +-
  5 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/context.go b/src/cmd/compile/internal/types2/context.go
+index f6137eea43..9e9eb5bdf6 100644
+--- a/src/cmd/compile/internal/types2/context.go
++++ b/src/cmd/compile/internal/types2/context.go
+@@ -29,11 +29,11 @@ func NewContext() *Context {
+ 	}
+ }
+ 
+-// TypeHash returns a string representation of typ, which can be used as an exact
++// typeHash returns a string representation of typ, which can be used as an exact
+ // type hash: types that are identical produce identical string representations.
+ // If typ is a *Named type and targs is not empty, typ is printed as if it were
+ // instantiated with targs. The result is guaranteed to not contain blanks (" ").
+-func (ctxt *Context) TypeHash(typ Type, targs []Type) string {
++func (ctxt *Context) typeHash(typ Type, targs []Type) string {
+ 	assert(ctxt != nil)
+ 	assert(typ != nil)
+ 	var buf bytes.Buffer
+diff --git a/src/cmd/compile/internal/types2/instantiate.go b/src/cmd/compile/internal/types2/instantiate.go
+index 44cf593ffb..f814619bb0 100644
+--- a/src/cmd/compile/internal/types2/instantiate.go
++++ b/src/cmd/compile/internal/types2/instantiate.go
+@@ -57,7 +57,7 @@ func (check *Checker) instance(pos syntax.Pos, typ Type, targs []Type, ctxt *Con
+ 	case *Named:
+ 		var h string
+ 		if ctxt != nil {
+-			h = ctxt.TypeHash(t, targs)
++			h = ctxt.typeHash(t, targs)
+ 			// typ may already have been instantiated with identical type arguments. In
+ 			// that case, re-use the existing instance.
+ 			if named := ctxt.typeForHash(h, nil); named != nil {
+diff --git a/src/cmd/compile/internal/types2/named.go b/src/cmd/compile/internal/types2/named.go
+index 6ebad8fbb5..e73a31d42e 100644
+--- a/src/cmd/compile/internal/types2/named.go
++++ b/src/cmd/compile/internal/types2/named.go
+@@ -251,7 +251,7 @@ func expandNamed(ctxt *Context, n *Named, instPos syntax.Pos) (tparams *TypePara
+ 	if n.orig.tparams.Len() == n.targs.Len() {
+ 		// We must always have a context, to avoid infinite recursion.
+ 		ctxt = check.bestContext(ctxt)
+-		h := ctxt.TypeHash(n.orig, n.targs.list())
++		h := ctxt.typeHash(n.orig, n.targs.list())
+ 		// ensure that an instance is recorded for h to avoid infinite recursion.
+ 		ctxt.typeForHash(h, n)
+ 
+diff --git a/src/cmd/compile/internal/types2/subst.go b/src/cmd/compile/internal/types2/subst.go
+index f46e895b12..5deb868a79 100644
+--- a/src/cmd/compile/internal/types2/subst.go
++++ b/src/cmd/compile/internal/types2/subst.go
+@@ -207,7 +207,7 @@ func (subst *subster) typ(typ Type) Type {
+ 		}
+ 
+ 		// before creating a new named type, check if we have this one already
+-		h := subst.ctxt.TypeHash(t.orig, newTArgs)
++		h := subst.ctxt.typeHash(t.orig, newTArgs)
+ 		dump(">>> new type hash: %s", h)
+ 		if named := subst.ctxt.typeForHash(h, nil); named != nil {
+ 			dump(">>> found %s", named)
+diff --git a/src/cmd/compile/internal/types2/typexpr.go b/src/cmd/compile/internal/types2/typexpr.go
+index a08e472703..82c029cfd6 100644
+--- a/src/cmd/compile/internal/types2/typexpr.go
++++ b/src/cmd/compile/internal/types2/typexpr.go
+@@ -431,7 +431,7 @@ func (check *Checker) instantiatedType(x syntax.Expr, targsx []syntax.Expr, def
+ 	}
+ 
+ 	// create the instance
+-	h := check.conf.Context.TypeHash(origin, targs)
++	h := check.conf.Context.typeHash(origin, targs)
+ 	// targs may be incomplete, and require inference. In any case we should de-duplicate.
+ 	inst := check.conf.Context.typeForHash(h, nil)
+ 	// If inst is non-nil, we can't just return here. Inst may have been

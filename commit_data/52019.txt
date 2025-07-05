@@ -12,7 +12,43 @@ Date:   Thu Mar 31 12:31:58 2022 -0400
     Run-TryBot: Filippo Valsorda <filippo@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Roland Shoemaker <roland@golang.org>
-
+---
  src/crypto/elliptic/p256.go      |  2 +-
  src/crypto/elliptic/p256_test.go | 14 ++++++++++++++
  2 files changed, 15 insertions(+), 1 deletion(-)
+
+diff --git a/src/crypto/elliptic/p256.go b/src/crypto/elliptic/p256.go
+index e1c6ff4f87..99c39ea9d5 100644
+--- a/src/crypto/elliptic/p256.go
++++ b/src/crypto/elliptic/p256.go
+@@ -51,7 +51,7 @@ func p256GetScalar(out *[32]byte, in []byte) {
+ 	n := new(big.Int).SetBytes(in)
+ 	var scalarBytes []byte
+ 
+-	if n.Cmp(p256Params.N) >= 0 {
++	if n.Cmp(p256Params.N) >= 0 || len(in) > len(out) {
+ 		n.Mod(n, p256Params.N)
+ 		scalarBytes = n.Bytes()
+ 	} else {
+diff --git a/src/crypto/elliptic/p256_test.go b/src/crypto/elliptic/p256_test.go
+index c6862d9547..a607766bc6 100644
+--- a/src/crypto/elliptic/p256_test.go
++++ b/src/crypto/elliptic/p256_test.go
+@@ -136,3 +136,17 @@ func TestP256CombinedMult(t *testing.T) {
+ 		t.Errorf("1×G + (-1)×G = (%d, %d), should be ∞", x, y)
+ 	}
+ }
++
++func TestIssue52075(t *testing.T) {
++	Gx, Gy := P256().Params().Gx, P256().Params().Gy
++	scalar := make([]byte, 33)
++	scalar[32] = 1
++	x, y := P256().ScalarBaseMult(scalar)
++	if x.Cmp(Gx) != 0 || y.Cmp(Gy) != 0 {
++		t.Errorf("unexpected output (%v,%v)", x, y)
++	}
++	x, y = P256().ScalarMult(Gx, Gy, scalar)
++	if x.Cmp(Gx) != 0 || y.Cmp(Gy) != 0 {
++		t.Errorf("unexpected output (%v,%v)", x, y)
++	}
++}

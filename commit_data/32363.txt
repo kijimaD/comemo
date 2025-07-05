@@ -15,9 +15,103 @@ Date:   Fri Apr 21 08:19:35 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/go.go      |  2 --
  src/cmd/compile/internal/gc/main.go    |  2 --
  src/cmd/compile/internal/gc/reflect.go | 10 +++++-----
  src/cmd/compile/internal/types/pkg.go  |  7 +++++++
  4 files changed, 12 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index 8f9d7c413a..f214b6dddf 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -114,8 +114,6 @@ var racepkg *types.Pkg // package runtime/race
+ 
+ var msanpkg *types.Pkg // package runtime/msan
+ 
+-var typepkg *types.Pkg // fake package for runtime type info (headers)
+-
+ var unsafepkg *types.Pkg // package unsafe
+ 
+ var trackpkg *types.Pkg // fake package for field tracking
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index c7a8bc2f78..cf97d0cee1 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -150,8 +150,6 @@ func Main(archInit func(*Arch)) {
+ 	trackpkg = types.NewPkg("go.track", "go.track")
+ 	trackpkg.Prefix = "go.track" // not go%2etrack
+ 
+-	typepkg = types.NewPkg("type", "type")
+-
+ 	// pseudo-package used for map zero values
+ 	mappkg = types.NewPkg("go.map", "go.map")
+ 	mappkg.Prefix = "go.map"
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index 546cdc69c8..f077b39190 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -908,7 +908,7 @@ func typesymname(t *types.Type) string {
+ }
+ 
+ func typesym(t *types.Type) *types.Sym {
+-	return typepkg.Lookup(typesymname(t))
++	return types.TypePkgLookup(typesymname(t))
+ }
+ 
+ // tracksym returns the symbol for tracking use of field/method f, assumed
+@@ -919,7 +919,7 @@ func tracksym(t *types.Type, f *types.Field) *types.Sym {
+ 
+ func typesymprefix(prefix string, t *types.Type) *types.Sym {
+ 	p := prefix + "." + t.ShortString()
+-	s := typepkg.Lookup(p)
++	s := types.TypePkgLookup(p)
+ 
+ 	//print("algsym: %s -> %+S\n", p, s);
+ 
+@@ -1561,7 +1561,7 @@ func dalgsym(t *types.Type) *types.Sym {
+ 		// we use one algorithm table for all AMEM types of a given size
+ 		p := fmt.Sprintf(".alg%d", t.Width)
+ 
+-		s = typepkg.Lookup(p)
++		s = types.TypePkgLookup(p)
+ 
+ 		if s.AlgGen() {
+ 			return s
+@@ -1571,7 +1571,7 @@ func dalgsym(t *types.Type) *types.Sym {
+ 		// make hash closure
+ 		p = fmt.Sprintf(".hashfunc%d", t.Width)
+ 
+-		hashfunc = typepkg.Lookup(p)
++		hashfunc = types.TypePkgLookup(p)
+ 
+ 		ot := 0
+ 		ot = dsymptr(hashfunc, ot, Runtimepkg.Lookup("memhash_varlen"), 0)
+@@ -1581,7 +1581,7 @@ func dalgsym(t *types.Type) *types.Sym {
+ 		// make equality closure
+ 		p = fmt.Sprintf(".eqfunc%d", t.Width)
+ 
+-		eqfunc = typepkg.Lookup(p)
++		eqfunc = types.TypePkgLookup(p)
+ 
+ 		ot = 0
+ 		ot = dsymptr(eqfunc, ot, Runtimepkg.Lookup("memequal_varlen"), 0)
+diff --git a/src/cmd/compile/internal/types/pkg.go b/src/cmd/compile/internal/types/pkg.go
+index 1fe49bd142..effb3a82f7 100644
+--- a/src/cmd/compile/internal/types/pkg.go
++++ b/src/cmd/compile/internal/types/pkg.go
+@@ -68,6 +68,13 @@ var nopkg = &Pkg{
+ 	Syms: make(map[string]*Sym),
+ }
+ 
++// fake package for runtime type info (headers)
++var typepkg = NewPkg("type", "type")
++
++func TypePkgLookup(name string) *Sym {
++	return typepkg.Lookup(name)
++}
++
+ func (pkg *Pkg) Lookup(name string) *Sym {
+ 	s, _ := pkg.LookupOK(name)
+ 	return s

@@ -11,7 +11,7 @@ Date:   Fri Dec 18 15:29:51 2015 -0800
     Change-Id: I189f381090223dd07086848aac2d69d2c00d80c4
     Reviewed-on: https://go-review.googlesource.com/18062
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  misc/cgo/testcarchive/main3.c              | 153 ++++++++++++++++++++++
  misc/cgo/testcarchive/src/libgo3/libgo3.go |  44 +++++++
  misc/cgo/testcarchive/test.bash            |  18 ++-
@@ -22,3 +22,649 @@ Date:   Fri Dec 18 15:29:51 2015 -0800
  src/runtime/runtime2.go                    |   1 -
  src/runtime/signal1_unix.go                |  13 +-
  9 files changed, 486 insertions(+), 25 deletions(-)
+
+diff --git a/misc/cgo/testcarchive/main3.c b/misc/cgo/testcarchive/main3.c
+new file mode 100644
+index 0000000000..2d3e5650db
+--- /dev/null
++++ b/misc/cgo/testcarchive/main3.c
+@@ -0,0 +1,153 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test os/signal.Notify and os/signal.Reset.
++// This is a lot like misc/cgo/testcshared/main5.c.
++
++#include <signal.h>
++#include <stdio.h>
++#include <stdlib.h>
++#include <string.h>
++#include <sched.h>
++
++#include "libgo3.h"
++
++static void die(const char* msg) {
++	perror(msg);
++	exit(EXIT_FAILURE);
++}
++
++static volatile sig_atomic_t sigioSeen;
++
++static void ioHandler(int signo, siginfo_t* info, void* ctxt) {
++	sigioSeen = 1;
++}
++
++int main(int argc, char** argv) {
++	int verbose;
++	struct sigaction sa;
++	int i;
++
++	verbose = argc > 2;
++	setvbuf(stdout, NULL, _IONBF, 0);
++
++	if (verbose) {
++		printf("calling sigaction\n");
++	}
++
++	memset(&sa, 0, sizeof sa);
++	sa.sa_sigaction = ioHandler;
++	if (sigemptyset(&sa.sa_mask) < 0) {
++		die("sigemptyset");
++	}
++	sa.sa_flags = SA_SIGINFO;
++	if (sigaction(SIGIO, &sa, NULL) < 0) {
++		die("sigaction");
++	}
++
++	// At this point there should not be a Go signal handler
++	// installed for SIGIO.
++
++	if (verbose) {
++		printf("raising SIGIO\n");
++	}
++
++	if (raise(SIGIO) < 0) {
++		die("raise");
++	}
++
++	if (verbose) {
++		printf("waiting for sigioSeen\n");
++	}
++
++	// Wait until the signal has been delivered.
++	i = 0;
++	while (!sigioSeen) {
++		if (sched_yield() < 0) {
++			perror("sched_yield");
++		}
++		i++;
++		if (i > 10000) {
++			fprintf(stderr, "looping too long waiting for signal\n");
++			exit(EXIT_FAILURE);
++		}
++	}
++
++	sigioSeen = 0;
++
++	// Tell the Go code to catch SIGIO.
++
++	if (verbose) {
++		printf("calling CatchSIGIO\n");
++	}
++
++	CatchSIGIO();
++
++	if (verbose) {
++		printf("raising SIGIO\n");
++	}
++
++	if (raise(SIGIO) < 0) {
++		die("raise");
++	}
++
++	if (verbose) {
++		printf("calling SawSIGIO\n");
++	}
++
++	if (!SawSIGIO()) {
++		fprintf(stderr, "Go handler did not see SIGIO\n");
++		exit(EXIT_FAILURE);
++	}
++
++	if (sigioSeen != 0) {
++		fprintf(stderr, "C handler saw SIGIO when only Go handler should have\n");
++		exit(EXIT_FAILURE);
++	}
++
++	// Tell the Go code to stop catching SIGIO.
++
++	if (verbose) {
++		printf("calling ResetSIGIO\n");
++	}
++
++	ResetSIGIO();
++
++	if (verbose) {
++		printf("raising SIGIO\n");
++	}
++
++	if (raise(SIGIO) < 0) {
++		die("raise");
++	}
++
++	if (verbose) {
++		printf("calling SawSIGIO\n");
++	}
++
++	if (SawSIGIO()) {
++		fprintf(stderr, "Go handler saw SIGIO after Reset\n");
++		exit(EXIT_FAILURE);
++	}
++
++	if (verbose) {
++		printf("waiting for sigioSeen\n");
++	}
++
++	// Wait until the signal has been delivered.
++	i = 0;
++	while (!sigioSeen) {
++		if (sched_yield() < 0) {
++			perror("sched_yield");
++		}
++		i++;
++		if (i > 10000) {
++			fprintf(stderr, "looping too long waiting for signal\n");
++			exit(EXIT_FAILURE);
++		}
++	}
++
++	printf("PASS\n");
++	return 0;
++}
+diff --git a/misc/cgo/testcarchive/src/libgo3/libgo3.go b/misc/cgo/testcarchive/src/libgo3/libgo3.go
+new file mode 100644
+index 0000000000..94e5d21c14
+--- /dev/null
++++ b/misc/cgo/testcarchive/src/libgo3/libgo3.go
+@@ -0,0 +1,44 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "C"
++
++import (
++	"os"
++	"os/signal"
++	"syscall"
++	"time"
++)
++
++// The channel used to read SIGIO signals.
++var sigioChan chan os.Signal
++
++// CatchSIGIO starts catching SIGIO signals.
++//export CatchSIGIO
++func CatchSIGIO() {
++	sigioChan = make(chan os.Signal, 1)
++	signal.Notify(sigioChan, syscall.SIGIO)
++}
++
++// ResetSIGIO stops catching SIGIO signals.
++//export ResetSIGIO
++func ResetSIGIO() {
++	signal.Reset(syscall.SIGIO)
++}
++
++// SawSIGIO returns whether we saw a SIGIO within a brief pause.
++//export SawSIGIO
++func SawSIGIO() C.int {
++	select {
++	case <-sigioChan:
++		return 1
++	case <-time.After(100 * time.Millisecond):
++		return 0
++	}
++}
++
++func main() {
++}
+diff --git a/misc/cgo/testcarchive/test.bash b/misc/cgo/testcarchive/test.bash
+index d561c02ab7..053833ad94 100755
+--- a/misc/cgo/testcarchive/test.bash
++++ b/misc/cgo/testcarchive/test.bash
+@@ -30,7 +30,7 @@ status=0
+ GOPATH=$(pwd) go install -buildmode=c-archive libgo
+ $(go env CC) $(go env GOGCCFLAGS) $ccargs -o testp main.c pkg/$(go env GOOS)_$(go env GOARCH)/libgo.a
+ if ! $bin arg1 arg2; then
+-    echo "FAIL test1"
++    echo "FAIL test1a"
+     status=1
+ fi
+ rm -f libgo.a libgo.h testp
+@@ -41,7 +41,7 @@ rm -f libgo.a libgo.h testp
+ GOPATH=$(pwd) go build -buildmode=c-archive src/libgo/libgo.go
+ $(go env CC) $(go env GOGCCFLAGS) $ccargs -o testp main.c libgo.a
+ if ! $bin arg1 arg2; then
+-    echo "FAIL test2"
++    echo "FAIL test1b"
+     status=1
+ fi
+ rm -f libgo.a libgo.h testp
+@@ -49,24 +49,32 @@ rm -f libgo.a libgo.h testp
+ GOPATH=$(pwd) go build -buildmode=c-archive -o libgo.a libgo
+ $(go env CC) $(go env GOGCCFLAGS) $ccargs -o testp main.c libgo.a
+ if ! $bin arg1 arg2; then
+-    echo "FAIL test3"
++    echo "FAIL test1c"
+     status=1
+ fi
+ rm -rf libgo.a libgo.h testp pkg
+ 
+ case "$(go env GOOS)/$(go env GOARCH)" in
+ "darwin/arm" | "darwin/arm64")
+-    echo "Skipping test4; see https://golang.org/issue/13701"
++    echo "Skipping test2; see https://golang.org/issue/13701"
+     ;;
+ *)
+     GOPATH=$(pwd) go build -buildmode=c-archive -o libgo2.a libgo2
+     $(go env CC) $(go env GOGCCFLAGS) $ccargs -o testp main2.c libgo2.a
+     if ! $bin; then
+-        echo "FAIL test4"
++        echo "FAIL test2"
+         status=1
+     fi
+     rm -rf libgo2.a libgo2.h testp pkg
+     ;;
+ esac
+ 
++GOPATH=$(pwd) go build -buildmode=c-archive -o libgo3.a libgo3
++$(go env CC) $(go env GOGCCFLAGS) $ccargs -o testp main3.c libgo3.a
++if ! $bin; then
++    echo "FAIL test3"
++    status=1
++fi
++rm -rf libgo3.a libgo3.h testp pkg
++
+ exit $status
+diff --git a/misc/cgo/testcshared/main5.c b/misc/cgo/testcshared/main5.c
+new file mode 100644
+index 0000000000..50ddb47c6b
+--- /dev/null
++++ b/misc/cgo/testcshared/main5.c
+@@ -0,0 +1,197 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test that a signal handler works in non-Go code when using
++// os/signal.Notify.
++// This is a lot like misc/cgo/testcarchive/main3.c.
++
++#include <signal.h>
++#include <stdio.h>
++#include <stdlib.h>
++#include <string.h>
++#include <sched.h>
++#include <dlfcn.h>
++
++static void die(const char* msg) {
++	perror(msg);
++	exit(EXIT_FAILURE);
++}
++
++static volatile sig_atomic_t sigioSeen;
++
++static void ioHandler(int signo, siginfo_t* info, void* ctxt) {
++	sigioSeen = 1;
++}
++
++int main(int argc, char** argv) {
++	int verbose;
++	struct sigaction sa;
++	void* handle;
++	void (*fn1)(void);
++	int (*sawSIGIO)(void);
++	int i;
++
++	verbose = argc > 2;
++	setvbuf(stdout, NULL, _IONBF, 0);
++
++	if (verbose) {
++		printf("calling sigaction\n");
++	}
++
++	memset(&sa, 0, sizeof sa);
++	sa.sa_sigaction = ioHandler;
++	if (sigemptyset(&sa.sa_mask) < 0) {
++		die("sigemptyset");
++	}
++	sa.sa_flags = SA_SIGINFO;
++	if (sigaction(SIGIO, &sa, NULL) < 0) {
++		die("sigaction");
++	}
++
++	if (verbose) {
++		printf("calling dlopen\n");
++	}
++
++	handle = dlopen(argv[1], RTLD_NOW | RTLD_GLOBAL);
++	if (handle == NULL) {
++		fprintf(stderr, "%s\n", dlerror());
++		exit(EXIT_FAILURE);
++	}
++
++	// At this point there should not be a Go signal handler
++	// installed for SIGIO.
++
++	if (verbose) {
++		printf("raising SIGIO\n");
++	}
++
++	if (raise(SIGIO) < 0) {
++		die("raise");
++	}
++
++	if (verbose) {
++		printf("waiting for sigioSeen\n");
++	}
++
++	// Wait until the signal has been delivered.
++	i = 0;
++	while (!sigioSeen) {
++		if (sched_yield() < 0) {
++			perror("sched_yield");
++		}
++		i++;
++		if (i > 10000) {
++			fprintf(stderr, "looping too long waiting for signal\n");
++			exit(EXIT_FAILURE);
++		}
++	}
++
++	sigioSeen = 0;
++
++	// Tell the Go code to catch SIGIO.
++
++	if (verbose) {
++		printf("calling dlsym\n");
++	}
++
++	fn1 = (void(*)(void))dlsym(handle, "CatchSIGIO");
++	if (fn1 == NULL) {
++		fprintf(stderr, "%s\n", dlerror());
++		exit(EXIT_FAILURE);
++	}
++
++	if (verbose) {
++		printf("calling CatchSIGIO\n");
++	}
++
++	fn1();
++
++	if (verbose) {
++		printf("raising SIGIO\n");
++	}
++
++	if (raise(SIGIO) < 0) {
++		die("raise");
++	}
++
++	if (verbose) {
++		printf("calling dlsym\n");
++	}
++
++	// Check that the Go code saw SIGIO.
++	sawSIGIO = (int (*)(void))dlsym(handle, "SawSIGIO");
++	if (sawSIGIO == NULL) {
++		fprintf(stderr, "%s\n", dlerror());
++		exit(EXIT_FAILURE);
++	}
++
++	if (verbose) {
++		printf("calling SawSIGIO\n");
++	}
++
++	if (!sawSIGIO()) {
++		fprintf(stderr, "Go handler did not see SIGIO\n");
++		exit(EXIT_FAILURE);
++	}
++
++	if (sigioSeen != 0) {
++		fprintf(stderr, "C handler saw SIGIO when only Go handler should have\n");
++		exit(EXIT_FAILURE);
++	}
++
++	// Tell the Go code to stop catching SIGIO.
++
++	if (verbose) {
++		printf("calling dlsym\n");
++	}
++
++	fn1 = (void(*)(void))dlsym(handle, "ResetSIGIO");
++	if (fn1 == NULL) {
++		fprintf(stderr, "%s\n", dlerror());
++		exit(EXIT_FAILURE);
++	}
++
++	if (verbose) {
++		printf("calling ResetSIGIO\n");
++	}
++
++	fn1();
++
++	if (verbose) {
++		printf("raising SIGIO\n");
++	}
++
++	if (raise(SIGIO) < 0) {
++		die("raise");
++	}
++
++	if (verbose) {
++		printf("calling SawSIGIO\n");
++	}
++
++	if (sawSIGIO()) {
++		fprintf(stderr, "Go handler saw SIGIO after Reset\n");
++		exit(EXIT_FAILURE);
++	}
++
++	if (verbose) {
++		printf("waiting for sigioSeen\n");
++	}
++
++	// Wait until the signal has been delivered.
++	i = 0;
++	while (!sigioSeen) {
++		if (sched_yield() < 0) {
++			perror("sched_yield");
++		}
++		i++;
++		if (i > 10000) {
++			fprintf(stderr, "looping too long waiting for signal\n");
++			exit(EXIT_FAILURE);
++		}
++	}
++
++	printf("PASS\n");
++	return 0;
++}
+diff --git a/misc/cgo/testcshared/src/libgo5/libgo5.go b/misc/cgo/testcshared/src/libgo5/libgo5.go
+new file mode 100644
+index 0000000000..94e5d21c14
+--- /dev/null
++++ b/misc/cgo/testcshared/src/libgo5/libgo5.go
+@@ -0,0 +1,44 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "C"
++
++import (
++	"os"
++	"os/signal"
++	"syscall"
++	"time"
++)
++
++// The channel used to read SIGIO signals.
++var sigioChan chan os.Signal
++
++// CatchSIGIO starts catching SIGIO signals.
++//export CatchSIGIO
++func CatchSIGIO() {
++	sigioChan = make(chan os.Signal, 1)
++	signal.Notify(sigioChan, syscall.SIGIO)
++}
++
++// ResetSIGIO stops catching SIGIO signals.
++//export ResetSIGIO
++func ResetSIGIO() {
++	signal.Reset(syscall.SIGIO)
++}
++
++// SawSIGIO returns whether we saw a SIGIO within a brief pause.
++//export SawSIGIO
++func SawSIGIO() C.int {
++	select {
++	case <-sigioChan:
++		return 1
++	case <-time.After(100 * time.Millisecond):
++		return 0
++	}
++}
++
++func main() {
++}
+diff --git a/misc/cgo/testcshared/test.bash b/misc/cgo/testcshared/test.bash
+index 162a62d80e..ac852a007a 100755
+--- a/misc/cgo/testcshared/test.bash
++++ b/misc/cgo/testcshared/test.bash
+@@ -33,8 +33,9 @@ fi
+ androidpath=/data/local/tmp/testcshared-$$
+ 
+ function cleanup() {
+-	rm -f libgo.$libext libgo2.$libext libgo4.$libext libgo.h libgo4.h
+-	rm -f testp testp2 testp3 testp4
++	rm -f libgo.$libext libgo2.$libext libgo4.$libext libgo5.$libext
++	rm -f libgo.h libgo4.h libgo5.h
++	rm -f testp testp2 testp3 testp4 testp5
+ 	rm -rf pkg "${goroot}/${installdir}"
+ 
+ 	if [ "$goos" == "android" ]; then
+@@ -161,6 +162,21 @@ if test "$output" != "PASS"; then
+     status=1
+ fi
+ 
++# test5: tests signal handlers with os/signal.Notify
++GOPATH=$(pwd) go build -buildmode=c-shared $suffix -o libgo5.$libext libgo5
++binpush libgo5.$libext
++$(go env CC) ${GOGCCFLAGS} -pthread -o testp5 main5.c -ldl
++binpush testp5
++output=$(run ./testp5 ./libgo5.$libext 2>&1)
++if test "$output" != "PASS"; then
++    echo "FAIL test5 got ${output}"
++    if test "$goos" != "android"; then
++	echo "re-running test5 in verbose mode"
++	./testp5 ./libgo5.$libext verbose
++    fi
++    status=1
++fi
++
+ if test $status = 0; then
+     echo "ok"
+ fi
+diff --git a/src/os/signal/doc.go b/src/os/signal/doc.go
+index 4a6d1d5c3a..b36c16c8a9 100644
+--- a/src/os/signal/doc.go
++++ b/src/os/signal/doc.go
+@@ -162,13 +162,20 @@ signal arrives while executing non-Go code, the Go runtime will invoke
+ the existing signal handler instead of the Go signal handler.
+ 
+ Go code built with -buildmode=c-archive or -buildmode=c-shared will
+-not install any other signal handlers. TODO: Describe Notify behavior.
+-
+-Go code built otherwise will install a signal handler for the
+-asynchronous signals listed above, and save any existing signal
+-handler. If a signal is delivered to a non-Go thread, it will act as
+-described above, except that if there is an existing non-Go signal
+-handler, that handler will be installed before raising the signal.
++not install any other signal handlers by default. If there is an
++existing signal handler, the Go runtime will turn on the SA_ONSTACK
++flag and otherwise keep the signal handler. If Notify is called for an
++asynchronous signal, a Go signal handler will be installed for that
++signal. If, later, Reset is called for that signal, the original
++handling for that signal will be reinstalled, restoring the non-Go
++signal handler if any.
++
++Go code built without -buildmode=c-archive or -buildmode=c-shared will
++install a signal handler for the asynchronous signals listed above,
++and save any existing signal handler. If a signal is delivered to a
++non-Go thread, it will act as described above, except that if there is
++an existing non-Go signal handler, that handler will be installed
++before raising the signal.
+ 
+ Windows
+ 
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 9549d1f531..c357f6e6d5 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -482,7 +482,6 @@ const (
+ 	_SigPanic                // if the signal is from the kernel, panic
+ 	_SigDefault              // if the signal isn't explicitly requested, don't monitor it
+ 	_SigHandling             // our signal handler is registered
+-	_SigIgnored              // the signal was ignored before we registered for it
+ 	_SigGoExit               // cause all runtime procs to exit (only used on Plan 9).
+ 	_SigSetStack             // add SA_ONSTACK to libc handler
+ 	_SigUnblock              // unblocked in minit
+diff --git a/src/runtime/signal1_unix.go b/src/runtime/signal1_unix.go
+index 3bb3ed8312..468d6f6946 100644
+--- a/src/runtime/signal1_unix.go
++++ b/src/runtime/signal1_unix.go
+@@ -49,13 +49,13 @@ func initsig() {
+ 			continue
+ 		}
+ 		fwdSig[i] = getsig(i)
++
+ 		// For some signals, we respect an inherited SIG_IGN handler
+ 		// rather than insist on installing our own default handler.
+ 		// Even these signals can be fetched using the os/signal package.
+ 		switch i {
+ 		case _SIGHUP, _SIGINT:
+-			if getsig(i) == _SIG_IGN {
+-				t.flags = _SigNotify | _SigIgnored
++			if fwdSig[i] == _SIG_IGN {
+ 				continue
+ 			}
+ 		}
+@@ -90,9 +90,6 @@ func sigenable(sig uint32) {
+ 		<-maskUpdatedChan
+ 		if t.flags&_SigHandling == 0 {
+ 			t.flags |= _SigHandling
+-			if getsig(int32(sig)) == _SIG_IGN {
+-				t.flags |= _SigIgnored
+-			}
+ 			setsig(int32(sig), funcPC(sighandler), true)
+ 		}
+ 	}
+@@ -110,11 +107,7 @@ func sigdisable(sig uint32) {
+ 		<-maskUpdatedChan
+ 		if t.flags&_SigHandling != 0 {
+ 			t.flags &^= _SigHandling
+-			if t.flags&_SigIgnored != 0 {
+-				setsig(int32(sig), _SIG_IGN, true)
+-			} else {
+-				setsig(int32(sig), _SIG_DFL, true)
+-			}
++			setsig(int32(sig), fwdSig[sig], true)
+ 		}
+ 	}
+ }

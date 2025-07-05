@@ -10,7 +10,7 @@ Date:   Wed Aug 27 20:15:05 2014 -0400
     R=iant, rsc
     CC=golang-codereviews
     https://golang.org/cl/126790043
-
+---
  misc/cgo/test/cgo_test.go           |   1 +
  misc/cgo/test/issue8092.go          |  36 +++++++++++++
  src/cmd/ld/data.c                   |  98 ++++++++++++++++++------------------
@@ -48,3 +48,1132 @@ Date:   Wed Aug 27 20:15:05 2014 -0400
  src/pkg/runtime/symtab.c            |  36 ++++++-------
  src/pkg/runtime/symtab.go           |  10 ++--
  36 files changed, 232 insertions(+), 196 deletions(-)
+
+diff --git a/misc/cgo/test/cgo_test.go b/misc/cgo/test/cgo_test.go
+index 3c6d5cb59e..3cc83060fc 100644
+--- a/misc/cgo/test/cgo_test.go
++++ b/misc/cgo/test/cgo_test.go
+@@ -54,5 +54,6 @@ func Test7665(t *testing.T)                { test7665(t) }
+ func TestNaming(t *testing.T)              { testNaming(t) }
+ func Test7560(t *testing.T)                { test7560(t) }
+ func Test5242(t *testing.T)                { test5242(t) }
++func Test8092(t *testing.T)                { test8092(t) }
+ 
+ func BenchmarkCgoCall(b *testing.B) { benchCgoCall(b) }
+diff --git a/misc/cgo/test/issue8092.go b/misc/cgo/test/issue8092.go
+new file mode 100644
+index 0000000000..8a14ce6d7a
+--- /dev/null
++++ b/misc/cgo/test/issue8092.go
+@@ -0,0 +1,36 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 8092. Test that linker defined symbols (e.g., text, data) don't
++// conflict with C symbols.
++
++package cgotest
++
++/*
++char text[] = "text";
++char data[] = "data";
++char *ctext(void) { return text; }
++char *cdata(void) { return data; }
++*/
++import "C"
++
++import "testing"
++
++func test8092(t *testing.T) {
++	tests := []struct {
++		s    string
++		a, b *C.char
++	}{
++		{"text", &C.text[0], C.ctext()},
++		{"data", &C.data[0], C.cdata()},
++	}
++	for _, test := range tests {
++		if test.a != test.b {
++			t.Errorf("%s: pointer mismatch: %v != %v", test.s, test.a, test.b)
++		}
++		if got := C.GoString(test.a); got != test.s {
++			t.Errorf("%s: points at %#v, want %#v", test.s, got, test.s)
++		}
++	}
++}
+diff --git a/src/cmd/ld/data.c b/src/cmd/ld/data.c
+index a988e807e6..098403a743 100644
+--- a/src/cmd/ld/data.c
++++ b/src/cmd/ld/data.c
+@@ -987,8 +987,8 @@ dodata(void)
+ 	sect->align = maxalign(s, SINITARR-1);
+ 	datsize = rnd(datsize, sect->align);
+ 	sect->vaddr = datsize;
+-	linklookup(ctxt, "noptrdata", 0)->sect = sect;
+-	linklookup(ctxt, "enoptrdata", 0)->sect = sect;
++	linklookup(ctxt, "runtime.noptrdata", 0)->sect = sect;
++	linklookup(ctxt, "runtime.enoptrdata", 0)->sect = sect;
+ 	for(; s != nil && s->type < SINITARR; s = s->next) {
+ 		datsize = aligndatsize(datsize, s);
+ 		s->sect = sect;
+@@ -1018,9 +1018,9 @@ dodata(void)
+ 	sect->align = maxalign(s, SBSS-1);
+ 	datsize = rnd(datsize, sect->align);
+ 	sect->vaddr = datsize;
+-	linklookup(ctxt, "data", 0)->sect = sect;
+-	linklookup(ctxt, "edata", 0)->sect = sect;
+-	gcdata = linklookup(ctxt, "gcdata", 0);
++	linklookup(ctxt, "runtime.data", 0)->sect = sect;
++	linklookup(ctxt, "runtime.edata", 0)->sect = sect;
++	gcdata = linklookup(ctxt, "runtime.gcdata", 0);
+ 	proggeninit(&gen, gcdata);
+ 	for(; s != nil && s->type < SBSS; s = s->next) {
+ 		if(s->type == SINITARR) {
+@@ -1042,9 +1042,9 @@ dodata(void)
+ 	sect->align = maxalign(s, SNOPTRBSS-1);
+ 	datsize = rnd(datsize, sect->align);
+ 	sect->vaddr = datsize;
+-	linklookup(ctxt, "bss", 0)->sect = sect;
+-	linklookup(ctxt, "ebss", 0)->sect = sect;
+-	gcbss = linklookup(ctxt, "gcbss", 0);
++	linklookup(ctxt, "runtime.bss", 0)->sect = sect;
++	linklookup(ctxt, "runtime.ebss", 0)->sect = sect;
++	gcbss = linklookup(ctxt, "runtime.gcbss", 0);
+ 	proggeninit(&gen, gcbss);
+ 	for(; s != nil && s->type < SNOPTRBSS; s = s->next) {
+ 		s->sect = sect;
+@@ -1061,8 +1061,8 @@ dodata(void)
+ 	sect->align = maxalign(s, SNOPTRBSS);
+ 	datsize = rnd(datsize, sect->align);
+ 	sect->vaddr = datsize;
+-	linklookup(ctxt, "noptrbss", 0)->sect = sect;
+-	linklookup(ctxt, "enoptrbss", 0)->sect = sect;
++	linklookup(ctxt, "runtime.noptrbss", 0)->sect = sect;
++	linklookup(ctxt, "runtime.enoptrbss", 0)->sect = sect;
+ 	for(; s != nil && s->type == SNOPTRBSS; s = s->next) {
+ 		datsize = aligndatsize(datsize, s);
+ 		s->sect = sect;
+@@ -1070,7 +1070,7 @@ dodata(void)
+ 		growdatsize(&datsize, s);
+ 	}
+ 	sect->len = datsize - sect->vaddr;
+-	linklookup(ctxt, "end", 0)->sect = sect;
++	linklookup(ctxt, "runtime.end", 0)->sect = sect;
+ 
+ 	// 6g uses 4-byte relocation offsets, so the entire segment must fit in 32 bits.
+ 	if(datsize != (uint32)datsize) {
+@@ -1141,8 +1141,8 @@ dodata(void)
+ 	sect->align = maxalign(s, STYPELINK-1);
+ 	datsize = rnd(datsize, sect->align);
+ 	sect->vaddr = 0;
+-	linklookup(ctxt, "rodata", 0)->sect = sect;
+-	linklookup(ctxt, "erodata", 0)->sect = sect;
++	linklookup(ctxt, "runtime.rodata", 0)->sect = sect;
++	linklookup(ctxt, "runtime.erodata", 0)->sect = sect;
+ 	for(; s != nil && s->type < STYPELINK; s = s->next) {
+ 		datsize = aligndatsize(datsize, s);
+ 		s->sect = sect;
+@@ -1157,8 +1157,8 @@ dodata(void)
+ 	sect->align = maxalign(s, STYPELINK);
+ 	datsize = rnd(datsize, sect->align);
+ 	sect->vaddr = datsize;
+-	linklookup(ctxt, "typelink", 0)->sect = sect;
+-	linklookup(ctxt, "etypelink", 0)->sect = sect;
++	linklookup(ctxt, "runtime.typelink", 0)->sect = sect;
++	linklookup(ctxt, "runtime.etypelink", 0)->sect = sect;
+ 	for(; s != nil && s->type == STYPELINK; s = s->next) {
+ 		datsize = aligndatsize(datsize, s);
+ 		s->sect = sect;
+@@ -1173,8 +1173,8 @@ dodata(void)
+ 	sect->align = maxalign(s, SPCLNTAB-1);
+ 	datsize = rnd(datsize, sect->align);
+ 	sect->vaddr = datsize;
+-	linklookup(ctxt, "symtab", 0)->sect = sect;
+-	linklookup(ctxt, "esymtab", 0)->sect = sect;
++	linklookup(ctxt, "runtime.symtab", 0)->sect = sect;
++	linklookup(ctxt, "runtime.esymtab", 0)->sect = sect;
+ 	for(; s != nil && s->type < SPCLNTAB; s = s->next) {
+ 		datsize = aligndatsize(datsize, s);
+ 		s->sect = sect;
+@@ -1189,8 +1189,8 @@ dodata(void)
+ 	sect->align = maxalign(s, SELFROSECT-1);
+ 	datsize = rnd(datsize, sect->align);
+ 	sect->vaddr = datsize;
+-	linklookup(ctxt, "pclntab", 0)->sect = sect;
+-	linklookup(ctxt, "epclntab", 0)->sect = sect;
++	linklookup(ctxt, "runtime.pclntab", 0)->sect = sect;
++	linklookup(ctxt, "runtime.epclntab", 0)->sect = sect;
+ 	for(; s != nil && s->type < SELFROSECT; s = s->next) {
+ 		datsize = aligndatsize(datsize, s);
+ 		s->sect = sect;
+@@ -1243,8 +1243,8 @@ textaddress(void)
+ 	// and then letting threads copy down, but probably not worth it.
+ 	sect = segtext.sect;
+ 	sect->align = funcalign;
+-	linklookup(ctxt, "text", 0)->sect = sect;
+-	linklookup(ctxt, "etext", 0)->sect = sect;
++	linklookup(ctxt, "runtime.text", 0)->sect = sect;
++	linklookup(ctxt, "runtime.etext", 0)->sect = sect;
+ 	va = INITTEXT;
+ 	sect->vaddr = va;
+ 	for(sym = ctxt->textp; sym != nil; sym = sym->next) {
+@@ -1355,32 +1355,32 @@ address(void)
+ 			sub->value += sym->value;
+ 	}
+ 
+-	xdefine("text", STEXT, text->vaddr);
+-	xdefine("etext", STEXT, text->vaddr + text->len);
+-	xdefine("rodata", SRODATA, rodata->vaddr);
+-	xdefine("erodata", SRODATA, rodata->vaddr + rodata->len);
+-	xdefine("typelink", SRODATA, typelink->vaddr);
+-	xdefine("etypelink", SRODATA, typelink->vaddr + typelink->len);
+-
+-	sym = linklookup(ctxt, "gcdata", 0);
+-	xdefine("egcdata", SRODATA, symaddr(sym) + sym->size);
+-	linklookup(ctxt, "egcdata", 0)->sect = sym->sect;
+-
+-	sym = linklookup(ctxt, "gcbss", 0);
+-	xdefine("egcbss", SRODATA, symaddr(sym) + sym->size);
+-	linklookup(ctxt, "egcbss", 0)->sect = sym->sect;
+-
+-	xdefine("symtab", SRODATA, symtab->vaddr);
+-	xdefine("esymtab", SRODATA, symtab->vaddr + symtab->len);
+-	xdefine("pclntab", SRODATA, pclntab->vaddr);
+-	xdefine("epclntab", SRODATA, pclntab->vaddr + pclntab->len);
+-	xdefine("noptrdata", SNOPTRDATA, noptr->vaddr);
+-	xdefine("enoptrdata", SNOPTRDATA, noptr->vaddr + noptr->len);
+-	xdefine("bss", SBSS, bss->vaddr);
+-	xdefine("ebss", SBSS, bss->vaddr + bss->len);
+-	xdefine("data", SDATA, data->vaddr);
+-	xdefine("edata", SDATA, data->vaddr + data->len);
+-	xdefine("noptrbss", SNOPTRBSS, noptrbss->vaddr);
+-	xdefine("enoptrbss", SNOPTRBSS, noptrbss->vaddr + noptrbss->len);
+-	xdefine("end", SBSS, segdata.vaddr + segdata.len);
++	xdefine("runtime.text", STEXT, text->vaddr);
++	xdefine("runtime.etext", STEXT, text->vaddr + text->len);
++	xdefine("runtime.rodata", SRODATA, rodata->vaddr);
++	xdefine("runtime.erodata", SRODATA, rodata->vaddr + rodata->len);
++	xdefine("runtime.typelink", SRODATA, typelink->vaddr);
++	xdefine("runtime.etypelink", SRODATA, typelink->vaddr + typelink->len);
++
++	sym = linklookup(ctxt, "runtime.gcdata", 0);
++	xdefine("runtime.egcdata", SRODATA, symaddr(sym) + sym->size);
++	linklookup(ctxt, "runtime.egcdata", 0)->sect = sym->sect;
++
++	sym = linklookup(ctxt, "runtime.gcbss", 0);
++	xdefine("runtime.egcbss", SRODATA, symaddr(sym) + sym->size);
++	linklookup(ctxt, "runtime.egcbss", 0)->sect = sym->sect;
++
++	xdefine("runtime.symtab", SRODATA, symtab->vaddr);
++	xdefine("runtime.esymtab", SRODATA, symtab->vaddr + symtab->len);
++	xdefine("runtime.pclntab", SRODATA, pclntab->vaddr);
++	xdefine("runtime.epclntab", SRODATA, pclntab->vaddr + pclntab->len);
++	xdefine("runtime.noptrdata", SNOPTRDATA, noptr->vaddr);
++	xdefine("runtime.enoptrdata", SNOPTRDATA, noptr->vaddr + noptr->len);
++	xdefine("runtime.bss", SBSS, bss->vaddr);
++	xdefine("runtime.ebss", SBSS, bss->vaddr + bss->len);
++	xdefine("runtime.data", SDATA, data->vaddr);
++	xdefine("runtime.edata", SDATA, data->vaddr + data->len);
++	xdefine("runtime.noptrbss", SNOPTRBSS, noptrbss->vaddr);
++	xdefine("runtime.enoptrbss", SNOPTRBSS, noptrbss->vaddr + noptrbss->len);
++	xdefine("runtime.end", SBSS, segdata.vaddr + segdata.len);
+ }
+diff --git a/src/cmd/ld/lib.c b/src/cmd/ld/lib.c
+index 0a5d8d99f2..a68993715d 100644
+--- a/src/cmd/ld/lib.c
++++ b/src/cmd/ld/lib.c
+@@ -1349,10 +1349,10 @@ genasmsym(void (*put)(LSym*, char*, int, vlong, vlong, int, LSym*))
+ 
+ 	// These symbols won't show up in the first loop below because we
+ 	// skip STEXT symbols. Normal STEXT symbols are emitted by walking textp.
+-	s = linklookup(ctxt, "text", 0);
++	s = linklookup(ctxt, "runtime.text", 0);
+ 	if(s->type == STEXT)
+ 		put(s, s->name, 'T', s->value, s->size, s->version, 0);
+-	s = linklookup(ctxt, "etext", 0);
++	s = linklookup(ctxt, "runtime.etext", 0);
+ 	if(s->type == STEXT)
+ 		put(s, s->name, 'T', s->value, s->size, s->version, 0);
+ 
+diff --git a/src/cmd/ld/pcln.c b/src/cmd/ld/pcln.c
+index 17f4f992fc..3cd9e65dad 100644
+--- a/src/cmd/ld/pcln.c
++++ b/src/cmd/ld/pcln.c
+@@ -119,7 +119,7 @@ pclntab(void)
+ 	static Pcln zpcln;
+ 	
+ 	funcdata_bytes = 0;
+-	ftab = linklookup(ctxt, "pclntab", 0);
++	ftab = linklookup(ctxt, "runtime.pclntab", 0);
+ 	ftab->type = SPCLNTAB;
+ 	ftab->reachable = 1;
+ 
+diff --git a/src/cmd/ld/symtab.c b/src/cmd/ld/symtab.c
+index 1805f97d3a..156270c8fa 100644
+--- a/src/cmd/ld/symtab.c
++++ b/src/cmd/ld/symtab.c
+@@ -346,36 +346,36 @@ symtab(void)
+ 
+ 	// Define these so that they'll get put into the symbol table.
+ 	// data.c:/^address will provide the actual values.
+-	xdefine("text", STEXT, 0);
+-	xdefine("etext", STEXT, 0);
+-	xdefine("typelink", SRODATA, 0);
+-	xdefine("etypelink", SRODATA, 0);
+-	xdefine("rodata", SRODATA, 0);
+-	xdefine("erodata", SRODATA, 0);
+-	xdefine("noptrdata", SNOPTRDATA, 0);
+-	xdefine("enoptrdata", SNOPTRDATA, 0);
+-	xdefine("data", SDATA, 0);
+-	xdefine("edata", SDATA, 0);
+-	xdefine("bss", SBSS, 0);
+-	xdefine("ebss", SBSS, 0);
+-	xdefine("noptrbss", SNOPTRBSS, 0);
+-	xdefine("enoptrbss", SNOPTRBSS, 0);
+-	xdefine("end", SBSS, 0);
+-	xdefine("epclntab", SRODATA, 0);
+-	xdefine("esymtab", SRODATA, 0);
++	xdefine("runtime.text", STEXT, 0);
++	xdefine("runtime.etext", STEXT, 0);
++	xdefine("runtime.typelink", SRODATA, 0);
++	xdefine("runtime.etypelink", SRODATA, 0);
++	xdefine("runtime.rodata", SRODATA, 0);
++	xdefine("runtime.erodata", SRODATA, 0);
++	xdefine("runtime.noptrdata", SNOPTRDATA, 0);
++	xdefine("runtime.enoptrdata", SNOPTRDATA, 0);
++	xdefine("runtime.data", SDATA, 0);
++	xdefine("runtime.edata", SDATA, 0);
++	xdefine("runtime.bss", SBSS, 0);
++	xdefine("runtime.ebss", SBSS, 0);
++	xdefine("runtime.noptrbss", SNOPTRBSS, 0);
++	xdefine("runtime.enoptrbss", SNOPTRBSS, 0);
++	xdefine("runtime.end", SBSS, 0);
++	xdefine("runtime.epclntab", SRODATA, 0);
++	xdefine("runtime.esymtab", SRODATA, 0);
+ 
+ 	// garbage collection symbols
+-	s = linklookup(ctxt, "gcdata", 0);
++	s = linklookup(ctxt, "runtime.gcdata", 0);
+ 	s->type = SRODATA;
+ 	s->size = 0;
+ 	s->reachable = 1;
+-	xdefine("egcdata", SRODATA, 0);
++	xdefine("runtime.egcdata", SRODATA, 0);
+ 
+-	s = linklookup(ctxt, "gcbss", 0);
++	s = linklookup(ctxt, "runtime.gcbss", 0);
+ 	s->type = SRODATA;
+ 	s->size = 0;
+ 	s->reachable = 1;
+-	xdefine("egcbss", SRODATA, 0);
++	xdefine("runtime.egcbss", SRODATA, 0);
+ 
+ 	// pseudo-symbols to mark locations of type, string, and go string data.
+ 	s = linklookup(ctxt, "type.*", 0);
+@@ -396,9 +396,9 @@ symtab(void)
+ 	s->reachable = 1;
+ 	symgofunc = s;
+ 	
+-	symtypelink = linklookup(ctxt, "typelink", 0);
++	symtypelink = linklookup(ctxt, "runtime.typelink", 0);
+ 
+-	symt = linklookup(ctxt, "symtab", 0);
++	symt = linklookup(ctxt, "runtime.symtab", 0);
+ 	symt->type = SSYMTAB;
+ 	symt->size = 0;
+ 	symt->reachable = 1;
+diff --git a/src/cmd/link/auto.go b/src/cmd/link/auto.go
+index 8f0c39f8c0..f9228e8cab 100644
+--- a/src/cmd/link/auto.go
++++ b/src/cmd/link/auto.go
+@@ -18,26 +18,26 @@ import (
+ // linkerDefined lists the symbols supplied by other parts of the linker
+ // (runtime.go and layout.go).
+ var linkerDefined = map[string]bool{
+-	"bss":        true,
+-	"data":       true,
+-	"ebss":       true,
+-	"edata":      true,
+-	"efunctab":   true,
+-	"end":        true,
+-	"enoptrbss":  true,
+-	"enoptrdata": true,
+-	"erodata":    true,
+-	"etext":      true,
+-	"etypelink":  true,
+-	"functab":    true,
+-	"gcbss":      true,
+-	"gcdata":     true,
+-	"noptrbss":   true,
+-	"noptrdata":  true,
+-	"pclntab":    true,
+-	"rodata":     true,
+-	"text":       true,
+-	"typelink":   true,
++	"runtime.bss":        true,
++	"runtime.data":       true,
++	"runtime.ebss":       true,
++	"runtime.edata":      true,
++	"runtime.efunctab":   true,
++	"runtime.end":        true,
++	"runtime.enoptrbss":  true,
++	"runtime.enoptrdata": true,
++	"runtime.erodata":    true,
++	"runtime.etext":      true,
++	"runtime.etypelink":  true,
++	"runtime.functab":    true,
++	"runtime.gcbss":      true,
++	"runtime.gcdata":     true,
++	"runtime.noptrbss":   true,
++	"runtime.noptrdata":  true,
++	"runtime.pclntab":    true,
++	"runtime.rodata":     true,
++	"runtime.text":       true,
++	"runtime.typelink":   true,
+ }
+ 
+ // isAuto reports whether sym is an automatically-generated data or constant symbol.
+diff --git a/src/cmd/link/layout.go b/src/cmd/link/layout.go
+index 6477022444..149ebced0f 100644
+--- a/src/cmd/link/layout.go
++++ b/src/cmd/link/layout.go
+@@ -172,9 +172,9 @@ func (p *Prog) layout() {
+ 			start = sect.VirtAddr
+ 			end = sect.VirtAddr + sect.Size
+ 		}
+-		p.defineConst(name, start)
+-		p.defineConst("e"+name, end)
++		p.defineConst("runtime."+name, start)
++		p.defineConst("runtime.e"+name, end)
+ 		progEnd = end
+ 	}
+-	p.defineConst("end", progEnd)
++	p.defineConst("runtime.end", progEnd)
+ }
+diff --git a/src/cmd/link/pclntab.go b/src/cmd/link/pclntab.go
+index a950895aa5..232d586bf2 100644
+--- a/src/cmd/link/pclntab.go
++++ b/src/cmd/link/pclntab.go
+@@ -183,7 +183,7 @@ func (p *Prog) pclntab() {
+ 
+ 	pclntab := &Sym{
+ 		Sym: &goobj.Sym{
+-			SymID: goobj.SymID{Name: "pclntab"},
++			SymID: goobj.SymID{Name: "runtime.pclntab"},
+ 			Kind:  goobj.SPCLNTAB,
+ 			Size:  buf.Size(),
+ 			Reloc: buf.Reloc(),
+diff --git a/src/cmd/link/pclntab_test.go b/src/cmd/link/pclntab_test.go
+index 75d432fc5d..19953f5797 100644
+--- a/src/cmd/link/pclntab_test.go
++++ b/src/cmd/link/pclntab_test.go
+@@ -141,7 +141,7 @@ func TestPclntab(t *testing.T) {
+ // It returns a symbol reader for pclntab, the offset of the function information
+ // within that symbol, and the args and frame values read out of the information.
+ func findFunc(t *testing.T, p *Prog, name string) (r *SymReader, off, args, frame int, ok bool) {
+-	tabsym := p.Syms[goobj.SymID{Name: "pclntab"}]
++	tabsym := p.Syms[goobj.SymID{Name: "runtime.pclntab"}]
+ 	if tabsym == nil {
+ 		t.Errorf("pclntab is missing in binary")
+ 		return
+diff --git a/src/cmd/link/runtime.go b/src/cmd/link/runtime.go
+index 5d37015eb1..b0c1ac98a6 100644
+--- a/src/cmd/link/runtime.go
++++ b/src/cmd/link/runtime.go
+@@ -15,13 +15,13 @@ func (p *Prog) runtime() {
+ 	// TODO: Implement garbage collection data.
+ 	p.addSym(&Sym{
+ 		Sym: &goobj.Sym{
+-			SymID: goobj.SymID{Name: "gcdata"},
++			SymID: goobj.SymID{Name: "runtime.gcdata"},
+ 			Kind:  goobj.SRODATA,
+ 		},
+ 	})
+ 	p.addSym(&Sym{
+ 		Sym: &goobj.Sym{
+-			SymID: goobj.SymID{Name: "gcbss"},
++			SymID: goobj.SymID{Name: "runtime.gcbss"},
+ 			Kind:  goobj.SRODATA,
+ 		},
+ 	})
+diff --git a/src/cmd/link/testdata/autosection.6 b/src/cmd/link/testdata/autosection.6
+index 97e8872bd8..386f422cf3 100644
+Binary files a/src/cmd/link/testdata/autosection.6 and b/src/cmd/link/testdata/autosection.6 differ
+diff --git a/src/cmd/link/testdata/autosection.s b/src/cmd/link/testdata/autosection.s
+index fd9e94da4e..e0cb21723e 100644
+--- a/src/cmd/link/testdata/autosection.s
++++ b/src/cmd/link/testdata/autosection.s
+@@ -16,37 +16,37 @@ GLOBL zero(SB), $8
+ GLOBL zeronoptr(SB), NOPTR, $16
+ 
+ // text
+-DATA autotab+0x00(SB)/8, $text(SB)
++DATA autotab+0x00(SB)/8, $runtime·text(SB)
+ DATA autotab+0x08(SB)/8, $start(SB)
+-DATA autotab+0x10(SB)/8, $etext(SB)
++DATA autotab+0x10(SB)/8, $runtime·etext(SB)
+ DATA autotab+0x18(SB)/8, $start+16(SB)
+ 
+ // data
+-DATA autotab+0x20(SB)/8, $data(SB)
++DATA autotab+0x20(SB)/8, $runtime·data(SB)
+ DATA autotab+0x28(SB)/8, $autotab(SB)
+-DATA autotab+0x30(SB)/8, $edata(SB)
++DATA autotab+0x30(SB)/8, $runtime·edata(SB)
+ DATA autotab+0x38(SB)/8, $nonzero+4(SB)
+ 
+ // bss
+-DATA autotab+0x40(SB)/8, $bss(SB)
++DATA autotab+0x40(SB)/8, $runtime·bss(SB)
+ DATA autotab+0x48(SB)/8, $zero(SB)
+-DATA autotab+0x50(SB)/8, $ebss(SB)
++DATA autotab+0x50(SB)/8, $runtime·ebss(SB)
+ DATA autotab+0x58(SB)/8, $zero+8(SB)
+ 
+ // noptrdata
+-DATA autotab+0x60(SB)/8, $noptrdata(SB)
++DATA autotab+0x60(SB)/8, $runtime·noptrdata(SB)
+ DATA autotab+0x68(SB)/8, $nonzeronoptr(SB)
+-DATA autotab+0x70(SB)/8, $enoptrdata(SB)
++DATA autotab+0x70(SB)/8, $runtime·enoptrdata(SB)
+ DATA autotab+0x78(SB)/8, $nonzeronoptr+8(SB)
+ 
+ // noptrbss
+-DATA autotab+0x80(SB)/8, $noptrbss(SB)
++DATA autotab+0x80(SB)/8, $runtime·noptrbss(SB)
+ DATA autotab+0x88(SB)/8, $zeronoptr(SB)
+-DATA autotab+0x90(SB)/8, $enoptrbss(SB)
++DATA autotab+0x90(SB)/8, $runtime·enoptrbss(SB)
+ DATA autotab+0x98(SB)/8, $zeronoptr+16(SB)
+ 
+ // end
+-DATA autotab+0xa0(SB)/8, $end(SB)
++DATA autotab+0xa0(SB)/8, $runtime·end(SB)
+ DATA autotab+0xa8(SB)/8, $zeronoptr+16(SB)
+ 
+ GLOBL autotab(SB), $0xb0
+diff --git a/src/cmd/link/testdata/dead.6 b/src/cmd/link/testdata/dead.6
+index c60b1b6c64..9540adc1af 100644
+Binary files a/src/cmd/link/testdata/dead.6 and b/src/cmd/link/testdata/dead.6 differ
+diff --git a/src/cmd/link/testdata/dead.s b/src/cmd/link/testdata/dead.s
+index 832ddaff60..86f31360fa 100644
+--- a/src/cmd/link/testdata/dead.s
++++ b/src/cmd/link/testdata/dead.s
+@@ -17,7 +17,7 @@ TEXT text1(SB),7,$0
+ 	RET
+ 
+ TEXT text2(SB),7,$0
+-	MOVQ $edata(SB),BX
++	MOVQ $runtime·edata(SB),BX
+ 	RET
+ 
+ DATA data1<>+0(SB)/8, $data2(SB)
+@@ -46,4 +46,3 @@ GLOBL dead_data1(SB), $16
+ GLOBL dead_data2(SB), $1
+ GLOBL dead_data3(SB), $1
+ GLOBL dead_funcdata(SB), $8
+-
+diff --git a/src/cmd/link/testdata/genpcln.go b/src/cmd/link/testdata/genpcln.go
+index 684cc07a27..c10eaeae91 100644
+--- a/src/cmd/link/testdata/genpcln.go
++++ b/src/cmd/link/testdata/genpcln.go
+@@ -107,6 +107,6 @@ func main() {
+ 	for f := 0; f < 3; f++ {
+ 		fmt.Printf("\tCALL func%d(SB)\n", f)
+ 	}
+-	fmt.Printf("\tMOVQ $pclntab(SB), AX\n")
++	fmt.Printf("\tMOVQ $runtime·pclntab(SB), AX\n")
+ 	fmt.Printf("\n\tRET\n")
+ }
+diff --git a/src/cmd/link/testdata/pclntab.6 b/src/cmd/link/testdata/pclntab.6
+index 596daa9b57..9e7f9afdb0 100644
+Binary files a/src/cmd/link/testdata/pclntab.6 and b/src/cmd/link/testdata/pclntab.6 differ
+diff --git a/src/cmd/link/testdata/pclntab.s b/src/cmd/link/testdata/pclntab.s
+index 22c4ee0dec..12dac70b0c 100644
+--- a/src/cmd/link/testdata/pclntab.s
++++ b/src/cmd/link/testdata/pclntab.s
+@@ -1746,6 +1746,6 @@ TEXT start(SB),7,$0
+ 	CALL func0(SB)
+ 	CALL func1(SB)
+ 	CALL func2(SB)
+-	MOVQ $pclntab(SB), AX
++	MOVQ $runtime·pclntab(SB), AX
+ 
+ 	RET
+diff --git a/src/cmd/objdump/main.go b/src/cmd/objdump/main.go
+index 9922dcc023..42f015be70 100644
+--- a/src/cmd/objdump/main.go
++++ b/src/cmd/objdump/main.go
+@@ -101,7 +101,7 @@ func main() {
+ 	keep := syms[:0]
+ 	for _, sym := range syms {
+ 		switch sym.Name {
+-		case "text", "_text", "etext", "_etext":
++		case "runtime.text", "text", "_text", "runtime.etext", "etext", "_etext":
+ 			// drop
+ 		default:
+ 			keep = append(keep, sym)
+@@ -118,7 +118,7 @@ func main() {
+ 		i := sort.Search(len(syms), func(i int) bool { return syms[i].Addr > addr })
+ 		if i > 0 {
+ 			s := syms[i-1]
+-			if s.Addr <= addr && addr < s.Addr+uint64(s.Size) && s.Name != "etext" && s.Name != "_etext" {
++			if s.Addr <= addr && addr < s.Addr+uint64(s.Size) && s.Name != "runtime.etext" && s.Name != "etext" && s.Name != "_etext" {
+ 				return s.Name, s.Addr
+ 			}
+ 		}
+diff --git a/src/pkg/debug/gosym/symtab.go b/src/pkg/debug/gosym/symtab.go
+index 3864e3cb4f..ee18499d11 100644
+--- a/src/pkg/debug/gosym/symtab.go
++++ b/src/pkg/debug/gosym/symtab.go
+@@ -402,7 +402,7 @@ func NewTable(symtab []byte, pcln *LineTable) (*Table, error) {
+ 			if n := len(t.Funcs); n > 0 {
+ 				t.Funcs[n-1].End = sym.Value
+ 			}
+-			if sym.Name == "etext" {
++			if sym.Name == "runtime.etext" || sym.Name == "etext" {
+ 				continue
+ 			}
+ 
+diff --git a/src/pkg/runtime/heapdump.c b/src/pkg/runtime/heapdump.c
+index ea299d0a2e..09d109199b 100644
+--- a/src/pkg/runtime/heapdump.c
++++ b/src/pkg/runtime/heapdump.c
+@@ -19,10 +19,10 @@
+ #include "zaexperiment.h"
+ #include "../../cmd/ld/textflag.h"
+ 
+-extern byte data[];
+-extern byte edata[];
+-extern byte bss[];
+-extern byte ebss[];
++extern byte runtime·data[];
++extern byte runtime·edata[];
++extern byte runtime·bss[];
++extern byte runtime·ebss[];
+ 
+ enum {
+ 	FieldKindEol = 0,
+@@ -487,14 +487,14 @@ dumproots(void)
+ 
+ 	// data segment
+ 	dumpint(TagData);
+-	dumpint((uintptr)data);
+-	dumpmemrange(data, edata - data);
++	dumpint((uintptr)runtime·data);
++	dumpmemrange(runtime·data, runtime·edata - runtime·data);
+ 	dumpfields(runtime·gcdatamask);
+ 
+ 	// bss segment
+ 	dumpint(TagBss);
+-	dumpint((uintptr)bss);
+-	dumpmemrange(bss, ebss - bss);
++	dumpint((uintptr)runtime·bss);
++	dumpmemrange(runtime·bss, runtime·ebss - runtime·bss);
+ 	dumpfields(runtime·gcdatamask);
+ 
+ 	// MSpan.types
+diff --git a/src/pkg/runtime/malloc.c b/src/pkg/runtime/malloc.c
+index ca8ebf5dd6..913d8ac26b 100644
+--- a/src/pkg/runtime/malloc.c
++++ b/src/pkg/runtime/malloc.c
+@@ -125,7 +125,7 @@ runtime·mallocinit(void)
+ {
+ 	byte *p, *p1;
+ 	uintptr arena_size, bitmap_size, spans_size, p_size;
+-	extern byte end[];
++	extern byte runtime·end[];
+ 	uintptr limit;
+ 	uint64 i;
+ 	bool reserved;
+@@ -232,7 +232,7 @@ runtime·mallocinit(void)
+ 		// So adjust it upward a little bit ourselves: 1/4 MB to get
+ 		// away from the running binary image and then round up
+ 		// to a MB boundary.
+-		p = (byte*)ROUND((uintptr)end + (1<<18), 1<<20);
++		p = (byte*)ROUND((uintptr)runtime·end + (1<<18), 1<<20);
+ 		p_size = bitmap_size + spans_size + arena_size + PageSize;
+ 		p = runtime·SysReserve(p, p_size, &reserved);
+ 		if(p == nil)
+diff --git a/src/pkg/runtime/mem_plan9.c b/src/pkg/runtime/mem_plan9.c
+index ea35a1709c..249c6f2255 100644
+--- a/src/pkg/runtime/mem_plan9.c
++++ b/src/pkg/runtime/mem_plan9.c
+@@ -8,8 +8,8 @@
+ #include "malloc.h"
+ #include "os_GOOS.h"
+ 
+-extern byte end[];
+-static byte *bloc = { end };
++extern byte runtime·end[];
++static byte *bloc = { runtime·end };
+ static Lock memlock;
+ 
+ enum
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index 61961f6471..68e45a316e 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -158,13 +158,13 @@ struct FinBlock
+ 	Finalizer fin[1];
+ };
+ 
+-extern byte data[];
+-extern byte edata[];
+-extern byte bss[];
+-extern byte ebss[];
++extern byte runtime·data[];
++extern byte runtime·edata[];
++extern byte runtime·bss[];
++extern byte runtime·ebss[];
+ 
+-extern byte gcdata[];
+-extern byte gcbss[];
++extern byte runtime·gcdata[];
++extern byte runtime·gcbss[];
+ 
+ static Lock	finlock;	// protects the following variables
+ static FinBlock	*finq;		// list of finalizers that are to be executed
+@@ -490,11 +490,11 @@ markroot(ParFor *desc, uint32 i)
+ 	// Note: if you add a case here, please also update heapdump.c:dumproots.
+ 	switch(i) {
+ 	case RootData:
+-		scanblock(data, edata - data, (byte*)runtime·gcdatamask.data);
++		scanblock(runtime·data, runtime·edata - runtime·data, (byte*)runtime·gcdatamask.data);
+ 		break;
+ 
+ 	case RootBss:
+-		scanblock(bss, ebss - bss, (byte*)runtime·gcbssmask.data);
++		scanblock(runtime·bss, runtime·ebss - runtime·bss, (byte*)runtime·gcbssmask.data);
+ 		break;
+ 
+ 	case RootFinalizers:
+@@ -1300,8 +1300,8 @@ runtime·gcinit(void)
+ 
+ 	work.markfor = runtime·parforalloc(MaxGcproc);
+ 	runtime·gcpercent = runtime·readgogc();
+-	runtime·gcdatamask = unrollglobgcprog(gcdata, edata - data);
+-	runtime·gcbssmask = unrollglobgcprog(gcbss, ebss - bss);
++	runtime·gcdatamask = unrollglobgcprog(runtime·gcdata, runtime·edata - runtime·data);
++	runtime·gcbssmask = unrollglobgcprog(runtime·gcbss, runtime·ebss - runtime·bss);
+ }
+ 
+ // force = 1 - do GC regardless of current heap usage
+@@ -2035,24 +2035,24 @@ runtime·getgcmask(byte *p, Type *t, byte **mask, uintptr *len)
+ 	*len = 0;
+ 
+ 	// data
+-	if(p >= data && p < edata) {
++	if(p >= runtime·data && p < runtime·edata) {
+ 		n = ((PtrType*)t)->elem->size;
+ 		*len = n/PtrSize;
+ 		*mask = runtime·mallocgc(*len, nil, 0);
+ 		for(i = 0; i < n; i += PtrSize) {
+-			off = (p+i-data)/PtrSize;
++			off = (p+i-runtime·data)/PtrSize;
+ 			bits = (((byte*)runtime·gcdatamask.data)[off/PointersPerByte] >> ((off%PointersPerByte)*BitsPerPointer))&BitsMask;
+ 			(*mask)[i/PtrSize] = bits;
+ 		}
+ 		return;
+ 	}
+ 	// bss
+-	if(p >= bss && p < ebss) {
++	if(p >= runtime·bss && p < runtime·ebss) {
+ 		n = ((PtrType*)t)->elem->size;
+ 		*len = n/PtrSize;
+ 		*mask = runtime·mallocgc(*len, nil, 0);
+ 		for(i = 0; i < n; i += PtrSize) {
+-			off = (p+i-bss)/PtrSize;
++			off = (p+i-runtime·bss)/PtrSize;
+ 			bits = (((byte*)runtime·gcbssmask.data)[off/PointersPerByte] >> ((off%PointersPerByte)*BitsPerPointer))&BitsMask;
+ 			(*mask)[i/PtrSize] = bits;
+ 		}
+diff --git a/src/pkg/runtime/os_dragonfly.c b/src/pkg/runtime/os_dragonfly.c
+index ce5307af07..1132f5741d 100644
+--- a/src/pkg/runtime/os_dragonfly.c
++++ b/src/pkg/runtime/os_dragonfly.c
+@@ -207,7 +207,7 @@ uintptr
+ runtime·memlimit(void)
+ {
+ 	Rlimit rl;
+-	extern byte text[], end[];
++	extern byte runtime·text[], runtime·end[];
+ 	uintptr used;
+ 	
+ 	if(runtime·getrlimit(RLIMIT_AS, &rl) != 0)
+@@ -218,7 +218,7 @@ runtime·memlimit(void)
+ 	// Estimate our VM footprint excluding the heap.
+ 	// Not an exact science: use size of binary plus
+ 	// some room for thread stacks.
+-	used = end - text + (64<<20);
++	used = runtime·end - runtime·text + (64<<20);
+ 	if(used >= rl.rlim_cur)
+ 		return 0;
+ 
+diff --git a/src/pkg/runtime/os_freebsd.c b/src/pkg/runtime/os_freebsd.c
+index 794578c208..20f71c41e8 100644
+--- a/src/pkg/runtime/os_freebsd.c
++++ b/src/pkg/runtime/os_freebsd.c
+@@ -215,7 +215,7 @@ uintptr
+ runtime·memlimit(void)
+ {
+ 	Rlimit rl;
+-	extern byte text[], end[];
++	extern byte runtime·text[], runtime·end[];
+ 	uintptr used;
+ 	
+ 	if(runtime·getrlimit(RLIMIT_AS, &rl) != 0)
+@@ -226,7 +226,7 @@ runtime·memlimit(void)
+ 	// Estimate our VM footprint excluding the heap.
+ 	// Not an exact science: use size of binary plus
+ 	// some room for thread stacks.
+-	used = end - text + (64<<20);
++	used = runtime·end - runtime·text + (64<<20);
+ 	if(used >= rl.rlim_cur)
+ 		return 0;
+ 
+diff --git a/src/pkg/runtime/os_linux.c b/src/pkg/runtime/os_linux.c
+index 77754f481c..33c7563743 100644
+--- a/src/pkg/runtime/os_linux.c
++++ b/src/pkg/runtime/os_linux.c
+@@ -255,7 +255,7 @@ uintptr
+ runtime·memlimit(void)
+ {
+ 	Rlimit rl;
+-	extern byte text[], end[];
++	extern byte runtime·text[], runtime·end[];
+ 	uintptr used;
+ 
+ 	if(runtime·getrlimit(RLIMIT_AS, &rl) != 0)
+@@ -266,7 +266,7 @@ runtime·memlimit(void)
+ 	// Estimate our VM footprint excluding the heap.
+ 	// Not an exact science: use size of binary plus
+ 	// some room for thread stacks.
+-	used = end - text + (64<<20);
++	used = runtime·end - runtime·text + (64<<20);
+ 	if(used >= rl.rlim_cur)
+ 		return 0;
+ 
+diff --git a/src/pkg/runtime/os_solaris.c b/src/pkg/runtime/os_solaris.c
+index fe218cdb81..272e07cdb5 100644
+--- a/src/pkg/runtime/os_solaris.c
++++ b/src/pkg/runtime/os_solaris.c
+@@ -9,9 +9,9 @@
+ #include "stack.h"
+ #include "../../cmd/ld/textflag.h"
+ 
+-#pragma dynexport end _end
+-#pragma dynexport etext _etext
+-#pragma dynexport edata _edata
++#pragma dynexport runtime·end _end
++#pragma dynexport runtime·etext _etext
++#pragma dynexport runtime·edata _edata
+ 
+ #pragma dynimport libc·___errno ___errno "libc.so"
+ #pragma dynimport libc·clock_gettime clock_gettime "libc.so"
+@@ -247,7 +247,7 @@ uintptr
+ runtime·memlimit(void)
+ {
+ 	Rlimit rl;
+-	extern byte text[], end[];
++	extern byte runtime·text[], runtime·end[];
+ 	uintptr used;
+ 	
+ 	if(runtime·getrlimit(RLIMIT_AS, &rl) != 0)
+@@ -258,7 +258,7 @@ runtime·memlimit(void)
+ 	// Estimate our VM footprint excluding the heap.
+ 	// Not an exact science: use size of binary plus
+ 	// some room for thread stacks.
+-	used = end - text + (64<<20);
++	used = runtime·end - runtime·text + (64<<20);
+ 	if(used >= rl.rlim_cur)
+ 		return 0;
+ 
+diff --git a/src/pkg/runtime/os_windows_386.c b/src/pkg/runtime/os_windows_386.c
+index 02bc81adbf..15a5ea5d1f 100644
+--- a/src/pkg/runtime/os_windows_386.c
++++ b/src/pkg/runtime/os_windows_386.c
+@@ -34,7 +34,7 @@ runtime·sighandler(ExceptionRecord *info, Context *r, G *gp)
+ {
+ 	bool crash;
+ 	uintptr *sp;
+-	extern byte text[], etext[];
++	extern byte runtime·text[], runtime·etext[];
+ 
+ 	if(info->ExceptionCode == DBG_PRINTEXCEPTION_C) {
+ 		// This exception is intended to be caught by debuggers.
+@@ -51,7 +51,7 @@ runtime·sighandler(ExceptionRecord *info, Context *r, G *gp)
+ 
+ 	// Only handle exception if executing instructions in Go binary
+ 	// (not Windows library code). 
+-	if(r->Eip < (uint32)text || (uint32)etext < r->Eip)
++	if(r->Eip < (uint32)runtime·text || (uint32)runtime·etext < r->Eip)
+ 		return 0;
+ 
+ 	switch(info->ExceptionCode) {
+diff --git a/src/pkg/runtime/os_windows_amd64.c b/src/pkg/runtime/os_windows_amd64.c
+index a7acf1d786..9a69d73c07 100644
+--- a/src/pkg/runtime/os_windows_amd64.c
++++ b/src/pkg/runtime/os_windows_amd64.c
+@@ -42,7 +42,7 @@ runtime·sighandler(ExceptionRecord *info, Context *r, G *gp)
+ {
+ 	bool crash;
+ 	uintptr *sp;
+-	extern byte text[], etext[];
++	extern byte runtime·text[], runtime·etext[];
+ 
+ 	if(info->ExceptionCode == DBG_PRINTEXCEPTION_C) {
+ 		// This exception is intended to be caught by debuggers.
+@@ -59,7 +59,7 @@ runtime·sighandler(ExceptionRecord *info, Context *r, G *gp)
+ 
+ 	// Only handle exception if executing instructions in Go binary
+ 	// (not Windows library code). 
+-	if(r->Rip < (uint64)text || (uint64)etext < r->Rip)
++	if(r->Rip < (uint64)runtime·text || (uint64)runtime·etext < r->Rip)
+ 		return 0;
+ 
+ 	switch(info->ExceptionCode) {
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 756f86bd99..a692dfd2cf 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -2407,7 +2407,7 @@ static struct {
+ static void System(void) {}
+ static void ExternalCode(void) {}
+ static void GC(void) {}
+-extern byte etext[];
++extern byte runtime·etext[];
+ 
+ // Called if we receive a SIGPROF signal.
+ void
+@@ -2532,7 +2532,7 @@ runtime·sigprof(uint8 *pc, uint8 *sp, uint8 *lr, G *gp, M *mp)
+ 			// If all of the above has failed, account it against abstract "System" or "GC".
+ 			n = 2;
+ 			// "ExternalCode" is better than "etext".
+-			if((uintptr)pc > (uintptr)etext)
++			if((uintptr)pc > (uintptr)runtime·etext)
+ 				pc = (byte*)ExternalCode + PCQuantum;
+ 			stk[0] = (uintptr)pc;
+ 			if(mp->gcing || mp->helpgc)
+diff --git a/src/pkg/runtime/race.c b/src/pkg/runtime/race.c
+index 6a4d2803c1..07623be1aa 100644
+--- a/src/pkg/runtime/race.c
++++ b/src/pkg/runtime/race.c
+@@ -47,8 +47,8 @@ void __tsan_release_merge(void);
+ #pragma cgo_import_static __tsan_func_enter
+ #pragma cgo_import_static __tsan_func_exit
+ 
+-extern byte noptrdata[];
+-extern byte enoptrbss[];
++extern byte runtime·noptrdata[];
++extern byte runtime·enoptrbss[];
+   
+ // start/end of heap for race_amd64.s
+ uintptr runtime·racearenastart;
+@@ -70,7 +70,7 @@ isvalidaddr(uintptr addr)
+ {
+ 	if(addr >= runtime·racearenastart && addr < runtime·racearenaend)
+ 		return true;
+-	if(addr >= (uintptr)noptrdata && addr < (uintptr)enoptrbss)
++	if(addr >= (uintptr)runtime·noptrdata && addr < (uintptr)runtime·enoptrbss)
+ 		return true;
+ 	return false;
+ }
+@@ -85,8 +85,8 @@ runtime·raceinit(void)
+ 		runtime·throw("raceinit: race build must use cgo");
+ 	runtime·racecall(__tsan_init, &racectx, runtime·racesymbolizethunk);
+ 	// Round data segment to page boundaries, because it's used in mmap().
+-	start = (uintptr)noptrdata & ~(PageSize-1);
+-	size = ROUND((uintptr)enoptrbss - start, PageSize);
++	start = (uintptr)runtime·noptrdata & ~(PageSize-1);
++	size = ROUND((uintptr)runtime·enoptrbss - start, PageSize);
+ 	runtime·racecall(__tsan_map_shadow, start, size);
+ 	return racectx;
+ }
+diff --git a/src/pkg/runtime/race_amd64.s b/src/pkg/runtime/race_amd64.s
+index 30281d224b..f4e72386d8 100644
+--- a/src/pkg/runtime/race_amd64.s
++++ b/src/pkg/runtime/race_amd64.s
+@@ -144,10 +144,10 @@ TEXT	racecalladdr<>(SB), NOSPLIT, $0-0
+ 	CMPQ	RARG1, runtime·racearenaend(SB)
+ 	JB	racecalladdr_call
+ racecalladdr_data:
+-	MOVQ	$noptrdata(SB), R13
++	MOVQ	$runtime·noptrdata(SB), R13
+ 	CMPQ	RARG1, R13
+ 	JB	racecalladdr_ret
+-	MOVQ	$enoptrbss(SB), R13
++	MOVQ	$runtime·enoptrbss(SB), R13
+ 	CMPQ	RARG1, R13
+ 	JAE	racecalladdr_ret
+ racecalladdr_call:
+diff --git a/src/pkg/runtime/stubs.goc b/src/pkg/runtime/stubs.goc
+index b30c40286c..1cda75e395 100644
+--- a/src/pkg/runtime/stubs.goc
++++ b/src/pkg/runtime/stubs.goc
+@@ -123,8 +123,8 @@ func gopersistentalloc(size uintptr) (x *void) {
+ 
+ #pragma textflag NOSPLIT
+ func reflect·typelinks() (ret Slice) {
+-        extern Type *typelink[], *etypelink[];
+-        ret.array = (byte*)typelink;
+-        ret.len = etypelink - typelink;
++        extern Type *runtime·typelink[], *runtime·etypelink[];
++        ret.array = (byte*)runtime·typelink;
++        ret.len = runtime·etypelink - runtime·typelink;
+         ret.cap = ret.len;
+ }
+diff --git a/src/pkg/runtime/symtab.c b/src/pkg/runtime/symtab.c
+index 613aa942ed..802ad5da38 100644
+--- a/src/pkg/runtime/symtab.c
++++ b/src/pkg/runtime/symtab.c
+@@ -19,15 +19,15 @@ struct Ftab
+ 	uintptr	funcoff;
+ };
+ 
+-extern byte pclntab[];
+-extern byte epclntab[];
++extern byte runtime·pclntab[];
++extern byte runtime·epclntab[];
+ 
+ static Ftab *ftab;
+ static uintptr runtime·nftab;
+ static uint32 *filetab;
+ static uint32 runtime·nfiletab;
+ 
+-extern Slice runtime·pclntab;
++extern Slice runtime·pclntable;
+ extern Slice runtime·ftabs;
+ extern Slice runtime·filetab;
+ extern uint32 runtime·pcquantum;
+@@ -43,33 +43,33 @@ runtime·symtabinit(void)
+ 	// See golang.org/s/go12symtab for header: 0xfffffffb,
+ 	// two zero bytes, a byte giving the PC quantum,
+ 	// and a byte giving the pointer width in bytes.
+-	if(*(uint32*)pclntab != 0xfffffffb || pclntab[4] != 0 || pclntab[5] != 0 || pclntab[6] != PCQuantum || pclntab[7] != sizeof(void*)) {
+-		runtime·printf("runtime: function symbol table header: %x %x\n", *(uint32*)pclntab, *(uint32*)(pclntab+4));
++	if(*(uint32*)runtime·pclntab != 0xfffffffb || runtime·pclntab[4] != 0 || runtime·pclntab[5] != 0 || runtime·pclntab[6] != PCQuantum || runtime·pclntab[7] != sizeof(void*)) {
++		runtime·printf("runtime: function symbol table header: %x %x\n", *(uint32*)runtime·pclntab, *(uint32*)(runtime·pclntab+4));
+ 		runtime·throw("invalid function symbol table\n");
+ 	}
+ 
+-	runtime·nftab = *(uintptr*)(pclntab+8);
+-	ftab = (Ftab*)(pclntab+8+sizeof(void*));
++	runtime·nftab = *(uintptr*)(runtime·pclntab+8);
++	ftab = (Ftab*)(runtime·pclntab+8+sizeof(void*));
+ 	for(i=0; i<runtime·nftab; i++) {
+ 		// NOTE: ftab[runtime·nftab].entry is legal; it is the address beyond the final function.
+ 		if(ftab[i].entry > ftab[i+1].entry) {
+-			f1 = (Func*)(pclntab + ftab[i].funcoff);
+-			f2 = (Func*)(pclntab + ftab[i+1].funcoff);
++			f1 = (Func*)(runtime·pclntab + ftab[i].funcoff);
++			f2 = (Func*)(runtime·pclntab + ftab[i+1].funcoff);
+ 			runtime·printf("function symbol table not sorted by program counter: %p %s > %p %s", ftab[i].entry, runtime·funcname(f1), ftab[i+1].entry, i+1 == runtime·nftab ? "end" : runtime·funcname(f2));
+ 			for(j=0; j<=i; j++)
+-				runtime·printf("\t%p %s\n", ftab[j].entry, runtime·funcname((Func*)(pclntab + ftab[j].funcoff)));
++				runtime·printf("\t%p %s\n", ftab[j].entry, runtime·funcname((Func*)(runtime·pclntab + ftab[j].funcoff)));
+ 			runtime·throw("invalid runtime symbol table");
+ 		}
+ 	}
+ 	
+-	filetab = (uint32*)(pclntab + *(uint32*)&ftab[runtime·nftab].funcoff);
++	filetab = (uint32*)(runtime·pclntab + *(uint32*)&ftab[runtime·nftab].funcoff);
+ 	runtime·nfiletab = filetab[0];
+ 
+ 	runtime·pcquantum = PCQuantum;
+ 
+-	runtime·pclntab.array = (byte*)pclntab;
+-	runtime·pclntab.len = (byte*)epclntab - (byte*)pclntab;
+-	runtime·pclntab.cap = runtime·pclntab.len;
++	runtime·pclntable.array = (byte*)runtime·pclntab;
++	runtime·pclntable.len = (byte*)runtime·epclntab - (byte*)runtime·pclntab;
++	runtime·pclntable.cap = runtime·pclntable.len;
+ 
+ 	runtime·ftabs.array = (byte*)ftab;
+ 	runtime·ftabs.len = runtime·nftab+1;
+@@ -155,7 +155,7 @@ pcvalue(Func *f, int32 off, uintptr targetpc, bool strict)
+ 	// The table ends at a value delta of 0 except in the first pair.
+ 	if(off == 0)
+ 		return -1;
+-	p = pclntab + off;
++	p = runtime·pclntab + off;
+ 	pc = f->entry;
+ 	value = -1;
+ 
+@@ -194,7 +194,7 @@ runtime·funcname(Func *f)
+ {
+ 	if(f == nil || f->nameoff == 0)
+ 		return nil;
+-	return (int8*)(pclntab + f->nameoff);
++	return (int8*)(runtime·pclntab + f->nameoff);
+ }
+ 
+ static int32
+@@ -210,7 +210,7 @@ funcline(Func *f, uintptr targetpc, String *file, bool strict)
+ 		// runtime·printf("looking for %p in %S got file=%d line=%d\n", targetpc, *f->name, fileno, line);
+ 		return 0;
+ 	}
+-	*file = runtime·gostringnocopy(pclntab + filetab[fileno]);
++	*file = runtime·gostringnocopy(runtime·pclntab + filetab[fileno]);
+ 	return line;
+ }
+ 
+@@ -264,7 +264,7 @@ runtime·findfunc(uintptr addr)
+ 	while(nf > 0) {
+ 		n = nf/2;
+ 		if(f[n].entry <= addr && addr < f[n+1].entry)
+-			return (Func*)(pclntab + f[n].funcoff);
++			return (Func*)(runtime·pclntab + f[n].funcoff);
+ 		else if(addr < f[n].entry)
+ 			nf = n;
+ 		else {
+diff --git a/src/pkg/runtime/symtab.go b/src/pkg/runtime/symtab.go
+index e8f45cfc01..880a78d481 100644
+--- a/src/pkg/runtime/symtab.go
++++ b/src/pkg/runtime/symtab.go
+@@ -24,7 +24,7 @@ func FuncForPC(pc uintptr) *Func {
+ 		n := nf / 2
+ 		f := &ftabs[lo+n]
+ 		if f.entry <= pc && pc < ftabs[lo+n+1].entry {
+-			return (*Func)(unsafe.Pointer(&pclntab[f.funcoff]))
++			return (*Func)(unsafe.Pointer(&pclntable[f.funcoff]))
+ 		} else if pc < f.entry {
+ 			nf = n
+ 		} else {
+@@ -39,7 +39,7 @@ func FuncForPC(pc uintptr) *Func {
+ 
+ // Name returns the name of the function.
+ func (f *Func) Name() string {
+-	return cstringToGo(unsafe.Pointer(&pclntab[f.nameoff]))
++	return cstringToGo(unsafe.Pointer(&pclntable[f.nameoff]))
+ }
+ 
+ // Entry returns the entry address of the function.
+@@ -60,7 +60,7 @@ func (f *Func) FileLine(pc uintptr) (file string, line int) {
+ 	if line == -1 {
+ 		return "?", 0
+ 	}
+-	file = cstringToGo(unsafe.Pointer(&pclntab[filetab[fileno]]))
++	file = cstringToGo(unsafe.Pointer(&pclntable[filetab[fileno]]))
+ 	return file, line
+ }
+ 
+@@ -69,7 +69,7 @@ func (f *Func) pcvalue(off int32, targetpc uintptr) int32 {
+ 	if off == 0 {
+ 		return -1
+ 	}
+-	p := pclntab[off:]
++	p := pclntable[off:]
+ 	pc := f.entry
+ 	val := int32(-1)
+ 	for {
+@@ -120,7 +120,7 @@ func readvarint(p []byte) (newp []byte, val uint32) {
+ 
+ // Populated by runtime·symtabinit during bootstrapping. Treat as immutable.
+ var (
+-	pclntab   []byte
++	pclntable []byte
+ 	ftabs     []ftab
+ 	filetab   []uint32
+ 	pcquantum uint32

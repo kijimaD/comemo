@@ -16,6 +16,40 @@ Date:   Sat Jul 15 12:03:33 2017 -0600
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/io/example_test.go | 22 ++++++++++++++++++++++
  1 file changed, 22 insertions(+)
+
+diff --git a/src/io/example_test.go b/src/io/example_test.go
+index bf16de8fe2..af47853726 100644
+--- a/src/io/example_test.go
++++ b/src/io/example_test.go
+@@ -204,6 +204,28 @@ func ExampleSectionReader_Seek() {
+ 	// stream
+ }
+ 
++func ExampleSeeker_Seek() {
++	r := strings.NewReader("some io.Reader stream to be read\n")
++	if _, err := io.Copy(os.Stdout, r); err != nil {
++		log.Fatal(err)
++	}
++
++	r.Seek(15, io.SeekStart)
++	if _, err := io.Copy(os.Stdout, r); err != nil {
++		log.Fatal(err)
++	}
++
++	r.Seek(-5, io.SeekEnd)
++	if _, err := io.Copy(os.Stdout, r); err != nil {
++		log.Fatal(err)
++	}
++
++	// Output:
++	// some io.Reader stream to be read
++	// stream to be read
++	// read
++}
++
+ func ExampleMultiWriter() {
+ 	r := strings.NewReader("some io.Reader stream to be read\n")
+ 

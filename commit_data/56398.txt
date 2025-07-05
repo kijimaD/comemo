@@ -14,10 +14,107 @@ Date:   Wed Apr 19 14:56:58 2023 -0400
     Reviewed-by: Alan Donovan <adonovan@google.com>
     Run-TryBot: Jonathan Amsterdam <jba@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  api/next/56345.txt     |  1 -
  api/next/59204.txt     |  1 +
  src/log/slog/attr.go   | 22 +++++++++++++++++-----
  src/log/slog/doc.go    |  6 +++---
  src/log/slog/logger.go | 10 +---------
  5 files changed, 22 insertions(+), 18 deletions(-)
+
+diff --git a/api/next/56345.txt b/api/next/56345.txt
+index c11ce6871e..fe96bddc86 100644
+--- a/api/next/56345.txt
++++ b/api/next/56345.txt
+@@ -47,7 +47,6 @@ pkg log/slog, func Error(string, ...interface{}) #56345
+ pkg log/slog, func ErrorCtx(context.Context, string, ...interface{}) #56345
+ pkg log/slog, func Float64(string, float64) Attr #56345
+ pkg log/slog, func Float64Value(float64) Value #56345
+-pkg log/slog, func Group(string, ...Attr) Attr #56345
+ pkg log/slog, func GroupValue(...Attr) Value #56345
+ pkg log/slog, func Info(string, ...interface{}) #56345
+ pkg log/slog, func InfoCtx(context.Context, string, ...interface{}) #56345
+diff --git a/api/next/59204.txt b/api/next/59204.txt
+new file mode 100644
+index 0000000000..e39e4104b6
+--- /dev/null
++++ b/api/next/59204.txt
+@@ -0,0 +1 @@
++pkg log/slog, func Group(string, ...interface{}) Attr #59204
+diff --git a/src/log/slog/attr.go b/src/log/slog/attr.go
+index cd3bacca43..a180d0e1d3 100644
+--- a/src/log/slog/attr.go
++++ b/src/log/slog/attr.go
+@@ -58,14 +58,26 @@ func Duration(key string, v time.Duration) Attr {
+ }
+ 
+ // Group returns an Attr for a Group Value.
+-// The caller must not subsequently mutate the
+-// argument slice.
++// The first argument is the key; the remaining arguments
++// are converted to Attrs as in [Logger.Log].
+ //
+-// Use Group to collect several Attrs under a single
++// Use Group to collect several key-value pairs under a single
+ // key on a log line, or as the result of LogValue
+ // in order to log a single value as multiple Attrs.
+-func Group(key string, as ...Attr) Attr {
+-	return Attr{key, GroupValue(as...)}
++func Group(key string, args ...any) Attr {
++	return Attr{key, GroupValue(argsToAttrSlice(args)...)}
++}
++
++func argsToAttrSlice(args []any) []Attr {
++	var (
++		attr  Attr
++		attrs []Attr
++	)
++	for len(args) > 0 {
++		attr, args = argsToAttr(args)
++		attrs = append(attrs, attr)
++	}
++	return attrs
+ }
+ 
+ // Any returns an Attr for the supplied value.
+diff --git a/src/log/slog/doc.go b/src/log/slog/doc.go
+index 205c40de90..57f83bb52d 100644
+--- a/src/log/slog/doc.go
++++ b/src/log/slog/doc.go
+@@ -164,11 +164,11 @@ How this qualification is displayed depends on the handler.
+ [TextHandler] separates the group and attribute names with a dot.
+ [JSONHandler] treats each group as a separate JSON object, with the group name as the key.
+ 
+-Use [Group] to create a Group Attr from a name and a list of Attrs:
++Use [Group] to create a Group Attr from a name and a list of key-value pairs:
+ 
+ 	slog.Group("request",
+-	    slog.String("method", r.Method),
+-	    slog.Any("url", r.URL))
++	    "method", r.Method,
++	    "url", r.URL)
+ 
+ TextHandler would display this group as
+ 
+diff --git a/src/log/slog/logger.go b/src/log/slog/logger.go
+index c997dd31dc..6b990b35b9 100644
+--- a/src/log/slog/logger.go
++++ b/src/log/slog/logger.go
+@@ -95,16 +95,8 @@ func (l *Logger) Handler() Handler { return l.handler }
+ // The new Logger's handler is the result of calling WithAttrs on the receiver's
+ // handler.
+ func (l *Logger) With(args ...any) *Logger {
+-	var (
+-		attr  Attr
+-		attrs []Attr
+-	)
+-	for len(args) > 0 {
+-		attr, args = argsToAttr(args)
+-		attrs = append(attrs, attr)
+-	}
+ 	c := l.clone()
+-	c.handler = l.handler.WithAttrs(attrs)
++	c.handler = l.handler.WithAttrs(argsToAttrSlice(args))
+ 	return c
+ }
+ 

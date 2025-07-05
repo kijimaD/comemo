@@ -14,6 +14,40 @@ Date:   Tue Jun 21 05:22:00 2022 -0700
     Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/typecheck/subr.go | 18 ++++--------------
  1 file changed, 4 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/compile/internal/typecheck/subr.go b/src/cmd/compile/internal/typecheck/subr.go
+index 3b0075e616..8295a4e560 100644
+--- a/src/cmd/compile/internal/typecheck/subr.go
++++ b/src/cmd/compile/internal/typecheck/subr.go
+@@ -301,24 +301,14 @@ func assignconvfn(n ir.Node, t *types.Type, context func() string) ir.Node {
+ 
+ 	n = convlit1(n, t, false, context)
+ 	if n.Type() == nil {
+-		return n
++		base.Fatalf("cannot assign %v to %v", n, t)
++	}
++	if n.Type().IsUntyped() {
++		base.Fatalf("%L has untyped type", n)
+ 	}
+ 	if t.Kind() == types.TBLANK {
+ 		return n
+ 	}
+-
+-	// Convert ideal bool from comparison to plain bool
+-	// if the next step is non-bool (like interface{}).
+-	if n.Type() == types.UntypedBool && !t.IsBoolean() {
+-		if n.Op() == ir.ONAME || n.Op() == ir.OLITERAL {
+-			r := ir.NewConvExpr(base.Pos, ir.OCONVNOP, nil, n)
+-			r.SetType(types.Types[types.TBOOL])
+-			r.SetTypecheck(1)
+-			r.SetImplicit(true)
+-			n = r
+-		}
+-	}
+-
+ 	if types.Identical(n.Type(), t) {
+ 		return n
+ 	}

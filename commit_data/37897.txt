@@ -15,7 +15,35 @@ Date:   Fri Sep 7 12:58:14 2018 -0400
     Run-TryBot: Filippo Valsorda <filippo@golang.org>
     Reviewed-by: Adam Langley <agl@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/crypto/x509/verify.go      | 4 ++--
  src/crypto/x509/verify_test.go | 1 +
  2 files changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/crypto/x509/verify.go b/src/crypto/x509/verify.go
+index 4c2ff7b7c4..91be7c05f9 100644
+--- a/src/crypto/x509/verify.go
++++ b/src/crypto/x509/verify.go
+@@ -894,8 +894,8 @@ func validHostname(host string) bool {
+ 			if c == '-' && j != 0 {
+ 				continue
+ 			}
+-			if c == '_' {
+-				// _ is not a valid character in hostnames, but it's commonly
++			if c == '_' || c == ':' {
++				// Not valid characters in hostnames, but commonly
+ 				// found in deployments outside the WebPKI.
+ 				continue
+ 			}
+diff --git a/src/crypto/x509/verify_test.go b/src/crypto/x509/verify_test.go
+index 7684145839..0e24d3b5da 100644
+--- a/src/crypto/x509/verify_test.go
++++ b/src/crypto/x509/verify_test.go
+@@ -1881,6 +1881,7 @@ func TestValidHostname(t *testing.T) {
+ 		{"foo.*.example.com", false},
+ 		{"exa_mple.com", true},
+ 		{"foo,bar", false},
++		{"project-dev:us-central1:main", true},
+ 	}
+ 	for _, tt := range tests {
+ 		if got := validHostname(tt.host); got != tt.want {

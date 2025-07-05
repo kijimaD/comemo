@@ -9,7 +9,32 @@ Date:   Thu Aug 21 15:44:03 2014 -0700
     R=gobot
     CC=golang-codereviews
     https://golang.org/cl/130430043
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 44be520446..115850bced 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -154,6 +154,7 @@ Evan Shaw <chickencha@gmail.com>
+ Ewan Chou <coocood@gmail.com>
+ Fabrizio Milo <mistobaan@gmail.com>
+ Fan Hongjian <fan.howard@gmail.com>
++Fatih Arslan <fatih@arslan.io>
+ Fazlul Shahriar <fshahriar@gmail.com>
+ Felix Geisendörfer <haimuiba@gmail.com>
+ Firmansyah Adiputra <frm.adiputra@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 73a404dd0f..5115ac2178 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -223,6 +223,7 @@ Evan Shaw <chickencha@gmail.com>
+ Ewan Chou <coocood@gmail.com>
+ Fabrizio Milo <mistobaan@gmail.com>
+ Fan Hongjian <fan.howard@gmail.com>
++Fatih Arslan <fatih@arslan.io>
+ Fazlul Shahriar <fshahriar@gmail.com>
+ Felix Geisendörfer <haimuiba@gmail.com>
+ Firmansyah Adiputra <frm.adiputra@gmail.com>

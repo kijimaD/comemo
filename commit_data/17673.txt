@@ -9,6 +9,27 @@ Date:   Mon Sep 23 14:41:20 2013 +1000
     R=golang-dev, minux.ma
     CC=golang-dev
     https://golang.org/cl/13422046
-
+---
  doc/go1.2.html | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/doc/go1.2.html b/doc/go1.2.html
+index fc2ede99b7..fcbf5e22f5 100644
+--- a/doc/go1.2.html
++++ b/doc/go1.2.html
+@@ -99,12 +99,12 @@ source slice or array, adjusted for the origin. For instance,
+ </p>
+ 
+ <pre>
+-slice = array[2:4:6]
++slice = array[2:4:7]
+ </pre>
+ 
+ <p>
+-sets the slice to have the same length as in the earlier example but its capacity is now only 4 elements (6-2).
+-It is impossible to use this new slice value to access the last two elements of the original array.
++sets the slice to have the same length as in the earlier example but its capacity is now only 5 elements (7-2).
++It is impossible to use this new slice value to access the last three elements of the original array.
+ </p>
+ 
+ <p>

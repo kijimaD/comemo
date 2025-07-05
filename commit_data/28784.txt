@@ -14,6 +14,19 @@ Date:   Wed Jul 20 15:40:10 2016 -0700
     Change-Id: I2b3d53e0b272fb01d9c2cb8add22bad879d3eebc
     Reviewed-on: https://go-review.googlesource.com/25104
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/runtime/sys_darwin_amd64.s | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/runtime/sys_darwin_amd64.s b/src/runtime/sys_darwin_amd64.s
+index e09b906ba5..e4837ce291 100644
+--- a/src/runtime/sys_darwin_amd64.s
++++ b/src/runtime/sys_darwin_amd64.s
+@@ -244,6 +244,7 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$32
+ 	MOVQ R8, 24(SP) // ctx
+ 	MOVQ $runtime·sigtrampgo(SB), AX
+ 	CALL AX
++	INT $3 // not reached (see issue 16453)
+ 
+ TEXT runtime·mmap(SB),NOSPLIT,$0
+ 	MOVQ	addr+0(FP), DI		// arg 1 addr

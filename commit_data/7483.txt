@@ -7,8 +7,108 @@ Date:   Wed Feb 16 15:03:47 2011 -0500
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4129042
-
+---
  src/pkg/net/dial.go      | 28 +++++++++++++++++-----------
  src/pkg/net/iprawsock.go |  4 ++--
  src/pkg/net/parse.go     | 10 ----------
  3 files changed, 19 insertions(+), 23 deletions(-)
+
+diff --git a/src/pkg/net/dial.go b/src/pkg/net/dial.go
+index 03b9d87be3..1cf8e79159 100644
+--- a/src/pkg/net/dial.go
++++ b/src/pkg/net/dial.go
+@@ -24,7 +24,7 @@ import "os"
+ //	Dial("tcp", "127.0.0.1:123", "127.0.0.1:88")
+ //
+ func Dial(net, laddr, raddr string) (c Conn, err os.Error) {
+-	switch prefixBefore(net, ':') {
++	switch net {
+ 	case "tcp", "tcp4", "tcp6":
+ 		var la, ra *TCPAddr
+ 		if laddr != "" {
+@@ -137,7 +137,7 @@ func Listen(net, laddr string) (l Listener, err os.Error) {
+ // The network string net must be a packet-oriented network:
+ // "udp", "udp4", "udp6", or "unixgram".
+ func ListenPacket(net, laddr string) (c PacketConn, err os.Error) {
+-	switch prefixBefore(net, ':') {
++	switch net {
+ 	case "udp", "udp4", "udp6":
+ 		var la *UDPAddr
+ 		if laddr != "" {
+@@ -162,18 +162,24 @@ func ListenPacket(net, laddr string) (c PacketConn, err os.Error) {
+ 			return nil, err
+ 		}
+ 		return c, nil
+-	case "ip", "ip4", "ip6":
+-		var la *IPAddr
+-		if laddr != "" {
+-			if la, err = ResolveIPAddr(laddr); err != nil {
++	}
++
++	if i := last(net, ':'); i > 0 {
++		switch net[0:i] {
++		case "ip", "ip4", "ip6":
++			var la *IPAddr
++			if laddr != "" {
++				if la, err = ResolveIPAddr(laddr); err != nil {
++					return nil, err
++				}
++			}
++			c, err := ListenIP(net, la)
++			if err != nil {
+ 				return nil, err
+ 			}
++			return c, nil
+ 		}
+-		c, err := ListenIP(net, la)
+-		if err != nil {
+-			return nil, err
+-		}
+-		return c, nil
+ 	}
++
+ 	return nil, UnknownNetworkError(net)
+ }
+diff --git a/src/pkg/net/iprawsock.go b/src/pkg/net/iprawsock.go
+index 241be15095..262b69d068 100644
+--- a/src/pkg/net/iprawsock.go
++++ b/src/pkg/net/iprawsock.go
+@@ -311,7 +311,7 @@ func DialIP(netProto string, laddr, raddr *IPAddr) (c *IPConn, err os.Error) {
+ 	if err != nil {
+ 		return
+ 	}
+-	switch prefixBefore(net, ':') {
++	switch net {
+ 	case "ip", "ip4", "ip6":
+ 	default:
+ 		return nil, UnknownNetworkError(net)
+@@ -335,7 +335,7 @@ func ListenIP(netProto string, laddr *IPAddr) (c *IPConn, err os.Error) {
+ 	if err != nil {
+ 		return
+ 	}
+-	switch prefixBefore(net, ':') {
++	switch net {
+ 	case "ip", "ip4", "ip6":
+ 	default:
+ 		return nil, UnknownNetworkError(net)
+diff --git a/src/pkg/net/parse.go b/src/pkg/net/parse.go
+index 605f3110b7..2bc0db4655 100644
+--- a/src/pkg/net/parse.go
++++ b/src/pkg/net/parse.go
+@@ -192,16 +192,6 @@ func count(s string, b byte) int {
+ 	return n
+ }
+ 
+-// Returns the prefix of s up to but not including the character c
+-func prefixBefore(s string, c byte) string {
+-	for i, v := range s {
+-		if v == int(c) {
+-			return s[0:i]
+-		}
+-	}
+-	return s
+-}
+-
+ // Index of rightmost occurrence of b in s.
+ func last(s string, b byte) int {
+ 	i := len(s)

@@ -10,7 +10,7 @@ Date:   Mon Jul 18 11:51:48 2016 -0700
     Reviewed-on: https://go-review.googlesource.com/25006
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/ssa/gen/386.rules   |  13 +-
  src/cmd/compile/internal/ssa/gen/386Ops.go   |  26 ++--
  src/cmd/compile/internal/ssa/gen/AMD64Ops.go |  18 +--
@@ -18,3 +18,695 @@ Date:   Mon Jul 18 11:51:48 2016 -0700
  src/cmd/compile/internal/ssa/rewrite386.go   | 181 ++++++++++++++++++++++++++-
  src/cmd/compile/internal/x86/ssa.go          |  27 +++-
  6 files changed, 369 insertions(+), 29 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/386.rules b/src/cmd/compile/internal/ssa/gen/386.rules
+index 9a3b16cd52..6569533b77 100644
+--- a/src/cmd/compile/internal/ssa/gen/386.rules
++++ b/src/cmd/compile/internal/ssa/gen/386.rules
+@@ -20,12 +20,17 @@
+ (Sub32F x y) -> (SUBSS x y)
+ (Sub64F x y) -> (SUBSD x y)
+ 
++(Sub32carry x y) -> (SUBLcarry x y)
++(Sub32withcarry x y c) -> (SBBL x y c)
++
+ (Mul32  x y) -> (MULL  x y)
+ (Mul16  x y) -> (MULL  x y)
+ (Mul8   x y) -> (MULL  x y)
+ (Mul32F x y) -> (MULSS x y)
+ (Mul64F x y) -> (MULSD x y)
+ 
++(Mul32uhilo x y) -> (MULLQU x y)
++
+ (Div32F x y) -> (DIVSS x y)
+ (Div64F x y) -> (DIVSD x y)
+ 
+@@ -216,7 +221,7 @@
+ (Neq32F x y) -> (SETNEF (UCOMISS x y))
+ 
+ // Lowering loads
+-(Load <t> ptr mem) && is32BitInt(t) -> (MOVLload ptr mem)
++(Load <t> ptr mem) && (is32BitInt(t) || isPtr(t)) -> (MOVLload ptr mem)
+ (Load <t> ptr mem) && is16BitInt(t) -> (MOVWload ptr mem)
+ (Load <t> ptr mem) && (t.IsBoolean() || is8BitInt(t)) -> (MOVBload ptr mem)
+ (Load <t> ptr mem) && is32BitFloat(t) -> (MOVSSload ptr mem)
+@@ -383,9 +388,15 @@
+ // fold constants into instructions
+ (ADDL x (MOVLconst [c])) -> (ADDLconst [c] x)
+ (ADDL (MOVLconst [c]) x) -> (ADDLconst [c] x)
++(ADDLcarry x (MOVLconst [c])) -> (ADDLconstcarry [c] x)
++(ADDLcarry (MOVLconst [c]) x) -> (ADDLconstcarry [c] x)
++(ADCL x (MOVLconst [c]) f) -> (ADCLconst [c] x f)
++(ADCL (MOVLconst [c]) x f) -> (ADCLconst [c] x f)
+ 
+ (SUBL x (MOVLconst [c])) -> (SUBLconst x [c])
+ (SUBL (MOVLconst [c]) x) -> (NEGL (SUBLconst <v.Type> x [c]))
++(SUBLcarry x (MOVLconst [c])) -> (SUBLconstcarry [c] x)
++(SBBL x (MOVLconst [c]) f) -> (SBBLconst [c] x f)
+ 
+ (MULL x (MOVLconst [c])) -> (MULLconst [c] x)
+ (MULL (MOVLconst [c]) x) -> (MULLconst [c] x)
+diff --git a/src/cmd/compile/internal/ssa/gen/386Ops.go b/src/cmd/compile/internal/ssa/gen/386Ops.go
+index f2a8edf456..68bcfa9649 100644
+--- a/src/cmd/compile/internal/ssa/gen/386Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/386Ops.go
+@@ -99,17 +99,20 @@ func init() {
+ 		gp11nf    = regInfo{inputs: []regMask{gpsp}, outputs: gponly} // nf: no flags clobbered
+ 		gp11sb    = regInfo{inputs: []regMask{gpspsb}, outputs: gponly}
+ 		gp21      = regInfo{inputs: []regMask{gp, gp}, outputs: gponly, clobbers: flags}
++		gp11carry = regInfo{inputs: []regMask{gp}, outputs: []regMask{flags, gp}}
+ 		gp21carry = regInfo{inputs: []regMask{gp, gp}, outputs: []regMask{flags, gp}}
++		gp1carry1 = regInfo{inputs: []regMask{gp, flags}, outputs: gponly}
+ 		gp2carry1 = regInfo{inputs: []regMask{gp, gp, flags}, outputs: gponly}
+ 		gp21sp    = regInfo{inputs: []regMask{gpsp, gp}, outputs: gponly, clobbers: flags}
+ 		gp21sb    = regInfo{inputs: []regMask{gpspsb, gpsp}, outputs: gponly}
+ 		gp21shift = regInfo{inputs: []regMask{gp, cx}, outputs: []regMask{gp}, clobbers: flags}
+ 		gp11div   = regInfo{inputs: []regMask{ax, gpsp &^ dx}, outputs: []regMask{ax},
+ 			clobbers: dx | flags}
+-		gp11hmul = regInfo{inputs: []regMask{ax, gpsp}, outputs: []regMask{dx},
++		gp21hmul = regInfo{inputs: []regMask{ax, gpsp}, outputs: []regMask{dx},
+ 			clobbers: ax | flags}
+ 		gp11mod = regInfo{inputs: []regMask{ax, gpsp &^ dx}, outputs: []regMask{dx},
+ 			clobbers: ax | flags}
++		gp21mul = regInfo{inputs: []regMask{ax, gpsp}, outputs: []regMask{dx, ax}, clobbers: flags}
+ 
+ 		gp2flags = regInfo{inputs: []regMask{gpsp, gpsp}, outputs: flagsonly}
+ 		gp1flags = regInfo{inputs: []regMask{gpsp}, outputs: flagsonly}
+@@ -174,20 +177,29 @@ func init() {
+ 		{name: "ADDLconst", argLength: 1, reg: gp11sp, asm: "ADDL", aux: "Int32", typ: "UInt32"}, // arg0 + auxint
+ 
+ 		{name: "ADDLcarry", argLength: 2, reg: gp21carry, asm: "ADDL", commutative: true, resultInArg0: true}, // arg0 + arg1, generates <carry,result> pair
++		{name: "ADDLconstcarry", argLength: 1, reg: gp11carry, asm: "ADDL", aux: "Int32", resultInArg0: true}, // arg0 + auxint, generates <carry,result> pair
+ 		{name: "ADCL", argLength: 3, reg: gp2carry1, asm: "ADCL", commutative: true, resultInArg0: true},      // arg0+arg1+carry(arg2), where arg2 is flags
++		{name: "ADCLconst", argLength: 2, reg: gp1carry1, asm: "ADCL", aux: "Int32", resultInArg0: true},      // arg0+auxint+carry(arg1), where arg1 is flags
+ 
+ 		{name: "SUBL", argLength: 2, reg: gp21, asm: "SUBL", resultInArg0: true},                    // arg0 - arg1
+ 		{name: "SUBLconst", argLength: 1, reg: gp11, asm: "SUBL", aux: "Int32", resultInArg0: true}, // arg0 - auxint
+ 
++		{name: "SUBLcarry", argLength: 2, reg: gp21carry, asm: "SUBL", resultInArg0: true},                    // arg0-arg1, generates <borrow,result> pair
++		{name: "SUBLconstcarry", argLength: 1, reg: gp11carry, asm: "SUBL", aux: "Int32", resultInArg0: true}, // arg0-auxint, generates <borrow,result> pair
++		{name: "SBBL", argLength: 3, reg: gp2carry1, asm: "SBBL", resultInArg0: true},                         // arg0-arg1-borrow(arg2), where arg2 is flags
++		{name: "SBBLconst", argLength: 2, reg: gp1carry1, asm: "SBBL", aux: "Int32", resultInArg0: true},      // arg0-auxint-borrow(arg1), where arg1 is flags
++
+ 		{name: "MULL", argLength: 2, reg: gp21, asm: "IMULL", commutative: true, resultInArg0: true}, // arg0 * arg1
+ 		{name: "MULLconst", argLength: 1, reg: gp11, asm: "IMULL", aux: "Int32", resultInArg0: true}, // arg0 * auxint
+ 
+-		{name: "HMULL", argLength: 2, reg: gp11hmul, asm: "IMULL"}, // (arg0 * arg1) >> width
+-		{name: "HMULW", argLength: 2, reg: gp11hmul, asm: "IMULW"}, // (arg0 * arg1) >> width
+-		{name: "HMULB", argLength: 2, reg: gp11hmul, asm: "IMULB"}, // (arg0 * arg1) >> width
+-		{name: "HMULLU", argLength: 2, reg: gp11hmul, asm: "MULL"}, // (arg0 * arg1) >> width
+-		{name: "HMULWU", argLength: 2, reg: gp11hmul, asm: "MULW"}, // (arg0 * arg1) >> width
+-		{name: "HMULBU", argLength: 2, reg: gp11hmul, asm: "MULB"}, // (arg0 * arg1) >> width
++		{name: "HMULL", argLength: 2, reg: gp21hmul, asm: "IMULL"}, // (arg0 * arg1) >> width
++		{name: "HMULLU", argLength: 2, reg: gp21hmul, asm: "MULL"}, // (arg0 * arg1) >> width
++		{name: "HMULW", argLength: 2, reg: gp21hmul, asm: "IMULW"}, // (arg0 * arg1) >> width
++		{name: "HMULB", argLength: 2, reg: gp21hmul, asm: "IMULB"}, // (arg0 * arg1) >> width
++		{name: "HMULWU", argLength: 2, reg: gp21hmul, asm: "MULW"}, // (arg0 * arg1) >> width
++		{name: "HMULBU", argLength: 2, reg: gp21hmul, asm: "MULB"}, // (arg0 * arg1) >> width
++
++		{name: "MULLQU", argLength: 2, reg: gp21mul, asm: "MULL"}, // arg0 * arg1, high 32 in result[0], low 32 in result[1]
+ 
+ 		{name: "DIVL", argLength: 2, reg: gp11div, asm: "IDIVL"}, // arg0 / arg1
+ 		{name: "DIVW", argLength: 2, reg: gp11div, asm: "IDIVW"}, // arg0 / arg1
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+index c87172e8e3..c63e6edeb9 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+@@ -121,7 +121,7 @@ func init() {
+ 		gp21shift = regInfo{inputs: []regMask{gp, cx}, outputs: []regMask{gp}, clobbers: flags}
+ 		gp11div   = regInfo{inputs: []regMask{ax, gpsp &^ dx}, outputs: []regMask{ax, dx},
+ 			clobbers: flags}
+-		gp11hmul = regInfo{inputs: []regMask{ax, gpsp}, outputs: []regMask{dx},
++		gp21hmul = regInfo{inputs: []regMask{ax, gpsp}, outputs: []regMask{dx},
+ 			clobbers: ax | flags}
+ 
+ 		gp2flags = regInfo{inputs: []regMask{gpsp, gpsp}, outputs: flagsonly}
+@@ -201,14 +201,14 @@ func init() {
+ 		{name: "MULQconst", argLength: 1, reg: gp11, asm: "IMULQ", aux: "Int64", resultInArg0: true}, // arg0 * auxint
+ 		{name: "MULLconst", argLength: 1, reg: gp11, asm: "IMULL", aux: "Int32", resultInArg0: true}, // arg0 * auxint
+ 
+-		{name: "HMULQ", argLength: 2, reg: gp11hmul, asm: "IMULQ"}, // (arg0 * arg1) >> width
+-		{name: "HMULL", argLength: 2, reg: gp11hmul, asm: "IMULL"}, // (arg0 * arg1) >> width
+-		{name: "HMULW", argLength: 2, reg: gp11hmul, asm: "IMULW"}, // (arg0 * arg1) >> width
+-		{name: "HMULB", argLength: 2, reg: gp11hmul, asm: "IMULB"}, // (arg0 * arg1) >> width
+-		{name: "HMULQU", argLength: 2, reg: gp11hmul, asm: "MULQ"}, // (arg0 * arg1) >> width
+-		{name: "HMULLU", argLength: 2, reg: gp11hmul, asm: "MULL"}, // (arg0 * arg1) >> width
+-		{name: "HMULWU", argLength: 2, reg: gp11hmul, asm: "MULW"}, // (arg0 * arg1) >> width
+-		{name: "HMULBU", argLength: 2, reg: gp11hmul, asm: "MULB"}, // (arg0 * arg1) >> width
++		{name: "HMULQ", argLength: 2, reg: gp21hmul, asm: "IMULQ"}, // (arg0 * arg1) >> width
++		{name: "HMULL", argLength: 2, reg: gp21hmul, asm: "IMULL"}, // (arg0 * arg1) >> width
++		{name: "HMULW", argLength: 2, reg: gp21hmul, asm: "IMULW"}, // (arg0 * arg1) >> width
++		{name: "HMULB", argLength: 2, reg: gp21hmul, asm: "IMULB"}, // (arg0 * arg1) >> width
++		{name: "HMULQU", argLength: 2, reg: gp21hmul, asm: "MULQ"}, // (arg0 * arg1) >> width
++		{name: "HMULLU", argLength: 2, reg: gp21hmul, asm: "MULL"}, // (arg0 * arg1) >> width
++		{name: "HMULWU", argLength: 2, reg: gp21hmul, asm: "MULW"}, // (arg0 * arg1) >> width
++		{name: "HMULBU", argLength: 2, reg: gp21hmul, asm: "MULB"}, // (arg0 * arg1) >> width
+ 
+ 		{name: "AVGQU", argLength: 2, reg: gp21, commutative: true, resultInArg0: true}, // (arg0 + arg1) / 2 as unsigned, all 64 result bits
+ 
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 76baa9ea5e..47cfda86b5 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -172,17 +172,24 @@ const (
+ 	Op386ADDL
+ 	Op386ADDLconst
+ 	Op386ADDLcarry
++	Op386ADDLconstcarry
+ 	Op386ADCL
++	Op386ADCLconst
+ 	Op386SUBL
+ 	Op386SUBLconst
++	Op386SUBLcarry
++	Op386SUBLconstcarry
++	Op386SBBL
++	Op386SBBLconst
+ 	Op386MULL
+ 	Op386MULLconst
+ 	Op386HMULL
++	Op386HMULLU
+ 	Op386HMULW
+ 	Op386HMULB
+-	Op386HMULLU
+ 	Op386HMULWU
+ 	Op386HMULBU
++	Op386MULLQU
+ 	Op386DIVL
+ 	Op386DIVW
+ 	Op386DIVLU
+@@ -1503,6 +1510,22 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:         "ADDLconstcarry",
++		auxType:      auxInt32,
++		argLen:       1,
++		resultInArg0: true,
++		asm:          x86.AADDL,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 239}, // AX CX DX BX BP SI DI
++			},
++			outputs: []outputInfo{
++				{0, 131072}, // FLAGS
++				{1, 239},    // AX CX DX BX BP SI DI
++			},
++		},
++	},
+ 	{
+ 		name:         "ADCL",
+ 		argLen:       3,
+@@ -1520,6 +1543,22 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:         "ADCLconst",
++		auxType:      auxInt32,
++		argLen:       2,
++		resultInArg0: true,
++		asm:          x86.AADCL,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 131072}, // FLAGS
++				{0, 239},    // AX CX DX BX BP SI DI
++			},
++			outputs: []outputInfo{
++				{0, 239}, // AX CX DX BX BP SI DI
++			},
++		},
++	},
+ 	{
+ 		name:         "SUBL",
+ 		argLen:       2,
+@@ -1552,6 +1591,70 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:         "SUBLcarry",
++		argLen:       2,
++		resultInArg0: true,
++		asm:          x86.ASUBL,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 239}, // AX CX DX BX BP SI DI
++				{1, 239}, // AX CX DX BX BP SI DI
++			},
++			outputs: []outputInfo{
++				{0, 131072}, // FLAGS
++				{1, 239},    // AX CX DX BX BP SI DI
++			},
++		},
++	},
++	{
++		name:         "SUBLconstcarry",
++		auxType:      auxInt32,
++		argLen:       1,
++		resultInArg0: true,
++		asm:          x86.ASUBL,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 239}, // AX CX DX BX BP SI DI
++			},
++			outputs: []outputInfo{
++				{0, 131072}, // FLAGS
++				{1, 239},    // AX CX DX BX BP SI DI
++			},
++		},
++	},
++	{
++		name:         "SBBL",
++		argLen:       3,
++		resultInArg0: true,
++		asm:          x86.ASBBL,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{2, 131072}, // FLAGS
++				{0, 239},    // AX CX DX BX BP SI DI
++				{1, 239},    // AX CX DX BX BP SI DI
++			},
++			outputs: []outputInfo{
++				{0, 239}, // AX CX DX BX BP SI DI
++			},
++		},
++	},
++	{
++		name:         "SBBLconst",
++		auxType:      auxInt32,
++		argLen:       2,
++		resultInArg0: true,
++		asm:          x86.ASBBL,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 131072}, // FLAGS
++				{0, 239},    // AX CX DX BX BP SI DI
++			},
++			outputs: []outputInfo{
++				{0, 239}, // AX CX DX BX BP SI DI
++			},
++		},
++	},
+ 	{
+ 		name:         "MULL",
+ 		argLen:       2,
+@@ -1601,9 +1704,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "HMULW",
++		name:   "HMULLU",
+ 		argLen: 2,
+-		asm:    x86.AIMULW,
++		asm:    x86.AMULL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 1},   // AX
+@@ -1616,9 +1719,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "HMULB",
++		name:   "HMULW",
+ 		argLen: 2,
+-		asm:    x86.AIMULB,
++		asm:    x86.AIMULW,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 1},   // AX
+@@ -1631,9 +1734,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "HMULLU",
++		name:   "HMULB",
+ 		argLen: 2,
+-		asm:    x86.AMULL,
++		asm:    x86.AIMULB,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 1},   // AX
+@@ -1675,6 +1778,22 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:   "MULLQU",
++		argLen: 2,
++		asm:    x86.AMULL,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1},   // AX
++				{1, 255}, // AX CX DX BX SP BP SI DI
++			},
++			clobbers: 131072, // FLAGS
++			outputs: []outputInfo{
++				{0, 4}, // DX
++				{1, 1}, // AX
++			},
++		},
++	},
+ 	{
+ 		name:   "DIVL",
+ 		argLen: 2,
+diff --git a/src/cmd/compile/internal/ssa/rewrite386.go b/src/cmd/compile/internal/ssa/rewrite386.go
+index 59b44973de..f3f021493d 100644
+--- a/src/cmd/compile/internal/ssa/rewrite386.go
++++ b/src/cmd/compile/internal/ssa/rewrite386.go
+@@ -8,8 +8,12 @@ import "math"
+ var _ = math.MinInt8 // in case not otherwise used
+ func rewriteValue386(v *Value, config *Config) bool {
+ 	switch v.Op {
++	case Op386ADCL:
++		return rewriteValue386_Op386ADCL(v, config)
+ 	case Op386ADDL:
+ 		return rewriteValue386_Op386ADDL(v, config)
++	case Op386ADDLcarry:
++		return rewriteValue386_Op386ADDLcarry(v, config)
+ 	case Op386ADDLconst:
+ 		return rewriteValue386_Op386ADDLconst(v, config)
+ 	case Op386ANDL:
+@@ -362,6 +366,8 @@ func rewriteValue386(v *Value, config *Config) bool {
+ 		return rewriteValue386_OpMul32(v, config)
+ 	case OpMul32F:
+ 		return rewriteValue386_OpMul32F(v, config)
++	case OpMul32uhilo:
++		return rewriteValue386_OpMul32uhilo(v, config)
+ 	case OpMul64F:
+ 		return rewriteValue386_OpMul64F(v, config)
+ 	case OpMul8:
+@@ -466,6 +472,8 @@ func rewriteValue386(v *Value, config *Config) bool {
+ 		return rewriteValue386_Op386SARW(v, config)
+ 	case Op386SARWconst:
+ 		return rewriteValue386_Op386SARWconst(v, config)
++	case Op386SBBL:
++		return rewriteValue386_Op386SBBL(v, config)
+ 	case Op386SBBLcarrymask:
+ 		return rewriteValue386_Op386SBBLcarrymask(v, config)
+ 	case Op386SETA:
+@@ -498,6 +506,8 @@ func rewriteValue386(v *Value, config *Config) bool {
+ 		return rewriteValue386_Op386SHRW(v, config)
+ 	case Op386SUBL:
+ 		return rewriteValue386_Op386SUBL(v, config)
++	case Op386SUBLcarry:
++		return rewriteValue386_Op386SUBLcarry(v, config)
+ 	case Op386SUBLconst:
+ 		return rewriteValue386_Op386SUBLconst(v, config)
+ 	case OpSignExt16to32:
+@@ -518,6 +528,10 @@ func rewriteValue386(v *Value, config *Config) bool {
+ 		return rewriteValue386_OpSub32(v, config)
+ 	case OpSub32F:
+ 		return rewriteValue386_OpSub32F(v, config)
++	case OpSub32carry:
++		return rewriteValue386_OpSub32carry(v, config)
++	case OpSub32withcarry:
++		return rewriteValue386_OpSub32withcarry(v, config)
+ 	case OpSub64F:
+ 		return rewriteValue386_OpSub64F(v, config)
+ 	case OpSub8:
+@@ -551,6 +565,45 @@ func rewriteValue386(v *Value, config *Config) bool {
+ 	}
+ 	return false
+ }
++func rewriteValue386_Op386ADCL(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (ADCL x (MOVLconst [c]) f)
++	// cond:
++	// result: (ADCLconst [c] x f)
++	for {
++		x := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != Op386MOVLconst {
++			break
++		}
++		c := v_1.AuxInt
++		f := v.Args[2]
++		v.reset(Op386ADCLconst)
++		v.AuxInt = c
++		v.AddArg(x)
++		v.AddArg(f)
++		return true
++	}
++	// match: (ADCL (MOVLconst [c]) x f)
++	// cond:
++	// result: (ADCLconst [c] x f)
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != Op386MOVLconst {
++			break
++		}
++		c := v_0.AuxInt
++		x := v.Args[1]
++		f := v.Args[2]
++		v.reset(Op386ADCLconst)
++		v.AuxInt = c
++		v.AddArg(x)
++		v.AddArg(f)
++		return true
++	}
++	return false
++}
+ func rewriteValue386_Op386ADDL(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -787,6 +840,41 @@ func rewriteValue386_Op386ADDL(v *Value, config *Config) bool {
+ 	}
+ 	return false
+ }
++func rewriteValue386_Op386ADDLcarry(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (ADDLcarry x (MOVLconst [c]))
++	// cond:
++	// result: (ADDLconstcarry [c] x)
++	for {
++		x := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != Op386MOVLconst {
++			break
++		}
++		c := v_1.AuxInt
++		v.reset(Op386ADDLconstcarry)
++		v.AuxInt = c
++		v.AddArg(x)
++		return true
++	}
++	// match: (ADDLcarry (MOVLconst [c]) x)
++	// cond:
++	// result: (ADDLconstcarry [c] x)
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != Op386MOVLconst {
++			break
++		}
++		c := v_0.AuxInt
++		x := v.Args[1]
++		v.reset(Op386ADDLconstcarry)
++		v.AuxInt = c
++		v.AddArg(x)
++		return true
++	}
++	return false
++}
+ func rewriteValue386_Op386ADDLconst(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -3799,13 +3887,13 @@ func rewriteValue386_OpLoad(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+ 	// match: (Load <t> ptr mem)
+-	// cond: is32BitInt(t)
++	// cond: (is32BitInt(t) || isPtr(t))
+ 	// result: (MOVLload ptr mem)
+ 	for {
+ 		t := v.Type
+ 		ptr := v.Args[0]
+ 		mem := v.Args[1]
+-		if !(is32BitInt(t)) {
++		if !(is32BitInt(t) || isPtr(t)) {
+ 			break
+ 		}
+ 		v.reset(Op386MOVLload)
+@@ -9205,6 +9293,21 @@ func rewriteValue386_OpMul32F(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
++func rewriteValue386_OpMul32uhilo(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Mul32uhilo x y)
++	// cond:
++	// result: (MULLQU x y)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(Op386MULLQU)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
+ func rewriteValue386_OpMul64F(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -10731,6 +10834,28 @@ func rewriteValue386_Op386SARWconst(v *Value, config *Config) bool {
+ 	}
+ 	return false
+ }
++func rewriteValue386_Op386SBBL(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (SBBL x (MOVLconst [c]) f)
++	// cond:
++	// result: (SBBLconst [c] x f)
++	for {
++		x := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != Op386MOVLconst {
++			break
++		}
++		c := v_1.AuxInt
++		f := v.Args[2]
++		v.reset(Op386SBBLconst)
++		v.AuxInt = c
++		v.AddArg(x)
++		v.AddArg(f)
++		return true
++	}
++	return false
++}
+ func rewriteValue386_Op386SBBLcarrymask(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -11801,6 +11926,26 @@ func rewriteValue386_Op386SUBL(v *Value, config *Config) bool {
+ 	}
+ 	return false
+ }
++func rewriteValue386_Op386SUBLcarry(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (SUBLcarry x (MOVLconst [c]))
++	// cond:
++	// result: (SUBLconstcarry [c] x)
++	for {
++		x := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != Op386MOVLconst {
++			break
++		}
++		c := v_1.AuxInt
++		v.reset(Op386SUBLconstcarry)
++		v.AuxInt = c
++		v.AddArg(x)
++		return true
++	}
++	return false
++}
+ func rewriteValue386_Op386SUBLconst(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -12035,6 +12180,38 @@ func rewriteValue386_OpSub32F(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
++func rewriteValue386_OpSub32carry(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Sub32carry x y)
++	// cond:
++	// result: (SUBLcarry x y)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(Op386SUBLcarry)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
++func rewriteValue386_OpSub32withcarry(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Sub32withcarry x y c)
++	// cond:
++	// result: (SBBL x y c)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		c := v.Args[2]
++		v.reset(Op386SBBL)
++		v.AddArg(x)
++		v.AddArg(y)
++		v.AddArg(c)
++		return true
++	}
++}
+ func rewriteValue386_OpSub64F(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+diff --git a/src/cmd/compile/internal/x86/ssa.go b/src/cmd/compile/internal/x86/ssa.go
+index 1c3baaa391..ab6410b1c3 100644
+--- a/src/cmd/compile/internal/x86/ssa.go
++++ b/src/cmd/compile/internal/x86/ssa.go
+@@ -178,21 +178,34 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		ssa.Op386ADDSS, ssa.Op386ADDSD, ssa.Op386SUBSS, ssa.Op386SUBSD,
+ 		ssa.Op386MULSS, ssa.Op386MULSD, ssa.Op386DIVSS, ssa.Op386DIVSD,
+ 		ssa.Op386PXOR,
+-		ssa.Op386ADCL:
++		ssa.Op386ADCL,
++		ssa.Op386SBBL:
+ 		r := gc.SSARegNum(v)
+ 		if r != gc.SSARegNum(v.Args[0]) {
+ 			v.Fatalf("input[0] and output not in same register %s", v.LongString())
+ 		}
+ 		opregreg(v.Op.Asm(), r, gc.SSARegNum(v.Args[1]))
+ 
+-	case ssa.Op386ADDLcarry:
+-		// output 0 is carry, output 1 is the low 32 bits.
++	case ssa.Op386ADDLcarry, ssa.Op386SUBLcarry:
++		// output 0 is carry/borrow, output 1 is the low 32 bits.
+ 		r := gc.SSARegNum1(v)
+ 		if r != gc.SSARegNum(v.Args[0]) {
+ 			v.Fatalf("input[0] and output[1] not in same register %s", v.LongString())
+ 		}
+ 		opregreg(v.Op.Asm(), r, gc.SSARegNum(v.Args[1]))
+ 
++	case ssa.Op386ADDLconstcarry, ssa.Op386SUBLconstcarry:
++		// output 0 is carry/borrow, output 1 is the low 32 bits.
++		r := gc.SSARegNum1(v)
++		if r != gc.SSARegNum(v.Args[0]) {
++			v.Fatalf("input[0] and output[1] not in same register %s", v.LongString())
++		}
++		p := gc.Prog(v.Op.Asm())
++		p.From.Type = obj.TYPE_CONST
++		p.From.Offset = v.AuxInt
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = r
++
+ 	case ssa.Op386DIVL, ssa.Op386DIVW,
+ 		ssa.Op386DIVLU, ssa.Op386DIVWU,
+ 		ssa.Op386MODL, ssa.Op386MODW,
+@@ -289,6 +302,12 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 			m.To.Reg = x86.REG_DX
+ 		}
+ 
++	case ssa.Op386MULLQU:
++		// AX * args[1], high 32 bits in DX (result[0]), low 32 bits in AX (result[1]).
++		p := gc.Prog(v.Op.Asm())
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = gc.SSARegNum(v.Args[1])
++
+ 	case ssa.Op386ADDLconst:
+ 		r := gc.SSARegNum(v)
+ 		a := gc.SSARegNum(v.Args[0])
+@@ -336,6 +355,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		//p.From3.Reg = gc.SSARegNum(v.Args[0])
+ 
+ 	case ssa.Op386SUBLconst,
++		ssa.Op386ADCLconst,
++		ssa.Op386SBBLconst,
+ 		ssa.Op386ANDLconst,
+ 		ssa.Op386ORLconst,
+ 		ssa.Op386XORLconst,

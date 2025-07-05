@@ -9,7 +9,67 @@ Date:   Thu Mar 17 11:49:56 2011 -0700
     R=gri
     CC=golang-dev
     https://golang.org/cl/4290054
-
+---
  src/pkg/go/scanner/scanner.go      |  2 +-
  src/pkg/go/scanner/scanner_test.go | 15 +++++++++++++--
  2 files changed, 14 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/go/scanner/scanner.go b/src/pkg/go/scanner/scanner.go
+index 80b5e9e333..59fed9dffc 100644
+--- a/src/pkg/go/scanner/scanner.go
++++ b/src/pkg/go/scanner/scanner.go
+@@ -177,7 +177,7 @@ var prefix = []byte("//line ")
+ func (S *Scanner) interpretLineComment(text []byte) {
+ 	if bytes.HasPrefix(text, prefix) {
+ 		// get filename and line number, if any
+-		if i := bytes.Index(text, []byte{':'}); i > 0 {
++		if i := bytes.LastIndex(text, []byte{':'}); i > 0 {
+ 			if line, err := strconv.Atoi(string(text[i+1:])); err == nil && line > 0 {
+ 				// valid //line filename:line comment;
+ 				filename := filepath.Clean(string(text[len(prefix):i]))
+diff --git a/src/pkg/go/scanner/scanner_test.go b/src/pkg/go/scanner/scanner_test.go
+index e675d0bbf8..93f34581b7 100644
+--- a/src/pkg/go/scanner/scanner_test.go
++++ b/src/pkg/go/scanner/scanner_test.go
+@@ -8,6 +8,7 @@ import (
+ 	"go/token"
+ 	"os"
+ 	"path/filepath"
++	"runtime"
+ 	"testing"
+ )
+ 
+@@ -444,11 +445,13 @@ func TestSemis(t *testing.T) {
+ 	}
+ }
+ 
+-var segments = []struct {
++type segment struct {
+ 	srcline  string // a line of source text
+ 	filename string // filename for current token
+ 	line     int    // line number for current token
+-}{
++}
++
++var segments = []segment{
+ 	// exactly one token per line since the test consumes one token per segment
+ 	{"  line1", filepath.Join("dir", "TestLineComments"), 1},
+ 	{"\nline2", filepath.Join("dir", "TestLineComments"), 2},
+@@ -466,9 +469,17 @@ var segments = []struct {
+ 	{"\n//line a/b/c/File1.go:100\n  line100", filepath.Join("dir", "a", "b", "c", "File1.go"), 100},
+ }
+ 
++var winsegments = []segment{
++	{"\n//line c:\\dir\\File1.go:100\n  line100", "c:\\dir\\File1.go", 100},
++}
++
+ 
+ // Verify that comments of the form "//line filename:line" are interpreted correctly.
+ func TestLineComments(t *testing.T) {
++	if runtime.GOOS == "windows" {
++		segments = append(segments, winsegments...)
++	}
++
+ 	// make source
+ 	var src string
+ 	for _, e := range segments {

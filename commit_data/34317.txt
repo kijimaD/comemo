@@ -21,7 +21,7 @@ Date:   Thu Oct 12 19:46:42 2017 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/vet/all/whitelist/386.txt |  8 ++--
  src/runtime/asm_386.s             | 83 +++++++++++++++++++++++++++++++++++++--
  src/runtime/rt0_android_386.s     | 14 ++-----
@@ -34,3 +34,462 @@ Date:   Thu Oct 12 19:46:42 2017 -0700
  src/runtime/rt0_plan9_386.s       |  2 +-
  src/runtime/rt0_windows_386.s     | 19 ++++-----
  11 files changed, 136 insertions(+), 181 deletions(-)
+
+diff --git a/src/cmd/vet/all/whitelist/386.txt b/src/cmd/vet/all/whitelist/386.txt
+index 5a6bde90c2..505856f368 100644
+--- a/src/cmd/vet/all/whitelist/386.txt
++++ b/src/cmd/vet/all/whitelist/386.txt
+@@ -2,6 +2,10 @@
+ 
+ runtime/asm_ARCHSUFF.s: [GOARCH] cannot check cross-package assembly function: Compare is in package bytes
+ 
++// startup code uses non-standard calling convention and intentionally
++// omits args.
++runtime/asm_386.s: [386] rt0_go: use of 4(SP) points beyond argument frame
++
+ // reflect trampolines intentionally omit arg size. Same for morestack.
+ runtime/asm_386.s: [386] morestack: use of 4(SP) points beyond argument frame
+ runtime/asm_386.s: [386] morestack: use of 8(SP) points beyond argument frame
+@@ -21,7 +25,3 @@ runtime/asm_386.s: [386] uint32tofloat64: function uint32tofloat64 missing Go de
+ runtime/asm_386.s: [386] float64touint32: function float64touint32 missing Go declaration
+ 
+ runtime/asm_386.s: [386] stackcheck: function stackcheck missing Go declaration
+-
+-// Clearer using FP than SP, but that requires named offsets.
+-runtime/asm_386.s: [386] rt0_go: unknown variable argc
+-runtime/asm_386.s: [386] rt0_go: unknown variable argv
+diff --git a/src/runtime/asm_386.s b/src/runtime/asm_386.s
+index f3b927f0b7..319b61579a 100644
+--- a/src/runtime/asm_386.s
++++ b/src/runtime/asm_386.s
+@@ -7,10 +7,87 @@
+ #include "funcdata.h"
+ #include "textflag.h"
+ 
++// _rt0_386 is common startup code for most 386 systems when using
++// internal linking. This is the entry point for the program from the
++// kernel for an ordinary -buildmode=exe program. The stack holds the
++// number of arguments and the C-style argv.
++TEXT _rt0_386(SB),NOSPLIT,$8
++	MOVL	8(SP), AX	// argc
++	LEAL	12(SP), BX	// argv
++	MOVL	AX, 0(SP)
++	MOVL	BX, 4(SP)
++	JMP	runtime·rt0_go(SB)
++
++// _rt0_386_lib is common startup code for most 386 systems when
++// using -buildmode=c-archive or -buildmode=c-shared. The linker will
++// arrange to invoke this function as a global constructor (for
++// c-archive) or when the shared library is loaded (for c-shared).
++// We expect argc and argv to be passed on the stack following the
++// usual C ABI.
++TEXT _rt0_386_lib(SB),NOSPLIT,$0
++	PUSHL	BP
++	MOVL	SP, BP
++	PUSHL	BX
++	PUSHL	SI
++	PUSHL	DI
++
++	MOVL	8(BP), AX
++	MOVL	AX, _rt0_386_lib_argc<>(SB)
++	MOVL	12(BP), AX
++	MOVL	AX, _rt0_386_lib_argv<>(SB)
++
++	// Synchronous initialization.
++	CALL	runtime·libpreinit(SB)
++
++	SUBL	$8, SP
++
++	// Create a new thread to do the runtime initialization.
++	MOVL	_cgo_sys_thread_create(SB), AX
++	TESTL	AX, AX
++	JZ	nocgo
++	MOVL	$_rt0_386_lib_go(SB), BX
++	MOVL	BX, 0(SP)
++	MOVL	$0, 4(SP)
++
++	// TODO: We are calling a C function here so we should be
++	// aligning the stack.
++
++	CALL	AX
++	JMP	restore
++
++nocgo:
++	MOVL	$0x800000, 0(SP)                    // stacksize = 8192KB
++	MOVL	$_rt0_386_lib_go(SB), AX
++	MOVL	AX, 4(SP)                           // fn
++	CALL	runtime·newosproc0(SB)
++
++restore:
++	ADDL	$8, SP
++	POPL	DI
++	POPL	SI
++	POPL	BX
++	POPL	BP
++	RET
++
++// _rt0_386_lib_go initializes the Go runtime.
++// This is started in a separate thread by _rt0_386_lib.
++TEXT _rt0_386_lib_go(SB),NOSPLIT,$8
++	MOVL	_rt0_386_lib_argc<>(SB), AX
++	MOVL	AX, 0(SP)
++	MOVL	_rt0_386_lib_argv<>(SB), AX
++	MOVL	AX, 4(SP)
++	JMP	runtime·rt0_go(SB)
++
++DATA _rt0_386_lib_argc<>(SB)/4, $0
++GLOBL _rt0_386_lib_argc<>(SB),NOPTR, $4
++DATA _rt0_386_lib_argv<>(SB)/4, $0
++GLOBL _rt0_386_lib_argv<>(SB),NOPTR, $4
++
+ TEXT runtime·rt0_go(SB),NOSPLIT,$0
+-	// copy arguments forward on an even stack
+-	MOVL	argc+0(FP), AX
+-	MOVL	argv+4(FP), BX
++	// Copy arguments forward on an even stack.
++	// Users of this function jump to it, they don't call it.
++	MOVL	0(SP), AX
++	MOVL	4(SP), BX
+ 	SUBL	$128, SP		// plenty of scratch
+ 	ANDL	$~15, SP
+ 	MOVL	AX, 120(SP)		// save argc, argv away
+diff --git a/src/runtime/rt0_android_386.s b/src/runtime/rt0_android_386.s
+index 9d20fc8f89..eabdf81235 100644
+--- a/src/runtime/rt0_android_386.s
++++ b/src/runtime/rt0_android_386.s
+@@ -4,21 +4,13 @@
+ 
+ #include "textflag.h"
+ 
+-TEXT _rt0_386_android(SB),NOSPLIT,$8
+-	MOVL	8(SP), AX  // argc
+-	LEAL	12(SP), BX  // argv
+-	MOVL	AX, 0(SP)
+-	MOVL	BX, 4(SP)
+-	CALL	main(SB)
+-	INT	$3
++TEXT _rt0_386_android(SB),NOSPLIT,$0
++	JMP	_rt0_386(SB)
+ 
+ TEXT _rt0_386_android_lib(SB),NOSPLIT,$0
+ 	PUSHL	$_rt0_386_android_argv(SB)  // argv
+ 	PUSHL	$1  // argc
+-	CALL	_rt0_386_linux_lib(SB)
+-	POPL	AX
+-	POPL	AX
+-	RET
++	JMP	_rt0_386_lib(SB)
+ 
+ DATA _rt0_386_android_argv+0x00(SB)/4,$_rt0_386_android_argv0(SB)
+ DATA _rt0_386_android_argv+0x04(SB)/4,$0  // argv terminate
+diff --git a/src/runtime/rt0_darwin_386.s b/src/runtime/rt0_darwin_386.s
+index 6b404db3a4..a8d3a796d4 100644
+--- a/src/runtime/rt0_darwin_386.s
++++ b/src/runtime/rt0_darwin_386.s
+@@ -4,72 +4,14 @@
+ 
+ #include "textflag.h"
+ 
+-TEXT _rt0_386_darwin(SB),NOSPLIT,$8
+-	MOVL	8(SP), AX
+-	LEAL	12(SP), BX
+-	MOVL	AX, 0(SP)
+-	MOVL	BX, 4(SP)
+-	CALL	main(SB)
+-	INT	$3
++TEXT _rt0_386_darwin(SB),NOSPLIT,$0
++	JMP	_rt0_386(SB)
+ 
+-// With -buildmode=c-archive, this symbol is called from a global constructor.
+ TEXT _rt0_386_darwin_lib(SB),NOSPLIT,$0
+-	PUSHL	BP
+-	MOVL	SP, BP
+-	PUSHL	BX
+-	PUSHL	SI
+-	PUSHL	DI
+-
+-	MOVL	8(BP), AX
+-	MOVL	AX, _rt0_386_darwin_lib_argc<>(SB)
+-	MOVL	12(BP), AX
+-	MOVL	AX, _rt0_386_darwin_lib_argv<>(SB)
+-
+-	// Synchronous initialization.
+-	MOVL	$runtime·libpreinit(SB), AX
+-	CALL	AX
+-
+-	SUBL	$12, SP
+-
+-	// Create a new thread to do the runtime initialization and return.
+-	MOVL	_cgo_sys_thread_create(SB), AX
+-	TESTL	AX, AX
+-	JZ	nocgo
+-	MOVL	$_rt0_386_darwin_lib_go(SB), BX
+-	MOVL	BX, 0(SP)
+-	MOVL	$0, 4(SP)
+-	CALL	AX
+-	JMP     restore
+-
+-nocgo:
+-	MOVL	$0x800000, 0(SP)               // stacksize = 8192KB
+-	MOVL	$_rt0_386_darwin_lib_go(SB), AX
+-	MOVL	AX, 4(SP)                      // fn
+-	MOVL	$0, 8(SP)                      // fnarg
+-	MOVL	$runtime·newosproc0(SB), AX
+-	CALL	AX
+-
+-restore:
+-	ADDL	$12, SP
+-	POPL	DI
+-	POPL	SI
+-	POPL	BX
+-	POPL	BP
+-	RET
+-
+-TEXT _rt0_386_darwin_lib_go(SB),NOSPLIT,$12
+-	MOVL	_rt0_386_darwin_lib_argc<>(SB), AX
+-	MOVL	AX, 0(SP)
+-	MOVL	_rt0_386_darwin_lib_argv<>(SB), AX
+-	MOVL	AX, 4(SP)
+-	MOVL	$runtime·rt0_go(SB), AX
+-	CALL	AX
+-	RET
+-
+-DATA _rt0_386_darwin_lib_argc<>(SB)/4, $0
+-GLOBL _rt0_386_darwin_lib_argc<>(SB),NOPTR, $4
+-DATA _rt0_386_darwin_lib_argv<>(SB)/4, $0
+-GLOBL _rt0_386_darwin_lib_argv<>(SB),NOPTR, $4
++	JMP	_rt0_386_lib(SB)
+ 
+ TEXT main(SB),NOSPLIT,$0
++	// Remove the return address from the stack.
++	// rt0_go doesn't expect it to be there.
++	ADDL	$4, SP
+ 	JMP	runtime·rt0_go(SB)
+diff --git a/src/runtime/rt0_freebsd_386.s b/src/runtime/rt0_freebsd_386.s
+index cd7a915f84..1808059838 100644
+--- a/src/runtime/rt0_freebsd_386.s
++++ b/src/runtime/rt0_freebsd_386.s
+@@ -4,13 +4,14 @@
+ 
+ #include "textflag.h"
+ 
+-TEXT _rt0_386_freebsd(SB),NOSPLIT,$8
+-	MOVL	8(SP), AX
+-	LEAL	12(SP), BX
+-	MOVL	AX, 0(SP)
+-	MOVL	BX, 4(SP)
+-	CALL	main(SB)
+-	INT	$3
++TEXT _rt0_386_freebsd(SB),NOSPLIT,$0
++	JMP	_rt0_386(SB)
++
++TEXT _rt0_386_freebsd_lib(SB),NOSPLIT,$0
++	JMP	_rt0_386_lib(SB)
+ 
+ TEXT main(SB),NOSPLIT,$0
++	// Remove the return address from the stack.
++	// rt0_go doesn't expect it to be there.
++	ADDL	$4, SP
+ 	JMP	runtime·rt0_go(SB)
+diff --git a/src/runtime/rt0_linux_386.s b/src/runtime/rt0_linux_386.s
+index 23bfc98b10..325066fc1d 100644
+--- a/src/runtime/rt0_linux_386.s
++++ b/src/runtime/rt0_linux_386.s
+@@ -4,72 +4,14 @@
+ 
+ #include "textflag.h"
+ 
+-TEXT _rt0_386_linux(SB),NOSPLIT,$8
+-	MOVL	8(SP), AX
+-	LEAL	12(SP), BX
+-	MOVL	AX, 0(SP)
+-	MOVL	BX, 4(SP)
+-	CALL	main(SB)
+-	INT	$3
++TEXT _rt0_386_linux(SB),NOSPLIT,$0
++	JMP	_rt0_386(SB)
+ 
+-// When building with -buildmode=c-shared, this symbol is called when the shared
+-// library is loaded.
+ TEXT _rt0_386_linux_lib(SB),NOSPLIT,$0
+-	PUSHL	BP
+-	MOVL	SP, BP
+-	PUSHL	BX
+-	PUSHL	SI
+-	PUSHL	DI
+-
+-	MOVL	8(BP), AX
+-	MOVL	AX, _rt0_386_linux_lib_argc<>(SB)
+-	MOVL	12(BP), AX
+-	MOVL	AX, _rt0_386_linux_lib_argv<>(SB)
+-
+-	// Synchronous initialization.
+-	MOVL	$runtime·libpreinit(SB), AX
+-	CALL	AX
+-
+-	SUBL	$8, SP
+-
+-	// Create a new thread to do the runtime initialization.
+-	MOVL	_cgo_sys_thread_create(SB), AX
+-	TESTL	AX, AX
+-	JZ	nocgo
+-	MOVL	$_rt0_386_linux_lib_go(SB), BX
+-	MOVL	BX, 0(SP)
+-	MOVL	$0, 4(SP)
+-	CALL	AX
+-	JMP	restore
+-
+-nocgo:
+-	MOVL	$0x800000, 0(SP)                    // stacksize = 8192KB
+-	MOVL	$_rt0_386_linux_lib_go(SB), AX
+-	MOVL	AX, 4(SP)                           // fn
+-	MOVL	$runtime·newosproc0(SB), AX
+-	CALL	AX
+-
+-restore:
+-	ADDL	$8, SP
+-	POPL	DI
+-	POPL	SI
+-	POPL	BX
+-	POPL	BP
+-	RET
+-
+-TEXT _rt0_386_linux_lib_go(SB),NOSPLIT,$12
+-	MOVL	_rt0_386_linux_lib_argc<>(SB), AX
+-	MOVL	AX, 0(SP)
+-	MOVL	_rt0_386_linux_lib_argv<>(SB), AX
+-	MOVL	AX, 4(SP)
+-	MOVL	$runtime·rt0_go(SB), AX
+-	CALL	AX
+-	RET
+-
+-DATA _rt0_386_linux_lib_argc<>(SB)/4, $0
+-GLOBL _rt0_386_linux_lib_argc<>(SB),NOPTR, $4
+-DATA _rt0_386_linux_lib_argv<>(SB)/4, $0
+-GLOBL _rt0_386_linux_lib_argv<>(SB),NOPTR, $4
++	JMP	_rt0_386_lib(SB)
+ 
+ TEXT main(SB),NOSPLIT,$0
++	// Remove the return address from the stack.
++	// rt0_go doesn't expect it to be there.
++	ADDL	$4, SP
+ 	JMP	runtime·rt0_go(SB)
+diff --git a/src/runtime/rt0_nacl_386.s b/src/runtime/rt0_nacl_386.s
+index d4ba06306a..4c990022f1 100644
+--- a/src/runtime/rt0_nacl_386.s
++++ b/src/runtime/rt0_nacl_386.s
+@@ -15,8 +15,10 @@ TEXT _rt0_386_nacl(SB),NOSPLIT,$8
+ 	LEAL	argv+16(FP), BX
+ 	MOVL	AX, 0(SP)
+ 	MOVL	BX, 4(SP)
+-	CALL	main(SB)
+-	INT	$3
++	JMP	runtime·rt0_go(SB)
+ 
+ TEXT main(SB),NOSPLIT,$0
++	// Remove the return address from the stack.
++	// rt0_go doesn't expect it to be there.
++	ADDL	$4, SP
+ 	JMP	runtime·rt0_go(SB)
+diff --git a/src/runtime/rt0_netbsd_386.s b/src/runtime/rt0_netbsd_386.s
+index 70b8532538..cefc04a815 100644
+--- a/src/runtime/rt0_netbsd_386.s
++++ b/src/runtime/rt0_netbsd_386.s
+@@ -4,13 +4,14 @@
+ 
+ #include "textflag.h"
+ 
+-TEXT _rt0_386_netbsd(SB),NOSPLIT,$8
+-	MOVL	8(SP), AX
+-	LEAL	12(SP), BX
+-	MOVL	AX, 0(SP)
+-	MOVL	BX, 4(SP)
+-	CALL	main(SB)
+-	INT	$3
++TEXT _rt0_386_netbsd(SB),NOSPLIT,$0
++	JMP	_rt0_386(SB)
++
++TEXT _rt0_386_netbsd_lib(SB),NOSPLIT,$0
++	JMP	_rt0_386_lib(SB)
+ 
+ TEXT main(SB),NOSPLIT,$0
++	// Remove the return address from the stack.
++	// rt0_go doesn't expect it to be there.
++	ADDL	$4, SP
+ 	JMP	runtime·rt0_go(SB)
+diff --git a/src/runtime/rt0_openbsd_386.s b/src/runtime/rt0_openbsd_386.s
+index f25d2e1cf0..959f4d655a 100644
+--- a/src/runtime/rt0_openbsd_386.s
++++ b/src/runtime/rt0_openbsd_386.s
+@@ -4,13 +4,14 @@
+ 
+ #include "textflag.h"
+ 
+-TEXT _rt0_386_openbsd(SB),NOSPLIT,$8
+-	MOVL	8(SP), AX
+-	LEAL	12(SP), BX
+-	MOVL	AX, 0(SP)
+-	MOVL	BX, 4(SP)
+-	CALL	main(SB)
+-	INT	$3
++TEXT _rt0_386_openbsd(SB),NOSPLIT,$0
++	JMP	_rt0_386(SB)
++
++TEXT _rt0_386_openbsd_lib(SB),NOSPLIT,$0
++	JMP	_rt0_386_lib(SB)
+ 
+ TEXT main(SB),NOSPLIT,$0
++	// Remove the return address from the stack.
++	// rt0_go doesn't expect it to be there.
++	ADDL	$4, SP
+ 	JMP	runtime·rt0_go(SB)
+diff --git a/src/runtime/rt0_plan9_386.s b/src/runtime/rt0_plan9_386.s
+index cbbf245632..64716158f1 100644
+--- a/src/runtime/rt0_plan9_386.s
++++ b/src/runtime/rt0_plan9_386.s
+@@ -14,7 +14,7 @@ TEXT _rt0_386_plan9(SB),NOSPLIT,$12
+ 	MOVL	AX, 0(SP)
+ 	LEAL	inargv+0(FP), AX
+ 	MOVL	AX, 4(SP)
+-	CALL	runtime·rt0_go(SB)
++	JMP	runtime·rt0_go(SB)
+ 
+ GLOBL _tos(SB), NOPTR, $4
+ GLOBL _privates(SB), NOPTR, $4
+diff --git a/src/runtime/rt0_windows_386.s b/src/runtime/rt0_windows_386.s
+index b9407a9879..fa39edd787 100644
+--- a/src/runtime/rt0_windows_386.s
++++ b/src/runtime/rt0_windows_386.s
+@@ -4,13 +4,8 @@
+ 
+ #include "textflag.h"
+ 
+-TEXT _rt0_386_windows(SB),NOSPLIT,$12
+-	MOVL	12(SP), AX
+-	LEAL	16(SP), BX
+-	MOVL	AX, 4(SP)
+-	MOVL	BX, 8(SP)
+-	MOVL	$-1, 0(SP) // return PC for main
+-	JMP	_main(SB)
++TEXT _rt0_386_windows(SB),NOSPLIT,$0
++	JMP	_rt0_386(SB)
+ 
+ // When building with -buildmode=(c-shared or c-archive), this
+ // symbol is called. For dynamic libraries it is called when the
+@@ -41,10 +36,12 @@ TEXT _rt0_386_windows_lib(SB),NOSPLIT,$0x1C
+ 	RET
+ 
+ TEXT _rt0_386_windows_lib_go(SB),NOSPLIT,$0
+-	MOVL  $0, DI
+-	MOVL	$0, SI
+-	MOVL	$runtime·rt0_go(SB), AX
+-	JMP	AX
++	PUSHL	$0
++	PUSHL	$0
++	JMP	runtime·rt0_go(SB)
+ 
+ TEXT _main(SB),NOSPLIT,$0
++	// Remove the return address from the stack.
++	// rt0_go doesn't expect it to be there.
++	ADDL	$4, SP
+ 	JMP	runtime·rt0_go(SB)

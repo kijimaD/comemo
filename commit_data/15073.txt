@@ -7,6 +7,20 @@ Date:   Thu Jan 31 16:13:48 2013 -0800
     TBR=golang-dev
     CC=golang-dev
     https://golang.org/cl/7241061
-
+---
  src/cmd/8l/obj.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/8l/obj.c b/src/cmd/8l/obj.c
+index c334a81f60..5704acd5de 100644
+--- a/src/cmd/8l/obj.c
++++ b/src/cmd/8l/obj.c
+@@ -114,7 +114,7 @@ main(int argc, char *argv[])
+ 	flagcount("d", "disable dynamic executable", &debug['d']);
+ 	flagcount("f", "ignore version mismatch", &debug['f']);
+ 	flagcount("g", "disable go package data checks", &debug['g']);
+-	flagcount("hostobj", "generate host object file", &hostobj);
++	flagcount("hostobj", "generate host object file", &isobj);
+ 	flagstr("k", "sym: set field tracking symbol", &tracksym);
+ 	flagstr("o", "outfile: set output file", &outfile);
+ 	flagcount("p", "insert profiling code", &debug['p']);

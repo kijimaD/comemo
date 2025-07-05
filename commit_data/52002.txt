@@ -16,8 +16,47 @@ Date:   Sat Mar 5 14:48:27 2022 +0300
     Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  api/except.txt                | 2 ++
  api/next/46121.txt            | 2 ++
  src/html/template/template.go | 9 +--------
  3 files changed, 5 insertions(+), 8 deletions(-)
+
+diff --git a/api/except.txt b/api/except.txt
+index b9972c121c..2acd444adf 100644
+--- a/api/except.txt
++++ b/api/except.txt
+@@ -505,3 +505,5 @@ pkg unicode, const Version = "6.3.0"
+ pkg unicode, const Version = "7.0.0"
+ pkg unicode, const Version = "8.0.0"
+ pkg unicode, const Version = "9.0.0"
++pkg html/template, method (*Template) Funcs(FuncMap) *Template
++pkg html/template, type FuncMap map[string]interface{}
+diff --git a/api/next/46121.txt b/api/next/46121.txt
+new file mode 100644
+index 0000000000..a50d6456c8
+--- /dev/null
++++ b/api/next/46121.txt
+@@ -0,0 +1,2 @@
++pkg html/template, method (*Template) Funcs(template.FuncMap) *Template #46121
++pkg html/template, type FuncMap = template.FuncMap #46121
+diff --git a/src/html/template/template.go b/src/html/template/template.go
+index 7eba716f1b..952f52979d 100644
+--- a/src/html/template/template.go
++++ b/src/html/template/template.go
+@@ -328,14 +328,7 @@ func (t *Template) Name() string {
+ 	return t.text.Name()
+ }
+ 
+-// FuncMap is the type of the map defining the mapping from names to
+-// functions. Each function must have either a single return value, or two
+-// return values of which the second has type error. In that case, if the
+-// second (error) argument evaluates to non-nil during execution, execution
+-// terminates and Execute returns that error. FuncMap has the same base type
+-// as FuncMap in "text/template", copied here so clients need not import
+-// "text/template".
+-type FuncMap map[string]any
++type FuncMap = template.FuncMap
+ 
+ // Funcs adds the elements of the argument map to the template's function map.
+ // It must be called before the template is parsed.

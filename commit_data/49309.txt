@@ -10,6 +10,25 @@ Date:   Mon Aug 9 15:13:22 2021 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/340990
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/typeparam.go | 7 -------
  1 file changed, 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/typeparam.go b/src/cmd/compile/internal/types2/typeparam.go
+index 12513ed6dd..4b4282efe0 100644
+--- a/src/cmd/compile/internal/types2/typeparam.go
++++ b/src/cmd/compile/internal/types2/typeparam.go
+@@ -80,13 +80,6 @@ func (t *TypeParam) SetConstraint(bound Type) {
+ 	t.bound = bound
+ }
+ 
+-// Bound returns the constraint interface of t.
+-// Deprecated. Only here for the compiler.
+-// TODO(gri) remove in favor of uses of Constraint.
+-func (t *TypeParam) Bound() *Interface {
+-	return t.iface()
+-}
+-
+ func (t *TypeParam) Underlying() Type { return t }
+ func (t *TypeParam) String() string   { return TypeString(t, nil) }
+ 

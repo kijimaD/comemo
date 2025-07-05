@@ -9,7 +9,7 @@ Date:   Fri Nov 18 10:07:36 2011 +1100
     R=golang-dev, hcwfrichter, pascal, rsc
     CC=golang-dev
     https://golang.org/cl/5369056
-
+---
  src/pkg/mime/Makefile                     | 20 ++++++++++
  src/pkg/mime/type.go                      | 45 ++--------------------
  src/pkg/mime/type_test.go                 |  8 +---
@@ -20,3 +20,438 @@ Date:   Fri Nov 18 10:07:36 2011 +1100
  src/pkg/syscall/zsyscall_windows_amd64.go | 35 +++++++++++++++++
  src/pkg/syscall/ztypes_windows.go         | 40 ++++++++++++++++++++
  9 files changed, 260 insertions(+), 49 deletions(-)
+
+diff --git a/src/pkg/mime/Makefile b/src/pkg/mime/Makefile
+index 901ed6f8ed..aec5560b9e 100644
+--- a/src/pkg/mime/Makefile
++++ b/src/pkg/mime/Makefile
+@@ -10,4 +10,24 @@ GOFILES=\
+ 	mediatype.go\
+ 	type.go\
+ 
++GOFILES_freebsd=\
++	type_unix.go
++
++GOFILES_darwin=\
++	type_unix.go
++
++GOFILES_linux=\
++	type_unix.go
++
++GOFILES_openbsd=\
++	type_unix.go
++
++GOFILES_plan9=\
++	type_unix.go
++
++GOFILES_windows=\
++	type_windows.go
++
++GOFILES+=$(GOFILES_$(GOOS))
++
+ include ../../Make.pkg
+diff --git a/src/pkg/mime/type.go b/src/pkg/mime/type.go
+index ce72bb5f7f..e3d968fb81 100644
+--- a/src/pkg/mime/type.go
++++ b/src/pkg/mime/type.go
+@@ -6,19 +6,11 @@
+ package mime
+ 
+ import (
+-	"bufio"
+ 	"fmt"
+-	"os"
+ 	"strings"
+ 	"sync"
+ )
+ 
+-var typeFiles = []string{
+-	"/etc/mime.types",
+-	"/etc/apache2/mime.types",
+-	"/etc/apache/mime.types",
+-}
+-
+ var mimeTypes = map[string]string{
+ 	".css":  "text/css; charset=utf-8",
+ 	".gif":  "image/gif",
+@@ -33,46 +25,13 @@ var mimeTypes = map[string]string{
+ 
+ var mimeLock sync.RWMutex
+ 
+-func loadMimeFile(filename string) {
+-	f, err := os.Open(filename)
+-	if err != nil {
+-		return
+-	}
+-
+-	reader := bufio.NewReader(f)
+-	for {
+-		line, err := reader.ReadString('\n')
+-		if err != nil {
+-			f.Close()
+-			return
+-		}
+-		fields := strings.Fields(line)
+-		if len(fields) <= 1 || fields[0][0] == '#' {
+-			continue
+-		}
+-		mimeType := fields[0]
+-		for _, ext := range fields[1:] {
+-			if ext[0] == '#' {
+-				break
+-			}
+-			setExtensionType("."+ext, mimeType)
+-		}
+-	}
+-}
+-
+-func initMime() {
+-	for _, filename := range typeFiles {
+-		loadMimeFile(filename)
+-	}
+-}
+-
+ var once sync.Once
+ 
+ // TypeByExtension returns the MIME type associated with the file extension ext.
+ // The extension ext should begin with a leading dot, as in ".html".
+ // When ext has no associated type, TypeByExtension returns "".
+ //
+-// The built-in table is small but is is augmented by the local
++// The built-in table is small but on unix it is augmented by the local
+ // system's mime.types file(s) if available under one or more of these
+ // names:
+ //
+@@ -80,6 +39,8 @@ var once sync.Once
+ //   /etc/apache2/mime.types
+ //   /etc/apache/mime.types
+ //
++// Windows system mime types are extracted from registry.
++//
+ // Text types have the charset parameter set to "utf-8" by default.
+ func TypeByExtension(ext string) string {
+ 	once.Do(initMime)
+diff --git a/src/pkg/mime/type_test.go b/src/pkg/mime/type_test.go
+index 976f853430..07e1cd5dae 100644
+--- a/src/pkg/mime/type_test.go
++++ b/src/pkg/mime/type_test.go
+@@ -6,15 +6,9 @@ package mime
+ 
+ import "testing"
+ 
+-var typeTests = map[string]string{
+-	".t1":  "application/test",
+-	".t2":  "text/test; charset=utf-8",
+-	".png": "image/png",
+-}
++var typeTests = initMimeForTests()
+ 
+ func TestTypeByExtension(t *testing.T) {
+-	typeFiles = []string{"test.types"}
+-
+ 	for ext, want := range typeTests {
+ 		val := TypeByExtension(ext)
+ 		if val != want {
+diff --git a/src/pkg/mime/type_unix.go b/src/pkg/mime/type_unix.go
+new file mode 100644
+index 0000000000..45127ba29d
+--- /dev/null
++++ b/src/pkg/mime/type_unix.go
+@@ -0,0 +1,59 @@
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package mime
++
++import (
++	"bufio"
++	"os"
++	"strings"
++)
++
++var typeFiles = []string{
++	"/etc/mime.types",
++	"/etc/apache2/mime.types",
++	"/etc/apache/mime.types",
++}
++
++func loadMimeFile(filename string) {
++	f, err := os.Open(filename)
++	if err != nil {
++		return
++	}
++
++	reader := bufio.NewReader(f)
++	for {
++		line, err := reader.ReadString('\n')
++		if err != nil {
++			f.Close()
++			return
++		}
++		fields := strings.Fields(line)
++		if len(fields) <= 1 || fields[0][0] == '#' {
++			continue
++		}
++		mimeType := fields[0]
++		for _, ext := range fields[1:] {
++			if ext[0] == '#' {
++				break
++			}
++			setExtensionType("."+ext, mimeType)
++		}
++	}
++}
++
++func initMime() {
++	for _, filename := range typeFiles {
++		loadMimeFile(filename)
++	}
++}
++
++func initMimeForTests() map[string]string {
++	typeFiles = []string{"test.types"}
++	return map[string]string{
++		".t1":  "application/test",
++		".t2":  "text/test; charset=utf-8",
++		".png": "image/png",
++	}
++}
+diff --git a/src/pkg/mime/type_windows.go b/src/pkg/mime/type_windows.go
+new file mode 100644
+index 0000000000..1ac3c4a55d
+--- /dev/null
++++ b/src/pkg/mime/type_windows.go
+@@ -0,0 +1,62 @@
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package mime
++
++import (
++	"syscall"
++	"unsafe"
++)
++
++func initMime() {
++	var root syscall.Handle
++	if syscall.RegOpenKeyEx(syscall.HKEY_CLASSES_ROOT, syscall.StringToUTF16Ptr(`\`),
++		0, syscall.KEY_READ, &root) != 0 {
++		return
++	}
++	defer syscall.RegCloseKey(root)
++	var count uint32
++	if syscall.RegQueryInfoKey(root, nil, nil, nil, &count, nil, nil, nil, nil, nil, nil, nil) != 0 {
++		return
++	}
++	var buf [1 << 10]uint16
++	for i := uint32(0); i < count; i++ {
++		n := uint32(len(buf))
++		if syscall.RegEnumKeyEx(root, i, &buf[0], &n, nil, nil, nil, nil) != 0 {
++			continue
++		}
++		ext := syscall.UTF16ToString(buf[:])
++		if len(ext) < 2 || ext[0] != '.' { // looking for extensions only
++			continue
++		}
++		var h syscall.Handle
++		if syscall.RegOpenKeyEx(
++			syscall.HKEY_CLASSES_ROOT, syscall.StringToUTF16Ptr(`\`+ext),
++			0, syscall.KEY_READ, &h) != 0 {
++			continue
++		}
++		var typ uint32
++		n = uint32(len(buf) * 2) // api expects array of bytes, not uint16
++		if syscall.RegQueryValueEx(
++			h, syscall.StringToUTF16Ptr("Content Type"),
++			nil, &typ, (*byte)(unsafe.Pointer(&buf[0])), &n) != 0 {
++			syscall.RegCloseKey(h)
++			continue
++		}
++		syscall.RegCloseKey(h)
++		if typ != syscall.REG_SZ { // null terminated strings only
++			continue
++		}
++		mimeType := syscall.UTF16ToString(buf[:])
++		setExtensionType(ext, mimeType)
++	}
++}
++
++func initMimeForTests() map[string]string {
++	return map[string]string{
++		".bmp": "image/bmp",
++		".png": "image/png",
++		".wav": "audio/wav",
++	}
++}
+diff --git a/src/pkg/syscall/syscall_windows.go b/src/pkg/syscall/syscall_windows.go
+index de3cb6d49a..5c43f0757b 100644
+--- a/src/pkg/syscall/syscall_windows.go
++++ b/src/pkg/syscall/syscall_windows.go
+@@ -154,6 +154,11 @@ func NewCallback(fn interface{}) uintptr
+ //sys	CertOpenSystemStore(hprov Handle, name *uint16) (store Handle, err error) = crypt32.CertOpenSystemStoreW
+ //sys	CertEnumCertificatesInStore(store Handle, prevContext *CertContext) (context *CertContext) = crypt32.CertEnumCertificatesInStore
+ //sys	CertCloseStore(store Handle, flags uint32) (err error) = crypt32.CertCloseStore
++//sys	RegOpenKeyEx(key Handle, subkey *uint16, options uint32, desiredAccess uint32, result *Handle) (regerrno uintptr) = advapi32.RegOpenKeyExW
++//sys	RegCloseKey(key Handle) (regerrno uintptr) = advapi32.RegCloseKey
++//sys	RegQueryInfoKey(key Handle, class *uint16, classLen *uint32, reserved *uint32, subkeysLen *uint32, maxSubkeyLen *uint32, maxClassLen *uint32, valuesLen *uint32, maxValueNameLen *uint32, maxValueLen *uint32, saLen *uint32, lastWriteTime *Filetime) (regerrno uintptr) = advapi32.RegQueryInfoKeyW
++//sys	RegEnumKeyEx(key Handle, index uint32, name *uint16, nameLen *uint32, reserved *uint32, class *uint16, classLen *uint32, lastWriteTime *Filetime) (regerrno uintptr) = advapi32.RegEnumKeyExW
++//sys	RegQueryValueEx(key Handle, name *uint16, reserved *uint32, valtype *uint32, buf *byte, buflen *uint32) (regerrno uintptr) = advapi32.RegQueryValueExW
+ 
+ // syscall interface implementation for other packages
+ 
+diff --git a/src/pkg/syscall/zsyscall_windows_386.go b/src/pkg/syscall/zsyscall_windows_386.go
+index 7970d3e050..0e202db69c 100644
+--- a/src/pkg/syscall/zsyscall_windows_386.go
++++ b/src/pkg/syscall/zsyscall_windows_386.go
+@@ -85,6 +85,11 @@ var (
+ 	procCertOpenSystemStoreW        = modcrypt32.NewProc("CertOpenSystemStoreW")
+ 	procCertEnumCertificatesInStore = modcrypt32.NewProc("CertEnumCertificatesInStore")
+ 	procCertCloseStore              = modcrypt32.NewProc("CertCloseStore")
++	procRegOpenKeyExW               = modadvapi32.NewProc("RegOpenKeyExW")
++	procRegCloseKey                 = modadvapi32.NewProc("RegCloseKey")
++	procRegQueryInfoKeyW            = modadvapi32.NewProc("RegQueryInfoKeyW")
++	procRegEnumKeyExW               = modadvapi32.NewProc("RegEnumKeyExW")
++	procRegQueryValueExW            = modadvapi32.NewProc("RegQueryValueExW")
+ 	procWSAStartup                  = modws2_32.NewProc("WSAStartup")
+ 	procWSACleanup                  = modws2_32.NewProc("WSACleanup")
+ 	procWSAIoctl                    = modws2_32.NewProc("WSAIoctl")
+@@ -982,6 +987,36 @@ func CertCloseStore(store Handle, flags uint32) (err error) {
+ 	return
+ }
+ 
++func RegOpenKeyEx(key Handle, subkey *uint16, options uint32, desiredAccess uint32, result *Handle) (regerrno uintptr) {
++	r0, _, _ := Syscall6(procRegOpenKeyExW.Addr(), 5, uintptr(key), uintptr(unsafe.Pointer(subkey)), uintptr(options), uintptr(desiredAccess), uintptr(unsafe.Pointer(result)), 0)
++	regerrno = uintptr(r0)
++	return
++}
++
++func RegCloseKey(key Handle) (regerrno uintptr) {
++	r0, _, _ := Syscall(procRegCloseKey.Addr(), 1, uintptr(key), 0, 0)
++	regerrno = uintptr(r0)
++	return
++}
++
++func RegQueryInfoKey(key Handle, class *uint16, classLen *uint32, reserved *uint32, subkeysLen *uint32, maxSubkeyLen *uint32, maxClassLen *uint32, valuesLen *uint32, maxValueNameLen *uint32, maxValueLen *uint32, saLen *uint32, lastWriteTime *Filetime) (regerrno uintptr) {
++	r0, _, _ := Syscall12(procRegQueryInfoKeyW.Addr(), 12, uintptr(key), uintptr(unsafe.Pointer(class)), uintptr(unsafe.Pointer(classLen)), uintptr(unsafe.Pointer(reserved)), uintptr(unsafe.Pointer(subkeysLen)), uintptr(unsafe.Pointer(maxSubkeyLen)), uintptr(unsafe.Pointer(maxClassLen)), uintptr(unsafe.Pointer(valuesLen)), uintptr(unsafe.Pointer(maxValueNameLen)), uintptr(unsafe.Pointer(maxValueLen)), uintptr(unsafe.Pointer(saLen)), uintptr(unsafe.Pointer(lastWriteTime)))
++	regerrno = uintptr(r0)
++	return
++}
++
++func RegEnumKeyEx(key Handle, index uint32, name *uint16, nameLen *uint32, reserved *uint32, class *uint16, classLen *uint32, lastWriteTime *Filetime) (regerrno uintptr) {
++	r0, _, _ := Syscall9(procRegEnumKeyExW.Addr(), 8, uintptr(key), uintptr(index), uintptr(unsafe.Pointer(name)), uintptr(unsafe.Pointer(nameLen)), uintptr(unsafe.Pointer(reserved)), uintptr(unsafe.Pointer(class)), uintptr(unsafe.Pointer(classLen)), uintptr(unsafe.Pointer(lastWriteTime)), 0)
++	regerrno = uintptr(r0)
++	return
++}
++
++func RegQueryValueEx(key Handle, name *uint16, reserved *uint32, valtype *uint32, buf *byte, buflen *uint32) (regerrno uintptr) {
++	r0, _, _ := Syscall6(procRegQueryValueExW.Addr(), 6, uintptr(key), uintptr(unsafe.Pointer(name)), uintptr(unsafe.Pointer(reserved)), uintptr(unsafe.Pointer(valtype)), uintptr(unsafe.Pointer(buf)), uintptr(unsafe.Pointer(buflen)))
++	regerrno = uintptr(r0)
++	return
++}
++
+ func WSAStartup(verreq uint32, data *WSAData) (sockerr uintptr) {
+ 	r0, _, _ := Syscall(procWSAStartup.Addr(), 2, uintptr(verreq), uintptr(unsafe.Pointer(data)), 0)
+ 	sockerr = uintptr(r0)
+diff --git a/src/pkg/syscall/zsyscall_windows_amd64.go b/src/pkg/syscall/zsyscall_windows_amd64.go
+index 49c5fb0fe9..afe8ba41b2 100644
+--- a/src/pkg/syscall/zsyscall_windows_amd64.go
++++ b/src/pkg/syscall/zsyscall_windows_amd64.go
+@@ -85,6 +85,11 @@ var (
+ 	procCertOpenSystemStoreW        = modcrypt32.NewProc("CertOpenSystemStoreW")
+ 	procCertEnumCertificatesInStore = modcrypt32.NewProc("CertEnumCertificatesInStore")
+ 	procCertCloseStore              = modcrypt32.NewProc("CertCloseStore")
++	procRegOpenKeyExW               = modadvapi32.NewProc("RegOpenKeyExW")
++	procRegCloseKey                 = modadvapi32.NewProc("RegCloseKey")
++	procRegQueryInfoKeyW            = modadvapi32.NewProc("RegQueryInfoKeyW")
++	procRegEnumKeyExW               = modadvapi32.NewProc("RegEnumKeyExW")
++	procRegQueryValueExW            = modadvapi32.NewProc("RegQueryValueExW")
+ 	procWSAStartup                  = modws2_32.NewProc("WSAStartup")
+ 	procWSACleanup                  = modws2_32.NewProc("WSACleanup")
+ 	procWSAIoctl                    = modws2_32.NewProc("WSAIoctl")
+@@ -982,6 +987,36 @@ func CertCloseStore(store Handle, flags uint32) (err error) {
+ 	return
+ }
+ 
++func RegOpenKeyEx(key Handle, subkey *uint16, options uint32, desiredAccess uint32, result *Handle) (regerrno uintptr) {
++	r0, _, _ := Syscall6(procRegOpenKeyExW.Addr(), 5, uintptr(key), uintptr(unsafe.Pointer(subkey)), uintptr(options), uintptr(desiredAccess), uintptr(unsafe.Pointer(result)), 0)
++	regerrno = uintptr(r0)
++	return
++}
++
++func RegCloseKey(key Handle) (regerrno uintptr) {
++	r0, _, _ := Syscall(procRegCloseKey.Addr(), 1, uintptr(key), 0, 0)
++	regerrno = uintptr(r0)
++	return
++}
++
++func RegQueryInfoKey(key Handle, class *uint16, classLen *uint32, reserved *uint32, subkeysLen *uint32, maxSubkeyLen *uint32, maxClassLen *uint32, valuesLen *uint32, maxValueNameLen *uint32, maxValueLen *uint32, saLen *uint32, lastWriteTime *Filetime) (regerrno uintptr) {
++	r0, _, _ := Syscall12(procRegQueryInfoKeyW.Addr(), 12, uintptr(key), uintptr(unsafe.Pointer(class)), uintptr(unsafe.Pointer(classLen)), uintptr(unsafe.Pointer(reserved)), uintptr(unsafe.Pointer(subkeysLen)), uintptr(unsafe.Pointer(maxSubkeyLen)), uintptr(unsafe.Pointer(maxClassLen)), uintptr(unsafe.Pointer(valuesLen)), uintptr(unsafe.Pointer(maxValueNameLen)), uintptr(unsafe.Pointer(maxValueLen)), uintptr(unsafe.Pointer(saLen)), uintptr(unsafe.Pointer(lastWriteTime)))
++	regerrno = uintptr(r0)
++	return
++}
++
++func RegEnumKeyEx(key Handle, index uint32, name *uint16, nameLen *uint32, reserved *uint32, class *uint16, classLen *uint32, lastWriteTime *Filetime) (regerrno uintptr) {
++	r0, _, _ := Syscall9(procRegEnumKeyExW.Addr(), 8, uintptr(key), uintptr(index), uintptr(unsafe.Pointer(name)), uintptr(unsafe.Pointer(nameLen)), uintptr(unsafe.Pointer(reserved)), uintptr(unsafe.Pointer(class)), uintptr(unsafe.Pointer(classLen)), uintptr(unsafe.Pointer(lastWriteTime)), 0)
++	regerrno = uintptr(r0)
++	return
++}
++
++func RegQueryValueEx(key Handle, name *uint16, reserved *uint32, valtype *uint32, buf *byte, buflen *uint32) (regerrno uintptr) {
++	r0, _, _ := Syscall6(procRegQueryValueExW.Addr(), 6, uintptr(key), uintptr(unsafe.Pointer(name)), uintptr(unsafe.Pointer(reserved)), uintptr(unsafe.Pointer(valtype)), uintptr(unsafe.Pointer(buf)), uintptr(unsafe.Pointer(buflen)))
++	regerrno = uintptr(r0)
++	return
++}
++
+ func WSAStartup(verreq uint32, data *WSAData) (sockerr uintptr) {
+ 	r0, _, _ := Syscall(procWSAStartup.Addr(), 2, uintptr(verreq), uintptr(unsafe.Pointer(data)), 0)
+ 	sockerr = uintptr(r0)
+diff --git a/src/pkg/syscall/ztypes_windows.go b/src/pkg/syscall/ztypes_windows.go
+index 1515de81a7..5731a0a831 100644
+--- a/src/pkg/syscall/ztypes_windows.go
++++ b/src/pkg/syscall/ztypes_windows.go
+@@ -664,3 +664,43 @@ type CertContext struct {
+ 	CertInfo     uintptr
+ 	Store        Handle
+ }
++
++const (
++	HKEY_CLASSES_ROOT = 0x80000000 + iota
++	HKEY_CURRENT_USER
++	HKEY_LOCAL_MACHINE
++	HKEY_USERS
++	HKEY_PERFORMANCE_DATA
++	HKEY_CURRENT_CONFIG
++	HKEY_DYN_DATA
++
++	KEY_QUERY_VALUE        = 1
++	KEY_SET_VALUE          = 2
++	KEY_CREATE_SUB_KEY     = 4
++	KEY_ENUMERATE_SUB_KEYS = 8
++	KEY_NOTIFY             = 16
++	KEY_CREATE_LINK        = 32
++	KEY_WRITE              = 0x20006
++	KEY_EXECUTE            = 0x20019
++	KEY_READ               = 0x20019
++	KEY_WOW64_64KEY        = 0x0100
++	KEY_WOW64_32KEY        = 0x0200
++	KEY_ALL_ACCESS         = 0xf003f
++)
++
++const (
++	REG_NONE = iota
++	REG_SZ
++	REG_EXPAND_SZ
++	REG_BINARY
++	REG_DWORD_LITTLE_ENDIAN
++	REG_DWORD_BIG_ENDIAN
++	REG_LINK
++	REG_MULTI_SZ
++	REG_RESOURCE_LIST
++	REG_FULL_RESOURCE_DESCRIPTOR
++	REG_RESOURCE_REQUIREMENTS_LIST
++	REG_QWORD_LITTLE_ENDIAN
++	REG_DWORD = REG_DWORD_LITTLE_ENDIAN
++	REG_QWORD = REG_QWORD_LITTLE_ENDIAN
++)

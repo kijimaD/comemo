@@ -15,7 +15,7 @@ Date:   Thu Apr 17 07:49:35 2025 +0000
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/bitvec/bv.go           |  4 +---
  src/cmd/compile/internal/liveness/plive.go      |  4 +---
  src/cmd/compile/internal/objw/prog.go           |  5 +----
@@ -33,3 +33,350 @@ Date:   Thu Apr 17 07:49:35 2025 +0000
  src/cmd/compile/internal/ssa/trim.go            |  5 +----
  src/cmd/compile/internal/ssagen/ssa.go          |  4 +---
  16 files changed, 28 insertions(+), 92 deletions(-)
+
+diff --git a/src/cmd/compile/internal/bitvec/bv.go b/src/cmd/compile/internal/bitvec/bv.go
+index aab10433c8..d3133dcd2d 100644
+--- a/src/cmd/compile/internal/bitvec/bv.go
++++ b/src/cmd/compile/internal/bitvec/bv.go
+@@ -196,7 +196,5 @@ func (bv BitVec) String() string {
+ }
+ 
+ func (bv BitVec) Clear() {
+-	for i := range bv.B {
+-		bv.B[i] = 0
+-	}
++	clear(bv.B)
+ }
+diff --git a/src/cmd/compile/internal/liveness/plive.go b/src/cmd/compile/internal/liveness/plive.go
+index 6c97858cf6..5a2a22ee8f 100644
+--- a/src/cmd/compile/internal/liveness/plive.go
++++ b/src/cmd/compile/internal/liveness/plive.go
+@@ -1414,9 +1414,7 @@ func Compute(curfn *ir.Func, f *ssa.Func, stkptrsize int64, pp *objw.Progs, retL
+ 	{
+ 		cache := f.Cache.Liveness.(*livenessFuncCache)
+ 		if cap(lv.be) < 2000 { // Threshold from ssa.Cache slices.
+-			for i := range lv.be {
+-				lv.be[i] = blockEffects{}
+-			}
++			clear(lv.be)
+ 			cache.be = lv.be
+ 		}
+ 		if len(lv.livenessMap.Vals) < 2000 {
+diff --git a/src/cmd/compile/internal/objw/prog.go b/src/cmd/compile/internal/objw/prog.go
+index 84fb996723..753fd8615c 100644
+--- a/src/cmd/compile/internal/objw/prog.go
++++ b/src/cmd/compile/internal/objw/prog.go
+@@ -116,10 +116,7 @@ func (pp *Progs) Flush() {
+ func (pp *Progs) Free() {
+ 	if base.Ctxt.CanReuseProgs() {
+ 		// Clear progs to enable GC and avoid abuse.
+-		s := pp.Cache[:pp.CacheIndex]
+-		for i := range s {
+-			s[i] = obj.Prog{}
+-		}
++		clear(pp.Cache[:pp.CacheIndex])
+ 	}
+ 	// Clear pp to avoid abuse.
+ 	*pp = Progs{}
+diff --git a/src/cmd/compile/internal/reflectdata/reflect.go b/src/cmd/compile/internal/reflectdata/reflect.go
+index 4202ff3358..fb60569670 100644
+--- a/src/cmd/compile/internal/reflectdata/reflect.go
++++ b/src/cmd/compile/internal/reflectdata/reflect.go
+@@ -1284,9 +1284,7 @@ func dgcptrmask(t *types.Type, write bool) *obj.LSym {
+ // word offsets in t that hold pointers.
+ // ptrmask is assumed to fit at least types.PtrDataSize(t)/PtrSize bits.
+ func fillptrmask(t *types.Type, ptrmask []byte) {
+-	for i := range ptrmask {
+-		ptrmask[i] = 0
+-	}
++	clear(ptrmask)
+ 	if !t.HasPointers() {
+ 		return
+ 	}
+diff --git a/src/cmd/compile/internal/ssa/_gen/allocators.go b/src/cmd/compile/internal/ssa/_gen/allocators.go
+index 56e6d69a31..682fc5f202 100644
+--- a/src/cmd/compile/internal/ssa/_gen/allocators.go
++++ b/src/cmd/compile/internal/ssa/_gen/allocators.go
+@@ -41,7 +41,7 @@ func genAllocators() {
+ 			capacity: "cap(%s)",
+ 			mak:      "make([]*Value, %s)",
+ 			resize:   "%s[:%s]",
+-			clear:    "for i := range %[1]s {\n%[1]s[i] = nil\n}",
++			clear:    "clear(%s)",
+ 			minLog:   5,
+ 			maxLog:   32,
+ 		},
+@@ -51,7 +51,7 @@ func genAllocators() {
+ 			capacity: "cap(%s)",
+ 			mak:      "make([]limit, %s)",
+ 			resize:   "%s[:%s]",
+-			clear:    "for i := range %[1]s {\n%[1]s[i] = limit{}\n}",
++			clear:    "clear(%s)",
+ 			minLog:   3,
+ 			maxLog:   30,
+ 		},
+diff --git a/src/cmd/compile/internal/ssa/allocators.go b/src/cmd/compile/internal/ssa/allocators.go
+index 222ae73f2b..10b1c58280 100644
+--- a/src/cmd/compile/internal/ssa/allocators.go
++++ b/src/cmd/compile/internal/ssa/allocators.go
+@@ -31,9 +31,7 @@ func (c *Cache) allocValueSlice(n int) []*Value {
+ 	return s
+ }
+ func (c *Cache) freeValueSlice(s []*Value) {
+-	for i := range s {
+-		s[i] = nil
+-	}
++	clear(s)
+ 	b := bits.Len(uint(cap(s)) - 1)
+ 	var sp *[]*Value
+ 	if len(c.hdrValueSlice) == 0 {
+@@ -69,9 +67,7 @@ func (c *Cache) allocLimitSlice(n int) []limit {
+ 	return s
+ }
+ func (c *Cache) freeLimitSlice(s []limit) {
+-	for i := range s {
+-		s[i] = limit{}
+-	}
++	clear(s)
+ 	b := bits.Len(uint(cap(s)) - 1)
+ 	var sp *[]limit
+ 	if len(c.hdrLimitSlice) == 0 {
+diff --git a/src/cmd/compile/internal/ssa/block.go b/src/cmd/compile/internal/ssa/block.go
+index 0c9aea8f96..1240bfd655 100644
+--- a/src/cmd/compile/internal/ssa/block.go
++++ b/src/cmd/compile/internal/ssa/block.go
+@@ -264,10 +264,7 @@ func (b *Block) resetWithControl2(kind BlockKind, v, w *Value) {
+ // The values in b.Values after i must already have had their args reset,
+ // to maintain correct value uses counts.
+ func (b *Block) truncateValues(i int) {
+-	tail := b.Values[i:]
+-	for j := range tail {
+-		tail[j] = nil
+-	}
++	clear(b.Values[i:])
+ 	b.Values = b.Values[:i]
+ }
+ 
+diff --git a/src/cmd/compile/internal/ssa/cache.go b/src/cmd/compile/internal/ssa/cache.go
+index fd19cb3c09..0c16efcd57 100644
+--- a/src/cmd/compile/internal/ssa/cache.go
++++ b/src/cmd/compile/internal/ssa/cache.go
+@@ -39,24 +39,13 @@ type Cache struct {
+ 
+ func (c *Cache) Reset() {
+ 	nv := sort.Search(len(c.values), func(i int) bool { return c.values[i].ID == 0 })
+-	xv := c.values[:nv]
+-	for i := range xv {
+-		xv[i] = Value{}
+-	}
++	clear(c.values[:nv])
+ 	nb := sort.Search(len(c.blocks), func(i int) bool { return c.blocks[i].ID == 0 })
+-	xb := c.blocks[:nb]
+-	for i := range xb {
+-		xb[i] = Block{}
+-	}
++	clear(c.blocks[:nb])
+ 	nl := sort.Search(len(c.locs), func(i int) bool { return c.locs[i] == nil })
+-	xl := c.locs[:nl]
+-	for i := range xl {
+-		xl[i] = nil
+-	}
++	clear(c.locs[:nl])
+ 
+ 	// regalloc sets the length of c.regallocValues to whatever it may use,
+ 	// so clear according to length.
+-	for i := range c.regallocValues {
+-		c.regallocValues[i] = valState{}
+-	}
++	clear(c.regallocValues)
+ }
+diff --git a/src/cmd/compile/internal/ssa/deadcode.go b/src/cmd/compile/internal/ssa/deadcode.go
+index 3bd1737bab..1aa0f9e296 100644
+--- a/src/cmd/compile/internal/ssa/deadcode.go
++++ b/src/cmd/compile/internal/ssa/deadcode.go
+@@ -232,10 +232,7 @@ func deadcode(f *Func) {
+ 			f.NamedValues[*name] = values[:j]
+ 		}
+ 	}
+-	clearNames := f.Names[i:]
+-	for j := range clearNames {
+-		clearNames[j] = nil
+-	}
++	clear(f.Names[i:])
+ 	f.Names = f.Names[:i]
+ 
+ 	pendingLines := f.cachedLineStarts // Holds statement boundaries that need to be moved to a new value/block
+@@ -303,10 +300,7 @@ func deadcode(f *Func) {
+ 		}
+ 	}
+ 	// zero remainder to help GC
+-	tail := f.Blocks[i:]
+-	for j := range tail {
+-		tail[j] = nil
+-	}
++	clear(f.Blocks[i:])
+ 	f.Blocks = f.Blocks[:i]
+ }
+ 
+diff --git a/src/cmd/compile/internal/ssa/debug.go b/src/cmd/compile/internal/ssa/debug.go
+index 6faef7c255..aa503eda87 100644
+--- a/src/cmd/compile/internal/ssa/debug.go
++++ b/src/cmd/compile/internal/ssa/debug.go
+@@ -102,9 +102,7 @@ type stateAtPC struct {
+ // reset fills state with the live variables from live.
+ func (state *stateAtPC) reset(live abt.T) {
+ 	slots, registers := state.slots, state.registers
+-	for i := range slots {
+-		slots[i] = VarLoc{}
+-	}
++	clear(slots)
+ 	for i := range registers {
+ 		registers[i] = registers[i][:0]
+ 	}
+@@ -242,12 +240,7 @@ func (state *debugState) initializeCache(f *Func, numVars, numSlots int) {
+ 	if cap(state.blockDebug) < f.NumBlocks() {
+ 		state.blockDebug = make([]BlockDebug, f.NumBlocks())
+ 	} else {
+-		// This local variable, and the ones like it below, enable compiler
+-		// optimizations. Don't inline them.
+-		b := state.blockDebug[:f.NumBlocks()]
+-		for i := range b {
+-			b[i] = BlockDebug{}
+-		}
++		clear(state.blockDebug[:f.NumBlocks()])
+ 	}
+ 
+ 	// A list of slots per Value. Reuse the previous child slices.
+@@ -285,10 +278,7 @@ func (state *debugState) initializeCache(f *Func, numVars, numSlots int) {
+ 	if cap(state.pendingSlotLocs) < numPieces {
+ 		state.pendingSlotLocs = make([]VarLoc, numPieces)
+ 	} else {
+-		psl := state.pendingSlotLocs[:numPieces]
+-		for i := range psl {
+-			psl[i] = VarLoc{}
+-		}
++		clear(state.pendingSlotLocs[:numPieces])
+ 	}
+ 	if cap(state.pendingEntries) < numVars {
+ 		state.pendingEntries = make([]pendingEntry, numVars)
+@@ -307,9 +297,7 @@ func (state *debugState) initializeCache(f *Func, numVars, numSlots int) {
+ 		state.lists = make([][]byte, numVars)
+ 	} else {
+ 		state.lists = state.lists[:numVars]
+-		for i := range state.lists {
+-			state.lists[i] = nil
+-		}
++		clear(state.lists)
+ 	}
+ }
+ 
+@@ -1191,9 +1179,7 @@ func (e *pendingEntry) clear() {
+ 	e.present = false
+ 	e.startBlock = 0
+ 	e.startValue = 0
+-	for i := range e.pieces {
+-		e.pieces[i] = VarLoc{}
+-	}
++	clear(e.pieces)
+ }
+ 
+ // canMerge reports whether a new location description is a superset
+diff --git a/src/cmd/compile/internal/ssa/poset.go b/src/cmd/compile/internal/ssa/poset.go
+index b7859166f4..f4f75fbe09 100644
+--- a/src/cmd/compile/internal/ssa/poset.go
++++ b/src/cmd/compile/internal/ssa/poset.go
+@@ -23,9 +23,7 @@ func newBitset(n int) bitset {
+ }
+ 
+ func (bs bitset) Reset() {
+-	for i := range bs {
+-		bs[i] = 0
+-	}
++	clear(bs)
+ }
+ 
+ func (bs bitset) Set(idx uint32) {
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index f52dad8a5d..2981bceb2e 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -1301,9 +1301,7 @@ func (s *regAllocState) regalloc(f *Func) {
+ 			dinfo = make([]dentry, l)
+ 		} else {
+ 			dinfo = dinfo[:l]
+-			for i := range dinfo {
+-				dinfo[i] = dentry{}
+-			}
++			clear(dinfo)
+ 		}
+ 
+ 		// Load static desired register info at the end of the block.
+diff --git a/src/cmd/compile/internal/ssa/stackalloc.go b/src/cmd/compile/internal/ssa/stackalloc.go
+index 8290e1730e..11ffe5b55e 100644
+--- a/src/cmd/compile/internal/ssa/stackalloc.go
++++ b/src/cmd/compile/internal/ssa/stackalloc.go
+@@ -46,15 +46,9 @@ func newStackAllocState(f *Func) *stackAllocState {
+ }
+ 
+ func putStackAllocState(s *stackAllocState) {
+-	for i := range s.values {
+-		s.values[i] = stackValState{}
+-	}
+-	for i := range s.interfere {
+-		s.interfere[i] = nil
+-	}
+-	for i := range s.names {
+-		s.names[i] = LocalSlot{}
+-	}
++	clear(s.values)
++	clear(s.interfere)
++	clear(s.names)
+ 	s.f.Cache.stackAllocState = s
+ 	s.f = nil
+ 	s.live = nil
+diff --git a/src/cmd/compile/internal/ssa/tighten.go b/src/cmd/compile/internal/ssa/tighten.go
+index f3056d42aa..93bb8d048a 100644
+--- a/src/cmd/compile/internal/ssa/tighten.go
++++ b/src/cmd/compile/internal/ssa/tighten.go
+@@ -85,9 +85,7 @@ func tighten(f *Func) {
+ 		changed = false
+ 
+ 		// Reset target
+-		for i := range target {
+-			target[i] = nil
+-		}
++		clear(target)
+ 
+ 		// Compute target locations (for moveable values only).
+ 		// target location = the least common ancestor of all uses in the dominator tree.
+diff --git a/src/cmd/compile/internal/ssa/trim.go b/src/cmd/compile/internal/ssa/trim.go
+index 13798c6c39..a607a57a76 100644
+--- a/src/cmd/compile/internal/ssa/trim.go
++++ b/src/cmd/compile/internal/ssa/trim.go
+@@ -109,10 +109,7 @@ func trim(f *Func) {
+ 	}
+ 	if n < len(f.Blocks) {
+ 		f.invalidateCFG()
+-		tail := f.Blocks[n:]
+-		for i := range tail {
+-			tail[i] = nil
+-		}
++		clear(f.Blocks[n:])
+ 		f.Blocks = f.Blocks[:n]
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index b0e0262d45..80e91436bb 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -6512,9 +6512,7 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
+ 			f.Cache.ValueToProgAfter = make([]*obj.Prog, f.NumValues())
+ 		}
+ 		valueToProgAfter = f.Cache.ValueToProgAfter[:f.NumValues()]
+-		for i := range valueToProgAfter {
+-			valueToProgAfter[i] = nil
+-		}
++		clear(valueToProgAfter)
+ 	}
+ 
+ 	// If the very first instruction is not tagged as a statement,

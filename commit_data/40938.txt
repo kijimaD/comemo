@@ -10,6 +10,121 @@ Date:   Wed Aug 14 17:37:20 2019 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/190378
     Reviewed-by: Rob Pike <r@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  doc/go_spec.html | 64 ++++++++++++++++++++++++++++++++++++--------------------
  1 file changed, 41 insertions(+), 23 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 89732fb8f2..4f94b14fa5 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1,6 +1,6 @@
+ <!--{
+ 	"Title": "The Go Programming Language Specification",
+-	"Subtitle": "Version of July 31, 2019",
++	"Subtitle": "Version of Aug 26, 2019",
+ 	"Path": "/ref/spec"
+ }-->
+ 
+@@ -1244,16 +1244,15 @@ The value of an uninitialized variable of interface type is <code>nil</code>.
+ </p>
+ 
+ <pre class="ebnf">
+-InterfaceType      = "interface" "{" { MethodSpec ";" } "}" .
+-MethodSpec         = MethodName Signature | InterfaceTypeName .
++InterfaceType      = "interface" "{" { ( MethodSpec | InterfaceTypeName ) ";" } "}" .
++MethodSpec         = MethodName Signature .
+ MethodName         = identifier .
+ InterfaceTypeName  = TypeName .
+ </pre>
+ 
+ <p>
+-As with all method sets, in an interface type, each method must have a
+-<a href="#Uniqueness_of_identifiers">unique</a>
+-non-<a href="#Blank_identifier">blank</a> name.
++An interface type may specify methods <i>explicitly</i> through method specifications,
++or it may <i>embed</i> methods of other interfaces through interface type names.
+ </p>
+ 
+ <pre>
+@@ -1265,6 +1264,11 @@ interface {
+ }
+ </pre>
+ 
++<p>
++The name of each explicitly specified method must be <a href="#Uniqueness_of_identifiers">unique</a>
++and not <a href="#Blank_identifier">blank</a>.
++</p>
++
+ <pre>
+ interface {
+ 	String() string
+@@ -1280,9 +1284,9 @@ have the method set
+ </p>
+ 
+ <pre>
+-func (p T) Read(p []byte) (n int, err error)   { return … }
+-func (p T) Write(p []byte) (n int, err error)  { return … }
+-func (p T) Close() error                       { return … }
++func (p T) Read(p []byte) (n int, err error)
++func (p T) Write(p []byte) (n int, err error)
++func (p T) Close() error
+ </pre>
+ 
+ <p>
+@@ -1332,27 +1336,41 @@ as the <code>File</code> interface.
+ <p>
+ An interface <code>T</code> may use a (possibly qualified) interface type
+ name <code>E</code> in place of a method specification. This is called
+-<i>embedding</i> interface <code>E</code> in <code>T</code>; it adds
+-all (exported and non-exported) methods of <code>E</code> to the interface
+-<code>T</code>.
++<i>embedding</i> interface <code>E</code> in <code>T</code>.
++The <a href="#Method_sets">method set</a> of <code>T</code> is the <i>union</i>
++of the method sets of <code>T</code>’s explicitly declared methods and of
++<code>T</code>’s embedded interfaces.
+ </p>
+ 
+ <pre>
+-type ReadWriter interface {
+-	Read(b Buffer) bool
+-	Write(b Buffer) bool
++type Reader interface {
++	Read(p []byte) (n int, err error)
++	Close() error
+ }
+ 
+-type File interface {
+-	ReadWriter  // same as adding the methods of ReadWriter
+-	Locker      // same as adding the methods of Locker
+-	Close()
++type Writer interface {
++	Write(p []byte) (n int, err error)
++	Close() error
+ }
+ 
+-type LockedFile interface {
+-	Locker
+-	File        // illegal: Lock, Unlock not unique
+-	Lock()      // illegal: Lock not unique
++// ReadWriter's methods are Read, Write, and Close.
++type ReadWriter interface {
++	Reader  // includes methods of Reader in ReadWriter's method set
++	Writer  // includes methods of Writer in ReadWriter's method set
++}
++</pre>
++
++<p>
++A <i>union</i> of method sets contains the (exported and non-exported)
++methods of each method set exactly once, and methods with the
++<a href="#Uniqueness_of_identifiers">same</a> names must
++have <a href="#Type_identity">identical</a> signatures.
++</p>
++
++<pre>
++type ReadCloser interface {
++	Reader   // includes methods of Reader in ReadCloser's method set
++	Close()  // illegal: signatures of Reader.Close and Close are different
+ }
+ </pre>
+ 

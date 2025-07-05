@@ -20,10 +20,224 @@ Date:   Wed Oct 7 14:55:12 2009 -0700
     R=ken
     OCL=35446
     CL=35446
-
+---
  src/cmd/gc/dcl.c  | 16 ++++++++++++++--
  src/cmd/gc/go.h   |  4 +---
  src/cmd/gc/go.y   | 16 ++++------------
  src/cmd/gc/lex.c  | 24 +++++++-----------------
  src/cmd/gc/subr.c |  2 +-
  5 files changed, 27 insertions(+), 35 deletions(-)
+
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index bc8362d284..37177c58d9 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -463,9 +463,15 @@ oldname(Sym *s)
+ 		n->op = ONONAME;
+ 		s->def = n;
+ 	}
++	if(n->oldref < 100)
++		n->oldref++;
+ 	if(n->funcdepth > 0 && n->funcdepth != funcdepth && n->op == ONAME) {
+-		// inner func is referring to var
+-		// in outer func.
++		// inner func is referring to var in outer func.
++		//
++		// TODO(rsc): If there is an outer variable x and we
++		// are parsing x := 5 inside the closure, until we get to
++		// the := it looks like a reference to the outer x so we'll
++		// make x a closure variable unnecessarily.
+ 		if(n->closure == N || n->closure->funcdepth != funcdepth) {
+ 			// create new closure var.
+ 			c = nod(ONAME, N, N);
+@@ -554,6 +560,12 @@ colasdefn(NodeList *left, Node *defn)
+ 		}
+ 		if(n->sym->block == block)
+ 			continue;
++
++		// If we created an ONONAME just for this :=,
++		// delete it, to avoid confusion with top-level imports.
++		if(n->op == ONONAME && n->oldref < 100 && --n->oldref == 0)
++			n->sym->def = N;
++
+ 		nnew++;
+ 		n = newname(n->sym);
+ 		declare(n, dclcontext);
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 8c01ad9a30..2d88342841 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -202,6 +202,7 @@ struct	Node
+ 	uchar	initorder;
+ 	uchar	dodata;		// compile literal assignment as data statement
+ 	uchar	used;
++	uchar	oldref;
+ 
+ 	// most nodes
+ 	Node*	left;
+@@ -247,7 +248,6 @@ struct	Node
+ 	Node*	outer;	// outer PPARAMREF in nested closure
+ 	Node*	closure;	// ONAME/PHEAP <-> ONAME/PPARAMREF
+ 
+-	char*	pline;
+ 	Sym*	sym;		// various
+ 	int32	vargen;		// unique name for OTYPE/ONAME
+ 	int32	lineno;
+@@ -696,8 +696,6 @@ EXTERN	int	noargnames;
+ EXTERN	int	funcdepth;
+ EXTERN	int	typecheckok;
+ 
+-EXTERN	char*	importline;
+-
+ /*
+  *	y.tab.c
+  */
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index bf46f6c1cc..93d25674cb 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -178,7 +178,6 @@ import_stmt:
+ 		pack = nod(OPACK, N, N);
+ 		pack->sym = import;
+ 		pack->lineno = $1;
+-		pack->pline = importline;
+ 
+ 		if(my == S)
+ 			my = import;
+@@ -189,15 +188,10 @@ import_stmt:
+ 		if(my->name[0] == '_' && my->name[1] == '\0')
+ 			break;
+ 
+-		// TODO(rsc): this line is needed for a package
+-		// which does bytes := in a function, which creates
+-		// an ONONAME for bytes, but then a different file
+-		// imports "bytes".  more generally we need to figure out
+-		// what it means if one file imports "bytes" and another
+-		// declares a top-level name.
+-		if(my->def && my->def->op == ONONAME)
+-			my->def = N;
+-
++		if(my->def) {
++			lineno = $1;
++			redeclare(my, "as imported package name");
++		}
+ 		my->def = pack;
+ 		my->lastlineno = $1;
+ 		import->block = 1;	// at top level
+@@ -223,8 +217,6 @@ import_here:
+ 		$$ = parserline();
+ 		pkgimportname = S;
+ 		pkgmyname = $1;
+-		if($1->def && ($1->name[0] != '_' || $1->name[1] != '\0'))
+-			redeclare($1, "as imported package name");
+ 		importfile(&$2, $$);
+ 	}
+ |	'.' LLITERAL
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 827a351a7f..b89f26b5b1 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -267,13 +267,7 @@ importfile(Val *f, int line)
+ 	int32 c;
+ 	int len;
+ 
+-	// Once we push the new file, we will not be able
+-	// to print the current lineno correctly with %L.
+-	// In case that line is the line of the import (likely),
+-	// save the text for use in error messages.
+-	importline = smprint("%L", line);
+-
+-// TODO: don't bother reloading imports more than once
++	// TODO(rsc): don't bother reloading imports more than once
+ 
+ 	if(f->ctype != CTSTR) {
+ 		yyerror("import statement not a string");
+@@ -300,12 +294,10 @@ importfile(Val *f, int line)
+ 		// assume .a files move (get installed)
+ 		// so don't record the full path.
+ 		p = file + len - f->u.sval->len - 2;
+-		linehist(p, 0, 0);
+ 		linehist(p, -1, 1);	// acts as #pragma lib
+ 	} else {
+ 		// assume .6 files don't move around
+ 		// so do record the full path
+-		linehist(file, 0, 0);
+ 		linehist(file, -1, 0);
+ 	}
+ 
+@@ -339,8 +331,6 @@ importfile(Val *f, int line)
+ void
+ unimportfile(void)
+ {
+-	linehist(nil, 0, 0);
+-
+ 	if(curio.bin != nil) {
+ 		Bterm(curio.bin);
+ 		curio.bin = nil;
+@@ -357,7 +347,6 @@ void
+ cannedimports(char *file, char *cp)
+ {
+ 	lexlineno++;		// if sys.6 is included on line 1,
+-	linehist(file, 0, 0);	// the debugger gets confused
+ 
+ 	pushedio = curio;
+ 	curio.bin = nil;
+@@ -1018,7 +1007,7 @@ getc(void)
+ 	if(c != 0) {
+ 		curio.peekc = curio.peekc1;
+ 		curio.peekc1 = 0;
+-		if(c == '\n')
++		if(c == '\n' && pushedio.bin == nil)
+ 			lexlineno++;
+ 		return c;
+ 	}
+@@ -1038,7 +1027,8 @@ getc(void)
+ 		return EOF;
+ 
+ 	case '\n':
+-		lexlineno++;
++		if(pushedio.bin == nil)
++			lexlineno++;
+ 		break;
+ 	}
+ 	return c;
+@@ -1049,7 +1039,7 @@ ungetc(int c)
+ {
+ 	curio.peekc1 = curio.peekc;
+ 	curio.peekc = c;
+-	if(c == '\n')
++	if(c == '\n' && pushedio.bin == nil)
+ 		lexlineno--;
+ }
+ 
+@@ -1487,7 +1477,7 @@ mkpackage(char* pkg)
+ 					// name, so that the name cannot be redeclared
+ 					// as a non-package in other files.
+ 					if(!s->def->used) {
+-						print("%s: imported and not used: %s\n", s->def->pline, s->def->sym->name);
++						print("%L: imported and not used: %s\n", s->def->lineno, s->def->sym->name);
+ 						nerrors++;
+ 					}
+ 					s->def = N;
+@@ -1497,7 +1487,7 @@ mkpackage(char* pkg)
+ 					// throw away top-level name left over
+ 					// from previous import . "x"
+ 					if(s->def->pack != N && !s->def->pack->used) {
+-						print("%s: imported and not used: %s\n", s->def->pack->pline, s->def->pack->sym->name);
++						print("%L: imported and not used: %s\n", s->def->pack->lineno, s->def->pack->sym->name);
+ 						nerrors++;
+ 						s->def->pack->used = 1;
+ 					}
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 97fdc4f192..007344e93b 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -269,7 +269,7 @@ importdot(Sym *opkg, Node *pack)
+ 	}
+ 	if(n == 0) {
+ 		// can't possibly be used - there were no symbols
+-		print("%L: imported and not used: %s\n", pack->pline, pack->sym->name);
++		print("%L: imported and not used: %s\n", pack->lineno, pack->sym->name);
+ 		nerrors++;
+ 	}
+ }

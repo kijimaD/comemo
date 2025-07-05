@@ -7,6 +7,20 @@ Date:   Tue Sep 7 19:16:59 2010 +1000
     R=r
     CC=golang-dev
     https://golang.org/cl/2138045
-
+---
  src/pkg/image/names.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/image/names.go b/src/pkg/image/names.go
+index 52bfa41cd2..11f65259c9 100644
+--- a/src/pkg/image/names.go
++++ b/src/pkg/image/names.go
+@@ -29,7 +29,7 @@ func (c ColorImage) ColorModel() ColorModel {
+ 	return ColorModelFunc(func(Color) Color { return c.C })
+ }
+ 
+-func (c ColorImage) Bounds() Rectangle { return Rectangle{ZP, Point{1e9, 1e9}} }
++func (c ColorImage) Bounds() Rectangle { return Rectangle{Point{-1e9, -1e9}, Point{1e9, 1e9}} }
+ 
+ func (c ColorImage) At(x, y int) Color { return c.C }
+ 

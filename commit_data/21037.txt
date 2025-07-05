@@ -11,6 +11,52 @@ Date:   Sun Nov 9 20:21:37 2014 -0500
     R=r
     CC=golang-codereviews
     https://golang.org/cl/172080043
-
+---
  src/cmd/internal/objfile/disasm.go | 23 ++++++++++++++---------
  1 file changed, 14 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/internal/objfile/disasm.go b/src/cmd/internal/objfile/disasm.go
+index 7982faa47c..1a339c3214 100644
+--- a/src/cmd/internal/objfile/disasm.go
++++ b/src/cmd/internal/objfile/disasm.go
+@@ -1,3 +1,7 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package objfile
+ 
+ import (
+@@ -17,14 +21,14 @@ import (
+ 
+ // Disasm is a disassembler for a given File.
+ type Disasm struct {
+-	syms      []Sym
+-	pcln      *gosym.Table
+-	text      []byte
+-	textStart uint64
+-	textEnd   uint64
+-	goarch    string
+-	disasm    disasmFunc
+-	byteOrder binary.ByteOrder
++	syms      []Sym            //symbols in file, sorted by address
++	pcln      *gosym.Table     // pcln table
++	text      []byte           // bytes of text segment (actual instructions)
++	textStart uint64           // start PC of text
++	textEnd   uint64           // end PC of text
++	goarch    string           // GOARCH string
++	disasm    disasmFunc       // disassembler function for goarch
++	byteOrder binary.ByteOrder // byte order for goarch
+ }
+ 
+ // Disasm returns a disassembler for the file f.
+@@ -89,7 +93,8 @@ func (d *Disasm) lookup(addr uint64) (name string, base uint64) {
+ }
+ 
+ // base returns the final element in the path.
+-// It works on both Windows and Unix paths.
++// It works on both Windows and Unix paths,
++// regardless of host operating system.
+ func base(path string) string {
+ 	path = path[strings.LastIndex(path, "/")+1:]
+ 	path = path[strings.LastIndex(path, `\`)+1:]

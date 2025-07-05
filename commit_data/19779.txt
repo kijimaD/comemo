@@ -18,7 +18,71 @@ Date:   Sat Jul 19 12:16:16 2014 +0300
     R=rsc, mischief, aram, ality
     CC=golang-codereviews, jas
     https://golang.org/cl/117920043
-
+---
  src/cmd/addr2line/main.go |  9 +++------
  src/cmd/objdump/main.go   | 13 +++----------
  2 files changed, 6 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/addr2line/main.go b/src/cmd/addr2line/main.go
+index c6e4563db7..3802f764f9 100644
+--- a/src/cmd/addr2line/main.go
++++ b/src/cmd/addr2line/main.go
+@@ -161,11 +161,7 @@ func loadTables(f *os.File) (textStart uint64, symtab, pclntab []byte, err error
+ 	}
+ 
+ 	if obj, err := plan9obj.NewFile(f); err == nil {
+-		sym, err := findPlan9Symbol(obj, "text")
+-		if err != nil {
+-			return 0, nil, nil, err
+-		}
+-		textStart = sym.Value
++		textStart = obj.LoadAddress + obj.HdrSize
+ 		if pclntab, err = loadPlan9Table(obj, "pclntab", "epclntab"); err != nil {
+ 			return 0, nil, nil, err
+ 		}
+@@ -245,5 +241,6 @@ func loadPlan9Table(f *plan9obj.File, sname, ename string) ([]byte, error) {
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	return data[ssym.Value-(f.LoadAddress+f.HdrSize) : esym.Value-(f.LoadAddress+f.HdrSize)], nil
++	textStart := f.LoadAddress + f.HdrSize
++	return data[ssym.Value-textStart : esym.Value-textStart], nil
+ }
+diff --git a/src/cmd/objdump/main.go b/src/cmd/objdump/main.go
+index 137776f47a..9922dcc023 100644
+--- a/src/cmd/objdump/main.go
++++ b/src/cmd/objdump/main.go
+@@ -365,11 +365,7 @@ func loadTables(f *os.File) (textStart uint64, textData, symtab, pclntab []byte,
+ 	}
+ 
+ 	if obj, err := plan9obj.NewFile(f); err == nil {
+-		sym, err := findPlan9Symbol(obj, "text")
+-		if err != nil {
+-			return 0, nil, nil, nil, err
+-		}
+-		textStart = sym.Value
++		textStart = obj.LoadAddress + obj.HdrSize
+ 		if sect := obj.Section("text"); sect != nil {
+ 			textData, _ = sect.Data()
+ 		}
+@@ -444,10 +440,6 @@ func loadPlan9Table(f *plan9obj.File, sname, ename string) ([]byte, error) {
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	text, err := findPlan9Symbol(f, "text")
+-	if err != nil {
+-		return nil, err
+-	}
+ 	sect := f.Section("text")
+ 	if sect == nil {
+ 		return nil, err
+@@ -456,7 +448,8 @@ func loadPlan9Table(f *plan9obj.File, sname, ename string) ([]byte, error) {
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	return data[ssym.Value-text.Value : esym.Value-text.Value], nil
++	textStart := f.LoadAddress + f.HdrSize
++	return data[ssym.Value-textStart : esym.Value-textStart], nil
+ }
+ 
+ // TODO(rsc): This code is taken from cmd/nm. Arrange some way to share the code.

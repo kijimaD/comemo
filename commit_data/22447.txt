@@ -10,8 +10,173 @@ Date:   Sun Mar 8 14:25:50 2015 +0100
     Reviewed-by: Dave Cheney <dave@cheney.net>
     Reviewed-by: Rob Pike <r@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/math/abs_arm64.s       | 11 ++++++
  src/math/big/arith_arm64.s | 44 ++++++++++++++++++++++
  src/math/stubs_arm64.s     | 91 ++++++++++++++++++++++++++++++++++++++++++++++
  3 files changed, 146 insertions(+)
+
+diff --git a/src/math/abs_arm64.s b/src/math/abs_arm64.s
+new file mode 100644
+index 0000000000..d8f9382d39
+--- /dev/null
++++ b/src/math/abs_arm64.s
+@@ -0,0 +1,11 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "textflag.h"
++
++TEXT ·Abs(SB),NOSPLIT,$0-16
++	FMOVD	x+0(FP), F3
++	FABSD	F3, F3
++	FMOVD	F3, ret+8(FP)
++	RET
+diff --git a/src/math/big/arith_arm64.s b/src/math/big/arith_arm64.s
+new file mode 100644
+index 0000000000..4447ec554f
+--- /dev/null
++++ b/src/math/big/arith_arm64.s
+@@ -0,0 +1,44 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "textflag.h"
++
++// This file provides fast assembly versions for the elementary
++// arithmetic operations on vectors implemented in arith.go.
++
++TEXT ·mulWW(SB),NOSPLIT,$0
++	B ·mulWW_g(SB)
++
++TEXT ·divWW(SB),NOSPLIT,$0
++	B ·divWW_g(SB)
++
++TEXT ·addVV(SB),NOSPLIT,$0
++	B ·addVV_g(SB)
++
++TEXT ·subVV(SB),NOSPLIT,$0
++	B ·subVV_g(SB)
++
++TEXT ·addVW(SB),NOSPLIT,$0
++	B ·addVW_g(SB)
++
++TEXT ·subVW(SB),NOSPLIT,$0
++	B ·subVW_g(SB)
++
++TEXT ·shlVU(SB),NOSPLIT,$0
++	B ·shlVU_g(SB)
++
++TEXT ·shrVU(SB),NOSPLIT,$0
++	B ·shrVU_g(SB)
++
++TEXT ·mulAddVWW(SB),NOSPLIT,$0
++	B ·mulAddVWW_g(SB)
++
++TEXT ·addMulVVW(SB),NOSPLIT,$0
++	B ·addMulVVW_g(SB)
++
++TEXT ·divWVW(SB),NOSPLIT,$0
++	B ·divWVW_g(SB)
++
++TEXT ·bitLen(SB),NOSPLIT,$0
++	B ·bitLen_g(SB)
+diff --git a/src/math/stubs_arm64.s b/src/math/stubs_arm64.s
+new file mode 100644
+index 0000000000..2ffd2289b8
+--- /dev/null
++++ b/src/math/stubs_arm64.s
+@@ -0,0 +1,91 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build arm64
++
++#include "textflag.h"
++
++TEXT ·Asin(SB),NOSPLIT,$0
++	B ·asin(SB)
++
++TEXT ·Acos(SB),NOSPLIT,$0
++	B ·acos(SB)
++
++TEXT ·Atan2(SB),NOSPLIT,$0
++	B ·atan2(SB)
++
++TEXT ·Atan(SB),NOSPLIT,$0
++	B ·atan(SB)
++
++TEXT ·Dim(SB),NOSPLIT,$0
++	B ·dim(SB)
++
++TEXT ·Min(SB),NOSPLIT,$0
++	B ·min(SB)
++
++TEXT ·Max(SB),NOSPLIT,$0
++	B ·max(SB)
++
++TEXT ·Exp2(SB),NOSPLIT,$0
++	B ·exp2(SB)
++
++TEXT ·Expm1(SB),NOSPLIT,$0
++	B ·expm1(SB)
++
++TEXT ·Exp(SB),NOSPLIT,$0
++	B ·exp(SB)
++
++TEXT ·Floor(SB),NOSPLIT,$0
++	B ·floor(SB)
++
++TEXT ·Ceil(SB),NOSPLIT,$0
++	B ·ceil(SB)
++
++TEXT ·Trunc(SB),NOSPLIT,$0
++	B ·trunc(SB)
++
++TEXT ·Frexp(SB),NOSPLIT,$0
++	B ·frexp(SB)
++
++TEXT ·Hypot(SB),NOSPLIT,$0
++	B ·hypot(SB)
++
++TEXT ·Ldexp(SB),NOSPLIT,$0
++	B ·ldexp(SB)
++
++TEXT ·Log10(SB),NOSPLIT,$0
++	B ·log10(SB)
++
++TEXT ·Log2(SB),NOSPLIT,$0
++	B ·log2(SB)
++
++TEXT ·Log1p(SB),NOSPLIT,$0
++	B ·log1p(SB)
++
++TEXT ·Log(SB),NOSPLIT,$0
++	B ·log(SB)
++
++TEXT ·Modf(SB),NOSPLIT,$0
++	B ·modf(SB)
++
++TEXT ·Mod(SB),NOSPLIT,$0
++	B ·mod(SB)
++
++TEXT ·Remainder(SB),NOSPLIT,$0
++	B ·remainder(SB)
++
++TEXT ·Sincos(SB),NOSPLIT,$0
++	B ·sincos(SB)
++
++TEXT ·Sin(SB),NOSPLIT,$0
++	B ·sin(SB)
++
++TEXT ·Cos(SB),NOSPLIT,$0
++	B ·cos(SB)
++
++TEXT ·Sqrt(SB),NOSPLIT,$0
++	B ·sqrt(SB)
++
++TEXT ·Tan(SB),NOSPLIT,$0
++	B ·tan(SB)

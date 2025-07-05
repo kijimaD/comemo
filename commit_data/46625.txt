@@ -13,7 +13,7 @@ Date:   Fri Jan 15 14:12:35 2021 -0800
     Run-TryBot: Dan Scales <danscales@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/asm/internal/asm/parse.go                  |  2 +-
  src/cmd/compile/internal/base/flag.go              |  2 +-
  src/cmd/compile/internal/base/print.go             |  2 +-
@@ -74,3 +74,1657 @@ Date:   Fri Jan 15 14:12:35 2021 -0800
  src/runtime/runtime2.go                            |  2 +-
  src/runtime/type.go                                |  2 +-
  59 files changed, 176 insertions(+), 177 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/parse.go b/src/cmd/asm/internal/asm/parse.go
+index 154cf9c7a7..f1d37bc2c8 100644
+--- a/src/cmd/asm/internal/asm/parse.go
++++ b/src/cmd/asm/internal/asm/parse.go
+@@ -305,7 +305,7 @@ func (p *Parser) pseudo(word string, operands [][]lex.Token) bool {
+ // references and writes symabis information to w.
+ //
+ // The symabis format is documented at
+-// cmd/compile/internal/gc.readSymABIs.
++// cmd/compile/internal/ssagen.ReadSymABIs.
+ func (p *Parser) symDefRef(w io.Writer, word string, operands [][]lex.Token) {
+ 	switch word {
+ 	case "TEXT":
+diff --git a/src/cmd/compile/internal/base/flag.go b/src/cmd/compile/internal/base/flag.go
+index d35b8452f9..c38bbe6272 100644
+--- a/src/cmd/compile/internal/base/flag.go
++++ b/src/cmd/compile/internal/base/flag.go
+@@ -174,7 +174,7 @@ func ParseFlags() {
+ 	if (*Flag.Shared || *Flag.Dynlink || *Flag.LinkShared) && !Ctxt.Arch.InFamily(sys.AMD64, sys.ARM, sys.ARM64, sys.I386, sys.PPC64, sys.RISCV64, sys.S390X) {
+ 		log.Fatalf("%s/%s does not support -shared", objabi.GOOS, objabi.GOARCH)
+ 	}
+-	parseSpectre(Flag.Spectre) // left as string for recordFlags
++	parseSpectre(Flag.Spectre) // left as string for RecordFlags
+ 
+ 	Ctxt.Flag_shared = Ctxt.Flag_dynlink || Ctxt.Flag_shared
+ 	Ctxt.Flag_optimize = Flag.N == 0
+diff --git a/src/cmd/compile/internal/base/print.go b/src/cmd/compile/internal/base/print.go
+index 9855dfdad0..668c600d31 100644
+--- a/src/cmd/compile/internal/base/print.go
++++ b/src/cmd/compile/internal/base/print.go
+@@ -121,7 +121,7 @@ func ErrorfAt(pos src.XPos, format string, args ...interface{}) {
+ 		lasterror.syntax = pos
+ 	} else {
+ 		// only one of multiple equal non-syntax errors per line
+-		// (flusherrors shows only one of them, so we filter them
++		// (FlushErrors shows only one of them, so we filter them
+ 		// here as best as we can (they may not appear in order)
+ 		// so that we don't count them here and exit early, and
+ 		// then have nothing to show for.)
+diff --git a/src/cmd/compile/internal/bitvec/bv.go b/src/cmd/compile/internal/bitvec/bv.go
+index 1e084576d1..bcac1fe351 100644
+--- a/src/cmd/compile/internal/bitvec/bv.go
++++ b/src/cmd/compile/internal/bitvec/bv.go
+@@ -37,7 +37,7 @@ func NewBulk(nbit int32, count int32) Bulk {
+ 	nword := (nbit + wordBits - 1) / wordBits
+ 	size := int64(nword) * int64(count)
+ 	if int64(int32(size*4)) != size*4 {
+-		base.Fatalf("bvbulkalloc too big: nbit=%d count=%d nword=%d size=%d", nbit, count, nword, size)
++		base.Fatalf("NewBulk too big: nbit=%d count=%d nword=%d size=%d", nbit, count, nword, size)
+ 	}
+ 	return Bulk{
+ 		words: make([]uint32, size),
+diff --git a/src/cmd/compile/internal/escape/escape.go b/src/cmd/compile/internal/escape/escape.go
+index 79e5a98c91..96c2e02146 100644
+--- a/src/cmd/compile/internal/escape/escape.go
++++ b/src/cmd/compile/internal/escape/escape.go
+@@ -856,7 +856,7 @@ func (e *escape) discards(l ir.Nodes) {
+ 	}
+ }
+ 
+-// addr evaluates an addressable expression n and returns an EscHole
++// addr evaluates an addressable expression n and returns a hole
+ // that represents storing into the represented location.
+ func (e *escape) addr(n ir.Node) hole {
+ 	if n == nil || ir.IsBlank(n) {
+@@ -1785,7 +1785,7 @@ func (l leaks) Encode() string {
+ 	return s
+ }
+ 
+-// parseLeaks parses a binary string representing an EscLeaks.
++// parseLeaks parses a binary string representing a leaks
+ func parseLeaks(s string) leaks {
+ 	var l leaks
+ 	if !strings.HasPrefix(s, "esc:") {
+diff --git a/src/cmd/compile/internal/gc/compile.go b/src/cmd/compile/internal/gc/compile.go
+index 6e347bf0f1..ba67c58c45 100644
+--- a/src/cmd/compile/internal/gc/compile.go
++++ b/src/cmd/compile/internal/gc/compile.go
+@@ -72,7 +72,7 @@ func enqueueFunc(fn *ir.Func) {
+ func prepareFunc(fn *ir.Func) {
+ 	// Set up the function's LSym early to avoid data races with the assemblers.
+ 	// Do this before walk, as walk needs the LSym to set attributes/relocations
+-	// (e.g. in markTypeUsedInInterface).
++	// (e.g. in MarkTypeUsedInInterface).
+ 	ssagen.InitLSym(fn, true)
+ 
+ 	// Calculate parameter offsets.
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 9ecdd510b1..e9ac243527 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -121,7 +121,7 @@ func Main(archInit func(*ssagen.ArchInfo)) {
+ 		log.Fatalf("compiler not built with support for -t")
+ 	}
+ 
+-	// Enable inlining (after recordFlags, to avoid recording the rewritten -l).  For now:
++	// Enable inlining (after RecordFlags, to avoid recording the rewritten -l).  For now:
+ 	//	default: inlining on.  (Flag.LowerL == 1)
+ 	//	-l: inlining off  (Flag.LowerL == 0)
+ 	//	-l=2, -l=3: inlining on again, with extra debugging (Flag.LowerL > 1)
+@@ -193,7 +193,7 @@ func Main(archInit func(*ssagen.ArchInfo)) {
+ 	typecheck.Target = new(ir.Package)
+ 
+ 	typecheck.NeedITab = func(t, iface *types.Type) { reflectdata.ITabAddr(t, iface) }
+-	typecheck.NeedRuntimeType = reflectdata.NeedRuntimeType // TODO(rsc): typenamesym for lock?
++	typecheck.NeedRuntimeType = reflectdata.NeedRuntimeType // TODO(rsc): TypeSym for lock?
+ 
+ 	base.AutogeneratedPos = makePos(src.NewFileBase("<autogenerated>", "<autogenerated>"), 1, 0)
+ 
+@@ -261,7 +261,7 @@ func Main(archInit func(*ssagen.ArchInfo)) {
+ 	escape.Funcs(typecheck.Target.Decls)
+ 
+ 	// Collect information for go:nowritebarrierrec
+-	// checking. This must happen before transformclosure.
++	// checking. This must happen before transforming closures during Walk
+ 	// We'll do the final check after write barriers are
+ 	// inserted.
+ 	if base.Flag.CompilingRuntime {
+@@ -269,7 +269,7 @@ func Main(archInit func(*ssagen.ArchInfo)) {
+ 	}
+ 
+ 	// Prepare for SSA compilation.
+-	// This must be before peekitabs, because peekitabs
++	// This must be before CompileITabs, because CompileITabs
+ 	// can trigger function compilation.
+ 	typecheck.InitRuntime()
+ 	ssagen.InitConfig()
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index 3e55b7688e..847d849666 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -121,7 +121,7 @@ func dumpdata() {
+ 	reflectdata.WriteBasicTypes()
+ 	dumpembeds()
+ 
+-	// Calls to dumpsignats can generate functions,
++	// Calls to WriteRuntimeTypes can generate functions,
+ 	// like method wrappers and hash and equality routines.
+ 	// Compile any generated functions, process any new resulting types, repeat.
+ 	// This can't loop forever, because there is no way to generate an infinite
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index 1811feebe9..4bb849cdae 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -4,7 +4,7 @@
+ //
+ // The inlining facility makes 2 passes: first caninl determines which
+ // functions are suitable for inlining, and for those that are it
+-// saves a copy of the body. Then inlcalls walks each function body to
++// saves a copy of the body. Then InlineCalls walks each function body to
+ // expand calls to inlinable functions.
+ //
+ // The Debug.l flag controls the aggressiveness. Note that main() swaps level 0 and 1,
+@@ -79,7 +79,7 @@ func InlinePackage() {
+ // fn and ->nbody will already have been typechecked.
+ func CanInline(fn *ir.Func) {
+ 	if fn.Nname == nil {
+-		base.Fatalf("caninl no nname %+v", fn)
++		base.Fatalf("CanInline no nname %+v", fn)
+ 	}
+ 
+ 	var reason string // reason, if any, that the function was not inlined
+@@ -144,7 +144,7 @@ func CanInline(fn *ir.Func) {
+ 	}
+ 
+ 	if fn.Typecheck() == 0 {
+-		base.Fatalf("caninl on non-typechecked function %v", fn)
++		base.Fatalf("CanInline on non-typechecked function %v", fn)
+ 	}
+ 
+ 	n := fn.Nname
+@@ -200,11 +200,11 @@ func Inline_Flood(n *ir.Name, exportsym func(*ir.Name)) {
+ 		return
+ 	}
+ 	if n.Op() != ir.ONAME || n.Class != ir.PFUNC {
+-		base.Fatalf("inlFlood: unexpected %v, %v, %v", n, n.Op(), n.Class)
++		base.Fatalf("Inline_Flood: unexpected %v, %v, %v", n, n.Op(), n.Class)
+ 	}
+ 	fn := n.Func
+ 	if fn == nil {
+-		base.Fatalf("inlFlood: missing Func on %v", n)
++		base.Fatalf("Inline_Flood: missing Func on %v", n)
+ 	}
+ 	if fn.Inl == nil {
+ 		return
+diff --git a/src/cmd/compile/internal/ir/const.go b/src/cmd/compile/internal/ir/const.go
+index bfa0136232..eaa4d5b6b1 100644
+--- a/src/cmd/compile/internal/ir/const.go
++++ b/src/cmd/compile/internal/ir/const.go
+@@ -77,7 +77,7 @@ func ConstOverflow(v constant.Value, t *types.Type) bool {
+ 		ft := types.FloatForComplex(t)
+ 		return ConstOverflow(constant.Real(v), ft) || ConstOverflow(constant.Imag(v), ft)
+ 	}
+-	base.Fatalf("doesoverflow: %v, %v", v, t)
++	base.Fatalf("ConstOverflow: %v, %v", v, t)
+ 	panic("unreachable")
+ }
+ 
+diff --git a/src/cmd/compile/internal/ir/func.go b/src/cmd/compile/internal/ir/func.go
+index 30cddd298e..4afdadf57b 100644
+--- a/src/cmd/compile/internal/ir/func.go
++++ b/src/cmd/compile/internal/ir/func.go
+@@ -63,7 +63,7 @@ type Func struct {
+ 	Exit  Nodes
+ 
+ 	// ONAME nodes for all params/locals for this func/closure, does NOT
+-	// include closurevars until transformclosure runs.
++	// include closurevars until transforming closures during walk.
+ 	// Names must be listed PPARAMs, PPARAMOUTs, then PAUTOs,
+ 	// with PPARAMs and PPARAMOUTs in order corresponding to the function signature.
+ 	// However, as anonymous or blank PPARAMs are not actually declared,
+diff --git a/src/cmd/compile/internal/ir/stmt.go b/src/cmd/compile/internal/ir/stmt.go
+index b13c6b7795..4e4c0df993 100644
+--- a/src/cmd/compile/internal/ir/stmt.go
++++ b/src/cmd/compile/internal/ir/stmt.go
+@@ -343,7 +343,7 @@ type SelectStmt struct {
+ 	HasBreak bool
+ 
+ 	// TODO(rsc): Instead of recording here, replace with a block?
+-	Compiled Nodes // compiled form, after walkswitch
++	Compiled Nodes // compiled form, after walkSwitch
+ }
+ 
+ func NewSelectStmt(pos src.XPos, cases []*CommClause) *SelectStmt {
+@@ -376,7 +376,7 @@ type SwitchStmt struct {
+ 	HasBreak bool
+ 
+ 	// TODO(rsc): Instead of recording here, replace with a block?
+-	Compiled Nodes // compiled form, after walkswitch
++	Compiled Nodes // compiled form, after walkSwitch
+ }
+ 
+ func NewSwitchStmt(pos src.XPos, tag Node, cases []*CaseClause) *SwitchStmt {
+diff --git a/src/cmd/compile/internal/liveness/bvset.go b/src/cmd/compile/internal/liveness/bvset.go
+index 21bc1fee4d..3431f54ede 100644
+--- a/src/cmd/compile/internal/liveness/bvset.go
++++ b/src/cmd/compile/internal/liveness/bvset.go
+@@ -47,7 +47,7 @@ func (m *bvecSet) grow() {
+ 	m.index = newIndex
+ }
+ 
+-// add adds bv to the set and returns its index in m.extractUniqe.
++// add adds bv to the set and returns its index in m.extractUnique.
+ // The caller must not modify bv after this.
+ func (m *bvecSet) add(bv bitvec.BitVec) int {
+ 	if len(m.uniq)*4 >= len(m.index) {
+diff --git a/src/cmd/compile/internal/liveness/plive.go b/src/cmd/compile/internal/liveness/plive.go
+index abc9583d5a..c70db6ed18 100644
+--- a/src/cmd/compile/internal/liveness/plive.go
++++ b/src/cmd/compile/internal/liveness/plive.go
+@@ -1060,7 +1060,7 @@ func (lv *liveness) printDebug() {
+ func (lv *liveness) emit() (argsSym, liveSym *obj.LSym) {
+ 	// Size args bitmaps to be just large enough to hold the largest pointer.
+ 	// First, find the largest Xoffset node we care about.
+-	// (Nodes without pointers aren't in lv.vars; see livenessShouldTrack.)
++	// (Nodes without pointers aren't in lv.vars; see ShouldTrack.)
+ 	var maxArgNode *ir.Name
+ 	for _, n := range lv.vars {
+ 		switch n.Class {
+diff --git a/src/cmd/compile/internal/noder/import.go b/src/cmd/compile/internal/noder/import.go
+index 08f19a4028..ca041a156c 100644
+--- a/src/cmd/compile/internal/noder/import.go
++++ b/src/cmd/compile/internal/noder/import.go
+@@ -418,7 +418,7 @@ func clearImports() {
+ 		if types.IsDotAlias(s) {
+ 			// throw away top-level name left over
+ 			// from previous import . "x"
+-			// We'll report errors after type checking in checkDotImports.
++			// We'll report errors after type checking in CheckDotImports.
+ 			s.Def = nil
+ 			continue
+ 		}
+diff --git a/src/cmd/compile/internal/noder/noder.go b/src/cmd/compile/internal/noder/noder.go
+index edd30a1fc1..99c0e4adde 100644
+--- a/src/cmd/compile/internal/noder/noder.go
++++ b/src/cmd/compile/internal/noder/noder.go
+@@ -86,7 +86,7 @@ func ParseFiles(filenames []string) uint {
+ 		if base.SyntaxErrors() != 0 {
+ 			base.ErrorExit()
+ 		}
+-		// Always run testdclstack here, even when debug_dclstack is not set, as a sanity measure.
++		// Always run CheckDclstack here, even when debug_dclstack is not set, as a sanity measure.
+ 		types.CheckDclstack()
+ 	}
+ 
+@@ -638,7 +638,7 @@ func (p *noder) funcDecl(fun *syntax.FuncDecl) ir.Node {
+ 		}
+ 	} else {
+ 		f.Shortname = name
+-		name = ir.BlankNode.Sym() // filled in by typecheckfunc
++		name = ir.BlankNode.Sym() // filled in by tcFunc
+ 	}
+ 
+ 	f.Nname = ir.NewNameAt(p.pos(fun.Name), name)
+@@ -1084,7 +1084,7 @@ func (p *noder) stmtsFall(stmts []syntax.Stmt, fallOK bool) []ir.Node {
+ 		if s == nil {
+ 		} else if s.Op() == ir.OBLOCK && len(s.(*ir.BlockStmt).List) > 0 {
+ 			// Inline non-empty block.
+-			// Empty blocks must be preserved for checkreturn.
++			// Empty blocks must be preserved for CheckReturn.
+ 			nodes = append(nodes, s.(*ir.BlockStmt).List...)
+ 		} else {
+ 			nodes = append(nodes, s)
+@@ -1860,7 +1860,7 @@ func (p *noder) funcLit(expr *syntax.FuncLit) ir.Node {
+ 	fn := ir.NewFunc(p.pos(expr))
+ 	fn.SetIsHiddenClosure(ir.CurFunc != nil)
+ 
+-	fn.Nname = ir.NewNameAt(p.pos(expr), ir.BlankNode.Sym()) // filled in by typecheckclosure
++	fn.Nname = ir.NewNameAt(p.pos(expr), ir.BlankNode.Sym()) // filled in by tcClosure
+ 	fn.Nname.Func = fn
+ 	fn.Nname.Ntype = xtype
+ 	fn.Nname.Defn = fn
+diff --git a/src/cmd/compile/internal/objw/prog.go b/src/cmd/compile/internal/objw/prog.go
+index 8d24f94aa5..b5ac4dda1e 100644
+--- a/src/cmd/compile/internal/objw/prog.go
++++ b/src/cmd/compile/internal/objw/prog.go
+@@ -205,7 +205,7 @@ func (pp *Progs) Append(p *obj.Prog, as obj.As, ftype obj.AddrType, freg int16,
+ 
+ func (pp *Progs) SetText(fn *ir.Func) {
+ 	if pp.Text != nil {
+-		base.Fatalf("Progs.settext called twice")
++		base.Fatalf("Progs.SetText called twice")
+ 	}
+ 	ptxt := pp.Prog(obj.ATEXT)
+ 	pp.Text = ptxt
+diff --git a/src/cmd/compile/internal/pkginit/init.go b/src/cmd/compile/internal/pkginit/init.go
+index 5bc66c7e1b..7cad262214 100644
+--- a/src/cmd/compile/internal/pkginit/init.go
++++ b/src/cmd/compile/internal/pkginit/init.go
+@@ -60,10 +60,10 @@ func Task() *ir.Name {
+ 		fns = append(fns, fn.Linksym())
+ 	}
+ 	if typecheck.InitTodoFunc.Dcl != nil {
+-		// We only generate temps using initTodo if there
++		// We only generate temps using InitTodoFunc if there
+ 		// are package-scope initialization statements, so
+ 		// something's weird if we get here.
+-		base.Fatalf("initTodo still has declarations")
++		base.Fatalf("InitTodoFunc still has declarations")
+ 	}
+ 	typecheck.InitTodoFunc = nil
+ 
+diff --git a/src/cmd/compile/internal/reflectdata/alg.go b/src/cmd/compile/internal/reflectdata/alg.go
+index d576053753..fcd824f164 100644
+--- a/src/cmd/compile/internal/reflectdata/alg.go
++++ b/src/cmd/compile/internal/reflectdata/alg.go
+@@ -689,7 +689,7 @@ func EqString(s, t ir.Node) (eqlen *ir.BinaryExpr, eqmem *ir.CallExpr) {
+ // eqtab must be evaluated before eqdata, and shortcircuiting is required.
+ func EqInterface(s, t ir.Node) (eqtab *ir.BinaryExpr, eqdata *ir.CallExpr) {
+ 	if !types.Identical(s.Type(), t.Type()) {
+-		base.Fatalf("eqinterface %v %v", s.Type(), t.Type())
++		base.Fatalf("EqInterface %v %v", s.Type(), t.Type())
+ 	}
+ 	// func ifaceeq(tab *uintptr, x, y unsafe.Pointer) (ret bool)
+ 	// func efaceeq(typ *uintptr, x, y unsafe.Pointer) (ret bool)
+diff --git a/src/cmd/compile/internal/reflectdata/reflect.go b/src/cmd/compile/internal/reflectdata/reflect.go
+index 989bcf9ab9..efe863cc3f 100644
+--- a/src/cmd/compile/internal/reflectdata/reflect.go
++++ b/src/cmd/compile/internal/reflectdata/reflect.go
+@@ -32,7 +32,7 @@ type itabEntry struct {
+ 
+ 	// symbols of each method in
+ 	// the itab, sorted by byte offset;
+-	// filled in by peekitabs
++	// filled in by CompileITabs
+ 	entries []*obj.LSym
+ }
+ 
+@@ -401,7 +401,7 @@ func dimportpath(p *types.Pkg) {
+ 	}
+ 
+ 	// If we are compiling the runtime package, there are two runtime packages around
+-	// -- localpkg and Runtimepkg. We don't want to produce import path symbols for
++	// -- localpkg and Pkgs.Runtime. We don't want to produce import path symbols for
+ 	// both of them, so just produce one for localpkg.
+ 	if base.Ctxt.Pkgpath == "runtime" && p == ir.Pkgs.Runtime {
+ 		return
+@@ -811,7 +811,7 @@ func TypeSymPrefix(prefix string, t *types.Type) *types.Sym {
+ 
+ func TypeSym(t *types.Type) *types.Sym {
+ 	if t == nil || (t.IsPtr() && t.Elem() == nil) || t.IsUntyped() {
+-		base.Fatalf("typenamesym %v", t)
++		base.Fatalf("TypeSym %v", t)
+ 	}
+ 	if t.Kind() == types.TFUNC && t.Recv() != nil {
+ 		base.Fatalf("misuse of method type: %v", t)
+@@ -853,7 +853,7 @@ func TypePtr(t *types.Type) *ir.AddrExpr {
+ 
+ func ITabAddr(t, itype *types.Type) *ir.AddrExpr {
+ 	if t == nil || (t.IsPtr() && t.Elem() == nil) || t.IsUntyped() || !itype.IsInterface() || itype.IsEmptyInterface() {
+-		base.Fatalf("itabname(%v, %v)", t, itype)
++		base.Fatalf("ITabAddr(%v, %v)", t, itype)
+ 	}
+ 	s := ir.Pkgs.Itab.Lookup(t.ShortString() + "," + itype.ShortString())
+ 	if s.Def == nil {
+@@ -936,7 +936,7 @@ func formalType(t *types.Type) *types.Type {
+ func writeType(t *types.Type) *obj.LSym {
+ 	t = formalType(t)
+ 	if t.IsUntyped() {
+-		base.Fatalf("dtypesym %v", t)
++		base.Fatalf("writeType %v", t)
+ 	}
+ 
+ 	s := types.TypeSym(t)
+@@ -1275,7 +1275,7 @@ func genfun(t, it *types.Type) []*obj.LSym {
+ }
+ 
+ // ITabSym uses the information gathered in
+-// peekitabs to de-virtualize interface methods.
++// CompileITabs to de-virtualize interface methods.
+ // Since this is called by the SSA backend, it shouldn't
+ // generate additional Nodes, Syms, etc.
+ func ITabSym(it *obj.LSym, offset int64) *obj.LSym {
+@@ -1312,7 +1312,7 @@ func NeedRuntimeType(t *types.Type) {
+ }
+ 
+ func WriteRuntimeTypes() {
+-	// Process signatset. Use a loop, as dtypesym adds
++	// Process signatset. Use a loop, as writeType adds
+ 	// entries to signatset while it is being processed.
+ 	signats := make([]typeAndStr, len(signatslice))
+ 	for len(signatslice) > 0 {
+@@ -1617,13 +1617,13 @@ func (p *gcProg) emit(t *types.Type, offset int64) {
+ 	}
+ 	switch t.Kind() {
+ 	default:
+-		base.Fatalf("GCProg.emit: unexpected type %v", t)
++		base.Fatalf("gcProg.emit: unexpected type %v", t)
+ 
+ 	case types.TSTRING:
+ 		p.w.Ptr(offset / int64(types.PtrSize))
+ 
+ 	case types.TINTER:
+-		// Note: the first word isn't a pointer. See comment in plive.go:onebitwalktype1.
++		// Note: the first word isn't a pointer. See comment in typebits.Set
+ 		p.w.Ptr(offset/int64(types.PtrSize) + 1)
+ 
+ 	case types.TSLICE:
+@@ -1632,7 +1632,7 @@ func (p *gcProg) emit(t *types.Type, offset int64) {
+ 	case types.TARRAY:
+ 		if t.NumElem() == 0 {
+ 			// should have been handled by haspointers check above
+-			base.Fatalf("GCProg.emit: empty array")
++			base.Fatalf("gcProg.emit: empty array")
+ 		}
+ 
+ 		// Flatten array-of-array-of-array to just a big array by multiplying counts.
+diff --git a/src/cmd/compile/internal/ssagen/abi.go b/src/cmd/compile/internal/ssagen/abi.go
+index 7ff8e21a48..274c543ca5 100644
+--- a/src/cmd/compile/internal/ssagen/abi.go
++++ b/src/cmd/compile/internal/ssagen/abi.go
+@@ -154,7 +154,7 @@ func InitLSym(f *ir.Func, hasBody bool) {
+ // makes calls to helpers to create ABI wrappers if needed.
+ func selectLSym(f *ir.Func, hasBody bool) {
+ 	if f.LSym != nil {
+-		base.FatalfAt(f.Pos(), "Func.initLSym called twice on %v", f)
++		base.FatalfAt(f.Pos(), "InitLSym called twice on %v", f)
+ 	}
+ 
+ 	if nam := f.Nname; !ir.IsBlank(nam) {
+diff --git a/src/cmd/compile/internal/ssagen/nowb.go b/src/cmd/compile/internal/ssagen/nowb.go
+index 60cfb2f698..a2434366a0 100644
+--- a/src/cmd/compile/internal/ssagen/nowb.go
++++ b/src/cmd/compile/internal/ssagen/nowb.go
+@@ -45,7 +45,7 @@ type nowritebarrierrecCall struct {
+ }
+ 
+ // newNowritebarrierrecChecker creates a nowritebarrierrecChecker. It
+-// must be called before transformclosure and walk.
++// must be called before walk
+ func newNowritebarrierrecChecker() *nowritebarrierrecChecker {
+ 	c := &nowritebarrierrecChecker{
+ 		extraCalls: make(map[*ir.Func][]nowritebarrierrecCall),
+@@ -54,7 +54,7 @@ func newNowritebarrierrecChecker() *nowritebarrierrecChecker {
+ 	// Find all systemstack calls and record their targets. In
+ 	// general, flow analysis can't see into systemstack, but it's
+ 	// important to handle it for this check, so we model it
+-	// directly. This has to happen before transformclosure since
++	// directly. This has to happen before transforming closures in walk since
+ 	// it's a lot harder to work out the argument after.
+ 	for _, n := range typecheck.Target.Decls {
+ 		if n.Op() != ir.ODCLFUNC {
+diff --git a/src/cmd/compile/internal/ssagen/pgen.go b/src/cmd/compile/internal/ssagen/pgen.go
+index bbd319d735..182f8408cf 100644
+--- a/src/cmd/compile/internal/ssagen/pgen.go
++++ b/src/cmd/compile/internal/ssagen/pgen.go
+@@ -96,7 +96,7 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
+ 			if n, ok := v.Aux.(*ir.Name); ok {
+ 				switch n.Class {
+ 				case ir.PPARAM, ir.PPARAMOUT:
+-					// Don't modify nodfp; it is a global.
++					// Don't modify RegFP; it is a global.
+ 					if n != ir.RegFP {
+ 						n.SetUsed(true)
+ 					}
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 097cfacc23..7726ecac55 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -1508,10 +1508,10 @@ func (s *state) stmt(n ir.Node) {
+ 			// Currently doesn't really work because (*p)[:len(*p)] appears here as:
+ 			//    tmp = len(*p)
+ 			//    (*p)[:tmp]
+-			//if j != nil && (j.Op == OLEN && samesafeexpr(j.Left, n.Left)) {
++			//if j != nil && (j.Op == OLEN && SameSafeExpr(j.Left, n.Left)) {
+ 			//      j = nil
+ 			//}
+-			//if k != nil && (k.Op == OCAP && samesafeexpr(k.Left, n.Left)) {
++			//if k != nil && (k.Op == OCAP && SameSafeExpr(k.Left, n.Left)) {
+ 			//      k = nil
+ 			//}
+ 			if i == nil {
+@@ -6462,7 +6462,7 @@ func (s *State) DebugFriendlySetPosFrom(v *ssa.Value) {
+ 			// in the generated code.
+ 			if p.IsStmt() != src.PosIsStmt {
+ 				p = p.WithNotStmt()
+-				// Calls use the pos attached to v, but copy the statement mark from SSAGenState
++				// Calls use the pos attached to v, but copy the statement mark from State
+ 			}
+ 			s.SetPos(p)
+ 		} else {
+@@ -7260,7 +7260,7 @@ func (e *ssafn) SplitInterface(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot
+ 	if n.Type().IsEmptyInterface() {
+ 		f = ".type"
+ 	}
+-	c := e.SplitSlot(&name, f, 0, u) // see comment in plive.go:onebitwalktype1.
++	c := e.SplitSlot(&name, f, 0, u) // see comment in typebits.Set
+ 	d := e.SplitSlot(&name, ".data", u.Size(), t)
+ 	return c, d
+ }
+diff --git a/src/cmd/compile/internal/staticdata/data.go b/src/cmd/compile/internal/staticdata/data.go
+index 4b12590fde..4dbc11c3c4 100644
+--- a/src/cmd/compile/internal/staticdata/data.go
++++ b/src/cmd/compile/internal/staticdata/data.go
+@@ -29,13 +29,13 @@ import (
+ // Neither n nor a is modified.
+ func InitAddr(n *ir.Name, noff int64, a *ir.Name, aoff int64) {
+ 	if n.Op() != ir.ONAME {
+-		base.Fatalf("addrsym n op %v", n.Op())
++		base.Fatalf("InitAddr n op %v", n.Op())
+ 	}
+ 	if n.Sym() == nil {
+-		base.Fatalf("addrsym nil n sym")
++		base.Fatalf("InitAddr nil n sym")
+ 	}
+ 	if a.Op() != ir.ONAME {
+-		base.Fatalf("addrsym a op %v", a.Op())
++		base.Fatalf("InitAddr a op %v", a.Op())
+ 	}
+ 	s := n.Linksym()
+ 	s.WriteAddr(base.Ctxt, noff, types.PtrSize, a.Linksym(), aoff)
+@@ -45,13 +45,13 @@ func InitAddr(n *ir.Name, noff int64, a *ir.Name, aoff int64) {
+ // Neither n nor f is modified.
+ func InitFunc(n *ir.Name, noff int64, f *ir.Name) {
+ 	if n.Op() != ir.ONAME {
+-		base.Fatalf("pfuncsym n op %v", n.Op())
++		base.Fatalf("InitFunc n op %v", n.Op())
+ 	}
+ 	if n.Sym() == nil {
+-		base.Fatalf("pfuncsym nil n sym")
++		base.Fatalf("InitFunc nil n sym")
+ 	}
+ 	if f.Class != ir.PFUNC {
+-		base.Fatalf("pfuncsym class not PFUNC %d", f.Class)
++		base.Fatalf("InitFunc class not PFUNC %d", f.Class)
+ 	}
+ 	s := n.Linksym()
+ 	s.WriteAddr(base.Ctxt, noff, types.PtrSize, FuncLinksym(f), 0)
+@@ -62,7 +62,7 @@ func InitFunc(n *ir.Name, noff int64, f *ir.Name) {
+ func InitSlice(n *ir.Name, noff int64, arr *ir.Name, lencap int64) {
+ 	s := n.Linksym()
+ 	if arr.Op() != ir.ONAME {
+-		base.Fatalf("slicesym non-name arr %v", arr)
++		base.Fatalf("InitSlice non-name arr %v", arr)
+ 	}
+ 	s.WriteAddr(base.Ctxt, noff, types.PtrSize, arr.Linksym(), 0)
+ 	s.WriteInt(base.Ctxt, noff+types.SliceLenOffset, types.PtrSize, lencap)
+@@ -71,7 +71,7 @@ func InitSlice(n *ir.Name, noff int64, arr *ir.Name, lencap int64) {
+ 
+ func InitSliceBytes(nam *ir.Name, off int64, s string) {
+ 	if nam.Op() != ir.ONAME {
+-		base.Fatalf("slicebytes %v", nam)
++		base.Fatalf("InitSliceBytes %v", nam)
+ 	}
+ 	InitSlice(nam, off, slicedata(nam.Pos(), s), int64(len(s)))
+ }
+@@ -243,14 +243,14 @@ func FuncSym(s *types.Sym) *types.Sym {
+ 	// except for the types package, which is protected separately.
+ 	// Reusing funcsymsmu to also cover this package lookup
+ 	// avoids a general, broader, expensive package lookup mutex.
+-	// Note makefuncsym also does package look-up of func sym names,
++	// Note NeedFuncSym also does package look-up of func sym names,
+ 	// but that it is only called serially, from the front end.
+ 	funcsymsmu.Lock()
+ 	sf, existed := s.Pkg.LookupOK(ir.FuncSymName(s))
+ 	// Don't export s·f when compiling for dynamic linking.
+ 	// When dynamically linking, the necessary function
+-	// symbols will be created explicitly with makefuncsym.
+-	// See the makefuncsym comment for details.
++	// symbols will be created explicitly with NeedFuncSym.
++	// See the NeedFuncSym comment for details.
+ 	if !base.Ctxt.Flag_dynlink && !existed {
+ 		funcsyms = append(funcsyms, s)
+ 	}
+@@ -310,16 +310,16 @@ func WriteFuncSyms() {
+ // Neither n nor c is modified.
+ func InitConst(n *ir.Name, noff int64, c ir.Node, wid int) {
+ 	if n.Op() != ir.ONAME {
+-		base.Fatalf("litsym n op %v", n.Op())
++		base.Fatalf("InitConst n op %v", n.Op())
+ 	}
+ 	if n.Sym() == nil {
+-		base.Fatalf("litsym nil n sym")
++		base.Fatalf("InitConst nil n sym")
+ 	}
+ 	if c.Op() == ir.ONIL {
+ 		return
+ 	}
+ 	if c.Op() != ir.OLITERAL {
+-		base.Fatalf("litsym c op %v", c.Op())
++		base.Fatalf("InitConst c op %v", c.Op())
+ 	}
+ 	s := n.Linksym()
+ 	switch u := c.Val(); u.Kind() {
+@@ -358,6 +358,6 @@ func InitConst(n *ir.Name, noff int64, c ir.Node, wid int) {
+ 		s.WriteInt(base.Ctxt, noff+int64(types.PtrSize), types.PtrSize, int64(len(i)))
+ 
+ 	default:
+-		base.Fatalf("litsym unhandled OLITERAL %v", c)
++		base.Fatalf("InitConst unhandled OLITERAL %v", c)
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/staticdata/embed.go b/src/cmd/compile/internal/staticdata/embed.go
+index 2e551f0b2c..2e15841fe2 100644
+--- a/src/cmd/compile/internal/staticdata/embed.go
++++ b/src/cmd/compile/internal/staticdata/embed.go
+@@ -82,7 +82,7 @@ func embedKindApprox(typ ir.Node) int {
+ 	// These are not guaranteed to match only string and []byte -
+ 	// maybe the local package has redefined one of those words.
+ 	// But it's the best we can do now during the noder.
+-	// The stricter check happens later, in initEmbed calling embedKind.
++	// The stricter check happens later, in WriteEmbed calling embedKind.
+ 	if typ.Sym() != nil && typ.Sym().Name == "string" && typ.Sym().Pkg == types.LocalPkg {
+ 		return embedString
+ 	}
+diff --git a/src/cmd/compile/internal/staticinit/sched.go b/src/cmd/compile/internal/staticinit/sched.go
+index 64946ad247..8c195742e6 100644
+--- a/src/cmd/compile/internal/staticinit/sched.go
++++ b/src/cmd/compile/internal/staticinit/sched.go
+@@ -455,7 +455,7 @@ var statuniqgen int // name generator for static temps
+ // StaticName returns a name backed by a (writable) static data symbol.
+ // Use readonlystaticname for read-only node.
+ func StaticName(t *types.Type) *ir.Name {
+-	// Don't use lookupN; it interns the resulting string, but these are all unique.
++	// Don't use LookupNum; it interns the resulting string, but these are all unique.
+ 	n := typecheck.NewName(typecheck.Lookup(fmt.Sprintf("%s%d", obj.StaticNamePref, statuniqgen)))
+ 	statuniqgen++
+ 	typecheck.Declare(n, ir.PEXTERN)
+diff --git a/src/cmd/compile/internal/test/abiutilsaux_test.go b/src/cmd/compile/internal/test/abiutilsaux_test.go
+index 7b84e73947..10fb668745 100644
+--- a/src/cmd/compile/internal/test/abiutilsaux_test.go
++++ b/src/cmd/compile/internal/test/abiutilsaux_test.go
+@@ -127,7 +127,7 @@ func abitest(t *testing.T, ft *types.Type, exp expectedDump) {
+ 	emptyResString := emptyRes.String()
+ 
+ 	// Walk the results and make sure the offsets assigned match
+-	// up with those assiged by dowidth. This checks to make sure that
++	// up with those assiged by CalcSize. This checks to make sure that
+ 	// when we have no available registers the ABI assignment degenerates
+ 	// back to the original ABI0.
+ 
+diff --git a/src/cmd/compile/internal/test/testdata/reproducible/issue38068.go b/src/cmd/compile/internal/test/testdata/reproducible/issue38068.go
+index db5ca7dcbe..b87daed8e9 100644
+--- a/src/cmd/compile/internal/test/testdata/reproducible/issue38068.go
++++ b/src/cmd/compile/internal/test/testdata/reproducible/issue38068.go
+@@ -53,7 +53,7 @@ func G(x *A, n int) {
+ 		return
+ 	}
+ 	// Address-taken local of type A, which will insure that the
+-	// compiler's dtypesym() routine will create a method wrapper.
++	// compiler's writeType() routine will create a method wrapper.
+ 	var a, b A
+ 	a.next = x
+ 	a.prev = &b
+diff --git a/src/cmd/compile/internal/typebits/typebits.go b/src/cmd/compile/internal/typebits/typebits.go
+index 63a2bb3ffa..1c1b077423 100644
+--- a/src/cmd/compile/internal/typebits/typebits.go
++++ b/src/cmd/compile/internal/typebits/typebits.go
+@@ -15,7 +15,7 @@ import (
+ // on future calls with the same type t.
+ func Set(t *types.Type, off int64, bv bitvec.BitVec) {
+ 	if t.Align > 0 && off&int64(t.Align-1) != 0 {
+-		base.Fatalf("onebitwalktype1: invalid initial alignment: type %v has alignment %d, but offset is %v", t, t.Align, off)
++		base.Fatalf("typebits.Set: invalid initial alignment: type %v has alignment %d, but offset is %v", t, t.Align, off)
+ 	}
+ 	if !t.HasPointers() {
+ 		// Note: this case ensures that pointers to go:notinheap types
+@@ -26,14 +26,14 @@ func Set(t *types.Type, off int64, bv bitvec.BitVec) {
+ 	switch t.Kind() {
+ 	case types.TPTR, types.TUNSAFEPTR, types.TFUNC, types.TCHAN, types.TMAP:
+ 		if off&int64(types.PtrSize-1) != 0 {
+-			base.Fatalf("onebitwalktype1: invalid alignment, %v", t)
++			base.Fatalf("typebits.Set: invalid alignment, %v", t)
+ 		}
+ 		bv.Set(int32(off / int64(types.PtrSize))) // pointer
+ 
+ 	case types.TSTRING:
+ 		// struct { byte *str; intgo len; }
+ 		if off&int64(types.PtrSize-1) != 0 {
+-			base.Fatalf("onebitwalktype1: invalid alignment, %v", t)
++			base.Fatalf("typebits.Set: invalid alignment, %v", t)
+ 		}
+ 		bv.Set(int32(off / int64(types.PtrSize))) //pointer in first slot
+ 
+@@ -42,7 +42,7 @@ func Set(t *types.Type, off int64, bv bitvec.BitVec) {
+ 		// or, when isnilinter(t)==true:
+ 		// struct { Type *type; void *data; }
+ 		if off&int64(types.PtrSize-1) != 0 {
+-			base.Fatalf("onebitwalktype1: invalid alignment, %v", t)
++			base.Fatalf("typebits.Set: invalid alignment, %v", t)
+ 		}
+ 		// The first word of an interface is a pointer, but we don't
+ 		// treat it as such.
+@@ -61,7 +61,7 @@ func Set(t *types.Type, off int64, bv bitvec.BitVec) {
+ 	case types.TSLICE:
+ 		// struct { byte *array; uintgo len; uintgo cap; }
+ 		if off&int64(types.PtrSize-1) != 0 {
+-			base.Fatalf("onebitwalktype1: invalid TARRAY alignment, %v", t)
++			base.Fatalf("typebits.Set: invalid TARRAY alignment, %v", t)
+ 		}
+ 		bv.Set(int32(off / int64(types.PtrSize))) // pointer in first slot (BitsPointer)
+ 
+@@ -82,6 +82,6 @@ func Set(t *types.Type, off int64, bv bitvec.BitVec) {
+ 		}
+ 
+ 	default:
+-		base.Fatalf("onebitwalktype1: unexpected type, %v", t)
++		base.Fatalf("typebits.Set: unexpected type, %v", t)
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/typecheck/const.go b/src/cmd/compile/internal/typecheck/const.go
+index d6bf101974..1a8e58383a 100644
+--- a/src/cmd/compile/internal/typecheck/const.go
++++ b/src/cmd/compile/internal/typecheck/const.go
+@@ -623,7 +623,7 @@ func OrigInt(n ir.Node, v int64) ir.Node {
+ 	return OrigConst(n, constant.MakeInt64(v))
+ }
+ 
+-// defaultlit on both nodes simultaneously;
++// DefaultLit on both nodes simultaneously;
+ // if they're both ideal going in they better
+ // get the same type going out.
+ // force means must assign concrete (non-ideal) type.
+diff --git a/src/cmd/compile/internal/typecheck/dcl.go b/src/cmd/compile/internal/typecheck/dcl.go
+index c7d7506fd1..c324238bf1 100644
+--- a/src/cmd/compile/internal/typecheck/dcl.go
++++ b/src/cmd/compile/internal/typecheck/dcl.go
+@@ -41,7 +41,7 @@ func Declare(n *ir.Name, ctxt ir.Class) {
+ 
+ 	s := n.Sym()
+ 
+-	// kludgy: typecheckok means we're past parsing. Eg genwrapper may declare out of package names later.
++	// kludgy: TypecheckAllowed means we're past parsing. Eg reflectdata.methodWrapper may declare out of package names later.
+ 	if !inimport && !TypecheckAllowed && s.Pkg != types.LocalPkg {
+ 		base.ErrorfAt(n.Pos(), "cannot declare name %v", s)
+ 	}
+@@ -308,7 +308,7 @@ func fakeRecvField() *types.Field {
+ 	return types.NewField(src.NoXPos, nil, types.FakeRecvType())
+ }
+ 
+-var funcStack []funcStackEnt // stack of previous values of Curfn/dclcontext
++var funcStack []funcStackEnt // stack of previous values of ir.CurFunc/DeclContext
+ 
+ type funcStackEnt struct {
+ 	curfn      *ir.Func
+@@ -398,14 +398,14 @@ func Temp(t *types.Type) *ir.Name {
+ // make a new Node off the books
+ func TempAt(pos src.XPos, curfn *ir.Func, t *types.Type) *ir.Name {
+ 	if curfn == nil {
+-		base.Fatalf("no curfn for tempAt")
++		base.Fatalf("no curfn for TempAt")
+ 	}
+ 	if curfn.Op() == ir.OCLOSURE {
+-		ir.Dump("tempAt", curfn)
+-		base.Fatalf("adding tempAt to wrong closure function")
++		ir.Dump("TempAt", curfn)
++		base.Fatalf("adding TempAt to wrong closure function")
+ 	}
+ 	if t == nil {
+-		base.Fatalf("tempAt called with nil type")
++		base.Fatalf("TempAt called with nil type")
+ 	}
+ 	if t.Kind() == types.TFUNC && t.Recv() != nil {
+ 		base.Fatalf("misuse of method type: %v", t)
+diff --git a/src/cmd/compile/internal/typecheck/expr.go b/src/cmd/compile/internal/typecheck/expr.go
+index 12bfae67a8..339fb00aa4 100644
+--- a/src/cmd/compile/internal/typecheck/expr.go
++++ b/src/cmd/compile/internal/typecheck/expr.go
+@@ -68,7 +68,7 @@ func tcShift(n, l, r ir.Node) (ir.Node, ir.Node, *types.Type) {
+ 		return l, r, nil
+ 	}
+ 
+-	// no defaultlit for left
++	// no DefaultLit for left
+ 	// the outer context gives the type
+ 	t = l.Type()
+ 	if (l.Type() == types.UntypedFloat || l.Type() == types.UntypedComplex) && r.Op() == ir.OLITERAL {
+@@ -201,7 +201,7 @@ func tcArith(n ir.Node, op ir.Op, l, r ir.Node) (ir.Node, ir.Node, *types.Type)
+ // 	n.Left = tcCompLit(n.Left)
+ func tcCompLit(n *ir.CompLitExpr) (res ir.Node) {
+ 	if base.EnableTrace && base.Flag.LowerT {
+-		defer tracePrint("typecheckcomplit", n)(&res)
++		defer tracePrint("tcCompLit", n)(&res)
+ 	}
+ 
+ 	lno := base.Pos
+@@ -838,7 +838,7 @@ func tcStar(n *ir.StarExpr, top int) ir.Node {
+ 	}
+ 	if l.Op() == ir.OTYPE {
+ 		n.SetOTYPE(types.NewPtr(l.Type()))
+-		// Ensure l.Type gets dowidth'd for the backend. Issue 20174.
++		// Ensure l.Type gets CalcSize'd for the backend. Issue 20174.
+ 		types.CheckSize(l.Type())
+ 		return n
+ 	}
+diff --git a/src/cmd/compile/internal/typecheck/func.go b/src/cmd/compile/internal/typecheck/func.go
+index 03a10f594a..c832d9700f 100644
+--- a/src/cmd/compile/internal/typecheck/func.go
++++ b/src/cmd/compile/internal/typecheck/func.go
+@@ -100,7 +100,7 @@ func PartialCallType(n *ir.SelectorExpr) *types.Type {
+ 	return t
+ }
+ 
+-// Lazy typechecking of imported bodies. For local functions, caninl will set ->typecheck
++// Lazy typechecking of imported bodies. For local functions, CanInline will set ->typecheck
+ // because they're a copy of an already checked body.
+ func ImportedBody(fn *ir.Func) {
+ 	lno := ir.SetPos(fn.Nname)
+@@ -122,14 +122,14 @@ func ImportedBody(fn *ir.Func) {
+ 
+ 	ImportBody(fn)
+ 
+-	// typecheckinl is only for imported functions;
++	// Stmts(fn.Inl.Body) below is only for imported functions;
+ 	// their bodies may refer to unsafe as long as the package
+ 	// was marked safe during import (which was checked then).
+-	// the ->inl of a local function has been typechecked before caninl copied it.
++	// the ->inl of a local function has been typechecked before CanInline copied it.
+ 	pkg := fnpkg(fn.Nname)
+ 
+ 	if pkg == types.LocalPkg || pkg == nil {
+-		return // typecheckinl on local function
++		return // ImportedBody on local function
+ 	}
+ 
+ 	if base.Flag.LowerM > 2 || base.Debug.Export != 0 {
+@@ -141,10 +141,10 @@ func ImportedBody(fn *ir.Func) {
+ 	Stmts(fn.Inl.Body)
+ 	ir.CurFunc = savefn
+ 
+-	// During expandInline (which imports fn.Func.Inl.Body),
+-	// declarations are added to fn.Func.Dcl by funcHdr(). Move them
++	// During ImportBody (which imports fn.Func.Inl.Body),
++	// declarations are added to fn.Func.Dcl by funcBody(). Move them
+ 	// to fn.Func.Inl.Dcl for consistency with how local functions
+-	// behave. (Append because typecheckinl may be called multiple
++	// behave. (Append because ImportedBody may be called multiple
+ 	// times.)
+ 	fn.Inl.Dcl = append(fn.Inl.Dcl, fn.Dcl...)
+ 	fn.Dcl = nil
+@@ -296,7 +296,7 @@ func tcClosure(clo *ir.ClosureExpr, top int) {
+ 	fn.SetClosureCalled(top&ctxCallee != 0)
+ 
+ 	// Do not typecheck fn twice, otherwise, we will end up pushing
+-	// fn to Target.Decls multiple times, causing initLSym called twice.
++	// fn to Target.Decls multiple times, causing InitLSym called twice.
+ 	// See #30709
+ 	if fn.Typecheck() == 1 {
+ 		clo.SetType(fn.Type())
+@@ -343,10 +343,10 @@ func tcClosure(clo *ir.ClosureExpr, top int) {
+ 
+ // type check function definition
+ // To be called by typecheck, not directly.
+-// (Call typecheckFunc instead.)
++// (Call typecheck.Func instead.)
+ func tcFunc(n *ir.Func) {
+ 	if base.EnableTrace && base.Flag.LowerT {
+-		defer tracePrint("typecheckfunc", n)(nil)
++		defer tracePrint("tcFunc", n)(nil)
+ 	}
+ 
+ 	n.Nname = AssignExpr(n.Nname).(*ir.Name)
+diff --git a/src/cmd/compile/internal/typecheck/iimport.go b/src/cmd/compile/internal/typecheck/iimport.go
+index 396d09263a..c2610229ec 100644
+--- a/src/cmd/compile/internal/typecheck/iimport.go
++++ b/src/cmd/compile/internal/typecheck/iimport.go
+@@ -37,7 +37,7 @@ var (
+ 	// and offset where that identifier's declaration can be read.
+ 	DeclImporter = map[*types.Sym]iimporterAndOffset{}
+ 
+-	// inlineImporter is like declImporter, but for inline bodies
++	// inlineImporter is like DeclImporter, but for inline bodies
+ 	// for function and method symbols.
+ 	inlineImporter = map[*types.Sym]iimporterAndOffset{}
+ )
+@@ -334,7 +334,7 @@ func (r *importReader) doDecl(sym *types.Sym) *ir.Name {
+ 			recv := r.param()
+ 			mtyp := r.signature(recv)
+ 
+-			// methodSym already marked m.Sym as a function.
++			// MethodSym already marked m.Sym as a function.
+ 			m := ir.NewNameAt(mpos, ir.MethodSym(recv.Type, msym))
+ 			m.Class = ir.PFUNC
+ 			m.SetType(mtyp)
+diff --git a/src/cmd/compile/internal/typecheck/stmt.go b/src/cmd/compile/internal/typecheck/stmt.go
+index 8baa5dda78..14ed175be9 100644
+--- a/src/cmd/compile/internal/typecheck/stmt.go
++++ b/src/cmd/compile/internal/typecheck/stmt.go
+@@ -25,7 +25,7 @@ func typecheckrangeExpr(n *ir.RangeStmt) {
+ 	}
+ 
+ 	t := RangeExprType(n.X.Type())
+-	// delicate little dance.  see typecheckas2
++	// delicate little dance.  see tcAssignList
+ 	if n.Key != nil && !ir.DeclaredBy(n.Key, n) {
+ 		n.Key = AssignExpr(n.Key)
+ 	}
+@@ -90,7 +90,7 @@ func typecheckrangeExpr(n *ir.RangeStmt) {
+ // fill in the var's type.
+ func tcAssign(n *ir.AssignStmt) {
+ 	if base.EnableTrace && base.Flag.LowerT {
+-		defer tracePrint("typecheckas", n)(nil)
++		defer tracePrint("tcAssign", n)(nil)
+ 	}
+ 
+ 	if n.Y == nil {
+@@ -110,7 +110,7 @@ func tcAssign(n *ir.AssignStmt) {
+ 
+ func tcAssignList(n *ir.AssignListStmt) {
+ 	if base.EnableTrace && base.Flag.LowerT {
+-		defer tracePrint("typecheckas2", n)(nil)
++		defer tracePrint("tcAssignList", n)(nil)
+ 	}
+ 
+ 	assign(n, n.Lhs, n.Rhs)
+@@ -119,7 +119,7 @@ func tcAssignList(n *ir.AssignListStmt) {
+ func assign(stmt ir.Node, lhs, rhs []ir.Node) {
+ 	// delicate little dance.
+ 	// the definition of lhs may refer to this assignment
+-	// as its definition, in which case it will call typecheckas.
++	// as its definition, in which case it will call tcAssign.
+ 	// in that case, do not call typecheck back, or it will cycle.
+ 	// if the variable has a type (ntype) then typechecking
+ 	// will not look at defn, so it is okay (and desirable,
+diff --git a/src/cmd/compile/internal/typecheck/subr.go b/src/cmd/compile/internal/typecheck/subr.go
+index 569075d684..b6a0870672 100644
+--- a/src/cmd/compile/internal/typecheck/subr.go
++++ b/src/cmd/compile/internal/typecheck/subr.go
+@@ -81,7 +81,7 @@ func markAddrOf(n ir.Node) ir.Node {
+ 		// main typecheck has completed.
+ 		// The argument to OADDR needs to be typechecked because &x[i] takes
+ 		// the address of x if x is an array, but not if x is a slice.
+-		// Note: outervalue doesn't work correctly until n is typechecked.
++		// Note: OuterValue doesn't work correctly until n is typechecked.
+ 		n = typecheck(n, ctxExpr)
+ 		if x := ir.OuterValue(n); x.Op() == ir.ONAME {
+ 			x.Name().SetAddrtaken(true)
+@@ -368,10 +368,10 @@ func assignop(src, dst *types.Type) (ir.Op, string) {
+ 		var missing, have *types.Field
+ 		var ptr int
+ 		if implements(src, dst, &missing, &have, &ptr) {
+-			// Call itabname so that (src, dst)
++			// Call NeedITab/ITabAddr so that (src, dst)
+ 			// gets added to itabs early, which allows
+ 			// us to de-virtualize calls through this
+-			// type/interface pair later. See peekitabs in reflect.go
++			// type/interface pair later. See CompileITabs in reflect.go
+ 			if types.IsDirectIface(src) && !dst.IsEmptyInterface() {
+ 				NeedITab(src, dst)
+ 			}
+@@ -441,7 +441,7 @@ func assignop(src, dst *types.Type) (ir.Op, string) {
+ 		}
+ 	}
+ 
+-	// 6. rule about untyped constants - already converted by defaultlit.
++	// 6. rule about untyped constants - already converted by DefaultLit.
+ 
+ 	// 7. Any typed value can be assigned to the blank identifier.
+ 	if dst.Kind() == types.TBLANK {
+@@ -835,7 +835,7 @@ func lookdot0(s *types.Sym, t *types.Type, save **types.Field, ignorecase bool)
+ var slist []symlink
+ 
+ // Code to help generate trampoline functions for methods on embedded
+-// types. These are approx the same as the corresponding adddot
++// types. These are approx the same as the corresponding AddImplicitDots
+ // routines except that they expect to be called with unique tasks and
+ // they return the actual methods.
+ 
+diff --git a/src/cmd/compile/internal/typecheck/syms.go b/src/cmd/compile/internal/typecheck/syms.go
+index 28db40db91..f6ff2ee5da 100644
+--- a/src/cmd/compile/internal/typecheck/syms.go
++++ b/src/cmd/compile/internal/typecheck/syms.go
+@@ -15,7 +15,7 @@ import (
+ func LookupRuntime(name string) *ir.Name {
+ 	s := ir.Pkgs.Runtime.Lookup(name)
+ 	if s == nil || s.Def == nil {
+-		base.Fatalf("syslook: can't find runtime.%s", name)
++		base.Fatalf("LookupRuntime: can't find runtime.%s", name)
+ 	}
+ 	return ir.AsNode(s.Def).(*ir.Name)
+ }
+@@ -33,7 +33,7 @@ func SubstArgTypes(old *ir.Name, types_ ...*types.Type) *ir.Name {
+ 	n.Class = old.Class
+ 	n.SetType(types.SubstAny(old.Type(), &types_))
+ 	if len(types_) > 0 {
+-		base.Fatalf("substArgTypes: too many argument types")
++		base.Fatalf("SubstArgTypes: too many argument types")
+ 	}
+ 	return n
+ }
+diff --git a/src/cmd/compile/internal/typecheck/typecheck.go b/src/cmd/compile/internal/typecheck/typecheck.go
+index 814af59772..3530e76972 100644
+--- a/src/cmd/compile/internal/typecheck/typecheck.go
++++ b/src/cmd/compile/internal/typecheck/typecheck.go
+@@ -456,7 +456,7 @@ func typecheck(n ir.Node, top int) (res ir.Node) {
+ }
+ 
+ // indexlit implements typechecking of untyped values as
+-// array/slice indexes. It is almost equivalent to defaultlit
++// array/slice indexes. It is almost equivalent to DefaultLit
+ // but also accepts untyped numeric values representable as
+ // value of type int (see also checkmake for comparison).
+ // The result of indexlit MUST be assigned back to n, e.g.
+@@ -938,7 +938,7 @@ func typecheckargs(n ir.InitNode) {
+ 	// If we're outside of function context, then this call will
+ 	// be executed during the generated init function. However,
+ 	// init.go hasn't yet created it. Instead, associate the
+-	// temporary variables with initTodo for now, and init.go
++	// temporary variables with  InitTodoFunc for now, and init.go
+ 	// will reassociate them later when it's appropriate.
+ 	static := ir.CurFunc == nil
+ 	if static {
+@@ -1890,7 +1890,7 @@ func checkmake(t *types.Type, arg string, np *ir.Node) bool {
+ 		return false
+ 	}
+ 
+-	// Do range checks for constants before defaultlit
++	// Do range checks for constants before DefaultLit
+ 	// to avoid redundant "constant NNN overflows int" errors.
+ 	if n.Op() == ir.OLITERAL {
+ 		v := toint(n.Val())
+@@ -1904,7 +1904,7 @@ func checkmake(t *types.Type, arg string, np *ir.Node) bool {
+ 		}
+ 	}
+ 
+-	// defaultlit is necessary for non-constants too: n might be 1.1<<k.
++	// DefaultLit is necessary for non-constants too: n might be 1.1<<k.
+ 	// TODO(gri) The length argument requirements for (array/slice) make
+ 	// are the same as for index expressions. Factor the code better;
+ 	// for instance, indexlit might be called here and incorporate some
+diff --git a/src/cmd/compile/internal/types/alg.go b/src/cmd/compile/internal/types/alg.go
+index 6091ee249c..2c2700f345 100644
+--- a/src/cmd/compile/internal/types/alg.go
++++ b/src/cmd/compile/internal/types/alg.go
+@@ -132,7 +132,7 @@ func AlgType(t *Type) (AlgKind, *Type) {
+ 		return ret, nil
+ 	}
+ 
+-	base.Fatalf("algtype: unexpected type %v", t)
++	base.Fatalf("AlgType: unexpected type %v", t)
+ 	return 0, nil
+ }
+ 
+@@ -163,7 +163,7 @@ func IncomparableField(t *Type) *Field {
+ // by padding.
+ func IsPaddedField(t *Type, i int) bool {
+ 	if !t.IsStruct() {
+-		base.Fatalf("ispaddedfield called non-struct %v", t)
++		base.Fatalf("IsPaddedField called non-struct %v", t)
+ 	}
+ 	end := t.Width
+ 	if i+1 < t.NumFields() {
+diff --git a/src/cmd/compile/internal/types/fmt.go b/src/cmd/compile/internal/types/fmt.go
+index cd0679f6b9..da224d4019 100644
+--- a/src/cmd/compile/internal/types/fmt.go
++++ b/src/cmd/compile/internal/types/fmt.go
+@@ -44,7 +44,7 @@ func OrigSym(s *Sym) *Sym {
+ 	}
+ 
+ 	if strings.HasPrefix(s.Name, ".anon") {
+-		// originally an unnamed or _ name (see subr.go: structargs)
++		// originally an unnamed or _ name (see subr.go: NewFuncParams)
+ 		return nil
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/types/size.go b/src/cmd/compile/internal/types/size.go
+index a54c086ded..98540eefb6 100644
+--- a/src/cmd/compile/internal/types/size.go
++++ b/src/cmd/compile/internal/types/size.go
+@@ -58,7 +58,7 @@ func typePos(t *Type) src.XPos {
+ var MaxWidth int64
+ 
+ // CalcSizeDisabled indicates whether it is safe
+-// to calculate Types' widths and alignments. See dowidth.
++// to calculate Types' widths and alignments. See CalcSize.
+ var CalcSizeDisabled bool
+ 
+ // machine size and rounding alignment is dictated around
+@@ -135,7 +135,7 @@ func expandiface(t *Type) {
+ 		m.Offset = int64(i) * int64(PtrSize)
+ 	}
+ 
+-	// Access fields directly to avoid recursively calling dowidth
++	// Access fields directly to avoid recursively calling CalcSize
+ 	// within Type.Fields().
+ 	t.Extra.(*Interface).Fields.Set(methods)
+ }
+@@ -164,7 +164,7 @@ func calcStructOffset(errtype *Type, t *Type, o int64, flag int) int64 {
+ 		f.Offset = o
+ 		if f.Nname != nil {
+ 			// addrescapes has similar code to update these offsets.
+-			// Usually addrescapes runs after widstruct,
++			// Usually addrescapes runs after calcStructOffset,
+ 			// in which case we could drop this,
+ 			// but function closure functions are the exception.
+ 			// NOTE(rsc): This comment may be stale.
+@@ -306,17 +306,16 @@ func reportTypeLoop(t *Type) {
+ }
+ 
+ // CalcSize calculates and stores the size and alignment for t.
+-// If sizeCalculationDisabled is set, and the size/alignment
++// If CalcSizeDisabled is set, and the size/alignment
+ // have not already been calculated, it calls Fatal.
+ // This is used to prevent data races in the back end.
+ func CalcSize(t *Type) {
+-	// Calling dowidth when typecheck tracing enabled is not safe.
++	// Calling CalcSize when typecheck tracing enabled is not safe.
+ 	// See issue #33658.
+ 	if base.EnableTrace && SkipSizeForTracing {
+ 		return
+ 	}
+ 	if PtrSize == 0 {
+-
+ 		// Assume this is a test.
+ 		return
+ 	}
+@@ -351,7 +350,7 @@ func CalcSize(t *Type) {
+ 		return
+ 	}
+ 
+-	// defer checkwidth calls until after we're done
++	// defer CheckSize calls until after we're done
+ 	DeferCheckSize()
+ 
+ 	lno := base.Pos
+@@ -367,7 +366,7 @@ func CalcSize(t *Type) {
+ 	case TFUNC, TCHAN, TMAP, TSTRING:
+ 		break
+ 
+-	// simtype == 0 during bootstrap
++	// SimType == 0 during bootstrap
+ 	default:
+ 		if SimType[t.Kind()] != 0 {
+ 			et = SimType[t.Kind()]
+@@ -377,7 +376,7 @@ func CalcSize(t *Type) {
+ 	var w int64
+ 	switch et {
+ 	default:
+-		base.Fatalf("dowidth: unknown type: %v", t)
++		base.Fatalf("CalcSize: unknown type: %v", t)
+ 
+ 	// compiler-specific stuff
+ 	case TINT8, TUINT8, TBOOL:
+@@ -443,11 +442,11 @@ func CalcSize(t *Type) {
+ 
+ 	case TANY:
+ 		// not a real type; should be replaced before use.
+-		base.Fatalf("dowidth any")
++		base.Fatalf("CalcSize any")
+ 
+ 	case TSTRING:
+ 		if StringSize == 0 {
+-			base.Fatalf("early dowidth string")
++			base.Fatalf("early CalcSize string")
+ 		}
+ 		w = StringSize
+ 		t.Align = uint8(PtrSize)
+@@ -477,7 +476,7 @@ func CalcSize(t *Type) {
+ 
+ 	case TSTRUCT:
+ 		if t.IsFuncArgStruct() {
+-			base.Fatalf("dowidth fn struct %v", t)
++			base.Fatalf("CalcSize fn struct %v", t)
+ 		}
+ 		w = calcStructOffset(t, t, 0, 1)
+ 
+@@ -526,7 +525,7 @@ func CalcStructSize(s *Type) {
+ 	s.Width = calcStructOffset(s, s, 0, 1) // sets align
+ }
+ 
+-// when a type's width should be known, we call checkwidth
++// when a type's width should be known, we call CheckSize
+ // to compute it.  during a declaration like
+ //
+ //	type T *struct { next T }
+@@ -535,11 +534,11 @@ func CalcStructSize(s *Type) {
+ // until after T has been initialized to be a pointer to that struct.
+ // similarly, during import processing structs may be used
+ // before their definition.  in those situations, calling
+-// defercheckwidth() stops width calculations until
+-// resumecheckwidth() is called, at which point all the
+-// checkwidths that were deferred are executed.
+-// dowidth should only be called when the type's size
+-// is needed immediately.  checkwidth makes sure the
++// DeferCheckSize() stops width calculations until
++// ResumeCheckSize() is called, at which point all the
++// CalcSizes that were deferred are executed.
++// CalcSize should only be called when the type's size
++// is needed immediately.  CheckSize makes sure the
+ // size is evaluated eventually.
+ 
+ var deferredTypeStack []*Type
+@@ -552,7 +551,7 @@ func CheckSize(t *Type) {
+ 	// function arg structs should not be checked
+ 	// outside of the enclosing function.
+ 	if t.IsFuncArgStruct() {
+-		base.Fatalf("checkwidth %v", t)
++		base.Fatalf("CheckSize %v", t)
+ 	}
+ 
+ 	if defercalc == 0 {
+@@ -606,7 +605,7 @@ func PtrDataSize(t *Type) int64 {
+ 	case TINTER:
+ 		// struct { Itab *tab;	void *data; } or
+ 		// struct { Type *type; void *data; }
+-		// Note: see comment in plive.go:onebitwalktype1.
++		// Note: see comment in typebits.Set
+ 		return 2 * int64(PtrSize)
+ 
+ 	case TSLICE:
+@@ -628,7 +627,7 @@ func PtrDataSize(t *Type) int64 {
+ 		return lastPtrField.Offset + PtrDataSize(lastPtrField.Type)
+ 
+ 	default:
+-		base.Fatalf("typeptrdata: unexpected type, %v", t)
++		base.Fatalf("PtrDataSize: unexpected type, %v", t)
+ 		return 0
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/types/type.go b/src/cmd/compile/internal/types/type.go
+index 5176b96c02..0dfbef8af1 100644
+--- a/src/cmd/compile/internal/types/type.go
++++ b/src/cmd/compile/internal/types/type.go
+@@ -107,7 +107,7 @@ const (
+ // Types stores pointers to predeclared named types.
+ //
+ // It also stores pointers to several special types:
+-//   - Types[TANY] is the placeholder "any" type recognized by substArgTypes.
++//   - Types[TANY] is the placeholder "any" type recognized by SubstArgTypes.
+ //   - Types[TBLANK] represents the blank variable's type.
+ //   - Types[TNIL] represents the predeclared "nil" value's type.
+ //   - Types[TUNSAFEPTR] is package unsafe's Pointer type.
+@@ -643,7 +643,7 @@ func SubstAny(t *Type, types *[]*Type) *Type {
+ 
+ 	case TANY:
+ 		if len(*types) == 0 {
+-			base.Fatalf("substArgTypes: not enough argument types")
++			base.Fatalf("SubstArgTypes: not enough argument types")
+ 		}
+ 		t = (*types)[0]
+ 		*types = (*types)[1:]
+diff --git a/src/cmd/compile/internal/walk/builtin.go b/src/cmd/compile/internal/walk/builtin.go
+index 18ff702248..283c85629b 100644
+--- a/src/cmd/compile/internal/walk/builtin.go
++++ b/src/cmd/compile/internal/walk/builtin.go
+@@ -48,10 +48,10 @@ func walkAppend(n *ir.CallExpr, init *ir.Nodes, dst ir.Node) ir.Node {
+ 
+ 	nsrc := n.Args[0]
+ 
+-	// walkexprlistsafe will leave OINDEX (s[n]) alone if both s
++	// walkExprListSafe will leave OINDEX (s[n]) alone if both s
+ 	// and n are name or literal, but those may index the slice we're
+ 	// modifying here. Fix explicitly.
+-	// Using cheapexpr also makes sure that the evaluation
++	// Using cheapExpr also makes sure that the evaluation
+ 	// of all arguments (and especially any panics) happen
+ 	// before we begin to modify the slice in a visible way.
+ 	ls := n.Args[1:]
+@@ -388,7 +388,7 @@ func walkMakeSlice(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
+ 		// n = arr[:l]
+ 		i := typecheck.IndexConst(r)
+ 		if i < 0 {
+-			base.Fatalf("walkexpr: invalid index %v", r)
++			base.Fatalf("walkExpr: invalid index %v", r)
+ 		}
+ 
+ 		// cap is constrained to [0,2^31) or [0,2^63) depending on whether
+diff --git a/src/cmd/compile/internal/walk/closure.go b/src/cmd/compile/internal/walk/closure.go
+index 694aa99940..1d1cbc2054 100644
+--- a/src/cmd/compile/internal/walk/closure.go
++++ b/src/cmd/compile/internal/walk/closure.go
+@@ -159,7 +159,7 @@ func walkCallPart(n *ir.SelectorExpr, init *ir.Nodes) ir.Node {
+ 	//
+ 	//	clos = &struct{F uintptr; R T}{T.M·f, x}
+ 	//
+-	// Like walkclosure above.
++	// Like walkClosure above.
+ 
+ 	if n.X.Type().IsInterface() {
+ 		// Trigger panic for method on nil interface now.
+diff --git a/src/cmd/compile/internal/walk/compare.go b/src/cmd/compile/internal/walk/compare.go
+index a4ea31bf55..7c385c0e0d 100644
+--- a/src/cmd/compile/internal/walk/compare.go
++++ b/src/cmd/compile/internal/walk/compare.go
+@@ -418,7 +418,7 @@ func eqFor(t *types.Type) (n ir.Node, needsize bool) {
+ 	// Should only arrive here with large memory or
+ 	// a struct/array containing a non-memory field/element.
+ 	// Small memory is handled inline, and single non-memory
+-	// is handled by walkcompare.
++	// is handled by walkCompare.
+ 	switch a, _ := types.AlgType(t); a {
+ 	case types.AMEM:
+ 		n := typecheck.LookupRuntime("memequal")
+@@ -436,7 +436,7 @@ func eqFor(t *types.Type) (n ir.Node, needsize bool) {
+ 		}))
+ 		return n, false
+ 	}
+-	base.Fatalf("eqfor %v", t)
++	base.Fatalf("eqFor %v", t)
+ 	return nil, false
+ }
+ 
+diff --git a/src/cmd/compile/internal/walk/convert.go b/src/cmd/compile/internal/walk/convert.go
+index 848aee3938..b47bb917c3 100644
+--- a/src/cmd/compile/internal/walk/convert.go
++++ b/src/cmd/compile/internal/walk/convert.go
+@@ -442,8 +442,8 @@ func walkCheckPtrAlignment(n *ir.ConvExpr, init *ir.Nodes, count ir.Node) ir.Nod
+ }
+ 
+ func walkCheckPtrArithmetic(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
+-	// Calling cheapexpr(n, init) below leads to a recursive call to
+-	// walkexpr, which leads us back here again. Use n.Checkptr to
++	// Calling cheapExpr(n, init) below leads to a recursive call to
++	// walkExpr, which leads us back here again. Use n.Checkptr to
+ 	// prevent infinite loops.
+ 	if n.CheckPtr() {
+ 		return n
+diff --git a/src/cmd/compile/internal/walk/expr.go b/src/cmd/compile/internal/walk/expr.go
+index 253634a60f..510f568576 100644
+--- a/src/cmd/compile/internal/walk/expr.go
++++ b/src/cmd/compile/internal/walk/expr.go
+@@ -30,7 +30,7 @@ func walkExpr(n ir.Node, init *ir.Nodes) ir.Node {
+ 		// not okay to use n->ninit when walking n,
+ 		// because we might replace n with some other node
+ 		// and would lose the init list.
+-		base.Fatalf("walkexpr init == &n->ninit")
++		base.Fatalf("walkExpr init == &n->ninit")
+ 	}
+ 
+ 	if len(n.Init()) != 0 {
+@@ -81,7 +81,7 @@ func walkExpr1(n ir.Node, init *ir.Nodes) ir.Node {
+ 	switch n.Op() {
+ 	default:
+ 		ir.Dump("walk", n)
+-		base.Fatalf("walkexpr: switch 1 unknown op %+v", n.Op())
++		base.Fatalf("walkExpr: switch 1 unknown op %+v", n.Op())
+ 		panic("unreachable")
+ 
+ 	case ir.ONONAME, ir.OGETG:
+@@ -91,7 +91,7 @@ func walkExpr1(n ir.Node, init *ir.Nodes) ir.Node {
+ 		// TODO(mdempsky): Just return n; see discussion on CL 38655.
+ 		// Perhaps refactor to use Node.mayBeShared for these instead.
+ 		// If these return early, make sure to still call
+-		// stringsym for constant strings.
++		// StringSym for constant strings.
+ 		return n
+ 
+ 	case ir.OMETHEXPR:
+@@ -221,7 +221,7 @@ func walkExpr1(n ir.Node, init *ir.Nodes) ir.Node {
+ 		return walkIndexMap(n, init)
+ 
+ 	case ir.ORECV:
+-		base.Fatalf("walkexpr ORECV") // should see inside OAS only
++		base.Fatalf("walkExpr ORECV") // should see inside OAS only
+ 		panic("unreachable")
+ 
+ 	case ir.OSLICEHEADER:
+@@ -413,7 +413,7 @@ func safeExpr(n ir.Node, init *ir.Nodes) ir.Node {
+ 
+ 	// make a copy; must not be used as an lvalue
+ 	if ir.IsAddressable(n) {
+-		base.Fatalf("missing lvalue case in safeexpr: %v", n)
++		base.Fatalf("missing lvalue case in safeExpr: %v", n)
+ 	}
+ 	return cheapExpr(n, init)
+ }
+@@ -428,7 +428,7 @@ func walkAddString(n *ir.AddStringExpr, init *ir.Nodes) ir.Node {
+ 	c := len(n.List)
+ 
+ 	if c < 2 {
+-		base.Fatalf("addstr count %d too small", c)
++		base.Fatalf("walkAddString count %d too small", c)
+ 	}
+ 
+ 	buf := typecheck.NodNil()
+@@ -534,7 +534,7 @@ func walkCall1(n *ir.CallExpr, init *ir.Nodes) {
+ 		// Determine param type.
+ 		t := params.Field(i).Type
+ 		if base.Flag.Cfg.Instrumenting || fncall(arg, t) {
+-			// make assignment of fncall to tempAt
++			// make assignment of fncall to Temp
+ 			tmp := typecheck.Temp(t)
+ 			a := convas(ir.NewAssignStmt(base.Pos, tmp, arg), init)
+ 			tempAssigns = append(tempAssigns, a)
+diff --git a/src/cmd/compile/internal/walk/order.go b/src/cmd/compile/internal/walk/order.go
+index 38a9bec6e3..78063c4db2 100644
+--- a/src/cmd/compile/internal/walk/order.go
++++ b/src/cmd/compile/internal/walk/order.go
+@@ -849,7 +849,7 @@ func (o *orderState) stmt(n ir.Node) {
+ 			n.X = o.copyExpr(r)
+ 
+ 			// n.Prealloc is the temp for the iterator.
+-			// hiter contains pointers and needs to be zeroed.
++			// MapIterType contains pointers and needs to be zeroed.
+ 			n.Prealloc = o.newTemp(reflectdata.MapIterType(xt), true)
+ 		}
+ 		n.Key = o.exprInPlace(n.Key)
+@@ -962,7 +962,7 @@ func (o *orderState) stmt(n ir.Node) {
+ 			cas.Body.Prepend(o.cleanTempNoPop(t)...)
+ 
+ 			// TODO(mdempsky): Is this actually necessary?
+-			// walkselect appears to walk Ninit.
++			// walkSelect appears to walk Ninit.
+ 			cas.Body.Prepend(ir.TakeInit(cas)...)
+ 		}
+ 
+@@ -986,7 +986,7 @@ func (o *orderState) stmt(n ir.Node) {
+ 		o.cleanTemp(t)
+ 
+ 	// TODO(rsc): Clean temporaries more aggressively.
+-	// Note that because walkswitch will rewrite some of the
++	// Note that because walkSwitch will rewrite some of the
+ 	// switch into a binary search, this is not as easy as it looks.
+ 	// (If we ran that code here we could invoke order.stmt on
+ 	// the if-else chain instead.)
+diff --git a/src/cmd/compile/internal/walk/range.go b/src/cmd/compile/internal/walk/range.go
+index 9225c429f0..2b28e7442d 100644
+--- a/src/cmd/compile/internal/walk/range.go
++++ b/src/cmd/compile/internal/walk/range.go
+@@ -71,7 +71,7 @@ func walkRange(nrange *ir.RangeStmt) ir.Node {
+ 	}
+ 
+ 	if v1 == nil && v2 != nil {
+-		base.Fatalf("walkrange: v2 != nil while v1 == nil")
++		base.Fatalf("walkRange: v2 != nil while v1 == nil")
+ 	}
+ 
+ 	var ifGuard *ir.IfStmt
+@@ -80,7 +80,7 @@ func walkRange(nrange *ir.RangeStmt) ir.Node {
+ 	var init []ir.Node
+ 	switch t.Kind() {
+ 	default:
+-		base.Fatalf("walkrange")
++		base.Fatalf("walkRange")
+ 
+ 	case types.TARRAY, types.TSLICE:
+ 		if nn := arrayClear(nrange, v1, v2, a); nn != nil {
+@@ -168,7 +168,7 @@ func walkRange(nrange *ir.RangeStmt) ir.Node {
+ 
+ 		hit := nrange.Prealloc
+ 		th := hit.Type()
+-		keysym := th.Field(0).Sym  // depends on layout of iterator struct.  See reflect.go:hiter
++		keysym := th.Field(0).Sym  // depends on layout of iterator struct.  See reflect.go:MapIterType
+ 		elemsym := th.Field(1).Sym // ditto
+ 
+ 		fn := typecheck.LookupRuntime("mapiterinit")
+@@ -388,7 +388,7 @@ func mapClear(m ir.Node) ir.Node {
+ //
+ // in which the evaluation of a is side-effect-free.
+ //
+-// Parameters are as in walkrange: "for v1, v2 = range a".
++// Parameters are as in walkRange: "for v1, v2 = range a".
+ func arrayClear(loop *ir.RangeStmt, v1, v2, a ir.Node) ir.Node {
+ 	if base.Flag.N != 0 || base.Flag.Cfg.Instrumenting {
+ 		return nil
+diff --git a/src/cmd/compile/internal/walk/select.go b/src/cmd/compile/internal/walk/select.go
+index 776b020155..56ba0fa758 100644
+--- a/src/cmd/compile/internal/walk/select.go
++++ b/src/cmd/compile/internal/walk/select.go
+@@ -14,7 +14,7 @@ import (
+ func walkSelect(sel *ir.SelectStmt) {
+ 	lno := ir.SetPos(sel)
+ 	if len(sel.Compiled) != 0 {
+-		base.Fatalf("double walkselect")
++		base.Fatalf("double walkSelect")
+ 	}
+ 
+ 	init := ir.TakeInit(sel)
+@@ -218,7 +218,7 @@ func walkSelectCases(cases []*ir.CommClause) []ir.Node {
+ 		}
+ 	}
+ 	if nsends+nrecvs != ncas {
+-		base.Fatalf("walkselectcases: miscount: %v + %v != %v", nsends, nrecvs, ncas)
++		base.Fatalf("walkSelectCases: miscount: %v + %v != %v", nsends, nrecvs, ncas)
+ 	}
+ 
+ 	// run the select
+diff --git a/src/cmd/compile/internal/walk/switch.go b/src/cmd/compile/internal/walk/switch.go
+index 0cc1830d3f..162de018f6 100644
+--- a/src/cmd/compile/internal/walk/switch.go
++++ b/src/cmd/compile/internal/walk/switch.go
+@@ -49,8 +49,8 @@ func walkSwitchExpr(sw *ir.SwitchStmt) {
+ 	// Given "switch string(byteslice)",
+ 	// with all cases being side-effect free,
+ 	// use a zero-cost alias of the byte slice.
+-	// Do this before calling walkexpr on cond,
+-	// because walkexpr will lower the string
++	// Do this before calling walkExpr on cond,
++	// because walkExpr will lower the string
+ 	// conversion into a runtime call.
+ 	// See issue 24937 for more discussion.
+ 	if cond.Op() == ir.OBYTES2STR && allCaseExprsAreSideEffectFree(sw) {
+diff --git a/src/cmd/compile/internal/walk/walk.go b/src/cmd/compile/internal/walk/walk.go
+index 4ba81b82fe..f95440d60d 100644
+--- a/src/cmd/compile/internal/walk/walk.go
++++ b/src/cmd/compile/internal/walk/walk.go
+@@ -208,7 +208,7 @@ func mapfast(t *types.Type) int {
+ func walkAppendArgs(n *ir.CallExpr, init *ir.Nodes) {
+ 	walkExprListSafe(n.Args, init)
+ 
+-	// walkexprlistsafe will leave OINDEX (s[n]) alone if both s
++	// walkExprListSafe will leave OINDEX (s[n]) alone if both s
+ 	// and n are name or literal, but those may index the slice we're
+ 	// modifying here. Fix explicitly.
+ 	ls := n.Args
+@@ -240,8 +240,8 @@ func appendWalkStmt(init *ir.Nodes, stmt ir.Node) {
+ 	op := stmt.Op()
+ 	n := typecheck.Stmt(stmt)
+ 	if op == ir.OAS || op == ir.OAS2 {
+-		// If the assignment has side effects, walkexpr will append them
+-		// directly to init for us, while walkstmt will wrap it in an OBLOCK.
++		// If the assignment has side effects, walkExpr will append them
++		// directly to init for us, while walkStmt will wrap it in an OBLOCK.
+ 		// We need to append them directly.
+ 		// TODO(rsc): Clean this up.
+ 		n = walkExpr(n, init)
+@@ -256,7 +256,7 @@ func appendWalkStmt(init *ir.Nodes, stmt ir.Node) {
+ const maxOpenDefers = 8
+ 
+ // backingArrayPtrLen extracts the pointer and length from a slice or string.
+-// This constructs two nodes referring to n, so n must be a cheapexpr.
++// This constructs two nodes referring to n, so n must be a cheapExpr.
+ func backingArrayPtrLen(n ir.Node) (ptr, length ir.Node) {
+ 	var init ir.Nodes
+ 	c := cheapExpr(n, &init)
+@@ -423,7 +423,7 @@ func runtimeField(name string, offset int64, typ *types.Type) *types.Field {
+ 
+ // ifaceData loads the data field from an interface.
+ // The concrete type must be known to have type t.
+-// It follows the pointer if !isdirectiface(t).
++// It follows the pointer if !IsDirectIface(t).
+ func ifaceData(pos src.XPos, n ir.Node, t *types.Type) ir.Node {
+ 	if t.IsInterface() {
+ 		base.Fatalf("ifaceData interface: %v", t)
+diff --git a/src/cmd/internal/goobj/mkbuiltin.go b/src/cmd/internal/goobj/mkbuiltin.go
+index 07c3406681..22608e7e69 100644
+--- a/src/cmd/internal/goobj/mkbuiltin.go
++++ b/src/cmd/internal/goobj/mkbuiltin.go
+@@ -118,8 +118,8 @@ func mkbuiltin(w io.Writer) {
+ 
+ // addBasicTypes returns the symbol names for basic types that are
+ // defined in the runtime and referenced in other packages.
+-// Needs to be kept in sync with reflect.go:dumpbasictypes() and
+-// reflect.go:dtypesym() in the compiler.
++// Needs to be kept in sync with reflect.go:WriteBasicTypes() and
++// reflect.go:writeType() in the compiler.
+ func enumerateBasicTypes() []extra {
+ 	names := [...]string{
+ 		"int8", "uint8", "int16", "uint16",
+diff --git a/src/cmd/internal/obj/textflag.go b/src/cmd/internal/obj/textflag.go
+index fcc4014aa2..2f55793285 100644
+--- a/src/cmd/internal/obj/textflag.go
++++ b/src/cmd/internal/obj/textflag.go
+@@ -33,7 +33,7 @@ const (
+ 	// This function uses its incoming context register.
+ 	NEEDCTXT = 64
+ 
+-	// When passed to ggloblsym, causes Local to be set to true on the LSym it creates.
++	// When passed to objw.Global, causes Local to be set to true on the LSym it creates.
+ 	LOCAL = 128
+ 
+ 	// Allocate a word of thread local storage and store the offset from the
+diff --git a/src/embed/embed.go b/src/embed/embed.go
+index 29e0adf1a6..5f35cd13b6 100644
+--- a/src/embed/embed.go
++++ b/src/embed/embed.go
+@@ -133,7 +133,7 @@ import (
+ // See the package documentation for more details about initializing an FS.
+ type FS struct {
+ 	// The compiler knows the layout of this struct.
+-	// See cmd/compile/internal/gc's initEmbed.
++	// See cmd/compile/internal/staticdata's WriteEmbed.
+ 	//
+ 	// The files list is sorted by name but not by simple string comparison.
+ 	// Instead, each file's name takes the form "dir/elem" or "dir/elem/".
+@@ -203,7 +203,7 @@ var (
+ // It implements fs.FileInfo and fs.DirEntry.
+ type file struct {
+ 	// The compiler knows the layout of this struct.
+-	// See cmd/compile/internal/gc's initEmbed.
++	// See cmd/compile/internal/staticdata's WriteEmbed.
+ 	name string
+ 	data string
+ 	hash [16]byte // truncated SHA256 hash
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index 1f1e70d485..13e3d71228 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -1890,7 +1890,7 @@ func MapOf(key, elem Type) Type {
+ 
+ 	// Make a map type.
+ 	// Note: flag values must match those used in the TMAP case
+-	// in ../cmd/compile/internal/gc/reflect.go:dtypesym.
++	// in ../cmd/compile/internal/gc/reflect.go:writeType.
+ 	var imap interface{} = (map[unsafe.Pointer]unsafe.Pointer)(nil)
+ 	mt := **(**mapType)(unsafe.Pointer(&imap))
+ 	mt.str = resolveReflectName(newName(s, "", false))
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index c9376827da..9c3ceabd18 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -853,7 +853,7 @@ type funcinl struct {
+ // layout of Itab known to compilers
+ // allocated in non-garbage-collected memory
+ // Needs to be in sync with
+-// ../cmd/compile/internal/gc/reflect.go:/^func.dumptabs.
++// ../cmd/compile/internal/gc/reflect.go:/^func.WriteTabs.
+ type itab struct {
+ 	inter *interfacetype
+ 	_type *_type
+diff --git a/src/runtime/type.go b/src/runtime/type.go
+index 81455f3532..18fc4bbfad 100644
+--- a/src/runtime/type.go
++++ b/src/runtime/type.go
+@@ -383,7 +383,7 @@ type maptype struct {
+ }
+ 
+ // Note: flag values must match those used in the TMAP case
+-// in ../cmd/compile/internal/gc/reflect.go:dtypesym.
++// in ../cmd/compile/internal/gc/reflect.go:writeType.
+ func (mt *maptype) indirectkey() bool { // store ptr to key instead of key itself
+ 	return mt.flags&1 != 0
+ }

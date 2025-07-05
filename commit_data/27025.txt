@@ -31,7 +31,7 @@ Date:   Mon Mar 7 22:48:07 2016 -0500
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/compile/internal/gc/reflect.go   |  17 +++-
  src/cmd/internal/obj/link.go             |   2 +
  src/cmd/link/internal/ld/data.go         |   7 +-
@@ -40,3 +40,311 @@ Date:   Mon Mar 7 22:48:07 2016 -0500
  src/cmd/link/internal/ld/pobj.go         |   1 -
  src/cmd/link/internal/ld/symtab.go       |  11 +++
  7 files changed, 35 insertions(+), 166 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index 97c2c6a77f..bfa5c59ff0 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -10,6 +10,7 @@ import (
+ 	"fmt"
+ 	"os"
+ 	"sort"
++	"strings"
+ )
+ 
+ // runtime interface and reflection data structures
+@@ -761,10 +762,20 @@ func dcommontype(s *Sym, ot int, t *Type) int {
+ 	ot = dsymptr(s, ot, gcsym, 0) // gcdata
+ 
+ 	p := Tconv(t, obj.FmtLeft|obj.FmtUnsigned)
+-
++	
++	// If we're writing out type T,
++	// we are very likely to write out type *T as well.
++	// Use the string "*T"[1:] for "T", so that the two
++	// share storage. This is a cheap way to reduce the
++	// amount of space taken up by reflect strings.
++	prefix := 0
++	if !strings.HasPrefix(p, "*") {
++		p = "*"+p
++		prefix = 1
++	}
+ 	_, symdata := stringsym(p) // string
+-	ot = dsymptr(s, ot, symdata, 0)
+-	ot = duintxx(s, ot, uint64(len(p)), Widthint)
++	ot = dsymptr(s, ot, symdata, prefix)
++	ot = duintxx(s, ot, uint64(len(p)-prefix), Widthint)
+ 	//fmt.Printf("dcommontype: %s\n", p)
+ 
+ 	// skip pointer to extraType,
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index eada1f832f..81bfe55780 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -357,6 +357,7 @@ const (
+ 	STYPE
+ 	SSTRING
+ 	SGOSTRING
++	SGOSTRINGHDR
+ 	SGOFUNC
+ 	SGCBITS
+ 	SRODATA
+@@ -375,6 +376,7 @@ const (
+ 	STYPERELRO
+ 	SSTRINGRELRO
+ 	SGOSTRINGRELRO
++	SGOSTRINGHDRRELRO
+ 	SGOFUNCRELRO
+ 	SGCBITSRELRO
+ 	SRODATARELRO
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index bc7909d1ed..a4474baf9f 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -1034,6 +1034,11 @@ func symalign(s *LSym) int32 {
+ 	} else if s.Align != 0 {
+ 		return min
+ 	}
++	if strings.HasPrefix(s.Name, "go.string.") && !strings.HasPrefix(s.Name, "go.string.hdr.") {
++		// String data is just bytes.
++		// If we align it, we waste a lot of space to padding.
++		return 1
++	}
+ 	align := int32(Thearch.Maxalign)
+ 	for int64(align) > s.Size && align > min {
+ 		align >>= 1
+@@ -1206,7 +1211,7 @@ func dodata() {
+ 		// when building a shared library. We do this by boosting objects of
+ 		// type SXXX with relocations to type SXXXRELRO.
+ 		for s := datap; s != nil; s = s.Next {
+-			if (s.Type >= obj.STYPE && s.Type <= obj.SFUNCTAB && len(s.R) > 0) || s.Type == obj.SGOSTRING {
++			if (s.Type >= obj.STYPE && s.Type <= obj.SFUNCTAB && len(s.R) > 0) || s.Type == obj.SGOSTRINGHDR {
+ 				s.Type += (obj.STYPERELRO - obj.STYPE)
+ 				if s.Outer != nil {
+ 					s.Outer.Type = s.Type
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 9bc51f241c..5121a873b2 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -1919,11 +1919,13 @@ func genasmsym(put func(*LSym, string, int, int64, int64, int, *LSym)) {
+ 			obj.STYPE,
+ 			obj.SSTRING,
+ 			obj.SGOSTRING,
++			obj.SGOSTRINGHDR,
+ 			obj.SGOFUNC,
+ 			obj.SGCBITS,
+ 			obj.STYPERELRO,
+ 			obj.SSTRINGRELRO,
+ 			obj.SGOSTRINGRELRO,
++			obj.SGOSTRINGHDRRELRO,
+ 			obj.SGOFUNCRELRO,
+ 			obj.SGCBITSRELRO,
+ 			obj.SRODATARELRO,
+diff --git a/src/cmd/link/internal/ld/mergestrings.go b/src/cmd/link/internal/ld/mergestrings.go
+deleted file mode 100644
+index eb60c40e02..0000000000
+--- a/src/cmd/link/internal/ld/mergestrings.go
++++ /dev/null
+@@ -1,161 +0,0 @@
+-// Copyright 2016 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package ld
+-
+-import (
+-	"bytes"
+-	"cmd/internal/obj"
+-	"index/suffixarray"
+-	"sort"
+-	"strings"
+-)
+-
+-// mergestrings merges all go.string.* character data into a single symbol.
+-//
+-// Combining string data symbols reduces the total binary size and
+-// makes deduplication possible.
+-func mergestrings() {
+-	if Buildmode == BuildmodeShared {
+-		return
+-	}
+-
+-	strs := make([]*LSym, 0, 256)
+-	seenStr := make(map[string]bool, 256)         // symbol name -> in strs slice
+-	relocsToStrs := make(map[*LSym][]*Reloc, 256) // string -> relocation to string
+-	size := 0                                     // number of bytes in all strings
+-
+-	// Collect strings and relocations that point to strings.
+-	for _, s := range Ctxt.Allsym {
+-		if !s.Attr.Reachable() || s.Attr.Special() {
+-			continue
+-		}
+-		for i := range s.R {
+-			r := &s.R[i]
+-			if r.Sym == nil {
+-				continue
+-			}
+-			if !seenStr[r.Sym.Name] {
+-				if !strings.HasPrefix(r.Sym.Name, "go.string.") {
+-					continue
+-				}
+-				if strings.HasPrefix(r.Sym.Name, "go.string.hdr") {
+-					continue
+-				}
+-				strs = append(strs, r.Sym)
+-				seenStr[r.Sym.Name] = true
+-				size += len(r.Sym.P)
+-			}
+-			relocsToStrs[r.Sym] = append(relocsToStrs[r.Sym], r)
+-		}
+-	}
+-
+-	// Sort the strings, shortest first.
+-	//
+-	// Ordering by length lets us use the largest matching substring
+-	// index when there are multiple matches. This means we will not
+-	// use a substring of a string that we will later in the pass
+-	// mark as unreachable.
+-	sort.Sort(strSymsByLen(strs))
+-
+-	// Build a suffix array.
+-	dataOff := make([]int, len(strs))
+-	data := make([]byte, 0, size)
+-	for i := range strs {
+-		dataOff[i] = len(data)
+-		data = append(data, strs[i].P...)
+-	}
+-	index := suffixarray.New(data)
+-
+-	// Search for substring replacements.
+-	type replacement struct {
+-		str *LSym
+-		off int
+-	}
+-	replacements := make(map[*LSym]replacement)
+-	for i, s := range strs {
+-		results := index.Lookup(s.P, -1)
+-		if len(results) == 0 {
+-			continue
+-		}
+-		var res int
+-		for _, result := range results {
+-			if result > res {
+-				res = result
+-			}
+-		}
+-		var off int
+-		x := sort.SearchInts(dataOff, res)
+-		if x == len(dataOff) || dataOff[x] > res {
+-			x--
+-			off = res - dataOff[x]
+-		}
+-		if x == i {
+-			continue // found ourself
+-		}
+-		if len(s.P) > len(strs[x].P[off:]) {
+-			// Do not use substrings that match across strings.
+-			// In theory it is possible, but it would
+-			// complicate accounting for which future strings
+-			// are already used. It doesn't appear to be common
+-			// enough to do the extra work.
+-			continue
+-		}
+-		if off%Thearch.Minalign != 0 {
+-			continue // Cannot relcate to this substring.
+-		}
+-		replacements[s] = replacement{
+-			str: strs[x],
+-			off: off,
+-		}
+-	}
+-
+-	// Put all string data into a single symbol and update the relocations.
+-	alldata := Linklookup(Ctxt, "go.string.alldata", 0)
+-	alldata.Type = obj.SGOSTRING
+-	alldata.Attr |= AttrReachable
+-	alldata.P = make([]byte, 0, size)
+-	for _, str := range strs {
+-		str.Attr.Set(AttrReachable, false)
+-		if rep, isReplaced := replacements[str]; isReplaced {
+-			// As strs is sorted, the replacement string
+-			// is always later in the strs range. Shift the
+-			// relocations to the replacement string symbol
+-			// and process then.
+-			relocs := relocsToStrs[rep.str]
+-			for _, r := range relocsToStrs[str] {
+-				r.Add += int64(rep.off)
+-				relocs = append(relocs, r)
+-			}
+-			relocsToStrs[rep.str] = relocs
+-			continue
+-		}
+-
+-		off := len(alldata.P)
+-		alldata.P = append(alldata.P, str.P...)
+-		// Architectures with Minalign > 1 cannot have relocations pointing
+-		// to arbitrary locations, so make sure each string is appropriately
+-		// aligned.
+-		for r := len(alldata.P) % Thearch.Minalign; r > 0; r-- {
+-			alldata.P = append(alldata.P, 0)
+-		}
+-		for _, r := range relocsToStrs[str] {
+-			r.Add += int64(off)
+-			r.Sym = alldata
+-		}
+-	}
+-	alldata.Size = int64(len(alldata.P))
+-}
+-
+-// strSymsByLen implements sort.Interface. It sorts *LSym by the length of P.
+-type strSymsByLen []*LSym
+-
+-func (s strSymsByLen) Len() int      { return len(s) }
+-func (s strSymsByLen) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
+-func (s strSymsByLen) Less(i, j int) bool {
+-	if len(s[i].P) == len(s[j].P) {
+-		return bytes.Compare(s[i].P, s[j].P) == -1
+-	}
+-	return len(s[i].P) < len(s[j].P)
+-}
+diff --git a/src/cmd/link/internal/ld/pobj.go b/src/cmd/link/internal/ld/pobj.go
+index 06932c694f..0509eff236 100644
+--- a/src/cmd/link/internal/ld/pobj.go
++++ b/src/cmd/link/internal/ld/pobj.go
+@@ -197,7 +197,6 @@ func Ldmain() {
+ 	checkstrdata()
+ 	deadcode()
+ 	callgraph()
+-	mergestrings()
+ 
+ 	doelf()
+ 	if HEADTYPE == obj.Hdarwin {
+diff --git a/src/cmd/link/internal/ld/symtab.go b/src/cmd/link/internal/ld/symtab.go
+index 6a3e10bbf4..60372c988f 100644
+--- a/src/cmd/link/internal/ld/symtab.go
++++ b/src/cmd/link/internal/ld/symtab.go
+@@ -432,6 +432,13 @@ func symtab() {
+ 	s.Attr |= AttrReachable
+ 	symgostring := s
+ 
++	s = Linklookup(Ctxt, "go.string.hdr.*", 0)
++	s.Type = obj.SGOSTRINGHDR
++	s.Attr |= AttrLocal
++	s.Size = 0
++	s.Attr |= AttrReachable
++	symgostringhdr := s
++
+ 	s = Linklookup(Ctxt, "go.func.*", 0)
+ 	s.Type = obj.SGOFUNC
+ 	s.Attr |= AttrLocal
+@@ -488,6 +495,10 @@ func symtab() {
+ 			s.Type = obj.SGOSTRING
+ 			s.Attr |= AttrHidden
+ 			s.Outer = symgostring
++			if strings.HasPrefix(s.Name, "go.string.hdr.") {
++				s.Type = obj.SGOSTRINGHDR
++				s.Outer = symgostringhdr
++			}
+ 		}
+ 
+ 		if strings.HasPrefix(s.Name, "runtime.gcbits.") {

@@ -9,7 +9,95 @@ Date:   Wed Mar 23 14:29:26 2011 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4285062
-
+---
  src/pkg/http/serve_test.go | 55 ++++++++++++++++++++++++++++++++++++++++++++++
  src/pkg/http/server.go     |  4 +---
  2 files changed, 56 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/http/serve_test.go b/src/pkg/http/serve_test.go
+index b5487358cd..683de85b86 100644
+--- a/src/pkg/http/serve_test.go
++++ b/src/pkg/http/serve_test.go
+@@ -452,3 +452,58 @@ func TestChunkedResponseHeaders(t *testing.T) {
+ 		t.Errorf("Unexpected Content-Length")
+ 	}
+ }
++
++// Test304Responses verifies that 304s don't declare that they're
++// chunking in their response headers and aren't allowed to produce
++// output.
++func Test304Responses(t *testing.T) {
++	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
++		w.WriteHeader(StatusNotModified)
++		_, err := w.Write([]byte("illegal body"))
++		if err != ErrBodyNotAllowed {
++			t.Errorf("on Write, expected ErrBodyNotAllowed, got %v", err)
++		}
++	}))
++	defer ts.Close()
++	res, _, err := Get(ts.URL)
++	if err != nil {
++		t.Error(err)
++	}
++	if len(res.TransferEncoding) > 0 {
++		t.Errorf("expected no TransferEncoding; got %v", res.TransferEncoding)
++	}
++	body, err := ioutil.ReadAll(res.Body)
++	if err != nil {
++		t.Error(err)
++	}
++	if len(body) > 0 {
++		t.Errorf("got unexpected body %q", string(body))
++	}
++}
++
++// TestHeadResponses verifies that responses to HEAD requests don't
++// declare that they're chunking in their response headers and aren't
++// allowed to produce output.
++func TestHeadResponses(t *testing.T) {
++	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
++		_, err := w.Write([]byte("Ignored body"))
++		if err != ErrBodyNotAllowed {
++			t.Errorf("on Write, expected ErrBodyNotAllowed, got %v", err)
++		}
++	}))
++	defer ts.Close()
++	res, err := Head(ts.URL)
++	if err != nil {
++		t.Error(err)
++	}
++	if len(res.TransferEncoding) > 0 {
++		t.Errorf("expected no TransferEncoding; got %v", res.TransferEncoding)
++	}
++	body, err := ioutil.ReadAll(res.Body)
++	if err != nil {
++		t.Error(err)
++	}
++	if len(body) > 0 {
++		t.Errorf("got unexpected body %q", string(body))
++	}
++}
+diff --git a/src/pkg/http/server.go b/src/pkg/http/server.go
+index 91caebc2db..8e7039371a 100644
+--- a/src/pkg/http/server.go
++++ b/src/pkg/http/server.go
+@@ -251,10 +251,9 @@ func (w *response) WriteHeader(code int) {
+ 		hasCL = false
+ 	}
+ 
+-	if w.req.Method == "HEAD" {
++	if w.req.Method == "HEAD" || code == StatusNotModified {
+ 		// do nothing
+ 	} else if hasCL {
+-		w.chunking = false
+ 		w.contentLength = contentLength
+ 		w.header.Del("Transfer-Encoding")
+ 	} else if w.req.ProtoAtLeast(1, 1) {
+@@ -270,7 +269,6 @@ func (w *response) WriteHeader(code int) {
+ 		// encoding and we don't know the Content-Length so
+ 		// signal EOF by closing connection.
+ 		w.closeAfterReply = true
+-		w.chunking = false                // redundant
+ 		w.header.Del("Transfer-Encoding") // in case already set
+ 	}
+ 

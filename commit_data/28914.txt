@@ -16,8 +16,168 @@ Date:   Wed Jul 6 15:02:49 2016 -0700
     Reviewed-on: https://go-review.googlesource.com/24749
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/runtime/crash_test.go            | 37 +++++++++++++++++
  src/runtime/hashmap.go               |  6 +--
  src/runtime/testdata/testprog/map.go | 77 ++++++++++++++++++++++++++++++++++++
  3 files changed, 117 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/crash_test.go b/src/runtime/crash_test.go
+index a2f7ff7dec..2f6afb60f6 100644
+--- a/src/runtime/crash_test.go
++++ b/src/runtime/crash_test.go
+@@ -6,6 +6,7 @@ package runtime_test
+ 
+ import (
+ 	"bytes"
++	"flag"
+ 	"fmt"
+ 	"internal/testenv"
+ 	"io/ioutil"
+@@ -482,3 +483,39 @@ func TestMemPprof(t *testing.T) {
+ 		t.Error("missing MemProf in pprof output")
+ 	}
+ }
++
++var concurrentMapTest = flag.Bool("run_concurrent_map_tests", false, "also run flaky concurrent map tests")
++
++func TestConcurrentMapWrites(t *testing.T) {
++	if !*concurrentMapTest {
++		t.Skip("skipping without -run_concurrent_map_tests")
++	}
++	testenv.MustHaveGoRun(t)
++	output := runTestProg(t, "testprog", "concurrentMapWrites")
++	want := "fatal error: concurrent map writes"
++	if !strings.HasPrefix(output, want) {
++		t.Fatalf("output does not start with %q:\n%s", want, output)
++	}
++}
++func TestConcurrentMapReadWrite(t *testing.T) {
++	if !*concurrentMapTest {
++		t.Skip("skipping without -run_concurrent_map_tests")
++	}
++	testenv.MustHaveGoRun(t)
++	output := runTestProg(t, "testprog", "concurrentMapReadWrite")
++	want := "fatal error: concurrent map read and map write"
++	if !strings.HasPrefix(output, want) {
++		t.Fatalf("output does not start with %q:\n%s", want, output)
++	}
++}
++func TestConcurrentMapIterateWrite(t *testing.T) {
++	if !*concurrentMapTest {
++		t.Skip("skipping without -run_concurrent_map_tests")
++	}
++	testenv.MustHaveGoRun(t)
++	output := runTestProg(t, "testprog", "concurrentMapIterateWrite")
++	want := "fatal error: concurrent map iteration and map write"
++	if !strings.HasPrefix(output, want) {
++		t.Fatalf("output does not start with %q:\n%s", want, output)
++	}
++}
+diff --git a/src/runtime/hashmap.go b/src/runtime/hashmap.go
+index 509cab2f0f..f756e7b603 100644
+--- a/src/runtime/hashmap.go
++++ b/src/runtime/hashmap.go
+@@ -382,9 +382,6 @@ func mapaccessK(t *maptype, h *hmap, key unsafe.Pointer) (unsafe.Pointer, unsafe
+ 	if h == nil || h.count == 0 {
+ 		return nil, nil
+ 	}
+-	if h.flags&hashWriting != 0 {
+-		throw("concurrent map read and map write")
+-	}
+ 	alg := t.key.alg
+ 	hash := alg.hash(key, uintptr(h.hash0))
+ 	m := uintptr(1)<<h.B - 1
+@@ -685,6 +682,9 @@ func mapiternext(it *hiter) {
+ 		callerpc := getcallerpc(unsafe.Pointer(&it))
+ 		racereadpc(unsafe.Pointer(h), callerpc, funcPC(mapiternext))
+ 	}
++	if h.flags&hashWriting != 0 {
++		throw("concurrent map iteration and map write")
++	}
+ 	t := it.t
+ 	bucket := it.bucket
+ 	b := it.bptr
+diff --git a/src/runtime/testdata/testprog/map.go b/src/runtime/testdata/testprog/map.go
+new file mode 100644
+index 0000000000..552428957b
+--- /dev/null
++++ b/src/runtime/testdata/testprog/map.go
+@@ -0,0 +1,77 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "runtime"
++
++func init() {
++	register("concurrentMapWrites", concurrentMapWrites)
++	register("concurrentMapReadWrite", concurrentMapReadWrite)
++	register("concurrentMapIterateWrite", concurrentMapIterateWrite)
++}
++
++func concurrentMapWrites() {
++	m := map[int]int{}
++	c := make(chan struct{})
++	go func() {
++		for i := 0; i < 10000; i++ {
++			m[5] = 0
++			runtime.Gosched()
++		}
++		c <- struct{}{}
++	}()
++	go func() {
++		for i := 0; i < 10000; i++ {
++			m[6] = 0
++			runtime.Gosched()
++		}
++		c <- struct{}{}
++	}()
++	<-c
++	<-c
++}
++
++func concurrentMapReadWrite() {
++	m := map[int]int{}
++	c := make(chan struct{})
++	go func() {
++		for i := 0; i < 10000; i++ {
++			m[5] = 0
++			runtime.Gosched()
++		}
++		c <- struct{}{}
++	}()
++	go func() {
++		for i := 0; i < 10000; i++ {
++			_ = m[6]
++			runtime.Gosched()
++		}
++		c <- struct{}{}
++	}()
++	<-c
++	<-c
++}
++
++func concurrentMapIterateWrite() {
++	m := map[int]int{}
++	c := make(chan struct{})
++	go func() {
++		for i := 0; i < 10000; i++ {
++			m[5] = 0
++			runtime.Gosched()
++		}
++		c <- struct{}{}
++	}()
++	go func() {
++		for i := 0; i < 10000; i++ {
++			for range m {
++			}
++			runtime.Gosched()
++		}
++		c <- struct{}{}
++	}()
++	<-c
++	<-c
++}

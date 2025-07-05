@@ -11,6 +11,20 @@ Date:   Thu Nov 4 10:13:11 2021 +0800
     Trust: Damien Neil <dneil@google.com>
     Run-TryBot: Damien Neil <dneil@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/net/netip/netip.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/netip/netip.go b/src/net/netip/netip.go
+index d15a4947ac..02a4aa0452 100644
+--- a/src/net/netip/netip.go
++++ b/src/net/netip/netip.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Package netip defines a IP address type that's a small value type.
++// Package netip defines an IP address type that's a small value type.
+ // Building on that Addr type, the package also defines AddrPort (an
+ // IP address and a port), and Prefix (an IP address and a bit length
+ // prefix).

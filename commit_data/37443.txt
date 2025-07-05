@@ -11,6 +11,20 @@ Date:   Tue Jul 31 21:21:52 2018 +0000
     GitHub-Pull-Request: golang/go#26724
     Reviewed-on: https://go-review.googlesource.com/126935
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/contribute.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/contribute.html b/doc/contribute.html
+index 388016fac0..256b708e13 100644
+--- a/doc/contribute.html
++++ b/doc/contribute.html
+@@ -73,7 +73,7 @@ $ go-contrib-init
+ <p>
+ The rest of this chapter elaborates on these instructions.
+ If you have completed the steps above (either manually or through the tool), jump to
+-<a href="#making_a_change">Making a change</a>.
++<a href="#before_contributing">Before contributing code</a>.
+ </p>
+ 
+ <h3 id="google_account">Step 0: Select a Google Account</h3>

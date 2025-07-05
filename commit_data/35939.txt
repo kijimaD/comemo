@@ -15,9 +15,139 @@ Date:   Wed Mar 14 10:50:49 2018 +0000
     Reviewed-on: https://go-review.googlesource.com/100557
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/dwinl.go | 34 ++++++++++++++++------------------
  src/cmd/compile/internal/gc/phi.go   |  2 +-
  src/cmd/compile/internal/gc/plive.go |  4 ++--
  src/cmd/compile/internal/gc/subr.go  |  6 +++---
  4 files changed, 22 insertions(+), 24 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/dwinl.go b/src/cmd/compile/internal/gc/dwinl.go
+index 33c8c8b058..f514281061 100644
+--- a/src/cmd/compile/internal/gc/dwinl.go
++++ b/src/cmd/compile/internal/gc/dwinl.go
+@@ -100,8 +100,8 @@ func assembleInlines(fnsym *obj.LSym, dwVars []*dwarf.Var) dwarf.InlCalls {
+ 		var m map[varPos]int
+ 		if ii == 0 {
+ 			if !fnsym.WasInlined() {
+-				for j := 0; j < len(sl); j++ {
+-					sl[j].ChildIndex = int32(j)
++				for j, v := range sl {
++					v.ChildIndex = int32(j)
+ 				}
+ 				continue
+ 			}
+@@ -121,19 +121,19 @@ func assembleInlines(fnsym *obj.LSym, dwVars []*dwarf.Var) dwarf.InlCalls {
+ 		// parented by the inlined routine and not the top-level
+ 		// caller.
+ 		synthCount := len(m)
+-		for j := 0; j < len(sl); j++ {
+-			canonName := unversion(sl[j].Name)
++		for _, v := range sl {
++			canonName := unversion(v.Name)
+ 			vp := varPos{
+ 				DeclName: canonName,
+-				DeclFile: sl[j].DeclFile,
+-				DeclLine: sl[j].DeclLine,
+-				DeclCol:  sl[j].DeclCol,
++				DeclFile: v.DeclFile,
++				DeclLine: v.DeclLine,
++				DeclCol:  v.DeclCol,
+ 			}
+-			synthesized := strings.HasPrefix(sl[j].Name, "~r") || canonName == "_"
++			synthesized := strings.HasPrefix(v.Name, "~r") || canonName == "_"
+ 			if idx, found := m[vp]; found {
+-				sl[j].ChildIndex = int32(idx)
+-				sl[j].IsInAbstract = !synthesized
+-				sl[j].Name = canonName
++				v.ChildIndex = int32(idx)
++				v.IsInAbstract = !synthesized
++				v.Name = canonName
+ 			} else {
+ 				// Variable can't be found in the pre-inline dcl list.
+ 				// In the top-level case (ii=0) this can happen
+@@ -141,7 +141,7 @@ func assembleInlines(fnsym *obj.LSym, dwVars []*dwarf.Var) dwarf.InlCalls {
+ 				// and we're looking at a piece. We can also see
+ 				// return temps (~r%d) that were created during
+ 				// lowering, or unnamed params ("_").
+-				sl[j].ChildIndex = int32(synthCount)
++				v.ChildIndex = int32(synthCount)
+ 				synthCount += 1
+ 			}
+ 		}
+@@ -215,8 +215,7 @@ func unversion(name string) string {
+ func makePreinlineDclMap(fnsym *obj.LSym) map[varPos]int {
+ 	dcl := preInliningDcls(fnsym)
+ 	m := make(map[varPos]int)
+-	for i := 0; i < len(dcl); i++ {
+-		n := dcl[i]
++	for i, n := range dcl {
+ 		pos := Ctxt.InnermostPos(n.Pos)
+ 		vp := varPos{
+ 			DeclName: unversion(n.Sym.Name),
+@@ -338,7 +337,7 @@ func (s byClassThenName) Less(i, j int) bool { return cmpDwarfVar(s[i], s[j]) }
+ func (s byClassThenName) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+ 
+ func dumpInlCall(inlcalls dwarf.InlCalls, idx, ilevel int) {
+-	for i := 0; i < ilevel; i += 1 {
++	for i := 0; i < ilevel; i++ {
+ 		Ctxt.Logf("  ")
+ 	}
+ 	ic := inlcalls.Calls[idx]
+@@ -363,9 +362,8 @@ func dumpInlCall(inlcalls dwarf.InlCalls, idx, ilevel int) {
+ }
+ 
+ func dumpInlCalls(inlcalls dwarf.InlCalls) {
+-	n := len(inlcalls.Calls)
+-	for k := 0; k < n; k += 1 {
+-		if inlcalls.Calls[k].Root {
++	for k, c := range inlcalls.Calls {
++		if c.Root {
+ 			dumpInlCall(inlcalls, k, 0)
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/gc/phi.go b/src/cmd/compile/internal/gc/phi.go
+index b549f0ea6f..bd66568eed 100644
+--- a/src/cmd/compile/internal/gc/phi.go
++++ b/src/cmd/compile/internal/gc/phi.go
+@@ -241,7 +241,7 @@ func (s *phiState) insertVarPhis(n int, var_ *Node, defs []*ssa.Block, typ *type
+ 				v := c.NewValue0I(currentRoot.Pos, ssa.OpPhi, typ, int64(n)) // TODO: line number right?
+ 				// Note: we store the variable number in the phi's AuxInt field. Used temporarily by phi building.
+ 				s.s.addNamedValue(var_, v)
+-				for i := 0; i < len(c.Preds); i++ {
++				for range c.Preds {
+ 					v.AddArg(s.placeholder) // Actual args will be filled in by resolveFwdRefs.
+ 				}
+ 				if debugPhi {
+diff --git a/src/cmd/compile/internal/gc/plive.go b/src/cmd/compile/internal/gc/plive.go
+index 60c726ff58..14e755e1b0 100644
+--- a/src/cmd/compile/internal/gc/plive.go
++++ b/src/cmd/compile/internal/gc/plive.go
+@@ -487,8 +487,8 @@ func (lv *Liveness) prologue() {
+ 
+ 		// Walk the block instructions forward to update avarinit bits.
+ 		// avarinit describes the effect at the end of the block, not the beginning.
+-		for j := 0; j < len(b.Values); j++ {
+-			pos, e := lv.valueEffects(b.Values[j])
++		for _, val := range b.Values {
++			pos, e := lv.valueEffects(val)
+ 			if e&varkill != 0 {
+ 				be.avarinit.Unset(pos)
+ 			}
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index b9bf1d34fb..a6231963cd 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -73,9 +73,9 @@ func flusherrors() {
+ 		return
+ 	}
+ 	sort.Stable(byPos(errors))
+-	for i := 0; i < len(errors); i++ {
+-		if i == 0 || errors[i].msg != errors[i-1].msg {
+-			fmt.Printf("%s", errors[i].msg)
++	for i, err := range errors {
++		if i == 0 || err.msg != errors[i-1].msg {
++			fmt.Printf("%s", err.msg)
+ 		}
+ 	}
+ 	errors = errors[:0]

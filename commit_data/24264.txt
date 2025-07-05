@@ -9,6 +9,25 @@ Date:   Mon Jul 20 14:49:14 2015 -0700
     Change-Id: I5eb178331f4ae80821f188e19c0c6fadeb330278
     Reviewed-on: https://go-review.googlesource.com/12433
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/go/types/methodset.go | 7 ++-----
  1 file changed, 2 insertions(+), 5 deletions(-)
+
+diff --git a/src/go/types/methodset.go b/src/go/types/methodset.go
+index 8aff6f9ba4..b27f2dac34 100644
+--- a/src/go/types/methodset.go
++++ b/src/go/types/methodset.go
+@@ -62,11 +62,8 @@ func (s *MethodSet) Lookup(pkg *Package, name string) *Selection {
+ // Shared empty method set.
+ var emptyMethodSet MethodSet
+ 
+-// NewMethodSet returns the method set for the given type T.  It
+-// always returns a non-nil method set, even if it is empty.
+-//
+-// A MethodSetCache handles repeat queries more efficiently.
+-//
++// NewMethodSet returns the method set for the given type T.
++// It always returns a non-nil method set, even if it is empty.
+ func NewMethodSet(T Type) *MethodSet {
+ 	// WARNING: The code in this function is extremely subtle - do not modify casually!
+ 	//          This function and lookupFieldOrMethod should be kept in sync.

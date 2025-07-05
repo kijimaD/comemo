@@ -7,6 +7,34 @@ Date:   Tue Jul 16 19:51:18 2013 +0400
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/11357043
-
+---
  src/pkg/runtime/hashmap.c | 8 ++------
  1 file changed, 2 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/runtime/hashmap.c b/src/pkg/runtime/hashmap.c
+index 2e61bcfe8f..0215a4718e 100644
+--- a/src/pkg/runtime/hashmap.c
++++ b/src/pkg/runtime/hashmap.c
+@@ -610,7 +610,7 @@ hash_insert(MapType *t, Hmap *h, void *key, void *value)
+ 	top = hash >> (sizeof(uintptr)*8 - 8);
+ 	if(top == 0)
+ 		top = 1;
+-	inserti = 0;
++	inserti = nil;
+ 	insertk = nil;
+ 	insertv = nil;
+ 	while(true) {
+@@ -1485,12 +1485,8 @@ reflect·mapiterkey(struct hash_iter *it, uintptr key, bool ok)
+ 	key = 0;
+ 	ok = false;
+ 	res = it->key;
+-	if(res == nil) {
+-		key = 0;
+-		ok = false;
+-	} else {
++	if(res != nil) {
+ 		tkey = it->t->key;
+-		key = 0;
+ 		if(tkey->size <= sizeof(key))
+ 			tkey->alg->copy(tkey->size, (byte*)&key, res);
+ 		else

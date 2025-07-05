@@ -24,8 +24,87 @@ Date:   Mon Oct 24 13:05:10 2016 -0400
     Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/pgen.go |  1 +
  src/cmd/internal/dwarf/dwarf.go     |  5 -----
  src/runtime/runtime-gdb_test.go     | 18 +++++++++++++++++-
  3 files changed, 18 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index a1665ea022..5d77ec66aa 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -423,6 +423,7 @@ func compile(fn *Node) {
+ 			fallthrough
+ 		case PPARAM, PPARAMOUT:
+ 			p := Gins(obj.ATYPE, n, nil)
++			p.From.Sym = obj.Linklookup(Ctxt, n.Sym.Name, 0)
+ 			p.To.Type = obj.TYPE_MEM
+ 			p.To.Name = obj.NAME_EXTERN
+ 			p.To.Sym = Linksym(ngotype(n))
+diff --git a/src/cmd/internal/dwarf/dwarf.go b/src/cmd/internal/dwarf/dwarf.go
+index 58dcf4e55d..725f5027bb 100644
+--- a/src/cmd/internal/dwarf/dwarf.go
++++ b/src/cmd/internal/dwarf/dwarf.go
+@@ -588,11 +588,6 @@ func PutFunc(ctxt Context, s Sym, name string, external bool, startPC Sym, size
+ 		}
+ 		names[n] = true
+ 
+-		// Drop the package prefix from locals and arguments.
+-		if i := strings.LastIndex(n, "."); i >= 0 {
+-			n = n[i+1:]
+-		}
+-
+ 		Uleb128put(ctxt, s, int64(v.Abbrev))
+ 		putattr(ctxt, s, v.Abbrev, DW_FORM_string, DW_CLS_STRING, int64(len(n)), n)
+ 		loc := append(encbuf[:0], DW_OP_call_frame_cfa)
+diff --git a/src/runtime/runtime-gdb_test.go b/src/runtime/runtime-gdb_test.go
+index ba005ac35b..3f2d74248b 100644
+--- a/src/runtime/runtime-gdb_test.go
++++ b/src/runtime/runtime-gdb_test.go
+@@ -68,14 +68,18 @@ func checkGdbPython(t *testing.T) {
+ const helloSource = `
+ package main
+ import "fmt"
++var gslice []string
+ func main() {
+ 	mapvar := make(map[string]string,5)
+ 	mapvar["abc"] = "def"
+ 	mapvar["ghi"] = "jkl"
+ 	strvar := "abc"
+ 	ptrvar := &strvar
+-	fmt.Println("hi") // line 10
++	slicevar := make([]string, 0, 16)
++	slicevar = append(slicevar, mapvar["abc"])
++	fmt.Println("hi") // line 12
+ 	_ = ptrvar
++	gslice = slicevar
+ }
+ `
+ 
+@@ -120,6 +124,9 @@ func TestGdbPython(t *testing.T) {
+ 		"-ex", "echo BEGIN print strvar\n",
+ 		"-ex", "print strvar",
+ 		"-ex", "echo END\n",
++		"-ex", "echo BEGIN info locals\n",
++		"-ex", "info locals",
++		"-ex", "echo END\n",
+ 		"-ex", "down", // back to fmt.Println (goroutine 2 below only works at bottom of stack.  TODO: fix that)
+ 		"-ex", "echo BEGIN goroutine 2 bt\n",
+ 		"-ex", "goroutine 2 bt",
+@@ -168,6 +175,15 @@ func TestGdbPython(t *testing.T) {
+ 		t.Fatalf("print strvar failed: %s", bl)
+ 	}
+ 
++	// Issue 16338: ssa decompose phase can split a structure into
++	// a collection of scalar vars holding the fields. In such cases
++	// the DWARF variable location expression should be of the
++	// form "var.field" and not just "field".
++	infoLocalsRe := regexp.MustCompile(`^slicevar.len = `)
++	if bl := blocks["info locals"]; !infoLocalsRe.MatchString(bl) {
++		t.Fatalf("info locals failed: %s", bl)
++	}
++
+ 	btGoroutineRe := regexp.MustCompile(`^#0\s+runtime.+at`)
+ 	if bl := blocks["goroutine 2 bt"]; !btGoroutineRe.MatchString(bl) {
+ 		t.Fatalf("goroutine 2 bt failed: %s", bl)

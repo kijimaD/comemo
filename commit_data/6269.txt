@@ -33,8 +33,174 @@ Date:   Mon Sep 13 15:42:47 2010 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/2116047
-
+---
  src/cmd/gc/typecheck.c | 22 +++++++++++++++++++-
  test/cmp1.go           | 54 ++++++++++++++++++++++++++++++++++++++++++++++++++
  test/cmp6.go           | 42 +++++++++++++++++++++++++++++++++++++++
  3 files changed, 117 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index ea2cf49973..8ea0f9dca3 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -63,7 +63,7 @@ typechecklist(NodeList *l, int top)
+ Node*
+ typecheck(Node **np, int top)
+ {
+-	int et, op, ptr;
++	int et, aop, op, ptr;
+ 	Node *n, *l, *r;
+ 	NodeList *args;
+ 	int lno, ok, ntop;
+@@ -350,6 +350,26 @@ reswitch:
+ 		et = t->etype;
+ 		if(et == TIDEAL)
+ 			et = TINT;
++		if(iscmp[n->op] && t->etype != TIDEAL && !eqtype(l->type, r->type)) {
++			// comparison is okay as long as one side is
++			// assignable to the other.  convert so they have
++			// the same type.  (the only conversion that isn't
++			// a no-op is concrete == interface.)
++			if(r->type->etype != TBLANK && (aop = assignop(l->type, r->type, nil)) != 0) {
++				l = nod(aop, l, N);
++				l->type = r->type;
++				l->typecheck = 1;
++				n->left = l;
++				t = l->type;
++			} else if(l->type->etype != TBLANK && (aop = assignop(r->type, l->type, nil)) != 0) {
++				r = nod(aop, r, N);
++				r->type = l->type;
++				r->typecheck = 1;
++				n->right = r;
++				t = r->type;
++			}
++			et = t->etype;
++		}
+ 		if(t->etype != TIDEAL && !eqtype(l->type, r->type)) {
+ 		badbinary:
+ 			defaultlit2(&l, &r, 1);
+diff --git a/test/cmp1.go b/test/cmp1.go
+index db0a486dd3..698544c582 100644
+--- a/test/cmp1.go
++++ b/test/cmp1.go
+@@ -26,6 +26,8 @@ func istrue(b bool) {
+ 	}
+ }
+ 
++type T *int
++
+ func main() {
+ 	var a []int
+ 	var b map[string]int
+@@ -55,6 +57,24 @@ func main() {
+ 	isfalse(ib == id)
+ 	istrue(ic == id)
+ 	istrue(ie == ie)
++	
++	// these are okay because one side of the
++	// comparison need only be assignable to the other.
++	isfalse(a == ib)
++	isfalse(a == ic)
++	isfalse(a == id)
++	isfalse(b == ic)
++	isfalse(b == id)
++	istrue(c == id)
++	istrue(e == ie)
++
++	isfalse(ia == b)
++	isfalse(ia == c)
++	isfalse(ia == d)
++	isfalse(ib == c)
++	isfalse(ib == d)
++	istrue(ic == d)
++	istrue(ie == e)
+ 
+ 	// 6g used to let this go through as true.
+ 	var g uint64 = 123
+@@ -73,4 +93,38 @@ func main() {
+ 		println("m[ic] = ", m[ic])
+ 		panic("bad m[ic]")
+ 	}
++	
++	// non-interface comparisons
++	{
++		c := make(chan int)
++		c1 := (<-chan int)(c)
++		c2 := (chan<- int)(c)
++		istrue(c == c1)
++		istrue(c == c2)
++		istrue(c1 == c)
++		istrue(c2 == c)
++		
++		d := make(chan int)
++		isfalse(c == d)
++		isfalse(d == c)
++		isfalse(d == c1)
++		isfalse(d == c2)
++		isfalse(c1 == d)
++		isfalse(c2 == d)
++	}
++
++	// named types vs not
++	{
++		var x = new(int)
++		var y T
++		var z T = x
++		
++		isfalse(x == y)
++		istrue(x == z)
++		isfalse(y == z)
++
++		isfalse(y == x)
++		istrue(z == x)
++		isfalse(z == y)
++	}
+ }
+diff --git a/test/cmp6.go b/test/cmp6.go
+new file mode 100644
+index 0000000000..981a859531
+--- /dev/null
++++ b/test/cmp6.go
+@@ -0,0 +1,42 @@
++// errchk $G -e $D/$F.go
++
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func use(bool) {}
++
++type T1 *int
++type T2 *int
++
++func main() {
++	// Arguments to comparison must be
++	// assignable one to the other (or vice versa)
++	// so chan int can be compared against
++	// directional channels but channel of different
++	// direction cannot be compared against each other.
++	var c1 chan <-int
++	var c2 <-chan int
++	var c3 chan int
++	
++	use(c1 == c2)	// ERROR "invalid operation"
++	use(c2 == c1)	// ERROR "invalid operation"
++	use(c1 == c3)
++	use(c2 == c2)
++	use(c3 == c1)
++	use(c3 == c2)
++
++	// Same applies to named types.
++	var p1 T1
++	var p2 T2
++	var p3 *int
++	
++	use(p1 == p2)	// ERROR "invalid operation"
++	use(p2 == p1)	// ERROR "invalid operation"
++	use(p1 == p3)
++	use(p2 == p2)
++	use(p3 == p1)
++	use(p3 == p2)
++}

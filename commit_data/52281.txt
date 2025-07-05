@@ -20,6 +20,20 @@ Date:   Thu Apr 21 14:06:20 2022 +0100
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/go/format/format.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/go/format/format.go b/src/go/format/format.go
+index fb87e84a4e..3837cb4617 100644
+--- a/src/go/format/format.go
++++ b/src/go/format/format.go
+@@ -38,7 +38,7 @@ const (
+ 
+ var config = printer.Config{Mode: printerMode, Tabwidth: tabWidth}
+ 
+-const parserMode = parser.ParseComments
++const parserMode = parser.ParseComments | parser.SkipObjectResolution
+ 
+ // Node formats node in canonical gofmt style and writes the result to dst.
+ //

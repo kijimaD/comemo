@@ -22,8 +22,67 @@ Date:   Tue Nov 12 00:52:57 2019 +0530
     Run-TryBot: Agniva De Sarker <agniva.quicksilver@gmail.com>
     Reviewed-by: Rob Pike <r@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/doc/doc_test.go     |  1 +
  src/cmd/doc/pkg.go          | 20 ++++++++++----------
  src/cmd/doc/testdata/pkg.go |  2 ++
  3 files changed, 13 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/doc/doc_test.go b/src/cmd/doc/doc_test.go
+index 5c6ec85703..e425045ba5 100644
+--- a/src/cmd/doc/doc_test.go
++++ b/src/cmd/doc/doc_test.go
+@@ -176,6 +176,7 @@ var tests = []test{
+ 			`Comment about block of variables`,
+ 			`VarFive = 5`,
+ 			`var ExportedVariable = 1`,
++			`var ExportedVarOfUnExported unexportedType`,
+ 			`var LongLine = newLongLine\(`,
+ 			`var MultiLineVar = map\[struct {`,
+ 			`FUNCTIONS`,
+diff --git a/src/cmd/doc/pkg.go b/src/cmd/doc/pkg.go
+index fa31eba64b..bfbe765d32 100644
+--- a/src/cmd/doc/pkg.go
++++ b/src/cmd/doc/pkg.go
+@@ -172,18 +172,18 @@ func parsePackage(writer io.Writer, pkg *build.Package, userPath string) *Packag
+ 	constructor := make(map[*doc.Func]bool)
+ 	for _, typ := range docPkg.Types {
+ 		docPkg.Consts = append(docPkg.Consts, typ.Consts...)
+-		for _, value := range typ.Consts {
+-			typedValue[value] = true
+-		}
+ 		docPkg.Vars = append(docPkg.Vars, typ.Vars...)
+-		for _, value := range typ.Vars {
+-			typedValue[value] = true
+-		}
+ 		docPkg.Funcs = append(docPkg.Funcs, typ.Funcs...)
+-		for _, fun := range typ.Funcs {
+-			// We don't count it as a constructor bound to the type
+-			// if the type itself is not exported.
+-			if isExported(typ.Name) {
++		if isExported(typ.Name) {
++			for _, value := range typ.Consts {
++				typedValue[value] = true
++			}
++			for _, value := range typ.Vars {
++				typedValue[value] = true
++			}
++			for _, fun := range typ.Funcs {
++				// We don't count it as a constructor bound to the type
++				// if the type itself is not exported.
+ 				constructor[fun] = true
+ 			}
+ 		}
+diff --git a/src/cmd/doc/testdata/pkg.go b/src/cmd/doc/testdata/pkg.go
+index 759b7723a6..d695bdf1c5 100644
+--- a/src/cmd/doc/testdata/pkg.go
++++ b/src/cmd/doc/testdata/pkg.go
+@@ -35,6 +35,8 @@ const (
+ // Comment about exported variable.
+ var ExportedVariable = 1
+ 
++var ExportedVarOfUnExported unexportedType
++
+ // Comment about internal variable.
+ var internalVariable = 2
+ 

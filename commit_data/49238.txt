@@ -12,9 +12,149 @@ Date:   Thu Jul 29 22:24:37 2021 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/338469
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/instance.go   | 42 ---------------------------
  src/cmd/compile/internal/types2/named.go      | 38 +++++++++++++++++++++++-
  src/cmd/compile/internal/types2/predicates.go |  6 ----
  src/cmd/compile/internal/types2/unify.go      |  3 --
  4 files changed, 37 insertions(+), 52 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/instance.go b/src/cmd/compile/internal/types2/instance.go
+deleted file mode 100644
+index 40e89289a2..0000000000
+--- a/src/cmd/compile/internal/types2/instance.go
++++ /dev/null
+@@ -1,42 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package types2
+-
+-// TODO(rfindley): move this code to named.go.
+-
+-import "cmd/compile/internal/syntax"
+-
+-// instance holds position information for use in lazy instantiation.
+-//
+-// TODO(rfindley): come up with a better name for this type, now that its usage
+-// has changed.
+-type instance struct {
+-	pos     syntax.Pos   // position of type instantiation; for error reporting only
+-	posList []syntax.Pos // position of each targ; for error reporting only
+-}
+-
+-// expand ensures that the underlying type of n is instantiated.
+-// The underlying type will be Typ[Invalid] if there was an error.
+-func (n *Named) expand() {
+-	if n.instance != nil {
+-		// n must be loaded before instantiation, in order to have accurate
+-		// tparams. This is done implicitly by the call to n.TParams, but making it
+-		// explicit is harmless: load is idempotent.
+-		n.load()
+-		inst := n.check.instantiate(n.instance.pos, n.orig.underlying, n.TParams().list(), n.targs, n.instance.posList)
+-		n.underlying = inst
+-		n.fromRHS = inst
+-		n.instance = nil
+-	}
+-}
+-
+-// expand expands uninstantiated named types and leaves all other types alone.
+-// expand does not recurse.
+-func expand(typ Type) Type {
+-	if t, _ := typ.(*Named); t != nil {
+-		t.expand()
+-	}
+-	return typ
+-}
+diff --git a/src/cmd/compile/internal/types2/named.go b/src/cmd/compile/internal/types2/named.go
+index 96f2db1429..8ded197df5 100644
+--- a/src/cmd/compile/internal/types2/named.go
++++ b/src/cmd/compile/internal/types2/named.go
+@@ -4,7 +4,10 @@
+ 
+ package types2
+ 
+-import "sync"
++import (
++	"cmd/compile/internal/syntax"
++	"sync"
++)
+ 
+ // TODO(gri) Clean up Named struct below; specifically the fromRHS field (can we use underlying?).
+ 
+@@ -252,3 +255,36 @@ func (n *Named) setUnderlying(typ Type) {
+ 		n.underlying = typ
+ 	}
+ }
++
++// instance holds position information for use in lazy instantiation.
++//
++// TODO(rfindley): come up with a better name for this type, now that its usage
++// has changed.
++type instance struct {
++	pos     syntax.Pos   // position of type instantiation; for error reporting only
++	posList []syntax.Pos // position of each targ; for error reporting only
++}
++
++// expand ensures that the underlying type of n is instantiated.
++// The underlying type will be Typ[Invalid] if there was an error.
++func (n *Named) expand() {
++	if n.instance != nil {
++		// n must be loaded before instantiation, in order to have accurate
++		// tparams. This is done implicitly by the call to n.TParams, but making it
++		// explicit is harmless: load is idempotent.
++		n.load()
++		inst := n.check.instantiate(n.instance.pos, n.orig.underlying, n.TParams().list(), n.targs, n.instance.posList)
++		n.underlying = inst
++		n.fromRHS = inst
++		n.instance = nil
++	}
++}
++
++// expand expands uninstantiated named types and leaves all other types alone.
++// expand does not recurse.
++func expand(typ Type) Type {
++	if t, _ := typ.(*Named); t != nil {
++		t.expand()
++	}
++	return typ
++}
+diff --git a/src/cmd/compile/internal/types2/predicates.go b/src/cmd/compile/internal/types2/predicates.go
+index 84342b2796..bb7fedda3b 100644
+--- a/src/cmd/compile/internal/types2/predicates.go
++++ b/src/cmd/compile/internal/types2/predicates.go
+@@ -57,9 +57,6 @@ func isNumericOrString(typ Type) bool { return is(typ, IsNumeric|IsString) }
+ func isTyped(typ Type) bool {
+ 	// isTyped is called with types that are not fully
+ 	// set up. Must not call asBasic()!
+-	// A *Named or *instance type is always typed, so
+-	// we only need to check if we have a true *Basic
+-	// type.
+ 	t, _ := typ.(*Basic)
+ 	return t == nil || t.info&IsUntyped == 0
+ }
+@@ -328,9 +325,6 @@ func identical(x, y Type, cmpTags bool, p *ifacePair) bool {
+ 	case *TypeParam:
+ 		// nothing to do (x and y being equal is caught in the very beginning of this function)
+ 
+-	// case *instance:
+-	//	unreachable since types are expanded
+-
+ 	case *top:
+ 		// Either both types are theTop in which case the initial x == y check
+ 		// will have caught them. Otherwise they are not identical.
+diff --git a/src/cmd/compile/internal/types2/unify.go b/src/cmd/compile/internal/types2/unify.go
+index 7221356354..aa9a23d243 100644
+--- a/src/cmd/compile/internal/types2/unify.go
++++ b/src/cmd/compile/internal/types2/unify.go
+@@ -459,9 +459,6 @@ func (u *unifier) nify(x, y Type, p *ifacePair) bool {
+ 		// are identical if they originate in the same declaration.
+ 		return x == y
+ 
+-	// case *instance:
+-	//	unreachable since types are expanded
+-
+ 	case nil:
+ 		// avoid a crash in case of nil type
+ 

@@ -40,8 +40,429 @@ Date:   Fri May 17 17:55:20 2019 -0700
     Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-
+---
  src/debug/pe/file.go                            | 200 ++++++++++++++++++++----
  src/debug/pe/file_test.go                       | 174 +++++++++++++++------
  src/debug/pe/testdata/vmlinuz-4.15.0-47-generic | Bin 0 -> 474 bytes
  3 files changed, 301 insertions(+), 73 deletions(-)
+
+diff --git a/src/debug/pe/file.go b/src/debug/pe/file.go
+index 58814162bc..14ad245224 100644
+--- a/src/debug/pe/file.go
++++ b/src/debug/pe/file.go
+@@ -58,11 +58,6 @@ func (f *File) Close() error {
+ 	return err
+ }
+ 
+-var (
+-	sizeofOptionalHeader32 = uint16(binary.Size(OptionalHeader32{}))
+-	sizeofOptionalHeader64 = uint16(binary.Size(OptionalHeader64{}))
+-)
+-
+ // TODO(brainman): add Load function, as a replacement for NewFile, that does not call removeAuxSymbols (for performance)
+ 
+ // NewFile creates a new File for accessing a PE binary in an underlying reader.
+@@ -114,31 +109,17 @@ func NewFile(r io.ReaderAt) (*File, error) {
+ 		return nil, err
+ 	}
+ 
++	// Seek past file header.
++	_, err = sr.Seek(base+int64(binary.Size(f.FileHeader)), seekStart)
++	if err != nil {
++		return nil, fmt.Errorf("failure to seek past the file header: %v", err)
++	}
++
+ 	// Read optional header.
+-	sr.Seek(base, seekStart)
+-	if err := binary.Read(sr, binary.LittleEndian, &f.FileHeader); err != nil {
++	f.OptionalHeader, err = readOptionalHeader(sr, f.FileHeader.SizeOfOptionalHeader)
++	if err != nil {
+ 		return nil, err
+ 	}
+-	var oh32 OptionalHeader32
+-	var oh64 OptionalHeader64
+-	switch f.FileHeader.SizeOfOptionalHeader {
+-	case sizeofOptionalHeader32:
+-		if err := binary.Read(sr, binary.LittleEndian, &oh32); err != nil {
+-			return nil, err
+-		}
+-		if oh32.Magic != 0x10b { // PE32
+-			return nil, fmt.Errorf("pe32 optional header has unexpected Magic of 0x%x", oh32.Magic)
+-		}
+-		f.OptionalHeader = &oh32
+-	case sizeofOptionalHeader64:
+-		if err := binary.Read(sr, binary.LittleEndian, &oh64); err != nil {
+-			return nil, err
+-		}
+-		if oh64.Magic != 0x20b { // PE32+
+-			return nil, fmt.Errorf("pe32+ optional header has unexpected Magic of 0x%x", oh64.Magic)
+-		}
+-		f.OptionalHeader = &oh64
+-	}
+ 
+ 	// Process sections.
+ 	f.Sections = make([]*Section, f.FileHeader.NumberOfSections)
+@@ -453,3 +434,168 @@ type FormatError struct {
+ func (e *FormatError) Error() string {
+ 	return "unknown error"
+ }
++
++// readOptionalHeader accepts a io.ReadSeeker pointing to optional header in the PE file
++// and its size as seen in the file header.
++// It parses the given size of bytes and returns optional header. It infers whether the
++// bytes being parsed refer to 32 bit or 64 bit version of optional header.
++func readOptionalHeader(r io.ReadSeeker, sz uint16) (interface{}, error) {
++	// If optional header size is 0, return empty optional header.
++	if sz == 0 {
++		return nil, nil
++	}
++
++	var (
++		// First couple of bytes in option header state its type.
++		// We need to read them first to determine the type and
++		// validity of optional header.
++		ohMagic   uint16
++		ohMagicSz = binary.Size(ohMagic)
++	)
++
++	// If optional header size is greater than 0 but less than its magic size, return error.
++	if sz < uint16(ohMagicSz) {
++		return nil, fmt.Errorf("optional header size is less than optional header magic size")
++	}
++
++	// read reads from io.ReadSeeke, r, into data.
++	var err error
++	read := func(data interface{}) bool {
++		err = binary.Read(r, binary.LittleEndian, data)
++		return err == nil
++	}
++
++	if !read(&ohMagic) {
++		return nil, fmt.Errorf("failure to read optional header magic: %v", err)
++
++	}
++
++	switch ohMagic {
++	case 0x10b: // PE32
++		var (
++			oh32 OptionalHeader32
++			// There can be 0 or more data directories. So the minimum size of optional
++			// header is calculated by substracting oh32.DataDirectory size from oh32 size.
++			oh32MinSz = binary.Size(oh32) - binary.Size(oh32.DataDirectory)
++		)
++
++		if sz < uint16(oh32MinSz) {
++			return nil, fmt.Errorf("optional header size(%d) is less minimum size (%d) of PE32 optional header", sz, oh32MinSz)
++		}
++
++		// Init oh32 fields
++		oh32.Magic = ohMagic
++		if !read(&oh32.MajorLinkerVersion) ||
++			!read(&oh32.MinorLinkerVersion) ||
++			!read(&oh32.SizeOfCode) ||
++			!read(&oh32.SizeOfInitializedData) ||
++			!read(&oh32.SizeOfUninitializedData) ||
++			!read(&oh32.AddressOfEntryPoint) ||
++			!read(&oh32.BaseOfCode) ||
++			!read(&oh32.BaseOfData) ||
++			!read(&oh32.ImageBase) ||
++			!read(&oh32.SectionAlignment) ||
++			!read(&oh32.FileAlignment) ||
++			!read(&oh32.MajorOperatingSystemVersion) ||
++			!read(&oh32.MinorOperatingSystemVersion) ||
++			!read(&oh32.MajorImageVersion) ||
++			!read(&oh32.MinorImageVersion) ||
++			!read(&oh32.MajorSubsystemVersion) ||
++			!read(&oh32.MinorSubsystemVersion) ||
++			!read(&oh32.Win32VersionValue) ||
++			!read(&oh32.SizeOfImage) ||
++			!read(&oh32.SizeOfHeaders) ||
++			!read(&oh32.CheckSum) ||
++			!read(&oh32.Subsystem) ||
++			!read(&oh32.DllCharacteristics) ||
++			!read(&oh32.SizeOfStackReserve) ||
++			!read(&oh32.SizeOfStackCommit) ||
++			!read(&oh32.SizeOfHeapReserve) ||
++			!read(&oh32.SizeOfHeapCommit) ||
++			!read(&oh32.LoaderFlags) ||
++			!read(&oh32.NumberOfRvaAndSizes) {
++			return nil, fmt.Errorf("failure to read PE32 optional header: %v", err)
++		}
++
++		dd, err := readDataDirectories(r, sz-uint16(oh32MinSz), oh32.NumberOfRvaAndSizes)
++		if err != nil {
++			return nil, err
++		}
++
++		copy(oh32.DataDirectory[:], dd)
++
++		return &oh32, nil
++	case 0x20b: // PE32+
++		var (
++			oh64 OptionalHeader64
++			// There can be 0 or more data directories. So the minimum size of optional
++			// header is calculated by substracting oh64.DataDirectory size from oh64 size.
++			oh64MinSz = binary.Size(oh64) - binary.Size(oh64.DataDirectory)
++		)
++
++		if sz < uint16(oh64MinSz) {
++			return nil, fmt.Errorf("optional header size(%d) is less minimum size (%d) for PE32+ optional header", sz, oh64MinSz)
++		}
++
++		// Init oh64 fields
++		oh64.Magic = ohMagic
++		if !read(&oh64.MajorLinkerVersion) ||
++			!read(&oh64.MinorLinkerVersion) ||
++			!read(&oh64.SizeOfCode) ||
++			!read(&oh64.SizeOfInitializedData) ||
++			!read(&oh64.SizeOfUninitializedData) ||
++			!read(&oh64.AddressOfEntryPoint) ||
++			!read(&oh64.BaseOfCode) ||
++			!read(&oh64.ImageBase) ||
++			!read(&oh64.SectionAlignment) ||
++			!read(&oh64.FileAlignment) ||
++			!read(&oh64.MajorOperatingSystemVersion) ||
++			!read(&oh64.MinorOperatingSystemVersion) ||
++			!read(&oh64.MajorImageVersion) ||
++			!read(&oh64.MinorImageVersion) ||
++			!read(&oh64.MajorSubsystemVersion) ||
++			!read(&oh64.MinorSubsystemVersion) ||
++			!read(&oh64.Win32VersionValue) ||
++			!read(&oh64.SizeOfImage) ||
++			!read(&oh64.SizeOfHeaders) ||
++			!read(&oh64.CheckSum) ||
++			!read(&oh64.Subsystem) ||
++			!read(&oh64.DllCharacteristics) ||
++			!read(&oh64.SizeOfStackReserve) ||
++			!read(&oh64.SizeOfStackCommit) ||
++			!read(&oh64.SizeOfHeapReserve) ||
++			!read(&oh64.SizeOfHeapCommit) ||
++			!read(&oh64.LoaderFlags) ||
++			!read(&oh64.NumberOfRvaAndSizes) {
++			return nil, fmt.Errorf("failure to read PE32+ optional header: %v", err)
++		}
++
++		dd, err := readDataDirectories(r, sz-uint16(oh64MinSz), oh64.NumberOfRvaAndSizes)
++		if err != nil {
++			return nil, err
++		}
++
++		copy(oh64.DataDirectory[:], dd)
++
++		return &oh64, nil
++	default:
++		return nil, fmt.Errorf("optional header has unexpected Magic of 0x%x", ohMagic)
++	}
++}
++
++// readDataDirectories accepts a io.ReadSeeker pointing to data directories in the PE file,
++// its size and number of data directories as seen in optional header.
++// It parses the given size of bytes and returns given number of data directories.
++func readDataDirectories(r io.ReadSeeker, sz uint16, n uint32) ([]DataDirectory, error) {
++	ddSz := binary.Size(DataDirectory{})
++	if uint32(sz) != n*uint32(ddSz) {
++		return nil, fmt.Errorf("size of data directories(%d) is inconsistent with number of data directories(%d)", sz, n)
++	}
++
++	dd := make([]DataDirectory, n)
++	if err := binary.Read(r, binary.LittleEndian, dd); err != nil {
++		return nil, fmt.Errorf("failure to read data directories: %v", err)
++	}
++
++	return dd, nil
++}
+diff --git a/src/debug/pe/file_test.go b/src/debug/pe/file_test.go
+index 6c7fe13caf..42d328b547 100644
+--- a/src/debug/pe/file_test.go
++++ b/src/debug/pe/file_test.go
+@@ -211,6 +211,44 @@ var fileTests = []fileTest{
+ 			{".debug_ranges", 0xa70, 0x44000, 0xc00, 0x38a00, 0x0, 0x0, 0x0, 0x0, 0x42100040},
+ 		},
+ 	},
++	{
++		// testdata/vmlinuz-4.15.0-47-generic is a trimmed down version of Linux Kernel image.
++		// The original Linux Kernel image is about 8M and it is not recommended to add such a big binary file to the repo.
++		// Moreover only a very small portion of the original Kernel image was being parsed by debug/pe package.
++		// Inorder to indentify this portion, the original image was first parsed by modified debug/pe package.
++		// Modification essentially communicated reader's positions before and after parsing.
++		// Finally, bytes between those positions where written to a separate file,
++		// generating trimmed down version Linux Kernel image used in this test case.
++		file: "testdata/vmlinuz-4.15.0-47-generic",
++		hdr:  FileHeader{0x8664, 0x4, 0x0, 0x0, 0x1, 0xa0, 0x206},
++		opthdr: &OptionalHeader64{
++			0x20b, 0x2, 0x14, 0x7c0590, 0x0, 0x168f870, 0x4680, 0x200, 0x0, 0x20, 0x20, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x1e50000, 0x200, 0x7c3ab0, 0xa, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x6,
++			[16]DataDirectory{
++				{0x0, 0x0},
++				{0x0, 0x0},
++				{0x0, 0x0},
++				{0x0, 0x0},
++				{0x7c07a0, 0x778},
++				{0x0, 0x0},
++				{0x0, 0x0},
++				{0x0, 0x0},
++				{0x0, 0x0},
++				{0x0, 0x0},
++				{0x0, 0x0},
++				{0x0, 0x0},
++				{0x0, 0x0},
++				{0x0, 0x0},
++				{0x0, 0x0},
++				{0x0, 0x0},
++			}},
++		sections: []*SectionHeader{
++			{".setup", 0x41e0, 0x200, 0x41e0, 0x200, 0x0, 0x0, 0x0, 0x0, 0x60500020},
++			{".reloc", 0x20, 0x43e0, 0x20, 0x43e0, 0x0, 0x0, 0x0, 0x0, 0x42100040},
++			{".text", 0x7bc390, 0x4400, 0x7bc390, 0x4400, 0x0, 0x0, 0x0, 0x0, 0x60500020},
++			{".bss", 0x168f870, 0x7c0790, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0xc8000080},
++		},
++		hasNoDwarfInfo: true,
++	},
+ }
+ 
+ func isOptHdrEq(a, b interface{}) bool {
+@@ -629,51 +667,95 @@ func TestImportTableInUnknownSection(t *testing.T) {
+ 	}
+ }
+ 
+-func TestInvalidFormat(t *testing.T) {
+-	crashers := [][]byte{
+-		// https://golang.org/issue/30250
+-		[]byte("\x00\x00\x00\x0000000\x00\x00\x00\x00\x00\x00\x000000" +
+-			"00000000000000000000" +
+-			"000000000\x00\x00\x0000000000" +
+-			"00000000000000000000" +
+-			"0000000000000000"),
+-		// https://golang.org/issue/30253
+-		[]byte("L\x01\b\x00regi\x00\x00\x00\x00\x00\x00\x00\x00\xe0\x00\x0f\x03" +
+-			"\v\x01\x02\x18\x00\x0e\x00\x00\x00\x1e\x00\x00\x00\x02\x00\x00\x80\x12\x00\x00" +
+-			"\x00\x10\x00\x00\x00 \x00\x00\x00\x00@\x00\x00\x10\x00\x00\x00\x02\x00\x00" +
+-			"\x04\x00\x00\x00\x01\x00\x00\x00\x04\x00\x00\x00\x00\x00\x00\x00\x00\x90\x00\x00" +
+-			"\x00\x04\x00\x00\x06S\x00\x00\x03\x00\x00\x00\x00\x00 \x00\x00\x10\x00\x00" +
+-			"\x00\x00\x10\x00\x00\x10\x00\x00\x00\x00\x00\x00\x10\x00\x00\x00\x00\x00\x00\x00" +
+-			"\x00\x00\x00\x00\x00`\x00\x00x\x03\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00" +
+-			"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00" +
+-			"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00" +
+-			"\x00\x00\x00\x00\x00\x00\x00\x00\x04\x80\x00\x00\x18\x00\x00\x00\x00\x00\x00\x00" +
+-			"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xb8`\x00\x00|\x00\x00\x00" +
+-			"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00" +
+-			"\x00\x00\x00\x00.text\x00\x00\x00d\f\x00\x00\x00\x10\x00\x00" +
+-			"\x00\x0e\x00\x00\x00\x04\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00" +
+-			"`\x00P`.data\x00\x00\x00\x10\x00\x00\x00\x00 \x00\x00" +
+-			"\x00\x02\x00\x00\x00\x12\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00" +
+-			"@\x000\xc0.rdata\x00\x004\x01\x00\x00\x000\x00\x00" +
+-			"\x00\x02\x00\x00\x00\x14\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00" +
+-			"@\x000@.eh_fram\xa0\x03\x00\x00\x00@\x00\x00" +
+-			"\x00\x04\x00\x00\x00\x16\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00" +
+-			"@\x000@.bss\x00\x00\x00\x00`\x00\x00\x00\x00P\x00\x00" +
+-			"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00" +
+-			"\x80\x000\xc0.idata\x00\x00x\x03\x00\x00\x00`\x00\x00" +
+-			"\x04\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00@\x00" +
+-			"0\xc0.CRT\x00\x00\x00\x00\x18\x00\x00\x00\x00p\x00\x00\x00\x02" +
+-			"\x00\x00\x00\x1e\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00@\x00" +
+-			"0\xc0.tls\x00\x00\x00\x00 \x00\x00\x00\x00\x80\x00\x00\x00\x02" +
+-			"\x00\x00\x00 \x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x001\xc9" +
+-			"H\x895\x1d"),
+-	}
+-
+-	for _, data := range crashers {
+-		f, err := NewFile(bytes.NewReader(data))
+-		if err != nil {
+-			t.Error(err)
+-		}
+-		f.ImportedSymbols()
++func TestInvalidOptionalHeaderMagic(t *testing.T) {
++	// Files with invalid optional header magic should return error from NewFile()
++	// (see https://golang.org/issue/30250 and https://golang.org/issue/32126 for details).
++	// Input generated by gofuzz
++	data := []byte("\x00\x00\x00\x0000000\x00\x00\x00\x00\x00\x00\x000000" +
++		"00000000000000000000" +
++		"000000000\x00\x00\x0000000000" +
++		"00000000000000000000" +
++		"0000000000000000")
++
++	_, err := NewFile(bytes.NewReader(data))
++	if err == nil {
++		t.Fatal("NewFile succeeded unexpectedly")
++	}
++}
++
++func TestImportedSymbolsNoPanicMissingOptionalHeader(t *testing.T) {
++	// https://golang.org/issue/30250
++	// ImportedSymbols shouldn't panic if optional headers is missing
++	data, err := ioutil.ReadFile("testdata/gcc-amd64-mingw-obj")
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	f, err := NewFile(bytes.NewReader(data))
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	if f.OptionalHeader != nil {
++		t.Fatal("expected f.OptionalHeader to be nil, received non-nil optional header")
++	}
++
++	syms, err := f.ImportedSymbols()
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	if len(syms) != 0 {
++		t.Fatalf("expected len(syms) == 0, received len(syms) = %d", len(syms))
++	}
++
++}
++
++func TestImportedSymbolsNoPanicWithSliceOutOfBound(t *testing.T) {
++	// https://golang.org/issue/30253
++	// ImportedSymbols shouldn't panic with slice out of bounds
++	// Input generated by gofuzz
++	data := []byte("L\x01\b\x00regi\x00\x00\x00\x00\x00\x00\x00\x00\xe0\x00\x0f\x03" +
++		"\v\x01\x02\x18\x00\x0e\x00\x00\x00\x1e\x00\x00\x00\x02\x00\x00\x80\x12\x00\x00" +
++		"\x00\x10\x00\x00\x00 \x00\x00\x00\x00@\x00\x00\x10\x00\x00\x00\x02\x00\x00" +
++		"\x04\x00\x00\x00\x01\x00\x00\x00\x04\x00\x00\x00\x00\x00\x00\x00\x00\x90\x00\x00" +
++		"\x00\x04\x00\x00\x06S\x00\x00\x03\x00\x00\x00\x00\x00 \x00\x00\x10\x00\x00" +
++		"\x00\x00\x10\x00\x00\x10\x00\x00\x00\x00\x00\x00\x10\x00\x00\x00\x00\x00\x00\x00" +
++		"\x00\x00\x00\x00\x00`\x00\x00x\x03\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00" +
++		"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00" +
++		"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00" +
++		"\x00\x00\x00\x00\x00\x00\x00\x00\x04\x80\x00\x00\x18\x00\x00\x00\x00\x00\x00\x00" +
++		"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xb8`\x00\x00|\x00\x00\x00" +
++		"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00" +
++		"\x00\x00\x00\x00.text\x00\x00\x00d\f\x00\x00\x00\x10\x00\x00" +
++		"\x00\x0e\x00\x00\x00\x04\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00" +
++		"`\x00P`.data\x00\x00\x00\x10\x00\x00\x00\x00 \x00\x00" +
++		"\x00\x02\x00\x00\x00\x12\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00" +
++		"@\x000\xc0.rdata\x00\x004\x01\x00\x00\x000\x00\x00" +
++		"\x00\x02\x00\x00\x00\x14\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00" +
++		"@\x000@.eh_fram\xa0\x03\x00\x00\x00@\x00\x00" +
++		"\x00\x04\x00\x00\x00\x16\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00" +
++		"@\x000@.bss\x00\x00\x00\x00`\x00\x00\x00\x00P\x00\x00" +
++		"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00" +
++		"\x80\x000\xc0.idata\x00\x00x\x03\x00\x00\x00`\x00\x00" +
++		"\x04\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00@\x00" +
++		"0\xc0.CRT\x00\x00\x00\x00\x18\x00\x00\x00\x00p\x00\x00\x00\x02" +
++		"\x00\x00\x00\x1e\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00@\x00" +
++		"0\xc0.tls\x00\x00\x00\x00 \x00\x00\x00\x00\x80\x00\x00\x00\x02" +
++		"\x00\x00\x00 \x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x001\xc9" +
++		"H\x895\x1d")
++
++	f, err := NewFile(bytes.NewReader(data))
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	syms, err := f.ImportedSymbols()
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	if len(syms) != 0 {
++		t.Fatalf("expected len(syms) == 0, received len(syms) = %d", len(syms))
+ 	}
+ }
+diff --git a/src/debug/pe/testdata/vmlinuz-4.15.0-47-generic b/src/debug/pe/testdata/vmlinuz-4.15.0-47-generic
+new file mode 100644
+index 0000000000..d01cf61d05
+Binary files /dev/null and b/src/debug/pe/testdata/vmlinuz-4.15.0-47-generic differ

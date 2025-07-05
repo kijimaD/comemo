@@ -22,7 +22,7 @@ Date:   Sun Feb 5 15:54:33 2023 -0500
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Run-TryBot: Austin Clements <austin@google.com>
-
+---
  src/runtime/import_test.go    |  41 ++++++++++++++
  src/runtime/importx_test.go   |  33 ++++++++++++
  src/runtime/runtime2.go       |   2 +
@@ -31,3 +31,414 @@ Date:   Sun Feb 5 15:54:33 2023 -0500
  src/runtime/symtabinl.go      | 114 +++++++++++++++++++++++++++++++++++++++
  src/runtime/symtabinl_test.go | 122 ++++++++++++++++++++++++++++++++++++++++++
  7 files changed, 340 insertions(+), 9 deletions(-)
+
+diff --git a/src/runtime/import_test.go b/src/runtime/import_test.go
+new file mode 100644
+index 0000000000..a0a7ab945c
+--- /dev/null
++++ b/src/runtime/import_test.go
+@@ -0,0 +1,41 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This file and importx_test.go make it possible to write tests in the runtime
++// package, which is generally more convenient for testing runtime internals.
++// For tests that mostly touch public APIs, it's generally easier to write them
++// in the runtime_test package and export any runtime internals via
++// export_test.go.
++//
++// There are a few limitations on runtime package tests that this bridges:
++//
++// 1. Tests use the signature "XTest<name>(t T)". Since runtime can't import
++// testing, test functions can't use testing.T, so instead we have the T
++// interface, which *testing.T satisfies. And we start names with "XTest"
++// because otherwise go test will complain about Test functions with the wrong
++// signature. To actually expose these as test functions, this file contains
++// trivial wrappers.
++//
++// 2. Runtime package tests can't directly import other std packages, so we
++// inject any necessary functions from std.
++
++// TODO: Generate this
++
++package runtime_test
++
++import (
++	"fmt"
++	"internal/testenv"
++	"runtime"
++	"testing"
++)
++
++func init() {
++	runtime.FmtSprintf = fmt.Sprintf
++	runtime.TestenvOptimizationOff = testenv.OptimizationOff
++}
++
++func TestInlineUnwinder(t *testing.T) {
++	runtime.XTestInlineUnwinder(t)
++}
+diff --git a/src/runtime/importx_test.go b/src/runtime/importx_test.go
+new file mode 100644
+index 0000000000..4574af73e4
+--- /dev/null
++++ b/src/runtime/importx_test.go
+@@ -0,0 +1,33 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// See import_test.go. This is the half that lives in the runtime package.
++
++// TODO: Generate this
++
++package runtime
++
++type TestingT interface {
++	Cleanup(func())
++	Error(args ...any)
++	Errorf(format string, args ...any)
++	Fail()
++	FailNow()
++	Failed() bool
++	Fatal(args ...any)
++	Fatalf(format string, args ...any)
++	Helper()
++	Log(args ...any)
++	Logf(format string, args ...any)
++	Name() string
++	Setenv(key, value string)
++	Skip(args ...any)
++	SkipNow()
++	Skipf(format string, args ...any)
++	Skipped() bool
++	TempDir() string
++}
++
++var FmtSprintf func(format string, a ...any) string
++var TestenvOptimizationOff func() bool
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 044a9a715f..bb246193cb 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -924,6 +924,8 @@ type _func struct {
+ // Pseudo-Func that is returned for PCs that occur in inlined code.
+ // A *Func can be either a *_func or a *funcinl, and they are distinguished
+ // by the first uintptr.
++//
++// TODO(austin): Can we merge this with inlinedCall?
+ type funcinl struct {
+ 	ones      uint32  // set to ^0 to distinguish from _func
+ 	entry     uintptr // entry of the real (the "outermost") frame
+diff --git a/src/runtime/string.go b/src/runtime/string.go
+index a00976be59..7ac3e66a3a 100644
+--- a/src/runtime/string.go
++++ b/src/runtime/string.go
+@@ -345,6 +345,10 @@ func hasPrefix(s, prefix string) bool {
+ 	return len(s) >= len(prefix) && s[:len(prefix)] == prefix
+ }
+ 
++func hasSuffix(s, suffix string) bool {
++	return len(s) >= len(suffix) && s[len(s)-len(suffix):] == suffix
++}
++
+ const (
+ 	maxUint64 = ^uint64(0)
+ 	maxInt64  = int64(maxUint64 >> 1)
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index 4f41749353..c3329568b7 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -898,6 +898,30 @@ func findfunc(pc uintptr) funcInfo {
+ 	return funcInfo{(*_func)(unsafe.Pointer(&datap.pclntable[funcoff])), datap}
+ }
+ 
++// A srcFunc represents a logical function in the source code. This may
++// correspond to an actual symbol in the binary text, or it may correspond to a
++// source function that has been inlined.
++type srcFunc struct {
++	datap     *moduledata
++	nameOff   int32
++	startLine int32
++	funcID    funcID
++}
++
++func (f funcInfo) srcFunc() srcFunc {
++	if !f.valid() {
++		return srcFunc{}
++	}
++	return srcFunc{f.datap, f.nameOff, f.startLine, f.funcID}
++}
++
++func (s srcFunc) name() string {
++	if s.datap == nil {
++		return ""
++	}
++	return s.datap.funcName(s.nameOff)
++}
++
+ type pcvalueCache struct {
+ 	entries [2][8]pcvalueCacheEnt
+ }
+@@ -1207,12 +1231,3 @@ func stackmapdata(stkmap *stackmap, n int32) bitvector {
+ 	}
+ 	return bitvector{stkmap.nbit, addb(&stkmap.bytedata[0], uintptr(n*((stkmap.nbit+7)>>3)))}
+ }
+-
+-// inlinedCall is the encoding of entries in the FUNCDATA_InlTree table.
+-type inlinedCall struct {
+-	funcID    funcID // type of the called function
+-	_         [3]byte
+-	nameOff   int32 // offset into pclntab for name of called function
+-	parentPc  int32 // position of an instruction whose source position is the call site (offset from entry)
+-	startLine int32 // line number of start of function (func keyword/TEXT directive)
+-}
+diff --git a/src/runtime/symtabinl.go b/src/runtime/symtabinl.go
+new file mode 100644
+index 0000000000..2d4eb94de7
+--- /dev/null
++++ b/src/runtime/symtabinl.go
+@@ -0,0 +1,114 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++// inlinedCall is the encoding of entries in the FUNCDATA_InlTree table.
++type inlinedCall struct {
++	funcID    funcID // type of the called function
++	_         [3]byte
++	nameOff   int32 // offset into pclntab for name of called function
++	parentPc  int32 // position of an instruction whose source position is the call site (offset from entry)
++	startLine int32 // line number of start of function (func keyword/TEXT directive)
++}
++
++// An inlineUnwinder iterates over the stack of inlined calls at a PC by
++// decoding the inline table. The last step of iteration is always the frame of
++// the physical function, so there's always at least one frame.
++//
++// This is typically used as:
++//
++//	for u, uf := newInlineUnwinder(...); uf.valid(); uf = u.next(uf) { ... }
++//
++// Implementation note: This is used in contexts that disallow write barriers.
++// Hence, the constructor returns this by value and pointer receiver methods
++// must not mutate pointer fields. Also, we keep the mutable state in a separate
++// struct mostly to keep both structs SSA-able, which generates much better
++// code.
++type inlineUnwinder struct {
++	f       funcInfo
++	cache   *pcvalueCache
++	inlTree *[1 << 20]inlinedCall
++}
++
++// An inlineFrame is a position in an inlineUnwinder.
++type inlineFrame struct {
++	// pc is the PC giving the file/line metadata of the current frame. This is
++	// always a "call PC" (not a "return PC"). This is 0 when the iterator is
++	// exhausted.
++	pc uintptr
++
++	// index is the index of the current record in inlTree, or -1 if we are in
++	// the outermost function.
++	index int32
++}
++
++// newInlineUnwinder creates an inlineUnwinder initially set to the inner-most
++// inlined frame at PC. PC should be a "call PC" (not a "return PC").
++//
++// This unwinder uses non-strict handling of PC because it's assumed this is
++// only ever used for symbolic debugging. If things go really wrong, it'll just
++// fall back to the outermost frame.
++func newInlineUnwinder(f funcInfo, pc uintptr, cache *pcvalueCache) (inlineUnwinder, inlineFrame) {
++	inldata := funcdata(f, _FUNCDATA_InlTree)
++	if inldata == nil {
++		return inlineUnwinder{f: f}, inlineFrame{pc: pc, index: -1}
++	}
++	inlTree := (*[1 << 20]inlinedCall)(inldata)
++	u := inlineUnwinder{f: f, cache: cache, inlTree: inlTree}
++	return u, u.resolveInternal(pc)
++}
++
++func (u *inlineUnwinder) resolveInternal(pc uintptr) inlineFrame {
++	return inlineFrame{
++		pc: pc,
++		// Conveniently, this returns -1 if there's an error, which is the same
++		// value we use for the outermost frame.
++		index: pcdatavalue1(u.f, _PCDATA_InlTreeIndex, pc, u.cache, false),
++	}
++}
++
++func (uf inlineFrame) valid() bool {
++	return uf.pc != 0
++}
++
++// next returns the frame representing uf's logical caller.
++func (u *inlineUnwinder) next(uf inlineFrame) inlineFrame {
++	if uf.index < 0 {
++		uf.pc = 0
++		return uf
++	}
++	parentPc := u.inlTree[uf.index].parentPc
++	return u.resolveInternal(u.f.entry() + uintptr(parentPc))
++}
++
++// isInlined returns whether uf is an inlined frame.
++func (u *inlineUnwinder) isInlined(uf inlineFrame) bool {
++	return uf.index >= 0
++}
++
++// srcFunc returns the srcFunc representing the given frame.
++func (u *inlineUnwinder) srcFunc(uf inlineFrame) srcFunc {
++	if uf.index < 0 {
++		return u.f.srcFunc()
++	}
++	t := &u.inlTree[uf.index]
++	return srcFunc{
++		u.f.datap,
++		t.nameOff,
++		t.startLine,
++		t.funcID,
++	}
++}
++
++// fileLine returns the file name and line number of the call within the given
++// frame. As a convenience, for the innermost frame, it returns the file and
++// line of the PC this unwinder was started at (often this is a call to another
++// physical function).
++//
++// It returns "?", 0 if something goes wrong.
++func (u *inlineUnwinder) fileLine(uf inlineFrame) (file string, line int) {
++	file, line32 := funcline1(u.f, uf.pc, false)
++	return file, int(line32)
++}
+diff --git a/src/runtime/symtabinl_test.go b/src/runtime/symtabinl_test.go
+new file mode 100644
+index 0000000000..7f736c1265
+--- /dev/null
++++ b/src/runtime/symtabinl_test.go
+@@ -0,0 +1,122 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++import (
++	"internal/abi"
++	"runtime/internal/sys"
++)
++
++func XTestInlineUnwinder(t TestingT) {
++	if TestenvOptimizationOff() {
++		t.Skip("skipping test with inlining optimizations disabled")
++	}
++
++	pc1 := abi.FuncPCABIInternal(tiuTest)
++	f := findfunc(pc1)
++	if !f.valid() {
++		t.Fatalf("failed to resolve tiuTest at PC %#x", pc1)
++	}
++
++	want := map[string]int{
++		"tiuInlined1:3 tiuTest:10":               0,
++		"tiuInlined1:3 tiuInlined2:6 tiuTest:11": 0,
++		"tiuInlined2:7 tiuTest:11":               0,
++		"tiuTest:12":                             0,
++	}
++	wantStart := map[string]int{
++		"tiuInlined1": 2,
++		"tiuInlined2": 5,
++		"tiuTest":     9,
++	}
++
++	// Iterate over the PCs in tiuTest and walk the inline stack for each.
++	prevStack := "x"
++	var cache pcvalueCache
++	for pc := pc1; pc < pc1+1024 && findfunc(pc) == f; pc += sys.PCQuantum {
++		stack := ""
++		u, uf := newInlineUnwinder(f, pc, &cache)
++		if file, _ := u.fileLine(uf); file == "?" {
++			// We're probably in the trailing function padding, where findfunc
++			// still returns f but there's no symbolic information. Just keep
++			// going until we definitely hit the end. If we see a "?" in the
++			// middle of unwinding, that's a real problem.
++			//
++			// TODO: If we ever have function end information, use that to make
++			// this robust.
++			continue
++		}
++		for ; uf.valid(); uf = u.next(uf) {
++			file, line := u.fileLine(uf)
++			const wantFile = "symtabinl_test.go"
++			if !hasSuffix(file, wantFile) {
++				t.Errorf("tiuTest+%#x: want file ...%s, got %s", pc-pc1, wantFile, file)
++			}
++
++			sf := u.srcFunc(uf)
++
++			name := sf.name()
++			const namePrefix = "runtime."
++			if hasPrefix(name, namePrefix) {
++				name = name[len(namePrefix):]
++			}
++			if !hasPrefix(name, "tiu") {
++				t.Errorf("tiuTest+%#x: unexpected function %s", pc-pc1, name)
++			}
++
++			start := int(sf.startLine) - tiuStart
++			if start != wantStart[name] {
++				t.Errorf("tiuTest+%#x: want startLine %d, got %d", pc-pc1, wantStart[name], start)
++			}
++			if sf.funcID != funcID_normal {
++				t.Errorf("tiuTest+%#x: bad funcID %v", pc-pc1, sf.funcID)
++			}
++
++			if len(stack) > 0 {
++				stack += " "
++			}
++			stack += FmtSprintf("%s:%d", name, line-tiuStart)
++		}
++
++		if stack != prevStack {
++			prevStack = stack
++
++			t.Logf("tiuTest+%#x: %s", pc-pc1, stack)
++
++			if _, ok := want[stack]; ok {
++				want[stack]++
++			}
++		}
++	}
++
++	// Check that we got all the stacks we wanted.
++	for stack, count := range want {
++		if count == 0 {
++			t.Errorf("missing stack %s", stack)
++		}
++	}
++}
++
++func lineNumber() int {
++	_, _, line, _ := Caller(1)
++	return line // return 0 for error
++}
++
++// Below here is the test data for XTestInlineUnwinder
++
++var tiuStart = lineNumber() // +0
++var tiu1, tiu2, tiu3 int    // +1
++func tiuInlined1() { // +2
++	tiu1++ // +3
++} // +4
++func tiuInlined2() { // +5
++	tiuInlined1() // +6
++	tiu2++        // +7
++} // +8
++func tiuTest() { // +9
++	tiuInlined1() // +10
++	tiuInlined2() // +11
++	tiu3++        // +12
++} // +13

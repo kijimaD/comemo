@@ -13,6 +13,29 @@ Date:   Wed Mar 13 01:52:03 2024 +0000
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/time/sleep_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/time/sleep_test.go b/src/time/sleep_test.go
+index 8c28b1e4a9..634a5c7a13 100644
+--- a/src/time/sleep_test.go
++++ b/src/time/sleep_test.go
+@@ -63,7 +63,7 @@ func TestSleep(t *testing.T) {
+ 	start := Now()
+ 	Sleep(delay)
+ 	delayadj := adjustDelay(t, delay)
+-	duration := Now().Sub(start)
++	duration := Since(start)
+ 	if duration < delayadj {
+ 		t.Fatalf("Sleep(%s) slept for only %s", delay, duration)
+ 	}
+@@ -322,7 +322,7 @@ func TestAfter(t *testing.T) {
+ 	start := Now()
+ 	end := <-After(delay)
+ 	delayadj := adjustDelay(t, delay)
+-	if duration := Now().Sub(start); duration < delayadj {
++	if duration := Since(start); duration < delayadj {
+ 		t.Fatalf("After(%s) slept for only %d ns", delay, duration)
+ 	}
+ 	if min := start.Add(delayadj); end.Before(min) {

@@ -14,6 +14,71 @@ Date:   Tue Jul 13 13:25:16 2021 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/noder/reader.go | 38 +++++++++++++++++---------------
  1 file changed, 20 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index 25aac6c026..2351d1d0ba 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -520,14 +520,22 @@ func (pr *pkgReader) objIdx(idx int, implicits, explicits []*types.Type) ir.Node
+ 
+ 	r.typeParamBounds(sym, implicits, explicits)
+ 
+-	origSym := sym
+-
+-	sym = r.mangle(sym)
+-	if !sym.IsBlank() && sym.Def != nil {
+-		return sym.Def.(ir.Node)
+-	}
+-
+ 	tag := codeObj(r.code(syncCodeObj))
++	if tag == objStub {
++		assert(!sym.IsBlank())
++		switch sym.Pkg {
++		case types.BuiltinPkg, ir.Pkgs.Unsafe:
++			return sym.Def.(ir.Node)
++		}
++		if pri, ok := objReader[sym]; ok {
++			return pri.pr.objIdx(pri.idx, nil, explicits)
++		}
++		if haveLegacyImports {
++			assert(!r.hasTypeParams())
++			return typecheck.Resolve(ir.NewIdent(src.NoXPos, sym))
++		}
++		base.Fatalf("unresolved stub: %v", sym)
++	}
+ 
+ 	{
+ 		rdict := pr.newReader(relocObjDict, idx, syncObject1)
+@@ -538,6 +546,11 @@ func (pr *pkgReader) objIdx(idx int, implicits, explicits []*types.Type) ir.Node
+ 		}
+ 	}
+ 
++	sym = r.mangle(sym)
++	if !sym.IsBlank() && sym.Def != nil {
++		return sym.Def.(*ir.Name)
++	}
++
+ 	do := func(op ir.Op, hasTParams bool) *ir.Name {
+ 		pos := r.pos()
+ 		if hasTParams {
+@@ -560,17 +573,6 @@ func (pr *pkgReader) objIdx(idx int, implicits, explicits []*types.Type) ir.Node
+ 	default:
+ 		panic("unexpected object")
+ 
+-	case objStub:
+-		if pri, ok := objReader[origSym]; ok {
+-			return pri.pr.objIdx(pri.idx, nil, explicits)
+-		}
+-		if haveLegacyImports {
+-			assert(!r.hasTypeParams())
+-			return typecheck.Resolve(ir.NewIdent(src.NoXPos, origSym))
+-		}
+-		base.Fatalf("unresolved stub: %v", origSym)
+-		panic("unreachable")
+-
+ 	case objAlias:
+ 		name := do(ir.OTYPE, false)
+ 		r.setType(name, r.typ())

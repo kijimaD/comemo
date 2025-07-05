@@ -7,6 +7,19 @@ Date:   Wed Jul 31 12:34:14 2013 +0900
     R=golang-dev, dave
     CC=golang-dev
     https://golang.org/cl/12090043
-
+---
  src/pkg/net/protoconn_test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/pkg/net/protoconn_test.go b/src/pkg/net/protoconn_test.go
+index b59925e01c..7e4fbdaa74 100644
+--- a/src/pkg/net/protoconn_test.go
++++ b/src/pkg/net/protoconn_test.go
+@@ -103,6 +103,7 @@ func TestTCPConnSpecificMethods(t *testing.T) {
+ 	}
+ 	defer c.Close()
+ 	c.SetKeepAlive(false)
++	c.SetKeepAlivePeriod(3 * time.Second)
+ 	c.SetLinger(0)
+ 	c.SetNoDelay(false)
+ 	c.LocalAddr()

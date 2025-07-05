@@ -7,7 +7,41 @@ Date:   Thu Oct 20 10:30:01 2011 -0700
     R=gri
     CC=golang-dev
     https://golang.org/cl/5292048
-
+---
  src/pkg/Makefile             | 2 --
  src/pkg/go/ast/print_test.go | 8 ++++----
  2 files changed, 4 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index e784b26333..ffb1547c56 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -203,9 +203,7 @@ NOTEST+=\
+ 	exp/gui\
+ 	exp/gui/x11\
+ 	exp/sql/driver\
+-	go/ast\
+ 	go/doc\
+-	go/token\
+ 	hash\
+ 	http/pprof\
+ 	http/httptest\
+diff --git a/src/pkg/go/ast/print_test.go b/src/pkg/go/ast/print_test.go
+index f4e8f7a78f..a4bc3bb9dc 100644
+--- a/src/pkg/go/ast/print_test.go
++++ b/src/pkg/go/ast/print_test.go
+@@ -41,10 +41,10 @@ var tests = []struct {
+ 		4  }`},
+ 
+ 	// structs
+-	{struct{ x, y int }{42, 991},
+-		`0  struct { x int; y int } {
+-		1  .  x: 42
+-		2  .  y: 991
++	{struct{ X, Y int }{42, 991},
++		`0  struct { X int; Y int } {
++		1  .  X: 42
++		2  .  Y: 991
+ 		3  }`},
+ }
+ 

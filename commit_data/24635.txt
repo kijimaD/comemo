@@ -11,6 +11,23 @@ Date:   Sun Aug 16 12:20:31 2015 -0700
     Change-Id: I66210374877581e42689f9943532141659a55ca7
     Reviewed-on: https://go-review.googlesource.com/13637
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  doc/go1.5.html | 5 ++---
  1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/doc/go1.5.html b/doc/go1.5.html
+index 0d5cc56b81..13ca1eddb9 100644
+--- a/doc/go1.5.html
++++ b/doc/go1.5.html
+@@ -1087,9 +1087,8 @@ uses a caller-provided buffer, permitting control of allocation and buffer size.
+ The <a href="/pkg/log/"><code>log</code></a> package
+ has a new <a href="/pkg/log/#LUTC"><code>LUTC</code></a> flag
+ that causes time stamps to be printed in the UTC time zone.
+-It also adds a <a href="/pkg/log/#SetOutput"><code>SetOutput</code></a> function
+-to set the output destination for the standard logger
+-and a corresponding method for user-created loggers.
++It also adds a <a href="/pkg/log/#Logger.SetOutput"><code>SetOutput</code></a> method
++for user-created loggers.
+ </li>
+ 
+ <li>

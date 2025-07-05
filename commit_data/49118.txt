@@ -13,6 +13,20 @@ Date:   Mon Jul 19 20:11:29 2021 +0000
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Trust: Robert Griesemer <gri@golang.org>
     Trust: Than McIntosh <thanm@google.com>
-
+---
  doc/go_spec.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index ad21ffb1b8..df256f0f0e 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -4334,7 +4334,7 @@ s4 := (*[4]byte)(s)      // panics: len([4]byte) > len(s)
+ 
+ var t []string
+ t0 := (*[0]string)(t)    // t0 == nil
+-t1 := (*[1]string)(t)    // panics: len([1]string) > len(s)
++t1 := (*[1]string)(t)    // panics: len([1]string) > len(t)
+ </pre>
+ 
+ <h3 id="Constant_expressions">Constant expressions</h3>

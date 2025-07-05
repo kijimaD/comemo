@@ -25,7 +25,7 @@ Date:   Wed Oct 20 14:02:24 2021 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  doc/go1.18.html                             | 13 ++++++
  src/cmd/go/alldocs.go                       |  7 +++-
  src/cmd/go/internal/modcmd/download.go      | 61 ++++++++++++++++++++++-------
@@ -33,3 +33,239 @@ Date:   Wed Oct 20 14:02:24 2021 -0400
  src/cmd/go/internal/modload/modfile.go      |  6 +--
  src/cmd/go/testdata/script/mod_download.txt | 44 +++++++++++++++++++++
  6 files changed, 113 insertions(+), 20 deletions(-)
+
+diff --git a/doc/go1.18.html b/doc/go1.18.html
+index 171cc3cb22..385a1ae804 100644
+--- a/doc/go1.18.html
++++ b/doc/go1.18.html
+@@ -90,6 +90,19 @@ Do not send CLs removing the interior tags from such phrases.
+   package.
+ </p>
+ 
++<p><!-- https://golang.org/issue/44435 -->
++  If the main module's <code>go.mod</code> file
++  specifies <a href="/ref/mod#go-mod-file-go"><code>go</code> <code>1.17</code></a>
++  or higher, <code>go</code> <code>mod</code> <code>download</code> without
++  arguments now downloads source code for only the modules
++  explicitly <a href="/ref/mod#go-mod-file-require">required</a> in the main
++  module's <code>go.mod</code> file. (In a <code>go</code> <code>1.17</code> or
++  higher module, that set already includes all dependencies needed to build the
++  packages and tests in the main module.)
++  To also download source code for transitive dependencies, use
++  <code>go</code> <code>mod</code> <code>download</code> <code>all</code>.
++</p>
++
+ <p>
+   TODO: complete this section, or delete if not needed
+ </p>
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 0dcb317995..4420073e52 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -1074,8 +1074,11 @@
+ //
+ // Download downloads the named modules, which can be module patterns selecting
+ // dependencies of the main module or module queries of the form path@version.
+-// With no arguments, download applies to all dependencies of the main module
+-// (equivalent to 'go mod download all').
++//
++// With no arguments, download applies to the modules needed to build and test
++// the packages in the main module: the modules explicitly required by the main
++// module if it is at 'go 1.17' or higher, or all transitively-required modules
++// if at 'go 1.16' or lower.
+ //
+ // The go command will automatically download modules as needed during ordinary
+ // execution. The "go mod download" command is useful mainly for pre-filling
+diff --git a/src/cmd/go/internal/modcmd/download.go b/src/cmd/go/internal/modcmd/download.go
+index 5ea56c34bd..f252133762 100644
+--- a/src/cmd/go/internal/modcmd/download.go
++++ b/src/cmd/go/internal/modcmd/download.go
+@@ -16,6 +16,7 @@ import (
+ 	"cmd/go/internal/modload"
+ 
+ 	"golang.org/x/mod/module"
++	"golang.org/x/mod/semver"
+ )
+ 
+ var cmdDownload = &base.Command{
+@@ -24,8 +25,11 @@ var cmdDownload = &base.Command{
+ 	Long: `
+ Download downloads the named modules, which can be module patterns selecting
+ dependencies of the main module or module queries of the form path@version.
+-With no arguments, download applies to all dependencies of the main module
+-(equivalent to 'go mod download all').
++
++With no arguments, download applies to the modules needed to build and test
++the packages in the main module: the modules explicitly required by the main
++module if it is at 'go 1.17' or higher, or all transitively-required modules
++if at 'go 1.16' or lower.
+ 
+ The go command will automatically download modules as needed during ordinary
+ execution. The "go mod download" command is useful mainly for pre-filling
+@@ -87,13 +91,8 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
+ 	// Check whether modules are enabled and whether we're in a module.
+ 	modload.ForceUseModules = true
+ 	modload.ExplicitWriteGoMod = true
+-	if !modload.HasModRoot() && len(args) == 0 {
+-		base.Fatalf("go: no modules specified (see 'go help mod download')")
+-	}
+ 	haveExplicitArgs := len(args) > 0
+-	if !haveExplicitArgs {
+-		args = []string{"all"}
+-	}
++
+ 	if modload.HasModRoot() {
+ 		modload.LoadModFile(ctx) // to fill MainModules
+ 
+@@ -102,14 +101,48 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
+ 		}
+ 		mainModule := modload.MainModules.Versions()[0]
+ 
+-		targetAtUpgrade := mainModule.Path + "@upgrade"
+-		targetAtPatch := mainModule.Path + "@patch"
+-		for _, arg := range args {
+-			switch arg {
+-			case mainModule.Path, targetAtUpgrade, targetAtPatch:
+-				os.Stderr.WriteString("go: skipping download of " + arg + " that resolves to the main module\n")
++		if haveExplicitArgs {
++			targetAtUpgrade := mainModule.Path + "@upgrade"
++			targetAtPatch := mainModule.Path + "@patch"
++			for _, arg := range args {
++				switch arg {
++				case mainModule.Path, targetAtUpgrade, targetAtPatch:
++					os.Stderr.WriteString("go: skipping download of " + arg + " that resolves to the main module\n")
++				}
+ 			}
++		} else {
++			modFile := modload.MainModules.ModFile(mainModule)
++			if modFile.Go == nil || semver.Compare("v"+modFile.Go.Version, modload.ExplicitIndirectVersionV) < 0 {
++				if len(modFile.Require) > 0 {
++					args = []string{"all"}
++				}
++			} else {
++				// As of Go 1.17, the go.mod file explicitly requires every module
++				// that provides any package imported by the main module.
++				// 'go mod download' is typically run before testing packages in the
++				// main module, so by default we shouldn't download the others
++				// (which are presumed irrelevant to the packages in the main module).
++				// See https://golang.org/issue/44435.
++				//
++				// However, we also need to load the full module graph, to ensure that
++				// we have downloaded enough of the module graph to run 'go list all',
++				// 'go mod graph', and similar commands.
++				_ = modload.LoadModGraph(ctx, "")
++
++				for _, m := range modFile.Require {
++					args = append(args, m.Mod.Path)
++				}
++			}
++		}
++	}
++
++	if len(args) == 0 {
++		if modload.HasModRoot() {
++			os.Stderr.WriteString("go: no module dependencies to download\n")
++		} else {
++			base.Errorf("go: no modules specified (see 'go help mod download')")
+ 		}
++		base.Exit()
+ 	}
+ 
+ 	downloadModule := func(m *moduleJSON) {
+diff --git a/src/cmd/go/internal/modload/buildlist.go b/src/cmd/go/internal/modload/buildlist.go
+index 4634ad009d..27cab0b9c8 100644
+--- a/src/cmd/go/internal/modload/buildlist.go
++++ b/src/cmd/go/internal/modload/buildlist.go
+@@ -236,7 +236,7 @@ func (rs *Requirements) IsDirect(path string) bool {
+ // A ModuleGraph represents the complete graph of module dependencies
+ // of a main module.
+ //
+-// If the main module is lazily loaded, the graph does not include
++// If the main module supports module graph pruning, the graph does not include
+ // transitive dependencies of non-root (implicit) dependencies.
+ type ModuleGraph struct {
+ 	g         *mvs.Graph
+diff --git a/src/cmd/go/internal/modload/modfile.go b/src/cmd/go/internal/modload/modfile.go
+index 87e8a5e83d..1672d563b7 100644
+--- a/src/cmd/go/internal/modload/modfile.go
++++ b/src/cmd/go/internal/modload/modfile.go
+@@ -33,13 +33,13 @@ const (
+ 	// tests outside of the main module.
+ 	narrowAllVersionV = "v1.16"
+ 
+-	// explicitIndirectVersionV is the Go version (plus leading "v") at which a
++	// ExplicitIndirectVersionV is the Go version (plus leading "v") at which a
+ 	// module's go.mod file is expected to list explicit requirements on every
+ 	// module that provides any package transitively imported by that module.
+ 	//
+ 	// Other indirect dependencies of such a module can be safely pruned out of
+ 	// the module graph; see https://golang.org/ref/mod#graph-pruning.
+-	explicitIndirectVersionV = "v1.17"
++	ExplicitIndirectVersionV = "v1.17"
+ 
+ 	// separateIndirectVersionV is the Go version (plus leading "v") at which
+ 	// "// indirect" dependencies are added in a block separate from the direct
+@@ -123,7 +123,7 @@ const (
+ )
+ 
+ func pruningForGoVersion(goVersion string) modPruning {
+-	if semver.Compare("v"+goVersion, explicitIndirectVersionV) < 0 {
++	if semver.Compare("v"+goVersion, ExplicitIndirectVersionV) < 0 {
+ 		// The go.mod file does not duplicate relevant information about transitive
+ 		// dependencies, so they cannot be pruned out.
+ 		return unpruned
+diff --git a/src/cmd/go/testdata/script/mod_download.txt b/src/cmd/go/testdata/script/mod_download.txt
+index 89e58a2cfd..154e68338b 100644
+--- a/src/cmd/go/testdata/script/mod_download.txt
++++ b/src/cmd/go/testdata/script/mod_download.txt
+@@ -128,6 +128,50 @@ rm go.sum
+ go mod download all
+ cmp go.mod.update go.mod
+ grep '^rsc.io/sampler v1.3.0 ' go.sum
++
++# https://golang.org/issue/44435: At go 1.17 or higher, 'go mod download'
++# (without arguments) should only download the modules explicitly required in
++# the go.mod file, not (presumed-irrelevant) transitive dependencies.
++#
++# (If the go.mod file is inconsistent, the version downloaded should be the
++# selected version from the broader graph, but the go.mod file will also be
++# updated to list the correct versions. If at some point we change 'go mod
++# download' to stop updating for consistency, then it should fail if the
++# requirements are inconsistent.)
++
++rm go.sum
++cp go.mod.orig go.mod
++go mod edit -go=1.17
++cp go.mod.update go.mod.go117
++go mod edit -go=1.17 go.mod.go117
++
++go clean -modcache
++go mod download
++cmp go.mod go.mod.go117
++
++go list -e -m all
++stdout '^rsc.io/quote v1.5.2$'
++exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.zip
++stdout '^rsc.io/sampler v1.3.0$'
++! exists $GOPATH/pkg/mod/cache/download/rsc.io/sampler/@v/v1.2.1.zip
++exists $GOPATH/pkg/mod/cache/download/rsc.io/sampler/@v/v1.3.0.zip
++stdout '^golang\.org/x/text v0.0.0-20170915032832-14c0d48ead0c$'
++! exists $GOPATH/pkg/mod/cache/download/golang.org/x/text/@v/v0.0.0-20170915032832-14c0d48ead0c.zip
++cmp go.mod go.mod.go117
++
++# However, 'go mod download all' continues to download the selected version
++# of every module reported by 'go list -m all'.
++
++cp go.mod.orig go.mod
++go mod edit -go=1.17
++go clean -modcache
++go mod download all
++exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.zip
++! exists $GOPATH/pkg/mod/cache/download/rsc.io/sampler/@v/v1.2.1.zip
++exists $GOPATH/pkg/mod/cache/download/rsc.io/sampler/@v/v1.3.0.zip
++exists $GOPATH/pkg/mod/cache/download/golang.org/x/text/@v/v0.0.0-20170915032832-14c0d48ead0c.zip
++cmp go.mod go.mod.go117
++
+ cd ..
+ 
+ # allow go mod download without go.mod

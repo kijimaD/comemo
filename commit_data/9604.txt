@@ -15,9 +15,300 @@ Date:   Tue Sep 6 11:27:36 2011 -0700
     R=rsc, bradfitz
     CC=golang-dev
     https://golang.org/cl/4975053
-
+---
  misc/cgo/test/helpers.go                        |   2 +-
  src/pkg/go/printer/nodes.go                     |  16 +++-
  src/pkg/go/printer/testdata/declarations.golden | 111 +++++++++++++++++++-----
  src/pkg/go/printer/testdata/declarations.input  |  76 ++++++++++++++++
  4 files changed, 178 insertions(+), 27 deletions(-)
+
+diff --git a/misc/cgo/test/helpers.go b/misc/cgo/test/helpers.go
+index 3a4f014225..de14d19abf 100644
+--- a/misc/cgo/test/helpers.go
++++ b/misc/cgo/test/helpers.go
+@@ -16,7 +16,7 @@ import (
+ const greeting = "hello, world"
+ 
+ type testPair struct {
+-	Name string
++	Name      string
+ 	Got, Want interface{}
+ }
+ 
+diff --git a/src/pkg/go/printer/nodes.go b/src/pkg/go/printer/nodes.go
+index 9cd975ec1b..364530634a 100644
+--- a/src/pkg/go/printer/nodes.go
++++ b/src/pkg/go/printer/nodes.go
+@@ -269,6 +269,7 @@ func (p *printer) exprList(prev0 token.Pos, list []ast.Expr, depth int, mode exp
+ func (p *printer) parameters(fields *ast.FieldList, multiLine *bool) {
+ 	p.print(fields.Opening, token.LPAREN)
+ 	if len(fields.List) > 0 {
++		ws := indent
+ 		var prevLine, line int
+ 		for i, par := range fields.List {
+ 			if i > 0 {
+@@ -278,19 +279,30 @@ func (p *printer) parameters(fields *ast.FieldList, multiLine *bool) {
+ 				} else {
+ 					line = p.fset.Position(par.Type.Pos()).Line
+ 				}
+-				if 0 < prevLine && prevLine < line && p.linebreak(line, 0, ignore, true) {
++				if 0 < prevLine && prevLine < line && p.linebreak(line, 0, ws, true) {
++					ws = ignore
+ 					*multiLine = true
+ 				} else {
+ 					p.print(blank)
+ 				}
+ 			}
+ 			if len(par.Names) > 0 {
+-				p.identList(par.Names, false, multiLine)
++				// Very subtle: If we indented before (ws == ignore), identList
++				// won't indent again. If we didn't (ws == indent), identList will
++				// indent if the identList spans multiple lines, and it will outdent
++				// again at the end (and still ws == indent). Thus, a subsequent indent
++				// by a linebreak call after a type, or in the next multi-line identList
++				// will do the right thing.
++				p.identList(par.Names, ws == indent, multiLine)
+ 				p.print(blank)
+ 			}
+ 			p.expr(par.Type, multiLine)
+ 			prevLine = p.fset.Position(par.Type.Pos()).Line
+ 		}
++		if ws == ignore {
++			// unindent if we indented
++			p.print(unindent)
++		}
+ 	}
+ 	p.print(fields.Closing, token.RPAREN)
+ }
+diff --git a/src/pkg/go/printer/testdata/declarations.golden b/src/pkg/go/printer/testdata/declarations.golden
+index 970533e8cf..bfa2568c21 100644
+--- a/src/pkg/go/printer/testdata/declarations.golden
++++ b/src/pkg/go/printer/testdata/declarations.golden
+@@ -692,56 +692,119 @@ func _(x ...chan int)
+ 
+ // these parameter lists must remain multi-line since they are multi-line in the source
+ func _(bool,
+-int) {
++	int) {
+ }
+ func _(x bool,
+-y int) {
++	y int) {
+ }
+ func _(x,
+-y bool) {
++	y bool) {
+ }
+ func _(bool,	// comment
+-int) {
++	int) {
+ }
+ func _(x bool,	// comment
+-y int) {
++	y int) {
+ }
+ func _(x,	// comment
+-y bool) {
++	y bool) {
+ }
+ func _(bool,	// comment
+-// comment
+-int) {
++	// comment
++	int) {
+ }
+ func _(x bool,	// comment
+-// comment
+-y int) {
++	// comment
++	y int) {
+ }
+ func _(x,	// comment
+-// comment
+-y bool) {
++	// comment
++	y bool) {
+ }
+ func _(bool,
+-// comment
+-int) {
++	// comment
++	int) {
+ }
+ func _(x bool,
+-// comment
+-y int) {
++	// comment
++	y int) {
+ }
+ func _(x,
+-// comment
+-y bool) {
++	// comment
++	y bool) {
+ }
+ func _(x,	// comment
+-y,	// comment
+-z bool) {
++	y,	// comment
++	z bool) {
+ }
+ func _(x,	// comment
+-y,	// comment
+-z bool) {
++	y,	// comment
++	z bool) {
+ }
+ func _(x int,	// comment
+-y float,	// comment
+-z bool) {
++	y float,	// comment
++	z bool) {
++}
++
++// properly indent multi-line signatures
++func ManageStatus(in <-chan *Status, req <-chan Request,
++	stat chan<- *TargetInfo,
++	TargetHistorySize int) {
++}
++
++func MultiLineSignature0(a, b, c int) {
++}
++
++func MultiLineSignature1(a, b, c int,
++	u, v, w float) {
++}
++
++func MultiLineSignature2(a, b,
++	c int) {
++}
++
++func MultiLineSignature3(a, b,
++	c int, u, v,
++	w float,
++	x ...int) {
++}
++
++func MultiLineSignature4(a, b, c int,
++	u, v,
++	w float,
++	x ...int) {
++}
++
++func MultiLineSignature5(a, b, c int,
++	u, v, w float,
++	p, q,
++	r string,
++	x ...int) {
++}
++
++// make sure it also works for methods in interfaces
++type _ interface {
++	MultiLineSignature0(a, b, c int)
++
++	MultiLineSignature1(a, b, c int,
++		u, v, w float)
++
++	MultiLineSignature2(a, b,
++		c int)
++
++	MultiLineSignature3(a, b,
++		c int, u, v,
++		w float,
++		x ...int)
++
++	MultiLineSignature4(a, b, c int,
++		u, v,
++		w float,
++		x ...int)
++
++	MultiLineSignature5(a, b, c int,
++		u, v, w float,
++		p, q,
++		r string,
++		x ...int)
+ }
+diff --git a/src/pkg/go/printer/testdata/declarations.input b/src/pkg/go/printer/testdata/declarations.input
+index c6134096bf..1d69c57b51 100644
+--- a/src/pkg/go/printer/testdata/declarations.input
++++ b/src/pkg/go/printer/testdata/declarations.input
+@@ -755,3 +755,79 @@ func _(x int,	// comment
+ 	y float,	// comment
+ 	z bool) {
+ }
++
++
++// properly indent multi-line signatures
++func ManageStatus(in <-chan *Status, req <-chan Request,
++stat chan<- *TargetInfo,
++TargetHistorySize int) {
++}
++
++func MultiLineSignature0(
++a, b, c int,
++) {}
++
++func MultiLineSignature1(
++a, b, c int,
++u, v, w float,
++) {}
++
++func MultiLineSignature2(
++a, b,
++c int,
++) {}
++
++func MultiLineSignature3(
++a, b,
++c int, u, v,
++w float,
++		x ...int) {}
++
++func MultiLineSignature4(
++a, b, c int,
++u, v,
++w float,
++		x ...int) {}
++
++func MultiLineSignature5(
++a, b, c int,
++u, v, w float,
++p, q,
++r string,
++		x ...int) {}
++
++// make sure it also works for methods in interfaces
++type _ interface {
++MultiLineSignature0(
++a, b, c int,
++)
++
++MultiLineSignature1(
++a, b, c int,
++u, v, w float,
++)
++
++MultiLineSignature2(
++a, b,
++c int,
++)
++
++MultiLineSignature3(
++a, b,
++c int, u, v,
++w float,
++		x ...int)
++
++MultiLineSignature4(
++a, b, c int,
++u, v,
++w float,
++		x ...int)
++
++MultiLineSignature5(
++a, b, c int,
++u, v, w float,
++p, q,
++r string,
++		x ...int)
++}

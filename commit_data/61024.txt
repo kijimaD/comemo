@@ -15,9 +15,226 @@ Date:   Thu Jul 18 21:37:57 2024 -0600
     Reviewed-by: Carlos Amedee <carlos@golang.org>
     Reviewed-by: Michael Matloob <matloob@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/go/internal/modload/init.go      | 23 +++++++++
  src/cmd/go/internal/modload/load.go      | 13 ++++-
  src/cmd/go/internal/search/search.go     |  4 +-
  src/cmd/go/testdata/script/list_tool.txt | 82 ++++++++++++++++++++++++++++++++
  4 files changed, 119 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index 69b47ba27f..91b7f5c2d9 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -108,6 +108,8 @@ type MainModuleSet struct {
+ 
+ 	modFiles map[module.Version]*modfile.File
+ 
++	tools map[string]bool
++
+ 	modContainingCWD module.Version
+ 
+ 	workFile *modfile.WorkFile
+@@ -135,6 +137,15 @@ func (mms *MainModuleSet) Versions() []module.Version {
+ 	return mms.versions
+ }
+ 
++// Tools returns the tools defined by all the main modules.
++// The key is the absolute package path of the tool.
++func (mms *MainModuleSet) Tools() map[string]bool {
++	if mms == nil {
++		return nil
++	}
++	return mms.tools
++}
++
+ func (mms *MainModuleSet) Contains(path string) bool {
+ 	if mms == nil {
+ 		return false
+@@ -1219,6 +1230,7 @@ func makeMainModules(ms []module.Version, rootDirs []string, modFiles []*modfile
+ 		modFiles:        map[module.Version]*modfile.File{},
+ 		indices:         map[module.Version]*modFileIndex{},
+ 		highestReplaced: map[string]string{},
++		tools:           map[string]bool{},
+ 		workFile:        workFile,
+ 	}
+ 	var workFileReplaces []*modfile.Replace
+@@ -1301,6 +1313,17 @@ func makeMainModules(ms []module.Version, rootDirs []string, modFiles []*modfile
+ 					mainModules.highestReplaced[r.Old.Path] = r.Old.Version
+ 				}
+ 			}
++
++			for _, t := range modFiles[i].Tool {
++				if err := module.CheckImportPath(t.Path); err != nil {
++					if e, ok := err.(*module.InvalidPathError); ok {
++						e.Kind = "tool"
++					}
++					base.Fatal(err)
++				}
++
++				mainModules.tools[t.Path] = true
++			}
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index 933d40325e..7d44bf79e9 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -36,6 +36,7 @@ package modload
+ // A package matches the "all" pattern if:
+ // 	- it is in the main module, or
+ // 	- it is imported by any test in the main module, or
++// 	- it is imported by a tool of the main module, or
+ // 	- it is imported by another package in "all", or
+ // 	- the main module specifies a go version ≤ 1.15, and the package is imported
+ // 	  by a *test of* another package in "all".
+@@ -324,7 +325,7 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
+ 
+ 			case m.Pattern() == "all":
+ 				if ld == nil {
+-					// The initial roots are the packages in the main module.
++					// The initial roots are the packages and tools in the main module.
+ 					// loadFromRoots will expand that to "all".
+ 					m.Errs = m.Errs[:0]
+ 					matchModules := MainModules.Versions()
+@@ -332,6 +333,9 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
+ 						matchModules = []module.Version{opts.MainModule}
+ 					}
+ 					matchPackages(ctx, m, opts.Tags, omitStd, matchModules)
++					for tool := range MainModules.Tools() {
++						m.Pkgs = append(m.Pkgs, tool)
++					}
+ 				} else {
+ 					// Starting with the packages in the main module,
+ 					// enumerate the full list of "all".
+@@ -343,6 +347,10 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
+ 					m.MatchPackages() // Locate the packages within GOROOT/src.
+ 				}
+ 
++			case m.Pattern() == "tool":
++				for tool, _ := range MainModules.Tools() {
++					m.Pkgs = append(m.Pkgs, tool)
++				}
+ 			default:
+ 				panic(fmt.Sprintf("internal error: modload missing case for pattern %s", m.Pattern()))
+ 			}
+@@ -1864,6 +1872,9 @@ func (ld *loader) load(ctx context.Context, pkg *loadPkg) {
+ 		// essentially nothing (these atomic flag ops are essentially free compared
+ 		// to scanning source code for imports).
+ 		ld.applyPkgFlags(ctx, pkg, pkgInAll)
++	} else if MainModules.Tools()[pkg.path] {
++		// Tools declared by main modules are always in "all".
++		ld.applyPkgFlags(ctx, pkg, pkgInAll)
+ 	}
+ 	if ld.AllowPackage != nil {
+ 		if err := ld.AllowPackage(ctx, pkg.path, pkg.mod); err != nil {
+diff --git a/src/cmd/go/internal/search/search.go b/src/cmd/go/internal/search/search.go
+index 9f216d5756..9b050c7a6d 100644
+--- a/src/cmd/go/internal/search/search.go
++++ b/src/cmd/go/internal/search/search.go
+@@ -60,14 +60,14 @@ func (m *Match) IsLocal() bool {
+ }
+ 
+ // IsMeta reports whether the pattern is a “meta-package” keyword that represents
+-// multiple packages, such as "std", "cmd", or "all".
++// multiple packages, such as "std", "cmd", "tool", or "all".
+ func (m *Match) IsMeta() bool {
+ 	return IsMetaPackage(m.pattern)
+ }
+ 
+ // IsMetaPackage checks if name is a reserved package name that expands to multiple packages.
+ func IsMetaPackage(name string) bool {
+-	return name == "std" || name == "cmd" || name == "all"
++	return name == "std" || name == "cmd" || name == "tool" || name == "all"
+ }
+ 
+ // A MatchError indicates an error that occurred while attempting to match a
+diff --git a/src/cmd/go/testdata/script/list_tool.txt b/src/cmd/go/testdata/script/list_tool.txt
+new file mode 100644
+index 0000000000..5b14b018b8
+--- /dev/null
++++ b/src/cmd/go/testdata/script/list_tool.txt
+@@ -0,0 +1,82 @@
++go list tool
++stdout example.com/foo/cmd
++stdout example.com/dependency/cmd/bar
++go list all
++stdout example.com/foo/cmd
++stdout example.com/foo/lib
++stdout example.com/dependency/cmd/bar
++
++cd workspace
++go list tool
++stdout example.com/foo/cmd
++stdout example.com/dependency/cmd/bar
++stdout example.com/dependency/cmd/baz
++go list all
++stdout example.com/foo/cmd
++stdout example.com/foo/lib
++stdout example.com/other
++stdout example.com/dependency/cmd/bar
++stdout example.com/dependency/cmd/baz
++
++cd ../invalid_path
++! go list all
++stderr 'malformed tool path'
++
++-- go.mod --
++module example.com/foo
++
++go 1.24
++
++tool example.com/foo/cmd/eg
++tool example.com/dependency/cmd/bar
++
++replace example.com/dependency => ./dependency
++
++require example.com/dependency v1.0.0
++
++-- lib/main.go --
++package lib
++
++-- cmd/eg/main.go --
++package main
++
++func main(){}
++
++-- dependency/go.mod --
++module example.com/dependency
++
++go 1.24
++-- dependency/cmd/bar/main.go --
++package main
++
++func main(){}
++-- dependency/cmd/baz/main.go --
++package main
++
++func main() {}
++-- other/go.mod --
++module example.com/other
++
++go 1.24
++
++tool example.com/dependency/cmd/baz
++
++replace example.com/dependency => ../dependency
++
++require example.com/dependency v1.0.0
++-- other/lib.go --
++package other
++-- workspace/go.work --
++go 1.24
++
++use (
++    ../
++    ../other
++)
++
++-- invalid_path/go.mod --
++module example.com/invalid_path
++
++go 1.24
++
++tool ./invalid_path

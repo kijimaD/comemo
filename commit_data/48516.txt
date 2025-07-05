@@ -18,9 +18,67 @@ Date:   Tue May 25 11:53:04 2021 -0400
     Trust: Cherry Mui <cherryyz@google.com>
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/compile/internal/arm64/ssa.go        | 3 +++
  src/cmd/compile/internal/ssa/config.go       | 4 ++++
  src/cmd/compile/internal/ssa/gen/ARM64Ops.go | 2 ++
  src/cmd/compile/internal/ssa/opGen.go        | 4 ++--
  4 files changed, 11 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/arm64/ssa.go b/src/cmd/compile/internal/arm64/ssa.go
+index 0c997bc4b3..ca76b18497 100644
+--- a/src/cmd/compile/internal/arm64/ssa.go
++++ b/src/cmd/compile/internal/arm64/ssa.go
+@@ -161,6 +161,9 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p.From.Type = obj.TYPE_REG
+ 		p.From.Reg = v.Args[0].Reg()
+ 		ssagen.AddrAuto(&p.To, v)
++	case ssa.OpArgIntReg, ssa.OpArgFloatReg:
++		// TODO: generate morestack spill code
++		ssagen.CheckArgReg(v)
+ 	case ssa.OpARM64ADD,
+ 		ssa.OpARM64SUB,
+ 		ssa.OpARM64AND,
+diff --git a/src/cmd/compile/internal/ssa/config.go b/src/cmd/compile/internal/ssa/config.go
+index a8393a1999..07d8b6e532 100644
+--- a/src/cmd/compile/internal/ssa/config.go
++++ b/src/cmd/compile/internal/ssa/config.go
+@@ -228,6 +228,10 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize bool) *Config
+ 		c.registers = registersARM64[:]
+ 		c.gpRegMask = gpRegMaskARM64
+ 		c.fpRegMask = fpRegMaskARM64
++		// XXX commented out for now. Uncomment it will enable register args for
++		// go:registerparams functions, which isn't fully working, so tests fail.
++		//c.intParamRegs = paramIntRegARM64
++		//c.floatParamRegs = paramFloatRegARM64
+ 		c.FPReg = framepointerRegARM64
+ 		c.LinkReg = linkRegARM64
+ 		c.hasGReg = true
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64Ops.go b/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
+index 18a5666b40..a91ece1c9f 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
+@@ -765,6 +765,8 @@ func init() {
+ 		ops:             ops,
+ 		blocks:          blocks,
+ 		regnames:        regNamesARM64,
++		ParamIntRegNames:   "R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15",
++		ParamFloatRegNames: "F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15",
+ 		gpregmask:       gp,
+ 		fpregmask:       fp,
+ 		framepointerreg: -1, // not used
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 1c37fbe0db..cf31dfacf6 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -36400,8 +36400,8 @@ var registersARM64 = [...]Register{
+ 	{62, arm64.REG_F31, -1, "F31"},
+ 	{63, 0, -1, "SB"},
+ }
+-var paramIntRegARM64 = []int8(nil)
+-var paramFloatRegARM64 = []int8(nil)
++var paramIntRegARM64 = []int8{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}
++var paramFloatRegARM64 = []int8{31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46}
+ var gpRegMaskARM64 = regMask(670826495)
+ var fpRegMaskARM64 = regMask(9223372034707292160)
+ var specialRegMaskARM64 = regMask(0)

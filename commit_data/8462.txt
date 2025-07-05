@@ -7,8 +7,93 @@ Date:   Sun May 22 10:09:07 2011 -0700
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/4515124
-
+---
  src/pkg/syscall/syscall_bsd.go     | 9 ++++++---
  src/pkg/syscall/syscall_linux.go   | 9 ++++++---
  src/pkg/syscall/syscall_windows.go | 5 +++--
  3 files changed, 15 insertions(+), 8 deletions(-)
+
+diff --git a/src/pkg/syscall/syscall_bsd.go b/src/pkg/syscall/syscall_bsd.go
+index 9f1244f134..766a56db56 100644
+--- a/src/pkg/syscall/syscall_bsd.go
++++ b/src/pkg/syscall/syscall_bsd.go
+@@ -191,9 +191,10 @@ func (sa *SockaddrInet4) sockaddr() (uintptr, _Socklen, int) {
+ }
+ 
+ type SockaddrInet6 struct {
+-	Port int
+-	Addr [16]byte
+-	raw  RawSockaddrInet6
++	Port   int
++	ZoneId uint32
++	Addr   [16]byte
++	raw    RawSockaddrInet6
+ }
+ 
+ func (sa *SockaddrInet6) sockaddr() (uintptr, _Socklen, int) {
+@@ -205,6 +206,7 @@ func (sa *SockaddrInet6) sockaddr() (uintptr, _Socklen, int) {
+ 	p := (*[2]byte)(unsafe.Pointer(&sa.raw.Port))
+ 	p[0] = byte(sa.Port >> 8)
+ 	p[1] = byte(sa.Port)
++	sa.raw.Scope_id = sa.ZoneId
+ 	for i := 0; i < len(sa.Addr); i++ {
+ 		sa.raw.Addr[i] = sa.Addr[i]
+ 	}
+@@ -297,6 +299,7 @@ func anyToSockaddr(rsa *RawSockaddrAny) (Sockaddr, int) {
+ 		sa := new(SockaddrInet6)
+ 		p := (*[2]byte)(unsafe.Pointer(&pp.Port))
+ 		sa.Port = int(p[0])<<8 + int(p[1])
++		sa.ZoneId = pp.Scope_id
+ 		for i := 0; i < len(sa.Addr); i++ {
+ 			sa.Addr[i] = pp.Addr[i]
+ 		}
+diff --git a/src/pkg/syscall/syscall_linux.go b/src/pkg/syscall/syscall_linux.go
+index 8e53068b7f..9e9037ea14 100644
+--- a/src/pkg/syscall/syscall_linux.go
++++ b/src/pkg/syscall/syscall_linux.go
+@@ -219,9 +219,10 @@ func (sa *SockaddrInet4) sockaddr() (uintptr, _Socklen, int) {
+ }
+ 
+ type SockaddrInet6 struct {
+-	Port int
+-	Addr [16]byte
+-	raw  RawSockaddrInet6
++	Port   int
++	ZoneId uint32
++	Addr   [16]byte
++	raw    RawSockaddrInet6
+ }
+ 
+ func (sa *SockaddrInet6) sockaddr() (uintptr, _Socklen, int) {
+@@ -232,6 +233,7 @@ func (sa *SockaddrInet6) sockaddr() (uintptr, _Socklen, int) {
+ 	p := (*[2]byte)(unsafe.Pointer(&sa.raw.Port))
+ 	p[0] = byte(sa.Port >> 8)
+ 	p[1] = byte(sa.Port)
++	sa.raw.Scope_id = sa.ZoneId
+ 	for i := 0; i < len(sa.Addr); i++ {
+ 		sa.raw.Addr[i] = sa.Addr[i]
+ 	}
+@@ -370,6 +372,7 @@ func anyToSockaddr(rsa *RawSockaddrAny) (Sockaddr, int) {
+ 		sa := new(SockaddrInet6)
+ 		p := (*[2]byte)(unsafe.Pointer(&pp.Port))
+ 		sa.Port = int(p[0])<<8 + int(p[1])
++		sa.ZoneId = pp.Scope_id
+ 		for i := 0; i < len(sa.Addr); i++ {
+ 			sa.Addr[i] = pp.Addr[i]
+ 		}
+diff --git a/src/pkg/syscall/syscall_windows.go b/src/pkg/syscall/syscall_windows.go
+index 48b3214753..6ba031faf8 100644
+--- a/src/pkg/syscall/syscall_windows.go
++++ b/src/pkg/syscall/syscall_windows.go
+@@ -536,8 +536,9 @@ func (sa *SockaddrInet4) sockaddr() (uintptr, int32, int) {
+ }
+ 
+ type SockaddrInet6 struct {
+-	Port int
+-	Addr [16]byte
++	Port   int
++	ZoneId uint32
++	Addr   [16]byte
+ }
+ 
+ func (sa *SockaddrInet6) sockaddr() (uintptr, int32, int) {

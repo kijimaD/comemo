@@ -36,10 +36,131 @@ Date:   Fri Apr 29 10:47:57 2022 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/importer/ureader.go | 12 +++++++-----
  src/cmd/compile/internal/noder/irgen.go      |  2 +-
  src/cmd/compile/internal/noder/reader.go     | 10 ++++++----
  src/cmd/compile/internal/noder/writer.go     | 14 +++++++++++---
  src/go/internal/gcimporter/ureader.go        | 11 +++++------
  5 files changed, 30 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/compile/internal/importer/ureader.go b/src/cmd/compile/internal/importer/ureader.go
+index a22cd2bb53..b8938cd2d6 100644
+--- a/src/cmd/compile/internal/importer/ureader.go
++++ b/src/cmd/compile/internal/importer/ureader.go
+@@ -148,11 +148,13 @@ func (pr *pkgReader) pkgIdx(idx int) *types2.Package {
+ 
+ func (r *reader) doPkg() *types2.Package {
+ 	path := r.String()
+-	if path == "builtin" {
+-		return nil // universe
+-	}
+-	if path == "" {
++	switch path {
++	case "":
+ 		path = r.p.PkgPath()
++	case "builtin":
++		return nil // universe
++	case "unsafe":
++		return types2.Unsafe
+ 	}
+ 
+ 	if pkg := r.p.imports[path]; pkg != nil {
+@@ -371,7 +373,7 @@ func (pr *pkgReader) objIdx(idx int) (*types2.Package, string) {
+ 	tag := pkgbits.CodeObj(rname.Code(pkgbits.SyncCodeObj))
+ 
+ 	if tag == pkgbits.ObjStub {
+-		assert(objPkg == nil || objPkg == types2.Unsafe)
++		base.Assertf(objPkg == nil || objPkg == types2.Unsafe, "unexpected stub package: %v", objPkg)
+ 		return objPkg, objName
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/noder/irgen.go b/src/cmd/compile/internal/noder/irgen.go
+index 5499ccd405..628c0f54fc 100644
+--- a/src/cmd/compile/internal/noder/irgen.go
++++ b/src/cmd/compile/internal/noder/irgen.go
+@@ -36,7 +36,7 @@ func checkFiles(noders []*noder) (posMap, *types2.Package, *types2.Info) {
+ 	ctxt := types2.NewContext()
+ 	importer := gcimports{
+ 		ctxt:     ctxt,
+-		packages: map[string]*types2.Package{"unsafe": types2.Unsafe},
++		packages: make(map[string]*types2.Package),
+ 	}
+ 	conf := types2.Config{
+ 		Context:               ctxt,
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index 1350c22467..83ebe24779 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -282,11 +282,13 @@ func (pr *pkgReader) pkgIdx(idx int) *types.Pkg {
+ 
+ func (r *reader) doPkg() *types.Pkg {
+ 	path := r.String()
+-	if path == "builtin" {
+-		return types.BuiltinPkg
+-	}
+-	if path == "" {
++	switch path {
++	case "":
+ 		path = r.p.PkgPath()
++	case "builtin":
++		return types.BuiltinPkg
++	case "unsafe":
++		return types.UnsafePkg
+ 	}
+ 
+ 	name := r.String()
+diff --git a/src/cmd/compile/internal/noder/writer.go b/src/cmd/compile/internal/noder/writer.go
+index 0fb162d381..39f0ad794f 100644
+--- a/src/cmd/compile/internal/noder/writer.go
++++ b/src/cmd/compile/internal/noder/writer.go
+@@ -214,13 +214,21 @@ func (pw *pkgWriter) pkgIdx(pkg *types2.Package) int {
+ 	w := pw.newWriter(pkgbits.RelocPkg, pkgbits.SyncPkgDef)
+ 	pw.pkgsIdx[pkg] = w.Idx
+ 
+-	if pkg == nil {
+-		w.String("builtin")
+-	} else {
++	// The universe and package unsafe need to be handled specially by
++	// importers anyway, so we serialize them using just their package
++	// path. This ensures that readers don't confuse them for
++	// user-defined packages.
++	switch pkg {
++	case nil: // universe
++		w.String("builtin") // same package path used by godoc
++	case types2.Unsafe:
++		w.String("unsafe")
++	default:
+ 		var path string
+ 		if pkg != w.p.curpkg {
+ 			path = pkg.Path()
+ 		}
++		base.Assertf(path != "builtin" && path != "unsafe", "unexpected path for user-defined package: %q", path)
+ 		w.String(path)
+ 		w.String(pkg.Name())
+ 		w.Len(pkg.Height())
+diff --git a/src/go/internal/gcimporter/ureader.go b/src/go/internal/gcimporter/ureader.go
+index 5260759c4f..e27d3e0b4d 100644
+--- a/src/go/internal/gcimporter/ureader.go
++++ b/src/go/internal/gcimporter/ureader.go
+@@ -184,15 +184,14 @@ func (pr *pkgReader) pkgIdx(idx int) *types.Package {
+ 
+ func (r *reader) doPkg() *types.Package {
+ 	path := r.String()
+-	if path == "builtin" {
++	switch path {
++	case "":
++		path = r.p.PkgPath()
++	case "builtin":
+ 		return nil // universe
+-	}
+-	if path == "unsafe" {
++	case "unsafe":
+ 		return types.Unsafe
+ 	}
+-	if path == "" {
+-		path = r.p.PkgPath()
+-	}
+ 
+ 	if pkg := r.p.imports[path]; pkg != nil {
+ 		return pkg

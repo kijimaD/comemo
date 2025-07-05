@@ -15,7 +15,36 @@ Date:   Thu Apr 30 11:57:34 2015 +1000
     Change-Id: I5ca7366ba8bf6221a36d25a2157dda4b4f3e16fa
     Reviewed-on: https://go-review.googlesource.com/9523
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/cgo/testcshared/main0.c | 4 ++++
  src/cmd/internal/ld/lib.go   | 2 +-
  2 files changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/misc/cgo/testcshared/main0.c b/misc/cgo/testcshared/main0.c
+index fa0eb4a09e..7fe0a27ff8 100644
+--- a/misc/cgo/testcshared/main0.c
++++ b/misc/cgo/testcshared/main0.c
+@@ -5,6 +5,10 @@
+ #include <stdint.h>
+ #include <stdio.h>
+ 
++extern int8_t DidInitRun(void);
++extern int8_t DidMainRun(void);
++extern int32_t FromPkg(void);
++
+ // Tests libgo.so to export the following functions.
+ //   int8_t DidInitRun();
+ //   int8_t DidMainRun();
+diff --git a/src/cmd/internal/ld/lib.go b/src/cmd/internal/ld/lib.go
+index b14a6c1b50..44389c9fa8 100644
+--- a/src/cmd/internal/ld/lib.go
++++ b/src/cmd/internal/ld/lib.go
+@@ -946,7 +946,7 @@ func hostlink() {
+ 		// We force all symbol resolution to be done at program startup
+ 		// because lazy PLT resolution can use large amounts of stack at
+ 		// times we cannot allow it to do so.
+-		argv = append(argv, "-znow")
++		argv = append(argv, "-Wl,-znow")
+ 	}
+ 
+ 	argv = append(argv, "-o")

@@ -11,6 +11,29 @@ Date:   Thu Sep 10 11:33:31 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/14455
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/fs_test.go | 10 +++++++++-
  1 file changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/http/fs_test.go b/src/net/http/fs_test.go
+index a3d64f3a08..abfd39377b 100644
+--- a/src/net/http/fs_test.go
++++ b/src/net/http/fs_test.go
+@@ -917,8 +917,16 @@ func TestLinuxSendfile(t *testing.T) {
+ 	}
+ 	defer ln.Close()
+ 
++	syscalls := "sendfile,sendfile64"
++	switch runtime.GOARCH {
++	case "mips64", "mips64le":
++		// mips64 strace doesn't support sendfile64 and will error out
++		// if we specify that with `-e trace='.
++		syscalls = "sendfile"
++	}
++
+ 	var buf bytes.Buffer
+-	child := exec.Command("strace", "-f", "-q", "-e", "trace=sendfile,sendfile64", os.Args[0], "-test.run=TestLinuxSendfileChild")
++	child := exec.Command("strace", "-f", "-q", "-e", "trace="+syscalls, os.Args[0], "-test.run=TestLinuxSendfileChild")
+ 	child.ExtraFiles = append(child.ExtraFiles, lnf)
+ 	child.Env = append([]string{"GO_WANT_HELPER_PROCESS=1"}, os.Environ()...)
+ 	child.Stdout = &buf

@@ -8,7 +8,72 @@ Date:   Wed Jul 8 14:48:09 2009 -0700
     DELTA=41  (41 added, 0 deleted, 0 changed)
     OCL=31349
     CL=31358
-
+---
  src/pkg/io/utils.go      | 16 ++++++++++++++++
  src/pkg/io/utils_test.go | 25 +++++++++++++++++++++++++
  2 files changed, 41 insertions(+)
+
+diff --git a/src/pkg/io/utils.go b/src/pkg/io/utils.go
+index 96d23bcf00..f3331a20c5 100644
+--- a/src/pkg/io/utils.go
++++ b/src/pkg/io/utils.go
+@@ -28,3 +28,19 @@ func ReadFile(filename string) ([]byte, os.Error) {
+ 	defer f.Close();
+ 	return ReadAll(f);
+ }
++
++// WriteFile writes data to a file named by filename.
++// If the file does not exist, WriteFile creates it with permissions perm.
++//
++func WriteFile(filename string, data []byte, perm int) os.Error {
++	f, err := os.Open(filename, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, perm);
++	if err != nil {
++		return err;
++	}
++	n, err := f.Write(data);
++	if err == nil && n < len(data) {
++		err = ErrShortWrite;
++	}
++	f.Close();
++	return err;
++}
+diff --git a/src/pkg/io/utils_test.go b/src/pkg/io/utils_test.go
+index f35dad60c9..4538337436 100644
+--- a/src/pkg/io/utils_test.go
++++ b/src/pkg/io/utils_test.go
+@@ -7,6 +7,7 @@ package io
+ import (
+ 	"io";
+ 	"os";
++	"strings";
+ 	"testing";
+ )
+ 
+@@ -35,3 +36,27 @@ func TestReadFile(t *testing.T) {
+ 
+ 	checkSize(t, filename, uint64(len(contents)));
+ }
++
++func TestWriteFile(t *testing.T) {
++	filename := "_obj/rumpelstilzchen";
++	data :=
++		"Programming today is a race between software engineers striving to "
++		"build bigger and better idiot-proof programs, and the Universe trying "
++		"to produce bigger and better idiots. So far, the Universe is winning.";
++
++	if err := WriteFile(filename, strings.Bytes(data), 0644); err != nil {
++		t.Fatalf("WriteFile %s: %v", filename, err);
++	}
++
++	contents, err := ReadFile(filename);
++	if err != nil {
++		t.Fatalf("ReadFile %s: %v", filename, err);
++	}
++
++	if string(contents) != data {
++		t.Fatalf("contents = %q\nexpected = %q", string(contents), data);
++	}
++
++	// cleanup
++	os.Remove(filename);  // ignore error
++}

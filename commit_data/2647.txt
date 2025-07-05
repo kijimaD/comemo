@@ -13,7 +13,49 @@ Date:   Wed Jul 8 16:39:19 2009 -0700
     R=ken
     OCL=31369
     CL=31369
-
+---
  src/cmd/gc/go.y   |  4 ----
  src/cmd/gc/subr.c | 15 ---------------
  2 files changed, 19 deletions(-)
+
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index bb1edbd7ea..046db1d914 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -1104,10 +1104,6 @@ othertype:
+ 			$$ = T;
+ 			break;
+ 		}
+-		if($1->op == OTYPE)
+-		if($1->type->etype == TANY)
+-		if(strcmp(package, "PACKAGE") != 0)
+-			yyerror("the any type is restricted");
+ 		$$ = oldtype($1->sym);
+ 	}
+ 
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index a1c66d1179..9c5d2c1264 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -2120,21 +2120,6 @@ void
+ badtype(int o, Type *tl, Type *tr)
+ {
+ 
+-loop:
+-	switch(o) {
+-	case OCALL:
+-		if(tl == T || tr == T)
+-			break;
+-		if(isptr[tl->etype] && isptr[tr->etype]) {
+-			tl = tl->type;
+-			tr = tr->type;
+-			goto loop;
+-		}
+-		if(tl->etype != TFUNC || tr->etype != TFUNC)
+-			break;
+-//		if(eqtype(t1, t2))
+-	}
+-
+ 	yyerror("illegal types for operand: %O", o);
+ 	if(tl != T)
+ 		print("	%T\n", tl);

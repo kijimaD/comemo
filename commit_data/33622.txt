@@ -18,7 +18,138 @@ Date:   Thu Jul 13 22:51:08 2017 -0400
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/go_test.go  | 31 +++++++++++++++++++++++++++++++
  src/testing/testing.go | 27 +++++++++++++++++----------
  2 files changed, 48 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 65b7aa4de2..d720611216 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -599,6 +599,19 @@ func (tg *testgoData) mustNotExist(path string) {
+ 	}
+ }
+ 
++// mustHaveContent succeeds if filePath is a path to a file,
++// and that file is readable and not empty.
++func (tg *testgoData) mustHaveContent(filePath string) {
++	tg.mustExist(filePath)
++	f, err := os.Stat(filePath)
++	if err != nil {
++		tg.t.Fatal(err)
++	}
++	if f.Size() == 0 {
++		tg.t.Fatalf("expected %s to have data, but is empty", filePath)
++	}
++}
++
+ // wantExecutable fails with msg if path is not executable.
+ func (tg *testgoData) wantExecutable(path, msg string) {
+ 	tg.t.Helper()
+@@ -3909,6 +3922,24 @@ func TestBenchTimeout(t *testing.T) {
+ 	tg.run("test", "-bench", ".", "-timeout", "750ms", "testdata/timeoutbench_test.go")
+ }
+ 
++// Issue 19394
++func TestWriteProfilesOnTimeout(t *testing.T) {
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.tempDir("profiling")
++	tg.tempFile("profiling/timeouttest_test.go", `package timeouttest_test
++import "testing"
++import "time"
++func TestSleep(t *testing.T) { time.Sleep(time.Second) }`)
++	tg.cd(tg.path("profiling"))
++	tg.runFail(
++		"test",
++		"-cpuprofile", tg.path("profiling/cpu.pprof"), "-memprofile", tg.path("profiling/mem.pprof"),
++		"-timeout", "1ms")
++	tg.mustHaveContent(tg.path("profiling/cpu.pprof"))
++	tg.mustHaveContent(tg.path("profiling/mem.pprof"))
++}
++
+ func TestLinkXImportPathEscape(t *testing.T) {
+ 	// golang.org/issue/16710
+ 	tg := testgo(t)
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index 9e519f5cb9..53283796f8 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -876,6 +876,9 @@ type M struct {
+ 	tests      []InternalTest
+ 	benchmarks []InternalBenchmark
+ 	examples   []InternalExample
++
++	timer     *time.Timer
++	afterOnce sync.Once
+ }
+ 
+ // testDeps is an internal interface of functionality that is
+@@ -918,22 +921,21 @@ func (m *M) Run() int {
+ 	parseCpuList()
+ 
+ 	m.before()
+-	startAlarm()
++	defer m.after()
++	m.startAlarm()
+ 	haveExamples = len(m.examples) > 0
+ 	testRan, testOk := runTests(m.deps.MatchString, m.tests)
+ 	exampleRan, exampleOk := runExamples(m.deps.MatchString, m.examples)
+-	stopAlarm()
++	m.stopAlarm()
+ 	if !testRan && !exampleRan && *matchBenchmarks == "" {
+ 		fmt.Fprintln(os.Stderr, "testing: warning: no tests to run")
+ 	}
+ 	if !testOk || !exampleOk || !runBenchmarks(m.deps.ImportPath(), m.deps.MatchString, m.benchmarks) || race.Errors() > 0 {
+ 		fmt.Println("FAIL")
+-		m.after()
+ 		return 1
+ 	}
+ 
+ 	fmt.Println("PASS")
+-	m.after()
+ 	return 0
+ }
+ 
+@@ -1063,6 +1065,12 @@ func (m *M) before() {
+ 
+ // after runs after all testing.
+ func (m *M) after() {
++	m.afterOnce.Do(func() {
++		m.writeProfiles()
++	})
++}
++
++func (m *M) writeProfiles() {
+ 	if *cpuProfile != "" {
+ 		m.deps.StopCPUProfile() // flushes profile to disk
+ 	}
+@@ -1139,12 +1147,11 @@ func toOutputDir(path string) string {
+ 	return fmt.Sprintf("%s%c%s", *outputDir, os.PathSeparator, path)
+ }
+ 
+-var timer *time.Timer
+-
+ // startAlarm starts an alarm if requested.
+-func startAlarm() {
++func (m *M) startAlarm() {
+ 	if *timeout > 0 {
+-		timer = time.AfterFunc(*timeout, func() {
++		m.timer = time.AfterFunc(*timeout, func() {
++			m.after()
+ 			debug.SetTraceback("all")
+ 			panic(fmt.Sprintf("test timed out after %v", *timeout))
+ 		})
+@@ -1152,9 +1159,9 @@ func startAlarm() {
+ }
+ 
+ // stopAlarm turns off the alarm.
+-func stopAlarm() {
++func (m *M) stopAlarm() {
+ 	if *timeout > 0 {
+-		timer.Stop()
++		m.timer.Stop()
+ 	}
+ }
+ 

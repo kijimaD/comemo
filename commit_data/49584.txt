@@ -22,7 +22,67 @@ Date:   Sun Aug 29 06:49:28 2021 -0700
     Run-TryBot: Dan Scales <danscales@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/noder/expr.go | 16 +++++++++-------
  test/typeparam/issue48030.go           | 26 ++++++++++++++++++++++++++
  2 files changed, 35 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/expr.go b/src/cmd/compile/internal/noder/expr.go
+index 0e5257d7cf..863acf587d 100644
+--- a/src/cmd/compile/internal/noder/expr.go
++++ b/src/cmd/compile/internal/noder/expr.go
+@@ -126,13 +126,15 @@ func (g *irgen) expr0(typ types2.Type, expr syntax.Expr) ir.Node {
+ 				targs[i] = ir.TypeNode(g.typ(inferred.TArgs.At(i)))
+ 			}
+ 			if fun.Op() == ir.OFUNCINST {
+-				// Replace explicit type args with the full list that
+-				// includes the additional inferred type args.
+-				// Substitute the type args for the type params in
+-				// the generic function's type.
+-				fun.(*ir.InstExpr).Targs = targs
+-				newt := g.substType(fun.Type(), fun.Type().TParams(), targs)
+-				typed(newt, fun)
++				if len(fun.(*ir.InstExpr).Targs) < len(targs) {
++					// Replace explicit type args with the full list that
++					// includes the additional inferred type args.
++					// Substitute the type args for the type params in
++					// the generic function's type.
++					fun.(*ir.InstExpr).Targs = targs
++					newt := g.substType(fun.(*ir.InstExpr).X.Type(), fun.(*ir.InstExpr).X.Type().TParams(), targs)
++					typed(newt, fun)
++				}
+ 			} else {
+ 				// Create a function instantiation here, given there
+ 				// are only inferred type args (e.g. min(5,6), where
+diff --git a/test/typeparam/issue48030.go b/test/typeparam/issue48030.go
+new file mode 100644
+index 0000000000..9fc4428841
+--- /dev/null
++++ b/test/typeparam/issue48030.go
+@@ -0,0 +1,26 @@
++// run -gcflags=-G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++type Src[T any] func() Src[T]
++
++func Seq[T any]() Src[T] {
++	return nil
++}
++
++func Seq2[T1 any, T2 any](v1 T1, v2 T2) Src[T2] {
++	return nil
++}
++
++func main() {
++	// Type args fully supplied
++	Seq[int]()
++	// Partial inference of type args
++	Seq2[int](5, "abc")
++	// Full inference of type args
++	Seq2(5, "abc")
++}

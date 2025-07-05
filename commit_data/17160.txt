@@ -7,7 +7,7 @@ Date:   Mon Aug 12 10:25:36 2013 -0700
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/12774043
-
+---
  src/pkg/crypto/aes/asm_amd64.s        | 20 ++++++------
  src/pkg/crypto/md5/md5block_386.s     |  4 ++-
  src/pkg/crypto/md5/md5block_amd64.s   |  4 ++-
@@ -35,3 +35,1562 @@ Date:   Mon Aug 12 10:25:36 2013 -0700
  src/pkg/sync/atomic/asm_linux_arm.s   | 58 ++++++++++++++++++-----------------
  src/pkg/sync/atomic/asm_netbsd_arm.s  | 48 +++++++++++++++--------------
  26 files changed, 248 insertions(+), 196 deletions(-)
+
+diff --git a/src/pkg/crypto/aes/asm_amd64.s b/src/pkg/crypto/aes/asm_amd64.s
+index 25decf9785..5c22881e98 100644
+--- a/src/pkg/crypto/aes/asm_amd64.s
++++ b/src/pkg/crypto/aes/asm_amd64.s
+@@ -2,9 +2,11 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++#include "../../../cmd/ld/textflag.h"
++
+ // func hasAsm() bool
+ // returns whether AES-NI is supported
+-TEXT ·hasAsm(SB),7,$0
++TEXT ·hasAsm(SB),NOSPLIT,$0
+ 	XORQ AX, AX
+ 	INCL AX
+ 	CPUID
+@@ -14,7 +16,7 @@ TEXT ·hasAsm(SB),7,$0
+ 	RET
+ 
+ // func encryptBlockAsm(nr int, xk *uint32, dst, src *byte)
+-TEXT ·encryptBlockAsm(SB),7,$0
++TEXT ·encryptBlockAsm(SB),NOSPLIT,$0
+ 	MOVQ nr+0(FP), CX
+ 	MOVQ xk+8(FP), AX
+ 	MOVQ dst+16(FP), DX
+@@ -63,7 +65,7 @@ Lenc128:
+ 	RET
+ 
+ // func decryptBlockAsm(nr int, xk *uint32, dst, src *byte)
+-TEXT ·decryptBlockAsm(SB),7,$0
++TEXT ·decryptBlockAsm(SB),NOSPLIT,$0
+ 	MOVQ nr+0(FP), CX
+ 	MOVQ xk+8(FP), AX
+ 	MOVQ dst+16(FP), DX
+@@ -113,7 +115,7 @@ Ldec128:
+ 
+ // func expandKeyAsm(nr int, key *byte, enc, dec *uint32) {
+ // Note that round keys are stored in uint128 format, not uint32
+-TEXT ·expandKeyAsm(SB),7,$0
++TEXT ·expandKeyAsm(SB),NOSPLIT,$0
+ 	MOVQ nr+0(FP), CX
+ 	MOVQ key+8(FP), AX
+ 	MOVQ enc+16(FP), BX
+@@ -217,7 +219,7 @@ Lexp_dec_loop:
+ 
+ #define PSHUFD_X0_X0_ BYTE $0x66; BYTE $0x0f; BYTE $0x70; BYTE $0xc0
+ #define PSHUFD_X1_X1_ BYTE $0x66; BYTE $0x0f; BYTE $0x70; BYTE $0xc9
+-TEXT _expand_key_128<>(SB),7,$0
++TEXT _expand_key_128<>(SB),NOSPLIT,$0
+ 	PSHUFD $0xff, X1, X1
+ 	SHUFPS $0x10, X0, X4
+ 	PXOR X4, X0
+@@ -230,7 +232,7 @@ TEXT _expand_key_128<>(SB),7,$0
+ 
+ #define PSLLDQ_X5_ BYTE $0x66; BYTE $0x0f; BYTE $0x73; BYTE $0xfd
+ #define PSHUFD_X0_X3_ BYTE $0x66; BYTE $0x0f; BYTE $0x70; BYTE $0xd8
+-TEXT _expand_key_192a<>(SB),7,$0
++TEXT _expand_key_192a<>(SB),NOSPLIT,$0
+ 	PSHUFD $0x55, X1, X1
+ 	SHUFPS $0x10, X0, X4
+ 	PXOR X4, X0
+@@ -253,7 +255,7 @@ TEXT _expand_key_192a<>(SB),7,$0
+ 	ADDQ $32, BX
+ 	RET
+ 
+-TEXT _expand_key_192b<>(SB),7,$0
++TEXT _expand_key_192b<>(SB),NOSPLIT,$0
+ 	PSHUFD $0x55, X1, X1
+ 	SHUFPS $0x10, X0, X4
+ 	PXOR X4, X0
+@@ -271,10 +273,10 @@ TEXT _expand_key_192b<>(SB),7,$0
+ 	ADDQ $16, BX
+ 	RET
+ 
+-TEXT _expand_key_256a<>(SB),7,$0
++TEXT _expand_key_256a<>(SB),NOSPLIT,$0
+ 	JMP _expand_key_128<>(SB)
+ 
+-TEXT _expand_key_256b<>(SB),7,$0
++TEXT _expand_key_256b<>(SB),NOSPLIT,$0
+ 	PSHUFD $0xaa, X1, X1
+ 	SHUFPS $0x10, X2, X4
+ 	PXOR X4, X2
+diff --git a/src/pkg/crypto/md5/md5block_386.s b/src/pkg/crypto/md5/md5block_386.s
+index 3ce15e37f6..e5c27ac9aa 100644
+--- a/src/pkg/crypto/md5/md5block_386.s
++++ b/src/pkg/crypto/md5/md5block_386.s
+@@ -6,6 +6,8 @@
+ // #defines generating 8a assembly, and adjusted for 386,
+ // by the Go Authors.
+ 
++#include "../../../cmd/ld/textflag.h"
++
+ // MD5 optimized for AMD64.
+ //
+ // Author: Marc Bevand <bevand_m (at) epita.fr>
+@@ -57,7 +59,7 @@
+ 	XORL	c,		BP; \
+ 	ADDL	b,		a
+ 
+-TEXT	·block(SB),7,$24-16
++TEXT	·block(SB),NOSPLIT,$24-16
+ 	MOVL	dig+0(FP),	BP
+ 	MOVL	p+4(FP),	SI
+ 	MOVL	p_len+8(FP), DX
+diff --git a/src/pkg/crypto/md5/md5block_amd64.s b/src/pkg/crypto/md5/md5block_amd64.s
+index e6420a28a0..178e49cd8e 100644
+--- a/src/pkg/crypto/md5/md5block_amd64.s
++++ b/src/pkg/crypto/md5/md5block_amd64.s
+@@ -5,13 +5,15 @@
+ // Translated from Perl generating GNU assembly into
+ // #defines generating 6a assembly by the Go Authors.
+ 
++#include "../../../cmd/ld/textflag.h"
++
+ // MD5 optimized for AMD64.
+ //
+ // Author: Marc Bevand <bevand_m (at) epita.fr>
+ // Licence: I hereby disclaim the copyright on this code and place it
+ // in the public domain.
+ 
+-TEXT	·block(SB),7,$0-32
++TEXT	·block(SB),NOSPLIT,$0-32
+ 	MOVQ	dig+0(FP),	BP
+ 	MOVQ	p+8(FP),	SI
+ 	MOVQ	p_len+16(FP), DX
+diff --git a/src/pkg/crypto/md5/md5block_arm.s b/src/pkg/crypto/md5/md5block_arm.s
+index 9a068c3b97..e644bfcd61 100644
+--- a/src/pkg/crypto/md5/md5block_arm.s
++++ b/src/pkg/crypto/md5/md5block_arm.s
+@@ -4,6 +4,8 @@
+ //
+ // ARM version of md5block.go
+ 
++#include "../../../cmd/ld/textflag.h"
++
+ // Register definitions
+ table = 0	// Pointer to MD5 constants table
+ data = 1	// Pointer to data to hash
+@@ -32,7 +34,7 @@ p_data = -8	// -8(SP) current data pointer
+ buf = -8-4*16	//-72(SP) 16 words temporary buffer
+ 		// 3 words at 4..12(R13) for called routine parameters
+ 
+-TEXT	·block(SB), 7, $84-16
++TEXT	·block(SB), NOSPLIT, $84-16
+ 	MOVW	p+4(FP), R(data)	// pointer to the data
+ 	MOVW	p_len+8(FP), R(t0)	// number of bytes
+ 	ADD	R(data), R(t0)
+diff --git a/src/pkg/crypto/rc4/rc4_386.s b/src/pkg/crypto/rc4/rc4_386.s
+index c80ef2a3a2..b04fc1fb83 100644
+--- a/src/pkg/crypto/rc4/rc4_386.s
++++ b/src/pkg/crypto/rc4/rc4_386.s
+@@ -2,8 +2,10 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++#include "../../../cmd/ld/textflag.h"
++
+ // func xorKeyStream(dst, src *byte, n int, state *[256]byte, i, j *uint8)
+-TEXT ·xorKeyStream(SB),7,$0
++TEXT ·xorKeyStream(SB),NOSPLIT,$0
+ 	MOVL dst+0(FP), DI
+ 	MOVL src+4(FP), SI
+ 	MOVL state+12(FP), BP
+diff --git a/src/pkg/crypto/rc4/rc4_amd64.s b/src/pkg/crypto/rc4/rc4_amd64.s
+index 353fe37200..e3234b6c7e 100644
+--- a/src/pkg/crypto/rc4/rc4_amd64.s
++++ b/src/pkg/crypto/rc4/rc4_amd64.s
+@@ -2,6 +2,8 @@
+ //	http://www.zorinaq.com/papers/rc4-amd64.html
+ //	http://www.zorinaq.com/papers/rc4-amd64.tar.bz2
+ 
++#include "../../../cmd/ld/textflag.h"
++
+ // Local modifications:
+ //
+ // Transliterated from GNU to 6a assembly syntax by the Go authors.
+@@ -36,7 +38,7 @@
+ ** a 1.8 GHz AMD Opteron (rev C0) processor.
+ */
+ 
+-TEXT ·xorKeyStream(SB),7,$0
++TEXT ·xorKeyStream(SB),NOSPLIT,$0
+ 	MOVQ	n+16(FP),	BX		// rbx = ARG(len)
+ 	MOVQ	src+8(FP),	SI		// in = ARG(in)
+ 	MOVQ	dst+0(FP),	DI		// out = ARG(out)
+diff --git a/src/pkg/crypto/rc4/rc4_arm.s b/src/pkg/crypto/rc4/rc4_arm.s
+index 307cb71484..3aad729406 100644
+--- a/src/pkg/crypto/rc4/rc4_arm.s
++++ b/src/pkg/crypto/rc4/rc4_arm.s
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++#include "../../../cmd/ld/textflag.h"
++
+ // Registers
+ dst = 0
+ src = 1
+@@ -16,7 +18,7 @@ t = 11
+ t2 = 12
+ 
+ // func xorKeyStream(dst, src *byte, n int, state *[256]byte, i, j *uint8)
+-TEXT ·xorKeyStream(SB),7,$0
++TEXT ·xorKeyStream(SB),NOSPLIT,$0
+ 	MOVW 0(FP), R(dst)
+ 	MOVW 4(FP), R(src)
+ 	MOVW 8(FP), R(n)
+diff --git a/src/pkg/crypto/sha1/sha1block_386.s b/src/pkg/crypto/sha1/sha1block_386.s
+index e60a7b9b09..890b3ae818 100644
+--- a/src/pkg/crypto/sha1/sha1block_386.s
++++ b/src/pkg/crypto/sha1/sha1block_386.s
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++#include "../../../cmd/ld/textflag.h"
++
+ // SHA1 block routine. See sha1block.go for Go equivalent.
+ //
+ // There are 80 rounds of 4 types:
+@@ -99,7 +101,7 @@
+ 	MIX(a, b, c, d, e, 0xCA62C1D6)
+ 
+ // func block(dig *digest, p []byte)
+-TEXT ·block(SB),7,$92-16
++TEXT ·block(SB),NOSPLIT,$92-16
+ 	MOVL	dig+0(FP),	BP
+ 	MOVL	p+4(FP),	SI
+ 	MOVL	p_len+8(FP),	DX
+diff --git a/src/pkg/crypto/sha1/sha1block_amd64.s b/src/pkg/crypto/sha1/sha1block_amd64.s
+index 452578aa44..0bb6c204c5 100644
+--- a/src/pkg/crypto/sha1/sha1block_amd64.s
++++ b/src/pkg/crypto/sha1/sha1block_amd64.s
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++#include "../../../cmd/ld/textflag.h"
++
+ // SHA1 block routine. See sha1block.go for Go equivalent.
+ //
+ // There are 80 rounds of 4 types:
+@@ -87,7 +89,7 @@
+ 	FUNC4(a, b, c, d, e); \
+ 	MIX(a, b, c, d, e, 0xCA62C1D6)
+ 
+-TEXT ·block(SB),7,$64-32
++TEXT ·block(SB),NOSPLIT,$64-32
+ 	MOVQ	dig+0(FP),	BP
+ 	MOVQ	p_base+8(FP),	SI
+ 	MOVQ	p_len+16(FP),	DX
+diff --git a/src/pkg/hash/crc32/crc32_amd64.s b/src/pkg/hash/crc32/crc32_amd64.s
+index 826306a3e8..95dc8bf41b 100644
+--- a/src/pkg/hash/crc32/crc32_amd64.s
++++ b/src/pkg/hash/crc32/crc32_amd64.s
+@@ -2,8 +2,10 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++#include "../../../cmd/ld/textflag.h"
++
+ // func castagnoliSSE42(crc uint32, p []byte) uint32
+-TEXT ·castagnoliSSE42(SB),7,$0
++TEXT ·castagnoliSSE42(SB),NOSPLIT,$0
+ 	MOVL crc+0(FP), AX  // CRC value
+ 	MOVQ p+8(FP), SI  // data pointer
+ 	MOVQ p_len+16(FP), CX  // len(p)
+@@ -51,7 +53,7 @@ done:
+ 	RET
+ 
+ // func haveSSE42() bool
+-TEXT ·haveSSE42(SB),7,$0
++TEXT ·haveSSE42(SB),NOSPLIT,$0
+ 	XORQ AX, AX
+ 	INCL AX
+ 	CPUID
+diff --git a/src/pkg/math/big/arith_386.s b/src/pkg/math/big/arith_386.s
+index f0118ec0db..15b036c657 100644
+--- a/src/pkg/math/big/arith_386.s
++++ b/src/pkg/math/big/arith_386.s
+@@ -2,11 +2,13 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++#include "../../../cmd/ld/textflag.h"
++
+ // This file provides fast assembly versions for the elementary
+ // arithmetic operations on vectors implemented in arith.go.
+ 
+ // func mulWW(x, y Word) (z1, z0 Word)
+-TEXT ·mulWW(SB),7,$0
++TEXT ·mulWW(SB),NOSPLIT,$0
+ 	MOVL x+0(FP), AX
+ 	MULL y+4(FP)
+ 	MOVL DX, z1+8(FP)
+@@ -15,7 +17,7 @@ TEXT ·mulWW(SB),7,$0
+ 
+ 
+ // func divWW(x1, x0, y Word) (q, r Word)
+-TEXT ·divWW(SB),7,$0
++TEXT ·divWW(SB),NOSPLIT,$0
+ 	MOVL x1+0(FP), DX
+ 	MOVL x0+4(FP), AX
+ 	DIVL y+8(FP)
+@@ -25,7 +27,7 @@ TEXT ·divWW(SB),7,$0
+ 
+ 
+ // func addVV(z, x, y []Word) (c Word)
+-TEXT ·addVV(SB),7,$0
++TEXT ·addVV(SB),NOSPLIT,$0
+ 	MOVL z+0(FP), DI
+ 	MOVL x+12(FP), SI
+ 	MOVL y+24(FP), CX
+@@ -50,7 +52,7 @@ E1:	CMPL BX, BP		// i < n
+ 
+ // func subVV(z, x, y []Word) (c Word)
+ // (same as addVV except for SBBL instead of ADCL and label names)
+-TEXT ·subVV(SB),7,$0
++TEXT ·subVV(SB),NOSPLIT,$0
+ 	MOVL z+0(FP), DI
+ 	MOVL x+12(FP), SI
+ 	MOVL y+24(FP), CX
+@@ -74,7 +76,7 @@ E2:	CMPL BX, BP		// i < n
+ 
+ 
+ // func addVW(z, x []Word, y Word) (c Word)
+-TEXT ·addVW(SB),7,$0
++TEXT ·addVW(SB),NOSPLIT,$0
+ 	MOVL z+0(FP), DI
+ 	MOVL x+12(FP), SI
+ 	MOVL y+24(FP), AX	// c = y
+@@ -96,7 +98,7 @@ E3:	CMPL BX, BP		// i < n
+ 
+ 
+ // func subVW(z, x []Word, y Word) (c Word)
+-TEXT ·subVW(SB),7,$0
++TEXT ·subVW(SB),NOSPLIT,$0
+ 	MOVL z+0(FP), DI
+ 	MOVL x+12(FP), SI
+ 	MOVL y+24(FP), AX	// c = y
+@@ -119,7 +121,7 @@ E4:	CMPL BX, BP		// i < n
+ 
+ 
+ // func shlVU(z, x []Word, s uint) (c Word)
+-TEXT ·shlVU(SB),7,$0
++TEXT ·shlVU(SB),NOSPLIT,$0
+ 	MOVL z_len+4(FP), BX	// i = z
+ 	SUBL $1, BX		// i--
+ 	JL X8b			// i < 0	(n <= 0)
+@@ -154,7 +156,7 @@ X8b:	MOVL $0, c+28(FP)
+ 
+ 
+ // func shrVU(z, x []Word, s uint) (c Word)
+-TEXT ·shrVU(SB),7,$0
++TEXT ·shrVU(SB),NOSPLIT,$0
+ 	MOVL z_len+4(FP), BP
+ 	SUBL $1, BP		// n--
+ 	JL X9b			// n < 0	(n <= 0)
+@@ -191,7 +193,7 @@ X9b:	MOVL $0, c+28(FP)
+ 
+ 
+ // func mulAddVWW(z, x []Word, y, r Word) (c Word)
+-TEXT ·mulAddVWW(SB),7,$0
++TEXT ·mulAddVWW(SB),NOSPLIT,$0
+ 	MOVL z+0(FP), DI
+ 	MOVL x+12(FP), SI
+ 	MOVL y+24(FP), BP
+@@ -218,7 +220,7 @@ E5:	CMPL BX, $0		// i < 0
+ 
+ 
+ // func addMulVVW(z, x []Word, y Word) (c Word)
+-TEXT ·addMulVVW(SB),7,$0
++TEXT ·addMulVVW(SB),NOSPLIT,$0
+ 	MOVL z+0(FP), DI
+ 	MOVL x+12(FP), SI
+ 	MOVL y+24(FP), BP
+@@ -246,7 +248,7 @@ E6:	CMPL BX, $0		// i < 0
+ 
+ 
+ // func divWVW(z* Word, xn Word, x []Word, y Word) (r Word)
+-TEXT ·divWVW(SB),7,$0
++TEXT ·divWVW(SB),NOSPLIT,$0
+ 	MOVL z+0(FP), DI
+ 	MOVL xn+12(FP), DX	// r = xn
+ 	MOVL x+16(FP), SI
+@@ -265,7 +267,7 @@ E7:	SUBL $1, BX		// i--
+ 	RET
+ 
+ // func bitLen(x Word) (n int)
+-TEXT ·bitLen(SB),7,$0
++TEXT ·bitLen(SB),NOSPLIT,$0
+ 	BSRL x+0(FP), AX
+ 	JZ Z1
+ 	INCL AX
+diff --git a/src/pkg/math/big/arith_amd64.s b/src/pkg/math/big/arith_amd64.s
+index 62da650308..e2113a7e3a 100644
+--- a/src/pkg/math/big/arith_amd64.s
++++ b/src/pkg/math/big/arith_amd64.s
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++#include "../../../cmd/ld/textflag.h"
++
+ // This file provides fast assembly versions for the elementary
+ // arithmetic operations on vectors implemented in arith.go.
+ 
+@@ -16,7 +18,7 @@
+ 		BYTE $0x00
+ 
+ // func mulWW(x, y Word) (z1, z0 Word)
+-TEXT ·mulWW(SB),7,$0
++TEXT ·mulWW(SB),NOSPLIT,$0
+ 	MOVQ x+0(FP), AX
+ 	MULQ y+8(FP)
+ 	MOVQ DX, z1+16(FP)
+@@ -25,7 +27,7 @@ TEXT ·mulWW(SB),7,$0
+ 
+ 
+ // func divWW(x1, x0, y Word) (q, r Word)
+-TEXT ·divWW(SB),7,$0
++TEXT ·divWW(SB),NOSPLIT,$0
+ 	MOVQ x1+0(FP), DX
+ 	MOVQ x0+8(FP), AX
+ 	DIVQ y+16(FP)
+@@ -35,7 +37,7 @@ TEXT ·divWW(SB),7,$0
+ 
+ 
+ // func addVV(z, x, y []Word) (c Word)
+-TEXT ·addVV(SB),7,$0
++TEXT ·addVV(SB),NOSPLIT,$0
+ 	MOVQ z_len+8(FP), DI
+ 	MOVQ x+24(FP), R8
+ 	MOVQ y+48(FP), R9
+@@ -89,7 +91,7 @@ E1:	MOVQ CX, c+72(FP)	// return c
+ 
+ // func subVV(z, x, y []Word) (c Word)
+ // (same as addVV except for SBBQ instead of ADCQ and label names)
+-TEXT ·subVV(SB),7,$0
++TEXT ·subVV(SB),NOSPLIT,$0
+ 	MOVQ z_len+8(FP), DI
+ 	MOVQ x+24(FP), R8
+ 	MOVQ y+48(FP), R9
+@@ -142,7 +144,7 @@ E2:	MOVQ CX, c+72(FP)	// return c
+ 
+ 
+ // func addVW(z, x []Word, y Word) (c Word)
+-TEXT ·addVW(SB),7,$0
++TEXT ·addVW(SB),NOSPLIT,$0
+ 	MOVQ z_len+8(FP), DI
+ 	MOVQ x+24(FP), R8
+ 	MOVQ y+48(FP), CX	// c = y
+@@ -194,7 +196,7 @@ E3:	MOVQ CX, c+56(FP)	// return c
+ 
+ // func subVW(z, x []Word, y Word) (c Word)
+ // (same as addVW except for SUBQ/SBBQ instead of ADDQ/ADCQ and label names)
+-TEXT ·subVW(SB),7,$0
++TEXT ·subVW(SB),NOSPLIT,$0
+ 	MOVQ z_len+8(FP), DI
+ 	MOVQ x+24(FP), R8
+ 	MOVQ y+48(FP), CX	// c = y
+@@ -246,7 +248,7 @@ E4:	MOVQ CX, c+56(FP)	// return c
+ 
+ 
+ // func shlVU(z, x []Word, s uint) (c Word)
+-TEXT ·shlVU(SB),7,$0
++TEXT ·shlVU(SB),NOSPLIT,$0
+ 	MOVQ z_len+8(FP), BX	// i = z
+ 	SUBQ $1, BX		// i--
+ 	JL X8b			// i < 0	(n <= 0)
+@@ -281,7 +283,7 @@ X8b:	MOVQ $0, c+56(FP)
+ 
+ 
+ // func shrVU(z, x []Word, s uint) (c Word)
+-TEXT ·shrVU(SB),7,$0
++TEXT ·shrVU(SB),NOSPLIT,$0
+ 	MOVQ z_len+8(FP), R11
+ 	SUBQ $1, R11		// n--
+ 	JL X9b			// n < 0	(n <= 0)
+@@ -318,7 +320,7 @@ X9b:	MOVQ $0, c+56(FP)
+ 
+ 
+ // func mulAddVWW(z, x []Word, y, r Word) (c Word)
+-TEXT ·mulAddVWW(SB),7,$0
++TEXT ·mulAddVWW(SB),NOSPLIT,$0
+ 	MOVQ z+0(FP), R10
+ 	MOVQ x+24(FP), R8
+ 	MOVQ y+48(FP), R9
+@@ -343,7 +345,7 @@ E5:	CMPQ BX, R11		// i < n
+ 
+ 
+ // func addMulVVW(z, x []Word, y Word) (c Word)
+-TEXT ·addMulVVW(SB),7,$0
++TEXT ·addMulVVW(SB),NOSPLIT,$0
+ 	MOVQ z+0(FP), R10
+ 	MOVQ x+24(FP), R8
+ 	MOVQ y+48(FP), R9
+@@ -369,7 +371,7 @@ E6:	CMPQ BX, R11		// i < n
+ 
+ 
+ // func divWVW(z []Word, xn Word, x []Word, y Word) (r Word)
+-TEXT ·divWVW(SB),7,$0
++TEXT ·divWVW(SB),NOSPLIT,$0
+ 	MOVQ z+0(FP), R10
+ 	MOVQ xn+24(FP), DX	// r = xn
+ 	MOVQ x+32(FP), R8
+@@ -388,7 +390,7 @@ E7:	SUBQ $1, BX		// i--
+ 	RET
+ 
+ // func bitLen(x Word) (n int)
+-TEXT ·bitLen(SB),7,$0
++TEXT ·bitLen(SB),NOSPLIT,$0
+ 	BSRQ x+0(FP), AX
+ 	JZ Z1
+ 	ADDQ $1, AX
+diff --git a/src/pkg/math/big/arith_arm.s b/src/pkg/math/big/arith_arm.s
+index 6e2d23d332..ecf55b344d 100644
+--- a/src/pkg/math/big/arith_arm.s
++++ b/src/pkg/math/big/arith_arm.s
+@@ -2,13 +2,15 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++#include "../../../cmd/ld/textflag.h"
++
+ // This file provides fast assembly versions for the elementary
+ // arithmetic operations on vectors implemented in arith.go.
+ 
+ #define CFLAG 29	// bit position of carry flag
+ 
+ // func addVV(z, x, y []Word) (c Word)
+-TEXT ·addVV(SB),7,$0
++TEXT ·addVV(SB),NOSPLIT,$0
+ 	MOVW	$0, R0
+ 	MOVW	z+0(FP), R1
+ 	MOVW	x+12(FP), R2
+@@ -36,7 +38,7 @@ E1:
+ 
+ // func subVV(z, x, y []Word) (c Word)
+ // (same as addVV except for SBC instead of ADC and label names)
+-TEXT ·subVV(SB),7,$0
++TEXT ·subVV(SB),NOSPLIT,$0
+ 	MOVW	$(1<<CFLAG), R0
+ 	MOVW	z+0(FP), R1
+ 	MOVW	x+12(FP), R2
+@@ -64,7 +66,7 @@ E2:
+ 
+ 
+ // func addVW(z, x []Word, y Word) (c Word)
+-TEXT ·addVW(SB),7,$0
++TEXT ·addVW(SB),NOSPLIT,$0
+ 	MOVW	z+0(FP), R1
+ 	MOVW	x+12(FP), R2
+ 	MOVW	y+24(FP), R3
+@@ -98,7 +100,7 @@ E3:
+ 
+ 
+ // func subVW(z, x []Word, y Word) (c Word)
+-TEXT ·subVW(SB),7,$0
++TEXT ·subVW(SB),NOSPLIT,$0
+ 	MOVW	z+0(FP), R1
+ 	MOVW	x+12(FP), R2
+ 	MOVW	y+24(FP), R3
+@@ -133,7 +135,7 @@ E4:
+ 
+ 
+ // func shlVU(z, x []Word, s uint) (c Word)
+-TEXT ·shlVU(SB),7,$0
++TEXT ·shlVU(SB),NOSPLIT,$0
+ 	MOVW	z_len+4(FP), R5
+ 	CMP	$0, R5
+ 	BEQ	X7
+@@ -182,7 +184,7 @@ X7:
+ 
+ 
+ // func shrVU(z, x []Word, s uint) (c Word)
+-TEXT ·shrVU(SB),7,$0
++TEXT ·shrVU(SB),NOSPLIT,$0
+ 	MOVW	z_len+4(FP), R5
+ 	CMP	$0, R5
+ 	BEQ	X6
+@@ -232,7 +234,7 @@ X6:
+ 
+ 
+ // func mulAddVWW(z, x []Word, y, r Word) (c Word)
+-TEXT ·mulAddVWW(SB),7,$0
++TEXT ·mulAddVWW(SB),NOSPLIT,$0
+ 	MOVW	$0, R0
+ 	MOVW	z+0(FP), R1
+ 	MOVW	x+12(FP), R2
+@@ -260,7 +262,7 @@ E8:
+ 
+ 
+ // func addMulVVW(z, x []Word, y Word) (c Word)
+-TEXT ·addMulVVW(SB),7,$0
++TEXT ·addMulVVW(SB),NOSPLIT,$0
+ 	MOVW	$0, R0
+ 	MOVW	z+0(FP), R1
+ 	MOVW	x+12(FP), R2
+@@ -291,19 +293,19 @@ E9:
+ 
+ 
+ // func divWVW(z* Word, xn Word, x []Word, y Word) (r Word)
+-TEXT ·divWVW(SB),7,$0
++TEXT ·divWVW(SB),NOSPLIT,$0
+ 	// ARM has no multiword division, so use portable code.
+ 	B ·divWVW_g(SB)
+ 
+ 
+ // func divWW(x1, x0, y Word) (q, r Word)
+-TEXT ·divWW(SB),7,$0
++TEXT ·divWW(SB),NOSPLIT,$0
+ 	// ARM has no multiword division, so use portable code.
+ 	B ·divWW_g(SB)
+ 
+ 
+ // func mulWW(x, y Word) (z1, z0 Word)
+-TEXT ·mulWW(SB),7,$0
++TEXT ·mulWW(SB),NOSPLIT,$0
+ 	MOVW	x+0(FP), R1
+ 	MOVW	y+4(FP), R2
+ 	MULLU	R1, R2, (R4, R3)
+@@ -312,7 +314,7 @@ TEXT ·mulWW(SB),7,$0
+ 	RET
+ 
+ // func bitLen(x Word) (n int)
+-TEXT ·bitLen(SB),7,$0
++TEXT ·bitLen(SB),NOSPLIT,$0
+ 	MOVW	x+0(FP), R0
+ 	CLZ 	R0, R0
+ 	MOVW	$32, R1
+diff --git a/src/pkg/os/signal/sig.s b/src/pkg/os/signal/sig.s
+index df4855de8d..888823cf45 100644
+--- a/src/pkg/os/signal/sig.s
++++ b/src/pkg/os/signal/sig.s
+@@ -6,16 +6,18 @@
+ 
+ // +build amd64 arm 386
+ 
++#include "../../../cmd/ld/textflag.h"
++
+ #ifdef GOARCH_arm
+ #define JMP B
+ #endif
+ 
+-TEXT ·signal_disable(SB),7,$0
++TEXT ·signal_disable(SB),NOSPLIT,$0
+ 	JMP runtime·signal_disable(SB)
+ 
+-TEXT ·signal_enable(SB),7,$0
++TEXT ·signal_enable(SB),NOSPLIT,$0
+ 	JMP runtime·signal_enable(SB)
+ 
+-TEXT ·signal_recv(SB),7,$0
++TEXT ·signal_recv(SB),NOSPLIT,$0
+ 	JMP runtime·signal_recv(SB)
+ 
+diff --git a/src/pkg/reflect/asm_386.s b/src/pkg/reflect/asm_386.s
+index 2d5ac0367d..ef814966e7 100644
+--- a/src/pkg/reflect/asm_386.s
++++ b/src/pkg/reflect/asm_386.s
+@@ -2,11 +2,13 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++#include "../../cmd/ld/textflag.h"
++
+ // makeFuncStub is the code half of the function returned by MakeFunc.
+ // See the comment on the declaration of makeFuncStub in makefunc.go
+ // for more details.
+ // No argsize here, gc generates argsize info at call site.
+-TEXT ·makeFuncStub(SB),7,$8
++TEXT ·makeFuncStub(SB),NOSPLIT,$8
+ 	MOVL	DX, 0(SP)
+ 	LEAL	argframe+0(FP), CX
+ 	MOVL	CX, 4(SP)
+@@ -17,7 +19,7 @@ TEXT ·makeFuncStub(SB),7,$8
+ // See the comment on the declaration of methodValueCall in makefunc.go
+ // for more details.
+ // No argsize here, gc generates argsize info at call site.
+-TEXT ·methodValueCall(SB),7,$8
++TEXT ·methodValueCall(SB),NOSPLIT,$8
+ 	MOVL	DX, 0(SP)
+ 	LEAL	argframe+0(FP), CX
+ 	MOVL	CX, 4(SP)
+diff --git a/src/pkg/reflect/asm_amd64.s b/src/pkg/reflect/asm_amd64.s
+index 7d3aaeba45..1aa10440c3 100644
+--- a/src/pkg/reflect/asm_amd64.s
++++ b/src/pkg/reflect/asm_amd64.s
+@@ -2,11 +2,13 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++#include "../../cmd/ld/textflag.h"
++
+ // makeFuncStub is the code half of the function returned by MakeFunc.
+ // See the comment on the declaration of makeFuncStub in makefunc.go
+ // for more details.
+ // No argsize here, gc generates argsize info at call site.
+-TEXT ·makeFuncStub(SB),7,$16
++TEXT ·makeFuncStub(SB),NOSPLIT,$16
+ 	MOVQ	DX, 0(SP)
+ 	LEAQ	argframe+0(FP), CX
+ 	MOVQ	CX, 8(SP)
+@@ -17,7 +19,7 @@ TEXT ·makeFuncStub(SB),7,$16
+ // See the comment on the declaration of methodValueCall in makefunc.go
+ // for more details.
+ // No argsize here, gc generates argsize info at call site.
+-TEXT ·methodValueCall(SB),7,$16
++TEXT ·methodValueCall(SB),NOSPLIT,$16
+ 	MOVQ	DX, 0(SP)
+ 	LEAQ	argframe+0(FP), CX
+ 	MOVQ	CX, 8(SP)
+diff --git a/src/pkg/reflect/asm_arm.s b/src/pkg/reflect/asm_arm.s
+index bf10929dc6..5e456ea2c3 100644
+--- a/src/pkg/reflect/asm_arm.s
++++ b/src/pkg/reflect/asm_arm.s
+@@ -2,11 +2,13 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++#include "../../cmd/ld/textflag.h"
++
+ // makeFuncStub is jumped to by the code generated by MakeFunc.
+ // See the comment on the declaration of makeFuncStub in makefunc.go
+ // for more details.
+ // No argsize here, gc generates argsize info at call site.
+-TEXT ·makeFuncStub(SB),7,$8
++TEXT ·makeFuncStub(SB),NOSPLIT,$8
+ 	MOVW	R7, 4(R13)
+ 	MOVW	$argframe+0(FP), R1
+ 	MOVW	R1, 8(R13)
+@@ -17,7 +19,7 @@ TEXT ·makeFuncStub(SB),7,$8
+ // See the comment on the declaration of methodValueCall in makefunc.go
+ // for more details.
+ // No argsize here, gc generates argsize info at call site.
+-TEXT ·methodValueCall(SB),7,$8
++TEXT ·methodValueCall(SB),NOSPLIT,$8
+ 	MOVW	R7, 4(R13)
+ 	MOVW	$argframe+0(FP), R1
+ 	MOVW	R1, 8(R13)
+diff --git a/src/pkg/runtime/cgo/asm_386.s b/src/pkg/runtime/cgo/asm_386.s
+index 7faaa40971..ab2f1d17a8 100644
+--- a/src/pkg/runtime/cgo/asm_386.s
++++ b/src/pkg/runtime/cgo/asm_386.s
+@@ -2,11 +2,13 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++#include "../../../cmd/ld/textflag.h"
++
+ /*
+  * void crosscall2(void (*fn)(void*, int32), void*, int32)
+  * Save registers and call fn with two arguments.
+  */
+-TEXT crosscall2(SB),7,$0
++TEXT crosscall2(SB),NOSPLIT,$0
+ 	PUSHL	BP
+ 	MOVL	SP, BP
+ 	PUSHL	BX
+diff --git a/src/pkg/runtime/cgo/asm_amd64.s b/src/pkg/runtime/cgo/asm_amd64.s
+index 53f7148a24..64f719ab1c 100644
+--- a/src/pkg/runtime/cgo/asm_amd64.s
++++ b/src/pkg/runtime/cgo/asm_amd64.s
+@@ -2,11 +2,13 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++#include "../../../cmd/ld/textflag.h"
++
+ /*
+  * void crosscall2(void (*fn)(void*, int32), void*, int32)
+  * Save registers and call fn with two arguments.
+  */
+-TEXT crosscall2(SB),7,$0
++TEXT crosscall2(SB),NOSPLIT,$0
+ 	SUBQ	$0x58, SP	/* keeps stack pointer 32-byte aligned */
+ 	MOVQ	BX, 0x10(SP)
+ 	MOVQ	BP, 0x18(SP)
+diff --git a/src/pkg/runtime/cgo/asm_arm.s b/src/pkg/runtime/cgo/asm_arm.s
+index e37c506c41..bf0132f6f6 100644
+--- a/src/pkg/runtime/cgo/asm_arm.s
++++ b/src/pkg/runtime/cgo/asm_arm.s
+@@ -2,11 +2,13 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++#include "../../../cmd/ld/textflag.h"
++
+ /*
+  * void crosscall2(void (*fn)(void*, int32), void*, int32)
+  * Save registers and call fn with two arguments.
+  */
+-TEXT crosscall2(SB),7,$-4
++TEXT crosscall2(SB),NOSPLIT,$-4
+ 	/* 
+ 	 * We still need to save all callee save register as before, and then
+ 	 *  push 2 args for fn (R1 and R2).
+diff --git a/src/pkg/sync/atomic/asm_386.s b/src/pkg/sync/atomic/asm_386.s
+index 8c02f106f5..5313a09591 100644
+--- a/src/pkg/sync/atomic/asm_386.s
++++ b/src/pkg/sync/atomic/asm_386.s
+@@ -4,10 +4,12 @@
+ 
+ // +build !race
+ 
+-TEXT ·CompareAndSwapInt32(SB),7,$0
++#include "../../../cmd/ld/textflag.h"
++
++TEXT ·CompareAndSwapInt32(SB),NOSPLIT,$0
+ 	JMP	·CompareAndSwapUint32(SB)
+ 
+-TEXT ·CompareAndSwapUint32(SB),7,$0
++TEXT ·CompareAndSwapUint32(SB),NOSPLIT,$0
+ 	MOVL	addr+0(FP), BP
+ 	MOVL	old+4(FP), AX
+ 	MOVL	new+8(FP), CX
+@@ -17,16 +19,16 @@ TEXT ·CompareAndSwapUint32(SB),7,$0
+ 	SETEQ	swapped+12(FP)
+ 	RET
+ 
+-TEXT ·CompareAndSwapUintptr(SB),7,$0
++TEXT ·CompareAndSwapUintptr(SB),NOSPLIT,$0
+ 	JMP	·CompareAndSwapUint32(SB)
+ 
+-TEXT ·CompareAndSwapPointer(SB),7,$0
++TEXT ·CompareAndSwapPointer(SB),NOSPLIT,$0
+ 	JMP	·CompareAndSwapUint32(SB)
+ 
+-TEXT ·CompareAndSwapInt64(SB),7,$0
++TEXT ·CompareAndSwapInt64(SB),NOSPLIT,$0
+ 	JMP	·CompareAndSwapUint64(SB)
+ 
+-TEXT ·CompareAndSwapUint64(SB),7,$0
++TEXT ·CompareAndSwapUint64(SB),NOSPLIT,$0
+ 	MOVL	addr+0(FP), BP
+ 	TESTL	$7, BP
+ 	JZ	2(PC)
+@@ -41,10 +43,10 @@ TEXT ·CompareAndSwapUint64(SB),7,$0
+ 	SETEQ	swapped+20(FP)
+ 	RET
+ 
+-TEXT ·AddInt32(SB),7,$0
++TEXT ·AddInt32(SB),NOSPLIT,$0
+ 	JMP	·AddUint32(SB)
+ 
+-TEXT ·AddUint32(SB),7,$0
++TEXT ·AddUint32(SB),NOSPLIT,$0
+ 	MOVL	addr+0(FP), BP
+ 	MOVL	delta+4(FP), AX
+ 	MOVL	AX, CX
+@@ -55,13 +57,13 @@ TEXT ·AddUint32(SB),7,$0
+ 	MOVL	CX, new+8(FP)
+ 	RET
+ 
+-TEXT ·AddUintptr(SB),7,$0
++TEXT ·AddUintptr(SB),NOSPLIT,$0
+ 	JMP	·AddUint32(SB)
+ 
+-TEXT ·AddInt64(SB),7,$0
++TEXT ·AddInt64(SB),NOSPLIT,$0
+ 	JMP	·AddUint64(SB)
+ 
+-TEXT ·AddUint64(SB),7,$0
++TEXT ·AddUint64(SB),NOSPLIT,$0
+ 	// no XADDQ so use CMPXCHG8B loop
+ 	MOVL	addr+0(FP), BP
+ 	TESTL	$7, BP
+@@ -97,19 +99,19 @@ addloop:
+ 	MOVL	CX, new_hi+16(FP)
+ 	RET
+ 
+-TEXT ·LoadInt32(SB),7,$0
++TEXT ·LoadInt32(SB),NOSPLIT,$0
+ 	JMP	·LoadUint32(SB)
+ 
+-TEXT ·LoadUint32(SB),7,$0
++TEXT ·LoadUint32(SB),NOSPLIT,$0
+ 	MOVL	addr+0(FP), AX
+ 	MOVL	0(AX), AX
+ 	MOVL	AX, val+4(FP)
+ 	RET
+ 
+-TEXT ·LoadInt64(SB),7,$0
++TEXT ·LoadInt64(SB),NOSPLIT,$0
+ 	JMP	·LoadUint64(SB)
+ 
+-TEXT ·LoadUint64(SB),7,$0
++TEXT ·LoadUint64(SB),NOSPLIT,$0
+ 	MOVL	addr+0(FP), AX
+ 	TESTL	$7, AX
+ 	JZ	2(PC)
+@@ -122,25 +124,25 @@ TEXT ·LoadUint64(SB),7,$0
+ 	EMMS
+ 	RET
+ 
+-TEXT ·LoadUintptr(SB),7,$0
++TEXT ·LoadUintptr(SB),NOSPLIT,$0
+ 	JMP	·LoadUint32(SB)
+ 
+-TEXT ·LoadPointer(SB),7,$0
++TEXT ·LoadPointer(SB),NOSPLIT,$0
+ 	JMP	·LoadUint32(SB)
+ 
+-TEXT ·StoreInt32(SB),7,$0
++TEXT ·StoreInt32(SB),NOSPLIT,$0
+ 	JMP	·StoreUint32(SB)
+ 
+-TEXT ·StoreUint32(SB),7,$0
++TEXT ·StoreUint32(SB),NOSPLIT,$0
+ 	MOVL	addr+0(FP), BP
+ 	MOVL	val+4(FP), AX
+ 	XCHGL	AX, 0(BP)
+ 	RET
+ 
+-TEXT ·StoreInt64(SB),7,$0
++TEXT ·StoreInt64(SB),NOSPLIT,$0
+ 	JMP	·StoreUint64(SB)
+ 
+-TEXT ·StoreUint64(SB),7,$0
++TEXT ·StoreUint64(SB),NOSPLIT,$0
+ 	MOVL	addr+0(FP), AX
+ 	TESTL	$7, AX
+ 	JZ	2(PC)
+@@ -158,8 +160,8 @@ TEXT ·StoreUint64(SB),7,$0
+ 	XADDL	AX, (SP)
+ 	RET
+ 
+-TEXT ·StoreUintptr(SB),7,$0
++TEXT ·StoreUintptr(SB),NOSPLIT,$0
+ 	JMP	·StoreUint32(SB)
+ 
+-TEXT ·StorePointer(SB),7,$0
++TEXT ·StorePointer(SB),NOSPLIT,$0
+ 	JMP	·StoreUint32(SB)
+diff --git a/src/pkg/sync/atomic/asm_amd64.s b/src/pkg/sync/atomic/asm_amd64.s
+index 58bda9e4f5..c254614a57 100644
+--- a/src/pkg/sync/atomic/asm_amd64.s
++++ b/src/pkg/sync/atomic/asm_amd64.s
+@@ -4,10 +4,12 @@
+ 
+ // +build !race
+ 
+-TEXT ·CompareAndSwapInt32(SB),7,$0
++#include "../../../cmd/ld/textflag.h"
++
++TEXT ·CompareAndSwapInt32(SB),NOSPLIT,$0
+ 	JMP	·CompareAndSwapUint32(SB)
+ 
+-TEXT ·CompareAndSwapUint32(SB),7,$0
++TEXT ·CompareAndSwapUint32(SB),NOSPLIT,$0
+ 	MOVQ	addr+0(FP), BP
+ 	MOVL	old+8(FP), AX
+ 	MOVL	new+12(FP), CX
+@@ -16,16 +18,16 @@ TEXT ·CompareAndSwapUint32(SB),7,$0
+ 	SETEQ	swapped+16(FP)
+ 	RET
+ 
+-TEXT ·CompareAndSwapUintptr(SB),7,$0
++TEXT ·CompareAndSwapUintptr(SB),NOSPLIT,$0
+ 	JMP	·CompareAndSwapUint64(SB)
+ 
+-TEXT ·CompareAndSwapPointer(SB),7,$0
++TEXT ·CompareAndSwapPointer(SB),NOSPLIT,$0
+ 	JMP	·CompareAndSwapUint64(SB)
+ 
+-TEXT ·CompareAndSwapInt64(SB),7,$0
++TEXT ·CompareAndSwapInt64(SB),NOSPLIT,$0
+ 	JMP	·CompareAndSwapUint64(SB)
+ 
+-TEXT ·CompareAndSwapUint64(SB),7,$0
++TEXT ·CompareAndSwapUint64(SB),NOSPLIT,$0
+ 	MOVQ	addr+0(FP), BP
+ 	MOVQ	old+8(FP), AX
+ 	MOVQ	new+16(FP), CX
+@@ -34,10 +36,10 @@ TEXT ·CompareAndSwapUint64(SB),7,$0
+ 	SETEQ	swapped+24(FP)
+ 	RET
+ 
+-TEXT ·AddInt32(SB),7,$0
++TEXT ·AddInt32(SB),NOSPLIT,$0
+ 	JMP	·AddUint32(SB)
+ 
+-TEXT ·AddUint32(SB),7,$0
++TEXT ·AddUint32(SB),NOSPLIT,$0
+ 	MOVQ	addr+0(FP), BP
+ 	MOVL	delta+8(FP), AX
+ 	MOVL	AX, CX
+@@ -47,13 +49,13 @@ TEXT ·AddUint32(SB),7,$0
+ 	MOVL	CX, new+16(FP)
+ 	RET
+ 
+-TEXT ·AddUintptr(SB),7,$0
++TEXT ·AddUintptr(SB),NOSPLIT,$0
+ 	JMP	·AddUint64(SB)
+ 
+-TEXT ·AddInt64(SB),7,$0
++TEXT ·AddInt64(SB),NOSPLIT,$0
+ 	JMP	·AddUint64(SB)
+ 
+-TEXT ·AddUint64(SB),7,$0
++TEXT ·AddUint64(SB),NOSPLIT,$0
+ 	MOVQ	addr+0(FP), BP
+ 	MOVQ	delta+8(FP), AX
+ 	MOVQ	AX, CX
+@@ -63,55 +65,55 @@ TEXT ·AddUint64(SB),7,$0
+ 	MOVQ	CX, new+16(FP)
+ 	RET
+ 
+-TEXT ·LoadInt32(SB),7,$0
++TEXT ·LoadInt32(SB),NOSPLIT,$0
+ 	JMP	·LoadUint32(SB)
+ 
+-TEXT ·LoadUint32(SB),7,$0
++TEXT ·LoadUint32(SB),NOSPLIT,$0
+ 	MOVQ	addr+0(FP), AX
+ 	MOVL	0(AX), AX
+ 	MOVL	AX, val+8(FP)
+ 	RET
+ 
+-TEXT ·LoadInt64(SB),7,$0
++TEXT ·LoadInt64(SB),NOSPLIT,$0
+ 	JMP	·LoadUint64(SB)
+ 
+-TEXT ·LoadUint64(SB),7,$0
++TEXT ·LoadUint64(SB),NOSPLIT,$0
+ 	MOVQ	addr+0(FP), AX
+ 	MOVQ	0(AX), AX
+ 	MOVQ	AX, val+8(FP)
+ 	RET
+ 
+-TEXT ·LoadUintptr(SB),7,$0
++TEXT ·LoadUintptr(SB),NOSPLIT,$0
+ 	JMP	·LoadPointer(SB)
+ 
+-TEXT ·LoadPointer(SB),7,$0
++TEXT ·LoadPointer(SB),NOSPLIT,$0
+ 	MOVQ	addr+0(FP), AX
+ 	MOVQ	0(AX), AX
+ 	MOVQ	AX, val+8(FP)
+ 	RET
+ 
+-TEXT ·StoreInt32(SB),7,$0
++TEXT ·StoreInt32(SB),NOSPLIT,$0
+ 	JMP	·StoreUint32(SB)
+ 
+-TEXT ·StoreUint32(SB),7,$0
++TEXT ·StoreUint32(SB),NOSPLIT,$0
+ 	MOVQ	addr+0(FP), BP
+ 	MOVL	val+8(FP), AX
+ 	XCHGL	AX, 0(BP)
+ 	RET
+ 
+-TEXT ·StoreInt64(SB),7,$0
++TEXT ·StoreInt64(SB),NOSPLIT,$0
+ 	JMP	·StoreUint64(SB)
+ 
+-TEXT ·StoreUint64(SB),7,$0
++TEXT ·StoreUint64(SB),NOSPLIT,$0
+ 	MOVQ	addr+0(FP), BP
+ 	MOVQ	val+8(FP), AX
+ 	XCHGQ	AX, 0(BP)
+ 	RET
+ 
+-TEXT ·StoreUintptr(SB),7,$0
++TEXT ·StoreUintptr(SB),NOSPLIT,$0
+ 	JMP	·StorePointer(SB)
+ 
+-TEXT ·StorePointer(SB),7,$0
++TEXT ·StorePointer(SB),NOSPLIT,$0
+ 	MOVQ	addr+0(FP), BP
+ 	MOVQ	val+8(FP), AX
+ 	XCHGQ	AX, 0(BP)
+diff --git a/src/pkg/sync/atomic/asm_arm.s b/src/pkg/sync/atomic/asm_arm.s
+index a0525881e8..2d974b625c 100644
+--- a/src/pkg/sync/atomic/asm_arm.s
++++ b/src/pkg/sync/atomic/asm_arm.s
+@@ -4,9 +4,11 @@
+ 
+ // +build !race
+ 
++#include "../../../cmd/ld/textflag.h"
++
+ // ARM atomic operations, for use by asm_$(GOOS)_arm.s.
+ 
+-TEXT ·armCompareAndSwapUint32(SB),7,$0
++TEXT ·armCompareAndSwapUint32(SB),NOSPLIT,$0
+ 	MOVW	addr+0(FP), R1
+ 	MOVW	old+4(FP), R2
+ 	MOVW	new+8(FP), R3
+@@ -26,7 +28,7 @@ casfail:
+ 	MOVBU	R0, ret+12(FP)
+ 	RET
+ 
+-TEXT ·armCompareAndSwapUint64(SB),7,$0
++TEXT ·armCompareAndSwapUint64(SB),NOSPLIT,$0
+ 	BL	fastCheck64<>(SB)
+ 	MOVW	addr+0(FP), R1
+ 	// make unaligned atomic access panic
+@@ -55,7 +57,7 @@ cas64fail:
+ 	MOVBU	R0, ret+20(FP)
+ 	RET
+ 
+-TEXT ·armAddUint32(SB),7,$0
++TEXT ·armAddUint32(SB),NOSPLIT,$0
+ 	MOVW	addr+0(FP), R1
+ 	MOVW	delta+4(FP), R2
+ addloop:
+@@ -68,7 +70,7 @@ addloop:
+ 	MOVW	R3, ret+8(FP)
+ 	RET
+ 
+-TEXT ·armAddUint64(SB),7,$0
++TEXT ·armAddUint64(SB),NOSPLIT,$0
+ 	BL	fastCheck64<>(SB)
+ 	MOVW	addr+0(FP), R1
+ 	// make unaligned atomic access panic
+@@ -89,7 +91,7 @@ add64loop:
+ 	MOVW	R5, rethi+16(FP)
+ 	RET
+ 
+-TEXT ·armLoadUint64(SB),7,$0
++TEXT ·armLoadUint64(SB),NOSPLIT,$0
+ 	BL	fastCheck64<>(SB)
+ 	MOVW	addr+0(FP), R1
+ 	// make unaligned atomic access panic
+@@ -105,7 +107,7 @@ load64loop:
+ 	MOVW	R3, valhi+8(FP)
+ 	RET
+ 
+-TEXT ·armStoreUint64(SB),7,$0
++TEXT ·armStoreUint64(SB),NOSPLIT,$0
+ 	BL	fastCheck64<>(SB)
+ 	MOVW	addr+0(FP), R1
+ 	// make unaligned atomic access panic
+@@ -129,7 +131,7 @@ store64loop:
+ // which will make uses of the 64-bit atomic operations loop forever.
+ // If things are working, set okLDREXD to avoid future checks.
+ // https://bugs.launchpad.net/qemu/+bug/670883.
+-TEXT	check64<>(SB),7,$16
++TEXT	check64<>(SB),NOSPLIT,$16
+ 	MOVW	$10, R1
+ 	// 8-aligned stack address scratch space.
+ 	MOVW	$8(R13), R5
+@@ -148,13 +150,13 @@ ok:
+ 	RET
+ 
+ // Fast, cached version of check.  No frame, just MOVW CMP RET after first time.
+-TEXT	fastCheck64<>(SB),7,$-4
++TEXT	fastCheck64<>(SB),NOSPLIT,$-4
+ 	MOVW	ok64<>(SB), R0
+ 	CMP	$0, R0	// have we been here before?
+ 	RET.NE
+ 	B	slowCheck64<>(SB)
+ 
+-TEXT slowCheck64<>(SB),7,$0
++TEXT slowCheck64<>(SB),NOSPLIT,$0
+ 	BL	check64<>(SB)
+ 	// Still here, must be okay.
+ 	MOVW	$1, R0
+diff --git a/src/pkg/sync/atomic/asm_freebsd_arm.s b/src/pkg/sync/atomic/asm_freebsd_arm.s
+index 6590921b08..013fdfc57d 100644
+--- a/src/pkg/sync/atomic/asm_freebsd_arm.s
++++ b/src/pkg/sync/atomic/asm_freebsd_arm.s
+@@ -2,46 +2,48 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++#include "../../../cmd/ld/textflag.h"
++
+ // FreeBSD/ARM atomic operations.
+ // TODO(minux): this only supports ARMv6K or higher.
+ 
+-TEXT ·CompareAndSwapInt32(SB),7,$0
++TEXT ·CompareAndSwapInt32(SB),NOSPLIT,$0
+ 	B ·CompareAndSwapUint32(SB)
+ 
+-TEXT ·CompareAndSwapUint32(SB),7,$0
++TEXT ·CompareAndSwapUint32(SB),NOSPLIT,$0
+ 	B ·armCompareAndSwapUint32(SB)
+ 
+-TEXT ·CompareAndSwapUintptr(SB),7,$0
++TEXT ·CompareAndSwapUintptr(SB),NOSPLIT,$0
+ 	B ·CompareAndSwapUint32(SB)
+ 
+-TEXT ·CompareAndSwapPointer(SB),7,$0
++TEXT ·CompareAndSwapPointer(SB),NOSPLIT,$0
+ 	B ·CompareAndSwapUint32(SB)
+ 
+-TEXT ·AddInt32(SB),7,$0
++TEXT ·AddInt32(SB),NOSPLIT,$0
+ 	B ·AddUint32(SB)
+ 
+-TEXT ·AddUint32(SB),7,$0
++TEXT ·AddUint32(SB),NOSPLIT,$0
+ 	B ·armAddUint32(SB)
+ 
+-TEXT ·AddUintptr(SB),7,$0
++TEXT ·AddUintptr(SB),NOSPLIT,$0
+ 	B ·AddUint32(SB)
+ 
+-TEXT ·CompareAndSwapInt64(SB),7,$0
++TEXT ·CompareAndSwapInt64(SB),NOSPLIT,$0
+ 	B ·CompareAndSwapUint64(SB)
+ 
+-TEXT ·CompareAndSwapUint64(SB),7,$-4
++TEXT ·CompareAndSwapUint64(SB),NOSPLIT,$-4
+ 	B ·armCompareAndSwapUint64(SB)
+ 
+-TEXT ·AddInt64(SB),7,$0
++TEXT ·AddInt64(SB),NOSPLIT,$0
+ 	B ·addUint64(SB)
+ 
+-TEXT ·AddUint64(SB),7,$0
++TEXT ·AddUint64(SB),NOSPLIT,$0
+ 	B ·addUint64(SB)
+ 
+-TEXT ·LoadInt32(SB),7,$0
++TEXT ·LoadInt32(SB),NOSPLIT,$0
+ 	B ·LoadUint32(SB)
+ 
+-TEXT ·LoadUint32(SB),7,$0
++TEXT ·LoadUint32(SB),NOSPLIT,$0
+ 	MOVW addr+0(FP), R1
+ load32loop:
+ 	LDREX (R1), R2		// loads R2
+@@ -51,22 +53,22 @@ load32loop:
+ 	MOVW R2, val+4(FP)
+ 	RET
+ 
+-TEXT ·LoadInt64(SB),7,$0
++TEXT ·LoadInt64(SB),NOSPLIT,$0
+ 	B ·loadUint64(SB)
+ 
+-TEXT ·LoadUint64(SB),7,$0
++TEXT ·LoadUint64(SB),NOSPLIT,$0
+ 	B ·loadUint64(SB)
+ 
+-TEXT ·LoadUintptr(SB),7,$0
++TEXT ·LoadUintptr(SB),NOSPLIT,$0
+ 	B ·LoadUint32(SB)
+ 
+-TEXT ·LoadPointer(SB),7,$0
++TEXT ·LoadPointer(SB),NOSPLIT,$0
+ 	B ·LoadUint32(SB)
+ 
+-TEXT ·StoreInt32(SB),7,$0
++TEXT ·StoreInt32(SB),NOSPLIT,$0
+ 	B ·StoreUint32(SB)
+ 
+-TEXT ·StoreUint32(SB),7,$0
++TEXT ·StoreUint32(SB),NOSPLIT,$0
+ 	MOVW addr+0(FP), R1
+ 	MOVW val+4(FP), R2
+ storeloop:
+@@ -76,14 +78,14 @@ storeloop:
+ 	BNE storeloop
+ 	RET
+ 
+-TEXT ·StoreInt64(SB),7,$0
++TEXT ·StoreInt64(SB),NOSPLIT,$0
+ 	B ·storeUint64(SB)
+ 
+-TEXT ·StoreUint64(SB),7,$0
++TEXT ·StoreUint64(SB),NOSPLIT,$0
+ 	B ·storeUint64(SB)
+ 
+-TEXT ·StoreUintptr(SB),7,$0
++TEXT ·StoreUintptr(SB),NOSPLIT,$0
+ 	B ·StoreUint32(SB)
+ 
+-TEXT ·StorePointer(SB),7,$0
++TEXT ·StorePointer(SB),NOSPLIT,$0
+ 	B ·StoreUint32(SB)
+diff --git a/src/pkg/sync/atomic/asm_linux_arm.s b/src/pkg/sync/atomic/asm_linux_arm.s
+index 5b16894b99..50d42ed91a 100644
+--- a/src/pkg/sync/atomic/asm_linux_arm.s
++++ b/src/pkg/sync/atomic/asm_linux_arm.s
+@@ -4,6 +4,8 @@
+ 
+ // +build !race
+ 
++#include "../../../cmd/ld/textflag.h"
++
+ // Linux/ARM atomic operations.
+ 
+ // Because there is so much variation in ARM devices,
+@@ -21,14 +23,14 @@
+ //
+ // http://git.kernel.org/?p=linux/kernel/git/torvalds/linux-2.6.git;a=commit;h=b49c0f24cf6744a3f4fd09289fe7cade349dead5
+ //
+-TEXT cas<>(SB),7,$0
++TEXT cas<>(SB),NOSPLIT,$0
+ 	MOVW	$0xffff0fc0, PC
+ 
+-TEXT ·CompareAndSwapInt32(SB),7,$0
++TEXT ·CompareAndSwapInt32(SB),NOSPLIT,$0
+ 	B	·CompareAndSwapUint32(SB)
+ 
+ // Implement using kernel cas for portability.
+-TEXT ·CompareAndSwapUint32(SB),7,$0
++TEXT ·CompareAndSwapUint32(SB),NOSPLIT,$0
+ 	MOVW	addr+0(FP), R2
+ 	MOVW	old+4(FP), R0
+ casagain:
+@@ -49,17 +51,17 @@ cascheck:
+ 	MOVW	$0, R0
+ 	B	casret
+ 
+-TEXT ·CompareAndSwapUintptr(SB),7,$0
++TEXT ·CompareAndSwapUintptr(SB),NOSPLIT,$0
+ 	B	·CompareAndSwapUint32(SB)
+ 
+-TEXT ·CompareAndSwapPointer(SB),7,$0
++TEXT ·CompareAndSwapPointer(SB),NOSPLIT,$0
+ 	B	·CompareAndSwapUint32(SB)
+ 
+-TEXT ·AddInt32(SB),7,$0
++TEXT ·AddInt32(SB),NOSPLIT,$0
+ 	B	·AddUint32(SB)
+ 
+ // Implement using kernel cas for portability.
+-TEXT ·AddUint32(SB),7,$0
++TEXT ·AddUint32(SB),NOSPLIT,$0
+ 	MOVW	addr+0(FP), R2
+ 	MOVW	delta+4(FP), R4
+ addloop1:
+@@ -71,13 +73,13 @@ addloop1:
+ 	MOVW	R1, ret+8(FP)
+ 	RET
+ 
+-TEXT ·AddUintptr(SB),7,$0
++TEXT ·AddUintptr(SB),NOSPLIT,$0
+ 	B	·AddUint32(SB)
+ 
+-TEXT cas64<>(SB),7,$0
++TEXT cas64<>(SB),NOSPLIT,$0
+ 	MOVW	$0xffff0f60, PC // __kuser_cmpxchg64: Linux-3.1 and above
+ 
+-TEXT kernelCAS64<>(SB),7,$0
++TEXT kernelCAS64<>(SB),NOSPLIT,$0
+ 	// int (*__kuser_cmpxchg64_t)(const int64_t *oldval, const int64_t *newval, volatile int64_t *ptr);
+ 	MOVW	addr+0(FP), R2 // ptr
+ 	// make unaligned atomic access panic
+@@ -92,7 +94,7 @@ TEXT kernelCAS64<>(SB),7,$0
+ 	MOVW	R0, 20(FP)
+ 	RET
+ 
+-TEXT generalCAS64<>(SB),7,$20
++TEXT generalCAS64<>(SB),NOSPLIT,$20
+ 	// bool runtime·cas64(uint64 volatile *addr, uint64 *old, uint64 new)
+ 	MOVW	addr+0(FP), R0
+ 	// make unaligned atomic access panic
+@@ -112,7 +114,7 @@ TEXT generalCAS64<>(SB),7,$20
+ 
+ GLOBL armCAS64(SB), $4
+ 
+-TEXT setupAndCallCAS64<>(SB),7,$-4
++TEXT setupAndCallCAS64<>(SB),NOSPLIT,$-4
+ 	MOVW	$0xffff0ffc, R0 // __kuser_helper_version
+ 	MOVW	(R0), R0
+ 	// __kuser_cmpxchg64 only present if helper version >= 5
+@@ -131,25 +133,25 @@ TEXT setupAndCallCAS64<>(SB),7,$-4
+ 	MOVW	R1, armCAS64(SB)
+ 	MOVW	R1, PC
+ 
+-TEXT ·CompareAndSwapInt64(SB),7,$0
++TEXT ·CompareAndSwapInt64(SB),NOSPLIT,$0
+ 	B   	·CompareAndSwapUint64(SB)
+ 
+-TEXT ·CompareAndSwapUint64(SB),7,$-4
++TEXT ·CompareAndSwapUint64(SB),NOSPLIT,$-4
+ 	MOVW	armCAS64(SB), R0
+ 	CMP 	$0, R0
+ 	MOVW.NE	R0, PC
+ 	B		setupAndCallCAS64<>(SB)
+ 
+-TEXT ·AddInt64(SB),7,$0
++TEXT ·AddInt64(SB),NOSPLIT,$0
+ 	B	·addUint64(SB)
+ 
+-TEXT ·AddUint64(SB),7,$0
++TEXT ·AddUint64(SB),NOSPLIT,$0
+ 	B	·addUint64(SB)
+ 
+-TEXT ·LoadInt32(SB),7,$0
++TEXT ·LoadInt32(SB),NOSPLIT,$0
+ 	B	·LoadUint32(SB)
+ 
+-TEXT ·LoadUint32(SB),7,$0
++TEXT ·LoadUint32(SB),NOSPLIT,$0
+ 	MOVW	addr+0(FP), R2
+ loadloop1:
+ 	MOVW	0(R2), R0
+@@ -159,22 +161,22 @@ loadloop1:
+ 	MOVW	R1, val+4(FP)
+ 	RET
+ 
+-TEXT ·LoadInt64(SB),7,$0
++TEXT ·LoadInt64(SB),NOSPLIT,$0
+ 	B	·loadUint64(SB)
+ 
+-TEXT ·LoadUint64(SB),7,$0
++TEXT ·LoadUint64(SB),NOSPLIT,$0
+ 	B	·loadUint64(SB)
+ 
+-TEXT ·LoadUintptr(SB),7,$0
++TEXT ·LoadUintptr(SB),NOSPLIT,$0
+ 	B	·LoadUint32(SB)
+ 
+-TEXT ·LoadPointer(SB),7,$0
++TEXT ·LoadPointer(SB),NOSPLIT,$0
+ 	B	·LoadUint32(SB)
+ 
+-TEXT ·StoreInt32(SB),7,$0
++TEXT ·StoreInt32(SB),NOSPLIT,$0
+ 	B	·StoreUint32(SB)
+ 
+-TEXT ·StoreUint32(SB),7,$0
++TEXT ·StoreUint32(SB),NOSPLIT,$0
+ 	MOVW	addr+0(FP), R2
+ 	MOVW	val+4(FP), R1
+ storeloop1:
+@@ -183,14 +185,14 @@ storeloop1:
+ 	BCC	storeloop1
+ 	RET
+ 
+-TEXT ·StoreInt64(SB),7,$0
++TEXT ·StoreInt64(SB),NOSPLIT,$0
+ 	B	·storeUint64(SB)
+ 
+-TEXT ·StoreUint64(SB),7,$0
++TEXT ·StoreUint64(SB),NOSPLIT,$0
+ 	B	·storeUint64(SB)
+ 
+-TEXT ·StoreUintptr(SB),7,$0
++TEXT ·StoreUintptr(SB),NOSPLIT,$0
+ 	B	·StoreUint32(SB)
+ 
+-TEXT ·StorePointer(SB),7,$0
++TEXT ·StorePointer(SB),NOSPLIT,$0
+ 	B	·StoreUint32(SB)
+diff --git a/src/pkg/sync/atomic/asm_netbsd_arm.s b/src/pkg/sync/atomic/asm_netbsd_arm.s
+index 677f3daaa4..e2eea9f8db 100644
+--- a/src/pkg/sync/atomic/asm_netbsd_arm.s
++++ b/src/pkg/sync/atomic/asm_netbsd_arm.s
+@@ -2,46 +2,48 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++#include "../../../cmd/ld/textflag.h"
++
+ // NetBSD/ARM atomic operations.
+ // TODO(minux): this only supports ARMv6K or higher.
+ 
+-TEXT ·CompareAndSwapInt32(SB),7,$0
++TEXT ·CompareAndSwapInt32(SB),NOSPLIT,$0
+ 	B ·CompareAndSwapUint32(SB)
+ 
+-TEXT ·CompareAndSwapUint32(SB),7,$0
++TEXT ·CompareAndSwapUint32(SB),NOSPLIT,$0
+ 	B ·armCompareAndSwapUint32(SB)
+ 
+-TEXT ·CompareAndSwapUintptr(SB),7,$0
++TEXT ·CompareAndSwapUintptr(SB),NOSPLIT,$0
+ 	B ·CompareAndSwapUint32(SB)
+ 
+-TEXT ·CompareAndSwapPointer(SB),7,$0
++TEXT ·CompareAndSwapPointer(SB),NOSPLIT,$0
+ 	B ·CompareAndSwapUint32(SB)
+ 
+-TEXT ·AddInt32(SB),7,$0
++TEXT ·AddInt32(SB),NOSPLIT,$0
+ 	B ·AddUint32(SB)
+ 
+-TEXT ·AddUint32(SB),7,$0
++TEXT ·AddUint32(SB),NOSPLIT,$0
+ 	B ·armAddUint32(SB)
+ 
+-TEXT ·AddUintptr(SB),7,$0
++TEXT ·AddUintptr(SB),NOSPLIT,$0
+ 	B ·AddUint32(SB)
+ 
+-TEXT ·CompareAndSwapInt64(SB),7,$0
++TEXT ·CompareAndSwapInt64(SB),NOSPLIT,$0
+ 	B ·CompareAndSwapUint64(SB)
+ 
+-TEXT ·CompareAndSwapUint64(SB),7,$-4
++TEXT ·CompareAndSwapUint64(SB),NOSPLIT,$-4
+ 	B ·armCompareAndSwapUint64(SB)
+ 
+-TEXT ·AddInt64(SB),7,$0
++TEXT ·AddInt64(SB),NOSPLIT,$0
+ 	B ·addUint64(SB)
+ 
+-TEXT ·AddUint64(SB),7,$0
++TEXT ·AddUint64(SB),NOSPLIT,$0
+ 	B ·addUint64(SB)
+ 
+-TEXT ·LoadInt32(SB),7,$0
++TEXT ·LoadInt32(SB),NOSPLIT,$0
+ 	B ·LoadUint32(SB)
+ 
+-TEXT ·LoadUint32(SB),7,$0
++TEXT ·LoadUint32(SB),NOSPLIT,$0
+ 	MOVW addr+0(FP), R1
+ load32loop:
+ 	LDREX (R1), R2		// loads R2
+@@ -51,22 +53,22 @@ load32loop:
+ 	MOVW R2, val+4(FP)
+ 	RET
+ 
+-TEXT ·LoadInt64(SB),7,$0
++TEXT ·LoadInt64(SB),NOSPLIT,$0
+ 	B ·loadUint64(SB)
+ 
+-TEXT ·LoadUint64(SB),7,$0
++TEXT ·LoadUint64(SB),NOSPLIT,$0
+ 	B ·loadUint64(SB)
+ 
+-TEXT ·LoadUintptr(SB),7,$0
++TEXT ·LoadUintptr(SB),NOSPLIT,$0
+ 	B ·LoadUint32(SB)
+ 
+-TEXT ·LoadPointer(SB),7,$0
++TEXT ·LoadPointer(SB),NOSPLIT,$0
+ 	B ·LoadUint32(SB)
+ 
+-TEXT ·StoreInt32(SB),7,$0
++TEXT ·StoreInt32(SB),NOSPLIT,$0
+ 	B ·StoreUint32(SB)
+ 
+-TEXT ·StoreUint32(SB),7,$0
++TEXT ·StoreUint32(SB),NOSPLIT,$0
+ 	MOVW addr+0(FP), R1
+ 	MOVW val+4(FP), R2
+ storeloop:
+@@ -76,14 +78,14 @@ storeloop:
+ 	BNE storeloop
+ 	RET
+ 
+-TEXT ·StoreInt64(SB),7,$0
++TEXT ·StoreInt64(SB),NOSPLIT,$0
+ 	B ·storeUint64(SB)
+ 
+-TEXT ·StoreUint64(SB),7,$0
++TEXT ·StoreUint64(SB),NOSPLIT,$0
+ 	B ·storeUint64(SB)
+ 
+-TEXT ·StoreUintptr(SB),7,$0
++TEXT ·StoreUintptr(SB),NOSPLIT,$0
+ 	B ·StoreUint32(SB)
+ 
+-TEXT ·StorePointer(SB),7,$0
++TEXT ·StorePointer(SB),NOSPLIT,$0
+ 	B ·StoreUint32(SB)

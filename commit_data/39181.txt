@@ -12,7 +12,103 @@ Date:   Fri Jan 11 14:06:45 2019 -0800
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Damien Neil <dneil@google.com>
-
+---
  src/testing/sub_test.go | 49 +++++++++++++++++++++++++++++++++++++++++++++++++
  src/testing/testing.go  | 23 +++++++++++++----------
  2 files changed, 62 insertions(+), 10 deletions(-)
+
+diff --git a/src/testing/sub_test.go b/src/testing/sub_test.go
+index 8c989714a1..5a6d51be59 100644
+--- a/src/testing/sub_test.go
++++ b/src/testing/sub_test.go
+@@ -706,6 +706,55 @@ func TestRacyOutput(t *T) {
+ 	}
+ }
+ 
++// The late log message did not include the test name.  Issue 29388.
++func TestLogAfterComplete(t *T) {
++	ctx := newTestContext(1, newMatcher(regexp.MatchString, "", ""))
++	var buf bytes.Buffer
++	t1 := &T{
++		common: common{
++			// Use a buffered channel so that tRunner can write
++			// to it although nothing is reading from it.
++			signal: make(chan bool, 1),
++			w:      &buf,
++		},
++		context: ctx,
++	}
++
++	c1 := make(chan bool)
++	c2 := make(chan string)
++	tRunner(t1, func(t *T) {
++		t.Run("TestLateLog", func(t *T) {
++			go func() {
++				defer close(c2)
++				defer func() {
++					p := recover()
++					if p == nil {
++						c2 <- "subtest did not panic"
++						return
++					}
++					s, ok := p.(string)
++					if !ok {
++						c2 <- fmt.Sprintf("subtest panic with unexpected value %v", p)
++						return
++					}
++					const want = "Log in goroutine after TestLateLog has completed"
++					if !strings.Contains(s, want) {
++						c2 <- fmt.Sprintf("subtest panic %q does not contain %q", s, want)
++					}
++				}()
++
++				<-c1
++				t.Log("log after test")
++			}()
++		})
++	})
++	close(c1)
++
++	if s := <-c2; s != "" {
++		t.Error(s)
++	}
++}
++
+ func TestBenchmark(t *T) {
+ 	res := Benchmark(func(b *B) {
+ 		for i := 0; i < 5; i++ {
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index 0ac51b6fe5..3068630e8a 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -618,17 +618,20 @@ func (c *common) log(s string) {
+ func (c *common) logDepth(s string, depth int) {
+ 	c.mu.Lock()
+ 	defer c.mu.Unlock()
+-	// If this test has already finished try and log this message with our parent
+-	// with this test name tagged so we know where it came from.
+-	// If we don't have a parent panic.
+-	if c.done {
+-		if c.parent != nil {
+-			c.parent.logDepth(s, depth+1)
+-		} else {
+-			panic("Log in goroutine after " + c.name + " has completed")
+-		}
+-	} else {
++	if !c.done {
+ 		c.output = append(c.output, c.decorate(s, depth+1)...)
++	} else {
++		// This test has already finished. Try and log this message
++		// with our parent. If we don't have a parent, panic.
++		for parent := c.parent; parent != nil; parent = parent.parent {
++			parent.mu.Lock()
++			defer parent.mu.Unlock()
++			if !parent.done {
++				parent.output = append(parent.output, parent.decorate(s, depth+1)...)
++				return
++			}
++		}
++		panic("Log in goroutine after " + c.name + " has completed")
+ 	}
+ }
+ 

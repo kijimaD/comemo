@@ -8,7 +8,34 @@ Date:   Mon Jun 22 14:40:08 2009 -0700
     DELTA=6  (1 added, 3 deleted, 2 changed)
     OCL=30604
     CL=30604
-
+---
  test/fixedbugs/bug122.go | 3 ++-
  test/golden.out          | 3 ---
  2 files changed, 2 insertions(+), 4 deletions(-)
+
+diff --git a/test/fixedbugs/bug122.go b/test/fixedbugs/bug122.go
+index 775cf73e82..72bf38a833 100644
+--- a/test/fixedbugs/bug122.go
++++ b/test/fixedbugs/bug122.go
+@@ -7,5 +7,6 @@
+ package main
+ 
+ func main() {
+-	a := make([]int, 10, 20, 30, 40);  // should allow at most 2 sizes
++	// should allow at most 2 sizes
++	a := make([]int, 10, 20, 30, 40); // ERROR "too many"
+ }
+diff --git a/test/golden.out b/test/golden.out
+index 289b12e32a..695a68cd41 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -228,9 +228,6 @@ fixedbugs/bug121.go:20: illegal types for operand: AS
+ 	I
+ 	*S
+ 
+-=========== fixedbugs/bug122.go
+-fixedbugs/bug122.go:6: too many arguments to make array
+-
+ =========== fixedbugs/bug131.go
+ fixedbugs/bug131.go:7: cannot convert uint64 constant to int64
+ fixedbugs/bug131.go:7: illegal types for operand: AS

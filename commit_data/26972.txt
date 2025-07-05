@@ -20,7 +20,180 @@ Date:   Sat Mar 5 11:33:13 2016 +0100
     Run-TryBot: Rob Pike <r@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/fmt/fmt_test.go | 99 ++++++++++++++++++++++++++++++++++++++++++++---------
  src/fmt/format.go   | 24 ++++++-------
  2 files changed, 95 insertions(+), 28 deletions(-)
+
+diff --git a/src/fmt/fmt_test.go b/src/fmt/fmt_test.go
+index 797eeab1ea..8287d305af 100644
+--- a/src/fmt/fmt_test.go
++++ b/src/fmt/fmt_test.go
+@@ -174,29 +174,88 @@ var fmtTests = []struct {
+ 	{"%# X", []byte("xyz"), "0X78 0X79 0X7A"},
+ 
+ 	// escaped strings
+-	{"%#q", `abc`, "`abc`"},
+-	{"%#q", `"`, "`\"`"},
+-	{"1 %#q", `\n`, "1 `\\n`"},
+-	{"2 %#q", "\n", `2 "\n"`},
+-	{"%q", `"`, `"\""`},
+-	{"%q", "\a\b\f\r\n\t\v", `"\a\b\f\r\n\t\v"`},
++	{"%q", "", `""`},
++	{"%#q", "", "``"},
++	{"%q", "\"", `"\""`},
++	{"%#q", "\"", "`\"`"},
++	{"%q", "`", `"` + "`" + `"`},
++	{"%#q", "`", `"` + "`" + `"`},
++	{"%q", "\n", `"\n"`},
++	{"%#q", "\n", `"\n"`},
++	{"%q", `\n`, `"\\n"`},
++	{"%#q", `\n`, "`\\n`"},
++	{"%q", "abc", `"abc"`},
++	{"%#q", "abc", "`abc`"},
++	{"%q", "日本語", `"日本語"`},
++	{"%+q", "日本語", `"\u65e5\u672c\u8a9e"`},
++	{"%#q", "日本語", "`日本語`"},
++	{"%#+q", "日本語", "`日本語`"},
++	{"%q", "\a\b\f\n\r\t\v\"\\", `"\a\b\f\n\r\t\v\"\\"`},
++	{"%+q", "\a\b\f\n\r\t\v\"\\", `"\a\b\f\n\r\t\v\"\\"`},
++	{"%#q", "\a\b\f\n\r\t\v\"\\", `"\a\b\f\n\r\t\v\"\\"`},
++	{"%#+q", "\a\b\f\n\r\t\v\"\\", `"\a\b\f\n\r\t\v\"\\"`},
++	{"%q", "☺", `"☺"`},
++	{"% q", "☺", `"☺"`}, // The space modifier should have no effect.
++	{"%+q", "☺", `"\u263a"`},
++	{"%#q", "☺", "`☺`"},
++	{"%#+q", "☺", "`☺`"},
++	{"%10q", "⌘", `       "⌘"`},
++	{"%+10q", "⌘", `  "\u2318"`},
++	{"%-10q", "⌘", `"⌘"       `},
++	{"%+-10q", "⌘", `"\u2318"  `},
++	{"%010q", "⌘", `0000000"⌘"`},
++	{"%+010q", "⌘", `00"\u2318"`},
++	{"%-010q", "⌘", `"⌘"       `}, // 0 has no effect when - is present.
++	{"%+-010q", "⌘", `"\u2318"  `},
++	{"%#8q", "\n", `    "\n"`},
++	{"%#+8q", "\r", `    "\r"`},
++	{"%#-8q", "\t", "`	`     "},
++	{"%#+-8q", "\b", `"\b"    `},
+ 	{"%q", "abc\xffdef", `"abc\xffdef"`},
+-	{"%q", "\u263a", `"☺"`},
+-	{"%+q", "\u263a", `"\u263a"`},
+-	{"%q", "\U0010ffff", `"\U0010ffff"`},
++	{"%+q", "abc\xffdef", `"abc\xffdef"`},
++	{"%#q", "abc\xffdef", `"abc\xffdef"`},
++	{"%#+q", "abc\xffdef", `"abc\xffdef"`},
++	{"%q", "\U0010ffff", `"\U0010ffff"`}, // Rune is not printable.
++	{"%+q", "\U0010ffff", `"\U0010ffff"`},
++	{"%#q", "\U0010ffff", "`􏿿`"},
++	{"%#+q", "\U0010ffff", "`􏿿`"},
++	{"%q", string(0x110000), `"�"`}, // Rune is not valid.
++	{"%+q", string(0x110000), `"\ufffd"`},
++	{"%#q", string(0x110000), "`�`"},
++	{"%#+q", string(0x110000), "`�`"},
+ 
+ 	// escaped characters
+-	{"%q", 'x', `'x'`},
+ 	{"%q", 0, `'\x00'`},
++	{"%+q", 0, `'\x00'`},
++	{"%q", '"', `'"'`},
++	{"%+q", '"', `'"'`},
++	{"%q", '\'', `'\''`},
++	{"%+q", '\'', `'\''`},
++	{"%q", '`', "'`'"},
++	{"%+q", '`', "'`'"},
++	{"%q", 'x', `'x'`},
++	{"%+q", 'x', `'x'`},
++	{"%q", 'ÿ', `'ÿ'`},
++	{"%+q", 'ÿ', `'\u00ff'`},
+ 	{"%q", '\n', `'\n'`},
+-	{"%q", '\u0e00', `'\u0e00'`},         // not a printable rune.
+-	{"%q", '\U000c2345', `'\U000c2345'`}, // not a printable rune.
++	{"%+q", '\n', `'\n'`},
++	{"%q", '☺', `'☺'`},
++	{"% q", '☺', `'☺'`}, // The space modifier should have no effect.
++	{"%+q", '☺', `'\u263a'`},
++	{"%10q", '⌘', `       '⌘'`},
++	{"%+10q", '⌘', `  '\u2318'`},
++	{"%-10q", '⌘', `'⌘'       `},
++	{"%+-10q", '⌘', `'\u2318'  `},
++	{"%010q", '⌘', `0000000'⌘'`},
++	{"%+010q", '⌘', `00'\u2318'`},
++	{"%-010q", '⌘', `'⌘'       `}, // 0 has no effect when - is present.
++	{"%+-010q", '⌘', `'\u2318'  `},
++	{"%q", '\U00000e00', `'\u0e00'`},             // Rune is not printable.
++	{"%q", '\U000c2345', `'\U000c2345'`},         // Rune is not printable.
++	{"%q", '\U0010ffff', `'\U0010ffff'`},         // Rune is not printable.
++	{"%q", rune(0x110000), `%!q(int32=1114112)`}, // Rune is not valid.
+ 	{"%q", int64(0x7FFFFFFF), `%!q(int64=2147483647)`},
+ 	{"%q", uint64(0xFFFFFFFF), `%!q(uint64=4294967295)`},
+-	{"%q", '"', `'"'`},
+-	{"%q", '\'', `'\''`},
+-	{"%q", "\u263a", `"☺"`},
+-	{"%+q", "\u263a", `"\u263a"`},
+ 
+ 	// width
+ 	{"%5s", "abc", "  abc"},
+@@ -1041,6 +1100,14 @@ func BenchmarkSprintfTruncateString(b *testing.B) {
+ 	})
+ }
+ 
++func BenchmarkSprintfQuoteString(b *testing.B) {
++	b.RunParallel(func(pb *testing.PB) {
++		for pb.Next() {
++			Sprintf("%q", "日本語日本語日本語")
++		}
++	})
++}
++
+ func BenchmarkSprintfInt(b *testing.B) {
+ 	b.RunParallel(func(pb *testing.PB) {
+ 		for pb.Next() {
+diff --git a/src/fmt/format.go b/src/fmt/format.go
+index 821c7b44b1..417d74cd8f 100644
+--- a/src/fmt/format.go
++++ b/src/fmt/format.go
+@@ -378,31 +378,31 @@ func (f *fmt) fmt_bx(b []byte, digits string) {
+ }
+ 
+ // fmt_q formats a string as a double-quoted, escaped Go string constant.
++// If f.sharp is set a raw (backquoted) string may be returned instead
++// if the string does not contain any control characters other than tab.
+ func (f *fmt) fmt_q(s string) {
+ 	s = f.truncate(s)
+-	var quoted string
+ 	if f.sharp && strconv.CanBackquote(s) {
+-		quoted = "`" + s + "`"
++		f.padString("`" + s + "`")
++		return
++	}
++	buf := f.intbuf[:0]
++	if f.plus {
++		f.pad(strconv.AppendQuoteToASCII(buf, s))
+ 	} else {
+-		if f.plus {
+-			quoted = strconv.QuoteToASCII(s)
+-		} else {
+-			quoted = strconv.Quote(s)
+-		}
++		f.pad(strconv.AppendQuote(buf, s))
+ 	}
+-	f.padString(quoted)
+ }
+ 
+ // fmt_qc formats the integer as a single-quoted, escaped Go character constant.
+ // If the character is not valid Unicode, it will print '\ufffd'.
+ func (f *fmt) fmt_qc(c int64) {
+-	var quoted []byte
++	buf := f.intbuf[:0]
+ 	if f.plus {
+-		quoted = strconv.AppendQuoteRuneToASCII(f.intbuf[0:0], rune(c))
++		f.pad(strconv.AppendQuoteRuneToASCII(buf, rune(c)))
+ 	} else {
+-		quoted = strconv.AppendQuoteRune(f.intbuf[0:0], rune(c))
++		f.pad(strconv.AppendQuoteRune(buf, rune(c)))
+ 	}
+-	f.pad(quoted)
+ }
+ 
+ // floating-point

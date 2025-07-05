@@ -12,7 +12,7 @@ Date:   Wed Dec 30 02:46:25 2020 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/escape/escape.go       |  2 +-
  src/cmd/compile/internal/inline/inl.go          | 10 +++++-----
  src/cmd/compile/internal/ir/node_gen.go         |  8 ++++++--
@@ -24,3 +24,188 @@ Date:   Wed Dec 30 02:46:25 2020 +0700
  src/cmd/compile/internal/walk/stmt.go           |  2 +-
  src/cmd/compile/internal/walk/walk.go           |  2 +-
  10 files changed, 21 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/compile/internal/escape/escape.go b/src/cmd/compile/internal/escape/escape.go
+index ec99c86c06..b5b09beb5a 100644
+--- a/src/cmd/compile/internal/escape/escape.go
++++ b/src/cmd/compile/internal/escape/escape.go
+@@ -316,7 +316,7 @@ func (e *escape) stmt(n ir.Node) {
+ 		// Record loop depth at declaration.
+ 		n := n.(*ir.Decl)
+ 		if !ir.IsBlank(n.X) {
+-			e.dcl(n.X.(*ir.Name))
++			e.dcl(n.X)
+ 		}
+ 
+ 	case ir.OLABEL:
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index 126871b805..7584f6a19f 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -649,7 +649,7 @@ func inlParam(t *types.Field, as ir.Node, inlvars map[*ir.Name]ir.Node) ir.Node
+ 	if inlvar == nil {
+ 		base.Fatalf("missing inlvar for %v", n)
+ 	}
+-	as.PtrInit().Append(ir.NewDecl(base.Pos, ir.ODCL, inlvar))
++	as.PtrInit().Append(ir.NewDecl(base.Pos, ir.ODCL, inlvar.(*ir.Name)))
+ 	inlvar.Name().Defn = as
+ 	return inlvar
+ }
+@@ -771,14 +771,14 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]b
+ 
+ 			if v.Byval() {
+ 				iv := typecheck.Expr(inlvar(v))
+-				ninit.Append(ir.NewDecl(base.Pos, ir.ODCL, iv))
++				ninit.Append(ir.NewDecl(base.Pos, ir.ODCL, iv.(*ir.Name)))
+ 				ninit.Append(typecheck.Stmt(ir.NewAssignStmt(base.Pos, iv, o)))
+ 				inlvars[v] = iv
+ 			} else {
+ 				addr := typecheck.NewName(typecheck.Lookup("&" + v.Sym().Name))
+ 				addr.SetType(types.NewPtr(v.Type()))
+ 				ia := typecheck.Expr(inlvar(addr))
+-				ninit.Append(ir.NewDecl(base.Pos, ir.ODCL, ia))
++				ninit.Append(ir.NewDecl(base.Pos, ir.ODCL, ia.(*ir.Name)))
+ 				ninit.Append(typecheck.Stmt(ir.NewAssignStmt(base.Pos, ia, typecheck.NodAddr(o))))
+ 				inlvars[addr] = ia
+ 
+@@ -917,7 +917,7 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]b
+ 	if !delayretvars {
+ 		// Zero the return parameters.
+ 		for _, n := range retvars {
+-			ninit.Append(ir.NewDecl(base.Pos, ir.ODCL, n))
++			ninit.Append(ir.NewDecl(base.Pos, ir.ODCL, n.(*ir.Name)))
+ 			ras := ir.NewAssignStmt(base.Pos, n, nil)
+ 			ninit.Append(typecheck.Stmt(ras))
+ 		}
+@@ -1139,7 +1139,7 @@ func (subst *inlsubst) node(n ir.Node) ir.Node {
+ 
+ 			if subst.delayretvars {
+ 				for _, n := range as.Lhs {
+-					as.PtrInit().Append(ir.NewDecl(base.Pos, ir.ODCL, n))
++					as.PtrInit().Append(ir.NewDecl(base.Pos, ir.ODCL, n.(*ir.Name)))
+ 					n.Name().Defn = as
+ 				}
+ 			}
+diff --git a/src/cmd/compile/internal/ir/node_gen.go b/src/cmd/compile/internal/ir/node_gen.go
+index 4427d89f5c..4c48e82d77 100644
+--- a/src/cmd/compile/internal/ir/node_gen.go
++++ b/src/cmd/compile/internal/ir/node_gen.go
+@@ -381,11 +381,15 @@ func (n *Decl) copy() Node {
+ }
+ func (n *Decl) doChildren(do func(Node) error) error {
+ 	var err error
+-	err = maybeDo(n.X, err, do)
++	if n.X != nil {
++		err = maybeDo(n.X, err, do)
++	}
+ 	return err
+ }
+ func (n *Decl) editChildren(edit func(Node) Node) {
+-	n.X = maybeEdit(n.X, edit)
++	if n.X != nil {
++		n.X = edit(n.X).(*Name)
++	}
+ }
+ 
+ func (n *ForStmt) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
+diff --git a/src/cmd/compile/internal/ir/stmt.go b/src/cmd/compile/internal/ir/stmt.go
+index a1f5e5933f..4575dec260 100644
+--- a/src/cmd/compile/internal/ir/stmt.go
++++ b/src/cmd/compile/internal/ir/stmt.go
+@@ -13,10 +13,10 @@ import (
+ // A Decl is a declaration of a const, type, or var. (A declared func is a Func.)
+ type Decl struct {
+ 	miniNode
+-	X Node // the thing being declared
++	X *Name // the thing being declared
+ }
+ 
+-func NewDecl(pos src.XPos, op Op, x Node) *Decl {
++func NewDecl(pos src.XPos, op Op, x *Name) *Decl {
+ 	n := &Decl{X: x}
+ 	n.pos = pos
+ 	switch op {
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 3c94ec4c95..ddf65eb209 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -1242,7 +1242,7 @@ func (s *state) stmt(n ir.Node) {
+ 
+ 	case ir.ODCL:
+ 		n := n.(*ir.Decl)
+-		if n.X.(*ir.Name).Class_ == ir.PAUTOHEAP {
++		if n.X.Class_ == ir.PAUTOHEAP {
+ 			s.Fatalf("DCL %v", n)
+ 		}
+ 
+diff --git a/src/cmd/compile/internal/typecheck/iexport.go b/src/cmd/compile/internal/typecheck/iexport.go
+index 489879b3b4..aa16a54bb8 100644
+--- a/src/cmd/compile/internal/typecheck/iexport.go
++++ b/src/cmd/compile/internal/typecheck/iexport.go
+@@ -1067,7 +1067,7 @@ func (w *exportWriter) stmt(n ir.Node) {
+ 		n := n.(*ir.Decl)
+ 		w.op(ir.ODCL)
+ 		w.pos(n.X.Pos())
+-		w.localName(n.X.(*ir.Name))
++		w.localName(n.X)
+ 		w.typ(n.X.Type())
+ 
+ 	case ir.OAS:
+diff --git a/src/cmd/compile/internal/typecheck/typecheck.go b/src/cmd/compile/internal/typecheck/typecheck.go
+index 335e1b53ce..480d2de8e3 100644
+--- a/src/cmd/compile/internal/typecheck/typecheck.go
++++ b/src/cmd/compile/internal/typecheck/typecheck.go
+@@ -1011,12 +1011,12 @@ func typecheck1(n ir.Node, top int) ir.Node {
+ 
+ 	case ir.ODCLCONST:
+ 		n := n.(*ir.Decl)
+-		n.X = Expr(n.X)
++		n.X = Expr(n.X).(*ir.Name)
+ 		return n
+ 
+ 	case ir.ODCLTYPE:
+ 		n := n.(*ir.Decl)
+-		n.X = typecheck(n.X, ctxType)
++		n.X = typecheck(n.X, ctxType).(*ir.Name)
+ 		types.CheckSize(n.X.Type())
+ 		return n
+ 	}
+diff --git a/src/cmd/compile/internal/walk/order.go b/src/cmd/compile/internal/walk/order.go
+index 0dd76ccee9..b3d2eaec17 100644
+--- a/src/cmd/compile/internal/walk/order.go
++++ b/src/cmd/compile/internal/walk/order.go
+@@ -955,7 +955,7 @@ func (o *orderState) stmt(n ir.Node) {
+ 						if len(init) > 0 && init[0].Op() == ir.ODCL && init[0].(*ir.Decl).X == n {
+ 							init = init[1:]
+ 						}
+-						dcl := typecheck.Stmt(ir.NewDecl(base.Pos, ir.ODCL, n))
++						dcl := typecheck.Stmt(ir.NewDecl(base.Pos, ir.ODCL, n.(*ir.Name)))
+ 						ncas.PtrInit().Append(dcl)
+ 					}
+ 					tmp := o.newTemp(t, t.HasPointers())
+diff --git a/src/cmd/compile/internal/walk/stmt.go b/src/cmd/compile/internal/walk/stmt.go
+index 3fe7e103aa..f843d2c4fa 100644
+--- a/src/cmd/compile/internal/walk/stmt.go
++++ b/src/cmd/compile/internal/walk/stmt.go
+@@ -176,7 +176,7 @@ func walkStmtList(s []ir.Node) {
+ 
+ // walkDecl walks an ODCL node.
+ func walkDecl(n *ir.Decl) ir.Node {
+-	v := n.X.(*ir.Name)
++	v := n.X
+ 	if v.Class_ == ir.PAUTOHEAP {
+ 		if base.Flag.CompilingRuntime {
+ 			base.Errorf("%v escapes to heap, not allowed in runtime", v)
+diff --git a/src/cmd/compile/internal/walk/walk.go b/src/cmd/compile/internal/walk/walk.go
+index bdc9a2ea6a..b6be949689 100644
+--- a/src/cmd/compile/internal/walk/walk.go
++++ b/src/cmd/compile/internal/walk/walk.go
+@@ -167,7 +167,7 @@ func paramstoheap(params *types.Type) []ir.Node {
+ 		}
+ 
+ 		if stackcopy := v.Name().Stackcopy; stackcopy != nil {
+-			nn = append(nn, walkStmt(ir.NewDecl(base.Pos, ir.ODCL, v)))
++			nn = append(nn, walkStmt(ir.NewDecl(base.Pos, ir.ODCL, v.(*ir.Name))))
+ 			if stackcopy.Class_ == ir.PPARAM {
+ 				nn = append(nn, walkStmt(typecheck.Stmt(ir.NewAssignStmt(base.Pos, v, stackcopy))))
+ 			}

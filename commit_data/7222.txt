@@ -11,6 +11,29 @@ Date:   Mon Jan 24 18:10:50 2011 +1000
     R=adg
     CC=golang-dev, rsc
     https://golang.org/cl/3986042
-
+---
  src/pkg/json/scanner.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/json/scanner.go b/src/pkg/json/scanner.go
+index 112c8f9c35..e98ddef5cc 100644
+--- a/src/pkg/json/scanner.go
++++ b/src/pkg/json/scanner.go
+@@ -416,7 +416,7 @@ func state0(s *scanner, c int) int {
+ 		s.step = stateDot
+ 		return scanContinue
+ 	}
+-	if c == 'e' {
++	if c == 'e' || c == 'E' {
+ 		s.step = stateE
+ 		return scanContinue
+ 	}
+@@ -440,7 +440,7 @@ func stateDot0(s *scanner, c int) int {
+ 		s.step = stateDot0
+ 		return scanContinue
+ 	}
+-	if c == 'e' {
++	if c == 'e' || c == 'E' {
+ 		s.step = stateE
+ 		return scanContinue
+ 	}

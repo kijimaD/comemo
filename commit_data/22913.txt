@@ -16,9 +16,77 @@ Date:   Tue Apr 14 10:48:05 2015 +1000
     Reviewed-by: Minux Ma <minux@golang.org>
     Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/os/signal/signal_windows_test.go | 4 ----
  src/runtime/os1_windows.go           | 2 +-
  src/runtime/sys_windows_386.s        | 2 ++
  src/runtime/sys_windows_amd64.s      | 2 ++
  4 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/os/signal/signal_windows_test.go b/src/os/signal/signal_windows_test.go
+index 45c86f0e14..f3e6706b75 100644
+--- a/src/os/signal/signal_windows_test.go
++++ b/src/os/signal/signal_windows_test.go
+@@ -10,7 +10,6 @@ import (
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
+-	"runtime"
+ 	"syscall"
+ 	"testing"
+ 	"time"
+@@ -32,9 +31,6 @@ func sendCtrlBreak(t *testing.T, pid int) {
+ }
+ 
+ func TestCtrlBreak(t *testing.T) {
+-	if runtime.GOARCH == "386" {
+-		t.Skip("known failing test on windows/386, see https://golang.org/issue/10215")
+-	}
+ 	// create source file
+ 	const source = `
+ package main
+diff --git a/src/runtime/os1_windows.go b/src/runtime/os1_windows.go
+index 1ab6ed1437..8df2968196 100644
+--- a/src/runtime/os1_windows.go
++++ b/src/runtime/os1_windows.go
+@@ -492,7 +492,7 @@ func profilem(mp *m) {
+ 	sigprof(r.ip(), r.sp(), 0, gp, mp)
+ }
+ 
+-func profileloop1() {
++func profileloop1(param uintptr) uint32 {
+ 	stdcall2(_SetThreadPriority, currentThread, _THREAD_PRIORITY_HIGHEST)
+ 
+ 	for {
+diff --git a/src/runtime/sys_windows_386.s b/src/runtime/sys_windows_386.s
+index 5f4a63bcdd..e5fe88afd8 100644
+--- a/src/runtime/sys_windows_386.s
++++ b/src/runtime/sys_windows_386.s
+@@ -213,9 +213,11 @@ TEXT runtime·externalthreadhandler(SB),NOSPLIT,$0
+ 	MOVL	CX, g_stackguard1(SP)
+ 	MOVL	DX, (g_stack+stack_hi)(SP)
+ 
++	PUSHL	AX			// room for return value
+ 	PUSHL	16(BP)			// arg for handler
+ 	CALL	8(BP)
+ 	POPL	CX
++	POPL	AX			// pass return value to Windows in AX
+ 
+ 	get_tls(CX)
+ 	MOVL	g(CX), CX
+diff --git a/src/runtime/sys_windows_amd64.s b/src/runtime/sys_windows_amd64.s
+index dd81ce055a..ea4f3e0356 100644
+--- a/src/runtime/sys_windows_amd64.s
++++ b/src/runtime/sys_windows_amd64.s
+@@ -250,9 +250,11 @@ TEXT runtime·externalthreadhandler(SB),NOSPLIT,$0
+ 	MOVQ	CX, g_stackguard1(SP)
+ 	MOVQ	DX, (g_stack+stack_hi)(SP)
+ 
++	PUSHQ	AX			// room for return value
+ 	PUSHQ	32(BP)			// arg for handler
+ 	CALL	16(BP)
+ 	POPQ	CX
++	POPQ	AX			// pass return value to Windows in AX
+ 
+ 	get_tls(CX)
+ 	MOVQ	g(CX), CX

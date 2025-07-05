@@ -7,7 +7,37 @@ Date:   Tue Sep 29 21:23:34 2009 -0700
     R=ken
     OCL=35132
     CL=35132
-
+---
  src/cmd/gc/dcl.c       | 2 +-
  src/cmd/gc/typecheck.c | 5 +++++
  2 files changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index 356314296c..bc8362d284 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -323,7 +323,7 @@ variter(NodeList *vl, Node *t, NodeList *el)
+ 		declare(v, dclcontext);
+ 		v->ntype = t;
+ 
+-		if(e != N || funcdepth > 0) {
++		if(e != N || funcdepth > 0 || isblank(v)) {
+ 			if(funcdepth > 0)
+ 				init = list(init, nod(ODCL, v, N));
+ 			e = nod(OAS, v, e);
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index a622024424..f1271408a8 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -1010,6 +1010,11 @@ ret:
+ 		case TNIL:
+ 		case TBLANK:
+ 			break;
++		case TARRAY:
++			if(t->bound == -100) {
++				yyerror("use of [...] array outside of array literal");
++				t->bound = 1;
++			}
+ 		default:
+ 			checkwidth(t);
+ 		}

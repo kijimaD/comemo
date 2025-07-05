@@ -9,7 +9,270 @@ Date:   Sun Oct 11 23:46:11 2009 -0700
     DELTA=146  (101 added, 29 deleted, 16 changed)
     OCL=35584
     CL=35593
-
+---
  src/pkg/strconv/atoi.go      | 77 +++++++++++++++++++++++++-------------------
  src/pkg/strconv/atoi_test.go | 77 ++++++++++++++++++++++++++++++++++++++++----
  2 files changed, 113 insertions(+), 41 deletions(-)
+
+diff --git a/src/pkg/strconv/atoi.go b/src/pkg/strconv/atoi.go
+index f31632eff8..2f1d5dec64 100644
+--- a/src/pkg/strconv/atoi.go
++++ b/src/pkg/strconv/atoi.go
+@@ -35,20 +35,43 @@ func cutoff64(base int) uint64 {
+ }
+ 
+ // Btoui64 interprets a string s in an arbitrary base b (2 to 36)
+-// and returns the corresponding value n.
++// and returns the corresponding value n.  If b == 0, the base
++// is taken from the string prefix: base 16 for "0x", base 8 for "0",
++// and base 10 otherwise.
+ //
+ // The errors that Btoui64 returns have concrete type *NumError
+ // and include err.Num = s.  If s is empty or contains invalid
+ // digits, err.Error = os.EINVAL; if the value corresponding
+ // to s cannot be represented by a uint64, err.Error = os.ERANGE.
+ func Btoui64(s string, b int) (n uint64, err os.Error) {
+-	if b < 2 || b > 36 {
+-		err = os.ErrorString("invalid base " + Itoa(b));
+-		goto Error;
+-	}
+-	if len(s) < 1 {
++	s0 := s;
++	switch {
++	case len(s) < 1:
+ 		err = os.EINVAL;
+ 		goto Error;
++
++	case 2 <= b && b <= 36:
++		// valid base; nothing to do
++
++	case b == 0:
++		// Look for octal, hex prefix.
++		switch {
++		case s[0] == '0' && len(s) > 1 && (s[1] == 'x' || s[1] == 'X'):
++			b = 16;
++			s = s[2:len(s)];
++			if len(s) < 1 {
++				err = os.EINVAL;
++				goto Error;
++			}
++		case s[0] == '0':
++			b = 8;
++		default:
++			b = 10;
++		}
++
++	default:
++		err = os.ErrorString("invalid base " + Itoa(b));
++		goto Error;
+ 	}
+ 
+ 	n = 0;
+@@ -95,42 +118,21 @@ func Btoui64(s string, b int) (n uint64, err os.Error) {
+ 	return n, nil;
+ 
+ Error:
+-	return n, &NumError{s, err};
++	return n, &NumError{s0, err};
+ }
+ 
+-// Atoui64 interprets a string s as an unsigned decimal, octal, or
+-// hexadecimal number and returns the corresponding value n.
+-// The default base is decimal.  Strings beginning with 0x are
+-// hexadecimal; strings beginning with 0 are octal.
++// Atoui64 interprets a string s as a decimal number and
++// returns the corresponding value n.
+ //
+ // Atoui64 returns err == os.EINVAL if s is empty or contains invalid digits.
+ // It returns err == os.ERANGE if s cannot be represented by a uint64.
+ func Atoui64(s string) (n uint64, err os.Error) {
+-	// Empty string bad.
+-	if len(s) == 0 {
+-		return 0, &NumError{s, os.EINVAL};
+-	}
+-
+-	// Look for octal, hex prefix.
+-	switch {
+-	case s[0] == '0' && len(s) > 1 && (s[1] == 'x' || s[1] == 'X'):
+-		n, err = Btoui64(s[2:len(s)], 16);
+-	case s[0] == '0':
+-		n, err = Btoui64(s, 8);
+-	default:
+-		n, err = Btoui64(s, 10);
+-	}
+-
+-	if err != nil {
+-		err.(*NumError).Num = s;
+-	}
+-	return;
++	return Btoui64(s, 10);
+ }
+ 
+-
+-// Atoi64 is like Atoui64 but allows signed numbers and
++// Btoi64 is like Btoui64 but allows signed numbers and
+ // returns its result in an int64.
+-func Atoi64(s string) (i int64, err os.Error) {
++func Btoi64(s string, base int) (i int64, err os.Error) {
+ 	// Empty string bad.
+ 	if len(s) == 0 {
+ 		return 0, &NumError{s, os.EINVAL};
+@@ -148,7 +150,7 @@ func Atoi64(s string) (i int64, err os.Error) {
+ 
+ 	// Convert unsigned and check range.
+ 	var un uint64;
+-	un, err = Atoui64(s);
++	un, err = Btoui64(s, base);
+ 	if err != nil && err.(*NumError).Error != os.ERANGE {
+ 		err.(*NumError).Num = s0;
+ 		return 0, err;
+@@ -166,6 +168,13 @@ func Atoi64(s string) (i int64, err os.Error) {
+ 	return n, nil;
+ }
+ 
++// Atoi64 is like Atoui64 but allows signed numbers and
++// returns its result in an int64.
++func Atoi64(s string) (i int64, err os.Error) {
++	return Btoi64(s, 10);
++}
++
++
+ // Atoui is like Atoui64 but returns its result as a uint.
+ func Atoui(s string) (i uint, err os.Error) {
+ 	i1, e1 := Atoui64(s);
+diff --git a/src/pkg/strconv/atoi_test.go b/src/pkg/strconv/atoi_test.go
+index adbf7f5c36..34eadaad51 100644
+--- a/src/pkg/strconv/atoi_test.go
++++ b/src/pkg/strconv/atoi_test.go
+@@ -18,6 +18,19 @@ type atoui64Test struct {
+ }
+ 
+ var atoui64tests = []atoui64Test{
++	atoui64Test{"", 0, os.EINVAL},
++	atoui64Test{"0", 0, nil},
++	atoui64Test{"1", 1, nil},
++	atoui64Test{"12345", 12345, nil},
++	atoui64Test{"012345", 12345, nil},
++	atoui64Test{"12345x", 0, os.EINVAL},
++	atoui64Test{"98765432100", 98765432100, nil},
++	atoui64Test{"18446744073709551615", 1<<64 - 1, nil},
++	atoui64Test{"18446744073709551616", 1<<64 - 1, os.ERANGE},
++	atoui64Test{"18446744073709551620", 1<<64 - 1, os.ERANGE},
++}
++
++var btoui64tests = []atoui64Test{
+ 	atoui64Test{"", 0, os.EINVAL},
+ 	atoui64Test{"0", 0, nil},
+ 	atoui64Test{"1", 1, nil},
+@@ -45,6 +58,26 @@ type atoi64Test struct {
+ }
+ 
+ var atoi64tests = []atoi64Test{
++	atoi64Test{"", 0, os.EINVAL},
++	atoi64Test{"0", 0, nil},
++	atoi64Test{"-0", 0, nil},
++	atoi64Test{"1", 1, nil},
++	atoi64Test{"-1", -1, nil},
++	atoi64Test{"12345", 12345, nil},
++	atoi64Test{"-12345", -12345, nil},
++	atoi64Test{"012345", 12345, nil},
++	atoi64Test{"-012345", -12345, nil},
++	atoi64Test{"98765432100", 98765432100, nil},
++	atoi64Test{"-98765432100", -98765432100, nil},
++	atoi64Test{"9223372036854775807", 1<<63 - 1, nil},
++	atoi64Test{"-9223372036854775807", -(1<<63 - 1), nil},
++	atoi64Test{"9223372036854775808", 1<<63 - 1, os.ERANGE},
++	atoi64Test{"-9223372036854775808", -1 << 63, nil},
++	atoi64Test{"9223372036854775809", 1<<63 - 1, os.ERANGE},
++	atoi64Test{"-9223372036854775809", -1 << 63, os.ERANGE},
++}
++
++var btoi64tests = []atoi64Test{
+ 	atoi64Test{"", 0, os.EINVAL},
+ 	atoi64Test{"0", 0, nil},
+ 	atoi64Test{"-0", 0, nil},
+@@ -79,9 +112,7 @@ var atoui32tests = []atoui32Test{
+ 	atoui32Test{"0", 0, nil},
+ 	atoui32Test{"1", 1, nil},
+ 	atoui32Test{"12345", 12345, nil},
+-	atoui32Test{"012345", 012345, nil},
+-	atoui32Test{"0x12345", 0x12345, nil},
+-	atoui32Test{"0X12345", 0x12345, nil},
++	atoui32Test{"012345", 12345, nil},
+ 	atoui32Test{"12345x", 0, os.EINVAL},
+ 	atoui32Test{"987654321", 987654321, nil},
+ 	atoui32Test{"4294967295", 1<<32 - 1, nil},
+@@ -102,10 +133,8 @@ var atoi32tests = []atoi32Test{
+ 	atoi32Test{"-1", -1, nil},
+ 	atoi32Test{"12345", 12345, nil},
+ 	atoi32Test{"-12345", -12345, nil},
+-	atoi32Test{"012345", 012345, nil},
+-	atoi32Test{"-012345", -012345, nil},
+-	atoi32Test{"0x12345", 0x12345, nil},
+-	atoi32Test{"-0X12345", -0x12345, nil},
++	atoi32Test{"012345", 12345, nil},
++	atoi32Test{"-012345", -12345, nil},
+ 	atoi32Test{"12345x", 0, os.EINVAL},
+ 	atoi32Test{"-12345x", 0, os.EINVAL},
+ 	atoi32Test{"987654321", 987654321, nil},
+@@ -127,12 +156,24 @@ func init() {
+ 			test.err = &NumError{test.in, test.err};
+ 		}
+ 	}
++	for i := range btoui64tests {
++		test := &btoui64tests[i];
++		if test.err != nil {
++			test.err = &NumError{test.in, test.err};
++		}
++	}
+ 	for i := range atoi64tests {
+ 		test := &atoi64tests[i];
+ 		if test.err != nil {
+ 			test.err = &NumError{test.in, test.err};
+ 		}
+ 	}
++	for i := range btoi64tests {
++		test := &btoi64tests[i];
++		if test.err != nil {
++			test.err = &NumError{test.in, test.err};
++		}
++	}
+ 	for i := range atoui32tests {
+ 		test := &atoui32tests[i];
+ 		if test.err != nil {
+@@ -158,6 +199,17 @@ func TestAtoui64(t *testing.T) {
+ 	}
+ }
+ 
++func TestBtoui64(t *testing.T) {
++	for i := range btoui64tests {
++		test := &btoui64tests[i];
++		out, err := Btoui64(test.in, 0);
++		if test.out != out || !reflect.DeepEqual(test.err, err) {
++			t.Errorf("Btoui64(%q) = %v, %v want %v, %v\n",
++				test.in, out, err, test.out, test.err);
++		}
++	}
++}
++
+ func TestAtoi64(t *testing.T) {
+ 	for i := range atoi64tests {
+ 		test := &atoi64tests[i];
+@@ -169,6 +221,17 @@ func TestAtoi64(t *testing.T) {
+ 	}
+ }
+ 
++func TestBtoi64(t *testing.T) {
++	for i := range btoi64tests {
++		test := &btoi64tests[i];
++		out, err := Btoi64(test.in, 0);
++		if test.out != out || !reflect.DeepEqual(test.err, err) {
++			t.Errorf("Btoi64(%q) = %v, %v want %v, %v\n",
++				test.in, out, err, test.out, test.err);
++		}
++	}
++}
++
+ func TestAtoui(t *testing.T) {
+ 	switch IntSize {
+ 	case 32:

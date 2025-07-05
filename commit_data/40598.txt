@@ -11,6 +11,20 @@ Date:   Mon Jun 3 15:57:43 2019 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/signal_unix.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/signal_unix.go b/src/runtime/signal_unix.go
+index 1dd56989b4..f34008ff5f 100644
+--- a/src/runtime/signal_unix.go
++++ b/src/runtime/signal_unix.go
+@@ -268,7 +268,7 @@ func setThreadCPUProfiler(hz int32) {
+ }
+ 
+ func sigpipe() {
+-	if sigsend(_SIGPIPE) {
++	if signal_ignored(_SIGPIPE) || sigsend(_SIGPIPE) {
+ 		return
+ 	}
+ 	dieFromSignal(_SIGPIPE)

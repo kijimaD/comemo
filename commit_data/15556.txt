@@ -7,7 +7,34 @@ Date:   Sun Mar 3 03:17:14 2013 +0800
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/7419048
-
+---
  misc/dashboard/app/build/build.go | 2 +-
  misc/dashboard/app/build/init.go  | 2 ++
  2 files changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/misc/dashboard/app/build/build.go b/misc/dashboard/app/build/build.go
+index 3ac9cc2419..e0c0f0048f 100644
+--- a/misc/dashboard/app/build/build.go
++++ b/misc/dashboard/app/build/build.go
+@@ -188,7 +188,7 @@ func partsToHash(c *Commit, p []string) *Result {
+ //
+ // Each Result entity is a descendant of its associated Commit entity.
+ type Result struct {
+-	Builder     string // "arch-os[-note]"
++	Builder     string // "os-arch[-note]"
+ 	Hash        string
+ 	PackagePath string // (empty for Go commits)
+ 
+diff --git a/misc/dashboard/app/build/init.go b/misc/dashboard/app/build/init.go
+index 482d6f65f8..85a766b9dd 100644
+--- a/misc/dashboard/app/build/init.go
++++ b/misc/dashboard/app/build/init.go
+@@ -24,6 +24,8 @@ var subRepos = []string{
+ 	"crypto",
+ 	"image",
+ 	"net",
++	"talks",
++	"exp",
+ }
+ 
+ // Put subRepos into defaultPackages.

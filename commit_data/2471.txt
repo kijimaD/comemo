@@ -8,7 +8,7 @@ Date:   Wed Jun 17 15:16:06 2009 -0700
     DELTA=37  (17 added, 15 deleted, 5 changed)
     OCL=30428
     CL=30444
-
+---
  src/pkg/syscall/syscall_linux.go        |  1 -
  src/pkg/syscall/syscall_linux_386.go    |  4 +++-
  src/pkg/syscall/syscall_linux_amd64.go  |  1 +
@@ -16,3 +16,135 @@ Date:   Wed Jun 17 15:16:06 2009 -0700
  src/pkg/syscall/zsyscall_linux_amd64.go | 14 +++++++-------
  src/pkg/syscall/ztypes_linux_amd64.go   |  4 ++--
  6 files changed, 20 insertions(+), 18 deletions(-)
+
+diff --git a/src/pkg/syscall/syscall_linux.go b/src/pkg/syscall/syscall_linux.go
+index 1c0a4f5db8..ae3eee777c 100644
+--- a/src/pkg/syscall/syscall_linux.go
++++ b/src/pkg/syscall/syscall_linux.go
+@@ -427,7 +427,6 @@ func SetsockoptLinger(fd, level, opt int, l *Linger) (errno int) {
+ //sys	Rename(oldpath string, newpath string) (errno int)
+ //sys	Renameat(olddirfd int, oldpath string, newdirfd int, newpath string) (errno int)
+ //sys	Rmdir(path string) (errno int)
+-//sys	Select(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (n int, errno int)
+ //sys	Setdomainname(p []byte) (errno int)
+ //sys	Sethostname(p []byte) (errno int)
+ //sys	Setpgid(pid int, pgid int) (errno int)
+diff --git a/src/pkg/syscall/syscall_linux_386.go b/src/pkg/syscall/syscall_linux_386.go
+index b41c60a552..f20ec10614 100644
+--- a/src/pkg/syscall/syscall_linux_386.go
++++ b/src/pkg/syscall/syscall_linux_386.go
+@@ -58,6 +58,8 @@ func NsecToTimeval(nsec int64) (tv Timeval) {
+ //sys	getgroups(n int, list *_Gid_t) (nn int, errno int) = SYS_GETGROUPS32
+ //sys	setgroups(n int, list *_Gid_t) (errno int) = SYS_SETGROUPS32
+ 
++//sys	Select(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (n int, errno int) = SYS__NEWSELECT
++
+ // Underlying system call writes to newoffset via pointer.
+ // Implemented in assembly to avoid allocation.
+ func Seek(fd int, offset int64, whence int) (newoffset int64, errno int)
+@@ -93,7 +95,7 @@ const (
+ func socketcall(call int, a0, a1, a2, a3, a4, a5 uintptr) (n int, errno int)
+ 
+ func accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, errno int) {
+-	fd, errno = socketcall(_SOCKET, uintptr(s), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)), 0, 0, 0);
++	fd, errno = socketcall(_ACCEPT, uintptr(s), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)), 0, 0, 0);
+ 	return;
+ }
+ 
+diff --git a/src/pkg/syscall/syscall_linux_amd64.go b/src/pkg/syscall/syscall_linux_amd64.go
+index 1792a098c6..3455184796 100644
+--- a/src/pkg/syscall/syscall_linux_amd64.go
++++ b/src/pkg/syscall/syscall_linux_amd64.go
+@@ -18,6 +18,7 @@ import "syscall"
+ //sys	Listen(s int, n int) (errno int)
+ //sys	Lstat(path string, stat *Stat_t) (errno int)
+ //sys	Seek(fd int, offset int64, whence int) (off int64, errno int) = SYS_LSEEK
++//sys	Select(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (n int, errno int)
+ //sys	Setfsgid(gid int) (errno int)
+ //sys	Setfsuid(uid int) (errno int)
+ //sys	Setgid(gid int) (errno int)
+diff --git a/src/pkg/syscall/zsyscall_linux_386.go b/src/pkg/syscall/zsyscall_linux_386.go
+index 6e82bbb1bf..07629aa6a7 100644
+--- a/src/pkg/syscall/zsyscall_linux_386.go
++++ b/src/pkg/syscall/zsyscall_linux_386.go
+@@ -395,13 +395,6 @@ func Rmdir(path string) (errno int) {
+ 	return;
+ }
+ 
+-func Select(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (n int, errno int) {
+-	r0, r1, e1 := Syscall6(SYS_SELECT, uintptr(nfd), uintptr(unsafe.Pointer(r)), uintptr(unsafe.Pointer(w)), uintptr(unsafe.Pointer(e)), uintptr(unsafe.Pointer(timeout)), 0);
+-	n = int(r0);
+-	errno = int(e1);
+-	return;
+-}
+-
+ func Setdomainname(p []byte) (errno int) {
+ 	var _p0 *byte;
+ 	if len(p) > 0 { _p0 = &p[0]; }
+@@ -707,5 +700,12 @@ func setgroups(n int, list *_Gid_t) (errno int) {
+ 	return;
+ }
+ 
++func Select(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (n int, errno int) {
++	r0, r1, e1 := Syscall6(SYS__NEWSELECT, uintptr(nfd), uintptr(unsafe.Pointer(r)), uintptr(unsafe.Pointer(w)), uintptr(unsafe.Pointer(e)), uintptr(unsafe.Pointer(timeout)), 0);
++	n = int(r0);
++	errno = int(e1);
++	return;
++}
++
+ 
+ 
+diff --git a/src/pkg/syscall/zsyscall_linux_amd64.go b/src/pkg/syscall/zsyscall_linux_amd64.go
+index 6d5c753853..0766b8318f 100644
+--- a/src/pkg/syscall/zsyscall_linux_amd64.go
++++ b/src/pkg/syscall/zsyscall_linux_amd64.go
+@@ -395,13 +395,6 @@ func Rmdir(path string) (errno int) {
+ 	return;
+ }
+ 
+-func Select(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (n int, errno int) {
+-	r0, r1, e1 := Syscall6(SYS_SELECT, uintptr(nfd), uintptr(unsafe.Pointer(r)), uintptr(unsafe.Pointer(w)), uintptr(unsafe.Pointer(e)), uintptr(unsafe.Pointer(timeout)), 0);
+-	n = int(r0);
+-	errno = int(e1);
+-	return;
+-}
+-
+ func Setdomainname(p []byte) (errno int) {
+ 	var _p0 *byte;
+ 	if len(p) > 0 { _p0 = &p[0]; }
+@@ -655,6 +648,13 @@ func Seek(fd int, offset int64, whence int) (off int64, errno int) {
+ 	return;
+ }
+ 
++func Select(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (n int, errno int) {
++	r0, r1, e1 := Syscall6(SYS_SELECT, uintptr(nfd), uintptr(unsafe.Pointer(r)), uintptr(unsafe.Pointer(w)), uintptr(unsafe.Pointer(e)), uintptr(unsafe.Pointer(timeout)), 0);
++	n = int(r0);
++	errno = int(e1);
++	return;
++}
++
+ func Setfsgid(gid int) (errno int) {
+ 	r0, r1, e1 := Syscall(SYS_SETFSGID, uintptr(gid), 0, 0);
+ 	errno = int(e1);
+diff --git a/src/pkg/syscall/ztypes_linux_amd64.go b/src/pkg/syscall/ztypes_linux_amd64.go
+index f17ebe1397..5733f3e26e 100644
+--- a/src/pkg/syscall/ztypes_linux_amd64.go
++++ b/src/pkg/syscall/ztypes_linux_amd64.go
+@@ -253,7 +253,7 @@ type Linger struct {
+ }
+ 
+ type FdSet struct {
+-	__fds_bits [16]int64;
++	Bits [16]int64;
+ }
+ 
+ type Sysinfo_t struct {
+@@ -281,7 +281,7 @@ type Utsname struct {
+ 	Release [65]int8;
+ 	Version [65]int8;
+ 	Machine [65]int8;
+-	__domainname [65]int8;
++	Domainname [65]int8;
+ }
+ 
+ type Ustat_t struct {

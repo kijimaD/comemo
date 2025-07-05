@@ -18,7 +18,7 @@ Date:   Mon Apr 22 23:55:27 2019 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/alldocs.go                         |  6 +++++
  src/cmd/go/internal/cfg/cfg.go                |  1 +
  src/cmd/go/internal/work/build.go             |  7 ++++++
@@ -28,3 +28,259 @@ Date:   Mon Apr 22 23:55:27 2019 -0400
  src/cmd/go/testdata/script/README             |  7 ++++--
  src/cmd/go/testdata/script/build_trimpath.txt | 19 +++++++++++++++
  8 files changed, 85 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index d012235b81..6e4d77d5f6 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -155,6 +155,12 @@
+ // 		a space-separated list of build tags to consider satisfied during the
+ // 		build. For more information about build tags, see the description of
+ // 		build constraints in the documentation for the go/build package.
++// 	-trimpath
++// 		remove all file system paths from the resulting executable.
++// 		Instead of absolute file system paths, the recorded file names
++// 		will begin with either "go" (for the standard library),
++// 		or a module path@version (when using modules),
++// 		or a plain import path (when using GOPATH).
+ // 	-toolexec 'cmd args'
+ // 		a program to use to invoke toolchain programs like vet and asm.
+ // 		For example, instead of running asm, the go command will run
+diff --git a/src/cmd/go/internal/cfg/cfg.go b/src/cmd/go/internal/cfg/cfg.go
+index 1060c8f6df..38cdf639e2 100644
+--- a/src/cmd/go/internal/cfg/cfg.go
++++ b/src/cmd/go/internal/cfg/cfg.go
+@@ -38,6 +38,7 @@ var (
+ 	BuildToolchainName     string
+ 	BuildToolchainCompiler func() string
+ 	BuildToolchainLinker   func() string
++	BuildTrimpath          bool // -trimpath flag
+ 	BuildV                 bool // -v flag
+ 	BuildWork              bool // -work flag
+ 	BuildX                 bool // -x flag
+diff --git a/src/cmd/go/internal/work/build.go b/src/cmd/go/internal/work/build.go
+index 15faf578f8..355c1477f5 100644
+--- a/src/cmd/go/internal/work/build.go
++++ b/src/cmd/go/internal/work/build.go
+@@ -108,6 +108,12 @@ and test commands:
+ 		a space-separated list of build tags to consider satisfied during the
+ 		build. For more information about build tags, see the description of
+ 		build constraints in the documentation for the go/build package.
++	-trimpath
++		remove all file system paths from the resulting executable.
++		Instead of absolute file system paths, the recorded file names
++		will begin with either "go" (for the standard library),
++		or a module path@version (when using modules),
++		or a plain import path (when using GOPATH).
+ 	-toolexec 'cmd args'
+ 		a program to use to invoke toolchain programs like vet and asm.
+ 		For example, instead of running asm, the go command will run
+@@ -229,6 +235,7 @@ func AddBuildFlags(cmd *base.Command) {
+ 	cmd.Flag.BoolVar(&cfg.BuildMSan, "msan", false, "")
+ 	cmd.Flag.Var((*base.StringsFlag)(&cfg.BuildContext.BuildTags), "tags", "")
+ 	cmd.Flag.Var((*base.StringsFlag)(&cfg.BuildToolexec), "toolexec", "")
++	cmd.Flag.BoolVar(&cfg.BuildTrimpath, "trimpath", false, "")
+ 	cmd.Flag.BoolVar(&cfg.BuildWork, "work", false, "")
+ 
+ 	// Undocumented, unstable debugging flags.
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 87ca5f3128..d1a529d1e6 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -1930,7 +1930,8 @@ func joinUnambiguously(a []string) string {
+ 		q := strconv.Quote(s)
+ 		// A gccgo command line can contain -( and -).
+ 		// Make sure we quote them since they are special to the shell.
+-		if s == "" || strings.ContainsAny(s, " ()") || len(q) > len(s)+2 {
++		// The trimpath argument can also contain > (part of =>) and ;. Quote those too.
++		if s == "" || strings.ContainsAny(s, " ()>;") || len(q) > len(s)+2 {
+ 			buf.WriteString(q)
+ 		} else {
+ 			buf.WriteString(s)
+diff --git a/src/cmd/go/internal/work/gc.go b/src/cmd/go/internal/work/gc.go
+index 1721ecbc4e..11108f6411 100644
+--- a/src/cmd/go/internal/work/gc.go
++++ b/src/cmd/go/internal/work/gc.go
+@@ -117,7 +117,7 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg []byte, s
+ 		}
+ 	}
+ 
+-	args := []interface{}{cfg.BuildToolexec, base.Tool("compile"), "-o", ofile, "-trimpath", trimDir(a.Objdir), gcflags, gcargs, "-D", p.Internal.LocalPrefix}
++	args := []interface{}{cfg.BuildToolexec, base.Tool("compile"), "-o", ofile, "-trimpath", a.trimpath(), gcflags, gcargs, "-D", p.Internal.LocalPrefix}
+ 	if importcfg != nil {
+ 		if err := b.writeFile(objdir+"importcfg", importcfg); err != nil {
+ 			return "", nil, err
+@@ -215,17 +215,33 @@ CheckFlags:
+ 	return c
+ }
+ 
+-func trimDir(dir string) string {
+-	if len(dir) > 1 && dir[len(dir)-1] == filepath.Separator {
+-		dir = dir[:len(dir)-1]
++// trimpath returns the -trimpath argument to use
++// when compiling the action.
++func (a *Action) trimpath() string {
++	// Strip the object directory entirely.
++	objdir := a.Objdir
++	if len(objdir) > 1 && objdir[len(objdir)-1] == filepath.Separator {
++		objdir = objdir[:len(objdir)-1]
+ 	}
+-	return dir
++	rewrite := objdir + "=>"
++
++	// For "go build -trimpath", rewrite package source directory
++	// to a file system-independent path (just the import path).
++	if cfg.BuildTrimpath {
++		if m := a.Package.Module; m != nil {
++			rewrite += ";" + m.Dir + "=>" + m.Path + "@" + m.Version
++		} else {
++			rewrite += ";" + a.Package.Dir + "=>" + a.Package.ImportPath
++		}
++	}
++
++	return rewrite
+ }
+ 
+ func asmArgs(a *Action, p *load.Package) []interface{} {
+ 	// Add -I pkg/GOOS_GOARCH so #include "textflag.h" works in .s files.
+ 	inc := filepath.Join(cfg.GOROOT, "pkg", "include")
+-	args := []interface{}{cfg.BuildToolexec, base.Tool("asm"), "-trimpath", trimDir(a.Objdir), "-I", a.Objdir, "-I", inc, "-D", "GOOS_" + cfg.Goos, "-D", "GOARCH_" + cfg.Goarch, forcedAsmflags, p.Internal.Asmflags}
++	args := []interface{}{cfg.BuildToolexec, base.Tool("asm"), "-trimpath", a.trimpath(), "-I", a.Objdir, "-I", inc, "-D", "GOOS_" + cfg.Goos, "-D", "GOARCH_" + cfg.Goarch, forcedAsmflags, p.Internal.Asmflags}
+ 	if p.ImportPath == "runtime" && cfg.Goarch == "386" {
+ 		for _, arg := range forcedAsmflags {
+ 			if arg == "-dynlink" {
+@@ -567,7 +583,11 @@ func (gcToolchain) ld(b *Builder, root *Action, out, importcfg, mainpkg string)
+ 		dir, out = filepath.Split(out)
+ 	}
+ 
+-	return b.run(root, dir, root.Package.ImportPath, nil, cfg.BuildToolexec, base.Tool("link"), "-o", out, "-importcfg", importcfg, ldflags, mainpkg)
++	env := []string{}
++	if cfg.BuildTrimpath {
++		env = append(env, "GOROOT_FINAL=go")
++	}
++	return b.run(root, dir, root.Package.ImportPath, env, cfg.BuildToolexec, base.Tool("link"), "-o", out, "-importcfg", importcfg, ldflags, mainpkg)
+ }
+ 
+ func (gcToolchain) ldShared(b *Builder, root *Action, toplevelactions []*Action, out, importcfg string, allactions []*Action) error {
+diff --git a/src/cmd/go/script_test.go b/src/cmd/go/script_test.go
+index 7c5dd48340..f1f7aad89c 100644
+--- a/src/cmd/go/script_test.go
++++ b/src/cmd/go/script_test.go
+@@ -539,6 +539,13 @@ func (ts *testScript) cmdEnv(neg bool, args []string) {
+ 	if neg {
+ 		ts.fatalf("unsupported: ! env")
+ 	}
++
++	conv := func(s string) string { return s }
++	if len(args) > 0 && args[0] == "-r" {
++		conv = regexp.QuoteMeta
++		args = args[1:]
++	}
++
+ 	if len(args) == 0 {
+ 		printed := make(map[string]bool) // env list can have duplicates; only print effective value (from envMap) once
+ 		for _, kv := range ts.env {
+@@ -556,8 +563,9 @@ func (ts *testScript) cmdEnv(neg bool, args []string) {
+ 			fmt.Fprintf(&ts.log, "%s=%s\n", env, ts.envMap[env])
+ 			continue
+ 		}
+-		ts.env = append(ts.env, env)
+-		ts.envMap[env[:i]] = env[i+1:]
++		key, val := env[:i], conv(env[i+1:])
++		ts.env = append(ts.env, key+"="+val)
++		ts.envMap[key] = val
+ 	}
+ }
+ 
+@@ -743,6 +751,11 @@ func scriptMatch(ts *testScript, neg bool, args []string, text, name string) {
+ 		}
+ 		args = args[1:]
+ 	}
++	quiet := false
++	if len(args) >= 1 && args[0] == "-q" {
++		quiet = true
++		args = args[1:]
++	}
+ 
+ 	extraUsage := ""
+ 	want := 1
+@@ -773,14 +786,14 @@ func scriptMatch(ts *testScript, neg bool, args []string, text, name string) {
+ 
+ 	if neg {
+ 		if re.MatchString(text) {
+-			if isGrep {
++			if isGrep && !quiet {
+ 				fmt.Fprintf(&ts.log, "[%s]\n%s\n", name, text)
+ 			}
+ 			ts.fatalf("unexpected match for %#q found in %s: %s", pattern, name, re.FindString(text))
+ 		}
+ 	} else {
+ 		if !re.MatchString(text) {
+-			if isGrep {
++			if isGrep && !quiet {
+ 				fmt.Fprintf(&ts.log, "[%s]\n%s\n", name, text)
+ 			}
+ 			ts.fatalf("no match for %#q found in %s", pattern, name)
+@@ -788,7 +801,7 @@ func scriptMatch(ts *testScript, neg bool, args []string, text, name string) {
+ 		if n > 0 {
+ 			count := len(re.FindAllString(text, -1))
+ 			if count != n {
+-				if isGrep {
++				if isGrep && !quiet {
+ 					fmt.Fprintf(&ts.log, "[%s]\n%s\n", name, text)
+ 				}
+ 				ts.fatalf("have %d matches for %#q, want %d", count, pattern, n)
+diff --git a/src/cmd/go/testdata/script/README b/src/cmd/go/testdata/script/README
+index 0c34333823..3dceb735aa 100644
+--- a/src/cmd/go/testdata/script/README
++++ b/src/cmd/go/testdata/script/README
+@@ -111,9 +111,11 @@ The commands are:
+   src can include "stdout" or "stderr" to use the standard output or standard error
+   from the most recent exec or go command.
+ 
+-- env [key=value...]
++- env [-r] [key=value...]
+   With no arguments, print the environment (useful for debugging).
+   Otherwise add the listed key=value pairs to the environment.
++  The -r flag causes the values to be escaped using regexp.QuoteMeta
++  before being recorded.
+ 
+ - [!] exec program [args...] [&]
+   Run the given executable program with the arguments.
+@@ -135,9 +137,10 @@ The commands are:
+   Run the (test copy of the) go command with the given arguments.
+   It must (or must not) succeed.
+ 
+-- [!] grep [-count=N] pattern file
++- [!] grep [-count=N] [-q] pattern file
+   The file's content must (or must not) match the regular expression pattern.
+   For positive matches, -count=N specifies an exact number of matches to require.
++  The -q flag disables printing the file content on a mismatch.
+ 
+ - mkdir path...
+   Create the listed directories, if they do not already exists.
+diff --git a/src/cmd/go/testdata/script/build_trimpath.txt b/src/cmd/go/testdata/script/build_trimpath.txt
+new file mode 100644
+index 0000000000..0dc20a9999
+--- /dev/null
++++ b/src/cmd/go/testdata/script/build_trimpath.txt
+@@ -0,0 +1,19 @@
++env -r GOROOT_REGEXP=$GOROOT
++env -r WORK_REGEXP=$WORK
++env GOROOT GOROOT_REGEXP WORK WORK_REGEXP
++
++go build -trimpath -o hello.exe hello.go
++! grep -q $GOROOT_REGEXP hello.exe
++! grep -q $WORK_REGEXP hello.exe
++
++env GO111MODULE=on
++go build -trimpath -o fortune.exe rsc.io/fortune
++! grep -q $GOROOT_REGEXP fortune.exe
++! grep -q $WORK_REGEXP fortune.exe
++
++-- hello.go --
++package main
++func main() { println("hello") }
++
++-- go.mod --
++module m

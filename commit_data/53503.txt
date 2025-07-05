@@ -14,7 +14,34 @@ Date:   Thu Aug 18 22:53:19 2022 +0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/align_runtime_test.go | 2 --
  src/runtime/runtime2.go           | 2 --
  2 files changed, 4 deletions(-)
+
+diff --git a/src/runtime/align_runtime_test.go b/src/runtime/align_runtime_test.go
+index 2c448d4a09..3a6a575481 100644
+--- a/src/runtime/align_runtime_test.go
++++ b/src/runtime/align_runtime_test.go
+@@ -14,8 +14,6 @@ import "unsafe"
+ // operations (all the *64 operations in runtime/internal/atomic).
+ var AtomicFields = []uintptr{
+ 	unsafe.Offsetof(m{}.procid),
+-	unsafe.Offsetof(p{}.timer0When),
+-	unsafe.Offsetof(p{}.timerModifiedEarliest),
+ 	unsafe.Offsetof(p{}.gcFractionalMarkTime),
+ 	unsafe.Offsetof(profBuf{}.overflow),
+ 	unsafe.Offsetof(profBuf{}.overflowTime),
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 56318e2bce..5e12ac73bc 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -667,8 +667,6 @@ type p struct {
+ 
+ 	palloc persistentAlloc // per-P to avoid mutex
+ 
+-	_ uint32 // Alignment for atomic fields below
+-
+ 	// The when field of the first entry on the timer heap.
+ 	// This is 0 if the timer heap is empty.
+ 	timer0When atomic.Int64

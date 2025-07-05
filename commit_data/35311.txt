@@ -11,6 +11,25 @@ Date:   Thu Feb 8 23:50:16 2018 +0000
     GitHub-Pull-Request: golang/go#23752
     Reviewed-on: https://go-review.googlesource.com/92995
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  README.md | 7 +++----
  1 file changed, 3 insertions(+), 4 deletions(-)
+
+diff --git a/README.md b/README.md
+index 57492b3fb0..bb3d895d45 100644
+--- a/README.md
++++ b/README.md
+@@ -36,10 +36,9 @@ Go is the work of hundreds of contributors. We appreciate your help!
+ To contribute, please read the contribution guidelines:
+ 	https://golang.org/doc/contribute.html
+ 
+-Note that the Go project does not use GitHub pull requests, and that
+-we use the issue tracker for bug reports and proposals only. See
+-https://golang.org/wiki/Questions for a list of places to ask
+-questions about the Go language.
++Note that the Go project uses the issue tracker for bug reports and
++proposals only. See https://golang.org/wiki/Questions for a list of
++places to ask questions about the Go language.
+ 
+ [rf]: https://reneefrench.blogspot.com/
+ [cc3-by]: https://creativecommons.org/licenses/by/3.0/

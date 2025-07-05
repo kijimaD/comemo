@@ -7,6 +7,19 @@ Date:   Wed Aug 12 18:14:07 2009 -0700
     R=ken
     OCL=33144
     CL=33144
-
+---
  src/cmd/6c/cgen.c | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/6c/cgen.c b/src/cmd/6c/cgen.c
+index aba37b1b5c..9e3e60e502 100644
+--- a/src/cmd/6c/cgen.c
++++ b/src/cmd/6c/cgen.c
+@@ -32,6 +32,7 @@
+ 
+ /* ,x/^(print|prtree)\(/i/\/\/ */
+ int castup(Type*, Type*);
++int vaddr(Node *n, int a)
+ 
+ void
+ cgen(Node *n, Node *nn)

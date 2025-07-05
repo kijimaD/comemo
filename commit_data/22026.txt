@@ -7,6 +7,19 @@ Date:   Wed Feb 18 21:59:41 2015 -0500
     Change-Id: If7729b3c7df6dc7fcd41f293e2ef2472c769fe8b
     Reviewed-on: https://go-review.googlesource.com/5261
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/mgcwork.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/runtime/mgcwork.go b/src/runtime/mgcwork.go
+index cf5a97957f..ac02d35e73 100644
+--- a/src/runtime/mgcwork.go
++++ b/src/runtime/mgcwork.go
+@@ -14,7 +14,6 @@ const (
+ type workbufhdr struct {
+ 	node  lfnode // must be first
+ 	nobj  uintptr
+-	id    uintptr
+ 	inuse bool       // This workbuf is in use by some gorotuine and is not on the work.empty/partial/full queues.
+ 	log   [4]uintptr // line numbers forming a history of ownership changes to workbuf
+ }

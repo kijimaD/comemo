@@ -9,6 +9,46 @@ Date:   Sat Aug 29 10:06:43 2015 +1000
     Change-Id: I532da1100f74d1e9887eb3cf26974660ae818d92
     Reviewed-on: https://go-review.googlesource.com/14007
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  misc/nacl/testzip.proto | 21 ++++++++++++---------
  1 file changed, 12 insertions(+), 9 deletions(-)
+
+diff --git a/misc/nacl/testzip.proto b/misc/nacl/testzip.proto
+index 1a3064a477..b51e8da5c7 100644
+--- a/misc/nacl/testzip.proto
++++ b/misc/nacl/testzip.proto
+@@ -27,15 +27,6 @@ go	src=..
+ 			internal
+ 				objfile
+ 					objfile.go
+-				rsc.io
+-					arm
+-						armasm
+-							testdata
+-								+
+-					x86
+-						x86asm
+-							testdata
+-								+
+ 			gofmt
+ 				gofmt.go
+ 				gofmt_test.go
+@@ -44,6 +35,18 @@ go	src=..
+ 			newlink
+ 				testdata
+ 					+
++			vendor
++				golang.org
++						x
++							arch
++								arm
++									armasm
++										testdata
++												+
++								x86
++									x86asm
++										testdata
++												+
+ 		archive
+ 			tar
+ 				testdata

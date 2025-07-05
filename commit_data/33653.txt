@@ -9,6 +9,21 @@ Date:   Sat Aug 26 06:55:34 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/runtime/hashmap_fast.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/hashmap_fast.go b/src/runtime/hashmap_fast.go
+index c378647892..f117311439 100644
+--- a/src/runtime/hashmap_fast.go
++++ b/src/runtime/hashmap_fast.go
+@@ -754,7 +754,8 @@ search:
+ 			if k.str != key.str && !memequal(k.str, key.str, uintptr(key.len)) {
+ 				continue
+ 			}
+-			*(*string)(kptr) = ""
++			// Clear key's pointer.
++			k.str = nil
+ 			// Only clear value if there are pointers in it.
+ 			if t.elem.kind&kindNoPointers == 0 {
+ 				v := add(unsafe.Pointer(b), dataOffset+bucketCnt*2*sys.PtrSize+i*uintptr(t.valuesize))

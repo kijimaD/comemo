@@ -23,7 +23,7 @@ Date:   Wed Sep 6 14:00:30 2023 -0700
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/ir/expr.go       | 14 -------------
  src/cmd/compile/internal/ir/fmt.go        |  5 -----
  src/cmd/compile/internal/ir/node_gen.go   | 19 -----------------
@@ -36,3 +36,270 @@ Date:   Wed Sep 6 14:00:30 2023 -0700
  test/escape_slice.go                      |  2 +-
  test/fixedbugs/issue13799.go              | 12 +++++------
  11 files changed, 12 insertions(+), 96 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/expr.go b/src/cmd/compile/internal/ir/expr.go
+index 852a139883..7204451364 100644
+--- a/src/cmd/compile/internal/ir/expr.go
++++ b/src/cmd/compile/internal/ir/expr.go
+@@ -498,20 +498,6 @@ func NewParenExpr(pos src.XPos, x Node) *ParenExpr {
+ func (n *ParenExpr) Implicit() bool     { return n.flags&miniExprImplicit != 0 }
+ func (n *ParenExpr) SetImplicit(b bool) { n.flags.set(miniExprImplicit, b) }
+ 
+-// A RawOrigExpr represents an arbitrary Go expression as a string value.
+-// When printed in diagnostics, the string value is written out exactly as-is.
+-type RawOrigExpr struct {
+-	miniExpr
+-	Raw string
+-}
+-
+-func NewRawOrigExpr(pos src.XPos, op Op, raw string) *RawOrigExpr {
+-	n := &RawOrigExpr{Raw: raw}
+-	n.pos = pos
+-	n.op = op
+-	return n
+-}
+-
+ // A ResultExpr represents a direct access to a result.
+ type ResultExpr struct {
+ 	miniExpr
+diff --git a/src/cmd/compile/internal/ir/fmt.go b/src/cmd/compile/internal/ir/fmt.go
+index c5d56d10f9..841b6a2f4f 100644
+--- a/src/cmd/compile/internal/ir/fmt.go
++++ b/src/cmd/compile/internal/ir/fmt.go
+@@ -567,11 +567,6 @@ func exprFmt(n Node, s fmt.State, prec int) {
+ 		return
+ 	}
+ 
+-	if n, ok := n.(*RawOrigExpr); ok {
+-		fmt.Fprint(s, n.Raw)
+-		return
+-	}
+-
+ 	switch n.Op() {
+ 	case OPAREN:
+ 		n := n.(*ParenExpr)
+diff --git a/src/cmd/compile/internal/ir/node_gen.go b/src/cmd/compile/internal/ir/node_gen.go
+index cde7ab0ca8..1274431b14 100644
+--- a/src/cmd/compile/internal/ir/node_gen.go
++++ b/src/cmd/compile/internal/ir/node_gen.go
+@@ -1171,25 +1171,6 @@ func (n *RangeStmt) editChildrenWithHidden(edit func(Node) Node) {
+ 	}
+ }
+ 
+-func (n *RawOrigExpr) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
+-func (n *RawOrigExpr) copy() Node {
+-	c := *n
+-	c.init = copyNodes(c.init)
+-	return &c
+-}
+-func (n *RawOrigExpr) doChildren(do func(Node) bool) bool {
+-	if doNodes(n.init, do) {
+-		return true
+-	}
+-	return false
+-}
+-func (n *RawOrigExpr) editChildren(edit func(Node) Node) {
+-	editNodes(n.init, edit)
+-}
+-func (n *RawOrigExpr) editChildrenWithHidden(edit func(Node) Node) {
+-	editNodes(n.init, edit)
+-}
+-
+ func (n *ResultExpr) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
+ func (n *ResultExpr) copy() Node {
+ 	c := *n
+diff --git a/src/cmd/compile/internal/noder/expr.go b/src/cmd/compile/internal/noder/expr.go
+deleted file mode 100644
+index 14ef3b958f..0000000000
+--- a/src/cmd/compile/internal/noder/expr.go
++++ /dev/null
+@@ -1,34 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package noder
+-
+-import (
+-	"fmt"
+-
+-	"cmd/compile/internal/ir"
+-	"cmd/compile/internal/syntax"
+-)
+-
+-// constExprOp returns an ir.Op that represents the outermost
+-// operation of the given constant expression. It's intended for use
+-// with ir.RawOrigExpr.
+-func constExprOp(expr syntax.Expr) ir.Op {
+-	switch expr := expr.(type) {
+-	default:
+-		panic(fmt.Sprintf("%s: unexpected expression: %T", expr.Pos(), expr))
+-
+-	case *syntax.BasicLit:
+-		return ir.OLITERAL
+-	case *syntax.Name, *syntax.SelectorExpr:
+-		return ir.ONAME
+-	case *syntax.CallExpr:
+-		return ir.OCALL
+-	case *syntax.Operation:
+-		if expr.Y == nil {
+-			return unOps[expr.Op]
+-		}
+-		return binOps[expr.Op]
+-	}
+-}
+diff --git a/src/cmd/compile/internal/noder/helpers.go b/src/cmd/compile/internal/noder/helpers.go
+index 8aa93ef5dc..ae31f86006 100644
+--- a/src/cmd/compile/internal/noder/helpers.go
++++ b/src/cmd/compile/internal/noder/helpers.go
+@@ -40,11 +40,6 @@ func typed(typ *types.Type, n ir.Node) ir.Node {
+ 
+ // Values
+ 
+-func OrigConst(pos src.XPos, typ *types.Type, val constant.Value, op ir.Op, raw string) ir.Node {
+-	orig := ir.NewRawOrigExpr(pos, op, raw)
+-	return ir.NewConstExpr(val, typed(typ, orig))
+-}
+-
+ // FixValue returns val after converting and truncating it as
+ // appropriate for typ.
+ func FixValue(typ *types.Type, val constant.Value) constant.Value {
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index 26865fdae2..8e28260499 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -2172,9 +2172,7 @@ func (r *reader) expr() (res ir.Node) {
+ 		pos := r.pos()
+ 		typ := r.typ()
+ 		val := FixValue(typ, r.Value())
+-		op := r.op()
+-		orig := r.String()
+-		return typecheck.Expr(OrigConst(pos, typ, val, op, orig))
++		return typed(typ, ir.NewBasicLit(pos, val))
+ 
+ 	case exprNil:
+ 		pos := r.pos()
+diff --git a/src/cmd/compile/internal/noder/writer.go b/src/cmd/compile/internal/noder/writer.go
+index 5982e714a3..044771609d 100644
+--- a/src/cmd/compile/internal/noder/writer.go
++++ b/src/cmd/compile/internal/noder/writer.go
+@@ -1748,11 +1748,6 @@ func (w *writer) expr(expr syntax.Expr) {
+ 			assert(typ != nil)
+ 			w.typ(typ)
+ 			w.Value(tv.Value)
+-
+-			// TODO(mdempsky): These details are only important for backend
+-			// diagnostics. Explore writing them out separately.
+-			w.op(constExprOp(expr))
+-			w.String(syntax.String(expr))
+ 			return
+ 		}
+ 
+diff --git a/test/escape5.go b/test/escape5.go
+index 089130dad5..133d973ba5 100644
+--- a/test/escape5.go
++++ b/test/escape5.go
+@@ -151,7 +151,7 @@ func f9() {
+ func f10() {
+ 	// These don't escape but are too big for the stack
+ 	var x [1 << 30]byte         // ERROR "moved to heap: x"
+-	var y = make([]byte, 1<<30) // ERROR "make\(\[\]byte, 1 << 30\) escapes to heap"
++	var y = make([]byte, 1<<30) // ERROR "make\(\[\]byte, 1073741824\) escapes to heap"
+ 	_ = x[0] + y[0]
+ }
+ 
+diff --git a/test/escape_reflect.go b/test/escape_reflect.go
+index b2d674a8a6..99fbada9a9 100644
+--- a/test/escape_reflect.go
++++ b/test/escape_reflect.go
+@@ -115,7 +115,7 @@ func is2(x [2]int) bool {
+ 	return v.IsValid() || v.IsNil() || v.IsZero()
+ }
+ 
+-func is3(x struct { a, b int }) bool {
++func is3(x struct{ a, b int }) bool {
+ 	v := reflect.ValueOf(x) // ERROR "x does not escape"
+ 	return v.IsValid() || v.IsNil() || v.IsZero()
+ }
+@@ -352,9 +352,9 @@ func select2(ch chan string, x string) { // ERROR "leaking param: ch$" "leaking
+ }
+ 
+ var (
+-	intTyp    = reflect.TypeOf(int(0))     // ERROR "int\(0\) does not escape"
++	intTyp    = reflect.TypeOf(int(0))     // ERROR "0 does not escape"
+ 	uintTyp   = reflect.TypeOf(uint(0))    // ERROR "uint\(0\) does not escape"
+-	stringTyp = reflect.TypeOf(string("")) // ERROR "string\(.*\) does not escape"
++	stringTyp = reflect.TypeOf(string("")) // ERROR ".. does not escape"
+ 	bytesTyp  = reflect.TypeOf([]byte{})   // ERROR "\[\]byte{} does not escape"
+ )
+ 
+diff --git a/test/escape_slice.go b/test/escape_slice.go
+index 7f94a755b9..65181e57d7 100644
+--- a/test/escape_slice.go
++++ b/test/escape_slice.go
+@@ -137,7 +137,7 @@ const (
+ var v4InV6Prefix = []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff}
+ 
+ func IPv4(a, b, c, d byte) IP {
+-	p := make(IP, IPv6len) // ERROR "make\(IP, IPv6len\) escapes to heap"
++	p := make(IP, IPv6len) // ERROR "make\(IP, 16\) escapes to heap"
+ 	copy(p, v4InV6Prefix)
+ 	p[12] = a
+ 	p[13] = b
+diff --git a/test/fixedbugs/issue13799.go b/test/fixedbugs/issue13799.go
+index 7ab4040434..f06f19829e 100644
+--- a/test/fixedbugs/issue13799.go
++++ b/test/fixedbugs/issue13799.go
+@@ -61,7 +61,7 @@ func test1(iter int) {
+ 	}
+ 
+ 	if len(m) != maxI {
+-		panic(fmt.Sprintf("iter %d: maxI = %d, len(m) = %d", iter, maxI, len(m))) // ERROR "iter escapes to heap$" "len\(m\) escapes to heap$" "maxI escapes to heap$" "... argument does not escape$" "fmt.Sprintf\(.*\) escapes to heap"
++		panic(fmt.Sprintf("iter %d: maxI = %d, len(m) = %d", iter, maxI, len(m))) // ERROR "iter escapes to heap$" "len\(m\) escapes to heap$" "500 escapes to heap$" "... argument does not escape$" "fmt.Sprintf\(.*\) escapes to heap"
+ 	}
+ }
+ 
+@@ -85,7 +85,7 @@ func test2(iter int) {
+ 	}
+ 
+ 	if len(m) != maxI {
+-		panic(fmt.Sprintf("iter %d: maxI = %d, len(m) = %d", iter, maxI, len(m))) // ERROR "iter escapes to heap$" "len\(m\) escapes to heap$" "maxI escapes to heap$" "... argument does not escape$" "fmt.Sprintf\(.*\) escapes to heap"
++		panic(fmt.Sprintf("iter %d: maxI = %d, len(m) = %d", iter, maxI, len(m))) // ERROR "iter escapes to heap$" "len\(m\) escapes to heap$" "500 escapes to heap$" "... argument does not escape$" "fmt.Sprintf\(.*\) escapes to heap"
+ 	}
+ }
+ 
+@@ -111,7 +111,7 @@ func test3(iter int) {
+ 	}
+ 
+ 	if *m != maxI {
+-		panic(fmt.Sprintf("iter %d: maxI = %d, *m = %d", iter, maxI, *m)) // ERROR "\*m escapes to heap$" "iter escapes to heap$" "maxI escapes to heap$" "... argument does not escape$" "fmt.Sprintf\(.*\) escapes to heap"
++		panic(fmt.Sprintf("iter %d: maxI = %d, *m = %d", iter, maxI, *m)) // ERROR "\*m escapes to heap$" "iter escapes to heap$" "500 escapes to heap$" "... argument does not escape$" "fmt.Sprintf\(.*\) escapes to heap"
+ 	}
+ }
+ 
+@@ -137,7 +137,7 @@ func test4(iter int) {
+ 	}
+ 
+ 	if *m != maxI {
+-		panic(fmt.Sprintf("iter %d: maxI = %d, *m = %d", iter, maxI, *m)) // ERROR "\*m escapes to heap$" "iter escapes to heap$" "maxI escapes to heap$" "... argument does not escape$" "fmt.Sprintf\(.*\) escapes to heap"
++		panic(fmt.Sprintf("iter %d: maxI = %d, *m = %d", iter, maxI, *m)) // ERROR "\*m escapes to heap$" "iter escapes to heap$" "500 escapes to heap$" "... argument does not escape$" "fmt.Sprintf\(.*\) escapes to heap"
+ 	}
+ }
+ 
+@@ -168,7 +168,7 @@ func test5(iter int) {
+ 	}
+ 
+ 	if *m != maxI {
+-		panic(fmt.Sprintf("iter %d: maxI = %d, *m = %d", iter, maxI, *m)) // ERROR "\*m escapes to heap$" "iter escapes to heap$" "maxI escapes to heap$" "... argument does not escape$" "fmt.Sprintf\(.*\) escapes to heap"
++		panic(fmt.Sprintf("iter %d: maxI = %d, *m = %d", iter, maxI, *m)) // ERROR "\*m escapes to heap$" "iter escapes to heap$" "500 escapes to heap$" "... argument does not escape$" "fmt.Sprintf\(.*\) escapes to heap"
+ 	}
+ }
+ 
+@@ -186,6 +186,6 @@ func test6(iter int) {
+ 	}
+ 
+ 	if *m != maxI {
+-		panic(fmt.Sprintf("iter %d: maxI = %d, *m = %d", iter, maxI, *m)) // ERROR "\*m escapes to heap$" "iter escapes to heap$" "maxI escapes to heap$" "... argument does not escape$" "fmt.Sprintf\(.*\) escapes to heap"
++		panic(fmt.Sprintf("iter %d: maxI = %d, *m = %d", iter, maxI, *m)) // ERROR "\*m escapes to heap$" "iter escapes to heap$" "500 escapes to heap$" "... argument does not escape$" "fmt.Sprintf\(.*\) escapes to heap"
+ 	}
+ }

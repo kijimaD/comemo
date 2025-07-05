@@ -13,6 +13,21 @@ Date:   Sat Mar 28 00:21:57 2020 +0000
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/netpoll_aix.go | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/src/runtime/netpoll_aix.go b/src/runtime/netpoll_aix.go
+index 61becc247e..c936fbb70f 100644
+--- a/src/runtime/netpoll_aix.go
++++ b/src/runtime/netpoll_aix.go
+@@ -130,9 +130,7 @@ func netpollarm(pd *pollDesc, mode int) {
+ 
+ // netpollBreak interrupts a poll.
+ func netpollBreak() {
+-	lock(&mtxpoll)
+ 	netpollwakeup()
+-	unlock(&mtxpoll)
+ }
+ 
+ // netpoll checks for ready network connections.

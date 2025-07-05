@@ -25,7 +25,7 @@ Date:   Tue Oct 9 22:55:36 2018 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/ssa/gen/386.rules   |   4 +
  src/cmd/compile/internal/ssa/gen/AMD64.rules |  11 +-
  src/cmd/compile/internal/ssa/gen/ARM.rules   |   4 +
@@ -37,3 +37,785 @@ Date:   Tue Oct 9 22:55:36 2018 -0700
  src/cmd/compile/internal/ssa/rewriteARM64.go |  72 +++++++++
  test/codegen/strings.go                      |  27 ++++
  10 files changed, 459 insertions(+), 31 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/386.rules b/src/cmd/compile/internal/ssa/gen/386.rules
+index 0df8911f39..7a6797bb09 100644
+--- a/src/cmd/compile/internal/ssa/gen/386.rules
++++ b/src/cmd/compile/internal/ssa/gen/386.rules
+@@ -1206,3 +1206,7 @@
+ (CMPLload {sym} [off] ptr (MOVLconst [c]) mem) && validValAndOff(int64(int32(c)),off) -> (CMPLconstload {sym} [makeValAndOff(int64(int32(c)),off)] ptr mem)
+ (CMPWload {sym} [off] ptr (MOVLconst [c]) mem) && validValAndOff(int64(int16(c)),off) -> (CMPWconstload {sym} [makeValAndOff(int64(int16(c)),off)] ptr mem)
+ (CMPBload {sym} [off] ptr (MOVLconst [c]) mem) && validValAndOff(int64(int8(c)),off) -> (CMPBconstload {sym} [makeValAndOff(int64(int8(c)),off)] ptr mem)
++
++(MOVBload [off] {sym} (SB) _) && symIsRO(sym) -> (MOVLconst [int64(read8(sym, off))])
++(MOVWload [off] {sym} (SB) _) && symIsRO(sym) -> (MOVLconst [int64(read16(sym, off, config.BigEndian))])
++(MOVLload [off] {sym} (SB) _) && symIsRO(sym) -> (MOVLconst [int64(int32(read32(sym, off, config.BigEndian)))])
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index f9ac5e4dce..fa7f1438d6 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -1073,11 +1073,11 @@
+ // Fold constants into stores.
+ (MOVQstore [off] {sym} ptr (MOVQconst [c]) mem) && validValAndOff(c,off) ->
+ 	(MOVQstoreconst [makeValAndOff(c,off)] {sym} ptr mem)
+-(MOVLstore [off] {sym} ptr (MOVLconst [c]) mem) && validOff(off) ->
++(MOVLstore [off] {sym} ptr (MOV(L|Q)const [c]) mem) && validOff(off) ->
+ 	(MOVLstoreconst [makeValAndOff(int64(int32(c)),off)] {sym} ptr mem)
+-(MOVWstore [off] {sym} ptr (MOVLconst [c]) mem) && validOff(off) ->
++(MOVWstore [off] {sym} ptr (MOV(L|Q)const [c]) mem) && validOff(off) ->
+ 	(MOVWstoreconst [makeValAndOff(int64(int16(c)),off)] {sym} ptr mem)
+-(MOVBstore [off] {sym} ptr (MOVLconst [c]) mem) && validOff(off) ->
++(MOVBstore [off] {sym} ptr (MOV(L|Q)const [c]) mem) && validOff(off) ->
+ 	(MOVBstoreconst [makeValAndOff(int64(int8(c)),off)] {sym} ptr mem)
+ 
+ // Fold address offsets into constant stores.
+@@ -2487,3 +2487,8 @@
+ 	&& validValAndOff(0,off)
+ 	&& clobber(l) ->
+   @l.Block (CMP(Q|L|W|B)constload {sym} [makeValAndOff(0,off)] ptr mem)
++
++(MOVBload [off] {sym} (SB) _) && symIsRO(sym) -> (MOVLconst [int64(read8(sym, off))])
++(MOVWload [off] {sym} (SB) _) && symIsRO(sym) -> (MOVLconst [int64(read16(sym, off, config.BigEndian))])
++(MOVLload [off] {sym} (SB) _) && symIsRO(sym) -> (MOVQconst [int64(read32(sym, off, config.BigEndian))])
++(MOVQload [off] {sym} (SB) _) && symIsRO(sym) -> (MOVQconst [int64(read64(sym, off, config.BigEndian))])
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM.rules b/src/cmd/compile/internal/ssa/gen/ARM.rules
+index fdf4d1e900..8b0e82f154 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM.rules
+@@ -1544,3 +1544,7 @@
+ (GE (CMPconst [0] l:(XORshiftLLreg x y z)) yes no) && l.Uses==1 -> (GE (TEQshiftLLreg x y z) yes no)
+ (GE (CMPconst [0] l:(XORshiftRLreg x y z)) yes no) && l.Uses==1 -> (GE (TEQshiftRLreg x y z) yes no)
+ (GE (CMPconst [0] l:(XORshiftRAreg x y z)) yes no) && l.Uses==1 -> (GE (TEQshiftRAreg x y z) yes no)
++
++(MOVBUload [off] {sym} (SB) _) && symIsRO(sym) -> (MOVWconst [int64(read8(sym, off))])
++(MOVHUload [off] {sym} (SB) _) && symIsRO(sym) -> (MOVWconst [int64(read16(sym, off, config.BigEndian))])
++(MOVWload [off] {sym} (SB) _) && symIsRO(sym) -> (MOVWconst [int64(int32(read32(sym, off, config.BigEndian)))])
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64.rules b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+index 659081ec8b..1efce66016 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+@@ -2957,3 +2957,8 @@
+ (FSUBD a (FNMULD x y)) -> (FMADDD a x y)
+ (FSUBS (FNMULS x y) a) -> (FNMADDS a x y)
+ (FSUBD (FNMULD x y) a) -> (FNMADDD a x y)
++
++(MOVBUload [off] {sym} (SB) _) && symIsRO(sym) -> (MOVDconst [int64(read8(sym, off))])
++(MOVHUload [off] {sym} (SB) _) && symIsRO(sym) -> (MOVDconst [int64(read16(sym, off, config.BigEndian))])
++(MOVWUload [off] {sym} (SB) _) && symIsRO(sym) -> (MOVDconst [int64(read32(sym, off, config.BigEndian))])
++(MOVDload  [off] {sym} (SB) _) && symIsRO(sym) -> (MOVDconst [int64(read64(sym, off, config.BigEndian))])
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index fd5f684eda..b93dce2004 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -7,7 +7,9 @@ package ssa
+ import (
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/obj"
++	"cmd/internal/objabi"
+ 	"cmd/internal/src"
++	"encoding/binary"
+ 	"fmt"
+ 	"io"
+ 	"math"
+@@ -1090,3 +1092,45 @@ func needRaceCleanup(sym interface{}, v *Value) bool {
+ 	}
+ 	return true
+ }
++
++// symIsRO reports whether sym is a read-only global.
++func symIsRO(sym interface{}) bool {
++	lsym := sym.(*obj.LSym)
++	return lsym.Type == objabi.SRODATA && len(lsym.R) == 0
++}
++
++// read8 reads one byte from the read-only global sym at offset off.
++func read8(sym interface{}, off int64) uint8 {
++	lsym := sym.(*obj.LSym)
++	return lsym.P[off]
++}
++
++// read16 reads two bytes from the read-only global sym at offset off.
++func read16(sym interface{}, off int64, bigEndian bool) uint16 {
++	lsym := sym.(*obj.LSym)
++	if bigEndian {
++		return binary.BigEndian.Uint16(lsym.P[off:])
++	} else {
++		return binary.LittleEndian.Uint16(lsym.P[off:])
++	}
++}
++
++// read32 reads four bytes from the read-only global sym at offset off.
++func read32(sym interface{}, off int64, bigEndian bool) uint32 {
++	lsym := sym.(*obj.LSym)
++	if bigEndian {
++		return binary.BigEndian.Uint32(lsym.P[off:])
++	} else {
++		return binary.LittleEndian.Uint32(lsym.P[off:])
++	}
++}
++
++// read64 reads eight bytes from the read-only global sym at offset off.
++func read64(sym interface{}, off int64, bigEndian bool) uint64 {
++	lsym := sym.(*obj.LSym)
++	if bigEndian {
++		return binary.BigEndian.Uint64(lsym.P[off:])
++	} else {
++		return binary.LittleEndian.Uint64(lsym.P[off:])
++	}
++}
+diff --git a/src/cmd/compile/internal/ssa/rewrite386.go b/src/cmd/compile/internal/ssa/rewrite386.go
+index 3fb820933c..9b2ec74a9d 100644
+--- a/src/cmd/compile/internal/ssa/rewrite386.go
++++ b/src/cmd/compile/internal/ssa/rewrite386.go
+@@ -5242,6 +5242,24 @@ func rewriteValue386_Op386MOVBload_0(v *Value) bool {
+ 		v.AddArg(mem)
+ 		return true
+ 	}
++	// match: (MOVBload [off] {sym} (SB) _)
++	// cond: symIsRO(sym)
++	// result: (MOVLconst [int64(read8(sym, off))])
++	for {
++		off := v.AuxInt
++		sym := v.Aux
++		_ = v.Args[1]
++		v_0 := v.Args[0]
++		if v_0.Op != OpSB {
++			break
++		}
++		if !(symIsRO(sym)) {
++			break
++		}
++		v.reset(Op386MOVLconst)
++		v.AuxInt = int64(read8(sym, off))
++		return true
++	}
+ 	return false
+ }
+ func rewriteValue386_Op386MOVBloadidx1_0(v *Value) bool {
+@@ -6530,6 +6548,24 @@ func rewriteValue386_Op386MOVLload_0(v *Value) bool {
+ 		v.AddArg(mem)
+ 		return true
+ 	}
++	// match: (MOVLload [off] {sym} (SB) _)
++	// cond: symIsRO(sym)
++	// result: (MOVLconst [int64(int32(read32(sym, off, config.BigEndian)))])
++	for {
++		off := v.AuxInt
++		sym := v.Aux
++		_ = v.Args[1]
++		v_0 := v.Args[0]
++		if v_0.Op != OpSB {
++			break
++		}
++		if !(symIsRO(sym)) {
++			break
++		}
++		v.reset(Op386MOVLconst)
++		v.AuxInt = int64(int32(read32(sym, off, config.BigEndian)))
++		return true
++	}
+ 	return false
+ }
+ func rewriteValue386_Op386MOVLloadidx1_0(v *Value) bool {
+@@ -10259,6 +10295,24 @@ func rewriteValue386_Op386MOVWload_0(v *Value) bool {
+ 		v.AddArg(mem)
+ 		return true
+ 	}
++	// match: (MOVWload [off] {sym} (SB) _)
++	// cond: symIsRO(sym)
++	// result: (MOVLconst [int64(read16(sym, off, config.BigEndian))])
++	for {
++		off := v.AuxInt
++		sym := v.Aux
++		_ = v.Args[1]
++		v_0 := v.Args[0]
++		if v_0.Op != OpSB {
++			break
++		}
++		if !(symIsRO(sym)) {
++			break
++		}
++		v.reset(Op386MOVLconst)
++		v.AuxInt = int64(read16(sym, off, config.BigEndian))
++		return true
++	}
+ 	return false
+ }
+ func rewriteValue386_Op386MOVWloadidx1_0(v *Value) bool {
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 89fc6780b9..e89ed9edb6 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -268,7 +268,7 @@ func rewriteValueAMD64(v *Value) bool {
+ 	case OpAMD64MOVLi2f:
+ 		return rewriteValueAMD64_OpAMD64MOVLi2f_0(v)
+ 	case OpAMD64MOVLload:
+-		return rewriteValueAMD64_OpAMD64MOVLload_0(v)
++		return rewriteValueAMD64_OpAMD64MOVLload_0(v) || rewriteValueAMD64_OpAMD64MOVLload_10(v)
+ 	case OpAMD64MOVLloadidx1:
+ 		return rewriteValueAMD64_OpAMD64MOVLloadidx1_0(v)
+ 	case OpAMD64MOVLloadidx4:
+@@ -12446,6 +12446,24 @@ func rewriteValueAMD64_OpAMD64MOVBload_0(v *Value) bool {
+ 		v.AddArg(mem)
+ 		return true
+ 	}
++	// match: (MOVBload [off] {sym} (SB) _)
++	// cond: symIsRO(sym)
++	// result: (MOVLconst [int64(read8(sym, off))])
++	for {
++		off := v.AuxInt
++		sym := v.Aux
++		_ = v.Args[1]
++		v_0 := v.Args[0]
++		if v_0.Op != OpSB {
++			break
++		}
++		if !(symIsRO(sym)) {
++			break
++		}
++		v.reset(OpAMD64MOVLconst)
++		v.AuxInt = int64(read8(sym, off))
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueAMD64_OpAMD64MOVBloadidx1_0(v *Value) bool {
+@@ -12953,6 +12971,30 @@ func rewriteValueAMD64_OpAMD64MOVBstore_10(v *Value) bool {
+ 		v.AddArg(mem)
+ 		return true
+ 	}
++	// match: (MOVBstore [off] {sym} ptr (MOVQconst [c]) mem)
++	// cond: validOff(off)
++	// result: (MOVBstoreconst [makeValAndOff(int64(int8(c)),off)] {sym} ptr mem)
++	for {
++		off := v.AuxInt
++		sym := v.Aux
++		_ = v.Args[2]
++		ptr := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpAMD64MOVQconst {
++			break
++		}
++		c := v_1.AuxInt
++		mem := v.Args[2]
++		if !(validOff(off)) {
++			break
++		}
++		v.reset(OpAMD64MOVBstoreconst)
++		v.AuxInt = makeValAndOff(int64(int8(c)), off)
++		v.Aux = sym
++		v.AddArg(ptr)
++		v.AddArg(mem)
++		return true
++	}
+ 	// match: (MOVBstore [off1] {sym1} (LEAQ [off2] {sym2} base) val mem)
+ 	// cond: is32Bit(off1+off2) && canMergeSym(sym1, sym2)
+ 	// result: (MOVBstore [off1+off2] {mergeSym(sym1,sym2)} base val mem)
+@@ -13181,6 +13223,13 @@ func rewriteValueAMD64_OpAMD64MOVBstore_10(v *Value) bool {
+ 		v.AddArg(mem)
+ 		return true
+ 	}
++	return false
++}
++func rewriteValueAMD64_OpAMD64MOVBstore_20(v *Value) bool {
++	b := v.Block
++	_ = b
++	typ := &b.Func.Config.Types
++	_ = typ
+ 	// match: (MOVBstore [i] {s} p w x6:(MOVBstore [i-1] {s} p (SHRQconst [8] w) x5:(MOVBstore [i-2] {s} p (SHRQconst [16] w) x4:(MOVBstore [i-3] {s} p (SHRQconst [24] w) x3:(MOVBstore [i-4] {s} p (SHRQconst [32] w) x2:(MOVBstore [i-5] {s} p (SHRQconst [40] w) x1:(MOVBstore [i-6] {s} p (SHRQconst [48] w) x0:(MOVBstore [i-7] {s} p (SHRQconst [56] w) mem))))))))
+ 	// cond: x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && x3.Uses == 1 && x4.Uses == 1 && x5.Uses == 1 && x6.Uses == 1 && clobber(x0) && clobber(x1) && clobber(x2) && clobber(x3) && clobber(x4) && clobber(x5) && clobber(x6)
+ 	// result: (MOVQstore [i-7] {s} p (BSWAPQ <w.Type> w) mem)
+@@ -13372,13 +13421,6 @@ func rewriteValueAMD64_OpAMD64MOVBstore_10(v *Value) bool {
+ 		v.AddArg(mem)
+ 		return true
+ 	}
+-	return false
+-}
+-func rewriteValueAMD64_OpAMD64MOVBstore_20(v *Value) bool {
+-	b := v.Block
+-	_ = b
+-	typ := &b.Func.Config.Types
+-	_ = typ
+ 	// match: (MOVBstore [i] {s} p (SHRWconst [8] w) x:(MOVBstore [i-1] {s} p w mem))
+ 	// cond: x.Uses == 1 && clobber(x)
+ 	// result: (MOVWstore [i-1] {s} p w mem)
+@@ -15449,6 +15491,31 @@ func rewriteValueAMD64_OpAMD64MOVLload_0(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueAMD64_OpAMD64MOVLload_10(v *Value) bool {
++	b := v.Block
++	_ = b
++	config := b.Func.Config
++	_ = config
++	// match: (MOVLload [off] {sym} (SB) _)
++	// cond: symIsRO(sym)
++	// result: (MOVQconst [int64(read32(sym, off, config.BigEndian))])
++	for {
++		off := v.AuxInt
++		sym := v.Aux
++		_ = v.Args[1]
++		v_0 := v.Args[0]
++		if v_0.Op != OpSB {
++			break
++		}
++		if !(symIsRO(sym)) {
++			break
++		}
++		v.reset(OpAMD64MOVQconst)
++		v.AuxInt = int64(read32(sym, off, config.BigEndian))
++		return true
++	}
++	return false
++}
+ func rewriteValueAMD64_OpAMD64MOVLloadidx1_0(v *Value) bool {
+ 	// match: (MOVLloadidx1 [c] {sym} ptr (SHLQconst [2] idx) mem)
+ 	// cond:
+@@ -15957,6 +16024,30 @@ func rewriteValueAMD64_OpAMD64MOVLstore_0(v *Value) bool {
+ 		v.AddArg(mem)
+ 		return true
+ 	}
++	// match: (MOVLstore [off] {sym} ptr (MOVQconst [c]) mem)
++	// cond: validOff(off)
++	// result: (MOVLstoreconst [makeValAndOff(int64(int32(c)),off)] {sym} ptr mem)
++	for {
++		off := v.AuxInt
++		sym := v.Aux
++		_ = v.Args[2]
++		ptr := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpAMD64MOVQconst {
++			break
++		}
++		c := v_1.AuxInt
++		mem := v.Args[2]
++		if !(validOff(off)) {
++			break
++		}
++		v.reset(OpAMD64MOVLstoreconst)
++		v.AuxInt = makeValAndOff(int64(int32(c)), off)
++		v.Aux = sym
++		v.AddArg(ptr)
++		v.AddArg(mem)
++		return true
++	}
+ 	// match: (MOVLstore [off1] {sym1} (LEAQ [off2] {sym2} base) val mem)
+ 	// cond: is32Bit(off1+off2) && canMergeSym(sym1, sym2)
+ 	// result: (MOVLstore [off1+off2] {mergeSym(sym1,sym2)} base val mem)
+@@ -16102,6 +16193,13 @@ func rewriteValueAMD64_OpAMD64MOVLstore_0(v *Value) bool {
+ 		v.AddArg(mem)
+ 		return true
+ 	}
++	return false
++}
++func rewriteValueAMD64_OpAMD64MOVLstore_10(v *Value) bool {
++	b := v.Block
++	_ = b
++	typ := &b.Func.Config.Types
++	_ = typ
+ 	// match: (MOVLstore [i] {s} p (SHRQconst [32] w) x:(MOVLstore [i-4] {s} p w mem))
+ 	// cond: x.Uses == 1 && clobber(x)
+ 	// result: (MOVQstore [i-4] {s} p w mem)
+@@ -16147,13 +16245,6 @@ func rewriteValueAMD64_OpAMD64MOVLstore_0(v *Value) bool {
+ 		v.AddArg(mem)
+ 		return true
+ 	}
+-	return false
+-}
+-func rewriteValueAMD64_OpAMD64MOVLstore_10(v *Value) bool {
+-	b := v.Block
+-	_ = b
+-	typ := &b.Func.Config.Types
+-	_ = typ
+ 	// match: (MOVLstore [i] {s} p (SHRQconst [j] w) x:(MOVLstore [i-4] {s} p w0:(SHRQconst [j-32] w) mem))
+ 	// cond: x.Uses == 1 && clobber(x)
+ 	// result: (MOVQstore [i-4] {s} p w0 mem)
+@@ -16519,6 +16610,9 @@ func rewriteValueAMD64_OpAMD64MOVLstore_10(v *Value) bool {
+ 		v.AddArg(mem)
+ 		return true
+ 	}
++	return false
++}
++func rewriteValueAMD64_OpAMD64MOVLstore_20(v *Value) bool {
+ 	// match: (MOVLstore {sym} [off] ptr y:(ADDL x l:(MOVLload [off] {sym} ptr mem)) mem)
+ 	// cond: y.Uses==1 && l.Uses==1 && clobber(y) && clobber(l)
+ 	// result: (ADDLmodify [off] {sym} ptr x mem)
+@@ -16562,9 +16656,6 @@ func rewriteValueAMD64_OpAMD64MOVLstore_10(v *Value) bool {
+ 		v.AddArg(mem)
+ 		return true
+ 	}
+-	return false
+-}
+-func rewriteValueAMD64_OpAMD64MOVLstore_20(v *Value) bool {
+ 	// match: (MOVLstore {sym} [off] ptr y:(SUBL l:(MOVLload [off] {sym} ptr mem) x) mem)
+ 	// cond: y.Uses==1 && l.Uses==1 && clobber(y) && clobber(l)
+ 	// result: (SUBLmodify [off] {sym} ptr x mem)
+@@ -16952,6 +17043,9 @@ func rewriteValueAMD64_OpAMD64MOVLstore_20(v *Value) bool {
+ 		v.AddArg(mem)
+ 		return true
+ 	}
++	return false
++}
++func rewriteValueAMD64_OpAMD64MOVLstore_30(v *Value) bool {
+ 	// match: (MOVLstore {sym} [off] ptr y:(BTSL l:(MOVLload [off] {sym} ptr mem) x) mem)
+ 	// cond: y.Uses==1 && l.Uses==1 && clobber(y) && clobber(l)
+ 	// result: (BTSLmodify [off] {sym} ptr x mem)
+@@ -16995,9 +17089,6 @@ func rewriteValueAMD64_OpAMD64MOVLstore_20(v *Value) bool {
+ 		v.AddArg(mem)
+ 		return true
+ 	}
+-	return false
+-}
+-func rewriteValueAMD64_OpAMD64MOVLstore_30(v *Value) bool {
+ 	// match: (MOVLstore [off] {sym} ptr a:(ADDLconst [c] l:(MOVLload [off] {sym} ptr2 mem)) mem)
+ 	// cond: isSamePtr(ptr, ptr2) && a.Uses == 1 && l.Uses == 1 && validValAndOff(c,off) && clobber(l) && clobber(a)
+ 	// result: (ADDLconstmodify {sym} [makeValAndOff(c,off)] ptr mem)
+@@ -18481,6 +18572,10 @@ func rewriteValueAMD64_OpAMD64MOVQi2f_0(v *Value) bool {
+ 	return false
+ }
+ func rewriteValueAMD64_OpAMD64MOVQload_0(v *Value) bool {
++	b := v.Block
++	_ = b
++	config := b.Func.Config
++	_ = config
+ 	// match: (MOVQload [off] {sym} ptr (MOVQstore [off2] {sym2} ptr2 x _))
+ 	// cond: sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)
+ 	// result: x
+@@ -18713,6 +18808,24 @@ func rewriteValueAMD64_OpAMD64MOVQload_0(v *Value) bool {
+ 		v.AddArg(val)
+ 		return true
+ 	}
++	// match: (MOVQload [off] {sym} (SB) _)
++	// cond: symIsRO(sym)
++	// result: (MOVQconst [int64(read64(sym, off, config.BigEndian))])
++	for {
++		off := v.AuxInt
++		sym := v.Aux
++		_ = v.Args[1]
++		v_0 := v.Args[0]
++		if v_0.Op != OpSB {
++			break
++		}
++		if !(symIsRO(sym)) {
++			break
++		}
++		v.reset(OpAMD64MOVQconst)
++		v.AuxInt = int64(read64(sym, off, config.BigEndian))
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueAMD64_OpAMD64MOVQloadidx1_0(v *Value) bool {
+@@ -22529,6 +22642,10 @@ func rewriteValueAMD64_OpAMD64MOVWQZX_0(v *Value) bool {
+ 	return false
+ }
+ func rewriteValueAMD64_OpAMD64MOVWload_0(v *Value) bool {
++	b := v.Block
++	_ = b
++	config := b.Func.Config
++	_ = config
+ 	// match: (MOVWload [off] {sym} ptr (MOVWstore [off2] {sym2} ptr2 x _))
+ 	// cond: sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)
+ 	// result: (MOVWQZX x)
+@@ -22733,6 +22850,24 @@ func rewriteValueAMD64_OpAMD64MOVWload_0(v *Value) bool {
+ 		v.AddArg(mem)
+ 		return true
+ 	}
++	// match: (MOVWload [off] {sym} (SB) _)
++	// cond: symIsRO(sym)
++	// result: (MOVLconst [int64(read16(sym, off, config.BigEndian))])
++	for {
++		off := v.AuxInt
++		sym := v.Aux
++		_ = v.Args[1]
++		v_0 := v.Args[0]
++		if v_0.Op != OpSB {
++			break
++		}
++		if !(symIsRO(sym)) {
++			break
++		}
++		v.reset(OpAMD64MOVLconst)
++		v.AuxInt = int64(read16(sym, off, config.BigEndian))
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueAMD64_OpAMD64MOVWloadidx1_0(v *Value) bool {
+@@ -23114,6 +23249,30 @@ func rewriteValueAMD64_OpAMD64MOVWstore_0(v *Value) bool {
+ 		v.AddArg(mem)
+ 		return true
+ 	}
++	// match: (MOVWstore [off] {sym} ptr (MOVQconst [c]) mem)
++	// cond: validOff(off)
++	// result: (MOVWstoreconst [makeValAndOff(int64(int16(c)),off)] {sym} ptr mem)
++	for {
++		off := v.AuxInt
++		sym := v.Aux
++		_ = v.Args[2]
++		ptr := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpAMD64MOVQconst {
++			break
++		}
++		c := v_1.AuxInt
++		mem := v.Args[2]
++		if !(validOff(off)) {
++			break
++		}
++		v.reset(OpAMD64MOVWstoreconst)
++		v.AuxInt = makeValAndOff(int64(int16(c)), off)
++		v.Aux = sym
++		v.AddArg(ptr)
++		v.AddArg(mem)
++		return true
++	}
+ 	// match: (MOVWstore [off1] {sym1} (LEAQ [off2] {sym2} base) val mem)
+ 	// cond: is32Bit(off1+off2) && canMergeSym(sym1, sym2)
+ 	// result: (MOVWstore [off1+off2] {mergeSym(sym1,sym2)} base val mem)
+@@ -23274,6 +23433,13 @@ func rewriteValueAMD64_OpAMD64MOVWstore_0(v *Value) bool {
+ 		v.AddArg(mem)
+ 		return true
+ 	}
++	return false
++}
++func rewriteValueAMD64_OpAMD64MOVWstore_10(v *Value) bool {
++	b := v.Block
++	_ = b
++	typ := &b.Func.Config.Types
++	_ = typ
+ 	// match: (MOVWstore [i] {s} p (SHRQconst [16] w) x:(MOVWstore [i-2] {s} p w mem))
+ 	// cond: x.Uses == 1 && clobber(x)
+ 	// result: (MOVLstore [i-2] {s} p w mem)
+@@ -23319,13 +23485,6 @@ func rewriteValueAMD64_OpAMD64MOVWstore_0(v *Value) bool {
+ 		v.AddArg(mem)
+ 		return true
+ 	}
+-	return false
+-}
+-func rewriteValueAMD64_OpAMD64MOVWstore_10(v *Value) bool {
+-	b := v.Block
+-	_ = b
+-	typ := &b.Func.Config.Types
+-	_ = typ
+ 	// match: (MOVWstore [i] {s} p (SHRLconst [j] w) x:(MOVWstore [i-2] {s} p w0:(SHRLconst [j-16] w) mem))
+ 	// cond: x.Uses == 1 && clobber(x)
+ 	// result: (MOVLstore [i-2] {s} p w0 mem)
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM.go b/src/cmd/compile/internal/ssa/rewriteARM.go
+index 966413ab25..4f6f61544e 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM.go
+@@ -6883,6 +6883,24 @@ func rewriteValueARM_OpARMMOVBUload_0(v *Value) bool {
+ 		v.AddArg(mem)
+ 		return true
+ 	}
++	// match: (MOVBUload [off] {sym} (SB) _)
++	// cond: symIsRO(sym)
++	// result: (MOVWconst [int64(read8(sym, off))])
++	for {
++		off := v.AuxInt
++		sym := v.Aux
++		_ = v.Args[1]
++		v_0 := v.Args[0]
++		if v_0.Op != OpSB {
++			break
++		}
++		if !(symIsRO(sym)) {
++			break
++		}
++		v.reset(OpARMMOVWconst)
++		v.AuxInt = int64(read8(sym, off))
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueARM_OpARMMOVBUloadidx_0(v *Value) bool {
+@@ -7953,6 +7971,24 @@ func rewriteValueARM_OpARMMOVHUload_0(v *Value) bool {
+ 		v.AddArg(mem)
+ 		return true
+ 	}
++	// match: (MOVHUload [off] {sym} (SB) _)
++	// cond: symIsRO(sym)
++	// result: (MOVWconst [int64(read16(sym, off, config.BigEndian))])
++	for {
++		off := v.AuxInt
++		sym := v.Aux
++		_ = v.Args[1]
++		v_0 := v.Args[0]
++		if v_0.Op != OpSB {
++			break
++		}
++		if !(symIsRO(sym)) {
++			break
++		}
++		v.reset(OpARMMOVWconst)
++		v.AuxInt = int64(read16(sym, off, config.BigEndian))
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueARM_OpARMMOVHUloadidx_0(v *Value) bool {
+@@ -8797,6 +8833,24 @@ func rewriteValueARM_OpARMMOVWload_0(v *Value) bool {
+ 		v.AddArg(mem)
+ 		return true
+ 	}
++	// match: (MOVWload [off] {sym} (SB) _)
++	// cond: symIsRO(sym)
++	// result: (MOVWconst [int64(int32(read32(sym, off, config.BigEndian)))])
++	for {
++		off := v.AuxInt
++		sym := v.Aux
++		_ = v.Args[1]
++		v_0 := v.Args[0]
++		if v_0.Op != OpSB {
++			break
++		}
++		if !(symIsRO(sym)) {
++			break
++		}
++		v.reset(OpARMMOVWconst)
++		v.AuxInt = int64(int32(read32(sym, off, config.BigEndian)))
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueARM_OpARMMOVWloadidx_0(v *Value) bool {
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM64.go b/src/cmd/compile/internal/ssa/rewriteARM64.go
+index ba38ae0505..b9bb109b9e 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM64.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM64.go
+@@ -8934,6 +8934,24 @@ func rewriteValueARM64_OpARM64MOVBUload_0(v *Value) bool {
+ 		v.AuxInt = 0
+ 		return true
+ 	}
++	// match: (MOVBUload [off] {sym} (SB) _)
++	// cond: symIsRO(sym)
++	// result: (MOVDconst [int64(read8(sym, off))])
++	for {
++		off := v.AuxInt
++		sym := v.Aux
++		_ = v.Args[1]
++		v_0 := v.Args[0]
++		if v_0.Op != OpSB {
++			break
++		}
++		if !(symIsRO(sym)) {
++			break
++		}
++		v.reset(OpARM64MOVDconst)
++		v.AuxInt = int64(read8(sym, off))
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueARM64_OpARM64MOVBUloadidx_0(v *Value) bool {
+@@ -12638,6 +12656,24 @@ func rewriteValueARM64_OpARM64MOVDload_0(v *Value) bool {
+ 		v.AuxInt = 0
+ 		return true
+ 	}
++	// match: (MOVDload [off] {sym} (SB) _)
++	// cond: symIsRO(sym)
++	// result: (MOVDconst [int64(read64(sym, off, config.BigEndian))])
++	for {
++		off := v.AuxInt
++		sym := v.Aux
++		_ = v.Args[1]
++		v_0 := v.Args[0]
++		if v_0.Op != OpSB {
++			break
++		}
++		if !(symIsRO(sym)) {
++			break
++		}
++		v.reset(OpARM64MOVDconst)
++		v.AuxInt = int64(read64(sym, off, config.BigEndian))
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueARM64_OpARM64MOVDloadidx_0(v *Value) bool {
+@@ -13563,6 +13599,24 @@ func rewriteValueARM64_OpARM64MOVHUload_0(v *Value) bool {
+ 		v.AuxInt = 0
+ 		return true
+ 	}
++	// match: (MOVHUload [off] {sym} (SB) _)
++	// cond: symIsRO(sym)
++	// result: (MOVDconst [int64(read16(sym, off, config.BigEndian))])
++	for {
++		off := v.AuxInt
++		sym := v.Aux
++		_ = v.Args[1]
++		v_0 := v.Args[0]
++		if v_0.Op != OpSB {
++			break
++		}
++		if !(symIsRO(sym)) {
++			break
++		}
++		v.reset(OpARM64MOVDconst)
++		v.AuxInt = int64(read16(sym, off, config.BigEndian))
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueARM64_OpARM64MOVHUloadidx_0(v *Value) bool {
+@@ -16183,6 +16237,24 @@ func rewriteValueARM64_OpARM64MOVWUload_0(v *Value) bool {
+ 		v.AuxInt = 0
+ 		return true
+ 	}
++	// match: (MOVWUload [off] {sym} (SB) _)
++	// cond: symIsRO(sym)
++	// result: (MOVDconst [int64(read32(sym, off, config.BigEndian))])
++	for {
++		off := v.AuxInt
++		sym := v.Aux
++		_ = v.Args[1]
++		v_0 := v.Args[0]
++		if v_0.Op != OpSB {
++			break
++		}
++		if !(symIsRO(sym)) {
++			break
++		}
++		v.reset(OpARM64MOVDconst)
++		v.AuxInt = int64(read32(sym, off, config.BigEndian))
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueARM64_OpARM64MOVWUloadidx_0(v *Value) bool {
+diff --git a/test/codegen/strings.go b/test/codegen/strings.go
+index f4adfac0cc..39ee2e8b9f 100644
+--- a/test/codegen/strings.go
++++ b/test/codegen/strings.go
+@@ -20,3 +20,30 @@ func ToByteSlice() []byte { // Issue #24698
+ 	// amd64:-`.*runtime.stringtoslicebyte`
+ 	return []byte("foo")
+ }
++
++// Loading from read-only symbols should get transformed into constants.
++func ConstantLoad() {
++	// 12592 = 0x3130
++	//    50 = 0x32
++	// amd64:`MOVW\t\$12592, \(`,`MOVB\t\$50, 2\(`
++	//   386:`MOVW\t\$12592, \(`,`MOVB\t\$50, 2\(`
++	//   arm:`MOVW\t\$48`,`MOVW\t\$49`,`MOVW\t\$50`
++	// arm64:`MOVD\t\$12592`,`MOVD\t\$50`
++	bsink = []byte("012")
++
++	// 858927408 = 0x33323130
++	//     13620 = 0x3534
++	// amd64:`MOVL\t\$858927408`,`MOVW\t\$13620, 4\(`
++	//   386:`MOVL\t\$858927408`,`MOVW\t\$13620, 4\(`
++	// arm64:`MOVD\t\$858927408`,`MOVD\t\$13620`
++	bsink = []byte("012345")
++
++	// 3978425819141910832 = 0x3736353433323130
++	// 7306073769690871863 = 0x6564636261393837
++	// amd64:`MOVQ\t\$3978425819141910832`,`MOVQ\t\$7306073769690871863`
++	//   386:`MOVL\t\$858927408, \(`,`DUFFCOPY`
++	// arm64:`MOVD\t\$3978425819141910832`,`MOVD\t\$1650538808`,`MOVD\t\$25699`,`MOVD\t\$101`
++	bsink = []byte("0123456789abcde")
++}
++
++var bsink []byte

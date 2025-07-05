@@ -28,6 +28,38 @@ Date:   Tue Jun 1 18:45:40 2021 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/types/size.go | 20 ++++++++++++++++++++
  1 file changed, 20 insertions(+)
+
+diff --git a/src/cmd/compile/internal/types/size.go b/src/cmd/compile/internal/types/size.go
+index e6ca4556b9..f5a74f83b3 100644
+--- a/src/cmd/compile/internal/types/size.go
++++ b/src/cmd/compile/internal/types/size.go
+@@ -90,6 +90,26 @@ func expandiface(t *Type) {
+ 		methods = append(methods, m)
+ 	}
+ 
++	{
++		methods := t.Methods().Slice()
++		sort.SliceStable(methods, func(i, j int) bool {
++			mi, mj := methods[i], methods[j]
++
++			// Sort embedded types by type name (if any).
++			if mi.Sym == nil && mj.Sym == nil {
++				return mi.Type.Sym().Less(mj.Type.Sym())
++			}
++
++			// Sort methods before embedded types.
++			if mi.Sym == nil || mj.Sym == nil {
++				return mi.Sym != nil
++			}
++
++			// Sort methods by symbol name.
++			return mi.Sym.Less(mj.Sym)
++		})
++	}
++
+ 	for _, m := range t.Methods().Slice() {
+ 		if m.Sym == nil {
+ 			continue

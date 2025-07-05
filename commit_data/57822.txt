@@ -17,7 +17,7 @@ Date:   Wed Aug 2 09:46:27 2023 +0000
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Run-TryBot: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/asm/internal/asm/testdata/s390x.s |  2 ++
  src/cmd/internal/obj/s390x/a.out.go       |  2 ++
  src/cmd/internal/obj/s390x/anames.go      |  2 ++
@@ -25,3 +25,158 @@ Date:   Wed Aug 2 09:46:27 2023 +0000
  src/crypto/aes/asm_s390x.s                |  4 ++--
  src/internal/cpu/cpu_s390x.s              |  4 ++--
  6 files changed, 50 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/s390x.s b/src/cmd/asm/internal/asm/testdata/s390x.s
+index bb1573ae5b..82aa445356 100644
+--- a/src/cmd/asm/internal/asm/testdata/s390x.s
++++ b/src/cmd/asm/internal/asm/testdata/s390x.s
+@@ -420,6 +420,8 @@ TEXT main·foo(SB),DUPOK|NOSPLIT,$16-0 // TEXT main.foo(SB), DUPOK|NOSPLIT, $16-
+ 	KLMD	R2, R8                 // b93f0028
+ 	KIMD	R0, R4                 // b93e0004
+ 	KDSA    R0, R8                 // b93a0008
++	KMA	R6, R2, R4		// b9296024
++	KMCTR	R6, R2, R4		// b92d6024
+ 
+ 	// vector add and sub instructions
+ 	VAB	V3, V4, V4              // e743400000f3
+diff --git a/src/cmd/internal/obj/s390x/a.out.go b/src/cmd/internal/obj/s390x/a.out.go
+index ef02fed283..1c86fe1463 100644
+--- a/src/cmd/internal/obj/s390x/a.out.go
++++ b/src/cmd/internal/obj/s390x/a.out.go
+@@ -486,6 +486,8 @@ const (
+ 	AKLMD
+ 	AKIMD
+ 	AKDSA
++	AKMA
++	AKMCTR
+ 
+ 	// vector
+ 	AVA
+diff --git a/src/cmd/internal/obj/s390x/anames.go b/src/cmd/internal/obj/s390x/anames.go
+index 40cc5e6b0d..fa23984332 100644
+--- a/src/cmd/internal/obj/s390x/anames.go
++++ b/src/cmd/internal/obj/s390x/anames.go
+@@ -212,6 +212,8 @@ var Anames = []string{
+ 	"KLMD",
+ 	"KIMD",
+ 	"KDSA",
++	"KMA",
++	"KMCTR",
+ 	"VA",
+ 	"VAB",
+ 	"VAH",
+diff --git a/src/cmd/internal/obj/s390x/asmz.go b/src/cmd/internal/obj/s390x/asmz.go
+index a744d742cf..0ab492a2a5 100644
+--- a/src/cmd/internal/obj/s390x/asmz.go
++++ b/src/cmd/internal/obj/s390x/asmz.go
+@@ -347,6 +347,9 @@ var optab = []Optab{
+ 	// KDSA
+ 	{i: 125, as: AKDSA, a1: C_REG, a6: C_REG},
+ 
++	// KMA
++	{i: 126, as: AKMA, a1: C_REG, a2: C_REG, a6: C_REG},
++
+ 	// vector instructions
+ 
+ 	// VRX store
+@@ -1492,6 +1495,8 @@ func buildop(ctxt *obj.Link) {
+ 			opset(AKMC, r)
+ 			opset(AKLMD, r)
+ 			opset(AKIMD, r)
++		case AKMA:
++			opset(AKMCTR, r)
+ 		}
+ 	}
+ }
+@@ -1896,6 +1901,7 @@ const (
+ 	op_KM      uint32 = 0xB92E // FORMAT_RRE        CIPHER MESSAGE
+ 	op_KMAC    uint32 = 0xB91E // FORMAT_RRE        COMPUTE MESSAGE AUTHENTICATION CODE
+ 	op_KMC     uint32 = 0xB92F // FORMAT_RRE        CIPHER MESSAGE WITH CHAINING
++	op_KMA     uint32 = 0xB929 // FORMAT_RRF2       CIPHER MESSAGE WITH AUTHENTICATION
+ 	op_KMCTR   uint32 = 0xB92D // FORMAT_RRF2       CIPHER MESSAGE WITH COUNTER
+ 	op_KMF     uint32 = 0xB92A // FORMAT_RRE        CIPHER MESSAGE WITH CFB
+ 	op_KMO     uint32 = 0xB92B // FORMAT_RRE        CIPHER MESSAGE WITH OFB
+@@ -4428,6 +4434,40 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
+ 		}
+ 		zRRE(op_KDSA, uint32(p.From.Reg), uint32(p.To.Reg), asm)
+ 
++	case 126: // KMA and KMCTR - CIPHER MESSAGE WITH AUTHENTICATION; CIPHER MESSAGE WITH
++		var opcode uint32
++		switch p.As {
++		default:
++			c.ctxt.Diag("unexpected opcode %v", p.As)
++		case AKMA, AKMCTR:
++			if p.From.Reg == REG_R0 {
++				c.ctxt.Diag("input argument must not be R0 in %v", p)
++			}
++			if p.From.Reg&1 != 0 {
++				c.ctxt.Diag("input argument must be even register in %v", p)
++			}
++			if p.To.Reg == REG_R0 {
++				c.ctxt.Diag("output argument must not be R0 in %v", p)
++			}
++			if p.To.Reg&1 != 0 {
++				c.ctxt.Diag("output argument must be an even register in %v", p)
++			}
++			if p.Reg == REG_R0 {
++				c.ctxt.Diag("third argument must not be R0 in %v", p)
++			}
++			if p.Reg&1 != 0 {
++				c.ctxt.Diag("third argument must be even register in %v", p)
++			}
++			if p.Reg == p.To.Reg || p.Reg == p.From.Reg {
++				c.ctxt.Diag("third argument must not be input or output argument registers in %v", p)
++			}
++			if p.As == AKMA {
++				opcode = op_KMA
++			} else if p.As == AKMCTR {
++				opcode = op_KMCTR
++			}
++		}
++		zRRF(opcode, uint32(p.From.Reg), 0, uint32(p.Reg), uint32(p.To.Reg), asm)
+ 	}
+ }
+ 
+diff --git a/src/crypto/aes/asm_s390x.s b/src/crypto/aes/asm_s390x.s
+index 2b596bd34b..efcce3a0d9 100644
+--- a/src/crypto/aes/asm_s390x.s
++++ b/src/crypto/aes/asm_s390x.s
+@@ -127,7 +127,7 @@ crypt:
+ 	MOVD	src_base+56(FP), R6 // src
+ 	MOVD	src_len+64(FP), R7  // len
+ loop:
+-	WORD	$0xB92D2046         // cipher message with counter (KMCTR)
++	KMCTR	R6, R2, R4          // cipher message with counter (KMCTR)
+ 	BVS	loop                // branch back if interrupted
+ 	RET
+ crash:
+@@ -180,7 +180,7 @@ TEXT ·kmaGCM(SB),NOSPLIT,$112-120
+ 	MVC	$8, 24(R8), 104(R1)
+ 
+ kma:
+-	WORD	$0xb9296024 // kma %r6,%r2,%r4
++	KMA	R6, R2, R4	 // Cipher Message with Authentication
+ 	BVS	kma
+ 
+ 	MOVD	tag+104(FP), R2
+diff --git a/src/internal/cpu/cpu_s390x.s b/src/internal/cpu/cpu_s390x.s
+index 46b3b53481..c55a4c725d 100644
+--- a/src/internal/cpu/cpu_s390x.s
++++ b/src/internal/cpu/cpu_s390x.s
+@@ -30,14 +30,14 @@ TEXT ·kmcQuery(SB), NOSPLIT|NOFRAME, $0-16
+ TEXT ·kmctrQuery(SB), NOSPLIT|NOFRAME, $0-16
+ 	MOVD $0, R0         // set function code to 0 (KMCTR-Query)
+ 	MOVD $ret+0(FP), R1 // address of 16-byte return value
+-	WORD $0xB92D4024    // cipher message with counter (KMCTR)
++	KMCTR R6, R2, R4    // cipher message with counter (KMCTR)
+ 	RET
+ 
+ // func kmaQuery() queryResult
+ TEXT ·kmaQuery(SB), NOSPLIT|NOFRAME, $0-16
+ 	MOVD $0, R0         // set function code to 0 (KMA-Query)
+ 	MOVD $ret+0(FP), R1 // address of 16-byte return value
+-	WORD $0xb9296024    // cipher message with authentication (KMA)
++	KMA  R6, R2, R4     // cipher message with authentication (KMA)
+ 	RET
+ 
+ // func kimdQuery() queryResult

@@ -14,10 +14,103 @@ Date:   Wed Mar 11 11:16:19 2020 -0400
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/internal/dwarf/dwarf.go  | 3 ---
  src/cmd/internal/obj/objfile.go  | 4 +++-
  src/cmd/internal/obj/objfile2.go | 6 +++---
  src/cmd/internal/obj/plist.go    | 5 +----
  src/cmd/internal/obj/sym.go      | 2 +-
  5 files changed, 8 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/internal/dwarf/dwarf.go b/src/cmd/internal/dwarf/dwarf.go
+index 3ba0623c8c..62036aee2a 100644
+--- a/src/cmd/internal/dwarf/dwarf.go
++++ b/src/cmd/internal/dwarf/dwarf.go
+@@ -21,9 +21,6 @@ import (
+ // InfoPrefix is the prefix for all the symbols containing DWARF info entries.
+ const InfoPrefix = "go.info."
+ 
+-// DebugLinesPrefix is the prefix for all the symbols containing DWARF debug_line information from the compiler.
+-const DebugLinesPrefix = "go.debuglines."
+-
+ // ConstInfoPrefix is the prefix for all symbols containing DWARF info
+ // entries that contain constants.
+ const ConstInfoPrefix = "go.constinfo."
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index 0f73e48b05..717d471569 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -219,7 +219,9 @@ func (ctxt *Link) dwarfSym(s *LSym) (dwarfInfoSym, dwarfLocSym, dwarfRangesSym,
+ 		if s.WasInlined() {
+ 			s.Func.dwarfAbsFnSym = ctxt.DwFixups.AbsFuncDwarfSym(s)
+ 		}
+-		s.Func.dwarfDebugLinesSym = ctxt.LookupDerived(s, dwarf.DebugLinesPrefix+s.Name)
++		s.Func.dwarfDebugLinesSym = &LSym{
++			Type: objabi.SDWARFLINES,
++		}
+ 	}
+ 	return s.Func.dwarfInfoSym, s.Func.dwarfLocSym, s.Func.dwarfRangesSym, s.Func.dwarfAbsFnSym, s.Func.dwarfDebugLinesSym
+ }
+diff --git a/src/cmd/internal/obj/objfile2.go b/src/cmd/internal/obj/objfile2.go
+index 9ccbcd5352..359e82e138 100644
+--- a/src/cmd/internal/obj/objfile2.go
++++ b/src/cmd/internal/obj/objfile2.go
+@@ -320,7 +320,7 @@ func (w *writer) Aux(s *LSym) {
+ 			}
+ 			o.Write(w.Writer)
+ 		}
+-		if s.Func.dwarfDebugLinesSym != nil {
++		if s.Func.dwarfDebugLinesSym != nil && s.Func.dwarfDebugLinesSym.Size != 0 {
+ 			o := goobj2.Aux{
+ 				Type: goobj2.AuxDwarfLines,
+ 				Sym:  makeSymRef(s.Func.dwarfDebugLinesSym),
+@@ -348,7 +348,7 @@ func nAuxSym(s *LSym) int {
+ 		if s.Func.dwarfRangesSym != nil && s.Func.dwarfRangesSym.Size != 0 {
+ 			n++
+ 		}
+-		if s.Func.dwarfDebugLinesSym != nil {
++		if s.Func.dwarfDebugLinesSym != nil && s.Func.dwarfDebugLinesSym.Size != 0 {
+ 			n++
+ 		}
+ 	}
+@@ -419,7 +419,7 @@ func genFuncInfoSyms(ctxt *Link) {
+ 		s.Func.FuncInfoSym = isym
+ 		b.Reset()
+ 
+-		dwsyms := []*LSym{s.Func.dwarfRangesSym, s.Func.dwarfLocSym}
++		dwsyms := []*LSym{s.Func.dwarfRangesSym, s.Func.dwarfLocSym, s.Func.dwarfDebugLinesSym}
+ 		for _, s := range dwsyms {
+ 			if s == nil || s.Size == 0 {
+ 				continue
+diff --git a/src/cmd/internal/obj/plist.go b/src/cmd/internal/obj/plist.go
+index fdb5490255..917343ea57 100644
+--- a/src/cmd/internal/obj/plist.go
++++ b/src/cmd/internal/obj/plist.go
+@@ -139,13 +139,10 @@ func (ctxt *Link) InitTextSym(s *LSym, flag int) {
+ 	ctxt.Text = append(ctxt.Text, s)
+ 
+ 	// Set up DWARF entries for s.
+-	info, _, _, _, lines := ctxt.dwarfSym(s)
++	info, _, _, _, _ := ctxt.dwarfSym(s)
+ 	info.Type = objabi.SDWARFINFO
+ 	info.Set(AttrDuplicateOK, s.DuplicateOK())
+ 	ctxt.Data = append(ctxt.Data, info)
+-	lines.Type = objabi.SDWARFLINES
+-	lines.Set(AttrDuplicateOK, s.DuplicateOK())
+-	ctxt.Data = append(ctxt.Data, lines)
+ }
+ 
+ func (ctxt *Link) Globl(s *LSym, size int64, flag int) {
+diff --git a/src/cmd/internal/obj/sym.go b/src/cmd/internal/obj/sym.go
+index 818d464c91..9cd1786f67 100644
+--- a/src/cmd/internal/obj/sym.go
++++ b/src/cmd/internal/obj/sym.go
+@@ -325,7 +325,7 @@ func (ctxt *Link) traverseFuncAux(fsym *LSym, fn func(parent *LSym, aux *LSym))
+ 			fn(fsym, filesym)
+ 		}
+ 	}
+-	dwsyms := []*LSym{fsym.Func.dwarfRangesSym, fsym.Func.dwarfLocSym}
++	dwsyms := []*LSym{fsym.Func.dwarfRangesSym, fsym.Func.dwarfLocSym, fsym.Func.dwarfDebugLinesSym}
+ 	for _, dws := range dwsyms {
+ 		if dws == nil || dws.Size == 0 {
+ 			continue

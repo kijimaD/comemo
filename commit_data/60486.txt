@@ -18,6 +18,20 @@ Date:   Fri Jul 26 12:49:29 2024 -0400
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/net/udpsock_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/udpsock_test.go b/src/net/udpsock_test.go
+index 8a21aa7370..43065d06da 100644
+--- a/src/net/udpsock_test.go
++++ b/src/net/udpsock_test.go
+@@ -340,7 +340,7 @@ func TestUDPZeroBytePayload(t *testing.T) {
+ 	switch runtime.GOOS {
+ 	case "plan9":
+ 		t.Skipf("not supported on %s", runtime.GOOS)
+-	case "darwin", "ios":
++	case "ios":
+ 		testenv.SkipFlaky(t, 29225)
+ 	}
+ 	if !testableNetwork("udp") {

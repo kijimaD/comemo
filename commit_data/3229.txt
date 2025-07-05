@@ -9,7 +9,7 @@ Date:   Tue Sep 8 13:46:54 2009 -0700
     R=ken
     OCL=34450
     CL=34450
-
+---
  src/cmd/gc/builtin.c.boot   |  4 ++--
  src/cmd/gc/sys.go           |  8 ++++----
  src/cmd/gc/walk.c           | 11 ++++-------
@@ -18,3 +18,292 @@ Date:   Tue Sep 8 13:46:54 2009 -0700
  src/pkg/runtime/reflect.cgo |  4 ++--
  src/pkg/runtime/runtime.h   |  4 ++--
  7 files changed, 46 insertions(+), 44 deletions(-)
+
+diff --git a/src/cmd/gc/builtin.c.boot b/src/cmd/gc/builtin.c.boot
+index e24d9d8815..408fdde028 100644
+--- a/src/cmd/gc/builtin.c.boot
++++ b/src/cmd/gc/builtin.c.boot
+@@ -41,7 +41,7 @@ char *sysimport =
+ 	"func sys.efaceeq (i1 any, i2 any) (ret bool)\n"
+ 	"func sys.ifacethash (i1 any) (ret uint32)\n"
+ 	"func sys.efacethash (i1 any) (ret uint32)\n"
+-	"func sys.makemap (keysize int, valsize int, keyalg int, valalg int, hint int) (hmap map[any] any)\n"
++	"func sys.makemap (key *uint8, val *uint8, hint int) (hmap map[any] any)\n"
+ 	"func sys.mapaccess1 (hmap map[any] any, key any) (val any)\n"
+ 	"func sys.mapaccess2 (hmap map[any] any, key any) (val any, pres bool)\n"
+ 	"func sys.mapassign1 (hmap map[any] any, key any, val any)\n"
+@@ -50,7 +50,7 @@ char *sysimport =
+ 	"func sys.mapiternext (hiter *any)\n"
+ 	"func sys.mapiter1 (hiter *any) (key any)\n"
+ 	"func sys.mapiter2 (hiter *any) (key any, val any)\n"
+-	"func sys.makechan (elemsize int, elemalg int, hint int) (hchan chan any)\n"
++	"func sys.makechan (elem *uint8, hint int) (hchan chan any)\n"
+ 	"func sys.chanrecv1 (hchan <-chan any) (elem any)\n"
+ 	"func sys.chanrecv2 (hchan <-chan any) (elem any, pres bool)\n"
+ 	"func sys.chansend1 (hchan chan<- any, elem any)\n"
+diff --git a/src/cmd/gc/sys.go b/src/cmd/gc/sys.go
+index 3f2492cdfc..0f680fc2bf 100644
+--- a/src/cmd/gc/sys.go
++++ b/src/cmd/gc/sys.go
+@@ -51,9 +51,8 @@ func	efaceeq(i1 any, i2 any) (ret bool);
+ func	ifacethash(i1 any) (ret uint32);
+ func	efacethash(i1 any) (ret uint32);
+ 
+-func	makemap(keysize int, valsize int,
+-			keyalg int, valalg int,
+-			hint int) (hmap map[any]any);
++// *byte is really *runtime.Type
++func	makemap(key, val *byte, hint int) (hmap map[any]any);
+ func	mapaccess1(hmap map[any]any, key any) (val any);
+ func	mapaccess2(hmap map[any]any, key any) (val any, pres bool);
+ func	mapassign1(hmap map[any]any, key any, val any);
+@@ -63,7 +62,8 @@ func	mapiternext(hiter *any);
+ func	mapiter1(hiter *any) (key any);
+ func	mapiter2(hiter *any) (key any, val any);
+ 
+-func	makechan(elemsize int, elemalg int, hint int) (hchan chan any);
++// *byte is really *runtime.Type
++func	makechan(elem *byte, hint int) (hchan chan any);
+ func	chanrecv1(hchan <-chan any) (elem any);
+ func	chanrecv2(hchan <-chan any) (elem any, pres bool);
+ func	chansend1(hchan chan<- any, elem any);
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index c3fbdb7f04..aff91db083 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -887,8 +887,7 @@ walkexpr(Node **np, NodeList **init)
+ 
+ 	case OMAKECHAN:
+ 		n = mkcall1(chanfn("makechan", 1, n->type), n->type, init,
+-			nodintconst(n->type->type->width),
+-			nodintconst(algtype(n->type->type)),
++			typename(n->type->type),
+ 			conv(n->left, types[TINT]));
+ 		goto ret;
+ 
+@@ -900,10 +899,8 @@ walkexpr(Node **np, NodeList **init)
+ 		argtype(fn, t->type);	// any-2
+ 
+ 		n = mkcall1(fn, n->type, init,
+-			nodintconst(t->down->width),	// key width
+-			nodintconst(t->type->width),		// val width
+-			nodintconst(algtype(t->down)),	// key algorithm
+-			nodintconst(algtype(t->type)),		// val algorithm
++			typename(t->down),	// key type
++			typename(t->type),		// value type
+ 			conv(n->left, types[TINT]));
+ 		goto ret;
+ 
+@@ -2249,7 +2246,7 @@ maplit(Node *n, Node *var, NodeList **init)
+ 				walkexpr(&a, init);
+ 				a->dodata = 2;
+ 				*init = list(*init, a);
+-				
++
+ 				b++;
+ 			}
+ 		}
+diff --git a/src/pkg/runtime/chan.c b/src/pkg/runtime/chan.c
+index 46cf18a187..7611023be4 100644
+--- a/src/pkg/runtime/chan.c
++++ b/src/pkg/runtime/chan.c
+@@ -3,6 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ #include "runtime.h"
++#include "type.h"
+ 
+ static	int32	debug	= 0;
+ static	Lock		chanlock;
+@@ -43,6 +44,7 @@ struct	Hchan
+ 	uint32	dataqsiz;		// size of the circular q
+ 	uint16	elemsize;
+ 	uint16	closed;			// Wclosed Rclosed errorcount
++	uint8	elemalign;
+ 	Alg*	elemalg;		// interface for element type
+ 	Link*	senddataq;		// pointer for sender
+ 	Link*	recvdataq;		// pointer for receiver
+@@ -88,20 +90,21 @@ static	uint32	fastrand1(void);
+ static	uint32	fastrand2(void);
+ 
+ Hchan*
+-makechan(uint32 elemsize, uint32 elemalg, uint32 hint)
++makechan(Type *elem, uint32 hint)
+ {
+ 	Hchan *c;
+ 	int32 i;
+ 
+-	if(elemalg >= nelem(algarray)) {
+-		printf("chan(alg=%d)\n", elemalg);
++	if(elem->alg >= nelem(algarray)) {
++		printf("chan(alg=%d)\n", elem->alg);
+ 		throw("sys·makechan: unsupported elem type");
+ 	}
+ 
+ 	c = mal(sizeof(*c));
+ 
+-	c->elemsize = elemsize;
+-	c->elemalg = &algarray[elemalg];
++	c->elemsize = elem->size;
++	c->elemalg = &algarray[elem->alg];
++	c->elemalign = elem->align;
+ 
+ 	if(hint > 0) {
+ 		Link *d, *b, *e;
+@@ -127,9 +130,11 @@ makechan(uint32 elemsize, uint32 elemalg, uint32 hint)
+ 		prints("makechan: chan=");
+ 		sys·printpointer(c);
+ 		prints("; elemsize=");
+-		sys·printint(elemsize);
++		sys·printint(elem->size);
+ 		prints("; elemalg=");
+-		sys·printint(elemalg);
++		sys·printint(elem->alg);
++		prints("; elemalign=");
++		sys·printint(elem->align);
+ 		prints("; dataqsiz=");
+ 		sys·printint(c->dataqsiz);
+ 		prints("\n");
+@@ -140,9 +145,9 @@ makechan(uint32 elemsize, uint32 elemalg, uint32 hint)
+ 
+ // makechan(elemsize uint32, elemalg uint32, hint uint32) (hchan *chan any);
+ void
+-sys·makechan(uint32 elemsize, uint32 elemalg, uint32 hint, Hchan *ret)
++sys·makechan(Type *elem, uint32 hint, Hchan *ret)
+ {
+-	ret = makechan(elemsize, elemalg, hint);
++	ret = makechan(elem, hint);
+ 	FLUSH(&ret);
+ }
+ 
+@@ -379,7 +384,7 @@ sys·chansend1(Hchan* c, ...)
+ 	int32 o;
+ 	byte *ae;
+ 
+-	o = rnd(sizeof(c), c->elemsize);
++	o = rnd(sizeof(c), c->elemalign);
+ 	ae = (byte*)&c + o;
+ 	chansend(c, ae, nil);
+ }
+@@ -391,7 +396,7 @@ sys·chansend2(Hchan* c, ...)
+ 	int32 o;
+ 	byte *ae, *ap;
+ 
+-	o = rnd(sizeof(c), c->elemsize);
++	o = rnd(sizeof(c), c->elemalign);
+ 	ae = (byte*)&c + o;
+ 	o = rnd(o+c->elemsize, Structrnd);
+ 	ap = (byte*)&c + o;
+diff --git a/src/pkg/runtime/hashmap.c b/src/pkg/runtime/hashmap.c
+index 8c642d9d4d..b95941414f 100644
+--- a/src/pkg/runtime/hashmap.c
++++ b/src/pkg/runtime/hashmap.c
+@@ -4,6 +4,7 @@
+ 
+ #include "runtime.h"
+ #include "hashmap.h"
++#include "type.h"
+ 
+ /* Return a pointer to the struct/union of type "type"
+    whose "field" field is addressed by pointer "p". */
+@@ -664,14 +665,17 @@ donothing(uint32 s, void *a, void *b)
+ 
+ static	int32	debug	= 0;
+ 
+-// makemap(keysize uint32, valsize uint32,
+-//	keyalg uint32, valalg uint32,
+-//	hint uint32) (hmap *map[any]any);
++// makemap(key, val *Type, hint uint32) (hmap *map[any]any);
+ Hmap*
+-makemap(uint32 keysize, uint32 valsize,
+-	uint32 keyalg, uint32 valalg, uint32 hint)
++makemap(Type *key, Type *val, uint32 hint)
+ {
+ 	Hmap *h;
++	int32 keyalg, valalg, keysize, valsize;
++
++	keyalg = key->alg;
++	valalg = val->alg;
++	keysize = key->size;
++	valsize = val->size;
+ 
+ 	if(keyalg >= nelem(algarray) || algarray[keyalg].hash == nohash) {
+ 		printf("map(keyalg=%d)\n", keyalg);
+@@ -707,16 +711,16 @@ makemap(uint32 keysize, uint32 valsize,
+ 
+ 	// func() (key, val)
+ 	h->ko0 = rnd(sizeof(h), Structrnd);
+-	h->vo0 = rnd(h->ko0+keysize, valsize);
++	h->vo0 = rnd(h->ko0+keysize, val->align);
+ 
+ 	// func(key) (val[, pres])
+-	h->ko1 = rnd(sizeof(h), keysize);
++	h->ko1 = rnd(sizeof(h), key->align);
+ 	h->vo1 = rnd(h->ko1+keysize, Structrnd);
+ 	h->po1 = rnd(h->vo1+valsize, 1);
+ 
+ 	// func(key, val[, pres])
+-	h->ko2 = rnd(sizeof(h), keysize);
+-	h->vo2 = rnd(h->ko2+keysize, valsize);
++	h->ko2 = rnd(sizeof(h), key->align);
++	h->vo2 = rnd(h->ko2+keysize, val->align);
+ 	h->po2 = rnd(h->vo2+valsize, 1);
+ 
+ 	if(debug) {
+@@ -727,15 +731,11 @@ makemap(uint32 keysize, uint32 valsize,
+ 	return h;
+ }
+ 
+-// makemap(keysize uint32, valsize uint32,
+-//	keyalg uint32, valalg uint32,
+-//	hint uint32) (hmap *map[any]any);
++// makemap(key, val *Type, hint uint32) (hmap *map[any]any);
+ void
+-sys·makemap(uint32 keysize, uint32 valsize,
+-	uint32 keyalg, uint32 valalg, uint32 hint,
+-	Hmap *ret)
++sys·makemap(Type *key, Type *val, uint32 hint, Hmap *ret)
+ {
+-	ret = makemap(keysize, valsize, keyalg, valalg, hint);
++	ret = makemap(key, val, hint);
+ 	FLUSH(&ret);
+ }
+ 
+diff --git a/src/pkg/runtime/reflect.cgo b/src/pkg/runtime/reflect.cgo
+index 7406e9bc39..8bef070c54 100644
+--- a/src/pkg/runtime/reflect.cgo
++++ b/src/pkg/runtime/reflect.cgo
+@@ -52,7 +52,7 @@ func makemap(typ *byte) (map *byte) {
+ 	MapType *t;
+ 
+ 	t = (MapType*)gettype(typ);
+-	map = (byte*)makemap(t->key->size, t->elem->size, t->key->alg, t->elem->alg, 0);
++	map = (byte*)makemap(t->key, t->elem, 0);
+ }
+ 
+ /*
+@@ -67,7 +67,7 @@ func makechan(typ *byte, size uint32) (ch *byte) {
+ 	// in front of the raw ChanType.  the -2 below backs up
+ 	// to the interface value header.
+ 	t = (ChanType*)gettype(typ);
+-	ch = (byte*)makechan(t->elem->size, t->elem->alg, size);
++	ch = (byte*)makechan(t->elem, size);
+ }
+ 
+ func chansend(ch *byte, val *byte, pres *bool) {
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index d4936afa30..58839f97f0 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -486,9 +486,9 @@ struct hash_iter*	mapiterinit(Hmap*);
+ void	mapiternext(struct hash_iter*);
+ bool	mapiterkey(struct hash_iter*, void*);
+ void	mapiterkeyvalue(struct hash_iter*, void*, void*);
+-Hmap*	makemap(uint32, uint32, uint32, uint32, uint32);
++Hmap*	makemap(Type*, Type*, uint32);
+ 
+-Hchan*	makechan(uint32, uint32, uint32);
++Hchan*	makechan(Type*, uint32);
+ void	chansend(Hchan*, void*, bool*);
+ void	chanrecv(Hchan*, void*, bool*);
+ void	chanclose(Hchan*);

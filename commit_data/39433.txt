@@ -11,6 +11,20 @@ Date:   Wed Feb 27 19:26:13 2019 +0000
     Run-TryBot: Filippo Valsorda <filippo@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
-
+---
  src/crypto/x509/x509.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/crypto/x509/x509.go b/src/crypto/x509/x509.go
+index 4f9b305e7c..80e4dec0f3 100644
+--- a/src/crypto/x509/x509.go
++++ b/src/crypto/x509/x509.go
+@@ -1930,7 +1930,7 @@ func buildExtensions(template *Certificate, subjectIsEmpty bool, authorityKeyId
+ 			dp := distributionPoint{
+ 				DistributionPoint: distributionPointName{
+ 					FullName: []asn1.RawValue{
+-						asn1.RawValue{Tag: 6, Class: 2, Bytes: []byte(name)},
++						{Tag: 6, Class: 2, Bytes: []byte(name)},
+ 					},
+ 				},
+ 			}

@@ -34,6 +34,31 @@ Date:   Wed Mar 27 22:44:52 2024 -0400
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/time.go | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/time.go b/src/runtime/time.go
+index 7846542a80..96b7b76b07 100644
+--- a/src/runtime/time.go
++++ b/src/runtime/time.go
+@@ -607,15 +607,18 @@ func (t *timer) maybeAdd() {
+ 	t.lock()
+ 	t.trace("maybeAdd")
+ 	when := int64(0)
++	wake := false
+ 	if t.needsAdd() {
+ 		t.state |= timerHeaped
+ 		when = t.when
++		wakeTime := ts.wakeTime()
++		wake = wakeTime == 0 || when < wakeTime
+ 		ts.addHeap(t)
+ 	}
+ 	t.unlock()
+ 	ts.unlock()
+ 	releasem(mp)
+-	if when > 0 {
++	if wake {
+ 		wakeNetPoller(when)
+ 	}
+ }

@@ -19,7 +19,7 @@ Date:   Mon May 16 17:53:36 2022 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/cmd/go.mod                                     |   6 +-
  src/cmd/go.sum                                     |  12 +--
  .../analysis/passes/httpresponse/httpresponse.go   |  41 ++++-----
@@ -41,3 +41,635 @@ Date:   Mon May 16 17:53:36 2022 -0400
  .../golang.org/x/text/unicode/norm/normalize.go    |  11 +--
  src/vendor/modules.txt                             |   6 +-
  20 files changed, 206 insertions(+), 104 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index d6ca56f135..c720cde802 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -6,13 +6,13 @@ require (
+ 	github.com/google/pprof v0.0.0-20220314021825-5bba342933ea
+ 	golang.org/x/arch v0.0.0-20220412001346-fc48f9fe4c15
+ 	golang.org/x/mod v0.6.0-dev.0.20220419223038-86c51ed26bb4
+-	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
++	golang.org/x/sync v0.0.0-20220513210516-0976fa681c29
+ 	golang.org/x/sys v0.0.0-20220513210249-45d2b4557a2a
+ 	golang.org/x/term v0.0.0-20220411215600-e5f449aeb171
+-	golang.org/x/tools v0.1.11-0.20220510125844-bc0e26ea1275
++	golang.org/x/tools v0.1.11-0.20220516163903-1e55371df567
+ )
+ 
+ require (
+ 	github.com/ianlancetaylor/demangle v0.0.0-20210905161508-09a460cdf81d // indirect
+-	golang.org/x/crypto v0.0.0-20220315160706-3147a52a75dd // indirect
++	golang.org/x/crypto v0.0.0-20220516162934-403b01795ae8 // indirect
+ )
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index 39227186fd..e768e1ee6c 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -7,16 +7,16 @@ github.com/ianlancetaylor/demangle v0.0.0-20210905161508-09a460cdf81d h1:uGg2frl
+ github.com/ianlancetaylor/demangle v0.0.0-20210905161508-09a460cdf81d/go.mod h1:aYm2/VgdVmcIU8iMfdMvDMsRAQjcfZSKFby6HOFvi/w=
+ golang.org/x/arch v0.0.0-20220412001346-fc48f9fe4c15 h1:GVfVkciLYxn5mY5EncwAe0SXUn9Rm81rRkZ0TTmn/cU=
+ golang.org/x/arch v0.0.0-20220412001346-fc48f9fe4c15/go.mod h1:5om86z9Hs0C8fWVUuoMHwpExlXzs5Tkyp9hOrfG7pp8=
+-golang.org/x/crypto v0.0.0-20220315160706-3147a52a75dd h1:XcWmESyNjXJMLahc3mqVQJcgSTDxFxhETVlfk9uGc38=
+-golang.org/x/crypto v0.0.0-20220315160706-3147a52a75dd/go.mod h1:IxCIyHEi3zRg3s0A5j5BB6A9Jmi73HwBIUl50j+osU4=
++golang.org/x/crypto v0.0.0-20220516162934-403b01795ae8 h1:y+mHpWoQJNAHt26Nhh6JP7hvM71IRZureyvZhoVALIs=
++golang.org/x/crypto v0.0.0-20220516162934-403b01795ae8/go.mod h1:IxCIyHEi3zRg3s0A5j5BB6A9Jmi73HwBIUl50j+osU4=
+ golang.org/x/mod v0.6.0-dev.0.20220419223038-86c51ed26bb4 h1:6zppjxzCulZykYSLyVDYbneBfbaBIQPYMevg0bEwv2s=
+ golang.org/x/mod v0.6.0-dev.0.20220419223038-86c51ed26bb4/go.mod h1:jJ57K6gSWd91VN4djpZkiMVwK6gcyfeH4XE8wZrZaV4=
+-golang.org/x/sync v0.0.0-20210220032951-036812b2e83c h1:5KslGYwFpkhGh+Q16bwMP3cOontH8FOep7tGV86Y7SQ=
+-golang.org/x/sync v0.0.0-20210220032951-036812b2e83c/go.mod h1:RxMgew5VJxzue5/jJTE5uejpjVlOe/izrB70Jof72aM=
++golang.org/x/sync v0.0.0-20220513210516-0976fa681c29 h1:w8s32wxx3sY+OjLlv9qltkLU5yvJzxjjgiHWLjdIcw4=
++golang.org/x/sync v0.0.0-20220513210516-0976fa681c29/go.mod h1:RxMgew5VJxzue5/jJTE5uejpjVlOe/izrB70Jof72aM=
+ golang.org/x/sys v0.0.0-20211007075335-d3039528d8ac/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
+ golang.org/x/sys v0.0.0-20220513210249-45d2b4557a2a h1:N2T1jUrTQE9Re6TFF5PhvEHXHCguynGhKjWVsIUt5cY=
+ golang.org/x/sys v0.0.0-20220513210249-45d2b4557a2a/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
+ golang.org/x/term v0.0.0-20220411215600-e5f449aeb171 h1:EH1Deb8WZJ0xc0WK//leUHXcX9aLE5SymusoTmMZye8=
+ golang.org/x/term v0.0.0-20220411215600-e5f449aeb171/go.mod h1:jbD1KX2456YbFQfuXm/mYQcufACuNUgVhRMnK/tPxf8=
+-golang.org/x/tools v0.1.11-0.20220510125844-bc0e26ea1275 h1:ismY4QcvigOCsXTuUEtx/f/vntz7reNAQnMGPI0Z4KE=
+-golang.org/x/tools v0.1.11-0.20220510125844-bc0e26ea1275/go.mod h1:SgwaegtQh8clINPpECJMqnxLv9I09HLqnW3RMqW0CA4=
++golang.org/x/tools v0.1.11-0.20220516163903-1e55371df567 h1:MksUZ/zlU+pMbsq1Sw16gK6E1aWzD0rLE+eS2SxF24Y=
++golang.org/x/tools v0.1.11-0.20220516163903-1e55371df567/go.mod h1:SgwaegtQh8clINPpECJMqnxLv9I09HLqnW3RMqW0CA4=
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/httpresponse/httpresponse.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/httpresponse/httpresponse.go
+index 092ac75cca..3b9168c6c3 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/httpresponse/httpresponse.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/httpresponse/httpresponse.go
+@@ -62,15 +62,16 @@ func run(pass *analysis.Pass) (interface{}, error) {
+ 
+ 		// Find the innermost containing block, and get the list
+ 		// of statements starting with the one containing call.
+-		stmts, withinAnotherCall := restOfBlock(stack)
+-		if withinAnotherCall {
+-			// We skip cases when the results of a call to http member
+-			// are passed directly to another call, as that later call
+-			// could check err != nil and create false positives (#52661).
++		stmts, ncalls := restOfBlock(stack)
++		if len(stmts) < 2 {
++			// The call to the http function is the last statement of the block.
+ 			return true
+ 		}
+-		if len(stmts) < 2 {
+-			return true // the call to the http function is the last statement of the block.
++
++		// Skip cases in which the call is wrapped by another (#52661).
++		// Example:  resp, err := checkError(http.Get(url))
++		if ncalls > 1 {
++			return true
+ 		}
+ 
+ 		asg, ok := stmts[0].(*ast.AssignStmt)
+@@ -136,34 +137,26 @@ func isHTTPFuncOrMethodOnClient(info *types.Info, expr *ast.CallExpr) bool {
+ 	return ok && isNamedType(ptr.Elem(), "net/http", "Client") // method on *http.Client.
+ }
+ 
+-// restOfBlock, given a traversal stack, checks if the current node
+-// (the last element of stack) appears as an argument to another call.
+-// If not, it finds the innermost containing block and returns the
+-// suffix of its statements starting with the current node. Otherwise,
+-// returns an empty slice.
+-func restOfBlock(stack []ast.Node) ([]ast.Stmt, bool) {
++// restOfBlock, given a traversal stack, finds the innermost containing
++// block and returns the suffix of its statements starting with the current
++// node, along with the number of call expressions encountered.
++func restOfBlock(stack []ast.Node) ([]ast.Stmt, int) {
++	var ncalls int
+ 	for i := len(stack) - 1; i >= 0; i-- {
+-		// If the current node appears within another call, then
+-		// this has to happen within the same block. We can thus
+-		// immediately return on whichever we see first, a block
+-		// statement or a call statement.
+-
+ 		if b, ok := stack[i].(*ast.BlockStmt); ok {
+ 			for j, v := range b.List {
+ 				if v == stack[i+1] {
+-					return b.List[j:], false
++					return b.List[j:], ncalls
+ 				}
+ 			}
+ 			break
+ 		}
+ 
+-		// The call to an http member currently analyzed is at len(stack)-1.
+-		if _, ok := stack[i].(*ast.CallExpr); ok && i != len(stack)-1 {
+-			return nil, true // e.g. "resp, err := wrap(http.Get(...))"
++		if _, ok := stack[i].(*ast.CallExpr); ok {
++			ncalls++
+ 		}
+-
+ 	}
+-	return nil, false
++	return nil, 0
+ }
+ 
+ // rootIdent finds the root identifier x in a chain of selections x.y.z, or nil if not found.
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/types/objectpath/objectpath.go b/src/cmd/vendor/golang.org/x/tools/go/types/objectpath/objectpath.go
+index f27d871295..c160acb686 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/types/objectpath/objectpath.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/types/objectpath/objectpath.go
+@@ -224,10 +224,11 @@ func For(obj types.Object) (Path, error) {
+ 		if recv := obj.Type().(*types.Signature).Recv(); recv == nil {
+ 			return "", fmt.Errorf("func is not a method: %v", obj)
+ 		}
+-		// TODO(adonovan): opt: if the method is concrete,
+-		// do a specialized version of the rest of this function so
+-		// that it's O(1) not O(|scope|).  Basically 'find' is needed
+-		// only for struct fields and interface methods.
++
++		if path, ok := concreteMethod(obj); ok {
++			// Fast path for concrete methods that avoids looping over scope.
++			return path, nil
++		}
+ 
+ 	default:
+ 		panic(obj)
+@@ -316,6 +317,97 @@ func appendOpArg(path []byte, op byte, arg int) []byte {
+ 	return path
+ }
+ 
++// concreteMethod returns the path for meth, which must have a non-nil receiver.
++// The second return value indicates success and may be false if the method is
++// an interface method or if it is an instantiated method.
++//
++// This function is just an optimization that avoids the general scope walking
++// approach. You are expected to fall back to the general approach if this
++// function fails.
++func concreteMethod(meth *types.Func) (Path, bool) {
++	// Concrete methods can only be declared on package-scoped named types. For
++	// that reason we can skip the expensive walk over the package scope: the
++	// path will always be package -> named type -> method. We can trivially get
++	// the type name from the receiver, and only have to look over the type's
++	// methods to find the method index.
++	//
++	// Methods on generic types require special consideration, however. Consider
++	// the following package:
++	//
++	// 	L1: type S[T any] struct{}
++	// 	L2: func (recv S[A]) Foo() { recv.Bar() }
++	// 	L3: func (recv S[B]) Bar() { }
++	// 	L4: type Alias = S[int]
++	// 	L5: func _[T any]() { var s S[int]; s.Foo() }
++	//
++	// The receivers of methods on generic types are instantiations. L2 and L3
++	// instantiate S with the type-parameters A and B, which are scoped to the
++	// respective methods. L4 and L5 each instantiate S with int. Each of these
++	// instantiations has its own method set, full of methods (and thus objects)
++	// with receivers whose types are the respective instantiations. In other
++	// words, we have
++	//
++	// S[A].Foo, S[A].Bar
++	// S[B].Foo, S[B].Bar
++	// S[int].Foo, S[int].Bar
++	//
++	// We may thus be trying to produce object paths for any of these objects.
++	//
++	// S[A].Foo and S[B].Bar are the origin methods, and their paths are S.Foo
++	// and S.Bar, which are the paths that this function naturally produces.
++	//
++	// S[A].Bar, S[B].Foo, and both methods on S[int] are instantiations that
++	// don't correspond to the origin methods. For S[int], this is significant.
++	// The most precise object path for S[int].Foo, for example, is Alias.Foo,
++	// not S.Foo. Our function, however, would produce S.Foo, which would
++	// resolve to a different object.
++	//
++	// For S[A].Bar and S[B].Foo it could be argued that S.Bar and S.Foo are
++	// still the correct paths, since only the origin methods have meaningful
++	// paths. But this is likely only true for trivial cases and has edge cases.
++	// Since this function is only an optimization, we err on the side of giving
++	// up, deferring to the slower but definitely correct algorithm. Most users
++	// of objectpath will only be giving us origin methods, anyway, as referring
++	// to instantiated methods is usually not useful.
++
++	if typeparams.OriginMethod(meth) != meth {
++		return "", false
++	}
++
++	recvT := meth.Type().(*types.Signature).Recv().Type()
++	if ptr, ok := recvT.(*types.Pointer); ok {
++		recvT = ptr.Elem()
++	}
++
++	named, ok := recvT.(*types.Named)
++	if !ok {
++		return "", false
++	}
++
++	if types.IsInterface(named) {
++		// Named interfaces don't have to be package-scoped
++		//
++		// TODO(dominikh): opt: if scope.Lookup(name) == named, then we can apply this optimization to interface
++		// methods, too, I think.
++		return "", false
++	}
++
++	// Preallocate space for the name, opType, opMethod, and some digits.
++	name := named.Obj().Name()
++	path := make([]byte, 0, len(name)+8)
++	path = append(path, name...)
++	path = append(path, opType)
++	canonical := canonicalize(named)
++	for i, m := range canonical {
++		if m == meth {
++			path = appendOpArg(path, opMethod, i)
++			return Path(path), true
++		}
++	}
++
++	panic(fmt.Sprintf("couldn't find method %s on type %s", meth, named))
++}
++
+ // find finds obj within type T, returning the path to it, or nil if not found.
+ //
+ // The seen map is used to short circuit cycles through type parameters. If
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/typeparams/termlist.go b/src/cmd/vendor/golang.org/x/tools/internal/typeparams/termlist.go
+index 10857d504c..933106a23d 100644
+--- a/src/cmd/vendor/golang.org/x/tools/internal/typeparams/termlist.go
++++ b/src/cmd/vendor/golang.org/x/tools/internal/typeparams/termlist.go
+@@ -97,15 +97,6 @@ func (xl termlist) norm() termlist {
+ 	return rl
+ }
+ 
+-// If the type set represented by xl is specified by a single (non-𝓤) term,
+-// structuralType returns that type. Otherwise it returns nil.
+-func (xl termlist) structuralType() types.Type {
+-	if nl := xl.norm(); len(nl) == 1 {
+-		return nl[0].typ // if nl.isAll() then typ is nil, which is ok
+-	}
+-	return nil
+-}
+-
+ // union returns the union xl ∪ yl.
+ func (xl termlist) union(yl termlist) termlist {
+ 	return append(xl, yl...).norm()
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/typeparams/typeterm.go b/src/cmd/vendor/golang.org/x/tools/internal/typeparams/typeterm.go
+index 7350bb702a..7ddee28d98 100644
+--- a/src/cmd/vendor/golang.org/x/tools/internal/typeparams/typeterm.go
++++ b/src/cmd/vendor/golang.org/x/tools/internal/typeparams/typeterm.go
+@@ -10,10 +10,11 @@ import "go/types"
+ 
+ // A term describes elementary type sets:
+ //
+-//	 ∅:  (*term)(nil)     == ∅                      // set of no types (empty set)
+-//	 𝓤:  &term{}          == 𝓤                      // set of all types (𝓤niverse)
+-//	 T:  &term{false, T}  == {T}                    // set of type T
+-//	~t:  &term{true, t}   == {t' | under(t') == t}  // set of types with underlying type t
++//   ∅:  (*term)(nil)     == ∅                      // set of no types (empty set)
++//   𝓤:  &term{}          == 𝓤                      // set of all types (𝓤niverse)
++//   T:  &term{false, T}  == {T}                    // set of type T
++//  ~t:  &term{true, t}   == {t' | under(t') == t}  // set of types with underlying type t
++//
+ type term struct {
+ 	tilde bool // valid if typ != nil
+ 	typ   types.Type
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index ede312d358..62da0c76bb 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -23,7 +23,7 @@ golang.org/x/arch/arm/armasm
+ golang.org/x/arch/arm64/arm64asm
+ golang.org/x/arch/ppc64/ppc64asm
+ golang.org/x/arch/x86/x86asm
+-# golang.org/x/crypto v0.0.0-20220315160706-3147a52a75dd
++# golang.org/x/crypto v0.0.0-20220516162934-403b01795ae8
+ ## explicit; go 1.17
+ golang.org/x/crypto/ed25519
+ # golang.org/x/mod v0.6.0-dev.0.20220419223038-86c51ed26bb4
+@@ -37,7 +37,7 @@ golang.org/x/mod/sumdb/dirhash
+ golang.org/x/mod/sumdb/note
+ golang.org/x/mod/sumdb/tlog
+ golang.org/x/mod/zip
+-# golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
++# golang.org/x/sync v0.0.0-20220513210516-0976fa681c29
+ ## explicit
+ golang.org/x/sync/semaphore
+ # golang.org/x/sys v0.0.0-20220513210249-45d2b4557a2a
+@@ -49,7 +49,7 @@ golang.org/x/sys/windows
+ # golang.org/x/term v0.0.0-20220411215600-e5f449aeb171
+ ## explicit; go 1.17
+ golang.org/x/term
+-# golang.org/x/tools v0.1.11-0.20220510125844-bc0e26ea1275
++# golang.org/x/tools v0.1.11-0.20220516163903-1e55371df567
+ ## explicit; go 1.17
+ golang.org/x/tools/cover
+ golang.org/x/tools/go/analysis
+diff --git a/src/go.mod b/src/go.mod
+index f2c3708288..3a6cf56286 100644
+--- a/src/go.mod
++++ b/src/go.mod
+@@ -3,11 +3,11 @@ module std
+ go 1.19
+ 
+ require (
+-	golang.org/x/crypto v0.0.0-20220315160706-3147a52a75dd
+-	golang.org/x/net v0.0.0-20220421235706-1d1ef9303861
++	golang.org/x/crypto v0.0.0-20220516162934-403b01795ae8
++	golang.org/x/net v0.0.0-20220516155154-20f960328961
+ )
+ 
+ require (
+ 	golang.org/x/sys v0.0.0-20220513210249-45d2b4557a2a // indirect
+-	golang.org/x/text v0.3.8-0.20220124021120-d1c84af989ab // indirect
++	golang.org/x/text v0.3.8-0.20220509174342-b4bca84b0361 // indirect
+ )
+diff --git a/src/go.sum b/src/go.sum
+index d3d671ad8a..82985861b0 100644
+--- a/src/go.sum
++++ b/src/go.sum
+@@ -1,8 +1,8 @@
+-golang.org/x/crypto v0.0.0-20220315160706-3147a52a75dd h1:XcWmESyNjXJMLahc3mqVQJcgSTDxFxhETVlfk9uGc38=
+-golang.org/x/crypto v0.0.0-20220315160706-3147a52a75dd/go.mod h1:IxCIyHEi3zRg3s0A5j5BB6A9Jmi73HwBIUl50j+osU4=
+-golang.org/x/net v0.0.0-20220421235706-1d1ef9303861 h1:yssD99+7tqHWO5Gwh81phT+67hg+KttniBr6UnEXOY8=
+-golang.org/x/net v0.0.0-20220421235706-1d1ef9303861/go.mod h1:CfG3xpIq0wQ8r1q4Su4UZFWDARRcnwPjda9FqA0JpMk=
++golang.org/x/crypto v0.0.0-20220516162934-403b01795ae8 h1:y+mHpWoQJNAHt26Nhh6JP7hvM71IRZureyvZhoVALIs=
++golang.org/x/crypto v0.0.0-20220516162934-403b01795ae8/go.mod h1:IxCIyHEi3zRg3s0A5j5BB6A9Jmi73HwBIUl50j+osU4=
++golang.org/x/net v0.0.0-20220516155154-20f960328961 h1:+W/iTMPG0EL7aW+/atntZwZrvSRIj3m3yX414dSULUU=
++golang.org/x/net v0.0.0-20220516155154-20f960328961/go.mod h1:CfG3xpIq0wQ8r1q4Su4UZFWDARRcnwPjda9FqA0JpMk=
+ golang.org/x/sys v0.0.0-20220513210249-45d2b4557a2a h1:N2T1jUrTQE9Re6TFF5PhvEHXHCguynGhKjWVsIUt5cY=
+ golang.org/x/sys v0.0.0-20220513210249-45d2b4557a2a/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
+-golang.org/x/text v0.3.8-0.20220124021120-d1c84af989ab h1:eHo2TTVBaAPw9lDGK2Gb9GyPMXT6g7O63W6sx3ylbzU=
+-golang.org/x/text v0.3.8-0.20220124021120-d1c84af989ab/go.mod h1:EFNZuWvGYxIRUEX+K8UmCFwYmZjqcrnq15ZuVldZkZ0=
++golang.org/x/text v0.3.8-0.20220509174342-b4bca84b0361 h1:h+pU/hCb7sEApigI6eII3/Emx5ZHaFWS+nulUp0Az/k=
++golang.org/x/text v0.3.8-0.20220509174342-b4bca84b0361/go.mod h1:5O0TPrbzDRCcAYs9rc2W4CFPmVHJfNFe8tESfECPJPE=
+diff --git a/src/net/http/h2_bundle.go b/src/net/http/h2_bundle.go
+index 0b6001539e..dfb1adbf30 100644
+--- a/src/net/http/h2_bundle.go
++++ b/src/net/http/h2_bundle.go
+@@ -6369,8 +6369,7 @@ func http2checkWriteHeaderCode(code int) {
+ 	// Issue 22880: require valid WriteHeader status codes.
+ 	// For now we only enforce that it's three digits.
+ 	// In the future we might block things over 599 (600 and above aren't defined
+-	// at http://httpwg.org/specs/rfc7231.html#status.codes)
+-	// and we might block under 200 (once we have more mature 1xx support).
++	// at http://httpwg.org/specs/rfc7231.html#status.codes).
+ 	// But for now any three digits.
+ 	//
+ 	// We used to send "HTTP/1.1 000 0" on the wire in responses but there's
+@@ -6391,13 +6390,33 @@ func (w *http2responseWriter) WriteHeader(code int) {
+ }
+ 
+ func (rws *http2responseWriterState) writeHeader(code int) {
+-	if !rws.wroteHeader {
+-		http2checkWriteHeaderCode(code)
+-		rws.wroteHeader = true
+-		rws.status = code
+-		if len(rws.handlerHeader) > 0 {
+-			rws.snapHeader = http2cloneHeader(rws.handlerHeader)
++	if rws.wroteHeader {
++		return
++	}
++
++	http2checkWriteHeaderCode(code)
++
++	// Handle informational headers
++	if code >= 100 && code <= 199 {
++		// Per RFC 8297 we must not clear the current header map
++		h := rws.handlerHeader
++
++		if rws.conn.writeHeaders(rws.stream, &http2writeResHeaders{
++			streamID:    rws.stream.id,
++			httpResCode: code,
++			h:           h,
++			endStream:   rws.handlerDone && !rws.hasTrailers(),
++		}) != nil {
++			rws.dirty = true
+ 		}
++
++		return
++	}
++
++	rws.wroteHeader = true
++	rws.status = code
++	if len(rws.handlerHeader) > 0 {
++		rws.snapHeader = http2cloneHeader(rws.handlerHeader)
+ 	}
+ }
+ 
+diff --git a/src/vendor/golang.org/x/crypto/chacha20/chacha_s390x.go b/src/vendor/golang.org/x/crypto/chacha20/chacha_s390x.go
+index c5898db465..4652247b8a 100644
+--- a/src/vendor/golang.org/x/crypto/chacha20/chacha_s390x.go
++++ b/src/vendor/golang.org/x/crypto/chacha20/chacha_s390x.go
+@@ -15,6 +15,7 @@ const bufSize = 256
+ 
+ // xorKeyStreamVX is an assembly implementation of XORKeyStream. It must only
+ // be called when the vector facility is available. Implementation in asm_s390x.s.
++//
+ //go:noescape
+ func xorKeyStreamVX(dst, src []byte, key *[8]uint32, nonce *[3]uint32, counter *uint32)
+ 
+diff --git a/src/vendor/golang.org/x/crypto/cryptobyte/builder.go b/src/vendor/golang.org/x/crypto/cryptobyte/builder.go
+index ca7b1db5ce..c7ded75771 100644
+--- a/src/vendor/golang.org/x/crypto/cryptobyte/builder.go
++++ b/src/vendor/golang.org/x/crypto/cryptobyte/builder.go
+@@ -106,13 +106,13 @@ func (b *Builder) AddBytes(v []byte) {
+ // supplied to them. The child builder passed to the continuation can be used
+ // to build the content of the length-prefixed sequence. For example:
+ //
+-//   parent := cryptobyte.NewBuilder()
+-//   parent.AddUint8LengthPrefixed(func (child *Builder) {
+-//     child.AddUint8(42)
+-//     child.AddUint8LengthPrefixed(func (grandchild *Builder) {
+-//       grandchild.AddUint8(5)
+-//     })
+-//   })
++//	parent := cryptobyte.NewBuilder()
++//	parent.AddUint8LengthPrefixed(func (child *Builder) {
++//	  child.AddUint8(42)
++//	  child.AddUint8LengthPrefixed(func (grandchild *Builder) {
++//	    grandchild.AddUint8(5)
++//	  })
++//	})
+ //
+ // It is an error to write more bytes to the child than allowed by the reserved
+ // length prefix. After the continuation returns, the child must be considered
+diff --git a/src/vendor/golang.org/x/crypto/curve25519/internal/field/fe_amd64.go b/src/vendor/golang.org/x/crypto/curve25519/internal/field/fe_amd64.go
+index 44dc8e8caf..edcf163c4e 100644
+--- a/src/vendor/golang.org/x/crypto/curve25519/internal/field/fe_amd64.go
++++ b/src/vendor/golang.org/x/crypto/curve25519/internal/field/fe_amd64.go
+@@ -1,13 +1,16 @@
+ // Code generated by command: go run fe_amd64_asm.go -out ../fe_amd64.s -stubs ../fe_amd64.go -pkg field. DO NOT EDIT.
+ 
++//go:build amd64 && gc && !purego
+ // +build amd64,gc,!purego
+ 
+ package field
+ 
+ // feMul sets out = a * b. It works like feMulGeneric.
++//
+ //go:noescape
+ func feMul(out *Element, a *Element, b *Element)
+ 
+ // feSquare sets out = a * a. It works like feSquareGeneric.
++//
+ //go:noescape
+ func feSquare(out *Element, a *Element)
+diff --git a/src/vendor/golang.org/x/crypto/internal/poly1305/sum_generic.go b/src/vendor/golang.org/x/crypto/internal/poly1305/sum_generic.go
+index c942a65904..e041da5ea3 100644
+--- a/src/vendor/golang.org/x/crypto/internal/poly1305/sum_generic.go
++++ b/src/vendor/golang.org/x/crypto/internal/poly1305/sum_generic.go
+@@ -136,7 +136,7 @@ func shiftRightBy2(a uint128) uint128 {
+ // updateGeneric absorbs msg into the state.h accumulator. For each chunk m of
+ // 128 bits of message, it computes
+ //
+-//     h₊ = (h + m) * r  mod  2¹³⁰ - 5
++//	h₊ = (h + m) * r  mod  2¹³⁰ - 5
+ //
+ // If the msg length is not a multiple of TagSize, it assumes the last
+ // incomplete chunk is the final one.
+@@ -278,8 +278,7 @@ const (
+ 
+ // finalize completes the modular reduction of h and computes
+ //
+-//     out = h + s  mod  2¹²⁸
+-//
++//	out = h + s  mod  2¹²⁸
+ func finalize(out *[TagSize]byte, h *[3]uint64, s *[2]uint64) {
+ 	h0, h1, h2 := h[0], h[1], h[2]
+ 
+diff --git a/src/vendor/golang.org/x/crypto/internal/poly1305/sum_s390x.go b/src/vendor/golang.org/x/crypto/internal/poly1305/sum_s390x.go
+index 62cc9f8470..ec95966889 100644
+--- a/src/vendor/golang.org/x/crypto/internal/poly1305/sum_s390x.go
++++ b/src/vendor/golang.org/x/crypto/internal/poly1305/sum_s390x.go
+@@ -14,6 +14,7 @@ import (
+ // updateVX is an assembly implementation of Poly1305 that uses vector
+ // instructions. It must only be called if the vector facility (vx) is
+ // available.
++//
+ //go:noescape
+ func updateVX(state *macState, msg []byte)
+ 
+diff --git a/src/vendor/golang.org/x/net/nettest/conntest.go b/src/vendor/golang.org/x/net/nettest/conntest.go
+index 39cc6a631e..55ad42aa28 100644
+--- a/src/vendor/golang.org/x/net/nettest/conntest.go
++++ b/src/vendor/golang.org/x/net/nettest/conntest.go
+@@ -398,10 +398,10 @@ func checkForTimeoutError(t *testing.T, err error) {
+ 	t.Helper()
+ 	if nerr, ok := err.(net.Error); ok {
+ 		if !nerr.Timeout() {
+-			t.Errorf("err.Timeout() = false, want true")
++			t.Errorf("got error: %v, want err.Timeout() = true", nerr)
+ 		}
+ 	} else {
+-		t.Errorf("got %T, want net.Error", err)
++		t.Errorf("got %T: %v, want net.Error", err, err)
+ 	}
+ }
+ 
+diff --git a/src/vendor/golang.org/x/text/unicode/bidi/core.go b/src/vendor/golang.org/x/text/unicode/bidi/core.go
+index fde188a33b..9d2ae547b5 100644
+--- a/src/vendor/golang.org/x/text/unicode/bidi/core.go
++++ b/src/vendor/golang.org/x/text/unicode/bidi/core.go
+@@ -193,14 +193,14 @@ func (p *paragraph) run() {
+ //
+ // At the end of this function:
+ //
+-//  - The member variable matchingPDI is set to point to the index of the
+-//    matching PDI character for each isolate initiator character. If there is
+-//    no matching PDI, it is set to the length of the input text. For other
+-//    characters, it is set to -1.
+-//  - The member variable matchingIsolateInitiator is set to point to the
+-//    index of the matching isolate initiator character for each PDI character.
+-//    If there is no matching isolate initiator, or the character is not a PDI,
+-//    it is set to -1.
++//   - The member variable matchingPDI is set to point to the index of the
++//     matching PDI character for each isolate initiator character. If there is
++//     no matching PDI, it is set to the length of the input text. For other
++//     characters, it is set to -1.
++//   - The member variable matchingIsolateInitiator is set to point to the
++//     index of the matching isolate initiator character for each PDI character.
++//     If there is no matching isolate initiator, or the character is not a PDI,
++//     it is set to -1.
+ func (p *paragraph) determineMatchingIsolates() {
+ 	p.matchingPDI = make([]int, p.Len())
+ 	p.matchingIsolateInitiator = make([]int, p.Len())
+@@ -435,7 +435,7 @@ func maxLevel(a, b level) level {
+ }
+ 
+ // Rule X10, second bullet: Determine the start-of-sequence (sos) and end-of-sequence (eos) types,
+-// 			 either L or R, for each isolating run sequence.
++// either L or R, for each isolating run sequence.
+ func (p *paragraph) isolatingRunSequence(indexes []int) *isolatingRunSequence {
+ 	length := len(indexes)
+ 	types := make([]Class, length)
+@@ -905,7 +905,7 @@ func (p *paragraph) getLevels(linebreaks []int) []level {
+ // Lines are concatenated from left to right. So for example, the fifth
+ // character from the left on the third line is
+ //
+-// 		getReordering(linebreaks)[linebreaks[1] + 4]
++//	getReordering(linebreaks)[linebreaks[1] + 4]
+ //
+ // (linebreaks[1] is the position after the last character of the second
+ // line, which is also the index of the first character on the third line,
+diff --git a/src/vendor/golang.org/x/text/unicode/norm/forminfo.go b/src/vendor/golang.org/x/text/unicode/norm/forminfo.go
+index 526c7033ac..d69ccb4f97 100644
+--- a/src/vendor/golang.org/x/text/unicode/norm/forminfo.go
++++ b/src/vendor/golang.org/x/text/unicode/norm/forminfo.go
+@@ -110,10 +110,11 @@ func (p Properties) BoundaryAfter() bool {
+ }
+ 
+ // We pack quick check data in 4 bits:
+-//   5:    Combines forward  (0 == false, 1 == true)
+-//   4..3: NFC_QC Yes(00), No (10), or Maybe (11)
+-//   2:    NFD_QC Yes (0) or No (1). No also means there is a decomposition.
+-//   1..0: Number of trailing non-starters.
++//
++//	5:    Combines forward  (0 == false, 1 == true)
++//	4..3: NFC_QC Yes(00), No (10), or Maybe (11)
++//	2:    NFD_QC Yes (0) or No (1). No also means there is a decomposition.
++//	1..0: Number of trailing non-starters.
+ //
+ // When all 4 bits are zero, the character is inert, meaning it is never
+ // influenced by normalization.
+diff --git a/src/vendor/golang.org/x/text/unicode/norm/normalize.go b/src/vendor/golang.org/x/text/unicode/norm/normalize.go
+index 95efcf26e8..4747ad07a8 100644
+--- a/src/vendor/golang.org/x/text/unicode/norm/normalize.go
++++ b/src/vendor/golang.org/x/text/unicode/norm/normalize.go
+@@ -18,16 +18,17 @@ import (
+ // A Form denotes a canonical representation of Unicode code points.
+ // The Unicode-defined normalization and equivalence forms are:
+ //
+-//   NFC   Unicode Normalization Form C
+-//   NFD   Unicode Normalization Form D
+-//   NFKC  Unicode Normalization Form KC
+-//   NFKD  Unicode Normalization Form KD
++//	NFC   Unicode Normalization Form C
++//	NFD   Unicode Normalization Form D
++//	NFKC  Unicode Normalization Form KC
++//	NFKD  Unicode Normalization Form KD
+ //
+ // For a Form f, this documentation uses the notation f(x) to mean
+ // the bytes or string x converted to the given form.
+ // A position n in x is called a boundary if conversion to the form can
+ // proceed independently on both sides:
+-//   f(x) == append(f(x[0:n]), f(x[n:])...)
++//
++//	f(x) == append(f(x[0:n]), f(x[n:])...)
+ //
+ // References: https://unicode.org/reports/tr15/ and
+ // https://unicode.org/notes/tn5/.
+diff --git a/src/vendor/modules.txt b/src/vendor/modules.txt
+index bb06cde16a..5cb80bfbd5 100644
+--- a/src/vendor/modules.txt
++++ b/src/vendor/modules.txt
+@@ -1,4 +1,4 @@
+-# golang.org/x/crypto v0.0.0-20220315160706-3147a52a75dd
++# golang.org/x/crypto v0.0.0-20220516162934-403b01795ae8
+ ## explicit; go 1.17
+ golang.org/x/crypto/chacha20
+ golang.org/x/crypto/chacha20poly1305
+@@ -9,7 +9,7 @@ golang.org/x/crypto/curve25519/internal/field
+ golang.org/x/crypto/hkdf
+ golang.org/x/crypto/internal/poly1305
+ golang.org/x/crypto/internal/subtle
+-# golang.org/x/net v0.0.0-20220421235706-1d1ef9303861
++# golang.org/x/net v0.0.0-20220516155154-20f960328961
+ ## explicit; go 1.17
+ golang.org/x/net/dns/dnsmessage
+ golang.org/x/net/http/httpguts
+@@ -22,7 +22,7 @@ golang.org/x/net/route
+ # golang.org/x/sys v0.0.0-20220513210249-45d2b4557a2a
+ ## explicit; go 1.17
+ golang.org/x/sys/cpu
+-# golang.org/x/text v0.3.8-0.20220124021120-d1c84af989ab
++# golang.org/x/text v0.3.8-0.20220509174342-b4bca84b0361
+ ## explicit; go 1.17
+ golang.org/x/text/secure/bidirule
+ golang.org/x/text/transform

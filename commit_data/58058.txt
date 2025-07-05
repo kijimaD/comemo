@@ -10,6 +10,22 @@ Date:   Fri Sep 22 13:24:37 2023 -0700
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/slices/example_test.go | 4 +---
  1 file changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/src/slices/example_test.go b/src/slices/example_test.go
+index 3e76907bb7..41d8890b57 100644
+--- a/src/slices/example_test.go
++++ b/src/slices/example_test.go
+@@ -51,9 +51,7 @@ func ExampleCompact() {
+ 
+ func ExampleCompactFunc() {
+ 	names := []string{"bob", "Bob", "alice", "Vera", "VERA"}
+-	names = slices.CompactFunc(names, func(a, b string) bool {
+-		return strings.ToLower(a) == strings.ToLower(b)
+-	})
++	names = slices.CompactFunc(names, strings.EqualFold)
+ 	fmt.Println(names)
+ 	// Output:
+ 	// [bob alice Vera]

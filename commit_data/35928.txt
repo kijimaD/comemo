@@ -20,9 +20,114 @@ Date:   Wed Mar 21 12:36:58 2018 +0000
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/doc/dirs.go     |  5 ++---
  src/cmd/doc/doc_test.go | 11 +++++++++--
  src/cmd/doc/main.go     |  5 ++++-
  src/cmd/doc/pkg.go      |  2 +-
  4 files changed, 16 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/doc/dirs.go b/src/cmd/doc/dirs.go
+index a4ef8d2379..5088f880e1 100644
+--- a/src/cmd/doc/dirs.go
++++ b/src/cmd/doc/dirs.go
+@@ -5,7 +5,6 @@
+ package main
+ 
+ import (
+-	"go/build"
+ 	"log"
+ 	"os"
+ 	"path"
+@@ -25,7 +24,7 @@ type Dirs struct {
+ 
+ var dirs Dirs
+ 
+-func init() {
++func dirsInit() {
+ 	dirs.paths = make([]string, 0, 1000)
+ 	dirs.scan = make(chan string)
+ 	go dirs.walk()
+@@ -55,7 +54,7 @@ func (d *Dirs) Next() (string, bool) {
+ 
+ // walk walks the trees in GOROOT and GOPATH.
+ func (d *Dirs) walk() {
+-	d.bfsWalkRoot(build.Default.GOROOT)
++	d.bfsWalkRoot(buildCtx.GOROOT)
+ 	for _, root := range splitGopath() {
+ 		d.bfsWalkRoot(root)
+ 	}
+diff --git a/src/cmd/doc/doc_test.go b/src/cmd/doc/doc_test.go
+index 12ed52bace..c60e93743f 100644
+--- a/src/cmd/doc/doc_test.go
++++ b/src/cmd/doc/doc_test.go
+@@ -7,7 +7,6 @@ package main
+ import (
+ 	"bytes"
+ 	"flag"
+-	"go/build"
+ 	"os"
+ 	"path/filepath"
+ 	"regexp"
+@@ -16,6 +15,14 @@ import (
+ 	"testing"
+ )
+ 
++func TestMain(m *testing.M) {
++	// otherwise the tests are brittle, as they may give unexpected
++	// output or errors when a suffix match with GOPATH takes place
++	buildCtx.GOPATH = ""
++	dirsInit()
++	os.Exit(m.Run())
++}
++
+ func maybeSkip(t *testing.T) {
+ 	if strings.HasPrefix(runtime.GOOS, "nacl") {
+ 		t.Skip("nacl does not have a full file tree")
+@@ -653,7 +660,7 @@ func TestDotSlashLookup(t *testing.T) {
+ 			t.Fatal(err)
+ 		}
+ 	}()
+-	if err := os.Chdir(filepath.Join(build.Default.GOROOT, "src", "text")); err != nil {
++	if err := os.Chdir(filepath.Join(buildCtx.GOROOT, "src", "text")); err != nil {
+ 		t.Fatal(err)
+ 	}
+ 	var b bytes.Buffer
+diff --git a/src/cmd/doc/main.go b/src/cmd/doc/main.go
+index a91c3b79cd..9f947146a4 100644
+--- a/src/cmd/doc/main.go
++++ b/src/cmd/doc/main.go
+@@ -69,6 +69,7 @@ func usage() {
+ func main() {
+ 	log.SetFlags(0)
+ 	log.SetPrefix("doc: ")
++	dirsInit()
+ 	err := do(os.Stdout, flag.CommandLine, os.Args[1:])
+ 	if err != nil {
+ 		log.Fatal(err)
+@@ -355,9 +356,11 @@ func findPackage(pkg string) (string, bool) {
+ 	}
+ }
+ 
++var buildCtx = build.Default
++
+ // splitGopath splits $GOPATH into a list of roots.
+ func splitGopath() []string {
+-	return filepath.SplitList(build.Default.GOPATH)
++	return filepath.SplitList(buildCtx.GOPATH)
+ }
+ 
+ // pwd returns the current directory.
+diff --git a/src/cmd/doc/pkg.go b/src/cmd/doc/pkg.go
+index d1a844ea76..8ff9ff57ac 100644
+--- a/src/cmd/doc/pkg.go
++++ b/src/cmd/doc/pkg.go
+@@ -62,7 +62,7 @@ func (pkg *Package) prettyPath() string {
+ 	// Also convert everything to slash-separated paths for uniform handling.
+ 	path = filepath.Clean(filepath.ToSlash(pkg.build.Dir))
+ 	// Can we find a decent prefix?
+-	goroot := filepath.Join(build.Default.GOROOT, "src")
++	goroot := filepath.Join(buildCtx.GOROOT, "src")
+ 	if p, ok := trim(path, filepath.ToSlash(goroot)); ok {
+ 		return p
+ 	}

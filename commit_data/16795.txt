@@ -11,7 +11,7 @@ Date:   Wed Jul 17 12:47:18 2013 -0400
     R=golang-dev, khr, cshapiro, dvyukov
     CC=golang-dev
     https://golang.org/cl/11374044
-
+---
  src/pkg/runtime/arch_386.h      |  3 +-
  src/pkg/runtime/arch_amd64.h    |  3 +-
  src/pkg/runtime/arch_arm.h      |  3 +-
@@ -23,3 +23,522 @@ Date:   Wed Jul 17 12:47:18 2013 -0400
  src/pkg/runtime/traceback_arm.c | 96 ++++++++++++++++++++++++-----------------
  src/pkg/runtime/traceback_x86.c | 80 ++++++++++++++++++++++------------
  10 files changed, 177 insertions(+), 92 deletions(-)
+
+diff --git a/src/pkg/runtime/arch_386.h b/src/pkg/runtime/arch_386.h
+index 62ed11b402..7e74d8f923 100644
+--- a/src/pkg/runtime/arch_386.h
++++ b/src/pkg/runtime/arch_386.h
+@@ -6,5 +6,6 @@ enum {
+ 	thechar = '8',
+ 	BigEndian = 0,
+ 	CacheLineSize = 64,
+-	appendCrossover = 16
++	appendCrossover = 16,
++	PCQuantum = 1
+ };
+diff --git a/src/pkg/runtime/arch_amd64.h b/src/pkg/runtime/arch_amd64.h
+index a5e43ca8d0..21144111b2 100644
+--- a/src/pkg/runtime/arch_amd64.h
++++ b/src/pkg/runtime/arch_amd64.h
+@@ -6,5 +6,6 @@ enum {
+ 	thechar = '6',
+ 	BigEndian = 0,
+ 	CacheLineSize = 64,
+-	appendCrossover = 16
++	appendCrossover = 16,
++	PCQuantum = 1
+ };
+diff --git a/src/pkg/runtime/arch_arm.h b/src/pkg/runtime/arch_arm.h
+index 27c70c1052..cab79890a0 100644
+--- a/src/pkg/runtime/arch_arm.h
++++ b/src/pkg/runtime/arch_arm.h
+@@ -6,5 +6,6 @@ enum {
+ 	thechar = '5',
+ 	BigEndian = 0,
+ 	CacheLineSize = 32,
+-	appendCrossover = 8
++	appendCrossover = 8,
++	PCQuantum = 4
+ };
+diff --git a/src/pkg/runtime/panic.c b/src/pkg/runtime/panic.c
+index 8d7d261faf..120f7706e7 100644
+--- a/src/pkg/runtime/panic.c
++++ b/src/pkg/runtime/panic.c
+@@ -156,9 +156,14 @@ runtime·deferproc(int32 siz, FuncVal *fn, ...)
+ // is called again and again until there are no more deferred functions.
+ // Cannot split the stack because we reuse the caller's frame to
+ // call the deferred function.
++//
++// The ... in the prototype keeps the compiler from declaring
++// an argument frame size. deferreturn is a very special function,
++// and if the runtime ever asks for its frame size, that means
++// the traceback routines are probably broken.
+ #pragma textflag 7
+ void
+-runtime·deferreturn(uintptr arg0)
++runtime·deferreturn(uintptr arg0, ...)
+ {
+ 	Defer *d;
+ 	byte *argp;
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 44741a66e8..fffd04b7fb 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -2496,3 +2496,12 @@ runtime·haszeroargs(uintptr pc)
+ 		pc == (uintptr)_rt0_go;
+ }
+ 
++// Does f mark the top of a goroutine stack?
++bool
++runtime·topofstack(Func *f)
++{
++	return f->entry == (uintptr)runtime·goexit ||
++		f->entry == (uintptr)runtime·mstart ||
++		f->entry == (uintptr)runtime·mcall ||
++		f->entry == (uintptr)_rt0_go;
++}
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 3940c30447..ce451b0105 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -690,6 +690,7 @@ int32	runtime·gentraceback(uintptr, uintptr, uintptr, G*, int32, uintptr*, int3
+ void	runtime·traceback(uintptr pc, uintptr sp, uintptr lr, G* gp);
+ void	runtime·tracebackothers(G*);
+ bool	runtime·haszeroargs(uintptr pc);
++bool	runtime·topofstack(Func*);
+ 
+ /*
+  * external data
+diff --git a/src/pkg/runtime/softfloat_arm.c b/src/pkg/runtime/softfloat_arm.c
+index 9a54406302..56a73fce5c 100644
+--- a/src/pkg/runtime/softfloat_arm.c
++++ b/src/pkg/runtime/softfloat_arm.c
+@@ -576,9 +576,12 @@ done:
+ 	return 0;
+ }
+ 
++// The ... here is because there are actually 16 registers
++// being passed (r0, r1, and so on) amd we are too lazy
++// to list them all.
+ #pragma textflag 7
+ uint32*
+-runtime·_sfloat2(uint32 *lr, uint32 r0)
++runtime·_sfloat2(uint32 *lr, uint32 r0, ...)
+ {
+ 	uint32 skip;
+ 
+diff --git a/src/pkg/runtime/symtab.c b/src/pkg/runtime/symtab.c
+index a96c0ead80..7911f118bd 100644
+--- a/src/pkg/runtime/symtab.c
++++ b/src/pkg/runtime/symtab.c
+@@ -10,6 +10,7 @@
+ #include "os_GOOS.h"
+ #include "arch_GOARCH.h"
+ #include "malloc.h"
++#include "funcdata.h"
+ 
+ typedef struct Ftab Ftab;
+ struct Ftab
+@@ -81,26 +82,17 @@ funcdata(Func *f, int32 i)
+ // Return associated data value for targetpc in func f.
+ // (Source file is f->src.)
+ static int32
+-pcvalue(Func *f, int32 off, uintptr targetpc)
++pcvalue(Func *f, int32 off, uintptr targetpc, bool strict)
+ {
+ 	byte *p;
+ 	uintptr pc;
+-	int32 value, vdelta, pcshift;
++	int32 value, vdelta;
+ 	uint32 uvdelta, pcdelta;
+ 
+ 	enum {
+ 		debug = 0
+ 	};
+ 
+-	switch(thechar) {
+-	case '5':
+-		pcshift = 2;
+-		break;
+-	default:	// 6, 8
+-		pcshift = 0;
+-		break;
+-	}
+-
+ 	// The table is a delta-encoded sequence of (value, pc) pairs.
+ 	// Each pair states the given value is in effect up to pc.
+ 	// The value deltas are signed, zig-zag encoded.
+@@ -126,7 +118,7 @@ pcvalue(Func *f, int32 off, uintptr targetpc)
+ 		else
+ 			uvdelta >>= 1;
+ 		vdelta = (int32)uvdelta;
+-		pcdelta = readvarint(&p) << pcshift;
++		pcdelta = readvarint(&p) * PCQuantum;
+ 		value += vdelta;
+ 		pc += pcdelta;
+ 		if(debug)
+@@ -137,23 +129,43 @@ pcvalue(Func *f, int32 off, uintptr targetpc)
+ 	
+ 	// If there was a table, it should have covered all program counters.
+ 	// If not, something is wrong.
++	if(runtime·panicking || !strict)
++		return -1;
+ 	runtime·printf("runtime: invalid pc-encoded table f=%S pc=%p targetpc=%p tab=%p\n",
+ 		*f->name, pc, targetpc, p);
++	p = (byte*)f + off;
++	pc = f->entry;
++	value = -1;
++	for(;;) {
++		uvdelta = readvarint(&p);
++		if(uvdelta == 0 && pc != f->entry)
++			break;
++		if(uvdelta&1)
++			uvdelta = ~(uvdelta>>1);
++		else
++			uvdelta >>= 1;
++		vdelta = (int32)uvdelta;
++		pcdelta = readvarint(&p) * PCQuantum;
++		value += vdelta;
++		pc += pcdelta;
++		runtime·printf("\tvalue=%d until pc=%p\n", value, pc);
++	}
++	
+ 	runtime·throw("invalid runtime symbol table");
+ 	return -1;
+ }
+ 
+ static String unknown = { (uint8*)"?", 1 };
+ 
+-int32
+-runtime·funcline(Func *f, uintptr targetpc, String *file)
++static int32
++funcline(Func *f, uintptr targetpc, String *file, bool strict)
+ {
+ 	int32 line;
+ 	int32 fileno;
+ 
+ 	*file = unknown;
+-	fileno = pcvalue(f, f->pcfile, targetpc);
+-	line = pcvalue(f, f->pcln, targetpc);
++	fileno = pcvalue(f, f->pcfile, targetpc, strict);
++	line = pcvalue(f, f->pcln, targetpc, strict);
+ 	if(fileno == -1 || line == -1 || fileno >= nfiletab) {
+ 		// runtime·printf("looking for %p in %S got file=%d line=%d\n", targetpc, *f->name, fileno, line);
+ 		return 0;
+@@ -162,12 +174,18 @@ runtime·funcline(Func *f, uintptr targetpc, String *file)
+ 	return line;
+ }
+ 
++int32
++runtime·funcline(Func *f, uintptr targetpc, String *file)
++{
++	return funcline(f, targetpc, file, true);
++}
++
+ int32
+ runtime·funcspdelta(Func *f, uintptr targetpc)
+ {
+ 	int32 x;
+ 	
+-	x = pcvalue(f, f->pcsp, targetpc);
++	x = pcvalue(f, f->pcsp, targetpc, true);
+ 	if(x&(sizeof(void*)-1))
+ 		runtime·printf("invalid spdelta %d %d\n", f->pcsp, x);
+ 	return x;
+@@ -178,19 +196,23 @@ pcdatavalue(Func *f, int32 table, uintptr targetpc)
+ {
+ 	if(table < 0 || table >= f->npcdata)
+ 		return -1;
+-	return pcvalue(f, (&f->nfuncdata)[1+table], targetpc);
++	return pcvalue(f, (&f->nfuncdata)[1+table], targetpc, true);
+ }
+ 
+ int32
+ runtime·funcarglen(Func *f, uintptr targetpc)
+ {
+-	return pcdatavalue(f, 0, targetpc);
++	if(targetpc == f->entry)
++		return 0;
++	return pcdatavalue(f, PCDATA_ArgSize, targetpc-PCQuantum);
+ }
+ 
+ void
+ runtime·funcline_go(Func *f, uintptr targetpc, String retfile, intgo retline)
+ {
+-	retline = runtime·funcline(f, targetpc, &retfile);
++	// Pass strict=false here, because anyone can call this function,
++	// and they might just be wrong about targetpc belonging to f.
++	retline = funcline(f, targetpc, &retfile, false);
+ 	FLUSH(&retline);
+ }
+ 
+diff --git a/src/pkg/runtime/traceback_arm.c b/src/pkg/runtime/traceback_arm.c
+index e5a475f80f..6cd924da0d 100644
+--- a/src/pkg/runtime/traceback_arm.c
++++ b/src/pkg/runtime/traceback_arm.c
+@@ -6,30 +6,21 @@
+ #include "arch_GOARCH.h"
+ #include "malloc.h"
+ 
+-void runtime·deferproc(void);
+-void runtime·newproc(void);
+-void runtime·morestack(void);
+ void runtime·sigpanic(void);
+-void _div(void);
+-void _mod(void);
+-void _divu(void);
+-void _modu(void);
+ 
+ static String unknown = { (uint8*)"?", 1 };
+ 
+ int32
+ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip, uintptr *pcbuf, int32 max, void (*callback)(Stkframe*, void*), void *v, bool printall)
+ {
+-	int32 i, n, nprint, skip0, line;
++	int32 i, n, nprint, line;
+ 	uintptr x, tracepc;
+ 	bool waspanic, printing;
+-	Func *f, *f2;
++	Func *f, *flr;
+ 	Stkframe frame;
+ 	Stktop *stk;
+ 	String file;
+ 
+-	skip0 = skip;
+-
+ 	nprint = 0;
+ 	runtime·memclr((byte*)&frame, sizeof frame);
+ 	frame.pc = pc0;
+@@ -44,6 +35,16 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip,
+ 		frame.pc = frame.lr;
+ 		frame.lr = 0;
+ 	}
++	
++	f = runtime·findfunc(frame.pc);
++	if(f == nil) {
++		if(callback != nil) {
++			runtime·printf("runtime: unknown pc %p\n", frame.pc);
++			runtime·throw("unknown pc");
++		}
++		return 0;
++	}
++	frame.fn = f;
+ 
+ 	n = 0;
+ 	stk = (Stktop*)gp->stackbase;
+@@ -64,41 +65,57 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip,
+ 			if(printing && runtime·showframe(nil, gp))
+ 				runtime·printf("----- stack segment boundary -----\n");
+ 			stk = (Stktop*)stk->stackbase;
+-			continue;
+-		}
+-		
+-		if(frame.pc <= 0x1000 || (frame.fn = f = runtime·findfunc(frame.pc)) == nil) {
+-			if(callback != nil) {
+-				runtime·printf("runtime: unknown pc %p at frame %d\n", frame.pc, skip0-skip+n);
+-				runtime·throw("invalid stack");
++			
++			f = runtime·findfunc(frame.pc);
++			if(f == nil) {
++				runtime·printf("runtime: unknown pc %p after stack split\n", frame.pc);
++				runtime·throw("unknown pc");
+ 			}
+-			break;
++			frame.fn = f;
++			continue;
+ 		}
++		f = frame.fn;
+ 		
+ 		// Found an actual function.
+ 		// Derive frame pointer and link register.
+-		if(frame.lr == 0)
+-			frame.lr = *(uintptr*)frame.sp;
+ 		if(frame.fp == 0)
+ 			frame.fp = frame.sp + runtime·funcspdelta(f, frame.pc);
+-
++		if(runtime·topofstack(f)) {
++			frame.lr = 0;
++			flr = nil;
++		} else {
++			if(frame.lr == 0)
++				frame.lr = *(uintptr*)frame.sp;
++			flr = runtime·findfunc(frame.lr);
++			if(flr == nil) {
++				runtime·printf("runtime: unexpected return pc for %S called from %p", *f->name, frame.lr);
++				runtime·throw("unknown caller pc");
++			}
++		}
++			
+ 		// Derive size of arguments.
+-		frame.argp = (byte*)frame.fp + sizeof(uintptr);
+-		frame.arglen = 0;
+-		if(f->args != ArgsSizeUnknown)
+-			frame.arglen = f->args;
+-		else if(runtime·haszeroargs(f->entry))
+-			frame.arglen = 0;
+-		else if(frame.lr == (uintptr)runtime·lessstack)
+-			frame.arglen = stk->argsize;
+-		else if(f->entry == (uintptr)runtime·deferproc || f->entry == (uintptr)runtime·newproc)
+-			frame.arglen = 3*sizeof(uintptr) + *(int32*)frame.argp;
+-		else if((f2 = runtime·findfunc(frame.lr)) != nil && f2->frame >= sizeof(uintptr))
+-			frame.arglen = f2->frame; // conservative overestimate
+-		else {
+-			runtime·printf("runtime: unknown argument frame size for %S\n", *f->name);
+-			if(!printing)
+-				runtime·throw("invalid stack");
++		// Most functions have a fixed-size argument block,
++		// so we can use metadata about the function f.
++		// Not all, though: there are some variadic functions
++		// in package runtime, and for those we use call-specific
++		// metadata recorded by f's caller.
++		if(callback != nil || printing) {
++			frame.argp = (byte*)frame.fp + sizeof(uintptr);
++			if(f->args != ArgsSizeUnknown)
++				frame.arglen = f->args;
++			else if(flr == nil)
++				frame.arglen = 0;
++			else if(frame.lr == (uintptr)runtime·lessstack)
++				frame.arglen = stk->argsize;
++			else if((i = runtime·funcarglen(flr, frame.lr)) >= 0)
++				frame.arglen = i;
++			else {
++				runtime·printf("runtime: unknown argument frame size for %S called from %p [%S]\n",
++					*f->name, frame.lr, flr ? *flr->name : unknown);
++				if(!printing)
++					runtime·throw("invalid stack");
++				frame.arglen = 0;
++			}
+ 		}
+ 
+ 		// Derive location and size of local variables.
+@@ -165,11 +182,12 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip,
+ 		waspanic = f->entry == (uintptr)runtime·sigpanic;
+ 
+ 		// Do not unwind past the bottom of the stack.
+-		if(f->entry == (uintptr)runtime·goexit || f->entry == (uintptr)runtime·mstart || f->entry == (uintptr)runtime·mcall || f->entry == (uintptr)_rt0_go)
++		if(flr == nil)
+ 			break;
+ 
+ 		// Unwind to next frame.
+ 		frame.pc = frame.lr;
++		frame.fn = flr;
+ 		frame.lr = 0;
+ 		frame.sp = frame.fp;
+ 		frame.fp = 0;
+diff --git a/src/pkg/runtime/traceback_x86.c b/src/pkg/runtime/traceback_x86.c
+index 49e1c0467f..7c2cffb125 100644
+--- a/src/pkg/runtime/traceback_x86.c
++++ b/src/pkg/runtime/traceback_x86.c
+@@ -48,6 +48,16 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip,
+ 		frame.pc = *(uintptr*)frame.sp;
+ 		frame.sp += sizeof(uintptr);
+ 	}
++	
++	f = runtime·findfunc(frame.pc);
++	if(f == nil) {
++		if(callback != nil) {
++			runtime·printf("runtime: unknown pc %p\n", frame.pc);
++			runtime·throw("unknown pc");
++		}
++		return 0;
++	}
++	frame.fn = f;
+ 
+ 	n = 0;
+ 	stk = (Stktop*)gp->stackbase;
+@@ -69,16 +79,16 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip,
+ 			if(printing && runtime·showframe(nil, gp))
+ 				runtime·printf("----- stack segment boundary -----\n");
+ 			stk = (Stktop*)stk->stackbase;
+-			continue;
+-		}
+-		f = frame.fn;
+-		if(f == nil && (frame.pc <= 0x1000 || (frame.fn = f = runtime·findfunc(frame.pc)) == nil)) {
+-			if(callback != nil) {
+-				runtime·printf("unknown pc %p\n", frame.pc);
++
++			f = runtime·findfunc(frame.pc);
++			if(f == nil) {
++				runtime·printf("runtime: unknown pc %p after stack split\n", frame.pc);
+ 				runtime·throw("unknown pc");
+ 			}
+-			break;
++			frame.fn = f;
++			continue;
+ 		}
++		f = frame.fn;
+ 
+ 		// Found an actual function.
+ 		// Derive frame pointer and link register.
+@@ -86,28 +96,42 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip,
+ 			frame.fp = frame.sp + runtime·funcspdelta(f, frame.pc);
+ 			frame.fp += sizeof(uintptr); // caller PC
+ 		}
+-		if(frame.lr == 0)
+-			frame.lr = ((uintptr*)frame.fp)[-1];
+-		flr = runtime·findfunc(frame.lr);
++		if(runtime·topofstack(f)) {
++			frame.lr = 0;
++			flr = nil;
++		} else {
++			if(frame.lr == 0)
++				frame.lr = ((uintptr*)frame.fp)[-1];
++			flr = runtime·findfunc(frame.lr);
++			if(flr == nil) {
++				runtime·printf("runtime: unexpected return pc for %S called from %p", *f->name, frame.lr);
++				runtime·throw("unknown caller pc");
++			}
++		}
+ 
+ 		// Derive size of arguments.
+-		frame.argp = (byte*)frame.fp;
+-		if(flr != nil && (i = runtime·funcarglen(flr, frame.lr)) >= 0)
+-			frame.arglen = i;
+-		else if(f->args != ArgsSizeUnknown)
+-			frame.arglen = f->args;
+-		else if(runtime·haszeroargs(f->entry))
+-			frame.arglen = 0;
+-		else if(frame.lr == (uintptr)runtime·lessstack)
+-			frame.arglen = stk->argsize;
+-		else if(f->entry == (uintptr)runtime·deferproc || f->entry == (uintptr)runtime·newproc)
+-			frame.arglen = 2*sizeof(uintptr) + *(int32*)frame.argp;
+-		else if(flr != nil && flr->frame >= sizeof(uintptr))
+-			frame.arglen = flr->frame; // conservative overestimate
+-		else {
+-			runtime·printf("runtime: unknown argument frame size for %S called from %p [%S]\n", *f->name, frame.lr, flr ? *flr->name : unknown);
+-			if(!printing)
+-				runtime·throw("invalid stack");
++		// Most functions have a fixed-size argument block,
++		// so we can use metadata about the function f.
++		// Not all, though: there are some variadic functions
++		// in package runtime, and for those we use call-specific
++		// metadata recorded by f's caller.
++		if(callback != nil || printing) {
++			frame.argp = (byte*)frame.fp;
++			if(f->args != ArgsSizeUnknown)
++				frame.arglen = f->args;
++			else if(flr == nil)
++				frame.arglen = 0;
++			else if(frame.lr == (uintptr)runtime·lessstack)
++				frame.arglen = stk->argsize;
++			else if((i = runtime·funcarglen(flr, frame.lr)) >= 0)
++				frame.arglen = i;
++			else {
++				runtime·printf("runtime: unknown argument frame size for %S called from %p [%S]\n",
++					*f->name, frame.lr, flr ? *flr->name : unknown);
++				if(!printing)
++					runtime·throw("invalid stack");
++				frame.arglen = 0;
++			}
+ 		}
+ 
+ 		// Derive location and size of local variables.
+@@ -174,7 +198,7 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip,
+ 		waspanic = f->entry == (uintptr)runtime·sigpanic;
+ 
+ 		// Do not unwind past the bottom of the stack.
+-		if(f->entry == (uintptr)runtime·goexit || f->entry == (uintptr)runtime·mstart || f->entry == (uintptr)runtime·mcall || f->entry == (uintptr)_rt0_go)
++		if(flr == nil)
+ 			break;
+ 
+ 		// Unwind to next frame.

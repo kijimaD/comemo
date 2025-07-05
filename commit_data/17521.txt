@@ -9,7 +9,62 @@ Date:   Mon Sep 9 16:42:07 2013 -0400
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/13512048
-
+---
  src/pkg/encoding/xml/marshal.go      | 10 ++++++++--
  src/pkg/encoding/xml/marshal_test.go |  8 ++++++++
  2 files changed, 16 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/encoding/xml/marshal.go b/src/pkg/encoding/xml/marshal.go
+index a6ee5d5128..ac6c6296c0 100644
+--- a/src/pkg/encoding/xml/marshal.go
++++ b/src/pkg/encoding/xml/marshal.go
+@@ -655,7 +655,10 @@ func (p *printer) marshalSimple(typ reflect.Type, val reflect.Value) (string, []
+ 	case reflect.Bool:
+ 		return strconv.FormatBool(val.Bool()), nil, nil
+ 	case reflect.Array:
+-		// will be [...]byte
++		if typ.Elem().Kind() != reflect.Uint8 {
++			break
++		}
++		// [...]byte
+ 		var bytes []byte
+ 		if val.CanAddr() {
+ 			bytes = val.Slice(0, val.Len()).Bytes()
+@@ -665,7 +668,10 @@ func (p *printer) marshalSimple(typ reflect.Type, val reflect.Value) (string, []
+ 		}
+ 		return "", bytes, nil
+ 	case reflect.Slice:
+-		// will be []byte
++		if typ.Elem().Kind() != reflect.Uint8 {
++			break
++		}
++		// []byte
+ 		return "", val.Bytes(), nil
+ 	}
+ 	return "", nil, &UnsupportedTypeError{typ}
+diff --git a/src/pkg/encoding/xml/marshal_test.go b/src/pkg/encoding/xml/marshal_test.go
+index 8d9239eb4a..6cd894e0c6 100644
+--- a/src/pkg/encoding/xml/marshal_test.go
++++ b/src/pkg/encoding/xml/marshal_test.go
+@@ -904,6 +904,10 @@ type AttrParent struct {
+ 	X string `xml:"X>Y,attr"`
+ }
+ 
++type BadAttr struct {
++	Name []string `xml:"name,attr"`
++}
++
+ var marshalErrorTests = []struct {
+ 	Value interface{}
+ 	Err   string
+@@ -936,6 +940,10 @@ var marshalErrorTests = []struct {
+ 		Value: &AttrParent{},
+ 		Err:   `xml: X>Y chain not valid with attr flag`,
+ 	},
++	{
++		Value: BadAttr{[]string{"X", "Y"}},
++		Err:   `xml: unsupported type: []string`,
++	},
+ }
+ 
+ var marshalIndentTests = []struct {

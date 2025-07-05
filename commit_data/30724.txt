@@ -11,6 +11,27 @@ Date:   Tue Nov 29 20:40:40 2016 +0000
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/server.go | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index e8b5c139a1..6df9c260e4 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -1763,7 +1763,6 @@ func (c *conn) serve(ctx context.Context) {
+ 				// while they're still writing their
+ 				// request. Undefined behavior.
+ 				const publicErr = "431 Request Header Fields Too Large"
+-				c.server.logf("http: %s", publicErr)
+ 				fmt.Fprintf(c.rwc, "HTTP/1.1 "+publicErr+errorHeaders+publicErr)
+ 				c.closeWriteAndWait()
+ 				return
+@@ -1777,7 +1776,6 @@ func (c *conn) serve(ctx context.Context) {
+ 				publicErr = publicErr + ": " + string(v)
+ 			}
+ 
+-			c.server.logf("http: %s", publicErr)
+ 			fmt.Fprintf(c.rwc, "HTTP/1.1 "+publicErr+errorHeaders+publicErr)
+ 			return
+ 		}

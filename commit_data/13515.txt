@@ -9,7 +9,54 @@ Date:   Sun Jul 29 16:29:49 2012 +1000
     R=nigeltao
     CC=golang-dev
     https://golang.org/cl/6452055
-
+---
  src/pkg/exp/html/parse.go                           |  6 ++++--
  src/pkg/exp/html/testlogs/plain-text-unsafe.dat.log | 10 +++++-----
  2 files changed, 9 insertions(+), 7 deletions(-)
+
+diff --git a/src/pkg/exp/html/parse.go b/src/pkg/exp/html/parse.go
+index 986e9bbe46..38e61677e3 100644
+--- a/src/pkg/exp/html/parse.go
++++ b/src/pkg/exp/html/parse.go
+@@ -1846,14 +1846,16 @@ func afterAfterFramesetIM(p *parser) bool {
+ 	return true
+ }
+ 
++const whitespaceOrNUL = whitespace + "\x00"
++
+ // Section 12.2.5.5.
+ func parseForeignContent(p *parser) bool {
+ 	switch p.tok.Type {
+ 	case TextToken:
+-		p.tok.Data = strings.Replace(p.tok.Data, "\x00", "", -1)
+ 		if p.framesetOK {
+-			p.framesetOK = strings.TrimLeft(p.tok.Data, whitespace) == ""
++			p.framesetOK = strings.TrimLeft(p.tok.Data, whitespaceOrNUL) == ""
+ 		}
++		p.tok.Data = strings.Replace(p.tok.Data, "\x00", "\ufffd", -1)
+ 		p.addText(p.tok.Data)
+ 	case CommentToken:
+ 		p.addChild(&Node{
+diff --git a/src/pkg/exp/html/testlogs/plain-text-unsafe.dat.log b/src/pkg/exp/html/testlogs/plain-text-unsafe.dat.log
+index b63a237a15..f2d18d4711 100644
+--- a/src/pkg/exp/html/testlogs/plain-text-unsafe.dat.log
++++ b/src/pkg/exp/html/testlogs/plain-text-unsafe.dat.log
+@@ -12,13 +12,13 @@ PASS "<svg><![CDATA[\x00filler\x00text\x00]]>"
+ PASS "<body><!\x00>"
+ PASS "<body><!\x00filler\x00text>"
+ PASS "<body><svg><foreignObject>\x00filler\x00text"
+-FAIL "<svg>\x00filler\x00text"
+-FAIL "<svg>\x00<frameset>"
+-FAIL "<svg>\x00 <frameset>"
+-FAIL "<svg>\x00a<frameset>"
++PASS "<svg>\x00filler\x00text"
++PASS "<svg>\x00<frameset>"
++PASS "<svg>\x00 <frameset>"
++PASS "<svg>\x00a<frameset>"
+ PASS "<svg>\x00</svg><frameset>"
+ PASS "<svg>\x00 </svg><frameset>"
+-FAIL "<svg>\x00a</svg><frameset>"
++PASS "<svg>\x00a</svg><frameset>"
+ PASS "<svg><path></path></svg><frameset>"
+ PASS "<svg><p><frameset>"
+ PASS "<!DOCTYPE html><pre>\r\n\r\nA</pre>"

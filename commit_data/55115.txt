@@ -14,6 +14,22 @@ Date:   Wed Jan 4 18:03:46 2023 -0800
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
-
+---
  src/runtime/crash_cgo_test.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/crash_cgo_test.go b/src/runtime/crash_cgo_test.go
+index ba0e9f4ced..51d7bb5091 100644
+--- a/src/runtime/crash_cgo_test.go
++++ b/src/runtime/crash_cgo_test.go
+@@ -218,7 +218,9 @@ func TestCgoCCodeSIGPROF(t *testing.T) {
+ }
+ 
+ func TestCgoPprofCallback(t *testing.T) {
+-	t.Parallel()
++	if testing.Short() {
++		t.Skip("skipping in short mode") // takes a full second
++	}
+ 	switch runtime.GOOS {
+ 	case "windows", "plan9":
+ 		t.Skipf("skipping cgo pprof callback test on %s", runtime.GOOS)

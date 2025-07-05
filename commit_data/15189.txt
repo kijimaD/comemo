@@ -9,7 +9,32 @@ Date:   Mon Feb 11 09:17:00 2013 +1100
     R=gobot
     CC=golang-dev
     https://golang.org/cl/7303069
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 949a060120..9050fbb2c1 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -109,6 +109,7 @@ Gideon Jan-Wessel Redelinghuys <gjredelinghuys@gmail.com>
+ Giles Lean <giles.lean@pobox.com>
+ Google Inc.
+ Graham Miller <graham.miller@gmail.com>
++Greg Ward <greg@gerg.ca>
+ Gustav Paul <gustav.paul@gmail.com>
+ Gustavo Niemeyer <gustavo@niemeyer.net>
+ Gwenael Treguier <gwenn.kahz@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 1aa82020aa..6b23c1d8eb 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -167,6 +167,7 @@ Georg Reinke <guelfey@gmail.com>
+ Gideon Jan-Wessel Redelinghuys <gjredelinghuys@gmail.com>
+ Giles Lean <giles.lean@pobox.com>
+ Graham Miller <graham.miller@gmail.com>
++Greg Ward <greg@gerg.ca>
+ Gustav Paul <gustav.paul@gmail.com>
+ Gustavo Franco <gustavorfranco@gmail.com>
+ Gustavo Niemeyer <gustavo@niemeyer.net> <n13m3y3r@gmail.com>

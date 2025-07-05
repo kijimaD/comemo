@@ -15,10 +15,133 @@ Date:   Sun Oct 24 13:46:54 2021 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/block.go              | 25 +++++++++++++++++++++-
  src/cmd/compile/internal/ssa/critical.go           | 11 +++++-----
  src/cmd/compile/internal/ssa/deadcode.go           |  6 +-----
  .../compile/internal/ssa/fuse_branchredirect.go    |  6 +-----
  src/cmd/compile/internal/ssa/shortcircuit.go       |  6 +-----
  5 files changed, 32 insertions(+), 22 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/block.go b/src/cmd/compile/internal/ssa/block.go
+index 71ca774431..6ff3188f9b 100644
+--- a/src/cmd/compile/internal/ssa/block.go
++++ b/src/cmd/compile/internal/ssa/block.go
+@@ -279,7 +279,8 @@ func (b *Block) AddEdgeTo(c *Block) {
+ 
+ // removePred removes the ith input edge from b.
+ // It is the responsibility of the caller to remove
+-// the corresponding successor edge.
++// the corresponding successor edge, and adjust any
++// phi values by calling b.removePhiArg(v, i).
+ func (b *Block) removePred(i int) {
+ 	n := len(b.Preds) - 1
+ 	if i != n {
+@@ -322,6 +323,28 @@ func (b *Block) swapSuccessors() {
+ 	b.Likely *= -1
+ }
+ 
++// removePhiArg removes the ith arg from phi.
++// It must be called after calling b.removePred(i) to
++// adjust the corresponding phi value of the block:
++//
++// b.removePred(i)
++// for _, v := range b.Values {
++//     if v.Op != OpPhi {
++//         continue
++//     }
++//     b.removeArg(v, i)
++// }
++func (b *Block) removePhiArg(phi *Value, i int) {
++	n := len(b.Preds)
++	if numPhiArgs := len(phi.Args); numPhiArgs-1 != n {
++		b.Fatalf("inconsistent state, num predecessors: %d, num phi args: %d", n, numPhiArgs)
++	}
++	phi.Args[i].Uses--
++	phi.Args[i] = phi.Args[n]
++	phi.Args[n] = nil
++	phi.Args = phi.Args[:n]
++}
++
+ // LackingPos indicates whether b is a block whose position should be inherited
+ // from its successors.  This is true if all the values within it have unreliable positions
+ // and if it is "plain", meaning that there is no control flow that is also very likely
+diff --git a/src/cmd/compile/internal/ssa/critical.go b/src/cmd/compile/internal/ssa/critical.go
+index b85721eba4..500ce3ae61 100644
+--- a/src/cmd/compile/internal/ssa/critical.go
++++ b/src/cmd/compile/internal/ssa/critical.go
+@@ -91,14 +91,13 @@ func critical(f *Func) {
+ 				b.removePred(i)
+ 
+ 				// Update corresponding phi args
+-				n := len(b.Preds)
+-				phi.Args[i].Uses--
+-				phi.Args[i] = phi.Args[n]
+-				phi.Args[n] = nil
+-				phi.Args = phi.Args[:n]
++				b.removePhiArg(phi, i)
++
+ 				// splitting occasionally leads to a phi having
+ 				// a single argument (occurs with -N)
+-				if n == 1 {
++				// TODO(cuonglm,khr): replace this with phielimValue, and
++				//                    make removePhiArg incorporates that.
++				if len(b.Preds) == 1 {
+ 					phi.Op = OpCopy
+ 				}
+ 				// Don't increment i in this case because we moved
+diff --git a/src/cmd/compile/internal/ssa/deadcode.go b/src/cmd/compile/internal/ssa/deadcode.go
+index 5d10dfe025..b47b106975 100644
+--- a/src/cmd/compile/internal/ssa/deadcode.go
++++ b/src/cmd/compile/internal/ssa/deadcode.go
+@@ -348,15 +348,11 @@ func (b *Block) removeEdge(i int) {
+ 	c.removePred(j)
+ 
+ 	// Remove phi args from c's phis.
+-	n := len(c.Preds)
+ 	for _, v := range c.Values {
+ 		if v.Op != OpPhi {
+ 			continue
+ 		}
+-		v.Args[j].Uses--
+-		v.Args[j] = v.Args[n]
+-		v.Args[n] = nil
+-		v.Args = v.Args[:n]
++		c.removePhiArg(v, j)
+ 		phielimValue(v)
+ 		// Note: this is trickier than it looks. Replacing
+ 		// a Phi with a Copy can in general cause problems because
+diff --git a/src/cmd/compile/internal/ssa/fuse_branchredirect.go b/src/cmd/compile/internal/ssa/fuse_branchredirect.go
+index ba5220bd87..751dca7468 100644
+--- a/src/cmd/compile/internal/ssa/fuse_branchredirect.go
++++ b/src/cmd/compile/internal/ssa/fuse_branchredirect.go
+@@ -78,11 +78,7 @@ func fuseBranchRedirect(f *Func) bool {
+ 					if v.Op != OpPhi {
+ 						continue
+ 					}
+-					n := len(v.Args)
+-					v.Args[k].Uses--
+-					v.Args[k] = v.Args[n-1]
+-					v.Args[n-1] = nil
+-					v.Args = v.Args[:n-1]
++					b.removePhiArg(v, k)
+ 					phielimValue(v)
+ 				}
+ 				// Fix up child to have one more predecessor.
+diff --git a/src/cmd/compile/internal/ssa/shortcircuit.go b/src/cmd/compile/internal/ssa/shortcircuit.go
+index 29abf3c591..c0b9eacf41 100644
+--- a/src/cmd/compile/internal/ssa/shortcircuit.go
++++ b/src/cmd/compile/internal/ssa/shortcircuit.go
+@@ -196,11 +196,7 @@ func shortcircuitBlock(b *Block) bool {
+ 
+ 	// Remove b's incoming edge from p.
+ 	b.removePred(cidx)
+-	n := len(b.Preds)
+-	ctl.Args[cidx].Uses--
+-	ctl.Args[cidx] = ctl.Args[n]
+-	ctl.Args[n] = nil
+-	ctl.Args = ctl.Args[:n]
++	b.removePhiArg(ctl, cidx)
+ 
+ 	// Redirect p's outgoing edge to t.
+ 	p.Succs[pi] = Edge{t, len(t.Preds)}

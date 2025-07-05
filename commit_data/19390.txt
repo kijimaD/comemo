@@ -8,6 +8,19 @@ Date:   Mon May 19 10:04:34 2014 +1000
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/94610043
-
+---
  CONTRIBUTORS | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index d672b07cc5..41ce3988be 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -116,6 +116,7 @@ Brian G. Merrell <bgmerrell@gmail.com>
+ Brian Gitonga Marete <marete@toshnix.com>
+ Brian Ketelsen <bketelsen@gmail.com>
+ Brian Slesinsky <skybrian@google.com>
++Burcu Dogan <jbd@google.com>
+ Caine Tighe <arctanofyourface@gmail.com>
+ Caleb Spare <cespare@gmail.com>
+ Carl Chatfield <carlchatfield@gmail.com>

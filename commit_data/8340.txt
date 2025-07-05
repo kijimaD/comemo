@@ -8,6 +8,20 @@ Date:   Mon May 9 06:38:04 2011 -0700
     R=nigeltao
     CC=golang-dev
     https://golang.org/cl/4526044
-
+---
  src/pkg/image/gif/reader.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/image/gif/reader.go b/src/pkg/image/gif/reader.go
+index 6548090dd9..d37f52689e 100644
+--- a/src/pkg/image/gif/reader.go
++++ b/src/pkg/image/gif/reader.go
+@@ -306,7 +306,7 @@ func (d *decoder) readGraphicControl() os.Error {
+ 	}
+ 	d.flags = d.tmp[1]
+ 	d.delayTime = int(d.tmp[2]) | int(d.tmp[3])<<8
+-	if d.flags&gcTransparentColorSet == 0 {
++	if d.flags&gcTransparentColorSet != 0 {
+ 		d.transparentIndex = d.tmp[4]
+ 		d.setTransparency(d.globalColorMap)
+ 	}

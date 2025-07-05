@@ -16,7 +16,69 @@ Date:   Fri Jun 25 13:40:30 2021 -0700
     Run-TryBot: Caleb Spare <cespare@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-
+---
  src/cmd/go/testdata/script/test_benchmark_1x.txt | 37 ++++++++++++++++++++++++
  src/testing/benchmark.go                         |  7 ++++-
  2 files changed, 43 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/testdata/script/test_benchmark_1x.txt b/src/cmd/go/testdata/script/test_benchmark_1x.txt
+new file mode 100644
+index 0000000000..b1d4c39c16
+--- /dev/null
++++ b/src/cmd/go/testdata/script/test_benchmark_1x.txt
+@@ -0,0 +1,37 @@
++# Test that -benchtime 1x only runs a total of 1 loop iteration.
++# See golang.org/issue/32051.
++
++go test -run ^$ -bench . -benchtime 1x
++
++-- go.mod --
++module bench
++
++go 1.16
++-- x_test.go --
++package bench
++
++import (
++	"fmt"
++	"os"
++	"testing"
++)
++
++var called = false
++
++func TestMain(m *testing.M) {
++	m.Run()
++	if !called {
++		fmt.Println("benchmark never called")
++		os.Exit(1)
++	}
++}
++
++func Benchmark(b *testing.B) {
++	if b.N > 1 {
++		b.Fatalf("called with b.N=%d; want b.N=1 only", b.N)
++	}
++	if called {
++		b.Fatal("called twice")
++	}
++	called = true
++}
+diff --git a/src/testing/benchmark.go b/src/testing/benchmark.go
+index 30fa106dd4..1ce637e137 100644
+--- a/src/testing/benchmark.go
++++ b/src/testing/benchmark.go
+@@ -299,7 +299,12 @@ func (b *B) launch() {
+ 
+ 	// Run the benchmark for at least the specified amount of time.
+ 	if b.benchTime.n > 0 {
+-		b.runN(b.benchTime.n)
++		// We already ran a single iteration in run1.
++		// If -benchtime=1x was requested, use that result.
++		// See https://golang.org/issue/32051.
++		if b.benchTime.n > 1 {
++			b.runN(b.benchTime.n)
++		}
+ 	} else {
+ 		d := b.benchTime.d
+ 		for n := int64(1); !b.failed && b.duration < d && n < 1e9; {

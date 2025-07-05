@@ -7,6 +7,21 @@ Date:   Mon Apr 9 14:43:52 2018 -0400
     Change-Id: Ic507cb740395e76d1d011a5a2f395b96c3d172a2
     Reviewed-on: https://go-review.googlesource.com/105915
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/crypto/rsa/rsa.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/crypto/rsa/rsa.go b/src/crypto/rsa/rsa.go
+index c9fa6fbc35..38cd568437 100644
+--- a/src/crypto/rsa/rsa.go
++++ b/src/crypto/rsa/rsa.go
+@@ -42,7 +42,8 @@ type PublicKey struct {
+ 	E int      // public exponent
+ }
+ 
+-// Size returns the number of bytes for signatures from this key.
++// Size returns the modulus size in bytes. Raw signatures and ciphertexts
++// for or by this public key will have the same size.
+ func (pub *PublicKey) Size() int {
+ 	return (pub.N.BitLen() + 7) / 8
+ }

@@ -16,6 +16,20 @@ Date:   Thu Feb 6 18:42:28 2025 +0000
     Reviewed-by: Jorropo <jorropo.pgm@gmail.com>
     Auto-Submit: Jorropo <jorropo.pgm@gmail.com>
     Reviewed-by: Roland Shoemaker <roland@golang.org>
-
+---
  src/crypto/aes/aes.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/crypto/aes/aes.go b/src/crypto/aes/aes.go
+index 5bc2d13d67..22ea8819ed 100644
+--- a/src/crypto/aes/aes.go
++++ b/src/crypto/aes/aes.go
+@@ -30,7 +30,7 @@ func (k KeySizeError) Error() string {
+ }
+ 
+ // NewCipher creates and returns a new [cipher.Block].
+-// The key argument should be the AES key,
++// The key argument must be the AES key,
+ // either 16, 24, or 32 bytes to select
+ // AES-128, AES-192, or AES-256.
+ func NewCipher(key []byte) (cipher.Block, error) {

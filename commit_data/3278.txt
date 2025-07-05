@@ -7,9 +7,93 @@ Date:   Tue Sep 15 14:11:43 2009 -0700
     R=ken
     OCL=34657
     CL=34657
-
+---
  src/cmd/gc/gen.c       |  5 +----
  src/cmd/gc/range.c     |  2 +-
  src/cmd/gc/typecheck.c |  2 +-
  src/cmd/gc/walk.c      | 14 ++++++++++++++
  4 files changed, 17 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/gc/gen.c b/src/cmd/gc/gen.c
+index 8c00c58987..b7c2474bf2 100644
+--- a/src/cmd/gc/gen.c
++++ b/src/cmd/gc/gen.c
+@@ -48,12 +48,8 @@ allocparams(void)
+ 		}
+ 		if(n->op != ONAME || n->class != PAUTO)
+ 			continue;
+-		lineno = n->lineno;
+-		typecheck(&n, Erv | Easgn);	// only needed for unused variables
+ 		if(n->type == T)
+ 			continue;
+-	//	if(!n->used && n->sym->name[0] != '&')
+-	//		yyerror("%S declared and not used", n->sym);
+ 		dowidth(n->type);
+ 		w = n->type->width;
+ 		if(w >= 100000000)
+@@ -447,6 +443,7 @@ cgen_discard(Node *nr)
+ 
+ 	switch(nr->op) {
+ 	case ONAME:
++		gused(nr);
+ 		break;
+ 
+ 	// unary
+diff --git a/src/cmd/gc/range.c b/src/cmd/gc/range.c
+index 3e34906712..393dd6426a 100644
+--- a/src/cmd/gc/range.c
++++ b/src/cmd/gc/range.c
+@@ -82,7 +82,7 @@ out:
+ 	n->typecheck = 1;
+ 	for(ll=n->list; ll; ll=ll->next)
+ 		if(ll->n->typecheck == 0)
+-			typecheck(&ll->n, Erv);
++			typecheck(&ll->n, Erv | Easgn);
+ }
+ 
+ void
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 308ed90e33..2f2b6f6a13 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -1975,7 +1975,7 @@ out:
+ 	n->typecheck = 1;
+ 	for(ll=n->list; ll; ll=ll->next)
+ 		if(ll->n->typecheck == 0)
+-			typecheck(&ll->n, Erv);
++			typecheck(&ll->n, Erv | Easgn);
+ }
+ 
+ /*
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index e66a42ce23..7524cecedf 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -67,6 +67,9 @@ void
+ walk(Node *fn)
+ {
+ 	char s[50];
++	NodeList *l;
++	Node *n;
++	int lno;
+ 
+ 	curfn = fn;
+ 	if(debug['W']) {
+@@ -77,6 +80,17 @@ walk(Node *fn)
+ 		if(walkret(curfn->nbody))
+ 			yyerror("function ends without a return statement");
+ 	typechecklist(curfn->nbody, Etop);
++	lno = lineno;
++	for(l=fn->dcl; l; l=l->next) {
++		n = l->n;
++		if(n->op != ONAME || n->class != PAUTO)
++			continue;
++		lineno = n->lineno;
++		typecheck(&n, Erv | Easgn);	// only needed for unused variables
++		if(!n->used && n->sym->name[0] != '&')
++			yyerror("%S declared and not used", n->sym);
++	}
++	lineno = lno;
+ 	if(nerrors != 0)
+ 		return;
+ 	walkstmtlist(curfn->nbody);

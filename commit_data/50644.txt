@@ -20,6 +20,20 @@ Date:   Thu Nov 4 13:55:31 2021 -0400
     Run-TryBot: Katie Hockman <katie@golang.org>
     Reviewed-by: Roland Shoemaker <roland@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/internal/fuzz/fuzz.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/internal/fuzz/fuzz.go b/src/internal/fuzz/fuzz.go
+index aef1dee978..8bd40fe8bf 100644
+--- a/src/internal/fuzz/fuzz.go
++++ b/src/internal/fuzz/fuzz.go
+@@ -246,7 +246,7 @@ func CoordinateFuzzing(ctx context.Context, opts CoordinateFuzzingOpts) (err err
+ 					// Send it back to a worker for minimization. Disable inputC so
+ 					// other workers don't continue fuzzing.
+ 					c.crashMinimizing = &result
+-					fmt.Fprintf(c.opts.Log, "fuzz: minimizing %d-byte crash input...\n", len(result.entry.Data))
++					fmt.Fprintf(c.opts.Log, "fuzz: minimizing %d-byte crash file\n", len(result.entry.Data))
+ 					c.queueForMinimization(result, nil)
+ 				} else if !crashWritten {
+ 					// Found a crasher that's either minimized or not minimizable.

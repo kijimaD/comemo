@@ -14,7 +14,7 @@ Date:   Wed May 3 01:08:31 2017 +0200
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/crypto/des/const.go              |  2 ++
  src/crypto/md5/md5.go                |  2 ++
  src/crypto/rc4/rc4.go                |  5 ++---
@@ -28,3 +28,233 @@ Date:   Wed May 3 01:08:31 2017 +0200
  src/crypto/sha1/sha1block_s390x.go   |  2 +-
  src/crypto/sha1/sha1block_s390x.s    |  4 ++--
  12 files changed, 28 insertions(+), 23 deletions(-)
+
+diff --git a/src/crypto/des/const.go b/src/crypto/des/const.go
+index 2bd485ee80..781f075455 100644
+--- a/src/crypto/des/const.go
++++ b/src/crypto/des/const.go
+@@ -5,6 +5,8 @@
+ // Package des implements the Data Encryption Standard (DES) and the
+ // Triple Data Encryption Algorithm (TDEA) as defined
+ // in U.S. Federal Information Processing Standards Publication 46-3.
++//
++// DES is broken and should not be used anymore.
+ package des
+ 
+ // Used to perform an initial permutation of a 64-bit input block.
+diff --git a/src/crypto/md5/md5.go b/src/crypto/md5/md5.go
+index ce58d5e713..41afedd6a2 100644
+--- a/src/crypto/md5/md5.go
++++ b/src/crypto/md5/md5.go
+@@ -5,6 +5,8 @@
+ //go:generate go run gen.go -full -output md5block.go
+ 
+ // Package md5 implements the MD5 hash algorithm as defined in RFC 1321.
++//
++// MD5 is broken and should not be used anymore.
+ package md5
+ 
+ import (
+diff --git a/src/crypto/rc4/rc4.go b/src/crypto/rc4/rc4.go
+index bd04aee695..97534091d6 100644
+--- a/src/crypto/rc4/rc4.go
++++ b/src/crypto/rc4/rc4.go
+@@ -4,11 +4,10 @@
+ 
+ // Package rc4 implements RC4 encryption, as defined in Bruce Schneier's
+ // Applied Cryptography.
++//
++// RC4 is broken and should not be used anymore.
+ package rc4
+ 
+-// BUG(agl): RC4 is in common use but has design weaknesses that make
+-// it a poor choice for new protocols.
+-
+ import "strconv"
+ 
+ // A Cipher is an instance of RC4 using a particular key.
+diff --git a/src/crypto/sha1/sha1.go b/src/crypto/sha1/sha1.go
+index fbb2f94613..73a42e0090 100644
+--- a/src/crypto/sha1/sha1.go
++++ b/src/crypto/sha1/sha1.go
+@@ -2,7 +2,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Package sha1 implements the SHA1 hash algorithm as defined in RFC 3174.
++// Package sha1 implements the SHA-1 hash algorithm as defined in RFC 3174.
++//
++// SHA-1 is broken and should not be used anymore.
+ package sha1
+ 
+ import (
+@@ -14,10 +16,10 @@ func init() {
+ 	crypto.RegisterHash(crypto.SHA1, New)
+ }
+ 
+-// The size of a SHA1 checksum in bytes.
++// The size of a SHA-1 checksum in bytes.
+ const Size = 20
+ 
+-// The blocksize of SHA1 in bytes.
++// The blocksize of SHA-1 in bytes.
+ const BlockSize = 64
+ 
+ const (
+@@ -189,7 +191,7 @@ func (d *digest) constSum() [Size]byte {
+ 	return digest
+ }
+ 
+-// Sum returns the SHA1 checksum of the data.
++// Sum returns the SHA-1 checksum of the data.
+ func Sum(data []byte) [Size]byte {
+ 	var d digest
+ 	d.Reset()
+diff --git a/src/crypto/sha1/sha1_test.go b/src/crypto/sha1/sha1_test.go
+index 3e59a5defe..faa9916bc0 100644
+--- a/src/crypto/sha1/sha1_test.go
++++ b/src/crypto/sha1/sha1_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// SHA1 hash algorithm. See RFC 3174.
++// SHA-1 hash algorithm. See RFC 3174.
+ 
+ package sha1
+ 
+diff --git a/src/crypto/sha1/sha1block.go b/src/crypto/sha1/sha1block.go
+index fde3c981c0..1d37544940 100644
+--- a/src/crypto/sha1/sha1block.go
++++ b/src/crypto/sha1/sha1block.go
+@@ -11,7 +11,7 @@ const (
+ 	_K3 = 0xCA62C1D6
+ )
+ 
+-// blockGeneric is a portable, pure Go version of the SHA1 block step.
++// blockGeneric is a portable, pure Go version of the SHA-1 block step.
+ // It's used by sha1block_generic.go and tests.
+ func blockGeneric(dig *digest, p []byte) {
+ 	var w [16]uint32
+diff --git a/src/crypto/sha1/sha1block_386.s b/src/crypto/sha1/sha1block_386.s
+index 46f5d79c09..0a7e45a79c 100644
+--- a/src/crypto/sha1/sha1block_386.s
++++ b/src/crypto/sha1/sha1block_386.s
+@@ -4,7 +4,7 @@
+ 
+ #include "textflag.h"
+ 
+-// SHA1 block routine. See sha1block.go for Go equivalent.
++// SHA-1 block routine. See sha1block.go for Go equivalent.
+ //
+ // There are 80 rounds of 4 types:
+ //   - rounds 0-15 are type 1 and load data (ROUND1 macro).
+diff --git a/src/crypto/sha1/sha1block_amd64.s b/src/crypto/sha1/sha1block_amd64.s
+index 77c8ec3906..5356bc0543 100644
+--- a/src/crypto/sha1/sha1block_amd64.s
++++ b/src/crypto/sha1/sha1block_amd64.s
+@@ -13,7 +13,7 @@
+ 
+ #include "textflag.h"
+ 
+-// SHA1 block routine. See sha1block.go for Go equivalent.
++// SHA-1 block routine. See sha1block.go for Go equivalent.
+ //
+ // There are 80 rounds of 4 types:
+ //   - rounds 0-15 are type 1 and load data (ROUND1 macro).
+diff --git a/src/crypto/sha1/sha1block_amd64p32.s b/src/crypto/sha1/sha1block_amd64p32.s
+index 0159d238ae..e5404e8997 100644
+--- a/src/crypto/sha1/sha1block_amd64p32.s
++++ b/src/crypto/sha1/sha1block_amd64p32.s
+@@ -4,7 +4,7 @@
+ 
+ #include "textflag.h"
+ 
+-// SHA1 block routine. See sha1block.go for Go equivalent.
++// SHA-1 block routine. See sha1block.go for Go equivalent.
+ //
+ // There are 80 rounds of 4 types:
+ //   - rounds 0-15 are type 1 and load data (ROUND1 macro).
+diff --git a/src/crypto/sha1/sha1block_arm.s b/src/crypto/sha1/sha1block_arm.s
+index 9c768017c1..055edc9f3f 100644
+--- a/src/crypto/sha1/sha1block_arm.s
++++ b/src/crypto/sha1/sha1block_arm.s
+@@ -6,7 +6,7 @@
+ 
+ #include "textflag.h"
+ 
+-// SHA1 block routine. See sha1block.go for Go equivalent.
++// SHA-1 block routine. See sha1block.go for Go equivalent.
+ //
+ // There are 80 rounds of 4 types:
+ //   - rounds 0-15 are type 1 and load data (ROUND1 macro).
+@@ -25,11 +25,11 @@
+ // Register definitions
+ #define Rdata	R0	// Pointer to incoming data
+ #define Rconst	R1	// Current constant for SHA round
+-#define Ra	R2		// SHA1 accumulator
+-#define Rb	R3		// SHA1 accumulator
+-#define Rc	R4		// SHA1 accumulator
+-#define Rd	R5		// SHA1 accumulator
+-#define Re	R6		// SHA1 accumulator
++#define Ra	R2		// SHA-1 accumulator
++#define Rb	R3		// SHA-1 accumulator
++#define Rc	R4		// SHA-1 accumulator
++#define Rd	R5		// SHA-1 accumulator
++#define Re	R6		// SHA-1 accumulator
+ #define Rt0	R7		// Temporary
+ #define Rt1	R8		// Temporary
+ // r9, r10 are forbidden
+@@ -143,7 +143,7 @@ TEXT	·block(SB), 0, $352-16
+ 	ADD	Rdata, Rt0
+ 	MOVW	Rt0, p_end	// pointer to end of data
+ 
+-	// Load up initial SHA1 accumulator
++	// Load up initial SHA-1 accumulator
+ 	MOVW	dig+0(FP), Rt0
+ 	MOVM.IA (Rt0), [Ra,Rb,Rc,Rd,Re]
+ 
+@@ -210,7 +210,7 @@ loop4:	ROUND4(Ra, Rb, Rc, Rd, Re)
+ 	CMP	Rt0, Rdata
+ 	BLO	loop
+ 
+-	// Save final SHA1 accumulator
++	// Save final SHA-1 accumulator
+ 	MOVW	dig+0(FP), Rt0
+ 	MOVM.IA [Ra,Rb,Rc,Rd,Re], (Rt0)
+ 
+diff --git a/src/crypto/sha1/sha1block_s390x.go b/src/crypto/sha1/sha1block_s390x.go
+index aac7c1182d..340704aee2 100644
+--- a/src/crypto/sha1/sha1block_s390x.go
++++ b/src/crypto/sha1/sha1block_s390x.go
+@@ -5,7 +5,7 @@
+ package sha1
+ 
+ // featureCheck reports whether the CPU supports the
+-// SHA1 compute intermediate message digest (KIMD)
++// SHA-1 compute intermediate message digest (KIMD)
+ // function code.
+ func featureCheck() bool
+ 
+diff --git a/src/crypto/sha1/sha1block_s390x.s b/src/crypto/sha1/sha1block_s390x.s
+index a9c4b085ed..3c71998645 100644
+--- a/src/crypto/sha1/sha1block_s390x.s
++++ b/src/crypto/sha1/sha1block_s390x.s
+@@ -10,7 +10,7 @@ TEXT ·featureCheck(SB),NOSPLIT,$16-1
+ 	XOR	R0, R0         // query function code is 0
+ 	WORD    $0xB93E0006    // KIMD (R6 is ignored)
+ 	MOVBZ	tmp-16(SP), R4 // get the first byte
+-	AND	$0x40, R4      // bit 1 (big endian) for SHA1
++	AND	$0x40, R4      // bit 1 (big endian) for SHA-1
+ 	CMPBEQ	R4, $0, nosha1
+ 	MOVB	$1, ret+0(FP)
+ 	RET
+@@ -23,7 +23,7 @@ TEXT ·block(SB),NOSPLIT,$0-32
+ 	MOVBZ	·useAsm(SB), R4
+ 	LMG	dig+0(FP), R1, R3 // R2 = &p[0], R3 = len(p)
+ 	CMPBNE	R4, $1, generic
+-	MOVBZ	$1, R0        // SHA1 function code
++	MOVBZ	$1, R0        // SHA-1 function code
+ loop:
+ 	WORD	$0xB93E0002   // KIMD R2
+ 	BVS	loop          // continue if interrupted

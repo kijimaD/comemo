@@ -20,8 +20,81 @@ Date:   Fri Aug 10 16:28:48 2018 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/cmd/go/internal/modload/load.go            | 14 ++++++++++++++
  src/cmd/go/testdata/script/mod_fs_patterns.txt | 12 ++++++++++++
  src/cmd/go/testdata/script/mod_list_dir.txt    |  5 ++++-
  3 files changed, 30 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index b00f81458f..5ca2ed2d10 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -116,10 +116,24 @@ func ImportPaths(patterns []string) []*search.Match {
+ 					} else if path := pathInModuleCache(dir); path != "" {
+ 						pkg = path
+ 					} else {
++						pkg = ""
+ 						if !iterating {
+ 							base.Errorf("go: directory %s outside available modules", base.ShortPath(dir))
+ 						}
++					}
++					info, err := os.Stat(dir)
++					if err != nil || !info.IsDir() {
++						// If the directory does not exist,
++						// don't turn it into an import path
++						// that will trigger a lookup.
+ 						pkg = ""
++						if !iterating {
++							if err != nil {
++								base.Errorf("go: no such directory %v", m.Pattern)
++							} else {
++								base.Errorf("go: %s is not a directory", m.Pattern)
++							}
++						}
+ 					}
+ 					m.Pkgs[i] = pkg
+ 				}
+diff --git a/src/cmd/go/testdata/script/mod_fs_patterns.txt b/src/cmd/go/testdata/script/mod_fs_patterns.txt
+index b5350c3eed..d7d3e0321b 100644
+--- a/src/cmd/go/testdata/script/mod_fs_patterns.txt
++++ b/src/cmd/go/testdata/script/mod_fs_patterns.txt
+@@ -28,6 +28,18 @@ stdout ^m/vendor$
+ stdout ^m/y$
+ ! stdout ^m/y/z
+ 
++# non-existent directory should not prompt lookups
++! go build -mod=readonly example.com/nonexist
++stderr 'import lookup disabled'
++
++! go build -mod=readonly ./nonexist
++! stderr 'import lookup disabled'
++stderr '^go: no such directory ./nonexist'
++
++! go build -mod=readonly ./go.mod
++! stderr 'import lookup disabled'
++stderr '^go: ./go.mod is not a directory'
++
+ -- x/go.mod --
+ module m
+ 
+diff --git a/src/cmd/go/testdata/script/mod_list_dir.txt b/src/cmd/go/testdata/script/mod_list_dir.txt
+index 29cde71fb8..800f277559 100644
+--- a/src/cmd/go/testdata/script/mod_list_dir.txt
++++ b/src/cmd/go/testdata/script/mod_list_dir.txt
+@@ -9,11 +9,14 @@ go list -f '{{.ImportPath}}' $GOROOT/src/math
+ stdout ^math$
+ go list -f '{{.ImportPath}}' .
+ stdout ^x$
++! go list -f '{{.ImportPath}}' $GOPATH/pkg/mod/rsc.io/quote@v1.5.2
++stderr '^go: no such directory.*quote@v1.5.2'
++go mod download rsc.io/quote@v1.5.2
+ go list -f '{{.ImportPath}}' $GOPATH/pkg/mod/rsc.io/quote@v1.5.2
+ stdout '^rsc.io/quote$'
+ go list -f '{{.ImportPath}}' $GOPATH/pkg/mod/rsc.io/sampler@v1.3.0
+ stdout '^rsc.io/sampler$'
+-go get rsc.io/sampler@v1.3.1
++go get -d rsc.io/sampler@v1.3.1
+ go list -f '{{.ImportPath}}' $GOPATH/pkg/mod/rsc.io/sampler@v1.3.1
+ stdout '^rsc.io/sampler$'
+ ! go list -f '{{.ImportPath}}' $GOPATH/pkg/mod/rsc.io/sampler@v1.3.0

@@ -9,7 +9,38 @@ Date:   Thu Aug 13 13:12:17 2015 -0700
     Change-Id: If7ba7be38a436dbd0dd443828ddd7ebf6e35be0e
     Reviewed-on: https://go-review.googlesource.com/13632
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/ssa/gen/AMD64Ops.go | 2 +-
  src/cmd/compile/internal/ssa/opGen.go        | 6 +++++-
  2 files changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+index 903eea3057..9e8b2fa018 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+@@ -290,7 +290,7 @@ func init() {
+ 
+ 		// Pseudo-ops
+ 		{name: "LoweredPanicNilCheck"},
+-		{name: "LoweredGetG"},
++		{name: "LoweredGetG", reg: gp01},
+ 	}
+ 
+ 	var AMD64blocks = []blockData{
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 425c7e468c..6f412806c8 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -2123,7 +2123,11 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name: "LoweredGetG",
+-		reg:  regInfo{},
++		reg: regInfo{
++			outputs: []regMask{
++				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++		},
+ 	},
+ 
+ 	{

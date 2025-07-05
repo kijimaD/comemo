@@ -7,6 +7,46 @@ Date:   Wed Apr 13 16:26:25 2011 -0400
     TBR=r
     CC=golang-dev
     https://golang.org/cl/4396045
-
+---
  src/libmach/freebsd.c | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/libmach/freebsd.c b/src/libmach/freebsd.c
+index 531861e94d..45de966ec0 100644
+--- a/src/libmach/freebsd.c
++++ b/src/libmach/freebsd.c
+@@ -8,24 +8,28 @@ int
+ ctlproc(int pid, char *msg)
+ {
+ 	sysfatal("ctlproc unimplemented in FreeBSD");
++	return -1;
+ }
+ 
+ char*
+ proctextfile(int pid)
+ {
+ 	sysfatal("proctextfile unimplemented in FreeBSD");
++	return nil;
+ }
+ 
+ char*
+ procstatus(int pid)
+ {
+ 	sysfatal("procstatus unimplemented in FreeBSD");
++	return nil;
+ }
+ 
+ Map*
+ attachproc(int pid, Fhdr *fp)
+ {
+ 	sysfatal("attachproc unimplemented in FreeBSD");
++	return nil;
+ }
+ 
+ void
+@@ -38,4 +42,5 @@ int
+ procthreadpids(int pid, int *p, int np)
+ {
+ 	sysfatal("procthreadpids unimplemented in FreeBSD");
++	return -1;
+ }

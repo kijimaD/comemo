@@ -12,6 +12,21 @@ Date:   Wed Jan 12 17:50:55 2022 -0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Trust: Patrik Nyblom <pnyb@google.com>
-
+---
  src/runtime/syscall_windows_test.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/runtime/syscall_windows_test.go b/src/runtime/syscall_windows_test.go
+index dcd390ff9d..034a1d84db 100644
+--- a/src/runtime/syscall_windows_test.go
++++ b/src/runtime/syscall_windows_test.go
+@@ -628,6 +628,9 @@ func TestOutputDebugString(t *testing.T) {
+ }
+ 
+ func TestRaiseException(t *testing.T) {
++	if testenv.Builder() == "windows-amd64-2012" {
++		testenv.SkipFlaky(t, 49681)
++	}
+ 	o := runTestProg(t, "testprog", "RaiseException")
+ 	if strings.Contains(o, "RaiseException should not return") {
+ 		t.Fatalf("RaiseException did not crash program: %v", o)

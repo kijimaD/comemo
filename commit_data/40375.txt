@@ -18,9 +18,106 @@ Date:   Fri Mar 8 02:33:59 2019 -0500
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/internal/modfetch/fetch.go         |  3 +++
  src/cmd/go/internal/modload/init.go           | 11 ++++++----
  src/cmd/go/testdata/script/mod_file_proxy.txt |  7 +++++++
  src/cmd/go/testdata/script/sum_readonly.txt   | 29 +++++++++++++++++++++++++++
  4 files changed, 46 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/internal/modfetch/fetch.go b/src/cmd/go/internal/modfetch/fetch.go
+index 2858281bef..8f9e50da75 100644
+--- a/src/cmd/go/internal/modfetch/fetch.go
++++ b/src/cmd/go/internal/modfetch/fetch.go
+@@ -509,6 +509,9 @@ func WriteGoSum() {
+ 		// Don't bother opening the go.sum file if we don't have anything to add.
+ 		return
+ 	}
++	if cfg.BuildMod == "readonly" {
++		base.Fatalf("go: updates to go.sum needed, disabled by -mod=readonly")
++	}
+ 
+ 	// We want to avoid races between creating the lockfile and deleting it, but
+ 	// we also don't want to leave a permanent lockfile in the user's repository.
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index ef2786109b..65046fd3c3 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -665,18 +665,21 @@ func WriteGoMod() {
+ 		base.Fatalf("go: %v", err)
+ 	}
+ 
++	dirty := !bytes.Equal(new, modFileData)
++	if dirty && cfg.BuildMod == "readonly" {
++		// If we're about to fail due to -mod=readonly,
++		// prefer to report a dirty go.mod over a dirty go.sum
++		base.Fatalf("go: updates to go.mod needed, disabled by -mod=readonly")
++	}
+ 	// Always update go.sum, even if we didn't change go.mod: we may have
+ 	// downloaded modules that we didn't have before.
+ 	modfetch.WriteGoSum()
+ 
+-	if bytes.Equal(new, modFileData) {
++	if !dirty {
+ 		// We don't need to modify go.mod from what we read previously.
+ 		// Ignore any intervening edits.
+ 		return
+ 	}
+-	if cfg.BuildMod == "readonly" {
+-		base.Fatalf("go: updates to go.mod needed, disabled by -mod=readonly")
+-	}
+ 
+ 	unlock := modfetch.SideLock()
+ 	defer unlock()
+diff --git a/src/cmd/go/testdata/script/mod_file_proxy.txt b/src/cmd/go/testdata/script/mod_file_proxy.txt
+index 8de6d7dbb8..570ffc761a 100644
+--- a/src/cmd/go/testdata/script/mod_file_proxy.txt
++++ b/src/cmd/go/testdata/script/mod_file_proxy.txt
+@@ -23,3 +23,10 @@ require rsc.io/quote v1.5.1
+ -- $WORK/x/x.go --
+ package x
+ import _ "rsc.io/quote"
++-- $WORK/x/go.sum --
++golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c h1:pvCbr/wm8HzDD3fVywevekufpn6tCGPY3spdHeZJEsw=
++golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
++rsc.io/quote v1.5.1 h1:ZE3OgnVGrhXtFkGw90HwW992ZRqcdli/33DLqEYsoxA=
++rsc.io/quote v1.5.1/go.mod h1:LzX7hefJvL54yjefDEDHNONDjII0t9xZLPXsUe+TKr0=
++rsc.io/sampler v1.3.0 h1:HLGR/BgEtI3r0uymSP/nl2uPLsUnNJX8toRyhfpBTII=
++rsc.io/sampler v1.3.0/go.mod h1:T1hPZKmBbMNahiBKFy5HrXp6adAjACjK9JXDnKaTXpA=
+\ No newline at end of file
+diff --git a/src/cmd/go/testdata/script/sum_readonly.txt b/src/cmd/go/testdata/script/sum_readonly.txt
+new file mode 100644
+index 0000000000..6a24adbdf4
+--- /dev/null
++++ b/src/cmd/go/testdata/script/sum_readonly.txt
+@@ -0,0 +1,29 @@
++# Test that go.sum does not get updated when -mod=readonly flag is set
++env GO111MODULE=on
++
++go get rsc.io/quote
++go mod tidy
++
++# go.sum != dirty; -mod=readonly
++go build -mod=readonly
++
++# dirty up go.sum by removing it.
++rm go.sum
++
++# go.sum == dirty; -mod=readonly
++! go build -mod=readonly
++
++stderr 'go: updates to go.sum needed, disabled by -mod=readonly'
++
++-- go.mod --
++module m
++
++-- main.go --
++
++package main
++
++import "rsc.io/quote"
++
++func main() {
++    println(quote.Hello())
++}
+\ No newline at end of file

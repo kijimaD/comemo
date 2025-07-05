@@ -33,7 +33,7 @@ Date:   Tue Jul 28 16:38:59 2009 -0700
     DELTA=478  (275 added, 108 deleted, 95 changed)
     OCL=32185
     CL=32380
-
+---
  src/cmd/godoc/godoc.go                 |   6 +-
  src/cmd/gofmt/gofmt.go                 |   8 +-
  src/cmd/gofmt/test.sh                  |   8 +-
@@ -47,3 +47,1176 @@ Date:   Tue Jul 28 16:38:59 2009 -0700
  src/pkg/go/printer/testdata/golden1.x  |   2 +
  src/pkg/go/printer/testdata/source1.go |  27 ++-
  12 files changed, 359 insertions(+), 190 deletions(-)
+
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index bb3913233f..cece14d44b 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -207,11 +207,7 @@ func parse(path string, mode uint) (*ast.File, *parseErrors) {
+ func nodeText(node interface{}) []byte {
+ 	var buf bytes.Buffer;
+ 	tw := makeTabwriter(&buf);
+-	mode := uint(0);
+-	if _, isProgram := node.(*ast.File); isProgram {
+-		mode = printer.DocComments;
+-	}
+-	printer.Fprint(tw, node, mode);
++	printer.Fprint(tw, node, 0);
+ 	tw.Flush();
+ 	return buf.Data();
+ }
+diff --git a/src/cmd/gofmt/gofmt.go b/src/cmd/gofmt/gofmt.go
+index 5ece0d70dc..27feee759a 100644
+--- a/src/cmd/gofmt/gofmt.go
++++ b/src/cmd/gofmt/gofmt.go
+@@ -28,6 +28,7 @@ var (
+ 
+ 	// operation modes
+ 	allgo = flag.Bool("a", false, "include all .go files for package");
++	comments = flag.Bool("c", false, "omit comments");
+ 	silent = flag.Bool("s", false, "silent mode: parsing only");
+ 	verbose = flag.Bool("v", false, "verbose mode: trace parsing");
+ 	exports = flag.Bool("x", false, "show exports only");
+@@ -48,7 +49,10 @@ func usage() {
+ 
+ 
+ func parserMode() uint {
+-	mode := parser.ParseComments;
++	mode := uint(0);
++	if !*comments {
++		mode |= parser.ParseComments;
++	}
+ 	if *verbose {
+ 		mode |= parser.Trace;
+ 	}
+@@ -99,7 +103,7 @@ func getPackage(path string) (*ast.Package, os.Error) {
+ 
+ 
+ func printerMode() uint {
+-	mode := printer.DocComments;
++	mode := uint(0);
+ 	if *optcommas {
+ 		mode |= printer.OptCommas;
+ 	}
+diff --git a/src/cmd/gofmt/test.sh b/src/cmd/gofmt/test.sh
+index d37070bad1..cbe9f809b0 100755
+--- a/src/cmd/gofmt/test.sh
++++ b/src/cmd/gofmt/test.sh
+@@ -30,11 +30,15 @@ apply1() {
+ 	#echo $1 $2
+ 	case `basename $F` in
+ 	# files with errors (skip them)
+-	# the following have semantic errors: bug039.go | bug040.go
++	# the following have semantic errors:
++	#   bug039.go | bug040.go
++	# the following are not idempotent at the moment because of comment formatting:
++	comment.go | net.go | powser1.go | powser2.go | bug052.go | simpbool.go | "shift.go" | range.go | \
++	\
+ 	test_errors.go | calc.go | method1.go | selftest1.go | func3.go | const2.go | \
+ 	bug014.go | bug025.go | bug029.go | bug032.go | bug039.go | bug040.go | bug050.go |  bug068.go | \
+ 	bug088.go | bug083.go | bug106.go | bug121.go | bug125.go | bug126.go | bug132.go | bug133.go | \
+-	bug134.go | bug160.go | bug163.go | bug166.go ) ;;
++	bug134.go | bug160.go | bug163.go | bug166.go | bug169.go ) ;;
+ 	* ) $1 $2; count $F;;
+ 	esac
+ }
+diff --git a/src/pkg/go/ast/ast.go b/src/pkg/go/ast/ast.go
+index 781ba266a5..cc1d69213d 100644
+--- a/src/pkg/go/ast/ast.go
++++ b/src/pkg/go/ast/ast.go
+@@ -89,12 +89,12 @@ type Comment struct {
+ }
+ 
+ 
+-// A CommentGroup represents a sequence of single comments
++// A CommentGroup represents a sequence of comments
+ // with no other tokens and no empty lines between.
+ //
+ type CommentGroup struct {
+ 	List []*Comment;
+-	EndLine int;  // line where the last comment in the group ends
++	Next *CommentGroup;  // next comment group in source order
+ }
+ 
+ 
+@@ -116,7 +116,7 @@ type (
+ 		Names []*Ident;  // field/method/parameter names; nil if anonymous field
+ 		Type Expr;  // field/method/parameter type
+ 		Tag []*StringLit;  // field tag; or nil
+-		Comment *CommentGroup;  // trailing comments on same line; or nil
++		Comment *CommentGroup;  // line comments; or nil
+ 	};
+ )
+ 
+@@ -675,7 +675,7 @@ type (
+ 		Doc *CommentGroup;  // associated documentation; or nil
+ 		Name *Ident;  // local package name (including "."); or nil
+ 		Path []*StringLit;  // package path
+-		Comment *CommentGroup;  // trailing comments on same line; or nil
++		Comment *CommentGroup;  // line comments; or nil
+ 	};
+ 
+ 	// A ValueSpec node represents a constant or variable declaration
+@@ -685,7 +685,7 @@ type (
+ 		Names []*Ident;  // value names
+ 		Type Expr;  // value type; or nil
+ 		Values []Expr;  // initial values; or nil
+-		Comment *CommentGroup;  // trailing comments on same line; or nil
++		Comment *CommentGroup;  // line comments; or nil
+ 	};
+ 
+ 	// A TypeSpec node represents a type declaration (TypeSpec production).
+@@ -693,7 +693,7 @@ type (
+ 		Doc *CommentGroup;  // associated documentation; or nil
+ 		Name *Ident;  // type name
+ 		Type Expr;
+-		Comment *CommentGroup;  // trailing comments on same line; or nil
++		Comment *CommentGroup;  // line comments; or nil
+ 	};
+ )
+ 
+@@ -773,7 +773,7 @@ type File struct {
+ 	token.Position;  // position of "package" keyword
+ 	Name *Ident;  // package name
+ 	Decls []Decl;  // top-level declarations
+-	Comments []*CommentGroup;  // list of unassociated comments
++	Comments *CommentGroup;  // list of all comments in the source file
+ }
+ 
+ 
+diff --git a/src/pkg/go/ast/filter.go b/src/pkg/go/ast/filter.go
+index 1858db8f52..b85eddb400 100644
+--- a/src/pkg/go/ast/filter.go
++++ b/src/pkg/go/ast/filter.go
+@@ -169,7 +169,7 @@ func filterDecl(decl Decl) bool {
+ 
+ 
+ // FilterExports trims an AST in place such that only exported nodes remain:
+-// all top-level identififiers which are not exported and their associated
++// all top-level identifiers which are not exported and their associated
+ // information (such as type, initial value, or function body) are removed.
+ // Non-exported fields and methods of exported types are stripped, and the
+ // function bodies of exported functions are set to nil.
+diff --git a/src/pkg/go/doc/doc.go b/src/pkg/go/doc/doc.go
+index 860d6d54c0..1675353232 100644
+--- a/src/pkg/go/doc/doc.go
++++ b/src/pkg/go/doc/doc.go
+@@ -27,6 +27,11 @@ type typeDoc struct {
+ 
+ 
+ // DocReader accumulates documentation for a single package.
++// It modifies the AST: Comments (declaration documentation)
++// that have been collected by the DocReader are set to nil
++// in the respective AST nodes so that they are not printed
++// twice (once when printing the documentation and once when
++// printing the corresponding AST node).
+ //
+ type DocReader struct {
+ 	name string;  // package name
+@@ -151,8 +156,8 @@ func (doc *DocReader) addDecl(decl ast.Decl) {
+ 					// makeTypeDocs below). Simpler data structures, but
+ 					// would lose GenDecl documentation if the TypeSpec
+ 					// has documentation as well.
+-					s := spec.(*ast.TypeSpec);
+-					doc.addType(&ast.GenDecl{d.Doc, d.Pos(), token.TYPE, noPos, []ast.Spec{s}, noPos});
++					doc.addType(&ast.GenDecl{d.Doc, d.Pos(), token.TYPE, noPos, []ast.Spec{spec}, noPos});
++					// A new GenDecl node is created, no need to nil out d.Doc.
+ 				}
+ 			case token.VAR:
+ 				// variables are always handled as a group
+@@ -197,7 +202,8 @@ func (doc *DocReader) AddFile(src *ast.File) {
+ 	// add package documentation
+ 	// TODO(gri) what to do if there are multiple files?
+ 	if src.Doc != nil {
+-		doc.doc = src.Doc
++		doc.doc = src.Doc;
++		src.Doc = nil;  // doc consumed - remove from ast.File node
+ 	}
+ 
+ 	// add all declarations
+@@ -206,7 +212,7 @@ func (doc *DocReader) AddFile(src *ast.File) {
+ 	}
+ 
+ 	// collect BUG(...) comments
+-	for _, c := range src.Comments {
++	for c := src.Comments; c != nil; c = c.Next {
+ 		text := c.List[0].Text;
+ 		cstr := string(text);
+ 		if m := bug_markers.Execute(cstr); len(m) > 0 {
+@@ -215,10 +221,11 @@ func (doc *DocReader) AddFile(src *ast.File) {
+ 				// non-empty BUG comment; collect comment without BUG prefix
+ 				list := copyCommentList(c.List);
+ 				list[0].Text = text[m[1] : len(text)];
+-				doc.bugs.Push(&ast.CommentGroup{list, c.EndLine});
++				doc.bugs.Push(&ast.CommentGroup{list, nil});
+ 			}
+ 		}
+ 	}
++	src.Comments = nil;  // consumed unassociated comments - remove from ast.File node
+ }
+ 
+ // ----------------------------------------------------------------------------
+@@ -282,6 +289,7 @@ func makeValueDocs(v *vector.Vector) []*ValueDoc {
+ 	for i := range d {
+ 		decl := v.At(i).(*ast.GenDecl);
+ 		d[i] = &ValueDoc{astComment(decl.Doc), decl, i};
++		decl.Doc = nil;  // doc consumed - removed from AST
+ 	}
+ 	sort.Sort(sortValueDoc(d));
+ 	return d;
+@@ -310,6 +318,7 @@ func makeFuncDocs(m map[string] *ast.FuncDecl) []*FuncDoc {
+ 	for _, f := range m {
+ 		doc := new(FuncDoc);
+ 		doc.Doc = astComment(f.Doc);
++		f.Doc = nil;  // doc consumed - remove from ast.FuncDecl node
+ 		if f.Recv != nil {
+ 			doc.Recv = f.Recv.Type;
+ 		}
+@@ -359,10 +368,12 @@ func makeTypeDocs(m map[string] *typeDoc) []*TypeDoc {
+ 		typespec := old.decl.Specs[0].(*ast.TypeSpec);
+ 		t := new(TypeDoc);
+ 		doc := typespec.Doc;
++		typespec.Doc = nil;  // doc consumed - remove from ast.TypeSpec node
+ 		if doc == nil {
+ 			// no doc associated with the spec, use the declaration doc, if any
+ 			doc = old.decl.Doc;
+ 		}
++		old.decl.Doc = nil;  // doc consumed - remove from ast.Decl node
+ 		t.Doc = astComment(doc);
+ 		t.Type = typespec;
+ 		t.Factories = makeFuncDocs(old.factories);
+diff --git a/src/pkg/go/parser/parser.go b/src/pkg/go/parser/parser.go
+index 0f5582da93..270403aaca 100644
+--- a/src/pkg/go/parser/parser.go
++++ b/src/pkg/go/parser/parser.go
+@@ -22,17 +22,6 @@ import (
+ )
+ 
+ 
+-// Names to index the parser's commentIndex array.
+-const (
+-	leading = iota;  // index of the leading comments entry
+-	trailing;  // index of the trailing comments entry
+-)
+-
+-
+-// Initial value for parser.commentsIndex.
+-var noIndex = [2]int{-1, -1};
+-
+-
+ // noPos is used when there is no corresponding source position for a token.
+ var noPos token.Position;
+ 
+@@ -60,8 +49,10 @@ type parser struct {
+ 	indent uint;  // indentation used for tracing output
+ 
+ 	// Comments
+-	comments vector.Vector;  // list of collected, unassociated comment groups
+-	commentsIndex [2]int;  // comments indexes of last leading/trailing comment group; or -1
++	comments *ast.CommentGroup;  // list of collected comments
++	lastComment *ast.CommentGroup;  // last comment in the comments list
++	leadComment *ast.CommentGroup;  // the last lead comment
++	lineComment *ast.CommentGroup;  // the last line comment
+ 
+ 	// Next token
+ 	pos token.Position;  // token position
+@@ -90,8 +81,6 @@ func (p *parser) init(filename string, src []byte, mode uint) {
+ 	p.scanner.Init(filename, src, p, scannerMode(mode));
+ 	p.mode = mode;
+ 	p.trace = mode & Trace != 0;  // for convenience (p.trace is used frequently)
+-	p.comments.Init(0);
+-	p.commentsIndex = noIndex;
+ 	p.next();
+ }
+ 
+@@ -190,42 +179,49 @@ func (p *parser) consumeCommentGroup() int {
+ 		group[i] = list.At(i).(*ast.Comment);
+ 	}
+ 
+-	p.comments.Push(&ast.CommentGroup{group, endline});
++	// add comment group to the comments list
++	g := &ast.CommentGroup{group, nil};
++	if p.lastComment != nil {
++		p.lastComment.Next = g;
++	} else {
++		p.comments = g;
++	}
++	p.lastComment = g;
++
+ 	return endline;
+ }
+ 
+ 
+ // Advance to the next non-comment token. In the process, collect
+-// any comment groups encountered, and remember the last leading
+-// and trailing comments.
++// any comment groups encountered, and remember the last lead and
++// and line comments.
+ //
+-// A leading comment is a comment group that starts and ends in a
++// A lead comment is a comment group that starts and ends in a
+ // line without any other tokens and that is followed by a non-comment
+ // token on the line immediately after the comment group.
+ //
+-// A trailing comment is a comment group that follows a non-comment
++// A line comment is a comment group that follows a non-comment
+ // token on the same line, and that has no tokens after it on the line
+ // where it ends.
+ //
+-// Leading and trailing comments may be considered documentation
+-// that is stored in the AST. In that case they are removed from
+-// the parser's list of unassociated comments (via getComment).
++// Lead and line comments may be considered documentation that is
++// stored in the AST.
+ //
+ func (p *parser) next() {
+-	p.commentsIndex = noIndex;
++	p.leadComment = nil;
++	p.lineComment = nil;
+ 	line := p.pos.Line;  // current line
+ 	p.next0();
+ 
+ 	if p.tok == token.COMMENT {
+ 		if p.pos.Line == line {
+ 			// The comment is on same line as previous token; it
+-			// cannot be a leading comment but may be a trailing
+-			// comment.
++			// cannot be a lead comment but may be a line comment.
+ 			endline := p.consumeCommentGroup();
+ 			if p.pos.Line != endline {
+ 				// The next token is on a different line, thus
+-				// the last comment group is a trailing comment.
+-				p.commentsIndex[trailing] = p.comments.Len() - 1;
++				// the last comment group is a line comment.
++				p.lineComment = p.lastComment;
+ 			}
+ 		}
+ 
+@@ -237,27 +233,13 @@ func (p *parser) next() {
+ 
+ 		if endline >= 0 && endline+1 == p.pos.Line {
+ 			// The next token is following on the line immediately after the
+-			// comment group, thus the last comment group is a leading comment.
+-			p.commentsIndex[leading] = p.comments.Len() - 1;
++			// comment group, thus the last comment group is a lead comment.
++			p.leadComment = p.lastComment;
+ 		}
+ 	}
+ }
+ 
+ 
+-// Get leading/trailing comment group, if any.
+-func (p *parser) getComment(kind int) *ast.CommentGroup {
+-	i := p.commentsIndex[kind];
+-	if i >= 0 {
+-		// get comment and remove if from the list of unassociated comment groups
+-		c := p.comments.At(i).(*ast.CommentGroup);
+-		p.comments.Set(i, nil);  // clear entry
+-		p.commentsIndex[kind] = -1;  // comment was consumed
+-		return c;
+-	}
+-	return nil;
+-}
+-
+-
+ func (p *parser) errorExpected(pos token.Position, msg string) {
+ 	msg = "expected " + msg;
+ 	if pos.Offset == p.pos.Offset {
+@@ -435,7 +417,7 @@ func (p *parser) parseFieldDecl() *ast.Field {
+ 		defer un(trace(p, "FieldDecl"));
+ 	}
+ 
+-	doc := p.getComment(leading);
++	doc := p.leadComment;
+ 
+ 	// a list of identifiers looks like a list of type names
+ 	list := vector.New(0);
+@@ -496,9 +478,9 @@ func (p *parser) parseStructType() *ast.StructType {
+ 			list.Push(f);
+ 			if p.tok == token.SEMICOLON {
+ 				p.next();
+-				f.Comment = p.getComment(trailing);
++				f.Comment = p.lineComment;
+ 			} else {
+-				f.Comment = p.getComment(trailing);
++				f.Comment = p.lineComment;
+ 				break;
+ 			}
+ 		}
+@@ -680,7 +662,7 @@ func (p *parser) parseMethodSpec() *ast.Field {
+ 		defer un(trace(p, "MethodSpec"));
+ 	}
+ 
+-	doc := p.getComment(leading);
++	doc := p.leadComment;
+ 	var idents []*ast.Ident;
+ 	var typ ast.Expr;
+ 	x := p.parseQualifiedIdent();
+@@ -1680,7 +1662,7 @@ func (p *parser) parseStmt() ast.Stmt {
+ type parseSpecFunction func(p *parser, doc *ast.CommentGroup, getSemi bool) (spec ast.Spec, gotSemi bool)
+ 
+ 
+-// Consume semicolon if there is one and getSemi is set, and get any trailing comment.
++// Consume semicolon if there is one and getSemi is set, and get any line comment.
+ // Return the comment if any and indicate if a semicolon was consumed.
+ //
+ func (p *parser) parseComment(getSemi bool) (comment *ast.CommentGroup, gotSemi bool) {
+@@ -1688,7 +1670,7 @@ func (p *parser) parseComment(getSemi bool) (comment *ast.CommentGroup, gotSemi
+ 		p.next();
+ 		gotSemi = true;
+ 	}
+-	return p.getComment(trailing), gotSemi;
++	return p.lineComment, gotSemi;
+ }
+ 
+ 
+@@ -1772,7 +1754,7 @@ func (p *parser) parseGenDecl(keyword token.Token, f parseSpecFunction, getSemi
+ 		defer un(trace(p, keyword.String() + "Decl"));
+ 	}
+ 
+-	doc := p.getComment(leading);
++	doc := p.leadComment;
+ 	pos := p.expect(keyword);
+ 	var lparen, rparen token.Position;
+ 	list := vector.New(0);
+@@ -1780,7 +1762,7 @@ func (p *parser) parseGenDecl(keyword token.Token, f parseSpecFunction, getSemi
+ 		lparen = p.pos;
+ 		p.next();
+ 		for p.tok != token.RPAREN && p.tok != token.EOF {
+-			doc := p.getComment(leading);
++			doc := p.leadComment;
+ 			spec, semi := f(p, doc, true);  // consume semicolon if any
+ 			list.Push(spec);
+ 			if !semi {
+@@ -1845,7 +1827,7 @@ func (p *parser) parseFunctionDecl() *ast.FuncDecl {
+ 		defer un(trace(p, "FunctionDecl"));
+ 	}
+ 
+-	doc := p.getComment(leading);
++	doc := p.leadComment;
+ 	pos := p.expect(token.FUNC);
+ 
+ 	var recv *ast.Field;
+@@ -1883,13 +1865,7 @@ func (p *parser) parseDecl(getSemi bool) (decl ast.Decl, gotSemi bool) {
+ 
+ 	case token.FUNC:
+ 		decl = p.parseFunctionDecl();
+-		// Do not use parseComment here to consume a semicolon
+-		// because we don't want to remove a trailing comment
+-		// from the list of unassociated comments.
+-		if getSemi && p.tok == token.SEMICOLON {
+-			p.next();
+-			gotSemi = true;
+-		}
++		_, gotSemi := p.parseComment(getSemi);
+ 		return decl, gotSemi;
+ 
+ 	default:
+@@ -1915,7 +1891,7 @@ func (p *parser) parseFile() *ast.File {
+ 	}
+ 
+ 	// package clause
+-	comment := p.getComment(leading);
++	doc := p.leadComment;
+ 	pos := p.expect(token.PACKAGE);
+ 	ident := p.parseIdent();
+ 	var decls []ast.Decl;
+@@ -1946,22 +1922,5 @@ func (p *parser) parseFile() *ast.File {
+ 		}
+ 	}
+ 
+-	// convert comments list
+-	// 1) determine number of remaining comments
+-	n := 0;
+-	for i := 0; i < p.comments.Len(); i++ {
+-		if p.comments.At(i) != nil {
+-			n++;
+-		}
+-	}
+-	// 2) convert the remaining comments
+-	comments := make([]*ast.CommentGroup, n);
+-	for i, j := 0, 0; i < p.comments.Len(); i++ {
+-		if p.comments.At(i) != nil {
+-			comments[j] = p.comments.At(i).(*ast.CommentGroup);
+-			j++;
+-		}
+-	}
+-
+-	return &ast.File{comment, pos, ident, decls, comments};
++	return &ast.File{doc, pos, ident, decls, p.comments};
+ }
+diff --git a/src/pkg/go/printer/printer.go b/src/pkg/go/printer/printer.go
+index 4b2d8f7ae0..b3de0d2e1b 100644
+--- a/src/pkg/go/printer/printer.go
++++ b/src/pkg/go/printer/printer.go
+@@ -16,54 +16,49 @@ import (
+ )
+ 
+ 
++const (
++	debug = false;  // enable for debugging
++	maxNewlines = 3;  // maximum vertical white space
++)
++
++
+ // Printing is controlled with these flags supplied
+ // to Fprint via the mode parameter.
+ //
+ const (
+-	DocComments uint = 1 << iota;  // print documentation comments
+-	OptCommas;  // print optional commas
++	OptCommas = 1 << iota;  // print optional commas
+ 	OptSemis;  // print optional semicolons
+ )
+ 
+ 
++type whiteSpace int
++
++const (
++	blank = whiteSpace(' ');
++	tab = whiteSpace('\t');
++	newline = whiteSpace('\n');
++	formfeed = whiteSpace('\f');
++)
++
++
+ type printer struct {
+ 	// configuration (does not change after initialization)
+ 	output io.Writer;
+ 	mode uint;
+ 	errors chan os.Error;
+-	comments []*ast.CommentGroup;  // list of unassociated comments; or nil
+ 
+ 	// current state (changes during printing)
+ 	written int;  // number of bytes written
+ 	level int;  // function nesting level; 0 = package scope, 1 = top-level function scope, etc.
+-	indent int;  // indent level
+-	pos token.Position;  // output position (possibly estimated) in "AST space"
+-
+-	// comments
+-	cindex int;  // the current comment group index
+-	cpos token.Position;  // the position of the next comment group
+-}
+-
+-
+-func (p *printer) hasComment(pos token.Position) bool {
+-	return p.cpos.Offset < pos.Offset;
+-}
+-
+-
+-func (p *printer) nextComment() {
+-	p.cindex++;
+-	if p.comments != nil && p.cindex < len(p.comments) && p.comments[p.cindex] != nil {
+-		p.cpos = p.comments[p.cindex].List[0].Pos();
+-	} else {
+-		p.cpos = token.Position{"", 1<<30, 1<<30, 1};  // infinite
+-	}
+-}
++	indent int;  // current indentation
++	prev, pos token.Position;
+ 
++	// buffered whitespace
++	buffer [8]whiteSpace;  // whitespace sequences are short (1 or 2); 8 entries is plenty
++	buflen int;
+ 
+-func (p *printer) setComments(comments []*ast.CommentGroup) {
+-	p.comments = comments;
+-	p.cindex = -1;
+-	p.nextComment();
++	// comments
++	comment *ast.CommentGroup;  // list of comments; or nil
+ }
+ 
+ 
+@@ -71,20 +66,12 @@ func (p *printer) init(output io.Writer, mode uint) {
+ 	p.output = output;
+ 	p.mode = mode;
+ 	p.errors = make(chan os.Error);
+-	p.setComments(nil);
+ }
+ 
+ 
+-var (
+-	blank = []byte{' '};
+-	tab = []byte{'\t'};
+-	newline = []byte{'\n'};
+-	formfeed = []byte{'\f'};
+-)
+-
+-
+ // Writing to p.output is done with write0 which also handles errors.
+-// It should only be called by write.
++// It should only be called by write and debug routines which are not
++// supposed to update the p.pos estimation.
+ //
+ func (p *printer) write0(data []byte) {
+ 	n, err := p.output.Write(data);
+@@ -100,11 +87,13 @@ func (p *printer) write(data []byte) {
+ 	for i, b := range data {
+ 		if b == '\n' || b == '\f' {
+ 			// write segment ending in a newline/formfeed followed by indentation
+-			// TODO should convert '\f' into '\n' if the output is not going through
+-			//      tabwriter
++			// TODO(gri) should convert '\f' into '\n' if the output is not going
++			//           through tabwriter
+ 			p.write0(data[i0 : i+1]);
++			// TODO(gri) should not write indentation is there is nothing else
++			//           on the line
+ 			for j := p.indent; j > 0; j-- {
+-				p.write0(tab);
++				p.write0([]byte{'\t'});  // TODO(gri) don't do allocation in every iteration
+ 			}
+ 			i0 = i+1;
+ 
+@@ -125,7 +114,39 @@ func (p *printer) write(data []byte) {
+ }
+ 
+ 
+-// TODO(gri) Enable this code to intersperse comments
++// TODO(gri) Don't go through write and make this more efficient.
++func (p *printer) writeByte(b byte) {
++	p.write([]byte{b});
++}
++
++
++func (p *printer) writeNewlines(n int) {
++	if n > maxNewlines {
++		n = maxNewlines;
++	}
++	for ; n > 0; n-- {
++		p.writeByte('\n');
++	}
++}
++
++
++func (p *printer) writePos(pos token.Position) {
++	// use write0 so not to disturb the p.pos update by write
++	p.write0(strings.Bytes(fmt.Sprintf("[%d:%d]", pos.Line, pos.Column)));
++}
++
++
++func (p *printer) writeItem(pos token.Position, data []byte) {
++	p.pos = pos;
++	if debug {
++		p.writePos(pos);
++	}
++	p.write(data);
++	p.prev = p.pos;
++}
++
++
++// TODO(gri) decide if this is needed - keep around for now
+ /*
+ // Reduce contiguous sequences of '\t' in a []byte to a single '\t'.
+ func untabify(src []byte) []byte {
+@@ -139,26 +160,110 @@ func untabify(src []byte) []byte {
+ 	}
+ 	return dst[0 : j];
+ }
++*/
++
++
++func (p *printer) writeComment(comment *ast.Comment) {
++	// separation from previous item
++	if p.prev.IsValid() {
++		// there was a preceding item (otherwise, the comment is the
++		// first item to be printed - in that case do not apply extra
++		// spacing)
++		n := comment.Pos().Line - p.prev.Line;
++		if n == 0 {
++			// comment on the same line as previous item; separate with tab
++			p.writeByte('\t');
++		} else {
++			// comment on a different line; separate with newlines
++			p.writeNewlines(n);
++		}
++	}
++
++	// write comment
++	p.writeItem(comment.Pos(), comment.Text);
++}
++
++
++func (p *printer) intersperseComments(next token.Position) {
++	firstLine := 0;
++	needsNewline := false;
++	for ; p.comment != nil && p.comment.List[0].Pos().Offset < next.Offset; p.comment = p.comment.Next {
++		for _, c := range p.comment.List {
++			if firstLine == 0 {
++				firstLine = c.Pos().Line;
++			}
++			p.writeComment(c);
++			needsNewline = c.Text[1] == '/';
++		}
++	}
++
++	// Eliminate non-newline whitespace from whitespace buffer.
++	j := 0;
++	for i := 0; i < p.buflen; i++ {
++		ch := p.buffer[i];
++		if ch == '\n' || ch == '\f' {
++			p.buffer[j] = ch;
++			j++;
++		}
++	}
++	p.buflen = j;
++
++	// Eliminate extra newlines from whitespace buffer if they
++	// are not present in the original source. This makes sure
++	// that comments that need to be adjacent to a declaration
++	// remain adjacent.
++	if p.prev.IsValid() {
++		n := next.Line - p.prev.Line;
++		if n < p.buflen {
++			p.buflen = n;
++		}
++	}
++
++	// If the whitespace buffer is not empty, it contains only
++	// newline or formfeed chars. Force a formfeed char if the
++	// comments span more than one line - in this case the
++	// structure of the next line is likely to change. Otherwise
++	// use the existing char, if any.
++	if needsNewline {
++		ch := p.buffer[0];  // existing char takes precedence
++		if p.buflen == 0 {
++			p.buflen = 1;
++			ch = newline;  // original ch was a lie
++		}
++		if p.prev.Line > firstLine {
++			ch = formfeed;  // comments span at least 2 lines
++		}
++		p.buffer[0] = ch;
++	}
++}
+ 
+ 
+-func (p *printer) adjustSpacingAndMergeComments() {
+-	for ; p.hasComment(p.pos); p.nextComment() {
+-		// we have a comment that comes before the current position
+-		comment := p.comments[p.cindex];
+-		p.write(untabify(comment.Text));
+-		// TODO
+-		// - classify comment and provide better formatting
+-		// - add extra newlines if so indicated by source positions
++func (p *printer) writeWhitespace() {
++	for i := 0; i < p.buflen; i++ {
++		p.writeByte(byte(p.buffer[i]));
+ 	}
++	p.buflen = 0;
+ }
+-*/
+ 
+ 
++// print prints a list of "items" (roughly corresponding to syntactic
++// tokens, but also including whitespace and formatting information).
++// It is the only print function that should be called directly from
++// any of the AST printing functions below.
++//
++// Whitespace is accumulated until a non-whitespace token appears. Any
++// comments that need to appear before that token are printed first,
++// taking into account the amount and structure of any pending white-
++// space for best commemnt placement. Then, any leftover whitespace is
++// printed, followed by the actual token.
++//
+ func (p *printer) print(args ...) {
+ 	v := reflect.NewValue(args).(*reflect.StructValue);
+ 	for i := 0; i < v.NumField(); i++ {
+-		//p.adjustSpacingAndMergeComments();  // TODO(gri) enable to intersperse comments
+ 		f := v.Field(i);
++
++		next := p.pos;  // estimated position of next item
++		var data []byte;
+ 		switch x := f.Interface().(type) {
+ 		case int:
+ 			// indentation delta
+@@ -166,22 +271,52 @@ func (p *printer) print(args ...) {
+ 			if p.indent < 0 {
+ 				panic("print: negative indentation");
+ 			}
++		case whiteSpace:
++			if p.buflen >= len(p.buffer) {
++				// Whitespace sequences are very short so this should
++				// never happen. Handle gracefully (but possibly with
++				// bad comment placement) if it does happen.
++				p.writeWhitespace();
++			}
++			p.buffer[p.buflen] = x;
++			p.buflen++;
+ 		case []byte:
+-			p.write(x);
++			data = x;
+ 		case string:
+-			p.write(strings.Bytes(x));
++			data = strings.Bytes(x);
+ 		case token.Token:
+-			p.write(strings.Bytes(x.String()));
++			data = strings.Bytes(x.String());
+ 		case token.Position:
+-			// set current position
+-			p.pos = x;
++			next = x;  // accurate position of next item
+ 		default:
+ 			panicln("print: unsupported argument type", f.Type().String());
+ 		}
++		p.pos = next;
++
++		if data != nil {
++			// if there are comments before the next item, intersperse them
++			if p.comment != nil && p.comment.List[0].Pos().Offset < next.Offset {
++				p.intersperseComments(next);
++			}
++
++			p.writeWhitespace();
++
++			// intersperse extra newlines if present in the source
++			p.writeNewlines(next.Line - p.pos.Line);
++
++			p.writeItem(next, data);
++		}
+ 	}
+ }
+ 
+ 
++// Flush prints any pending whitespace.
++func (p *printer) flush() {
++	// TODO(gri) any special handling of pending comments needed?
++	p.writeWhitespace();
++}
++
++
+ // ----------------------------------------------------------------------------
+ // Printing of common AST nodes.
+ 
+@@ -190,6 +325,10 @@ func (p *printer) optSemis() bool {
+ }
+ 
+ 
++// TODO(gri) The code for printing lead and line comments
++//           should be eliminated in favor of reusing the
++//           comment intersperse mechanism above somehow.
++
+ // Print a list of individual comments.
+ func (p *printer) commentList(list []*ast.Comment) {
+ 	for i, c := range list {
+@@ -203,20 +342,22 @@ func (p *printer) commentList(list []*ast.Comment) {
+ }
+ 
+ 
+-// Print a leading comment followed by a newline.
+-func (p *printer) leadingComment(d *ast.CommentGroup) {
+-	if p.mode & DocComments != 0 && d != nil {
++// Print a lead comment followed by a newline.
++func (p *printer) leadComment(d *ast.CommentGroup) {
++	// Ignore the comment if we have comments interspersed (p.comment != nil).
++	if p.comment == nil && d != nil {
+ 		p.commentList(d.List);
+ 		p.print(newline);
+ 	}
+ }
+ 
+ 
+-// Print a tab followed by a trailing comment.
++// Print a tab followed by a line comment.
+ // A newline must be printed afterwards since
+ // the comment may be a //-style comment.
+-func (p *printer) trailingComment(d *ast.CommentGroup) {
+-	if d != nil {
++func (p *printer) lineComment(d *ast.CommentGroup) {
++	// Ignore the comment if we have comments interspersed (p.comment != nil).
++	if p.comment == nil && d != nil {
+ 		p.print(tab);
+ 		p.commentList(d.List);
+ 	}
+@@ -306,7 +447,7 @@ func (p *printer) fieldList(lbrace token.Position, list []*ast.Field, rbrace tok
+ 		isAnon := len(f.Names) == 0;
+ 		if i > 0 {
+ 			p.print(token.SEMICOLON);
+-			p.trailingComment(lastComment);
++			p.lineComment(lastComment);
+ 			if lastWasAnon == isAnon {
+ 				// previous and current line have same structure;
+ 				// continue with existing columns
+@@ -315,13 +456,13 @@ func (p *printer) fieldList(lbrace token.Position, list []*ast.Field, rbrace tok
+ 				// previous and current line have different structure;
+ 				// flush tabwriter and start new columns (the "type
+ 				// column" on a line with named fields may line up
+-				// with the "trailing comment column" on a line with
++				// with the "line comment column" on a line with
+ 				// an anonymous field, leading to bad alignment)
+ 				p.print(formfeed);
+ 			}
+ 		}
+ 
+-		p.leadingComment(f.Doc);
++		p.leadComment(f.Doc);
+ 		if !isAnon {
+ 			p.identList(f.Names);
+ 			p.print(tab);
+@@ -350,7 +491,7 @@ func (p *printer) fieldList(lbrace token.Position, list []*ast.Field, rbrace tok
+ 	if p.optSemis() {
+ 		p.print(token.SEMICOLON);
+ 	}
+-	p.trailingComment(lastComment);
++	p.lineComment(lastComment);
+ 
+ 	p.print(-1, newline, rbrace, token.RBRACE);
+ 
+@@ -624,11 +765,11 @@ func (p *printer) stmt(stmt ast.Stmt) (optSemi bool) {
+ 		var comment *ast.CommentGroup;
+ 		comment, optSemi = p.decl(s.Decl);
+ 		if comment != nil {
+-			// Trailing comments of declarations in statement lists
++			// Line comments of declarations in statement lists
+ 			// are not associated with the declaration in the parser;
+ 			// this case should never happen. Print anyway to continue
+ 			// gracefully.
+-			p.trailingComment(comment);
++			p.lineComment(comment);
+ 			p.print(newline);
+ 		}
+ 
+@@ -780,12 +921,12 @@ func (p *printer) stmt(stmt ast.Stmt) (optSemi bool) {
+ // ----------------------------------------------------------------------------
+ // Declarations
+ 
+-// Returns trailing comment, if any, and whether a separating semicolon is optional.
++// Returns line comment, if any, and whether a separating semicolon is optional.
+ //
+ func (p *printer) spec(spec ast.Spec) (comment *ast.CommentGroup, optSemi bool) {
+ 	switch s := spec.(type) {
+ 	case *ast.ImportSpec:
+-		p.leadingComment(s.Doc);
++		p.leadComment(s.Doc);
+ 		if s.Name != nil {
+ 			p.expr(s.Name);
+ 		}
+@@ -794,7 +935,7 @@ func (p *printer) spec(spec ast.Spec) (comment *ast.CommentGroup, optSemi bool)
+ 		comment = s.Comment;
+ 
+ 	case *ast.ValueSpec:
+-		p.leadingComment(s.Doc);
++		p.leadComment(s.Doc);
+ 		p.identList(s.Names);
+ 		if s.Type != nil {
+ 			p.print(blank);  // TODO switch to tab? (indent problem with structs)
+@@ -808,7 +949,7 @@ func (p *printer) spec(spec ast.Spec) (comment *ast.CommentGroup, optSemi bool)
+ 		comment = s.Comment;
+ 
+ 	case *ast.TypeSpec:
+-		p.leadingComment(s.Doc);
++		p.leadComment(s.Doc);
+ 		p.expr(s.Name);
+ 		p.print(blank);  // TODO switch to tab? (but indent problem with structs)
+ 		optSemi = p.expr(s.Type);
+@@ -829,7 +970,7 @@ func (p *printer) decl(decl ast.Decl) (comment *ast.CommentGroup, optSemi bool)
+ 		p.print(d.Pos(), "BadDecl");
+ 
+ 	case *ast.GenDecl:
+-		p.leadingComment(d.Doc);
++		p.leadComment(d.Doc);
+ 		p.print(d.Pos(), d.Tok, blank);
+ 
+ 		if d.Lparen.IsValid() {
+@@ -840,7 +981,7 @@ func (p *printer) decl(decl ast.Decl) (comment *ast.CommentGroup, optSemi bool)
+ 				for i, s := range d.Specs {
+ 					if i > 0 {
+ 						p.print(token.SEMICOLON);
+-						p.trailingComment(comment);
++						p.lineComment(comment);
+ 						p.print(newline);
+ 					}
+ 					comment, optSemi = p.spec(s);
+@@ -848,7 +989,7 @@ func (p *printer) decl(decl ast.Decl) (comment *ast.CommentGroup, optSemi bool)
+ 				if p.optSemis() {
+ 					p.print(token.SEMICOLON);
+ 				}
+-				p.trailingComment(comment);
++				p.lineComment(comment);
+ 				p.print(-1, newline);
+ 			}
+ 			p.print(d.Rparen, token.RPAREN);
+@@ -861,7 +1002,7 @@ func (p *printer) decl(decl ast.Decl) (comment *ast.CommentGroup, optSemi bool)
+ 		}
+ 
+ 	case *ast.FuncDecl:
+-		p.leadingComment(d.Doc);
++		p.leadComment(d.Doc);
+ 		p.print(d.Pos(), token.FUNC, blank);
+ 		if recv := d.Recv; recv != nil {
+ 			// method: print receiver
+@@ -894,9 +1035,7 @@ func (p *printer) decl(decl ast.Decl) (comment *ast.CommentGroup, optSemi bool)
+ // Files
+ 
+ func (p *printer) file(src *ast.File) {
+-	p.setComments(src.Comments);  // unassociated comments
+-
+-	p.leadingComment(src.Doc);
++	p.leadComment(src.Doc);
+ 	p.print(src.Pos(), token.PACKAGE, blank);
+ 	p.expr(src.Name);
+ 
+@@ -906,7 +1045,7 @@ func (p *printer) file(src *ast.File) {
+ 		if p.optSemis() {
+ 			p.print(token.SEMICOLON);
+ 		}
+-		p.trailingComment(comment);
++		p.lineComment(comment);
+ 	}
+ 
+ 	p.print(newline);
+@@ -934,12 +1073,14 @@ func Fprint(output io.Writer, node interface{}, mode uint) (int, os.Error) {
+ 			p.stmt(n);
+ 		case ast.Decl:
+ 			comment, _ := p.decl(n);
+-			p.trailingComment(comment);  // no newline at end
++			p.lineComment(comment);  // no newline at end
+ 		case *ast.File:
++			p.comment = n.Comments;
+ 			p.file(n);
+ 		default:
+ 			p.errors <- os.NewError("unsupported node type");
+ 		}
++		p.flush();
+ 		p.errors <- nil;  // no errors
+ 	}();
+ 	err := <-p.errors;  // wait for completion of goroutine
+diff --git a/src/pkg/go/printer/printer_test.go b/src/pkg/go/printer/printer_test.go
+index bc21109f9a..42996dc94e 100644
+--- a/src/pkg/go/printer/printer_test.go
++++ b/src/pkg/go/printer/printer_test.go
+@@ -49,12 +49,13 @@ func check(t *testing.T, source, golden string, exports bool) {
+ 	// filter exports if necessary
+ 	if exports {
+ 		ast.FilterExports(prog);  // ignore result
++		prog.Comments = nil;  // don't print comments that are not in AST
+ 	}
+ 
+ 	// format source
+ 	var buf bytes.Buffer;
+ 	w := tabwriter.NewWriter(&buf, tabwidth, padding, tabchar, 0);
+-	Fprint(w, prog, DocComments);
++	Fprint(w, prog, 0);
+ 	w.Flush();
+ 	res := buf.Data();
+ 
+diff --git a/src/pkg/go/printer/testdata/golden1.go b/src/pkg/go/printer/testdata/golden1.go
+index 56d07ce5b3..b44eb6c49b 100644
+--- a/src/pkg/go/printer/testdata/golden1.go
++++ b/src/pkg/go/printer/testdata/golden1.go
+@@ -1,26 +1,52 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This is a package for testing purposes.
++//
+ package main
+ 
+ import 	"fmt"	// fmt
+ 
+ const c0	= 0	// zero
+-
+ const (
+ 	c1	= iota;	// c1
+ 	c2	// c2
+ )
+ 
++
+ // The T type.
+ type T struct {
+ 	a, b, c	int	// 3 fields
+ }
+ 
+-var x int	// x
++// This comment group should be separated
++// with a newline from the next comment
++// group.
+ 
++// This comment should NOT be associated with the next declaration.
++
++var x int	// x
+ var ()
+ 
++
++// This comment SHOULD be associated with the next declaration.
+ func f0() {
+-	const pi	= 3.14;
+-	var s1 struct {}
++	const pi			= 3.14;					// pi
++	var s1 struct {}	/* an empty struct */	/* foo */
++	// a struct constructor
++	// --------------------
+ 	var s2 struct {}	= struct {}{};
+ 	x := pi
+ }
++//
++// NO SPACE HERE
++//
++func f1() {
++	f0();
++	/* 1 */
++	// 2
++	/* 3 */
++	/* 4 */
++	f0()
++}
+diff --git a/src/pkg/go/printer/testdata/golden1.x b/src/pkg/go/printer/testdata/golden1.x
+index 273de2b403..4ebb6ec670 100644
+--- a/src/pkg/go/printer/testdata/golden1.x
++++ b/src/pkg/go/printer/testdata/golden1.x
+@@ -1,3 +1,5 @@
++// This is a package for testing purposes.
++//
+ package main
+ 
+ // The T type.
+diff --git a/src/pkg/go/printer/testdata/source1.go b/src/pkg/go/printer/testdata/source1.go
+index 0798540156..f96746a702 100644
+--- a/src/pkg/go/printer/testdata/source1.go
++++ b/src/pkg/go/printer/testdata/source1.go
+@@ -1,3 +1,9 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This is a package for testing purposes.
++//
+ package main
+ 
+ import "fmt"  // fmt
+@@ -14,14 +20,33 @@ type T struct {
+ 	a, b, c int  // 3 fields
+ }
+ 
++// This comment group should be separated
++// with a newline from the next comment
++// group.
++
++// This comment should NOT be associated with the next declaration.
+ 
+ var x int;  // x
+ var ()
+ 
+ 
++// This comment SHOULD be associated with the next declaration.
+ func f0() {
+ 	const pi = 3.14;  // pi
+-	var s1 struct {}
++	var s1 struct {}  /* an empty struct */ /* foo */
++	// a struct constructor
++	// --------------------
+ 	var s2 struct {} = struct {}{};
+ 	x := pi;
+ }
++//
++// NO SPACE HERE
++//
++func f1() {
++	f0();
++	/* 1 */
++	// 2
++	/* 3 */
++	/* 4 */
++	f0();
++}

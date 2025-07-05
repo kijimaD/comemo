@@ -9,7 +9,36 @@ Date:   Wed Apr 27 22:18:44 2016 -0400
     Change-Id: I21c8e06c01d3ef02ee09dc185d4443e2da8fd52b
     Reviewed-on: https://go-review.googlesource.com/19809
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/cmd/dist/build.go | 4 ++--
  src/cmd/dist/test.go  | 2 +-
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index d6dfa2d3e0..04a13b2365 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -1096,8 +1096,8 @@ var cgoEnabled = map[string]bool{
+ 	"linux/arm64":     true,
+ 	"linux/ppc64":     false,
+ 	"linux/ppc64le":   true,
+-	"linux/mips64":    false,
+-	"linux/mips64le":  false,
++	"linux/mips64":    true,
++	"linux/mips64le":  true,
+ 	"linux/s390x":     true,
+ 	"android/386":     true,
+ 	"android/amd64":   true,
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 92559c9d7e..8e2c947919 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -640,7 +640,7 @@ func (t *tester) extLink() bool {
+ 		"darwin-arm", "darwin-arm64",
+ 		"dragonfly-386", "dragonfly-amd64",
+ 		"freebsd-386", "freebsd-amd64", "freebsd-arm",
+-		"linux-386", "linux-amd64", "linux-arm", "linux-arm64", "linux-ppc64le",
++		"linux-386", "linux-amd64", "linux-arm", "linux-arm64", "linux-ppc64le", "linux-mips64", "linux-mips64le",
+ 		"netbsd-386", "netbsd-amd64",
+ 		"openbsd-386", "openbsd-amd64",
+ 		"windows-386", "windows-amd64":

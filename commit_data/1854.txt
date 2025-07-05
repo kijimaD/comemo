@@ -9,8 +9,183 @@ Date:   Fri Mar 20 11:32:58 2009 -0700
     R=ken
     OCL=26576
     CL=26576
-
+---
  src/cmd/gc/walk.c  | 37 ++++++++++++++++++++++++++++++----
  test/chan/sieve.go |  6 +++---
  test/range.go      | 59 ++++++++++++++++++++++++++++++++++++++++++++++++++++++
  3 files changed, 95 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index c5442fe76e..a510a1a989 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -3184,7 +3184,7 @@ Node*
+ dorange(Node *nn)
+ {
+ 	Node *k, *v, *m;
+-	Node *n, *hk, *on, *r, *a;
++	Node *n, *hv, *hc, *ha, *hk, *on, *r, *a;
+ 	Type *t, *th;
+ 	int local;
+ 
+@@ -3212,16 +3212,23 @@ dorange(Node *nn)
+ 		goto ary;
+ 	if(t->etype == TMAP)
+ 		goto map;
++	if(t->etype == TCHAN)
++		goto chan;
+ 
+ 	yyerror("range must be over map/array");
+ 	goto out;
+ 
+ ary:
+ 	hk = nod(OXXX, N, N);		// hidden key
+-	tempname(hk, types[TINT]);	// maybe TINT32
++	tempname(hk, types[TINT]);
++	
++	ha = nod(OXXX, N, N);		// hidden array
++	tempname(ha, t);
+ 
+ 	n->ninit = nod(OAS, hk, nodintconst(0));
+-	n->ntest = nod(OLT, hk, nod(OLEN, m, N));
++	n->ninit = list(nod(OAS, ha, m), n->ninit);
++
++	n->ntest = nod(OLT, hk, nod(OLEN, ha, N));
+ 	n->nincr = nod(OASOP, hk, nodintconst(1));
+ 	n->nincr->etype = OADD;
+ 
+@@ -3233,7 +3240,7 @@ ary:
+ 		if(local)
+ 			v = old2new(v, t->type);
+ 		n->nbody = list(n->nbody,
+-			nod(OAS, v, nod(OINDEX, m, hk)) );
++			nod(OAS, v, nod(OINDEX, ha, hk)) );
+ 	}
+ 	addtotop(n);
+ 	goto out;
+@@ -3288,7 +3295,29 @@ map:
+ 	r = nod(OADDR, hk, N);
+ 	r = nod(OCALL, on, r);
+ 	n->nbody = nod(OAS, nod(OLIST, k, v), r);
++	goto out;
++
++chan:
++	if(v != N)
++		yyerror("chan range can only have one variable");
++
++	hc = nod(OXXX, N, N);	// hidden chan
++	tempname(hc, t);
++	
++	hv = nod(OXXX, N, N);	// hidden value
++	tempname(hv, t->type);
+ 
++	n->ninit = list(
++		nod(OAS, hc, m),
++		nod(OAS, hv, nod(ORECV, hc, N))
++	);
++	n->ntest = nod(ONOT, nod(OCLOSED, hc, N), N);
++	n->nincr = nod(OAS, hv, nod(ORECV, hc, N));
++
++	if(local)
++		k = old2new(k, hv->type);
++	n->nbody = nod(OAS, k, hv);
++	addtotop(n);
+ 	goto out;
+ 
+ out:
+diff --git a/test/chan/sieve.go b/test/chan/sieve.go
+index 0cebdc6412..7d06e98fa7 100644
+--- a/test/chan/sieve.go
++++ b/test/chan/sieve.go
+@@ -19,8 +19,7 @@ func Generate(ch chan<- int) {
+ // Copy the values from channel 'in' to channel 'out',
+ // removing those divisible by 'prime'.
+ func Filter(in <-chan int, out chan<- int, prime int) {
+-	for {
+-		i := <-in;  // Receive value of new variable 'i' from 'in'.
++	for i := range in {  // Loop over values received from 'in'.
+ 		if i % prime != 0 {
+ 			out <- i  // Send 'i' to channel 'out'.
+ 		}
+@@ -32,6 +31,7 @@ func Sieve(primes chan<- int) {
+ 	ch := make(chan int);  // Create a new channel.
+ 	go Generate(ch);  // Start Generate() as a subprocess.
+ 	for {
++		// Note that ch is different on each iteration.
+ 		prime := <-ch;
+ 		primes <- prime;
+ 		ch1 := make(chan int);
+@@ -45,7 +45,7 @@ func main() {
+ 	go Sieve(primes);
+ 	a := []int{2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97};
+ 	for i := 0; i < len(a); i++ {
+-		if <-primes != a[i] { panic(a[i])}
++		if x := <-primes; x != a[i] { panic(x, " != ", a[i]) }
+ 	}
+ 	sys.Exit(0);
+ }
+diff --git a/test/range.go b/test/range.go
+new file mode 100644
+index 0000000000..7a8c686350
+--- /dev/null
++++ b/test/range.go
+@@ -0,0 +1,59 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++// test range over channels
++
++func gen(c chan int, lo, hi int) {
++	for i := lo; i <= hi; i++ {
++		c <- i;
++	}
++	close(c);
++}
++
++func seq(lo, hi int) chan int {
++	c := make(chan int);
++	go gen(c, lo, hi);
++	return c;
++}
++
++func testchan() {
++	s := "";
++	for i := range seq('a', 'z') {
++		s += string(i);
++	}
++	if s != "abcdefghijklmnopqrstuvwxyz" {
++		panicln("Wanted lowercase alphabet; got", s);
++	}
++}
++
++// test that range over array only evaluates
++// the expression after "range" once.
++
++var nmake = 0;
++func makearray() []int {
++	nmake++;
++	return []int{1,2,3,4,5};
++}
++
++func testarray() {
++	s := 0;
++	for k, v := range makearray() {
++		s += v;
++	}
++	if nmake != 1 {
++		panicln("range called makearray", nmake, "times");
++	}
++	if s != 15 {
++		panicln("wrong sum ranging over makearray");
++	}
++}
++
++func main() {
++	testchan();
++	testarray();
++}

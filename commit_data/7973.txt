@@ -7,7 +7,7 @@ Date:   Mon Apr 4 13:53:52 2011 -0700
     R=r, r2, rsc1, rsc, jacek.masiulaniec
     CC=golang-dev
     https://golang.org/cl/4344062
-
+---
  src/pkg/archive/tar/reader.go | 2 +-
  src/pkg/archive/zip/reader.go | 4 ++--
  src/pkg/debug/elf/file.go     | 6 +++---
@@ -15,3 +15,144 @@ Date:   Mon Apr 4 13:53:52 2011 -0700
  src/pkg/http/fs.go            | 4 ++--
  src/pkg/os/file.go            | 7 +++++++
  6 files changed, 19 insertions(+), 12 deletions(-)
+
+diff --git a/src/pkg/archive/tar/reader.go b/src/pkg/archive/tar/reader.go
+index 35a15f74bb..1b41196a99 100644
+--- a/src/pkg/archive/tar/reader.go
++++ b/src/pkg/archive/tar/reader.go
+@@ -95,7 +95,7 @@ func (tr *Reader) skipUnread() {
+ 	nr := tr.nb + tr.pad // number of bytes to skip
+ 	tr.nb, tr.pad = 0, 0
+ 	if sr, ok := tr.r.(io.Seeker); ok {
+-		if _, err := sr.Seek(nr, 1); err == nil {
++		if _, err := sr.Seek(nr, os.SEEK_CUR); err == nil {
+ 			return
+ 		}
+ 	}
+diff --git a/src/pkg/archive/zip/reader.go b/src/pkg/archive/zip/reader.go
+index 3b265c9b72..ac53b20d19 100644
+--- a/src/pkg/archive/zip/reader.go
++++ b/src/pkg/archive/zip/reader.go
+@@ -73,7 +73,7 @@ func NewReader(r io.ReaderAt, size int64) (*Reader, os.Error) {
+ 		Comment: end.comment,
+ 	}
+ 	rs := io.NewSectionReader(r, 0, size)
+-	if _, err = rs.Seek(int64(end.directoryOffset), 0); err != nil {
++	if _, err = rs.Seek(int64(end.directoryOffset), os.SEEK_SET); err != nil {
+ 		return nil, err
+ 	}
+ 	buf := bufio.NewReader(rs)
+@@ -94,7 +94,7 @@ func (f *File) Open() (rc io.ReadCloser, err os.Error) {
+ 		if err = readFileHeader(f, r); err != nil {
+ 			return
+ 		}
+-		if f.bodyOffset, err = r.Seek(0, 1); err != nil {
++		if f.bodyOffset, err = r.Seek(0, os.SEEK_CUR); err != nil {
+ 			return
+ 		}
+ 	}
+diff --git a/src/pkg/debug/elf/file.go b/src/pkg/debug/elf/file.go
+index e69317a75f..60f913f457 100644
+--- a/src/pkg/debug/elf/file.go
++++ b/src/pkg/debug/elf/file.go
+@@ -228,7 +228,7 @@ func NewFile(r io.ReaderAt) (*File, os.Error) {
+ 	switch f.Class {
+ 	case ELFCLASS32:
+ 		hdr := new(Header32)
+-		sr.Seek(0, 0)
++		sr.Seek(0, os.SEEK_SET)
+ 		if err := binary.Read(sr, f.ByteOrder, hdr); err != nil {
+ 			return nil, err
+ 		}
+@@ -243,7 +243,7 @@ func NewFile(r io.ReaderAt) (*File, os.Error) {
+ 		shstrndx = int(hdr.Shstrndx)
+ 	case ELFCLASS64:
+ 		hdr := new(Header64)
+-		sr.Seek(0, 0)
++		sr.Seek(0, os.SEEK_SET)
+ 		if err := binary.Read(sr, f.ByteOrder, hdr); err != nil {
+ 			return nil, err
+ 		}
+@@ -269,7 +269,7 @@ func NewFile(r io.ReaderAt) (*File, os.Error) {
+ 	names := make([]uint32, shnum)
+ 	for i := 0; i < shnum; i++ {
+ 		off := shoff + int64(i)*int64(shentsize)
+-		sr.Seek(off, 0)
++		sr.Seek(off, os.SEEK_SET)
+ 		s := new(Section)
+ 		switch f.Class {
+ 		case ELFCLASS32:
+diff --git a/src/pkg/debug/pe/file.go b/src/pkg/debug/pe/file.go
+index 1bcbdc5e9a..b99131e5ed 100644
+--- a/src/pkg/debug/pe/file.go
++++ b/src/pkg/debug/pe/file.go
+@@ -132,7 +132,7 @@ func NewFile(r io.ReaderAt) (*File, os.Error) {
+ 	} else {
+ 		base = int64(0)
+ 	}
+-	sr.Seek(base, 0)
++	sr.Seek(base, os.SEEK_SET)
+ 	if err := binary.Read(sr, binary.LittleEndian, &f.FileHeader); err != nil {
+ 		return nil, err
+ 	}
+@@ -140,7 +140,7 @@ func NewFile(r io.ReaderAt) (*File, os.Error) {
+ 		return nil, os.NewError("Invalid PE File Format.")
+ 	}
+ 	// get symbol string table
+-	sr.Seek(int64(f.FileHeader.PointerToSymbolTable+18*f.FileHeader.NumberOfSymbols), 0)
++	sr.Seek(int64(f.FileHeader.PointerToSymbolTable+18*f.FileHeader.NumberOfSymbols), os.SEEK_SET)
+ 	var l uint32
+ 	if err := binary.Read(sr, binary.LittleEndian, &l); err != nil {
+ 		return nil, err
+@@ -149,9 +149,9 @@ func NewFile(r io.ReaderAt) (*File, os.Error) {
+ 	if _, err := r.ReadAt(ss, int64(f.FileHeader.PointerToSymbolTable+18*f.FileHeader.NumberOfSymbols)); err != nil {
+ 		return nil, err
+ 	}
+-	sr.Seek(base, 0)
++	sr.Seek(base, os.SEEK_SET)
+ 	binary.Read(sr, binary.LittleEndian, &f.FileHeader)
+-	sr.Seek(int64(f.FileHeader.SizeOfOptionalHeader), 1) //Skip OptionalHeader
++	sr.Seek(int64(f.FileHeader.SizeOfOptionalHeader), os.SEEK_CUR) //Skip OptionalHeader
+ 	f.Sections = make([]*Section, f.FileHeader.NumberOfSections)
+ 	for i := 0; i < int(f.FileHeader.NumberOfSections); i++ {
+ 		sh := new(SectionHeader32)
+diff --git a/src/pkg/http/fs.go b/src/pkg/http/fs.go
+index 8b5c4770c4..2997b57998 100644
+--- a/src/pkg/http/fs.go
++++ b/src/pkg/http/fs.go
+@@ -148,7 +148,7 @@ func serveFile(w ResponseWriter, r *Request, name string, redirect bool) {
+ 		} else {
+ 			w.Header().Set("Content-Type", "application/octet-stream") // generic binary
+ 		}
+-		f.Seek(0, 0) // rewind to output whole file
++		f.Seek(0, os.SEEK_SET) // rewind to output whole file
+ 	}
+ 
+ 	// handle Content-Range header.
+@@ -163,7 +163,7 @@ func serveFile(w ResponseWriter, r *Request, name string, redirect bool) {
+ 	}
+ 	if len(ranges) == 1 {
+ 		ra := ranges[0]
+-		if _, err := f.Seek(ra.start, 0); err != nil {
++		if _, err := f.Seek(ra.start, os.SEEK_SET); err != nil {
+ 			Error(w, err.String(), StatusRequestedRangeNotSatisfiable)
+ 			return
+ 		}
+diff --git a/src/pkg/os/file.go b/src/pkg/os/file.go
+index e916d16058..f14d00dd1e 100644
+--- a/src/pkg/os/file.go
++++ b/src/pkg/os/file.go
+@@ -61,6 +61,13 @@ const (
+ 	O_CREATE   int = O_CREAT            // create a new file if none exists.
+ )
+ 
++// Seek whence values.
++const (
++	SEEK_SET int = 0 // seek relative to the origin of the file
++	SEEK_CUR int = 1 // seek relative to the current offset
++	SEEK_END int = 2 // seek relative to the end
++)
++
+ type eofError int
+ 
+ func (eofError) String() string { return "EOF" }

@@ -7,6 +7,19 @@ Date:   Thu Dec 3 13:20:49 2015 -0800
     Change-Id: I988d1b230ce516bf2997ec0932a854323b2bab7c
     Reviewed-on: https://go-review.googlesource.com/17395
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go1.6.txt | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/doc/go1.6.txt b/doc/go1.6.txt
+index 9b8706f79d..a3b2c17f8f 100644
+--- a/doc/go1.6.txt
++++ b/doc/go1.6.txt
+@@ -7,6 +7,7 @@ cmd/go: add -msan option (https://golang.org/cl/16169)
+ cmd/compile: add -msan option (https://golang.org/cl/16160)
+ cmd/link: add -msan option (https://golang.org/cl/16161)
+ cmd/cgo: fix C.complexfloat and C.complexdouble and treat as separate types from complex64 and complex128 (https://golang.org/cl/17208)
++cmd/cgo: new pointer passing rules defined and enforced (https://golang.org/issue/12416)
+ 
+ Ports:
+ 

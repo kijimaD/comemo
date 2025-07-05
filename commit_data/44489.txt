@@ -12,6 +12,25 @@ Date:   Mon Jul 20 18:32:53 2020 +0200
     Change-Id: I3260075dbe3823b56b8825e6269e57a0fad185a6
     Reviewed-on: https://go-review.googlesource.com/c/go/+/243458
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  test/fixedbugs/issue33308.go | 12 ++++++++++++
  1 file changed, 12 insertions(+)
+
+diff --git a/test/fixedbugs/issue33308.go b/test/fixedbugs/issue33308.go
+new file mode 100644
+index 0000000000..b0fd6a450c
+--- /dev/null
++++ b/test/fixedbugs/issue33308.go
+@@ -0,0 +1,12 @@
++// errorcheck
++
++// Copyright 2020 The Go Authors. All rights reserved.  Use of this
++// source code is governed by a BSD-style license that can be found in
++// the LICENSE file.
++
++// Test that the compiler does not crash on a []byte conversion of an
++// untyped expression.
++package p
++
++var v uint
++var x = []byte((1 << v) + 1) // ERROR "cannot convert"

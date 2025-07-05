@@ -13,7 +13,36 @@ Date:   Wed Aug 14 15:33:00 2024 +0800
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/maps/example_test.go   | 4 ++--
  src/slices/example_test.go | 2 +-
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/maps/example_test.go b/src/maps/example_test.go
+index c1000d4d9d..0795941d90 100644
+--- a/src/maps/example_test.go
++++ b/src/maps/example_test.go
+@@ -167,8 +167,8 @@ func ExampleValues() {
+ 		10:   "Ten",
+ 		1000: "THOUSAND",
+ 	}
+-	keys := slices.Sorted(maps.Values(m1))
+-	fmt.Println(keys)
++	values := slices.Sorted(maps.Values(m1))
++	fmt.Println(values)
+ 	// Output:
+ 	// [THOUSAND Ten one]
+ }
+diff --git a/src/slices/example_test.go b/src/slices/example_test.go
+index fb93f6e79f..305745e883 100644
+--- a/src/slices/example_test.go
++++ b/src/slices/example_test.go
+@@ -310,7 +310,7 @@ func ExampleSortStableFunc() {
+ 		{"Bob", 24},
+ 		{"Alice", 55},
+ 	}
+-	// Stable sort by name, keeping age ordering of Alices intact
++	// Stable sort by name, keeping age ordering of Alice intact
+ 	slices.SortStableFunc(people, func(a, b Person) int {
+ 		return strings.Compare(a.Name, b.Name)
+ 	})

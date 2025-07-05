@@ -8,10 +8,148 @@ Date:   Fri Oct 26 10:13:06 2012 +0400
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/6759053
-
+---
  src/pkg/runtime/mgc0.c          |  2 +-
  src/pkg/runtime/proc.c          | 14 +++++++-------
  src/pkg/runtime/runtime.h       |  2 +-
  src/pkg/runtime/traceback_arm.c |  4 ++--
  src/pkg/runtime/traceback_x86.c |  4 ++--
  5 files changed, 13 insertions(+), 13 deletions(-)
+
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index dc3b877c4e..4d857bf0b7 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -567,7 +567,7 @@ addstackroots(G *gp)
+ 	n = 0;
+ 	while(stk) {
+ 		if(sp < guard-StackGuard || (byte*)stk < sp) {
+-			runtime·printf("scanstack inconsistent: g%d#%d sp=%p not in [%p,%p]\n", gp->goid, n, sp, guard-StackGuard, stk);
++			runtime·printf("scanstack inconsistent: g%D#%d sp=%p not in [%p,%p]\n", gp->goid, n, sp, guard-StackGuard, stk);
+ 			runtime·throw("scanstack");
+ 		}
+ 		addroot(sp, (byte*)stk - sp);
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 5fecf05589..9da748f2f6 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -55,7 +55,7 @@ struct Sched {
+ 	Lock;
+ 
+ 	G *gfree;	// available g's (status == Gdead)
+-	int32 goidgen;
++	int64 goidgen;
+ 
+ 	G *ghead;	// g's waiting to run
+ 	G *gtail;
+@@ -311,7 +311,7 @@ runtime·goroutineheader(G *gp)
+ 		status = "???";
+ 		break;
+ 	}
+-	runtime·printf("goroutine %d [%s]:\n", gp->goid, status);
++	runtime·printf("goroutine %D [%s]:\n", gp->goid, status);
+ }
+ 
+ void
+@@ -391,7 +391,7 @@ gput(G *gp)
+ 	// If g is the idle goroutine for an m, hand it off.
+ 	if(gp->idlem != nil) {
+ 		if(gp->idlem->idleg != nil) {
+-			runtime·printf("m%d idle out of sync: g%d g%d\n",
++			runtime·printf("m%d idle out of sync: g%D g%D\n",
+ 				gp->idlem->id,
+ 				gp->idlem->idleg->goid, gp->goid);
+ 			runtime·throw("runtime: double idle");
+@@ -493,7 +493,7 @@ readylocked(G *gp)
+ 
+ 	// Mark runnable.
+ 	if(gp->status == Grunnable || gp->status == Grunning) {
+-		runtime·printf("goroutine %d has status %d\n", gp->goid, gp->status);
++		runtime·printf("goroutine %D has status %d\n", gp->goid, gp->status);
+ 		runtime·throw("bad g->status in ready");
+ 	}
+ 	gp->status = Grunnable;
+@@ -1100,7 +1100,7 @@ runtime·oldstack(void)
+ 	uintptr cret;
+ 	byte *sp;
+ 	G *g1;
+-	int32 goid;
++	int64 goid;
+ 
+ //printf("oldstack m->cret=%p\n", m->cret);
+ 
+@@ -1294,7 +1294,7 @@ runtime·newproc1(byte *fn, byte *argp, int32 narg, int32 nret, void *callerpc)
+ 	byte *sp;
+ 	G *newg;
+ 	int32 siz;
+-	int32 goid;
++	int64 goid;
+ 
+ //printf("newproc1 %p %p narg=%d nret=%d\n", fn, argp, narg, nret);
+ 	siz = narg + nret;
+@@ -1307,7 +1307,7 @@ runtime·newproc1(byte *fn, byte *argp, int32 narg, int32 nret, void *callerpc)
+ 	if(siz > StackMin - 1024)
+ 		runtime·throw("runtime.newproc: function arguments too large for new goroutine");
+ 
+-	goid = runtime·xadd((uint32*)&runtime·sched.goidgen, 1);
++	goid = runtime·xadd64((uint64*)&runtime·sched.goidgen, 1);
+ 	if(raceenabled)
+ 		runtime·racegostart(goid, callerpc);
+ 
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 83757ba8a3..cd2f6f0587 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -203,7 +203,7 @@ struct	G
+ 	G*	alllink;	// on allg
+ 	void*	param;		// passed parameter on wakeup
+ 	int16	status;
+-	int32	goid;
++	int64	goid;
+ 	uint32	selgen;		// valid sudog pointer
+ 	int8*	waitreason;	// if status==Gwaiting
+ 	G*	schedlink;
+diff --git a/src/pkg/runtime/traceback_arm.c b/src/pkg/runtime/traceback_arm.c
+index 9ca54784ff..c92feb6ed8 100644
+--- a/src/pkg/runtime/traceback_arm.c
++++ b/src/pkg/runtime/traceback_arm.c
+@@ -147,7 +147,7 @@ runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *g, int32 skip, uintptr
+ 		waspanic = f->entry == (uintptr)runtime·sigpanic;
+ 
+ 		if(pcbuf == nil && f->entry == (uintptr)runtime·newstack && g == m->g0) {
+-			runtime·printf("----- newstack called from goroutine %d -----\n", m->curg->goid);
++			runtime·printf("----- newstack called from goroutine %D -----\n", m->curg->goid);
+ 			pc = (uintptr)m->morepc;
+ 			sp = (byte*)m->moreargp - sizeof(void*);
+ 			lr = (uintptr)m->morebuf.pc;
+@@ -158,7 +158,7 @@ runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *g, int32 skip, uintptr
+ 		}
+ 		
+ 		if(pcbuf == nil && f->entry == (uintptr)runtime·lessstack && g == m->g0) {
+-			runtime·printf("----- lessstack called from goroutine %d -----\n", m->curg->goid);
++			runtime·printf("----- lessstack called from goroutine %D -----\n", m->curg->goid);
+ 			g = m->curg;
+ 			stk = (Stktop*)g->stackbase;
+ 			sp = (byte*)stk->gobuf.sp;
+diff --git a/src/pkg/runtime/traceback_x86.c b/src/pkg/runtime/traceback_x86.c
+index 5a307de3b5..7f53d1136b 100644
+--- a/src/pkg/runtime/traceback_x86.c
++++ b/src/pkg/runtime/traceback_x86.c
+@@ -165,7 +165,7 @@ runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *g, int32 skip, uintptr
+ 			// The fact that we saw newstack means that morestack
+ 			// has managed to record its information in m, so we can
+ 			// use it to keep unwinding the stack.
+-			runtime·printf("----- morestack called from goroutine %d -----\n", m->curg->goid);
++			runtime·printf("----- morestack called from goroutine %D -----\n", m->curg->goid);
+ 			pc = (uintptr)m->morepc;
+ 			sp = (byte*)m->morebuf.sp - sizeof(void*);
+ 			lr = (uintptr)m->morebuf.pc;
+@@ -178,7 +178,7 @@ runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *g, int32 skip, uintptr
+ 
+ 		if(pcbuf == nil && f->entry == (uintptr)runtime·lessstack && g == m->g0) {
+ 			// Lessstack is running on scheduler stack.  Switch to original goroutine.
+-			runtime·printf("----- lessstack called from goroutine %d -----\n", m->curg->goid);
++			runtime·printf("----- lessstack called from goroutine %D -----\n", m->curg->goid);
+ 			g = m->curg;
+ 			stk = (Stktop*)g->stackbase;
+ 			sp = (byte*)stk->gobuf.sp;

@@ -12,6 +12,35 @@ Date:   Thu May 12 18:10:03 2016 -0400
     Change-Id: Ibd92b69bcd6524a40a9dd4ec82422b50831071ed
     Reviewed-on: https://go-review.googlesource.com/23092
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/mbitmap.go | 16 +++++++++++++---
  1 file changed, 13 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/mbitmap.go b/src/runtime/mbitmap.go
+index 27f8e66d50..ccefbcd8d6 100644
+--- a/src/runtime/mbitmap.go
++++ b/src/runtime/mbitmap.go
+@@ -847,10 +847,20 @@ func (s *mspan) countFree() int {
+ // malloc does not call heapBitsSetType when there are no pointers,
+ // because all free objects are marked as noscan during
+ // heapBitsSweepSpan.
++//
+ // There can only be one allocation from a given span active at a time,
+-// so this code is not racing with other instances of itself, and
+-// the bitmap for a span always falls on byte boundaries.
+-// Hence, it can access the bitmap with racing.
++// and the bitmap for a span always falls on byte boundaries,
++// so there are no write-write races for access to the heap bitmap.
++// Hence, heapBitsSetType can access the bitmap without atomics.
++//
++// There can be read-write races between heapBitsSetType and things
++// that read the heap bitmap like scanobject. However, since
++// heapBitsSetType is only used for objects that have not yet been
++// made reachable, readers will ignore bits being modified by this
++// function. This does mean this function cannot transiently modify
++// bits that belong to neighboring objects. Also, on weakly-ordered
++// machines, callers must execute a store/store (publication) barrier
++// between calling this function and making the object reachable.
+ //
+ // TODO: This still has atomic accesses left over from when it could
+ // race with GC accessing mark bits in the bitmap. Remove these.

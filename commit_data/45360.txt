@@ -55,7 +55,7 @@ Date:   Wed Sep 9 17:24:23 2020 -0500
     Reviewed-by: Keith Randall <khr@golang.org>
     Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go             | 19 ++++++++++++++
  src/cmd/compile/internal/ssa/branchelim.go     |  2 +-
  src/cmd/compile/internal/ssa/gen/PPC64.rules   |  4 +--
@@ -85,3 +85,818 @@ Date:   Wed Sep 9 17:24:23 2020 -0500
  src/runtime/internal/atomic/atomic_wasm.go     | 24 ++++++++++++++++++
  src/sync/pool.go                               | 15 ++++++------
  28 files changed, 310 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index d8f627c213..e1455d2c3f 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -3389,6 +3389,13 @@ func init() {
+ 			return s.newValue1(ssa.OpSelect0, types.Types[TUINT32], v)
+ 		},
+ 		sys.PPC64, sys.S390X)
++	addF("runtime/internal/atomic", "LoadAcq64",
++		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
++			v := s.newValue2(ssa.OpAtomicLoadAcq64, types.NewTuple(types.Types[TUINT64], types.TypeMem), args[0], s.mem())
++			s.vars[&memVar] = s.newValue1(ssa.OpSelect1, types.TypeMem, v)
++			return s.newValue1(ssa.OpSelect0, types.Types[TUINT64], v)
++		},
++		sys.PPC64)
+ 	addF("runtime/internal/atomic", "Loadp",
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			v := s.newValue2(ssa.OpAtomicLoadPtr, types.NewTuple(s.f.Config.Types.BytePtr, types.TypeMem), args[0], s.mem())
+@@ -3427,6 +3434,12 @@ func init() {
+ 			return nil
+ 		},
+ 		sys.PPC64, sys.S390X)
++	addF("runtime/internal/atomic", "StoreRel64",
++		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
++			s.vars[&memVar] = s.newValue3(ssa.OpAtomicStoreRel64, types.TypeMem, args[0], args[1], s.mem())
++			return nil
++		},
++		sys.PPC64)
+ 
+ 	addF("runtime/internal/atomic", "Xchg",
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+@@ -3542,9 +3555,15 @@ func init() {
+ 	alias("runtime/internal/atomic", "Loaduintptr", "runtime/internal/atomic", "Load", p4...)
+ 	alias("runtime/internal/atomic", "Loaduintptr", "runtime/internal/atomic", "Load64", p8...)
+ 	alias("runtime/internal/atomic", "LoadAcq", "runtime/internal/atomic", "Load", lwatomics...)
++	alias("runtime/internal/atomic", "LoadAcq64", "runtime/internal/atomic", "Load64", lwatomics...)
++	alias("runtime/internal/atomic", "LoadAcquintptr", "runtime/internal/atomic", "LoadAcq", p4...)
++	alias("runtime/internal/atomic", "LoadAcquintptr", "runtime/internal/atomic", "LoadAcq64", p8...)
+ 	alias("runtime/internal/atomic", "Storeuintptr", "runtime/internal/atomic", "Store", p4...)
+ 	alias("runtime/internal/atomic", "Storeuintptr", "runtime/internal/atomic", "Store64", p8...)
+ 	alias("runtime/internal/atomic", "StoreRel", "runtime/internal/atomic", "Store", lwatomics...)
++	alias("runtime/internal/atomic", "StoreRel64", "runtime/internal/atomic", "Store64", lwatomics...)
++	alias("runtime/internal/atomic", "StoreReluintptr", "runtime/internal/atomic", "StoreRel", p4...)
++	alias("runtime/internal/atomic", "StoreReluintptr", "runtime/internal/atomic", "StoreRel64", p8...)
+ 	alias("runtime/internal/atomic", "Xchguintptr", "runtime/internal/atomic", "Xchg", p4...)
+ 	alias("runtime/internal/atomic", "Xchguintptr", "runtime/internal/atomic", "Xchg64", p8...)
+ 	alias("runtime/internal/atomic", "Xadduintptr", "runtime/internal/atomic", "Xadd", p4...)
+diff --git a/src/cmd/compile/internal/ssa/branchelim.go b/src/cmd/compile/internal/ssa/branchelim.go
+index 4f9fd8e22e..1d34f8160b 100644
+--- a/src/cmd/compile/internal/ssa/branchelim.go
++++ b/src/cmd/compile/internal/ssa/branchelim.go
+@@ -35,7 +35,7 @@ func branchelim(f *Func) {
+ 	for _, b := range f.Blocks {
+ 		for _, v := range b.Values {
+ 			switch v.Op {
+-			case OpLoad, OpAtomicLoad8, OpAtomicLoad32, OpAtomicLoad64, OpAtomicLoadPtr, OpAtomicLoadAcq32:
++			case OpLoad, OpAtomicLoad8, OpAtomicLoad32, OpAtomicLoad64, OpAtomicLoadPtr, OpAtomicLoadAcq32, OpAtomicLoadAcq64:
+ 				loadAddr.add(v.Args[0].ID)
+ 			case OpMove:
+ 				loadAddr.add(v.Args[1].ID)
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64.rules b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+index a05cfee654..11b1a318fe 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64.rules
++++ b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+@@ -967,10 +967,10 @@
+ 
+ // atomic intrinsics
+ (AtomicLoad(8|32|64|Ptr)  ptr mem) => (LoweredAtomicLoad(8|32|64|Ptr) [1] ptr mem)
+-(AtomicLoadAcq32        ptr mem) => (LoweredAtomicLoad32 [0] ptr mem)
++(AtomicLoadAcq(32|64)     ptr mem) => (LoweredAtomicLoad(32|64) [0] ptr mem)
+ 
+ (AtomicStore(8|32|64)    ptr val mem) => (LoweredAtomicStore(8|32|64) [1] ptr val mem)
+-(AtomicStoreRel32        ptr val mem) => (LoweredAtomicStore32 [0] ptr val mem)
++(AtomicStoreRel(32|64)   ptr val mem) => (LoweredAtomicStore(32|64) [0] ptr val mem)
+ //(AtomicStorePtrNoWB ptr val mem) => (STLR  ptr val mem)
+ 
+ (AtomicExchange(32|64) ...) => (LoweredAtomicExchange(32|64) ...)
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index 85839303c5..12ba9f1fc9 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -550,11 +550,13 @@ var genericOps = []opData{
+ 	{name: "AtomicLoad64", argLength: 2, typ: "(UInt64,Mem)"},                                  // Load from arg0.  arg1=memory.  Returns loaded value and new memory.
+ 	{name: "AtomicLoadPtr", argLength: 2, typ: "(BytePtr,Mem)"},                                // Load from arg0.  arg1=memory.  Returns loaded value and new memory.
+ 	{name: "AtomicLoadAcq32", argLength: 2, typ: "(UInt32,Mem)"},                               // Load from arg0.  arg1=memory.  Lock acquisition, returns loaded value and new memory.
++	{name: "AtomicLoadAcq64", argLength: 2, typ: "(UInt64,Mem)"},                               // Load from arg0.  arg1=memory.  Lock acquisition, returns loaded value and new memory.
+ 	{name: "AtomicStore8", argLength: 3, typ: "Mem", hasSideEffects: true},                     // Store arg1 to *arg0.  arg2=memory.  Returns memory.
+ 	{name: "AtomicStore32", argLength: 3, typ: "Mem", hasSideEffects: true},                    // Store arg1 to *arg0.  arg2=memory.  Returns memory.
+ 	{name: "AtomicStore64", argLength: 3, typ: "Mem", hasSideEffects: true},                    // Store arg1 to *arg0.  arg2=memory.  Returns memory.
+ 	{name: "AtomicStorePtrNoWB", argLength: 3, typ: "Mem", hasSideEffects: true},               // Store arg1 to *arg0.  arg2=memory.  Returns memory.
+ 	{name: "AtomicStoreRel32", argLength: 3, typ: "Mem", hasSideEffects: true},                 // Store arg1 to *arg0.  arg2=memory.  Lock release, returns memory.
++	{name: "AtomicStoreRel64", argLength: 3, typ: "Mem", hasSideEffects: true},                 // Store arg1 to *arg0.  arg2=memory.  Lock release, returns memory.
+ 	{name: "AtomicExchange32", argLength: 3, typ: "(UInt32,Mem)", hasSideEffects: true},        // Store arg1 to *arg0.  arg2=memory.  Returns old contents of *arg0 and new memory.
+ 	{name: "AtomicExchange64", argLength: 3, typ: "(UInt64,Mem)", hasSideEffects: true},        // Store arg1 to *arg0.  arg2=memory.  Returns old contents of *arg0 and new memory.
+ 	{name: "AtomicAdd32", argLength: 3, typ: "(UInt32,Mem)", hasSideEffects: true},             // Do *arg0 += arg1.  arg2=memory.  Returns sum and new memory.
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 051550fb17..eae30c79ba 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -2839,11 +2839,13 @@ const (
+ 	OpAtomicLoad64
+ 	OpAtomicLoadPtr
+ 	OpAtomicLoadAcq32
++	OpAtomicLoadAcq64
+ 	OpAtomicStore8
+ 	OpAtomicStore32
+ 	OpAtomicStore64
+ 	OpAtomicStorePtrNoWB
+ 	OpAtomicStoreRel32
++	OpAtomicStoreRel64
+ 	OpAtomicExchange32
+ 	OpAtomicExchange64
+ 	OpAtomicAdd32
+@@ -35429,6 +35431,11 @@ var opcodeTable = [...]opInfo{
+ 		argLen:  2,
+ 		generic: true,
+ 	},
++	{
++		name:    "AtomicLoadAcq64",
++		argLen:  2,
++		generic: true,
++	},
+ 	{
+ 		name:           "AtomicStore8",
+ 		argLen:         3,
+@@ -35459,6 +35466,12 @@ var opcodeTable = [...]opInfo{
+ 		hasSideEffects: true,
+ 		generic:        true,
+ 	},
++	{
++		name:           "AtomicStoreRel64",
++		argLen:         3,
++		hasSideEffects: true,
++		generic:        true,
++	},
+ 	{
+ 		name:           "AtomicExchange32",
+ 		argLen:         3,
+diff --git a/src/cmd/compile/internal/ssa/rewritePPC64.go b/src/cmd/compile/internal/ssa/rewritePPC64.go
+index 1b8a5a78ca..a820bc0c4e 100644
+--- a/src/cmd/compile/internal/ssa/rewritePPC64.go
++++ b/src/cmd/compile/internal/ssa/rewritePPC64.go
+@@ -82,6 +82,8 @@ func rewriteValuePPC64(v *Value) bool {
+ 		return rewriteValuePPC64_OpAtomicLoad8(v)
+ 	case OpAtomicLoadAcq32:
+ 		return rewriteValuePPC64_OpAtomicLoadAcq32(v)
++	case OpAtomicLoadAcq64:
++		return rewriteValuePPC64_OpAtomicLoadAcq64(v)
+ 	case OpAtomicLoadPtr:
+ 		return rewriteValuePPC64_OpAtomicLoadPtr(v)
+ 	case OpAtomicOr8:
+@@ -95,6 +97,8 @@ func rewriteValuePPC64(v *Value) bool {
+ 		return rewriteValuePPC64_OpAtomicStore8(v)
+ 	case OpAtomicStoreRel32:
+ 		return rewriteValuePPC64_OpAtomicStoreRel32(v)
++	case OpAtomicStoreRel64:
++		return rewriteValuePPC64_OpAtomicStoreRel64(v)
+ 	case OpAvg64u:
+ 		return rewriteValuePPC64_OpAvg64u(v)
+ 	case OpBitLen32:
+@@ -930,6 +934,20 @@ func rewriteValuePPC64_OpAtomicLoadAcq32(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValuePPC64_OpAtomicLoadAcq64(v *Value) bool {
++	v_1 := v.Args[1]
++	v_0 := v.Args[0]
++	// match: (AtomicLoadAcq64 ptr mem)
++	// result: (LoweredAtomicLoad64 [0] ptr mem)
++	for {
++		ptr := v_0
++		mem := v_1
++		v.reset(OpPPC64LoweredAtomicLoad64)
++		v.AuxInt = int64ToAuxInt(0)
++		v.AddArg2(ptr, mem)
++		return true
++	}
++}
+ func rewriteValuePPC64_OpAtomicLoadPtr(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+@@ -1008,6 +1026,22 @@ func rewriteValuePPC64_OpAtomicStoreRel32(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValuePPC64_OpAtomicStoreRel64(v *Value) bool {
++	v_2 := v.Args[2]
++	v_1 := v.Args[1]
++	v_0 := v.Args[0]
++	// match: (AtomicStoreRel64 ptr val mem)
++	// result: (LoweredAtomicStore64 [0] ptr val mem)
++	for {
++		ptr := v_0
++		val := v_1
++		mem := v_2
++		v.reset(OpPPC64LoweredAtomicStore64)
++		v.AuxInt = int64ToAuxInt(0)
++		v.AddArg3(ptr, val, mem)
++		return true
++	}
++}
+ func rewriteValuePPC64_OpAvg64u(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 2bdc08ba36..c9665265e9 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -1337,6 +1337,11 @@ func disallowInternal(srcDir string, importer *Package, importerPath string, p *
+ 		return p
+ 	}
+ 
++	// Allow sync package to access lightweight atomic functions limited to the runtime.
++	if p.Standard && strings.HasPrefix(importerPath, "sync") && p.ImportPath == "runtime/internal/atomic" {
++		return p
++	}
++
+ 	// Internal is present.
+ 	// Map import path back to directory corresponding to parent of internal.
+ 	if i > 0 {
+diff --git a/src/runtime/internal/atomic/asm_386.s b/src/runtime/internal/atomic/asm_386.s
+index bcefff373f..7ebf675ac5 100644
+--- a/src/runtime/internal/atomic/asm_386.s
++++ b/src/runtime/internal/atomic/asm_386.s
+@@ -189,6 +189,9 @@ TEXT ·Store(SB), NOSPLIT, $0-8
+ TEXT ·StoreRel(SB), NOSPLIT, $0-8
+ 	JMP	·Store(SB)
+ 
++TEXT runtime∕internal∕atomic·StoreReluintptr(SB), NOSPLIT, $0-8
++	JMP	runtime∕internal∕atomic·Store(SB)
++
+ // uint64 atomicload64(uint64 volatile* addr);
+ TEXT ·Load64(SB), NOSPLIT, $0-12
+ 	NO_LOCAL_POINTERS
+diff --git a/src/runtime/internal/atomic/asm_amd64.s b/src/runtime/internal/atomic/asm_amd64.s
+index 90c56424c9..80fb31285d 100644
+--- a/src/runtime/internal/atomic/asm_amd64.s
++++ b/src/runtime/internal/atomic/asm_amd64.s
+@@ -136,6 +136,12 @@ TEXT runtime∕internal∕atomic·Store(SB), NOSPLIT, $0-12
+ TEXT runtime∕internal∕atomic·StoreRel(SB), NOSPLIT, $0-12
+ 	JMP	runtime∕internal∕atomic·Store(SB)
+ 
++TEXT runtime∕internal∕atomic·StoreRel64(SB), NOSPLIT, $0-16
++	JMP	runtime∕internal∕atomic·Store64(SB)
++
++TEXT runtime∕internal∕atomic·StoreReluintptr(SB), NOSPLIT, $0-16
++	JMP	runtime∕internal∕atomic·Store64(SB)
++
+ TEXT runtime∕internal∕atomic·Store8(SB), NOSPLIT, $0-9
+ 	MOVQ	ptr+0(FP), BX
+ 	MOVB	val+8(FP), AX
+diff --git a/src/runtime/internal/atomic/asm_arm.s b/src/runtime/internal/atomic/asm_arm.s
+index c3d1d9025d..274925ed60 100644
+--- a/src/runtime/internal/atomic/asm_arm.s
++++ b/src/runtime/internal/atomic/asm_arm.s
+@@ -57,6 +57,9 @@ TEXT ·Loadp(SB),NOSPLIT|NOFRAME,$0-8
+ TEXT ·LoadAcq(SB),NOSPLIT|NOFRAME,$0-8
+ 	B	·Load(SB)
+ 
++TEXT ·LoadAcquintptr(SB),NOSPLIT|NOFRAME,$0-8
++	B 	·Load(SB)
++
+ TEXT ·Casuintptr(SB),NOSPLIT,$0-13
+ 	B	·Cas(SB)
+ 
+@@ -81,6 +84,9 @@ TEXT ·StorepNoWB(SB),NOSPLIT,$0-8
+ TEXT ·StoreRel(SB),NOSPLIT,$0-8
+ 	B	·Store(SB)
+ 
++TEXT ·StoreReluintptr(SB),NOSPLIT,$0-8
++	B	·Store(SB)
++
+ TEXT ·Xadduintptr(SB),NOSPLIT,$0-12
+ 	B	·Xadd(SB)
+ 
+diff --git a/src/runtime/internal/atomic/asm_mips64x.s b/src/runtime/internal/atomic/asm_mips64x.s
+index 3290fb726a..03fb822929 100644
+--- a/src/runtime/internal/atomic/asm_mips64x.s
++++ b/src/runtime/internal/atomic/asm_mips64x.s
+@@ -158,6 +158,12 @@ TEXT ·StorepNoWB(SB), NOSPLIT, $0-16
+ TEXT ·StoreRel(SB), NOSPLIT, $0-12
+ 	JMP	·Store(SB)
+ 
++TEXT ·StoreRel64(SB), NOSPLIT, $0-16
++	JMP	·Store64(SB)
++
++TEXT ·StoreReluintptr(SB), NOSPLIT, $0-16
++	JMP	·Store64(SB)
++
+ TEXT ·Store(SB), NOSPLIT, $0-12
+ 	MOVV	ptr+0(FP), R1
+ 	MOVW	val+8(FP), R2
+diff --git a/src/runtime/internal/atomic/asm_mipsx.s b/src/runtime/internal/atomic/asm_mipsx.s
+index 62811a6599..63bb548825 100644
+--- a/src/runtime/internal/atomic/asm_mipsx.s
++++ b/src/runtime/internal/atomic/asm_mipsx.s
+@@ -122,6 +122,9 @@ TEXT ·StorepNoWB(SB),NOSPLIT,$0-8
+ TEXT ·StoreRel(SB),NOSPLIT,$0-8
+ 	JMP	·Store(SB)
+ 
++TEXT ·StoreReluintptr(SB),NOSPLIT,$0-8
++	JMP	·Store(SB)
++
+ // void	Or8(byte volatile*, byte);
+ TEXT ·Or8(SB),NOSPLIT,$0-5
+ 	MOVW	ptr+0(FP), R1
+diff --git a/src/runtime/internal/atomic/asm_ppc64x.s b/src/runtime/internal/atomic/asm_ppc64x.s
+index 06dc931bf4..c0237de4d0 100644
+--- a/src/runtime/internal/atomic/asm_ppc64x.s
++++ b/src/runtime/internal/atomic/asm_ppc64x.s
+@@ -83,12 +83,18 @@ TEXT runtime∕internal∕atomic·Casuintptr(SB), NOSPLIT, $0-25
+ TEXT runtime∕internal∕atomic·Loaduintptr(SB),  NOSPLIT|NOFRAME, $0-16
+ 	BR	runtime∕internal∕atomic·Load64(SB)
+ 
++TEXT runtime∕internal∕atomic·LoadAcquintptr(SB),  NOSPLIT|NOFRAME, $0-16
++	BR	runtime∕internal∕atomic·LoadAcq64(SB)
++
+ TEXT runtime∕internal∕atomic·Loaduint(SB), NOSPLIT|NOFRAME, $0-16
+ 	BR	runtime∕internal∕atomic·Load64(SB)
+ 
+ TEXT runtime∕internal∕atomic·Storeuintptr(SB), NOSPLIT, $0-16
+ 	BR	runtime∕internal∕atomic·Store64(SB)
+ 
++TEXT runtime∕internal∕atomic·StoreReluintptr(SB), NOSPLIT, $0-16
++	BR	runtime∕internal∕atomic·StoreRel64(SB)
++
+ TEXT runtime∕internal∕atomic·Xadduintptr(SB), NOSPLIT, $0-24
+ 	BR	runtime∕internal∕atomic·Xadd64(SB)
+ 
+@@ -191,6 +197,13 @@ TEXT runtime∕internal∕atomic·StoreRel(SB), NOSPLIT, $0-12
+ 	MOVW	R4, 0(R3)
+ 	RET
+ 
++TEXT runtime∕internal∕atomic·StoreRel64(SB), NOSPLIT, $0-16
++	MOVD	ptr+0(FP), R3
++	MOVD	val+8(FP), R4
++	LWSYNC
++	MOVD	R4, 0(R3)
++	RET
++
+ // void runtime∕internal∕atomic·Or8(byte volatile*, byte);
+ TEXT runtime∕internal∕atomic·Or8(SB), NOSPLIT, $0-9
+ 	MOVD	ptr+0(FP), R3
+diff --git a/src/runtime/internal/atomic/atomic_386.go b/src/runtime/internal/atomic/atomic_386.go
+index 8d002ebfe3..06ce6a5356 100644
+--- a/src/runtime/internal/atomic/atomic_386.go
++++ b/src/runtime/internal/atomic/atomic_386.go
+@@ -30,6 +30,12 @@ func LoadAcq(ptr *uint32) uint32 {
+ 	return *ptr
+ }
+ 
++//go:nosplit
++//go:noinline
++func LoadAcquintptr(ptr *uintptr) uintptr {
++	return *ptr
++}
++
+ //go:noescape
+ func Xadd64(ptr *uint64, delta int64) uint64
+ 
+@@ -83,5 +89,8 @@ func Store64(ptr *uint64, val uint64)
+ //go:noescape
+ func StoreRel(ptr *uint32, val uint32)
+ 
++//go:noescape
++func StoreReluintptr(ptr *uintptr, val uintptr)
++
+ // NO go:noescape annotation; see atomic_pointer.go.
+ func StorepNoWB(ptr unsafe.Pointer, val unsafe.Pointer)
+diff --git a/src/runtime/internal/atomic/atomic_amd64.go b/src/runtime/internal/atomic/atomic_amd64.go
+index 14b8101720..1b71a16d94 100644
+--- a/src/runtime/internal/atomic/atomic_amd64.go
++++ b/src/runtime/internal/atomic/atomic_amd64.go
+@@ -35,6 +35,18 @@ func LoadAcq(ptr *uint32) uint32 {
+ 	return *ptr
+ }
+ 
++//go:nosplit
++//go:noinline
++func LoadAcq64(ptr *uint64) uint64 {
++	return *ptr
++}
++
++//go:nosplit
++//go:noinline
++func LoadAcquintptr(ptr *uintptr) uintptr {
++	return *ptr
++}
++
+ //go:noescape
+ func Xadd(ptr *uint32, delta int32) uint32
+ 
+@@ -85,6 +97,12 @@ func Store64(ptr *uint64, val uint64)
+ //go:noescape
+ func StoreRel(ptr *uint32, val uint32)
+ 
++//go:noescape
++func StoreRel64(ptr *uint64, val uint64)
++
++//go:noescape
++func StoreReluintptr(ptr *uintptr, val uintptr)
++
+ // StorepNoWB performs *ptr = val atomically and without a write
+ // barrier.
+ //
+diff --git a/src/runtime/internal/atomic/atomic_arm.go b/src/runtime/internal/atomic/atomic_arm.go
+index 95713afcc1..67d529c1cb 100644
+--- a/src/runtime/internal/atomic/atomic_arm.go
++++ b/src/runtime/internal/atomic/atomic_arm.go
+@@ -81,6 +81,9 @@ func Store(addr *uint32, v uint32)
+ //go:noescape
+ func StoreRel(addr *uint32, v uint32)
+ 
++//go:noescape
++func StoreReluintptr(addr *uintptr, v uintptr)
++
+ //go:nosplit
+ func goCas64(addr *uint64, old, new uint64) bool {
+ 	if uintptr(unsafe.Pointer(addr))&7 != 0 {
+@@ -194,6 +197,9 @@ func Load8(addr *uint8) uint8
+ //go:noescape
+ func LoadAcq(addr *uint32) uint32
+ 
++//go:noescape
++func LoadAcquintptr(ptr *uintptr) uintptr
++
+ //go:noescape
+ func Cas64(addr *uint64, old, new uint64) bool
+ 
+diff --git a/src/runtime/internal/atomic/atomic_arm64.go b/src/runtime/internal/atomic/atomic_arm64.go
+index 26ca94d54c..c9b4322fe9 100644
+--- a/src/runtime/internal/atomic/atomic_arm64.go
++++ b/src/runtime/internal/atomic/atomic_arm64.go
+@@ -41,6 +41,12 @@ func Loadp(ptr unsafe.Pointer) unsafe.Pointer
+ //go:noescape
+ func LoadAcq(addr *uint32) uint32
+ 
++//go:noescape
++func LoadAcq64(ptr *uint64) uint64
++
++//go:noescape
++func LoadAcquintptr(ptr *uintptr) uintptr
++
+ //go:noescape
+ func Or8(ptr *uint8, val uint8)
+ 
+@@ -67,3 +73,9 @@ func StorepNoWB(ptr unsafe.Pointer, val unsafe.Pointer)
+ 
+ //go:noescape
+ func StoreRel(ptr *uint32, val uint32)
++
++//go:noescape
++func StoreRel64(ptr *uint64, val uint64)
++
++//go:noescape
++func StoreReluintptr(ptr *uintptr, val uintptr)
+diff --git a/src/runtime/internal/atomic/atomic_arm64.s b/src/runtime/internal/atomic/atomic_arm64.s
+index a2eb7568d2..36c7698b18 100644
+--- a/src/runtime/internal/atomic/atomic_arm64.s
++++ b/src/runtime/internal/atomic/atomic_arm64.s
+@@ -36,12 +36,26 @@ TEXT ·Loadp(SB),NOSPLIT,$0-16
+ TEXT ·LoadAcq(SB),NOSPLIT,$0-12
+ 	B	·Load(SB)
+ 
++// uint64 runtime∕internal∕atomic·LoadAcquintptr(uint64 volatile* addr)
++TEXT ·LoadAcq64(SB),NOSPLIT,$0-16
++	B	·Load64(SB)
++
++// uintptr runtime∕internal∕atomic·LoadAcq64(uintptr volatile* addr)
++TEXT ·LoadAcquintptr(SB),NOSPLIT,$0-16
++	B	·Load64(SB)
++
+ TEXT runtime∕internal∕atomic·StorepNoWB(SB), NOSPLIT, $0-16
+ 	B	runtime∕internal∕atomic·Store64(SB)
+ 
+ TEXT runtime∕internal∕atomic·StoreRel(SB), NOSPLIT, $0-12
+ 	B	runtime∕internal∕atomic·Store(SB)
+ 
++TEXT runtime∕internal∕atomic·StoreRel64(SB), NOSPLIT, $0-16
++	B	runtime∕internal∕atomic·Store64(SB)
++
++TEXT runtime∕internal∕atomic·StoreReluintptr(SB), NOSPLIT, $0-16
++	B	runtime∕internal∕atomic·Store64(SB)
++
+ TEXT runtime∕internal∕atomic·Store(SB), NOSPLIT, $0-12
+ 	MOVD	ptr+0(FP), R0
+ 	MOVW	val+8(FP), R1
+diff --git a/src/runtime/internal/atomic/atomic_mips64x.go b/src/runtime/internal/atomic/atomic_mips64x.go
+index 1d9977850b..fca2242514 100644
+--- a/src/runtime/internal/atomic/atomic_mips64x.go
++++ b/src/runtime/internal/atomic/atomic_mips64x.go
+@@ -41,6 +41,12 @@ func Loadp(ptr unsafe.Pointer) unsafe.Pointer
+ //go:noescape
+ func LoadAcq(ptr *uint32) uint32
+ 
++//go:noescape
++func LoadAcq64(ptr *uint64) uint64
++
++//go:noescape
++func LoadAcquintptr(ptr *uintptr) uintptr
++
+ //go:noescape
+ func And8(ptr *uint8, val uint8)
+ 
+@@ -69,3 +75,9 @@ func StorepNoWB(ptr unsafe.Pointer, val unsafe.Pointer)
+ 
+ //go:noescape
+ func StoreRel(ptr *uint32, val uint32)
++
++//go:noescape
++func StoreRel64(ptr *uint64, val uint64)
++
++//go:noescape
++func StoreReluintptr(ptr *uintptr, val uintptr)
+diff --git a/src/runtime/internal/atomic/atomic_mips64x.s b/src/runtime/internal/atomic/atomic_mips64x.s
+index 1ed90937c9..125c0c221c 100644
+--- a/src/runtime/internal/atomic/atomic_mips64x.s
++++ b/src/runtime/internal/atomic/atomic_mips64x.s
+@@ -47,3 +47,11 @@ TEXT ·Loadp(SB),NOSPLIT|NOFRAME,$0-16
+ // uint32 runtime∕internal∕atomic·LoadAcq(uint32 volatile* ptr)
+ TEXT ·LoadAcq(SB),NOSPLIT|NOFRAME,$0-12
+ 	JMP	atomic·Load(SB)
++
++// uint64 runtime∕internal∕atomic·LoadAcq64(uint64 volatile* ptr)
++TEXT ·LoadAcq64(SB),NOSPLIT|NOFRAME,$0-16
++	JMP	atomic·Load64(SB)
++
++// uintptr runtime∕internal∕atomic·LoadAcquintptr(uintptr volatile* ptr)
++TEXT ·LoadAcquintptr(SB),NOSPLIT|NOFRAME,$0-16
++	JMP	atomic·Load64(SB)
+diff --git a/src/runtime/internal/atomic/atomic_mipsx.go b/src/runtime/internal/atomic/atomic_mipsx.go
+index b99bfe7dbf..be1e6a038b 100644
+--- a/src/runtime/internal/atomic/atomic_mipsx.go
++++ b/src/runtime/internal/atomic/atomic_mipsx.go
+@@ -132,6 +132,9 @@ func Loadp(ptr unsafe.Pointer) unsafe.Pointer
+ //go:noescape
+ func LoadAcq(ptr *uint32) uint32
+ 
++//go:noescape
++func LoadAcquintptr(ptr *uintptr) uintptr
++
+ //go:noescape
+ func And8(ptr *uint8, val uint8)
+ 
+@@ -150,5 +153,8 @@ func StorepNoWB(ptr unsafe.Pointer, val unsafe.Pointer)
+ //go:noescape
+ func StoreRel(ptr *uint32, val uint32)
+ 
++//go:noescape
++func StoreReluintptr(ptr *uintptr, val uintptr)
++
+ //go:noescape
+ func CasRel(addr *uint32, old, new uint32) bool
+diff --git a/src/runtime/internal/atomic/atomic_ppc64x.go b/src/runtime/internal/atomic/atomic_ppc64x.go
+index a48ecf5ee8..e759bb27a2 100644
+--- a/src/runtime/internal/atomic/atomic_ppc64x.go
++++ b/src/runtime/internal/atomic/atomic_ppc64x.go
+@@ -41,6 +41,12 @@ func Loadp(ptr unsafe.Pointer) unsafe.Pointer
+ //go:noescape
+ func LoadAcq(ptr *uint32) uint32
+ 
++//go:noescape
++func LoadAcq64(ptr *uint64) uint64
++
++//go:noescape
++func LoadAcquintptr(ptr *uintptr) uintptr
++
+ //go:noescape
+ func And8(ptr *uint8, val uint8)
+ 
+@@ -67,5 +73,11 @@ func Store64(ptr *uint64, val uint64)
+ //go:noescape
+ func StoreRel(ptr *uint32, val uint32)
+ 
++//go:noescape
++func StoreRel64(ptr *uint64, val uint64)
++
++//go:noescape
++func StoreReluintptr(ptr *uintptr, val uintptr)
++
+ // NO go:noescape annotation; see atomic_pointer.go.
+ func StorepNoWB(ptr unsafe.Pointer, val unsafe.Pointer)
+diff --git a/src/runtime/internal/atomic/atomic_ppc64x.s b/src/runtime/internal/atomic/atomic_ppc64x.s
+index c2f696fb34..b79cdbca34 100644
+--- a/src/runtime/internal/atomic/atomic_ppc64x.s
++++ b/src/runtime/internal/atomic/atomic_ppc64x.s
+@@ -6,6 +6,15 @@
+ 
+ #include "textflag.h"
+ 
++
++// For more details about how various memory models are
++// enforced on POWER, the following paper provides more
++// details about how they enforce C/C++ like models. This
++// gives context about why the strange looking code
++// sequences below work.
++//
++// http://www.rdrop.com/users/paulmck/scalability/paper/N2745r.2011.03.04a.html
++
+ // uint32 runtime∕internal∕atomic·Load(uint32 volatile* ptr)
+ TEXT ·Load(SB),NOSPLIT|NOFRAME,$-8-12
+ 	MOVD	ptr+0(FP), R3
+@@ -56,5 +65,16 @@ TEXT ·LoadAcq(SB),NOSPLIT|NOFRAME,$-8-12
+ 	MOVWZ  0(R3), R3
+ 	CMPW   R3, R3, CR7
+ 	BC     4, 30, 1(PC) // bne- cr7, 0x4
++	ISYNC
+ 	MOVW   R3, ret+8(FP)
+ 	RET
++
++// uint64 runtime∕internal∕atomic·LoadAcq64(uint64 volatile* ptr)
++TEXT ·LoadAcq64(SB),NOSPLIT|NOFRAME,$-8-16
++	MOVD   ptr+0(FP), R3
++	MOVD   0(R3), R3
++	CMP    R3, R3, CR7
++	BC     4, 30, 1(PC) // bne- cr7, 0x4
++	ISYNC
++	MOVD   R3, ret+8(FP)
++	RET
+diff --git a/src/runtime/internal/atomic/atomic_riscv64.go b/src/runtime/internal/atomic/atomic_riscv64.go
+index d52512369e..617bc1a3eb 100644
+--- a/src/runtime/internal/atomic/atomic_riscv64.go
++++ b/src/runtime/internal/atomic/atomic_riscv64.go
+@@ -39,6 +39,12 @@ func Loadp(ptr unsafe.Pointer) unsafe.Pointer
+ //go:noescape
+ func LoadAcq(ptr *uint32) uint32
+ 
++//go:noescape
++func LoadAcq64(ptr *uint64) uint64
++
++//go:noescape
++func LoadAcquintptr(ptr *uintptr) uintptr
++
+ //go:noescape
+ func Or8(ptr *uint8, val uint8)
+ 
+@@ -65,3 +71,9 @@ func StorepNoWB(ptr unsafe.Pointer, val unsafe.Pointer)
+ 
+ //go:noescape
+ func StoreRel(ptr *uint32, val uint32)
++
++//go:noescape
++func StoreRel64(ptr *uint64, val uint64)
++
++//go:noescape
++func StoreReluintptr(ptr *uintptr, val uintptr)
+diff --git a/src/runtime/internal/atomic/atomic_riscv64.s b/src/runtime/internal/atomic/atomic_riscv64.s
+index d005325ca3..db139d690a 100644
+--- a/src/runtime/internal/atomic/atomic_riscv64.s
++++ b/src/runtime/internal/atomic/atomic_riscv64.s
+@@ -150,6 +150,12 @@ TEXT ·Xaddint64(SB),NOSPLIT,$0-24
+ TEXT ·LoadAcq(SB),NOSPLIT|NOFRAME,$0-12
+ 	JMP	·Load(SB)
+ 
++TEXT ·LoadAcq64(SB),NOSPLIT|NOFRAME,$0-16
++	JMP	·Load64(SB)
++
++TEXT ·LoadAcquintptr(SB),NOSPLIT|NOFRAME,$0-16
++	JMP	·Load64(SB)
++
+ // func Loadp(ptr unsafe.Pointer) unsafe.Pointer
+ TEXT ·Loadp(SB),NOSPLIT,$0-16
+ 	JMP	·Load64(SB)
+@@ -161,6 +167,12 @@ TEXT ·StorepNoWB(SB), NOSPLIT, $0-16
+ TEXT ·StoreRel(SB), NOSPLIT, $0-12
+ 	JMP	·Store(SB)
+ 
++TEXT ·StoreRel64(SB), NOSPLIT, $0-16
++	JMP	·Store64(SB)
++
++TEXT ·StoreReluintptr(SB), NOSPLIT, $0-16
++	JMP	·Store64(SB)
++
+ // func Xchg(ptr *uint32, new uint32) uint32
+ TEXT ·Xchg(SB), NOSPLIT, $0-20
+ 	MOV	ptr+0(FP), A0
+diff --git a/src/runtime/internal/atomic/atomic_s390x.go b/src/runtime/internal/atomic/atomic_s390x.go
+index 4d73b39baf..b649caa39f 100644
+--- a/src/runtime/internal/atomic/atomic_s390x.go
++++ b/src/runtime/internal/atomic/atomic_s390x.go
+@@ -41,6 +41,18 @@ func LoadAcq(ptr *uint32) uint32 {
+ 	return *ptr
+ }
+ 
++//go:nosplit
++//go:noinline
++func LoadAcq64(ptr *uint64) uint64 {
++	return *ptr
++}
++
++//go:nosplit
++//go:noinline
++func LoadAcquintptr(ptr *uintptr) uintptr {
++	return *ptr
++}
++
+ //go:noescape
+ func Store(ptr *uint32, val uint32)
+ 
+@@ -59,6 +71,18 @@ func StoreRel(ptr *uint32, val uint32) {
+ 	*ptr = val
+ }
+ 
++//go:nosplit
++//go:noinline
++func StoreRel64(ptr *uint64, val uint64) {
++	*ptr = val
++}
++
++//go:nosplit
++//go:noinline
++func StoreReluintptr(ptr *uintptr, val uintptr) {
++	*ptr = val
++}
++
+ //go:noescape
+ func And8(ptr *uint8, val uint8)
+ 
+diff --git a/src/runtime/internal/atomic/atomic_wasm.go b/src/runtime/internal/atomic/atomic_wasm.go
+index 2c0c3a8174..60a4942884 100644
+--- a/src/runtime/internal/atomic/atomic_wasm.go
++++ b/src/runtime/internal/atomic/atomic_wasm.go
+@@ -45,6 +45,18 @@ func LoadAcq(ptr *uint32) uint32 {
+ 	return *ptr
+ }
+ 
++//go:nosplit
++//go:noinline
++func LoadAcq64(ptr *uint64) uint64 {
++	return *ptr
++}
++
++//go:nosplit
++//go:noinline
++func LoadAcquintptr(ptr *uintptr) uintptr {
++	return *ptr
++}
++
+ //go:nosplit
+ //go:noinline
+ func Load8(ptr *uint8) uint8 {
+@@ -141,6 +153,18 @@ func StoreRel(ptr *uint32, val uint32) {
+ 	*ptr = val
+ }
+ 
++//go:nosplit
++//go:noinline
++func StoreRel64(ptr *uint64, val uint64) {
++	*ptr = val
++}
++
++//go:nosplit
++//go:noinline
++func StoreReluintptr(ptr *uintptr, val uintptr) {
++	*ptr = val
++}
++
+ //go:nosplit
+ //go:noinline
+ func Store8(ptr *uint8, val uint8) {
+diff --git a/src/sync/pool.go b/src/sync/pool.go
+index ca7afdb12f..137413fdc4 100644
+--- a/src/sync/pool.go
++++ b/src/sync/pool.go
+@@ -7,6 +7,7 @@ package sync
+ import (
+ 	"internal/race"
+ 	"runtime"
++	runtimeatomic "runtime/internal/atomic"
+ 	"sync/atomic"
+ 	"unsafe"
+ )
+@@ -152,8 +153,8 @@ func (p *Pool) Get() interface{} {
+ 
+ func (p *Pool) getSlow(pid int) interface{} {
+ 	// See the comment in pin regarding ordering of the loads.
+-	size := atomic.LoadUintptr(&p.localSize) // load-acquire
+-	locals := p.local                        // load-consume
++	size := runtimeatomic.LoadAcquintptr(&p.localSize) // load-acquire
++	locals := p.local                                  // load-consume
+ 	// Try to steal one element from other procs.
+ 	for i := 0; i < int(size); i++ {
+ 		l := indexLocal(locals, (pid+i+1)%int(size))
+@@ -165,7 +166,7 @@ func (p *Pool) getSlow(pid int) interface{} {
+ 	// Try the victim cache. We do this after attempting to steal
+ 	// from all primary caches because we want objects in the
+ 	// victim cache to age out if at all possible.
+-	size = atomic.LoadUintptr(&p.victimSize)
++	size = runtimeatomic.Loaduintptr(&p.victimSize)
+ 	if uintptr(pid) >= size {
+ 		return nil
+ 	}
+@@ -198,8 +199,8 @@ func (p *Pool) pin() (*poolLocal, int) {
+ 	// Since we've disabled preemption, GC cannot happen in between.
+ 	// Thus here we must observe local at least as large localSize.
+ 	// We can observe a newer/larger local, it is fine (we must observe its zero-initialized-ness).
+-	s := atomic.LoadUintptr(&p.localSize) // load-acquire
+-	l := p.local                          // load-consume
++	s := runtimeatomic.LoadAcquintptr(&p.localSize) // load-acquire
++	l := p.local                                    // load-consume
+ 	if uintptr(pid) < s {
+ 		return indexLocal(l, pid), pid
+ 	}
+@@ -225,8 +226,8 @@ func (p *Pool) pinSlow() (*poolLocal, int) {
+ 	// If GOMAXPROCS changes between GCs, we re-allocate the array and lose the old one.
+ 	size := runtime.GOMAXPROCS(0)
+ 	local := make([]poolLocal, size)
+-	atomic.StorePointer(&p.local, unsafe.Pointer(&local[0])) // store-release
+-	atomic.StoreUintptr(&p.localSize, uintptr(size))         // store-release
++	atomic.StorePointer(&p.local, unsafe.Pointer(&local[0]))   // store-release
++	runtimeatomic.StoreReluintptr(&p.localSize, uintptr(size)) // store-release
+ 	return &local[pid], pid
+ }
+ 

@@ -11,6 +11,40 @@ Date:   Sun Apr 8 10:30:15 2018 +0800
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/internal/cpu/cpu_test.go | 23 ++++++++++++++++-------
  1 file changed, 16 insertions(+), 7 deletions(-)
+
+diff --git a/src/internal/cpu/cpu_test.go b/src/internal/cpu/cpu_test.go
+index 37ea39f31e..35d041bccb 100644
+--- a/src/internal/cpu/cpu_test.go
++++ b/src/internal/cpu/cpu_test.go
+@@ -50,12 +50,21 @@ func TestPPC64minimalFeatures(t *testing.T) {
+ }
+ 
+ func TestARM64minimalFeatures(t *testing.T) {
+-	if runtime.GOARCH == "arm64" {
+-		if !cpu.ARM64.HasASIMD {
+-			t.Fatalf("HasASIMD expected true, got false")
+-		}
+-		if !cpu.ARM64.HasFP {
+-			t.Fatalf("HasFP expected true, got false")
+-		}
++
++	if runtime.GOARCH != "arm64" {
++		return
++	}
++
++	switch runtime.GOOS {
++	case "linux", "android":
++	default:
++		t.Skipf("%s/arm64 is not supported", runtime.GOOS)
++	}
++
++	if !cpu.ARM64.HasASIMD {
++		t.Fatalf("HasASIMD expected true, got false")
++	}
++	if !cpu.ARM64.HasFP {
++		t.Fatalf("HasFP expected true, got false")
+ 	}
+ }

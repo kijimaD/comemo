@@ -14,6 +14,20 @@ Date:   Fri Sep 16 08:13:23 2022 +0800
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  misc/cgo/testcarchive/carchive_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/misc/cgo/testcarchive/carchive_test.go b/misc/cgo/testcarchive/carchive_test.go
+index f8be3f9c0c..30e12be6c6 100644
+--- a/misc/cgo/testcarchive/carchive_test.go
++++ b/misc/cgo/testcarchive/carchive_test.go
+@@ -402,7 +402,7 @@ func checkELFArchive(t *testing.T, arname string) {
+ 		}
+ 
+ 		off += size
+-		if _, err := f.Seek(off, os.SEEK_SET); err != nil {
++		if _, err := f.Seek(off, io.SeekStart); err != nil {
+ 			t.Errorf("%s: failed to seek to %d: %v", arname, off, err)
+ 		}
+ 	}

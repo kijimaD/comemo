@@ -10,6 +10,18 @@ Date:   Fri Feb 26 11:25:17 2021 +0100
     Run-TryBot: Filippo Valsorda <filippo@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Roland Shoemaker <roland@golang.org>
-
+---
  api/go1.16.txt | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/api/go1.16.txt b/api/go1.16.txt
+index ce015fd6fb..d9fb7e3884 100644
+--- a/api/go1.16.txt
++++ b/api/go1.16.txt
+@@ -1,5 +1,6 @@
+ pkg archive/zip, method (*ReadCloser) Open(string) (fs.File, error)
+ pkg archive/zip, method (*Reader) Open(string) (fs.File, error)
++pkg crypto/boring, func Enabled() bool
+ pkg crypto/x509, method (SystemRootsError) Unwrap() error
+ pkg debug/elf, const DT_ADDRRNGHI = 1879047935
+ pkg debug/elf, const DT_ADDRRNGHI DynTag

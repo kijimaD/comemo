@@ -19,7 +19,32 @@ Date:   Wed Feb 19 15:07:53 2025 +0000
     Reviewed-by: Robert Griesemer <gri@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
     Commit-Queue: Robert Griesemer <gri@google.com>
-
+---
  src/bytes/iter.go   | 1 -
  src/strings/iter.go | 1 -
  2 files changed, 2 deletions(-)
+
+diff --git a/src/bytes/iter.go b/src/bytes/iter.go
+index 799602d9e3..8e9ee8b98d 100644
+--- a/src/bytes/iter.go
++++ b/src/bytes/iter.go
+@@ -28,7 +28,6 @@ func Lines(s []byte) iter.Seq[[]byte] {
+ 				return
+ 			}
+ 		}
+-		return
+ 	}
+ }
+ 
+diff --git a/src/strings/iter.go b/src/strings/iter.go
+index 3168e59687..3fd2c9da97 100644
+--- a/src/strings/iter.go
++++ b/src/strings/iter.go
+@@ -28,7 +28,6 @@ func Lines(s string) iter.Seq[string] {
+ 				return
+ 			}
+ 		}
+-		return
+ 	}
+ }
+ 

@@ -7,8 +7,60 @@ Date:   Fri Aug 27 11:02:54 2010 +1000
     R=r, rsc1
     CC=golang-dev
     https://golang.org/cl/1953048
-
+---
  doc/codelab/wiki/index.html    | 7 +------
  doc/codelab/wiki/srcextract.go | 2 +-
  doc/codelab/wiki/wiki.html     | 7 +------
  3 files changed, 3 insertions(+), 13 deletions(-)
+
+diff --git a/doc/codelab/wiki/index.html b/doc/codelab/wiki/index.html
+index 107e49f261..e334a5830b 100644
+--- a/doc/codelab/wiki/index.html
++++ b/doc/codelab/wiki/index.html
+@@ -1,7 +1,4 @@
+-<div class="content">
+-
+-<h1>Writing Web Applications</h1>
+-
++<!-- Codelab: Writing Web Applications -->
+ <h2>Introduction</h2>
+ 
+ <p>
+@@ -996,5 +993,3 @@ Here are some simple tasks you might want to tackle on your own:
+ 	(hint: you could use <code>regexp.ReplaceAllFunc</code> to do this)
+ 	</li>
+ </ul>
+-
+-</div>
+diff --git a/doc/codelab/wiki/srcextract.go b/doc/codelab/wiki/srcextract.go
+index 607375183c..0addc61c4e 100644
+--- a/doc/codelab/wiki/srcextract.go
++++ b/doc/codelab/wiki/srcextract.go
+@@ -25,7 +25,7 @@ func main() {
+ 		os.Exit(2)
+ 	}
+ 	// load file
+-	file, err := parser.ParseFile(*srcFn, nil, nil, 0)
++	file, err := parser.ParseFile(*srcFn, nil, 0)
+ 	if err != nil {
+ 		log.Exit(err)
+ 	}
+diff --git a/doc/codelab/wiki/wiki.html b/doc/codelab/wiki/wiki.html
+index c7f44ded4e..87b99a9bf1 100644
+--- a/doc/codelab/wiki/wiki.html
++++ b/doc/codelab/wiki/wiki.html
+@@ -1,7 +1,4 @@
+-<div class="content">
+-
+-<h1>Writing Web Applications</h1>
+-
++<!-- Codelab: Writing Web Applications -->
+ <h2>Introduction</h2>
+ 
+ <p>
+@@ -782,5 +779,3 @@ Here are some simple tasks you might want to tackle on your own:
+ 	(hint: you could use <code>regexp.ReplaceAllFunc</code> to do this)
+ 	</li>
+ </ul>
+-
+-</div>

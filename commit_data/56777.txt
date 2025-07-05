@@ -12,7 +12,43 @@ Date:   Wed May 24 08:35:18 2023 -0400
     Run-TryBot: Bryan Mills <bcmills@google.com>
     Auto-Submit: Bryan Mills <bcmills@google.com>
     Reviewed-by: Carlos Amedee <carlos@golang.org>
-
+---
  src/cmd/go/testdata/script/mod_install_pkg_version.txt | 2 +-
  src/cmd/go/testdata/script/mod_vendor_goversion.txt    | 4 ++--
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/mod_install_pkg_version.txt b/src/cmd/go/testdata/script/mod_install_pkg_version.txt
+index 712375a6f8..a4a26ba9f3 100644
+--- a/src/cmd/go/testdata/script/mod_install_pkg_version.txt
++++ b/src/cmd/go/testdata/script/mod_install_pkg_version.txt
+@@ -128,7 +128,7 @@ cd tmp
+ go mod init m
+ go get example.com/cmd@v1.0.0
+ ! go build example.com/cmd/...
+-stderr 'err[/\\]err.go:3:9: undefined: DoesNotCompile$'
++stderr 'err[/\\]err.go:3:9: undefined: DoesNotCompile( .*)?$'
+ cd ..
+ 
+ go install example.com/cmd/...@v1.0.0
+diff --git a/src/cmd/go/testdata/script/mod_vendor_goversion.txt b/src/cmd/go/testdata/script/mod_vendor_goversion.txt
+index 9e3618a218..838c5575b0 100644
+--- a/src/cmd/go/testdata/script/mod_vendor_goversion.txt
++++ b/src/cmd/go/testdata/script/mod_vendor_goversion.txt
+@@ -7,7 +7,7 @@
+ 
+ go build example.net/need117
+ ! go build example.net/bad114
+-stderr '^bad114[/\\]bad114.go:15:2: duplicate method Y$'
++stderr '^bad114[/\\]bad114.go:15:2: duplicate method Y( .*)?$'
+ 
+ 
+ # With a vendor/modules.txt lacking language versions, the world is topsy-turvy,
+@@ -43,7 +43,7 @@ go build example.net/need117
+ 
+ grep '^## explicit; go 1.13$' vendor/modules.txt
+ ! go build example.net/bad114
+-stderr '^vendor[/\\]example\.net[/\\]bad114[/\\]bad114.go:15:2: duplicate method Y$'
++stderr '^vendor[/\\]example\.net[/\\]bad114[/\\]bad114.go:15:2: duplicate method Y( .+)?$'
+ 
+ -- go.mod --
+ module example.net/m

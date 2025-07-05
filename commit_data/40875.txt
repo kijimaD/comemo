@@ -30,9 +30,74 @@ Date:   Fri Aug 2 11:18:56 2019 -0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/os/error.go       |  3 ++-
  src/os/error_errno.go | 11 +++++++++++
  src/os/error_plan9.go |  9 +++++++++
  src/os/error_test.go  | 10 ++++++++++
  4 files changed, 32 insertions(+), 1 deletion(-)
+
+diff --git a/src/os/error.go b/src/os/error.go
+index 09ba158677..0e8e2d47f8 100644
+--- a/src/os/error.go
++++ b/src/os/error.go
+@@ -115,7 +115,8 @@ func underlyingErrorIs(err, target error) bool {
+ 	if err == target {
+ 		return true
+ 	}
+-	e, ok := err.(interface{ Is(error) bool })
++	// To preserve prior behavior, only examine syscall errors.
++	e, ok := err.(syscallErrorType)
+ 	return ok && e.Is(target)
+ }
+ 
+diff --git a/src/os/error_errno.go b/src/os/error_errno.go
+new file mode 100644
+index 0000000000..31ae05a21e
+--- /dev/null
++++ b/src/os/error_errno.go
+@@ -0,0 +1,11 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !plan9
++
++package os
++
++import "syscall"
++
++type syscallErrorType = syscall.Errno
+diff --git a/src/os/error_plan9.go b/src/os/error_plan9.go
+new file mode 100644
+index 0000000000..af6065db56
+--- /dev/null
++++ b/src/os/error_plan9.go
+@@ -0,0 +1,9 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package os
++
++import "syscall"
++
++type syscallErrorType = syscall.ErrorString
+diff --git a/src/os/error_test.go b/src/os/error_test.go
+index a03bd28b9a..3d921578fd 100644
+--- a/src/os/error_test.go
++++ b/src/os/error_test.go
+@@ -175,3 +175,13 @@ func TestPathErrorUnwrap(t *testing.T) {
+ 		t.Error("errors.Is failed, wanted success")
+ 	}
+ }
++
++type myErrorIs struct{ error }
++
++func (e myErrorIs) Is(target error) bool { return target == e.error }
++
++func TestErrorIsMethods(t *testing.T) {
++	if os.IsPermission(myErrorIs{os.ErrPermission}) {
++		t.Error("os.IsPermission(err) = true when err.Is(os.ErrPermission), wanted false")
++	}
++}

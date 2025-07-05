@@ -9,6 +9,31 @@ Date:   Thu Oct 14 16:13:44 2010 -0400
     R=r, r2
     CC=golang-dev
     https://golang.org/cl/2514041
-
+---
  src/pkg/syscall/ztypes_linux_arm.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/syscall/ztypes_linux_arm.go b/src/pkg/syscall/ztypes_linux_arm.go
+index a845985a8b..e90edfbade 100644
+--- a/src/pkg/syscall/ztypes_linux_arm.go
++++ b/src/pkg/syscall/ztypes_linux_arm.go
+@@ -2,9 +2,10 @@
+ 
+ // MACHINE GENERATED - DO NOT EDIT.
+ 
+-// Manual corrections: UGH
++// Manual corrections: TODO(rsc): need to fix godefs
+ //	remove duplicate PtraceRegs type
+ //	change RawSockaddrUnix field to Path [108]int8 (was uint8()
++//  add padding to EpollEvent
+ 
+ package syscall
+ 
+@@ -290,6 +291,7 @@ type Ustat_t struct {
+ 
+ type EpollEvent struct {
+ 	Events uint32
++	PadFd  int32
+ 	Fd     int32
+ 	Pad    int32
+ }

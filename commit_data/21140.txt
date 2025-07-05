@@ -10,7 +10,7 @@ Date:   Tue Nov 18 15:19:37 2014 -0500
     R=rsc
     CC=golang-codereviews
     https://golang.org/cl/179890043
-
+---
  src/runtime/arch1_power64.go   | 15 +++++++++
  src/runtime/arch1_power64le.go | 15 +++++++++
  src/runtime/arch_power64.h     | 14 ---------
@@ -19,3 +19,248 @@ Date:   Tue Nov 18 15:19:37 2014 -0500
  src/runtime/sys_power64x.c     | 38 -----------------------
  src/runtime/sys_power64x.go    | 37 ++++++++++++++++++++++
  7 files changed, 136 insertions(+), 66 deletions(-)
+
+diff --git a/src/runtime/arch1_power64.go b/src/runtime/arch1_power64.go
+new file mode 100644
+index 0000000000..01e2b70f95
+--- /dev/null
++++ b/src/runtime/arch1_power64.go
+@@ -0,0 +1,15 @@
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++const (
++	thechar           = '9'
++	_BigEndian        = 1
++	_CacheLineSize    = 64
++	_RuntimeGogoBytes = 64
++	_PhysPageSize     = 65536
++	_PCQuantum        = 4
++	_Int64Align       = 8
++)
+diff --git a/src/runtime/arch1_power64le.go b/src/runtime/arch1_power64le.go
+new file mode 100644
+index 0000000000..6580732a37
+--- /dev/null
++++ b/src/runtime/arch1_power64le.go
+@@ -0,0 +1,15 @@
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++const (
++	thechar           = '9'
++	_BigEndian        = 0
++	_CacheLineSize    = 64
++	_RuntimeGogoBytes = 64
++	_PhysPageSize     = 65536
++	_PCQuantum        = 4
++	_Int64Align       = 8
++)
+diff --git a/src/runtime/arch_power64.h b/src/runtime/arch_power64.h
+deleted file mode 100644
+index 7cfb9da2fc..0000000000
+--- a/src/runtime/arch_power64.h
++++ /dev/null
+@@ -1,14 +0,0 @@
+-// Copyright 2014 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-enum {
+-	thechar = '9',
+-	BigEndian = 1,
+-	CacheLineSize = 64,
+-	RuntimeGogoBytes = 64,
+-	PhysPageSize = 65536,
+-	PCQuantum = 4,
+-	Int64Align = 8
+-};
+-
+diff --git a/src/runtime/arch_power64le.h b/src/runtime/arch_power64le.h
+deleted file mode 100644
+index 684ac9953b..0000000000
+--- a/src/runtime/arch_power64le.h
++++ /dev/null
+@@ -1,14 +0,0 @@
+-// Copyright 2014 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-enum {
+-	thechar = '9',
+-	BigEndian = 0,
+-	CacheLineSize = 64,
+-	RuntimeGogoBytes = 64,
+-	PhysPageSize = 65536,
+-	PCQuantum = 4,
+-	Int64Align = 8
+-};
+-
+diff --git a/src/runtime/atomic_power64x.go b/src/runtime/atomic_power64x.go
+new file mode 100644
+index 0000000000..a0dcf514b5
+--- /dev/null
++++ b/src/runtime/atomic_power64x.go
+@@ -0,0 +1,69 @@
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build power64 power64le
++
++package runtime
++
++import "unsafe"
++
++//go:noescape
++func xadd(ptr *uint32, delta int32) uint32
++
++//go:noescape
++func xadd64(ptr *uint64, delta int64) uint64
++
++//go:noescape
++func xchg(ptr *uint32, new uint32) uint32
++
++//go:noescape
++func xchg64(ptr *uint64, new uint64) uint64
++
++// xchgp cannot have a go:noescape annotation, because
++// while ptr does not escape, new does. If new is marked as
++// not escaping, the compiler will make incorrect escape analysis
++// decisions about the value being xchg'ed.
++// Instead, make xchgp a wrapper around the actual atomic.
++// When calling the wrapper we mark ptr as noescape explicitly.
++
++//go:nosplit
++func xchgp(ptr unsafe.Pointer, new unsafe.Pointer) unsafe.Pointer {
++	return xchgp1(noescape(ptr), new)
++}
++
++func xchgp1(ptr unsafe.Pointer, new unsafe.Pointer) unsafe.Pointer
++
++//go:noescape
++func xchguintptr(ptr *uintptr, new uintptr) uintptr
++
++//go:noescape
++func atomicload(ptr *uint32) uint32
++
++//go:noescape
++func atomicload64(ptr *uint64) uint64
++
++//go:noescape
++func atomicloadp(ptr unsafe.Pointer) unsafe.Pointer
++
++//go:noescape
++func atomicor8(ptr *uint8, val uint8)
++
++//go:noescape
++func cas64(ptr *uint64, old, new uint64) bool
++
++//go:noescape
++func atomicstore(ptr *uint32, val uint32)
++
++//go:noescape
++func atomicstore64(ptr *uint64, val uint64)
++
++// atomicstorep cannot have a go:noescape annotation.
++// See comment above for xchgp.
++
++//go:nosplit
++func atomicstorep(ptr unsafe.Pointer, new unsafe.Pointer) {
++	atomicstorep1(noescape(ptr), new)
++}
++
++func atomicstorep1(ptr unsafe.Pointer, val unsafe.Pointer)
+diff --git a/src/runtime/sys_power64x.c b/src/runtime/sys_power64x.c
+deleted file mode 100644
+index 79d976255f..0000000000
+--- a/src/runtime/sys_power64x.c
++++ /dev/null
+@@ -1,38 +0,0 @@
+-// Copyright 2014 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build power64 power64le
+-
+-#include "runtime.h"
+-
+-// adjust Gobuf as if it executed a call to fn with context ctxt
+-// and then did an immediate Gosave.
+-void
+-runtime·gostartcall(Gobuf *gobuf, void (*fn)(void), void *ctxt)
+-{
+-	if(gobuf->lr != 0)
+-		runtime·throw("invalid use of gostartcall");
+-	gobuf->lr = gobuf->pc;
+-	gobuf->pc = (uintptr)fn;
+-	gobuf->ctxt = ctxt;
+-}
+-
+-// Called to rewind context saved during morestack back to beginning of function.
+-// To help us, the linker emits a jmp back to the beginning right after the
+-// call to morestack. We just have to decode and apply that jump.
+-void
+-runtime·rewindmorestack(Gobuf *gobuf)
+-{
+-	uint32 inst;
+-
+-	inst = *(uint32*)gobuf->pc;
+-	if((gobuf->pc&3) == 0 && (inst>>24) == 0x4b && (inst&3) == 0) {
+-		//runtime·printf("runtime: rewind pc=%p to pc=%p\n", gobuf->pc, gobuf->pc + ((int32)(inst<<8)>>8));
+-		gobuf->pc += (int32)(inst<<8)>>8;
+-		return;
+-	}
+-	runtime·printf("runtime: pc=%p %x\n", gobuf->pc, inst);
+-	runtime·throw("runtime: misuse of rewindmorestack");
+-}
+-
+diff --git a/src/runtime/sys_power64x.go b/src/runtime/sys_power64x.go
+new file mode 100644
+index 0000000000..f32d1a44f1
+--- /dev/null
++++ b/src/runtime/sys_power64x.go
+@@ -0,0 +1,37 @@
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build power64 power64le
++
++package runtime
++
++import "unsafe"
++
++// adjust Gobuf as if it executed a call to fn with context ctxt
++// and then did an immediate Gosave.
++func gostartcall(buf *gobuf, fn, ctxt unsafe.Pointer) {
++	if buf.lr != 0 {
++		gothrow("invalid use of gostartcall")
++	}
++	buf.lr = buf.pc
++	buf.pc = uintptr(fn)
++	buf.ctxt = ctxt
++}
++
++// Called to rewind context saved during morestack back to beginning of function.
++// To help us, the linker emits a jmp back to the beginning right after the
++// call to morestack. We just have to decode and apply that jump.
++func rewindmorestack(buf *gobuf) {
++	var inst uint32
++	if buf.pc&3 == 0 && buf.pc != 0 {
++		inst = *(*uint32)(unsafe.Pointer(buf.pc))
++		if inst>>24 == 0x4b && inst&3 == 0 {
++			//print("runtime: rewind pc=", hex(buf.pc), " to pc=", hex(uintptr(buf.pc + int32(inst<<8)>>8)), "\n");
++			buf.pc += uintptr(int32(inst<<8) >> 8)
++			return
++		}
++	}
++	print("runtime: pc=", hex(buf.pc), " ", hex(inst), "\n")
++	gothrow("runtime: misuse of rewindmorestack")
++}

@@ -13,7 +13,42 @@ Date:   Mon Mar 20 11:36:15 2017 -0700
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/syntax/parser.go |  3 +++
  test/fixedbugs/issue19610.go              | 14 ++++++++++++++
  2 files changed, 17 insertions(+)
+
+diff --git a/src/cmd/compile/internal/syntax/parser.go b/src/cmd/compile/internal/syntax/parser.go
+index 48a02e716f..66987bbfd7 100644
+--- a/src/cmd/compile/internal/syntax/parser.go
++++ b/src/cmd/compile/internal/syntax/parser.go
+@@ -1722,6 +1722,9 @@ func (p *parser) header(keyword token) (init SimpleStmt, cond Expr, post SimpleS
+ 			p.want(_Semi)
+ 			if p.tok != _Lbrace {
+ 				post = p.simpleStmt(nil, false)
++				if a, _ := post.(*AssignStmt); a != nil && a.Op == Def {
++					p.syntax_error_at(a.Pos(), "cannot declare in post statement of for loop")
++				}
+ 			}
+ 		} else if p.tok != _Lbrace {
+ 			condStmt = p.simpleStmt(nil, false)
+diff --git a/test/fixedbugs/issue19610.go b/test/fixedbugs/issue19610.go
+new file mode 100644
+index 0000000000..01beda3998
+--- /dev/null
++++ b/test/fixedbugs/issue19610.go
+@@ -0,0 +1,14 @@
++// errorcheck
++
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func main() {
++	for ; ; x := 1 { // ERROR "cannot declare in post statement"
++		_ = x
++		break
++	}
++}

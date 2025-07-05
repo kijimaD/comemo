@@ -19,6 +19,37 @@ Date:   Thu Aug 17 14:18:06 2023 -0700
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
     Auto-Submit: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/ssagen/ssa.go | 12 +++---------
  1 file changed, 3 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 25e93b531d..fe4a242002 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -8086,7 +8086,7 @@ func max8(a, b int8) int8 {
+ 	return b
+ }
+ 
+-var deferStructFnField = -1
++const deferStructFnField = 4
+ 
+ // deferstruct makes a runtime._defer structure.
+ func deferstruct() *types.Type {
+@@ -8111,14 +8111,8 @@ func deferstruct() *types.Type {
+ 		makefield("link", types.Types[types.TUINTPTR]),
+ 		makefield("head", types.Types[types.TUINTPTR]),
+ 	}
+-	for i, f := range fields {
+-		if f.Sym.Name == "fn" {
+-			deferStructFnField = i
+-			break
+-		}
+-	}
+-	if deferStructFnField < 0 {
+-		base.Fatalf("deferstruct has no fn field")
++	if name := fields[deferStructFnField].Sym.Name; name != "fn" {
++		base.Fatalf("deferStructFnField is %q, not fn", name)
+ 	}
+ 
+ 	// build struct holding the above fields

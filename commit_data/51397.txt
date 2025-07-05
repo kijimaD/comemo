@@ -10,6 +10,24 @@ Date:   Mon Jan 24 10:30:36 2022 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/base/print.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/base/print.go b/src/cmd/compile/internal/base/print.go
+index 4afe2eb9ee..955f9d2077 100644
+--- a/src/cmd/compile/internal/base/print.go
++++ b/src/cmd/compile/internal/base/print.go
+@@ -217,10 +217,10 @@ func FatalfAt(pos src.XPos, format string, args ...interface{}) {
+ 		fmt.Printf("\n")
+ 
+ 		// If this is a released compiler version, ask for a bug report.
+-		if strings.HasPrefix(buildcfg.Version, "go") {
++		if Debug.Panic == 0 && strings.HasPrefix(buildcfg.Version, "go") {
+ 			fmt.Printf("\n")
+ 			fmt.Printf("Please file a bug report including a short program that triggers the error.\n")
+-			fmt.Printf("https://golang.org/issue/new\n")
++			fmt.Printf("https://go.dev/issue/new\n")
+ 		} else {
+ 			// Not a release; dump a stack trace, too.
+ 			fmt.Println()

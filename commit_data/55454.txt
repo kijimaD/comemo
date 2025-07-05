@@ -52,7 +52,51 @@ Date:   Sun Feb 5 14:33:32 2023 +0700
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/staticinit/sched.go |  3 +++
  test/fixedbugs/issue58325.go                 | 23 +++++++++++++++++++++++
  2 files changed, 26 insertions(+)
+
+diff --git a/src/cmd/compile/internal/staticinit/sched.go b/src/cmd/compile/internal/staticinit/sched.go
+index f954c246f7..f7065525f5 100644
+--- a/src/cmd/compile/internal/staticinit/sched.go
++++ b/src/cmd/compile/internal/staticinit/sched.go
+@@ -639,6 +639,9 @@ func (s *Schedule) staticAssignInlinedCall(l *ir.Name, loff int64, call *ir.Inli
+ 	// Build tree with args substituted for params and try it.
+ 	args := make(map[*ir.Name]ir.Node)
+ 	for i, v := range as2init.Lhs {
++		if ir.IsBlank(v) {
++			continue
++		}
+ 		args[v.(*ir.Name)] = as2init.Rhs[i]
+ 	}
+ 	r, ok := subst(as2body.Rhs[0], args)
+diff --git a/test/fixedbugs/issue58325.go b/test/fixedbugs/issue58325.go
+new file mode 100644
+index 0000000000..d37089c800
+--- /dev/null
++++ b/test/fixedbugs/issue58325.go
+@@ -0,0 +1,23 @@
++// compile
++
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type S1 struct {
++	s2 S2
++}
++
++type S2 struct{}
++
++func (S2) Make() S2 {
++	return S2{}
++}
++
++func (S1) Make() S1 {
++	return S1{s2: S2{}.Make()}
++}
++
++var _ = S1{}.Make()

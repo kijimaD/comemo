@@ -9,6 +9,20 @@ Date:   Mon May 31 07:05:41 2010 +0200
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1421041
-
+---
  src/pkg/net/net.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/net.go b/src/pkg/net/net.go
+index ba54412e94..100bd6f4c8 100644
+--- a/src/pkg/net/net.go
++++ b/src/pkg/net/net.go
+@@ -155,7 +155,7 @@ func Dial(net, laddr, raddr string) (c Conn, err os.Error) {
+ 			return nil, err
+ 		}
+ 		return c, nil
+-	case "udp", "udp4", "upd6":
++	case "udp", "udp4", "udp6":
+ 		var la, ra *UDPAddr
+ 		if laddr != "" {
+ 			if la, err = ResolveUDPAddr(laddr); err != nil {

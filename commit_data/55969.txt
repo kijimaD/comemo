@@ -40,10 +40,146 @@ Date:   Fri Feb 24 17:51:57 2023 +0100
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  api/next/56539.txt         |  2 ++
  src/net/dial.go            | 29 ++++++++++++++++++++++++++++-
  src/net/mptcpsock_linux.go | 10 ++++++++++
  src/net/mptcpsock_stub.go  |  8 ++++++++
  src/net/tcpsock_posix.go   |  8 ++++++--
  5 files changed, 54 insertions(+), 3 deletions(-)
+
+diff --git a/api/next/56539.txt b/api/next/56539.txt
+new file mode 100644
+index 0000000000..ad1dfb7251
+--- /dev/null
++++ b/api/next/56539.txt
+@@ -0,0 +1,2 @@
++pkg net, method (*Dialer) MultipathTCP() bool #56539
++pkg net, method (*Dialer) SetMultipathTCP(bool) #56539
+diff --git a/src/net/dial.go b/src/net/dial.go
+index 35c2761d29..3cc8f840c5 100644
+--- a/src/net/dial.go
++++ b/src/net/dial.go
+@@ -141,6 +141,11 @@ type Dialer struct {
+ 	//
+ 	// If ControlContext is not nil, Control is ignored.
+ 	ControlContext func(ctx context.Context, network, address string, c syscall.RawConn) error
++
++	// If mptcpStatus is set to a value allowing Multipath TCP (MPTCP) to be
++	// used, any call to Dial with "tcp(4|6)" as network will use MPTCP if
++	// supported by the operating system.
++	mptcpStatus mptcpStatus
+ }
+ 
+ func (d *Dialer) dualStack() bool { return d.FallbackDelay >= 0 }
+@@ -314,6 +319,24 @@ func (r *Resolver) resolveAddrList(ctx context.Context, op, network, addr string
+ 	return naddrs, nil
+ }
+ 
++// MultipathTCP reports whether MPTCP will be used.
++//
++// This method doesn't check if MPTCP is supported by the operating
++// system or not.
++func (d *Dialer) MultipathTCP() bool {
++	return d.mptcpStatus.get()
++}
++
++// SetMultipathTCP directs the Dial methods to use, or not use, MPTCP,
++// if supported by the operating system. This method overrides the
++// system default.
++//
++// If MPTCP is not available on the host or not supported by the server,
++// the Dial methods will fall back to TCP.
++func (d *Dialer) SetMultipathTCP(use bool) {
++	d.mptcpStatus.set(use)
++}
++
+ // Dial connects to the address on the named network.
+ //
+ // Known networks are "tcp", "tcp4" (IPv4-only), "tcp6" (IPv6-only),
+@@ -610,7 +633,11 @@ func (sd *sysDialer) dialSingle(ctx context.Context, ra Addr) (c Conn, err error
+ 	switch ra := ra.(type) {
+ 	case *TCPAddr:
+ 		la, _ := la.(*TCPAddr)
+-		c, err = sd.dialTCP(ctx, la, ra)
++		if sd.MultipathTCP() {
++			c, err = sd.dialMPTCP(ctx, la, ra)
++		} else {
++			c, err = sd.dialTCP(ctx, la, ra)
++		}
+ 	case *UDPAddr:
+ 		la, _ := la.(*UDPAddr)
+ 		c, err = sd.dialUDP(ctx, la, ra)
+diff --git a/src/net/mptcpsock_linux.go b/src/net/mptcpsock_linux.go
+index c88b07c907..a1c3805795 100644
+--- a/src/net/mptcpsock_linux.go
++++ b/src/net/mptcpsock_linux.go
+@@ -5,6 +5,7 @@
+ package net
+ 
+ import (
++	"context"
+ 	"errors"
+ 	"internal/poll"
+ 	"sync"
+@@ -41,3 +42,12 @@ func initMPTCPavailable() {
+ 		mptcpAvailable = true
+ 	}
+ }
++
++func (sd *sysDialer) dialMPTCP(ctx context.Context, laddr, raddr *TCPAddr) (*TCPConn, error) {
++	// Fallback to dialTCP if Multipath TCP isn't supported on this operating system.
++	if !supportsMultipathTCP() {
++		return sd.dialTCP(ctx, laddr, raddr)
++	}
++
++	return sd.doDialTCPProto(ctx, laddr, raddr, _IPPROTO_MPTCP)
++}
+diff --git a/src/net/mptcpsock_stub.go b/src/net/mptcpsock_stub.go
+index 5508288ef5..62f5d49731 100644
+--- a/src/net/mptcpsock_stub.go
++++ b/src/net/mptcpsock_stub.go
+@@ -5,3 +5,11 @@
+ //go:build !linux
+ 
+ package net
++
++import (
++	"context"
++)
++
++func (sd *sysDialer) dialMPTCP(ctx context.Context, laddr, raddr *TCPAddr) (*TCPConn, error) {
++	return sd.dialTCP(ctx, laddr, raddr)
++}
+diff --git a/src/net/tcpsock_posix.go b/src/net/tcpsock_posix.go
+index 0b3fa1ae0c..f8d4b3e4d0 100644
+--- a/src/net/tcpsock_posix.go
++++ b/src/net/tcpsock_posix.go
+@@ -65,13 +65,17 @@ func (sd *sysDialer) dialTCP(ctx context.Context, laddr, raddr *TCPAddr) (*TCPCo
+ }
+ 
+ func (sd *sysDialer) doDialTCP(ctx context.Context, laddr, raddr *TCPAddr) (*TCPConn, error) {
++	return sd.doDialTCPProto(ctx, laddr, raddr, 0)
++}
++
++func (sd *sysDialer) doDialTCPProto(ctx context.Context, laddr, raddr *TCPAddr, proto int) (*TCPConn, error) {
+ 	ctrlCtxFn := sd.Dialer.ControlContext
+ 	if ctrlCtxFn == nil && sd.Dialer.Control != nil {
+ 		ctrlCtxFn = func(cxt context.Context, network, address string, c syscall.RawConn) error {
+ 			return sd.Dialer.Control(network, address, c)
+ 		}
+ 	}
+-	fd, err := internetSocket(ctx, sd.network, laddr, raddr, syscall.SOCK_STREAM, 0, "dial", ctrlCtxFn)
++	fd, err := internetSocket(ctx, sd.network, laddr, raddr, syscall.SOCK_STREAM, proto, "dial", ctrlCtxFn)
+ 
+ 	// TCP has a rarely used mechanism called a 'simultaneous connection' in
+ 	// which Dial("tcp", addr1, addr2) run on the machine at addr1 can
+@@ -101,7 +105,7 @@ func (sd *sysDialer) doDialTCP(ctx context.Context, laddr, raddr *TCPAddr) (*TCP
+ 		if err == nil {
+ 			fd.Close()
+ 		}
+-		fd, err = internetSocket(ctx, sd.network, laddr, raddr, syscall.SOCK_STREAM, 0, "dial", ctrlCtxFn)
++		fd, err = internetSocket(ctx, sd.network, laddr, raddr, syscall.SOCK_STREAM, proto, "dial", ctrlCtxFn)
+ 	}
+ 
+ 	if err != nil {

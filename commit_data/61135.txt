@@ -13,6 +13,45 @@ Date:   Mon Aug 26 17:53:46 2024 +0200
     Reviewed-by: Roland Shoemaker <roland@golang.org>
     Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/crypto/rand/rand_test.go | 19 ++++++-------------
  1 file changed, 6 insertions(+), 13 deletions(-)
+
+diff --git a/src/crypto/rand/rand_test.go b/src/crypto/rand/rand_test.go
+index 003a8de9ae..f201cf0ff3 100644
+--- a/src/crypto/rand/rand_test.go
++++ b/src/crypto/rand/rand_test.go
+@@ -49,27 +49,20 @@ func testRead(t *testing.T, Read func([]byte) (int, error)) {
+ 	}
+ }
+ 
+-func TestReadLoops(t *testing.T) {
+-	testReadAndReader(t, testReadLoops)
++func TestReadByteValues(t *testing.T) {
++	testReadAndReader(t, testReadByteValues)
+ }
+ 
+-func testReadLoops(t *testing.T, Read func([]byte) (int, error)) {
++func testReadByteValues(t *testing.T, Read func([]byte) (int, error)) {
+ 	b := make([]byte, 1)
++	v := make(map[byte]bool)
+ 	for {
+ 		n, err := Read(b)
+ 		if n != 1 || err != nil {
+ 			t.Fatalf("Read(b) = %d, %v", n, err)
+ 		}
+-		if b[0] == 42 {
+-			break
+-		}
+-	}
+-	for {
+-		n, err := Read(b)
+-		if n != 1 || err != nil {
+-			t.Fatalf("Read(b) = %d, %v", n, err)
+-		}
+-		if b[0] == 0 {
++		v[b[0]] = true
++		if len(v) == 256 {
+ 			break
+ 		}
+ 	}

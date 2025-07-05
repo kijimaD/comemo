@@ -14,7 +14,70 @@ Date:   Tue Jun 27 22:17:21 2017 +0000
     Change-Id: I9aebbf763eed9b1ab1a153fa11850d88a65571c6
     Reviewed-on: https://go-review.googlesource.com/46910
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go1.9.html             | 16 ++++++++++++----
  src/testing/quick/quick.go | 21 +++++++++++----------
  2 files changed, 23 insertions(+), 14 deletions(-)
+
+diff --git a/doc/go1.9.html b/doc/go1.9.html
+index 3704f55835..262d468e3f 100644
+--- a/doc/go1.9.html
++++ b/doc/go1.9.html
+@@ -786,10 +786,18 @@ CL 40331: https://golang.org/cl/40331: cmd/link,runtime/cgo: enable PT_TLS gener
+ <dl id="testing/quick"><dt><a href="/pkg/testing/quick/">testing/quick</a></dt>
+   <dd>
+     <p><!-- CL 39152 -->
+-	  The package now chooses values in the full range when
+-	  generating <code>int64</code> and <code>uint64</code> random
+-	  numbers; in earlier releases generated values were always
+-	  limited to the [-2<sup>62</sup>, 2<sup>62</sup>) range.
++      The package now chooses values in the full range when
++      generating <code>int64</code> and <code>uint64</code> random
++      numbers; in earlier releases generated values were always
++      limited to the [-2<sup>62</sup>, 2<sup>62</sup>) range.
++    </p>
++
++    <p>
++      In previous releases, using a nil
++      <a href="/pkg/testing/quick/#Config.Rand"><code>Config.Rand</code></a>
++      value caused the same deterministic random number generator to be used.
++      It now uses a random number generator seeded on the current time.
++      For the old behavior, use <code>rand.New(rand.NewSource(0))</code>.
+     </p>
+ 
+ </dl><!-- testing/quick -->
+diff --git a/src/testing/quick/quick.go b/src/testing/quick/quick.go
+index 94d873988a..0457fc7571 100644
+--- a/src/testing/quick/quick.go
++++ b/src/testing/quick/quick.go
+@@ -175,19 +175,20 @@ func sizedValue(t reflect.Type, rand *rand.Rand, size int) (value reflect.Value,
+ 
+ // A Config structure contains options for running a test.
+ type Config struct {
+-	// MaxCount sets the maximum number of iterations. If zero,
+-	// MaxCountScale is used.
++	// MaxCount sets the maximum number of iterations.
++	// If zero, MaxCountScale is used.
+ 	MaxCount int
+-	// MaxCountScale is a non-negative scale factor applied to the default
+-	// maximum. If zero, the default is unchanged.
++	// MaxCountScale is a non-negative scale factor applied to the
++	// default maximum.
++	// If zero, the default is unchanged.
+ 	MaxCountScale float64
+-	// If non-nil, rand is a source of random numbers. Otherwise a default
+-	// pseudo-random source will be used.
++	// Rand specifies a source of random numbers.
++	// If nil, a default pseudo-random source will be used.
+ 	Rand *rand.Rand
+-	// If non-nil, the Values function generates a slice of arbitrary
+-	// reflect.Values that are congruent with the arguments to the function
+-	// being tested. Otherwise, the top-level Value function is used
+-	// to generate them.
++	// Values specifies a function to generate a slice of
++	// arbitrary reflect.Values that are congruent with the
++	// arguments to the function being tested.
++	// If nil, the top-level Value function is used to generate them.
+ 	Values func([]reflect.Value, *rand.Rand)
+ }
+ 

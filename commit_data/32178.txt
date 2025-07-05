@@ -22,7 +22,7 @@ Date:   Mon Feb 27 07:56:57 2017 +0000
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  misc/cgo/testcshared/main0.c                 |  6 ++++++
  misc/cgo/testcshared/src/p/p.go              |  2 ++
  misc/cgo/testshared/shared_test.go           |  6 ++++++
@@ -40,3 +40,308 @@ Date:   Mon Feb 27 07:56:57 2017 +0000
  src/runtime/os_plan9_arm.go                  |  2 ++
  src/runtime/vlop_arm.s                       | 12 ++++++++++++
  16 files changed, 88 insertions(+)
+
+diff --git a/misc/cgo/testcshared/main0.c b/misc/cgo/testcshared/main0.c
+index 1274b8950e..39ef7e3051 100644
+--- a/misc/cgo/testcshared/main0.c
++++ b/misc/cgo/testcshared/main0.c
+@@ -12,6 +12,7 @@
+ //   int8_t DidInitRun();
+ //   int8_t DidMainRun();
+ //   int32_t FromPkg();
++//   uint32_t Divu(uint32_t, uint32_t);
+ int main(void) {
+   int8_t ran_init = DidInitRun();
+   if (!ran_init) {
+@@ -30,6 +31,11 @@ int main(void) {
+     fprintf(stderr, "ERROR: FromPkg=%d, want %d\n", from_pkg, 1024);
+     return 1;
+   }
++  uint32_t divu = Divu(2264, 31);
++  if (divu != 73) {
++    fprintf(stderr, "ERROR: Divu(2264, 31)=%d, want %d\n", divu, 73);
++    return 1;
++  }
+   // test.bash looks for "PASS" to ensure this program has reached the end. 
+   printf("PASS\n");
+   return 0;
+diff --git a/misc/cgo/testcshared/src/p/p.go b/misc/cgo/testcshared/src/p/p.go
+index 82b445c121..fb4b5ca8d1 100644
+--- a/misc/cgo/testcshared/src/p/p.go
++++ b/misc/cgo/testcshared/src/p/p.go
+@@ -8,3 +8,5 @@ import "C"
+ 
+ //export FromPkg
+ func FromPkg() int32 { return 1024 }
++//export Divu
++func Divu(a, b uint32) uint32 { return a / b }
+diff --git a/misc/cgo/testshared/shared_test.go b/misc/cgo/testshared/shared_test.go
+index 5017570ba6..a7cec9b2e8 100644
+--- a/misc/cgo/testshared/shared_test.go
++++ b/misc/cgo/testshared/shared_test.go
+@@ -400,6 +400,12 @@ func TestTrivialExecutablePIE(t *testing.T) {
+ 	AssertHasRPath(t, "./trivial.pie", gorootInstallDir)
+ }
+ 
++// Build a division test program and check it runs.
++func TestDivisionExecutable(t *testing.T) {
++	goCmd(t, "install", "-linkshared", "division")
++	run(t, "division executable", "./bin/division")
++}
++
+ // Build an executable that uses cgo linked against the shared runtime and check it
+ // runs.
+ func TestCgoExecutable(t *testing.T) {
+diff --git a/misc/cgo/testshared/src/division/division.go b/misc/cgo/testshared/src/division/division.go
+new file mode 100644
+index 0000000000..a0b11a55e2
+--- /dev/null
++++ b/misc/cgo/testshared/src/division/division.go
+@@ -0,0 +1,17 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++//go:noinline
++func div(x, y uint32) uint32 {
++	return x / y
++}
++
++func main() {
++	a := div(97, 11)
++	if a != 8 {
++		panic("FAIL")
++	}
++}
+\ No newline at end of file
+diff --git a/src/cmd/asm/internal/asm/testdata/arm.s b/src/cmd/asm/internal/asm/testdata/arm.s
+index 47a2283f17..0ae031ee81 100644
+--- a/src/cmd/asm/internal/asm/testdata/arm.s
++++ b/src/cmd/asm/internal/asm/testdata/arm.s
+@@ -965,6 +965,13 @@ jmp_label_3:
+ 	REVSH	R1, R2               // b12fffe6
+ 	RBIT	R1, R2               // 312fffe6
+ 
++// DIVHW R0, R1, R2: R1 / R0 -> R2
++	DIVHW	R0, R1, R2           // 11f012e7
++	DIVUHW	R0, R1, R2           // 11f032e7
++// DIVHW R0, R1: R1 / R0 -> R1
++	DIVHW	R0, R1               // 11f011e7
++	DIVUHW	R0, R1               // 11f031e7
++
+ //
+ // END
+ //
+diff --git a/src/cmd/internal/obj/arm/a.out.go b/src/cmd/internal/obj/arm/a.out.go
+index 8b43984a7a..35875d0b53 100644
+--- a/src/cmd/internal/obj/arm/a.out.go
++++ b/src/cmd/internal/obj/arm/a.out.go
+@@ -247,6 +247,8 @@ const (
+ 	ADIV
+ 	AMOD
+ 	AMODU
++	ADIVHW
++	ADIVUHW
+ 
+ 	AMOVB
+ 	AMOVBS
+diff --git a/src/cmd/internal/obj/arm/anames.go b/src/cmd/internal/obj/arm/anames.go
+index 4ee1835628..63cc5da393 100644
+--- a/src/cmd/internal/obj/arm/anames.go
++++ b/src/cmd/internal/obj/arm/anames.go
+@@ -71,6 +71,8 @@ var Anames = []string{
+ 	"DIV",
+ 	"MOD",
+ 	"MODU",
++	"DIVHW",
++	"DIVUHW",
+ 	"MOVB",
+ 	"MOVBS",
+ 	"MOVBU",
+diff --git a/src/cmd/internal/obj/arm/asm5.go b/src/cmd/internal/obj/arm/asm5.go
+index 0636193cc8..4b91281346 100644
+--- a/src/cmd/internal/obj/arm/asm5.go
++++ b/src/cmd/internal/obj/arm/asm5.go
+@@ -142,6 +142,8 @@ var optab = []Optab{
+ 	{AMUL, C_REG, C_NONE, C_REG, 15, 4, 0, 0, 0},
+ 	{ADIV, C_REG, C_REG, C_REG, 16, 4, 0, 0, 0},
+ 	{ADIV, C_REG, C_NONE, C_REG, 16, 4, 0, 0, 0},
++	{ADIVHW, C_REG, C_REG, C_REG, 105, 4, 0, 0, 0},
++	{ADIVHW, C_REG, C_NONE, C_REG, 105, 4, 0, 0, 0},
+ 	{AMULL, C_REG, C_REG, C_REGREG, 17, 4, 0, 0, 0},
+ 	{AMULA, C_REG, C_REG, C_REGREG2, 17, 4, 0, 0, 0},
+ 	{AMOVW, C_REG, C_NONE, C_SAUTO, 20, 4, REGSP, 0, 0},
+@@ -1401,6 +1403,9 @@ func buildop(ctxt *obj.Link) {
+ 			opset(AMODU, r0)
+ 			opset(ADIVU, r0)
+ 
++		case ADIVHW:
++			opset(ADIVUHW, r0)
++
+ 		case AMOVW,
+ 			AMOVB,
+ 			AMOVBS,
+@@ -2407,6 +2412,16 @@ func (c *ctxt5) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		if p.As == ADATABUNDLE {
+ 			o1 = 0xe125be70
+ 		}
++
++	case 105: /* divhw r,[r,]r */
++		o1 = c.oprrr(p, p.As, int(p.Scond))
++		rf := int(p.From.Reg)
++		rt := int(p.To.Reg)
++		r := int(p.Reg)
++		if r == 0 {
++			r = rt
++		}
++		o1 |= (uint32(rf)&15)<<8 | (uint32(r)&15)<<0 | (uint32(rt)&15)<<16
+ 	}
+ 
+ 	out[0] = o1
+@@ -2445,6 +2460,10 @@ func (c *ctxt5) oprrr(p *obj.Prog, a obj.As, sc int) uint32 {
+ 		c.ctxt.Diag(".nil/.W on dp instruction")
+ 	}
+ 	switch a {
++	case ADIVHW:
++		return o | 0x71<<20 | 0xf<<12 | 0x1<<4
++	case ADIVUHW:
++		return o | 0x73<<20 | 0xf<<12 | 0x1<<4
+ 	case AMMUL:
+ 		return o | 0x75<<20 | 0xf<<12 | 0x1<<4
+ 	case AMULS:
+diff --git a/src/runtime/os_darwin_arm.go b/src/runtime/os_darwin_arm.go
+index ee1bd174f1..8eb5655969 100644
+--- a/src/runtime/os_darwin_arm.go
++++ b/src/runtime/os_darwin_arm.go
+@@ -4,6 +4,8 @@
+ 
+ package runtime
+ 
++var hardDiv bool // TODO: set if a hardware divider is available
++
+ func checkgoarm() {
+ 	// TODO(minux): FP checks like in os_linux_arm.go.
+ 
+diff --git a/src/runtime/os_freebsd_arm.go b/src/runtime/os_freebsd_arm.go
+index 0399499a4e..6e2bc97470 100644
+--- a/src/runtime/os_freebsd_arm.go
++++ b/src/runtime/os_freebsd_arm.go
+@@ -4,6 +4,8 @@
+ 
+ package runtime
+ 
++var hardDiv bool // TODO: set if a hardware divider is available
++
+ func checkgoarm() {
+ 	// TODO(minux): FP checks like in os_linux_arm.go.
+ 
+diff --git a/src/runtime/os_linux_arm.go b/src/runtime/os_linux_arm.go
+index 896ec15e6a..7c925d74b5 100644
+--- a/src/runtime/os_linux_arm.go
++++ b/src/runtime/os_linux_arm.go
+@@ -11,11 +11,13 @@ const (
+ 
+ 	_HWCAP_VFP   = 1 << 6  // introduced in at least 2.6.11
+ 	_HWCAP_VFPv3 = 1 << 13 // introduced in 2.6.30
++	_HWCAP_IDIVA = 1 << 17
+ )
+ 
+ var randomNumber uint32
+ var armArch uint8 = 6 // we default to ARMv6
+ var hwcap uint32      // set by setup_auxv
++var hardDiv bool      // set if a hardware divider is available
+ 
+ func checkgoarm() {
+ 	// On Android, /proc/self/auxv might be unreadable and hwcap won't
+@@ -53,6 +55,7 @@ func archauxv(tag, val uintptr) {
+ 
+ 	case _AT_HWCAP: // CPU capability bit flags
+ 		hwcap = uint32(val)
++		hardDiv = (hwcap & _HWCAP_IDIVA) != 0
+ 	}
+ }
+ 
+diff --git a/src/runtime/os_nacl_arm.go b/src/runtime/os_nacl_arm.go
+index 8669ee75b4..c64ebf31d3 100644
+--- a/src/runtime/os_nacl_arm.go
++++ b/src/runtime/os_nacl_arm.go
+@@ -4,6 +4,8 @@
+ 
+ package runtime
+ 
++var hardDiv bool // TODO: set if a hardware divider is available
++
+ func checkgoarm() {
+ 	// TODO(minux): FP checks like in os_linux_arm.go.
+ 
+diff --git a/src/runtime/os_netbsd_arm.go b/src/runtime/os_netbsd_arm.go
+index 95603da643..b02e36a73a 100644
+--- a/src/runtime/os_netbsd_arm.go
++++ b/src/runtime/os_netbsd_arm.go
+@@ -6,6 +6,8 @@ package runtime
+ 
+ import "unsafe"
+ 
++var hardDiv bool // TODO: set if a hardware divider is available
++
+ func lwp_mcontext_init(mc *mcontextt, stk unsafe.Pointer, mp *m, gp *g, fn uintptr) {
+ 	// Machine dependent mcontext initialisation for LWP.
+ 	mc.__gregs[_REG_R15] = uint32(funcPC(lwp_tramp))
+diff --git a/src/runtime/os_openbsd_arm.go b/src/runtime/os_openbsd_arm.go
+index be2e1e9959..c318578ab5 100644
+--- a/src/runtime/os_openbsd_arm.go
++++ b/src/runtime/os_openbsd_arm.go
+@@ -4,6 +4,8 @@
+ 
+ package runtime
+ 
++var hardDiv bool // TODO: set if a hardware divider is available
++
+ func checkgoarm() {
+ 	// TODO(minux): FP checks like in os_linux_arm.go.
+ 
+diff --git a/src/runtime/os_plan9_arm.go b/src/runtime/os_plan9_arm.go
+index fdce1e7a35..1ce0141ce2 100644
+--- a/src/runtime/os_plan9_arm.go
++++ b/src/runtime/os_plan9_arm.go
+@@ -4,6 +4,8 @@
+ 
+ package runtime
+ 
++var hardDiv bool // TODO: set if a hardware divider is available
++
+ func checkgoarm() {
+ 	return // TODO(minux)
+ }
+diff --git a/src/runtime/vlop_arm.s b/src/runtime/vlop_arm.s
+index d4c411cda2..6fc325cb93 100644
+--- a/src/runtime/vlop_arm.s
++++ b/src/runtime/vlop_arm.s
+@@ -119,6 +119,10 @@ TEXT runtime·_sfloatpanic(SB),NOSPLIT,$-4
+ 
+ // Be careful: Ra == R11 will be used by the linker for synthesized instructions.
+ TEXT udiv(SB),NOSPLIT,$-4
++	MOVBU	runtime·hardDiv(SB), Ra
++	CMP	$0, Ra
++	BNE	udiv_hardware
++
+ 	CLZ 	Rq, Rs // find normalizing shift
+ 	MOVW.S	Rq<<Rs, Ra
+ 	MOVW	$fast_udiv_tab<>-64(SB), RM
+@@ -154,6 +158,14 @@ TEXT udiv(SB),NOSPLIT,$-4
+ 	ADD.PL	$2, Rq
+ 	RET
+ 
++// use hardware divider
++udiv_hardware:
++	DIVUHW	Rq, Rr, Rs
++	MUL	Rs, Rq, RM
++	RSB	Rr, RM, Rr
++	MOVW	Rs, Rq
++	RET
++
+ udiv_by_large_d:
+ 	// at this point we know d>=2^(31-6)=2^25
+ 	SUB 	$4, Ra, Ra

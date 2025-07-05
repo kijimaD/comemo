@@ -14,6 +14,20 @@ Date:   Thu Apr 15 17:12:34 2021 -0400
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  test/abi/bad_select_crash.go | 3 ---
  1 file changed, 3 deletions(-)
+
+diff --git a/test/abi/bad_select_crash.go b/test/abi/bad_select_crash.go
+index 7786a56a02..58ca463cb8 100644
+--- a/test/abi/bad_select_crash.go
++++ b/test/abi/bad_select_crash.go
+@@ -1,8 +1,5 @@
+ // build -goexperiment regabi,regabiargs
+ 
+-// +build !windows
+-//go:build !windows
+-
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.

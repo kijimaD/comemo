@@ -17,10 +17,266 @@ Date:   Tue Dec 23 12:10:36 2014 -0800
     Change-Id: I3f0c767a4007d88169a5634ab2870deea4e6a740
     Reviewed-on: https://go-review.googlesource.com/2091
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/doc/exports.go              | 51 ++++++++++++++++++++++++++++++++++++++
  src/go/doc/testdata/blank.0.golden | 22 +++++++++++++++-
  src/go/doc/testdata/blank.1.golden | 25 ++++++++++++++++++-
  src/go/doc/testdata/blank.2.golden | 22 +++++++++++++++-
  src/go/doc/testdata/blank.go       | 24 +++++++++++++++++-
  5 files changed, 140 insertions(+), 4 deletions(-)
+
+diff --git a/src/go/doc/exports.go b/src/go/doc/exports.go
+index 1d3b466d8c..06789bc108 100644
+--- a/src/go/doc/exports.go
++++ b/src/go/doc/exports.go
+@@ -26,6 +26,17 @@ func filterIdentList(list []*ast.Ident, blankOk bool) []*ast.Ident {
+ 	return list[0:j]
+ }
+ 
++// hasExportedOrBlankName reports whether list contains any exported or blank names.
++//
++func hasExportedOrBlankName(list []*ast.Ident) bool {
++	for _, x := range list {
++		if x.IsExported() || x.Name == "_" {
++			return true
++		}
++	}
++	return false
++}
++
+ // removeErrorField removes anonymous fields named "error" from an interface.
+ // This is called when "error" has been determined to be a local name,
+ // not the predeclared type.
+@@ -165,7 +176,47 @@ func (r *reader) filterSpec(spec ast.Spec, tok token.Token) bool {
+ 	return false
+ }
+ 
++// copyConstType returns a copy of typ with position pos.
++// typ must be a valid constant type.
++// In practice, only (possibly qualified) identifiers are possible.
++//
++func copyConstType(typ ast.Expr, pos token.Pos) ast.Expr {
++	switch typ := typ.(type) {
++	case *ast.Ident:
++		return &ast.Ident{Name: typ.Name, NamePos: pos}
++	case *ast.SelectorExpr:
++		if id, ok := typ.X.(*ast.Ident); ok {
++			// presumably a qualified identifier
++			return &ast.SelectorExpr{
++				Sel: ast.NewIdent(typ.Sel.Name),
++				X:   &ast.Ident{Name: id.Name, NamePos: pos},
++			}
++		}
++	}
++	return nil // shouldn't happen, but be conservative and don't panic
++}
++
+ func (r *reader) filterSpecList(list []ast.Spec, tok token.Token) []ast.Spec {
++	if tok == token.CONST {
++		// Propagate any type information that would get lost otherwise
++		// when unexported constants are filtered.
++		var prevType ast.Expr
++		for _, spec := range list {
++			spec := spec.(*ast.ValueSpec)
++			if spec.Type == nil && prevType != nil {
++				// provide current spec with an explicit type
++				spec.Type = copyConstType(prevType, spec.Pos())
++			}
++			if hasExportedOrBlankName(spec.Names) {
++				// both exported and blank names are preserved
++				// so there's no need to propagate the type
++				prevType = nil
++			} else {
++				prevType = spec.Type
++			}
++		}
++	}
++
+ 	j := 0
+ 	for _, s := range list {
+ 		if r.filterSpec(s, tok) {
+diff --git a/src/go/doc/testdata/blank.0.golden b/src/go/doc/testdata/blank.0.golden
+index dae3ab2aff..5f34038426 100644
+--- a/src/go/doc/testdata/blank.0.golden
++++ b/src/go/doc/testdata/blank.0.golden
+@@ -4,10 +4,30 @@ PACKAGE blank
+ IMPORTPATH
+ 	testdata/blank
+ 
++IMPORTS
++	os
++
+ FILENAMES
+ 	testdata/blank.go
+ 
+ CONSTANTS
++	// T constants counting from unexported constants. 
++	const (
++		C1	T
++		C2
++	
++		C3
++	
++		C4	int
++	)
++
++	// Constants with an imported type that needs to be propagated. 
++	const (
++		Default		os.FileMode	= 0644
++		Useless				= 0312
++		WideOpen			= 0777
++	)
++
+ 	// Package constants. 
+ 	const (
+ 		_	int	= iota
+@@ -28,7 +48,7 @@ TYPES
+ 	// 
+ 	type T int
+ 
+-	// T constants. 
++	// T constants counting from a blank constant. 
+ 	const (
+ 		_	T	= iota
+ 		T1
+diff --git a/src/go/doc/testdata/blank.1.golden b/src/go/doc/testdata/blank.1.golden
+index 333d7e5b04..af5328fbb6 100644
+--- a/src/go/doc/testdata/blank.1.golden
++++ b/src/go/doc/testdata/blank.1.golden
+@@ -4,10 +4,25 @@ PACKAGE blank
+ IMPORTPATH
+ 	testdata/blank
+ 
++IMPORTS
++	os
++
+ FILENAMES
+ 	testdata/blank.go
+ 
+ CONSTANTS
++	// T constants counting from unexported constants. 
++	const (
++		tweedledee	T	= iota
++		tweedledum
++		C1
++		C2
++		alice
++		C3
++		redQueen	int	= iota
++		C4
++	)
++
+ 	// Package constants. 
+ 	const (
+ 		_	int	= iota
+@@ -15,6 +30,14 @@ CONSTANTS
+ 		I2
+ 	)
+ 
++	// Constants with an imported type that needs to be propagated. 
++	const (
++		zero		os.FileMode	= 0
++		Default				= 0644
++		Useless				= 0312
++		WideOpen			= 0777
++	)
++
+ 
+ VARIABLES
+ 	// 
+@@ -37,7 +60,7 @@ TYPES
+ 	// 
+ 	type T int
+ 
+-	// T constants. 
++	// T constants counting from a blank constant. 
+ 	const (
+ 		_	T	= iota
+ 		T1
+diff --git a/src/go/doc/testdata/blank.2.golden b/src/go/doc/testdata/blank.2.golden
+index dae3ab2aff..5f34038426 100644
+--- a/src/go/doc/testdata/blank.2.golden
++++ b/src/go/doc/testdata/blank.2.golden
+@@ -4,10 +4,30 @@ PACKAGE blank
+ IMPORTPATH
+ 	testdata/blank
+ 
++IMPORTS
++	os
++
+ FILENAMES
+ 	testdata/blank.go
+ 
+ CONSTANTS
++	// T constants counting from unexported constants. 
++	const (
++		C1	T
++		C2
++	
++		C3
++	
++		C4	int
++	)
++
++	// Constants with an imported type that needs to be propagated. 
++	const (
++		Default		os.FileMode	= 0644
++		Useless				= 0312
++		WideOpen			= 0777
++	)
++
+ 	// Package constants. 
+ 	const (
+ 		_	int	= iota
+@@ -28,7 +48,7 @@ TYPES
+ 	// 
+ 	type T int
+ 
+-	// T constants. 
++	// T constants counting from a blank constant. 
+ 	const (
+ 		_	T	= iota
+ 		T1
+diff --git a/src/go/doc/testdata/blank.go b/src/go/doc/testdata/blank.go
+index f812c77b77..83e42ed39f 100644
+--- a/src/go/doc/testdata/blank.go
++++ b/src/go/doc/testdata/blank.go
+@@ -6,15 +6,37 @@
+ // See issue 5397.
+ package blank
+ 
++import "os"
++
+ type T int
+ 
+-// T constants.
++// T constants counting from a blank constant.
+ const (
+ 	_ T = iota
+ 	T1
+ 	T2
+ )
+ 
++// T constants counting from unexported constants.
++const (
++	tweedledee T = iota
++	tweedledum
++	C1
++	C2
++	alice
++	C3
++	redQueen int = iota
++	C4
++)
++
++// Constants with an imported type that needs to be propagated.
++const (
++	zero     os.FileMode = 0
++	Default              = 0644
++	Useless              = 0312
++	WideOpen             = 0777
++)
++
+ // Package constants.
+ const (
+ 	_ int = iota

@@ -20,7 +20,7 @@ Date:   Wed Mar 23 15:09:31 2022 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  test/closure5.dir/main.go                 | 2 +-
  test/fixedbugs/bug222.dir/chanbug2.go     | 3 ++-
  test/fixedbugs/bug302.dir/main.go         | 3 +--
@@ -117,3 +117,1289 @@ Date:   Wed Mar 23 15:09:31 2022 -0700
  test/typeparam/stringerimp.dir/main.go    | 2 +-
  test/typeparam/valimp.dir/main.go         | 2 +-
  95 files changed, 114 insertions(+), 114 deletions(-)
+
+diff --git a/test/closure5.dir/main.go b/test/closure5.dir/main.go
+index ee5dba6481..30b378495b 100644
+--- a/test/closure5.dir/main.go
++++ b/test/closure5.dir/main.go
+@@ -6,7 +6,7 @@
+ // that are expected to be inlined
+ package main
+ 
+-import "a"
++import "./a"
+ 
+ func main() {
+ 	if !a.G()()() {
+diff --git a/test/fixedbugs/bug222.dir/chanbug2.go b/test/fixedbugs/bug222.dir/chanbug2.go
+index 109581dc30..b6c416f834 100644
+--- a/test/fixedbugs/bug222.dir/chanbug2.go
++++ b/test/fixedbugs/bug222.dir/chanbug2.go
+@@ -3,4 +3,5 @@
+ // license that can be found in the LICENSE file
+ 
+ package Bar
+-import _ "chanbug"
++
++import _ "./chanbug"
+diff --git a/test/fixedbugs/bug302.dir/main.go b/test/fixedbugs/bug302.dir/main.go
+index 52c054fb4c..21b7722a0a 100644
+--- a/test/fixedbugs/bug302.dir/main.go
++++ b/test/fixedbugs/bug302.dir/main.go
+@@ -5,8 +5,7 @@
+ package main
+ 
+ // Check that the export information is correct in p.6.
+-import _ "p"
++import _ "./p"
+ 
+ // Check that it's still correct in pp.a (which contains p.6).
+ import _ "pp"
+-
+diff --git a/test/fixedbugs/issue11053.dir/p_test.go b/test/fixedbugs/issue11053.dir/p_test.go
+index 542c2a349e..412352d7c5 100644
+--- a/test/fixedbugs/issue11053.dir/p_test.go
++++ b/test/fixedbugs/issue11053.dir/p_test.go
+@@ -5,8 +5,8 @@
+ package main
+ 
+ import (
++	"./p"
+ 	"fmt"
+-	"p"
+ )
+ 
+ type I interface {
+diff --git a/test/fixedbugs/issue22962.dir/b.go b/test/fixedbugs/issue22962.dir/b.go
+index e1568c8fe9..4937ef577f 100644
+--- a/test/fixedbugs/issue22962.dir/b.go
++++ b/test/fixedbugs/issue22962.dir/b.go
+@@ -4,6 +4,6 @@
+ 
+ package b
+ 
+-import "a"
++import "./a"
+ 
+ var V = func() { a.F() }
+diff --git a/test/fixedbugs/issue23179.dir/b.go b/test/fixedbugs/issue23179.dir/b.go
+index bec3d15e1e..4bde498cd8 100644
+--- a/test/fixedbugs/issue23179.dir/b.go
++++ b/test/fixedbugs/issue23179.dir/b.go
+@@ -4,7 +4,7 @@
+ 
+ package b
+ 
+-import "a"
++import "./a"
+ 
+ func G(x int) int {
+ 	return a.F(x, 1, false, a.Large{})
+diff --git a/test/fixedbugs/issue31252.dir/c.go b/test/fixedbugs/issue31252.dir/c.go
+index 928c8eee1c..98ecf61177 100644
+--- a/test/fixedbugs/issue31252.dir/c.go
++++ b/test/fixedbugs/issue31252.dir/c.go
+@@ -5,8 +5,8 @@
+ package c
+ 
+ import (
+-	"a"
+-	"b"
++	"./a"
++	"./b"
+ )
+ 
+ type HandlerFunc func(*string)
+diff --git a/test/fixedbugs/issue31252.dir/main.go b/test/fixedbugs/issue31252.dir/main.go
+index 25a7548668..6c0c9ce5d2 100644
+--- a/test/fixedbugs/issue31252.dir/main.go
++++ b/test/fixedbugs/issue31252.dir/main.go
+@@ -4,7 +4,7 @@
+ 
+ package main
+ 
+-import "c"
++import "./c"
+ 
+ func main() {
+ 	c.RouterInit()
+diff --git a/test/fixedbugs/issue31636.dir/main.go b/test/fixedbugs/issue31636.dir/main.go
+index d8ae902c64..bbc58369d3 100644
+--- a/test/fixedbugs/issue31636.dir/main.go
++++ b/test/fixedbugs/issue31636.dir/main.go
+@@ -9,11 +9,11 @@ package main
+ // 1.13. For 1.14, we will move to a variant of lexicographic ordering
+ // which will require a change to the test output of this test.
+ import (
+-	_ "c"
++	_ "./c"
+ 
+-	_ "b"
++	_ "./b"
+ 
+-	_ "a"
++	_ "./a"
+ )
+ 
+ func main() {
+diff --git a/test/fixedbugs/issue31959.dir/main.go b/test/fixedbugs/issue31959.dir/main.go
+index 895c4e5345..6604e3abbd 100644
+--- a/test/fixedbugs/issue31959.dir/main.go
++++ b/test/fixedbugs/issue31959.dir/main.go
+@@ -12,7 +12,7 @@ package main
+ import (
+ 	"fmt"
+ 
+-	"a"
++	"./a"
+ )
+ 
+ func main() {
+diff --git a/test/fixedbugs/issue32595.dir/main.go b/test/fixedbugs/issue32595.dir/main.go
+index 20472cd72a..979efe3a91 100644
+--- a/test/fixedbugs/issue32595.dir/main.go
++++ b/test/fixedbugs/issue32595.dir/main.go
+@@ -5,8 +5,8 @@
+ package main
+ 
+ import (
+-	"a"
+-	"b"
++	"./a"
++	"./b"
+ )
+ 
+ func main() {
+diff --git a/test/fixedbugs/issue33013.dir/b.go b/test/fixedbugs/issue33013.dir/b.go
+index 5694b58282..a8f5cc0650 100644
+--- a/test/fixedbugs/issue33013.dir/b.go
++++ b/test/fixedbugs/issue33013.dir/b.go
+@@ -4,7 +4,7 @@
+ 
+ package b
+ 
+-import "a"
++import "./a"
+ 
+ type Service uint64
+ type ServiceDesc struct {
+diff --git a/test/fixedbugs/issue33013.dir/c.go b/test/fixedbugs/issue33013.dir/c.go
+index bfdc0b535f..74425dfaae 100644
+--- a/test/fixedbugs/issue33013.dir/c.go
++++ b/test/fixedbugs/issue33013.dir/c.go
+@@ -5,8 +5,8 @@
+ package c
+ 
+ import (
+-	"a"
+-	"b"
++	"./a"
++	"./b"
+ )
+ 
+ type BI interface {
+diff --git a/test/fixedbugs/issue33013.dir/d.go b/test/fixedbugs/issue33013.dir/d.go
+index f4fff4ac62..c70c6647e8 100644
+--- a/test/fixedbugs/issue33013.dir/d.go
++++ b/test/fixedbugs/issue33013.dir/d.go
+@@ -5,8 +5,8 @@
+ package d
+ 
+ import (
+-	"b"
+-	"c"
++	"./b"
++	"./c"
+ )
+ 
+ var GA b.Service
+diff --git a/test/fixedbugs/issue33020.dir/b.go b/test/fixedbugs/issue33020.dir/b.go
+index 354ab3ebfe..14a2a87041 100644
+--- a/test/fixedbugs/issue33020.dir/b.go
++++ b/test/fixedbugs/issue33020.dir/b.go
+@@ -4,7 +4,7 @@
+ 
+ package b
+ 
+-import "a"
++import "./a"
+ 
+ var N n
+ 
+diff --git a/test/fixedbugs/issue33158.dir/b.go b/test/fixedbugs/issue33158.dir/b.go
+index a16f0da600..4174b417ec 100644
+--- a/test/fixedbugs/issue33158.dir/b.go
++++ b/test/fixedbugs/issue33158.dir/b.go
+@@ -4,7 +4,7 @@
+ 
+ package b
+ 
+-import "a"
++import "./a"
+ 
+ func B() string {
+ 	return a.M()
+diff --git a/test/fixedbugs/issue33219.dir/c.go b/test/fixedbugs/issue33219.dir/c.go
+index ece48d7603..a78fe69a9e 100644
+--- a/test/fixedbugs/issue33219.dir/c.go
++++ b/test/fixedbugs/issue33219.dir/c.go
+@@ -5,8 +5,8 @@
+ package c
+ 
+ import (
+-	"a"
+-	"b"
++	"./a"
++	"./b"
+ )
+ 
+ type BI interface {
+diff --git a/test/fixedbugs/issue33739.dir/b.go b/test/fixedbugs/issue33739.dir/b.go
+index caca1ec686..d22fe34d66 100644
+--- a/test/fixedbugs/issue33739.dir/b.go
++++ b/test/fixedbugs/issue33739.dir/b.go
+@@ -4,7 +4,7 @@
+ 
+ package main
+ 
+-import "a"
++import "./a"
+ 
+ func main() {
+ 	a.F()()
+diff --git a/test/fixedbugs/issue34503.dir/b.go b/test/fixedbugs/issue34503.dir/b.go
+index 21bdfcc1b5..7ea02511b0 100644
+--- a/test/fixedbugs/issue34503.dir/b.go
++++ b/test/fixedbugs/issue34503.dir/b.go
+@@ -4,7 +4,7 @@
+ 
+ package b
+ 
+-import "a"
++import "./a"
+ 
+ func Bfunc() {
+ 	a.Hook(101)
+diff --git a/test/fixedbugs/issue34577.dir/b.go b/test/fixedbugs/issue34577.dir/b.go
+index bbcd1af517..c61d7da782 100644
+--- a/test/fixedbugs/issue34577.dir/b.go
++++ b/test/fixedbugs/issue34577.dir/b.go
+@@ -4,7 +4,7 @@
+ 
+ package b
+ 
+-import "a"
++import "./a"
+ 
+ type B struct {
+ 	s string
+diff --git a/test/fixedbugs/issue35586.dir/b.go b/test/fixedbugs/issue35586.dir/b.go
+index e8b674fe30..e0abb99fd4 100644
+--- a/test/fixedbugs/issue35586.dir/b.go
++++ b/test/fixedbugs/issue35586.dir/b.go
+@@ -4,7 +4,7 @@
+ 
+ package b
+ 
+-import "a"
++import "./a"
+ 
+ func F(addr string) (uint64, string) {
+ 	return a.D(addr, 32)
+diff --git a/test/fixedbugs/issue36085.dir/b.go b/test/fixedbugs/issue36085.dir/b.go
+index c5ee26970a..0ebfe9fb61 100644
+--- a/test/fixedbugs/issue36085.dir/b.go
++++ b/test/fixedbugs/issue36085.dir/b.go
+@@ -1,6 +1,6 @@
+ package main
+ 
+-import "a"
++import "./a"
+ 
+ var w a.W
+ var X interface{} = &w
+diff --git a/test/fixedbugs/issue45503.dir/b.go b/test/fixedbugs/issue45503.dir/b.go
+index df4877a882..530c394eaf 100644
+--- a/test/fixedbugs/issue45503.dir/b.go
++++ b/test/fixedbugs/issue45503.dir/b.go
+@@ -4,7 +4,7 @@
+ 
+ package b
+ 
+-import "a"
++import "./a"
+ 
+ func F() {
+ 	s := a.S{}
+diff --git a/test/fixedbugs/issue47068.dir/main.go b/test/fixedbugs/issue47068.dir/main.go
+index 16ef5b780b..411e7db103 100644
+--- a/test/fixedbugs/issue47068.dir/main.go
++++ b/test/fixedbugs/issue47068.dir/main.go
+@@ -5,8 +5,8 @@
+ package main
+ 
+ import (
+-	"a"
+-	"b"
++	"./a"
++	"./b"
+ )
+ 
+ func main() {
+diff --git a/test/fixedbugs/issue47087.dir/main.go b/test/fixedbugs/issue47087.dir/main.go
+index ccd0891a61..16c1cc616d 100644
+--- a/test/fixedbugs/issue47087.dir/main.go
++++ b/test/fixedbugs/issue47087.dir/main.go
+@@ -5,8 +5,8 @@
+ package main
+ 
+ import (
+-	"a"
+-	"b"
++	"./a"
++	"./b"
+ )
+ 
+ func main() {
+diff --git a/test/fixedbugs/issue48088.dir/b.go b/test/fixedbugs/issue48088.dir/b.go
+index 221f2dde2a..bdb1bb55c2 100644
+--- a/test/fixedbugs/issue48088.dir/b.go
++++ b/test/fixedbugs/issue48088.dir/b.go
+@@ -4,7 +4,7 @@
+ 
+ package b
+ 
+-import "a"
++import "./a"
+ 
+ func F() {
+ 	a.F()
+diff --git a/test/fixedbugs/issue5910.dir/main.go b/test/fixedbugs/issue5910.dir/main.go
+index c5d42ea098..80ddfbbca3 100644
+--- a/test/fixedbugs/issue5910.dir/main.go
++++ b/test/fixedbugs/issue5910.dir/main.go
+@@ -4,7 +4,7 @@
+ 
+ package main
+ 
+-import "a"
++import "./a"
+ 
+ func main() {
+ 	f := new(a.Future)
+diff --git a/test/fixedbugs/issue7648.dir/b.go b/test/fixedbugs/issue7648.dir/b.go
+index b9223ed4e3..7b336025ae 100644
+--- a/test/fixedbugs/issue7648.dir/b.go
++++ b/test/fixedbugs/issue7648.dir/b.go
+@@ -4,7 +4,7 @@
+ 
+ package b
+ 
+-import "a"
++import "./a"
+ 
+ func f() {
+ 	println(a.A)
+diff --git a/test/fixedbugs/issue8060.dir/b.go b/test/fixedbugs/issue8060.dir/b.go
+index 85fb6ec7db..fc7eb251d0 100644
+--- a/test/fixedbugs/issue8060.dir/b.go
++++ b/test/fixedbugs/issue8060.dir/b.go
+@@ -4,7 +4,7 @@
+ 
+ package b
+ 
+-import "a"
++import "./a"
+ 
+ var X = a.A
+ 
+diff --git a/test/typeparam/absdiffimp2.dir/main.go b/test/typeparam/absdiffimp2.dir/main.go
+index 8eefdbdf38..1519da091b 100644
+--- a/test/typeparam/absdiffimp2.dir/main.go
++++ b/test/typeparam/absdiffimp2.dir/main.go
+@@ -5,7 +5,7 @@
+ package main
+ 
+ import (
+-	"a"
++	"./a"
+ 	"fmt"
+ )
+ 
+diff --git a/test/typeparam/aliasimp.dir/main.go b/test/typeparam/aliasimp.dir/main.go
+index 24ce95472f..39c29fc74c 100644
+--- a/test/typeparam/aliasimp.dir/main.go
++++ b/test/typeparam/aliasimp.dir/main.go
+@@ -4,7 +4,7 @@
+ 
+ package main
+ 
+-import "a"
++import "./a"
+ 
+ type R[T any] struct {
+ 	F T
+diff --git a/test/typeparam/chansimp.dir/main.go b/test/typeparam/chansimp.dir/main.go
+index ca27167598..a380a3c7e4 100644
+--- a/test/typeparam/chansimp.dir/main.go
++++ b/test/typeparam/chansimp.dir/main.go
+@@ -5,7 +5,7 @@
+ package main
+ 
+ import (
+-	"a"
++	"./a"
+ 	"context"
+ 	"fmt"
+ 	"runtime"
+diff --git a/test/typeparam/dedup.dir/b.go b/test/typeparam/dedup.dir/b.go
+index ce037e2d8a..8507c64137 100644
+--- a/test/typeparam/dedup.dir/b.go
++++ b/test/typeparam/dedup.dir/b.go
+@@ -4,7 +4,7 @@
+ 
+ package b
+ 
+-import "a"
++import "./a"
+ 
+ func B() {
+ 	var x int64
+diff --git a/test/typeparam/dedup.dir/c.go b/test/typeparam/dedup.dir/c.go
+index 11a5d97642..a1c950f1cb 100644
+--- a/test/typeparam/dedup.dir/c.go
++++ b/test/typeparam/dedup.dir/c.go
+@@ -4,7 +4,7 @@
+ 
+ package c
+ 
+-import "a"
++import "./a"
+ 
+ func C() {
+ 	var x int64
+diff --git a/test/typeparam/dedup.dir/main.go b/test/typeparam/dedup.dir/main.go
+index dc3ff6f75f..920591b04f 100644
+--- a/test/typeparam/dedup.dir/main.go
++++ b/test/typeparam/dedup.dir/main.go
+@@ -5,8 +5,8 @@
+ package main
+ 
+ import (
+-	"b"
+-	"c"
++	"./b"
++	"./c"
+ )
+ 
+ func main() {
+diff --git a/test/typeparam/factimp.dir/main.go b/test/typeparam/factimp.dir/main.go
+index c2238002ae..75e08da01a 100644
+--- a/test/typeparam/factimp.dir/main.go
++++ b/test/typeparam/factimp.dir/main.go
+@@ -5,7 +5,7 @@
+ package main
+ 
+ import (
+-	"a"
++	"./a"
+ 	"fmt"
+ )
+ 
+diff --git a/test/typeparam/gencrawler.dir/main.go b/test/typeparam/gencrawler.dir/main.go
+index 063de7f350..198d117df6 100644
+--- a/test/typeparam/gencrawler.dir/main.go
++++ b/test/typeparam/gencrawler.dir/main.go
+@@ -4,7 +4,7 @@
+ 
+ package main
+ 
+-import "a"
++import "./a"
+ 
+ func main() {
+ 	a.V.Print()
+diff --git a/test/typeparam/geninline.dir/main.go b/test/typeparam/geninline.dir/main.go
+index 6dc36ba8af..cfc48859a3 100644
+--- a/test/typeparam/geninline.dir/main.go
++++ b/test/typeparam/geninline.dir/main.go
+@@ -4,7 +4,7 @@
+ 
+ package main
+ 
+-import "a"
++import "./a"
+ 
+ // Testing inlining of functions that refer to instantiated exported and non-exported
+ // generic types.
+diff --git a/test/typeparam/issue47514c.dir/main.go b/test/typeparam/issue47514c.dir/main.go
+index bc1166f761..0ef423f680 100644
+--- a/test/typeparam/issue47514c.dir/main.go
++++ b/test/typeparam/issue47514c.dir/main.go
+@@ -1,6 +1,6 @@
+ package main
+ 
+-import "a"
++import "./a"
+ 
+ func Do[T any](doer a.Doer[T]) {
+ 	doer.Do()
+diff --git a/test/typeparam/issue47775.dir/main.go b/test/typeparam/issue47775.dir/main.go
+index ed284ddfc6..5ec85a49d2 100644
+--- a/test/typeparam/issue47775.dir/main.go
++++ b/test/typeparam/issue47775.dir/main.go
+@@ -4,7 +4,7 @@
+ 
+ package main
+ 
+-import "b"
++import "./b"
+ 
+ func main() {
+ 	b.New[int]()
+diff --git a/test/typeparam/issue47892.dir/main.go b/test/typeparam/issue47892.dir/main.go
+index bd610d4ee6..348e38b638 100644
+--- a/test/typeparam/issue47892.dir/main.go
++++ b/test/typeparam/issue47892.dir/main.go
+@@ -4,15 +4,15 @@
+ 
+ package main
+ 
+-import "a"
++import "./a"
+ 
+ type Model[T any] struct {
+-	index       a.Index[T]
++	index a.Index[T]
+ }
+ 
+ func NewModel[T any](index a.Index[T]) Model[T] {
+ 	return Model[T]{
+-		index:       index,
++		index: index,
+ 	}
+ }
+ 
+diff --git a/test/typeparam/issue47892b.dir/main.go b/test/typeparam/issue47892b.dir/main.go
+index 70df4408af..3cd658f0e3 100644
+--- a/test/typeparam/issue47892b.dir/main.go
++++ b/test/typeparam/issue47892b.dir/main.go
+@@ -4,7 +4,7 @@
+ 
+ package main
+ 
+-import "a"
++import "./a"
+ 
+ type S[Idx any] struct {
+ 	A string
+diff --git a/test/typeparam/issue48094.dir/main.go b/test/typeparam/issue48094.dir/main.go
+index eb1ddbe231..78337da9ef 100644
+--- a/test/typeparam/issue48094.dir/main.go
++++ b/test/typeparam/issue48094.dir/main.go
+@@ -4,7 +4,7 @@
+ 
+ package main
+ 
+-import "a"
++import "./a"
+ 
+ func main() {
+ 	if a.F[int64]() != 8 {
+diff --git a/test/typeparam/issue48185a.dir/p_test.go b/test/typeparam/issue48185a.dir/p_test.go
+index 52c87a7e29..a89d69744c 100644
+--- a/test/typeparam/issue48185a.dir/p_test.go
++++ b/test/typeparam/issue48185a.dir/p_test.go
+@@ -4,7 +4,7 @@
+ 
+ package main
+ 
+-import "p"
++import "./p"
+ 
+ func main() {
+ 	_ = p.MarshalFuncV1[int](func(int) ([]byte, error) { return nil, nil })
+diff --git a/test/typeparam/issue48185b.dir/main.go b/test/typeparam/issue48185b.dir/main.go
+index 978e6ae585..ea157f7d6d 100644
+--- a/test/typeparam/issue48185b.dir/main.go
++++ b/test/typeparam/issue48185b.dir/main.go
+@@ -5,7 +5,7 @@
+ package main
+ 
+ import (
+-	"a"
++	"./a"
+ 	"fmt"
+ )
+ 
+diff --git a/test/typeparam/issue48280.dir/main.go b/test/typeparam/issue48280.dir/main.go
+index b9981c6f61..2c8387dd42 100644
+--- a/test/typeparam/issue48280.dir/main.go
++++ b/test/typeparam/issue48280.dir/main.go
+@@ -4,7 +4,7 @@
+ 
+ package main
+ 
+-import "a"
++import "./a"
+ 
+ func main() {
+ 	_ = a.S{}
+diff --git a/test/typeparam/issue48306.dir/main.go b/test/typeparam/issue48306.dir/main.go
+index 5d602fe07c..260c3c87eb 100644
+--- a/test/typeparam/issue48306.dir/main.go
++++ b/test/typeparam/issue48306.dir/main.go
+@@ -4,7 +4,7 @@
+ 
+ package main
+ 
+-import "a"
++import "./a"
+ 
+ type S struct{}
+ 
+diff --git a/test/typeparam/issue48337a.dir/main.go b/test/typeparam/issue48337a.dir/main.go
+index 16f71153f3..ddf672414e 100644
+--- a/test/typeparam/issue48337a.dir/main.go
++++ b/test/typeparam/issue48337a.dir/main.go
+@@ -4,7 +4,7 @@
+ 
+ package main
+ 
+-import "a"
++import "./a"
+ 
+ func main() {
+ 	obj := a.NewWrapperWithLock("this file does import sync")
+diff --git a/test/typeparam/issue48337b.dir/main.go b/test/typeparam/issue48337b.dir/main.go
+index 0b2814cbc0..0318b67608 100644
+--- a/test/typeparam/issue48337b.dir/main.go
++++ b/test/typeparam/issue48337b.dir/main.go
+@@ -4,7 +4,7 @@
+ 
+ package main
+ 
+-import "a"
++import "./a"
+ 
+ func main() {
+ 	a.NewMetaContainer()
+diff --git a/test/typeparam/issue48454.dir/b.go b/test/typeparam/issue48454.dir/b.go
+index 2b59b714b8..deb59d2ec8 100644
+--- a/test/typeparam/issue48454.dir/b.go
++++ b/test/typeparam/issue48454.dir/b.go
+@@ -4,7 +4,7 @@
+ 
+ package b
+ 
+-import "a"
++import "./a"
+ 
+ type Session struct {
+ 	privateField a.Val[string]
+diff --git a/test/typeparam/issue48454.dir/main.go b/test/typeparam/issue48454.dir/main.go
+index becb5f3024..ad9d290a8a 100644
+--- a/test/typeparam/issue48454.dir/main.go
++++ b/test/typeparam/issue48454.dir/main.go
+@@ -4,7 +4,7 @@
+ 
+ package main
+ 
+-import "b"
++import "./b"
+ 
+ func main() {
+ 	var _ b.Session
+diff --git a/test/typeparam/issue48462.dir/main.go b/test/typeparam/issue48462.dir/main.go
+index 8054ddd327..e615367f3e 100644
+--- a/test/typeparam/issue48462.dir/main.go
++++ b/test/typeparam/issue48462.dir/main.go
+@@ -8,7 +8,7 @@ import (
+ 	"fmt"
+ 	"reflect"
+ 
+-	"a"
++	"./a"
+ )
+ 
+ func main() {
+diff --git a/test/typeparam/issue48716.dir/main.go b/test/typeparam/issue48716.dir/main.go
+index adde0f5afe..13a126e869 100644
+--- a/test/typeparam/issue48716.dir/main.go
++++ b/test/typeparam/issue48716.dir/main.go
+@@ -5,7 +5,7 @@
+ package main
+ 
+ import (
+-	"a"
++	"./a"
+ )
+ 
+ // Creates copy of set
+diff --git a/test/typeparam/issue48962.dir/b.go b/test/typeparam/issue48962.dir/b.go
+index a49f55de8d..e4eaa06819 100644
+--- a/test/typeparam/issue48962.dir/b.go
++++ b/test/typeparam/issue48962.dir/b.go
+@@ -4,7 +4,7 @@
+ 
+ package b
+ 
+-import "a"
++import "./a"
+ 
+ type (
+ 	lA[P any]               [10]P
+diff --git a/test/typeparam/issue49027.dir/main.go b/test/typeparam/issue49027.dir/main.go
+index aa20a2fdfb..d998c5bd22 100644
+--- a/test/typeparam/issue49027.dir/main.go
++++ b/test/typeparam/issue49027.dir/main.go
+@@ -5,7 +5,7 @@
+ package main
+ 
+ import (
+-	"a"
++	"./a"
+ 	"fmt"
+ )
+ 
+diff --git a/test/typeparam/issue49241.dir/b.go b/test/typeparam/issue49241.dir/b.go
+index 45c1afbaf1..e5f1e1290e 100644
+--- a/test/typeparam/issue49241.dir/b.go
++++ b/test/typeparam/issue49241.dir/b.go
+@@ -4,14 +4,14 @@
+ 
+ package b
+ 
+-import "a"
++import "./a"
+ 
+ //go:noinline
+-func F() interface {} {
++func F() interface{} {
+ 	return a.T[int]{}
+ }
+ 
+ //go:noinline
+ func G() interface{} {
+-	return struct{X,Y a.U}{}
++	return struct{ X, Y a.U }{}
+ }
+diff --git a/test/typeparam/issue49241.dir/c.go b/test/typeparam/issue49241.dir/c.go
+index ea3bab2954..34ea7c3ffa 100644
+--- a/test/typeparam/issue49241.dir/c.go
++++ b/test/typeparam/issue49241.dir/c.go
+@@ -4,14 +4,14 @@
+ 
+ package c
+ 
+-import "a"
++import "./a"
+ 
+ //go:noinline
+-func F() interface {} {
++func F() interface{} {
+ 	return a.T[int]{}
+ }
+ 
+ //go:noinline
+ func G() interface{} {
+-	return struct{X,Y a.U}{}
++	return struct{ X, Y a.U }{}
+ }
+diff --git a/test/typeparam/issue49241.dir/main.go b/test/typeparam/issue49241.dir/main.go
+index 7c8a8b1acd..58bb8a017f 100644
+--- a/test/typeparam/issue49241.dir/main.go
++++ b/test/typeparam/issue49241.dir/main.go
+@@ -5,8 +5,8 @@
+ package main
+ 
+ import (
+-	"b"
+-	"c"
++	"./b"
++	"./c"
+ )
+ 
+ func main() {
+diff --git a/test/typeparam/issue49497.dir/main.go b/test/typeparam/issue49497.dir/main.go
+index 3725e5591e..e74dae0859 100644
+--- a/test/typeparam/issue49497.dir/main.go
++++ b/test/typeparam/issue49497.dir/main.go
+@@ -4,7 +4,7 @@
+ 
+ package main
+ 
+-import "a"
++import "./a"
+ 
+ func main() {
+ 	a.F[string]()
+diff --git a/test/typeparam/issue49524.dir/main.go b/test/typeparam/issue49524.dir/main.go
+index ef00c8a81c..8787e7ea69 100644
+--- a/test/typeparam/issue49524.dir/main.go
++++ b/test/typeparam/issue49524.dir/main.go
+@@ -4,7 +4,7 @@ package main
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-import "a"
++import "./a"
+ 
+ func main() {
+ 	a.F[int]()
+diff --git a/test/typeparam/issue49659.dir/b.go b/test/typeparam/issue49659.dir/b.go
+index 1f37153769..4818a42a48 100644
+--- a/test/typeparam/issue49659.dir/b.go
++++ b/test/typeparam/issue49659.dir/b.go
+@@ -4,7 +4,7 @@
+ 
+ package b
+ 
+-import "a"
++import "./a"
+ 
+ type B[T any] struct {
+ 	v a.A[T]
+diff --git a/test/typeparam/issue49667.dir/b.go b/test/typeparam/issue49667.dir/b.go
+index e7f781e4af..81cdb80036 100644
+--- a/test/typeparam/issue49667.dir/b.go
++++ b/test/typeparam/issue49667.dir/b.go
+@@ -4,7 +4,7 @@
+ 
+ package b
+ 
+-import "a"
++import "./a"
+ 
+ type B[T any] struct {
+ 	_ a.A[T]
+diff --git a/test/typeparam/issue49667.dir/main.go b/test/typeparam/issue49667.dir/main.go
+index fccefe023f..f9fa60f3f5 100644
+--- a/test/typeparam/issue49667.dir/main.go
++++ b/test/typeparam/issue49667.dir/main.go
+@@ -4,7 +4,7 @@
+ 
+ package main
+ 
+-import "b"
++import "./b"
+ 
+ func main() {
+ 	var _ b.B[int]
+diff --git a/test/typeparam/issue49893.dir/b.go b/test/typeparam/issue49893.dir/b.go
+index b36f6bddf0..b86b536664 100644
+--- a/test/typeparam/issue49893.dir/b.go
++++ b/test/typeparam/issue49893.dir/b.go
+@@ -4,7 +4,7 @@
+ 
+ package b
+ 
+-import "a"
++import "./a"
+ 
+ type Ap1[A, B any] struct {
+ 	opt a.Option[A]
+diff --git a/test/typeparam/issue49893.dir/main.go b/test/typeparam/issue49893.dir/main.go
+index 8b5b3bdad7..447212d027 100644
+--- a/test/typeparam/issue49893.dir/main.go
++++ b/test/typeparam/issue49893.dir/main.go
+@@ -5,7 +5,7 @@
+ package main
+ 
+ import (
+-	"b"
++	"./b"
+ 	"fmt"
+ )
+ 
+diff --git a/test/typeparam/issue50121.dir/main.go b/test/typeparam/issue50121.dir/main.go
+index 71eb44ff62..3978ef4fba 100644
+--- a/test/typeparam/issue50121.dir/main.go
++++ b/test/typeparam/issue50121.dir/main.go
+@@ -5,7 +5,7 @@
+ package main
+ 
+ import (
+-	"a"
++	"./a"
+ )
+ 
+ //go:noinline
+diff --git a/test/typeparam/issue50121b.dir/b.go b/test/typeparam/issue50121b.dir/b.go
+index 20f9b38b5f..efa6cbbc30 100644
+--- a/test/typeparam/issue50121b.dir/b.go
++++ b/test/typeparam/issue50121b.dir/b.go
+@@ -5,7 +5,7 @@
+ package b
+ 
+ import (
+-	"a"
++	"./a"
+ )
+ 
+ var IntBuilder = a.Builder[int]{}
+diff --git a/test/typeparam/issue50121b.dir/c.go b/test/typeparam/issue50121b.dir/c.go
+index ee9ff9fff7..169135678d 100644
+--- a/test/typeparam/issue50121b.dir/c.go
++++ b/test/typeparam/issue50121b.dir/c.go
+@@ -5,7 +5,7 @@
+ package c
+ 
+ import (
+-	"b"
++	"./b"
+ )
+ 
+ func BuildInt() int {
+diff --git a/test/typeparam/issue50121b.dir/d.go b/test/typeparam/issue50121b.dir/d.go
+index 3020381736..93b40c921e 100644
+--- a/test/typeparam/issue50121b.dir/d.go
++++ b/test/typeparam/issue50121b.dir/d.go
+@@ -5,7 +5,7 @@
+ package d
+ 
+ import (
+-	"c"
++	"./c"
+ )
+ 
+ func BuildInt() int {
+diff --git a/test/typeparam/issue50121b.dir/main.go b/test/typeparam/issue50121b.dir/main.go
+index 4b6ae414c4..3398601850 100644
+--- a/test/typeparam/issue50121b.dir/main.go
++++ b/test/typeparam/issue50121b.dir/main.go
+@@ -1,7 +1,7 @@
+ package main
+ 
+ import (
+-	"d"
++	"./d"
+ 	"fmt"
+ )
+ 
+diff --git a/test/typeparam/issue50481b.dir/main.go b/test/typeparam/issue50481b.dir/main.go
+index 909d6e43fd..6a5067c9fb 100644
+--- a/test/typeparam/issue50481b.dir/main.go
++++ b/test/typeparam/issue50481b.dir/main.go
+@@ -8,7 +8,7 @@
+ package main
+ 
+ import (
+-	"b"
++	"./b"
+ 	"fmt"
+ )
+ 
+diff --git a/test/typeparam/issue50481c.dir/main.go b/test/typeparam/issue50481c.dir/main.go
+index 4661976034..178542bc38 100644
+--- a/test/typeparam/issue50481c.dir/main.go
++++ b/test/typeparam/issue50481c.dir/main.go
+@@ -8,7 +8,7 @@
+ package main
+ 
+ import (
+-	"a"
++	"./a"
+ 	"fmt"
+ )
+ 
+diff --git a/test/typeparam/issue50485.dir/main.go b/test/typeparam/issue50485.dir/main.go
+index 88a765bfe9..7181b937fd 100644
+--- a/test/typeparam/issue50485.dir/main.go
++++ b/test/typeparam/issue50485.dir/main.go
+@@ -1,7 +1,7 @@
+ package main
+ 
+ import (
+-	"a"
++	"./a"
+ )
+ 
+ func main() {
+diff --git a/test/typeparam/issue50486.dir/main.go b/test/typeparam/issue50486.dir/main.go
+index db5f1c3223..c2c8eea73d 100644
+--- a/test/typeparam/issue50486.dir/main.go
++++ b/test/typeparam/issue50486.dir/main.go
+@@ -1,6 +1,6 @@
+ package main
+ 
+-import fp "goerror_fp"
++import fp "./goerror_fp"
+ 
+ func Fold[A, B any](zero B, a A, f func(B, A) B) B {
+ 	return f(zero, a)
+diff --git a/test/typeparam/issue50552.dir/main.go b/test/typeparam/issue50552.dir/main.go
+index 047c27e5e1..0ff2ed3608 100644
+--- a/test/typeparam/issue50552.dir/main.go
++++ b/test/typeparam/issue50552.dir/main.go
+@@ -5,7 +5,7 @@
+ package main
+ 
+ import (
+-	"a"
++	"./a"
+ 	"fmt"
+ )
+ 
+diff --git a/test/typeparam/issue50561.dir/main.go b/test/typeparam/issue50561.dir/main.go
+index bad7b6a34b..3e656bde32 100644
+--- a/test/typeparam/issue50561.dir/main.go
++++ b/test/typeparam/issue50561.dir/main.go
+@@ -5,7 +5,7 @@
+ package main
+ 
+ import (
+-	"diameter"
++	"./diameter"
+ )
+ 
+ func main() {
+diff --git a/test/typeparam/issue50598.dir/a1.go b/test/typeparam/issue50598.dir/a1.go
+index 0e63fac016..36624b4bd6 100644
+--- a/test/typeparam/issue50598.dir/a1.go
++++ b/test/typeparam/issue50598.dir/a1.go
+@@ -4,7 +4,7 @@
+ 
+ package a1
+ 
+-import "a0"
++import "./a0"
+ 
+ func New() int {
+ 	return a0.IntBuilder{}.New()
+diff --git a/test/typeparam/issue50598.dir/a2.go b/test/typeparam/issue50598.dir/a2.go
+index 3eb5200253..c28be66f6b 100644
+--- a/test/typeparam/issue50598.dir/a2.go
++++ b/test/typeparam/issue50598.dir/a2.go
+@@ -4,7 +4,7 @@
+ 
+ package a2
+ 
+-import "a0"
++import "./a0"
+ 
+ func New() int {
+ 	return a0.Builder[int]{}.New1()
+diff --git a/test/typeparam/issue50598.dir/main.go b/test/typeparam/issue50598.dir/main.go
+index 0fab8b665c..b0b6844ccc 100644
+--- a/test/typeparam/issue50598.dir/main.go
++++ b/test/typeparam/issue50598.dir/main.go
+@@ -7,8 +7,8 @@ package main
+ import (
+ 	"fmt"
+ 
+-	"a1"
+-	"a2"
++	"./a1"
++	"./a2"
+ )
+ 
+ func New() int {
+diff --git a/test/typeparam/issue50841.dir/b.go b/test/typeparam/issue50841.dir/b.go
+index f2f70225ff..38e3de3a6b 100644
+--- a/test/typeparam/issue50841.dir/b.go
++++ b/test/typeparam/issue50841.dir/b.go
+@@ -4,7 +4,7 @@
+ 
+ package b
+ 
+-import "a"
++import "./a"
+ 
+ func F() {
+ 	a.Marshal[int]()
+diff --git a/test/typeparam/issue51219.dir/main.go b/test/typeparam/issue51219.dir/main.go
+index 999b4a96a1..14c6d179d2 100644
+--- a/test/typeparam/issue51219.dir/main.go
++++ b/test/typeparam/issue51219.dir/main.go
+@@ -5,7 +5,7 @@
+ package main
+ 
+ import (
+-	"a"
++	"./a"
+ 	"fmt"
+ )
+ 
+diff --git a/test/typeparam/issue51367.dir/main.go b/test/typeparam/issue51367.dir/main.go
+index 64273d313b..1de8793d4d 100644
+--- a/test/typeparam/issue51367.dir/main.go
++++ b/test/typeparam/issue51367.dir/main.go
+@@ -5,7 +5,7 @@
+ package main
+ 
+ import (
+-	"a"
++	"./a"
+ )
+ 
+ func main() {
+diff --git a/test/typeparam/listimp.dir/main.go b/test/typeparam/listimp.dir/main.go
+index 985ff59a18..652a34a082 100644
+--- a/test/typeparam/listimp.dir/main.go
++++ b/test/typeparam/listimp.dir/main.go
+@@ -5,7 +5,7 @@
+ package main
+ 
+ import (
+-	"a"
++	"./a"
+ 	"fmt"
+ )
+ 
+diff --git a/test/typeparam/listimp2.dir/main.go b/test/typeparam/listimp2.dir/main.go
+index 226e1a9a57..c3b936eada 100644
+--- a/test/typeparam/listimp2.dir/main.go
++++ b/test/typeparam/listimp2.dir/main.go
+@@ -5,7 +5,7 @@
+ package main
+ 
+ import (
+-	"a"
++	"./a"
+ 	"fmt"
+ 	"strconv"
+ )
+diff --git a/test/typeparam/mapimp.dir/main.go b/test/typeparam/mapimp.dir/main.go
+index 4d4a4d9eb0..8a56ce2bfb 100644
+--- a/test/typeparam/mapimp.dir/main.go
++++ b/test/typeparam/mapimp.dir/main.go
+@@ -5,7 +5,7 @@
+ package main
+ 
+ import (
+-	"a"
++	"./a"
+ 	"fmt"
+ 	"reflect"
+ 	"strconv"
+diff --git a/test/typeparam/mapsimp.dir/main.go b/test/typeparam/mapsimp.dir/main.go
+index 873660e4cd..45f7d39f93 100644
+--- a/test/typeparam/mapsimp.dir/main.go
++++ b/test/typeparam/mapsimp.dir/main.go
+@@ -5,7 +5,7 @@
+ package main
+ 
+ import (
+-	"a"
++	"./a"
+ 	"fmt"
+ 	"math"
+ 	"sort"
+diff --git a/test/typeparam/mincheck.dir/main.go b/test/typeparam/mincheck.dir/main.go
+index 63786de5e6..c9ca50a23b 100644
+--- a/test/typeparam/mincheck.dir/main.go
++++ b/test/typeparam/mincheck.dir/main.go
+@@ -5,7 +5,7 @@
+ package main
+ 
+ import (
+-	"a"
++	"./a"
+ 	"fmt"
+ )
+ 
+diff --git a/test/typeparam/minimp.dir/main.go b/test/typeparam/minimp.dir/main.go
+index 509f5aaed2..36bec0f600 100644
+--- a/test/typeparam/minimp.dir/main.go
++++ b/test/typeparam/minimp.dir/main.go
+@@ -5,7 +5,7 @@
+ package main
+ 
+ import (
+-	"a"
++	"./a"
+ 	"fmt"
+ )
+ 
+diff --git a/test/typeparam/orderedmapsimp.dir/main.go b/test/typeparam/orderedmapsimp.dir/main.go
+index 978f1e763c..7758a75c23 100644
+--- a/test/typeparam/orderedmapsimp.dir/main.go
++++ b/test/typeparam/orderedmapsimp.dir/main.go
+@@ -5,7 +5,7 @@
+ package main
+ 
+ import (
+-	"a"
++	"./a"
+ 	"bytes"
+ 	"fmt"
+ )
+diff --git a/test/typeparam/pairimp.dir/main.go b/test/typeparam/pairimp.dir/main.go
+index 027fdd9ce7..f76da434d4 100644
+--- a/test/typeparam/pairimp.dir/main.go
++++ b/test/typeparam/pairimp.dir/main.go
+@@ -5,7 +5,7 @@
+ package main
+ 
+ import (
+-	"a"
++	"./a"
+ 	"fmt"
+ 	"unsafe"
+ )
+diff --git a/test/typeparam/recoverimp.dir/main.go b/test/typeparam/recoverimp.dir/main.go
+index c9d8e3cc08..d8cfa3875c 100644
+--- a/test/typeparam/recoverimp.dir/main.go
++++ b/test/typeparam/recoverimp.dir/main.go
+@@ -4,7 +4,7 @@
+ 
+ package main
+ 
+-import "a"
++import "./a"
+ 
+ func main() {
+ 	a.F(5.3)
+diff --git a/test/typeparam/setsimp.dir/main.go b/test/typeparam/setsimp.dir/main.go
+index 8fd1657143..e1ec86a6f0 100644
+--- a/test/typeparam/setsimp.dir/main.go
++++ b/test/typeparam/setsimp.dir/main.go
+@@ -5,7 +5,7 @@
+ package main
+ 
+ import (
+-	"a"
++	"./a"
+ 	"fmt"
+ 	"sort"
+ )
+diff --git a/test/typeparam/sliceimp.dir/main.go b/test/typeparam/sliceimp.dir/main.go
+index 0f79e10018..ec13188ba9 100644
+--- a/test/typeparam/sliceimp.dir/main.go
++++ b/test/typeparam/sliceimp.dir/main.go
+@@ -5,7 +5,7 @@
+ package main
+ 
+ import (
+-	"a"
++	"./a"
+ 	"fmt"
+ 	"math"
+ 	"strings"
+diff --git a/test/typeparam/stringerimp.dir/main.go b/test/typeparam/stringerimp.dir/main.go
+index e30bdf1abe..9b41d3bc1d 100644
+--- a/test/typeparam/stringerimp.dir/main.go
++++ b/test/typeparam/stringerimp.dir/main.go
+@@ -5,7 +5,7 @@
+ package main
+ 
+ import (
+-	"a"
++	"./a"
+ 	"fmt"
+ 	"reflect"
+ 	"strconv"
+diff --git a/test/typeparam/valimp.dir/main.go b/test/typeparam/valimp.dir/main.go
+index 606ff2273a..e357af4615 100644
+--- a/test/typeparam/valimp.dir/main.go
++++ b/test/typeparam/valimp.dir/main.go
+@@ -5,7 +5,7 @@
+ package main
+ 
+ import (
+-	"a"
++	"./a"
+ 	"fmt"
+ )
+ 

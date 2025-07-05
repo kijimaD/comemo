@@ -7,7 +7,51 @@ Date:   Wed Oct 29 14:09:48 2008 -0700
     R=r
     OCL=18035
     CL=18035
-
+---
  test/fixedbugs/bug056.go |  2 +-
  test/golden.out          | 12 +-----------
  2 files changed, 2 insertions(+), 12 deletions(-)
+
+diff --git a/test/fixedbugs/bug056.go b/test/fixedbugs/bug056.go
+index 44473191fc..d816b74686 100644
+--- a/test/fixedbugs/bug056.go
++++ b/test/fixedbugs/bug056.go
+@@ -6,7 +6,7 @@
+ 
+ package main
+ 
+-func frexp() (a int, b double) {
++func frexp() (a int, b float64) {
+ 	return 1, 2.0
+ }
+ 
+diff --git a/test/golden.out b/test/golden.out
+index 7fc4ac7229..b144e0d2fd 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -145,17 +145,6 @@ BUG: should compile
+ bugs/bug108.go:4: stupid shift: 1025
+ BUG: errchk: command succeeded unexpectedly:  6g bugs/bug108.go
+ 
+-=========== bugs/bug109.go
+-bugs/bug109.go:5: illegal types for operand: MUL
+-	float64
+-	float32
+-bugs/bug109.go:5: illegal types for operand: AS
+-	float64
+-bugs/bug109.go:6: illegal types for operand: RETURN
+-	float32
+-	float64
+-BUG: should compile
+-
+ =========== bugs/bug113.go
+ BUG: should not succeed
+ 
+@@ -163,6 +152,7 @@ BUG: should not succeed
+ (-1) & ((1<<32) - 1) is 1073741823 should be 4294967295
+ 
+ panic on line 78 PC=xxx
++BUG: bug114 failed
+ 
+ =========== fixedbugs/bug016.go
+ fixedbugs/bug016.go:7: overflow converting constant to uint

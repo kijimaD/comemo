@@ -14,6 +14,20 @@ Date:   Mon Sep 18 17:41:55 2023 +0200
     Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
     Run-TryBot: Bryan Mills <bcmills@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/os/exec/lp_linux_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/os/exec/lp_linux_test.go b/src/os/exec/lp_linux_test.go
+index 60cb13e9b7..a7f9aa24b8 100644
+--- a/src/os/exec/lp_linux_test.go
++++ b/src/os/exec/lp_linux_test.go
+@@ -50,7 +50,7 @@ func TestFindExecutableVsNoexec(t *testing.T) {
+ 	// Check that it works as expected.
+ 	_, err = exec.LookPath(path)
+ 	if err != nil {
+-		t.Fatalf("findExecutable: got %v, want nil", err)
++		t.Fatalf("LookPath: got %v, want nil", err)
+ 	}
+ 
+ 	for {

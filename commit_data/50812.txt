@@ -17,7 +17,52 @@ Date:   Thu Nov 11 15:29:38 2021 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/noder/stencil.go |  1 +
  test/typeparam/issue49516.go              | 26 ++++++++++++++++++++++++++
  2 files changed, 27 insertions(+)
+
+diff --git a/src/cmd/compile/internal/noder/stencil.go b/src/cmd/compile/internal/noder/stencil.go
+index cfbbee3ceb..c8c5d80cfc 100644
+--- a/src/cmd/compile/internal/noder/stencil.go
++++ b/src/cmd/compile/internal/noder/stencil.go
+@@ -515,6 +515,7 @@ func (g *genInst) buildClosure(outer *ir.Func, x ir.Node) ir.Node {
+ 
+ 	// Build call itself.
+ 	var innerCall ir.Node = ir.NewCallExpr(pos, ir.OCALL, target.Nname, args)
++	innerCall.(*ir.CallExpr).IsDDD = typ.IsVariadic()
+ 	if len(formalResults) > 0 {
+ 		innerCall = ir.NewReturnStmt(pos, []ir.Node{innerCall})
+ 	}
+diff --git a/test/typeparam/issue49516.go b/test/typeparam/issue49516.go
+new file mode 100644
+index 0000000000..d6fab02463
+--- /dev/null
++++ b/test/typeparam/issue49516.go
+@@ -0,0 +1,26 @@
++// compile -G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type Q[T any] struct {
++	s []T
++}
++
++func (q *Q[T]) Push(v ...T) {
++	q.s = append(q.s, v...)
++}
++
++func pushN(push func(*Q[int], ...int), n int) {
++	var q Q[int]
++	for i := 0; i < n; i++ {
++		push(&q, i)
++	}
++}
++
++func f() {
++	pushN((*Q[int]).Push, 100)
++}

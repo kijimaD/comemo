@@ -14,7 +14,7 @@ Date:   Thu Aug 17 22:19:10 2023 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Auto-Submit: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/devirtualize/pgo.go    | 10 +++++-----
  src/cmd/compile/internal/loopvar/loopvar.go     |  6 +++---
  src/cmd/compile/internal/reflectdata/alg.go     |  4 ++--
@@ -31,3 +31,561 @@ Date:   Thu Aug 17 22:19:10 2023 -0700
  src/cmd/compile/internal/walk/switch.go         |  2 +-
  src/cmd/compile/internal/walk/temp.go           |  4 ++--
  15 files changed, 61 insertions(+), 69 deletions(-)
+
+diff --git a/src/cmd/compile/internal/devirtualize/pgo.go b/src/cmd/compile/internal/devirtualize/pgo.go
+index 068e0ef8f2..6675951e01 100644
+--- a/src/cmd/compile/internal/devirtualize/pgo.go
++++ b/src/cmd/compile/internal/devirtualize/pgo.go
+@@ -302,7 +302,7 @@ func rewriteCondCall(call *ir.CallExpr, curfn, callee *ir.Func, concretetyp *typ
+ 	sig := call.X.Type()
+ 
+ 	for _, ret := range sig.Results().FieldSlice() {
+-		retvars = append(retvars, typecheck.Temp(ret.Type))
++		retvars = append(retvars, typecheck.TempAt(base.Pos, ir.CurFunc, ret.Type))
+ 	}
+ 
+ 	sel := call.X.(*ir.SelectorExpr)
+@@ -317,7 +317,7 @@ func rewriteCondCall(call *ir.CallExpr, curfn, callee *ir.Func, concretetyp *typ
+ 	// recv must be first in the assignment list as its side effects must
+ 	// be ordered before argument side effects.
+ 	var lhs, rhs []ir.Node
+-	recv := typecheck.Temp(sel.X.Type())
++	recv := typecheck.TempAt(base.Pos, ir.CurFunc, sel.X.Type())
+ 	lhs = append(lhs, recv)
+ 	rhs = append(rhs, sel.X)
+ 
+@@ -326,7 +326,7 @@ func rewriteCondCall(call *ir.CallExpr, curfn, callee *ir.Func, concretetyp *typ
+ 	// such as labels (possible in InlinedCall nodes).
+ 	args := call.Args.Take()
+ 	for _, arg := range args {
+-		argvar := typecheck.Temp(arg.Type())
++		argvar := typecheck.TempAt(base.Pos, ir.CurFunc, arg.Type())
+ 
+ 		lhs = append(lhs, argvar)
+ 		rhs = append(rhs, arg)
+@@ -339,8 +339,8 @@ func rewriteCondCall(call *ir.CallExpr, curfn, callee *ir.Func, concretetyp *typ
+ 	argvars := append([]ir.Node(nil), lhs[1:]...)
+ 	call.Args = argvars
+ 
+-	tmpnode := typecheck.Temp(concretetyp)
+-	tmpok := typecheck.Temp(types.Types[types.TBOOL])
++	tmpnode := typecheck.TempAt(base.Pos, ir.CurFunc, concretetyp)
++	tmpok := typecheck.TempAt(base.Pos, ir.CurFunc, types.Types[types.TBOOL])
+ 
+ 	assert := ir.NewTypeAssertExpr(pos, recv, concretetyp)
+ 
+diff --git a/src/cmd/compile/internal/loopvar/loopvar.go b/src/cmd/compile/internal/loopvar/loopvar.go
+index 1d8e42f5e5..0ed6947f7a 100644
+--- a/src/cmd/compile/internal/loopvar/loopvar.go
++++ b/src/cmd/compile/internal/loopvar/loopvar.go
+@@ -107,7 +107,7 @@ func ForCapture(fn *ir.Func) []VarAndLoop {
+ 				if base.LoopVarHash.MatchPos(n.Pos(), desc) {
+ 					// Rename the loop key, prefix body with assignment from loop key
+ 					transformed = append(transformed, VarAndLoop{n, x, lastPos})
+-					tk := typecheck.Temp(n.Type())
++					tk := typecheck.TempAt(base.Pos, ir.CurFunc, n.Type())
+ 					tk.SetTypecheck(1)
+ 					as := ir.NewAssignStmt(x.Pos(), n, tk)
+ 					as.Def = true
+@@ -298,7 +298,7 @@ func ForCapture(fn *ir.Func) []VarAndLoop {
+ 					for _, z := range leaked {
+ 						transformed = append(transformed, VarAndLoop{z, x, lastPos})
+ 
+-						tz := typecheck.Temp(z.Type())
++						tz := typecheck.TempAt(base.Pos, ir.CurFunc, z.Type())
+ 						tz.SetTypecheck(1)
+ 						zPrimeForZ[z] = tz
+ 
+@@ -360,7 +360,7 @@ func ForCapture(fn *ir.Func) []VarAndLoop {
+ 						// body' = prebody +
+ 						// (6)     if tmp_first {tmp_first = false} else {Post} +
+ 						//         if !cond {break} + ...
+-						tmpFirst := typecheck.Temp(types.Types[types.TBOOL])
++						tmpFirst := typecheck.TempAt(base.Pos, ir.CurFunc, types.Types[types.TBOOL])
+ 
+ 						// tmpFirstAssign assigns val to tmpFirst
+ 						tmpFirstAssign := func(val bool) *ir.AssignStmt {
+diff --git a/src/cmd/compile/internal/reflectdata/alg.go b/src/cmd/compile/internal/reflectdata/alg.go
+index edfd92fb40..27ecbe9380 100644
+--- a/src/cmd/compile/internal/reflectdata/alg.go
++++ b/src/cmd/compile/internal/reflectdata/alg.go
+@@ -165,7 +165,7 @@ func hashFunc(t *types.Type) *ir.Func {
+ 		hashel := hashfor(t.Elem())
+ 
+ 		// for i := 0; i < nelem; i++
+-		ni := typecheck.Temp(types.Types[types.TINT])
++		ni := typecheck.TempAt(base.Pos, ir.CurFunc, types.Types[types.TINT])
+ 		init := ir.NewAssignStmt(base.Pos, ni, ir.NewInt(base.Pos, 0))
+ 		cond := ir.NewBinaryExpr(base.Pos, ir.OLT, ni, ir.NewInt(base.Pos, t.NumElem()))
+ 		post := ir.NewAssignStmt(base.Pos, ni, ir.NewBinaryExpr(base.Pos, ir.OADD, ni, ir.NewInt(base.Pos, 1)))
+@@ -442,7 +442,7 @@ func eqFunc(t *types.Type) *ir.Func {
+ 			if iterateTo > 0 {
+ 				// Generate an unrolled for loop.
+ 				// for i := 0; i < nelem/unroll*unroll; i += unroll
+-				i := typecheck.Temp(types.Types[types.TINT])
++				i := typecheck.TempAt(base.Pos, ir.CurFunc, types.Types[types.TINT])
+ 				init := ir.NewAssignStmt(base.Pos, i, ir.NewInt(base.Pos, 0))
+ 				cond := ir.NewBinaryExpr(base.Pos, ir.OLT, i, ir.NewInt(base.Pos, iterateTo))
+ 				loop := ir.NewForStmt(base.Pos, nil, cond, nil, nil, false)
+diff --git a/src/cmd/compile/internal/typecheck/dcl.go b/src/cmd/compile/internal/typecheck/dcl.go
+index d0783760f6..7e4ba4fd58 100644
+--- a/src/cmd/compile/internal/typecheck/dcl.go
++++ b/src/cmd/compile/internal/typecheck/dcl.go
+@@ -125,19 +125,11 @@ func declareParam(fn *ir.Func, ctxt ir.Class, i int, param *ir.Field) *types.Fie
+ 	return f
+ }
+ 
+-func Temp(t *types.Type) *ir.Name {
+-	return TempAt(base.Pos, ir.CurFunc, t)
+-}
+-
+ // make a new Node off the books.
+ func TempAt(pos src.XPos, curfn *ir.Func, t *types.Type) *ir.Name {
+ 	if curfn == nil {
+ 		base.Fatalf("no curfn for TempAt")
+ 	}
+-	if curfn.Op() == ir.OCLOSURE {
+-		ir.Dump("TempAt", curfn)
+-		base.Fatalf("adding TempAt to wrong closure function")
+-	}
+ 	if t == nil {
+ 		base.Fatalf("TempAt called with nil type")
+ 	}
+diff --git a/src/cmd/compile/internal/typecheck/typecheck.go b/src/cmd/compile/internal/typecheck/typecheck.go
+index 2ab812e548..178df4f9e1 100644
+--- a/src/cmd/compile/internal/typecheck/typecheck.go
++++ b/src/cmd/compile/internal/typecheck/typecheck.go
+@@ -830,7 +830,7 @@ func RewriteNonNameCall(n *ir.CallExpr) {
+ 		ir.CurFunc = InitTodoFunc
+ 	}
+ 
+-	tmp := Temp((*np).Type())
++	tmp := TempAt(base.Pos, ir.CurFunc, (*np).Type())
+ 	as := ir.NewAssignStmt(base.Pos, tmp, *np)
+ 	as.PtrInit().Append(Stmt(ir.NewDecl(n.Pos(), ir.ODCL, tmp)))
+ 	*np = tmp
+@@ -859,7 +859,7 @@ func RewriteMultiValueCall(n ir.InitNode, call ir.Node) {
+ 	results := call.Type().FieldSlice()
+ 	list := make([]ir.Node, len(results))
+ 	for i, result := range results {
+-		tmp := Temp(result.Type)
++		tmp := TempAt(base.Pos, ir.CurFunc, result.Type)
+ 		as.PtrInit().Append(ir.NewDecl(base.Pos, ir.ODCL, tmp))
+ 		as.Lhs.Append(tmp)
+ 		list[i] = tmp
+diff --git a/src/cmd/compile/internal/walk/assign.go b/src/cmd/compile/internal/walk/assign.go
+index 5672a6d982..a7d58f11ab 100644
+--- a/src/cmd/compile/internal/walk/assign.go
++++ b/src/cmd/compile/internal/walk/assign.go
+@@ -191,7 +191,7 @@ func walkAssignMapRead(init *ir.Nodes, n *ir.AssignListStmt) ir.Node {
+ 		return walkExpr(typecheck.Stmt(n), init)
+ 	}
+ 
+-	var_ := typecheck.Temp(types.NewPtr(t.Elem()))
++	var_ := typecheck.TempAt(base.Pos, ir.CurFunc, types.NewPtr(t.Elem()))
+ 	var_.SetTypecheck(1)
+ 	var_.MarkNonNil() // mapaccess always returns a non-nil pointer
+ 
+@@ -484,7 +484,7 @@ func appendSlice(n *ir.CallExpr, init *ir.Nodes) ir.Node {
+ 	var nodes ir.Nodes
+ 
+ 	// var s []T
+-	s := typecheck.Temp(l1.Type())
++	s := typecheck.TempAt(base.Pos, ir.CurFunc, l1.Type())
+ 	nodes.Append(ir.NewAssignStmt(base.Pos, s, l1)) // s = l1
+ 
+ 	elemtype := s.Type().Elem()
+@@ -498,7 +498,7 @@ func appendSlice(n *ir.CallExpr, init *ir.Nodes) ir.Node {
+ 	num := ir.NewUnaryExpr(base.Pos, ir.OLEN, l2)
+ 
+ 	// newLen := oldLen + num
+-	newLen := typecheck.Temp(types.Types[types.TINT])
++	newLen := typecheck.TempAt(base.Pos, ir.CurFunc, types.Types[types.TINT])
+ 	nodes.Append(ir.NewAssignStmt(base.Pos, newLen, ir.NewBinaryExpr(base.Pos, ir.OADD, oldLen, num)))
+ 
+ 	// if uint(newLen) <= uint(oldCap)
+@@ -675,13 +675,13 @@ func extendSlice(n *ir.CallExpr, init *ir.Nodes) ir.Node {
+ 	nodes = append(nodes, nifneg)
+ 
+ 	// s := l1
+-	s := typecheck.Temp(l1.Type())
++	s := typecheck.TempAt(base.Pos, ir.CurFunc, l1.Type())
+ 	nodes = append(nodes, ir.NewAssignStmt(base.Pos, s, l1))
+ 
+ 	elemtype := s.Type().Elem()
+ 
+ 	// n := s.len + l2
+-	nn := typecheck.Temp(types.Types[types.TINT])
++	nn := typecheck.TempAt(base.Pos, ir.CurFunc, types.Types[types.TINT])
+ 	nodes = append(nodes, ir.NewAssignStmt(base.Pos, nn, ir.NewBinaryExpr(base.Pos, ir.OADD, ir.NewUnaryExpr(base.Pos, ir.OLEN, s), l2)))
+ 
+ 	// if uint(n) <= uint(s.cap)
+diff --git a/src/cmd/compile/internal/walk/builtin.go b/src/cmd/compile/internal/walk/builtin.go
+index c81cd0b3fa..f936022433 100644
+--- a/src/cmd/compile/internal/walk/builtin.go
++++ b/src/cmd/compile/internal/walk/builtin.go
+@@ -79,14 +79,14 @@ func walkAppend(n *ir.CallExpr, init *ir.Nodes, dst ir.Node) ir.Node {
+ 	var l []ir.Node
+ 
+ 	// s = slice to append to
+-	s := typecheck.Temp(nsrc.Type())
++	s := typecheck.TempAt(base.Pos, ir.CurFunc, nsrc.Type())
+ 	l = append(l, ir.NewAssignStmt(base.Pos, s, nsrc))
+ 
+ 	// num = number of things to append
+ 	num := ir.NewInt(base.Pos, int64(argc))
+ 
+ 	// newLen := s.len + num
+-	newLen := typecheck.Temp(types.Types[types.TINT])
++	newLen := typecheck.TempAt(base.Pos, ir.CurFunc, types.Types[types.TINT])
+ 	l = append(l, ir.NewAssignStmt(base.Pos, newLen, ir.NewBinaryExpr(base.Pos, ir.OADD, ir.NewUnaryExpr(base.Pos, ir.OLEN, s), num)))
+ 
+ 	// if uint(newLen) <= uint(s.cap)
+@@ -193,8 +193,8 @@ func walkCopy(n *ir.BinaryExpr, init *ir.Nodes, runtimecall bool) ir.Node {
+ 
+ 	n.X = walkExpr(n.X, init)
+ 	n.Y = walkExpr(n.Y, init)
+-	nl := typecheck.Temp(n.X.Type())
+-	nr := typecheck.Temp(n.Y.Type())
++	nl := typecheck.TempAt(base.Pos, ir.CurFunc, n.X.Type())
++	nr := typecheck.TempAt(base.Pos, ir.CurFunc, n.Y.Type())
+ 	var l []ir.Node
+ 	l = append(l, ir.NewAssignStmt(base.Pos, nl, n.X))
+ 	l = append(l, ir.NewAssignStmt(base.Pos, nr, n.Y))
+@@ -202,7 +202,7 @@ func walkCopy(n *ir.BinaryExpr, init *ir.Nodes, runtimecall bool) ir.Node {
+ 	nfrm := ir.NewUnaryExpr(base.Pos, ir.OSPTR, nr)
+ 	nto := ir.NewUnaryExpr(base.Pos, ir.OSPTR, nl)
+ 
+-	nlen := typecheck.Temp(types.Types[types.TINT])
++	nlen := typecheck.TempAt(base.Pos, ir.CurFunc, types.Types[types.TINT])
+ 
+ 	// n = len(to)
+ 	l = append(l, ir.NewAssignStmt(base.Pos, nlen, ir.NewUnaryExpr(base.Pos, ir.OLEN, nl)))
+@@ -221,7 +221,7 @@ func walkCopy(n *ir.BinaryExpr, init *ir.Nodes, runtimecall bool) ir.Node {
+ 
+ 	fn := typecheck.LookupRuntime("memmove")
+ 	fn = typecheck.SubstArgTypes(fn, nl.Type().Elem(), nl.Type().Elem())
+-	nwid := ir.Node(typecheck.Temp(types.Types[types.TUINTPTR]))
++	nwid := ir.Node(typecheck.TempAt(base.Pos, ir.CurFunc, types.Types[types.TUINTPTR]))
+ 	setwid := ir.NewAssignStmt(base.Pos, nwid, typecheck.Conv(nlen, types.Types[types.TUINTPTR]))
+ 	ne.Body.Append(setwid)
+ 	nwid = ir.NewBinaryExpr(base.Pos, ir.OMUL, nwid, ir.NewInt(base.Pos, nl.Type().Elem().Size()))
+@@ -434,7 +434,7 @@ func walkMakeSlice(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
+ 		init.Append(typecheck.Stmt(nif))
+ 
+ 		t = types.NewArray(t.Elem(), i) // [r]T
+-		var_ := typecheck.Temp(t)
++		var_ := typecheck.TempAt(base.Pos, ir.CurFunc, t)
+ 		appendWalkStmt(init, ir.NewAssignStmt(base.Pos, var_, nil))  // zero temp
+ 		r := ir.NewSliceExpr(base.Pos, ir.OSLICE, var_, nil, l, nil) // arr[:l]
+ 		// The conv is necessary in case n.Type is named.
+@@ -497,7 +497,7 @@ func walkMakeSliceCopy(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
+ 		ptr.MarkNonNil()
+ 		sh := ir.NewSliceHeaderExpr(base.Pos, t, ptr, length, length)
+ 
+-		s := typecheck.Temp(t)
++		s := typecheck.TempAt(base.Pos, ir.CurFunc, t)
+ 		r := typecheck.Stmt(ir.NewAssignStmt(base.Pos, s, sh))
+ 		r = walkExpr(r, init)
+ 		init.Append(r)
+@@ -754,8 +754,8 @@ func walkUnsafeSlice(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
+ 		}
+ 
+ 		// mem, overflow := runtime.mulUintptr(et.size, len)
+-		mem := typecheck.Temp(types.Types[types.TUINTPTR])
+-		overflow := typecheck.Temp(types.Types[types.TBOOL])
++		mem := typecheck.TempAt(base.Pos, ir.CurFunc, types.Types[types.TUINTPTR])
++		overflow := typecheck.TempAt(base.Pos, ir.CurFunc, types.Types[types.TBOOL])
+ 		fn := typecheck.LookupRuntime("mulUintptr")
+ 		call := mkcall1(fn, fn.Type().Results(), init, ir.NewInt(base.Pos, sliceType.Elem().Size()), typecheck.Conv(typecheck.Conv(len, lenType), types.Types[types.TUINTPTR]))
+ 		appendWalkStmt(init, ir.NewAssignListStmt(base.Pos, ir.OAS2, []ir.Node{mem, overflow}, []ir.Node{call}))
+diff --git a/src/cmd/compile/internal/walk/complit.go b/src/cmd/compile/internal/walk/complit.go
+index 6330530aa4..0a3d4bd90f 100644
+--- a/src/cmd/compile/internal/walk/complit.go
++++ b/src/cmd/compile/internal/walk/complit.go
+@@ -26,7 +26,7 @@ func walkCompLit(n ir.Node, init *ir.Nodes) ir.Node {
+ 		fixedlit(inInitFunction, initKindStatic, n, vstat, init)
+ 		return typecheck.Expr(vstat)
+ 	}
+-	var_ := typecheck.Temp(n.Type())
++	var_ := typecheck.TempAt(base.Pos, ir.CurFunc, n.Type())
+ 	anylit(n, var_, init)
+ 	return var_
+ }
+@@ -341,7 +341,7 @@ func slicelit(ctxt initContext, n *ir.CompLitExpr, var_ ir.Node, init *ir.Nodes)
+ 	}
+ 
+ 	// make new auto *array (3 declare)
+-	vauto := typecheck.Temp(types.NewPtr(t))
++	vauto := typecheck.TempAt(base.Pos, ir.CurFunc, types.NewPtr(t))
+ 
+ 	// set auto to point at new temp or heap (3 assign)
+ 	var a ir.Node
+@@ -352,7 +352,7 @@ func slicelit(ctxt initContext, n *ir.CompLitExpr, var_ ir.Node, init *ir.Nodes)
+ 		}
+ 		a = initStackTemp(init, x, vstat)
+ 	} else if n.Esc() == ir.EscNone {
+-		a = initStackTemp(init, typecheck.Temp(t), vstat)
++		a = initStackTemp(init, typecheck.TempAt(base.Pos, ir.CurFunc, t), vstat)
+ 	} else {
+ 		a = ir.NewUnaryExpr(base.Pos, ir.ONEW, ir.TypeNode(t))
+ 	}
+@@ -464,7 +464,7 @@ func maplit(n *ir.CompLitExpr, m ir.Node, init *ir.Nodes) {
+ 		// for i = 0; i < len(vstatk); i++ {
+ 		//	map[vstatk[i]] = vstate[i]
+ 		// }
+-		i := typecheck.Temp(types.Types[types.TINT])
++		i := typecheck.TempAt(base.Pos, ir.CurFunc, types.Types[types.TINT])
+ 		rhs := ir.NewIndexExpr(base.Pos, vstate, i)
+ 		rhs.SetBounded(true)
+ 
+@@ -497,8 +497,8 @@ func maplit(n *ir.CompLitExpr, m ir.Node, init *ir.Nodes) {
+ 	// Use temporaries so that mapassign1 can have addressable key, elem.
+ 	// TODO(josharian): avoid map key temporaries for mapfast_* assignments with literal keys.
+ 	// TODO(khr): assign these temps in order phase so we can reuse them across multiple maplits?
+-	tmpkey := typecheck.Temp(m.Type().Key())
+-	tmpelem := typecheck.Temp(m.Type().Elem())
++	tmpkey := typecheck.TempAt(base.Pos, ir.CurFunc, m.Type().Key())
++	tmpelem := typecheck.TempAt(base.Pos, ir.CurFunc, m.Type().Elem())
+ 
+ 	for _, r := range entries {
+ 		r := r.(*ir.KeyExpr)
+diff --git a/src/cmd/compile/internal/walk/convert.go b/src/cmd/compile/internal/walk/convert.go
+index bfa0c5480f..f7367a3b78 100644
+--- a/src/cmd/compile/internal/walk/convert.go
++++ b/src/cmd/compile/internal/walk/convert.go
+@@ -67,7 +67,7 @@ func walkConvInterface(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
+ 	}
+ 
+ 	// Evaluate the input interface.
+-	c := typecheck.Temp(fromType)
++	c := typecheck.TempAt(base.Pos, ir.CurFunc, fromType)
+ 	init.Append(ir.NewAssignStmt(base.Pos, c, n.X))
+ 
+ 	// Grab its parts.
+@@ -87,7 +87,7 @@ func walkConvInterface(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
+ 		// if res != nil {
+ 		//    res = res.type
+ 		// }
+-		typeWord = typecheck.Temp(types.NewPtr(types.Types[types.TUINT8]))
++		typeWord = typecheck.TempAt(base.Pos, ir.CurFunc, types.NewPtr(types.Types[types.TUINT8]))
+ 		init.Append(ir.NewAssignStmt(base.Pos, typeWord, typecheck.Conv(typecheck.Conv(itab, types.Types[types.TUNSAFEPTR]), typeWord.Type())))
+ 		nif := ir.NewIfStmt(base.Pos, typecheck.Expr(ir.NewBinaryExpr(base.Pos, ir.ONE, typeWord, typecheck.NodNil())), nil, nil)
+ 		nif.Body = []ir.Node{ir.NewAssignStmt(base.Pos, typeWord, itabType(typeWord))}
+@@ -155,7 +155,7 @@ func dataWord(conv *ir.ConvExpr, init *ir.Nodes) ir.Node {
+ 		value = n
+ 	case conv.Esc() == ir.EscNone && fromType.Size() <= 1024:
+ 		// n does not escape. Use a stack temporary initialized to n.
+-		value = typecheck.Temp(fromType)
++		value = typecheck.TempAt(base.Pos, ir.CurFunc, fromType)
+ 		init.Append(typecheck.Stmt(ir.NewAssignStmt(base.Pos, value, n)))
+ 	}
+ 	if value != nil {
+@@ -276,7 +276,7 @@ func walkStringToBytes(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
+ 			a.SetTypecheck(1)
+ 			a.MarkNonNil()
+ 		}
+-		p := typecheck.Temp(t.PtrTo()) // *[n]byte
++		p := typecheck.TempAt(base.Pos, ir.CurFunc, t.PtrTo()) // *[n]byte
+ 		init.Append(typecheck.Stmt(ir.NewAssignStmt(base.Pos, p, a)))
+ 
+ 		// Copy from the static string data to the [n]byte.
+@@ -414,7 +414,7 @@ func soleComponent(init *ir.Nodes, n ir.Node) ir.Node {
+ 		case n.Type().IsStruct():
+ 			if n.Type().Field(0).Sym.IsBlank() {
+ 				// Treat blank fields as the zero value as the Go language requires.
+-				n = typecheck.Temp(n.Type().Field(0).Type)
++				n = typecheck.TempAt(base.Pos, ir.CurFunc, n.Type().Field(0).Type)
+ 				appendWalkStmt(init, ir.NewAssignStmt(base.Pos, n, nil))
+ 				continue
+ 			}
+diff --git a/src/cmd/compile/internal/walk/expr.go b/src/cmd/compile/internal/walk/expr.go
+index 2d2e47d956..5fb2e3a6f5 100644
+--- a/src/cmd/compile/internal/walk/expr.go
++++ b/src/cmd/compile/internal/walk/expr.go
+@@ -459,7 +459,7 @@ func safeExpr(n ir.Node, init *ir.Nodes) ir.Node {
+ }
+ 
+ func copyExpr(n ir.Node, t *types.Type, init *ir.Nodes) ir.Node {
+-	l := typecheck.Temp(t)
++	l := typecheck.TempAt(base.Pos, ir.CurFunc, t)
+ 	appendWalkStmt(init, ir.NewAssignStmt(base.Pos, l, n))
+ 	return l
+ }
+@@ -618,7 +618,7 @@ func walkCall1(n *ir.CallExpr, init *ir.Nodes) {
+ 		// to prevent that calls from clobbering arguments already on the stack.
+ 		if mayCall(arg) {
+ 			// assignment of arg to Temp
+-			tmp := typecheck.Temp(param.Type)
++			tmp := typecheck.TempAt(base.Pos, ir.CurFunc, param.Type)
+ 			init.Append(convas(typecheck.Stmt(ir.NewAssignStmt(base.Pos, tmp, arg)).(*ir.AssignStmt), init))
+ 			// replace arg with temp
+ 			args[i] = tmp
+diff --git a/src/cmd/compile/internal/walk/order.go b/src/cmd/compile/internal/walk/order.go
+index c38477f33e..80dd120934 100644
+--- a/src/cmd/compile/internal/walk/order.go
++++ b/src/cmd/compile/internal/walk/order.go
+@@ -73,7 +73,7 @@ func (o *orderState) newTemp(t *types.Type, clear bool) *ir.Name {
+ 		}
+ 		o.free[key] = a[:len(a)-1]
+ 	} else {
+-		v = typecheck.Temp(t)
++		v = typecheck.TempAt(base.Pos, ir.CurFunc, t)
+ 	}
+ 	if clear {
+ 		o.append(ir.NewAssignStmt(base.Pos, v, nil))
+diff --git a/src/cmd/compile/internal/walk/range.go b/src/cmd/compile/internal/walk/range.go
+index a751af2242..ed1a9c402f 100644
+--- a/src/cmd/compile/internal/walk/range.go
++++ b/src/cmd/compile/internal/walk/range.go
+@@ -96,8 +96,8 @@ func walkRange(nrange *ir.RangeStmt) ir.Node {
+ 		// order.stmt arranged for a copy of the array/slice variable if needed.
+ 		ha := a
+ 
+-		hv1 := typecheck.Temp(types.Types[types.TINT])
+-		hn := typecheck.Temp(types.Types[types.TINT])
++		hv1 := typecheck.TempAt(base.Pos, ir.CurFunc, types.Types[types.TINT])
++		hn := typecheck.TempAt(base.Pos, ir.CurFunc, types.Types[types.TINT])
+ 
+ 		init = append(init, ir.NewAssignStmt(base.Pos, hv1, nil))
+ 		init = append(init, ir.NewAssignStmt(base.Pos, hn, ir.NewUnaryExpr(base.Pos, ir.OLEN, ha)))
+@@ -196,14 +196,14 @@ func walkRange(nrange *ir.RangeStmt) ir.Node {
+ 		ptr.SetBounded(true)
+ 		huVal := ir.NewConvExpr(base.Pos, ir.OCONVNOP, types.Types[types.TUNSAFEPTR], ptr)
+ 		huVal = ir.NewConvExpr(base.Pos, ir.OCONVNOP, types.Types[types.TUINTPTR], huVal)
+-		hu := typecheck.Temp(types.Types[types.TUINTPTR])
++		hu := typecheck.TempAt(base.Pos, ir.CurFunc, types.Types[types.TUINTPTR])
+ 		init = append(init, ir.NewAssignStmt(base.Pos, hu, huVal))
+ 
+ 		// Convert hu to hp at the top of the loop (after the condition has been checked).
+ 		hpVal := ir.NewConvExpr(base.Pos, ir.OCONVNOP, types.Types[types.TUNSAFEPTR], hu)
+ 		hpVal.SetCheckPtr(true) // disable checkptr on this conversion
+ 		hpVal = ir.NewConvExpr(base.Pos, ir.OCONVNOP, elem.PtrTo(), hpVal)
+-		hp := typecheck.Temp(elem.PtrTo())
++		hp := typecheck.TempAt(base.Pos, ir.CurFunc, elem.PtrTo())
+ 		body = append(body, ir.NewAssignStmt(base.Pos, hp, hpVal))
+ 
+ 		// Assign variables on the LHS of the range statement. Use *hp to get the element.
+@@ -255,12 +255,12 @@ func walkRange(nrange *ir.RangeStmt) ir.Node {
+ 		// order.stmt arranged for a copy of the channel variable.
+ 		ha := a
+ 
+-		hv1 := typecheck.Temp(t.Elem())
++		hv1 := typecheck.TempAt(base.Pos, ir.CurFunc, t.Elem())
+ 		hv1.SetTypecheck(1)
+ 		if t.Elem().HasPointers() {
+ 			init = append(init, ir.NewAssignStmt(base.Pos, hv1, nil))
+ 		}
+-		hb := typecheck.Temp(types.Types[types.TBOOL])
++		hb := typecheck.TempAt(base.Pos, ir.CurFunc, types.Types[types.TBOOL])
+ 
+ 		nfor.Cond = ir.NewBinaryExpr(base.Pos, ir.ONE, hb, ir.NewBool(base.Pos, false))
+ 		lhs := []ir.Node{hv1, hb}
+@@ -297,9 +297,9 @@ func walkRange(nrange *ir.RangeStmt) ir.Node {
+ 		// order.stmt arranged for a copy of the string variable.
+ 		ha := a
+ 
+-		hv1 := typecheck.Temp(types.Types[types.TINT])
+-		hv1t := typecheck.Temp(types.Types[types.TINT])
+-		hv2 := typecheck.Temp(types.RuneType)
++		hv1 := typecheck.TempAt(base.Pos, ir.CurFunc, types.Types[types.TINT])
++		hv1t := typecheck.TempAt(base.Pos, ir.CurFunc, types.Types[types.TINT])
++		hv2 := typecheck.TempAt(base.Pos, ir.CurFunc, types.RuneType)
+ 
+ 		// hv1 := 0
+ 		init = append(init, ir.NewAssignStmt(base.Pos, hv1, nil))
+@@ -529,7 +529,7 @@ func arrayClear(wbPos src.XPos, a ir.Node, nrange *ir.RangeStmt) ir.Node {
+ 	n.Cond = ir.NewBinaryExpr(base.Pos, ir.ONE, ir.NewUnaryExpr(base.Pos, ir.OLEN, a), ir.NewInt(base.Pos, 0))
+ 
+ 	// hp = &a[0]
+-	hp := typecheck.Temp(types.Types[types.TUNSAFEPTR])
++	hp := typecheck.TempAt(base.Pos, ir.CurFunc, types.Types[types.TUNSAFEPTR])
+ 
+ 	ix := ir.NewIndexExpr(base.Pos, a, ir.NewInt(base.Pos, 0))
+ 	ix.SetBounded(true)
+@@ -537,7 +537,7 @@ func arrayClear(wbPos src.XPos, a ir.Node, nrange *ir.RangeStmt) ir.Node {
+ 	n.Body.Append(ir.NewAssignStmt(base.Pos, hp, addr))
+ 
+ 	// hn = len(a) * sizeof(elem(a))
+-	hn := typecheck.Temp(types.Types[types.TUINTPTR])
++	hn := typecheck.TempAt(base.Pos, ir.CurFunc, types.Types[types.TUINTPTR])
+ 	mul := typecheck.Conv(ir.NewBinaryExpr(base.Pos, ir.OMUL, ir.NewUnaryExpr(base.Pos, ir.OLEN, a), ir.NewInt(base.Pos, elemsize)), types.Types[types.TUINTPTR])
+ 	n.Body.Append(ir.NewAssignStmt(base.Pos, hn, mul))
+ 
+diff --git a/src/cmd/compile/internal/walk/select.go b/src/cmd/compile/internal/walk/select.go
+index c676a765bc..9ca132af7a 100644
+--- a/src/cmd/compile/internal/walk/select.go
++++ b/src/cmd/compile/internal/walk/select.go
+@@ -125,7 +125,7 @@ func walkSelectCases(cases []*ir.CommClause) []ir.Node {
+ 			if ir.IsBlank(elem) {
+ 				elem = typecheck.NodNil()
+ 			}
+-			cond = typecheck.Temp(types.Types[types.TBOOL])
++			cond = typecheck.TempAt(base.Pos, ir.CurFunc, types.Types[types.TBOOL])
+ 			fn := chanfn("selectnbrecv", 2, ch.Type())
+ 			call := mkcall1(fn, fn.Type().Results(), r.PtrInit(), elem, ch)
+ 			as := ir.NewAssignListStmt(r.Pos(), ir.OAS2, []ir.Node{cond, n.Lhs[1]}, []ir.Node{call})
+@@ -148,15 +148,15 @@ func walkSelectCases(cases []*ir.CommClause) []ir.Node {
+ 
+ 	// generate sel-struct
+ 	base.Pos = sellineno
+-	selv := typecheck.Temp(types.NewArray(scasetype(), int64(ncas)))
++	selv := typecheck.TempAt(base.Pos, ir.CurFunc, types.NewArray(scasetype(), int64(ncas)))
+ 	init = append(init, typecheck.Stmt(ir.NewAssignStmt(base.Pos, selv, nil)))
+ 
+ 	// No initialization for order; runtime.selectgo is responsible for that.
+-	order := typecheck.Temp(types.NewArray(types.Types[types.TUINT16], 2*int64(ncas)))
++	order := typecheck.TempAt(base.Pos, ir.CurFunc, types.NewArray(types.Types[types.TUINT16], 2*int64(ncas)))
+ 
+ 	var pc0, pcs ir.Node
+ 	if base.Flag.Race {
+-		pcs = typecheck.Temp(types.NewArray(types.Types[types.TUINTPTR], int64(ncas)))
++		pcs = typecheck.TempAt(base.Pos, ir.CurFunc, types.NewArray(types.Types[types.TUINTPTR], int64(ncas)))
+ 		pc0 = typecheck.Expr(typecheck.NodAddr(ir.NewIndexExpr(base.Pos, pcs, ir.NewInt(base.Pos, 0))))
+ 	} else {
+ 		pc0 = typecheck.NodNil()
+@@ -220,8 +220,8 @@ func walkSelectCases(cases []*ir.CommClause) []ir.Node {
+ 
+ 	// run the select
+ 	base.Pos = sellineno
+-	chosen := typecheck.Temp(types.Types[types.TINT])
+-	recvOK := typecheck.Temp(types.Types[types.TBOOL])
++	chosen := typecheck.TempAt(base.Pos, ir.CurFunc, types.Types[types.TINT])
++	recvOK := typecheck.TempAt(base.Pos, ir.CurFunc, types.Types[types.TBOOL])
+ 	r := ir.NewAssignListStmt(base.Pos, ir.OAS2, nil, nil)
+ 	r.Lhs = []ir.Node{chosen, recvOK}
+ 	fn := typecheck.LookupRuntime("selectgo")
+diff --git a/src/cmd/compile/internal/walk/switch.go b/src/cmd/compile/internal/walk/switch.go
+index f59ae33f51..ebd3128251 100644
+--- a/src/cmd/compile/internal/walk/switch.go
++++ b/src/cmd/compile/internal/walk/switch.go
+@@ -383,7 +383,7 @@ func walkSwitchType(sw *ir.SwitchStmt) {
+ 
+ 	s.facename = walkExpr(s.facename, sw.PtrInit())
+ 	s.facename = copyExpr(s.facename, s.facename.Type(), &sw.Compiled)
+-	s.okname = typecheck.Temp(types.Types[types.TBOOL])
++	s.okname = typecheck.TempAt(base.Pos, ir.CurFunc, types.Types[types.TBOOL])
+ 
+ 	// Get interface descriptor word.
+ 	// For empty interfaces this will be the type.
+diff --git a/src/cmd/compile/internal/walk/temp.go b/src/cmd/compile/internal/walk/temp.go
+index d2ffb226a9..886b5beec3 100644
+--- a/src/cmd/compile/internal/walk/temp.go
++++ b/src/cmd/compile/internal/walk/temp.go
+@@ -25,7 +25,7 @@ func initStackTemp(init *ir.Nodes, tmp *ir.Name, val ir.Node) *ir.AddrExpr {
+ // allocated temporary variable of the given type. Statements to
+ // zero-initialize tmp are appended to init.
+ func stackTempAddr(init *ir.Nodes, typ *types.Type) *ir.AddrExpr {
+-	return initStackTemp(init, typecheck.Temp(typ), nil)
++	return initStackTemp(init, typecheck.TempAt(base.Pos, ir.CurFunc, typ), nil)
+ }
+ 
+ // stackBufAddr returns the expression &tmp, where tmp is a newly
+@@ -35,6 +35,6 @@ func stackBufAddr(len int64, elem *types.Type) *ir.AddrExpr {
+ 	if elem.HasPointers() {
+ 		base.FatalfAt(base.Pos, "%v has pointers", elem)
+ 	}
+-	tmp := typecheck.Temp(types.NewArray(elem, len))
++	tmp := typecheck.TempAt(base.Pos, ir.CurFunc, types.NewArray(elem, len))
+ 	return typecheck.Expr(typecheck.NodAddr(tmp)).(*ir.AddrExpr)
+ }

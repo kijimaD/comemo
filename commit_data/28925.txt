@@ -34,6 +34,20 @@ Date:   Tue Aug 16 22:05:57 2016 -0400
     Change-Id: I8300db492dbadc82ac1ad878318b36bcb7c39524
     Reviewed-on: https://go-review.googlesource.com/27230
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/runtime/mheap.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index db60f7a872..3f873267ba 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -917,7 +917,7 @@ func scavengelist(list *mSpanList, now, limit uint64) uintptr {
+ 				// more memory than we want.)
+ 				start = (start + sys.PhysPageSize - 1) &^ (sys.PhysPageSize - 1)
+ 				end &^= sys.PhysPageSize - 1
+-				if start == end {
++				if start <= end {
+ 					continue
+ 				}
+ 			}

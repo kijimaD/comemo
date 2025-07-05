@@ -13,9 +13,118 @@ Date:   Tue Jan 11 22:19:56 2022 -0800
     Trust: Robert Griesemer <gri@golang.org>
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/syntax/printer.go |  2 +-
  src/cmd/compile/internal/types2/errors.go  | 22 ++++++++++++++++++++++
  src/go/types/errors.go                     | 18 ++++++++++++++++++
  src/go/types/exprstring.go                 |  7 +------
  4 files changed, 42 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/syntax/printer.go b/src/cmd/compile/internal/syntax/printer.go
+index 11190ab287..0385227c7c 100644
+--- a/src/cmd/compile/internal/syntax/printer.go
++++ b/src/cmd/compile/internal/syntax/printer.go
+@@ -44,7 +44,7 @@ func Fprint(w io.Writer, x Node, form Form) (n int, err error) {
+ 	return
+ }
+ 
+-// String is a convenience functions that prints n in ShortForm
++// String is a convenience function that prints n in ShortForm
+ // and returns the printed string.
+ func String(n Node) string {
+ 	var buf bytes.Buffer
+diff --git a/src/cmd/compile/internal/types2/errors.go b/src/cmd/compile/internal/types2/errors.go
+index c39652fe5e..2318b95f3d 100644
+--- a/src/cmd/compile/internal/types2/errors.go
++++ b/src/cmd/compile/internal/types2/errors.go
+@@ -98,10 +98,32 @@ func sprintf(qf Qualifier, debug bool, format string, args ...interface{}) strin
+ 			arg = a.String()
+ 		case syntax.Expr:
+ 			arg = syntax.String(a)
++		case []syntax.Expr:
++			var buf bytes.Buffer
++			buf.WriteByte('[')
++			for i, x := range a {
++				if i > 0 {
++					buf.WriteString(", ")
++				}
++				buf.WriteString(syntax.String(x))
++			}
++			buf.WriteByte(']')
++			arg = buf.String()
+ 		case Object:
+ 			arg = ObjectString(a, qf)
+ 		case Type:
+ 			arg = typeString(a, qf, debug)
++		case []Type:
++			var buf bytes.Buffer
++			buf.WriteByte('[')
++			for i, x := range a {
++				if i > 0 {
++					buf.WriteString(", ")
++				}
++				buf.WriteString(typeString(x, qf, debug))
++			}
++			buf.WriteByte(']')
++			arg = buf.String()
+ 		}
+ 		args[i] = arg
+ 	}
+diff --git a/src/go/types/errors.go b/src/go/types/errors.go
+index 81c62a82f0..ce62a8cbdd 100644
+--- a/src/go/types/errors.go
++++ b/src/go/types/errors.go
+@@ -7,6 +7,7 @@
+ package types
+ 
+ import (
++	"bytes"
+ 	"errors"
+ 	"fmt"
+ 	"go/ast"
+@@ -81,10 +82,27 @@ func sprintf(fset *token.FileSet, qf Qualifier, debug bool, format string, args
+ 			}
+ 		case ast.Expr:
+ 			arg = ExprString(a)
++		case []ast.Expr:
++			var buf bytes.Buffer
++			buf.WriteByte('[')
++			writeExprList(&buf, a)
++			buf.WriteByte(']')
++			arg = buf.String()
+ 		case Object:
+ 			arg = ObjectString(a, qf)
+ 		case Type:
+ 			arg = typeString(a, qf, debug)
++		case []Type:
++			var buf bytes.Buffer
++			buf.WriteByte('[')
++			for i, x := range a {
++				if i > 0 {
++					buf.WriteString(", ")
++				}
++				buf.WriteString(typeString(x, qf, debug))
++			}
++			buf.WriteByte(']')
++			arg = buf.String()
+ 		}
+ 		args[i] = arg
+ 	}
+diff --git a/src/go/types/exprstring.go b/src/go/types/exprstring.go
+index aa4f403c1f..544cd84d61 100644
+--- a/src/go/types/exprstring.go
++++ b/src/go/types/exprstring.go
+@@ -71,12 +71,7 @@ func WriteExpr(buf *bytes.Buffer, x ast.Expr) {
+ 		ix := typeparams.UnpackIndexExpr(x)
+ 		WriteExpr(buf, ix.X)
+ 		buf.WriteByte('[')
+-		for i, e := range ix.Indices {
+-			if i > 0 {
+-				buf.WriteString(", ")
+-			}
+-			WriteExpr(buf, e)
+-		}
++		writeExprList(buf, ix.Indices)
+ 		buf.WriteByte(']')
+ 
+ 	case *ast.SliceExpr:

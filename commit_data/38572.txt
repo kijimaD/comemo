@@ -12,7 +12,7 @@ Date:   Tue Nov 6 17:48:08 2018 -0500
     Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  misc/nacl/testzip.proto                            |   3 +
  .../github.com/google/pprof/driver/driver.go       |  43 +++---
  .../google/pprof/internal/binutils/binutils.go     | 109 ++++++++++++--
@@ -57,3 +57,2831 @@ Date:   Tue Nov 6 17:48:08 2018 -0500
  .../pprof/profile/testdata/java.contention.string  |   2 +-
  src/cmd/vendor/vendor.json                         |  88 ++++++-----
  43 files changed, 1227 insertions(+), 445 deletions(-)
+
+diff --git a/misc/nacl/testzip.proto b/misc/nacl/testzip.proto
+index 7f524cac48..c2afa1020a 100644
+--- a/misc/nacl/testzip.proto
++++ b/misc/nacl/testzip.proto
+@@ -50,6 +50,9 @@ go	src=..
+ 					google
+ 						pprof
+ 							internal
++								binutils
++									testdata
++										+
+ 								driver
+ 									testdata
+ 										+
+diff --git a/src/cmd/vendor/github.com/google/pprof/driver/driver.go b/src/cmd/vendor/github.com/google/pprof/driver/driver.go
+index 3735d6ace9..b1c745bacd 100644
+--- a/src/cmd/vendor/github.com/google/pprof/driver/driver.go
++++ b/src/cmd/vendor/github.com/google/pprof/driver/driver.go
+@@ -17,6 +17,7 @@ package driver
+ 
+ import (
+ 	"io"
++	"net/http"
+ 	"regexp"
+ 	"time"
+ 
+@@ -48,13 +49,14 @@ func (o *Options) internalOptions() *plugin.Options {
+ 		}
+ 	}
+ 	return &plugin.Options{
+-		Writer:     o.Writer,
+-		Flagset:    o.Flagset,
+-		Fetch:      o.Fetch,
+-		Sym:        sym,
+-		Obj:        obj,
+-		UI:         o.UI,
+-		HTTPServer: httpServer,
++		Writer:        o.Writer,
++		Flagset:       o.Flagset,
++		Fetch:         o.Fetch,
++		Sym:           sym,
++		Obj:           obj,
++		UI:            o.UI,
++		HTTPServer:    httpServer,
++		HTTPTransport: o.HTTPTransport,
+ 	}
+ }
+ 
+@@ -64,13 +66,14 @@ type HTTPServerArgs plugin.HTTPServerArgs
+ 
+ // Options groups all the optional plugins into pprof.
+ type Options struct {
+-	Writer     Writer
+-	Flagset    FlagSet
+-	Fetch      Fetcher
+-	Sym        Symbolizer
+-	Obj        ObjTool
+-	UI         UI
+-	HTTPServer func(*HTTPServerArgs) error
++	Writer        Writer
++	Flagset       FlagSet
++	Fetch         Fetcher
++	Sym           Symbolizer
++	Obj           ObjTool
++	UI            UI
++	HTTPServer    func(*HTTPServerArgs) error
++	HTTPTransport http.RoundTripper
+ }
+ 
+ // Writer provides a mechanism to write data under a certain name,
+@@ -100,12 +103,16 @@ type FlagSet interface {
+ 	// single flag
+ 	StringList(name string, def string, usage string) *[]*string
+ 
+-	// ExtraUsage returns any additional text that should be
+-	// printed after the standard usage message.
+-	// The typical use of ExtraUsage is to show any custom flags
+-	// defined by the specific pprof plugins being used.
++	// ExtraUsage returns any additional text that should be printed after the
++	// standard usage message. The extra usage message returned includes all text
++	// added with AddExtraUsage().
++	// The typical use of ExtraUsage is to show any custom flags defined by the
++	// specific pprof plugins being used.
+ 	ExtraUsage() string
+ 
++	// AddExtraUsage appends additional text to the end of the extra usage message.
++	AddExtraUsage(eu string)
++
+ 	// Parse initializes the flags with their values for this run
+ 	// and returns the non-flag command line arguments.
+ 	// If an unknown flag is encountered or there are no arguments,
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/binutils/binutils.go b/src/cmd/vendor/github.com/google/pprof/internal/binutils/binutils.go
+index 12b6a5c4b2..309561112c 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/binutils/binutils.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/binutils/binutils.go
+@@ -18,11 +18,14 @@ package binutils
+ import (
+ 	"debug/elf"
+ 	"debug/macho"
++	"encoding/binary"
+ 	"fmt"
++	"io"
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
+ 	"regexp"
++	"runtime"
+ 	"strings"
+ 	"sync"
+ 
+@@ -173,12 +176,8 @@ func (bu *Binutils) Open(name string, start, limit, offset uint64) (plugin.ObjFi
+ 	b := bu.get()
+ 
+ 	// Make sure file is a supported executable.
+-	// The pprof driver uses Open to sniff the difference
+-	// between an executable and a profile.
+-	// For now, only ELF is supported.
+-	// Could read the first few bytes of the file and
+-	// use a table of prefixes if we need to support other
+-	// systems at some point.
++	// This uses magic numbers, mainly to provide better error messages but
++	// it should also help speed.
+ 
+ 	if _, err := os.Stat(name); err != nil {
+ 		// For testing, do not require file name to exist.
+@@ -188,21 +187,54 @@ func (bu *Binutils) Open(name string, start, limit, offset uint64) (plugin.ObjFi
+ 		return nil, err
+ 	}
+ 
+-	if f, err := b.openELF(name, start, limit, offset); err == nil {
++	// Read the first 4 bytes of the file.
++
++	f, err := os.Open(name)
++	if err != nil {
++		return nil, fmt.Errorf("error opening %s: %v", name, err)
++	}
++	defer f.Close()
++
++	var header [4]byte
++	if _, err = io.ReadFull(f, header[:]); err != nil {
++		return nil, fmt.Errorf("error reading magic number from %s: %v", name, err)
++	}
++
++	elfMagic := string(header[:])
++
++	// Match against supported file types.
++	if elfMagic == elf.ELFMAG {
++		f, err := b.openELF(name, start, limit, offset)
++		if err != nil {
++			return nil, fmt.Errorf("error reading ELF file %s: %v", name, err)
++		}
+ 		return f, nil
+ 	}
+-	if f, err := b.openMachO(name, start, limit, offset); err == nil {
++
++	// Mach-O magic numbers can be big or little endian.
++	machoMagicLittle := binary.LittleEndian.Uint32(header[:])
++	machoMagicBig := binary.BigEndian.Uint32(header[:])
++
++	if machoMagicLittle == macho.Magic32 || machoMagicLittle == macho.Magic64 ||
++		machoMagicBig == macho.Magic32 || machoMagicBig == macho.Magic64 {
++		f, err := b.openMachO(name, start, limit, offset)
++		if err != nil {
++			return nil, fmt.Errorf("error reading Mach-O file %s: %v", name, err)
++		}
++		return f, nil
++	}
++	if machoMagicLittle == macho.MagicFat || machoMagicBig == macho.MagicFat {
++		f, err := b.openFatMachO(name, start, limit, offset)
++		if err != nil {
++			return nil, fmt.Errorf("error reading fat Mach-O file %s: %v", name, err)
++		}
+ 		return f, nil
+ 	}
+-	return nil, fmt.Errorf("unrecognized binary: %s", name)
++
++	return nil, fmt.Errorf("unrecognized binary format: %s", name)
+ }
+ 
+-func (b *binrep) openMachO(name string, start, limit, offset uint64) (plugin.ObjFile, error) {
+-	of, err := macho.Open(name)
+-	if err != nil {
+-		return nil, fmt.Errorf("error parsing %s: %v", name, err)
+-	}
+-	defer of.Close()
++func (b *binrep) openMachOCommon(name string, of *macho.File, start, limit, offset uint64) (plugin.ObjFile, error) {
+ 
+ 	// Subtract the load address of the __TEXT section. Usually 0 for shared
+ 	// libraries or 0x100000000 for executables. You can check this value by
+@@ -225,6 +257,53 @@ func (b *binrep) openMachO(name string, start, limit, offset uint64) (plugin.Obj
+ 	return &fileAddr2Line{file: file{b: b, name: name, base: base}}, nil
+ }
+ 
++func (b *binrep) openFatMachO(name string, start, limit, offset uint64) (plugin.ObjFile, error) {
++	of, err := macho.OpenFat(name)
++	if err != nil {
++		return nil, fmt.Errorf("error parsing %s: %v", name, err)
++	}
++	defer of.Close()
++
++	if len(of.Arches) == 0 {
++		return nil, fmt.Errorf("empty fat Mach-O file: %s", name)
++	}
++
++	var arch macho.Cpu
++	// Use the host architecture.
++	// TODO: This is not ideal because the host architecture may not be the one
++	// that was profiled. E.g. an amd64 host can profile a 386 program.
++	switch runtime.GOARCH {
++	case "386":
++		arch = macho.Cpu386
++	case "amd64", "amd64p32":
++		arch = macho.CpuAmd64
++	case "arm", "armbe", "arm64", "arm64be":
++		arch = macho.CpuArm
++	case "ppc":
++		arch = macho.CpuPpc
++	case "ppc64", "ppc64le":
++		arch = macho.CpuPpc64
++	default:
++		return nil, fmt.Errorf("unsupported host architecture for %s: %s", name, runtime.GOARCH)
++	}
++	for i := range of.Arches {
++		if of.Arches[i].Cpu == arch {
++			return b.openMachOCommon(name, of.Arches[i].File, start, limit, offset)
++		}
++	}
++	return nil, fmt.Errorf("architecture not found in %s: %s", name, runtime.GOARCH)
++}
++
++func (b *binrep) openMachO(name string, start, limit, offset uint64) (plugin.ObjFile, error) {
++	of, err := macho.Open(name)
++	if err != nil {
++		return nil, fmt.Errorf("error parsing %s: %v", name, err)
++	}
++	defer of.Close()
++
++	return b.openMachOCommon(name, of, start, limit, offset)
++}
++
+ func (b *binrep) openELF(name string, start, limit, offset uint64) (plugin.ObjFile, error) {
+ 	ef, err := elf.Open(name)
+ 	if err != nil {
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/binutils/binutils_test.go b/src/cmd/vendor/github.com/google/pprof/internal/binutils/binutils_test.go
+index d844ed7e4e..17d4225a87 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/binutils/binutils_test.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/binutils/binutils_test.go
+@@ -22,6 +22,7 @@ import (
+ 	"reflect"
+ 	"regexp"
+ 	"runtime"
++	"strings"
+ 	"testing"
+ 
+ 	"github.com/google/pprof/internal/plugin"
+@@ -361,3 +362,31 @@ func TestLLVMSymbolizer(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestOpenMalformedELF(t *testing.T) {
++	// Test that opening a malformed ELF file will report an error containing
++	// the word "ELF".
++	bu := &Binutils{}
++	_, err := bu.Open(filepath.Join("testdata", "malformed_elf"), 0, 0, 0)
++	if err == nil {
++		t.Fatalf("Open: unexpected success")
++	}
++
++	if !strings.Contains(err.Error(), "ELF") {
++		t.Errorf("Open: got %v, want error containing 'ELF'", err)
++	}
++}
++
++func TestOpenMalformedMachO(t *testing.T) {
++	// Test that opening a malformed Mach-O file will report an error containing
++	// the word "Mach-O".
++	bu := &Binutils{}
++	_, err := bu.Open(filepath.Join("testdata", "malformed_macho"), 0, 0, 0)
++	if err == nil {
++		t.Fatalf("Open: unexpected success")
++	}
++
++	if !strings.Contains(err.Error(), "Mach-O") {
++		t.Errorf("Open: got %v, want error containing 'Mach-O'", err)
++	}
++}
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/binutils/testdata/malformed_elf b/src/cmd/vendor/github.com/google/pprof/internal/binutils/testdata/malformed_elf
+new file mode 100644
+index 0000000000..f0b503b0b6
+--- /dev/null
++++ b/src/cmd/vendor/github.com/google/pprof/internal/binutils/testdata/malformed_elf
+@@ -0,0 +1 @@
++ELFÿÿÿÿÿÿÿÿ
+\ No newline at end of file
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/binutils/testdata/malformed_macho b/src/cmd/vendor/github.com/google/pprof/internal/binutils/testdata/malformed_macho
+new file mode 100644
+index 0000000000..b01ddf69a9
+--- /dev/null
++++ b/src/cmd/vendor/github.com/google/pprof/internal/binutils/testdata/malformed_macho
+@@ -0,0 +1 @@
++Ïúíþÿÿÿÿÿÿÿÿ
+\ No newline at end of file
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/cli.go b/src/cmd/vendor/github.com/google/pprof/internal/driver/cli.go
+index a5153e1511..dfedf9d849 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/cli.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/cli.go
+@@ -45,8 +45,8 @@ type source struct {
+ func parseFlags(o *plugin.Options) (*source, []string, error) {
+ 	flag := o.Flagset
+ 	// Comparisons.
+-	flagBase := flag.StringList("base", "", "Source for base profile for profile subtraction")
+-	flagDiffBase := flag.StringList("diff_base", "", "Source for diff base profile for comparison")
++	flagDiffBase := flag.StringList("diff_base", "", "Source of base profile for comparison")
++	flagBase := flag.StringList("base", "", "Source of base profile for profile subtraction")
+ 	// Source options.
+ 	flagSymbolize := flag.String("symbolize", "", "Options for profile symbolization")
+ 	flagBuildID := flag.String("buildid", "", "Override build id for first mapping")
+@@ -312,7 +312,8 @@ var usageMsgSrc = "\n\n" +
+ 	"    -buildid              Override build id for main binary\n" +
+ 	"    -add_comment          Free-form annotation to add to the profile\n" +
+ 	"                          Displayed on some reports or with pprof -comments\n" +
+-	"    -base source          Source of profile to use as baseline\n" +
++	"    -diff_base source     Source of base profile for comparison\n" +
++	"    -base source          Source of base profile for profile subtraction\n" +
+ 	"    profile.pb.gz         Profile in compressed protobuf format\n" +
+ 	"    legacy_profile        Profile in legacy pprof format\n" +
+ 	"    http://host/profile   URL for profile handler to retrieve\n" +
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/commands.go b/src/cmd/vendor/github.com/google/pprof/internal/driver/commands.go
+index 91d32d1e71..ab073d878d 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/commands.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/commands.go
+@@ -228,17 +228,17 @@ var pprofVariables = variables{
+ 	// Output granularity
+ 	"functions": &variable{boolKind, "t", "granularity", helpText(
+ 		"Aggregate at the function level.",
+-		"Takes into account the filename/lineno where the function was defined.")},
++		"Ignores the filename where the function was defined.")},
++	"filefunctions": &variable{boolKind, "t", "granularity", helpText(
++		"Aggregate at the function level.",
++		"Takes into account the filename where the function was defined.")},
+ 	"files": &variable{boolKind, "f", "granularity", "Aggregate at the file level."},
+ 	"lines": &variable{boolKind, "f", "granularity", "Aggregate at the source code line level."},
+ 	"addresses": &variable{boolKind, "f", "granularity", helpText(
+-		"Aggregate at the function level.",
++		"Aggregate at the address level.",
+ 		"Includes functions' addresses in the output.")},
+-	"noinlines": &variable{boolKind, "f", "granularity", helpText(
+-		"Aggregate at the function level.",
+-		"Attributes inlined functions to their first out-of-line caller.")},
+-	"addressnoinlines": &variable{boolKind, "f", "granularity", helpText(
+-		"Aggregate at the function level, including functions' addresses in the output.",
++	"noinlines": &variable{boolKind, "f", "", helpText(
++		"Ignore inlines.",
+ 		"Attributes inlined functions to their first out-of-line caller.")},
+ }
+ 
+@@ -337,21 +337,27 @@ func listHelp(c string, redirect bool) string {
+ 
+ // browsers returns a list of commands to attempt for web visualization.
+ func browsers() []string {
+-	cmds := []string{"chrome", "google-chrome", "firefox"}
++	var cmds []string
++	if userBrowser := os.Getenv("BROWSER"); userBrowser != "" {
++		cmds = append(cmds, userBrowser)
++	}
+ 	switch runtime.GOOS {
+ 	case "darwin":
+-		return append(cmds, "/usr/bin/open")
++		cmds = append(cmds, "/usr/bin/open")
+ 	case "windows":
+-		return append(cmds, "cmd /c start")
++		cmds = append(cmds, "cmd /c start")
+ 	default:
+-		userBrowser := os.Getenv("BROWSER")
+-		if userBrowser != "" {
+-			cmds = append([]string{userBrowser, "sensible-browser"}, cmds...)
+-		} else {
+-			cmds = append([]string{"sensible-browser"}, cmds...)
++		// Commands opening browsers are prioritized over xdg-open, so browser()
++		// command can be used on linux to open the .svg file generated by the -web
++		// command (the .svg file includes embedded javascript so is best viewed in
++		// a browser).
++		cmds = append(cmds, []string{"chrome", "google-chrome", "chromium", "firefox", "sensible-browser"}...)
++		if os.Getenv("DISPLAY") != "" {
++			// xdg-open is only for use in a desktop environment.
++			cmds = append(cmds, "xdg-open")
+ 		}
+-		return append(cmds, "xdg-open")
+ 	}
++	return cmds
+ }
+ 
+ var kcachegrind = []string{"kcachegrind"}
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/driver.go b/src/cmd/vendor/github.com/google/pprof/internal/driver/driver.go
+index 2dabc3017b..45f1846749 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/driver.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/driver.go
+@@ -152,20 +152,33 @@ func generateReport(p *profile.Profile, cmd []string, vars variables, o *plugin.
+ }
+ 
+ func applyCommandOverrides(cmd string, outputFormat int, v variables) variables {
+-	trim, tagfilter, filter := v["trim"].boolValue(), true, true
++	// Some report types override the trim flag to false below. This is to make
++	// sure the default heuristics of excluding insignificant nodes and edges
++	// from the call graph do not apply. One example where it is important is
++	// annotated source or disassembly listing. Those reports run on a specific
++	// function (or functions), but the trimming is applied before the function
++	// data is selected. So, with trimming enabled, the report could end up
++	// showing no data if the specified function is "uninteresting" as far as the
++	// trimming is concerned.
++	trim := v["trim"].boolValue()
+ 
+ 	switch cmd {
+-	case "callgrind", "kcachegrind":
+-		trim = false
+-		v.set("addresses", "t")
+ 	case "disasm", "weblist":
+ 		trim = false
+-		v.set("addressnoinlines", "t")
++		v.set("addresses", "t")
++		// Force the 'noinlines' mode so that source locations for a given address
++		// collapse and there is only one for the given address. Without this
++		// cumulative metrics would be double-counted when annotating the assembly.
++		// This is because the merge is done by address and in case of an inlined
++		// stack each of the inlined entries is a separate callgraph node.
++		v.set("noinlines", "t")
+ 	case "peek":
+-		trim, tagfilter, filter = false, false, false
++		trim = false
+ 	case "list":
+-		v.set("nodecount", "0")
++		trim = false
+ 		v.set("lines", "t")
++		// Do not force 'noinlines' to be false so that specifying
++		// "-list foo -noinlines" is supported and works as expected.
+ 	case "text", "top", "topproto":
+ 		if v["nodecount"].intValue() == -1 {
+ 			v.set("nodecount", "0")
+@@ -176,9 +189,11 @@ func applyCommandOverrides(cmd string, outputFormat int, v variables) variables
+ 		}
+ 	}
+ 
+-	if outputFormat == report.Proto || outputFormat == report.Raw {
+-		trim, tagfilter, filter = false, false, false
++	switch outputFormat {
++	case report.Proto, report.Raw, report.Callgrind:
++		trim = false
+ 		v.set("addresses", "t")
++		v.set("noinlines", "f")
+ 	}
+ 
+ 	if !trim {
+@@ -186,43 +201,32 @@ func applyCommandOverrides(cmd string, outputFormat int, v variables) variables
+ 		v.set("nodefraction", "0")
+ 		v.set("edgefraction", "0")
+ 	}
+-	if !tagfilter {
+-		v.set("tagfocus", "")
+-		v.set("tagignore", "")
+-	}
+-	if !filter {
+-		v.set("focus", "")
+-		v.set("ignore", "")
+-		v.set("hide", "")
+-		v.set("show", "")
+-		v.set("show_from", "")
+-	}
+ 	return v
+ }
+ 
+ func aggregate(prof *profile.Profile, v variables) error {
+-	var inlines, function, filename, linenumber, address bool
++	var function, filename, linenumber, address bool
++	inlines := !v["noinlines"].boolValue()
+ 	switch {
+ 	case v["addresses"].boolValue():
+-		return nil
++		if inlines {
++			return nil
++		}
++		function = true
++		filename = true
++		linenumber = true
++		address = true
+ 	case v["lines"].boolValue():
+-		inlines = true
+ 		function = true
+ 		filename = true
+ 		linenumber = true
+ 	case v["files"].boolValue():
+-		inlines = true
+ 		filename = true
+ 	case v["functions"].boolValue():
+-		inlines = true
+-		function = true
+-	case v["noinlines"].boolValue():
+ 		function = true
+-	case v["addressnoinlines"].boolValue():
++	case v["filefunctions"].boolValue():
+ 		function = true
+ 		filename = true
+-		linenumber = true
+-		address = true
+ 	default:
+ 		return fmt.Errorf("unexpected granularity")
+ 	}
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/driver_test.go b/src/cmd/vendor/github.com/google/pprof/internal/driver/driver_test.go
+index ff6afe9cff..90f89dc7bc 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/driver_test.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/driver_test.go
+@@ -53,6 +53,9 @@ func TestParse(t *testing.T) {
+ 		flags, source string
+ 	}{
+ 		{"text,functions,flat", "cpu"},
++		{"text,functions,noinlines,flat", "cpu"},
++		{"text,filefunctions,noinlines,flat", "cpu"},
++		{"text,addresses,noinlines,flat", "cpu"},
+ 		{"tree,addresses,flat,nodecount=4", "cpusmall"},
+ 		{"text,functions,flat,nodecount=5,call_tree", "unknown"},
+ 		{"text,alloc_objects,flat", "heap_alloc"},
+@@ -63,6 +66,7 @@ func TestParse(t *testing.T) {
+ 		{"text,lines,cum,show=[12]00", "cpu"},
+ 		{"text,lines,cum,hide=line[X3]0,focus=[12]00", "cpu"},
+ 		{"topproto,lines,cum,hide=mangled[X3]0", "cpu"},
++		{"topproto,lines", "cpu"},
+ 		{"tree,lines,cum,focus=[24]00", "heap"},
+ 		{"tree,relative_percentages,cum,focus=[24]00", "heap"},
+ 		{"tree,lines,cum,show_from=line2", "cpu"},
+@@ -92,6 +96,8 @@ func TestParse(t *testing.T) {
+ 		{"peek=line.*01", "cpu"},
+ 		{"weblist=line[13],addresses,flat", "cpu"},
+ 		{"tags,tagfocus=400kb:", "heap_request"},
++		{"dot", "longNameFuncs"},
++		{"text", "longNameFuncs"},
+ 	}
+ 
+ 	baseVars := pprofVariables
+@@ -108,9 +114,6 @@ func TestParse(t *testing.T) {
+ 
+ 			flags := strings.Split(tc.flags, ",")
+ 
+-			// Skip the output format in the first flag, to output to a proto
+-			addFlags(&f, flags[1:])
+-
+ 			// Encode profile into a protobuf and decode it again.
+ 			protoTempFile, err := ioutil.TempFile("", "profile_proto")
+ 			if err != nil {
+@@ -123,11 +126,13 @@ func TestParse(t *testing.T) {
+ 			if flags[0] == "topproto" {
+ 				f.bools["proto"] = false
+ 				f.bools["topproto"] = true
++				f.bools["addresses"] = true
+ 			}
+ 
+ 			// First pprof invocation to save the profile into a profile.proto.
+-			o1 := setDefaults(nil)
+-			o1.Flagset = f
++			// Pass in flag set hen setting defaults, because otherwise default
++			// transport will try to add flags to the default flag set.
++			o1 := setDefaults(&plugin.Options{Flagset: f})
+ 			o1.Fetch = testFetcher{}
+ 			o1.Sym = testSymbolizer{}
+ 			o1.UI = testUI
+@@ -144,28 +149,28 @@ func TestParse(t *testing.T) {
+ 			}
+ 			defer os.Remove(outputTempFile.Name())
+ 			defer outputTempFile.Close()
++
++			f = baseFlags()
+ 			f.strings["output"] = outputTempFile.Name()
+ 			f.args = []string{protoTempFile.Name()}
+ 
+-			var solution string
++			delete(f.bools, "proto")
++			addFlags(&f, flags)
++			solution := solutionFilename(tc.source, &f)
+ 			// Apply the flags for the second pprof run, and identify name of
+ 			// the file containing expected results
+ 			if flags[0] == "topproto" {
++				addFlags(&f, flags)
+ 				solution = solutionFilename(tc.source, &f)
+ 				delete(f.bools, "topproto")
+ 				f.bools["text"] = true
+-			} else {
+-				delete(f.bools, "proto")
+-				addFlags(&f, flags[:1])
+-				solution = solutionFilename(tc.source, &f)
+ 			}
+-			// The add_comment flag is not idempotent so only apply it on the first run.
+-			delete(f.strings, "add_comment")
+ 
+ 			// Second pprof invocation to read the profile from profile.proto
+ 			// and generate a report.
+-			o2 := setDefaults(nil)
+-			o2.Flagset = f
++			// Pass in flag set hen setting defaults, because otherwise default
++			// transport will try to add flags to the default flag set.
++			o2 := setDefaults(&plugin.Options{Flagset: f})
+ 			o2.Sym = testSymbolizeDemangler{}
+ 			o2.Obj = new(mockObjTool)
+ 			o2.UI = testUI
+@@ -250,7 +255,8 @@ func testSourceURL(port int) string {
+ func solutionFilename(source string, f *testFlags) string {
+ 	name := []string{"pprof", strings.TrimPrefix(source, testSourceURL(8000))}
+ 	name = addString(name, f, []string{"flat", "cum"})
+-	name = addString(name, f, []string{"functions", "files", "lines", "addresses"})
++	name = addString(name, f, []string{"functions", "filefunctions", "files", "lines", "addresses"})
++	name = addString(name, f, []string{"noinlines"})
+ 	name = addString(name, f, []string{"inuse_space", "inuse_objects", "alloc_space", "alloc_objects"})
+ 	name = addString(name, f, []string{"relative_percentages"})
+ 	name = addString(name, f, []string{"seconds"})
+@@ -293,6 +299,8 @@ type testFlags struct {
+ 
+ func (testFlags) ExtraUsage() string { return "" }
+ 
++func (testFlags) AddExtraUsage(eu string) {}
++
+ func (f testFlags) Bool(s string, d bool, c string) *bool {
+ 	if b, ok := f.bools[s]; ok {
+ 		return &b
+@@ -436,6 +444,8 @@ func (testFetcher) Fetch(s string, d, t time.Duration) (*profile.Profile, string
+ 		p = contentionProfile()
+ 	case "symbolz":
+ 		p = symzProfile()
++	case "longNameFuncs":
++		p = longNameFuncsProfile()
+ 	default:
+ 		return nil, "", fmt.Errorf("unexpected source: %s", s)
+ 	}
+@@ -519,6 +529,83 @@ func fakeDemangler(name string) string {
+ 	}
+ }
+ 
++// Returns a profile with function names which should be shortened in
++// graph and flame views.
++func longNameFuncsProfile() *profile.Profile {
++	var longNameFuncsM = []*profile.Mapping{
++		{
++			ID:              1,
++			Start:           0x1000,
++			Limit:           0x4000,
++			File:            "/path/to/testbinary",
++			HasFunctions:    true,
++			HasFilenames:    true,
++			HasLineNumbers:  true,
++			HasInlineFrames: true,
++		},
++	}
++
++	var longNameFuncsF = []*profile.Function{
++		{ID: 1, Name: "path/to/package1.object.function1", SystemName: "path/to/package1.object.function1", Filename: "path/to/package1.go"},
++		{ID: 2, Name: "(anonymous namespace)::Bar::Foo", SystemName: "(anonymous namespace)::Bar::Foo", Filename: "a/long/path/to/package2.cc"},
++		{ID: 3, Name: "java.bar.foo.FooBar.run(java.lang.Runnable)", SystemName: "java.bar.foo.FooBar.run(java.lang.Runnable)", Filename: "FooBar.java"},
++	}
++
++	var longNameFuncsL = []*profile.Location{
++		{
++			ID:      1000,
++			Mapping: longNameFuncsM[0],
++			Address: 0x1000,
++			Line: []profile.Line{
++				{Function: longNameFuncsF[0], Line: 1},
++			},
++		},
++		{
++			ID:      2000,
++			Mapping: longNameFuncsM[0],
++			Address: 0x2000,
++			Line: []profile.Line{
++				{Function: longNameFuncsF[1], Line: 4},
++			},
++		},
++		{
++			ID:      3000,
++			Mapping: longNameFuncsM[0],
++			Address: 0x3000,
++			Line: []profile.Line{
++				{Function: longNameFuncsF[2], Line: 9},
++			},
++		},
++	}
++
++	return &profile.Profile{
++		PeriodType:    &profile.ValueType{Type: "cpu", Unit: "milliseconds"},
++		Period:        1,
++		DurationNanos: 10e9,
++		SampleType: []*profile.ValueType{
++			{Type: "samples", Unit: "count"},
++			{Type: "cpu", Unit: "milliseconds"},
++		},
++		Sample: []*profile.Sample{
++			{
++				Location: []*profile.Location{longNameFuncsL[0], longNameFuncsL[1], longNameFuncsL[2]},
++				Value:    []int64{1000, 1000},
++			},
++			{
++				Location: []*profile.Location{longNameFuncsL[0], longNameFuncsL[1]},
++				Value:    []int64{100, 100},
++			},
++			{
++				Location: []*profile.Location{longNameFuncsL[2]},
++				Value:    []int64{10, 10},
++			},
++		},
++		Location: longNameFuncsL,
++		Function: longNameFuncsF,
++		Mapping:  longNameFuncsM,
++	}
++}
++
+ func cpuProfile() *profile.Profile {
+ 	var cpuM = []*profile.Mapping{
+ 		{
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/fetch.go b/src/cmd/vendor/github.com/google/pprof/internal/driver/fetch.go
+index 7a7a1a20f2..b8a69e87fc 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/fetch.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/fetch.go
+@@ -16,7 +16,6 @@ package driver
+ 
+ import (
+ 	"bytes"
+-	"crypto/tls"
+ 	"fmt"
+ 	"io"
+ 	"io/ioutil"
+@@ -57,7 +56,7 @@ func fetchProfiles(s *source, o *plugin.Options) (*profile.Profile, error) {
+ 		})
+ 	}
+ 
+-	p, pbase, m, mbase, save, err := grabSourcesAndBases(sources, bases, o.Fetch, o.Obj, o.UI)
++	p, pbase, m, mbase, save, err := grabSourcesAndBases(sources, bases, o.Fetch, o.Obj, o.UI, o.HTTPTransport)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+@@ -123,7 +122,7 @@ func fetchProfiles(s *source, o *plugin.Options) (*profile.Profile, error) {
+ 	return p, nil
+ }
+ 
+-func grabSourcesAndBases(sources, bases []profileSource, fetch plugin.Fetcher, obj plugin.ObjTool, ui plugin.UI) (*profile.Profile, *profile.Profile, plugin.MappingSources, plugin.MappingSources, bool, error) {
++func grabSourcesAndBases(sources, bases []profileSource, fetch plugin.Fetcher, obj plugin.ObjTool, ui plugin.UI, tr http.RoundTripper) (*profile.Profile, *profile.Profile, plugin.MappingSources, plugin.MappingSources, bool, error) {
+ 	wg := sync.WaitGroup{}
+ 	wg.Add(2)
+ 	var psrc, pbase *profile.Profile
+@@ -133,11 +132,11 @@ func grabSourcesAndBases(sources, bases []profileSource, fetch plugin.Fetcher, o
+ 	var countsrc, countbase int
+ 	go func() {
+ 		defer wg.Done()
+-		psrc, msrc, savesrc, countsrc, errsrc = chunkedGrab(sources, fetch, obj, ui)
++		psrc, msrc, savesrc, countsrc, errsrc = chunkedGrab(sources, fetch, obj, ui, tr)
+ 	}()
+ 	go func() {
+ 		defer wg.Done()
+-		pbase, mbase, savebase, countbase, errbase = chunkedGrab(bases, fetch, obj, ui)
++		pbase, mbase, savebase, countbase, errbase = chunkedGrab(bases, fetch, obj, ui, tr)
+ 	}()
+ 	wg.Wait()
+ 	save := savesrc || savebase
+@@ -167,7 +166,7 @@ func grabSourcesAndBases(sources, bases []profileSource, fetch plugin.Fetcher, o
+ // chunkedGrab fetches the profiles described in source and merges them into
+ // a single profile. It fetches a chunk of profiles concurrently, with a maximum
+ // chunk size to limit its memory usage.
+-func chunkedGrab(sources []profileSource, fetch plugin.Fetcher, obj plugin.ObjTool, ui plugin.UI) (*profile.Profile, plugin.MappingSources, bool, int, error) {
++func chunkedGrab(sources []profileSource, fetch plugin.Fetcher, obj plugin.ObjTool, ui plugin.UI, tr http.RoundTripper) (*profile.Profile, plugin.MappingSources, bool, int, error) {
+ 	const chunkSize = 64
+ 
+ 	var p *profile.Profile
+@@ -180,7 +179,7 @@ func chunkedGrab(sources []profileSource, fetch plugin.Fetcher, obj plugin.ObjTo
+ 		if end > len(sources) {
+ 			end = len(sources)
+ 		}
+-		chunkP, chunkMsrc, chunkSave, chunkCount, chunkErr := concurrentGrab(sources[start:end], fetch, obj, ui)
++		chunkP, chunkMsrc, chunkSave, chunkCount, chunkErr := concurrentGrab(sources[start:end], fetch, obj, ui, tr)
+ 		switch {
+ 		case chunkErr != nil:
+ 			return nil, nil, false, 0, chunkErr
+@@ -204,13 +203,13 @@ func chunkedGrab(sources []profileSource, fetch plugin.Fetcher, obj plugin.ObjTo
+ }
+ 
+ // concurrentGrab fetches multiple profiles concurrently
+-func concurrentGrab(sources []profileSource, fetch plugin.Fetcher, obj plugin.ObjTool, ui plugin.UI) (*profile.Profile, plugin.MappingSources, bool, int, error) {
++func concurrentGrab(sources []profileSource, fetch plugin.Fetcher, obj plugin.ObjTool, ui plugin.UI, tr http.RoundTripper) (*profile.Profile, plugin.MappingSources, bool, int, error) {
+ 	wg := sync.WaitGroup{}
+ 	wg.Add(len(sources))
+ 	for i := range sources {
+ 		go func(s *profileSource) {
+ 			defer wg.Done()
+-			s.p, s.msrc, s.remote, s.err = grabProfile(s.source, s.addr, fetch, obj, ui)
++			s.p, s.msrc, s.remote, s.err = grabProfile(s.source, s.addr, fetch, obj, ui, tr)
+ 		}(&sources[i])
+ 	}
+ 	wg.Wait()
+@@ -310,7 +309,7 @@ const testSourceAddress = "pproftest.local"
+ // grabProfile fetches a profile. Returns the profile, sources for the
+ // profile mappings, a bool indicating if the profile was fetched
+ // remotely, and an error.
+-func grabProfile(s *source, source string, fetcher plugin.Fetcher, obj plugin.ObjTool, ui plugin.UI) (p *profile.Profile, msrc plugin.MappingSources, remote bool, err error) {
++func grabProfile(s *source, source string, fetcher plugin.Fetcher, obj plugin.ObjTool, ui plugin.UI, tr http.RoundTripper) (p *profile.Profile, msrc plugin.MappingSources, remote bool, err error) {
+ 	var src string
+ 	duration, timeout := time.Duration(s.Seconds)*time.Second, time.Duration(s.Timeout)*time.Second
+ 	if fetcher != nil {
+@@ -321,7 +320,7 @@ func grabProfile(s *source, source string, fetcher plugin.Fetcher, obj plugin.Ob
+ 	}
+ 	if err != nil || p == nil {
+ 		// Fetch the profile over HTTP or from a file.
+-		p, src, err = fetch(source, duration, timeout, ui)
++		p, src, err = fetch(source, duration, timeout, ui, tr)
+ 		if err != nil {
+ 			return
+ 		}
+@@ -461,7 +460,7 @@ mapping:
+ // fetch fetches a profile from source, within the timeout specified,
+ // producing messages through the ui. It returns the profile and the
+ // url of the actual source of the profile for remote profiles.
+-func fetch(source string, duration, timeout time.Duration, ui plugin.UI) (p *profile.Profile, src string, err error) {
++func fetch(source string, duration, timeout time.Duration, ui plugin.UI, tr http.RoundTripper) (p *profile.Profile, src string, err error) {
+ 	var f io.ReadCloser
+ 
+ 	if sourceURL, timeout := adjustURL(source, duration, timeout); sourceURL != "" {
+@@ -469,7 +468,7 @@ func fetch(source string, duration, timeout time.Duration, ui plugin.UI) (p *pro
+ 		if duration > 0 {
+ 			ui.Print(fmt.Sprintf("Please wait... (%v)", duration))
+ 		}
+-		f, err = fetchURL(sourceURL, timeout)
++		f, err = fetchURL(sourceURL, timeout, tr)
+ 		src = sourceURL
+ 	} else if isPerfFile(source) {
+ 		f, err = convertPerfData(source, ui)
+@@ -484,8 +483,12 @@ func fetch(source string, duration, timeout time.Duration, ui plugin.UI) (p *pro
+ }
+ 
+ // fetchURL fetches a profile from a URL using HTTP.
+-func fetchURL(source string, timeout time.Duration) (io.ReadCloser, error) {
+-	resp, err := httpGet(source, timeout)
++func fetchURL(source string, timeout time.Duration, tr http.RoundTripper) (io.ReadCloser, error) {
++	client := &http.Client{
++		Transport: tr,
++		Timeout:   timeout + 5*time.Second,
++	}
++	resp, err := client.Get(source)
+ 	if err != nil {
+ 		return nil, fmt.Errorf("http fetch: %v", err)
+ 	}
+@@ -582,30 +585,3 @@ func adjustURL(source string, duration, timeout time.Duration) (string, time.Dur
+ 	u.RawQuery = values.Encode()
+ 	return u.String(), timeout
+ }
+-
+-// httpGet is a wrapper around http.Get; it is defined as a variable
+-// so it can be redefined during for testing.
+-var httpGet = func(source string, timeout time.Duration) (*http.Response, error) {
+-	url, err := url.Parse(source)
+-	if err != nil {
+-		return nil, err
+-	}
+-
+-	var tlsConfig *tls.Config
+-	if url.Scheme == "https+insecure" {
+-		tlsConfig = &tls.Config{
+-			InsecureSkipVerify: true,
+-		}
+-		url.Scheme = "https"
+-		source = url.String()
+-	}
+-
+-	client := &http.Client{
+-		Transport: &http.Transport{
+-			Proxy:                 http.ProxyFromEnvironment,
+-			TLSClientConfig:       tlsConfig,
+-			ResponseHeaderTimeout: timeout + 5*time.Second,
+-		},
+-	}
+-	return client.Get(source)
+-}
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/fetch_test.go b/src/cmd/vendor/github.com/google/pprof/internal/driver/fetch_test.go
+index e67b2e9f87..b9e9dfe8f4 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/fetch_test.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/fetch_test.go
+@@ -24,8 +24,8 @@ import (
+ 	"fmt"
+ 	"io/ioutil"
+ 	"math/big"
++	"net"
+ 	"net/http"
+-	"net/url"
+ 	"os"
+ 	"path/filepath"
+ 	"reflect"
+@@ -39,6 +39,7 @@ import (
+ 	"github.com/google/pprof/internal/plugin"
+ 	"github.com/google/pprof/internal/proftest"
+ 	"github.com/google/pprof/internal/symbolizer"
++	"github.com/google/pprof/internal/transport"
+ 	"github.com/google/pprof/profile"
+ )
+ 
+@@ -173,12 +174,6 @@ func (testFile) Close() error                                                 {
+ 
+ func TestFetch(t *testing.T) {
+ 	const path = "testdata/"
+-
+-	// Intercept http.Get calls from HTTPFetcher.
+-	savedHTTPGet := httpGet
+-	defer func() { httpGet = savedHTTPGet }()
+-	httpGet = stubHTTPGet
+-
+ 	type testcase struct {
+ 		source, execName string
+ 	}
+@@ -188,7 +183,7 @@ func TestFetch(t *testing.T) {
+ 		{path + "go.nomappings.crash", "/bin/gotest.exe"},
+ 		{"http://localhost/profile?file=cppbench.cpu", ""},
+ 	} {
+-		p, _, _, err := grabProfile(&source{ExecName: tc.execName}, tc.source, nil, testObj{}, &proftest.TestUI{T: t})
++		p, _, _, err := grabProfile(&source{ExecName: tc.execName}, tc.source, nil, testObj{}, &proftest.TestUI{T: t}, &httpTransport{})
+ 		if err != nil {
+ 			t.Fatalf("%s: %s", tc.source, err)
+ 		}
+@@ -449,8 +444,9 @@ func TestFetchWithBase(t *testing.T) {
+ 			f.args = tc.sources
+ 
+ 			o := setDefaults(&plugin.Options{
+-				UI:      &proftest.TestUI{T: t, AllowRx: "Local symbolization failed|Some binary filenames not available"},
+-				Flagset: f,
++				UI:            &proftest.TestUI{T: t, AllowRx: "Local symbolization failed|Some binary filenames not available"},
++				Flagset:       f,
++				HTTPTransport: transport.New(nil),
+ 			})
+ 			src, _, err := parseFlags(o)
+ 
+@@ -503,19 +499,14 @@ func mappingSources(key, source string, start uint64) plugin.MappingSources {
+ 	}
+ }
+ 
+-// stubHTTPGet intercepts a call to http.Get and rewrites it to use
+-// "file://" to get the profile directly from a file.
+-func stubHTTPGet(source string, _ time.Duration) (*http.Response, error) {
+-	url, err := url.Parse(source)
+-	if err != nil {
+-		return nil, err
+-	}
++type httpTransport struct{}
+ 
+-	values := url.Query()
++func (tr *httpTransport) RoundTrip(req *http.Request) (*http.Response, error) {
++	values := req.URL.Query()
+ 	file := values.Get("file")
+ 
+ 	if file == "" {
+-		return nil, fmt.Errorf("want .../file?profile, got %s", source)
++		return nil, fmt.Errorf("want .../file?profile, got %s", req.URL.String())
+ 	}
+ 
+ 	t := &http.Transport{}
+@@ -532,7 +523,7 @@ func closedError() string {
+ 	return "use of closed"
+ }
+ 
+-func TestHttpsInsecure(t *testing.T) {
++func TestHTTPSInsecure(t *testing.T) {
+ 	if runtime.GOOS == "nacl" || runtime.GOOS == "js" {
+ 		t.Skip("test assumes tcp available")
+ 	}
+@@ -553,7 +544,8 @@ func TestHttpsInsecure(t *testing.T) {
+ 	pprofVariables = baseVars.makeCopy()
+ 	defer func() { pprofVariables = baseVars }()
+ 
+-	tlsConfig := &tls.Config{Certificates: []tls.Certificate{selfSignedCert(t)}}
++	tlsCert, _, _ := selfSignedCert(t, "")
++	tlsConfig := &tls.Config{Certificates: []tls.Certificate{tlsCert}}
+ 
+ 	l, err := tls.Listen("tcp", "localhost:0", tlsConfig)
+ 	if err != nil {
+@@ -586,8 +578,9 @@ func TestHttpsInsecure(t *testing.T) {
+ 		Symbolize: "remote",
+ 	}
+ 	o := &plugin.Options{
+-		Obj: &binutils.Binutils{},
+-		UI:  &proftest.TestUI{T: t, AllowRx: "Saved profile in"},
++		Obj:           &binutils.Binutils{},
++		UI:            &proftest.TestUI{T: t, AllowRx: "Saved profile in"},
++		HTTPTransport: transport.New(nil),
+ 	}
+ 	o.Sym = &symbolizer.Symbolizer{Obj: o.Obj, UI: o.UI}
+ 	p, err := fetchProfiles(s, o)
+@@ -600,7 +593,122 @@ func TestHttpsInsecure(t *testing.T) {
+ 	if len(p.Function) == 0 {
+ 		t.Fatalf("fetchProfiles(%s) got non-symbolized profile: len(p.Function)==0", address)
+ 	}
+-	if err := checkProfileHasFunction(p, "TestHttpsInsecure"); err != nil {
++	if err := checkProfileHasFunction(p, "TestHTTPSInsecure"); err != nil {
++		t.Fatalf("fetchProfiles(%s) %v", address, err)
++	}
++}
++
++func TestHTTPSWithServerCertFetch(t *testing.T) {
++	if runtime.GOOS == "nacl" || runtime.GOOS == "js" {
++		t.Skip("test assumes tcp available")
++	}
++	saveHome := os.Getenv(homeEnv())
++	tempdir, err := ioutil.TempDir("", "home")
++	if err != nil {
++		t.Fatal("creating temp dir: ", err)
++	}
++	defer os.RemoveAll(tempdir)
++
++	// pprof writes to $HOME/pprof by default which is not necessarily
++	// writeable (e.g. on a Debian buildd) so set $HOME to something we
++	// know we can write to for the duration of the test.
++	os.Setenv(homeEnv(), tempdir)
++	defer os.Setenv(homeEnv(), saveHome)
++
++	baseVars := pprofVariables
++	pprofVariables = baseVars.makeCopy()
++	defer func() { pprofVariables = baseVars }()
++
++	cert, certBytes, keyBytes := selfSignedCert(t, "localhost")
++	cas := x509.NewCertPool()
++	cas.AppendCertsFromPEM(certBytes)
++
++	tlsConfig := &tls.Config{
++		RootCAs:      cas,
++		Certificates: []tls.Certificate{cert},
++		ClientAuth:   tls.RequireAndVerifyClientCert,
++		ClientCAs:    cas,
++	}
++
++	l, err := tls.Listen("tcp", "localhost:0", tlsConfig)
++	if err != nil {
++		t.Fatalf("net.Listen: got error %v, want no error", err)
++	}
++
++	donec := make(chan error, 1)
++	go func(donec chan<- error) {
++		donec <- http.Serve(l, nil)
++	}(donec)
++	defer func() {
++		if got, want := <-donec, closedError(); !strings.Contains(got.Error(), want) {
++			t.Fatalf("Serve got error %v, want %q", got, want)
++		}
++	}()
++	defer l.Close()
++
++	outputTempFile, err := ioutil.TempFile("", "profile_output")
++	if err != nil {
++		t.Fatalf("Failed to create tempfile: %v", err)
++	}
++	defer os.Remove(outputTempFile.Name())
++	defer outputTempFile.Close()
++
++	// Get port from the address, so request to the server can be made using
++	// the host name specified in certificates.
++	_, portStr, err := net.SplitHostPort(l.Addr().String())
++	if err != nil {
++		t.Fatalf("cannot get port from URL: %v", err)
++	}
++	address := "https://" + "localhost:" + portStr + "/debug/pprof/goroutine"
++	s := &source{
++		Sources:   []string{address},
++		Seconds:   10,
++		Timeout:   10,
++		Symbolize: "remote",
++	}
++
++	certTempFile, err := ioutil.TempFile("", "cert_output")
++	if err != nil {
++		t.Errorf("cannot create cert tempfile: %v", err)
++	}
++	defer os.Remove(certTempFile.Name())
++	defer certTempFile.Close()
++	certTempFile.Write(certBytes)
++
++	keyTempFile, err := ioutil.TempFile("", "key_output")
++	if err != nil {
++		t.Errorf("cannot create key tempfile: %v", err)
++	}
++	defer os.Remove(keyTempFile.Name())
++	defer keyTempFile.Close()
++	keyTempFile.Write(keyBytes)
++
++	f := &testFlags{
++		strings: map[string]string{
++			"tls_cert": certTempFile.Name(),
++			"tls_key":  keyTempFile.Name(),
++			"tls_ca":   certTempFile.Name(),
++		},
++	}
++	o := &plugin.Options{
++		Obj:           &binutils.Binutils{},
++		UI:            &proftest.TestUI{T: t, AllowRx: "Saved profile in"},
++		Flagset:       f,
++		HTTPTransport: transport.New(f),
++	}
++
++	o.Sym = &symbolizer.Symbolizer{Obj: o.Obj, UI: o.UI, Transport: o.HTTPTransport}
++	p, err := fetchProfiles(s, o)
++	if err != nil {
++		t.Fatal(err)
++	}
++	if len(p.SampleType) == 0 {
++		t.Fatalf("fetchProfiles(%s) got empty profile: len(p.SampleType)==0", address)
++	}
++	if len(p.Function) == 0 {
++		t.Fatalf("fetchProfiles(%s) got non-symbolized profile: len(p.Function)==0", address)
++	}
++	if err := checkProfileHasFunction(p, "TestHTTPSWithServerCertFetch"); err != nil {
+ 		t.Fatalf("fetchProfiles(%s) %v", address, err)
+ 	}
+ }
+@@ -614,7 +722,10 @@ func checkProfileHasFunction(p *profile.Profile, fname string) error {
+ 	return fmt.Errorf("got %s, want function %q", p.String(), fname)
+ }
+ 
+-func selfSignedCert(t *testing.T) tls.Certificate {
++// selfSignedCert generates a self-signed certificate, and returns the
++// generated certificate, and byte arrays containing the certificate and
++// key associated with the certificate.
++func selfSignedCert(t *testing.T, host string) (tls.Certificate, []byte, []byte) {
+ 	privKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+ 	if err != nil {
+ 		t.Fatalf("failed to generate private key: %v", err)
+@@ -629,6 +740,8 @@ func selfSignedCert(t *testing.T) tls.Certificate {
+ 		SerialNumber: big.NewInt(1),
+ 		NotBefore:    time.Now(),
+ 		NotAfter:     time.Now().Add(10 * time.Minute),
++		IsCA:         true,
++		DNSNames:     []string{host},
+ 	}
+ 
+ 	b, err = x509.CreateCertificate(rand.Reader, &tmpl, &tmpl, privKey.Public(), privKey)
+@@ -641,5 +754,5 @@ func selfSignedCert(t *testing.T) tls.Certificate {
+ 	if err != nil {
+ 		t.Fatalf("failed to create TLS key pair: %v", err)
+ 	}
+-	return cert
++	return cert, bc, bk
+ }
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/flags.go b/src/cmd/vendor/github.com/google/pprof/internal/driver/flags.go
+new file mode 100644
+index 0000000000..c48fb5cd2e
+--- /dev/null
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/flags.go
+@@ -0,0 +1,78 @@
++package driver
++
++import (
++	"flag"
++	"strings"
++)
++
++// GoFlags implements the plugin.FlagSet interface.
++type GoFlags struct {
++	UsageMsgs []string
++}
++
++// Bool implements the plugin.FlagSet interface.
++func (*GoFlags) Bool(o string, d bool, c string) *bool {
++	return flag.Bool(o, d, c)
++}
++
++// Int implements the plugin.FlagSet interface.
++func (*GoFlags) Int(o string, d int, c string) *int {
++	return flag.Int(o, d, c)
++}
++
++// Float64 implements the plugin.FlagSet interface.
++func (*GoFlags) Float64(o string, d float64, c string) *float64 {
++	return flag.Float64(o, d, c)
++}
++
++// String implements the plugin.FlagSet interface.
++func (*GoFlags) String(o, d, c string) *string {
++	return flag.String(o, d, c)
++}
++
++// BoolVar implements the plugin.FlagSet interface.
++func (*GoFlags) BoolVar(b *bool, o string, d bool, c string) {
++	flag.BoolVar(b, o, d, c)
++}
++
++// IntVar implements the plugin.FlagSet interface.
++func (*GoFlags) IntVar(i *int, o string, d int, c string) {
++	flag.IntVar(i, o, d, c)
++}
++
++// Float64Var implements the plugin.FlagSet interface.
++// the value of the flag.
++func (*GoFlags) Float64Var(f *float64, o string, d float64, c string) {
++	flag.Float64Var(f, o, d, c)
++}
++
++// StringVar implements the plugin.FlagSet interface.
++func (*GoFlags) StringVar(s *string, o, d, c string) {
++	flag.StringVar(s, o, d, c)
++}
++
++// StringList implements the plugin.FlagSet interface.
++func (*GoFlags) StringList(o, d, c string) *[]*string {
++	return &[]*string{flag.String(o, d, c)}
++}
++
++// ExtraUsage implements the plugin.FlagSet interface.
++func (f *GoFlags) ExtraUsage() string {
++	return strings.Join(f.UsageMsgs, "\n")
++}
++
++// AddExtraUsage implements the plugin.FlagSet interface.
++func (f *GoFlags) AddExtraUsage(eu string) {
++	f.UsageMsgs = append(f.UsageMsgs, eu)
++}
++
++// Parse implements the plugin.FlagSet interface.
++func (*GoFlags) Parse(usage func()) []string {
++	flag.Usage = usage
++	flag.Parse()
++	args := flag.Args()
++	if len(args) == 0 {
++		usage()
++	}
++	return args
++}
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/flamegraph.go b/src/cmd/vendor/github.com/google/pprof/internal/driver/flamegraph.go
+index c9b9a5398f..13613cff86 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/flamegraph.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/flamegraph.go
+@@ -55,7 +55,7 @@ func (ui *webInterface) flamegraph(w http.ResponseWriter, req *http.Request) {
+ 		v := n.CumValue()
+ 		fullName := n.Info.PrintableName()
+ 		node := &treeNode{
+-			Name:      getNodeShortName(fullName),
++			Name:      graph.ShortenFunctionName(fullName),
+ 			FullName:  fullName,
+ 			Cum:       v,
+ 			CumFormat: config.FormatValue(v),
+@@ -101,19 +101,3 @@ func (ui *webInterface) flamegraph(w http.ResponseWriter, req *http.Request) {
+ 		Nodes:      nodeArr,
+ 	})
+ }
+-
+-// getNodeShortName builds a short node name from fullName.
+-func getNodeShortName(name string) string {
+-	chunks := strings.SplitN(name, "(", 2)
+-	head := chunks[0]
+-	pathSep := strings.LastIndexByte(head, '/')
+-	if pathSep == -1 || pathSep+1 >= len(head) {
+-		return name
+-	}
+-	// Check if name is a stdlib package, i.e. doesn't have "." before "/"
+-	if dot := strings.IndexByte(head, '.'); dot == -1 || dot > pathSep {
+-		return name
+-	}
+-	// Trim package path prefix from node name
+-	return name[pathSep+1:]
+-}
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/flamegraph_test.go b/src/cmd/vendor/github.com/google/pprof/internal/driver/flamegraph_test.go
+deleted file mode 100644
+index c1a887c830..0000000000
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/flamegraph_test.go
++++ /dev/null
+@@ -1,46 +0,0 @@
+-package driver
+-
+-import "testing"
+-
+-func TestGetNodeShortName(t *testing.T) {
+-	type testCase struct {
+-		name string
+-		want string
+-	}
+-	testcases := []testCase{
+-		{
+-			"root",
+-			"root",
+-		},
+-		{
+-			"syscall.Syscall",
+-			"syscall.Syscall",
+-		},
+-		{
+-			"net/http.(*conn).serve",
+-			"net/http.(*conn).serve",
+-		},
+-		{
+-			"github.com/blah/foo.Foo",
+-			"foo.Foo",
+-		},
+-		{
+-			"github.com/blah/foo_bar.(*FooBar).Foo",
+-			"foo_bar.(*FooBar).Foo",
+-		},
+-		{
+-			"encoding/json.(*structEncoder).(encoding/json.encode)-fm",
+-			"encoding/json.(*structEncoder).(encoding/json.encode)-fm",
+-		},
+-		{
+-			"github.com/blah/blah/vendor/gopkg.in/redis.v3.(*baseClient).(github.com/blah/blah/vendor/gopkg.in/redis.v3.process)-fm",
+-			"redis.v3.(*baseClient).(github.com/blah/blah/vendor/gopkg.in/redis.v3.process)-fm",
+-		},
+-	}
+-	for _, tc := range testcases {
+-		name := getNodeShortName(tc.name)
+-		if got, want := name, tc.want; got != want {
+-			t.Errorf("for %s, got %q, want %q", tc.name, got, want)
+-		}
+-	}
+-}
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/interactive_test.go b/src/cmd/vendor/github.com/google/pprof/internal/driver/interactive_test.go
+index 8d775e16bd..758adf9bdc 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/interactive_test.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/interactive_test.go
+@@ -23,6 +23,7 @@ import (
+ 	"github.com/google/pprof/internal/plugin"
+ 	"github.com/google/pprof/internal/proftest"
+ 	"github.com/google/pprof/internal/report"
++	"github.com/google/pprof/internal/transport"
+ 	"github.com/google/pprof/profile"
+ )
+ 
+@@ -41,7 +42,10 @@ func TestShell(t *testing.T) {
+ 
+ 	// Random interleave of independent scripts
+ 	pprofVariables = testVariables(savedVariables)
+-	o := setDefaults(nil)
++
++	// pass in HTTPTransport when setting defaults, because otherwise default
++	// transport will try to add flags to the default flag set.
++	o := setDefaults(&plugin.Options{HTTPTransport: transport.New(nil)})
+ 	o.UI = newUI(t, interleave(script, 0))
+ 	if err := interactive(p, o); err != nil {
+ 		t.Error("first attempt:", err)
+@@ -259,12 +263,13 @@ func TestInteractiveCommands(t *testing.T) {
+ 		{
+ 			"weblist  find -test",
+ 			map[string]string{
+-				"functions":        "false",
+-				"addressnoinlines": "true",
+-				"nodecount":        "0",
+-				"cum":              "false",
+-				"flat":             "true",
+-				"ignore":           "test",
++				"functions": "false",
++				"addresses": "true",
++				"noinlines": "true",
++				"nodecount": "0",
++				"cum":       "false",
++				"flat":      "true",
++				"ignore":    "test",
+ 			},
+ 		},
+ 		{
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/options.go b/src/cmd/vendor/github.com/google/pprof/internal/driver/options.go
+index 34167d4bf5..6e8f9fca25 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/options.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/options.go
+@@ -16,7 +16,6 @@ package driver
+ 
+ import (
+ 	"bufio"
+-	"flag"
+ 	"fmt"
+ 	"io"
+ 	"os"
+@@ -25,6 +24,7 @@ import (
+ 	"github.com/google/pprof/internal/binutils"
+ 	"github.com/google/pprof/internal/plugin"
+ 	"github.com/google/pprof/internal/symbolizer"
++	"github.com/google/pprof/internal/transport"
+ )
+ 
+ // setDefaults returns a new plugin.Options with zero fields sets to
+@@ -38,7 +38,7 @@ func setDefaults(o *plugin.Options) *plugin.Options {
+ 		d.Writer = oswriter{}
+ 	}
+ 	if d.Flagset == nil {
+-		d.Flagset = goFlags{}
++		d.Flagset = &GoFlags{}
+ 	}
+ 	if d.Obj == nil {
+ 		d.Obj = &binutils.Binutils{}
+@@ -46,67 +46,15 @@ func setDefaults(o *plugin.Options) *plugin.Options {
+ 	if d.UI == nil {
+ 		d.UI = &stdUI{r: bufio.NewReader(os.Stdin)}
+ 	}
++	if d.HTTPTransport == nil {
++		d.HTTPTransport = transport.New(d.Flagset)
++	}
+ 	if d.Sym == nil {
+-		d.Sym = &symbolizer.Symbolizer{Obj: d.Obj, UI: d.UI}
++		d.Sym = &symbolizer.Symbolizer{Obj: d.Obj, UI: d.UI, Transport: d.HTTPTransport}
+ 	}
+ 	return d
+ }
+ 
+-// goFlags returns a flagset implementation based on the standard flag
+-// package from the Go distribution. It implements the plugin.FlagSet
+-// interface.
+-type goFlags struct{}
+-
+-func (goFlags) Bool(o string, d bool, c string) *bool {
+-	return flag.Bool(o, d, c)
+-}
+-
+-func (goFlags) Int(o string, d int, c string) *int {
+-	return flag.Int(o, d, c)
+-}
+-
+-func (goFlags) Float64(o string, d float64, c string) *float64 {
+-	return flag.Float64(o, d, c)
+-}
+-
+-func (goFlags) String(o, d, c string) *string {
+-	return flag.String(o, d, c)
+-}
+-
+-func (goFlags) BoolVar(b *bool, o string, d bool, c string) {
+-	flag.BoolVar(b, o, d, c)
+-}
+-
+-func (goFlags) IntVar(i *int, o string, d int, c string) {
+-	flag.IntVar(i, o, d, c)
+-}
+-
+-func (goFlags) Float64Var(f *float64, o string, d float64, c string) {
+-	flag.Float64Var(f, o, d, c)
+-}
+-
+-func (goFlags) StringVar(s *string, o, d, c string) {
+-	flag.StringVar(s, o, d, c)
+-}
+-
+-func (goFlags) StringList(o, d, c string) *[]*string {
+-	return &[]*string{flag.String(o, d, c)}
+-}
+-
+-func (goFlags) ExtraUsage() string {
+-	return ""
+-}
+-
+-func (goFlags) Parse(usage func()) []string {
+-	flag.Usage = usage
+-	flag.Parse()
+-	args := flag.Args()
+-	if len(args) == 0 {
+-		usage()
+-	}
+-	return args
+-}
+-
+ type stdUI struct {
+ 	r *bufio.Reader
+ }
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/testdata/pprof.cpu.flat.addresses.noinlines.text b/src/cmd/vendor/github.com/google/pprof/internal/driver/testdata/pprof.cpu.flat.addresses.noinlines.text
+new file mode 100644
+index 0000000000..d53c44dad9
+--- /dev/null
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/testdata/pprof.cpu.flat.addresses.noinlines.text
+@@ -0,0 +1,7 @@
++Showing nodes accounting for 1.12s, 100% of 1.12s total
++Dropped 1 node (cum <= 0.06s)
++      flat  flat%   sum%        cum   cum%
++     1.10s 98.21% 98.21%      1.10s 98.21%  0000000000001000 line1000 testdata/file1000.src:1
++     0.01s  0.89% 99.11%      1.01s 90.18%  0000000000002000 line2000 testdata/file2000.src:4
++     0.01s  0.89%   100%      1.01s 90.18%  0000000000003000 line3000 testdata/file3000.src:6
++         0     0%   100%      0.10s  8.93%  0000000000003001 line3000 testdata/file3000.src:9
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/testdata/pprof.cpu.flat.filefunctions.noinlines.text b/src/cmd/vendor/github.com/google/pprof/internal/driver/testdata/pprof.cpu.flat.filefunctions.noinlines.text
+new file mode 100644
+index 0000000000..88fb760759
+--- /dev/null
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/testdata/pprof.cpu.flat.filefunctions.noinlines.text
+@@ -0,0 +1,5 @@
++Showing nodes accounting for 1.12s, 100% of 1.12s total
++      flat  flat%   sum%        cum   cum%
++     1.10s 98.21% 98.21%      1.10s 98.21%  line1000 testdata/file1000.src
++     0.01s  0.89% 99.11%      1.01s 90.18%  line2000 testdata/file2000.src
++     0.01s  0.89%   100%      1.12s   100%  line3000 testdata/file3000.src
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/testdata/pprof.cpu.flat.functions.noinlines.text b/src/cmd/vendor/github.com/google/pprof/internal/driver/testdata/pprof.cpu.flat.functions.noinlines.text
+new file mode 100644
+index 0000000000..493b4912de
+--- /dev/null
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/testdata/pprof.cpu.flat.functions.noinlines.text
+@@ -0,0 +1,5 @@
++Showing nodes accounting for 1.12s, 100% of 1.12s total
++      flat  flat%   sum%        cum   cum%
++     1.10s 98.21% 98.21%      1.10s 98.21%  line1000
++     0.01s  0.89% 99.11%      1.01s 90.18%  line2000
++     0.01s  0.89%   100%      1.12s   100%  line3000
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/testdata/pprof.cpu.lines.topproto b/src/cmd/vendor/github.com/google/pprof/internal/driver/testdata/pprof.cpu.lines.topproto
+new file mode 100644
+index 0000000000..33bf6814a4
+--- /dev/null
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/testdata/pprof.cpu.lines.topproto
+@@ -0,0 +1,3 @@
++Showing nodes accounting for 1s, 100% of 1s total
++      flat  flat%   sum%        cum   cum%
++        1s   100%   100%         1s   100%  mangled1000 testdata/file1000.src:1
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/testdata/pprof.longNameFuncs.dot b/src/cmd/vendor/github.com/google/pprof/internal/driver/testdata/pprof.longNameFuncs.dot
+new file mode 100644
+index 0000000000..474a5108ba
+--- /dev/null
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/testdata/pprof.longNameFuncs.dot
+@@ -0,0 +1,9 @@
++digraph "testbinary" {
++node [style=filled fillcolor="#f8f8f8"]
++subgraph cluster_L { "File: testbinary" [shape=box fontsize=16 label="File: testbinary\lType: cpu\lDuration: 10s, Total samples = 1.11s (11.10%)\lShowing nodes accounting for 1.11s, 100% of 1.11s total\l" tooltip="testbinary"] }
++N1 [label="package1\nobject\nfunction1\n1.10s (99.10%)" id="node1" fontsize=24 shape=box tooltip="path/to/package1.object.function1 (1.10s)" color="#b20000" fillcolor="#edd5d5"]
++N2 [label="FooBar\nrun\n0.01s (0.9%)\nof 1.01s (90.99%)" id="node2" fontsize=10 shape=box tooltip="java.bar.foo.FooBar.run(java.lang.Runnable) (1.01s)" color="#b20400" fillcolor="#edd6d5"]
++N3 [label="Bar\nFoo\n0 of 1.10s (99.10%)" id="node3" fontsize=8 shape=box tooltip="(anonymous namespace)::Bar::Foo (1.10s)" color="#b20000" fillcolor="#edd5d5"]
++N3 -> N1 [label=" 1.10s" weight=100 penwidth=5 color="#b20000" tooltip="(anonymous namespace)::Bar::Foo -> path/to/package1.object.function1 (1.10s)" labeltooltip="(anonymous namespace)::Bar::Foo -> path/to/package1.object.function1 (1.10s)"]
++N2 -> N3 [label=" 1s" weight=91 penwidth=5 color="#b20500" tooltip="java.bar.foo.FooBar.run(java.lang.Runnable) -> (anonymous namespace)::Bar::Foo (1s)" labeltooltip="java.bar.foo.FooBar.run(java.lang.Runnable) -> (anonymous namespace)::Bar::Foo (1s)"]
++}
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/testdata/pprof.longNameFuncs.text b/src/cmd/vendor/github.com/google/pprof/internal/driver/testdata/pprof.longNameFuncs.text
+new file mode 100644
+index 0000000000..39cb24ed6a
+--- /dev/null
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/testdata/pprof.longNameFuncs.text
+@@ -0,0 +1,5 @@
++Showing nodes accounting for 1.11s, 100% of 1.11s total
++      flat  flat%   sum%        cum   cum%
++     1.10s 99.10% 99.10%      1.10s 99.10%  path/to/package1.object.function1
++     0.01s   0.9%   100%      1.01s 90.99%  java.bar.foo.FooBar.run(java.lang.Runnable)
++         0     0%   100%      1.10s 99.10%  (anonymous namespace)::Bar::Foo
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/webhtml.go b/src/cmd/vendor/github.com/google/pprof/internal/driver/webhtml.go
+index c3f9c384f8..74104899ca 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/webhtml.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/webhtml.go
+@@ -249,6 +249,21 @@ table tr td {
+     </div>
+   </div>
+ 
++  {{$sampleLen := len .SampleTypes}}
++  {{if gt $sampleLen 1}}
++  <div id="sample" class="menu-item">
++    <div class="menu-name">
++      Sample
++      <i class="downArrow"></i>
++    </div>
++    <div class="submenu">
++      {{range .SampleTypes}}
++      <a href="?si={{.}}" id="{{.}}">{{.}}</a>
++      {{end}}
++    </div>
++  </div>
++  {{end}}
++
+   <div id="refine" class="menu-item">
+     <div class="menu-name">
+       Refine
+@@ -259,6 +274,7 @@ table tr td {
+       <a title="{{.Help.ignore}}" href="?" id="ignore">Ignore</a>
+       <a title="{{.Help.hide}}" href="?" id="hide">Hide</a>
+       <a title="{{.Help.show}}" href="?" id="show">Show</a>
++      <a title="{{.Help.show_from}}" href="?" id="show-from">Show from</a>
+       <hr>
+       <a title="{{.Help.reset}}" href="?">Reset</a>
+     </div>
+@@ -718,9 +734,18 @@ function viewer(baseUrl, nodes) {
+     return str.replace(/([\\\.?+*\[\](){}|^$])/g, '\\$1');
+   }
+ 
++  function setSampleIndexLink(id) {
++    const elem = document.getElementById(id);
++    if (elem != null) {
++      setHrefParams(elem, function (params) {
++        params.set("si", id);
++      });
++    }
++  }
++
+   // Update id's href to reflect current selection whenever it is
+   // liable to be followed.
+-  function makeLinkDynamic(id) {
++  function makeSearchLinkDynamic(id) {
+     const elem = document.getElementById(id);
+     if (elem == null) return;
+ 
+@@ -730,46 +755,50 @@ function viewer(baseUrl, nodes) {
+     if (id == 'ignore') param = 'i';
+     if (id == 'hide') param = 'h';
+     if (id == 'show') param = 's';
++    if (id == 'show-from') param = 'sf';
+ 
+     // We update on mouseenter so middle-click/right-click work properly.
+     elem.addEventListener('mouseenter', updater);
+     elem.addEventListener('touchstart', updater);
+ 
+     function updater() {
+-      elem.href = updateUrl(new URL(elem.href), param);
++      // The selection can be in one of two modes: regexp-based or
++      // list-based.  Construct regular expression depending on mode.
++      let re = regexpActive
++        ? search.value
++        : Array.from(selected.keys()).map(key => quotemeta(nodes[key])).join('|');
++
++      setHrefParams(elem, function (params) {
++        if (re != '') {
++          // For focus/show/show-from, forget old parameter. For others, add to re.
++          if (param != 'f' && param != 's' && param != 'sf' && params.has(param)) {
++            const old = params.get(param);
++            if (old != '') {
++              re += '|' + old;
++            }
++          }
++          params.set(param, re);
++        } else {
++          params.delete(param);
++        }
++      });
+     }
+   }
+ 
+-  // Update URL to reflect current selection.
+-  function updateUrl(url, param) {
++  function setHrefParams(elem, paramSetter) {
++    let url = new URL(elem.href);
+     url.hash = '';
+ 
+-    // The selection can be in one of two modes: regexp-based or
+-    // list-based.  Construct regular expression depending on mode.
+-    let re = regexpActive
+-      ? search.value
+-      : Array.from(selected.keys()).map(key => quotemeta(nodes[key])).join('|');
+-
+     // Copy params from this page's URL.
+     const params = url.searchParams;
+     for (const p of new URLSearchParams(window.location.search)) {
+       params.set(p[0], p[1]);
+     }
+ 
+-    if (re != '') {
+-      // For focus/show, forget old parameter.  For others, add to re.
+-      if (param != 'f' && param != 's' && params.has(param)) {
+-        const old = params.get(param);
+-         if (old != '') {
+-          re += '|' + old;
+-        }
+-      }
+-      params.set(param, re);
+-    } else {
+-      params.delete(param);
+-    }
++    // Give the params to the setter to modify.
++    paramSetter(params);
+ 
+-    return url.toString();
++    elem.href = url.toString();
+   }
+ 
+   function handleTopClick(e) {
+@@ -803,7 +832,7 @@ function viewer(baseUrl, nodes) {
+     const enable = (search.value != '' || selected.size != 0);
+     if (buttonsEnabled == enable) return;
+     buttonsEnabled = enable;
+-    for (const id of ['focus', 'ignore', 'hide', 'show']) {
++    for (const id of ['focus', 'ignore', 'hide', 'show', 'show-from']) {
+       const link = document.getElementById(id);
+       if (link != null) {
+         link.classList.toggle('disabled', !enable);
+@@ -825,8 +854,11 @@ function viewer(baseUrl, nodes) {
+   }
+ 
+   const ids = ['topbtn', 'graphbtn', 'peek', 'list', 'disasm',
+-               'focus', 'ignore', 'hide', 'show'];
+-  ids.forEach(makeLinkDynamic);
++               'focus', 'ignore', 'hide', 'show', 'show-from'];
++  ids.forEach(makeSearchLinkDynamic);
++
++  const sampleIDs = [{{range .SampleTypes}}'{{.}}', {{end}}];
++  sampleIDs.forEach(setSampleIndexLink);
+ 
+   // Bind action to button with specified id.
+   function addAction(id, action) {
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/webui.go b/src/cmd/vendor/github.com/google/pprof/internal/driver/webui.go
+index 89bc558668..7becacd202 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/webui.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/webui.go
+@@ -69,16 +69,17 @@ func (ec *errorCatcher) PrintErr(args ...interface{}) {
+ 
+ // webArgs contains arguments passed to templates in webhtml.go.
+ type webArgs struct {
+-	Title      string
+-	Errors     []string
+-	Total      int64
+-	Legend     []string
+-	Help       map[string]string
+-	Nodes      []string
+-	HTMLBody   template.HTML
+-	TextBody   string
+-	Top        []report.TextItem
+-	FlameGraph template.JS
++	Title       string
++	Errors      []string
++	Total       int64
++	SampleTypes []string
++	Legend      []string
++	Help        map[string]string
++	Nodes       []string
++	HTMLBody    template.HTML
++	TextBody    string
++	Top         []report.TextItem
++	FlameGraph  template.JS
+ }
+ 
+ func serveWebInterface(hostport string, p *profile.Profile, o *plugin.Options) error {
+@@ -199,8 +200,10 @@ func openBrowser(url string, o *plugin.Options) {
+ 	for _, p := range []struct{ param, key string }{
+ 		{"f", "focus"},
+ 		{"s", "show"},
++		{"sf", "show_from"},
+ 		{"i", "ignore"},
+ 		{"h", "hide"},
++		{"si", "sample_index"},
+ 	} {
+ 		if v := pprofVariables[p.key].value; v != "" {
+ 			q.Set(p.param, v)
+@@ -230,8 +233,10 @@ func varsFromURL(u *gourl.URL) variables {
+ 	vars := pprofVariables.makeCopy()
+ 	vars["focus"].value = u.Query().Get("f")
+ 	vars["show"].value = u.Query().Get("s")
++	vars["show_from"].value = u.Query().Get("sf")
+ 	vars["ignore"].value = u.Query().Get("i")
+ 	vars["hide"].value = u.Query().Get("h")
++	vars["sample_index"].value = u.Query().Get("si")
+ 	return vars
+ }
+ 
+@@ -262,6 +267,7 @@ func (ui *webInterface) render(w http.ResponseWriter, tmpl string,
+ 	data.Title = file + " " + profile
+ 	data.Errors = errList
+ 	data.Total = rpt.Total()
++	data.SampleTypes = sampleTypes(ui.prof)
+ 	data.Legend = legend
+ 	data.Help = ui.help
+ 	html := &bytes.Buffer{}
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/elfexec/elfexec.go b/src/cmd/vendor/github.com/google/pprof/internal/elfexec/elfexec.go
+index 4750ec8129..03083baf12 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/elfexec/elfexec.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/elfexec/elfexec.go
+@@ -178,8 +178,7 @@ func GetBase(fh *elf.FileHeader, loadSegment *elf.ProgHeader, stextOffset *uint6
+ 		pageOffsetPpc64 = 0xc000000000000000
+ 	)
+ 
+-	if start == 0 && offset == 0 &&
+-		(limit == ^uint64(0) || limit == 0) {
++	if start == 0 && offset == 0 && (limit == ^uint64(0) || limit == 0) {
+ 		// Some tools may introduce a fake mapping that spans the entire
+ 		// address space. Assume that the address has already been
+ 		// adjusted, so no additional base adjustment is necessary.
+@@ -189,9 +188,24 @@ func GetBase(fh *elf.FileHeader, loadSegment *elf.ProgHeader, stextOffset *uint6
+ 	switch fh.Type {
+ 	case elf.ET_EXEC:
+ 		if loadSegment == nil {
+-			// Fixed-address executable, no adjustment.
++			// Assume fixed-address executable and so no adjustment.
+ 			return 0, nil
+ 		}
++		if stextOffset == nil && start > 0 && start < 0x8000000000000000 {
++			// A regular user-mode executable. Compute the base offset using same
++			// arithmetics as in ET_DYN case below, see the explanation there.
++			// Ideally, the condition would just be "stextOffset == nil" as that
++			// represents the address of _stext symbol in the vmlinux image. Alas,
++			// the caller may skip reading it from the binary (it's expensive to scan
++			// all the symbols) and so it may be nil even for the kernel executable.
++			// So additionally check that the start is within the user-mode half of
++			// the 64-bit address space.
++			return start - offset + loadSegment.Off - loadSegment.Vaddr, nil
++		}
++		// Various kernel heuristics and cases follow.
++		if loadSegment.Vaddr == start-offset {
++			return offset, nil
++		}
+ 		if start == 0 && limit != 0 {
+ 			// ChromeOS remaps its kernel to 0. Nothing else should come
+ 			// down this path. Empirical values:
+@@ -202,12 +216,6 @@ func GetBase(fh *elf.FileHeader, loadSegment *elf.ProgHeader, stextOffset *uint6
+ 			}
+ 			return -loadSegment.Vaddr, nil
+ 		}
+-		if loadSegment.Vaddr-loadSegment.Off == start-offset {
+-			return offset, nil
+-		}
+-		if loadSegment.Vaddr == start-offset {
+-			return offset, nil
+-		}
+ 		if start >= loadSegment.Vaddr && limit > start && (offset == 0 || offset == pageOffsetPpc64 || offset == start) {
+ 			// Some kernels look like:
+ 			//       VADDR=0xffffffff80200000
+@@ -230,7 +238,7 @@ func GetBase(fh *elf.FileHeader, loadSegment *elf.ProgHeader, stextOffset *uint6
+ 			//       start=0x198 limit=0x2f9fffff offset=0
+ 			//       VADDR=0xffffffff81000000
+ 			// stextOffset=0xffffffff81000198
+-			return -(*stextOffset - start), nil
++			return start - *stextOffset, nil
+ 		}
+ 
+ 		return 0, fmt.Errorf("Don't know how to handle EXEC segment: %v start=0x%x limit=0x%x offset=0x%x", *loadSegment, start, limit, offset)
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/elfexec/elfexec_test.go b/src/cmd/vendor/github.com/google/pprof/internal/elfexec/elfexec_test.go
+index 71edd8e51b..ff95c36add 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/elfexec/elfexec_test.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/elfexec/elfexec_test.go
+@@ -37,6 +37,10 @@ func TestGetBase(t *testing.T) {
+ 	kernelHeader := &elf.ProgHeader{
+ 		Vaddr: 0xffffffff81000000,
+ 	}
++	kernelAslrHeader := &elf.ProgHeader{
++		Vaddr: 0xffffffff80200000,
++		Off:   0x1000,
++	}
+ 	ppc64KernelHeader := &elf.ProgHeader{
+ 		Vaddr: 0xc000000000000000,
+ 	}
+@@ -51,12 +55,15 @@ func TestGetBase(t *testing.T) {
+ 		wanterr              bool
+ 	}{
+ 		{"exec", fhExec, nil, nil, 0x400000, 0, 0, 0, false},
+-		{"exec offset", fhExec, lsOffset, nil, 0x400000, 0x800000, 0, 0, false},
++		{"exec offset", fhExec, lsOffset, nil, 0x400000, 0x800000, 0, 0x200000, false},
+ 		{"exec offset 2", fhExec, lsOffset, nil, 0x200000, 0x600000, 0, 0, false},
+ 		{"exec nomap", fhExec, nil, nil, 0, 0, 0, 0, false},
+ 		{"exec kernel", fhExec, kernelHeader, uint64p(0xffffffff81000198), 0xffffffff82000198, 0xffffffff83000198, 0, 0x1000000, false},
+ 		{"exec kernel", fhExec, kernelHeader, uint64p(0xffffffff810002b8), 0xffffffff81000000, 0xffffffffa0000000, 0x0, 0x0, false},
+ 		{"exec kernel ASLR", fhExec, kernelHeader, uint64p(0xffffffff810002b8), 0xffffffff81000000, 0xffffffffa0000000, 0xffffffff81000000, 0x0, false},
++		// TODO(aalexand): Figure out where this test case exactly comes from and
++		// whether it's still relevant.
++		{"exec kernel ASLR 2", fhExec, kernelAslrHeader, nil, 0xffffffff83e00000, 0xfffffffffc3fffff, 0x3c00000, 0x3c00000, false},
+ 		{"exec PPC64 kernel", fhExec, ppc64KernelHeader, uint64p(0xc000000000000000), 0xc000000000000000, 0xd00000001a730000, 0x0, 0x0, false},
+ 		{"exec chromeos kernel", fhExec, kernelHeader, uint64p(0xffffffff81000198), 0, 0x10197, 0, 0x7efffe68, false},
+ 		{"exec chromeos kernel 2", fhExec, kernelHeader, uint64p(0xffffffff81000198), 0, 0x10198, 0, 0x7efffe68, false},
+@@ -85,7 +92,7 @@ func TestGetBase(t *testing.T) {
+ 			continue
+ 		}
+ 		if base != tc.want {
+-			t.Errorf("%s: want %x, got %x", tc.label, tc.want, base)
++			t.Errorf("%s: want 0x%x, got 0x%x", tc.label, tc.want, base)
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/graph/dotgraph.go b/src/cmd/vendor/github.com/google/pprof/internal/graph/dotgraph.go
+index f3721e92f5..09debfb007 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/graph/dotgraph.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/graph/dotgraph.go
+@@ -382,6 +382,7 @@ func dotColor(score float64, isBackground bool) string {
+ 
+ func multilinePrintableName(info *NodeInfo) string {
+ 	infoCopy := *info
++	infoCopy.Name = ShortenFunctionName(infoCopy.Name)
+ 	infoCopy.Name = strings.Replace(infoCopy.Name, "::", `\n`, -1)
+ 	infoCopy.Name = strings.Replace(infoCopy.Name, ".", `\n`, -1)
+ 	if infoCopy.File != "" {
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/graph/graph.go b/src/cmd/vendor/github.com/google/pprof/internal/graph/graph.go
+index cd72bf2ab1..aebd1bf0e8 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/graph/graph.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/graph/graph.go
+@@ -19,6 +19,7 @@ import (
+ 	"fmt"
+ 	"math"
+ 	"path/filepath"
++	"regexp"
+ 	"sort"
+ 	"strconv"
+ 	"strings"
+@@ -26,6 +27,12 @@ import (
+ 	"github.com/google/pprof/profile"
+ )
+ 
++var (
++	javaRegExp = regexp.MustCompile(`^(?:[a-z]\w*\.)*([A-Z][\w\$]*\.(?:<init>|[a-z]\w*(?:\$\d+)?))(?:(?:\()|$)`)
++	goRegExp   = regexp.MustCompile(`^(?:[\w\-\.]+\/)+(.+)`)
++	cppRegExp  = regexp.MustCompile(`^(?:(?:\(anonymous namespace\)::)(\w+$))|(?:(?:\(anonymous namespace\)::)?(?:[_a-zA-Z]\w*\::|)*(_*[A-Z]\w*::~?[_a-zA-Z]\w*)$)`)
++)
++
+ // Graph summarizes a performance profile into a format that is
+ // suitable for visualization.
+ type Graph struct {
+@@ -420,6 +427,16 @@ func newTree(prof *profile.Profile, o *Options) (g *Graph) {
+ 	return selectNodesForGraph(nodes, o.DropNegative)
+ }
+ 
++// ShortenFunctionName returns a shortened version of a function's name.
++func ShortenFunctionName(f string) string {
++	for _, re := range []*regexp.Regexp{goRegExp, javaRegExp, cppRegExp} {
++		if matches := re.FindStringSubmatch(f); len(matches) >= 2 {
++			return strings.Join(matches[1:], "")
++		}
++	}
++	return f
++}
++
+ // TrimTree trims a Graph in forest form, keeping only the nodes in kept. This
+ // will not work correctly if even a single node has multiple parents.
+ func (g *Graph) TrimTree(kept NodePtrSet) {
+@@ -512,9 +529,7 @@ func isNegative(n *Node) bool {
+ 
+ // CreateNodes creates graph nodes for all locations in a profile. It
+ // returns set of all nodes, plus a mapping of each location to the
+-// set of corresponding nodes (one per location.Line). If kept is
+-// non-nil, only nodes in that set are included; nodes that do not
+-// match are represented as a nil.
++// set of corresponding nodes (one per location.Line).
+ func CreateNodes(prof *profile.Profile, o *Options) (Nodes, map[uint64]Nodes) {
+ 	locations := make(map[uint64]Nodes, len(prof.Location))
+ 	nm := make(NodeMap, len(prof.Location))
+@@ -564,13 +579,13 @@ func nodeInfo(l *profile.Location, line profile.Line, objfile string, o *Options
+ 	if fname := line.Function.Filename; fname != "" {
+ 		ni.File = filepath.Clean(fname)
+ 	}
+-	if o.ObjNames {
+-		ni.Objfile = objfile
+-		ni.StartLine = int(line.Function.StartLine)
+-	}
+ 	if o.OrigFnNames {
+ 		ni.OrigName = line.Function.SystemName
+ 	}
++	if o.ObjNames || (ni.Name == "" && ni.OrigName == "") {
++		ni.Objfile = objfile
++		ni.StartLine = int(line.Function.StartLine)
++	}
+ 	return ni
+ }
+ 
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/graph/graph_test.go b/src/cmd/vendor/github.com/google/pprof/internal/graph/graph_test.go
+index 5657084cac..ef1171a14d 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/graph/graph_test.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/graph/graph_test.go
+@@ -3,6 +3,8 @@ package graph
+ import (
+ 	"fmt"
+ 	"testing"
++
++	"github.com/google/pprof/profile"
+ )
+ 
+ func edgeDebugString(edge *Edge) string {
+@@ -312,3 +314,158 @@ func TestTrimTree(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func nodeTestProfile() *profile.Profile {
++	mappings := []*profile.Mapping{
++		{
++			ID:   1,
++			File: "symbolized_binary",
++		},
++		{
++			ID:   2,
++			File: "unsymbolized_library_1",
++		},
++		{
++			ID:   3,
++			File: "unsymbolized_library_2",
++		},
++	}
++	functions := []*profile.Function{
++		{ID: 1, Name: "symname"},
++		{ID: 2},
++	}
++	locations := []*profile.Location{
++		{
++			ID:      1,
++			Mapping: mappings[0],
++			Line: []profile.Line{
++				{Function: functions[0]},
++			},
++		},
++		{
++			ID:      2,
++			Mapping: mappings[1],
++			Line: []profile.Line{
++				{Function: functions[1]},
++			},
++		},
++		{
++			ID:      3,
++			Mapping: mappings[2],
++		},
++	}
++	return &profile.Profile{
++		PeriodType: &profile.ValueType{Type: "cpu", Unit: "milliseconds"},
++		SampleType: []*profile.ValueType{
++			{Type: "type", Unit: "unit"},
++		},
++		Sample: []*profile.Sample{
++			{
++				Location: []*profile.Location{locations[0]},
++				Value:    []int64{1},
++			},
++			{
++				Location: []*profile.Location{locations[1]},
++				Value:    []int64{1},
++			},
++			{
++				Location: []*profile.Location{locations[2]},
++				Value:    []int64{1},
++			},
++		},
++		Location: locations,
++		Function: functions,
++		Mapping:  mappings,
++	}
++}
++
++// Check that nodes are properly created for a simple profile.
++func TestCreateNodes(t *testing.T) {
++	testProfile := nodeTestProfile()
++	wantNodeSet := NodeSet{
++		{Name: "symname"}:                   true,
++		{Objfile: "unsymbolized_library_1"}: true,
++		{Objfile: "unsymbolized_library_2"}: true,
++	}
++
++	nodes, _ := CreateNodes(testProfile, &Options{})
++	if len(nodes) != len(wantNodeSet) {
++		t.Errorf("got %d nodes, want %d", len(nodes), len(wantNodeSet))
++	}
++	for _, node := range nodes {
++		if !wantNodeSet[node.Info] {
++			t.Errorf("unexpected node %v", node.Info)
++		}
++	}
++}
++
++func TestShortenFunctionName(t *testing.T) {
++	type testCase struct {
++		name string
++		want string
++	}
++	testcases := []testCase{
++		{
++			"root",
++			"root",
++		},
++		{
++			"syscall.Syscall",
++			"syscall.Syscall",
++		},
++		{
++			"net/http.(*conn).serve",
++			"http.(*conn).serve",
++		},
++		{
++			"github.com/blahBlah/foo.Foo",
++			"foo.Foo",
++		},
++		{
++			"github.com/BlahBlah/foo.Foo",
++			"foo.Foo",
++		},
++		{
++			"github.com/blah-blah/foo_bar.(*FooBar).Foo",
++			"foo_bar.(*FooBar).Foo",
++		},
++		{
++			"encoding/json.(*structEncoder).(encoding/json.encode)-fm",
++			"json.(*structEncoder).(encoding/json.encode)-fm",
++		},
++		{
++			"github.com/blah/blah/vendor/gopkg.in/redis.v3.(*baseClient).(github.com/blah/blah/vendor/gopkg.in/redis.v3.process)-fm",
++			"redis.v3.(*baseClient).(github.com/blah/blah/vendor/gopkg.in/redis.v3.process)-fm",
++		},
++		{
++			"java.util.concurrent.ThreadPoolExecutor$Worker.run",
++			"ThreadPoolExecutor$Worker.run",
++		},
++		{
++			"java.bar.foo.FooBar.run(java.lang.Runnable)",
++			"FooBar.run",
++		},
++		{
++			"(anonymous namespace)::Bar::Foo",
++			"Bar::Foo",
++		},
++		{
++			"(anonymous namespace)::foo",
++			"foo",
++		},
++		{
++			"foo_bar::Foo::bar",
++			"Foo::bar",
++		},
++		{
++			"foo",
++			"foo",
++		},
++	}
++	for _, tc := range testcases {
++		name := ShortenFunctionName(tc.name)
++		if got, want := name, tc.want; got != want {
++			t.Errorf("ShortenFunctionName(%q) = %q, want %q", tc.name, got, want)
++		}
++	}
++}
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/plugin/plugin.go b/src/cmd/vendor/github.com/google/pprof/internal/plugin/plugin.go
+index 0003656026..23338bc040 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/plugin/plugin.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/plugin/plugin.go
+@@ -41,7 +41,8 @@ type Options struct {
+ 	//
+ 	// A common use for a custom HTTPServer is to provide custom
+ 	// authentication checks.
+-	HTTPServer func(args *HTTPServerArgs) error
++	HTTPServer    func(args *HTTPServerArgs) error
++	HTTPTransport http.RoundTripper
+ }
+ 
+ // Writer provides a mechanism to write data under a certain name,
+@@ -71,12 +72,16 @@ type FlagSet interface {
+ 	// single flag
+ 	StringList(name string, def string, usage string) *[]*string
+ 
+-	// ExtraUsage returns any additional text that should be
+-	// printed after the standard usage message.
+-	// The typical use of ExtraUsage is to show any custom flags
+-	// defined by the specific pprof plugins being used.
++	// ExtraUsage returns any additional text that should be printed after the
++	// standard usage message. The extra usage message returned includes all text
++	// added with AddExtraUsage().
++	// The typical use of ExtraUsage is to show any custom flags defined by the
++	// specific pprof plugins being used.
+ 	ExtraUsage() string
+ 
++	// AddExtraUsage appends additional text to the end of the extra usage message.
++	AddExtraUsage(eu string)
++
+ 	// Parse initializes the flags with their values for this run
+ 	// and returns the non-flag command line arguments.
+ 	// If an unknown flag is encountered or there are no arguments,
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/report/report.go b/src/cmd/vendor/github.com/google/pprof/internal/report/report.go
+index 76db9cbf99..fb67a343ba 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/report/report.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/report/report.go
+@@ -309,7 +309,10 @@ func printTopProto(w io.Writer, rpt *Report) error {
+ 	}
+ 	functionMap := make(functionMap)
+ 	for i, n := range g.Nodes {
+-		f := functionMap.FindOrAdd(n.Info)
++		f, added := functionMap.findOrAdd(n.Info)
++		if added {
++			out.Function = append(out.Function, f)
++		}
+ 		flat, cum := n.FlatValue(), n.CumValue()
+ 		l := &profile.Location{
+ 			ID:      uint64(i + 1),
+@@ -328,7 +331,6 @@ func printTopProto(w io.Writer, rpt *Report) error {
+ 			Location: []*profile.Location{l},
+ 			Value:    []int64{int64(cv), int64(fv)},
+ 		}
+-		out.Function = append(out.Function, f)
+ 		out.Location = append(out.Location, l)
+ 		out.Sample = append(out.Sample, s)
+ 	}
+@@ -338,11 +340,15 @@ func printTopProto(w io.Writer, rpt *Report) error {
+ 
+ type functionMap map[string]*profile.Function
+ 
+-func (fm functionMap) FindOrAdd(ni graph.NodeInfo) *profile.Function {
++// findOrAdd takes a node representing a function, adds the function
++// represented by the node to the map if the function is not already present,
++// and returns the function the node represents. This also returns a boolean,
++// which is true if the function was added and false otherwise.
++func (fm functionMap) findOrAdd(ni graph.NodeInfo) (*profile.Function, bool) {
+ 	fName := fmt.Sprintf("%q%q%q%d", ni.Name, ni.OrigName, ni.File, ni.StartLine)
+ 
+ 	if f := fm[fName]; f != nil {
+-		return f
++		return f, false
+ 	}
+ 
+ 	f := &profile.Function{
+@@ -353,7 +359,7 @@ func (fm functionMap) FindOrAdd(ni graph.NodeInfo) *profile.Function {
+ 		StartLine:  int64(ni.StartLine),
+ 	}
+ 	fm[fName] = f
+-	return f
++	return f, true
+ }
+ 
+ // printAssembly prints an annotated assembly listing.
+@@ -361,7 +367,7 @@ func printAssembly(w io.Writer, rpt *Report, obj plugin.ObjTool) error {
+ 	return PrintAssembly(w, rpt, obj, -1)
+ }
+ 
+-// PrintAssembly prints annotated disasssembly of rpt to w.
++// PrintAssembly prints annotated disassembly of rpt to w.
+ func PrintAssembly(w io.Writer, rpt *Report, obj plugin.ObjTool, maxFuncs int) error {
+ 	o := rpt.options
+ 	prof := rpt.prof
+@@ -1217,8 +1223,8 @@ func NewDefault(prof *profile.Profile, options Options) *Report {
+ }
+ 
+ // computeTotal computes the sum of the absolute value of all sample values.
+-// If any samples have the label "pprof::base" with value "true", then the total
+-// will only include samples with that label.
++// If any samples have label indicating they belong to the diff base, then the
++// total will only include samples with that label.
+ func computeTotal(prof *profile.Profile, value, meanDiv func(v []int64) int64) int64 {
+ 	var div, total, diffDiv, diffTotal int64
+ 	for _, sample := range prof.Sample {
+@@ -1232,7 +1238,7 @@ func computeTotal(prof *profile.Profile, value, meanDiv func(v []int64) int64) i
+ 		}
+ 		total += v
+ 		div += d
+-		if sample.HasLabel("pprof::base", "true") {
++		if sample.DiffBaseSample() {
+ 			diffTotal += v
+ 			diffDiv += d
+ 		}
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/report/report_test.go b/src/cmd/vendor/github.com/google/pprof/internal/report/report_test.go
+index 9eb435bbb8..7c4363fadd 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/report/report_test.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/report/report_test.go
+@@ -253,16 +253,23 @@ func TestFunctionMap(t *testing.T) {
+ 		{Name: "fun2", File: "filename2"},
+ 	}
+ 
+-	want := []profile.Function{
+-		{ID: 1, Name: "fun1"},
+-		{ID: 2, Name: "fun2", Filename: "filename"},
+-		{ID: 1, Name: "fun1"},
+-		{ID: 3, Name: "fun2", Filename: "filename2"},
++	want := []struct {
++		wantFunction profile.Function
++		wantAdded    bool
++	}{
++		{profile.Function{ID: 1, Name: "fun1"}, true},
++		{profile.Function{ID: 2, Name: "fun2", Filename: "filename"}, true},
++		{profile.Function{ID: 1, Name: "fun1"}, false},
++		{profile.Function{ID: 3, Name: "fun2", Filename: "filename2"}, true},
+ 	}
+ 
+ 	for i, tc := range nodes {
+-		if got, want := fm.FindOrAdd(tc), want[i]; *got != want {
+-			t.Errorf("%d: want %v, got %v", i, want, got)
++		gotFunc, gotAdded := fm.findOrAdd(tc)
++		if got, want := gotFunc, want[i].wantFunction; *got != want {
++			t.Errorf("%d: got %v, want %v", i, got, want)
++		}
++		if got, want := gotAdded, want[i].wantAdded; got != want {
++			t.Errorf("%d: got %v, want %v", i, got, want)
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/symbolizer/symbolizer.go b/src/cmd/vendor/github.com/google/pprof/internal/symbolizer/symbolizer.go
+index 5994c11ac7..d741e7ad7f 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/symbolizer/symbolizer.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/symbolizer/symbolizer.go
+@@ -18,7 +18,6 @@
+ package symbolizer
+ 
+ import (
+-	"crypto/tls"
+ 	"fmt"
+ 	"io/ioutil"
+ 	"net/http"
+@@ -35,8 +34,9 @@ import (
+ 
+ // Symbolizer implements the plugin.Symbolize interface.
+ type Symbolizer struct {
+-	Obj plugin.ObjTool
+-	UI  plugin.UI
++	Obj       plugin.ObjTool
++	UI        plugin.UI
++	Transport http.RoundTripper
+ }
+ 
+ // test taps for dependency injection
+@@ -85,7 +85,10 @@ func (s *Symbolizer) Symbolize(mode string, sources plugin.MappingSources, p *pr
+ 		}
+ 	}
+ 	if remote {
+-		if err = symbolzSymbolize(p, force, sources, postURL, s.UI); err != nil {
++		post := func(source, post string) ([]byte, error) {
++			return postURL(source, post, s.Transport)
++		}
++		if err = symbolzSymbolize(p, force, sources, post, s.UI); err != nil {
+ 			return err // Ran out of options.
+ 		}
+ 	}
+@@ -95,25 +98,9 @@ func (s *Symbolizer) Symbolize(mode string, sources plugin.MappingSources, p *pr
+ }
+ 
+ // postURL issues a POST to a URL over HTTP.
+-func postURL(source, post string) ([]byte, error) {
+-	url, err := url.Parse(source)
+-	if err != nil {
+-		return nil, err
+-	}
+-
+-	var tlsConfig *tls.Config
+-	if url.Scheme == "https+insecure" {
+-		tlsConfig = &tls.Config{
+-			InsecureSkipVerify: true,
+-		}
+-		url.Scheme = "https"
+-		source = url.String()
+-	}
+-
++func postURL(source, post string, tr http.RoundTripper) ([]byte, error) {
+ 	client := &http.Client{
+-		Transport: &http.Transport{
+-			TLSClientConfig: tlsConfig,
+-		},
++		Transport: tr,
+ 	}
+ 	resp, err := client.Post(source, "application/octet-stream", strings.NewReader(post))
+ 	if err != nil {
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/symbolizer/symbolizer_test.go b/src/cmd/vendor/github.com/google/pprof/internal/symbolizer/symbolizer_test.go
+index 956519d37c..2d26b51e87 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/symbolizer/symbolizer_test.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/symbolizer/symbolizer_test.go
+@@ -114,8 +114,8 @@ func TestSymbolization(t *testing.T) {
+ 	}
+ 
+ 	s := Symbolizer{
+-		mockObjTool{},
+-		&proftest.TestUI{T: t},
++		Obj: mockObjTool{},
++		UI:  &proftest.TestUI{T: t},
+ 	}
+ 	for i, tc := range []testcase{
+ 		{
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/symbolz/symbolz.go b/src/cmd/vendor/github.com/google/pprof/internal/symbolz/symbolz.go
+index 638c4968ec..711d1d5303 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/symbolz/symbolz.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/symbolz/symbolz.go
+@@ -111,9 +111,9 @@ func symbolizeMapping(source string, offset int64, syms func(string, string) ([]
+ 	for _, l := range p.Location {
+ 		if l.Mapping == m && l.Address != 0 && len(l.Line) == 0 {
+ 			// Compensate for normalization.
+-			addr := int64(l.Address) + offset
+-			if addr < 0 {
+-				return fmt.Errorf("unexpected negative adjusted address, mapping %v source %d, offset %d", l.Mapping, l.Address, offset)
++			addr, overflow := adjust(l.Address, offset)
++			if overflow {
++				return fmt.Errorf("cannot adjust address %d by %d, it would overflow (mapping %v)", l.Address, offset, l.Mapping)
+ 			}
+ 			a = append(a, fmt.Sprintf("%#x", addr))
+ 		}
+@@ -144,15 +144,15 @@ func symbolizeMapping(source string, offset int64, syms func(string, string) ([]
+ 		}
+ 
+ 		if symbol := symbolzRE.FindStringSubmatch(l); len(symbol) == 3 {
+-			addr, err := strconv.ParseInt(symbol[1], 0, 64)
++			origAddr, err := strconv.ParseUint(symbol[1], 0, 64)
+ 			if err != nil {
+ 				return fmt.Errorf("unexpected parse failure %s: %v", symbol[1], err)
+ 			}
+-			if addr < 0 {
+-				return fmt.Errorf("unexpected negative adjusted address, source %s, offset %d", symbol[1], offset)
+-			}
+ 			// Reapply offset expected by the profile.
+-			addr -= offset
++			addr, overflow := adjust(origAddr, -offset)
++			if overflow {
++				return fmt.Errorf("cannot adjust symbolz address %d by %d, it would overflow", origAddr, -offset)
++			}
+ 
+ 			name := symbol[2]
+ 			fn := functions[name]
+@@ -166,7 +166,7 @@ func symbolizeMapping(source string, offset int64, syms func(string, string) ([]
+ 				p.Function = append(p.Function, fn)
+ 			}
+ 
+-			lines[uint64(addr)] = profile.Line{Function: fn}
++			lines[addr] = profile.Line{Function: fn}
+ 		}
+ 	}
+ 
+@@ -181,3 +181,20 @@ func symbolizeMapping(source string, offset int64, syms func(string, string) ([]
+ 
+ 	return nil
+ }
++
++// adjust shifts the specified address by the signed offset. It returns the
++// adjusted address. It signals that the address cannot be adjusted without an
++// overflow by returning true in the second return value.
++func adjust(addr uint64, offset int64) (uint64, bool) {
++	adj := uint64(int64(addr) + offset)
++	if offset < 0 {
++		if adj >= addr {
++			return 0, true
++		}
++	} else {
++		if adj < addr {
++			return 0, true
++		}
++	}
++	return adj, false
++}
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/symbolz/symbolz_test.go b/src/cmd/vendor/github.com/google/pprof/internal/symbolz/symbolz_test.go
+index 2d13c889b6..e71811f3c4 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/symbolz/symbolz_test.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/symbolz/symbolz_test.go
+@@ -16,6 +16,7 @@ package symbolz
+ 
+ import (
+ 	"fmt"
++	"math"
+ 	"strings"
+ 	"testing"
+ 
+@@ -139,3 +140,30 @@ func fetchSymbols(source, post string) ([]byte, error) {
+ 	}
+ 	return []byte(symbolz), nil
+ }
++
++func TestAdjust(t *testing.T) {
++	for _, tc := range []struct {
++		addr         uint64
++		offset       int64
++		wantAdj      uint64
++		wantOverflow bool
++	}{{math.MaxUint64, 0, math.MaxUint64, false},
++		{math.MaxUint64, 1, 0, true},
++		{math.MaxUint64 - 1, 1, math.MaxUint64, false},
++		{math.MaxUint64 - 1, 2, 0, true},
++		{math.MaxInt64 + 1, math.MaxInt64, math.MaxUint64, false},
++		{0, 0, 0, false},
++		{0, -1, 0, true},
++		{1, -1, 0, false},
++		{2, -1, 1, false},
++		{2, -2, 0, false},
++		{2, -3, 0, true},
++		{-math.MinInt64, math.MinInt64, 0, false},
++		{-math.MinInt64 + 1, math.MinInt64, 1, false},
++		{-math.MinInt64 - 1, math.MinInt64, 0, true},
++	} {
++		if adj, overflow := adjust(tc.addr, tc.offset); adj != tc.wantAdj || overflow != tc.wantOverflow {
++			t.Errorf("adjust(%d, %d) = (%d, %t), want (%d, %t)", tc.addr, tc.offset, adj, overflow, tc.wantAdj, tc.wantOverflow)
++		}
++	}
++}
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/transport/transport.go b/src/cmd/vendor/github.com/google/pprof/internal/transport/transport.go
+new file mode 100644
+index 0000000000..b5fb1ddff5
+--- /dev/null
++++ b/src/cmd/vendor/github.com/google/pprof/internal/transport/transport.go
+@@ -0,0 +1,131 @@
++// Copyright 2018 Google Inc. All Rights Reserved.
++//
++// Licensed under the Apache License, Version 2.0 (the "License");
++// you may not use this file except in compliance with the License.
++// You may obtain a copy of the License at
++//
++//     http://www.apache.org/licenses/LICENSE-2.0
++//
++// Unless required by applicable law or agreed to in writing, software
++// distributed under the License is distributed on an "AS IS" BASIS,
++// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++// See the License for the specific language governing permissions and
++// limitations under the License.
++
++// Package transport provides a mechanism to send requests with https cert,
++// key, and CA.
++package transport
++
++import (
++	"crypto/tls"
++	"crypto/x509"
++	"fmt"
++	"io/ioutil"
++	"net/http"
++	"sync"
++
++	"github.com/google/pprof/internal/plugin"
++)
++
++type transport struct {
++	cert       *string
++	key        *string
++	ca         *string
++	caCertPool *x509.CertPool
++	certs      []tls.Certificate
++	initOnce   sync.Once
++	initErr    error
++}
++
++const extraUsage = `    -tls_cert             TLS client certificate file for fetching profile and symbols
++    -tls_key              TLS private key file for fetching profile and symbols
++    -tls_ca               TLS CA certs file for fetching profile and symbols`
++
++// New returns a round tripper for making requests with the
++// specified cert, key, and ca. The flags tls_cert, tls_key, and tls_ca are
++// added to the flagset to allow a user to specify the cert, key, and ca. If
++// the flagset is nil, no flags will be added, and users will not be able to
++// use these flags.
++func New(flagset plugin.FlagSet) http.RoundTripper {
++	if flagset == nil {
++		return &transport{}
++	}
++	flagset.AddExtraUsage(extraUsage)
++	return &transport{
++		cert: flagset.String("tls_cert", "", "TLS client certificate file for fetching profile and symbols"),
++		key:  flagset.String("tls_key", "", "TLS private key file for fetching profile and symbols"),
++		ca:   flagset.String("tls_ca", "", "TLS CA certs file for fetching profile and symbols"),
++	}
++}
++
++// initialize uses the cert, key, and ca to initialize the certs
++// to use these when making requests.
++func (tr *transport) initialize() error {
++	var cert, key, ca string
++	if tr.cert != nil {
++		cert = *tr.cert
++	}
++	if tr.key != nil {
++		key = *tr.key
++	}
++	if tr.ca != nil {
++		ca = *tr.ca
++	}
++
++	if cert != "" && key != "" {
++		tlsCert, err := tls.LoadX509KeyPair(cert, key)
++		if err != nil {
++			return fmt.Errorf("could not load certificate/key pair specified by -tls_cert and -tls_key: %v", err)
++		}
++		tr.certs = []tls.Certificate{tlsCert}
++	} else if cert == "" && key != "" {
++		return fmt.Errorf("-tls_key is specified, so -tls_cert must also be specified")
++	} else if cert != "" && key == "" {
++		return fmt.Errorf("-tls_cert is specified, so -tls_key must also be specified")
++	}
++
++	if ca != "" {
++		caCertPool := x509.NewCertPool()
++		caCert, err := ioutil.ReadFile(ca)
++		if err != nil {
++			return fmt.Errorf("could not load CA specified by -tls_ca: %v", err)
++		}
++		caCertPool.AppendCertsFromPEM(caCert)
++		tr.caCertPool = caCertPool
++	}
++
++	return nil
++}
++
++// RoundTrip executes a single HTTP transaction, returning
++// a Response for the provided Request.
++func (tr *transport) RoundTrip(req *http.Request) (*http.Response, error) {
++	tr.initOnce.Do(func() {
++		tr.initErr = tr.initialize()
++	})
++	if tr.initErr != nil {
++		return nil, tr.initErr
++	}
++
++	tlsConfig := &tls.Config{
++		RootCAs:      tr.caCertPool,
++		Certificates: tr.certs,
++	}
++
++	if req.URL.Scheme == "https+insecure" {
++		// Make shallow copy of request, and req.URL, so the request's URL can be
++		// modified.
++		r := *req
++		*r.URL = *req.URL
++		req = &r
++		tlsConfig.InsecureSkipVerify = true
++		req.URL.Scheme = "https"
++	}
++
++	transport := http.Transport{
++		Proxy:           http.ProxyFromEnvironment,
++		TLSClientConfig: tlsConfig,
++	}
++
++	return transport.RoundTrip(req)
++}
+diff --git a/src/cmd/vendor/github.com/google/pprof/profile/legacy_java_profile.go b/src/cmd/vendor/github.com/google/pprof/profile/legacy_java_profile.go
+index 06322e5d2c..91f45e53c6 100644
+--- a/src/cmd/vendor/github.com/google/pprof/profile/legacy_java_profile.go
++++ b/src/cmd/vendor/github.com/google/pprof/profile/legacy_java_profile.go
+@@ -134,7 +134,7 @@ func parseJavaHeader(pType string, b []byte, p *Profile) ([]byte, error) {
+ 				}
+ 			case "contention/resolution":
+ 				p.SampleType = []*ValueType{
+-					{Type: "contentions", Unit: value},
++					{Type: "contentions", Unit: "count"},
+ 					{Type: "delay", Unit: value},
+ 				}
+ 			case "contention/sampling period":
+diff --git a/src/cmd/vendor/github.com/google/pprof/profile/profile.go b/src/cmd/vendor/github.com/google/pprof/profile/profile.go
+index 452194b127..5eb1cc1614 100644
+--- a/src/cmd/vendor/github.com/google/pprof/profile/profile.go
++++ b/src/cmd/vendor/github.com/google/pprof/profile/profile.go
+@@ -704,6 +704,12 @@ func (s *Sample) HasLabel(key, value string) bool {
+ 	return false
+ }
+ 
++// DiffBaseSample returns true if a sample belongs to the diff base and false
++// otherwise.
++func (s *Sample) DiffBaseSample() bool {
++	return s.HasLabel("pprof::base", "true")
++}
++
+ // Scale multiplies all sample values in a profile by a constant.
+ func (p *Profile) Scale(ratio float64) {
+ 	if ratio == 1 {
+diff --git a/src/cmd/vendor/github.com/google/pprof/profile/profile_test.go b/src/cmd/vendor/github.com/google/pprof/profile/profile_test.go
+index 5b299b1d55..43db1806bf 100644
+--- a/src/cmd/vendor/github.com/google/pprof/profile/profile_test.go
++++ b/src/cmd/vendor/github.com/google/pprof/profile/profile_test.go
+@@ -977,6 +977,59 @@ func TestHasLabel(t *testing.T) {
+ 	}
+ }
+ 
++func TestDiffBaseSample(t *testing.T) {
++	var testcases = []struct {
++		desc               string
++		labels             map[string][]string
++		wantDiffBaseSample bool
++	}{
++		{
++			desc:               "empty label does not have label",
++			labels:             map[string][]string{},
++			wantDiffBaseSample: false,
++		},
++		{
++			desc:               "label with one key and value, including diff base label",
++			labels:             map[string][]string{"pprof::base": {"true"}},
++			wantDiffBaseSample: true,
++		},
++		{
++			desc:               "label with one key and value, not including diff base label",
++			labels:             map[string][]string{"key": {"value"}},
++			wantDiffBaseSample: false,
++		},
++		{
++			desc: "label with many keys and values, including diff base label",
++			labels: map[string][]string{
++				"pprof::base": {"value2", "true"},
++				"key2":        {"true", "value2", "value2"},
++				"key3":        {"true", "value2", "value2"},
++			},
++			wantDiffBaseSample: true,
++		},
++		{
++			desc: "label with many keys and values, not including diff base label",
++			labels: map[string][]string{
++				"key1": {"value2", "value1"},
++				"key2": {"value1", "value2", "value2"},
++				"key3": {"value1", "value2", "value2"},
++			},
++			wantDiffBaseSample: false,
++		},
++	}
++
++	for _, tc := range testcases {
++		t.Run(tc.desc, func(t *testing.T) {
++			sample := &Sample{
++				Label: tc.labels,
++			}
++			if gotHasLabel := sample.DiffBaseSample(); gotHasLabel != tc.wantDiffBaseSample {
++				t.Errorf("sample.DiffBaseSample() got %v, want %v", gotHasLabel, tc.wantDiffBaseSample)
++			}
++		})
++	}
++}
++
+ func TestRemove(t *testing.T) {
+ 	var testcases = []struct {
+ 		desc       string
+diff --git a/src/cmd/vendor/github.com/google/pprof/profile/testdata/java.contention.string b/src/cmd/vendor/github.com/google/pprof/profile/testdata/java.contention.string
+index 158701400f..985ffe1cca 100644
+--- a/src/cmd/vendor/github.com/google/pprof/profile/testdata/java.contention.string
++++ b/src/cmd/vendor/github.com/google/pprof/profile/testdata/java.contention.string
+@@ -2,7 +2,7 @@ PeriodType: contentions count
+ Period: 100
+ Duration: 1h40
+ Samples:
+-contentions/microseconds delay/microseconds
++contentions/count delay/microseconds
+         100        100: 1 2 
+         100       1400: 3 4 5 6 7 8 9 10 11 12 13 14 15 16 10 17 18 19 20 21 22 23 24 25 26 27 28 29 
+         200        200: 1 2 
+diff --git a/src/cmd/vendor/vendor.json b/src/cmd/vendor/vendor.json
+index b952b93c08..23ff3225af 100644
+--- a/src/cmd/vendor/vendor.json
++++ b/src/cmd/vendor/vendor.json
+@@ -3,94 +3,100 @@
+ 	"ignore": "",
+ 	"package": [
+ 		{
+-			"checksumSHA1": "G9UsR+iruMWxwUefhy+ID+VIFNs=",
++			"checksumSHA1": "tvvU1lZut+OvO+7NOIG3DXojs48=",
+ 			"path": "github.com/google/pprof/driver",
+-			"revision": "1ddc9e21322e23449cb6709652bf3583969ca167",
+-			"revisionTime": "2018-05-30T14:24:47Z"
++			"revision": "fde099a545debf81bf2a96a0ec13d7da2c2a6663",
++			"revisionTime": "2018-10-26T15:26:56Z"
+ 		},
+ 		{
+-			"checksumSHA1": "LzGfApA19baVJIbQEqziWpRS3zE=",
++			"checksumSHA1": "LDRBxfypG0ZI3Nl/mfEIhrU/ae4=",
+ 			"path": "github.com/google/pprof/internal/binutils",
+-			"revision": "1ddc9e21322e23449cb6709652bf3583969ca167",
+-			"revisionTime": "2018-05-30T14:24:47Z"
++			"revision": "fde099a545debf81bf2a96a0ec13d7da2c2a6663",
++			"revisionTime": "2018-10-26T15:26:56Z"
+ 		},
+ 		{
+-			"checksumSHA1": "uoKLYk9VTOx2kYV3hU3vOGm4BX8=",
++			"checksumSHA1": "mViiOBlz5l3mIlQE1SxY1IveYBU=",
+ 			"path": "github.com/google/pprof/internal/driver",
+-			"revision": "1ddc9e21322e23449cb6709652bf3583969ca167",
+-			"revisionTime": "2018-05-30T14:24:47Z"
++			"revision": "fde099a545debf81bf2a96a0ec13d7da2c2a6663",
++			"revisionTime": "2018-10-26T15:26:56Z"
+ 		},
+ 		{
+-			"checksumSHA1": "IhuyU2pFSHhQxzadDBw1nHbcsrY=",
++			"checksumSHA1": "lxGP2FcHBwAiYHup+BNMBis136o=",
+ 			"path": "github.com/google/pprof/internal/elfexec",
+-			"revision": "1ddc9e21322e23449cb6709652bf3583969ca167",
+-			"revisionTime": "2018-05-30T14:24:47Z"
++			"revision": "fde099a545debf81bf2a96a0ec13d7da2c2a6663",
++			"revisionTime": "2018-10-26T15:26:56Z"
+ 		},
+ 		{
+-			"checksumSHA1": "8vah+aXLGpbtn55JR8MkCAEOMrk=",
++			"checksumSHA1": "ejpBQbeYO4XPI6UtiPe4SVaMQqE=",
+ 			"path": "github.com/google/pprof/internal/graph",
+-			"revision": "1ddc9e21322e23449cb6709652bf3583969ca167",
+-			"revisionTime": "2018-05-30T14:24:47Z"
++			"revision": "fde099a545debf81bf2a96a0ec13d7da2c2a6663",
++			"revisionTime": "2018-10-26T15:26:56Z"
+ 		},
+ 		{
+ 			"checksumSHA1": "QPWfnT5pEU2jOOb8l8hpiFzQJ7Q=",
+ 			"path": "github.com/google/pprof/internal/measurement",
+-			"revision": "1ddc9e21322e23449cb6709652bf3583969ca167",
+-			"revisionTime": "2018-05-30T14:24:47Z"
++			"revision": "fde099a545debf81bf2a96a0ec13d7da2c2a6663",
++			"revisionTime": "2018-10-26T15:26:56Z"
+ 		},
+ 		{
+-			"checksumSHA1": "PWZdFtGfGz/zbQTfvel9737NZdY=",
++			"checksumSHA1": "wMdOybuEcd10antxdOUDUugjmOs=",
+ 			"path": "github.com/google/pprof/internal/plugin",
+-			"revision": "1ddc9e21322e23449cb6709652bf3583969ca167",
+-			"revisionTime": "2018-05-30T14:24:47Z"
++			"revision": "fde099a545debf81bf2a96a0ec13d7da2c2a6663",
++			"revisionTime": "2018-10-26T15:26:56Z"
+ 		},
+ 		{
+ 			"checksumSHA1": "LmDglu/S6vFmgqkxubKDZemFHaY=",
+ 			"path": "github.com/google/pprof/internal/proftest",
+-			"revision": "1ddc9e21322e23449cb6709652bf3583969ca167",
+-			"revisionTime": "2018-05-30T14:24:47Z"
++			"revision": "fde099a545debf81bf2a96a0ec13d7da2c2a6663",
++			"revisionTime": "2018-10-26T15:26:56Z"
+ 		},
+ 		{
+-			"checksumSHA1": "qgsLCrPLve6es8A3bA3qv2LPoYk=",
++			"checksumSHA1": "ijtIORD3B7fg+VwzjmXT/33zahM=",
+ 			"path": "github.com/google/pprof/internal/report",
+-			"revision": "1ddc9e21322e23449cb6709652bf3583969ca167",
+-			"revisionTime": "2018-05-30T14:24:47Z"
++			"revision": "fde099a545debf81bf2a96a0ec13d7da2c2a6663",
++			"revisionTime": "2018-10-26T15:26:56Z"
+ 		},
+ 		{
+-			"checksumSHA1": "rWdirHgJi1+TdRwv5v3zjgFKcJA=",
++			"checksumSHA1": "Jjx/GbK8ftMDp0uoqfjTncz0TaQ=",
+ 			"path": "github.com/google/pprof/internal/symbolizer",
+-			"revision": "1ddc9e21322e23449cb6709652bf3583969ca167",
+-			"revisionTime": "2018-05-30T14:24:47Z"
++			"revision": "fde099a545debf81bf2a96a0ec13d7da2c2a6663",
++			"revisionTime": "2018-10-26T15:26:56Z"
+ 		},
+ 		{
+-			"checksumSHA1": "5lS2AF207MVYyjF+82qHkWK2V64=",
++			"checksumSHA1": "T0WqnYtJKNJYW3qYH15E1HFlmE0=",
+ 			"path": "github.com/google/pprof/internal/symbolz",
+-			"revision": "1ddc9e21322e23449cb6709652bf3583969ca167",
+-			"revisionTime": "2018-05-30T14:24:47Z"
++			"revision": "fde099a545debf81bf2a96a0ec13d7da2c2a6663",
++			"revisionTime": "2018-10-26T15:26:56Z"
+ 		},
+ 		{
+-			"checksumSHA1": "JMf63Fn5hz7JFgz6A2aT9DP/bL0=",
++			"checksumSHA1": "qDNZM9DiplY70UFnEiP9NcsVplg=",
++			"path": "github.com/google/pprof/internal/transport",
++			"revision": "fde099a545debf81bf2a96a0ec13d7da2c2a6663",
++			"revisionTime": "2018-10-26T15:26:56Z"
++		},
++		{
++			"checksumSHA1": "yFlyOuu4KgPEjXo1rIvl7Sj32Oo=",
+ 			"path": "github.com/google/pprof/profile",
+-			"revision": "1ddc9e21322e23449cb6709652bf3583969ca167",
+-			"revisionTime": "2018-05-30T14:24:47Z"
++			"revision": "fde099a545debf81bf2a96a0ec13d7da2c2a6663",
++			"revisionTime": "2018-10-26T15:26:56Z"
+ 		},
+ 		{
+ 			"checksumSHA1": "xmqfYca88U2c/I4642r3ps9uIRg=",
+ 			"path": "github.com/google/pprof/third_party/d3",
+-			"revision": "1ddc9e21322e23449cb6709652bf3583969ca167",
+-			"revisionTime": "2018-05-30T14:24:47Z"
++			"revision": "fde099a545debf81bf2a96a0ec13d7da2c2a6663",
++			"revisionTime": "2018-10-26T15:26:56Z"
+ 		},
+ 		{
+ 			"checksumSHA1": "LzWzD56Trzpq+0hLR00Yw5Gpepw=",
+ 			"path": "github.com/google/pprof/third_party/d3flamegraph",
+-			"revision": "1ddc9e21322e23449cb6709652bf3583969ca167",
+-			"revisionTime": "2018-05-30T14:24:47Z"
++			"revision": "fde099a545debf81bf2a96a0ec13d7da2c2a6663",
++			"revisionTime": "2018-10-26T15:26:56Z"
+ 		},
+ 		{
+ 			"checksumSHA1": "738v1E0v0qRW6oAKdCpBEtyVNnY=",
+ 			"path": "github.com/google/pprof/third_party/svgpan",
+-			"revision": "1ddc9e21322e23449cb6709652bf3583969ca167",
+-			"revisionTime": "2018-05-30T14:24:47Z"
++			"revision": "fde099a545debf81bf2a96a0ec13d7da2c2a6663",
++			"revisionTime": "2018-10-26T15:26:56Z"
+ 		},
+ 		{
+ 			"checksumSHA1": "J5yI4NzHbondzccJmummyJR/kQQ=",
+@@ -371,5 +377,5 @@
+ 			"revisionTime": "2018-11-05T19:48:08Z"
+ 		}
+ 	],
+-	"rootPath": "/cmd"
++	"rootPath": "cmd"
+ }

@@ -38,8 +38,102 @@ Date:   Sat Oct 20 19:59:27 2018 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Michael Munday <mike.munday@ibm.com>
-
+---
  src/cmd/compile/internal/ssa/gen/generic.rules |  9 +++++++
  src/cmd/compile/internal/ssa/rewritegeneric.go | 35 ++++++++++++++++++++++++++
  test/fixedbugs/issue20780.go                   | 15 ++++++-----
  3 files changed, 51 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index 5f1ed83ad1..5a1bee0fa2 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -1815,6 +1815,15 @@
+ 	&& (disjoint(src, s, dst, s) || isInlinableMemmove(dst, src, s, config))
+ 	-> (Move {t1} [s] dst src midmem)
+ 
++// Same, but for large types that require VarDefs.
++(Move {t1} [s] dst tmp1 midmem:(VarDef (Move {t2} [s] tmp2 src _)))
++	&& t1.(*types.Type).Compare(t2.(*types.Type)) == types.CMPeq
++	&& isSamePtr(tmp1, tmp2)
++	&& isStackPtr(src)
++	&& disjoint(src, s, tmp2, s)
++	&& (disjoint(src, s, dst, s) || isInlinableMemmove(dst, src, s, config))
++	-> (Move {t1} [s] dst src midmem)
++
+ // Elide self-moves. This only happens rarely (e.g test/fixedbugs/bug277.go).
+ // However, this rule is needed to prevent the previous rule from looping forever in such cases.
+ (Move dst src mem) && isSamePtr(dst, src) -> mem
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index 22e28bed54..f16b571b2a 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -17388,6 +17388,41 @@ func rewriteValuegeneric_OpMove_20(v *Value) bool {
+ 		v.AddArg(midmem)
+ 		return true
+ 	}
++	// match: (Move {t1} [s] dst tmp1 midmem:(VarDef (Move {t2} [s] tmp2 src _)))
++	// cond: t1.(*types.Type).Compare(t2.(*types.Type)) == types.CMPeq && isSamePtr(tmp1, tmp2) && isStackPtr(src) && disjoint(src, s, tmp2, s) && (disjoint(src, s, dst, s) || isInlinableMemmove(dst, src, s, config))
++	// result: (Move {t1} [s] dst src midmem)
++	for {
++		s := v.AuxInt
++		t1 := v.Aux
++		_ = v.Args[2]
++		dst := v.Args[0]
++		tmp1 := v.Args[1]
++		midmem := v.Args[2]
++		if midmem.Op != OpVarDef {
++			break
++		}
++		midmem_0 := midmem.Args[0]
++		if midmem_0.Op != OpMove {
++			break
++		}
++		if midmem_0.AuxInt != s {
++			break
++		}
++		t2 := midmem_0.Aux
++		_ = midmem_0.Args[2]
++		tmp2 := midmem_0.Args[0]
++		src := midmem_0.Args[1]
++		if !(t1.(*types.Type).Compare(t2.(*types.Type)) == types.CMPeq && isSamePtr(tmp1, tmp2) && isStackPtr(src) && disjoint(src, s, tmp2, s) && (disjoint(src, s, dst, s) || isInlinableMemmove(dst, src, s, config))) {
++			break
++		}
++		v.reset(OpMove)
++		v.AuxInt = s
++		v.Aux = t1
++		v.AddArg(dst)
++		v.AddArg(src)
++		v.AddArg(midmem)
++		return true
++	}
+ 	// match: (Move dst src mem)
+ 	// cond: isSamePtr(dst, src)
+ 	// result: mem
+diff --git a/test/fixedbugs/issue20780.go b/test/fixedbugs/issue20780.go
+index a31e031b78..58952e53ee 100644
+--- a/test/fixedbugs/issue20780.go
++++ b/test/fixedbugs/issue20780.go
+@@ -6,15 +6,14 @@
+ 
+ // We have a limit of 1GB for stack frames.
+ // Make sure we include the callee args section.
+-// (The dispatch wrapper which implements (*S).f
+-// copies the return value from f to a stack temp, then
+-// from that stack temp to the return value of (*S).f.
+-// It uses ~800MB for each section.)
+ 
+ package main
+ 
+-type S struct {
+-	i interface {
+-		f() [800e6]byte
+-	}
++func f() { // ERROR "stack frame too large"
++	var x [800e6]byte
++	g(x)
++	return
+ }
++
++//go:noinline
++func g([800e6]byte) {}

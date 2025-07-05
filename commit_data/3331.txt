@@ -10,7 +10,7 @@ Date:   Mon Sep 21 12:59:14 2009 -0700
     DELTA=987  (289 added, 587 deleted, 111 changed)
     OCL=34850
     CL=34850
-
+---
  src/pkg/Make.deps              |   4 +-
  src/pkg/base64/base64_test.go  |   4 +-
  src/pkg/bufio/bufio_test.go    |   8 +-
@@ -21,3 +21,1294 @@ Date:   Mon Sep 21 12:59:14 2009 -0700
  src/pkg/strings/buffer.go      | 340 -----------------------------------------
  src/pkg/strings/buffer_test.go | 234 ----------------------------
  9 files changed, 370 insertions(+), 669 deletions(-)
+
+diff --git a/src/pkg/Make.deps b/src/pkg/Make.deps
+index 710c34532a..70992cc7f2 100644
+--- a/src/pkg/Make.deps
++++ b/src/pkg/Make.deps
+@@ -31,7 +31,7 @@ fmt.install: io.install os.install reflect.install strconv.install utf8.install
+ go/ast.install: go/token.install unicode.install utf8.install
+ go/doc.install: container/vector.install go/ast.install go/token.install io.install once.install regexp.install sort.install strings.install template.install
+ go/parser.install: bytes.install container/vector.install fmt.install go/ast.install go/scanner.install go/token.install io.install os.install path.install strings.install
+-go/printer.install: container/vector.install fmt.install go/ast.install go/token.install io.install os.install reflect.install strings.install tabwriter.install
++go/printer.install: bytes.install container/vector.install fmt.install go/ast.install go/token.install io.install os.install reflect.install strings.install tabwriter.install
+ go/scanner.install: bytes.install container/vector.install fmt.install go/token.install io.install os.install sort.install strconv.install unicode.install utf8.install
+ go/token.install: fmt.install strconv.install
+ gob.install: bytes.install fmt.install io.install math.install os.install reflect.install sync.install
+@@ -57,7 +57,7 @@ rpc.install: bufio.install fmt.install gob.install http.install io.install log.i
+ runtime.install:
+ sort.install:
+ strconv.install: bytes.install math.install os.install unicode.install utf8.install
+-strings.install: os.install unicode.install utf8.install
++strings.install: unicode.install utf8.install
+ sync.install:
+ syscall.install: sync.install
+ tabwriter.install: bytes.install container/vector.install io.install os.install utf8.install
+diff --git a/src/pkg/base64/base64_test.go b/src/pkg/base64/base64_test.go
+index 6c2b4343fa..78433665a7 100644
+--- a/src/pkg/base64/base64_test.go
++++ b/src/pkg/base64/base64_test.go
+@@ -112,7 +112,7 @@ func TestDecode(t *testing.T) {
+ 
+ func TestDecoder(t *testing.T) {
+ 	for _, p := range pairs {
+-		decoder := NewDecoder(StdEncoding, strings.NewBufferString(p.encoded));
++		decoder := NewDecoder(StdEncoding, bytes.NewBufferString(p.encoded));
+ 		dbuf := make([]byte, StdEncoding.DecodedLen(len(p.encoded)));
+ 		count, err := decoder.Read(dbuf);
+ 		if err != nil && err != os.EOF {
+@@ -129,7 +129,7 @@ func TestDecoder(t *testing.T) {
+ 
+ func TestDecoderBuffering(t *testing.T) {
+ 	for bs := 1; bs <= 12; bs++ {
+-		decoder := NewDecoder(StdEncoding, strings.NewBufferString(bigtest.encoded));
++		decoder := NewDecoder(StdEncoding, bytes.NewBufferString(bigtest.encoded));
+ 		buf := make([]byte, len(bigtest.decoded) + 12);
+ 		var total int;
+ 		for total = 0; total < len(bigtest.decoded); {
+diff --git a/src/pkg/bufio/bufio_test.go b/src/pkg/bufio/bufio_test.go
+index 81e66e0eb4..32312fde5a 100644
+--- a/src/pkg/bufio/bufio_test.go
++++ b/src/pkg/bufio/bufio_test.go
+@@ -61,12 +61,12 @@ func readBytes(buf *Reader) string {
+ 
+ func TestReaderSimple(t *testing.T) {
+ 	data := "hello world";
+-	b := NewReader(strings.NewBufferString(data));
++	b := NewReader(bytes.NewBufferString(data));
+ 	if s := readBytes(b); s != "hello world" {
+ 		t.Errorf("simple hello world test failed: got %q", s);
+ 	}
+ 
+-	b = NewReader(newRot13Reader(strings.NewBufferString(data)));
++	b = NewReader(newRot13Reader(bytes.NewBufferString(data)));
+ 	if s := readBytes(b); s != "uryyb jbeyq" {
+ 		t.Error("rot13 hello world test failed: got %q", s);
+ 	}
+@@ -154,7 +154,7 @@ func TestReader(t *testing.T) {
+ 					readmaker := readMakers[i];
+ 					bufreader := bufreaders[j];
+ 					bufsize := bufsizes[k];
+-					read := readmaker.fn(strings.NewBufferString(text));
++					read := readmaker.fn(bytes.NewBufferString(text));
+ 					buf, _ := NewReaderSize(read, bufsize);
+ 					s := bufreader.fn(buf);
+ 					if s != text {
+@@ -308,7 +308,7 @@ func TestWriteErrors(t *testing.T) {
+ 
+ func TestNewReaderSizeIdempotent(t *testing.T) {
+ 	const BufSize = 1000;
+-	b, err := NewReaderSize(strings.NewBufferString("hello world"), BufSize);
++	b, err := NewReaderSize(bytes.NewBufferString("hello world"), BufSize);
+ 	if err != nil {
+ 		t.Error("NewReaderSize create fail", err);
+ 	}
+diff --git a/src/pkg/bytes/buffer.go b/src/pkg/bytes/buffer.go
+index fbaa93757a..cdc4a09939 100644
+--- a/src/pkg/bytes/buffer.go
++++ b/src/pkg/bytes/buffer.go
+@@ -4,90 +4,276 @@
+ 
+ package bytes
+ 
+-// Simple byte buffer for marshaling data.
++import "os"
+ 
+-import (
+-	"os";
+-)
++// Efficient construction of large strings and byte arrays.
++// Implements io.Reader and io.Writer.
+ 
+-func bytecopy(dst []byte, doff int, src []byte, soff int, count int) {
+-	for ; count > 0; count-- {
+-		dst[doff] = src[soff];
++// A Buffer provides efficient construction of large strings
++// and slices of bytes.  It implements io.Reader and io.Writer.
++// Appends (writes) are efficient.
++// The zero value for Buffer is an empty buffer ready to use.
++type Buffer struct {
++	blk	[]block;
++	len	int;
++	oneByte	[1]byte;
++}
++
++// There are two kinds of block: a string or a []byte.
++// When the user writes big strings, we add string blocks;
++// when the user writes big byte slices, we add []byte blocks.
++// Small writes are coalesced onto the end of the last block,
++// whatever it is.
++// This strategy is intended to reduce unnecessary allocation.
++type block interface {
++	Len()	int;
++	String()	string;
++	appendBytes(s []byte);
++	appendString(s string);
++	setSlice(m, n int);
++}
++
++// stringBlocks represent strings. We use pointer receivers
++// so append and setSlice can overwrite the receiver.
++type stringBlock string
++
++func (b *stringBlock) Len() int {
++	return len(*b)
++}
++
++func (b *stringBlock) String() string {
++	return string(*b)
++}
++
++func (b *stringBlock) appendBytes(s []byte) {
++	*b += stringBlock(s)
++}
++
++func (b *stringBlock) appendString(s string) {
++	*b = stringBlock(s)
++}
++
++func (b *stringBlock) setSlice(m, n int) {
++	*b = (*b)[m:n]
++}
++
++// byteBlock represent slices of bytes.  We use pointer receivers
++// so append and setSlice can overwrite the receiver.
++type byteBlock []byte
++
++func (b *byteBlock) Len() int {
++	return len(*b)
++}
++
++func (b *byteBlock) String() string {
++	return string(*b)
++}
++
++func (b *byteBlock) resize(max int) {
++	by := []byte(*b);
++	if cap(by) >= max {
++		by = by[0:max];
++	} else {
++		nby := make([]byte, max, 3*(max+10)/2);
++		copyBytes(nby, 0, by);
++		by = nby;
++	}
++	*b = by;
++}
++
++func (b *byteBlock) appendBytes(s []byte) {
++	curLen := b.Len();
++	b.resize(curLen + len(s));
++	copyBytes([]byte(*b), curLen, s);
++}
++
++func (b *byteBlock) appendString(s string) {
++	curLen := b.Len();
++	b.resize(curLen + len(s));
++	copyString([]byte(*b), curLen, s);
++}
++
++func (b *byteBlock) setSlice(m, n int) {
++	*b = (*b)[m:n]
++}
++
++// Because the user may overwrite the contents of byte slices, we need
++// to make a copy.  Allocation strategy: leave some space on the end so
++// small subsequent writes can avoid another allocation.  The input
++// is known to be non-empty.
++func newByteBlock(s []byte) *byteBlock {
++	l := len(s);
++	// Capacity with room to grow.  If small, allocate a mininum.  If medium,
++	// double the size.  If huge, use the size plus epsilon (room for a newline,
++	// at least).
++	c := l;
++	switch {
++	case l < 32:
++		c = 64
++	case l < 1<<18:
++		c *= 2;
++	default:
++		c += 8
++	}
++	b := make([]byte, l, c);
++	copyBytes(b, 0, s);
++	return &b;
++}
++
++// Copy from block to byte array at offset doff.  Assume there's room.
++func copy(dst []byte, doff int, src block) {
++	switch s := src.(type) {
++	case *stringBlock:
++		copyString(dst, doff, string(*s));
++	case *byteBlock:
++		copyBytes(dst, doff, []byte(*s));
++	}
++}
++
++// Copy from string to byte array at offset doff.  Assume there's room.
++func copyString(dst []byte, doff int, str string) {
++	for soff := 0; soff < len(str); soff++ {
++		dst[doff] = str[soff];
+ 		doff++;
+-		soff++;
+ 	}
+ }
+ 
+-// A Buffer is a variable-sized buffer of bytes
+-// with Read and Write methods.
+-// The zero value for Buffer is an empty buffer ready to use.
+-type Buffer struct {
+-	buf	[]byte;	// contents are the bytes buf[off : len(buf)]
+-	off	int;	// read at &buf[off], write at &buf[len(buf)]
++// Copy from bytes to byte array at offset doff.  Assume there's room.
++func copyBytes(dst []byte, doff int, src []byte) {
++	for soff := 0; soff < len(src); soff++ {
++		dst[doff] = src[soff];
++		doff++;
++	}
+ }
+ 
+-// Bytes returns the contents of the unread portion of the buffer;
+-// len(b.Bytes()) == b.Len().
++// Bytes returns the contents of the unread portion of the buffer
++// as a byte array.
+ func (b *Buffer) Bytes() []byte {
+-	return b.buf[b.off : len(b.buf)]
++	n := b.len;
++	bytes := make([]byte, n);
++	nbytes := 0;
++	for _, s := range b.blk {
++		copy(bytes, nbytes, s);
++		nbytes += s.Len();
++	}
++	return bytes;
+ }
+ 
+ // String returns the contents of the unread portion of the buffer
+ // as a string.
+ func (b *Buffer) String() string {
+-	return string(b.buf[b.off : len(b.buf)])
++	if len(b.blk) == 1 {	// important special case
++		return b.blk[0].String()
++	}
++	return string(b.Bytes())
+ }
+ 
+-// Len returns the number of bytes of the unread portion of the buffer;
+-// b.Len() == len(b.Bytes()).
++// Len returns the number of bytes in the unread portion of the buffer;
++// b.Len() == len(b.Bytes()) == len(b.String()).
+ func (b *Buffer) Len() int {
+-	return len(b.buf) - b.off
++	return b.len
+ }
+ 
+ // Truncate discards all but the first n unread bytes from the buffer.
+-// It is an error to call b.Truncate(n) with n > b.Len().
+ func (b *Buffer) Truncate(n int) {
+-	if n == 0 {
+-		// Reuse buffer space.
+-		b.off = 0;
++	b.len = 0;	// recompute during scan.
++	for i, s := range b.blk {
++		if n <= 0 {
++			b.blk = b.blk[0:i];
++			break;
++		}
++		if l := s.Len(); n < l {
++			b.blk[i].setSlice(0, n);
++			b.len += n;
++			n = 0;
++		} else {
++			b.len += l;
++			n -= l;
++		}
+ 	}
+-	b.buf = b.buf[0 : b.off + n];
+ }
+ 
+ // Reset resets the buffer so it has no content.
+ // b.Reset() is the same as b.Truncate(0).
+ func (b *Buffer) Reset() {
+-	b.Truncate(0);
++	b.blk = b.blk[0:0];
++	b.len = 0;
++}
++
++// Can n bytes be appended efficiently to the end of the final string?
++func (b *Buffer) canCombine(n int) bool {
++	return len(b.blk) > 0 && n+b.blk[len(b.blk)-1].Len() <= 64
++}
++
++// WriteString appends string s to the buffer.  The return
++// value n is the length of s; err is always nil.
++func (b *Buffer) WriteString(s string) (n int, err os.Error) {
++	n = len(s);
++	if n == 0 {
++		return
++	}
++	b.len += n;
++	numStr := len(b.blk);
++	// Special case: If the last piece is short and this one is short,
++	// combine them and avoid growing the list.
++	if b.canCombine(n) {
++		b.blk[numStr-1].appendString(s);
++		return
++	}
++	if cap(b.blk) == numStr {
++		nstr := make([]block, numStr, 3*(numStr+10)/2);
++		for i, s := range b.blk {
++			nstr[i] = s;
++		}
++		b.blk = nstr;
++	}
++	b.blk = b.blk[0:numStr+1];
++	// The string is immutable; no need to make a copy.
++	b.blk[numStr] = (*stringBlock)(&s);
++	return
+ }
+ 
+ // Write appends the contents of p to the buffer.  The return
+ // value n is the length of p; err is always nil.
+ func (b *Buffer) Write(p []byte) (n int, err os.Error) {
+-	m := b.Len();
+ 	n = len(p);
+-
+-	if len(b.buf) + n > cap(b.buf) {
+-		// not enough space at end
+-		buf := b.buf;
+-		if m + n > cap(b.buf) {
+-			// not enough space anywhere
+-			buf = make([]byte, 2*cap(b.buf) + n)
++	if n == 0 {
++		return
++	}
++	b.len += n;
++	numStr := len(b.blk);
++	// Special case: If the last piece is short and this one is short,
++	// combine them and avoid growing the list.
++	if b.canCombine(n) {
++		b.blk[numStr-1].appendBytes(p);
++		return
++	}
++	if cap(b.blk) == numStr {
++		nstr := make([]block, numStr, 3*(numStr+10)/2);
++		for i, s := range b.blk {
++			nstr[i] = s;
+ 		}
+-		bytecopy(buf, 0, b.buf, b.off, m);
+-		b.buf = buf;
+-		b.off = 0
++		b.blk = nstr;
+ 	}
+-
+-	b.buf = b.buf[0 : b.off + m + n];
+-	bytecopy(b.buf, b.off + m, p, 0, n);
+-	return n, nil
++	b.blk = b.blk[0:numStr+1];
++	// Need to copy the data - user might overwrite the data.
++	b.blk[numStr] = newByteBlock(p);
++	return
+ }
+ 
+ // WriteByte appends the byte c to the buffer.
+ // The returned error is always nil, but is included
+ // to match bufio.Writer's WriteByte.
+ func (b *Buffer) WriteByte(c byte) os.Error {
+-	b.Write([]byte{c});
++	b.oneByte[0] = c;
++	// For WriteByte, canCombine is almost always true so it's worth
++	// doing here.
++	if b.canCombine(1) {
++		b.blk[len(b.blk)-1].appendBytes(&b.oneByte);
++		b.len++;
++		return nil
++	}
++	b.Write(&b.oneByte);
+ 	return nil;
+ }
+ 
+@@ -96,35 +282,63 @@ func (b *Buffer) WriteByte(c byte) os.Error {
+ // buffer has no data to return, err is os.EOF even if len(p) is zero;
+ // otherwise it is nil.
+ func (b *Buffer) Read(p []byte) (n int, err os.Error) {
+-	if b.off >= len(b.buf) {
++	if len(b.blk) == 0 {
+ 		return 0, os.EOF
+ 	}
+-	m := b.Len();
+-	n = len(p);
+-
+-	if n > m {
+-		// more bytes requested than available
+-		n = m
++	for len(b.blk) > 0 {
++		blk := b.blk[0];
++		m := len(p) - n;
++		if l := blk.Len(); m >= l {
++			// consume all of this string.
++			copy(p, n, blk);
++			n += l;
++			b.blk = b.blk[1:len(b.blk)];
++		} else {
++			// consume some of this block; it's the last piece.
++			switch b := blk.(type) {
++			case *stringBlock:
++				copyString(p, n, string(*b)[0:m]);
++			case *byteBlock:
++				copyBytes(p, n, []byte(*b)[0:m]);
++			}
++			n += m;
++			b.blk[0].setSlice(m, l);
++			break;
++		}
+ 	}
+-
+-	bytecopy(p, 0, b.buf, b.off, n);
+-	b.off += n;
+-	return n, err
++	b.len -= n;
++	return
+ }
+ 
+ // ReadByte reads and returns the next byte from the buffer.
+ // If no byte is available, it returns error os.EOF.
+ func (b *Buffer) ReadByte() (c byte, err os.Error) {
+-	if b.off >= len(b.buf) {
+-		return 0, os.EOF;
++	if _, err := b.Read(&b.oneByte); err != nil {
++		return 0, err
+ 	}
+-	c = b.buf[b.off];
+-	b.off++;
+-	return c, nil;
++	return b.oneByte[0], nil
++}
++
++// NewBufferString creates and initializes a new Buffer
++// using a string as its initial contents.
++func NewBufferString(str string) *Buffer {
++	b := new(Buffer);
++	if len(str) > 0 {
++		b.blk = make([]block, 1, 10);	// room to grow
++		b.blk[0] = (*stringBlock)(&str);
++	}
++	b.len = len(str);
++	return b;
+ }
+ 
+ // NewBuffer creates and initializes a new Buffer
+-// using buf as its initial contents.
+-func NewBuffer(buf []byte) *Buffer {
+-	return &Buffer{buf, 0};
++// using a byte slice as its initial contents.
++func NewBuffer(by []byte) *Buffer {
++	b := new(Buffer);
++	if len(by) > 0 {
++		b.blk = make([]block, 1, 10);	// room to grow
++		b.blk[0] = (*byteBlock)(&by);
++	}
++	b.len = len(by);
++	return b;
+ }
+diff --git a/src/pkg/bytes/buffer_test.go b/src/pkg/bytes/buffer_test.go
+index 79b5909bf6..0a698c223e 100644
+--- a/src/pkg/bytes/buffer_test.go
++++ b/src/pkg/bytes/buffer_test.go
+@@ -11,38 +11,65 @@ import (
+ )
+ 
+ 
+-const N = 10000;  // make this bigger for a larger (and slower) test
+-var data []byte;  // test data for write tests
++const N = 10000  // make this bigger for a larger (and slower) test
++var data string  // test data for write tests
++var bytes []byte	// test data; same as data but as a slice.
+ 
+ 
+ func init() {
+-	data = make([]byte, N);
+-	for i := 0; i < len(data); i++ {
+-		data[i] = 'a' + byte(i % 26)
++	bytes = make([]byte, N);
++	for i := 0; i < N; i++ {
++		bytes[i] = 'a' + byte(i % 26)
+ 	}
++	data = string(bytes);
+ }
+ 
+-
+ // Verify that contents of buf match the string s.
+ func check(t *testing.T, testname string, buf *Buffer, s string) {
+-	if buf.Len() != len(buf.Bytes()) {
+-		t.Errorf("%s: buf.Len() == %d, len(buf.Bytes()) == %d\n", testname, buf.Len(), len(buf.Bytes()))
++	bytes := buf.Bytes();
++	str := buf.String();
++	if buf.Len() != len(bytes) {
++		t.Errorf("%s: buf.Len() == %d, len(buf.Bytes()) == %d\n", testname, buf.Len(), len(bytes))
++	}
++
++	if buf.Len() != len(str) {
++		t.Errorf("%s: buf.Len() == %d, len(buf.String()) == %d\n", testname, buf.Len(), len(str))
+ 	}
+ 
+ 	if buf.Len() != len(s) {
+ 		t.Errorf("%s: buf.Len() == %d, len(s) == %d\n", testname, buf.Len(), len(s))
+ 	}
+ 
+-	if string(buf.Bytes()) != s {
+-		t.Errorf("%s: string(buf.Bytes()) == %q, s == %q\n", testname, string(buf.Bytes()), s)
++	if string(bytes) != s {
++		t.Errorf("%s: string(buf.Bytes()) == %q, s == %q\n", testname, string(bytes), s)
+ 	}
+ }
+ 
+ 
+-// Fill buf through n writes of fub.
++// Fill buf through n writes of string fus.
+ // The initial contents of buf corresponds to the string s;
+ // the result is the final contents of buf returned as a string.
+-func fill(t *testing.T, testname string, buf *Buffer, s string, n int, fub []byte) string {
++func fillString(t *testing.T, testname string, buf *Buffer, s string, n int, fus string) string {
++	check(t, testname + " (fill 1)", buf, s);
++	for ; n > 0; n-- {
++		m, err := buf.WriteString(fus);
++		if m != len(fus) {
++			t.Errorf(testname + " (fill 2): m == %d, expected %d\n", m, len(fus));
++		}
++		if err != nil {
++			t.Errorf(testname + " (fill 3): err should always be nil, found err == %s\n", err);
++		}
++		s += fus;
++		check(t, testname + " (fill 4)", buf, s);
++	}
++	return s;
++}
++
++
++// Fill buf through n writes of byte slice fub.
++// The initial contents of buf corresponds to the string s;
++// the result is the final contents of buf returned as a string.
++func fillBytes(t *testing.T, testname string, buf *Buffer, s string, n int, fub []byte) string {
+ 	check(t, testname + " (fill 1)", buf, s);
+ 	for ; n > 0; n-- {
+ 		m, err := buf.Write(fub);
+@@ -59,6 +86,18 @@ func fill(t *testing.T, testname string, buf *Buffer, s string, n int, fub []byt
+ }
+ 
+ 
++func TestNewBuffer(t *testing.T) {
++	buf := NewBuffer(bytes);
++	check(t, "NewBuffer", buf, data);
++}
++
++
++func TestNewBufferString(t *testing.T) {
++	buf := NewBufferString(data);
++	check(t, "NewBufferString", buf, data);
++}
++
++
+ // Empty buf through repeated reads into fub.
+ // The initial contents of buf corresponds to the string s.
+ func empty(t *testing.T, testname string, buf *Buffer, s string, fub []byte) {
+@@ -92,7 +131,7 @@ func TestBasicOperations(t *testing.T) {
+ 		buf.Truncate(0);
+ 		check(t, "TestBasicOperations (3)", &buf, "");
+ 
+-		n, err := buf.Write(data[0 : 1]);
++		n, err := buf.Write(Bytes(data[0 : 1]));
+ 		if n != 1 {
+ 			t.Errorf("wrote 1 byte, but n == %d\n", n);
+ 		}
+@@ -104,7 +143,7 @@ func TestBasicOperations(t *testing.T) {
+ 		buf.WriteByte(data[1]);
+ 		check(t, "TestBasicOperations (5)", &buf, "ab");
+ 
+-		n, err = buf.Write(data[2 : 26]);
++		n, err = buf.Write(Bytes(data[2 : 26]));
+ 		if n != 24 {
+ 			t.Errorf("wrote 25 bytes, but n == %d\n", n);
+ 		}
+@@ -135,23 +174,43 @@ func TestBasicOperations(t *testing.T) {
+ }
+ 
+ 
+-func TestLargeWrites(t *testing.T) {
++func TestLargeStringWrites(t *testing.T) {
++	var buf Buffer;
++	for i := 3; i < 30; i += 3 {
++		s := fillString(t, "TestLargeWrites (1)", &buf, "", 5, data);
++		empty(t, "TestLargeStringWrites (2)", &buf, s, make([]byte, len(data)/i));
++	}
++	check(t, "TestLargeStringWrites (3)", &buf, "");
++}
++
++
++func TestLargeByteWrites(t *testing.T) {
+ 	var buf Buffer;
+ 	for i := 3; i < 30; i += 3 {
+-		s := fill(t, "TestLargeWrites (1)", &buf, "", 5, data);
+-		empty(t, "TestLargeWrites (2)", &buf, s, make([]byte, len(data)/i));
++		s := fillBytes(t, "TestLargeWrites (1)", &buf, "", 5, bytes);
++		empty(t, "TestLargeByteWrites (2)", &buf, s, make([]byte, len(data)/i));
+ 	}
+-	check(t, "TestLargeWrites (3)", &buf, "");
++	check(t, "TestLargeByteWrites (3)", &buf, "");
+ }
+ 
+ 
+-func TestLargeReads(t *testing.T) {
++func TestLargeStringReads(t *testing.T) {
+ 	var buf Buffer;
+ 	for i := 3; i < 30; i += 3 {
+-		s := fill(t, "TestLargeReads (1)", &buf, "", 5, data[0 : len(data)/i]);
++		s := fillString(t, "TestLargeReads (1)", &buf, "", 5, data[0 : len(data)/i]);
+ 		empty(t, "TestLargeReads (2)", &buf, s, make([]byte, len(data)));
+ 	}
+-	check(t, "TestLargeReads (3)", &buf, "");
++	check(t, "TestLargeStringReads (3)", &buf, "");
++}
++
++
++func TestLargeByteReads(t *testing.T) {
++	var buf Buffer;
++	for i := 3; i < 30; i += 3 {
++		s := fillBytes(t, "TestLargeReads (1)", &buf, "", 5, bytes[0 : len(bytes)/i]);
++		empty(t, "TestLargeReads (2)", &buf, s, make([]byte, len(data)));
++	}
++	check(t, "TestLargeByteReads (3)", &buf, "");
+ }
+ 
+ 
+@@ -160,7 +219,11 @@ func TestMixedReadsAndWrites(t *testing.T) {
+ 	s := "";
+ 	for i := 0; i < 50; i++ {
+ 		wlen := rand.Intn(len(data));
+-		s = fill(t, "TestMixedReadsAndWrites (1)", &buf, s, 1, data[0 : wlen]);
++		if i % 2 == 0 {
++			s = fillString(t, "TestMixedReadsAndWrites (1)", &buf, s, 1, data[0 : wlen]);
++		} else {
++			s = fillBytes(t, "TestMixedReadsAndWrites (1)", &buf, s, 1, bytes[0 : wlen]);
++		}
+ 
+ 		rlen := rand.Intn(len(data));
+ 		fub := make([]byte, rlen);
+diff --git a/src/pkg/gob/encoder_test.go b/src/pkg/gob/encoder_test.go
+index 4095e0b121..e34d961bae 100644
+--- a/src/pkg/gob/encoder_test.go
++++ b/src/pkg/gob/encoder_test.go
+@@ -9,7 +9,6 @@ import (
+ 	"io";
+ 	"os";
+ 	"reflect";
+-	"strings";
+ 	"testing";
+ )
+ 
+@@ -228,7 +227,7 @@ func TestWrongTypeDecoder(t *testing.T) {
+ }
+ 
+ func corruptDataCheck(s string, err os.Error, t *testing.T) {
+-	b := strings.NewBufferString(s);
++	b := bytes.NewBufferString(s);
+ 	dec := NewDecoder(b);
+ 	dec.Decode(new(ET2));
+ 	if dec.state.err != err {
+diff --git a/src/pkg/strings/Makefile b/src/pkg/strings/Makefile
+index 96be1f4913..dcfa6066cd 100644
+--- a/src/pkg/strings/Makefile
++++ b/src/pkg/strings/Makefile
+@@ -6,7 +6,6 @@ include $(GOROOT)/src/Make.$(GOARCH)
+ 
+ TARG=strings
+ GOFILES=\
+-	buffer.go\
+ 	strings.go\
+ 
+ include $(GOROOT)/src/Make.pkg
+diff --git a/src/pkg/strings/buffer.go b/src/pkg/strings/buffer.go
+deleted file mode 100644
+index 3c091a345f..0000000000
+--- a/src/pkg/strings/buffer.go
++++ /dev/null
+@@ -1,340 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package strings
+-
+-import "os"
+-
+-// Efficient construction of large strings and byte arrays.
+-// Implements io.Reader and io.Writer.
+-
+-// A Buffer provides efficient construction of large strings
+-// and slices of bytes.  It implements io.Reader and io.Writer.
+-// Appends (writes) are efficient.
+-// The zero value for Buffer is an empty buffer ready to use.
+-type Buffer struct {
+-	blk	[]block;
+-	len	int;
+-	oneByte	[1]byte;
+-}
+-
+-// There are two kinds of block: a string or a []byte.
+-// When the user writes big strings, we add string blocks;
+-// when the user writes big byte slices, we add []byte blocks.
+-// Small writes are coalesced onto the end of the last block,
+-// whatever it is.
+-// This strategy is intended to reduce unnecessary allocation.
+-type block interface {
+-	Len()	int;
+-	String()	string;
+-	appendBytes(s []byte);
+-	appendString(s string);
+-	setSlice(m, n int);
+-}
+-
+-// stringBlocks represent strings. We use pointer receivers
+-// so append and setSlice can overwrite the receiver.
+-type stringBlock string
+-
+-func (b *stringBlock) Len() int {
+-	return len(*b)
+-}
+-
+-func (b *stringBlock) String() string {
+-	return string(*b)
+-}
+-
+-func (b *stringBlock) appendBytes(s []byte) {
+-	*b += stringBlock(s)
+-}
+-
+-func (b *stringBlock) appendString(s string) {
+-	*b = stringBlock(s)
+-}
+-
+-func (b *stringBlock) setSlice(m, n int) {
+-	*b = (*b)[m:n]
+-}
+-
+-// byteBlock represent slices of bytes.  We use pointer receivers
+-// so append and setSlice can overwrite the receiver.
+-type byteBlock []byte
+-
+-func (b *byteBlock) Len() int {
+-	return len(*b)
+-}
+-
+-func (b *byteBlock) String() string {
+-	return string(*b)
+-}
+-
+-func (b *byteBlock) resize(max int) {
+-	by := []byte(*b);
+-	if cap(by) >= max {
+-		by = by[0:max];
+-	} else {
+-		nby := make([]byte, max, 3*(max+10)/2);
+-		copyBytes(nby, 0, by);
+-		by = nby;
+-	}
+-	*b = by;
+-}
+-
+-func (b *byteBlock) appendBytes(s []byte) {
+-	curLen := b.Len();
+-	b.resize(curLen + len(s));
+-	copyBytes([]byte(*b), curLen, s);
+-}
+-
+-func (b *byteBlock) appendString(s string) {
+-	curLen := b.Len();
+-	b.resize(curLen + len(s));
+-	copyString([]byte(*b), curLen, s);
+-}
+-
+-func (b *byteBlock) setSlice(m, n int) {
+-	*b = (*b)[m:n]
+-}
+-
+-// Because the user may overwrite the contents of byte slices, we need
+-// to make a copy.  Allocation strategy: leave some space on the end so
+-// small subsequent writes can avoid another allocation.  The input
+-// is known to be non-empty.
+-func newByteBlock(s []byte) *byteBlock {
+-	l := len(s);
+-	// Capacity with room to grow.  If small, allocate a mininum.  If medium,
+-	// double the size.  If huge, use the size plus epsilon (room for a newline,
+-	// at least).
+-	c := l;
+-	switch {
+-	case l < 32:
+-		c = 64
+-	case l < 1<<18:
+-		c *= 2;
+-	default:
+-		c += 8
+-	}
+-	b := make([]byte, l, c);
+-	copyBytes(b, 0, s);
+-	return &b;
+-}
+-
+-// Copy from block to byte array at offset doff.  Assume there's room.
+-func copy(dst []byte, doff int, src block) {
+-	switch s := src.(type) {
+-	case *stringBlock:
+-		copyString(dst, doff, string(*s));
+-	case *byteBlock:
+-		copyBytes(dst, doff, []byte(*s));
+-	}
+-}
+-
+-// Copy from string to byte array at offset doff.  Assume there's room.
+-func copyString(dst []byte, doff int, str string) {
+-	for soff := 0; soff < len(str); soff++ {
+-		dst[doff] = str[soff];
+-		doff++;
+-	}
+-}
+-
+-// Copy from bytes to byte array at offset doff.  Assume there's room.
+-func copyBytes(dst []byte, doff int, src []byte) {
+-	for soff := 0; soff < len(src); soff++ {
+-		dst[doff] = src[soff];
+-		doff++;
+-	}
+-}
+-
+-// Bytes returns the contents of the unread portion of the buffer
+-// as a byte array.
+-func (b *Buffer) Bytes() []byte {
+-	n := b.len;
+-	bytes := make([]byte, n);
+-	nbytes := 0;
+-	for _, s := range b.blk {
+-		copy(bytes, nbytes, s);
+-		nbytes += s.Len();
+-	}
+-	return bytes;
+-}
+-
+-// String returns the contents of the unread portion of the buffer
+-// as a string.
+-func (b *Buffer) String() string {
+-	if len(b.blk) == 1 {	// important special case
+-		return b.blk[0].String()
+-	}
+-	return string(b.Bytes())
+-}
+-
+-// Len returns the number of bytes in the unread portion of the buffer;
+-// b.Len() == len(b.Bytes()) == len(b.String()).
+-func (b *Buffer) Len() int {
+-	return b.len
+-}
+-
+-// Truncate discards all but the first n unread bytes from the buffer.
+-func (b *Buffer) Truncate(n int) {
+-	b.len = 0;	// recompute during scan.
+-	for i, s := range b.blk {
+-		if n <= 0 {
+-			b.blk = b.blk[0:i];
+-			break;
+-		}
+-		if l := s.Len(); n < l {
+-			b.blk[i].setSlice(0, n);
+-			b.len += n;
+-			n = 0;
+-		} else {
+-			b.len += l;
+-			n -= l;
+-		}
+-	}
+-}
+-
+-// Reset resets the buffer so it has no content.
+-// b.Reset() is the same as b.Truncate(0).
+-func (b *Buffer) Reset() {
+-	b.blk = b.blk[0:0];
+-	b.len = 0;
+-}
+-
+-// Can n bytes be appended efficiently to the end of the final string?
+-func (b *Buffer) canCombine(n int) bool {
+-	return len(b.blk) > 0 && n+b.blk[len(b.blk)-1].Len() <= 64
+-}
+-
+-// WriteString appends string s to the buffer.  The return
+-// value n is the length of s; err is always nil.
+-func (b *Buffer) WriteString(s string) (n int, err os.Error) {
+-	n = len(s);
+-	if n == 0 {
+-		return
+-	}
+-	b.len += n;
+-	numStr := len(b.blk);
+-	// Special case: If the last piece is short and this one is short,
+-	// combine them and avoid growing the list.
+-	if b.canCombine(n) {
+-		b.blk[numStr-1].appendString(s);
+-		return
+-	}
+-	if cap(b.blk) == numStr {
+-		nstr := make([]block, numStr, 3*(numStr+10)/2);
+-		for i, s := range b.blk {
+-			nstr[i] = s;
+-		}
+-		b.blk = nstr;
+-	}
+-	b.blk = b.blk[0:numStr+1];
+-	// The string is immutable; no need to make a copy.
+-	b.blk[numStr] = (*stringBlock)(&s);
+-	return
+-}
+-
+-// Write appends the contents of p to the buffer.  The return
+-// value n is the length of p; err is always nil.
+-func (b *Buffer) Write(p []byte) (n int, err os.Error) {
+-	n = len(p);
+-	if n == 0 {
+-		return
+-	}
+-	b.len += n;
+-	numStr := len(b.blk);
+-	// Special case: If the last piece is short and this one is short,
+-	// combine them and avoid growing the list.
+-	if b.canCombine(n) {
+-		b.blk[numStr-1].appendBytes(p);
+-		return
+-	}
+-	if cap(b.blk) == numStr {
+-		nstr := make([]block, numStr, 3*(numStr+10)/2);
+-		for i, s := range b.blk {
+-			nstr[i] = s;
+-		}
+-		b.blk = nstr;
+-	}
+-	b.blk = b.blk[0:numStr+1];
+-	// Need to copy the data - user might overwrite the data.
+-	b.blk[numStr] = newByteBlock(p);
+-	return
+-}
+-
+-// WriteByte appends the byte c to the buffer.
+-// The returned error is always nil, but is included
+-// to match bufio.Writer's WriteByte.
+-func (b *Buffer) WriteByte(c byte) os.Error {
+-	b.oneByte[0] = c;
+-	// For WriteByte, canCombine is almost always true so it's worth
+-	// doing here.
+-	if b.canCombine(1) {
+-		b.blk[len(b.blk)-1].appendBytes(&b.oneByte);
+-		b.len++;
+-		return nil
+-	}
+-	b.Write(&b.oneByte);
+-	return nil;
+-}
+-
+-// Read reads the next len(p) bytes from the buffer or until the buffer
+-// is drained.  The return value n is the number of bytes read.  If the
+-// buffer has no data to return, err is os.EOF even if len(p) is zero;
+-// otherwise it is nil.
+-func (b *Buffer) Read(p []byte) (n int, err os.Error) {
+-	if len(b.blk) == 0 {
+-		return 0, os.EOF
+-	}
+-	for len(b.blk) > 0 {
+-		blk := b.blk[0];
+-		m := len(p) - n;
+-		if l := blk.Len(); m >= l {
+-			// consume all of this string.
+-			copy(p, n, blk);
+-			n += l;
+-			b.blk = b.blk[1:len(b.blk)];
+-		} else {
+-			// consume some of this block; it's the last piece.
+-			switch b := blk.(type) {
+-			case *stringBlock:
+-				copyString(p, n, string(*b)[0:m]);
+-			case *byteBlock:
+-				copyBytes(p, n, []byte(*b)[0:m]);
+-			}
+-			n += m;
+-			b.blk[0].setSlice(m, l);
+-			break;
+-		}
+-	}
+-	b.len -= n;
+-	return
+-}
+-
+-// ReadByte reads and returns the next byte from the buffer.
+-// If no byte is available, it returns error os.EOF.
+-func (b *Buffer) ReadByte() (c byte, err os.Error) {
+-	if _, err := b.Read(&b.oneByte); err != nil {
+-		return 0, err
+-	}
+-	return b.oneByte[0], nil
+-}
+-
+-// NewBufferString creates and initializes a new Buffer
+-// using a string as its initial contents.
+-func NewBufferString(str string) *Buffer {
+-	b := new(Buffer);
+-	b.blk = make([]block, 1, 10);	// room to grow
+-	b.blk[0] = (*stringBlock)(&str);
+-	b.len = len(str);
+-	return b;
+-}
+-
+-// NewBuffer creates and initializes a new Buffer
+-// using a byte slice as its initial contents.
+-func NewBuffer(by []byte) *Buffer {
+-	b := new(Buffer);
+-	b.blk = make([]block, 1, 10);	// room to grow
+-	b.blk[0] = (*byteBlock)(&by);
+-	b.len = len(by);
+-	return b;
+-}
+diff --git a/src/pkg/strings/buffer_test.go b/src/pkg/strings/buffer_test.go
+deleted file mode 100644
+index df0f30c625..0000000000
+--- a/src/pkg/strings/buffer_test.go
++++ /dev/null
+@@ -1,234 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package strings_test
+-
+-import (
+-	. "strings";
+-	"rand";
+-	"testing";
+-)
+-
+-
+-const N = 10000  // make this bigger for a larger (and slower) test
+-var data string  // test data for write tests
+-var bytes []byte	// test data; same as data but as a slice.
+-
+-
+-func init() {
+-	bytes = make([]byte, N);
+-	for i := 0; i < N; i++ {
+-		bytes[i] = 'a' + byte(i % 26)
+-	}
+-	data = string(bytes);
+-}
+-
+-// Verify that contents of buf match the string s.
+-func check(t *testing.T, testname string, buf *Buffer, s string) {
+-	bytes := buf.Bytes();
+-	str := buf.String();
+-	if buf.Len() != len(bytes) {
+-		t.Errorf("%s: buf.Len() == %d, len(buf.Bytes()) == %d\n", testname, buf.Len(), len(bytes))
+-	}
+-
+-	if buf.Len() != len(str) {
+-		t.Errorf("%s: buf.Len() == %d, len(buf.String()) == %d\n", testname, buf.Len(), len(str))
+-	}
+-
+-	if buf.Len() != len(s) {
+-		t.Errorf("%s: buf.Len() == %d, len(s) == %d\n", testname, buf.Len(), len(s))
+-	}
+-
+-	if string(bytes) != s {
+-		t.Errorf("%s: string(buf.Bytes()) == %q, s == %q\n", testname, string(bytes), s)
+-	}
+-}
+-
+-
+-// Fill buf through n writes of string fus.
+-// The initial contents of buf corresponds to the string s;
+-// the result is the final contents of buf returned as a string.
+-func fillString(t *testing.T, testname string, buf *Buffer, s string, n int, fus string) string {
+-	check(t, testname + " (fill 1)", buf, s);
+-	for ; n > 0; n-- {
+-		m, err := buf.WriteString(fus);
+-		if m != len(fus) {
+-			t.Errorf(testname + " (fill 2): m == %d, expected %d\n", m, len(fus));
+-		}
+-		if err != nil {
+-			t.Errorf(testname + " (fill 3): err should always be nil, found err == %s\n", err);
+-		}
+-		s += fus;
+-		check(t, testname + " (fill 4)", buf, s);
+-	}
+-	return s;
+-}
+-
+-
+-// Fill buf through n writes of byte slice fub.
+-// The initial contents of buf corresponds to the string s;
+-// the result is the final contents of buf returned as a string.
+-func fillBytes(t *testing.T, testname string, buf *Buffer, s string, n int, fub []byte) string {
+-	check(t, testname + " (fill 1)", buf, s);
+-	for ; n > 0; n-- {
+-		m, err := buf.Write(fub);
+-		if m != len(fub) {
+-			t.Errorf(testname + " (fill 2): m == %d, expected %d\n", m, len(fub));
+-		}
+-		if err != nil {
+-			t.Errorf(testname + " (fill 3): err should always be nil, found err == %s\n", err);
+-		}
+-		s += string(fub);
+-		check(t, testname + " (fill 4)", buf, s);
+-	}
+-	return s;
+-}
+-
+-
+-func TestNewBuffer(t *testing.T) {
+-	buf := NewBuffer(bytes);
+-	check(t, "NewBuffer", buf, data);
+-}
+-
+-
+-func TestNewBufferString(t *testing.T) {
+-	buf := NewBufferString(data);
+-	check(t, "NewBufferString", buf, data);
+-}
+-
+-
+-// Empty buf through repeated reads into fub.
+-// The initial contents of buf corresponds to the string s.
+-func empty(t *testing.T, testname string, buf *Buffer, s string, fub []byte) {
+-	check(t, testname + " (empty 1)", buf, s);
+-
+-	for {
+-		n, err := buf.Read(fub);
+-		if n == 0 {
+-			break;
+-		}
+-		if err != nil {
+-			t.Errorf(testname + " (empty 2): err should always be nil, found err == %s\n", err);
+-		}
+-		s = s[n : len(s)];
+-		check(t, testname + " (empty 3)", buf, s);
+-	}
+-
+-	check(t, testname + " (empty 4)", buf, "");
+-}
+-
+-
+-func TestBasicOperations(t *testing.T) {
+-	var buf Buffer;
+-
+-	for i := 0; i < 5; i++ {
+-		check(t, "TestBasicOperations (1)", &buf, "");
+-
+-		buf.Reset();
+-		check(t, "TestBasicOperations (2)", &buf, "");
+-
+-		buf.Truncate(0);
+-		check(t, "TestBasicOperations (3)", &buf, "");
+-
+-		n, err := buf.Write(Bytes(data[0 : 1]));
+-		if n != 1 {
+-			t.Errorf("wrote 1 byte, but n == %d\n", n);
+-		}
+-		if err != nil {
+-			t.Errorf("err should always be nil, but err == %s\n", err);
+-		}
+-		check(t, "TestBasicOperations (4)", &buf, "a");
+-
+-		buf.WriteByte(data[1]);
+-		check(t, "TestBasicOperations (5)", &buf, "ab");
+-
+-		n, err = buf.Write(Bytes(data[2 : 26]));
+-		if n != 24 {
+-			t.Errorf("wrote 25 bytes, but n == %d\n", n);
+-		}
+-		check(t, "TestBasicOperations (6)", &buf, string(data[0 : 26]));
+-
+-		buf.Truncate(26);
+-		check(t, "TestBasicOperations (7)", &buf, string(data[0 : 26]));
+-
+-		buf.Truncate(20);
+-		check(t, "TestBasicOperations (8)", &buf, string(data[0 : 20]));
+-
+-		empty(t, "TestBasicOperations (9)", &buf, string(data[0 : 20]), make([]byte, 5));
+-		empty(t, "TestBasicOperations (10)", &buf, "", make([]byte, 100));
+-
+-		buf.WriteByte(data[1]);
+-		c, err := buf.ReadByte();
+-		if err != nil {
+-			t.Errorf("ReadByte unexpected eof\n");
+-		}
+-		if c != data[1] {
+-			t.Errorf("ReadByte wrong value c=%v\n", c);
+-		}
+-		c, err = buf.ReadByte();
+-		if err == nil {
+-			t.Errorf("ReadByte unexpected not eof\n");
+-		}
+-	}
+-}
+-
+-
+-func TestLargeStringWrites(t *testing.T) {
+-	var buf Buffer;
+-	for i := 3; i < 30; i += 3 {
+-		s := fillString(t, "TestLargeWrites (1)", &buf, "", 5, data);
+-		empty(t, "TestLargeStringWrites (2)", &buf, s, make([]byte, len(data)/i));
+-	}
+-	check(t, "TestLargeStringWrites (3)", &buf, "");
+-}
+-
+-
+-func TestLargeByteWrites(t *testing.T) {
+-	var buf Buffer;
+-	for i := 3; i < 30; i += 3 {
+-		s := fillBytes(t, "TestLargeWrites (1)", &buf, "", 5, bytes);
+-		empty(t, "TestLargeByteWrites (2)", &buf, s, make([]byte, len(data)/i));
+-	}
+-	check(t, "TestLargeByteWrites (3)", &buf, "");
+-}
+-
+-
+-func TestLargeStringReads(t *testing.T) {
+-	var buf Buffer;
+-	for i := 3; i < 30; i += 3 {
+-		s := fillString(t, "TestLargeReads (1)", &buf, "", 5, data[0 : len(data)/i]);
+-		empty(t, "TestLargeReads (2)", &buf, s, make([]byte, len(data)));
+-	}
+-	check(t, "TestLargeStringReads (3)", &buf, "");
+-}
+-
+-
+-func TestLargeByteReads(t *testing.T) {
+-	var buf Buffer;
+-	for i := 3; i < 30; i += 3 {
+-		s := fillBytes(t, "TestLargeReads (1)", &buf, "", 5, bytes[0 : len(bytes)/i]);
+-		empty(t, "TestLargeReads (2)", &buf, s, make([]byte, len(data)));
+-	}
+-	check(t, "TestLargeByteReads (3)", &buf, "");
+-}
+-
+-
+-func TestMixedReadsAndWrites(t *testing.T) {
+-	var buf Buffer;
+-	s := "";
+-	for i := 0; i < 50; i++ {
+-		wlen := rand.Intn(len(data));
+-		if i % 2 == 0 {
+-			s = fillString(t, "TestMixedReadsAndWrites (1)", &buf, s, 1, data[0 : wlen]);
+-		} else {
+-			s = fillBytes(t, "TestMixedReadsAndWrites (1)", &buf, s, 1, bytes[0 : wlen]);
+-		}
+-
+-		rlen := rand.Intn(len(data));
+-		fub := make([]byte, rlen);
+-		n, _ := buf.Read(fub);
+-		s = s[n : len(s)];
+-	}
+-	empty(t, "TestMixedReadsAndWrites (2)", &buf, s, make([]byte, buf.Len()));
+-}

@@ -10,6 +10,19 @@ Date:   Thu Mar 3 13:01:09 2016 +1100
     Reviewed-on: https://go-review.googlesource.com/20122
     Run-TryBot: Rob Pike <r@golang.org>
     Reviewed-by: Dave Cheney <dave@cheney.net>
-
+---
  src/math/sqrt.go | 4 ----
  1 file changed, 4 deletions(-)
+
+diff --git a/src/math/sqrt.go b/src/math/sqrt.go
+index b633a4a6ad..7e95f2365b 100644
+--- a/src/math/sqrt.go
++++ b/src/math/sqrt.go
+@@ -142,7 +142,3 @@ func sqrt(x float64) float64 {
+ 	ix = q>>1 + uint64(exp-1+bias)<<shift // significand + biased exponent
+ 	return Float64frombits(ix)
+ }
+-
+-func sqrtC(f float64, r *float64) {
+-	*r = sqrt(f)
+-}

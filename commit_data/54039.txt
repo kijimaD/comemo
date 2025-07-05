@@ -21,8 +21,113 @@ Date:   Fri Sep 16 10:41:15 2022 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Auto-Submit: Keith Randall <khr@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/cmd/compile/internal/liveness/plive.go    |  6 +++---
  src/cmd/compile/internal/typebits/typebits.go | 15 +++++++++++---
  test/fixedbugs/issue54991.go                  | 29 +++++++++++++++++++++++++++
  3 files changed, 44 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/liveness/plive.go b/src/cmd/compile/internal/liveness/plive.go
+index 1a2d3a45c9..20342e292c 100644
+--- a/src/cmd/compile/internal/liveness/plive.go
++++ b/src/cmd/compile/internal/liveness/plive.go
+@@ -425,7 +425,7 @@ func (lv *liveness) pointerMap(liveout bitvec.BitVec, vars []*ir.Name, args, loc
+ 				if node.FrameOffset() < 0 {
+ 					lv.f.Fatalf("Node %v has frameoffset %d\n", node.Sym().Name, node.FrameOffset())
+ 				}
+-				typebits.Set(node.Type(), node.FrameOffset(), args)
++				typebits.SetNoCheck(node.Type(), node.FrameOffset(), args)
+ 				break
+ 			}
+ 			fallthrough // PPARAMOUT in registers acts memory-allocates like an AUTO
+@@ -1498,7 +1498,7 @@ func WriteFuncMap(fn *ir.Func, abiInfo *abi.ABIParamResultInfo) {
+ 	bv := bitvec.New(int32(nptr) * 2)
+ 
+ 	for _, p := range abiInfo.InParams() {
+-		typebits.Set(p.Type, p.FrameOffset(abiInfo), bv)
++		typebits.SetNoCheck(p.Type, p.FrameOffset(abiInfo), bv)
+ 	}
+ 
+ 	nbitmap := 1
+@@ -1513,7 +1513,7 @@ func WriteFuncMap(fn *ir.Func, abiInfo *abi.ABIParamResultInfo) {
+ 	if fn.Type().NumResults() > 0 {
+ 		for _, p := range abiInfo.OutParams() {
+ 			if len(p.Registers) == 0 {
+-				typebits.Set(p.Type, p.FrameOffset(abiInfo), bv)
++				typebits.SetNoCheck(p.Type, p.FrameOffset(abiInfo), bv)
+ 			}
+ 		}
+ 		off = objw.BitVec(lsym, off, bv)
+diff --git a/src/cmd/compile/internal/typebits/typebits.go b/src/cmd/compile/internal/typebits/typebits.go
+index 06c1d12a34..b533212e9e 100644
+--- a/src/cmd/compile/internal/typebits/typebits.go
++++ b/src/cmd/compile/internal/typebits/typebits.go
+@@ -14,7 +14,16 @@ import (
+ // the first run and then simply copied into bv at the correct offset
+ // on future calls with the same type t.
+ func Set(t *types.Type, off int64, bv bitvec.BitVec) {
+-	if uint8(t.Alignment()) > 0 && off&int64(uint8(t.Alignment())-1) != 0 {
++	set(t, off, bv, false)
++}
++
++// SetNoCheck is like Set, but do not check for alignment.
++func SetNoCheck(t *types.Type, off int64, bv bitvec.BitVec) {
++	set(t, off, bv, true)
++}
++
++func set(t *types.Type, off int64, bv bitvec.BitVec, skip bool) {
++	if !skip && uint8(t.Alignment()) > 0 && off&int64(uint8(t.Alignment())-1) != 0 {
+ 		base.Fatalf("typebits.Set: invalid initial alignment: type %v has alignment %d, but offset is %v", t, uint8(t.Alignment()), off)
+ 	}
+ 	if !t.HasPointers() {
+@@ -72,13 +81,13 @@ func Set(t *types.Type, off int64, bv bitvec.BitVec) {
+ 			break
+ 		}
+ 		for i := int64(0); i < t.NumElem(); i++ {
+-			Set(elt, off, bv)
++			set(elt, off, bv, skip)
+ 			off += elt.Size()
+ 		}
+ 
+ 	case types.TSTRUCT:
+ 		for _, f := range t.Fields().Slice() {
+-			Set(f.Type, off+f.Offset, bv)
++			set(f.Type, off+f.Offset, bv, skip)
+ 		}
+ 
+ 	default:
+diff --git a/test/fixedbugs/issue54991.go b/test/fixedbugs/issue54991.go
+new file mode 100644
+index 0000000000..9ab0f5d06c
+--- /dev/null
++++ b/test/fixedbugs/issue54991.go
+@@ -0,0 +1,29 @@
++// compile
++
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++import (
++	"sync/atomic"
++)
++
++type I interface {
++	M()
++}
++
++type S struct{}
++
++func (*S) M() {}
++
++type T struct {
++	I
++	x atomic.Int64
++}
++
++func F() {
++	t := &T{I: &S{}}
++	t.M()
++}

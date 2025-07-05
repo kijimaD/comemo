@@ -11,7 +11,7 @@ Date:   Tue Sep 20 14:59:39 2016 +1200
     Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/link/internal/ld/ar.go       | 2 +-
  src/cmd/link/internal/ld/data.go     | 4 ++--
  src/cmd/link/internal/ld/deadcode.go | 4 ++--
@@ -29,3 +29,347 @@ Date:   Tue Sep 20 14:59:39 2016 +1200
  src/cmd/link/internal/ld/sym.go      | 8 ++++----
  src/cmd/link/internal/ld/symtab.go   | 2 +-
  16 files changed, 32 insertions(+), 32 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/ar.go b/src/cmd/link/internal/ld/ar.go
+index ba5f2ef759..c6391729af 100644
+--- a/src/cmd/link/internal/ld/ar.go
++++ b/src/cmd/link/internal/ld/ar.go
+@@ -99,7 +99,7 @@ func hostArchive(ctxt *Link, name string) {
+ 	any := true
+ 	for any {
+ 		var load []uint64
+-		for _, s := range ctxt.Allsym {
++		for _, s := range ctxt.Syms.Allsym {
+ 			for _, r := range s.R {
+ 				if r.Sym != nil && r.Sym.Type&obj.SMASK == obj.SXREF {
+ 					if off := armap[r.Sym.Name]; off != 0 && !loaded[off] {
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index c9a2e13f2e..f84e959d80 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -1060,7 +1060,7 @@ func addinitarrdata(ctxt *Link, s *Symbol) {
+ }
+ 
+ func dosymtype(ctxt *Link) {
+-	for _, s := range ctxt.Allsym {
++	for _, s := range ctxt.Syms.Allsym {
+ 		if len(s.P) > 0 {
+ 			if s.Type == obj.SBSS {
+ 				s.Type = obj.SDATA
+@@ -1208,7 +1208,7 @@ func (ctxt *Link) dodata() {
+ 
+ 	// Collect data symbols by type into data.
+ 	var data [obj.SXREF][]*Symbol
+-	for _, s := range ctxt.Allsym {
++	for _, s := range ctxt.Syms.Allsym {
+ 		if !s.Attr.Reachable() || s.Attr.Special() {
+ 			continue
+ 		}
+diff --git a/src/cmd/link/internal/ld/deadcode.go b/src/cmd/link/internal/ld/deadcode.go
+index 6d3f74a039..0494479bcd 100644
+--- a/src/cmd/link/internal/ld/deadcode.go
++++ b/src/cmd/link/internal/ld/deadcode.go
+@@ -110,7 +110,7 @@ func deadcode(ctxt *Link) {
+ 	if Buildmode != BuildmodeShared {
+ 		// Keep a typelink or itablink if the symbol it points at is being kept.
+ 		// (When BuildmodeShared, always keep typelinks and itablinks.)
+-		for _, s := range ctxt.Allsym {
++		for _, s := range ctxt.Syms.Allsym {
+ 			if strings.HasPrefix(s.Name, "go.typelink.") ||
+ 				strings.HasPrefix(s.Name, "go.itablink.") {
+ 				s.Attr.Set(AttrReachable, len(s.R) == 1 && s.R[0].Sym.Attr.Reachable())
+@@ -232,7 +232,7 @@ func (d *deadcodepass) init() {
+ 	if Buildmode == BuildmodeShared {
+ 		// Mark all symbols defined in this library as reachable when
+ 		// building a shared library.
+-		for _, s := range d.ctxt.Allsym {
++		for _, s := range d.ctxt.Syms.Allsym {
+ 			if s.Type != 0 && s.Type != obj.SDYNIMPORT {
+ 				d.mark(s, nil)
+ 			}
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index a3d3360c7e..9d0b5ce325 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -1462,7 +1462,7 @@ func elfdynhash(ctxt *Link) {
+ 	buckets := make([]uint32, nbucket)
+ 
+ 	var b int
+-	for _, sy := range ctxt.Allsym {
++	for _, sy := range ctxt.Syms.Allsym {
+ 		if sy.Dynid <= 0 {
+ 			continue
+ 		}
+diff --git a/src/cmd/link/internal/ld/go.go b/src/cmd/link/internal/ld/go.go
+index 7309f99dbf..935beb6648 100644
+--- a/src/cmd/link/internal/ld/go.go
++++ b/src/cmd/link/internal/ld/go.go
+@@ -334,7 +334,7 @@ func Adddynsym(ctxt *Link, s *Symbol) {
+ func fieldtrack(ctxt *Link) {
+ 	// record field tracking references
+ 	var buf bytes.Buffer
+-	for _, s := range ctxt.Allsym {
++	for _, s := range ctxt.Syms.Allsym {
+ 		if strings.HasPrefix(s.Name, "go.track.") {
+ 			s.Attr |= AttrSpecial // do not lay out in data segment
+ 			s.Attr |= AttrHidden
+diff --git a/src/cmd/link/internal/ld/ldelf.go b/src/cmd/link/internal/ld/ldelf.go
+index f6799e2e71..8468a9102e 100644
+--- a/src/cmd/link/internal/ld/ldelf.go
++++ b/src/cmd/link/internal/ld/ldelf.go
+@@ -445,7 +445,7 @@ func ldelf(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
+ 		ctxt.Logf("%5.2f ldelf %s\n", obj.Cputime(), pn)
+ 	}
+ 
+-	ctxt.IncVersion()
++	ctxt.Syms.IncVersion()
+ 	base := f.Offset()
+ 
+ 	var add uint64
+@@ -702,7 +702,7 @@ func ldelf(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
+ 		}
+ 
+ 		name = fmt.Sprintf("%s(%s)", pkg, sect.name)
+-		s = Linklookup(ctxt, name, ctxt.Version)
++		s = Linklookup(ctxt, name, ctxt.Syms.Version)
+ 
+ 		switch int(sect.flags) & (ElfSectFlagAlloc | ElfSectFlagWrite | ElfSectFlagExec) {
+ 		default:
+@@ -1059,7 +1059,7 @@ func readelfsym(ctxt *Link, elfobj *ElfObj, i int, sym *ElfSym, needSym int) (er
+ 				// We need to be able to look this up,
+ 				// so put it in the hash table.
+ 				if needSym != 0 {
+-					s = Linklookup(ctxt, sym.name, ctxt.Version)
++					s = Linklookup(ctxt, sym.name, ctxt.Syms.Version)
+ 					s.Type |= obj.SHIDDEN
+ 				}
+ 
+@@ -1070,7 +1070,7 @@ func readelfsym(ctxt *Link, elfobj *ElfObj, i int, sym *ElfSym, needSym int) (er
+ 				// local names and hidden global names are unique
+ 				// and should only be referenced by their index, not name, so we
+ 				// don't bother to add them into the hash table
+-				s = linknewsym(ctxt, sym.name, ctxt.Version)
++				s = linknewsym(ctxt, sym.name, ctxt.Syms.Version)
+ 
+ 				s.Type |= obj.SHIDDEN
+ 			}
+diff --git a/src/cmd/link/internal/ld/ldmacho.go b/src/cmd/link/internal/ld/ldmacho.go
+index 0c07edf57d..e78711014c 100644
+--- a/src/cmd/link/internal/ld/ldmacho.go
++++ b/src/cmd/link/internal/ld/ldmacho.go
+@@ -444,7 +444,7 @@ func ldmacho(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
+ 	var rp *Reloc
+ 	var name string
+ 
+-	ctxt.IncVersion()
++	ctxt.Syms.IncVersion()
+ 	base := f.Offset()
+ 	if _, err := io.ReadFull(f, hdr[:]); err != nil {
+ 		goto bad
+@@ -587,7 +587,7 @@ func ldmacho(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
+ 			continue
+ 		}
+ 		name = fmt.Sprintf("%s(%s/%s)", pkg, sect.segname, sect.name)
+-		s = Linklookup(ctxt, name, ctxt.Version)
++		s = Linklookup(ctxt, name, ctxt.Syms.Version)
+ 		if s.Type != 0 {
+ 			err = fmt.Errorf("duplicate %s/%s", sect.segname, sect.name)
+ 			goto bad
+@@ -634,7 +634,7 @@ func ldmacho(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
+ 		}
+ 		v := 0
+ 		if sym.type_&N_EXT == 0 {
+-			v = ctxt.Version
++			v = ctxt.Syms.Version
+ 		}
+ 		s = Linklookup(ctxt, name, v)
+ 		if sym.type_&N_EXT == 0 {
+diff --git a/src/cmd/link/internal/ld/ldpe.go b/src/cmd/link/internal/ld/ldpe.go
+index d7e98e142e..56f225f50a 100644
+--- a/src/cmd/link/internal/ld/ldpe.go
++++ b/src/cmd/link/internal/ld/ldpe.go
+@@ -136,7 +136,7 @@ func ldpe(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
+ 	}
+ 
+ 	var sect *PeSect
+-	ctxt.IncVersion()
++	ctxt.Syms.IncVersion()
+ 	base := f.Offset()
+ 
+ 	peobj := new(PeObj)
+@@ -246,7 +246,7 @@ func ldpe(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
+ 		}
+ 
+ 		name = fmt.Sprintf("%s(%s)", pkg, sect.name)
+-		s = Linklookup(ctxt, name, ctxt.Version)
++		s = Linklookup(ctxt, name, ctxt.Syms.Version)
+ 
+ 		switch sect.sh.Characteristics & (IMAGE_SCN_CNT_UNINITIALIZED_DATA | IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE | IMAGE_SCN_CNT_CODE | IMAGE_SCN_MEM_EXECUTE) {
+ 		case IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ: //.rdata
+@@ -514,7 +514,7 @@ func readpesym(ctxt *Link, peobj *PeObj, i int, y **PeSym) (err error) {
+ 			s = Linklookup(ctxt, name, 0)
+ 
+ 		case IMAGE_SYM_CLASS_NULL, IMAGE_SYM_CLASS_STATIC, IMAGE_SYM_CLASS_LABEL:
+-			s = Linklookup(ctxt, name, ctxt.Version)
++			s = Linklookup(ctxt, name, ctxt.Syms.Version)
+ 			s.Attr |= AttrDuplicateOK
+ 
+ 		default:
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 552f08e7e4..0a524a934a 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -461,7 +461,7 @@ func (ctxt *Link) loadlib() {
+ 	if Linkmode == LinkInternal {
+ 		// Drop all the cgo_import_static declarations.
+ 		// Turns out we won't be needing them.
+-		for _, s := range ctxt.Allsym {
++		for _, s := range ctxt.Syms.Allsym {
+ 			if s.Type == obj.SHOSTOBJ {
+ 				// If a symbol was marked both
+ 				// cgo_import_static and cgo_import_dynamic,
+@@ -553,7 +553,7 @@ func (ctxt *Link) loadlib() {
+ 		// If we have any undefined symbols in external
+ 		// objects, try to read them from the libgcc file.
+ 		any := false
+-		for _, s := range ctxt.Allsym {
++		for _, s := range ctxt.Syms.Allsym {
+ 			for _, r := range s.R {
+ 				if r.Sym != nil && r.Sym.Type&obj.SMASK == obj.SXREF && r.Sym.Name != ".got" {
+ 					any = true
+@@ -1817,7 +1817,7 @@ func genasmsym(ctxt *Link, put func(*Link, *Symbol, string, SymbolType, int64, *
+ 		put(ctxt, s, s.Name, TextSym, s.Value, nil)
+ 	}
+ 
+-	for _, s := range ctxt.Allsym {
++	for _, s := range ctxt.Syms.Allsym {
+ 		if s.Attr.Hidden() {
+ 			continue
+ 		}
+diff --git a/src/cmd/link/internal/ld/link.go b/src/cmd/link/internal/ld/link.go
+index ccb8493737..0bec88e082 100644
+--- a/src/cmd/link/internal/ld/link.go
++++ b/src/cmd/link/internal/ld/link.go
+@@ -173,7 +173,7 @@ type Shlib struct {
+ // Link holds the context for writing object code from a compiler
+ // or for reading that input into the linker.
+ type Link struct {
+-	Symbols
++	Syms *Symbols
+ 
+ 	Arch      *sys.Arch
+ 	Debugvlog int
+diff --git a/src/cmd/link/internal/ld/macho.go b/src/cmd/link/internal/ld/macho.go
+index f2f767faf8..cc4f15a6ff 100644
+--- a/src/cmd/link/internal/ld/macho.go
++++ b/src/cmd/link/internal/ld/macho.go
+@@ -658,7 +658,7 @@ func (x machoscmp) Less(i, j int) bool {
+ 
+ func machogenasmsym(ctxt *Link) {
+ 	genasmsym(ctxt, addsym)
+-	for _, s := range ctxt.Allsym {
++	for _, s := range ctxt.Syms.Allsym {
+ 		if s.Type == obj.SDYNIMPORT || s.Type == obj.SHOSTOBJ {
+ 			if s.Attr.Reachable() {
+ 				addsym(ctxt, s, "", DataSym, 0, nil)
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index a0486e6cd6..522fcfb9c7 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -210,7 +210,7 @@ func Main() {
+ 	ctxt.archive()
+ 	if ctxt.Debugvlog != 0 {
+ 		ctxt.Logf("%5.2f cpu time\n", obj.Cputime())
+-		ctxt.Logf("%d symbols\n", len(ctxt.Allsym))
++		ctxt.Logf("%d symbols\n", len(ctxt.Syms.Allsym))
+ 		ctxt.Logf("%d liveness data\n", liveness)
+ 	}
+ 
+diff --git a/src/cmd/link/internal/ld/objfile.go b/src/cmd/link/internal/ld/objfile.go
+index ee48252867..8b49aac7cb 100644
+--- a/src/cmd/link/internal/ld/objfile.go
++++ b/src/cmd/link/internal/ld/objfile.go
+@@ -167,7 +167,7 @@ func LoadObjFile(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string)
+ 
+ func (r *objReader) loadObjFile() {
+ 	// Increment context version, versions are used to differentiate static files in different packages
+-	r.ctxt.IncVersion()
++	r.ctxt.Syms.IncVersion()
+ 
+ 	// Magic header
+ 	var buf [8]uint8
+@@ -452,7 +452,7 @@ func (r *objReader) readRef() {
+ 		log.Fatalf("invalid symbol version %d", v)
+ 	}
+ 	if v == 1 {
+-		v = r.ctxt.Version
++		v = r.ctxt.Syms.Version
+ 	}
+ 	s := Linklookup(r.ctxt, name, v)
+ 	r.refs = append(r.refs, s)
+diff --git a/src/cmd/link/internal/ld/pe.go b/src/cmd/link/internal/ld/pe.go
+index 6f23592e65..ca0fc75573 100644
+--- a/src/cmd/link/internal/ld/pe.go
++++ b/src/cmd/link/internal/ld/pe.go
+@@ -477,7 +477,7 @@ func initdynimport(ctxt *Link) *Dll {
+ 
+ 	dr = nil
+ 	var m *Imp
+-	for _, s := range ctxt.Allsym {
++	for _, s := range ctxt.Syms.Allsym {
+ 		if !s.Attr.Reachable() || s.Type != obj.SDYNIMPORT {
+ 			continue
+ 		}
+@@ -681,7 +681,7 @@ func (s byExtname) Less(i, j int) bool { return s[i].Extname < s[j].Extname }
+ 
+ func initdynexport(ctxt *Link) {
+ 	nexport = 0
+-	for _, s := range ctxt.Allsym {
++	for _, s := range ctxt.Syms.Allsym {
+ 		if !s.Attr.Reachable() || !s.Attr.CgoExportDynamic() {
+ 			continue
+ 		}
+diff --git a/src/cmd/link/internal/ld/sym.go b/src/cmd/link/internal/ld/sym.go
+index 4cdbac49df..7d3797d769 100644
+--- a/src/cmd/link/internal/ld/sym.go
++++ b/src/cmd/link/internal/ld/sym.go
+@@ -39,7 +39,7 @@ import (
+ 
+ func linknew(arch *sys.Arch) *Link {
+ 	ctxt := &Link{
+-		Symbols: Symbols{
++		Syms: &Symbols{
+ 			hash: []map[string]*Symbol{
+ 				// preallocate about 2mb for hash of
+ 				// non static symbols
+@@ -134,14 +134,14 @@ func (ctxt *Link) computeTLSOffset() {
+ }
+ 
+ func linknewsym(ctxt *Link, name string, v int) *Symbol {
+-	return ctxt.newsym(name, v)
++	return ctxt.Syms.newsym(name, v)
+ }
+ 
+ func Linklookup(ctxt *Link, name string, v int) *Symbol {
+-	return ctxt.Lookup(name, v)
++	return ctxt.Syms.Lookup(name, v)
+ }
+ 
+ // read-only lookup
+ func Linkrlookup(ctxt *Link, name string, v int) *Symbol {
+-	return ctxt.ROLookup(name, v)
++	return ctxt.Syms.ROLookup(name, v)
+ }
+diff --git a/src/cmd/link/internal/ld/symtab.go b/src/cmd/link/internal/ld/symtab.go
+index 1a3d6f16df..06394cb497 100644
+--- a/src/cmd/link/internal/ld/symtab.go
++++ b/src/cmd/link/internal/ld/symtab.go
+@@ -413,7 +413,7 @@ func (ctxt *Link) symtab() {
+ 	// within a type they sort by size, so the .* symbols
+ 	// just defined above will be first.
+ 	// hide the specific symbols.
+-	for _, s := range ctxt.Allsym {
++	for _, s := range ctxt.Syms.Allsym {
+ 		if !s.Attr.Reachable() || s.Attr.Special() || s.Type != obj.SRODATA {
+ 			continue
+ 		}

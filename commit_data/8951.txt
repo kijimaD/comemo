@@ -13,10 +13,202 @@ Date:   Wed Jul 6 14:46:41 2011 +1000
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/4668054
-
+---
  src/pkg/exp/template/exec.go     | 26 ++++++++++++++++++++++++--
  src/pkg/exp/template/lex.go      | 22 ++++++++++++++++++++--
  src/pkg/exp/template/lex_test.go |  5 +++++
  src/pkg/exp/template/parse.go    |  1 +
  src/pkg/exp/template/set.go      | 18 ++++++++++++++++++
  5 files changed, 68 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/exp/template/exec.go b/src/pkg/exp/template/exec.go
+index 3ea54eafaa..befb2ded9a 100644
+--- a/src/pkg/exp/template/exec.go
++++ b/src/pkg/exp/template/exec.go
+@@ -10,6 +10,8 @@ import (
+ 	"os"
+ 	"reflect"
+ 	"strings"
++	"unicode"
++	"utf8"
+ )
+ 
+ // state represents the state of an execution. It's not part of the
+@@ -69,16 +71,20 @@ func (s *state) walk(data reflect.Value, n node) {
+ 			s.walk(data, node)
+ 		}
+ 	case *ifNode:
++		s.line = n.line
+ 		s.walkIfOrWith(nodeIf, data, n.pipeline, n.list, n.elseList)
+ 	case *rangeNode:
++		s.line = n.line
+ 		s.walkRange(data, n)
+ 	case *textNode:
+ 		if _, err := s.wr.Write(n.text); err != nil {
+ 			s.error(err)
+ 		}
+ 	case *templateNode:
++		s.line = n.line
+ 		s.walkTemplate(data, n)
+ 	case *withNode:
++		s.line = n.line
+ 		s.walkIfOrWith(nodeWith, data, n.pipeline, n.list, n.elseList)
+ 	default:
+ 		s.errorf("unknown node: %s", n)
+@@ -230,6 +236,12 @@ func (s *state) evalFieldNode(data reflect.Value, field *fieldNode, args []node,
+ 	return s.evalFieldOrCall(data, field.ident[n-1], args, final)
+ }
+ 
++// Is this an exported - upper case - name?
++func isExported(name string) bool {
++	rune, _ := utf8.DecodeRuneInString(name)
++	return unicode.IsUpper(rune)
++}
++
+ func (s *state) evalField(data reflect.Value, fieldName string) reflect.Value {
+ 	for data.Kind() == reflect.Ptr {
+ 		data = reflect.Indirect(data)
+@@ -240,7 +252,7 @@ func (s *state) evalField(data reflect.Value, fieldName string) reflect.Value {
+ 		field := data.FieldByName(fieldName)
+ 		// TODO: look higher up the tree if we can't find it here. Also unexported fields
+ 		// might succeed higher up, as map keys.
+-		if field.IsValid() && field.Type().PkgPath() == "" { // valid and exported
++		if field.IsValid() && isExported(fieldName) { // valid and exported
+ 			return field
+ 		}
+ 		s.errorf("%s has no field %s", data.Type(), fieldName)
+@@ -260,7 +272,7 @@ func (s *state) evalFieldOrCall(data reflect.Value, fieldName string, args []nod
+ 		ptr, data = data, reflect.Indirect(data)
+ 	}
+ 	// Is it a method? We use the pointer because it has value methods too.
+-	if method, ok := ptr.Type().MethodByName(fieldName); ok {
++	if method, ok := methodByName(ptr.Type(), fieldName); ok {
+ 		return s.evalCall(ptr, method.Func, fieldName, true, args, final)
+ 	}
+ 	if len(args) > 1 || final.IsValid() {
+@@ -275,6 +287,16 @@ func (s *state) evalFieldOrCall(data reflect.Value, fieldName string, args []nod
+ 	panic("not reached")
+ }
+ 
++// TODO: delete when reflect's own MethodByName is released.
++func methodByName(typ reflect.Type, name string) (reflect.Method, bool) {
++	for i := 0; i < typ.NumMethod(); i++ {
++		if typ.Method(i).Name == name {
++			return typ.Method(i), true
++		}
++	}
++	return reflect.Method{}, false
++}
++
+ var (
+ 	osErrorType = reflect.TypeOf(new(os.Error)).Elem()
+ )
+diff --git a/src/pkg/exp/template/lex.go b/src/pkg/exp/template/lex.go
+index 435762c03e..7230f5b025 100644
+--- a/src/pkg/exp/template/lex.go
++++ b/src/pkg/exp/template/lex.go
+@@ -209,8 +209,12 @@ func lex(name, input string) *lexer {
+ 
+ // state functions
+ 
+-const leftMeta = "{{"
+-const rightMeta = "}}"
++const (
++	leftMeta     = "{{"
++	rightMeta    = "}}"
++	leftComment  = "{{/*"
++	rightComment = "*/}}"
++)
+ 
+ // lexText scans until a metacharacter
+ func lexText(l *lexer) stateFn {
+@@ -235,11 +239,25 @@ func lexText(l *lexer) stateFn {
+ 
+ // leftMeta scans the left "metacharacter", which is known to be present.
+ func lexLeftMeta(l *lexer) stateFn {
++	if strings.HasPrefix(l.input[l.pos:], leftComment) {
++		return lexComment
++	}
+ 	l.pos += len(leftMeta)
+ 	l.emit(itemLeftMeta)
+ 	return lexInsideAction
+ }
+ 
++// lexComment scans a comment. The left comment marker is known to be present.
++func lexComment(l *lexer) stateFn {
++	i := strings.Index(l.input[l.pos:], rightComment)
++	if i < 0 {
++		return l.errorf("unclosed comment")
++	}
++	l.pos += i + len(rightComment)
++	l.ignore()
++	return lexText
++}
++
+ // rightMeta scans the right "metacharacter", which is known to be present.
+ func lexRightMeta(l *lexer) stateFn {
+ 	l.pos += len(rightMeta)
+diff --git a/src/pkg/exp/template/lex_test.go b/src/pkg/exp/template/lex_test.go
+index 67c4bb0600..ba0568ef3c 100644
+--- a/src/pkg/exp/template/lex_test.go
++++ b/src/pkg/exp/template/lex_test.go
+@@ -31,6 +31,11 @@ var lexTests = []lexTest{
+ 	{"empty", "", []item{tEOF}},
+ 	{"spaces", " \t\n", []item{{itemText, " \t\n"}, tEOF}},
+ 	{"text", `now is the time`, []item{{itemText, "now is the time"}, tEOF}},
++	{"text with comment", "hello-{{/* this is a comment */}}-world", []item{
++		{itemText, "hello-"},
++		{itemText, "-world"},
++		tEOF,
++	}},
+ 	{"empty action", `{{}}`, []item{tLeft, tRight, tEOF}},
+ 	{"for", `{{for }}`, []item{tLeft, tFor, tRight, tEOF}},
+ 	{"quote", `{{"abc \n\t\" "}}`, []item{tLeft, tQuote, tRight, tEOF}},
+diff --git a/src/pkg/exp/template/parse.go b/src/pkg/exp/template/parse.go
+index 23f3665d62..2ef95fd457 100644
+--- a/src/pkg/exp/template/parse.go
++++ b/src/pkg/exp/template/parse.go
+@@ -648,6 +648,7 @@ func (t *Template) pipeline(context string) (pipe []*commandNode) {
+ }
+ 
+ func (t *Template) parseControl(context string) (lineNum int, pipe []*commandNode, list, elseList *listNode) {
++	lineNum = t.lex.lineNumber()
+ 	pipe = t.pipeline(context)
+ 	var next node
+ 	list, next = t.itemList(false)
+diff --git a/src/pkg/exp/template/set.go b/src/pkg/exp/template/set.go
+index 8b38135861..58bbb0c129 100644
+--- a/src/pkg/exp/template/set.go
++++ b/src/pkg/exp/template/set.go
+@@ -6,6 +6,7 @@ package template
+ 
+ import (
+ 	"fmt"
++	"io"
+ 	"os"
+ 	"reflect"
+ 	"runtime"
+@@ -49,6 +50,23 @@ func (s *Set) Add(templates ...*Template) *Set {
+ 	return s
+ }
+ 
++// Template returns the template with the given name in the set,
++// or nil if there is no such template.
++func (s *Set) Template(name string) *Template {
++	return s.tmpl[name]
++}
++
++// Execute looks for the named template in the set and then applies that
++// template to the specified data object, writing the output to wr.  Nested
++// template invocations will be resolved from the set.
++func (s *Set) Execute(name string, wr io.Writer, data interface{}) os.Error {
++	tmpl := s.tmpl[name]
++	if tmpl == nil {
++		return fmt.Errorf("template: no template %q in set", name)
++	}
++	return tmpl.ExecuteInSet(wr, data, s)
++}
++
+ // recover is the handler that turns panics into returns from the top
+ // level of Parse.
+ func (s *Set) recover(errp *os.Error) {

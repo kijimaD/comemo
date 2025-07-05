@@ -7,9 +7,94 @@ Date:   Fri Jan 22 16:58:33 2010 -0800
     R=r
     CC=golang-dev
     https://golang.org/cl/190104
-
+---
  src/cmd/gc/Makefile   |  5 ++---
  src/cmd/gc/mkbuiltin  | 21 +++++++--------------
  src/cmd/gc/runtime.go |  4 ++++
  src/cmd/gc/unsafe.go  |  4 ++++
  4 files changed, 17 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/gc/Makefile b/src/cmd/gc/Makefile
+index 40254c709c..99dbd51622 100644
+--- a/src/cmd/gc/Makefile
++++ b/src/cmd/gc/Makefile
+@@ -54,9 +54,8 @@ y.tab.h: $(YFILES)
+ y.tab.c: y.tab.h
+ 	test -f y.tab.c && touch y.tab.c
+ 
+-builtin.c:	runtime.go unsafe.go mkbuiltin1.c mkbuiltin
+-	./mkbuiltin || \
+-	(echo 'mkbuiltin failed; using bootstrap copy of builtin.c'; cp builtin.c.boot builtin.c)
++builtin.c: builtin.c.boot
++	cp builtin.c.boot builtin.c
+ 
+ subr.$O: opnames.h
+ 
+diff --git a/src/cmd/gc/mkbuiltin b/src/cmd/gc/mkbuiltin
+index ea12b686f2..13309ec320 100755
+--- a/src/cmd/gc/mkbuiltin
++++ b/src/cmd/gc/mkbuiltin
+@@ -3,6 +3,11 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
++# Generate builtin.c and builtin.c.boot from $* (runtime.go and unsafe.go).
++# Run this after changing runtime.go and unsafe.go
++# or after changing the export metadata format in the compiler.
++# Either way, you need to have a working compiler binary first.
++
+ set -e
+ 
+ GOBIN="${GOBIN:-$HOME/bin}"
+@@ -22,19 +27,7 @@ do
+ done
+ 
+ # If _builtin.c has changed vs builtin.c.boot,
+-# check in the new change if being run by
+-# one of the people who tends to work on
+-# the compiler.  This makes sure that changes
+-# don't get forgotten, without causing problems
+-# in end user Go repositories.
+-case "$USER" in
+-ken | r | rsc)
+-	if ! cmp _builtin.c builtin.c.boot >/dev/null 2>/dev/null
+-	then
+-		PATH=$PATH:/usr/local/bin	# find p4 on OS X
+-		p4 open builtin.c.boot >/dev/null 2>/dev/null || true	# if p4 is missing, so be it
+-		cp _builtin.c builtin.c.boot
+-	fi
+-esac
++# check in the new change.
++cmp -s _builtin.c builtin.c.boot || cp _builtin.c builtin.c.boot
+ 
+ mv _builtin.c builtin.c
+diff --git a/src/cmd/gc/runtime.go b/src/cmd/gc/runtime.go
+index 2e21d25119..880b9c9d8d 100644
+--- a/src/cmd/gc/runtime.go
++++ b/src/cmd/gc/runtime.go
+@@ -2,6 +2,10 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// NOTE: If you change this file you must run "./mkbuiltin"
++// to update builtin.c.boot.  This is not done automatically
++// to avoid depending on having a working compiler binary.
++
+ package PACKAGE
+ 
+ // emitted by compiler, not referred to by go programs
+diff --git a/src/cmd/gc/unsafe.go b/src/cmd/gc/unsafe.go
+index 00fae062e5..bd7b7771a7 100644
+--- a/src/cmd/gc/unsafe.go
++++ b/src/cmd/gc/unsafe.go
+@@ -2,6 +2,10 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// NOTE: If you change this file you must run "./mkbuiltin"
++// to update builtin.c.boot.  This is not done automatically
++// to avoid depending on having a working compiler binary.
++
+ package PACKAGE
+ 
+ type Pointer *any

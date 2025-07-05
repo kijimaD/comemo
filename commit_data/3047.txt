@@ -10,8 +10,52 @@ Date:   Fri Aug 21 15:43:23 2009 -0700
     DELTA=9  (2 added, 5 deleted, 2 changed)
     OCL=33674
     CL=33682
-
+---
  test/ken/divconst.go | 2 --
  test/ken/modconst.go | 2 --
  test/method1.go      | 5 ++---
  3 files changed, 2 insertions(+), 7 deletions(-)
+
+diff --git a/test/ken/divconst.go b/test/ken/divconst.go
+index 5801975eb3..29f1b067c9 100644
+--- a/test/ken/divconst.go
++++ b/test/ken/divconst.go
+@@ -458,8 +458,6 @@ u8run()
+ 	}
+ }
+ 
+-func	xtest()
+-
+ func
+ main()
+ {
+diff --git a/test/ken/modconst.go b/test/ken/modconst.go
+index ad720f448b..7c35edeaa9 100644
+--- a/test/ken/modconst.go
++++ b/test/ken/modconst.go
+@@ -458,8 +458,6 @@ u8run()
+ 	}
+ }
+ 
+-func	xtest()
+-
+ func
+ main()
+ {
+diff --git a/test/method1.go b/test/method1.go
+index b6aacfea4d..a562e3663e 100644
+--- a/test/method1.go
++++ b/test/method1.go
+@@ -1,4 +1,4 @@
+-// # errchk $G $D/$F.go
++// errchk $G $D/$F.go
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+@@ -14,5 +14,4 @@ func f(int, string);	// GCCGO_ERROR "previous"
+ func f(int, float) { }  // ERROR "redeclared|redefinition"
+ 
+ func g(a int, b string);  // GCCGO_ERROR "previous"
+-func g(a int, c string);  // ERROR "names changed"
+-
++func g(a int, c string);  // ERROR "redeclared|redefinition"

@@ -7,6 +7,22 @@ Date:   Fri Sep 6 16:15:30 2013 -0400
     R=golang-dev
     CC=golang-dev
     https://golang.org/cl/13521044
-
+---
  test/syntax/chan1.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/test/syntax/chan1.go b/test/syntax/chan1.go
+index 868a1226d9..4860422ad8 100644
+--- a/test/syntax/chan1.go
++++ b/test/syntax/chan1.go
+@@ -10,8 +10,8 @@ var c chan int
+ var v int
+ 
+ func main() {
+-	if c <- v { // ERROR "send statement.*value.*select"
++	if c <- v { // ERROR "used as value"
+ 	}
+ }
+ 
+-var _ = c <- v // ERROR "send statement.*value.*select"
++var _ = c <- v // ERROR "used as value"

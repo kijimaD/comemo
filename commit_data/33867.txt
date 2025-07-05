@@ -15,7 +15,42 @@ Date:   Tue Sep 12 13:42:10 2017 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/cmd/compile/internal/gc/bexport.go | 6 +-----
  src/cmd/compile/internal/gc/bimport.go | 6 +-----
  2 files changed, 2 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index 076b8a91e2..7608d927a5 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -1227,11 +1227,7 @@ func (p *exporter) expr(n *Node) {
+ 	case OTYPE:
+ 		p.op(OTYPE)
+ 		p.pos(n)
+-		if p.bool(n.Type == nil) {
+-			p.sym(n)
+-		} else {
+-			p.typ(n.Type)
+-		}
++		p.typ(n.Type)
+ 
+ 	// case OTARRAY, OTMAP, OTCHAN, OTSTRUCT, OTINTER, OTFUNC:
+ 	// 	should have been resolved by typechecking - handled by default case
+diff --git a/src/cmd/compile/internal/gc/bimport.go b/src/cmd/compile/internal/gc/bimport.go
+index 661d34112b..7cd155c4cb 100644
+--- a/src/cmd/compile/internal/gc/bimport.go
++++ b/src/cmd/compile/internal/gc/bimport.go
+@@ -947,11 +947,7 @@ func (p *importer) node() *Node {
+ 	// 	unreachable - should have been resolved by typechecking
+ 
+ 	case OTYPE:
+-		pos := p.pos()
+-		if p.bool() {
+-			return npos(pos, mkname(p.sym()))
+-		}
+-		return npos(pos, typenod(p.typ()))
++		return npos(p.pos(), typenod(p.typ()))
+ 
+ 	// case OTARRAY, OTMAP, OTCHAN, OTSTRUCT, OTINTER, OTFUNC:
+ 	//      unreachable - should have been resolved by typechecking

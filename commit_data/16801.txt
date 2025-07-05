@@ -7,6 +7,28 @@ Date:   Thu Jul 18 10:11:43 2013 +1000
     R=golang-dev, r, rsc
     CC=golang-dev
     https://golang.org/cl/11436043
-
+---
  src/cmd/ld/lib.c | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/cmd/ld/lib.c b/src/cmd/ld/lib.c
+index 1447f4d658..3ebdd65033 100644
+--- a/src/cmd/ld/lib.c
++++ b/src/cmd/ld/lib.c
+@@ -1614,6 +1614,7 @@ static int32
+ pctospadj(Sym *sym, int32 oldval, Prog *p, int32 phase, int32 arg)
+ {
+ 	USED(arg);
++	USED(sym);
+ 
+ 	if(oldval == -1) // starting
+ 		oldval = 0;
+@@ -1634,6 +1635,8 @@ pctospadj(Sym *sym, int32 oldval, Prog *p, int32 phase, int32 arg)
+ static int32
+ pctopcdata(Sym *sym, int32 oldval, Prog *p, int32 phase, int32 arg)
+ {
++	USED(sym);
++
+ 	if(phase == 0 || p->as != APCDATA || p->from.offset != arg)
+ 		return oldval;
+ 	if((int32)p->to.offset != p->to.offset) {

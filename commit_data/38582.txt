@@ -15,7 +15,7 @@ Date:   Wed Nov 7 15:27:16 2018 -0800
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/syscall/bpf_bsd.go               |   2 +-
  src/syscall/bpf_darwin.go            | 185 +++++++++++++++++++++++++++++++++++
  src/syscall/exec_unix.go             |   8 +-
@@ -31,3 +31,719 @@ Date:   Wed Nov 7 15:27:16 2018 -0800
  src/syscall/zsyscall_darwin_arm.go   |  49 +++++++---
  src/syscall/zsyscall_darwin_arm64.go |  49 +++++++---
  14 files changed, 378 insertions(+), 75 deletions(-)
+
+diff --git a/src/syscall/bpf_bsd.go b/src/syscall/bpf_bsd.go
+index 8b587559ed..f67ee6064b 100644
+--- a/src/syscall/bpf_bsd.go
++++ b/src/syscall/bpf_bsd.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd netbsd openbsd
++// +build dragonfly freebsd netbsd openbsd
+ 
+ // Berkeley packet filter for BSD variants
+ 
+diff --git a/src/syscall/bpf_darwin.go b/src/syscall/bpf_darwin.go
+new file mode 100644
+index 0000000000..fb86049ae9
+--- /dev/null
++++ b/src/syscall/bpf_darwin.go
+@@ -0,0 +1,185 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Berkeley packet filter for Darwin
++
++package syscall
++
++import (
++	"unsafe"
++)
++
++// Deprecated: Use golang.org/x/net/bpf instead.
++func BpfStmt(code, k int) *BpfInsn {
++	return &BpfInsn{Code: uint16(code), K: uint32(k)}
++}
++
++// Deprecated: Use golang.org/x/net/bpf instead.
++func BpfJump(code, k, jt, jf int) *BpfInsn {
++	return &BpfInsn{Code: uint16(code), Jt: uint8(jt), Jf: uint8(jf), K: uint32(k)}
++}
++
++// Deprecated: Use golang.org/x/net/bpf instead.
++func BpfBuflen(fd int) (int, error) {
++	var l int
++	err := ioctlPtr(fd, BIOCGBLEN, unsafe.Pointer(&l))
++	if err != nil {
++		return 0, err
++	}
++	return l, nil
++}
++
++// Deprecated: Use golang.org/x/net/bpf instead.
++func SetBpfBuflen(fd, l int) (int, error) {
++	err := ioctlPtr(fd, BIOCSBLEN, unsafe.Pointer(&l))
++	if err != nil {
++		return 0, err
++	}
++	return l, nil
++}
++
++// Deprecated: Use golang.org/x/net/bpf instead.
++func BpfDatalink(fd int) (int, error) {
++	var t int
++	err := ioctlPtr(fd, BIOCGDLT, unsafe.Pointer(&t))
++	if err != nil {
++		return 0, err
++	}
++	return t, nil
++}
++
++// Deprecated: Use golang.org/x/net/bpf instead.
++func SetBpfDatalink(fd, t int) (int, error) {
++	err := ioctlPtr(fd, BIOCSDLT, unsafe.Pointer(&t))
++	if err != nil {
++		return 0, err
++	}
++	return t, nil
++}
++
++// Deprecated: Use golang.org/x/net/bpf instead.
++func SetBpfPromisc(fd, m int) error {
++	err := ioctlPtr(fd, BIOCPROMISC, unsafe.Pointer(&m))
++	if err != nil {
++		return err
++	}
++	return nil
++}
++
++// Deprecated: Use golang.org/x/net/bpf instead.
++func FlushBpf(fd int) error {
++	err := ioctlPtr(fd, BIOCFLUSH, nil)
++	if err != nil {
++		return err
++	}
++	return nil
++}
++
++type ivalue struct {
++	name  [IFNAMSIZ]byte
++	value int16
++}
++
++// Deprecated: Use golang.org/x/net/bpf instead.
++func BpfInterface(fd int, name string) (string, error) {
++	var iv ivalue
++	err := ioctlPtr(fd, BIOCGETIF, unsafe.Pointer(&iv))
++	if err != nil {
++		return "", err
++	}
++	return name, nil
++}
++
++// Deprecated: Use golang.org/x/net/bpf instead.
++func SetBpfInterface(fd int, name string) error {
++	var iv ivalue
++	copy(iv.name[:], []byte(name))
++	err := ioctlPtr(fd, BIOCSETIF, unsafe.Pointer(&iv))
++	if err != nil {
++		return err
++	}
++	return nil
++}
++
++// Deprecated: Use golang.org/x/net/bpf instead.
++func BpfTimeout(fd int) (*Timeval, error) {
++	var tv Timeval
++	err := ioctlPtr(fd, BIOCGRTIMEOUT, unsafe.Pointer(&tv))
++	if err != nil {
++		return nil, err
++	}
++	return &tv, nil
++}
++
++// Deprecated: Use golang.org/x/net/bpf instead.
++func SetBpfTimeout(fd int, tv *Timeval) error {
++	err := ioctlPtr(fd, BIOCSRTIMEOUT, unsafe.Pointer(tv))
++	if err != nil {
++		return err
++	}
++	return nil
++}
++
++// Deprecated: Use golang.org/x/net/bpf instead.
++func BpfStats(fd int) (*BpfStat, error) {
++	var s BpfStat
++	err := ioctlPtr(fd, BIOCGSTATS, unsafe.Pointer(&s))
++	if err != nil {
++		return nil, err
++	}
++	return &s, nil
++}
++
++// Deprecated: Use golang.org/x/net/bpf instead.
++func SetBpfImmediate(fd, m int) error {
++	err := ioctlPtr(fd, BIOCIMMEDIATE, unsafe.Pointer(&m))
++	if err != nil {
++		return err
++	}
++	return nil
++}
++
++// Deprecated: Use golang.org/x/net/bpf instead.
++func SetBpf(fd int, i []BpfInsn) error {
++	var p BpfProgram
++	p.Len = uint32(len(i))
++	p.Insns = (*BpfInsn)(unsafe.Pointer(&i[0]))
++	err := ioctlPtr(fd, BIOCSETF, unsafe.Pointer(&p))
++	if err != nil {
++		return err
++	}
++	return nil
++}
++
++// Deprecated: Use golang.org/x/net/bpf instead.
++func CheckBpfVersion(fd int) error {
++	var v BpfVersion
++	err := ioctlPtr(fd, BIOCVERSION, unsafe.Pointer(&v))
++	if err != nil {
++		return err
++	}
++	if v.Major != BPF_MAJOR_VERSION || v.Minor != BPF_MINOR_VERSION {
++		return EINVAL
++	}
++	return nil
++}
++
++// Deprecated: Use golang.org/x/net/bpf instead.
++func BpfHeadercmpl(fd int) (int, error) {
++	var f int
++	err := ioctlPtr(fd, BIOCGHDRCMPLT, unsafe.Pointer(&f))
++	if err != nil {
++		return 0, err
++	}
++	return f, nil
++}
++
++// Deprecated: Use golang.org/x/net/bpf instead.
++func SetBpfHeadercmpl(fd, f int) error {
++	err := ioctlPtr(fd, BIOCSHDRCMPLT, unsafe.Pointer(&f))
++	if err != nil {
++		return err
++	}
++	return nil
++}
+diff --git a/src/syscall/exec_unix.go b/src/syscall/exec_unix.go
+index 3b84256b8e..997ccab07e 100644
+--- a/src/syscall/exec_unix.go
++++ b/src/syscall/exec_unix.go
+@@ -248,7 +248,8 @@ func runtime_AfterExec()
+ 
+ // execveLibc is non-nil on OS using libc syscall, set to execve in exec_libc.go; this
+ // avoids a build dependency for other platforms.
+-var execveLibc func(path uintptr, argv uintptr, envp uintptr) (err Errno)
++var execveLibc func(path uintptr, argv uintptr, envp uintptr) Errno
++var execveDarwin func(path *byte, argv **byte, envp **byte) error
+ 
+ // Exec invokes the execve(2) system call.
+ func Exec(argv0 string, argv []string, envv []string) (err error) {
+@@ -266,13 +267,16 @@ func Exec(argv0 string, argv []string, envv []string) (err error) {
+ 	}
+ 	runtime_BeforeExec()
+ 
+-	var err1 Errno
++	var err1 error
+ 	if runtime.GOOS == "solaris" || runtime.GOOS == "aix" {
+ 		// RawSyscall should never be used on Solaris or AIX.
+ 		err1 = execveLibc(
+ 			uintptr(unsafe.Pointer(argv0p)),
+ 			uintptr(unsafe.Pointer(&argvp[0])),
+ 			uintptr(unsafe.Pointer(&envvp[0])))
++	} else if runtime.GOOS == "darwin" {
++		// Similarly on Darwin.
++		err1 = execveDarwin(argv0p, &argvp[0], &envvp[0])
+ 	} else {
+ 		_, _, err1 = RawSyscall(SYS_EXECVE,
+ 			uintptr(unsafe.Pointer(argv0p)),
+diff --git a/src/syscall/flock.go b/src/syscall/flock.go
+index 62736ae9dc..568efca7d4 100644
+--- a/src/syscall/flock.go
++++ b/src/syscall/flock.go
+@@ -1,4 +1,4 @@
+-// +build linux darwin freebsd openbsd netbsd dragonfly
++// +build linux freebsd openbsd netbsd dragonfly
+ 
+ // Copyright 2014 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/src/syscall/flock_darwin.go b/src/syscall/flock_darwin.go
+new file mode 100644
+index 0000000000..d2bd84130c
+--- /dev/null
++++ b/src/syscall/flock_darwin.go
+@@ -0,0 +1,13 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package syscall
++
++import "unsafe"
++
++// FcntlFlock performs a fcntl syscall for the F_GETLK, F_SETLK or F_SETLKW command.
++func FcntlFlock(fd uintptr, cmd int, lk *Flock_t) error {
++	_, err := fcntlPtr(int(fd), cmd, unsafe.Pointer(lk))
++	return err
++}
+diff --git a/src/syscall/mkasm_darwin.go b/src/syscall/mkasm_darwin.go
+index 0cd2d3068f..f6f75f99f6 100644
+--- a/src/syscall/mkasm_darwin.go
++++ b/src/syscall/mkasm_darwin.go
+@@ -33,6 +33,8 @@ func main() {
+ 	}
+ 	in := string(in1) + string(in2) + string(in3)
+ 
++	trampolines := map[string]bool{}
++
+ 	var out bytes.Buffer
+ 
+ 	fmt.Fprintf(&out, "// go run mkasm_darwin.go %s\n", strings.Join(os.Args[1:], " "))
+@@ -43,8 +45,11 @@ func main() {
+ 			continue
+ 		}
+ 		fn := line[5 : len(line)-13]
+-		fmt.Fprintf(&out, "TEXT ·%s_trampoline(SB),NOSPLIT,$0-0\n", fn)
+-		fmt.Fprintf(&out, "\tJMP\t%s(SB)\n", fn)
++		if !trampolines[fn] {
++			trampolines[fn] = true
++			fmt.Fprintf(&out, "TEXT ·%s_trampoline(SB),NOSPLIT,$0-0\n", fn)
++			fmt.Fprintf(&out, "\tJMP\t%s(SB)\n", fn)
++		}
+ 	}
+ 	err = ioutil.WriteFile(fmt.Sprintf("zsyscall_darwin_%s.s", arch), out.Bytes(), 0644)
+ 	if err != nil {
+diff --git a/src/syscall/mksyscall.pl b/src/syscall/mksyscall.pl
+index 889ae44428..079b08dcb9 100755
+--- a/src/syscall/mksyscall.pl
++++ b/src/syscall/mksyscall.pl
+@@ -99,6 +99,9 @@ sub parseparam($) {
+ 	return ($1, $2);
+ }
+ 
++# set of trampolines we've already generated
++my %trampolines;
++
+ my $text = "";
+ while(<>) {
+ 	chomp;
+@@ -338,14 +341,17 @@ while(<>) {
+ 	$text .= "\treturn\n";
+ 	$text .= "}\n\n";
+ 	if($darwin) {
+-		# The assembly trampoline that jumps to the libc routine.
+-		$text .= "func ${funcname}_trampoline()\n";
+-		# Map syscall.funcname to just plain funcname.
+-		# (The jump to this function is in the assembly trampoline, generated by mksyscallasm_darwin.go.)
+-		$text .= "//go:linkname $funcname $funcname\n";
+-		# Tell the linker that funcname can be found in libSystem using varname without the libc_ prefix.
+-		my $basename = substr $funcname, 5;
+-		$text .= "//go:cgo_import_dynamic $funcname $basename \"/usr/lib/libSystem.B.dylib\"\n";
++		if (not exists $trampolines{$funcname}) {
++			$trampolines{$funcname} = 1;
++			# The assembly trampoline that jumps to the libc routine.
++			$text .= "func ${funcname}_trampoline()\n";
++			# Map syscall.funcname to just plain funcname.
++			# (The jump to this function is in the assembly trampoline, generated by mksyscallasm_darwin.go.)
++			$text .= "//go:linkname $funcname $funcname\n";
++			# Tell the linker that funcname can be found in libSystem using varname without the libc_ prefix.
++			my $basename = substr $funcname, 5;
++			$text .= "//go:cgo_import_dynamic $funcname $basename \"/usr/lib/libSystem.B.dylib\"\n";
++		}
+ 	}
+ }
+ 
+diff --git a/src/syscall/syscall_darwin.go b/src/syscall/syscall_darwin.go
+index 0118af3a1e..9763856ef5 100644
+--- a/src/syscall/syscall_darwin.go
++++ b/src/syscall/syscall_darwin.go
+@@ -339,9 +339,15 @@ func Kill(pid int, signum Signal) (err error) { return kill(pid, int(signum), 1)
+ //sys   munmap(addr uintptr, length uintptr) (err error)
+ //sysnb fork() (pid int, err error)
+ //sysnb ioctl(fd int, req int, arg int) (err error)
+-//sysnb execve(path *byte, argv *byte, envp *byte) (err error)
++//sysnb ioctlPtr(fd int, req uint, arg unsafe.Pointer) (err error) = SYS_ioctl
++//sysnb execve(path *byte, argv **byte, envp **byte) (err error)
+ //sysnb exit(res int) (err error)
+ //sys	sysctl(mib []_C_int, old *byte, oldlen *uintptr, new *byte, newlen uintptr) (err error)
++//sys	fcntlPtr(fd int, cmd int, arg unsafe.Pointer) (val int, err error) = SYS_fcntl
++
++func init() {
++	execveDarwin = execve
++}
+ 
+ func readlen(fd int, buf *byte, nbuf int) (n int, err error) {
+ 	r0, _, e1 := syscall(funcPC(libc_read_trampoline), uintptr(fd), uintptr(unsafe.Pointer(buf)), uintptr(nbuf))
+diff --git a/src/syscall/zsyscall_darwin_386.go b/src/syscall/zsyscall_darwin_386.go
+index a0397d25d6..bcc42440d4 100644
+--- a/src/syscall/zsyscall_darwin_386.go
++++ b/src/syscall/zsyscall_darwin_386.go
+@@ -1738,6 +1738,27 @@ func libc_write_trampoline()
+ //go:cgo_import_dynamic libc_write write "/usr/lib/libSystem.B.dylib"
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func writev(fd int, iovecs []Iovec) (cnt uintptr, err error) {
++	var _p0 unsafe.Pointer
++	if len(iovecs) > 0 {
++		_p0 = unsafe.Pointer(&iovecs[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
++	}
++	r0, _, e1 := syscall(funcPC(libc_writev_trampoline), uintptr(fd), uintptr(_p0), uintptr(len(iovecs)))
++	cnt = uintptr(r0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++func libc_writev_trampoline()
++
++//go:linkname libc_writev libc_writev
++//go:cgo_import_dynamic libc_writev writev "/usr/lib/libSystem.B.dylib"
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func mmap(addr uintptr, length uintptr, prot int, flag int, fd int, pos int64) (ret uintptr, err error) {
+ 	r0, _, e1 := syscall9(funcPC(libc_mmap_trampoline), uintptr(addr), uintptr(length), uintptr(prot), uintptr(flag), uintptr(fd), uintptr(pos), uintptr(pos>>32), 0, 0)
+ 	ret = uintptr(r0)
+@@ -1796,7 +1817,17 @@ func libc_ioctl_trampoline()
+ //go:cgo_import_dynamic libc_ioctl ioctl "/usr/lib/libSystem.B.dylib"
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func execve(path *byte, argv *byte, envp *byte) (err error) {
++func ioctlPtr(fd int, req uint, arg unsafe.Pointer) (err error) {
++	_, _, e1 := rawSyscall(funcPC(libc_ioctl_trampoline), uintptr(fd), uintptr(req), uintptr(arg))
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func execve(path *byte, argv **byte, envp **byte) (err error) {
+ 	_, _, e1 := rawSyscall(funcPC(libc_execve_trampoline), uintptr(unsafe.Pointer(path)), uintptr(unsafe.Pointer(argv)), uintptr(unsafe.Pointer(envp)))
+ 	if e1 != 0 {
+ 		err = errnoErr(e1)
+@@ -1844,25 +1875,15 @@ func libc_sysctl_trampoline()
+ //go:cgo_import_dynamic libc_sysctl sysctl "/usr/lib/libSystem.B.dylib"
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func writev(fd int, iovecs []Iovec) (cnt uintptr, err error) {
+-	var _p0 unsafe.Pointer
+-	if len(iovecs) > 0 {
+-		_p0 = unsafe.Pointer(&iovecs[0])
+-	} else {
+-		_p0 = unsafe.Pointer(&_zero)
+-	}
+-	r0, _, e1 := syscall(funcPC(libc_writev_trampoline), uintptr(fd), uintptr(_p0), uintptr(len(iovecs)))
+-	cnt = uintptr(r0)
++func fcntlPtr(fd int, cmd int, arg unsafe.Pointer) (val int, err error) {
++	r0, _, e1 := syscall(funcPC(libc_fcntl_trampoline), uintptr(fd), uintptr(cmd), uintptr(arg))
++	val = int(r0)
+ 	if e1 != 0 {
+ 		err = errnoErr(e1)
+ 	}
+ 	return
+ }
+ 
+-func libc_writev_trampoline()
+-
+-//go:linkname libc_writev libc_writev
+-//go:cgo_import_dynamic libc_writev writev "/usr/lib/libSystem.B.dylib"
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Gettimeofday(tp *Timeval) (err error) {
+diff --git a/src/syscall/zsyscall_darwin_386.s b/src/syscall/zsyscall_darwin_386.s
+index fa69eac359..481caa982e 100644
+--- a/src/syscall/zsyscall_darwin_386.s
++++ b/src/syscall/zsyscall_darwin_386.s
+@@ -223,6 +223,8 @@ TEXT ·libc_unmount_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_unmount(SB)
+ TEXT ·libc_write_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_write(SB)
++TEXT ·libc_writev_trampoline(SB),NOSPLIT,$0-0
++	JMP	libc_writev(SB)
+ TEXT ·libc_mmap_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_mmap(SB)
+ TEXT ·libc_munmap_trampoline(SB),NOSPLIT,$0-0
+@@ -237,7 +239,5 @@ TEXT ·libc_exit_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_exit(SB)
+ TEXT ·libc_sysctl_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_sysctl(SB)
+-TEXT ·libc_writev_trampoline(SB),NOSPLIT,$0-0
+-	JMP	libc_writev(SB)
+ TEXT ·libc_gettimeofday_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_gettimeofday(SB)
+diff --git a/src/syscall/zsyscall_darwin_amd64.go b/src/syscall/zsyscall_darwin_amd64.go
+index 6ead6d11d7..6a077a31fd 100644
+--- a/src/syscall/zsyscall_darwin_amd64.go
++++ b/src/syscall/zsyscall_darwin_amd64.go
+@@ -1738,6 +1738,27 @@ func libc_write_trampoline()
+ //go:cgo_import_dynamic libc_write write "/usr/lib/libSystem.B.dylib"
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func writev(fd int, iovecs []Iovec) (cnt uintptr, err error) {
++	var _p0 unsafe.Pointer
++	if len(iovecs) > 0 {
++		_p0 = unsafe.Pointer(&iovecs[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
++	}
++	r0, _, e1 := syscallX(funcPC(libc_writev_trampoline), uintptr(fd), uintptr(_p0), uintptr(len(iovecs)))
++	cnt = uintptr(r0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++func libc_writev_trampoline()
++
++//go:linkname libc_writev libc_writev
++//go:cgo_import_dynamic libc_writev writev "/usr/lib/libSystem.B.dylib"
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func mmap(addr uintptr, length uintptr, prot int, flag int, fd int, pos int64) (ret uintptr, err error) {
+ 	r0, _, e1 := syscall6X(funcPC(libc_mmap_trampoline), uintptr(addr), uintptr(length), uintptr(prot), uintptr(flag), uintptr(fd), uintptr(pos))
+ 	ret = uintptr(r0)
+@@ -1796,7 +1817,17 @@ func libc_ioctl_trampoline()
+ //go:cgo_import_dynamic libc_ioctl ioctl "/usr/lib/libSystem.B.dylib"
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func execve(path *byte, argv *byte, envp *byte) (err error) {
++func ioctlPtr(fd int, req uint, arg unsafe.Pointer) (err error) {
++	_, _, e1 := rawSyscall(funcPC(libc_ioctl_trampoline), uintptr(fd), uintptr(req), uintptr(arg))
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func execve(path *byte, argv **byte, envp **byte) (err error) {
+ 	_, _, e1 := rawSyscall(funcPC(libc_execve_trampoline), uintptr(unsafe.Pointer(path)), uintptr(unsafe.Pointer(argv)), uintptr(unsafe.Pointer(envp)))
+ 	if e1 != 0 {
+ 		err = errnoErr(e1)
+@@ -1844,25 +1875,15 @@ func libc_sysctl_trampoline()
+ //go:cgo_import_dynamic libc_sysctl sysctl "/usr/lib/libSystem.B.dylib"
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func writev(fd int, iovecs []Iovec) (cnt uintptr, err error) {
+-	var _p0 unsafe.Pointer
+-	if len(iovecs) > 0 {
+-		_p0 = unsafe.Pointer(&iovecs[0])
+-	} else {
+-		_p0 = unsafe.Pointer(&_zero)
+-	}
+-	r0, _, e1 := syscallX(funcPC(libc_writev_trampoline), uintptr(fd), uintptr(_p0), uintptr(len(iovecs)))
+-	cnt = uintptr(r0)
++func fcntlPtr(fd int, cmd int, arg unsafe.Pointer) (val int, err error) {
++	r0, _, e1 := syscall(funcPC(libc_fcntl_trampoline), uintptr(fd), uintptr(cmd), uintptr(arg))
++	val = int(r0)
+ 	if e1 != 0 {
+ 		err = errnoErr(e1)
+ 	}
+ 	return
+ }
+ 
+-func libc_writev_trampoline()
+-
+-//go:linkname libc_writev libc_writev
+-//go:cgo_import_dynamic libc_writev writev "/usr/lib/libSystem.B.dylib"
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Gettimeofday(tp *Timeval) (err error) {
+diff --git a/src/syscall/zsyscall_darwin_amd64.s b/src/syscall/zsyscall_darwin_amd64.s
+index 1aec12be3c..54a8720513 100644
+--- a/src/syscall/zsyscall_darwin_amd64.s
++++ b/src/syscall/zsyscall_darwin_amd64.s
+@@ -223,6 +223,8 @@ TEXT ·libc_unmount_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_unmount(SB)
+ TEXT ·libc_write_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_write(SB)
++TEXT ·libc_writev_trampoline(SB),NOSPLIT,$0-0
++	JMP	libc_writev(SB)
+ TEXT ·libc_mmap_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_mmap(SB)
+ TEXT ·libc_munmap_trampoline(SB),NOSPLIT,$0-0
+@@ -237,7 +239,5 @@ TEXT ·libc_exit_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_exit(SB)
+ TEXT ·libc_sysctl_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_sysctl(SB)
+-TEXT ·libc_writev_trampoline(SB),NOSPLIT,$0-0
+-	JMP	libc_writev(SB)
+ TEXT ·libc_gettimeofday_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_gettimeofday(SB)
+diff --git a/src/syscall/zsyscall_darwin_arm.go b/src/syscall/zsyscall_darwin_arm.go
+index b65532df26..f1af2f6f38 100644
+--- a/src/syscall/zsyscall_darwin_arm.go
++++ b/src/syscall/zsyscall_darwin_arm.go
+@@ -1738,6 +1738,27 @@ func libc_write_trampoline()
+ //go:cgo_import_dynamic libc_write write "/usr/lib/libSystem.B.dylib"
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func writev(fd int, iovecs []Iovec) (cnt uintptr, err error) {
++	var _p0 unsafe.Pointer
++	if len(iovecs) > 0 {
++		_p0 = unsafe.Pointer(&iovecs[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
++	}
++	r0, _, e1 := syscall(funcPC(libc_writev_trampoline), uintptr(fd), uintptr(_p0), uintptr(len(iovecs)))
++	cnt = uintptr(r0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++func libc_writev_trampoline()
++
++//go:linkname libc_writev libc_writev
++//go:cgo_import_dynamic libc_writev writev "/usr/lib/libSystem.B.dylib"
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func mmap(addr uintptr, length uintptr, prot int, flag int, fd int, pos int64) (ret uintptr, err error) {
+ 	r0, _, e1 := syscall9(funcPC(libc_mmap_trampoline), uintptr(addr), uintptr(length), uintptr(prot), uintptr(flag), uintptr(fd), uintptr(pos), uintptr(pos>>32), 0, 0)
+ 	ret = uintptr(r0)
+@@ -1796,7 +1817,17 @@ func libc_ioctl_trampoline()
+ //go:cgo_import_dynamic libc_ioctl ioctl "/usr/lib/libSystem.B.dylib"
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func execve(path *byte, argv *byte, envp *byte) (err error) {
++func ioctlPtr(fd int, req uint, arg unsafe.Pointer) (err error) {
++	_, _, e1 := rawSyscall(funcPC(libc_ioctl_trampoline), uintptr(fd), uintptr(req), uintptr(arg))
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func execve(path *byte, argv **byte, envp **byte) (err error) {
+ 	_, _, e1 := rawSyscall(funcPC(libc_execve_trampoline), uintptr(unsafe.Pointer(path)), uintptr(unsafe.Pointer(argv)), uintptr(unsafe.Pointer(envp)))
+ 	if e1 != 0 {
+ 		err = errnoErr(e1)
+@@ -1844,25 +1875,15 @@ func libc_sysctl_trampoline()
+ //go:cgo_import_dynamic libc_sysctl sysctl "/usr/lib/libSystem.B.dylib"
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func writev(fd int, iovecs []Iovec) (cnt uintptr, err error) {
+-	var _p0 unsafe.Pointer
+-	if len(iovecs) > 0 {
+-		_p0 = unsafe.Pointer(&iovecs[0])
+-	} else {
+-		_p0 = unsafe.Pointer(&_zero)
+-	}
+-	r0, _, e1 := syscall(funcPC(libc_writev_trampoline), uintptr(fd), uintptr(_p0), uintptr(len(iovecs)))
+-	cnt = uintptr(r0)
++func fcntlPtr(fd int, cmd int, arg unsafe.Pointer) (val int, err error) {
++	r0, _, e1 := syscall(funcPC(libc_fcntl_trampoline), uintptr(fd), uintptr(cmd), uintptr(arg))
++	val = int(r0)
+ 	if e1 != 0 {
+ 		err = errnoErr(e1)
+ 	}
+ 	return
+ }
+ 
+-func libc_writev_trampoline()
+-
+-//go:linkname libc_writev libc_writev
+-//go:cgo_import_dynamic libc_writev writev "/usr/lib/libSystem.B.dylib"
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Gettimeofday(tp *Timeval) (err error) {
+diff --git a/src/syscall/zsyscall_darwin_arm64.go b/src/syscall/zsyscall_darwin_arm64.go
+index eaed3d9c4f..e4d8555284 100644
+--- a/src/syscall/zsyscall_darwin_arm64.go
++++ b/src/syscall/zsyscall_darwin_arm64.go
+@@ -1738,6 +1738,27 @@ func libc_write_trampoline()
+ //go:cgo_import_dynamic libc_write write "/usr/lib/libSystem.B.dylib"
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func writev(fd int, iovecs []Iovec) (cnt uintptr, err error) {
++	var _p0 unsafe.Pointer
++	if len(iovecs) > 0 {
++		_p0 = unsafe.Pointer(&iovecs[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
++	}
++	r0, _, e1 := syscallX(funcPC(libc_writev_trampoline), uintptr(fd), uintptr(_p0), uintptr(len(iovecs)))
++	cnt = uintptr(r0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++func libc_writev_trampoline()
++
++//go:linkname libc_writev libc_writev
++//go:cgo_import_dynamic libc_writev writev "/usr/lib/libSystem.B.dylib"
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func mmap(addr uintptr, length uintptr, prot int, flag int, fd int, pos int64) (ret uintptr, err error) {
+ 	r0, _, e1 := syscall6X(funcPC(libc_mmap_trampoline), uintptr(addr), uintptr(length), uintptr(prot), uintptr(flag), uintptr(fd), uintptr(pos))
+ 	ret = uintptr(r0)
+@@ -1796,7 +1817,17 @@ func libc_ioctl_trampoline()
+ //go:cgo_import_dynamic libc_ioctl ioctl "/usr/lib/libSystem.B.dylib"
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func execve(path *byte, argv *byte, envp *byte) (err error) {
++func ioctlPtr(fd int, req uint, arg unsafe.Pointer) (err error) {
++	_, _, e1 := rawSyscall(funcPC(libc_ioctl_trampoline), uintptr(fd), uintptr(req), uintptr(arg))
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func execve(path *byte, argv **byte, envp **byte) (err error) {
+ 	_, _, e1 := rawSyscall(funcPC(libc_execve_trampoline), uintptr(unsafe.Pointer(path)), uintptr(unsafe.Pointer(argv)), uintptr(unsafe.Pointer(envp)))
+ 	if e1 != 0 {
+ 		err = errnoErr(e1)
+@@ -1844,25 +1875,15 @@ func libc_sysctl_trampoline()
+ //go:cgo_import_dynamic libc_sysctl sysctl "/usr/lib/libSystem.B.dylib"
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func writev(fd int, iovecs []Iovec) (cnt uintptr, err error) {
+-	var _p0 unsafe.Pointer
+-	if len(iovecs) > 0 {
+-		_p0 = unsafe.Pointer(&iovecs[0])
+-	} else {
+-		_p0 = unsafe.Pointer(&_zero)
+-	}
+-	r0, _, e1 := syscallX(funcPC(libc_writev_trampoline), uintptr(fd), uintptr(_p0), uintptr(len(iovecs)))
+-	cnt = uintptr(r0)
++func fcntlPtr(fd int, cmd int, arg unsafe.Pointer) (val int, err error) {
++	r0, _, e1 := syscall(funcPC(libc_fcntl_trampoline), uintptr(fd), uintptr(cmd), uintptr(arg))
++	val = int(r0)
+ 	if e1 != 0 {
+ 		err = errnoErr(e1)
+ 	}
+ 	return
+ }
+ 
+-func libc_writev_trampoline()
+-
+-//go:linkname libc_writev libc_writev
+-//go:cgo_import_dynamic libc_writev writev "/usr/lib/libSystem.B.dylib"
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+ func Gettimeofday(tp *Timeval) (err error) {

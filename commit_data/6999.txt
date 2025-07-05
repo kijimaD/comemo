@@ -7,7 +7,43 @@ Date:   Fri Dec 17 13:22:20 2010 -0800
     R=r
     CC=golang-dev
     https://golang.org/cl/3750041
-
+---
  src/Make.pkg                 | 2 +-
  src/pkg/runtime/cgo/Makefile | 4 ++++
  2 files changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/Make.pkg b/src/Make.pkg
+index e4cdaae30b..a748ff346d 100644
+--- a/src/Make.pkg
++++ b/src/Make.pkg
+@@ -114,7 +114,6 @@ dir:
+ ifdef CGOFILES
+ _cgo_defun.c: $(CGOFILES)
+ 	CGOPKGPATH=$(dir) cgo -- $(CGO_CFLAGS) $(CGOFILES)
+-endif
+ 
+ # Ugly but necessary - cgo writes these files too.
+ _cgo_gotypes.go _cgo_export.c _cgo_export.h _cgo_main.c: _cgo_defun.c
+@@ -122,6 +121,7 @@ _cgo_gotypes.go _cgo_export.c _cgo_export.h _cgo_main.c: _cgo_defun.c
+ 
+ %.cgo1.go %.cgo2.c: _cgo_defun.c
+ 	@true
++endif
+ 
+ # Compile rules for gcc source files.
+ %.o: %.c
+diff --git a/src/pkg/runtime/cgo/Makefile b/src/pkg/runtime/cgo/Makefile
+index b825c17805..3e6ca84a2c 100644
+--- a/src/pkg/runtime/cgo/Makefile
++++ b/src/pkg/runtime/cgo/Makefile
+@@ -44,6 +44,10 @@ include ../../../Make.pkg
+ ifeq ($(ENABLED),1)
+ _cgo_defun.c:
+ 	echo >$@
++
++_cgo_main.c:
++	echo 'int main() { return 0; }' >$@
++	echo 'void *crosscall2;' >>$@
+ endif
+ 
+ $(GOARCH).o: $(GOARCH).S

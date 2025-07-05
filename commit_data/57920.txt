@@ -13,7 +13,7 @@ Date:   Fri Sep 8 16:25:02 2023 -0700
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/cmd/compile/internal/escape/utils.go        |  2 +-
  src/cmd/compile/internal/ir/expr.go             |  3 +-
  src/cmd/compile/internal/ir/fmt.go              | 11 +--
@@ -24,3 +24,356 @@ Date:   Fri Sep 8 16:25:02 2023 -0700
  src/cmd/compile/internal/typecheck/typecheck.go |  5 --
  src/cmd/compile/internal/typecheck/universe.go  |  3 -
  9 files changed, 48 insertions(+), 165 deletions(-)
+
+diff --git a/src/cmd/compile/internal/escape/utils.go b/src/cmd/compile/internal/escape/utils.go
+index b481d8e4b6..bd1d2c22a2 100644
+--- a/src/cmd/compile/internal/escape/utils.go
++++ b/src/cmd/compile/internal/escape/utils.go
+@@ -151,7 +151,7 @@ func mayAffectMemory(n ir.Node) bool {
+ 		n := n.(*ir.ConvExpr)
+ 		return mayAffectMemory(n.X)
+ 
+-	case ir.OLEN, ir.OCAP, ir.ONOT, ir.OBITNOT, ir.OPLUS, ir.ONEG, ir.OALIGNOF, ir.OOFFSETOF, ir.OSIZEOF:
++	case ir.OLEN, ir.OCAP, ir.ONOT, ir.OBITNOT, ir.OPLUS, ir.ONEG:
+ 		n := n.(*ir.UnaryExpr)
+ 		return mayAffectMemory(n.X)
+ 
+diff --git a/src/cmd/compile/internal/ir/expr.go b/src/cmd/compile/internal/ir/expr.go
+index 676045d27a..78d9f9692a 100644
+--- a/src/cmd/compile/internal/ir/expr.go
++++ b/src/cmd/compile/internal/ir/expr.go
+@@ -754,8 +754,7 @@ func (n *UnaryExpr) SetOp(op Op) {
+ 	default:
+ 		panic(n.no("SetOp " + op.String()))
+ 	case OBITNOT, ONEG, ONOT, OPLUS, ORECV,
+-		OALIGNOF, OCAP, OCLEAR, OCLOSE, OIMAG, OLEN, ONEW,
+-		OOFFSETOF, OPANIC, OREAL, OSIZEOF,
++		OCAP, OCLEAR, OCLOSE, OIMAG, OLEN, ONEW, OPANIC, OREAL,
+ 		OCHECKNIL, OCFUNC, OIDATA, OITAB, OSPTR,
+ 		OUNSAFESTRINGDATA, OUNSAFESLICEDATA:
+ 		n.op = op
+diff --git a/src/cmd/compile/internal/ir/fmt.go b/src/cmd/compile/internal/ir/fmt.go
+index b8a1754712..1dad811d41 100644
+--- a/src/cmd/compile/internal/ir/fmt.go
++++ b/src/cmd/compile/internal/ir/fmt.go
+@@ -27,7 +27,6 @@ var OpNames = []string{
+ 	OADDR:             "&",
+ 	OADD:              "+",
+ 	OADDSTR:           "+",
+-	OALIGNOF:          "unsafe.Alignof",
+ 	OANDAND:           "&&",
+ 	OANDNOT:           "&^",
+ 	OAND:              "&",
+@@ -70,7 +69,6 @@ var OpNames = []string{
+ 	ONEW:              "new",
+ 	ONE:               "!=",
+ 	ONOT:              "!",
+-	OOFFSETOF:         "unsafe.Offsetof",
+ 	OOROR:             "||",
+ 	OOR:               "|",
+ 	OPANIC:            "panic",
+@@ -85,7 +83,6 @@ var OpNames = []string{
+ 	ORSH:              ">>",
+ 	OSELECT:           "select",
+ 	OSEND:             "<-",
+-	OSIZEOF:           "unsafe.Sizeof",
+ 	OSUB:              "-",
+ 	OSWITCH:           "switch",
+ 	OUNSAFEADD:        "unsafe.Add",
+@@ -173,7 +170,6 @@ func fmtNode(n Node, s fmt.State, verb rune) {
+ }
+ 
+ var OpPrec = []int{
+-	OALIGNOF:          8,
+ 	OAPPEND:           8,
+ 	OBYTES2STR:        8,
+ 	OARRAYLIT:         8,
+@@ -206,13 +202,11 @@ var OpPrec = []int{
+ 	ONEW:              8,
+ 	ONIL:              8,
+ 	ONONAME:           8,
+-	OOFFSETOF:         8,
+ 	OPANIC:            8,
+ 	OPAREN:            8,
+ 	OPRINTN:           8,
+ 	OPRINT:            8,
+ 	ORUNESTR:          8,
+-	OSIZEOF:           8,
+ 	OSLICE2ARR:        8,
+ 	OSLICE2ARRPTR:     8,
+ 	OSTR2BYTES:        8,
+@@ -738,10 +732,7 @@ func exprFmt(n Node, s fmt.State, prec int) {
+ 		OCLOSE,
+ 		OLEN,
+ 		ONEW,
+-		OPANIC,
+-		OALIGNOF,
+-		OOFFSETOF,
+-		OSIZEOF:
++		OPANIC:
+ 		n := n.(*UnaryExpr)
+ 		fmt.Fprintf(s, "%v(%v)", n.Op(), n.X)
+ 
+diff --git a/src/cmd/compile/internal/ir/node.go b/src/cmd/compile/internal/ir/node.go
+index f91b6f44b3..b7b7dc10b8 100644
+--- a/src/cmd/compile/internal/ir/node.go
++++ b/src/cmd/compile/internal/ir/node.go
+@@ -244,9 +244,6 @@ const (
+ 	OREAL             // real(X)
+ 	OIMAG             // imag(X)
+ 	OCOMPLEX          // complex(X, Y)
+-	OALIGNOF          // unsafe.Alignof(X)
+-	OOFFSETOF         // unsafe.Offsetof(X)
+-	OSIZEOF           // unsafe.Sizeof(X)
+ 	OUNSAFEADD        // unsafe.Add(X, Y)
+ 	OUNSAFESLICE      // unsafe.Slice(X, Y)
+ 	OUNSAFESLICEDATA  // unsafe.SliceData(X)
+diff --git a/src/cmd/compile/internal/ir/op_string.go b/src/cmd/compile/internal/ir/op_string.go
+index 500a534d14..25d3672336 100644
+--- a/src/cmd/compile/internal/ir/op_string.go
++++ b/src/cmd/compile/internal/ir/op_string.go
+@@ -118,56 +118,53 @@ func _() {
+ 	_ = x[OREAL-107]
+ 	_ = x[OIMAG-108]
+ 	_ = x[OCOMPLEX-109]
+-	_ = x[OALIGNOF-110]
+-	_ = x[OOFFSETOF-111]
+-	_ = x[OSIZEOF-112]
+-	_ = x[OUNSAFEADD-113]
+-	_ = x[OUNSAFESLICE-114]
+-	_ = x[OUNSAFESLICEDATA-115]
+-	_ = x[OUNSAFESTRING-116]
+-	_ = x[OUNSAFESTRINGDATA-117]
+-	_ = x[OMETHEXPR-118]
+-	_ = x[OMETHVALUE-119]
+-	_ = x[OBLOCK-120]
+-	_ = x[OBREAK-121]
+-	_ = x[OCASE-122]
+-	_ = x[OCONTINUE-123]
+-	_ = x[ODEFER-124]
+-	_ = x[OFALL-125]
+-	_ = x[OFOR-126]
+-	_ = x[OGOTO-127]
+-	_ = x[OIF-128]
+-	_ = x[OLABEL-129]
+-	_ = x[OGO-130]
+-	_ = x[ORANGE-131]
+-	_ = x[ORETURN-132]
+-	_ = x[OSELECT-133]
+-	_ = x[OSWITCH-134]
+-	_ = x[OTYPESW-135]
+-	_ = x[OINLCALL-136]
+-	_ = x[OEFACE-137]
+-	_ = x[OITAB-138]
+-	_ = x[OIDATA-139]
+-	_ = x[OSPTR-140]
+-	_ = x[OCFUNC-141]
+-	_ = x[OCHECKNIL-142]
+-	_ = x[ORESULT-143]
+-	_ = x[OINLMARK-144]
+-	_ = x[OLINKSYMOFFSET-145]
+-	_ = x[OJUMPTABLE-146]
+-	_ = x[ODYNAMICDOTTYPE-147]
+-	_ = x[ODYNAMICDOTTYPE2-148]
+-	_ = x[ODYNAMICTYPE-149]
+-	_ = x[OTAILCALL-150]
+-	_ = x[OGETG-151]
+-	_ = x[OGETCALLERPC-152]
+-	_ = x[OGETCALLERSP-153]
+-	_ = x[OEND-154]
++	_ = x[OUNSAFEADD-110]
++	_ = x[OUNSAFESLICE-111]
++	_ = x[OUNSAFESLICEDATA-112]
++	_ = x[OUNSAFESTRING-113]
++	_ = x[OUNSAFESTRINGDATA-114]
++	_ = x[OMETHEXPR-115]
++	_ = x[OMETHVALUE-116]
++	_ = x[OBLOCK-117]
++	_ = x[OBREAK-118]
++	_ = x[OCASE-119]
++	_ = x[OCONTINUE-120]
++	_ = x[ODEFER-121]
++	_ = x[OFALL-122]
++	_ = x[OFOR-123]
++	_ = x[OGOTO-124]
++	_ = x[OIF-125]
++	_ = x[OLABEL-126]
++	_ = x[OGO-127]
++	_ = x[ORANGE-128]
++	_ = x[ORETURN-129]
++	_ = x[OSELECT-130]
++	_ = x[OSWITCH-131]
++	_ = x[OTYPESW-132]
++	_ = x[OINLCALL-133]
++	_ = x[OEFACE-134]
++	_ = x[OITAB-135]
++	_ = x[OIDATA-136]
++	_ = x[OSPTR-137]
++	_ = x[OCFUNC-138]
++	_ = x[OCHECKNIL-139]
++	_ = x[ORESULT-140]
++	_ = x[OINLMARK-141]
++	_ = x[OLINKSYMOFFSET-142]
++	_ = x[OJUMPTABLE-143]
++	_ = x[ODYNAMICDOTTYPE-144]
++	_ = x[ODYNAMICDOTTYPE2-145]
++	_ = x[ODYNAMICTYPE-146]
++	_ = x[OTAILCALL-147]
++	_ = x[OGETG-148]
++	_ = x[OGETCALLERPC-149]
++	_ = x[OGETCALLERSP-150]
++	_ = x[OEND-151]
+ }
+ 
+-const _Op_name = "XXXNAMENONAMETYPELITERALNILADDSUBORXORADDSTRADDRANDANDAPPENDBYTES2STRBYTES2STRTMPRUNES2STRSTR2BYTESSTR2BYTESTMPSTR2RUNESSLICE2ARRSLICE2ARRPTRASAS2AS2DOTTYPEAS2FUNCAS2MAPRAS2RECVASOPCALLCALLFUNCCALLMETHCALLINTERCAPCLEARCLOSECLOSURECOMPLITMAPLITSTRUCTLITARRAYLITSLICELITPTRLITCONVCONVIFACECONVIDATACONVNOPCOPYDCLDCLFUNCDELETEDOTDOTPTRDOTMETHDOTINTERXDOTDOTTYPEDOTTYPE2EQNELTLEGEGTDEREFINDEXINDEXMAPKEYSTRUCTKEYLENMAKEMAKECHANMAKEMAPMAKESLICEMAKESLICECOPYMULDIVMODLSHRSHANDANDNOTNEWNOTBITNOTPLUSNEGORORPANICPRINTPRINTNPARENSENDSLICESLICEARRSLICESTRSLICE3SLICE3ARRSLICEHEADERSTRINGHEADERRECOVERRECOVERFPRECVRUNESTRSELRECV2MINMAXREALIMAGCOMPLEXALIGNOFOFFSETOFSIZEOFUNSAFEADDUNSAFESLICEUNSAFESLICEDATAUNSAFESTRINGUNSAFESTRINGDATAMETHEXPRMETHVALUEBLOCKBREAKCASECONTINUEDEFERFALLFORGOTOIFLABELGORANGERETURNSELECTSWITCHTYPESWINLCALLEFACEITABIDATASPTRCFUNCCHECKNILRESULTINLMARKLINKSYMOFFSETJUMPTABLEDYNAMICDOTTYPEDYNAMICDOTTYPE2DYNAMICTYPETAILCALLGETGGETCALLERPCGETCALLERSPEND"
++const _Op_name = "XXXNAMENONAMETYPELITERALNILADDSUBORXORADDSTRADDRANDANDAPPENDBYTES2STRBYTES2STRTMPRUNES2STRSTR2BYTESSTR2BYTESTMPSTR2RUNESSLICE2ARRSLICE2ARRPTRASAS2AS2DOTTYPEAS2FUNCAS2MAPRAS2RECVASOPCALLCALLFUNCCALLMETHCALLINTERCAPCLEARCLOSECLOSURECOMPLITMAPLITSTRUCTLITARRAYLITSLICELITPTRLITCONVCONVIFACECONVIDATACONVNOPCOPYDCLDCLFUNCDELETEDOTDOTPTRDOTMETHDOTINTERXDOTDOTTYPEDOTTYPE2EQNELTLEGEGTDEREFINDEXINDEXMAPKEYSTRUCTKEYLENMAKEMAKECHANMAKEMAPMAKESLICEMAKESLICECOPYMULDIVMODLSHRSHANDANDNOTNEWNOTBITNOTPLUSNEGORORPANICPRINTPRINTNPARENSENDSLICESLICEARRSLICESTRSLICE3SLICE3ARRSLICEHEADERSTRINGHEADERRECOVERRECOVERFPRECVRUNESTRSELRECV2MINMAXREALIMAGCOMPLEXUNSAFEADDUNSAFESLICEUNSAFESLICEDATAUNSAFESTRINGUNSAFESTRINGDATAMETHEXPRMETHVALUEBLOCKBREAKCASECONTINUEDEFERFALLFORGOTOIFLABELGORANGERETURNSELECTSWITCHTYPESWINLCALLEFACEITABIDATASPTRCFUNCCHECKNILRESULTINLMARKLINKSYMOFFSETJUMPTABLEDYNAMICDOTTYPEDYNAMICDOTTYPE2DYNAMICTYPETAILCALLGETGGETCALLERPCGETCALLERSPEND"
+ 
+-var _Op_index = [...]uint16{0, 3, 7, 13, 17, 24, 27, 30, 33, 35, 38, 44, 48, 54, 60, 69, 81, 90, 99, 111, 120, 129, 141, 143, 146, 156, 163, 170, 177, 181, 185, 193, 201, 210, 213, 218, 223, 230, 237, 243, 252, 260, 268, 274, 278, 287, 296, 303, 307, 310, 317, 323, 326, 332, 339, 347, 351, 358, 366, 368, 370, 372, 374, 376, 378, 383, 388, 396, 399, 408, 411, 415, 423, 430, 439, 452, 455, 458, 461, 464, 467, 470, 476, 479, 482, 488, 492, 495, 499, 504, 509, 515, 520, 524, 529, 537, 545, 551, 560, 571, 583, 590, 599, 603, 610, 618, 621, 624, 628, 632, 639, 646, 654, 660, 669, 680, 695, 707, 723, 731, 740, 745, 750, 754, 762, 767, 771, 774, 778, 780, 785, 787, 792, 798, 804, 810, 816, 823, 828, 832, 837, 841, 846, 854, 860, 867, 880, 889, 903, 918, 929, 937, 941, 952, 963, 966}
++var _Op_index = [...]uint16{0, 3, 7, 13, 17, 24, 27, 30, 33, 35, 38, 44, 48, 54, 60, 69, 81, 90, 99, 111, 120, 129, 141, 143, 146, 156, 163, 170, 177, 181, 185, 193, 201, 210, 213, 218, 223, 230, 237, 243, 252, 260, 268, 274, 278, 287, 296, 303, 307, 310, 317, 323, 326, 332, 339, 347, 351, 358, 366, 368, 370, 372, 374, 376, 378, 383, 388, 396, 399, 408, 411, 415, 423, 430, 439, 452, 455, 458, 461, 464, 467, 470, 476, 479, 482, 488, 492, 495, 499, 504, 509, 515, 520, 524, 529, 537, 545, 551, 560, 571, 583, 590, 599, 603, 610, 618, 621, 624, 628, 632, 639, 648, 659, 674, 686, 702, 710, 719, 724, 729, 733, 741, 746, 750, 753, 757, 759, 764, 766, 771, 777, 783, 789, 795, 802, 807, 811, 816, 820, 825, 833, 839, 846, 859, 868, 882, 897, 908, 916, 920, 931, 942, 945}
+ 
+ func (i Op) String() string {
+ 	if i >= Op(len(_Op_index)-1) {
+diff --git a/src/cmd/compile/internal/typecheck/const.go b/src/cmd/compile/internal/typecheck/const.go
+index 9ad37033fd..56a2072d29 100644
+--- a/src/cmd/compile/internal/typecheck/const.go
++++ b/src/cmd/compile/internal/typecheck/const.go
+@@ -529,96 +529,3 @@ func callOrChan(n ir.Node) bool {
+ 	}
+ 	return false
+ }
+-
+-// evalunsafe evaluates a package unsafe operation and returns the result.
+-func evalunsafe(n ir.Node) int64 {
+-	switch n.Op() {
+-	case ir.OALIGNOF, ir.OSIZEOF:
+-		n := n.(*ir.UnaryExpr)
+-		n.X = Expr(n.X)
+-		n.X = DefaultLit(n.X, nil)
+-		tr := n.X.Type()
+-		if tr == nil {
+-			return 0
+-		}
+-		types.CalcSize(tr)
+-		if n.Op() == ir.OALIGNOF {
+-			return tr.Alignment()
+-		}
+-		return tr.Size()
+-
+-	case ir.OOFFSETOF:
+-		// must be a selector.
+-		n := n.(*ir.UnaryExpr)
+-		// ODOT and ODOTPTR are allowed in case the OXDOT transformation has
+-		// already happened (e.g. during -G=3 stenciling).
+-		if n.X.Op() != ir.OXDOT && n.X.Op() != ir.ODOT && n.X.Op() != ir.ODOTPTR {
+-			base.Errorf("invalid expression %v", n)
+-			return 0
+-		}
+-		sel := n.X.(*ir.SelectorExpr)
+-
+-		// Remember base of selector to find it back after dot insertion.
+-		// Since r->left may be mutated by typechecking, check it explicitly
+-		// first to track it correctly.
+-		sel.X = Expr(sel.X)
+-		sbase := sel.X
+-
+-		// Implicit dot may already be resolved for instantiating generic function. So we
+-		// need to remove any implicit dot until we reach the first non-implicit one, it's
+-		// the right base selector. See issue #53137.
+-		var clobberBase func(n ir.Node) ir.Node
+-		clobberBase = func(n ir.Node) ir.Node {
+-			if sel, ok := n.(*ir.SelectorExpr); ok && sel.Implicit() {
+-				return clobberBase(sel.X)
+-			}
+-			return n
+-		}
+-		sbase = clobberBase(sbase)
+-
+-		tsel := Expr(sel)
+-		n.X = tsel
+-		if tsel.Type() == nil {
+-			return 0
+-		}
+-		switch tsel.Op() {
+-		case ir.ODOT, ir.ODOTPTR:
+-			break
+-		case ir.OMETHVALUE:
+-			base.Errorf("invalid expression %v: argument is a method value", n)
+-			return 0
+-		default:
+-			base.Errorf("invalid expression %v", n)
+-			return 0
+-		}
+-
+-		// Sum offsets for dots until we reach sbase.
+-		var v int64
+-		var next ir.Node
+-		for r := tsel; r != sbase; r = next {
+-			switch r.Op() {
+-			case ir.ODOTPTR:
+-				// For Offsetof(s.f), s may itself be a pointer,
+-				// but accessing f must not otherwise involve
+-				// indirection via embedded pointer types.
+-				r := r.(*ir.SelectorExpr)
+-				if r.X != sbase {
+-					base.Errorf("invalid expression %v: selector implies indirection of embedded %v", n, r.X)
+-					return 0
+-				}
+-				fallthrough
+-			case ir.ODOT:
+-				r := r.(*ir.SelectorExpr)
+-				v += r.Offset()
+-				next = r.X
+-			default:
+-				ir.Dump("unsafenmagic", tsel)
+-				base.Fatalf("impossible %v node after dot insertion", r.Op())
+-			}
+-		}
+-		return v
+-	}
+-
+-	base.Fatalf("unexpected op %v", n.Op())
+-	return 0
+-}
+diff --git a/src/cmd/compile/internal/typecheck/func.go b/src/cmd/compile/internal/typecheck/func.go
+index 3dbe51007c..f76b5573e9 100644
+--- a/src/cmd/compile/internal/typecheck/func.go
++++ b/src/cmd/compile/internal/typecheck/func.go
+@@ -168,7 +168,7 @@ func tcCall(n *ir.CallExpr, top int) ir.Node {
+ 		case ir.OCAP, ir.OCLEAR, ir.OCLOSE, ir.OIMAG, ir.OLEN, ir.OPANIC, ir.OREAL, ir.OUNSAFESTRINGDATA, ir.OUNSAFESLICEDATA:
+ 			typecheckargs(n)
+ 			fallthrough
+-		case ir.ONEW, ir.OALIGNOF, ir.OOFFSETOF, ir.OSIZEOF:
++		case ir.ONEW:
+ 			arg, ok := needOneArg(n, "%v", n.Op())
+ 			if !ok {
+ 				n.SetType(nil)
+diff --git a/src/cmd/compile/internal/typecheck/typecheck.go b/src/cmd/compile/internal/typecheck/typecheck.go
+index 1cd5d88392..ed25be6f2a 100644
+--- a/src/cmd/compile/internal/typecheck/typecheck.go
++++ b/src/cmd/compile/internal/typecheck/typecheck.go
+@@ -390,11 +390,6 @@ func typecheck1(n ir.Node, top int) ir.Node {
+ 		n := n.(*ir.CallExpr)
+ 		return tcCall(n, top)
+ 
+-	case ir.OALIGNOF, ir.OOFFSETOF, ir.OSIZEOF:
+-		n := n.(*ir.UnaryExpr)
+-		n.SetType(types.Types[types.TUINTPTR])
+-		return OrigInt(n, evalunsafe(n))
+-
+ 	case ir.OCAP, ir.OLEN:
+ 		n := n.(*ir.UnaryExpr)
+ 		return tcLenCap(n)
+diff --git a/src/cmd/compile/internal/typecheck/universe.go b/src/cmd/compile/internal/typecheck/universe.go
+index 62f5b628dd..9f917d09a8 100644
+--- a/src/cmd/compile/internal/typecheck/universe.go
++++ b/src/cmd/compile/internal/typecheck/universe.go
+@@ -56,9 +56,6 @@ var unsafeFuncs = [...]struct {
+ 	op   ir.Op
+ }{
+ 	{"Add", ir.OUNSAFEADD},
+-	{"Alignof", ir.OALIGNOF},
+-	{"Offsetof", ir.OOFFSETOF},
+-	{"Sizeof", ir.OSIZEOF},
+ 	{"Slice", ir.OUNSAFESLICE},
+ 	{"SliceData", ir.OUNSAFESLICEDATA},
+ 	{"String", ir.OUNSAFESTRING},

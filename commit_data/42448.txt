@@ -9,6 +9,27 @@ Date:   Tue Dec 24 16:28:16 2019 +0200
     Change-Id: I274906afc3cf7a3d88e3da76549cd6ab008fd0c7
     Reviewed-on: https://go-review.googlesource.com/c/go/+/212538
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go1.14.html | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go1.14.html b/doc/go1.14.html
+index b0d2c97403..482dcf2e68 100644
+--- a/doc/go1.14.html
++++ b/doc/go1.14.html
+@@ -334,13 +334,13 @@ TODO
+ TODO
+ </p>
+ 
+-<dl id="bytes/hash"><dt><a href="/pkg/bytes/hash/">bytes/hash</a></dt>
++<dl id="hash/maphash"><dt><a href="/pkg/hash/maphash">hash/maphash</a></dt>
+   <dd>
+     <p><!-- CL 186877 -->
+       TODO: <a href="https://golang.org/cl/186877">https://golang.org/cl/186877</a>: add hashing package for bytes and strings
+     </p>
+ 
+-</dl><!-- bytes/hash -->
++</dl><!-- hash/maphash -->
+ 
+ <dl id="crypto/tls"><dt><a href="/pkg/crypto/tls/">crypto/tls</a></dt>
+   <dd>

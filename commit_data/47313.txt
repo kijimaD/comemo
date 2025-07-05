@@ -29,7 +29,58 @@ Date:   Wed Mar 10 16:06:47 2021 -0500
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/runtime/time.go    |  5 +++++
  src/time/sleep_test.go | 16 ++++++++++++++++
  2 files changed, 21 insertions(+)
+
+diff --git a/src/runtime/time.go b/src/runtime/time.go
+index 8ab2a03430..dee6a674e4 100644
+--- a/src/runtime/time.go
++++ b/src/runtime/time.go
+@@ -263,6 +263,9 @@ func addtimer(t *timer) {
+ 
+ 	when := t.when
+ 
++	// Disable preemption while using pp to avoid changing another P's heap.
++	mp := acquirem()
++
+ 	pp := getg().m.p.ptr()
+ 	lock(&pp.timersLock)
+ 	cleantimers(pp)
+@@ -270,6 +273,8 @@ func addtimer(t *timer) {
+ 	unlock(&pp.timersLock)
+ 
+ 	wakeNetPoller(when)
++
++	releasem(mp)
+ }
+ 
+ // doaddtimer adds t to the current P's heap.
+diff --git a/src/time/sleep_test.go b/src/time/sleep_test.go
+index 084ac33f51..6ee0631a85 100644
+--- a/src/time/sleep_test.go
++++ b/src/time/sleep_test.go
+@@ -511,6 +511,22 @@ func TestZeroTimerStopPanics(t *testing.T) {
+ 	tr.Stop()
+ }
+ 
++// Test that zero duration timers aren't missed by the scheduler. Regression test for issue 44868.
++func TestZeroTimer(t *testing.T) {
++	if testing.Short() {
++		t.Skip("-short")
++	}
++
++	for i := 0; i < 1000000; i++ {
++		s := Now()
++		ti := NewTimer(0)
++		<-ti.C
++		if diff := Since(s); diff > 2*Second {
++			t.Errorf("Expected time to get value from Timer channel in less than 2 sec, took %v", diff)
++		}
++	}
++}
++
+ // Benchmark timer latency when the thread that creates the timer is busy with
+ // other work and the timers must be serviced by other threads.
+ // https://golang.org/issue/38860

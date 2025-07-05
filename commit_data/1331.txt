@@ -13,8 +13,228 @@ Date:   Thu Dec 11 16:53:33 2008 -0800
     DELTA=128  (111 added, 11 deleted, 6 changed)
     OCL=20991
     CL=21018
-
+---
  src/lib/fmt/fmt_test.go | 75 +++++++++++++++++++++++++++++++++++++++++++++++++
  src/lib/fmt/format.go   |  2 ++
  src/lib/fmt/print.go    | 57 ++++++++++++++++++++++++++-----------
  3 files changed, 117 insertions(+), 17 deletions(-)
+
+diff --git a/src/lib/fmt/fmt_test.go b/src/lib/fmt/fmt_test.go
+index 4b423c617f..d7372c04cd 100644
+--- a/src/lib/fmt/fmt_test.go
++++ b/src/lib/fmt/fmt_test.go
+@@ -6,6 +6,7 @@ package fmt
+ 
+ import (
+ 	"fmt";
++	"io";
+ 	"syscall";
+ 	"testing";
+ )
+@@ -163,3 +164,77 @@ export func TestSprintf(t *testing.T) {
+ 	}
+ }
+ 
++type FlagPrinter struct { }
++func (*FlagPrinter) Format(f fmt.Formatter, c int) {
++	s := "%";
++	for i := 0; i < 128; i++ {
++		if f.Flag(i) {
++			s += string(i);
++		}
++	}
++	if w, ok := f.Width(); ok {
++		s += fmt.sprintf("%d", w);
++	}
++	if p, ok := f.Precision(); ok {
++		s += fmt.sprintf(".%d", p);
++	}
++	s += string(c);
++	io.WriteString(f, "["+s+"]");
++}
++
++type FlagTest struct {
++	in string;
++	out string;
++}
++
++var flagtests = []FlagTest {
++	FlagTest{ "%a", "[%a]" },
++	FlagTest{ "%-a", "[%-a]" },
++	FlagTest{ "%+a", "[%+a]" },
++	FlagTest{ "%#a", "[%#a]" },
++	FlagTest{ "% a", "[% a]" },
++	FlagTest{ "%0a", "[%0a]" },
++	FlagTest{ "%1.2a", "[%1.2a]" },
++	FlagTest{ "%-1.2a", "[%-1.2a]" },
++	FlagTest{ "%+1.2a", "[%+1.2a]" },
++	FlagTest{ "%-+1.2a", "[%+-1.2a]" },
++	FlagTest{ "%-+1.2abc", "[%+-1.2a]bc" },
++	FlagTest{ "%-1.2abc", "[%-1.2a]bc" },
++}
++
++export func TestFlagParser(t *testing.T) {
++	var flagprinter FlagPrinter;
++	for i := 0; i < len(flagtests); i++ {
++		tt := flagtests[i];
++		s := fmt.sprintf(tt.in, &flagprinter);
++		if s != tt.out {
++			t.Errorf("sprintf(%q, &flagprinter) => %q, want %q", tt.in, s, tt.out);
++		}
++	}
++}
++
++export func TestStructPrinter(t *testing.T) {
++	var s struct {
++		a string;
++		b string;
++		c int;
++	};
++	s.a = "abc";
++	s.b = "def";
++	s.c = 123;
++	type Test struct {
++		fmt string;
++		out string;
++	}
++	var tests = []Test {
++		Test{ "%v", "{abc def 123}" },
++		Test{ "%+v", "{a=abc b=def c=123}" },
++	};
++	for i := 0; i < len(tests); i++ {
++		tt := tests[i];
++		out := fmt.sprintf(tt.fmt, s);
++		if out != tt.out {
++			t.Errorf("sprintf(%q, &s) = %q, want %q", tt.fmt, out, tt.out);
++		}
++	}
++}
+diff --git a/src/lib/fmt/format.go b/src/lib/fmt/format.go
+index d1c20a513a..4a5dea5f1f 100644
+--- a/src/lib/fmt/format.go
++++ b/src/lib/fmt/format.go
+@@ -50,7 +50,9 @@ export type Fmt struct {
+ }
+ 
+ func (f *Fmt) clearflags() {
++	f.wid = 0;
+ 	f.wid_present = false;
++	f.prec = 0;
+ 	f.prec_present = false;
+ 	f.minus = false;
+ 	f.plus = false;
+diff --git a/src/lib/fmt/print.go b/src/lib/fmt/print.go
+index 0ce27cefbe..9ac241f8dc 100644
+--- a/src/lib/fmt/print.go
++++ b/src/lib/fmt/print.go
+@@ -23,6 +23,9 @@ export type Formatter interface {
+ 	Write(b *[]byte) (ret int, err *os.Error);
+ 	Width()	(wid int, ok bool);
+ 	Precision()	(prec int, ok bool);
++
++	// flags
++	Flag(int)	bool;
+ }
+ 
+ type Format interface {
+@@ -40,10 +43,6 @@ type P struct {
+ 	n	int;
+ 	buf	*[]byte;
+ 	fmt	*Fmt;
+-	wid	int;
+-	wid_ok	bool;
+-	prec	int;
+-	prec_ok	bool;
+ }
+ 
+ func Printer() *P {
+@@ -53,11 +52,27 @@ func Printer() *P {
+ }
+ 
+ func (p *P) Width() (wid int, ok bool) {
+-	return p.wid, p.wid_ok
++	return p.fmt.wid, p.fmt.wid_present
+ }
+ 
+ func (p *P) Precision() (prec int, ok bool) {
+-	return p.prec, p.prec_ok
++	return p.fmt.prec, p.fmt.prec_present
++}
++
++func (p *P) Flag(b int) bool {
++	switch b {
++	case '-':
++		return p.fmt.minus;
++	case '+':
++		return p.fmt.plus;
++	case '#':
++		return p.fmt.sharp;
++	case ' ':
++		return p.fmt.space;
++	case '0':
++		return p.fmt.zero;
++	}
++	return false
+ }
+ 
+ func (p *P) ensure(n int) {
+@@ -369,7 +384,21 @@ func (p *P) printField(field reflect.Value) (was_string bool) {
+ 		}
+ 	case reflect.StructKind:
+ 		p.add('{');
+-		p.doprint(field, true, false);
++		v := field.(reflect.StructValue);
++		t := v.Type().(reflect.StructType);
++		donames := p.fmt.plus;	// first p.printField clears flag
++		for i := 0; i < v.Len();  i++ {
++			if i > 0 {
++				p.add(' ')
++			}
++			if donames {
++				if name, typ, tag, off := t.Field(i); name != "" {
++					p.addstr(name);
++					p.add('=');
++				}
++			}
++			p.printField(getField(v, i));
++		}
+ 		p.add('}');
+ 	case reflect.InterfaceKind:
+ 		inter := field.(reflect.InterfaceValue).Get();
+@@ -398,7 +427,8 @@ func (p *P) doprintf(format string, v reflect.StructValue) {
+ 			continue;
+ 		}
+ 		i++;
+-		// flags
++		// flags and widths
++		p.fmt.clearflags();
+ 		F: for ; i < end; i++ {
+ 			switch format[i] {
+ 			case '#':
+@@ -416,11 +446,10 @@ func (p *P) doprintf(format string, v reflect.StructValue) {
+ 			}
+ 		}
+ 		// do we have 20 (width)?
+-		p.wid, p.wid_ok, i = parsenum(format, i, end);
+-		p.prec_ok = false;
++		p.fmt.wid, p.fmt.wid_present, i = parsenum(format, i, end);
+ 		// do we have .20 (precision)?
+ 		if i < end && format[i] == '.' {
+-			p.prec, p.prec_ok, i = parsenum(format, i+1, end);
++			p.fmt.prec, p.fmt.prec_present, i = parsenum(format, i+1, end);
+ 		}
+ 		c, w = sys.stringtorune(format, i);
+ 		i += w;
+@@ -445,12 +474,6 @@ func (p *P) doprintf(format string, v reflect.StructValue) {
+ 			}
+ 		}
+ 		s := "";
+-		if p.wid_ok {
+-			p.fmt.w(p.wid);
+-		}
+-		if p.prec_ok {
+-			p.fmt.p(p.prec);
+-		}
+ 		switch c {
+ 			// bool
+ 			case 't':

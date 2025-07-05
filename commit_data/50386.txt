@@ -11,6 +11,29 @@ Date:   Fri Oct 22 15:29:41 2021 +0800
     Trust: Tobias Klauser <tobias.klauser@gmail.com>
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/internal/poll/fd_unix.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/internal/poll/fd_unix.go b/src/internal/poll/fd_unix.go
+index 60b59df2e3..5489662889 100644
+--- a/src/internal/poll/fd_unix.go
++++ b/src/internal/poll/fd_unix.go
+@@ -230,7 +230,7 @@ func (fd *FD) ReadFrom(p []byte) (int, syscall.Sockaddr, error) {
+ 	}
+ }
+ 
+-// ReadFrom wraps the recvfrom network call for IPv4.
++// ReadFromInet4 wraps the recvfrom network call for IPv4.
+ func (fd *FD) ReadFromInet4(p []byte, from *syscall.SockaddrInet4) (int, error) {
+ 	if err := fd.readLock(); err != nil {
+ 		return 0, err
+@@ -257,7 +257,7 @@ func (fd *FD) ReadFromInet4(p []byte, from *syscall.SockaddrInet4) (int, error)
+ 	}
+ }
+ 
+-// ReadFrom wraps the recvfrom network call for IPv6.
++// ReadFromInet6 wraps the recvfrom network call for IPv6.
+ func (fd *FD) ReadFromInet6(p []byte, from *syscall.SockaddrInet6) (int, error) {
+ 	if err := fd.readLock(); err != nil {
+ 		return 0, err

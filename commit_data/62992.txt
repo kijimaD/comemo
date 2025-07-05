@@ -19,7 +19,7 @@ Date:   Fri Apr 25 10:53:04 2025 +0800
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/cmd/asm/internal/arch/loong64.go            |  8 +++++++
  src/cmd/asm/internal/asm/asm.go                 |  6 +++++
  src/cmd/asm/internal/asm/testdata/loong64enc1.s |  8 +++++++
@@ -27,3 +27,162 @@ Date:   Fri Apr 25 10:53:04 2025 +0800
  src/cmd/internal/obj/loong64/anames.go          |  2 ++
  src/cmd/internal/obj/loong64/asm.go             | 32 ++++++++++++++++++++++++-
  6 files changed, 59 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/asm/internal/arch/loong64.go b/src/cmd/asm/internal/arch/loong64.go
+index d9e428d953..bf5175f4a0 100644
+--- a/src/cmd/asm/internal/arch/loong64.go
++++ b/src/cmd/asm/internal/arch/loong64.go
+@@ -46,6 +46,14 @@ func IsLoong64RDTIME(op obj.As) bool {
+ 	return false
+ }
+ 
++func IsLoong64PRELD(op obj.As) bool {
++	switch op {
++	case loong64.APRELD, loong64.APRELDX:
++		return true
++	}
++	return false
++}
++
+ func IsLoong64AMO(op obj.As) bool {
+ 	return loong64.IsAtomicInst(op)
+ }
+diff --git a/src/cmd/asm/internal/asm/asm.go b/src/cmd/asm/internal/asm/asm.go
+index a1f6a73d70..c8ad5d28e1 100644
+--- a/src/cmd/asm/internal/asm/asm.go
++++ b/src/cmd/asm/internal/asm/asm.go
+@@ -654,6 +654,12 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
+ 				prog.RegTo2 = a[1].Reg
+ 				break
+ 			}
++
++			if arch.IsLoong64PRELD(op) {
++				prog.From = a[0]
++				prog.AddRestSource(a[1])
++				break
++			}
+ 		}
+ 		prog.From = a[0]
+ 		prog.To = a[1]
+diff --git a/src/cmd/asm/internal/asm/testdata/loong64enc1.s b/src/cmd/asm/internal/asm/testdata/loong64enc1.s
+index 494023ee65..083670f512 100644
+--- a/src/cmd/asm/internal/asm/testdata/loong64enc1.s
++++ b/src/cmd/asm/internal/asm/testdata/loong64enc1.s
+@@ -1010,3 +1010,11 @@ lable2:
+ 	VFCLASSD	V1, V2		// 22d89c72
+ 	XVFCLASSF	X1, X2		// 22d49c76
+ 	XVFCLASSD	X1, X2		// 22d89c76
++
++	// PRELD{,X} instructions
++	PRELD	(R4), $0		// 8000c02a
++	PRELD	-1(R4), $8		// 88fcff2a
++	PRELD	8(R4),  $31		// 9f20c02a
++	PRELDX	(R4)(R5), $0		// 80142c38
++	PRELDX	(R4)(R6), $8		// 88182c38
++	PRELDX	(R4)(R7), $31		// 9f1c2c38
+diff --git a/src/cmd/internal/obj/loong64/a.out.go b/src/cmd/internal/obj/loong64/a.out.go
+index 97a4d6c179..d46d6ce962 100644
+--- a/src/cmd/internal/obj/loong64/a.out.go
++++ b/src/cmd/internal/obj/loong64/a.out.go
+@@ -663,6 +663,10 @@ const (
+ 	ABSTRPICKW
+ 	ABSTRPICKV
+ 
++	// 2.2.5.4. Prefetch Instructions
++	APRELD
++	APRELDX
++
+ 	// 2.2.9. CRC Check Instructions
+ 	ACRCWBW
+ 	ACRCWHW
+diff --git a/src/cmd/internal/obj/loong64/anames.go b/src/cmd/internal/obj/loong64/anames.go
+index 0c1a6ea0c6..bf9b0722cc 100644
+--- a/src/cmd/internal/obj/loong64/anames.go
++++ b/src/cmd/internal/obj/loong64/anames.go
+@@ -199,6 +199,8 @@ var Anames = []string{
+ 	"BSTRINSV",
+ 	"BSTRPICKW",
+ 	"BSTRPICKV",
++	"PRELD",
++	"PRELDX",
+ 	"CRCWBW",
+ 	"CRCWHW",
+ 	"CRCWWW",
+diff --git a/src/cmd/internal/obj/loong64/asm.go b/src/cmd/internal/obj/loong64/asm.go
+index 6723c67b3f..2f5cf94707 100644
+--- a/src/cmd/internal/obj/loong64/asm.go
++++ b/src/cmd/internal/obj/loong64/asm.go
+@@ -412,6 +412,9 @@ var optab = []Optab{
+ 
+ 	{AVMOVQ, C_ELEM, C_NONE, C_NONE, C_ARNG, C_NONE, 45, 4, 0, 0},
+ 
++	{APRELD, C_SOREG, C_NONE, C_U5CON, C_NONE, C_NONE, 46, 4, 0, 0},
++	{APRELDX, C_ROFF, C_NONE, C_U5CON, C_NONE, C_NONE, 47, 4, 0, 0},
++
+ 	{obj.APCALIGN, C_U12CON, C_NONE, C_NONE, C_NONE, C_NONE, 0, 0, 0, 0},
+ 	{obj.APCDATA, C_32CON, C_NONE, C_NONE, C_32CON, C_NONE, 0, 0, 0, 0},
+ 	{obj.APCDATA, C_DCON, C_NONE, C_NONE, C_DCON, C_NONE, 0, 0, 0, 0},
+@@ -1486,6 +1489,8 @@ func buildop(ctxt *obj.Link) {
+ 			ANEGW,
+ 			ANEGV,
+ 			AWORD,
++			APRELD,
++			APRELDX,
+ 			obj.ANOP,
+ 			obj.ATEXT,
+ 			obj.AFUNCDATA,
+@@ -1907,6 +1912,10 @@ func OP_16IRR(op uint32, i uint32, r2 uint32, r3 uint32) uint32 {
+ 	return op | (i&0xFFFF)<<10 | (r2&0x1F)<<5 | (r3&0x1F)<<0
+ }
+ 
++func OP_12IR_5I(op uint32, i1 uint32, r2 uint32, i2 uint32) uint32 {
++	return op | (i1&0xFFF)<<10 | (r2&0x1F)<<5 | (i2&0x1F)<<0
++}
++
+ func OP_12IRR(op uint32, i uint32, r2 uint32, r3 uint32) uint32 {
+ 	return op | (i&0xFFF)<<10 | (r2&0x1F)<<5 | (r3&0x1F)<<0
+ }
+@@ -2444,6 +2453,17 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		c.checkindex(p, index, m)
+ 		o1 = v | (index << 10) | (vj << 5) | vd
+ 
++	case 46:
++		// preld  offset(Rbase), hint
++		offs := c.regoff(&p.From)
++		hint := p.GetFrom3().Offset
++		o1 = OP_12IR_5I(c.opiir(p.As), uint32(offs), uint32(p.From.Reg), uint32(hint))
++
++	case 47:
++		// preldx (Rbase)(Roff), hint
++		hint := p.GetFrom3().Offset
++		o1 = OP_5IRR(c.opirr(p.As), uint32(p.From.Index), uint32(p.From.Reg), uint32(hint))
++
+ 	case 49:
+ 		if p.As == ANOOP {
+ 			// andi r0, r0, 0
+@@ -3836,7 +3856,8 @@ func (c *ctxt0) opirr(a obj.As) uint32 {
+ 		return 0x12<<26 | 0x1<<8
+ 	case ABFPF:
+ 		return 0x12<<26 | 0x0<<8
+-
++	case APRELDX:
++		return 0x07058 << 15 // preldx
+ 	case AMOVB,
+ 		AMOVBU:
+ 		return 0x0a4 << 22
+@@ -4063,6 +4084,15 @@ func (c *ctxt0) opirir(a obj.As) uint32 {
+ 	return 0
+ }
+ 
++func (c *ctxt0) opiir(a obj.As) uint32 {
++	switch a {
++	case APRELD:
++		return 0x0AB << 22 // preld
++	}
++
++	return 0
++}
++
+ func (c *ctxt0) specialFpMovInst(a obj.As, fclass int, tclass int) uint32 {
+ 	switch a {
+ 	case AMOVV:

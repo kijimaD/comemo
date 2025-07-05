@@ -9,8 +9,119 @@ Date:   Wed Feb 2 22:36:54 2011 -0500
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4079060
-
+---
  src/cmd/gc/mparith3.c        | 27 ++++++++++++++++++++-------
  src/pkg/strconv/ftoa_test.go |  3 +--
  test/fixedbugs/bug321.go     | 30 ++++++++++++++++++++++++++++++
  3 files changed, 51 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/gc/mparith3.c b/src/cmd/gc/mparith3.c
+index 7b7e66668e..b11a4f5f1a 100644
+--- a/src/cmd/gc/mparith3.c
++++ b/src/cmd/gc/mparith3.c
+@@ -179,7 +179,7 @@ mpdivfltflt(Mpflt *a, Mpflt *b)
+ double
+ mpgetflt(Mpflt *a)
+ {
+-	int s, i;
++	int s, i, e;
+ 	uvlong v, vm;
+ 	double f;
+ 
+@@ -200,12 +200,12 @@ mpgetflt(Mpflt *a)
+ 		a->exp -= 1;
+ 	}
+ 
+-	// the magic numbers (64, 63, 53, 10) are
++	// the magic numbers (64, 63, 53, 10, -1074) are
+ 	// IEEE specific. this should be done machine
+ 	// independently or in the 6g half of the compiler
+ 
+-	// pick up the mantissa in a uvlong
+-	s = 53;
++	// pick up the mantissa and a rounding bit in a uvlong
++	s = 53+1;
+ 	v = 0;
+ 	for(i=Mpnorm-1; s>=Mpscale; i--) {
+ 		v = (v<<Mpscale) | a->val.a[i];
+@@ -224,13 +224,26 @@ mpgetflt(Mpflt *a)
+ 	if(s > 0)
+ 		v = (v<<s) | (a->val.a[i]>>(Mpscale-s));
+ 
++	// gradual underflow
++	e = Mpnorm*Mpscale + a->exp - 53;
++	if(e < -1074) {
++		s = -e - 1074;
++		if(s > 54)
++			s = 54;
++		v |= vm & ((1ULL<<s) - 1);
++		vm >>= s;
++		e = -1074;
++	}
++
+ //print("vm=%.16llux v=%.16llux\n", vm, v);
+ 	// round toward even
+-	if(v != (1ULL<<63) || (vm&1ULL) != 0)
+-		vm += v>>63;
++	if(v != 0 || (vm&2ULL) != 0)
++		vm = (vm>>1) + (vm&1ULL);
++	else
++		vm >>= 1;
+ 
+ 	f = (double)(vm);
+-	f = ldexp(f, Mpnorm*Mpscale + a->exp - 53);
++	f = ldexp(f, e);
+ 
+ 	if(a->val.neg)
+ 		f = -f;
+diff --git a/src/pkg/strconv/ftoa_test.go b/src/pkg/strconv/ftoa_test.go
+index bc327600e1..6d361a138e 100644
+--- a/src/pkg/strconv/ftoa_test.go
++++ b/src/pkg/strconv/ftoa_test.go
+@@ -121,9 +121,8 @@ var ftoatests = []ftoaTest{
+ 
+ 	// http://www.exploringbinary.com/java-hangs-when-converting-2-2250738585072012e-308/
+ 	{2.2250738585072012e-308, 'g', -1, "2.2250738585072014e-308"},
+-	// TODO: uncomment after fixing issue 1463.
+ 	// http://www.exploringbinary.com/php-hangs-on-numeric-value-2-2250738585072011e-308/
+-	// {2.2250738585072011e-308, 'g', -1, "2.225073858507201e-308"},
++	{2.2250738585072011e-308, 'g', -1, "2.225073858507201e-308"},
+ }
+ 
+ func TestFtoa(t *testing.T) {
+diff --git a/test/fixedbugs/bug321.go b/test/fixedbugs/bug321.go
+new file mode 100644
+index 0000000000..d0595ff59b
+--- /dev/null
++++ b/test/fixedbugs/bug321.go
+@@ -0,0 +1,30 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out || echo BUG: bug321
++
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Troublesome floating point constants. Issue 1463.
++
++package main
++
++import "fmt"
++
++func check(test string, got, want float64) bool {
++	if got != want {
++		fmt.Println(test, "got", got, "want", want)
++		return false
++	}
++	return true
++}
++
++func main() {
++	good := true
++	// http://www.exploringbinary.com/java-hangs-when-converting-2-2250738585072012e-308/
++	good = good && check("2.2250738585072012e-308", 2.2250738585072012e-308, 2.2250738585072014e-308)
++	// http://www.exploringbinary.com/php-hangs-on-numeric-value-2-2250738585072011e-308/
++	good = good && check("2.2250738585072011e-308", 2.2250738585072011e-308, 2.225073858507201e-308)
++	if !good {
++		panic("fail")
++	}
++}

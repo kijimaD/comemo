@@ -6,7 +6,22 @@ Date:   Thu Oct 22 14:30:56 2009 -0700
     
     R=rsc
     http://go/go-review/1013009
-
+---
  doc/contribute.html | 2 +-
  doc/install.html    | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/contribute.html b/doc/contribute.html
+index 201621dde1..389305706f 100644
+--- a/doc/contribute.html
++++ b/doc/contribute.html
+@@ -1 +1 @@
+-TODO(rsc): Write this document.
++TODO(go-dev): Write this document.
+diff --git a/doc/install.html b/doc/install.html
+index 201621dde1..389305706f 100644
+--- a/doc/install.html
++++ b/doc/install.html
+@@ -1 +1 @@
+-TODO(rsc): Write this document.
++TODO(go-dev): Write this document.

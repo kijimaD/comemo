@@ -10,6 +10,20 @@ Date:   Mon Jan 30 20:17:34 2012 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5581056
-
+---
  test/map.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/test/map.go b/test/map.go
+index 821f02ee0a..a92586ff4a 100644
+--- a/test/map.go
++++ b/test/map.go
+@@ -667,7 +667,7 @@ func testnan() {
+ 		return time.Since(t0)
+ 	}
+ 
+-	n := 30000 // 0.02 seconds on a MacBook Air
++	n := 60000 // 0.04 seconds on a MacBook Air
+ 	t1 := t(n)
+ 	t2 := t(2 * n)
+ 	if t2 > 3*t1 { // should be 2x (linear); allow up to 3x

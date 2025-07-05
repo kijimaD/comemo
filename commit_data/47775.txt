@@ -21,10 +21,282 @@ Date:   Wed Mar 10 11:11:59 2021 -0500
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Katie Hockman <katie@golang.org>
-
+---
  src/cmd/go/testdata/script/test_fuzz_parallel.txt | 61 +++++++++++++++++
  src/internal/fuzz/worker.go                       | 10 +--
  src/testing/fuzz.go                               | 82 +++++++++++++++++------
  src/testing/sub_test.go                           |  7 +-
  src/testing/testing.go                            |  6 ++
  5 files changed, 139 insertions(+), 27 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/test_fuzz_parallel.txt b/src/cmd/go/testdata/script/test_fuzz_parallel.txt
+new file mode 100644
+index 0000000000..d9f6cc720b
+--- /dev/null
++++ b/src/cmd/go/testdata/script/test_fuzz_parallel.txt
+@@ -0,0 +1,61 @@
++# TODO(jayconrod): support shared memory on more platforms.
++[!darwin] [!linux] [!windows] skip
++
++[short] skip
++
++# When running seed inputs, T.Parallel should let multiple inputs run in
++# parallel.
++go test -run=FuzzSeed
++
++# When fuzzing, T.Parallel should be safe to call, but it should have no effect.
++# We just check that it doesn't hang, which would be the most obvious
++# failure mode.
++# TODO(jayconrod): check for the string "after T.Parallel". It's not printed
++# by 'go test', so we can't distinguish that crasher from some other panic.
++! go test -run=FuzzMutate -fuzz=FuzzMutate
++exists testdata/corpus/FuzzMutate
++
++-- go.mod --
++module fuzz_parallel
++
++go 1.17
++-- fuzz_parallel_test.go --
++package fuzz_parallel
++
++import (
++	"sort"
++	"sync"
++	"testing"
++)
++
++func FuzzSeed(f *testing.F) {
++	for _, v := range [][]byte{{'a'}, {'b'}, {'c'}} {
++		f.Add(v)
++	}
++
++	var mu sync.Mutex
++	var before, after []byte
++	f.Cleanup(func() {
++		sort.Slice(after, func(i, j int) bool { return after[i] < after[j] })
++		got := string(before) + string(after)
++		want := "abcabc"
++		if got != want {
++			f.Fatalf("got %q; want %q", got, want)
++		}
++	})
++
++	f.Fuzz(func(t *testing.T, b []byte) {
++		before = append(before, b...)
++		t.Parallel()
++		mu.Lock()
++		after = append(after, b...)
++		mu.Unlock()
++	})
++}
++
++func FuzzMutate(f *testing.F) {
++	f.Fuzz(func(t *testing.T, _ []byte) {
++		t.Parallel()
++		t.Error("after T.Parallel")
++	})
++}
+diff --git a/src/internal/fuzz/worker.go b/src/internal/fuzz/worker.go
+index f784a04a39..22c85618be 100644
+--- a/src/internal/fuzz/worker.go
++++ b/src/internal/fuzz/worker.go
+@@ -274,18 +274,20 @@ func (w *worker) start() (err error) {
+ // stop returns the error the process terminated with, if any (same as
+ // w.waitErr).
+ //
+-// stop must be called once after start returns successfully, even if the
+-// worker process terminates unexpectedly.
++// stop must be called at least once after start returns successfully, even if
++// the worker process terminates unexpectedly.
+ func (w *worker) stop() error {
+ 	if w.termC == nil {
+ 		panic("worker was not started successfully")
+ 	}
+ 	select {
+ 	case <-w.termC:
+-		// Worker already terminated, perhaps unexpectedly.
++		// Worker already terminated.
+ 		if w.client == nil {
+-			panic("worker already stopped")
++			// stop already called.
++			return w.waitErr
+ 		}
++		// Possible unexpected termination.
+ 		w.client.Close()
+ 		w.cmd = nil
+ 		w.client = nil
+diff --git a/src/testing/fuzz.go b/src/testing/fuzz.go
+index 0c1280c656..70e1b414a8 100644
+--- a/src/testing/fuzz.go
++++ b/src/testing/fuzz.go
+@@ -298,7 +298,6 @@ func (f *F) Fuzz(ff interface{}) {
+ 	// fn is called in its own goroutine.
+ 	//
+ 	// TODO(jayconrod,katiehockman): dedupe testdata corpus with entries from f.Add
+-	// TODO(jayconrod,katiehockman): handle T.Parallel calls within fuzz function.
+ 	// TODO(jayconrod,katiehockman): improve output when running the subtest.
+ 	// e.g. instead of
+ 	//    --- FAIL: FuzzSomethingError/#00 (0.00s)
+@@ -485,11 +484,12 @@ func runFuzzTargets(deps testDeps, fuzzTargets []InternalFuzzTarget) (ran, ok bo
+ 		}
+ 		f := &F{
+ 			common: common{
+-				signal: make(chan bool),
+-				name:   testName,
+-				parent: &root,
+-				level:  root.level + 1,
+-				chatty: root.chatty,
++				signal:  make(chan bool),
++				barrier: make(chan bool),
++				name:    testName,
++				parent:  &root,
++				level:   root.level + 1,
++				chatty:  root.chatty,
+ 			},
+ 			testContext: tctx,
+ 			fuzzContext: fctx,
+@@ -548,11 +548,12 @@ func runFuzzing(deps testDeps, fuzzTargets []InternalFuzzTarget) (ran, ok bool)
+ 		target = ft
+ 		f = &F{
+ 			common: common{
+-				signal: make(chan bool),
+-				name:   testName,
+-				parent: &root,
+-				level:  root.level + 1,
+-				chatty: root.chatty,
++				signal:  make(chan bool),
++				barrier: nil, // T.Parallel has no effect when fuzzing.
++				name:    testName,
++				parent:  &root,
++				level:   root.level + 1,
++				chatty:  root.chatty,
+ 			},
+ 			fuzzContext: fctx,
+ 			testContext: tctx,
+@@ -576,7 +577,10 @@ func runFuzzing(deps testDeps, fuzzTargets []InternalFuzzTarget) (ran, ok bool)
+ //
+ // fRunner is analogous with tRunner, which wraps subtests started with T.Run.
+ // Tests and fuzz targets work a little differently, so for now, these functions
+-// aren't consoldiated.
++// aren't consolidated. In particular, because there are no F.Run and F.Parallel
++// methods, i.e., no fuzz sub-targets or parallel fuzz targets, a few
++// simplifications are made. We also require that F.Fuzz, F.Skip, or F.Fail is
++// called.
+ func fRunner(f *F, fn func(*F)) {
+ 	// When this goroutine is done, either because runtime.Goexit was called,
+ 	// a panic started, or fn returned normally, record the duration and send
+@@ -599,10 +603,29 @@ func fRunner(f *F, fn func(*F)) {
+ 			err = errNilPanicOrGoexit
+ 		}
+ 
++		// Use a deferred call to ensure that we report that the test is
++		// complete even if a cleanup function calls t.FailNow. See issue 41355.
++		didPanic := false
++		defer func() {
++			if didPanic {
++				return
++			}
++			if err != nil {
++				panic(err)
++			}
++			// Only report that the test is complete if it doesn't panic,
++			// as otherwise the test binary can exit before the panic is
++			// reported to the user. See issue 41479.
++			f.signal <- true
++		}()
++
+ 		// If we recovered a panic or inappropriate runtime.Goexit, fail the test,
+ 		// flush the output log up to the root, then panic.
+-		if err != nil {
++		doPanic := func(err interface{}) {
+ 			f.Fail()
++			if r := f.runCleanup(recoverAndReturnPanic); r != nil {
++				f.Logf("cleanup panicked with %v", r)
++			}
+ 			for root := &f.common; root.parent != nil; root = root.parent {
+ 				root.mu.Lock()
+ 				root.duration += time.Since(root.start)
+@@ -610,22 +633,41 @@ func fRunner(f *F, fn func(*F)) {
+ 				root.mu.Unlock()
+ 				root.flushToParent(root.name, "--- FAIL: %s (%s)\n", root.name, fmtDuration(d))
+ 			}
++			didPanic = true
+ 			panic(err)
+ 		}
++		if err != nil {
++			doPanic(err)
++		}
+ 
+-		// No panic or inappropriate Goexit. Record duration and report the result.
++		// No panic or inappropriate Goexit.
+ 		f.duration += time.Since(f.start)
++
++		if len(f.sub) > 0 {
++			// Run parallel inputs.
++			// Release the parallel subtests.
++			close(f.barrier)
++			// Wait for the subtests to complete.
++			for _, sub := range f.sub {
++				<-sub.signal
++			}
++			cleanupStart := time.Now()
++			err := f.runCleanup(recoverAndReturnPanic)
++			f.duration += time.Since(cleanupStart)
++			if err != nil {
++				doPanic(err)
++			}
++		}
++
++		// Report after all subtests have finished.
+ 		f.report()
+ 		f.done = true
+ 		f.setRan()
+-
+-		// Only report that the test is complete if it doesn't panic,
+-		// as otherwise the test binary can exit before the panic is
+-		// reported to the user. See issue 41479.
+-		f.signal <- true
+ 	}()
+ 	defer func() {
+-		f.runCleanup(normalPanic)
++		if len(f.sub) == 0 {
++			f.runCleanup(normalPanic)
++		}
+ 	}()
+ 
+ 	f.start = time.Now()
+diff --git a/src/testing/sub_test.go b/src/testing/sub_test.go
+index d2b966dcf9..2d9e145a73 100644
+--- a/src/testing/sub_test.go
++++ b/src/testing/sub_test.go
+@@ -480,9 +480,10 @@ func TestTRun(t *T) {
+ 			buf := &bytes.Buffer{}
+ 			root := &T{
+ 				common: common{
+-					signal: make(chan bool),
+-					name:   "Test",
+-					w:      buf,
++					signal:  make(chan bool),
++					barrier: make(chan bool),
++					name:    "Test",
++					w:       buf,
+ 				},
+ 				context: ctx,
+ 			}
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index 48e9ee089f..da26dec6fb 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -1039,6 +1039,12 @@ func (t *T) Parallel() {
+ 		panic("testing: t.Parallel called multiple times")
+ 	}
+ 	t.isParallel = true
++	if t.parent.barrier == nil {
++		// T.Parallel has no effect when fuzzing.
++		// Multiple processes may run in parallel, but only one input can run at a
++		// time per process so we can attribute crashes to specific inputs.
++		return
++	}
+ 
+ 	// We don't want to include the time we spend waiting for serial tests
+ 	// in the test duration. Record the elapsed time thus far and reset the

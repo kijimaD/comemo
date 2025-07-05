@@ -15,7 +15,7 @@ Date:   Fri Sep 10 08:34:03 2021 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Dan Scales <danscales@google.com>
-
+---
  src/cmd/compile/internal/typecheck/iimport.go |  6 +-----
  src/go/internal/gcimporter/gcimporter_test.go |  2 --
  test/run.go                                   |  2 --
@@ -23,3 +23,101 @@ Date:   Fri Sep 10 08:34:03 2021 +0700
  test/typeparam/issue48306.dir/main.go         | 15 +++++++++++++++
  test/typeparam/issue48306.go                  |  7 +++++++
  6 files changed, 32 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/compile/internal/typecheck/iimport.go b/src/cmd/compile/internal/typecheck/iimport.go
+index 8bc098c2bd..6eec94a984 100644
+--- a/src/cmd/compile/internal/typecheck/iimport.go
++++ b/src/cmd/compile/internal/typecheck/iimport.go
+@@ -316,16 +316,12 @@ func (r *importReader) doDecl(sym *types.Sym) *ir.Name {
+ 		return n
+ 
+ 	case 'T', 'U':
+-		var rparams []*types.Type
+-		if tag == 'U' {
+-			rparams = r.typeList()
+-		}
+-
+ 		// Types can be recursive. We need to setup a stub
+ 		// declaration before recursing.
+ 		n := importtype(pos, sym)
+ 		t := n.Type()
+ 		if tag == 'U' {
++			rparams := r.typeList()
+ 			t.SetRParams(rparams)
+ 		}
+ 
+diff --git a/src/go/internal/gcimporter/gcimporter_test.go b/src/go/internal/gcimporter/gcimporter_test.go
+index 478534daf2..9f4345d8f9 100644
+--- a/src/go/internal/gcimporter/gcimporter_test.go
++++ b/src/go/internal/gcimporter/gcimporter_test.go
+@@ -167,8 +167,6 @@ func TestImportTypeparamTests(t *testing.T) {
+ 	skip := map[string]string{
+ 		"equal.go":  "inconsistent embedded sorting", // TODO(rfindley): investigate this.
+ 		"nested.go": "fails to compile",              // TODO(rfindley): investigate this.
+-
+-		"issue46461.go": "known issue with type parameter constraints referring back to parameterized type",
+ 	}
+ 
+ 	for _, entry := range list {
+diff --git a/test/run.go b/test/run.go
+index d2b7b88768..790b54bfd2 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -2188,8 +2188,6 @@ var g3Failures = setOf(
+ 
+ 	"typeparam/nested.go", // -G=3 doesn't support function-local types with generics
+ 
+-	"typeparam/issue46461b.go", // -G=3 fails when type parameters refer back to the parameterized type itself
+-
+ 	"typeparam/mdempsky/4.go", // -G=3 can't export functions with labeled breaks in loops
+ )
+ 
+diff --git a/test/typeparam/issue48306.dir/a.go b/test/typeparam/issue48306.dir/a.go
+new file mode 100644
+index 0000000000..739750b20b
+--- /dev/null
++++ b/test/typeparam/issue48306.dir/a.go
+@@ -0,0 +1,9 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++type I[T I[T]] interface {
++	F() T
++}
+diff --git a/test/typeparam/issue48306.dir/main.go b/test/typeparam/issue48306.dir/main.go
+new file mode 100644
+index 0000000000..5d602fe07c
+--- /dev/null
++++ b/test/typeparam/issue48306.dir/main.go
+@@ -0,0 +1,15 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "a"
++
++type S struct{}
++
++func (*S) F() *S { return nil }
++
++func main() {
++	var _ a.I[*S] = &S{}
++}
+diff --git a/test/typeparam/issue48306.go b/test/typeparam/issue48306.go
+new file mode 100644
+index 0000000000..76930e5e4f
+--- /dev/null
++++ b/test/typeparam/issue48306.go
+@@ -0,0 +1,7 @@
++// rundir -G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ignored

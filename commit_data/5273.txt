@@ -7,7 +7,45 @@ Date:   Sun Apr 11 14:51:35 2010 -0700
     R=ken2
     CC=golang-dev
     https://golang.org/cl/883049
-
+---
  src/cmd/gc/go.y          | 11 +++++++++--
  test/fixedbugs/bug039.go |  2 +-
  2 files changed, 10 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index 06696d52fc..98f671988f 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -1070,11 +1070,18 @@ fndcl:
+ 		$3 = checkarglist($3, 1);
+ 		$$ = nod(ODCLFUNC, N, N);
+ 		$$->nname = $1;
+-		if($3 == nil && $5 == nil)
+-			$$->nname = renameinit($1);
+ 		n = nod(OTFUNC, N, N);
+ 		n->list = $3;
+ 		n->rlist = $5;
++		if(strcmp($1->sym->name, "init") == 0) {
++			$$->nname = renameinit($1);
++			if($3 != nil || $5 != nil)
++				yyerror("func init must have no arguments and no return values");
++		}
++		if(strcmp(localpkg->name, "main") == 0 && strcmp($1->sym->name, "main") == 0) {
++			if($3 != nil || $5 != nil)
++				yyerror("func main must have no arguments and no return values");
++		}
+ 		// TODO: check if nname already has an ntype
+ 		$$->nname->ntype = n;
+ 		funchdr($$);
+diff --git a/test/fixedbugs/bug039.go b/test/fixedbugs/bug039.go
+index 30fbdbd3fa..7ac02ceeb2 100644
+--- a/test/fixedbugs/bug039.go
++++ b/test/fixedbugs/bug039.go
+@@ -6,6 +6,6 @@
+ 
+ package main
+ 
+-func main (x int) {	// GCCGO_ERROR "previous"
++func f (x int) {	// GCCGO_ERROR "previous"
+ 	var x int;	// ERROR "redecl|redefinition"
+ }

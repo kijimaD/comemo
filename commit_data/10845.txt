@@ -8,7 +8,69 @@ Date:   Fri Dec 16 11:33:57 2011 -0800
     R=golang-dev, r, gri
     CC=golang-dev
     https://golang.org/cl/5492058
-
+---
  src/pkg/encoding/gob/encode.go         |  7 +++++++
  src/pkg/encoding/gob/gobencdec_test.go | 28 ++++++++++++++++++++++++++++
  2 files changed, 35 insertions(+)
+
+diff --git a/src/pkg/encoding/gob/encode.go b/src/pkg/encoding/gob/encode.go
+index c7e48230c5..11afa02ea5 100644
+--- a/src/pkg/encoding/gob/encode.go
++++ b/src/pkg/encoding/gob/encode.go
+@@ -483,6 +483,13 @@ func isZero(val reflect.Value) bool {
+ 		return val.Float() == 0
+ 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+ 		return val.Uint() == 0
++	case reflect.Struct:
++		for i := 0; i < val.NumField(); i++ {
++			if !isZero(val.Field(i)) {
++				return false
++			}
++		}
++		return true
+ 	}
+ 	panic("unknown type in isZero " + val.Type().String())
+ }
+diff --git a/src/pkg/encoding/gob/gobencdec_test.go b/src/pkg/encoding/gob/gobencdec_test.go
+index eacfd842db..5cab411591 100644
+--- a/src/pkg/encoding/gob/gobencdec_test.go
++++ b/src/pkg/encoding/gob/gobencdec_test.go
+@@ -13,6 +13,7 @@ import (
+ 	"io"
+ 	"strings"
+ 	"testing"
++	"time"
+ )
+ 
+ // Types that implement the GobEncoder/Decoder interfaces.
+@@ -526,3 +527,30 @@ func TestGobEncoderExtraIndirect(t *testing.T) {
+ 		t.Errorf("got = %q, want %q", got, gdb)
+ 	}
+ }
++
++// Another bug: this caused a crash with the new Go1 Time type.
++
++type TimeBug struct {
++	T time.Time
++	S string
++	I int
++}
++
++func TestGobEncodeTime(t *testing.T) {
++	x := TimeBug{time.Now(), "hello", -55}
++	b := new(bytes.Buffer)
++	enc := NewEncoder(b)
++	err := enc.Encode(x)
++	if err != nil {
++		t.Fatal("encode:", err)
++	}
++	var y TimeBug
++	dec := NewDecoder(b)
++	err = dec.Decode(&y)
++	if err != nil {
++		t.Fatal("decode:", err)
++	}
++	if x != y {
++		t.Fatal("%v != %v", x, y)
++	}
++}

@@ -22,7 +22,112 @@ Date:   Wed Apr 1 03:21:03 2020 -0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/ssa/gen/S390XOps.go | 6 ++++++
  src/cmd/compile/internal/ssa/opGen.go        | 6 ++++++
  2 files changed, 12 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/S390XOps.go b/src/cmd/compile/internal/ssa/gen/S390XOps.go
+index 283a0fa6b5..65460bf6f7 100644
+--- a/src/cmd/compile/internal/ssa/gen/S390XOps.go
++++ b/src/cmd/compile/internal/ssa/gen/S390XOps.go
+@@ -630,6 +630,7 @@ func init() {
+ 			asm:            "STMG",
+ 			faultOnNilArg0: true,
+ 			symEffect:      "Write",
++			clobberFlags:   true, // TODO(mundaym): currently uses AGFI to handle large offsets
+ 		},
+ 		{
+ 			name:           "STMG3",
+@@ -640,6 +641,7 @@ func init() {
+ 			asm:            "STMG",
+ 			faultOnNilArg0: true,
+ 			symEffect:      "Write",
++			clobberFlags:   true, // TODO(mundaym): currently uses AGFI to handle large offsets
+ 		},
+ 		{
+ 			name:      "STMG4",
+@@ -657,6 +659,7 @@ func init() {
+ 			asm:            "STMG",
+ 			faultOnNilArg0: true,
+ 			symEffect:      "Write",
++			clobberFlags:   true, // TODO(mundaym): currently uses AGFI to handle large offsets
+ 		},
+ 		{
+ 			name:           "STM2",
+@@ -667,6 +670,7 @@ func init() {
+ 			asm:            "STMY",
+ 			faultOnNilArg0: true,
+ 			symEffect:      "Write",
++			clobberFlags:   true, // TODO(mundaym): currently uses AGFI to handle large offsets
+ 		},
+ 		{
+ 			name:           "STM3",
+@@ -677,6 +681,7 @@ func init() {
+ 			asm:            "STMY",
+ 			faultOnNilArg0: true,
+ 			symEffect:      "Write",
++			clobberFlags:   true, // TODO(mundaym): currently uses AGFI to handle large offsets
+ 		},
+ 		{
+ 			name:      "STM4",
+@@ -694,6 +699,7 @@ func init() {
+ 			asm:            "STMY",
+ 			faultOnNilArg0: true,
+ 			symEffect:      "Write",
++			clobberFlags:   true, // TODO(mundaym): currently uses AGFI to handle large offsets
+ 		},
+ 
+ 		// large move
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 46ca7936dc..bf48bff8f1 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -30110,6 +30110,7 @@ var opcodeTable = [...]opInfo{
+ 		name:           "STMG2",
+ 		auxType:        auxSymOff,
+ 		argLen:         4,
++		clobberFlags:   true,
+ 		faultOnNilArg0: true,
+ 		symEffect:      SymWrite,
+ 		asm:            s390x.ASTMG,
+@@ -30125,6 +30126,7 @@ var opcodeTable = [...]opInfo{
+ 		name:           "STMG3",
+ 		auxType:        auxSymOff,
+ 		argLen:         5,
++		clobberFlags:   true,
+ 		faultOnNilArg0: true,
+ 		symEffect:      SymWrite,
+ 		asm:            s390x.ASTMG,
+@@ -30141,6 +30143,7 @@ var opcodeTable = [...]opInfo{
+ 		name:           "STMG4",
+ 		auxType:        auxSymOff,
+ 		argLen:         6,
++		clobberFlags:   true,
+ 		faultOnNilArg0: true,
+ 		symEffect:      SymWrite,
+ 		asm:            s390x.ASTMG,
+@@ -30158,6 +30161,7 @@ var opcodeTable = [...]opInfo{
+ 		name:           "STM2",
+ 		auxType:        auxSymOff,
+ 		argLen:         4,
++		clobberFlags:   true,
+ 		faultOnNilArg0: true,
+ 		symEffect:      SymWrite,
+ 		asm:            s390x.ASTMY,
+@@ -30173,6 +30177,7 @@ var opcodeTable = [...]opInfo{
+ 		name:           "STM3",
+ 		auxType:        auxSymOff,
+ 		argLen:         5,
++		clobberFlags:   true,
+ 		faultOnNilArg0: true,
+ 		symEffect:      SymWrite,
+ 		asm:            s390x.ASTMY,
+@@ -30189,6 +30194,7 @@ var opcodeTable = [...]opInfo{
+ 		name:           "STM4",
+ 		auxType:        auxSymOff,
+ 		argLen:         6,
++		clobberFlags:   true,
+ 		faultOnNilArg0: true,
+ 		symEffect:      SymWrite,
+ 		asm:            s390x.ASTMY,

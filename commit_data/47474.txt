@@ -13,7 +13,7 @@ Date:   Thu Dec 31 12:41:53 2020 +0000
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/rulegen.go           | 9 +++++++--
  src/cmd/compile/internal/ssa/rewrite386splitload.go   | 2 --
  src/cmd/compile/internal/ssa/rewriteAMD64splitload.go | 2 --
@@ -21,3 +21,98 @@ Date:   Thu Dec 31 12:41:53 2020 +0000
  src/cmd/compile/internal/ssa/rewritedec.go            | 2 --
  src/cmd/compile/internal/ssa/rewritedec64.go          | 2 --
  6 files changed, 7 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/rulegen.go b/src/cmd/compile/internal/ssa/gen/rulegen.go
+index 6388aab362..a3ce726dc3 100644
+--- a/src/cmd/compile/internal/ssa/gen/rulegen.go
++++ b/src/cmd/compile/internal/ssa/gen/rulegen.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build gen
+ // +build gen
+ 
+ // This program generates Go code that applies rewrite rules to a Value.
+@@ -194,7 +195,9 @@ func genRulesSuffix(arch arch, suff string) {
+ 		swc.add(stmtf("return rewriteValue%s%s_%s(v)", arch.name, suff, op))
+ 		sw.add(swc)
+ 	}
+-	fn.add(sw)
++	if len(sw.List) > 0 { // skip if empty
++		fn.add(sw)
++	}
+ 	fn.add(stmtf("return false"))
+ 	genFile.add(fn)
+ 
+@@ -264,7 +267,9 @@ func genRulesSuffix(arch arch, suff string) {
+ 		}
+ 		sw.add(swc)
+ 	}
+-	fn.add(sw)
++	if len(sw.List) > 0 { // skip if empty
++		fn.add(sw)
++	}
+ 	fn.add(stmtf("return false"))
+ 	genFile.add(fn)
+ 
+diff --git a/src/cmd/compile/internal/ssa/rewrite386splitload.go b/src/cmd/compile/internal/ssa/rewrite386splitload.go
+index 90b5df8ae0..670e7f4f8f 100644
+--- a/src/cmd/compile/internal/ssa/rewrite386splitload.go
++++ b/src/cmd/compile/internal/ssa/rewrite386splitload.go
+@@ -156,7 +156,5 @@ func rewriteValue386splitload_Op386CMPWload(v *Value) bool {
+ 	}
+ }
+ func rewriteBlock386splitload(b *Block) bool {
+-	switch b.Kind {
+-	}
+ 	return false
+ }
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64splitload.go b/src/cmd/compile/internal/ssa/rewriteAMD64splitload.go
+index 1b8680c052..ae50aaa466 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64splitload.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64splitload.go
+@@ -847,7 +847,5 @@ func rewriteValueAMD64splitload_OpAMD64CMPWloadidx2(v *Value) bool {
+ 	}
+ }
+ func rewriteBlockAMD64splitload(b *Block) bool {
+-	switch b.Kind {
+-	}
+ 	return false
+ }
+diff --git a/src/cmd/compile/internal/ssa/rewriteWasm.go b/src/cmd/compile/internal/ssa/rewriteWasm.go
+index 7258bc4f8e..6efcdfe371 100644
+--- a/src/cmd/compile/internal/ssa/rewriteWasm.go
++++ b/src/cmd/compile/internal/ssa/rewriteWasm.go
+@@ -4902,7 +4902,5 @@ func rewriteValueWasm_OpZeroExt8to64(v *Value) bool {
+ 	}
+ }
+ func rewriteBlockWasm(b *Block) bool {
+-	switch b.Kind {
+-	}
+ 	return false
+ }
+diff --git a/src/cmd/compile/internal/ssa/rewritedec.go b/src/cmd/compile/internal/ssa/rewritedec.go
+index e0fa9768d9..4b7db60551 100644
+--- a/src/cmd/compile/internal/ssa/rewritedec.go
++++ b/src/cmd/compile/internal/ssa/rewritedec.go
+@@ -409,7 +409,5 @@ func rewriteValuedec_OpStringPtr(v *Value) bool {
+ 	return false
+ }
+ func rewriteBlockdec(b *Block) bool {
+-	switch b.Kind {
+-	}
+ 	return false
+ }
+diff --git a/src/cmd/compile/internal/ssa/rewritedec64.go b/src/cmd/compile/internal/ssa/rewritedec64.go
+index 60b727f45f..7d9656a4c8 100644
+--- a/src/cmd/compile/internal/ssa/rewritedec64.go
++++ b/src/cmd/compile/internal/ssa/rewritedec64.go
+@@ -2458,7 +2458,5 @@ func rewriteValuedec64_OpZeroExt8to64(v *Value) bool {
+ 	}
+ }
+ func rewriteBlockdec64(b *Block) bool {
+-	switch b.Kind {
+-	}
+ 	return false
+ }

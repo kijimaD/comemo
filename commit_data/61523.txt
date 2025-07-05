@@ -27,7 +27,180 @@ Date:   Sat Nov 9 09:49:40 2024 -0800
     Reviewed-by: Keith Randall <khr@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/internal/runtime/maps/runtime_faststr_swiss.go | 103 ++++++++++++++++-----
  src/runtime/map_benchmark_test.go                  |  10 +-
  2 files changed, 86 insertions(+), 27 deletions(-)
+
+diff --git a/src/internal/runtime/maps/runtime_faststr_swiss.go b/src/internal/runtime/maps/runtime_faststr_swiss.go
+index 08172334e7..38170a1821 100644
+--- a/src/internal/runtime/maps/runtime_faststr_swiss.go
++++ b/src/internal/runtime/maps/runtime_faststr_swiss.go
+@@ -13,32 +13,89 @@ import (
+ 	"unsafe"
+ )
+ 
+-// TODO: more string-specific optimizations possible.
+-
+-func (m *Map) getWithoutKeySmallFastStr(typ *abi.SwissMapType, hash uintptr, key string) (unsafe.Pointer, bool) {
++func (m *Map) getWithoutKeySmallFastStr(typ *abi.SwissMapType, key string) unsafe.Pointer {
+ 	g := groupReference{
+ 		data: m.dirPtr,
+ 	}
+ 
+-	h2 := uint8(h2(hash))
+ 	ctrls := *g.ctrls()
+-
+-	for i := uintptr(0); i < abi.SwissMapGroupSlots; i++ {
+-		c := uint8(ctrls)
+-		ctrls >>= 8
+-		if c != h2 {
+-			continue
++	slotKey := g.key(typ, 0)
++	slotSize := typ.SlotSize
++
++	// The 64 threshold was chosen based on performance of BenchmarkMapStringKeysEight,
++	// where there are 8 keys to check, all of which don't quick-match the lookup key.
++	// In that case, we can save hashing the lookup key. That savings is worth this extra code
++	// for strings that are long enough that hashing is expensive.
++	if len(key) > 64 {
++		// String hashing and equality might be expensive. Do a quick check first.
++		j := abi.SwissMapGroupSlots
++		for i := range abi.SwissMapGroupSlots {
++			if ctrls&(1<<7) == 0 && longStringQuickEqualityTest(key, *(*string)(slotKey)) {
++				if j < abi.SwissMapGroupSlots {
++					// 2 strings both passed the quick equality test.
++					// Break out of this loop and do it the slow way.
++					goto dohash
++				}
++				j = i
++			}
++			slotKey = unsafe.Pointer(uintptr(slotKey) + slotSize)
++			ctrls >>= 8
++		}
++		if j == abi.SwissMapGroupSlots {
++			// No slot passed the quick test.
++			return nil
++		}
++		// There's exactly one slot that passed the quick test. Do the single expensive comparison.
++		slotKey = g.key(typ, uintptr(j))
++		if key == *(*string)(slotKey) {
++			return unsafe.Pointer(uintptr(slotKey) + typ.ElemOff)
+ 		}
++		return nil
++	}
+ 
+-		slotKey := g.key(typ, i)
++dohash:
++	// This path will cost 1 hash and 1+ε comparisons.
++	hash := typ.Hasher(abi.NoEscape(unsafe.Pointer(&key)), m.seed)
++	h2 := uint8(h2(hash))
++	ctrls = *g.ctrls()
++	slotKey = g.key(typ, 0)
+ 
+-		if key == *(*string)(slotKey) {
+-			slotElem := g.elem(typ, i)
+-			return slotElem, true
++	for range abi.SwissMapGroupSlots {
++		if uint8(ctrls) == h2 && key == *(*string)(slotKey) {
++			return unsafe.Pointer(uintptr(slotKey) + typ.ElemOff)
+ 		}
++		slotKey = unsafe.Pointer(uintptr(slotKey) + slotSize)
++		ctrls >>= 8
+ 	}
++	return nil
++}
+ 
+-	return nil, false
++// Returns true if a and b might be equal.
++// Returns false if a and b are definitely not equal.
++// Requires len(a)>=8.
++func longStringQuickEqualityTest(a, b string) bool {
++	if len(a) != len(b) {
++		return false
++	}
++	x, y := stringPtr(a), stringPtr(b)
++	// Check first 8 bytes.
++	if *(*[8]byte)(x) != *(*[8]byte)(y) {
++		return false
++	}
++	// Check last 8 bytes.
++	x = unsafe.Pointer(uintptr(x) + uintptr(len(a)) - 8)
++	y = unsafe.Pointer(uintptr(y) + uintptr(len(a)) - 8)
++	if *(*[8]byte)(x) != *(*[8]byte)(y) {
++		return false
++	}
++	return true
++}
++func stringPtr(s string) unsafe.Pointer {
++	type stringStruct struct {
++		ptr unsafe.Pointer
++		len int
++	}
++	return (*stringStruct)(unsafe.Pointer(&s)).ptr
+ }
+ 
+ //go:linkname runtime_mapaccess1_faststr runtime.mapaccess1_faststr
+@@ -58,16 +115,16 @@ func runtime_mapaccess1_faststr(typ *abi.SwissMapType, m *Map, key string) unsaf
+ 		return nil
+ 	}
+ 
+-	hash := typ.Hasher(abi.NoEscape(unsafe.Pointer(&key)), m.seed)
+-
+ 	if m.dirLen <= 0 {
+-		elem, ok := m.getWithoutKeySmallFastStr(typ, hash, key)
+-		if !ok {
++		elem := m.getWithoutKeySmallFastStr(typ, key)
++		if elem == nil {
+ 			return unsafe.Pointer(&zeroVal[0])
+ 		}
+ 		return elem
+ 	}
+ 
++	hash := typ.Hasher(abi.NoEscape(unsafe.Pointer(&key)), m.seed)
++
+ 	// Select table.
+ 	idx := m.directoryIndex(hash)
+ 	t := m.directoryAt(idx)
+@@ -116,16 +173,16 @@ func runtime_mapaccess2_faststr(typ *abi.SwissMapType, m *Map, key string) (unsa
+ 		return nil, false
+ 	}
+ 
+-	hash := typ.Hasher(abi.NoEscape(unsafe.Pointer(&key)), m.seed)
+-
+ 	if m.dirLen <= 0 {
+-		elem, ok := m.getWithoutKeySmallFastStr(typ, hash, key)
+-		if !ok {
++		elem := m.getWithoutKeySmallFastStr(typ, key)
++		if elem == nil {
+ 			return unsafe.Pointer(&zeroVal[0]), false
+ 		}
+ 		return elem, true
+ 	}
+ 
++	hash := typ.Hasher(abi.NoEscape(unsafe.Pointer(&key)), m.seed)
++
+ 	// Select table.
+ 	idx := m.directoryIndex(hash)
+ 	t := m.directoryAt(idx)
+diff --git a/src/runtime/map_benchmark_test.go b/src/runtime/map_benchmark_test.go
+index 205647113f..d895b2c640 100644
+--- a/src/runtime/map_benchmark_test.go
++++ b/src/runtime/map_benchmark_test.go
+@@ -196,10 +196,12 @@ func BenchmarkSmallStrMap(b *testing.B) {
+ 	}
+ }
+ 
+-func BenchmarkMapStringKeysEight_16(b *testing.B) { benchmarkMapStringKeysEight(b, 16) }
+-func BenchmarkMapStringKeysEight_32(b *testing.B) { benchmarkMapStringKeysEight(b, 32) }
+-func BenchmarkMapStringKeysEight_64(b *testing.B) { benchmarkMapStringKeysEight(b, 64) }
+-func BenchmarkMapStringKeysEight_1M(b *testing.B) { benchmarkMapStringKeysEight(b, 1<<20) }
++func BenchmarkMapStringKeysEight_16(b *testing.B)  { benchmarkMapStringKeysEight(b, 16) }
++func BenchmarkMapStringKeysEight_32(b *testing.B)  { benchmarkMapStringKeysEight(b, 32) }
++func BenchmarkMapStringKeysEight_64(b *testing.B)  { benchmarkMapStringKeysEight(b, 64) }
++func BenchmarkMapStringKeysEight_128(b *testing.B) { benchmarkMapStringKeysEight(b, 128) }
++func BenchmarkMapStringKeysEight_256(b *testing.B) { benchmarkMapStringKeysEight(b, 256) }
++func BenchmarkMapStringKeysEight_1M(b *testing.B)  { benchmarkMapStringKeysEight(b, 1<<20) }
+ 
+ func benchmarkMapStringKeysEight(b *testing.B, keySize int) {
+ 	m := make(map[string]bool)

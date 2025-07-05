@@ -5,7 +5,7 @@ Date:   Mon Jun 16 12:16:11 2008 -0700
     update more tests to reflect tweaked grammar for if, switch
     
     SVN=122916
-
+---
  test/bugs/bug006.go                | 14 --------------
  test/{bugs => fixedbugs}/bug001.go |  0
  test/{bugs => fixedbugs}/bug002.go |  0
@@ -13,3 +13,95 @@ Date:   Mon Jun 16 12:16:11 2008 -0700
  test/{bugs => fixedbugs}/bug004.go |  0
  test/golden.out                    | 21 ++++++++-------------
  6 files changed, 9 insertions(+), 29 deletions(-)
+
+diff --git a/test/bugs/bug006.go b/test/bugs/bug006.go
+index e686c83853..eb5f5218a8 100644
+--- a/test/bugs/bug006.go
++++ b/test/bugs/bug006.go
+@@ -16,17 +16,3 @@ func main() int {
+ 	if g != 4.5 { print " fail\n"; return 1; }
+ 	return 0;
+ }
+-/*
+-should 4.5 * iota be ok? perhaps, perhaps not. but (all!) error msgs are bad:
+-bug6.go:4: illegal combination of literals 0 0
+-bug6.go:4: expression must be a constant
+-bug6.go:4: expression must be a constant
+-bug6.go:4: expression must be a constant
+-bug6.go:4: expression must be a constant
+-bug6.go:4: expression must be a constant
+-bug6.go:4: expression must be a constant
+-bug6.go:4: expression must be a constant
+-bug6.go:4: expression must be a constant
+-bug6.go:4: expression must be a constant
+-bug6.go:4: fatal error: too many errors
+-*/
+diff --git a/test/bugs/bug001.go b/test/fixedbugs/bug001.go
+similarity index 100%
+rename from test/bugs/bug001.go
+rename to test/fixedbugs/bug001.go
+diff --git a/test/bugs/bug002.go b/test/fixedbugs/bug002.go
+similarity index 100%
+rename from test/bugs/bug002.go
+rename to test/fixedbugs/bug002.go
+diff --git a/test/bugs/bug003.go b/test/fixedbugs/bug003.go
+similarity index 68%
+rename from test/bugs/bug003.go
+rename to test/fixedbugs/bug003.go
+index 07f04d227d..e45975be41 100644
+--- a/test/bugs/bug003.go
++++ b/test/fixedbugs/bug003.go
+@@ -7,9 +7,8 @@
+ package main
+ 
+ func main() {
+-	switch ; {}  // compiles; should be an error (should be simplevardecl before ;)
++	switch ; { case true: return; default: return }
+ }
+ /*
+-bug003.go:6: switch statement must have case labels
+ bug003.go:6: fatal error: walkswitch: not case EMPTY
+ */
+diff --git a/test/bugs/bug004.go b/test/fixedbugs/bug004.go
+similarity index 100%
+rename from test/bugs/bug004.go
+rename to test/fixedbugs/bug004.go
+diff --git a/test/golden.out b/test/golden.out
+index 2a727a6749..8845e16eaf 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -114,19 +114,6 @@ abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz
+ 
+ =========== ken/strvar.go
+ 
+-=========== bugs/bug001.go
+-BUG: known to succeed incorrectly
+-
+-=========== bugs/bug002.go
+-BUG: known to succeed incorrectly
+-
+-=========== bugs/bug003.go
+-bugs/bug003.go:6: switch statement must have case labels
+-BUG: fatal error
+-
+-=========== bugs/bug004.go
+-BUG: known to succeed incorrectly
+-
+ =========== bugs/bug006.go
+ zero
+  fail
+@@ -240,6 +227,14 @@ BUG: known to fail incorrectly
+ 
+ =========== fixedbugs/bug000.go
+ 
++=========== fixedbugs/bug001.go
++
++=========== fixedbugs/bug002.go
++
++=========== fixedbugs/bug003.go
++
++=========== fixedbugs/bug004.go
++
+ =========== fixedbugs/bug005.go
+ 
+ =========== fixedbugs/bug007.go

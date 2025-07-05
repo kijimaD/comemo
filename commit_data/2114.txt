@@ -8,6 +8,27 @@ Date:   Wed Apr 29 18:54:44 2009 -0700
     DELTA=4  (3 added, 1 deleted, 0 changed)
     OCL=28063
     CL=28065
-
+---
  src/runtime/linux/thread.c | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/linux/thread.c b/src/runtime/linux/thread.c
+index 4375eca9fc..cc9ba161bf 100644
+--- a/src/runtime/linux/thread.c
++++ b/src/runtime/linux/thread.c
+@@ -237,12 +237,14 @@ newosproc(M *m, G *g, void *stk, void (*fn)(void))
+ 	int64 ret;
+ 	int32 flags;
+ 
++	/*
++	 * note: strace gets confused if we use CLONE_PTRACE here.
++	 */
+ 	flags = CLONE_PARENT	/* getppid doesn't change in child */
+ 		| CLONE_VM	/* share memory */
+ 		| CLONE_FS	/* share cwd, etc */
+ 		| CLONE_FILES	/* share fd table */
+ 		| CLONE_SIGHAND	/* share sig handler table */
+-		| CLONE_PTRACE	/* revisit - okay for now */
+ 		| CLONE_THREAD	/* revisit - okay for now */
+ 		;
+ 

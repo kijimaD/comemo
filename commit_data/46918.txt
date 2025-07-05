@@ -13,6 +13,20 @@ Date:   Tue Feb 16 10:16:06 2021 -0800
     Trust: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  README.md | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/README.md b/README.md
+index 4ca3956de8..837734b6e5 100644
+--- a/README.md
++++ b/README.md
+@@ -3,7 +3,7 @@
+ Go is an open source programming language that makes it easy to build simple,
+ reliable, and efficient software.
+ 
+-![Gopher image](doc/gopher/fiveyears.jpg)
++![Gopher image](https://golang.org/doc/gopher/fiveyears.jpg)
+ *Gopher image by [Renee French][rf], licensed under [Creative Commons 3.0 Attributions license][cc3-by].*
+ 
+ Our canonical Git repository is located at https://go.googlesource.com/go.

@@ -36,7 +36,86 @@ Date:   Mon Aug 3 17:48:47 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/13047
     Reviewed-by: Rick Hudson <rlh@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/mgc.go   | 22 ++++------------------
  src/runtime/mheap.go |  3 +++
  2 files changed, 7 insertions(+), 18 deletions(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index b1fbdc91bb..6d4799a9e2 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -360,7 +360,8 @@ type gcControllerState struct {
+ 
+ 	// assistRatio is the ratio of allocated bytes to scan work
+ 	// that should be performed by mutator assists. This is
+-	// computed at the beginning of each cycle.
++	// computed at the beginning of each cycle and updated every
++	// time heap_scan is updated.
+ 	assistRatio float64
+ 
+ 	// fractionalUtilizationGoal is the fraction of wall clock
+@@ -379,10 +380,6 @@ type gcControllerState struct {
+ 	// at the end of of each cycle.
+ 	triggerRatio float64
+ 
+-	// reviseTimer is a timer that triggers periodic revision of
+-	// control variables during the cycle.
+-	reviseTimer timer
+-
+ 	_ [_CacheLineSize]byte
+ 
+ 	// fractionalMarkWorkersNeeded is the number of fractional
+@@ -449,19 +446,11 @@ func (c *gcControllerState) startCycle() {
+ 			" workers=", c.dedicatedMarkWorkersNeeded,
+ 			"+", c.fractionalMarkWorkersNeeded, "\n")
+ 	}
+-
+-	// Set up a timer to revise periodically
+-	c.reviseTimer.f = func(interface{}, uintptr) {
+-		gcController.revise()
+-	}
+-	c.reviseTimer.period = 10 * 1000 * 1000
+-	c.reviseTimer.when = nanotime() + c.reviseTimer.period
+-	addtimer(&c.reviseTimer)
+ }
+ 
+ // revise updates the assist ratio during the GC cycle to account for
+-// improved estimates. This should be called periodically during
+-// concurrent mark.
++// improved estimates. This should be called either under STW or
++// whenever memstats.heap_scan is updated (with mheap_.lock held).
+ func (c *gcControllerState) revise() {
+ 	// Compute the expected scan work. This is a strict upper
+ 	// bound on the possible scan work in the current heap.
+@@ -502,9 +491,6 @@ func (c *gcControllerState) endCycle() {
+ 	// transient changes. Values near 1 may be unstable.
+ 	const triggerGain = 0.5
+ 
+-	// Stop the revise timer
+-	deltimer(&c.reviseTimer)
+-
+ 	// Compute next cycle trigger ratio. First, this computes the
+ 	// "error" for this cycle; that is, how far off the trigger
+ 	// was from what it should have been, accounting for both heap
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index d190782580..be4d612156 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -420,6 +420,8 @@ func mHeap_Alloc_m(h *mheap, npage uintptr, sizeclass int32, large bool) *mspan
+ 	memstats.tinyallocs += uint64(_g_.m.mcache.local_tinyallocs)
+ 	_g_.m.mcache.local_tinyallocs = 0
+ 
++	gcController.revise()
++
+ 	s := mHeap_AllocSpanLocked(h, npage)
+ 	if s != nil {
+ 		// Record span info, because gc needs to be
+@@ -694,6 +696,7 @@ func mHeap_Free(h *mheap, s *mspan, acct int32) {
+ 		if acct != 0 {
+ 			memstats.heap_objects--
+ 		}
++		gcController.revise()
+ 		mHeap_FreeSpanLocked(h, s, true, true, 0)
+ 		if trace.enabled {
+ 			traceHeapAlloc()

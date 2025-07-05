@@ -7,6 +7,19 @@ Date:   Mon Sep 27 11:43:53 2010 -0400
     R=r, r2
     CC=golang-dev
     https://golang.org/cl/2216053
-
+---
  CONTRIBUTORS | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 0f28e4dd64..52acedc9e4 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -48,6 +48,7 @@ Anthony Starks <ajstarks@gmail.com>
+ Aron Nopanen <aron.nopanen@gmail.com>
+ Arvindh Rajesh Tamilmani <art@a-30.net>
+ Austin Clements <aclements@csail.mit.edu>
++Balazs Lecz <leczb@google.com>
+ Ben Eitzen <eitzenb@golang.org>
+ Ben Olive <sionide21@gmail.com>
+ Bill Neubauer <wcn@golang.org> <wcn@google.com>

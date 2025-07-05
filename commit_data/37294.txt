@@ -18,7 +18,91 @@ Date:   Tue Jul 17 08:39:30 2018 +0100
     Change-Id: I02265793f010a9e001c3e1a5397c290c6769d4de
     Reviewed-on: https://go-review.googlesource.com/124335
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/ssa/deadstore.go |  8 +++++
  test/fixedbugs/issue26407.go              | 58 +++++++++++++++++++++++++++++++
  2 files changed, 66 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/deadstore.go b/src/cmd/compile/internal/ssa/deadstore.go
+index 6359588129..ca6bce972e 100644
+--- a/src/cmd/compile/internal/ssa/deadstore.go
++++ b/src/cmd/compile/internal/ssa/deadstore.go
+@@ -262,6 +262,14 @@ func elimDeadAutosGeneric(f *Func) {
+ 			for _, v := range b.Values {
+ 				changed = visit(v) || changed
+ 			}
++			// keep the auto if its address reaches a control value
++			if b.Control == nil {
++				continue
++			}
++			if n, ok := addr[b.Control]; ok && !used[n] {
++				used[n] = true
++				changed = true
++			}
+ 		}
+ 		if !changed {
+ 			break
+diff --git a/test/fixedbugs/issue26407.go b/test/fixedbugs/issue26407.go
+new file mode 100644
+index 0000000000..aa8e79c1e6
+--- /dev/null
++++ b/test/fixedbugs/issue26407.go
+@@ -0,0 +1,58 @@
++// run
++
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 26407: ensure that stack variables which have
++// had their address taken and then used in a comparison,
++// but are otherwise unused, are cleared.
++
++package main
++
++func main() {
++	poison()
++	test()
++}
++
++//go:noinline
++func poison() {
++	// initialise the stack with invalid pointers
++	var large [256]uintptr
++	for i := range large {
++		large[i] = 1
++	}
++	use(large[:])
++}
++
++//go:noinline
++func test() {
++	a := 2
++	x := &a
++	if x != compare(&x) {
++		panic("not possible")
++	}
++}
++
++//go:noinline
++func compare(x **int) *int {
++	var y *int
++	if x == &y {
++		panic("not possible")
++	}
++	// grow the stack to trigger a check for invalid pointers
++	grow()
++	if x == &y {
++		panic("not possible")
++	}
++	return *x
++}
++
++//go:noinline
++func grow() {
++	var large [1 << 16]uintptr
++	use(large[:])
++}
++
++//go:noinline
++func use(_ []uintptr) { }

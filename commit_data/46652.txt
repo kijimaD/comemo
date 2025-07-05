@@ -24,9 +24,96 @@ Date:   Fri Jan 8 17:02:41 2021 -0500
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/compile/internal/gc/embed.go | 16 ++++++++++++----
  src/go/types/stdlib_test.go          |  2 ++
  test/embedfunc.go                    | 15 +++++++++++++++
  test/embedvers.go                    | 12 ++++++++++++
  4 files changed, 41 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/embed.go b/src/cmd/compile/internal/gc/embed.go
+index 1307780960..f45796cc1d 100644
+--- a/src/cmd/compile/internal/gc/embed.go
++++ b/src/cmd/compile/internal/gc/embed.go
+@@ -67,10 +67,6 @@ func varEmbed(p *noder, names []*Node, typ *Node, exprs []*Node, embeds []Pragma
+ 		p.yyerrorpos(pos, "invalid go:embed: missing import \"embed\"")
+ 		return
+ 	}
+-	if embedCfg.Patterns == nil {
+-		p.yyerrorpos(pos, "invalid go:embed: build system did not supply embed configuration")
+-		return
+-	}
+ 	if len(names) > 1 {
+ 		p.yyerrorpos(pos, "go:embed cannot apply to multiple vars")
+ 		return
+@@ -186,6 +182,18 @@ func dumpembeds() {
+ // initEmbed emits the init data for a //go:embed variable,
+ // which is either a string, a []byte, or an embed.FS.
+ func initEmbed(v *Node) {
++	commentPos := v.Name.Param.EmbedList()[0].Pos
++	if !langSupported(1, 16, localpkg) {
++		lno := lineno
++		lineno = commentPos
++		yyerrorv("go1.16", "go:embed")
++		lineno = lno
++		return
++	}
++	if embedCfg.Patterns == nil {
++		yyerrorl(commentPos, "invalid go:embed: build system did not supply embed configuration")
++		return
++	}
+ 	kind := embedKind(v.Type)
+ 	if kind == embedUnknown {
+ 		yyerrorl(v.Pos, "go:embed cannot apply to var of type %v", v.Type)
+diff --git a/src/go/types/stdlib_test.go b/src/go/types/stdlib_test.go
+index 23f8f9a18d..5ca44936ea 100644
+--- a/src/go/types/stdlib_test.go
++++ b/src/go/types/stdlib_test.go
+@@ -155,6 +155,8 @@ func TestStdTest(t *testing.T) {
+ 	testTestDir(t, filepath.Join(runtime.GOROOT(), "test"),
+ 		"cmplxdivide.go", // also needs file cmplxdivide1.go - ignore
+ 		"directive.go",   // tests compiler rejection of bad directive placement - ignore
++		"embedfunc.go",   // tests //go:embed
++		"embedvers.go",   // tests //go:embed
+ 	)
+ }
+ 
+diff --git a/test/embedfunc.go b/test/embedfunc.go
+new file mode 100644
+index 0000000000..14e0f82975
+--- /dev/null
++++ b/test/embedfunc.go
+@@ -0,0 +1,15 @@
++// errorcheck
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++import _ "embed"
++
++func f() {
++	//go:embed x.txt // ERROR "go:embed cannot apply to var inside func"
++	var x string
++	_ = x
++}
+diff --git a/test/embedvers.go b/test/embedvers.go
+new file mode 100644
+index 0000000000..71f0f22f1d
+--- /dev/null
++++ b/test/embedvers.go
+@@ -0,0 +1,12 @@
++// errorcheck -lang=go1.15
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++import _ "embed"
++
++//go:embed x.txt // ERROR "go:embed requires go1.16 or later"
++var x string

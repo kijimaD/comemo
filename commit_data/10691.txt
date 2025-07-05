@@ -10,7 +10,7 @@ Date:   Fri Dec 9 14:58:28 2011 -0500
     R=ken2
     CC=golang-dev
     https://golang.org/cl/5479048
-
+---
  src/cmd/gc/subr.c                        |  6 +-----
  test/bugs/bug367.dir/main.go             | 12 ------------
  test/fixedbugs/bug367.dir/main.go        | 24 ++++++++++++++++++++++++
@@ -18,3 +18,133 @@ Date:   Fri Dec 9 14:58:28 2011 -0500
  test/{bugs => fixedbugs}/bug367.go       |  2 +-
  test/golden.out                          |  4 ----
  6 files changed, 29 insertions(+), 26 deletions(-)
+
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 71e67f1449..7c28cfd176 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -1964,7 +1964,7 @@ lookdot0(Sym *s, Type *t, Type **save, int ignorecase)
+ 	return c;
+ }
+ 
+-// search depth d --
++// search depth d for field/method s --
+ // return count of fields+methods
+ // found at search depth.
+ // answer is in dotlist array and
+@@ -2087,8 +2087,6 @@ expand0(Type *t, int followptr)
+ 
+ 	if(u->etype == TINTER) {
+ 		for(f=u->type; f!=T; f=f->down) {
+-			if(!exportname(f->sym->name) && f->sym->pkg != localpkg)
+-				continue;
+ 			if(f->sym->flags & SymUniq)
+ 				continue;
+ 			f->sym->flags |= SymUniq;
+@@ -2104,8 +2102,6 @@ expand0(Type *t, int followptr)
+ 	u = methtype(t);
+ 	if(u != T) {
+ 		for(f=u->method; f!=T; f=f->down) {
+-			if(!exportname(f->sym->name) && f->sym->pkg != localpkg)
+-				continue;
+ 			if(f->sym->flags & SymUniq)
+ 				continue;
+ 			f->sym->flags |= SymUniq;
+diff --git a/test/bugs/bug367.dir/main.go b/test/bugs/bug367.dir/main.go
+deleted file mode 100644
+index ab5d1702b1..0000000000
+--- a/test/bugs/bug367.dir/main.go
++++ /dev/null
+@@ -1,12 +0,0 @@
+-package main
+-
+-import (
+-	"./p"
+-)
+-
+-type T struct{ *p.S }
+-
+-func main() {
+-	var t T
+-	p.F(t)
+-}
+diff --git a/test/fixedbugs/bug367.dir/main.go b/test/fixedbugs/bug367.dir/main.go
+new file mode 100644
+index 0000000000..21e9a5002c
+--- /dev/null
++++ b/test/fixedbugs/bug367.dir/main.go
+@@ -0,0 +1,24 @@
++package main
++
++import (
++	"./p"
++)
++
++type T struct{ *p.S }
++type I interface {
++	get()
++}
++
++func main() {
++	var t T
++	p.F(t)
++	var x interface{} = t
++	_, ok := x.(I)
++	if ok {
++		panic("should not satisfy main.I")
++	}
++	_, ok = x.(p.I)
++	if !ok {
++		panic("should satisfy p.I")
++	}
++}
+diff --git a/test/bugs/bug367.dir/p.go b/test/fixedbugs/bug367.dir/p.go
+similarity index 61%
+rename from test/bugs/bug367.dir/p.go
+rename to test/fixedbugs/bug367.dir/p.go
+index 4e27d4e00a..c8772d2d05 100644
+--- a/test/bugs/bug367.dir/p.go
++++ b/test/fixedbugs/bug367.dir/p.go
+@@ -3,14 +3,13 @@ package p
+ type T struct{ x int }
+ type S struct{}
+ 
+-func (p *S) get() T {
+-	return T{0}
++func (p *S) get() {
+ }
+ 
+ type I interface {
+-	get() T
++	get()
+ }
+ 
+ func F(i I) {
+-	_ = i.get()
++	i.get()
+ }
+diff --git a/test/bugs/bug367.go b/test/fixedbugs/bug367.go
+similarity index 94%
+rename from test/bugs/bug367.go
+rename to test/fixedbugs/bug367.go
+index 073e3b180e..25d11a1531 100644
+--- a/test/bugs/bug367.go
++++ b/test/fixedbugs/bug367.go
+@@ -4,4 +4,4 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-ignored
++package ignored
+diff --git a/test/golden.out b/test/golden.out
+index f2e7f5ce30..6dccb6ec01 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -119,7 +119,3 @@ broke
+ 0x0
+ 
+ == bugs/
+-
+-=========== bugs/bug367.go
+-panic: interface conversion: main.T is not p.I: missing method get
+-BUG: should not fail

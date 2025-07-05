@@ -19,10 +19,153 @@ Date:   Fri Aug 3 19:21:11 2018 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/go/build/deps_test.go |  2 +-
  src/go/doc/comment.go     |  5 ++---
  src/go/doc/doc_test.go    |  9 +++++++++
  src/go/doc/lazyre.go      | 51 +++++++++++++++++++++++++++++++++++++++++++++++
  src/go/doc/reader.go      |  7 +++----
  5 files changed, 66 insertions(+), 8 deletions(-)
+
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 29dbe47d29..7a154b0880 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -204,7 +204,7 @@ var pkgDeps = map[string][]string{
+ 
+ 	// Go parser.
+ 	"go/ast":     {"L4", "OS", "go/scanner", "go/token"},
+-	"go/doc":     {"L4", "go/ast", "go/token", "regexp", "text/template"},
++	"go/doc":     {"L4", "OS", "go/ast", "go/token", "regexp", "text/template"},
+ 	"go/parser":  {"L4", "OS", "go/ast", "go/scanner", "go/token"},
+ 	"go/printer": {"L4", "OS", "go/ast", "go/scanner", "go/token", "text/tabwriter"},
+ 	"go/scanner": {"L4", "OS", "go/token"},
+diff --git a/src/go/doc/comment.go b/src/go/doc/comment.go
+index d068d8960c..d9268b87fb 100644
+--- a/src/go/doc/comment.go
++++ b/src/go/doc/comment.go
+@@ -8,7 +8,6 @@ package doc
+ 
+ import (
+ 	"io"
+-	"regexp"
+ 	"strings"
+ 	"text/template" // for HTMLEscape
+ 	"unicode"
+@@ -63,7 +62,7 @@ const (
+ 	urlRx = protoPart + `://` + hostPart + pathPart
+ )
+ 
+-var matchRx = regexp.MustCompile(`(` + urlRx + `)|(` + identRx + `)`)
++var matchRx = newLazyRE(`(` + urlRx + `)|(` + identRx + `)`)
+ 
+ var (
+ 	html_a      = []byte(`<a href="`)
+@@ -276,7 +275,7 @@ type block struct {
+ 	lines []string
+ }
+ 
+-var nonAlphaNumRx = regexp.MustCompile(`[^a-zA-Z0-9]`)
++var nonAlphaNumRx = newLazyRE(`[^a-zA-Z0-9]`)
+ 
+ func anchorID(line string) string {
+ 	// Add a "hdr-" prefix to avoid conflicting with IDs used for package symbols.
+diff --git a/src/go/doc/doc_test.go b/src/go/doc/doc_test.go
+index ad8ba5378f..902a79f63f 100644
+--- a/src/go/doc/doc_test.go
++++ b/src/go/doc/doc_test.go
+@@ -144,3 +144,12 @@ func Test(t *testing.T) {
+ 	test(t, AllDecls)
+ 	test(t, AllMethods)
+ }
++
++func TestAnchorID(t *testing.T) {
++	const in = "Important Things 2 Know & Stuff"
++	const want = "hdr-Important_Things_2_Know___Stuff"
++	got := anchorID(in)
++	if got != want {
++		t.Errorf("anchorID(%q) = %q; want %q", in, got, want)
++	}
++}
+diff --git a/src/go/doc/lazyre.go b/src/go/doc/lazyre.go
+new file mode 100644
+index 0000000000..3fd97d42de
+--- /dev/null
++++ b/src/go/doc/lazyre.go
+@@ -0,0 +1,51 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package doc
++
++import (
++	"os"
++	"regexp"
++	"strings"
++	"sync"
++)
++
++type lazyRE struct {
++	str  string
++	once sync.Once
++	rx   *regexp.Regexp
++}
++
++func (r *lazyRE) re() *regexp.Regexp {
++	r.once.Do(r.build)
++	return r.rx
++}
++
++func (r *lazyRE) build() {
++	r.rx = regexp.MustCompile(r.str)
++	r.str = ""
++}
++
++func (r *lazyRE) FindStringSubmatchIndex(s string) []int {
++	return r.re().FindStringSubmatchIndex(s)
++}
++
++func (r *lazyRE) ReplaceAllString(src, repl string) string {
++	return r.re().ReplaceAllString(src, repl)
++}
++
++func (r *lazyRE) MatchString(s string) bool {
++	return r.re().MatchString(s)
++}
++
++var inTest = len(os.Args) > 0 && strings.HasSuffix(strings.TrimSuffix(os.Args[0], ".exe"), ".test")
++
++func newLazyRE(str string) *lazyRE {
++	lr := &lazyRE{str: str}
++	if inTest {
++		// In tests, always compile the regexps early.
++		lr.re()
++	}
++	return lr
++}
+diff --git a/src/go/doc/reader.go b/src/go/doc/reader.go
+index 21c02920ab..21d5907a03 100644
+--- a/src/go/doc/reader.go
++++ b/src/go/doc/reader.go
+@@ -7,7 +7,6 @@ package doc
+ import (
+ 	"go/ast"
+ 	"go/token"
+-	"regexp"
+ 	"sort"
+ 	"strconv"
+ )
+@@ -425,9 +424,9 @@ func (r *reader) readFunc(fun *ast.FuncDecl) {
+ }
+ 
+ var (
+-	noteMarker    = `([A-Z][A-Z]+)\(([^)]+)\):?`                    // MARKER(uid), MARKER at least 2 chars, uid at least 1 char
+-	noteMarkerRx  = regexp.MustCompile(`^[ \t]*` + noteMarker)      // MARKER(uid) at text start
+-	noteCommentRx = regexp.MustCompile(`^/[/*][ \t]*` + noteMarker) // MARKER(uid) at comment start
++	noteMarker    = `([A-Z][A-Z]+)\(([^)]+)\):?`           // MARKER(uid), MARKER at least 2 chars, uid at least 1 char
++	noteMarkerRx  = newLazyRE(`^[ \t]*` + noteMarker)      // MARKER(uid) at text start
++	noteCommentRx = newLazyRE(`^/[/*][ \t]*` + noteMarker) // MARKER(uid) at comment start
+ )
+ 
+ // readNote collects a single note from a sequence of comments.

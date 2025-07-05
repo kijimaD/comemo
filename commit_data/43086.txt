@@ -12,6 +12,20 @@ Date:   Thu Feb 27 12:11:30 2020 -0600
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/cgi/child.go | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/src/net/http/cgi/child.go b/src/net/http/cgi/child.go
+index cb140f8f2f..9474175f17 100644
+--- a/src/net/http/cgi/child.go
++++ b/src/net/http/cgi/child.go
+@@ -89,8 +89,6 @@ func RequestFromMap(params map[string]string) (*http.Request, error) {
+ 		r.Header.Add(strings.ReplaceAll(k[5:], "_", "-"), v)
+ 	}
+ 
+-	// TODO: cookies.  parsing them isn't exported, though.
+-
+ 	uriStr := params["REQUEST_URI"]
+ 	if uriStr == "" {
+ 		// Fallback to SCRIPT_NAME, PATH_INFO and QUERY_STRING.

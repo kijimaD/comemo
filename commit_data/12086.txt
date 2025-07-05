@@ -8,7 +8,38 @@ Date:   Tue Feb 21 08:03:03 2012 +1100
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/5683049
-
+---
  doc/go1.html | 4 ++--
  doc/go1.tmpl | 4 ++--
  2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/doc/go1.html b/doc/go1.html
+index f7a33c4038..53b338b865 100644
+--- a/doc/go1.html
++++ b/doc/go1.html
+@@ -1505,8 +1505,8 @@ methods.
+ The system-specific details of file modes and properties such as (on Unix)
+ i-number have been removed from <code>FileInfo</code> altogether.
+ Instead, each operating system's <code>os</code> package provides an
+-implementation of the <code>FileInfo</code> interface, <code>*os.FileStat</code>,
+-which has a <code>Sys</code> method that returns the
++implementation of the <code>FileInfo</code> interface, which
++has a <code>Sys</code> method that returns the
+ system-specific representation of file metadata.
+ For instance, to discover the i-number of a file on a Unix system, unpack
+ the <code>FileInfo</code> like this:
+diff --git a/doc/go1.tmpl b/doc/go1.tmpl
+index f974412325..b487c009af 100644
+--- a/doc/go1.tmpl
++++ b/doc/go1.tmpl
+@@ -1408,8 +1408,8 @@ methods.
+ The system-specific details of file modes and properties such as (on Unix)
+ i-number have been removed from <code>FileInfo</code> altogether.
+ Instead, each operating system's <code>os</code> package provides an
+-implementation of the <code>FileInfo</code> interface, <code>*os.FileStat</code>,
+-which has a <code>Sys</code> method that returns the
++implementation of the <code>FileInfo</code> interface, which
++has a <code>Sys</code> method that returns the
+ system-specific representation of file metadata.
+ For instance, to discover the i-number of a file on a Unix system, unpack
+ the <code>FileInfo</code> like this:

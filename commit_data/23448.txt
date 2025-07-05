@@ -18,7 +18,7 @@ Date:   Thu May 14 21:01:52 2015 -0400
     Signed-off-by: Shenghou Ma <minux@golang.org>
     Reviewed-on: https://go-review.googlesource.com/10113
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/syscall/zerrors_darwin_386.go       | 2 ++
  src/syscall/zerrors_darwin_amd64.go     | 2 ++
  src/syscall/zerrors_darwin_arm.go       | 2 ++
@@ -109,3 +109,1161 @@ Date:   Thu May 14 21:01:52 2015 -0400
  src/syscall/ztypes_openbsd_arm.go       | 2 ++
  src/syscall/ztypes_solaris_amd64.go     | 2 ++
  89 files changed, 178 insertions(+)
+
+diff --git a/src/syscall/zerrors_darwin_386.go b/src/syscall/zerrors_darwin_386.go
+index bb3a1610c0..debadaa9ce 100644
+--- a/src/syscall/zerrors_darwin_386.go
++++ b/src/syscall/zerrors_darwin_386.go
+@@ -4,6 +4,8 @@
+ // Created by cgo -godefs - DO NOT EDIT
+ // cgo -godefs -- -m32 _const.go
+ 
++// +build 386,darwin
++
+ package syscall
+ 
+ const (
+diff --git a/src/syscall/zerrors_darwin_amd64.go b/src/syscall/zerrors_darwin_amd64.go
+index 05ab48ee32..d4262ba55a 100644
+--- a/src/syscall/zerrors_darwin_amd64.go
++++ b/src/syscall/zerrors_darwin_amd64.go
+@@ -4,6 +4,8 @@
+ // Created by cgo -godefs - DO NOT EDIT
+ // cgo -godefs -- -m64 _const.go
+ 
++// +build amd64,darwin
++
+ package syscall
+ 
+ const (
+diff --git a/src/syscall/zerrors_darwin_arm.go b/src/syscall/zerrors_darwin_arm.go
+index 7e800d4259..a64f3735e2 100644
+--- a/src/syscall/zerrors_darwin_arm.go
++++ b/src/syscall/zerrors_darwin_arm.go
+@@ -4,6 +4,8 @@
+ // Created by cgo -godefs - DO NOT EDIT
+ // cgo -godefs -- _const.go
+ 
++// +build arm,darwin
++
+ package syscall
+ 
+ const (
+diff --git a/src/syscall/zerrors_darwin_arm64.go b/src/syscall/zerrors_darwin_arm64.go
+index a3841a277a..98f431c4e7 100644
+--- a/src/syscall/zerrors_darwin_arm64.go
++++ b/src/syscall/zerrors_darwin_arm64.go
+@@ -4,6 +4,8 @@
+ // Created by cgo -godefs - DO NOT EDIT
+ // cgo -godefs -- -m64 _const.go
+ 
++// +build arm64,darwin
++
+ package syscall
+ 
+ const (
+diff --git a/src/syscall/zerrors_dragonfly_amd64.go b/src/syscall/zerrors_dragonfly_amd64.go
+index 59bff751cb..15d300fd2d 100644
+--- a/src/syscall/zerrors_dragonfly_amd64.go
++++ b/src/syscall/zerrors_dragonfly_amd64.go
+@@ -4,6 +4,8 @@
+ // Created by cgo -godefs - DO NOT EDIT
+ // cgo -godefs -- -m64 _const.go
+ 
++// +build amd64,dragonfly
++
+ package syscall
+ 
+ const (
+diff --git a/src/syscall/zerrors_freebsd_386.go b/src/syscall/zerrors_freebsd_386.go
+index cd3aa80a9c..bbad05f069 100644
+--- a/src/syscall/zerrors_freebsd_386.go
++++ b/src/syscall/zerrors_freebsd_386.go
+@@ -4,6 +4,8 @@
+ // Created by cgo -godefs - DO NOT EDIT
+ // cgo -godefs -- -m32 _const.go
+ 
++// +build 386,freebsd
++
+ package syscall
+ 
+ const (
+diff --git a/src/syscall/zerrors_freebsd_amd64.go b/src/syscall/zerrors_freebsd_amd64.go
+index 9edce6e2fa..b36125b6d3 100644
+--- a/src/syscall/zerrors_freebsd_amd64.go
++++ b/src/syscall/zerrors_freebsd_amd64.go
+@@ -4,6 +4,8 @@
+ // Created by cgo -godefs - DO NOT EDIT
+ // cgo -godefs -- -m64 _const.go
+ 
++// +build amd64,freebsd
++
+ package syscall
+ 
+ const (
+diff --git a/src/syscall/zerrors_freebsd_arm.go b/src/syscall/zerrors_freebsd_arm.go
+index f29dd057b6..0c844f1387 100644
+--- a/src/syscall/zerrors_freebsd_arm.go
++++ b/src/syscall/zerrors_freebsd_arm.go
+@@ -4,6 +4,8 @@
+ // Created by cgo -godefs - DO NOT EDIT
+ // cgo -godefs -- _const.go
+ 
++// +build arm,freebsd
++
+ package syscall
+ 
+ const (
+diff --git a/src/syscall/zerrors_linux_386.go b/src/syscall/zerrors_linux_386.go
+index 7aa8ff07a7..d433a4f1a4 100644
+--- a/src/syscall/zerrors_linux_386.go
++++ b/src/syscall/zerrors_linux_386.go
+@@ -4,6 +4,8 @@
+ // Created by cgo -godefs - DO NOT EDIT
+ // cgo -godefs -- -m32 _const.go
+ 
++// +build 386,linux
++
+ package syscall
+ 
+ const (
+diff --git a/src/syscall/zerrors_linux_amd64.go b/src/syscall/zerrors_linux_amd64.go
+index 94d051d8aa..dd86a3b0a1 100644
+--- a/src/syscall/zerrors_linux_amd64.go
++++ b/src/syscall/zerrors_linux_amd64.go
+@@ -4,6 +4,8 @@
+ // Created by cgo -godefs - DO NOT EDIT
+ // cgo -godefs -- -m64 _const.go
+ 
++// +build amd64,linux
++
+ package syscall
+ 
+ const (
+diff --git a/src/syscall/zerrors_linux_arm.go b/src/syscall/zerrors_linux_arm.go
+index dcaaef7423..2a9c0f93c1 100644
+--- a/src/syscall/zerrors_linux_arm.go
++++ b/src/syscall/zerrors_linux_arm.go
+@@ -4,6 +4,8 @@
+ // Created by cgo -godefs - DO NOT EDIT
+ // cgo -godefs -- _const.go
+ 
++// +build arm,linux
++
+ package syscall
+ 
+ const (
+diff --git a/src/syscall/zerrors_linux_arm64.go b/src/syscall/zerrors_linux_arm64.go
+index f3d708be9c..35d9acefe5 100644
+--- a/src/syscall/zerrors_linux_arm64.go
++++ b/src/syscall/zerrors_linux_arm64.go
+@@ -4,6 +4,8 @@
+ // Created by cgo -godefs - DO NOT EDIT
+ // cgo -godefs -- _const.go
+ 
++// +build arm64,linux
++
+ package syscall
+ 
+ const (
+diff --git a/src/syscall/zerrors_linux_ppc64.go b/src/syscall/zerrors_linux_ppc64.go
+index fbaf0dc9af..1c769cdc77 100644
+--- a/src/syscall/zerrors_linux_ppc64.go
++++ b/src/syscall/zerrors_linux_ppc64.go
+@@ -4,6 +4,8 @@
+ // Created by cgo -godefs - DO NOT EDIT
+ // cgo -godefs -- -m64 _const.go
+ 
++// +build ppc64,linux
++
+ package syscall
+ 
+ const (
+diff --git a/src/syscall/zerrors_linux_ppc64le.go b/src/syscall/zerrors_linux_ppc64le.go
+index 17c4c4cf3a..73727a4197 100644
+--- a/src/syscall/zerrors_linux_ppc64le.go
++++ b/src/syscall/zerrors_linux_ppc64le.go
+@@ -4,6 +4,8 @@
+ // Created by cgo -godefs - DO NOT EDIT
+ // cgo -godefs -- -m64 _const.go
+ 
++// +build ppc64le,linux
++
+ package syscall
+ 
+ const (
+diff --git a/src/syscall/zerrors_netbsd_386.go b/src/syscall/zerrors_netbsd_386.go
+index 1e3dff7fac..6f32def661 100644
+--- a/src/syscall/zerrors_netbsd_386.go
++++ b/src/syscall/zerrors_netbsd_386.go
+@@ -4,6 +4,8 @@
+ // Created by cgo -godefs - DO NOT EDIT
+ // cgo -godefs -- -m32 _const.go
+ 
++// +build 386,netbsd
++
+ package syscall
+ 
+ const (
+diff --git a/src/syscall/zerrors_netbsd_amd64.go b/src/syscall/zerrors_netbsd_amd64.go
+index 1469d00b78..a6d1701f8c 100644
+--- a/src/syscall/zerrors_netbsd_amd64.go
++++ b/src/syscall/zerrors_netbsd_amd64.go
+@@ -4,6 +4,8 @@
+ // Created by cgo -godefs - DO NOT EDIT
+ // cgo -godefs -- -m64 _const.go
+ 
++// +build amd64,netbsd
++
+ package syscall
+ 
+ const (
+diff --git a/src/syscall/zerrors_netbsd_arm.go b/src/syscall/zerrors_netbsd_arm.go
+index 1a88c0d225..7f99279e55 100644
+--- a/src/syscall/zerrors_netbsd_arm.go
++++ b/src/syscall/zerrors_netbsd_arm.go
+@@ -4,6 +4,8 @@
+ // Created by cgo -godefs - DO NOT EDIT
+ // cgo -godefs -- -marm _const.go
+ 
++// +build arm,netbsd
++
+ package syscall
+ 
+ const (
+diff --git a/src/syscall/zerrors_openbsd_386.go b/src/syscall/zerrors_openbsd_386.go
+index 0829834943..540d310e9f 100644
+--- a/src/syscall/zerrors_openbsd_386.go
++++ b/src/syscall/zerrors_openbsd_386.go
+@@ -4,6 +4,8 @@
+ // Created by cgo -godefs - DO NOT EDIT
+ // cgo -godefs -- -m32 _const.go
+ 
++// +build 386,openbsd
++
+ package syscall
+ 
+ const (
+diff --git a/src/syscall/zerrors_openbsd_amd64.go b/src/syscall/zerrors_openbsd_amd64.go
+index e9fa37cdee..ae5b8c955a 100644
+--- a/src/syscall/zerrors_openbsd_amd64.go
++++ b/src/syscall/zerrors_openbsd_amd64.go
+@@ -4,6 +4,8 @@
+ // Created by cgo -godefs - DO NOT EDIT
+ // cgo -godefs -- -m64 _const.go
+ 
++// +build amd64,openbsd
++
+ package syscall
+ 
+ const (
+diff --git a/src/syscall/zerrors_openbsd_arm.go b/src/syscall/zerrors_openbsd_arm.go
+index 5376fe6e85..c49ebcfd03 100644
+--- a/src/syscall/zerrors_openbsd_arm.go
++++ b/src/syscall/zerrors_openbsd_arm.go
+@@ -4,6 +4,8 @@
+ // Created by cgo -godefs - DO NOT EDIT
+ // cgo -godefs -- _const.go
+ 
++// +build arm,openbsd
++
+ package syscall
+ 
+ const (
+diff --git a/src/syscall/zerrors_solaris_amd64.go b/src/syscall/zerrors_solaris_amd64.go
+index 3f4cbfd984..62ec81be6b 100644
+--- a/src/syscall/zerrors_solaris_amd64.go
++++ b/src/syscall/zerrors_solaris_amd64.go
+@@ -4,6 +4,8 @@
+ // Created by cgo -godefs - DO NOT EDIT
+ // cgo -godefs -- -m64 _const.go
+ 
++// +build amd64,solaris
++
+ package syscall
+ 
+ const (
+diff --git a/src/syscall/zsyscall_darwin_386.go b/src/syscall/zsyscall_darwin_386.go
+index 0ce383fb3b..23e7b5e420 100644
+--- a/src/syscall/zsyscall_darwin_386.go
++++ b/src/syscall/zsyscall_darwin_386.go
+@@ -1,6 +1,8 @@
+ // mksyscall.pl -l32 syscall_bsd.go syscall_darwin.go syscall_darwin_386.go
+ // MACHINE GENERATED BY THE COMMAND ABOVE; DO NOT EDIT
+ 
++// +build 386,darwin
++
+ package syscall
+ 
+ import "unsafe"
+diff --git a/src/syscall/zsyscall_darwin_amd64.go b/src/syscall/zsyscall_darwin_amd64.go
+index 2370630f09..6e63d9a074 100644
+--- a/src/syscall/zsyscall_darwin_amd64.go
++++ b/src/syscall/zsyscall_darwin_amd64.go
+@@ -1,6 +1,8 @@
+ // mksyscall.pl syscall_bsd.go syscall_darwin.go syscall_darwin_amd64.go
+ // MACHINE GENERATED BY THE COMMAND ABOVE; DO NOT EDIT
+ 
++// +build amd64,darwin
++
+ package syscall
+ 
+ import "unsafe"
+diff --git a/src/syscall/zsyscall_darwin_arm.go b/src/syscall/zsyscall_darwin_arm.go
+index c9426ee85a..f996a508f0 100644
+--- a/src/syscall/zsyscall_darwin_arm.go
++++ b/src/syscall/zsyscall_darwin_arm.go
+@@ -1,6 +1,8 @@
+ // mksyscall.pl -l32 syscall_bsd.go syscall_darwin.go syscall_darwin_arm.go
+ // MACHINE GENERATED BY THE COMMAND ABOVE; DO NOT EDIT
+ 
++// +build arm,darwin
++
+ package syscall
+ 
+ import "unsafe"
+diff --git a/src/syscall/zsyscall_darwin_arm64.go b/src/syscall/zsyscall_darwin_arm64.go
+index 828b167fea..c260cc7acd 100644
+--- a/src/syscall/zsyscall_darwin_arm64.go
++++ b/src/syscall/zsyscall_darwin_arm64.go
+@@ -1,6 +1,8 @@
+ // mksyscall.pl syscall_bsd.go syscall_darwin.go syscall_darwin_arm64.go
+ // MACHINE GENERATED BY THE COMMAND ABOVE; DO NOT EDIT
+ 
++// +build arm64,darwin
++
+ package syscall
+ 
+ import "unsafe"
+diff --git a/src/syscall/zsyscall_dragonfly_amd64.go b/src/syscall/zsyscall_dragonfly_amd64.go
+index 5eef1380ff..88e09d3a14 100644
+--- a/src/syscall/zsyscall_dragonfly_amd64.go
++++ b/src/syscall/zsyscall_dragonfly_amd64.go
+@@ -1,6 +1,8 @@
+ // mksyscall.pl -dragonfly syscall_bsd.go syscall_dragonfly.go syscall_dragonfly_amd64.go
+ // MACHINE GENERATED BY THE COMMAND ABOVE; DO NOT EDIT
+ 
++// +build amd64,dragonfly
++
+ package syscall
+ 
+ import "unsafe"
+diff --git a/src/syscall/zsyscall_freebsd_386.go b/src/syscall/zsyscall_freebsd_386.go
+index 7cb21c9b39..30f29e52a9 100644
+--- a/src/syscall/zsyscall_freebsd_386.go
++++ b/src/syscall/zsyscall_freebsd_386.go
+@@ -1,6 +1,8 @@
+ // mksyscall.pl -l32 syscall_bsd.go syscall_freebsd.go syscall_freebsd_386.go
+ // MACHINE GENERATED BY THE COMMAND ABOVE; DO NOT EDIT
+ 
++// +build 386,freebsd
++
+ package syscall
+ 
+ import "unsafe"
+diff --git a/src/syscall/zsyscall_freebsd_amd64.go b/src/syscall/zsyscall_freebsd_amd64.go
+index 3cb87c1a02..93059d1b5b 100644
+--- a/src/syscall/zsyscall_freebsd_amd64.go
++++ b/src/syscall/zsyscall_freebsd_amd64.go
+@@ -1,6 +1,8 @@
+ // mksyscall.pl syscall_bsd.go syscall_freebsd.go syscall_freebsd_amd64.go
+ // MACHINE GENERATED BY THE COMMAND ABOVE; DO NOT EDIT
+ 
++// +build amd64,freebsd
++
+ package syscall
+ 
+ import "unsafe"
+diff --git a/src/syscall/zsyscall_freebsd_arm.go b/src/syscall/zsyscall_freebsd_arm.go
+index 340418345b..84096b07a5 100644
+--- a/src/syscall/zsyscall_freebsd_arm.go
++++ b/src/syscall/zsyscall_freebsd_arm.go
+@@ -1,6 +1,8 @@
+ // mksyscall.pl -l32 -arm syscall_bsd.go syscall_freebsd.go syscall_freebsd_arm.go
+ // MACHINE GENERATED BY THE COMMAND ABOVE; DO NOT EDIT
+ 
++// +build arm,freebsd
++
+ package syscall
+ 
+ import "unsafe"
+diff --git a/src/syscall/zsyscall_linux_386.go b/src/syscall/zsyscall_linux_386.go
+index 2584d61e2f..620fba287a 100644
+--- a/src/syscall/zsyscall_linux_386.go
++++ b/src/syscall/zsyscall_linux_386.go
+@@ -1,6 +1,8 @@
+ // mksyscall.pl -l32 syscall_linux.go syscall_linux_386.go
+ // MACHINE GENERATED BY THE COMMAND ABOVE; DO NOT EDIT
+ 
++// +build 386,linux
++
+ package syscall
+ 
+ import "unsafe"
+diff --git a/src/syscall/zsyscall_linux_amd64.go b/src/syscall/zsyscall_linux_amd64.go
+index 141f4f39be..16cafbf06e 100644
+--- a/src/syscall/zsyscall_linux_amd64.go
++++ b/src/syscall/zsyscall_linux_amd64.go
+@@ -1,6 +1,8 @@
+ // mksyscall.pl syscall_linux.go syscall_linux_amd64.go
+ // MACHINE GENERATED BY THE COMMAND ABOVE; DO NOT EDIT
+ 
++// +build amd64,linux
++
+ package syscall
+ 
+ import "unsafe"
+diff --git a/src/syscall/zsyscall_linux_arm.go b/src/syscall/zsyscall_linux_arm.go
+index ee4f6e1245..9bc3a54f31 100644
+--- a/src/syscall/zsyscall_linux_arm.go
++++ b/src/syscall/zsyscall_linux_arm.go
+@@ -1,6 +1,8 @@
+ // mksyscall.pl -l32 -arm syscall_linux.go syscall_linux_arm.go
+ // MACHINE GENERATED BY THE COMMAND ABOVE; DO NOT EDIT
+ 
++// +build arm,linux
++
+ package syscall
+ 
+ import "unsafe"
+diff --git a/src/syscall/zsyscall_linux_arm64.go b/src/syscall/zsyscall_linux_arm64.go
+index a294eb6096..2ee58cfc8b 100644
+--- a/src/syscall/zsyscall_linux_arm64.go
++++ b/src/syscall/zsyscall_linux_arm64.go
+@@ -1,6 +1,8 @@
+ // mksyscall.pl syscall_linux.go syscall_linux_arm64.go
+ // MACHINE GENERATED BY THE COMMAND ABOVE; DO NOT EDIT
+ 
++// +build arm64,linux
++
+ package syscall
+ 
+ import "unsafe"
+diff --git a/src/syscall/zsyscall_linux_ppc64.go b/src/syscall/zsyscall_linux_ppc64.go
+index ba287e27e1..4f61114d5f 100644
+--- a/src/syscall/zsyscall_linux_ppc64.go
++++ b/src/syscall/zsyscall_linux_ppc64.go
+@@ -1,6 +1,8 @@
+ // mksyscall.pl syscall_linux.go syscall_linux_ppc64x.go
+ // MACHINE GENERATED BY THE COMMAND ABOVE; DO NOT EDIT
+ 
++// +build ppc64,linux
++
+ package syscall
+ 
+ import "unsafe"
+diff --git a/src/syscall/zsyscall_linux_ppc64le.go b/src/syscall/zsyscall_linux_ppc64le.go
+index ba287e27e1..4073a0fa34 100644
+--- a/src/syscall/zsyscall_linux_ppc64le.go
++++ b/src/syscall/zsyscall_linux_ppc64le.go
+@@ -1,6 +1,8 @@
+ // mksyscall.pl syscall_linux.go syscall_linux_ppc64x.go
+ // MACHINE GENERATED BY THE COMMAND ABOVE; DO NOT EDIT
+ 
++// +build ppc64le,linux
++
+ package syscall
+ 
+ import "unsafe"
+diff --git a/src/syscall/zsyscall_nacl_386.go b/src/syscall/zsyscall_nacl_386.go
+index d0ff66c819..bf3f9e3dcd 100644
+--- a/src/syscall/zsyscall_nacl_386.go
++++ b/src/syscall/zsyscall_nacl_386.go
+@@ -1,6 +1,8 @@
+ // mksyscall.pl -l32 -nacl syscall_nacl.go syscall_nacl_386.go
+ // MACHINE GENERATED BY THE COMMAND ABOVE; DO NOT EDIT
+ 
++// +build 386,nacl
++
+ package syscall
+ 
+ import "unsafe"
+diff --git a/src/syscall/zsyscall_nacl_amd64p32.go b/src/syscall/zsyscall_nacl_amd64p32.go
+index 592c8d84a5..3f08da6e77 100644
+--- a/src/syscall/zsyscall_nacl_amd64p32.go
++++ b/src/syscall/zsyscall_nacl_amd64p32.go
+@@ -1,6 +1,8 @@
+ // mksyscall.pl -nacl syscall_nacl.go syscall_nacl_amd64p32.go
+ // MACHINE GENERATED BY THE COMMAND ABOVE; DO NOT EDIT
+ 
++// +build amd64p32,nacl
++
+ package syscall
+ 
+ import "unsafe"
+diff --git a/src/syscall/zsyscall_nacl_arm.go b/src/syscall/zsyscall_nacl_arm.go
+index 10657ad080..77d46c3d81 100644
+--- a/src/syscall/zsyscall_nacl_arm.go
++++ b/src/syscall/zsyscall_nacl_arm.go
+@@ -1,6 +1,8 @@
+ // mksyscall.pl -l32 -nacl -arm syscall_nacl.go syscall_nacl_arm.go
+ // MACHINE GENERATED BY THE COMMAND ABOVE; DO NOT EDIT
+ 
++// +build arm,nacl
++
+ package syscall
+ 
+ import "unsafe"
+diff --git a/src/syscall/zsyscall_netbsd_386.go b/src/syscall/zsyscall_netbsd_386.go
+index 5131c25696..e24c3b71cd 100644
+--- a/src/syscall/zsyscall_netbsd_386.go
++++ b/src/syscall/zsyscall_netbsd_386.go
+@@ -1,6 +1,8 @@
+ // mksyscall.pl -l32 -netbsd syscall_bsd.go syscall_netbsd.go syscall_netbsd_386.go
+ // MACHINE GENERATED BY THE COMMAND ABOVE; DO NOT EDIT
+ 
++// +build 386,netbsd
++
+ package syscall
+ 
+ import "unsafe"
+diff --git a/src/syscall/zsyscall_netbsd_amd64.go b/src/syscall/zsyscall_netbsd_amd64.go
+index 0e26f6869d..7aa75ab12d 100644
+--- a/src/syscall/zsyscall_netbsd_amd64.go
++++ b/src/syscall/zsyscall_netbsd_amd64.go
+@@ -1,6 +1,8 @@
+ // mksyscall.pl -netbsd syscall_bsd.go syscall_netbsd.go syscall_netbsd_amd64.go
+ // MACHINE GENERATED BY THE COMMAND ABOVE; DO NOT EDIT
+ 
++// +build amd64,netbsd
++
+ package syscall
+ 
+ import "unsafe"
+diff --git a/src/syscall/zsyscall_netbsd_arm.go b/src/syscall/zsyscall_netbsd_arm.go
+index 4aae1040ad..21f482b40f 100644
+--- a/src/syscall/zsyscall_netbsd_arm.go
++++ b/src/syscall/zsyscall_netbsd_arm.go
+@@ -1,6 +1,8 @@
+ // mksyscall.pl -l32 -arm syscall_bsd.go syscall_netbsd.go syscall_netbsd_arm.go
+ // MACHINE GENERATED BY THE COMMAND ABOVE; DO NOT EDIT
+ 
++// +build arm,netbsd
++
+ package syscall
+ 
+ import "unsafe"
+diff --git a/src/syscall/zsyscall_openbsd_386.go b/src/syscall/zsyscall_openbsd_386.go
+index f6a19833ec..df7df1e7e4 100644
+--- a/src/syscall/zsyscall_openbsd_386.go
++++ b/src/syscall/zsyscall_openbsd_386.go
+@@ -1,6 +1,8 @@
+ // mksyscall.pl -l32 -openbsd syscall_bsd.go syscall_openbsd.go syscall_openbsd_386.go
+ // MACHINE GENERATED BY THE COMMAND ABOVE; DO NOT EDIT
+ 
++// +build 386,openbsd
++
+ package syscall
+ 
+ import "unsafe"
+diff --git a/src/syscall/zsyscall_openbsd_amd64.go b/src/syscall/zsyscall_openbsd_amd64.go
+index 93f5fc0085..1d640700f7 100644
+--- a/src/syscall/zsyscall_openbsd_amd64.go
++++ b/src/syscall/zsyscall_openbsd_amd64.go
+@@ -1,6 +1,8 @@
+ // mksyscall.pl -openbsd syscall_bsd.go syscall_openbsd.go syscall_openbsd_amd64.go
+ // MACHINE GENERATED BY THE COMMAND ABOVE; DO NOT EDIT
+ 
++// +build amd64,openbsd
++
+ package syscall
+ 
+ import "unsafe"
+diff --git a/src/syscall/zsyscall_openbsd_arm.go b/src/syscall/zsyscall_openbsd_arm.go
+index f59739c1e0..f40fb31c98 100644
+--- a/src/syscall/zsyscall_openbsd_arm.go
++++ b/src/syscall/zsyscall_openbsd_arm.go
+@@ -1,6 +1,8 @@
+ // mksyscall.pl -l32 -openbsd -arm syscall_bsd.go syscall_openbsd.go syscall_openbsd_arm.go
+ // MACHINE GENERATED BY THE COMMAND ABOVE; DO NOT EDIT
+ 
++// +build arm,openbsd
++
+ package syscall
+ 
+ import "unsafe"
+diff --git a/src/syscall/zsyscall_plan9_386.go b/src/syscall/zsyscall_plan9_386.go
+index 06f1f04114..a424e789e3 100644
+--- a/src/syscall/zsyscall_plan9_386.go
++++ b/src/syscall/zsyscall_plan9_386.go
+@@ -1,6 +1,8 @@
+ // mksyscall.pl -l32 -plan9 syscall_plan9.go
+ // MACHINE GENERATED BY THE COMMAND ABOVE; DO NOT EDIT
+ 
++// +build 386,plan9
++
+ package syscall
+ 
+ import "unsafe"
+diff --git a/src/syscall/zsyscall_plan9_amd64.go b/src/syscall/zsyscall_plan9_amd64.go
+index 06f1f04114..d58556b01a 100644
+--- a/src/syscall/zsyscall_plan9_amd64.go
++++ b/src/syscall/zsyscall_plan9_amd64.go
+@@ -1,6 +1,8 @@
+ // mksyscall.pl -l32 -plan9 syscall_plan9.go
+ // MACHINE GENERATED BY THE COMMAND ABOVE; DO NOT EDIT
+ 
++// +build amd64,plan9
++
+ package syscall
+ 
+ import "unsafe"
+diff --git a/src/syscall/zsyscall_solaris_amd64.go b/src/syscall/zsyscall_solaris_amd64.go
+index be9bc28474..cabab7ece3 100644
+--- a/src/syscall/zsyscall_solaris_amd64.go
++++ b/src/syscall/zsyscall_solaris_amd64.go
+@@ -1,6 +1,8 @@
+ // mksyscall_solaris.pl syscall_solaris.go syscall_solaris_amd64.go
+ // MACHINE GENERATED BY THE COMMAND ABOVE; DO NOT EDIT
+ 
++// +build amd64,solaris
++
+ package syscall
+ 
+ import "unsafe"
+diff --git a/src/syscall/zsysnum_darwin_386.go b/src/syscall/zsysnum_darwin_386.go
+index abdef77436..c6f8342841 100644
+--- a/src/syscall/zsysnum_darwin_386.go
++++ b/src/syscall/zsysnum_darwin_386.go
+@@ -1,6 +1,8 @@
+ // mksysnum_darwin.pl /usr/include/sys/syscall.h
+ // MACHINE GENERATED BY THE ABOVE COMMAND; DO NOT EDIT
+ 
++// +build 386,darwin
++
+ package syscall
+ 
+ const (
+diff --git a/src/syscall/zsysnum_darwin_amd64.go b/src/syscall/zsysnum_darwin_amd64.go
+index abdef77436..7189abe3db 100644
+--- a/src/syscall/zsysnum_darwin_amd64.go
++++ b/src/syscall/zsysnum_darwin_amd64.go
+@@ -1,6 +1,8 @@
+ // mksysnum_darwin.pl /usr/include/sys/syscall.h
+ // MACHINE GENERATED BY THE ABOVE COMMAND; DO NOT EDIT
+ 
++// +build amd64,darwin
++
+ package syscall
+ 
+ const (
+diff --git a/src/syscall/zsysnum_darwin_arm.go b/src/syscall/zsysnum_darwin_arm.go
+index 1a53f13eff..1d76861204 100644
+--- a/src/syscall/zsysnum_darwin_arm.go
++++ b/src/syscall/zsysnum_darwin_arm.go
+@@ -1,6 +1,8 @@
+ // mksysnum_darwin.pl /usr/include/sys/syscall.h
+ // MACHINE GENERATED BY THE ABOVE COMMAND; DO NOT EDIT
+ 
++// +build arm,darwin
++
+ package syscall
+ 
+ const (
+diff --git a/src/syscall/zsysnum_darwin_arm64.go b/src/syscall/zsysnum_darwin_arm64.go
+index 723b1aa19e..ddf8e83c87 100644
+--- a/src/syscall/zsysnum_darwin_arm64.go
++++ b/src/syscall/zsysnum_darwin_arm64.go
+@@ -1,6 +1,8 @@
+ // mksysnum_darwin.pl /usr/include/sys/syscall.h
+ // MACHINE GENERATED BY THE ABOVE COMMAND; DO NOT EDIT
+ 
++// +build arm64,darwin
++
+ package syscall
+ 
+ const (
+diff --git a/src/syscall/zsysnum_dragonfly_amd64.go b/src/syscall/zsysnum_dragonfly_amd64.go
+index 4b086b9214..277478d208 100644
+--- a/src/syscall/zsysnum_dragonfly_amd64.go
++++ b/src/syscall/zsysnum_dragonfly_amd64.go
+@@ -1,6 +1,8 @@
+ // mksysnum_dragonfly.pl
+ // MACHINE GENERATED BY THE ABOVE COMMAND; DO NOT EDIT
+ 
++// +build amd64,dragonfly
++
+ package syscall
+ 
+ const (
+diff --git a/src/syscall/zsysnum_freebsd_386.go b/src/syscall/zsysnum_freebsd_386.go
+index dfca558bb5..5e47217957 100644
+--- a/src/syscall/zsysnum_freebsd_386.go
++++ b/src/syscall/zsysnum_freebsd_386.go
+@@ -1,6 +1,8 @@
+ // mksysnum_freebsd.pl
+ // MACHINE GENERATED BY THE ABOVE COMMAND; DO NOT EDIT
+ 
++// +build 386,freebsd
++
+ package syscall
+ 
+ const (
+diff --git a/src/syscall/zsysnum_freebsd_amd64.go b/src/syscall/zsysnum_freebsd_amd64.go
+index dfca558bb5..df8928cc68 100644
+--- a/src/syscall/zsysnum_freebsd_amd64.go
++++ b/src/syscall/zsysnum_freebsd_amd64.go
+@@ -1,6 +1,8 @@
+ // mksysnum_freebsd.pl
+ // MACHINE GENERATED BY THE ABOVE COMMAND; DO NOT EDIT
+ 
++// +build amd64,freebsd
++
+ package syscall
+ 
+ const (
+diff --git a/src/syscall/zsysnum_freebsd_arm.go b/src/syscall/zsysnum_freebsd_arm.go
+index dfca558bb5..f670a59179 100644
+--- a/src/syscall/zsysnum_freebsd_arm.go
++++ b/src/syscall/zsysnum_freebsd_arm.go
+@@ -1,6 +1,8 @@
+ // mksysnum_freebsd.pl
+ // MACHINE GENERATED BY THE ABOVE COMMAND; DO NOT EDIT
+ 
++// +build arm,freebsd
++
+ package syscall
+ 
+ const (
+diff --git a/src/syscall/zsysnum_linux_386.go b/src/syscall/zsysnum_linux_386.go
+index c40b5f1ace..c277ed9a25 100644
+--- a/src/syscall/zsysnum_linux_386.go
++++ b/src/syscall/zsysnum_linux_386.go
+@@ -1,6 +1,8 @@
+ // mksysnum_linux.pl /usr/include/asm/unistd_32.h
+ // MACHINE GENERATED BY THE ABOVE COMMAND; DO NOT EDIT
+ 
++// +build 386,linux
++
+ package syscall
+ 
+ const (
+diff --git a/src/syscall/zsysnum_linux_amd64.go b/src/syscall/zsysnum_linux_amd64.go
+index 7cf70a4d86..978a4d3c3d 100644
+--- a/src/syscall/zsysnum_linux_amd64.go
++++ b/src/syscall/zsysnum_linux_amd64.go
+@@ -1,6 +1,8 @@
+ // mksysnum_linux.pl /usr/include/asm/unistd_64.h
+ // MACHINE GENERATED BY THE ABOVE COMMAND; DO NOT EDIT
+ 
++// +build amd64,linux
++
+ package syscall
+ 
+ const (
+diff --git a/src/syscall/zsysnum_linux_arm.go b/src/syscall/zsysnum_linux_arm.go
+index 7068e4e210..5061cbab2b 100644
+--- a/src/syscall/zsysnum_linux_arm.go
++++ b/src/syscall/zsysnum_linux_arm.go
+@@ -1,6 +1,8 @@
+ // mksysnum_linux.pl
+ // MACHINE GENERATED BY THE ABOVE COMMAND; DO NOT EDIT
+ 
++// +build arm,linux
++
+ package syscall
+ 
+ const (
+diff --git a/src/syscall/zsysnum_linux_arm64.go b/src/syscall/zsysnum_linux_arm64.go
+index 4bcf0573e7..d53712c681 100644
+--- a/src/syscall/zsysnum_linux_arm64.go
++++ b/src/syscall/zsysnum_linux_arm64.go
+@@ -1,6 +1,8 @@
+ // mksysnum_linux.pl /usr/include/asm-generic/unistd.h
+ // MACHINE GENERATED BY THE ABOVE COMMAND; DO NOT EDIT
+ 
++// +build arm64,linux
++
+ package syscall
+ 
+ const (
+diff --git a/src/syscall/zsysnum_linux_ppc64.go b/src/syscall/zsysnum_linux_ppc64.go
+index 0567fd0ea8..82d253a1ab 100644
+--- a/src/syscall/zsysnum_linux_ppc64.go
++++ b/src/syscall/zsysnum_linux_ppc64.go
+@@ -1,6 +1,8 @@
+ // mksysnum_linux.pl /usr/include/asm/unistd.h
+ // MACHINE GENERATED BY THE ABOVE COMMAND; DO NOT EDIT
+ 
++// +build ppc64,linux
++
+ package syscall
+ 
+ const (
+diff --git a/src/syscall/zsysnum_linux_ppc64le.go b/src/syscall/zsysnum_linux_ppc64le.go
+index 52c63e3d3e..3af4e83822 100644
+--- a/src/syscall/zsysnum_linux_ppc64le.go
++++ b/src/syscall/zsysnum_linux_ppc64le.go
+@@ -1,6 +1,8 @@
+ // mksysnum_linux.pl /usr/include/powerpc64le-linux-gnu/asm/unistd.h
+ // MACHINE GENERATED BY THE ABOVE COMMAND; DO NOT EDIT
+ 
++// +build ppc64le,linux
++
+ package syscall
+ 
+ const (
+diff --git a/src/syscall/zsysnum_netbsd_386.go b/src/syscall/zsysnum_netbsd_386.go
+index c570965237..c8af210082 100644
+--- a/src/syscall/zsysnum_netbsd_386.go
++++ b/src/syscall/zsysnum_netbsd_386.go
+@@ -1,6 +1,8 @@
+ // mksysnum_netbsd.pl
+ // MACHINE GENERATED BY THE ABOVE COMMAND; DO NOT EDIT
+ 
++// +build 386,netbsd
++
+ package syscall
+ 
+ const (
+diff --git a/src/syscall/zsysnum_netbsd_amd64.go b/src/syscall/zsysnum_netbsd_amd64.go
+index c570965237..e342a3ce58 100644
+--- a/src/syscall/zsysnum_netbsd_amd64.go
++++ b/src/syscall/zsysnum_netbsd_amd64.go
+@@ -1,6 +1,8 @@
+ // mksysnum_netbsd.pl
+ // MACHINE GENERATED BY THE ABOVE COMMAND; DO NOT EDIT
+ 
++// +build amd64,netbsd
++
+ package syscall
+ 
+ const (
+diff --git a/src/syscall/zsysnum_netbsd_arm.go b/src/syscall/zsysnum_netbsd_arm.go
+index c570965237..1f5b569b8f 100644
+--- a/src/syscall/zsysnum_netbsd_arm.go
++++ b/src/syscall/zsysnum_netbsd_arm.go
+@@ -1,6 +1,8 @@
+ // mksysnum_netbsd.pl
+ // MACHINE GENERATED BY THE ABOVE COMMAND; DO NOT EDIT
+ 
++// +build arm,netbsd
++
+ package syscall
+ 
+ const (
+diff --git a/src/syscall/zsysnum_openbsd_386.go b/src/syscall/zsysnum_openbsd_386.go
+index 3b9ac4c941..c19f6de649 100644
+--- a/src/syscall/zsysnum_openbsd_386.go
++++ b/src/syscall/zsysnum_openbsd_386.go
+@@ -1,6 +1,8 @@
+ // mksysnum_openbsd.pl
+ // MACHINE GENERATED BY THE ABOVE COMMAND; DO NOT EDIT
+ 
++// +build 386,openbsd
++
+ package syscall
+ 
+ const (
+diff --git a/src/syscall/zsysnum_openbsd_amd64.go b/src/syscall/zsysnum_openbsd_amd64.go
+index 3b9ac4c941..86e04cd47e 100644
+--- a/src/syscall/zsysnum_openbsd_amd64.go
++++ b/src/syscall/zsysnum_openbsd_amd64.go
+@@ -1,6 +1,8 @@
+ // mksysnum_openbsd.pl
+ // MACHINE GENERATED BY THE ABOVE COMMAND; DO NOT EDIT
+ 
++// +build amd64,openbsd
++
+ package syscall
+ 
+ const (
+diff --git a/src/syscall/zsysnum_openbsd_arm.go b/src/syscall/zsysnum_openbsd_arm.go
+index 8457c14732..38b43caba6 100644
+--- a/src/syscall/zsysnum_openbsd_arm.go
++++ b/src/syscall/zsysnum_openbsd_arm.go
+@@ -1,6 +1,8 @@
+ // mksysnum_openbsd.pl
+ // MACHINE GENERATED BY THE ABOVE COMMAND; DO NOT EDIT
+ 
++// +build arm,openbsd
++
+ package syscall
+ 
+ const (
+diff --git a/src/syscall/zsysnum_solaris_amd64.go b/src/syscall/zsysnum_solaris_amd64.go
+index 43b3d8b40d..be198f899b 100644
+--- a/src/syscall/zsysnum_solaris_amd64.go
++++ b/src/syscall/zsysnum_solaris_amd64.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build amd64,solaris
++
+ package syscall
+ 
+ // TODO(aram): remove these before Go 1.3.
+diff --git a/src/syscall/ztypes_darwin_386.go b/src/syscall/ztypes_darwin_386.go
+index 13724c3cc6..7298d0243d 100644
+--- a/src/syscall/ztypes_darwin_386.go
++++ b/src/syscall/ztypes_darwin_386.go
+@@ -1,6 +1,8 @@
+ // Created by cgo -godefs - DO NOT EDIT
+ // cgo -godefs types_darwin.go
+ 
++// +build 386,darwin
++
+ package syscall
+ 
+ const (
+diff --git a/src/syscall/ztypes_darwin_amd64.go b/src/syscall/ztypes_darwin_amd64.go
+index 65b02ae4f5..ec95d51f91 100644
+--- a/src/syscall/ztypes_darwin_amd64.go
++++ b/src/syscall/ztypes_darwin_amd64.go
+@@ -1,6 +1,8 @@
+ // Created by cgo -godefs - DO NOT EDIT
+ // cgo -godefs types_darwin.go
+ 
++// +build amd64,darwin
++
+ package syscall
+ 
+ const (
+diff --git a/src/syscall/ztypes_darwin_arm.go b/src/syscall/ztypes_darwin_arm.go
+index ec87f54fb2..91c4470e7c 100644
+--- a/src/syscall/ztypes_darwin_arm.go
++++ b/src/syscall/ztypes_darwin_arm.go
+@@ -2,6 +2,8 @@
+ // Created by cgo -godefs - DO NOT EDIT
+ // cgo -godefs types_darwin.go
+ 
++// +build arm,darwin
++
+ package syscall
+ 
+ const (
+diff --git a/src/syscall/ztypes_darwin_arm64.go b/src/syscall/ztypes_darwin_arm64.go
+index 65b02ae4f5..1d65cfde9d 100644
+--- a/src/syscall/ztypes_darwin_arm64.go
++++ b/src/syscall/ztypes_darwin_arm64.go
+@@ -1,6 +1,8 @@
+ // Created by cgo -godefs - DO NOT EDIT
+ // cgo -godefs types_darwin.go
+ 
++// +build arm64,darwin
++
+ package syscall
+ 
+ const (
+diff --git a/src/syscall/ztypes_dragonfly_amd64.go b/src/syscall/ztypes_dragonfly_amd64.go
+index 954ffd7ab2..00120d0a27 100644
+--- a/src/syscall/ztypes_dragonfly_amd64.go
++++ b/src/syscall/ztypes_dragonfly_amd64.go
+@@ -1,6 +1,8 @@
+ // Created by cgo -godefs - DO NOT EDIT
+ // cgo -godefs types_dragonfly.go
+ 
++// +build amd64,dragonfly
++
+ package syscall
+ 
+ const (
+diff --git a/src/syscall/ztypes_freebsd_386.go b/src/syscall/ztypes_freebsd_386.go
+index b809eea37a..d972fb6bdf 100644
+--- a/src/syscall/ztypes_freebsd_386.go
++++ b/src/syscall/ztypes_freebsd_386.go
+@@ -1,6 +1,8 @@
+ // Created by cgo -godefs - DO NOT EDIT
+ // cgo -godefs types_freebsd.go
+ 
++// +build 386,freebsd
++
+ package syscall
+ 
+ const (
+diff --git a/src/syscall/ztypes_freebsd_amd64.go b/src/syscall/ztypes_freebsd_amd64.go
+index a05908aed1..0a5a10bf7d 100644
+--- a/src/syscall/ztypes_freebsd_amd64.go
++++ b/src/syscall/ztypes_freebsd_amd64.go
+@@ -1,6 +1,8 @@
+ // Created by cgo -godefs - DO NOT EDIT
+ // cgo -godefs types_freebsd.go
+ 
++// +build amd64,freebsd
++
+ package syscall
+ 
+ const (
+diff --git a/src/syscall/ztypes_freebsd_arm.go b/src/syscall/ztypes_freebsd_arm.go
+index 9303816f91..5d7acd547b 100644
+--- a/src/syscall/ztypes_freebsd_arm.go
++++ b/src/syscall/ztypes_freebsd_arm.go
+@@ -1,6 +1,8 @@
+ // Created by cgo -godefs - DO NOT EDIT
+ // cgo -godefs -- -fsigned-char types_freebsd.go
+ 
++// +build arm,freebsd
++
+ package syscall
+ 
+ const (
+diff --git a/src/syscall/ztypes_linux_386.go b/src/syscall/ztypes_linux_386.go
+index a887f31427..dd198cb394 100644
+--- a/src/syscall/ztypes_linux_386.go
++++ b/src/syscall/ztypes_linux_386.go
+@@ -1,6 +1,8 @@
+ // Created by cgo -godefs - DO NOT EDIT
+ // cgo -godefs types_linux.go
+ 
++// +build 386,linux
++
+ package syscall
+ 
+ const (
+diff --git a/src/syscall/ztypes_linux_amd64.go b/src/syscall/ztypes_linux_amd64.go
+index adf95caee7..a39489e4e5 100644
+--- a/src/syscall/ztypes_linux_amd64.go
++++ b/src/syscall/ztypes_linux_amd64.go
+@@ -1,6 +1,8 @@
+ // Created by cgo -godefs - DO NOT EDIT
+ // cgo -godefs types_linux.go
+ 
++// +build amd64,linux
++
+ package syscall
+ 
+ const (
+diff --git a/src/syscall/ztypes_linux_arm.go b/src/syscall/ztypes_linux_arm.go
+index 1ae9718945..f446e41be0 100644
+--- a/src/syscall/ztypes_linux_arm.go
++++ b/src/syscall/ztypes_linux_arm.go
+@@ -1,6 +1,8 @@
+ // Created by cgo -godefs - DO NOT EDIT
+ // cgo -godefs types_linux.go
+ 
++// +build arm,linux
++
+ package syscall
+ 
+ const (
+diff --git a/src/syscall/ztypes_linux_arm64.go b/src/syscall/ztypes_linux_arm64.go
+index 1cb1d435d8..dcb1178dc4 100644
+--- a/src/syscall/ztypes_linux_arm64.go
++++ b/src/syscall/ztypes_linux_arm64.go
+@@ -1,6 +1,8 @@
+ // Created by cgo -godefs - DO NOT EDIT
+ // cgo -godefs -- -fsigned-char types_linux.go
+ 
++// +build arm64,linux
++
+ package syscall
+ 
+ const (
+diff --git a/src/syscall/ztypes_linux_ppc64.go b/src/syscall/ztypes_linux_ppc64.go
+index bce0350b86..33d1b7f3e5 100644
+--- a/src/syscall/ztypes_linux_ppc64.go
++++ b/src/syscall/ztypes_linux_ppc64.go
+@@ -1,6 +1,8 @@
+ // Created by cgo -godefs - DO NOT EDIT
+ // cgo -godefs types_linux.go
+ 
++// +build ppc64,linux
++
+ package syscall
+ 
+ const (
+diff --git a/src/syscall/ztypes_linux_ppc64le.go b/src/syscall/ztypes_linux_ppc64le.go
+index 0de1770f7f..27ca004834 100644
+--- a/src/syscall/ztypes_linux_ppc64le.go
++++ b/src/syscall/ztypes_linux_ppc64le.go
+@@ -1,6 +1,8 @@
+ // Created by cgo -godefs - DO NOT EDIT
+ // cgo -godefs types_linux.go
+ 
++// +build ppc64le,linux
++
+ package syscall
+ 
+ const (
+diff --git a/src/syscall/ztypes_netbsd_386.go b/src/syscall/ztypes_netbsd_386.go
+index 6add325a37..1752c6c229 100644
+--- a/src/syscall/ztypes_netbsd_386.go
++++ b/src/syscall/ztypes_netbsd_386.go
+@@ -1,6 +1,8 @@
+ // Created by cgo -godefs - DO NOT EDIT
+ // cgo -godefs types_netbsd.go
+ 
++// +build 386,netbsd
++
+ package syscall
+ 
+ const (
+diff --git a/src/syscall/ztypes_netbsd_amd64.go b/src/syscall/ztypes_netbsd_amd64.go
+index 4451fc1f02..b8d4b0b02a 100644
+--- a/src/syscall/ztypes_netbsd_amd64.go
++++ b/src/syscall/ztypes_netbsd_amd64.go
+@@ -1,6 +1,8 @@
+ // Created by cgo -godefs - DO NOT EDIT
+ // cgo -godefs types_netbsd.go
+ 
++// +build amd64,netbsd
++
+ package syscall
+ 
+ const (
+diff --git a/src/syscall/ztypes_netbsd_arm.go b/src/syscall/ztypes_netbsd_arm.go
+index 4e853eaa23..c21d875a93 100644
+--- a/src/syscall/ztypes_netbsd_arm.go
++++ b/src/syscall/ztypes_netbsd_arm.go
+@@ -1,6 +1,8 @@
+ // Created by cgo -godefs - DO NOT EDIT
+ // cgo -godefs types_netbsd.go
+ 
++// +build arm,netbsd
++
+ package syscall
+ 
+ const (
+diff --git a/src/syscall/ztypes_openbsd_386.go b/src/syscall/ztypes_openbsd_386.go
+index 2e4d9dd174..0376d3acab 100644
+--- a/src/syscall/ztypes_openbsd_386.go
++++ b/src/syscall/ztypes_openbsd_386.go
+@@ -1,6 +1,8 @@
+ // Created by cgo -godefs - DO NOT EDIT
+ // cgo -godefs types_openbsd.go
+ 
++// +build 386,openbsd
++
+ package syscall
+ 
+ const (
+diff --git a/src/syscall/ztypes_openbsd_amd64.go b/src/syscall/ztypes_openbsd_amd64.go
+index f07bc714e9..bf23626ff2 100644
+--- a/src/syscall/ztypes_openbsd_amd64.go
++++ b/src/syscall/ztypes_openbsd_amd64.go
+@@ -1,6 +1,8 @@
+ // Created by cgo -godefs - DO NOT EDIT
+ // cgo -godefs types_openbsd.go
+ 
++// +build amd64,openbsd
++
+ package syscall
+ 
+ const (
+diff --git a/src/syscall/ztypes_openbsd_arm.go b/src/syscall/ztypes_openbsd_arm.go
+index 5f8fb1262f..e1d8938f0e 100644
+--- a/src/syscall/ztypes_openbsd_arm.go
++++ b/src/syscall/ztypes_openbsd_arm.go
+@@ -1,6 +1,8 @@
+ // Created by cgo -godefs - DO NOT EDIT
+ // cgo -godefs types_openbsd.go
+ 
++// +build arm,openbsd
++
+ package syscall
+ 
+ const (
+diff --git a/src/syscall/ztypes_solaris_amd64.go b/src/syscall/ztypes_solaris_amd64.go
+index 77275a54e3..2471519ade 100644
+--- a/src/syscall/ztypes_solaris_amd64.go
++++ b/src/syscall/ztypes_solaris_amd64.go
+@@ -1,6 +1,8 @@
+ // Created by cgo -godefs - DO NOT EDIT
+ // cgo -godefs types_solaris.go
+ 
++// +build amd64,solaris
++
+ package syscall
+ 
+ const (

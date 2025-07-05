@@ -11,6 +11,19 @@ Date:   Tue Nov 1 09:39:01 2016 -0700
     Reviewed-on: https://go-review.googlesource.com/32480
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/go/types/call.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/go/types/call.go b/src/go/types/call.go
+index 37595985a5..0d1fb34bce 100644
+--- a/src/go/types/call.go
++++ b/src/go/types/call.go
+@@ -318,6 +318,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
+ 				x.typ = exp.typ
+ 				x.id = exp.id
+ 			default:
++				check.dump("unexpected object %v (%T)", exp, exp)
+ 				unreachable()
+ 			}
+ 			x.expr = e

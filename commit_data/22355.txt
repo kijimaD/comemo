@@ -10,10 +10,160 @@ Date:   Sat Mar 7 00:18:16 2015 -0500
     Signed-off-by: Shenghou Ma <minux@golang.org>
     Reviewed-on: https://go-review.googlesource.com/7073
     Reviewed-by: Dave Cheney <dave@cheney.net>
-
+---
  src/runtime/asm_386.s      |  4 ++--
  src/runtime/asm_amd64.s    |  4 ++--
  src/runtime/asm_amd64p32.s |  6 +++---
  src/runtime/asm_arm.s      | 14 +++++++-------
  src/runtime/asm_ppc64x.s   |  2 +-
  5 files changed, 15 insertions(+), 15 deletions(-)
+
+diff --git a/src/runtime/asm_386.s b/src/runtime/asm_386.s
+index 2b907d6b00..745095a6b1 100644
+--- a/src/runtime/asm_386.s
++++ b/src/runtime/asm_386.s
+@@ -1451,7 +1451,7 @@ TEXT bytes·Compare(SB),NOSPLIT,$0-28
+ 	MOVL	AX, ret+24(FP)
+ 	RET
+ 
+-TEXT bytes·IndexByte(SB),NOSPLIT,$0
++TEXT bytes·IndexByte(SB),NOSPLIT,$0-20
+ 	MOVL	s+0(FP), SI
+ 	MOVL	s_len+4(FP), CX
+ 	MOVB	c+12(FP), AL
+@@ -1465,7 +1465,7 @@ TEXT bytes·IndexByte(SB),NOSPLIT,$0
+ 	MOVL	DI, ret+16(FP)
+ 	RET
+ 
+-TEXT strings·IndexByte(SB),NOSPLIT,$0
++TEXT strings·IndexByte(SB),NOSPLIT,$0-16
+ 	MOVL	s+0(FP), SI
+ 	MOVL	s_len+4(FP), CX
+ 	MOVB	c+8(FP), AL
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index 139b5059cb..09fbb51337 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -1509,7 +1509,7 @@ allsame:
+ 	LEAQ	-1(CX)(AX*2), AX	// 1,0,-1 result
+ 	RET
+ 
+-TEXT bytes·IndexByte(SB),NOSPLIT,$0
++TEXT bytes·IndexByte(SB),NOSPLIT,$0-40
+ 	MOVQ s+0(FP), SI
+ 	MOVQ s_len+8(FP), BX
+ 	MOVB c+24(FP), AL
+@@ -1517,7 +1517,7 @@ TEXT bytes·IndexByte(SB),NOSPLIT,$0
+ 	MOVQ AX, ret+32(FP)
+ 	RET
+ 
+-TEXT strings·IndexByte(SB),NOSPLIT,$0
++TEXT strings·IndexByte(SB),NOSPLIT,$0-32
+ 	MOVQ s+0(FP), SI
+ 	MOVQ s_len+8(FP), BX
+ 	MOVB c+16(FP), AL
+diff --git a/src/runtime/asm_amd64p32.s b/src/runtime/asm_amd64p32.s
+index 72dd9d7c6d..c3a0a245a2 100644
+--- a/src/runtime/asm_amd64p32.s
++++ b/src/runtime/asm_amd64p32.s
+@@ -822,7 +822,7 @@ TEXT bytes·Compare(SB),NOSPLIT,$0-28
+ 	MOVL	s2+12(FP), DI
+ 	MOVL	s2+16(FP), DX
+ 	CALL	runtime·cmpbody(SB)
+-	MOVQ	AX, res+24(FP)
++	MOVL	AX, res+24(FP)
+ 	RET
+ 
+ // input:
+@@ -943,7 +943,7 @@ allsame:
+ 	LEAQ	-1(CX)(AX*2), AX	// 1,0,-1 result
+ 	RET
+ 
+-TEXT bytes·IndexByte(SB),NOSPLIT,$0
++TEXT bytes·IndexByte(SB),NOSPLIT,$0-20
+ 	MOVL s+0(FP), SI
+ 	MOVL s_len+4(FP), BX
+ 	MOVB c+12(FP), AL
+@@ -951,7 +951,7 @@ TEXT bytes·IndexByte(SB),NOSPLIT,$0
+ 	MOVL AX, ret+16(FP)
+ 	RET
+ 
+-TEXT strings·IndexByte(SB),NOSPLIT,$0
++TEXT strings·IndexByte(SB),NOSPLIT,$0-20
+ 	MOVL s+0(FP), SI
+ 	MOVL s_len+4(FP), BX
+ 	MOVB c+8(FP), AL
+diff --git a/src/runtime/asm_arm.s b/src/runtime/asm_arm.s
+index 21f1d45e80..cf1c9d1302 100644
+--- a/src/runtime/asm_arm.s
++++ b/src/runtime/asm_arm.s
+@@ -808,7 +808,7 @@ loop:
+ 	RET
+ 
+ // TODO: share code with memeq?
+-TEXT bytes·Equal(SB),NOSPLIT,$0
++TEXT bytes·Equal(SB),NOSPLIT,$0-25
+ 	MOVW	a_len+4(FP), R1
+ 	MOVW	b_len+16(FP), R3
+ 	
+@@ -837,12 +837,12 @@ equal:
+ 	MOVBU	R0, ret+24(FP)
+ 	RET
+ 
+-TEXT bytes·IndexByte(SB),NOSPLIT,$0
++TEXT bytes·IndexByte(SB),NOSPLIT,$0-20
+ 	MOVW	s+0(FP), R0
+ 	MOVW	s_len+4(FP), R1
+ 	MOVBU	c+12(FP), R2	// byte to find
+ 	MOVW	R0, R4		// store base for later
+-	ADD	R0, R1		// end 
++	ADD	R0, R1		// end
+ 
+ _loop:
+ 	CMP	R0, R1
+@@ -853,7 +853,7 @@ _loop:
+ 
+ 	SUB	$1, R0		// R0 will be one beyond the position we want
+ 	SUB	R4, R0		// remove base
+-	MOVW    R0, ret+16(FP) 
++	MOVW    R0, ret+16(FP)
+ 	RET
+ 
+ _notfound:
+@@ -861,12 +861,12 @@ _notfound:
+ 	MOVW	R0, ret+16(FP)
+ 	RET
+ 
+-TEXT strings·IndexByte(SB),NOSPLIT,$0
++TEXT strings·IndexByte(SB),NOSPLIT,$0-16
+ 	MOVW	s+0(FP), R0
+ 	MOVW	s_len+4(FP), R1
+ 	MOVBU	c+8(FP), R2	// byte to find
+ 	MOVW	R0, R4		// store base for later
+-	ADD	R0, R1		// end 
++	ADD	R0, R1		// end
+ 
+ _sib_loop:
+ 	CMP	R0, R1
+@@ -877,7 +877,7 @@ _sib_loop:
+ 
+ 	SUB	$1, R0		// R0 will be one beyond the position we want
+ 	SUB	R4, R0		// remove base
+-	MOVW	R0, ret+12(FP) 
++	MOVW	R0, ret+12(FP)
+ 	RET
+ 
+ _sib_notfound:
+diff --git a/src/runtime/asm_ppc64x.s b/src/runtime/asm_ppc64x.s
+index a8adc4c981..0a056b93a9 100644
+--- a/src/runtime/asm_ppc64x.s
++++ b/src/runtime/asm_ppc64x.s
+@@ -1039,7 +1039,7 @@ notfound:
+ 	MOVD	R3, ret+32(FP)
+ 	RETURN
+ 
+-TEXT strings·IndexByte(SB),NOSPLIT,$0
++TEXT strings·IndexByte(SB),NOSPLIT,$0-32
+ 	MOVD	p+0(FP), R3
+ 	MOVD	b_len+8(FP), R4
+ 	MOVBZ	c+16(FP), R5	// byte to find

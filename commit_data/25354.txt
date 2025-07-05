@@ -15,7 +15,7 @@ Date:   Wed Oct 21 12:48:53 2015 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/os_darwin.go        |  2 ++
  src/runtime/os_dragonfly.go     |  2 ++
  src/runtime/os_freebsd.go       |  2 ++
@@ -31,3 +31,286 @@ Date:   Wed Oct 21 12:48:53 2015 -0700
  src/runtime/sys_plan9_amd64.s   |  2 +-
  src/runtime/sys_solaris_amd64.s | 14 +++++++-------
  14 files changed, 49 insertions(+), 30 deletions(-)
+
+diff --git a/src/runtime/os_darwin.go b/src/runtime/os_darwin.go
+index 3deafd5227..0fedb707e9 100644
+--- a/src/runtime/os_darwin.go
++++ b/src/runtime/os_darwin.go
+@@ -6,6 +6,8 @@ package runtime
+ 
+ import "unsafe"
+ 
++type mOS struct{}
++
+ func bsdthread_create(stk, arg unsafe.Pointer, fn uintptr) int32
+ func bsdthread_register() int32
+ 
+diff --git a/src/runtime/os_dragonfly.go b/src/runtime/os_dragonfly.go
+index 62fc56a1f1..d6856f1164 100644
+--- a/src/runtime/os_dragonfly.go
++++ b/src/runtime/os_dragonfly.go
+@@ -6,6 +6,8 @@ package runtime
+ 
+ import "unsafe"
+ 
++type mOS struct{}
++
+ //go:noescape
+ func lwp_create(param *lwpparams) int32
+ 
+diff --git a/src/runtime/os_freebsd.go b/src/runtime/os_freebsd.go
+index bc3394c9ac..61f8fae15b 100644
+--- a/src/runtime/os_freebsd.go
++++ b/src/runtime/os_freebsd.go
+@@ -6,6 +6,8 @@ package runtime
+ 
+ import "unsafe"
+ 
++type mOS struct{}
++
+ //go:noescape
+ func thr_new(param *thrparam, size int32)
+ 
+diff --git a/src/runtime/os_linux.go b/src/runtime/os_linux.go
+index dc932dbaa0..51a7fa0a75 100644
+--- a/src/runtime/os_linux.go
++++ b/src/runtime/os_linux.go
+@@ -6,6 +6,8 @@ package runtime
+ 
+ import "unsafe"
+ 
++type mOS struct{}
++
+ //go:noescape
+ func futex(addr unsafe.Pointer, op int32, val uint32, ts, addr2 unsafe.Pointer, val3 uint32) int32
+ 
+diff --git a/src/runtime/os_nacl.go b/src/runtime/os_nacl.go
+index efa8fa12b9..58330d2810 100644
+--- a/src/runtime/os_nacl.go
++++ b/src/runtime/os_nacl.go
+@@ -6,6 +6,8 @@ package runtime
+ 
+ import "unsafe"
+ 
++type mOS struct{}
++
+ func nacl_exception_stack(p uintptr, size int32) int32
+ func nacl_exception_handler(fn uintptr, arg unsafe.Pointer) int32
+ func nacl_sem_create(flag int32) int32
+diff --git a/src/runtime/os_netbsd.go b/src/runtime/os_netbsd.go
+index 4fa4a416bd..659ec2d65a 100644
+--- a/src/runtime/os_netbsd.go
++++ b/src/runtime/os_netbsd.go
+@@ -6,6 +6,8 @@ package runtime
+ 
+ import "unsafe"
+ 
++type mOS struct{}
++
+ //go:noescape
+ func setitimer(mode int32, new, old *itimerval)
+ 
+diff --git a/src/runtime/os_openbsd.go b/src/runtime/os_openbsd.go
+index 8a97a738f7..74a838fa41 100644
+--- a/src/runtime/os_openbsd.go
++++ b/src/runtime/os_openbsd.go
+@@ -4,6 +4,8 @@
+ 
+ package runtime
+ 
++type mOS struct{}
++
+ //go:noescape
+ func setitimer(mode int32, new, old *itimerval)
+ 
+diff --git a/src/runtime/os_plan9.go b/src/runtime/os_plan9.go
+index 6def35ccad..3b3e940cbc 100644
+--- a/src/runtime/os_plan9.go
++++ b/src/runtime/os_plan9.go
+@@ -6,6 +6,11 @@ package runtime
+ 
+ import "unsafe"
+ 
++type mOS struct {
++	notesig *int8
++	errstr  *byte
++}
++
+ func closefd(fd int32) int32
+ 
+ //go:noescape
+diff --git a/src/runtime/os_solaris.go b/src/runtime/os_solaris.go
+index 634e4cf914..129653ef19 100644
+--- a/src/runtime/os_solaris.go
++++ b/src/runtime/os_solaris.go
+@@ -6,6 +6,24 @@ package runtime
+ 
+ import "unsafe"
+ 
++type mts struct {
++	tv_sec  int64
++	tv_nsec int64
++}
++
++type mscratch struct {
++	v [6]uintptr
++}
++
++type mOS struct {
++	perrno *int32 // pointer to tls errno
++	// these are here because they are too large to be on the stack
++	// of low-level NOSPLIT functions.
++	//LibCall       libcall;
++	ts      mts
++	scratch mscratch
++}
++
+ type libcFunc uintptr
+ 
+ var asmsysvicall6 libcFunc
+diff --git a/src/runtime/os_windows.go b/src/runtime/os_windows.go
+index 545b416201..22f7daad51 100644
+--- a/src/runtime/os_windows.go
++++ b/src/runtime/os_windows.go
+@@ -6,6 +6,8 @@ package runtime
+ 
+ import "unsafe"
+ 
++type mOS struct{}
++
+ type stdFunction *byte
+ 
+ //go:linkname os_sigpipe os.sigpipe
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index d4e3758678..7d6c441ef5 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -269,15 +269,6 @@ type g struct {
+ 	gcAssistBytes int64
+ }
+ 
+-type mts struct {
+-	tv_sec  int64
+-	tv_nsec int64
+-}
+-
+-type mscratch struct {
+-	v [6]uintptr
+-}
+-
+ type m struct {
+ 	g0      *g     // goroutine with scheduling stack
+ 	morebuf gobuf  // gobuf arg to morestack
+@@ -343,18 +334,7 @@ type m struct {
+ 	libcallg  guintptr
+ 	syscall   libcall // stores syscall parameters on windows
+ 	//#endif
+-	//#ifdef GOOS_solaris
+-	perrno *int32 // pointer to tls errno
+-	// these are here because they are too large to be on the stack
+-	// of low-level NOSPLIT functions.
+-	//LibCall	libcall;
+-	ts      mts
+-	scratch mscratch
+-	//#endif
+-	//#ifdef GOOS_plan9
+-	notesig *int8
+-	errstr  *byte
+-	//#endif
++	mOS
+ }
+ 
+ type p struct {
+diff --git a/src/runtime/sys_plan9_386.s b/src/runtime/sys_plan9_386.s
+index cae326ada6..1af3cb19cd 100644
+--- a/src/runtime/sys_plan9_386.s
++++ b/src/runtime/sys_plan9_386.s
+@@ -238,7 +238,7 @@ TEXT runtime·errstr(SB),NOSPLIT,$8-8
+ 	get_tls(AX)
+ 	MOVL	g(AX), BX
+ 	MOVL	g_m(BX), BX
+-	MOVL	m_errstr(BX), CX
++	MOVL	(m_mOS+mOS_errstr)(BX), CX
+ 	MOVL	CX, 0(SP)
+ 	MOVL	$ERRMAX, 4(SP)
+ 	CALL	errstr<>(SB)
+diff --git a/src/runtime/sys_plan9_amd64.s b/src/runtime/sys_plan9_amd64.s
+index 6aefe5f125..1492ef2fed 100644
+--- a/src/runtime/sys_plan9_amd64.s
++++ b/src/runtime/sys_plan9_amd64.s
+@@ -243,7 +243,7 @@ TEXT runtime·errstr(SB),NOSPLIT,$16-16
+ 	get_tls(AX)
+ 	MOVQ	g(AX), BX
+ 	MOVQ	g_m(BX), BX
+-	MOVQ	m_errstr(BX), CX
++	MOVQ	(m_mOS+mOS_errstr)(BX), CX
+ 	MOVQ	CX, 0(SP)
+ 	MOVQ	$ERRMAX, 8(SP)
+ 	CALL	errstr<>(SB)
+diff --git a/src/runtime/sys_solaris_amd64.s b/src/runtime/sys_solaris_amd64.s
+index e4315645fe..978c9ffeb4 100644
+--- a/src/runtime/sys_solaris_amd64.s
++++ b/src/runtime/sys_solaris_amd64.s
+@@ -26,7 +26,7 @@ TEXT runtime·miniterrno(SB),NOSPLIT,$0
+ 	get_tls(CX)
+ 	MOVQ	g(CX), BX
+ 	MOVQ	g_m(BX), BX
+-	MOVQ	AX,	m_perrno(BX)
++	MOVQ	AX,	(m_mOS+mOS_perrno)(BX)
+ 	RET
+ 
+ // int64 runtime·nanotime1(void);
+@@ -81,7 +81,7 @@ TEXT runtime·asmsysvicall6(SB),NOSPLIT,$0
+ 	get_tls(CX)
+ 	MOVQ	g(CX), BX
+ 	MOVQ	g_m(BX), BX
+-	MOVQ	m_perrno(BX), DX
++	MOVQ	(m_mOS+mOS_perrno)(BX), DX
+ 	CMPQ	DX, $0
+ 	JEQ	skiperrno1
+ 	MOVL	$0, 0(DX)
+@@ -109,7 +109,7 @@ skipargs:
+ 	get_tls(CX)
+ 	MOVQ	g(CX), BX
+ 	MOVQ	g_m(BX), BX
+-	MOVQ	m_perrno(BX), AX
++	MOVQ	(m_mOS+mOS_perrno)(BX), AX
+ 	CMPQ	AX, $0
+ 	JEQ	skiperrno2
+ 	MOVL	0(AX), AX
+@@ -196,7 +196,7 @@ allgood:
+ 	MOVQ    R10, 176(SP)
+ 
+ 	// save m->scratch
+-	LEAQ	m_scratch(BP), R11
++	LEAQ	(m_mOS+mOS_scratch)(BP), R11
+ 	MOVQ	0(R11), R10
+ 	MOVQ	R10, 112(SP)
+ 	MOVQ	8(R11), R10
+@@ -211,7 +211,7 @@ allgood:
+ 	MOVQ	R10, 152(SP)
+ 
+ 	// save errno, it might be EINTR; stuff we do here might reset it.
+-	MOVQ	m_perrno(BP), R10
++	MOVQ	(m_mOS+mOS_perrno)(BP), R10
+ 	MOVL	0(R10), R10
+ 	MOVQ	R10, 160(SP)
+ 
+@@ -244,7 +244,7 @@ allgood:
+ 	MOVQ    R10, libcall_r2(R11)
+ 
+ 	// restore scratch
+-	LEAQ	m_scratch(BP), R11
++	LEAQ	(m_mOS+mOS_scratch)(BP), R11
+ 	MOVQ	112(SP), R10
+ 	MOVQ	R10, 0(R11)
+ 	MOVQ	120(SP), R10
+@@ -259,7 +259,7 @@ allgood:
+ 	MOVQ	R10, 40(R11)
+ 
+ 	// restore errno
+-	MOVQ	m_perrno(BP), R11
++	MOVQ	(m_mOS+mOS_perrno)(BP), R11
+ 	MOVQ	160(SP), R10
+ 	MOVL	R10, 0(R11)
+ 

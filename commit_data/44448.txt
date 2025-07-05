@@ -12,7 +12,7 @@ Date:   Mon Jul 6 23:46:17 2020 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/cmd/go.mod                                        | 2 +-
  src/cmd/go.sum                                        | 4 ++--
  src/cmd/vendor/modules.txt                            | 2 +-
@@ -22,3 +22,137 @@ Date:   Mon Jul 6 23:46:17 2020 -0400
  src/vendor/golang.org/x/net/dns/dnsmessage/message.go | 3 +--
  src/vendor/modules.txt                                | 4 ++--
  8 files changed, 15 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index 48cfa67e0b..274ef0d9f0 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -6,7 +6,7 @@ require (
+ 	github.com/google/pprof v0.0.0-20200229191704-1ebb73c60ed3
+ 	github.com/ianlancetaylor/demangle v0.0.0-20200414190113-039b1ae3a340 // indirect
+ 	golang.org/x/arch v0.0.0-20200511175325-f7c78586839d
+-	golang.org/x/crypto v0.0.0-20200429183012-4b2356b1ed79
++	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9
+ 	golang.org/x/mod v0.3.0
+ 	golang.org/x/sys v0.0.0-20200501145240-bc7a7d42d5c3 // indirect
+ 	golang.org/x/tools v0.0.0-20200616133436-c1934b75d054
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index 9f4ec07577..30a0be03e4 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -11,8 +11,8 @@ golang.org/x/arch v0.0.0-20200511175325-f7c78586839d h1:YvwchuJby5xEAPdBGmdAVSiV
+ golang.org/x/arch v0.0.0-20200511175325-f7c78586839d/go.mod h1:flIaEI6LNU6xOCD5PaJvn9wGP0agmIOqjrtsKGRguv4=
+ golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2/go.mod h1:djNgcEr1/C05ACkg1iLfiJU5Ep61QUkGW8qpdssI0+w=
+ golang.org/x/crypto v0.0.0-20191011191535-87dc89f01550/go.mod h1:yigFU9vqHzYiE8UmvKecakEJjdnWj3jj499lnFckfCI=
+-golang.org/x/crypto v0.0.0-20200429183012-4b2356b1ed79 h1:IaQbIIB2X/Mp/DKctl6ROxz1KyMlKp4uyvL6+kQ7C88=
+-golang.org/x/crypto v0.0.0-20200429183012-4b2356b1ed79/go.mod h1:LzIPMQfyMNhhGPhUkYOs5KpL4U8rLKemX1yGLhDgUto=
++golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9 h1:psW17arqaxU48Z5kZ0CQnkZWQJsqcURM6tKiBApRjXI=
++golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9/go.mod h1:LzIPMQfyMNhhGPhUkYOs5KpL4U8rLKemX1yGLhDgUto=
+ golang.org/x/mod v0.2.0/go.mod h1:s0Qsj1ACt9ePp/hMypM3fl4fZqREWJwdYDEqhRiZZUA=
+ golang.org/x/mod v0.3.0 h1:RM4zey1++hCTbCVQfnWeKs9/IEsaBLA8vTkd0WVtmH4=
+ golang.org/x/mod v0.3.0/go.mod h1:s0Qsj1ACt9ePp/hMypM3fl4fZqREWJwdYDEqhRiZZUA=
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index 3f5ea193b7..7ee7478b19 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -24,7 +24,7 @@ golang.org/x/arch/arm/armasm
+ golang.org/x/arch/arm64/arm64asm
+ golang.org/x/arch/ppc64/ppc64asm
+ golang.org/x/arch/x86/x86asm
+-# golang.org/x/crypto v0.0.0-20200429183012-4b2356b1ed79
++# golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9
+ ## explicit
+ golang.org/x/crypto/ed25519
+ golang.org/x/crypto/ed25519/internal/edwards25519
+diff --git a/src/go.mod b/src/go.mod
+index 29407a8a2c..b002f8e516 100644
+--- a/src/go.mod
++++ b/src/go.mod
+@@ -3,8 +3,8 @@ module std
+ go 1.15
+ 
+ require (
+-	golang.org/x/crypto v0.0.0-20200429183012-4b2356b1ed79
+-	golang.org/x/net v0.0.0-20200501053045-e0ff5e5a1de5
++	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9
++	golang.org/x/net v0.0.0-20200707034311-ab3426394381
+ 	golang.org/x/sys v0.0.0-20200501145240-bc7a7d42d5c3 // indirect
+ 	golang.org/x/text v0.3.3-0.20200430171850-afb9336c4530 // indirect
+ )
+diff --git a/src/go.sum b/src/go.sum
+index e154f542f8..528f7e460e 100644
+--- a/src/go.sum
++++ b/src/go.sum
+@@ -1,9 +1,9 @@
+ golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2/go.mod h1:djNgcEr1/C05ACkg1iLfiJU5Ep61QUkGW8qpdssI0+w=
+-golang.org/x/crypto v0.0.0-20200429183012-4b2356b1ed79 h1:IaQbIIB2X/Mp/DKctl6ROxz1KyMlKp4uyvL6+kQ7C88=
+-golang.org/x/crypto v0.0.0-20200429183012-4b2356b1ed79/go.mod h1:LzIPMQfyMNhhGPhUkYOs5KpL4U8rLKemX1yGLhDgUto=
++golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9 h1:psW17arqaxU48Z5kZ0CQnkZWQJsqcURM6tKiBApRjXI=
++golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9/go.mod h1:LzIPMQfyMNhhGPhUkYOs5KpL4U8rLKemX1yGLhDgUto=
+ golang.org/x/net v0.0.0-20190404232315-eb5bcb51f2a3/go.mod h1:t9HGtf8HONx5eT2rtn7q6eTqICYqUVnKs3thJo3Qplg=
+-golang.org/x/net v0.0.0-20200501053045-e0ff5e5a1de5 h1:WQ8q63x+f/zpC8Ac1s9wLElVoHhm32p6tudrU72n1QA=
+-golang.org/x/net v0.0.0-20200501053045-e0ff5e5a1de5/go.mod h1:qpuaurCH72eLCgpAm/N6yyVIVM9cpaDIP3A8BGJEC5A=
++golang.org/x/net v0.0.0-20200707034311-ab3426394381 h1:VXak5I6aEWmAXeQjA+QSZzlgNrpq9mjcfDemuexIKsU=
++golang.org/x/net v0.0.0-20200707034311-ab3426394381/go.mod h1:/O7V0waA8r7cgGh81Ro3o1hOxt32SMVPicZroKQ2sZA=
+ golang.org/x/sys v0.0.0-20190215142949-d0b11bdaac8a/go.mod h1:STP8DvDyc/dI5b8T5hshtkjS+E42TnysNCUPdjciGhY=
+ golang.org/x/sys v0.0.0-20190412213103-97732733099d/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+ golang.org/x/sys v0.0.0-20200323222414-85ca7c5b95cd/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+diff --git a/src/vendor/golang.org/x/crypto/cryptobyte/asn1.go b/src/vendor/golang.org/x/crypto/cryptobyte/asn1.go
+index b26376aeca..d3596ee66f 100644
+--- a/src/vendor/golang.org/x/crypto/cryptobyte/asn1.go
++++ b/src/vendor/golang.org/x/crypto/cryptobyte/asn1.go
+@@ -230,12 +230,12 @@ func (b *Builder) AddASN1(tag asn1.Tag, f BuilderContinuation) {
+ 
+ // String
+ 
+-// ReadASN1Boolean decodes an ASN.1 INTEGER and converts it to a boolean
++// ReadASN1Boolean decodes an ASN.1 BOOLEAN and converts it to a boolean
+ // representation into out and advances. It reports whether the read
+ // was successful.
+ func (s *String) ReadASN1Boolean(out *bool) bool {
+ 	var bytes String
+-	if !s.ReadASN1(&bytes, asn1.INTEGER) || len(bytes) != 1 {
++	if !s.ReadASN1(&bytes, asn1.BOOLEAN) || len(bytes) != 1 {
+ 		return false
+ 	}
+ 
+diff --git a/src/vendor/golang.org/x/net/dns/dnsmessage/message.go b/src/vendor/golang.org/x/net/dns/dnsmessage/message.go
+index da8bafd921..654f191f8a 100644
+--- a/src/vendor/golang.org/x/net/dns/dnsmessage/message.go
++++ b/src/vendor/golang.org/x/net/dns/dnsmessage/message.go
+@@ -14,7 +14,6 @@ package dnsmessage
+ 
+ import (
+ 	"errors"
+-	"fmt"
+ )
+ 
+ // Message formats
+@@ -2141,7 +2140,7 @@ func unpackResourceBody(msg []byte, off int, hdr ResourceHeader) (ResourceBody,
+ 		return nil, off, &nestedError{name + " record", err}
+ 	}
+ 	if r == nil {
+-		return nil, off, fmt.Errorf("invalid resource type: %d", hdr.Type)
++		return nil, off, errors.New("invalid resource type: " + hdr.Type.String())
+ 	}
+ 	return r, off + int(hdr.Length), nil
+ }
+diff --git a/src/vendor/modules.txt b/src/vendor/modules.txt
+index 7c42df8348..e687d77b4d 100644
+--- a/src/vendor/modules.txt
++++ b/src/vendor/modules.txt
+@@ -1,4 +1,4 @@
+-# golang.org/x/crypto v0.0.0-20200429183012-4b2356b1ed79
++# golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9
+ ## explicit
+ golang.org/x/crypto/chacha20
+ golang.org/x/crypto/chacha20poly1305
+@@ -8,7 +8,7 @@ golang.org/x/crypto/curve25519
+ golang.org/x/crypto/hkdf
+ golang.org/x/crypto/internal/subtle
+ golang.org/x/crypto/poly1305
+-# golang.org/x/net v0.0.0-20200501053045-e0ff5e5a1de5
++# golang.org/x/net v0.0.0-20200707034311-ab3426394381
+ ## explicit
+ golang.org/x/net/dns/dnsmessage
+ golang.org/x/net/http/httpguts

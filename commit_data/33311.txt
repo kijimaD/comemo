@@ -9,6 +9,42 @@ Date:   Tue Aug 8 21:22:41 2017 +1000
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/encoding/binary/example_test.go | 24 ++++++++++++++++++++++++
  1 file changed, 24 insertions(+)
+
+diff --git a/src/encoding/binary/example_test.go b/src/encoding/binary/example_test.go
+index a8b8dba650..e99aef288d 100644
+--- a/src/encoding/binary/example_test.go
++++ b/src/encoding/binary/example_test.go
+@@ -51,6 +51,30 @@ func ExampleRead() {
+ 	// Output: 3.141592653589793
+ }
+ 
++func ExampleRead_multi() {
++	data := struct {
++		PI   float64
++		Uate uint8
++		Mine [3]byte
++		Too  uint16
++	}{}
++	b := []byte{0x18, 0x2d, 0x44, 0x54, 0xfb, 0x21, 0x09, 0x40, 0xff, 0x01, 0x02, 0x03, 0xbe, 0xef}
++	buf := bytes.NewReader(b)
++	err := binary.Read(buf, binary.LittleEndian, &data)
++	if err != nil {
++		fmt.Println("binary.Read failed:", err)
++	}
++	fmt.Println(data.PI)
++	fmt.Println(data.Uate)
++	fmt.Printf("% x\n", data.Mine)
++	fmt.Println(data.Too)
++	// Output:
++	// 3.141592653589793
++	// 255
++	// 01 02 03
++	// 61374
++}
++
+ func ExampleByteOrder_put() {
+ 	b := make([]byte, 4)
+ 	binary.LittleEndian.PutUint16(b[0:], 0x03e8)

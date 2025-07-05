@@ -19,6 +19,45 @@ Date:   Tue Aug 8 12:02:02 2023 -0400
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Bryan Mills <bcmills@google.com>
     Auto-Submit: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/cgo/internal/testplugin/plugin_test.go | 25 ++++++++-----------------
  1 file changed, 8 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/cgo/internal/testplugin/plugin_test.go b/src/cmd/cgo/internal/testplugin/plugin_test.go
+index 53ccc17a07..22fa35512b 100644
+--- a/src/cmd/cgo/internal/testplugin/plugin_test.go
++++ b/src/cmd/cgo/internal/testplugin/plugin_test.go
+@@ -367,25 +367,16 @@ func TestForkExec(t *testing.T) {
+ 	t.Parallel()
+ 	goCmd(t, "build", "-o", "forkexec.exe", "./forkexec/main.go")
+ 
+-	var cmd *exec.Cmd
+-	done := make(chan int, 1)
+-
+-	go func() {
+-		for i := 0; i < 100; i++ {
+-			cmd = exec.Command("./forkexec.exe", "1")
+-			err := cmd.Run()
+-			if err != nil {
+-				t.Errorf("running command failed: %v", err)
+-				break
++	for i := 0; i < 100; i++ {
++		cmd := testenv.Command(t, "./forkexec.exe", "1")
++		err := cmd.Run()
++		if err != nil {
++			if ee, ok := err.(*exec.ExitError); ok && len(ee.Stderr) > 0 {
++				t.Logf("stderr:\n%s", ee.Stderr)
+ 			}
++			t.Errorf("running command failed: %v", err)
++			break
+ 		}
+-		done <- 1
+-	}()
+-	select {
+-	case <-done:
+-	case <-time.After(5 * time.Minute):
+-		cmd.Process.Kill()
+-		t.Fatalf("subprocess hang")
+ 	}
+ }
+ 

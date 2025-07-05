@@ -8,7 +8,43 @@ Date:   Sun Nov 8 09:50:16 2009 -0800
     
     R=r
     http://go/go-review/1024023
-
+---
  doc/root.html        | 2 +-
  lib/godoc/godoc.html | 6 ++++++
  2 files changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/doc/root.html b/doc/root.html
+index fbfbd2990d..af5824c1af 100644
+--- a/doc/root.html
++++ b/doc/root.html
+@@ -95,7 +95,7 @@ It's a joy to use.
+ <h3>&hellip; open source</h3>
+ 
+ <p>
+-Go for it.
++<a href="http://code.google.com/p/go/source/browse/">Go for it</a>.
+ </p>
+ 
+ </div>
+diff --git a/lib/godoc/godoc.html b/lib/godoc/godoc.html
+index 7686e5bf8b..445b3c68f7 100644
+--- a/lib/godoc/godoc.html
++++ b/lib/godoc/godoc.html
+@@ -99,11 +99,17 @@
+     <li><a href="/pkg" class="noline">Package documentation</a></li>
+     <li><a href="/src" class="noline">Sources</a></li>
+ 
++    <li class="blank">&nbsp;</li>
++    <li class="navhead">Help</li>
++    <li><a href="http://code.google.com/p/go/issues/list" class="noline">Issue tracker</a></li>
++    <li><a href="http://groups.google.com/group/golang-nuts" class="noline">Go Nuts mailing list</a></li>
++
+     <li class="blank">&nbsp;</li>
+     <li class="navhead">Go code search</li>
+     <form method="GET" action="/search" class="search">
+     <input type="search" name="q" value="{Query|html}" size="25" />
+     <input type="submit" value="Go" />
++    </form>
+ 
+     <li class="blank">&nbsp;</li>
+     <li class="navhead">Last update</li>

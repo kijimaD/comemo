@@ -11,9 +11,54 @@ Date:   Fri May 6 16:06:02 2016 +0000
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/os_freebsd.go | 5 -----
  src/runtime/os_nacl.go    | 5 -----
  src/runtime/os_openbsd.go | 5 -----
  src/runtime/os_plan9.go   | 5 -----
  4 files changed, 20 deletions(-)
+
+diff --git a/src/runtime/os_freebsd.go b/src/runtime/os_freebsd.go
+deleted file mode 100644
+index 47bf8fc20d..0000000000
+--- a/src/runtime/os_freebsd.go
++++ /dev/null
+@@ -1,5 +0,0 @@
+-// Copyright 2014 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package runtime
+diff --git a/src/runtime/os_nacl.go b/src/runtime/os_nacl.go
+deleted file mode 100644
+index 47bf8fc20d..0000000000
+--- a/src/runtime/os_nacl.go
++++ /dev/null
+@@ -1,5 +0,0 @@
+-// Copyright 2014 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package runtime
+diff --git a/src/runtime/os_openbsd.go b/src/runtime/os_openbsd.go
+deleted file mode 100644
+index 47bf8fc20d..0000000000
+--- a/src/runtime/os_openbsd.go
++++ /dev/null
+@@ -1,5 +0,0 @@
+-// Copyright 2014 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package runtime
+diff --git a/src/runtime/os_plan9.go b/src/runtime/os_plan9.go
+deleted file mode 100644
+index 47bf8fc20d..0000000000
+--- a/src/runtime/os_plan9.go
++++ /dev/null
+@@ -1,5 +0,0 @@
+-// Copyright 2014 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package runtime

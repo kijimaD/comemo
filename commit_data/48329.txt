@@ -21,7 +21,7 @@ Date:   Fri May 7 19:10:28 2021 +0200
     Reviewed-on: https://go-review.googlesource.com/c/go/+/318049
     Trust: Alberto Donizetti <alb.donizetti@gmail.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/go.mod                                     |   2 +-
  src/cmd/go.sum                                     |   4 +-
  src/cmd/pprof/pprof.go                             |   4 +-
@@ -37,3 +37,1016 @@ Date:   Fri May 7 19:10:28 2021 +0200
  .../github.com/google/pprof/profile/merge.go       |   1 -
  src/cmd/vendor/modules.txt                         |   2 +-
  14 files changed, 412 insertions(+), 192 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index a15cbe070a..7a96bc6409 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -3,7 +3,7 @@ module cmd
+ go 1.17
+ 
+ require (
+-	github.com/google/pprof v0.0.0-20210226084205-cbba55b83ad5
++	github.com/google/pprof v0.0.0-20210506205249-923b5ab0fc1a
+ 	github.com/ianlancetaylor/demangle v0.0.0-20200824232613-28f6c0f3b639 // indirect
+ 	golang.org/x/arch v0.0.0-20210502124803-cbf565b21d1e
+ 	golang.org/x/crypto v0.0.0-20210503195802-e9a32991a82e // indirect
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index 8a7ad4290a..1c6e224820 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -1,8 +1,8 @@
+ github.com/chzyer/logex v1.1.10/go.mod h1:+Ywpsq7O8HXn0nuIou7OrIPyXbp3wmkHB+jjWRnGsAI=
+ github.com/chzyer/readline v0.0.0-20180603132655-2972be24d48e/go.mod h1:nSuG5e5PlCu98SY8svDHJxuZscDgtXS6KTTbou5AhLI=
+ github.com/chzyer/test v0.0.0-20180213035817-a1ea475d72b1/go.mod h1:Q3SI9o4m/ZMnBNeIyt5eFwwo7qiLfzFZmjNmxjkiQlU=
+-github.com/google/pprof v0.0.0-20210226084205-cbba55b83ad5 h1:zIaiqGYDQwa4HVx5wGRTXbx38Pqxjemn4BP98wpzpXo=
+-github.com/google/pprof v0.0.0-20210226084205-cbba55b83ad5/go.mod h1:kpwsk12EmLew5upagYY7GY0pfYCcupk39gWOCRROcvE=
++github.com/google/pprof v0.0.0-20210506205249-923b5ab0fc1a h1:jmAp/2PZAScNd62lTD3Mcb0Ey9FvIIJtLohPhtxZJ+Q=
++github.com/google/pprof v0.0.0-20210506205249-923b5ab0fc1a/go.mod h1:kpwsk12EmLew5upagYY7GY0pfYCcupk39gWOCRROcvE=
+ github.com/ianlancetaylor/demangle v0.0.0-20200824232613-28f6c0f3b639 h1:mV02weKRL81bEnm8A0HT1/CAelMQDBuQIfLw8n+d6xI=
+ github.com/ianlancetaylor/demangle v0.0.0-20200824232613-28f6c0f3b639/go.mod h1:aSSvb/t6k1mPoxDqO4vJh6VOCGPwU4O0C2/Eqndh1Sc=
+ golang.org/x/arch v0.0.0-20210502124803-cbf565b21d1e h1:pv3V0NlNSh5Q6AX/StwGLBjcLS7UN4m4Gq+V+uSecqM=
+diff --git a/src/cmd/pprof/pprof.go b/src/cmd/pprof/pprof.go
+index 11f91cbedb..1d10a7b41f 100644
+--- a/src/cmd/pprof/pprof.go
++++ b/src/cmd/pprof/pprof.go
+@@ -232,9 +232,9 @@ func (f *file) Name() string {
+ 	return f.name
+ }
+ 
+-func (f *file) Base() uint64 {
++func (f *file) ObjAddr(addr uint64) (uint64, error) {
+ 	// No support for shared libraries.
+-	return 0
++	return 0, nil
+ }
+ 
+ func (f *file) BuildID() string {
+diff --git a/src/cmd/vendor/github.com/google/pprof/driver/driver.go b/src/cmd/vendor/github.com/google/pprof/driver/driver.go
+index e65bc2f417..fc05f919ba 100644
+--- a/src/cmd/vendor/github.com/google/pprof/driver/driver.go
++++ b/src/cmd/vendor/github.com/google/pprof/driver/driver.go
+@@ -159,8 +159,8 @@ type ObjFile interface {
+ 	// Name returns the underlying file name, if available.
+ 	Name() string
+ 
+-	// Base returns the base address to use when looking up symbols in the file.
+-	Base() uint64
++	// ObjAddr returns the objdump address corresponding to a runtime address.
++	ObjAddr(addr uint64) (uint64, error)
+ 
+ 	// BuildID returns the GNU build ID of the file, or an empty string.
+ 	BuildID() string
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/binutils/binutils.go b/src/cmd/vendor/github.com/google/pprof/internal/binutils/binutils.go
+index 576a6ee66a..5ed8a1f9f1 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/binutils/binutils.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/binutils/binutils.go
+@@ -42,7 +42,12 @@ type Binutils struct {
+ 	rep *binrep
+ }
+ 
+-var objdumpLLVMVerRE = regexp.MustCompile(`LLVM version (?:(\d*)\.(\d*)\.(\d*)|.*(trunk).*)`)
++var (
++	objdumpLLVMVerRE = regexp.MustCompile(`LLVM version (?:(\d*)\.(\d*)\.(\d*)|.*(trunk).*)`)
++
++	// Defined for testing
++	elfOpen = elf.Open
++)
+ 
+ // binrep is an immutable representation for Binutils.  It is atomically
+ // replaced on every mutation to provide thread-safe access.
+@@ -421,14 +426,23 @@ func (b *binrep) openMachO(name string, start, limit, offset uint64) (plugin.Obj
+ }
+ 
+ func (b *binrep) openELF(name string, start, limit, offset uint64) (plugin.ObjFile, error) {
+-	ef, err := elf.Open(name)
++	ef, err := elfOpen(name)
+ 	if err != nil {
+ 		return nil, fmt.Errorf("error parsing %s: %v", name, err)
+ 	}
+ 	defer ef.Close()
+ 
+-	var stextOffset *uint64
+-	var pageAligned = func(addr uint64) bool { return addr%4096 == 0 }
++	buildID := ""
++	if f, err := os.Open(name); err == nil {
++		if id, err := elfexec.GetBuildID(f); err == nil {
++			buildID = fmt.Sprintf("%x", id)
++		}
++	}
++
++	var (
++		stextOffset *uint64
++		pageAligned = func(addr uint64) bool { return addr%4096 == 0 }
++	)
+ 	if strings.Contains(name, "vmlinux") || !pageAligned(start) || !pageAligned(limit) || !pageAligned(offset) {
+ 		// Reading all Symbols is expensive, and we only rarely need it so
+ 		// we don't want to do it every time. But if _stext happens to be
+@@ -450,38 +464,29 @@ func (b *binrep) openELF(name string, start, limit, offset uint64) (plugin.ObjFi
+ 		}
+ 	}
+ 
+-	var ph *elf.ProgHeader
+-	// For user space executables, find the actual program segment that is
+-	// associated with the given mapping. Skip this search if limit <= start.
+-	// We cannot use just a check on the start address of the mapping to tell if
+-	// it's a kernel / .ko module mapping, because with quipper address remapping
+-	// enabled, the address would be in the lower half of the address space.
+-	if stextOffset == nil && start < limit && limit < (uint64(1)<<63) {
+-		ph, err = elfexec.FindProgHeaderForMapping(ef, offset, limit-start)
+-		if err != nil {
+-			return nil, fmt.Errorf("failed to find program header for file %q, mapping pgoff %x, memsz=%x: %v", name, offset, limit-start, err)
+-		}
+-	} else {
+-		// For the kernel, find the program segment that includes the .text section.
+-		ph = elfexec.FindTextProgHeader(ef)
+-	}
+-
+-	base, err := elfexec.GetBase(&ef.FileHeader, ph, stextOffset, start, limit, offset)
+-	if err != nil {
++	// Check that we can compute a base for the binary. This may not be the
++	// correct base value, so we don't save it. We delay computing the actual base
++	// value until we have a sample address for this mapping, so that we can
++	// correctly identify the associated program segment that is needed to compute
++	// the base.
++	if _, err := elfexec.GetBase(&ef.FileHeader, elfexec.FindTextProgHeader(ef), stextOffset, start, limit, offset); err != nil {
+ 		return nil, fmt.Errorf("could not identify base for %s: %v", name, err)
+ 	}
+ 
+-	buildID := ""
+-	if f, err := os.Open(name); err == nil {
+-		if id, err := elfexec.GetBuildID(f); err == nil {
+-			buildID = fmt.Sprintf("%x", id)
+-		}
+-	}
+-	isData := ph != nil && ph.Flags&elf.PF_X == 0
+ 	if b.fast || (!b.addr2lineFound && !b.llvmSymbolizerFound) {
+-		return &fileNM{file: file{b, name, base, buildID, isData}}, nil
++		return &fileNM{file: file{
++			b:       b,
++			name:    name,
++			buildID: buildID,
++			m:       &elfMapping{start: start, limit: limit, offset: offset, stextOffset: stextOffset},
++		}}, nil
+ 	}
+-	return &fileAddr2Line{file: file{b, name, base, buildID, isData}}, nil
++	return &fileAddr2Line{file: file{
++		b:       b,
++		name:    name,
++		buildID: buildID,
++		m:       &elfMapping{start: start, limit: limit, offset: offset, stextOffset: stextOffset},
++	}}, nil
+ }
+ 
+ func (b *binrep) openPE(name string, start, limit, offset uint64) (plugin.ObjFile, error) {
+@@ -511,21 +516,119 @@ func (b *binrep) openPE(name string, start, limit, offset uint64) (plugin.ObjFil
+ 	return &fileAddr2Line{file: file{b: b, name: name, base: base}}, nil
+ }
+ 
++// elfMapping stores the parameters of a runtime mapping that are needed to
++// identify the ELF segment associated with a mapping.
++type elfMapping struct {
++	// Runtime mapping parameters.
++	start, limit, offset uint64
++	// Offset of _stext symbol. Only defined for kernel images, nil otherwise.
++	stextOffset *uint64
++}
++
+ // file implements the binutils.ObjFile interface.
+ type file struct {
+ 	b       *binrep
+ 	name    string
+-	base    uint64
+ 	buildID string
+-	isData  bool
++
++	baseOnce sync.Once // Ensures the base, baseErr and isData are computed once.
++	base     uint64
++	baseErr  error // Any eventual error while computing the base.
++	isData   bool
++	// Mapping information. Relevant only for ELF files, nil otherwise.
++	m *elfMapping
++}
++
++// computeBase computes the relocation base for the given binary file only if
++// the elfMapping field is set. It populates the base and isData fields and
++// returns an error.
++func (f *file) computeBase(addr uint64) error {
++	if f == nil || f.m == nil {
++		return nil
++	}
++	if addr < f.m.start || addr >= f.m.limit {
++		return fmt.Errorf("specified address %x is outside the mapping range [%x, %x] for file %q", addr, f.m.start, f.m.limit, f.name)
++	}
++	ef, err := elfOpen(f.name)
++	if err != nil {
++		return fmt.Errorf("error parsing %s: %v", f.name, err)
++	}
++	defer ef.Close()
++
++	var ph *elf.ProgHeader
++	// For user space executables, find the actual program segment that is
++	// associated with the given mapping. Skip this search if limit <= start.
++	// We cannot use just a check on the start address of the mapping to tell if
++	// it's a kernel / .ko module mapping, because with quipper address remapping
++	// enabled, the address would be in the lower half of the address space.
++	if f.m.stextOffset == nil && f.m.start < f.m.limit && f.m.limit < (uint64(1)<<63) {
++		// Get all program headers associated with the mapping.
++		headers, hasLoadables := elfexec.ProgramHeadersForMapping(ef, f.m.offset, f.m.limit-f.m.start)
++
++		// Some ELF files don't contain any loadable program segments, e.g. .ko
++		// kernel modules. It's not an error to have no header in such cases.
++		if hasLoadables {
++			ph, err = matchUniqueHeader(headers, addr-f.m.start+f.m.offset)
++			if err != nil {
++				return fmt.Errorf("failed to find program header for file %q, ELF mapping %#v, address %x: %v", f.name, *f.m, addr, err)
++			}
++		}
++	} else {
++		// For the kernel, find the program segment that includes the .text section.
++		ph = elfexec.FindTextProgHeader(ef)
++	}
++
++	base, err := elfexec.GetBase(&ef.FileHeader, ph, f.m.stextOffset, f.m.start, f.m.limit, f.m.offset)
++	if err != nil {
++		return err
++	}
++	f.base = base
++	f.isData = ph != nil && ph.Flags&elf.PF_X == 0
++	return nil
++}
++
++// matchUniqueHeader attempts to identify a unique header from the given list,
++// using the given file offset to disambiguate between multiple segments. It
++// returns an error if the header list is empty or if it cannot identify a
++// unique header.
++func matchUniqueHeader(headers []*elf.ProgHeader, fileOffset uint64) (*elf.ProgHeader, error) {
++	if len(headers) == 0 {
++		return nil, errors.New("no program header matches mapping info")
++	}
++	if len(headers) == 1 {
++		// Don't use the file offset if we already have a single header.
++		return headers[0], nil
++	}
++	// We have multiple input segments. Attempt to identify a unique one
++	// based on the given file offset.
++	var ph *elf.ProgHeader
++	for _, h := range headers {
++		if fileOffset >= h.Off && fileOffset < h.Off+h.Memsz {
++			if ph != nil {
++				// Assuming no other bugs, this can only happen if we have two or
++				// more small program segments that fit on the same page, and a
++				// segment other than the last one includes uninitialized data.
++				return nil, fmt.Errorf("found second program header (%#v) that matches file offset %x, first program header is %#v. Does first program segment contain uninitialized data?", *h, fileOffset, *ph)
++			}
++			ph = h
++		}
++	}
++	if ph == nil {
++		return nil, fmt.Errorf("no program header matches file offset %x", fileOffset)
++	}
++	return ph, nil
+ }
+ 
+ func (f *file) Name() string {
+ 	return f.name
+ }
+ 
+-func (f *file) Base() uint64 {
+-	return f.base
++func (f *file) ObjAddr(addr uint64) (uint64, error) {
++	f.baseOnce.Do(func() { f.baseErr = f.computeBase(addr) })
++	if f.baseErr != nil {
++		return 0, f.baseErr
++	}
++	return addr - f.base, nil
+ }
+ 
+ func (f *file) BuildID() string {
+@@ -533,7 +636,11 @@ func (f *file) BuildID() string {
+ }
+ 
+ func (f *file) SourceLine(addr uint64) ([]plugin.Frame, error) {
+-	return []plugin.Frame{}, nil
++	f.baseOnce.Do(func() { f.baseErr = f.computeBase(addr) })
++	if f.baseErr != nil {
++		return nil, f.baseErr
++	}
++	return nil, nil
+ }
+ 
+ func (f *file) Close() error {
+@@ -560,6 +667,10 @@ type fileNM struct {
+ }
+ 
+ func (f *fileNM) SourceLine(addr uint64) ([]plugin.Frame, error) {
++	f.baseOnce.Do(func() { f.baseErr = f.computeBase(addr) })
++	if f.baseErr != nil {
++		return nil, f.baseErr
++	}
+ 	if f.addr2linernm == nil {
+ 		addr2liner, err := newAddr2LinerNM(f.b.nm, f.name, f.base)
+ 		if err != nil {
+@@ -579,9 +690,14 @@ type fileAddr2Line struct {
+ 	file
+ 	addr2liner     *addr2Liner
+ 	llvmSymbolizer *llvmSymbolizer
++	isData         bool
+ }
+ 
+ func (f *fileAddr2Line) SourceLine(addr uint64) ([]plugin.Frame, error) {
++	f.baseOnce.Do(func() { f.baseErr = f.computeBase(addr) })
++	if f.baseErr != nil {
++		return nil, f.baseErr
++	}
+ 	f.once.Do(f.init)
+ 	if f.llvmSymbolizer != nil {
+ 		return f.llvmSymbolizer.addrInfo(addr)
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/elfexec/elfexec.go b/src/cmd/vendor/github.com/google/pprof/internal/elfexec/elfexec.go
+index 3b3c6ee89f..2638b2db2d 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/elfexec/elfexec.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/elfexec/elfexec.go
+@@ -284,83 +284,71 @@ func FindTextProgHeader(f *elf.File) *elf.ProgHeader {
+ 	return nil
+ }
+ 
+-// FindProgHeaderForMapping returns the loadable program segment header that is
+-// fully contained in the runtime mapping with file offset pgoff and memory size
+-// memsz, or an error if the segment cannot be determined. The function returns
+-// a nil program header and no error if the ELF binary has no loadable segments.
+-func FindProgHeaderForMapping(f *elf.File, pgoff, memsz uint64) (*elf.ProgHeader, error) {
++// ProgramHeadersForMapping returns the loadable program segment headers that
++// are fully contained in the runtime mapping with file offset pgoff and memory
++// size memsz, and if the binary includes any loadable segments.
++func ProgramHeadersForMapping(f *elf.File, pgoff, memsz uint64) ([]*elf.ProgHeader, bool) {
++	const (
++		// pageSize defines the virtual memory page size used by the loader. This
++		// value is dependent on the memory management unit of the CPU. The page
++		// size is 4KB virtually on all the architectures that we care about, so we
++		// define this metric as a constant. If we encounter architectures where
++		// page sie is not 4KB, we must try to guess the page size on the system
++		// where the profile was collected, possibly using the architecture
++		// specified in the ELF file header.
++		pageSize       = 4096
++		pageOffsetMask = pageSize - 1
++		pageMask       = ^uint64(pageOffsetMask)
++	)
+ 	var headers []*elf.ProgHeader
+-	loadables := 0
++	hasLoadables := false
+ 	for _, p := range f.Progs {
++		// The segment must be fully included in the mapping.
+ 		if p.Type == elf.PT_LOAD && pgoff <= p.Off && p.Off+p.Memsz <= pgoff+memsz {
+-			headers = append(headers, &p.ProgHeader)
++			alignedOffset := uint64(0)
++			if p.Off > (p.Vaddr & pageOffsetMask) {
++				alignedOffset = p.Off - (p.Vaddr & pageOffsetMask)
++			}
++			if alignedOffset <= pgoff {
++				headers = append(headers, &p.ProgHeader)
++			}
+ 		}
+ 		if p.Type == elf.PT_LOAD {
+-			loadables++
++			hasLoadables = true
+ 		}
+ 	}
+-	if len(headers) == 1 {
+-		return headers[0], nil
++	if len(headers) < 2 {
++		return headers, hasLoadables
+ 	}
+-	// Some ELF files don't contain any program segments, e.g. .ko loadable kernel
+-	// modules. Don't return an error in such cases.
+-	if loadables == 0 {
+-		return nil, nil
+-	}
+-	if len(headers) == 0 {
+-		return nil, fmt.Errorf("no program header matches file offset %x and memory size %x", pgoff, memsz)
+-	}
+-
+-	// Segments are mapped page aligned. In some cases, segments may be smaller
+-	// than a page, which causes the next segment to start at a file offset that
+-	// is logically on the same page if we were to align file offsets by page.
+-	// Example:
+-	//  LOAD           0x0000000000000000 0x0000000000400000 0x0000000000400000
+-	//                 0x00000000000006fc 0x00000000000006fc  R E    0x200000
+-	//  LOAD           0x0000000000000e10 0x0000000000600e10 0x0000000000600e10
+-	//                 0x0000000000000230 0x0000000000000238  RW     0x200000
+-	//
+-	// In this case, perf records the following mappings for this executable:
+-	// 0 0 [0xc0]: PERF_RECORD_MMAP2 87867/87867: [0x400000(0x1000) @ 0 00:3c 512041 0]: r-xp exename
+-	// 0 0 [0xc0]: PERF_RECORD_MMAP2 87867/87867: [0x600000(0x2000) @ 0 00:3c 512041 0]: rw-p exename
+-	//
+-	// Both mappings have file offset 0. The first mapping is one page length and
+-	// it can include only the first loadable segment. Due to page alignment, the
+-	// second mapping starts also at file offset 0, and it spans two pages. It can
+-	// include both the first and the second loadable segments. We must return the
+-	// correct program header to compute the correct base offset.
+-	//
+-	// We cannot use the mapping protections to distinguish between segments,
+-	// because protections are not passed through to this function.
+-	// We cannot use the start address to differentiate between segments, because
+-	// with ASLR, the mapping start address can be any value.
+-	//
+-	// We use a heuristic to compute the minimum mapping size required for a
+-	// segment, assuming mappings are 4k page aligned, and return the segment that
+-	// matches the given mapping size.
+-	const pageSize = 4096
+ 
++	// If we have more than one matching segments, try a strict check on the
++	// segment memory size. We use a heuristic to compute the minimum mapping size
++	// required for a segment, assuming mappings are page aligned.
+ 	// The memory size based heuristic makes sense only if the mapping size is a
+-	// multiple of 4k page size.
++	// multiple of page size.
+ 	if memsz%pageSize != 0 {
+-		return nil, fmt.Errorf("mapping size = %x and %d segments match the passed in mapping", memsz, len(headers))
++		return headers, hasLoadables
+ 	}
+ 
+-	// Return an error if no segment, or multiple segments match the size, so we can debug.
++	// Return all found headers if we cannot narrow the selection to a single
++	// program segment.
+ 	var ph *elf.ProgHeader
+-	pageMask := ^uint64(pageSize - 1)
+ 	for _, h := range headers {
+ 		wantSize := (h.Vaddr+h.Memsz+pageSize-1)&pageMask - (h.Vaddr & pageMask)
+ 		if wantSize != memsz {
+ 			continue
+ 		}
+ 		if ph != nil {
+-			return nil, fmt.Errorf("found second program header (%#v) that matches memsz %x, first program header is %#v", *h, memsz, *ph)
++			// Found a second program header matching, so return all previously
++			// identified headers.
++			return headers, hasLoadables
+ 		}
+ 		ph = h
+ 	}
+ 	if ph == nil {
+-		return nil, fmt.Errorf("found %d matching program headers, but none matches mapping size %x", len(headers), memsz)
++		// No matching header for the strict check. Return all previously identified
++		// headers.
++		return headers, hasLoadables
+ 	}
+-	return ph, nil
++	return []*elf.ProgHeader{ph}, hasLoadables
+ }
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/plugin/plugin.go b/src/cmd/vendor/github.com/google/pprof/internal/plugin/plugin.go
+index 3a8d0af730..a57a0b20a9 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/plugin/plugin.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/plugin/plugin.go
+@@ -131,8 +131,9 @@ type ObjFile interface {
+ 	// Name returns the underlyinf file name, if available
+ 	Name() string
+ 
+-	// Base returns the base address to use when looking up symbols in the file.
+-	Base() uint64
++	// ObjAddr returns the objdump (linker) address corresponding to a runtime
++	// address, and an error.
++	ObjAddr(addr uint64) (uint64, error)
+ 
+ 	// BuildID returns the GNU build ID of the file, or an empty string.
+ 	BuildID() string
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/report/report.go b/src/cmd/vendor/github.com/google/pprof/internal/report/report.go
+index bc5685d61e..4a86554880 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/report/report.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/report/report.go
+@@ -445,7 +445,7 @@ func PrintAssembly(w io.Writer, rpt *Report, obj plugin.ObjTool, maxFuncs int) e
+ 			return err
+ 		}
+ 
+-		ns := annotateAssembly(insts, sns, s.base)
++		ns := annotateAssembly(insts, sns, s.file)
+ 
+ 		fmt.Fprintf(w, "ROUTINE ======================== %s\n", s.sym.Name[0])
+ 		for _, name := range s.sym.Name[1:] {
+@@ -534,7 +534,6 @@ func symbolsFromBinaries(prof *profile.Profile, g *graph.Graph, rx *regexp.Regex
+ 			addr = *address
+ 		}
+ 		msyms, err := f.Symbols(rx, addr)
+-		base := f.Base()
+ 		f.Close()
+ 		if err != nil {
+ 			continue
+@@ -543,7 +542,6 @@ func symbolsFromBinaries(prof *profile.Profile, g *graph.Graph, rx *regexp.Regex
+ 			objSyms = append(objSyms,
+ 				&objSymbol{
+ 					sym:  ms,
+-					base: base,
+ 					file: f,
+ 				},
+ 			)
+@@ -558,7 +556,6 @@ func symbolsFromBinaries(prof *profile.Profile, g *graph.Graph, rx *regexp.Regex
+ // added to correspond to sample addresses
+ type objSymbol struct {
+ 	sym  *plugin.Sym
+-	base uint64
+ 	file plugin.ObjFile
+ }
+ 
+@@ -578,8 +575,7 @@ func nodesPerSymbol(ns graph.Nodes, symbols []*objSymbol) map[*objSymbol]graph.N
+ 	for _, s := range symbols {
+ 		// Gather samples for this symbol.
+ 		for _, n := range ns {
+-			address := n.Info.Address - s.base
+-			if address >= s.sym.Start && address < s.sym.End {
++			if address, err := s.file.ObjAddr(n.Info.Address); err == nil && address >= s.sym.Start && address < s.sym.End {
+ 				symNodes[s] = append(symNodes[s], n)
+ 			}
+ 		}
+@@ -621,7 +617,7 @@ func (a *assemblyInstruction) cumValue() int64 {
+ // annotateAssembly annotates a set of assembly instructions with a
+ // set of samples. It returns a set of nodes to display. base is an
+ // offset to adjust the sample addresses.
+-func annotateAssembly(insts []plugin.Inst, samples graph.Nodes, base uint64) []assemblyInstruction {
++func annotateAssembly(insts []plugin.Inst, samples graph.Nodes, file plugin.ObjFile) []assemblyInstruction {
+ 	// Add end marker to simplify printing loop.
+ 	insts = append(insts, plugin.Inst{
+ 		Addr: ^uint64(0),
+@@ -645,7 +641,10 @@ func annotateAssembly(insts []plugin.Inst, samples graph.Nodes, base uint64) []a
+ 
+ 		// Sum all the samples until the next instruction (to account
+ 		// for samples attributed to the middle of an instruction).
+-		for next := insts[ix+1].Addr; s < len(samples) && samples[s].Info.Address-base < next; s++ {
++		for next := insts[ix+1].Addr; s < len(samples); s++ {
++			if addr, err := file.ObjAddr(samples[s].Info.Address); err != nil || addr >= next {
++				break
++			}
+ 			sample := samples[s]
+ 			n.flatDiv += sample.FlatDiv
+ 			n.flat += sample.Flat
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/report/source.go b/src/cmd/vendor/github.com/google/pprof/internal/report/source.go
+index 4f841eff5d..54245e5f9e 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/report/source.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/report/source.go
+@@ -132,6 +132,7 @@ func printWebSource(w io.Writer, rpt *Report, obj plugin.ObjTool) error {
+ // sourcePrinter holds state needed for generating source+asm HTML listing.
+ type sourcePrinter struct {
+ 	reader     *sourceReader
++	synth      *synthCode
+ 	objectTool plugin.ObjTool
+ 	objects    map[string]plugin.ObjFile  // Opened object files
+ 	sym        *regexp.Regexp             // May be nil
+@@ -146,6 +147,12 @@ type sourcePrinter struct {
+ 	prettyNames map[string]string
+ }
+ 
++// addrInfo holds information for an address we are interested in.
++type addrInfo struct {
++	loc *profile.Location // Always non-nil
++	obj plugin.ObjFile    // May be nil
++}
++
+ // instructionInfo holds collected information for an instruction.
+ type instructionInfo struct {
+ 	objAddr   uint64 // Address in object file (with base subtracted out)
+@@ -207,6 +214,7 @@ func PrintWebList(w io.Writer, rpt *Report, obj plugin.ObjTool, maxFiles int) er
+ func newSourcePrinter(rpt *Report, obj plugin.ObjTool, sourcePath string) *sourcePrinter {
+ 	sp := &sourcePrinter{
+ 		reader:      newSourceReader(sourcePath, rpt.options.TrimPath),
++		synth:       newSynthCode(rpt.prof.Mapping),
+ 		objectTool:  obj,
+ 		objects:     map[string]plugin.ObjFile{},
+ 		sym:         rpt.options.Symbol,
+@@ -225,19 +233,21 @@ func newSourcePrinter(rpt *Report, obj plugin.ObjTool, sourcePath string) *sourc
+ 		}
+ 	}
+ 
+-	addrs := map[uint64]bool{}
++	addrs := map[uint64]addrInfo{}
+ 	flat := map[uint64]int64{}
+ 	cum := map[uint64]int64{}
+ 
+ 	// Record an interest in the function corresponding to lines[index].
+-	markInterest := func(addr uint64, lines []profile.Line, index int) {
+-		fn := lines[index]
++	markInterest := func(addr uint64, loc *profile.Location, index int) {
++		fn := loc.Line[index]
+ 		if fn.Function == nil {
+ 			return
+ 		}
+ 		sp.interest[fn.Function.Name] = true
+ 		sp.interest[fn.Function.SystemName] = true
+-		addrs[addr] = true
++		if _, ok := addrs[addr]; !ok {
++			addrs[addr] = addrInfo{loc, sp.objectFile(loc.Mapping)}
++		}
+ 	}
+ 
+ 	// See if sp.sym matches line.
+@@ -270,15 +280,21 @@ func newSourcePrinter(rpt *Report, obj plugin.ObjTool, sourcePath string) *sourc
+ 				sp.prettyNames[line.Function.SystemName] = line.Function.Name
+ 			}
+ 
+-			cum[loc.Address] += value
++			addr := loc.Address
++			if addr == 0 {
++				// Some profiles are missing valid addresses.
++				addr = sp.synth.address(loc)
++			}
++
++			cum[addr] += value
+ 			if i == 0 {
+-				flat[loc.Address] += value
++				flat[addr] += value
+ 			}
+ 
+-			if sp.sym == nil || (address != nil && loc.Address == *address) {
++			if sp.sym == nil || (address != nil && addr == *address) {
+ 				// Interested in top-level entry of stack.
+ 				if len(loc.Line) > 0 {
+-					markInterest(loc.Address, loc.Line, len(loc.Line)-1)
++					markInterest(addr, loc, len(loc.Line)-1)
+ 				}
+ 				continue
+ 			}
+@@ -287,7 +303,7 @@ func newSourcePrinter(rpt *Report, obj plugin.ObjTool, sourcePath string) *sourc
+ 			matchFile := (loc.Mapping != nil && sp.sym.MatchString(loc.Mapping.File))
+ 			for j, line := range loc.Line {
+ 				if (j == 0 && matchFile) || matches(line) {
+-					markInterest(loc.Address, loc.Line, j)
++					markInterest(addr, loc, j)
+ 				}
+ 			}
+ 		}
+@@ -306,10 +322,11 @@ func (sp *sourcePrinter) close() {
+ 	}
+ }
+ 
+-func (sp *sourcePrinter) expandAddresses(rpt *Report, addrs map[uint64]bool, flat map[uint64]int64) {
++func (sp *sourcePrinter) expandAddresses(rpt *Report, addrs map[uint64]addrInfo, flat map[uint64]int64) {
+ 	// We found interesting addresses (ones with non-zero samples) above.
+ 	// Get covering address ranges and disassemble the ranges.
+-	ranges := sp.splitIntoRanges(rpt.prof, addrs, flat)
++	ranges, unprocessed := sp.splitIntoRanges(rpt.prof, addrs, flat)
++	sp.handleUnprocessed(addrs, unprocessed)
+ 
+ 	// Trim ranges if there are too many.
+ 	const maxRanges = 25
+@@ -321,9 +338,18 @@ func (sp *sourcePrinter) expandAddresses(rpt *Report, addrs map[uint64]bool, fla
+ 	}
+ 
+ 	for _, r := range ranges {
+-		base := r.obj.Base()
+-		insts, err := sp.objectTool.Disasm(r.mapping.File, r.begin-base, r.end-base,
+-			rpt.options.IntelSyntax)
++		objBegin, err := r.obj.ObjAddr(r.begin)
++		if err != nil {
++			fmt.Fprintf(os.Stderr, "Failed to compute objdump address for range start %x: %v\n", r.begin, err)
++			continue
++		}
++		objEnd, err := r.obj.ObjAddr(r.end)
++		if err != nil {
++			fmt.Fprintf(os.Stderr, "Failed to compute objdump address for range end %x: %v\n", r.end, err)
++			continue
++		}
++		base := r.begin - objBegin
++		insts, err := sp.objectTool.Disasm(r.mapping.File, objBegin, objEnd, rpt.options.IntelSyntax)
+ 		if err != nil {
+ 			// TODO(sanjay): Report that the covered addresses are missing.
+ 			continue
+@@ -385,78 +411,115 @@ func (sp *sourcePrinter) expandAddresses(rpt *Report, addrs map[uint64]bool, fla
+ 				frames = lastFrames
+ 			}
+ 
+-			// See if the stack contains a function we are interested in.
+-			for i, f := range frames {
+-				if !sp.interest[f.Func] {
+-					continue
+-				}
++			sp.addStack(addr, frames)
++		}
++	}
++}
+ 
+-				// Record sub-stack under frame's file/line.
+-				fname := canonicalizeFileName(f.File)
+-				file := sp.files[fname]
+-				if file == nil {
+-					file = &sourceFile{
+-						fname:    fname,
+-						lines:    map[int][]sourceInst{},
+-						funcName: map[int]string{},
+-					}
+-					sp.files[fname] = file
+-				}
+-				callees := frames[:i]
+-				stack := make([]callID, 0, len(callees))
+-				for j := len(callees) - 1; j >= 0; j-- { // Reverse so caller is first
+-					stack = append(stack, callID{
+-						file: callees[j].File,
+-						line: callees[j].Line,
+-					})
+-				}
+-				file.lines[f.Line] = append(file.lines[f.Line], sourceInst{addr, stack})
++func (sp *sourcePrinter) addStack(addr uint64, frames []plugin.Frame) {
++	// See if the stack contains a function we are interested in.
++	for i, f := range frames {
++		if !sp.interest[f.Func] {
++			continue
++		}
+ 
+-				// Remember the first function name encountered per source line
+-				// and assume that that line belongs to that function.
+-				if _, ok := file.funcName[f.Line]; !ok {
+-					file.funcName[f.Line] = f.Func
+-				}
++		// Record sub-stack under frame's file/line.
++		fname := canonicalizeFileName(f.File)
++		file := sp.files[fname]
++		if file == nil {
++			file = &sourceFile{
++				fname:    fname,
++				lines:    map[int][]sourceInst{},
++				funcName: map[int]string{},
+ 			}
++			sp.files[fname] = file
++		}
++		callees := frames[:i]
++		stack := make([]callID, 0, len(callees))
++		for j := len(callees) - 1; j >= 0; j-- { // Reverse so caller is first
++			stack = append(stack, callID{
++				file: callees[j].File,
++				line: callees[j].Line,
++			})
++		}
++		file.lines[f.Line] = append(file.lines[f.Line], sourceInst{addr, stack})
++
++		// Remember the first function name encountered per source line
++		// and assume that that line belongs to that function.
++		if _, ok := file.funcName[f.Line]; !ok {
++			file.funcName[f.Line] = f.Func
+ 		}
+ 	}
+ }
+ 
+-// splitIntoRanges converts the set of addresses we are interested in into a set of address
+-// ranges to disassemble.
+-func (sp *sourcePrinter) splitIntoRanges(prof *profile.Profile, set map[uint64]bool, flat map[uint64]int64) []addressRange {
+-	// List of mappings so we can stop expanding address ranges at mapping boundaries.
+-	mappings := append([]*profile.Mapping{}, prof.Mapping...)
+-	sort.Slice(mappings, func(i, j int) bool { return mappings[i].Start < mappings[j].Start })
++// synthAsm is the special disassembler value used for instructions without an object file.
++const synthAsm = ""
++
++// handleUnprocessed handles addresses that were skipped by splitIntoRanges because they
++// did not belong to a known object file.
++func (sp *sourcePrinter) handleUnprocessed(addrs map[uint64]addrInfo, unprocessed []uint64) {
++	// makeFrames synthesizes a []plugin.Frame list for the specified address.
++	// The result will typically have length 1, but may be longer if address corresponds
++	// to inlined calls.
++	makeFrames := func(addr uint64) []plugin.Frame {
++		loc := addrs[addr].loc
++		stack := make([]plugin.Frame, 0, len(loc.Line))
++		for _, line := range loc.Line {
++			fn := line.Function
++			if fn == nil {
++				continue
++			}
++			stack = append(stack, plugin.Frame{
++				Func: fn.Name,
++				File: fn.Filename,
++				Line: int(line.Line),
++			})
++		}
++		return stack
++	}
+ 
+-	var result []addressRange
+-	addrs := make([]uint64, 0, len(set))
+-	for addr := range set {
+-		addrs = append(addrs, addr)
++	for _, addr := range unprocessed {
++		frames := makeFrames(addr)
++		x := instructionInfo{
++			objAddr: addr,
++			length:  1,
++			disasm:  synthAsm,
++		}
++		if len(frames) > 0 {
++			x.file = frames[0].File
++			x.line = frames[0].Line
++		}
++		sp.insts[addr] = x
++
++		sp.addStack(addr, frames)
++	}
++}
++
++// splitIntoRanges converts the set of addresses we are interested in into a set of address
++// ranges to disassemble. It also returns the set of addresses found that did not have an
++// associated object file and were therefore not added to an address range.
++func (sp *sourcePrinter) splitIntoRanges(prof *profile.Profile, addrMap map[uint64]addrInfo, flat map[uint64]int64) ([]addressRange, []uint64) {
++	// Partition addresses into two sets: ones with a known object file, and ones without.
++	var addrs, unprocessed []uint64
++	for addr, info := range addrMap {
++		if info.obj != nil {
++			addrs = append(addrs, addr)
++		} else {
++			unprocessed = append(unprocessed, addr)
++		}
+ 	}
+ 	sort.Slice(addrs, func(i, j int) bool { return addrs[i] < addrs[j] })
+ 
+-	mappingIndex := 0
+ 	const expand = 500 // How much to expand range to pick up nearby addresses.
++	var result []addressRange
+ 	for i, n := 0, len(addrs); i < n; {
+ 		begin, end := addrs[i], addrs[i]
+ 		sum := flat[begin]
+ 		i++
+ 
+-		// Advance to mapping containing addrs[i]
+-		for mappingIndex < len(mappings) && mappings[mappingIndex].Limit <= begin {
+-			mappingIndex++
+-		}
+-		if mappingIndex >= len(mappings) {
+-			// TODO(sanjay): Report missed address and its samples.
+-			break
+-		}
+-		m := mappings[mappingIndex]
+-		obj := sp.objectFile(m)
+-		if obj == nil {
+-			// TODO(sanjay): Report missed address and its samples.
+-			continue
+-		}
++		info := addrMap[begin]
++		m := info.loc.Mapping
++		obj := info.obj // Non-nil because of the partitioning done above.
+ 
+ 		// Find following addresses that are close enough to addrs[i].
+ 		for i < n && addrs[i] <= end+2*expand && addrs[i] < m.Limit {
+@@ -479,7 +542,7 @@ func (sp *sourcePrinter) splitIntoRanges(prof *profile.Profile, set map[uint64]b
+ 
+ 		result = append(result, addressRange{begin, end, obj, m, sum})
+ 	}
+-	return result
++	return result, unprocessed
+ }
+ 
+ func (sp *sourcePrinter) initSamples(flat, cum map[uint64]int64) {
+@@ -665,9 +728,12 @@ func (sp *sourcePrinter) functions(f *sourceFile) []sourceFunction {
+ 	return funcs
+ }
+ 
+-// objectFile return the object for the named file, opening it if necessary.
++// objectFile return the object for the specified mapping, opening it if necessary.
+ // It returns nil on error.
+ func (sp *sourcePrinter) objectFile(m *profile.Mapping) plugin.ObjFile {
++	if m == nil {
++		return nil
++	}
+ 	if object, ok := sp.objects[m.File]; ok {
+ 		return object // May be nil if we detected an error earlier.
+ 	}
+@@ -725,12 +791,28 @@ func printFunctionSourceLine(w io.Writer, lineNo int, flat, cum int64, lineConte
+ 		return
+ 	}
+ 
++	nestedInfo := false
++	cl := "deadsrc"
++	for _, an := range assembly {
++		if len(an.inlineCalls) > 0 || an.instruction != synthAsm {
++			nestedInfo = true
++			cl = "livesrc"
++		}
++	}
++
+ 	fmt.Fprintf(w,
+-		"<span class=line> %6d</span> <span class=deadsrc>  %10s %10s %8s  %s </span>",
+-		lineNo,
++		"<span class=line> %6d</span> <span class=%s>  %10s %10s %8s  %s </span>",
++		lineNo, cl,
+ 		valueOrDot(flat, rpt), valueOrDot(cum, rpt),
+ 		"", template.HTMLEscapeString(lineContents))
+-	srcIndent := indentation(lineContents)
++	if nestedInfo {
++		srcIndent := indentation(lineContents)
++		printNested(w, srcIndent, assembly, reader, rpt)
++	}
++	fmt.Fprintln(w)
++}
++
++func printNested(w io.Writer, srcIndent int, assembly []assemblyInstruction, reader *sourceReader, rpt *Report) {
+ 	fmt.Fprint(w, "<span class=asm>")
+ 	var curCalls []callID
+ 	for i, an := range assembly {
+@@ -763,6 +845,9 @@ func printFunctionSourceLine(w io.Writer, lineNo int, flat, cum int64, lineConte
+ 				template.HTMLEscapeString(filepath.Base(c.file)), c.line)
+ 		}
+ 		curCalls = an.inlineCalls
++		if an.instruction == synthAsm {
++			continue
++		}
+ 		text := strings.Repeat(" ", srcIndent+4+4*len(curCalls)) + an.instruction
+ 		fmt.Fprintf(w, " %8s %10s %10s %8x: %s <span class=unimportant>%s</span>\n",
+ 			"", valueOrDot(flat, rpt), valueOrDot(cum, rpt), an.address,
+@@ -772,7 +857,7 @@ func printFunctionSourceLine(w io.Writer, lineNo int, flat, cum int64, lineConte
+ 			// would cause double-escaping of file name.
+ 			fileline)
+ 	}
+-	fmt.Fprintln(w, "</span>")
++	fmt.Fprint(w, "</span>")
+ }
+ 
+ // printFunctionClosing prints the end of a function in a weblist report.
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/report/source_html.go b/src/cmd/vendor/github.com/google/pprof/internal/report/source_html.go
+index 26e8bdbba8..17c9f6eb94 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/report/source_html.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/report/source_html.go
+@@ -40,14 +40,7 @@ h1 {
+ .inlinesrc {
+   color: #000066;
+ }
+-.deadsrc {
+-cursor: pointer;
+-}
+-.deadsrc:hover {
+-background-color: #eeeeee;
+-}
+ .livesrc {
+-color: #0000ff;
+ cursor: pointer;
+ }
+ .livesrc:hover {
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/report/synth.go b/src/cmd/vendor/github.com/google/pprof/internal/report/synth.go
+new file mode 100644
+index 0000000000..7a35bbcda8
+--- /dev/null
++++ b/src/cmd/vendor/github.com/google/pprof/internal/report/synth.go
+@@ -0,0 +1,39 @@
++package report
++
++import (
++	"github.com/google/pprof/profile"
++)
++
++// synthCode assigns addresses to locations without an address.
++type synthCode struct {
++	next uint64
++	addr map[*profile.Location]uint64 // Synthesized address assigned to a location
++}
++
++func newSynthCode(mappings []*profile.Mapping) *synthCode {
++	// Find a larger address than any mapping.
++	s := &synthCode{next: 1}
++	for _, m := range mappings {
++		if s.next < m.Limit {
++			s.next = m.Limit
++		}
++	}
++	return s
++}
++
++// address returns the synthetic address for loc, creating one if needed.
++func (s *synthCode) address(loc *profile.Location) uint64 {
++	if loc.Address != 0 {
++		panic("can only synthesize addresses for locations without an address")
++	}
++	if addr, ok := s.addr[loc]; ok {
++		return addr
++	}
++	if s.addr == nil {
++		s.addr = map[*profile.Location]uint64{}
++	}
++	addr := s.next
++	s.next++
++	s.addr[loc] = addr
++	return addr
++}
+diff --git a/src/cmd/vendor/github.com/google/pprof/profile/encode.go b/src/cmd/vendor/github.com/google/pprof/profile/encode.go
+index 1e84c72d43..ab7f03ae26 100644
+--- a/src/cmd/vendor/github.com/google/pprof/profile/encode.go
++++ b/src/cmd/vendor/github.com/google/pprof/profile/encode.go
+@@ -308,7 +308,7 @@ func (p *Profile) postDecode() error {
+ 			if l.strX != 0 {
+ 				value, err = getString(p.stringTable, &l.strX, err)
+ 				labels[key] = append(labels[key], value)
+-			} else if l.numX != 0 {
++			} else if l.numX != 0 || l.unitX != 0 {
+ 				numValues := numLabels[key]
+ 				units := numUnits[key]
+ 				if l.unitX != 0 {
+diff --git a/src/cmd/vendor/github.com/google/pprof/profile/merge.go b/src/cmd/vendor/github.com/google/pprof/profile/merge.go
+index 5ab6e9b9b0..9978e7330e 100644
+--- a/src/cmd/vendor/github.com/google/pprof/profile/merge.go
++++ b/src/cmd/vendor/github.com/google/pprof/profile/merge.go
+@@ -231,7 +231,6 @@ func (pm *profileMerger) mapLocation(src *Location) *Location {
+ 	}
+ 
+ 	if l, ok := pm.locationsByID[src.ID]; ok {
+-		pm.locationsByID[src.ID] = l
+ 		return l
+ 	}
+ 
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index 6b19ec3aea..5fb1c25ace 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -1,4 +1,4 @@
+-# github.com/google/pprof v0.0.0-20210226084205-cbba55b83ad5
++# github.com/google/pprof v0.0.0-20210506205249-923b5ab0fc1a
+ ## explicit; go 1.14
+ github.com/google/pprof/driver
+ github.com/google/pprof/internal/binutils

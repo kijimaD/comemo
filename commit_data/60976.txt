@@ -14,6 +14,32 @@ Date:   Fri Sep 13 22:30:30 2024 +0700
     Reviewed-by: Tim King <taking@google.com>
     Reviewed-by: Keith Randall <khr@google.com>
     Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  test/fixedbugs/issue24755.go | 19 +++++++++++++++++++
  1 file changed, 19 insertions(+)
+
+diff --git a/test/fixedbugs/issue24755.go b/test/fixedbugs/issue24755.go
+new file mode 100644
+index 0000000000..705b15fbdc
+--- /dev/null
++++ b/test/fixedbugs/issue24755.go
+@@ -0,0 +1,19 @@
++// errorcheck
++
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type I interface {
++	F()
++}
++
++type T struct {
++}
++
++const _ = I((*T)(nil)) // ERROR "is not constant"
++
++func (*T) F() {
++}

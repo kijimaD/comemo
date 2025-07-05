@@ -16,7 +16,7 @@ Date:   Wed Mar 1 16:11:07 2023 +0000
     Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/cmd/dist/build.go                  | 33 +++++++++++++++++++++++++--
  src/cmd/dist/build_test.go             | 10 +++++----
  src/cmd/go/internal/work/gc.go         |  2 +-
@@ -31,3 +31,477 @@ Date:   Wed Mar 1 16:11:07 2023 +0000
  src/runtime/crash_test.go              | 14 ++++++------
  src/runtime/time_test.go               |  2 +-
  13 files changed, 105 insertions(+), 105 deletions(-)
+
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index 444d293433..1c63c6ebc7 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -539,7 +539,36 @@ func setup() {
+ // mustLinkExternal is a copy of internal/platform.MustLinkExternal,
+ // duplicated here to avoid version skew in the MustLinkExternal function
+ // during bootstrapping.
+-func mustLinkExternal(goos, goarch string) bool {
++func mustLinkExternal(goos, goarch string, cgoEnabled bool) bool {
++	if cgoEnabled {
++		switch goarch {
++		case "loong64",
++			"mips", "mipsle", "mips64", "mips64le",
++			"riscv64":
++			// Internally linking cgo is incomplete on some architectures.
++			// https://golang.org/issue/14449
++			return true
++		case "arm64":
++			if goos == "windows" {
++				// windows/arm64 internal linking is not implemented.
++				return true
++			}
++		case "ppc64":
++			// Big Endian PPC64 cgo internal linking is not implemented for aix or linux.
++			return true
++		}
++
++		switch goos {
++		case "android":
++			return true
++		case "dragonfly":
++			// It seems that on Dragonfly thread local storage is
++			// set up by the dynamic linker, so internal cgo linking
++			// doesn't work. Test case is "go test runtime/cgo".
++			return true
++		}
++	}
++
+ 	switch goos {
+ 	case "android":
+ 		if goarch != "arm64" {
+@@ -1283,7 +1312,7 @@ func timelog(op, name string) {
+ // to switch between the host and target configurations when cross-compiling.
+ func toolenv() []string {
+ 	var env []string
+-	if !mustLinkExternal(goos, goarch) {
++	if !mustLinkExternal(goos, goarch, false) {
+ 		// Unless the platform requires external linking,
+ 		// we disable cgo to get static binaries for cmd/go and cmd/pprof,
+ 		// so that they work on systems without the same dynamic libraries
+diff --git a/src/cmd/dist/build_test.go b/src/cmd/dist/build_test.go
+index a97c4cbc32..158ac2678d 100644
+--- a/src/cmd/dist/build_test.go
++++ b/src/cmd/dist/build_test.go
+@@ -14,10 +14,12 @@ import (
+ func TestMustLinkExternal(t *testing.T) {
+ 	for _, goos := range okgoos {
+ 		for _, goarch := range okgoarch {
+-			got := mustLinkExternal(goos, goarch)
+-			want := platform.MustLinkExternal(goos, goarch)
+-			if got != want {
+-				t.Errorf("mustLinkExternal(%q, %q) = %v; want %v", goos, goarch, got, want)
++			for _, cgoEnabled := range []bool{true, false} {
++				got := mustLinkExternal(goos, goarch, cgoEnabled)
++				want := platform.MustLinkExternal(goos, goarch, cgoEnabled)
++				if got != want {
++					t.Errorf("mustLinkExternal(%q, %q, %v) = %v; want %v", goos, goarch, cgoEnabled, got, want)
++				}
+ 			}
+ 		}
+ 	}
+diff --git a/src/cmd/go/internal/work/gc.go b/src/cmd/go/internal/work/gc.go
+index 3f59b6d41f..51d1760d9c 100644
+--- a/src/cmd/go/internal/work/gc.go
++++ b/src/cmd/go/internal/work/gc.go
+@@ -643,7 +643,7 @@ func (gcToolchain) ld(b *Builder, root *Action, out, importcfg, mainpkg string)
+ 		// linker's build id, which will cause our build id to not
+ 		// match the next time the tool is built.
+ 		// Rely on the external build id instead.
+-		if !platform.MustLinkExternal(cfg.Goos, cfg.Goarch) {
++		if !platform.MustLinkExternal(cfg.Goos, cfg.Goarch, false) {
+ 			ldflags = append(ldflags, "-X=cmd/internal/objabi.buildID="+root.buildID)
+ 		}
+ 	}
+diff --git a/src/cmd/link/internal/ld/config.go b/src/cmd/link/internal/ld/config.go
+index f2dfa1c1cd..7cce28dac5 100644
+--- a/src/cmd/link/internal/ld/config.go
++++ b/src/cmd/link/internal/ld/config.go
+@@ -5,7 +5,6 @@
+ package ld
+ 
+ import (
+-	"cmd/internal/sys"
+ 	"fmt"
+ 	"internal/buildcfg"
+ 	"internal/platform"
+@@ -125,7 +124,7 @@ func mustLinkExternal(ctxt *Link) (res bool, reason string) {
+ 		}()
+ 	}
+ 
+-	if platform.MustLinkExternal(buildcfg.GOOS, buildcfg.GOARCH) {
++	if platform.MustLinkExternal(buildcfg.GOOS, buildcfg.GOARCH, false) {
+ 		return true, fmt.Sprintf("%s/%s requires external linking", buildcfg.GOOS, buildcfg.GOARCH)
+ 	}
+ 
+@@ -137,25 +136,9 @@ func mustLinkExternal(ctxt *Link) (res bool, reason string) {
+ 		return true, "asan"
+ 	}
+ 
+-	// Internally linking cgo is incomplete on some architectures.
+-	// https://golang.org/issue/14449
+-	if iscgo && ctxt.Arch.InFamily(sys.Loong64, sys.MIPS64, sys.MIPS, sys.RISCV64) {
++	if iscgo && platform.MustLinkExternal(buildcfg.GOOS, buildcfg.GOARCH, true) {
+ 		return true, buildcfg.GOARCH + " does not support internal cgo"
+ 	}
+-	if iscgo && (buildcfg.GOOS == "android" || buildcfg.GOOS == "dragonfly") {
+-		// It seems that on Dragonfly thread local storage is
+-		// set up by the dynamic linker, so internal cgo linking
+-		// doesn't work. Test case is "go test runtime/cgo".
+-		return true, buildcfg.GOOS + " does not support internal cgo"
+-	}
+-	if iscgo && buildcfg.GOOS == "windows" && buildcfg.GOARCH == "arm64" {
+-		// windows/arm64 internal linking is not implemented.
+-		return true, buildcfg.GOOS + "/" + buildcfg.GOARCH + " does not support internal cgo"
+-	}
+-	if iscgo && ctxt.Arch == sys.ArchPPC64 {
+-		// Big Endian PPC64 cgo internal linking is not implemented for aix or linux.
+-		return true, buildcfg.GOOS + " does not support internal cgo"
+-	}
+ 
+ 	// Some build modes require work the internal linker cannot do (yet).
+ 	switch ctxt.BuildMode {
+@@ -164,12 +147,7 @@ func mustLinkExternal(ctxt *Link) (res bool, reason string) {
+ 	case BuildModeCShared:
+ 		return true, "buildmode=c-shared"
+ 	case BuildModePIE:
+-		switch buildcfg.GOOS + "/" + buildcfg.GOARCH {
+-		case "android/arm64":
+-		case "linux/amd64", "linux/arm64", "linux/ppc64le":
+-		case "windows/386", "windows/amd64", "windows/arm", "windows/arm64":
+-		case "darwin/amd64", "darwin/arm64":
+-		default:
++		if !platform.InternalLinkPIESupported(buildcfg.GOOS, buildcfg.GOARCH) {
+ 			// Internal linking does not support TLS_IE.
+ 			return true, "buildmode=pie"
+ 		}
+diff --git a/src/cmd/link/internal/ld/dwarf_test.go b/src/cmd/link/internal/ld/dwarf_test.go
+index 6fac85a01d..ee3ea9d175 100644
+--- a/src/cmd/link/internal/ld/dwarf_test.go
++++ b/src/cmd/link/internal/ld/dwarf_test.go
+@@ -274,7 +274,7 @@ func TestSizes(t *testing.T) {
+ 	}
+ 
+ 	// External linking may bring in C symbols with unknown size. Skip.
+-	testenv.MustInternalLink(t)
++	testenv.MustInternalLink(t, false)
+ 
+ 	t.Parallel()
+ 
+@@ -882,7 +882,7 @@ func TestAbstractOriginSanityIssue26237(t *testing.T) {
+ 
+ func TestRuntimeTypeAttrInternal(t *testing.T) {
+ 	testenv.MustHaveGoBuild(t)
+-	testenv.MustInternalLink(t)
++	testenv.MustInternalLink(t, false)
+ 
+ 	if runtime.GOOS == "plan9" {
+ 		t.Skip("skipping on plan9; no DWARF symbol table in executables")
+@@ -1165,7 +1165,7 @@ func main() {
+ 	// TODO: maybe there is some way to tell the external linker not to put
+ 	// those symbols in the executable's symbol table? Prefix the symbol name
+ 	// with "." or "L" to pretend it is a label?
+-	if !testenv.CanInternalLink() {
++	if !testenv.CanInternalLink(false) {
+ 		return
+ 	}
+ 
+diff --git a/src/cmd/link/internal/ld/ld_test.go b/src/cmd/link/internal/ld/ld_test.go
+index 314dab7d7d..22bc11eff3 100644
+--- a/src/cmd/link/internal/ld/ld_test.go
++++ b/src/cmd/link/internal/ld/ld_test.go
+@@ -21,7 +21,7 @@ func TestUndefinedRelocErrors(t *testing.T) {
+ 
+ 	// When external linking, symbols may be defined externally, so we allow
+ 	// undefined symbols and let external linker resolve. Skip the test.
+-	testenv.MustInternalLink(t)
++	testenv.MustInternalLink(t, false)
+ 
+ 	t.Parallel()
+ 
+diff --git a/src/cmd/link/link_test.go b/src/cmd/link/link_test.go
+index b4ef9ada17..121ef95853 100644
+--- a/src/cmd/link/link_test.go
++++ b/src/cmd/link/link_test.go
+@@ -176,19 +176,7 @@ main.x: relocation target main.zero not defined
+ func TestIssue33979(t *testing.T) {
+ 	testenv.MustHaveGoBuild(t)
+ 	testenv.MustHaveCGO(t)
+-	testenv.MustInternalLink(t)
+-
+-	// Skip test on platforms that do not support cgo internal linking.
+-	switch runtime.GOARCH {
+-	case "loong64":
+-		t.Skipf("Skipping on %s/%s", runtime.GOOS, runtime.GOARCH)
+-	case "mips", "mipsle", "mips64", "mips64le":
+-		t.Skipf("Skipping on %s/%s", runtime.GOOS, runtime.GOARCH)
+-	}
+-	if runtime.GOOS == "aix" ||
+-		runtime.GOOS == "windows" && runtime.GOARCH == "arm64" {
+-		t.Skipf("Skipping on %s/%s", runtime.GOOS, runtime.GOARCH)
+-	}
++	testenv.MustInternalLink(t, true)
+ 
+ 	t.Parallel()
+ 
+@@ -751,8 +739,8 @@ func TestTrampolineCgo(t *testing.T) {
+ 
+ 		// Test internal linking mode.
+ 
+-		if runtime.GOARCH == "ppc64" || (runtime.GOARCH == "arm64" && runtime.GOOS == "windows") || !testenv.CanInternalLink() {
+-			return // internal linking cgo is not supported
++		if !testenv.CanInternalLink(true) {
++			continue
+ 		}
+ 		cmd = testenv.Command(t, testenv.GoToolPath(t), "build", "-buildmode="+mode, "-ldflags=-debugtramp=2 -linkmode=internal", "-o", exe, src)
+ 		out, err = cmd.CombinedOutput()
+diff --git a/src/cmd/nm/nm_cgo_test.go b/src/cmd/nm/nm_cgo_test.go
+index 210577e6f7..face58c311 100644
+--- a/src/cmd/nm/nm_cgo_test.go
++++ b/src/cmd/nm/nm_cgo_test.go
+@@ -2,56 +2,25 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build cgo
+-
+ package main
+ 
+ import (
+-	"runtime"
++	"internal/testenv"
+ 	"testing"
+ )
+ 
+-func canInternalLink() bool {
+-	switch runtime.GOOS {
+-	case "aix":
+-		return false
+-	case "dragonfly":
+-		return false
+-	case "freebsd":
+-		switch runtime.GOARCH {
+-		case "arm64", "riscv64":
+-			return false
+-		}
+-	case "linux":
+-		switch runtime.GOARCH {
+-		case "arm64", "loong64", "mips64", "mips64le", "mips", "mipsle", "ppc64", "ppc64le", "riscv64":
+-			return false
+-		}
+-	case "openbsd":
+-		switch runtime.GOARCH {
+-		case "arm64", "mips64":
+-			return false
+-		}
+-	case "windows":
+-		switch runtime.GOARCH {
+-		case "arm64":
+-			return false
+-		}
+-	}
+-	return true
+-}
+-
+ func TestInternalLinkerCgoExec(t *testing.T) {
+-	if !canInternalLink() {
+-		t.Skip("skipping; internal linking is not supported")
+-	}
++	testenv.MustHaveCGO(t)
++	testenv.MustInternalLink(t, true)
+ 	testGoExec(t, true, false)
+ }
+ 
+ func TestExternalLinkerCgoExec(t *testing.T) {
++	testenv.MustHaveCGO(t)
+ 	testGoExec(t, true, true)
+ }
+ 
+ func TestCgoLib(t *testing.T) {
++	testenv.MustHaveCGO(t)
+ 	testGoLib(t, true)
+ }
+diff --git a/src/internal/platform/supported.go b/src/internal/platform/supported.go
+index 71bf1c5477..8bf68a6d58 100644
+--- a/src/internal/platform/supported.go
++++ b/src/internal/platform/supported.go
+@@ -71,8 +71,39 @@ func FuzzInstrumented(goos, goarch string) bool {
+ 	}
+ }
+ 
+-// MustLinkExternal reports whether goos/goarch requires external linking.
+-func MustLinkExternal(goos, goarch string) bool {
++// MustLinkExternal reports whether goos/goarch requires external linking
++// with or without cgo dependencies.
++func MustLinkExternal(goos, goarch string, withCgo bool) bool {
++	if withCgo {
++		switch goarch {
++		case "loong64",
++			"mips", "mipsle", "mips64", "mips64le",
++			"riscv64":
++			// Internally linking cgo is incomplete on some architectures.
++			// https://go.dev/issue/14449
++			return true
++		case "arm64":
++			if goos == "windows" {
++				// windows/arm64 internal linking is not implemented.
++				return true
++			}
++		case "ppc64":
++			// Big Endian PPC64 cgo internal linking is not implemented for aix or linux.
++			// https://go.dev/issue/8912
++			return true
++		}
++
++		switch goos {
++		case "android":
++			return true
++		case "dragonfly":
++			// It seems that on Dragonfly thread local storage is
++			// set up by the dynamic linker, so internal cgo linking
++			// doesn't work. Test case is "go test runtime/cgo".
++			return true
++		}
++	}
++
+ 	switch goos {
+ 	case "android":
+ 		if goarch != "arm64" {
+@@ -178,10 +209,10 @@ func BuildModeSupported(compiler, buildmode, goos, goarch string) bool {
+ 
+ func InternalLinkPIESupported(goos, goarch string) bool {
+ 	switch goos + "/" + goarch {
+-	case "darwin/amd64", "darwin/arm64",
++	case "android/arm64",
++		"darwin/amd64", "darwin/arm64",
+ 		"linux/amd64", "linux/arm64", "linux/ppc64le",
+-		"android/arm64",
+-		"windows-amd64", "windows-386", "windows-arm":
++		"windows/386", "windows/amd64", "windows/arm", "windows/arm64":
+ 		return true
+ 	}
+ 	return false
+diff --git a/src/internal/testenv/testenv.go b/src/internal/testenv/testenv.go
+index 65a82fd5f7..816a1a100f 100644
+--- a/src/internal/testenv/testenv.go
++++ b/src/internal/testenv/testenv.go
+@@ -288,15 +288,18 @@ func MustHaveCGO(t testing.TB) {
+ 
+ // CanInternalLink reports whether the current system can link programs with
+ // internal linking.
+-func CanInternalLink() bool {
+-	return !platform.MustLinkExternal(runtime.GOOS, runtime.GOARCH)
++func CanInternalLink(withCgo bool) bool {
++	return !platform.MustLinkExternal(runtime.GOOS, runtime.GOARCH, withCgo)
+ }
+ 
+ // MustInternalLink checks that the current system can link programs with internal
+ // linking.
+ // If not, MustInternalLink calls t.Skip with an explanation.
+-func MustInternalLink(t testing.TB) {
+-	if !CanInternalLink() {
++func MustInternalLink(t testing.TB, withCgo bool) {
++	if !CanInternalLink(withCgo) {
++		if withCgo && CanInternalLink(false) {
++			t.Skipf("skipping test: internal linking on %s/%s is not supported with cgo", runtime.GOOS, runtime.GOARCH)
++		}
+ 		t.Skipf("skipping test: internal linking on %s/%s is not supported", runtime.GOOS, runtime.GOARCH)
+ 	}
+ }
+diff --git a/src/os/exec/exec_test.go b/src/os/exec/exec_test.go
+index 9f9cb598d8..67cd446f42 100644
+--- a/src/os/exec/exec_test.go
++++ b/src/os/exec/exec_test.go
+@@ -694,7 +694,7 @@ func TestExtraFiles(t *testing.T) {
+ 
+ 	// This test runs with cgo disabled. External linking needs cgo, so
+ 	// it doesn't work if external linking is required.
+-	testenv.MustInternalLink(t)
++	testenv.MustInternalLink(t, false)
+ 
+ 	if runtime.GOOS == "windows" {
+ 		t.Skipf("skipping test on %q", runtime.GOOS)
+diff --git a/src/runtime/crash_test.go b/src/runtime/crash_test.go
+index a2f0926599..3a64c30e2b 100644
+--- a/src/runtime/crash_test.go
++++ b/src/runtime/crash_test.go
+@@ -184,7 +184,7 @@ func TestCrashHandler(t *testing.T) {
+ 
+ func testDeadlock(t *testing.T, name string) {
+ 	// External linking brings in cgo, causing deadlock detection not working.
+-	testenv.MustInternalLink(t)
++	testenv.MustInternalLink(t, false)
+ 
+ 	output := runTestProg(t, "testprog", name)
+ 	want := "fatal error: all goroutines are asleep - deadlock!\n"
+@@ -211,7 +211,7 @@ func TestLockedDeadlock2(t *testing.T) {
+ 
+ func TestGoexitDeadlock(t *testing.T) {
+ 	// External linking brings in cgo, causing deadlock detection not working.
+-	testenv.MustInternalLink(t)
++	testenv.MustInternalLink(t, false)
+ 
+ 	output := runTestProg(t, "testprog", "GoexitDeadlock")
+ 	want := "no goroutines (main called runtime.Goexit) - deadlock!"
+@@ -311,7 +311,7 @@ panic: third panic
+ 
+ func TestGoexitCrash(t *testing.T) {
+ 	// External linking brings in cgo, causing deadlock detection not working.
+-	testenv.MustInternalLink(t)
++	testenv.MustInternalLink(t, false)
+ 
+ 	output := runTestProg(t, "testprog", "GoexitExit")
+ 	want := "no goroutines (main called runtime.Goexit) - deadlock!"
+@@ -372,7 +372,7 @@ func TestBreakpoint(t *testing.T) {
+ 
+ func TestGoexitInPanic(t *testing.T) {
+ 	// External linking brings in cgo, causing deadlock detection not working.
+-	testenv.MustInternalLink(t)
++	testenv.MustInternalLink(t, false)
+ 
+ 	// see issue 8774: this code used to trigger an infinite recursion
+ 	output := runTestProg(t, "testprog", "GoexitInPanic")
+@@ -439,7 +439,7 @@ func TestPanicAfterGoexit(t *testing.T) {
+ 
+ func TestRecoveredPanicAfterGoexit(t *testing.T) {
+ 	// External linking brings in cgo, causing deadlock detection not working.
+-	testenv.MustInternalLink(t)
++	testenv.MustInternalLink(t, false)
+ 
+ 	output := runTestProg(t, "testprog", "RecoveredPanicAfterGoexit")
+ 	want := "fatal error: no goroutines (main called runtime.Goexit) - deadlock!"
+@@ -450,7 +450,7 @@ func TestRecoveredPanicAfterGoexit(t *testing.T) {
+ 
+ func TestRecoverBeforePanicAfterGoexit(t *testing.T) {
+ 	// External linking brings in cgo, causing deadlock detection not working.
+-	testenv.MustInternalLink(t)
++	testenv.MustInternalLink(t, false)
+ 
+ 	t.Parallel()
+ 	output := runTestProg(t, "testprog", "RecoverBeforePanicAfterGoexit")
+@@ -462,7 +462,7 @@ func TestRecoverBeforePanicAfterGoexit(t *testing.T) {
+ 
+ func TestRecoverBeforePanicAfterGoexit2(t *testing.T) {
+ 	// External linking brings in cgo, causing deadlock detection not working.
+-	testenv.MustInternalLink(t)
++	testenv.MustInternalLink(t, false)
+ 
+ 	t.Parallel()
+ 	output := runTestProg(t, "testprog", "RecoverBeforePanicAfterGoexit2")
+diff --git a/src/runtime/time_test.go b/src/runtime/time_test.go
+index afd9af2af4..f08682055b 100644
+--- a/src/runtime/time_test.go
++++ b/src/runtime/time_test.go
+@@ -22,7 +22,7 @@ func TestFakeTime(t *testing.T) {
+ 
+ 	// Faketime is advanced in checkdead. External linking brings in cgo,
+ 	// causing checkdead not working.
+-	testenv.MustInternalLink(t)
++	testenv.MustInternalLink(t, false)
+ 
+ 	t.Parallel()
+ 

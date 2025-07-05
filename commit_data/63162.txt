@@ -12,6 +12,30 @@ Date:   Fri May 16 13:34:14 2025 -0400
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
     TryBot-Bypass: Daniel McCarney <daniel@binaryparadox.net>
-
+---
  src/crypto/tls/key_schedule.go | 15 ---------------
  1 file changed, 15 deletions(-)
+
+diff --git a/src/crypto/tls/key_schedule.go b/src/crypto/tls/key_schedule.go
+index 38d6d3f7be..1426a276bf 100644
+--- a/src/crypto/tls/key_schedule.go
++++ b/src/crypto/tls/key_schedule.go
+@@ -82,18 +82,3 @@ func curveForCurveID(id CurveID) (ecdh.Curve, bool) {
+ 		return nil, false
+ 	}
+ }
+-
+-func curveIDForCurve(curve ecdh.Curve) (CurveID, bool) {
+-	switch curve {
+-	case ecdh.X25519():
+-		return X25519, true
+-	case ecdh.P256():
+-		return CurveP256, true
+-	case ecdh.P384():
+-		return CurveP384, true
+-	case ecdh.P521():
+-		return CurveP521, true
+-	default:
+-		return 0, false
+-	}
+-}

@@ -16,7 +16,45 @@ Date:   Tue Apr 18 16:41:19 2017 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/pprof/proto.go      | 4 +++-
  src/runtime/pprof/proto_test.go | 4 ++--
  2 files changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/pprof/proto.go b/src/runtime/pprof/proto.go
+index 0f74e119b6..923fa2188a 100644
+--- a/src/runtime/pprof/proto.go
++++ b/src/runtime/pprof/proto.go
+@@ -270,7 +270,9 @@ func (b *profileBuilder) addCPUData(data []uint64, tags []unsafe.Pointer) error
+ 		if data[0] != 3 || data[2] == 0 {
+ 			return fmt.Errorf("malformed profile")
+ 		}
+-		b.period = int64(data[2]) * 1000
++		// data[2] is sampling rate in Hz. Convert to sampling
++		// period in nanoseconds.
++		b.period = 1e9 / int64(data[2])
+ 		b.havePeriod = true
+ 		data = data[3:]
+ 	}
+diff --git a/src/runtime/pprof/proto_test.go b/src/runtime/pprof/proto_test.go
+index 2f10419147..59c1080e7b 100644
+--- a/src/runtime/pprof/proto_test.go
++++ b/src/runtime/pprof/proto_test.go
+@@ -40,7 +40,7 @@ func TestConvertCPUProfileEmpty(t *testing.T) {
+ 	// A test server with mock cpu profile data.
+ 	var buf bytes.Buffer
+ 
+-	b := []uint64{3, 0, 2000} // empty profile with 2ms sample period
++	b := []uint64{3, 0, 500} // empty profile at 500 Hz (2ms sample period)
+ 	p, err := translateCPUProfile(b)
+ 	if err != nil {
+ 		t.Fatalf("translateCPUProfile: %v", err)
+@@ -103,7 +103,7 @@ func TestConvertCPUProfile(t *testing.T) {
+ 	addr1, addr2, map1, map2 := testPCs(t)
+ 
+ 	b := []uint64{
+-		3, 0, 2000, // periodMs = 2000
++		3, 0, 500, // hz = 500
+ 		5, 0, 10, uint64(addr1), uint64(addr1 + 2), // 10 samples in addr1
+ 		5, 0, 40, uint64(addr2), uint64(addr2 + 2), // 40 samples in addr2
+ 		5, 0, 10, uint64(addr1), uint64(addr1 + 2), // 10 samples in addr1

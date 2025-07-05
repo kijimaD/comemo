@@ -15,7 +15,7 @@ Date:   Sat Sep 13 14:49:36 2008 -0700
     R=r
     OCL=15313
     CL=15313
-
+---
  src/cmd/6g/gsubr.c  |   2 +-
  src/cmd/gc/dcl.c    | 100 +++++++++++++-----------------
  src/cmd/gc/go.h     |  13 ++--
@@ -23,3 +23,541 @@ Date:   Sat Sep 13 14:49:36 2008 -0700
  src/cmd/gc/walk.c   | 173 +++++++++++++++++++++++++++++++++-------------------
  src/runtime/print.c |   7 +--
  6 files changed, 166 insertions(+), 133 deletions(-)
+
+diff --git a/src/cmd/6g/gsubr.c b/src/cmd/6g/gsubr.c
+index 28daa2a335..ac807c651e 100644
+--- a/src/cmd/6g/gsubr.c
++++ b/src/cmd/6g/gsubr.c
+@@ -329,7 +329,7 @@ loop:
+ 		s->local = 2;
+ 
+ 	snprint(namebuf, sizeof(namebuf), "%s_%s", e, s->name);
+-	s = pkglookup(namebuf, s->opackage);
++	s = pkglookup(namebuf, s->package);
+ 	return s;
+ }
+ 
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index a2168e62b6..01b4902179 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -219,11 +219,6 @@ methodname(Node *n, Type *t)
+ {
+ 	Sym *s;
+ 
+-print("methodname: n=%N t=%lT\n", n, t);
+-	if(t == T)
+-		goto bad;
+-
+-	// method receiver must be typename or *typename
+ 	s = S;
+ 	if(t->sym != S)
+ 		s = t->sym;
+@@ -231,9 +226,12 @@ print("methodname: n=%N t=%lT\n", n, t);
+ 		t = t->type;
+ 	if(t->sym != S)
+ 		s = t->sym;
++
++//	if(t->etype != TSTRUCT)
++//		goto bad;
++
+ 	if(s == S)
+ 		goto bad;
+-
+ 	snprint(namebuf, sizeof(namebuf), "%s_%s", s->name, n->sym->name);
+ 	return newname(lookup(namebuf));
+ 
+@@ -244,84 +242,69 @@ bad:
+ 
+ /*
+  * add a method, declared as a function,
+- * n is fieldname, pa is base type, t is function type
++ * into the structure
+  */
+ void
+-addmethod(Node *n, Type *t)
++addmethod(Node *n, Type *pa, Type *t)
+ {
+-	Type *f, *d, *pa;
+-	Sym *st, *sf;
+-	int ptr;
++	Type *f, *d, *p;
++	Sym *s;
+ 
+-	// get field sym
+-	if(n == N)
+-		goto bad;
+ 	if(n->op != ONAME)
+ 		goto bad;
+-	sf = n->sym;
+-	if(sf == S)
++	s = n->sym;
++	if(s == S)
+ 		goto bad;
+-
+-	// get parent type sym
+-	pa = *getthis(t);	// ptr to this structure
+ 	if(pa == T)
+ 		goto bad;
+-	pa = pa->type;		// ptr to this field
+-	if(pa == T)
++	if(!isptr[pa->etype])
+ 		goto bad;
+-	pa = pa->type;		// ptr to this type
+-	if(pa == T)
++	p = pa->type;
++	if(p == T)
+ 		goto bad;
+-
+-	// optionally rip off ptr to type
+-	ptr = 0;
+-	if(pa->sym == S && isptr[pa->etype]) {
+-		ptr = 1;
+-		pa = pa->type;
+-		if(pa == T)
+-			goto bad;
+-	}
+-	if(pa->etype == TINTER)
+-		yyerror("no methods on interfaces");
+-
+-	// and finally the receiver sym
+-	st = pa->sym;
+-	if(st == S)
++	if(p->etype != TSTRUCT)
++		goto bad;
++	if(p->sym == S)
+ 		goto bad;
+-	if(!st->local) {
+-		yyerror("method receiver type must be locally defined: %S", st);
+-		return;
+-	}
+-
+-print("addmethod: n=%N t=%lT sf=%S st=%S\n",
+-	n, t, sf, st);
+ 
+-	n = nod(ODCLFIELD, newname(sf), N);
+-	n->type = t;
++	if(p->type == T) {
++		n = nod(ODCLFIELD, newname(s), N);
++		n->type = t;
+ 
+-	if(pa->method == T) {
+-		pa->methptr = ptr;
+-		stotype(n, &pa->method);
++		stotype(n, &p->type);
+ 		return;
+ 	}
+-	if(pa->methptr != ptr)
+-		yyerror("combination of direct and ptr receivers of: %S", st);
+ 
+ 	d = T;	// last found
+-	for(f=pa->method; f!=T; f=f->down) {
++	for(f=p->type; f!=T; f=f->down) {
+ 		if(f->etype != TFIELD)
+ 			fatal("addmethod: not TFIELD: %N", f);
+ 
+-		if(strcmp(sf->name, f->sym->name) != 0) {
++		if(strcmp(s->name, f->sym->name) != 0) {
+ 			d = f;
+ 			continue;
+ 		}
++
++		// if a field matches a non-this function
++		// then delete it and let it be redeclared
++		if(methcmp(t, f->type)) {
++			if(d == T) {
++				p->type = f->down;
++				continue;
++			}
++			d->down = f->down;
++			continue;
++		}
+ 		if(!eqtype(t, f->type, 0))
+-			yyerror("method redeclared: %S of type %S", sf, st);
++			yyerror("field redeclared as method: %S", s);
++		return;
+ 	}
+ 
++	n = nod(ODCLFIELD, newname(s), N);
++	n->type = t;
++
+ 	if(d == T)
+-		stotype(n, &pa->method);
++		stotype(n, &p->type);
+ 	else
+ 		stotype(n, &d->down);
+ 	return;
+@@ -410,6 +393,11 @@ funchdr(Node *n)
+ 	markdcl();
+ 	funcargs(n->type);
+ 
++	if(n->type->thistuple > 0) {
++		Type *t;
++		t = *getthis(n->type);
++		addmethod(n->nname, t->type->type, n->type);
++	}
+ }
+ 
+ void
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index b2a0d4412e..b7019bccbd 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -115,7 +115,6 @@ struct	Type
+ 	uchar	chan;
+ 	uchar	recur;		// to detect loops
+ 	uchar	trecur;		// to detect loops
+-	uchar	methptr;	// all methods are pointers to this type
+ 
+ 	// TFUNCT
+ 	uchar	thistuple;
+@@ -123,14 +122,9 @@ struct	Type
+ 	uchar	intuple;
+ 	uchar	outnamed;
+ 
+-	Type*	method;
+-
+ 	Sym*	sym;
+ 	int32	vargen;		// unique name for OTYPE/ONAME
+ 
+-	Node*	nname;
+-	vlong	argwid;
+-
+ 	// most nodes
+ 	Type*	type;
+ 	vlong	width;		// offset in TFIELD, width in all others
+@@ -141,6 +135,10 @@ struct	Type
+ 	// TPTR
+ 	Type*	nforw;
+ 
++	// TFUNCT
++	Node*	nname;
++	vlong	argwid;
++
+ 	// TARRAY
+ 	int32	bound;		// negative is dynamic array
+ };
+@@ -611,7 +609,6 @@ void	dodcltype(Type*, Type*);
+ void	dodclconst(Node*, Node*);
+ void	defaultlit(Node*);
+ int	listcount(Node*);
+-void	addmethod(Node*, Type*);
+ Node*	methodname(Node*, Type*);
+ Type*	functype(Node*, Node*, Node*);
+ char*	thistypenam(Node*);
+@@ -674,7 +671,7 @@ Type*	walkswitch(Node*, Type*(*)(Node*, Type*));
+ int	casebody(Node*);
+ void	walkselect(Node*);
+ int	whatis(Node*);
+-void	walkdot(Node*);
++void	walkdot(Node*, int);
+ Node*	ascompatee(int, Node**, Node**);
+ Node*	ascompatet(int, Node**, Type**, int);
+ Node*	ascompatte(int, Type**, Node**, int);
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index 2a36132034..ac806cc6ff 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -1057,12 +1057,12 @@ fndcl:
+ |	'(' oarg_type_list ')' new_name '(' oarg_type_list ')' fnres
+ 	{
+ 		b0stack = dclstack;	// mark base for fn literals
++		if($2 == N || $2->op == OLIST)
++			yyerror("syntax error in method receiver");
+ 		$$ = nod(ODCLFUNC, N, N);
+ 		$$->nname = methodname($4, $2->type);
+ 		$$->type = functype($2, $6, $8);
+ 		funchdr($$);
+-
+-		addmethod($4, $$->type);
+ 	}
+ 
+ fntype:
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 4685b3d0b3..8a9664f219 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -17,7 +17,8 @@ int
+ walkret(Node *n)
+ {
+ 
+-	// bugs on this
++	// until gri gets rid
++	// of the bugs on this
+ 	return 0;
+ 
+ loop:
+@@ -865,7 +866,7 @@ loop:
+ 	case ODOTINTER:
+ 		if(top == Etop)
+ 			goto nottop;
+-		walkdot(n);
++		walkdot(n, top);
+ 		goto ret;
+ 
+ 	case OADDR:
+@@ -1322,18 +1323,19 @@ walkselect(Node *sel)
+  * normal binary operations.
+  */
+ Type*
+-lookdot(Node *n, Type *f)
++lookdot(Node *n, Type *t, int d)
+ {
+-	Type *r, *c;
++	Type *f, *r, *c;
+ 	Sym *s;
+ 
+ 	r = T;
+ 	s = n->sym;
++	if(d > 0)
++		goto deep;
+ 
+-	for(; f!=T; f=f->down) {
++	for(f=t->type; f!=T; f=f->down) {
+ 		if(f->sym == S)
+ 			continue;
+-print("looking for %S in %S\n", s, f->sym);
+ 		if(f->sym != s)
+ 			continue;
+ 		if(r != T) {
+@@ -1343,13 +1345,35 @@ print("looking for %S in %S\n", s, f->sym);
+ 		r = f;
+ 	}
+ 	return r;
++
++deep:
++	/* deeper look after shallow failed */
++	for(f=t->type; f!=T; f=f->down) {
++		// only look at unnamed sub-structures
++		// BOTCH no such thing -- all are assigned temp names
++		if(f->sym != S)
++			continue;
++		c = f->type;
++		if(c->etype != TSTRUCT)
++			continue;
++		c = lookdot(n, c, d-1);
++		if(c == T)
++			continue;
++		if(r != T) {
++			yyerror("ambiguous unnamed DOT reference %s", s->name);
++			break;
++		}
++		r = c;
++	}
++	return r;
+ }
+ 
+ void
+-walkdot(Node *n)
++walkdot(Node *n, int top)
+ {
+ 	Node *mn;
+ 	Type *t, *f;
++	int i;
+ 
+ 	if(n->left == N || n->right == N)
+ 		return;
+@@ -1371,34 +1395,50 @@ walkdot(Node *n)
+ 		n->op = ODOTPTR;
+ 	}
+ 
+-	// as a structure field
+-	if(t->etype == TSTRUCT || t->etype == TINTER) {
+-		f = lookdot(n->right, t->type);
+-		if(f != T)
+-			return;
+-	}
++	if(n->right->op != ONAME)
++		fatal("walkdot: not name %O", n->right->op);
+ 
+-	f = lookdot(n->right, t->method);
+-	if(f == T) {
+-		yyerror("undefined DOT reference %N", n->right);
++	switch(t->etype) {
++	default:
++		badtype(ODOT, t, T);
+ 		return;
+-	}
+ 
+-print("\nfound method %lT\n", f);
+-dump("before", n);
+-mn = methodname(n->right, t);
+-dump("mn", mn);
++	case TSTRUCT:
++	case TINTER:
++		for(i=0; i<5; i++) {
++			f = lookdot(n->right, t, i);
++			if(f != T)
++				break;
++		}
+ 
+-	n->xoffset = f->width;
+-	n->right = mn;		// substitute real name
+-	n->type = f->type;
+-	if(n->type->etype == TFUNC) {
+-		n->op = ODOTMETH;
+-		if(t->etype == TINTER) {
+-			n->op = ODOTINTER;
++		// look up the field as TYPE_name
++		// for a mothod. botch this should
++		// be done better.
++		if(f == T && t->etype == TSTRUCT) {
++			mn = methodname(n->right, t);
++			for(i=0; i<5; i++) {
++				f = lookdot(mn, t, i);
++				if(f != T)
++					break;
++			}
+ 		}
++
++		if(f == T) {
++			yyerror("undefined DOT reference %N", n->right);
++			break;
++		}
++
++		n->xoffset = f->width;
++		n->right = f->nname;		// substitute real name
++		n->type = f->type;
++		if(n->type->etype == TFUNC) {
++			n->op = ODOTMETH;
++			if(t->etype == TINTER) {
++				n->op = ODOTINTER;
++			}
++		}
++		break;
+ 	}
+-dump("after", n);
+ }
+ 
+ Node*
+@@ -1801,21 +1841,25 @@ fixmap(Type *tm)
+ 	Type *t;
+ 
+ 	t = tm->type;
+-	if(t == T)
+-		goto bad;
+-	if(t->etype != TMAP)
+-		goto bad;
+-	if(t->down == T || t->type == T)
+-		goto bad;
++	if(t == T) {
++		fatal("fixmap: t nil");
++		return T;
++	}
++
++	if(t->etype != TMAP) {
++		fatal("fixmap: %lT not map", tm);
++		return T;
++	}
++
++	if(t->down == T || t->type == T) {
++		fatal("fixmap: map key/value types are nil");
++		return T;
++	}
+ 
+ 	dowidth(t->down);
+ 	dowidth(t->type);
+ 
+ 	return t;
+-
+-bad:
+-	yyerror("not a map: %lT", tm);
+-	return T;
+ }
+ 
+ Type*
+@@ -1823,23 +1867,25 @@ fixchan(Type *tm)
+ {
+ 	Type *t;
+ 
+-	if(tm == T) 
+-		goto bad;
+ 	t = tm->type;
+-	if(t == T)
+-		goto bad;
+-	if(t->etype != TCHAN)
+-		goto bad;
+-	if(t->type == T)
+-		goto bad;
++	if(t == T) {
++		fatal("fixchan: t nil");
++		return T;
++	}
++
++	if(t->etype != TCHAN) {
++		fatal("fixchan: %lT not chan", tm);
++		return T;
++	}
++
++	if(t->type == T) {
++		fatal("fixchan: chan element type is nil");
++		return T;
++	}
+ 
+ 	dowidth(t->type);
+ 
+ 	return t;
+-
+-bad:
+-	yyerror("not a channel: %lT", tm);
+-	return T;
+ }
+ 
+ static int
+@@ -2242,21 +2288,24 @@ fixarray(Type *tm)
+ 	Type *t;
+ 
+ 	t = tm->type;
+-	if(t == T)
+-		goto bad;
+-	if(t->etype != TARRAY)
+-		goto bad;
+-	if(t->type == T)
+-		goto bad;
++	if(t == T) {
++		fatal("fixarray: t nil");
++		return T;
++	}
++
++	if(t->etype != TARRAY) {
++		fatal("fixarray: %lT not array", tm);
++		return T;
++	}
++
++	if(t->type == T) {
++		fatal("fixarray: array element type is nil");
++		return T;
++	}
+ 
+ 	dowidth(t->type);
+ 
+ 	return t;
+-
+-bad:
+-	yyerror("not an array: %lT", tm);
+-	return T;
+-	
+ }
+ 
+ Node*
+diff --git a/src/runtime/print.c b/src/runtime/print.c
+index 8236f04b4a..a2bed19679 100644
+--- a/src/runtime/print.c
++++ b/src/runtime/print.c
+@@ -96,13 +96,12 @@ sys·printfloat(float64 v)
+ 	buf[1] = buf[2];
+ 	buf[2] = '.';
+ 
+-	buf[n+2] = 'e';
+-	buf[n+3] = '+';
++	buf[n+2] = '+';
+ 	if(e < 0) {
+ 		e = -e;
+-		buf[n+3] = '-';
++		buf[n+2] = '-';
+ 	}
+-
++	buf[n+3] = 'e';
+ 	buf[n+4] = (e/10) + '0';
+ 	buf[n+5] = (e%10) + '0';
+ 	sys·write(1, buf, n+6);

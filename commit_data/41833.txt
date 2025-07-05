@@ -23,6 +23,20 @@ Date:   Mon Oct 28 09:29:40 2019 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/runtime/type.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/type.go b/src/runtime/type.go
+index af1fa2e1ca..52b6cb30b4 100644
+--- a/src/runtime/type.go
++++ b/src/runtime/type.go
+@@ -292,7 +292,7 @@ func (t *_type) textOff(off textOff) unsafe.Pointer {
+ 		for i := range md.textsectmap {
+ 			sectaddr := md.textsectmap[i].vaddr
+ 			sectlen := md.textsectmap[i].length
+-			if uintptr(off) >= sectaddr && uintptr(off) <= sectaddr+sectlen {
++			if uintptr(off) >= sectaddr && uintptr(off) < sectaddr+sectlen {
+ 				res = md.textsectmap[i].baseaddr + uintptr(off) - uintptr(md.textsectmap[i].vaddr)
+ 				break
+ 			}

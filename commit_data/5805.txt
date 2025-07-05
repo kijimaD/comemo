@@ -7,6 +7,71 @@ Date:   Wed Jul 14 13:18:57 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1774047
-
+---
  test/chan/select3.go | 34 +++++++++++++++++++++++++++++++++-
  1 file changed, 33 insertions(+), 1 deletion(-)
+
+diff --git a/test/chan/select3.go b/test/chan/select3.go
+index f429f9e8f9..d4f7ebcec0 100644
+--- a/test/chan/select3.go
++++ b/test/chan/select3.go
+@@ -25,7 +25,7 @@ func testPanic(signal string, f func()) {
+ 	defer func() {
+ 		s := never
+ 		if recover() != nil {
+-			s = always  // f panicked
++			s = always // f panicked
+ 		}
+ 		if s != signal {
+ 			panic(signal + " panic")
+@@ -55,6 +55,8 @@ func testBlock(signal string, f func()) {
+ func main() {
+ 	const async = 1 // asynchronous channels
+ 	var nilch chan int
++	closedch := make(chan int)
++	close(closedch)
+ 
+ 	// sending/receiving from a nil channel outside a select panics
+ 	testPanic(always, func() {
+@@ -86,6 +88,24 @@ func main() {
+ 		ch <- 7
+ 	})
+ 
++	// receiving (a small number of times) from a closed channel never blocks
++	testBlock(never, func() {
++		for i := 0; i < 10; i++ {
++			if <-closedch != 0 {
++				panic("expected zero value when reading from closed channel")
++			}
++		}
++	})
++
++	// sending (a small number of times) to a closed channel is not specified
++	// but the current implementation doesn't block: test that different
++	// implementations behave the same
++	testBlock(never, func() {
++		for i := 0; i < 10; i++ {
++			closedch <- 7
++		}
++	})
++
+ 	// receiving from a non-ready channel always blocks
+ 	testBlock(always, func() {
+ 		ch := make(chan int)
+@@ -173,4 +193,16 @@ func main() {
+ 			unreachable()
+ 		}
+ 	})
++
++	// selects with closed channels don't block
++	testBlock(never, func() {
++		select {
++		case <-closedch:
++		}
++	})
++	testBlock(never, func() {
++		select {
++		case closedch <- 7:
++		}
++	})
+ }

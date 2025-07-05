@@ -17,7 +17,7 @@ Date:   Sat Dec 5 15:20:51 2020 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/275776
     Trust: Russ Cox <rsc@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/main.go         |  5 ----
  src/cmd/compile/internal/gc/universe.go     |  1 +
  src/cmd/compile/internal/ir/fmt.go          | 25 ++++++++++++--------
@@ -28,3 +28,385 @@ Date:   Sat Dec 5 15:20:51 2020 -0500
  src/cmd/compile/internal/types/type.go      | 28 +++++++++++-----------
  src/cmd/compile/internal/types/utils.go     | 36 +++++++++++++----------------
  9 files changed, 59 insertions(+), 67 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 96031fe511..a40671bccf 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -212,15 +212,10 @@ func Main(archInit func(*Arch)) {
+ 	// would lead to import cycles)
+ 	types.Widthptr = Widthptr
+ 	types.Dowidth = dowidth
+-	types.Fatalf = base.Fatalf
+ 	ir.InstallTypeFormats()
+ 	types.TypeLinkSym = func(t *types.Type) *obj.LSym {
+ 		return typenamesym(t).Linksym()
+ 	}
+-	types.FmtLeft = int(ir.FmtLeft)
+-	types.FmtUnsigned = int(ir.FmtUnsigned)
+-	types.FErr = int(ir.FErr)
+-	types.Ctxt = base.Ctxt
+ 
+ 	initUniverse()
+ 
+diff --git a/src/cmd/compile/internal/gc/universe.go b/src/cmd/compile/internal/gc/universe.go
+index f9984cbe94..cd68719a99 100644
+--- a/src/cmd/compile/internal/gc/universe.go
++++ b/src/cmd/compile/internal/gc/universe.go
+@@ -182,6 +182,7 @@ func initUniverse() {
+ 	ir.AsNode(s.Def).SetSym(lookup("false"))
+ 
+ 	s = lookup("_")
++	ir.BlankSym = s
+ 	s.Block = -100
+ 	s.Def = NewName(s)
+ 	types.Types[types.TBLANK] = types.New(types.TBLANK)
+diff --git a/src/cmd/compile/internal/ir/fmt.go b/src/cmd/compile/internal/ir/fmt.go
+index b0c732ae56..88534864a9 100644
+--- a/src/cmd/compile/internal/ir/fmt.go
++++ b/src/cmd/compile/internal/ir/fmt.go
+@@ -339,7 +339,8 @@ func symFormat(s *types.Sym, f fmt.State, verb rune, mode FmtMode) {
+ 
+ func smodeString(s *types.Sym, mode FmtMode) string { return sconv(s, 0, mode) }
+ 
+-// See #16897 before changing the implementation of sconv.
++// See #16897 for details about performance implications
++// before changing the implementation of sconv.
+ func sconv(s *types.Sym, flag FmtFlag, mode FmtMode) string {
+ 	if flag&FmtLong != 0 {
+ 		panic("linksymfmt")
+@@ -472,17 +473,23 @@ var fmtBufferPool = sync.Pool{
+ }
+ 
+ func InstallTypeFormats() {
+-	types.Sconv = func(s *types.Sym, flag, mode int) string {
+-		return sconv(s, FmtFlag(flag), FmtMode(mode))
++	types.SymString = func(s *types.Sym) string {
++		return sconv(s, 0, FErr)
+ 	}
+-	types.Tconv = func(t *types.Type, flag, mode int) string {
+-		return tconv(t, FmtFlag(flag), FmtMode(mode))
++	types.TypeString = func(t *types.Type) string {
++		return tconv(t, 0, FErr)
+ 	}
+-	types.FormatSym = func(sym *types.Sym, s fmt.State, verb rune, mode int) {
+-		symFormat(sym, s, verb, FmtMode(mode))
++	types.TypeShortString = func(t *types.Type) string {
++		return tconv(t, FmtLeft, FErr)
+ 	}
+-	types.FormatType = func(t *types.Type, s fmt.State, verb rune, mode int) {
+-		typeFormat(t, s, verb, FmtMode(mode))
++	types.TypeLongString = func(t *types.Type) string {
++		return tconv(t, FmtLeft|FmtUnsigned, FErr)
++	}
++	types.FormatSym = func(sym *types.Sym, s fmt.State, verb rune) {
++		symFormat(sym, s, verb, FErr)
++	}
++	types.FormatType = func(t *types.Type, s fmt.State, verb rune) {
++		typeFormat(t, s, verb, FErr)
+ 	}
+ }
+ 
+diff --git a/src/cmd/compile/internal/ir/node.go b/src/cmd/compile/internal/ir/node.go
+index 83f5b0cf78..56b320e726 100644
+--- a/src/cmd/compile/internal/ir/node.go
++++ b/src/cmd/compile/internal/ir/node.go
+@@ -654,6 +654,8 @@ func AsNode(n types.Object) Node {
+ 
+ var BlankNode Node
+ 
++var BlankSym *types.Sym
++
+ // origSym returns the original symbol written by the user.
+ func OrigSym(s *types.Sym) *types.Sym {
+ 	if s == nil {
+@@ -666,7 +668,7 @@ func OrigSym(s *types.Sym) *types.Sym {
+ 			return nil
+ 		case 'b': // originally the blank identifier _
+ 			// TODO(mdempsky): Does s.Pkg matter here?
+-			return BlankNode.Sym()
++			return BlankSym
+ 		}
+ 		return s
+ 	}
+diff --git a/src/cmd/compile/internal/ssa/export_test.go b/src/cmd/compile/internal/ssa/export_test.go
+index 5a81f76ceb..cb3b9c0e2a 100644
+--- a/src/cmd/compile/internal/ssa/export_test.go
++++ b/src/cmd/compile/internal/ssa/export_test.go
+@@ -12,7 +12,6 @@ import (
+ 	"cmd/internal/obj/s390x"
+ 	"cmd/internal/obj/x86"
+ 	"cmd/internal/src"
+-	"fmt"
+ 	"testing"
+ )
+ 
+@@ -138,19 +137,7 @@ func init() {
+ 	// Initialize just enough of the universe and the types package to make our tests function.
+ 	// TODO(josharian): move universe initialization to the types package,
+ 	// so this test setup can share it.
+-
+-	types.Tconv = func(t *types.Type, flag, mode int) string {
+-		return t.Kind().String()
+-	}
+-	types.Sconv = func(s *types.Sym, flag, mode int) string {
+-		return "sym"
+-	}
+-	types.FormatSym = func(sym *types.Sym, s fmt.State, verb rune, mode int) {
+-		fmt.Fprintf(s, "sym")
+-	}
+-	types.FormatType = func(t *types.Type, s fmt.State, verb rune, mode int) {
+-		fmt.Fprintf(s, "%v", t.Kind())
+-	}
++	ir.InstallTypeFormats()
+ 	types.Dowidth = func(t *types.Type) {}
+ 
+ 	for _, typ := range [...]struct {
+diff --git a/src/cmd/compile/internal/types/scope.go b/src/cmd/compile/internal/types/scope.go
+index 37ac90a025..04ea3c325f 100644
+--- a/src/cmd/compile/internal/types/scope.go
++++ b/src/cmd/compile/internal/types/scope.go
+@@ -4,7 +4,10 @@
+ 
+ package types
+ 
+-import "cmd/internal/src"
++import (
++	"cmd/compile/internal/base"
++	"cmd/internal/src"
++)
+ 
+ // Declaration stack & operations
+ 
+@@ -56,7 +59,7 @@ func Popdcl() {
+ 		d.sym = nil
+ 		d.def = nil
+ 	}
+-	Fatalf("popdcl: no stack mark")
++	base.Fatalf("popdcl: no stack mark")
+ }
+ 
+ // Markdcl records the start of a new block scope for declarations.
+diff --git a/src/cmd/compile/internal/types/sym.go b/src/cmd/compile/internal/types/sym.go
+index 490222d843..fcb095c53c 100644
+--- a/src/cmd/compile/internal/types/sym.go
++++ b/src/cmd/compile/internal/types/sym.go
+@@ -5,6 +5,7 @@
+ package types
+ 
+ import (
++	"cmd/compile/internal/base"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/src"
+ 	"unicode"
+@@ -88,9 +89,9 @@ func (sym *Sym) Linksym() *obj.LSym {
+ 	}
+ 	if sym.Func() {
+ 		// This is a function symbol. Mark it as "internal ABI".
+-		return Ctxt.LookupABIInit(sym.LinksymName(), obj.ABIInternal, initPkg)
++		return base.Ctxt.LookupABIInit(sym.LinksymName(), obj.ABIInternal, initPkg)
+ 	}
+-	return Ctxt.LookupInit(sym.LinksymName(), initPkg)
++	return base.Ctxt.LookupInit(sym.LinksymName(), initPkg)
+ }
+ 
+ // Less reports whether symbol a is ordered before symbol b.
+diff --git a/src/cmd/compile/internal/types/type.go b/src/cmd/compile/internal/types/type.go
+index 2c42e5579d..c5807af199 100644
+--- a/src/cmd/compile/internal/types/type.go
++++ b/src/cmd/compile/internal/types/type.go
+@@ -231,7 +231,7 @@ func (t *Type) Pkg() *Pkg {
+ 	case TINTER:
+ 		return t.Extra.(*Interface).pkg
+ 	default:
+-		Fatalf("Pkg: unexpected kind: %v", t)
++		base.Fatalf("Pkg: unexpected kind: %v", t)
+ 		return nil
+ 	}
+ }
+@@ -501,7 +501,7 @@ func New(et Kind) *Type {
+ // NewArray returns a new fixed-length array Type.
+ func NewArray(elem *Type, bound int64) *Type {
+ 	if bound < 0 {
+-		Fatalf("NewArray: invalid bound %v", bound)
++		base.Fatalf("NewArray: invalid bound %v", bound)
+ 	}
+ 	t := New(TARRAY)
+ 	t.Extra = &Array{Elem: elem, Bound: bound}
+@@ -513,7 +513,7 @@ func NewArray(elem *Type, bound int64) *Type {
+ func NewSlice(elem *Type) *Type {
+ 	if t := elem.cache.slice; t != nil {
+ 		if t.Elem() != elem {
+-			Fatalf("elem mismatch")
++			base.Fatalf("elem mismatch")
+ 		}
+ 		return t
+ 	}
+@@ -569,12 +569,12 @@ var NewPtrCacheEnabled = true
+ // NewPtr returns the pointer type pointing to t.
+ func NewPtr(elem *Type) *Type {
+ 	if elem == nil {
+-		Fatalf("NewPtr: pointer to elem Type is nil")
++		base.Fatalf("NewPtr: pointer to elem Type is nil")
+ 	}
+ 
+ 	if t := elem.cache.ptr; t != nil {
+ 		if t.Elem() != elem {
+-			Fatalf("NewPtr: elem mismatch")
++			base.Fatalf("NewPtr: elem mismatch")
+ 		}
+ 		return t
+ 	}
+@@ -629,7 +629,7 @@ func SubstAny(t *Type, types *[]*Type) *Type {
+ 
+ 	case TANY:
+ 		if len(*types) == 0 {
+-			Fatalf("substArgTypes: not enough argument types")
++			base.Fatalf("substArgTypes: not enough argument types")
+ 		}
+ 		t = (*types)[0]
+ 		*types = (*types)[1:]
+@@ -730,7 +730,7 @@ func (t *Type) copy() *Type {
+ 		x := *t.Extra.(*Array)
+ 		nt.Extra = &x
+ 	case TTUPLE, TSSA, TRESULTS:
+-		Fatalf("ssa types cannot be copied")
++		base.Fatalf("ssa types cannot be copied")
+ 	}
+ 	// TODO(mdempsky): Find out why this is necessary and explain.
+ 	if t.underlying == t {
+@@ -746,7 +746,7 @@ func (f *Field) Copy() *Field {
+ 
+ func (t *Type) wantEtype(et Kind) {
+ 	if t.kind != et {
+-		Fatalf("want %v, but have %v", et, t)
++		base.Fatalf("want %v, but have %v", et, t)
+ 	}
+ }
+ 
+@@ -811,7 +811,7 @@ func (t *Type) Elem() *Type {
+ 	case TMAP:
+ 		return t.Extra.(*Map).Elem
+ 	}
+-	Fatalf("Type.Elem %s", t.kind)
++	base.Fatalf("Type.Elem %s", t.kind)
+ 	return nil
+ }
+ 
+@@ -850,7 +850,7 @@ func (t *Type) Fields() *Fields {
+ 		Dowidth(t)
+ 		return &t.Extra.(*Interface).Fields
+ 	}
+-	Fatalf("Fields: type %v does not have fields", t)
++	base.Fatalf("Fields: type %v does not have fields", t)
+ 	return nil
+ }
+ 
+@@ -874,7 +874,7 @@ func (t *Type) SetFields(fields []*Field) {
+ 	// enforce that SetFields cannot be called once
+ 	// t's width has been calculated.
+ 	if t.WidthCalculated() {
+-		Fatalf("SetFields of %v: width previously calculated", t)
++		base.Fatalf("SetFields of %v: width previously calculated", t)
+ 	}
+ 	t.wantEtype(TSTRUCT)
+ 	for _, f := range fields {
+@@ -1223,7 +1223,7 @@ var unsignedEType = [...]Kind{
+ // ToUnsigned returns the unsigned equivalent of integer type t.
+ func (t *Type) ToUnsigned() *Type {
+ 	if !t.IsInteger() {
+-		Fatalf("unsignedType(%v)", t)
++		base.Fatalf("unsignedType(%v)", t)
+ 	}
+ 	return Types[unsignedEType[t.kind]]
+ }
+@@ -1385,7 +1385,7 @@ func (t *Type) NumComponents(countBlank componentsIncludeBlankFields) int64 {
+ 	switch t.kind {
+ 	case TSTRUCT:
+ 		if t.IsFuncArgStruct() {
+-			Fatalf("NumComponents func arg struct")
++			base.Fatalf("NumComponents func arg struct")
+ 		}
+ 		var n int64
+ 		for _, f := range t.FieldSlice() {
+@@ -1408,7 +1408,7 @@ func (t *Type) SoleComponent() *Type {
+ 	switch t.kind {
+ 	case TSTRUCT:
+ 		if t.IsFuncArgStruct() {
+-			Fatalf("SoleComponent func arg struct")
++			base.Fatalf("SoleComponent func arg struct")
+ 		}
+ 		if t.NumFields() != 1 {
+ 			return nil
+diff --git a/src/cmd/compile/internal/types/utils.go b/src/cmd/compile/internal/types/utils.go
+index e8b1073818..a1be77eef1 100644
+--- a/src/cmd/compile/internal/types/utils.go
++++ b/src/cmd/compile/internal/types/utils.go
+@@ -15,51 +15,47 @@ const BADWIDTH = -1000000000
+ // They are here to break import cycles.
+ // TODO(gri) eliminate these dependencies.
+ var (
+-	Widthptr    int
+-	Dowidth     func(*Type)
+-	Fatalf      func(string, ...interface{})
+-	Sconv       func(*Sym, int, int) string       // orig: func sconv(s *Sym, flag FmtFlag, mode fmtMode) string
+-	Tconv       func(*Type, int, int) string      // orig: func tconv(t *Type, flag FmtFlag, mode fmtMode) string
+-	FormatSym   func(*Sym, fmt.State, rune, int)  // orig: func symFormat(sym *Sym, s fmt.State, verb rune, mode fmtMode)
+-	FormatType  func(*Type, fmt.State, rune, int) // orig: func typeFormat(t *Type, s fmt.State, verb rune, mode fmtMode)
+-	TypeLinkSym func(*Type) *obj.LSym
+-	Ctxt        *obj.Link
+-
+-	FmtLeft     int
+-	FmtUnsigned int
+-	FErr        int
++	Widthptr        int
++	Dowidth         func(*Type)
++	SymString       func(*Sym) string
++	TypeString      func(*Type) string
++	TypeShortString func(*Type) string
++	TypeLongString  func(*Type) string
++	FormatSym       func(*Sym, fmt.State, rune)
++	FormatType      func(*Type, fmt.State, rune)
++	TypeLinkSym     func(*Type) *obj.LSym
+ )
+ 
+ func (s *Sym) String() string {
+-	return Sconv(s, 0, FErr)
++	return SymString(s)
+ }
+ 
+ func (sym *Sym) Format(s fmt.State, verb rune) {
+-	FormatSym(sym, s, verb, FErr)
++	FormatSym(sym, s, verb)
+ }
+ 
+ func (t *Type) String() string {
+-	// The implementation of tconv (including typefmt and fldconv)
++	// The implementation
+ 	// must handle recursive types correctly.
+-	return Tconv(t, 0, FErr)
++	return TypeString(t)
+ }
+ 
+ // ShortString generates a short description of t.
+ // It is used in autogenerated method names, reflection,
+ // and itab names.
+ func (t *Type) ShortString() string {
+-	return Tconv(t, FmtLeft, FErr)
++	return TypeShortString(t)
+ }
+ 
+ // LongString generates a complete description of t.
+ // It is useful for reflection,
+ // or when a unique fingerprint or hash of a type is required.
+ func (t *Type) LongString() string {
+-	return Tconv(t, FmtLeft|FmtUnsigned, FErr)
++	return TypeLongString(t)
+ }
+ 
+ func (t *Type) Format(s fmt.State, verb rune) {
+-	FormatType(t, s, verb, FErr)
++	FormatType(t, s, verb)
+ }
+ 
+ type bitset8 uint8

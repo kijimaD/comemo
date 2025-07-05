@@ -12,7 +12,7 @@ Date:   Tue May 26 22:19:27 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/10523
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/gc/closure.go   |  4 +--
  src/cmd/compile/internal/gc/dcl.go       | 10 +++----
  src/cmd/compile/internal/gc/esc.go       |  8 +++---
@@ -28,3 +28,688 @@ Date:   Tue May 26 22:19:27 2015 -0400
  src/cmd/compile/internal/gc/walk.go      | 16 +++++------
  src/cmd/compile/internal/gc/y.go         | 10 +++----
  14 files changed, 92 insertions(+), 89 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/closure.go b/src/cmd/compile/internal/gc/closure.go
+index 64cd97206c..2efe468700 100644
+--- a/src/cmd/compile/internal/gc/closure.go
++++ b/src/cmd/compile/internal/gc/closure.go
+@@ -194,7 +194,7 @@ func makeclosure(func_ *Node) *Node {
+ 	xfunc.Nname = newfuncname(closurename(func_))
+ 	xfunc.Nname.Sym.Flags |= SymExported // disable export
+ 	xfunc.Nname.Param.Ntype = xtype
+-	xfunc.Nname.Defn = xfunc
++	xfunc.Nname.Name.Defn = xfunc
+ 	declare(xfunc.Nname, PFUNC)
+ 	xfunc.Nname.Funcdepth = func_.Funcdepth
+ 	xfunc.Funcdepth = func_.Funcdepth
+@@ -584,7 +584,7 @@ func makepartialcall(fn *Node, t0 *Type, meth *Node) *Node {
+ 	xfunc.Nname = newfuncname(sym)
+ 	xfunc.Nname.Sym.Flags |= SymExported // disable export
+ 	xfunc.Nname.Param.Ntype = xtype
+-	xfunc.Nname.Defn = xfunc
++	xfunc.Nname.Name.Defn = xfunc
+ 	declare(xfunc.Nname, PFUNC)
+ 
+ 	// Declare and initialize variable holding receiver.
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index 35c4c4b1ba..dffb791e9d 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -261,7 +261,7 @@ func variter(vl *NodeList, t *Node, el *NodeList) *NodeList {
+ 			v.Op = ONAME
+ 			declare(v, dclcontext)
+ 			v.Param.Ntype = t
+-			v.Defn = as2
++			v.Name.Defn = as2
+ 			if Funcdepth > 0 {
+ 				init = list(init, Nod(ODCL, v, nil))
+ 			}
+@@ -297,7 +297,7 @@ func variter(vl *NodeList, t *Node, el *NodeList) *NodeList {
+ 			e = Nod(OAS, v, e)
+ 			init = list(init, e)
+ 			if e.Right != nil {
+-				v.Defn = e
++				v.Name.Defn = e
+ 			}
+ 		}
+ 	}
+@@ -344,7 +344,7 @@ func constiter(vl *NodeList, t *Node, cl *NodeList) *NodeList {
+ 		declare(v, dclcontext)
+ 
+ 		v.Param.Ntype = t
+-		v.Defn = c
++		v.Name.Defn = c
+ 
+ 		vv = list(vv, Nod(ODCLCONST, v, nil))
+ 	}
+@@ -438,7 +438,7 @@ func oldname(s *Sym) *Node {
+ 			c.Sym = s
+ 			c.Class = PPARAMREF
+ 			c.Isddd = n.Isddd
+-			c.Defn = n
++			c.Name.Defn = n
+ 			c.Addable = false
+ 			c.Ullman = 2
+ 			c.Funcdepth = Funcdepth
+@@ -508,7 +508,7 @@ func colasdefn(left *NodeList, defn *Node) {
+ 		nnew++
+ 		n = newname(n.Sym)
+ 		declare(n, dclcontext)
+-		n.Defn = defn
++		n.Name.Defn = defn
+ 		defn.Ninit = list(defn.Ninit, Nod(ODCL, n, nil))
+ 		l.N = n
+ 	}
+diff --git a/src/cmd/compile/internal/gc/esc.go b/src/cmd/compile/internal/gc/esc.go
+index d6ebf13eb9..ffbfc0dcf8 100644
+--- a/src/cmd/compile/internal/gc/esc.go
++++ b/src/cmd/compile/internal/gc/esc.go
+@@ -142,8 +142,8 @@ func (v *bottomUpVisitor) visitcode(n *Node, min uint32) uint32 {
+ 		if n.Op == OCALLMETH {
+ 			fn = n.Left.Right.Sym.Def
+ 		}
+-		if fn != nil && fn.Op == ONAME && fn.Class == PFUNC && fn.Defn != nil {
+-			m := v.visit(fn.Defn)
++		if fn != nil && fn.Op == ONAME && fn.Class == PFUNC && fn.Name.Defn != nil {
++			m := v.visit(fn.Name.Defn)
+ 			if m < min {
+ 				min = m
+ 			}
+@@ -1354,14 +1354,14 @@ func esccall(e *EscState, n *Node, up *Node) {
+ 	}
+ 
+ 	if fn != nil && fn.Op == ONAME && fn.Class == PFUNC &&
+-		fn.Defn != nil && fn.Defn.Nbody != nil && fn.Param.Ntype != nil && fn.Defn.Esc < EscFuncTagged {
++		fn.Name.Defn != nil && fn.Name.Defn.Nbody != nil && fn.Param.Ntype != nil && fn.Name.Defn.Esc < EscFuncTagged {
+ 		if Debug['m'] > 2 {
+ 			fmt.Printf("%v::esccall:: %v in recursive group\n", Ctxt.Line(int(lineno)), Nconv(n, obj.FmtShort))
+ 		}
+ 
+ 		// function in same mutually recursive group.  Incorporate into flow graph.
+ 		//		print("esc local fn: %N\n", fn->ntype);
+-		if fn.Defn.Esc == EscFuncUnknown || n.Escretval != nil {
++		if fn.Name.Defn.Esc == EscFuncUnknown || n.Escretval != nil {
+ 			Fatal("graph inconsistency")
+ 		}
+ 
+diff --git a/src/cmd/compile/internal/gc/gen.go b/src/cmd/compile/internal/gc/gen.go
+index dfc3911843..95049ce615 100644
+--- a/src/cmd/compile/internal/gc/gen.go
++++ b/src/cmd/compile/internal/gc/gen.go
+@@ -47,7 +47,7 @@ func addrescapes(n *Node) {
+ 
+ 		switch n.Class {
+ 		case PPARAMREF:
+-			addrescapes(n.Defn)
++			addrescapes(n.Name.Defn)
+ 
+ 		// if func param, need separate temporary
+ 		// to hold heap pointer.
+@@ -202,7 +202,7 @@ func stmtlabel(n *Node) *Label {
+ 		lab := n.Sym.Label
+ 		if lab != nil {
+ 			if lab.Def != nil {
+-				if lab.Def.Defn == n {
++				if lab.Def.Name.Defn == n {
+ 					return lab
+ 				}
+ 			}
+@@ -700,11 +700,11 @@ func gen(n *Node) {
+ 			lab.Labelpc = Pc
+ 		}
+ 
+-		if n.Defn != nil {
+-			switch n.Defn.Op {
++		if n.Name.Defn != nil {
++			switch n.Name.Defn.Op {
+ 			// so stmtlabel can find the label
+ 			case OFOR, OSWITCH, OSELECT:
+-				n.Defn.Sym = lab.Sym
++				n.Name.Defn.Sym = lab.Sym
+ 			}
+ 		}
+ 
+diff --git a/src/cmd/compile/internal/gc/go.y b/src/cmd/compile/internal/gc/go.y
+index fe621ea113..40e273c6ca 100644
+--- a/src/cmd/compile/internal/gc/go.y
++++ b/src/cmd/compile/internal/gc/go.y
+@@ -552,7 +552,7 @@ case:
+ 				$$.Nname = nn;
+ 	
+ 				// keep track of the instances for reporting unused
+-				nn.Defn = typesw.Right;
++				nn.Name.Defn = typesw.Right;
+ 			}
+ 		}
+ 	}
+@@ -598,7 +598,7 @@ case:
+ 				$$.Nname = nn;
+ 	
+ 				// keep track of the instances for reporting unused
+-				nn.Defn = typesw.Right;
++				nn.Name.Defn = typesw.Right;
+ 			}
+ 		}
+ 	}
+@@ -1421,7 +1421,7 @@ fndcl:
+ 
+ 		$$ = Nod(ODCLFUNC, nil, nil);
+ 		$$.Nname = newfuncname($1);
+-		$$.Nname.Defn = $$;
++		$$.Nname.Name.Defn = $$;
+ 		$$.Nname.Param.Ntype = t;		// TODO: check if nname already has an ntype
+ 		declare($$.Nname, PFUNC);
+ 
+@@ -1456,7 +1456,7 @@ fndcl:
+ 		$$ = Nod(ODCLFUNC, nil, nil);
+ 		$$.Func.Shortname = newfuncname($4);
+ 		$$.Nname = methodname1($$.Func.Shortname, rcvr.Right);
+-		$$.Nname.Defn = $$;
++		$$.Nname.Name.Defn = $$;
+ 		$$.Nname.Param.Ntype = t;
+ 		$$.Nname.Nointerface = nointerface;
+ 		declare($$.Nname, PFUNC);
+@@ -1808,7 +1808,7 @@ non_dcl_stmt:
+ 	{
+ 		var l *NodeList
+ 
+-		$1.Defn = $4;
++		$1.Name.Defn = $4;
+ 		l = list1($1);
+ 		if $4 != nil {
+ 			l = list(l, $4);
+diff --git a/src/cmd/compile/internal/gc/init.go b/src/cmd/compile/internal/gc/init.go
+index b8077a25b2..1685aee545 100644
+--- a/src/cmd/compile/internal/gc/init.go
++++ b/src/cmd/compile/internal/gc/init.go
+@@ -115,7 +115,7 @@ func fninit(n *NodeList) {
+ 	fn := Nod(ODCLFUNC, nil, nil)
+ 	initsym := Lookup("init")
+ 	fn.Nname = newname(initsym)
+-	fn.Nname.Defn = fn
++	fn.Nname.Name.Defn = fn
+ 	fn.Nname.Param.Ntype = Nod(OTFUNC, nil, nil)
+ 	declare(fn.Nname, PFUNC)
+ 	funchdr(fn)
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index de14cbf8a3..0b77175f0b 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -145,7 +145,7 @@ func caninl(fn *Node) {
+ 
+ 	fn.Nname.Func.Inl = fn.Nbody
+ 	fn.Nbody = inlcopylist(fn.Nname.Func.Inl)
+-	fn.Nname.Func.Inldcl = inlcopylist(fn.Nname.Defn.Func.Dcl)
++	fn.Nname.Func.Inldcl = inlcopylist(fn.Nname.Name.Defn.Func.Dcl)
+ 	fn.Nname.Func.InlCost = int32(maxBudget - budget)
+ 
+ 	// hack, TODO, check for better way to link method nodes back to the thing with the ->inl
+@@ -521,7 +521,7 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
+ 		return
+ 	}
+ 
+-	if fn == Curfn || fn.Defn == Curfn {
++	if fn == Curfn || fn.Name.Defn == Curfn {
+ 		return
+ 	}
+ 
+@@ -550,7 +550,7 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
+ 	//dumplist("ninit pre", ninit);
+ 
+ 	var dcl *NodeList
+-	if fn.Defn != nil { // local function
++	if fn.Name.Defn != nil { // local function
+ 		dcl = fn.Func.Inldcl // imported function
+ 	} else {
+ 		dcl = fn.Func.Dcl
+diff --git a/src/cmd/compile/internal/gc/range.go b/src/cmd/compile/internal/gc/range.go
+index 670887b36d..8111f8aaf0 100644
+--- a/src/cmd/compile/internal/gc/range.go
++++ b/src/cmd/compile/internal/gc/range.go
+@@ -36,7 +36,7 @@ func typecheckrange(n *Node) {
+ 
+ 	// delicate little dance.  see typecheckas2
+ 	for ll := n.List; ll != nil; ll = ll.Next {
+-		if ll.N.Defn != n {
++		if ll.N.Name == nil || ll.N.Name.Defn != n {
+ 			typecheck(&ll.N, Erv|Easgn)
+ 		}
+ 	}
+@@ -102,7 +102,7 @@ func typecheckrange(n *Node) {
+ 	}
+ 
+ 	if v1 != nil {
+-		if v1.Defn == n {
++		if v1.Name != nil && v1.Name.Defn == n {
+ 			v1.Type = t1
+ 		} else if v1.Type != nil && assignop(t1, v1.Type, &why) == 0 {
+ 			Yyerror("cannot assign type %v to %v in range%s", t1, Nconv(v1, obj.FmtLong), why)
+@@ -111,7 +111,7 @@ func typecheckrange(n *Node) {
+ 	}
+ 
+ 	if v2 != nil {
+-		if v2.Defn == n {
++		if v2.Name != nil && v2.Name.Defn == n {
+ 			v2.Type = t2
+ 		} else if v2.Type != nil && assignop(t2, v2.Type, &why) == 0 {
+ 			Yyerror("cannot assign type %v to %v in range%s", t2, Nconv(v2, obj.FmtLong), why)
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index 5693d0d4ad..ddcce6a714 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -47,7 +47,7 @@ func init1(n *Node, out **NodeList) {
+ 		break
+ 
+ 	default:
+-		if isblank(n) && n.Curfn == nil && n.Defn != nil && n.Defn.Initorder == InitNotStarted {
++		if isblank(n) && n.Curfn == nil && n.Name.Defn != nil && n.Name.Defn.Initorder == InitNotStarted {
+ 			// blank names initialization is part of init() but not
+ 			// when they are inside a function.
+ 			break
+@@ -142,48 +142,48 @@ func init1(n *Node, out **NodeList) {
+ 
+ 	// make sure that everything n depends on is initialized.
+ 	// n->defn is an assignment to n
+-	if n.Defn != nil {
+-		switch n.Defn.Op {
++	if defn := n.Name.Defn; defn != nil {
++		switch defn.Op {
+ 		default:
+ 			goto bad
+ 
+ 		case ODCLFUNC:
+-			init2list(n.Defn.Nbody, out)
++			init2list(defn.Nbody, out)
+ 
+ 		case OAS:
+-			if n.Defn.Left != n {
++			if defn.Left != n {
+ 				goto bad
+ 			}
+-			if isblank(n.Defn.Left) && candiscard(n.Defn.Right) {
+-				n.Defn.Op = OEMPTY
+-				n.Defn.Left = nil
+-				n.Defn.Right = nil
++			if isblank(defn.Left) && candiscard(defn.Right) {
++				defn.Op = OEMPTY
++				defn.Left = nil
++				defn.Right = nil
+ 				break
+ 			}
+ 
+-			init2(n.Defn.Right, out)
++			init2(defn.Right, out)
+ 			if Debug['j'] != 0 {
+ 				fmt.Printf("%v\n", n.Sym)
+ 			}
+ 			if isblank(n) || !staticinit(n, out) {
+ 				if Debug['%'] != 0 {
+-					Dump("nonstatic", n.Defn)
++					Dump("nonstatic", defn)
+ 				}
+-				*out = list(*out, n.Defn)
++				*out = list(*out, defn)
+ 			}
+ 
+ 		case OAS2FUNC, OAS2MAPR, OAS2DOTTYPE, OAS2RECV:
+-			if n.Defn.Initorder != InitNotStarted {
++			if defn.Initorder != InitNotStarted {
+ 				break
+ 			}
+-			n.Defn.Initorder = InitDone
+-			for l := n.Defn.Rlist; l != nil; l = l.Next {
++			defn.Initorder = InitDone
++			for l := defn.Rlist; l != nil; l = l.Next {
+ 				init1(l.N, out)
+ 			}
+ 			if Debug['%'] != 0 {
+-				Dump("nonstatic", n.Defn)
++				Dump("nonstatic", defn)
+ 			}
+-			*out = list(*out, n.Defn)
++			*out = list(*out, defn)
+ 		}
+ 	}
+ 
+@@ -197,7 +197,7 @@ func init1(n *Node, out **NodeList) {
+ 	return
+ 
+ bad:
+-	Dump("defn", n.Defn)
++	Dump("defn", n.Name.Defn)
+ 	Fatal("init1: bad defn")
+ }
+ 
+@@ -265,13 +265,13 @@ func initfix(l *NodeList) *NodeList {
+  * into DATA statements if at all possible.
+  */
+ func staticinit(n *Node, out **NodeList) bool {
+-	if n.Op != ONAME || n.Class != PEXTERN || n.Defn == nil || n.Defn.Op != OAS {
++	if n.Op != ONAME || n.Class != PEXTERN || n.Name.Defn == nil || n.Name.Defn.Op != OAS {
+ 		Fatal("staticinit")
+ 	}
+ 
+ 	lineno = n.Lineno
+-	l := n.Defn.Left
+-	r := n.Defn.Right
++	l := n.Name.Defn.Left
++	r := n.Name.Defn.Right
+ 	return staticassign(l, r, out)
+ }
+ 
+@@ -288,14 +288,14 @@ func staticcopy(l *Node, r *Node, out **NodeList) bool {
+ 	if r.Class != PEXTERN || r.Sym.Pkg != localpkg {
+ 		return false
+ 	}
+-	if r.Defn == nil { // probably zeroed but perhaps supplied externally and of unknown value
++	if r.Name.Defn == nil { // probably zeroed but perhaps supplied externally and of unknown value
+ 		return false
+ 	}
+-	if r.Defn.Op != OAS {
++	if r.Name.Defn.Op != OAS {
+ 		return false
+ 	}
+ 	orig := r
+-	r = r.Defn.Right
++	r = r.Name.Defn.Right
+ 
+ 	switch r.Op {
+ 	case ONAME:
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index d55b7f7636..48068fc6dd 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -375,6 +375,8 @@ func Nod(op int, nleft *Node, nright *Node) *Node {
+ 	case ONAME:
+ 		n.Name = new(Name)
+ 		n.Param = new(Param)
++	case OLABEL:
++		n.Name = new(Name)
+ 	case ODCLFIELD:
+ 		n.Param = new(Param)
+ 	}
+@@ -758,8 +760,9 @@ func treecopy(n *Node, lineno int32) *Node {
+ 		if lineno != -1 {
+ 			m.Lineno = lineno
+ 		}
+-		if m.Defn != nil {
+-			panic("abort")
++		if m.Name != nil {
++			Dump("treecopy", n)
++			Fatal("treecopy Name")
+ 		}
+ 
+ 	case ONONAME:
+@@ -2400,7 +2403,7 @@ func genwrapper(rcvr *Type, method *Type, newnam *Sym, iface int) {
+ 
+ 	fn := Nod(ODCLFUNC, nil, nil)
+ 	fn.Nname = newname(newnam)
+-	fn.Nname.Defn = fn
++	fn.Nname.Name.Defn = fn
+ 	fn.Nname.Param.Ntype = t
+ 	declare(fn.Nname, PFUNC)
+ 	funchdr(fn)
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index eb368a3f66..f1dd52cec3 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -30,7 +30,6 @@ type Node struct {
+ 
+ 	// ONAME
+ 	Name  *Name
+-	Defn  *Node // ONAME: initializing assignment; OLABEL: labeled statement
+ 	Pack  *Node // real package for import . names
+ 	Curfn *Node // function for local variables
+ 	Alloc *Node // allocation call
+@@ -98,6 +97,7 @@ type Node struct {
+ type Name struct {
+ 	Heapaddr  *Node // temp holding heap address of param
+ 	Inlvar    *Node // ONAME substitute while inlining
++	Defn      *Node // initializing assignment
+ 	Decldepth int32 // declaration loop depth, increased for every loop or label
+ 	Method    bool  // OCALLMETH name
+ 	Readonly  bool
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 490468f3b4..518a472b09 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -2055,7 +2055,7 @@ OpSwitch:
+ 
+ 		// Code that creates temps does not bother to set defn, so do it here.
+ 		if n.Left.Op == ONAME && strings.HasPrefix(n.Left.Sym.Name, "autotmp_") {
+-			n.Left.Defn = n
++			n.Left.Name.Defn = n
+ 		}
+ 		break OpSwitch
+ 
+@@ -3226,7 +3226,7 @@ func checklvalue(n *Node, verb string) {
+ 
+ func checkassign(stmt *Node, n *Node) {
+ 	// Variables declared in ORANGE are assigned on every iteration.
+-	if n.Defn != stmt || stmt.Op == ORANGE {
++	if n.Name == nil || n.Name.Defn != stmt || stmt.Op == ORANGE {
+ 		r := outervalue(n)
+ 		var l *Node
+ 		for l = n; l != r; l = l.Left {
+@@ -3303,7 +3303,7 @@ func typecheckas(n *Node) {
+ 	// so that the conversion below happens).
+ 	n.Left = resolve(n.Left)
+ 
+-	if n.Left.Defn != n || n.Left.Param.Ntype != nil {
++	if n.Left.Name == nil || n.Left.Name.Defn != n || n.Left.Param.Ntype != nil {
+ 		typecheck(&n.Left, Erv|Easgn)
+ 	}
+ 
+@@ -3315,7 +3315,7 @@ func typecheckas(n *Node) {
+ 		}
+ 	}
+ 
+-	if n.Left.Defn == n && n.Left.Param.Ntype == nil {
++	if n.Left.Name != nil && n.Left.Name.Defn == n && n.Left.Param.Ntype == nil {
+ 		defaultlit(&n.Right, nil)
+ 		n.Left.Type = n.Right.Type
+ 	}
+@@ -3344,7 +3344,7 @@ func typecheckas2(n *Node) {
+ 		// delicate little dance.
+ 		ll.N = resolve(ll.N)
+ 
+-		if ll.N.Defn != n || ll.N.Param.Ntype != nil {
++		if ll.N.Name == nil || ll.N.Name.Defn != n || ll.N.Param.Ntype != nil {
+ 			typecheck(&ll.N, Erv|Easgn)
+ 		}
+ 	}
+@@ -3368,7 +3368,7 @@ func typecheckas2(n *Node) {
+ 			if ll.N.Type != nil && lr.N.Type != nil {
+ 				lr.N = assignconv(lr.N, ll.N.Type, "assignment")
+ 			}
+-			if ll.N.Defn == n && ll.N.Param.Ntype == nil {
++			if ll.N.Name != nil && ll.N.Name.Defn == n && ll.N.Param.Ntype == nil {
+ 				defaultlit(&lr.N, nil)
+ 				ll.N.Type = lr.N.Type
+ 			}
+@@ -3401,7 +3401,7 @@ func typecheckas2(n *Node) {
+ 				if t.Type != nil && ll.N.Type != nil {
+ 					checkassignto(t.Type, ll.N)
+ 				}
+-				if ll.N.Defn == n && ll.N.Param.Ntype == nil {
++				if ll.N.Name != nil && ll.N.Name.Defn == n && ll.N.Param.Ntype == nil {
+ 					ll.N.Type = t.Type
+ 				}
+ 				t = structnext(&s)
+@@ -3433,14 +3433,14 @@ func typecheckas2(n *Node) {
+ 			if l.Type != nil {
+ 				checkassignto(r.Type, l)
+ 			}
+-			if l.Defn == n {
++			if l.Name != nil && l.Name.Defn == n {
+ 				l.Type = r.Type
+ 			}
+ 			l := n.List.Next.N
+ 			if l.Type != nil && l.Type.Etype != TBOOL {
+ 				checkassignto(Types[TBOOL], l)
+ 			}
+-			if l.Defn == n && l.Param.Ntype == nil {
++			if l.Name != nil && l.Name.Defn == n && l.Param.Ntype == nil {
+ 				l.Type = Types[TBOOL]
+ 			}
+ 			goto out
+@@ -3725,8 +3725,8 @@ func typecheckdef(n *Node) *Node {
+ 			}
+ 		}
+ 
+-		e := n.Defn
+-		n.Defn = nil
++		e := n.Name.Defn
++		n.Name.Defn = nil
+ 		if e == nil {
+ 			lineno = n.Lineno
+ 			Dump("typecheckdef nil defn", n)
+@@ -3780,7 +3780,7 @@ func typecheckdef(n *Node) *Node {
+ 		if n.Type != nil {
+ 			break
+ 		}
+-		if n.Defn == nil {
++		if n.Name.Defn == nil {
+ 			if n.Etype != 0 { // like OPRINTN
+ 				break
+ 			}
+@@ -3795,13 +3795,13 @@ func typecheckdef(n *Node) *Node {
+ 			Fatal("var without type, init: %v", n.Sym)
+ 		}
+ 
+-		if n.Defn.Op == ONAME {
+-			typecheck(&n.Defn, Erv)
+-			n.Type = n.Defn.Type
++		if n.Name.Defn.Op == ONAME {
++			typecheck(&n.Name.Defn, Erv)
++			n.Type = n.Name.Defn.Type
+ 			break
+ 		}
+ 
+-		typecheck(&n.Defn, Etop) // fills in n->type
++		typecheck(&n.Name.Defn, Etop) // fills in n->type
+ 
+ 	case OTYPE:
+ 		if Curfn != nil {
+@@ -3923,17 +3923,17 @@ func markbreaklist(l *NodeList, implicit *Node) {
+ 
+ 	for ; l != nil; l = l.Next {
+ 		n = l.N
+-		if n.Op == OLABEL && l.Next != nil && n.Defn == l.Next.N {
+-			switch n.Defn.Op {
++		if n.Op == OLABEL && l.Next != nil && n.Name.Defn == l.Next.N {
++			switch n.Name.Defn.Op {
+ 			case OFOR,
+ 				OSWITCH,
+ 				OTYPESW,
+ 				OSELECT,
+ 				ORANGE:
+ 				lab = new(Label)
+-				lab.Def = n.Defn
++				lab.Def = n.Name.Defn
+ 				n.Left.Sym.Label = lab
+-				markbreak(n.Defn, n.Defn)
++				markbreak(n.Name.Defn, n.Name.Defn) // XXX
+ 				n.Left.Sym.Label = nil
+ 				l = l.Next
+ 				continue
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 442f746520..63375fe431 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -37,8 +37,8 @@ func walk(fn *Node) {
+ 
+ 	// Propagate the used flag for typeswitch variables up to the NONAME in it's definition.
+ 	for l := fn.Func.Dcl; l != nil; l = l.Next {
+-		if l.N.Op == ONAME && l.N.Class&^PHEAP == PAUTO && l.N.Defn != nil && l.N.Defn.Op == OTYPESW && l.N.Used {
+-			l.N.Defn.Left.Used = true
++		if l.N.Op == ONAME && l.N.Class&^PHEAP == PAUTO && l.N.Name.Defn != nil && l.N.Name.Defn.Op == OTYPESW && l.N.Used {
++			l.N.Name.Defn.Left.Used = true
+ 		}
+ 	}
+ 
+@@ -46,13 +46,13 @@ func walk(fn *Node) {
+ 		if l.N.Op != ONAME || l.N.Class&^PHEAP != PAUTO || l.N.Sym.Name[0] == '&' || l.N.Used {
+ 			continue
+ 		}
+-		if l.N.Defn != nil && l.N.Defn.Op == OTYPESW {
+-			if l.N.Defn.Left.Used {
++		if defn := l.N.Name.Defn; defn != nil && defn.Op == OTYPESW {
++			if defn.Left.Used {
+ 				continue
+ 			}
+-			lineno = l.N.Defn.Left.Lineno
++			lineno = defn.Left.Lineno
+ 			Yyerror("%v declared and not used", l.N.Sym)
+-			l.N.Defn.Left.Used = true // suppress repeats
++			defn.Left.Used = true // suppress repeats
+ 		} else {
+ 			lineno = l.N.Lineno
+ 			Yyerror("%v declared and not used", l.N.Sym)
+@@ -2133,7 +2133,7 @@ func isstack(n *Node) bool {
+ 	// If n is *autotmp and autotmp = &foo, replace n with foo.
+ 	// We introduce such temps when initializing struct literals.
+ 	if n.Op == OIND && n.Left.Op == ONAME && strings.HasPrefix(n.Left.Sym.Name, "autotmp_") {
+-		defn := n.Left.Defn
++		defn := n.Left.Name.Defn
+ 		if defn != nil && defn.Op == OAS && defn.Right.Op == OADDR {
+ 			n = defn.Right.Left
+ 		}
+@@ -4026,7 +4026,7 @@ func walkprintfunc(np **Node, init **NodeList) {
+ 	walkprintfunc_prgen++
+ 	buf = fmt.Sprintf("print·%d", walkprintfunc_prgen)
+ 	fn.Nname = newname(Lookup(buf))
+-	fn.Nname.Defn = fn
++	fn.Nname.Name.Defn = fn
+ 	fn.Nname.Param.Ntype = t
+ 	declare(fn.Nname, PFUNC)
+ 
+diff --git a/src/cmd/compile/internal/gc/y.go b/src/cmd/compile/internal/gc/y.go
+index 1515cc64ad..c1abdfea46 100644
+--- a/src/cmd/compile/internal/gc/y.go
++++ b/src/cmd/compile/internal/gc/y.go
+@@ -1621,7 +1621,7 @@ yydefault:
+ 					yyVAL.node.Nname = nn
+ 
+ 					// keep track of the instances for reporting unused
+-					nn.Defn = typesw.Right
++					nn.Name.Defn = typesw.Right
+ 				}
+ 			}
+ 		}
+@@ -1673,7 +1673,7 @@ yydefault:
+ 					yyVAL.node.Nname = nn
+ 
+ 					// keep track of the instances for reporting unused
+-					nn.Defn = typesw.Right
++					nn.Name.Defn = typesw.Right
+ 				}
+ 			}
+ 		}
+@@ -2559,7 +2559,7 @@ yydefault:
+ 
+ 			yyVAL.node = Nod(ODCLFUNC, nil, nil)
+ 			yyVAL.node.Nname = newfuncname(yyDollar[1].sym)
+-			yyVAL.node.Nname.Defn = yyVAL.node
++			yyVAL.node.Nname.Name.Defn = yyVAL.node
+ 			yyVAL.node.Nname.Param.Ntype = t // TODO: check if nname already has an ntype
+ 			declare(yyVAL.node.Nname, PFUNC)
+ 
+@@ -2596,7 +2596,7 @@ yydefault:
+ 			yyVAL.node = Nod(ODCLFUNC, nil, nil)
+ 			yyVAL.node.Func.Shortname = newfuncname(yyDollar[4].sym)
+ 			yyVAL.node.Nname = methodname1(yyVAL.node.Func.Shortname, rcvr.Right)
+-			yyVAL.node.Nname.Defn = yyVAL.node
++			yyVAL.node.Nname.Name.Defn = yyVAL.node
+ 			yyVAL.node.Nname.Param.Ntype = t
+ 			yyVAL.node.Nname.Nointerface = nointerface
+ 			declare(yyVAL.node.Nname, PFUNC)
+@@ -2972,7 +2972,7 @@ yydefault:
+ 		{
+ 			var l *NodeList
+ 
+-			yyDollar[1].node.Defn = yyDollar[4].node
++			yyDollar[1].node.Name.Defn = yyDollar[4].node
+ 			l = list1(yyDollar[1].node)
+ 			if yyDollar[4].node != nil {
+ 				l = list(l, yyDollar[4].node)

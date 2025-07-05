@@ -13,9 +13,124 @@ Date:   Wed Nov 17 12:54:22 2021 -0500
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Bryan C. Mills <bcmills@google.com>
-
+---
  misc/cgo/test/cgo_test.go |  1 +
  misc/cgo/test/test.go     |  5 +++++
  misc/cgo/test/testx.go    | 25 +++++++++++++++++++++++++
  src/runtime/cgo/handle.go | 35 +++++++++++++++++++++++++++++++++++
  4 files changed, 66 insertions(+)
+
+diff --git a/misc/cgo/test/cgo_test.go b/misc/cgo/test/cgo_test.go
+index fe99e251e9..774277e10d 100644
+--- a/misc/cgo/test/cgo_test.go
++++ b/misc/cgo/test/cgo_test.go
+@@ -61,6 +61,7 @@ func Test32579(t *testing.T)                 { test32579(t) }
+ func Test31891(t *testing.T)                 { test31891(t) }
+ func Test42018(t *testing.T)                 { test42018(t) }
+ func Test45451(t *testing.T)                 { test45451(t) }
++func Test49633(t *testing.T)                 { test49633(t) }
+ func TestAlign(t *testing.T)                 { testAlign(t) }
+ func TestAtol(t *testing.T)                  { testAtol(t) }
+ func TestBlocking(t *testing.T)              { testBlocking(t) }
+diff --git a/misc/cgo/test/test.go b/misc/cgo/test/test.go
+index 3b8f548b13..dd81f770a2 100644
+--- a/misc/cgo/test/test.go
++++ b/misc/cgo/test/test.go
+@@ -915,6 +915,11 @@ void issue40494(enum Enum40494 e, union Union40494* up) {}
+ 
+ // Issue 45451, bad handling of go:notinheap types.
+ typedef struct issue45451Undefined issue45451;
++
++// Issue 49633, example of cgo.Handle with void*.
++extern void GoFunc49633(void*);
++void cfunc49633(void *context) { GoFunc49633(context); }
++
+ */
+ import "C"
+ 
+diff --git a/misc/cgo/test/testx.go b/misc/cgo/test/testx.go
+index 823c3e13d2..a61b47c41d 100644
+--- a/misc/cgo/test/testx.go
++++ b/misc/cgo/test/testx.go
+@@ -113,6 +113,8 @@ typedef struct {
+ 	int i;
+ } Issue38408, *PIssue38408;
+ 
++extern void GoFunc49633(void *context);
++extern void cfunc49633(void*); // definition is in test.go
+ */
+ import "C"
+ 
+@@ -554,3 +556,26 @@ func GoFunc37033(handle C.uintptr_t) {
+ // A typedef pointer can be used as the element type.
+ // No runtime test; just make sure it compiles.
+ var _ C.PIssue38408 = &C.Issue38408{i: 1}
++
++// issue 49633, example use of cgo.Handle with void*
++
++type data49633 struct {
++	msg string
++}
++
++//export GoFunc49633
++func GoFunc49633(context unsafe.Pointer) {
++	h := *(*cgo.Handle)(context)
++	v := h.Value().(*data49633)
++	v.msg = "hello"
++}
++
++func test49633(t *testing.T) {
++	v := &data49633{}
++	h := cgo.NewHandle(v)
++	defer h.Delete()
++	C.cfunc49633(unsafe.Pointer(&h))
++	if v.msg != "hello" {
++		t.Errorf("msg = %q, want 'hello'", v.msg)
++	}
++}
+diff --git a/src/runtime/cgo/handle.go b/src/runtime/cgo/handle.go
+index 720acca802..726f0a396d 100644
+--- a/src/runtime/cgo/handle.go
++++ b/src/runtime/cgo/handle.go
+@@ -59,6 +59,41 @@ import (
+ //	void myprint(uintptr_t handle) {
+ //	    MyGoPrint(handle);
+ //	}
++//
++// Some C functions accept a void* argument that points to an arbitrary
++// data value supplied by the caller. It is not safe to coerce a cgo.Handle
++// (an integer) to a Go unsafe.Pointer, but instead we can pass the address
++// of the cgo.Handle to the void* parameter, as in this variant of the
++// previous example:
++//
++//	package main
++//
++//	/*
++//	extern void MyGoPrint(void *context);
++//	static inline void myprint(void *context) {
++//	    MyGoPrint(context);
++//	}
++//	*/
++//	import "C"
++//	import (
++//		"runtime/cgo"
++//		"unsafe"
++//	)
++//
++//	//export MyGoPrint
++//	func MyGoPrint(context unsafe.Pointer) {
++//		h := *(*cgo.Handle)(context)
++//		val := h.Value().(string)
++//		println(val)
++//		h.Delete()
++//	}
++//
++//	func main() {
++//		val := "hello Go"
++//		h := cgo.NewHandle(val)
++//		C.myprint(unsafe.Pointer(&h))
++//		// Output: hello Go
++//	}
+ type Handle uintptr
+ 
+ // NewHandle returns a handle for a given value.

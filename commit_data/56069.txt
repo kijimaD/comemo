@@ -25,6 +25,24 @@ Date:   Mon Apr 3 10:01:43 2023 +0200
     Reviewed-by: Than McIntosh <thanm@google.com>
     Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/link/internal/ld/pe.go | 6 ++----
  1 file changed, 2 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/pe.go b/src/cmd/link/internal/ld/pe.go
+index 27f2b0305a..a3bb47d232 100644
+--- a/src/cmd/link/internal/ld/pe.go
++++ b/src/cmd/link/internal/ld/pe.go
+@@ -888,10 +888,8 @@ func (f *peFile) writeFileHeader(ctxt *Link) {
+ 	// much more beneficial than having build timestamp in the header.
+ 	fh.TimeDateStamp = 0
+ 
+-	if ctxt.LinkMode == LinkExternal {
+-		fh.Characteristics = pe.IMAGE_FILE_LINE_NUMS_STRIPPED
+-	} else {
+-		fh.Characteristics = pe.IMAGE_FILE_EXECUTABLE_IMAGE | pe.IMAGE_FILE_DEBUG_STRIPPED
++	if ctxt.LinkMode != LinkExternal {
++		fh.Characteristics = pe.IMAGE_FILE_EXECUTABLE_IMAGE
+ 		switch ctxt.Arch.Family {
+ 		case sys.AMD64, sys.I386:
+ 			if ctxt.BuildMode != BuildModePIE {

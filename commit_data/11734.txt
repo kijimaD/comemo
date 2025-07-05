@@ -8,9 +8,111 @@ Date:   Thu Feb 9 14:40:56 2012 +1100
     R=golang-dev, bradfitz, r, rsc, rsc
     CC=golang-dev
     https://golang.org/cl/5642071
-
+---
  doc/go1.html                      | 18 ++++++++++++++++--
  doc/go1.tmpl                      | 12 ++++++++++++
  src/pkg/log/syslog/syslog.go      | 14 +++++++-------
  src/pkg/log/syslog/syslog_test.go |  4 ++--
  4 files changed, 37 insertions(+), 11 deletions(-)
+
+diff --git a/doc/go1.html b/doc/go1.html
+index 8b0b4745e3..6d8f148eda 100644
+--- a/doc/go1.html
++++ b/doc/go1.html
+@@ -931,8 +931,10 @@ No changes will be needed.
+ <h3 id="encoding_binary">The encoding/binary package</h3>
+ 
+ <p>
+-In Go 1, the <code>binary.TotalSize</code> function is renamed
+-<a href="/pkg/encoding/binary/#Size"><code>Size</code></a>.
++In Go 1, the <code>binary.TotalSize</code> function has been replaced by
++<a href="/pkg/encoding/binary/#Size"><code>Size</code></a>,
++which takes an <code>interface{}</code> argument rather than
++a <code>reflect.Value</code>.
+ </p>
+ 
+ <p>
+@@ -1287,6 +1289,18 @@ and
+ Running <code>go fix</code> will update almost all code affected by the change.
+ </p>
+ 
++<h3 id="log_syslog">The log/syslog package</h3>
++
++<p>
++In Go 1, the <a href="/pkg/log/syslog/#NewLogger"><code>syslog.NewLogger</code></a>
++function returns an error as well as a <code>log.Logger</code>.
++</p>
++
++<p>
++<em>Updating</em>:
++What little code is affected will be caught by the compiler and must be updated by hand.
++</p>
++
+ <h3 id="mime">The mime package</h3>
+ 
+ <p>
+diff --git a/doc/go1.tmpl b/doc/go1.tmpl
+index d6803ed189..096df3c25d 100644
+--- a/doc/go1.tmpl
++++ b/doc/go1.tmpl
+@@ -1192,6 +1192,18 @@ and
+ Running <code>go fix</code> will update almost all code affected by the change.
+ </p>
+ 
++<h3 id="log_syslog">The log/syslog package</h3>
++
++<p>
++In Go 1, the <a href="/pkg/log/syslog/#NewLogger"><code>syslog.NewLogger</code></a>
++function returns an error as well as a <code>log.Logger</code>.
++</p>
++
++<p>
++<em>Updating</em>:
++What little code is affected will be caught by the compiler and must be updated by hand.
++</p>
++
+ <h3 id="mime">The mime package</h3>
+ 
+ <p>
+diff --git a/src/pkg/log/syslog/syslog.go b/src/pkg/log/syslog/syslog.go
+index 700b983c75..3eb5353e9a 100644
+--- a/src/pkg/log/syslog/syslog.go
++++ b/src/pkg/log/syslog/syslog.go
+@@ -155,14 +155,14 @@ func (n netConn) close() error {
+ 	return n.conn.Close()
+ }
+ 
+-// NewLogger provides an object that implements the full log.Logger interface,
+-// but sends messages to Syslog instead; flag is passed as is to Logger;
+-// priority will be used for all messages sent using this interface.
+-// All messages are logged with priority p.
+-func NewLogger(p Priority, flag int) *log.Logger {
++// NewLogger creates a log.Logger whose output is written to
++// the system log service with the specified priority. The logFlag
++// argument is the flag set passed through to log.New to create
++// the Logger.
++func NewLogger(p Priority, logFlag int) (*log.Logger, error) {
+ 	s, err := New(p, "")
+ 	if err != nil {
+-		return nil
++		return nil, err
+ 	}
+-	return log.New(s, "", flag)
++	return log.New(s, "", logFlag), nil
+ }
+diff --git a/src/pkg/log/syslog/syslog_test.go b/src/pkg/log/syslog/syslog_test.go
+index b9793e91ab..7f509b3666 100644
+--- a/src/pkg/log/syslog/syslog_test.go
++++ b/src/pkg/log/syslog/syslog_test.go
+@@ -61,9 +61,9 @@ func TestNewLogger(t *testing.T) {
+ 	if skipNetTest(t) {
+ 		return
+ 	}
+-	f := NewLogger(LOG_INFO, 0)
++	f, err := NewLogger(LOG_INFO, 0)
+ 	if f == nil {
+-		t.Error("NewLogger() failed")
++		t.Error(err)
+ 	}
+ }
+ 

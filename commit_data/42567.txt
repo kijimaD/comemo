@@ -113,6 +113,42 @@ Date:   Tue Jan 14 05:08:47 2020 -0800
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/fmt.go | 16 +++++++++++++---
  1 file changed, 13 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index 54886a900b..d7fc5416e2 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -12,6 +12,7 @@ import (
+ 	"io"
+ 	"strconv"
+ 	"strings"
++	"sync"
+ 	"unicode/utf8"
+ )
+ 
+@@ -651,10 +652,19 @@ var basicnames = []string{
+ 	TBLANK:      "blank",
+ }
+ 
++var tconvBufferPool = sync.Pool{
++	New: func() interface{} {
++		return new(bytes.Buffer)
++	},
++}
++
+ func tconv(t *types.Type, flag FmtFlag, mode fmtMode) string {
+-	b := bytes.NewBuffer(make([]byte, 0, 64))
+-	tconv2(b, t, flag, mode, nil)
+-	return b.String()
++	buf := tconvBufferPool.Get().(*bytes.Buffer)
++	buf.Reset()
++	defer tconvBufferPool.Put(buf)
++
++	tconv2(buf, t, flag, mode, nil)
++	return types.InternString(buf.Bytes())
+ }
+ 
+ // tconv2 writes a string representation of t to b.

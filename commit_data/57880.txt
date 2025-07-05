@@ -18,7 +18,7 @@ Date:   Wed Sep 6 16:11:34 2023 -0700
     Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/compile/internal/ir/copy.go        | 14 --------------
  src/cmd/compile/internal/ir/fmt.go         |  6 ------
  src/cmd/compile/internal/ir/node.go        |  4 +---
@@ -27,3 +27,168 @@ Date:   Wed Sep 6 16:11:34 2023 -0700
  src/cmd/compile/internal/typecheck/func.go |  2 +-
  src/cmd/compile/internal/walk/order.go     | 12 ++++++------
  7 files changed, 11 insertions(+), 39 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/copy.go b/src/cmd/compile/internal/ir/copy.go
+index 9d3a136657..d30f7bc688 100644
+--- a/src/cmd/compile/internal/ir/copy.go
++++ b/src/cmd/compile/internal/ir/copy.go
+@@ -8,20 +8,6 @@ import (
+ 	"cmd/internal/src"
+ )
+ 
+-// Orig returns n.
+-//
+-// TODO(mdempsky): Remove.
+-func Orig(n Node) Node {
+-	return n
+-}
+-
+-// SepCopy returns a shallow copy of n.
+-//
+-// TODO(mdempsky): Replace with Copy.
+-func SepCopy(n Node) Node {
+-	return n.copy()
+-}
+-
+ // Copy returns a shallow copy of n.
+ func Copy(n Node) Node {
+ 	return n.copy()
+diff --git a/src/cmd/compile/internal/ir/fmt.go b/src/cmd/compile/internal/ir/fmt.go
+index 2eed9e467f..b8a1754712 100644
+--- a/src/cmd/compile/internal/ir/fmt.go
++++ b/src/cmd/compile/internal/ir/fmt.go
+@@ -526,12 +526,6 @@ func exprFmt(n Node, s fmt.State, prec int) {
+ 			return
+ 		}
+ 
+-		// We always want the original, if any.
+-		if o := Orig(n); o != n {
+-			n = o
+-			continue
+-		}
+-
+ 		// Skip implicit operations introduced during typechecking.
+ 		switch nn := n; nn.Op() {
+ 		case OADDR:
+diff --git a/src/cmd/compile/internal/ir/node.go b/src/cmd/compile/internal/ir/node.go
+index d8508e0492..f91b6f44b3 100644
+--- a/src/cmd/compile/internal/ir/node.go
++++ b/src/cmd/compile/internal/ir/node.go
+@@ -470,9 +470,7 @@ func IsConst(n Node, ct constant.Kind) bool {
+ 
+ // IsNil reports whether n represents the universal untyped zero value "nil".
+ func IsNil(n Node) bool {
+-	// Check n.Orig because constant propagation may produce typed nil constants,
+-	// which don't exist in the Go spec.
+-	return n != nil && Orig(n).Op() == ONIL
++	return n != nil && n.Op() == ONIL
+ }
+ 
+ func IsBlank(n Node) bool {
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index 8e28260499..bf7bfb7d48 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -3053,7 +3053,7 @@ func (r *reader) compLit() ir.Node {
+ func wrapName(pos src.XPos, x ir.Node) ir.Node {
+ 	// These nodes do not carry line numbers.
+ 	// Introduce a wrapper node to give them the correct line.
+-	switch ir.Orig(x).Op() {
++	switch x.Op() {
+ 	case ir.OTYPE, ir.OLITERAL:
+ 		if x.Sym() == nil {
+ 			break
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 1f06290dc3..6f8487757d 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -7658,16 +7658,10 @@ func AddAux2(a *obj.Addr, v *ssa.Value, offset int64) {
+ 	case *ir.Name:
+ 		if n.Class == ir.PPARAM || (n.Class == ir.PPARAMOUT && !n.IsOutputParamInRegisters()) {
+ 			a.Name = obj.NAME_PARAM
+-			a.Sym = ir.Orig(n).(*ir.Name).Linksym()
+-			a.Offset += n.FrameOffset()
+-			break
+-		}
+-		a.Name = obj.NAME_AUTO
+-		if n.Class == ir.PPARAMOUT {
+-			a.Sym = ir.Orig(n).(*ir.Name).Linksym()
+ 		} else {
+-			a.Sym = n.Linksym()
++			a.Name = obj.NAME_AUTO
+ 		}
++		a.Sym = n.Linksym()
+ 		a.Offset += n.FrameOffset()
+ 	default:
+ 		v.Fatalf("aux in %s not implemented %#v", v, v.Aux)
+diff --git a/src/cmd/compile/internal/typecheck/func.go b/src/cmd/compile/internal/typecheck/func.go
+index c4b053e690..4f076c4854 100644
+--- a/src/cmd/compile/internal/typecheck/func.go
++++ b/src/cmd/compile/internal/typecheck/func.go
+@@ -255,7 +255,7 @@ func tcCall(n *ir.CallExpr, top int) ir.Node {
+ 	default:
+ 		n.SetOp(ir.OCALLFUNC)
+ 		if t.Kind() != types.TFUNC {
+-			if o := ir.Orig(l); o.Name() != nil && types.BuiltinPkg.Lookup(o.Sym().Name).Def != nil {
++			if o := l; o.Name() != nil && types.BuiltinPkg.Lookup(o.Sym().Name).Def != nil {
+ 				// be more specific when the non-function
+ 				// name matches a predeclared function
+ 				base.Errorf("cannot call non-function %L, declared at %s",
+diff --git a/src/cmd/compile/internal/walk/order.go b/src/cmd/compile/internal/walk/order.go
+index 11c1e21e17..c2ed528f33 100644
+--- a/src/cmd/compile/internal/walk/order.go
++++ b/src/cmd/compile/internal/walk/order.go
+@@ -128,7 +128,7 @@ func (o *orderState) cheapExpr(n ir.Node) ir.Node {
+ 		if l == n.X {
+ 			return n
+ 		}
+-		a := ir.SepCopy(n).(*ir.UnaryExpr)
++		a := ir.Copy(n).(*ir.UnaryExpr)
+ 		a.X = l
+ 		return typecheck.Expr(a)
+ 	}
+@@ -154,7 +154,7 @@ func (o *orderState) safeExpr(n ir.Node) ir.Node {
+ 		if l == n.X {
+ 			return n
+ 		}
+-		a := ir.SepCopy(n).(*ir.UnaryExpr)
++		a := ir.Copy(n).(*ir.UnaryExpr)
+ 		a.X = l
+ 		return typecheck.Expr(a)
+ 
+@@ -164,7 +164,7 @@ func (o *orderState) safeExpr(n ir.Node) ir.Node {
+ 		if l == n.X {
+ 			return n
+ 		}
+-		a := ir.SepCopy(n).(*ir.SelectorExpr)
++		a := ir.Copy(n).(*ir.SelectorExpr)
+ 		a.X = l
+ 		return typecheck.Expr(a)
+ 
+@@ -174,7 +174,7 @@ func (o *orderState) safeExpr(n ir.Node) ir.Node {
+ 		if l == n.X {
+ 			return n
+ 		}
+-		a := ir.SepCopy(n).(*ir.SelectorExpr)
++		a := ir.Copy(n).(*ir.SelectorExpr)
+ 		a.X = l
+ 		return typecheck.Expr(a)
+ 
+@@ -184,7 +184,7 @@ func (o *orderState) safeExpr(n ir.Node) ir.Node {
+ 		if l == n.X {
+ 			return n
+ 		}
+-		a := ir.SepCopy(n).(*ir.StarExpr)
++		a := ir.Copy(n).(*ir.StarExpr)
+ 		a.X = l
+ 		return typecheck.Expr(a)
+ 
+@@ -200,7 +200,7 @@ func (o *orderState) safeExpr(n ir.Node) ir.Node {
+ 		if l == n.X && r == n.Index {
+ 			return n
+ 		}
+-		a := ir.SepCopy(n).(*ir.IndexExpr)
++		a := ir.Copy(n).(*ir.IndexExpr)
+ 		a.X = l
+ 		a.Index = r
+ 		return typecheck.Expr(a)

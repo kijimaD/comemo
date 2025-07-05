@@ -11,8 +11,96 @@ Date:   Wed Jul 15 23:28:31 2015 +0000
     Change-Id: Ic1b53413c4168977a27381d9cc6fb8d9d7cbb780
     Reviewed-on: https://go-review.googlesource.com/12245
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/internal/obj/arm/obj5.go   | 10 +---------
  src/cmd/internal/obj/arm64/obj7.go | 10 +---------
  src/cmd/internal/obj/x86/obj6.go   | 11 +----------
  3 files changed, 3 insertions(+), 28 deletions(-)
+
+diff --git a/src/cmd/internal/obj/arm/obj5.go b/src/cmd/internal/obj/arm/obj5.go
+index 15534e6f34..ce1cad9c47 100644
+--- a/src/cmd/internal/obj/arm/obj5.go
++++ b/src/cmd/internal/obj/arm/obj5.go
+@@ -804,12 +804,8 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32) *obj.Prog {
+ 	for last = ctxt.Cursym.Text; last.Link != nil; last = last.Link {
+ 	}
+ 
+-	spfix := obj.Appendp(ctxt, last)
+-	spfix.As = obj.ANOP
+-	spfix.Spadj = -framesize
+-
+ 	// MOVW	LR, R3
+-	movw := obj.Appendp(ctxt, spfix)
++	movw := obj.Appendp(ctxt, last)
+ 	movw.As = AMOVW
+ 	movw.From.Type = obj.TYPE_REG
+ 	movw.From.Reg = REGLINK
+@@ -837,10 +833,6 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32) *obj.Prog {
+ 	b.To.Type = obj.TYPE_BRANCH
+ 	b.Pcond = ctxt.Cursym.Text.Link
+ 
+-	spfix = obj.Appendp(ctxt, b)
+-	spfix.As = obj.ANOP
+-	spfix.Spadj = +framesize
+-
+ 	return bls
+ }
+ 
+diff --git a/src/cmd/internal/obj/arm64/obj7.go b/src/cmd/internal/obj/arm64/obj7.go
+index 91088c1490..77117fb530 100644
+--- a/src/cmd/internal/obj/arm64/obj7.go
++++ b/src/cmd/internal/obj/arm64/obj7.go
+@@ -161,12 +161,8 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32) *obj.Prog {
+ 	for last = ctxt.Cursym.Text; last.Link != nil; last = last.Link {
+ 	}
+ 
+-	spfix := obj.Appendp(ctxt, last)
+-	spfix.As = obj.ANOP
+-	spfix.Spadj = -framesize
+-
+ 	// MOV	LR, R3
+-	movlr := obj.Appendp(ctxt, spfix)
++	movlr := obj.Appendp(ctxt, last)
+ 	movlr.As = AMOVD
+ 	movlr.From.Type = obj.TYPE_REG
+ 	movlr.From.Reg = REGLINK
+@@ -206,10 +202,6 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32) *obj.Prog {
+ 	jmp.To.Type = obj.TYPE_BRANCH
+ 	jmp.Pcond = ctxt.Cursym.Text.Link
+ 
+-	spfix = obj.Appendp(ctxt, jmp)
+-	spfix.As = obj.ANOP
+-	spfix.Spadj = +framesize
+-
+ 	// placeholder for bls's jump target
+ 	// p = obj.Appendp(ctxt, p)
+ 	// p.As = obj.ANOP
+diff --git a/src/cmd/internal/obj/x86/obj6.go b/src/cmd/internal/obj/x86/obj6.go
+index 5ee097e1d6..fa9c474adb 100644
+--- a/src/cmd/internal/obj/x86/obj6.go
++++ b/src/cmd/internal/obj/x86/obj6.go
+@@ -975,12 +975,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, textarg int32) *ob
+ 	for last = ctxt.Cursym.Text; last.Link != nil; last = last.Link {
+ 	}
+ 
+-	// Explain to PC-line tables that there is no frame here.
+-	spfix := obj.Appendp(ctxt, last)
+-	spfix.As = obj.ANOP
+-	spfix.Spadj = -framesize
+-
+-	call := obj.Appendp(ctxt, spfix)
++	call := obj.Appendp(ctxt, last)
+ 	call.Lineno = ctxt.Cursym.Text.Lineno
+ 	call.Mode = ctxt.Cursym.Text.Mode
+ 	call.As = obj.ACALL
+@@ -999,10 +994,6 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, textarg int32) *ob
+ 	jmp.To.Type = obj.TYPE_BRANCH
+ 	jmp.Pcond = ctxt.Cursym.Text.Link
+ 
+-	spfix = obj.Appendp(ctxt, jmp)
+-	spfix.As = obj.ANOP
+-	spfix.Spadj = +framesize
+-
+ 	jls.Pcond = call
+ 	if q1 != nil {
+ 		q1.Pcond = call

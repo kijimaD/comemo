@@ -8,6 +8,35 @@ Date:   Mon Jul 18 11:08:55 2011 +1000
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/4755047
-
+---
  src/cmd/5c/reg.c | 10 +++++-----
  1 file changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/5c/reg.c b/src/cmd/5c/reg.c
+index 847b2b5501..50b814598d 100644
+--- a/src/cmd/5c/reg.c
++++ b/src/cmd/5c/reg.c
+@@ -66,6 +66,11 @@ rcmp(const void *a1, const void *a2)
+ void
+ regopt(Prog *p)
+ {
++	// TODO(kaib): optimizer disabled because it smashes R8 when running out of registers
++	// the disable is unconventionally here because the call is in common code shared by 5c/6c/8c
++	return;
++
++#ifdef	NOTDEF
+ 	Reg *r, *r1, *r2;
+ 	Prog *p1;
+ 	int i, z;
+@@ -79,11 +84,6 @@ regopt(Prog *p)
+ 		Reg*	p;
+ 	} log5[6], *lp;
+ 
+-	// TODO(kaib): optimizer disabled because it smashes R8 when running out of registers
+-	// the disable is unconventionally here because the call is in common code shared by 5c/6c/8c
+-	return;
+-
+-#ifdef	NOTDEF
+ 	firstr = R;
+ 	lastr = R;
+ 	nvar = 0;

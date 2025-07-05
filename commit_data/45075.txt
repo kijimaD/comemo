@@ -14,10 +14,227 @@ Date:   Wed Sep 23 16:32:59 2020 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Matloob <matloob@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  .../mod/example.net_ambiguous_nested_v0.1.0.txt    |  19 ++++
  .../testdata/mod/example.net_ambiguous_v0.1.0.txt  |  19 ++++
  .../testdata/mod/example.net_ambiguous_v0.2.0.txt  |  18 ++++
  .../go/testdata/script/mod_get_ambiguous_arg.txt   |   8 +-
  .../go/testdata/script/mod_get_ambiguous_pkg.txt   | 101 +++++++++++++++++++++
  5 files changed, 161 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/testdata/mod/example.net_ambiguous_nested_v0.1.0.txt b/src/cmd/go/testdata/mod/example.net_ambiguous_nested_v0.1.0.txt
+new file mode 100644
+index 0000000000..8c9de7a5f4
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/example.net_ambiguous_nested_v0.1.0.txt
+@@ -0,0 +1,19 @@
++Written by hand.
++
++Test module containing a package that is also provided by a nested module tagged
++with the same version.
++
++-- .mod --
++module example.net/ambiguous/nested
++
++go 1.16
++-- .info --
++{"Version": "v0.1.0"}
++-- go.mod --
++module example.net/ambiguous/nested
++
++go 1.16
++-- pkg/pkg.go --
++// Package pkg exists in both example.net/ambiguous v0.1.0
++// and example.net/ambiguous/nested v0.1.0
++package pkg
+diff --git a/src/cmd/go/testdata/mod/example.net_ambiguous_v0.1.0.txt b/src/cmd/go/testdata/mod/example.net_ambiguous_v0.1.0.txt
+new file mode 100644
+index 0000000000..8fa6d83346
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/example.net_ambiguous_v0.1.0.txt
+@@ -0,0 +1,19 @@
++Written by hand.
++
++Test module containing a package that is also provided by a nested module tagged
++with the same version.
++
++-- .mod --
++module example.net/ambiguous
++
++go 1.16
++-- .info --
++{"Version": "v0.1.0"}
++-- go.mod --
++module example.net/ambiguous
++
++go 1.16
++-- nested/pkg/pkg.go --
++// Package pkg exists in both example.net/ambiguous v0.1.0
++// and example.net/ambiguous/nested v0.1.0
++package pkg
+diff --git a/src/cmd/go/testdata/mod/example.net_ambiguous_v0.2.0.txt b/src/cmd/go/testdata/mod/example.net_ambiguous_v0.2.0.txt
+new file mode 100644
+index 0000000000..7589ad76a3
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/example.net_ambiguous_v0.2.0.txt
+@@ -0,0 +1,18 @@
++Written by hand.
++
++Test module containing a package that is also provided by a nested module tagged
++with the same version.
++
++-- .mod --
++module example.net/ambiguous
++
++go 1.16
++-- .info --
++{"Version": "v0.2.0"}
++-- go.mod --
++module example.net/ambiguous
++
++go 1.16
++-- nested/pkg/README.txt --
++// Package pkg no longer exists in this module at v0.2.0.
++// Find it in module example.net/ambiguous/nested instead.
+diff --git a/src/cmd/go/testdata/script/mod_get_ambiguous_arg.txt b/src/cmd/go/testdata/script/mod_get_ambiguous_arg.txt
+index 7729f29ced..f64da3a3fd 100644
+--- a/src/cmd/go/testdata/script/mod_get_ambiguous_arg.txt
++++ b/src/cmd/go/testdata/script/mod_get_ambiguous_arg.txt
+@@ -70,7 +70,7 @@ module m
+ 
+ go 1.16
+ -- m01/README.txt --
+-Module m at v0.3.0 does not yet contain package p.
++Module m at v0.1.0 does not yet contain package p.
+ 
+ -- m02/go.mod --
+ module m
+@@ -107,18 +107,18 @@ module m/p
+ go 1.16
+ -- mp01/README.txt --
+ This module is m/p.
+-Package m/p no longer exists.
++Package m/p does not exist in this module.
+ -- mp02/go.mod --
+ module m/p
+ 
+ go 1.16
+ -- mp02/README.txt --
+ This module is m/p.
+-Package m/p no longer exists.
++Package m/p does not exist in this module.
+ -- mp03/go.mod --
+ module m/p
+ 
+ go 1.16
+ -- mp03/README.txt --
+ This module is m/p.
+-Package m/p no longer exists.
++Package m/p does not exist in this module.
+diff --git a/src/cmd/go/testdata/script/mod_get_ambiguous_pkg.txt b/src/cmd/go/testdata/script/mod_get_ambiguous_pkg.txt
+new file mode 100644
+index 0000000000..f00f99ee8c
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_get_ambiguous_pkg.txt
+@@ -0,0 +1,101 @@
++# Both example.net/ambiguous v0.1.0 and example.net/ambiguous/pkg v0.1.0 exist.
++# 'go mod tidy' would arbitrarily choose the one with the longer path,
++# but 'go mod tidy' also arbitrarily chooses the latest version.
++
++cp go.mod go.mod.orig
++
++
++# From a clean slate, 'go get' currently does the same thing as 'go mod tidy':
++# it resolves the package from the module with the longest matching prefix.
++
++go get -d example.net/ambiguous/nested/pkg@v0.1.0
++go list -m all
++stdout '^example.net/ambiguous/nested v0.1.0$'
++! stdout '^example.net/ambiguous '
++
++
++# From an initial state that already depends on the shorter path,
++# the same 'go get' command attempts to add the longer path and fails.
++#
++# TODO(bcmills): What should really happen here?
++# Should we match the versioned package path against the existing package
++# (reducing unexpected errors), or give it the same meaning regardless of the
++# initial state?
++
++cp go.mod.orig go.mod
++go mod edit -require=example.net/ambiguous@v0.1.0
++
++! go get -d example.net/ambiguous/nested/pkg@v0.1.0
++stderr '^go get example.net/ambiguous/nested/pkg@v0.1.0: ambiguous import: found package example.net/ambiguous/nested/pkg in multiple modules:\n\texample.net/ambiguous v0.1.0 \(.*\)\n\texample.net/ambiguous/nested v0.1.0 \(.*\)\n\z'
++
++
++# The user should be able to fix the aforementioned failure by explicitly
++# upgrading the conflicting module.
++
++go get -d example.net/ambiguous@v0.2.0 example.net/ambiguous/nested/pkg@v0.1.0
++go list -m all
++stdout '^example.net/ambiguous/nested v0.1.0$'
++stdout '^example.net/ambiguous v0.2.0$'
++
++
++# ...or by explicitly NOT adding the conflicting module.
++#
++# BUG(#37438): Today, this does not work: explicit module version constraints do
++# not affect the package-to-module mapping during package upgrades, so the
++# arguments are interpreted as specifying conflicting versions of the longer
++# module path.
++
++cp go.mod.orig go.mod
++go mod edit -require=example.net/ambiguous@v0.1.0
++
++! go get -d example.net/ambiguous/nested/pkg@v0.1.0 example.net/ambiguous/nested@none
++stderr '^go get: conflicting versions for module example.net/ambiguous/nested: v0.1.0 and none$'
++
++ # go list -m all
++ # ! stdout '^example.net/ambiguous/nested '
++ # stdout '^example.net/ambiguous v0.1.0$'
++
++
++# The user should also be able to fix it by *downgrading* the conflicting module
++# away.
++#
++# BUG(#37438): Today, this does not work: the "ambiguous import" error causes
++# 'go get' to fail before applying the requested downgrade.
++
++cp go.mod.orig go.mod
++go mod edit -require=example.net/ambiguous@v0.1.0
++
++! go get -d example.net/ambiguous@none example.net/ambiguous/nested/pkg@v0.1.0
++stderr '^go get example.net/ambiguous/nested/pkg@v0.1.0: ambiguous import: found package example.net/ambiguous/nested/pkg in multiple modules:\n\texample.net/ambiguous v0.1.0 \(.*\)\n\texample.net/ambiguous/nested v0.1.0 \(.*\)\n\z'
++
++ # go list -m all
++ # stdout '^example.net/ambiguous/nested v0.1.0$'
++ # !stdout '^example.net/ambiguous '
++
++
++# In contrast, if we do the same thing tacking a wildcard pattern ('/...') on
++# the end of the package path, we get different behaviors depending on the
++# initial state, and no error. (This seems to contradict the “same meaning
++# regardless of the initial state” point above, but maybe that's ok?)
++
++cp go.mod.orig go.mod
++
++go get -d example.net/ambiguous/nested/pkg/...@v0.1.0
++go list -m all
++stdout '^example.net/ambiguous/nested v0.1.0$'
++! stdout '^example.net/ambiguous '
++
++
++cp go.mod.orig go.mod
++go mod edit -require=example.net/ambiguous@v0.1.0
++
++go get -d example.net/ambiguous/nested/pkg/...@v0.1.0
++go list -m all
++! stdout '^example.net/ambiguous/nested '
++stdout '^example.net/ambiguous v0.1.0$'
++
++
++-- go.mod --
++module test
++
++go 1.16

@@ -13,10 +13,209 @@ Date:   Fri Jul 9 11:24:31 2010 -0700
     R=gri
     CC=golang-dev
     https://golang.org/cl/1733045
-
+---
  src/pkg/big/int.go      |  8 ++++---
  src/pkg/big/int_test.go |  5 +++++
  src/pkg/big/nat.go      |  6 ++----
  src/pkg/big/rat.go      | 56 +++++++++++++++++++++++++++++++------------------
  src/pkg/big/rat_test.go | 13 ++++++++++++
  5 files changed, 61 insertions(+), 27 deletions(-)
+
+diff --git a/src/pkg/big/int.go b/src/pkg/big/int.go
+index 873d5b50cf..f16c0d93a7 100755
+--- a/src/pkg/big/int.go
++++ b/src/pkg/big/int.go
+@@ -347,10 +347,12 @@ func (z *Int) SetString(s string, base int) (*Int, bool) {
+ 		return z, false
+ 	}
+ 
+-	neg := false
+-	if s[0] == '-' {
+-		neg = true
++	neg := s[0] == '-'
++	if neg || s[0] == '+' {
+ 		s = s[1:]
++		if len(s) == 0 {
++			return z, false
++		}
+ 	}
+ 
+ 	var scanned int
+diff --git a/src/pkg/big/int_test.go b/src/pkg/big/int_test.go
+index 269c814d46..82b5417dae 100755
+--- a/src/pkg/big/int_test.go
++++ b/src/pkg/big/int_test.go
+@@ -219,6 +219,7 @@ var stringTests = []stringTest{
+ 	stringTest{in: "a", ok: false},
+ 	stringTest{in: "z", ok: false},
+ 	stringTest{in: "+", ok: false},
++	stringTest{in: "-", ok: false},
+ 	stringTest{in: "0b", ok: false},
+ 	stringTest{in: "0x", ok: false},
+ 	stringTest{in: "2", base: 2, ok: false},
+@@ -230,13 +231,17 @@ var stringTests = []stringTest{
+ 	stringTest{"0", "0", 0, 0, true},
+ 	stringTest{"0", "0", 10, 0, true},
+ 	stringTest{"0", "0", 16, 0, true},
++	stringTest{"+0", "0", 0, 0, true},
++	stringTest{"-0", "0", 0, 0, true},
+ 	stringTest{"10", "10", 0, 10, true},
+ 	stringTest{"10", "10", 10, 10, true},
+ 	stringTest{"10", "10", 16, 16, true},
+ 	stringTest{"-10", "-10", 16, -16, true},
++	stringTest{"+10", "10", 16, 16, true},
+ 	stringTest{"0x10", "16", 0, 16, true},
+ 	stringTest{in: "0x10", base: 16, ok: false},
+ 	stringTest{"-0x10", "-16", 0, -16, true},
++	stringTest{"+0x10", "16", 0, 16, true},
+ 	stringTest{"00", "0", 0, 0, true},
+ 	stringTest{"0", "0", 8, 0, true},
+ 	stringTest{"07", "7", 0, 7, true},
+diff --git a/src/pkg/big/nat.go b/src/pkg/big/nat.go
+index dc2e6be288..72d9f05ee2 100755
+--- a/src/pkg/big/nat.go
++++ b/src/pkg/big/nat.go
+@@ -103,9 +103,7 @@ func (z nat) setUint64(x uint64) nat {
+ 
+ func (z nat) set(x nat) nat {
+ 	z = z.make(len(x))
+-	for i, d := range x {
+-		z[i] = d
+-	}
++	copy(z, x)
+ 	return z
+ }
+ 
+@@ -666,7 +664,7 @@ func (z nat) scan(s string, base int) (nat, int, int) {
+ 		}
+ 	}
+ 
+-	return z, base, i
++	return z.norm(), base, i
+ }
+ 
+ 
+diff --git a/src/pkg/big/rat.go b/src/pkg/big/rat.go
+index ddd858d5ce..c465ab86bf 100644
+--- a/src/pkg/big/rat.go
++++ b/src/pkg/big/rat.go
+@@ -186,26 +186,17 @@ func (z *Rat) Set(x *Rat) *Rat {
+ 
+ 
+ // SetString sets z to the value of s and returns z and a boolean indicating
+-// success. s can be given as a fraction "a/b" or as a decimal number "a.b".
+-// If the operation failed, the value of z is undefined.
++// success. s can be given as a fraction "a/b" or as a floating-point number
++// optionally followed by an exponent. If the operation failed, the value of z
++// is undefined.
+ func (z *Rat) SetString(s string) (*Rat, bool) {
+ 	if len(s) == 0 {
+ 		return z, false
+ 	}
+ 
+-	// Check for a decimal point
+-	sep := strings.Index(s, ".")
+-	if sep < 0 {
+-		// Check for a quotient
+-		sep = strings.Index(s, "/")
+-		if sep < 0 {
+-			// Just read in the string as an integer
+-			if _, ok := z.a.SetString(s, 10); !ok {
+-				return z, false
+-			}
+-			z.b = z.b.setWord(1)
+-			return z, true
+-		}
++	// check for a quotient
++	sep := strings.Index(s, "/")
++	if sep >= 0 {
+ 		if _, ok := z.a.SetString(s[0:sep], 10); !ok {
+ 			return z, false
+ 		}
+@@ -214,17 +205,42 @@ func (z *Rat) SetString(s string) (*Rat, bool) {
+ 		if z.b, _, n = z.b.scan(s, 10); n != len(s) {
+ 			return z, false
+ 		}
+-
+ 		return z.norm(), true
+ 	}
+ 
+-	s = s[0:sep] + s[sep+1:]
++	// check for a decimal point
++	sep = strings.Index(s, ".")
++	// check for an exponent
++	e := strings.IndexAny(s, "eE")
++	var exp Int
++	if e >= 0 {
++		if e < sep {
++			// The E must come after the decimal point.
++			return z, false
++		}
++		if _, ok := exp.SetString(s[e+1:], 10); !ok {
++			return z, false
++		}
++		s = s[0:e]
++	}
++	if sep >= 0 {
++		s = s[0:sep] + s[sep+1:]
++		exp.Sub(&exp, NewInt(int64(len(s)-sep)))
++	}
++
+ 	if _, ok := z.a.SetString(s, 10); !ok {
+ 		return z, false
+ 	}
+-	z.b = z.b.expNN(natTen, nat{Word(len(s) - sep)}, nil)
++	powTen := nat{}.expNN(natTen, exp.abs, nil)
++	if exp.neg {
++		z.b = powTen
++		z.norm()
++	} else {
++		z.a.abs = z.a.abs.mul(z.a.abs, powTen)
++		z.b = z.b.setWord(1)
++	}
+ 
+-	return z.norm(), true
++	return z, true
+ }
+ 
+ 
+@@ -257,7 +273,7 @@ func (z *Rat) FloatString(prec int) string {
+ 	r = r.mul(r, p)
+ 	r, r2 := r.div(nat{}, r, z.b)
+ 
+-	// See if we need to round up
++	// see if we need to round up
+ 	r2 = r2.mul(r2, natTwo)
+ 	if z.b.cmp(r2) <= 0 {
+ 		r = r.add(r, natOne)
+diff --git a/src/pkg/big/rat_test.go b/src/pkg/big/rat_test.go
+index 2379cc0d56..c74ec857f3 100644
+--- a/src/pkg/big/rat_test.go
++++ b/src/pkg/big/rat_test.go
+@@ -17,6 +17,13 @@ var setStringTests = []setStringTest{
+ 	setStringTest{"-0", "0", true},
+ 	setStringTest{"1", "1", true},
+ 	setStringTest{"-1", "-1", true},
++	setStringTest{"1.", "1", true},
++	setStringTest{"1e0", "1", true},
++	setStringTest{"1.e1", "10", true},
++	setStringTest{in: "1e", ok: false},
++	setStringTest{in: "1.e", ok: false},
++	setStringTest{in: "1e+14e-5", ok: false},
++	setStringTest{in: "1e4.5", ok: false},
+ 	setStringTest{in: "r", ok: false},
+ 	setStringTest{in: "a/b", ok: false},
+ 	setStringTest{in: "a.b", ok: false},
+@@ -25,6 +32,12 @@ var setStringTests = []setStringTest{
+ 	setStringTest{"2/4", "1/2", true},
+ 	setStringTest{".25", "1/4", true},
+ 	setStringTest{"-1/5", "-1/5", true},
++	setStringTest{"8129567.7690E14", "812956776900000000000", true},
++	setStringTest{"78189e+4", "781890000", true},
++	setStringTest{"553019.8935e+8", "55301989350000", true},
++	setStringTest{"98765432109876543210987654321e-10", "98765432109876543210987654321/10000000000", true},
++	setStringTest{"9877861857500000E-7", "3951144743/4", true},
++	setStringTest{"2169378.417e-3", "2169378417/1000000", true},
+ 	setStringTest{"884243222337379604041632732738665534", "884243222337379604041632732738665534", true},
+ 	setStringTest{"53/70893980658822810696", "53/70893980658822810696", true},
+ 	setStringTest{"106/141787961317645621392", "53/70893980658822810696", true},

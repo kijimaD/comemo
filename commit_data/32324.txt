@@ -8,6 +8,21 @@ Date:   Wed Apr 19 16:58:07 2017 -0400
     Reviewed-on: https://go-review.googlesource.com/41150
     Run-TryBot: Austin Clements <austin@google.com>
     Reviewed-by: David Lazar <lazard@golang.org>
-
+---
  src/cmd/compile/internal/gc/inl.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index b7a387141b..c9d1a0c035 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -111,7 +111,8 @@ func caninl(fn *Node) {
+ 		return
+ 	}
+ 
+-	// If marked "go:cgo_unsafe_args", don't inline
++	// If marked "go:cgo_unsafe_args", don't inline, since the
++	// function makes assumptions about its argument frame layout.
+ 	if fn.Func.Pragma&CgoUnsafeArgs != 0 {
+ 		reason = "marked go:cgo_unsafe_args"
+ 		return

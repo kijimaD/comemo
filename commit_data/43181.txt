@@ -11,10 +11,97 @@ Date:   Fri Feb 21 02:28:37 2020 +1100
     Change-Id: I90b6a8629c78f549012f3f6c5f3b325336182712
     Reviewed-on: https://go-review.googlesource.com/c/go/+/220539
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/asm/internal/asm/testdata/riscvenc.s | 5 ++++-
  src/cmd/internal/obj/riscv/obj.go            | 7 +++++++
  src/runtime/atomic_riscv64.s                 | 2 --
  src/runtime/internal/atomic/atomic_riscv64.s | 1 -
  src/runtime/sys_linux_riscv64.s              | 2 --
  5 files changed, 11 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/riscvenc.s b/src/cmd/asm/internal/asm/testdata/riscvenc.s
+index 23974b3b99..18f94adb69 100644
+--- a/src/cmd/asm/internal/asm/testdata/riscvenc.s
++++ b/src/cmd/asm/internal/asm/testdata/riscvenc.s
+@@ -122,6 +122,9 @@ start:
+ 	SB	X5, (X6)				// 23005300
+ 	SB	X5, 4(X6)				// 23025300
+ 
++	// 2.7: Memory Ordering Instructions
++	FENCE						// 0f00f00f
++
+ 	// 5.2: Integer Computational Instructions (RV64I)
+ 	ADDIW	$1, X5, X6				// 1b831200
+ 	SLLIW	$1, X5, X6				// 1b931200
+@@ -273,7 +276,7 @@ start:
+ 	// These jumps can get printed as jumps to 2 because they go to the
+ 	// second instruction in the function (the first instruction is an
+ 	// invisible stack pointer adjustment).
+-	JMP	start		// JMP	2		// 6ff0dfcc
++	JMP	start		// JMP	2		// 6ff09fcc
+ 	JMP	(X5)					// 67800200
+ 	JMP	4(X5)					// 67804200
+ 
+diff --git a/src/cmd/internal/obj/riscv/obj.go b/src/cmd/internal/obj/riscv/obj.go
+index 0fb1c76771..5497a1dbc5 100644
+--- a/src/cmd/internal/obj/riscv/obj.go
++++ b/src/cmd/internal/obj/riscv/obj.go
+@@ -1552,6 +1552,9 @@ var encodings = [ALAST & obj.AMask]encoding{
+ 	ASH & obj.AMask:  sIEncoding,
+ 	ASB & obj.AMask:  sIEncoding,
+ 
++	// 2.7: Memory Ordering
++	AFENCE & obj.AMask: iIEncoding,
++
+ 	// 5.2: Integer Computational Instructions (RV64I)
+ 	AADDIW & obj.AMask: iIEncoding,
+ 	ASLLIW & obj.AMask: iIEncoding,
+@@ -1769,6 +1772,10 @@ func instructionsForProg(p *obj.Prog) []*instruction {
+ 		ins.rs1 = REG_ZERO
+ 		ins.imm = insEnc.csr
+ 
++	case AFENCE:
++		ins.rd, ins.rs1, ins.rs2 = REG_ZERO, REG_ZERO, obj.REG_NONE
++		ins.imm = 0x0ff
++
+ 	case AFCVTWS, AFCVTLS, AFCVTWUS, AFCVTLUS, AFCVTWD, AFCVTLD, AFCVTWUD, AFCVTLUD:
+ 		// Set the rounding mode in funct3 to round to zero.
+ 		ins.funct3 = 1
+diff --git a/src/runtime/atomic_riscv64.s b/src/runtime/atomic_riscv64.s
+index 9cf54490f1..544a7c5972 100644
+--- a/src/runtime/atomic_riscv64.s
++++ b/src/runtime/atomic_riscv64.s
+@@ -4,8 +4,6 @@
+ 
+ #include "textflag.h"
+ 
+-#define FENCE WORD $0x0ff0000f
+-
+ // func publicationBarrier()
+ TEXT ·publicationBarrier(SB),NOSPLIT|NOFRAME,$0-0
+ 	FENCE
+diff --git a/src/runtime/internal/atomic/atomic_riscv64.s b/src/runtime/internal/atomic/atomic_riscv64.s
+index d79f28acde..80c84cf7d3 100644
+--- a/src/runtime/internal/atomic/atomic_riscv64.s
++++ b/src/runtime/internal/atomic/atomic_riscv64.s
+@@ -38,7 +38,6 @@
+ #define SC_ 3
+ #define OR_ 8
+ #define AND_ 12
+-#define FENCE WORD $0x0ff0000f
+ 
+ // Atomically:
+ //      if(*val == *old){
+diff --git a/src/runtime/sys_linux_riscv64.s b/src/runtime/sys_linux_riscv64.s
+index 9db8e3d068..626ab3912c 100644
+--- a/src/runtime/sys_linux_riscv64.s
++++ b/src/runtime/sys_linux_riscv64.s
+@@ -50,8 +50,6 @@
+ #define SYS_tkill		130
+ #define SYS_write		64
+ 
+-#define FENCE WORD $0x0ff0000f
+-
+ // func exit(code int32)
+ TEXT runtime·exit(SB),NOSPLIT|NOFRAME,$0-4
+ 	MOVW	code+0(FP), A0

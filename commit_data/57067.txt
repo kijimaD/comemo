@@ -13,6 +13,25 @@ Date:   Tue Jun 13 14:13:01 2023 +0000
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/internal/xcoff/ar.go | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/src/internal/xcoff/ar.go b/src/internal/xcoff/ar.go
+index 81ac75afa3..9cbd50d149 100644
+--- a/src/internal/xcoff/ar.go
++++ b/src/internal/xcoff/ar.go
+@@ -211,7 +211,6 @@ func NewArchive(r io.ReaderAt) (*Archive, error) {
+ 	}
+ 
+ 	return arch, nil
+-
+ }
+ 
+ // GetFile returns the XCOFF file defined by member name.
+@@ -224,5 +223,4 @@ func (arch *Archive) GetFile(name string) (*File, error) {
+ 		}
+ 	}
+ 	return nil, fmt.Errorf("unknown member %s in archive", name)
+-
+ }

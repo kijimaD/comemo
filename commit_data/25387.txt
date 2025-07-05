@@ -12,7 +12,7 @@ Date:   Fri Oct 23 19:12:49 2015 -0700
     Change-Id: I54af0f0a93c853f37e34e0ce7e3f01dd2ac87f64
     Reviewed-on: https://go-review.googlesource.com/16287
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/gc/ssa.go             | 70 +++++++++++++++++---------
  src/cmd/compile/internal/gc/type.go            |  1 +
  src/cmd/compile/internal/ssa/check.go          | 10 ++++
@@ -30,3 +30,556 @@ Date:   Fri Oct 23 19:12:49 2015 -0700
  src/cmd/compile/internal/ssa/type.go           |  4 ++
  src/cmd/compile/internal/ssa/type_test.go      |  1 +
  16 files changed, 136 insertions(+), 79 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 8939f14136..50fc935dec 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -18,6 +18,9 @@ import (
+ 	"cmd/internal/obj/x86"
+ )
+ 
++// Smallest possible faulting page at address zero.
++const minZeroPage = 4096
++
+ // buildssa builds an SSA function
+ // and reports whether it should be used.
+ // Once the SSA implementation is complete,
+@@ -2428,21 +2431,12 @@ func (s *state) nilCheck(ptr *ssa.Value) {
+ 	if Disable_checknil != 0 {
+ 		return
+ 	}
+-	c := s.newValue1(ssa.OpIsNonNil, Types[TBOOL], ptr)
++	chk := s.newValue2(ssa.OpNilCheck, ssa.TypeVoid, ptr, s.mem())
+ 	b := s.endBlock()
+-	b.Kind = ssa.BlockIf
+-	b.Control = c
+-	b.Likely = ssa.BranchLikely
++	b.Kind = ssa.BlockCheck
++	b.Control = chk
+ 	bNext := s.f.NewBlock(ssa.BlockPlain)
+-	bPanic := s.f.NewBlock(ssa.BlockPlain)
+ 	b.AddEdgeTo(bNext)
+-	b.AddEdgeTo(bPanic)
+-	s.startBlock(bPanic)
+-	// TODO: implicit nil checks somehow?
+-	chk := s.newValue2(ssa.OpPanicNilCheck, ssa.TypeMem, ptr, s.mem())
+-	s.endBlock()
+-	bPanic.Kind = ssa.BlockExit
+-	bPanic.Control = chk
+ 	s.startBlock(bNext)
+ }
+ 
+@@ -3827,18 +3821,6 @@ func (s *genState) genValue(v *ssa.Value) {
+ 	case ssa.OpArg:
+ 		// memory arg needs no code
+ 		// TODO: check that only mem arg goes here.
+-	case ssa.OpAMD64LoweredPanicNilCheck:
+-		if Debug_checknil != 0 && v.Line > 1 { // v.Line==1 in generated wrappers
+-			Warnl(int(v.Line), "generated nil check")
+-		}
+-		// Write to memory address 0. It doesn't matter what we write; use AX.
+-		// Input 0 is the pointer we just checked, use it as the destination.
+-		r := regnum(v.Args[0])
+-		q := Prog(x86.AMOVL)
+-		q.From.Type = obj.TYPE_REG
+-		q.From.Reg = x86.REG_AX
+-		q.To.Type = obj.TYPE_MEM
+-		q.To.Reg = r
+ 	case ssa.OpAMD64LoweredGetClosurePtr:
+ 		// Output is hardwired to DX only,
+ 		// and DX contains the closure pointer on
+@@ -3986,6 +3968,44 @@ func (s *genState) genValue(v *ssa.Value) {
+ 		Gvardef(v.Aux.(*Node))
+ 	case ssa.OpVarKill:
+ 		gvarkill(v.Aux.(*Node))
++	case ssa.OpAMD64LoweredNilCheck:
++		// Optimization - if the subsequent block has a load or store
++		// at the same address, we don't need to issue this instruction.
++		for _, w := range v.Block.Succs[0].Values {
++			if len(w.Args) == 0 || !w.Args[len(w.Args)-1].Type.IsMemory() {
++				// w doesn't use a store - can't be a memory op.
++				continue
++			}
++			if w.Args[len(w.Args)-1] != v.Args[1] {
++				v.Fatalf("wrong store after nilcheck v=%s w=%s", v, w)
++			}
++			switch w.Op {
++			case ssa.OpAMD64MOVQload, ssa.OpAMD64MOVLload, ssa.OpAMD64MOVWload, ssa.OpAMD64MOVBload,
++				ssa.OpAMD64MOVQstore, ssa.OpAMD64MOVLstore, ssa.OpAMD64MOVWstore, ssa.OpAMD64MOVBstore:
++				if w.Args[0] == v.Args[0] && w.Aux == nil && w.AuxInt >= 0 && w.AuxInt < minZeroPage {
++					return
++				}
++			}
++			if w.Type.IsMemory() {
++				// We can't delay the nil check past the next store.
++				break
++			}
++		}
++		// Issue a load which will fault if the input is nil.
++		// TODO: We currently use the 2-byte instruction TESTB AX, (reg).
++		// Should we use the 3-byte TESTB $0, (reg) instead?  It is larger
++		// but it doesn't have false dependency on AX.
++		// Or maybe allocate an output register and use MOVL (reg),reg2 ?
++		// That trades clobbering flags for clobbering a register.
++		p := Prog(x86.ATESTB)
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = x86.REG_AX
++		p.To.Type = obj.TYPE_MEM
++		p.To.Reg = regnum(v.Args[0])
++		addAux(&p.To, v)
++		if Debug_checknil != 0 && v.Line > 1 { // v.Line==1 in generated wrappers
++			Warnl(int(v.Line), "generated nil check")
++		}
+ 	default:
+ 		v.Unimplementedf("genValue not implemented: %s", v.LongString())
+ 	}
+@@ -4088,7 +4108,7 @@ func (s *genState) genBlock(b, next *ssa.Block) {
+ 	lineno = b.Line
+ 
+ 	switch b.Kind {
+-	case ssa.BlockPlain, ssa.BlockCall:
++	case ssa.BlockPlain, ssa.BlockCall, ssa.BlockCheck:
+ 		if b.Succs[0] != next {
+ 			p := Prog(obj.AJMP)
+ 			p.To.Type = obj.TYPE_BRANCH
+diff --git a/src/cmd/compile/internal/gc/type.go b/src/cmd/compile/internal/gc/type.go
+index 87af2860e8..483ebd96ea 100644
+--- a/src/cmd/compile/internal/gc/type.go
++++ b/src/cmd/compile/internal/gc/type.go
+@@ -142,3 +142,4 @@ func (t *Type) NumElem() int64 {
+ 
+ func (t *Type) IsMemory() bool { return false }
+ func (t *Type) IsFlags() bool  { return false }
++func (t *Type) IsVoid() bool   { return false }
+diff --git a/src/cmd/compile/internal/ssa/check.go b/src/cmd/compile/internal/ssa/check.go
+index 6c45957fdc..ca3bbfe494 100644
+--- a/src/cmd/compile/internal/ssa/check.go
++++ b/src/cmd/compile/internal/ssa/check.go
+@@ -122,6 +122,16 @@ func checkFunc(f *Func) {
+ 			if !b.Control.Type.IsMemory() {
+ 				f.Fatalf("call block %s has non-memory control value %s", b, b.Control.LongString())
+ 			}
++		case BlockCheck:
++			if len(b.Succs) != 1 {
++				f.Fatalf("check block %s len(Succs)==%d, want 1", b, len(b.Succs))
++			}
++			if b.Control == nil {
++				f.Fatalf("check block %s has no control value", b)
++			}
++			if !b.Control.Type.IsVoid() {
++				f.Fatalf("check block %s has non-void control value %s", b, b.Control.LongString())
++			}
+ 		case BlockFirst:
+ 			if len(b.Succs) != 2 {
+ 				f.Fatalf("plain/dead block %s len(Succs)==%d, want 2", b, len(b.Succs))
+diff --git a/src/cmd/compile/internal/ssa/dom.go b/src/cmd/compile/internal/ssa/dom.go
+index 2267281237..0d342d184e 100644
+--- a/src/cmd/compile/internal/ssa/dom.go
++++ b/src/cmd/compile/internal/ssa/dom.go
+@@ -120,7 +120,7 @@ func postDominators(f *Func) []*Block {
+ 	var exits []*Block
+ 	for i := len(f.Blocks) - 1; i >= 0; i-- {
+ 		switch f.Blocks[i].Kind {
+-		case BlockExit, BlockRet, BlockRetJmp, BlockCall:
++		case BlockExit, BlockRet, BlockRetJmp, BlockCall, BlockCheck:
+ 			exits = append(exits, f.Blocks[i])
+ 			break
+ 		}
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index abe103571d..4eef40c478 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -288,8 +288,8 @@
+ (IsNonNil p) -> (SETNE (TESTQ p p))
+ (IsInBounds idx len) -> (SETB (CMPQ idx len))
+ (IsSliceInBounds idx len) -> (SETBE (CMPQ idx len))
++(NilCheck ptr mem) -> (LoweredNilCheck ptr mem)
+ 
+-(PanicNilCheck ptr mem) -> (LoweredPanicNilCheck ptr mem)
+ (GetG mem) -> (LoweredGetG mem)
+ (GetClosurePtr) -> (LoweredGetClosurePtr)
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+index 14d497a2f4..2af50d3584 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+@@ -106,7 +106,6 @@ func init() {
+ 			clobbers: ax | flags}
+ 		gp11mod = regInfo{inputs: []regMask{ax, gpsp &^ dx}, outputs: []regMask{dx},
+ 			clobbers: ax | flags}
+-		gp10 = regInfo{inputs: []regMask{gp}}
+ 
+ 		gp2flags  = regInfo{inputs: []regMask{gpsp, gpsp}, outputs: flagsonly}
+ 		gp1flags  = regInfo{inputs: []regMask{gpsp}, outputs: flagsonly}
+@@ -423,12 +422,13 @@ func init() {
+ 		{name: "InvertFlags"}, // reverse direction of arg0
+ 
+ 		// Pseudo-ops
+-		{name: "LoweredPanicNilCheck", reg: gp10},
+ 		{name: "LoweredGetG", reg: gp01}, // arg0=mem
+ 		// Scheduler ensures LoweredGetClosurePtr occurs only in entry block,
+ 		// and sorts it to the very beginning of the block to prevent other
+ 		// use of DX (the closure pointer)
+ 		{name: "LoweredGetClosurePtr", reg: regInfo{outputs: []regMask{buildReg("DX")}}},
++		//arg0=ptr,arg1=mem, returns void.  Faults if ptr is nil.
++		{name: "LoweredNilCheck", reg: regInfo{inputs: []regMask{gpsp}, clobbers: flags}},
+ 	}
+ 
+ 	var AMD64blocks = []blockData{
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index 4dd7ac586a..507ac487ca 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -180,7 +180,7 @@
+ (Store [size] dst (Load <t> src mem) mem) && !config.fe.CanSSA(t) -> (Move [size] dst src mem)
+ (Store [size] dst (Load <t> src mem) (VarDef {x} mem)) && !config.fe.CanSSA(t) -> (Move [size] dst src (VarDef {x} mem))
+ 
+-(If (IsNonNil (GetG _)) yes no) -> (First nil yes no)
++(Check (NilCheck (GetG _) _) next) -> (Plain nil next)
+ 
+ (If (Not cond) yes no) -> (If cond no yes)
+ (If (ConstBool [c]) yes no) && c == 1 -> (First nil yes no)
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index 8a8837c0e9..62df826cf4 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -324,9 +324,9 @@ var genericOps = []opData{
+ 	{name: "IsNonNil", typ: "Bool"},        // arg0 != nil
+ 	{name: "IsInBounds", typ: "Bool"},      // 0 <= arg0 < arg1
+ 	{name: "IsSliceInBounds", typ: "Bool"}, // 0 <= arg0 <= arg1
++	{name: "NilCheck", typ: "Void"},        // arg0=ptr, arg1=mem.  Panics if arg0 is nil, returns void.
+ 
+ 	// Pseudo-ops
+-	{name: "PanicNilCheck"}, // trigger a dereference fault; arg0=nil ptr, arg1=mem, returns mem
+ 	{name: "GetG"},          // runtime.getg() (read g pointer).  arg0=mem
+ 	{name: "GetClosurePtr"}, // get closure pointer from dedicated register
+ 
+@@ -379,12 +379,14 @@ var genericOps = []opData{
+ //    Plain               nil            [next]
+ //       If   a boolean Value      [then, else]
+ //     Call               mem            [next]             yes  (control opcode should be OpCall or OpStaticCall)
++//    Check              void            [next]             yes  (control opcode should be Op{Lowered}NilCheck)
+ //    First               nil    [always,never]
+ 
+ var genericBlocks = []blockData{
+ 	{name: "Plain"},  // a single successor
+ 	{name: "If"},     // 2 successors, if control goto Succs[0] else goto Succs[1]
+ 	{name: "Call"},   // 1 successor, control is call op (of memory type)
++	{name: "Check"},  // 1 successor, control is nilcheck op (of void type)
+ 	{name: "Ret"},    // no successors, control value is memory result
+ 	{name: "RetJmp"}, // no successors, jumps to b.Aux.(*gc.Sym)
+ 	{name: "Exit"},   // no successors, control value generates a panic
+diff --git a/src/cmd/compile/internal/ssa/gen/rulegen.go b/src/cmd/compile/internal/ssa/gen/rulegen.go
+index 80371c94c4..71c9ca7ec2 100644
+--- a/src/cmd/compile/internal/ssa/gen/rulegen.go
++++ b/src/cmd/compile/internal/ssa/gen/rulegen.go
+@@ -585,7 +585,7 @@ func blockName(name string, arch arch) string {
+ // typeName returns the string to use to generate a type.
+ func typeName(typ string) string {
+ 	switch typ {
+-	case "Flags", "Mem":
++	case "Flags", "Mem", "Void":
+ 		return "Type" + typ
+ 	default:
+ 		return "config.fe.Type" + typ + "()"
+diff --git a/src/cmd/compile/internal/ssa/nilcheck.go b/src/cmd/compile/internal/ssa/nilcheck.go
+index 0c3cb3e294..5b012a8551 100644
+--- a/src/cmd/compile/internal/ssa/nilcheck.go
++++ b/src/cmd/compile/internal/ssa/nilcheck.go
+@@ -4,6 +4,8 @@
+ 
+ package ssa
+ 
++// TODO: return value from newobject/newarray is non-nil.
++
+ // nilcheckelim eliminates unnecessary nil checks.
+ func nilcheckelim(f *Func) {
+ 	// A nil check is redundant if the same nil check was successful in a
+@@ -86,8 +88,16 @@ func nilcheckelim(f *Func) {
+ 					// Eliminate the nil check.
+ 					// The deadcode pass will remove vestigial values,
+ 					// and the fuse pass will join this block with its successor.
+-					node.block.Kind = BlockFirst
+-					node.block.Control = nil
++					switch node.block.Kind {
++					case BlockIf:
++						node.block.Kind = BlockFirst
++						node.block.Control = nil
++					case BlockCheck:
++						node.block.Kind = BlockPlain
++						node.block.Control = nil
++					default:
++						f.Fatalf("bad block kind in nilcheck %s", node.block.Kind)
++					}
+ 				}
+ 			}
+ 
+@@ -119,6 +129,9 @@ func nilcheckelim(f *Func) {
+ // checkedptr returns the Value, if any,
+ // that is used in a nil check in b's Control op.
+ func checkedptr(b *Block) *Value {
++	if b.Kind == BlockCheck {
++		return b.Control.Args[0]
++	}
+ 	if b.Kind == BlockIf && b.Control.Op == OpIsNonNil {
+ 		return b.Control.Args[0]
+ 	}
+@@ -126,12 +139,15 @@ func checkedptr(b *Block) *Value {
+ }
+ 
+ // nonnilptr returns the Value, if any,
+-// that is non-nil due to b being the success block
+-// of an OpIsNonNil block for the value and having a single
++// that is non-nil due to b being the successor block
++// of an OpIsNonNil or OpNilCheck block for the value and having a single
+ // predecessor.
+ func nonnilptr(b *Block) *Value {
+ 	if len(b.Preds) == 1 {
+ 		bp := b.Preds[0]
++		if bp.Kind == BlockCheck {
++			return bp.Control.Args[0]
++		}
+ 		if bp.Kind == BlockIf && bp.Control.Op == OpIsNonNil && bp.Succs[0] == b {
+ 			return bp.Control.Args[0]
+ 		}
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 4c191807ba..bddb1176ad 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -25,6 +25,7 @@ const (
+ 	BlockPlain
+ 	BlockIf
+ 	BlockCall
++	BlockCheck
+ 	BlockRet
+ 	BlockRetJmp
+ 	BlockExit
+@@ -53,6 +54,7 @@ var blockString = [...]string{
+ 	BlockPlain:  "Plain",
+ 	BlockIf:     "If",
+ 	BlockCall:   "Call",
++	BlockCheck:  "Check",
+ 	BlockRet:    "Ret",
+ 	BlockRetJmp: "RetJmp",
+ 	BlockExit:   "Exit",
+@@ -270,9 +272,9 @@ const (
+ 	OpAMD64CALLinter
+ 	OpAMD64REPMOVSB
+ 	OpAMD64InvertFlags
+-	OpAMD64LoweredPanicNilCheck
+ 	OpAMD64LoweredGetG
+ 	OpAMD64LoweredGetClosurePtr
++	OpAMD64LoweredNilCheck
+ 
+ 	OpAdd8
+ 	OpAdd16
+@@ -513,7 +515,7 @@ const (
+ 	OpIsNonNil
+ 	OpIsInBounds
+ 	OpIsSliceInBounds
+-	OpPanicNilCheck
++	OpNilCheck
+ 	OpGetG
+ 	OpGetClosurePtr
+ 	OpArrayIndex
+@@ -3118,14 +3120,6 @@ var opcodeTable = [...]opInfo{
+ 		name: "InvertFlags",
+ 		reg:  regInfo{},
+ 	},
+-	{
+-		name: "LoweredPanicNilCheck",
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 65519}, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+-			},
+-		},
+-	},
+ 	{
+ 		name: "LoweredGetG",
+ 		reg: regInfo{
+@@ -3142,6 +3136,15 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name: "LoweredNilCheck",
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++			clobbers: 8589934592, // .FLAGS
++		},
++	},
+ 
+ 	{
+ 		name:    "Add8",
+@@ -4100,7 +4103,7 @@ var opcodeTable = [...]opInfo{
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "PanicNilCheck",
++		name:    "NilCheck",
+ 		generic: true,
+ 	},
+ 	{
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index d42b14a984..8181f8d39b 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -802,7 +802,7 @@ func (s *regAllocState) regalloc(f *Func) {
+ 		}
+ 
+ 		// Load control value into reg
+-		if b.Control != nil && !b.Control.Type.IsMemory() {
++		if b.Control != nil && !b.Control.Type.IsMemory() && !b.Control.Type.IsVoid() {
+ 			// TODO: regspec for block control values, instead of using
+ 			// register set from the control op's output.
+ 			s.allocValToReg(b.Control, opcodeTable[b.Control.Op].reg.outputs[0], false)
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 3fe272c204..f32b524689 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -6356,6 +6356,24 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 		goto end3b8bb3b4952011d1d40f993d8717cf16
+ 	end3b8bb3b4952011d1d40f993d8717cf16:
+ 		;
++	case OpNilCheck:
++		// match: (NilCheck ptr mem)
++		// cond:
++		// result: (LoweredNilCheck ptr mem)
++		{
++			ptr := v.Args[0]
++			mem := v.Args[1]
++			v.Op = OpAMD64LoweredNilCheck
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AddArg(ptr)
++			v.AddArg(mem)
++			return true
++		}
++		goto end75520e60179564948a625707b84e8a8d
++	end75520e60179564948a625707b84e8a8d:
++		;
+ 	case OpNot:
+ 		// match: (Not x)
+ 		// cond:
+@@ -6939,24 +6957,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 		goto end6f8a8c559a167d1f0a5901d09a1fb248
+ 	end6f8a8c559a167d1f0a5901d09a1fb248:
+ 		;
+-	case OpPanicNilCheck:
+-		// match: (PanicNilCheck ptr mem)
+-		// cond:
+-		// result: (LoweredPanicNilCheck ptr mem)
+-		{
+-			ptr := v.Args[0]
+-			mem := v.Args[1]
+-			v.Op = OpAMD64LoweredPanicNilCheck
+-			v.AuxInt = 0
+-			v.Aux = nil
+-			v.resetArgs()
+-			v.AddArg(ptr)
+-			v.AddArg(mem)
+-			return true
+-		}
+-		goto enda02b1ad5a6f929b782190145f2c8628b
+-	enda02b1ad5a6f929b782190145f2c8628b:
+-		;
+ 	case OpRsh16Ux16:
+ 		// match: (Rsh16Ux16 <t> x y)
+ 		// cond:
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index 91427e2f2a..3bd017b74a 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -1720,29 +1720,29 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
+ }
+ func rewriteBlockgeneric(b *Block) bool {
+ 	switch b.Kind {
+-	case BlockIf:
+-		// match: (If (IsNonNil (GetG _)) yes no)
++	case BlockCheck:
++		// match: (Check (NilCheck (GetG _) _) next)
+ 		// cond:
+-		// result: (First nil yes no)
++		// result: (Plain nil next)
+ 		{
+ 			v := b.Control
+-			if v.Op != OpIsNonNil {
+-				goto end41b95d88b4cebdb0ce392bd3c1c89e95
++			if v.Op != OpNilCheck {
++				goto end6e20d932d6961903b0dcf16eac513826
+ 			}
+ 			if v.Args[0].Op != OpGetG {
+-				goto end41b95d88b4cebdb0ce392bd3c1c89e95
++				goto end6e20d932d6961903b0dcf16eac513826
+ 			}
+-			yes := b.Succs[0]
+-			no := b.Succs[1]
+-			b.Kind = BlockFirst
++			next := b.Succs[0]
++			b.Kind = BlockPlain
+ 			b.Control = nil
+-			b.Succs[0] = yes
+-			b.Succs[1] = no
++			b.Succs[0] = next
++			b.Likely = BranchUnknown
+ 			return true
+ 		}
+-		goto end41b95d88b4cebdb0ce392bd3c1c89e95
+-	end41b95d88b4cebdb0ce392bd3c1c89e95:
++		goto end6e20d932d6961903b0dcf16eac513826
++	end6e20d932d6961903b0dcf16eac513826:
+ 		;
++	case BlockIf:
+ 		// match: (If (Not cond) yes no)
+ 		// cond:
+ 		// result: (If cond no yes)
+diff --git a/src/cmd/compile/internal/ssa/type.go b/src/cmd/compile/internal/ssa/type.go
+index d558881b2f..8b6098f65f 100644
+--- a/src/cmd/compile/internal/ssa/type.go
++++ b/src/cmd/compile/internal/ssa/type.go
+@@ -26,6 +26,7 @@ type Type interface {
+ 
+ 	IsMemory() bool // special ssa-package-only types
+ 	IsFlags() bool
++	IsVoid() bool
+ 
+ 	Elem() Type  // given []T or *T or [n]T, return T
+ 	PtrTo() Type // given T, return *T
+@@ -46,6 +47,7 @@ type CompilerType struct {
+ 	Name   string
+ 	Memory bool
+ 	Flags  bool
++	Void   bool
+ }
+ 
+ func (t *CompilerType) Size() int64            { return 0 } // Size in bytes
+@@ -63,6 +65,7 @@ func (t *CompilerType) IsStruct() bool         { return false }
+ func (t *CompilerType) IsInterface() bool      { return false }
+ func (t *CompilerType) IsMemory() bool         { return t.Memory }
+ func (t *CompilerType) IsFlags() bool          { return t.Flags }
++func (t *CompilerType) IsVoid() bool           { return t.Void }
+ func (t *CompilerType) String() string         { return t.Name }
+ func (t *CompilerType) SimpleString() string   { return t.Name }
+ func (t *CompilerType) Elem() Type             { panic("not implemented") }
+@@ -84,4 +87,5 @@ var (
+ 	TypeInvalid = &CompilerType{Name: "invalid"}
+ 	TypeMem     = &CompilerType{Name: "mem", Memory: true}
+ 	TypeFlags   = &CompilerType{Name: "flags", Flags: true}
++	TypeVoid    = &CompilerType{Name: "void", Void: true}
+ )
+diff --git a/src/cmd/compile/internal/ssa/type_test.go b/src/cmd/compile/internal/ssa/type_test.go
+index c8889608db..af111a59af 100644
+--- a/src/cmd/compile/internal/ssa/type_test.go
++++ b/src/cmd/compile/internal/ssa/type_test.go
+@@ -39,6 +39,7 @@ func (t *TypeImpl) IsStruct() bool         { return t.struct_ }
+ func (t *TypeImpl) IsInterface() bool      { return t.inter }
+ func (t *TypeImpl) IsMemory() bool         { return false }
+ func (t *TypeImpl) IsFlags() bool          { return false }
++func (t *TypeImpl) IsVoid() bool           { return false }
+ func (t *TypeImpl) String() string         { return t.Name }
+ func (t *TypeImpl) SimpleString() string   { return t.Name }
+ func (t *TypeImpl) Elem() Type             { return t.Elem_ }

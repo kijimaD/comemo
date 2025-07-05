@@ -24,6 +24,43 @@ Date:   Sat Feb 18 07:46:41 2017 +0100
     Change-Id: Idd10094d8385dd4adebc8d7a6d9e9a8f29455867
     Reviewed-on: https://go-review.googlesource.com/37193
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/os/sys_darwin.go | 26 +++-----------------------
  1 file changed, 3 insertions(+), 23 deletions(-)
+
+diff --git a/src/os/sys_darwin.go b/src/os/sys_darwin.go
+index 7a8330abb5..11d678ef18 100644
+--- a/src/os/sys_darwin.go
++++ b/src/os/sys_darwin.go
+@@ -4,28 +4,8 @@
+ 
+ package os
+ 
+-import "syscall"
+-
+ // supportsCloseOnExec reports whether the platform supports the
+ // O_CLOEXEC flag.
+-var supportsCloseOnExec bool
+-
+-func init() {
+-	// Seems like kern.osreldate is veiled on latest OS X. We use
+-	// kern.osrelease instead.
+-	osver, err := syscall.Sysctl("kern.osrelease")
+-	if err != nil {
+-		return
+-	}
+-	var i int
+-	for i = range osver {
+-		if osver[i] != '.' {
+-			continue
+-		}
+-	}
+-	// The O_CLOEXEC flag was introduced in OS X 10.7 (Darwin
+-	// 11.0.0). See http://support.apple.com/kb/HT1633.
+-	if i > 2 || i == 2 && osver[0] >= '1' && osver[1] >= '1' {
+-		supportsCloseOnExec = true
+-	}
+-}
++// The O_CLOEXEC flag was introduced in OS X 10.7 (Darwin 11.0.0).
++// See http://support.apple.com/kb/HT1633.
++const supportsCloseOnExec = true

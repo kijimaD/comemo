@@ -7,6 +7,19 @@ Date:   Wed Aug 27 11:10:01 2014 -0400
     TBR=rlh
     CC=golang-codereviews
     https://golang.org/cl/131410043
-
+---
  CONTRIBUTORS | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index c102c264ec..bcca6b2158 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -494,6 +494,7 @@ Richard Crowley <r@rcrowley.org>
+ Richard Eric Gavaletz <gavaletz@gmail.com>
+ Richard Musiol <mail@richard-musiol.de> <neelance@gmail.com>
+ Rick Arnold <rickarnoldjr@gmail.com>
++Rick Hudson <rlh@golang.org>
+ Risto Jaakko Saarelma <rsaarelm@gmail.com>
+ Rob Pike <r@golang.org>
+ Robert Daniel Kortschak <dan.kortschak@adelaide.edu.au>

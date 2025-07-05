@@ -15,6 +15,20 @@ Date:   Thu Dec 23 14:21:41 2021 +0000
     Reviewed-by: Dan Scales <danscales@google.com>
     Trust: Dan Scales <danscales@google.com>
     Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-
+---
  src/cmd/compile/internal/ir/node.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ir/node.go b/src/cmd/compile/internal/ir/node.go
+index 4fdee5010b..5fdccf8927 100644
+--- a/src/cmd/compile/internal/ir/node.go
++++ b/src/cmd/compile/internal/ir/node.go
+@@ -471,7 +471,7 @@ const (
+ 	UintptrEscapes              // pointers converted to uintptr escape
+ 
+ 	// Runtime-only func pragmas.
+-	// See ../../../../runtime/README.md for detailed descriptions.
++	// See ../../../../runtime/HACKING.md for detailed descriptions.
+ 	Systemstack        // func must run on system stack
+ 	Nowritebarrier     // emit compiler error instead of write barrier
+ 	Nowritebarrierrec  // error on write barrier in this or recursive callees

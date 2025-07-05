@@ -17,7 +17,7 @@ Date:   Mon Jul 18 22:00:45 2016 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/runtime.go                 | 3 +++
  src/syscall/syscall.go                 | 4 ++++
  src/syscall/syscall_darwin_386.go      | 2 --
@@ -46,3 +46,356 @@ Date:   Mon Jul 18 22:00:45 2016 -0400
  src/syscall/syscall_solaris_amd64.go   | 2 --
  src/syscall/syscall_windows.go         | 2 --
  27 files changed, 7 insertions(+), 49 deletions(-)
+
+diff --git a/src/runtime/runtime.go b/src/runtime/runtime.go
+index d9c26ccb12..d8fe2f451f 100644
+--- a/src/runtime/runtime.go
++++ b/src/runtime/runtime.go
+@@ -52,5 +52,8 @@ var argslice []string
+ //go:linkname syscall_runtime_envs syscall.runtime_envs
+ func syscall_runtime_envs() []string { return append([]string{}, envs...) }
+ 
++//go:linkname syscall_Getpagesize syscall.Getpagesize
++func syscall_Getpagesize() int { return int(physPageSize) }
++
+ //go:linkname os_runtime_args os.runtime_args
+ func os_runtime_args() []string { return append([]string{}, argslice...) }
+diff --git a/src/syscall/syscall.go b/src/syscall/syscall.go
+index f07c3c75d0..2fbe624c1f 100644
+--- a/src/syscall/syscall.go
++++ b/src/syscall/syscall.go
+@@ -95,6 +95,10 @@ func (tv *Timeval) Nano() int64 {
+ 	return int64(tv.Sec)*1e9 + int64(tv.Usec)*1000
+ }
+ 
++// Getpagesize is provided by the runtime.
++
++func Getpagesize() int
++
+ // use is a no-op, but the compiler cannot see that it is.
+ // Calling use(p) ensures that p is kept live until that point.
+ // This was needed until Go 1.6 to call syscall.Syscall correctly.
+diff --git a/src/syscall/syscall_darwin_386.go b/src/syscall/syscall_darwin_386.go
+index f75de000bd..11a991e789 100644
+--- a/src/syscall/syscall_darwin_386.go
++++ b/src/syscall/syscall_darwin_386.go
+@@ -6,8 +6,6 @@ package syscall
+ 
+ import "unsafe"
+ 
+-func Getpagesize() int { return 4096 }
+-
+ func TimespecToNsec(ts Timespec) int64 { return int64(ts.Sec)*1e9 + int64(ts.Nsec) }
+ 
+ func NsecToTimespec(nsec int64) (ts Timespec) {
+diff --git a/src/syscall/syscall_darwin_amd64.go b/src/syscall/syscall_darwin_amd64.go
+index 79083117b6..d7951e8654 100644
+--- a/src/syscall/syscall_darwin_amd64.go
++++ b/src/syscall/syscall_darwin_amd64.go
+@@ -6,8 +6,6 @@ package syscall
+ 
+ import "unsafe"
+ 
+-func Getpagesize() int { return 4096 }
+-
+ func TimespecToNsec(ts Timespec) int64 { return int64(ts.Sec)*1e9 + int64(ts.Nsec) }
+ 
+ func NsecToTimespec(nsec int64) (ts Timespec) {
+diff --git a/src/syscall/syscall_darwin_arm.go b/src/syscall/syscall_darwin_arm.go
+index fe431039f4..830a2e077b 100644
+--- a/src/syscall/syscall_darwin_arm.go
++++ b/src/syscall/syscall_darwin_arm.go
+@@ -6,8 +6,6 @@ package syscall
+ 
+ import "unsafe"
+ 
+-func Getpagesize() int { return 4096 }
+-
+ func TimespecToNsec(ts Timespec) int64 { return int64(ts.Sec)*1e9 + int64(ts.Nsec) }
+ 
+ func NsecToTimespec(nsec int64) (ts Timespec) {
+diff --git a/src/syscall/syscall_darwin_arm64.go b/src/syscall/syscall_darwin_arm64.go
+index d396e25332..02316a78fc 100644
+--- a/src/syscall/syscall_darwin_arm64.go
++++ b/src/syscall/syscall_darwin_arm64.go
+@@ -6,8 +6,6 @@ package syscall
+ 
+ import "unsafe"
+ 
+-func Getpagesize() int { return 16384 }
+-
+ func TimespecToNsec(ts Timespec) int64 { return int64(ts.Sec)*1e9 + int64(ts.Nsec) }
+ 
+ func NsecToTimespec(nsec int64) (ts Timespec) {
+diff --git a/src/syscall/syscall_dragonfly_amd64.go b/src/syscall/syscall_dragonfly_amd64.go
+index 70c2ffb035..7cad7257cd 100644
+--- a/src/syscall/syscall_dragonfly_amd64.go
++++ b/src/syscall/syscall_dragonfly_amd64.go
+@@ -6,8 +6,6 @@ package syscall
+ 
+ import "unsafe"
+ 
+-func Getpagesize() int { return 4096 }
+-
+ func TimespecToNsec(ts Timespec) int64 { return int64(ts.Sec)*1e9 + int64(ts.Nsec) }
+ 
+ func NsecToTimespec(nsec int64) (ts Timespec) {
+diff --git a/src/syscall/syscall_freebsd_386.go b/src/syscall/syscall_freebsd_386.go
+index ebd3d4c9cf..7b53dc2494 100644
+--- a/src/syscall/syscall_freebsd_386.go
++++ b/src/syscall/syscall_freebsd_386.go
+@@ -6,8 +6,6 @@ package syscall
+ 
+ import "unsafe"
+ 
+-func Getpagesize() int { return 4096 }
+-
+ func TimespecToNsec(ts Timespec) int64 { return int64(ts.Sec)*1e9 + int64(ts.Nsec) }
+ 
+ func NsecToTimespec(nsec int64) (ts Timespec) {
+diff --git a/src/syscall/syscall_freebsd_amd64.go b/src/syscall/syscall_freebsd_amd64.go
+index 70c2ffb035..7cad7257cd 100644
+--- a/src/syscall/syscall_freebsd_amd64.go
++++ b/src/syscall/syscall_freebsd_amd64.go
+@@ -6,8 +6,6 @@ package syscall
+ 
+ import "unsafe"
+ 
+-func Getpagesize() int { return 4096 }
+-
+ func TimespecToNsec(ts Timespec) int64 { return int64(ts.Sec)*1e9 + int64(ts.Nsec) }
+ 
+ func NsecToTimespec(nsec int64) (ts Timespec) {
+diff --git a/src/syscall/syscall_freebsd_arm.go b/src/syscall/syscall_freebsd_arm.go
+index ab72871dda..83fa1d7bfc 100644
+--- a/src/syscall/syscall_freebsd_arm.go
++++ b/src/syscall/syscall_freebsd_arm.go
+@@ -6,8 +6,6 @@ package syscall
+ 
+ import "unsafe"
+ 
+-func Getpagesize() int { return 4096 }
+-
+ func TimespecToNsec(ts Timespec) int64 { return ts.Sec*1e9 + int64(ts.Nsec) }
+ 
+ func NsecToTimespec(nsec int64) (ts Timespec) {
+diff --git a/src/syscall/syscall_linux_386.go b/src/syscall/syscall_linux_386.go
+index d9e0ed57ed..4f3c7c440a 100644
+--- a/src/syscall/syscall_linux_386.go
++++ b/src/syscall/syscall_linux_386.go
+@@ -14,8 +14,6 @@ const (
+ 	_SYS_getdents = SYS_GETDENTS64
+ )
+ 
+-func Getpagesize() int { return 4096 }
+-
+ func TimespecToNsec(ts Timespec) int64 { return int64(ts.Sec)*1e9 + int64(ts.Nsec) }
+ 
+ func NsecToTimespec(nsec int64) (ts Timespec) {
+diff --git a/src/syscall/syscall_linux_amd64.go b/src/syscall/syscall_linux_amd64.go
+index d1bda291d1..119204b70b 100644
+--- a/src/syscall/syscall_linux_amd64.go
++++ b/src/syscall/syscall_linux_amd64.go
+@@ -72,8 +72,6 @@ func Gettimeofday(tv *Timeval) (err error) {
+ 	return nil
+ }
+ 
+-func Getpagesize() int { return 4096 }
+-
+ func Time(t *Time_t) (tt Time_t, err error) {
+ 	var tv Timeval
+ 	errno := gettimeofday(&tv)
+diff --git a/src/syscall/syscall_linux_arm.go b/src/syscall/syscall_linux_arm.go
+index 7c78254673..b38b7e5483 100644
+--- a/src/syscall/syscall_linux_arm.go
++++ b/src/syscall/syscall_linux_arm.go
+@@ -11,8 +11,6 @@ const (
+ 	_SYS_getdents = SYS_GETDENTS64
+ )
+ 
+-func Getpagesize() int { return 4096 }
+-
+ func TimespecToNsec(ts Timespec) int64 { return int64(ts.Sec)*1e9 + int64(ts.Nsec) }
+ 
+ func NsecToTimespec(nsec int64) (ts Timespec) {
+diff --git a/src/syscall/syscall_linux_arm64.go b/src/syscall/syscall_linux_arm64.go
+index 5f1478ca5c..98681d359b 100644
+--- a/src/syscall/syscall_linux_arm64.go
++++ b/src/syscall/syscall_linux_arm64.go
+@@ -68,8 +68,6 @@ func Lstat(path string, stat *Stat_t) (err error) {
+ //sys	sendmsg(s int, msg *Msghdr, flags int) (n int, err error)
+ //sys	mmap(addr uintptr, length uintptr, prot int, flags int, fd int, offset int64) (xaddr uintptr, err error)
+ 
+-func Getpagesize() int { return 65536 }
+-
+ //sysnb	Gettimeofday(tv *Timeval) (err error)
+ //sysnb	Time(t *Time_t) (tt Time_t, err error)
+ 
+diff --git a/src/syscall/syscall_linux_mips64x.go b/src/syscall/syscall_linux_mips64x.go
+index a14485a905..a1331a89f3 100644
+--- a/src/syscall/syscall_linux_mips64x.go
++++ b/src/syscall/syscall_linux_mips64x.go
+@@ -65,8 +65,6 @@ const (
+ //sys	sendmsg(s int, msg *Msghdr, flags int) (n int, err error)
+ //sys	mmap(addr uintptr, length uintptr, prot int, flags int, fd int, offset int64) (xaddr uintptr, err error)
+ 
+-func Getpagesize() int { return 65536 }
+-
+ //sysnb	Gettimeofday(tv *Timeval) (err error)
+ 
+ func Time(t *Time_t) (tt Time_t, err error) {
+diff --git a/src/syscall/syscall_linux_ppc64x.go b/src/syscall/syscall_linux_ppc64x.go
+index 9f1c07e54c..e931ee4630 100644
+--- a/src/syscall/syscall_linux_ppc64x.go
++++ b/src/syscall/syscall_linux_ppc64x.go
+@@ -64,8 +64,6 @@ const (
+ //sys	sendmsg(s int, msg *Msghdr, flags int) (n int, err error)
+ //sys	mmap(addr uintptr, length uintptr, prot int, flags int, fd int, offset int64) (xaddr uintptr, err error)
+ 
+-func Getpagesize() int { return 65536 }
+-
+ //sysnb	Gettimeofday(tv *Timeval) (err error)
+ //sysnb	Time(t *Time_t) (tt Time_t, err error)
+ 
+diff --git a/src/syscall/syscall_linux_s390x.go b/src/syscall/syscall_linux_s390x.go
+index d74277a790..b67d7aab38 100644
+--- a/src/syscall/syscall_linux_s390x.go
++++ b/src/syscall/syscall_linux_s390x.go
+@@ -44,8 +44,6 @@ const (
+ //sysnb	getgroups(n int, list *_Gid_t) (nn int, err error)
+ //sysnb	setgroups(n int, list *_Gid_t) (err error)
+ 
+-func Getpagesize() int { return 4096 }
+-
+ //sysnb	Gettimeofday(tv *Timeval) (err error)
+ 
+ func Time(t *Time_t) (tt Time_t, err error) {
+diff --git a/src/syscall/syscall_nacl.go b/src/syscall/syscall_nacl.go
+index d22d0c7536..e594ad34c3 100644
+--- a/src/syscall/syscall_nacl.go
++++ b/src/syscall/syscall_nacl.go
+@@ -292,7 +292,6 @@ func Getegid() int                      { return 1 }
+ func Geteuid() int                      { return 1 }
+ func Getgid() int                       { return 1 }
+ func Getgroups() ([]int, error)         { return []int{1}, nil }
+-func Getpagesize() int                  { return 65536 }
+ func Getppid() int                      { return 2 }
+ func Getpid() int                       { return 3 }
+ func Gettimeofday(tv *Timeval) error    { return ENOSYS }
+diff --git a/src/syscall/syscall_netbsd_386.go b/src/syscall/syscall_netbsd_386.go
+index 2dbff07f1d..71c639c88b 100644
+--- a/src/syscall/syscall_netbsd_386.go
++++ b/src/syscall/syscall_netbsd_386.go
+@@ -4,8 +4,6 @@
+ 
+ package syscall
+ 
+-func Getpagesize() int { return 4096 }
+-
+ func TimespecToNsec(ts Timespec) int64 { return int64(ts.Sec)*1e9 + int64(ts.Nsec) }
+ 
+ func NsecToTimespec(nsec int64) (ts Timespec) {
+diff --git a/src/syscall/syscall_netbsd_amd64.go b/src/syscall/syscall_netbsd_amd64.go
+index 5784db99a5..4762da3a82 100644
+--- a/src/syscall/syscall_netbsd_amd64.go
++++ b/src/syscall/syscall_netbsd_amd64.go
+@@ -4,8 +4,6 @@
+ 
+ package syscall
+ 
+-func Getpagesize() int { return 4096 }
+-
+ func TimespecToNsec(ts Timespec) int64 { return int64(ts.Sec)*1e9 + int64(ts.Nsec) }
+ 
+ func NsecToTimespec(nsec int64) (ts Timespec) {
+diff --git a/src/syscall/syscall_netbsd_arm.go b/src/syscall/syscall_netbsd_arm.go
+index 659698aac9..0160252608 100644
+--- a/src/syscall/syscall_netbsd_arm.go
++++ b/src/syscall/syscall_netbsd_arm.go
+@@ -4,8 +4,6 @@
+ 
+ package syscall
+ 
+-func Getpagesize() int { return 4096 }
+-
+ func TimespecToNsec(ts Timespec) int64 { return int64(ts.Sec)*1e9 + int64(ts.Nsec) }
+ 
+ func NsecToTimespec(nsec int64) (ts Timespec) {
+diff --git a/src/syscall/syscall_openbsd_386.go b/src/syscall/syscall_openbsd_386.go
+index ad5ae14bf8..c836a6fdf9 100644
+--- a/src/syscall/syscall_openbsd_386.go
++++ b/src/syscall/syscall_openbsd_386.go
+@@ -4,8 +4,6 @@
+ 
+ package syscall
+ 
+-func Getpagesize() int { return 4096 }
+-
+ func TimespecToNsec(ts Timespec) int64 { return int64(ts.Sec)*1e9 + int64(ts.Nsec) }
+ 
+ func NsecToTimespec(nsec int64) (ts Timespec) {
+diff --git a/src/syscall/syscall_openbsd_amd64.go b/src/syscall/syscall_openbsd_amd64.go
+index 6181344cdc..ca8e7c0bcb 100644
+--- a/src/syscall/syscall_openbsd_amd64.go
++++ b/src/syscall/syscall_openbsd_amd64.go
+@@ -4,8 +4,6 @@
+ 
+ package syscall
+ 
+-func Getpagesize() int { return 4096 }
+-
+ func TimespecToNsec(ts Timespec) int64 { return int64(ts.Sec)*1e9 + int64(ts.Nsec) }
+ 
+ func NsecToTimespec(nsec int64) (ts Timespec) {
+diff --git a/src/syscall/syscall_openbsd_arm.go b/src/syscall/syscall_openbsd_arm.go
+index ad5ae14bf8..c836a6fdf9 100644
+--- a/src/syscall/syscall_openbsd_arm.go
++++ b/src/syscall/syscall_openbsd_arm.go
+@@ -4,8 +4,6 @@
+ 
+ package syscall
+ 
+-func Getpagesize() int { return 4096 }
+-
+ func TimespecToNsec(ts Timespec) int64 { return int64(ts.Sec)*1e9 + int64(ts.Nsec) }
+ 
+ func NsecToTimespec(nsec int64) (ts Timespec) {
+diff --git a/src/syscall/syscall_plan9.go b/src/syscall/syscall_plan9.go
+index b511867cda..0691889e31 100644
+--- a/src/syscall/syscall_plan9.go
++++ b/src/syscall/syscall_plan9.go
+@@ -305,8 +305,6 @@ func Gettimeofday(tv *Timeval) error {
+ 	return nil
+ }
+ 
+-func Getpagesize() int { return 0x1000 }
+-
+ func Getegid() (egid int) { return -1 }
+ func Geteuid() (euid int) { return -1 }
+ func Getgid() (gid int)   { return -1 }
+diff --git a/src/syscall/syscall_solaris_amd64.go b/src/syscall/syscall_solaris_amd64.go
+index 67b8af1a90..5f918d3426 100644
+--- a/src/syscall/syscall_solaris_amd64.go
++++ b/src/syscall/syscall_solaris_amd64.go
+@@ -4,8 +4,6 @@
+ 
+ package syscall
+ 
+-func Getpagesize() int { return 4096 }
+-
+ func TimespecToNsec(ts Timespec) int64 { return int64(ts.Sec)*1e9 + int64(ts.Nsec) }
+ 
+ func NsecToTimespec(nsec int64) (ts Timespec) {
+diff --git a/src/syscall/syscall_windows.go b/src/syscall/syscall_windows.go
+index a2728e9292..e13d6e2dd5 100644
+--- a/src/syscall/syscall_windows.go
++++ b/src/syscall/syscall_windows.go
+@@ -74,8 +74,6 @@ func UTF16PtrFromString(s string) (*uint16, error) {
+ 	return &a[0], nil
+ }
+ 
+-func Getpagesize() int { return 4096 }
+-
+ // Errno is the Windows error number.
+ type Errno uintptr
+ 

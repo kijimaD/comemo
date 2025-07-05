@@ -9,7 +9,324 @@ Date:   Thu Aug 17 20:05:15 2017 +1000
     Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/path/filepath/path_test.go         | 204 ++++++++++-----------------------
  src/path/filepath/path_windows_test.go |  58 ++++++++++
  2 files changed, 117 insertions(+), 145 deletions(-)
+
+diff --git a/src/path/filepath/path_test.go b/src/path/filepath/path_test.go
+index 315f61e3ad..e1c801b659 100644
+--- a/src/path/filepath/path_test.go
++++ b/src/path/filepath/path_test.go
+@@ -771,24 +771,50 @@ var EvalSymlinksTests = []EvalSymlinksTest{
+ 	{"test/linkabs", "/"},
+ }
+ 
+-// findEvalSymlinksTestDirsDest searches testDirs
+-// for matching path and returns correspondent dest.
+-func findEvalSymlinksTestDirsDest(t *testing.T, testDirs []EvalSymlinksTest, path string) string {
+-	for _, d := range testDirs {
+-		if d.path == path {
+-			return d.dest
+-		}
+-	}
+-	t.Fatalf("did not find %q in testDirs slice", path)
+-	return ""
+-}
+-
+ // simpleJoin builds a file name from the directory and path.
+ // It does not use Join because we don't want ".." to be evaluated.
+ func simpleJoin(dir, path string) string {
+ 	return dir + string(filepath.Separator) + path
+ }
+ 
++func testEvalSymlinks(t *testing.T, path, want string) {
++	have, err := filepath.EvalSymlinks(path)
++	if err != nil {
++		t.Errorf("EvalSymlinks(%q) error: %v", path, err)
++		return
++	}
++	if filepath.Clean(have) != filepath.Clean(want) {
++		t.Errorf("EvalSymlinks(%q) returns %q, want %q", path, have, want)
++	}
++}
++
++func testEvalSymlinksAfterChdir(t *testing.T, wd, path, want string) {
++	cwd, err := os.Getwd()
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer func() {
++		err := os.Chdir(cwd)
++		if err != nil {
++			t.Fatal(err)
++		}
++	}()
++
++	err = os.Chdir(wd)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	have, err := filepath.EvalSymlinks(path)
++	if err != nil {
++		t.Errorf("EvalSymlinks(%q) in %q directory error: %v", path, wd, err)
++		return
++	}
++	if filepath.Clean(have) != filepath.Clean(want) {
++		t.Errorf("EvalSymlinks(%q) in %q directory returns %q, want %q", path, wd, have, want)
++	}
++}
++
+ func TestEvalSymlinks(t *testing.T) {
+ 	testenv.MustHaveSymlink(t)
+ 
+@@ -805,22 +831,8 @@ func TestEvalSymlinks(t *testing.T) {
+ 		t.Fatal("eval symlink for tmp dir:", err)
+ 	}
+ 
+-	tests := EvalSymlinksTests
+-	testdirs := EvalSymlinksTestDirs
+-	if runtime.GOOS == "windows" {
+-		if len(tmpDir) < 3 {
+-			t.Fatalf("tmpDir path %q is too short", tmpDir)
+-		}
+-		if tmpDir[1] != ':' {
+-			t.Fatalf("tmpDir path %q must have drive letter in it", tmpDir)
+-		}
+-		newtest := EvalSymlinksTest{"test/linkabswin", tmpDir[:3]}
+-		tests = append(tests, newtest)
+-		testdirs = append(testdirs, newtest)
+-	}
+-
+ 	// Create the symlink farm using relative paths.
+-	for _, d := range testdirs {
++	for _, d := range EvalSymlinksTestDirs {
+ 		var err error
+ 		path := simpleJoin(tmpDir, d.path)
+ 		if d.dest == "" {
+@@ -833,135 +845,37 @@ func TestEvalSymlinks(t *testing.T) {
+ 		}
+ 	}
+ 
+-	wd, err := os.Getwd()
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-
+ 	// Evaluate the symlink farm.
+-	for _, d := range tests {
+-		path := simpleJoin(tmpDir, d.path)
+-		dest := simpleJoin(tmpDir, d.dest)
+-		if filepath.IsAbs(d.dest) || os.IsPathSeparator(d.dest[0]) {
+-			dest = d.dest
+-		}
+-		if p, err := filepath.EvalSymlinks(path); err != nil {
+-			t.Errorf("EvalSymlinks(%q) error: %v", d.path, err)
+-		} else if filepath.Clean(p) != filepath.Clean(dest) {
+-			t.Errorf("EvalSymlinks(%q)=%q, want %q", path, p, dest)
++	for _, test := range EvalSymlinksTests {
++		path := simpleJoin(tmpDir, test.path)
++
++		dest := simpleJoin(tmpDir, test.dest)
++		if filepath.IsAbs(test.dest) || os.IsPathSeparator(test.dest[0]) {
++			dest = test.dest
+ 		}
++		testEvalSymlinks(t, path, dest)
+ 
+ 		// test EvalSymlinks(".")
+-		func() {
+-			defer func() {
+-				err := os.Chdir(wd)
+-				if err != nil {
+-					t.Fatal(err)
+-				}
+-			}()
+-
+-			err := os.Chdir(path)
+-			if err != nil {
+-				t.Error(err)
+-				return
+-			}
+-			p, err := filepath.EvalSymlinks(".")
+-			if err != nil {
+-				t.Errorf(`EvalSymlinks(".") in %q directory error: %v`, d.path, err)
+-				return
+-			}
+-			if p == "." {
+-				return
+-			}
+-			want := filepath.Clean(findEvalSymlinksTestDirsDest(t, testdirs, d.path))
+-			if p == want {
+-				return
+-			}
+-			t.Errorf(`EvalSymlinks(".") in %q directory returns %q, want "." or %q`, d.path, p, want)
+-		}()
++		testEvalSymlinksAfterChdir(t, path, ".", ".")
+ 
+ 		// test EvalSymlinks("C:.") on Windows
+ 		if runtime.GOOS == "windows" {
+-			func() {
+-				defer func() {
+-					err := os.Chdir(wd)
+-					if err != nil {
+-						t.Fatal(err)
+-					}
+-				}()
+-
+-				err := os.Chdir(path)
+-				if err != nil {
+-					t.Error(err)
+-					return
+-				}
+-
+-				volDot := filepath.VolumeName(tmpDir) + "."
+-
+-				p, err := filepath.EvalSymlinks(volDot)
+-				if err != nil {
+-					t.Errorf(`EvalSymlinks("%s") in %q directory error: %v`, volDot, d.path, err)
+-					return
+-				}
+-				if p == volDot {
+-					return
+-				}
+-				want := filepath.Clean(findEvalSymlinksTestDirsDest(t, testdirs, d.path))
+-				if p == want {
+-					return
+-				}
+-				t.Errorf(`EvalSymlinks("%s") in %q directory returns %q, want %q or %q`, volDot, d.path, p, volDot, want)
+-			}()
++			volDot := filepath.VolumeName(tmpDir) + "."
++			testEvalSymlinksAfterChdir(t, path, volDot, volDot)
+ 		}
+ 
+ 		// test EvalSymlinks(".."+path)
+-		func() {
+-			defer func() {
+-				err := os.Chdir(wd)
+-				if err != nil {
+-					t.Fatal(err)
+-				}
+-			}()
+-
+-			err := os.Chdir(simpleJoin(tmpDir, "test"))
+-			if err != nil {
+-				t.Error(err)
+-				return
+-			}
+-
+-			path := simpleJoin("..", d.path)
+-			dest := simpleJoin("..", d.dest)
+-			if filepath.IsAbs(d.dest) || os.IsPathSeparator(d.dest[0]) {
+-				dest = d.dest
+-			}
++		dotdotPath := simpleJoin("..", test.dest)
++		if filepath.IsAbs(test.dest) || os.IsPathSeparator(test.dest[0]) {
++			dotdotPath = test.dest
++		}
++		testEvalSymlinksAfterChdir(t,
++			simpleJoin(tmpDir, "test"),
++			simpleJoin("..", test.path),
++			dotdotPath)
+ 
+-			if p, err := filepath.EvalSymlinks(path); err != nil {
+-				t.Errorf("EvalSymlinks(%q) error: %v", d.path, err)
+-			} else if filepath.Clean(p) != filepath.Clean(dest) {
+-				t.Errorf("EvalSymlinks(%q)=%q, want %q", path, p, dest)
+-			}
+-		}()
+-
+-		// test EvalSymlinks where parameter is relative path
+-		func() {
+-			defer func() {
+-				err := os.Chdir(wd)
+-				if err != nil {
+-					t.Fatal(err)
+-				}
+-			}()
+-
+-			err := os.Chdir(tmpDir)
+-			if err != nil {
+-				t.Error(err)
+-				return
+-			}
+-			if p, err := filepath.EvalSymlinks(d.path); err != nil {
+-				t.Errorf("EvalSymlinks(%q) error: %v", d.path, err)
+-			} else if filepath.Clean(p) != filepath.Clean(d.dest) {
+-				t.Errorf("EvalSymlinks(%q)=%q, want %q", d.path, p, d.dest)
+-			}
+-		}()
++		// test EvalSymlinks(p) where p is relative path
++		testEvalSymlinksAfterChdir(t, tmpDir, test.path, test.dest)
+ 	}
+ }
+ 
+diff --git a/src/path/filepath/path_windows_test.go b/src/path/filepath/path_windows_test.go
+index d759a83f38..d1b89bbc71 100644
+--- a/src/path/filepath/path_windows_test.go
++++ b/src/path/filepath/path_windows_test.go
+@@ -100,6 +100,64 @@ func testWinSplitListTestIsValid(t *testing.T, ti int, tt SplitListTest,
+ 	}
+ }
+ 
++func TestWindowsEvalSymlinks(t *testing.T) {
++	testenv.MustHaveSymlink(t)
++
++	tmpDir, err := ioutil.TempDir("", "TestWindowsEvalSymlinks")
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer os.RemoveAll(tmpDir)
++
++	// /tmp may itself be a symlink! Avoid the confusion, although
++	// it means trusting the thing we're testing.
++	tmpDir, err = filepath.EvalSymlinks(tmpDir)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	if len(tmpDir) < 3 {
++		t.Fatalf("tmpDir path %q is too short", tmpDir)
++	}
++	if tmpDir[1] != ':' {
++		t.Fatalf("tmpDir path %q must have drive letter in it", tmpDir)
++	}
++	test := EvalSymlinksTest{"test/linkabswin", tmpDir[:3]}
++
++	// Create the symlink farm using relative paths.
++	testdirs := append(EvalSymlinksTestDirs, test)
++	for _, d := range testdirs {
++		var err error
++		path := simpleJoin(tmpDir, d.path)
++		if d.dest == "" {
++			err = os.Mkdir(path, 0755)
++		} else {
++			err = os.Symlink(d.dest, path)
++		}
++		if err != nil {
++			t.Fatal(err)
++		}
++	}
++
++	path := simpleJoin(tmpDir, test.path)
++
++	testEvalSymlinks(t, path, test.dest)
++
++	testEvalSymlinksAfterChdir(t, path, ".", test.dest)
++
++	testEvalSymlinksAfterChdir(t,
++		path,
++		filepath.VolumeName(tmpDir)+".",
++		test.dest)
++
++	testEvalSymlinksAfterChdir(t,
++		simpleJoin(tmpDir, "test"),
++		simpleJoin("..", test.path),
++		test.dest)
++
++	testEvalSymlinksAfterChdir(t, tmpDir, test.path, test.dest)
++}
++
+ // TestEvalSymlinksCanonicalNames verify that EvalSymlinks
+ // returns "canonical" path names on windows.
+ func TestEvalSymlinksCanonicalNames(t *testing.T) {

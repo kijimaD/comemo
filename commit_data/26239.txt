@@ -11,6 +11,19 @@ Date:   Wed Jan 6 10:53:16 2016 -0500
     Change-Id: I880fb74b5943b8a17f952a82639c60126701187a
     Reviewed-on: https://go-review.googlesource.com/18259
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/timeout_test.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/net/timeout_test.go b/src/net/timeout_test.go
+index 5832306591..98e3164fb9 100644
+--- a/src/net/timeout_test.go
++++ b/src/net/timeout_test.go
+@@ -996,7 +996,6 @@ func TestReadWriteDeadlineRace(t *testing.T) {
+ 	if testing.Short() {
+ 		N = 50
+ 	}
+-	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(4))
+ 
+ 	ln, err := newLocalListener("tcp")
+ 	if err != nil {

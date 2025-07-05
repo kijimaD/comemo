@@ -18,6 +18,29 @@ Date:   Sun Sep 9 14:21:25 2018 +1000
     Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-
+---
  src/internal/poll/fd_windows.go | 11 +++++++++++
  1 file changed, 11 insertions(+)
+
+diff --git a/src/internal/poll/fd_windows.go b/src/internal/poll/fd_windows.go
+index b5aaafda02..19d9a12dad 100644
+--- a/src/internal/poll/fd_windows.go
++++ b/src/internal/poll/fd_windows.go
+@@ -811,6 +811,17 @@ func (fd *FD) WriteTo(buf []byte, sa syscall.Sockaddr) (int, error) {
+ 	}
+ 	defer fd.writeUnlock()
+ 
++	if len(buf) == 0 {
++		// handle zero-byte payload
++		o := &fd.wop
++		o.InitBuf(buf)
++		o.sa = sa
++		n, err := wsrv.ExecIO(o, func(o *operation) error {
++			return syscall.WSASendto(o.fd.Sysfd, &o.buf, 1, &o.qty, 0, o.sa, &o.o, nil)
++		})
++		return n, err
++	}
++
+ 	ntotal := 0
+ 	for len(buf) > 0 {
+ 		b := buf

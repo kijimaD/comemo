@@ -25,8 +25,146 @@ Date:   Fri Oct 31 11:08:27 2014 -0400
     R=rsc, dave, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/168870043
-
+---
  src/cmd/9g/ggen.c          | 20 +++++++++-----
  src/runtime/asm_power64x.s |  2 +-
  test/clearfat.go           | 68 ++++++++++++++++++++++++++++++++++++++++++++++
  3 files changed, 82 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/9g/ggen.c b/src/cmd/9g/ggen.c
+index c41d8eb414..7d9cf5050d 100644
+--- a/src/cmd/9g/ggen.c
++++ b/src/cmd/9g/ggen.c
+@@ -900,7 +900,7 @@ ret:
+ void
+ clearfat(Node *nl)
+ {
+-	uint64 w, c, q, t;
++	uint64 w, c, q, t, boff;
+ 	Node dst, end, r0, *f;
+ 	Prog *p, *pl;
+ 
+@@ -944,6 +944,8 @@ clearfat(Node *nl)
+ 		patch(gbranch(ABNE, T, 0), pl);
+ 
+ 		regfree(&end);
++		// The loop leaves R3 on the last zeroed dword
++		boff = 8;
+ 	} else if(q >= 4) {
+ 		p = gins(ASUB, N, &dst);
+ 		p->from.type = D_CONST;
+@@ -953,17 +955,21 @@ clearfat(Node *nl)
+ 		afunclit(&p->to, f);
+ 		// 4 and 128 = magic constants: see ../../runtime/asm_power64x.s
+ 		p->to.offset = 4*(128-q);
+-	} else
+-	for(t = 0; t < q; t++) {
+-		p = gins(AMOVD, &r0, &dst);
+-		p->to.type = D_OREG;
+-		p->to.offset = 8*t;
++		// duffzero leaves R3 on the last zeroed dword
++		boff = 8;
++	} else {
++		for(t = 0; t < q; t++) {
++			p = gins(AMOVD, &r0, &dst);
++			p->to.type = D_OREG;
++			p->to.offset = 8*t;
++		}
++		boff = 8*q;
+ 	}
+ 
+ 	for(t = 0; t < c; t++) {
+ 		p = gins(AMOVB, &r0, &dst);
+ 		p->to.type = D_OREG;
+-		p->to.offset = t;
++		p->to.offset = t+boff;
+ 	}
+ 	reg[REGRT1]--;
+ }
+diff --git a/src/runtime/asm_power64x.s b/src/runtime/asm_power64x.s
+index ab2db061c2..2ad3e56e94 100644
+--- a/src/runtime/asm_power64x.s
++++ b/src/runtime/asm_power64x.s
+@@ -829,7 +829,7 @@ notfound:
+ // in ../../cmd/9g/ggen.c:/^clearfat.
+ // R0: always zero
+ // R3 (aka REGRT1): ptr to memory to be zeroed - 8
+-// R3 is updated as a side effect.
++// On return, R3 points to the last zeroed dword.
+ TEXT runtime·duffzero(SB), NOSPLIT, $-8-0
+ 	MOVDU	R0, 8(R3)
+ 	MOVDU	R0, 8(R3)
+diff --git a/test/clearfat.go b/test/clearfat.go
+new file mode 100644
+index 0000000000..45d539306e
+--- /dev/null
++++ b/test/clearfat.go
+@@ -0,0 +1,68 @@
++// runoutput
++
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Check that {5,6,8,9}g/ggen.c:clearfat is zeroing the entire object.
++
++package main
++
++import (
++	"bytes"
++	"fmt"
++	"strconv"
++	"strings"
++)
++
++const ntest = 1100
++
++func main() {
++	var decls, calls bytes.Buffer
++
++	for i := 1; i <= ntest; i++ {
++		s := strconv.Itoa(i)
++		decls.WriteString(strings.Replace(decl, "$", s, -1))
++		calls.WriteString(strings.Replace("poison$()\n\tclearfat$()\n\t", "$", s, -1))
++	}
++
++	program = strings.Replace(program, "$DECLS", decls.String(), 1)
++	program = strings.Replace(program, "$CALLS", calls.String(), 1)
++	fmt.Print(program)
++}
++
++var program = `package main
++
++var count int
++
++$DECLS
++
++func main() {
++	$CALLS
++	if count != 0 {
++		println("failed", count, "case(s)")
++	}
++}
++`
++
++const decl = `
++func poison$() {
++	// Grow and poison the stack space that will be used by clearfat$
++	var t [2*$]byte
++	for i := range t {
++		t[i] = 0xff
++	}
++}
++
++func clearfat$() {
++	var t [$]byte
++
++	for _, x := range t {
++		if x != 0 {
++//			println("clearfat$: index", i, "expected 0, got", x)
++			count++
++			break
++		}
++	}
++}
++`

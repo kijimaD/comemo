@@ -23,7 +23,36 @@ Date:   Mon Oct 23 10:22:17 2023 +0700
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/testdata/testprog/syscall_windows.go  | 4 ++--
  src/runtime/testdata/testprogcgo/stack_windows.go | 4 ++--
  2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/testdata/testprog/syscall_windows.go b/src/runtime/testdata/testprog/syscall_windows.go
+index 71bf384dc1..a9b8c090cf 100644
+--- a/src/runtime/testdata/testprog/syscall_windows.go
++++ b/src/runtime/testdata/testprog/syscall_windows.go
+@@ -67,7 +67,7 @@ func StackMemory() {
+ 		panic(err)
+ 	}
+ 	// assumes that this process creates 1 thread for each
+-	// thread locked goroutine plus extra 5 threads
++	// thread locked goroutine plus extra 10 threads
+ 	// like sysmon and others
+-	print((mem2 - mem1) / (threadCount + 5))
++	print((mem2 - mem1) / (threadCount + 10))
+ }
+diff --git a/src/runtime/testdata/testprogcgo/stack_windows.go b/src/runtime/testdata/testprogcgo/stack_windows.go
+index 0be1126bee..d095093c85 100644
+--- a/src/runtime/testdata/testprogcgo/stack_windows.go
++++ b/src/runtime/testdata/testprogcgo/stack_windows.go
+@@ -51,7 +51,7 @@ func StackMemory() {
+ 		panic(err)
+ 	}
+ 	// assumes that this process creates 1 thread for each
+-	// thread locked goroutine plus extra 5 threads
++	// thread locked goroutine plus extra 10 threads
+ 	// like sysmon and others
+-	print((mem2 - mem1) / (threadCount + 5))
++	print((mem2 - mem1) / (threadCount + 10))
+ }

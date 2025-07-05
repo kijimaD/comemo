@@ -16,6 +16,25 @@ Date:   Thu Aug 17 23:44:34 2017 -0700
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/math/big/rat.go | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/src/math/big/rat.go b/src/math/big/rat.go
+index 56ce33d882..f0f436e452 100644
+--- a/src/math/big/rat.go
++++ b/src/math/big/rat.go
+@@ -490,6 +490,13 @@ func (z *Rat) Sub(x, y *Rat) *Rat {
+ 
+ // Mul sets z to the product x*y and returns z.
+ func (z *Rat) Mul(x, y *Rat) *Rat {
++	if x == y {
++		// a squared Rat is positive and can't be reduced
++		z.a.neg = false
++		z.a.abs = z.a.abs.sqr(x.a.abs)
++		z.b.abs = z.b.abs.sqr(x.b.abs)
++		return z
++	}
+ 	z.a.Mul(&x.a, &y.a)
+ 	z.b.abs = mulDenom(z.b.abs, x.b.abs, y.b.abs)
+ 	return z.norm()

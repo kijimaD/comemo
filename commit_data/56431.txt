@@ -14,6 +14,33 @@ Date:   Mon May 8 12:53:37 2023 -0400
     Reviewed-by: Michael Matloob <matloob@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/envcmd/env_test.go | 11 +++++------
  1 file changed, 5 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/go/internal/envcmd/env_test.go b/src/cmd/go/internal/envcmd/env_test.go
+index 32d99fd1d1..7419cf3fc2 100644
+--- a/src/cmd/go/internal/envcmd/env_test.go
++++ b/src/cmd/go/internal/envcmd/env_test.go
+@@ -69,16 +69,15 @@ func FuzzPrintEnvEscape(f *testing.F) {
+ 		if runtime.GOOS == "windows" {
+ 			scriptfilename = "script.bat"
+ 		}
+-		scriptfile := filepath.Join(t.TempDir(), scriptfilename)
+-		if err := os.WriteFile(scriptfile, b.Bytes(), 0777); err != nil {
+-			t.Fatal(err)
+-		}
+-		t.Log(b.String())
+ 		var cmd *exec.Cmd
+ 		if runtime.GOOS == "windows" {
++			scriptfile := filepath.Join(t.TempDir(), scriptfilename)
++			if err := os.WriteFile(scriptfile, b.Bytes(), 0777); err != nil {
++				t.Fatal(err)
++			}
+ 			cmd = testenv.Command(t, "cmd.exe", "/C", scriptfile)
+ 		} else {
+-			cmd = testenv.Command(t, "sh", "-c", scriptfile)
++			cmd = testenv.Command(t, "sh", "-c", b.String())
+ 		}
+ 		out, err := cmd.Output()
+ 		t.Log(string(out))

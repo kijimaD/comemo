@@ -18,7 +18,7 @@ Date:   Mon Oct 18 14:56:08 2021 -0700
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/errors.go          |  5 +++-
  src/cmd/compile/internal/types2/errors_test.go     |  2 +-
  src/cmd/compile/internal/types2/expr.go            | 22 +++++++++-----
@@ -30,3 +30,238 @@ Date:   Mon Oct 18 14:56:08 2021 -0700
  test/fixedbugs/issue49005b.go                      | 15 ++++++++++
  test/switch6.go                                    |  4 +--
  10 files changed, 77 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/errors.go b/src/cmd/compile/internal/types2/errors.go
+index ea43fab178..0c8a4a90ff 100644
+--- a/src/cmd/compile/internal/types2/errors.go
++++ b/src/cmd/compile/internal/types2/errors.go
+@@ -61,7 +61,10 @@ func (err *error_) msg(qf Qualifier) string {
+ 	for i := range err.desc {
+ 		p := &err.desc[i]
+ 		if i > 0 {
+-			fmt.Fprintf(&buf, "\n\t%s: ", p.pos)
++			fmt.Fprint(&buf, "\n\t")
++			if p.pos.IsKnown() {
++				fmt.Fprintf(&buf, "%s: ", p.pos)
++			}
+ 		}
+ 		buf.WriteString(sprintf(qf, p.format, p.args...))
+ 	}
+diff --git a/src/cmd/compile/internal/types2/errors_test.go b/src/cmd/compile/internal/types2/errors_test.go
+index 72a2ce3655..ac73ca4650 100644
+--- a/src/cmd/compile/internal/types2/errors_test.go
++++ b/src/cmd/compile/internal/types2/errors_test.go
+@@ -19,7 +19,7 @@ func TestError(t *testing.T) {
+ 		t.Errorf("simple error: got %q, want %q", got, want)
+ 	}
+ 
+-	want = "<unknown position>: foo 42\n\t<unknown position>: bar 43"
++	want = "<unknown position>: foo 42\n\tbar 43"
+ 	err.errorf(nopos, "bar %d", 43)
+ 	if got := err.String(); got != want {
+ 		t.Errorf("simple error: got %q, want %q", got, want)
+diff --git a/src/cmd/compile/internal/types2/expr.go b/src/cmd/compile/internal/types2/expr.go
+index 3a3a139156..2d22c027eb 100644
+--- a/src/cmd/compile/internal/types2/expr.go
++++ b/src/cmd/compile/internal/types2/expr.go
+@@ -1463,7 +1463,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
+ 		if T == Typ[Invalid] {
+ 			goto Error
+ 		}
+-		check.typeAssertion(posFor(x), x, xtyp, T)
++		check.typeAssertion(e, x, xtyp, T, false)
+ 		x.mode = commaok
+ 		x.typ = T
+ 
+@@ -1605,26 +1605,32 @@ func keyVal(x constant.Value) interface{} {
+ }
+ 
+ // typeAssertion checks that x.(T) is legal; xtyp must be the type of x.
+-func (check *Checker) typeAssertion(pos syntax.Pos, x *operand, xtyp *Interface, T Type) {
++func (check *Checker) typeAssertion(e syntax.Expr, x *operand, xtyp *Interface, T Type, typeSwitch bool) {
+ 	method, wrongType := check.assertableTo(xtyp, T)
+ 	if method == nil {
+ 		return
+ 	}
++
+ 	var msg string
+ 	if wrongType != nil {
+ 		if Identical(method.typ, wrongType.typ) {
+-			msg = fmt.Sprintf("missing method %s (%s has pointer receiver)", method.name, method.name)
++			msg = fmt.Sprintf("%s method has pointer receiver", method.name)
+ 		} else {
+-			msg = fmt.Sprintf("wrong type for method %s (have %s, want %s)", method.name, wrongType.typ, method.typ)
++			msg = fmt.Sprintf("wrong type for method %s: have %s, want %s", method.name, wrongType.typ, method.typ)
+ 		}
+ 	} else {
+-		msg = "missing method " + method.name
++		msg = fmt.Sprintf("missing %s method", method.name)
+ 	}
+-	if check.conf.CompilerErrorMessages {
+-		check.errorf(pos, "impossible type assertion: %s (%s)", x, msg)
++
++	var err error_
++	if typeSwitch {
++		err.errorf(e.Pos(), "impossible type switch case: %s", e)
++		err.errorf(nopos, "%s cannot have dynamic type %s (%s)", x, T, msg)
+ 	} else {
+-		check.errorf(pos, "%s cannot have dynamic type %s (%s)", x, T, msg)
++		err.errorf(e.Pos(), "impossible type assertion: %s", e)
++		err.errorf(nopos, "%s does not implement %s (%s)", T, x.typ, msg)
+ 	}
++	check.report(&err)
+ }
+ 
+ // expr typechecks expression e and initializes x with the expression value.
+diff --git a/src/cmd/compile/internal/types2/stmt.go b/src/cmd/compile/internal/types2/stmt.go
+index f3f345fd2f..e826f35105 100644
+--- a/src/cmd/compile/internal/types2/stmt.go
++++ b/src/cmd/compile/internal/types2/stmt.go
+@@ -306,7 +306,7 @@ L:
+ 		}
+ 		seen[T] = e
+ 		if T != nil {
+-			check.typeAssertion(e.Pos(), x, xtyp, T)
++			check.typeAssertion(e, x, xtyp, T, true)
+ 		}
+ 	}
+ 	return
+@@ -347,7 +347,7 @@ L:
+ // 		}
+ // 		seen[hash] = e
+ // 		if T != nil {
+-// 			check.typeAssertion(e.Pos(), x, xtyp, T)
++// 			check.typeAssertion(e, x, xtyp, T, true)
+ // 		}
+ // 	}
+ // 	return
+diff --git a/src/cmd/compile/internal/types2/testdata/check/expr3.src b/src/cmd/compile/internal/types2/testdata/check/expr3.src
+index fd28421dc8..df4cf6a840 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/expr3.src
++++ b/src/cmd/compile/internal/types2/testdata/check/expr3.src
+@@ -459,9 +459,9 @@ func type_asserts() {
+ 
+ 	var t I
+ 	_ = t /* ERROR "use of .* outside type switch" */ .(type)
+-	_ = t /* ERROR "missing method m" */ .(T)
++	_ = t /* ERROR "m method has pointer receiver" */ .(T)
+ 	_ = t.(*T)
+-	_ = t /* ERROR "missing method m" */ .(T1)
++	_ = t /* ERROR "missing m method" */ .(T1)
+ 	_ = t /* ERROR "wrong type for method m" */ .(T2)
+ 	_ = t /* STRICT "wrong type for method m" */ .(I2) // only an error in strict mode (issue 8561)
+ 
+diff --git a/src/cmd/compile/internal/types2/testdata/check/issues.src b/src/cmd/compile/internal/types2/testdata/check/issues.src
+index d83a95af0e..dfd51006b9 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/issues.src
++++ b/src/cmd/compile/internal/types2/testdata/check/issues.src
+@@ -132,12 +132,12 @@ func issue10260() {
+ 
+ 	var x I1
+ 	x = T1 /* ERROR cannot use .*: missing method foo \(foo has pointer receiver\) */ {}
+-	_ = x /* ERROR .* cannot have dynamic type T1 \(missing method foo \(foo has pointer receiver\)\) */ .(T1)
++	_ = x. /* ERROR impossible type assertion: x.\(T1\)\n\tT1 does not implement I1 \(foo method has pointer receiver\) */ (T1)
+ 
+ 	T1{}.foo /* ERROR cannot call pointer method foo on T1 */ ()
+ 	x.Foo /* ERROR "x.Foo undefined \(type I1 has no field or method Foo, but does have foo\)" */ ()
+ 
+-	_ = i2 /* ERROR i2 .* cannot have dynamic type \*T1 \(wrong type for method foo \(have func\(\), want func\(x int\)\)\) */ .(*T1)
++	_ = i2. /* ERROR impossible type assertion: i2.\(\*T1\)\n\t\*T1 does not implement I2 \(wrong type for method foo: have func\(\), want func\(x int\)\) */ (*T1)
+ 
+ 	i1 = i0 /* ERROR cannot use .* missing method foo */
+ 	i1 = t0 /* ERROR cannot use .* missing method foo */
+diff --git a/src/cmd/compile/internal/types2/testdata/check/stmt0.src b/src/cmd/compile/internal/types2/testdata/check/stmt0.src
+index d744f2ba81..5ec37b4ace 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/stmt0.src
++++ b/src/cmd/compile/internal/types2/testdata/check/stmt0.src
+@@ -715,7 +715,7 @@ func typeswitches() {
+ 	var t I
+ 	switch t.(type) {
+ 	case T:
+-	case T1 /* ERROR "missing method m" */ :
++	case T1 /* ERROR "missing m method" */ :
+ 	case T2 /* ERROR "wrong type for method m" */ :
+ 	case I2 /* STRICT "wrong type for method m" */ : // only an error in strict mode (issue 8561)
+ 	}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49005.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49005.go
+new file mode 100644
+index 0000000000..6225e68488
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49005.go
+@@ -0,0 +1,34 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This file is tested when running "go test -run Manual"
++// without source arguments. Use for one-off debugging.
++
++package p
++
++type T1 interface{ M() }
++
++func F1() T1
++
++var _ = F1().(*X1 /* ERROR undeclared name: X1 */)
++
++func _() {
++	switch F1().(type) {
++	case *X1 /* ERROR undeclared name: X1 */ :
++	}
++}
++
++type T2 interface{ M() }
++
++func F2() T2
++
++var _ = F2(). /* ERROR impossible type assertion: F2\(\).\(\*X2\)\n\t\*X2 does not implement T2 \(missing M method\) */ (*X2)
++
++type X2 struct{}
++
++func _() {
++	switch F2().(type) {
++	case * /* ERROR impossible type switch case: \*X2\n\tF2\(\) \(value of type T2\) cannot have dynamic type \*X2 \(missing M method\) */ X2:
++	}
++}
+diff --git a/test/fixedbugs/issue49005b.go b/test/fixedbugs/issue49005b.go
+new file mode 100644
+index 0000000000..9bff4e9d18
+--- /dev/null
++++ b/test/fixedbugs/issue49005b.go
+@@ -0,0 +1,15 @@
++// errorcheck
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type T interface{ M() }
++
++func F() T
++
++var _ = F().(*X) // ERROR "impossible type assertion:( F\(\).\(\*X\))?\n\t\*X does not implement T \(missing M method\)"
++
++type X struct{}
+diff --git a/test/switch6.go b/test/switch6.go
+index 4f95d02615..b9d9800391 100644
+--- a/test/switch6.go
++++ b/test/switch6.go
+@@ -15,7 +15,7 @@ package main
+ // Verify that type switch statements with impossible cases are detected by the compiler.
+ func f0(e error) {
+ 	switch e.(type) {
+-	case int: // ERROR "impossible type switch case: e \(type error\) cannot have dynamic type int \(missing Error method\)|impossible type assertion"
++	case int: // ERROR "impossible type switch case: (int\n\t)?e \(.*type error\) cannot have dynamic type int \(missing Error method\)"
+ 	}
+ }
+ 
+@@ -41,6 +41,6 @@ func (*X) Foo() {}
+ func f2() {
+ 	var i I
+ 	switch i.(type) {
+-	case X: // ERROR "impossible type switch case: i \(type I\) cannot have dynamic type X \(Foo method has pointer receiver\)|impossible type assertion"
++	case X: // ERROR "impossible type switch case: (X\n\t)?i \(.*type I\) cannot have dynamic type X \(Foo method has pointer receiver\)"
+ 	}
+ }

@@ -8,6 +8,20 @@ Date:   Thu Mar 17 16:47:00 2011 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4277059
-
+---
  src/cmd/gc/range.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/range.c b/src/cmd/gc/range.c
+index e1093a91cb..dfb2b8efd6 100644
+--- a/src/cmd/gc/range.c
++++ b/src/cmd/gc/range.c
+@@ -203,7 +203,7 @@ walkrange(Node *n)
+ 		hb = nod(OXXX, N, N);
+ 		tempname(hb, types[TBOOL]);
+ 
+-		n->ntest = hb;
++		n->ntest = nod(ONE, hb, nodbool(0));
+ 		a = nod(OAS2RECV, N, N);
+ 		a->typecheck = 1;
+ 		a->list = list(list1(hv1), hb);

@@ -9,6 +9,23 @@ Date:   Mon Dec 6 16:22:32 2010 -0500
     TBR=r
     CC=golang-dev
     https://golang.org/cl/3391043
-
+---
  src/pkg/time/sleep_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/time/sleep_test.go b/src/pkg/time/sleep_test.go
+index 9fd38d18d1..e70b84e97c 100644
+--- a/src/pkg/time/sleep_test.go
++++ b/src/pkg/time/sleep_test.go
+@@ -88,9 +88,9 @@ func TestAfterQueuing(t *testing.T) {
+ 		}
+ 		ns := r.t - t0
+ 		target := int64(slot * Delta)
+-		slop := int64(Delta) / 10
++		slop := int64(Delta) / 4
+ 		if ns < target-slop || ns > target+slop {
+-			t.Fatalf("after queue slot %d arrived at %g, expected %g", slot, float64(ns), float64(target))
++			t.Fatalf("after queue slot %d arrived at %g, expected [%g,%g]", slot, float64(ns), float64(target-slop), float64(target+slop))
+ 		}
+ 	}
+ }

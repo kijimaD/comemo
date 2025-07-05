@@ -9,6 +9,22 @@ Date:   Thu Dec 1 23:07:53 2016 -0500
     Change-Id: I527719576bc7198c79bb8bc51d258a71b2d5b296
     Reviewed-on: https://go-review.googlesource.com/33853
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/go1.8.html | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/doc/go1.8.html b/doc/go1.8.html
+index 397dd0a7a3..2687772a12 100644
+--- a/doc/go1.8.html
++++ b/doc/go1.8.html
+@@ -77,7 +77,9 @@ func example() {
+ <p>
+ Go now supports 32-bit MIPS on Linux for both big-endian
+ (<code>linux/mips</code>) and little-endian machines
+-(<code>linux/mipsle</code>).
++(<code>linux/mipsle</code>) that implement the MIPS32r1 instruction set with FPU
++or kernel FPU emulation. Note that many common MIPS-based routers lack an FPU and
++have firmware that doesn't enable kernel FPU emulation; Go won't run on such machines.
+ </p>
+ 
+ <p>

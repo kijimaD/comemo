@@ -8,7 +8,40 @@ Date:   Wed Jul 29 18:33:31 2009 -0700
     TBR=austin
     OCL=32499
     CL=32501
-
+---
  test/bugs/bug136.go | 9 ++++++++-
  test/golden.out     | 2 +-
  2 files changed, 9 insertions(+), 2 deletions(-)
+
+diff --git a/test/bugs/bug136.go b/test/bugs/bug136.go
+index 5846c654b9..7491b65d88 100644
+--- a/test/bugs/bug136.go
++++ b/test/bugs/bug136.go
+@@ -10,6 +10,13 @@ func main() {
+ 	L: ;  // ';' terminates empty statement => L does not apply to for loop
+ 	for i := 0; i < 10; i++ {
+ 		println(i);
+-		break L  // L does not apply to for loop
++		break L;  // ERROR "L"
++	}
++
++	L1: { // L1 labels block => L1 does not apply to for loop
++		for i := 0; i < 10; i++ {
++			println(i);
++			break L1;  // ERROR "L1"
++		}
+ 	}
+ }
+diff --git a/test/golden.out b/test/golden.out
+index 8cadc26b90..a528fa8186 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -233,7 +233,7 @@ panic PC=xxx
+ BUG: compilation succeeds incorrectly
+ 
+ =========== bugs/bug136.go
+-BUG: errchk: bugs/bug136.go:15: missing expected error: 'L1'
++BUG: errchk: command succeeded unexpectedly
+ 
+ =========== bugs/bug159.go
+ abc: expected 4 5 6 got 4 4 -4

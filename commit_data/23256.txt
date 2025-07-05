@@ -9,6 +9,29 @@ Date:   Fri May 1 09:36:18 2015 -0700
     Change-Id: I1b5cbafdbbfee8c369ae1bebd0b900524ebf0d7d
     Reviewed-on: https://go-review.googlesource.com/9610
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  test/nosplit.go | 9 ++++++++-
  1 file changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/test/nosplit.go b/test/nosplit.go
+index bd4e60bc13..bd7a8ddac3 100644
+--- a/test/nosplit.go
++++ b/test/nosplit.go
+@@ -292,9 +292,16 @@ TestCases:
+ 
+ 				// The limit was originally 128 but is now 512.
+ 				// Instead of rewriting the test cases above, adjust
+-				// the first stack frame to use up the extra 32 bytes.
++				// the first stack frame to use up the extra bytes.
+ 				if i == 0 {
+ 					size += 512 - 128
++					// Noopt builds have a larger stackguard.
++					// See ../cmd/dist/buildruntime.go:stackGuardMultiplier
++					for _, s := range strings.Split(os.Getenv("GO_GCFLAGS"), " ") {
++						if s == "-N" {
++							size += 640
++						}
++					}
+ 				}
+ 
+ 				if size%ptrSize == 4 {

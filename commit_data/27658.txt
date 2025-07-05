@@ -7,7 +7,67 @@ Date:   Wed Apr 6 15:27:30 2016 -0700
     Change-Id: I4ffb79d8cb08b0b44f59757fb7f0ec3ed1e4479f
     Reviewed-on: https://go-review.googlesource.com/21624
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/bexport.go | 8 +++-----
  src/go/internal/gcimporter/bimport.go  | 5 ++---
  2 files changed, 5 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index 8dcf97b31d..092cdac2f6 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -109,8 +109,6 @@ import (
+ //
+ // NOTE: This flag is the first flag to enable if importing dies because of
+ // (suspected) format errors, and whenever a change is made to the format.
+-// Having debugFormat enabled increases the export data size massively (by
+-// several factors) - avoid running with the flag enabled in general.
+ const debugFormat = false // default: false
+ 
+ // TODO(gri) remove eventually
+@@ -515,19 +513,19 @@ func (p *exporter) typ(t *Type) {
+ 	p.typIndex[t] = len(p.typIndex)
+ 
+ 	// pick off named types
+-	if sym := t.Sym; sym != nil {
++	if tsym := t.Sym; tsym != nil {
+ 		// Predeclared types should have been found in the type map.
+ 		if t.Orig == t {
+ 			Fatalf("exporter: predeclared type missing from type map?")
+ 		}
+ 		// TODO(gri) The assertion below seems incorrect (crashes during all.bash).
+ 		// we expect the respective definition to point to us
+-		// if sym.Def.Type != t {
++		// if tsym.Def.Type != t {
+ 		// 	Fatalf("exporter: type definition doesn't point to us?")
+ 		// }
+ 
+ 		p.tag(namedTag)
+-		p.qualifiedName(sym)
++		p.qualifiedName(tsym)
+ 
+ 		// write underlying type
+ 		p.typ(t.Orig)
+diff --git a/src/go/internal/gcimporter/bimport.go b/src/go/internal/gcimporter/bimport.go
+index 12efb2aaf3..aa9569de52 100644
+--- a/src/go/internal/gcimporter/bimport.go
++++ b/src/go/internal/gcimporter/bimport.go
+@@ -232,8 +232,7 @@ func (p *importer) typ(parent *types.Package) types.Type {
+ 	switch i {
+ 	case namedTag:
+ 		// read type object
+-		name := p.string()
+-		parent = p.pkg()
++		parent, name := p.qualifiedName()
+ 		scope := parent.Scope()
+ 		obj := scope.Lookup(name)
+ 
+@@ -258,7 +257,7 @@ func (p *importer) typ(parent *types.Package) types.Type {
+ 		t0.SetUnderlying(p.typ(parent))
+ 
+ 		// interfaces don't have associated methods
+-		if _, ok := t0.Underlying().(*types.Interface); ok {
++		if types.IsInterface(t0) {
+ 			return t
+ 		}
+ 

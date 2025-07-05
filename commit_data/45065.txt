@@ -14,9 +14,89 @@ Date:   Mon Sep 28 13:10:30 2020 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
-
+---
  src/cmd/compile/internal/gc/reflect.go | 2 ++
  src/cmd/internal/obj/objfile.go        | 7 +++++++
  src/cmd/internal/obj/sym.go            | 5 ++++-
  src/cmd/link/internal/loader/loader.go | 4 ++--
  4 files changed, 15 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index ae3e2f8e65..21429af782 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -511,6 +511,7 @@ func dimportpath(p *types.Pkg) {
+ 	s := Ctxt.Lookup("type..importpath." + p.Prefix + ".")
+ 	ot := dnameData(s, 0, str, "", nil, false)
+ 	ggloblsym(s, int32(ot), obj.DUPOK|obj.RODATA)
++	s.Set(obj.AttrContentAddressable, true)
+ 	p.Pathsym = s
+ }
+ 
+@@ -638,6 +639,7 @@ func dname(name, tag string, pkg *types.Pkg, exported bool) *obj.LSym {
+ 	}
+ 	ot := dnameData(s, 0, name, tag, pkg, exported)
+ 	ggloblsym(s, int32(ot), obj.DUPOK|obj.RODATA)
++	s.Set(obj.AttrContentAddressable, true)
+ 	return s
+ }
+ 
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index e4b9620568..186016c970 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -372,6 +372,13 @@ func contentHash64(s *LSym) goobj.Hash64Type {
+ // hashed symbols.
+ func (w *writer) contentHash(s *LSym) goobj.HashType {
+ 	h := sha1.New()
++	// Don't dedup type symbols with others, as they are in a different
++	// section.
++	if strings.HasPrefix(s.Name, "type.") {
++		h.Write([]byte{'T'})
++	} else {
++		h.Write([]byte{0})
++	}
+ 	// The compiler trims trailing zeros _sometimes_. We just do
+ 	// it always.
+ 	h.Write(bytes.TrimRight(s.P, "\x00"))
+diff --git a/src/cmd/internal/obj/sym.go b/src/cmd/internal/obj/sym.go
+index d58877ee15..e5d7b2cbfd 100644
+--- a/src/cmd/internal/obj/sym.go
++++ b/src/cmd/internal/obj/sym.go
+@@ -38,6 +38,7 @@ import (
+ 	"log"
+ 	"math"
+ 	"sort"
++	"strings"
+ )
+ 
+ func Linknew(arch *LinkArch) *Link {
+@@ -204,7 +205,9 @@ func (ctxt *Link) NumberSyms() {
+ 		// if Pkgpath is unknown, cannot hash symbols with relocations, as it
+ 		// may reference named symbols whose names are not fully expanded.
+ 		if s.ContentAddressable() && (ctxt.Pkgpath != "" || len(s.R) == 0) {
+-			if len(s.P) <= 8 && len(s.R) == 0 { // we can use short hash only for symbols without relocations
++			if len(s.P) <= 8 && len(s.R) == 0 && !strings.HasPrefix(s.Name, "type.") {
++				// We can use short hash only for symbols without relocations.
++				// Don't use short hash for type symbols, as they need special handling.
+ 				s.PkgIdx = goobj.PkgIdxHashed64
+ 				s.SymIdx = hashed64idx
+ 				if hashed64idx != int32(len(ctxt.hashed64defs)) {
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index ea99233f67..4025edc23f 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -2153,11 +2153,11 @@ func (l *Loader) LoadNonpkgSyms(arch *sys.Arch) {
+ 	l.npkgsyms = l.NSym()
+ 	// Preallocate some space (a few hundreds KB) for some symbols.
+ 	// As of Go 1.15, linking cmd/compile has ~8000 hashed64 symbols and
+-	// ~13000 hashed symbols.
++	// ~27000 hashed symbols.
+ 	st := loadState{
+ 		l:            l,
+ 		hashed64Syms: make(map[uint64]symAndSize, 10000),
+-		hashedSyms:   make(map[goobj.HashType]symAndSize, 15000),
++		hashedSyms:   make(map[goobj.HashType]symAndSize, 30000),
+ 	}
+ 	for _, o := range l.objs[goObjStart:] {
+ 		st.preloadSyms(o.r, hashed64Def)

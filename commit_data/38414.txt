@@ -12,8 +12,86 @@ Date:   Fri Oct 26 17:46:36 2018 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/main.go |  4 ----
  src/cmd/compile/internal/gc/ssa.go  |  3 ---
  src/cmd/compile/internal/gc/subr.go | 30 ------------------------------
  3 files changed, 37 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 68aac8b99e..3d7011aafd 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -205,7 +205,6 @@ func Main(archInit func(*Arch)) {
+ 	flag.BoolVar(&Ctxt.Flag_locationlists, "dwarflocationlists", true, "add location lists to DWARF in optimized mode")
+ 	flag.IntVar(&genDwarfInline, "gendwarfinl", 2, "generate DWARF inline info records")
+ 	objabi.Flagcount("e", "no limit on number of errors reported", &Debug['e'])
+-	objabi.Flagcount("f", "debug stack frames", &Debug['f'])
+ 	objabi.Flagcount("h", "halt on error", &Debug['h'])
+ 	objabi.Flagfn1("importmap", "add `definition` of the form source=actual to import map", addImportMap)
+ 	objabi.Flagfn1("importcfg", "read import configuration from `file`", readImportCfg)
+@@ -478,9 +477,6 @@ func Main(archInit func(*Arch)) {
+ 	finishUniverse()
+ 
+ 	typecheckok = true
+-	if Debug['f'] != 0 {
+-		frame(1)
+-	}
+ 
+ 	// Process top-level declarations in phases.
+ 
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 65271df360..e655d437f5 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -5239,9 +5239,6 @@ func genssa(f *ssa.Func, pp *Progs) {
+ 	}
+ 
+ 	defframe(&s, e)
+-	if Debug['f'] != 0 {
+-		frame(0)
+-	}
+ 
+ 	f.HTMLWriter.Close()
+ 	f.HTMLWriter = nil
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 8e643e6690..68803b65df 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -954,36 +954,6 @@ func typehash(t *types.Type) uint32 {
+ 	return binary.LittleEndian.Uint32(h[:4])
+ }
+ 
+-func frame(context int) {
+-	if context != 0 {
+-		fmt.Printf("--- external frame ---\n")
+-		for _, n := range externdcl {
+-			printframenode(n)
+-		}
+-		return
+-	}
+-
+-	if Curfn != nil {
+-		fmt.Printf("--- %v frame ---\n", Curfn.Func.Nname.Sym)
+-		for _, ln := range Curfn.Func.Dcl {
+-			printframenode(ln)
+-		}
+-	}
+-}
+-
+-func printframenode(n *Node) {
+-	w := int64(-1)
+-	if n.Type != nil {
+-		w = n.Type.Width
+-	}
+-	switch n.Op {
+-	case ONAME:
+-		fmt.Printf("%v %v G%d %v width=%d\n", n.Op, n.Sym, n.Name.Vargen, n.Type, w)
+-	case OTYPE:
+-		fmt.Printf("%v %v width=%d\n", n.Op, n.Type, w)
+-	}
+-}
+-
+ // updateHasCall checks whether expression n contains any function
+ // calls and sets the n.HasCall flag if so.
+ func updateHasCall(n *Node) {

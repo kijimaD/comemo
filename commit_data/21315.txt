@@ -12,6 +12,22 @@ Date:   Sun Dec 21 23:03:11 2014 +0100
     Reviewed-on: https://go-review.googlesource.com/1897
     Reviewed-by: Andrew Gerrand <adg@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/flag/flag.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/flag/flag.go b/src/flag/flag.go
+index 25660054a7..8c0e402e38 100644
+--- a/src/flag/flag.go
++++ b/src/flag/flag.go
+@@ -767,7 +767,9 @@ func (f *FlagSet) parseOne() (bool, error) {
+ 				return false, f.failf("invalid boolean value %q for -%s: %v", value, name, err)
+ 			}
+ 		} else {
+-			fv.Set("true")
++			if err := fv.Set("true"); err != nil {
++				return false, f.failf("invalid boolean flag %s: %v", name, err)
++			}
+ 		}
+ 	} else {
+ 		// It must have a value, which might be the next argument.

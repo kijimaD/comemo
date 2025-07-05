@@ -9,6 +9,28 @@ Date:   Tue Apr 26 10:38:11 2022 -0400
     Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  SECURITY.md | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/SECURITY.md b/SECURITY.md
+index 9e92e8b1ea..ab608f3af5 100644
+--- a/SECURITY.md
++++ b/SECURITY.md
+@@ -2,12 +2,12 @@
+ 
+ ## Supported Versions
+ 
+-We support the past two Go releases (for example, Go 1.12.x and Go 1.13.x).
++We support the past two Go releases (for example, Go 1.17.x and Go 1.18.x when Go 1.18.x is the latest stable release).
+ 
+-See https://golang.org/wiki/Go-Release-Cycle and in particular the
+-[Release Maintenance](https://github.com/golang/go/wiki/Go-Release-Cycle#release-maintenance)
++See https://go.dev/wiki/Go-Release-Cycle and in particular the
++[Release Maintenance](https://go.dev/wiki/Go-Release-Cycle#release-maintenance)
+ part of that page.
+ 
+ ## Reporting a Vulnerability
+ 
+-See https://golang.org/security for how to report a vulnerability.
++See https://go.dev/security for how to report a vulnerability.

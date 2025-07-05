@@ -12,7 +12,7 @@ Date:   Thu Aug 25 21:06:10 2016 -0400
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/link/internal/amd64/asm.go   |  4 ++--
  src/cmd/link/internal/amd64/obj.go   |  2 +-
  src/cmd/link/internal/arm/asm.go     |  2 +-
@@ -30,3 +30,342 @@ Date:   Thu Aug 25 21:06:10 2016 -0400
  src/cmd/link/internal/x86/asm.go     |  2 +-
  src/cmd/link/internal/x86/obj.go     |  2 +-
  16 files changed, 36 insertions(+), 36 deletions(-)
+
+diff --git a/src/cmd/link/internal/amd64/asm.go b/src/cmd/link/internal/amd64/asm.go
+index d5c052cb05..ded3664328 100644
+--- a/src/cmd/link/internal/amd64/asm.go
++++ b/src/cmd/link/internal/amd64/asm.go
+@@ -55,7 +55,7 @@ func Addcall(ctxt *ld.Link, s *ld.Symbol, t *ld.Symbol) int64 {
+ }
+ 
+ func gentext(ctxt *ld.Link) {
+-	if !ld.DynlinkingGo() {
++	if !ctxt.DynlinkingGo() {
+ 		return
+ 	}
+ 	addmoduledata := ld.Linklookup(ctxt, "runtime.addmoduledata", 0)
+@@ -342,7 +342,7 @@ func elfreloc1(ctxt *ld.Link, r *ld.Reloc, sectoff int64) int {
+ 	case obj.R_CALL:
+ 		if r.Siz == 4 {
+ 			if r.Xsym.Type == obj.SDYNIMPORT {
+-				if ld.DynlinkingGo() {
++				if ctxt.DynlinkingGo() {
+ 					ld.Thearch.Vput(ld.R_X86_64_PLT32 | uint64(elfsym)<<32)
+ 				} else {
+ 					ld.Thearch.Vput(ld.R_X86_64_GOTPCREL | uint64(elfsym)<<32)
+diff --git a/src/cmd/link/internal/amd64/obj.go b/src/cmd/link/internal/amd64/obj.go
+index 9e6cdd72ea..5c1fafd56f 100644
+--- a/src/cmd/link/internal/amd64/obj.go
++++ b/src/cmd/link/internal/amd64/obj.go
+@@ -89,7 +89,7 @@ func archinit(ctxt *ld.Link) {
+ 		ld.Linkmode = ld.LinkInternal
+ 	}
+ 
+-	if ld.Buildmode == ld.BuildmodeCArchive || ld.Buildmode == ld.BuildmodeCShared || ld.DynlinkingGo() {
++	if ld.Buildmode == ld.BuildmodeCArchive || ld.Buildmode == ld.BuildmodeCShared || ctxt.DynlinkingGo() {
+ 		ld.Linkmode = ld.LinkExternal
+ 	}
+ 
+diff --git a/src/cmd/link/internal/arm/asm.go b/src/cmd/link/internal/arm/asm.go
+index c2cc0814d0..06a6d2d17d 100644
+--- a/src/cmd/link/internal/arm/asm.go
++++ b/src/cmd/link/internal/arm/asm.go
+@@ -59,7 +59,7 @@ import (
+ //                      c: R_ARM_GOT_PREL       local.moduledata
+ 
+ func gentext(ctxt *ld.Link) {
+-	if !ld.DynlinkingGo() {
++	if !ctxt.DynlinkingGo() {
+ 		return
+ 	}
+ 	addmoduledata := ld.Linklookup(ctxt, "runtime.addmoduledata", 0)
+diff --git a/src/cmd/link/internal/arm/obj.go b/src/cmd/link/internal/arm/obj.go
+index 9ae5d2084d..7af55f89c0 100644
+--- a/src/cmd/link/internal/arm/obj.go
++++ b/src/cmd/link/internal/arm/obj.go
+@@ -85,7 +85,7 @@ func archinit(ctxt *ld.Link) {
+ 		ld.Linkmode = ld.LinkInternal
+ 	}
+ 
+-	if ld.Buildmode == ld.BuildmodeCArchive || ld.Buildmode == ld.BuildmodeCShared || ld.DynlinkingGo() {
++	if ld.Buildmode == ld.BuildmodeCArchive || ld.Buildmode == ld.BuildmodeCShared || ctxt.DynlinkingGo() {
+ 		ld.Linkmode = ld.LinkExternal
+ 	}
+ 
+diff --git a/src/cmd/link/internal/arm64/asm.go b/src/cmd/link/internal/arm64/asm.go
+index 85c452b615..9ec2224a65 100644
+--- a/src/cmd/link/internal/arm64/asm.go
++++ b/src/cmd/link/internal/arm64/asm.go
+@@ -39,7 +39,7 @@ import (
+ )
+ 
+ func gentext(ctxt *ld.Link) {
+-	if !ld.DynlinkingGo() {
++	if !ctxt.DynlinkingGo() {
+ 		return
+ 	}
+ 	addmoduledata := ld.Linklookup(ctxt, "runtime.addmoduledata", 0)
+@@ -249,7 +249,7 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) int {
+ 			// (https://sourceware.org/bugzilla/show_bug.cgi?id=18270). So
+ 			// we convert the adrp; ld64 + R_ARM64_GOTPCREL into adrp;
+ 			// add + R_ADDRARM64.
+-			if !(r.Sym.Version != 0 || (r.Sym.Type&obj.SHIDDEN != 0) || r.Sym.Attr.Local()) && r.Sym.Type == obj.STEXT && ld.DynlinkingGo() {
++			if !(r.Sym.Version != 0 || (r.Sym.Type&obj.SHIDDEN != 0) || r.Sym.Attr.Local()) && r.Sym.Type == obj.STEXT && ctxt.DynlinkingGo() {
+ 				if o2&0xffc00000 != 0xf9400000 {
+ 					ctxt.Diag("R_ARM64_GOTPCREL against unexpected instruction %x", o2)
+ 				}
+diff --git a/src/cmd/link/internal/arm64/obj.go b/src/cmd/link/internal/arm64/obj.go
+index 488f6a9cbc..8ee7dae459 100644
+--- a/src/cmd/link/internal/arm64/obj.go
++++ b/src/cmd/link/internal/arm64/obj.go
+@@ -103,7 +103,7 @@ func archinit(ctxt *ld.Link) {
+ 		break
+ 	}
+ 
+-	if ld.Buildmode == ld.BuildmodeCShared || ld.DynlinkingGo() {
++	if ld.Buildmode == ld.BuildmodeCShared || ctxt.DynlinkingGo() {
+ 		ld.Linkmode = ld.LinkExternal
+ 	}
+ 
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index c413a6f1ec..fdf99d602b 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -360,7 +360,7 @@ func relocsym(ctxt *Link, s *Symbol) {
+ 
+ 		// We need to be able to reference dynimport symbols when linking against
+ 		// shared libraries, and Solaris needs it always
+-		if HEADTYPE != obj.Hsolaris && r.Sym != nil && r.Sym.Type == obj.SDYNIMPORT && !DynlinkingGo() {
++		if HEADTYPE != obj.Hsolaris && r.Sym != nil && r.Sym.Type == obj.SDYNIMPORT && !ctxt.DynlinkingGo() {
+ 			if !(SysArch.Family == sys.PPC64 && Linkmode == LinkExternal && r.Sym.Name == ".TOC.") {
+ 				ctxt.Diag("unhandled relocation for %s (type %d rtype %d)", r.Sym.Name, r.Sym.Type, r.Type)
+ 			}
+diff --git a/src/cmd/link/internal/ld/deadcode.go b/src/cmd/link/internal/ld/deadcode.go
+index 6fd5ee3cbb..27e5a19a7a 100644
+--- a/src/cmd/link/internal/ld/deadcode.go
++++ b/src/cmd/link/internal/ld/deadcode.go
+@@ -63,7 +63,7 @@ func deadcode(ctxt *Link) {
+ 	methSym := Linkrlookup(ctxt, "reflect.Value.Method", 0)
+ 	reflectSeen := false
+ 
+-	if DynlinkingGo() {
++	if ctxt.DynlinkingGo() {
+ 		// Exported methods may satisfy interfaces we don't know
+ 		// about yet when dynamically linking.
+ 		reflectSeen = true
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index d118714842..3033258e77 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -155,7 +155,7 @@ type Section struct {
+ 
+ // DynlinkingGo returns whether we are producing Go code that can live
+ // in separate shared libraries linked together at runtime.
+-func DynlinkingGo() bool {
++func (ctxt *Link) DynlinkingGo() bool {
+ 	return Buildmode == BuildmodeShared || *FlagLinkshared
+ }
+ 
+@@ -307,7 +307,7 @@ func libinit(ctxt *Link) {
+ 		}
+ 	}
+ 
+-	if !DynlinkingGo() {
++	if !ctxt.DynlinkingGo() {
+ 		Linklookup(ctxt, *flagEntrySymbol, 0).Type = obj.SXREF
+ 	}
+ }
+@@ -466,7 +466,7 @@ func (ctxt *Link) loadlib() {
+ 			if ctxt.Library[i].Shlib != "" {
+ 				ldshlibsyms(ctxt, ctxt.Library[i].Shlib)
+ 			} else {
+-				if DynlinkingGo() {
++				if ctxt.DynlinkingGo() {
+ 					Exitf("cannot implicitly include runtime/cgo in a shared library")
+ 				}
+ 				objfile(ctxt, ctxt.Library[i])
+@@ -998,7 +998,7 @@ func (l *Link) hostlink() {
+ 		argv = append(argv, "-shared")
+ 	}
+ 
+-	if Iself && DynlinkingGo() {
++	if Iself && l.DynlinkingGo() {
+ 		// We force all symbol resolution to be done at program startup
+ 		// because lazy PLT resolution can use large amounts of stack at
+ 		// times we cannot allow it to do so.
+@@ -1639,7 +1639,7 @@ func stkcheck(ctxt *Link, up *chain, depth int) int {
+ 		// should never be called directly.
+ 		// onlyctxt.Diagnose the direct caller.
+ 		// TODO(mwhudson): actually think about this.
+-		if depth == 1 && s.Type != obj.SXREF && !DynlinkingGo() &&
++		if depth == 1 && s.Type != obj.SXREF && !ctxt.DynlinkingGo() &&
+ 			Buildmode != BuildmodeCArchive && Buildmode != BuildmodePIE && Buildmode != BuildmodeCShared {
+ 			ctxt.Diag("call to external function %s", s.Name)
+ 		}
+diff --git a/src/cmd/link/internal/ld/objfile.go b/src/cmd/link/internal/ld/objfile.go
+index dace73161a..5bb6e1e8af 100644
+--- a/src/cmd/link/internal/ld/objfile.go
++++ b/src/cmd/link/internal/ld/objfile.go
+@@ -585,7 +585,7 @@ func (r *objReader) readSymName() string {
+ 			}
+ 			r.rdBuf = adjName[:0] // in case 2*n wasn't enough
+ 
+-			if DynlinkingGo() {
++			if r.ctxt.DynlinkingGo() {
+ 				// These types are included in the symbol
+ 				// table when dynamically linking. To keep
+ 				// binary size down, we replace the names
+diff --git a/src/cmd/link/internal/ld/symtab.go b/src/cmd/link/internal/ld/symtab.go
+index 6ff16aba6e..6a2ccd5d0b 100644
+--- a/src/cmd/link/internal/ld/symtab.go
++++ b/src/cmd/link/internal/ld/symtab.go
+@@ -46,14 +46,6 @@ func putelfstr(s string) int {
+ 		putelfstr("")
+ 	}
+ 
+-	// When dynamically linking, we create Symbols by reading the names from
+-	// the symbol tables of the shared libraries and so the names need to
+-	// match exactly. Tools like DTrace will have to wait for now.
+-	if !DynlinkingGo() {
+-		// Rewrite · to . for ASCII-only tools like DTrace (sigh)
+-		s = strings.Replace(s, "·", ".", -1)
+-	}
+-
+ 	off := len(Elfstrdat)
+ 	Elfstrdat = append(Elfstrdat, s...)
+ 	Elfstrdat = append(Elfstrdat, 0)
+@@ -144,7 +136,7 @@ func putelfsym(ctxt *Link, x *Symbol, s string, t int, addr int64, size int64, v
+ 	// To avoid filling the dynamic table with lots of unnecessary symbols,
+ 	// mark all Go symbols local (not global) in the final executable.
+ 	// But when we're dynamically linking, we need all those global symbols.
+-	if !DynlinkingGo() && Linkmode == LinkExternal && !x.Attr.CgoExportStatic() && elfshnum != SHN_UNDEF {
++	if !ctxt.DynlinkingGo() && Linkmode == LinkExternal && !x.Attr.CgoExportStatic() && elfshnum != SHN_UNDEF {
+ 		bind = STB_LOCAL
+ 	}
+ 
+@@ -155,14 +147,22 @@ func putelfsym(ctxt *Link, x *Symbol, s string, t int, addr int64, size int64, v
+ 	if x.Type&obj.SHIDDEN != 0 {
+ 		other = STV_HIDDEN
+ 	}
+-	if (Buildmode == BuildmodeCArchive || Buildmode == BuildmodePIE || DynlinkingGo()) && SysArch.Family == sys.PPC64 && type_ == STT_FUNC && x.Name != "runtime.duffzero" && x.Name != "runtime.duffcopy" {
++	if (Buildmode == BuildmodeCArchive || Buildmode == BuildmodePIE || ctxt.DynlinkingGo()) && SysArch.Family == sys.PPC64 && type_ == STT_FUNC && x.Name != "runtime.duffzero" && x.Name != "runtime.duffcopy" {
+ 		// On ppc64 the top three bits of the st_other field indicate how
+ 		// many instructions separate the global and local entry points. In
+ 		// our case it is two instructions, indicated by the value 3.
+ 		other |= 3 << 5
+ 	}
+ 
+-	if DynlinkingGo() && bind == STB_GLOBAL && elfbind == STB_LOCAL && x.Type == obj.STEXT {
++	// When dynamically linking, we create Symbols by reading the names from
++	// the symbol tables of the shared libraries and so the names need to
++	// match exactly. Tools like DTrace will have to wait for now.
++	if !ctxt.DynlinkingGo() {
++		// Rewrite · to . for ASCII-only tools like DTrace (sigh)
++		s = strings.Replace(s, "·", ".", -1)
++	}
++
++	if ctxt.DynlinkingGo() && bind == STB_GLOBAL && elfbind == STB_LOCAL && x.Type == obj.STEXT {
+ 		// When dynamically linking, we want references to functions defined
+ 		// in this module to always be to the function object, not to the
+ 		// PLT. We force this by writing an additional local symbol for every
+@@ -376,7 +376,7 @@ func (ctxt *Link) symtab() {
+ 		s.Size = 0
+ 		s.Attr |= AttrReachable
+ 		symtyperel = s
+-	} else if !DynlinkingGo() {
++	} else if !ctxt.DynlinkingGo() {
+ 		s = Linklookup(ctxt, "type.*", 0)
+ 
+ 		s.Type = obj.STYPE
+@@ -401,7 +401,7 @@ func (ctxt *Link) symtab() {
+ 	)
+ 
+ 	var symgofuncrel *Symbol
+-	if !DynlinkingGo() {
++	if !ctxt.DynlinkingGo() {
+ 		if UseRelro() {
+ 			symgofuncrel = groupSym("go.funcrel.*", obj.SGOFUNCRELRO)
+ 		} else {
+@@ -435,7 +435,7 @@ func (ctxt *Link) symtab() {
+ 
+ 		switch {
+ 		case strings.HasPrefix(s.Name, "type."):
+-			if !DynlinkingGo() {
++			if !ctxt.DynlinkingGo() {
+ 				s.Attr |= AttrHidden
+ 			}
+ 			if UseRelro() {
+@@ -478,7 +478,7 @@ func (ctxt *Link) symtab() {
+ 			s.Outer = symgcbits
+ 
+ 		case strings.HasSuffix(s.Name, "·f"):
+-			if !DynlinkingGo() {
++			if !ctxt.DynlinkingGo() {
+ 				s.Attr |= AttrHidden
+ 			}
+ 			if UseRelro() {
+diff --git a/src/cmd/link/internal/ppc64/asm.go b/src/cmd/link/internal/ppc64/asm.go
+index cf888b692f..afbfca10d1 100644
+--- a/src/cmd/link/internal/ppc64/asm.go
++++ b/src/cmd/link/internal/ppc64/asm.go
+@@ -185,7 +185,7 @@ func genaddmoduledata(ctxt *ld.Link) {
+ }
+ 
+ func gentext(ctxt *ld.Link) {
+-	if ld.DynlinkingGo() {
++	if ctxt.DynlinkingGo() {
+ 		genaddmoduledata(ctxt)
+ 	}
+ 
+diff --git a/src/cmd/link/internal/s390x/asm.go b/src/cmd/link/internal/s390x/asm.go
+index d08c5af64d..1d36685853 100644
+--- a/src/cmd/link/internal/s390x/asm.go
++++ b/src/cmd/link/internal/s390x/asm.go
+@@ -48,7 +48,7 @@ import (
+ //
+ // The job of appending the moduledata is delegated to runtime.addmoduledata.
+ func gentext(ctxt *ld.Link) {
+-	if !ld.DynlinkingGo() {
++	if !ctxt.DynlinkingGo() {
+ 		return
+ 	}
+ 	addmoduledata := ld.Linklookup(ctxt, "runtime.addmoduledata", 0)
+diff --git a/src/cmd/link/internal/s390x/obj.go b/src/cmd/link/internal/s390x/obj.go
+index 044cfbba0f..2a3d0fcb26 100644
+--- a/src/cmd/link/internal/s390x/obj.go
++++ b/src/cmd/link/internal/s390x/obj.go
+@@ -86,7 +86,7 @@ func archinit(ctxt *ld.Link) {
+ 		ld.Linkmode = ld.LinkInternal
+ 	}
+ 
+-	if ld.Buildmode == ld.BuildmodeCArchive || ld.Buildmode == ld.BuildmodeCShared || ld.DynlinkingGo() {
++	if ld.Buildmode == ld.BuildmodeCArchive || ld.Buildmode == ld.BuildmodeCShared || ctxt.DynlinkingGo() {
+ 		ld.Linkmode = ld.LinkExternal
+ 	}
+ 
+diff --git a/src/cmd/link/internal/x86/asm.go b/src/cmd/link/internal/x86/asm.go
+index 064af7f5f4..d04e82447a 100644
+--- a/src/cmd/link/internal/x86/asm.go
++++ b/src/cmd/link/internal/x86/asm.go
+@@ -50,7 +50,7 @@ func addcall(ctxt *ld.Link, s *ld.Symbol, t *ld.Symbol) {
+ }
+ 
+ func gentext(ctxt *ld.Link) {
+-	if ld.DynlinkingGo() {
++	if ctxt.DynlinkingGo() {
+ 		// We need get_pc_thunk.
+ 	} else {
+ 		switch ld.Buildmode {
+diff --git a/src/cmd/link/internal/x86/obj.go b/src/cmd/link/internal/x86/obj.go
+index 46ca62c28b..f5722780b7 100644
+--- a/src/cmd/link/internal/x86/obj.go
++++ b/src/cmd/link/internal/x86/obj.go
+@@ -85,7 +85,7 @@ func archinit(ctxt *ld.Link) {
+ 		ld.Linkmode = ld.LinkInternal
+ 	}
+ 
+-	if (ld.Buildmode == ld.BuildmodeCArchive && ld.Iself) || ld.Buildmode == ld.BuildmodeCShared || ld.Buildmode == ld.BuildmodePIE || ld.DynlinkingGo() {
++	if (ld.Buildmode == ld.BuildmodeCArchive && ld.Iself) || ld.Buildmode == ld.BuildmodeCShared || ld.Buildmode == ld.BuildmodePIE || ctxt.DynlinkingGo() {
+ 		ld.Linkmode = ld.LinkExternal
+ 		got := ld.Linklookup(ctxt, "_GLOBAL_OFFSET_TABLE_", 0)
+ 		got.Type = obj.SDYNIMPORT

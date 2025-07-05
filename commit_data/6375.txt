@@ -7,6 +7,10 @@ Date:   Fri Sep 24 11:03:54 2010 -0700
     TBR=adg
     CC=golang-dev
     https://golang.org/cl/2208049
-
+---
  src/pkg/syscall/mksysnum_nacl.sh | 0
  1 file changed, 0 insertions(+), 0 deletions(-)
+
+diff --git a/src/pkg/syscall/mksysnum_nacl.sh b/src/pkg/syscall/mksysnum_nacl.sh
+old mode 100644
+new mode 100755

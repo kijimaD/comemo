@@ -7,6 +7,20 @@ Date:   Tue Aug 30 02:09:19 2016 +0200
     Change-Id: I8434925661dc11396380af65c192c9f0dc191287
     Reviewed-on: https://go-review.googlesource.com/27973
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/os/dir_unix.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/os/dir_unix.go b/src/os/dir_unix.go
+index 9337144c3a..03d949af1a 100644
+--- a/src/os/dir_unix.go
++++ b/src/os/dir_unix.go
+@@ -35,7 +35,7 @@ func (f *File) readdir(n int) (fi []FileInfo, err error) {
+ 		fi = append(fi, fip)
+ 	}
+ 	if len(fi) == 0 && err == nil && n > 0 {
+-		// Per File.Readir, the slice must be non-empty or err
++		// Per File.Readdir, the slice must be non-empty or err
+ 		// must be non-nil if n > 0.
+ 		err = io.EOF
+ 	}

@@ -19,7 +19,7 @@ Date:   Mon Mar 3 12:26:51 2025 -0800
     Reviewed-by: Robert Findley <rfindley@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/index.go        | 2 +-
  src/cmd/compile/internal/types2/infer.go        | 2 +-
  src/cmd/compile/internal/types2/signature.go    | 2 +-
@@ -28,3 +28,100 @@ Date:   Mon Mar 3 12:26:51 2025 -0800
  src/go/types/signature.go                       | 2 +-
  src/internal/types/testdata/check/typeparams.go | 4 ++--
  7 files changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/index.go b/src/cmd/compile/internal/types2/index.go
+index d1d7a530b6..451c5e2f9a 100644
+--- a/src/cmd/compile/internal/types2/index.go
++++ b/src/cmd/compile/internal/types2/index.go
+@@ -217,7 +217,7 @@ func (check *Checker) sliceExpr(x *operand, e *syntax.SliceExpr) {
+ 	length := int64(-1) // valid if >= 0
+ 	switch u := coreString(x.typ).(type) {
+ 	case nil:
+-		check.errorf(x, NonSliceableOperand, invalidOp+"cannot slice %s: %s has no core type", x, x.typ)
++		check.errorf(x, NonSliceableOperand, invalidOp+"cannot slice %s: %s has no common underlying type", x, x.typ)
+ 		x.mode = invalid
+ 		return
+ 
+diff --git a/src/cmd/compile/internal/types2/infer.go b/src/cmd/compile/internal/types2/infer.go
+index 56f0444686..865cabe31c 100644
+--- a/src/cmd/compile/internal/types2/infer.go
++++ b/src/cmd/compile/internal/types2/infer.go
+@@ -265,7 +265,7 @@ func (check *Checker) infer(pos syntax.Pos, tparams []*TypeParam, targs []Type,
+ 					}
+ 				case single && !core.tilde:
+ 					if traceInference {
+-						u.tracef("-> set type parameter %s to constraint core type %s", tpar, core.typ)
++						u.tracef("-> set type parameter %s to constraint's common underlying type %s", tpar, core.typ)
+ 					}
+ 					// The corresponding type argument tx is unknown and the core term
+ 					// describes a single specific type and no tilde.
+diff --git a/src/cmd/compile/internal/types2/signature.go b/src/cmd/compile/internal/types2/signature.go
+index 622eb1383d..892fa0e460 100644
+--- a/src/cmd/compile/internal/types2/signature.go
++++ b/src/cmd/compile/internal/types2/signature.go
+@@ -45,7 +45,7 @@ func NewSignatureType(recv *Var, recvTypeParams, typeParams []*TypeParam, params
+ 		}
+ 		core := coreString(params.At(n - 1).typ)
+ 		if _, ok := core.(*Slice); !ok && !isString(core) {
+-			panic(fmt.Sprintf("got %s, want variadic parameter with unnamed slice type or string as core type", core.String()))
++			panic(fmt.Sprintf("got %s, want variadic parameter with unnamed slice type or string as common underlying type", core.String()))
+ 		}
+ 	}
+ 	sig := &Signature{recv: recv, params: params, results: results, variadic: variadic}
+diff --git a/src/go/types/index.go b/src/go/types/index.go
+index 1c04f16a97..88c32706ee 100644
+--- a/src/go/types/index.go
++++ b/src/go/types/index.go
+@@ -219,7 +219,7 @@ func (check *Checker) sliceExpr(x *operand, e *ast.SliceExpr) {
+ 	length := int64(-1) // valid if >= 0
+ 	switch u := coreString(x.typ).(type) {
+ 	case nil:
+-		check.errorf(x, NonSliceableOperand, invalidOp+"cannot slice %s: %s has no core type", x, x.typ)
++		check.errorf(x, NonSliceableOperand, invalidOp+"cannot slice %s: %s has no common underlying type", x, x.typ)
+ 		x.mode = invalid
+ 		return
+ 
+diff --git a/src/go/types/infer.go b/src/go/types/infer.go
+index 873e351732..c04ca98fb5 100644
+--- a/src/go/types/infer.go
++++ b/src/go/types/infer.go
+@@ -268,7 +268,7 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
+ 					}
+ 				case single && !core.tilde:
+ 					if traceInference {
+-						u.tracef("-> set type parameter %s to constraint core type %s", tpar, core.typ)
++						u.tracef("-> set type parameter %s to constraint's common underlying type %s", tpar, core.typ)
+ 					}
+ 					// The corresponding type argument tx is unknown and the core term
+ 					// describes a single specific type and no tilde.
+diff --git a/src/go/types/signature.go b/src/go/types/signature.go
+index 365b111939..babb24b0ca 100644
+--- a/src/go/types/signature.go
++++ b/src/go/types/signature.go
+@@ -58,7 +58,7 @@ func NewSignatureType(recv *Var, recvTypeParams, typeParams []*TypeParam, params
+ 		}
+ 		core := coreString(params.At(n - 1).typ)
+ 		if _, ok := core.(*Slice); !ok && !isString(core) {
+-			panic(fmt.Sprintf("got %s, want variadic parameter with unnamed slice type or string as core type", core.String()))
++			panic(fmt.Sprintf("got %s, want variadic parameter with unnamed slice type or string as common underlying type", core.String()))
+ 		}
+ 	}
+ 	sig := &Signature{recv: recv, params: params, results: results, variadic: variadic}
+diff --git a/src/internal/types/testdata/check/typeparams.go b/src/internal/types/testdata/check/typeparams.go
+index d4fd35645f..1504442e06 100644
+--- a/src/internal/types/testdata/check/typeparams.go
++++ b/src/internal/types/testdata/check/typeparams.go
+@@ -134,11 +134,11 @@ func _[T interface{ ~string }] (x T, i, j, k int) { var _ T = x[i:j:k /* ERROR "
+ type myByte1 []byte
+ type myByte2 []byte
+ func _[T interface{ []byte | myByte1 | myByte2 }] (x T, i, j, k int) { var _ T = x[i:j:k] }
+-func _[T interface{ []byte | myByte1 | []int }] (x T, i, j, k int) { var _ T = x /* ERROR "no core type" */ [i:j:k] }
++func _[T interface{ []byte | myByte1 | []int }] (x T, i, j, k int) { var _ T = x /* ERROR "no common underlying type" */ [i:j:k] }
+ 
+ func _[T interface{ []byte | myByte1 | myByte2 | string }] (x T, i, j, k int) { var _ T = x[i:j] }
+ func _[T interface{ []byte | myByte1 | myByte2 | string }] (x T, i, j, k int) { var _ T = x[i:j:k /* ERROR "3-index slice of string" */ ] }
+-func _[T interface{ []byte | myByte1 | []int | string }] (x T, i, j, k int) { var _ T = x /* ERROR "no core type" */ [i:j] }
++func _[T interface{ []byte | myByte1 | []int | string }] (x T, i, j, k int) { var _ T = x /* ERROR "no common underlying type" */ [i:j] }
+ 
+ // len/cap built-ins
+ 

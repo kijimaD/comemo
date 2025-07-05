@@ -33,7 +33,7 @@ Date:   Wed Apr 24 16:26:39 2024 +0000
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Auto-Submit: Michael Knyszek <mknyszek@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/internal/trace/v2/base.go              |   4 +
  src/internal/trace/v2/batch.go             |  24 +++--
  src/internal/trace/v2/event.go             |  73 ++++++++++++++-
@@ -58,3 +58,1215 @@ Date:   Wed Apr 24 16:26:39 2024 +0000
  src/runtime/traceruntime.go                |  10 +++
  src/runtime/tracetype.go                   |  77 ++++++++++++++++
  23 files changed, 695 insertions(+), 27 deletions(-)
+
+diff --git a/src/internal/trace/v2/base.go b/src/internal/trace/v2/base.go
+index bcc4414936..31e3c70f66 100644
+--- a/src/internal/trace/v2/base.go
++++ b/src/internal/trace/v2/base.go
+@@ -61,6 +61,10 @@ type evTable struct {
+ 	extraStrings   []string
+ 	extraStringIDs map[string]extraStringID
+ 	nextExtra      extraStringID
++
++	// expData contains extra unparsed data that is accessible
++	// only to ExperimentEvent via an EventExperimental event.
++	expData map[event.Experiment]*ExperimentalData
+ }
+ 
+ // addExtraString adds an extra string to the evTable and returns
+diff --git a/src/internal/trace/v2/batch.go b/src/internal/trace/v2/batch.go
+index d7afc06eec..57c230fe02 100644
+--- a/src/internal/trace/v2/batch.go
++++ b/src/internal/trace/v2/batch.go
+@@ -23,22 +23,23 @@ type batch struct {
+ 	m    ThreadID
+ 	time timestamp
+ 	data []byte
++	exp  event.Experiment
+ }
+ 
+ func (b *batch) isStringsBatch() bool {
+-	return len(b.data) > 0 && event.Type(b.data[0]) == go122.EvStrings
++	return b.exp == event.NoExperiment && len(b.data) > 0 && event.Type(b.data[0]) == go122.EvStrings
+ }
+ 
+ func (b *batch) isStacksBatch() bool {
+-	return len(b.data) > 0 && event.Type(b.data[0]) == go122.EvStacks
++	return b.exp == event.NoExperiment && len(b.data) > 0 && event.Type(b.data[0]) == go122.EvStacks
+ }
+ 
+ func (b *batch) isCPUSamplesBatch() bool {
+-	return len(b.data) > 0 && event.Type(b.data[0]) == go122.EvCPUSamples
++	return b.exp == event.NoExperiment && len(b.data) > 0 && event.Type(b.data[0]) == go122.EvCPUSamples
+ }
+ 
+ func (b *batch) isFreqBatch() bool {
+-	return len(b.data) > 0 && event.Type(b.data[0]) == go122.EvFrequency
++	return b.exp == event.NoExperiment && len(b.data) > 0 && event.Type(b.data[0]) == go122.EvFrequency
+ }
+ 
+ // readBatch reads the next full batch from r.
+@@ -51,8 +52,18 @@ func readBatch(r interface {
+ 	if err != nil {
+ 		return batch{}, 0, err
+ 	}
+-	if typ := event.Type(b); typ != go122.EvEventBatch {
+-		return batch{}, 0, fmt.Errorf("expected batch event (%s), got %s", go122.EventString(go122.EvEventBatch), go122.EventString(typ))
++	if typ := event.Type(b); typ != go122.EvEventBatch && typ != go122.EvExperimentalBatch {
++		return batch{}, 0, fmt.Errorf("expected batch event, got %s", go122.EventString(typ))
++	}
++
++	// Read the experiment of we have one.
++	exp := event.NoExperiment
++	if event.Type(b) == go122.EvExperimentalBatch {
++		e, err := r.ReadByte()
++		if err != nil {
++			return batch{}, 0, err
++		}
++		exp = event.Experiment(e)
+ 	}
+ 
+ 	// Read the batch header: gen (generation), thread (M) ID, base timestamp
+@@ -95,5 +106,6 @@ func readBatch(r interface {
+ 		m:    ThreadID(m),
+ 		time: timestamp(ts),
+ 		data: data.Bytes(),
++		exp:  exp,
+ 	}, gen, nil
+ }
+diff --git a/src/internal/trace/v2/event.go b/src/internal/trace/v2/event.go
+index a1eb220dbd..c58d3bcba2 100644
+--- a/src/internal/trace/v2/event.go
++++ b/src/internal/trace/v2/event.go
+@@ -76,8 +76,13 @@ const (
+ 	// EventLog represents a runtime/trace.Log call.
+ 	EventLog
+ 
+-	// Transitions in state for some resource.
++	// EventStateTransition represents a state change for some resource.
+ 	EventStateTransition
++
++	// EventExperimental is an experimental event that is unvalidated and exposed in a raw form.
++	// Users are expected to understand the format and perform their own validation. These events
++	// may always be safely ignored.
++	EventExperimental
+ )
+ 
+ // String returns a string form of the EventKind.
+@@ -103,6 +108,7 @@ var eventKindStrings = [...]string{
+ 	EventRegionEnd:       "RegionEnd",
+ 	EventLog:             "Log",
+ 	EventStateTransition: "StateTransition",
++	EventExperimental:    "Experimental",
+ }
+ 
+ const maxTime = Time(math.MaxInt64)
+@@ -300,6 +306,42 @@ type StackFrame struct {
+ 	Line uint64
+ }
+ 
++// ExperimentalEvent presents a raw view of an experimental event's arguments and thier names.
++type ExperimentalEvent struct {
++	// Name is the name of the event.
++	Name string
++
++	// ArgNames is the names of the event's arguments in order.
++	// This may refer to a globally shared slice. Copy before mutating.
++	ArgNames []string
++
++	// Args contains the event's arguments.
++	Args []uint64
++
++	// Data is additional unparsed data that is associated with the experimental event.
++	// Data is likely to be shared across many ExperimentalEvents, so callers that parse
++	// Data are encouraged to cache the parse result and look it up by the value of Data.
++	Data *ExperimentalData
++}
++
++// ExperimentalData represents some raw and unparsed sidecar data present in the trace that is
++// associated with certain kinds of experimental events. For example, this data may contain
++// tables needed to interpret ExperimentalEvent arguments, or the ExperimentEvent could just be
++// a placeholder for a differently encoded event that's actually present in the experimental data.
++type ExperimentalData struct {
++	// Batches contain the actual experimental data, along with metadata about each batch.
++	Batches []ExperimentalBatch
++}
++
++// ExperimentalBatch represents a packet of unparsed data along with metadata about that packet.
++type ExperimentalBatch struct {
++	// Thread is the ID of the thread that produced a packet of data.
++	Thread ThreadID
++
++	// Data is a packet of unparsed data all produced by one thread.
++	Data []byte
++}
++
+ // Event represents a single event in the trace.
+ type Event struct {
+ 	table *evTable
+@@ -613,6 +655,23 @@ func (e Event) StateTransition() StateTransition {
+ 	return s
+ }
+ 
++// Experimental returns a view of the raw event for an experimental event.
++//
++// Panics if Kind != EventExperimental.
++func (e Event) Experimental() ExperimentalEvent {
++	if e.Kind() != EventExperimental {
++		panic("Experimental called on non-Experimental event")
++	}
++	spec := go122.Specs()[e.base.typ]
++	argNames := spec.Args[1:]
++	return ExperimentalEvent{
++		Name:     spec.Name,
++		ArgNames: argNames, // Skip timestamp; already handled.
++		Args:     e.base.args[1 : 1+len(argNames)],
++		Data:     e.table.expData[spec.Experiment],
++	}
++}
++
+ const evSync = ^event.Type(0)
+ 
+ var go122Type2Kind = [...]EventKind{
+@@ -657,6 +716,15 @@ var go122Type2Kind = [...]EventKind{
+ 	go122.EvGoSwitchDestroy:     EventStateTransition,
+ 	go122.EvGoCreateBlocked:     EventStateTransition,
+ 	go122.EvGoStatusStack:       EventStateTransition,
++	go122.EvSpan:                EventExperimental,
++	go122.EvSpanAlloc:           EventExperimental,
++	go122.EvSpanFree:            EventExperimental,
++	go122.EvHeapObject:          EventExperimental,
++	go122.EvHeapObjectAlloc:     EventExperimental,
++	go122.EvHeapObjectFree:      EventExperimental,
++	go122.EvGoroutineStack:      EventExperimental,
++	go122.EvGoroutineStackAlloc: EventExperimental,
++	go122.EvGoroutineStackFree:  EventExperimental,
+ 	evSync:                      EventSync,
+ }
+ 
+@@ -733,6 +801,9 @@ func (e Event) String() string {
+ 				return true
+ 			})
+ 		}
++	case EventExperimental:
++		r := e.Experimental()
++		fmt.Fprintf(&sb, " Name=%s ArgNames=%v Args=%v", r.Name, r.ArgNames, r.Args)
+ 	}
+ 	if stk := e.Stack(); stk != NoStack {
+ 		fmt.Fprintln(&sb)
+diff --git a/src/internal/trace/v2/event/event.go b/src/internal/trace/v2/event/event.go
+index 111dde604c..adcb8811d8 100644
+--- a/src/internal/trace/v2/event/event.go
++++ b/src/internal/trace/v2/event/event.go
+@@ -28,6 +28,15 @@ type Spec struct {
+ 	// in the ArgTypes variable.
+ 	Args []string
+ 
++	// StringIDs indicates which of the arguments are string IDs.
++	StringIDs []int
++
++	// StackIDs indicates which of the arguments are stack IDs.
++	//
++	// The list is not sorted. The first index always refers to
++	// the main stack for the current execution context of the event.
++	StackIDs []int
++
+ 	// StartEv indicates the event type of the corresponding "start"
+ 	// event, if this event is an "end," for a pair of events that
+ 	// represent a time range.
+@@ -44,16 +53,9 @@ type Spec struct {
+ 
+ 	// HasData is true if the event has trailer consisting of a
+ 	// varint length followed by unencoded bytes of some data.
+-	HasData bool
+-
+-	// StringIDs indicates which of the arguments are string IDs.
+-	StringIDs []int
+-
+-	// StackIDs indicates which of the arguments are stack IDs.
+ 	//
+-	// The list is not sorted. The first index always refers to
+-	// the main stack for the current execution context of the event.
+-	StackIDs []int
++	// An event may not be both a timed event and have data.
++	HasData bool
+ 
+ 	// IsStack indicates that the event represents a complete
+ 	// stack trace. Specifically, it means that after the arguments
+@@ -61,6 +63,11 @@ type Spec struct {
+ 	// group of 4 represents the PC, file ID, func ID, and line number
+ 	// in that order.
+ 	IsStack bool
++
++	// Experiment indicates the ID of an experiment this event is associated
++	// with. If Experiment is not NoExperiment, then the event is experimental
++	// and will be exposed as an EventExperiment.
++	Experiment Experiment
+ }
+ 
+ // ArgTypes is a list of valid argument types for use in Args.
+@@ -87,3 +94,9 @@ func Names(specs []Spec) map[string]Type {
+ 	}
+ 	return nameToType
+ }
++
++// Experiment is an experiment ID that events may be associated with.
++type Experiment uint
++
++// NoExperiment is the reserved ID 0 indicating no experiment.
++const NoExperiment Experiment = 0
+diff --git a/src/internal/trace/v2/event/go122/event.go b/src/internal/trace/v2/event/go122/event.go
+index 5bb9bf1837..df25bfc318 100644
+--- a/src/internal/trace/v2/event/go122/event.go
++++ b/src/internal/trace/v2/event/go122/event.go
+@@ -73,8 +73,39 @@ const (
+ 	EvGoSwitchDestroy // goroutine switch and destroy [timestamp, goroutine ID, goroutine seq]
+ 	EvGoCreateBlocked // goroutine creation (starts blocked) [timestamp, new goroutine ID, new stack ID, stack ID]
+ 
+-	// GoStatus with stack.
++	// GoStatus with stack. Added in Go 1.23.
+ 	EvGoStatusStack // goroutine status at the start of a generation, with a stack [timestamp, goroutine ID, M ID, status, stack ID]
++
++	// Batch event for an experimental batch with a custom format. Added in Go 1.23.
++	EvExperimentalBatch // start of extra data [experiment ID, generation, M ID, timestamp, batch length, batch data...]
++)
++
++// Experiments.
++const (
++	// AllocFree is the alloc-free events experiment.
++	AllocFree event.Experiment = 1 + iota
++)
++
++// Experimental events.
++const (
++	_ event.Type = 127 + iota
++
++	// Experimental events for AllocFree.
++
++	// Experimental heap span events. Added in Go 1.23.
++	EvSpan      // heap span exists [timestamp, id, npages, type/class]
++	EvSpanAlloc // heap span alloc [timestamp, id, npages, type/class]
++	EvSpanFree  // heap span free [timestamp, id]
++
++	// Experimental heap object events. Added in Go 1.23.
++	EvHeapObject      // heap object exists [timestamp, id, type]
++	EvHeapObjectAlloc // heap object alloc [timestamp, id, type]
++	EvHeapObjectFree  // heap object free [timestamp, id]
++
++	// Experimental goroutine stack events. Added in Go 1.23.
++	EvGoroutineStack      // stack exists [timestamp, id, order]
++	EvGoroutineStackAlloc // stack alloc [timestamp, id, order]
++	EvGoroutineStackFree  // stack free [timestamp, id]
+ )
+ 
+ // EventString returns the name of a Go 1.22 event.
+@@ -125,6 +156,11 @@ var specs = [...]event.Spec{
+ 		Name: "Frequency",
+ 		Args: []string{"freq"},
+ 	},
++	EvExperimentalBatch: event.Spec{
++		Name:    "ExperimentalBatch",
++		Args:    []string{"exp", "gen", "m", "time"},
++		HasData: true, // Easier to represent for raw readers.
++	},
+ 
+ 	// "Timed" Events.
+ 	EvProcsChange: event.Spec{
+@@ -362,6 +398,63 @@ var specs = [...]event.Spec{
+ 		IsTimedEvent: true,
+ 		StackIDs:     []int{4},
+ 	},
++
++	// Experimental events.
++
++	EvSpan: event.Spec{
++		Name:         "Span",
++		Args:         []string{"dt", "id", "npages_value", "kindclass"},
++		IsTimedEvent: true,
++		Experiment:   AllocFree,
++	},
++	EvSpanAlloc: event.Spec{
++		Name:         "SpanAlloc",
++		Args:         []string{"dt", "id", "npages_value", "kindclass"},
++		IsTimedEvent: true,
++		Experiment:   AllocFree,
++	},
++	EvSpanFree: event.Spec{
++		Name:         "SpanFree",
++		Args:         []string{"dt", "id"},
++		IsTimedEvent: true,
++		Experiment:   AllocFree,
++	},
++	EvHeapObject: event.Spec{
++		Name:         "HeapObject",
++		Args:         []string{"dt", "id", "type"},
++		IsTimedEvent: true,
++		Experiment:   AllocFree,
++	},
++	EvHeapObjectAlloc: event.Spec{
++		Name:         "HeapObjectAlloc",
++		Args:         []string{"dt", "id", "type"},
++		IsTimedEvent: true,
++		Experiment:   AllocFree,
++	},
++	EvHeapObjectFree: event.Spec{
++		Name:         "HeapObjectFree",
++		Args:         []string{"dt", "id"},
++		IsTimedEvent: true,
++		Experiment:   AllocFree,
++	},
++	EvGoroutineStack: event.Spec{
++		Name:         "GoroutineStack",
++		Args:         []string{"dt", "id", "order"},
++		IsTimedEvent: true,
++		Experiment:   AllocFree,
++	},
++	EvGoroutineStackAlloc: event.Spec{
++		Name:         "GoroutineStackAlloc",
++		Args:         []string{"dt", "id", "order"},
++		IsTimedEvent: true,
++		Experiment:   AllocFree,
++	},
++	EvGoroutineStackFree: event.Spec{
++		Name:         "GoroutineStackFree",
++		Args:         []string{"dt", "id"},
++		IsTimedEvent: true,
++		Experiment:   AllocFree,
++	},
+ }
+ 
+ type GoStatus uint8
+diff --git a/src/internal/trace/v2/generation.go b/src/internal/trace/v2/generation.go
+index 34ea4a147b..c6f1568179 100644
+--- a/src/internal/trace/v2/generation.go
++++ b/src/internal/trace/v2/generation.go
+@@ -150,6 +150,10 @@ func processBatch(g *generation, b batch) error {
+ 			return fmt.Errorf("found multiple frequency events")
+ 		}
+ 		g.freq = freq
++	case b.exp != event.NoExperiment:
++		if err := addExperimentalData(g.expData, b); err != nil {
++			return err
++		}
+ 	default:
+ 		g.batches[b.m] = append(g.batches[b.m], b)
+ 	}
+@@ -412,3 +416,20 @@ func parseFreq(b batch) (frequency, error) {
+ 	// Convert to nanoseconds per timestamp unit.
+ 	return frequency(1.0 / (float64(f) / 1e9)), nil
+ }
++
++// addExperimentalData takes an experimental batch and adds it to the ExperimentalData
++// for the experiment its a part of.
++func addExperimentalData(expData map[event.Experiment]*ExperimentalData, b batch) error {
++	if b.exp == event.NoExperiment {
++		return fmt.Errorf("internal error: addExperimentalData called on non-experimental batch")
++	}
++	ed, ok := expData[b.exp]
++	if !ok {
++		ed = new(ExperimentalData)
++	}
++	ed.Batches = append(ed.Batches, ExperimentalBatch{
++		Thread: b.m,
++		Data:   b.data,
++	})
++	return nil
++}
+diff --git a/src/internal/trace/v2/order.go b/src/internal/trace/v2/order.go
+index b2aa551455..3d201513eb 100644
+--- a/src/internal/trace/v2/order.go
++++ b/src/internal/trace/v2/order.go
+@@ -143,6 +143,23 @@ var orderingDispatch = [256]orderingHandleFunc{
+ 
+ 	// GoStatus event with a stack. Added in Go 1.23.
+ 	go122.EvGoStatusStack: (*ordering).advanceGoStatus,
++
++	// Experimental events.
++
++	// Experimental heap span events. Added in Go 1.23.
++	go122.EvSpan:      (*ordering).advanceAllocFree,
++	go122.EvSpanAlloc: (*ordering).advanceAllocFree,
++	go122.EvSpanFree:  (*ordering).advanceAllocFree,
++
++	// Experimental heap object events. Added in Go 1.23.
++	go122.EvHeapObject:      (*ordering).advanceAllocFree,
++	go122.EvHeapObjectAlloc: (*ordering).advanceAllocFree,
++	go122.EvHeapObjectFree:  (*ordering).advanceAllocFree,
++
++	// Experimental goroutine stack events. Added in Go 1.23.
++	go122.EvGoroutineStack:      (*ordering).advanceAllocFree,
++	go122.EvGoroutineStackAlloc: (*ordering).advanceAllocFree,
++	go122.EvGoroutineStackFree:  (*ordering).advanceAllocFree,
+ }
+ 
+ func (o *ordering) advanceProcStatus(ev *baseEvent, evt *evTable, m ThreadID, gen uint64, curCtx schedCtx) (schedCtx, bool, error) {
+@@ -1058,6 +1075,15 @@ func (o *ordering) advanceGoRangeEnd(ev *baseEvent, evt *evTable, m ThreadID, ge
+ 	return curCtx, true, nil
+ }
+ 
++func (o *ordering) advanceAllocFree(ev *baseEvent, evt *evTable, m ThreadID, gen uint64, curCtx schedCtx) (schedCtx, bool, error) {
++	// Handle simple instantaneous events that may or may not have a P.
++	if err := validateCtx(curCtx, event.SchedReqs{Thread: event.MustHave, Proc: event.MayHave, Goroutine: event.MayHave}); err != nil {
++		return curCtx, false, err
++	}
++	o.queue.push(Event{table: evt, ctx: curCtx, base: *ev})
++	return curCtx, true, nil
++}
++
+ // Next returns the next event in the ordering.
+ func (o *ordering) Next() (Event, bool) {
+ 	return o.queue.pop()
+diff --git a/src/internal/trace/v2/trace_test.go b/src/internal/trace/v2/trace_test.go
+index 66707856ef..9b74cc0d81 100644
+--- a/src/internal/trace/v2/trace_test.go
++++ b/src/internal/trace/v2/trace_test.go
+@@ -544,7 +544,7 @@ func testTraceProg(t *testing.T, progName string, extra func(t *testing.T, trace
+ 
+ 	testPath := filepath.Join("./testdata/testprog", progName)
+ 	testName := progName
+-	runTest := func(t *testing.T, stress bool) {
++	runTest := func(t *testing.T, stress bool, extraGODEBUG string) {
+ 		// Run the program and capture the trace, which is always written to stdout.
+ 		cmd := testenv.Command(t, testenv.GoToolPath(t), "run")
+ 		if race.Enabled {
+@@ -558,6 +558,10 @@ func testTraceProg(t *testing.T, progName string, extra func(t *testing.T, trace
+ 			// Advance a generation constantly to stress the tracer.
+ 			godebug += ",traceadvanceperiod=0"
+ 		}
++		if extraGODEBUG != "" {
++			// Add extra GODEBUG flags.
++			godebug += "," + extraGODEBUG
++		}
+ 		cmd.Env = append(cmd.Env, "GODEBUG="+godebug)
+ 
+ 		// Capture stdout and stderr.
+@@ -608,12 +612,18 @@ func testTraceProg(t *testing.T, progName string, extra func(t *testing.T, trace
+ 		}
+ 	}
+ 	t.Run("Default", func(t *testing.T) {
+-		runTest(t, false)
++		runTest(t, false, "")
+ 	})
+ 	t.Run("Stress", func(t *testing.T) {
+ 		if testing.Short() {
+-			t.Skip("skipping trace reader stress tests in short mode")
++			t.Skip("skipping trace stress tests in short mode")
++		}
++		runTest(t, true, "")
++	})
++	t.Run("AllocFree", func(t *testing.T) {
++		if testing.Short() {
++			t.Skip("skipping trace alloc/free tests in short mode")
+ 		}
+-		runTest(t, true)
++		runTest(t, false, "traceallocfree=1")
+ 	})
+ }
+diff --git a/src/runtime/lockrank.go b/src/runtime/lockrank.go
+index 33b0387686..432ace728b 100644
+--- a/src/runtime/lockrank.go
++++ b/src/runtime/lockrank.go
+@@ -50,6 +50,7 @@ const (
+ 	lockRankFin
+ 	lockRankSpanSetSpine
+ 	lockRankMspanSpecial
++	lockRankTraceTypeTab
+ 	// MPROF
+ 	lockRankGcBitsArenas
+ 	lockRankProfInsert
+@@ -119,6 +120,7 @@ var lockNames = []string{
+ 	lockRankFin:             "fin",
+ 	lockRankSpanSetSpine:    "spanSetSpine",
+ 	lockRankMspanSpecial:    "mspanSpecial",
++	lockRankTraceTypeTab:    "traceTypeTab",
+ 	lockRankGcBitsArenas:    "gcBitsArenas",
+ 	lockRankProfInsert:      "profInsert",
+ 	lockRankProfBlock:       "profBlock",
+@@ -197,6 +199,7 @@ var lockPartialOrder [][]lockRank = [][]lockRank{
+ 	lockRankFin:             {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankSweepWaiters, lockRankAssistQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankExecW, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankNotifyList, lockRankTimers, lockRankTimer, lockRankItab, lockRankReflectOffs, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings},
+ 	lockRankSpanSetSpine:    {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankSweepWaiters, lockRankAssistQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankExecW, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankNotifyList, lockRankTimers, lockRankTimer, lockRankItab, lockRankReflectOffs, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings},
+ 	lockRankMspanSpecial:    {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankSweepWaiters, lockRankAssistQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankExecW, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankNotifyList, lockRankTimers, lockRankTimer, lockRankItab, lockRankReflectOffs, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings},
++	lockRankTraceTypeTab:    {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankSweepWaiters, lockRankAssistQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankExecW, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankNotifyList, lockRankTimers, lockRankTimer, lockRankItab, lockRankReflectOffs, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings},
+ 	lockRankGcBitsArenas:    {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankSweepWaiters, lockRankAssistQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankExecW, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankNotifyList, lockRankTimers, lockRankTimer, lockRankItab, lockRankReflectOffs, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings, lockRankMspanSpecial},
+ 	lockRankProfInsert:      {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankSweepWaiters, lockRankAssistQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankExecW, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankNotifyList, lockRankTimers, lockRankTimer, lockRankItab, lockRankReflectOffs, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings},
+ 	lockRankProfBlock:       {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankSweepWaiters, lockRankAssistQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankExecW, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankNotifyList, lockRankTimers, lockRankTimer, lockRankItab, lockRankReflectOffs, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings},
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index a572900eb7..96c4761bc8 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -1265,6 +1265,14 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+ 			// Init functions are executed sequentially in a single goroutine.
+ 			inittrace.bytes += uint64(fullSize)
+ 		}
++
++		if traceAllocFreeEnabled() {
++			trace := traceAcquire()
++			if trace.ok() {
++				trace.HeapObjectAlloc(uintptr(x), typ)
++				traceRelease(trace)
++			}
++		}
+ 	}
+ 
+ 	if assistG != nil {
+diff --git a/src/runtime/mgcsweep.go b/src/runtime/mgcsweep.go
+index da66bfa596..ae252cd47a 100644
+--- a/src/runtime/mgcsweep.go
++++ b/src/runtime/mgcsweep.go
+@@ -608,13 +608,20 @@ func (sl *sweepLocked) sweep(preserve bool) bool {
+ 		spanHasNoSpecials(s)
+ 	}
+ 
+-	if debug.clobberfree != 0 || raceenabled || msanenabled || asanenabled {
++	if traceAllocFreeEnabled() || debug.clobberfree != 0 || raceenabled || msanenabled || asanenabled {
+ 		// Find all newly freed objects.
+ 		mbits := s.markBitsForBase()
+ 		abits := s.allocBitsForIndex(0)
+ 		for i := uintptr(0); i < uintptr(s.nelems); i++ {
+ 			if !mbits.isMarked() && (abits.index < uintptr(s.freeindex) || abits.isMarked()) {
+ 				x := s.base() + i*s.elemsize
++				if traceAllocFreeEnabled() {
++					trace := traceAcquire()
++					if trace.ok() {
++						trace.HeapObjectFree(x)
++						traceRelease(trace)
++					}
++				}
+ 				if debug.clobberfree != 0 {
+ 					clobberfree(unsafe.Pointer(x), size)
+ 				}
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index a68f855cab..2b7d434587 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -1367,6 +1367,15 @@ HaveSpan:
+ 	memstats.heapStats.release()
+ 
+ 	pageTraceAlloc(pp, now, base, npages)
++
++	// Trace the span alloc.
++	if traceAllocFreeEnabled() {
++		trace := traceAcquire()
++		if trace.ok() {
++			trace.SpanAlloc(s)
++			traceRelease(trace)
++		}
++	}
+ 	return s
+ }
+ 
+@@ -1549,6 +1558,15 @@ func (h *mheap) freeSpan(s *mspan) {
+ 	systemstack(func() {
+ 		pageTraceFree(getg().m.p.ptr(), 0, s.base(), s.npages)
+ 
++		// Trace the span free.
++		if traceAllocFreeEnabled() {
++			trace := traceAcquire()
++			if trace.ok() {
++				trace.SpanFree(s)
++				traceRelease(trace)
++			}
++		}
++
+ 		lock(&h.lock)
+ 		if msanenabled {
+ 			// Tell msan that this entire span is no longer in use.
+@@ -1581,6 +1599,15 @@ func (h *mheap) freeSpan(s *mspan) {
+ func (h *mheap) freeManual(s *mspan, typ spanAllocType) {
+ 	pageTraceFree(getg().m.p.ptr(), 0, s.base(), s.npages)
+ 
++	// Trace the span free.
++	if traceAllocFreeEnabled() {
++		trace := traceAcquire()
++		if trace.ok() {
++			trace.SpanFree(s)
++			traceRelease(trace)
++		}
++	}
++
+ 	s.needzero = 1
+ 	lock(&h.lock)
+ 	h.freeSpanLocked(s, typ)
+diff --git a/src/runtime/mklockrank.go b/src/runtime/mklockrank.go
+index 2b4b5e99cd..1239b4a546 100644
+--- a/src/runtime/mklockrank.go
++++ b/src/runtime/mklockrank.go
+@@ -125,6 +125,7 @@ allg,
+ < fin,
+   spanSetSpine,
+   mspanSpecial,
++  traceTypeTab,
+   MPROF;
+ 
+ # We can acquire gcBitsArenas for pinner bits, and
+diff --git a/src/runtime/runtime1.go b/src/runtime/runtime1.go
+index dd19242cb4..c54ba19d07 100644
+--- a/src/runtime/runtime1.go
++++ b/src/runtime/runtime1.go
+@@ -337,6 +337,15 @@ var debug struct {
+ 	malloc    bool
+ 	inittrace int32
+ 	sbrk      int32
++	// traceallocfree controls whether execution traces contain
++	// detailed trace data about memory allocation. This value
++	// affects debug.malloc only if it is != 0 and the execution
++	// tracer is enabled, in which case debug.malloc will be
++	// set to "true" if it isn't already while tracing is enabled.
++	// It will be set while the world is stopped, so it's safe.
++	// The value of traceallocfree can be changed any time in response
++	// to os.Setenv("GODEBUG").
++	traceallocfree atomic.Int32
+ 
+ 	panicnil atomic.Int32
+ 
+@@ -376,6 +385,7 @@ var dbgvars = []*dbgVar{
+ 	{name: "scheddetail", value: &debug.scheddetail},
+ 	{name: "schedtrace", value: &debug.schedtrace},
+ 	{name: "traceadvanceperiod", value: &debug.traceadvanceperiod},
++	{name: "traceallocfree", atomic: &debug.traceallocfree},
+ 	{name: "tracecheckstackownership", value: &debug.traceCheckStackOwnership},
+ 	{name: "tracebackancestors", value: &debug.tracebackancestors},
+ 	{name: "tracefpunwindoff", value: &debug.tracefpunwindoff},
+diff --git a/src/runtime/stack.go b/src/runtime/stack.go
+index 6679cd993d..6d24814271 100644
+--- a/src/runtime/stack.go
++++ b/src/runtime/stack.go
+@@ -415,6 +415,13 @@ func stackalloc(n uint32) stack {
+ 		v = unsafe.Pointer(s.base())
+ 	}
+ 
++	if traceAllocFreeEnabled() {
++		trace := traceAcquire()
++		if trace.ok() {
++			trace.GoroutineStackAlloc(uintptr(v), uintptr(n))
++			traceRelease(trace)
++		}
++	}
+ 	if raceenabled {
+ 		racemalloc(v, uintptr(n))
+ 	}
+@@ -458,6 +465,13 @@ func stackfree(stk stack) {
+ 		}
+ 		return
+ 	}
++	if traceAllocFreeEnabled() {
++		trace := traceAcquire()
++		if trace.ok() {
++			trace.GoroutineStackFree(uintptr(v))
++			traceRelease(trace)
++		}
++	}
+ 	if msanenabled {
+ 		msanfree(v, n)
+ 	}
+diff --git a/src/runtime/trace.go b/src/runtime/trace.go
+index 6e0808ea76..49ac3e2d45 100644
+--- a/src/runtime/trace.go
++++ b/src/runtime/trace.go
+@@ -67,6 +67,7 @@ var trace struct {
+ 	// There are 2 of each: one for gen%2, one for 1-gen%2.
+ 	stackTab  [2]traceStackTable  // maps stack traces to unique ids
+ 	stringTab [2]traceStringTable // maps strings to unique ids
++	typeTab   [2]traceTypeTable   // maps type pointers to unique ids
+ 
+ 	// cpuLogRead accepts CPU profile samples from the signal handler where
+ 	// they're generated. There are two profBufs here: one for gen%2, one for
+@@ -110,6 +111,10 @@ var trace struct {
+ 	// as a publication barrier.
+ 	enabled bool
+ 
++	// enabledWithAllocFree is set if debug.traceallocfree is != 0 when tracing begins.
++	// It follows the same synchronization protocol as enabled.
++	enabledWithAllocFree bool
++
+ 	// Trace generation counter.
+ 	gen            atomic.Uintptr
+ 	lastNonZeroGen uintptr // last non-zero value of gen
+@@ -126,6 +131,12 @@ var trace struct {
+ 	//
+ 	// Mutated only during stop-the-world.
+ 	seqGC uint64
++
++	// minPageHeapAddr is the minimum address of the page heap when tracing started.
++	minPageHeapAddr uint64
++
++	// debugMalloc is the value of debug.malloc before tracing began.
++	debugMalloc bool
+ }
+ 
+ // Trace public API.
+@@ -216,6 +227,10 @@ func StartTrace() error {
+ 	// Prevent sysmon from running any code that could generate events.
+ 	lock(&sched.sysmonlock)
+ 
++	// Grab the minimum page heap address. All Ps are stopped, so it's safe to read this since
++	// nothing can allocate heap memory.
++	trace.minPageHeapAddr = uint64(mheap_.pages.inUse.ranges[0].base.addr())
++
+ 	// Reset mSyscallID on all Ps while we have them stationary and the trace is disabled.
+ 	for _, pp := range allp {
+ 		pp.trace.mSyscallID = -1
+@@ -236,6 +251,12 @@ func StartTrace() error {
+ 	// After trace.gen is updated, other Ms may start creating trace buffers and emitting
+ 	// data into them.
+ 	trace.enabled = true
++	if debug.traceallocfree.Load() != 0 {
++		// Enable memory events since the GODEBUG is set.
++		trace.debugMalloc = debug.malloc
++		trace.enabledWithAllocFree = true
++		debug.malloc = true
++	}
+ 	trace.gen.Store(firstGen)
+ 
+ 	// Wait for exitingSyscall to drain.
+@@ -267,6 +288,11 @@ func StartTrace() error {
+ 		tl.GCActive()
+ 	}
+ 
++	// Dump a snapshot of memory, if enabled.
++	if trace.enabledWithAllocFree {
++		traceSnapshotMemory()
++	}
++
+ 	// Record the heap goal so we have it at the very beginning of the trace.
+ 	tl.HeapGoal()
+ 
+@@ -556,6 +582,7 @@ func traceAdvance(stopTrace bool) {
+ 	// stacks may generate new strings.
+ 	traceCPUFlush(gen)
+ 	trace.stackTab[gen%2].dump(gen)
++	trace.typeTab[gen%2].dump(gen)
+ 	trace.stringTab[gen%2].reset(gen)
+ 
+ 	// That's it. This generation is done producing buffers.
+@@ -585,6 +612,16 @@ func traceAdvance(stopTrace bool) {
+ 
+ 		// Finish off CPU profile reading.
+ 		traceStopReadCPU()
++
++		// Reset debug.malloc if necessary. Note that this is set in a racy
++		// way; that's OK. Some mallocs may still enter into the debug.malloc
++		// block, but they won't generate events because tracing is disabled.
++		// That is, it's OK if mallocs read a stale debug.malloc or
++		// trace.enabledWithAllocFree value.
++		if trace.enabledWithAllocFree {
++			trace.enabledWithAllocFree = false
++			debug.malloc = trace.debugMalloc
++		}
+ 	} else {
+ 		// Go over each P and emit a status event for it if necessary.
+ 		//
+diff --git a/src/runtime/traceallocfree.go b/src/runtime/traceallocfree.go
+new file mode 100644
+index 0000000000..e1190394ed
+--- /dev/null
++++ b/src/runtime/traceallocfree.go
+@@ -0,0 +1,138 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Runtime -> tracer API for memory events.
++
++package runtime
++
++import (
++	"internal/abi"
++	"runtime/internal/sys"
++)
++
++// traceSnapshotMemory takes a snapshot of all runtime memory that there are events for
++// (heap spans, heap objects, goroutine stacks, etc.) and writes out events for them.
++//
++// The world must be stopped and tracing must be enabled when this function is called.
++func traceSnapshotMemory() {
++	assertWorldStopped()
++
++	// Start tracing.
++	trace := traceAcquire()
++	if !trace.ok() {
++		throw("traceSnapshotMemory: tracing is not enabled")
++	}
++
++	// Write out all the goroutine stacks.
++	forEachGRace(func(gp *g) {
++		trace.GoroutineStackExists(gp.stack.lo, gp.stack.hi-gp.stack.lo)
++	})
++
++	// Write out all the heap spans and heap objects.
++	for _, s := range mheap_.allspans {
++		if s.state.get() == mSpanDead {
++			continue
++		}
++		// It's some kind of span, so trace that it exists.
++		trace.SpanExists(s)
++
++		// Write out allocated objects if it's a heap span.
++		if s.state.get() != mSpanInUse {
++			continue
++		}
++
++		// Find all allocated objects.
++		abits := s.allocBitsForIndex(0)
++		for i := uintptr(0); i < uintptr(s.nelems); i++ {
++			if !abits.isMarked() {
++				continue
++			}
++			x := s.base() + i*s.elemsize
++			trace.HeapObjectExists(x, s.typePointersOfUnchecked(x).typ)
++			abits.advance()
++		}
++	}
++	traceRelease(trace)
++}
++
++func traceSpanTypeAndClass(s *mspan) traceArg {
++	if s.state.get() == mSpanInUse {
++		return traceArg(s.spanclass) << 1
++	}
++	return traceArg(1)
++}
++
++// SpanExists records an event indicating that the span exists.
++func (tl traceLocker) SpanExists(s *mspan) {
++	tl.eventWriter(traceGoRunning, traceProcRunning).commit(traceEvSpan, traceSpanID(s), traceArg(s.npages), traceSpanTypeAndClass(s))
++}
++
++// SpanAlloc records an event indicating that the span has just been allocated.
++func (tl traceLocker) SpanAlloc(s *mspan) {
++	tl.eventWriter(traceGoRunning, traceProcRunning).commit(traceEvSpanAlloc, traceSpanID(s), traceArg(s.npages), traceSpanTypeAndClass(s))
++}
++
++// SpanFree records an event indicating that the span is about to be freed.
++func (tl traceLocker) SpanFree(s *mspan) {
++	tl.eventWriter(traceGoRunning, traceProcRunning).commit(traceEvSpanFree, traceSpanID(s))
++}
++
++// traceSpanID creates a trace ID for the span s for the trace.
++func traceSpanID(s *mspan) traceArg {
++	return traceArg(uint64(s.base())-trace.minPageHeapAddr) / pageSize
++}
++
++// HeapObjectExists records that an object already exists at addr with the provided type.
++// The type is optional, and the size of the slot occupied the object is inferred from the
++// span containing it.
++func (tl traceLocker) HeapObjectExists(addr uintptr, typ *abi.Type) {
++	tl.eventWriter(traceGoRunning, traceProcRunning).commit(traceEvHeapObject, traceHeapObjectID(addr), tl.rtype(typ))
++}
++
++// HeapObjectAlloc records that an object was newly allocated at addr with the provided type.
++// The type is optional, and the size of the slot occupied the object is inferred from the
++// span containing it.
++func (tl traceLocker) HeapObjectAlloc(addr uintptr, typ *abi.Type) {
++	tl.eventWriter(traceGoRunning, traceProcRunning).commit(traceEvHeapObjectAlloc, traceHeapObjectID(addr), tl.rtype(typ))
++}
++
++// HeapObjectFree records that an object at addr is about to be freed.
++func (tl traceLocker) HeapObjectFree(addr uintptr) {
++	tl.eventWriter(traceGoRunning, traceProcRunning).commit(traceEvHeapObjectFree, traceHeapObjectID(addr))
++}
++
++// traceHeapObjectID creates a trace ID for a heap object at address addr.
++func traceHeapObjectID(addr uintptr) traceArg {
++	return traceArg(uint64(addr)-trace.minPageHeapAddr) / 8
++}
++
++// GoroutineStackExists records that a goroutine stack already exists at address base with the provided size.
++func (tl traceLocker) GoroutineStackExists(base, size uintptr) {
++	order := traceCompressStackSize(size)
++	tl.eventWriter(traceGoRunning, traceProcRunning).commit(traceEvGoroutineStack, traceGoroutineStackID(base), order)
++}
++
++// GoroutineStackAlloc records that a goroutine stack was newly allocated at address base with the provided size..
++func (tl traceLocker) GoroutineStackAlloc(base, size uintptr) {
++	order := traceCompressStackSize(size)
++	tl.eventWriter(traceGoRunning, traceProcRunning).commit(traceEvGoroutineStackAlloc, traceGoroutineStackID(base), order)
++}
++
++// GoroutineStackFree records that a goroutine stack at address base is about to be freed.
++func (tl traceLocker) GoroutineStackFree(base uintptr) {
++	tl.eventWriter(traceGoRunning, traceProcRunning).commit(traceEvGoroutineStackFree, traceGoroutineStackID(base))
++}
++
++// traceGoroutineStackID creates a trace ID for the goroutine stack from its base address.
++func traceGoroutineStackID(base uintptr) traceArg {
++	return traceArg(uint64(base)-trace.minPageHeapAddr) / fixedStack
++}
++
++// traceCompressStackSize assumes size is a power of 2 and returns log2(size).
++func traceCompressStackSize(size uintptr) traceArg {
++	if size&(size-1) != 0 {
++		throw("goroutine stack size is not a power of 2")
++	}
++	return traceArg(sys.Len64(uint64(size)))
++}
+diff --git a/src/runtime/tracebuf.go b/src/runtime/tracebuf.go
+index 711a2c1f02..db4adf53e9 100644
+--- a/src/runtime/tracebuf.go
++++ b/src/runtime/tracebuf.go
+@@ -59,7 +59,7 @@ func (w traceWriter) end() {
+ func (w traceWriter) ensure(maxSize int) (traceWriter, bool) {
+ 	refill := w.traceBuf == nil || !w.available(maxSize)
+ 	if refill {
+-		w = w.refill()
++		w = w.refill(traceNoExperiment)
+ 	}
+ 	return w, refill
+ }
+@@ -78,7 +78,9 @@ func (w traceWriter) flush() traceWriter {
+ }
+ 
+ // refill puts w.traceBuf on the queue of full buffers and refresh's w's buffer.
+-func (w traceWriter) refill() traceWriter {
++//
++// exp indicates whether the refilled batch should be EvExperimentalBatch.
++func (w traceWriter) refill(exp traceExperiment) traceWriter {
+ 	systemstack(func() {
+ 		lock(&trace.lock)
+ 		if w.traceBuf != nil {
+@@ -112,7 +114,12 @@ func (w traceWriter) refill() traceWriter {
+ 	}
+ 
+ 	// Write the buffer's header.
+-	w.byte(byte(traceEvEventBatch))
++	if exp == traceNoExperiment {
++		w.byte(byte(traceEvEventBatch))
++	} else {
++		w.byte(byte(traceEvExperimentalBatch))
++		w.byte(byte(exp))
++	}
+ 	w.varint(uint64(w.gen))
+ 	w.varint(uint64(mID))
+ 	w.varint(uint64(ts))
+diff --git a/src/runtime/traceevent.go b/src/runtime/traceevent.go
+index bdb3f3e445..2a869fb515 100644
+--- a/src/runtime/traceevent.go
++++ b/src/runtime/traceevent.go
+@@ -7,6 +7,7 @@
+ package runtime
+ 
+ import (
++	"internal/abi"
+ 	"runtime/internal/sys"
+ )
+ 
+@@ -87,6 +88,9 @@ const (
+ 
+ 	// GoStatus with stack.
+ 	traceEvGoStatusStack // goroutine status at the start of a generation, with a stack [timestamp, goroutine ID, M ID, status, stack ID]
++
++	// Batch event for an experimental batch with a custom format.
++	traceEvExperimentalBatch // start of extra data [experiment ID, generation, M ID, timestamp, batch length, batch data...]
+ )
+ 
+ // traceArg is a simple wrapper type to help ensure that arguments passed
+@@ -198,3 +202,8 @@ func (tl traceLocker) string(s string) traceArg {
+ func (tl traceLocker) uniqueString(s string) traceArg {
+ 	return traceArg(trace.stringTab[tl.gen%2].emit(tl.gen, s))
+ }
++
++// rtype returns a traceArg representing typ which may be passed to write.
++func (tl traceLocker) rtype(typ *abi.Type) traceArg {
++	return traceArg(trace.typeTab[tl.gen%2].put(typ))
++}
+diff --git a/src/runtime/traceexp.go b/src/runtime/traceexp.go
+new file mode 100644
+index 0000000000..9fc85df5a8
+--- /dev/null
++++ b/src/runtime/traceexp.go
+@@ -0,0 +1,68 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++// traceExpWriter is a wrapper around trace writer that produces traceEvExperimentalBatch
++// batches. This means that the data written to the writer need not conform to the standard
++// trace format.
++type traceExpWriter struct {
++	traceWriter
++	exp traceExperiment
++}
++
++// unsafeTraceExpWriter produces a traceExpWriter that doesn't lock the trace.
++//
++// It should only be used in contexts where either:
++// - Another traceLocker is held.
++// - trace.gen is prevented from advancing.
++//
++// buf may be nil.
++func unsafeTraceExpWriter(gen uintptr, buf *traceBuf, exp traceExperiment) traceExpWriter {
++	return traceExpWriter{traceWriter{traceLocker: traceLocker{gen: gen}, traceBuf: buf}, exp}
++}
++
++// ensure makes sure that at least maxSize bytes are available to write.
++//
++// Returns whether the buffer was flushed.
++func (w traceExpWriter) ensure(maxSize int) (traceExpWriter, bool) {
++	refill := w.traceBuf == nil || !w.available(maxSize)
++	if refill {
++		w.traceWriter = w.traceWriter.refill(w.exp)
++	}
++	return w, refill
++}
++
++// traceExperiment is an enumeration of the different kinds of experiments supported for tracing.
++type traceExperiment uint8
++
++const (
++	// traceNoExperiment indicates no experiment.
++	traceNoExperiment traceExperiment = iota
++
++	// traceExperimentAllocFree is an experiment to add alloc/free events to the trace.
++	traceExperimentAllocFree
++)
++
++// Experimental events.
++const (
++	_ traceEv = 127 + iota
++
++	// Experimental events for ExperimentAllocFree.
++
++	// Experimental heap span events. IDs map reversibly to base addresses.
++	traceEvSpan      // heap span exists [timestamp, id, npages, type/class]
++	traceEvSpanAlloc // heap span alloc [timestamp, id, npages, type/class]
++	traceEvSpanFree  // heap span free [timestamp, id]
++
++	// Experimental heap object events. IDs map reversibly to addresses.
++	traceEvHeapObject      // heap object exists [timestamp, id, type]
++	traceEvHeapObjectAlloc // heap object alloc [timestamp, id, type]
++	traceEvHeapObjectFree  // heap object free [timestamp, id]
++
++	// Experimental goroutine stack events. IDs map reversibly to addresses.
++	traceEvGoroutineStack      // stack exists [timestamp, id, order]
++	traceEvGoroutineStackAlloc // stack alloc [timestamp, id, order]
++	traceEvGoroutineStackFree  // stack free [timestamp, id]
++)
+diff --git a/src/runtime/traceregion.go b/src/runtime/traceregion.go
+index fdc6fbdb32..43eef9c92b 100644
+--- a/src/runtime/traceregion.go
++++ b/src/runtime/traceregion.go
+@@ -104,7 +104,9 @@ func (a *traceRegionAlloc) drop() {
+ 		a.full = block.next
+ 		sysFree(unsafe.Pointer(block), unsafe.Sizeof(traceRegionAllocBlock{}), &memstats.other_sys)
+ 	}
+-	sysFree(a.current.Load(), unsafe.Sizeof(traceRegionAllocBlock{}), &memstats.other_sys)
+-	a.current.Store(nil)
++	if current := a.current.Load(); current != nil {
++		sysFree(current, unsafe.Sizeof(traceRegionAllocBlock{}), &memstats.other_sys)
++		a.current.Store(nil)
++	}
+ 	a.dropping.Store(false)
+ }
+diff --git a/src/runtime/traceruntime.go b/src/runtime/traceruntime.go
+index 285f264463..5497913066 100644
+--- a/src/runtime/traceruntime.go
++++ b/src/runtime/traceruntime.go
+@@ -59,6 +59,8 @@ func traceLockInit() {
+ 	lockInit(&trace.stringTab[1].tab.mem.lock, lockRankTraceStrings)
+ 	lockInit(&trace.stackTab[0].tab.mem.lock, lockRankTraceStackTab)
+ 	lockInit(&trace.stackTab[1].tab.mem.lock, lockRankTraceStackTab)
++	lockInit(&trace.typeTab[0].tab.mem.lock, lockRankTraceTypeTab)
++	lockInit(&trace.typeTab[1].tab.mem.lock, lockRankTraceTypeTab)
+ 	lockInit(&trace.lock, lockRankTrace)
+ }
+ 
+@@ -142,6 +144,14 @@ func traceEnabled() bool {
+ 	return trace.enabled
+ }
+ 
++// traceAllocFreeEnabled returns true if the trace is currently enabled
++// and alloc/free events are also enabled.
++//
++//go:nosplit
++func traceAllocFreeEnabled() bool {
++	return trace.enabledWithAllocFree
++}
++
+ // traceShuttingDown returns true if the trace is currently shutting down.
+ func traceShuttingDown() bool {
+ 	return trace.shutdown.Load()
+diff --git a/src/runtime/tracetype.go b/src/runtime/tracetype.go
+new file mode 100644
+index 0000000000..41dce9c9f2
+--- /dev/null
++++ b/src/runtime/tracetype.go
+@@ -0,0 +1,77 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Trace stack table and acquisition.
++
++package runtime
++
++import (
++	"internal/abi"
++	"internal/goarch"
++	"unsafe"
++)
++
++// traceTypeTable maps stack traces (arrays of PC's) to unique uint32 ids.
++// It is lock-free for reading.
++type traceTypeTable struct {
++	tab traceMap
++}
++
++// put returns a unique id for the type typ and caches it in the table,
++// if it's seeing it for the first time.
++//
++// N.B. typ must be kept alive forever for this to work correctly.
++func (t *traceTypeTable) put(typ *abi.Type) uint64 {
++	if typ == nil {
++		return 0
++	}
++	// Insert the pointer to the type itself.
++	id, _ := t.tab.put(noescape(unsafe.Pointer(&typ)), goarch.PtrSize)
++	return id
++}
++
++// dump writes all previously cached types to trace buffers and
++// releases all memory and resets state. It must only be called once the caller
++// can guarantee that there are no more writers to the table.
++func (t *traceTypeTable) dump(gen uintptr) {
++	w := unsafeTraceExpWriter(gen, nil, traceExperimentAllocFree)
++	if root := (*traceMapNode)(t.tab.root.Load()); root != nil {
++		w = dumpTypesRec(root, w)
++	}
++	w.flush().end()
++	t.tab.reset()
++}
++
++func dumpTypesRec(node *traceMapNode, w traceExpWriter) traceExpWriter {
++	typ := (*abi.Type)(*(*unsafe.Pointer)(unsafe.Pointer(&node.data[0])))
++	typName := toRType(typ).string()
++
++	// The maximum number of bytes required to hold the encoded type.
++	maxBytes := 1 + 5*traceBytesPerNumber + len(typName)
++
++	// Estimate the size of this record. This
++	// bound is pretty loose, but avoids counting
++	// lots of varint sizes.
++	//
++	// Add 1 because we might also write traceEvTypes.
++	w, _ = w.ensure(1 + maxBytes)
++
++	// Emit type.
++	w.varint(uint64(node.id))
++	w.varint(uint64(uintptr(unsafe.Pointer(typ))))
++	w.varint(uint64(typ.Size()))
++	w.varint(uint64(typ.PtrBytes))
++	w.varint(uint64(len(typName)))
++	w.stringData(typName)
++
++	// Recursively walk all child nodes.
++	for i := range node.children {
++		child := node.children[i].Load()
++		if child == nil {
++			continue
++		}
++		w = dumpTypesRec((*traceMapNode)(child), w)
++	}
++	return w
++}

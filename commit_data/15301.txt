@@ -22,7 +22,93 @@ Date:   Tue Feb 19 19:12:36 2013 +1100
     R=nigeltao
     CC=golang-dev
     https://golang.org/cl/7312105
-
+---
  src/pkg/exp/cookiejar/jar.go      | 33 +++++++++++++++++++--------------
  src/pkg/exp/cookiejar/jar_test.go | 21 ++++++++++++++++++---
  2 files changed, 37 insertions(+), 17 deletions(-)
+
+diff --git a/src/pkg/exp/cookiejar/jar.go b/src/pkg/exp/cookiejar/jar.go
+index 73036e0d65..c41851b2b9 100644
+--- a/src/pkg/exp/cookiejar/jar.go
++++ b/src/pkg/exp/cookiejar/jar.go
+@@ -48,8 +48,8 @@ type Options struct {
+ 	// an HTTP server can set a cookie for a domain.
+ 	//
+ 	// A nil value is valid and may be useful for testing but it is not
+-	// secure: it means that the HTTP server for foo.com can set a cookie
+-	// for bar.com.
++	// secure: it means that the HTTP server for foo.co.uk can set a cookie
++	// for bar.co.uk.
+ 	PublicSuffixList PublicSuffixList
+ }
+ 
+@@ -333,19 +333,24 @@ func jarKey(host string, psl PublicSuffixList) string {
+ 	if isIP(host) {
+ 		return host
+ 	}
++
++	var i int
+ 	if psl == nil {
+-		// Key cookies under TLD of host.
+-		return host[1+strings.LastIndex(host, "."):]
+-	}
+-	suffix := psl.PublicSuffix(host)
+-	if suffix == host {
+-		return host
+-	}
+-	i := len(host) - len(suffix)
+-	if i <= 0 || host[i-1] != '.' {
+-		// The provided public suffix list psl is broken.
+-		// Storing cookies under host is a safe stopgap.
+-		return host
++		i = strings.LastIndex(host, ".")
++		if i == -1 {
++			return host
++		}
++	} else {
++		suffix := psl.PublicSuffix(host)
++		if suffix == host {
++			return host
++		}
++		i = len(host) - len(suffix)
++		if i <= 0 || host[i-1] != '.' {
++			// The provided public suffix list psl is broken.
++			// Storing cookies under host is a safe stopgap.
++			return host
++		}
+ 	}
+ 	prevDot := strings.LastIndex(host[:i-1], ".")
+ 	return host[prevDot+1:]
+diff --git a/src/pkg/exp/cookiejar/jar_test.go b/src/pkg/exp/cookiejar/jar_test.go
+index f17b0d44a5..13f8949a39 100644
+--- a/src/pkg/exp/cookiejar/jar_test.go
++++ b/src/pkg/exp/cookiejar/jar_test.go
+@@ -99,10 +99,25 @@ func TestJarKey(t *testing.T) {
+ 			t.Errorf("%q: got %q, want %q", host, got, want)
+ 		}
+ 	}
++}
+ 
+-	for _, host := range []string{"www.example.com", "example.com", "com"} {
+-		if got := jarKey(host, nil); got != "com" {
+-			t.Errorf(`%q: got %q, want "com"`, host, got)
++var jarKeyNilPSLTests = map[string]string{
++	"foo.www.example.com": "example.com",
++	"www.example.com":     "example.com",
++	"example.com":         "example.com",
++	"com":                 "com",
++	"foo.www.bbc.co.uk":   "co.uk",
++	"www.bbc.co.uk":       "co.uk",
++	"bbc.co.uk":           "co.uk",
++	"co.uk":               "co.uk",
++	"uk":                  "uk",
++	"192.168.0.5":         "192.168.0.5",
++}
++
++func TestJarKeyNilPSL(t *testing.T) {
++	for host, want := range jarKeyNilPSLTests {
++		if got := jarKey(host, nil); got != want {
++			t.Errorf("%q: got %q, want %q", host, got, want)
+ 		}
+ 	}
+ }

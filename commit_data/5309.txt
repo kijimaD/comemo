@@ -17,9 +17,74 @@ Date:   Mon Apr 19 13:12:11 2010 +1000
     R=rsc
     CC=golang-dev
     https://golang.org/cl/878047
-
+---
  src/pkg/syscall/syscall_linux.go        | 2 +-
  src/pkg/syscall/zsyscall_linux_386.go   | 5 +++--
  src/pkg/syscall/zsyscall_linux_amd64.go | 5 +++--
  src/pkg/syscall/zsyscall_linux_arm.go   | 5 +++--
  4 files changed, 10 insertions(+), 7 deletions(-)
+
+diff --git a/src/pkg/syscall/syscall_linux.go b/src/pkg/syscall/syscall_linux.go
+index 058a76d699..82401ac3d4 100644
+--- a/src/pkg/syscall/syscall_linux.go
++++ b/src/pkg/syscall/syscall_linux.go
+@@ -591,7 +591,7 @@ func PtraceDetach(pid int) (errno int) { return ptrace(PTRACE_DETACH, pid, 0, 0)
+ //sys	Sethostname(p []byte) (errno int)
+ //sys	Setpgid(pid int, pgid int) (errno int)
+ //sys	Setrlimit(resource int, rlim *Rlimit) (errno int)
+-//sys	Setsid() (pid int)
++//sys	Setsid() (pid int, errno int)
+ //sys	Settimeofday(tv *Timeval) (errno int)
+ //sys	Setuid(uid int) (errno int)
+ //sys	Splice(rfd int, roff *int64, wfd int, woff *int64, len int, flags int) (n int64, errno int)
+diff --git a/src/pkg/syscall/zsyscall_linux_386.go b/src/pkg/syscall/zsyscall_linux_386.go
+index 519b52f0ed..951ed1f14b 100644
+--- a/src/pkg/syscall/zsyscall_linux_386.go
++++ b/src/pkg/syscall/zsyscall_linux_386.go
+@@ -434,9 +434,10 @@ func Setrlimit(resource int, rlim *Rlimit) (errno int) {
+ 	return
+ }
+ 
+-func Setsid() (pid int) {
+-	r0, _, _ := Syscall(SYS_SETSID, 0, 0, 0)
++func Setsid() (pid int, errno int) {
++	r0, _, e1 := Syscall(SYS_SETSID, 0, 0, 0)
+ 	pid = int(r0)
++	errno = int(e1)
+ 	return
+ }
+ 
+diff --git a/src/pkg/syscall/zsyscall_linux_amd64.go b/src/pkg/syscall/zsyscall_linux_amd64.go
+index 8eba799452..030bed2604 100644
+--- a/src/pkg/syscall/zsyscall_linux_amd64.go
++++ b/src/pkg/syscall/zsyscall_linux_amd64.go
+@@ -434,9 +434,10 @@ func Setrlimit(resource int, rlim *Rlimit) (errno int) {
+ 	return
+ }
+ 
+-func Setsid() (pid int) {
+-	r0, _, _ := Syscall(SYS_SETSID, 0, 0, 0)
++func Setsid() (pid int, errno int) {
++	r0, _, e1 := Syscall(SYS_SETSID, 0, 0, 0)
+ 	pid = int(r0)
++	errno = int(e1)
+ 	return
+ }
+ 
+diff --git a/src/pkg/syscall/zsyscall_linux_arm.go b/src/pkg/syscall/zsyscall_linux_arm.go
+index bef7148ca6..d2ffe6907d 100644
+--- a/src/pkg/syscall/zsyscall_linux_arm.go
++++ b/src/pkg/syscall/zsyscall_linux_arm.go
+@@ -434,9 +434,10 @@ func Setrlimit(resource int, rlim *Rlimit) (errno int) {
+ 	return
+ }
+ 
+-func Setsid() (pid int) {
+-	r0, _, _ := Syscall(SYS_SETSID, 0, 0, 0)
++func Setsid() (pid int, errno int) {
++	r0, _, e1 := Syscall(SYS_SETSID, 0, 0, 0)
+ 	pid = int(r0)
++	errno = int(e1)
+ 	return
+ }
+ 

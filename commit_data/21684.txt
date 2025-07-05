@@ -55,8 +55,140 @@ Date:   Fri Jan 16 23:30:35 2015 +0300
     Reviewed-on: https://go-review.googlesource.com/3162
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/gc/esc.c | 30 ++++++++++++++++++++++++++++++
  test/escape2.go  | 37 +++++++++++++++++++++++++++++++++++++
  test/escape2n.go | 37 +++++++++++++++++++++++++++++++++++++
  3 files changed, 104 insertions(+)
+
+diff --git a/src/cmd/gc/esc.c b/src/cmd/gc/esc.c
+index 2fdbd99870..59b00bfa52 100644
+--- a/src/cmd/gc/esc.c
++++ b/src/cmd/gc/esc.c
+@@ -511,6 +511,36 @@ esc(EscState *e, Node *n, Node *up)
+ 
+ 	case OAS:
+ 	case OASOP:
++		// Filter out the following special case.
++		//
++		//	func (b *Buffer) Foo() {
++		//		n, m := ...
++		//		b.buf = b.buf[n:m]
++		//	}
++		//
++		// This assignment is a no-op for escape analysis,
++		// it does not store any new pointers into b that were not already there.
++		// However, without this special case b will escape, because we assign to OIND/ODOTPTR.
++		if((n->left->op == OIND || n->left->op == ODOTPTR) && n->left->left->op == ONAME && // dst is ONAME dereference
++			(n->right->op == OSLICE || n->right->op == OSLICE3 || n->right->op == OSLICESTR) && // src is slice operation
++			(n->right->left->op == OIND || n->right->left->op == ODOTPTR) && n->right->left->left->op == ONAME && // slice is applied to ONAME dereference
++			n->left->left == n->right->left->left) { // dst and src reference the same base ONAME
++			// Here we also assume that the statement will not contain calls,
++			// that is, that order will move any calls to init.
++			// Otherwise base ONAME value could change between the moments
++			// when we evaluate it for dst and for src.
++			//
++			// Note, this optimization does not apply to OSLICEARR,
++			// because it does introduce a new pointer into b that was not already there
++			// (pointer to b itself). After such assignment, if b contents escape,
++			// b escapes as well. If we ignore such OSLICEARR, we will conclude
++			// that b does not escape when b contents do.
++			if(debug['m']) {
++				warnl(n->lineno, "%S ignoring self-assignment to %hN",
++					(n->curfn && n->curfn->nname) ? n->curfn->nname->sym : S, n->left);
++			}
++			break;
++		}
+ 		escassign(e, n->left, n->right);
+ 		break;
+ 
+diff --git a/test/escape2.go b/test/escape2.go
+index 357ce4a8a8..507a815044 100644
+--- a/test/escape2.go
++++ b/test/escape2.go
+@@ -1519,3 +1519,40 @@ func ptrlitEscape() {
+ 	x := &Lit{&i} // ERROR "&Lit literal escapes to heap" "&i escapes to heap"
+ 	sink = x
+ }
++
++// self-assignments
++
++type Buffer struct {
++	arr  [64]byte
++	buf1 []byte
++	buf2 []byte
++	str1 string
++	str2 string
++}
++
++func (b *Buffer) foo() { // ERROR "b does not escape"
++	b.buf1 = b.buf1[1:2]   // ERROR "ignoring self-assignment to b.buf1"
++	b.buf1 = b.buf1[1:2:3] // ERROR "ignoring self-assignment to b.buf1"
++	b.buf1 = b.buf2[1:2]   // ERROR "ignoring self-assignment to b.buf1"
++	b.buf1 = b.buf2[1:2:3] // ERROR "ignoring self-assignment to b.buf1"
++}
++
++func (b *Buffer) bar() { // ERROR "leaking param: b"
++	b.buf1 = b.arr[1:2] // ERROR "b.arr escapes to heap"
++}
++
++func (b *Buffer) baz() { // ERROR "b does not escape"
++	b.str1 = b.str1[1:2] // ERROR "ignoring self-assignment to b.str1"
++	b.str1 = b.str2[1:2] // ERROR "ignoring self-assignment to b.str1"
++}
++
++func (b *Buffer) bat() { // ERROR "leaking param: b"
++	o := new(Buffer) // ERROR "new\(Buffer\) escapes to heap"
++	o.buf1 = b.buf1[1:2]
++	sink = o
++}
++
++func quux(sp *string, bp *[]byte) { // ERROR "sp does not escape" "bp does not escape"
++	*sp = (*sp)[1:2] // ERROR "quux ignoring self-assignment to \*sp"
++	*bp = (*bp)[1:2] // ERROR "quux ignoring self-assignment to \*bp"
++}
+diff --git a/test/escape2n.go b/test/escape2n.go
+index 3e9bb709c9..e514bde59e 100644
+--- a/test/escape2n.go
++++ b/test/escape2n.go
+@@ -1519,3 +1519,40 @@ func ptrlitEscape() {
+ 	x := &Lit{&i} // ERROR "&Lit literal escapes to heap" "&i escapes to heap"
+ 	sink = x
+ }
++
++// self-assignments
++
++type Buffer struct {
++	arr  [64]byte
++	buf1 []byte
++	buf2 []byte
++	str1 string
++	str2 string
++}
++
++func (b *Buffer) foo() { // ERROR "b does not escape"
++	b.buf1 = b.buf1[1:2]   // ERROR "ignoring self-assignment to b.buf1"
++	b.buf1 = b.buf1[1:2:3] // ERROR "ignoring self-assignment to b.buf1"
++	b.buf1 = b.buf2[1:2]   // ERROR "ignoring self-assignment to b.buf1"
++	b.buf1 = b.buf2[1:2:3] // ERROR "ignoring self-assignment to b.buf1"
++}
++
++func (b *Buffer) bar() { // ERROR "leaking param: b"
++	b.buf1 = b.arr[1:2] // ERROR "b.arr escapes to heap"
++}
++
++func (b *Buffer) baz() { // ERROR "b does not escape"
++	b.str1 = b.str1[1:2] // ERROR "ignoring self-assignment to b.str1"
++	b.str1 = b.str2[1:2] // ERROR "ignoring self-assignment to b.str1"
++}
++
++func (b *Buffer) bat() { // ERROR "leaking param: b"
++	o := new(Buffer) // ERROR "new\(Buffer\) escapes to heap"
++	o.buf1 = b.buf1[1:2]
++	sink = o
++}
++
++func quux(sp *string, bp *[]byte) { // ERROR "sp does not escape" "bp does not escape"
++	*sp = (*sp)[1:2] // ERROR "quux ignoring self-assignment to \*sp"
++	*bp = (*bp)[1:2] // ERROR "quux ignoring self-assignment to \*bp"
++}

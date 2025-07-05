@@ -15,7 +15,71 @@ Date:   Fri Dec 16 10:01:54 2011 +1100
     R=golang-dev, adg, r, rsc, duperray.olivier, r
     CC=golang-dev
     https://golang.org/cl/5440100
-
+---
  src/cmd/godoc/godoc.go | 18 +++++++++++++++---
  src/cmd/gotest/doc.go  | 11 +++++++++--
  2 files changed, 24 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index a56a9b1095..f6626a00fb 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -26,6 +26,8 @@ import (
+ 	"strings"
+ 	"text/template"
+ 	"time"
++	"unicode"
++	"unicode/utf8"
+ )
+ 
+ // ----------------------------------------------------------------------------
+@@ -482,14 +484,24 @@ func comment_textFunc(comment, indent, preIndent string) string {
+ 	return buf.String()
+ }
+ 
++func startsWithUppercase(s string) bool {
++	r, _ := utf8.DecodeRuneInString(s)
++	return unicode.IsUpper(r)
++}
++
+ func example_htmlFunc(funcName string, examples []*doc.Example, fset *token.FileSet) string {
+ 	var buf bytes.Buffer
+ 	for _, eg := range examples {
+-		// accept Foo or Foo_.* for funcName == Foo
+ 		name := eg.Name
+-		if i := strings.Index(name, "_"); i >= 0 {
+-			name = name[:i]
++
++		// strip lowercase braz in Foo_braz or Foo_Bar_braz from name 
++		// while keeping uppercase Braz in Foo_Braz
++		if i := strings.LastIndex(name, "_"); i != -1 {
++			if i < len(name)-1 && !startsWithUppercase(name[i+1:]) {
++				name = name[:i]
++			}
+ 		}
++
+ 		if name != funcName {
+ 			continue
+ 		}
+diff --git a/src/cmd/gotest/doc.go b/src/cmd/gotest/doc.go
+index c0a972af8c..bb01b54ed3 100644
+--- a/src/cmd/gotest/doc.go
++++ b/src/cmd/gotest/doc.go
+@@ -35,8 +35,15 @@ os.Stdout and os.Stderr is compared against their doc comment.
+ 		fmt.Println("The output of this example function.")
+ 	}
+ 
+-Multiple example functions may be provided for a given name XXX if they are
+-discriminated by a distinct suffix starting with "_", such as ExampleXXX_2.
++The following naming conventions are used to declare examples for a function F, 
++a type T and method M on type T:
++	 func ExampleF() { ... }     and    func ExampleF_suffix() { ... } 
++	 func ExampleT() { ... }     and    func ExampleT_suffix() { ... }
++	 func ExampleT_M() { ... }   and    func ExampleT_M_suffix() { ... }
++
++Multiple example functions may be provided by appending a distinct suffix
++to the name.  The suffix must start with a lowercase letter.
++
+ Example functions without doc comments are compiled but not executed.
+ 
+ See the documentation of the testing package for more information.

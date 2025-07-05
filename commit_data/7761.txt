@@ -7,7 +7,70 @@ Date:   Tue Mar 15 10:06:17 2011 -0700
     R=agl, agl1
     CC=golang-dev
     https://golang.org/cl/4297041
-
+---
  src/pkg/crypto/openpgp/packet/public_key.go      | 13 +++++++++++++
  src/pkg/crypto/openpgp/packet/public_key_test.go | 12 ++++++++++--
  2 files changed, 23 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/crypto/openpgp/packet/public_key.go b/src/pkg/crypto/openpgp/packet/public_key.go
+index daf5a1e664..9b6dc4aa12 100644
+--- a/src/pkg/crypto/openpgp/packet/public_key.go
++++ b/src/pkg/crypto/openpgp/packet/public_key.go
+@@ -11,6 +11,7 @@ import (
+ 	"crypto/rsa"
+ 	"crypto/sha1"
+ 	"encoding/binary"
++	"fmt"
+ 	"hash"
+ 	"io"
+ 	"os"
+@@ -239,6 +240,18 @@ func (pk *PublicKey) VerifyUserIdSignature(id string, sig *Signature) (err os.Er
+ 	return pk.VerifySignature(h, sig)
+ }
+ 
++// KeyIdString returns the public key's fingerprint in capital hex
++// (e.g. "6C7EE1B8621CC013").
++func (pk *PublicKey) KeyIdString() string {
++	return fmt.Sprintf("%X", pk.Fingerprint[12:20])
++}
++
++// KeyIdShortString returns the short form of public key's fingerprint
++// in capital hex, as shown by gpg --list-keys (e.g. "621CC013").
++func (pk *PublicKey) KeyIdShortString() string {
++	return fmt.Sprintf("%X", pk.Fingerprint[16:20])
++}
++
+ // A parsedMPI is used to store the contents of a big integer, along with the
+ // bit length that was specified in the original input. This allows the MPI to
+ // be reserialized exactly.
+diff --git a/src/pkg/crypto/openpgp/packet/public_key_test.go b/src/pkg/crypto/openpgp/packet/public_key_test.go
+index c015f64aec..069388c14d 100644
+--- a/src/pkg/crypto/openpgp/packet/public_key_test.go
++++ b/src/pkg/crypto/openpgp/packet/public_key_test.go
+@@ -16,9 +16,11 @@ var pubKeyTests = []struct {
+ 	creationTime   uint32
+ 	pubKeyAlgo     PublicKeyAlgorithm
+ 	keyId          uint64
++	keyIdString    string
++	keyIdShort     string
+ }{
+-	{rsaPkDataHex, rsaFingerprintHex, 0x4d3c5c10, PubKeyAlgoRSA, 0xa34d7e18c20c31bb},
+-	{dsaPkDataHex, dsaFingerprintHex, 0x4d432f89, PubKeyAlgoDSA, 0x8e8fbe54062f19ed},
++	{rsaPkDataHex, rsaFingerprintHex, 0x4d3c5c10, PubKeyAlgoRSA, 0xa34d7e18c20c31bb, "A34D7E18C20C31BB", "C20C31BB"},
++	{dsaPkDataHex, dsaFingerprintHex, 0x4d432f89, PubKeyAlgoDSA, 0x8e8fbe54062f19ed, "8E8FBE54062F19ED", "062F19ED"},
+ }
+ 
+ func TestPublicKeyRead(t *testing.T) {
+@@ -46,6 +48,12 @@ func TestPublicKeyRead(t *testing.T) {
+ 		if pk.KeyId != test.keyId {
+ 			t.Errorf("#%d: bad keyid got:%x want:%x", i, pk.KeyId, test.keyId)
+ 		}
++		if g, e := pk.KeyIdString(), test.keyIdString; g != e {
++			t.Errorf("#%d: bad KeyIdString got:%q want:%q", i, g, e)
++		}
++		if g, e := pk.KeyIdShortString(), test.keyIdShort; g != e {
++			t.Errorf("#%d: bad KeyIdShortString got:%q want:%q", i, g, e)
++		}
+ 	}
+ }
+ 

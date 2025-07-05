@@ -9,6 +9,25 @@ Date:   Tue Apr 21 13:50:01 2015 +0900
     Change-Id: Ia93f53d4e752bbcca6112bc75f6c3dbe30b90dac
     Reviewed-on: https://go-review.googlesource.com/9192
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/fd_windows.go | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/fd_windows.go b/src/net/fd_windows.go
+index 01fe1a9595..654eb2ee05 100644
+--- a/src/net/fd_windows.go
++++ b/src/net/fd_windows.go
+@@ -481,8 +481,12 @@ func (fd *netFD) readFrom(buf []byte) (int, syscall.Sockaddr, error) {
+ 		o.rsan = int32(unsafe.Sizeof(*o.rsa))
+ 		return syscall.WSARecvFrom(o.fd.sysfd, &o.buf, 1, &o.qty, &o.flags, o.rsa, &o.rsan, &o.o, nil)
+ 	})
++	err = fd.eofError(n, err)
++	if err != nil {
++		return n, nil, err
++	}
+ 	sa, _ := o.rsa.Sockaddr()
+-	return n, sa, fd.eofError(n, err)
++	return n, sa, err
+ }
+ 
+ func (fd *netFD) Write(buf []byte) (int, error) {

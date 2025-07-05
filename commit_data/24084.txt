@@ -9,8 +9,64 @@ Date:   Mon Jun 29 10:08:58 2015 -0700
     Change-Id: I45a41b98554f00362d9222e9c68a441dbfc23cb8
     Reviewed-on: https://go-review.googlesource.com/11700
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/pkg.go                                 |  6 +++++-
  src/cmd/go/testdata/src/vend/x/invalid/invalid.go |  3 +++
  src/cmd/go/vendor_test.go                         | 11 +++++++++++
  3 files changed, 19 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index 3ba5235328..0990c4563b 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -552,7 +552,11 @@ func disallowVendorVisibility(srcDir string, p *Package, stk *importStack) *Pack
+ 	if i > 0 {
+ 		i-- // rewind over slash in ".../vendor"
+ 	}
+-	parent := p.Dir[:i+len(p.Dir)-len(p.ImportPath)]
++	truncateTo := i + len(p.Dir) - len(p.ImportPath)
++	if truncateTo < 0 || len(p.Dir) < truncateTo {
++		return p
++	}
++	parent := p.Dir[:truncateTo]
+ 	if hasPathPrefix(filepath.ToSlash(srcDir), filepath.ToSlash(parent)) {
+ 		return p
+ 	}
+diff --git a/src/cmd/go/testdata/src/vend/x/invalid/invalid.go b/src/cmd/go/testdata/src/vend/x/invalid/invalid.go
+new file mode 100644
+index 0000000000..e250d5bb31
+--- /dev/null
++++ b/src/cmd/go/testdata/src/vend/x/invalid/invalid.go
+@@ -0,0 +1,3 @@
++package invalid
++
++import "vend/x/invalid/vendor/foo"
+diff --git a/src/cmd/go/vendor_test.go b/src/cmd/go/vendor_test.go
+index 5fe5aaa91b..3b99a29d98 100644
+--- a/src/cmd/go/vendor_test.go
++++ b/src/cmd/go/vendor_test.go
+@@ -29,6 +29,7 @@ func TestVendorImports(t *testing.T) {
+ 		vend/vendor/q []
+ 		vend/vendor/strings []
+ 		vend/x [vend/x/vendor/p vend/vendor/q vend/x/vendor/r]
++		vend/x/invalid [vend/x/invalid/vendor/foo]
+ 		vend/x/vendor/p []
+ 		vend/x/vendor/p/p [notfound]
+ 		vend/x/vendor/r []
+@@ -64,6 +65,16 @@ func TestVendorTest(t *testing.T) {
+ 	tg.grepStdout("TestMsgExternal", "missing use in external test")
+ }
+ 
++func TestVendorInvalid(t *testing.T) {
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
++	tg.setenv("GO15VENDOREXPERIMENT", "1")
++
++	tg.runFail("build", "vend/x/invalid")
++	tg.grepStderr("must be imported as foo", "missing vendor import error")
++}
++
+ func TestVendorImportError(t *testing.T) {
+ 	tg := testgo(t)
+ 	defer tg.cleanup()

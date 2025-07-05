@@ -12,7 +12,76 @@ Date:   Tue May 3 17:21:36 2016 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/gc/ssa_test.go                | 10 ++++++----
  src/cmd/compile/internal/gc/testdata/arithConst_ssa.go |  8 ++++----
  2 files changed, 10 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa_test.go b/src/cmd/compile/internal/gc/ssa_test.go
+index 46e1b0a7d3..5f1758cae2 100644
+--- a/src/cmd/compile/internal/gc/ssa_test.go
++++ b/src/cmd/compile/internal/gc/ssa_test.go
+@@ -23,9 +23,6 @@ func buildTest(t *testing.T, filename string) {
+ 	doTest(t, filename, "build")
+ }
+ func doTest(t *testing.T, filename string, kind string) {
+-	if runtime.GOARCH != "amd64" {
+-		t.Skipf("skipping SSA tests on %s for now", runtime.GOARCH)
+-	}
+ 	testenv.MustHaveGoBuild(t)
+ 	var stdout, stderr bytes.Buffer
+ 	cmd := exec.Command("go", kind, filepath.Join("testdata", filename))
+@@ -52,7 +49,12 @@ func TestBreakContinue(t *testing.T) { runTest(t, "break_ssa.go") }
+ func TestTypeAssertion(t *testing.T) { runTest(t, "assert_ssa.go") }
+ 
+ // TestArithmetic tests that both backends have the same result for arithmetic expressions.
+-func TestArithmetic(t *testing.T) { runTest(t, "arith_ssa.go") }
++func TestArithmetic(t *testing.T) {
++	if runtime.GOARCH == "386" {
++		t.Skip("legacy 386 compiler can't handle this test")
++	}
++	runTest(t, "arith_ssa.go")
++}
+ 
+ // TestFP tests that both backends have the same result for floating point expressions.
+ func TestFP(t *testing.T) { runTest(t, "fp_ssa.go") }
+diff --git a/src/cmd/compile/internal/gc/testdata/arithConst_ssa.go b/src/cmd/compile/internal/gc/testdata/arithConst_ssa.go
+index 093504fdfe..21bcd633e1 100644
+--- a/src/cmd/compile/internal/gc/testdata/arithConst_ssa.go
++++ b/src/cmd/compile/internal/gc/testdata/arithConst_ssa.go
+@@ -179,7 +179,7 @@ func lsh_1_uint64_ssa(a uint64) uint64 {
+ 
+ //go:noinline
+ func lsh_uint64_4294967296_ssa(a uint64) uint64 {
+-	return a << 4294967296
++	return a << uint64(4294967296)
+ }
+ 
+ //go:noinline
+@@ -189,7 +189,7 @@ func lsh_4294967296_uint64_ssa(a uint64) uint64 {
+ 
+ //go:noinline
+ func lsh_uint64_18446744073709551615_ssa(a uint64) uint64 {
+-	return a << 18446744073709551615
++	return a << uint64(18446744073709551615)
+ }
+ 
+ //go:noinline
+@@ -219,7 +219,7 @@ func rsh_1_uint64_ssa(a uint64) uint64 {
+ 
+ //go:noinline
+ func rsh_uint64_4294967296_ssa(a uint64) uint64 {
+-	return a >> 4294967296
++	return a >> uint64(4294967296)
+ }
+ 
+ //go:noinline
+@@ -229,7 +229,7 @@ func rsh_4294967296_uint64_ssa(a uint64) uint64 {
+ 
+ //go:noinline
+ func rsh_uint64_18446744073709551615_ssa(a uint64) uint64 {
+-	return a >> 18446744073709551615
++	return a >> uint64(18446744073709551615)
+ }
+ 
+ //go:noinline

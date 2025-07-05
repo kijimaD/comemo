@@ -17,7 +17,27 @@ Date:   Wed Jan 8 14:01:27 2020 -0500
     Change-Id: Ie2c6d477bbb2eac7c013ee8dea9330a367b4f663
     Reviewed-on: https://go-review.googlesource.com/c/go/+/213821
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/testdata/testonly/p_test.go | 1 -
  src/cmd/go/testdata/testonly2/t.go     | 6 ------
  2 files changed, 7 deletions(-)
+
+diff --git a/src/cmd/go/testdata/testonly/p_test.go b/src/cmd/go/testdata/testonly/p_test.go
+deleted file mode 100644
+index c89cd18d0f..0000000000
+--- a/src/cmd/go/testdata/testonly/p_test.go
++++ /dev/null
+@@ -1 +0,0 @@
+-package p
+diff --git a/src/cmd/go/testdata/testonly2/t.go b/src/cmd/go/testdata/testonly2/t.go
+deleted file mode 100644
+index 82267d32e4..0000000000
+--- a/src/cmd/go/testdata/testonly2/t.go
++++ /dev/null
+@@ -1,6 +0,0 @@
+-// This package is not a test-only package,
+-// but it still matches the pattern ./testdata/testonly... when in cmd/go.
+-
+-package main
+-
+-func main() {}

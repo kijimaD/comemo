@@ -27,7 +27,7 @@ Date:   Mon Feb 13 16:20:54 2023 -0500
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/heapdump.go  |  10 ++--
  src/runtime/mbitmap.go   |  26 ++++-----
  src/runtime/mgcmark.go   |   7 ++-
@@ -35,3 +35,364 @@ Date:   Mon Feb 13 16:20:54 2023 -0500
  src/runtime/stack.go     |  14 ++---
  src/runtime/traceback.go |  20 +++----
  6 files changed, 100 insertions(+), 110 deletions(-)
+
+diff --git a/src/runtime/heapdump.go b/src/runtime/heapdump.go
+index f57a1a1e17..59e28ae9aa 100644
+--- a/src/runtime/heapdump.go
++++ b/src/runtime/heapdump.go
+@@ -249,8 +249,7 @@ func dumpbv(cbv *bitvector, offset uintptr) {
+ 	}
+ }
+ 
+-func dumpframe(s *stkframe, arg unsafe.Pointer) bool {
+-	child := (*childInfo)(arg)
++func dumpframe(s *stkframe, child *childInfo) {
+ 	f := s.fn
+ 
+ 	// Figure out what we can about our stack map
+@@ -333,7 +332,7 @@ func dumpframe(s *stkframe, arg unsafe.Pointer) bool {
+ 	} else {
+ 		child.args.n = -1
+ 	}
+-	return true
++	return
+ }
+ 
+ func dumpgoroutine(gp *g) {
+@@ -369,7 +368,10 @@ func dumpgoroutine(gp *g) {
+ 	child.arglen = 0
+ 	child.sp = nil
+ 	child.depth = 0
+-	gentraceback(pc, sp, lr, gp, 0, nil, 0x7fffffff, dumpframe, noescape(unsafe.Pointer(&child)), 0)
++	var u unwinder
++	for u.initAt(pc, sp, lr, gp, 0); u.valid(); u.next() {
++		dumpframe(&u.frame, &child)
++	}
+ 
+ 	// dump defer & panic records
+ 	for d := gp._defer; d != nil; d = d.link {
+diff --git a/src/runtime/mbitmap.go b/src/runtime/mbitmap.go
+index 7c5856d9e7..ac20bd9ade 100644
+--- a/src/runtime/mbitmap.go
++++ b/src/runtime/mbitmap.go
+@@ -1397,15 +1397,6 @@ func dumpGCProg(p *byte) {
+ 
+ // Testing.
+ 
+-func getgcmaskcb(frame *stkframe, ctxt unsafe.Pointer) bool {
+-	target := (*stkframe)(ctxt)
+-	if frame.sp <= target.sp && target.sp < frame.varp {
+-		*target = *frame
+-		return false
+-	}
+-	return true
+-}
+-
+ // reflect_gcbits returns the GC type info for x, for testing.
+ // The result is the bitmap entries (0 or 1), one entry per byte.
+ //
+@@ -1472,11 +1463,16 @@ func getgcmask(ep any) (mask []byte) {
+ 
+ 	// stack
+ 	if gp := getg(); gp.m.curg.stack.lo <= uintptr(p) && uintptr(p) < gp.m.curg.stack.hi {
+-		var frame stkframe
+-		frame.sp = uintptr(p)
+-		gentraceback(gp.m.curg.sched.pc, gp.m.curg.sched.sp, 0, gp.m.curg, 0, nil, 1000, getgcmaskcb, noescape(unsafe.Pointer(&frame)), 0)
+-		if frame.fn.valid() {
+-			locals, _, _ := frame.getStackMap(nil, false)
++		found := false
++		var u unwinder
++		for u.initAt(gp.m.curg.sched.pc, gp.m.curg.sched.sp, 0, gp.m.curg, 0); u.valid(); u.next() {
++			if u.frame.sp <= uintptr(p) && uintptr(p) < u.frame.varp {
++				found = true
++				break
++			}
++		}
++		if found {
++			locals, _, _ := u.frame.getStackMap(nil, false)
+ 			if locals.n == 0 {
+ 				return
+ 			}
+@@ -1484,7 +1480,7 @@ func getgcmask(ep any) (mask []byte) {
+ 			n := (*ptrtype)(unsafe.Pointer(t)).elem.size
+ 			mask = make([]byte, n/goarch.PtrSize)
+ 			for i := uintptr(0); i < n; i += goarch.PtrSize {
+-				off := (uintptr(p) + i - frame.varp + size) / goarch.PtrSize
++				off := (uintptr(p) + i - u.frame.varp + size) / goarch.PtrSize
+ 				mask[i/goarch.PtrSize] = locals.ptrbit(off)
+ 			}
+ 		}
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index bbb1ca2f6b..d5c981f17a 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -797,11 +797,10 @@ func scanstack(gp *g, gcw *gcWork) int64 {
+ 	}
+ 
+ 	// Scan the stack. Accumulate a list of stack objects.
+-	scanframe := func(frame *stkframe, unused unsafe.Pointer) bool {
+-		scanframeworker(frame, &state, gcw)
+-		return true
++	var u unwinder
++	for u.init(gp, 0); u.valid(); u.next() {
++		scanframeworker(&u.frame, &state, gcw)
+ 	}
+-	gentraceback(^uintptr(0), ^uintptr(0), 0, gp, 0, nil, 0x7fffffff, scanframe, nil, 0)
+ 
+ 	// Find additional pointers that point into the stack from the heap.
+ 	// Currently this includes defers and panics. See also function copystack.
+diff --git a/src/runtime/panic.go b/src/runtime/panic.go
+index e7059af15f..ccc4643711 100644
+--- a/src/runtime/panic.go
++++ b/src/runtime/panic.go
+@@ -642,77 +642,78 @@ func addOneOpenDeferFrame(gp *g, pc uintptr, sp unsafe.Pointer) {
+ 		sp = unsafe.Pointer(prevDefer.sp)
+ 	}
+ 	systemstack(func() {
+-		gentraceback(pc, uintptr(sp), 0, gp, 0, nil, 0x7fffffff,
+-			func(frame *stkframe, unused unsafe.Pointer) bool {
+-				if prevDefer != nil && prevDefer.sp == frame.sp {
+-					// Skip the frame for the previous defer that
+-					// we just finished (and was used to set
+-					// where we restarted the stack scan)
+-					return true
+-				}
+-				f := frame.fn
+-				fd := funcdata(f, _FUNCDATA_OpenCodedDeferInfo)
+-				if fd == nil {
+-					return true
++		var u unwinder
++	frames:
++		for u.initAt(pc, uintptr(sp), 0, gp, 0); u.valid(); u.next() {
++			frame := &u.frame
++			if prevDefer != nil && prevDefer.sp == frame.sp {
++				// Skip the frame for the previous defer that
++				// we just finished (and was used to set
++				// where we restarted the stack scan)
++				continue
++			}
++			f := frame.fn
++			fd := funcdata(f, _FUNCDATA_OpenCodedDeferInfo)
++			if fd == nil {
++				continue
++			}
++			// Insert the open defer record in the
++			// chain, in order sorted by sp.
++			d := gp._defer
++			var prev *_defer
++			for d != nil {
++				dsp := d.sp
++				if frame.sp < dsp {
++					break
+ 				}
+-				// Insert the open defer record in the
+-				// chain, in order sorted by sp.
+-				d := gp._defer
+-				var prev *_defer
+-				for d != nil {
+-					dsp := d.sp
+-					if frame.sp < dsp {
+-						break
++				if frame.sp == dsp {
++					if !d.openDefer {
++						throw("duplicated defer entry")
+ 					}
+-					if frame.sp == dsp {
+-						if !d.openDefer {
+-							throw("duplicated defer entry")
+-						}
+-						// Don't add any record past an
+-						// in-progress defer entry. We don't
+-						// need it, and more importantly, we
+-						// want to keep the invariant that
+-						// there is no open defer entry
+-						// passed an in-progress entry (see
+-						// header comment).
+-						if d.started {
+-							return false
+-						}
+-						return true
++					// Don't add any record past an
++					// in-progress defer entry. We don't
++					// need it, and more importantly, we
++					// want to keep the invariant that
++					// there is no open defer entry
++					// passed an in-progress entry (see
++					// header comment).
++					if d.started {
++						break frames
+ 					}
+-					prev = d
+-					d = d.link
+-				}
+-				if frame.fn.deferreturn == 0 {
+-					throw("missing deferreturn")
++					continue frames
+ 				}
++				prev = d
++				d = d.link
++			}
++			if frame.fn.deferreturn == 0 {
++				throw("missing deferreturn")
++			}
+ 
+-				d1 := newdefer()
+-				d1.openDefer = true
+-				d1._panic = nil
+-				// These are the pc/sp to set after we've
+-				// run a defer in this frame that did a
+-				// recover. We return to a special
+-				// deferreturn that runs any remaining
+-				// defers and then returns from the
+-				// function.
+-				d1.pc = frame.fn.entry() + uintptr(frame.fn.deferreturn)
+-				d1.varp = frame.varp
+-				d1.fd = fd
+-				// Save the SP/PC associated with current frame,
+-				// so we can continue stack trace later if needed.
+-				d1.framepc = frame.pc
+-				d1.sp = frame.sp
+-				d1.link = d
+-				if prev == nil {
+-					gp._defer = d1
+-				} else {
+-					prev.link = d1
+-				}
+-				// Stop stack scanning after adding one open defer record
+-				return false
+-			},
+-			nil, 0)
++			d1 := newdefer()
++			d1.openDefer = true
++			d1._panic = nil
++			// These are the pc/sp to set after we've
++			// run a defer in this frame that did a
++			// recover. We return to a special
++			// deferreturn that runs any remaining
++			// defers and then returns from the
++			// function.
++			d1.pc = frame.fn.entry() + uintptr(frame.fn.deferreturn)
++			d1.varp = frame.varp
++			d1.fd = fd
++			// Save the SP/PC associated with current frame,
++			// so we can continue stack trace later if needed.
++			d1.framepc = frame.pc
++			d1.sp = frame.sp
++			d1.link = d
++			if prev == nil {
++				gp._defer = d1
++			} else {
++				prev.link = d1
++			}
++			// Stop stack scanning after adding one open defer record
++			break
++		}
+ 	})
+ }
+ 
+diff --git a/src/runtime/stack.go b/src/runtime/stack.go
+index d5e587a209..14e1a75ccd 100644
+--- a/src/runtime/stack.go
++++ b/src/runtime/stack.go
+@@ -649,11 +649,10 @@ func adjustpointers(scanp unsafe.Pointer, bv *bitvector, adjinfo *adjustinfo, f
+ }
+ 
+ // Note: the argument/return area is adjusted by the callee.
+-func adjustframe(frame *stkframe, arg unsafe.Pointer) bool {
+-	adjinfo := (*adjustinfo)(arg)
++func adjustframe(frame *stkframe, adjinfo *adjustinfo) {
+ 	if frame.continpc == 0 {
+ 		// Frame is dead.
+-		return true
++		return
+ 	}
+ 	f := frame.fn
+ 	if stackDebug >= 2 {
+@@ -663,7 +662,7 @@ func adjustframe(frame *stkframe, arg unsafe.Pointer) bool {
+ 		// A special routine at the bottom of stack of a goroutine that does a systemstack call.
+ 		// We will allow it to be copied even though we don't
+ 		// have full GC info for it (because it is written in asm).
+-		return true
++		return
+ 	}
+ 
+ 	locals, args, objs := frame.getStackMap(&adjinfo.cache, true)
+@@ -736,8 +735,6 @@ func adjustframe(frame *stkframe, arg unsafe.Pointer) bool {
+ 			}
+ 		}
+ 	}
+-
+-	return true
+ }
+ 
+ func adjustctxt(gp *g, adjinfo *adjustinfo) {
+@@ -931,7 +928,10 @@ func copystack(gp *g, newsize uintptr) {
+ 	gp.stktopsp += adjinfo.delta
+ 
+ 	// Adjust pointers in the new stack.
+-	gentraceback(^uintptr(0), ^uintptr(0), 0, gp, 0, nil, 0x7fffffff, adjustframe, noescape(unsafe.Pointer(&adjinfo)), 0)
++	var u unwinder
++	for u.init(gp, 0); u.valid(); u.next() {
++		adjustframe(&u.frame, &adjinfo)
++	}
+ 
+ 	// free old stack
+ 	if stackPoisonCopy != 0 {
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index 02dff5ccdf..665961f9b1 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -542,16 +542,16 @@ func (u *unwinder) finishInternal() {
+ }
+ 
+ // Generic traceback. Handles runtime stack prints (pcbuf == nil),
+-// the runtime.Callers function (pcbuf != nil), as well as the garbage
+-// collector (callback != nil).  A little clunky to merge these, but avoids
++// and the runtime.Callers function (pcbuf != nil).
++// A little clunky to merge these, but avoids
+ // duplicating the code and all its subtlety.
+ //
+ // The skip argument is only valid with pcbuf != nil and counts the number
+ // of logical frames to skip rather than physical frames (with inlining, a
+ // PC in pcbuf can represent multiple calls).
+ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max int, callback func(*stkframe, unsafe.Pointer) bool, v unsafe.Pointer, flags uint) int {
+-	if skip > 0 && callback != nil {
+-		throw("gentraceback callback cannot be used with non-zero skip")
++	if callback != nil {
++		throw("callback argument no longer supported")
+ 	}
+ 
+ 	// Translate flags
+@@ -559,7 +559,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
+ 	printing := pcbuf == nil && callback == nil
+ 	if printing {
+ 		uflags |= unwindPrintErrors
+-	} else if callback == nil {
++	} else {
+ 		uflags |= unwindSilentErrors
+ 	}
+ 	if flags&_TraceTrap != 0 {
+@@ -581,12 +581,6 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
+ 		frame := &u.frame
+ 		f := frame.fn
+ 
+-		if callback != nil {
+-			if !callback((*stkframe)(noescape(unsafe.Pointer(frame))), v) {
+-				return n
+-			}
+-		}
+-
+ 		// Backup to the CALL instruction to read inlining info
+ 		//
+ 		// Normally, pc is a return address. In that case, we want to look up
+@@ -670,9 +664,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
+ 			u.cgoCtxt--
+ 
+ 			// skip only applies to Go frames.
+-			// callback != nil only used when we only care
+-			// about Go frames.
+-			if skip == 0 && callback == nil {
++			if skip == 0 {
+ 				n = tracebackCgoContext(pcbuf, printing, ctxt, n, max)
+ 			}
+ 		}

@@ -10,8 +10,108 @@ Date:   Fri Jan 27 14:45:31 2012 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5564064
-
+---
  src/pkg/go/doc/testdata/e.0.golden | 10 ++++++++--
  src/pkg/go/doc/testdata/e.1.golden | 10 ++++++++--
  src/pkg/go/doc/testdata/e.go       | 16 ++++++++++++----
  3 files changed, 28 insertions(+), 8 deletions(-)
+
+diff --git a/src/pkg/go/doc/testdata/e.0.golden b/src/pkg/go/doc/testdata/e.0.golden
+index 3b128f7be8..05b0cc94e5 100644
+--- a/src/pkg/go/doc/testdata/e.0.golden
++++ b/src/pkg/go/doc/testdata/e.0.golden
+@@ -1,4 +1,4 @@
+-// 
++// The package e is a go/doc test for embedded methods. 
+ PACKAGE e
+ 
+ IMPORTPATH
+@@ -8,7 +8,7 @@ FILENAMES
+ 	testdata/e.go
+ 
+ TYPES
+-	// T1 has no (top-level) M method due to conflict. 
++	// T1 has no embedded (level 1) M method due to conflict. 
+ 	type T1 struct {
+ 		// contains filtered or unexported fields
+ 	}
+@@ -29,3 +29,9 @@ TYPES
+ 	// T3.M should appear as method of T3. 
+ 	func (T3) M()
+ 
++	// T1 has no embedded (level 1) M method due to conflict. 
++	type T4 struct {
++		T2
++		// contains filtered or unexported fields
++	}
++
+diff --git a/src/pkg/go/doc/testdata/e.1.golden b/src/pkg/go/doc/testdata/e.1.golden
+index d05602d82c..68a3e68a48 100644
+--- a/src/pkg/go/doc/testdata/e.1.golden
++++ b/src/pkg/go/doc/testdata/e.1.golden
+@@ -1,4 +1,4 @@
+-// 
++// The package e is a go/doc test for embedded methods. 
+ PACKAGE e
+ 
+ IMPORTPATH
+@@ -8,7 +8,7 @@ FILENAMES
+ 	testdata/e.go
+ 
+ TYPES
+-	// T1 has no (top-level) M method due to conflict. 
++	// T1 has no embedded (level 1) M method due to conflict. 
+ 	type T1 struct {
+ 		t1
+ 		t2
+@@ -31,6 +31,12 @@ TYPES
+ 	// T3.M should appear as method of T3. 
+ 	func (T3) M()
+ 
++	// T1 has no embedded (level 1) M method due to conflict. 
++	type T4 struct {
++		t2
++		T2
++	}
++
+ 	// 
+ 	type t1 struct{}
+ 
+diff --git a/src/pkg/go/doc/testdata/e.go b/src/pkg/go/doc/testdata/e.go
+index 8ea6a83b66..6f8b4a7734 100644
+--- a/src/pkg/go/doc/testdata/e.go
++++ b/src/pkg/go/doc/testdata/e.go
+@@ -2,9 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Embedding tests.
+-// TODO(gri): This should be comprehensive.
+-
++// The package e is a go/doc test for embedded methods.
+ package e
+ 
+ // ----------------------------------------------------------------------------
+@@ -20,7 +18,7 @@ type t2 struct{}
+ // t2.M should not appear as method in a Tx type.
+ func (t2) M() {}
+ 
+-// T1 has no (top-level) M method due to conflict.
++// T1 has no embedded (level 1) M method due to conflict.
+ type T1 struct {
+ 	t1
+ 	t2
+@@ -56,3 +54,13 @@ type T3 struct {
+ 
+ // T3.M should appear as method of T3.
+ func (T3) M() {}
++
++// ----------------------------------------------------------------------------
++// Don't show conflicting methods M embedded via an exported and non-exported
++// type.
++
++// T1 has no embedded (level 1) M method due to conflict.
++type T4 struct {
++	t2
++	T2
++}

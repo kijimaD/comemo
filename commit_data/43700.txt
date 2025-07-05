@@ -11,9 +11,90 @@ Date:   Mon Apr 20 20:33:19 2020 +0000
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-
+---
  src/runtime/pprof/proto.go      |  2 +-
  src/runtime/runtime-gdb_test.go |  1 +
  test/codegen/condmove.go        |  2 +-
  test/codegen/copy.go            | 28 ++++++++++++++--------------
  4 files changed, 17 insertions(+), 16 deletions(-)
+
+diff --git a/src/runtime/pprof/proto.go b/src/runtime/pprof/proto.go
+index f3d8ac38bf..8519af6985 100644
+--- a/src/runtime/pprof/proto.go
++++ b/src/runtime/pprof/proto.go
+@@ -325,7 +325,7 @@ func (b *profileBuilder) addCPUData(data []uint64, tags []unsafe.Pointer) error
+ 				// gentraceback guarantees that PCs in the
+ 				// stack can be unconditionally decremented and
+ 				// still be valid, so we must do the same.
+-				uint64(funcPC(lostProfileEvent)+1),
++				uint64(funcPC(lostProfileEvent) + 1),
+ 			}
+ 		}
+ 		b.m.lookup(stk, tag).count += int64(count)
+diff --git a/src/runtime/runtime-gdb_test.go b/src/runtime/runtime-gdb_test.go
+index 58f410cc59..2dfa473514 100644
+--- a/src/runtime/runtime-gdb_test.go
++++ b/src/runtime/runtime-gdb_test.go
+@@ -635,6 +635,7 @@ func main() {
+         time.Sleep(time.Second * 1)
+ }
+ `
++
+ // TestGdbInfCallstack tests that gdb can unwind the callstack of cgo programs
+ // on arm64 platforms without endless frames of function 'crossfunc1'.
+ // https://golang.org/issue/37238
+diff --git a/test/codegen/condmove.go b/test/codegen/condmove.go
+index 00118d1b63..f86da3459a 100644
+--- a/test/codegen/condmove.go
++++ b/test/codegen/condmove.go
+@@ -104,7 +104,7 @@ func cmovfloatint2(x, y float64) float64 {
+ 		// amd64:"CMOVQHI"
+ 		// arm64:"CSEL\tMI"
+ 		// wasm:"Select"
+-		r = r - ldexp(y, (rexp-yexp))
++		r = r - ldexp(y, rexp-yexp)
+ 	}
+ 	return r
+ }
+diff --git a/test/codegen/copy.go b/test/codegen/copy.go
+index db75cde1c6..0cd86d1161 100644
+--- a/test/codegen/copy.go
++++ b/test/codegen/copy.go
+@@ -44,23 +44,23 @@ var x [256]byte
+ // Check that large disjoint copies are replaced with moves.
+ 
+ func moveDisjointStack32() {
+-        var s [32]byte
+-        // ppc64:-".*memmove"
+-        // ppc64le:-".*memmove"
+-        // ppc64le/power8:"LXVD2X",-"ADD",-"BC"
+-        // ppc64le/power9:"LXV",-"LXVD2X",-"ADD",-"BC"
+-        copy(s[:], x[:32])
+-        runtime.KeepAlive(&s)
++	var s [32]byte
++	// ppc64:-".*memmove"
++	// ppc64le:-".*memmove"
++	// ppc64le/power8:"LXVD2X",-"ADD",-"BC"
++	// ppc64le/power9:"LXV",-"LXVD2X",-"ADD",-"BC"
++	copy(s[:], x[:32])
++	runtime.KeepAlive(&s)
+ }
+ 
+ func moveDisjointStack64() {
+-        var s [96]byte
+-        // ppc64:-".*memmove"
+-        // ppc64le:-".*memmove"
+-        // ppc64le/power8:"LXVD2X","ADD","BC"
+-        // ppc64le/power9:"LXV",-"LXVD2X",-"ADD",-"BC"
+-        copy(s[:], x[:96])
+-        runtime.KeepAlive(&s)
++	var s [96]byte
++	// ppc64:-".*memmove"
++	// ppc64le:-".*memmove"
++	// ppc64le/power8:"LXVD2X","ADD","BC"
++	// ppc64le/power9:"LXV",-"LXVD2X",-"ADD",-"BC"
++	copy(s[:], x[:96])
++	runtime.KeepAlive(&s)
+ }
+ 
+ func moveDisjointStack() {

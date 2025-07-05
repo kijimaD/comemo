@@ -17,10 +17,1944 @@ Date:   Fri Oct 22 17:40:08 2021 +0800
     Run-TryBot: mzh <mzh@golangcn.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Joel Sing <joel@sing.id.au>
-
+---
  src/cmd/compile/internal/riscv64/ggen.go       |    2 +-
  src/cmd/compile/internal/ssa/gen/RISCV64Ops.go |   14 +-
  src/cmd/compile/internal/ssa/opGen.go          |   10 +-
  src/runtime/duff_riscv64.s                     | 1790 ++++++++++++------------
  src/runtime/mkduff.go                          |   22 +-
  5 files changed, 919 insertions(+), 919 deletions(-)
+
+diff --git a/src/cmd/compile/internal/riscv64/ggen.go b/src/cmd/compile/internal/riscv64/ggen.go
+index 9df739456b..0f37f65fcf 100644
+--- a/src/cmd/compile/internal/riscv64/ggen.go
++++ b/src/cmd/compile/internal/riscv64/ggen.go
+@@ -29,7 +29,7 @@ func zeroRange(pp *objw.Progs, p *obj.Prog, off, cnt int64, _ *uint32) *obj.Prog
+ 	}
+ 
+ 	if cnt <= int64(128*types.PtrSize) {
+-		p = pp.Append(p, riscv.AADDI, obj.TYPE_CONST, 0, off, obj.TYPE_REG, riscv.REG_A0, 0)
++		p = pp.Append(p, riscv.AADDI, obj.TYPE_CONST, 0, off, obj.TYPE_REG, riscv.REG_X25, 0)
+ 		p.Reg = riscv.REG_SP
+ 		p = pp.Append(p, obj.ADUFFZERO, obj.TYPE_NONE, 0, 0, obj.TYPE_MEM, 0, 0)
+ 		p.To.Name = obj.NAME_EXTERN
+diff --git a/src/cmd/compile/internal/ssa/gen/RISCV64Ops.go b/src/cmd/compile/internal/ssa/gen/RISCV64Ops.go
+index 09a8bb38c9..171fa23c6c 100644
+--- a/src/cmd/compile/internal/ssa/gen/RISCV64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/RISCV64Ops.go
+@@ -247,7 +247,7 @@ func init() {
+ 		{name: "CALLinter", argLength: 2, reg: callInter, aux: "CallOff", call: true},           // call fn by pointer. arg0=codeptr, arg1=mem, auxint=argsize, returns mem
+ 
+ 		// duffzero
+-		// arg0 = address of memory to zero (in X10, changed as side effect)
++		// arg0 = address of memory to zero (in X25, changed as side effect)
+ 		// arg1 = mem
+ 		// auxint = offset into duffzero code to start executing
+ 		// X1 (link register) changed because of function call
+@@ -257,16 +257,16 @@ func init() {
+ 			aux:       "Int64",
+ 			argLength: 2,
+ 			reg: regInfo{
+-				inputs:   []regMask{regNamed["X10"]},
+-				clobbers: regNamed["X1"] | regNamed["X10"],
++				inputs:   []regMask{regNamed["X25"]},
++				clobbers: regNamed["X1"] | regNamed["X25"],
+ 			},
+ 			typ:            "Mem",
+ 			faultOnNilArg0: true,
+ 		},
+ 
+ 		// duffcopy
+-		// arg0 = address of dst memory (in X11, changed as side effect)
+-		// arg1 = address of src memory (in X10, changed as side effect)
++		// arg0 = address of dst memory (in X25, changed as side effect)
++		// arg1 = address of src memory (in X24, changed as side effect)
+ 		// arg2 = mem
+ 		// auxint = offset into duffcopy code to start executing
+ 		// X1 (link register) changed because of function call
+@@ -276,8 +276,8 @@ func init() {
+ 			aux:       "Int64",
+ 			argLength: 3,
+ 			reg: regInfo{
+-				inputs:   []regMask{regNamed["X11"], regNamed["X10"]},
+-				clobbers: regNamed["X1"] | regNamed["X10"] | regNamed["X11"],
++				inputs:   []regMask{regNamed["X25"], regNamed["X24"]},
++				clobbers: regNamed["X1"] | regNamed["X24"] | regNamed["X25"],
+ 			},
+ 			typ:            "Mem",
+ 			faultOnNilArg0: true,
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 6f0eb45014..3ea3b73684 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -28923,9 +28923,9 @@ var opcodeTable = [...]opInfo{
+ 		faultOnNilArg0: true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 512}, // X10
++				{0, 16777216}, // X25
+ 			},
+-			clobbers: 512, // X10
++			clobbers: 16777216, // X25
+ 		},
+ 	},
+ 	{
+@@ -28936,10 +28936,10 @@ var opcodeTable = [...]opInfo{
+ 		faultOnNilArg1: true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 1024}, // X11
+-				{1, 512},  // X10
++				{0, 16777216}, // X25
++				{1, 8388608},  // X24
+ 			},
+-			clobbers: 1536, // X10 X11
++			clobbers: 25165824, // X24 X25
+ 		},
+ 	},
+ 	{
+diff --git a/src/runtime/duff_riscv64.s b/src/runtime/duff_riscv64.s
+index f7bd3f326e..9d7f0031a3 100644
+--- a/src/runtime/duff_riscv64.s
++++ b/src/runtime/duff_riscv64.s
+@@ -5,903 +5,903 @@
+ #include "textflag.h"
+ 
+ TEXT runtime·duffzero(SB), NOSPLIT|NOFRAME, $0-0
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
+-	MOV	ZERO, (X10)
+-	ADD	$8, X10
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
++	MOV	ZERO, (X25)
++	ADD	$8, X25
+ 	RET
+ 
+ TEXT runtime·duffcopy(SB), NOSPLIT|NOFRAME, $0-0
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
+-
+-	MOV	(X10), X31
+-	ADD	$8, X10
+-	MOV	X31, (X11)
+-	ADD	$8, X11
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
++
++	MOV	(X24), X31
++	ADD	$8, X24
++	MOV	X31, (X25)
++	ADD	$8, X25
+ 
+ 	RET
+diff --git a/src/runtime/mkduff.go b/src/runtime/mkduff.go
+index e8a85702c6..e1c01fffce 100644
+--- a/src/runtime/mkduff.go
++++ b/src/runtime/mkduff.go
+@@ -235,26 +235,26 @@ func copyMIPS64x(w io.Writer) {
+ 
+ func zeroRISCV64(w io.Writer) {
+ 	// ZERO: always zero
+-	// X10: ptr to memory to be zeroed
+-	// X10 is updated as a side effect.
++	// X25: ptr to memory to be zeroed
++	// X25 is updated as a side effect.
+ 	fmt.Fprintln(w, "TEXT runtime·duffzero(SB), NOSPLIT|NOFRAME, $0-0")
+ 	for i := 0; i < 128; i++ {
+-		fmt.Fprintln(w, "\tMOV\tZERO, (X10)")
+-		fmt.Fprintln(w, "\tADD\t$8, X10")
++		fmt.Fprintln(w, "\tMOV\tZERO, (X25)")
++		fmt.Fprintln(w, "\tADD\t$8, X25")
+ 	}
+ 	fmt.Fprintln(w, "\tRET")
+ }
+ 
+ func copyRISCV64(w io.Writer) {
+-	// X10: ptr to source memory
+-	// X11: ptr to destination memory
+-	// X10 and X11 are updated as a side effect
++	// X24: ptr to source memory
++	// X25: ptr to destination memory
++	// X24 and X25 are updated as a side effect
+ 	fmt.Fprintln(w, "TEXT runtime·duffcopy(SB), NOSPLIT|NOFRAME, $0-0")
+ 	for i := 0; i < 128; i++ {
+-		fmt.Fprintln(w, "\tMOV\t(X10), X31")
+-		fmt.Fprintln(w, "\tADD\t$8, X10")
+-		fmt.Fprintln(w, "\tMOV\tX31, (X11)")
+-		fmt.Fprintln(w, "\tADD\t$8, X11")
++		fmt.Fprintln(w, "\tMOV\t(X24), X31")
++		fmt.Fprintln(w, "\tADD\t$8, X24")
++		fmt.Fprintln(w, "\tMOV\tX31, (X25)")
++		fmt.Fprintln(w, "\tADD\t$8, X25")
+ 		fmt.Fprintln(w)
+ 	}
+ 	fmt.Fprintln(w, "\tRET")

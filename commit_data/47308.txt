@@ -15,7 +15,7 @@ Date:   Mon Mar 1 15:18:12 2021 -0500
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go.mod                                     |  2 +-
  src/cmd/go.sum                                     |  4 +-
  src/cmd/go/internal/modload/query.go               | 18 +++++++-
@@ -26,3 +26,318 @@ Date:   Mon Mar 1 15:18:12 2021 -0500
  src/cmd/vendor/golang.org/x/mod/module/module.go   | 52 +++++++++++++++-------
  src/cmd/vendor/modules.txt                         |  2 +-
  9 files changed, 126 insertions(+), 26 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index 05076792c8..306143f088 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -6,7 +6,7 @@ require (
+ 	github.com/google/pprof v0.0.0-20201203190320-1bf35d6f28c2
+ 	golang.org/x/arch v0.0.0-20201008161808-52c3e6f60cff
+ 	golang.org/x/crypto v0.0.0-20201016220609-9e8e0b390897
+-	golang.org/x/mod v0.4.2-0.20210309222212-d6ab96f2441f
++	golang.org/x/mod v0.4.3-0.20210310185834-19d50cac98aa
+ 	golang.org/x/sys v0.0.0-20210218145245-beda7e5e158e // indirect
+ 	golang.org/x/tools v0.1.1-0.20210220032852-2363391a5b2f
+ )
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index 3827248879..97fbd5c0a9 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -14,8 +14,8 @@ golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9/go.mod h1:LzIPMQfyMNhhGPh
+ golang.org/x/crypto v0.0.0-20201016220609-9e8e0b390897 h1:pLI5jrR7OSLijeIDcmRxNmw2api+jEfxLoykJVice/E=
+ golang.org/x/crypto v0.0.0-20201016220609-9e8e0b390897/go.mod h1:LzIPMQfyMNhhGPhUkYOs5KpL4U8rLKemX1yGLhDgUto=
+ golang.org/x/mod v0.4.1/go.mod h1:s0Qsj1ACt9ePp/hMypM3fl4fZqREWJwdYDEqhRiZZUA=
+-golang.org/x/mod v0.4.2-0.20210309222212-d6ab96f2441f h1:mQozKYYFIVK0MXcDB8Dvw0dR3rxKLnkSCJHWznfaodQ=
+-golang.org/x/mod v0.4.2-0.20210309222212-d6ab96f2441f/go.mod h1:s0Qsj1ACt9ePp/hMypM3fl4fZqREWJwdYDEqhRiZZUA=
++golang.org/x/mod v0.4.3-0.20210310185834-19d50cac98aa h1:++oSKjoJSsXNHyhUdK1BtBKMAaMHER+GWyKN3319OZA=
++golang.org/x/mod v0.4.3-0.20210310185834-19d50cac98aa/go.mod h1:s0Qsj1ACt9ePp/hMypM3fl4fZqREWJwdYDEqhRiZZUA=
+ golang.org/x/net v0.0.0-20190404232315-eb5bcb51f2a3/go.mod h1:t9HGtf8HONx5eT2rtn7q6eTqICYqUVnKs3thJo3Qplg=
+ golang.org/x/net v0.0.0-20190620200207-3b0461eec859/go.mod h1:z5CRVTTTmAJ677TzLLGU+0bjPO0LkuOLi4/5GtJWs/s=
+ golang.org/x/net v0.0.0-20201021035429-f5854403a974/go.mod h1:sp8m0HH+o8qH0wwXwYZr8TS3Oi6o0r6Gce1SSxlDquU=
+diff --git a/src/cmd/go/internal/modload/query.go b/src/cmd/go/internal/modload/query.go
+index a8012c792a..1707bd88ed 100644
+--- a/src/cmd/go/internal/modload/query.go
++++ b/src/cmd/go/internal/modload/query.go
+@@ -695,7 +695,9 @@ func QueryPattern(ctx context.Context, pattern, query string, current func(strin
+ 
+ // modulePrefixesExcludingTarget returns all prefixes of path that may plausibly
+ // exist as a module, excluding targetPrefix but otherwise including path
+-// itself, sorted by descending length.
++// itself, sorted by descending length. Prefixes that are not valid module paths
++// but are valid package paths (like "m" or "example.com/.gen") are included,
++// since they might be replaced.
+ func modulePrefixesExcludingTarget(path string) []string {
+ 	prefixes := make([]string, 0, strings.Count(path, "/")+1)
+ 
+@@ -747,6 +749,7 @@ func queryPrefixModules(ctx context.Context, candidateModules []string, queryMod
+ 		noPackage   *PackageNotInModuleError
+ 		noVersion   *NoMatchingVersionError
+ 		noPatchBase *NoPatchBaseError
++		invalidPath *module.InvalidPathError // see comment in case below
+ 		notExistErr error
+ 	)
+ 	for _, r := range results {
+@@ -767,6 +770,17 @@ func queryPrefixModules(ctx context.Context, candidateModules []string, queryMod
+ 			if noPatchBase == nil {
+ 				noPatchBase = rErr
+ 			}
++		case *module.InvalidPathError:
++			// The prefix was not a valid module path, and there was no replacement.
++			// Prefixes like this may appear in candidateModules, since we handle
++			// replaced modules that weren't required in the repo lookup process
++			// (see lookupRepo).
++			//
++			// A shorter prefix may be a valid module path and may contain a valid
++			// import path, so this is a low-priority error.
++			if invalidPath == nil {
++				invalidPath = rErr
++			}
+ 		default:
+ 			if errors.Is(rErr, fs.ErrNotExist) {
+ 				if notExistErr == nil {
+@@ -800,6 +814,8 @@ func queryPrefixModules(ctx context.Context, candidateModules []string, queryMod
+ 			err = noVersion
+ 		case noPatchBase != nil:
+ 			err = noPatchBase
++		case invalidPath != nil:
++			err = invalidPath
+ 		case notExistErr != nil:
+ 			err = notExistErr
+ 		default:
+diff --git a/src/cmd/go/proxy_test.go b/src/cmd/go/proxy_test.go
+index e390c73a9c..7d8a97dd99 100644
+--- a/src/cmd/go/proxy_test.go
++++ b/src/cmd/go/proxy_test.go
+@@ -362,7 +362,7 @@ func proxyHandler(w http.ResponseWriter, r *http.Request) {
+ 			var buf bytes.Buffer
+ 			z := zip.NewWriter(&buf)
+ 			for _, f := range a.Files {
+-				if strings.HasPrefix(f.Name, ".") {
++				if f.Name == ".info" || f.Name == ".mod" || f.Name == ".zip" {
+ 					continue
+ 				}
+ 				var zipName string
+diff --git a/src/cmd/go/testdata/mod/example.com_dotname_v1.0.0.txt b/src/cmd/go/testdata/mod/example.com_dotname_v1.0.0.txt
+new file mode 100644
+index 0000000000..2ada3a3f81
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/example.com_dotname_v1.0.0.txt
+@@ -0,0 +1,12 @@
++-- .info --
++{"Version":"v1.0.0"}
++-- .mod --
++module example.com/dotname
++
++go 1.16
++-- go.mod --
++module example.com/dotname
++
++go 1.16
++-- .dot/dot.go --
++package dot
+diff --git a/src/cmd/go/testdata/script/mod_invalid_path_dotname.txt b/src/cmd/go/testdata/script/mod_invalid_path_dotname.txt
+new file mode 100644
+index 0000000000..85934332d1
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_invalid_path_dotname.txt
+@@ -0,0 +1,46 @@
++# Test that an import path containing an element with a leading dot
++# in another module is valid.
++
++# 'go get' works with no version query.
++cp go.mod.empty go.mod
++go get -d example.com/dotname/.dot
++go list -m example.com/dotname
++stdout '^example.com/dotname v1.0.0$'
++
++# 'go get' works with a version query.
++cp go.mod.empty go.mod
++go get -d example.com/dotname/.dot@latest
++go list -m example.com/dotname
++stdout '^example.com/dotname v1.0.0$'
++
++# 'go get' works on an importing package.
++cp go.mod.empty go.mod
++go get -d .
++go list -m example.com/dotname
++stdout '^example.com/dotname v1.0.0$'
++
++# 'go list' works on the dotted package.
++go list example.com/dotname/.dot
++stdout '^example.com/dotname/.dot$'
++
++# 'go list' works on an importing package.
++go list .
++stdout '^m$'
++
++# 'go mod tidy' works.
++cp go.mod.empty go.mod
++go mod tidy
++go list -m example.com/dotname
++stdout '^example.com/dotname v1.0.0$'
++
++-- go.mod.empty --
++module m
++
++go 1.16
++-- go.sum --
++example.com/dotname v1.0.0 h1:Q0JMAn464CnwFVCshs1n4+f5EFiW/eRhnx/fTWjw2Ag=
++example.com/dotname v1.0.0/go.mod h1:7K4VLT7QylRI8H7yZwUkeDH2s19wQnyfp/3oBlItWJ0=
++-- use.go --
++package use
++
++import _ "example.com/dotname/.dot"
+diff --git a/src/cmd/go/testdata/script/mod_invalid_path_plus.txt b/src/cmd/go/testdata/script/mod_invalid_path_plus.txt
+index 636769eb4d..51dbf93688 100644
+--- a/src/cmd/go/testdata/script/mod_invalid_path_plus.txt
++++ b/src/cmd/go/testdata/script/mod_invalid_path_plus.txt
+@@ -2,18 +2,22 @@
+ # The '+' character should be disallowed in module paths, but allowed in package
+ # paths within valid modules.
+ 
++# 'go list' accepts package paths with pluses.
++cp go.mod.orig go.mod
+ go get -d example.net/cmd
+ go list example.net/cmd/x++
+ 
++# 'go list -m' rejects module paths with pluses.
+ ! go list -versions -m 'example.net/bad++'
+ stderr '^go list -m: malformed module path "example.net/bad\+\+": invalid char ''\+''$'
+ 
+-# TODO(bcmills): 'go get -d example.net/cmd/x++' should also work, but currently
+-# it does not. This might be fixed by https://golang.org/cl/297891.
+-! go get -d example.net/cmd/x++
+-stderr '^go get: malformed module path "example.net/cmd/x\+\+": invalid char ''\+''$'
++# 'go get' accepts package paths with pluses.
++cp go.mod.orig go.mod
++go get -d example.net/cmd/x++
++go list -m example.net/cmd
++stdout '^example.net/cmd v0.0.0-00010101000000-000000000000 => ./cmd$'
+ 
+--- go.mod --
++-- go.mod.orig --
+ module example.com/m
+ 
+ go 1.16
+diff --git a/src/cmd/vendor/golang.org/x/mod/module/module.go b/src/cmd/vendor/golang.org/x/mod/module/module.go
+index 0e03014837..cf69ff657a 100644
+--- a/src/cmd/vendor/golang.org/x/mod/module/module.go
++++ b/src/cmd/vendor/golang.org/x/mod/module/module.go
+@@ -192,6 +192,21 @@ func (e *InvalidVersionError) Error() string {
+ 
+ func (e *InvalidVersionError) Unwrap() error { return e.Err }
+ 
++// An InvalidPathError indicates a module, import, or file path doesn't
++// satisfy all naming constraints. See CheckPath, CheckImportPath,
++// and CheckFilePath for specific restrictions.
++type InvalidPathError struct {
++	Kind string // "module", "import", or "file"
++	Path string
++	Err  error
++}
++
++func (e *InvalidPathError) Error() string {
++	return fmt.Sprintf("malformed %s path %q: %v", e.Kind, e.Path, e.Err)
++}
++
++func (e *InvalidPathError) Unwrap() error { return e.Err }
++
+ // Check checks that a given module path, version pair is valid.
+ // In addition to the path being a valid module path
+ // and the version being a valid semantic version,
+@@ -296,30 +311,36 @@ func fileNameOK(r rune) bool {
+ // this second requirement is replaced by a requirement that the path
+ // follow the gopkg.in server's conventions.
+ // Third, no path element may begin with a dot.
+-func CheckPath(path string) error {
++func CheckPath(path string) (err error) {
++	defer func() {
++		if err != nil {
++			err = &InvalidPathError{Kind: "module", Path: path, Err: err}
++		}
++	}()
++
+ 	if err := checkPath(path, modulePath); err != nil {
+-		return fmt.Errorf("malformed module path %q: %v", path, err)
++		return err
+ 	}
+ 	i := strings.Index(path, "/")
+ 	if i < 0 {
+ 		i = len(path)
+ 	}
+ 	if i == 0 {
+-		return fmt.Errorf("malformed module path %q: leading slash", path)
++		return fmt.Errorf("leading slash")
+ 	}
+ 	if !strings.Contains(path[:i], ".") {
+-		return fmt.Errorf("malformed module path %q: missing dot in first path element", path)
++		return fmt.Errorf("missing dot in first path element")
+ 	}
+ 	if path[0] == '-' {
+-		return fmt.Errorf("malformed module path %q: leading dash in first path element", path)
++		return fmt.Errorf("leading dash in first path element")
+ 	}
+ 	for _, r := range path[:i] {
+ 		if !firstPathOK(r) {
+-			return fmt.Errorf("malformed module path %q: invalid char %q in first path element", path, r)
++			return fmt.Errorf("invalid char %q in first path element", r)
+ 		}
+ 	}
+ 	if _, _, ok := SplitPathVersion(path); !ok {
+-		return fmt.Errorf("malformed module path %q: invalid version", path)
++		return fmt.Errorf("invalid version")
+ 	}
+ 	return nil
+ }
+@@ -343,7 +364,7 @@ func CheckPath(path string) error {
+ // subtleties of Unicode.
+ func CheckImportPath(path string) error {
+ 	if err := checkPath(path, importPath); err != nil {
+-		return fmt.Errorf("malformed import path %q: %v", path, err)
++		return &InvalidPathError{Kind: "import", Path: path, Err: err}
+ 	}
+ 	return nil
+ }
+@@ -358,12 +379,13 @@ const (
+ 	filePath
+ )
+ 
+-// checkPath checks that a general path is valid.
+-// It returns an error describing why but not mentioning path.
+-// Because these checks apply to both module paths and import paths,
+-// the caller is expected to add the "malformed ___ path %q: " prefix.
+-// fileName indicates whether the final element of the path is a file name
+-// (as opposed to a directory name).
++// checkPath checks that a general path is valid. kind indicates what
++// specific constraints should be applied.
++//
++// checkPath returns an error describing why the path is not valid.
++// Because these checks apply to module, import, and file paths,
++// and because other checks may be applied, the caller is expected to wrap
++// this error with InvalidPathError.
+ func checkPath(path string, kind pathKind) error {
+ 	if !utf8.ValidString(path) {
+ 		return fmt.Errorf("invalid UTF-8")
+@@ -477,7 +499,7 @@ func checkElem(elem string, kind pathKind) error {
+ // subtleties of Unicode.
+ func CheckFilePath(path string) error {
+ 	if err := checkPath(path, filePath); err != nil {
+-		return fmt.Errorf("malformed file path %q: %v", path, err)
++		return &InvalidPathError{Kind: "file", Path: path, Err: err}
+ 	}
+ 	return nil
+ }
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index b84ee5a7b1..af92df8721 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -28,7 +28,7 @@ golang.org/x/arch/x86/x86asm
+ golang.org/x/crypto/ed25519
+ golang.org/x/crypto/ed25519/internal/edwards25519
+ golang.org/x/crypto/ssh/terminal
+-# golang.org/x/mod v0.4.2-0.20210309222212-d6ab96f2441f
++# golang.org/x/mod v0.4.3-0.20210310185834-19d50cac98aa
+ ## explicit
+ golang.org/x/mod/internal/lazyregexp
+ golang.org/x/mod/modfile

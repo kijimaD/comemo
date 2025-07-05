@@ -7,6 +7,24 @@ Date:   Mon Nov 17 16:46:56 2008 -0800
     R=r
     OCL=19413
     CL=19413
-
+---
  test/bugs/bug122.go | 11 +++++++++++
  1 file changed, 11 insertions(+)
+
+diff --git a/test/bugs/bug122.go b/test/bugs/bug122.go
+new file mode 100644
+index 0000000000..da58944b77
+--- /dev/null
++++ b/test/bugs/bug122.go
+@@ -0,0 +1,11 @@
++// errchk $G $D/$F.go
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func main() {
++	a := new([]int, 10, 20, 30, 40);  // should allow at most 2 sizes
++}

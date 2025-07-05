@@ -17,6 +17,29 @@ Date:   Thu Aug 10 02:00:54 2023 +0000
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/strconv/ftoa.go | 14 --------------
  1 file changed, 14 deletions(-)
+
+diff --git a/src/strconv/ftoa.go b/src/strconv/ftoa.go
+index fcbf4df13b..c514e663da 100644
+--- a/src/strconv/ftoa.go
++++ b/src/strconv/ftoa.go
+@@ -568,17 +568,3 @@ func fmtX(dst []byte, prec int, fmt byte, neg bool, mant uint64, exp int, flt *f
+ 
+ 	return dst
+ }
+-
+-func min(a, b int) int {
+-	if a < b {
+-		return a
+-	}
+-	return b
+-}
+-
+-func max(a, b int) int {
+-	if a > b {
+-		return a
+-	}
+-	return b
+-}

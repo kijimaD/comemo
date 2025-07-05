@@ -14,6 +14,21 @@ Date:   Sun Oct 15 13:47:47 2017 +1100
     Change-Id: I82418c1e987db736f4bee0faa53fe715c9cde8f5
     Reviewed-on: https://go-review.googlesource.com/71010
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-
+---
  src/fmt/doc.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/fmt/doc.go b/src/fmt/doc.go
+index d1ce8c4177..375cdb4266 100644
+--- a/src/fmt/doc.go
++++ b/src/fmt/doc.go
+@@ -81,7 +81,8 @@
+ 	that is, runes. (This differs from C's printf where the
+ 	units are always measured in bytes.) Either or both of the flags
+ 	may be replaced with the character '*', causing their values to be
+-	obtained from the next operand, which must be of type int.
++	obtained from the next operand (preceding the one to format),
++	which must be of type int.
+ 
+ 	For most values, width is the minimum number of runes to output,
+ 	padding the formatted form with spaces if necessary.

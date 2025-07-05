@@ -14,8 +14,48 @@ Date:   Thu Jun 3 09:49:21 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/types_test.go      | 3 +++
  src/go/types/typestring.go      | 2 +-
  src/go/types/typestring_test.go | 4 ++++
  3 files changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/src/go/types/types_test.go b/src/go/types/types_test.go
+index e1a40f1f6e..7990414f42 100644
+--- a/src/go/types/types_test.go
++++ b/src/go/types/types_test.go
+@@ -9,3 +9,6 @@ package types
+ func SetGoVersion(config *Config, goVersion string) {
+ 	config.goVersion = goVersion
+ }
++
++// Debug is set if go/types is built with debug mode enabled.
++const Debug = debug
+diff --git a/src/go/types/typestring.go b/src/go/types/typestring.go
+index fe27f0f276..ff93f3b3c3 100644
+--- a/src/go/types/typestring.go
++++ b/src/go/types/typestring.go
+@@ -227,7 +227,7 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
+ 				empty = false
+ 			}
+ 		}
+-		if t.allMethods == nil || len(t.methods) > len(t.allMethods) {
++		if debug && (t.allMethods == nil || len(t.methods) > len(t.allMethods)) {
+ 			if !empty {
+ 				buf.WriteByte(' ')
+ 			}
+diff --git a/src/go/types/typestring_test.go b/src/go/types/typestring_test.go
+index b16529dc64..55ee4b987f 100644
+--- a/src/go/types/typestring_test.go
++++ b/src/go/types/typestring_test.go
+@@ -143,6 +143,10 @@ func TestTypeString(t *testing.T) {
+ }
+ 
+ func TestIncompleteInterfaces(t *testing.T) {
++	if !Debug {
++		t.Skip("requires type checker to be compiled with debug = true")
++	}
++
+ 	sig := NewSignature(nil, nil, nil, false)
+ 	m := NewFunc(token.NoPos, nil, "m", sig)
+ 	for _, test := range []struct {

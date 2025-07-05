@@ -12,10 +12,174 @@ Date:   Wed Mar 13 17:37:37 2013 -0400
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/7797043
-
+---
  src/cmd/vet/Makefile       |  5 ++++-
  src/cmd/vet/taglit.go      | 33 ++++++++++++++++++++++++++++++++-
  src/cmd/vet/test_taglit.go | 34 ++++++++++++++++++++++++++++++++++
  src/cmd/vet/types.go       | 18 ++++++++----------
  src/cmd/vet/typestub.go    |  2 +-
  5 files changed, 79 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/vet/Makefile b/src/cmd/vet/Makefile
+index 0241e3f058..6b1e90fb07 100644
+--- a/src/cmd/vet/Makefile
++++ b/src/cmd/vet/Makefile
+@@ -5,5 +5,8 @@
+ # Assumes go/types is installed
+ test testshort:
+ 	go build -tags 'vet_test gotypes'
+-	../../../test/errchk ./vet -compositewhitelist=false -printfuncs='Warn:1,Warnf:1' *.go
++	../../../test/errchk ./vet -printfuncs='Warn:1,Warnf:1' *.go
+ 
++test_notypes:
++	go build -tags 'vet_test'
++	../../../test/errchk ./vet -printfuncs='Warn:1,Warnf:1' *.go
+diff --git a/src/cmd/vet/taglit.go b/src/cmd/vet/taglit.go
+index bc3695b1e1..bcad2fe0a2 100644
+--- a/src/cmd/vet/taglit.go
++++ b/src/cmd/vet/taglit.go
+@@ -14,18 +14,49 @@ import (
+ 
+ var compositeWhiteList = flag.Bool("compositewhitelist", true, "use composite white list; for testing only")
+ 
+-// checkUntaggedLiteral checks if a composite literal is an struct literal with
++// checkUntaggedLiteral checks if a composite literal is a struct literal with
+ // untagged fields.
+ func (f *File) checkUntaggedLiteral(c *ast.CompositeLit) {
+ 	if !vet("composites") {
+ 		return
+ 	}
+ 
++	typ := c.Type
++	for {
++		if typ1, ok := c.Type.(*ast.ParenExpr); ok {
++			typ = typ1
++			continue
++		}
++		break
++	}
++
++	switch typ.(type) {
++	case *ast.ArrayType:
++		return
++	case *ast.MapType:
++		return
++	case *ast.StructType:
++		return // a literal struct type does not need to use tags
++	case *ast.Ident:
++		// A simple type name like t or T does not need tags either,
++		// since it is almost certainly declared in the current package.
++		// (The exception is names being used via import . "pkg", but
++		// those are already breaking the Go 1 compatibility promise,
++		// so not reporting potential additional breakage seems okay.)
++		return
++	}
++
++	// Otherwise the type is a selector like pkg.Name.
++	// We only care if pkg.Name is a struct, not if it's a map, array, or slice.
+ 	isStruct, typeString := f.pkg.isStruct(c)
+ 	if !isStruct {
+ 		return
+ 	}
+ 
++	if typeString == "" { // isStruct doesn't know
++		typeString = f.gofmt(typ)
++	}
++
+ 	// It's a struct, or we can't tell it's not a struct because we don't have types.
+ 
+ 	// Check if the CompositeLit contains an untagged field.
+diff --git a/src/cmd/vet/test_taglit.go b/src/cmd/vet/test_taglit.go
+index 0d83b18fd6..f34062f18e 100644
+--- a/src/cmd/vet/test_taglit.go
++++ b/src/cmd/vet/test_taglit.go
+@@ -15,6 +15,40 @@ import (
+ 	"go/scanner"
+ )
+ 
++var Okay1 = []string{
++	"Name",
++	"Usage",
++	"DefValue",
++}
++
++var Okay2 = map[string]bool{
++	"Name":     true,
++	"Usage":    true,
++	"DefValue": true,
++}
++
++var Okay3 = struct {
++	X string
++	Y string
++	Z string
++}{
++	"Name",
++	"Usage",
++	"DefValue",
++}
++
++type MyStruct struct {
++	X string
++	Y string
++	Z string
++}
++
++var Okay4 = MyStruct{
++	"Name",
++	"Usage",
++	"DefValue",
++}
++
+ // Testing is awkward because we need to reference things from a separate package
+ // to trigger the warnings.
+ 
+diff --git a/src/cmd/vet/types.go b/src/cmd/vet/types.go
+index 09af85be04..75f195b0fb 100644
+--- a/src/cmd/vet/types.go
++++ b/src/cmd/vet/types.go
+@@ -47,23 +47,21 @@ func (pkg *Package) check(fs *token.FileSet, astFiles []*ast.File) error {
+ func (pkg *Package) isStruct(c *ast.CompositeLit) (bool, string) {
+ 	// Check that the CompositeLit's type is a slice or array (which needs no tag), if possible.
+ 	typ := pkg.types[c]
+-	if typ == nil {
+-		return false, ""
+-	}
+ 	// If it's a named type, pull out the underlying type.
++	actual := typ
+ 	if namedType, ok := typ.(*types.NamedType); ok {
+-		typ = namedType.Underlying
++		actual = namedType.Underlying
+ 	}
+-	switch typ.(type) {
++	if actual == nil {
++		// No type information available. Assume true, so we do the check.
++		return true, ""
++	}
++	switch actual.(type) {
+ 	case *types.Struct:
++		return true, typ.String()
+ 	default:
+ 		return false, ""
+ 	}
+-	typeString := ""
+-	if typ != nil {
+-		typeString = typ.String() + " "
+-	}
+-	return true, typeString
+ }
+ 
+ func (f *File) matchArgType(t printfArgType, arg ast.Expr) bool {
+diff --git a/src/cmd/vet/typestub.go b/src/cmd/vet/typestub.go
+index 6ccaf8a808..fabbbe19dd 100644
+--- a/src/cmd/vet/typestub.go
++++ b/src/cmd/vet/typestub.go
+@@ -25,7 +25,7 @@ func (pkg *Package) check(fs *token.FileSet, astFiles []*ast.File) error {
+ }
+ 
+ func (pkg *Package) isStruct(c *ast.CompositeLit) (bool, string) {
+-	return true, "struct" // Assume true, so we do the check.
++	return true, "" // Assume true, so we do the check.
+ }
+ 
+ func (f *File) matchArgType(t printfArgType, arg ast.Expr) bool {

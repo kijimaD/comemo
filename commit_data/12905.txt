@@ -10,6 +10,19 @@ Date:   Tue Apr 17 15:51:05 2012 -0700
     R=golang-dev, minux.ma, rsc
     CC=golang-dev
     https://golang.org/cl/6059043
-
+---
  lib/codereview/codereview.py | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/lib/codereview/codereview.py b/lib/codereview/codereview.py
+index f3cb485953..5ae31f34e4 100644
+--- a/lib/codereview/codereview.py
++++ b/lib/codereview/codereview.py
+@@ -1263,6 +1263,7 @@ def hgcommand(f):
+ 		if not err:
+ 			return 0
+ 		raise hg_util.Abort(err)
++	wrapped.__doc__ = f.__doc__
+ 	return wrapped
+ 
+ #######################################################################

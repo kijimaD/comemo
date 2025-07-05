@@ -13,9 +13,168 @@ Date:   Tue May 28 22:04:34 2013 +0400
     R=golang-dev, khr, r, khr, rsc
     CC=golang-dev
     https://golang.org/cl/9791044
-
+---
  src/pkg/runtime/malloc.goc | 27 ++++++++++++++++++---------
  src/pkg/runtime/malloc.h   |  4 +++-
  src/pkg/runtime/mgc0.c     |  2 +-
  src/pkg/runtime/mheap.c    | 18 ++++++++++++++++++
  4 files changed, 40 insertions(+), 11 deletions(-)
+
+diff --git a/src/pkg/runtime/malloc.goc b/src/pkg/runtime/malloc.goc
+index 516182c1cf..9d559ce754 100644
+--- a/src/pkg/runtime/malloc.goc
++++ b/src/pkg/runtime/malloc.goc
+@@ -323,7 +323,7 @@ void
+ runtime·mallocinit(void)
+ {
+ 	byte *p;
+-	uintptr arena_size, bitmap_size;
++	uintptr arena_size, bitmap_size, spans_size;
+ 	extern byte end[];
+ 	byte *want;
+ 	uintptr limit;
+@@ -331,11 +331,13 @@ runtime·mallocinit(void)
+ 	p = nil;
+ 	arena_size = 0;
+ 	bitmap_size = 0;
+-	
++	spans_size = 0;
++
+ 	// for 64-bit build
+ 	USED(p);
+ 	USED(arena_size);
+ 	USED(bitmap_size);
++	USED(spans_size);
+ 
+ 	if((runtime·mheap = runtime·SysAlloc(sizeof(*runtime·mheap))) == nil)
+ 		runtime·throw("runtime: cannot allocate heap metadata");
+@@ -375,7 +377,8 @@ runtime·mallocinit(void)
+ 		// If this fails we fall back to the 32 bit memory mechanism
+ 		arena_size = MaxMem;
+ 		bitmap_size = arena_size / (sizeof(void*)*8/4);
+-		p = runtime·SysReserve((void*)(0x00c0ULL<<32), bitmap_size + arena_size);
++		spans_size = arena_size / PageSize * sizeof(runtime·mheap->map[0]);
++		p = runtime·SysReserve((void*)(0x00c0ULL<<32), bitmap_size + spans_size + arena_size);
+ 	}
+ 	if (p == nil) {
+ 		// On a 32-bit machine, we can't typically get away
+@@ -397,11 +400,13 @@ runtime·mallocinit(void)
+ 		// of address space, which is probably too much in a 32-bit world.
+ 		bitmap_size = MaxArena32 / (sizeof(void*)*8/4);
+ 		arena_size = 512<<20;
+-		if(limit > 0 && arena_size+bitmap_size > limit) {
++		spans_size = MaxArena32 / PageSize * sizeof(runtime·mheap->map[0]);
++		if(limit > 0 && arena_size+bitmap_size+spans_size > limit) {
+ 			bitmap_size = (limit / 9) & ~((1<<PageShift) - 1);
+ 			arena_size = bitmap_size * 8;
++			spans_size = arena_size / PageSize * sizeof(runtime·mheap->map[0]);
+ 		}
+-		
++
+ 		// SysReserve treats the address we ask for, end, as a hint,
+ 		// not as an absolute requirement.  If we ask for the end
+ 		// of the data segment but the operating system requires
+@@ -412,17 +417,19 @@ runtime·mallocinit(void)
+ 		// away from the running binary image and then round up
+ 		// to a MB boundary.
+ 		want = (byte*)(((uintptr)end + (1<<18) + (1<<20) - 1)&~((1<<20)-1));
+-		p = runtime·SysReserve(want, bitmap_size + arena_size);
++		p = runtime·SysReserve(want, bitmap_size + spans_size + arena_size);
+ 		if(p == nil)
+ 			runtime·throw("runtime: cannot reserve arena virtual address space");
+ 		if((uintptr)p & (((uintptr)1<<PageShift)-1))
+-			runtime·printf("runtime: SysReserve returned unaligned address %p; asked for %p", p, bitmap_size+arena_size);
++			runtime·printf("runtime: SysReserve returned unaligned address %p; asked for %p", p,
++				bitmap_size+spans_size+arena_size);
+ 	}
+ 	if((uintptr)p & (((uintptr)1<<PageShift)-1))
+ 		runtime·throw("runtime: SysReserve returned unaligned address");
+ 
+-	runtime·mheap->bitmap = p;
+-	runtime·mheap->arena_start = p + bitmap_size;
++	runtime·mheap->map = (MSpan**)p;
++	runtime·mheap->bitmap = p + spans_size;
++	runtime·mheap->arena_start = p + spans_size + bitmap_size;
+ 	runtime·mheap->arena_used = runtime·mheap->arena_start;
+ 	runtime·mheap->arena_end = runtime·mheap->arena_start + arena_size;
+ 
+@@ -461,6 +468,7 @@ runtime·MHeap_SysAlloc(MHeap *h, uintptr n)
+ 		runtime·SysMap(p, n);
+ 		h->arena_used += n;
+ 		runtime·MHeap_MapBits(h);
++		runtime·MHeap_MapSpans(h);
+ 		if(raceenabled)
+ 			runtime·racemapshadow(p, n);
+ 		return p;
+@@ -489,6 +497,7 @@ runtime·MHeap_SysAlloc(MHeap *h, uintptr n)
+ 		if(h->arena_used > h->arena_end)
+ 			h->arena_end = h->arena_used;
+ 		runtime·MHeap_MapBits(h);
++		runtime·MHeap_MapSpans(h);
+ 		if(raceenabled)
+ 			runtime·racemapshadow(p, n);
+ 	}
+diff --git a/src/pkg/runtime/malloc.h b/src/pkg/runtime/malloc.h
+index b4edf7cbef..2131a7e51c 100644
+--- a/src/pkg/runtime/malloc.h
++++ b/src/pkg/runtime/malloc.h
+@@ -411,7 +411,8 @@ struct MHeap
+ 	uint32	nspancap;
+ 
+ 	// span lookup
+-	MSpan *map[1<<MHeapMap_Bits];
++	MSpan**	map;
++	uintptr	spans_mapped;
+ 
+ 	// range of addresses we might see in the heap
+ 	byte *bitmap;
+@@ -442,6 +443,7 @@ MSpan*	runtime·MHeap_LookupMaybe(MHeap *h, void *v);
+ void	runtime·MGetSizeClassInfo(int32 sizeclass, uintptr *size, int32 *npages, int32 *nobj);
+ void*	runtime·MHeap_SysAlloc(MHeap *h, uintptr n);
+ void	runtime·MHeap_MapBits(MHeap *h);
++void	runtime·MHeap_MapSpans(MHeap *h);
+ void	runtime·MHeap_Scavenger(void);
+ 
+ void*	runtime·mallocgc(uintptr size, uint32 flag, int32 dogc, int32 zeroed);
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index 11fdb18903..c4bcd18cf0 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -2403,7 +2403,7 @@ runtime·MHeap_MapBits(MHeap *h)
+ 	uintptr n;
+ 
+ 	n = (h->arena_used - h->arena_start) / wordsPerBitmapWord;
+-	n = (n+bitmapChunk-1) & ~(bitmapChunk-1);
++	n = ROUND(n, bitmapChunk);
+ 	if(h->bitmap_mapped >= n)
+ 		return;
+ 
+diff --git a/src/pkg/runtime/mheap.c b/src/pkg/runtime/mheap.c
+index e839e9fc5a..7b1315dbce 100644
+--- a/src/pkg/runtime/mheap.c
++++ b/src/pkg/runtime/mheap.c
+@@ -65,6 +65,24 @@ runtime·MHeap_Init(MHeap *h, void *(*alloc)(uintptr))
+ 		runtime·MCentral_Init(&h->central[i], i);
+ }
+ 
++void
++runtime·MHeap_MapSpans(MHeap *h)
++{
++	uintptr n;
++
++	// Map spans array, PageSize at a time.
++	n = (uintptr)h->arena_used;
++	if(sizeof(void*) == 8)
++		n -= (uintptr)h->arena_start;
++	// Coalescing code reads spans past the end of mapped arena, thus +1.
++	n = (n / PageSize + 1) * sizeof(h->map[0]);
++	n = ROUND(n, PageSize);
++	if(h->spans_mapped >= n)
++		return;
++	runtime·SysMap((byte*)h->map + h->spans_mapped, n - h->spans_mapped);
++	h->spans_mapped = n;
++}
++
+ // Allocate a new span of npage pages from the heap
+ // and record its size class in the HeapMap and HeapMapCache.
+ MSpan*

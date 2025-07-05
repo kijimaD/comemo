@@ -11,6 +11,17 @@ Date:   Fri Apr 9 19:00:42 2021 -0400
     Trust: Cherry Zhang <cherryyz@google.com>
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  test/fixedbugs/issue26163.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/test/fixedbugs/issue26163.go b/test/fixedbugs/issue26163.go
+index 3f3d77859d..d141a2797d 100644
+--- a/test/fixedbugs/issue26163.go
++++ b/test/fixedbugs/issue26163.go
+@@ -1,4 +1,4 @@
+-// compile -N -d=softfloat
++// compile -N -d=softfloat -goexperiment noregabiargs
+ 
+ // Copyright 2018 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style

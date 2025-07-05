@@ -18,6 +18,32 @@ Date:   Tue Oct 22 22:39:30 2019 +0200
     Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/internal/syscall/windows/registry/registry_test.go | 7 +++++--
  1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/src/internal/syscall/windows/registry/registry_test.go b/src/internal/syscall/windows/registry/registry_test.go
+index c77329cb1e..9c75e57889 100644
+--- a/src/internal/syscall/windows/registry/registry_test.go
++++ b/src/internal/syscall/windows/registry/registry_test.go
+@@ -551,7 +551,9 @@ func walkKey(t *testing.T, k registry.Key, kname string) {
+ 		case registry.DWORD, registry.QWORD:
+ 			_, _, err := k.GetIntegerValue(name)
+ 			if err != nil {
+-				t.Error(err)
++				// Sometimes legitimate keys have the wrong sizes, which don't correspond with
++				// their required size, due to Windows bugs.
++				t.Logf("warning: GetIntegerValue for type %d of %s of %s failed: %v", valtype, name, kname, err)
+ 			}
+ 		case registry.BINARY:
+ 			_, _, err := k.GetBinaryValue(name)
+@@ -566,7 +568,8 @@ func walkKey(t *testing.T, k registry.Key, kname string) {
+ 		case registry.FULL_RESOURCE_DESCRIPTOR, registry.RESOURCE_LIST, registry.RESOURCE_REQUIREMENTS_LIST:
+ 			// TODO: not implemented
+ 		default:
+-			t.Fatalf("value type %d of %s of %s failed: %v", valtype, name, kname, err)
++			// Sometimes legitimate keys have the wrong value type, due to Windows bugs.
++			t.Logf("warning: value type %d of %s of %s failed: %v", valtype, name, kname, err)
+ 		}
+ 	}
+ 

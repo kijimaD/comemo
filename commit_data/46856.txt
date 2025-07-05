@@ -13,7 +13,36 @@ Date:   Thu Feb 4 12:03:53 2021 -0500
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Robert Findley <rfindley@google.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/builtins.go           | 4 ++--
  src/go/types/testdata/builtins.src | 2 +-
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/go/types/builtins.go b/src/go/types/builtins.go
+index fd35f78676..078ed4488d 100644
+--- a/src/go/types/builtins.go
++++ b/src/go/types/builtins.go
+@@ -353,8 +353,8 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 			return
+ 		}
+ 
+-		if ok, code := x.assignableTo(check, m.key, nil); !ok {
+-			check.invalidArg(x, code, "%s is not assignable to %s", x, m.key)
++		check.assignment(x, m.key, "argument to delete")
++		if x.mode == invalid {
+ 			return
+ 		}
+ 
+diff --git a/src/go/types/testdata/builtins.src b/src/go/types/testdata/builtins.src
+index 98830eb08c..a7613adc35 100644
+--- a/src/go/types/testdata/builtins.src
++++ b/src/go/types/testdata/builtins.src
+@@ -283,7 +283,7 @@ func delete1() {
+ 	delete() // ERROR not enough arguments
+ 	delete(1) // ERROR not enough arguments
+ 	delete(1, 2, 3) // ERROR too many arguments
+-	delete(m, 0 /* ERROR not assignable */)
++	delete(m, 0 /* ERROR cannot use */)
+ 	delete(m, s)
+ 	_ = delete /* ERROR used as value */ (m, s)
+ 

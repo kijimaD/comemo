@@ -19,6 +19,20 @@ Date:   Sun Dec 9 13:37:17 2018 +0100
     Change-Id: I15c5aedb6157003911b6e0685c357ce56e466c0e
     Reviewed-on: https://go-review.googlesource.com/c/153340
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/math/bits/bits.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/math/bits/bits.go b/src/math/bits/bits.go
+index 9da1c6e580..b06c363348 100644
+--- a/src/math/bits/bits.go
++++ b/src/math/bits/bits.go
+@@ -65,7 +65,7 @@ func TrailingZeros8(x uint8) int {
+ }
+ 
+ // TrailingZeros16 returns the number of trailing zero bits in x; the result is 16 for x == 0.
+-func TrailingZeros16(x uint16) (n int) {
++func TrailingZeros16(x uint16) int {
+ 	if x == 0 {
+ 		return 16
+ 	}

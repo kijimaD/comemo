@@ -23,6 +23,22 @@ Date:   Mon Apr 26 17:56:10 2021 +1000
     Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/testdata/testwinlibsignal/dummy.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/runtime/testdata/testwinlibsignal/dummy.go b/src/runtime/testdata/testwinlibsignal/dummy.go
+index 82dfd91c93..e610f15d06 100644
+--- a/src/runtime/testdata/testwinlibsignal/dummy.go
++++ b/src/runtime/testdata/testwinlibsignal/dummy.go
+@@ -1,7 +1,10 @@
++//go:build windows
+ // +build windows
+ 
+ package main
+ 
++import "C"
++
+ //export Dummy
+ func Dummy() int {
+ 	return 42

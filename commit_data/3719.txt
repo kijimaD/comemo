@@ -6,6 +6,23 @@ Date:   Mon Nov 2 11:37:21 2009 -0800
     
     R=r
     http://go/go-review/1016027
-
+---
  lib/codereview/codereview.py | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/lib/codereview/codereview.py b/lib/codereview/codereview.py
+index a26ec0ef9b..f1dd67ca4a 100644
+--- a/lib/codereview/codereview.py
++++ b/lib/codereview/codereview.py
+@@ -145,8 +145,10 @@ class CL(object):
+ 
+ 	def Subject(self): 
+ 		s = line1(self.desc)
++		if len(s) > 60:
++			s = s[0:55] + "..."
+ 		if self.name != "new":
+-			s = "codereview %s: %s" % (self.name, s)
++			s = "code review %s: %s" % (self.name, s)
+ 		return s
+ 
+ 	def Upload(self, ui, repo, send_mail=False):

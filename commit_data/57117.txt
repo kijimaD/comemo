@@ -12,6 +12,26 @@ Date:   Wed Jun 21 13:52:42 2023 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
-
+---
  test/fixedbugs/bug516.go | 13 +++++++++++++
  1 file changed, 13 insertions(+)
+
+diff --git a/test/fixedbugs/bug516.go b/test/fixedbugs/bug516.go
+new file mode 100644
+index 0000000000..e52eb215ef
+--- /dev/null
++++ b/test/fixedbugs/bug516.go
+@@ -0,0 +1,13 @@
++// compile
++
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Caused a gofrontend crash.
++
++package p
++
++func F(b []byte, i int) {
++	*(*[1]byte)(b[i*2:]) = [1]byte{}
++}

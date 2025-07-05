@@ -16,6 +16,48 @@ Date:   Mon Jul 27 14:39:32 2015 -0700
     Reviewed-on: https://go-review.googlesource.com/12712
     Reviewed-by: Russ Cox <rsc@golang.org>
     Run-TryBot: Paul Marks <pmarks@google.com>
-
+---
  src/net/dial_test.go | 21 +++++++++++++--------
  1 file changed, 13 insertions(+), 8 deletions(-)
+
+diff --git a/src/net/dial_test.go b/src/net/dial_test.go
+index aa916d4dcb..669fcc8ce1 100644
+--- a/src/net/dial_test.go
++++ b/src/net/dial_test.go
+@@ -386,13 +386,15 @@ func TestDialParallel(t *testing.T) {
+ 
+ 		primaries := makeAddrs(tt.primaries, dss.port)
+ 		fallbacks := makeAddrs(tt.fallbacks, dss.port)
++		d := Dialer{
++			FallbackDelay: fallbackDelay,
++			Timeout:       slowTimeout,
++		}
+ 		ctx := &dialContext{
+-			Dialer: Dialer{
+-				FallbackDelay: fallbackDelay,
+-				Timeout:       slowTimeout,
+-			},
+-			network: "tcp",
+-			address: "?",
++			Dialer:        d,
++			network:       "tcp",
++			address:       "?",
++			finalDeadline: d.deadline(time.Now()),
+ 		}
+ 		startTime := time.Now()
+ 		c, err := dialParallel(ctx, primaries, fallbacks)
+@@ -513,9 +515,12 @@ func TestDialSerialAsyncSpuriousConnection(t *testing.T) {
+ 	}
+ 	defer ln.Close()
+ 
++	d := Dialer{}
+ 	ctx := &dialContext{
+-		network: "tcp",
+-		address: "?",
++		Dialer:        d,
++		network:       "tcp",
++		address:       "?",
++		finalDeadline: d.deadline(time.Now()),
+ 	}
+ 
+ 	results := make(chan dialResult)

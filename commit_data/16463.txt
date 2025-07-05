@@ -9,7 +9,43 @@ Date:   Sun Jun 2 15:39:47 2013 +0200
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/9947043
-
+---
  src/cmd/fix/netipv6zone.go      | 2 +-
  src/cmd/fix/netipv6zone_test.go | 4 ++++
  2 files changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/fix/netipv6zone.go b/src/cmd/fix/netipv6zone.go
+index fe973a2113..195c218074 100644
+--- a/src/cmd/fix/netipv6zone.go
++++ b/src/cmd/fix/netipv6zone.go
+@@ -51,7 +51,7 @@ func netipv6zone(f *ast.File) bool {
+ 						Value: e,
+ 					}
+ 				case 1:
+-					if e.(*ast.BasicLit).Value == "0" {
++					if elit, ok := e.(*ast.BasicLit); ok && elit.Value == "0" {
+ 						cl.Elts = append(cl.Elts[:i], cl.Elts[i+1:]...)
+ 					} else {
+ 						cl.Elts[i] = &ast.KeyValueExpr{
+diff --git a/src/cmd/fix/netipv6zone_test.go b/src/cmd/fix/netipv6zone_test.go
+index 0fab005319..142880a12a 100644
+--- a/src/cmd/fix/netipv6zone_test.go
++++ b/src/cmd/fix/netipv6zone_test.go
+@@ -20,6 +20,8 @@ func f() net.Addr {
+ 	sub(&net.UDPAddr{ip2, 12345})
+ 	c := &net.TCPAddr{IP: ip3, Port: 54321}
+ 	d := &net.TCPAddr{ip4, 0}
++	p := 1234
++	e := &net.TCPAddr{ip4, p}
+ 	return &net.TCPAddr{ip5}, nil
+ }
+ `,
+@@ -32,6 +34,8 @@ func f() net.Addr {
+ 	sub(&net.UDPAddr{IP: ip2, Port: 12345})
+ 	c := &net.TCPAddr{IP: ip3, Port: 54321}
+ 	d := &net.TCPAddr{IP: ip4}
++	p := 1234
++	e := &net.TCPAddr{IP: ip4, Port: p}
+ 	return &net.TCPAddr{IP: ip5}, nil
+ }
+ `,

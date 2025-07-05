@@ -24,9 +24,326 @@ Date:   Fri Jan 29 16:16:03 2016 +0100
     Reviewed-by: Russ Cox <rsc@golang.org>
     Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/alldocs.go     |  17 ++++---
  src/cmd/go/test.go        |  17 ++++---
  src/testing/match.go      |  71 ++++++++++++++++++++++++----
  src/testing/match_test.go | 118 ++++++++++++++++++++++++++++++++++++++++++++++
  4 files changed, 199 insertions(+), 24 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 090b207db7..aa1f029939 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -1348,9 +1348,12 @@ The following flags are recognized by the 'go test' command and
+ control the execution of any test:
+ 
+ 	-bench regexp
+-	    Run benchmarks matching the regular expression.
+-	    By default, no benchmarks run.
+-	    To run all benchmarks, use '-bench=.'.
++	    Run (sub)benchmarks matching a regular expression.
++	    The given regular expression is split into smaller ones by
++	    top-level '/', where each must match the corresponding part of a
++	    benchmark's identifier.
++	    By default, no benchmarks run. To run all benchmarks,
++	    use '-bench .' or '-bench=.'.
+ 
+ 	-benchmem
+ 	    Print memory allocation statistics for benchmarks.
+@@ -1436,10 +1439,10 @@ control the execution of any test:
+ 	    (see 'go help build').
+ 
+ 	-run regexp
+-	    Run only those tests and examples matching the regular
+-	    expression. By default, all tests run.
+-	    To skip all tests, use a pattern that matches no test names,
+-	    such as '-run=^$'.
++	    Run only those tests and examples matching the regular expression.
++	    For tests the regular expression is split into smaller ones by
++	    top-level '/', where each must match the corresponding part of a
++	    test's identifier.
+ 
+ 	-short
+ 	    Tell long-running tests to shorten their run time.
+diff --git a/src/cmd/go/test.go b/src/cmd/go/test.go
+index 8dbd9e22bf..0c87fca556 100644
+--- a/src/cmd/go/test.go
++++ b/src/cmd/go/test.go
+@@ -125,9 +125,12 @@ control the execution of any test:
+ 
+ const testFlag2 = `
+ 	-bench regexp
+-	    Run benchmarks matching the regular expression.
+-	    By default, no benchmarks run.
+-	    To run all benchmarks, use '-bench=.'.
++	    Run (sub)benchmarks matching a regular expression.
++	    The given regular expression is split into smaller ones by 
++	    top-level '/', where each must match the corresponding part of a
++	    benchmark's identifier.
++	    By default, no benchmarks run. To run all benchmarks,
++	    use '-bench .' or '-bench=.'.
+ 
+ 	-benchmem
+ 	    Print memory allocation statistics for benchmarks.
+@@ -213,10 +216,10 @@ const testFlag2 = `
+ 	    (see 'go help build').
+ 
+ 	-run regexp
+-	    Run only those tests and examples matching the regular
+-	    expression. By default, all tests run.
+-	    To skip all tests, use a pattern that matches no test names,
+-	    such as '-run=^$'.
++	    Run only those tests and examples matching the regular expression.
++	    For tests the regular expression is split into smaller ones by
++	    top-level '/', where each must match the corresponding part of a 
++	    test's identifier.
+ 
+ 	-short
+ 	    Tell long-running tests to shorten their run time.
+diff --git a/src/testing/match.go b/src/testing/match.go
+index d0c52142ba..7751035760 100644
+--- a/src/testing/match.go
++++ b/src/testing/match.go
+@@ -8,29 +8,40 @@ import (
+ 	"fmt"
+ 	"os"
+ 	"strconv"
++	"strings"
+ 	"sync"
+ )
+ 
+ // matcher sanitizes, uniques, and filters names of subtests and subbenchmarks.
+ type matcher struct {
+-	filter    string
++	filter    []string
+ 	matchFunc func(pat, str string) (bool, error)
+ 
+ 	mu       sync.Mutex
+ 	subNames map[string]int64
+ }
+ 
+-// TODO: fix test_main to avoid race and improve caching.
++// TODO: fix test_main to avoid race and improve caching, also allowing to
++// eliminate this Mutex.
+ var matchMutex sync.Mutex
+ 
+-func newMatcher(matchString func(pat, str string) (bool, error), pattern, name string) *matcher {
+-	// Verify filters before doing any processing.
+-	if _, err := matchString(pattern, "non-empty"); err != nil {
+-		fmt.Fprintf(os.Stderr, "testing: invalid regexp for %s: %s\n", name, err)
+-		os.Exit(1)
++func newMatcher(matchString func(pat, str string) (bool, error), patterns, name string) *matcher {
++	var filter []string
++	if patterns != "" {
++		filter = splitRegexp(patterns)
++		for i, s := range filter {
++			filter[i] = rewrite(s)
++		}
++		// Verify filters before doing any processing.
++		for i, s := range filter {
++			if _, err := matchString(s, "non-empty"); err != nil {
++				fmt.Fprintf(os.Stderr, "testing: invalid regexp for element %d of %s (%q): %s\n", i, name, s, err)
++				os.Exit(1)
++			}
++		}
+ 	}
+ 	return &matcher{
+-		filter:    pattern,
++		filter:    filter,
+ 		matchFunc: matchString,
+ 		subNames:  map[string]int64{},
+ 	}
+@@ -49,14 +60,54 @@ func (m *matcher) fullName(c *common, subname string) (name string, ok bool) {
+ 	matchMutex.Lock()
+ 	defer matchMutex.Unlock()
+ 
+-	if c != nil && c.level == 0 {
+-		if matched, _ := m.matchFunc(m.filter, subname); !matched {
++	// We check the full array of paths each time to allow for the case that
++	// a pattern contains a '/'.
++	for i, s := range strings.Split(name, "/") {
++		if i >= len(m.filter) {
++			break
++		}
++		if ok, _ := m.matchFunc(m.filter[i], s); !ok {
+ 			return name, false
+ 		}
+ 	}
+ 	return name, true
+ }
+ 
++func splitRegexp(s string) []string {
++	a := make([]string, 0, strings.Count(s, "/"))
++	cs := 0
++	cp := 0
++	for i := 0; i < len(s); {
++		switch s[i] {
++		case '[':
++			cs++
++		case ']':
++			if cs--; cs < 0 { // An unmatched ']' is legal.
++				cs = 0
++			}
++		case '(':
++			if cs == 0 {
++				cp++
++			}
++		case ')':
++			if cs == 0 {
++				cp--
++			}
++		case '\\':
++			i++
++		case '/':
++			if cs == 0 && cp == 0 {
++				a = append(a, s[:i])
++				s = s[i+1:]
++				i = 0
++				continue
++			}
++		}
++		i++
++	}
++	return append(a, s)
++}
++
+ // unique creates a unique name for the given parent and subname by affixing it
+ // with one ore more counts, if necessary.
+ func (m *matcher) unique(parent, subname string) string {
+diff --git a/src/testing/match_test.go b/src/testing/match_test.go
+index 68f3e9e867..d19036c72d 100644
+--- a/src/testing/match_test.go
++++ b/src/testing/match_test.go
+@@ -5,6 +5,7 @@
+ package testing
+ 
+ import (
++	"reflect"
+ 	"regexp"
+ 	"unicode"
+ )
+@@ -23,6 +24,123 @@ func TestIsSpace(t *T) {
+ 	}
+ }
+ 
++func TestSplitRegexp(t *T) {
++	res := func(s ...string) []string { return s }
++	testCases := []struct {
++		pattern string
++		result  []string
++	}{
++		// Correct patterns
++		// If a regexp pattern is correct, all split regexps need to be correct
++		// as well.
++		{"", res("")},
++		{"/", res("", "")},
++		{"//", res("", "", "")},
++		{"A", res("A")},
++		{"A/B", res("A", "B")},
++		{"A/B/", res("A", "B", "")},
++		{"/A/B/", res("", "A", "B", "")},
++		{"[A]/(B)", res("[A]", "(B)")},
++		{"[/]/[/]", res("[/]", "[/]")},
++		{"[/]/[:/]", res("[/]", "[:/]")},
++		{"/]", res("", "]")},
++		{"]/", res("]", "")},
++		{"]/[/]", res("]", "[/]")},
++		{`([)/][(])`, res(`([)/][(])`)},
++		{"[(]/[)]", res("[(]", "[)]")},
++
++		// Faulty patterns
++		// Errors in original should produce at least one faulty regexp in results.
++		{")/", res(")/")},
++		{")/(/)", res(")/(", ")")},
++		{"a[/)b", res("a[/)b")},
++		{"(/]", res("(/]")},
++		{"(/", res("(/")},
++		{"[/]/[/", res("[/]", "[/")},
++		{`\p{/}`, res(`\p{`, "}")},
++		{`\p/`, res(`\p`, "")},
++		{`[[:/:]]`, res(`[[:/:]]`)},
++	}
++	for _, tc := range testCases {
++		a := splitRegexp(tc.pattern)
++		if !reflect.DeepEqual(a, tc.result) {
++			t.Errorf("splitRegexp(%q) = %#v; want %#v", tc.pattern, a, tc.result)
++		}
++
++		// If there is any error in the pattern, one of the returned subpatterns
++		// needs to have an error as well.
++		if _, err := regexp.Compile(tc.pattern); err != nil {
++			ok := true
++			for _, re := range a {
++				if _, err := regexp.Compile(re); err != nil {
++					ok = false
++				}
++			}
++			if ok {
++				t.Errorf("%s: expected error in any of %q", tc.pattern, a)
++			}
++		}
++	}
++}
++
++func TestMatcher(t *T) {
++	testCases := []struct {
++		pattern     string
++		parent, sub string
++		ok          bool
++	}{
++		// Behavior without subtests.
++		{"", "", "TestFoo", true},
++		{"TestFoo", "", "TestFoo", true},
++		{"TestFoo/", "", "TestFoo", true},
++		{"TestFoo/bar/baz", "", "TestFoo", true},
++		{"TestFoo", "", "TestBar", false},
++		{"TestFoo/", "", "TestBar", false},
++		{"TestFoo/bar/baz", "", "TestBar/bar/baz", false},
++
++		// with subtests
++		{"", "TestFoo", "x", true},
++		{"TestFoo", "TestFoo", "x", true},
++		{"TestFoo/", "TestFoo", "x", true},
++		{"TestFoo/bar/baz", "TestFoo", "bar", true},
++		// Subtest with a '/' in its name still allows for copy and pasted names
++		// to match.
++		{"TestFoo/bar/baz", "TestFoo", "bar/baz", true},
++		{"TestFoo/bar/baz", "TestFoo/bar", "baz", true},
++		{"TestFoo/bar/baz", "TestFoo", "x", false},
++		{"TestFoo", "TestBar", "x", false},
++		{"TestFoo/", "TestBar", "x", false},
++		{"TestFoo/bar/baz", "TestBar", "x/bar/baz", false},
++
++		// subtests only
++		{"", "TestFoo", "x", true},
++		{"/", "TestFoo", "x", true},
++		{"./", "TestFoo", "x", true},
++		{"./.", "TestFoo", "x", true},
++		{"/bar/baz", "TestFoo", "bar", true},
++		{"/bar/baz", "TestFoo", "bar/baz", true},
++		{"//baz", "TestFoo", "bar/baz", true},
++		{"//", "TestFoo", "bar/baz", true},
++		{"/bar/baz", "TestFoo/bar", "baz", true},
++		{"//foo", "TestFoo", "bar/baz", false},
++		{"/bar/baz", "TestFoo", "x", false},
++		{"/bar/baz", "TestBar", "x/bar/baz", false},
++	}
++
++	for _, tc := range testCases {
++		m := newMatcher(regexp.MatchString, tc.pattern, "-test.run")
++
++		parent := &common{name: tc.parent}
++		if tc.parent != "" {
++			parent.level = 1
++		}
++		if n, ok := m.fullName(parent, tc.sub); ok != tc.ok {
++			t.Errorf("pattern: %q, parent: %q, sub %q: got %v; want %v",
++				tc.pattern, tc.parent, tc.sub, ok, tc.ok, n)
++		}
++	}
++}
++
+ func TestNaming(t *T) {
+ 	m := newMatcher(regexp.MatchString, "", "")
+ 

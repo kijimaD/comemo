@@ -7,6 +7,31 @@ Date:   Mon Sep 8 13:10:11 2008 -0700
     R=r
     OCL=14937
     CL=14937
-
+---
  src/cmd/gc/walk.c | 12 ++++++++++--
  1 file changed, 10 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 6826e19035..37c3ccd742 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -2882,9 +2882,17 @@ structlit(Node *n)
+ 	r = listfirst(&saver, &n->left);
+ 
+ loop:
++	if(l != T && l->etype == TFIELD && l->type->etype == TFUNC) {
++		// skip methods
++		l = structnext(&savel);
++		goto loop;
++	}
++
+ 	if(l == T || r == N) {
+-		if(l != T || r != N)
+-			yyerror("error in shape struct literal");
++		if(l != T)
++			yyerror("struct literal expect expr of type %T", l);
++		if(r != N)
++			yyerror("struct literal too many expressions");
+ 		return var;
+ 	}
+ 

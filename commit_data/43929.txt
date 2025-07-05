@@ -13,6 +13,36 @@ Date:   Wed Apr 29 15:06:21 2020 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
-
+---
  src/runtime/pprof/pprof_rusage.go | 13 ++++++++++++-
  1 file changed, 12 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/pprof/pprof_rusage.go b/src/runtime/pprof/pprof_rusage.go
+index 6eaf168444..d42e6ed473 100644
+--- a/src/runtime/pprof/pprof_rusage.go
++++ b/src/runtime/pprof/pprof_rusage.go
+@@ -9,12 +9,23 @@ package pprof
+ import (
+ 	"fmt"
+ 	"io"
++	"runtime"
+ 	"syscall"
+ )
+ 
+ // Adds MaxRSS to platforms that are supported.
+ func addMaxRSS(w io.Writer) {
++	var rssToBytes uintptr
++	switch runtime.GOOS {
++	case "linux", "android":
++		rssToBytes = 1024
++	case "darwin":
++		rssToBytes = 1
++	default:
++		panic("unsupported OS")
++	}
++
+ 	var rusage syscall.Rusage
+ 	syscall.Getrusage(0, &rusage)
+-	fmt.Fprintf(w, "# MaxRSS = %d\n", rusage.Maxrss)
++	fmt.Fprintf(w, "# MaxRSS = %d\n", uintptr(rusage.Maxrss)*rssToBytes)
+ }

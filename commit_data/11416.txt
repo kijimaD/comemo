@@ -10,6 +10,19 @@ Date:   Thu Jan 26 20:09:09 2012 +0400
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5574075
-
+---
  src/pkg/net/rpc/client.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/pkg/net/rpc/client.go b/src/pkg/net/rpc/client.go
+index 6fb414e089..abc1e59cd5 100644
+--- a/src/pkg/net/rpc/client.go
++++ b/src/pkg/net/rpc/client.go
+@@ -145,6 +145,7 @@ func (call *Call) done() {
+ 	default:
+ 		// We don't want to block here.  It is the caller's responsibility to make
+ 		// sure the channel has enough buffer space. See comment in Go().
++		log.Println("rpc: discarding Call reply due to insufficient Done chan capacity")
+ 	}
+ }
+ 

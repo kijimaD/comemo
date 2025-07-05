@@ -17,6 +17,20 @@ Date:   Mon Jan 25 17:13:51 2021 -0500
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/sys_darwin.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/sys_darwin.go b/src/runtime/sys_darwin.go
+index dacce2ee1a..4ae259ac63 100644
+--- a/src/runtime/sys_darwin.go
++++ b/src/runtime/sys_darwin.go
+@@ -27,7 +27,7 @@ func syscall()
+ //go:nosplit
+ //go:cgo_unsafe_args
+ func syscall_syscallX(fn, a1, a2, a3 uintptr) (r1, r2, err uintptr) {
+-	entersyscallblock()
++	entersyscall()
+ 	libcCall(unsafe.Pointer(funcPC(syscallX)), unsafe.Pointer(&fn))
+ 	exitsyscall()
+ 	return

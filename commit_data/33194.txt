@@ -9,6 +9,28 @@ Date:   Mon Jul 24 10:17:15 2017 -0700
     Change-Id: I951fb48ab3b9ed54d225c11879db8f09048a36a3
     Reviewed-on: https://go-review.googlesource.com/50950
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  test/README.md | 15 +++++++++++++++
  1 file changed, 15 insertions(+)
+
+diff --git a/test/README.md b/test/README.md
+new file mode 100644
+index 0000000000..ca6a8c6580
+--- /dev/null
++++ b/test/README.md
+@@ -0,0 +1,15 @@
++The test directory contains tests of the Go tool chain and runtime.
++It includes black box tests, regression tests, and error output tests.
++They are run as part of all.bash.
++
++To run just these tests, execute:
++
++    go run run.go
++
++Standard library tests should be written as regular Go tests in the appropriate package.
++
++The tool chain and runtime also have regular Go tests in their packages.
++The main reasons to add a new test to this directory are:
++
++* it is most naturally expressed using the test runner; or
++* it is also applicable to `gccgo` and other Go tool chains.

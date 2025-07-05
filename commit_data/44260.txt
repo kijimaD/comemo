@@ -13,6 +13,36 @@ Date:   Wed Jun 3 17:07:09 2020 +0000
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/alg.go | 18 ------------------
  1 file changed, 18 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/alg.go b/src/cmd/compile/internal/gc/alg.go
+index b55109bbbc..ecbed1a3c9 100644
+--- a/src/cmd/compile/internal/gc/alg.go
++++ b/src/cmd/compile/internal/gc/alg.go
+@@ -591,24 +591,6 @@ func geneq(t *types.Type) *obj.LSym {
+ 		}
+ 
+ 		switch t.Elem().Etype {
+-		case TINTER:
+-			// Do two loops. First, check that all the types match (cheap).
+-			// Second, check that all the data match (expensive).
+-			// TODO: when the array size is small, unroll the tab match checks.
+-			checkAll(3, func(pi, qi *Node) *Node {
+-				// Compare types.
+-				pi = typecheck(pi, ctxExpr)
+-				qi = typecheck(qi, ctxExpr)
+-				eqtab, _ := eqinterface(pi, qi)
+-				return eqtab
+-			})
+-			checkAll(1, func(pi, qi *Node) *Node {
+-				// Compare data.
+-				pi = typecheck(pi, ctxExpr)
+-				qi = typecheck(qi, ctxExpr)
+-				_, eqdata := eqinterface(pi, qi)
+-				return eqdata
+-			})
+ 		case TSTRING:
+ 			// Do two loops. First, check that all the lengths match (cheap).
+ 			// Second, check that all the contents match (expensive).

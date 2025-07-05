@@ -10,7 +10,7 @@ Date:   Mon Apr 29 22:44:40 2013 -0700
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/9033043
-
+---
  src/cmd/5g/cgen.c      |  4 +++-
  src/cmd/5g/gsubr.c     |  5 +++--
  src/cmd/6g/cgen.c      | 10 ++++++----
@@ -31,3 +31,434 @@ Date:   Mon Apr 29 22:44:40 2013 -0700
  src/cmd/gc/typecheck.c |  3 ++-
  src/cmd/gc/unsafe.c    |  2 +-
  19 files changed, 71 insertions(+), 36 deletions(-)
+
+diff --git a/src/cmd/5g/cgen.c b/src/cmd/5g/cgen.c
+index 0844e180f6..1620f410ad 100644
+--- a/src/cmd/5g/cgen.c
++++ b/src/cmd/5g/cgen.c
+@@ -680,7 +680,9 @@ agen(Node *n, Node *res)
+ 	case ODOT:
+ 		agen(nl, res);
+ 		// explicit check for nil if struct is large enough
+-		// that we might derive too big a pointer.
++		// that we might derive too big a pointer.  If the left node
++		// was ODOT we have already done the nil check.
++		if(nl->op != ODOT)
+ 		if(nl->type->width >= unmappedzero) {
+ 			regalloc(&n1, types[tptr], N);
+ 			gmove(res, &n1);
+diff --git a/src/cmd/5g/gsubr.c b/src/cmd/5g/gsubr.c
+index d049ebe052..815d6fab23 100644
+--- a/src/cmd/5g/gsubr.c
++++ b/src/cmd/5g/gsubr.c
+@@ -1785,7 +1785,8 @@ sudoclean(void)
+ int
+ dotaddable(Node *n, Node *n1)
+ {
+-	int o, oary[10];
++	int o;
++	int64 oary[10];
+ 	Node *nn;
+ 
+ 	if(n->op != ODOT)
+@@ -1816,7 +1817,7 @@ int
+ sudoaddable(int as, Node *n, Addr *a, int *w)
+ {
+ 	int o, i;
+-	int oary[10];
++	int64 oary[10];
+ 	int64 v;
+ 	Node n1, n2, n3, n4, *nn, *l, *r;
+ 	Node *reg, *reg1;
+diff --git a/src/cmd/6g/cgen.c b/src/cmd/6g/cgen.c
+index 32980a50b5..2eae865f33 100644
+--- a/src/cmd/6g/cgen.c
++++ b/src/cmd/6g/cgen.c
+@@ -568,7 +568,7 @@ agenr(Node *n, Node *a, Node *res)
+ 	Node n1, n2, n3, n4, n5, tmp, tmp2, nlen;
+ 	Prog *p1;
+ 	Type *t;
+-	uint32 w;
++	uint64 w;
+ 	uint64 v;
+ 	int freelen;
+ 
+@@ -883,7 +883,9 @@ agen(Node *n, Node *res)
+ 	case ODOT:
+ 		agen(nl, res);
+ 		// explicit check for nil if struct is large enough
+-		// that we might derive too big a pointer.
++		// that we might derive too big a pointer.  If the left node
++		// was ODOT we have already done the nil check.
++		if(nl->op != ODOT)
+ 		if(nl->type->width >= unmappedzero) {
+ 			regalloc(&n1, types[tptr], res);
+ 			gmove(res, &n1);
+@@ -1285,12 +1287,12 @@ ret:
+  * or return value from function call.
+  * return n's offset from SP.
+  */
+-int32
++int64
+ stkof(Node *n)
+ {
+ 	Type *t;
+ 	Iter flist;
+-	int32 off;
++	int64 off;
+ 
+ 	switch(n->op) {
+ 	case OINDREG:
+diff --git a/src/cmd/6g/ggen.c b/src/cmd/6g/ggen.c
+index 23bb5093f0..5e426753c5 100644
+--- a/src/cmd/6g/ggen.c
++++ b/src/cmd/6g/ggen.c
+@@ -942,7 +942,7 @@ cgen_bmul(int op, Node *nl, Node *nr, Node *res)
+ void
+ clearfat(Node *nl)
+ {
+-	uint32 w, c, q;
++	int64 w, c, q;
+ 	Node n1, oldn1, ax, oldax;
+ 
+ 	/* clear a fat object */
+diff --git a/src/cmd/6g/gobj.c b/src/cmd/6g/gobj.c
+index 508a3548ff..cdbbd5d9db 100644
+--- a/src/cmd/6g/gobj.c
++++ b/src/cmd/6g/gobj.c
+@@ -501,7 +501,8 @@ void
+ genembedtramp(Type *rcvr, Type *method, Sym *newnam, int iface)
+ {
+ 	Sym *e;
+-	int c, d, o, mov, add, loaded;
++	int c, d, mov, add, loaded;
++	int64 o;
+ 	Prog *p;
+ 	Type *f;
+ 	
+diff --git a/src/cmd/6g/gsubr.c b/src/cmd/6g/gsubr.c
+index 7399832468..55864c34ed 100644
+--- a/src/cmd/6g/gsubr.c
++++ b/src/cmd/6g/gsubr.c
+@@ -1147,6 +1147,8 @@ naddr(Node *n, Addr *a, int canemitcode)
+ 		a->type = n->val.u.reg+D_INDIR;
+ 		a->sym = n->sym;
+ 		a->offset = n->xoffset;
++		if(a->offset != (int32)a->offset)
++			yyerror("offset %lld too large for OINDREG", a->offset);
+ 		checkoffset(a, canemitcode);
+ 		break;
+ 
+@@ -1947,9 +1949,9 @@ sudoclean(void)
+ int
+ sudoaddable(int as, Node *n, Addr *a)
+ {
+-	int o, i, w;
+-	int oary[10];
+-	int64 v;
++	int o, i;
++	int64 oary[10];
++	int64 v, w;
+ 	Node n1, n2, n3, n4, *nn, *l, *r;
+ 	Node *reg, *reg1;
+ 	Prog *p1;
+diff --git a/src/cmd/6g/reg.c b/src/cmd/6g/reg.c
+index 7db6beab93..ab826d431f 100644
+--- a/src/cmd/6g/reg.c
++++ b/src/cmd/6g/reg.c
+@@ -947,9 +947,9 @@ doregbits(int r)
+ }
+ 
+ static int
+-overlap(int32 o1, int w1, int32 o2, int w2)
++overlap(int64 o1, int w1, int64 o2, int w2)
+ {
+-	int32 t1, t2;
++	int64 t1, t2;
+ 
+ 	t1 = o1+w1;
+ 	t2 = o2+w2;
+@@ -967,7 +967,7 @@ mkvar(Reg *r, Adr *a)
+ 	int i, t, n, et, z, flag;
+ 	int64 w;
+ 	uint32 regu;
+-	int32 o;
++	int64 o;
+ 	Bits bit;
+ 	Node *node;
+ 
+diff --git a/src/cmd/8g/cgen.c b/src/cmd/8g/cgen.c
+index b88ea401bb..d54db7e629 100644
+--- a/src/cmd/8g/cgen.c
++++ b/src/cmd/8g/cgen.c
+@@ -740,7 +740,9 @@ agen(Node *n, Node *res)
+ 	case ODOT:
+ 		agen(nl, res);
+ 		// explicit check for nil if struct is large enough
+-		// that we might derive too big a pointer.
++		// that we might derive too big a pointer.  If the left node
++		// was ODOT we have already done the nil check.
++		if(nl->op != ODOT)
+ 		if(nl->type->width >= unmappedzero) {
+ 			regalloc(&n1, types[tptr], res);
+ 			gmove(res, &n1);
+diff --git a/src/cmd/8g/gsubr.c b/src/cmd/8g/gsubr.c
+index 79348a42dc..756bdd2039 100644
+--- a/src/cmd/8g/gsubr.c
++++ b/src/cmd/8g/gsubr.c
+@@ -2391,7 +2391,8 @@ naddr(Node *n, Addr *a, int canemitcode)
+ int
+ dotaddable(Node *n, Node *n1)
+ {
+-	int o, oary[10];
++	int o;
++	int64 oary[10];
+ 	Node *nn;
+ 
+ 	if(n->op != ODOT)
+diff --git a/src/cmd/gc/align.c b/src/cmd/gc/align.c
+index be9f552f67..80c65387b3 100644
+--- a/src/cmd/gc/align.c
++++ b/src/cmd/gc/align.c
+@@ -46,7 +46,8 @@ static vlong
+ widstruct(Type *errtype, Type *t, vlong o, int flag)
+ {
+ 	Type *f;
+-	int32 w, maxalign;
++	int64 w;
++	int32 maxalign;
+ 	
+ 	maxalign = flag;
+ 	if(maxalign < 1)
+@@ -643,7 +644,7 @@ argsize(Type *t)
+ {
+ 	Iter save;
+ 	Type *fp;
+-	int w, x;
++	int64 w, x;
+ 
+ 	w = 0;
+ 
+@@ -664,5 +665,7 @@ argsize(Type *t)
+ 	}
+ 
+ 	w = (w+widthptr-1) & ~(widthptr-1);
++	if((int)w != w)
++		fatal("argsize too big");
+ 	return w;
+ }
+diff --git a/src/cmd/gc/closure.c b/src/cmd/gc/closure.c
+index 962b088452..d81c5281dd 100644
+--- a/src/cmd/gc/closure.c
++++ b/src/cmd/gc/closure.c
+@@ -135,7 +135,7 @@ makeclosure(Node *func)
+ 	NodeList *l, *body;
+ 	static int closgen;
+ 	char *p;
+-	int offset;
++	vlong offset;
+ 
+ 	/*
+ 	 * wrap body in external function
+diff --git a/src/cmd/gc/gen.c b/src/cmd/gc/gen.c
+index b47a04bf05..955ec2c5bb 100644
+--- a/src/cmd/gc/gen.c
++++ b/src/cmd/gc/gen.c
+@@ -836,7 +836,7 @@ cgen_slice(Node *n, Node *res)
+  * <0 is pointer to next field (+1)
+  */
+ int
+-dotoffset(Node *n, int *oary, Node **nn)
++dotoffset(Node *n, int64 *oary, Node **nn)
+ {
+ 	int i;
+ 
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 1f5fb41aaa..48bcf0233f 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -156,9 +156,9 @@ struct	Type
+ 	int		lineno;
+ 
+ 	// TFUNC
+-	uchar	thistuple;
+-	uchar	outtuple;
+-	uchar	intuple;
++	int	thistuple;
++	int	outtuple;
++	int	intuple;
+ 	uchar	outnamed;
+ 
+ 	Type*	method;
+@@ -252,9 +252,7 @@ struct	Node
+ 	uchar	embedded;	// ODCLFIELD embedded type
+ 	uchar	colas;		// OAS resulting from :=
+ 	uchar	diag;		// already printed error about this
+-	uchar	esc;		// EscXXX
+ 	uchar	noescape;	// func arguments do not escape
+-	uchar	funcdepth;
+ 	uchar	builtin;	// built-in name, like len or close
+ 	uchar	walkdef;
+ 	uchar	typecheck;
+@@ -269,6 +267,8 @@ struct	Node
+ 	uchar	dupok;	// duplicate definitions ok (for func)
+ 	schar	likely; // likeliness of if statement
+ 	uchar	hasbreak;	// has break statement
++	uint	esc;		// EscXXX
++	int	funcdepth;
+ 
+ 	// most nodes
+ 	Type*	type;
+@@ -1103,7 +1103,7 @@ void	cgen_eface(Node* n, Node* res);
+ void	cgen_slice(Node* n, Node* res);
+ void	clearlabels(void);
+ void	checklabels(void);
+-int	dotoffset(Node *n, int *oary, Node **nn);
++int	dotoffset(Node *n, int64 *oary, Node **nn);
+ void	gen(Node *n);
+ void	genlist(NodeList *l);
+ Node*	sysfunc(char *name);
+diff --git a/src/cmd/gc/pgen.c b/src/cmd/gc/pgen.c
+index df8903bafe..82d8186b0d 100644
+--- a/src/cmd/gc/pgen.c
++++ b/src/cmd/gc/pgen.c
+@@ -177,8 +177,13 @@ cmpstackvar(Node *a, Node *b)
+ {
+ 	if (a->class != b->class)
+ 		return (a->class == PAUTO) ? 1 : -1;
+-	if (a->class != PAUTO)
+-		return a->xoffset - b->xoffset;
++	if (a->class != PAUTO) {
++		if (a->xoffset < b->xoffset)
++			return -1;
++		if (a->xoffset > b->xoffset)
++			return 1;
++		return 0;
++	}
+ 	if ((a->used == 0) != (b->used == 0))
+ 		return b->used - a->used;
+ 	return b->type->align - a->type->align;
+@@ -240,6 +245,10 @@ allocauto(Prog* ptxt)
+ 		stksize = rnd(stksize, n->type->align);
+ 		if(thechar == '5')
+ 			stksize = rnd(stksize, widthptr);
++		if(stksize >= (1ULL<<31)) {
++			setlineno(curfn);
++			yyerror("stack frame too large (>2GB)");
++		}
+ 		n->stkdelta = -stksize - n->xoffset;
+ 	}
+ 
+diff --git a/src/cmd/gc/sinit.c b/src/cmd/gc/sinit.c
+index 353fc00ceb..f8c61828cf 100644
+--- a/src/cmd/gc/sinit.c
++++ b/src/cmd/gc/sinit.c
+@@ -801,7 +801,8 @@ maplit(int ctxt, Node *n, Node *var, NodeList **init)
+ {
+ 	Node *r, *a;
+ 	NodeList *l;
+-	int nerr, b;
++	int nerr;
++	int64 b;
+ 	Type *t, *tk, *tv, *t1;
+ 	Node *vstat, *index, *value;
+ 	Sym *syma, *symb;
+@@ -1142,7 +1143,10 @@ stataddr(Node *nam, Node *n)
+ 		l = getlit(n->right);
+ 		if(l < 0)
+ 			break;
+-		nam->xoffset += l*n->type->width;
++		// Check for overflow.
++		if(n->type->width != 0 && MAXWIDTH/n->type->width <= l)
++			break;
++ 		nam->xoffset += l*n->type->width;
+ 		nam->type = n->type;
+ 		return 1;
+ 	}
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index bd78fb0246..20a15bc715 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -839,7 +839,7 @@ Type*
+ aindex(Node *b, Type *t)
+ {
+ 	Type *r;
+-	int bound;
++	int64 bound;
+ 
+ 	bound = -1;	// open bound
+ 	typecheck(&b, Erv);
+@@ -1794,6 +1794,8 @@ ullmancalc(Node *n)
+ 		ul = ur;
+ 
+ out:
++	if(ul > 200)
++		ul = 200; // clamp to uchar with room to grow
+ 	n->ullman = ul;
+ }
+ 
+@@ -2118,7 +2120,7 @@ localexpr(Node *n, Type *t, NodeList **init)
+ void
+ setmaxarg(Type *t)
+ {
+-	int32 w;
++	int64 w;
+ 
+ 	dowidth(t);
+ 	w = t->argwid;
+@@ -3296,11 +3298,14 @@ liststmt(NodeList *l)
+ int
+ count(NodeList *l)
+ {
+-	int n;
++	vlong n;
+ 
+ 	n = 0;
+ 	for(; l; l=l->next)
+ 		n++;
++	if((int)n != n) { // Overflow.
++		yyerror("too many elements in list");
++	}
+ 	return n;
+ }
+ 
+diff --git a/src/cmd/gc/swt.c b/src/cmd/gc/swt.c
+index 5fba731402..3ad5f02a5f 100644
+--- a/src/cmd/gc/swt.c
++++ b/src/cmd/gc/swt.c
+@@ -358,6 +358,8 @@ mkcaselist(Node *sw, int arg)
+ 		c = c1;
+ 
+ 		ord++;
++		if((uint16)ord != ord)
++			fatal("too many cases in switch");
+ 		c->ordinal = ord;
+ 		c->node = n;
+ 
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 938716e215..40eecd337c 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -2350,7 +2350,8 @@ pushtype(Node *n, Type *t)
+ static void
+ typecheckcomplit(Node **np)
+ {
+-	int bad, i, len, nerr;
++	int bad, i, nerr;
++	int64 len;
+ 	Node *l, *n, *norig, *r, **hash;
+ 	NodeList *ll;
+ 	Type *t, *f;
+diff --git a/src/cmd/gc/unsafe.c b/src/cmd/gc/unsafe.c
+index 6b26cde266..ff08c0eef1 100644
+--- a/src/cmd/gc/unsafe.c
++++ b/src/cmd/gc/unsafe.c
+@@ -19,7 +19,7 @@ unsafenmagic(Node *nn)
+ 	Node *r, *n, *base, *r1;
+ 	Sym *s;
+ 	Type *t, *tr;
+-	long v;
++	vlong v;
+ 	Val val;
+ 	Node *fn;
+ 	NodeList *args;

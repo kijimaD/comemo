@@ -17,6 +17,32 @@ Date:   Tue Jun 5 22:41:10 2018 +0200
     Change-Id: Id4cd6a5cea93315791253dc248e40e5615760a6c
     Reviewed-on: https://go-review.googlesource.com/116396
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/crypto/x509/root_cgo_darwin.go | 7 ++-----
  1 file changed, 2 insertions(+), 5 deletions(-)
+
+diff --git a/src/crypto/x509/root_cgo_darwin.go b/src/crypto/x509/root_cgo_darwin.go
+index 11515b82d0..a02ac3cfe8 100644
+--- a/src/crypto/x509/root_cgo_darwin.go
++++ b/src/crypto/x509/root_cgo_darwin.go
+@@ -7,7 +7,7 @@
+ package x509
+ 
+ /*
+-#cgo CFLAGS: -mmacosx-version-min=10.6 -D__MAC_OS_X_VERSION_MAX_ALLOWED=1080
++#cgo CFLAGS: -mmacosx-version-min=10.10 -D__MAC_OS_X_VERSION_MAX_ALLOWED=101300
+ #cgo LDFLAGS: -framework CoreFoundation -framework Security
+ 
+ #include <errno.h>
+@@ -136,10 +136,7 @@ int FetchPEMRoots(CFDataRef *pemRoots, CFDataRef *untrustedPemRoots) {
+ 				}
+ 			}
+ 
+-			// Note: SecKeychainItemExport is deprecated as of 10.7 in favor of SecItemExport.
+-			// Once we support weak imports via cgo we should prefer that, and fall back to this
+-			// for older systems.
+-			err = SecKeychainItemExport(cert, kSecFormatX509Cert, kSecItemPemArmour, NULL, &data);
++			err = SecItemExport(cert, kSecFormatX509Cert, kSecItemPemArmour, NULL, &data);
+ 			if (err != noErr) {
+ 				continue;
+ 			}

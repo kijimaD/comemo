@@ -9,7 +9,7 @@ Date:   Thu Mar 17 13:26:08 2016 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/bexport.go   | 10 +++++-----
  src/cmd/compile/internal/gc/dcl.go       |  2 +-
  src/cmd/compile/internal/gc/sinit.go     |  2 +-
@@ -19,3 +19,196 @@ Date:   Thu Mar 17 13:26:08 2016 -0700
  src/cmd/compile/internal/gc/typecheck.go |  8 ++++----
  src/cmd/compile/internal/gc/walk.go      | 10 +++++-----
  8 files changed, 19 insertions(+), 24 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index d6f3a51a44..7e5dbb0dd0 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -559,12 +559,12 @@ func (p *exporter) qualifiedName(sym *Sym) {
+ }
+ 
+ func (p *exporter) fieldList(t *Type) {
+-	if p.trace && countfield(t) > 0 {
++	if p.trace && t.NumFields() > 0 {
+ 		p.tracef("fields {>")
+ 		defer p.tracef("<\n} ")
+ 	}
+ 
+-	p.int(countfield(t))
++	p.int(t.NumFields())
+ 	for _, f := range t.Fields().Slice() {
+ 		if p.trace {
+ 			p.tracef("\n")
+@@ -588,12 +588,12 @@ func (p *exporter) note(n *string) {
+ }
+ 
+ func (p *exporter) methodList(t *Type) {
+-	if p.trace && countfield(t) > 0 {
++	if p.trace && t.NumFields() > 0 {
+ 		p.tracef("methods {>")
+ 		defer p.tracef("<\n} ")
+ 	}
+ 
+-	p.int(countfield(t))
++	p.int(t.NumFields())
+ 	for _, m := range t.Fields().Slice() {
+ 		if p.trace {
+ 			p.tracef("\n")
+@@ -650,7 +650,7 @@ func (p *exporter) paramList(params *Type, numbered bool) {
+ 	// use negative length to indicate unnamed parameters
+ 	// (look at the first parameter only since either all
+ 	// names are present or all are absent)
+-	n := countfield(params)
++	n := params.NumFields()
+ 	if n > 0 && parName(params.Field(0), numbered) == "" {
+ 		n = -n
+ 	}
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index 8b05cdb23a..57698ce839 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -1030,7 +1030,7 @@ func isifacemethod(f *Type) bool {
+ 		return false
+ 	}
+ 	t = t.Type
+-	if t.Sym != nil || t.Etype != TSTRUCT || countfield(t) != 0 {
++	if t.Sym != nil || t.Etype != TSTRUCT || t.NumFields() != 0 {
+ 		return false
+ 	}
+ 	return true
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index ca5d35e87f..7f0b98c180 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -1071,7 +1071,7 @@ func anylit(ctxt int, n *Node, var_ *Node, init *Nodes) {
+ 		}
+ 
+ 		// initialize of not completely specified
+-		if var_.isSimpleName() || n.List.Len() < structcount(t) {
++		if var_.isSimpleName() || n.List.Len() < t.NumFields() {
+ 			a := Nod(OAS, var_, nil)
+ 			typecheck(&a, Etop)
+ 			walkexpr(&a, init)
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 1d3c1f6dff..84dc29c25b 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -2639,7 +2639,7 @@ func canSSAType(t *Type) bool {
+ 		// introduced by the compiler for variadic functions.
+ 		return false
+ 	case TSTRUCT:
+-		if countfield(t) > ssa.MaxStruct {
++		if t.NumFields() > ssa.MaxStruct {
+ 			return false
+ 		}
+ 		for _, t1 := range t.Fields().Slice() {
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 8d2d5008e3..c7cac05499 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -592,7 +592,7 @@ func Isinter(t *Type) bool {
+ }
+ 
+ func isnilinter(t *Type) bool {
+-	return Isinter(t) && countfield(t) == 0
++	return Isinter(t) && t.NumFields() == 0
+ }
+ 
+ func isideal(t *Type) bool {
+@@ -2388,7 +2388,7 @@ func isdirectiface(t *Type) bool {
+ 
+ 	case TSTRUCT:
+ 		// Struct with 1 field of direct iface type can be direct.
+-		return countfield(t) == 1 && isdirectiface(t.Field(0).Type)
++		return t.NumFields() == 1 && isdirectiface(t.Field(0).Type)
+ 	}
+ 
+ 	return false
+diff --git a/src/cmd/compile/internal/gc/type.go b/src/cmd/compile/internal/gc/type.go
+index 624c506626..709506db07 100644
+--- a/src/cmd/compile/internal/gc/type.go
++++ b/src/cmd/compile/internal/gc/type.go
+@@ -683,8 +683,3 @@ func (t *Type) NumElem() int64 {
+ func (t *Type) IsMemory() bool { return false }
+ func (t *Type) IsFlags() bool  { return false }
+ func (t *Type) IsVoid() bool   { return false }
+-
+-// TODO(mdempsky): Replace all of these with direct calls to t.NumFields().
+-func countfield(t *Type) int  { return t.NumFields() }
+-func downcount(t *Type) int   { return t.NumFields() }
+-func structcount(t *Type) int { return t.NumFields() }
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 1a28745f74..e857943103 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -2597,8 +2597,8 @@ func typecheckaste(op Op, call *Node, isddd bool, tstruct *Type, nl Nodes, desc
+ 		if n.Type != nil {
+ 			if n.Type.Etype == TSTRUCT && n.Type.Funarg {
+ 				if !hasddd(tstruct) {
+-					n1 := downcount(tstruct)
+-					n2 := downcount(n.Type)
++					n1 := tstruct.NumFields()
++					n2 := n.Type.NumFields()
+ 					if n2 > n1 {
+ 						goto toomany
+ 					}
+@@ -2646,7 +2646,7 @@ func typecheckaste(op Op, call *Node, isddd bool, tstruct *Type, nl Nodes, desc
+ 		}
+ 	}
+ 
+-	n1 = downcount(tstruct)
++	n1 = tstruct.NumFields()
+ 	n2 = nl.Len()
+ 	if !hasddd(tstruct) {
+ 		if n2 > n1 {
+@@ -3347,7 +3347,7 @@ func typecheckas2(n *Node) {
+ 			if r.Type.Etype != TSTRUCT || !r.Type.Funarg {
+ 				break
+ 			}
+-			cr = structcount(r.Type)
++			cr = r.Type.NumFields()
+ 			if cr != cl {
+ 				goto mismatch
+ 			}
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 3b3645784f..e0e05c7a73 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -1742,7 +1742,7 @@ func ascompatet(op Op, nl Nodes, nr *Type, fp int, init *Nodes) []*Node {
+ 	}
+ 
+ 	if i < nl.Len() || r != nil {
+-		Yyerror("ascompatet: assignment count mismatch: %d = %d", nl.Len(), structcount(nr))
++		Yyerror("ascompatet: assignment count mismatch: %d = %d", nl.Len(), nr.NumFields())
+ 	}
+ 
+ 	if ullmanOverflow {
+@@ -3225,7 +3225,7 @@ func walkcompare(np **Node, init *Nodes) {
+ 		}
+ 	}
+ 
+-	if t.Etype == TSTRUCT && countfield(t) <= 4 {
++	if t.Etype == TSTRUCT && t.NumFields() <= 4 {
+ 		// Struct of four or fewer fields.
+ 		// Inline comparisons.
+ 		var li *Node
+@@ -3771,16 +3771,16 @@ func usemethod(n *Node) {
+ 	//
+ 	// TODO(crawshaw): improve precision of match by working out
+ 	//                 how to check the method name.
+-	if n := countfield(t.Params()); n != 1 {
++	if n := t.Params().NumFields(); n != 1 {
+ 		return
+ 	}
+-	if n := countfield(t.Results()); n != 1 && n != 2 {
++	if n := t.Results().NumFields(); n != 1 && n != 2 {
+ 		return
+ 	}
+ 	p0 := t.Params().Field(0)
+ 	res0 := t.Results().Field(0)
+ 	var res1 *Field
+-	if countfield(t.Results()) == 2 {
++	if t.Results().NumFields() == 2 {
+ 		res1 = t.Results().Field(1)
+ 	}
+ 

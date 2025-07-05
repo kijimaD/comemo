@@ -17,6 +17,40 @@ Date:   Thu Jan 7 11:21:37 2021 -0500
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/go/internal/tool/tool.go | 15 ++++++++++++++-
  1 file changed, 14 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/tool/tool.go b/src/cmd/go/internal/tool/tool.go
+index 7f4dc86802..6a755bc436 100644
+--- a/src/cmd/go/internal/tool/tool.go
++++ b/src/cmd/go/internal/tool/tool.go
+@@ -10,6 +10,7 @@ import (
+ 	"fmt"
+ 	"os"
+ 	"os/exec"
++	"os/signal"
+ 	"sort"
+ 	"strings"
+ 
+@@ -85,7 +86,19 @@ func runTool(ctx context.Context, cmd *base.Command, args []string) {
+ 		Stdout: os.Stdout,
+ 		Stderr: os.Stderr,
+ 	}
+-	err := toolCmd.Run()
++	err := toolCmd.Start()
++	if err == nil {
++		c := make(chan os.Signal, 100)
++		signal.Notify(c)
++		go func() {
++			for sig := range c {
++				toolCmd.Process.Signal(sig)
++			}
++		}()
++		err = toolCmd.Wait()
++		signal.Stop(c)
++		close(c)
++	}
+ 	if err != nil {
+ 		// Only print about the exit status if the command
+ 		// didn't even run (not an ExitError) or it didn't exit cleanly

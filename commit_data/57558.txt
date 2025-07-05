@@ -13,6 +13,20 @@ Date:   Wed Aug 16 10:59:58 2023 +0000
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Jonathan Amsterdam <jba@google.com>
-
+---
  src/log/slog/handler.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/log/slog/handler.go b/src/log/slog/handler.go
+index d18321fc6f..b737612fb1 100644
+--- a/src/log/slog/handler.go
++++ b/src/log/slog/handler.go
+@@ -16,7 +16,7 @@ import (
+ 	"time"
+ )
+ 
+-// A Handler handles log records produced by a Logger..
++// A Handler handles log records produced by a Logger.
+ //
+ // A typical handler may print log records to standard error,
+ // or write them to a file or database, or perhaps augment them

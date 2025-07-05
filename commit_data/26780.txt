@@ -9,7 +9,45 @@ Date:   Fri Feb 26 14:05:16 2016 +1100
     Change-Id: I082329fe7a1e06c774a32e0e24e5c8736bb5a037
     Reviewed-on: https://go-review.googlesource.com/19877
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  .github/ISSUE_TEMPLATE        | 18 ++++++++++++++++++
  .github/PULL_REQUEST_TEMPLATE |  7 +++++++
  2 files changed, 25 insertions(+)
+
+diff --git a/.github/ISSUE_TEMPLATE b/.github/ISSUE_TEMPLATE
+new file mode 100644
+index 0000000000..f44c6b9a36
+--- /dev/null
++++ b/.github/ISSUE_TEMPLATE
+@@ -0,0 +1,18 @@
++Please answer these questions before submitting your issue. Thanks!
++
++1. What version of Go are you using (`go version`)?
++
++
++2. What operating system and processor architecture are you using (`go env`)?
++
++
++3. What did you do?
++(Use play.golang.org to provide a runnable example, if possible.)
++
++
++4. What did you expect to see?
++
++
++5. What did you see instead?
++
++
+diff --git a/.github/PULL_REQUEST_TEMPLATE b/.github/PULL_REQUEST_TEMPLATE
+new file mode 100644
+index 0000000000..00014e9b86
+--- /dev/null
++++ b/.github/PULL_REQUEST_TEMPLATE
+@@ -0,0 +1,7 @@
++Please do not send pull requests to the golang/* repositories.
++
++We do, however, take contributions gladly.
++
++See https://golang.org/doc/contribute.html
++
++Thanks!

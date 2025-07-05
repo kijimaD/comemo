@@ -15,6 +15,20 @@ Date:   Tue Sep 28 14:35:03 2021 -0400
     Run-TryBot: Michael Pratt <mpratt@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/mgcmark.go | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 64f1c79c36..eb5221443e 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -587,8 +587,6 @@ func gcWakeAllAssists() {
+ //
+ // gcParkAssist reports whether the assist is now satisfied. If it
+ // returns false, the caller must retry the assist.
+-//
+-//go:nowritebarrier
+ func gcParkAssist() bool {
+ 	lock(&work.assistQueue.lock)
+ 	// If the GC cycle finished while we were getting the lock,

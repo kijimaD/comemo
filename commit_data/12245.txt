@@ -10,6 +10,28 @@ Date:   Tue Feb 28 11:28:10 2012 +1100
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5693065
-
+---
  src/pkg/net/sockoptip_netbsd.go | 15 +++++++++++++++
  1 file changed, 15 insertions(+)
+
+diff --git a/src/pkg/net/sockoptip_netbsd.go b/src/pkg/net/sockoptip_netbsd.go
+new file mode 100644
+index 0000000000..ccb9697cfb
+--- /dev/null
++++ b/src/pkg/net/sockoptip_netbsd.go
+@@ -0,0 +1,15 @@
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build netbsd
++
++package net
++
++func setIPv4MulticastInterface(fd *netFD, ifi *Interface) error {
++	panic("unimplemented")
++}
++
++func setIPv4MulticastLoopback(fd *netFD, v bool) error {
++	panic("unimplemented")
++}

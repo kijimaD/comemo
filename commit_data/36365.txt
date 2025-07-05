@@ -15,7 +15,7 @@ Date:   Fri Apr 20 15:30:52 2018 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/sys_linux_386.s     | 12 ++++--------
  src/runtime/sys_linux_amd64.s   | 12 ++++--------
  src/runtime/sys_linux_arm.s     | 10 +++-------
@@ -25,3 +25,287 @@ Date:   Fri Apr 20 15:30:52 2018 -0700
  src/runtime/sys_linux_ppc64x.s  | 12 +++++-------
  src/runtime/sys_linux_s390x.s   | 12 +++++-------
  8 files changed, 36 insertions(+), 61 deletions(-)
+
+diff --git a/src/runtime/sys_linux_386.s b/src/runtime/sys_linux_386.s
+index 721551faec..8d5a4ff977 100644
+--- a/src/runtime/sys_linux_386.s
++++ b/src/runtime/sys_linux_386.s
+@@ -39,6 +39,7 @@
+ #define SYS_setittimer		104
+ #define SYS_clone		120
+ #define SYS_sched_yield 	158
++#define SYS_nanosleep		162
+ #define SYS_rt_sigreturn	173
+ #define SYS_rt_sigaction	174
+ #define SYS_rt_sigprocmask	175
+@@ -56,7 +57,6 @@
+ #define SYS_epoll_ctl		255
+ #define SYS_epoll_wait		256
+ #define SYS_clock_gettime	265
+-#define SYS_pselect6		308
+ #define SYS_epoll_create1	329
+ 
+ TEXT runtime·exit(SB),NOSPLIT,$0
+@@ -141,14 +141,10 @@ TEXT runtime·usleep(SB),NOSPLIT,$8
+ 	MULL	DX
+ 	MOVL	AX, 4(SP)
+ 
+-	// pselect6(0, 0, 0, 0, &ts, 0)
+-	MOVL	$SYS_pselect6, AX
+-	MOVL	$0, BX
++	// nanosleep(&ts, 0)
++	MOVL	$SYS_nanosleep, AX
++	LEAL	0(SP), BX
+ 	MOVL	$0, CX
+-	MOVL	$0, DX
+-	MOVL	$0, SI
+-	LEAL	0(SP), DI
+-	MOVL	$0, BP
+ 	INVOKE_SYSCALL
+ 	RET
+ 
+diff --git a/src/runtime/sys_linux_amd64.s b/src/runtime/sys_linux_amd64.s
+index e03f7ce44c..62d80247be 100644
+--- a/src/runtime/sys_linux_amd64.s
++++ b/src/runtime/sys_linux_amd64.s
+@@ -24,6 +24,7 @@
+ #define SYS_sched_yield 	24
+ #define SYS_mincore		27
+ #define SYS_madvise		28
++#define SYS_nanosleep		35
+ #define SYS_setittimer		38
+ #define SYS_getpid		39
+ #define SYS_socket		41
+@@ -43,7 +44,6 @@
+ #define SYS_epoll_ctl		233
+ #define SYS_openat		257
+ #define SYS_faccessat		269
+-#define SYS_pselect6		270
+ #define SYS_epoll_pwait		281
+ #define SYS_epoll_create1	291
+ 
+@@ -123,14 +123,10 @@ TEXT runtime·usleep(SB),NOSPLIT,$16
+ 	MULL	DX
+ 	MOVQ	AX, 8(SP)
+ 
+-	// pselect6(0, 0, 0, 0, &ts, 0)
+-	MOVL	$0, DI
++	// nanosleep(&ts, 0)
++	MOVQ	SP, DI
+ 	MOVL	$0, SI
+-	MOVL	$0, DX
+-	MOVL	$0, R10
+-	MOVQ	SP, R8
+-	MOVL	$0, R9
+-	MOVL	$SYS_pselect6, AX
++	MOVL	$SYS_nanosleep, AX
+ 	SYSCALL
+ 	RET
+ 
+diff --git a/src/runtime/sys_linux_arm.s b/src/runtime/sys_linux_arm.s
+index 4dd773adce..fc9dc9bbb8 100644
+--- a/src/runtime/sys_linux_arm.s
++++ b/src/runtime/sys_linux_arm.s
+@@ -38,7 +38,7 @@
+ #define SYS_gettid (SYS_BASE + 224)
+ #define SYS_tkill (SYS_BASE + 238)
+ #define SYS_sched_yield (SYS_BASE + 158)
+-#define SYS_pselect6 (SYS_BASE + 335)
++#define SYS_nanosleep (SYS_BASE + 162)
+ #define SYS_sched_getaffinity (SYS_BASE + 242)
+ #define SYS_clock_gettime (SYS_BASE + 263)
+ #define SYS_epoll_create (SYS_BASE + 250)
+@@ -475,13 +475,9 @@ TEXT runtime·usleep(SB),NOSPLIT,$12
+ 	MOVW	$1000, R0	// usec to nsec
+ 	MUL	R0, R1
+ 	MOVW	R1, 8(R13)
+-	MOVW	$0, R0
++	MOVW	$4(R13), R0
+ 	MOVW	$0, R1
+-	MOVW	$0, R2
+-	MOVW	$0, R3
+-	MOVW	$4(R13), R4
+-	MOVW	$0, R5
+-	MOVW	$SYS_pselect6, R7
++	MOVW	$SYS_nanosleep, R7
+ 	SWI	$0
+ 	RET
+ 
+diff --git a/src/runtime/sys_linux_arm64.s b/src/runtime/sys_linux_arm64.s
+index 8a56ba6bab..f930d1f044 100644
+--- a/src/runtime/sys_linux_arm64.s
++++ b/src/runtime/sys_linux_arm64.s
+@@ -21,7 +21,7 @@
+ #define SYS_openat		56
+ #define SYS_close		57
+ #define SYS_fcntl		25
+-#define SYS_pselect6		72
++#define SYS_nanosleep		101
+ #define SYS_mmap		222
+ #define SYS_munmap		215
+ #define SYS_setitimer		103
+@@ -129,14 +129,10 @@ TEXT runtime·usleep(SB),NOSPLIT,$24-4
+ 	MUL	R4, R5
+ 	MOVD	R5, 16(RSP)
+ 
+-	// pselect6(0, 0, 0, 0, &ts, 0)
+-	MOVD	$0, R0
+-	MOVD	R0, R1
+-	MOVD	R0, R2
+-	MOVD	R0, R3
+-	ADD	$8, RSP, R4
+-	MOVD	R0, R5
+-	MOVD	$SYS_pselect6, R8
++	// nanosleep(&ts, 0)
++	ADD	$8, RSP, R0
++	MOVD	$0, R1
++	MOVD	$SYS_nanosleep, R8
+ 	SVC
+ 	RET
+ 
+diff --git a/src/runtime/sys_linux_mips64x.s b/src/runtime/sys_linux_mips64x.s
+index 25d13367ad..7632e06fbd 100644
+--- a/src/runtime/sys_linux_mips64x.s
++++ b/src/runtime/sys_linux_mips64x.s
+@@ -26,7 +26,7 @@
+ #define SYS_munmap		5011
+ #define SYS_setitimer		5036
+ #define SYS_clone		5055
+-#define SYS_newselect		5022
++#define SYS_nanosleep		5034
+ #define SYS_sched_yield		5023
+ #define SYS_rt_sigreturn	5211
+ #define SYS_rt_sigaction	5013
+@@ -117,18 +117,16 @@ TEXT runtime·usleep(SB),NOSPLIT,$16-4
+ 	DIVVU	R4, R3
+ 	MOVV	LO, R3
+ 	MOVV	R3, 8(R29)
++	MOVW	$1000, R4
+ 	MULVU	R3, R4
+ 	MOVV	LO, R4
+ 	SUBVU	R4, R5
+ 	MOVV	R5, 16(R29)
+ 
+-	// select(0, 0, 0, 0, &tv)
+-	MOVW	$0, R4
++	// nanosleep(&ts, 0)
++	ADDV	$8, R29, R4
+ 	MOVW	$0, R5
+-	MOVW	$0, R6
+-	MOVW	$0, R7
+-	ADDV	$8, R29, R8
+-	MOVV	$SYS_newselect, R2
++	MOVV	$SYS_nanosleep, R2
+ 	SYSCALL
+ 	RET
+ 
+diff --git a/src/runtime/sys_linux_mipsx.s b/src/runtime/sys_linux_mipsx.s
+index fb6130ac3a..52eccca093 100644
+--- a/src/runtime/sys_linux_mipsx.s
++++ b/src/runtime/sys_linux_mipsx.s
+@@ -26,8 +26,8 @@
+ #define SYS_munmap		4091
+ #define SYS_setitimer		4104
+ #define SYS_clone		4120
+-#define SYS_newselect		4142
+ #define SYS_sched_yield		4162
++#define SYS_nanosleep		4166
+ #define SYS_rt_sigreturn	4193
+ #define SYS_rt_sigaction	4194
+ #define SYS_rt_sigprocmask	4195
+@@ -115,19 +115,16 @@ TEXT runtime·usleep(SB),NOSPLIT,$28-4
+ 	DIVU	R4, R3
+ 	MOVW	LO, R3
+ 	MOVW	R3, 24(R29)
++	MOVW	$1000, R4
+ 	MULU	R3, R4
+ 	MOVW	LO, R4
+ 	SUBU	R4, R5
+ 	MOVW	R5, 28(R29)
+ 
+-	// select(0, 0, 0, 0, &tv)
+-	MOVW	$0, R4
++	// nanosleep(&ts, 0)
++	ADDU	$24, R29, R4
+ 	MOVW	$0, R5
+-	MOVW	$0, R6
+-	MOVW	$0, R7
+-	ADDU	$24, R29, R8
+-	MOVW	R8, 16(R29)
+-	MOVW	$SYS_newselect, R2
++	MOVW	$SYS_nanosleep, R2
+ 	SYSCALL
+ 	RET
+ 
+diff --git a/src/runtime/sys_linux_ppc64x.s b/src/runtime/sys_linux_ppc64x.s
+index 77ddf53286..b8fe5cc31b 100644
+--- a/src/runtime/sys_linux_ppc64x.s
++++ b/src/runtime/sys_linux_ppc64x.s
+@@ -27,8 +27,8 @@
+ #define SYS_munmap		 91
+ #define SYS_setitimer		104
+ #define SYS_clone		120
+-#define SYS_newselect		142
+ #define SYS_sched_yield		158
++#define SYS_nanosleep		162
+ #define SYS_rt_sigreturn	172
+ #define SYS_rt_sigaction	173
+ #define SYS_rt_sigprocmask	174
+@@ -106,17 +106,15 @@ TEXT runtime·usleep(SB),NOSPLIT,$16-4
+ 	MOVW	$1000000, R4
+ 	DIVD	R4, R3
+ 	MOVD	R3, 8(R1)
++	MOVW	$1000, R4
+ 	MULLD	R3, R4
+ 	SUB	R4, R5
+ 	MOVD	R5, 16(R1)
+ 
+-	// select(0, 0, 0, 0, &tv)
+-	MOVW	$0, R3
++	// nanosleep(&ts, 0)
++	ADD	$8, R1, R3
+ 	MOVW	$0, R4
+-	MOVW	$0, R5
+-	MOVW	$0, R6
+-	ADD	$8, R1, R7
+-	SYSCALL	$SYS_newselect
++	SYSCALL	$SYS_nanosleep
+ 	RET
+ 
+ TEXT runtime·gettid(SB),NOSPLIT,$0-4
+diff --git a/src/runtime/sys_linux_s390x.s b/src/runtime/sys_linux_s390x.s
+index 8dbca6cb48..1ff110c232 100644
+--- a/src/runtime/sys_linux_s390x.s
++++ b/src/runtime/sys_linux_s390x.s
+@@ -22,8 +22,8 @@
+ #define SYS_munmap               91
+ #define SYS_setitimer           104
+ #define SYS_clone               120
+-#define SYS_select              142
+ #define SYS_sched_yield         158
++#define SYS_nanosleep           162
+ #define SYS_rt_sigreturn        173
+ #define SYS_rt_sigaction        174
+ #define SYS_rt_sigprocmask      175
+@@ -110,17 +110,15 @@ TEXT runtime·usleep(SB),NOSPLIT,$16-4
+ 	MOVW	$1000000, R3
+ 	DIVD	R3, R2
+ 	MOVD	R2, 8(R15)
++	MOVW	$1000, R3
+ 	MULLD	R2, R3
+ 	SUB	R3, R4
+ 	MOVD	R4, 16(R15)
+ 
+-	// select(0, 0, 0, 0, &tv)
+-	MOVW	$0, R2
++	// nanosleep(&ts, 0)
++	ADD	$8, R15, R2
+ 	MOVW	$0, R3
+-	MOVW	$0, R4
+-	MOVW	$0, R5
+-	ADD	$8, R15, R6
+-	MOVW	$SYS_select, R1
++	MOVW	$SYS_nanosleep, R1
+ 	SYSCALL
+ 	RET
+ 

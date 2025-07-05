@@ -31,7 +31,7 @@ Date:   Fri Oct 16 15:42:09 2015 +1300
     Change-Id: I7522e22bdfd2f891745a900c60254fe9e372c854
     Reviewed-on: https://go-review.googlesource.com/15967
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/compile/internal/gc/cgen.go     | 41 +++++++++++++++++++-----
  src/cmd/compile/internal/gc/plive.go    |  9 +++++-
  src/cmd/compile/internal/ppc64/gsubr.go | 17 ++++++++--
@@ -52,3 +52,579 @@ Date:   Fri Oct 16 15:42:09 2015 +1300
  src/runtime/sys_nonppc64x.go            | 10 ++++++
  src/runtime/sys_ppc64x.go               |  2 ++
  19 files changed, 208 insertions(+), 27 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/cgen.go b/src/cmd/compile/internal/gc/cgen.go
+index 42b7792fb2..e2077bafe8 100644
+--- a/src/cmd/compile/internal/gc/cgen.go
++++ b/src/cmd/compile/internal/gc/cgen.go
+@@ -6,6 +6,7 @@ package gc
+ 
+ import (
+ 	"cmd/internal/obj"
++	"cmd/internal/obj/ppc64"
+ 	"fmt"
+ )
+ 
+@@ -2339,15 +2340,39 @@ func Ginscall(f *Node, proc int) {
+ 		-1: // normal call but no return
+ 		if f.Op == ONAME && f.Class == PFUNC {
+ 			if f == Deferreturn {
+-				// Deferred calls will appear to be returning to
+-				// the CALL deferreturn(SB) that we are about to emit.
+-				// However, the stack trace code will show the line
+-				// of the instruction byte before the return PC.
+-				// To avoid that being an unrelated instruction,
+-				// insert an actual hardware NOP that will have the right line number.
+-				// This is different from obj.ANOP, which is a virtual no-op
+-				// that doesn't make it into the instruction stream.
++				// Deferred calls will appear to be returning to the CALL
++				// deferreturn(SB) that we are about to emit. However, the
++				// stack scanning code will think that the instruction
++				// before the CALL is executing. To avoid the scanning
++				// code making bad assumptions (both cosmetic such as
++				// showing the wrong line number and fatal, such as being
++				// confused over whether a stack slot contains a pointer
++				// or a scalar) insert an actual hardware NOP that will
++				// have the right line number. This is different from
++				// obj.ANOP, which is a virtual no-op that doesn't make it
++				// into the instruction stream.
+ 				Thearch.Ginsnop()
++
++				if Thearch.Thechar == '9' {
++					// On ppc64, when compiling Go into position
++					// independent code on ppc64le we insert an
++					// instruction to reload the TOC pointer from the
++					// stack as well. See the long comment near
++					// jmpdefer in runtime/asm_ppc64.s for why.
++					// If the MOVD is not needed, insert a hardware NOP
++					// so that the same number of instructions are used
++					// on ppc64 in both shared and non-shared modes.
++					if Ctxt.Flag_shared != 0 {
++						p := Thearch.Gins(ppc64.AMOVD, nil, nil)
++						p.From.Type = obj.TYPE_MEM
++						p.From.Offset = 24
++						p.From.Reg = ppc64.REGSP
++						p.To.Type = obj.TYPE_REG
++						p.To.Reg = ppc64.REG_R2
++					} else {
++						Thearch.Ginsnop()
++					}
++				}
+ 			}
+ 
+ 			p := Thearch.Gins(obj.ACALL, nil, f)
+diff --git a/src/cmd/compile/internal/gc/plive.go b/src/cmd/compile/internal/gc/plive.go
+index c671c3bf3e..5af78d17bd 100644
+--- a/src/cmd/compile/internal/gc/plive.go
++++ b/src/cmd/compile/internal/gc/plive.go
+@@ -1426,7 +1426,14 @@ func livenessepilogue(lv *Liveness) {
+ 						// the PCDATA must begin one instruction early too.
+ 						// The instruction before a call to deferreturn is always a
+ 						// no-op, to keep PC-specific data unambiguous.
+-						splicebefore(lv, bb, newpcdataprog(p.Opt.(*obj.Prog), pos), p.Opt.(*obj.Prog))
++						prev := p.Opt.(*obj.Prog)
++						if Ctxt.Arch.Thechar == '9' {
++							// On ppc64 there is an additional instruction
++							// (another no-op or reload of toc pointer) before
++							// the call.
++							prev = prev.Opt.(*obj.Prog)
++						}
++						splicebefore(lv, bb, newpcdataprog(prev, pos), prev)
+ 					} else {
+ 						splicebefore(lv, bb, newpcdataprog(p, pos), p)
+ 					}
+diff --git a/src/cmd/compile/internal/ppc64/gsubr.go b/src/cmd/compile/internal/ppc64/gsubr.go
+index 8504964e4f..534ea6290a 100644
+--- a/src/cmd/compile/internal/ppc64/gsubr.go
++++ b/src/cmd/compile/internal/ppc64/gsubr.go
+@@ -580,9 +580,9 @@ func rawgins(as int, f *gc.Node, t *gc.Node) *obj.Prog {
+ 	case obj.ACALL:
+ 		if p.To.Type == obj.TYPE_REG && p.To.Reg != ppc64.REG_CTR {
+ 			// Allow front end to emit CALL REG, and rewrite into MOV REG, CTR; CALL CTR.
+-			if gc.Ctxt.Flag_dynlink {
++			if gc.Ctxt.Flag_shared != 0 {
+ 				// Make sure function pointer is in R12 as well when
+-				// dynamically linking Go.
++				// compiling Go into PIC.
+ 				// TODO(mwhudson): it would obviously be better to
+ 				// change the register allocation to put the value in
+ 				// R12 already, but I don't know how to do that.
+@@ -602,6 +602,19 @@ func rawgins(as int, f *gc.Node, t *gc.Node) *obj.Prog {
+ 			p.To.Type = obj.TYPE_REG
+ 			p.To.Reg = ppc64.REG_CTR
+ 
++			if gc.Ctxt.Flag_shared != 0 {
++				// When compiling Go into PIC, the function we just
++				// called via pointer might have been implemented in
++				// a separate module and so overwritten the TOC
++				// pointer in R2; reload it.
++				q := gc.Prog(ppc64.AMOVD)
++				q.From.Type = obj.TYPE_MEM
++				q.From.Offset = 24
++				q.From.Reg = ppc64.REGSP
++				q.To.Type = obj.TYPE_REG
++				q.To.Reg = ppc64.REG_R2
++			}
++
+ 			if gc.Debug['g'] != 0 {
+ 				fmt.Printf("%v\n", p)
+ 				fmt.Printf("%v\n", pp)
+diff --git a/src/cmd/compile/internal/ppc64/reg.go b/src/cmd/compile/internal/ppc64/reg.go
+index e231079347..da3f34ade7 100644
+--- a/src/cmd/compile/internal/ppc64/reg.go
++++ b/src/cmd/compile/internal/ppc64/reg.go
+@@ -113,8 +113,8 @@ func excludedregs() uint64 {
+ 	// Exclude registers with fixed functions
+ 	regbits := uint64(1<<0 | RtoB(ppc64.REGSP) | RtoB(ppc64.REGG) | RtoB(ppc64.REGTLS) | RtoB(ppc64.REGTMP))
+ 
+-	if gc.Ctxt.Flag_dynlink {
+-		// When dynamically linking Go, R2 is reserved to be the TOC pointer
++	if gc.Ctxt.Flag_shared != 0 {
++		// When compiling Go into PIC, R2 is reserved to be the TOC pointer
+ 		// and R12 so that calls via function pointer can stomp on it.
+ 		regbits |= RtoB(ppc64.REG_R2)
+ 		regbits |= RtoB(ppc64.REG_R12)
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index c1f2260e76..71784d8b01 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -486,6 +486,11 @@ const (
+ 	// relocated symbol are inserted into this field; it is an error if the last two
+ 	// bits of the address are not 0.
+ 	R_ADDRPOWER_DS
++
++	// R_ADDRPOWER_PCREL relocates two D-form instructions like R_ADDRPOWER, but
++	// inserts the displacement from the place being relocated to the address of the
++	// the relocated symbol instead of just its address.
++	R_ADDRPOWER_PCREL
+ )
+ 
+ type Auto struct {
+diff --git a/src/cmd/internal/obj/ppc64/a.out.go b/src/cmd/internal/obj/ppc64/a.out.go
+index ea868fdb5f..3fd4685769 100644
+--- a/src/cmd/internal/obj/ppc64/a.out.go
++++ b/src/cmd/internal/obj/ppc64/a.out.go
+@@ -205,6 +205,7 @@ const (
+ 	C_DACON /* $n(REG) where int32 < n */
+ 	C_SBRA
+ 	C_LBRA
++	C_LBRAPIC
+ 	C_SAUTO
+ 	C_LAUTO
+ 	C_SEXT
+diff --git a/src/cmd/internal/obj/ppc64/asm9.go b/src/cmd/internal/obj/ppc64/asm9.go
+index 3e3a020a7c..22514e514e 100644
+--- a/src/cmd/internal/obj/ppc64/asm9.go
++++ b/src/cmd/internal/obj/ppc64/asm9.go
+@@ -281,6 +281,7 @@ var optab = []Optab{
+ 	{ABEQ, C_NONE, C_NONE, C_NONE, C_SBRA, 16, 4, 0},
+ 	{ABEQ, C_CREG, C_NONE, C_NONE, C_SBRA, 16, 4, 0},
+ 	{ABR, C_NONE, C_NONE, C_NONE, C_LBRA, 11, 4, 0},
++	{ABR, C_NONE, C_NONE, C_NONE, C_LBRAPIC, 11, 8, 0},
+ 	{ABC, C_SCON, C_REG, C_NONE, C_SBRA, 16, 4, 0},
+ 	{ABC, C_SCON, C_REG, C_NONE, C_LBRA, 17, 4, 0},
+ 	{ABR, C_NONE, C_NONE, C_NONE, C_LR, 18, 4, 0},
+@@ -704,6 +705,9 @@ func aclass(ctxt *obj.Link, a *obj.Addr) int {
+ 		return C_DCON
+ 
+ 	case obj.TYPE_BRANCH:
++		if a.Sym != nil && ctxt.Flag_dynlink {
++			return C_LBRAPIC
++		}
+ 		return C_SBRA
+ 	}
+ 
+@@ -1714,6 +1718,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
+ 			rel.Add = int64(v)
+ 			rel.Type = obj.R_CALLPOWER
+ 		}
++		o2 = 0x60000000 // nop, sometimes overwritten by ld r2, 24(r1) when dynamic linking
+ 
+ 	case 12: /* movb r,r (extsb); movw r,r (extsw) */
+ 		if p.To.Reg == REGZERO && p.From.Type == obj.TYPE_CONST {
+diff --git a/src/cmd/internal/obj/ppc64/obj9.go b/src/cmd/internal/obj/ppc64/obj9.go
+index e72832d445..389d6ac88d 100644
+--- a/src/cmd/internal/obj/ppc64/obj9.go
++++ b/src/cmd/internal/obj/ppc64/obj9.go
+@@ -342,11 +342,45 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 
+ 			p.To.Offset = int64(autosize)
+ 
+-			if p.From3.Offset&obj.NOSPLIT == 0 {
+-				p = stacksplit(ctxt, p, autosize) // emit split check
++			q = p
++
++			if ctxt.Flag_shared != 0 && cursym.Name != "runtime.duffzero" && cursym.Name != "runtime.duffcopy" {
++				// When compiling Go into PIC, all functions must start
++				// with instructions to load the TOC pointer into r2:
++				//
++				//	addis r2, r12, .TOC.-func@ha
++				//	addi r2, r2, .TOC.-func@l+4
++				//
++				// We could probably skip this prologue in some situations
++				// but it's a bit subtle. However, it is both safe and
++				// necessary to leave the prologue off duffzero and
++				// duffcopy as we rely on being able to jump to a specific
++				// instruction offset for them.
++				//
++				// These are AWORDS because there is no (afaict) way to
++				// generate the addis instruction except as part of the
++				// load of a large constant, and in that case there is no
++				// way to use r12 as the source.
++				q = obj.Appendp(ctxt, q)
++				q.As = AWORD
++				q.Lineno = p.Lineno
++				q.From.Type = obj.TYPE_CONST
++				q.From.Offset = 0x3c4c0000
++				q = obj.Appendp(ctxt, q)
++				q.As = AWORD
++				q.Lineno = p.Lineno
++				q.From.Type = obj.TYPE_CONST
++				q.From.Offset = 0x38420000
++				rel := obj.Addrel(ctxt.Cursym)
++				rel.Off = 0
++				rel.Siz = 8
++				rel.Sym = obj.Linklookup(ctxt, ".TOC.", 0)
++				rel.Type = obj.R_ADDRPOWER_PCREL
+ 			}
+ 
+-			q = p
++			if cursym.Text.From3.Offset&obj.NOSPLIT == 0 {
++				q = stacksplit(ctxt, q, autosize) // emit split check
++			}
+ 
+ 			if autosize != 0 {
+ 				/* use MOVDU to adjust R1 when saving R31, if autosize is small */
+@@ -354,7 +388,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 					mov = AMOVDU
+ 					aoffset = int(-autosize)
+ 				} else {
+-					q = obj.Appendp(ctxt, p)
++					q = obj.Appendp(ctxt, q)
+ 					q.As = AADD
+ 					q.Lineno = p.Lineno
+ 					q.From.Type = obj.TYPE_CONST
+@@ -395,6 +429,17 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 				q.Spadj = int32(-aoffset)
+ 			}
+ 
++			if ctxt.Flag_shared != 0 {
++				q = obj.Appendp(ctxt, q)
++				q.As = AMOVD
++				q.Lineno = p.Lineno
++				q.From.Type = obj.TYPE_REG
++				q.From.Reg = REG_R2
++				q.To.Type = obj.TYPE_MEM
++				q.To.Reg = REGSP
++				q.To.Offset = 24
++			}
++
+ 			if cursym.Text.From3.Offset&obj.WRAPPER != 0 {
+ 				// if(g->panic != nil && g->panic->argp == FP) g->panic->argp = bottom-of-frame
+ 				//
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 8843e62936..ca8eabbcca 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -356,7 +356,9 @@ func relocsym(s *LSym) {
+ 		// We need to be able to reference dynimport symbols when linking against
+ 		// shared libraries, and Solaris needs it always
+ 		if HEADTYPE != obj.Hsolaris && r.Sym != nil && r.Sym.Type == obj.SDYNIMPORT && !DynlinkingGo() {
+-			Diag("unhandled relocation for %s (type %d rtype %d)", r.Sym.Name, r.Sym.Type, r.Type)
++			if !(Thearch.Thechar == '9' && Linkmode == LinkExternal && r.Sym.Name == ".TOC.") {
++				Diag("unhandled relocation for %s (type %d rtype %d)", r.Sym.Name, r.Sym.Type, r.Type)
++			}
+ 		}
+ 		if r.Sym != nil && r.Sym.Type != obj.STLSBSS && !r.Sym.Reachable {
+ 			Diag("unreachable sym in relocation: %s %s", s.Name, r.Sym.Name)
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index d55c4e6a49..8101353485 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -1838,7 +1838,7 @@ func genasmsym(put func(*LSym, string, int, int64, int64, int, *LSym)) {
+ 	}
+ 
+ 	for s := Ctxt.Allsym; s != nil; s = s.Allsym {
+-		if s.Hide != 0 || ((s.Name == "" || s.Name[0] == '.') && s.Version == 0 && s.Name != ".rathole") {
++		if s.Hide != 0 || ((s.Name == "" || s.Name[0] == '.') && s.Version == 0 && s.Name != ".rathole" && s.Name != ".TOC.") {
+ 			continue
+ 		}
+ 		switch s.Type & obj.SMASK {
+diff --git a/src/cmd/link/internal/ld/symtab.go b/src/cmd/link/internal/ld/symtab.go
+index b3ca1583a7..16b6ee1a55 100644
+--- a/src/cmd/link/internal/ld/symtab.go
++++ b/src/cmd/link/internal/ld/symtab.go
+@@ -162,6 +162,12 @@ func putelfsym(x *LSym, s string, t int, addr int64, size int64, ver int, go_ *L
+ 	if x.Type&obj.SHIDDEN != 0 {
+ 		other = STV_HIDDEN
+ 	}
++	if Buildmode == BuildmodePIE && Thearch.Thechar == '9' && type_ == STT_FUNC && x.Name != "runtime.duffzero" && x.Name != "runtime.duffcopy" {
++		// On ppc64 the top three bits of the st_other field indicate how
++		// many instructions separate the global and local entry points. In
++		// our case it is two instructions, indicated by the value 3.
++		other |= 3 << 5
++	}
+ 
+ 	if DynlinkingGo() && bind == STB_GLOBAL && elfbind == STB_LOCAL && x.Type == obj.STEXT {
+ 		// When dynamically linking, we want references to functions defined
+diff --git a/src/cmd/link/internal/ppc64/asm.go b/src/cmd/link/internal/ppc64/asm.go
+index cdcfb3d076..54b9c38cc5 100644
+--- a/src/cmd/link/internal/ppc64/asm.go
++++ b/src/cmd/link/internal/ppc64/asm.go
+@@ -325,6 +325,13 @@ func elfreloc1(r *ld.Reloc, sectoff int64) int {
+ 		ld.Thearch.Vput(uint64(sectoff + 4))
+ 		ld.Thearch.Vput(ld.R_PPC64_ADDR16_LO_DS | uint64(elfsym)<<32)
+ 
++	case obj.R_ADDRPOWER_PCREL:
++		ld.Thearch.Vput(ld.R_PPC64_REL16_HA | uint64(elfsym)<<32)
++		ld.Thearch.Vput(uint64(r.Xadd))
++		ld.Thearch.Vput(uint64(sectoff + 4))
++		ld.Thearch.Vput(ld.R_PPC64_REL16_LO | uint64(elfsym)<<32)
++		r.Xadd += 4
++
+ 	case obj.R_CALLPOWER:
+ 		if r.Siz != 4 {
+ 			return -1
+@@ -433,7 +440,8 @@ func archreloc(r *ld.Reloc, s *ld.LSym, val *int64) int {
+ 			return 0
+ 
+ 		case obj.R_ADDRPOWER,
+-			obj.R_ADDRPOWER_DS:
++			obj.R_ADDRPOWER_DS,
++			obj.R_ADDRPOWER_PCREL:
+ 			r.Done = 0
+ 
+ 			// set up addend for eventual relocation via outer symbol.
+diff --git a/src/cmd/link/internal/ppc64/obj.go b/src/cmd/link/internal/ppc64/obj.go
+index 0fb401161c..248c66e25b 100644
+--- a/src/cmd/link/internal/ppc64/obj.go
++++ b/src/cmd/link/internal/ppc64/obj.go
+@@ -103,6 +103,11 @@ func archinit() {
+ 		ld.Linkmode = ld.LinkExternal
+ 	}
+ 
++	if ld.Linkmode == ld.LinkExternal {
++		toc := ld.Linklookup(ld.Ctxt, ".TOC.", 0)
++		toc.Type = obj.SDYNIMPORT
++	}
++
+ 	switch ld.HEADTYPE {
+ 	default:
+ 		if ld.Linkmode == ld.LinkAuto {
+diff --git a/src/runtime/asm_ppc64x.s b/src/runtime/asm_ppc64x.s
+index 5f5a658562..86d8d04fff 100644
+--- a/src/runtime/asm_ppc64x.s
++++ b/src/runtime/asm_ppc64x.s
+@@ -17,8 +17,9 @@ TEXT runtime·rt0_go(SB),NOSPLIT,$0
+ 	BL	runtime·reginit(SB)
+ 
+ 	SUB	$(FIXED_FRAME+16), R1
+-	MOVW	R3, FIXED_FRAME+0(R1) // argc
+-	MOVD	R4, FIXED_FRAME+8(R1) // argv
++	MOVD	R2, 24(R1)		// stash the TOC pointer away again now we've created a new frame
++	MOVW	R3, FIXED_FRAME+0(R1)	// argc
++	MOVD	R4, FIXED_FRAME+8(R1)	// argv
+ 
+ 	// create istack out of the given (operating system) stack.
+ 	// _cgo_init may update stackguard.
+@@ -45,6 +46,7 @@ TEXT runtime·rt0_go(SB),NOSPLIT,$0
+ 	RLDCR	$0, R1, $~15, R1	// 16-byte align
+ 	BL	(CTR)			// may clobber R0, R3-R12
+ 	MOVD	R14, R1			// restore stack
++	MOVD	24(R1), R2
+ 	XOR	R0, R0			// fix R0
+ 
+ nocgo:
+@@ -181,6 +183,7 @@ TEXT runtime·mcall(SB), NOSPLIT|NOFRAME, $0-8
+ 	MOVDU	R0, -8(R1)
+ 	MOVDU	R0, -8(R1)
+ 	BL	(CTR)
++	MOVD	24(R1), R2
+ 	BR	runtime·badmcall2(SB)
+ 
+ // systemstack_switch is a dummy routine that systemstack leaves at the bottom
+@@ -189,6 +192,11 @@ TEXT runtime·mcall(SB), NOSPLIT|NOFRAME, $0-8
+ // at the top of the system stack because the one at the top of
+ // the system stack terminates the stack walk (see topofstack()).
+ TEXT runtime·systemstack_switch(SB), NOSPLIT, $0-0
++	// We have several undefs here so that 16 bytes past
++	// $runtime·systemstack_switch lies within them whether or not the
++        // instructions that derive r2 from r12 are there.
++	UNDEF
++	UNDEF
+ 	UNDEF
+ 	BL	(LR)	// make sure this function is not leaf
+ 	RET
+@@ -221,7 +229,7 @@ switch:
+ 	// save our state in g->sched.  Pretend to
+ 	// be systemstack_switch if the G stack is scanned.
+ 	MOVD	$runtime·systemstack_switch(SB), R6
+-	ADD	$8, R6	// get past prologue
++	ADD     $16, R6 // get past prologue (including r2-setting instructions when they're there)
+ 	MOVD	R6, (g_sched+gobuf_pc)(g)
+ 	MOVD	R1, (g_sched+gobuf_sp)(g)
+ 	MOVD	R0, (g_sched+gobuf_lr)(g)
+@@ -242,6 +250,13 @@ switch:
+ 	MOVD	R12, CTR
+ 	BL	(CTR)
+ 
++	// restore TOC pointer. It seems unlikely that we will use systemstack
++	// to call a function defined in another module, but the results of
++	// doing so would be so confusing that it's worth doing this.
++	MOVD	g_m(g), R3
++	MOVD	m_curg(R3), g
++	MOVD	(g_sched+gobuf_sp)(g), R3
++	MOVD	24(R3), R2
+ 	// switch back to g
+ 	MOVD	g_m(g), R3
+ 	MOVD	m_curg(R3), g
+@@ -255,6 +270,7 @@ noswitch:
+ 	MOVD	0(R11), R12	// code pointer
+ 	MOVD	R12, CTR
+ 	BL	(CTR)
++	MOVD	24(R1), R2
+ 	RET
+ 
+ /*
+@@ -402,6 +418,7 @@ TEXT NAME(SB), WRAPPER, $MAXSIZE-24;		\
+ 	MOVD	R12, CTR;			\
+ 	PCDATA  $PCDATA_StackMapIndex, $0;	\
+ 	BL	(CTR);				\
++	MOVD	24(R1), R2;			\
+ 	/* copy return values back */		\
+ 	MOVD	arg+16(FP), R3;			\
+ 	MOVWZ	n+24(FP), R4;			\
+@@ -465,11 +482,15 @@ TEXT runtime·procyield(SB),NOSPLIT,$0-0
+ // void jmpdefer(fv, sp);
+ // called from deferreturn.
+ // 1. grab stored LR for caller
+-// 2. sub 4 bytes to get back to BL deferreturn
++// 2. sub 8 bytes to get back to either nop or toc reload before deferreturn
+ // 3. BR to fn
++// When dynamically linking Go, it is not sufficient to rewind to the BL
++// deferreturn -- we might be jumping between modules and so we need to reset
++// the TOC pointer in r2. To do this, codegen inserts MOVD 24(R1), R2 *before*
++// the BL deferreturn and jmpdefer rewinds to that.
+ TEXT runtime·jmpdefer(SB), NOSPLIT|NOFRAME, $0-16
+ 	MOVD	0(R1), R31
+-	SUB	$4, R31
++	SUB     $8, R31
+ 	MOVD	R31, LR
+ 
+ 	MOVD	fv+0(FP), R11
+@@ -532,8 +553,13 @@ g0:
+ 	// C code can clobber R0, so set it back to 0.  F27-F31 are
+ 	// callee save, so we don't need to recover those.
+ 	XOR	R0, R0
+-	// Restore g, stack pointer.  R3 is errno, so don't touch it
++	// Restore g, stack pointer, toc pointer.
++	// R3 is errno, so don't touch it
+ 	MOVD	40(R1), g
++	MOVD    (g_stack+stack_hi)(g), R5
++	MOVD    32(R1), R6
++	SUB     R6, R5
++	MOVD    24(R5), R2
+ 	BL	runtime·save_g(SB)
+ 	MOVD	(g_stack+stack_hi)(g), R5
+ 	MOVD	32(R1), R6
+@@ -1007,8 +1033,16 @@ TEXT _cgo_topofstack(SB),NOSPLIT|NOFRAME,$0
+ 
+ // The top-most function running on a goroutine
+ // returns to goexit+PCQuantum.
++//
++// When dynamically linking Go, it can be returned to from a function
++// implemented in a different module and so needs to reload the TOC pointer
++// from the stack (although this function declares that it does not set up x-a
++// frame, newproc1 does in fact allocate one for goexit and saves the TOC
++// pointer in the correct place).
++// goexit+_PCQuantum is halfway through the usual global entry point prologue
++// that derives r2 from r12 which is a bit silly, but not harmful.
+ TEXT runtime·goexit(SB),NOSPLIT|NOFRAME,$0-0
+-	MOVD	R0, R0	// NOP
++	MOVD	24(R1), R2
+ 	BL	runtime·goexit1(SB)	// does not return
+ 	// traceback from goexit1 must hit code range of goexit
+ 	MOVD	R0, R0	// NOP
+@@ -1027,3 +1061,12 @@ TEXT runtime·prefetchnta(SB),NOSPLIT,$0-8
+ 
+ TEXT runtime·sigreturn(SB),NOSPLIT,$0-8
+         RET
++
++// prepGoExitFrame saves the current TOC pointer (i.e. the TOC pointer for the
++// module containing runtime) to the frame that goexit will execute in when
++// the goroutine exits. It's implemented in assembly mainly because that's the
++// easiest way to get access to R2.
++TEXT runtime·prepGoExitFrame(SB),NOSPLIT,$0-8
++      MOVD    sp+0(FP), R3
++      MOVD    R2, 24(R3)
++      RET
+diff --git a/src/runtime/cgo/gcc_ppc64x.S b/src/runtime/cgo/gcc_ppc64x.S
+index 58f13364c6..a817b3a4fc 100644
+--- a/src/runtime/cgo/gcc_ppc64x.S
++++ b/src/runtime/cgo/gcc_ppc64x.S
+@@ -31,6 +31,7 @@ EXT(crosscall_ppc64):
+ 
+ 	// Set up Go ABI constant registers
+ 	bl	_cgo_reginit
++	nop
+ 
+ 	// Restore g pointer (r30 in Go ABI, which may have been clobbered by C)
+ 	mr	%r30, %r4
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 7da99e7e94..a98d138f35 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -2588,6 +2588,7 @@ func newproc1(fn *funcval, argp *uint8, narg int32, nret int32, callerpc uintptr
+ 	if usesLR {
+ 		// caller's LR
+ 		*(*unsafe.Pointer)(unsafe.Pointer(sp)) = nil
++		prepGoExitFrame(sp)
+ 		spArg += sys.MinFrameSize
+ 	}
+ 	memmove(unsafe.Pointer(spArg), unsafe.Pointer(argp), uintptr(narg))
+diff --git a/src/runtime/sys_linux_ppc64x.s b/src/runtime/sys_linux_ppc64x.s
+index b334a03038..ba410c51b6 100644
+--- a/src/runtime/sys_linux_ppc64x.s
++++ b/src/runtime/sys_linux_ppc64x.s
+@@ -209,6 +209,7 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
+ 	MOVD	fn+0(FP), R12
+ 	MOVD	R12, CTR
+ 	BL	(CTR)
++	MOVD	24(R1), R2
+ 	RET
+ 
+ #ifdef GOARCH_ppc64le
+@@ -238,6 +239,7 @@ TEXT runtime·_sigtramp(SB),NOSPLIT,$64
+ 	MOVD	$runtime·sigtrampgo(SB), R12
+ 	MOVD	R12, CTR
+ 	BL	(CTR)
++	MOVD	24(R1), R2
+ 	RET
+ 
+ TEXT runtime·mmap(SB),NOSPLIT|NOFRAME,$0
+diff --git a/src/runtime/sys_nonppc64x.go b/src/runtime/sys_nonppc64x.go
+new file mode 100644
+index 0000000000..440937498f
+--- /dev/null
++++ b/src/runtime/sys_nonppc64x.go
+@@ -0,0 +1,10 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !ppc64,!ppc64le
++
++package runtime
++
++func prepGoExitFrame(sp uintptr) {
++}
+diff --git a/src/runtime/sys_ppc64x.go b/src/runtime/sys_ppc64x.go
+index bd182e3a19..2ea1f81ee3 100644
+--- a/src/runtime/sys_ppc64x.go
++++ b/src/runtime/sys_ppc64x.go
+@@ -35,3 +35,5 @@ func rewindmorestack(buf *gobuf) {
+ 	print("runtime: pc=", hex(buf.pc), " ", hex(inst), "\n")
+ 	throw("runtime: misuse of rewindmorestack")
+ }
++
++func prepGoExitFrame(sp uintptr)

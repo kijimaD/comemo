@@ -12,6 +12,19 @@ Date:   Tue Jan 13 10:43:43 2015 +1100
     Change-Id: I5405c6472c8a1e812e472e7301bf6084c17549d6
     Reviewed-on: https://go-review.googlesource.com/2704
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/crypto/x509/root_solaris.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/crypto/x509/root_solaris.go b/src/crypto/x509/root_solaris.go
+index bf5d826e0d..3945c4432e 100644
+--- a/src/crypto/x509/root_solaris.go
++++ b/src/crypto/x509/root_solaris.go
+@@ -6,5 +6,6 @@ package x509
+ 
+ // Possible certificate files; stop after finding one.
+ var certFiles = []string{
+-	"/etc/certs/ca-certificates.crt", // Solaris 11.2+
++	"/etc/certs/ca-certificates.crt",     // Solaris 11.2+
++	"/etc/ssl/certs/ca-certificates.crt", // Joyent SmartOS
+ }

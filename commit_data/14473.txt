@@ -12,7 +12,40 @@ Date:   Mon Nov 26 22:03:31 2012 +1100
     R=minux.ma, daniel.morsing, remyoudompheng, rsc
     CC=golang-dev
     https://golang.org/cl/6782100
-
+---
  src/cmd/gc/lex.c   | 5 +++++
  src/cmd/gc/sinit.c | 5 +++++
  2 files changed, 10 insertions(+)
+
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index ad8bdebf03..8e16747efd 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -1165,6 +1165,11 @@ l0:
+ 	case '[':
+ 		if(loophack || lstk != nil) {
+ 			h = malloc(sizeof *h);
++			if(h == nil) {
++				flusherrors();
++				yyerror("out of memory");
++				errorexit();
++			}
+ 			h->v = loophack;
+ 			h->next = lstk;
+ 			lstk = h;
+diff --git a/src/cmd/gc/sinit.c b/src/cmd/gc/sinit.c
+index d1438f1003..e8010099d2 100644
+--- a/src/cmd/gc/sinit.c
++++ b/src/cmd/gc/sinit.c
+@@ -84,6 +84,11 @@ init1(Node *n, NodeList **out)
+ 	}
+ 	n->initorder = InitPending;
+ 	l = malloc(sizeof *l);
++	if(l == nil) {
++		flusherrors();
++		yyerror("out of memory");
++		errorexit();
++	}
+ 	l->next = initlist;
+ 	l->n = n;
+ 	l->end = nil;

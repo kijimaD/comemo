@@ -36,7 +36,7 @@ Date:   Thu Dec 19 10:58:28 2019 -0800
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Giovanni Bajo <rasky@develer.com>
-
+---
  src/cmd/compile/internal/amd64/ssa.go          |  6 ++++++
  src/cmd/compile/internal/gc/ssa.go             |  9 +++------
  src/cmd/compile/internal/ssa/gen/AMD64.rules   |  1 +
@@ -46,3 +46,208 @@ Date:   Thu Dec 19 10:58:28 2019 -0800
  src/cmd/compile/internal/ssa/rewriteAMD64.go   |  3 +++
  test/codegen/mathbits.go                       | 12 ++++++++----
  8 files changed, 46 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/ssa.go b/src/cmd/compile/internal/amd64/ssa.go
+index 210ac13092..4ce81592f4 100644
+--- a/src/cmd/compile/internal/amd64/ssa.go
++++ b/src/cmd/compile/internal/amd64/ssa.go
+@@ -902,6 +902,12 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.From.Type = obj.TYPE_REG
+ 		p.From.Reg = v.Args[0].Reg()
+ 		gc.AddrAuto(&p.To, v)
++	case ssa.OpAMD64LoweredHasCPUFeature:
++		p := s.Prog(x86.AMOVB)
++		p.From.Type = obj.TYPE_MEM
++		gc.AddAux(&p.From, v)
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = v.Reg()
+ 	case ssa.OpAMD64LoweredGetClosurePtr:
+ 		// Closure pointer is DX.
+ 		gc.CheckLoweredGetClosurePtr(v)
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 00587aa3bf..d423c3268d 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -3595,8 +3595,7 @@ func init() {
+ 				s.vars[n] = s.load(types.Types[TFLOAT64], a)
+ 				return s.variable(n, types.Types[TFLOAT64])
+ 			}
+-			addr := s.entryNewValue1A(ssa.OpAddr, types.Types[TBOOL].PtrTo(), x86HasFMA, s.sb)
+-			v := s.load(types.Types[TBOOL], addr)
++			v := s.entryNewValue0A(ssa.OpHasCPUFeature, types.Types[TBOOL], x86HasFMA)
+ 			b := s.endBlock()
+ 			b.Kind = ssa.BlockIf
+ 			b.SetControl(v)
+@@ -3661,8 +3660,7 @@ func init() {
+ 
+ 	makeRoundAMD64 := func(op ssa.Op) func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 		return func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+-			addr := s.entryNewValue1A(ssa.OpAddr, types.Types[TBOOL].PtrTo(), x86HasSSE41, s.sb)
+-			v := s.load(types.Types[TBOOL], addr)
++			v := s.entryNewValue0A(ssa.OpHasCPUFeature, types.Types[TBOOL], x86HasSSE41)
+ 			b := s.endBlock()
+ 			b.Kind = ssa.BlockIf
+ 			b.SetControl(v)
+@@ -3869,8 +3867,7 @@ func init() {
+ 
+ 	makeOnesCountAMD64 := func(op64 ssa.Op, op32 ssa.Op) func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 		return func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+-			addr := s.entryNewValue1A(ssa.OpAddr, types.Types[TBOOL].PtrTo(), x86HasPOPCNT, s.sb)
+-			v := s.load(types.Types[TBOOL], addr)
++			v := s.entryNewValue0A(ssa.OpHasCPUFeature, types.Types[TBOOL], x86HasPOPCNT)
+ 			b := s.endBlock()
+ 			b.Kind = ssa.BlockIf
+ 			b.SetControl(v)
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index 2c9fe4a59b..7a2c148699 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -478,6 +478,7 @@
+ (GetClosurePtr ...) -> (LoweredGetClosurePtr ...)
+ (GetCallerPC ...) -> (LoweredGetCallerPC ...)
+ (GetCallerSP ...) -> (LoweredGetCallerSP ...)
++(HasCPUFeature ...) -> (LoweredHasCPUFeature ...)
+ (Addr ...) -> (LEAQ ...)
+ (LocalAddr {sym} base _) -> (LEAQ {sym} base)
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+index bf949abc20..b32f123418 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+@@ -738,6 +738,8 @@ func init() {
+ 		// It saves all GP registers if necessary, but may clobber others.
+ 		{name: "LoweredWB", argLength: 3, reg: regInfo{inputs: []regMask{buildReg("DI"), buildReg("AX CX DX BX BP SI R8 R9")}, clobbers: callerSave &^ gp}, clobberFlags: true, aux: "Sym", symEffect: "None"},
+ 
++		{name: "LoweredHasCPUFeature", argLength: 0, reg: gp01, rematerializeable: true, typ: "bool", aux: "Sym", symEffect: "None"},
++
+ 		// There are three of these functions so that they can have three different register inputs.
+ 		// When we check 0 <= c <= cap (A), then 0 <= b <= c (B), then 0 <= a <= b (C), we want the
+ 		// default registers to match so we don't need to copy registers around unnecessarily.
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index 2892a0b3cf..15acbf5b42 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -378,6 +378,8 @@ var genericOps = []opData{
+ 	// arch-dependent), and is not a safe-point.
+ 	{name: "WB", argLength: 3, typ: "Mem", aux: "Sym", symEffect: "None"}, // arg0=destptr, arg1=srcptr, arg2=mem, aux=runtime.gcWriteBarrier
+ 
++	{name: "HasCPUFeature", argLength: 0, typ: "bool", aux: "Sym", symEffect: "None"}, // aux=place that this feature flag can be loaded from
++
+ 	// PanicBounds and PanicExtend generate a runtime panic.
+ 	// Their arguments provide index values to use in panic messages.
+ 	// Both PanicBounds and PanicExtend have an AuxInt value from the BoundsKind type (in ../op.go).
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index bf48bff8f1..e8d1b841c8 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -885,6 +885,7 @@ const (
+ 	OpAMD64LoweredGetCallerSP
+ 	OpAMD64LoweredNilCheck
+ 	OpAMD64LoweredWB
++	OpAMD64LoweredHasCPUFeature
+ 	OpAMD64LoweredPanicBoundsA
+ 	OpAMD64LoweredPanicBoundsB
+ 	OpAMD64LoweredPanicBoundsC
+@@ -2596,6 +2597,7 @@ const (
+ 	OpMoveWB
+ 	OpZeroWB
+ 	OpWB
++	OpHasCPUFeature
+ 	OpPanicBounds
+ 	OpPanicExtend
+ 	OpClosureCall
+@@ -11650,6 +11652,18 @@ var opcodeTable = [...]opInfo{
+ 			clobbers: 4294901760, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+ 		},
+ 	},
++	{
++		name:              "LoweredHasCPUFeature",
++		auxType:           auxSym,
++		argLen:            0,
++		rematerializeable: true,
++		symEffect:         SymNone,
++		reg: regInfo{
++			outputs: []outputInfo{
++				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++			},
++		},
++	},
+ 	{
+ 		name:    "LoweredPanicBoundsA",
+ 		auxType: auxInt64,
+@@ -32979,6 +32993,13 @@ var opcodeTable = [...]opInfo{
+ 		symEffect: SymNone,
+ 		generic:   true,
+ 	},
++	{
++		name:      "HasCPUFeature",
++		auxType:   auxSym,
++		argLen:    0,
++		symEffect: SymNone,
++		generic:   true,
++	},
+ 	{
+ 		name:    "PanicBounds",
+ 		auxType: auxInt64,
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index d6ea57d649..1f147c9eb5 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -786,6 +786,9 @@ func rewriteValueAMD64(v *Value) bool {
+ 		return rewriteValueAMD64_OpGreater32F(v)
+ 	case OpGreater64F:
+ 		return rewriteValueAMD64_OpGreater64F(v)
++	case OpHasCPUFeature:
++		v.Op = OpAMD64LoweredHasCPUFeature
++		return true
+ 	case OpHmul32:
+ 		v.Op = OpAMD64HMULL
+ 		return true
+diff --git a/test/codegen/mathbits.go b/test/codegen/mathbits.go
+index e405d6b1d2..8bd6242b1e 100644
+--- a/test/codegen/mathbits.go
++++ b/test/codegen/mathbits.go
+@@ -110,8 +110,9 @@ func Len8(n uint8) int {
+ //    bits.OnesCount    //
+ // -------------------- //
+ 
++// amd64:".*x86HasPOPCNT"
+ func OnesCount(n uint) int {
+-	// amd64:"POPCNTQ",".*x86HasPOPCNT"
++	// amd64:"POPCNTQ"
+ 	// arm64:"VCNT","VUADDLV"
+ 	// s390x:"POPCNT"
+ 	// ppc64:"POPCNTD"
+@@ -120,8 +121,9 @@ func OnesCount(n uint) int {
+ 	return bits.OnesCount(n)
+ }
+ 
++// amd64:".*x86HasPOPCNT"
+ func OnesCount64(n uint64) int {
+-	// amd64:"POPCNTQ",".*x86HasPOPCNT"
++	// amd64:"POPCNTQ"
+ 	// arm64:"VCNT","VUADDLV"
+ 	// s390x:"POPCNT"
+ 	// ppc64:"POPCNTD"
+@@ -130,8 +132,9 @@ func OnesCount64(n uint64) int {
+ 	return bits.OnesCount64(n)
+ }
+ 
++// amd64:".*x86HasPOPCNT"
+ func OnesCount32(n uint32) int {
+-	// amd64:"POPCNTL",".*x86HasPOPCNT"
++	// amd64:"POPCNTL"
+ 	// arm64:"VCNT","VUADDLV"
+ 	// s390x:"POPCNT"
+ 	// ppc64:"POPCNTW"
+@@ -140,8 +143,9 @@ func OnesCount32(n uint32) int {
+ 	return bits.OnesCount32(n)
+ }
+ 
++// amd64:".*x86HasPOPCNT"
+ func OnesCount16(n uint16) int {
+-	// amd64:"POPCNTL",".*x86HasPOPCNT"
++	// amd64:"POPCNTL"
+ 	// arm64:"VCNT","VUADDLV"
+ 	// s390x:"POPCNT"
+ 	// ppc64:"POPCNTW"

@@ -8,6 +8,18 @@ Date:   Mon Jun 24 17:48:31 2013 -0700
     R=golang-dev, dave, bradfitz
     CC=golang-dev
     https://golang.org/cl/10514046
-
+---
  src/pkg/crypto/sha1/sha1block_decl.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/pkg/crypto/sha1/sha1block_decl.go b/src/pkg/crypto/sha1/sha1block_decl.go
+index 3512a58299..4cb157fff6 100644
+--- a/src/pkg/crypto/sha1/sha1block_decl.go
++++ b/src/pkg/crypto/sha1/sha1block_decl.go
+@@ -6,4 +6,6 @@
+ 
+ package sha1
+ 
++//go:noescape
++
+ func block(dig *digest, p []byte)

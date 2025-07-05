@@ -24,7 +24,7 @@ Date:   Thu Oct 19 16:01:43 2017 -0700
     Change-Id: Ib23fbaaddbccd8eee77bdf18f27a7f0aa50e2742
     Reviewed-on: https://go-review.googlesource.com/71973
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/internal/poll/fd_unix.go        |  9 +++++
  src/net/write_unix_test.go          | 66 +++++++++++++++++++++++++++++++++++++
  src/runtime/defs1_netbsd_386.go     |  1 +
@@ -48,3 +48,355 @@ Date:   Thu Oct 19 16:01:43 2017 -0700
  src/runtime/defs_openbsd_arm.go     |  1 +
  src/runtime/netpoll_kqueue.go       | 19 +++++++++--
  22 files changed, 110 insertions(+), 3 deletions(-)
+
+diff --git a/src/internal/poll/fd_unix.go b/src/internal/poll/fd_unix.go
+index c51370a682..3ac6927337 100644
+--- a/src/internal/poll/fd_unix.go
++++ b/src/internal/poll/fd_unix.go
+@@ -411,6 +411,15 @@ func (fd *FD) WaitWrite() error {
+ 	return fd.pd.waitWrite(fd.isFile)
+ }
+ 
++// WriteOnce is for testing only. It makes a single write call.
++func (fd *FD) WriteOnce(p []byte) (int, error) {
++	if err := fd.writeLock(); err != nil {
++		return 0, err
++	}
++	defer fd.writeUnlock()
++	return syscall.Write(fd.Sysfd, p)
++}
++
+ // RawControl invokes the user-defined function f for a non-IO
+ // operation.
+ func (fd *FD) RawControl(f func(uintptr)) error {
+diff --git a/src/net/write_unix_test.go b/src/net/write_unix_test.go
+new file mode 100644
+index 0000000000..6d8cb6a6f8
+--- /dev/null
++++ b/src/net/write_unix_test.go
+@@ -0,0 +1,66 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build darwin dragonfly freebsd linux netbsd openbsd solaris
++
++package net
++
++import (
++	"bytes"
++	"syscall"
++	"testing"
++	"time"
++)
++
++// Test that a client can't trigger an endless loop of write system
++// calls on the server by shutting down the write side on the client.
++// Possibility raised in the discussion of https://golang.org/cl/71973.
++func TestEndlessWrite(t *testing.T) {
++	t.Parallel()
++	c := make(chan bool)
++	server := func(cs *TCPConn) error {
++		cs.CloseWrite()
++		<-c
++		return nil
++	}
++	client := func(ss *TCPConn) error {
++		// Tell the server to return when we return.
++		defer close(c)
++
++		// Loop writing to the server. The server is not reading
++		// anything, so this will eventually block, and then time out.
++		b := bytes.Repeat([]byte{'a'}, 8192)
++		cagain := 0
++		for {
++			n, err := ss.conn.fd.pfd.WriteOnce(b)
++			if n > 0 {
++				cagain = 0
++			}
++			switch err {
++			case nil:
++			case syscall.EAGAIN:
++				if cagain == 0 {
++					// We've written enough data to
++					// start blocking. Set a deadline
++					// so that we will stop.
++					ss.SetWriteDeadline(time.Now().Add(5 * time.Millisecond))
++				}
++				cagain++
++				if cagain > 20 {
++					t.Error("looping on EAGAIN")
++					return nil
++				}
++				if err = ss.conn.fd.pfd.WaitWrite(); err != nil {
++					t.Logf("client WaitWrite: %v", err)
++					return nil
++				}
++			default:
++				// We expect to eventually get an error.
++				t.Logf("client WriteOnce: %v", err)
++				return nil
++			}
++		}
++	}
++	withTCPConnPair(t, client, server)
++}
+diff --git a/src/runtime/defs1_netbsd_386.go b/src/runtime/defs1_netbsd_386.go
+index 66f07ce5a5..c26f417a02 100644
+--- a/src/runtime/defs1_netbsd_386.go
++++ b/src/runtime/defs1_netbsd_386.go
+@@ -79,6 +79,7 @@ const (
+ 	_EV_CLEAR     = 0x20
+ 	_EV_RECEIPT   = 0
+ 	_EV_ERROR     = 0x4000
++	_EV_EOF       = 0x8000
+ 	_EVFILT_READ  = 0x0
+ 	_EVFILT_WRITE = 0x1
+ )
+diff --git a/src/runtime/defs1_netbsd_amd64.go b/src/runtime/defs1_netbsd_amd64.go
+index 9e314718f3..0704cd4fb3 100644
+--- a/src/runtime/defs1_netbsd_amd64.go
++++ b/src/runtime/defs1_netbsd_amd64.go
+@@ -79,6 +79,7 @@ const (
+ 	_EV_CLEAR     = 0x20
+ 	_EV_RECEIPT   = 0
+ 	_EV_ERROR     = 0x4000
++	_EV_EOF       = 0x8000
+ 	_EVFILT_READ  = 0x0
+ 	_EVFILT_WRITE = 0x1
+ )
+diff --git a/src/runtime/defs1_netbsd_arm.go b/src/runtime/defs1_netbsd_arm.go
+index db8e4c63fc..d2a13ad4b0 100644
+--- a/src/runtime/defs1_netbsd_arm.go
++++ b/src/runtime/defs1_netbsd_arm.go
+@@ -79,6 +79,7 @@ const (
+ 	_EV_CLEAR     = 0x20
+ 	_EV_RECEIPT   = 0
+ 	_EV_ERROR     = 0x4000
++	_EV_EOF       = 0x8000
+ 	_EVFILT_READ  = 0x0
+ 	_EVFILT_WRITE = 0x1
+ )
+diff --git a/src/runtime/defs_darwin.go b/src/runtime/defs_darwin.go
+index 78df4e7ac8..f7d65e700d 100644
+--- a/src/runtime/defs_darwin.go
++++ b/src/runtime/defs_darwin.go
+@@ -139,6 +139,7 @@ const (
+ 	EV_CLEAR     = C.EV_CLEAR
+ 	EV_RECEIPT   = C.EV_RECEIPT
+ 	EV_ERROR     = C.EV_ERROR
++	EV_EOF       = C.EV_EOF
+ 	EVFILT_READ  = C.EVFILT_READ
+ 	EVFILT_WRITE = C.EVFILT_WRITE
+ )
+diff --git a/src/runtime/defs_darwin_386.go b/src/runtime/defs_darwin_386.go
+index 1a5967b24b..f6dbcc519c 100644
+--- a/src/runtime/defs_darwin_386.go
++++ b/src/runtime/defs_darwin_386.go
+@@ -118,6 +118,7 @@ const (
+ 	_EV_CLEAR     = 0x20
+ 	_EV_RECEIPT   = 0x40
+ 	_EV_ERROR     = 0x4000
++	_EV_EOF       = 0x8000
+ 	_EVFILT_READ  = -0x1
+ 	_EVFILT_WRITE = -0x2
+ )
+diff --git a/src/runtime/defs_darwin_amd64.go b/src/runtime/defs_darwin_amd64.go
+index a4ab090d51..245fe158c7 100644
+--- a/src/runtime/defs_darwin_amd64.go
++++ b/src/runtime/defs_darwin_amd64.go
+@@ -118,6 +118,7 @@ const (
+ 	_EV_CLEAR     = 0x20
+ 	_EV_RECEIPT   = 0x40
+ 	_EV_ERROR     = 0x4000
++	_EV_EOF       = 0x8000
+ 	_EVFILT_READ  = -0x1
+ 	_EVFILT_WRITE = -0x2
+ )
+diff --git a/src/runtime/defs_darwin_arm.go b/src/runtime/defs_darwin_arm.go
+index 3f8dbbf254..f89aee6775 100644
+--- a/src/runtime/defs_darwin_arm.go
++++ b/src/runtime/defs_darwin_arm.go
+@@ -120,6 +120,7 @@ const (
+ 	_EV_CLEAR     = 0x20
+ 	_EV_RECEIPT   = 0x40
+ 	_EV_ERROR     = 0x4000
++	_EV_EOF       = 0x8000
+ 	_EVFILT_READ  = -0x1
+ 	_EVFILT_WRITE = -0x2
+ )
+diff --git a/src/runtime/defs_darwin_arm64.go b/src/runtime/defs_darwin_arm64.go
+index c25a41b749..a0ca7f1703 100644
+--- a/src/runtime/defs_darwin_arm64.go
++++ b/src/runtime/defs_darwin_arm64.go
+@@ -118,6 +118,7 @@ const (
+ 	_EV_CLEAR     = 0x20
+ 	_EV_RECEIPT   = 0x40
+ 	_EV_ERROR     = 0x4000
++	_EV_EOF       = 0x8000
+ 	_EVFILT_READ  = -0x1
+ 	_EVFILT_WRITE = -0x2
+ )
+diff --git a/src/runtime/defs_dragonfly.go b/src/runtime/defs_dragonfly.go
+index ed00be0f44..95014fe6e7 100644
+--- a/src/runtime/defs_dragonfly.go
++++ b/src/runtime/defs_dragonfly.go
+@@ -103,6 +103,7 @@ const (
+ 	EV_DELETE    = C.EV_DELETE
+ 	EV_CLEAR     = C.EV_CLEAR
+ 	EV_ERROR     = C.EV_ERROR
++	EV_EOF       = C.EV_EOF
+ 	EVFILT_READ  = C.EVFILT_READ
+ 	EVFILT_WRITE = C.EVFILT_WRITE
+ )
+diff --git a/src/runtime/defs_dragonfly_amd64.go b/src/runtime/defs_dragonfly_amd64.go
+index fc70103286..c30da805cc 100644
+--- a/src/runtime/defs_dragonfly_amd64.go
++++ b/src/runtime/defs_dragonfly_amd64.go
+@@ -82,6 +82,7 @@ const (
+ 	_EV_DELETE    = 0x2
+ 	_EV_CLEAR     = 0x20
+ 	_EV_ERROR     = 0x4000
++	_EV_EOF       = 0x8000
+ 	_EVFILT_READ  = -0x1
+ 	_EVFILT_WRITE = -0x2
+ )
+diff --git a/src/runtime/defs_freebsd.go b/src/runtime/defs_freebsd.go
+index 0a11d09db2..9d55111786 100644
+--- a/src/runtime/defs_freebsd.go
++++ b/src/runtime/defs_freebsd.go
+@@ -125,6 +125,7 @@ const (
+ 	EV_CLEAR     = C.EV_CLEAR
+ 	EV_RECEIPT   = C.EV_RECEIPT
+ 	EV_ERROR     = C.EV_ERROR
++	EV_EOF       = C.EV_EOF
+ 	EVFILT_READ  = C.EVFILT_READ
+ 	EVFILT_WRITE = C.EVFILT_WRITE
+ )
+diff --git a/src/runtime/defs_freebsd_386.go b/src/runtime/defs_freebsd_386.go
+index 92b05503a3..49bcbb12a2 100644
+--- a/src/runtime/defs_freebsd_386.go
++++ b/src/runtime/defs_freebsd_386.go
+@@ -95,6 +95,7 @@ const (
+ 	_EV_CLEAR     = 0x20
+ 	_EV_RECEIPT   = 0x40
+ 	_EV_ERROR     = 0x4000
++	_EV_EOF       = 0x8000
+ 	_EVFILT_READ  = -0x1
+ 	_EVFILT_WRITE = -0x2
+ )
+diff --git a/src/runtime/defs_freebsd_amd64.go b/src/runtime/defs_freebsd_amd64.go
+index 645e2053f2..0e1c6752d6 100644
+--- a/src/runtime/defs_freebsd_amd64.go
++++ b/src/runtime/defs_freebsd_amd64.go
+@@ -95,6 +95,7 @@ const (
+ 	_EV_CLEAR     = 0x20
+ 	_EV_RECEIPT   = 0x40
+ 	_EV_ERROR     = 0x4000
++	_EV_EOF       = 0x8000
+ 	_EVFILT_READ  = -0x1
+ 	_EVFILT_WRITE = -0x2
+ )
+diff --git a/src/runtime/defs_freebsd_arm.go b/src/runtime/defs_freebsd_arm.go
+index c8a198fb4a..71684fe9f8 100644
+--- a/src/runtime/defs_freebsd_arm.go
++++ b/src/runtime/defs_freebsd_arm.go
+@@ -95,6 +95,7 @@ const (
+ 	_EV_CLEAR     = 0x20
+ 	_EV_RECEIPT   = 0x40
+ 	_EV_ERROR     = 0x4000
++	_EV_EOF       = 0x8000
+ 	_EVFILT_READ  = -0x1
+ 	_EVFILT_WRITE = -0x2
+ )
+diff --git a/src/runtime/defs_netbsd.go b/src/runtime/defs_netbsd.go
+index 56db1f0159..41aa07af98 100644
+--- a/src/runtime/defs_netbsd.go
++++ b/src/runtime/defs_netbsd.go
+@@ -105,6 +105,7 @@ const (
+ 	EV_CLEAR     = C.EV_CLEAR
+ 	EV_RECEIPT   = 0
+ 	EV_ERROR     = C.EV_ERROR
++	EV_EOF       = C.EV_EOF
+ 	EVFILT_READ  = C.EVFILT_READ
+ 	EVFILT_WRITE = C.EVFILT_WRITE
+ )
+diff --git a/src/runtime/defs_openbsd.go b/src/runtime/defs_openbsd.go
+index 7e721504e6..9ff13dfcbf 100644
+--- a/src/runtime/defs_openbsd.go
++++ b/src/runtime/defs_openbsd.go
+@@ -100,6 +100,7 @@ const (
+ 	EV_DELETE    = C.EV_DELETE
+ 	EV_CLEAR     = C.EV_CLEAR
+ 	EV_ERROR     = C.EV_ERROR
++	EV_EOF       = C.EV_EOF
+ 	EVFILT_READ  = C.EVFILT_READ
+ 	EVFILT_WRITE = C.EVFILT_WRITE
+ )
+diff --git a/src/runtime/defs_openbsd_386.go b/src/runtime/defs_openbsd_386.go
+index ce08111dea..1185530964 100644
+--- a/src/runtime/defs_openbsd_386.go
++++ b/src/runtime/defs_openbsd_386.go
+@@ -80,6 +80,7 @@ const (
+ 	_EV_DELETE    = 0x2
+ 	_EV_CLEAR     = 0x20
+ 	_EV_ERROR     = 0x4000
++	_EV_EOF       = 0x8000
+ 	_EVFILT_READ  = -0x1
+ 	_EVFILT_WRITE = -0x2
+ )
+diff --git a/src/runtime/defs_openbsd_amd64.go b/src/runtime/defs_openbsd_amd64.go
+index ea0709809a..4bb8eac08f 100644
+--- a/src/runtime/defs_openbsd_amd64.go
++++ b/src/runtime/defs_openbsd_amd64.go
+@@ -80,6 +80,7 @@ const (
+ 	_EV_DELETE    = 0x2
+ 	_EV_CLEAR     = 0x20
+ 	_EV_ERROR     = 0x4000
++	_EV_EOF       = 0x8000
+ 	_EVFILT_READ  = -0x1
+ 	_EVFILT_WRITE = -0x2
+ )
+diff --git a/src/runtime/defs_openbsd_arm.go b/src/runtime/defs_openbsd_arm.go
+index b0fb639c72..38b77c92d0 100644
+--- a/src/runtime/defs_openbsd_arm.go
++++ b/src/runtime/defs_openbsd_arm.go
+@@ -80,6 +80,7 @@ const (
+ 	_EV_DELETE    = 0x2
+ 	_EV_CLEAR     = 0x20
+ 	_EV_ERROR     = 0x4000
++	_EV_EOF       = 0x8000
+ 	_EVFILT_READ  = -0x1
+ 	_EVFILT_WRITE = -0x2
+ )
+diff --git a/src/runtime/netpoll_kqueue.go b/src/runtime/netpoll_kqueue.go
+index 71de98bcd6..4d5d1a4ea8 100644
+--- a/src/runtime/netpoll_kqueue.go
++++ b/src/runtime/netpoll_kqueue.go
+@@ -88,10 +88,23 @@ retry:
+ 	for i := 0; i < int(n); i++ {
+ 		ev := &events[i]
+ 		var mode int32
+-		if ev.filter == _EVFILT_READ {
++		switch ev.filter {
++		case _EVFILT_READ:
+ 			mode += 'r'
+-		}
+-		if ev.filter == _EVFILT_WRITE {
++
++			// On some systems when the read end of a pipe
++			// is closed the write end will not get a
++			// _EVFILT_WRITE event, but will get a
++			// _EVFILT_READ event with EV_EOF set.
++			// Note that setting 'w' here just means that we
++			// will wake up a goroutine waiting to write;
++			// that goroutine will try the write again,
++			// and the appropriate thing will happen based
++			// on what that write returns (success, EPIPE, EAGAIN).
++			if ev.flags&_EV_EOF != 0 {
++				mode += 'w'
++			}
++		case _EVFILT_WRITE:
+ 			mode += 'w'
+ 		}
+ 		if mode != 0 {

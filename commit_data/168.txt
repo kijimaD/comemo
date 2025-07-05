@@ -5,7 +5,64 @@ Date:   Fri Jun 13 09:09:22 2008 -0700
     Add nil test, with bug
     
     SVN=122644
-
+---
  test/golden.out |  4 ++++
  test/nil.go     | 35 +++++++++++++++++++++++++++++++++++
  2 files changed, 39 insertions(+)
+
+diff --git a/test/golden.out b/test/golden.out
+index 50c3793be5..f9cbc2e65f 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -26,6 +26,10 @@ BUG: known to succeed incorrectly
+ 
+ =========== ./literal.go
+ 
++=========== ./nil.go
++nil.go:30: fatal error: naddr: const <T>{<i><int32>INT32;}
++BUG: known to fail incorrectly
++
+ =========== ./sieve.go
+ sieve.go:8: fatal error: walktype: switch 1 unknown op SEND l(8)
+ BUG: known to fail incorrectly
+diff --git a/test/nil.go b/test/nil.go
+new file mode 100644
+index 0000000000..3062ea372d
+--- /dev/null
++++ b/test/nil.go
+@@ -0,0 +1,35 @@
++// $G $F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++type T struct {
++	i int
++}
++
++type IN interface {
++}
++
++func main() {
++	var i *int;
++	var f *float;
++	var s *string;
++	var m *map[float] *int;
++	var c *chan int;
++	var t *T;
++	var in IN;
++	var ta *[]T;
++
++	i = nil;
++	f = nil;
++	s = nil;
++	m = nil;
++	c = nil;
++	t = nil;
++	i = nil;
++	ta = new([1]T);
++	ta[0] = nil;  //BUG (see bugs/bug045.go) 
++}

@@ -12,7 +12,48 @@ Date:   Mon Mar 28 10:18:03 2022 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-
+---
  src/net/mail/message.go      |  2 +-
  src/net/mail/message_test.go | 12 +++++++++++-
  2 files changed, 12 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/mail/message.go b/src/net/mail/message.go
+index 5770e3d8dc..61a3a26b01 100644
+--- a/src/net/mail/message.go
++++ b/src/net/mail/message.go
+@@ -79,7 +79,7 @@ func buildDateLayouts() {
+ 	years := [...]string{"2006", "06"} // year = 4*DIGIT / 2*DIGIT
+ 	seconds := [...]string{":05", ""}  // second
+ 	// "-0700 (MST)" is not in RFC 5322, but is common.
+-	zones := [...]string{"-0700", "MST"} // zone = (("+" / "-") 4DIGIT) / "GMT" / ...
++	zones := [...]string{"-0700", "MST", "UT"} // zone = (("+" / "-") 4DIGIT) / "UT" / "GMT" / ...
+ 
+ 	for _, dow := range dows {
+ 		for _, day := range days {
+diff --git a/src/net/mail/message_test.go b/src/net/mail/message_test.go
+index 41c54b8687..61e50ccfd5 100644
+--- a/src/net/mail/message_test.go
++++ b/src/net/mail/message_test.go
+@@ -265,11 +265,21 @@ func TestDateParsingCFWS(t *testing.T) {
+ 		{
+ 			"Tue, 26 May 2020 14:04:40 UT",
+ 			time.Date(2020, 05, 26, 14, 04, 40, 0, time.UTC),
+-			false,
++			true,
+ 		},
+ 		{
+ 			"Thu, 21 May 2020 14:04:40 UT",
+ 			time.Date(2020, 05, 21, 14, 04, 40, 0, time.UTC),
++			true,
++		},
++		{
++			"Tue, 26 May 2020 14:04:40 XT",
++			time.Date(2020, 05, 26, 14, 04, 40, 0, time.UTC),
++			false,
++		},
++		{
++			"Thu, 21 May 2020 14:04:40 XT",
++			time.Date(2020, 05, 21, 14, 04, 40, 0, time.UTC),
+ 			false,
+ 		},
+ 		{

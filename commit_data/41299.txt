@@ -11,9 +11,413 @@ Date:   Tue Jul 30 17:28:29 2019 -0400
     Change-Id: I922a97d0f25d52ea70cd974008a063d4e7af34a7
     Reviewed-on: https://go-review.googlesource.com/c/go/+/188023
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/internal/obj/pcln.go      | 66 +++++++++++++++++++++++++++++++
  src/cmd/link/internal/ld/dwarf.go | 68 ++++++++++++++++----------------
  src/cmd/link/internal/ld/lib.go   | 15 +++----
  src/cmd/link/internal/ld/pcln.go  | 83 +++++----------------------------------
  4 files changed, 117 insertions(+), 115 deletions(-)
+
+diff --git a/src/cmd/internal/obj/pcln.go b/src/cmd/internal/obj/pcln.go
+index e7f340595f..26cbe9fe04 100644
+--- a/src/cmd/internal/obj/pcln.go
++++ b/src/cmd/internal/obj/pcln.go
+@@ -384,3 +384,69 @@ func linkpcln(ctxt *Link, cursym *LSym) {
+ 		}
+ 	}
+ }
++
++// PCIter iterates over encoded pcdata tables.
++type PCIter struct {
++	p       []byte
++	PC      uint32
++	NextPC  uint32
++	PCScale uint32
++	Value   int32
++	start   bool
++	Done    bool
++}
++
++// newPCIter creates a PCIter with a scale factor for the PC step size.
++func NewPCIter(pcScale uint32) *PCIter {
++	it := new(PCIter)
++	it.PCScale = pcScale
++	return it
++}
++
++// Next advances it to the Next pc.
++func (it *PCIter) Next() {
++	it.PC = it.NextPC
++	if it.Done {
++		return
++	}
++	if len(it.p) == 0 {
++		it.Done = true
++		return
++	}
++
++	// Value delta
++	val, n := binary.Varint(it.p)
++	if n <= 0 {
++		log.Fatalf("bad Value varint in pciterNext: read %v", n)
++	}
++	it.p = it.p[n:]
++
++	if val == 0 && !it.start {
++		it.Done = true
++		return
++	}
++
++	it.start = false
++	it.Value += int32(val)
++
++	// pc delta
++	pc, n := binary.Uvarint(it.p)
++	if n <= 0 {
++		log.Fatalf("bad pc varint in pciterNext: read %v", n)
++	}
++	it.p = it.p[n:]
++
++	it.NextPC = it.PC + uint32(pc)*it.PCScale
++}
++
++// init prepares it to iterate over p,
++// and advances it to the first pc.
++func (it *PCIter) Init(p []byte) {
++	it.p = p
++	it.PC = 0
++	it.NextPC = 0
++	it.Value = -1
++	it.start = true
++	it.Done = false
++	it.Next()
++}
+diff --git a/src/cmd/link/internal/ld/dwarf.go b/src/cmd/link/internal/ld/dwarf.go
+index 39c8a7f120..7969abb990 100644
+--- a/src/cmd/link/internal/ld/dwarf.go
++++ b/src/cmd/link/internal/ld/dwarf.go
+@@ -1212,42 +1212,42 @@ func writelines(ctxt *Link, unit *compilationUnit, ls *sym.Symbol) {
+ 	file := 1
+ 	ls.AddAddr(ctxt.Arch, s)
+ 
+-	pcfile := newPCIter(ctxt)
+-	pcline := newPCIter(ctxt)
+-	pcstmt := newPCIter(ctxt)
++	pcfile := obj.NewPCIter(uint32(ctxt.Arch.MinLC))
++	pcline := obj.NewPCIter(uint32(ctxt.Arch.MinLC))
++	pcstmt := obj.NewPCIter(uint32(ctxt.Arch.MinLC))
+ 	for i, s := range unit.lib.Textp {
+ 		finddebugruntimepath(s)
+ 
+-		pcfile.init(s.FuncInfo.Pcfile.P)
+-		pcline.init(s.FuncInfo.Pcline.P)
++		pcfile.Init(s.FuncInfo.Pcfile.P)
++		pcline.Init(s.FuncInfo.Pcline.P)
+ 
+ 		isStmtSym := dwarfFuncSym(ctxt, s, dwarf.IsStmtPrefix, false)
+ 		if isStmtSym != nil && len(isStmtSym.P) > 0 {
+-			pcstmt.init(isStmtSym.P)
++			pcstmt.Init(isStmtSym.P)
+ 		} else {
+ 			// Assembly files lack a pcstmt section, we assume that every instruction
+ 			// is a valid statement.
+-			pcstmt.done = true
+-			pcstmt.value = 1
++			pcstmt.Done = true
++			pcstmt.Value = 1
+ 		}
+ 
+ 		var thispc uint32
+ 		// TODO this loop looks like it could exit with work remaining.
+-		for !pcfile.done && !pcline.done {
++		for !pcfile.Done && !pcline.Done {
+ 			// Only changed if it advanced
+-			if int32(file) != pcfile.value {
++			if int32(file) != pcfile.Value {
+ 				ls.AddUint8(dwarf.DW_LNS_set_file)
+-				idx, ok := fileNums[int(pcfile.value)]
++				idx, ok := fileNums[int(pcfile.Value)]
+ 				if !ok {
+ 					Exitf("pcln table file missing from DWARF line table")
+ 				}
+ 				dwarf.Uleb128put(dwarfctxt, ls, int64(idx))
+-				file = int(pcfile.value)
++				file = int(pcfile.Value)
+ 			}
+ 
+ 			// Only changed if it advanced
+-			if is_stmt != uint8(pcstmt.value) {
+-				new_stmt := uint8(pcstmt.value)
++			if is_stmt != uint8(pcstmt.Value) {
++				new_stmt := uint8(pcstmt.Value)
+ 				switch new_stmt &^ 1 {
+ 				case obj.PrologueEnd:
+ 					ls.AddUint8(uint8(dwarf.DW_LNS_set_prologue_end))
+@@ -1263,28 +1263,28 @@ func writelines(ctxt *Link, unit *compilationUnit, ls *sym.Symbol) {
+ 			}
+ 
+ 			// putpcldelta makes a row in the DWARF matrix, always, even if line is unchanged.
+-			putpclcdelta(ctxt, dwarfctxt, ls, uint64(s.Value+int64(thispc)-pc), int64(pcline.value)-int64(line))
++			putpclcdelta(ctxt, dwarfctxt, ls, uint64(s.Value+int64(thispc)-pc), int64(pcline.Value)-int64(line))
+ 
+ 			pc = s.Value + int64(thispc)
+-			line = int(pcline.value)
++			line = int(pcline.Value)
+ 
+ 			// Take the minimum step forward for the three iterators
+-			thispc = pcfile.nextpc
+-			if pcline.nextpc < thispc {
+-				thispc = pcline.nextpc
++			thispc = pcfile.NextPC
++			if pcline.NextPC < thispc {
++				thispc = pcline.NextPC
+ 			}
+-			if !pcstmt.done && pcstmt.nextpc < thispc {
+-				thispc = pcstmt.nextpc
++			if !pcstmt.Done && pcstmt.NextPC < thispc {
++				thispc = pcstmt.NextPC
+ 			}
+ 
+-			if pcfile.nextpc == thispc {
+-				pcfile.next()
++			if pcfile.NextPC == thispc {
++				pcfile.Next()
+ 			}
+-			if !pcstmt.done && pcstmt.nextpc == thispc {
+-				pcstmt.next()
++			if !pcstmt.Done && pcstmt.NextPC == thispc {
++				pcstmt.Next()
+ 			}
+-			if pcline.nextpc == thispc {
+-				pcline.next()
++			if pcline.NextPC == thispc {
++				pcline.Next()
+ 			}
+ 		}
+ 		if is_stmt == 0 && i < len(unit.lib.Textp)-1 {
+@@ -1451,7 +1451,7 @@ func writeframes(ctxt *Link, syms []*sym.Symbol) []*sym.Symbol {
+ 	fs.AddBytes(zeros[:pad])
+ 
+ 	var deltaBuf []byte
+-	pcsp := newPCIter(ctxt)
++	pcsp := obj.NewPCIter(uint32(ctxt.Arch.MinLC))
+ 	for _, s := range ctxt.Textp {
+ 		if s.FuncInfo == nil {
+ 			continue
+@@ -1467,19 +1467,19 @@ func writeframes(ctxt *Link, syms []*sym.Symbol) []*sym.Symbol {
+ 			deltaBuf = append(deltaBuf, dwarf.DW_CFA_undefined)
+ 			deltaBuf = dwarf.AppendUleb128(deltaBuf, uint64(thearch.Dwarfreglr))
+ 		}
+-		for pcsp.init(s.FuncInfo.Pcsp.P); !pcsp.done; pcsp.next() {
+-			nextpc := pcsp.nextpc
++		for pcsp.Init(s.FuncInfo.Pcsp.P); !pcsp.Done; pcsp.Next() {
++			nextpc := pcsp.NextPC
+ 
+ 			// pciterinit goes up to the end of the function,
+ 			// but DWARF expects us to stop just before the end.
+ 			if int64(nextpc) == s.Size {
+ 				nextpc--
+-				if nextpc < pcsp.pc {
++				if nextpc < pcsp.PC {
+ 					continue
+ 				}
+ 			}
+ 
+-			spdelta := int64(pcsp.value)
++			spdelta := int64(pcsp.Value)
+ 			if !haslinkregister(ctxt) {
+ 				// Return address has been pushed onto stack.
+ 				spdelta += int64(ctxt.Arch.PtrSize)
+@@ -1489,7 +1489,7 @@ func writeframes(ctxt *Link, syms []*sym.Symbol) []*sym.Symbol {
+ 				// TODO(bryanpkc): This is imprecise. In general, the instruction
+ 				// that stores the return address to the stack frame is not the
+ 				// same one that allocates the frame.
+-				if pcsp.value > 0 {
++				if pcsp.Value > 0 {
+ 					// The return address is preserved at (CFA-frame_size)
+ 					// after a stack frame has been allocated.
+ 					deltaBuf = append(deltaBuf, dwarf.DW_CFA_offset_extended_sf)
+@@ -1503,7 +1503,7 @@ func writeframes(ctxt *Link, syms []*sym.Symbol) []*sym.Symbol {
+ 				}
+ 			}
+ 
+-			deltaBuf = appendPCDeltaCFA(ctxt.Arch, deltaBuf, int64(nextpc)-int64(pcsp.pc), spdelta)
++			deltaBuf = appendPCDeltaCFA(ctxt.Arch, deltaBuf, int64(nextpc)-int64(pcsp.PC), spdelta)
+ 		}
+ 		pad := int(Rnd(int64(len(deltaBuf)), int64(ctxt.Arch.PtrSize))) - len(deltaBuf)
+ 		deltaBuf = append(deltaBuf, zeros[:pad]...)
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 8919815759..c2de8cbef9 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -34,6 +34,7 @@ import (
+ 	"bufio"
+ 	"bytes"
+ 	"cmd/internal/bio"
++	"cmd/internal/obj"
+ 	"cmd/internal/objabi"
+ 	"cmd/internal/sys"
+ 	"cmd/link/internal/loadelf"
+@@ -2137,24 +2138,24 @@ func stkcheck(ctxt *Link, up *chain, depth int) int {
+ 
+ 	endr := len(s.R)
+ 	var ch1 chain
+-	pcsp := newPCIter(ctxt)
++	pcsp := obj.NewPCIter(uint32(ctxt.Arch.MinLC))
+ 	var r *sym.Reloc
+-	for pcsp.init(s.FuncInfo.Pcsp.P); !pcsp.done; pcsp.next() {
++	for pcsp.Init(s.FuncInfo.Pcsp.P); !pcsp.Done; pcsp.Next() {
+ 		// pcsp.value is in effect for [pcsp.pc, pcsp.nextpc).
+ 
+ 		// Check stack size in effect for this span.
+-		if int32(limit)-pcsp.value < 0 {
+-			stkbroke(ctxt, up, int(int32(limit)-pcsp.value))
++		if int32(limit)-pcsp.Value < 0 {
++			stkbroke(ctxt, up, int(int32(limit)-pcsp.Value))
+ 			return -1
+ 		}
+ 
+ 		// Process calls in this span.
+-		for ; ri < endr && uint32(s.R[ri].Off) < pcsp.nextpc; ri++ {
++		for ; ri < endr && uint32(s.R[ri].Off) < pcsp.NextPC; ri++ {
+ 			r = &s.R[ri]
+ 			switch r.Type {
+ 			// Direct call.
+ 			case objabi.R_CALL, objabi.R_CALLARM, objabi.R_CALLARM64, objabi.R_CALLPOWER, objabi.R_CALLMIPS:
+-				ch.limit = int(int32(limit) - pcsp.value - int32(callsize(ctxt)))
++				ch.limit = int(int32(limit) - pcsp.Value - int32(callsize(ctxt)))
+ 				ch.sym = r.Sym
+ 				if stkcheck(ctxt, &ch, depth+1) < 0 {
+ 					return -1
+@@ -2165,7 +2166,7 @@ func stkcheck(ctxt *Link, up *chain, depth int) int {
+ 			// Arrange the data structures to report both calls, so that
+ 			// if there is an error, stkprint shows all the steps involved.
+ 			case objabi.R_CALLIND:
+-				ch.limit = int(int32(limit) - pcsp.value - int32(callsize(ctxt)))
++				ch.limit = int(int32(limit) - pcsp.Value - int32(callsize(ctxt)))
+ 
+ 				ch.sym = nil
+ 				ch1.limit = ch.limit - callsize(ctxt) // for morestack in called prologue
+diff --git a/src/cmd/link/internal/ld/pcln.go b/src/cmd/link/internal/ld/pcln.go
+index cd8151022a..d9904f9093 100644
+--- a/src/cmd/link/internal/ld/pcln.go
++++ b/src/cmd/link/internal/ld/pcln.go
+@@ -5,6 +5,7 @@
+ package ld
+ 
+ import (
++	"cmd/internal/obj"
+ 	"cmd/internal/objabi"
+ 	"cmd/internal/src"
+ 	"cmd/internal/sys"
+@@ -16,72 +17,6 @@ import (
+ 	"strings"
+ )
+ 
+-// PCIter iterates over encoded pcdata tables.
+-type PCIter struct {
+-	p       []byte
+-	pc      uint32
+-	nextpc  uint32
+-	pcscale uint32
+-	value   int32
+-	start   bool
+-	done    bool
+-}
+-
+-// newPCIter creates a PCIter and configures it for ctxt's architecture.
+-func newPCIter(ctxt *Link) *PCIter {
+-	it := new(PCIter)
+-	it.pcscale = uint32(ctxt.Arch.MinLC)
+-	return it
+-}
+-
+-// next advances it to the next pc.
+-func (it *PCIter) next() {
+-	it.pc = it.nextpc
+-	if it.done {
+-		return
+-	}
+-	if len(it.p) == 0 {
+-		it.done = true
+-		return
+-	}
+-
+-	// value delta
+-	val, n := binary.Varint(it.p)
+-	if n <= 0 {
+-		log.Fatalf("bad value varint in pciternext: read %v", n)
+-	}
+-	it.p = it.p[n:]
+-
+-	if val == 0 && !it.start {
+-		it.done = true
+-		return
+-	}
+-
+-	it.start = false
+-	it.value += int32(val)
+-
+-	// pc delta
+-	pc, n := binary.Uvarint(it.p)
+-	if n <= 0 {
+-		log.Fatalf("bad pc varint in pciternext: read %v", n)
+-	}
+-	it.p = it.p[n:]
+-
+-	it.nextpc = it.pc + uint32(pc)*it.pcscale
+-}
+-
+-// init prepares it to iterate over p,
+-// and advances it to the first pc.
+-func (it *PCIter) init(p []byte) {
+-	it.p = p
+-	it.pc = 0
+-	it.nextpc = 0
+-	it.value = -1
+-	it.start = true
+-	it.done = false
+-	it.next()
+-}
+-
+ func ftabaddstring(ftab *sym.Symbol, s string) int32 {
+ 	start := len(ftab.P)
+ 	ftab.Grow(int64(start + len(s) + 1)) // make room for s plus trailing NUL
+@@ -109,10 +44,10 @@ func renumberfiles(ctxt *Link, files []*sym.Symbol, d *sym.Pcdata) {
+ 	buf := make([]byte, binary.MaxVarintLen32)
+ 	newval := int32(-1)
+ 	var out sym.Pcdata
+-	it := newPCIter(ctxt)
+-	for it.init(d.P); !it.done; it.next() {
++	it := obj.NewPCIter(uint32(ctxt.Arch.MinLC))
++	for it.Init(d.P); !it.Done; it.Next() {
+ 		// value delta
+-		oldval := it.value
++		oldval := it.Value
+ 
+ 		var val int32
+ 		if oldval == -1 {
+@@ -132,7 +67,7 @@ func renumberfiles(ctxt *Link, files []*sym.Symbol, d *sym.Pcdata) {
+ 		out.P = append(out.P, buf[:n]...)
+ 
+ 		// pc delta
+-		pc := (it.nextpc - it.pc) / it.pcscale
++		pc := (it.NextPC - it.PC) / it.PCScale
+ 		n = binary.PutUvarint(buf, uint64(pc))
+ 		out.P = append(out.P, buf[:n]...)
+ 	}
+@@ -337,10 +272,10 @@ func (ctxt *Link) pclntab() {
+ 			renumberfiles(ctxt, pcln.File, &pcln.Pcfile)
+ 			if false {
+ 				// Sanity check the new numbering
+-				it := newPCIter(ctxt)
+-				for it.init(pcln.Pcfile.P); !it.done; it.next() {
+-					if it.value < 1 || it.value > int32(len(ctxt.Filesyms)) {
+-						Errorf(s, "bad file number in pcfile: %d not in range [1, %d]\n", it.value, len(ctxt.Filesyms))
++				it := obj.NewPCIter(uint32(ctxt.Arch.MinLC))
++				for it.Init(pcln.Pcfile.P); !it.Done; it.Next() {
++					if it.Value < 1 || it.Value > int32(len(ctxt.Filesyms)) {
++						Errorf(s, "bad file number in pcfile: %d not in range [1, %d]\n", it.Value, len(ctxt.Filesyms))
+ 						errorexit()
+ 					}
+ 				}

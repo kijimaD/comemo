@@ -14,6 +14,19 @@ Date:   Mon Feb 20 19:48:28 2017 +0000
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Peter Weinberger <pjw@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/pprof/pprof_test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/runtime/pprof/pprof_test.go b/src/runtime/pprof/pprof_test.go
+index 287a9b95c4..00608c7354 100644
+--- a/src/runtime/pprof/pprof_test.go
++++ b/src/runtime/pprof/pprof_test.go
+@@ -511,6 +511,7 @@ func blockCond() {
+ }
+ 
+ func TestMutexProfile(t *testing.T) {
++	testenv.SkipFlaky(t, 19139)
+ 	old := runtime.SetMutexProfileFraction(1)
+ 	defer runtime.SetMutexProfileFraction(old)
+ 	if old != 0 {

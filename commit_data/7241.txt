@@ -9,10 +9,343 @@ Date:   Tue Jan 25 16:35:36 2011 -0500
     R=r
     CC=golang-dev
     https://golang.org/cl/3985046
-
+---
  src/pkg/runtime/amd64/asm.s |  6 +--
  src/pkg/runtime/malloc.goc  | 10 +++--
  src/pkg/runtime/proc.c      | 96 ++++-----------------------------------------
  src/pkg/runtime/runtime.c   |  4 ++
  src/pkg/runtime/runtime.h   | 91 +++++++++++++++++++++++++++++++++++++++---
  5 files changed, 108 insertions(+), 99 deletions(-)
+
+diff --git a/src/pkg/runtime/amd64/asm.s b/src/pkg/runtime/amd64/asm.s
+index 329775a8c0..b6642c13c8 100644
+--- a/src/pkg/runtime/amd64/asm.s
++++ b/src/pkg/runtime/amd64/asm.s
+@@ -407,9 +407,9 @@ TEXT runtime·stackcheck(SB), 7, $0
+ 
+ TEXT runtime·memclr(SB),7,$0
+ 	MOVQ	8(SP), DI		// arg 1 addr
+-	MOVL	16(SP), CX		// arg 2 count
+-	ADDL	$7, CX
+-	SHRL	$3, CX
++	MOVQ	16(SP), CX		// arg 2 count
++	ADDQ	$7, CX
++	SHRQ	$3, CX
+ 	MOVQ	$0, AX
+ 	CLD
+ 	REP
+diff --git a/src/pkg/runtime/malloc.goc b/src/pkg/runtime/malloc.goc
+index f5ca9f9183..a3adca358d 100644
+--- a/src/pkg/runtime/malloc.goc
++++ b/src/pkg/runtime/malloc.goc
+@@ -282,13 +282,17 @@ static struct {
+ 	FixAlloc;
+ } stacks;
+ 
++enum {
++	FixedStack = StackBig + StackExtra
++};
++
+ void*
+ runtime·stackalloc(uint32 n)
+ {
+ 	void *v;
+ 	uint32 *ref;
+ 
+-	if(m->mallocing || m->gcing) {
++	if(m->mallocing || m->gcing || n == FixedStack) {
+ 		runtime·lock(&stacks);
+ 		if(stacks.size == 0)
+ 			runtime·FixAlloc_Init(&stacks, n, runtime·SysAlloc, nil, nil);
+@@ -310,9 +314,9 @@ runtime·stackalloc(uint32 n)
+ }
+ 
+ void
+-runtime·stackfree(void *v)
++runtime·stackfree(void *v, uintptr n)
+ {
+-	if(m->mallocing || m->gcing) {
++	if(m->mallocing || m->gcing || n == FixedStack) {
+ 		runtime·lock(&stacks);
+ 		runtime·FixAlloc_Free(&stacks, v);
+ 		mstats.stacks_inuse = stacks.inuse;
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 5eb466e04e..246783e82d 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -678,87 +678,6 @@ runtime·endcgocallback(G* g1)
+ 	runtime·free(d);
+ }
+ 
+-/*
+- * stack layout parameters.
+- * known to linkers.
+- *
+- * g->stackguard is set to point StackGuard bytes
+- * above the bottom of the stack.  each function
+- * compares its stack pointer against g->stackguard
+- * to check for overflow.  to cut one instruction from
+- * the check sequence for functions with tiny frames,
+- * the stack is allowed to protrude StackSmall bytes
+- * below the stack guard.  functions with large frames
+- * don't bother with the check and always call morestack.
+- * the sequences are (for amd64, others are similar):
+- *
+- *	guard = g->stackguard
+- *	frame = function's stack frame size
+- *	argsize = size of function arguments (call + return)
+- *
+- *	stack frame size <= StackSmall:
+- *		CMPQ guard, SP
+- *		JHI 3(PC)
+- *		MOVQ m->morearg, $(argsize << 32)
+- *		CALL sys.morestack(SB)
+- *
+- *	stack frame size > StackSmall but < StackBig
+- *		LEAQ (frame-StackSmall)(SP), R0
+- *		CMPQ guard, R0
+- *		JHI 3(PC)
+- *		MOVQ m->morearg, $(argsize << 32)
+- *		CALL sys.morestack(SB)
+- *
+- *	stack frame size >= StackBig:
+- *		MOVQ m->morearg, $((argsize << 32) | frame)
+- *		CALL sys.morestack(SB)
+- *
+- * the bottom StackGuard - StackSmall bytes are important:
+- * there has to be enough room to execute functions that
+- * refuse to check for stack overflow, either because they
+- * need to be adjacent to the actual caller's frame (sys.deferproc)
+- * or because they handle the imminent stack overflow (sys.morestack).
+- *
+- * for example, sys.deferproc might call malloc,
+- * which does one of the above checks (without allocating a full frame),
+- * which might trigger a call to sys.morestack.
+- * this sequence needs to fit in the bottom section of the stack.
+- * on amd64, sys.morestack's frame is 40 bytes, and
+- * sys.deferproc's frame is 56 bytes.  that fits well within
+- * the StackGuard - StackSmall = 128 bytes at the bottom.
+- * there may be other sequences lurking or yet to be written
+- * that require more stack.  sys.morestack checks to make sure
+- * the stack has not completely overflowed and should
+- * catch such sequences.
+- */
+-enum
+-{
+-#ifdef __WINDOWS__
+-	// need enough room in guard area for exception handler.
+-	// use larger stacks to compensate for larger stack guard.
+-	StackSmall = 256,
+-	StackGuard = 2048,
+-	StackBig   = 8192,
+-	StackExtra = StackGuard,
+-#else
+-	// byte offset of stack guard (g->stackguard) above bottom of stack.
+-	StackGuard = 256,
+-
+-	// checked frames are allowed to protrude below the guard by
+-	// this many bytes.  this saves an instruction in the checking
+-	// sequence when the stack frame is tiny.
+-	StackSmall = 128,
+-
+-	// extra space in the frame (beyond the function for which
+-	// the frame is allocated) is assumed not to be much bigger
+-	// than this amount.  it may not be used efficiently if it is.
+-	StackBig = 4096,
+-
+-	// extra room over frame size when allocating a stack.
+-	StackExtra = 1024,
+-#endif
+-};
+-
+ void
+ runtime·oldstack(void)
+ {
+@@ -781,8 +700,8 @@ runtime·oldstack(void)
+ 	}
+ 	goid = old.gobuf.g->goid;	// fault if g is bad, before gogo
+ 
+-	if(old.free)
+-		runtime·stackfree(g1->stackguard - StackGuard);
++	if(old.free != 0)
++		runtime·stackfree(g1->stackguard - StackGuard, old.free);
+ 	g1->stackbase = old.stackbase;
+ 	g1->stackguard = old.stackguard;
+ 
+@@ -797,7 +716,8 @@ runtime·newstack(void)
+ 	byte *stk, *sp;
+ 	G *g1;
+ 	Gobuf label;
+-	bool free, reflectcall;
++	bool reflectcall;
++	uintptr free;
+ 
+ 	framesize = m->moreframesize;
+ 	argsize = m->moreargsize;
+@@ -818,7 +738,7 @@ runtime·newstack(void)
+ 		// we don't need to create a new segment.
+ 		top = (Stktop*)(m->morebuf.sp - sizeof(*top));
+ 		stk = g1->stackguard - StackGuard;
+-		free = false;
++		free = 0;
+ 	} else {
+ 		// allocate new segment.
+ 		framesize += argsize;
+@@ -827,7 +747,7 @@ runtime·newstack(void)
+ 		framesize += StackExtra;	// room for more functions, Stktop.
+ 		stk = runtime·stackalloc(framesize);
+ 		top = (Stktop*)(stk+framesize-sizeof(*top));
+-		free = true;
++		free = framesize;
+ 	}
+ 
+ //printf("newstack frame=%d args=%d morepc=%p morefp=%p gobuf=%p, %p newstk=%p\n",
+@@ -1036,8 +956,8 @@ unwindstack(G *gp, byte *sp)
+ 			break;
+ 		gp->stackbase = top->stackbase;
+ 		gp->stackguard = top->stackguard;
+-		if(top->free)
+-			runtime·stackfree(stk);
++		if(top->free != 0)
++			runtime·stackfree(stk, top->free);
+ 	}
+ 
+ 	if(sp != nil && (sp < gp->stackguard - StackGuard || gp->stackbase < sp)) {
+diff --git a/src/pkg/runtime/runtime.c b/src/pkg/runtime/runtime.c
+index 8d3675070c..ec4593f5ec 100644
+--- a/src/pkg/runtime/runtime.c
++++ b/src/pkg/runtime/runtime.c
+@@ -84,6 +84,10 @@ runtime·panicstring(int8 *s)
+ {
+ 	Eface err;
+ 	
++	if(m->gcing) {
++		runtime·printf("panic: %s\n", s);
++		runtime·throw("panic during gc");
++	}
+ 	runtime·newErrorString(runtime·gostringnocopy((byte*)s), &err);
+ 	runtime·panic(err);
+ }
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 3fba06f617..47b4e2d79f 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -246,8 +246,8 @@ struct	Stktop
+ 	Gobuf	gobuf;
+ 	uint32	argsize;
+ 
+-	uint8*	argp;  // pointer to arguments in old frame
+-	bool	free;	// call stackfree for this frame?
++	uint8*	argp;	// pointer to arguments in old frame
++	uintptr	free;	// if free>0, call stackfree using free as size
+ 	bool	panic;	// is this frame the top of a panic?
+ };
+ struct	Alg
+@@ -421,7 +421,7 @@ void	runtime·minit(void);
+ Func*	runtime·findfunc(uintptr);
+ int32	runtime·funcline(Func*, uint64);
+ void*	runtime·stackalloc(uint32);
+-void	runtime·stackfree(void*);
++void	runtime·stackfree(void*, uintptr);
+ MCache*	runtime·allocmcache(void);
+ void	runtime·mallocinit(void);
+ bool	runtime·ifaceeq_c(Iface, Iface);
+@@ -506,11 +506,11 @@ void	runtime·notewakeup(Note*);
+ #define EACCES		13
+ 
+ /*
+- * low level go-called
++ * low level C-called
+  */
+ uint8*	runtime·mmap(byte*, uintptr, int32, int32, int32, uint32);
+ void	runtime·munmap(uint8*, uintptr);
+-void	runtime·memclr(byte*, uint32);
++void	runtime·memclr(byte*, uintptr);
+ void	runtime·setcallerpc(void*, void*);
+ void*	runtime·getcallerpc(void*);
+ 
+@@ -588,3 +588,84 @@ int32	runtime·chanlen(Hchan*);
+ int32	runtime·chancap(Hchan*);
+ 
+ void	runtime·ifaceE2I(struct InterfaceType*, Eface, Iface*);
++
++/*
++ * Stack layout parameters.
++ * Known to linkers.
++ *
++ * The per-goroutine g->stackguard is set to point
++ * StackGuard bytes above the bottom of the stack.
++ * Each function compares its stack pointer against
++ * g->stackguard to check for overflow.  To cut one
++ * instruction from the check sequence for functions
++ * with tiny frames, the stack is allowed to protrude
++ * StackSmall bytes below the stack guard.  Functions
++ * with large frames don't bother with the check and
++ * always call morestack.  The sequences are
++ * (for amd64, others are similar):
++ *
++ * 	guard = g->stackguard
++ * 	frame = function's stack frame size
++ * 	argsize = size of function arguments (call + return)
++ *
++ * 	stack frame size <= StackSmall:
++ * 		CMPQ guard, SP
++ * 		JHI 3(PC)
++ * 		MOVQ m->morearg, $(argsize << 32)
++ * 		CALL morestack(SB)
++ *
++ * 	stack frame size > StackSmall but < StackBig
++ * 		LEAQ (frame-StackSmall)(SP), R0
++ * 		CMPQ guard, R0
++ * 		JHI 3(PC)
++ * 		MOVQ m->morearg, $(argsize << 32)
++ * 		CALL morestack(SB)
++ *
++ * 	stack frame size >= StackBig:
++ * 		MOVQ m->morearg, $((argsize << 32) | frame)
++ * 		CALL morestack(SB)
++ *
++ * The bottom StackGuard - StackSmall bytes are important:
++ * there has to be enough room to execute functions that
++ * refuse to check for stack overflow, either because they
++ * need to be adjacent to the actual caller's frame (deferproc)
++ * or because they handle the imminent stack overflow (morestack).
++ *
++ * For example, deferproc might call malloc, which does one
++ * of the above checks (without allocating a full frame),
++ * which might trigger a call to morestack.  This sequence
++ * needs to fit in the bottom section of the stack.  On amd64,
++ * morestack's frame is 40 bytes, and deferproc's frame is 56 bytes.
++ * That fits well within the StackGuard - StackSmall = 128 bytes
++ * at the bottom.  There may be other sequences lurking or yet to
++ * be written that require more stack.  Morestack checks to make
++ * sure the stack has not completely overflowed and should catch
++ * such sequences.
++ */
++enum
++{
++#ifdef __WINDOWS__
++	// need enough room in guard area for exception handler.
++	// use larger stacks to compensate for larger stack guard.
++	StackSmall = 256,
++	StackGuard = 2048,
++	StackBig   = 8192,
++	StackExtra = StackGuard,
++#else
++	// byte offset of stack guard (g->stackguard) above bottom of stack.
++	StackGuard = 256,
++
++	// checked frames are allowed to protrude below the guard by
++	// this many bytes.  this saves an instruction in the checking
++	// sequence when the stack frame is tiny.
++	StackSmall = 128,
++
++	// extra space in the frame (beyond the function for which
++	// the frame is allocated) is assumed not to be much bigger
++	// than this amount.  it may not be used efficiently if it is.
++	StackBig = 4096,
++
++	// extra room over frame size when allocating a stack.
++	StackExtra = 1024,
++#endif
++};

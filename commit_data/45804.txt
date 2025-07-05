@@ -19,6 +19,21 @@ Date:   Wed Nov 18 13:44:39 2020 -0500
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/work/build.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/work/build.go b/src/cmd/go/internal/work/build.go
+index 0f91a86311..e0aa691659 100644
+--- a/src/cmd/go/internal/work/build.go
++++ b/src/cmd/go/internal/work/build.go
+@@ -765,7 +765,8 @@ func installOutsideModule(ctx context.Context, args []string) {
+ 		// Don't check for retractions if a specific revision is requested.
+ 		allowed = nil
+ 	}
+-	qrs, err := modload.QueryPackages(ctx, patterns[0], version, modload.Selected, allowed)
++	noneSelected := func(path string) (version string) { return "none" }
++	qrs, err := modload.QueryPackages(ctx, patterns[0], version, noneSelected, allowed)
+ 	if err != nil {
+ 		base.Fatalf("go install %s: %v", args[0], err)
+ 	}

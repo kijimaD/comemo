@@ -9,7 +9,38 @@ Date:   Mon May 18 17:55:50 2020 -0700
     Change-Id: I3137820af975301e251b0a23a9349c544b42c70b
     Reviewed-on: https://go-review.googlesource.com/c/go/+/234521
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  doc/go1.15.html         | 6 ++++++
  doc/install-source.html | 2 +-
  2 files changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/doc/go1.15.html b/doc/go1.15.html
+index 43fc14f168..90baedd916 100644
+--- a/doc/go1.15.html
++++ b/doc/go1.15.html
+@@ -33,6 +33,12 @@ TODO
+ 
+ <h3 id="darwin">Darwin</h3>
+ 
++<p>
++  As <a href="go1.14#darwin">announced</a> in the Go 1.14 release notes,
++  Go 1.15 now requires macOS 10.12 Sierra or later;
++  support for previous versions has been discontinued.
++</p>
++
+ <p> <!-- golang.org/issue/37610, golang.org/issue/37611 -->
+   As <a href="/doc/go1.14#darwin">announced</a> in the Go 1.14 release
+   notes, Go 1.15 drops support for 32-bit binaries on macOS, iOS,
+diff --git a/doc/install-source.html b/doc/install-source.html
+index 8f0d3a9d14..b5b422ea11 100644
+--- a/doc/install-source.html
++++ b/doc/install-source.html
+@@ -501,7 +501,7 @@ These default to the values of <code>$GOHOSTOS</code> and
+ 
+ <p>
+ Choices for <code>$GOOS</code> are
+-<code>android</code>, <code>darwin</code> (macOS 10.11 and above and iOS),
++<code>android</code>, <code>darwin</code> (macOS/iOS),
+ <code>dragonfly</code>, <code>freebsd</code>, <code>illumos</code>, <code>js</code>,
+ <code>linux</code>, <code>netbsd</code>, <code>openbsd</code>,
+ <code>plan9</code>, <code>solaris</code> and <code>windows</code>.

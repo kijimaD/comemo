@@ -21,8 +21,75 @@ Date:   Fri Aug 9 18:33:57 2013 -0400
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/12708044
-
+---
  src/pkg/encoding/json/encode.go       |  2 +-
  src/pkg/html/template/content_test.go | 12 ++++++------
  src/pkg/html/template/escape_test.go  |  2 +-
  3 files changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/src/pkg/encoding/json/encode.go b/src/pkg/encoding/json/encode.go
+index 5e8020502f..a112707269 100644
+--- a/src/pkg/encoding/json/encode.go
++++ b/src/pkg/encoding/json/encode.go
+@@ -734,7 +734,7 @@ func (e *encodeState) string(s string) (int, error) {
+ 	start := 0
+ 	for i := 0; i < len(s); {
+ 		if b := s[i]; b < utf8.RuneSelf {
+-			if 0x20 <= b && b != '\\' && b != '"' && b != '<' && b != '>' {
++			if 0x20 <= b && b != '\\' && b != '"' && b != '<' && b != '>' && b != '&' {
+ 				i++
+ 				continue
+ 			}
+diff --git a/src/pkg/html/template/content_test.go b/src/pkg/html/template/content_test.go
+index 5e130faacb..5f3ffe2d32 100644
+--- a/src/pkg/html/template/content_test.go
++++ b/src/pkg/html/template/content_test.go
+@@ -123,29 +123,29 @@ func TestTypedContent(t *testing.T) {
+ 		{
+ 			`<script>alert({{.}})</script>`,
+ 			[]string{
+-				`"\u003cb\u003e \"foo%\" O'Reilly &bar;"`,
++				`"\u003cb\u003e \"foo%\" O'Reilly \u0026bar;"`,
+ 				`"a[href =~ \"//example.com\"]#foo"`,
+-				`"Hello, \u003cb\u003eWorld\u003c/b\u003e &amp;tc!"`,
++				`"Hello, \u003cb\u003eWorld\u003c/b\u003e \u0026amp;tc!"`,
+ 				`" dir=\"ltr\""`,
+ 				// Not escaped.
+ 				`c && alert("Hello, World!");`,
+ 				// Escape sequence not over-escaped.
+ 				`"Hello, World & O'Reilly\x21"`,
+-				`"greeting=H%69&addressee=(World)"`,
++				`"greeting=H%69\u0026addressee=(World)"`,
+ 			},
+ 		},
+ 		{
+ 			`<button onclick="alert({{.}})">`,
+ 			[]string{
+-				`&#34;\u003cb\u003e \&#34;foo%\&#34; O&#39;Reilly &amp;bar;&#34;`,
++				`&#34;\u003cb\u003e \&#34;foo%\&#34; O&#39;Reilly \u0026bar;&#34;`,
+ 				`&#34;a[href =~ \&#34;//example.com\&#34;]#foo&#34;`,
+-				`&#34;Hello, \u003cb\u003eWorld\u003c/b\u003e &amp;amp;tc!&#34;`,
++				`&#34;Hello, \u003cb\u003eWorld\u003c/b\u003e \u0026amp;tc!&#34;`,
+ 				`&#34; dir=\&#34;ltr\&#34;&#34;`,
+ 				// Not JS escaped but HTML escaped.
+ 				`c &amp;&amp; alert(&#34;Hello, World!&#34;);`,
+ 				// Escape sequence not over-escaped.
+ 				`&#34;Hello, World &amp; O&#39;Reilly\x21&#34;`,
+-				`&#34;greeting=H%69&amp;addressee=(World)&#34;`,
++				`&#34;greeting=H%69\u0026addressee=(World)&#34;`,
+ 			},
+ 		},
+ 		{
+diff --git a/src/pkg/html/template/escape_test.go b/src/pkg/html/template/escape_test.go
+index de3659ba8f..4c349d9618 100644
+--- a/src/pkg/html/template/escape_test.go
++++ b/src/pkg/html/template/escape_test.go
+@@ -538,7 +538,7 @@ func TestEscape(t *testing.T) {
+ 		{
+ 			"typed HTML in script",
+ 			`<button onclick="alert({{.W}})">`,
+-			`<button onclick="alert(&#34;&amp;iexcl;\u003cb class=\&#34;foo\&#34;\u003eHello\u003c/b\u003e, \u003ctextarea\u003eO&#39;World\u003c/textarea\u003e!&#34;)">`,
++			`<button onclick="alert(&#34;\u0026iexcl;\u003cb class=\&#34;foo\&#34;\u003eHello\u003c/b\u003e, \u003ctextarea\u003eO&#39;World\u003c/textarea\u003e!&#34;)">`,
+ 		},
+ 		{
+ 			"typed HTML in RCDATA",

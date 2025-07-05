@@ -14,7 +14,87 @@ Date:   Wed Nov 22 11:10:47 2017 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
-
+---
  src/archive/zip/writer.go      | 22 +++++++++++++---------
  src/archive/zip/writer_test.go | 11 ++++++++++-
  2 files changed, 23 insertions(+), 10 deletions(-)
+
+diff --git a/src/archive/zip/writer.go b/src/archive/zip/writer.go
+index ebb2a2edd0..bcab212d40 100644
+--- a/src/archive/zip/writer.go
++++ b/src/archive/zip/writer.go
+@@ -26,13 +26,11 @@ type Writer struct {
+ 	last        *fileWriter
+ 	closed      bool
+ 	compressors map[uint16]Compressor
++	comment     string
+ 
+ 	// testHookCloseSizeOffset if non-nil is called with the size
+ 	// of offset of the central directory at Close.
+ 	testHookCloseSizeOffset func(size, offset uint64)
+-
+-	// Comment is the central directory comment and must be set before Close is called.
+-	Comment string
+ }
+ 
+ type header struct {
+@@ -62,13 +60,19 @@ func (w *Writer) Flush() error {
+ 	return w.cw.w.(*bufio.Writer).Flush()
+ }
+ 
+-// Close finishes writing the zip file by writing the central directory.
+-// It does not (and cannot) close the underlying writer.
+-func (w *Writer) Close() error {
+-	if len(w.Comment) > uint16max {
++// SetComment sets the end-of-central-directory comment field.
++// It can only be called before Close.
++func (w *Writer) SetComment(comment string) error {
++	if len(comment) > uint16max {
+ 		return errors.New("zip: Writer.Comment too long")
+ 	}
++	w.comment = comment
++	return nil
++}
+ 
++// Close finishes writing the zip file by writing the central directory.
++// It does not (and cannot) close the underlying writer.
++func (w *Writer) Close() error {
+ 	if w.last != nil && !w.last.closed {
+ 		if err := w.last.close(); err != nil {
+ 			return err
+@@ -189,11 +193,11 @@ func (w *Writer) Close() error {
+ 	b.uint16(uint16(records))        // number of entries total
+ 	b.uint32(uint32(size))           // size of directory
+ 	b.uint32(uint32(offset))         // start of directory
+-	b.uint16(uint16(len(w.Comment))) // byte size of EOCD comment
++	b.uint16(uint16(len(w.comment))) // byte size of EOCD comment
+ 	if _, err := w.cw.Write(buf[:]); err != nil {
+ 		return err
+ 	}
+-	if _, err := io.WriteString(w.cw, w.Comment); err != nil {
++	if _, err := io.WriteString(w.cw, w.comment); err != nil {
+ 		return err
+ 	}
+ 
+diff --git a/src/archive/zip/writer_test.go b/src/archive/zip/writer_test.go
+index f217a42e74..28824d88ee 100644
+--- a/src/archive/zip/writer_test.go
++++ b/src/archive/zip/writer_test.go
+@@ -106,7 +106,16 @@ func TestWriterComment(t *testing.T) {
+ 		// write a zip file
+ 		buf := new(bytes.Buffer)
+ 		w := NewWriter(buf)
+-		w.Comment = test.comment
++		if err := w.SetComment(test.comment); err != nil {
++			if test.ok {
++				t.Fatalf("SetComment: unexpected error %v", err)
++			}
++			continue
++		} else {
++			if !test.ok {
++				t.Fatalf("SetComment: unexpected success, want error")
++			}
++		}
+ 
+ 		if err := w.Close(); test.ok == (err != nil) {
+ 			t.Fatal(err)

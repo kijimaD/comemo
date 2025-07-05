@@ -23,8 +23,162 @@ Date:   Mon Feb 29 19:29:04 2016 +0100
     Reviewed-by: Keith Randall <khr@golang.org>
     Run-TryBot: Alexandru Moșoi <alexandru@mosoi.ro>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ssa/compile.go |  1 +
  src/cmd/compile/internal/ssa/phiopt.go  | 86 +++++++++++++++++++++++++++++++++
  test/phiopt.go                          | 43 +++++++++++++++++
  3 files changed, 130 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/compile.go b/src/cmd/compile/internal/ssa/compile.go
+index 5e68ea004e..2780e5bcfc 100644
+--- a/src/cmd/compile/internal/ssa/compile.go
++++ b/src/cmd/compile/internal/ssa/compile.go
+@@ -164,6 +164,7 @@ var passes = [...]pass{
+ 	{name: "zero arg cse", fn: zcse, required: true}, // required to merge OpSB values
+ 	{name: "opt deadcode", fn: deadcode},             // remove any blocks orphaned during opt
+ 	{name: "generic cse", fn: cse},
++	{name: "phiopt", fn: phiopt},
+ 	{name: "nilcheckelim", fn: nilcheckelim},
+ 	{name: "prove", fn: prove},
+ 	{name: "generic deadcode", fn: deadcode},
+diff --git a/src/cmd/compile/internal/ssa/phiopt.go b/src/cmd/compile/internal/ssa/phiopt.go
+new file mode 100644
+index 0000000000..fb17727242
+--- /dev/null
++++ b/src/cmd/compile/internal/ssa/phiopt.go
+@@ -0,0 +1,86 @@
++package ssa
++
++// phiopt eliminates boolean Phis based on the previous if.
++//
++// Main use case is to transform:
++//   x := false
++//   if b {
++//     x = true
++//   }
++// into x = b.
++//
++// In SSA code this appears as
++//
++// b0
++//   If b -> b1 b2
++// b1
++//   Plain -> b2
++// b2
++//   x = (OpPhi (ConstBool [true]) (ConstBool [false]))
++//
++// In this case we can replace x with a copy of b.
++func phiopt(f *Func) {
++	for _, b := range f.Blocks {
++		if len(b.Preds) != 2 || len(b.Values) == 0 {
++			continue
++		}
++
++		pb0, b0 := b, b.Preds[0]
++		for b0.Kind != BlockIf && len(b0.Preds) == 1 {
++			pb0, b0 = b0, b0.Preds[0]
++		}
++		if b0.Kind != BlockIf {
++			continue
++		}
++		pb1, b1 := b, b.Preds[1]
++		for b1.Kind != BlockIf && len(b1.Preds) == 1 {
++			pb1, b1 = b1, b1.Preds[0]
++		}
++		if b1 != b0 {
++			continue
++		}
++		// b0 is the if block giving the boolean value.
++
++		var reverse bool
++		if b0.Succs[0] == pb0 && b0.Succs[1] == pb1 {
++			reverse = false
++		} else if b0.Succs[0] == pb1 && b0.Succs[1] == pb0 {
++			reverse = true
++		} else {
++			b.Fatalf("invalid predecessors\n")
++		}
++
++		for _, v := range b.Values {
++			if v.Op != OpPhi || !v.Type.IsBoolean() || v.Args[0].Op != OpConstBool || v.Args[1].Op != OpConstBool {
++				continue
++			}
++
++			ok, isCopy := false, false
++			if v.Args[0].AuxInt == 1 && v.Args[1].AuxInt == 0 {
++				ok, isCopy = true, !reverse
++			} else if v.Args[0].AuxInt == 0 && v.Args[1].AuxInt == 1 {
++				ok, isCopy = true, reverse
++			}
++
++			// (Phi (ConstBool [x]) (ConstBool [x])) is already handled by opt / phielim.
++
++			if ok && isCopy {
++				if f.pass.debug > 0 {
++					f.Config.Warnl(int(b.Line), "converted OpPhi to OpCopy")
++				}
++				v.reset(OpCopy)
++				v.AddArg(b0.Control)
++				continue
++			}
++			if ok && !isCopy {
++				if f.pass.debug > 0 {
++					f.Config.Warnl(int(b.Line), "converted OpPhi to OpNot")
++				}
++				v.reset(OpNot)
++				v.AddArg(b0.Control)
++				continue
++			}
++		}
++	}
++
++}
+diff --git a/test/phiopt.go b/test/phiopt.go
+new file mode 100644
+index 0000000000..9b9b701124
+--- /dev/null
++++ b/test/phiopt.go
+@@ -0,0 +1,43 @@
++// +build amd64
++// errorcheck -0 -d=ssa/phiopt/debug=3
++
++package main
++
++func f0(a bool) bool {
++	x := false
++	if a {
++		x = true
++	} else {
++		x = false
++	}
++	return x // ERROR "converted OpPhi to OpCopy$"
++}
++
++func f1(a bool) bool {
++	x := false
++	if a {
++		x = false
++	} else {
++		x = true
++	}
++	return x // ERROR "converted OpPhi to OpNot$"
++}
++
++func f2(a, b int) bool {
++	x := true
++	if a == b {
++		x = false
++	}
++	return x // ERROR "converted OpPhi to OpNot$"
++}
++
++func f3(a, b int) bool {
++	x := false
++	if a == b {
++		x = true
++	}
++	return x // ERROR "converted OpPhi to OpCopy$"
++}
++
++func main() {
++}

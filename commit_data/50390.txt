@@ -12,6 +12,28 @@ Date:   Mon Oct 18 23:54:02 2021 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  doc/go1.18.html | 10 ++++++++++
  1 file changed, 10 insertions(+)
+
+diff --git a/doc/go1.18.html b/doc/go1.18.html
+index d95e55e1ad..087a06c280 100644
+--- a/doc/go1.18.html
++++ b/doc/go1.18.html
+@@ -175,6 +175,16 @@ Do not send CLs removing the interior tags from such phrases.
+       do fewer allocations.
+     </p>
+   </dd>
++  <dd>
++    <p><!-- CL 350691 -->
++      The new
++      <a href="/pkg/reflect/#Value.UnsafePointer"><code>Value.UnsafePointer</code></a>
++      method returns the Value's value as an <a href="/pkg/unsafe/#Pointer"><code>unsafe.Pointer</code></a>.
++      This allows callers to migrate from <a href="/pkg/reflect/#Value.UnsafeAddr"><code>Value.UnsafeAddr</code></a>
++      and <a href="/pkg/reflect/#Value.Pointer"><code>Value.Pointer</code></a>
++      to eliminate the need to perform uintptr to unsafe.Pointer conversions at the callsite (as unsafe.Pointer rules require).
++    </p>
++  </dd>
+ </dl><!-- reflect -->
+ 
+ <dl id="syscall"><dt><a href="/pkg/syscall/">syscall</a></dt>

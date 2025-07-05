@@ -11,8 +11,103 @@ Date:   Tue Jan 17 15:06:04 2017 -0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/go/internal/gccgoimporter/importer_test.go   |  1 +
  src/go/internal/gccgoimporter/parser.go          | 48 +++++++++++++++---------
  src/go/internal/gccgoimporter/testdata/alias.gox |  4 ++
  3 files changed, 36 insertions(+), 17 deletions(-)
+
+diff --git a/src/go/internal/gccgoimporter/importer_test.go b/src/go/internal/gccgoimporter/importer_test.go
+index 2b454701be..4fca828bf6 100644
+--- a/src/go/internal/gccgoimporter/importer_test.go
++++ b/src/go/internal/gccgoimporter/importer_test.go
+@@ -101,6 +101,7 @@ var importerTests = [...]importerTest{
+ 	{pkgpath: "unicode", name: "IsUpper", want: "func IsUpper(r rune) bool"},
+ 	{pkgpath: "unicode", name: "MaxRune", want: "const MaxRune untyped rune", wantval: "1114111"},
+ 	{pkgpath: "imports", wantinits: []string{"imports..import", "fmt..import", "math..import"}},
++	{pkgpath: "alias", name: "IntAlias2", want: "type IntAlias2 = Int"},
+ }
+ 
+ func TestGoxImporter(t *testing.T) {
+diff --git a/src/go/internal/gccgoimporter/parser.go b/src/go/internal/gccgoimporter/parser.go
+index 3b97c96d43..0d788653e3 100644
+--- a/src/go/internal/gccgoimporter/parser.go
++++ b/src/go/internal/gccgoimporter/parser.go
+@@ -370,27 +370,41 @@ func (p *parser) parseConst(pkg *types.Package) *types.Const {
+ 	return types.NewConst(token.NoPos, pkg, name, typ, val)
+ }
+ 
+-// TypeName = ExportedName .
+-func (p *parser) parseTypeName() *types.TypeName {
++// NamedType = TypeName [ "=" ] Type { Method } .
++// TypeName  = ExportedName .
++// Method    = "func" "(" Param ")" Name ParamList ResultList ";" .
++func (p *parser) parseNamedType(n int) types.Type {
+ 	pkg, name := p.parseExportedName()
+ 	scope := pkg.Scope()
+-	if obj := scope.Lookup(name); obj != nil {
+-		return obj.(*types.TypeName)
++
++	if p.tok == '=' {
++		// type alias
++		p.next()
++		typ := p.parseType(pkg)
++		if obj := scope.Lookup(name); obj != nil {
++			typ = obj.Type() // use previously imported type
++			if typ == nil {
++				p.errorf("%v (type alias) used in cycle", obj)
++			}
++		} else {
++			obj = types.NewTypeName(token.NoPos, pkg, name, typ)
++			scope.Insert(obj)
++		}
++		p.typeMap[n] = typ
++		return typ
+ 	}
+-	obj := types.NewTypeName(token.NoPos, pkg, name, nil)
+-	// a named type may be referred to before the underlying type
+-	// is known - set it up
+-	types.NewNamed(obj, nil, nil)
+-	scope.Insert(obj)
+-	return obj
+-}
+ 
+-// NamedType = TypeName Type { Method } .
+-// Method    = "func" "(" Param ")" Name ParamList ResultList ";" .
+-func (p *parser) parseNamedType(n int) types.Type {
+-	obj := p.parseTypeName()
++	// named type
++	obj := scope.Lookup(name)
++	if obj == nil {
++		// a named type may be referred to before the underlying type
++		// is known - set it up
++		tname := types.NewTypeName(token.NoPos, pkg, name, nil)
++		types.NewNamed(tname, nil, nil)
++		scope.Insert(tname)
++		obj = tname
++	}
+ 
+-	pkg := obj.Pkg()
+ 	typ := obj.Type()
+ 	p.typeMap[n] = typ
+ 
+@@ -409,8 +423,8 @@ func (p *parser) parseNamedType(n int) types.Type {
+ 		nt.SetUnderlying(underlying.Underlying())
+ 	}
+ 
++	// collect associated methods
+ 	for p.tok == scanner.Ident {
+-		// collect associated methods
+ 		p.expectKeyword("func")
+ 		p.expect('(')
+ 		receiver, _ := p.parseParam(pkg)
+diff --git a/src/go/internal/gccgoimporter/testdata/alias.gox b/src/go/internal/gccgoimporter/testdata/alias.gox
+new file mode 100644
+index 0000000000..ced7d84c4f
+--- /dev/null
++++ b/src/go/internal/gccgoimporter/testdata/alias.gox
+@@ -0,0 +1,4 @@
++v1;
++package alias;
++pkgpath alias;
++type <type 115 "I1" <type 116 interface { M1 (? <type 117 "IntAlias2" = <type 118 "IntAlias" = <type 119 "Int" <type -11>>>>) < type 114>; M2 () <type 1>; }>>;

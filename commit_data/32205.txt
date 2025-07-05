@@ -9,8 +9,90 @@ Date:   Wed Apr 12 10:05:33 2017 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go           | 10 +++++-----
  src/cmd/compile/internal/ssa/value.go        |  1 -
  src/cmd/compile/internal/ssa/writebarrier.go |  4 ++--
  3 files changed, 7 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 2e62ee32f4..0b9af124a2 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -1380,13 +1380,13 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 		len := s.newValue1(ssa.OpStringLen, types.Types[TINT], str)
+ 		return s.newValue3(ssa.OpSliceMake, n.Type, ptr, len, len)
+ 	case OCFUNC:
+-		aux := s.lookupSymbol(n, &ssa.ExternSymbol{Typ: n.Type, Sym: Linksym(n.Left.Sym)})
++		aux := s.lookupSymbol(n, &ssa.ExternSymbol{Sym: Linksym(n.Left.Sym)})
+ 		return s.entryNewValue1A(ssa.OpAddr, n.Type, aux, s.sb)
+ 	case ONAME:
+ 		if n.Class == PFUNC {
+ 			// "value" of a function is the address of the function's closure
+ 			sym := Linksym(funcsym(n.Sym))
+-			aux := s.lookupSymbol(n, &ssa.ExternSymbol{Typ: n.Type, Sym: sym})
++			aux := s.lookupSymbol(n, &ssa.ExternSymbol{Sym: sym})
+ 			return s.entryNewValue1A(ssa.OpAddr, types.NewPtr(n.Type), aux, s.sb)
+ 		}
+ 		if s.canSSA(n) {
+@@ -2826,7 +2826,7 @@ func init() {
+ 		sys.ARM64)
+ 	makeOnesCount := func(op64 ssa.Op, op32 ssa.Op) func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 		return func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+-			aux := s.lookupSymbol(n, &ssa.ExternSymbol{Typ: types.Types[TBOOL], Sym: Linksym(syslook("support_popcnt").Sym)})
++			aux := s.lookupSymbol(n, &ssa.ExternSymbol{Sym: Linksym(syslook("support_popcnt").Sym)})
+ 			addr := s.entryNewValue1A(ssa.OpAddr, types.Types[TBOOL].PtrTo(), aux, s.sb)
+ 			v := s.newValue2(ssa.OpLoad, types.Types[TBOOL], addr, s.mem())
+ 			b := s.endBlock()
+@@ -3197,7 +3197,7 @@ func (s *state) addr(n *Node, bounded bool) *ssa.Value {
+ 		switch n.Class {
+ 		case PEXTERN:
+ 			// global variable
+-			aux := s.lookupSymbol(n, &ssa.ExternSymbol{Typ: n.Type, Sym: Linksym(n.Sym)})
++			aux := s.lookupSymbol(n, &ssa.ExternSymbol{Sym: Linksym(n.Sym)})
+ 			v := s.entryNewValue1A(ssa.OpAddr, t, aux, s.sb)
+ 			// TODO: Make OpAddr use AuxInt as well as Aux.
+ 			if n.Xoffset != 0 {
+@@ -4744,7 +4744,7 @@ func (e *ssafn) StringData(s string) interface{} {
+ 		e.strings = make(map[string]interface{})
+ 	}
+ 	data := stringsym(s)
+-	aux := &ssa.ExternSymbol{Typ: types.Idealstring, Sym: data}
++	aux := &ssa.ExternSymbol{Sym: data}
+ 	e.strings[s] = aux
+ 	return aux
+ }
+diff --git a/src/cmd/compile/internal/ssa/value.go b/src/cmd/compile/internal/ssa/value.go
+index 1bc63bce5a..992561c674 100644
+--- a/src/cmd/compile/internal/ssa/value.go
++++ b/src/cmd/compile/internal/ssa/value.go
+@@ -237,7 +237,6 @@ func (v *Value) isGenericIntConst() bool {
+ // ExternSymbol is an aux value that encodes a variable's
+ // constant offset from the static base pointer.
+ type ExternSymbol struct {
+-	Typ Type // Go type
+ 	Sym *obj.LSym
+ 	// Note: the offset for an external symbol is not
+ 	// calculated until link time.
+diff --git a/src/cmd/compile/internal/ssa/writebarrier.go b/src/cmd/compile/internal/ssa/writebarrier.go
+index e8e5a26f30..d93c427cdf 100644
+--- a/src/cmd/compile/internal/ssa/writebarrier.go
++++ b/src/cmd/compile/internal/ssa/writebarrier.go
+@@ -93,7 +93,7 @@ func writebarrier(f *Func) {
+ 			if sp == nil {
+ 				sp = f.Entry.NewValue0(initpos, OpSP, f.Config.Types.Uintptr)
+ 			}
+-			wbsym := &ExternSymbol{Typ: f.Config.Types.Bool, Sym: f.fe.Syslook("writeBarrier")}
++			wbsym := &ExternSymbol{Sym: f.fe.Syslook("writeBarrier")}
+ 			wbaddr = f.Entry.NewValue1A(initpos, OpAddr, f.Config.Types.UInt32Ptr, wbsym, sb)
+ 			writebarrierptr = f.fe.Syslook("writebarrierptr")
+ 			typedmemmove = f.fe.Syslook("typedmemmove")
+@@ -176,7 +176,7 @@ func writebarrier(f *Func) {
+ 			ptr := w.Args[0]
+ 			var typ interface{}
+ 			if w.Op != OpStoreWB {
+-				typ = &ExternSymbol{Typ: types.Uintptr, Sym: w.Aux.(Type).Symbol()}
++				typ = &ExternSymbol{Sym: w.Aux.(Type).Symbol()}
+ 			}
+ 			pos = w.Pos
+ 

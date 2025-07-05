@@ -8,9 +8,795 @@ Date:   Tue Aug 23 13:22:26 2011 +1000
     R=r, mikesamuel, dsymonds
     CC=golang-dev
     https://golang.org/cl/4919042
-
+---
  src/pkg/exp/template/html/Makefile       |   3 +-
  src/pkg/exp/template/html/context.go     |  51 ++---
  src/pkg/exp/template/html/escape.go      | 307 ++++++++++++++++++++++++-------
  src/pkg/exp/template/html/escape_test.go | 297 +++++++++++++++++++++++++-----
  4 files changed, 520 insertions(+), 138 deletions(-)
+
+diff --git a/src/pkg/exp/template/html/Makefile b/src/pkg/exp/template/html/Makefile
+index 2f107da111..6d8ff5cd14 100644
+--- a/src/pkg/exp/template/html/Makefile
++++ b/src/pkg/exp/template/html/Makefile
+@@ -6,6 +6,7 @@ include ../../../../Make.inc
+ 
+ TARG=exp/template/html
+ GOFILES=\
+-	escape.go
++	context.go\
++	escape.go\
+ 
+ include ../../../../Make.pkg
+diff --git a/src/pkg/exp/template/html/context.go b/src/pkg/exp/template/html/context.go
+index 4110068834..5ef3b78146 100644
+--- a/src/pkg/exp/template/html/context.go
++++ b/src/pkg/exp/template/html/context.go
+@@ -16,56 +16,57 @@ import (
+ // http://www.w3.org/TR/html5/the-end.html#parsing-html-fragments
+ // where the context element is null.
+ type context struct {
+-	state state
+-	delim delim
++	state   state
++	delim   delim
++	errLine int
++	errStr  string
+ }
+ 
+-func (c context) String() string {
+-	return fmt.Sprintf("context{state: %s, delim: %s", c.state, c.delim)
+-}
+-
+-// eq is true if the two contexts are identical field-wise.
++// eq returns whether two contexts are equal.
+ func (c context) eq(d context) bool {
+-	return c.state == d.state && c.delim == d.delim
++	return c.state == d.state && c.delim == d.delim && c.errLine == d.errLine && c.errStr == d.errStr
+ }
+ 
+ // state describes a high-level HTML parser state.
+ //
+-// It bounds the top of the element stack, and by extension the HTML
+-// insertion mode, but also contains state that does not correspond to
+-// anything in the HTML5 parsing algorithm because a single token 
+-// production in the HTML grammar may contain embedded actions in a template.
+-// For instance, the quoted HTML attribute produced by
++// It bounds the top of the element stack, and by extension the HTML insertion
++// mode, but also contains state that does not correspond to anything in the
++// HTML5 parsing algorithm because a single token production in the HTML
++// grammar may contain embedded actions in a template. For instance, the quoted
++// HTML attribute produced by
+ //     <div title="Hello {{.World}}">
+ // is a single token in HTML's grammar but in a template spans several nodes.
+ type state uint8
+ 
+ const (
+-	// statePCDATA is parsed character data.  An HTML parser is in
++	// stateText is parsed character data. An HTML parser is in
+ 	// this state when its parse position is outside an HTML tag,
+ 	// directive, comment, and special element body.
+-	statePCDATA state = iota
++	stateText state = iota
+ 	// stateTag occurs before an HTML attribute or the end of a tag.
+ 	stateTag
+-	// stateURI occurs inside an HTML attribute whose content is a URI.
+-	stateURI
++	// stateAttr occurs inside an HTML attribute whose content is text.
++	stateAttr
++	// stateURL occurs inside an HTML attribute whose content is a URL.
++	stateURL
+ 	// stateError is an infectious error state outside any valid
+ 	// HTML/CSS/JS construct.
+ 	stateError
+ )
+ 
+ var stateNames = [...]string{
+-	statePCDATA: "statePCDATA",
+-	stateTag:    "stateTag",
+-	stateURI:    "stateURI",
+-	stateError:  "stateError",
++	stateText:  "stateText",
++	stateTag:   "stateTag",
++	stateAttr:  "stateAttr",
++	stateURL:   "stateURL",
++	stateError: "stateError",
+ }
+ 
+ func (s state) String() string {
+-	if uint(s) < uint(len(stateNames)) {
++	if int(s) < len(stateNames) {
+ 		return stateNames[s]
+ 	}
+-	return fmt.Sprintf("illegal state %d", uint(s))
++	return fmt.Sprintf("illegal state %d", s)
+ }
+ 
+ // delim is the delimiter that will end the current HTML attribute.
+@@ -91,8 +92,8 @@ var delimNames = [...]string{
+ }
+ 
+ func (d delim) String() string {
+-	if uint(d) < uint(len(delimNames)) {
++	if int(d) < len(delimNames) {
+ 		return delimNames[d]
+ 	}
+-	return fmt.Sprintf("illegal delim %d", uint(d))
++	return fmt.Sprintf("illegal delim %d", d)
+ }
+diff --git a/src/pkg/exp/template/html/escape.go b/src/pkg/exp/template/html/escape.go
+index e0e87b98d0..a0fccf96d1 100644
+--- a/src/pkg/exp/template/html/escape.go
++++ b/src/pkg/exp/template/html/escape.go
+@@ -2,104 +2,283 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Package html is a specialization of exp/template that automates the
++// Package html is a specialization of template that automates the
+ // construction of safe HTML output.
+-// At the moment, the escaping is naive.  All dynamic content is assumed to be
+-// plain text interpolated in an HTML PCDATA context.
++// INCOMPLETE.
+ package html
+ 
+ import (
++	"bytes"
++	"fmt"
++	"os"
++	"strings"
+ 	"template"
+ 	"template/parse"
+ )
+ 
+-// Escape rewrites each action in the template to guarantee the output is
++// Escape rewrites each action in the template to guarantee that the output is
+ // HTML-escaped.
+-func Escape(t *template.Template) {
+-	// If the parser shares trees based on common-subexpression
+-	// joining then we will need to avoid multiply escaping the same action.
+-	escapeListNode(t.Tree.Root)
++func Escape(t *template.Template) (*template.Template, os.Error) {
++	c := escapeList(context{}, t.Tree.Root)
++	if c.errStr != "" {
++		return nil, fmt.Errorf("%s:%d: %s", t.Name(), c.errLine, c.errStr)
++	}
++	return t, nil
+ }
+ 
+-// escapeNode dispatches to escape<NodeType> helpers by type.
+-func escapeNode(node parse.Node) {
+-	switch n := node.(type) {
+-	case *parse.ListNode:
+-		escapeListNode(n)
+-	case *parse.TextNode:
+-		// Nothing to do.
++// escape escapes a template node.
++func escape(c context, n parse.Node) context {
++	switch n := n.(type) {
+ 	case *parse.ActionNode:
+-		escapeActionNode(n)
++		return escapeAction(c, n)
+ 	case *parse.IfNode:
+-		escapeIfNode(n)
++		return escapeBranch(c, &n.BranchNode, "if")
++	case *parse.ListNode:
++		return escapeList(c, n)
+ 	case *parse.RangeNode:
+-		escapeRangeNode(n)
+-	case *parse.TemplateNode:
+-		// Nothing to do.
++		return escapeBranch(c, &n.BranchNode, "range")
++	case *parse.TextNode:
++		return escapeText(c, n)
+ 	case *parse.WithNode:
+-		escapeWithNode(n)
+-	default:
+-		panic("handling for " + node.String() + " not implemented")
+-		// TODO: Handle other inner node types.
++		return escapeBranch(c, &n.BranchNode, "with")
+ 	}
++	// TODO: handle a *parse.TemplateNode. Should Escape take a *template.Set?
++	panic("escaping " + n.String() + " is unimplemented")
+ }
+ 
+-// escapeListNode recursively escapes its input's children.
+-func escapeListNode(node *parse.ListNode) {
+-	if node == nil {
+-		return
++// escapeAction escapes an action template node.
++func escapeAction(c context, n *parse.ActionNode) context {
++	sanitizer := "html"
++	if c.state == stateURL {
++		sanitizer = "urlquery"
+ 	}
+-	children := node.Nodes
+-	for _, child := range children {
+-		escapeNode(child)
++	// If the pipe already ends with the sanitizer, do not interfere.
++	if m := len(n.Pipe.Cmds); m != 0 {
++		if last := n.Pipe.Cmds[m-1]; len(last.Args) != 0 {
++			if i, ok := last.Args[0].(*parse.IdentifierNode); ok && i.Ident == sanitizer {
++				return c
++			}
++		}
+ 	}
++	// Otherwise, append the sanitizer.
++	n.Pipe.Cmds = append(n.Pipe.Cmds, &parse.CommandNode{
++		NodeType: parse.NodeCommand,
++		Args:     []parse.Node{parse.NewIdentifier(sanitizer)},
++	})
++	return c
+ }
+ 
+-// escapeActionNode adds a pipeline call to the end that escapes the result
+-// of the expression before it is interpolated into the template output.
+-func escapeActionNode(node *parse.ActionNode) {
+-	pipe := node.Pipe
++// join joins the two contexts of a branch template node. The result is an
++// error context if either of the input contexts are error contexts, or if the
++// the input contexts differ.
++func join(a, b context, line int, nodeName string) context {
++	if a.state == stateError {
++		return a
++	}
++	if b.state == stateError {
++		return b
++	}
++	if a.eq(b) {
++		return a
++	}
++	return context{
++		state:   stateError,
++		errLine: line,
++		errStr:  fmt.Sprintf("{{%s}} branches end in different contexts: %v, %v", nodeName, a, b),
++	}
++}
+ 
+-	cmds := pipe.Cmds
+-	nCmds := len(cmds)
++// escapeBranch escapes a branch template node: "if", "range" and "with".
++func escapeBranch(c context, n *parse.BranchNode, nodeName string) context {
++	c0 := escapeList(c, n.List)
++	if nodeName == "range" {
++		// The "true" branch of a "range" node can execute multiple times.
++		// We check that executing n.List once results in the same context
++		// as executing n.List twice.
++		c0 = join(c0, escapeList(c0, n.List), n.Line, nodeName)
++	}
++	c1 := escapeList(c, n.ElseList)
++	return join(c0, c1, n.Line, nodeName)
++}
++
++// escapeList escapes a list template node.
++func escapeList(c context, n *parse.ListNode) context {
++	if n == nil {
++		return c
++	}
++	for _, m := range n.Nodes {
++		c = escape(c, m)
++	}
++	return c
++}
+ 
+-	// If it already has an escaping command, do not interfere.
+-	if nCmds != 0 {
+-		if lastCmd := cmds[nCmds-1]; len(lastCmd.Args) != 0 {
+-			// TODO: Recognize url and js as escaping functions once
+-			// we have enough context to know whether additional
+-			// escaping is necessary.
+-			if arg, ok := lastCmd.Args[0].(*parse.IdentifierNode); ok && arg.Ident == "html" {
+-				return
++// escapeText escapes a text template node.
++func escapeText(c context, n *parse.TextNode) context {
++	for s := n.Text; len(s) > 0; {
++		c, s = transitionFunc[c.state](c, s)
++	}
++	return c
++}
++
++// transitionFunc is the array of context transition functions for text nodes.
++// A transition function takes a context and template text input, and returns
++// the updated context and any unconsumed text.
++var transitionFunc = [...]func(context, []byte) (context, []byte){
++	stateText:  tText,
++	stateTag:   tTag,
++	stateURL:   tURL,
++	stateAttr:  tAttr,
++	stateError: tError,
++}
++
++// tText is the context transition function for the text state.
++func tText(c context, s []byte) (context, []byte) {
++	for {
++		i := bytes.IndexByte(s, '<')
++		if i == -1 || i+1 == len(s) {
++			return c, nil
++		}
++		i++
++		if s[i] == '/' {
++			if i+1 == len(s) {
++				return c, nil
+ 			}
++			i++
+ 		}
++		j := eatTagName(s, i)
++		if j != i {
++			// We've found an HTML tag.
++			return context{state: stateTag}, s[j:]
++		}
++		s = s[j:]
+ 	}
++	panic("unreachable")
++}
+ 
+-	htmlEscapeCommand := parse.CommandNode{
+-		NodeType: parse.NodeCommand,
+-		Args:     []parse.Node{parse.NewIdentifier("html")},
++// tTag is the context transition function for the tag state.
++func tTag(c context, s []byte) (context, []byte) {
++	// Skip to the end tag, if there is one.
++	i := bytes.IndexByte(s, '>')
++	if i != -1 {
++		return context{state: stateText}, s[i+1:]
+ 	}
+ 
+-	node.Pipe.Cmds = append(node.Pipe.Cmds, &htmlEscapeCommand)
++	// Otherwise, find the attribute name.
++	i = eatWhiteSpace(s, 0)
++	attrStart, i := i, eatAttrName(s, i)
++	if i == len(s) {
++		return context{state: stateTag}, nil
++	}
++	state := stateAttr
++	if urlAttr[strings.ToLower(string(s[attrStart:i]))] {
++		state = stateURL
++	}
++
++	// Consume the "=".
++	i = eatWhiteSpace(s, i)
++	if i == len(s) || s[i] != '=' {
++		return context{state: stateTag}, s[i:]
++	}
++	i = eatWhiteSpace(s, i+1)
++
++	// Find the delimiter.
++	if i == len(s) {
++		return context{state: state, delim: delimSpaceOrTagEnd}, nil
++	}
++	switch s[i] {
++	case '\'':
++		return context{state: state, delim: delimSingleQuote}, s[i+1:]
++	case '"':
++		return context{state: state, delim: delimDoubleQuote}, s[i+1:]
++	}
++
++	// TODO: This shouldn't be an error: `<a b=1 c={{.X}}` should be valid.
++	return context{state: stateError}, nil
++}
++
++// tAttr is the context transition function for the attribute state.
++func tAttr(c context, s []byte) (context, []byte) {
++	// TODO: look for the delimiter.
++	return c, nil
+ }
+ 
+-// escapeIfNode recursively escapes the if and then clauses but leaves the
+-// condition unchanged.
+-func escapeIfNode(node *parse.IfNode) {
+-	escapeListNode(node.List)
+-	escapeListNode(node.ElseList)
++// tURL is the context transition function for the URL state.
++func tURL(c context, s []byte) (context, []byte) {
++	// TODO: look for the delimiter.
++	return c, nil
+ }
+ 
+-// escapeRangeNode recursively escapes the loop body and else clause but
+-// leaves the series unchanged.
+-func escapeRangeNode(node *parse.RangeNode) {
+-	escapeListNode(node.List)
+-	escapeListNode(node.ElseList)
++// tError is the context transition function for the error state.
++func tError(c context, s []byte) (context, []byte) {
++	return c, nil
++}
++
++// eatAttrName returns the largest j such that s[i:j] is an attribute name.
++func eatAttrName(s []byte, i int) int {
++	for j := i; j < len(s); j++ {
++		switch s[j] {
++		case ' ', '\n', '\r', '\t', '=':
++			return j
++		default:
++			// No-op.
++		}
++	}
++	return len(s)
++}
++
++// eatTagName returns the largest j such that s[i:j] is a tag name.
++func eatTagName(s []byte, i int) int {
++	for j := i; j < len(s); j++ {
++		x := s[j]
++		switch {
++		case 'a' <= x && x <= 'z':
++			// No-op.
++		case 'A' <= x && x <= 'Z':
++			// No-op.
++		case '0' <= x && x <= '9' && i != j:
++			// No-op.
++		default:
++			return j
++		}
++	}
++	return len(s)
++}
++
++// eatWhiteSpace returns the largest j such that s[i:j] is white space.
++func eatWhiteSpace(s []byte, i int) int {
++	for j := i; j < len(s); j++ {
++		switch s[j] {
++		case ' ', '\n', '\r', '\t':
++			// No-op.
++		default:
++			return j
++		}
++	}
++	return len(s)
+ }
+ 
+-// escapeWithNode recursively escapes the scope body and else clause but
+-// leaves the pipeline unchanged.
+-func escapeWithNode(node *parse.WithNode) {
+-	escapeListNode(node.List)
+-	escapeListNode(node.ElseList)
++// urlAttr is the set of attribute names whose values are URLs.
++// It consists of all "%URI"-typed attributes from
++// http://www.w3.org/TR/html4/index/attributes.html
++// as well as those attributes defined at
++// http://dev.w3.org/html5/spec/index.html#attributes-1
++// whose Value column in that table matches
++// "Valid [non-empty] URL potentially surrounded by spaces".
++var urlAttr = map[string]bool{
++	"action":     true,
++	"archive":    true,
++	"background": true,
++	"cite":       true,
++	"classid":    true,
++	"codebase":   true,
++	"data":       true,
++	"formaction": true,
++	"href":       true,
++	"icon":       true,
++	"longdesc":   true,
++	"manifest":   true,
++	"poster":     true,
++	"profile":    true,
++	"src":        true,
++	"usemap":     true,
+ }
+diff --git a/src/pkg/exp/template/html/escape_test.go b/src/pkg/exp/template/html/escape_test.go
+index 345a752a89..e3b68d6318 100644
+--- a/src/pkg/exp/template/html/escape_test.go
++++ b/src/pkg/exp/template/html/escape_test.go
+@@ -6,70 +6,271 @@ package html
+ 
+ import (
+ 	"bytes"
++	"strings"
+ 	"template"
++	"template/parse"
+ 	"testing"
+ )
+ 
+-type data struct {
+-	F, T    bool
+-	C, G, H string
+-	A, E    []string
+-}
+-
+-var testData = data{
+-	F: false,
+-	T: true,
+-	C: "<Cincinatti>",
+-	G: "<Goodbye>",
+-	H: "<Hello>",
+-	A: []string{"<a>", "<b>"},
+-	E: []string{},
+-}
+-
+-type testCase struct {
+-	name   string
+-	input  string
+-	output string
+-}
++func TestEscape(t *testing.T) {
++	var data = struct {
++		F, T    bool
++		C, G, H string
++		A, E    []string
++	}{
++		F: false,
++		T: true,
++		C: "<Cincinatti>",
++		G: "<Goodbye>",
++		H: "<Hello>",
++		A: []string{"<a>", "<b>"},
++		E: []string{},
++	}
+ 
+-var testCases = []testCase{
+-	{"if", "{{if .T}}Hello{{end}}, {{.C}}!", "Hello, &lt;Cincinatti&gt;!"},
+-	{"else", "{{if .F}}{{.H}}{{else}}{{.G}}{{end}}!", "&lt;Goodbye&gt;!"},
+-	{"overescaping", "Hello, {{.C | html}}!", "Hello, &lt;Cincinatti&gt;!"},
+-	{"assignment", "{{if $x := .H}}{{$x}}{{end}}", "&lt;Hello&gt;"},
+-	{"withBody", "{{with .H}}{{.}}{{end}}", "&lt;Hello&gt;"},
+-	{"withElse", "{{with .E}}{{.}}{{else}}{{.H}}{{end}}", "&lt;Hello&gt;"},
+-	{"rangeBody", "{{range .A}}{{.}}{{end}}", "&lt;a&gt;&lt;b&gt;"},
+-	{"rangeElse", "{{range .E}}{{.}}{{else}}{{.H}}{{end}}", "&lt;Hello&gt;"},
+-	{"nonStringValue", "{{.T}}", "true"},
+-	{"constant", `<a href="{{"'str'"}}">`, `<a href="&#39;str&#39;">`},
+-}
++	var testCases = []struct {
++		name   string
++		input  string
++		output string
++	}{
++		{
++			"if",
++			"{{if .T}}Hello{{end}}, {{.C}}!",
++			"Hello, &lt;Cincinatti&gt;!",
++		},
++		{
++			"else",
++			"{{if .F}}{{.H}}{{else}}{{.G}}{{end}}!",
++			"&lt;Goodbye&gt;!",
++		},
++		{
++			"overescaping",
++			"Hello, {{.C | html}}!",
++			"Hello, &lt;Cincinatti&gt;!",
++		},
++		{
++			"assignment",
++			"{{if $x := .H}}{{$x}}{{end}}",
++			"&lt;Hello&gt;",
++		},
++		{
++			"withBody",
++			"{{with .H}}{{.}}{{end}}",
++			"&lt;Hello&gt;",
++		},
++		{
++			"withElse",
++			"{{with .E}}{{.}}{{else}}{{.H}}{{end}}",
++			"&lt;Hello&gt;",
++		},
++		{
++			"rangeBody",
++			"{{range .A}}{{.}}{{end}}",
++			"&lt;a&gt;&lt;b&gt;",
++		},
++		{
++			"rangeElse",
++			"{{range .E}}{{.}}{{else}}{{.H}}{{end}}",
++			"&lt;Hello&gt;",
++		},
++		{
++			"nonStringValue",
++			"{{.T}}",
++			"true",
++		},
++		{
++			// TODO: Make sure the URL escaper escapes single quotes so it can
++			// be embedded in single quoted URI attributes and CSS url(...)
++			// constructs. Single quotes are reserved in URLs, but are only used
++			// in the obsolete "mark" rule in an appendix in RFC 3986 so can be
++			// safely encoded.
++			"constant",
++			`<a href="{{"'a<b'"}}">`,
++			`<a href="'a%3Cb'">`,
++		},
++	}
+ 
+-func TestAutoesc(t *testing.T) {
+-	for _, testCase := range testCases {
+-		name := testCase.name
+-		tmpl := template.New(name)
+-		tmpl, err := tmpl.Parse(testCase.input)
++	for _, tc := range testCases {
++		tmpl, err := template.New(tc.name).Parse(tc.input)
+ 		if err != nil {
+-			t.Errorf("%s: failed to parse template: %s", name, err)
++			t.Errorf("%s: template parsing failed: %s", tc.name, err)
+ 			continue
+ 		}
+-
+ 		Escape(tmpl)
++		b := new(bytes.Buffer)
++		if err = tmpl.Execute(b, data); err != nil {
++			t.Errorf("%s: template execution failed: %s", tc.name, err)
++			continue
++		}
++		if w, g := tc.output, b.String(); w != g {
++			t.Errorf("%s: escaped output: want %q got %q", tc.name, w, g)
++			continue
++		}
++	}
++}
+ 
+-		buffer := new(bytes.Buffer)
++func TestErrors(t *testing.T) {
++	var testCases = []struct {
++		input string
++		err   string
++	}{
++		// Non-error cases.
++		{
++			"{{if .Cond}}<a>{{else}}<b>{{end}}",
++			"",
++		},
++		{
++			"{{if .Cond}}<a>{{end}}",
++			"",
++		},
++		{
++			"{{if .Cond}}{{else}}<b>{{end}}",
++			"",
++		},
++		{
++			"{{with .Cond}}<div>{{end}}",
++			"",
++		},
++		{
++			"{{range .Items}}<a>{{end}}",
++			"",
++		},
++		{
++			"<a href='/foo?{{range .Items}}&{{.K}}={{.V}}{{end}}'>",
++			"",
++		},
++		// Error cases.
++		{
++			"{{if .Cond}}<a{{end}}",
++			"z:1: {{if}} branches",
++		},
++		{
++			"{{if .Cond}}\n{{else}}\n<a{{end}}",
++			"z:1: {{if}} branches",
++		},
++		/*
++			TODO: Should the error really be non-empty? Both branches close the tag...
+ 
+-		err = tmpl.Execute(buffer, testData)
++			// Missing quote in the else branch.
++			{
++				`{{if .Cond}}<a href="foo">{{else}}<a href="bar>{{end}}`,
++				"z:1: {{if}} branches",
++			},
++		*/
++		{
++			// Different kind of attribute: href implies a URL.
++			"<a {{if .Cond}}href='{{else}}title='{{end}}{{.X}}'>",
++			"z:1: {{if}} branches",
++		},
++		{
++			"\n{{with .X}}<a{{end}}",
++			"z:2: {{with}} branches",
++		},
++		{
++			"\n{{with .X}}<a>{{else}}<a{{end}}",
++			"z:2: {{with}} branches",
++		},
++		{
++			"{{range .Items}}<a{{end}}",
++			"z:1: {{range}} branches",
++		},
++		{
++			"\n{{range .Items}} x='<a{{end}}",
++			"z:2: {{range}} branches",
++		},
++	}
++
++	for _, tc := range testCases {
++		tmpl, err := template.New("z").Parse(tc.input)
+ 		if err != nil {
+-			t.Errorf("%s: template execution failed: %s", name, err)
++			t.Errorf("input=%q: template parsing failed: %s", tc.input, err)
++			continue
++		}
++		var got string
++		if _, err := Escape(tmpl); err != nil {
++			got = err.String()
++		}
++		if tc.err == "" {
++			if got != "" {
++				t.Errorf("input=%q: unexpected error %q", tc.input, got)
++			}
++			continue
++		}
++		if strings.Index(got, tc.err) == -1 {
++			t.Errorf("input=%q: error %q does not contain expected string %q", tc.input, got, tc.err)
+ 			continue
+ 		}
++	}
++}
++
++func TestEscapeText(t *testing.T) {
++	var testCases = []struct {
++		input  string
++		output context
++	}{
++		{
++			``,
++			context{},
++		},
++		{
++			`Hello, World!`,
++			context{},
++		},
++		{
++			// An orphaned "<" is OK.
++			`I <3 Ponies!`,
++			context{},
++		},
++		{
++			`<a`,
++			context{state: stateTag},
++		},
++		{
++			`<a `,
++			context{state: stateTag},
++		},
++		{
++			`<a>`,
++			context{state: stateText},
++		},
++		{
++			`<a href=`,
++			context{state: stateURL, delim: delimSpaceOrTagEnd},
++		},
++		{
++			`<a href ='`,
++			context{state: stateURL, delim: delimSingleQuote},
++		},
++		{
++			`<a href= "`,
++			context{state: stateURL, delim: delimDoubleQuote},
++		},
++		{
++			`<a title="`,
++			context{state: stateAttr, delim: delimDoubleQuote},
++		},
++		{
++			`<a HREF='http:`,
++			context{state: stateURL, delim: delimSingleQuote},
++		},
++		{
++			`<a Href='/`,
++			context{state: stateURL, delim: delimSingleQuote},
++		},
++	}
+ 
+-		output := testCase.output
+-		actual := buffer.String()
+-		if output != actual {
+-			t.Errorf("%s: escaped output: %q != %q",
+-				name, output, actual)
++	for _, tc := range testCases {
++		n := &parse.TextNode{
++			NodeType: parse.NodeText,
++			Text:     []byte(tc.input),
++		}
++		c := escapeText(context{}, n)
++		if !tc.output.eq(c) {
++			t.Errorf("input %q: want context %v got %v", tc.input, tc.output, c)
++			continue
++		}
++		if tc.input != string(n.Text) {
++			t.Errorf("input %q: text node was modified: want %q got %q", tc.input, tc.input, n.Text)
++			continue
+ 		}
+ 	}
+ }

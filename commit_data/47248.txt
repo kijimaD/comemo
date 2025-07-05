@@ -22,7 +22,70 @@ Date:   Tue Mar 2 11:54:36 2021 -0800
     Trust: Jay Conrod <jayconrod@google.com>
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/go/internal/modfetch/codehost/git.go       |  6 +++++
  src/cmd/go/testdata/script/mod_get_private_vcs.txt | 30 ++++++++++++++++++++++
  2 files changed, 36 insertions(+)
+
+diff --git a/src/cmd/go/internal/modfetch/codehost/git.go b/src/cmd/go/internal/modfetch/codehost/git.go
+index 72005e27d5..4d4964edf4 100644
+--- a/src/cmd/go/internal/modfetch/codehost/git.go
++++ b/src/cmd/go/internal/modfetch/codehost/git.go
+@@ -296,6 +296,9 @@ func (r *gitRepo) stat(rev string) (*RevInfo, error) {
+ 	// Or maybe it's the prefix of a hash of a named ref.
+ 	// Try to resolve to both a ref (git name) and full (40-hex-digit) commit hash.
+ 	r.refsOnce.Do(r.loadRefs)
++	// loadRefs may return an error if git fails, for example segfaults, or
++	// could not load a private repo, but defer checking to the else block
++	// below, in case we already have the rev in question in the local cache.
+ 	var ref, hash string
+ 	if r.refs["refs/tags/"+rev] != "" {
+ 		ref = "refs/tags/" + rev
+@@ -332,6 +335,9 @@ func (r *gitRepo) stat(rev string) (*RevInfo, error) {
+ 			hash = rev
+ 		}
+ 	} else {
++		if r.refsErr != nil {
++			return nil, r.refsErr
++		}
+ 		return nil, &UnknownRevisionError{Rev: rev}
+ 	}
+ 
+diff --git a/src/cmd/go/testdata/script/mod_get_private_vcs.txt b/src/cmd/go/testdata/script/mod_get_private_vcs.txt
+index 514b0a7a53..8b01eac62c 100644
+--- a/src/cmd/go/testdata/script/mod_get_private_vcs.txt
++++ b/src/cmd/go/testdata/script/mod_get_private_vcs.txt
+@@ -9,3 +9,33 @@ env GOPROXY=direct
+ stderr 'Confirm the import path was entered correctly.'
+ stderr 'If this is a private repository, see https://golang.org/doc/faq#git_https for additional information.'
+ ! stdout .
++
++# Fetching a nonexistent commit should return an "unknown revision"
++# error message.
++! go get github.com/golang/term@86186f3aba07ed0212cfb944f3398997d2d07c6b
++stderr '^go get: github.com/golang/term@86186f3aba07ed0212cfb944f3398997d2d07c6b: invalid version: unknown revision 86186f3aba07ed0212cfb944f3398997d2d07c6b$'
++! stdout .
++
++! go get github.com/golang/nonexist@master
++stderr '^Confirm the import path was entered correctly.$'
++stderr '^If this is a private repository, see https://golang.org/doc/faq#git_https for additional information.$'
++! stderr 'unknown revision'
++! stdout .
++
++[!linux] stop
++
++# Test that Git clone errors will be shown to the user instead of a generic
++# "unknown revision" error. To do this we want to force git ls-remote to return
++# an error we don't already have special handling for. See golang/go#42751.
++#
++# Set XDG_CONFIG_HOME to tell Git where to look for the git config file listed
++# below, which turns on ssh.
++env XDG_CONFIG_HOME=$TMPDIR
++! go install github.com/golang/nonexist@master
++stderr 'fatal: Could not read from remote repository.'
++! stderr 'unknown revision'
++! stdout .
++
++-- $TMPDIR/git/config --
++[url "git@github.com:"]
++    insteadOf = https://github.com/

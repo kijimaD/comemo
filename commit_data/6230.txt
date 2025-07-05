@@ -11,7 +11,29 @@ Date:   Fri Sep 10 12:44:07 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/2132045
-
+---
  test/syntax/vareq.go  | 2 +-
  test/syntax/vareq1.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/test/syntax/vareq.go b/test/syntax/vareq.go
+index 9be03c1d3b..8525be8cf5 100644
+--- a/test/syntax/vareq.go
++++ b/test/syntax/vareq.go
+@@ -7,4 +7,4 @@
+ package main
+ 
+ func main() {
+-	var x map[string]string{"a":"b"}		// ERROR "unexpected { at end of statement"
++	var x map[string]string{"a":"b"}		// ERROR "unexpected { at end of statement|expected ';' or '}' or newline"
+diff --git a/test/syntax/vareq1.go b/test/syntax/vareq1.go
+index 2d35b3ea04..9d70bea39f 100644
+--- a/test/syntax/vareq1.go
++++ b/test/syntax/vareq1.go
+@@ -6,5 +6,5 @@
+ 
+ package main
+ 
+-var x map[string]string{"a":"b"}		// ERROR "unexpected { at end of statement"
++var x map[string]string{"a":"b"}		// ERROR "unexpected { at end of statement|expected ';' or newline after top level declaration"
+ 

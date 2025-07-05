@@ -9,6 +9,96 @@ Date:   Mon Jan 26 15:16:24 2015 -0500
     Change-Id: Id3f1ce5efafb93818e5fd16c47ff48bbf61b5339
     Reviewed-on: https://go-review.googlesource.com/3520
     Reviewed-by: Aram Hăvărneanu <aram@mgk.ro>
-
+---
  src/cmd/dist/buildgc.go | 65 +------------------------------------------------
  1 file changed, 1 insertion(+), 64 deletions(-)
+
+diff --git a/src/cmd/dist/buildgc.go b/src/cmd/dist/buildgc.go
+index b1b5d5e7ba..967fc842c3 100644
+--- a/src/cmd/dist/buildgc.go
++++ b/src/cmd/dist/buildgc.go
+@@ -7,7 +7,6 @@ package main
+ import (
+ 	"bytes"
+ 	"fmt"
+-	"strconv"
+ 	"strings"
+ )
+ 
+@@ -50,8 +49,7 @@ func gcopnames(dir, file string) {
+ 
+ // mkanames reads [5689].out.h and writes anames[5689].c
+ // The format is much the same as the Go opcodes above.
+-// It also writes out cnames array for C_* constants and the dnames
+-// array for D_* constants.
++// It also writes out cnames array for C_* constants.
+ func mkanames(dir, file string) {
+ 	ch := file[len(file)-3]
+ 	targ := pathf("%s/../cmd/%cl/%c.out.h", dir, ch, ch)
+@@ -105,66 +103,5 @@ func mkanames(dir, file string) {
+ 		out.Write(out2.Bytes())
+ 	}
+ 
+-	var dnames [128][]string
+-	j = 0
+-	unknown := false
+-	n := -1
+-	for _, line := range lines {
+-		if strings.HasPrefix(line, "\tD_") {
+-			if i := strings.Index(line, ","); i >= 0 {
+-				line = line[:i]
+-			}
+-
+-			// Parse explicit value, if any
+-			if i := strings.Index(line, "="); i >= 0 {
+-				value := strings.TrimSpace(line[i+1:])
+-				line = strings.TrimSpace(line[:i])
+-				var err error
+-				n, err = strconv.Atoi(value)
+-				if err != nil {
+-					// We can't do anything about
+-					// non-numeric values or anything that
+-					// follows.
+-					unknown = true
+-					continue
+-				}
+-				unknown = false
+-			} else {
+-				n++
+-			}
+-
+-			if unknown || n < 0 || n >= len(dnames) {
+-				continue
+-			}
+-
+-			line = strings.TrimSpace(line)
+-			line = line[len("D_"):]
+-
+-			if strings.Contains(line, "LAST") {
+-				continue
+-			}
+-			dnames[n] = append(dnames[n], line)
+-			j++
+-		}
+-	}
+-
+-	if j > 0 {
+-		fmt.Fprintf(&out, "char*	dnames%c[D_LAST] = {\n", ch)
+-		for _, d := range dnames {
+-			if len(d) == 0 {
+-				continue
+-			}
+-			fmt.Fprintf(&out, "\t[D_%s] = \"", d[0])
+-			for k, name := range d {
+-				if k > 0 {
+-					fmt.Fprintf(&out, "/")
+-				}
+-				fmt.Fprintf(&out, "%s", name)
+-			}
+-			fmt.Fprintf(&out, "\",\n")
+-		}
+-		fmt.Fprintf(&out, "};\n")
+-	}
+-
+ 	writefile(out.String(), file, 0)
+ }

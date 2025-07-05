@@ -21,10 +21,172 @@ Date:   Thu Nov 14 02:31:46 2024 -0500
     Reviewed-by: Michael Matloob <matloob@golang.org>
     Auto-Submit: Russ Cox <rsc@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/dist/build.go             |  8 ++++++++
  src/cmd/dist/buildruntime.go      |  1 +
  src/internal/buildcfg/cfg.go      | 42 +++++++++++++++++++++++++++++++++++++++
  src/internal/buildcfg/cfg_test.go | 36 +++++++++++++++++++++++++++++++++
  src/internal/cfg/cfg.go           |  1 +
  5 files changed, 88 insertions(+)
+
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index a75799c2e7..1f467647f5 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -46,6 +46,7 @@ var (
+ 	gogcflags        string // For running built compiler
+ 	goldflags        string
+ 	goexperiment     string
++	gofips140        string
+ 	workdir          string
+ 	tooldir          string
+ 	oldgoos          string
+@@ -185,6 +186,12 @@ func xinit() {
+ 	}
+ 	goriscv64 = b
+ 
++	b = os.Getenv("GOFIPS140")
++	if b == "" {
++		b = "off"
++	}
++	gofips140 = b
++
+ 	if p := pathf("%s/src/all.bash", goroot); !isfile(p) {
+ 		fatalf("$GOROOT is not set correctly or not exported\n"+
+ 			"\tGOROOT=%s\n"+
+@@ -247,6 +254,7 @@ func xinit() {
+ 	os.Setenv("GOPPC64", goppc64)
+ 	os.Setenv("GORISCV64", goriscv64)
+ 	os.Setenv("GOROOT", goroot)
++	os.Setenv("GOFIPS140", gofips140)
+ 
+ 	// Set GOBIN to GOROOT/bin. The meaning of GOBIN has drifted over time
+ 	// (see https://go.dev/issue/3269, https://go.dev/cl/183058,
+diff --git a/src/cmd/dist/buildruntime.go b/src/cmd/dist/buildruntime.go
+index 3eec9133fd..73260246fa 100644
+--- a/src/cmd/dist/buildruntime.go
++++ b/src/cmd/dist/buildruntime.go
+@@ -65,6 +65,7 @@ func mkbuildcfg(file string) {
+ 	fmt.Fprintf(&buf, "const version = `%s`\n", findgoversion())
+ 	fmt.Fprintf(&buf, "const defaultGOOS = runtime.GOOS\n")
+ 	fmt.Fprintf(&buf, "const defaultGOARCH = runtime.GOARCH\n")
++	fmt.Fprintf(&buf, "const defaultGOFIPS140 = `%s`\n", gofips140)
+ 
+ 	writefile(buf.String(), file, writeSkipSame)
+ }
+diff --git a/src/internal/buildcfg/cfg.go b/src/internal/buildcfg/cfg.go
+index 76b74aa61b..1d6dc0ff3c 100644
+--- a/src/internal/buildcfg/cfg.go
++++ b/src/internal/buildcfg/cfg.go
+@@ -34,6 +34,7 @@ var (
+ 	GOWASM    = gowasm()
+ 	ToolTags  = toolTags()
+ 	GO_LDSO   = defaultGO_LDSO
++	GOFIPS140 = gofips140()
+ 	Version   = version
+ )
+ 
+@@ -70,6 +71,47 @@ func goamd64() int {
+ 	return int(DefaultGOAMD64[len("v")] - '0')
+ }
+ 
++func gofips140() string {
++	v := envOr("GOFIPS140", defaultGOFIPS140)
++	switch v {
++	case "off", "latest", "inprocess", "certified":
++		return v
++	}
++	if isFIPSVersion(v) {
++		return v
++	}
++	Error = fmt.Errorf("invalid GOFIPS140: must be off, latest, inprocess, certified, or vX.Y.Z")
++	return defaultGOFIPS140
++}
++
++// isFIPSVersion reports whether v is a valid FIPS version,
++// of the form vX.Y.Z.
++func isFIPSVersion(v string) bool {
++	if !strings.HasPrefix(v, "v") {
++		return false
++	}
++	v, ok := skipNum(v[len("v"):])
++	if !ok || !strings.HasPrefix(v, ".") {
++		return false
++	}
++	v, ok = skipNum(v[len("."):])
++	if !ok || !strings.HasPrefix(v, ".") {
++		return false
++	}
++	v, ok = skipNum(v[len("."):])
++	return ok && v == ""
++}
++
++// skipNum skips the leading text matching [0-9]+
++// in s, returning the rest and whether such text was found.
++func skipNum(s string) (rest string, ok bool) {
++	i := 0
++	for i < len(s) && '0' <= s[i] && s[i] <= '9' {
++		i++
++	}
++	return s[i:], i > 0
++}
++
+ type GoarmFeatures struct {
+ 	Version   int
+ 	SoftFloat bool
+diff --git a/src/internal/buildcfg/cfg_test.go b/src/internal/buildcfg/cfg_test.go
+index d01cdd0109..757270b778 100644
+--- a/src/internal/buildcfg/cfg_test.go
++++ b/src/internal/buildcfg/cfg_test.go
+@@ -123,3 +123,39 @@ func TestGogoarchTags(t *testing.T) {
+ 	GOARCH = old_goarch
+ 	GOARM64 = old_goarm64
+ }
++
++var goodFIPS = []string{
++	"v1.0.0",
++	"v1.0.1",
++	"v1.2.0",
++	"v1.2.3",
++}
++
++var badFIPS = []string{
++	"v1.0.0-fips",
++	"v1.0.0+fips",
++	"1.0.0",
++	"x1.0.0",
++}
++
++func TestIsFIPSVersion(t *testing.T) {
++	// good
++	for _, s := range goodFIPS {
++		if !isFIPSVersion(s) {
++			t.Errorf("isFIPSVersion(%q) = false, want true", s)
++		}
++	}
++	// truncated
++	const v = "v1.2.3"
++	for i := 0; i < len(v); i++ {
++		if isFIPSVersion(v[:i]) {
++			t.Errorf("isFIPSVersion(%q) = true, want false", v[:i])
++		}
++	}
++	// bad
++	for _, s := range badFIPS {
++		if isFIPSVersion(s) {
++			t.Errorf("isFIPSVersion(%q) = true, want false", s)
++		}
++	}
++}
+diff --git a/src/internal/cfg/cfg.go b/src/internal/cfg/cfg.go
+index ca5ab50efd..9329769721 100644
+--- a/src/internal/cfg/cfg.go
++++ b/src/internal/cfg/cfg.go
+@@ -44,6 +44,7 @@ const KnownEnv = `
+ 	GOENV
+ 	GOEXE
+ 	GOEXPERIMENT
++	GOFIPS140
+ 	GOFLAGS
+ 	GOGCCFLAGS
+ 	GOHOSTARCH

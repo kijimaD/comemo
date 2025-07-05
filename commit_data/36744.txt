@@ -32,7 +32,147 @@ Date:   Fri May 18 12:43:13 2018 -0700
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/dnsclient_unix.go      | 21 +++++++++---------
  src/net/dnsclient_unix_test.go | 48 +++++++++++++++++++++++++++---------------
  2 files changed, 42 insertions(+), 27 deletions(-)
+
+diff --git a/src/net/dnsclient_unix.go b/src/net/dnsclient_unix.go
+index 835957a37c..fe00fe19fe 100644
+--- a/src/net/dnsclient_unix.go
++++ b/src/net/dnsclient_unix.go
+@@ -157,7 +157,8 @@ func (r *Resolver) exchange(ctx context.Context, server string, q dnsmessage.Que
+ 	return dnsmessage.Parser{}, dnsmessage.Header{}, errors.New("no answer from DNS server")
+ }
+ 
+-func checkHeaders(p *dnsmessage.Parser, h dnsmessage.Header, name, server string) error {
++// checkHeader performs basic sanity checks on the header.
++func checkHeader(p *dnsmessage.Parser, h dnsmessage.Header, name, server string) error {
+ 	_, err := p.AnswerHeader()
+ 	if err != nil && err != dnsmessage.ErrSectionDone {
+ 		return &DNSError{
+@@ -173,14 +174,7 @@ func checkHeaders(p *dnsmessage.Parser, h dnsmessage.Header, name, server string
+ 		return &DNSError{Err: "lame referral", Name: name, Server: server}
+ 	}
+ 
+-	// If answer errored for rcodes dnsRcodeSuccess or dnsRcodeNameError,
+-	// it means the response in msg was not useful and trying another
+-	// server probably won't help. Return now in those cases.
+-	// TODO: indicate this in a more obvious way, such as a field on DNSError?
+-	if h.RCode == dnsmessage.RCodeNameError {
+-		return &DNSError{Err: errNoSuchHost.Error(), Name: name, Server: server}
+-	}
+-	if h.RCode != dnsmessage.RCodeSuccess {
++	if h.RCode != dnsmessage.RCodeSuccess && h.RCode != dnsmessage.RCodeNameError {
+ 		// None of the error codes make sense
+ 		// for the query we sent. If we didn't get
+ 		// a name error and we didn't get success,
+@@ -265,7 +259,14 @@ func (r *Resolver) tryOneName(ctx context.Context, cfg *dnsConfig, name string,
+ 				continue
+ 			}
+ 
+-			lastErr = checkHeaders(&p, h, name, server)
++			// The name does not exist, so trying another server won't help.
++			//
++			// TODO: indicate this in a more obvious way, such as a field on DNSError?
++			if h.RCode == dnsmessage.RCodeNameError {
++				return dnsmessage.Parser{}, "", &DNSError{Err: errNoSuchHost.Error(), Name: name, Server: server}
++			}
++
++			lastErr = checkHeader(&p, h, name, server)
+ 			if lastErr != nil {
+ 				continue
+ 			}
+diff --git a/src/net/dnsclient_unix_test.go b/src/net/dnsclient_unix_test.go
+index 1d3b78284c..a95b2fe645 100644
+--- a/src/net/dnsclient_unix_test.go
++++ b/src/net/dnsclient_unix_test.go
+@@ -746,6 +746,7 @@ func TestIgnoreLameReferrals(t *testing.T) {
+ func BenchmarkGoLookupIP(b *testing.B) {
+ 	testHookUninstaller.Do(uninstallTestHooks)
+ 	ctx := context.Background()
++	b.ReportAllocs()
+ 
+ 	for i := 0; i < b.N; i++ {
+ 		goResolver.LookupIPAddr(ctx, "www.example.com")
+@@ -755,6 +756,7 @@ func BenchmarkGoLookupIP(b *testing.B) {
+ func BenchmarkGoLookupIPNoSuchHost(b *testing.B) {
+ 	testHookUninstaller.Do(uninstallTestHooks)
+ 	ctx := context.Background()
++	b.ReportAllocs()
+ 
+ 	for i := 0; i < b.N; i++ {
+ 		goResolver.LookupIPAddr(ctx, "some.nonexistent")
+@@ -778,6 +780,7 @@ func BenchmarkGoLookupIPWithBrokenNameServer(b *testing.B) {
+ 		b.Fatal(err)
+ 	}
+ 	ctx := context.Background()
++	b.ReportAllocs()
+ 
+ 	for i := 0; i < b.N; i++ {
+ 		goResolver.LookupIPAddr(ctx, "www.example.com")
+@@ -1437,7 +1440,7 @@ func TestIssue8434(t *testing.T) {
+ 		t.Fatal("SkipAllQuestions failed:", err)
+ 	}
+ 
+-	err = checkHeaders(&p, h, "golang.org", "foo:53")
++	err = checkHeader(&p, h, "golang.org", "foo:53")
+ 	if err == nil {
+ 		t.Fatal("expected an error")
+ 	}
+@@ -1455,28 +1458,39 @@ func TestIssue8434(t *testing.T) {
+ 
+ // Issue 12778: verify that NXDOMAIN without RA bit errors as
+ // "no such host" and not "server misbehaving"
++//
++// Issue 25336: verify that NXDOMAIN errors fail fast.
+ func TestIssue12778(t *testing.T) {
+-	msg := dnsmessage.Message{
+-		Header: dnsmessage.Header{
+-			RCode:              dnsmessage.RCodeNameError,
+-			RecursionAvailable: false,
++	lookups := 0
++	fake := fakeDNSServer{
++		rh: func(n, _ string, q dnsmessage.Message, _ time.Time) (dnsmessage.Message, error) {
++			lookups++
++			return dnsmessage.Message{
++				Header: dnsmessage.Header{
++					ID:                 q.ID,
++					Response:           true,
++					RCode:              dnsmessage.RCodeNameError,
++					RecursionAvailable: false,
++				},
++				Questions: q.Questions,
++			}, nil
+ 		},
+ 	}
++	r := Resolver{PreferGo: true, Dial: fake.DialContext}
+ 
+-	b, err := msg.Pack()
+-	if err != nil {
+-		t.Fatal("Pack failed:", err)
+-	}
+-	var p dnsmessage.Parser
+-	h, err := p.Start(b)
+-	if err != nil {
+-		t.Fatal("Start failed:", err)
+-	}
+-	if err := p.SkipAllQuestions(); err != nil {
+-		t.Fatal("SkipAllQuestions failed:", err)
++	resolvConf.mu.RLock()
++	conf := resolvConf.dnsConfig
++	resolvConf.mu.RUnlock()
++
++	ctx, cancel := context.WithCancel(context.Background())
++	defer cancel()
++
++	_, _, err := r.tryOneName(ctx, conf, ".", dnsmessage.TypeALL)
++
++	if lookups != 1 {
++		t.Errorf("got %d lookups, wanted 1", lookups)
+ 	}
+ 
+-	err = checkHeaders(&p, h, "golang.org", "foo:53")
+ 	if err == nil {
+ 		t.Fatal("expected an error")
+ 	}

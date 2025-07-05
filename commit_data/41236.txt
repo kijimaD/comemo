@@ -14,7 +14,34 @@ Date:   Mon Sep 16 16:53:23 2019 -0700
     Change-Id: Ie68487e6482c3a9509ecf7ecbbd40fe43cee8381
     Reviewed-on: https://go-review.googlesource.com/c/go/+/195818
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/runtime/extern.go     | 1 -
  src/runtime/stack_test.go | 3 ---
  2 files changed, 4 deletions(-)
+
+diff --git a/src/runtime/extern.go b/src/runtime/extern.go
+index 2917efefa6..4ddf3549e6 100644
+--- a/src/runtime/extern.go
++++ b/src/runtime/extern.go
+@@ -200,7 +200,6 @@ func Caller(skip int) (pc uintptr, file string, line int, ok bool) {
+ // directly is discouraged, as is using FuncForPC on any of the
+ // returned PCs, since these cannot account for inlining or return
+ // program counter adjustment.
+-//go:noinline
+ func Callers(skip int, pc []uintptr) int {
+ 	// runtime.callers uses pc.array==nil as a signal
+ 	// to print a stack trace. Pick off 0-length pc here
+diff --git a/src/runtime/stack_test.go b/src/runtime/stack_test.go
+index 143d3a99a0..adfc65384a 100644
+--- a/src/runtime/stack_test.go
++++ b/src/runtime/stack_test.go
+@@ -599,9 +599,6 @@ func (s structWithMethod) callers() []uintptr {
+ 	return pc[:Callers(0, pc)]
+ }
+ 
+-// The noinline prevents this function from being inlined
+-// into a wrapper. TODO: remove this when issue 28640 is fixed.
+-//go:noinline
+ func (s structWithMethod) stack() string {
+ 	buf := make([]byte, 4<<10)
+ 	return string(buf[:Stack(buf, false)])

@@ -16,7 +16,47 @@ Date:   Fri Mar 11 17:39:00 2016 -0800
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Todd Neal <todd@tneal.org>
-
+---
  src/cmd/compile/internal/ssa/gen/AMD64.rules |  1 +
  src/cmd/compile/internal/ssa/rewriteAMD64.go | 16 ++++++++++++++++
  2 files changed, 17 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index a98301a303..ae55d28c18 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -548,6 +548,7 @@
+ (MULQconst [3] x) -> (LEAQ2 x x)
+ (MULQconst [5] x) -> (LEAQ4 x x)
+ (MULQconst [9] x) -> (LEAQ8 x x)
++(MULQconst [24] x) -> (SHLQconst [3] (LEAQ2 <v.Type> x x)) // Useful for [][]T accesses
+ (MULQconst [c] x) && isPowerOfTwo(c) -> (SHLQconst [log2(c)] x)
+ 
+ // combine add/shift into LEAQ
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 698e6ab167..c98505cafe 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -8280,6 +8280,22 @@ func rewriteValueAMD64_OpAMD64MULQconst(v *Value, config *Config) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (MULQconst [24] x)
++	// cond:
++	// result: (SHLQconst [3] (LEAQ2 <v.Type> x x))
++	for {
++		if v.AuxInt != 24 {
++			break
++		}
++		x := v.Args[0]
++		v.reset(OpAMD64SHLQconst)
++		v.AuxInt = 3
++		v0 := b.NewValue0(v.Line, OpAMD64LEAQ2, v.Type)
++		v0.AddArg(x)
++		v0.AddArg(x)
++		v.AddArg(v0)
++		return true
++	}
+ 	// match: (MULQconst [c] x)
+ 	// cond: isPowerOfTwo(c)
+ 	// result: (SHLQconst [log2(c)] x)

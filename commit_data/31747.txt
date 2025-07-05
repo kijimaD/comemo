@@ -75,7 +75,7 @@ Date:   Sun Mar 12 14:47:59 2017 -0700
     Reviewed-by: Keith Randall <khr@golang.org>
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/builtin.go         |   3 +
  src/cmd/compile/internal/gc/builtin/runtime.go |   3 +
  src/cmd/compile/internal/gc/order.go           |  17 +-
@@ -84,3 +84,566 @@ Date:   Sun Mar 12 14:47:59 2017 -0700
  src/runtime/map_test.go                        |  34 +++
  test/live.go                                   |  12 +-
  7 files changed, 366 insertions(+), 25 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/builtin.go b/src/cmd/compile/internal/gc/builtin.go
+index e9b73244e1..5f65d8135a 100644
+--- a/src/cmd/compile/internal/gc/builtin.go
++++ b/src/cmd/compile/internal/gc/builtin.go
+@@ -83,6 +83,9 @@ var runtimeDecls = [...]struct {
+ 	{"mapaccess2_faststr", funcTag, 64},
+ 	{"mapaccess2_fat", funcTag, 65},
+ 	{"mapassign", funcTag, 60},
++	{"mapassign_fast32", funcTag, 61},
++	{"mapassign_fast64", funcTag, 61},
++	{"mapassign_faststr", funcTag, 61},
+ 	{"mapiterinit", funcTag, 66},
+ 	{"mapdelete", funcTag, 66},
+ 	{"mapiternext", funcTag, 67},
+diff --git a/src/cmd/compile/internal/gc/builtin/runtime.go b/src/cmd/compile/internal/gc/builtin/runtime.go
+index a3f6855081..cec0425947 100644
+--- a/src/cmd/compile/internal/gc/builtin/runtime.go
++++ b/src/cmd/compile/internal/gc/builtin/runtime.go
+@@ -103,6 +103,9 @@ func mapaccess2_fast64(mapType *byte, hmap map[any]any, key any) (val *any, pres
+ func mapaccess2_faststr(mapType *byte, hmap map[any]any, key any) (val *any, pres bool)
+ func mapaccess2_fat(mapType *byte, hmap map[any]any, key *any, zero *byte) (val *any, pres bool)
+ func mapassign(mapType *byte, hmap map[any]any, key *any) (val *any)
++func mapassign_fast32(mapType *byte, hmap map[any]any, key any) (val *any)
++func mapassign_fast64(mapType *byte, hmap map[any]any, key any) (val *any)
++func mapassign_faststr(mapType *byte, hmap map[any]any, key any) (val *any)
+ func mapiterinit(mapType *byte, hmap map[any]any, hiter *any)
+ func mapdelete(mapType *byte, hmap map[any]any, key *any)
+ func mapiternext(hiter *any)
+diff --git a/src/cmd/compile/internal/gc/order.go b/src/cmd/compile/internal/gc/order.go
+index 2cc695d4df..fa9aeb7591 100644
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@ -206,13 +206,20 @@ func orderaddrtemp(n *Node, order *Order) *Node {
+ 	return ordercopyexpr(n, n.Type, order, 0)
+ }
+ 
+-// ordermapkeytemp prepares n.Right to be a key in a map lookup.
++// ordermapkeytemp prepares n.Right to be a key in a map runtime call.
+ func ordermapkeytemp(n *Node, order *Order) {
+ 	// Most map calls need to take the address of the key.
+-	// Exception: mapaccessN_fast* calls. See golang.org/issue/19015.
+-	p, _ := mapaccessfast(n.Left.Type)
+-	fastaccess := p != "" && n.Etype == 0 // Etype == 0 iff n is an rvalue
+-	if fastaccess {
++	// Exception: map(accessN|assign)_fast* calls. See golang.org/issue/19015.
++	var p string
++	switch n.Etype {
++	case 0: // n is an rvalue
++		p, _ = mapaccessfast(n.Left.Type)
++	case 1: // n is an lvalue
++		p = mapassignfast(n.Left.Type)
++	default:
++		Fatalf("unexpected node type: %+v", n)
++	}
++	if p != "" {
+ 		return
+ 	}
+ 	n.Right = orderaddrtemp(n.Right, order)
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index a0689ec2c2..71d83c342c 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -1184,9 +1184,14 @@ opswitch:
+ 		t := map_.Type
+ 		if n.Etype == 1 {
+ 			// This m[k] expression is on the left-hand side of an assignment.
+-			// orderexpr made sure key is addressable.
+-			key = nod(OADDR, key, nil)
+-			n = mkcall1(mapfn("mapassign", t), nil, init, typename(t), map_, key)
++			p := mapassignfast(t)
++			if p == "" {
++				// standard version takes key by reference.
++				// orderexpr made sure key is addressable.
++				key = nod(OADDR, key, nil)
++				p = "mapassign"
++			}
++			n = mkcall1(mapfn(p, t), nil, init, typename(t), map_, key)
+ 		} else {
+ 			// m[k] is not the target of an assignment.
+ 			p, _ := mapaccessfast(t)
+@@ -2628,7 +2633,7 @@ func mapfndel(name string, t *Type) *Node {
+ 	return fn
+ }
+ 
+-// mapaccessfast returns the names of the fast map access runtime routines for t.
++// mapaccessfast returns the name of the fast map access runtime routine for t.
+ func mapaccessfast(t *Type) (access1, access2 string) {
+ 	// Check ../../runtime/hashmap.go:maxValueSize before changing.
+ 	if t.Val().Width > 128 {
+@@ -2645,6 +2650,23 @@ func mapaccessfast(t *Type) (access1, access2 string) {
+ 	return "", ""
+ }
+ 
++// mapassignfast returns the name of the fast map assign runtime routine for t.
++func mapassignfast(t *Type) (assign string) {
++	// Check ../../runtime/hashmap.go:maxValueSize before changing.
++	if t.Val().Width > 128 {
++		return ""
++	}
++	switch algtype(t.Key()) {
++	case AMEM32:
++		return "mapassign_fast32"
++	case AMEM64:
++		return "mapassign_fast64"
++	case ASTRING:
++		return "mapassign_faststr"
++	}
++	return ""
++}
++
+ func writebarrierfn(name string, l *Type, r *Type) *Node {
+ 	fn := syslook(name)
+ 	fn = substArgTypes(fn, l, r)
+diff --git a/src/runtime/hashmap_fast.go b/src/runtime/hashmap_fast.go
+index b5ecc2d141..f1a5bf3fc3 100644
+--- a/src/runtime/hashmap_fast.go
++++ b/src/runtime/hashmap_fast.go
+@@ -45,7 +45,7 @@ func mapaccess1_fast32(t *maptype, h *hmap, key uint32) unsafe.Pointer {
+ 			if k != key {
+ 				continue
+ 			}
+-			x := *((*uint8)(add(unsafe.Pointer(b), i))) // b.topbits[i] without the bounds check
++			x := *((*uint8)(add(unsafe.Pointer(b), i))) // b.tophash[i] without the bounds check
+ 			if x == empty {
+ 				continue
+ 			}
+@@ -94,7 +94,7 @@ func mapaccess2_fast32(t *maptype, h *hmap, key uint32) (unsafe.Pointer, bool) {
+ 			if k != key {
+ 				continue
+ 			}
+-			x := *((*uint8)(add(unsafe.Pointer(b), i))) // b.topbits[i] without the bounds check
++			x := *((*uint8)(add(unsafe.Pointer(b), i))) // b.tophash[i] without the bounds check
+ 			if x == empty {
+ 				continue
+ 			}
+@@ -143,7 +143,7 @@ func mapaccess1_fast64(t *maptype, h *hmap, key uint64) unsafe.Pointer {
+ 			if k != key {
+ 				continue
+ 			}
+-			x := *((*uint8)(add(unsafe.Pointer(b), i))) // b.topbits[i] without the bounds check
++			x := *((*uint8)(add(unsafe.Pointer(b), i))) // b.tophash[i] without the bounds check
+ 			if x == empty {
+ 				continue
+ 			}
+@@ -192,7 +192,7 @@ func mapaccess2_fast64(t *maptype, h *hmap, key uint64) (unsafe.Pointer, bool) {
+ 			if k != key {
+ 				continue
+ 			}
+-			x := *((*uint8)(add(unsafe.Pointer(b), i))) // b.topbits[i] without the bounds check
++			x := *((*uint8)(add(unsafe.Pointer(b), i))) // b.tophash[i] without the bounds check
+ 			if x == empty {
+ 				continue
+ 			}
+@@ -223,7 +223,7 @@ func mapaccess1_faststr(t *maptype, h *hmap, ky string) unsafe.Pointer {
+ 		if key.len < 32 {
+ 			// short key, doing lots of comparisons is ok
+ 			for i := uintptr(0); i < bucketCnt; i++ {
+-				x := *((*uint8)(add(unsafe.Pointer(b), i))) // b.topbits[i] without the bounds check
++				x := *((*uint8)(add(unsafe.Pointer(b), i))) // b.tophash[i] without the bounds check
+ 				if x == empty {
+ 					continue
+ 				}
+@@ -240,7 +240,7 @@ func mapaccess1_faststr(t *maptype, h *hmap, ky string) unsafe.Pointer {
+ 		// long key, try not to do more comparisons than necessary
+ 		keymaybe := uintptr(bucketCnt)
+ 		for i := uintptr(0); i < bucketCnt; i++ {
+-			x := *((*uint8)(add(unsafe.Pointer(b), i))) // b.topbits[i] without the bounds check
++			x := *((*uint8)(add(unsafe.Pointer(b), i))) // b.tophash[i] without the bounds check
+ 			if x == empty {
+ 				continue
+ 			}
+@@ -295,7 +295,7 @@ dohash:
+ 	}
+ 	for {
+ 		for i := uintptr(0); i < bucketCnt; i++ {
+-			x := *((*uint8)(add(unsafe.Pointer(b), i))) // b.topbits[i] without the bounds check
++			x := *((*uint8)(add(unsafe.Pointer(b), i))) // b.tophash[i] without the bounds check
+ 			if x != top {
+ 				continue
+ 			}
+@@ -332,7 +332,7 @@ func mapaccess2_faststr(t *maptype, h *hmap, ky string) (unsafe.Pointer, bool) {
+ 		if key.len < 32 {
+ 			// short key, doing lots of comparisons is ok
+ 			for i := uintptr(0); i < bucketCnt; i++ {
+-				x := *((*uint8)(add(unsafe.Pointer(b), i))) // b.topbits[i] without the bounds check
++				x := *((*uint8)(add(unsafe.Pointer(b), i))) // b.tophash[i] without the bounds check
+ 				if x == empty {
+ 					continue
+ 				}
+@@ -349,7 +349,7 @@ func mapaccess2_faststr(t *maptype, h *hmap, ky string) (unsafe.Pointer, bool) {
+ 		// long key, try not to do more comparisons than necessary
+ 		keymaybe := uintptr(bucketCnt)
+ 		for i := uintptr(0); i < bucketCnt; i++ {
+-			x := *((*uint8)(add(unsafe.Pointer(b), i))) // b.topbits[i] without the bounds check
++			x := *((*uint8)(add(unsafe.Pointer(b), i))) // b.tophash[i] without the bounds check
+ 			if x == empty {
+ 				continue
+ 			}
+@@ -402,7 +402,7 @@ dohash:
+ 	}
+ 	for {
+ 		for i := uintptr(0); i < bucketCnt; i++ {
+-			x := *((*uint8)(add(unsafe.Pointer(b), i))) // b.topbits[i] without the bounds check
++			x := *((*uint8)(add(unsafe.Pointer(b), i))) // b.tophash[i] without the bounds check
+ 			if x != top {
+ 				continue
+ 			}
+@@ -420,3 +420,275 @@ dohash:
+ 		}
+ 	}
+ }
++
++func mapassign_fast32(t *maptype, h *hmap, key uint32) unsafe.Pointer {
++	if h == nil {
++		panic(plainError("assignment to entry in nil map"))
++	}
++	if raceenabled {
++		callerpc := getcallerpc(unsafe.Pointer(&t))
++		racewritepc(unsafe.Pointer(h), callerpc, funcPC(mapassign_fast32))
++	}
++	if h.flags&hashWriting != 0 {
++		throw("concurrent map writes")
++	}
++	hash := t.key.alg.hash(noescape(unsafe.Pointer(&key)), uintptr(h.hash0))
++
++	// Set hashWriting after calling alg.hash for consistency with mapassign.
++	h.flags |= hashWriting
++
++	if h.buckets == nil {
++		h.buckets = newarray(t.bucket, 1)
++	}
++
++again:
++	bucket := hash & (uintptr(1)<<h.B - 1)
++	if h.growing() {
++		growWork(t, h, bucket)
++	}
++	b := (*bmap)(unsafe.Pointer(uintptr(h.buckets) + bucket*uintptr(t.bucketsize)))
++	top := uint8(hash >> (sys.PtrSize*8 - 8))
++	if top < minTopHash {
++		top += minTopHash
++	}
++
++	var inserti *uint8
++	var insertk unsafe.Pointer
++	var val unsafe.Pointer
++	for {
++		for i := uintptr(0); i < bucketCnt; i++ {
++			if b.tophash[i] != top {
++				if b.tophash[i] == empty && inserti == nil {
++					inserti = &b.tophash[i]
++					insertk = add(unsafe.Pointer(b), dataOffset+i*4)
++					val = add(unsafe.Pointer(b), dataOffset+bucketCnt*4+i*uintptr(t.valuesize))
++				}
++				continue
++			}
++			k := *((*uint32)(add(unsafe.Pointer(b), dataOffset+i*4)))
++			if k != key {
++				continue
++			}
++			val = add(unsafe.Pointer(b), dataOffset+bucketCnt*4+i*uintptr(t.valuesize))
++			goto done
++		}
++		ovf := b.overflow(t)
++		if ovf == nil {
++			break
++		}
++		b = ovf
++	}
++
++	// Did not find mapping for key. Allocate new cell & add entry.
++
++	// If we hit the max load factor or we have too many overflow buckets,
++	// and we're not already in the middle of growing, start growing.
++	if !h.growing() && (overLoadFactor(int64(h.count), h.B) || tooManyOverflowBuckets(h.noverflow, h.B)) {
++		hashGrow(t, h)
++		goto again // Growing the table invalidates everything, so try again
++	}
++
++	if inserti == nil {
++		// all current buckets are full, allocate a new one.
++		newb := (*bmap)(newobject(t.bucket))
++		h.setoverflow(t, b, newb)
++		inserti = &newb.tophash[0]
++		insertk = add(unsafe.Pointer(newb), dataOffset)
++		val = add(insertk, bucketCnt*4)
++	}
++
++	// store new key/value at insert position
++	*((*uint32)(insertk)) = key
++	*inserti = top
++	h.count++
++
++done:
++	if h.flags&hashWriting == 0 {
++		throw("concurrent map writes")
++	}
++	h.flags &^= hashWriting
++	return val
++}
++
++func mapassign_fast64(t *maptype, h *hmap, key uint64) unsafe.Pointer {
++	if h == nil {
++		panic(plainError("assignment to entry in nil map"))
++	}
++	if raceenabled {
++		callerpc := getcallerpc(unsafe.Pointer(&t))
++		racewritepc(unsafe.Pointer(h), callerpc, funcPC(mapassign_fast64))
++	}
++	if h.flags&hashWriting != 0 {
++		throw("concurrent map writes")
++	}
++	hash := t.key.alg.hash(noescape(unsafe.Pointer(&key)), uintptr(h.hash0))
++
++	// Set hashWriting after calling alg.hash for consistency with mapassign.
++	h.flags |= hashWriting
++
++	if h.buckets == nil {
++		h.buckets = newarray(t.bucket, 1)
++	}
++
++again:
++	bucket := hash & (uintptr(1)<<h.B - 1)
++	if h.growing() {
++		growWork(t, h, bucket)
++	}
++	b := (*bmap)(unsafe.Pointer(uintptr(h.buckets) + bucket*uintptr(t.bucketsize)))
++	top := uint8(hash >> (sys.PtrSize*8 - 8))
++	if top < minTopHash {
++		top += minTopHash
++	}
++
++	var inserti *uint8
++	var insertk unsafe.Pointer
++	var val unsafe.Pointer
++	for {
++		for i := uintptr(0); i < bucketCnt; i++ {
++			if b.tophash[i] != top {
++				if b.tophash[i] == empty && inserti == nil {
++					inserti = &b.tophash[i]
++					insertk = add(unsafe.Pointer(b), dataOffset+i*8)
++					val = add(unsafe.Pointer(b), dataOffset+bucketCnt*8+i*uintptr(t.valuesize))
++				}
++				continue
++			}
++			k := *((*uint64)(add(unsafe.Pointer(b), dataOffset+i*8)))
++			if k != key {
++				continue
++			}
++			val = add(unsafe.Pointer(b), dataOffset+bucketCnt*8+i*uintptr(t.valuesize))
++			goto done
++		}
++		ovf := b.overflow(t)
++		if ovf == nil {
++			break
++		}
++		b = ovf
++	}
++
++	// Did not find mapping for key. Allocate new cell & add entry.
++
++	// If we hit the max load factor or we have too many overflow buckets,
++	// and we're not already in the middle of growing, start growing.
++	if !h.growing() && (overLoadFactor(int64(h.count), h.B) || tooManyOverflowBuckets(h.noverflow, h.B)) {
++		hashGrow(t, h)
++		goto again // Growing the table invalidates everything, so try again
++	}
++
++	if inserti == nil {
++		// all current buckets are full, allocate a new one.
++		newb := (*bmap)(newobject(t.bucket))
++		h.setoverflow(t, b, newb)
++		inserti = &newb.tophash[0]
++		insertk = add(unsafe.Pointer(newb), dataOffset)
++		val = add(insertk, bucketCnt*8)
++	}
++
++	// store new key/value at insert position
++	*((*uint64)(insertk)) = key
++	*inserti = top
++	h.count++
++
++done:
++	if h.flags&hashWriting == 0 {
++		throw("concurrent map writes")
++	}
++	h.flags &^= hashWriting
++	return val
++}
++
++func mapassign_faststr(t *maptype, h *hmap, ky string) unsafe.Pointer {
++	if h == nil {
++		panic(plainError("assignment to entry in nil map"))
++	}
++	if raceenabled {
++		callerpc := getcallerpc(unsafe.Pointer(&t))
++		racewritepc(unsafe.Pointer(h), callerpc, funcPC(mapassign_faststr))
++	}
++	if h.flags&hashWriting != 0 {
++		throw("concurrent map writes")
++	}
++	key := stringStructOf(&ky)
++	hash := t.key.alg.hash(noescape(unsafe.Pointer(&ky)), uintptr(h.hash0))
++
++	// Set hashWriting after calling alg.hash for consistency with mapassign.
++	h.flags |= hashWriting
++
++	if h.buckets == nil {
++		h.buckets = newarray(t.bucket, 1)
++	}
++
++again:
++	bucket := hash & (uintptr(1)<<h.B - 1)
++	if h.growing() {
++		growWork(t, h, bucket)
++	}
++	b := (*bmap)(unsafe.Pointer(uintptr(h.buckets) + bucket*uintptr(t.bucketsize)))
++	top := uint8(hash >> (sys.PtrSize*8 - 8))
++	if top < minTopHash {
++		top += minTopHash
++	}
++
++	var inserti *uint8
++	var insertk unsafe.Pointer
++	var val unsafe.Pointer
++	for {
++		for i := uintptr(0); i < bucketCnt; i++ {
++			if b.tophash[i] != top {
++				if b.tophash[i] == empty && inserti == nil {
++					inserti = &b.tophash[i]
++					insertk = add(unsafe.Pointer(b), dataOffset+i*uintptr(t.keysize))
++					val = add(unsafe.Pointer(b), dataOffset+bucketCnt*uintptr(t.keysize)+i*uintptr(t.valuesize))
++				}
++				continue
++			}
++			k := (*stringStruct)(add(unsafe.Pointer(b), dataOffset+i*2*sys.PtrSize))
++			if k.len != key.len {
++				continue
++			}
++			if k.str != key.str && !memequal(k.str, key.str, uintptr(key.len)) {
++				continue
++			}
++			// already have a mapping for key. Update it.
++			val = add(unsafe.Pointer(b), dataOffset+bucketCnt*2*sys.PtrSize+i*uintptr(t.valuesize))
++			goto done
++		}
++		ovf := b.overflow(t)
++		if ovf == nil {
++			break
++		}
++		b = ovf
++	}
++
++	// Did not find mapping for key. Allocate new cell & add entry.
++
++	// If we hit the max load factor or we have too many overflow buckets,
++	// and we're not already in the middle of growing, start growing.
++	if !h.growing() && (overLoadFactor(int64(h.count), h.B) || tooManyOverflowBuckets(h.noverflow, h.B)) {
++		hashGrow(t, h)
++		goto again // Growing the table invalidates everything, so try again
++	}
++
++	if inserti == nil {
++		// all current buckets are full, allocate a new one.
++		newb := (*bmap)(newobject(t.bucket))
++		h.setoverflow(t, b, newb)
++		inserti = &newb.tophash[0]
++		insertk = add(unsafe.Pointer(newb), dataOffset)
++		val = add(insertk, bucketCnt*2*sys.PtrSize)
++	}
++
++	// store new key/value at insert position
++	*((*stringStruct)(insertk)) = *key
++	*inserti = top
++	h.count++
++
++done:
++	if h.flags&hashWriting == 0 {
++		throw("concurrent map writes")
++	}
++	h.flags &^= hashWriting
++	return val
++}
+diff --git a/src/runtime/map_test.go b/src/runtime/map_test.go
+index aacd091853..8ec67d5ab0 100644
+--- a/src/runtime/map_test.go
++++ b/src/runtime/map_test.go
+@@ -10,6 +10,7 @@ import (
+ 	"reflect"
+ 	"runtime"
+ 	"sort"
++	"strconv"
+ 	"strings"
+ 	"sync"
+ 	"testing"
+@@ -617,3 +618,36 @@ func TestNonEscapingMap(t *testing.T) {
+ 		t.Fatalf("want 0 allocs, got %v", n)
+ 	}
+ }
++
++func benchmarkMapAssignInt32(b *testing.B, pow uint) {
++	a := make(map[int32]int)
++	for i := 0; i < b.N; i++ {
++		a[int32(i&((1<<pow)-1))] = i
++	}
++}
++func BenchmarkMapAssignInt32_255(b *testing.B) { benchmarkMapAssignInt32(b, 8) }
++func BenchmarkMapAssignInt32_64k(b *testing.B) { benchmarkMapAssignInt32(b, 16) }
++
++func benchmarkMapAssignInt64(b *testing.B, pow uint) {
++	a := make(map[int64]int)
++	for i := 0; i < b.N; i++ {
++		a[int64(i&((1<<pow)-1))] = i
++	}
++}
++func BenchmarkMapAssignInt64_255(b *testing.B) { benchmarkMapAssignInt64(b, 8) }
++func BenchmarkMapAssignInt64_64k(b *testing.B) { benchmarkMapAssignInt64(b, 16) }
++
++func benchmarkMapAssignStr(b *testing.B, pow uint) {
++	k := make([]string, (1 << pow))
++	for i := 0; i < len(k); i++ {
++		k[i] = strconv.Itoa(i)
++	}
++	b.ResetTimer()
++	a := make(map[string]int)
++	for i := 0; i < b.N; i++ {
++		a[k[i&((1<<pow)-1)]] = i
++	}
++}
++
++func BenchmarkMapAssignStr_255(b *testing.B) { benchmarkMapAssignStr(b, 8) }
++func BenchmarkMapAssignStr_64k(b *testing.B) { benchmarkMapAssignStr(b, 16) }
+diff --git a/test/live.go b/test/live.go
+index c9f1479e12..0c1be2504c 100644
+--- a/test/live.go
++++ b/test/live.go
+@@ -283,19 +283,19 @@ func f17a(p *byte) { // ERROR "live at entry to f17a: p$"
+ func f17b(p *byte) { // ERROR "live at entry to f17b: p$"
+ 	// key temporary
+ 	if b {
+-		m2s[str()] = p // ERROR "live at call to mapassign: p .autotmp_[0-9]+$" "live at call to str: p$"
++		m2s[str()] = p // ERROR "live at call to mapassign_faststr: p$" "live at call to str: p$"
+ 	}
+-	m2s[str()] = p // ERROR "live at call to mapassign: p .autotmp_[0-9]+$" "live at call to str: p$"
+-	m2s[str()] = p // ERROR "live at call to mapassign: p .autotmp_[0-9]+$" "live at call to str: p$"
++	m2s[str()] = p // ERROR "live at call to mapassign_faststr: p$" "live at call to str: p$"
++	m2s[str()] = p // ERROR "live at call to mapassign_faststr: p$" "live at call to str: p$"
+ }
+ 
+ func f17c() {
+ 	// key and value temporaries
+ 	if b {
+-		m2s[str()] = f17d() // ERROR "live at call to f17d: .autotmp_[0-9]+$" "live at call to mapassign: .autotmp_[0-9]+ .autotmp_[0-9]+$"
++		m2s[str()] = f17d() // ERROR "live at call to f17d: .autotmp_[0-9]+$" "live at call to mapassign_faststr: .autotmp_[0-9]+$"
+ 	}
+-	m2s[str()] = f17d() // ERROR "live at call to f17d: .autotmp_[0-9]+$" "live at call to mapassign: .autotmp_[0-9]+ .autotmp_[0-9]+$"
+-	m2s[str()] = f17d() // ERROR "live at call to f17d: .autotmp_[0-9]+$" "live at call to mapassign: .autotmp_[0-9]+ .autotmp_[0-9]+$"
++	m2s[str()] = f17d() // ERROR "live at call to f17d: .autotmp_[0-9]+$" "live at call to mapassign_faststr: .autotmp_[0-9]+$"
++	m2s[str()] = f17d() // ERROR "live at call to f17d: .autotmp_[0-9]+$" "live at call to mapassign_faststr: .autotmp_[0-9]+$"
+ }
+ 
+ func f17d() *byte

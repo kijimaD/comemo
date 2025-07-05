@@ -15,6 +15,20 @@ Date:   Sun Jul 7 23:41:02 2024 +0200
     Reviewed-by: Damien Neil <dneil@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/testing/testing.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index 200fa659b8..526cba39f8 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -362,7 +362,7 @@
+ //
+ //	func TestMain(m *testing.M) {
+ //		// call flag.Parse() here if TestMain uses flags
+-//		os.Exit(m.Run())
++//		m.Run()
+ //	}
+ //
+ // TestMain is a low-level primitive and should not be necessary for casual

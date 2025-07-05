@@ -22,7 +22,7 @@ Date:   Thu Feb 9 16:00:23 2017 -0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/syntax/parser.go | 23 ++++---------------
  src/runtime/trace/trace_stack_test.go     |  2 +-
  test/fixedbugs/issue16369.go              |  4 ++--
@@ -33,3 +33,264 @@ Date:   Thu Feb 9 16:00:23 2017 -0800
  test/switch5.go                           |  4 ++--
  test/typeswitch2.go                       |  4 ++--
  9 files changed, 57 insertions(+), 62 deletions(-)
+
+diff --git a/src/cmd/compile/internal/syntax/parser.go b/src/cmd/compile/internal/syntax/parser.go
+index c1faa27894..a11be9717c 100644
+--- a/src/cmd/compile/internal/syntax/parser.go
++++ b/src/cmd/compile/internal/syntax/parser.go
+@@ -358,7 +358,7 @@ func (p *parser) importDecl(group *Group) Decl {
+ 		d.LocalPkgName = n
+ 		p.next()
+ 	}
+-	if p.tok == _Literal && (gcCompat || p.kind == StringLit) {
++	if p.tok == _Literal && p.kind == StringLit {
+ 		d.Path = p.oliteral()
+ 	} else {
+ 		p.syntax_error("missing import path; require quoted string")
+@@ -637,16 +637,13 @@ func (p *parser) callStmt() *CallStmt {
+ 
+ 	s := new(CallStmt)
+ 	s.init(p)
+-	s.Tok = p.tok
++	s.Tok = p.tok // _Defer or _Go
+ 	p.next()
+ 
+ 	x := p.pexpr(p.tok == _Lparen) // keep_parens so we can report error below
+ 	switch x := x.(type) {
+ 	case *CallExpr:
+ 		s.Call = x
+-		if gcCompat {
+-			s.node = x.node
+-		}
+ 	case *ParenExpr:
+ 		p.error(fmt.Sprintf("expression in %s must not be parenthesized", s.Tok))
+ 		// already progressed, no need to advance
+@@ -1127,9 +1124,6 @@ func (p *parser) structType() *StructType {
+ 			break
+ 		}
+ 	}
+-	if gcCompat {
+-		typ.init(p)
+-	}
+ 	p.want(_Rbrace)
+ 
+ 	return typ
+@@ -1154,9 +1148,6 @@ func (p *parser) interfaceType() *InterfaceType {
+ 			break
+ 		}
+ 	}
+-	if gcCompat {
+-		typ.init(p)
+-	}
+ 	p.want(_Rbrace)
+ 
+ 	return typ
+@@ -1554,8 +1545,7 @@ func (p *parser) simpleStmt(lhs Expr, rangeOk bool) SimpleStmt {
+ 		return p.newAssignStmt(0, lhs, p.exprList())
+ 
+ 	case _Define:
+-		var n node
+-		n.init(p)
++		pos := p.pos()
+ 		p.next()
+ 
+ 		if rangeOk && p.got(_Range) {
+@@ -1580,9 +1570,7 @@ func (p *parser) simpleStmt(lhs Expr, rangeOk bool) SimpleStmt {
+ 		}
+ 
+ 		as := p.newAssignStmt(Def, lhs, rhs)
+-		if gcCompat {
+-			as.node = n
+-		}
++		as.pos = pos // TODO(gri) pass this into newAssignStmt
+ 		return as
+ 
+ 	default:
+@@ -1856,9 +1844,6 @@ func (p *parser) caseClause() *CaseClause {
+ 		p.advance(_Case, _Default, _Rbrace)
+ 	}
+ 
+-	if gcCompat {
+-		c.init(p)
+-	}
+ 	p.want(_Colon)
+ 	c.Body = p.stmtList()
+ 
+diff --git a/src/runtime/trace/trace_stack_test.go b/src/runtime/trace/trace_stack_test.go
+index c37b33de86..f8abf66500 100644
+--- a/src/runtime/trace/trace_stack_test.go
++++ b/src/runtime/trace/trace_stack_test.go
+@@ -151,7 +151,7 @@ func TestTraceSymbolize(t *testing.T) {
+ 			{"testing.tRunner", 0},
+ 		}},
+ 		{trace.EvGoCreate, []frame{
+-			{"runtime/trace_test.TestTraceSymbolize", 39},
++			{"runtime/trace_test.TestTraceSymbolize", 37},
+ 			{"testing.tRunner", 0},
+ 		}},
+ 		{trace.EvGoStop, []frame{
+diff --git a/test/fixedbugs/issue16369.go b/test/fixedbugs/issue16369.go
+index bd03fbc6c9..3ff2e63341 100644
+--- a/test/fixedbugs/issue16369.go
++++ b/test/fixedbugs/issue16369.go
+@@ -7,7 +7,7 @@
+ package p
+ 
+ type T interface {
+-	M(interface {
++	M(interface { // ERROR "cannot export unnamed recursive interface"
+ 		T
+-	}) // ERROR "cannot export unnamed recursive interface"
++	})
+ }
+diff --git a/test/fixedbugs/issue9432.go b/test/fixedbugs/issue9432.go
+index 20494604f7..e8946a5be2 100644
+--- a/test/fixedbugs/issue9432.go
++++ b/test/fixedbugs/issue9432.go
+@@ -9,7 +9,7 @@
+ // See golang.org/issue/9432.
+ package p
+ 
+-type foo struct { // GCCGO_ERROR "invalid recursive type"
++type foo struct { // ERROR "invalid recursive type"
+ 	bar  foo
+ 	blah foo
+-} // ERROR "invalid recursive type foo"
++}
+diff --git a/test/import5.go b/test/import5.go
+index 6480acff92..d9673cfe9f 100644
+--- a/test/import5.go
++++ b/test/import5.go
+@@ -21,35 +21,7 @@ import _ "go/parser"
+ //import "greek/αβ"
+ 
+ // Import paths must be strings.
+-import 42    // ERROR "import statement"
+-import 'a'   // ERROR "import statement"
+-import 3.14  // ERROR "import statement"
+-import 0.25i // ERROR "import statement"
+-
+-// Each of these pairs tests both `` vs "" strings
+-// and also use of invalid characters spelled out as
+-// escape sequences and written directly.
+-// For example `"\x00"` tests import "\x00"
+-// while "`\x00`" tests import `<actual-NUL-byte>`.
+-import ""         // ERROR "import path"
+-import ``         // ERROR "import path"
+-import "\x00"     // ERROR "import path"
+-import `\x00`     // ERROR "import path"
+-import "\x7f"     // ERROR "import path"
+-import `\x7f`     // ERROR "import path"
+-import "a!"       // ERROR "import path"
+-import `a!`       // ERROR "import path"
+-import "a b"      // ERROR "import path"
+-import `a b`      // ERROR "import path"
+-import "a\\b"     // ERROR "import path"
+-import `a\\b`     // ERROR "import path"
+-import "\"`a`\""  // ERROR "import path"
+-import `\"a\"`    // ERROR "import path"
+-import "\x80\x80" // ERROR "import path"
+-import `\x80\x80` // ERROR "import path"
+-import "\xFFFD"   // ERROR "import path"
+-import `\xFFFD`   // ERROR "import path"
+-
+-// Invalid local imports.
+-import "/foo"  // ERROR "import path cannot be absolute path"
+-import "c:/foo"  // ERROR "import path contains invalid character"
++import 42    // ERROR "missing import path; require quoted string"
++import 'a'   // ERROR "missing import path; require quoted string"
++import 3.14  // ERROR "missing import path; require quoted string"
++import 0.25i // ERROR "missing import path; require quoted string"
+diff --git a/test/import6.go b/test/import6.go
+new file mode 100644
+index 0000000000..c19280f0e0
+--- /dev/null
++++ b/test/import6.go
+@@ -0,0 +1,38 @@
++// errorcheck
++
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Verify that invalid imports are rejected by the compiler.
++// Does not compile.
++
++package main
++
++// Each of these pairs tests both `` vs "" strings
++// and also use of invalid characters spelled out as
++// escape sequences and written directly.
++// For example `"\x00"` tests import "\x00"
++// while "`\x00`" tests import `<actual-NUL-byte>`.
++import ""         // ERROR "import path"
++import ``         // ERROR "import path"
++import "\x00"     // ERROR "import path"
++import `\x00`     // ERROR "import path"
++import "\x7f"     // ERROR "import path"
++import `\x7f`     // ERROR "import path"
++import "a!"       // ERROR "import path"
++import `a!`       // ERROR "import path"
++import "a b"      // ERROR "import path"
++import `a b`      // ERROR "import path"
++import "a\\b"     // ERROR "import path"
++import `a\\b`     // ERROR "import path"
++import "\"`a`\""  // ERROR "import path"
++import `\"a\"`    // ERROR "import path"
++import "\x80\x80" // ERROR "import path"
++import `\x80\x80` // ERROR "import path"
++import "\xFFFD"   // ERROR "import path"
++import `\xFFFD`   // ERROR "import path"
++
++// Invalid local imports.
++import "/foo"  // ERROR "import path cannot be absolute path"
++import "c:/foo"  // ERROR "import path contains invalid character"
+diff --git a/test/live.go b/test/live.go
+index 0f2d81336d..0466956254 100644
+--- a/test/live.go
++++ b/test/live.go
+@@ -679,9 +679,9 @@ type R struct{ *T } // ERRORAUTO "live at entry to \(\*R\)\.Foo: \.this ptr" "li
+ // In particular, at printint r must be live.
+ func f41(p, q *int) (r *int) { // ERROR "live at entry to f41: p q$"
+ 	r = p
+-	defer func() {
++	defer func() { // ERROR "live at call to deferproc: q r$" "live at call to deferreturn: r$"
+ 		recover()
+-	}() // ERROR "live at call to deferproc: q r$" "live at call to deferreturn: r$"
++	}()
+ 	printint(0) // ERROR "live at call to printint: q r$"
+ 	r = q
+ 	return // ERROR "live at call to deferreturn: r$"
+diff --git a/test/switch5.go b/test/switch5.go
+index 5ca53ba724..5c3b28f180 100644
+--- a/test/switch5.go
++++ b/test/switch5.go
+@@ -67,9 +67,9 @@ func f4(e interface{}) {
+ 	case struct {
+ 		i int "tag2"
+ 	}:
+-	case struct {
++	case struct { // ERROR "duplicate case struct { i int .tag1. } in type switch"
+ 		i int "tag1"
+-	}: // ERROR "duplicate case struct { i int .tag1. } in type switch"
++	}:
+ 	}
+ }
+ 
+diff --git a/test/typeswitch2.go b/test/typeswitch2.go
+index 6c703076a6..1160b62e14 100644
+--- a/test/typeswitch2.go
++++ b/test/typeswitch2.go
+@@ -26,10 +26,10 @@ func whatis(x interface{}) string {
+ 		w()
+ 	}:
+ 		return "rw"
+-	case interface {	// GCCGO_ERROR "duplicate"
++	case interface {	// ERROR "duplicate"
+ 		w()
+ 		r()
+-	}: // GC_ERROR "duplicate"
++	}:
+ 		return "wr"
+ 
+ 	}

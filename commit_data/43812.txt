@@ -48,9 +48,104 @@ Date:   Thu Apr 23 13:28:14 2020 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/229704
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/generic.rules |  1 +
  src/cmd/compile/internal/ssa/rewrite.go        | 14 ++++++++++++++
  src/cmd/compile/internal/ssa/rewritegeneric.go | 25 +++++++++++++++++++++++++
  test/codegen/issue38554.go                     | 15 +++++++++++++++
  4 files changed, 55 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index 328585bbb6..5d64e26358 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -2020,6 +2020,7 @@
+ 	=> (Zero {t} [n] dst1 mem)
+ (Move {t} [n] dst1 src mem:(VarDef (Zero {t} [n] dst0 _))) && isSamePtr(src, dst0)
+ 	=> (Zero {t} [n] dst1 mem)
++(Move {t} [n] dst (Addr {sym} (SB)) mem) && symIsROZero(sym) => (Zero {t} [n] dst mem)
+ 
+ // Don't Store to variables that are about to be overwritten by Move/Zero.
+ (Zero {t1} [n] p1 store:(Store {t2} (OffPtr [o2] p2) _ mem))
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index 0522a955dd..4572c7db20 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -1381,6 +1381,20 @@ func symIsRO(sym interface{}) bool {
+ 	return lsym.Type == objabi.SRODATA && len(lsym.R) == 0
+ }
+ 
++// symIsROZero reports whether sym is a read-only global whose data contains all zeros.
++func symIsROZero(sym Sym) bool {
++	lsym := sym.(*obj.LSym)
++	if lsym.Type != objabi.SRODATA || len(lsym.R) != 0 {
++		return false
++	}
++	for _, b := range lsym.P {
++		if b != 0 {
++			return false
++		}
++	}
++	return true
++}
++
+ // read8 reads one byte from the read-only global sym at offset off.
+ func read8(sym interface{}, off int64) uint8 {
+ 	lsym := sym.(*obj.LSym)
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index d0f6363d13..fc2c78eb03 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -12447,6 +12447,31 @@ func rewriteValuegeneric_OpMove(v *Value) bool {
+ 		v.AddArg2(dst1, mem)
+ 		return true
+ 	}
++	// match: (Move {t} [n] dst (Addr {sym} (SB)) mem)
++	// cond: symIsROZero(sym)
++	// result: (Zero {t} [n] dst mem)
++	for {
++		n := auxIntToInt64(v.AuxInt)
++		t := auxToType(v.Aux)
++		dst := v_0
++		if v_1.Op != OpAddr {
++			break
++		}
++		sym := auxToSym(v_1.Aux)
++		v_1_0 := v_1.Args[0]
++		if v_1_0.Op != OpSB {
++			break
++		}
++		mem := v_2
++		if !(symIsROZero(sym)) {
++			break
++		}
++		v.reset(OpZero)
++		v.AuxInt = int64ToAuxInt(n)
++		v.Aux = typeToAux(t)
++		v.AddArg2(dst, mem)
++		return true
++	}
+ 	// match: (Move {t1} [n] dst1 src1 store:(Store {t2} op:(OffPtr [o2] dst2) _ mem))
+ 	// cond: isSamePtr(dst1, dst2) && store.Uses == 1 && n >= o2 + t2.Size() && disjoint(src1, n, op, t2.Size()) && clobber(store)
+ 	// result: (Move {t1} [n] dst1 src1 mem)
+diff --git a/test/codegen/issue38554.go b/test/codegen/issue38554.go
+new file mode 100644
+index 0000000000..84db8473d3
+--- /dev/null
++++ b/test/codegen/issue38554.go
+@@ -0,0 +1,15 @@
++// asmcheck
++
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test that we are zeroing directly instead of
++// copying a large zero value. Issue 38554.
++
++package codegen
++
++func retlarge() [256]byte {
++	// amd64:-"DUFFCOPY"
++	return [256]byte{}
++}

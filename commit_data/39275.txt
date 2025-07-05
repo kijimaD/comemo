@@ -9,6 +9,22 @@ Date:   Wed Feb 13 19:07:40 2019 +0000
     Change-Id: I88e09035d675e7a6855ada0262eb42636c9822cc
     Reviewed-on: https://go-review.googlesource.com/c/162417
     Reviewed-by: Andrew Bonventre <andybons@golang.org>
-
+---
  doc/go1.12.html | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/doc/go1.12.html b/doc/go1.12.html
+index 75315d1b52..fda61a69a7 100644
+--- a/doc/go1.12.html
++++ b/doc/go1.12.html
+@@ -303,7 +303,9 @@ for {
+ <p>
+   In Go 1.12, <code>godoc</code> no longer has a command-line interface and
+   is only a web server. Users should use <code>go</code> <code>doc</code>
+-  for command-line help output instead.
++  for command-line help output instead. Go 1.12 is the last release that will
++  include the <code>godoc</code> webserver; in Go 1.13 it will be available
++  via <code>go</code> <code>get</code>.
+ </p>
+ 
+ <p><!-- CL 141977 -->

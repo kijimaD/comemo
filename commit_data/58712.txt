@@ -77,7 +77,7 @@ Date:   Wed Nov 29 22:18:32 2023 +0000
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     Auto-Submit: Michael Knyszek <mknyszek@google.com>
-
+---
  src/internal/trace/v2/order.go                     | 68 +++++++++++++++++++++-
  src/internal/trace/v2/reader.go                    |  5 ++
  .../go122-create-syscall-reuse-thread-id.go        | 61 +++++++++++++++++++
@@ -86,3 +86,300 @@ Date:   Wed Nov 29 22:18:32 2023 +0000
  .../tests/go122-create-syscall-with-p.test         | 24 ++++----
  src/internal/trace/v2/testtrace/validation.go      |  2 +-
  7 files changed, 171 insertions(+), 22 deletions(-)
+
+diff --git a/src/internal/trace/v2/order.go b/src/internal/trace/v2/order.go
+index bfc2c5c44d..e1abddca6c 100644
+--- a/src/internal/trace/v2/order.go
++++ b/src/internal/trace/v2/order.go
+@@ -23,6 +23,23 @@ type ordering struct {
+ 	gcSeq       uint64
+ 	gcState     gcState
+ 	initialGen  uint64
++
++	// Some events like GoDestroySyscall produce two events instead of one.
++	// extraEvent is this extra space. advance must not be called unless
++	// the extraEvent has been consumed with consumeExtraEvent.
++	//
++	// TODO(mknyszek): Replace this with a more formal queue.
++	extraEvent Event
++}
++
++// consumeExtraEvent consumes the extra event.
++func (o *ordering) consumeExtraEvent() Event {
++	if o.extraEvent.Kind() == EventBad {
++		return Event{}
++	}
++	r := o.extraEvent
++	o.extraEvent = Event{}
++	return r
+ }
+ 
+ // advance checks if it's valid to proceed with ev which came from thread m.
+@@ -83,6 +100,12 @@ func (o *ordering) advance(ev *baseEvent, evt *evTable, m ThreadID, gen uint64)
+ 				// we haven't lost the relevant information. Promote the status and advance.
+ 				oldState = ProcRunning
+ 				ev.args[1] = uint64(go122.ProcSyscall)
++			} else if status == go122.ProcSyscallAbandoned && s.status == go122.ProcSyscallAbandoned {
++				// If we're passing through ProcSyscallAbandoned, then there's no promotion
++				// to do. We've lost the M that this P is associated with. However it got there,
++				// it's going to appear as idle in the API, so pass through as idle.
++				oldState = ProcIdle
++				ev.args[1] = uint64(go122.ProcSyscallAbandoned)
+ 			} else if s.status != status {
+ 				return curCtx, false, fmt.Errorf("inconsistent status for proc %d: old %v vs. new %v", pid, s.status, status)
+ 			}
+@@ -101,9 +124,13 @@ func (o *ordering) advance(ev *baseEvent, evt *evTable, m ThreadID, gen uint64)
+ 		if status == go122.ProcRunning || status == go122.ProcSyscall {
+ 			newCtx.P = pid
+ 		}
+-		// Set the current context to the state of the M current running this G. Otherwise
+-		// we'll emit a Running -> Running event that doesn't correspond to the right M.
+-		if status == go122.ProcSyscallAbandoned && oldState != ProcUndetermined {
++		// If we're advancing through ProcSyscallAbandoned *but* oldState is running then we've
++		// promoted it to ProcSyscall. However, because it's ProcSyscallAbandoned, we know this
++		// P is about to get stolen and its status very likely isn't being emitted by the same
++		// thread it was bound to. Since this status is Running -> Running and Running is binding,
++		// we need to make sure we emit it in the right context: the context to which it is bound.
++		// Find it, and set our current context to it.
++		if status == go122.ProcSyscallAbandoned && oldState == ProcRunning {
+ 			// N.B. This is slow but it should be fairly rare.
+ 			found := false
+ 			for mid, ms := range o.mStates {
+@@ -502,6 +529,15 @@ func (o *ordering) advance(ev *baseEvent, evt *evTable, m ThreadID, gen uint64)
+ 		// cgo callback is disappearing, either because the callback
+ 		// ending or the C thread that called it is being destroyed.
+ 		//
++		// Also, treat this as if we lost our P too.
++		// The thread ID may be reused by the platform and we'll get
++		// really confused if we try to steal the P is this is running
++		// with later. The new M with the same ID could even try to
++		// steal back this P from itself!
++		//
++		// The runtime is careful to make sure that any GoCreateSyscall
++		// event will enter the runtime emitting events for reacquiring a P.
++		//
+ 		// Note: we might have a P here. The P might not be released
+ 		// eagerly by the runtime, and it might get stolen back later
+ 		// (or never again, if the program is going to exit).
+@@ -519,6 +555,32 @@ func (o *ordering) advance(ev *baseEvent, evt *evTable, m ThreadID, gen uint64)
+ 		// This goroutine is exiting itself.
+ 		delete(o.gStates, curCtx.G)
+ 		newCtx.G = NoGoroutine
++
++		// If we have a proc, then we're dissociating from it now. See the comment at the top of the case.
++		if curCtx.P != NoProc {
++			pState, ok := o.pStates[curCtx.P]
++			if !ok {
++				return curCtx, false, fmt.Errorf("found invalid proc %d during %s", curCtx.P, go122.EventString(typ))
++			}
++			if pState.status != go122.ProcSyscall {
++				return curCtx, false, fmt.Errorf("proc %d in unexpected state %s during %s", curCtx.P, pState.status, go122.EventString(typ))
++			}
++			// See the go122-create-syscall-reuse-thread-id test case for more details.
++			pState.status = go122.ProcSyscallAbandoned
++			newCtx.P = NoProc
++
++			// Queue an extra self-ProcSteal event.
++			o.extraEvent = Event{
++				table: evt,
++				ctx:   curCtx,
++				base: baseEvent{
++					typ:  go122.EvProcSteal,
++					time: ev.time,
++				},
++			}
++			o.extraEvent.base.args[0] = uint64(curCtx.P)
++			o.extraEvent.base.extra(version.Go122)[0] = uint64(go122.ProcSyscall)
++		}
+ 		return curCtx, true, nil
+ 
+ 	// Handle tasks. Tasks are interesting because:
+diff --git a/src/internal/trace/v2/reader.go b/src/internal/trace/v2/reader.go
+index b58cc6fcb1..446b2add30 100644
+--- a/src/internal/trace/v2/reader.go
++++ b/src/internal/trace/v2/reader.go
+@@ -85,6 +85,11 @@ func (r *Reader) ReadEvent() (e Event, err error) {
+ 		r.lastTs = e.base.time
+ 	}()
+ 
++	// Consume any extra events produced during parsing.
++	if ev := r.order.consumeExtraEvent(); ev.Kind() != EventBad {
++		return ev, nil
++	}
++
+ 	// Check if we need to refresh the generation.
+ 	if len(r.frontier) == 0 && len(r.cpuSamples) == 0 {
+ 		if !r.emittedSync {
+diff --git a/src/internal/trace/v2/testdata/generators/go122-create-syscall-reuse-thread-id.go b/src/internal/trace/v2/testdata/generators/go122-create-syscall-reuse-thread-id.go
+new file mode 100644
+index 0000000000..107cce2cc2
+--- /dev/null
++++ b/src/internal/trace/v2/testdata/generators/go122-create-syscall-reuse-thread-id.go
+@@ -0,0 +1,61 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Tests a G being created from within a syscall.
++//
++// Specifically, it tests a scenerio wherein a C
++// thread is calling into Go, creating a goroutine in
++// a syscall (in the tracer's model). The system is free
++// to reuse thread IDs, so first a thread ID is used to
++// call into Go, and then is used for a Go-created thread.
++//
++// This is a regression test. The trace parser didn't correctly
++// model GoDestroySyscall as dropping its P (even if the runtime
++// did). It turns out this is actually fine if all the threads
++// in the trace have unique IDs, since the P just stays associated
++// with an eternally dead thread, and it's stolen by some other
++// thread later. But if thread IDs are reused, then the tracer
++// gets confused when trying to advance events on the new thread.
++// The now-dead thread which exited on a GoDestroySyscall still has
++// its P associated and this transfers to the newly-live thread
++// in the parser's state because they share a thread ID.
++
++package main
++
++import (
++	"internal/trace/v2"
++	"internal/trace/v2/event/go122"
++	testgen "internal/trace/v2/internal/testgen/go122"
++)
++
++func main() {
++	testgen.Main(gen)
++}
++
++func gen(t *testgen.Trace) {
++	g := t.Generation(1)
++
++	// A C thread calls into Go and acquires a P. It returns
++	// back to C, destroying the G.
++	b0 := g.Batch(trace.ThreadID(0), 0)
++	b0.Event("GoCreateSyscall", trace.GoID(4))
++	b0.Event("GoSyscallEndBlocked")
++	b0.Event("ProcStatus", trace.ProcID(0), go122.ProcIdle)
++	b0.Event("ProcStart", trace.ProcID(0), testgen.Seq(1))
++	b0.Event("GoStatus", trace.GoID(4), trace.NoThread, go122.GoRunnable)
++	b0.Event("GoStart", trace.GoID(4), testgen.Seq(1))
++	b0.Event("GoSyscallBegin", testgen.Seq(2), testgen.NoStack)
++	b0.Event("GoDestroySyscall")
++
++	// A new Go-created thread with the same ID appears and
++	// starts running, then tries to steal the P from the
++	// first thread. The stealing is interesting because if
++	// the parser handles GoDestroySyscall wrong, then we
++	// have a self-steal here potentially that doesn't make
++	// sense.
++	b1 := g.Batch(trace.ThreadID(0), 0)
++	b1.Event("ProcStatus", trace.ProcID(1), go122.ProcIdle)
++	b1.Event("ProcStart", trace.ProcID(1), testgen.Seq(1))
++	b1.Event("ProcSteal", trace.ProcID(0), testgen.Seq(3), trace.ThreadID(0))
++}
+diff --git a/src/internal/trace/v2/testdata/generators/go122-create-syscall-with-p.go b/src/internal/trace/v2/testdata/generators/go122-create-syscall-with-p.go
+index 59055e5e62..4cb1c4a9a7 100644
+--- a/src/internal/trace/v2/testdata/generators/go122-create-syscall-with-p.go
++++ b/src/internal/trace/v2/testdata/generators/go122-create-syscall-with-p.go
+@@ -8,11 +8,9 @@
+ // thread is calling into Go, creating a goroutine in
+ // a syscall (in the tracer's model). Because the actual
+ // m can be reused, it's possible for that m to have never
+-// had its P (in _Psyscall) stolen.
+-//
+-// This is a regression test. The trace parser once required
+-// GoCreateSyscall to not have a P, but it can in the scenario
+-// described above.
++// had its P (in _Psyscall) stolen if the runtime doesn't
++// model the scenario correctly. Make sure we reject such
++// traces.
+ 
+ package main
+ 
+@@ -27,7 +25,7 @@ func main() {
+ }
+ 
+ func gen(t *testgen.Trace) {
+-	t.DisableTimestamps()
++	t.ExpectFailure(".*expected a proc but didn't have one.*")
+ 
+ 	g := t.Generation(1)
+ 
+diff --git a/src/internal/trace/v2/testdata/tests/go122-create-syscall-reuse-thread-id.test b/src/internal/trace/v2/testdata/tests/go122-create-syscall-reuse-thread-id.test
+new file mode 100644
+index 0000000000..1820738384
+--- /dev/null
++++ b/src/internal/trace/v2/testdata/tests/go122-create-syscall-reuse-thread-id.test
+@@ -0,0 +1,23 @@
++-- expect --
++SUCCESS
++-- trace --
++Trace Go1.22
++EventBatch gen=1 m=0 time=0 size=37
++GoCreateSyscall dt=1 new_g=4
++GoSyscallEndBlocked dt=1
++ProcStatus dt=1 p=0 pstatus=2
++ProcStart dt=1 p=0 p_seq=1
++GoStatus dt=1 g=4 m=18446744073709551615 gstatus=1
++GoStart dt=1 g=4 g_seq=1
++GoSyscallBegin dt=1 p_seq=2 stack=0
++GoDestroySyscall dt=1
++EventBatch gen=1 m=0 time=0 size=13
++ProcStatus dt=1 p=1 pstatus=2
++ProcStart dt=1 p=1 p_seq=1
++ProcSteal dt=1 p=0 p_seq=3 m=0
++EventBatch gen=1 m=18446744073709551615 time=0 size=5
++Frequency freq=15625000
++EventBatch gen=1 m=18446744073709551615 time=0 size=1
++Stacks
++EventBatch gen=1 m=18446744073709551615 time=0 size=1
++Strings
+diff --git a/src/internal/trace/v2/testdata/tests/go122-create-syscall-with-p.test b/src/internal/trace/v2/testdata/tests/go122-create-syscall-with-p.test
+index 95f86b6f2f..9b329b8bae 100644
+--- a/src/internal/trace/v2/testdata/tests/go122-create-syscall-with-p.test
++++ b/src/internal/trace/v2/testdata/tests/go122-create-syscall-with-p.test
+@@ -1,19 +1,19 @@
+ -- expect --
+-SUCCESS
++FAILURE ".*expected a proc but didn't have one.*"
+ -- trace --
+ Trace Go1.22
+ EventBatch gen=1 m=0 time=0 size=34
+-GoCreateSyscall dt=0 new_g=4
+-ProcStatus dt=0 p=0 pstatus=2
+-ProcStart dt=0 p=0 p_seq=1
+-GoSyscallEndBlocked dt=0
+-GoStart dt=0 g=4 g_seq=1
+-GoSyscallBegin dt=0 p_seq=2 stack=0
+-GoDestroySyscall dt=0
+-GoCreateSyscall dt=0 new_g=4
+-GoSyscallEnd dt=0
+-GoSyscallBegin dt=0 p_seq=3 stack=0
+-GoDestroySyscall dt=0
++GoCreateSyscall dt=1 new_g=4
++ProcStatus dt=1 p=0 pstatus=2
++ProcStart dt=1 p=0 p_seq=1
++GoSyscallEndBlocked dt=1
++GoStart dt=1 g=4 g_seq=1
++GoSyscallBegin dt=1 p_seq=2 stack=0
++GoDestroySyscall dt=1
++GoCreateSyscall dt=1 new_g=4
++GoSyscallEnd dt=1
++GoSyscallBegin dt=1 p_seq=3 stack=0
++GoDestroySyscall dt=1
+ EventBatch gen=1 m=18446744073709551615 time=0 size=5
+ Frequency freq=15625000
+ EventBatch gen=1 m=18446744073709551615 time=0 size=1
+diff --git a/src/internal/trace/v2/testtrace/validation.go b/src/internal/trace/v2/testtrace/validation.go
+index 448ef9d9dd..021c7785fd 100644
+--- a/src/internal/trace/v2/testtrace/validation.go
++++ b/src/internal/trace/v2/testtrace/validation.go
+@@ -225,7 +225,7 @@ func (v *Validator) Event(ev trace.Event) error {
+ 				ctx := state.binding
+ 				if ctx != nil {
+ 					if ctx.P != id {
+-						e.Errorf("tried to stop proc %d when it wasn't currently executing (currently executing %d) on thread %d", id, ctx.P, ev.Thread())
++						e.Errorf("tried to stop proc %d when it wasn't currently executing (currently executing %d) on thread %d", id, ctx.P, ctx.M)
+ 					}
+ 					ctx.P = trace.NoProc
+ 					state.binding = nil

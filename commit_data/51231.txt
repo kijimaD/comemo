@@ -22,6 +22,20 @@ Date:   Thu Dec 16 12:32:39 2021 -0500
     Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/conn_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/conn_test.go b/src/net/conn_test.go
+index 3403eddfd3..d168dda08e 100644
+--- a/src/net/conn_test.go
++++ b/src/net/conn_test.go
+@@ -17,7 +17,7 @@ import (
+ // someTimeout is used just to test that net.Conn implementations
+ // don't explode when their SetFooDeadline methods are called.
+ // It isn't actually used for testing timeouts.
+-const someTimeout = 10 * time.Second
++const someTimeout = 1 * time.Hour
+ 
+ func TestConnAndListener(t *testing.T) {
+ 	for i, network := range []string{"tcp", "unix", "unixpacket"} {

@@ -19,7 +19,7 @@ Date:   Tue Feb 10 15:56:32 2015 +1300
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/6l/asm.go                   |  7 +++++++
  src/cmd/asm/internal/flags/flags.go |  1 +
  src/cmd/asm/main.go                 |  3 +++
@@ -27,3 +27,152 @@ Date:   Tue Feb 10 15:56:32 2015 +1300
  src/cmd/internal/obj/x86/asm6.go    | 29 +++++++++++++++++++++++++----
  src/cmd/internal/obj/x86/obj6.go    |  2 ++
  6 files changed, 41 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/6l/asm.go b/src/cmd/6l/asm.go
+index 22776b9430..bc95d81540 100644
+--- a/src/cmd/6l/asm.go
++++ b/src/cmd/6l/asm.go
+@@ -292,6 +292,13 @@ func elfreloc1(r *ld.Reloc, sectoff int64) int {
+ 			return -1
+ 		}
+ 
++	case ld.R_TLS_IE:
++		if r.Siz == 4 {
++			ld.Thearch.Vput(ld.R_X86_64_GOTTPOFF | uint64(elfsym)<<32)
++		} else {
++			return -1
++		}
++
+ 	case ld.R_CALL:
+ 		if r.Siz == 4 {
+ 			if r.Xsym.Type == ld.SDYNIMPORT {
+diff --git a/src/cmd/asm/internal/flags/flags.go b/src/cmd/asm/internal/flags/flags.go
+index 12bd585413..0fa997f06e 100644
+--- a/src/cmd/asm/internal/flags/flags.go
++++ b/src/cmd/asm/internal/flags/flags.go
+@@ -18,6 +18,7 @@ var (
+ 	OutputFile = flag.String("o", "", "output file; default foo.6 for /a/b/c/foo.s on amd64")
+ 	PrintOut   = flag.Bool("S", false, "print assembly and machine code")
+ 	TrimPath   = flag.String("trimpath", "", "remove prefix from recorded source file paths")
++	Shared     = flag.Bool("shared", false, "generate code that can be linked into a shared library")
+ )
+ 
+ var (
+diff --git a/src/cmd/asm/main.go b/src/cmd/asm/main.go
+index 9df486e85c..e8b10ce1ea 100644
+--- a/src/cmd/asm/main.go
++++ b/src/cmd/asm/main.go
+@@ -41,6 +41,9 @@ func main() {
+ 		ctxt.Debugasm = 1
+ 	}
+ 	ctxt.Trimpath = *flags.TrimPath
++	if *flags.Shared {
++		ctxt.Flag_shared = 1
++	}
+ 	ctxt.Bso = obj.Binitw(os.Stdout)
+ 	defer obj.Bflush(ctxt.Bso)
+ 	ctxt.Diag = log.Fatalf
+diff --git a/src/cmd/internal/gc/lex.go b/src/cmd/internal/gc/lex.go
+index 32f7240a09..6ff515e7b3 100644
+--- a/src/cmd/internal/gc/lex.go
++++ b/src/cmd/internal/gc/lex.go
+@@ -221,13 +221,16 @@ func Main() {
+ 	obj.Flagcount("wb", "enable write barrier", &use_writebarrier)
+ 	obj.Flagcount("x", "debug lexer", &Debug['x'])
+ 	obj.Flagcount("y", "debug declarations in canned imports (with -d)", &Debug['y'])
++	var flag_shared int
+ 	if Thearch.Thechar == '6' {
+ 		obj.Flagcount("largemodel", "generate code that assumes a large memory model", &flag_largemodel)
++		obj.Flagcount("shared", "generate code that can be linked into a shared library", &flag_shared)
+ 	}
+ 
+ 	obj.Flagstr("cpuprofile", "file: write cpu profile to file", &cpuprofile)
+ 	obj.Flagstr("memprofile", "file: write memory profile to file", &memprofile)
+ 	obj.Flagparse(usage)
++	Ctxt.Flag_shared = int32(flag_shared)
+ 	Ctxt.Debugasm = int32(Debug['S'])
+ 	Ctxt.Debugvlog = int32(Debug['v'])
+ 
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index 07ae72f3f0..ee73fb9717 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -1838,7 +1838,7 @@ func prefixof(ctxt *obj.Link, a *obj.Addr) int {
+ 		case REG_GS:
+ 			return 0x65
+ 
+-			// NOTE: Systems listed here should be only systems that
++		// NOTE: Systems listed here should be only systems that
+ 		// support direct TLS references like 8(TLS) implemented as
+ 		// direct references from FS or GS. Systems that require
+ 		// the initial-exec model, where you load the TLS base into
+@@ -1849,9 +1849,15 @@ func prefixof(ctxt *obj.Link, a *obj.Addr) int {
+ 			default:
+ 				log.Fatalf("unknown TLS base register for %s", obj.Headstr(ctxt.Headtype))
+ 
++			case obj.Hlinux:
++				if ctxt.Flag_shared != 0 {
++					log.Fatalf("unknown TLS base register for linux with -shared")
++				} else {
++					return 0x64 // FS
++				}
++
+ 			case obj.Hdragonfly,
+ 				obj.Hfreebsd,
+-				obj.Hlinux,
+ 				obj.Hnetbsd,
+ 				obj.Hopenbsd,
+ 				obj.Hsolaris:
+@@ -1873,6 +1879,21 @@ func prefixof(ctxt *obj.Link, a *obj.Addr) int {
+ 	case REG_ES:
+ 		return 0x26
+ 
++	case REG_TLS:
++		if ctxt.Flag_shared != 0 {
++			// When building for inclusion into a shared library, an instruction of the form
++			//     MOV 0(CX)(TLS*1), AX
++			// becomes
++			//     mov %fs:(%rcx), %rax
++			// which assumes that the correct TLS offset has been loaded into %rcx (today
++			// there is only one TLS variable -- g -- so this is OK). When not building for
++			// a shared library the instruction does not require a prefix.
++			if a.Offset != 0 {
++				log.Fatalf("cannot handle non-0 offsets to TLS")
++			}
++			return 0x64
++		}
++
+ 	case REG_FS:
+ 		return 0x64
+ 
+@@ -2486,7 +2507,7 @@ func asmandsz(ctxt *obj.Link, p *obj.Prog, a *obj.Addr, r int, rex int, m64 int)
+ 	}
+ 
+ 	if REG_AX <= base && base <= REG_R15 {
+-		if a.Index == REG_TLS {
++		if a.Index == REG_TLS && ctxt.Flag_shared == 0 {
+ 			rel = obj.Reloc{}
+ 			rel.Type = obj.R_TLS_IE
+ 			rel.Siz = 4
+@@ -3488,7 +3509,7 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
+ 							}
+ 						}
+ 
+-						// NOTE: The systems listed here are the ones that use the "TLS initial exec" model,
++					// NOTE: The systems listed here are the ones that use the "TLS initial exec" model,
+ 					// where you load the TLS base register into a register and then index off that
+ 					// register to access the actual TLS variables. Systems that allow direct TLS access
+ 					// are handled in prefixof above and should not be listed here.
+diff --git a/src/cmd/internal/obj/x86/obj6.go b/src/cmd/internal/obj/x86/obj6.go
+index 5060049d58..29bed63617 100644
+--- a/src/cmd/internal/obj/x86/obj6.go
++++ b/src/cmd/internal/obj/x86/obj6.go
+@@ -43,6 +43,8 @@ func canuselocaltls(ctxt *obj.Link) bool {
+ 	case obj.Hplan9,
+ 		obj.Hwindows:
+ 		return false
++	case obj.Hlinux:
++		return ctxt.Flag_shared == 0
+ 	}
+ 
+ 	return true

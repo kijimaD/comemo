@@ -7,6 +7,19 @@ Date:   Mon Dec 1 17:35:15 2008 -0800
     R=ken
     OCL=20188
     CL=20188
-
+---
  src/cmd/gc/Makefile | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/cmd/gc/Makefile b/src/cmd/gc/Makefile
+index 2a764b7aed..502f37146d 100644
+--- a/src/cmd/gc/Makefile
++++ b/src/cmd/gc/Makefile
+@@ -9,7 +9,6 @@ LIB=\
+ 
+ HFILES=\
+ 	go.h\
+-	mparith.h\
+ 	y.tab.h\
+ 
+ YFILES=\

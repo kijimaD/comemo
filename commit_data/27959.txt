@@ -11,6 +11,35 @@ Date:   Fri Apr 22 09:38:41 2016 +1200
     Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/cmd/link/internal/ld/data.go | 7 ++++---
  1 file changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 8d20096dcf..6fc6de3818 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -798,19 +798,20 @@ func Codeblk(addr int64, size int64) {
+ 		return
+ 	}
+ 
+-	var sym *LSym
+-	for _, sym = range Ctxt.Textp {
++	syms := Ctxt.Textp
++	for i, sym := range syms {
+ 		if !sym.Attr.Reachable() {
+ 			continue
+ 		}
+ 		if sym.Value >= addr {
++			syms = syms[i:]
+ 			break
+ 		}
+ 	}
+ 
+ 	eaddr := addr + size
+ 	var q []byte
+-	for ; sym != nil; sym = sym.Next {
++	for _, sym := range syms {
+ 		if !sym.Attr.Reachable() {
+ 			continue
+ 		}

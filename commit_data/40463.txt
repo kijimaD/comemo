@@ -24,7 +24,7 @@ Date:   Mon May 13 14:51:55 2019 -0700
     Run-TryBot: Damien Neil <dneil@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Marcel van Lohuizen <mpvl@golang.org>
-
+---
  src/errors/errors.go                    |  34 +-
  src/errors/format.go                    |  34 --
  src/errors/frame.go                     |  47 ---
@@ -41,3 +41,1458 @@ Date:   Mon May 13 14:51:55 2019 -0700
  src/internal/errinternal/errinternal.go |   9 -
  src/internal/oserror/errors_test.go     |   6 +-
  15 files changed, 37 insertions(+), 1173 deletions(-)
+
+diff --git a/src/errors/errors.go b/src/errors/errors.go
+index 51175b13c8..b8a46921be 100644
+--- a/src/errors/errors.go
++++ b/src/errors/errors.go
+@@ -5,46 +5,16 @@
+ // Package errors implements functions to manipulate errors.
+ package errors
+ 
+-import (
+-	"internal/errinternal"
+-	"runtime"
+-)
+-
+ // New returns an error that formats as the given text.
+-//
+-// The returned error contains a Frame set to the caller's location and
+-// implements Formatter to show this information when printed with details.
+ func New(text string) error {
+-	// Inline call to errors.Callers to improve performance.
+-	var s Frame
+-	runtime.Callers(2, s.frames[:])
+-	return &errorString{text, nil, s}
+-}
+-
+-func init() {
+-	errinternal.NewError = func(text string, err error) error {
+-		var s Frame
+-		runtime.Callers(3, s.frames[:])
+-		return &errorString{text, err, s}
+-	}
++	return &errorString{text}
+ }
+ 
+ // errorString is a trivial implementation of error.
+ type errorString struct {
+-	s     string
+-	err   error
+-	frame Frame
++	s string
+ }
+ 
+ func (e *errorString) Error() string {
+-	if e.err != nil {
+-		return e.s + ": " + e.err.Error()
+-	}
+ 	return e.s
+ }
+-
+-func (e *errorString) FormatError(p Printer) (next error) {
+-	p.Print(e.s)
+-	e.frame.Format(p)
+-	return e.err
+-}
+diff --git a/src/errors/format.go b/src/errors/format.go
+deleted file mode 100644
+index 12deed3cf7..0000000000
+--- a/src/errors/format.go
++++ /dev/null
+@@ -1,34 +0,0 @@
+-// Copyright 2018 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package errors
+-
+-// A Formatter formats error messages.
+-type Formatter interface {
+-	error
+-
+-	// FormatError prints the receiver's first error and returns the next error in
+-	// the error chain, if any.
+-	FormatError(p Printer) (next error)
+-}
+-
+-// A Printer formats error messages.
+-//
+-// The most common implementation of Printer is the one provided by package fmt
+-// during Printf. Localization packages such as golang.org/x/text/message
+-// typically provide their own implementations.
+-type Printer interface {
+-	// Print appends args to the message output.
+-	Print(args ...interface{})
+-
+-	// Printf writes a formatted string.
+-	Printf(format string, args ...interface{})
+-
+-	// Detail reports whether error detail is requested.
+-	// After the first call to Detail, all text written to the Printer
+-	// is formatted as additional detail, or ignored when
+-	// detail has not been requested.
+-	// If Detail returns false, the caller can avoid printing the detail at all.
+-	Detail() bool
+-}
+diff --git a/src/errors/frame.go b/src/errors/frame.go
+deleted file mode 100644
+index 487092fa89..0000000000
+--- a/src/errors/frame.go
++++ /dev/null
+@@ -1,47 +0,0 @@
+-// Copyright 2018 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package errors
+-
+-import (
+-	"runtime"
+-)
+-
+-// A Frame contains part of a call stack.
+-type Frame struct {
+-	frames [1]uintptr
+-}
+-
+-// Caller returns a Frame that describes a frame on the caller's stack.
+-// The argument skip is the number of frames to skip over.
+-// Caller(0) returns the frame for the caller of Caller.
+-func Caller(skip int) Frame {
+-	var s Frame
+-	runtime.Callers(skip+2, s.frames[:])
+-	return s
+-}
+-
+-// location reports the file, line, and function of a frame.
+-//
+-// The returned function may be "" even if file and line are not.
+-func (f Frame) location() (function, file string, line int) {
+-	frames := runtime.CallersFrames(f.frames[:])
+-	fr, _ := frames.Next()
+-	return fr.Function, fr.File, fr.Line
+-}
+-
+-// Format prints the stack as error detail.
+-// It should be called from an error's Format implementation,
+-// before printing any other error detail.
+-func (f Frame) Format(p Printer) {
+-	if p.Detail() {
+-		function, file, line := f.location()
+-		if function != "" {
+-			p.Printf("%s\n    ", function)
+-		}
+-		if file != "" {
+-			p.Printf("%s:%d\n", file, line)
+-		}
+-	}
+-}
+diff --git a/src/errors/frame_test.go b/src/errors/frame_test.go
+deleted file mode 100644
+index ba08166966..0000000000
+--- a/src/errors/frame_test.go
++++ /dev/null
+@@ -1,66 +0,0 @@
+-// Copyright 2018 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package errors_test
+-
+-import (
+-	"bytes"
+-	"errors"
+-	"fmt"
+-	"math/big"
+-	"regexp"
+-	"strings"
+-	"testing"
+-)
+-
+-func TestFrame(t *testing.T) {
+-
+-	// Extra line
+-	got := fmt.Sprintf("%+v", errors.New("Test"))
+-	got = got[strings.Index(got, "Test"):]
+-	const want = "^Test:" +
+-		"\n    errors_test.TestFrame" +
+-		"\n        .*/errors/frame_test.go:20$"
+-	ok, err := regexp.MatchString(want, got)
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	if !ok {
+-		t.Errorf("\n got %v;\nwant %v", got, want)
+-	}
+-}
+-
+-type myType struct{}
+-
+-func (myType) Format(s fmt.State, v rune) {
+-	s.Write(bytes.Repeat([]byte("Hi! "), 10))
+-}
+-
+-func BenchmarkNew(b *testing.B) {
+-	for i := 0; i < b.N; i++ {
+-		_ = errors.New("new error")
+-	}
+-}
+-
+-func BenchmarkErrorf(b *testing.B) {
+-	err := errors.New("foo")
+-	args := func(a ...interface{}) []interface{} { return a }
+-	benchCases := []struct {
+-		name   string
+-		format string
+-		args   []interface{}
+-	}{
+-		{"no_format", "msg: %v", args(err)},
+-		{"with_format", "failed %d times: %v", args(5, err)},
+-		{"method: mytype", "pi %s %v: %v", args("myfile.go", myType{}, err)},
+-		{"method: number", "pi %s %d: %v", args("myfile.go", big.NewInt(5), err)},
+-	}
+-	for _, bc := range benchCases {
+-		b.Run(bc.name, func(b *testing.B) {
+-			for i := 0; i < b.N; i++ {
+-				_ = fmt.Errorf(bc.format, bc.args...)
+-			}
+-		})
+-	}
+-}
+diff --git a/src/errors/wrap.go b/src/errors/wrap.go
+index b53caa6fc9..62332b1a88 100644
+--- a/src/errors/wrap.go
++++ b/src/errors/wrap.go
+@@ -8,35 +8,12 @@ import (
+ 	"internal/reflectlite"
+ )
+ 
+-// A Wrapper provides context around another error.
+-type Wrapper interface {
+-	// Unwrap returns the next error in the error chain.
+-	// If there is no next error, Unwrap returns nil.
+-	Unwrap() error
+-}
+-
+-// Opaque returns an error with the same error formatting as err
+-// but that does not match err and cannot be unwrapped.
+-func Opaque(err error) error {
+-	return noWrapper{err}
+-}
+-
+-type noWrapper struct {
+-	error
+-}
+-
+-func (e noWrapper) FormatError(p Printer) (next error) {
+-	if f, ok := e.error.(Formatter); ok {
+-		return f.FormatError(p)
+-	}
+-	p.Print(e.error)
+-	return nil
+-}
+-
+ // Unwrap returns the result of calling the Unwrap method on err, if err
+ // implements Wrapper. Otherwise, Unwrap returns nil.
+ func Unwrap(err error) error {
+-	u, ok := err.(Wrapper)
++	u, ok := err.(interface {
++		Unwrap() error
++	})
+ 	if !ok {
+ 		return nil
+ 	}
+diff --git a/src/errors/wrap_test.go b/src/errors/wrap_test.go
+index f8e907cff7..2055316756 100644
+--- a/src/errors/wrap_test.go
++++ b/src/errors/wrap_test.go
+@@ -5,7 +5,6 @@
+ package errors_test
+ 
+ import (
+-	"bytes"
+ 	"errors"
+ 	"fmt"
+ 	"os"
+@@ -16,8 +15,6 @@ func TestIs(t *testing.T) {
+ 	err1 := errors.New("1")
+ 	erra := wrapped{"wrap 2", err1}
+ 	errb := wrapped{"wrap 3", erra}
+-	erro := errors.Opaque(err1)
+-	errco := wrapped{"opaque", erro}
+ 
+ 	err3 := errors.New("3")
+ 
+@@ -35,9 +32,6 @@ func TestIs(t *testing.T) {
+ 		{err1, err1, true},
+ 		{erra, err1, true},
+ 		{errb, err1, true},
+-		{errco, erro, true},
+-		{errco, err1, false},
+-		{erro, erro, true},
+ 		{err1, err3, false},
+ 		{erra, err3, false},
+ 		{errb, err3, false},
+@@ -45,8 +39,6 @@ func TestIs(t *testing.T) {
+ 		{poser, err3, true},
+ 		{poser, erra, false},
+ 		{poser, errb, false},
+-		{poser, erro, false},
+-		{poser, errco, false},
+ 		{errorUncomparable{}, errorUncomparable{}, true},
+ 		{errorUncomparable{}, &errorUncomparable{}, false},
+ 		{&errorUncomparable{}, errorUncomparable{}, true},
+@@ -107,10 +99,6 @@ func TestAs(t *testing.T) {
+ 		errF,
+ 		&errP,
+ 		true,
+-	}, {
+-		errors.Opaque(errT),
+-		&errT,
+-		false,
+ 	}, {
+ 		errorT{},
+ 		&errP,
+@@ -187,7 +175,6 @@ func TestAsValidation(t *testing.T) {
+ func TestUnwrap(t *testing.T) {
+ 	err1 := errors.New("1")
+ 	erra := wrapped{"wrap 2", err1}
+-	erro := errors.Opaque(err1)
+ 
+ 	testCases := []struct {
+ 		err  error
+@@ -198,9 +185,6 @@ func TestUnwrap(t *testing.T) {
+ 		{err1, nil},
+ 		{erra, err1},
+ 		{wrapped{"wrap 3", erra}, erra},
+-
+-		{erro, nil},
+-		{wrapped{"opaque", erro}, erro},
+ 	}
+ 	for _, tc := range testCases {
+ 		if got := errors.Unwrap(tc.err); got != tc.want {
+@@ -209,39 +193,6 @@ func TestUnwrap(t *testing.T) {
+ 	}
+ }
+ 
+-func TestOpaque(t *testing.T) {
+-	someError := errors.New("some error")
+-	testCases := []struct {
+-		err  error
+-		next error
+-	}{
+-		{errorT{}, nil},
+-		{wrapped{"b", nil}, nil},
+-		{wrapped{"c", someError}, someError},
+-	}
+-	for _, tc := range testCases {
+-		t.Run("", func(t *testing.T) {
+-			opaque := errors.Opaque(tc.err)
+-
+-			f, ok := opaque.(errors.Formatter)
+-			if !ok {
+-				t.Fatal("Opaque error does not implement Formatter")
+-			}
+-			var p printer
+-			next := f.FormatError(&p)
+-			if next != tc.next {
+-				t.Errorf("next was %v; want %v", next, tc.next)
+-			}
+-			if got, want := p.buf.String(), tc.err.Error(); got != want {
+-				t.Errorf("error was %q; want %q", got, want)
+-			}
+-			if got := errors.Unwrap(opaque); got != nil {
+-				t.Errorf("Unwrap returned non-nil error (%v)", got)
+-			}
+-		})
+-	}
+-}
+-
+ type errorT struct{}
+ 
+ func (errorT) Error() string { return "errorT" }
+@@ -255,18 +206,6 @@ func (e wrapped) Error() string { return e.msg }
+ 
+ func (e wrapped) Unwrap() error { return e.err }
+ 
+-func (e wrapped) FormatError(p errors.Printer) error {
+-	p.Print(e.msg)
+-	return e.err
+-}
+-
+-type printer struct {
+-	errors.Printer
+-	buf bytes.Buffer
+-}
+-
+-func (p *printer) Print(args ...interface{}) { fmt.Fprint(&p.buf, args...) }
+-
+ type errorUncomparable struct {
+ 	f []string
+ }
+diff --git a/src/fmt/doc.go b/src/fmt/doc.go
+index b784399e0d..a7115809d3 100644
+--- a/src/fmt/doc.go
++++ b/src/fmt/doc.go
+@@ -149,28 +149,20 @@
+ 	1. If the operand is a reflect.Value, the operand is replaced by the
+ 	concrete value that it holds, and printing continues with the next rule.
+ 
+-	2. If an operand implements the Formatter interface, and not
+-	errors.Formatter, it will be invoked. Formatter provides fine
+-	control of formatting.
++	2. If an operand implements the Formatter interface, it will
++	be invoked. Formatter provides fine control of formatting.
+ 
+ 	3. If the %v verb is used with the # flag (%#v) and the operand
+ 	implements the GoStringer interface, that will be invoked.
+ 
+ 	If the format (which is implicitly %v for Println etc.) is valid
+-	for a string (%s %q %v %x %X), the following three rules apply:
++	for a string (%s %q %v %x %X), the following two rules apply:
+ 
+-	4. If an operand implements errors.Formatter, the FormatError
+-	method will be invoked with an errors.Printer to print the error.
+-	If the %v flag is used with the + flag (%+v), the Detail method
+-	of the Printer will return true and the error will be formatted
+-	as a detailed error message. Otherwise the printed string will
+-	be formatted as required by the verb (if any).
+-
+-	5. If an operand implements the error interface, the Error method
++	4. If an operand implements the error interface, the Error method
+ 	will be invoked to convert the object to a string, which will then
+ 	be formatted as required by the verb (if any).
+ 
+-	6. If an operand implements method String() string, that method
++	5. If an operand implements method String() string, that method
+ 	will be invoked to convert the object to a string, which will then
+ 	be formatted as required by the verb (if any).
+ 
+diff --git a/src/fmt/errors.go b/src/fmt/errors.go
+deleted file mode 100644
+index 4dcd01bdc4..0000000000
+--- a/src/fmt/errors.go
++++ /dev/null
+@@ -1,239 +0,0 @@
+-// Copyright 2018 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package fmt
+-
+-import (
+-	"errors"
+-	"internal/errinternal"
+-	"strings"
+-)
+-
+-// Errorf formats according to a format specifier and returns the string as a
+-// value that satisfies error.
+-//
+-// The returned error includes the file and line number of the caller when
+-// formatted with additional detail enabled. If the last argument is an error
+-// the returned error's Format method will return it if the format string ends
+-// with ": %s", ": %v", or ": %w". If the last argument is an error and the
+-// format string ends with ": %w", the returned error implements errors.Wrapper
+-// with an Unwrap method returning it.
+-func Errorf(format string, a ...interface{}) error {
+-	err, wrap := lastError(format, a)
+-	if err == nil {
+-		return errinternal.NewError(Sprintf(format, a...), nil)
+-	}
+-
+-	// TODO: this is not entirely correct. The error value could be
+-	// printed elsewhere in format if it mixes numbered with unnumbered
+-	// substitutions. With relatively small changes to doPrintf we can
+-	// have it optionally ignore extra arguments and pass the argument
+-	// list in its entirety.
+-	msg := Sprintf(format[:len(format)-len(": %s")], a[:len(a)-1]...)
+-	if wrap {
+-		return &wrapError{msg, err, errors.Caller(1)}
+-	}
+-	return errinternal.NewError(msg, err)
+-}
+-
+-func lastError(format string, a []interface{}) (err error, wrap bool) {
+-	wrap = strings.HasSuffix(format, ": %w")
+-	if !wrap &&
+-		!strings.HasSuffix(format, ": %s") &&
+-		!strings.HasSuffix(format, ": %v") {
+-		return nil, false
+-	}
+-
+-	if len(a) == 0 {
+-		return nil, false
+-	}
+-
+-	err, ok := a[len(a)-1].(error)
+-	if !ok {
+-		return nil, false
+-	}
+-
+-	return err, wrap
+-}
+-
+-type noWrapError struct {
+-	msg   string
+-	err   error
+-	frame errors.Frame
+-}
+-
+-func (e *noWrapError) Error() string {
+-	return Sprint(e)
+-}
+-
+-func (e *noWrapError) FormatError(p errors.Printer) (next error) {
+-	p.Print(e.msg)
+-	e.frame.Format(p)
+-	return e.err
+-}
+-
+-type wrapError struct {
+-	msg   string
+-	err   error
+-	frame errors.Frame
+-}
+-
+-func (e *wrapError) Error() string {
+-	return Sprint(e)
+-}
+-
+-func (e *wrapError) FormatError(p errors.Printer) (next error) {
+-	p.Print(e.msg)
+-	e.frame.Format(p)
+-	return e.err
+-}
+-
+-func (e *wrapError) Unwrap() error {
+-	return e.err
+-}
+-
+-func fmtError(p *pp, verb rune, err error) (handled bool) {
+-	var (
+-		sep = " " // separator before next error
+-		w   = p   // print buffer where error text is written
+-	)
+-	switch {
+-	// Note that this switch must match the preference order
+-	// for ordinary string printing (%#v before %+v, and so on).
+-
+-	case p.fmt.sharpV:
+-		if stringer, ok := p.arg.(GoStringer); ok {
+-			// Print the result of GoString unadorned.
+-			p.fmt.fmtS(stringer.GoString())
+-			return true
+-		}
+-		return false
+-
+-	case p.fmt.plusV:
+-		sep = "\n  - "
+-		w.fmt.fmtFlags = fmtFlags{plusV: p.fmt.plusV} // only keep detail flag
+-
+-		// The width or precision of a detailed view could be the number of
+-		// errors to print from a list.
+-
+-	default:
+-		// Use an intermediate buffer in the rare cases that precision,
+-		// truncation, or one of the alternative verbs (q, x, and X) are
+-		// specified.
+-		switch verb {
+-		case 's', 'v':
+-			if (!w.fmt.widPresent || w.fmt.wid == 0) && !w.fmt.precPresent {
+-				break
+-			}
+-			fallthrough
+-		case 'q', 'x', 'X':
+-			w = newPrinter()
+-			defer w.free()
+-		default:
+-			return false
+-		}
+-	}
+-
+-loop:
+-	for {
+-		w.fmt.inDetail = false
+-		switch v := err.(type) {
+-		case errors.Formatter:
+-			err = v.FormatError((*errPP)(w))
+-		case Formatter:
+-			if w.fmt.plusV {
+-				v.Format((*errPPState)(w), 'v') // indent new lines
+-			} else {
+-				v.Format(w, 'v') // do not indent new lines
+-			}
+-			break loop
+-		default:
+-			w.fmtString(v.Error(), 's')
+-			break loop
+-		}
+-		if err == nil {
+-			break
+-		}
+-		if w.fmt.needColon || !p.fmt.plusV {
+-			w.buf.writeByte(':')
+-			w.fmt.needColon = false
+-		}
+-		w.buf.writeString(sep)
+-		w.fmt.inDetail = false
+-		w.fmt.needNewline = false
+-	}
+-
+-	if w != p {
+-		p.fmtString(string(w.buf), verb)
+-	}
+-	return true
+-}
+-
+-var detailSep = []byte("\n    ")
+-
+-// errPPState wraps a pp to implement State with indentation. It is used
+-// for errors implementing fmt.Formatter.
+-type errPPState pp
+-
+-func (p *errPPState) Width() (wid int, ok bool)      { return (*pp)(p).Width() }
+-func (p *errPPState) Precision() (prec int, ok bool) { return (*pp)(p).Precision() }
+-func (p *errPPState) Flag(c int) bool                { return (*pp)(p).Flag(c) }
+-
+-func (p *errPPState) Write(b []byte) (n int, err error) {
+-	if p.fmt.plusV {
+-		if len(b) == 0 {
+-			return 0, nil
+-		}
+-		if p.fmt.inDetail && p.fmt.needColon {
+-			p.fmt.needNewline = true
+-			if b[0] == '\n' {
+-				b = b[1:]
+-			}
+-		}
+-		k := 0
+-		for i, c := range b {
+-			if p.fmt.needNewline {
+-				if p.fmt.inDetail && p.fmt.needColon {
+-					p.buf.writeByte(':')
+-					p.fmt.needColon = false
+-				}
+-				p.buf.write(detailSep)
+-				p.fmt.needNewline = false
+-			}
+-			if c == '\n' {
+-				p.buf.write(b[k:i])
+-				k = i + 1
+-				p.fmt.needNewline = true
+-			}
+-		}
+-		p.buf.write(b[k:])
+-		if !p.fmt.inDetail {
+-			p.fmt.needColon = true
+-		}
+-	} else if !p.fmt.inDetail {
+-		p.buf.write(b)
+-	}
+-	return len(b), nil
+-
+-}
+-
+-// errPP wraps a pp to implement an errors.Printer.
+-type errPP pp
+-
+-func (p *errPP) Print(args ...interface{}) {
+-	if !p.fmt.inDetail || p.fmt.plusV {
+-		Fprint((*errPPState)(p), args...)
+-	}
+-}
+-
+-func (p *errPP) Printf(format string, args ...interface{}) {
+-	if !p.fmt.inDetail || p.fmt.plusV {
+-		Fprintf((*errPPState)(p), format, args...)
+-	}
+-}
+-
+-func (p *errPP) Detail() bool {
+-	p.fmt.inDetail = true
+-	return p.fmt.plusV
+-}
+diff --git a/src/fmt/errors_test.go b/src/fmt/errors_test.go
+deleted file mode 100644
+index 39f247e06d..0000000000
+--- a/src/fmt/errors_test.go
++++ /dev/null
+@@ -1,576 +0,0 @@
+-// Copyright 2018 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package fmt_test
+-
+-import (
+-	"errors"
+-	"fmt"
+-	"io"
+-	"os"
+-	"path"
+-	"reflect"
+-	"regexp"
+-	"strconv"
+-	"strings"
+-	"testing"
+-)
+-
+-func TestErrorf(t *testing.T) {
+-	chained := &wrapped{"chained", nil}
+-	chain := func(s ...string) (a []string) {
+-		for _, s := range s {
+-			a = append(a, cleanPath(s))
+-		}
+-		return a
+-	}
+-	noArgsWrap := "no args: %w" // avoid vet check
+-	testCases := []struct {
+-		got  error
+-		want []string
+-	}{{
+-		fmt.Errorf("no args"),
+-		chain("no args/path.TestErrorf/path.go:xxx"),
+-	}, {
+-		fmt.Errorf(noArgsWrap),
+-		chain("no args: %!w(MISSING)/path.TestErrorf/path.go:xxx"),
+-	}, {
+-		fmt.Errorf("nounwrap: %s", "simple"),
+-		chain(`nounwrap: simple/path.TestErrorf/path.go:xxx`),
+-	}, {
+-		fmt.Errorf("nounwrap: %v", "simple"),
+-		chain(`nounwrap: simple/path.TestErrorf/path.go:xxx`),
+-	}, {
+-		fmt.Errorf("%s failed: %v", "foo", chained),
+-		chain("foo failed/path.TestErrorf/path.go:xxx",
+-			"chained/somefile.go:xxx"),
+-	}, {
+-		fmt.Errorf("no wrap: %s", chained),
+-		chain("no wrap/path.TestErrorf/path.go:xxx",
+-			"chained/somefile.go:xxx"),
+-	}, {
+-		fmt.Errorf("%s failed: %w", "foo", chained),
+-		chain("wraps:foo failed/path.TestErrorf/path.go:xxx",
+-			"chained/somefile.go:xxx"),
+-	}, {
+-		fmt.Errorf("nowrapv: %v", chained),
+-		chain("nowrapv/path.TestErrorf/path.go:xxx",
+-			"chained/somefile.go:xxx"),
+-	}, {
+-		fmt.Errorf("wrapw: %w", chained),
+-		chain("wraps:wrapw/path.TestErrorf/path.go:xxx",
+-			"chained/somefile.go:xxx"),
+-	}, {
+-		fmt.Errorf("not wrapped: %+v", chained),
+-		chain("not wrapped: chained: somefile.go:123/path.TestErrorf/path.go:xxx"),
+-	}}
+-	for i, tc := range testCases {
+-		t.Run(strconv.Itoa(i)+"/"+path.Join(tc.want...), func(t *testing.T) {
+-			got := errToParts(tc.got)
+-			if !reflect.DeepEqual(got, tc.want) {
+-				t.Errorf("Format:\n got: %+q\nwant: %+q", got, tc.want)
+-			}
+-
+-			gotStr := tc.got.Error()
+-			wantStr := fmt.Sprint(tc.got)
+-			if gotStr != wantStr {
+-				t.Errorf("Error:\n got: %+q\nwant: %+q", gotStr, wantStr)
+-			}
+-		})
+-	}
+-}
+-
+-func TestErrorFormatter(t *testing.T) {
+-	testCases := []struct {
+-		err    error
+-		fmt    string
+-		want   string
+-		regexp bool
+-	}{{
+-		err: errors.New("foo"),
+-		fmt: "%+v",
+-		want: "foo:" +
+-			"\n    fmt_test.TestErrorFormatter" +
+-			"\n        .+/fmt/errors_test.go:\\d\\d",
+-		regexp: true,
+-	}, {
+-		err:  &wrapped{"simple", nil},
+-		fmt:  "%s",
+-		want: "simple",
+-	}, {
+-		err:  &wrapped{"can't adumbrate elephant", outOfPeanuts{}},
+-		fmt:  "%s",
+-		want: "can't adumbrate elephant: out of peanuts",
+-	}, {
+-		err:  &wrapped{"a", &wrapped{"b", &wrapped{"c", nil}}},
+-		fmt:  "%s",
+-		want: "a: b: c",
+-	}, {
+-		err: &wrapped{"simple", nil},
+-		fmt: "%+v",
+-		want: "simple:" +
+-			"\n    somefile.go:123",
+-	}, {
+-		err: &wrapped{"can't adumbrate elephant", outOfPeanuts{}},
+-		fmt: "%+v",
+-		want: "can't adumbrate elephant:" +
+-			"\n    somefile.go:123" +
+-			"\n  - out of peanuts:" +
+-			"\n    the elephant is on strike" +
+-			"\n    and the 12 monkeys" +
+-			"\n    are laughing",
+-	}, {
+-		err:  &wrapped{"simple", nil},
+-		fmt:  "%#v",
+-		want: "&fmt_test.wrapped{msg:\"simple\", err:error(nil)}",
+-	}, {
+-		err:  &notAFormatterError{},
+-		fmt:  "%+v",
+-		want: "not a formatter",
+-	}, {
+-		err: &wrapped{"wrap", &notAFormatterError{}},
+-		fmt: "%+v",
+-		want: "wrap:" +
+-			"\n    somefile.go:123" +
+-			"\n  - not a formatter",
+-	}, {
+-		err: &withFrameAndMore{frame: errors.Caller(0)},
+-		fmt: "%+v",
+-		want: "something:" +
+-			"\n    fmt_test.TestErrorFormatter" +
+-			"\n        .+/fmt/errors_test.go:\\d\\d\\d" +
+-			"\n    something more",
+-		regexp: true,
+-	}, {
+-		err:  fmtTwice("Hello World!"),
+-		fmt:  "%#v",
+-		want: "2 times Hello World!",
+-	}, {
+-		err:  &wrapped{"fallback", os.ErrNotExist},
+-		fmt:  "%s",
+-		want: "fallback: file does not exist",
+-	}, {
+-		err: &wrapped{"fallback", os.ErrNotExist},
+-		fmt: "%+v",
+-		// Note: no colon after the last error, as there are no details.
+-		want: "fallback:" +
+-			"\n    somefile.go:123" +
+-			"\n  - file does not exist:" +
+-			"\n    .*" +
+-			"\n        .+.go:\\d+",
+-		regexp: true,
+-	}, {
+-		err: &wrapped{"outer",
+-			errors.Opaque(&wrapped{"mid",
+-				&wrapped{"inner", nil}})},
+-		fmt:  "%s",
+-		want: "outer: mid: inner",
+-	}, {
+-		err: &wrapped{"outer",
+-			errors.Opaque(&wrapped{"mid",
+-				&wrapped{"inner", nil}})},
+-		fmt: "%+v",
+-		want: "outer:" +
+-			"\n    somefile.go:123" +
+-			"\n  - mid:" +
+-			"\n    somefile.go:123" +
+-			"\n  - inner:" +
+-			"\n    somefile.go:123",
+-	}, {
+-		err:  &wrapped{"new style", formatError("old style")},
+-		fmt:  "%v",
+-		want: "new style: old style",
+-	}, {
+-		err:  &wrapped{"new style", formatError("old style")},
+-		fmt:  "%q",
+-		want: `"new style: old style"`,
+-	}, {
+-		err: &wrapped{"new style", formatError("old style")},
+-		fmt: "%+v",
+-		// Note the extra indentation.
+-		// Colon for old style error is rendered by the fmt.Formatter
+-		// implementation of the old-style error.
+-		want: "new style:" +
+-			"\n    somefile.go:123" +
+-			"\n  - old style:" +
+-			"\n    otherfile.go:456",
+-	}, {
+-		err:  &wrapped{"simple", nil},
+-		fmt:  "%-12s",
+-		want: "simple      ",
+-	}, {
+-		// Don't use formatting flags for detailed view.
+-		err: &wrapped{"simple", nil},
+-		fmt: "%+12v",
+-		want: "simple:" +
+-			"\n    somefile.go:123",
+-	}, {
+-		err:  &wrapped{"can't adumbrate elephant", outOfPeanuts{}},
+-		fmt:  "%+50s",
+-		want: "          can't adumbrate elephant: out of peanuts",
+-	}, {
+-		err:  &wrapped{"café", nil},
+-		fmt:  "%q",
+-		want: `"café"`,
+-	}, {
+-		err:  &wrapped{"café", nil},
+-		fmt:  "%+q",
+-		want: `"caf\u00e9"`,
+-	}, {
+-		err:  &wrapped{"simple", nil},
+-		fmt:  "% x",
+-		want: "73 69 6d 70 6c 65",
+-	}, {
+-		err: &wrapped{"msg with\nnewline",
+-			&wrapped{"and another\none", nil}},
+-		fmt: "%s",
+-		want: "msg with" +
+-			"\nnewline: and another" +
+-			"\none",
+-	}, {
+-		err: &wrapped{"msg with\nnewline",
+-			&wrapped{"and another\none", nil}},
+-		fmt: "%+v",
+-		want: "msg with" +
+-			"\n    newline:" +
+-			"\n    somefile.go:123" +
+-			"\n  - and another" +
+-			"\n    one:" +
+-			"\n    somefile.go:123",
+-	}, {
+-		err: wrapped{"", wrapped{"inner message", nil}},
+-		fmt: "%+v",
+-		want: "somefile.go:123" +
+-			"\n  - inner message:" +
+-			"\n    somefile.go:123",
+-	}, {
+-		err:  detail{"empty detail", "", nil},
+-		fmt:  "%s",
+-		want: "empty detail",
+-	}, {
+-		err:  detail{"empty detail", "", nil},
+-		fmt:  "%+v",
+-		want: "empty detail",
+-	}, {
+-		err:  detail{"newline at start", "\nextra", nil},
+-		fmt:  "%s",
+-		want: "newline at start",
+-	}, {
+-		err: detail{"newline at start", "\n extra", nil},
+-		fmt: "%+v",
+-		want: "newline at start:" +
+-			"\n     extra",
+-	}, {
+-		err: detail{"newline at start", "\nextra",
+-			detail{"newline at start", "\nmore", nil}},
+-		fmt: "%+v",
+-		want: "newline at start:" +
+-			"\n    extra" +
+-			"\n  - newline at start:" +
+-			"\n    more",
+-	}, {
+-		err: detail{"two newlines at start", "\n\nextra",
+-			detail{"two newlines at start", "\n\nmore", nil}},
+-		fmt: "%+v",
+-		want: "two newlines at start:" +
+-			"\n    " + // note the explicit space
+-			"\n    extra" +
+-			"\n  - two newlines at start:" +
+-			"\n    " +
+-			"\n    more",
+-	}, {
+-		err:  &detail{"single newline", "\n", nil},
+-		fmt:  "%+v",
+-		want: "single newline",
+-	}, {
+-		err: &detail{"single newline", "\n",
+-			&detail{"single newline", "\n", nil}},
+-		fmt: "%+v",
+-		want: "single newline:" +
+-			"\n  - single newline",
+-	}, {
+-		err: &detail{"newline at end", "detail\n", nil},
+-		fmt: "%+v",
+-		want: "newline at end:" +
+-			"\n    detail",
+-	}, {
+-		err: &detail{"newline at end", "detail\n",
+-			&detail{"newline at end", "detail\n", nil}},
+-		fmt: "%+v",
+-		want: "newline at end:" +
+-			"\n    detail" +
+-			"\n  - newline at end:" +
+-			"\n    detail",
+-	}, {
+-		err: &detail{"two newlines at end", "detail\n\n",
+-			&detail{"two newlines at end", "detail\n\n", nil}},
+-		fmt: "%+v",
+-		want: "two newlines at end:" +
+-			"\n    detail" +
+-			"\n    " +
+-			"\n  - two newlines at end:" +
+-			"\n    detail" +
+-			"\n    ", // note the additional space
+-	}, {
+-		err:  nil,
+-		fmt:  "%+v",
+-		want: "<nil>",
+-	}, {
+-		err:  (*wrapped)(nil),
+-		fmt:  "%+v",
+-		want: "<nil>",
+-	}, {
+-		err:  &wrapped{"simple", nil},
+-		fmt:  "%T",
+-		want: "*fmt_test.wrapped",
+-	}, {
+-		err:  &wrapped{"simple", nil},
+-		fmt:  "%🤪",
+-		want: "&{%!🤪(string=simple) <nil>}",
+-	}, {
+-		err:  formatError("use fmt.Formatter"),
+-		fmt:  "%#v",
+-		want: "use fmt.Formatter",
+-	}, {
+-		err: wrapped{"using errors.Formatter",
+-			formatError("use fmt.Formatter")},
+-		fmt:  "%#v",
+-		want: "fmt_test.wrapped{msg:\"using errors.Formatter\", err:\"use fmt.Formatter\"}",
+-	}, {
+-		err:  fmtTwice("%s %s", "ok", panicValue{}),
+-		fmt:  "%s",
+-		want: "ok %!s(PANIC=String method: panic)/ok %!s(PANIC=String method: panic)",
+-	}, {
+-		err:  fmtTwice("%o %s", panicValue{}, "ok"),
+-		fmt:  "%s",
+-		want: "{} ok/{} ok",
+-	}, {
+-		err:  intError(4),
+-		fmt:  "%v",
+-		want: "error 4",
+-	}, {
+-		err:  intError(4),
+-		fmt:  "%d",
+-		want: "4",
+-	}, {
+-		err:  intError(4),
+-		fmt:  "%🤪",
+-		want: "%!🤪(fmt_test.intError=4)",
+-	}}
+-	for i, tc := range testCases {
+-		t.Run(fmt.Sprintf("%d/%s", i, tc.fmt), func(t *testing.T) {
+-			got := fmt.Sprintf(tc.fmt, tc.err)
+-			var ok bool
+-			if tc.regexp {
+-				var err error
+-				ok, err = regexp.MatchString(tc.want+"$", got)
+-				if err != nil {
+-					t.Fatal(err)
+-				}
+-			} else {
+-				ok = got == tc.want
+-			}
+-			if !ok {
+-				t.Errorf("\n got: %q\nwant: %q", got, tc.want)
+-			}
+-		})
+-	}
+-}
+-
+-func TestSameType(t *testing.T) {
+-	err0 := errors.New("inner")
+-	want := fmt.Sprintf("%T", err0)
+-
+-	err := fmt.Errorf("foo: %v", err0)
+-	if got := fmt.Sprintf("%T", err); got != want {
+-		t.Errorf("got %v; want %v", got, want)
+-	}
+-
+-	err = fmt.Errorf("foo %s", "bar")
+-	if got := fmt.Sprintf("%T", err); got != want {
+-		t.Errorf("got %v; want %v", got, want)
+-	}
+-}
+-
+-var _ errors.Formatter = wrapped{}
+-
+-type wrapped struct {
+-	msg string
+-	err error
+-}
+-
+-func (e wrapped) Error() string { return fmt.Sprint(e) }
+-
+-func (e wrapped) FormatError(p errors.Printer) (next error) {
+-	p.Print(e.msg)
+-	p.Detail()
+-	p.Print("somefile.go:123")
+-	return e.err
+-}
+-
+-var _ errors.Formatter = outOfPeanuts{}
+-
+-type outOfPeanuts struct{}
+-
+-func (e outOfPeanuts) Error() string { return fmt.Sprint(e) }
+-
+-func (e outOfPeanuts) Format(fmt.State, rune) {
+-	panic("should never be called by one of the tests")
+-}
+-
+-func (outOfPeanuts) FormatError(p errors.Printer) (next error) {
+-	p.Printf("out of %s", "peanuts")
+-	p.Detail()
+-	p.Print("the elephant is on strike\n")
+-	p.Printf("and the %d monkeys\nare laughing", 12)
+-	return nil
+-}
+-
+-type withFrameAndMore struct {
+-	frame errors.Frame
+-}
+-
+-func (e *withFrameAndMore) Error() string { return fmt.Sprint(e) }
+-
+-func (e *withFrameAndMore) FormatError(p errors.Printer) (next error) {
+-	p.Print("something")
+-	if p.Detail() {
+-		e.frame.Format(p)
+-		p.Print("something more")
+-	}
+-	return nil
+-}
+-
+-type notAFormatterError struct{}
+-
+-func (e notAFormatterError) Error() string { return "not a formatter" }
+-
+-type detail struct {
+-	msg    string
+-	detail string
+-	next   error
+-}
+-
+-func (e detail) Error() string { return fmt.Sprint(e) }
+-
+-func (e detail) FormatError(p errors.Printer) (next error) {
+-	p.Print(e.msg)
+-	p.Detail()
+-	p.Print(e.detail)
+-	return e.next
+-}
+-
+-type intError int
+-
+-func (e intError) Error() string { return fmt.Sprint(e) }
+-
+-func (e wrapped) Format(w fmt.State, r rune) {
+-	// Test that the normal fallback handling after handleMethod for
+-	// non-string verbs is used. This path should not be reached.
+-	fmt.Fprintf(w, "Unreachable: %d", e)
+-}
+-
+-func (e intError) FormatError(p errors.Printer) (next error) {
+-	p.Printf("error %d", e)
+-	return nil
+-}
+-
+-// formatError is an error implementing Format instead of errors.Formatter.
+-// The implementation mimics the implementation of github.com/pkg/errors.
+-type formatError string
+-
+-func (e formatError) Error() string { return string(e) }
+-
+-func (e formatError) Format(s fmt.State, verb rune) {
+-	// Body based on pkg/errors/errors.go
+-	switch verb {
+-	case 'v':
+-		if s.Flag('+') {
+-			io.WriteString(s, string(e))
+-			fmt.Fprintf(s, ":\n%s", "otherfile.go:456")
+-			return
+-		}
+-		fallthrough
+-	case 's':
+-		io.WriteString(s, string(e))
+-	case 'q':
+-		fmt.Fprintf(s, "%q", string(e))
+-	}
+-}
+-
+-func (e formatError) GoString() string {
+-	panic("should never be called")
+-}
+-
+-type fmtTwiceErr struct {
+-	format string
+-	args   []interface{}
+-}
+-
+-func fmtTwice(format string, a ...interface{}) error {
+-	return fmtTwiceErr{format, a}
+-}
+-
+-func (e fmtTwiceErr) Error() string { return fmt.Sprint(e) }
+-
+-func (e fmtTwiceErr) FormatError(p errors.Printer) (next error) {
+-	p.Printf(e.format, e.args...)
+-	p.Print("/")
+-	p.Printf(e.format, e.args...)
+-	return nil
+-}
+-
+-func (e fmtTwiceErr) GoString() string {
+-	return "2 times " + fmt.Sprintf(e.format, e.args...)
+-}
+-
+-type panicValue struct{}
+-
+-func (panicValue) String() string { panic("panic") }
+-
+-var rePath = regexp.MustCompile(`( [^ ]*)fmt.*test\.`)
+-var reLine = regexp.MustCompile(":[0-9]*\n?$")
+-
+-func cleanPath(s string) string {
+-	s = rePath.ReplaceAllString(s, "/path.")
+-	s = reLine.ReplaceAllString(s, ":xxx")
+-	s = strings.Replace(s, "\n   ", "", -1)
+-	s = strings.Replace(s, " /", "/", -1)
+-	return s
+-}
+-
+-func errToParts(err error) (a []string) {
+-	for err != nil {
+-		var p testPrinter
+-		if errors.Unwrap(err) != nil {
+-			p.str += "wraps:"
+-		}
+-		f, ok := err.(errors.Formatter)
+-		if !ok {
+-			a = append(a, err.Error())
+-			break
+-		}
+-		err = f.FormatError(&p)
+-		a = append(a, cleanPath(p.str))
+-	}
+-	return a
+-
+-}
+-
+-type testPrinter struct {
+-	str string
+-}
+-
+-func (p *testPrinter) Print(a ...interface{}) {
+-	p.str += fmt.Sprint(a...)
+-}
+-
+-func (p *testPrinter) Printf(format string, a ...interface{}) {
+-	p.str += fmt.Sprintf(format, a...)
+-}
+-
+-func (p *testPrinter) Detail() bool {
+-	p.str += " /"
+-	return true
+-}
+diff --git a/src/fmt/format.go b/src/fmt/format.go
+index 0aa6670366..74e600cab2 100644
+--- a/src/fmt/format.go
++++ b/src/fmt/format.go
+@@ -34,11 +34,6 @@ type fmtFlags struct {
+ 	// different, flagless formats set at the top level.
+ 	plusV  bool
+ 	sharpV bool
+-
+-	// error-related flags.
+-	inDetail    bool
+-	needNewline bool
+-	needColon   bool
+ }
+ 
+ // A fmt is the raw formatter used by Printf etc.
+diff --git a/src/fmt/format_example_test.go b/src/fmt/format_example_test.go
+deleted file mode 100644
+index 386f10ef23..0000000000
+--- a/src/fmt/format_example_test.go
++++ /dev/null
+@@ -1,46 +0,0 @@
+-// Copyright 2018 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package fmt_test
+-
+-import (
+-	"errors"
+-	"fmt"
+-	"path/filepath"
+-	"regexp"
+-)
+-
+-func baz() error { return errors.New("baz flopped") }
+-func bar() error { return fmt.Errorf("bar(nameserver 139): %v", baz()) }
+-func foo() error { return fmt.Errorf("foo: %s", bar()) }
+-
+-func Example_formatting() {
+-	err := foo()
+-	fmt.Println("Error:")
+-	fmt.Printf("%v\n", err)
+-	fmt.Println()
+-	fmt.Println("Detailed error:")
+-	fmt.Println(stripPath(fmt.Sprintf("%+v\n", err)))
+-	// Output:
+-	// Error:
+-	// foo: bar(nameserver 139): baz flopped
+-	//
+-	// Detailed error:
+-	// foo:
+-	//     fmt_test.foo
+-	//         fmt/format_example_test.go:16
+-	//   - bar(nameserver 139):
+-	//     fmt_test.bar
+-	//         fmt/format_example_test.go:15
+-	//   - baz flopped:
+-	//     fmt_test.baz
+-	//         fmt/format_example_test.go:14
+-}
+-
+-func stripPath(s string) string {
+-	rePath := regexp.MustCompile(`( [^ ]*)fmt`)
+-	s = rePath.ReplaceAllString(s, " fmt")
+-	s = filepath.ToSlash(s)
+-	return s
+-}
+diff --git a/src/fmt/print.go b/src/fmt/print.go
+index 1fa424bfde..e597639429 100644
+--- a/src/fmt/print.go
++++ b/src/fmt/print.go
+@@ -217,6 +217,12 @@ func Sprintf(format string, a ...interface{}) string {
+ 	return s
+ }
+ 
++// Errorf formats according to a format specifier and returns the string
++// as a value that satisfies error.
++func Errorf(format string, a ...interface{}) error {
++	return errors.New(Sprintf(format, a...))
++}
++
+ // These routines do not take a format string
+ 
+ // Fprint formats using the default formats for its operands and writes to w.
+@@ -570,22 +576,12 @@ func (p *pp) handleMethods(verb rune) (handled bool) {
+ 	if p.erroring {
+ 		return
+ 	}
+-	switch x := p.arg.(type) {
+-	case errors.Formatter:
+-		handled = true
+-		defer p.catchPanic(p.arg, verb, "FormatError")
+-		return fmtError(p, verb, x)
+-
+-	case Formatter:
++	// Is it a Formatter?
++	if formatter, ok := p.arg.(Formatter); ok {
+ 		handled = true
+ 		defer p.catchPanic(p.arg, verb, "Format")
+-		x.Format(p, verb)
++		formatter.Format(p, verb)
+ 		return
+-
+-	case error:
+-		handled = true
+-		defer p.catchPanic(p.arg, verb, "Error")
+-		return fmtError(p, verb, x)
+ 	}
+ 
+ 	// If we're doing Go syntax and the argument knows how to supply it, take care of it now.
+@@ -603,7 +599,18 @@ func (p *pp) handleMethods(verb rune) (handled bool) {
+ 		// Println etc. set verb to %v, which is "stringable".
+ 		switch verb {
+ 		case 'v', 's', 'x', 'X', 'q':
+-			if v, ok := p.arg.(Stringer); ok {
++			// Is it an error or Stringer?
++			// The duplication in the bodies is necessary:
++			// setting handled and deferring catchPanic
++			// must happen before calling the method.
++			switch v := p.arg.(type) {
++			case error:
++				handled = true
++				defer p.catchPanic(p.arg, verb, "Error")
++				p.fmtString(v.Error(), verb)
++				return
++
++			case Stringer:
+ 				handled = true
+ 				defer p.catchPanic(p.arg, verb, "String")
+ 				p.fmtString(v.String(), verb)
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index c1010c1534..e4184c6478 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -34,7 +34,7 @@ import (
+ //
+ var pkgDeps = map[string][]string{
+ 	// L0 is the lowest level, core, nearly unavoidable packages.
+-	"errors":                  {"runtime", "internal/errinternal", "internal/reflectlite"},
++	"errors":                  {"runtime", "internal/reflectlite"},
+ 	"io":                      {"errors", "sync", "sync/atomic"},
+ 	"runtime":                 {"unsafe", "runtime/internal/atomic", "runtime/internal/sys", "runtime/internal/math", "internal/cpu", "internal/bytealg"},
+ 	"runtime/internal/sys":    {},
+@@ -46,7 +46,6 @@ var pkgDeps = map[string][]string{
+ 	"unsafe":                  {},
+ 	"internal/cpu":            {},
+ 	"internal/bytealg":        {"unsafe", "internal/cpu"},
+-	"internal/errinternal":    {},
+ 	"internal/reflectlite":    {"runtime", "unsafe"},
+ 
+ 	"L0": {
+@@ -186,7 +185,7 @@ var pkgDeps = map[string][]string{
+ 	},
+ 
+ 	// Formatted I/O: few dependencies (L1) but we must add reflect and internal/fmtsort.
+-	"fmt": {"L1", "bytes", "strings", "os", "reflect", "internal/errinternal", "internal/fmtsort"},
++	"fmt": {"L1", "os", "reflect", "internal/fmtsort"},
+ 	"log": {"L1", "os", "fmt", "time"},
+ 
+ 	// Packages used by testing must be low-level (L2+fmt).
+diff --git a/src/internal/errinternal/errinternal.go b/src/internal/errinternal/errinternal.go
+deleted file mode 100644
+index f484ac03e8..0000000000
+--- a/src/internal/errinternal/errinternal.go
++++ /dev/null
+@@ -1,9 +0,0 @@
+-// Copyright 2019 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package errinternal
+-
+-// NewError creates a new error as created by errors.New, but with one
+-// additional stack frame depth.
+-var NewError func(msg string, err error) error
+diff --git a/src/internal/oserror/errors_test.go b/src/internal/oserror/errors_test.go
+index 6d6a56a0c7..50dd4678d4 100644
+--- a/src/internal/oserror/errors_test.go
++++ b/src/internal/oserror/errors_test.go
+@@ -34,7 +34,8 @@ func TestIsTimeout(t *testing.T) {
+ 		{true, ttError{timeout: true}},
+ 		{true, isError{os.ErrTimeout}},
+ 		{true, os.ErrTimeout},
+-		{true, fmt.Errorf("wrap: %w", os.ErrTimeout)},
++		// TODO: restore when %w is reimplemented
++		//{true, fmt.Errorf("wrap: %w", os.ErrTimeout)},
+ 		{false, ttError{timeout: false}},
+ 		{false, errors.New("error")},
+ 	} {
+@@ -52,7 +53,8 @@ func TestIsTemporary(t *testing.T) {
+ 		{true, ttError{temporary: true}},
+ 		{true, isError{os.ErrTemporary}},
+ 		{true, os.ErrTemporary},
+-		{true, fmt.Errorf("wrap: %w", os.ErrTemporary)},
++		// TODO: restore when %w is reimplemented
++		//{true, fmt.Errorf("wrap: %w", os.ErrTemporary)},
+ 		{false, ttError{temporary: false}},
+ 		{false, errors.New("error")},
+ 	} {

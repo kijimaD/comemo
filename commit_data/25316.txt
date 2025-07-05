@@ -10,10 +10,83 @@ Date:   Mon Oct 19 17:01:37 2015 -0700
     Change-Id: I69bc6aa6fc40feb2148d23f269ff32453696fb28
     Reviewed-on: https://go-review.googlesource.com/16097
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/cmd/compile/internal/gc/racewalk.go | 12 +-----------
  src/syscall/exec_bsd.go                 |  1 +
  src/syscall/exec_linux.go               |  1 +
  src/syscall/exec_plan9.go               |  1 +
  src/syscall/exec_solaris.go             |  1 +
  5 files changed, 5 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/racewalk.go b/src/cmd/compile/internal/gc/racewalk.go
+index 2e33ef6d20..5d10fc1e9a 100644
+--- a/src/cmd/compile/internal/gc/racewalk.go
++++ b/src/cmd/compile/internal/gc/racewalk.go
+@@ -42,18 +42,8 @@ func ispkgin(pkgs []string) bool {
+ 	return false
+ }
+ 
+-// TODO(rsc): Remove. Put //go:norace on forkAndExecInChild instead.
+-func isforkfunc(fn *Node) bool {
+-	// Special case for syscall.forkAndExecInChild.
+-	// In the child, this function must not acquire any locks, because
+-	// they might have been locked at the time of the fork.  This means
+-	// no rescheduling, no malloc calls, and no new stack segments.
+-	// Race instrumentation does all of the above.
+-	return myimportpath != "" && myimportpath == "syscall" && fn.Func.Nname.Sym.Name == "forkAndExecInChild"
+-}
+-
+ func racewalk(fn *Node) {
+-	if ispkgin(omit_pkgs) || isforkfunc(fn) || fn.Func.Norace {
++	if ispkgin(omit_pkgs) || fn.Func.Norace {
+ 		return
+ 	}
+ 
+diff --git a/src/syscall/exec_bsd.go b/src/syscall/exec_bsd.go
+index 4b5774b492..d182896a53 100644
+--- a/src/syscall/exec_bsd.go
++++ b/src/syscall/exec_bsd.go
+@@ -37,6 +37,7 @@ func runtime_AfterFork()
+ // For the same reason compiler does not race instrument it.
+ // The calls to RawSyscall are okay because they are assembly
+ // functions that do not grow the stack.
++//go:norace
+ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr *ProcAttr, sys *SysProcAttr, pipe int) (pid int, err Errno) {
+ 	// Declare all variables at top in case any
+ 	// declarations require heap allocation (e.g., err1).
+diff --git a/src/syscall/exec_linux.go b/src/syscall/exec_linux.go
+index 8fe5491f90..3e08d43bed 100644
+--- a/src/syscall/exec_linux.go
++++ b/src/syscall/exec_linux.go
+@@ -53,6 +53,7 @@ func runtime_AfterFork()
+ // For the same reason compiler does not race instrument it.
+ // The calls to RawSyscall are okay because they are assembly
+ // functions that do not grow the stack.
++//go:norace
+ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr *ProcAttr, sys *SysProcAttr, pipe int) (pid int, err Errno) {
+ 	// Declare all variables at top in case any
+ 	// declarations require heap allocation (e.g., err1).
+diff --git a/src/syscall/exec_plan9.go b/src/syscall/exec_plan9.go
+index 7a415fd31e..490bdd71e1 100644
+--- a/src/syscall/exec_plan9.go
++++ b/src/syscall/exec_plan9.go
+@@ -173,6 +173,7 @@ func init() {
+ // no rescheduling, no malloc calls, and no new stack segments.
+ // The calls to RawSyscall are okay because they are assembly
+ // functions that do not grow the stack.
++//go:norace
+ func forkAndExecInChild(argv0 *byte, argv []*byte, envv []envItem, dir *byte, attr *ProcAttr, fdsToClose []int, pipe int, rflag int) (pid int, err error) {
+ 	// Declare all variables at top in case any
+ 	// declarations require heap allocation (e.g., errbuf).
+diff --git a/src/syscall/exec_solaris.go b/src/syscall/exec_solaris.go
+index 3e949f1ba1..63fa8482da 100644
+--- a/src/syscall/exec_solaris.go
++++ b/src/syscall/exec_solaris.go
+@@ -52,6 +52,7 @@ func write1(fd uintptr, buf uintptr, nbyte uintptr) (n uintptr, err Errno)
+ // because we need to avoid lazy-loading the functions (might malloc,
+ // split the stack, or acquire mutexes). We can't call RawSyscall
+ // because it's not safe even for BSD-subsystem calls.
++//go:norace
+ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr *ProcAttr, sys *SysProcAttr, pipe int) (pid int, err Errno) {
+ 	// Declare all variables at top in case any
+ 	// declarations require heap allocation (e.g., err1).

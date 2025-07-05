@@ -19,7 +19,63 @@ Date:   Mon Jul 16 13:19:59 2018 +0000
     Run-TryBot: Ben Shi <powerman1st@163.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/asm/internal/asm/testdata/arm64.s | 9 +++++++++
  src/cmd/internal/obj/arm64/asm7.go        | 8 ++++++--
  2 files changed, 15 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/arm64.s b/src/cmd/asm/internal/asm/testdata/arm64.s
+index 3a1b2f79be..38616bd837 100644
+--- a/src/cmd/asm/internal/asm/testdata/arm64.s
++++ b/src/cmd/asm/internal/asm/testdata/arm64.s
+@@ -164,6 +164,15 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
+ 	MOVB	(R29)(R30), R14                 // MOVB	(R29)(R30*1), R14                // ae6bbe38
+ 	MOVB	R4, (R2)(R6.SXTX)               // 44e82638
+ 
++	FMOVS	(R2)(R6), F4       // FMOVS (R2)(R6*1), F4    // 446866bc
++	FMOVS	(R2)(R6<<2), F4                               // 447866bc
++	FMOVD	(R2)(R6), F4       // FMOVD (R2)(R6*1), F4    // 446866fc
++	FMOVD	(R2)(R6<<3), F4                               // 447866fc
++	FMOVS	F4, (R2)(R6)       // FMOVS F4, (R2)(R6*1)    // 446826bc
++	FMOVS	F4, (R2)(R6<<2)                               // 447826bc
++	FMOVD	F4, (R2)(R6)       // FMOVD F4, (R2)(R6*1)    // 446826fc
++	FMOVD	F4, (R2)(R6<<3)                               // 447826fc
++
+ //	LTYPE1 imsr ',' spreg ','
+ //	{
+ //		outcode($1, &$2, $4, &nullgen);
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index f7a3babd19..4840a969fd 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -519,12 +519,16 @@ var optab = []Optab{
+ 	{AMOVH, C_ROFF, C_NONE, C_NONE, C_REG, 98, 4, 0, 0, 0},
+ 	{AMOVB, C_ROFF, C_NONE, C_NONE, C_REG, 98, 4, 0, 0, 0},
+ 	{AMOVBU, C_ROFF, C_NONE, C_NONE, C_REG, 98, 4, 0, 0, 0},
++	{AFMOVS, C_ROFF, C_NONE, C_NONE, C_FREG, 98, 4, 0, 0, 0},
++	{AFMOVD, C_ROFF, C_NONE, C_NONE, C_FREG, 98, 4, 0, 0, 0},
+ 
+ 	/* store with extended register offset */
+ 	{AMOVD, C_REG, C_NONE, C_NONE, C_ROFF, 99, 4, 0, 0, 0},
+ 	{AMOVW, C_REG, C_NONE, C_NONE, C_ROFF, 99, 4, 0, 0, 0},
+ 	{AMOVH, C_REG, C_NONE, C_NONE, C_ROFF, 99, 4, 0, 0, 0},
+ 	{AMOVB, C_REG, C_NONE, C_NONE, C_ROFF, 99, 4, 0, 0, 0},
++	{AFMOVS, C_FREG, C_NONE, C_NONE, C_ROFF, 99, 4, 0, 0, 0},
++	{AFMOVD, C_FREG, C_NONE, C_NONE, C_ROFF, 99, 4, 0, 0, 0},
+ 
+ 	/* pre/post-indexed/signed-offset load/store register pair
+ 	   (unscaled, signed 10-bit quad-aligned and long offset) */
+@@ -2540,11 +2544,11 @@ func (c *ctxt7) checkShiftAmount(p *obj.Prog, a *obj.Addr) {
+ 		if amount != 1 && amount != 0 {
+ 			c.ctxt.Diag("invalid index shift amount: %v", p)
+ 		}
+-	case AMOVW, AMOVWU:
++	case AMOVW, AMOVWU, AFMOVS:
+ 		if amount != 2 && amount != 0 {
+ 			c.ctxt.Diag("invalid index shift amount: %v", p)
+ 		}
+-	case AMOVD:
++	case AMOVD, AFMOVD:
+ 		if amount != 3 && amount != 0 {
+ 			c.ctxt.Diag("invalid index shift amount: %v", p)
+ 		}

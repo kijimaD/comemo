@@ -11,6 +11,20 @@ Date:   Thu Jun 9 06:50:54 2022 +0200
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Joedian Reid <joedian@golang.org>
-
+---
  src/cmd/compile/internal/ssa/decompose.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/decompose.go b/src/cmd/compile/internal/ssa/decompose.go
+index 753d69cebc..2293fc01ce 100644
+--- a/src/cmd/compile/internal/ssa/decompose.go
++++ b/src/cmd/compile/internal/ssa/decompose.go
+@@ -135,7 +135,7 @@ func decomposeBuiltInPhi(v *Value) {
+ 	case v.Type.IsFloat():
+ 		// floats are never decomposed, even ones bigger than RegSize
+ 	case v.Type.Size() > v.Block.Func.Config.RegSize:
+-		v.Fatalf("undecomposed type %s", v.Type)
++		v.Fatalf("%v undecomposed type %v", v, v.Type)
+ 	}
+ }
+ 

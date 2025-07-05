@@ -9,9 +9,221 @@ Date:   Tue May 17 15:32:38 2011 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/4517081
-
+---
  src/pkg/big/int.go      | 22 ++++++++++++----------
  src/pkg/big/nat.go      | 35 +++++++++++++++++++++++++----------
  src/pkg/big/nat_test.go | 32 ++++++++++++++++++--------------
  src/pkg/big/rat.go      |  6 +++---
  4 files changed, 58 insertions(+), 37 deletions(-)
+
+diff --git a/src/pkg/big/int.go b/src/pkg/big/int.go
+index dfb7dcdb63..2a3fe5faea 100755
+--- a/src/pkg/big/int.go
++++ b/src/pkg/big/int.go
+@@ -313,28 +313,30 @@ func (x *Int) String() string {
+ 	if x.neg {
+ 		s = "-"
+ 	}
+-	return s + x.abs.string(10)
++	return s + x.abs.decimalString()
+ }
+ 
+ 
+-func fmtbase(ch int) int {
++func charset(ch int) string {
+ 	switch ch {
+ 	case 'b':
+-		return 2
++		return lowercaseDigits[0:2]
+ 	case 'o':
+-		return 8
++		return lowercaseDigits[0:8]
+ 	case 'd':
+-		return 10
++		return lowercaseDigits[0:10]
+ 	case 'x':
+-		return 16
++		return lowercaseDigits[0:16]
++	case 'X':
++		return uppercaseDigits[0:16]
+ 	}
+-	return 10
++	return "" // unknown format
+ }
+ 
+ 
+ // Format is a support routine for fmt.Formatter. It accepts
+-// the formats 'b' (binary), 'o' (octal), 'd' (decimal) and
+-// 'x' (hexadecimal).
++// the formats 'b' (binary), 'o' (octal), 'd' (decimal), 'x'
++// (lowercase hexadecimal), and 'X' (uppercase hexadecimal).
+ //
+ func (x *Int) Format(s fmt.State, ch int) {
+ 	if x == nil {
+@@ -344,7 +346,7 @@ func (x *Int) Format(s fmt.State, ch int) {
+ 	if x.neg {
+ 		fmt.Fprint(s, "-")
+ 	}
+-	fmt.Fprint(s, x.abs.string(fmtbase(ch)))
++	fmt.Fprint(s, x.abs.string(charset(ch)))
+ }
+ 
+ 
+diff --git a/src/pkg/big/nat.go b/src/pkg/big/nat.go
+index 2fdae9f06f..a5d8f223ab 100755
+--- a/src/pkg/big/nat.go
++++ b/src/pkg/big/nat.go
+@@ -20,6 +20,7 @@ package big
+ 
+ import "rand"
+ 
++
+ // An unsigned integer x of the form
+ //
+ //   x = x[n-1]*_B^(n-1) + x[n-2]*_B^(n-2) + ... + x[1]*_B + x[0]
+@@ -668,16 +669,23 @@ func (z nat) scan(s string, base int) (nat, int, int) {
+ }
+ 
+ 
+-// string converts x to a string for a given base, with 2 <= base <= 16.
+-// TODO(gri) in the style of the other routines, perhaps this should take
+-//           a []byte buffer and return it
+-func (x nat) string(base int) string {
+-	if base < 2 || 16 < base {
+-		panic("illegal base")
+-	}
++// Character sets for string conversion.
++const (
++	lowercaseDigits = "0123456789abcdefghijklmnopqrstuvwxyz"
++	uppercaseDigits = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
++)
++
++// string converts x to a string using digits from a charset; a digit with
++// value d is represented by charset[d]. The conversion base is determined
++// by len(charset). If len(charset) < 2, the result is "<illegal base>".
++func (x nat) string(charset string) string {
++	base := len(charset)
+ 
+-	if len(x) == 0 {
+-		return "0"
++	switch {
++	case base < 2:
++		return "<illegal base>"
++	case len(x) == 0:
++		return string(charset[0])
+ 	}
+ 
+ 	// allocate buffer for conversion
+@@ -692,13 +700,20 @@ func (x nat) string(base int) string {
+ 		i--
+ 		var r Word
+ 		q, r = q.divW(q, Word(base))
+-		s[i] = "0123456789abcdef"[r]
++		s[i] = charset[r]
+ 	}
+ 
+ 	return string(s[i:])
+ }
+ 
+ 
++// decimalString returns a decimal representation of x.
++// It calls x.string with the charset "0123456789".
++func (x nat) decimalString() string {
++	return x.string(lowercaseDigits[0:10])
++}
++
++
+ const deBruijn32 = 0x077CB531
+ 
+ var deBruijn32Lookup = []byte{
+diff --git a/src/pkg/big/nat_test.go b/src/pkg/big/nat_test.go
+index 0bcb945548..a29843a3fa 100755
+--- a/src/pkg/big/nat_test.go
++++ b/src/pkg/big/nat_test.go
+@@ -133,7 +133,7 @@ var mulRangesN = []struct {
+ 
+ func TestMulRangeN(t *testing.T) {
+ 	for i, r := range mulRangesN {
+-		prod := nat(nil).mulRange(r.a, r.b).string(10)
++		prod := nat(nil).mulRange(r.a, r.b).decimalString()
+ 		if prod != r.prod {
+ 			t.Errorf("#%d: got %s; want %s", i, prod, r.prod)
+ 		}
+@@ -167,31 +167,35 @@ func BenchmarkMul(b *testing.B) {
+ }
+ 
+ 
+-var tab = []struct {
+-	x nat
+-	b int
+-	s string
++var strTests = []struct {
++	x nat    // nat value to be converted
++	c string // conversion charset
++	s string // expected result
+ }{
+-	{nil, 10, "0"},
+-	{nat{1}, 10, "1"},
+-	{nat{10}, 10, "10"},
+-	{nat{1234567890}, 10, "1234567890"},
++	{nil, "01", "0"},
++	{nat{1}, "01", "1"},
++	{nat{0xc5}, "01", "11000101"},
++	{nat{03271}, lowercaseDigits[0:8], "3271"},
++	{nat{10}, lowercaseDigits[0:10], "10"},
++	{nat{1234567890}, uppercaseDigits[0:10], "1234567890"},
++	{nat{0xdeadbeef}, lowercaseDigits[0:16], "deadbeef"},
++	{nat{0xdeadbeef}, uppercaseDigits[0:16], "DEADBEEF"},
+ }
+ 
+ 
+ func TestString(t *testing.T) {
+-	for _, a := range tab {
+-		s := a.x.string(a.b)
++	for _, a := range strTests {
++		s := a.x.string(a.c)
+ 		if s != a.s {
+ 			t.Errorf("string%+v\n\tgot s = %s; want %s", a, s, a.s)
+ 		}
+ 
+-		x, b, n := nat(nil).scan(a.s, a.b)
++		x, b, n := nat(nil).scan(a.s, len(a.c))
+ 		if x.cmp(a.x) != 0 {
+ 			t.Errorf("scan%+v\n\tgot z = %v; want %v", a, x, a.x)
+ 		}
+-		if b != a.b {
+-			t.Errorf("scan%+v\n\tgot b = %d; want %d", a, b, a.b)
++		if b != len(a.c) {
++			t.Errorf("scan%+v\n\tgot b = %d; want %d", a, b, len(a.c))
+ 		}
+ 		if n != len(a.s) {
+ 			t.Errorf("scan%+v\n\tgot n = %d; want %d", a, n, len(a.s))
+diff --git a/src/pkg/big/rat.go b/src/pkg/big/rat.go
+index e70673a1cb..6b60be7e5d 100644
+--- a/src/pkg/big/rat.go
++++ b/src/pkg/big/rat.go
+@@ -270,7 +270,7 @@ func (z *Rat) SetString(s string) (*Rat, bool) {
+ 
+ // String returns a string representation of z in the form "a/b" (even if b == 1).
+ func (z *Rat) String() string {
+-	return z.a.String() + "/" + z.b.string(10)
++	return z.a.String() + "/" + z.b.decimalString()
+ }
+ 
+ 
+@@ -311,13 +311,13 @@ func (z *Rat) FloatString(prec int) string {
+ 		}
+ 	}
+ 
+-	s := q.string(10)
++	s := q.decimalString()
+ 	if z.a.neg {
+ 		s = "-" + s
+ 	}
+ 
+ 	if prec > 0 {
+-		rs := r.string(10)
++		rs := r.decimalString()
+ 		leadingZeros := prec - len(rs)
+ 		s += "." + strings.Repeat("0", leadingZeros) + rs
+ 	}

@@ -13,6 +13,20 @@ Date:   Fri Feb 26 09:25:22 2021 -0500
     Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/ir/name.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ir/name.go b/src/cmd/compile/internal/ir/name.go
+index 6240852aaf..035c9cd3d0 100644
+--- a/src/cmd/compile/internal/ir/name.go
++++ b/src/cmd/compile/internal/ir/name.go
+@@ -398,7 +398,7 @@ func FinishCaptureNames(pos src.XPos, outerfn, fn *Func) {
+ 	// unhook them.
+ 	// make the list of pointers for the closure call.
+ 	for _, cv := range fn.ClosureVars {
+-		// Unlink from n; see comment in syntax.go type Param for these fields.
++		// Unlink from n; see comment above on type Name for these fields.
+ 		n := cv.Defn.(*Name)
+ 		n.Innermost = cv.Outer
+ 

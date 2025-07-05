@@ -24,6 +24,78 @@ Date:   Mon Mar 22 00:22:23 2021 +0900
     Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/os/exec/exec_test.go | 38 +++++---------------------------------
  1 file changed, 5 insertions(+), 33 deletions(-)
+
+diff --git a/src/os/exec/exec_test.go b/src/os/exec/exec_test.go
+index 05cf807583..c1d2a8f49c 100644
+--- a/src/os/exec/exec_test.go
++++ b/src/os/exec/exec_test.go
+@@ -1052,41 +1052,18 @@ func TestContextCancel(t *testing.T) {
+ 	defer cancel()
+ 	c := helperCommandContext(t, ctx, "cat")
+ 
+-	r, w, err := os.Pipe()
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	c.Stdin = r
+-
+-	stdout, err := c.StdoutPipe()
++	stdin, err := c.StdinPipe()
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+-	readDone := make(chan struct{})
+-	go func() {
+-		defer close(readDone)
+-		var a [1024]byte
+-		for {
+-			n, err := stdout.Read(a[:])
+-			if err != nil {
+-				if err != io.EOF {
+-					t.Errorf("unexpected read error: %v", err)
+-				}
+-				return
+-			}
+-			t.Logf("%s", a[:n])
+-		}
+-	}()
++	defer stdin.Close()
+ 
+ 	if err := c.Start(); err != nil {
+ 		t.Fatal(err)
+ 	}
+ 
+-	if err := r.Close(); err != nil {
+-		t.Fatal(err)
+-	}
+-
+-	if _, err := io.WriteString(w, "echo"); err != nil {
++	// At this point the process is alive. Ensure it by sending data to stdin.
++	if _, err := io.WriteString(stdin, "echo"); err != nil {
+ 		t.Fatal(err)
+ 	}
+ 
+@@ -1096,7 +1073,7 @@ func TestContextCancel(t *testing.T) {
+ 	// should now fail.  Give the process a little while to die.
+ 	start := time.Now()
+ 	for {
+-		if _, err := io.WriteString(w, "echo"); err != nil {
++		if _, err := io.WriteString(stdin, "echo"); err != nil {
+ 			break
+ 		}
+ 		if time.Since(start) > time.Minute {
+@@ -1105,11 +1082,6 @@ func TestContextCancel(t *testing.T) {
+ 		time.Sleep(time.Millisecond)
+ 	}
+ 
+-	if err := w.Close(); err != nil {
+-		t.Errorf("error closing write end of pipe: %v", err)
+-	}
+-	<-readDone
+-
+ 	if err := c.Wait(); err == nil {
+ 		t.Error("program unexpectedly exited successfully")
+ 	} else {

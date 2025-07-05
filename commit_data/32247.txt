@@ -15,6 +15,35 @@ Date:   Fri Apr 14 15:06:03 2017 +0200
     Change-Id: Ib7b0cd245588299e9a5469e1d75805fd0261ce1a
     Reviewed-on: https://go-review.googlesource.com/40712
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  test/fixedbugs/issue12536.go | 22 ++++++++++++++++++++++
  1 file changed, 22 insertions(+)
+
+diff --git a/test/fixedbugs/issue12536.go b/test/fixedbugs/issue12536.go
+new file mode 100644
+index 0000000000..ceeaec4360
+--- /dev/null
++++ b/test/fixedbugs/issue12536.go
+@@ -0,0 +1,22 @@
++// compile
++
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 12536: compiler crashes while checking keys in a map literal for equality
++
++package p
++
++func main() {
++	m1 := map[interface{}]interface{}{
++		nil:  0,
++		true: 1,
++	}
++	m2 := map[interface{}]interface{}{
++		true: 1,
++		nil:  0,
++	}
++	println(len(m1))
++	println(len(m2))
++}

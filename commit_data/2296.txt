@@ -8,6 +8,20 @@ Date:   Fri May 22 23:30:31 2009 -0700
     DELTA=1  (0 added, 0 deleted, 1 changed)
     OCL=29307
     CL=29307
-
+---
  src/lib/crypto/hmac/hmac.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/lib/crypto/hmac/hmac.go b/src/lib/crypto/hmac/hmac.go
+index 0b9a08012d..a3f47ccc9f 100644
+--- a/src/lib/crypto/hmac/hmac.go
++++ b/src/lib/crypto/hmac/hmac.go
+@@ -4,7 +4,7 @@
+ 
+ // The hmac package implements the Keyed-Hash Message Authentication Code (HMAC)
+ // as defined in U.S. Federal Information Processing Standards Publication 198.
+-// An HMAC is a cryptographic hash attesting that uses a key to sign a message.
++// An HMAC is a cryptographic hash that uses a key to sign a message.
+ // The receiver verifies the hash by recomputing it using the same key.
+ package hmac
+ 

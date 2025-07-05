@@ -15,7 +15,82 @@ Date:   Mon Jan 23 13:31:00 2023 -0500
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
     Run-TryBot: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/internal/obj/arm/asm5.go | 11 ++++++----
  test/fixedbugs/issue57955.go     | 43 ++++++++++++++++++++++++++++++++++++++++
  2 files changed, 50 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/internal/obj/arm/asm5.go b/src/cmd/internal/obj/arm/asm5.go
+index 7b1682776e..177ffd9797 100644
+--- a/src/cmd/internal/obj/arm/asm5.go
++++ b/src/cmd/internal/obj/arm/asm5.go
+@@ -688,13 +688,16 @@ func (c *ctxt5) addpool(p *obj.Prog, a *obj.Addr) {
+ 			t.Rel = p
+ 		}
+ 
+-	case C_SROREG,
+-		C_LOREG,
+-		C_ROREG,
++	case C_HOREG,
+ 		C_FOREG,
++		C_HFOREG,
+ 		C_SOREG,
+-		C_HOREG,
++		C_ROREG,
++		C_SROREG,
++		C_LOREG,
++		C_HAUTO,
+ 		C_FAUTO,
++		C_HFAUTO,
+ 		C_SAUTO,
+ 		C_LAUTO,
+ 		C_LACON:
+diff --git a/test/fixedbugs/issue57955.go b/test/fixedbugs/issue57955.go
+new file mode 100644
+index 0000000000..bee28c6e99
+--- /dev/null
++++ b/test/fixedbugs/issue57955.go
+@@ -0,0 +1,43 @@
++// compile
++
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 57955: ARM assembler fails to handle certain cases.
++
++package main
++
++func main() {
++	Decode[int16](nil)
++	Decode[uint16](nil)
++	Decode[float64](nil)
++}
++
++func DecodeInt16(b []byte) (int16, int) {
++	return 0, 0
++}
++
++func DecodeUint16(b []byte) (uint16, int) {
++	return 0, 0
++}
++
++func DecodeFloat64(b []byte) (float64, int) {
++	return 0, 0
++}
++
++func Decode[T any](b []byte) (T, int) {
++	switch any(*new(T)).(type) {
++	case int16:
++		v, n := DecodeInt16(b)
++		return any(v).(T), n
++	case uint16:
++		v, n := DecodeUint16(b)
++		return any(v).(T), n
++	case float64:
++		v, n := DecodeFloat64(b)
++		return any(v).(T), n
++	default:
++		panic("")
++	}
++}

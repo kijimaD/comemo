@@ -26,6 +26,20 @@ Date:   Sun Nov 15 23:13:16 2015 -0500
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/malloc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index 8ce420a653..d9f52399b8 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -404,7 +404,7 @@ func (h *mheap) sysAlloc(n uintptr) unsafe.Pointer {
+ 			if p == h.arena_end {
+ 				h.arena_end = new_end
+ 				h.arena_reserved = reserved
+-			} else if p+p_size <= h.arena_start+_MaxArena32 {
++			} else if h.arena_start <= p && p+p_size <= h.arena_start+_MaxArena32 {
+ 				// Keep everything page-aligned.
+ 				// Our pages are bigger than hardware pages.
+ 				h.arena_end = p + p_size

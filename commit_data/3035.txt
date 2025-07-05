@@ -7,7 +7,7 @@ Date:   Thu Aug 20 11:12:04 2009 -0700
     R=ken
     OCL=33599
     CL=33599
-
+---
  doc/go_spec.html       |  4 ----
  src/cmd/6g/cgen.c      | 26 ++++++++++++++++++++++++--
  src/cmd/8g/cgen.c      | 24 +++++++++++++++++++++++-
@@ -15,3 +15,173 @@ Date:   Thu Aug 20 11:12:04 2009 -0700
  src/pkg/runtime/chan.c |  4 ++--
  test/chancap.go        | 27 +++++++++++++++++++++++++++
  6 files changed, 78 insertions(+), 12 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 789232c6a0..2190dca3fc 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -4345,10 +4345,6 @@ The following minimal alignment properties are guaranteed:
+ <p>
+ <font color=red>
+ Implementation does not honor the restriction on goto statements and targets (no intervening declarations).
+-<br/>
+-cap() does not work on chans.
+-<br/>
+-len() does not work on chans.
+ </font>
+ </p>
+ 
+diff --git a/src/cmd/6g/cgen.c b/src/cmd/6g/cgen.c
+index 97af9349bb..d36c0e15da 100644
+--- a/src/cmd/6g/cgen.c
++++ b/src/cmd/6g/cgen.c
+@@ -242,8 +242,8 @@ cgen(Node *n, Node *res)
+ 		break;
+ 
+ 	case OLEN:
+-		if(istype(nl->type, TMAP)) {
+-			// map has len in the first 32-bit word.
++		if(istype(nl->type, TMAP) || istype(nl->type, TCHAN)) {
++			// map and chan have len in the first 32-bit word.
+ 			// a zero pointer means zero length
+ 			regalloc(&n1, types[tptr], res);
+ 			cgen(nl, &n1);
+@@ -279,6 +279,28 @@ cgen(Node *n, Node *res)
+ 		break;
+ 
+ 	case OCAP:
++		if(istype(nl->type, TCHAN)) {
++			// chan has cap in the second 32-bit word.
++			// a zero pointer means zero length
++			regalloc(&n1, types[tptr], res);
++			cgen(nl, &n1);
++
++			nodconst(&n2, types[tptr], 0);
++			gins(optoas(OCMP, types[tptr]), &n1, &n2);
++			p1 = gbranch(optoas(OEQ, types[tptr]), T);
++
++			n2 = n1;
++			n2.op = OINDREG;
++			n2.xoffset = 4;
++			n2.type = types[TINT32];
++			gmove(&n2, &n1);
++
++			patch(p1, pc);
++
++			gmove(&n1, res);
++			regfree(&n1);
++			break;
++		}
+ 		if(isslice(nl->type)) {
+ 			regalloc(&n1, types[tptr], res);
+ 			agen(nl, &n1);
+diff --git a/src/cmd/8g/cgen.c b/src/cmd/8g/cgen.c
+index 25f700ae9f..db1986df98 100644
+--- a/src/cmd/8g/cgen.c
++++ b/src/cmd/8g/cgen.c
+@@ -237,7 +237,7 @@ cgen(Node *n, Node *res)
+ 		break;
+ 
+ 	case OLEN:
+-		if(istype(nl->type, TMAP)) {
++		if(istype(nl->type, TMAP) || istype(nl->type, TCHAN)) {
+ 			// map has len in the first 32-bit word.
+ 			// a zero pointer means zero length
+ 			tempalloc(&n1, types[tptr]);
+@@ -280,6 +280,28 @@ cgen(Node *n, Node *res)
+ 		break;
+ 
+ 	case OCAP:
++		if(istype(nl->type, TCHAN)) {
++			// chan has cap in the second 32-bit word.
++			// a zero pointer means zero length
++			regalloc(&n1, types[tptr], res);
++			cgen(nl, &n1);
++
++			nodconst(&n2, types[tptr], 0);
++			gins(optoas(OCMP, types[tptr]), &n1, &n2);
++			p1 = gbranch(optoas(OEQ, types[tptr]), T);
++
++			n2 = n1;
++			n2.op = OINDREG;
++			n2.xoffset = 4;
++			n2.type = types[TINT32];
++			gmove(&n2, &n1);
++
++			patch(p1, pc);
++
++			gmove(&n1, res);
++			regfree(&n1);
++			break;
++		}
+ 		if(isslice(nl->type)) {
+ 			igen(nl, &n1, res);
+ 			n1.op = OINDREG;
+diff --git a/src/cmd/gc/align.c b/src/cmd/gc/align.c
+index 81ea9a7fe8..bd8b690471 100644
+--- a/src/cmd/gc/align.c
++++ b/src/cmd/gc/align.c
+@@ -303,11 +303,10 @@ typeinit(void)
+ 	okforbool[TBOOL] = 1;
+ 
+ 	okforcap[TARRAY] = 1;
+-	//okforcap[TCHAN] = 1;
+-	//okforcap[TMAP] = 1;
++	okforcap[TCHAN] = 1;
+ 
+ 	okforlen[TARRAY] = 1;
+-	//okforlen[TCHAN] = 1;
++	okforlen[TCHAN] = 1;
+ 	okforlen[TMAP] = 1;
+ 	okforlen[TSTRING] = 1;
+ 
+diff --git a/src/pkg/runtime/chan.c b/src/pkg/runtime/chan.c
+index 64a52d48a9..c72ea1dff9 100644
+--- a/src/pkg/runtime/chan.c
++++ b/src/pkg/runtime/chan.c
+@@ -39,10 +39,10 @@ struct	WaitQ
+ 
+ struct	Hchan
+ {
++	uint32	qcount;			// total data in the q
++	uint32	dataqsiz;		// size of the circular q
+ 	uint16	elemsize;
+ 	uint16	closed;			// Wclosed Rclosed errorcount
+-	uint32	dataqsiz;		// size of the circular q
+-	uint32	qcount;			// total data in the q
+ 	Alg*	elemalg;		// interface for element type
+ 	Link*	senddataq;		// pointer for sender
+ 	Link*	recvdataq;		// pointer for receiver
+diff --git a/test/chancap.go b/test/chancap.go
+new file mode 100644
+index 0000000000..15256f731d
+--- /dev/null
++++ b/test/chancap.go
+@@ -0,0 +1,27 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func main() {
++	c := make(chan int, 10);
++	if len(c) != 0 || cap(c) != 10 {
++		panicln("chan len/cap ", len(c), cap(c), " want 0 10");
++	}
++
++	for i := 0; i < 3; i++ {
++		c <- i;
++	}
++	if len(c) != 3 || cap(c) != 10 {
++		panicln("chan len/cap ", len(c), cap(c), " want 3 10");
++	}
++	
++	c = make(chan int);
++	if len(c) != 0 || cap(c) != 0 {
++		panicln("chan len/cap ", len(c), cap(c), " want 0 0");
++	}
++}
++

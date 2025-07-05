@@ -17,7 +17,41 @@ Date:   Mon Sep 11 12:17:40 2023 -0400
     Auto-Submit: Michael Pratt <mpratt@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/runtime/cgocall.go  | 2 --
  src/runtime/runtime2.go | 2 +-
  2 files changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/src/runtime/cgocall.go b/src/runtime/cgocall.go
+index e4da34b31d..debd8cf5e8 100644
+--- a/src/runtime/cgocall.go
++++ b/src/runtime/cgocall.go
+@@ -233,7 +233,6 @@ func callbackUpdateSystemStack(mp *m, sp uintptr, signal bool) {
+ 		g0.stack.hi = sp + 1024
+ 		g0.stack.lo = sp - 32*1024
+ 		g0.stackguard0 = g0.stack.lo + stackGuard
+-		g0.stackguard1 = g0.stackguard0
+ 
+ 		print("M ", mp.id, " procid ", mp.procid, " runtime: cgocallback with sp=", hex(sp), " out of bounds [", hex(lo), ", ", hex(hi), "]")
+ 		print("\n")
+@@ -272,7 +271,6 @@ func callbackUpdateSystemStack(mp *m, sp uintptr, signal bool) {
+ 		}
+ 	}
+ 	g0.stackguard0 = g0.stack.lo + stackGuard
+-	g0.stackguard1 = g0.stackguard0
+ }
+ 
+ // Call from C back to Go. fn must point to an ABIInternal Go entry-point.
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 34f66d4ada..8809b5d569 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -423,7 +423,7 @@ type g struct {
+ 	// stack describes the actual stack memory: [stack.lo, stack.hi).
+ 	// stackguard0 is the stack pointer compared in the Go stack growth prologue.
+ 	// It is stack.lo+StackGuard normally, but can be StackPreempt to trigger a preemption.
+-	// stackguard1 is the stack pointer compared in the //go:systemstack stack growth prologue.
++	// stackguard1 is the stack pointer compared in the C stack growth prologue.
+ 	// It is stack.lo+StackGuard on g0 and gsignal stacks.
+ 	// It is ~0 on other goroutine stacks, to trigger a call to morestackc (and crash).
+ 	stack       stack   // offset known to runtime/cgo

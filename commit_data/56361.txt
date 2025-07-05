@@ -17,6 +17,25 @@ Date:   Wed Apr 26 10:02:22 2023 +0200
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/runtime/stack.go | 7 -------
  1 file changed, 7 deletions(-)
+
+diff --git a/src/runtime/stack.go b/src/runtime/stack.go
+index 01d6b9c22f..45d66da91f 100644
+--- a/src/runtime/stack.go
++++ b/src/runtime/stack.go
+@@ -676,13 +676,6 @@ func adjustframe(frame *stkframe, adjinfo *adjustinfo) {
+ 		adjustpointer(adjinfo, unsafe.Pointer(frame.varp))
+ 	}
+ 
+-	if f.funcID == abi.FuncID_systemstack_switch {
+-		// A special routine at the bottom of stack of a goroutine that does a systemstack call.
+-		// We will allow it to be copied even though we don't
+-		// have full GC info for it (because it is written in asm).
+-		return
+-	}
+-
+ 	locals, args, objs := frame.getStackMap(&adjinfo.cache, true)
+ 
+ 	// Adjust local variables if stack frame has been allocated.

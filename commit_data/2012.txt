@@ -11,8 +11,48 @@ Date:   Tue Apr 14 18:52:39 2009 -0700
     DELTA=3  (0 added, 0 deleted, 3 changed)
     OCL=27463
     CL=27465
-
+---
  src/lib/os/dir_amd64_darwin.go | 2 +-
  src/lib/os/dir_amd64_linux.go  | 2 +-
  src/lib/os/file.go             | 2 +-
  3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/lib/os/dir_amd64_darwin.go b/src/lib/os/dir_amd64_darwin.go
+index 76da8f4d97..903eb28784 100644
+--- a/src/lib/os/dir_amd64_darwin.go
++++ b/src/lib/os/dir_amd64_darwin.go
+@@ -31,7 +31,7 @@ func readdirnames(file *File, count int) (names []string, err *os.Error) {
+ 	names = make([]string, 0, size);	// Empty with room to grow.
+ 	for count != 0 {
+ 		// Refill the buffer if necessary
+-		if d.bufp == d.nbuf {
++		if d.bufp >= d.nbuf {
+ 			var errno int64;
+ 			// Final argument is (basep *int64) and the syscall doesn't take nil.
+ 			d.nbuf, errno = syscall.Getdirentries(file.fd, &d.buf[0], int64(len(d.buf)), new(int64));
+diff --git a/src/lib/os/dir_amd64_linux.go b/src/lib/os/dir_amd64_linux.go
+index db42cfbabf..7ce5f13ad1 100644
+--- a/src/lib/os/dir_amd64_linux.go
++++ b/src/lib/os/dir_amd64_linux.go
+@@ -40,7 +40,7 @@ func readdirnames(file *File, count int) (names []string, err *os.Error) {
+ 	names = make([]string, 0, size);	// Empty with room to grow.
+ 	for count != 0 {
+ 		// Refill the buffer if necessary
+-		if d.bufp == d.nbuf {
++		if d.bufp >= d.nbuf {
+ 			var errno int64;
+ 			dbuf := (*syscall.Dirent)(unsafe.Pointer(&d.buf[0]));
+ 			d.nbuf, errno = syscall.Getdents(file.fd, dbuf, int64(len(d.buf)));
+diff --git a/src/lib/os/file.go b/src/lib/os/file.go
+index 9e98be697a..fa066eb712 100644
+--- a/src/lib/os/file.go
++++ b/src/lib/os/file.go
+@@ -12,7 +12,7 @@ import (
+ )
+ 
+ // Auxiliary information if the File describes a directory
+-type dirInfo struct {	// TODO(r): 6g bug means this can't be private
++type dirInfo struct {
+ 	buf	[]byte;	// buffer for directory I/O
+ 	nbuf	int64;	// length of buf; return value from Getdirentries
+ 	bufp	int64;	// location of next record in buf.

@@ -41,7 +41,7 @@ Date:   Thu Feb 20 15:58:47 2014 -0500
     R=dave, alex.brainman, r
     CC=golang-codereviews
     https://golang.org/cl/65220044
-
+---
  src/cmd/dist/buildruntime.c                |   4 +-
  src/cmd/dist/goc2c.c                       |  97 ++++++---
  src/pkg/runtime/{alg.c => alg.goc}         |  29 ++-
@@ -73,3 +73,3149 @@ Date:   Thu Feb 20 15:58:47 2014 -0500
  src/pkg/runtime/string.goc                 |   5 +-
  src/pkg/runtime/{symtab.c => symtab.goc}   |  25 ++-
  30 files changed, 710 insertions(+), 957 deletions(-)
+
+diff --git a/src/cmd/dist/buildruntime.c b/src/cmd/dist/buildruntime.c
+index 1babddaad5..59b355b07e 100644
+--- a/src/cmd/dist/buildruntime.c
++++ b/src/cmd/dist/buildruntime.c
+@@ -370,10 +370,8 @@ mkzsys(char *dir, char *file)
+ }
+ 
+ static char *runtimedefs[] = {
++	"defs.c",
+ 	"proc.c",
+-	"iface.c",
+-	"hashmap.c",
+-	"chan.c",
+ 	"parfor.c",
+ };
+ 
+diff --git a/src/cmd/dist/goc2c.c b/src/cmd/dist/goc2c.c
+index f0fa043350..36b43f56eb 100644
+--- a/src/cmd/dist/goc2c.c
++++ b/src/cmd/dist/goc2c.c
+@@ -85,11 +85,15 @@ enum {
+ 	String,
+ 	Slice,
+ 	Eface,
++	Complex128,
++	Float32,
++	Float64,
+ };
+ 
+ static struct {
+ 	char *name;
+ 	int size;
++	int rnd; // alignment
+ } type_table[] = {
+ 	/* 
+ 	 * variable sized first, for easy replacement.
+@@ -105,6 +109,7 @@ static struct {
+ 	{"String",	8},
+ 	{"Slice",	12},
+ 	{"Eface",	8},
++	{"Complex128", 16},
+ 
+ 	/* fixed size */
+ 	{"float32",	4},
+@@ -130,7 +135,7 @@ int structround = 4;
+ static void
+ bad_eof(void)
+ {
+-	fatal("%s:%ud: unexpected EOF\n", file, lineno);
++	fatal("%s:%d: unexpected EOF\n", file, lineno);
+ }
+ 
+ /* Free a list of parameters.  */
+@@ -295,9 +300,9 @@ read_package(void)
+ 
+ 	token = read_token_no_eof();
+ 	if (token == nil)
+-		fatal("%s:%ud: no token\n", file, lineno);
++		fatal("%s:%d: no token\n", file, lineno);
+ 	if (!streq(token, "package")) {
+-		fatal("%s:%ud: expected \"package\", got \"%s\"\n",
++		fatal("%s:%d: expected \"package\", got \"%s\"\n",
+ 			file, lineno, token);
+ 	}
+ 	return read_token_no_eof();
+@@ -307,6 +312,9 @@ read_package(void)
+ static void
+ read_preprocessor_lines(void)
+ {
++	int first;
++	
++	first = 1;
+ 	while (1) {
+ 		int c;
+ 
+@@ -317,6 +325,10 @@ read_preprocessor_lines(void)
+ 			xungetc();
+ 			break;
+ 		}
++		if(first) {
++			first = 0;
++			xputchar('\n');
++		}
+ 		xputchar(c);
+ 		do {
+ 			c = getchar_update_lineno();
+@@ -365,17 +377,24 @@ read_type(void)
+ 
+ /* Return the size of the given type. */
+ static int
+-type_size(char *p)
++type_size(char *p, int *rnd)
+ {
+ 	int i;
+ 
+-	if(p[xstrlen(p)-1] == '*')
++	if(p[xstrlen(p)-1] == '*') {
++		*rnd = type_table[Uintptr].rnd;
+ 		return type_table[Uintptr].size;
++	}
++
++	if(streq(p, "Iface"))
++		p = "Eface";
+ 
+ 	for(i=0; type_table[i].name; i++)
+-		if(streq(type_table[i].name, p))
++		if(streq(type_table[i].name, p)) {
++			*rnd = type_table[i].rnd;
+ 			return type_table[i].size;
+-	fatal("%s:%ud: unknown type %s\n", file, lineno, p);
++		}
++	fatal("%s:%d: unknown type %s\n", file, lineno, p);
+ 	return 0;
+ }
+ 
+@@ -398,18 +417,22 @@ read_params(int *poffset)
+ 		while (1) {
+ 			p = xmalloc(sizeof(struct params));
+ 			p->name = token;
+-			p->type = read_type();
+ 			p->next = nil;
+ 			*pp = p;
+ 			pp = &p->next;
+ 
+-			size = type_size(p->type);
+-			rnd = size;
+-			if(rnd > structround)
+-				rnd = structround;
+-			if(offset%rnd)
+-				offset += rnd - offset%rnd;
+-			offset += size;
++			if(streq(token, "...")) {
++				p->type = xstrdup("");
++			} else {
++				p->type = read_type();
++				rnd = 0;
++				size = type_size(p->type, &rnd);
++				if(rnd > structround)
++					rnd = structround;
++				if(offset%rnd)
++					offset += rnd - offset%rnd;
++				offset += size;
++			}
+ 
+ 			token = read_token_no_eof();
+ 			if (!streq(token, ","))
+@@ -418,7 +441,7 @@ read_params(int *poffset)
+ 		}
+ 	}
+ 	if (!streq(token, ")")) {
+-		fatal("%s:%ud: expected '('\n",
++		fatal("%s:%d: expected '('\n",
+ 			file, lineno);
+ 	}
+ 	if (poffset != nil)
+@@ -438,6 +461,7 @@ read_func_header(char **name, struct params **params, int *paramwid, struct para
+ 
+ 	lastline = -1;
+ 	while (1) {
++		read_preprocessor_lines();
+ 		token = read_token();
+ 		if (token == nil)
+ 			return 0;
+@@ -460,7 +484,7 @@ read_func_header(char **name, struct params **params, int *paramwid, struct para
+ 
+ 	token = read_token();
+ 	if (token == nil || !streq(token, "(")) {
+-		fatal("%s:%ud: expected \"(\"\n",
++		fatal("%s:%d: expected \"(\"\n",
+ 			file, lineno);
+ 	}
+ 	*params = read_params(paramwid);
+@@ -473,7 +497,7 @@ read_func_header(char **name, struct params **params, int *paramwid, struct para
+ 		token = read_token();
+ 	}
+ 	if (token == nil || !streq(token, "{")) {
+-		fatal("%s:%ud: expected \"{\"\n",
++		fatal("%s:%d: expected \"{\"\n",
+ 			file, lineno);
+ 	}
+ 	return 1;
+@@ -501,7 +525,11 @@ write_6g_func_header(char *package, char *name, struct params *params,
+ {
+ 	int first, n;
+ 
+-	bwritef(output, "void\n%s·%s(", package, name);
++	bwritef(output, "void\n");
++	if(!contains(name, "·"))
++		bwritef(output, "%s·", package);
++	bwritef(output, "%s(", name);
++
+ 	first = 1;
+ 	write_params(params, &first);
+ 
+@@ -527,7 +555,8 @@ write_6g_func_trailer(struct params *rets)
+ 	struct params *p;
+ 
+ 	for (p = rets; p != nil; p = p->next)
+-		bwritef(output, "\tFLUSH(&%s);\n", p->name);
++		if(!streq(p->name, "..."))
++			bwritef(output, "\tFLUSH(&%s);\n", p->name);
+ 	bwritef(output, "}\n");
+ }
+ 
+@@ -726,6 +755,7 @@ process_file(void)
+ void
+ goc2c(char *goc, char *c)
+ {
++	int i;
+ 	Buf in, out;
+ 	
+ 	binit(&in);
+@@ -739,13 +769,15 @@ goc2c(char *goc, char *c)
+ 	if(!gcc) {
+ 		if(streq(goarch, "amd64")) {
+ 			type_table[Uintptr].size = 8;
+-			type_table[Eface].size = 8+8;
+-			type_table[String].size = 16;
+ 			if(use64bitint) {
+ 				type_table[Int].size = 8;
+-				type_table[Uint].size = 8;
++			} else {
++				type_table[Int].size = 4;
+ 			}
+-			type_table[Slice].size = 8+2*type_table[Int].size;
++			structround = 8;
++		} else if(streq(goarch, "amd64p32")) {
++			type_table[Uintptr].size = 4;
++			type_table[Int].size = 4;
+ 			structround = 8;
+ 		} else {
+ 			// NOTE: These are set in the initializer,
+@@ -753,13 +785,22 @@ goc2c(char *goc, char *c)
+ 			// previous invocation of goc2c, so we have
+ 			// to restore them.
+ 			type_table[Uintptr].size = 4;
+-			type_table[String].size = 8;
+-			type_table[Slice].size = 16;
+-			type_table[Eface].size = 4+4;
+ 			type_table[Int].size = 4;
+-			type_table[Uint].size = 4;
+ 			structround = 4;
+ 		}
++
++		type_table[Uint].size = type_table[Int].size;
++		type_table[Slice].size = type_table[Uintptr].size+2*type_table[Int].size;
++		type_table[Eface].size = 2*type_table[Uintptr].size;
++		type_table[String].size = 2*type_table[Uintptr].size;
++
++		for(i=0; i<nelem(type_table); i++)
++			type_table[i].rnd = type_table[i].size;
++
++		type_table[String].rnd = type_table[Uintptr].rnd;
++		type_table[Slice].rnd = type_table[Uintptr].rnd;
++		type_table[Eface].rnd = type_table[Uintptr].rnd;
++		type_table[Complex128].rnd = type_table[Float64].rnd;
+ 	}
+ 
+ 	bprintf(&out, "// auto generated by go tool dist\n// goos=%s goarch=%s\n\n", goos, goarch);
+diff --git a/src/pkg/runtime/alg.c b/src/pkg/runtime/alg.goc
+similarity index 95%
+rename from src/pkg/runtime/alg.c
+rename to src/pkg/runtime/alg.goc
+index 623858f7c1..5d395fa5ee 100644
+--- a/src/pkg/runtime/alg.c
++++ b/src/pkg/runtime/alg.goc
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++package runtime
+ #include "runtime.h"
+ #include "type.h"
+ #include "../../cmd/ld/textflag.h"
+@@ -505,42 +506,40 @@ void
+ runtime·equal(Type *t, ...)
+ {
+ 	byte *x, *y;
+-	uintptr ret;
++	bool *ret;
+ 	
+-	x = (byte*)(&t+1);
++	x = (byte*)ROUND((uintptr)(&t+1), t->align);
+ 	y = x + t->size;
+-	ret = (uintptr)(y + t->size);
+-	ret = ROUND(ret, Structrnd);
++	ret = (bool*)ROUND((uintptr)(y+t->size), Structrnd);
+ 	t->alg->equal((bool*)ret, t->size, x, y);
+ }
+ 
+ // Testing adapter for memclr
+-void runtime·memclrBytes(Slice s) {
++func memclrBytes(s Slice) {
+ 	runtime·memclr(s.array, s.len);
+ }
+ 
+ // Testing adapters for hash quality tests (see hash_test.go)
+-void runtime·haveGoodHash(bool res) {
++func haveGoodHash() (res bool) {
+ 	res = use_aeshash;
+-	FLUSH(&res);
+ }
+-void runtime·stringHash(String s, uintptr seed, uintptr res) {
++
++func stringHash(s String, seed uintptr) (res uintptr) {
+ 	runtime·algarray[ASTRING].hash(&seed, sizeof(String), &s);
+ 	res = seed;
+-	FLUSH(&res);
+ }
+-void runtime·bytesHash(Slice s, uintptr seed, uintptr res) {
++
++func bytesHash(s Slice, seed uintptr) (res uintptr) {
+ 	runtime·algarray[AMEM].hash(&seed, s.len, s.array);
+ 	res = seed;
+-	FLUSH(&res);
+ }
+-void runtime·int32Hash(uint32 i, uintptr seed, uintptr res) {
++
++func int32Hash(i uint32, seed uintptr) (res uintptr) {
+ 	runtime·algarray[AMEM32].hash(&seed, sizeof(uint32), &i);
+ 	res = seed;
+-	FLUSH(&res);
+ }
+-void runtime·int64Hash(uint64 i, uintptr seed, uintptr res) {
++
++func int64Hash(i uint64, seed uintptr) (res uintptr) {
+ 	runtime·algarray[AMEM64].hash(&seed, sizeof(uint64), &i);
+ 	res = seed;
+-	FLUSH(&res);
+ }
+diff --git a/src/pkg/runtime/cgocall.c b/src/pkg/runtime/cgocall.c
+index a6383feebd..639139d74a 100644
+--- a/src/pkg/runtime/cgocall.c
++++ b/src/pkg/runtime/cgocall.c
+@@ -170,17 +170,6 @@ endcgo(void)
+ 		runtime·raceacquire(&cgosync);
+ }
+ 
+-void
+-runtime·NumCgoCall(int64 ret)
+-{
+-	M *mp;
+-
+-	ret = 0;
+-	for(mp=runtime·atomicloadp(&runtime·allm); mp; mp=mp->alllink)
+-		ret += mp->ncgocall;
+-	FLUSH(&ret);
+-}
+-
+ // Helper functions for cgo code.
+ 
+ void (*_cgo_malloc)(void*);
+diff --git a/src/pkg/runtime/chan.c b/src/pkg/runtime/chan.goc
+similarity index 80%
+rename from src/pkg/runtime/chan.c
+rename to src/pkg/runtime/chan.goc
+index cfded64be9..7442715e78 100644
+--- a/src/pkg/runtime/chan.c
++++ b/src/pkg/runtime/chan.goc
+@@ -2,87 +2,17 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++package runtime
+ #include "runtime.h"
+ #include "arch_GOARCH.h"
+ #include "type.h"
+ #include "race.h"
+ #include "malloc.h"
++#include "chan.h"
+ #include "../../cmd/ld/textflag.h"
+ 
+-#define	MAXALIGN	8
+-
+-typedef	struct	WaitQ	WaitQ;
+-typedef	struct	SudoG	SudoG;
+-typedef	struct	Select	Select;
+-typedef	struct	Scase	Scase;
+-
+-struct	SudoG
+-{
+-	G*	g;
+-	uint32*	selectdone;
+-	SudoG*	link;
+-	int64	releasetime;
+-	byte*	elem;		// data element
+-};
+-
+-struct	WaitQ
+-{
+-	SudoG*	first;
+-	SudoG*	last;
+-};
+-
+-// The garbage collector is assuming that Hchan can only contain pointers into the stack
+-// and cannot contain pointers into the heap.
+-struct	Hchan
+-{
+-	uintgo	qcount;			// total data in the q
+-	uintgo	dataqsiz;		// size of the circular q
+-	uint16	elemsize;
+-	uint16	pad;			// ensures proper alignment of the buffer that follows Hchan in memory
+-	bool	closed;
+-	Type*	elemtype;		// element type
+-	uintgo	sendx;			// send index
+-	uintgo	recvx;			// receive index
+-	WaitQ	recvq;			// list of recv waiters
+-	WaitQ	sendq;			// list of send waiters
+-	Lock;
+-};
+-
+ uint32 runtime·Hchansize = sizeof(Hchan);
+ 
+-// Buffer follows Hchan immediately in memory.
+-// chanbuf(c, i) is pointer to the i'th slot in the buffer.
+-#define chanbuf(c, i) ((byte*)((c)+1)+(uintptr)(c)->elemsize*(i))
+-
+-enum
+-{
+-	debug = 0,
+-
+-	// Scase.kind
+-	CaseRecv,
+-	CaseSend,
+-	CaseDefault,
+-};
+-
+-struct	Scase
+-{
+-	SudoG	sg;			// must be first member (cast to Scase)
+-	Hchan*	chan;			// chan
+-	byte*	pc;			// return pc
+-	uint16	kind;
+-	uint16	so;			// vararg of selected bool
+-	bool*	receivedp;		// pointer to received bool (recv2)
+-};
+-
+-struct	Select
+-{
+-	uint16	tcase;			// total count of scase[]
+-	uint16	ncase;			// currently filled scase[]
+-	uint16*	pollorder;		// case poll order
+-	Hchan**	lockorder;		// channel lock order
+-	Scase	scase[1];		// one per case (in order of appearance)
+-};
+-
+ static	void	dequeueg(WaitQ*);
+ static	SudoG*	dequeue(WaitQ*);
+ static	void	enqueue(WaitQ*, SudoG*);
+@@ -119,21 +49,12 @@ makechan(ChanType *t, int64 hint)
+ 	return c;
+ }
+ 
+-// For reflect
+-//	func makechan(typ *ChanType, size uint64) (chan)
+-void
+-reflect·makechan(ChanType *t, uint64 size, Hchan *c)
+-{
++func reflect·makechan(t *ChanType, size uint64) (c *Hchan) {
+ 	c = makechan(t, size);
+-	FLUSH(&c);
+ }
+ 
+-// makechan(t *ChanType, hint int64) (hchan *chan any);
+-void
+-runtime·makechan(ChanType *t, int64 hint, Hchan *ret)
+-{
+-	ret = makechan(t, hint);
+-	FLUSH(&ret);
++func makechan(t *ChanType, size int64) (c *Hchan) {
++	c = makechan(t, size);
+ }
+ 
+ /*
+@@ -417,32 +338,22 @@ closed:
+ 	return true;
+ }
+ 
+-// chansend1(hchan *chan any, elem *any);
+ #pragma textflag NOSPLIT
+-void
+-runtime·chansend1(ChanType *t, Hchan* c, byte *v)
+-{
+-	chansend(t, c, v, true, runtime·getcallerpc(&t));
++func chansend1(t *ChanType, c *Hchan, elem *byte) {
++	chansend(t, c, elem, true, runtime·getcallerpc(&t));
+ }
+ 
+-// chanrecv1(hchan *chan any, elem *any);
+ #pragma textflag NOSPLIT
+-void
+-runtime·chanrecv1(ChanType *t, Hchan* c, byte *v)
+-{
+-	chanrecv(t, c, v, true, nil);
++func chanrecv1(t *ChanType, c *Hchan, elem *byte) {
++	chanrecv(t, c, elem, true, nil);
+ }
+ 
+ // chanrecv2(hchan *chan any, elem *any) (received bool);
+ #pragma textflag NOSPLIT
+-void
+-runtime·chanrecv2(ChanType *t, Hchan* c, byte *v, bool received)
+-{
+-	chanrecv(t, c, v, true, &received);
++func chanrecv2(t *ChanType, c *Hchan, elem *byte) (received bool) {
++	chanrecv(t, c, elem, true, &received);
+ }
+ 
+-// func selectnbsend(c chan any, elem *any) bool
+-//
+ // compiler implements
+ //
+ //	select {
+@@ -461,15 +372,10 @@ runtime·chanrecv2(ChanType *t, Hchan* c, byte *v, bool received)
+ //	}
+ //
+ #pragma textflag NOSPLIT
+-void
+-runtime·selectnbsend(ChanType *t, Hchan *c, byte *val, bool res)
+-{
+-	res = chansend(t, c, val, false, runtime·getcallerpc(&t));
+-	FLUSH(&res);
++func selectnbsend(t *ChanType, c *Hchan, elem *byte) (selected bool) {
++	selected = chansend(t, c, elem, false, runtime·getcallerpc(&t));
+ }
+ 
+-// func selectnbrecv(elem *any, c chan any) bool
+-//
+ // compiler implements
+ //
+ //	select {
+@@ -488,15 +394,10 @@ runtime·selectnbsend(ChanType *t, Hchan *c, byte *val, bool res)
+ //	}
+ //
+ #pragma textflag NOSPLIT
+-void
+-runtime·selectnbrecv(ChanType *t, byte *v, Hchan *c, bool selected)
+-{
+-	selected = chanrecv(t, c, v, false, nil);
+-	FLUSH(&selected);
++func selectnbrecv(t *ChanType, elem *byte, c *Hchan) (selected bool) {
++	selected = chanrecv(t, c, elem, false, nil);
+ }
+ 
+-// func selectnbrecv2(elem *any, ok *bool, c chan any) bool
+-//
+ // compiler implements
+ //
+ //	select {
+@@ -515,49 +416,25 @@ runtime·selectnbrecv(ChanType *t, byte *v, Hchan *c, bool selected)
+ //	}
+ //
+ #pragma textflag NOSPLIT
+-void
+-runtime·selectnbrecv2(ChanType *t, byte *v, bool *received, Hchan *c, bool selected)
+-{
+-	selected = chanrecv(t, c, v, false, received);
+-	FLUSH(&selected);
++func selectnbrecv2(t *ChanType, elem *byte, received *bool, c *Hchan) (selected bool) {
++	selected = chanrecv(t, c, elem, false, received);
+ }
+ 
+-// For reflect:
+-//	func chansend(c chan, val *any, nb bool) (selected bool)
+-// where val points to the data to be sent.
+-//
+-// The "uintptr selected" is really "bool selected" but saying
+-// uintptr gets us the right alignment for the output parameter block.
+ #pragma textflag NOSPLIT
+-void
+-reflect·chansend(ChanType *t, Hchan *c, byte *val, bool nb, uintptr selected)
+-{
+-	selected = chansend(t, c, val, !nb, runtime·getcallerpc(&t));
+-	FLUSH(&selected);
++func reflect·chansend(t *ChanType, c *Hchan, elem *byte, nb bool) (selected bool) {
++	selected = chansend(t, c, elem, !nb, runtime·getcallerpc(&t));
+ }
+ 
+-// For reflect:
+-//	func chanrecv(c chan, nb bool, val *any) (selected, received bool)
+-// where val points to a data area that will be filled in with the
+-// received value.  val must have the size and type of the channel element type.
+-void
+-reflect·chanrecv(ChanType *t, Hchan *c, bool nb, byte *val, bool selected, bool received)
+-{
++func reflect·chanrecv(t *ChanType, c *Hchan, nb bool, elem *byte) (selected bool, received bool) {
+ 	received = false;
+-	FLUSH(&received);
+-	selected = chanrecv(t, c, val, !nb, &received);
+-	FLUSH(&selected);
++	selected = chanrecv(t, c, elem, !nb, &received);
+ }
+ 
+ static Select* newselect(int32);
+ 
+-// newselect(size uint32) (sel *byte);
+ #pragma textflag NOSPLIT
+-void
+-runtime·newselect(int32 size, byte *sel)
+-{
++func newselect(size int32) (sel *byte) {
+ 	sel = (byte*)newselect(size);
+-	FLUSH(&sel);
+ }
+ 
+ static Select*
+@@ -592,19 +469,13 @@ newselect(int32 size)
+ // cut in half to give stack a chance to split
+ static void selectsend(Select *sel, Hchan *c, void *pc, void *elem, int32 so);
+ 
+-// selectsend(sel *byte, hchan *chan any, elem *any) (selected bool);
+ #pragma textflag NOSPLIT
+-void
+-runtime·selectsend(Select *sel, Hchan *c, void *elem, bool selected)
+-{
++func selectsend(sel *Select, c *Hchan, elem *byte) (selected bool) {
+ 	selected = false;
+-	FLUSH(&selected);
+ 
+ 	// nil cases do not compete
+-	if(c == nil)
+-		return;
+-
+-	selectsend(sel, c, runtime·getcallerpc(&sel), elem, (byte*)&selected - (byte*)&sel);
++	if(c != nil)
++		selectsend(sel, c, runtime·getcallerpc(&sel), elem, (byte*)&selected - (byte*)&sel);
+ }
+ 
+ static void
+@@ -633,34 +504,22 @@ selectsend(Select *sel, Hchan *c, void *pc, void *elem, int32 so)
+ // cut in half to give stack a chance to split
+ static void selectrecv(Select *sel, Hchan *c, void *pc, void *elem, bool*, int32 so);
+ 
+-// selectrecv(sel *byte, hchan *chan any, elem *any) (selected bool);
+ #pragma textflag NOSPLIT
+-void
+-runtime·selectrecv(Select *sel, Hchan *c, void *elem, bool selected)
+-{
++func selectrecv(sel *Select, c *Hchan, elem *byte) (selected bool) {
+ 	selected = false;
+-	FLUSH(&selected);
+ 
+ 	// nil cases do not compete
+-	if(c == nil)
+-		return;
+-
+-	selectrecv(sel, c, runtime·getcallerpc(&sel), elem, nil, (byte*)&selected - (byte*)&sel);
++	if(c != nil)
++		selectrecv(sel, c, runtime·getcallerpc(&sel), elem, nil, (byte*)&selected - (byte*)&sel);
+ }
+ 
+-// selectrecv2(sel *byte, hchan *chan any, elem *any, received *bool) (selected bool);
+ #pragma textflag NOSPLIT
+-void
+-runtime·selectrecv2(Select *sel, Hchan *c, void *elem, bool *received, bool selected)
+-{
++func selectrecv2(sel *Select, c *Hchan, elem *byte, received *bool) (selected bool) {
+ 	selected = false;
+-	FLUSH(&selected);
+ 
+ 	// nil cases do not compete
+-	if(c == nil)
+-		return;
+-
+-	selectrecv(sel, c, runtime·getcallerpc(&sel), elem, received, (byte*)&selected - (byte*)&sel);
++	if(c != nil)
++		selectrecv(sel, c, runtime·getcallerpc(&sel), elem, received, (byte*)&selected - (byte*)&sel);
+ }
+ 
+ static void
+@@ -690,14 +549,9 @@ selectrecv(Select *sel, Hchan *c, void *pc, void *elem, bool *received, int32 so
+ // cut in half to give stack a chance to split
+ static void selectdefault(Select*, void*, int32);
+ 
+-// selectdefault(sel *byte) (selected bool);
+ #pragma textflag NOSPLIT
+-void
+-runtime·selectdefault(Select *sel, bool selected)
+-{
++func selectdefault(sel *Select) (selected bool) {
+ 	selected = false;
+-	FLUSH(&selected);
+-
+ 	selectdefault(sel, runtime·getcallerpc(&sel), (byte*)&selected - (byte*)&sel);
+ }
+ 
+@@ -774,9 +628,7 @@ selparkcommit(G *gp, void *sel)
+ 	return true;
+ }
+ 
+-void
+-runtime·block(void)
+-{
++func block() {
+ 	runtime·park(nil, nil, "select (no cases)");	// forever
+ }
+ 
+@@ -787,9 +639,7 @@ static void* selectgo(Select**);
+ // overwrites return pc on stack to signal which case of the select
+ // to run, so cannot appear at the top of a split stack.
+ #pragma textflag NOSPLIT
+-void
+-runtime·selectgo(Select *sel)
+-{
++func selectgo(sel *Select) {
+ 	runtime·setcallerpc(&sel, selectgo(&sel));
+ }
+ 
+@@ -1131,10 +981,7 @@ enum SelectDir {
+ 	SelectDefault,
+ };
+ 
+-// func rselect(cases []runtimeSelect) (chosen int, recvOK bool)
+-void
+-reflect·rselect(Slice cases, intgo chosen, bool recvOK)
+-{
++func reflect·rselect(cases Slice) (chosen int, recvOK bool) {
+ 	int32 i;
+ 	Select *sel;
+ 	runtimeSelect* rcase, *rc;
+@@ -1165,27 +1012,17 @@ reflect·rselect(Slice cases, intgo chosen, bool recvOK)
+ 	}
+ 
+ 	chosen = (intgo)(uintptr)selectgo(&sel);
+-
+-	FLUSH(&chosen);
+-	FLUSH(&recvOK);
+ }
+ 
+ static void closechan(Hchan *c, void *pc);
+ 
+-// closechan(sel *byte);
+ #pragma textflag NOSPLIT
+-void
+-runtime·closechan(Hchan *c)
+-{
++func closechan(c *Hchan) {
+ 	closechan(c, runtime·getcallerpc(&c));
+ }
+ 
+-// For reflect
+-//	func chanclose(c chan)
+ #pragma textflag NOSPLIT
+-void
+-reflect·chanclose(Hchan *c)
+-{
++func reflect·chanclose(c *Hchan) {
+ 	closechan(c, runtime·getcallerpc(&c));
+ }
+ 
+@@ -1238,28 +1075,18 @@ closechan(Hchan *c, void *pc)
+ 	runtime·unlock(c);
+ }
+ 
+-// For reflect
+-//	func chanlen(c chan) (len int)
+-void
+-reflect·chanlen(Hchan *c, intgo len)
+-{
++func reflect·chanlen(c *Hchan) (len int) {
+ 	if(c == nil)
+ 		len = 0;
+ 	else
+ 		len = c->qcount;
+-	FLUSH(&len);
+ }
+ 
+-// For reflect
+-//	func chancap(c chan) int
+-void
+-reflect·chancap(Hchan *c, intgo cap)
+-{
++func reflect·chancap(c *Hchan) (cap int) {
+ 	if(c == nil)
+ 		cap = 0;
+ 	else
+ 		cap = c->dataqsiz;
+-	FLUSH(&cap);
+ }
+ 
+ static SudoG*
+diff --git a/src/pkg/runtime/chan.h b/src/pkg/runtime/chan.h
+new file mode 100644
+index 0000000000..ce2eb9f4e2
+--- /dev/null
++++ b/src/pkg/runtime/chan.h
+@@ -0,0 +1,75 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#define	MAXALIGN	8
++
++typedef	struct	WaitQ	WaitQ;
++typedef	struct	SudoG	SudoG;
++typedef	struct	Select	Select;
++typedef	struct	Scase	Scase;
++
++struct	SudoG
++{
++	G*	g;
++	uint32*	selectdone;
++	SudoG*	link;
++	int64	releasetime;
++	byte*	elem;		// data element
++};
++
++struct	WaitQ
++{
++	SudoG*	first;
++	SudoG*	last;
++};
++
++// The garbage collector is assuming that Hchan can only contain pointers into the stack
++// and cannot contain pointers into the heap.
++struct	Hchan
++{
++	uintgo	qcount;			// total data in the q
++	uintgo	dataqsiz;		// size of the circular q
++	uint16	elemsize;
++	uint16	pad;			// ensures proper alignment of the buffer that follows Hchan in memory
++	bool	closed;
++	Type*	elemtype;		// element type
++	uintgo	sendx;			// send index
++	uintgo	recvx;			// receive index
++	WaitQ	recvq;			// list of recv waiters
++	WaitQ	sendq;			// list of send waiters
++	Lock;
++};
++
++// Buffer follows Hchan immediately in memory.
++// chanbuf(c, i) is pointer to the i'th slot in the buffer.
++#define chanbuf(c, i) ((byte*)((c)+1)+(uintptr)(c)->elemsize*(i))
++
++enum
++{
++	debug = 0,
++
++	// Scase.kind
++	CaseRecv,
++	CaseSend,
++	CaseDefault,
++};
++
++struct	Scase
++{
++	SudoG	sg;			// must be first member (cast to Scase)
++	Hchan*	chan;			// chan
++	byte*	pc;			// return pc
++	uint16	kind;
++	uint16	so;			// vararg of selected bool
++	bool*	receivedp;		// pointer to received bool (recv2)
++};
++
++struct	Select
++{
++	uint16	tcase;			// total count of scase[]
++	uint16	ncase;			// currently filled scase[]
++	uint16*	pollorder;		// case poll order
++	Hchan**	lockorder;		// channel lock order
++	Scase	scase[1];		// one per case (in order of appearance)
++};
+diff --git a/src/pkg/runtime/complex.c b/src/pkg/runtime/complex.goc
+similarity index 92%
+rename from src/pkg/runtime/complex.c
+rename to src/pkg/runtime/complex.goc
+index 395e70fe34..40935cf1cd 100644
+--- a/src/pkg/runtime/complex.c
++++ b/src/pkg/runtime/complex.goc
+@@ -2,13 +2,10 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++package runtime
+ #include "runtime.h"
+ 
+-typedef struct Complex128 Complex128;
+-
+-void
+-runtime·complex128div(Complex128 n, Complex128 d, Complex128 q)
+-{
++func complex128div(n Complex128, d Complex128) (q Complex128) {
+ 	int32 ninf, dinf, nnan, dnan;
+ 	float64 a, b, ratio, denom;
+ 
+@@ -58,5 +55,4 @@ runtime·complex128div(Complex128 n, Complex128 d, Complex128 q)
+ 			q.imag = (n.imag - n.real*ratio) / denom;
+ 		}
+ 	}
+-	FLUSH(&q);
+ }
+diff --git a/src/pkg/runtime/cpuprof.c b/src/pkg/runtime/cpuprof.goc
+similarity index 99%
+rename from src/pkg/runtime/cpuprof.c
+rename to src/pkg/runtime/cpuprof.goc
+index 040ffcd8c7..9653e4a68d 100644
+--- a/src/pkg/runtime/cpuprof.c
++++ b/src/pkg/runtime/cpuprof.goc
+@@ -48,6 +48,7 @@
+ // in order to let the log closer set the high bit to indicate "EOF" safely
+ // in the situation when normally the goroutine "owns" handoff.
+ 
++package runtime
+ #include "runtime.h"
+ #include "arch_GOARCH.h"
+ #include "malloc.h"
+@@ -428,9 +429,6 @@ breakflush:
+ 
+ // CPUProfile returns the next cpu profile block as a []byte.
+ // The user documentation is in debug.go.
+-void
+-runtime·CPUProfile(Slice ret)
+-{
++func CPUProfile() (ret Slice) {
+ 	ret = getprofile(prof);
+-	FLUSH(&ret);
+ }
+diff --git a/src/pkg/runtime/export_test.c b/src/pkg/runtime/defs.c
+similarity index 51%
+rename from src/pkg/runtime/export_test.c
+rename to src/pkg/runtime/defs.c
+index 5ad1a70075..1c76198fc5 100644
+--- a/src/pkg/runtime/export_test.c
++++ b/src/pkg/runtime/defs.c
+@@ -2,12 +2,13 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// This file is compiled by cmd/dist to obtain debug information
++// about the given header files.
++
+ #include "runtime.h"
+ #include "arch_GOARCH.h"
+-
+-void
+-·GogoBytes(int32 x)
+-{
+-	x = RuntimeGogoBytes;
+-	FLUSH(&x);
+-}
++#include "malloc.h"
++#include "type.h"
++#include "race.h"
++#include "hashmap.h"
++#include "chan.h"
+diff --git a/src/pkg/runtime/export_test.go b/src/pkg/runtime/export_test.go
+index 5448ce23a2..7a31b63b31 100644
+--- a/src/pkg/runtime/export_test.go
++++ b/src/pkg/runtime/export_test.go
+@@ -31,11 +31,11 @@ type LFNode struct {
+ 	Pushcnt uintptr
+ }
+ 
+-func lfstackpush(head *uint64, node *LFNode)
+-func lfstackpop2(head *uint64) *LFNode
++func lfstackpush_go(head *uint64, node *LFNode)
++func lfstackpop_go(head *uint64) *LFNode
+ 
+-var LFStackPush = lfstackpush
+-var LFStackPop = lfstackpop2
++var LFStackPush = lfstackpush_go
++var LFStackPop = lfstackpop_go
+ 
+ type ParFor struct {
+ 	body    *byte
+@@ -48,17 +48,17 @@ type ParFor struct {
+ 	wait    bool
+ }
+ 
+-func parforalloc2(nthrmax uint32) *ParFor
+-func parforsetup2(desc *ParFor, nthr, n uint32, ctx *byte, wait bool, body func(*ParFor, uint32))
+-func parfordo(desc *ParFor)
+-func parforiters(desc *ParFor, tid uintptr) (uintptr, uintptr)
++func newParFor(nthrmax uint32) *ParFor
++func parForSetup(desc *ParFor, nthr, n uint32, ctx *byte, wait bool, body func(*ParFor, uint32))
++func parForDo(desc *ParFor)
++func parForIters(desc *ParFor, tid uintptr) (uintptr, uintptr)
+ 
+-var NewParFor = parforalloc2
+-var ParForSetup = parforsetup2
+-var ParForDo = parfordo
++var NewParFor = newParFor
++var ParForSetup = parForSetup
++var ParForDo = parForDo
+ 
+ func ParForIters(desc *ParFor, tid uint32) (uint32, uint32) {
+-	begin, end := parforiters(desc, uintptr(tid))
++	begin, end := parForIters(desc, uintptr(tid))
+ 	return uint32(begin), uint32(end)
+ }
+ 
+@@ -80,11 +80,13 @@ var BytesHash = bytesHash
+ var Int32Hash = int32Hash
+ var Int64Hash = int64Hash
+ 
+-func GogoBytes() int32
+-
+ var hashLoad float64 // declared in hashmap.c
+ var HashLoad = &hashLoad
+ 
+ func memclrBytes(b []byte)
+ 
+ var MemclrBytes = memclrBytes
++
++func gogoBytes() int32
++
++var GogoBytes = gogoBytes
+diff --git a/src/pkg/runtime/hashmap.c b/src/pkg/runtime/hashmap.goc
+similarity index 71%
+rename from src/pkg/runtime/hashmap.c
+rename to src/pkg/runtime/hashmap.goc
+index f01779e23d..dbec9a689e 100644
+--- a/src/pkg/runtime/hashmap.c
++++ b/src/pkg/runtime/hashmap.goc
+@@ -2,133 +2,16 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++package runtime
+ #include "runtime.h"
+ #include "arch_GOARCH.h"
+ #include "malloc.h"
+ #include "type.h"
+ #include "race.h"
++#include "hashmap.h"
+ #include "typekind.h"
+ #include "../../cmd/ld/textflag.h"
+ 
+-// This file contains the implementation of Go's map type.
+-//
+-// The map is just a hash table.  The data is arranged
+-// into an array of buckets.  Each bucket contains up to
+-// 8 key/value pairs.  The low-order bits of the hash are
+-// used to select a bucket.  Each bucket contains a few
+-// high-order bits of each hash to distinguish the entries
+-// within a single bucket.
+-//
+-// If more than 8 keys hash to a bucket, we chain on
+-// extra buckets.
+-//
+-// When the hashtable grows, we allocate a new array
+-// of buckets twice as big.  Buckets are incrementally
+-// copied from the old bucket array to the new bucket array.
+-//
+-// Map iterators walk through the array of buckets and
+-// return the keys in walk order (bucket #, then overflow
+-// chain order, then bucket index).  To maintain iteration
+-// semantics, we never move keys within their bucket (if
+-// we did, keys might be returned 0 or 2 times).  When
+-// growing the table, iterators remain iterating through the
+-// old table and must check the new table if the bucket
+-// they are iterating through has been moved ("evacuated")
+-// to the new table.
+-
+-// Maximum number of key/value pairs a bucket can hold.
+-#define BUCKETSIZE 8
+-
+-// Maximum average load of a bucket that triggers growth.
+-#define LOAD 6.5
+-
+-// Picking LOAD: too large and we have lots of overflow
+-// buckets, too small and we waste a lot of space.  I wrote
+-// a simple program to check some stats for different loads:
+-// (64-bit, 8 byte keys and values)
+-//        LOAD    %overflow  bytes/entry     hitprobe    missprobe
+-//        4.00         2.13        20.77         3.00         4.00
+-//        4.50         4.05        17.30         3.25         4.50
+-//        5.00         6.85        14.77         3.50         5.00
+-//        5.50        10.55        12.94         3.75         5.50
+-//        6.00        15.27        11.67         4.00         6.00
+-//        6.50        20.90        10.79         4.25         6.50
+-//        7.00        27.14        10.15         4.50         7.00
+-//        7.50        34.03         9.73         4.75         7.50
+-//        8.00        41.10         9.40         5.00         8.00
+-//
+-// %overflow   = percentage of buckets which have an overflow bucket
+-// bytes/entry = overhead bytes used per key/value pair
+-// hitprobe    = # of entries to check when looking up a present key
+-// missprobe   = # of entries to check when looking up an absent key
+-//
+-// Keep in mind this data is for maximally loaded tables, i.e. just
+-// before the table grows.  Typical tables will be somewhat less loaded.
+-
+-// Maximum key or value size to keep inline (instead of mallocing per element).
+-// Must fit in a uint8.
+-// Fast versions cannot handle big values - the cutoff size for
+-// fast versions in ../../cmd/gc/walk.c must be at most this value.
+-#define MAXKEYSIZE 128
+-#define MAXVALUESIZE 128
+-
+-typedef struct Bucket Bucket;
+-struct Bucket
+-{
+-	// Note: the format of the Bucket is encoded in ../../cmd/gc/reflect.c and
+-	// ../reflect/type.go.  Don't change this structure without also changing that code!
+-	uint8  tophash[BUCKETSIZE]; // top 8 bits of hash of each entry (or special mark below)
+-	Bucket *overflow;           // overflow bucket, if any
+-	byte   data[1];             // BUCKETSIZE keys followed by BUCKETSIZE values
+-};
+-// NOTE: packing all the keys together and then all the values together makes the
+-// code a bit more complicated than alternating key/value/key/value/... but it allows
+-// us to eliminate padding which would be needed for, e.g., map[int64]int8.
+-
+-// tophash values.  We reserve a few possibilities for special marks.
+-// Each bucket (including its overflow buckets, if any) will have either all or none of its
+-// entries in the Evacuated* states (except during the evacuate() method, which only happens
+-// during map writes and thus no one else can observe the map during that time).
+-enum
+-{
+-	Empty = 0,		// cell is empty
+-	EvacuatedEmpty = 1,	// cell is empty, bucket is evacuated.
+-	EvacuatedX = 2,		// key/value is valid.  Entry has been evacuated to first half of larger table.
+-	EvacuatedY = 3,		// same as above, but evacuated to second half of larger table.
+-	MinTopHash = 4, 	// minimum tophash for a normal filled cell.
+-};
+-#define evacuated(b) ((b)->tophash[0] > Empty && (b)->tophash[0] < MinTopHash)
+-
+-struct Hmap
+-{
+-	// Note: the format of the Hmap is encoded in ../../cmd/gc/reflect.c and
+-	// ../reflect/type.go.  Don't change this structure without also changing that code!
+-	uintgo  count;        // # live cells == size of map.  Must be first (used by len() builtin)
+-	uint32  flags;
+-	uint32  hash0;        // hash seed
+-	uint8   B;            // log_2 of # of buckets (can hold up to LOAD * 2^B items)
+-	uint8   keysize;      // key size in bytes
+-	uint8   valuesize;    // value size in bytes
+-	uint16  bucketsize;   // bucket size in bytes
+-
+-	byte    *buckets;     // array of 2^B Buckets. may be nil if count==0.
+-	byte    *oldbuckets;  // previous bucket array of half the size, non-nil only when growing
+-	uintptr nevacuate;    // progress counter for evacuation (buckets less than this have been evacuated)
+-};
+-
+-// possible flags
+-enum
+-{
+-	IndirectKey = 1,    // storing pointers to keys
+-	IndirectValue = 2,  // storing pointers to values
+-	Iterator = 4,       // there may be an iterator using buckets
+-	OldIterator = 8,    // there may be an iterator using oldbuckets
+-};
+-
+-// Macros for dereferencing indirect keys
+-#define IK(h, p) (((h)->flags & IndirectKey) != 0 ? *(byte**)(p) : (p))
+-#define IV(h, p) (((h)->flags & IndirectValue) != 0 ? *(byte**)(p) : (p))
+-
+ enum
+ {
+ 	docheck = 0,  // check invariants before and after every op.  Slow!!!
+@@ -152,7 +35,7 @@ check(MapType *t, Hmap *h)
+ 	// check buckets
+ 	for(bucket = 0; bucket < (uintptr)1 << h->B; bucket++) {
+ 		for(b = (Bucket*)(h->buckets + bucket * h->bucketsize); b != nil; b = b->overflow) {
+-			for(i = 0, k = b->data, v = k + h->keysize * BUCKETSIZE; i < BUCKETSIZE; i++, k += h->keysize, v += h->valuesize) {
++			for(i = 0, k = (byte*)b->data, v = k + h->keysize * BUCKETSIZE; i < BUCKETSIZE; i++, k += h->keysize, v += h->valuesize) {
+ 				if(b->tophash[i] == Empty)
+ 					continue;
+ 				if(b->tophash[i] > Empty && b->tophash[i] < MinTopHash)
+@@ -177,7 +60,7 @@ check(MapType *t, Hmap *h)
+ 		for(oldbucket = 0; oldbucket < (uintptr)1 << (h->B - 1); oldbucket++) {
+ 			b = (Bucket*)(h->oldbuckets + oldbucket * h->bucketsize);
+ 			for(; b != nil; b = b->overflow) {
+-				for(i = 0, k = b->data, v = k + h->keysize * BUCKETSIZE; i < BUCKETSIZE; i++, k += h->keysize, v += h->valuesize) {
++				for(i = 0, k = (byte*)b->data, v = k + h->keysize * BUCKETSIZE; i < BUCKETSIZE; i++, k += h->keysize, v += h->valuesize) {
+ 					if(b->tophash[i] < MinTopHash)
+ 						continue;
+ 					if(oldbucket < h->nevacuate)
+@@ -226,6 +109,10 @@ hash_init(MapType *t, Hmap *h, uint32 hint)
+ 		valuesize = sizeof(byte*);
+ 	}
+ 	bucketsize = offsetof(Bucket, data[0]) + (keysize + valuesize) * BUCKETSIZE;
++	if(bucketsize != t->bucket->size) {
++		runtime·printf("runtime: bucketsize=%p but t->bucket->size=%p; t=%S\n", bucketsize, t->bucket->size, *t->string);
++		runtime·throw("bucketsize wrong");
++	}
+ 
+ 	// invariants we depend on.  We should probably check these at compile time
+ 	// somewhere, but for now we'll do it here.
+@@ -239,9 +126,9 @@ hash_init(MapType *t, Hmap *h, uint32 hint)
+ 		runtime·throw("value size not a multiple of value align");
+ 	if(BUCKETSIZE < 8)
+ 		runtime·throw("bucketsize too small for proper alignment");
+-	if(sizeof(void*) == 4 && t->key->align > 4)
++	if((offsetof(Bucket, data[0]) & (t->key->align-1)) != 0)
+ 		runtime·throw("need padding in bucket (key)");
+-	if(sizeof(void*) == 4 && t->elem->align > 4)
++	if((offsetof(Bucket, data[0]) & (t->elem->align-1)) != 0)
+ 		runtime·throw("need padding in bucket (value)");
+ 
+ 	// find size parameter which will hold the requested # of elements
+@@ -303,12 +190,12 @@ evacuate(MapType *t, Hmap *h, uintptr oldbucket)
+ 		y = (Bucket*)(h->buckets + (oldbucket + newbit) * h->bucketsize);
+ 		xi = 0;
+ 		yi = 0;
+-		xk = x->data;
+-		yk = y->data;
++		xk = (byte*)x->data;
++		yk = (byte*)y->data;
+ 		xv = xk + h->keysize * BUCKETSIZE;
+ 		yv = yk + h->keysize * BUCKETSIZE;
+ 		for(; b != nil; b = b->overflow) {
+-			for(i = 0, k = b->data, v = k + h->keysize * BUCKETSIZE; i < BUCKETSIZE; i++, k += h->keysize, v += h->valuesize) {
++			for(i = 0, k = (byte*)b->data, v = k + h->keysize * BUCKETSIZE; i < BUCKETSIZE; i++, k += h->keysize, v += h->valuesize) {
+ 				top = b->tophash[i];
+ 				if(top == Empty) {
+ 					b->tophash[i] = EvacuatedEmpty;
+@@ -353,7 +240,7 @@ evacuate(MapType *t, Hmap *h, uintptr oldbucket)
+ 						x->overflow = newx;
+ 						x = newx;
+ 						xi = 0;
+-						xk = x->data;
++						xk = (byte*)x->data;
+ 						xv = xk + h->keysize * BUCKETSIZE;
+ 					}
+ 					x->tophash[xi] = top;
+@@ -378,7 +265,7 @@ evacuate(MapType *t, Hmap *h, uintptr oldbucket)
+ 						y->overflow = newy;
+ 						y = newy;
+ 						yi = 0;
+-						yk = y->data;
++						yk = (byte*)y->data;
+ 						yv = yk + h->keysize * BUCKETSIZE;
+ 					}
+ 					y->tophash[yi] = top;
+@@ -403,7 +290,7 @@ evacuate(MapType *t, Hmap *h, uintptr oldbucket)
+ 		if((h->flags & OldIterator) == 0) {
+ 			b = (Bucket*)(h->oldbuckets + oldbucket * h->bucketsize);
+ 			b->overflow = nil;
+-			runtime·memclr(b->data, h->bucketsize - offsetof(Bucket, data[0]));
++			runtime·memclr((byte*)b->data, h->bucketsize - offsetof(Bucket, data[0]));
+ 		}
+ 	}
+ 
+@@ -499,7 +386,7 @@ hash_lookup(MapType *t, Hmap *h, byte **keyp)
+ 	if(top < MinTopHash)
+ 		top += MinTopHash;
+ 	do {
+-		for(i = 0, k = b->data, v = k + h->keysize * BUCKETSIZE; i < BUCKETSIZE; i++, k += h->keysize, v += h->valuesize) {
++		for(i = 0, k = (byte*)b->data, v = k + h->keysize * BUCKETSIZE; i < BUCKETSIZE; i++, k += h->keysize, v += h->valuesize) {
+ 			if(b->tophash[i] == top) {
+ 				k2 = IK(h, k);
+ 				t->key->alg->equal(&eq, t->key->size, key, k2);
+@@ -615,7 +502,7 @@ hash_insert(MapType *t, Hmap *h, void *key, void *value)
+ 	insertk = nil;
+ 	insertv = nil;
+ 	while(true) {
+-		for(i = 0, k = b->data, v = k + h->keysize * BUCKETSIZE; i < BUCKETSIZE; i++, k += h->keysize, v += h->valuesize) {
++		for(i = 0, k = (byte*)b->data, v = k + h->keysize * BUCKETSIZE; i < BUCKETSIZE; i++, k += h->keysize, v += h->valuesize) {
+ 			if(b->tophash[i] != top) {
+ 				if(b->tophash[i] == Empty && inserti == nil) {
+ 					inserti = &b->tophash[i];
+@@ -651,7 +538,7 @@ hash_insert(MapType *t, Hmap *h, void *key, void *value)
+ 		newb = runtime·cnew(t->bucket);
+ 		b->overflow = newb;
+ 		inserti = newb->tophash;
+-		insertk = newb->data;
++		insertk = (byte*)newb->data;
+ 		insertv = insertk + h->keysize * BUCKETSIZE;
+ 	}
+ 
+@@ -701,7 +588,7 @@ hash_remove(MapType *t, Hmap *h, void *key)
+ 	if(top < MinTopHash)
+ 		top += MinTopHash;
+ 	do {
+-		for(i = 0, k = b->data, v = k + h->keysize * BUCKETSIZE; i < BUCKETSIZE; i++, k += h->keysize, v += h->valuesize) {
++		for(i = 0, k = (byte*)b->data, v = k + h->keysize * BUCKETSIZE; i < BUCKETSIZE; i++, k += h->keysize, v += h->valuesize) {
+ 			if(b->tophash[i] != top)
+ 				continue;
+ 			t->key->alg->equal(&eq, t->key->size, key, IK(h, k));
+@@ -734,40 +621,16 @@ hash_remove(MapType *t, Hmap *h, void *key)
+ 
+ // TODO: shrink the map, the same way we grow it.
+ 
+-// If you modify hash_iter, also change cmd/gc/reflect.c to indicate
+-// the layout of this structure.
+-struct hash_iter
+-{
+-	uint8* key; // Must be in first position.  Write nil to indicate iteration end (see cmd/gc/range.c).
+-	uint8* value; // Must be in second position (see cmd/gc/range.c).
+-
+-	MapType *t;
+-	Hmap *h;
+-	byte *buckets; // bucket ptr at hash_iter initialization time
+-	struct Bucket *bptr; // current bucket
+-
+-	uint8 offset; // intra-bucket offset to start from during iteration (should be big enough to hold BUCKETSIZE-1)
+-	bool done;
+-
+-	// state of table at time iterator is initialized
+-	uint8 B;
+-
+-	// iter state
+-	uintptr bucket;
+-	uintptr i;
+-	intptr check_bucket;
+-};
+-
+ // iterator state:
+ // bucket: the current bucket ID
+ // b: the current Bucket in the chain
+ // i: the next offset to check in the current bucket
+ static void
+-hash_iter_init(MapType *t, Hmap *h, struct hash_iter *it)
++hash_iter_init(MapType *t, Hmap *h, Hiter *it)
+ {
+ 	uint32 old;
+ 
+-	if(sizeof(struct hash_iter) / sizeof(uintptr) != 10) {
++	if(sizeof(Hiter) / sizeof(uintptr) != 10) {
+ 		runtime·throw("hash_iter size incorrect"); // see ../../cmd/gc/reflect.c
+ 	}
+ 	it->t = t;
+@@ -803,7 +666,7 @@ hash_iter_init(MapType *t, Hmap *h, struct hash_iter *it)
+ // initializes it->key and it->value to the next key/value pair
+ // in the iteration, or nil if we've reached the end.
+ static void
+-hash_next(struct hash_iter *it)
++hash_next(Hiter *it)
+ {
+ 	Hmap *h;
+ 	MapType *t;
+@@ -857,8 +720,8 @@ next:
+ 	}
+ 	for(; i < BUCKETSIZE; i++) {
+ 		offi = (i + it->offset) & (BUCKETSIZE - 1);
+-		k = b->data + h->keysize * offi;
+-		v = b->data + h->keysize * BUCKETSIZE + h->valuesize * offi;
++		k = (byte*)b->data + h->keysize * offi;
++		v = (byte*)b->data + h->keysize * BUCKETSIZE + h->valuesize * offi;
+ 		if(b->tophash[offi] != Empty && b->tophash[offi] != EvacuatedEmpty) {
+ 			if(check_bucket >= 0) {
+ 				// Special case: iterator was started during a grow and the
+@@ -935,11 +798,8 @@ next:
+ /// interfaces to go runtime
+ //
+ 
+-void
+-reflect·ismapkey(Type *typ, bool ret)
+-{
++func reflect·ismapkey(typ *Type) (ret bool) {
+ 	ret = typ != nil && typ->alg->hash != runtime·nohash;
+-	FLUSH(&ret);
+ }
+ 
+ static Hmap*
+@@ -973,73 +833,57 @@ makemap_c(MapType *typ, int64 hint)
+ 	return h;
+ }
+ 
+-// makemap(key, val *Type, hint int64) (hmap *map[any]any);
+-void
+-runtime·makemap(MapType *typ, int64 hint, Hmap *ret)
+-{
++func makemap(typ *MapType, hint int64) (ret *Hmap) {
+ 	ret = makemap_c(typ, hint);
+-	FLUSH(&ret);
+ }
+ 
+-// For reflect:
+-//	func makemap(Type *mapType) (hmap *map)
+-void
+-reflect·makemap(MapType *t, Hmap *ret)
+-{
++func reflect·makemap(t *MapType) (ret *Hmap) {
+ 	ret = makemap_c(t, 0);
+-	FLUSH(&ret);
+ }
+ 
+-// mapaccess1(hmap *map[any]any, key *any) (val *any);
+ // NOTE: The returned pointer may keep the whole map live, so don't
+ // hold onto it for very long.
+ #pragma textflag NOSPLIT
+-void
+-runtime·mapaccess1(MapType *t, Hmap *h, byte *ak, byte *av)
+-{
++func mapaccess1(t *MapType, h *Hmap, key *byte) (val *byte) {
+ 	if(raceenabled && h != nil) {
+ 		runtime·racereadpc(h, runtime·getcallerpc(&t), runtime·mapaccess1);
+-		runtime·racereadobjectpc(ak, t->key, runtime·getcallerpc(&t), runtime·mapaccess1);
++		runtime·racereadobjectpc(key, t->key, runtime·getcallerpc(&t), runtime·mapaccess1);
+ 	}
+ 	if(h == nil || h->count == 0) {
+-		av = t->elem->zero;
++		val = t->elem->zero;
+ 	} else {
+-		av = hash_lookup(t, h, &ak);
+-		if(av == nil)
+-			av = t->elem->zero;
++		val = hash_lookup(t, h, &key);
++		if(val == nil)
++			val = t->elem->zero;
+ 	}
+ 
+ 	if(debug) {
+ 		runtime·prints("runtime.mapaccess1: map=");
+ 		runtime·printpointer(h);
+ 		runtime·prints("; key=");
+-		t->key->alg->print(t->key->size, ak);
++		t->key->alg->print(t->key->size, key);
+ 		runtime·prints("; val=");
+-		t->elem->alg->print(t->elem->size, av);
++		t->elem->alg->print(t->elem->size, val);
+ 		runtime·prints("\n");
+ 	}
+-	FLUSH(&av);
+ }
+ 
+-// mapaccess2(hmap *map[any]any, key *any) (val *any, pres bool);
+ // NOTE: The returned pointer keeps the whole map live, so don't
+ // hold onto it for very long.
+ #pragma textflag NOSPLIT
+-void
+-runtime·mapaccess2(MapType *t, Hmap *h, byte *ak, byte *av, bool pres)
+-{
++func mapaccess2(t *MapType, h *Hmap, key *byte) (val *byte, pres bool) {
+ 	if(raceenabled && h != nil) {
+ 		runtime·racereadpc(h, runtime·getcallerpc(&t), runtime·mapaccess2);
+-		runtime·racereadobjectpc(ak, t->key, runtime·getcallerpc(&t), runtime·mapaccess2);
++		runtime·racereadobjectpc(key, t->key, runtime·getcallerpc(&t), runtime·mapaccess2);
+ 	}
+ 
+ 	if(h == nil || h->count == 0) {
+-		av = t->elem->zero;
++		val = t->elem->zero;
+ 		pres = false;
+ 	} else {
+-		av = hash_lookup(t, h, &ak);
+-		if(av == nil) {
+-			av = t->elem->zero;
++		val = hash_lookup(t, h, &key);
++		if(val == nil) {
++			val = t->elem->zero;
+ 			pres = false;
+ 		} else {
+ 			pres = true;
+@@ -1050,86 +894,71 @@ runtime·mapaccess2(MapType *t, Hmap *h, byte *ak, byte *av, bool pres)
+ 		runtime·prints("runtime.mapaccess2: map=");
+ 		runtime·printpointer(h);
+ 		runtime·prints("; key=");
+-		t->key->alg->print(t->key->size, ak);
++		t->key->alg->print(t->key->size, key);
+ 		runtime·prints("; val=");
+-		t->elem->alg->print(t->elem->size, av);
++		t->elem->alg->print(t->elem->size, val);
+ 		runtime·prints("; pres=");
+ 		runtime·printbool(pres);
+ 		runtime·prints("\n");
+ 	}
+-	FLUSH(&av);
+-	FLUSH(&pres);
+ }
+ 
+-// For reflect:
+-//	func mapaccess(t type, h map, key unsafe.Pointer) (val unsafe.Pointer)
+-void
+-reflect·mapaccess(MapType *t, Hmap *h, byte *key, byte *val)
+-{
++#pragma textflag NOSPLIT
++func reflect·mapaccess(t *MapType, h *Hmap, key *byte) (val *byte) {
+ 	if(raceenabled && h != nil) {
+ 		runtime·racereadpc(h, runtime·getcallerpc(&t), reflect·mapaccess);
+ 		runtime·racereadobjectpc(key, t->key, runtime·getcallerpc(&t), reflect·mapaccess);
+ 	}
+ 	val = hash_lookup(t, h, &key);
+-	FLUSH(&val);
+ }
+ 
+-// mapassign1(mapType *type, hmap *map[any]any, key *any, val *any);
+ #pragma textflag NOSPLIT
+-void
+-runtime·mapassign1(MapType *t, Hmap *h, byte *ak, byte *av)
+-{
++func mapassign1(t *MapType, h *Hmap, key *byte, val *byte) {
+ 	if(h == nil)
+ 		runtime·panicstring("assignment to entry in nil map");
+ 
+ 	if(raceenabled) {
+ 		runtime·racewritepc(h, runtime·getcallerpc(&t), runtime·mapassign1);
+-		runtime·racereadobjectpc(ak, t->key, runtime·getcallerpc(&t), runtime·mapassign1);
+-		runtime·racereadobjectpc(av, t->elem, runtime·getcallerpc(&t), runtime·mapassign1);
++		runtime·racereadobjectpc(key, t->key, runtime·getcallerpc(&t), runtime·mapassign1);
++		runtime·racereadobjectpc(val, t->elem, runtime·getcallerpc(&t), runtime·mapassign1);
+ 	}
+ 
+-	hash_insert(t, h, ak, av);
++	hash_insert(t, h, key, val);
+ 
+ 	if(debug) {
+ 		runtime·prints("mapassign1: map=");
+ 		runtime·printpointer(h);
+ 		runtime·prints("; key=");
+-		t->key->alg->print(t->key->size, ak);
++		t->key->alg->print(t->key->size, key);
+ 		runtime·prints("; val=");
+-		t->elem->alg->print(t->elem->size, av);
++		t->elem->alg->print(t->elem->size, val);
+ 		runtime·prints("\n");
+ 	}
+ }
+ 
+-// mapdelete(mapType *type, hmap *map[any]any, key *any)
+ #pragma textflag NOSPLIT
+-void
+-runtime·mapdelete(MapType *t, Hmap *h, byte *ak)
+-{
++func mapdelete(t *MapType, h *Hmap, key *byte) {
+ 	if(h == nil)
+ 		return;
+ 
+ 	if(raceenabled) {
+ 		runtime·racewritepc(h, runtime·getcallerpc(&t), runtime·mapdelete);
+-		runtime·racereadobjectpc(ak, t->key, runtime·getcallerpc(&t), runtime·mapdelete);
++		runtime·racereadobjectpc(key, t->key, runtime·getcallerpc(&t), runtime·mapdelete);
+ 	}
+ 
+-	hash_remove(t, h, ak);
++	hash_remove(t, h, key);
+ 
+ 	if(debug) {
+ 		runtime·prints("mapdelete: map=");
+ 		runtime·printpointer(h);
+ 		runtime·prints("; key=");
+-		t->key->alg->print(t->key->size, ak);
++		t->key->alg->print(t->key->size, key);
+ 		runtime·prints("\n");
+ 	}
+ }
+ 
+-// For reflect:
+-//	func mapassign(t type h map, key, val unsafe.Pointer)
+-void
+-reflect·mapassign(MapType *t, Hmap *h, byte *key, byte *val)
+-{
++#pragma textflag NOSPLIT
++func reflect·mapassign(t *MapType, h *Hmap, key *byte, val *byte) {
+ 	if(h == nil)
+ 		runtime·panicstring("assignment to entry in nil map");
+ 	if(raceenabled) {
+@@ -1151,11 +980,8 @@ reflect·mapassign(MapType *t, Hmap *h, byte *key, byte *val)
+ 	}
+ }
+ 
+-// For reflect:
+-//	func mapdelete(t type h map, key unsafe.Pointer)
+-void
+-reflect·mapdelete(MapType *t, Hmap *h, byte *key)
+-{
++#pragma textflag NOSPLIT
++func reflect·mapdelete(t *MapType, h *Hmap, key *byte) {
+ 	if(h == nil)
+ 		runtime·panicstring("delete from nil map");
+ 	if(raceenabled) {
+@@ -1173,10 +999,8 @@ reflect·mapdelete(MapType *t, Hmap *h, byte *key)
+ 	}
+ }
+ 
+-// mapiterinit(mapType *type, hmap *map[any]any, hiter *any);
+-void
+-runtime·mapiterinit(MapType *t, Hmap *h, struct hash_iter *it)
+-{
++#pragma textflag NOSPLIT
++func mapiterinit(t *MapType, h *Hmap, it *Hiter) {
+ 	if(h == nil || h->count == 0) {
+ 		it->key = nil;
+ 		return;
+@@ -1196,20 +1020,13 @@ runtime·mapiterinit(MapType *t, Hmap *h, struct hash_iter *it)
+ 	}
+ }
+ 
+-// For reflect:
+-//	func mapiterinit(h map) (it iter)
+-void
+-reflect·mapiterinit(MapType *t, Hmap *h, struct hash_iter *it)
+-{
++func reflect·mapiterinit(t *MapType, h *Hmap) (it *Hiter) {
+ 	it = runtime·mal(sizeof *it);
+-	FLUSH(&it);
+ 	runtime·mapiterinit(t, h, it);
+ }
+ 
+-// mapiternext(hiter *any);
+-void
+-runtime·mapiternext(struct hash_iter *it)
+-{
++#pragma textflag NOSPLIT
++func mapiternext(it *Hiter) {
+ 	if(raceenabled)
+ 		runtime·racereadpc(it->h, runtime·getcallerpc(&it), runtime·mapiternext);
+ 
+@@ -1223,29 +1040,16 @@ runtime·mapiternext(struct hash_iter *it)
+ 	}
+ }
+ 
+-// For reflect:
+-//	func mapiternext(it iter)
+-void
+-reflect·mapiternext(struct hash_iter *it)
+-{
++func reflect·mapiternext(it *Hiter) {
+ 	runtime·mapiternext(it);
+ }
+ 
+-// For reflect:
+-//	func mapiterkey(h map) (key unsafe.Pointer)
+-void
+-reflect·mapiterkey(struct hash_iter *it, byte *key)
+-{
++func reflect·mapiterkey(it *Hiter) (key *byte) {
+ 	key = it->key;
+-	FLUSH(&key);
+ }
+ 
+-// For reflect:
+-//	func maplen(h map) (len int)
+-// Like len(m) in the actual language, we treat the nil map as length 0.
+-void
+-reflect·maplen(Hmap *h, intgo len)
+-{
++#pragma textflag NOSPLIT
++func reflect·maplen(h *Hmap) (len int) {
+ 	if(h == nil)
+ 		len = 0;
+ 	else {
+@@ -1253,7 +1057,6 @@ reflect·maplen(Hmap *h, intgo len)
+ 		if(raceenabled)
+ 			runtime·racereadpc(h, runtime·getcallerpc(&h), reflect·maplen);
+ 	}
+-	FLUSH(&len);
+ }
+ 
+ // exported value for testing
+diff --git a/src/pkg/runtime/hashmap.h b/src/pkg/runtime/hashmap.h
+new file mode 100644
+index 0000000000..522d1ad01a
+--- /dev/null
++++ b/src/pkg/runtime/hashmap.h
+@@ -0,0 +1,147 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This file contains the implementation of Go's map type.
++//
++// The map is just a hash table.  The data is arranged
++// into an array of buckets.  Each bucket contains up to
++// 8 key/value pairs.  The low-order bits of the hash are
++// used to select a bucket.  Each bucket contains a few
++// high-order bits of each hash to distinguish the entries
++// within a single bucket.
++//
++// If more than 8 keys hash to a bucket, we chain on
++// extra buckets.
++//
++// When the hashtable grows, we allocate a new array
++// of buckets twice as big.  Buckets are incrementally
++// copied from the old bucket array to the new bucket array.
++//
++// Map iterators walk through the array of buckets and
++// return the keys in walk order (bucket #, then overflow
++// chain order, then bucket index).  To maintain iteration
++// semantics, we never move keys within their bucket (if
++// we did, keys might be returned 0 or 2 times).  When
++// growing the table, iterators remain iterating through the
++// old table and must check the new table if the bucket
++// they are iterating through has been moved ("evacuated")
++// to the new table.
++
++// Maximum number of key/value pairs a bucket can hold.
++#define BUCKETSIZE 8
++
++// Maximum average load of a bucket that triggers growth.
++#define LOAD 6.5
++
++// Picking LOAD: too large and we have lots of overflow
++// buckets, too small and we waste a lot of space.  I wrote
++// a simple program to check some stats for different loads:
++// (64-bit, 8 byte keys and values)
++//        LOAD    %overflow  bytes/entry     hitprobe    missprobe
++//        4.00         2.13        20.77         3.00         4.00
++//        4.50         4.05        17.30         3.25         4.50
++//        5.00         6.85        14.77         3.50         5.00
++//        5.50        10.55        12.94         3.75         5.50
++//        6.00        15.27        11.67         4.00         6.00
++//        6.50        20.90        10.79         4.25         6.50
++//        7.00        27.14        10.15         4.50         7.00
++//        7.50        34.03         9.73         4.75         7.50
++//        8.00        41.10         9.40         5.00         8.00
++//
++// %overflow   = percentage of buckets which have an overflow bucket
++// bytes/entry = overhead bytes used per key/value pair
++// hitprobe    = # of entries to check when looking up a present key
++// missprobe   = # of entries to check when looking up an absent key
++//
++// Keep in mind this data is for maximally loaded tables, i.e. just
++// before the table grows.  Typical tables will be somewhat less loaded.
++
++// Maximum key or value size to keep inline (instead of mallocing per element).
++// Must fit in a uint8.
++// Fast versions cannot handle big values - the cutoff size for
++// fast versions in ../../cmd/gc/walk.c must be at most this value.
++#define MAXKEYSIZE 128
++#define MAXVALUESIZE 128
++
++typedef struct Bucket Bucket;
++struct Bucket
++{
++	// Note: the format of the Bucket is encoded in ../../cmd/gc/reflect.c and
++	// ../reflect/type.go.  Don't change this structure without also changing that code!
++	uint8  tophash[BUCKETSIZE]; // top 8 bits of hash of each entry (or special mark below)
++	Bucket *overflow;           // overflow bucket, if any
++	uint64 data[1];             // BUCKETSIZE keys followed by BUCKETSIZE values
++};
++// NOTE: packing all the keys together and then all the values together makes the
++// code a bit more complicated than alternating key/value/key/value/... but it allows
++// us to eliminate padding which would be needed for, e.g., map[int64]int8.
++
++// tophash values.  We reserve a few possibilities for special marks.
++// Each bucket (including its overflow buckets, if any) will have either all or none of its
++// entries in the Evacuated* states (except during the evacuate() method, which only happens
++// during map writes and thus no one else can observe the map during that time).
++enum
++{
++	Empty = 0,		// cell is empty
++	EvacuatedEmpty = 1,	// cell is empty, bucket is evacuated.
++	EvacuatedX = 2,		// key/value is valid.  Entry has been evacuated to first half of larger table.
++	EvacuatedY = 3,		// same as above, but evacuated to second half of larger table.
++	MinTopHash = 4, 	// minimum tophash for a normal filled cell.
++};
++#define evacuated(b) ((b)->tophash[0] > Empty && (b)->tophash[0] < MinTopHash)
++
++struct Hmap
++{
++	// Note: the format of the Hmap is encoded in ../../cmd/gc/reflect.c and
++	// ../reflect/type.go.  Don't change this structure without also changing that code!
++	uintgo  count;        // # live cells == size of map.  Must be first (used by len() builtin)
++	uint32  flags;
++	uint32  hash0;        // hash seed
++	uint8   B;            // log_2 of # of buckets (can hold up to LOAD * 2^B items)
++	uint8   keysize;      // key size in bytes
++	uint8   valuesize;    // value size in bytes
++	uint16  bucketsize;   // bucket size in bytes
++
++	byte    *buckets;     // array of 2^B Buckets. may be nil if count==0.
++	byte    *oldbuckets;  // previous bucket array of half the size, non-nil only when growing
++	uintptr nevacuate;    // progress counter for evacuation (buckets less than this have been evacuated)
++};
++
++// possible flags
++enum
++{
++	IndirectKey = 1,    // storing pointers to keys
++	IndirectValue = 2,  // storing pointers to values
++	Iterator = 4,       // there may be an iterator using buckets
++	OldIterator = 8,    // there may be an iterator using oldbuckets
++};
++
++// Macros for dereferencing indirect keys
++#define IK(h, p) (((h)->flags & IndirectKey) != 0 ? *(byte**)(p) : (p))
++#define IV(h, p) (((h)->flags & IndirectValue) != 0 ? *(byte**)(p) : (p))
++
++// If you modify Hiter, also change cmd/gc/reflect.c to indicate
++// the layout of this structure.
++struct Hiter
++{
++	uint8* key; // Must be in first position.  Write nil to indicate iteration end (see cmd/gc/range.c).
++	uint8* value; // Must be in second position (see cmd/gc/range.c).
++
++	MapType *t;
++	Hmap *h;
++	byte *buckets; // bucket ptr at hash_iter initialization time
++	struct Bucket *bptr; // current bucket
++
++	uint8 offset; // intra-bucket offset to start from during iteration (should be big enough to hold BUCKETSIZE-1)
++	bool done;
++
++	// state of table at time iterator is initialized
++	uint8 B;
++
++	// iter state
++	uintptr bucket;
++	uintptr i;
++	intptr check_bucket;
++};
++
+diff --git a/src/pkg/runtime/hashmap_fast.c b/src/pkg/runtime/hashmap_fast.c
+index 348ebf1f57..30b8bb183f 100644
+--- a/src/pkg/runtime/hashmap_fast.c
++++ b/src/pkg/runtime/hashmap_fast.c
+@@ -7,6 +7,9 @@
+ 
+ // +build ignore
+ 
++// Because this file is #included, it cannot be processed by goc2c,
++// so we have to handle the Go resuts ourselves.
++
+ #pragma textflag NOSPLIT
+ void
+ HASH_LOOKUP1(MapType *t, Hmap *h, KEYTYPE key, byte *value)
+diff --git a/src/pkg/runtime/iface.c b/src/pkg/runtime/iface.goc
+similarity index 72%
+rename from src/pkg/runtime/iface.c
+rename to src/pkg/runtime/iface.goc
+index 723d8ebd1d..c678ce0a2f 100644
+--- a/src/pkg/runtime/iface.c
++++ b/src/pkg/runtime/iface.goc
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++package runtime
+ #include "runtime.h"
+ #include "arch_GOARCH.h"
+ #include "type.h"
+@@ -9,15 +10,11 @@
+ #include "malloc.h"
+ #include "../../cmd/ld/textflag.h"
+ 
+-void
+-runtime·printiface(Iface i)
+-{
++func printiface(i Iface) {
+ 	runtime·printf("(%p,%p)", i.tab, i.data);
+ }
+ 
+-void
+-runtime·printeface(Eface e)
+-{
++func printeface(e Eface) {
+ 	runtime·printf("(%p,%p)", e.type, e.data);
+ }
+ 
+@@ -172,22 +169,13 @@ copyout(Type *t, void **src, void *dst)
+ }
+ 
+ #pragma textflag NOSPLIT
+-void
+-runtime·typ2Itab(Type *t, InterfaceType *inter, Itab **cache, Itab *ret)
+-{
+-	Itab *tab;
+-
++func typ2Itab(t *Type, inter *InterfaceType, cache **Itab) (tab *Itab) {
+ 	tab = itab(inter, t, 0);
+ 	runtime·atomicstorep(cache, tab);
+-	ret = tab;
+-	FLUSH(&ret);
+ }
+ 
+-// func convT2I(typ *byte, typ2 *byte, cache **byte, elem *any) (ret any)
+ #pragma textflag NOSPLIT
+-void
+-runtime·convT2I(Type *t, InterfaceType *inter, Itab **cache, byte *elem, Iface ret)
+-{
++func convT2I(t *Type, inter *InterfaceType, cache **Itab, elem *byte) (ret Iface) {
+ 	Itab *tab;
+ 
+ 	tab = runtime·atomicloadp(cache);
+@@ -197,30 +185,19 @@ runtime·convT2I(Type *t, InterfaceType *inter, Itab **cache, byte *elem, Iface
+ 	}
+ 	ret.tab = tab;
+ 	copyin(t, elem, &ret.data);
+-	FLUSH(&ret);
+ }
+ 
+-// func convT2E(typ *byte, elem *any) (ret any)
+ #pragma textflag NOSPLIT
+-void
+-runtime·convT2E(Type *t, byte *elem, Eface ret)
+-{
++func convT2E(t *Type, elem *byte) (ret Eface) {
+ 	ret.type = t;
+ 	copyin(t, elem, &ret.data);
+-	FLUSH(&ret);
+ }
+ 
+ static void assertI2Tret(Type *t, Iface i, byte *ret);
+ 
+-// func ifaceI2T(typ *byte, iface any) (ret any)
+ #pragma textflag NOSPLIT
+-void
+-runtime·assertI2T(Type *t, Iface i, ...)
+-{
+-	byte *ret;
+-
+-	ret = (byte*)(&i+1);
+-	assertI2Tret(t, i, ret);
++func assertI2T(t *Type, i Iface) (ret byte, ...) {
++	assertI2Tret(t, i, &ret);
+ }
+ 
+ static void
+@@ -245,47 +222,33 @@ assertI2Tret(Type *t, Iface i, byte *ret)
+ 	copyout(t, &i.data, ret);
+ }
+ 
+-// func ifaceI2T2(typ *byte, iface any) (ret any, ok bool)
+ #pragma textflag NOSPLIT
+-void
+-runtime·assertI2T2(Type *t, Iface i, ...)
+-{
+-	byte *ret;
++func assertI2T2(t *Type, i Iface) (ret byte, ...) {
+ 	bool *ok;
+ 	int32 wid;
+ 
+-	ret = (byte*)(&i+1);
+ 	wid = t->size;
+-	ok = (bool*)(ret + wid);
++	ok = (bool*)(&ret + wid);
+ 
+ 	if(i.tab == nil || i.tab->type != t) {
+ 		*ok = false;
+-		runtime·memclr(ret, wid);
++		runtime·memclr(&ret, wid);
+ 		return;
+ 	}
+ 
+ 	*ok = true;
+-	copyout(t, &i.data, ret);
++	copyout(t, &i.data, &ret);
+ }
+ 
+-void
+-runtime·assertI2TOK(Type *t, Iface i, bool ok)
+-{
++func assertI2TOK(t *Type, i Iface) (ok bool) {
+ 	ok = i.tab!=nil && i.tab->type==t;
+-	FLUSH(&ok);
+ }
+ 
+ static void assertE2Tret(Type *t, Eface e, byte *ret);
+ 
+-// func ifaceE2T(typ *byte, iface any) (ret any)
+ #pragma textflag NOSPLIT
+-void
+-runtime·assertE2T(Type *t, Eface e, ...)
+-{
+-	byte *ret;
+-
+-	ret = (byte*)(&e+1);
+-	assertE2Tret(t, e, ret);
++func assertE2T(t *Type, e Eface) (ret byte, ...) {
++	assertE2Tret(t, e, &ret);
+ }
+ 
+ static void
+@@ -308,40 +271,29 @@ assertE2Tret(Type *t, Eface e, byte *ret)
+ 	copyout(t, &e.data, ret);
+ }
+ 
+-// func ifaceE2T2(sigt *byte, iface any) (ret any, ok bool);
+ #pragma textflag NOSPLIT
+-void
+-runtime·assertE2T2(Type *t, Eface e, ...)
+-{
+-	byte *ret;
++func assertE2T2(t *Type, e Eface) (ret byte, ...) {
+ 	bool *ok;
+ 	int32 wid;
+ 
+-	ret = (byte*)(&e+1);
+ 	wid = t->size;
+-	ok = (bool*)(ret + wid);
++	ok = (bool*)(&ret + wid);
+ 
+ 	if(t != e.type) {
+ 		*ok = false;
+-		runtime·memclr(ret, wid);
++		runtime·memclr(&ret, wid);
+ 		return;
+ 	}
+ 
+ 	*ok = true;
+-	copyout(t, &e.data, ret);
++	copyout(t, &e.data, &ret);
+ }
+ 
+-void
+-runtime·assertE2TOK(Type *t, Eface e, bool ok)
+-{
++func assertE2TOK(t *Type, e Eface) (ok bool) {
+ 	ok = t==e.type;
+-	FLUSH(&ok);
+ }
+ 
+-// func convI2E(elem any) (ret any)
+-void
+-runtime·convI2E(Iface i, Eface ret)
+-{
++func convI2E(i Iface) (ret Eface) {
+ 	Itab *tab;
+ 
+ 	ret.data = i.data;
+@@ -349,13 +301,9 @@ runtime·convI2E(Iface i, Eface ret)
+ 		ret.type = nil;
+ 	else
+ 		ret.type = tab->type;
+-	FLUSH(&ret);
+ }
+ 
+-// func ifaceI2E(typ *byte, iface any) (ret any)
+-void
+-runtime·assertI2E(InterfaceType* inter, Iface i, Eface ret)
+-{
++func assertI2E(inter *InterfaceType, i Iface) (ret Eface) {
+ 	Itab *tab;
+ 	Eface err;
+ 
+@@ -369,13 +317,9 @@ runtime·assertI2E(InterfaceType* inter, Iface i, Eface ret)
+ 	}
+ 	ret.data = i.data;
+ 	ret.type = tab->type;
+-	FLUSH(&ret);
+ }
+ 
+-// func ifaceI2E2(typ *byte, iface any) (ret any, ok bool)
+-void
+-runtime·assertI2E2(InterfaceType* inter, Iface i, Eface ret, bool ok)
+-{
++func assertI2E2(inter *InterfaceType, i Iface) (ret Eface, ok bool) {
+ 	Itab *tab;
+ 
+ 	USED(inter);
+@@ -388,14 +332,9 @@ runtime·assertI2E2(InterfaceType* inter, Iface i, Eface ret, bool ok)
+ 		ok = 1;
+ 	}
+ 	ret.data = i.data;
+-	FLUSH(&ret);
+-	FLUSH(&ok);
+ }
+ 
+-// func convI2I(typ *byte, elem any) (ret any)
+-void
+-runtime·convI2I(InterfaceType* inter, Iface i, Iface ret)
+-{
++func convI2I(inter *InterfaceType, i Iface) (ret Iface) {
+ 	Itab *tab;
+ 
+ 	ret.data = i.data;
+@@ -405,7 +344,6 @@ runtime·convI2I(InterfaceType* inter, Iface i, Iface ret)
+ 		ret.tab = tab;
+ 	else
+ 		ret.tab = itab(inter, tab->type, 0);
+-	FLUSH(&ret);
+ }
+ 
+ void
+@@ -426,17 +364,11 @@ runtime·ifaceI2I(InterfaceType *inter, Iface i, Iface *ret)
+ 	ret->tab = itab(inter, tab->type, 0);
+ }
+ 
+-// func ifaceI2I(sigi *byte, iface any) (ret any)
+-void
+-runtime·assertI2I(InterfaceType* inter, Iface i, Iface ret)
+-{
++func assertI2I(inter *InterfaceType, i Iface) (ret Iface) {
+ 	runtime·ifaceI2I(inter, i, &ret);
+ }
+ 
+-// func ifaceI2I2(sigi *byte, iface any) (ret any, ok bool)
+-void
+-runtime·assertI2I2(InterfaceType *inter, Iface i, Iface ret, bool ok)
+-{
++func assertI2I2(inter *InterfaceType, i Iface) (ret Iface, ok bool) {
+ 	Itab *tab;
+ 
+ 	tab = i.tab;
+@@ -449,8 +381,6 @@ runtime·assertI2I2(InterfaceType *inter, Iface i, Iface ret, bool ok)
+ 		ret.tab = 0;
+ 		ok = 0;
+ 	}
+-	FLUSH(&ret);
+-	FLUSH(&ok);
+ }
+ 
+ void
+@@ -481,25 +411,15 @@ runtime·ifaceE2I2(InterfaceType *inter, Eface e, Iface *ret)
+ 	return true;
+ }
+ 
+-// For reflect
+-//	func ifaceE2I(t *InterfaceType, e interface{}, dst *Iface)
+-void
+-reflect·ifaceE2I(InterfaceType *inter, Eface e, Iface *dst)
+-{
++func reflect·ifaceE2I(inter *InterfaceType, e Eface, dst *Iface) {
+ 	runtime·ifaceE2I(inter, e, dst);
+ }
+ 
+-// func ifaceE2I(sigi *byte, iface any) (ret any)
+-void
+-runtime·assertE2I(InterfaceType* inter, Eface e, Iface ret)
+-{
++func assertE2I(inter *InterfaceType, e Eface) (ret Iface) {
+ 	runtime·ifaceE2I(inter, e, &ret);
+ }
+ 
+-// ifaceE2I2(sigi *byte, iface any) (ret any, ok bool)
+-void
+-runtime·assertE2I2(InterfaceType *inter, Eface e, Iface ret, bool ok)
+-{
++func assertE2I2(inter *InterfaceType, e Eface) (ret Iface, ok bool) {
+ 	if(e.type == nil) {
+ 		ok = 0;
+ 		ret.data = nil;
+@@ -511,14 +431,9 @@ runtime·assertE2I2(InterfaceType *inter, Eface e, Iface ret, bool ok)
+ 		ok = 1;
+ 		ret.data = e.data;
+ 	}
+-	FLUSH(&ret);
+-	FLUSH(&ok);
+ }
+ 
+-// func ifaceE2E(typ *byte, iface any) (ret any)
+-void
+-runtime·assertE2E(InterfaceType* inter, Eface e, Eface ret)
+-{
++func assertE2E(inter *InterfaceType, e Eface) (ret Eface) {
+ 	Type *t;
+ 	Eface err;
+ 
+@@ -531,18 +446,12 @@ runtime·assertE2E(InterfaceType* inter, Eface e, Eface ret)
+ 		runtime·panic(err);
+ 	}
+ 	ret = e;
+-	FLUSH(&ret);
+ }
+ 
+-// func ifaceE2E2(iface any) (ret any, ok bool)
+-void
+-runtime·assertE2E2(InterfaceType* inter, Eface e, Eface ret, bool ok)
+-{
++func assertE2E2(inter *InterfaceType, e Eface) (ret Eface, ok bool) {
+ 	USED(inter);
+ 	ret = e;
+ 	ok = e.type != nil;
+-	FLUSH(&ret);
+-	FLUSH(&ok);
+ }
+ 
+ static uintptr
+@@ -630,81 +539,53 @@ runtime·efaceeq_c(Eface e1, Eface e2)
+ 	return ifaceeq1(e1.data, e2.data, e1.type);
+ }
+ 
+-// ifaceeq(i1 any, i2 any) (ret bool);
+-void
+-runtime·ifaceeq(Iface i1, Iface i2, bool ret)
+-{
++func ifaceeq(i1 Iface, i2 Iface) (ret bool) {
+ 	ret = runtime·ifaceeq_c(i1, i2);
+-	FLUSH(&ret);
+ }
+ 
+-// efaceeq(i1 any, i2 any) (ret bool)
+-void
+-runtime·efaceeq(Eface e1, Eface e2, bool ret)
+-{
++func efaceeq(e1 Eface, e2 Eface) (ret bool) {
+ 	ret = runtime·efaceeq_c(e1, e2);
+-	FLUSH(&ret);
+ }
+ 
+-// ifacethash(i1 any) (ret uint32);
+-void
+-runtime·ifacethash(Iface i1, uint32 ret)
+-{
++func ifacethash(i1 Iface) (ret uint32) {
+ 	Itab *tab;
+ 
+ 	ret = 0;
+ 	tab = i1.tab;
+ 	if(tab != nil)
+ 		ret = tab->type->hash;
+-	FLUSH(&ret);
+ }
+ 
+-// efacethash(e1 any) (ret uint32)
+-void
+-runtime·efacethash(Eface e1, uint32 ret)
+-{
++func efacethash(e1 Eface) (ret uint32) {
+ 	Type *t;
+ 
+ 	ret = 0;
+ 	t = e1.type;
+ 	if(t != nil)
+ 		ret = t->hash;
+-	FLUSH(&ret);
+ }
+ 
+-void
+-reflect·unsafe_Typeof(Eface e, Eface ret)
+-{
++func reflect·unsafe_Typeof(e Eface) (ret Eface) {
+ 	if(e.type == nil) {
+ 		ret.type = nil;
+ 		ret.data = nil;
+ 	} else {
+ 		ret = *(Eface*)(e.type);
+ 	}
+-	FLUSH(&ret);
+ }
+ 
+-void
+-reflect·unsafe_New(Type *t, void *ret)
+-{
++func reflect·unsafe_New(t *Type) (ret *byte) {
+ 	ret = runtime·cnew(t);
+-	FLUSH(&ret);
+ }
+ 
+-void
+-reflect·unsafe_NewArray(Type *t, intgo n, void *ret)
+-{
++func reflect·unsafe_NewArray(t *Type, n int) (ret *byte) {
+ 	ret = runtime·cnewarray(t, n);
+-	FLUSH(&ret);
+ }
+ 
+-void
+-reflect·typelinks(Slice ret)
+-{
++func reflect·typelinks() (ret Slice) {
+ 	extern Type *typelink[], *etypelink[];
+ 	static int32 first = 1;
+ 	ret.array = (byte*)typelink;
+ 	ret.len = etypelink - typelink;
+ 	ret.cap = ret.len;
+-	FLUSH(&ret);
+ }
+diff --git a/src/pkg/runtime/lfstack.c b/src/pkg/runtime/lfstack.goc
+similarity index 92%
+rename from src/pkg/runtime/lfstack.c
+rename to src/pkg/runtime/lfstack.goc
+index e94f360c24..f7b8effa07 100644
+--- a/src/pkg/runtime/lfstack.c
++++ b/src/pkg/runtime/lfstack.goc
+@@ -4,6 +4,7 @@
+ 
+ // Lock-free stack.
+ 
++package runtime
+ #include "runtime.h"
+ #include "arch_GOARCH.h"
+ 
+@@ -71,9 +72,10 @@ runtime·lfstackpop(uint64 *head)
+ 	}
+ }
+ 
+-void
+-runtime·lfstackpop2(uint64 *head, LFNode *node)
+-{
++func lfstackpush_go(head *uint64, node *LFNode) {
++	runtime·lfstackpush(head, node);
++}
++
++func lfstackpop_go(head *uint64) (node *LFNode) {
+ 	node = runtime·lfstackpop(head);
+-	FLUSH(&node);
+ }
+diff --git a/src/pkg/runtime/malloc.goc b/src/pkg/runtime/malloc.goc
+index 76ea34e0a2..b41182328a 100644
+--- a/src/pkg/runtime/malloc.goc
++++ b/src/pkg/runtime/malloc.goc
+@@ -834,11 +834,8 @@ runtime·mal(uintptr n)
+ }
+ 
+ #pragma textflag NOSPLIT
+-void
+-runtime·new(Type *typ, uint8 *ret)
+-{
++func new(typ *Type) (ret *uint8) {
+ 	ret = runtime·mallocgc(typ->size, (uintptr)typ | TypeInfo_SingleObject, typ->kind&KindNoPointers ? FlagNoScan : 0);
+-	FLUSH(&ret);
+ }
+ 
+ static void*
+diff --git a/src/pkg/runtime/malloc.h b/src/pkg/runtime/malloc.h
+index aaa0693163..ed2f98c8d2 100644
+--- a/src/pkg/runtime/malloc.h
++++ b/src/pkg/runtime/malloc.h
+@@ -575,3 +575,4 @@ void	runtime·gc_m_ptr(Eface*);
+ void	runtime·gc_itab_ptr(Eface*);
+ 
+ void	runtime·memorydump(void);
++int32	runtime·setgcpercent(int32);
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index 688d3f4710..6b8b4c52bf 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -1152,6 +1152,7 @@ scanblock(Workbuf *wbuf, bool keepworking)
+ 			continue;
+ 
+ 		default:
++			runtime·printf("runtime: invalid GC instruction %p at %p\n", pc[0], pc);
+ 			runtime·throw("scanblock: invalid GC instruction");
+ 			return;
+ 		}
+@@ -2492,9 +2493,10 @@ runtime∕debug·readGCStats(Slice *pauses)
+ 	pauses->len = n+3;
+ }
+ 
+-void
+-runtime∕debug·setGCPercent(intgo in, intgo out)
+-{
++int32
++runtime·setgcpercent(int32 in) {
++	int32 out;
++
+ 	runtime·lock(&runtime·mheap);
+ 	if(gcpercent == GcpercentUnknown)
+ 		gcpercent = readgogc();
+@@ -2503,7 +2505,7 @@ runtime∕debug·setGCPercent(intgo in, intgo out)
+ 		in = -1;
+ 	gcpercent = in;
+ 	runtime·unlock(&runtime·mheap);
+-	FLUSH(&out);
++	return out;
+ }
+ 
+ static void
+diff --git a/src/pkg/runtime/parfor.c b/src/pkg/runtime/parfor.c
+index ceaac8bc92..4706e0a43a 100644
+--- a/src/pkg/runtime/parfor.c
++++ b/src/pkg/runtime/parfor.c
+@@ -33,15 +33,6 @@ runtime·parforalloc(uint32 nthrmax)
+ 	return desc;
+ }
+ 
+-// For testing from Go
+-// func parforalloc2(nthrmax uint32) *ParFor
+-void
+-runtime·parforalloc2(uint32 nthrmax, ParFor *desc)
+-{
+-	desc = runtime·parforalloc(nthrmax);
+-	FLUSH(&desc);
+-}
+-
+ void
+ runtime·parforsetup(ParFor *desc, uint32 nthr, uint32 n, void *ctx, bool wait, void (*body)(ParFor*, uint32))
+ {
+@@ -75,14 +66,6 @@ runtime·parforsetup(ParFor *desc, uint32 nthr, uint32 n, void *ctx, bool wait,
+ 	}
+ }
+ 
+-// For testing from Go
+-// func parforsetup2(desc *ParFor, nthr, n uint32, ctx *byte, wait bool, body func(*ParFor, uint32))
+-void
+-runtime·parforsetup2(ParFor *desc, uint32 nthr, uint32 n, void *ctx, bool wait, void *body)
+-{
+-	runtime·parforsetup(desc, nthr, n, ctx, wait, *(void(**)(ParFor*, uint32))body);
+-}
+-
+ void
+ runtime·parfordo(ParFor *desc)
+ {
+@@ -207,13 +190,10 @@ exit:
+ 	me->nsleep = 0;
+ }
+ 
+-// For testing from Go
+-// func parforiters(desc *ParFor, tid uintptr) (uintptr, uintptr)
++// For testing from Go.
+ void
+-runtime·parforiters(ParFor *desc, uintptr tid, uintptr start, uintptr end)
++runtime·parforiters(ParFor *desc, uintptr tid, uintptr *start, uintptr *end)
+ {
+-	start = (uint32)desc->thr[tid].pos;
+-	end = (uint32)(desc->thr[tid].pos>>32);
+-	FLUSH(&start);
+-	FLUSH(&end);
++	*start = (uint32)desc->thr[tid].pos;
++	*end = (uint32)(desc->thr[tid].pos>>32);
+ }
+diff --git a/src/pkg/runtime/pprof/pprof_test.go b/src/pkg/runtime/pprof/pprof_test.go
+index 0063c35e86..91f53000ca 100644
+--- a/src/pkg/runtime/pprof/pprof_test.go
++++ b/src/pkg/runtime/pprof/pprof_test.go
+@@ -279,31 +279,31 @@ func TestBlockProfile(t *testing.T) {
+ 	tests := [...]TestCase{
+ 		{"chan recv", blockChanRecv, `
+ [0-9]+ [0-9]+ @ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+
+-#	0x[0-9,a-f]+	runtime\.chanrecv1\+0x[0-9,a-f]+	.*/src/pkg/runtime/chan.c:[0-9]+
++#	0x[0-9,a-f]+	runtime\.chanrecv1\+0x[0-9,a-f]+	.*/src/pkg/runtime/chan.goc:[0-9]+
+ #	0x[0-9,a-f]+	runtime/pprof_test\.blockChanRecv\+0x[0-9,a-f]+	.*/src/pkg/runtime/pprof/pprof_test.go:[0-9]+
+ #	0x[0-9,a-f]+	runtime/pprof_test\.TestBlockProfile\+0x[0-9,a-f]+	.*/src/pkg/runtime/pprof/pprof_test.go:[0-9]+
+ `},
+ 		{"chan send", blockChanSend, `
+ [0-9]+ [0-9]+ @ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+
+-#	0x[0-9,a-f]+	runtime\.chansend1\+0x[0-9,a-f]+	.*/src/pkg/runtime/chan.c:[0-9]+
++#	0x[0-9,a-f]+	runtime\.chansend1\+0x[0-9,a-f]+	.*/src/pkg/runtime/chan.goc:[0-9]+
+ #	0x[0-9,a-f]+	runtime/pprof_test\.blockChanSend\+0x[0-9,a-f]+	.*/src/pkg/runtime/pprof/pprof_test.go:[0-9]+
+ #	0x[0-9,a-f]+	runtime/pprof_test\.TestBlockProfile\+0x[0-9,a-f]+	.*/src/pkg/runtime/pprof/pprof_test.go:[0-9]+
+ `},
+ 		{"chan close", blockChanClose, `
+ [0-9]+ [0-9]+ @ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+
+-#	0x[0-9,a-f]+	runtime\.chanrecv1\+0x[0-9,a-f]+	.*/src/pkg/runtime/chan.c:[0-9]+
++#	0x[0-9,a-f]+	runtime\.chanrecv1\+0x[0-9,a-f]+	.*/src/pkg/runtime/chan.goc:[0-9]+
+ #	0x[0-9,a-f]+	runtime/pprof_test\.blockChanClose\+0x[0-9,a-f]+	.*/src/pkg/runtime/pprof/pprof_test.go:[0-9]+
+ #	0x[0-9,a-f]+	runtime/pprof_test\.TestBlockProfile\+0x[0-9,a-f]+	.*/src/pkg/runtime/pprof/pprof_test.go:[0-9]+
+ `},
+ 		{"select recv async", blockSelectRecvAsync, `
+ [0-9]+ [0-9]+ @ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+
+-#	0x[0-9,a-f]+	runtime\.selectgo\+0x[0-9,a-f]+	.*/src/pkg/runtime/chan.c:[0-9]+
++#	0x[0-9,a-f]+	runtime\.selectgo\+0x[0-9,a-f]+	.*/src/pkg/runtime/chan.goc:[0-9]+
+ #	0x[0-9,a-f]+	runtime/pprof_test\.blockSelectRecvAsync\+0x[0-9,a-f]+	.*/src/pkg/runtime/pprof/pprof_test.go:[0-9]+
+ #	0x[0-9,a-f]+	runtime/pprof_test\.TestBlockProfile\+0x[0-9,a-f]+	.*/src/pkg/runtime/pprof/pprof_test.go:[0-9]+
+ `},
+ 		{"select send sync", blockSelectSendSync, `
+ [0-9]+ [0-9]+ @ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+
+-#	0x[0-9,a-f]+	runtime\.selectgo\+0x[0-9,a-f]+	.*/src/pkg/runtime/chan.c:[0-9]+
++#	0x[0-9,a-f]+	runtime\.selectgo\+0x[0-9,a-f]+	.*/src/pkg/runtime/chan.goc:[0-9]+
+ #	0x[0-9,a-f]+	runtime/pprof_test\.blockSelectSendSync\+0x[0-9,a-f]+	.*/src/pkg/runtime/pprof/pprof_test.go:[0-9]+
+ #	0x[0-9,a-f]+	runtime/pprof_test\.TestBlockProfile\+0x[0-9,a-f]+	.*/src/pkg/runtime/pprof/pprof_test.go:[0-9]+
+ `},
+diff --git a/src/pkg/runtime/print.c b/src/pkg/runtime/print.c
+index edb5a1c2ee..2a772ea340 100644
+--- a/src/pkg/runtime/print.c
++++ b/src/pkg/runtime/print.c
+@@ -69,61 +69,61 @@ static void
+ vprintf(int8 *s, byte *base)
+ {
+ 	int8 *p, *lp;
+-	uintptr arg, narg;
++	uintptr arg, siz;
+ 	byte *v;
+ 
+ 	//runtime·lock(&debuglock);
+ 
+ 	lp = p = s;
+-	arg = 0;
++	arg = (uintptr)base;
+ 	for(; *p; p++) {
+ 		if(*p != '%')
+ 			continue;
+ 		if(p > lp)
+ 			gwrite(lp, p-lp);
+ 		p++;
+-		narg = 0;
++		siz = 0;
+ 		switch(*p) {
+ 		case 't':
+ 		case 'c':
+-			narg = arg + 1;
++			siz = 1;
+ 			break;
+ 		case 'd':	// 32-bit
+ 		case 'x':
+ 			arg = ROUND(arg, 4);
+-			narg = arg + 4;
++			siz = 4;
+ 			break;
+ 		case 'D':	// 64-bit
+ 		case 'U':
+ 		case 'X':
+ 		case 'f':
+ 			arg = ROUND(arg, sizeof(uintptr));
+-			narg = arg + 8;
++			siz = 8;
+ 			break;
+ 		case 'C':
+ 			arg = ROUND(arg, sizeof(uintptr));
+-			narg = arg + 16;
++			siz = 16;
+ 			break;
+ 		case 'p':	// pointer-sized
+ 		case 's':
+ 			arg = ROUND(arg, sizeof(uintptr));
+-			narg = arg + sizeof(uintptr);
++			siz = sizeof(uintptr);
+ 			break;
+ 		case 'S':	// pointer-aligned but bigger
+ 			arg = ROUND(arg, sizeof(uintptr));
+-			narg = arg + sizeof(String);
++			siz = sizeof(String);
+ 			break;
+ 		case 'a':	// pointer-aligned but bigger
+ 			arg = ROUND(arg, sizeof(uintptr));
+-			narg = arg + sizeof(Slice);
++			siz = sizeof(Slice);
+ 			break;
+ 		case 'i':	// pointer-aligned but bigger
+ 		case 'e':
+ 			arg = ROUND(arg, sizeof(uintptr));
+-			narg = arg + sizeof(Eface);
++			siz = sizeof(Eface);
+ 			break;
+ 		}
+-		v = base+arg;
++		v = (byte*)arg;
+ 		switch(*p) {
+ 		case 'a':
+ 			runtime·printslice(*(Slice*)v);
+@@ -171,7 +171,7 @@ vprintf(int8 *s, byte *base)
+ 			runtime·printhex(*(uint64*)v);
+ 			break;
+ 		}
+-		arg = narg;
++		arg += siz;
+ 		lp = p+1;
+ 	}
+ 	if(p > lp)
+@@ -348,7 +348,7 @@ runtime·printhex(uint64 v)
+ void
+ runtime·printpointer(void *p)
+ {
+-	runtime·printhex((uint64)p);
++	runtime·printhex((uintptr)p);
+ }
+ 
+ void
+@@ -373,11 +373,3 @@ runtime·printnl(void)
+ {
+ 	gwrite("\n", 1);
+ }
+-
+-void
+-runtime·typestring(Eface e, String s)
+-{
+-	s = *e.type->string;
+-	FLUSH(&s);
+-}
+-
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index ba31c503ee..7799dc8b52 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -2033,21 +2033,6 @@ runtime·lockedOSThread(void)
+ 	return g->lockedm != nil && m->lockedg != nil;
+ }
+ 
+-// for testing of callbacks
+-void
+-runtime·golockedOSThread(bool ret)
+-{
+-	ret = runtime·lockedOSThread();
+-	FLUSH(&ret);
+-}
+-
+-void
+-runtime·NumGoroutine(intgo ret)
+-{
+-	ret = runtime·gcount();
+-	FLUSH(&ret);
+-}
+-
+ int32
+ runtime·gcount(void)
+ {
+@@ -3050,15 +3035,17 @@ runtime·topofstack(Func *f)
+ 		(runtime·externalthreadhandlerp != 0 && f->entry == runtime·externalthreadhandlerp);
+ }
+ 
+-void
+-runtime∕debug·setMaxThreads(intgo in, intgo out)
++int32
++runtime·setmaxthreads(int32 in)
+ {
++	int32 out;
++
+ 	runtime·lock(&runtime·sched);
+ 	out = runtime·sched.maxmcount;
+ 	runtime·sched.maxmcount = in;
+ 	checkmcount();
+ 	runtime·unlock(&runtime·sched);
+-	FLUSH(&out);
++	return out;
+ }
+ 
+ static int8 experiment[] = GOEXPERIMENT; // defined in zaexperiment.h
+@@ -3081,23 +3068,3 @@ haveexperiment(int8 *name)
+ 	}
+ 	return 0;
+ }
+-
+-// func runtime_procPin() int
+-void
+-sync·runtime_procPin(intgo p)
+-{
+-	M *mp;
+-
+-	mp = m;
+-	// Disable preemption.
+-	mp->locks++;
+-	p = mp->p->id;
+-	FLUSH(&p);
+-}
+-
+-// func runtime_procUnpin()
+-void
+-sync·runtime_procUnpin(void)
+-{
+-	m->locks--;
+-}
+diff --git a/src/pkg/runtime/rdebug.goc b/src/pkg/runtime/rdebug.goc
+new file mode 100644
+index 0000000000..e5b57c481b
+--- /dev/null
++++ b/src/pkg/runtime/rdebug.goc
+@@ -0,0 +1,22 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime∕debug
++#include "runtime.h"
++#include "arch_GOARCH.h"
++#include "malloc.h"
++#include "stack.h"
++
++func setMaxStack(in int) (out int) {
++	out = runtime·maxstacksize;
++	runtime·maxstacksize = in;
++}
++
++func setGCPercent(in int) (out int) {
++	out = runtime·setgcpercent(in);
++}
++
++func setMaxThreads(in int) (out int) {
++	out = runtime·setmaxthreads(in);
++}
+diff --git a/src/pkg/runtime/runtime.c b/src/pkg/runtime/runtime.c
+index 6065714a6e..08a395fbe2 100644
+--- a/src/pkg/runtime/runtime.c
++++ b/src/pkg/runtime/runtime.c
+@@ -10,14 +10,6 @@ enum {
+ 	maxround = sizeof(uintptr),
+ };
+ 
+-/*
+- * We assume that all architectures turn faults and the like
+- * into apparent calls to runtime.sigpanic.  If we see a "call"
+- * to runtime.sigpanic, we do not back up the PC to find the
+- * line number of the CALL instruction, because there is no CALL.
+- */
+-void	runtime·sigpanic(void);
+-
+ // The GOTRACEBACK environment variable controls the
+ // behavior of a Go program that is crashing and exiting.
+ //	GOTRACEBACK=0   suppress all tracebacks
+@@ -130,16 +122,6 @@ runtime·goenvs_unix(void)
+ 	syscall·envs.cap = n;
+ }
+ 
+-void
+-runtime·getgoroot(String out)
+-{
+-	byte *p;
+-
+-	p = runtime·getenv("GOROOT");
+-	out = runtime·gostringnocopy(p);
+-	FLUSH(&out);
+-}
+-
+ int32
+ runtime·atoi(byte *p)
+ {
+@@ -276,62 +258,6 @@ runtime·check(void)
+ 	TestAtomic64();
+ }
+ 
+-void
+-runtime·Caller(intgo skip, uintptr retpc, String retfile, intgo retline, bool retbool)
+-{
+-	Func *f, *g;
+-	uintptr pc;
+-	uintptr rpc[2];
+-
+-	/*
+-	 * Ask for two PCs: the one we were asked for
+-	 * and what it called, so that we can see if it
+-	 * "called" sigpanic.
+-	 */
+-	retpc = 0;
+-	if(runtime·callers(1+skip-1, rpc, 2) < 2) {
+-		retfile = runtime·emptystring;
+-		retline = 0;
+-		retbool = false;
+-	} else if((f = runtime·findfunc(rpc[1])) == nil) {
+-		retfile = runtime·emptystring;
+-		retline = 0;
+-		retbool = true;  // have retpc at least
+-	} else {
+-		retpc = rpc[1];
+-		pc = retpc;
+-		g = runtime·findfunc(rpc[0]);
+-		if(pc > f->entry && (g == nil || g->entry != (uintptr)runtime·sigpanic))
+-			pc--;
+-		retline = runtime·funcline(f, pc, &retfile);
+-		retbool = true;
+-	}
+-	FLUSH(&retpc);
+-	FLUSH(&retfile);
+-	FLUSH(&retline);
+-	FLUSH(&retbool);
+-}
+-
+-void
+-runtime·Callers(intgo skip, Slice pc, intgo retn)
+-{
+-	// runtime.callers uses pc.array==nil as a signal
+-	// to print a stack trace.  Pick off 0-length pc here
+-	// so that we don't let a nil pc slice get to it.
+-	if(pc.len == 0)
+-		retn = 0;
+-	else
+-		retn = runtime·callers(skip, (uintptr*)pc.array, pc.len);
+-	FLUSH(&retn);
+-}
+-
+-void
+-runtime·FuncForPC(uintptr pc, void *retf)
+-{
+-	retf = runtime·findfunc(pc);
+-	FLUSH(&retf);
+-}
+-
+ uint32
+ runtime·fastrand1(void)
+ {
+@@ -375,13 +301,6 @@ runtime·tickspersecond(void)
+ 	return res;
+ }
+ 
+-void
+-runtime∕pprof·runtime_cyclesPerSecond(int64 res)
+-{
+-	res = runtime·tickspersecond();
+-	FLUSH(&res);
+-}
+-
+ DebugVars	runtime·debug;
+ 
+ static struct {
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index fa56e30152..3d5b6007a8 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -72,6 +72,7 @@ typedef	struct	MapType		MapType;
+ typedef	struct	Defer		Defer;
+ typedef	struct	Panic		Panic;
+ typedef	struct	Hmap		Hmap;
++typedef	struct	Hiter			Hiter;
+ typedef	struct	Hchan		Hchan;
+ typedef	struct	Complex64	Complex64;
+ typedef	struct	Complex128	Complex128;
+@@ -580,7 +581,7 @@ extern bool runtime·precisestack;
+ #define	nelem(x)	(sizeof(x)/sizeof((x)[0]))
+ #define	nil		((void*)0)
+ #define	offsetof(s,m)	(uint32)(&(((s*)0)->m))
+-#define	ROUND(x, n)	(((x)+(n)-1)&~((n)-1)) /* all-caps to mark as macro: it evaluates n twice */
++#define	ROUND(x, n)	(((x)+(n)-1)&~(uintptr)((n)-1)) /* all-caps to mark as macro: it evaluates n twice */
+ 
+ /*
+  * known to compiler
+@@ -761,10 +762,31 @@ int32	runtime·runetochar(byte*, int32);
+ int32	runtime·charntorune(int32*, uint8*, int32);
+ 
+ /*
+- * very low level c-called
+- */
++ * This macro is used when writing C functions
++ * called as if they were Go functions.
++ * Passed the address of a result before a return statement,
++ * it makes sure the result has been flushed to memory
++ * before the return.
++ *
++ * It is difficult to write such functions portably, because
++ * of the varying requirements on the alignment of the
++ * first output value. Almost all code should write such
++ * functions in .goc files, where goc2c (part of cmd/dist)
++ * can arrange the correct alignment for the target system.
++ * Goc2c also takes care of conveying to the garbage collector
++ * which parts of the argument list are input vs outputs.
++ *
++ * Therefore, do NOT use this macro if at all possible.
++ */ 
+ #define FLUSH(x)	USED(x)
+ 
++/*
++ * GoOutput is a type with the same alignment requirements as the
++ * initial output argument from a Go function. Only for use in cases
++ * where using goc2c is not possible. See comment on FLUSH above.
++ */
++typedef uint64 GoOutput;
++
+ void	runtime·gogo(Gobuf*);
+ void	runtime·gostartcall(Gobuf*, void(*)(void), void*);
+ void	runtime·gostartcallfn(Gobuf*, FuncVal*);
+@@ -901,6 +923,7 @@ void	runtime·crash(void);
+ void	runtime·parsedebugvars(void);
+ void	_rt0_go(void);
+ void*	runtime·funcdata(Func*, int32);
++int32	runtime·setmaxthreads(int32);
+ 
+ #pragma	varargck	argpos	runtime·printf	1
+ #pragma	varargck	type	"c"	int32
+@@ -989,6 +1012,7 @@ LFNode*	runtime·lfstackpop(uint64 *head);
+ ParFor*	runtime·parforalloc(uint32 nthrmax);
+ void	runtime·parforsetup(ParFor *desc, uint32 nthr, uint32 n, void *ctx, bool wait, void (*body)(ParFor*, uint32));
+ void	runtime·parfordo(ParFor *desc);
++void	runtime·parforiters(ParFor*, uintptr, uintptr*, uintptr*);
+ 
+ /*
+  * This is consistent across Linux and BSD.
+@@ -1071,6 +1095,7 @@ void	runtime·procyield(uint32);
+ void	runtime·osyield(void);
+ void	runtime·lockOSThread(void);
+ void	runtime·unlockOSThread(void);
++bool	runtime·lockedOSThread(void);
+ 
+ bool	runtime·showframe(Func*, G*);
+ void	runtime·printcreatedby(G*);
+diff --git a/src/pkg/runtime/runtime1.goc b/src/pkg/runtime/runtime1.goc
+index d2c38dfefb..c6f6b626a7 100644
+--- a/src/pkg/runtime/runtime1.goc
++++ b/src/pkg/runtime/runtime1.goc
+@@ -4,6 +4,8 @@
+ 
+ package runtime
+ #include "runtime.h"
++#include "arch_GOARCH.h"
++#include "type.h"
+ 
+ func GOMAXPROCS(n int) (ret int) {
+ 	ret = runtime·gomaxprocsfunc(n);
+@@ -12,3 +14,115 @@ func GOMAXPROCS(n int) (ret int) {
+ func NumCPU() (ret int) {
+ 	ret = runtime·ncpu;
+ }
++
++func NumCgoCall() (ret int64) {
++	M *mp;
++
++	ret = 0;
++	for(mp=runtime·atomicloadp(&runtime·allm); mp; mp=mp->alllink)
++		ret += mp->ncgocall;
++}
++
++func newParFor(nthrmax uint32) (desc *ParFor) {
++	desc = runtime·parforalloc(nthrmax);
++}
++
++func parForSetup(desc *ParFor, nthr uint32, n uint32, ctx *byte, wait bool, body *byte) {
++	runtime·parforsetup(desc, nthr, n, ctx, wait, *(void(**)(ParFor*, uint32))body);
++}
++
++func parForDo(desc *ParFor) {
++	runtime·parfordo(desc);
++}
++
++func parForIters(desc *ParFor, tid uintptr) (start uintptr, end uintptr) {
++	runtime·parforiters(desc, tid, &start, &end);
++}
++
++func gogoBytes() (x int32) {
++	x = RuntimeGogoBytes;
++}
++
++func typestring(e Eface) (s String) {
++	s = *e.type->string;
++}
++
++func golockedOSThread() (ret bool) {
++	ret = runtime·lockedOSThread();
++}
++
++func NumGoroutine() (ret int) {
++	ret = runtime·gcount();
++}
++
++func getgoroot() (out String) {
++	byte *p;
++
++	p = runtime·getenv("GOROOT");
++	out = runtime·gostringnocopy(p);
++}
++
++/*
++ * We assume that all architectures turn faults and the like
++ * into apparent calls to runtime.sigpanic.  If we see a "call"
++ * to runtime.sigpanic, we do not back up the PC to find the
++ * line number of the CALL instruction, because there is no CALL.
++ */
++void	runtime·sigpanic(void);
++
++func Caller(skip int) (retpc uintptr, retfile String, retline int, retbool bool) {
++	Func *f, *g;
++	uintptr pc;
++	uintptr rpc[2];
++
++	/*
++	 * Ask for two PCs: the one we were asked for
++	 * and what it called, so that we can see if it
++	 * "called" sigpanic.
++	 */
++	retpc = 0;
++	if(runtime·callers(1+skip-1, rpc, 2) < 2) {
++		retfile = runtime·emptystring;
++		retline = 0;
++		retbool = false;
++	} else if((f = runtime·findfunc(rpc[1])) == nil) {
++		retfile = runtime·emptystring;
++		retline = 0;
++		retbool = true;  // have retpc at least
++	} else {
++		retpc = rpc[1];
++		pc = retpc;
++		g = runtime·findfunc(rpc[0]);
++		if(pc > f->entry && (g == nil || g->entry != (uintptr)runtime·sigpanic))
++			pc--;
++		retline = runtime·funcline(f, pc, &retfile);
++		retbool = true;
++	}
++}
++
++func Callers(skip int, pc Slice) (retn int) {
++	// runtime.callers uses pc.array==nil as a signal
++	// to print a stack trace.  Pick off 0-length pc here
++	// so that we don't let a nil pc slice get to it.
++	if(pc.len == 0)
++		retn = 0;
++	else
++		retn = runtime·callers(skip, (uintptr*)pc.array, pc.len);
++}
++
++func runtime∕pprof·runtime_cyclesPerSecond() (res int64) {
++	res = runtime·tickspersecond();
++}
++
++func sync·runtime_procPin() (p int) {
++	M *mp;
++
++	mp = m;
++	// Disable preemption.
++	mp->locks++;
++	p = mp->p->id;
++}
++
++func sync·runtime_procUnpin() {
++	m->locks--;
++}
+diff --git a/src/pkg/runtime/slice.c b/src/pkg/runtime/slice.goc
+similarity index 90%
+rename from src/pkg/runtime/slice.c
+rename to src/pkg/runtime/slice.goc
+index c3b240bc83..36745e770d 100644
+--- a/src/pkg/runtime/slice.c
++++ b/src/pkg/runtime/slice.goc
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++package runtime
+ #include "runtime.h"
+ #include "arch_GOARCH.h"
+ #include "type.h"
+@@ -18,13 +19,9 @@ enum
+ 
+ static	void	makeslice1(SliceType*, intgo, intgo, Slice*);
+ static	void	growslice1(SliceType*, Slice, intgo, Slice *);
+-	void	runtime·copy(Slice to, Slice fm, uintptr width, intgo ret);
+ 
+ // see also unsafe·NewArray
+-// makeslice(typ *Type, len, cap int64) (ary []any);
+-void
+-runtime·makeslice(SliceType *t, int64 len, int64 cap, Slice ret)
+-{
++func makeslice(t *SliceType, len int64, cap int64) (ret Slice) {
+ 	// NOTE: The len > MaxMem/elemsize check here is not strictly necessary,
+ 	// but it produces a 'len out of range' error instead of a 'cap out of range' error
+ 	// when someone does make([]T, bignumber). 'cap out of range' is true too,
+@@ -59,9 +56,7 @@ makeslice1(SliceType *t, intgo len, intgo cap, Slice *ret)
+ }
+ 
+ // growslice(type *Type, x, []T, n int64) []T
+-void
+-runtime·growslice(SliceType *t, Slice old, int64 n, Slice ret)
+-{
++func growslice(t *SliceType, old Slice, n int64) (ret Slice) {
+ 	int64 cap;
+ 	void *pc;
+ 
+@@ -80,8 +75,6 @@ runtime·growslice(SliceType *t, Slice old, int64 n, Slice ret)
+ 
+ 	growslice1(t, old, cap, &ret);
+ 
+-	FLUSH(&ret);
+-
+ 	if(debug) {
+ 		runtime·printf("growslice(%S,", *t->string);
+ 		runtime·printslice(old);
+@@ -142,11 +135,8 @@ growslice1(SliceType *t, Slice x, intgo newcap, Slice *ret)
+ 		g->stackguard0 = StackPreempt;
+ }
+ 
+-// copy(to any, fr any, wid uintptr) int
+ #pragma textflag NOSPLIT
+-void
+-runtime·copy(Slice to, Slice fm, uintptr width, intgo ret)
+-{
++func copy(to Slice, fm Slice, width uintptr) (ret int) {
+ 	void *pc;
+ 
+ 	if(fm.len == 0 || to.len == 0 || width == 0) {
+@@ -171,7 +161,6 @@ runtime·copy(Slice to, Slice fm, uintptr width, intgo ret)
+ 	}
+ 
+ out:
+-	FLUSH(&ret);
+ 
+ 	if(debug) {
+ 		runtime·prints("main·copy: to=");
+@@ -187,9 +176,7 @@ out:
+ }
+ 
+ #pragma textflag NOSPLIT
+-void
+-runtime·slicestringcopy(Slice to, String fm, intgo ret)
+-{
++func slicestringcopy(to Slice, fm String) (ret int) {
+ 	void *pc;
+ 
+ 	if(fm.len == 0 || to.len == 0) {
+@@ -208,13 +195,10 @@ runtime·slicestringcopy(Slice to, String fm, intgo ret)
+ 
+ 	runtime·memmove(to.array, fm.str, ret);
+ 
+-out:
+-	FLUSH(&ret);
++out:;
+ }
+ 
+-void
+-runtime·printslice(Slice a)
+-{
++func printslice(a Slice) {
+ 	runtime·prints("[");
+ 	runtime·printint(a.len);
+ 	runtime·prints("/");
+diff --git a/src/pkg/runtime/stack.c b/src/pkg/runtime/stack.c
+index 634706051c..59441db4c1 100644
+--- a/src/pkg/runtime/stack.c
++++ b/src/pkg/runtime/stack.c
+@@ -372,11 +372,3 @@ runtime·gostartcallfn(Gobuf *gobuf, FuncVal *fv)
+ {
+ 	runtime·gostartcall(gobuf, fv->fn, fv);
+ }
+-
+-void
+-runtime∕debug·setMaxStack(intgo in, intgo out)
+-{
+-	out = runtime·maxstacksize;
+-	runtime·maxstacksize = in;
+-	FLUSH(&out);
+-}
+diff --git a/src/pkg/runtime/string.goc b/src/pkg/runtime/string.goc
+index a46fa5d8d2..8bdaf9d654 100644
+--- a/src/pkg/runtime/string.goc
++++ b/src/pkg/runtime/string.goc
+@@ -101,11 +101,8 @@ runtime·gostringnocopy(byte *str)
+ 	return s;
+ }
+ 
+-void
+-runtime·cstringToGo(byte *str, String s)
+-{
++func cstringToGo(str *byte) (s String) {
+ 	s = runtime·gostringnocopy(str);
+-	FLUSH(&s);
+ }
+ 
+ String
+diff --git a/src/pkg/runtime/symtab.c b/src/pkg/runtime/symtab.goc
+similarity index 95%
+rename from src/pkg/runtime/symtab.c
+rename to src/pkg/runtime/symtab.goc
+index 1ceb76c07c..15e1d28fab 100644
+--- a/src/pkg/runtime/symtab.c
++++ b/src/pkg/runtime/symtab.goc
+@@ -5,6 +5,7 @@
+ // Runtime symbol table parsing.
+ // See http://golang.org/s/go12symtab for an overview.
+ 
++package runtime
+ #include "runtime.h"
+ #include "defs_GOOS_GOARCH.h"
+ #include "os_GOOS.h"
+@@ -86,8 +87,11 @@ runtime·funcdata(Func *f, int32 i)
+ 	if(i < 0 || i >= f->nfuncdata)
+ 		return nil;
+ 	p = (byte*)&f->nfuncdata + 4 + f->npcdata*4;
+-	if(sizeof(void*) == 8 && ((uintptr)p & 4))
++	if(sizeof(void*) == 8 && ((uintptr)p & 4)) {
++		if(((uintptr)f & 4))
++			runtime·printf("misaligned func %p\n", f);
+ 		p += 4;
++	}
+ 	return ((void**)p)[i];
+ }
+ 
+@@ -224,27 +228,18 @@ runtime·funcarglen(Func *f, uintptr targetpc)
+ 	return runtime·pcdatavalue(f, PCDATA_ArgSize, targetpc-PCQuantum);
+ }
+ 
+-void
+-runtime·funcline_go(Func *f, uintptr targetpc, String retfile, intgo retline)
+-{
++func funcline_go(f *Func, targetpc uintptr) (retfile String, retline int) {
+ 	// Pass strict=false here, because anyone can call this function,
+ 	// and they might just be wrong about targetpc belonging to f.
+ 	retline = funcline(f, targetpc, &retfile, false);
+-	FLUSH(&retline);
+ }
+ 
+-void
+-runtime·funcname_go(Func *f, String ret)
+-{
++func funcname_go(f *Func) (ret String) {
+ 	ret = runtime·gostringnocopy((uint8*)runtime·funcname(f));
+-	FLUSH(&ret);
+ }
+ 
+-void
+-runtime·funcentry_go(Func *f, uintptr ret)
+-{
++func funcentry_go(f *Func) (ret uintptr) {
+ 	ret = f->entry;
+-	FLUSH(&ret);
+ }
+ 
+ Func*
+@@ -281,6 +276,10 @@ runtime·findfunc(uintptr addr)
+ 	return nil;
+ }
+ 
++func FuncForPC(pc uintptr) (ret *Func) {
++	ret = runtime·findfunc(pc);
++}
++
+ static bool
+ hasprefix(String s, int8 *p)
+ {

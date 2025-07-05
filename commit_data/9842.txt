@@ -9,9 +9,154 @@ Date:   Fri Sep 30 11:33:13 2011 -0700
     R=golang-dev, r, dsymonds, rsc, r
     CC=golang-dev
     https://golang.org/cl/5156042
-
+---
  src/pkg/runtime/windows/386/defs.h   | 14 ++++++++++++++
  src/pkg/runtime/windows/amd64/defs.h | 14 ++++++++++++++
  src/pkg/runtime/windows/defs.c       |  1 +
  src/pkg/runtime/windows/thread.c     | 29 +++++++++++++++++++++++++++++
  4 files changed, 58 insertions(+)
+
+diff --git a/src/pkg/runtime/windows/386/defs.h b/src/pkg/runtime/windows/386/defs.h
+index 6cc5336a94..e64a82fafe 100644
+--- a/src/pkg/runtime/windows/386/defs.h
++++ b/src/pkg/runtime/windows/386/defs.h
+@@ -31,6 +31,20 @@ enum {
+ // Types
+ #pragma pack on
+ 
++typedef struct SystemInfo SystemInfo;
++struct SystemInfo {
++	byte Pad_godefs_0[4];
++	uint32 dwPageSize;
++	void *lpMinimumApplicationAddress;
++	void *lpMaximumApplicationAddress;
++	uint32 dwActiveProcessorMask;
++	uint32 dwNumberOfProcessors;
++	uint32 dwProcessorType;
++	uint32 dwAllocationGranularity;
++	uint16 wProcessorLevel;
++	uint16 wProcessorRevision;
++};
++
+ typedef struct ExceptionRecord ExceptionRecord;
+ struct ExceptionRecord {
+ 	uint32 ExceptionCode;
+diff --git a/src/pkg/runtime/windows/amd64/defs.h b/src/pkg/runtime/windows/amd64/defs.h
+index d5191a3d74..da4c19d90b 100644
+--- a/src/pkg/runtime/windows/amd64/defs.h
++++ b/src/pkg/runtime/windows/amd64/defs.h
+@@ -31,6 +31,20 @@ enum {
+ // Types
+ #pragma pack on
+ 
++typedef struct SystemInfo SystemInfo;
++struct SystemInfo {
++	byte Pad_godefs_0[4];
++	uint32 dwPageSize;
++	void *lpMinimumApplicationAddress;
++	void *lpMaximumApplicationAddress;
++	uint64 dwActiveProcessorMask;
++	uint32 dwNumberOfProcessors;
++	uint32 dwProcessorType;
++	uint32 dwAllocationGranularity;
++	uint16 wProcessorLevel;
++	uint16 wProcessorRevision;
++};
++
+ typedef struct ExceptionRecord ExceptionRecord;
+ struct ExceptionRecord {
+ 	uint32 ExceptionCode;
+diff --git a/src/pkg/runtime/windows/defs.c b/src/pkg/runtime/windows/defs.c
+index 1b07dfbc19..7cfd9ad0f7 100644
+--- a/src/pkg/runtime/windows/defs.c
++++ b/src/pkg/runtime/windows/defs.c
+@@ -38,6 +38,7 @@ enum {
+ 	$EXCEPTION_INT_OVERFLOW = STATUS_INTEGER_OVERFLOW,
+ };
+ 
++typedef SYSTEM_INFO $SystemInfo;
+ typedef EXCEPTION_RECORD $ExceptionRecord;
+ #ifdef _X86_
+ typedef FLOATING_SAVE_AREA $FloatingSaveArea;
+diff --git a/src/pkg/runtime/windows/thread.c b/src/pkg/runtime/windows/thread.c
+index 97a42d73a0..ff075b77dc 100644
+--- a/src/pkg/runtime/windows/thread.c
++++ b/src/pkg/runtime/windows/thread.c
+@@ -17,6 +17,7 @@
+ #pragma dynimport runtime·GetEnvironmentStringsW GetEnvironmentStringsW "kernel32.dll"
+ #pragma dynimport runtime·GetProcAddress GetProcAddress "kernel32.dll"
+ #pragma dynimport runtime·GetStdHandle GetStdHandle "kernel32.dll"
++#pragma dynimport runtime·GetSystemInfo GetSystemInfo "kernel32.dll"
+ #pragma dynimport runtime·GetThreadContext GetThreadContext "kernel32.dll"
+ #pragma dynimport runtime·LoadLibraryEx LoadLibraryExA "kernel32.dll"
+ #pragma dynimport runtime·QueryPerformanceCounter QueryPerformanceCounter "kernel32.dll"
+@@ -26,6 +27,7 @@
+ #pragma dynimport runtime·SetEvent SetEvent "kernel32.dll"
+ #pragma dynimport runtime·SetThreadPriority SetThreadPriority "kernel32.dll"
+ #pragma dynimport runtime·SetWaitableTimer SetWaitableTimer "kernel32.dll"
++#pragma dynimport runtime·Sleep Sleep "kernel32.dll"
+ #pragma dynimport runtime·SuspendThread SuspendThread "kernel32.dll"
+ #pragma dynimport runtime·timeBeginPeriod timeBeginPeriod "winmm.dll"
+ #pragma dynimport runtime·WaitForSingleObject WaitForSingleObject "kernel32.dll"
+@@ -41,6 +43,7 @@ extern void *runtime·FreeEnvironmentStringsW;
+ extern void *runtime·GetEnvironmentStringsW;
+ extern void *runtime·GetProcAddress;
+ extern void *runtime·GetStdHandle;
++extern void *runtime·GetSystemInfo;
+ extern void *runtime·GetThreadContext;
+ extern void *runtime·LoadLibraryEx;
+ extern void *runtime·QueryPerformanceCounter;
+@@ -50,6 +53,7 @@ extern void *runtime·SetConsoleCtrlHandler;
+ extern void *runtime·SetEvent;
+ extern void *runtime·SetThreadPriority;
+ extern void *runtime·SetWaitableTimer;
++extern void *runtime·Sleep;
+ extern void *runtime·SuspendThread;
+ extern void *runtime·timeBeginPeriod;
+ extern void *runtime·WaitForSingleObject;
+@@ -57,6 +61,15 @@ extern void *runtime·WriteFile;
+ 
+ static int64 timerfreq;
+ 
++static int32
++getproccount(void)
++{
++	SystemInfo info;
++
++	runtime·stdcall(runtime·GetSystemInfo, 1, &info);
++	return info.dwNumberOfProcessors;
++}
++
+ void
+ runtime·osinit(void)
+ {
+@@ -67,6 +80,7 @@ runtime·osinit(void)
+ 	runtime·stdcall(runtime·QueryPerformanceFrequency, 1, &timerfreq);
+ 	runtime·stdcall(runtime·SetConsoleCtrlHandler, 2, runtime·ctrlhandler, (uintptr)1);
+ 	runtime·stdcall(runtime·timeBeginPeriod, 1, (uintptr)1);
++	runtime·ncpu = getproccount();
+ }
+ 
+ void
+@@ -126,6 +140,21 @@ runtime·write(int32 fd, void *buf, int32 n)
+ 	return written;
+ }
+ 
++void
++runtime·osyield(void)
++{
++	runtime·stdcall(runtime·Sleep, 1, (uintptr)0);
++}
++
++void
++runtime·usleep(uint32 us)
++{
++	us /= 1000;
++	if(us == 0)
++		us = 1;
++	runtime·stdcall(runtime·Sleep, 1, (uintptr)us);
++}
++
+ // Thread-safe allocation of an event.
+ static void
+ initevent(void **pevent)

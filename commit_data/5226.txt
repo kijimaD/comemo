@@ -7,6 +7,39 @@ Date:   Mon Apr 5 22:55:05 2010 -0700
     R=adg
     CC=golang-dev
     https://golang.org/cl/813043
-
+---
  src/pkg/http/server.go | 13 +++++++------
  1 file changed, 7 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/http/server.go b/src/pkg/http/server.go
+index bd1d0a703f..a28eb25ee4 100644
+--- a/src/pkg/http/server.go
++++ b/src/pkg/http/server.go
+@@ -571,20 +571,21 @@ func Serve(l net.Listener, handler Handler) os.Error {
+ //	package main
+ //
+ //	import (
+-//		"http";
+-//		"io";
++//		"http"
++//		"io"
++//		"log"
+ //	)
+ //
+ //	// hello world, the web server
+ //	func HelloServer(c *http.Conn, req *http.Request) {
+-//		io.WriteString(c, "hello, world!\n");
++//		io.WriteString(c, "hello, world!\n")
+ //	}
+ //
+ //	func main() {
+-//		http.Handle("/hello", http.HandlerFunc(HelloServer));
+-//		err := http.ListenAndServe(":12345", nil);
++//		http.HandleFunc("/hello", HelloServer)
++//		err := http.ListenAndServe(":12345", nil)
+ //		if err != nil {
+-//			panic("ListenAndServe: ", err.String())
++//			log.Exit("ListenAndServe: ", err.String())
+ //		}
+ //	}
+ func ListenAndServe(addr string, handler Handler) os.Error {

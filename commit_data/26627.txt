@@ -11,7 +11,7 @@ Date:   Thu Jan 28 22:51:50 2016 -0500
     Change-Id: Iba8b79532455828869c1a8076a82edce84259468
     Reviewed-on: https://go-review.googlesource.com/19615
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go1.7.txt             |  3 ++-
  src/cmd/go/alldocs.go     |  8 --------
  src/cmd/go/env.go         |  6 ------
@@ -20,3 +20,307 @@ Date:   Thu Jan 28 22:51:50 2016 -0500
  src/cmd/go/vcs.go         |  8 ++++----
  src/cmd/go/vendor_test.go | 14 --------------
  7 files changed, 9 insertions(+), 57 deletions(-)
+
+diff --git a/doc/go1.7.txt b/doc/go1.7.txt
+index b2573bef83..15efa287ce 100644
+--- a/doc/go1.7.txt
++++ b/doc/go1.7.txt
+@@ -1,6 +1,7 @@
+ Tools:
+ 
+-cmd/link: "-X name value" form gone (CL XXX)
++cmd/go: GO15VENDOREXPERIMENT gone, assumed on (CL 19615)
++cmd/link: "-X name value" form gone (CL 19614)
+ 
+ Ports:
+ 
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index c81bd40864..bbad8d40e9 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -1022,12 +1022,6 @@ Vendor directories do not affect the placement of new repositories
+ being checked out for the first time by 'go get': those are always
+ placed in the main GOPATH, never in a vendor subtree.
+ 
+-In Go 1.5, as an experiment, setting the environment variable
+-GO15VENDOREXPERIMENT=1 enabled these features.
+-As of Go 1.6 they are on by default. To turn them off, set
+-GO15VENDOREXPERIMENT=0. In Go 1.7, the environment
+-variable will stop having any effect.
+-
+ See https://golang.org/s/go15vendor for details.
+ 
+ 
+@@ -1094,8 +1088,6 @@ Special-purpose environment variables:
+ 		installed in a location other than where it is built.
+ 		File names in stack traces are rewritten from GOROOT to
+ 		GOROOT_FINAL.
+-	GO15VENDOREXPERIMENT
+-		Set to 0 to disable vendoring semantics.
+ 	GO_EXTLINK_ENABLED
+ 		Whether the linker should use external linking mode
+ 		when using -linkmode=auto with code that uses cgo.
+diff --git a/src/cmd/go/env.go b/src/cmd/go/env.go
+index 24f612756b..8d427b37c2 100644
+--- a/src/cmd/go/env.go
++++ b/src/cmd/go/env.go
+@@ -33,11 +33,6 @@ func mkEnv() []envVar {
+ 	var b builder
+ 	b.init()
+ 
+-	vendorExpValue := "0"
+-	if go15VendorExperiment {
+-		vendorExpValue = "1"
+-	}
+-
+ 	env := []envVar{
+ 		{"GOARCH", goarch},
+ 		{"GOBIN", gobin},
+@@ -49,7 +44,6 @@ func mkEnv() []envVar {
+ 		{"GORACE", os.Getenv("GORACE")},
+ 		{"GOROOT", goroot},
+ 		{"GOTOOLDIR", toolDir},
+-		{"GO15VENDOREXPERIMENT", vendorExpValue},
+ 
+ 		// disable escape codes in clang errors
+ 		{"TERM", "dumb"},
+diff --git a/src/cmd/go/help.go b/src/cmd/go/help.go
+index d8e7efedb3..de5e5ddeab 100644
+--- a/src/cmd/go/help.go
++++ b/src/cmd/go/help.go
+@@ -421,12 +421,6 @@ Vendor directories do not affect the placement of new repositories
+ being checked out for the first time by 'go get': those are always
+ placed in the main GOPATH, never in a vendor subtree.
+ 
+-In Go 1.5, as an experiment, setting the environment variable
+-GO15VENDOREXPERIMENT=1 enabled these features.
+-As of Go 1.6 they are on by default. To turn them off, set
+-GO15VENDOREXPERIMENT=0. In Go 1.7, the environment
+-variable will stop having any effect.
+-
+ See https://golang.org/s/go15vendor for details.
+ 	`,
+ }
+@@ -497,8 +491,6 @@ Special-purpose environment variables:
+ 		installed in a location other than where it is built.
+ 		File names in stack traces are rewritten from GOROOT to
+ 		GOROOT_FINAL.
+-	GO15VENDOREXPERIMENT
+-		Set to 0 to disable vendoring semantics.
+ 	GO_EXTLINK_ENABLED
+ 		Whether the linker should use external linking mode
+ 		when using -linkmode=auto with code that uses cgo.
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index 0c0cf07e71..6b5ead2b8c 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -263,15 +263,6 @@ func reloadPackage(arg string, stk *importStack) *Package {
+ 	return loadPackage(arg, stk)
+ }
+ 
+-// The Go 1.5 vendoring experiment was enabled by setting GO15VENDOREXPERIMENT=1.
+-// In Go 1.6 this is on by default and is disabled by setting GO15VENDOREXPERIMENT=0.
+-// In Go 1.7 the variable will stop having any effect.
+-// The variable is obnoxiously long so that years from now when people find it in
+-// their profiles and wonder what it does, there is some chance that a web search
+-// might answer the question.
+-// There is a copy of this variable in src/go/build/build.go. Delete that one when this one goes away.
+-var go15VendorExperiment = os.Getenv("GO15VENDOREXPERIMENT") != "0"
+-
+ // dirToImportPath returns the pseudo-import path we use for a package
+ // outside the Go path.  It begins with _/ and then contains the full path
+ // to the directory.  If the package lives in c:\home\gopher\my\pkg then
+@@ -361,7 +352,7 @@ func loadImport(path, srcDir string, parent *Package, stk *importStack, importPo
+ 	// TODO: After Go 1, decide when to pass build.AllowBinary here.
+ 	// See issue 3268 for mistakes to avoid.
+ 	buildMode := build.ImportComment
+-	if !go15VendorExperiment || mode&useVendor == 0 || path != origPath {
++	if mode&useVendor == 0 || path != origPath {
+ 		// Not vendoring, or we already found the vendored path.
+ 		buildMode |= build.IgnoreVendor
+ 	}
+@@ -371,7 +362,7 @@ func loadImport(path, srcDir string, parent *Package, stk *importStack, importPo
+ 		bp.BinDir = gobin
+ 	}
+ 	if err == nil && !isLocal && bp.ImportComment != "" && bp.ImportComment != path &&
+-		(!go15VendorExperiment || (!strings.Contains(path, "/vendor/") && !strings.HasPrefix(path, "vendor/"))) {
++		!strings.Contains(path, "/vendor/") && !strings.HasPrefix(path, "vendor/") {
+ 		err = fmt.Errorf("code in directory %s expects import %q", bp.Dir, bp.ImportComment)
+ 	}
+ 	p.load(stk, bp, err)
+@@ -412,7 +403,7 @@ func isDir(path string) bool {
+ // x/vendor/path, vendor/path, or else stay path if none of those exist.
+ // vendoredImportPath returns the expanded path or, if no expansion is found, the original.
+ func vendoredImportPath(parent *Package, path string) (found string) {
+-	if parent == nil || parent.Root == "" || !go15VendorExperiment {
++	if parent == nil || parent.Root == "" {
+ 		return path
+ 	}
+ 
+@@ -580,10 +571,6 @@ func findInternal(path string) (index int, ok bool) {
+ // If the import is allowed, disallowVendor returns the original package p.
+ // If not, it returns a new package containing just an appropriate error.
+ func disallowVendor(srcDir, path string, p *Package, stk *importStack) *Package {
+-	if !go15VendorExperiment {
+-		return p
+-	}
+-
+ 	// The stack includes p.ImportPath.
+ 	// If that's the only thing on the stack, we started
+ 	// with a name given on the command line, not an
+diff --git a/src/cmd/go/vcs.go b/src/cmd/go/vcs.go
+index 342edee50d..797d91fb96 100644
+--- a/src/cmd/go/vcs.go
++++ b/src/cmd/go/vcs.go
+@@ -383,7 +383,7 @@ func (v *vcsCmd) ping(scheme, repo string) error {
+ // The parent of dir must exist; dir must not.
+ func (v *vcsCmd) create(dir, repo string) error {
+ 	for _, cmd := range v.createCmd {
+-		if !go15VendorExperiment && strings.Contains(cmd, "submodule") {
++		if strings.Contains(cmd, "submodule") {
+ 			continue
+ 		}
+ 		if err := v.run(".", cmd, "dir", dir, "repo", repo); err != nil {
+@@ -396,7 +396,7 @@ func (v *vcsCmd) create(dir, repo string) error {
+ // download downloads any new changes for the repo in dir.
+ func (v *vcsCmd) download(dir string) error {
+ 	for _, cmd := range v.downloadCmd {
+-		if !go15VendorExperiment && strings.Contains(cmd, "submodule") {
++		if strings.Contains(cmd, "submodule") {
+ 			continue
+ 		}
+ 		if err := v.run(dir, cmd); err != nil {
+@@ -445,7 +445,7 @@ func (v *vcsCmd) tagSync(dir, tag string) error {
+ 
+ 	if tag == "" && v.tagSyncDefault != nil {
+ 		for _, cmd := range v.tagSyncDefault {
+-			if !go15VendorExperiment && strings.Contains(cmd, "submodule") {
++			if strings.Contains(cmd, "submodule") {
+ 				continue
+ 			}
+ 			if err := v.run(dir, cmd); err != nil {
+@@ -456,7 +456,7 @@ func (v *vcsCmd) tagSync(dir, tag string) error {
+ 	}
+ 
+ 	for _, cmd := range v.tagSyncCmd {
+-		if !go15VendorExperiment && strings.Contains(cmd, "submodule") {
++		if strings.Contains(cmd, "submodule") {
+ 			continue
+ 		}
+ 		if err := v.run(dir, cmd, "tag", tag); err != nil {
+diff --git a/src/cmd/go/vendor_test.go b/src/cmd/go/vendor_test.go
+index 006a8c9d3f..40fe309b6d 100644
+--- a/src/cmd/go/vendor_test.go
++++ b/src/cmd/go/vendor_test.go
+@@ -20,7 +20,6 @@ func TestVendorImports(t *testing.T) {
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+ 	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
+-	tg.setenv("GO15VENDOREXPERIMENT", "1")
+ 	tg.run("list", "-f", "{{.ImportPath}} {{.Imports}}", "vend/...")
+ 	want := `
+ 		vend [vend/vendor/p r]
+@@ -51,7 +50,6 @@ func TestVendorBuild(t *testing.T) {
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+ 	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
+-	tg.setenv("GO15VENDOREXPERIMENT", "1")
+ 	tg.run("build", "vend/x")
+ }
+ 
+@@ -59,7 +57,6 @@ func TestVendorRun(t *testing.T) {
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+ 	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
+-	tg.setenv("GO15VENDOREXPERIMENT", "1")
+ 	tg.cd(filepath.Join(tg.pwd(), "testdata/src/vend/hello"))
+ 	tg.run("run", "hello.go")
+ 	tg.grepStdout("hello, world", "missing hello world output")
+@@ -74,7 +71,6 @@ func TestVendorGOPATH(t *testing.T) {
+ 	}
+ 	gopath := changeVolume(filepath.Join(tg.pwd(), "testdata"), strings.ToLower)
+ 	tg.setenv("GOPATH", gopath)
+-	tg.setenv("GO15VENDOREXPERIMENT", "1")
+ 	cd := changeVolume(filepath.Join(tg.pwd(), "testdata/src/vend/hello"), strings.ToUpper)
+ 	tg.cd(cd)
+ 	tg.run("run", "hello.go")
+@@ -85,7 +81,6 @@ func TestVendorTest(t *testing.T) {
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+ 	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
+-	tg.setenv("GO15VENDOREXPERIMENT", "1")
+ 	tg.cd(filepath.Join(tg.pwd(), "testdata/src/vend/hello"))
+ 	tg.run("test", "-v")
+ 	tg.grepStdout("TestMsgInternal", "missing use in internal test")
+@@ -96,7 +91,6 @@ func TestVendorInvalid(t *testing.T) {
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+ 	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
+-	tg.setenv("GO15VENDOREXPERIMENT", "1")
+ 
+ 	tg.runFail("build", "vend/x/invalid")
+ 	tg.grepStderr("must be imported as foo", "missing vendor import error")
+@@ -106,7 +100,6 @@ func TestVendorImportError(t *testing.T) {
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+ 	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
+-	tg.setenv("GO15VENDOREXPERIMENT", "1")
+ 
+ 	tg.runFail("build", "vend/x/vendor/p/p")
+ 
+@@ -173,7 +166,6 @@ func TestVendorGet(t *testing.T) {
+ 		package p
+ 		const C = 1`)
+ 	tg.setenv("GOPATH", tg.path("."))
+-	tg.setenv("GO15VENDOREXPERIMENT", "1")
+ 	tg.cd(tg.path("src/v"))
+ 	tg.run("run", "m.go")
+ 	tg.run("test")
+@@ -192,7 +184,6 @@ func TestVendorGetUpdate(t *testing.T) {
+ 	defer tg.cleanup()
+ 	tg.makeTempdir()
+ 	tg.setenv("GOPATH", tg.path("."))
+-	tg.setenv("GO15VENDOREXPERIMENT", "1")
+ 	tg.run("get", "github.com/rsc/go-get-issue-11864")
+ 	tg.run("get", "-u", "github.com/rsc/go-get-issue-11864")
+ }
+@@ -204,7 +195,6 @@ func TestGetSubmodules(t *testing.T) {
+ 	defer tg.cleanup()
+ 	tg.makeTempdir()
+ 	tg.setenv("GOPATH", tg.path("."))
+-	tg.setenv("GO15VENDOREXPERIMENT", "1")
+ 	tg.run("get", "-d", "github.com/rsc/go-get-issue-12612")
+ 	tg.run("get", "-u", "-d", "github.com/rsc/go-get-issue-12612")
+ }
+@@ -213,7 +203,6 @@ func TestVendorCache(t *testing.T) {
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+ 	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata/testvendor"))
+-	tg.setenv("GO15VENDOREXPERIMENT", "1")
+ 	tg.runFail("build", "p")
+ 	tg.grepStderr("must be imported as x", "did not fail to build p")
+ }
+@@ -225,7 +214,6 @@ func TestVendorTest2(t *testing.T) {
+ 	defer tg.cleanup()
+ 	tg.makeTempdir()
+ 	tg.setenv("GOPATH", tg.path("."))
+-	tg.setenv("GO15VENDOREXPERIMENT", "1")
+ 	tg.run("get", "github.com/rsc/go-get-issue-11864")
+ 
+ 	// build -i should work
+@@ -251,7 +239,6 @@ func TestVendorList(t *testing.T) {
+ 	defer tg.cleanup()
+ 	tg.makeTempdir()
+ 	tg.setenv("GOPATH", tg.path("."))
+-	tg.setenv("GO15VENDOREXPERIMENT", "1")
+ 	tg.run("get", "github.com/rsc/go-get-issue-11864")
+ 
+ 	tg.run("list", "-f", `{{join .TestImports "\n"}}`, "github.com/rsc/go-get-issue-11864/t")
+@@ -272,7 +259,6 @@ func TestVendor12156(t *testing.T) {
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+ 	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata/testvendor2"))
+-	tg.setenv("GO15VENDOREXPERIMENT", "1")
+ 	tg.cd(filepath.Join(tg.pwd(), "testdata/testvendor2/src/p"))
+ 	tg.runFail("build", "p.go")
+ 	tg.grepStderrNot("panic", "panicked")

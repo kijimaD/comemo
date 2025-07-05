@@ -11,6 +11,21 @@ Date:   Mon Feb 4 12:42:55 2019 +0000
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/link/linkbig_test.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/cmd/link/linkbig_test.go b/src/cmd/link/linkbig_test.go
+index 21208e86e4..78d2bc1afe 100644
+--- a/src/cmd/link/linkbig_test.go
++++ b/src/cmd/link/linkbig_test.go
+@@ -28,6 +28,9 @@ func TestLargeText(t *testing.T) {
+ 	var w bytes.Buffer
+ 	const FN = 4
+ 	tmpdir, err := ioutil.TempDir("", "bigtext")
++	if err != nil {
++		t.Fatalf("can't create temp directory: %v\n", err)
++	}
+ 
+ 	defer os.RemoveAll(tmpdir)
+ 

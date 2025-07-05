@@ -7,6 +7,20 @@ Date:   Tue Mar 27 00:17:35 2012 -0400
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5924044
-
+---
  src/cmd/dist/build.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/dist/build.c b/src/cmd/dist/build.c
+index 3936f76210..567c9f3366 100644
+--- a/src/cmd/dist/build.c
++++ b/src/cmd/dist/build.c
+@@ -362,7 +362,7 @@ setup(void)
+ 	}
+ 
+ 	// For release, make sure excluded things are excluded.
+-	if(hasprefix(goversion, "release.") || hasprefix(goversion, "go.")) {
++	if(hasprefix(goversion, "release.") || hasprefix(goversion, "go")) {
+ 		for(i=0; i<nelem(unreleased); i++)
+ 			if(isdir(bpathf(&b, "%s/%s", goroot, unreleased[i])))
+ 				fatal("%s should not exist in release build", bstr(&b));

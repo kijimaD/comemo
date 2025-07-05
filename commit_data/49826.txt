@@ -25,7 +25,7 @@ Date:   Mon Sep 13 10:58:25 2021 -0700
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/base/tool.go                   |  2 +-
  src/cmd/go/internal/bug/bug.go                     |  2 +-
  src/cmd/go/internal/clean/clean.go                 | 16 +++----
@@ -121,3 +121,2916 @@ Date:   Mon Sep 13 10:58:25 2021 -0700
  src/cmd/go/testdata/script/test_flag.txt           |  6 +--
  src/cmd/go/testdata/script/test_race_install.txt   |  2 +-
  94 files changed, 353 insertions(+), 348 deletions(-)
+
+diff --git a/src/cmd/go/internal/base/tool.go b/src/cmd/go/internal/base/tool.go
+index d0da65e03c..f927016965 100644
+--- a/src/cmd/go/internal/base/tool.go
++++ b/src/cmd/go/internal/base/tool.go
+@@ -36,7 +36,7 @@ func Tool(toolName string) string {
+ 	}
+ 	// Give a nice message if there is no tool with that name.
+ 	if _, err := os.Stat(toolPath); err != nil {
+-		fmt.Fprintf(os.Stderr, "go tool: no such tool %q\n", toolName)
++		fmt.Fprintf(os.Stderr, "go: no such tool %q\n", toolName)
+ 		SetExitStatus(2)
+ 		Exit()
+ 	}
+diff --git a/src/cmd/go/internal/bug/bug.go b/src/cmd/go/internal/bug/bug.go
+index 307527c695..a81ca7d8c3 100644
+--- a/src/cmd/go/internal/bug/bug.go
++++ b/src/cmd/go/internal/bug/bug.go
+@@ -40,7 +40,7 @@ func init() {
+ 
+ func runBug(ctx context.Context, cmd *base.Command, args []string) {
+ 	if len(args) > 0 {
+-		base.Fatalf("go bug: bug takes no arguments")
++		base.Fatalf("go: bug takes no arguments")
+ 	}
+ 	var buf bytes.Buffer
+ 	buf.WriteString(bugHeader)
+diff --git a/src/cmd/go/internal/clean/clean.go b/src/cmd/go/internal/clean/clean.go
+index fd4cb20559..1089211f0c 100644
+--- a/src/cmd/go/internal/clean/clean.go
++++ b/src/cmd/go/internal/clean/clean.go
+@@ -144,7 +144,7 @@ func runClean(ctx context.Context, cmd *base.Command, args []string) {
+ 						// This also mimics what os.RemoveAll(dir) would do.
+ 						if err := os.RemoveAll(d); err != nil && !printedErrors {
+ 							printedErrors = true
+-							base.Errorf("go clean -cache: %v", err)
++							base.Errorf("go: %v", err)
+ 						}
+ 					}
+ 				}
+@@ -157,7 +157,7 @@ func runClean(ctx context.Context, cmd *base.Command, args []string) {
+ 			if !cfg.BuildN {
+ 				if err := os.RemoveAll(logFile); err != nil && !printedErrors {
+ 					printedErrors = true
+-					base.Errorf("go clean -cache: %v", err)
++					base.Errorf("go: %v", err)
+ 				}
+ 			}
+ 		}
+@@ -187,7 +187,7 @@ func runClean(ctx context.Context, cmd *base.Command, args []string) {
+ 			}
+ 			if err != nil {
+ 				if _, statErr := os.Stat(dir); !os.IsNotExist(statErr) {
+-					base.Errorf("go clean -testcache: %v", err)
++					base.Errorf("go: %v", err)
+ 				}
+ 			}
+ 		}
+@@ -195,14 +195,14 @@ func runClean(ctx context.Context, cmd *base.Command, args []string) {
+ 
+ 	if cleanModcache {
+ 		if cfg.GOMODCACHE == "" {
+-			base.Fatalf("go clean -modcache: no module cache")
++			base.Fatalf("go: cannot clean -modcache without a module cache")
+ 		}
+ 		if cfg.BuildN || cfg.BuildX {
+ 			b.Showcmd("", "rm -rf %s", cfg.GOMODCACHE)
+ 		}
+ 		if !cfg.BuildN {
+ 			if err := modfetch.RemoveAll(cfg.GOMODCACHE); err != nil {
+-				base.Errorf("go clean -modcache: %v", err)
++				base.Errorf("go: %v", err)
+ 			}
+ 		}
+ 	}
+@@ -245,7 +245,7 @@ func clean(p *load.Package) {
+ 	}
+ 	dirs, err := os.ReadDir(p.Dir)
+ 	if err != nil {
+-		base.Errorf("go clean %s: %v", p.Dir, err)
++		base.Errorf("go: %s: %v", p.Dir, err)
+ 		return
+ 	}
+ 
+@@ -334,7 +334,7 @@ func clean(p *load.Package) {
+ 					}
+ 				}
+ 				if err := os.RemoveAll(filepath.Join(p.Dir, name)); err != nil {
+-					base.Errorf("go clean: %v", err)
++					base.Errorf("go: %v", err)
+ 				}
+ 			}
+ 			continue
+@@ -386,5 +386,5 @@ func removeFile(f string) {
+ 			return
+ 		}
+ 	}
+-	base.Errorf("go clean: %v", err)
++	base.Errorf("go: %v", err)
+ }
+diff --git a/src/cmd/go/internal/envcmd/env.go b/src/cmd/go/internal/envcmd/env.go
+index d23d539141..1eb773407e 100644
+--- a/src/cmd/go/internal/envcmd/env.go
++++ b/src/cmd/go/internal/envcmd/env.go
+@@ -193,13 +193,13 @@ func argKey(arg string) string {
+ 
+ func runEnv(ctx context.Context, cmd *base.Command, args []string) {
+ 	if *envJson && *envU {
+-		base.Fatalf("go env: cannot use -json with -u")
++		base.Fatalf("go: cannot use -json with -u")
+ 	}
+ 	if *envJson && *envW {
+-		base.Fatalf("go env: cannot use -json with -w")
++		base.Fatalf("go: cannot use -json with -w")
+ 	}
+ 	if *envU && *envW {
+-		base.Fatalf("go env: cannot use -u with -w")
++		base.Fatalf("go: cannot use -u with -w")
+ 	}
+ 
+ 	// Handle 'go env -w' and 'go env -u' before calling buildcfg.Check,
+@@ -277,7 +277,7 @@ func runEnv(ctx context.Context, cmd *base.Command, args []string) {
+ func runEnvW(args []string) {
+ 	// Process and sanity-check command line.
+ 	if len(args) == 0 {
+-		base.Fatalf("go env -w: no KEY=VALUE arguments given")
++		base.Fatalf("go: no KEY=VALUE arguments given")
+ 	}
+ 	osEnv := make(map[string]string)
+ 	for _, e := range cfg.OrigEnv {
+@@ -289,14 +289,14 @@ func runEnvW(args []string) {
+ 	for _, arg := range args {
+ 		i := strings.Index(arg, "=")
+ 		if i < 0 {
+-			base.Fatalf("go env -w: arguments must be KEY=VALUE: invalid argument: %s", arg)
++			base.Fatalf("go: arguments must be KEY=VALUE: invalid argument: %s", arg)
+ 		}
+ 		key, val := arg[:i], arg[i+1:]
+ 		if err := checkEnvWrite(key, val); err != nil {
+-			base.Fatalf("go env -w: %v", err)
++			base.Fatalf("go: %v", err)
+ 		}
+ 		if _, ok := add[key]; ok {
+-			base.Fatalf("go env -w: multiple values for key: %s", key)
++			base.Fatalf("go: multiple values for key: %s", key)
+ 		}
+ 		add[key] = val
+ 		if osVal := osEnv[key]; osVal != "" && osVal != val {
+@@ -305,13 +305,13 @@ func runEnvW(args []string) {
+ 	}
+ 
+ 	if err := checkBuildConfig(add, nil); err != nil {
+-		base.Fatalf("go env -w: %v", err)
++		base.Fatalf("go: %v", err)
+ 	}
+ 
+ 	gotmp, okGOTMP := add["GOTMPDIR"]
+ 	if okGOTMP {
+ 		if !filepath.IsAbs(gotmp) && gotmp != "" {
+-			base.Fatalf("go env -w: GOTMPDIR must be an absolute path")
++			base.Fatalf("go: GOTMPDIR must be an absolute path")
+ 		}
+ 	}
+ 
+@@ -321,18 +321,18 @@ func runEnvW(args []string) {
+ func runEnvU(args []string) {
+ 	// Process and sanity-check command line.
+ 	if len(args) == 0 {
+-		base.Fatalf("go env -u: no arguments given")
++		base.Fatalf("go: 'go env -u' requires an argument")
+ 	}
+ 	del := make(map[string]bool)
+ 	for _, arg := range args {
+ 		if err := checkEnvWrite(arg, ""); err != nil {
+-			base.Fatalf("go env -u: %v", err)
++			base.Fatalf("go: %v", err)
+ 		}
+ 		del[arg] = true
+ 	}
+ 
+ 	if err := checkBuildConfig(nil, del); err != nil {
+-		base.Fatalf("go env -u: %v", err)
++		base.Fatalf("go: %v", err)
+ 	}
+ 
+ 	updateEnvFile(nil, del)
+@@ -416,7 +416,7 @@ func printEnvAsJSON(env []cfg.EnvVar) {
+ 	enc := json.NewEncoder(os.Stdout)
+ 	enc.SetIndent("", "\t")
+ 	if err := enc.Encode(m); err != nil {
+-		base.Fatalf("go env -json: %s", err)
++		base.Fatalf("go: %s", err)
+ 	}
+ }
+ 
+@@ -494,11 +494,11 @@ func checkEnvWrite(key, val string) error {
+ func updateEnvFile(add map[string]string, del map[string]bool) {
+ 	file, err := cfg.EnvFile()
+ 	if file == "" {
+-		base.Fatalf("go env: cannot find go env config: %v", err)
++		base.Fatalf("go: cannot find go env config: %v", err)
+ 	}
+ 	data, err := os.ReadFile(file)
+ 	if err != nil && (!os.IsNotExist(err) || len(add) == 0) {
+-		base.Fatalf("go env: reading go env config: %v", err)
++		base.Fatalf("go: reading go env config: %v", err)
+ 	}
+ 
+ 	lines := strings.SplitAfter(string(data), "\n")
+@@ -556,7 +556,7 @@ func updateEnvFile(add map[string]string, del map[string]bool) {
+ 		os.MkdirAll(filepath.Dir(file), 0777)
+ 		err = os.WriteFile(file, data, 0666)
+ 		if err != nil {
+-			base.Fatalf("go env: writing go env config: %v", err)
++			base.Fatalf("go: writing go env config: %v", err)
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/go/internal/get/get.go b/src/cmd/go/internal/get/get.go
+index 075594b271..b79d3ba86f 100644
+--- a/src/cmd/go/internal/get/get.go
++++ b/src/cmd/go/internal/get/get.go
+@@ -114,16 +114,16 @@ func init() {
+ func runGet(ctx context.Context, cmd *base.Command, args []string) {
+ 	if cfg.ModulesEnabled {
+ 		// Should not happen: main.go should install the separate module-enabled get code.
+-		base.Fatalf("go get: modules not implemented")
++		base.Fatalf("go: modules not implemented")
+ 	}
+ 
+ 	work.BuildInit()
+ 
+ 	if *getF && !*getU {
+-		base.Fatalf("go get: cannot use -f flag without -u")
++		base.Fatalf("go: cannot use -f flag without -u")
+ 	}
+ 	if *getInsecure {
+-		base.Fatalf("go get: -insecure flag is no longer supported; use GOINSECURE instead")
++		base.Fatalf("go: -insecure flag is no longer supported; use GOINSECURE instead")
+ 	}
+ 
+ 	// Disable any prompting for passwords by Git itself.
+@@ -214,11 +214,11 @@ func downloadPaths(patterns []string) []string {
+ 		// if the argument has no slash or refers to an existing file.
+ 		if strings.HasSuffix(arg, ".go") {
+ 			if !strings.Contains(arg, "/") {
+-				base.Errorf("go get %s: arguments must be package or module paths", arg)
++				base.Errorf("go: %s: arguments must be package or module paths", arg)
+ 				continue
+ 			}
+ 			if fi, err := os.Stat(arg); err == nil && !fi.IsDir() {
+-				base.Errorf("go get: %s exists as a file, but 'go get' requires package arguments", arg)
++				base.Errorf("go: %s exists as a file, but 'go get' requires package arguments", arg)
+ 			}
+ 		}
+ 	}
+diff --git a/src/cmd/go/internal/list/list.go b/src/cmd/go/internal/list/list.go
+index 704d61e7c1..821e622abb 100644
+--- a/src/cmd/go/internal/list/list.go
++++ b/src/cmd/go/internal/list/list.go
+@@ -427,12 +427,12 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
+ 		}
+ 
+ 		if modload.Init(); !modload.Enabled() {
+-			base.Fatalf("go list -m: not using modules")
++			base.Fatalf("go: list -m cannot be used with GO111MODULE=off")
+ 		}
+ 
+ 		modload.LoadModFile(ctx) // Sets cfg.BuildMod as a side-effect.
+ 		if cfg.BuildMod == "vendor" {
+-			const actionDisabledFormat = "go list -m: can't %s using the vendor directory\n\t(Use -mod=mod or -mod=readonly to bypass.)"
++			const actionDisabledFormat = "go: can't %s using the vendor directory\n\t(Use -mod=mod or -mod=readonly to bypass.)"
+ 
+ 			if *listVersions {
+ 				base.Fatalf(actionDisabledFormat, "determine available versions")
+@@ -471,11 +471,11 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
+ 		if !*listE {
+ 			for _, m := range mods {
+ 				if m.Error != nil {
+-					base.Errorf("go list -m: %v", m.Error.Err)
++					base.Errorf("go: %v", m.Error.Err)
+ 				}
+ 			}
+ 			if err != nil {
+-				base.Errorf("go list -m: %v", err)
++				base.Errorf("go: %v", err)
+ 			}
+ 			base.ExitIfErrors()
+ 		}
+@@ -711,7 +711,7 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
+ 			}
+ 			rmods, err := modload.ListModules(ctx, args, mode)
+ 			if err != nil && !*listE {
+-				base.Errorf("go list -retracted: %v", err)
++				base.Errorf("go: %v", err)
+ 			}
+ 			for i, arg := range args {
+ 				rmod := rmods[i]
+diff --git a/src/cmd/go/internal/modcmd/download.go b/src/cmd/go/internal/modcmd/download.go
+index ff56d05116..0f64785656 100644
+--- a/src/cmd/go/internal/modcmd/download.go
++++ b/src/cmd/go/internal/modcmd/download.go
+@@ -87,7 +87,7 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
+ 	// Check whether modules are enabled and whether we're in a module.
+ 	modload.ForceUseModules = true
+ 	if !modload.HasModRoot() && len(args) == 0 {
+-		base.Fatalf("go mod download: no modules specified (see 'go help mod download')")
++		base.Fatalf("go: no modules specified (see 'go help mod download')")
+ 	}
+ 	haveExplicitArgs := len(args) > 0
+ 	if !haveExplicitArgs {
+@@ -106,7 +106,7 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
+ 		for _, arg := range args {
+ 			switch arg {
+ 			case mainModule.Path, targetAtUpgrade, targetAtPatch:
+-				os.Stderr.WriteString("go mod download: skipping argument " + arg + " that resolves to the main module\n")
++				os.Stderr.WriteString("go: skipping download of " + arg + " that resolves to the main module\n")
+ 			}
+ 		}
+ 	}
+@@ -192,7 +192,7 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
+ 		for _, m := range mods {
+ 			b, err := json.MarshalIndent(m, "", "\t")
+ 			if err != nil {
+-				base.Fatalf("go mod download: %v", err)
++				base.Fatalf("go: %v", err)
+ 			}
+ 			os.Stdout.Write(append(b, '\n'))
+ 			if m.Error != "" {
+@@ -202,7 +202,7 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
+ 	} else {
+ 		for _, m := range mods {
+ 			if m.Error != "" {
+-				base.Errorf("go mod download: %v", m.Error)
++				base.Errorf("go: %v", m.Error)
+ 			}
+ 		}
+ 		base.ExitIfErrors()
+@@ -222,6 +222,6 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
+ 	// (after we've written the checksums for the modules that were downloaded
+ 	// successfully).
+ 	if infosErr != nil {
+-		base.Errorf("go mod download: %v", infosErr)
++		base.Errorf("go: %v", infosErr)
+ 	}
+ }
+diff --git a/src/cmd/go/internal/modcmd/edit.go b/src/cmd/go/internal/modcmd/edit.go
+index bb3d521092..e5182a9590 100644
+--- a/src/cmd/go/internal/modcmd/edit.go
++++ b/src/cmd/go/internal/modcmd/edit.go
+@@ -171,15 +171,15 @@ func runEdit(ctx context.Context, cmd *base.Command, args []string) {
+ 			len(edits) > 0
+ 
+ 	if !anyFlags {
+-		base.Fatalf("go mod edit: no flags specified (see 'go help mod edit').")
++		base.Fatalf("go: no flags specified (see 'go help mod edit').")
+ 	}
+ 
+ 	if *editJSON && *editPrint {
+-		base.Fatalf("go mod edit: cannot use both -json and -print")
++		base.Fatalf("go: cannot use both -json and -print")
+ 	}
+ 
+ 	if len(args) > 1 {
+-		base.Fatalf("go mod edit: too many arguments")
++		base.Fatalf("go: too many arguments")
+ 	}
+ 	var gomod string
+ 	if len(args) == 1 {
+@@ -190,7 +190,7 @@ func runEdit(ctx context.Context, cmd *base.Command, args []string) {
+ 
+ 	if *editModule != "" {
+ 		if err := module.CheckImportPath(*editModule); err != nil {
+-			base.Fatalf("go mod: invalid -module: %v", err)
++			base.Fatalf("go: invalid -module: %v", err)
+ 		}
+ 	}
+ 
+@@ -264,15 +264,15 @@ func runEdit(ctx context.Context, cmd *base.Command, args []string) {
+ func parsePathVersion(flag, arg string) (path, version string) {
+ 	i := strings.Index(arg, "@")
+ 	if i < 0 {
+-		base.Fatalf("go mod: -%s=%s: need path@version", flag, arg)
++		base.Fatalf("go: -%s=%s: need path@version", flag, arg)
+ 	}
+ 	path, version = strings.TrimSpace(arg[:i]), strings.TrimSpace(arg[i+1:])
+ 	if err := module.CheckImportPath(path); err != nil {
+-		base.Fatalf("go mod: -%s=%s: invalid path: %v", flag, arg, err)
++		base.Fatalf("go: -%s=%s: invalid path: %v", flag, arg, err)
+ 	}
+ 
+ 	if !allowedVersionArg(version) {
+-		base.Fatalf("go mod: -%s=%s: invalid version %q", flag, arg, version)
++		base.Fatalf("go: -%s=%s: invalid version %q", flag, arg, version)
+ 	}
+ 
+ 	return path, version
+@@ -281,11 +281,11 @@ func parsePathVersion(flag, arg string) (path, version string) {
+ // parsePath parses -flag=arg expecting arg to be path (not path@version).
+ func parsePath(flag, arg string) (path string) {
+ 	if strings.Contains(arg, "@") {
+-		base.Fatalf("go mod: -%s=%s: need just path, not path@version", flag, arg)
++		base.Fatalf("go: -%s=%s: need just path, not path@version", flag, arg)
+ 	}
+ 	path = arg
+ 	if err := module.CheckImportPath(path); err != nil {
+-		base.Fatalf("go mod: -%s=%s: invalid path: %v", flag, arg, err)
++		base.Fatalf("go: -%s=%s: invalid path: %v", flag, arg, err)
+ 	}
+ 	return path
+ }
+@@ -350,7 +350,7 @@ func flagRequire(arg string) {
+ 	path, version := parsePathVersion("require", arg)
+ 	edits = append(edits, func(f *modfile.File) {
+ 		if err := f.AddRequire(path, version); err != nil {
+-			base.Fatalf("go mod: -require=%s: %v", arg, err)
++			base.Fatalf("go: -require=%s: %v", arg, err)
+ 		}
+ 	})
+ }
+@@ -360,7 +360,7 @@ func flagDropRequire(arg string) {
+ 	path := parsePath("droprequire", arg)
+ 	edits = append(edits, func(f *modfile.File) {
+ 		if err := f.DropRequire(path); err != nil {
+-			base.Fatalf("go mod: -droprequire=%s: %v", arg, err)
++			base.Fatalf("go: -droprequire=%s: %v", arg, err)
+ 		}
+ 	})
+ }
+@@ -370,7 +370,7 @@ func flagExclude(arg string) {
+ 	path, version := parsePathVersion("exclude", arg)
+ 	edits = append(edits, func(f *modfile.File) {
+ 		if err := f.AddExclude(path, version); err != nil {
+-			base.Fatalf("go mod: -exclude=%s: %v", arg, err)
++			base.Fatalf("go: -exclude=%s: %v", arg, err)
+ 		}
+ 	})
+ }
+@@ -380,7 +380,7 @@ func flagDropExclude(arg string) {
+ 	path, version := parsePathVersion("dropexclude", arg)
+ 	edits = append(edits, func(f *modfile.File) {
+ 		if err := f.DropExclude(path, version); err != nil {
+-			base.Fatalf("go mod: -dropexclude=%s: %v", arg, err)
++			base.Fatalf("go: -dropexclude=%s: %v", arg, err)
+ 		}
+ 	})
+ }
+@@ -389,27 +389,27 @@ func flagDropExclude(arg string) {
+ func flagReplace(arg string) {
+ 	var i int
+ 	if i = strings.Index(arg, "="); i < 0 {
+-		base.Fatalf("go mod: -replace=%s: need old[@v]=new[@w] (missing =)", arg)
++		base.Fatalf("go: -replace=%s: need old[@v]=new[@w] (missing =)", arg)
+ 	}
+ 	old, new := strings.TrimSpace(arg[:i]), strings.TrimSpace(arg[i+1:])
+ 	if strings.HasPrefix(new, ">") {
+-		base.Fatalf("go mod: -replace=%s: separator between old and new is =, not =>", arg)
++		base.Fatalf("go: -replace=%s: separator between old and new is =, not =>", arg)
+ 	}
+ 	oldPath, oldVersion, err := parsePathVersionOptional("old", old, false)
+ 	if err != nil {
+-		base.Fatalf("go mod: -replace=%s: %v", arg, err)
++		base.Fatalf("go: -replace=%s: %v", arg, err)
+ 	}
+ 	newPath, newVersion, err := parsePathVersionOptional("new", new, true)
+ 	if err != nil {
+-		base.Fatalf("go mod: -replace=%s: %v", arg, err)
++		base.Fatalf("go: -replace=%s: %v", arg, err)
+ 	}
+ 	if newPath == new && !modfile.IsDirectoryPath(new) {
+-		base.Fatalf("go mod: -replace=%s: unversioned new path must be local directory", arg)
++		base.Fatalf("go: -replace=%s: unversioned new path must be local directory", arg)
+ 	}
+ 
+ 	edits = append(edits, func(f *modfile.File) {
+ 		if err := f.AddReplace(oldPath, oldVersion, newPath, newVersion); err != nil {
+-			base.Fatalf("go mod: -replace=%s: %v", arg, err)
++			base.Fatalf("go: -replace=%s: %v", arg, err)
+ 		}
+ 	})
+ }
+@@ -418,11 +418,11 @@ func flagReplace(arg string) {
+ func flagDropReplace(arg string) {
+ 	path, version, err := parsePathVersionOptional("old", arg, true)
+ 	if err != nil {
+-		base.Fatalf("go mod: -dropreplace=%s: %v", arg, err)
++		base.Fatalf("go: -dropreplace=%s: %v", arg, err)
+ 	}
+ 	edits = append(edits, func(f *modfile.File) {
+ 		if err := f.DropReplace(path, version); err != nil {
+-			base.Fatalf("go mod: -dropreplace=%s: %v", arg, err)
++			base.Fatalf("go: -dropreplace=%s: %v", arg, err)
+ 		}
+ 	})
+ }
+@@ -431,11 +431,11 @@ func flagDropReplace(arg string) {
+ func flagRetract(arg string) {
+ 	vi, err := parseVersionInterval(arg)
+ 	if err != nil {
+-		base.Fatalf("go mod: -retract=%s: %v", arg, err)
++		base.Fatalf("go: -retract=%s: %v", arg, err)
+ 	}
+ 	edits = append(edits, func(f *modfile.File) {
+ 		if err := f.AddRetract(vi, ""); err != nil {
+-			base.Fatalf("go mod: -retract=%s: %v", arg, err)
++			base.Fatalf("go: -retract=%s: %v", arg, err)
+ 		}
+ 	})
+ }
+@@ -444,11 +444,11 @@ func flagRetract(arg string) {
+ func flagDropRetract(arg string) {
+ 	vi, err := parseVersionInterval(arg)
+ 	if err != nil {
+-		base.Fatalf("go mod: -dropretract=%s: %v", arg, err)
++		base.Fatalf("go: -dropretract=%s: %v", arg, err)
+ 	}
+ 	edits = append(edits, func(f *modfile.File) {
+ 		if err := f.DropRetract(vi); err != nil {
+-			base.Fatalf("go mod: -dropretract=%s: %v", arg, err)
++			base.Fatalf("go: -dropretract=%s: %v", arg, err)
+ 		}
+ 	})
+ }
+diff --git a/src/cmd/go/internal/modcmd/editwork.go b/src/cmd/go/internal/modcmd/editwork.go
+index 29895b1620..235c655387 100644
+--- a/src/cmd/go/internal/modcmd/editwork.go
++++ b/src/cmd/go/internal/modcmd/editwork.go
+@@ -118,15 +118,15 @@ func runEditwork(ctx context.Context, cmd *base.Command, args []string) {
+ 			len(workedits) > 0
+ 
+ 	if !anyFlags {
+-		base.Fatalf("go mod edit: no flags specified (see 'go help mod edit').")
++		base.Fatalf("go: no flags specified (see 'go help mod edit').")
+ 	}
+ 
+ 	if *editworkJSON && *editworkPrint {
+-		base.Fatalf("go mod edit: cannot use both -json and -print")
++		base.Fatalf("go: cannot use both -json and -print")
+ 	}
+ 
+ 	if len(args) > 1 {
+-		base.Fatalf("go mod edit: too many arguments")
++		base.Fatalf("go: 'go mod editwork' accepts at most one argument")
+ 	}
+ 	var gowork string
+ 	if len(args) == 1 {
+@@ -199,7 +199,7 @@ func flagEditworkDirectory(arg string) {
+ 		}
+ 		f.AddDirectory(modload.ToDirectoryPath(arg), modulePath)
+ 		if err := f.AddDirectory(modload.ToDirectoryPath(arg), ""); err != nil {
+-			base.Fatalf("go mod: -directory=%s: %v", arg, err)
++			base.Fatalf("go: -directory=%s: %v", arg, err)
+ 		}
+ 	})
+ }
+@@ -208,7 +208,7 @@ func flagEditworkDirectory(arg string) {
+ func flagEditworkDropDirectory(arg string) {
+ 	workedits = append(workedits, func(f *modfile.WorkFile) {
+ 		if err := f.DropDirectory(modload.ToDirectoryPath(arg)); err != nil {
+-			base.Fatalf("go mod: -dropdirectory=%s: %v", arg, err)
++			base.Fatalf("go: -dropdirectory=%s: %v", arg, err)
+ 		}
+ 	})
+ }
+@@ -217,27 +217,27 @@ func flagEditworkDropDirectory(arg string) {
+ func flagEditworkReplace(arg string) {
+ 	var i int
+ 	if i = strings.Index(arg, "="); i < 0 {
+-		base.Fatalf("go mod: -replace=%s: need old[@v]=new[@w] (missing =)", arg)
++		base.Fatalf("go: -replace=%s: need old[@v]=new[@w] (missing =)", arg)
+ 	}
+ 	old, new := strings.TrimSpace(arg[:i]), strings.TrimSpace(arg[i+1:])
+ 	if strings.HasPrefix(new, ">") {
+-		base.Fatalf("go mod: -replace=%s: separator between old and new is =, not =>", arg)
++		base.Fatalf("go: -replace=%s: separator between old and new is =, not =>", arg)
+ 	}
+ 	oldPath, oldVersion, err := parsePathVersionOptional("old", old, false)
+ 	if err != nil {
+-		base.Fatalf("go mod: -replace=%s: %v", arg, err)
++		base.Fatalf("go: -replace=%s: %v", arg, err)
+ 	}
+ 	newPath, newVersion, err := parsePathVersionOptional("new", new, true)
+ 	if err != nil {
+-		base.Fatalf("go mod: -replace=%s: %v", arg, err)
++		base.Fatalf("go: -replace=%s: %v", arg, err)
+ 	}
+ 	if newPath == new && !modfile.IsDirectoryPath(new) {
+-		base.Fatalf("go mod: -replace=%s: unversioned new path must be local directory", arg)
++		base.Fatalf("go: -replace=%s: unversioned new path must be local directory", arg)
+ 	}
+ 
+ 	workedits = append(workedits, func(f *modfile.WorkFile) {
+ 		if err := f.AddReplace(oldPath, oldVersion, newPath, newVersion); err != nil {
+-			base.Fatalf("go mod: -replace=%s: %v", arg, err)
++			base.Fatalf("go: -replace=%s: %v", arg, err)
+ 		}
+ 	})
+ }
+@@ -246,11 +246,11 @@ func flagEditworkReplace(arg string) {
+ func flagEditworkDropReplace(arg string) {
+ 	path, version, err := parsePathVersionOptional("old", arg, true)
+ 	if err != nil {
+-		base.Fatalf("go mod: -dropreplace=%s: %v", arg, err)
++		base.Fatalf("go: -dropreplace=%s: %v", arg, err)
+ 	}
+ 	workedits = append(workedits, func(f *modfile.WorkFile) {
+ 		if err := f.DropReplace(path, version); err != nil {
+-			base.Fatalf("go mod: -dropreplace=%s: %v", arg, err)
++			base.Fatalf("go: -dropreplace=%s: %v", arg, err)
+ 		}
+ 	})
+ }
+diff --git a/src/cmd/go/internal/modcmd/graph.go b/src/cmd/go/internal/modcmd/graph.go
+index 2cbabae044..9b6aa1fb14 100644
+--- a/src/cmd/go/internal/modcmd/graph.go
++++ b/src/cmd/go/internal/modcmd/graph.go
+@@ -49,7 +49,7 @@ func runGraph(ctx context.Context, cmd *base.Command, args []string) {
+ 	modload.InitWorkfile()
+ 
+ 	if len(args) > 0 {
+-		base.Fatalf("go mod graph: graph takes no arguments")
++		base.Fatalf("go: 'go mod graph' accepts no arguments")
+ 	}
+ 	modload.ForceUseModules = true
+ 	modload.RootMode = modload.NeedRoot
+diff --git a/src/cmd/go/internal/modcmd/init.go b/src/cmd/go/internal/modcmd/init.go
+index 958c3066ac..bc4620a2a8 100644
+--- a/src/cmd/go/internal/modcmd/init.go
++++ b/src/cmd/go/internal/modcmd/init.go
+@@ -39,7 +39,7 @@ func init() {
+ 
+ func runInit(ctx context.Context, cmd *base.Command, args []string) {
+ 	if len(args) > 1 {
+-		base.Fatalf("go mod init: too many arguments")
++		base.Fatalf("go: 'go mod init' accepts at most one argument")
+ 	}
+ 	var modPath string
+ 	if len(args) == 1 {
+diff --git a/src/cmd/go/internal/modcmd/tidy.go b/src/cmd/go/internal/modcmd/tidy.go
+index fe25507e94..57d303a13c 100644
+--- a/src/cmd/go/internal/modcmd/tidy.go
++++ b/src/cmd/go/internal/modcmd/tidy.go
+@@ -95,7 +95,7 @@ func (f *goVersionFlag) Set(s string) error {
+ 
+ func runTidy(ctx context.Context, cmd *base.Command, args []string) {
+ 	if len(args) > 0 {
+-		base.Fatalf("go mod tidy: no arguments allowed")
++		base.Fatalf("go: 'go mod tidy' accepts no arguments")
+ 	}
+ 
+ 	// Tidy aims to make 'go test' reproducible for any package in 'all', so we
+diff --git a/src/cmd/go/internal/modcmd/vendor.go b/src/cmd/go/internal/modcmd/vendor.go
+index 1effcea1a0..92348b8897 100644
+--- a/src/cmd/go/internal/modcmd/vendor.go
++++ b/src/cmd/go/internal/modcmd/vendor.go
+@@ -59,7 +59,7 @@ func init() {
+ 
+ func runVendor(ctx context.Context, cmd *base.Command, args []string) {
+ 	if len(args) != 0 {
+-		base.Fatalf("go mod vendor: vendor takes no arguments")
++		base.Fatalf("go: 'go mod vendor' accepts no arguments")
+ 	}
+ 	modload.ForceUseModules = true
+ 	modload.RootMode = modload.NeedRoot
+@@ -76,7 +76,7 @@ func runVendor(ctx context.Context, cmd *base.Command, args []string) {
+ 
+ 	vdir := filepath.Join(modload.VendorDir())
+ 	if err := os.RemoveAll(vdir); err != nil {
+-		base.Fatalf("go mod vendor: %v", err)
++		base.Fatalf("go: %v", err)
+ 	}
+ 
+ 	modpkgs := make(map[module.Version][]string)
+@@ -178,11 +178,11 @@ func runVendor(ctx context.Context, cmd *base.Command, args []string) {
+ 	}
+ 
+ 	if err := os.MkdirAll(vdir, 0777); err != nil {
+-		base.Fatalf("go mod vendor: %v", err)
++		base.Fatalf("go: %v", err)
+ 	}
+ 
+ 	if err := os.WriteFile(filepath.Join(vdir, "modules.txt"), buf.Bytes(), 0666); err != nil {
+-		base.Fatalf("go mod vendor: %v", err)
++		base.Fatalf("go: %v", err)
+ 	}
+ }
+ 
+@@ -250,7 +250,7 @@ func vendorPkg(vdir, pkg string) {
+ 	embedPatterns := str.StringList(bp.EmbedPatterns, bp.TestEmbedPatterns, bp.XTestEmbedPatterns)
+ 	embeds, err := load.ResolveEmbed(bp.Dir, embedPatterns)
+ 	if err != nil {
+-		base.Fatalf("go mod vendor: %v", err)
++		base.Fatalf("go: %v", err)
+ 	}
+ 	for _, embed := range embeds {
+ 		embedDst := filepath.Join(dst, embed)
+@@ -261,21 +261,21 @@ func vendorPkg(vdir, pkg string) {
+ 		// Copy the file as is done by copyDir below.
+ 		r, err := os.Open(filepath.Join(src, embed))
+ 		if err != nil {
+-			base.Fatalf("go mod vendor: %v", err)
++			base.Fatalf("go: %v", err)
+ 		}
+ 		if err := os.MkdirAll(filepath.Dir(embedDst), 0777); err != nil {
+-			base.Fatalf("go mod vendor: %v", err)
++			base.Fatalf("go: %v", err)
+ 		}
+ 		w, err := os.Create(embedDst)
+ 		if err != nil {
+-			base.Fatalf("go mod vendor: %v", err)
++			base.Fatalf("go: %v", err)
+ 		}
+ 		if _, err := io.Copy(w, r); err != nil {
+-			base.Fatalf("go mod vendor: %v", err)
++			base.Fatalf("go: %v", err)
+ 		}
+ 		r.Close()
+ 		if err := w.Close(); err != nil {
+-			base.Fatalf("go mod vendor: %v", err)
++			base.Fatalf("go: %v", err)
+ 		}
+ 	}
+ }
+@@ -354,7 +354,7 @@ func matchPotentialSourceFile(dir string, info fs.DirEntry) bool {
+ 	if strings.HasSuffix(info.Name(), ".go") {
+ 		f, err := fsys.Open(filepath.Join(dir, info.Name()))
+ 		if err != nil {
+-			base.Fatalf("go mod vendor: %v", err)
++			base.Fatalf("go: %v", err)
+ 		}
+ 		defer f.Close()
+ 
+@@ -376,10 +376,10 @@ func matchPotentialSourceFile(dir string, info fs.DirEntry) bool {
+ func copyDir(dst, src string, match func(dir string, info fs.DirEntry) bool, copiedFiles map[string]bool) {
+ 	files, err := os.ReadDir(src)
+ 	if err != nil {
+-		base.Fatalf("go mod vendor: %v", err)
++		base.Fatalf("go: %v", err)
+ 	}
+ 	if err := os.MkdirAll(dst, 0777); err != nil {
+-		base.Fatalf("go mod vendor: %v", err)
++		base.Fatalf("go: %v", err)
+ 	}
+ 	for _, file := range files {
+ 		if file.IsDir() || !file.Type().IsRegular() || !match(src, file) {
+@@ -388,20 +388,20 @@ func copyDir(dst, src string, match func(dir string, info fs.DirEntry) bool, cop
+ 		copiedFiles[file.Name()] = true
+ 		r, err := os.Open(filepath.Join(src, file.Name()))
+ 		if err != nil {
+-			base.Fatalf("go mod vendor: %v", err)
++			base.Fatalf("go: %v", err)
+ 		}
+ 		dstPath := filepath.Join(dst, file.Name())
+ 		copiedFiles[dstPath] = true
+ 		w, err := os.Create(dstPath)
+ 		if err != nil {
+-			base.Fatalf("go mod vendor: %v", err)
++			base.Fatalf("go: %v", err)
+ 		}
+ 		if _, err := io.Copy(w, r); err != nil {
+-			base.Fatalf("go mod vendor: %v", err)
++			base.Fatalf("go: %v", err)
+ 		}
+ 		r.Close()
+ 		if err := w.Close(); err != nil {
+-			base.Fatalf("go mod vendor: %v", err)
++			base.Fatalf("go: %v", err)
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/go/internal/modcmd/verify.go b/src/cmd/go/internal/modcmd/verify.go
+index 14c4d76bc3..3f0c005d5d 100644
+--- a/src/cmd/go/internal/modcmd/verify.go
++++ b/src/cmd/go/internal/modcmd/verify.go
+@@ -47,7 +47,7 @@ func runVerify(ctx context.Context, cmd *base.Command, args []string) {
+ 
+ 	if len(args) != 0 {
+ 		// NOTE(rsc): Could take a module pattern.
+-		base.Fatalf("go mod verify: verify takes no arguments")
++		base.Fatalf("go: verify takes no arguments")
+ 	}
+ 	modload.ForceUseModules = true
+ 	modload.RootMode = modload.NeedRoot
+diff --git a/src/cmd/go/internal/modcmd/why.go b/src/cmd/go/internal/modcmd/why.go
+index eef5fa5ae8..ed5e9d7f1a 100644
+--- a/src/cmd/go/internal/modcmd/why.go
++++ b/src/cmd/go/internal/modcmd/why.go
+@@ -80,13 +80,13 @@ func runWhy(ctx context.Context, cmd *base.Command, args []string) {
+ 	if *whyM {
+ 		for _, arg := range args {
+ 			if strings.Contains(arg, "@") {
+-				base.Fatalf("go mod why: module query not allowed")
++				base.Fatalf("go: %s: 'go mod why' requires a module path, not a version query", arg)
+ 			}
+ 		}
+ 
+ 		mods, err := modload.ListModules(ctx, args, 0)
+ 		if err != nil {
+-			base.Fatalf("go mod why: %v", err)
++			base.Fatalf("go: %v", err)
+ 		}
+ 
+ 		byModule := make(map[module.Version][]string)
+diff --git a/src/cmd/go/internal/modget/get.go b/src/cmd/go/internal/modget/get.go
+index 37912ce833..db07624e38 100644
+--- a/src/cmd/go/internal/modget/get.go
++++ b/src/cmd/go/internal/modget/get.go
+@@ -263,19 +263,19 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
+ 	case "", "upgrade", "patch":
+ 		// ok
+ 	default:
+-		base.Fatalf("go get: unknown upgrade flag -u=%s", getU.rawVersion)
++		base.Fatalf("go: unknown upgrade flag -u=%s", getU.rawVersion)
+ 	}
+ 	if *getF {
+-		fmt.Fprintf(os.Stderr, "go get: -f flag is a no-op when using modules\n")
++		fmt.Fprintf(os.Stderr, "go: -f flag is a no-op when using modules\n")
+ 	}
+ 	if *getFix {
+-		fmt.Fprintf(os.Stderr, "go get: -fix flag is a no-op when using modules\n")
++		fmt.Fprintf(os.Stderr, "go: -fix flag is a no-op when using modules\n")
+ 	}
+ 	if *getM {
+-		base.Fatalf("go get: -m flag is no longer supported; consider -d to skip building packages")
++		base.Fatalf("go: -m flag is no longer supported; consider -d to skip building packages")
+ 	}
+ 	if *getInsecure {
+-		base.Fatalf("go get: -insecure flag is no longer supported; use GOINSECURE instead")
++		base.Fatalf("go: -insecure flag is no longer supported; use GOINSECURE instead")
+ 	}
+ 
+ 	// Do not allow any updating of go.mod until we've applied
+@@ -397,7 +397,7 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
+ 			}
+ 		}
+ 		if haveExternalExe {
+-			fmt.Fprint(os.Stderr, "go get: installing executables with 'go get' in module mode is deprecated.")
++			fmt.Fprint(os.Stderr, "go: installing executables with 'go get' in module mode is deprecated.")
+ 			var altMsg string
+ 			if modload.HasModRoot() {
+ 				altMsg = `
+@@ -442,7 +442,7 @@ func parseArgs(ctx context.Context, rawArgs []string) []*query {
+ 	for _, arg := range search.CleanPatterns(rawArgs) {
+ 		q, err := newQuery(arg)
+ 		if err != nil {
+-			base.Errorf("go get: %v", err)
++			base.Errorf("go: %v", err)
+ 			continue
+ 		}
+ 
+@@ -457,11 +457,11 @@ func parseArgs(ctx context.Context, rawArgs []string) []*query {
+ 		// if the argument has no version and either has no slash or refers to an existing file.
+ 		if strings.HasSuffix(q.raw, ".go") && q.rawVersion == "" {
+ 			if !strings.Contains(q.raw, "/") {
+-				base.Errorf("go get %s: arguments must be package or module paths", q.raw)
++				base.Errorf("go: %s: arguments must be package or module paths", q.raw)
+ 				continue
+ 			}
+ 			if fi, err := os.Stat(q.raw); err == nil && !fi.IsDir() {
+-				base.Errorf("go get: %s exists as a file, but 'go get' requires package arguments", q.raw)
++				base.Errorf("go: %s exists as a file, but 'go get' requires package arguments", q.raw)
+ 				continue
+ 			}
+ 		}
+@@ -743,7 +743,7 @@ func (r *resolver) performLocalQueries(ctx context.Context) {
+ 
+ 			if len(match.Pkgs) == 0 {
+ 				if q.raw == "" || q.raw == "." {
+-					return errSet(fmt.Errorf("no package in current directory"))
++					return errSet(fmt.Errorf("no package to get in current directory"))
+ 				}
+ 				if !q.isWildcard() {
+ 					modload.MustHaveModRoot()
+@@ -1342,7 +1342,7 @@ func (r *resolver) applyUpgrades(ctx context.Context, upgrades []pathSet) (chang
+ 	var tentative []module.Version
+ 	for _, cs := range upgrades {
+ 		if cs.err != nil {
+-			base.Errorf("go get: %v", cs.err)
++			base.Errorf("go: %v", cs.err)
+ 			continue
+ 		}
+ 
+@@ -1735,13 +1735,13 @@ func (r *resolver) reportChanges(oldReqs, newReqs []module.Version) {
+ 	})
+ 	for _, c := range sortedChanges {
+ 		if c.old == "" {
+-			fmt.Fprintf(os.Stderr, "go get: added %s %s\n", c.path, c.new)
++			fmt.Fprintf(os.Stderr, "go: added %s %s\n", c.path, c.new)
+ 		} else if c.new == "none" || c.new == "" {
+-			fmt.Fprintf(os.Stderr, "go get: removed %s %s\n", c.path, c.old)
++			fmt.Fprintf(os.Stderr, "go: removed %s %s\n", c.path, c.old)
+ 		} else if semver.Compare(c.new, c.old) > 0 {
+-			fmt.Fprintf(os.Stderr, "go get: upgraded %s %s => %s\n", c.path, c.old, c.new)
++			fmt.Fprintf(os.Stderr, "go: upgraded %s %s => %s\n", c.path, c.old, c.new)
+ 		} else {
+-			fmt.Fprintf(os.Stderr, "go get: downgraded %s %s => %s\n", c.path, c.old, c.new)
++			fmt.Fprintf(os.Stderr, "go: downgraded %s %s => %s\n", c.path, c.old, c.new)
+ 		}
+ 	}
+ 
+@@ -1800,7 +1800,7 @@ func (r *resolver) updateBuildList(ctx context.Context, additions []module.Versi
+ 	if err != nil {
+ 		var constraint *modload.ConstraintError
+ 		if !errors.As(err, &constraint) {
+-			base.Errorf("go get: %v", err)
++			base.Errorf("go: %v", err)
+ 			return false
+ 		}
+ 
+@@ -1812,7 +1812,7 @@ func (r *resolver) updateBuildList(ctx context.Context, additions []module.Versi
+ 			return rv.reason.ResolvedString(module.Version{Path: m.Path, Version: rv.version})
+ 		}
+ 		for _, c := range constraint.Conflicts {
+-			base.Errorf("go get: %v requires %v, not %v", reason(c.Source), c.Dep, reason(c.Constraint))
++			base.Errorf("go: %v requires %v, not %v", reason(c.Source), c.Dep, reason(c.Constraint))
+ 		}
+ 		return false
+ 	}
+diff --git a/src/cmd/go/internal/modget/query.go b/src/cmd/go/internal/modget/query.go
+index 76041906f2..d7341e7813 100644
+--- a/src/cmd/go/internal/modget/query.go
++++ b/src/cmd/go/internal/modget/query.go
+@@ -284,21 +284,21 @@ func reportError(q *query, err error) {
+ 	patternRE := regexp.MustCompile("(?m)(?:[ \t(\"`]|^)" + regexp.QuoteMeta(q.pattern) + "(?:[ @:;)\"`]|$)")
+ 	if patternRE.MatchString(errStr) {
+ 		if q.rawVersion == "" {
+-			base.Errorf("go get: %s", errStr)
++			base.Errorf("go: %s", errStr)
+ 			return
+ 		}
+ 
+ 		versionRE := regexp.MustCompile("(?m)(?:[ @(\"`]|^)" + regexp.QuoteMeta(q.version) + "(?:[ :;)\"`]|$)")
+ 		if versionRE.MatchString(errStr) {
+-			base.Errorf("go get: %s", errStr)
++			base.Errorf("go: %s", errStr)
+ 			return
+ 		}
+ 	}
+ 
+ 	if qs := q.String(); qs != "" {
+-		base.Errorf("go get %s: %s", qs, errStr)
++		base.Errorf("go: %s: %s", qs, errStr)
+ 	} else {
+-		base.Errorf("go get: %s", errStr)
++		base.Errorf("go: %s", errStr)
+ 	}
+ }
+ 
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index 20c007a03a..40e6b50ed4 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -970,7 +970,7 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
+ 		ld.GoVersion = MainModules.GoVersion()
+ 
+ 		if ld.Tidy && semver.Compare("v"+ld.GoVersion, "v"+LatestGoVersion()) > 0 {
+-			ld.errorf("go mod tidy: go.mod file indicates go %s, but maximum supported version is %s\n", ld.GoVersion, LatestGoVersion())
++			ld.errorf("go: go.mod file indicates go %s, but maximum version supported by tidy is %s\n", ld.GoVersion, LatestGoVersion())
+ 			base.ExitIfErrors()
+ 		}
+ 	}
+@@ -1142,7 +1142,7 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
+ 			// If that is not the case, there is a bug in the loading loop above.
+ 			for _, m := range rs.rootModules {
+ 				if v, ok := ld.requirements.rootSelected(m.Path); !ok || v != m.Version {
+-					ld.errorf("go mod tidy: internal error: a requirement on %v is needed but was not added during package loading\n", m)
++					ld.errorf("go: internal error: a requirement on %v is needed but was not added during package loading\n", m)
+ 					base.ExitIfErrors()
+ 				}
+ 			}
+@@ -1884,7 +1884,7 @@ func (ld *loader) checkTidyCompatibility(ctx context.Context, rs *Requirements)
+ 
+ 	mg, err := rs.Graph(ctx)
+ 	if err != nil {
+-		ld.errorf("go mod tidy: error loading go %s module graph: %v\n", ld.TidyCompatibleVersion, err)
++		ld.errorf("go: error loading go %s module graph: %v\n", ld.TidyCompatibleVersion, err)
+ 		suggestFixes()
+ 		return
+ 	}
+diff --git a/src/cmd/go/internal/run/run.go b/src/cmd/go/internal/run/run.go
+index 931fdcef8f..11e2c81b9a 100644
+--- a/src/cmd/go/internal/run/run.go
++++ b/src/cmd/go/internal/run/run.go
+@@ -103,7 +103,7 @@ func runRun(ctx context.Context, cmd *base.Command, args []string) {
+ 			if strings.HasSuffix(file, "_test.go") {
+ 				// GoFilesPackage is going to assign this to TestGoFiles.
+ 				// Reject since it won't be part of the build.
+-				base.Fatalf("go run: cannot run *_test.go files (%s)", file)
++				base.Fatalf("go: cannot run *_test.go files (%s)", file)
+ 			}
+ 		}
+ 		p = load.GoFilesPackage(ctx, pkgOpts, files)
+@@ -114,26 +114,26 @@ func runRun(ctx context.Context, cmd *base.Command, args []string) {
+ 			var err error
+ 			pkgs, err = load.PackagesAndErrorsOutsideModule(ctx, pkgOpts, args[:1])
+ 			if err != nil {
+-				base.Fatalf("go run: %v", err)
++				base.Fatalf("go: %v", err)
+ 			}
+ 		} else {
+ 			pkgs = load.PackagesAndErrors(ctx, pkgOpts, args[:1])
+ 		}
+ 
+ 		if len(pkgs) == 0 {
+-			base.Fatalf("go run: no packages loaded from %s", arg)
++			base.Fatalf("go: no packages loaded from %s", arg)
+ 		}
+ 		if len(pkgs) > 1 {
+ 			var names []string
+ 			for _, p := range pkgs {
+ 				names = append(names, p.ImportPath)
+ 			}
+-			base.Fatalf("go run: pattern %s matches multiple packages:\n\t%s", arg, strings.Join(names, "\n\t"))
++			base.Fatalf("go: pattern %s matches multiple packages:\n\t%s", arg, strings.Join(names, "\n\t"))
+ 		}
+ 		p = pkgs[0]
+ 		i++
+ 	} else {
+-		base.Fatalf("go run: no go files listed")
++		base.Fatalf("go: no go files listed")
+ 	}
+ 	cmdArgs := args[i:]
+ 	load.CheckPackageErrors([]*load.Package{p})
+@@ -154,7 +154,7 @@ func runRun(ctx context.Context, cmd *base.Command, args []string) {
+ 			if !cfg.BuildContext.CgoEnabled {
+ 				hint = " (cgo is disabled)"
+ 			}
+-			base.Fatalf("go run: no suitable source files%s", hint)
++			base.Fatalf("go: no suitable source files%s", hint)
+ 		}
+ 		p.Internal.ExeName = src[:len(src)-len(".go")]
+ 	} else {
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index d65f54f2bd..198afbf4c3 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -656,7 +656,7 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
+ 	b.Init()
+ 
+ 	if cfg.BuildI {
+-		fmt.Fprint(os.Stderr, "go test: -i flag is deprecated\n")
++		fmt.Fprint(os.Stderr, "go: -i flag is deprecated\n")
+ 		cfg.BuildV = testV
+ 
+ 		deps := make(map[string]bool)
+diff --git a/src/cmd/go/internal/test/testflag.go b/src/cmd/go/internal/test/testflag.go
+index 97a9ef38b9..e0a3e010fa 100644
+--- a/src/cmd/go/internal/test/testflag.go
++++ b/src/cmd/go/internal/test/testflag.go
+@@ -384,7 +384,7 @@ func testFlags(args []string) (packageNames, passToTest []string) {
+ 		if !testC {
+ 			buildFlag = "-i"
+ 		}
+-		fmt.Fprintf(os.Stderr, "go test: unknown flag %s cannot be used with %s\n", firstUnknownFlag, buildFlag)
++		fmt.Fprintf(os.Stderr, "go: unknown flag %s cannot be used with %s\n", firstUnknownFlag, buildFlag)
+ 		exitWithUsage()
+ 	}
+ 
+diff --git a/src/cmd/go/internal/tool/tool.go b/src/cmd/go/internal/tool/tool.go
+index 95c90ea7c8..4fe4c2baed 100644
+--- a/src/cmd/go/internal/tool/tool.go
++++ b/src/cmd/go/internal/tool/tool.go
+@@ -61,7 +61,7 @@ func runTool(ctx context.Context, cmd *base.Command, args []string) {
+ 		switch {
+ 		case 'a' <= c && c <= 'z', '0' <= c && c <= '9', c == '_':
+ 		default:
+-			fmt.Fprintf(os.Stderr, "go tool: bad tool name %q\n", toolName)
++			fmt.Fprintf(os.Stderr, "go: bad tool name %q\n", toolName)
+ 			base.SetExitStatus(2)
+ 			return
+ 		}
+@@ -117,14 +117,14 @@ func runTool(ctx context.Context, cmd *base.Command, args []string) {
+ func listTools() {
+ 	f, err := os.Open(base.ToolDir)
+ 	if err != nil {
+-		fmt.Fprintf(os.Stderr, "go tool: no tool directory: %s\n", err)
++		fmt.Fprintf(os.Stderr, "go: no tool directory: %s\n", err)
+ 		base.SetExitStatus(2)
+ 		return
+ 	}
+ 	defer f.Close()
+ 	names, err := f.Readdirnames(-1)
+ 	if err != nil {
+-		fmt.Fprintf(os.Stderr, "go tool: can't read directory: %s\n", err)
++		fmt.Fprintf(os.Stderr, "go: can't read tool directory: %s\n", err)
+ 		base.SetExitStatus(2)
+ 		return
+ 	}
+diff --git a/src/cmd/go/internal/version/version.go b/src/cmd/go/internal/version/version.go
+index 58cbd32e78..e885933ac3 100644
+--- a/src/cmd/go/internal/version/version.go
++++ b/src/cmd/go/internal/version/version.go
+@@ -62,8 +62,14 @@ func runVersion(ctx context.Context, cmd *base.Command, args []string) {
+ 		// a reasonable use case. For example, imagine GOFLAGS=-v to
+ 		// turn "verbose mode" on for all Go commands, which should not
+ 		// break "go version".
+-		if (!base.InGOFLAGS("-m") && *versionM) || (!base.InGOFLAGS("-v") && *versionV) {
+-			fmt.Fprintf(os.Stderr, "go version: flags can only be used with arguments\n")
++		var argOnlyFlag string
++		if !base.InGOFLAGS("-m") && *versionM {
++			argOnlyFlag = "-m"
++		} else if !base.InGOFLAGS("-v") && *versionV {
++			argOnlyFlag = "-v"
++		}
++		if argOnlyFlag != "" {
++			fmt.Fprintf(os.Stderr, "go: 'go version' only accepts %s flag with arguments\n", argOnlyFlag)
+ 			base.SetExitStatus(2)
+ 			return
+ 		}
+diff --git a/src/cmd/go/internal/vet/vet.go b/src/cmd/go/internal/vet/vet.go
+index 1d419dddb9..88b3c570a0 100644
+--- a/src/cmd/go/internal/vet/vet.go
++++ b/src/cmd/go/internal/vet/vet.go
+@@ -103,7 +103,7 @@ func runVet(ctx context.Context, cmd *base.Command, args []string) {
+ 			continue
+ 		}
+ 		if len(ptest.GoFiles) == 0 && len(ptest.CgoFiles) == 0 && pxtest == nil {
+-			base.Errorf("go vet %s: no Go files in %s", p.ImportPath, p.Dir)
++			base.Errorf("go: can't vet %s: no Go files in %s", p.ImportPath, p.Dir)
+ 			continue
+ 		}
+ 		if len(ptest.GoFiles) > 0 || len(ptest.CgoFiles) > 0 {
+diff --git a/src/cmd/go/internal/vet/vetflag.go b/src/cmd/go/internal/vet/vetflag.go
+index b5b3c462ff..3551a5997c 100644
+--- a/src/cmd/go/internal/vet/vetflag.go
++++ b/src/cmd/go/internal/vet/vetflag.go
+@@ -82,7 +82,7 @@ func vetFlags(args []string) (passToVet, packageNames []string) {
+ 	vetcmd := exec.Command(tool, "-flags")
+ 	vetcmd.Stdout = out
+ 	if err := vetcmd.Run(); err != nil {
+-		fmt.Fprintf(os.Stderr, "go vet: can't execute %s -flags: %v\n", tool, err)
++		fmt.Fprintf(os.Stderr, "go: can't execute %s -flags: %v\n", tool, err)
+ 		base.SetExitStatus(2)
+ 		base.Exit()
+ 	}
+@@ -92,7 +92,7 @@ func vetFlags(args []string) (passToVet, packageNames []string) {
+ 		Usage string
+ 	}
+ 	if err := json.Unmarshal(out.Bytes(), &analysisFlags); err != nil {
+-		fmt.Fprintf(os.Stderr, "go vet: can't unmarshal JSON from %s -flags: %v", tool, err)
++		fmt.Fprintf(os.Stderr, "go: can't unmarshal JSON from %s -flags: %v", tool, err)
+ 		base.SetExitStatus(2)
+ 		base.Exit()
+ 	}
+diff --git a/src/cmd/go/internal/work/action.go b/src/cmd/go/internal/work/action.go
+index 69940cb001..6f5ac1364c 100644
+--- a/src/cmd/go/internal/work/action.go
++++ b/src/cmd/go/internal/work/action.go
+@@ -294,14 +294,14 @@ func (b *Builder) Init() {
+ 	}
+ 
+ 	if err := CheckGOOSARCHPair(cfg.Goos, cfg.Goarch); err != nil {
+-		fmt.Fprintf(os.Stderr, "cmd/go: %v\n", err)
++		fmt.Fprintf(os.Stderr, "go: %v\n", err)
+ 		base.SetExitStatus(2)
+ 		base.Exit()
+ 	}
+ 
+ 	for _, tag := range cfg.BuildContext.BuildTags {
+ 		if strings.Contains(tag, ",") {
+-			fmt.Fprintf(os.Stderr, "cmd/go: -tags space-separated list contains comma\n")
++			fmt.Fprintf(os.Stderr, "go: -tags space-separated list contains comma\n")
+ 			base.SetExitStatus(2)
+ 			base.Exit()
+ 		}
+diff --git a/src/cmd/go/internal/work/build.go b/src/cmd/go/internal/work/build.go
+index 3d7c778a7d..e5d7f4a8fd 100644
+--- a/src/cmd/go/internal/work/build.go
++++ b/src/cmd/go/internal/work/build.go
+@@ -406,7 +406,7 @@ func runBuild(ctx context.Context, cmd *base.Command, args []string) {
+ 	depMode := ModeBuild
+ 	if cfg.BuildI {
+ 		depMode = ModeInstall
+-		fmt.Fprint(os.Stderr, "go build: -i flag is deprecated\n")
++		fmt.Fprint(os.Stderr, "go: -i flag is deprecated\n")
+ 	}
+ 
+ 	pkgs = omitTestOnly(pkgsFilter(pkgs))
+@@ -425,7 +425,7 @@ func runBuild(ctx context.Context, cmd *base.Command, args []string) {
+ 			strings.HasSuffix(cfg.BuildO, "/") ||
+ 			strings.HasSuffix(cfg.BuildO, string(os.PathSeparator)) {
+ 			if !explicitO {
+-				base.Fatalf("go build: build output %q already exists and is a directory", cfg.BuildO)
++				base.Fatalf("go: build output %q already exists and is a directory", cfg.BuildO)
+ 			}
+ 			a := &Action{Mode: "go build"}
+ 			for _, p := range pkgs {
+@@ -440,13 +440,13 @@ func runBuild(ctx context.Context, cmd *base.Command, args []string) {
+ 				a.Deps = append(a.Deps, b.AutoAction(ModeInstall, depMode, p))
+ 			}
+ 			if len(a.Deps) == 0 {
+-				base.Fatalf("go build: no main packages to build")
++				base.Fatalf("go: no main packages to build")
+ 			}
+ 			b.Do(ctx, a)
+ 			return
+ 		}
+ 		if len(pkgs) > 1 {
+-			base.Fatalf("go build: cannot write multiple packages to non-directory %s", cfg.BuildO)
++			base.Fatalf("go: cannot write multiple packages to non-directory %s", cfg.BuildO)
+ 		} else if len(pkgs) == 0 {
+ 			base.Fatalf("no packages to build")
+ 		}
+@@ -593,7 +593,7 @@ func runInstall(ctx context.Context, cmd *base.Command, args []string) {
+ 	for _, arg := range args {
+ 		if strings.Contains(arg, "@") && !build.IsLocalImport(arg) && !filepath.IsAbs(arg) {
+ 			if cfg.BuildI {
+-				fmt.Fprint(os.Stderr, "go install: -i flag is deprecated\n")
++				fmt.Fprint(os.Stderr, "go: -i flag is deprecated\n")
+ 			}
+ 			installOutsideModule(ctx, args)
+ 			return
+@@ -621,7 +621,7 @@ func runInstall(ctx context.Context, cmd *base.Command, args []string) {
+ 				latestArgs[i] = args[i] + "@latest"
+ 			}
+ 			hint := strings.Join(latestArgs, " ")
+-			base.Fatalf("go install: version is required when current directory is not in a module\n\tTry 'go install %s' to install the latest version", hint)
++			base.Fatalf("go: 'go install' requires a version when current directory is not in a module\n\tTry 'go install %s' to install the latest version", hint)
+ 		}
+ 	}
+ 	load.CheckPackageErrors(pkgs)
+@@ -634,7 +634,7 @@ func runInstall(ctx context.Context, cmd *base.Command, args []string) {
+ 			}
+ 		}
+ 		if !allGoroot {
+-			fmt.Fprint(os.Stderr, "go install: -i flag is deprecated\n")
++			fmt.Fprintf(os.Stderr, "go: -i flag is deprecated\n")
+ 		}
+ 	}
+ 
+@@ -680,14 +680,14 @@ func InstallPackages(ctx context.Context, patterns []string, pkgs []*load.Packag
+ 			case p.Name != "main" && p.Module != nil:
+ 				// Non-executables have no target (except the cache) when building with modules.
+ 			case p.Internal.GobinSubdir:
+-				base.Errorf("go %s: cannot install cross-compiled binaries when GOBIN is set", cfg.CmdName)
++				base.Errorf("go: cannot install cross-compiled binaries when GOBIN is set")
+ 			case p.Internal.CmdlineFiles:
+-				base.Errorf("go %s: no install location for .go files listed on command line (GOBIN not set)", cfg.CmdName)
++				base.Errorf("go: no install location for .go files listed on command line (GOBIN not set)")
+ 			case p.ConflictDir != "":
+-				base.Errorf("go %s: no install location for %s: hidden by %s", cfg.CmdName, p.Dir, p.ConflictDir)
++				base.Errorf("go: no install location for %s: hidden by %s", p.Dir, p.ConflictDir)
+ 			default:
+-				base.Errorf("go %s: no install location for directory %s outside GOPATH\n"+
+-					"\tFor more details see: 'go help gopath'", cfg.CmdName, p.Dir)
++				base.Errorf("go: no install location for directory %s outside GOPATH\n"+
++					"\tFor more details see: 'go help gopath'", p.Dir)
+ 			}
+ 		}
+ 	}
+@@ -782,7 +782,7 @@ func installOutsideModule(ctx context.Context, args []string) {
+ 	pkgOpts := load.PackageOpts{MainOnly: true}
+ 	pkgs, err := load.PackagesAndErrorsOutsideModule(ctx, pkgOpts, args)
+ 	if err != nil {
+-		base.Fatalf("go install: %v", err)
++		base.Fatalf("go: %v", err)
+ 	}
+ 	load.CheckPackageErrors(pkgs)
+ 	patterns := make([]string, len(args))
+diff --git a/src/cmd/go/internal/work/init.go b/src/cmd/go/internal/work/init.go
+index 7acee3dd55..7aa8dfe55f 100644
+--- a/src/cmd/go/internal/work/init.go
++++ b/src/cmd/go/internal/work/init.go
+@@ -13,7 +13,6 @@ import (
+ 	"cmd/go/internal/modload"
+ 	"cmd/internal/str"
+ 	"cmd/internal/sys"
+-	"flag"
+ 	"fmt"
+ 	"os"
+ 	"path/filepath"
+@@ -33,7 +32,7 @@ func BuildInit() {
+ 	if cfg.BuildPkgdir != "" && !filepath.IsAbs(cfg.BuildPkgdir) {
+ 		p, err := filepath.Abs(cfg.BuildPkgdir)
+ 		if err != nil {
+-			fmt.Fprintf(os.Stderr, "go %s: evaluating -pkgdir: %v\n", flag.Args()[0], err)
++			fmt.Fprintf(os.Stderr, "go: evaluating -pkgdir: %v\n", err)
+ 			base.SetExitStatus(2)
+ 			base.Exit()
+ 		}
+@@ -49,14 +48,14 @@ func BuildInit() {
+ 		value := cfg.Getenv(key)
+ 		args, err := str.SplitQuotedFields(value)
+ 		if err != nil {
+-			base.Fatalf("go %s: %s environment variable could not be parsed: %v", flag.Args()[0], key, err)
++			base.Fatalf("go: %s environment variable could not be parsed: %v", key, err)
+ 		}
+ 		if len(args) == 0 {
+ 			continue
+ 		}
+ 		path := args[0]
+ 		if !filepath.IsAbs(path) && path != filepath.Base(path) {
+-			base.Fatalf("go %s: %s environment variable is relative; must be absolute path: %s\n", flag.Args()[0], key, path)
++			base.Fatalf("go: %s environment variable is relative; must be absolute path: %s\n", key, path)
+ 		}
+ 	}
+ }
+@@ -66,7 +65,7 @@ func instrumentInit() {
+ 		return
+ 	}
+ 	if cfg.BuildRace && cfg.BuildMSan {
+-		fmt.Fprintf(os.Stderr, "go %s: may not use -race and -msan simultaneously\n", flag.Args()[0])
++		fmt.Fprintf(os.Stderr, "go: may not use -race and -msan simultaneously\n")
+ 		base.SetExitStatus(2)
+ 		base.Exit()
+ 	}
+@@ -77,7 +76,7 @@ func instrumentInit() {
+ 	}
+ 	if cfg.BuildRace {
+ 		if !sys.RaceDetectorSupported(cfg.Goos, cfg.Goarch) {
+-			fmt.Fprintf(os.Stderr, "go %s: -race is only supported on linux/amd64, linux/ppc64le, linux/arm64, freebsd/amd64, netbsd/amd64, darwin/amd64, darwin/arm64, and windows/amd64\n", flag.Args()[0])
++			fmt.Fprintf(os.Stderr, "go: -race is only supported on linux/amd64, linux/ppc64le, linux/arm64, freebsd/amd64, netbsd/amd64, darwin/amd64, darwin/arm64, and windows/amd64\n")
+ 			base.SetExitStatus(2)
+ 			base.Exit()
+ 		}
+@@ -95,9 +94,9 @@ func instrumentInit() {
+ 
+ 	if !cfg.BuildContext.CgoEnabled {
+ 		if runtime.GOOS != cfg.Goos || runtime.GOARCH != cfg.Goarch {
+-			fmt.Fprintf(os.Stderr, "go %s: %s requires cgo\n", flag.Args()[0], modeFlag)
++			fmt.Fprintf(os.Stderr, "go: %s requires cgo\n", modeFlag)
+ 		} else {
+-			fmt.Fprintf(os.Stderr, "go %s: %s requires cgo; enable cgo by setting CGO_ENABLED=1\n", flag.Args()[0], modeFlag)
++			fmt.Fprintf(os.Stderr, "go: %s requires cgo; enable cgo by setting CGO_ENABLED=1\n", modeFlag)
+ 		}
+ 
+ 		base.SetExitStatus(2)
+diff --git a/src/cmd/go/testdata/script/build_i_deprecate.txt b/src/cmd/go/testdata/script/build_i_deprecate.txt
+index 71356e5321..5c17995669 100644
+--- a/src/cmd/go/testdata/script/build_i_deprecate.txt
++++ b/src/cmd/go/testdata/script/build_i_deprecate.txt
+@@ -2,13 +2,13 @@
+ # TODO(golang.org/issue/41696): remove the -i flag after Go 1.16, and this test.
+ 
+ go build -n -i
+-stderr '^go build: -i flag is deprecated$'
++stderr '^go: -i flag is deprecated$'
+ 
+ go install -n -i
+-stderr '^go install: -i flag is deprecated$'
++stderr '^go: -i flag is deprecated$'
+ 
+ go test -n -i
+-stderr '^go test: -i flag is deprecated$'
++stderr '^go: -i flag is deprecated$'
+ 
+ 
+ # 'go clean -i' should not print a deprecation warning.
+diff --git a/src/cmd/go/testdata/script/env_unset.txt b/src/cmd/go/testdata/script/env_unset.txt
+index 4e0f249509..22bc845c37 100644
+--- a/src/cmd/go/testdata/script/env_unset.txt
++++ b/src/cmd/go/testdata/script/env_unset.txt
+@@ -12,13 +12,13 @@ stderr '^go(\.exe)?: unknown GOEXPERIMENT badexp$'
+ go env -u GOEXPERIMENT
+ 
+ ! go env
+-stderr '^cmd/go: unsupported GOOS/GOARCH pair bados/badarch$'
++stderr '^go: unsupported GOOS/GOARCH pair bados/badarch$'
+ 
+ ! go env -u GOOS
+-stderr '^go env -u: unsupported GOOS/GOARCH pair \w+/badarch$'
++stderr '^go: unsupported GOOS/GOARCH pair \w+/badarch$'
+ 
+ ! go env -u GOARCH
+-stderr '^go env -u: unsupported GOOS/GOARCH pair bados/\w+$'
++stderr '^go: unsupported GOOS/GOARCH pair bados/\w+$'
+ 
+ go env -u GOOS GOARCH
+ 
+diff --git a/src/cmd/go/testdata/script/env_write.txt b/src/cmd/go/testdata/script/env_write.txt
+index b5e9739167..132947c623 100644
+--- a/src/cmd/go/testdata/script/env_write.txt
++++ b/src/cmd/go/testdata/script/env_write.txt
+@@ -30,9 +30,9 @@ go env
+ 
+ # checking errors
+ ! go env -w
+-stderr 'go env -w: no KEY=VALUE arguments given'
++stderr 'go: no KEY=VALUE arguments given'
+ ! go env -u
+-stderr 'go env -u: no arguments given'
++stderr 'go: ''go env -u'' requires an argument'
+ 
+ # go env -w changes default setting
+ env root=
+@@ -111,7 +111,7 @@ stderr 'GOPATH entry is relative; must be absolute path'
+ 
+ # go env -w rejects invalid GOTMPDIR values
+ ! go env -w GOTMPDIR=x
+-stderr 'go env -w: GOTMPDIR must be an absolute path'
++stderr 'go: GOTMPDIR must be an absolute path'
+ 
+ # go env -w should accept absolute GOTMPDIR value
+ # and should not create it
+@@ -134,24 +134,24 @@ stdout ^$
+ go env -w CC=clang
+ [!windows] ! go env -w CC=./clang
+ [!windows] ! go env -w CC=bin/clang
+-[!windows] stderr 'go env -w: CC entry is relative; must be absolute path'
++[!windows] stderr 'go: CC entry is relative; must be absolute path'
+ 
+ [windows] go env -w CC=$WORK\bin\clang
+ [windows] ! go env -w CC=.\clang
+ [windows] ! go env -w CC=bin\clang
+-[windows] stderr 'go env -w: CC entry is relative; must be absolute path'
++[windows] stderr 'go: CC entry is relative; must be absolute path'
+ 
+ # go env -w rejects relative CXX values
+ [!windows] go env -w CC=/usr/bin/cpp
+ go env -w CXX=cpp
+ [!windows] ! go env -w CXX=./cpp
+ [!windows] ! go env -w CXX=bin/cpp
+-[!windows] stderr 'go env -w: CXX entry is relative; must be absolute path'
++[!windows] stderr 'go: CXX entry is relative; must be absolute path'
+ 
+ [windows] go env -w CXX=$WORK\bin\cpp
+ [windows] ! go env -w CXX=.\cpp
+ [windows] ! go env -w CXX=bin\cpp
+-[windows] stderr 'go env -w: CXX entry is relative; must be absolute path'
++[windows] stderr 'go: CXX entry is relative; must be absolute path'
+ 
+ # go env -w/-u checks validity of GOOS/ARCH combinations
+ env GOOS=
+@@ -176,9 +176,9 @@ stderr 'unsupported GOOS/GOARCH.*windows/mips$'
+ 
+ # go env -w should reject relative paths in GOMODCACHE environment.
+ ! go env -w GOMODCACHE=~/test
+-stderr 'go env -w: GOMODCACHE entry is relative; must be absolute path: "~/test"'
++stderr 'go: GOMODCACHE entry is relative; must be absolute path: "~/test"'
+ ! go env -w GOMODCACHE=./test
+-stderr 'go env -w: GOMODCACHE entry is relative; must be absolute path: "./test"'
++stderr 'go: GOMODCACHE entry is relative; must be absolute path: "./test"'
+ 
+ # go env -w checks validity of GOEXPERIMENT
+ env GOEXPERIMENT=
+diff --git a/src/cmd/go/testdata/script/get_go_file.txt b/src/cmd/go/testdata/script/get_go_file.txt
+index bed8720987..f6d0de4d06 100644
+--- a/src/cmd/go/testdata/script/get_go_file.txt
++++ b/src/cmd/go/testdata/script/get_go_file.txt
+@@ -9,15 +9,15 @@ go get -d test
+ 
+ # argument has .go suffix, is a file and exists
+ ! go get -d test.go
+-stderr 'go get test.go: arguments must be package or module paths'
++stderr 'go: test.go: arguments must be package or module paths'
+ 
+ # argument has .go suffix, doesn't exist and has no slashes
+ ! go get -d test_missing.go
+-stderr 'go get test_missing.go: arguments must be package or module paths'
++stderr 'go: test_missing.go: arguments must be package or module paths'
+ 
+ # argument has .go suffix, is a file and exists in sub-directory
+ ! go get -d test/test.go
+-stderr 'go get: test/test.go exists as a file, but ''go get'' requires package arguments'
++stderr 'go: test/test.go exists as a file, but ''go get'' requires package arguments'
+ 
+ # argument has .go suffix, doesn't exist and has slashes
+ ! go get -d test/test_missing.go
+@@ -27,19 +27,19 @@ stderr 'go get: test/test.go exists as a file, but ''go get'' requires package a
+ # argument has .go suffix, is a symlink and exists
+ [symlink] symlink test_sym.go -> test.go
+ [symlink] ! go get -d test_sym.go
+-[symlink] stderr 'go get test_sym.go: arguments must be package or module paths'
++[symlink] stderr 'go: test_sym.go: arguments must be package or module paths'
+ [symlink] rm test_sym.go
+ 
+ # argument has .go suffix, is a symlink and exists in sub-directory
+ [symlink] symlink test/test_sym.go -> test.go
+ [symlink] ! go get -d test/test_sym.go
+-[symlink] stderr 'go get: test/test_sym.go exists as a file, but ''go get'' requires package arguments'
++[symlink] stderr 'go: test/test_sym.go exists as a file, but ''go get'' requires package arguments'
+ [symlink] rm test_sym.go
+ 
+ # argument has .go suffix, is a directory and exists
+ mkdir test_dir.go
+ ! go get -d test_dir.go
+-stderr 'go get test_dir.go: arguments must be package or module paths'
++stderr 'go: test_dir.go: arguments must be package or module paths'
+ rm test_dir.go
+ 
+ # argument has .go suffix, is a directory and exists in sub-directory
+diff --git a/src/cmd/go/testdata/script/get_insecure_no_longer_supported.txt b/src/cmd/go/testdata/script/get_insecure_no_longer_supported.txt
+index 2517664dd0..00bf32fc78 100644
+--- a/src/cmd/go/testdata/script/get_insecure_no_longer_supported.txt
++++ b/src/cmd/go/testdata/script/get_insecure_no_longer_supported.txt
+@@ -3,11 +3,11 @@ env GO111MODULE=off
+ 
+ # GOPATH: Fetch with insecure, should error
+ ! go get -insecure test
+-stderr 'go get: -insecure flag is no longer supported; use GOINSECURE instead'
++stderr 'go: -insecure flag is no longer supported; use GOINSECURE instead'
+ 
+ # Modules: Set up
+ env GO111MODULE=on
+ 
+ # Modules: Fetch with insecure, should error
+ ! go get -insecure test
+-stderr 'go get: -insecure flag is no longer supported; use GOINSECURE instead'
++stderr 'go: -insecure flag is no longer supported; use GOINSECURE instead'
+diff --git a/src/cmd/go/testdata/script/gopath_install.txt b/src/cmd/go/testdata/script/gopath_install.txt
+index 4b42fc593f..6c572eae61 100644
+--- a/src/cmd/go/testdata/script/gopath_install.txt
++++ b/src/cmd/go/testdata/script/gopath_install.txt
+@@ -26,7 +26,7 @@ cd ..
+ env GOPATH= # reset to default ($HOME/go, which does not exist)
+ env GOBIN=
+ ! go install go-cmd-test/helloworld.go
+-stderr '^go install: no install location for \.go files listed on command line \(GOBIN not set\)$'
++stderr '^go: no install location for \.go files listed on command line \(GOBIN not set\)$'
+ 
+ # With $GOBIN set, should install there.
+ env GOBIN=$WORK/bin1
+diff --git a/src/cmd/go/testdata/script/gopath_local.txt b/src/cmd/go/testdata/script/gopath_local.txt
+index 7ee1f83471..54beaca5e8 100644
+--- a/src/cmd/go/testdata/script/gopath_local.txt
++++ b/src/cmd/go/testdata/script/gopath_local.txt
+@@ -22,7 +22,7 @@ stdout '^sub\.Hello'
+ # Explicit source files listed on the command line should not install without
+ # GOBIN set, since individual source files aren't part of the containing GOPATH.
+ ! go install testdata/local/easy.go
+-stderr '^go install: no install location for \.go files listed on command line \(GOBIN not set\)$'
++stderr '^go: no install location for \.go files listed on command line \(GOBIN not set\)$'
+ 
+ [windows] stop  # Windows does not allow the ridiculous directory name we're about to use.
+ 
+@@ -58,7 +58,7 @@ stdout '^sub\.Hello'
+ # Explicit source files listed on the command line should not install without
+ # GOBIN set, since individual source files aren't part of the containing GOPATH.
+ ! go install testdata/$BAD_DIR_NAME/easy.go
+-stderr '^go install: no install location for \.go files listed on command line \(GOBIN not set\)$'
++stderr '^go: no install location for \.go files listed on command line \(GOBIN not set\)$'
+ 
+ -- testdata/local/easy.go --
+ package main
+diff --git a/src/cmd/go/testdata/script/govcs.txt b/src/cmd/go/testdata/script/govcs.txt
+index 4180d7da6a..e8dd791267 100644
+--- a/src/cmd/go/testdata/script/govcs.txt
++++ b/src/cmd/go/testdata/script/govcs.txt
+@@ -5,40 +5,40 @@ env GOPROXY=direct
+ # GOVCS stops go get
+ env GOVCS='*:none'
+ ! go get github.com/google/go-cmp
+-stderr '^go get: GOVCS disallows using git for public github.com/google/go-cmp; see ''go help vcs''$'
++stderr '^go: GOVCS disallows using git for public github.com/google/go-cmp; see ''go help vcs''$'
+ env GOPRIVATE='github.com/google'
+ ! go get github.com/google/go-cmp
+-stderr '^go get: GOVCS disallows using git for private github.com/google/go-cmp; see ''go help vcs''$'
++stderr '^go: GOVCS disallows using git for private github.com/google/go-cmp; see ''go help vcs''$'
+ 
+ # public pattern works
+ env GOPRIVATE='github.com/google'
+ env GOVCS='public:all,private:none'
+ ! go get github.com/google/go-cmp
+-stderr '^go get: GOVCS disallows using git for private github.com/google/go-cmp; see ''go help vcs''$'
++stderr '^go: GOVCS disallows using git for private github.com/google/go-cmp; see ''go help vcs''$'
+ 
+ # private pattern works
+ env GOPRIVATE='hubgit.com/google'
+ env GOVCS='private:all,public:none'
+ ! go get github.com/google/go-cmp
+-stderr '^go get: GOVCS disallows using git for public github.com/google/go-cmp; see ''go help vcs''$'
++stderr '^go: GOVCS disallows using git for public github.com/google/go-cmp; see ''go help vcs''$'
+ 
+ # other patterns work (for more patterns, see TestGOVCS)
+ env GOPRIVATE=
+ env GOVCS='github.com:svn|hg'
+ ! go get github.com/google/go-cmp
+-stderr '^go get: GOVCS disallows using git for public github.com/google/go-cmp; see ''go help vcs''$'
++stderr '^go: GOVCS disallows using git for public github.com/google/go-cmp; see ''go help vcs''$'
+ env GOVCS='github.com/google/go-cmp/inner:git,github.com:svn|hg'
+ ! go get github.com/google/go-cmp
+-stderr '^go get: GOVCS disallows using git for public github.com/google/go-cmp; see ''go help vcs''$'
++stderr '^go: GOVCS disallows using git for public github.com/google/go-cmp; see ''go help vcs''$'
+ 
+ # bad patterns are reported (for more bad patterns, see TestGOVCSErrors)
+ env GOVCS='git'
+ ! go get github.com/google/go-cmp
+-stderr '^go get github.com/google/go-cmp: malformed entry in GOVCS \(missing colon\): "git"$'
++stderr '^go: github.com/google/go-cmp: malformed entry in GOVCS \(missing colon\): "git"$'
+ 
+ env GOVCS=github.com:hg,github.com:git
+ ! go get github.com/google/go-cmp
+-stderr '^go get github.com/google/go-cmp: unreachable pattern in GOVCS: "github.com:git" after "github.com:hg"$'
++stderr '^go: github.com/google/go-cmp: unreachable pattern in GOVCS: "github.com:git" after "github.com:hg"$'
+ 
+ # bad GOVCS patterns do not stop commands that do not need to check VCS
+ go list
+@@ -50,19 +50,19 @@ env GOPROXY=direct
+ env GOPRIVATE=
+ env GOVCS=
+ ! go get rsc.io/nonexist.svn/hello
+-stderr '^go get rsc.io/nonexist.svn/hello: GOVCS disallows using svn for public rsc.io/nonexist.svn; see ''go help vcs''$'
++stderr '^go: rsc.io/nonexist.svn/hello: GOVCS disallows using svn for public rsc.io/nonexist.svn; see ''go help vcs''$'
+ 
+ # fossil is disallowed by default
+ env GOPRIVATE=
+ env GOVCS=
+ ! go get rsc.io/nonexist.fossil/hello
+-stderr '^go get rsc.io/nonexist.fossil/hello: GOVCS disallows using fossil for public rsc.io/nonexist.fossil; see ''go help vcs''$'
++stderr '^go: rsc.io/nonexist.fossil/hello: GOVCS disallows using fossil for public rsc.io/nonexist.fossil; see ''go help vcs''$'
+ 
+ # bzr is disallowed by default
+ env GOPRIVATE=
+ env GOVCS=
+ ! go get rsc.io/nonexist.bzr/hello
+-stderr '^go get rsc.io/nonexist.bzr/hello: GOVCS disallows using bzr for public rsc.io/nonexist.bzr; see ''go help vcs''$'
++stderr '^go: rsc.io/nonexist.bzr/hello: GOVCS disallows using bzr for public rsc.io/nonexist.bzr; see ''go help vcs''$'
+ 
+ # git is OK by default
+ env GOVCS=
+@@ -77,12 +77,12 @@ env GONOSUMDB='*'
+ # git can be disallowed
+ env GOVCS=public:hg
+ ! go get rsc.io/nonexist.git/hello
+-stderr '^go get rsc.io/nonexist.git/hello: GOVCS disallows using git for public rsc.io/nonexist.git; see ''go help vcs''$'
++stderr '^go: rsc.io/nonexist.git/hello: GOVCS disallows using git for public rsc.io/nonexist.git; see ''go help vcs''$'
+ 
+ # hg can be disallowed
+ env GOVCS=public:git
+ ! go get rsc.io/nonexist.hg/hello
+-stderr '^go get rsc.io/nonexist.hg/hello: GOVCS disallows using hg for public rsc.io/nonexist.hg; see ''go help vcs''$'
++stderr '^go: rsc.io/nonexist.hg/hello: GOVCS disallows using hg for public rsc.io/nonexist.hg; see ''go help vcs''$'
+ 
+ # Repeat in GOPATH mode. Error texts slightly different.
+ 
+diff --git a/src/cmd/go/testdata/script/list_shadow.txt b/src/cmd/go/testdata/script/list_shadow.txt
+index 7b24d9367a..660508de9f 100644
+--- a/src/cmd/go/testdata/script/list_shadow.txt
++++ b/src/cmd/go/testdata/script/list_shadow.txt
+@@ -15,7 +15,7 @@ stdout '^\(.*gopath(\\|/)src(\\|/)shadow(\\|/)root2(\\|/)src(\\|/)foo\) \('$WORK
+ 
+ # The error for go install should mention the conflicting directory.
+ ! go install -n ./shadow/root2/src/foo
+-stderr 'go install: no install location for '$WORK'(\\|/)?gopath(\\|/)src(\\|/)shadow(\\|/)root2(\\|/)src(\\|/)foo: hidden by '$WORK'(\\|/)?gopath(\\|/)src(\\|/)shadow(\\|/)root1(\\|/)src(\\|/)foo'
++stderr 'go: no install location for '$WORK'(\\|/)?gopath(\\|/)src(\\|/)shadow(\\|/)root2(\\|/)src(\\|/)foo: hidden by '$WORK'(\\|/)?gopath(\\|/)src(\\|/)shadow(\\|/)root1(\\|/)src(\\|/)foo'
+ 
+ -- shadow/root1/src/foo/foo.go --
+ package foo
+diff --git a/src/cmd/go/testdata/script/mod_bad_domain.txt b/src/cmd/go/testdata/script/mod_bad_domain.txt
+index 7a270d0f07..ed6a8c656d 100644
+--- a/src/cmd/go/testdata/script/mod_bad_domain.txt
++++ b/src/cmd/go/testdata/script/mod_bad_domain.txt
+@@ -2,7 +2,7 @@ env GO111MODULE=on
+ 
+ # explicit get should report errors about bad names
+ ! go get appengine
+-stderr '^go get: malformed module path "appengine": missing dot in first path element$'
++stderr '^go: malformed module path "appengine": missing dot in first path element$'
+ ! go get x/y.z
+ stderr 'malformed module path "x/y.z": missing dot in first path element'
+ 
+diff --git a/src/cmd/go/testdata/script/mod_dot.txt b/src/cmd/go/testdata/script/mod_dot.txt
+index ca8d5c6cc2..cb60e988b6 100644
+--- a/src/cmd/go/testdata/script/mod_dot.txt
++++ b/src/cmd/go/testdata/script/mod_dot.txt
+@@ -5,11 +5,11 @@ env GO111MODULE=on
+ # to resolve an external module.
+ cd dir
+ ! go get
+-stderr '^go get: no package in current directory$'
++stderr '^go: no package to get in current directory$'
+ ! go get .
+-stderr '^go get \.: no package in current directory$'
++stderr '^go: .: no package to get in current directory$'
+ ! go get ./subdir
+-stderr '^go get: \.[/\\]subdir \('$WORK'[/\\]gopath[/\\]src[/\\]dir[/\\]subdir\) is not a package in module rooted at '$WORK'[/\\]gopath[/\\]src[/\\]dir$'
++stderr '^go: \.[/\\]subdir \('$WORK'[/\\]gopath[/\\]src[/\\]dir[/\\]subdir\) is not a package in module rooted at '$WORK'[/\\]gopath[/\\]src[/\\]dir$'
+ ! go list
+ ! stderr 'cannot find module providing package'
+ stderr '^no Go files in '$WORK'[/\\]gopath[/\\]src[/\\]dir$'
+diff --git a/src/cmd/go/testdata/script/mod_download.txt b/src/cmd/go/testdata/script/mod_download.txt
+index c2b72b2a02..89e58a2cfd 100644
+--- a/src/cmd/go/testdata/script/mod_download.txt
++++ b/src/cmd/go/testdata/script/mod_download.txt
+@@ -93,19 +93,19 @@ exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.1.zip
+ 
+ # download reports errors encountered when locating modules
+ ! go mod download bad/path
+-stderr '^go mod download: module bad/path: not a known dependency$'
++stderr '^go: module bad/path: not a known dependency$'
+ ! go mod download bad/path@latest
+-stderr '^go mod download: bad/path@latest: malformed module path "bad/path": missing dot in first path element$'
++stderr '^go: bad/path@latest: malformed module path "bad/path": missing dot in first path element$'
+ ! go mod download rsc.io/quote@v1.999.999
+-stderr '^go mod download: rsc.io/quote@v1.999.999: reading .*/v1.999.999.info: 404 Not Found$'
++stderr '^go: rsc.io/quote@v1.999.999: reading .*/v1.999.999.info: 404 Not Found$'
+ ! go mod download -json bad/path
+ stdout '^\t"Error": "module bad/path: not a known dependency"'
+ 
+ # download main module produces a warning or error
+ go mod download m
+-stderr '^go mod download: skipping argument m that resolves to the main module\n'
++stderr '^go: skipping download of m that resolves to the main module\n'
+ ! go mod download m@latest
+-stderr '^go mod download: m@latest: malformed module path "m": missing dot in first path element$'
++stderr '^go: m@latest: malformed module path "m": missing dot in first path element$'
+ 
+ # download without arguments updates go.mod and go.sum after loading the
+ # build list, but does not save sums for downloaded zips.
+diff --git a/src/cmd/go/testdata/script/mod_edit.txt b/src/cmd/go/testdata/script/mod_edit.txt
+index 5aa5ca1ffc..ebc032a73c 100644
+--- a/src/cmd/go/testdata/script/mod_edit.txt
++++ b/src/cmd/go/testdata/script/mod_edit.txt
+@@ -23,18 +23,18 @@ cmpenv go.mod $WORK/go.mod.edit2
+ 
+ # -exclude and -retract reject invalid versions.
+ ! go mod edit -exclude=example.com/m@bad
+-stderr '^go mod: -exclude=example.com/m@bad: version "bad" invalid: must be of the form v1.2.3$'
++stderr '^go: -exclude=example.com/m@bad: version "bad" invalid: must be of the form v1.2.3$'
+ ! go mod edit -retract=bad
+-stderr '^go mod: -retract=bad: version "bad" invalid: must be of the form v1.2.3$'
++stderr '^go: -retract=bad: version "bad" invalid: must be of the form v1.2.3$'
+ 
+ ! go mod edit -exclude=example.com/m@v2.0.0
+-stderr '^go mod: -exclude=example.com/m@v2\.0\.0: version "v2\.0\.0" invalid: should be v2\.0\.0\+incompatible \(or module example\.com/m/v2\)$'
++stderr '^go: -exclude=example.com/m@v2\.0\.0: version "v2\.0\.0" invalid: should be v2\.0\.0\+incompatible \(or module example\.com/m/v2\)$'
+ 
+ ! go mod edit -exclude=example.com/m/v2@v1.0.0
+-stderr '^go mod: -exclude=example.com/m/v2@v1\.0\.0: version "v1\.0\.0" invalid: should be v2, not v1$'
++stderr '^go: -exclude=example.com/m/v2@v1\.0\.0: version "v1\.0\.0" invalid: should be v2, not v1$'
+ 
+ ! go mod edit -exclude=gopkg.in/example.v1@v2.0.0
+-stderr '^go mod: -exclude=gopkg\.in/example\.v1@v2\.0\.0: version "v2\.0\.0" invalid: should be v1, not v2$'
++stderr '^go: -exclude=gopkg\.in/example\.v1@v2\.0\.0: version "v2\.0\.0" invalid: should be v1, not v2$'
+ 
+ cmpenv go.mod $WORK/go.mod.edit2
+ 
+diff --git a/src/cmd/go/testdata/script/mod_get_changes.txt b/src/cmd/go/testdata/script/mod_get_changes.txt
+index 3287b2a609..2829111fe5 100644
+--- a/src/cmd/go/testdata/script/mod_get_changes.txt
++++ b/src/cmd/go/testdata/script/mod_get_changes.txt
+@@ -4,8 +4,8 @@
+ go list -m all
+ ! stdout golang.org/x/text
+ go get -d rsc.io/quote@v1.5.2
+-stderr '^go get: added rsc.io/quote v1.5.2$'
+-stderr '^go get: upgraded rsc.io/sampler v1.0.0 => v1.3.0$'
++stderr '^go: added rsc.io/quote v1.5.2$'
++stderr '^go: upgraded rsc.io/sampler v1.0.0 => v1.3.0$'
+ ! stderr '^go get.*golang.org/x/text'
+ go list -m all
+ stdout golang.org/x/text
+@@ -15,8 +15,8 @@ cmp go.mod go.mod.upgrade
+ # and for changed explicit dependencies. 'go get' does not print messages
+ # for changed indirect dependencies.
+ go get -d rsc.io/sampler@none
+-stderr '^go get: downgraded rsc.io/quote v1.5.2 => v1.3.0$'
+-stderr '^go get: removed rsc.io/sampler v1.3.0$'
++stderr '^go: downgraded rsc.io/quote v1.5.2 => v1.3.0$'
++stderr '^go: removed rsc.io/sampler v1.3.0$'
+ ! stderr '^go get.*golang.org/x/text'
+ cmp go.mod go.mod.downgrade
+ 
+@@ -24,8 +24,8 @@ cmp go.mod go.mod.downgrade
+ # for explicit dependencies removed as a consequence.
+ cp go.mod.usequote go.mod
+ go get -d rsc.io/quote@v1.5.1
+-stderr '^go get: downgraded rsc.io/quote v1.5.2 => v1.5.1$'
+-stderr '^go get: removed usequote v0.0.0$'
++stderr '^go: downgraded rsc.io/quote v1.5.2 => v1.5.1$'
++stderr '^go: removed usequote v0.0.0$'
+ 
+ -- go.mod --
+ module m
+diff --git a/src/cmd/go/testdata/script/mod_get_deprecate_install.txt b/src/cmd/go/testdata/script/mod_get_deprecate_install.txt
+index 63cd27a42d..e8142afee9 100644
+--- a/src/cmd/go/testdata/script/mod_get_deprecate_install.txt
++++ b/src/cmd/go/testdata/script/mod_get_deprecate_install.txt
+@@ -4,7 +4,7 @@ env GO111MODULE=on
+ 
+ # 'go get' outside a module with an executable prints a deprecation message.
+ go get example.com/cmd/a
+-stderr '^go get: installing executables with ''go get'' in module mode is deprecated.$'
++stderr '^go: installing executables with ''go get'' in module mode is deprecated.$'
+ stderr 'Use ''go install pkg@version'' instead.'
+ 
+ cp go.mod.orig go.mod
+@@ -18,7 +18,7 @@ cp go.mod.orig go.mod
+ # 'go get' inside a module with an executable prints a different
+ # deprecation message.
+ go get example.com/cmd/a
+-stderr '^go get: installing executables with ''go get'' in module mode is deprecated.$'
++stderr '^go: installing executables with ''go get'' in module mode is deprecated.$'
+ stderr 'To adjust and download dependencies of the current module, use ''go get -d'''
+ cp go.mod.orig go.mod
+ 
+diff --git a/src/cmd/go/testdata/script/mod_get_downgrade.txt b/src/cmd/go/testdata/script/mod_get_downgrade.txt
+index c26c5e1c21..685bde7efd 100644
+--- a/src/cmd/go/testdata/script/mod_get_downgrade.txt
++++ b/src/cmd/go/testdata/script/mod_get_downgrade.txt
+@@ -20,8 +20,8 @@ stdout 'rsc.io/quote v1.5.1'
+ stdout 'rsc.io/sampler v1.3.0'
+ 
+ ! go get -d rsc.io/sampler@v1.0.0 rsc.io/quote@v1.5.2 golang.org/x/text@none
+-stderr -count=1 '^go get:'
+-stderr '^go get: rsc.io/quote@v1.5.2 requires rsc.io/sampler@v1.3.0, not rsc.io/sampler@v1.0.0$'
++! stderr add|remove|upgrad|downgrad
++stderr '^go: rsc.io/quote@v1.5.2 requires rsc.io/sampler@v1.3.0, not rsc.io/sampler@v1.0.0$'
+ 
+ go list -m all
+ stdout 'rsc.io/quote v1.5.1'
+diff --git a/src/cmd/go/testdata/script/mod_get_downgrade_missing.txt b/src/cmd/go/testdata/script/mod_get_downgrade_missing.txt
+index 5b768faeb1..2068cae755 100644
+--- a/src/cmd/go/testdata/script/mod_get_downgrade_missing.txt
++++ b/src/cmd/go/testdata/script/mod_get_downgrade_missing.txt
+@@ -5,7 +5,7 @@ cp go.mod go.mod.orig
+ # rather than a "matched no packages" warning.
+ 
+ ! go get -d example.net/pkgadded@v1.1.0 example.net/pkgadded/subpkg/...
+-stderr '^go get: example.net/pkgadded@v1.1.0 conflicts with example.net/pkgadded/subpkg/...@upgrade \(v1.2.0\)$'
++stderr '^go: example.net/pkgadded@v1.1.0 conflicts with example.net/pkgadded/subpkg/...@upgrade \(v1.2.0\)$'
+ ! stderr 'matched no packages'
+ cmp go.mod.orig go.mod
+ 
+diff --git a/src/cmd/go/testdata/script/mod_get_go_file.txt b/src/cmd/go/testdata/script/mod_get_go_file.txt
+index 0c7b5dc11c..35a77a9d83 100644
+--- a/src/cmd/go/testdata/script/mod_get_go_file.txt
++++ b/src/cmd/go/testdata/script/mod_get_go_file.txt
+@@ -17,7 +17,7 @@ env GO111MODULE=on
+ 
+ # argument has .go suffix, is a file and exists
+ ! go get test.go
+-stderr 'go get test.go: arguments must be package or module paths'
++stderr 'go: test.go: arguments must be package or module paths'
+ 
+ # argument has .go suffix, doesn't exist and has no slashes
+ ! go get test_missing.go
+@@ -25,7 +25,7 @@ stderr 'arguments must be package or module paths'
+ 
+ # argument has .go suffix, is a file and exists in sub-directory
+ ! go get test/test.go
+-stderr 'go get: test/test.go exists as a file, but ''go get'' requires package arguments'
++stderr 'go: test/test.go exists as a file, but ''go get'' requires package arguments'
+ 
+ # argument has .go suffix, doesn't exist and has slashes
+ ! go get test/test_missing.go
+@@ -35,19 +35,19 @@ stderr 'go get: test/test.go exists as a file, but ''go get'' requires package a
+ # argument has .go suffix, is a symlink and exists
+ [symlink] symlink test_sym.go -> test.go
+ [symlink] ! go get test_sym.go
+-[symlink] stderr 'go get test_sym.go: arguments must be package or module paths'
++[symlink] stderr 'go: test_sym.go: arguments must be package or module paths'
+ [symlink] rm test_sym.go
+ 
+ # argument has .go suffix, is a symlink and exists in sub-directory
+ [symlink] symlink test/test_sym.go -> test.go
+ [symlink] ! go get test/test_sym.go
+-[symlink] stderr 'go get: test/test_sym.go exists as a file, but ''go get'' requires package arguments'
++[symlink] stderr 'go: test/test_sym.go exists as a file, but ''go get'' requires package arguments'
+ [symlink] rm test_sym.go
+ 
+ # argument has .go suffix, is a directory and exists
+ mkdir test_dir.go
+ ! go get test_dir.go
+-stderr 'go get test_dir.go: arguments must be package or module paths'
++stderr 'go: test_dir.go: arguments must be package or module paths'
+ rm test_dir.go
+ 
+ # argument has .go suffix, is a directory and exists in sub-directory
+diff --git a/src/cmd/go/testdata/script/mod_get_main.txt b/src/cmd/go/testdata/script/mod_get_main.txt
+index 50b2fee9ae..5c9b762543 100644
+--- a/src/cmd/go/testdata/script/mod_get_main.txt
++++ b/src/cmd/go/testdata/script/mod_get_main.txt
+@@ -3,13 +3,13 @@ cp go.mod.orig go.mod
+ 
+ # relative and absolute paths must be within the main module.
+ ! go get -d ..
+-stderr '^go get: \.\. \('$WORK'[/\\]gopath\) is not within module rooted at '$WORK'[/\\]gopath[/\\]src$'
++stderr '^go: \.\. \('$WORK'[/\\]gopath\) is not within module rooted at '$WORK'[/\\]gopath[/\\]src$'
+ ! go get -d $WORK
+-stderr '^go get: '$WORK' is not within module rooted at '$WORK'[/\\]gopath[/\\]src$'
++stderr '^go: '$WORK' is not within module rooted at '$WORK'[/\\]gopath[/\\]src$'
+ ! go get -d ../...
+-stderr '^go get: \.\./\.\.\. \('$WORK'[/\\]gopath([/\\]...)?\) is not within module rooted at '$WORK'[/\\]gopath[/\\]src$'
++stderr '^go: \.\./\.\.\. \('$WORK'[/\\]gopath([/\\]...)?\) is not within module rooted at '$WORK'[/\\]gopath[/\\]src$'
+ ! go get -d $WORK/...
+-stderr '^go get: '$WORK'[/\\]\.\.\. is not within module rooted at '$WORK'[/\\]gopath[/\\]src$'
++stderr '^go: '$WORK'[/\\]\.\.\. is not within module rooted at '$WORK'[/\\]gopath[/\\]src$'
+ 
+ # @patch and @latest within the main module refer to the current version.
+ # The main module won't be upgraded, but missing dependencies will be added.
+@@ -31,15 +31,15 @@ grep 'rsc.io/quote v1.5.1' go.mod
+ 
+ # The main module cannot be updated to a specific version.
+ ! go get -d rsc.io@v0.1.0
+-stderr '^go get: can''t request version "v0.1.0" of the main module \(rsc.io\)$'
++stderr '^go: can''t request version "v0.1.0" of the main module \(rsc.io\)$'
+ 
+ # A package in the main module can't be upgraded either.
+ ! go get -d rsc.io/x@v0.1.0
+-stderr '^go get: package rsc.io/x is in the main module, so can''t request version v0.1.0$'
++stderr '^go: package rsc.io/x is in the main module, so can''t request version v0.1.0$'
+ 
+ # Nor can a pattern matching packages in the main module.
+ ! go get -d rsc.io/x/...@latest
+-stderr '^go get: pattern rsc.io/x/... matches package rsc.io/x in the main module, so can''t request version latest$'
++stderr '^go: pattern rsc.io/x/... matches package rsc.io/x in the main module, so can''t request version latest$'
+ 
+ -- go.mod.orig --
+ module rsc.io
+diff --git a/src/cmd/go/testdata/script/mod_get_newcycle.txt b/src/cmd/go/testdata/script/mod_get_newcycle.txt
+index f71620c1bc..18dc650361 100644
+--- a/src/cmd/go/testdata/script/mod_get_newcycle.txt
++++ b/src/cmd/go/testdata/script/mod_get_newcycle.txt
+@@ -11,4 +11,4 @@ go mod init m
+ cmp stderr stderr-expected
+ 
+ -- stderr-expected --
+-go get: example.com/newcycle/a@v1.0.0 requires example.com/newcycle/a@v1.0.1, not example.com/newcycle/a@v1.0.0
++go: example.com/newcycle/a@v1.0.0 requires example.com/newcycle/a@v1.0.1, not example.com/newcycle/a@v1.0.0
+diff --git a/src/cmd/go/testdata/script/mod_get_nopkgs.txt b/src/cmd/go/testdata/script/mod_get_nopkgs.txt
+index 078e71a041..2711f93498 100644
+--- a/src/cmd/go/testdata/script/mod_get_nopkgs.txt
++++ b/src/cmd/go/testdata/script/mod_get_nopkgs.txt
+@@ -16,7 +16,7 @@ go get -d example.net/emptysubdir/... # control case
+ 
+ ! go get -d example.net/emptysubdir/subdir/...
+ ! stderr 'matched no packages'
+-stderr '^go get example\.net/emptysubdir/subdir/\.\.\.: module example\.net/emptysubdir/subdir: reading http://.*: 404 Not Found\n\tserver response: 404 page not found\n\z'
++stderr '^go: example\.net/emptysubdir/subdir/\.\.\.: module example\.net/emptysubdir/subdir: reading http://.*: 404 Not Found\n\tserver response: 404 page not found\n\z'
+ 
+ # It doesn't make sense to 'go get' a path in the standard library,
+ # since the standard library necessarily can't have unresolved imports.
+@@ -27,7 +27,7 @@ stderr '^go get example\.net/emptysubdir/subdir/\.\.\.: module example\.net/empt
+ # which isn't ideal either.
+ 
+ ! go get -d builtin/...  # in GOROOT/src, but contains no packages
+-stderr '^go get builtin/...: malformed module path "builtin": missing dot in first path element$'
++stderr '^go: builtin/...: malformed module path "builtin": missing dot in first path element$'
+ 
+ -- go.mod --
+ module example.net/emptysubdir
+diff --git a/src/cmd/go/testdata/script/mod_get_patch.txt b/src/cmd/go/testdata/script/mod_get_patch.txt
+index 053ef62147..5957a360b0 100644
+--- a/src/cmd/go/testdata/script/mod_get_patch.txt
++++ b/src/cmd/go/testdata/script/mod_get_patch.txt
+@@ -8,7 +8,7 @@ cp go.mod go.mod.orig
+ # at the start of 'go get', not the version after applying other changes.
+ 
+ ! go get -d example.net/a@v0.2.0 example.net/b@patch
+-stderr '^go get: example.net/a@v0.2.0 requires example.net/b@v0.2.0, not example.net/b@patch \(v0.1.1\)$'
++stderr '^go: example.net/a@v0.2.0 requires example.net/b@v0.2.0, not example.net/b@patch \(v0.1.1\)$'
+ cmp go.mod go.mod.orig
+ 
+ 
+@@ -19,7 +19,7 @@ cmp go.mod go.mod.orig
+ # TODO(#42360): Reconsider the change in defaults.
+ 
+ ! go get -d -u=patch example.net/a@v0.2.0 example.net/b
+-stderr '^go get: example.net/a@v0.2.0 requires example.net/b@v0.2.0, not example.net/b@patch \(v0.1.1\)$'
++stderr '^go: example.net/a@v0.2.0 requires example.net/b@v0.2.0, not example.net/b@patch \(v0.1.1\)$'
+ cmp go.mod go.mod.orig
+ 
+ 
+@@ -38,7 +38,7 @@ stdout '^example.net/b v0.2.1 '
+ 
+ cp go.mod.orig go.mod
+ ! go get -u=patch all
+-stderr '^go get: example.net/a@v0.1.1 \(matching all@patch\) requires example.net/b@v0.2.0, not example.net/b@v0.1.1 \(matching all@patch\)$'
++stderr '^go: example.net/a@v0.1.1 \(matching all@patch\) requires example.net/b@v0.2.0, not example.net/b@v0.1.1 \(matching all@patch\)$'
+ cmp go.mod go.mod.orig
+ 
+ 
+diff --git a/src/cmd/go/testdata/script/mod_get_patchcycle.txt b/src/cmd/go/testdata/script/mod_get_patchcycle.txt
+index d1db56f935..6600109d2d 100644
+--- a/src/cmd/go/testdata/script/mod_get_patchcycle.txt
++++ b/src/cmd/go/testdata/script/mod_get_patchcycle.txt
+@@ -6,7 +6,7 @@
+ # (It used to print v0.1.1 but then silently upgrade to v0.2.0.)
+ 
+ ! go get example.net/a@patch
+-stderr '^go get: example.net/a@patch \(v0.1.1\) requires example.net/a@v0.2.0, not example.net/a@patch \(v0.1.1\)$'  # TODO: A mention of b v0.1.0 would be nice.
++stderr '^go: example.net/a@patch \(v0.1.1\) requires example.net/a@v0.2.0, not example.net/a@patch \(v0.1.1\)$'  # TODO: A mention of b v0.1.0 would be nice.
+ 
+ -- go.mod --
+ module example
+diff --git a/src/cmd/go/testdata/script/mod_get_patchmod.txt b/src/cmd/go/testdata/script/mod_get_patchmod.txt
+index e39d13a0f4..bc1859edc2 100644
+--- a/src/cmd/go/testdata/script/mod_get_patchmod.txt
++++ b/src/cmd/go/testdata/script/mod_get_patchmod.txt
+@@ -16,7 +16,7 @@ cp go.mod go.mod.orig
+ # not upgraded to the latest patch of the new transitive dependency.
+ 
+ ! go get -d example.net/pkgremoved@patch example.net/other@v0.1.0
+-stderr '^go get: example.net/other@v0.1.0 requires example.net/pkgremoved@v0.2.0, not example.net/pkgremoved@patch \(v0.1.1\)$'
++stderr '^go: example.net/other@v0.1.0 requires example.net/pkgremoved@v0.2.0, not example.net/pkgremoved@patch \(v0.1.1\)$'
+ cmp go.mod.orig go.mod
+ 
+ 
+diff --git a/src/cmd/go/testdata/script/mod_get_patterns.txt b/src/cmd/go/testdata/script/mod_get_patterns.txt
+index aee4374dc8..3b5ab43339 100644
+--- a/src/cmd/go/testdata/script/mod_get_patterns.txt
++++ b/src/cmd/go/testdata/script/mod_get_patterns.txt
+@@ -10,11 +10,11 @@ grep 'require rsc.io/quote' go.mod
+ 
+ cp go.mod.orig go.mod
+ ! go get -d rsc.io/quote/x...
+-stderr 'go get: module rsc.io/quote@upgrade found \(v1.5.2\), but does not contain packages matching rsc.io/quote/x...'
++stderr 'go: module rsc.io/quote@upgrade found \(v1.5.2\), but does not contain packages matching rsc.io/quote/x...'
+ ! grep 'require rsc.io/quote' go.mod
+ 
+ ! go get -d rsc.io/quote/x/...
+-stderr 'go get: module rsc.io/quote@upgrade found \(v1.5.2\), but does not contain packages matching rsc.io/quote/x/...'
++stderr 'go: module rsc.io/quote@upgrade found \(v1.5.2\), but does not contain packages matching rsc.io/quote/x/...'
+ ! grep 'require rsc.io/quote' go.mod
+ 
+ # If a pattern matches no packages within a module, the module should not
+diff --git a/src/cmd/go/testdata/script/mod_get_pkgtags.txt b/src/cmd/go/testdata/script/mod_get_pkgtags.txt
+index 0c79ec71b7..2e2ab72032 100644
+--- a/src/cmd/go/testdata/script/mod_get_pkgtags.txt
++++ b/src/cmd/go/testdata/script/mod_get_pkgtags.txt
+@@ -59,7 +59,7 @@ stderr '^example.net/testonly tested by\n\texample.net/testonly\.test imports\n\
+ # but fail for a non-package subdirectory of a module.
+ 
+ ! go get -d example.net/missing/subdir@v0.1.0
+-stderr '^go get: module example.net/missing@v0.1.0 found \(replaced by ./missing\), but does not contain package example.net/missing/subdir$'
++stderr '^go: module example.net/missing@v0.1.0 found \(replaced by ./missing\), but does not contain package example.net/missing/subdir$'
+ 
+ go get -d example.net/missing@v0.1.0
+ 
+@@ -68,7 +68,7 @@ go get -d example.net/missing@v0.1.0
+ # module is already present in the build list.
+ 
+ ! go get -d example.net/missing/subdir@v0.1.0
+-stderr '^go get: module example.net/missing@v0.1.0 found \(replaced by ./missing\), but does not contain package example.net/missing/subdir$'
++stderr '^go: module example.net/missing@v0.1.0 found \(replaced by ./missing\), but does not contain package example.net/missing/subdir$'
+ 
+ 
+ -- go.mod --
+diff --git a/src/cmd/go/testdata/script/mod_get_private_vcs.txt b/src/cmd/go/testdata/script/mod_get_private_vcs.txt
+index 75c776a7fa..c8862f42f9 100644
+--- a/src/cmd/go/testdata/script/mod_get_private_vcs.txt
++++ b/src/cmd/go/testdata/script/mod_get_private_vcs.txt
+@@ -13,7 +13,7 @@ stderr 'If this is a private repository, see https://golang.org/doc/faq#git_http
+ # Fetching a nonexistent commit should return an "unknown revision"
+ # error message.
+ ! go get github.com/golang/term@86186f3aba07ed0212cfb944f3398997d2d07c6b
+-stderr '^go get: github.com/golang/term@86186f3aba07ed0212cfb944f3398997d2d07c6b: invalid version: unknown revision 86186f3aba07ed0212cfb944f3398997d2d07c6b$'
++stderr '^go: github.com/golang/term@86186f3aba07ed0212cfb944f3398997d2d07c6b: invalid version: unknown revision 86186f3aba07ed0212cfb944f3398997d2d07c6b$'
+ ! stdout .
+ 
+ ! go get github.com/golang/nonexist@master
+diff --git a/src/cmd/go/testdata/script/mod_get_replaced.txt b/src/cmd/go/testdata/script/mod_get_replaced.txt
+index d97f3f1a40..ab21bd57fa 100644
+--- a/src/cmd/go/testdata/script/mod_get_replaced.txt
++++ b/src/cmd/go/testdata/script/mod_get_replaced.txt
+@@ -82,7 +82,7 @@ cp go.mod.orig go.mod
+ ! go list example
+ stderr '^package example is not in GOROOT \(.*\)$'
+ ! go get -d example
+-stderr '^go get: malformed module path "example": missing dot in first path element$'
++stderr '^go: malformed module path "example": missing dot in first path element$'
+ 
+ go mod edit -replace example@v0.1.0=./example
+ 
+diff --git a/src/cmd/go/testdata/script/mod_get_split.txt b/src/cmd/go/testdata/script/mod_get_split.txt
+index f4e7661f9b..2fb88ab2da 100644
+--- a/src/cmd/go/testdata/script/mod_get_split.txt
++++ b/src/cmd/go/testdata/script/mod_get_split.txt
+@@ -55,7 +55,7 @@ stderr '^example.net/split/nested: ambiguous import: found package example.net/s
+ # TODO(#27899): Should we instead upgrade or downgrade to an arbirary version?
+ 
+ ! go get -d example.net/split/nested/...@v0.1.0
+-stderr '^go get: example.net/split/nested/\.\.\.@v0.1.0 matches packages in example.net/split@v0.2.0 but not example.net/split@v0.1.0: specify a different version for module example.net/split$'
++stderr '^go: example.net/split/nested/\.\.\.@v0.1.0 matches packages in example.net/split@v0.2.0 but not example.net/split@v0.1.0: specify a different version for module example.net/split$'
+ 
+ cmp go.mod go.mod.orig
+ 
+diff --git a/src/cmd/go/testdata/script/mod_get_svn.txt b/src/cmd/go/testdata/script/mod_get_svn.txt
+index 3817fce9b6..4d6b94ae5b 100644
+--- a/src/cmd/go/testdata/script/mod_get_svn.txt
++++ b/src/cmd/go/testdata/script/mod_get_svn.txt
+@@ -27,7 +27,7 @@ exists $GOPATH/bin/hello.svn$GOEXE
+ # reasonable message instead of a panic.
+ ! go get -d vcs-test.golang.org/svn/nonexistent.svn
+ ! stderr panic
+-stderr 'go get vcs-test.golang.org/svn/nonexistent.svn: no matching versions for query "upgrade"'
++stderr 'go: vcs-test.golang.org/svn/nonexistent.svn: no matching versions for query "upgrade"'
+ 
+ -- go.mod --
+ module golang/go/issues/28943/main
+diff --git a/src/cmd/go/testdata/script/mod_get_wild.txt b/src/cmd/go/testdata/script/mod_get_wild.txt
+index 78c645c6b9..b88f268a1d 100644
+--- a/src/cmd/go/testdata/script/mod_get_wild.txt
++++ b/src/cmd/go/testdata/script/mod_get_wild.txt
+@@ -12,7 +12,7 @@ stdout '^example.net/a v0.1.0 '
+ # from attempting to resolve a new module whose path is a prefix of the pattern.
+ 
+ ! go get -d -u=patch example.../b@upgrade
+-stderr '^go get: no modules to query for example\.\.\./b@upgrade because first path element contains a wildcard$'
++stderr '^go: no modules to query for example\.\.\./b@upgrade because first path element contains a wildcard$'
+ 
+ 
+ # Patching . causes a patch to example.net/a, which introduces a new match
+diff --git a/src/cmd/go/testdata/script/mod_getmode_vendor.txt b/src/cmd/go/testdata/script/mod_getmode_vendor.txt
+index 00070c03b5..a4e23ac9d0 100644
+--- a/src/cmd/go/testdata/script/mod_getmode_vendor.txt
++++ b/src/cmd/go/testdata/script/mod_getmode_vendor.txt
+@@ -11,16 +11,16 @@ stdout '^rsc.io/quote v1.5.1 .*vendor[\\/]rsc.io[\\/]quote$'
+ stdout '^golang.org/x/text v0.0.0.* .*vendor[\\/]golang.org[\\/]x[\\/]text[\\/]language$'
+ 
+ ! go list -mod=vendor -m rsc.io/quote@latest
+-stderr 'go list -m: rsc.io/quote@latest: cannot query module due to -mod=vendor'
++stderr 'go: rsc.io/quote@latest: cannot query module due to -mod=vendor'
+ ! go get -mod=vendor -u
+ stderr 'flag provided but not defined: -mod'
+ 
+ # Since we don't have a complete module graph, 'go list -m' queries
+ # that require the complete graph should fail with a useful error.
+ ! go list -mod=vendor -m all
+-stderr 'go list -m: can''t compute ''all'' using the vendor directory\n\t\(Use -mod=mod or -mod=readonly to bypass.\)'
++stderr 'go: can''t compute ''all'' using the vendor directory\n\t\(Use -mod=mod or -mod=readonly to bypass.\)'
+ ! go list -mod=vendor -m ...
+-stderr 'go list -m: can''t match module patterns using the vendor directory\n\t\(Use -mod=mod or -mod=readonly to bypass.\)'
++stderr 'go: can''t match module patterns using the vendor directory\n\t\(Use -mod=mod or -mod=readonly to bypass.\)'
+ 
+ -- go.mod --
+ module x
+diff --git a/src/cmd/go/testdata/script/mod_gonoproxy.txt b/src/cmd/go/testdata/script/mod_gonoproxy.txt
+index 204786969f..190940030c 100644
+--- a/src/cmd/go/testdata/script/mod_gonoproxy.txt
++++ b/src/cmd/go/testdata/script/mod_gonoproxy.txt
+@@ -27,13 +27,13 @@ stdout '^golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c$'
+ # When GOPROXY is not empty but contains no entries, an error should be reported.
+ env GOPROXY=','
+ ! go get -d golang.org/x/text
+-stderr '^go get golang.org/x/text: GOPROXY list is not the empty string, but contains no entries$'
++stderr '^go: golang.org/x/text: GOPROXY list is not the empty string, but contains no entries$'
+ 
+ # When GOPROXY=off, fetching modules not matched by GONOPROXY fails.
+ env GONOPROXY=*/fortune
+ env GOPROXY=off
+ ! go get -d golang.org/x/text
+-stderr '^go get golang.org/x/text: module lookup disabled by GOPROXY=off$'
++stderr '^go: golang.org/x/text: module lookup disabled by GOPROXY=off$'
+ 
+ # GONOPROXY bypasses proxy
+ [!net] skip
+diff --git a/src/cmd/go/testdata/script/mod_install_pkg_version.txt b/src/cmd/go/testdata/script/mod_install_pkg_version.txt
+index fd02392af1..1ee68e7ad8 100644
+--- a/src/cmd/go/testdata/script/mod_install_pkg_version.txt
++++ b/src/cmd/go/testdata/script/mod_install_pkg_version.txt
+@@ -16,7 +16,7 @@ env GO111MODULE=auto
+ cd m
+ cp go.mod go.mod.orig
+ ! go list -m all
+-stderr '^go list -m: example.com/cmd@v1.1.0-doesnotexist: missing go.sum entry; to add it:\n\tgo mod download example.com/cmd$'
++stderr '^go: example.com/cmd@v1.1.0-doesnotexist: missing go.sum entry; to add it:\n\tgo mod download example.com/cmd$'
+ go install example.com/cmd/a@latest
+ cmp go.mod go.mod.orig
+ exists $GOPATH/bin/a$GOEXE
+@@ -81,15 +81,15 @@ env GO111MODULE=auto
+ # 'go install pkg@version' reports errors for meta packages, std packages,
+ # and directories.
+ ! go install std@v1.0.0
+-stderr '^go install: std@v1.0.0: argument must be a package path, not a meta-package$'
++stderr '^go: std@v1.0.0: argument must be a package path, not a meta-package$'
+ ! go install fmt@v1.0.0
+-stderr '^go install: fmt@v1.0.0: argument must not be a package in the standard library$'
++stderr '^go: fmt@v1.0.0: argument must not be a package in the standard library$'
+ ! go install example.com//cmd/a@v1.0.0
+-stderr '^go install: example.com//cmd/a@v1.0.0: argument must be a clean package path$'
++stderr '^go: example.com//cmd/a@v1.0.0: argument must be a clean package path$'
+ ! go install example.com/cmd/a@v1.0.0 ./x@v1.0.0
+-stderr '^go install: ./x@v1.0.0: argument must be a package path, not a relative path$'
++stderr '^go: ./x@v1.0.0: argument must be a package path, not a relative path$'
+ ! go install example.com/cmd/a@v1.0.0 $GOPATH/src/x@v1.0.0
+-stderr '^go install: '$WORK'[/\\]gopath/src/x@v1.0.0: argument must be a package path, not an absolute path$'
++stderr '^go: '$WORK'[/\\]gopath/src/x@v1.0.0: argument must be a package path, not an absolute path$'
+ ! go install example.com/cmd/a@v1.0.0 cmd/...@v1.0.0
+ stderr '^package cmd/go not provided by module example.com/cmd@v1.0.0$'
+ 
+@@ -106,7 +106,7 @@ stdout '^example.com/cmd v1.0.0$'
+ env GO111MODULE=auto
+ 
+ ! go install example.com/cmd/a@v1.0.0 example.com/cmd/b@latest
+-stderr '^go install: example.com/cmd/b@latest: all arguments must have the same version \(@v1.0.0\)$'
++stderr '^go: example.com/cmd/b@latest: all arguments must have the same version \(@v1.0.0\)$'
+ 
+ 
+ # 'go install pkg@version' should report an error if the arguments are in
+@@ -137,7 +137,7 @@ rm $GOPATH/bin
+ 
+ # If a wildcard matches no packages, we should see a warning.
+ ! go install example.com/cmd/nomatch...@v1.0.0
+-stderr '^go install: example.com/cmd/nomatch\.\.\.@v1.0.0: module example.com/cmd@v1.0.0 found, but does not contain packages matching example.com/cmd/nomatch\.\.\.$'
++stderr '^go: example.com/cmd/nomatch\.\.\.@v1.0.0: module example.com/cmd@v1.0.0 found, but does not contain packages matching example.com/cmd/nomatch\.\.\.$'
+ go install example.com/cmd/a@v1.0.0 example.com/cmd/nomatch...@v1.0.0
+ stderr '^go: warning: "example.com/cmd/nomatch\.\.\." matched no packages$'
+ 
+@@ -159,7 +159,7 @@ cmp stderr exclude-err
+ # 'go install pkg@version' should report an error if the module requires a
+ # higher version of itself.
+ ! go install example.com/cmd/a@v1.0.0-newerself
+-stderr '^go install: example.com/cmd/a@v1.0.0-newerself: version constraints conflict:\n\texample.com/cmd@v1.0.0-newerself requires example.com/cmd@v1.0.0, but example.com/cmd@v1.0.0-newerself is requested$'
++stderr '^go: example.com/cmd/a@v1.0.0-newerself: version constraints conflict:\n\texample.com/cmd@v1.0.0-newerself requires example.com/cmd@v1.0.0, but example.com/cmd@v1.0.0-newerself is requested$'
+ 
+ 
+ # 'go install pkg@version' will only match a retracted version if it's
+@@ -192,12 +192,12 @@ package main
+ 
+ func main() {}
+ -- replace-err --
+-go install: example.com/cmd/a@v1.0.0-replace (in example.com/cmd@v1.0.0-replace):
++go: example.com/cmd/a@v1.0.0-replace (in example.com/cmd@v1.0.0-replace):
+ 	The go.mod file for the module providing named packages contains one or
+ 	more replace directives. It must not contain directives that would cause
+ 	it to be interpreted differently than if it were the main module.
+ -- exclude-err --
+-go install: example.com/cmd/a@v1.0.0-exclude (in example.com/cmd@v1.0.0-exclude):
++go: example.com/cmd/a@v1.0.0-exclude (in example.com/cmd@v1.0.0-exclude):
+ 	The go.mod file for the module providing named packages contains one or
+ 	more exclude directives. It must not contain directives that would cause
+ 	it to be interpreted differently than if it were the main module.
+diff --git a/src/cmd/go/testdata/script/mod_invalid_path.txt b/src/cmd/go/testdata/script/mod_invalid_path.txt
+index 333a3ffa35..766e9c0909 100644
+--- a/src/cmd/go/testdata/script/mod_invalid_path.txt
++++ b/src/cmd/go/testdata/script/mod_invalid_path.txt
+@@ -29,7 +29,7 @@ stdout '^example.com/dotname/.dot$'
+ go list ./use
+ stdout '^example.com/dotname/use$'
+ ! go list -m example.com/dotname/.dot@latest
+-stderr '^go list -m: example.com/dotname/.dot@latest: malformed module path "example.com/dotname/.dot": leading dot in path element$'
++stderr '^go: example.com/dotname/.dot@latest: malformed module path "example.com/dotname/.dot": leading dot in path element$'
+ go get -d example.com/dotname/.dot
+ go get -d example.com/dotname/use
+ go mod tidy
+diff --git a/src/cmd/go/testdata/script/mod_invalid_path_plus.txt b/src/cmd/go/testdata/script/mod_invalid_path_plus.txt
+index 51dbf93688..6a29eb8ce0 100644
+--- a/src/cmd/go/testdata/script/mod_invalid_path_plus.txt
++++ b/src/cmd/go/testdata/script/mod_invalid_path_plus.txt
+@@ -9,7 +9,7 @@ go list example.net/cmd/x++
+ 
+ # 'go list -m' rejects module paths with pluses.
+ ! go list -versions -m 'example.net/bad++'
+-stderr '^go list -m: malformed module path "example.net/bad\+\+": invalid char ''\+''$'
++stderr '^go: malformed module path "example.net/bad\+\+": invalid char ''\+''$'
+ 
+ # 'go get' accepts package paths with pluses.
+ cp go.mod.orig go.mod
+diff --git a/src/cmd/go/testdata/script/mod_invalid_version.txt b/src/cmd/go/testdata/script/mod_invalid_version.txt
+index 6846a792a5..31b25f757e 100644
+--- a/src/cmd/go/testdata/script/mod_invalid_version.txt
++++ b/src/cmd/go/testdata/script/mod_invalid_version.txt
+@@ -19,7 +19,7 @@ cp go.mod.orig go.mod
+ go mod edit -require golang.org/x/text@14c0d48ead0c
+ cd outside
+ ! go list -m golang.org/x/text
+-stderr 'go list -m: example.com@v0.0.0 \(replaced by \./\.\.\): parsing ..[/\\]go.mod: '$WORK'[/\\]gopath[/\\]src[/\\]go.mod:5: require golang.org/x/text: version "14c0d48ead0c" invalid: must be of the form v1.2.3'
++stderr 'go: example.com@v0.0.0 \(replaced by \./\.\.\): parsing ..[/\\]go.mod: '$WORK'[/\\]gopath[/\\]src[/\\]go.mod:5: require golang.org/x/text: version "14c0d48ead0c" invalid: must be of the form v1.2.3'
+ cd ..
+ go list -m golang.org/x/text
+ stdout 'golang.org/x/text v0.1.1-0.20170915032832-14c0d48ead0c'
+@@ -30,7 +30,7 @@ cp go.mod.orig go.mod
+ go mod edit -require golang.org/x/text/unicode@v0.0.0-20170915032832-14c0d48ead0c
+ cd outside
+ ! go list -m golang.org/x/text
+-stderr 'go list -m: example.com@v0.0.0 requires\n\tgolang.org/x/text/unicode@v0.0.0-20170915032832-14c0d48ead0c: invalid version: missing golang.org/x/text/unicode/go.mod at revision 14c0d48ead0c'
++stderr 'go: example.com@v0.0.0 requires\n\tgolang.org/x/text/unicode@v0.0.0-20170915032832-14c0d48ead0c: invalid version: missing golang.org/x/text/unicode/go.mod at revision 14c0d48ead0c'
+ cd ..
+ ! go list -m golang.org/x/text
+ stderr 'golang.org/x/text/unicode@v0.0.0-20170915032832-14c0d48ead0c: invalid version: missing golang.org/x/text/unicode/go.mod at revision 14c0d48ead0c'
+@@ -47,7 +47,7 @@ cp go.mod.orig go.mod
+ go mod edit -require golang.org/x/text@v2.1.1-0.20170915032832-14c0d48ead0c
+ cd outside
+ ! go list -m golang.org/x/text
+-stderr 'go list -m: example.com@v0.0.0 \(replaced by \./\.\.\): parsing ..[/\\]go.mod: '$WORK'[/\\]gopath[/\\]src[/\\]go.mod:5: require golang.org/x/text: version "v2.1.1-0.20170915032832-14c0d48ead0c" invalid: should be v0 or v1, not v2'
++stderr 'go: example.com@v0.0.0 \(replaced by \./\.\.\): parsing ..[/\\]go.mod: '$WORK'[/\\]gopath[/\\]src[/\\]go.mod:5: require golang.org/x/text: version "v2.1.1-0.20170915032832-14c0d48ead0c" invalid: should be v0 or v1, not v2'
+ cd ..
+ ! go list -m golang.org/x/text
+ stderr $WORK'[/\\]gopath[/\\]src[/\\]go.mod:5: require golang.org/x/text: version "v2.1.1-0.20170915032832-14c0d48ead0c" invalid: should be v0 or v1, not v2'
+@@ -57,7 +57,7 @@ cp go.mod.orig go.mod
+ go mod edit -require golang.org/x/text@v0.1.1-0.20170915032832-14c0d48ead0
+ cd outside
+ ! go list -m golang.org/x/text
+-stderr 'go list -m: example.com@v0.0.0 requires\n\tgolang.org/x/text@v0.1.1-0.20170915032832-14c0d48ead0: invalid pseudo-version: revision is shorter than canonical \(14c0d48ead0c\)'
++stderr 'go: example.com@v0.0.0 requires\n\tgolang.org/x/text@v0.1.1-0.20170915032832-14c0d48ead0: invalid pseudo-version: revision is shorter than canonical \(14c0d48ead0c\)'
+ cd ..
+ ! go list -m golang.org/x/text
+ stderr 'golang.org/x/text@v0.1.1-0.20170915032832-14c0d48ead0: invalid pseudo-version: revision is shorter than canonical \(14c0d48ead0c\)'
+@@ -67,7 +67,7 @@ cp go.mod.orig go.mod
+ go mod edit -require golang.org/x/text@v0.1.1-0.20170915032832-14c0d48ead0cd47e3104ada247d91be04afc7a5a
+ cd outside
+ ! go list -m golang.org/x/text
+-stderr 'go list -m: example.com@v0.0.0 requires\n\tgolang.org/x/text@v0.1.1-0.20170915032832-14c0d48ead0cd47e3104ada247d91be04afc7a5a: invalid pseudo-version: revision is longer than canonical \(14c0d48ead0c\)'
++stderr 'go: example.com@v0.0.0 requires\n\tgolang.org/x/text@v0.1.1-0.20170915032832-14c0d48ead0cd47e3104ada247d91be04afc7a5a: invalid pseudo-version: revision is longer than canonical \(14c0d48ead0c\)'
+ cd ..
+ ! go list -m golang.org/x/text
+ stderr 'golang.org/x/text@v0.1.1-0.20170915032832-14c0d48ead0cd47e3104ada247d91be04afc7a5a: invalid pseudo-version: revision is longer than canonical \(14c0d48ead0c\)'
+@@ -77,7 +77,7 @@ cp go.mod.orig go.mod
+ go mod edit -require golang.org/x/text@v0.1.1-0.20190915032832-14c0d48ead0c
+ cd outside
+ ! go list -m golang.org/x/text
+-stderr 'go list -m: example.com@v0.0.0 requires\n\tgolang.org/x/text@v0.1.1-0.20190915032832-14c0d48ead0c: invalid pseudo-version: does not match version-control timestamp \(expected 20170915032832\)'
++stderr 'go: example.com@v0.0.0 requires\n\tgolang.org/x/text@v0.1.1-0.20190915032832-14c0d48ead0c: invalid pseudo-version: does not match version-control timestamp \(expected 20170915032832\)'
+ cd ..
+ ! go list -m golang.org/x/text
+ stderr 'golang.org/x/text@v0.1.1-0.20190915032832-14c0d48ead0c: invalid pseudo-version: does not match version-control timestamp \(expected 20170915032832\)'
+@@ -87,7 +87,7 @@ stderr 'golang.org/x/text@v0.1.1-0.20190915032832-14c0d48ead0c: invalid pseudo-v
+ go mod edit -replace golang.org/x/text@v0.1.1-0.20190915032832-14c0d48ead0c=golang.org/x/text@14c0d48ead0c
+ cd outside
+ ! go list -m golang.org/x/text
+-stderr 'go list -m: example.com@v0.0.0 requires\n\tgolang.org/x/text@v0.1.1-0.20190915032832-14c0d48ead0c: invalid pseudo-version: does not match version-control timestamp \(expected 20170915032832\)'
++stderr 'go: example.com@v0.0.0 requires\n\tgolang.org/x/text@v0.1.1-0.20190915032832-14c0d48ead0c: invalid pseudo-version: does not match version-control timestamp \(expected 20170915032832\)'
+ cd ..
+ go list -m golang.org/x/text
+ stdout 'golang.org/x/text v0.1.1-0.20190915032832-14c0d48ead0c => golang.org/x/text v0.1.1-0.20170915032832-14c0d48ead0c'
+@@ -97,7 +97,7 @@ cp go.mod.orig go.mod
+ go mod edit -require golang.org/x/text@v1.999.999-0.20170915032832-14c0d48ead0c
+ cd outside
+ ! go list -m golang.org/x/text
+-stderr 'go list -m: example.com@v0.0.0 requires\n\tgolang.org/x/text@v1.999.999-0.20170915032832-14c0d48ead0c: invalid pseudo-version: preceding tag \(v1.999.998\) not found'
++stderr 'go: example.com@v0.0.0 requires\n\tgolang.org/x/text@v1.999.999-0.20170915032832-14c0d48ead0c: invalid pseudo-version: preceding tag \(v1.999.998\) not found'
+ cd ..
+ ! go list -m golang.org/x/text
+ stderr 'golang.org/x/text@v1.999.999-0.20170915032832-14c0d48ead0c: invalid pseudo-version: preceding tag \(v1.999.998\) not found'
+@@ -109,7 +109,7 @@ cp go.mod.orig go.mod
+ go mod edit -require golang.org/x/text@v1.0.0-20170915032832-14c0d48ead0c
+ cd outside
+ ! go list -m golang.org/x/text
+-stderr 'go list -m: example.com@v0.0.0 requires\n\tgolang.org/x/text@v1.0.0-20170915032832-14c0d48ead0c: invalid pseudo-version: major version without preceding tag must be v0, not v1'
++stderr 'go: example.com@v0.0.0 requires\n\tgolang.org/x/text@v1.0.0-20170915032832-14c0d48ead0c: invalid pseudo-version: major version without preceding tag must be v0, not v1'
+ cd ..
+ ! go list -m golang.org/x/text
+ stderr 'golang.org/x/text@v1.0.0-20170915032832-14c0d48ead0c: invalid pseudo-version: major version without preceding tag must be v0, not v1'
+@@ -120,7 +120,7 @@ cp go.mod.orig go.mod
+ go mod edit -require golang.org/x/text@v0.0.0-0.20170915032832-14c0d48ead0c
+ cd outside
+ ! go list -m golang.org/x/text
+-stderr 'go list -m: example.com@v0.0.0 requires\n\tgolang.org/x/text@v0.0.0-0.20170915032832-14c0d48ead0c: invalid pseudo-version: version before v0.0.0 would have negative patch number'
++stderr 'go: example.com@v0.0.0 requires\n\tgolang.org/x/text@v0.0.0-0.20170915032832-14c0d48ead0c: invalid pseudo-version: version before v0.0.0 would have negative patch number'
+ cd ..
+ ! go list -m golang.org/x/text
+ stderr 'golang.org/x/text@v0.0.0-0.20170915032832-14c0d48ead0c: invalid pseudo-version: version before v0.0.0 would have negative patch number'
+@@ -130,7 +130,7 @@ stderr 'golang.org/x/text@v0.0.0-0.20170915032832-14c0d48ead0c: invalid pseudo-v
+ go mod edit -replace golang.org/x/text@v0.0.0-0.20170915032832-14c0d48ead0c=golang.org/x/text@v0.0.0-20170915032832-14c0d48ead0c
+ cd outside
+ ! go list -m golang.org/x/text
+-stderr 'go list -m: example.com@v0.0.0 requires\n\tgolang.org/x/text@v0.0.0-0.20170915032832-14c0d48ead0c: invalid pseudo-version: version before v0.0.0 would have negative patch number'
++stderr 'go: example.com@v0.0.0 requires\n\tgolang.org/x/text@v0.0.0-0.20170915032832-14c0d48ead0c: invalid pseudo-version: version before v0.0.0 would have negative patch number'
+ cd ..
+ go list -m golang.org/x/text
+ stdout 'golang.org/x/text v0.0.0-0.20170915032832-14c0d48ead0c => golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c'
+@@ -153,7 +153,7 @@ cp go.mod.orig go.mod
+ go mod edit -require golang.org/x/text@v0.2.1-0.20170915032832-14c0d48ead0c
+ cd outside
+ ! go list -m golang.org/x/text
+-stderr 'go list -m: example.com@v0.0.0 requires\n\tgolang.org/x/text@v0.2.1-0.20170915032832-14c0d48ead0c: invalid pseudo-version: revision 14c0d48ead0c is not a descendent of preceding tag \(v0.2.0\)'
++stderr 'go: example.com@v0.0.0 requires\n\tgolang.org/x/text@v0.2.1-0.20170915032832-14c0d48ead0c: invalid pseudo-version: revision 14c0d48ead0c is not a descendent of preceding tag \(v0.2.0\)'
+ cd ..
+ ! go list -m golang.org/x/text
+ stderr 'golang.org/x/text@v0.2.1-0.20170915032832-14c0d48ead0c: invalid pseudo-version: revision 14c0d48ead0c is not a descendent of preceding tag \(v0.2.0\)'
+@@ -163,7 +163,7 @@ cp go.mod.orig go.mod
+ go mod edit -require golang.org/x/text@v0.2.1-0.20171213102548-c4d099d611ac
+ cd outside
+ ! go list -m golang.org/x/text
+-stderr 'go list -m: example.com@v0.0.0 requires\n\tgolang.org/x/text@v0.2.1-0.20171213102548-c4d099d611ac: invalid pseudo-version: tag \(v0.2.0\) found on revision c4d099d611ac is already canonical, so should not be replaced with a pseudo-version derived from that tag'
++stderr 'go: example.com@v0.0.0 requires\n\tgolang.org/x/text@v0.2.1-0.20171213102548-c4d099d611ac: invalid pseudo-version: tag \(v0.2.0\) found on revision c4d099d611ac is already canonical, so should not be replaced with a pseudo-version derived from that tag'
+ cd ..
+ ! go list -m golang.org/x/text
+ stderr 'golang.org/x/text@v0.2.1-0.20171213102548-c4d099d611ac: invalid pseudo-version: tag \(v0.2.0\) found on revision c4d099d611ac is already canonical, so should not be replaced with a pseudo-version derived from that tag'
+@@ -173,7 +173,7 @@ cp go.mod.orig go.mod
+ go mod edit -require golang.org/x/text@v0.1.1-0.20170915032832-14c0d48ead0c+incompatible
+ cd outside
+ ! go list -m golang.org/x/text
+-stderr 'go list -m: example.com@v0.0.0 requires\n\tgolang.org/x/text@v0.1.1-0.20170915032832-14c0d48ead0c\+incompatible: invalid version: \+incompatible suffix not allowed: major version v0 is compatible'
++stderr 'go: example.com@v0.0.0 requires\n\tgolang.org/x/text@v0.1.1-0.20170915032832-14c0d48ead0c\+incompatible: invalid version: \+incompatible suffix not allowed: major version v0 is compatible'
+ cd ..
+ ! go list -m golang.org/x/text
+ stderr 'golang.org/x/text@v0.1.1-0.20170915032832-14c0d48ead0c\+incompatible: invalid version: \+incompatible suffix not allowed: major version v0 is compatible'
+@@ -194,7 +194,7 @@ cp go.mod.orig go.mod
+ go mod edit -require github.com/pierrec/lz4@v2.0.9-0.20190209155647-9a39efadad3d+incompatible
+ cd outside
+ ! go list -m github.com/pierrec/lz4
+-stderr 'go list -m: example.com@v0.0.0 requires\n\tgithub.com/pierrec/lz4@v2.0.9-0.20190209155647-9a39efadad3d\+incompatible: invalid version: \+incompatible suffix not allowed: module contains a go.mod file, so semantic import versioning is required'
++stderr 'go: example.com@v0.0.0 requires\n\tgithub.com/pierrec/lz4@v2.0.9-0.20190209155647-9a39efadad3d\+incompatible: invalid version: \+incompatible suffix not allowed: module contains a go.mod file, so semantic import versioning is required'
+ cd ..
+ ! go list -m github.com/pierrec/lz4
+ stderr 'github.com/pierrec/lz4@v2.0.9-0.20190209155647-9a39efadad3d\+incompatible: invalid version: \+incompatible suffix not allowed: module contains a go.mod file, so semantic import versioning is required'
+@@ -222,7 +222,7 @@ stdout 'github.com/pierrec/lz4 v2.0.5\+incompatible'
+ # not resolve to a pseudo-version with a different major version.
+ cp go.mod.orig go.mod
+ ! go get -d github.com/pierrec/lz4@v2.0.8
+-stderr 'go get: github.com/pierrec/lz4@v2.0.8: invalid version: module contains a go.mod file, so major version must be compatible: should be v0 or v1, not v2'
++stderr 'go: github.com/pierrec/lz4@v2.0.8: invalid version: module contains a go.mod file, so major version must be compatible: should be v0 or v1, not v2'
+ 
+ # An invalid +incompatible suffix for a canonical version should error out,
+ # not resolve to a pseudo-version.
+diff --git a/src/cmd/go/testdata/script/mod_list.txt b/src/cmd/go/testdata/script/mod_list.txt
+index 239c7caa4a..06316cc335 100644
+--- a/src/cmd/go/testdata/script/mod_list.txt
++++ b/src/cmd/go/testdata/script/mod_list.txt
+@@ -39,8 +39,8 @@ stdout '^module nonexist: not a known dependency$'
+ stdout '^module rsc.io/quote/buggy: not a known dependency$'
+ 
+ ! go list -m nonexist rsc.io/quote/buggy
+-stderr '^go list -m: module nonexist: not a known dependency'
+-stderr '^go list -m: module rsc.io/quote/buggy: not a known dependency'
++stderr '^go: module nonexist: not a known dependency'
++stderr '^go: module rsc.io/quote/buggy: not a known dependency'
+ 
+ # Module loader does not interfere with list -e (golang.org/issue/24149).
+ go list -e -f '{{.Error.Err}}' database
+diff --git a/src/cmd/go/testdata/script/mod_list_sums.txt b/src/cmd/go/testdata/script/mod_list_sums.txt
+index 86c528f829..6c2f57c2b2 100644
+--- a/src/cmd/go/testdata/script/mod_list_sums.txt
++++ b/src/cmd/go/testdata/script/mod_list_sums.txt
+@@ -29,4 +29,4 @@ stderr '^go: updates to go.sum needed, disabled by -mod=readonly$'
+ #
+ # TODO(#41297): This should not be an error either.
+ ! go list -m -mod=readonly -versions rsc.io/sampler
+-stderr '^go list -m: rsc\.io/quote@v1\.5\.1: missing go\.sum entry; to add it:\n\tgo mod download rsc\.io/quote$'
++stderr '^go: rsc\.io/quote@v1\.5\.1: missing go\.sum entry; to add it:\n\tgo mod download rsc\.io/quote$'
+diff --git a/src/cmd/go/testdata/script/mod_list_update_nolatest.txt b/src/cmd/go/testdata/script/mod_list_update_nolatest.txt
+index c6bbbb04ec..7eebe266db 100644
+--- a/src/cmd/go/testdata/script/mod_list_update_nolatest.txt
++++ b/src/cmd/go/testdata/script/mod_list_update_nolatest.txt
+@@ -26,7 +26,7 @@ stdout '^example.com/nolatest v0.0.0$'
+ # If proxy returns an invalid response, we should see an error.
+ env GOPROXY=$testproxy/invalid
+ ! go list -m -u example.com/nolatest
+-stderr '^go list -m: loading module retractions for example.com/nolatest@v0.0.0: invalid response from proxy "[^"]*": invalid character ''i'' looking for beginning of value$'
++stderr '^go: loading module retractions for example.com/nolatest@v0.0.0: invalid response from proxy "[^"]*": invalid character ''i'' looking for beginning of value$'
+ 
+ -- go.mod --
+ module m
+diff --git a/src/cmd/go/testdata/script/mod_load_badchain.txt b/src/cmd/go/testdata/script/mod_load_badchain.txt
+index eb464ab0d3..0c4e5e1714 100644
+--- a/src/cmd/go/testdata/script/mod_load_badchain.txt
++++ b/src/cmd/go/testdata/script/mod_load_badchain.txt
+@@ -69,17 +69,17 @@ import (
+ 
+ func Test(t *testing.T) {}
+ -- update-main-expected --
+-go get: example.com/badchain/c@v1.1.0: parsing go.mod:
++go: example.com/badchain/c@v1.1.0: parsing go.mod:
+ 	module declares its path as: badchain.example.com/c
+ 	        but was required as: example.com/badchain/c
+ -- update-a-expected --
+-go get: example.com/badchain/a@v1.1.0 requires
++go: example.com/badchain/a@v1.1.0 requires
+ 	example.com/badchain/b@v1.1.0 requires
+ 	example.com/badchain/c@v1.1.0: parsing go.mod:
+ 	module declares its path as: badchain.example.com/c
+ 	        but was required as: example.com/badchain/c
+ -- list-expected --
+-go list -m: example.com/badchain/a@v1.1.0 requires
++go: example.com/badchain/a@v1.1.0 requires
+ 	example.com/badchain/b@v1.1.0 requires
+ 	example.com/badchain/c@v1.1.0: parsing go.mod:
+ 	module declares its path as: badchain.example.com/c
+diff --git a/src/cmd/go/testdata/script/mod_outside.txt b/src/cmd/go/testdata/script/mod_outside.txt
+index 3b4559405a..6da6314b79 100644
+--- a/src/cmd/go/testdata/script/mod_outside.txt
++++ b/src/cmd/go/testdata/script/mod_outside.txt
+@@ -135,12 +135,12 @@ stderr '^go: go.mod file not found in current directory or any parent directory;
+ # 'go get -u all' upgrades the transitive import graph of the main module,
+ # which is empty.
+ ! go get -u all
+-stderr '^go get: cannot match "all": go.mod file not found in current directory or any parent directory; see ''go help modules''$'
++stderr '^go: cannot match "all": go.mod file not found in current directory or any parent directory; see ''go help modules''$'
+ 
+ # 'go get' should check the proposed module graph for consistency,
+ # even though we won't write it anywhere.
+ ! go get -d example.com/printversion@v1.0.0 example.com/version@none
+-stderr '^go get: example.com/printversion@v1.0.0 requires example.com/version@v1.0.0, not example.com/version@none$'
++stderr '^go: example.com/printversion@v1.0.0 requires example.com/version@v1.0.0, not example.com/version@none$'
+ 
+ # 'go get -d' should download and extract the source code needed to build the requested version.
+ rm -r $GOPATH/pkg/mod/example.com
+@@ -196,7 +196,7 @@ exists $GOPATH/bin/printversion$GOEXE
+ 
+ # 'go install' should fail if a package argument must be resolved to a module.
+ ! go install example.com/printversion
+-stderr '^go install: version is required when current directory is not in a module\n\tTry ''go install example.com/printversion@latest'' to install the latest version$'
++stderr '^go: ''go install'' requires a version when current directory is not in a module\n\tTry ''go install example.com/printversion@latest'' to install the latest version$'
+ 
+ # 'go install' should fail if a source file imports a package that must be
+ # resolved to a module.
+diff --git a/src/cmd/go/testdata/script/mod_prefer_compatible.txt b/src/cmd/go/testdata/script/mod_prefer_compatible.txt
+index 1b408c3e9e..8e88997a3c 100644
+--- a/src/cmd/go/testdata/script/mod_prefer_compatible.txt
++++ b/src/cmd/go/testdata/script/mod_prefer_compatible.txt
+@@ -24,7 +24,7 @@ go list -m github.com/russross/blackfriday@upgrade
+ stdout '^github.com/russross/blackfriday v1\.'
+ 
+ ! go list -m github.com/russross/blackfriday@patch
+-stderr '^go list -m: github.com/russross/blackfriday@patch: can''t query version "patch" of module github.com/russross/blackfriday: no existing version is required$'
++stderr '^go: github.com/russross/blackfriday@patch: can''t query version "patch" of module github.com/russross/blackfriday: no existing version is required$'
+ 
+ # If we're fetching directly from version control, ignored +incompatible
+ # versions should also be omitted by 'go list'.
+diff --git a/src/cmd/go/testdata/script/mod_proxy_invalid.txt b/src/cmd/go/testdata/script/mod_proxy_invalid.txt
+index 6427cc1527..63980b839e 100644
+--- a/src/cmd/go/testdata/script/mod_proxy_invalid.txt
++++ b/src/cmd/go/testdata/script/mod_proxy_invalid.txt
+@@ -2,7 +2,7 @@ env GO111MODULE=on
+ env GOPROXY=$GOPROXY/invalid
+ 
+ ! go list -m rsc.io/quote@latest
+-stderr '^go list -m: module rsc.io/quote: invalid response from proxy "'$GOPROXY'": invalid character ''i'' looking for beginning of value$'
++stderr '^go: module rsc.io/quote: invalid response from proxy "'$GOPROXY'": invalid character ''i'' looking for beginning of value$'
+ 
+ ! go list -m rsc.io/quote@1.5.2
+-stderr '^go list -m: rsc.io/quote@1.5.2: invalid version: invalid response from proxy "'$GOPROXY'": invalid character ''i'' looking for beginning of value$'
++stderr '^go: rsc.io/quote@1.5.2: invalid version: invalid response from proxy "'$GOPROXY'": invalid character ''i'' looking for beginning of value$'
+diff --git a/src/cmd/go/testdata/script/mod_query.txt b/src/cmd/go/testdata/script/mod_query.txt
+index a75f86ed7c..3758732504 100644
+--- a/src/cmd/go/testdata/script/mod_query.txt
++++ b/src/cmd/go/testdata/script/mod_query.txt
+@@ -25,7 +25,7 @@ go list -m rsc.io/quote@<v1.5.4
+ stdout 'rsc.io/quote v1.5.2$'
+ 
+ ! go list -m rsc.io/quote@>v1.5.3
+-stderr 'go list -m: module rsc.io/quote: no matching versions for query ">v1.5.3"'
++stderr 'go: module rsc.io/quote: no matching versions for query ">v1.5.3"'
+ 
+ go list -m -e -f '{{.Error.Err}}' rsc.io/quote@>v1.5.3
+ stdout 'no matching versions for query ">v1.5.3"'
+diff --git a/src/cmd/go/testdata/script/mod_query_empty.txt b/src/cmd/go/testdata/script/mod_query_empty.txt
+index f8b6e3e97e..af0871173e 100644
+--- a/src/cmd/go/testdata/script/mod_query_empty.txt
++++ b/src/cmd/go/testdata/script/mod_query_empty.txt
+@@ -8,7 +8,7 @@ go mod download example.com/join@v1.1.0
+ env GOPROXY=file:///$WORK/badproxy
+ cp go.mod.orig go.mod
+ ! go get -d example.com/join/subpkg
+-stderr 'go get: example.com/join/subpkg@v0.0.0-20190624000000-123456abcdef: .*'
++stderr 'go: example.com/join/subpkg@v0.0.0-20190624000000-123456abcdef: .*'
+ 
+ # If @v/list is empty, the 'go' command should still try to resolve
+ # other module paths.
+@@ -40,7 +40,7 @@ env GOPROXY=file:///$WORK/gatekeeper
+ chmod 0000 $WORK/gatekeeper/example.com/join/subpkg/@latest
+ cp go.mod.orig go.mod
+ ! go get -d example.com/join/subpkg
+-stderr 'go get: module example.com/join/subpkg: (invalid response from proxy ".+": invalid character .+|reading file://.*/gatekeeper/example.com/join/subpkg/@latest: .+)'
++stderr 'go: module example.com/join/subpkg: (invalid response from proxy ".+": invalid character .+|reading file://.*/gatekeeper/example.com/join/subpkg/@latest: .+)'
+ 
+ -- go.mod.orig --
+ module example.com/othermodule
+diff --git a/src/cmd/go/testdata/script/mod_query_exclude.txt b/src/cmd/go/testdata/script/mod_query_exclude.txt
+index b001969411..8eae42dec6 100644
+--- a/src/cmd/go/testdata/script/mod_query_exclude.txt
++++ b/src/cmd/go/testdata/script/mod_query_exclude.txt
+@@ -19,7 +19,7 @@ stdout '^rsc.io/quote v1.5.1$'
+ # get excluded version
+ cp go.exclude.mod go.exclude.mod.orig
+ ! go get -modfile=go.exclude.mod -d rsc.io/quote@v1.5.0
+-stderr '^go get: rsc.io/quote@v1.5.0: excluded by go.mod$'
++stderr '^go: rsc.io/quote@v1.5.0: excluded by go.mod$'
+ 
+ # get non-excluded version
+ cp go.exclude.mod.orig go.exclude.mod
+diff --git a/src/cmd/go/testdata/script/mod_query_main.txt b/src/cmd/go/testdata/script/mod_query_main.txt
+index 39e5841a9c..2a2fa42318 100644
+--- a/src/cmd/go/testdata/script/mod_query_main.txt
++++ b/src/cmd/go/testdata/script/mod_query_main.txt
+@@ -6,9 +6,9 @@ go mod download rsc.io/quote@latest
+ # 'go mod download' will not download @upgrade or @patch, since they always
+ # resolve to the main module.
+ go mod download rsc.io/quote@upgrade
+-stderr '^go mod download: skipping argument rsc.io/quote@upgrade that resolves to the main module$'
++stderr '^go: skipping download of rsc.io/quote@upgrade that resolves to the main module$'
+ go mod download rsc.io/quote@patch
+-stderr '^go mod download: skipping argument rsc.io/quote@patch that resolves to the main module$'
++stderr '^go: skipping download of rsc.io/quote@patch that resolves to the main module$'
+ 
+ # 'go list -m' can show a version of the main module.
+ go list -m rsc.io/quote@5d9f230b
+@@ -31,11 +31,11 @@ stdout '^rsc.io/quote$'
+ # 'go get' will not attempt to upgrade the main module to any specific version.
+ # See also: mod_get_main.txt.
+ ! go get rsc.io/quote@5d9f230b
+-stderr '^go get: can''t request version "5d9f230b" of the main module \(rsc.io/quote\)$'
++stderr '^go: can''t request version "5d9f230b" of the main module \(rsc.io/quote\)$'
+ ! go get rsc.io/quote@v1.5.2
+-stderr '^go get: can''t request version "v1.5.2" of the main module \(rsc.io/quote\)$'
++stderr '^go: can''t request version "v1.5.2" of the main module \(rsc.io/quote\)$'
+ ! go get rsc.io/quote@latest
+-stderr '^go get: can''t request version "latest" of the main module \(rsc.io/quote\)$'
++stderr '^go: can''t request version "latest" of the main module \(rsc.io/quote\)$'
+ 
+ -- go.mod --
+ module rsc.io/quote
+diff --git a/src/cmd/go/testdata/script/mod_replace_gopkgin.txt b/src/cmd/go/testdata/script/mod_replace_gopkgin.txt
+index d24f37b788..df752d9716 100644
+--- a/src/cmd/go/testdata/script/mod_replace_gopkgin.txt
++++ b/src/cmd/go/testdata/script/mod_replace_gopkgin.txt
+@@ -35,7 +35,7 @@ go list -m gopkg.in/src-d/go-git.v4
+ # A mismatched gopkg.in path should not be able to replace a different major version.
+ cd ../3-to-gomod-4
+ ! go list -m gopkg.in/src-d/go-git.v3
+-stderr '^go list -m: gopkg\.in/src-d/go-git\.v3@v3\.2\.0 \(replaced by gopkg\.in/src-d/go-git\.v3@v3\.0\.0-20190801152248-0d1a009cbb60\): version "v3\.0\.0-20190801152248-0d1a009cbb60" invalid: go\.mod has non-\.\.\.\.v3 module path "gopkg\.in/src-d/go-git\.v4" at revision 0d1a009cbb60$'
++stderr '^go: gopkg\.in/src-d/go-git\.v3@v3\.2\.0 \(replaced by gopkg\.in/src-d/go-git\.v3@v3\.0\.0-20190801152248-0d1a009cbb60\): version "v3\.0\.0-20190801152248-0d1a009cbb60" invalid: go\.mod has non-\.\.\.\.v3 module path "gopkg\.in/src-d/go-git\.v4" at revision 0d1a009cbb60$'
+ 
+ -- 4-to-4/go.mod --
+ module golang.org/issue/34254
+diff --git a/src/cmd/go/testdata/script/mod_retract_fix_version.txt b/src/cmd/go/testdata/script/mod_retract_fix_version.txt
+index e45758b627..9ae49f53ab 100644
+--- a/src/cmd/go/testdata/script/mod_retract_fix_version.txt
++++ b/src/cmd/go/testdata/script/mod_retract_fix_version.txt
+@@ -15,7 +15,7 @@ cmp go.mod go.mod.want
+ # If a retracted version doesn't match the module's major version suffx,
+ # an error should be reported.
+ ! go mod edit -retract=v3.0.1
+-stderr '^go mod: -retract=v3.0.1: version "v3.0.1" invalid: should be v2, not v3$'
++stderr '^go: -retract=v3.0.1: version "v3.0.1" invalid: should be v2, not v3$'
+ cp go.mod.mismatch-v2 go.mod
+ ! go list -m all
+ stderr 'go.mod:3: retract rsc.io/quote/v2: version "v3.0.1" invalid: should be v2, not v3$'
+diff --git a/src/cmd/go/testdata/script/mod_retract_pseudo_base.txt b/src/cmd/go/testdata/script/mod_retract_pseudo_base.txt
+index eb00e8405c..d1a5e1236a 100644
+--- a/src/cmd/go/testdata/script/mod_retract_pseudo_base.txt
++++ b/src/cmd/go/testdata/script/mod_retract_pseudo_base.txt
+@@ -29,7 +29,7 @@ go list -m vcs-test.golang.org/git/retract-pseudo.git
+ stdout '^vcs-test.golang.org/git/retract-pseudo.git v1.0.1-0.20201009173747-713affd19d7b$'
+ 
+ ! go get -d vcs-test.golang.org/git/retract-pseudo.git@v1.0.1-0.20201009173747-64c061ed4371
+-stderr '^go get: vcs-test.golang.org/git/retract-pseudo.git@v1.0.1-0.20201009173747-64c061ed4371: invalid pseudo-version: tag \(v1.0.0\) found on revision 64c061ed4371 is already canonical, so should not be replaced with a pseudo-version derived from that tag$'
++stderr '^go: vcs-test.golang.org/git/retract-pseudo.git@v1.0.1-0.20201009173747-64c061ed4371: invalid pseudo-version: tag \(v1.0.0\) found on revision 64c061ed4371 is already canonical, so should not be replaced with a pseudo-version derived from that tag$'
+ 
+ -- retract-pseudo.sh --
+ #!/bin/bash
+diff --git a/src/cmd/go/testdata/script/mod_run_nonmain.txt b/src/cmd/go/testdata/script/mod_run_nonmain.txt
+index 036755d2d1..8435fc05b4 100644
+--- a/src/cmd/go/testdata/script/mod_run_nonmain.txt
++++ b/src/cmd/go/testdata/script/mod_run_nonmain.txt
+@@ -7,7 +7,7 @@ stderr '^package example.net/nonmain is not a main package$'
+ 
+ ! go run ./...
+ stderr '^go: warning: "\./\.\.\." matched only non-main packages$'
+-stderr '^go run: no packages loaded from \./\.\.\.$'
++stderr '^go: no packages loaded from \./\.\.\.$'
+ 
+ -- go.mod --
+ module example.net/nonmain
+diff --git a/src/cmd/go/testdata/script/mod_run_pkg_version.txt b/src/cmd/go/testdata/script/mod_run_pkg_version.txt
+index e921fab508..c3a218d553 100644
+--- a/src/cmd/go/testdata/script/mod_run_pkg_version.txt
++++ b/src/cmd/go/testdata/script/mod_run_pkg_version.txt
+@@ -21,7 +21,7 @@ env GO111MODULE=on
+ cd m
+ cp go.mod go.mod.orig
+ ! go list -m all
+-stderr '^go list -m: example.com/cmd@v1.1.0-doesnotexist: missing go.sum entry; to add it:\n\tgo mod download example.com/cmd$'
++stderr '^go: example.com/cmd@v1.1.0-doesnotexist: missing go.sum entry; to add it:\n\tgo mod download example.com/cmd$'
+ go run example.com/cmd/a@v1.0.0
+ stdout '^a@v1.0.0$'
+ cmp go.mod go.mod.orig
+@@ -92,12 +92,12 @@ package main
+ 
+ func main() {}
+ -- replace-err --
+-go run: example.com/cmd/a@v1.0.0-replace (in example.com/cmd@v1.0.0-replace):
++go: example.com/cmd/a@v1.0.0-replace (in example.com/cmd@v1.0.0-replace):
+ 	The go.mod file for the module providing named packages contains one or
+ 	more replace directives. It must not contain directives that would cause
+ 	it to be interpreted differently than if it were the main module.
+ -- exclude-err --
+-go run: example.com/cmd/a@v1.0.0-exclude (in example.com/cmd@v1.0.0-exclude):
++go: example.com/cmd/a@v1.0.0-exclude (in example.com/cmd@v1.0.0-exclude):
+ 	The go.mod file for the module providing named packages contains one or
+ 	more exclude directives. It must not contain directives that would cause
+ 	it to be interpreted differently than if it were the main module.
+diff --git a/src/cmd/go/testdata/script/mod_sum_readonly.txt b/src/cmd/go/testdata/script/mod_sum_readonly.txt
+index 113f13ea39..57c5bbeefd 100644
+--- a/src/cmd/go/testdata/script/mod_sum_readonly.txt
++++ b/src/cmd/go/testdata/script/mod_sum_readonly.txt
+@@ -4,7 +4,7 @@ env GO111MODULE=on
+ # When a sum is needed to load the build list, we get an error for the
+ # specific module. The .mod file is not downloaded, and go.sum is not written.
+ ! go list -m all
+-stderr '^go list -m: rsc.io/quote@v1.5.2: missing go.sum entry; to add it:\n\tgo mod download rsc.io/quote$'
++stderr '^go: rsc.io/quote@v1.5.2: missing go.sum entry; to add it:\n\tgo mod download rsc.io/quote$'
+ ! exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.mod
+ ! exists go.sum
+ 
+@@ -12,7 +12,7 @@ stderr '^go list -m: rsc.io/quote@v1.5.2: missing go.sum entry; to add it:\n\tgo
+ # we should see the same error.
+ cp go.sum.h2only go.sum
+ ! go list -m all
+-stderr '^go list -m: rsc.io/quote@v1.5.2: missing go.sum entry; to add it:\n\tgo mod download rsc.io/quote$'
++stderr '^go: rsc.io/quote@v1.5.2: missing go.sum entry; to add it:\n\tgo mod download rsc.io/quote$'
+ ! exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.mod
+ cmp go.sum go.sum.h2only
+ rm go.sum
+@@ -21,7 +21,7 @@ rm go.sum
+ cp go.mod go.mod.orig
+ go mod edit -replace rsc.io/quote@v1.5.2=rsc.io/quote@v1.5.1
+ ! go list -m all
+-stderr '^go list -m: rsc.io/quote@v1.5.2 \(replaced by rsc.io/quote@v1.5.1\): missing go.sum entry; to add it:\n\tgo mod download rsc.io/quote$'
++stderr '^go: rsc.io/quote@v1.5.2 \(replaced by rsc.io/quote@v1.5.1\): missing go.sum entry; to add it:\n\tgo mod download rsc.io/quote$'
+ ! exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.1.mod
+ ! exists go.sum
+ cp go.mod.orig go.mod
+diff --git a/src/cmd/go/testdata/script/mod_sumdb.txt b/src/cmd/go/testdata/script/mod_sumdb.txt
+index fa3483c5cb..dd791be1d4 100644
+--- a/src/cmd/go/testdata/script/mod_sumdb.txt
++++ b/src/cmd/go/testdata/script/mod_sumdb.txt
+@@ -9,7 +9,7 @@ env dbname=localhost.localdev/sumdb
+ cp go.mod.orig go.mod
+ env GOSUMDB=$sumdb' '$proxy/sumdb-wrong
+ ! go get -d rsc.io/quote
+-stderr 'go get: rsc.io/quote@v1.5.2: verifying module: checksum mismatch'
++stderr 'go: rsc.io/quote@v1.5.2: verifying module: checksum mismatch'
+ stderr 'downloaded: h1:3fEy'
+ stderr 'localhost.localdev/sumdb: h1:wrong'
+ stderr 'SECURITY ERROR\nThis download does NOT match the one reported by the checksum server.'
+diff --git a/src/cmd/go/testdata/script/mod_sumdb_file_path.txt b/src/cmd/go/testdata/script/mod_sumdb_file_path.txt
+index 22fcbf3de8..575c7c4817 100644
+--- a/src/cmd/go/testdata/script/mod_sumdb_file_path.txt
++++ b/src/cmd/go/testdata/script/mod_sumdb_file_path.txt
+@@ -13,7 +13,7 @@ env GOPATH=$WORK/gopath1
+ [windows] env GOPROXY=file:///$WORK/sumproxy,https://proxy.golang.org
+ [!windows] env GOPROXY=file://$WORK/sumproxy,https://proxy.golang.org
+ ! go get -d golang.org/x/text@v0.3.2
+-stderr '^go get: golang.org/x/text@v0.3.2: verifying module: golang.org/x/text@v0.3.2: reading file://.*/sumdb/sum.golang.org/lookup/golang.org/x/text@v0.3.2: (no such file or directory|.*cannot find the path specified.*)'
++stderr '^go: golang.org/x/text@v0.3.2: verifying module: golang.org/x/text@v0.3.2: reading file://.*/sumdb/sum.golang.org/lookup/golang.org/x/text@v0.3.2: (no such file or directory|.*cannot find the path specified.*)'
+ 
+ # If the proxy does not claim to support the database,
+ # checksum verification should fall through to the next proxy,
+diff --git a/src/cmd/go/testdata/script/mod_tidy_compat.txt b/src/cmd/go/testdata/script/mod_tidy_compat.txt
+index 29cae17881..18b297da60 100644
+--- a/src/cmd/go/testdata/script/mod_tidy_compat.txt
++++ b/src/cmd/go/testdata/script/mod_tidy_compat.txt
+@@ -50,7 +50,7 @@ cmp stdout m_all.txt
+ 
+ go mod edit -go=1.16
+ ! go list -m all
+-stderr '^go list -m: example.net/lazy@v0.1.0 requires\n\texample.com/version@v1.0.1: missing go.sum entry; to add it:\n\tgo mod download example.com/version$'
++stderr '^go: example.net/lazy@v0.1.0 requires\n\texample.com/version@v1.0.1: missing go.sum entry; to add it:\n\tgo mod download example.com/version$'
+ 
+ 
+ -- go.mod --
+diff --git a/src/cmd/go/testdata/script/mod_tidy_compat_ambiguous.txt b/src/cmd/go/testdata/script/mod_tidy_compat_ambiguous.txt
+index c544cb7413..44bc58cc6c 100644
+--- a/src/cmd/go/testdata/script/mod_tidy_compat_ambiguous.txt
++++ b/src/cmd/go/testdata/script/mod_tidy_compat_ambiguous.txt
+@@ -62,7 +62,7 @@ cmp stdout all-m.txt
+ 
+ go mod edit -go=1.16
+ ! go list -m all
+-stderr '^go list -m: example\.net/indirect@v0\.1\.0 requires\n\texample\.net/ambiguous@v0\.1\.0: missing go\.sum entry; to add it:\n\tgo mod download example\.net/ambiguous\n'
++stderr '^go: example\.net/indirect@v0\.1\.0 requires\n\texample\.net/ambiguous@v0\.1\.0: missing go\.sum entry; to add it:\n\tgo mod download example\.net/ambiguous\n'
+ 
+ 
+ -- go.mod --
+diff --git a/src/cmd/go/testdata/script/mod_tidy_too_new.txt b/src/cmd/go/testdata/script/mod_tidy_too_new.txt
+index b9c53b510d..8c34a997c9 100644
+--- a/src/cmd/go/testdata/script/mod_tidy_too_new.txt
++++ b/src/cmd/go/testdata/script/mod_tidy_too_new.txt
+@@ -9,7 +9,7 @@ cp go.mod go.mod.orig
+ # would look like.
+ 
+ ! go mod tidy
+-stderr 'go mod tidy: go.mod file indicates go 2000.0, but maximum supported version is '$goversion'$'
++stderr 'go: go.mod file indicates go 2000.0, but maximum version supported by tidy is '$goversion'$'
+ cmp go.mod go.mod.orig
+ 
+ 
+@@ -18,7 +18,7 @@ cmp go.mod go.mod.orig
+ 
+ cp go.mod.orig go.mod
+ go mod tidy -e
+-stderr 'go mod tidy: go.mod file indicates go 2000.0, but maximum supported version is '$goversion'$'
++stderr 'go: go.mod file indicates go 2000.0, but maximum version supported by tidy is '$goversion'$'
+ cmp go.mod go.mod.tidy
+ 
+ 
+diff --git a/src/cmd/go/testdata/script/mod_upgrade_patch.txt b/src/cmd/go/testdata/script/mod_upgrade_patch.txt
+index 8b34f8bf27..b8c178c75e 100644
+--- a/src/cmd/go/testdata/script/mod_upgrade_patch.txt
++++ b/src/cmd/go/testdata/script/mod_upgrade_patch.txt
+@@ -11,7 +11,7 @@ stdout '^patch.example.com/indirect v1.0.0'
+ 
+ # @patch should be rejected for modules not already in the build list.
+ ! go get -d patch.example.com/depofdirectpatch@patch
+-stderr '^go get: can''t query version "patch" of module patch.example.com/depofdirectpatch: no existing version is required$'
++stderr '^go: can''t query version "patch" of module patch.example.com/depofdirectpatch: no existing version is required$'
+ cmp go.mod.orig go.mod
+ 
+ # get -u=patch, with no arguments, should patch-update all dependencies
+@@ -38,7 +38,7 @@ cp go.mod.orig go.mod
+ go mod edit -droprequire=patch.example.com/direct
+ cp go.mod go.mod.dropped
+ ! go get -d all@patch
+-stderr '^go get all@patch: can''t query version "patch" of module patch.example.com/direct: no existing version is required$'
++stderr '^go: all@patch: can''t query version "patch" of module patch.example.com/direct: no existing version is required$'
+ cmp go.mod.dropped go.mod
+ 
+ # Requesting the direct dependency with -u=patch but without an explicit version
+@@ -86,7 +86,7 @@ stdout '^patch.example.com/indirect v1.0.1'
+ # Standard library packages cannot be upgraded explicitly.
+ cp go.mod.orig go.mod
+ ! go get cmd/vet@patch
+-stderr 'go get: can''t request explicit version "patch" of standard library package cmd/vet$'
++stderr 'go: can''t request explicit version "patch" of standard library package cmd/vet$'
+ 
+ # However, standard-library packages without explicit versions are fine.
+ go get -d -u=patch -d cmd/go
+diff --git a/src/cmd/go/testdata/script/mod_vendor.txt b/src/cmd/go/testdata/script/mod_vendor.txt
+index 2622916f61..4eb80c2332 100644
+--- a/src/cmd/go/testdata/script/mod_vendor.txt
++++ b/src/cmd/go/testdata/script/mod_vendor.txt
+@@ -40,15 +40,15 @@ stdout '^v1.0.0 $'
+ 
+ # -mod=vendor should cause 'go list' flags that look up versions to fail.
+ ! go list -mod=vendor -versions -m x
+-stderr '^go list -m: can''t determine available versions using the vendor directory\n\t\(Use -mod=mod or -mod=readonly to bypass.\)$'
++stderr '^go: can''t determine available versions using the vendor directory\n\t\(Use -mod=mod or -mod=readonly to bypass.\)$'
+ ! go list -mod=vendor -u -m x
+-stderr '^go list -m: can''t determine available upgrades using the vendor directory\n\t\(Use -mod=mod or -mod=readonly to bypass.\)$'
++stderr '^go: can''t determine available upgrades using the vendor directory\n\t\(Use -mod=mod or -mod=readonly to bypass.\)$'
+ 
+ # 'go list -mod=vendor -m' on a transitive dependency that does not
+ # provide vendored packages should give a helpful error rather than
+ # 'not a known dependency'.
+ ! go list -mod=vendor -f '{{.Version}} {{.Dir}}' -m diamondright
+-stderr 'go list -m: module diamondright: can''t resolve module using the vendor directory\n\t\(Use -mod=mod or -mod=readonly to bypass.\)'
++stderr 'go: module diamondright: can''t resolve module using the vendor directory\n\t\(Use -mod=mod or -mod=readonly to bypass.\)'
+ 
+ # 'go list -mod=mod' should report packages outside the import graph,
+ # but 'go list -mod=vendor' should error out for them.
+diff --git a/src/cmd/go/testdata/script/mod_vendor_auto.txt b/src/cmd/go/testdata/script/mod_vendor_auto.txt
+index b0ea907206..96db5c1600 100644
+--- a/src/cmd/go/testdata/script/mod_vendor_auto.txt
++++ b/src/cmd/go/testdata/script/mod_vendor_auto.txt
+@@ -17,10 +17,10 @@ stdout '^'$WORK'[/\\]auto[/\\]vendor[/\\]example.com[/\\]printversion$'
+ stdout '^'$WORK'[/\\]auto[/\\]vendor[/\\]example.com[/\\]version$'
+ 
+ ! go list -m all
+-stderr 'go list -m: can''t compute ''all'' using the vendor directory\n\t\(Use -mod=mod or -mod=readonly to bypass.\)'
++stderr 'go: can''t compute ''all'' using the vendor directory\n\t\(Use -mod=mod or -mod=readonly to bypass.\)'
+ 
+ ! go list -m -f '{{.Dir}}' all
+-stderr 'go list -m: can''t compute ''all'' using the vendor directory\n\t\(Use -mod=mod or -mod=readonly to bypass.\)'
++stderr 'go: can''t compute ''all'' using the vendor directory\n\t\(Use -mod=mod or -mod=readonly to bypass.\)'
+ 
+ # An explicit -mod=mod should force the vendor directory to be ignored.
+ env GOFLAGS=-mod=mod
+@@ -105,10 +105,10 @@ stdout '^'$WORK'[/\\]auto[/\\]vendor[/\\]example.com[/\\]version$'
+ # ...but 'go list -m' should continue to fail, this time without
+ # referring to a -mod default that the user didn't set.
+ ! go list -m all
+-stderr 'go list -m: can''t compute ''all'' using the vendor directory\n\t\(Use -mod=mod or -mod=readonly to bypass.\)'
++stderr 'go: can''t compute ''all'' using the vendor directory\n\t\(Use -mod=mod or -mod=readonly to bypass.\)'
+ 
+ ! go list -m -f '{{.Dir}}' all
+-stderr 'go list -m: can''t compute ''all'' using the vendor directory\n\t\(Use -mod=mod or -mod=readonly to bypass.\)'
++stderr 'go: can''t compute ''all'' using the vendor directory\n\t\(Use -mod=mod or -mod=readonly to bypass.\)'
+ 
+ 
+ # 'go mod init' should work if there is already a GOPATH-mode vendor directory
+diff --git a/src/cmd/go/testdata/script/mod_vendor_embed.txt b/src/cmd/go/testdata/script/mod_vendor_embed.txt
+index be114159a1..b14fd99156 100644
+--- a/src/cmd/go/testdata/script/mod_vendor_embed.txt
++++ b/src/cmd/go/testdata/script/mod_vendor_embed.txt
+@@ -6,11 +6,11 @@ cmp vendor/example.com/a/subdir/test/xtest/embed.txt a/subdir/test/xtest/embed.t
+ 
+ cd broken_no_matching_files
+ ! go mod vendor
+-stderr 'go mod vendor: pattern foo.txt: no matching files found'
++stderr 'go: pattern foo.txt: no matching files found'
+ 
+ cd ../broken_bad_pattern
+ ! go mod vendor
+-stderr 'go mod vendor: pattern ../foo.txt: invalid pattern syntax'
++stderr 'go: pattern ../foo.txt: invalid pattern syntax'
+ 
+ # matchPotentialSourceFile prunes out tests and unbuilt code.
+ # Make sure that they are vendored if they are embedded files.
+diff --git a/src/cmd/go/testdata/script/run_wildcard.txt b/src/cmd/go/testdata/script/run_wildcard.txt
+index 72036d1d8d..3e7e7b7e42 100644
+--- a/src/cmd/go/testdata/script/run_wildcard.txt
++++ b/src/cmd/go/testdata/script/run_wildcard.txt
+@@ -4,4 +4,4 @@ env GO111MODULE=off
+ # go run x/... should not panic when directory x doesn't exist.
+ 
+ ! go run nonexistent/...
+-stderr '^go run: no packages loaded from nonexistent/...$'
++stderr '^go: no packages loaded from nonexistent/...$'
+diff --git a/src/cmd/go/testdata/script/test_flag.txt b/src/cmd/go/testdata/script/test_flag.txt
+index 0142b3f308..d168cfe6a8 100644
+--- a/src/cmd/go/testdata/script/test_flag.txt
++++ b/src/cmd/go/testdata/script/test_flag.txt
+@@ -9,13 +9,13 @@ go test -count=1 -custom -args -v=7
+ # However, it should be an error to use custom flags when -i or -c are used,
+ # since we know for sure that no test binary will run at all.
+ ! go test -i -custom
+-stderr '^go test: unknown flag -custom cannot be used with -i$'
++stderr '^go: unknown flag -custom cannot be used with -i$'
+ ! go test -c -custom
+-stderr '^go test: unknown flag -custom cannot be used with -c$'
++stderr '^go: unknown flag -custom cannot be used with -c$'
+ 
+ # The same should apply even if -c or -i come after a custom flag.
+ ! go test -custom -c
+-stderr '^go test: unknown flag -custom cannot be used with -c$'
++stderr '^go: unknown flag -custom cannot be used with -c$'
+ 
+ -- go.mod --
+ module m
+diff --git a/src/cmd/go/testdata/script/test_race_install.txt b/src/cmd/go/testdata/script/test_race_install.txt
+index 8b1f343a32..a1d47a7dd3 100644
+--- a/src/cmd/go/testdata/script/test_race_install.txt
++++ b/src/cmd/go/testdata/script/test_race_install.txt
+@@ -15,4 +15,4 @@ go 1.16
+ -- pkg/pkg.go --
+ package p
+ -- stderr.txt --
+-go test: -i flag is deprecated
++go: -i flag is deprecated

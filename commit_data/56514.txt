@@ -17,7 +17,7 @@ Date:   Thu May 4 12:13:27 2023 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  misc/swig/nocgo_test.go                              |  7 -------
  {misc => src/cmd/cgo/internal}/swig/swig_test.go     | 20 ++++++++++++--------
  .../cmd/cgo/internal}/swig/testdata/callback/main.cc |  0
@@ -28,3 +28,119 @@ Date:   Thu May 4 12:13:27 2023 -0400
  .../cmd/cgo/internal}/swig/testdata/stdio/main.swig  |  0
  src/cmd/dist/test.go                                 |  3 ---
  9 files changed, 12 insertions(+), 18 deletions(-)
+
+diff --git a/misc/swig/nocgo_test.go b/misc/swig/nocgo_test.go
+deleted file mode 100644
+index c68b97d6b6..0000000000
+--- a/misc/swig/nocgo_test.go
++++ /dev/null
+@@ -1,7 +0,0 @@
+-// Copyright 2023 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// This file is just to avoid build errors if there's no cgo.
+-
+-package swig
+diff --git a/misc/swig/swig_test.go b/src/cmd/cgo/internal/swig/swig_test.go
+similarity index 90%
+rename from misc/swig/swig_test.go
+rename to src/cmd/cgo/internal/swig/swig_test.go
+index cbe062ae41..41563138a7 100644
+--- a/misc/swig/swig_test.go
++++ b/src/cmd/cgo/internal/swig/swig_test.go
+@@ -2,12 +2,11 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build cgo
+-
+ package swig
+ 
+ import (
+-	"bytes"
++	"cmd/internal/quoted"
++	"internal/testenv"
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
+@@ -19,11 +18,13 @@ import (
+ )
+ 
+ func TestStdio(t *testing.T) {
++	testenv.MustHaveCGO(t)
+ 	mustHaveSwig(t)
+ 	run(t, "testdata/stdio", false)
+ }
+ 
+ func TestCall(t *testing.T) {
++	testenv.MustHaveCGO(t)
+ 	mustHaveSwig(t)
+ 	mustHaveCxx(t)
+ 	run(t, "testdata/callback", false, "Call")
+@@ -31,6 +32,7 @@ func TestCall(t *testing.T) {
+ }
+ 
+ func TestCallback(t *testing.T) {
++	testenv.MustHaveCGO(t)
+ 	mustHaveSwig(t)
+ 	mustHaveCxx(t)
+ 	run(t, "testdata/callback", false, "Callback")
+@@ -63,12 +65,14 @@ func mustHaveCxx(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatalf("go env CXX failed: %s", err)
+ 	}
+-	cxx = bytes.TrimSuffix(cxx, []byte("\n"))
+-	// TODO(austin): "go env CXX" can return a quoted list. Use quoted.Split.
+-	p, err := exec.LookPath(string(cxx))
+-	if p == "" {
+-		t.Skipf("test requires C++ compiler, but failed to find %s: %s", string(cxx), err)
++	args, err := quoted.Split(string(cxx))
++	if err != nil {
++		t.Skipf("could not parse 'go env CXX' output %q: %s", string(cxx), err)
++	}
++	if len(args) == 0 {
++		t.Skip("no C++ compiler")
+ 	}
++	testenv.MustHaveExecPath(t, string(args[0]))
+ }
+ 
+ var (
+diff --git a/misc/swig/testdata/callback/main.cc b/src/cmd/cgo/internal/swig/testdata/callback/main.cc
+similarity index 100%
+rename from misc/swig/testdata/callback/main.cc
+rename to src/cmd/cgo/internal/swig/testdata/callback/main.cc
+diff --git a/misc/swig/testdata/callback/main.go b/src/cmd/cgo/internal/swig/testdata/callback/main.go
+similarity index 100%
+rename from misc/swig/testdata/callback/main.go
+rename to src/cmd/cgo/internal/swig/testdata/callback/main.go
+diff --git a/misc/swig/testdata/callback/main.h b/src/cmd/cgo/internal/swig/testdata/callback/main.h
+similarity index 100%
+rename from misc/swig/testdata/callback/main.h
+rename to src/cmd/cgo/internal/swig/testdata/callback/main.h
+diff --git a/misc/swig/testdata/callback/main.swigcxx b/src/cmd/cgo/internal/swig/testdata/callback/main.swigcxx
+similarity index 100%
+rename from misc/swig/testdata/callback/main.swigcxx
+rename to src/cmd/cgo/internal/swig/testdata/callback/main.swigcxx
+diff --git a/misc/swig/testdata/stdio/main.go b/src/cmd/cgo/internal/swig/testdata/stdio/main.go
+similarity index 100%
+rename from misc/swig/testdata/stdio/main.go
+rename to src/cmd/cgo/internal/swig/testdata/stdio/main.go
+diff --git a/misc/swig/testdata/stdio/main.swig b/src/cmd/cgo/internal/swig/testdata/stdio/main.swig
+similarity index 100%
+rename from misc/swig/testdata/stdio/main.swig
+rename to src/cmd/cgo/internal/swig/testdata/stdio/main.swig
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 95c27ce327..5a47b86bc6 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -870,9 +870,6 @@ func (t *tester) registerTests() {
+ 		if goos != "android" {
+ 			t.registerTest("cgo_testfortran", "", &goTest{dir: "cmd/cgo/internal/testfortran", timeout: 5 * time.Minute}, rtHostTest{})
+ 		}
+-		if goos != "android" {
+-			t.registerTest("swig", "", &goTest{dir: "../misc/swig"})
+-		}
+ 	}
+ 	if t.cgoEnabled {
+ 		t.registerCgoTests()

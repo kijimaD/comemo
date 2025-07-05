@@ -7,8 +7,401 @@ Date:   Fri Nov 6 16:33:53 2009 -0800
     
     R=r, rsc
     http://go/go-review/1025009
-
+---
  src/pkg/gob/codec_test.go   |  64 +++++-------------
  src/pkg/reflect/all_test.go | 158 ++++++++------------------------------------
  src/pkg/reflect/value.go    |   4 +-
  3 files changed, 46 insertions(+), 180 deletions(-)
+
+diff --git a/src/pkg/gob/codec_test.go b/src/pkg/gob/codec_test.go
+index 745f2c0de7..aa3ae1cd62 100644
+--- a/src/pkg/gob/codec_test.go
++++ b/src/pkg/gob/codec_test.go
+@@ -131,9 +131,7 @@ func TestScalarEncInstructions(t *testing.T) {
+ 
+ 	// bool
+ 	{
+-		data := struct {
+-			a bool;
+-		}{true};
++		data := struct{ a bool }{true};
+ 		instr := &encInstr{encBool, 6, 0, 0};
+ 		state := newencoderState(b);
+ 		instr.op(instr, state, unsafe.Pointer(&data));
+@@ -145,9 +143,7 @@ func TestScalarEncInstructions(t *testing.T) {
+ 	// int
+ 	{
+ 		b.Reset();
+-		data := struct {
+-			a int;
+-		}{17};
++		data := struct{ a int }{17};
+ 		instr := &encInstr{encInt, 6, 0, 0};
+ 		state := newencoderState(b);
+ 		instr.op(instr, state, unsafe.Pointer(&data));
+@@ -159,9 +155,7 @@ func TestScalarEncInstructions(t *testing.T) {
+ 	// uint
+ 	{
+ 		b.Reset();
+-		data := struct {
+-			a uint;
+-		}{17};
++		data := struct{ a uint }{17};
+ 		instr := &encInstr{encUint, 6, 0, 0};
+ 		state := newencoderState(b);
+ 		instr.op(instr, state, unsafe.Pointer(&data));
+@@ -173,9 +167,7 @@ func TestScalarEncInstructions(t *testing.T) {
+ 	// int8
+ 	{
+ 		b.Reset();
+-		data := struct {
+-			a int8;
+-		}{17};
++		data := struct{ a int8 }{17};
+ 		instr := &encInstr{encInt8, 6, 0, 0};
+ 		state := newencoderState(b);
+ 		instr.op(instr, state, unsafe.Pointer(&data));
+@@ -187,9 +179,7 @@ func TestScalarEncInstructions(t *testing.T) {
+ 	// uint8
+ 	{
+ 		b.Reset();
+-		data := struct {
+-			a uint8;
+-		}{17};
++		data := struct{ a uint8 }{17};
+ 		instr := &encInstr{encUint8, 6, 0, 0};
+ 		state := newencoderState(b);
+ 		instr.op(instr, state, unsafe.Pointer(&data));
+@@ -201,9 +191,7 @@ func TestScalarEncInstructions(t *testing.T) {
+ 	// int16
+ 	{
+ 		b.Reset();
+-		data := struct {
+-			a int16;
+-		}{17};
++		data := struct{ a int16 }{17};
+ 		instr := &encInstr{encInt16, 6, 0, 0};
+ 		state := newencoderState(b);
+ 		instr.op(instr, state, unsafe.Pointer(&data));
+@@ -215,9 +203,7 @@ func TestScalarEncInstructions(t *testing.T) {
+ 	// uint16
+ 	{
+ 		b.Reset();
+-		data := struct {
+-			a uint16;
+-		}{17};
++		data := struct{ a uint16 }{17};
+ 		instr := &encInstr{encUint16, 6, 0, 0};
+ 		state := newencoderState(b);
+ 		instr.op(instr, state, unsafe.Pointer(&data));
+@@ -229,9 +215,7 @@ func TestScalarEncInstructions(t *testing.T) {
+ 	// int32
+ 	{
+ 		b.Reset();
+-		data := struct {
+-			a int32;
+-		}{17};
++		data := struct{ a int32 }{17};
+ 		instr := &encInstr{encInt32, 6, 0, 0};
+ 		state := newencoderState(b);
+ 		instr.op(instr, state, unsafe.Pointer(&data));
+@@ -243,9 +227,7 @@ func TestScalarEncInstructions(t *testing.T) {
+ 	// uint32
+ 	{
+ 		b.Reset();
+-		data := struct {
+-			a uint32;
+-		}{17};
++		data := struct{ a uint32 }{17};
+ 		instr := &encInstr{encUint32, 6, 0, 0};
+ 		state := newencoderState(b);
+ 		instr.op(instr, state, unsafe.Pointer(&data));
+@@ -257,9 +239,7 @@ func TestScalarEncInstructions(t *testing.T) {
+ 	// int64
+ 	{
+ 		b.Reset();
+-		data := struct {
+-			a int64;
+-		}{17};
++		data := struct{ a int64 }{17};
+ 		instr := &encInstr{encInt64, 6, 0, 0};
+ 		state := newencoderState(b);
+ 		instr.op(instr, state, unsafe.Pointer(&data));
+@@ -271,9 +251,7 @@ func TestScalarEncInstructions(t *testing.T) {
+ 	// uint64
+ 	{
+ 		b.Reset();
+-		data := struct {
+-			a uint64;
+-		}{17};
++		data := struct{ a uint64 }{17};
+ 		instr := &encInstr{encUint64, 6, 0, 0};
+ 		state := newencoderState(b);
+ 		instr.op(instr, state, unsafe.Pointer(&data));
+@@ -285,9 +263,7 @@ func TestScalarEncInstructions(t *testing.T) {
+ 	// float
+ 	{
+ 		b.Reset();
+-		data := struct {
+-			a float;
+-		}{17};
++		data := struct{ a float }{17};
+ 		instr := &encInstr{encFloat, 6, 0, 0};
+ 		state := newencoderState(b);
+ 		instr.op(instr, state, unsafe.Pointer(&data));
+@@ -299,9 +275,7 @@ func TestScalarEncInstructions(t *testing.T) {
+ 	// float32
+ 	{
+ 		b.Reset();
+-		data := struct {
+-			a float32;
+-		}{17};
++		data := struct{ a float32 }{17};
+ 		instr := &encInstr{encFloat32, 6, 0, 0};
+ 		state := newencoderState(b);
+ 		instr.op(instr, state, unsafe.Pointer(&data));
+@@ -313,9 +287,7 @@ func TestScalarEncInstructions(t *testing.T) {
+ 	// float64
+ 	{
+ 		b.Reset();
+-		data := struct {
+-			a float64;
+-		}{17};
++		data := struct{ a float64 }{17};
+ 		instr := &encInstr{encFloat64, 6, 0, 0};
+ 		state := newencoderState(b);
+ 		instr.op(instr, state, unsafe.Pointer(&data));
+@@ -327,9 +299,7 @@ func TestScalarEncInstructions(t *testing.T) {
+ 	// bytes == []uint8
+ 	{
+ 		b.Reset();
+-		data := struct {
+-			a []byte;
+-		}{strings.Bytes("hello")};
++		data := struct{ a []byte }{strings.Bytes("hello")};
+ 		instr := &encInstr{encUint8Array, 6, 0, 0};
+ 		state := newencoderState(b);
+ 		instr.op(instr, state, unsafe.Pointer(&data));
+@@ -341,9 +311,7 @@ func TestScalarEncInstructions(t *testing.T) {
+ 	// string
+ 	{
+ 		b.Reset();
+-		data := struct {
+-			a string;
+-		}{"hello"};
++		data := struct{ a string }{"hello"};
+ 		instr := &encInstr{encString, 6, 0, 0};
+ 		state := newencoderState(b);
+ 		instr.op(instr, state, unsafe.Pointer(&data));
+diff --git a/src/pkg/reflect/all_test.go b/src/pkg/reflect/all_test.go
+index abdf572097..45a76259a9 100644
+--- a/src/pkg/reflect/all_test.go
++++ b/src/pkg/reflect/all_test.go
+@@ -36,106 +36,26 @@ func assert(t *testing.T, s, want string) {
+ func typestring(i interface{}) string	{ return Typeof(i).String() }
+ 
+ var typeTests = []pair{
+-	pair{struct {
+-		x int;
+-	}{},
+-		"int",
+-	},
+-	pair{struct {
+-		x int8;
+-	}{},
+-		"int8",
+-	},
+-	pair{struct {
+-		x int16;
+-	}{},
+-		"int16",
+-	},
+-	pair{struct {
+-		x int32;
+-	}{},
+-		"int32",
+-	},
+-	pair{struct {
+-		x int64;
+-	}{},
+-		"int64",
+-	},
+-	pair{struct {
+-		x uint;
+-	}{},
+-		"uint",
+-	},
+-	pair{struct {
+-		x uint8;
+-	}{},
+-		"uint8",
+-	},
+-	pair{struct {
+-		x uint16;
+-	}{},
+-		"uint16",
+-	},
+-	pair{struct {
+-		x uint32;
+-	}{},
+-		"uint32",
+-	},
+-	pair{struct {
+-		x uint64;
+-	}{},
+-		"uint64",
+-	},
+-	pair{struct {
+-		x float;
+-	}{},
+-		"float",
+-	},
+-	pair{struct {
+-		x float32;
+-	}{},
+-		"float32",
+-	},
+-	pair{struct {
+-		x float64;
+-	}{},
+-		"float64",
+-	},
+-	pair{struct {
+-		x int8;
+-	}{},
+-		"int8",
+-	},
+-	pair{struct {
+-		x (**int8);
+-	}{},
+-		"**int8",
+-	},
+-	pair{struct {
+-		x (**integer);
+-	}{},
+-		"**reflect_test.integer",
+-	},
+-	pair{struct {
+-		x ([32]int32);
+-	}{},
+-		"[32]int32",
+-	},
+-	pair{struct {
+-		x ([]int8);
+-	}{},
+-		"[]int8",
+-	},
+-	pair{struct {
+-		x (map[string]int32);
+-	}{},
+-		"map[string] int32",
+-	},
+-	pair{struct {
+-		x (chan<- string);
+-	}{},
+-		"chan<- string",
+-	},
++	pair{struct{ x int }{}, "int"},
++	pair{struct{ x int8 }{}, "int8"},
++	pair{struct{ x int16 }{}, "int16"},
++	pair{struct{ x int32 }{}, "int32"},
++	pair{struct{ x int64 }{}, "int64"},
++	pair{struct{ x uint }{}, "uint"},
++	pair{struct{ x uint8 }{}, "uint8"},
++	pair{struct{ x uint16 }{}, "uint16"},
++	pair{struct{ x uint32 }{}, "uint32"},
++	pair{struct{ x uint64 }{}, "uint64"},
++	pair{struct{ x float }{}, "float"},
++	pair{struct{ x float32 }{}, "float32"},
++	pair{struct{ x float64 }{}, "float64"},
++	pair{struct{ x int8 }{}, "int8"},
++	pair{struct{ x (**int8) }{}, "**int8"},
++	pair{struct{ x (**integer) }{}, "**reflect_test.integer"},
++	pair{struct{ x ([32]int32) }{}, "[32]int32"},
++	pair{struct{ x ([]int8) }{}, "[]int8"},
++	pair{struct{ x (map[string]int32) }{}, "map[string] int32"},
++	pair{struct{ x (chan<- string) }{}, "chan<- string"},
+ 	pair{struct {
+ 		x struct {
+ 			c	chan *int32;
+@@ -144,11 +64,7 @@ var typeTests = []pair{
+ 	}{},
+ 		"struct { c chan *int32; d float32 }",
+ 	},
+-	pair{struct {
+-		x (func(a int8, b int32));
+-	}{},
+-		"func(int8, int32)",
+-	},
++	pair{struct{ x (func(a int8, b int32)) }{}, "func(int8, int32)"},
+ 	pair{struct {
+ 		x struct {
+ 			c func(chan *integer, *int8);
+@@ -558,9 +474,7 @@ func TestCopyArray(t *testing.T) {
+ }
+ 
+ func TestBigUnnamedStruct(t *testing.T) {
+-	b := struct {
+-		a, b, c, d int64;
+-	}{1, 2, 3, 4};
++	b := struct{ a, b, c, d int64 }{1, 2, 3, 4};
+ 	v := NewValue(b);
+ 	b1 := v.Interface().(struct {
+ 		a, b, c, d int64;
+@@ -753,9 +667,7 @@ func NotNil(a interface{}, t *testing.T) {
+ 
+ func TestIsNil(t *testing.T) {
+ 	// These do not implement IsNil
+-	doNotNil := []interface{}{int(0), float32(0), struct {
+-		a int;
+-	}{}};
++	doNotNil := []interface{}{int(0), float32(0), struct{ a int }{}};
+ 	for _, ts := range doNotNil {
+ 		ty := Typeof(ts);
+ 		v := MakeZero(ty);
+@@ -767,24 +679,12 @@ func TestIsNil(t *testing.T) {
+ 	// These do implement IsNil.
+ 	// Wrap in extra struct to hide interface type.
+ 	doNil := []interface{}{
+-		struct {
+-			x *int;
+-		}{},
+-		struct {
+-			x interface{};
+-		}{},
+-		struct {
+-			x map[string]int;
+-		}{},
+-		struct {
+-			x func() bool;
+-		}{},
+-		struct {
+-			x chan int;
+-		}{},
+-		struct {
+-			x []string;
+-		}{},
++		struct{ x *int }{},
++		struct{ x interface{} }{},
++		struct{ x map[string]int }{},
++		struct{ x func() bool }{},
++		struct{ x chan int }{},
++		struct{ x []string }{},
+ 	};
+ 	for _, ts := range doNil {
+ 		ty := Typeof(ts).(*StructType).Field(0).Type;
+diff --git a/src/pkg/reflect/value.go b/src/pkg/reflect/value.go
+index 453fe8a8f0..3935e63538 100644
+--- a/src/pkg/reflect/value.go
++++ b/src/pkg/reflect/value.go
+@@ -1204,9 +1204,7 @@ func newValue(typ Type, addr addr, canSet bool) Value {
+ 
+ 	// All values have same memory layout;
+ 	// build once and convert.
+-	v := &struct {
+-		value;
+-	}{value{typ, addr, canSet}};
++	v := &struct{ value }{value{typ, addr, canSet}};
+ 	switch typ.(type) {
+ 	case *ArrayType:
+ 		// TODO(rsc): Something must prevent

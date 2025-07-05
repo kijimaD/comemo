@@ -8,7 +8,7 @@ Date:   Thu Aug 7 14:52:55 2014 -0700
     R=rsc, khr
     CC=golang-codereviews
     https://golang.org/cl/121330043
-
+---
  src/cmd/gc/builtin.c            |  13 ++-
  src/cmd/gc/order.c              |  13 +++
  src/cmd/gc/reflect.c            |   9 +-
@@ -28,3 +28,1469 @@ Date:   Thu Aug 7 14:52:55 2014 -0700
  src/pkg/runtime/runtime.h       |  26 +++--
  src/pkg/runtime/stubs.go        |  13 +--
  18 files changed, 265 insertions(+), 578 deletions(-)
+
+diff --git a/src/cmd/gc/builtin.c b/src/cmd/gc/builtin.c
+index 4808269b7f..eba9199544 100644
+--- a/src/cmd/gc/builtin.c
++++ b/src/cmd/gc/builtin.c
+@@ -64,7 +64,6 @@ char *runtimeimport =
+ 	"func @\"\".efaceeq (@\"\".i1·2 any, @\"\".i2·3 any) (@\"\".ret·1 bool)\n"
+ 	"func @\"\".ifacethash (@\"\".i1·2 any) (@\"\".ret·1 uint32)\n"
+ 	"func @\"\".efacethash (@\"\".i1·2 any) (@\"\".ret·1 uint32)\n"
+-	"func @\"\".equal (@\"\".typ·2 *byte, @\"\".x1·3 any, @\"\".x2·4 any) (@\"\".ret·1 bool)\n"
+ 	"func @\"\".makemap (@\"\".mapType·2 *byte, @\"\".hint·3 int64) (@\"\".hmap·1 map[any]any)\n"
+ 	"func @\"\".mapaccess1 (@\"\".mapType·2 *byte, @\"\".hmap·3 map[any]any, @\"\".key·4 *any) (@\"\".val·1 *any)\n"
+ 	"func @\"\".mapaccess1_fast32 (@\"\".mapType·2 *byte, @\"\".hmap·3 map[any]any, @\"\".key·4 any) (@\"\".val·1 *any)\n"
+@@ -96,12 +95,12 @@ char *runtimeimport =
+ 	"func @\"\".makeslice (@\"\".typ·2 *byte, @\"\".nel·3 int64, @\"\".cap·4 int64) (@\"\".ary·1 []any)\n"
+ 	"func @\"\".growslice (@\"\".typ·2 *byte, @\"\".old·3 []any, @\"\".n·4 int64) (@\"\".ary·1 []any)\n"
+ 	"func @\"\".memmove (@\"\".to·1 *any, @\"\".frm·2 *any, @\"\".length·3 uintptr)\n"
+-	"func @\"\".memequal (@\"\".eq·1 *bool, @\"\".size·2 uintptr, @\"\".x·3 *any, @\"\".y·4 *any)\n"
+-	"func @\"\".memequal8 (@\"\".eq·1 *bool, @\"\".size·2 uintptr, @\"\".x·3 *any, @\"\".y·4 *any)\n"
+-	"func @\"\".memequal16 (@\"\".eq·1 *bool, @\"\".size·2 uintptr, @\"\".x·3 *any, @\"\".y·4 *any)\n"
+-	"func @\"\".memequal32 (@\"\".eq·1 *bool, @\"\".size·2 uintptr, @\"\".x·3 *any, @\"\".y·4 *any)\n"
+-	"func @\"\".memequal64 (@\"\".eq·1 *bool, @\"\".size·2 uintptr, @\"\".x·3 *any, @\"\".y·4 *any)\n"
+-	"func @\"\".memequal128 (@\"\".eq·1 *bool, @\"\".size·2 uintptr, @\"\".x·3 *any, @\"\".y·4 *any)\n"
++	"func @\"\".memequal (@\"\".x·1 *any, @\"\".y·2 *any, @\"\".size·3 uintptr) (? bool)\n"
++	"func @\"\".memequal8 (@\"\".x·1 *any, @\"\".y·2 *any, @\"\".size·3 uintptr) (? bool)\n"
++	"func @\"\".memequal16 (@\"\".x·1 *any, @\"\".y·2 *any, @\"\".size·3 uintptr) (? bool)\n"
++	"func @\"\".memequal32 (@\"\".x·1 *any, @\"\".y·2 *any, @\"\".size·3 uintptr) (? bool)\n"
++	"func @\"\".memequal64 (@\"\".x·1 *any, @\"\".y·2 *any, @\"\".size·3 uintptr) (? bool)\n"
++	"func @\"\".memequal128 (@\"\".x·1 *any, @\"\".y·2 *any, @\"\".size·3 uintptr) (? bool)\n"
+ 	"func @\"\".int64div (? int64, ? int64) (? int64)\n"
+ 	"func @\"\".uint64div (? uint64, ? uint64) (? uint64)\n"
+ 	"func @\"\".int64mod (? int64, ? int64) (? int64)\n"
+diff --git a/src/cmd/gc/order.c b/src/cmd/gc/order.c
+index 30dbc7dacc..728defe7c3 100644
+--- a/src/cmd/gc/order.c
++++ b/src/cmd/gc/order.c
+@@ -1055,6 +1055,19 @@ orderexpr(Node **np, Order *order)
+ 		orderexpr(&n->left, order);
+ 		n = ordercopyexpr(n, n->type, order, 1);
+ 		break;
++
++	case OEQ:
++	case ONE:
++		orderexpr(&n->left, order);
++		orderexpr(&n->right, order);
++		t = n->left->type;
++		if(t->etype == TSTRUCT || isfixedarray(t)) {
++			// for complex comparisons, we need both args to be
++			// addressable so we can pass them to the runtime.
++			orderaddrtemp(&n->left, order);
++			orderaddrtemp(&n->right, order);
++		}
++		break;
+ 	}
+ 	
+ 	lineno = lno;
+diff --git a/src/cmd/gc/reflect.c b/src/cmd/gc/reflect.c
+index 8170c15b62..6b3cd66bb6 100644
+--- a/src/cmd/gc/reflect.c
++++ b/src/cmd/gc/reflect.c
+@@ -1239,7 +1239,7 @@ static Sym*
+ dalgsym(Type *t)
+ {
+ 	int ot;
+-	Sym *s, *hash, *hashfunc, *eq;
++	Sym *s, *hash, *hashfunc, *eq, *eqfunc;
+ 	char buf[100];
+ 
+ 	// dalgsym is only called for a type that needs an algorithm table,
+@@ -1251,15 +1251,18 @@ dalgsym(Type *t)
+ 	eq = typesymprefix(".eq", t);
+ 	geneq(eq, t);
+ 
+-	// make Go func (a closure) for calling the hash function from Go
++	// make Go funcs (closures) for calling hash and equal from Go
+ 	hashfunc = typesymprefix(".hashfunc", t);
+ 	dsymptr(hashfunc, 0, hash, 0);
+ 	ggloblsym(hashfunc, widthptr, DUPOK|RODATA);
++	eqfunc = typesymprefix(".eqfunc", t);
++	dsymptr(eqfunc, 0, eq, 0);
++	ggloblsym(eqfunc, widthptr, DUPOK|RODATA);
+ 
+ 	// ../../pkg/runtime/runtime.h:/Alg
+ 	ot = 0;
+ 	ot = dsymptr(s, ot, hashfunc, 0);
+-	ot = dsymptr(s, ot, eq, 0);
++	ot = dsymptr(s, ot, eqfunc, 0);
+ 	ot = dsymptr(s, ot, pkglookup("memprint", runtimepkg), 0);
+ 	switch(t->width) {
+ 	default:
+diff --git a/src/cmd/gc/runtime.go b/src/cmd/gc/runtime.go
+index 0257c3c7d6..7617eddd60 100644
+--- a/src/cmd/gc/runtime.go
++++ b/src/cmd/gc/runtime.go
+@@ -84,8 +84,6 @@ func efaceeq(i1 any, i2 any) (ret bool)
+ func ifacethash(i1 any) (ret uint32)
+ func efacethash(i1 any) (ret uint32)
+ 
+-func equal(typ *byte, x1, x2 any) (ret bool)
+-
+ // *byte is really *runtime.Type
+ func makemap(mapType *byte, hint int64) (hmap map[any]any)
+ func mapaccess1(mapType *byte, hmap map[any]any, key *any) (val *any)
+@@ -124,12 +122,12 @@ func makeslice(typ *byte, nel int64, cap int64) (ary []any)
+ func growslice(typ *byte, old []any, n int64) (ary []any)
+ func memmove(to *any, frm *any, length uintptr)
+ 
+-func memequal(eq *bool, size uintptr, x, y *any)
+-func memequal8(eq *bool, size uintptr, x, y *any)
+-func memequal16(eq *bool, size uintptr, x, y *any)
+-func memequal32(eq *bool, size uintptr, x, y *any)
+-func memequal64(eq *bool, size uintptr, x, y *any)
+-func memequal128(eq *bool, size uintptr, x, y *any)
++func memequal(x, y *any, size uintptr) bool
++func memequal8(x, y *any, size uintptr) bool
++func memequal16(x, y *any, size uintptr) bool
++func memequal32(x, y *any, size uintptr) bool
++func memequal64(x, y *any, size uintptr) bool
++func memequal128(x, y *any, size uintptr) bool
+ 
+ // only used on 32-bit
+ func int64div(int64, int64) int64
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 0195f3d629..cd6c609567 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -2856,18 +2856,19 @@ genhash(Sym *sym, Type *t)
+ }
+ 
+ // Return node for
+-//	if p.field != q.field { *eq = false; return }
++//	if p.field != q.field { return false }
+ static Node*
+-eqfield(Node *p, Node *q, Node *field, Node *eq)
++eqfield(Node *p, Node *q, Node *field)
+ {
+-	Node *nif, *nx, *ny;
++	Node *nif, *nx, *ny, *r;
+ 
+ 	nx = nod(OXDOT, p, field);
+ 	ny = nod(OXDOT, q, field);
+ 	nif = nod(OIF, N, N);
+ 	nif->ntest = nod(ONE, nx, ny);
+-	nif->nbody = list(nif->nbody, nod(OAS, nod(OIND, eq, N), nodbool(0)));
+-	nif->nbody = list(nif->nbody, nod(ORETURN, N, N));
++	r = nod(ORETURN, N, N);
++	r->list = list(r->list, nodbool(0));
++	nif->nbody = list(nif->nbody, r);
+ 	return nif;
+ }
+ 
+@@ -2896,11 +2897,11 @@ eqmemfunc(vlong size, Type *type)
+ }
+ 
+ // Return node for
+-//	if memequal(size, &p.field, &q.field, eq); !*eq { return }
++//	if !memequal(&p.field, &q.field, size) { return false }
+ static Node*
+-eqmem(Node *p, Node *q, Node *field, vlong size, Node *eq)
++eqmem(Node *p, Node *q, Node *field, vlong size)
+ {
+-	Node *nif, *nx, *ny, *call;
++	Node *nif, *nx, *ny, *call, *r;
+ 
+ 	nx = nod(OADDR, nod(OXDOT, p, field), N);
+ 	nx->etype = 1;  // does not escape
+@@ -2910,15 +2911,16 @@ eqmem(Node *p, Node *q, Node *field, vlong size, Node *eq)
+ 	typecheck(&ny, Erv);
+ 
+ 	call = nod(OCALL, eqmemfunc(size, nx->type->type), N);
+-	call->list = list(call->list, eq);
+-	call->list = list(call->list, nodintconst(size));
+ 	call->list = list(call->list, nx);
+ 	call->list = list(call->list, ny);
++	call->list = list(call->list, nodintconst(size));
+ 
+ 	nif = nod(OIF, N, N);
+ 	nif->ninit = list(nif->ninit, call);
+-	nif->ntest = nod(ONOT, nod(OIND, eq, N), N);
+-	nif->nbody = list(nif->nbody, nod(ORETURN, N, N));
++	nif->ntest = nod(ONOT, call, N);
++	r = nod(ORETURN, N, N);
++	r->list = list(r->list, nodbool(0));
++	nif->nbody = list(nif->nbody, r);
+ 	return nif;
+ }
+ 
+@@ -2928,7 +2930,7 @@ eqmem(Node *p, Node *q, Node *field, vlong size, Node *eq)
+ void
+ geneq(Sym *sym, Type *t)
+ {
+-	Node *n, *fn, *np, *neq, *nq, *tfn, *nif, *ni, *nx, *ny, *nrange;
++	Node *n, *fn, *np, *nq, *tfn, *nif, *ni, *nx, *ny, *nrange, *r;
+ 	Type *t1, *first;
+ 	int old_safemode;
+ 	int64 size;
+@@ -2941,24 +2943,23 @@ geneq(Sym *sym, Type *t)
+ 	dclcontext = PEXTERN;
+ 	markdcl();
+ 
+-	// func sym(eq *bool, s uintptr, p, q *T)
++	// func sym(p, q *T, s uintptr) bool
+ 	fn = nod(ODCLFUNC, N, N);
+ 	fn->nname = newname(sym);
+ 	fn->nname->class = PFUNC;
+ 	tfn = nod(OTFUNC, N, N);
+ 	fn->nname->ntype = tfn;
+ 
+-	n = nod(ODCLFIELD, newname(lookup("eq")), typenod(ptrto(types[TBOOL])));
+-	tfn->list = list(tfn->list, n);
+-	neq = n->left;
+-	n = nod(ODCLFIELD, newname(lookup("s")), typenod(types[TUINTPTR]));
+-	tfn->list = list(tfn->list, n);
+ 	n = nod(ODCLFIELD, newname(lookup("p")), typenod(ptrto(t)));
+ 	tfn->list = list(tfn->list, n);
+ 	np = n->left;
+ 	n = nod(ODCLFIELD, newname(lookup("q")), typenod(ptrto(t)));
+ 	tfn->list = list(tfn->list, n);
+ 	nq = n->left;
++	n = nod(ODCLFIELD, newname(lookup("s")), typenod(types[TUINTPTR]));
++	tfn->list = list(tfn->list, n);
++	n = nod(ODCLFIELD, N, typenod(types[TBOOL]));
++	tfn->rlist = list(tfn->rlist, n);
+ 
+ 	funchdr(fn);
+ 
+@@ -2984,7 +2985,7 @@ geneq(Sym *sym, Type *t)
+ 		colasdefn(nrange->list, nrange);
+ 		ni = nrange->list->n;
+ 		
+-		// if p[i] != q[i] { *eq = false; return }
++		// if p[i] != q[i] { return false }
+ 		nx = nod(OINDEX, np, ni);
+ 		nx->bounded = 1;
+ 		ny = nod(OINDEX, nq, ni);
+@@ -2992,13 +2993,11 @@ geneq(Sym *sym, Type *t)
+ 
+ 		nif = nod(OIF, N, N);
+ 		nif->ntest = nod(ONE, nx, ny);
+-		nif->nbody = list(nif->nbody, nod(OAS, nod(OIND, neq, N), nodbool(0)));
+-		nif->nbody = list(nif->nbody, nod(ORETURN, N, N));
++		r = nod(ORETURN, N, N);
++		r->list = list(r->list, nodbool(0));
++		nif->nbody = list(nif->nbody, r);
+ 		nrange->nbody = list(nrange->nbody, nif);
+ 		fn->nbody = list(fn->nbody, nrange);
+-
+-		// *eq = true;
+-		fn->nbody = list(fn->nbody, nod(OAS, nod(OIND, neq, N), nodbool(1)));
+ 		break;
+ 
+ 	case TSTRUCT:
+@@ -3023,16 +3022,16 @@ geneq(Sym *sym, Type *t)
+ 			// cross-package unexported fields.
+ 			if(first != T) {
+ 				if(first->down == t1) {
+-					fn->nbody = list(fn->nbody, eqfield(np, nq, newname(first->sym), neq));
++					fn->nbody = list(fn->nbody, eqfield(np, nq, newname(first->sym)));
+ 				} else if(first->down->down == t1) {
+-					fn->nbody = list(fn->nbody, eqfield(np, nq, newname(first->sym), neq));
++					fn->nbody = list(fn->nbody, eqfield(np, nq, newname(first->sym)));
+ 					first = first->down;
+ 					if(!isblanksym(first->sym))
+-						fn->nbody = list(fn->nbody, eqfield(np, nq, newname(first->sym), neq));
++						fn->nbody = list(fn->nbody, eqfield(np, nq, newname(first->sym)));
+ 				} else {
+ 					// More than two fields: use memequal.
+ 					size = offend - first->width; // first->width is offset
+-					fn->nbody = list(fn->nbody, eqmem(np, nq, newname(first->sym), size, neq));
++					fn->nbody = list(fn->nbody, eqmem(np, nq, newname(first->sym), size));
+ 				}
+ 				first = T;
+ 			}
+@@ -3042,14 +3041,17 @@ geneq(Sym *sym, Type *t)
+ 				continue;
+ 
+ 			// Check this field, which is not just memory.
+-			fn->nbody = list(fn->nbody, eqfield(np, nq, newname(t1->sym), neq));
++			fn->nbody = list(fn->nbody, eqfield(np, nq, newname(t1->sym)));
+ 		}
+ 
+-		// *eq = true;
+-		fn->nbody = list(fn->nbody, nod(OAS, nod(OIND, neq, N), nodbool(1)));
+ 		break;
+ 	}
+ 
++	// return true
++	r = nod(ORETURN, N, N);
++	r->list = list(r->list, nodbool(1));
++	fn->nbody = list(fn->nbody, r);
++
+ 	if(debug['r'])
+ 		dumplist("geneq body", fn->nbody);
+ 
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index be929e99ed..e50b917709 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -3013,10 +3013,10 @@ eqfor(Type *t)
+ 	n = newname(sym);
+ 	n->class = PFUNC;
+ 	ntype = nod(OTFUNC, N, N);
+-	ntype->list = list(ntype->list, nod(ODCLFIELD, N, typenod(ptrto(types[TBOOL]))));
+-	ntype->list = list(ntype->list, nod(ODCLFIELD, N, typenod(types[TUINTPTR])));
+ 	ntype->list = list(ntype->list, nod(ODCLFIELD, N, typenod(ptrto(t))));
+ 	ntype->list = list(ntype->list, nod(ODCLFIELD, N, typenod(ptrto(t))));
++	ntype->list = list(ntype->list, nod(ODCLFIELD, N, typenod(types[TUINTPTR])));
++	ntype->rlist = list(ntype->rlist, nod(ODCLFIELD, N, typenod(types[TBOOL])));
+ 	typecheck(&ntype, Etype);
+ 	n->type = ntype->type;
+ 	return n;
+@@ -3037,10 +3037,9 @@ countfield(Type *t)
+ static void
+ walkcompare(Node **np, NodeList **init)
+ {
+-	Node *n, *l, *r, *fn, *call, *a, *li, *ri, *expr;
++	Node *n, *l, *r, *call, *a, *li, *ri, *expr;
+ 	int andor, i;
+ 	Type *t, *t1;
+-	static Node *tempbool;
+ 	
+ 	n = *np;
+ 	
+@@ -3058,8 +3057,9 @@ walkcompare(Node **np, NodeList **init)
+ 		break;
+ 	}
+ 	
+-	if(!islvalue(n->left) || !islvalue(n->right))
+-		goto hard;
++	if(!islvalue(n->left) || !islvalue(n->right)) {
++		fatal("arguments of comparison must be lvalues");
++	}
+ 
+ 	l = temp(ptrto(t));
+ 	a = nod(OAS, l, nod(OADDR, n->left, N));
+@@ -3118,57 +3118,16 @@ walkcompare(Node **np, NodeList **init)
+ 		goto ret;
+ 	}
+ 
+-	// Chose not to inline, but still have addresses.
+-	// Call equality function directly.
+-	// The equality function requires a bool pointer for
+-	// storing its address, because it has to be callable
+-	// from C, and C can't access an ordinary Go return value.
+-	// To avoid creating many temporaries, cache one per function.
+-	if(tempbool == N || tempbool->curfn != curfn)
+-		tempbool = temp(types[TBOOL]);
+-	
++	// Chose not to inline.  Call equality function directly.
+ 	call = nod(OCALL, eqfor(t), N);
+-	a = nod(OADDR, tempbool, N);
+-	a->etype = 1;  // does not escape
+-	call->list = list(call->list, a);
+-	call->list = list(call->list, nodintconst(t->width));
+ 	call->list = list(call->list, l);
+ 	call->list = list(call->list, r);
+-	typecheck(&call, Etop);
+-	walkstmt(&call);
+-	*init = list(*init, call);
+-
+-	// tempbool cannot be used directly as multiple comparison
+-	// expressions may exist in the same statement. Create another
+-	// temporary to hold the value (its address is not taken so it can
+-	// be optimized away).
+-	r = temp(types[TBOOL]);
+-	a = nod(OAS, r, tempbool);
+-	typecheck(&a, Etop);
+-	walkstmt(&a);
+-	*init = list(*init, a);
+-
++	call->list = list(call->list, nodintconst(t->width));
++	r = call;
+ 	if(n->op != OEQ)
+ 		r = nod(ONOT, r, N);
+ 	goto ret;
+ 
+-hard:
+-	// Cannot take address of one or both of the operands.
+-	// Instead, pass directly to runtime helper function.
+-	// Easier on the stack than passing the address
+-	// of temporary variables, because we are better at reusing
+-	// the argument space than temporary variable space.
+-	fn = syslook("equal", 1);
+-	l = n->left;
+-	r = n->right;
+-	argtype(fn, n->left->type);
+-	argtype(fn, n->left->type);
+-	r = mkcall1(fn, n->type, init, typename(n->left->type), l, r);
+-	if(n->op == ONE) {
+-		r = nod(ONOT, r, N);
+-	}
+-	goto ret;
+-
+ ret:
+ 	typecheck(&r, Erv);
+ 	walkexpr(&r, init);
+diff --git a/src/pkg/runtime/alg.go b/src/pkg/runtime/alg.go
+index ea4156f1ed..409f0fa0c5 100644
+--- a/src/pkg/runtime/alg.go
++++ b/src/pkg/runtime/alg.go
+@@ -142,6 +142,106 @@ func nilinterhash(a *eface, s, h uintptr) uintptr {
+ 	}
+ }
+ 
++func memequal(p, q unsafe.Pointer, size uintptr) bool {
++	if p == q {
++		return true
++	}
++	return memeq(p, q, size)
++}
++
++func memequal0(p, q unsafe.Pointer, size uintptr) bool {
++	return true
++}
++func memequal8(p, q unsafe.Pointer, size uintptr) bool {
++	return *(*int8)(p) == *(*int8)(q)
++}
++func memequal16(p, q unsafe.Pointer, size uintptr) bool {
++	return *(*int16)(p) == *(*int16)(q)
++}
++func memequal32(p, q unsafe.Pointer, size uintptr) bool {
++	return *(*int32)(p) == *(*int32)(q)
++}
++func memequal64(p, q unsafe.Pointer, size uintptr) bool {
++	return *(*int64)(p) == *(*int64)(q)
++}
++func memequal128(p, q unsafe.Pointer, size uintptr) bool {
++	return *(*[2]int64)(p) == *(*[2]int64)(q)
++}
++func f32equal(p, q unsafe.Pointer, size uintptr) bool {
++	return *(*float32)(p) == *(*float32)(q)
++}
++func f64equal(p, q unsafe.Pointer, size uintptr) bool {
++	return *(*float64)(p) == *(*float64)(q)
++}
++func c64equal(p, q unsafe.Pointer, size uintptr) bool {
++	return *(*complex64)(p) == *(*complex64)(q)
++}
++func c128equal(p, q unsafe.Pointer, size uintptr) bool {
++	return *(*complex128)(p) == *(*complex128)(q)
++}
++func strequal(p, q unsafe.Pointer, size uintptr) bool {
++	return *(*string)(p) == *(*string)(q)
++}
++func interequal(p, q unsafe.Pointer, size uintptr) bool {
++	return ifaceeq(*(*interface {
++		f()
++	})(p), *(*interface {
++		f()
++	})(q))
++}
++func nilinterequal(p, q unsafe.Pointer, size uintptr) bool {
++	return efaceeq(*(*interface{})(p), *(*interface{})(q))
++}
++func efaceeq(p, q interface{}) bool {
++	x := (*eface)(unsafe.Pointer(&p))
++	y := (*eface)(unsafe.Pointer(&q))
++	t := x._type
++	if t != y._type {
++		return false
++	}
++	if t == nil {
++		return true
++	}
++	eq := goalg(t.alg).equal
++	if **(**uintptr)(unsafe.Pointer(&eq)) == noequalcode {
++		// calling noequal will panic too,
++		// but we can print a better error.
++		panic(errorString("comparing uncomparable type " + *t._string))
++	}
++	if uintptr(t.size) <= ptrSize {
++		return eq(noescape(unsafe.Pointer(&x.data)), noescape(unsafe.Pointer(&y.data)), uintptr(t.size))
++	}
++	return eq(x.data, y.data, uintptr(t.size))
++}
++func ifaceeq(p, q interface {
++	f()
++}) bool {
++	x := (*iface)(unsafe.Pointer(&p))
++	y := (*iface)(unsafe.Pointer(&q))
++	xtab := x.tab
++	if xtab != y.tab {
++		return false
++	}
++	if xtab == nil {
++		return true
++	}
++	t := xtab._type
++	eq := goalg(t.alg).equal
++	if **(**uintptr)(unsafe.Pointer(&eq)) == noequalcode {
++		// calling noequal will panic too,
++		// but we can print a better error.
++		panic(errorString("comparing uncomparable type " + *t._string))
++	}
++	if uintptr(t.size) <= ptrSize {
++		return eq(noescape(unsafe.Pointer(&x.data)), noescape(unsafe.Pointer(&y.data)), uintptr(t.size))
++	}
++	return eq(x.data, y.data, uintptr(t.size))
++}
++
++func noequal(p, q unsafe.Pointer, size uintptr) bool {
++	panic(errorString("comparing uncomparable types"))
++}
++
+ // Testing adapters for hash quality tests (see hash_test.go)
+ func haveGoodHash() bool {
+ 	return use_aeshash
+diff --git a/src/pkg/runtime/alg.goc b/src/pkg/runtime/alg.goc
+index 6207ae526c..f9e8892929 100644
+--- a/src/pkg/runtime/alg.goc
++++ b/src/pkg/runtime/alg.goc
+@@ -9,16 +9,6 @@ package runtime
+ 
+ bool runtime·use_aeshash;
+ 
+-void
+-runtime·memequal(bool *eq, uintptr s, void *a, void *b)
+-{
+-	if(a == b) {
+-		*eq = 1;
+-		return;
+-	}
+-	*eq = runtime·memeq(a, b, s);
+-}
+-
+ void
+ runtime·memprint(uintptr s, void *a)
+ {
+@@ -52,15 +42,6 @@ runtime·memcopy(uintptr s, void *a, void *b)
+ 	runtime·memmove(a, b, s);
+ }
+ 
+-void
+-runtime·memequal0(bool *eq, uintptr s, void *a, void *b)
+-{
+-	USED(s);
+-	USED(a);
+-	USED(b);
+-	*eq = true;
+-}
+-
+ void
+ runtime·memcopy0(uintptr s, void *a, void *b)
+ {
+@@ -69,13 +50,6 @@ runtime·memcopy0(uintptr s, void *a, void *b)
+ 	USED(b);
+ }
+ 
+-void
+-runtime·memequal8(bool *eq, uintptr s, void *a, void *b)
+-{
+-	USED(s);
+-	*eq = *(uint8*)a == *(uint8*)b;
+-}
+-
+ void
+ runtime·memcopy8(uintptr s, void *a, void *b)
+ {
+@@ -87,13 +61,6 @@ runtime·memcopy8(uintptr s, void *a, void *b)
+ 	*(uint8*)a = *(uint8*)b;
+ }
+ 
+-void
+-runtime·memequal16(bool *eq, uintptr s, void *a, void *b)
+-{
+-	USED(s);
+-	*eq = *(uint16*)a == *(uint16*)b;
+-}
+-
+ void
+ runtime·memcopy16(uintptr s, void *a, void *b)
+ {
+@@ -105,13 +72,6 @@ runtime·memcopy16(uintptr s, void *a, void *b)
+ 	*(uint16*)a = *(uint16*)b;
+ }
+ 
+-void
+-runtime·memequal32(bool *eq, uintptr s, void *a, void *b)
+-{
+-	USED(s);
+-	*eq = *(uint32*)a == *(uint32*)b;
+-}
+-
+ void
+ runtime·memcopy32(uintptr s, void *a, void *b)
+ {
+@@ -123,13 +83,6 @@ runtime·memcopy32(uintptr s, void *a, void *b)
+ 	*(uint32*)a = *(uint32*)b;
+ }
+ 
+-void
+-runtime·memequal64(bool *eq, uintptr s, void *a, void *b)
+-{
+-	USED(s);
+-	*eq = *(uint64*)a == *(uint64*)b;
+-}
+-
+ void
+ runtime·memcopy64(uintptr s, void *a, void *b)
+ {
+@@ -141,13 +94,6 @@ runtime·memcopy64(uintptr s, void *a, void *b)
+ 	*(uint64*)a = *(uint64*)b;
+ }
+ 
+-void
+-runtime·memequal128(bool *eq, uintptr s, void *a, void *b)
+-{
+-	USED(s);
+-	*eq = ((uint64*)a)[0] == ((uint64*)b)[0] && ((uint64*)a)[1] == ((uint64*)b)[1];
+-}
+-
+ void
+ runtime·memcopy128(uintptr s, void *a, void *b)
+ {
+@@ -161,42 +107,6 @@ runtime·memcopy128(uintptr s, void *a, void *b)
+ 	((uint64*)a)[1] = ((uint64*)b)[1];
+ }
+ 
+-void
+-runtime·f32equal(bool *eq, uintptr s, void *a, void *b)
+-{
+-	USED(s);
+-	*eq = *(float32*)a == *(float32*)b;
+-}
+-
+-void
+-runtime·f64equal(bool *eq, uintptr s, void *a, void *b)
+-{
+-	USED(s);
+-	*eq = *(float64*)a == *(float64*)b;
+-}
+-
+-void
+-runtime·c64equal(bool *eq, uintptr s, void *a, void *b)
+-{	
+-	Complex64 *ca, *cb;
+-	
+-	USED(s);
+-	ca = a;
+-	cb = b;
+-	*eq = ca->real == cb->real && ca->imag == cb->imag;
+-}
+-
+-void
+-runtime·c128equal(bool *eq, uintptr s, void *a, void *b)
+-{	
+-	Complex128 *ca, *cb;
+-	
+-	USED(s);
+-	ca = a;
+-	cb = b;
+-	*eq = ca->real == cb->real && ca->imag == cb->imag;
+-}
+-
+ void
+ runtime·algslicecopy(uintptr s, void *a, void *b)
+ {
+@@ -212,27 +122,6 @@ runtime·algslicecopy(uintptr s, void *a, void *b)
+ 	((Slice*)a)->cap = ((Slice*)b)->cap;
+ }
+ 
+-void
+-runtime·strequal(bool *eq, uintptr s, void *a, void *b)
+-{
+-	intgo alen;
+-	byte *s1, *s2;
+-
+-	USED(s);
+-	alen = ((String*)a)->len;
+-	if(alen != ((String*)b)->len) {
+-		*eq = false;
+-		return;
+-	}
+-	s1 = ((String*)a)->str;
+-	s2 = ((String*)b)->str;
+-	if(s1 == s2) {
+-		*eq = true;
+-		return;
+-	}
+-	*eq = runtime·memeq(s1, s2, alen);
+-}
+-
+ void
+ runtime·strprint(uintptr s, void *a)
+ {
+@@ -260,13 +149,6 @@ runtime·interprint(uintptr s, void *a)
+ 	runtime·printiface_c(*(Iface*)a);
+ }
+ 
+-void
+-runtime·interequal(bool *eq, uintptr s, void *a, void *b)
+-{
+-	USED(s);
+-	*eq = runtime·ifaceeq_c(*(Iface*)a, *(Iface*)b);
+-}
+-
+ void
+ runtime·intercopy(uintptr s, void *a, void *b)
+ {
+@@ -287,13 +169,6 @@ runtime·nilinterprint(uintptr s, void *a)
+ 	runtime·printeface_c(*(Eface*)a);
+ }
+ 
+-void
+-runtime·nilinterequal(bool *eq, uintptr s, void *a, void *b)
+-{
+-	USED(s);
+-	*eq = runtime·efaceeq_c(*(Eface*)a, *(Eface*)b);
+-}
+-
+ void
+ runtime·nilintercopy(uintptr s, void *a, void *b)
+ {
+@@ -310,16 +185,6 @@ runtime·nilintercopy(uintptr s, void *a, void *b)
+ extern uintptr runtime·nohashcode;
+ extern uintptr runtime·noequalcode;
+ 
+-void
+-runtime·noequal(bool *eq, uintptr s, void *a, void *b)
+-{
+-	USED(s);
+-	USED(a);
+-	USED(b);
+-	USED(eq);
+-	runtime·panicstring("comparing uncomparable types");
+-}
+-
+ static FuncVal memhashfunc = {(void*)runtime·memhash};
+ static FuncVal nohashfunc = {(void*)runtime·nohash};
+ static FuncVal strhashfunc = {(void*)runtime·strhash};
+@@ -335,31 +200,48 @@ static FuncVal aeshash32func = {(void*)runtime·aeshash32};
+ static FuncVal aeshash64func = {(void*)runtime·aeshash64};
+ static FuncVal aeshashstrfunc = {(void*)runtime·aeshashstr};
+ 
++static FuncVal memequalfunc = {(void*)runtime·memequal};
++static FuncVal noequalfunc = {(void*)runtime·noequal};
++static FuncVal strequalfunc = {(void*)runtime·strequal};
++static FuncVal interequalfunc = {(void*)runtime·interequal};
++static FuncVal nilinterequalfunc = {(void*)runtime·nilinterequal};
++static FuncVal f32equalfunc = {(void*)runtime·f32equal};
++static FuncVal f64equalfunc = {(void*)runtime·f64equal};
++static FuncVal c64equalfunc = {(void*)runtime·c64equal};
++static FuncVal c128equalfunc = {(void*)runtime·c128equal};
++static FuncVal memequal0func = {(void*)runtime·memequal0};
++static FuncVal memequal8func = {(void*)runtime·memequal8};
++static FuncVal memequal16func = {(void*)runtime·memequal16};
++static FuncVal memequal32func = {(void*)runtime·memequal32};
++static FuncVal memequal64func = {(void*)runtime·memequal64};
++static FuncVal memequal128func = {(void*)runtime·memequal128};
++
++
+ Alg
+ runtime·algarray[] =
+ {
+-[AMEM]		{ &memhashfunc, runtime·memequal, runtime·memprint, runtime·memcopy },
+-[ANOEQ]		{ &nohashfunc, runtime·noequal, runtime·memprint, runtime·memcopy },
+-[ASTRING]	{ &strhashfunc, runtime·strequal, runtime·strprint, runtime·strcopy },
+-[AINTER]	{ &interhashfunc, runtime·interequal, runtime·interprint, runtime·intercopy },
+-[ANILINTER]	{ &nilinterhashfunc, runtime·nilinterequal, runtime·nilinterprint, runtime·nilintercopy },
+-[ASLICE]	{ &nohashfunc, runtime·noequal, runtime·memprint, runtime·algslicecopy },
+-[AFLOAT32]	{ &f32hashfunc, runtime·f32equal, runtime·memprint, runtime·memcopy },
+-[AFLOAT64]	{ &f64hashfunc, runtime·f64equal, runtime·memprint, runtime·memcopy },
+-[ACPLX64]	{ &c64hashfunc, runtime·c64equal, runtime·memprint, runtime·memcopy },
+-[ACPLX128]	{ &c128hashfunc, runtime·c128equal, runtime·memprint, runtime·memcopy },
+-[AMEM0]		{ &memhashfunc, runtime·memequal0, runtime·memprint, runtime·memcopy0 },
+-[AMEM8]		{ &memhashfunc, runtime·memequal8, runtime·memprint, runtime·memcopy8 },
+-[AMEM16]	{ &memhashfunc, runtime·memequal16, runtime·memprint, runtime·memcopy16 },
+-[AMEM32]	{ &memhashfunc, runtime·memequal32, runtime·memprint, runtime·memcopy32 },
+-[AMEM64]	{ &memhashfunc, runtime·memequal64, runtime·memprint, runtime·memcopy64 },
+-[AMEM128]	{ &memhashfunc, runtime·memequal128, runtime·memprint, runtime·memcopy128 },
+-[ANOEQ0]	{ &nohashfunc, runtime·noequal, runtime·memprint, runtime·memcopy0 },
+-[ANOEQ8]	{ &nohashfunc, runtime·noequal, runtime·memprint, runtime·memcopy8 },
+-[ANOEQ16]	{ &nohashfunc, runtime·noequal, runtime·memprint, runtime·memcopy16 },
+-[ANOEQ32]	{ &nohashfunc, runtime·noequal, runtime·memprint, runtime·memcopy32 },
+-[ANOEQ64]	{ &nohashfunc, runtime·noequal, runtime·memprint, runtime·memcopy64 },
+-[ANOEQ128]	{ &nohashfunc, runtime·noequal, runtime·memprint, runtime·memcopy128 },
++[AMEM]		{ &memhashfunc, &memequalfunc, runtime·memprint, runtime·memcopy },
++[ANOEQ]		{ &nohashfunc, &noequalfunc, runtime·memprint, runtime·memcopy },
++[ASTRING]	{ &strhashfunc, &strequalfunc, runtime·strprint, runtime·strcopy },
++[AINTER]	{ &interhashfunc, &interequalfunc, runtime·interprint, runtime·intercopy },
++[ANILINTER]	{ &nilinterhashfunc, &nilinterequalfunc, runtime·nilinterprint, runtime·nilintercopy },
++[ASLICE]	{ &nohashfunc, &noequalfunc, runtime·memprint, runtime·algslicecopy },
++[AFLOAT32]	{ &f32hashfunc, &f32equalfunc, runtime·memprint, runtime·memcopy },
++[AFLOAT64]	{ &f64hashfunc, &f64equalfunc, runtime·memprint, runtime·memcopy },
++[ACPLX64]	{ &c64hashfunc, &c64equalfunc, runtime·memprint, runtime·memcopy },
++[ACPLX128]	{ &c128hashfunc, &c128equalfunc, runtime·memprint, runtime·memcopy },
++[AMEM0]		{ &memhashfunc, &memequal0func, runtime·memprint, runtime·memcopy0 },
++[AMEM8]		{ &memhashfunc, &memequal8func, runtime·memprint, runtime·memcopy8 },
++[AMEM16]	{ &memhashfunc, &memequal16func, runtime·memprint, runtime·memcopy16 },
++[AMEM32]	{ &memhashfunc, &memequal32func, runtime·memprint, runtime·memcopy32 },
++[AMEM64]	{ &memhashfunc, &memequal64func, runtime·memprint, runtime·memcopy64 },
++[AMEM128]	{ &memhashfunc, &memequal128func, runtime·memprint, runtime·memcopy128 },
++[ANOEQ0]	{ &nohashfunc, &noequalfunc, runtime·memprint, runtime·memcopy0 },
++[ANOEQ8]	{ &nohashfunc, &noequalfunc, runtime·memprint, runtime·memcopy8 },
++[ANOEQ16]	{ &nohashfunc, &noequalfunc, runtime·memprint, runtime·memcopy16 },
++[ANOEQ32]	{ &nohashfunc, &noequalfunc, runtime·memprint, runtime·memcopy32 },
++[ANOEQ64]	{ &nohashfunc, &noequalfunc, runtime·memprint, runtime·memcopy64 },
++[ANOEQ128]	{ &nohashfunc, &noequalfunc, runtime·memprint, runtime·memcopy128 },
+ };
+ 
+ // Runtime helpers.
+@@ -406,20 +288,6 @@ runtime·hashinit(void)
+ 	}
+ }
+ 
+-// func equal(t *Type, x T, y T) (ret bool)
+-#pragma textflag NOSPLIT
+-void
+-runtime·equal(Type *t, ...)
+-{
+-	byte *x, *y;
+-	bool *ret;
+-	
+-	x = (byte*)ROUND((uintptr)(&t+1), t->align);
+-	y = x + t->size;
+-	ret = (bool*)ROUND((uintptr)(y+t->size), Structrnd);
+-	t->alg->equal(ret, t->size, x, y);
+-}
+-
+ // Testing adapter for memclr
+ func memclrBytes(s Slice) {
+ 	runtime·memclr(s.array, s.len);
+diff --git a/src/pkg/runtime/asm_386.s b/src/pkg/runtime/asm_386.s
+index d2c6e30469..0607bc8021 100644
+--- a/src/pkg/runtime/asm_386.s
++++ b/src/pkg/runtime/asm_386.s
+@@ -1149,13 +1149,7 @@ DATA shifts<>+0xfc(SB)/4, $0xff0f0e0d
+ 
+ GLOBL shifts<>(SB),RODATA,$256
+ 
+-TEXT runtime·memeq(SB),NOSPLIT,$0-12
+-	MOVL	a+0(FP), SI
+-	MOVL	b+4(FP), DI
+-	MOVL	count+8(FP), BX
+-	JMP	runtime·memeqbody(SB)
+-
+-TEXT runtime·gomemeq(SB),NOSPLIT,$0-13
++TEXT runtime·memeq(SB),NOSPLIT,$0-13
+ 	MOVL	a+0(FP), SI
+ 	MOVL	b+4(FP), DI
+ 	MOVL	size+8(FP), BX
+@@ -2266,38 +2260,3 @@ TEXT runtime·fastrand2(SB), NOSPLIT, $0-4
+ 	MOVL	DX, m_fastrand(AX)
+ 	MOVL	DX, ret+0(FP)
+ 	RET
+-
+-// The goeq trampoline is necessary while we have
+-// both Go and C calls to alg functions.  Once we move all call
+-// sites to Go, we can redo the eq functions to use the
+-// Go calling convention and remove this.
+-
+-// convert call to:
+-//   func (alg unsafe.Pointer, p, q unsafe.Pointer, size uintptr) bool
+-// to:
+-//   func (eq *bool, size uintptr, p, q unsafe.Pointer)
+-TEXT runtime·goeq(SB), NOSPLIT, $16-17
+-	FUNCDATA $FUNCDATA_ArgsPointerMaps,gcargs_goeq<>(SB)
+-	FUNCDATA $FUNCDATA_LocalsPointerMaps,gclocals_goeq<>(SB)
+-	MOVL	alg+0(FP), AX
+-	MOVL	alg_equal(AX), AX
+-	MOVL	p+4(FP), CX
+-	MOVL	q+8(FP), DX
+-	MOVL	size+12(FP), DI
+-	LEAL	ret+16(FP), SI
+-	MOVL	SI, 0(SP)
+-	MOVL	DI, 4(SP)
+-	MOVL	CX, 8(SP)
+-	MOVL	DX, 12(SP)
+-	PCDATA  $PCDATA_StackMapIndex, $0
+-	CALL	*AX
+-	RET
+-
+-DATA gcargs_goeq<>+0x00(SB)/4, $1  // 1 stackmap
+-DATA gcargs_goeq<>+0x04(SB)/4, $10  // 5 args
+-DATA gcargs_goeq<>+0x08(SB)/4, $(const_BitsPointer+(const_BitsPointer<<2)+(const_BitsPointer<<4))
+-GLOBL gcargs_goeq<>(SB),RODATA,$12
+-
+-DATA gclocals_goeq<>+0x00(SB)/4, $1  // 1 stackmap
+-DATA gclocals_goeq<>+0x04(SB)/4, $0  // 0 locals
+-GLOBL gclocals_goeq<>(SB),RODATA,$8
+diff --git a/src/pkg/runtime/asm_amd64.s b/src/pkg/runtime/asm_amd64.s
+index 19e9f1d3a2..0fd21d1795 100644
+--- a/src/pkg/runtime/asm_amd64.s
++++ b/src/pkg/runtime/asm_amd64.s
+@@ -1117,13 +1117,7 @@ DATA shifts<>+0xf0(SB)/8, $0x0807060504030201
+ DATA shifts<>+0xf8(SB)/8, $0xff0f0e0d0c0b0a09
+ GLOBL shifts<>(SB),RODATA,$256
+ 
+-TEXT runtime·memeq(SB),NOSPLIT,$0-24
+-	MOVQ	a+0(FP), SI
+-	MOVQ	b+8(FP), DI
+-	MOVQ	count+16(FP), BX
+-	JMP	runtime·memeqbody(SB)
+-
+-TEXT runtime·gomemeq(SB),NOSPLIT,$0-25
++TEXT runtime·memeq(SB),NOSPLIT,$0-25
+ 	MOVQ	a+0(FP), SI
+ 	MOVQ	b+8(FP), DI
+ 	MOVQ	size+16(FP), BX
+@@ -2305,38 +2299,3 @@ TEXT runtime·fastrand2(SB), NOSPLIT, $0-4
+ 	MOVL	DX, m_fastrand(AX)
+ 	MOVL	DX, ret+0(FP)
+ 	RET
+-
+-// goeq trampoline is necessary while we have
+-// both Go and C calls to alg functions.  Once we move all call
+-// sites to Go, we can redo the eq function to use the
+-// Go calling convention and remove this.
+-
+-// convert call to:
+-//   func (alg unsafe.Pointer, p, q unsafe.Pointer, size uintptr) bool
+-// to:
+-//   func (eq *bool, size uintptr, p, q unsafe.Pointer)
+-TEXT runtime·goeq(SB), NOSPLIT, $32-33
+-	FUNCDATA $FUNCDATA_ArgsPointerMaps,gcargs_goeq<>(SB)
+-	FUNCDATA $FUNCDATA_LocalsPointerMaps,gclocals_goeq<>(SB)
+-	MOVQ	alg+0(FP), AX
+-	MOVQ	alg_equal(AX), AX
+-	MOVQ	p+8(FP), CX
+-	MOVQ	q+16(FP), DX
+-	MOVQ	size+24(FP), DI
+-	LEAQ	ret+32(FP), SI
+-	MOVQ	SI, 0(SP)
+-	MOVQ	DI, 8(SP)
+-	MOVQ	CX, 16(SP)
+-	MOVQ	DX, 24(SP)
+-	PCDATA  $PCDATA_StackMapIndex, $0
+-	CALL	*AX
+-	RET
+-
+-DATA gcargs_goeq<>+0x00(SB)/4, $1  // 1 stackmap
+-DATA gcargs_goeq<>+0x04(SB)/4, $10  // 5 args
+-DATA gcargs_goeq<>+0x08(SB)/4, $(const_BitsPointer+(const_BitsPointer<<2)+(const_BitsPointer<<4))
+-GLOBL gcargs_goeq<>(SB),RODATA,$12
+-
+-DATA gclocals_goeq<>+0x00(SB)/4, $1  // 1 stackmap
+-DATA gclocals_goeq<>+0x04(SB)/4, $0  // 0 locals
+-GLOBL gclocals_goeq<>(SB),RODATA,$8
+diff --git a/src/pkg/runtime/asm_amd64p32.s b/src/pkg/runtime/asm_amd64p32.s
+index f2a1f2a0bc..69e050f90d 100644
+--- a/src/pkg/runtime/asm_amd64p32.s
++++ b/src/pkg/runtime/asm_amd64p32.s
+@@ -775,13 +775,7 @@ TEXT runtime·aeshash32(SB),NOSPLIT,$0-24
+ TEXT runtime·aeshash64(SB),NOSPLIT,$0-24
+ 	RET
+ 
+-TEXT runtime·memeq(SB),NOSPLIT,$0-12
+-	MOVL	a+0(FP), SI
+-	MOVL	b+4(FP), DI
+-	MOVL	count+8(FP), BX
+-	JMP	runtime·memeqbody(SB)
+-
+-TEXT runtime·gomemeq(SB),NOSPLIT,$0-17
++TEXT runtime·memeq(SB),NOSPLIT,$0-17
+ 	MOVL	a+0(FP), SI
+ 	MOVL	b+4(FP), DI
+ 	MOVL	size+8(FP), BX
+@@ -1180,38 +1174,3 @@ TEXT runtime·fastrand2(SB), NOSPLIT, $0-4
+ 	MOVL	DX, m_fastrand(AX)
+ 	MOVL	DX, ret+0(FP)
+ 	RET
+-
+-// The goeq trampoline is necessary while we have
+-// both Go and C calls to alg functions.  Once we move all call
+-// sites to Go, we can redo the eq functions to use the
+-// Go calling convention and remove this.
+-
+-// convert call to:
+-//   func (alg unsafe.Pointer, p, q unsafe.Pointer, size uintptr) bool
+-// to:
+-//   func (eq *bool, size uintptr, p, q unsafe.Pointer)
+-TEXT runtime·goeq(SB), NOSPLIT, $16-17
+-	FUNCDATA $FUNCDATA_ArgsPointerMaps,gcargs_goeq<>(SB)
+-	FUNCDATA $FUNCDATA_LocalsPointerMaps,gclocals_goeq<>(SB)
+-	MOVL	alg+0(FP), AX
+-	MOVL	alg_equal(AX), AX
+-	MOVL	p+4(FP), CX
+-	MOVL	q+8(FP), DX
+-	MOVL	size+12(FP), DI
+-	LEAL	ret+16(FP), SI
+-	MOVL	SI, 0(SP)
+-	MOVL	DI, 4(SP)
+-	MOVL	CX, 8(SP)
+-	MOVL	DX, 12(SP)
+-	PCDATA  $PCDATA_StackMapIndex, $0
+-	CALL	*AX
+-	RET
+-
+-DATA gcargs_goeq<>+0x00(SB)/4, $1  // 1 stackmap
+-DATA gcargs_goeq<>+0x04(SB)/4, $10  // 5 args
+-DATA gcargs_goeq<>+0x08(SB)/4, $(const_BitsPointer+(const_BitsPointer<<2)+(const_BitsPointer<<4))
+-GLOBL gcargs_goeq<>(SB),RODATA,$12
+-
+-DATA gclocals_goeq<>+0x00(SB)/4, $1  // 1 stackmap
+-DATA gclocals_goeq<>+0x04(SB)/4, $0  // 0 locals
+-GLOBL gclocals_goeq<>(SB),RODATA,$8
+diff --git a/src/pkg/runtime/asm_arm.s b/src/pkg/runtime/asm_arm.s
+index 406a426078..324b27b18f 100644
+--- a/src/pkg/runtime/asm_arm.s
++++ b/src/pkg/runtime/asm_arm.s
+@@ -703,24 +703,7 @@ TEXT runtime·aeshashstr(SB),NOSPLIT,$-4-0
+ 	MOVW	$0, R0
+ 	MOVW	(R0), R1
+ 
+-TEXT runtime·memeq(SB),NOSPLIT,$-4-12
+-	MOVW	a+0(FP), R1
+-	MOVW	b+4(FP), R2
+-	MOVW	n+8(FP), R3
+-	ADD	R1, R3, R6
+-	MOVW	$1, R0
+-_next:
+-	CMP	R1, R6
+-	RET.EQ
+-	MOVBU.P	1(R1), R4
+-	MOVBU.P	1(R2), R5
+-	CMP	R4, R5
+-	BEQ	_next
+-
+-	MOVW	$0, R0
+-	RET
+-
+-TEXT runtime·gomemeq(SB),NOSPLIT,$-4-13
++TEXT runtime·memeq(SB),NOSPLIT,$-4-13
+ 	MOVW	a+0(FP), R1
+ 	MOVW	b+4(FP), R2
+ 	MOVW	size+8(FP), R3
+@@ -1268,38 +1251,3 @@ TEXT runtime·fastrand2(SB), NOSPLIT, $-4-4
+ 	MOVW	R0, m_fastrand(R1)
+ 	MOVW	R0, ret+0(FP)
+ 	RET
+-
+-// The goeq trampoline is necessary while we have
+-// both Go and C calls to alg functions.  Once we move all call
+-// sites to Go, we can redo the eq functions to use the
+-// Go calling convention and remove this.
+-
+-// convert call to:
+-//   func (alg unsafe.Pointer, p, q unsafe.Pointer, size uintptr) bool
+-// to:
+-//   func (eq *bool, size uintptr, p, q unsafe.Pointer)
+-TEXT runtime·goeq(SB), NOSPLIT, $16-17
+-	FUNCDATA $FUNCDATA_ArgsPointerMaps,gcargs_goeq<>(SB)
+-	FUNCDATA $FUNCDATA_LocalsPointerMaps,gclocals_goeq<>(SB)
+-	MOVW	alg+0(FP), R0
+-	MOVW	alg_equal(R0), R0
+-	MOVW	p+4(FP), R1
+-	MOVW	q+8(FP), R2
+-	MOVW	size+12(FP), R3
+-	ADD	$40, R13, R4
+-	MOVW	R4, 4(R13)
+-	MOVW	R3, 8(R13)
+-	MOVW	R2, 12(R13)
+-	MOVW	R1, 16(R13)
+-	PCDATA  $PCDATA_StackMapIndex, $0
+-	BL	(R0)
+-	RET
+-
+-DATA gcargs_goeq<>+0x00(SB)/4, $1  // 1 stackmap
+-DATA gcargs_goeq<>+0x04(SB)/4, $10  // 5 args
+-DATA gcargs_goeq<>+0x08(SB)/4, $(const_BitsPointer+(const_BitsPointer<<2)+(const_BitsPointer<<4))
+-GLOBL gcargs_goeq<>(SB),RODATA,$12
+-
+-DATA gclocals_goeq<>+0x00(SB)/4, $1  // 1 stackmap
+-DATA gclocals_goeq<>+0x04(SB)/4, $0  // 0 locals
+-GLOBL gclocals_goeq<>(SB),RODATA,$8
+diff --git a/src/pkg/runtime/hashmap.go b/src/pkg/runtime/hashmap.go
+index 6706290974..9dcf48242f 100644
+--- a/src/pkg/runtime/hashmap.go
++++ b/src/pkg/runtime/hashmap.go
+@@ -243,7 +243,8 @@ func mapaccess1(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer {
+ 	if h == nil || h.count == 0 {
+ 		return unsafe.Pointer(t.elem.zero)
+ 	}
+-	hash := goalg(t.key.alg).hash(key, uintptr(t.key.size), uintptr(h.hash0))
++	alg := goalg(t.key.alg)
++	hash := alg.hash(key, uintptr(t.key.size), uintptr(h.hash0))
+ 	m := uintptr(1)<<h.B - 1
+ 	b := (*bmap)(add(h.buckets, (hash&m)*uintptr(t.bucketsize)))
+ 	if c := h.oldbuckets; c != nil {
+@@ -265,7 +266,7 @@ func mapaccess1(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer {
+ 			if t.indirectkey != 0 {
+ 				k = *((*unsafe.Pointer)(k))
+ 			}
+-			if goeq(t.key.alg, key, k, uintptr(t.key.size)) {
++			if alg.equal(key, k, uintptr(t.key.size)) {
+ 				v := add(unsafe.Pointer(b), dataOffset+bucketCnt*uintptr(t.keysize)+i*uintptr(t.valuesize))
+ 				if t.indirectvalue != 0 {
+ 					v = *((*unsafe.Pointer)(v))
+@@ -291,7 +292,8 @@ func mapaccess2(t *maptype, h *hmap, key unsafe.Pointer) (unsafe.Pointer, bool)
+ 	if h == nil || h.count == 0 {
+ 		return unsafe.Pointer(t.elem.zero), false
+ 	}
+-	hash := goalg(t.key.alg).hash(key, uintptr(t.key.size), uintptr(h.hash0))
++	alg := goalg(t.key.alg)
++	hash := alg.hash(key, uintptr(t.key.size), uintptr(h.hash0))
+ 	m := uintptr(1)<<h.B - 1
+ 	b := (*bmap)(unsafe.Pointer(uintptr(h.buckets) + (hash&m)*uintptr(t.bucketsize)))
+ 	if c := h.oldbuckets; c != nil {
+@@ -313,7 +315,7 @@ func mapaccess2(t *maptype, h *hmap, key unsafe.Pointer) (unsafe.Pointer, bool)
+ 			if t.indirectkey != 0 {
+ 				k = *((*unsafe.Pointer)(k))
+ 			}
+-			if goeq(t.key.alg, key, k, uintptr(t.key.size)) {
++			if alg.equal(key, k, uintptr(t.key.size)) {
+ 				v := add(unsafe.Pointer(b), dataOffset+bucketCnt*uintptr(t.keysize)+i*uintptr(t.valuesize))
+ 				if t.indirectvalue != 0 {
+ 					v = *((*unsafe.Pointer)(v))
+@@ -333,7 +335,8 @@ func mapaccessK(t *maptype, h *hmap, key unsafe.Pointer) (unsafe.Pointer, unsafe
+ 	if h == nil || h.count == 0 {
+ 		return nil, nil
+ 	}
+-	hash := goalg(t.key.alg).hash(key, uintptr(t.key.size), uintptr(h.hash0))
++	alg := goalg(t.key.alg)
++	hash := alg.hash(key, uintptr(t.key.size), uintptr(h.hash0))
+ 	m := uintptr(1)<<h.B - 1
+ 	b := (*bmap)(unsafe.Pointer(uintptr(h.buckets) + (hash&m)*uintptr(t.bucketsize)))
+ 	if c := h.oldbuckets; c != nil {
+@@ -355,7 +358,7 @@ func mapaccessK(t *maptype, h *hmap, key unsafe.Pointer) (unsafe.Pointer, unsafe
+ 			if t.indirectkey != 0 {
+ 				k = *((*unsafe.Pointer)(k))
+ 			}
+-			if goeq(t.key.alg, key, k, uintptr(t.key.size)) {
++			if alg.equal(key, k, uintptr(t.key.size)) {
+ 				v := add(unsafe.Pointer(b), dataOffset+bucketCnt*uintptr(t.keysize)+i*uintptr(t.valuesize))
+ 				if t.indirectvalue != 0 {
+ 					v = *((*unsafe.Pointer)(v))
+@@ -383,7 +386,8 @@ func mapassign1(t *maptype, h *hmap, key unsafe.Pointer, val unsafe.Pointer) {
+ 		raceReadObjectPC(t.elem, val, callerpc, pc)
+ 	}
+ 
+-	hash := goalg(t.key.alg).hash(key, uintptr(t.key.size), uintptr(h.hash0))
++	alg := goalg(t.key.alg)
++	hash := alg.hash(key, uintptr(t.key.size), uintptr(h.hash0))
+ 
+ 	if h.buckets == nil {
+ 		if checkgc {
+@@ -421,7 +425,7 @@ again:
+ 			if t.indirectkey != 0 {
+ 				k2 = *((*unsafe.Pointer)(k2))
+ 			}
+-			if !goeq(t.key.alg, key, k2, uintptr(t.key.size)) {
++			if !alg.equal(key, k2, uintptr(t.key.size)) {
+ 				continue
+ 			}
+ 			// already have a mapping for key.  Update it.
+@@ -492,7 +496,8 @@ func mapdelete(t *maptype, h *hmap, key unsafe.Pointer) {
+ 	if h == nil || h.count == 0 {
+ 		return
+ 	}
+-	hash := goalg(t.key.alg).hash(key, uintptr(t.key.size), uintptr(h.hash0))
++	alg := goalg(t.key.alg)
++	hash := alg.hash(key, uintptr(t.key.size), uintptr(h.hash0))
+ 	bucket := hash & (uintptr(1)<<h.B - 1)
+ 	if h.oldbuckets != nil {
+ 		growWork(t, h, bucket)
+@@ -512,7 +517,7 @@ func mapdelete(t *maptype, h *hmap, key unsafe.Pointer) {
+ 			if t.indirectkey != 0 {
+ 				k2 = *((*unsafe.Pointer)(k2))
+ 			}
+-			if !goeq(t.key.alg, key, k2, uintptr(t.key.size)) {
++			if !alg.equal(key, k2, uintptr(t.key.size)) {
+ 				continue
+ 			}
+ 			memclr(k, uintptr(t.keysize))
+@@ -595,6 +600,7 @@ func mapiternext(it *hiter) {
+ 	b := it.bptr
+ 	i := it.i
+ 	checkBucket := it.checkBucket
++	alg := goalg(t.key.alg)
+ 
+ next:
+ 	if b == nil {
+@@ -645,10 +651,10 @@ next:
+ 				if t.indirectkey != 0 {
+ 					k2 = *((*unsafe.Pointer)(k2))
+ 				}
+-				if goeq(t.key.alg, k2, k2, uintptr(t.key.size)) {
++				if alg.equal(k2, k2, uintptr(t.key.size)) {
+ 					// If the item in the oldbucket is not destined for
+ 					// the current new bucket in the iteration, skip it.
+-					hash := goalg(t.key.alg).hash(k2, uintptr(t.key.size), uintptr(h.hash0))
++					hash := alg.hash(k2, uintptr(t.key.size), uintptr(h.hash0))
+ 					if hash&(uintptr(1)<<it.B-1) != checkBucket {
+ 						continue
+ 					}
+@@ -682,7 +688,7 @@ next:
+ 				if t.indirectkey != 0 {
+ 					k2 = *((*unsafe.Pointer)(k2))
+ 				}
+-				if goeq(t.key.alg, k2, k2, uintptr(t.key.size)) {
++				if alg.equal(k2, k2, uintptr(t.key.size)) {
+ 					// Check the current hash table for the data.
+ 					// This code handles the case where the key
+ 					// has been deleted, updated, or deleted and reinserted.
+@@ -758,6 +764,7 @@ func growWork(t *maptype, h *hmap, bucket uintptr) {
+ func evacuate(t *maptype, h *hmap, oldbucket uintptr) {
+ 	b := (*bmap)(add(h.oldbuckets, oldbucket*uintptr(t.bucketsize)))
+ 	newbit := uintptr(1) << (h.B - 1)
++	alg := goalg(t.key.alg)
+ 	if !evacuated(b) {
+ 		// TODO: reuse overflow buckets instead of using new ones, if there
+ 		// is no iterator using the old buckets.  (If !oldIterator.)
+@@ -788,9 +795,9 @@ func evacuate(t *maptype, h *hmap, oldbucket uintptr) {
+ 				}
+ 				// Compute hash to make our evacuation decision (whether we need
+ 				// to send this key/value to bucket x or bucket y).
+-				hash := goalg(t.key.alg).hash(k2, uintptr(t.key.size), uintptr(h.hash0))
++				hash := alg.hash(k2, uintptr(t.key.size), uintptr(h.hash0))
+ 				if h.flags&iterator != 0 {
+-					if !goeq(t.key.alg, k2, k2, uintptr(t.key.size)) {
++					if !alg.equal(k2, k2, uintptr(t.key.size)) {
+ 						// If key != key (NaNs), then the hash could be (and probably
+ 						// will be) entirely different from the old hash.  Moreover,
+ 						// it isn't reproducible.  Reproducibility is required in the
+diff --git a/src/pkg/runtime/hashmap_fast.go b/src/pkg/runtime/hashmap_fast.go
+index 989ae032bd..c1b71d6d86 100644
+--- a/src/pkg/runtime/hashmap_fast.go
++++ b/src/pkg/runtime/hashmap_fast.go
+@@ -209,7 +209,7 @@ func mapaccess1_faststr(t *maptype, h *hmap, ky string) unsafe.Pointer {
+ 				if k.len != key.len {
+ 					continue
+ 				}
+-				if k.str == key.str || gomemeq(k.str, key.str, uintptr(key.len)) {
++				if k.str == key.str || memeq(k.str, key.str, uintptr(key.len)) {
+ 					return add(unsafe.Pointer(b), dataOffset+bucketCnt*2*ptrSize+i*uintptr(t.valuesize))
+ 				}
+ 			}
+@@ -247,7 +247,7 @@ func mapaccess1_faststr(t *maptype, h *hmap, ky string) unsafe.Pointer {
+ 		}
+ 		if keymaybe != bucketCnt {
+ 			k := (*stringStruct)(add(unsafe.Pointer(b), dataOffset+keymaybe*2*ptrSize))
+-			if gomemeq(k.str, key.str, uintptr(key.len)) {
++			if memeq(k.str, key.str, uintptr(key.len)) {
+ 				return add(unsafe.Pointer(b), dataOffset+bucketCnt*2*ptrSize+keymaybe*uintptr(t.valuesize))
+ 			}
+ 		}
+@@ -277,7 +277,7 @@ dohash:
+ 			if k.len != key.len {
+ 				continue
+ 			}
+-			if k.str == key.str || gomemeq(k.str, key.str, uintptr(key.len)) {
++			if k.str == key.str || memeq(k.str, key.str, uintptr(key.len)) {
+ 				return add(unsafe.Pointer(b), dataOffset+bucketCnt*2*ptrSize+i*uintptr(t.valuesize))
+ 			}
+ 		}
+@@ -313,7 +313,7 @@ func mapaccess2_faststr(t *maptype, h *hmap, ky string) (unsafe.Pointer, bool) {
+ 				if k.len != key.len {
+ 					continue
+ 				}
+-				if k.str == key.str || gomemeq(k.str, key.str, uintptr(key.len)) {
++				if k.str == key.str || memeq(k.str, key.str, uintptr(key.len)) {
+ 					return add(unsafe.Pointer(b), dataOffset+bucketCnt*2*ptrSize+i*uintptr(t.valuesize)), true
+ 				}
+ 			}
+@@ -349,7 +349,7 @@ func mapaccess2_faststr(t *maptype, h *hmap, ky string) (unsafe.Pointer, bool) {
+ 		}
+ 		if keymaybe != bucketCnt {
+ 			k := (*stringStruct)(add(unsafe.Pointer(b), dataOffset+keymaybe*2*ptrSize))
+-			if gomemeq(k.str, key.str, uintptr(key.len)) {
++			if memeq(k.str, key.str, uintptr(key.len)) {
+ 				return add(unsafe.Pointer(b), dataOffset+bucketCnt*2*ptrSize+keymaybe*uintptr(t.valuesize)), true
+ 			}
+ 		}
+@@ -379,7 +379,7 @@ dohash:
+ 			if k.len != key.len {
+ 				continue
+ 			}
+-			if k.str == key.str || gomemeq(k.str, key.str, uintptr(key.len)) {
++			if k.str == key.str || memeq(k.str, key.str, uintptr(key.len)) {
+ 				return add(unsafe.Pointer(b), dataOffset+bucketCnt*2*ptrSize+i*uintptr(t.valuesize)), true
+ 			}
+ 		}
+diff --git a/src/pkg/runtime/iface.go b/src/pkg/runtime/iface.go
+index d3428e5a9c..9bd6fc7617 100644
+--- a/src/pkg/runtime/iface.go
++++ b/src/pkg/runtime/iface.go
+@@ -408,48 +408,6 @@ func assertE2E2(inter *interfacetype, e interface{}) (interface{}, bool) {
+ 	return e, true
+ }
+ 
+-func efaceeq(e1 interface{}, e2 interface{}) bool {
+-	p1 := (*eface)(unsafe.Pointer(&e1))
+-	p2 := (*eface)(unsafe.Pointer(&e2))
+-	t := p1._type
+-	if t != p2._type {
+-		return false
+-	}
+-	if t == nil {
+-		return true
+-	}
+-
+-	if *(*uintptr)(unsafe.Pointer(&t.alg.equal)) == noequalcode {
+-		panic(errorString("comparing uncomparable type " + *t._string))
+-	}
+-	size := uintptr(t.size)
+-	if size <= ptrSize {
+-		return goeq(t.alg, unsafe.Pointer(&p1.data), unsafe.Pointer(&p2.data), size)
+-	}
+-	return goeq(t.alg, p1.data, p2.data, size)
+-}
+-
+-func ifaceeq(i1 fInterface, i2 fInterface) bool {
+-	p1 := (*iface)(unsafe.Pointer(&i1))
+-	p2 := (*iface)(unsafe.Pointer(&i2))
+-	tab := p1.tab
+-	if tab != p2.tab {
+-		return false
+-	}
+-	if tab == nil {
+-		return true
+-	}
+-	t := tab._type
+-	if *(*uintptr)(unsafe.Pointer(&t.alg.equal)) == noequalcode {
+-		panic(errorString("comparing uncomparable type " + *t._string))
+-	}
+-	size := uintptr(t.size)
+-	if size <= ptrSize {
+-		return goeq(t.alg, unsafe.Pointer(&p1.data), unsafe.Pointer(&p2.data), size)
+-	}
+-	return goeq(t.alg, p1.data, p2.data, size)
+-}
+-
+ func ifacethash(i fInterface) uint32 {
+ 	ip := (*iface)(unsafe.Pointer(&i))
+ 	tab := ip.tab
+diff --git a/src/pkg/runtime/iface.goc b/src/pkg/runtime/iface.goc
+index a2e968fafa..2ac7405905 100644
+--- a/src/pkg/runtime/iface.goc
++++ b/src/pkg/runtime/iface.goc
+@@ -153,49 +153,3 @@ runtime·ifaceE2I2(InterfaceType *inter, Eface e, Iface *ret)
+ 	ret->data = e.data;
+ 	return true;
+ }
+-
+-static bool
+-ifaceeq1(void *data1, void *data2, Type *t)
+-{
+-	uintptr size;
+-	Alg *alg;
+-	Eface err;
+-	bool eq;
+-
+-	alg = t->alg;
+-	size = t->size;
+-
+-	if(alg->equal == runtime·noequal) {
+-		// calling noequal will panic too,
+-		// but we can print a better error.
+-		runtime·newErrorString(runtime·catstring(runtime·gostringnocopy((byte*)"comparing uncomparable type "), *t->string), &err);
+-		runtime·panic(err);
+-	}
+-
+-	eq = 0;
+-	if(size <= sizeof(data1))
+-		alg->equal(&eq, size, &data1, &data2);
+-	else
+-		alg->equal(&eq, size, data1, data2);
+-	return eq;
+-}
+-
+-bool
+-runtime·ifaceeq_c(Iface i1, Iface i2)
+-{
+-	if(i1.tab != i2.tab)
+-		return false;
+-	if(i1.tab == nil)
+-		return true;
+-	return ifaceeq1(i1.data, i2.data, i1.tab->type);
+-}
+-
+-bool
+-runtime·efaceeq_c(Eface e1, Eface e2)
+-{
+-	if(e1.type != e2.type)
+-		return false;
+-	if(e1.type == nil)
+-		return true;
+-	return ifaceeq1(e1.data, e2.data, e1.type);
+-}
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index b85198f480..62100a783a 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -634,7 +634,7 @@ typedef	struct	Alg		Alg;
+ struct	Alg
+ {
+ 	FuncVal* hash;
+-	void	(*equal)(bool*, uintptr, void*, void*);
++	FuncVal* equal;
+ 	void	(*print)(uintptr, void*);
+ 	void	(*copy)(uintptr, void*, void*);
+ };
+@@ -665,13 +665,21 @@ void	runtime·aeshash32(void*, uintptr, uintptr, uintptr);
+ void	runtime·aeshash64(void*, uintptr, uintptr, uintptr);
+ void	runtime·aeshashstr(void*, uintptr, uintptr, uintptr);
+ 
+-void	runtime·memequal(bool*, uintptr, void*, void*);
+-void	runtime·noequal(bool*, uintptr, void*, void*);
+-void	runtime·strequal(bool*, uintptr, void*, void*);
+-void	runtime·interequal(bool*, uintptr, void*, void*);
+-void	runtime·nilinterequal(bool*, uintptr, void*, void*);
+-
+-bool	runtime·memeq(void*, void*, uintptr);
++void	runtime·memequal(void*, void*, uintptr, bool);
++void	runtime·noequal(void*, void*, uintptr, bool);
++void	runtime·strequal(void*, void*, uintptr, bool);
++void	runtime·interequal(void*, void*, uintptr, bool);
++void	runtime·nilinterequal(void*, void*, uintptr, bool);
++void	runtime·f32equal(void*, void*, uintptr, bool);
++void	runtime·f64equal(void*, void*, uintptr, bool);
++void	runtime·c64equal(void*, void*, uintptr, bool);
++void	runtime·c128equal(void*, void*, uintptr, bool);
++void	runtime·memequal0(void*, void*, uintptr, bool);
++void	runtime·memequal8(void*, void*, uintptr, bool);
++void	runtime·memequal16(void*, void*, uintptr, bool);
++void	runtime·memequal32(void*, void*, uintptr, bool);
++void	runtime·memequal64(void*, void*, uintptr, bool);
++void	runtime·memequal128(void*, void*, uintptr, bool);
+ 
+ void	runtime·memprint(uintptr, void*);
+ void	runtime·strprint(uintptr, void*);
+@@ -873,8 +881,6 @@ MCache*	runtime·allocmcache(void);
+ void	runtime·freemcache(MCache*);
+ void	runtime·mallocinit(void);
+ void	runtime·chaninit(void);
+-bool	runtime·ifaceeq_c(Iface, Iface);
+-bool	runtime·efaceeq_c(Eface, Eface);
+ void*	runtime·mallocgc(uintptr size, Type* typ, uint32 flag);
+ void	runtime·runpanic(Panic*);
+ uintptr	runtime·getcallersp(void*);
+diff --git a/src/pkg/runtime/stubs.go b/src/pkg/runtime/stubs.go
+index 77eece9433..9c18434d5d 100644
+--- a/src/pkg/runtime/stubs.go
++++ b/src/pkg/runtime/stubs.go
+@@ -111,20 +111,12 @@ func starttheworld()
+ func stoptheworld()
+ func clearpools()
+ 
+-// in asm_*.s
+-//go:noescape
+-func gohash(a *alg, p unsafe.Pointer, size uintptr, seed uintptr) uintptr
+-
+-// in asm_*.s
+-//go:noescape
+-func goeq(alg *alg, p, q unsafe.Pointer, size uintptr) bool
+-
+ // exported value for testing
+ var hashLoad = loadFactor
+ 
+ // in asm_*.s
+ //go:noescape
+-func gomemeq(a, b unsafe.Pointer, size uintptr) bool
++func memeq(a, b unsafe.Pointer, size uintptr) bool
+ 
+ // Code pointers for the nohash/noequal algorithms. Used for producing better error messages.
+ var nohashcode uintptr
+@@ -147,6 +139,9 @@ type goalgtype struct {
+ 	// function for hashing objects of this type
+ 	// (ptr to object, size, seed) -> hash
+ 	hash func(unsafe.Pointer, uintptr, uintptr) uintptr
++	// function for comparing objects of this type
++	// (ptr to object A, ptr to object B, size) -> ==?
++	equal func(unsafe.Pointer, unsafe.Pointer, uintptr) bool
+ }
+ 
+ func goalg(a *alg) *goalgtype {

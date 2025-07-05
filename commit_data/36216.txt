@@ -17,7 +17,7 @@ Date:   Wed Apr 11 15:37:16 2018 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/fmt_test.go             |  1 +
  src/cmd/compile/internal/gc/go.go       |  2 +-
  src/cmd/compile/internal/gc/lex.go      | 58 +++++++-----------------
@@ -27,3 +27,505 @@ Date:   Wed Apr 11 15:37:16 2018 -0700
  src/cmd/link/internal/ld/go.go          | 78 +++++++++++++--------------------
  src/cmd/link/internal/ld/util.go        | 45 -------------------
  8 files changed, 82 insertions(+), 163 deletions(-)
+
+diff --git a/src/cmd/compile/fmt_test.go b/src/cmd/compile/fmt_test.go
+index cc9c182ad6..64933ea063 100644
+--- a/src/cmd/compile/fmt_test.go
++++ b/src/cmd/compile/fmt_test.go
+@@ -602,6 +602,7 @@ var knownFormats = map[string]string{
+ 	"[]*cmd/compile/internal/gc.Node %v":              "",
+ 	"[]*cmd/compile/internal/ssa.Block %v":            "",
+ 	"[]*cmd/compile/internal/ssa.Value %v":            "",
++	"[][]string %q":                                   "",
+ 	"[]byte %s":                                       "",
+ 	"[]byte %x":                                       "",
+ 	"[]cmd/compile/internal/ssa.Edge %v":              "",
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index 2d7d4d84a9..3ba0598f61 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -78,7 +78,7 @@ var sizeof_Array int // runtime sizeof(Array)
+ // } String;
+ var sizeof_String int // runtime sizeof(String)
+ 
+-var pragcgobuf string
++var pragcgobuf [][]string
+ 
+ var outfile string
+ var linkobj string
+diff --git a/src/cmd/compile/internal/gc/lex.go b/src/cmd/compile/internal/gc/lex.go
+index 22f720e066..1c2cc9518d 100644
+--- a/src/cmd/compile/internal/gc/lex.go
++++ b/src/cmd/compile/internal/gc/lex.go
+@@ -28,18 +28,6 @@ func isQuoted(s string) bool {
+ 	return len(s) >= 2 && s[0] == '"' && s[len(s)-1] == '"'
+ }
+ 
+-func plan9quote(s string) string {
+-	if s == "" {
+-		return "''"
+-	}
+-	for _, c := range s {
+-		if c <= ' ' || c == '\'' {
+-			return "'" + strings.Replace(s, "'", "''", -1) + "'"
+-		}
+-	}
+-	return s
+-}
+-
+ const (
+ 	// Func pragmas.
+ 	Nointerface    syntax.Pragma = 1 << iota
+@@ -105,74 +93,58 @@ func pragmaValue(verb string) syntax.Pragma {
+ }
+ 
+ // pragcgo is called concurrently if files are parsed concurrently.
+-func (p *noder) pragcgo(pos syntax.Pos, text string) string {
++func (p *noder) pragcgo(pos syntax.Pos, text string) {
+ 	f := pragmaFields(text)
+ 
+-	verb := f[0][3:] // skip "go:"
++	verb := strings.TrimPrefix(f[0][3:], "go:")
++	f[0] = verb
++
+ 	switch verb {
+ 	case "cgo_export_static", "cgo_export_dynamic":
+ 		switch {
+ 		case len(f) == 2 && !isQuoted(f[1]):
+-			local := plan9quote(f[1])
+-			return fmt.Sprintln(verb, local)
+-
+ 		case len(f) == 3 && !isQuoted(f[1]) && !isQuoted(f[2]):
+-			local := plan9quote(f[1])
+-			remote := plan9quote(f[2])
+-			return fmt.Sprintln(verb, local, remote)
+-
+ 		default:
+ 			p.error(syntax.Error{Pos: pos, Msg: fmt.Sprintf(`usage: //go:%s local [remote]`, verb)})
++			return
+ 		}
+ 	case "cgo_import_dynamic":
+ 		switch {
+ 		case len(f) == 2 && !isQuoted(f[1]):
+-			local := plan9quote(f[1])
+-			return fmt.Sprintln(verb, local)
+-
+ 		case len(f) == 3 && !isQuoted(f[1]) && !isQuoted(f[2]):
+-			local := plan9quote(f[1])
+-			remote := plan9quote(f[2])
+-			return fmt.Sprintln(verb, local, remote)
+-
+ 		case len(f) == 4 && !isQuoted(f[1]) && !isQuoted(f[2]) && isQuoted(f[3]):
+-			local := plan9quote(f[1])
+-			remote := plan9quote(f[2])
+-			library := plan9quote(strings.Trim(f[3], `"`))
+-			return fmt.Sprintln(verb, local, remote, library)
+-
++			f[3] = strings.Trim(f[3], `"`)
+ 		default:
+ 			p.error(syntax.Error{Pos: pos, Msg: `usage: //go:cgo_import_dynamic local [remote ["library"]]`})
++			return
+ 		}
+ 	case "cgo_import_static":
+ 		switch {
+ 		case len(f) == 2 && !isQuoted(f[1]):
+-			local := plan9quote(f[1])
+-			return fmt.Sprintln(verb, local)
+-
+ 		default:
+ 			p.error(syntax.Error{Pos: pos, Msg: `usage: //go:cgo_import_static local`})
++			return
+ 		}
+ 	case "cgo_dynamic_linker":
+ 		switch {
+ 		case len(f) == 2 && isQuoted(f[1]):
+-			path := plan9quote(strings.Trim(f[1], `"`))
+-			return fmt.Sprintln(verb, path)
+-
++			f[1] = strings.Trim(f[1], `"`)
+ 		default:
+ 			p.error(syntax.Error{Pos: pos, Msg: `usage: //go:cgo_dynamic_linker "path"`})
++			return
+ 		}
+ 	case "cgo_ldflag":
+ 		switch {
+ 		case len(f) == 2 && isQuoted(f[1]):
+-			arg := plan9quote(strings.Trim(f[1], `"`))
+-			return fmt.Sprintln(verb, arg)
+-
++			f[1] = strings.Trim(f[1], `"`)
+ 		default:
+ 			p.error(syntax.Error{Pos: pos, Msg: `usage: //go:cgo_ldflag "arg"`})
++			return
+ 		}
++	default:
++		return
+ 	}
+-	return ""
++	p.pragcgobuf = append(p.pragcgobuf, f)
+ }
+ 
+ // pragmaFields is similar to strings.FieldsFunc(s, isSpace)
+diff --git a/src/cmd/compile/internal/gc/lex_test.go b/src/cmd/compile/internal/gc/lex_test.go
+index 965a84e3e8..fecf570fa1 100644
+--- a/src/cmd/compile/internal/gc/lex_test.go
++++ b/src/cmd/compile/internal/gc/lex_test.go
+@@ -6,6 +6,7 @@ package gc
+ 
+ import (
+ 	"cmd/compile/internal/syntax"
++	"reflect"
+ 	"testing"
+ )
+ 
+@@ -50,32 +51,36 @@ func TestPragmaFields(t *testing.T) {
+ func TestPragcgo(t *testing.T) {
+ 	var tests = []struct {
+ 		in   string
+-		want string
++		want []string
+ 	}{
+-		{`go:cgo_export_dynamic local`, "cgo_export_dynamic local\n"},
+-		{`go:cgo_export_dynamic local remote`, "cgo_export_dynamic local remote\n"},
+-		{`go:cgo_export_dynamic local' remote'`, "cgo_export_dynamic 'local''' 'remote'''\n"},
+-		{`go:cgo_export_static local`, "cgo_export_static local\n"},
+-		{`go:cgo_export_static local remote`, "cgo_export_static local remote\n"},
+-		{`go:cgo_export_static local' remote'`, "cgo_export_static 'local''' 'remote'''\n"},
+-		{`go:cgo_import_dynamic local`, "cgo_import_dynamic local\n"},
+-		{`go:cgo_import_dynamic local remote`, "cgo_import_dynamic local remote\n"},
+-		{`go:cgo_import_dynamic local remote "library"`, "cgo_import_dynamic local remote library\n"},
+-		{`go:cgo_import_dynamic local' remote' "lib rary"`, "cgo_import_dynamic 'local''' 'remote''' 'lib rary'\n"},
+-		{`go:cgo_import_static local`, "cgo_import_static local\n"},
+-		{`go:cgo_import_static local'`, "cgo_import_static 'local'''\n"},
+-		{`go:cgo_dynamic_linker "/path/"`, "cgo_dynamic_linker /path/\n"},
+-		{`go:cgo_dynamic_linker "/p ath/"`, "cgo_dynamic_linker '/p ath/'\n"},
+-		{`go:cgo_ldflag "arg"`, "cgo_ldflag arg\n"},
+-		{`go:cgo_ldflag "a rg"`, "cgo_ldflag 'a rg'\n"},
++		{`go:cgo_export_dynamic local`, []string{`cgo_export_dynamic`, `local`}},
++		{`go:cgo_export_dynamic local remote`, []string{`cgo_export_dynamic`, `local`, `remote`}},
++		{`go:cgo_export_dynamic local' remote'`, []string{`cgo_export_dynamic`, `local'`, `remote'`}},
++		{`go:cgo_export_static local`, []string{`cgo_export_static`, `local`}},
++		{`go:cgo_export_static local remote`, []string{`cgo_export_static`, `local`, `remote`}},
++		{`go:cgo_export_static local' remote'`, []string{`cgo_export_static`, `local'`, `remote'`}},
++		{`go:cgo_import_dynamic local`, []string{`cgo_import_dynamic`, `local`}},
++		{`go:cgo_import_dynamic local remote`, []string{`cgo_import_dynamic`, `local`, `remote`}},
++		{`go:cgo_import_dynamic local remote "library"`, []string{`cgo_import_dynamic`, `local`, `remote`, `library`}},
++		{`go:cgo_import_dynamic local' remote' "lib rary"`, []string{`cgo_import_dynamic`, `local'`, `remote'`, `lib rary`}},
++		{`go:cgo_import_static local`, []string{`cgo_import_static`, `local`}},
++		{`go:cgo_import_static local'`, []string{`cgo_import_static`, `local'`}},
++		{`go:cgo_dynamic_linker "/path/"`, []string{`cgo_dynamic_linker`, `/path/`}},
++		{`go:cgo_dynamic_linker "/p ath/"`, []string{`cgo_dynamic_linker`, `/p ath/`}},
++		{`go:cgo_ldflag "arg"`, []string{`cgo_ldflag`, `arg`}},
++		{`go:cgo_ldflag "a rg"`, []string{`cgo_ldflag`, `a rg`}},
+ 	}
+ 
+ 	var p noder
+ 	var nopos syntax.Pos
+ 	for _, tt := range tests {
+-		got := p.pragcgo(nopos, tt.in)
+-		if got != tt.want {
+-			t.Errorf("pragcgo(%q) = %q; want %q", tt.in, got, tt.want)
++		p.pragcgobuf = nil
++		p.pragcgo(nopos, tt.in)
++
++		got := p.pragcgobuf
++		want := [][]string{tt.want}
++		if !reflect.DeepEqual(got, want) {
++			t.Errorf("pragcgo(%q) = %q; want %q", tt.in, got, want)
+ 			continue
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index 96b2584074..412498b7df 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -127,7 +127,7 @@ type noder struct {
+ 
+ 	file       *syntax.File
+ 	linknames  []linkname
+-	pragcgobuf string
++	pragcgobuf [][]string
+ 	err        chan syntax.Error
+ 	scope      ScopeID
+ 
+@@ -246,7 +246,7 @@ func (p *noder) node() {
+ 		}
+ 	}
+ 
+-	pragcgobuf += p.pragcgobuf
++	pragcgobuf = append(pragcgobuf, p.pragcgobuf...)
+ 	lineno = src.NoXPos
+ 	clearImports()
+ }
+@@ -1417,7 +1417,7 @@ func (p *noder) pragma(pos syntax.Pos, text string) syntax.Pragma {
+ 			if lib != "" && !safeArg(lib) && !isCgoGeneratedFile(pos) {
+ 				p.error(syntax.Error{Pos: pos, Msg: fmt.Sprintf("invalid library name %q in cgo_import_dynamic directive", lib)})
+ 			}
+-			p.pragcgobuf += p.pragcgo(pos, text)
++			p.pragcgo(pos, text)
+ 			return pragmaValue("go:cgo_import_dynamic")
+ 		}
+ 		fallthrough
+@@ -1428,7 +1428,7 @@ func (p *noder) pragma(pos syntax.Pos, text string) syntax.Pragma {
+ 		if !isCgoGeneratedFile(pos) && !compiling_std {
+ 			p.error(syntax.Error{Pos: pos, Msg: fmt.Sprintf("//%s only allowed in cgo-generated code", text)})
+ 		}
+-		p.pragcgobuf += p.pragcgo(pos, text)
++		p.pragcgo(pos, text)
+ 		fallthrough // because of //go:cgo_unsafe_args
+ 	default:
+ 		verb := text
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index b33a057cee..bf2a621ebe 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -11,6 +11,7 @@ import (
+ 	"cmd/internal/objabi"
+ 	"cmd/internal/src"
+ 	"crypto/sha256"
++	"encoding/json"
+ 	"fmt"
+ 	"io"
+ 	"strconv"
+@@ -121,11 +122,14 @@ func dumpCompilerObj(bout *bio.Writer) {
+ func dumpLinkerObj(bout *bio.Writer) {
+ 	printObjHeader(bout)
+ 
+-	if pragcgobuf != "" {
++	if len(pragcgobuf) != 0 {
+ 		// write empty export section; must be before cgo section
+ 		fmt.Fprintf(bout, "\n$$\n\n$$\n\n")
+ 		fmt.Fprintf(bout, "\n$$  // cgo\n")
+-		fmt.Fprintf(bout, "%s\n$$\n\n", pragcgobuf)
++		if err := json.NewEncoder(bout).Encode(pragcgobuf); err != nil {
++			Fatalf("serializing pragcgobuf: %v", err)
++		}
++		fmt.Fprintf(bout, "\n$$\n\n")
+ 	}
+ 
+ 	fmt.Fprintf(bout, "\n!\n")
+diff --git a/src/cmd/link/internal/ld/go.go b/src/cmd/link/internal/ld/go.go
+index 9bbfe23119..8d50332c7c 100644
+--- a/src/cmd/link/internal/ld/go.go
++++ b/src/cmd/link/internal/ld/go.go
+@@ -11,6 +11,7 @@ import (
+ 	"cmd/internal/bio"
+ 	"cmd/internal/objabi"
+ 	"cmd/link/internal/sym"
++	"encoding/json"
+ 	"fmt"
+ 	"io"
+ 	"os"
+@@ -104,28 +105,18 @@ func ldpkg(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, filename s
+ }
+ 
+ func loadcgo(ctxt *Link, file string, pkg string, p string) {
+-	var next string
+-	var q string
+-	var lib string
+-	var s *sym.Symbol
+-
+-	p0 := ""
+-	for ; p != ""; p = next {
+-		if i := strings.Index(p, "\n"); i >= 0 {
+-			p, next = p[:i], p[i+1:]
+-		} else {
+-			next = ""
+-		}
+-
+-		p0 = p // save for error message
+-		f := tokenize(p)
+-		if len(f) == 0 {
+-			continue
+-		}
++	var directives [][]string
++	if err := json.NewDecoder(strings.NewReader(p)).Decode(&directives); err != nil {
++		fmt.Fprintf(os.Stderr, "%s: %s: failed decoding cgo directives: %v\n", os.Args[0], file, err)
++		nerrors++
++		return
++	}
+ 
+-		if f[0] == "cgo_import_dynamic" {
++	for _, f := range directives {
++		switch f[0] {
++		case "cgo_import_dynamic":
+ 			if len(f) < 2 || len(f) > 4 {
+-				goto err
++				break
+ 			}
+ 
+ 			local := f[1]
+@@ -133,7 +124,7 @@ func loadcgo(ctxt *Link, file string, pkg string, p string) {
+ 			if len(f) > 2 {
+ 				remote = f[2]
+ 			}
+-			lib = ""
++			lib := ""
+ 			if len(f) > 3 {
+ 				lib = f[3]
+ 			}
+@@ -158,11 +149,11 @@ func loadcgo(ctxt *Link, file string, pkg string, p string) {
+ 			}
+ 
+ 			local = expandpkg(local, pkg)
+-			q = ""
++			q := ""
+ 			if i := strings.Index(remote, "#"); i >= 0 {
+ 				remote, q = remote[:i], remote[i+1:]
+ 			}
+-			s = ctxt.Syms.Lookup(local, 0)
++			s := ctxt.Syms.Lookup(local, 0)
+ 			if s.Type == 0 || s.Type == sym.SXREF || s.Type == sym.SHOSTOBJ {
+ 				s.Dynimplib = lib
+ 				s.Extname = remote
+@@ -172,34 +163,31 @@ func loadcgo(ctxt *Link, file string, pkg string, p string) {
+ 				}
+ 				havedynamic = 1
+ 			}
+-
+ 			continue
+-		}
+ 
+-		if f[0] == "cgo_import_static" {
++		case "cgo_import_static":
+ 			if len(f) != 2 {
+-				goto err
++				break
+ 			}
+ 			local := f[1]
+-			s = ctxt.Syms.Lookup(local, 0)
++
++			s := ctxt.Syms.Lookup(local, 0)
+ 			s.Type = sym.SHOSTOBJ
+ 			s.Size = 0
+ 			continue
+-		}
+ 
+-		if f[0] == "cgo_export_static" || f[0] == "cgo_export_dynamic" {
++		case "cgo_export_static", "cgo_export_dynamic":
+ 			if len(f) < 2 || len(f) > 3 {
+-				goto err
++				break
+ 			}
+ 			local := f[1]
+-			var remote string
++			remote := local
+ 			if len(f) > 2 {
+ 				remote = f[2]
+-			} else {
+-				remote = local
+ 			}
+ 			local = expandpkg(local, pkg)
+-			s = ctxt.Syms.Lookup(local, 0)
++
++			s := ctxt.Syms.Lookup(local, 0)
+ 
+ 			switch ctxt.BuildMode {
+ 			case BuildModeCShared, BuildModeCArchive, BuildModePlugin:
+@@ -232,11 +220,10 @@ func loadcgo(ctxt *Link, file string, pkg string, p string) {
+ 				s.Attr |= sym.AttrCgoExportDynamic
+ 			}
+ 			continue
+-		}
+ 
+-		if f[0] == "cgo_dynamic_linker" {
++		case "cgo_dynamic_linker":
+ 			if len(f) != 2 {
+-				goto err
++				break
+ 			}
+ 
+ 			if *flagInterpreter == "" {
+@@ -248,24 +235,19 @@ func loadcgo(ctxt *Link, file string, pkg string, p string) {
+ 
+ 				interpreter = f[1]
+ 			}
+-
+ 			continue
+-		}
+ 
+-		if f[0] == "cgo_ldflag" {
++		case "cgo_ldflag":
+ 			if len(f) != 2 {
+-				goto err
++				break
+ 			}
+ 			ldflag = append(ldflag, f[1])
+ 			continue
+ 		}
+-	}
+-
+-	return
+ 
+-err:
+-	fmt.Fprintf(os.Stderr, "%s: %s: invalid dynimport line: %s\n", os.Args[0], file, p0)
+-	nerrors++
++		fmt.Fprintf(os.Stderr, "%s: %s: invalid cgo directive: %q\n", os.Args[0], file, f)
++		nerrors++
++	}
+ }
+ 
+ var seenlib = make(map[string]bool)
+diff --git a/src/cmd/link/internal/ld/util.go b/src/cmd/link/internal/ld/util.go
+index 9b75dfa1f6..b80e6106ba 100644
+--- a/src/cmd/link/internal/ld/util.go
++++ b/src/cmd/link/internal/ld/util.go
+@@ -9,7 +9,6 @@ import (
+ 	"encoding/binary"
+ 	"fmt"
+ 	"os"
+-	"strings"
+ 	"time"
+ )
+ 
+@@ -23,50 +22,6 @@ func Cputime() float64 {
+ 	return time.Since(startTime).Seconds()
+ }
+ 
+-func tokenize(s string) []string {
+-	var f []string
+-	for {
+-		s = strings.TrimLeft(s, " \t\r\n")
+-		if s == "" {
+-			break
+-		}
+-		quote := false
+-		i := 0
+-		for ; i < len(s); i++ {
+-			if s[i] == '\'' {
+-				if quote && i+1 < len(s) && s[i+1] == '\'' {
+-					i++
+-					continue
+-				}
+-				quote = !quote
+-			}
+-			if !quote && (s[i] == ' ' || s[i] == '\t' || s[i] == '\r' || s[i] == '\n') {
+-				break
+-			}
+-		}
+-		next := s[:i]
+-		s = s[i:]
+-		if strings.Contains(next, "'") {
+-			var buf []byte
+-			quote := false
+-			for i := 0; i < len(next); i++ {
+-				if next[i] == '\'' {
+-					if quote && i+1 < len(next) && next[i+1] == '\'' {
+-						i++
+-						buf = append(buf, '\'')
+-					}
+-					quote = !quote
+-					continue
+-				}
+-				buf = append(buf, next[i])
+-			}
+-			next = string(buf)
+-		}
+-		f = append(f, next)
+-	}
+-	return f
+-}
+-
+ var atExitFuncs []func()
+ 
+ func AtExit(f func()) {

@@ -58,7 +58,114 @@ Date:   Sat Nov 23 21:19:50 2024 +0800
     Reviewed-by: Alan Donovan <adonovan@google.com>
     Reviewed-by: Jonathan Amsterdam <jba@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/log/slog/handler.go      | 21 +++++++++++++++++++--
  src/log/slog/handler_test.go | 44 ++++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 63 insertions(+), 2 deletions(-)
+
+diff --git a/src/log/slog/handler.go b/src/log/slog/handler.go
+index 1ca4f9dba3..39b987b812 100644
+--- a/src/log/slog/handler.go
++++ b/src/log/slog/handler.go
+@@ -525,8 +525,7 @@ func (s *handleState) appendError(err error) {
+ func (s *handleState) appendKey(key string) {
+ 	s.buf.WriteString(s.sep)
+ 	if s.prefix != nil && len(*s.prefix) > 0 {
+-		// TODO: optimize by avoiding allocation.
+-		s.appendString(string(*s.prefix) + key)
++		s.appendTwoStrings(string(*s.prefix), key)
+ 	} else {
+ 		s.appendString(key)
+ 	}
+@@ -538,6 +537,24 @@ func (s *handleState) appendKey(key string) {
+ 	s.sep = s.h.attrSep()
+ }
+ 
++// appendTwoStrings implements appendString(prefix + key), but faster.
++func (s *handleState) appendTwoStrings(x, y string) {
++	buf := *s.buf
++	switch {
++	case s.h.json:
++		buf.WriteByte('"')
++		buf = appendEscapedJSONString(buf, x)
++		buf = appendEscapedJSONString(buf, y)
++		buf.WriteByte('"')
++	case !needsQuoting(x) && !needsQuoting(y):
++		buf.WriteString(x)
++		buf.WriteString(y)
++	default:
++		buf = strconv.AppendQuote(buf, x+y)
++	}
++	*s.buf = buf
++}
++
+ func (s *handleState) appendString(str string) {
+ 	if s.h.json {
+ 		s.buf.WriteByte('"')
+diff --git a/src/log/slog/handler_test.go b/src/log/slog/handler_test.go
+index d34025f1bb..9f8d518e96 100644
+--- a/src/log/slog/handler_test.go
++++ b/src/log/slog/handler_test.go
+@@ -10,7 +10,9 @@ import (
+ 	"bytes"
+ 	"context"
+ 	"encoding/json"
++	"fmt"
+ 	"io"
++	"log/slog/internal/buffer"
+ 	"os"
+ 	"path/filepath"
+ 	"slices"
+@@ -529,6 +531,20 @@ func TestJSONAndTextHandlers(t *testing.T) {
+ 			wantText: "name.first=Perry name.last=Platypus",
+ 			wantJSON: `{"name":{"first":"Perry","last":"Platypus"}}`,
+ 		},
++		{
++			name:    "group and key (or both) needs quoting",
++			replace: removeKeys(TimeKey, LevelKey),
++			attrs: []Attr{
++				Group("prefix",
++					String(" needs quoting ", "v"), String("NotNeedsQuoting", "v"),
++				),
++				Group("prefix needs quoting",
++					String(" needs quoting ", "v"), String("NotNeedsQuoting", "v"),
++				),
++			},
++			wantText: `msg=message "prefix. needs quoting "=v prefix.NotNeedsQuoting=v "prefix needs quoting. needs quoting "=v "prefix needs quoting.NotNeedsQuoting"=v`,
++			wantJSON: `{"msg":"message","prefix":{" needs quoting ":"v","NotNeedsQuoting":"v"},"prefix needs quoting":{" needs quoting ":"v","NotNeedsQuoting":"v"}}`,
++		},
+ 	} {
+ 		r := NewRecord(testTime, LevelInfo, "message", callerPC(2))
+ 		line := strconv.Itoa(r.source().Line)
+@@ -732,3 +748,31 @@ func TestDiscardHandler(t *testing.T) {
+ 	l.Info("info", "a", []Attr{Int("i", 1)})
+ 	l.Info("info", "a", GroupValue(Int("i", 1)))
+ }
++
++func BenchmarkAppendKey(b *testing.B) {
++	for _, size := range []int{5, 10, 30, 50, 100} {
++		for _, quoting := range []string{"no_quoting", "pre_quoting", "key_quoting", "both_quoting"} {
++			b.Run(fmt.Sprintf("%s_prefix_size_%d", quoting, size), func(b *testing.B) {
++				var (
++					hs     = NewJSONHandler(io.Discard, nil).newHandleState(buffer.New(), false, "")
++					prefix = bytes.Repeat([]byte("x"), size)
++					key    = "key"
++				)
++
++				if quoting == "pre_quoting" || quoting == "both_quoting" {
++					prefix[0] = '"'
++				}
++				if quoting == "key_quoting" || quoting == "both_quoting" {
++					key = "ke\""
++				}
++
++				hs.prefix = (*buffer.Buffer)(&prefix)
++
++				for b.Loop() {
++					hs.appendKey(key)
++					hs.buf.Reset()
++				}
++			})
++		}
++	}
++}

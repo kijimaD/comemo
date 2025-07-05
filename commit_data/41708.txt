@@ -10,8 +10,73 @@ Date:   Mon Oct 21 14:10:35 2019 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/202577
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/go1.14.html             | 13 +++++++++++++
  src/bytes/hash/hash.go      |  4 +++-
  src/bytes/hash/hash_test.go | 14 ++++++++++++++
  3 files changed, 30 insertions(+), 1 deletion(-)
+
+diff --git a/doc/go1.14.html b/doc/go1.14.html
+index 79efb2b0ba..ddaf73d0a5 100644
+--- a/doc/go1.14.html
++++ b/doc/go1.14.html
+@@ -180,6 +180,19 @@ TODO
+ 
+ </dl><!-- mime -->
+ 
++<dl id="math"><dt><a href="/pkg/math/">math</a></dt>
++  <dd>
++    <p><!-- CL 127458 -->
++      The new <a href="/pkg/math/#Fma"><code>Fma</code></a> function
++      computes <code>x*y+z</code> in floating point with no
++      intermediate rounding of the <code>x*y</code>
++      computation. Several architectures implement this computation
++      using dedicated hardware instructions for additional
++      performance.
++    </p>
++
++</dl><!-- math -->
++
+ <dl id="plugin"><dt><a href="/pkg/plugin/">plugin</a></dt>
+   <dd>
+     <p><!-- CL 191617 -->
+diff --git a/src/bytes/hash/hash.go b/src/bytes/hash/hash.go
+index 0e44e37ae7..cc78b22901 100644
+--- a/src/bytes/hash/hash.go
++++ b/src/bytes/hash/hash.go
+@@ -130,7 +130,9 @@ func MakeSeed(s uint64) Seed {
+ // New returns a new Hash object. Different hash objects allocated by
+ // this function will very likely have different seeds.
+ func New() *Hash {
+-	seed := Seed{s: uint64(runtime_fastrand())}
++	s1 := uint64(runtime_fastrand())
++	s2 := uint64(runtime_fastrand())
++	seed := Seed{s: s1<<32 + s2}
+ 	return &Hash{
+ 		seed:  seed,
+ 		state: seed,
+diff --git a/src/bytes/hash/hash_test.go b/src/bytes/hash/hash_test.go
+index 311f451be2..f36d506831 100644
+--- a/src/bytes/hash/hash_test.go
++++ b/src/bytes/hash/hash_test.go
+@@ -61,6 +61,20 @@ func TestHashBytesVsString(t *testing.T) {
+ 	}
+ }
+ 
++func TestHashHighBytes(t *testing.T) {
++	// See issue 34925.
++	const N = 10
++	m := map[uint64]struct{}{}
++	for i := 0; i < N; i++ {
++		h := hash.New()
++		h.AddString("foo")
++		m[h.Hash()>>32] = struct{}{}
++	}
++	if len(m) < N/2 {
++		t.Errorf("from %d seeds, wanted at least %d different hashes; got %d", N, N/2, len(m))
++	}
++}
++
+ // Make sure a Hash implements the hash.Hash and hash.Hash64 interfaces.
+ var _ basehash.Hash = &hash.Hash{}
+ var _ basehash.Hash64 = &hash.Hash{}

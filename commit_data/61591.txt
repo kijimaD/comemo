@@ -11,6 +11,20 @@ Date:   Mon Nov 18 19:26:38 2024 -0800
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  doc/godebug.md | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/godebug.md b/doc/godebug.md
+index 540babf05a..0b62832f83 100644
+--- a/doc/godebug.md
++++ b/doc/godebug.md
+@@ -165,7 +165,7 @@ The possible values for `multipathtcp` are now:
+ - "3": enable MPTCP on dialers only by default
+ 
+ For Go 1.24, it now defaults to multipathtcp="2", thus
+-enabled by default on listerners. Using multipathtcp="0" reverts to the
++enabled by default on listeners. Using multipathtcp="0" reverts to the
+ pre-Go 1.24 behavior.
+ 
+ Go 1.24 changed the behavior of `go test -json` to emit build errors as JSON

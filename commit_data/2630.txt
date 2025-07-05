@@ -8,8 +8,535 @@ Date:   Tue Jul 7 11:04:42 2009 -0700
     DELTA=242  (68 added, 69 deleted, 105 changed)
     OCL=31239
     CL=31289
-
+---
  src/pkg/gob/decode.go | 113 ++++++++++++++++++++----------------------
  src/pkg/gob/encode.go | 133 ++++++++++++++++++++------------------------------
  src/pkg/gob/type.go   |  93 +++++++++++++++++++++++------------
  3 files changed, 169 insertions(+), 170 deletions(-)
+
+diff --git a/src/pkg/gob/decode.go b/src/pkg/gob/decode.go
+index 89792dc046..b6d9d6fd16 100644
+--- a/src/pkg/gob/decode.go
++++ b/src/pkg/gob/decode.go
+@@ -278,7 +278,7 @@ type decEngine struct {
+ 	instr	[]decInstr
+ }
+ 
+-func decodeStruct(engine *decEngine, rtyp reflect.StructType, r io.Reader, p uintptr, indir int) os.Error {
++func decodeStruct(engine *decEngine, rtyp *reflect.StructType, r io.Reader, p uintptr, indir int) os.Error {
+ 	if indir > 0 {
+ 		up := unsafe.Pointer(p);
+ 		if *(*unsafe.Pointer)(up) == nil {
+@@ -317,7 +317,7 @@ func decodeStruct(engine *decEngine, rtyp reflect.StructType, r io.Reader, p uin
+ 	return state.err
+ }
+ 
+-func decodeArrayHelper(state *DecState, p uintptr, elemOp decOp, elemWid, length, elemIndir int) os.Error {
++func decodeArrayHelper(state *DecState, p uintptr, elemOp decOp, elemWid uintptr, length, elemIndir int) os.Error {
+ 	instr := &decInstr{elemOp, 0, elemIndir, 0};
+ 	for i := 0; i < length && state.err == nil; i++ {
+ 		up := unsafe.Pointer(p);
+@@ -330,7 +330,7 @@ func decodeArrayHelper(state *DecState, p uintptr, elemOp decOp, elemWid, length
+ 	return state.err
+ }
+ 
+-func decodeArray(atyp reflect.ArrayType, state *DecState, p uintptr, elemOp decOp, elemWid, length, indir, elemIndir int) os.Error {
++func decodeArray(atyp *reflect.ArrayType, state *DecState, p uintptr, elemOp decOp, elemWid uintptr, length, indir, elemIndir int) os.Error {
+ 	if indir > 0 {
+ 		up := unsafe.Pointer(p);
+ 		if *(*unsafe.Pointer)(up) == nil {
+@@ -341,14 +341,14 @@ func decodeArray(atyp reflect.ArrayType, state *DecState, p uintptr, elemOp decO
+ 		}
+ 		p = *(*uintptr)(up);
+ 	}
+-	if DecodeUint(state) != uint64(length) {
++	if n := DecodeUint(state); n != uint64(length) {
+ 		return os.ErrorString("length mismatch in decodeArray");
+ 	}
+ 	return decodeArrayHelper(state, p, elemOp, elemWid, length, elemIndir);
+ }
+ 
+-func decodeSlice(atyp reflect.ArrayType, state *DecState, p uintptr, elemOp decOp, elemWid, indir, elemIndir int) os.Error {
+-	length := int(DecodeUint(state));
++func decodeSlice(atyp *reflect.SliceType, state *DecState, p uintptr, elemOp decOp, elemWid uintptr, indir, elemIndir int) os.Error {
++	length := uintptr(DecodeUint(state));
+ 	if indir > 0 {
+ 		up := unsafe.Pointer(p);
+ 		if *(*unsafe.Pointer)(up) == nil {
+@@ -364,59 +364,58 @@ func decodeSlice(atyp reflect.ArrayType, state *DecState, p uintptr, elemOp decO
+ 	hdrp.Data = uintptr(unsafe.Pointer(&data[0]));
+ 	hdrp.Len = uint32(length);
+ 	hdrp.Cap = uint32(length);
+-	return decodeArrayHelper(state, hdrp.Data, elemOp, elemWid, length, elemIndir);
++	return decodeArrayHelper(state, hdrp.Data, elemOp, elemWid, int(length), elemIndir);
+ }
+ 
+ var decEngineMap = make(map[reflect.Type] *decEngine)
+-var decOpMap = map[int] decOp {
+-	 reflect.BoolKind: decBool,
+-	 reflect.IntKind: decInt,
+-	 reflect.Int8Kind: decInt8,
+-	 reflect.Int16Kind: decInt16,
+-	 reflect.Int32Kind: decInt32,
+-	 reflect.Int64Kind: decInt64,
+-	 reflect.UintKind: decUint,
+-	 reflect.Uint8Kind: decUint8,
+-	 reflect.Uint16Kind: decUint16,
+-	 reflect.Uint32Kind: decUint32,
+-	 reflect.Uint64Kind: decUint64,
+-	 reflect.FloatKind: decFloat,
+-	 reflect.Float32Kind: decFloat32,
+-	 reflect.Float64Kind: decFloat64,
+-	 reflect.StringKind: decString,
++var decOpMap = map[reflect.Type] decOp {
++	 reflect.Typeof((*reflect.BoolType)(nil)): decBool,
++	 reflect.Typeof((*reflect.IntType)(nil)): decInt,
++	 reflect.Typeof((*reflect.Int8Type)(nil)): decInt8,
++	 reflect.Typeof((*reflect.Int16Type)(nil)): decInt16,
++	 reflect.Typeof((*reflect.Int32Type)(nil)): decInt32,
++	 reflect.Typeof((*reflect.Int64Type)(nil)): decInt64,
++	 reflect.Typeof((*reflect.UintType)(nil)): decUint,
++	 reflect.Typeof((*reflect.Uint8Type)(nil)): decUint8,
++	 reflect.Typeof((*reflect.Uint16Type)(nil)): decUint16,
++	 reflect.Typeof((*reflect.Uint32Type)(nil)): decUint32,
++	 reflect.Typeof((*reflect.Uint64Type)(nil)): decUint64,
++	 reflect.Typeof((*reflect.FloatType)(nil)): decFloat,
++	 reflect.Typeof((*reflect.Float32Type)(nil)): decFloat32,
++	 reflect.Typeof((*reflect.Float64Type)(nil)): decFloat64,
++	 reflect.Typeof((*reflect.StringType)(nil)): decString,
+ }
+ 
+ func getDecEngine(rt reflect.Type) *decEngine
+ 
+ func decOpFor(typ reflect.Type) decOp {
+-	op, ok := decOpMap[typ.Kind()];
++	op, ok := decOpMap[reflect.Typeof(typ)];
+ 	if !ok {
+ 		// Special cases
+-		if typ.Kind() == reflect.ArrayKind {
+-			atyp := typ.(reflect.ArrayType);
+-			switch {
+-			case atyp.Elem().Kind() == reflect.Uint8Kind:
+-				op = decUint8Array
+-			case atyp.IsSlice():
+-				elemOp := decOpFor(atyp.Elem());
+-				_, elemIndir := indirect(atyp.Elem());
+-				op = func(i *decInstr, state *DecState, p unsafe.Pointer) {
+-					state.err = decodeSlice(atyp, state, uintptr(p), elemOp, atyp.Elem().Size(), i.indir, elemIndir);
+-				};
+-			case !atyp.IsSlice():
+-				elemOp := decOpFor(atyp.Elem());
+-				_, elemIndir := indirect(atyp.Elem());
+-				op = func(i *decInstr, state *DecState, p unsafe.Pointer) {
+-					state.err = decodeArray(atyp, state, uintptr(p), elemOp, atyp.Elem().Size(), atyp.Len(), i.indir, elemIndir);
+-				};
++		switch t := typ.(type) {
++		case *reflect.SliceType:
++			if _, ok := t.Elem().(*reflect.Uint8Type); ok {
++				op = decUint8Array;
++				break;
+ 			}
+-		}
+-		if typ.Kind() == reflect.StructKind {
++			elemOp := decOpFor(t.Elem());
++			_, elemIndir := indirect(t.Elem());
++			op = func(i *decInstr, state *DecState, p unsafe.Pointer) {
++				state.err = decodeSlice(t, state, uintptr(p), elemOp, t.Elem().Size(), i.indir, elemIndir);
++			};
++
++		case *reflect.ArrayType:
++			elemOp := decOpFor(t.Elem());
++			_, elemIndir := indirect(t.Elem());
++			op = func(i *decInstr, state *DecState, p unsafe.Pointer) {
++				state.err = decodeArray(t, state, uintptr(p), elemOp, t.Elem().Size(), t.Len(), i.indir, elemIndir);
++			};
++
++		case *reflect.StructType:
+ 			// Generate a closure that calls out to the engine for the nested type.
+ 			engine := getDecEngine(typ);
+-			styp := typ.(reflect.StructType);
+ 			op = func(i *decInstr, state *DecState, p unsafe.Pointer) {
+-				state.err = decodeStruct(engine, styp, state.r, uintptr(p), i.indir)
++				state.err = decodeStruct(engine, t, state.r, uintptr(p), i.indir)
+ 			};
+ 		}
+ 	}
+@@ -427,7 +426,7 @@ func decOpFor(typ reflect.Type) decOp {
+ }
+ 
+ func compileDec(rt reflect.Type, typ Type) *decEngine {
+-	srt, ok1 := rt.(reflect.StructType);
++	srt, ok1 := rt.(*reflect.StructType);
+ 	styp, ok2 := typ.(*structType);
+ 	if !ok1 || !ok2 {
+ 		panicln("TODO: can't handle non-structs");
+@@ -438,19 +437,10 @@ func compileDec(rt reflect.Type, typ Type) *decEngine {
+ 		field := styp.field[fieldnum];
+ 		// TODO(r): verify compatibility with corresponding field of data.
+ 		// For now, assume perfect correspondence between struct and gob.
+-		_name, ftyp, _tag, offset := srt.Field(fieldnum);
+-		// How many indirections to the underlying data?
+-		indir := 0;
+-		for {
+-			pt, ok := ftyp.(reflect.PtrType);
+-			if !ok {
+-				break
+-			}
+-			ftyp = pt.Sub();
+-			indir++;
+-		}
++		f := srt.Field(fieldnum);
++		ftyp, indir := indirect(f.Type);
+ 		op := decOpFor(ftyp);
+-		engine.instr[fieldnum] = decInstr{op, fieldnum, indir, uintptr(offset)};
++		engine.instr[fieldnum] = decInstr{op, fieldnum, indir, uintptr(f.Offset)};
+ 	}
+ 	return engine;
+ }
+@@ -459,7 +449,8 @@ func compileDec(rt reflect.Type, typ Type) *decEngine {
+ func getDecEngine(rt reflect.Type) *decEngine {
+ 	engine, ok := decEngineMap[rt];
+ 	if !ok {
+-		return compileDec(rt, newType(rt.Name(), rt));
++		pkg, name := rt.Name();
++		engine = compileDec(rt, newType(name, rt));
+ 		decEngineMap[rt] = engine;
+ 	}
+ 	return engine;
+@@ -472,11 +463,11 @@ func Decode(r io.Reader, e interface{}) os.Error {
+ 	for i := 0; i < indir; i++ {
+ 		v = reflect.Indirect(v);
+ 	}
+-	if rt.Kind() != reflect.StructKind {
++	if _, ok := v.(*reflect.StructValue); !ok {
+ 		return os.ErrorString("decode can't handle " + rt.String())
+ 	}
+ 	typeLock.Lock();
+ 	engine := getDecEngine(rt);
+ 	typeLock.Unlock();
+-	return decodeStruct(engine, rt.(reflect.StructType), r, uintptr(v.Addr()), 0);
++	return decodeStruct(engine, rt.(*reflect.StructType), r, uintptr(v.Addr()), 0);
+ }
+diff --git a/src/pkg/gob/encode.go b/src/pkg/gob/encode.go
+index 57fcec97d2..484d623dec 100644
+--- a/src/pkg/gob/encode.go
++++ b/src/pkg/gob/encode.go
+@@ -14,21 +14,6 @@ import (
+ 	"unsafe";
+ )
+ 
+-// Step through the indirections on a type to discover the base type.
+-// Return the number of indirections.
+-func indirect(t reflect.Type) (rt reflect.Type, count int) {
+-	rt = t;
+-	for {
+-		pt, ok := rt.(reflect.PtrType);
+-		if !ok {
+-			break
+-		}
+-		rt = pt.Sub();
+-		count++;
+-	}
+-	return;
+-}
+-
+ // The global execution state of an instance of the encoder.
+ // Field numbers are delta encoded and always increase. The field
+ // number is initialized to -1 so 0 comes out as delta(1). A delta of
+@@ -295,7 +280,7 @@ func encodeStruct(engine *encEngine, w io.Writer, basep uintptr) os.Error {
+ 	return state.err
+ }
+ 
+-func encodeArray(w io.Writer, p uintptr, op encOp, elemWid int, length int, elemIndir int) os.Error {
++func encodeArray(w io.Writer, p uintptr, op encOp, elemWid uintptr, length int, elemIndir int) os.Error {
+ 	state := new(EncState);
+ 	state.w = w;
+ 	state.fieldnum = -1;
+@@ -316,58 +301,56 @@ func encodeArray(w io.Writer, p uintptr, op encOp, elemWid int, length int, elem
+ }
+ 
+ var encEngineMap = make(map[reflect.Type] *encEngine)
+-var encOpMap = map[int] encOp {
+-	 reflect.BoolKind: encBool,
+-	 reflect.IntKind: encInt,
+-	 reflect.Int8Kind: encInt8,
+-	 reflect.Int16Kind: encInt16,
+-	 reflect.Int32Kind: encInt32,
+-	 reflect.Int64Kind: encInt64,
+-	 reflect.UintKind: encUint,
+-	 reflect.Uint8Kind: encUint8,
+-	 reflect.Uint16Kind: encUint16,
+-	 reflect.Uint32Kind: encUint32,
+-	 reflect.Uint64Kind: encUint64,
+-	 reflect.FloatKind: encFloat,
+-	 reflect.Float32Kind: encFloat32,
+-	 reflect.Float64Kind: encFloat64,
+-	 reflect.StringKind: encString,
++var encOpMap = map[reflect.Type] encOp {
++	reflect.Typeof((*reflect.BoolType)(nil)): encBool,
++	reflect.Typeof((*reflect.IntType)(nil)): encInt,
++	reflect.Typeof((*reflect.Int8Type)(nil)): encInt8,
++	reflect.Typeof((*reflect.Int16Type)(nil)): encInt16,
++	reflect.Typeof((*reflect.Int32Type)(nil)): encInt32,
++	reflect.Typeof((*reflect.Int64Type)(nil)): encInt64,
++	reflect.Typeof((*reflect.UintType)(nil)): encUint,
++	reflect.Typeof((*reflect.Uint8Type)(nil)): encUint8,
++	reflect.Typeof((*reflect.Uint16Type)(nil)): encUint16,
++	reflect.Typeof((*reflect.Uint32Type)(nil)): encUint32,
++	reflect.Typeof((*reflect.Uint64Type)(nil)): encUint64,
++	reflect.Typeof((*reflect.FloatType)(nil)): encFloat,
++	reflect.Typeof((*reflect.Float32Type)(nil)): encFloat32,
++	reflect.Typeof((*reflect.Float64Type)(nil)): encFloat64,
++	reflect.Typeof((*reflect.StringType)(nil)): encString,
+ }
+ 
+ func getEncEngine(rt reflect.Type) *encEngine
+ 
+ func encOpFor(typ reflect.Type) encOp {
+-	op, ok := encOpMap[typ.Kind()];
++	op, ok := encOpMap[reflect.Typeof(typ)];
+ 	if !ok {
+ 		// Special cases
+-		if typ.Kind() == reflect.ArrayKind {
+-			atyp := typ.(reflect.ArrayType);
+-			switch {
+-			case atyp.Elem().Kind()  == reflect.Uint8Kind:
+-				op = encUint8Array
+-			case atyp.IsSlice():
+-				// Slices have a header; we decode it to find the underlying array.
+-				elemOp := encOpFor(atyp.Elem());
+-				_, indir := indirect(atyp.Elem());
+-				op = func(i *encInstr, state *EncState, p unsafe.Pointer) {
+-					slice := *(*reflect.SliceHeader)(p);
+-					if slice.Len == 0 {
+-						return
+-					}
+-					state.update(i);
+-					state.err = encodeArray(state.w, slice.Data, elemOp, atyp.Elem().Size(), int(slice.Len), indir);
+-				};
+-			case !atyp.IsSlice():
+-				// True arrays have size in the type.
+-				elemOp := encOpFor(atyp.Elem());
+-				_, indir := indirect(atyp.Elem());
+-				op = func(i *encInstr, state *EncState, p unsafe.Pointer) {
+-					state.update(i);
+-					state.err = encodeArray(state.w, uintptr(p), elemOp, atyp.Elem().Size(), atyp.Len(), indir);
+-				};
++		switch t := typ.(type) {
++		case *reflect.SliceType:
++			if _, ok := t.Elem().(*reflect.Uint8Type); ok {
++				op = encUint8Array;
++				break;
+ 			}
+-		}
+-		if typ.Kind() == reflect.StructKind {
++			// Slices have a header; we decode it to find the underlying array.
++			elemOp := encOpFor(t.Elem());
++			_, indir := indirect(t.Elem());
++			op = func(i *encInstr, state *EncState, p unsafe.Pointer) {
++				slice := (*reflect.SliceHeader)(p);
++				if slice.Len == 0 {
++					return
++				}
++				state.update(i);
++				state.err = encodeArray(state.w, slice.Data, elemOp, t.Elem().Size(), int(slice.Len), indir);
++			};
++		case *reflect.ArrayType:
++			// True arrays have size in the type.
++			elemOp := encOpFor(t.Elem());
++			_, indir := indirect(t.Elem());
++			op = func(i *encInstr, state *EncState, p unsafe.Pointer) {
++				state.update(i);
++				state.err = encodeArray(state.w, uintptr(p), elemOp, t.Elem().Size(), t.Len(), indir);
++			};
++		case *reflect.StructType:
+ 			// Generate a closure that calls out to the engine for the nested type.
+ 			engine := getEncEngine(typ);
+ 			op = func(i *encInstr, state *EncState, p unsafe.Pointer) {
+@@ -386,28 +369,19 @@ func encOpFor(typ reflect.Type) encOp {
+ // it's compatible.
+ // TODO(r): worth checking?  typ is unused here.
+ func compileEnc(rt reflect.Type, typ Type) *encEngine {
+-	srt, ok := rt.(reflect.StructType);
++	srt, ok := rt.(*reflect.StructType);
+ 	if !ok {
+ 		panicln("TODO: can't handle non-structs");
+ 	}
+ 	engine := new(encEngine);
+-	engine.instr = make([]encInstr, srt.Len()+1);	// +1 for terminator
+-	for fieldnum := 0; fieldnum < srt.Len(); fieldnum++ {
+-		_name, ftyp, _tag, offset := srt.Field(fieldnum);
+-		// How many indirections to the underlying data?
+-		indir := 0;
+-		for {
+-			pt, ok := ftyp.(reflect.PtrType);
+-			if !ok {
+-				break
+-			}
+-			ftyp = pt.Sub();
+-			indir++;
+-		}
++	engine.instr = make([]encInstr, srt.NumField()+1);	// +1 for terminator
++	for fieldnum := 0; fieldnum < srt.NumField(); fieldnum++ {
++		f := srt.Field(fieldnum);
++		ftyp, indir := indirect(f.Type);
+ 		op := encOpFor(ftyp);
+-		engine.instr[fieldnum] = encInstr{op, fieldnum, indir, uintptr(offset)};
++		engine.instr[fieldnum] = encInstr{op, fieldnum, indir, uintptr(f.Offset)};
+ 	}
+-	engine.instr[srt.Len()] = encInstr{encStructTerminator, 0, 0, 0};
++	engine.instr[srt.NumField()] = encInstr{encStructTerminator, 0, 0, 0};
+ 	return engine;
+ }
+ 
+@@ -415,7 +389,8 @@ func compileEnc(rt reflect.Type, typ Type) *encEngine {
+ func getEncEngine(rt reflect.Type) *encEngine {
+ 	engine, ok := encEngineMap[rt];
+ 	if !ok {
+-		engine = compileEnc(rt, newType(rt.Name(), rt));
++		pkg, name := rt.Name();
++		engine = compileEnc(rt, newType(name, rt));
+ 		encEngineMap[rt] = engine;
+ 	}
+ 	return engine
+@@ -428,11 +403,11 @@ func Encode(w io.Writer, e interface{}) os.Error {
+ 	for i := 0; i < indir; i++ {
+ 		v = reflect.Indirect(v);
+ 	}
+-	if v.Kind() != reflect.StructKind {
++	if _, ok := v.(*reflect.StructValue); !ok {
+ 		return os.ErrorString("encode can't handle " + v.Type().String())
+ 	}
+ 	typeLock.Lock();
+ 	engine := getEncEngine(rt);
+ 	typeLock.Unlock();
+-	return encodeStruct(engine, w, uintptr(v.(reflect.StructValue).Addr()));
++	return encodeStruct(engine, w, v.Addr());
+ }
+diff --git a/src/pkg/gob/type.go b/src/pkg/gob/type.go
+index a230551829..ed221b9b36 100644
+--- a/src/pkg/gob/type.go
++++ b/src/pkg/gob/type.go
+@@ -141,50 +141,79 @@ func newStructType(name string) *structType {
+ // Construction
+ func newType(name string, rt reflect.Type) Type
+ 
++// Step through the indirections on a type to discover the base type.
++// Return the number of indirections.
++func indirect(t reflect.Type) (rt reflect.Type, count int) {
++	rt = t;
++	for {
++		pt, ok := rt.(*reflect.PtrType);
++		if !ok {
++			break;
++		}
++		rt = pt.Elem();
++		count++;
++	}
++	return;
++}
++
+ func newTypeObject(name string, rt reflect.Type) Type {
+-	switch rt.Kind() {
++	switch t := rt.(type) {
+ 	// All basic types are easy: they are predefined.
+-	case reflect.BoolKind:
++	case *reflect.BoolType:
+ 		return tBool
+-	case reflect.IntKind, reflect.Int32Kind, reflect.Int64Kind:
++
++	case *reflect.IntType:
+ 		return tInt
+-	case reflect.UintKind, reflect.Uint32Kind, reflect.Uint64Kind:
++	case *reflect.Int32Type:
++		return tInt
++	case *reflect.Int64Type:
++		return tInt
++
++	case *reflect.UintType:
++		return tUint
++	case *reflect.Uint32Type:
++		return tUint
++	case *reflect.Uint64Type:
+ 		return tUint
+-	case reflect.FloatKind, reflect.Float32Kind, reflect.Float64Kind:
++
++	case *reflect.FloatType:
++		return tFloat
++	case *reflect.Float32Type:
++		return tFloat
++	case *reflect.Float64Type:
+ 		return tFloat
+-	case reflect.StringKind:
++
++	case *reflect.StringType:
+ 		return tString
+-	case reflect.ArrayKind:
+-		at := rt.(reflect.ArrayType);
+-		if at.IsSlice() {
+-			// []byte == []uint8 is a special case
+-			if at.Elem().Kind() == reflect.Uint8Kind {
+-				return tBytes
+-			}
+-			return newSliceType(name, newType("", at.Elem()));
+-		} else {
+-			return newArrayType(name, newType("", at.Elem()), at.Len());
++
++	case *reflect.ArrayType:
++		return newArrayType(name, newType("", t.Elem()), t.Len());
++
++	case *reflect.SliceType:
++		// []byte == []uint8 is a special case
++		if _, ok := t.Elem().(*reflect.Uint8Type); ok {
++			return tBytes
+ 		}
+-	case reflect.StructKind:
++		return newSliceType(name, newType("", t.Elem()));
++
++	case *reflect.StructType:
+ 		// Install the struct type itself before the fields so recursive
+ 		// structures can be constructed safely.
+ 		strType := newStructType(name);
+ 		types[rt] = strType;
+-		st := rt.(reflect.StructType);
+-		field := make([]*fieldType, st.Len());
+-		for i := 0; i < st.Len(); i++ {
+-			name, typ, _tag, _offset := st.Field(i);
+-			// Find trailing name in type, e.g. from "*gob.Bar" want "Bar", which
+-			// is defined as the word after the period (there is at most one period).
+-			typestring := typ.String();
+-			period := strings.Index(typestring, ".");
+-			if period >= 0 {
+-				typestring = typestring[period+1:len(typestring)]
++		field := make([]*fieldType, t.NumField());
++		for i := 0; i < t.NumField(); i++ {
++			f := t.Field(i);
++			typ, _indir := indirect(f.Type);
++			_pkg, tname := typ.Name();
++			if tname == "" {
++				tname = f.Type.String();
+ 			}
+-			field[i] =  &fieldType{ name, newType(typestring, typ) };
++			field[i] =  &fieldType{ f.Name, newType(tname, f.Type) };
+ 		}
+ 		strType.field = field;
+ 		return strType;
++
+ 	default:
+ 		panicln("gob NewTypeObject can't handle type", rt.String());	// TODO(r): panic?
+ 	}
+@@ -193,8 +222,12 @@ func newTypeObject(name string, rt reflect.Type) Type {
+ 
+ func newType(name string, rt reflect.Type) Type {
+ 	// Flatten the data structure by collapsing out pointers
+-	for rt.Kind() == reflect.PtrKind {
+-		rt = rt.(reflect.PtrType).Sub();
++	for {
++		pt, ok := rt.(*reflect.PtrType);
++		if !ok {
++			break;
++		}
++		rt = pt.Elem();
+ 	}
+ 	typ, present := types[rt];
+ 	if present {

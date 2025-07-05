@@ -7,7 +7,58 @@ Date:   Fri Apr 22 22:48:11 2016 +0200
     Change-Id: I037101b1921fe151695d32e9874b50dd64982298
     Reviewed-on: https://go-review.googlesource.com/22314
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/internal/trace/parser.go | 8 ++++----
  src/runtime/trace.go         | 6 +++---
  2 files changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/src/internal/trace/parser.go b/src/internal/trace/parser.go
+index 3099b0ffeb..d279ddeacf 100644
+--- a/src/internal/trace/parser.go
++++ b/src/internal/trace/parser.go
+@@ -815,7 +815,7 @@ const (
+ 	EvGCScanDone     = 10 // GC scan done [timestamp]
+ 	EvGCSweepStart   = 11 // GC sweep start [timestamp, stack id]
+ 	EvGCSweepDone    = 12 // GC sweep done [timestamp]
+-	EvGoCreate       = 13 // goroutine creation [timestamp, new goroutine id, new start id, stack id]
++	EvGoCreate       = 13 // goroutine creation [timestamp, new goroutine id, new stack id, stack id]
+ 	EvGoStart        = 14 // goroutine starts running [timestamp, goroutine id]
+ 	EvGoEnd          = 15 // goroutine ends [timestamp]
+ 	EvGoStop         = 16 // goroutine stops (like in select{}) [timestamp, stack]
+@@ -833,9 +833,9 @@ const (
+ 	EvGoSysCall      = 28 // syscall enter [timestamp, stack]
+ 	EvGoSysExit      = 29 // syscall exit [timestamp, goroutine id, real timestamp]
+ 	EvGoSysBlock     = 30 // syscall blocks [timestamp]
+-	EvGoWaiting      = 31 // denotes that goroutine is blocked when tracing starts [goroutine id]
+-	EvGoInSyscall    = 32 // denotes that goroutine is in syscall when tracing starts [goroutine id]
+-	EvHeapAlloc      = 33 // memstats.heap_alloc change [timestamp, heap_alloc]
++	EvGoWaiting      = 31 // denotes that goroutine is blocked when tracing starts [timestamp, goroutine id]
++	EvGoInSyscall    = 32 // denotes that goroutine is in syscall when tracing starts [timestamp, goroutine id]
++	EvHeapAlloc      = 33 // memstats.heap_live change [timestamp, heap_alloc]
+ 	EvNextGC         = 34 // memstats.next_gc change [timestamp, next_gc]
+ 	EvTimerGoroutine = 35 // denotes timer goroutine [timer goroutine id]
+ 	EvFutileWakeup   = 36 // denotes that the previous wakeup of this goroutine was futile [timestamp]
+diff --git a/src/runtime/trace.go b/src/runtime/trace.go
+index dcf534549a..06fbdfac94 100644
+--- a/src/runtime/trace.go
++++ b/src/runtime/trace.go
+@@ -33,7 +33,7 @@ const (
+ 	traceEvGCScanDone     = 10 // GC scan done [timestamp]
+ 	traceEvGCSweepStart   = 11 // GC sweep start [timestamp, stack id]
+ 	traceEvGCSweepDone    = 12 // GC sweep done [timestamp]
+-	traceEvGoCreate       = 13 // goroutine creation [timestamp, new goroutine id, new start id, stack id]
++	traceEvGoCreate       = 13 // goroutine creation [timestamp, new goroutine id, new stack id, stack id]
+ 	traceEvGoStart        = 14 // goroutine starts running [timestamp, goroutine id]
+ 	traceEvGoEnd          = 15 // goroutine ends [timestamp]
+ 	traceEvGoStop         = 16 // goroutine stops (like in select{}) [timestamp, stack]
+@@ -51,8 +51,8 @@ const (
+ 	traceEvGoSysCall      = 28 // syscall enter [timestamp, stack]
+ 	traceEvGoSysExit      = 29 // syscall exit [timestamp, goroutine id, real timestamp]
+ 	traceEvGoSysBlock     = 30 // syscall blocks [timestamp]
+-	traceEvGoWaiting      = 31 // denotes that goroutine is blocked when tracing starts [goroutine id]
+-	traceEvGoInSyscall    = 32 // denotes that goroutine is in syscall when tracing starts [goroutine id]
++	traceEvGoWaiting      = 31 // denotes that goroutine is blocked when tracing starts [timestamp, goroutine id]
++	traceEvGoInSyscall    = 32 // denotes that goroutine is in syscall when tracing starts [timestamp, goroutine id]
+ 	traceEvHeapAlloc      = 33 // memstats.heap_live change [timestamp, heap_alloc]
+ 	traceEvNextGC         = 34 // memstats.next_gc change [timestamp, next_gc]
+ 	traceEvTimerGoroutine = 35 // denotes timer goroutine [timer goroutine id]

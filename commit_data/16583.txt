@@ -9,7 +9,32 @@ Date:   Mon Jun 17 07:31:39 2013 -0700
     R=gobot
     CC=golang-dev
     https://golang.org/cl/10340043
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index fd6e471d14..15725dff3e 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -74,6 +74,7 @@ Conrad Meyer <cemeyer@cs.washington.edu>
+ Corey Thomasson <cthom.lists@gmail.com>
+ Damian Gryski <dgryski@gmail.com>
+ Dan Callahan <dan.callahan@gmail.com>
++Dan Peterson <dpiddy@gmail.com>
+ Dan Sinclair <dan.sinclair@gmail.com>
+ Daniel Fleischman <danielfleischman@gmail.com>
+ Daniel Krech <eikeon@eikeon.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index a3712fad5d..375241cfe7 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -122,6 +122,7 @@ Corey Thomasson <cthom.lists@gmail.com>
+ Cosmos Nicolaou <cnicolaou@google.com>
+ Damian Gryski <dgryski@gmail.com>
+ Dan Callahan <dan.callahan@gmail.com>
++Dan Peterson <dpiddy@gmail.com>
+ Dan Sinclair <dan.sinclair@gmail.com>
+ Daniel Fleischman <danielfleischman@gmail.com>
+ Daniel Krech <eikeon@eikeon.com>

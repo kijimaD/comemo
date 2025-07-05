@@ -16,8 +16,96 @@ Date:   Wed Nov 3 18:18:18 2021 +0000
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/internal/syscall/windows/registry/key.go | 11 +++++++++-
  src/syscall/syscall_windows.go               | 30 +++++++++++++++++++++++++++-
  src/syscall/zsyscall_windows.go              |  2 +-
  3 files changed, 40 insertions(+), 3 deletions(-)
+
+diff --git a/src/internal/syscall/windows/registry/key.go b/src/internal/syscall/windows/registry/key.go
+index ba5c292c5e..ec38cf9288 100644
+--- a/src/internal/syscall/windows/registry/key.go
++++ b/src/internal/syscall/windows/registry/key.go
+@@ -25,7 +25,10 @@
+ //
+ package registry
+ 
+-import "syscall"
++import (
++	"runtime"
++	"syscall"
++)
+ 
+ const (
+ 	// Registry key security and access rights.
+@@ -88,6 +91,12 @@ func OpenKey(k Key, path string, access uint32) (Key, error) {
+ 
+ // ReadSubKeyNames returns the names of subkeys of key k.
+ func (k Key) ReadSubKeyNames() ([]string, error) {
++	// RegEnumKeyEx must be called repeatedly and to completion.
++	// During this time, this goroutine cannot migrate away from
++	// its current thread. See #49320.
++	runtime.LockOSThread()
++	defer runtime.UnlockOSThread()
++
+ 	names := make([]string, 0)
+ 	// Registry key size limit is 255 bytes and described there:
+ 	// https://msdn.microsoft.com/library/windows/desktop/ms724872.aspx
+diff --git a/src/syscall/syscall_windows.go b/src/syscall/syscall_windows.go
+index 48fedb33d7..69e163e00f 100644
+--- a/src/syscall/syscall_windows.go
++++ b/src/syscall/syscall_windows.go
+@@ -279,7 +279,7 @@ func NewCallbackCDecl(fn interface{}) uintptr {
+ //sys	RegOpenKeyEx(key Handle, subkey *uint16, options uint32, desiredAccess uint32, result *Handle) (regerrno error) = advapi32.RegOpenKeyExW
+ //sys	RegCloseKey(key Handle) (regerrno error) = advapi32.RegCloseKey
+ //sys	RegQueryInfoKey(key Handle, class *uint16, classLen *uint32, reserved *uint32, subkeysLen *uint32, maxSubkeyLen *uint32, maxClassLen *uint32, valuesLen *uint32, maxValueNameLen *uint32, maxValueLen *uint32, saLen *uint32, lastWriteTime *Filetime) (regerrno error) = advapi32.RegQueryInfoKeyW
+-//sys	RegEnumKeyEx(key Handle, index uint32, name *uint16, nameLen *uint32, reserved *uint32, class *uint16, classLen *uint32, lastWriteTime *Filetime) (regerrno error) = advapi32.RegEnumKeyExW
++//sys	regEnumKeyEx(key Handle, index uint32, name *uint16, nameLen *uint32, reserved *uint32, class *uint16, classLen *uint32, lastWriteTime *Filetime) (regerrno error) = advapi32.RegEnumKeyExW
+ //sys	RegQueryValueEx(key Handle, name *uint16, reserved *uint32, valtype *uint32, buf *byte, buflen *uint32) (regerrno error) = advapi32.RegQueryValueExW
+ //sys	getCurrentProcessId() (pid uint32) = kernel32.GetCurrentProcessId
+ //sys	GetConsoleMode(console Handle, mode *uint32) (err error) = kernel32.GetConsoleMode
+@@ -1301,3 +1301,31 @@ func newProcThreadAttributeList(maxAttrCount uint32) (*_PROC_THREAD_ATTRIBUTE_LI
+ 	}
+ 	return al, nil
+ }
++
++// RegEnumKeyEx enumerates the subkeys of an open registry key.
++// Each call retrieves information about one subkey. name is
++// a buffer that should be large enough to hold the name of the
++// subkey plus a null terminating character. nameLen is its
++// length. On return, nameLen will contain the actual length of the
++// subkey.
++//
++// Should name not be large enough to hold the subkey, this function
++// will return ERROR_MORE_DATA, and must be called again with an
++// appropriately sized buffer.
++//
++// reserved must be nil. class and classLen behave like name and nameLen
++// but for the class of the subkey, except that they are optional.
++// lastWriteTime, if not nil, will be populated with the time the subkey
++// was last written.
++//
++// The caller must enumerate all subkeys in order. That is
++// RegEnumKeyEx must be called with index starting at 0, incrementing
++// the index until the function returns ERROR_NO_MORE_ITEMS, or with
++// the index of the last subkey (obtainable from RegQueryInfoKey),
++// decrementing until index 0 is enumerated.
++//
++// Successive calls to this API must happen on the same OS thread,
++// so call runtime.LockOSThread before calling this function.
++func RegEnumKeyEx(key Handle, index uint32, name *uint16, nameLen *uint32, reserved *uint32, class *uint16, classLen *uint32, lastWriteTime *Filetime) (regerrno error) {
++	return regEnumKeyEx(key, index, name, nameLen, reserved, class, classLen, lastWriteTime)
++}
+diff --git a/src/syscall/zsyscall_windows.go b/src/syscall/zsyscall_windows.go
+index 7bfff16be6..2d6f34e059 100644
+--- a/src/syscall/zsyscall_windows.go
++++ b/src/syscall/zsyscall_windows.go
+@@ -305,7 +305,7 @@ func RegCloseKey(key Handle) (regerrno error) {
+ 	return
+ }
+ 
+-func RegEnumKeyEx(key Handle, index uint32, name *uint16, nameLen *uint32, reserved *uint32, class *uint16, classLen *uint32, lastWriteTime *Filetime) (regerrno error) {
++func regEnumKeyEx(key Handle, index uint32, name *uint16, nameLen *uint32, reserved *uint32, class *uint16, classLen *uint32, lastWriteTime *Filetime) (regerrno error) {
+ 	r0, _, _ := Syscall9(procRegEnumKeyExW.Addr(), 8, uintptr(key), uintptr(index), uintptr(unsafe.Pointer(name)), uintptr(unsafe.Pointer(nameLen)), uintptr(unsafe.Pointer(reserved)), uintptr(unsafe.Pointer(class)), uintptr(unsafe.Pointer(classLen)), uintptr(unsafe.Pointer(lastWriteTime)), 0)
+ 	if r0 != 0 {
+ 		regerrno = Errno(r0)

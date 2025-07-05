@@ -58,6 +58,43 @@ Date:   Mon Jan 17 21:54:17 2022 +0000
     Reviewed-by: Filippo Valsorda <valsorda@google.com>
     Auto-Submit: Filippo Valsorda <filippo@golang.org>
     Run-TryBot: Filippo Valsorda <filippo@golang.org>
-
+---
  src/crypto/tls/conn.go | 11 +++++++++++
  1 file changed, 11 insertions(+)
+
+diff --git a/src/crypto/tls/conn.go b/src/crypto/tls/conn.go
+index b0c91791d9..1861a312f1 100644
+--- a/src/crypto/tls/conn.go
++++ b/src/crypto/tls/conn.go
+@@ -32,6 +32,7 @@ type Conn struct {
+ 
+ 	// handshakeStatus is 1 if the connection is currently transferring
+ 	// application data (i.e. is not currently processing a handshake).
++	// handshakeStatus == 1 implies handshakeErr == nil.
+ 	// This field is only to be accessed with sync/atomic.
+ 	handshakeStatus uint32
+ 	// constant after handshake; protected by handshakeMutex
+@@ -1405,6 +1406,13 @@ func (c *Conn) HandshakeContext(ctx context.Context) error {
+ }
+ 
+ func (c *Conn) handshakeContext(ctx context.Context) (ret error) {
++	// Fast sync/atomic-based exit if there is no handshake in flight and the
++	// last one succeeded without an error. Avoids the expensive context setup
++	// and mutex for most Read and Write calls.
++	if c.handshakeComplete() {
++		return nil
++	}
++
+ 	handshakeCtx, cancel := context.WithCancel(ctx)
+ 	// Note: defer this before starting the "interrupter" goroutine
+ 	// so that we can tell the difference between the input being canceled and
+@@ -1463,6 +1471,9 @@ func (c *Conn) handshakeContext(ctx context.Context) (ret error) {
+ 	if c.handshakeErr == nil && !c.handshakeComplete() {
+ 		c.handshakeErr = errors.New("tls: internal error: handshake should have had a result")
+ 	}
++	if c.handshakeErr != nil && c.handshakeComplete() {
++		panic("tls: internal error: handshake returned an error but is marked successful")
++	}
+ 
+ 	return c.handshakeErr
+ }

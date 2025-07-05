@@ -20,8 +20,309 @@ Date:   Fri Oct 16 00:41:03 2020 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/io/example_test.go  |  14 +++++++
  src/io/io.go            |  84 +++++++++++++++++++++++++++++++++++--
  src/io/ioutil/ioutil.go | 107 +++++++++++++++---------------------------------
  3 files changed, 126 insertions(+), 79 deletions(-)
+
+diff --git a/src/io/example_test.go b/src/io/example_test.go
+index 465eed4d5e..4706032429 100644
+--- a/src/io/example_test.go
++++ b/src/io/example_test.go
+@@ -241,3 +241,17 @@ func ExamplePipe() {
+ 	// Output:
+ 	// some io.Reader stream to be read
+ }
++
++func ExampleReadAll() {
++	r := strings.NewReader("Go is a general-purpose language designed with systems programming in mind.")
++
++	b, err := ioutil.ReadAll(r)
++	if err != nil {
++		log.Fatal(err)
++	}
++
++	fmt.Printf("%s", b)
++
++	// Output:
++	// Go is a general-purpose language designed with systems programming in mind.
++}
+diff --git a/src/io/io.go b/src/io/io.go
+index a34c39a32a..269ebf6ed0 100644
+--- a/src/io/io.go
++++ b/src/io/io.go
+@@ -14,6 +14,7 @@ package io
+ 
+ import (
+ 	"errors"
++	"sync"
+ )
+ 
+ // Seek whence values.
+@@ -46,9 +47,9 @@ var EOF = errors.New("EOF")
+ // middle of reading a fixed-size block or data structure.
+ var ErrUnexpectedEOF = errors.New("unexpected EOF")
+ 
+-// ErrNoProgress is returned by some clients of an io.Reader when
++// ErrNoProgress is returned by some clients of an Reader when
+ // many calls to Read have failed to return any data or error,
+-// usually the sign of a broken io.Reader implementation.
++// usually the sign of a broken Reader implementation.
+ var ErrNoProgress = errors.New("multiple Read calls return no data or error")
+ 
+ // Reader is the interface that wraps the basic Read method.
+@@ -177,7 +178,7 @@ type ReadWriteSeeker interface {
+ //
+ // ReadFrom reads data from r until EOF or error.
+ // The return value n is the number of bytes read.
+-// Any error except io.EOF encountered during the read is also returned.
++// Any error except EOF encountered during the read is also returned.
+ //
+ // The Copy function uses ReaderFrom if available.
+ type ReaderFrom interface {
+@@ -390,7 +391,7 @@ func Copy(dst Writer, src Reader) (written int64, err error) {
+ // buf will not be used to perform the copy.
+ func CopyBuffer(dst Writer, src Reader, buf []byte) (written int64, err error) {
+ 	if buf != nil && len(buf) == 0 {
+-		panic("empty buffer in io.CopyBuffer")
++		panic("empty buffer in CopyBuffer")
+ 	}
+ 	return copyBuffer(dst, src, buf)
+ }
+@@ -564,3 +565,78 @@ func (t *teeReader) Read(p []byte) (n int, err error) {
+ 	}
+ 	return
+ }
++
++// Discard is an Writer on which all Write calls succeed
++// without doing anything.
++var Discard Writer = discard{}
++
++type discard struct{}
++
++// discard implements ReaderFrom as an optimization so Copy to
++// ioutil.Discard can avoid doing unnecessary work.
++var _ ReaderFrom = discard{}
++
++func (discard) Write(p []byte) (int, error) {
++	return len(p), nil
++}
++
++func (discard) WriteString(s string) (int, error) {
++	return len(s), nil
++}
++
++var blackHolePool = sync.Pool{
++	New: func() interface{} {
++		b := make([]byte, 8192)
++		return &b
++	},
++}
++
++func (discard) ReadFrom(r Reader) (n int64, err error) {
++	bufp := blackHolePool.Get().(*[]byte)
++	readSize := 0
++	for {
++		readSize, err = r.Read(*bufp)
++		n += int64(readSize)
++		if err != nil {
++			blackHolePool.Put(bufp)
++			if err == EOF {
++				return n, nil
++			}
++			return
++		}
++	}
++}
++
++// NopCloser returns a ReadCloser with a no-op Close method wrapping
++// the provided Reader r.
++func NopCloser(r Reader) ReadCloser {
++	return nopCloser{r}
++}
++
++type nopCloser struct {
++	Reader
++}
++
++func (nopCloser) Close() error { return nil }
++
++// ReadAll reads from r until an error or EOF and returns the data it read.
++// A successful call returns err == nil, not err == EOF. Because ReadAll is
++// defined to read from src until EOF, it does not treat an EOF from Read
++// as an error to be reported.
++func ReadAll(r Reader) ([]byte, error) {
++	b := make([]byte, 0, 512)
++	for {
++		if len(b) == cap(b) {
++			// Add more capacity (let append pick how much).
++			b = append(b, 0)[:len(b)]
++		}
++		n, err := r.Read(b[len(b):cap(b)])
++		b = b[:len(b)+n]
++		if err != nil {
++			if err == EOF {
++				err = nil
++			}
++			return b, err
++		}
++	}
++}
+diff --git a/src/io/ioutil/ioutil.go b/src/io/ioutil/ioutil.go
+index cae41f0018..a001c86b2f 100644
+--- a/src/io/ioutil/ioutil.go
++++ b/src/io/ioutil/ioutil.go
+@@ -6,44 +6,20 @@
+ package ioutil
+ 
+ import (
+-	"bytes"
+ 	"io"
+ 	"io/fs"
+ 	"os"
+ 	"sort"
+-	"sync"
+ )
+ 
+-// readAll reads from r until an error or EOF and returns the data it read
+-// from the internal buffer allocated with a specified capacity.
+-func readAll(r io.Reader, capacity int64) (b []byte, err error) {
+-	var buf bytes.Buffer
+-	// If the buffer overflows, we will get bytes.ErrTooLarge.
+-	// Return that as an error. Any other panic remains.
+-	defer func() {
+-		e := recover()
+-		if e == nil {
+-			return
+-		}
+-		if panicErr, ok := e.(error); ok && panicErr == bytes.ErrTooLarge {
+-			err = panicErr
+-		} else {
+-			panic(e)
+-		}
+-	}()
+-	if int64(int(capacity)) == capacity {
+-		buf.Grow(int(capacity))
+-	}
+-	_, err = buf.ReadFrom(r)
+-	return buf.Bytes(), err
+-}
+-
+ // ReadAll reads from r until an error or EOF and returns the data it read.
+ // A successful call returns err == nil, not err == EOF. Because ReadAll is
+ // defined to read from src until EOF, it does not treat an EOF from Read
+ // as an error to be reported.
++//
++// As of Go 1.16, this function simply calls io.ReadAll.
+ func ReadAll(r io.Reader) ([]byte, error) {
+-	return readAll(r, bytes.MinRead)
++	return io.ReadAll(r)
+ }
+ 
+ // ReadFile reads the file named by filename and returns the contents.
+@@ -58,7 +34,8 @@ func ReadFile(filename string) ([]byte, error) {
+ 	defer f.Close()
+ 	// It's a good but not certain bet that FileInfo will tell us exactly how much to
+ 	// read, so let's try it but be prepared for the answer to be wrong.
+-	var n int64 = bytes.MinRead
++	const minRead = 512
++	var n int64 = minRead
+ 
+ 	if fi, err := f.Stat(); err == nil {
+ 		// As initial capacity for readAll, use Size + a little extra in case Size
+@@ -67,11 +44,30 @@ func ReadFile(filename string) ([]byte, error) {
+ 		// cheaply. If the size was wrong, we'll either waste some space off the end
+ 		// or reallocate as needed, but in the overwhelmingly common case we'll get
+ 		// it just right.
+-		if size := fi.Size() + bytes.MinRead; size > n {
++		if size := fi.Size() + minRead; size > n {
+ 			n = size
+ 		}
+ 	}
+-	return readAll(f, n)
++
++	if int64(int(n)) != n {
++		n = minRead
++	}
++
++	b := make([]byte, 0, n)
++	for {
++		if len(b) == cap(b) {
++			// Add more capacity (let append pick how much).
++			b = append(b, 0)[:len(b)]
++		}
++		n, err := f.Read(b[len(b):cap(b)])
++		b = b[:len(b)+n]
++		if err != nil {
++			if err == io.EOF {
++				err = nil
++			}
++			return b, err
++		}
++	}
+ }
+ 
+ // WriteFile writes data to a file named by filename.
+@@ -105,55 +101,16 @@ func ReadDir(dirname string) ([]fs.FileInfo, error) {
+ 	return list, nil
+ }
+ 
+-type nopCloser struct {
+-	io.Reader
+-}
+-
+-func (nopCloser) Close() error { return nil }
+-
+ // NopCloser returns a ReadCloser with a no-op Close method wrapping
+ // the provided Reader r.
++//
++// As of Go 1.16, this function simply calls io.NopCloser.
+ func NopCloser(r io.Reader) io.ReadCloser {
+-	return nopCloser{r}
+-}
+-
+-type devNull int
+-
+-// devNull implements ReaderFrom as an optimization so io.Copy to
+-// ioutil.Discard can avoid doing unnecessary work.
+-var _ io.ReaderFrom = devNull(0)
+-
+-func (devNull) Write(p []byte) (int, error) {
+-	return len(p), nil
+-}
+-
+-func (devNull) WriteString(s string) (int, error) {
+-	return len(s), nil
+-}
+-
+-var blackHolePool = sync.Pool{
+-	New: func() interface{} {
+-		b := make([]byte, 8192)
+-		return &b
+-	},
+-}
+-
+-func (devNull) ReadFrom(r io.Reader) (n int64, err error) {
+-	bufp := blackHolePool.Get().(*[]byte)
+-	readSize := 0
+-	for {
+-		readSize, err = r.Read(*bufp)
+-		n += int64(readSize)
+-		if err != nil {
+-			blackHolePool.Put(bufp)
+-			if err == io.EOF {
+-				return n, nil
+-			}
+-			return
+-		}
+-	}
++	return io.NopCloser(r)
+ }
+ 
+ // Discard is an io.Writer on which all Write calls succeed
+ // without doing anything.
+-var Discard io.Writer = devNull(0)
++//
++// As of Go 1.16, this value is simply io.Discard.
++var Discard io.Writer = io.Discard

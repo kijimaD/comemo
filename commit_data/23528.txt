@@ -16,7 +16,7 @@ Date:   Thu May 21 13:28:13 2015 -0400
     Change-Id: I79cbbdb676cab029db8aeefb99a53178ff55f98d
     Reviewed-on: https://go-review.googlesource.com/10288
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/dist/build.go           | 16 ++++------------
  src/cmd/dist/buildtool.go       | 28 +++++++++++++++-------------
  src/cmd/go/build.go             | 10 +++++-----
@@ -32,3 +32,374 @@ Date:   Thu May 21 13:28:13 2015 -0400
  test/run.go                     | 15 +++++----------
  test/sinit_run.go               |  2 +-
  14 files changed, 53 insertions(+), 64 deletions(-)
+
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index 47c0a0a1d1..d6cfaf02cb 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -540,7 +540,7 @@ func install(dir string) {
+ 		if elem == "go" {
+ 			elem = "go_bootstrap"
+ 		}
+-		link = []string{fmt.Sprintf("%s/%sl", tooldir, gochar), "-o", pathf("%s/%s%s", tooldir, elem, exe)}
++		link = []string{pathf("%s/link", tooldir), "-o", pathf("%s/%s%s", tooldir, elem, exe)}
+ 		targ = len(link) - 1
+ 	}
+ 	ttarg := mtime(link[targ])
+@@ -675,7 +675,7 @@ func install(dir string) {
+ 	} else {
+ 		archive = b
+ 	}
+-	compile := []string{pathf("%s/%sg", tooldir, gochar), "-pack", "-o", b, "-p", pkg}
++	compile := []string{pathf("%s/compile", tooldir), "-pack", "-o", b, "-p", pkg}
+ 	if dir == "runtime" {
+ 		compile = append(compile, "-+", "-asmhdr", pathf("%s/go_asm.h", workdir))
+ 	}
+@@ -897,17 +897,9 @@ var buildorder = []string{
+ // compilers but build only the $GOARCH ones.
+ var cleantab = []string{
+ 	// Commands and C libraries.
+-	"cmd/5g",
+-	"cmd/5l",
+-	"cmd/6g",
+-	"cmd/6l",
+-	"cmd/7g",
+-	"cmd/7l",
+-	"cmd/8g",
+-	"cmd/8l",
+-	"cmd/9g",
+-	"cmd/9l",
++	"cmd/compile",
+ 	"cmd/go",
++	"cmd/link",
+ 	"cmd/old5a",
+ 	"cmd/old6a",
+ 	"cmd/old8a",
+diff --git a/src/cmd/dist/buildtool.go b/src/cmd/dist/buildtool.go
+index 946229d827..2840f71749 100644
+--- a/src/cmd/dist/buildtool.go
++++ b/src/cmd/dist/buildtool.go
+@@ -23,31 +23,33 @@ import (
+ // which are commands, and entries beginning with internal/, which are
+ // packages supporting the commands.
+ var bootstrapDirs = []string{
+-	"5g",
+-	"5l",
+-	"6g",
+-	"6l",
+-	"7g",
+-	"7l",
+-	"8g",
+-	"8l",
+-	"9g",
+-	"9l",
+ 	"asm",
+ 	"asm/internal/arch",
+ 	"asm/internal/asm",
+ 	"asm/internal/flags",
+ 	"asm/internal/lex",
++	"compile",
++	"compile/internal/amd64",
++	"compile/internal/arm",
++	"compile/internal/arm64",
++	"compile/internal/big",
++	"compile/internal/gc",
++	"compile/internal/ppc64",
++	"compile/internal/x86",
+ 	"internal/asm",
+ 	"internal/gcprog",
+-	"internal/gc/big",
+-	"internal/gc",
+-	"internal/ld",
+ 	"internal/obj",
+ 	"internal/obj/arm",
+ 	"internal/obj/arm64",
+ 	"internal/obj/ppc64",
+ 	"internal/obj/x86",
++	"link",
++	"link/internal/amd64",
++	"link/internal/arm",
++	"link/internal/arm64",
++	"link/internal/ld",
++	"link/internal/ppc64",
++	"link/internal/x86",
+ 	"old5a",
+ 	"old6a",
+ 	"old8a",
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 738f748391..aa9a408eff 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -1532,7 +1532,7 @@ func (b *builder) linkShared(a *action) (err error) {
+ 		}
+ 		ldflags = append(ldflags, d.p.ImportPath+"="+d.target)
+ 	}
+-	return b.run(".", a.target, nil, buildToolExec, tool(archChar()+"l"), "-o", a.target, importArgs, ldflags)
++	return b.run(".", a.target, nil, buildToolExec, tool("link"), "-o", a.target, importArgs, ldflags)
+ }
+ 
+ // install is the action for installing a single package or executable.
+@@ -2109,11 +2109,11 @@ func (noToolchain) cc(b *builder, p *Package, objdir, ofile, cfile string) error
+ type gcToolchain struct{}
+ 
+ func (gcToolchain) compiler() string {
+-	return tool(archChar() + "g")
++	return tool("compile")
+ }
+ 
+ func (gcToolchain) linker() string {
+-	return tool(archChar() + "l")
++	return tool("link")
+ }
+ 
+ func (gcToolchain) gc(b *builder, p *Package, archive, obj string, asmhdr bool, importArgs []string, gofiles []string) (ofile string, output []byte, err error) {
+@@ -2152,7 +2152,7 @@ func (gcToolchain) gc(b *builder, p *Package, archive, obj string, asmhdr bool,
+ 		gcargs = append(gcargs, "-installsuffix", buildContext.InstallSuffix)
+ 	}
+ 
+-	args := []interface{}{buildToolExec, tool(archChar() + "g"), "-o", ofile, "-trimpath", b.work, buildGcflags, gcargs, "-D", p.localPrefix, importArgs}
++	args := []interface{}{buildToolExec, tool("compile"), "-o", ofile, "-trimpath", b.work, buildGcflags, gcargs, "-D", p.localPrefix, importArgs}
+ 	if ofile == archive {
+ 		args = append(args, "-pack")
+ 	}
+@@ -2333,7 +2333,7 @@ func (gcToolchain) ld(b *builder, p *Package, out string, allactions []*action,
+ 	ldflags = setextld(ldflags, compiler)
+ 	ldflags = append(ldflags, "-buildmode="+ldBuildmode)
+ 	ldflags = append(ldflags, buildLdflags...)
+-	return b.run(".", p.ImportPath, nil, buildToolExec, tool(archChar()+"l"), "-o", out, importArgs, ldflags, mainpkg)
++	return b.run(".", p.ImportPath, nil, buildToolExec, tool("link"), "-o", out, importArgs, ldflags, mainpkg)
+ }
+ 
+ func (gcToolchain) cc(b *builder, p *Package, objdir, ofile, cfile string) error {
+diff --git a/src/cmd/pack/pack_test.go b/src/cmd/pack/pack_test.go
+index 9c33f4f98b..97992059b9 100644
+--- a/src/cmd/pack/pack_test.go
++++ b/src/cmd/pack/pack_test.go
+@@ -230,9 +230,9 @@ func TestHello(t *testing.T) {
+ 	}
+ 
+ 	run("go", "build", "cmd/pack") // writes pack binary to dir
+-	run("go", "tool", char+"g", "hello.go")
++	run("go", "tool", "compile", "hello.go")
+ 	run("./pack", "grc", "hello.a", "hello."+char)
+-	run("go", "tool", char+"l", "-o", "a.out", "hello.a")
++	run("go", "tool", "link", "-o", "a.out", "hello.a")
+ 	out := run("./a.out")
+ 	if out != "hello world\n" {
+ 		t.Fatalf("incorrect output: %q, want %q", out, "hello world\n")
+@@ -304,10 +304,10 @@ func TestLargeDefs(t *testing.T) {
+ 	}
+ 
+ 	run("go", "build", "cmd/pack") // writes pack binary to dir
+-	run("go", "tool", char+"g", "large.go")
++	run("go", "tool", "compile", "large.go")
+ 	run("./pack", "grc", "large.a", "large."+char)
+-	run("go", "tool", char+"g", "-I", ".", "main.go")
+-	run("go", "tool", char+"l", "-L", ".", "-o", "a.out", "main."+char)
++	run("go", "tool", "compile", "-I", ".", "main.go")
++	run("go", "tool", "link", "-L", ".", "-o", "a.out", "main."+char)
+ 	out := run("./a.out")
+ 	if out != "ok\n" {
+ 		t.Fatalf("incorrect output: %q, want %q", out, "ok\n")
+diff --git a/src/debug/gosym/pclntab_test.go b/src/debug/gosym/pclntab_test.go
+index 6855a65bbe..c6943a631a 100644
+--- a/src/debug/gosym/pclntab_test.go
++++ b/src/debug/gosym/pclntab_test.go
+@@ -49,7 +49,7 @@ func dotest(self bool) bool {
+ 	// the resulting binary looks like it was built from pclinetest.s,
+ 	// but we have renamed it to keep it away from the go tool.
+ 	pclinetestBinary = filepath.Join(pclineTempDir, "pclinetest")
+-	command := fmt.Sprintf("go tool asm -o %s.6 pclinetest.asm && go tool 6l -H linux -E main -o %s %s.6",
++	command := fmt.Sprintf("go tool asm -o %s.o pclinetest.asm && go tool link -H linux -E main -o %s %s.o",
+ 		pclinetestBinary, pclinetestBinary, pclinetestBinary)
+ 	cmd := exec.Command("sh", "-c", command)
+ 	cmd.Stdout = os.Stdout
+diff --git a/test/bench/shootout/timing.sh b/test/bench/shootout/timing.sh
+index a06c326c3e..b15825cc68 100755
+--- a/test/bench/shootout/timing.sh
++++ b/test/bench/shootout/timing.sh
+@@ -7,8 +7,8 @@ set -e
+ 
+ eval $(go tool dist env)
+ O=$GOCHAR
+-GC="go tool ${O}g"
+-LD="go tool ${O}l"
++GC="go tool compile"
++LD="go tool link"
+ 
+ gccm=""
+ case "$O" in
+diff --git a/test/fixedbugs/bug248.go b/test/fixedbugs/bug248.go
+index 3d9a408508..2dad1bc654 100644
+--- a/test/fixedbugs/bug248.go
++++ b/test/fixedbugs/bug248.go
+@@ -26,11 +26,11 @@ func main() {
+ 	err = os.Chdir(filepath.Join("fixedbugs", "bug248.dir"))
+ 	check(err)
+ 
+-	run("go", "tool", a+"g", "bug0.go")
+-	run("go", "tool", a+"g", "bug1.go")
+-	run("go", "tool", a+"g", "bug2.go")
+-	run(errchk, "go", "tool", a+"g", "-e", "bug3.go")
+-	run("go", "tool", a+"l", "bug2."+a)
++	run("go", "tool", "compile", "bug0.go")
++	run("go", "tool", "compile", "bug1.go")
++	run("go", "tool", "compile", "bug2.go")
++	run(errchk, "go", "tool", "compile", "-e", "bug3.go")
++	run("go", "tool", "link", "bug2."+a)
+ 	run(fmt.Sprintf(".%c%s.out", filepath.Separator, a))
+ 
+ 	os.Remove("bug0." + a)
+diff --git a/test/fixedbugs/bug302.go b/test/fixedbugs/bug302.go
+index 327d52254c..faae665035 100644
+--- a/test/fixedbugs/bug302.go
++++ b/test/fixedbugs/bug302.go
+@@ -23,9 +23,9 @@ func main() {
+ 		os.Exit(1)
+ 	}
+ 
+-	run("go", "tool", a+"g", filepath.Join("fixedbugs", "bug302.dir", "p.go"))
++	run("go", "tool", "compile", filepath.Join("fixedbugs", "bug302.dir", "p.go"))
+ 	run("go", "tool", "pack", "grc", "pp.a", "p."+a)
+-	run("go", "tool", a+"g", "-I", ".", filepath.Join("fixedbugs", "bug302.dir", "main.go"))
++	run("go", "tool", "compile", "-I", ".", filepath.Join("fixedbugs", "bug302.dir", "main.go"))
+ 	os.Remove("p."+a)
+ 	os.Remove("pp.a")
+ 	os.Remove("main."+a)
+diff --git a/test/fixedbugs/bug345.go b/test/fixedbugs/bug345.go
+index 745144fbf2..3ef57bd112 100644
+--- a/test/fixedbugs/bug345.go
++++ b/test/fixedbugs/bug345.go
+@@ -26,8 +26,8 @@ func main() {
+ 	err = os.Chdir(filepath.Join(".", "fixedbugs", "bug345.dir"))
+ 	check(err)
+ 
+-	run("go", "tool", a+"g", "io.go")
+-	run(errchk, "go", "tool", a+"g", "-e", "main.go")
++	run("go", "tool", "compile", "io.go")
++	run(errchk, "go", "tool", "compile", "-e", "main.go")
+ 	os.Remove("io." + a)
+ }
+ 
+diff --git a/test/fixedbugs/bug369.go b/test/fixedbugs/bug369.go
+index 519703fb1e..b85428be02 100644
+--- a/test/fixedbugs/bug369.go
++++ b/test/fixedbugs/bug369.go
+@@ -24,10 +24,10 @@ func main() {
+ 	err = os.Chdir(filepath.Join(".", "fixedbugs", "bug369.dir"))
+ 	check(err)
+ 
+-	run("go", "tool", a+"g", "-N", "-o", "slow."+a, "pkg.go")
+-	run("go", "tool", a+"g", "-o", "fast."+a, "pkg.go")
+-	run("go", "tool", a+"g", "-o", "main."+a, "main.go")
+-	run("go", "tool", a+"l", "-o", "a.exe", "main."+a)
++	run("go", "tool", "compile", "-N", "-o", "slow."+a, "pkg.go")
++	run("go", "tool", "compile", "-o", "fast."+a, "pkg.go")
++	run("go", "tool", "compile", "-o", "main."+a, "main.go")
++	run("go", "tool", "link", "-o", "a.exe", "main."+a)
+ 	run("." + string(filepath.Separator) + "a.exe")
+ 
+ 	os.Remove("slow." + a)
+diff --git a/test/fixedbugs/issue9355.go b/test/fixedbugs/issue9355.go
+index bdc0dd06c6..a841f773ee 100644
+--- a/test/fixedbugs/issue9355.go
++++ b/test/fixedbugs/issue9355.go
+@@ -26,7 +26,7 @@ func main() {
+ 	err = os.Chdir(filepath.Join("fixedbugs", "issue9355.dir"))
+ 	check(err)
+ 
+-	out := run("go", "tool", a+"g", "-S", "a.go")
++	out := run("go", "tool", "compile", "-S", "a.go")
+ 	os.Remove("a." + a)
+ 
+ 	// 6g/8g print the offset as dec, but 5g/9g print the offset as hex.
+diff --git a/test/nosplit.go b/test/nosplit.go
+index bd7a8ddac3..0fc8dc47f0 100644
+--- a/test/nosplit.go
++++ b/test/nosplit.go
+@@ -193,7 +193,7 @@ func main() {
+ 		thechar = strings.TrimSpace(string(gochar))
+ 	}
+ 
+-	version, err := exec.Command("go", "tool", thechar+"g", "-V").Output()
++	version, err := exec.Command("go", "tool", "compile", "-V").Output()
+ 	if err != nil {
+ 		bug()
+ 		fmt.Printf("running go tool %sg -V: %v\n", thechar, err)
+diff --git a/test/run.go b/test/run.go
+index 10ba7a8432..a3124bba94 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -41,9 +41,6 @@ var (
+ )
+ 
+ var (
+-	// gc and ld are [568][gl].
+-	gc, ld string
+-
+ 	// letter is the build.ArchChar
+ 	letter string
+ 
+@@ -87,8 +84,6 @@ func main() {
+ 	var err error
+ 	letter, err = build.ArchChar(build.Default.GOARCH)
+ 	check(err)
+-	gc = letter + "g"
+-	ld = letter + "l"
+ 
+ 	var tests []*test
+ 	if flag.NArg() > 0 {
+@@ -192,11 +187,11 @@ func goFiles(dir string) []string {
+ type runCmd func(...string) ([]byte, error)
+ 
+ func compileFile(runcmd runCmd, longname string) (out []byte, err error) {
+-	return runcmd("go", "tool", gc, "-e", longname)
++	return runcmd("go", "tool", "compile", "-e", longname)
+ }
+ 
+ func compileInDir(runcmd runCmd, dir string, names ...string) (out []byte, err error) {
+-	cmd := []string{"go", "tool", gc, "-e", "-D", ".", "-I", "."}
++	cmd := []string{"go", "tool", "compile", "-e", "-D", ".", "-I", "."}
+ 	for _, name := range names {
+ 		cmd = append(cmd, filepath.Join(dir, name))
+ 	}
+@@ -205,7 +200,7 @@ func compileInDir(runcmd runCmd, dir string, names ...string) (out []byte, err e
+ 
+ func linkFile(runcmd runCmd, goname string) (err error) {
+ 	pfile := strings.Replace(goname, ".go", "."+letter, -1)
+-	_, err = runcmd("go", "tool", ld, "-w", "-o", "a.exe", "-L", ".", pfile)
++	_, err = runcmd("go", "tool", "link", "-w", "-o", "a.exe", "-L", ".", pfile)
+ 	return
+ }
+ 
+@@ -506,7 +501,7 @@ func (t *test) run() {
+ 		t.err = fmt.Errorf("unimplemented action %q", action)
+ 
+ 	case "errorcheck":
+-		cmdline := []string{"go", "tool", gc, "-e", "-o", "a." + letter}
++		cmdline := []string{"go", "tool", "compile", "-e", "-o", "a." + letter}
+ 		cmdline = append(cmdline, flags...)
+ 		cmdline = append(cmdline, long)
+ 		out, err := runcmd(cmdline...)
+@@ -669,7 +664,7 @@ func (t *test) run() {
+ 			t.err = fmt.Errorf("write tempfile:%s", err)
+ 			return
+ 		}
+-		cmdline := []string{"go", "tool", gc, "-e", "-o", "a." + letter}
++		cmdline := []string{"go", "tool", "compile", "-e", "-o", "a." + letter}
+ 		cmdline = append(cmdline, flags...)
+ 		cmdline = append(cmdline, tfile)
+ 		out, err = runcmd(cmdline...)
+diff --git a/test/sinit_run.go b/test/sinit_run.go
+index b0a91ce5b1..cc437bfacf 100644
+--- a/test/sinit_run.go
++++ b/test/sinit_run.go
+@@ -24,7 +24,7 @@ func main() {
+ 		os.Exit(1)
+ 	}
+ 
+-	cmd := exec.Command("go", "tool", letter+"g", "-S", "sinit.go")
++	cmd := exec.Command("go", "tool", "compile", "-S", "sinit.go")
+ 	out, err := cmd.CombinedOutput()
+ 	if err != nil {
+ 		fmt.Println(string(out))

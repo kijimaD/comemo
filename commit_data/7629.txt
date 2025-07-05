@@ -7,6 +7,17 @@ Date:   Fri Mar 4 16:28:27 2011 +1100
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4264043
-
+---
  doc/code.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/code.html b/doc/code.html
+index 06af93727f..cdc60b0710 100644
+--- a/doc/code.html
++++ b/doc/code.html
+@@ -365,4 +365,4 @@ my_$(GOARCH).go
+ my_$(GOOS)_$(GOARCH).go
+ </pre>
+ 
+-<p>The same holds for <code>.s</code> (assembly) and <code>.cgo</code> files.</p>
++<p>The same holds for <code>.s</code> (assembly) files.</p>

@@ -13,6 +13,31 @@ Date:   Fri Dec 15 01:49:04 2017 +0000
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/dist/test.go | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 808439439b..f040d4e3f6 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -265,6 +265,10 @@ func (t *tester) registerStdTest(pkg string) {
+ 	if t.runRx == nil || t.runRx.MatchString(testName) == t.runRxWant {
+ 		stdMatches = append(stdMatches, pkg)
+ 	}
++	timeoutSec := 180
++	if pkg == "cmd/go" {
++		timeoutSec *= 2
++	}
+ 	t.tests = append(t.tests, distTest{
+ 		name:    testName,
+ 		heading: "Testing packages.",
+@@ -280,7 +284,7 @@ func (t *tester) registerStdTest(pkg string) {
+ 				"test",
+ 				"-short",
+ 				t.tags(),
+-				t.timeout(180),
++				t.timeout(timeoutSec),
+ 				"-gcflags=all=" + gogcflags,
+ 			}
+ 			if t.race {

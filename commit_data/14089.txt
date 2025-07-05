@@ -10,7 +10,7 @@ Date:   Tue Oct 9 09:57:51 2012 +1100
     R=gri
     CC=golang-dev
     https://golang.org/cl/6587080
-
+---
  src/cmd/godoc/appinit.go           |  2 ++
  src/cmd/godoc/main.go              | 31 +---------------
  src/cmd/godoc/play-appengine.go    | 35 ++++++++++++++++++
@@ -18,3 +18,343 @@ Date:   Tue Oct 9 09:57:51 2012 +1100
  src/cmd/godoc/play.go              | 73 ++++++++++++++++++++++++++++++++++++++
  src/cmd/godoc/setup-godoc-app.bash | 63 ++++++++++++++++++++------------
  6 files changed, 193 insertions(+), 52 deletions(-)
+
+diff --git a/src/cmd/godoc/appinit.go b/src/cmd/godoc/appinit.go
+index a4ae40bf29..996b2b8504 100644
+--- a/src/cmd/godoc/appinit.go
++++ b/src/cmd/godoc/appinit.go
+@@ -37,6 +37,7 @@ func init() {
+ 	*indexFiles = indexFilenames
+ 	*maxResults = 100    // reduce latency by limiting the number of fulltext search results
+ 	*indexThrottle = 0.3 // in case *indexFiles is empty (and thus the indexer is run)
++	*showPlayground = true
+ 
+ 	// read .zip file and set up file systems
+ 	const zipfile = zipFilename
+@@ -51,6 +52,7 @@ func init() {
+ 	readTemplates()
+ 	initHandlers()
+ 	registerPublicHandlers(http.DefaultServeMux)
++	registerPlaygroundHandlers(http.DefaultServeMux)
+ 
+ 	// initialize default directory tree with corresponding timestamp.
+ 	initFSTree()
+diff --git a/src/cmd/godoc/main.go b/src/cmd/godoc/main.go
+index b2b4248da0..b124b10ca9 100644
+--- a/src/cmd/godoc/main.go
++++ b/src/cmd/godoc/main.go
+@@ -282,14 +282,7 @@ func main() {
+ 		}
+ 
+ 		registerPublicHandlers(http.DefaultServeMux)
+-
+-		playHandler := disabledHandler
+-		if *showPlayground {
+-			playHandler = bounceToPlayground
+-		}
+-		http.HandleFunc("/compile", playHandler)
+-		http.HandleFunc("/share", playHandler)
+-		http.HandleFunc("/fmt", playHandler)
++		registerPlaygroundHandlers(http.DefaultServeMux)
+ 
+ 		// Initialize default directory tree with corresponding timestamp.
+ 		// (Do it in a goroutine so that launch is quick.)
+@@ -469,25 +462,3 @@ type httpWriter struct {
+ 
+ func (w *httpWriter) Header() http.Header  { return w.h }
+ func (w *httpWriter) WriteHeader(code int) { w.code = code }
+-
+-// bounceToPlayground forwards the request to play.golang.org.
+-// TODO(adg): implement this stuff locally.
+-func bounceToPlayground(w http.ResponseWriter, req *http.Request) {
+-	defer req.Body.Close()
+-	req.URL.Scheme = "http"
+-	req.URL.Host = "play.golang.org"
+-	resp, err := http.Post(req.URL.String(), req.Header.Get("Content-type"), req.Body)
+-	if err != nil {
+-		http.Error(w, err.Error(), 500)
+-		return
+-	}
+-	w.WriteHeader(resp.StatusCode)
+-	io.Copy(w, resp.Body)
+-	resp.Body.Close()
+-}
+-
+-// disabledHandler serves a 501 "Not Implemented" response.
+-func disabledHandler(w http.ResponseWriter, r *http.Request) {
+-	w.WriteHeader(http.StatusNotImplemented)
+-	fmt.Fprint(w, "This functionality is not available via local godoc.")
+-}
+diff --git a/src/cmd/godoc/play-appengine.go b/src/cmd/godoc/play-appengine.go
+new file mode 100644
+index 0000000000..1d093e9592
+--- /dev/null
++++ b/src/cmd/godoc/play-appengine.go
+@@ -0,0 +1,35 @@
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// App Engine godoc Playground functionality.
++
++// +build appengine
++
++package main
++
++import (
++	"io"
++	"net/http"
++
++	"appengine"
++	"appengine/urlfetch"
++)
++
++func bounceToPlayground(w http.ResponseWriter, req *http.Request) {
++	c := appengine.NewContext(req)
++	client := urlfetch.Client(c)
++	url := playgroundBaseURL + req.URL.Path
++	defer req.Body.Close()
++	resp, err := client.Post(url, req.Header.Get("Content-type"), req.Body)
++	if err != nil {
++		http.Error(w, "Internal Server Error", 500)
++		c.Errorf("making POST request:", err)
++		return
++	}
++	defer resp.Body.Close()
++	if _, err := io.Copy(w, resp.Body); err != nil {
++		http.Error(w, "Internal Server Error", 500)
++		c.Errorf("making POST request:", err)
++	}
++}
+diff --git a/src/cmd/godoc/play-local.go b/src/cmd/godoc/play-local.go
+new file mode 100644
+index 0000000000..637ce5e1a5
+--- /dev/null
++++ b/src/cmd/godoc/play-local.go
+@@ -0,0 +1,41 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Stand-alone godoc Playground functionality.
++
++// +build !appengine
++
++package main
++
++import (
++	"io"
++	"net/http"
++	"net/url"
++)
++
++var playgroundScheme, playgroundHost string
++
++func init() {
++	u, err := url.Parse(playgroundBaseURL)
++	if err != nil {
++		panic(err)
++	}
++	playgroundScheme = u.Scheme
++	playgroundHost = u.Host
++}
++
++// bounceToPlayground forwards the request to play.golang.org.
++func bounceToPlayground(w http.ResponseWriter, req *http.Request) {
++	defer req.Body.Close()
++	req.URL.Scheme = playgroundScheme
++	req.URL.Host = playgroundHost
++	resp, err := http.Post(req.URL.String(), req.Header.Get("Content-type"), req.Body)
++	if err != nil {
++		http.Error(w, err.Error(), 500)
++		return
++	}
++	w.WriteHeader(resp.StatusCode)
++	io.Copy(w, resp.Body)
++	resp.Body.Close()
++}
+diff --git a/src/cmd/godoc/play.go b/src/cmd/godoc/play.go
+new file mode 100644
+index 0000000000..dc549c0ee5
+--- /dev/null
++++ b/src/cmd/godoc/play.go
+@@ -0,0 +1,73 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Common Playground functionality.
++
++package main
++
++import (
++	"bytes"
++	"encoding/json"
++	"fmt"
++	"go/ast"
++	"go/parser"
++	"go/printer"
++	"go/token"
++	"net/http"
++)
++
++// The server that will service compile and share requests.
++const playgroundBaseURL = "http://play.golang.org"
++
++func registerPlaygroundHandlers(mux *http.ServeMux) {
++	if *showPlayground {
++		mux.HandleFunc("/compile", bounceToPlayground)
++		mux.HandleFunc("/share", bounceToPlayground)
++	} else {
++		mux.HandleFunc("/compile", disabledHandler)
++		mux.HandleFunc("/share", disabledHandler)
++	}
++	http.HandleFunc("/fmt", fmtHandler)
++}
++
++type fmtResponse struct {
++	Body  string
++	Error string
++}
++
++// fmtHandler takes a Go program in its "body" form value, formats it with
++// standard gofmt formatting, and writes a fmtResponse as a JSON object.
++func fmtHandler(w http.ResponseWriter, r *http.Request) {
++	resp := new(fmtResponse)
++	body, err := gofmt(r.FormValue("body"))
++	if err != nil {
++		resp.Error = err.Error()
++	} else {
++		resp.Body = body
++	}
++	json.NewEncoder(w).Encode(resp)
++}
++
++// gofmt takes a Go program, formats it using the standard Go formatting
++// rules, and returns it or an error.
++func gofmt(body string) (string, error) {
++	fset := token.NewFileSet()
++	f, err := parser.ParseFile(fset, "prog.go", body, parser.ParseComments)
++	if err != nil {
++		return "", err
++	}
++	ast.SortImports(fset, f)
++	var buf bytes.Buffer
++	err = printer.Fprint(&buf, fset, f)
++	if err != nil {
++		return "", err
++	}
++	return buf.String(), nil
++}
++
++// disabledHandler serves a 501 "Not Implemented" response.
++func disabledHandler(w http.ResponseWriter, r *http.Request) {
++	w.WriteHeader(http.StatusNotImplemented)
++	fmt.Fprint(w, "This functionality is not available via local godoc.")
++}
+diff --git a/src/cmd/godoc/setup-godoc-app.bash b/src/cmd/godoc/setup-godoc-app.bash
+old mode 100644
+new mode 100755
+index b8dc4dcf99..792e0d450b
+--- a/src/cmd/godoc/setup-godoc-app.bash
++++ b/src/cmd/godoc/setup-godoc-app.bash
+@@ -4,13 +4,14 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-# This script creates the .zip, index, and configuration files for running
+-# godoc on app-engine.
++# This script creates a complete godoc app in $APPDIR.
++# It copies the cmd/godoc and src/pkg/go/... sources from GOROOT,
++# synthesizes an app.yaml file, and creates the .zip, index, and
++# configuration files.
+ #
+ # If an argument is provided it is assumed to be the app-engine godoc directory.
+-# Without an argument, $APPDIR is used instead. If GOROOT is not set, the
+-# current working directory is assumed to be $GOROOT. Various sanity checks
+-# prevent accidents.
++# Without an argument, $APPDIR is used instead. If GOROOT is not set, "go env"
++# is consulted to find the $GOROOT.
+ #
+ # The script creates a .zip file representing the $GOROOT file system
+ # and computes the correspondig search index files. These files are then
+@@ -29,8 +30,8 @@ error() {
+ 
+ getArgs() {
+ 	if [ -z $GOROOT ]; then
+-		GOROOT=$(pwd)
+-		echo "GOROOT not set, using cwd instead"
++		GOROOT=$(go env GOROOT)
++		echo "GOROOT not set explicitly, using $GOROOT instead"
+ 	fi
+ 	if [ -z $APPDIR ]; then
+ 		if [ $# == 0 ]; then
+@@ -47,14 +48,8 @@ getArgs() {
+ 	if [ ! -x $GOROOT/bin/godoc ]; then
+ 		error "$GOROOT/bin/godoc does not exist or is not executable"
+ 	fi
+-	if [ ! -d $APPDIR ]; then
+-		error "$APPDIR is not a directory"
+-	fi
+-	if [ ! -e $APPDIR/app.yaml ]; then
+-		error "$APPDIR is not an app-engine directory; missing file app.yaml"
+-	fi
+-	if [ ! -d $APPDIR/godoc ]; then
+-		error "$APPDIR is missing directory godoc"
++	if [ -e $APPDIR ]; then
++		error "$APPDIR exists; check and remove it before trying again"
+ 	fi
+ 
+ 	# reporting
+@@ -62,12 +57,32 @@ getArgs() {
+ 	echo "APPDIR = $APPDIR"
+ }
+ 
+-cleanup() {
+-	echo "*** cleanup $APPDIR"
+-	rm $APPDIR/$ZIPFILE
+-	rm $APPDIR/$INDEXFILE
+-	rm $APPDIR/$SPLITFILES*
+-	rm $APPDIR/$CONFIGFILE
++copyGodoc() {
++	echo "*** copy $GOROOT/src/cmd/godoc to $APPDIR/godoc"
++	cp -r $GOROOT/src/cmd/godoc $APPDIR/godoc
++}
++
++copyGoPackages() {
++	echo "*** copy $GOROOT/src/pkg/go to $APPDIR/newgo and rewrite imports"
++	cp -r $GOROOT/src/pkg/go $APPDIR/newgo
++	find $APPDIR/newgo -type d -name testdata | xargs rm -r
++	gofiles=$(find $APPDIR -name '*.go')
++	sed -i '' 's_^\(."\)\(go/[a-z]*\)"$_\1new\2"_' $gofiles
++	sed -i '' 's_^\(import "\)\(go/[a-z]*\)"$_\1new\2"_' $gofiles
++}
++
++makeAppYaml() {
++	echo "*** make $APPDIR/app.yaml"
++	cat > $APPDIR/app.yaml <<EOF
++application: godoc
++version: 1
++runtime: go
++api_version: go1
++
++handlers:
++- url: /.*
++  script: _go_app
++EOF
+ }
+ 
+ makeZipfile() {
+@@ -112,7 +127,11 @@ EOF
+ }
+ 
+ getArgs "$@"
+-cleanup
++set -e
++mkdir $APPDIR
++copyGodoc
++copyGoPackages
++makeAppYaml
+ makeZipfile
+ makeIndexfile
+ splitIndexfile

@@ -13,7 +13,41 @@ Date:   Fri Oct 14 13:21:35 2022 -0400
     Reviewed-by: Austin Clements <austin@google.com>
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/runtime/internal/startlinetest/func_amd64.s | 2 ++
  src/runtime/start_line_amd64_test.go            | 2 +-
  2 files changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/internal/startlinetest/func_amd64.s b/src/runtime/internal/startlinetest/func_amd64.s
+index 6baeba28d4..ace5b34e70 100644
+--- a/src/runtime/internal/startlinetest/func_amd64.s
++++ b/src/runtime/internal/startlinetest/func_amd64.s
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++#include "funcdata.h"
+ #include "textflag.h"
+ 
+ // Assembly function for runtime_test.TestStartLineAsm.
+@@ -20,6 +21,7 @@
+ // callerStartLine since it is in a different package.
+ 
+ TEXT	·AsmFunc<ABIInternal>(SB),NOSPLIT,$8-0
++	NO_LOCAL_POINTERS
+ 	MOVQ	$0, AX // wantInlined
+ 	CALL    runtime_test·callerStartLine<ABIInternal>(SB)
+ 	RET
+diff --git a/src/runtime/start_line_amd64_test.go b/src/runtime/start_line_amd64_test.go
+index c528adf3e2..57001e71de 100644
+--- a/src/runtime/start_line_amd64_test.go
++++ b/src/runtime/start_line_amd64_test.go
+@@ -13,7 +13,7 @@ import (
+ // is only tested on amd64 to avoid the need for a proliferation of per-arch
+ // copies of this function.
+ func TestStartLineAsm(t *testing.T) {
+-	const wantLine = 22
++	const wantLine = 23
+ 	got := startlinetest.AsmFunc()
+ 	if got != wantLine {
+ 		t.Errorf("start line got %d want %d", got, wantLine)

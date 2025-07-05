@@ -7,6 +7,25 @@ Date:   Thu Dec 6 11:02:49 2018 -0500
     Change-Id: I81ffe7ee88354efeabb24f091db66c7c4892876c
     Reviewed-on: https://go-review.googlesource.com/c/152919
     Reviewed-by: Andrew Bonventre <andybons@golang.org>
-
+---
  doc/go1.12.html | 6 +-----
  1 file changed, 1 insertion(+), 5 deletions(-)
+
+diff --git a/doc/go1.12.html b/doc/go1.12.html
+index 0e381eb679..f036180f53 100644
+--- a/doc/go1.12.html
++++ b/doc/go1.12.html
+@@ -620,12 +620,8 @@ for {
+ 
+ <dl id="testing"><dt><a href="/pkg/testing/">testing</a></dt>
+   <dd>
+-    <p><!-- CL 121936 -->
+-      TODO: <a href="https://golang.org/cl/121936">https://golang.org/cl/121936</a>: exit with error if testing.Short is called before flag.Parse
+-    </p>
+-
+     <p><!-- CL 139258 -->
+-      TODO: <a href="https://golang.org/cl/139258">https://golang.org/cl/139258</a>: implement -benchtime=100x
++    The <a href="/cmd/go/#hdr-Testing_flags"><code>-benchtime</code></a> flag now supports setting an explicit iteration count instead of a time when the value ends with an "<code>x</code>". For example, <code>-benchtime=100x</code> runs the benchmark 100 times.
+     </p>
+ 
+ </dl><!-- testing -->

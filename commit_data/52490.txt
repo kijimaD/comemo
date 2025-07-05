@@ -13,10 +13,229 @@ Date:   Wed Mar 30 22:10:00 2022 +0200
     Run-TryBot: Filippo Valsorda <filippo@golang.org>
     Reviewed-by: Roland Shoemaker <roland@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/crypto/elliptic/elliptic.go      | 15 ++++++++++++++
  src/crypto/elliptic/elliptic_test.go |  8 +++++++-
  src/crypto/elliptic/nistec.go        | 40 ++++++++++--------------------------
  src/crypto/elliptic/nistec_p256.go   |  2 +-
  src/crypto/elliptic/params.go        |  4 ++++
  5 files changed, 38 insertions(+), 31 deletions(-)
+
+diff --git a/src/crypto/elliptic/elliptic.go b/src/crypto/elliptic/elliptic.go
+index 01838dd868..8c0b60b889 100644
+--- a/src/crypto/elliptic/elliptic.go
++++ b/src/crypto/elliptic/elliptic.go
+@@ -72,6 +72,8 @@ func GenerateKey(curve Curve, rand io.Reader) (priv []byte, x, y *big.Int, err e
+ // SEC 1, Version 2.0, Section 2.3.3. If the point is not on the curve (or is
+ // the conventional point at infinity), the behavior is undefined.
+ func Marshal(curve Curve, x, y *big.Int) []byte {
++	panicIfNotOnCurve(curve, x, y)
++
+ 	byteLen := (curve.Params().BitSize + 7) / 8
+ 
+ 	ret := make([]byte, 1+2*byteLen)
+@@ -87,6 +89,7 @@ func Marshal(curve Curve, x, y *big.Int) []byte {
+ // specified in SEC 1, Version 2.0, Section 2.3.3. If the point is not on the
+ // curve (or is the conventional point at infinity), the behavior is undefined.
+ func MarshalCompressed(curve Curve, x, y *big.Int) []byte {
++	panicIfNotOnCurve(curve, x, y)
+ 	byteLen := (curve.Params().BitSize + 7) / 8
+ 	compressed := make([]byte, 1+byteLen)
+ 	compressed[0] = byte(y.Bit(0)) | 2
+@@ -168,6 +171,18 @@ func UnmarshalCompressed(curve Curve, data []byte) (x, y *big.Int) {
+ 	return
+ }
+ 
++func panicIfNotOnCurve(curve Curve, x, y *big.Int) {
++	// (0, 0) is the point at infinity by convention. It's ok to operate on it,
++	// although IsOnCurve is documented to return false for it. See Issue 37294.
++	if x.Sign() == 0 && y.Sign() == 0 {
++		return
++	}
++
++	if !curve.IsOnCurve(x, y) {
++		panic("crypto/elliptic: attempted operation on invalid point")
++	}
++}
++
+ var initonce sync.Once
+ 
+ func initAll() {
+diff --git a/src/crypto/elliptic/elliptic_test.go b/src/crypto/elliptic/elliptic_test.go
+index 56756ba52d..34d70f6a47 100644
+--- a/src/crypto/elliptic/elliptic_test.go
++++ b/src/crypto/elliptic/elliptic_test.go
+@@ -61,7 +61,13 @@ func TestOffCurve(t *testing.T) {
+ 		if curve.IsOnCurve(x, y) {
+ 			t.Errorf("point off curve is claimed to be on the curve")
+ 		}
+-		b := Marshal(curve, x, y)
++
++		byteLen := (curve.Params().BitSize + 7) / 8
++		b := make([]byte, 1+2*byteLen)
++		b[0] = 4 // uncompressed point
++		x.FillBytes(b[1 : 1+byteLen])
++		y.FillBytes(b[1+byteLen : 1+2*byteLen])
++
+ 		x1, y1 := Unmarshal(curve, b)
+ 		if x1 != nil || y1 != nil {
+ 			t.Errorf("unmarshaling a point not on the curve succeeded")
+diff --git a/src/crypto/elliptic/nistec.go b/src/crypto/elliptic/nistec.go
+index 58c9c5c07c..60d58720f3 100644
+--- a/src/crypto/elliptic/nistec.go
++++ b/src/crypto/elliptic/nistec.go
+@@ -6,7 +6,6 @@ package elliptic
+ 
+ import (
+ 	"crypto/elliptic/internal/nistec"
+-	"crypto/rand"
+ 	"errors"
+ 	"math/big"
+ )
+@@ -173,31 +172,14 @@ func (curve *nistCurve[Point]) pointToAffine(p Point) (x, y *big.Int) {
+ 	return x, y
+ }
+ 
+-// randomPoint returns a random point on the curve. It's used when Add,
+-// Double, or ScalarMult are fed a point not on the curve, which is undefined
+-// behavior. Originally, we used to do the math on it anyway (which allows
+-// invalid curve attacks) and relied on the caller and Unmarshal to avoid this
+-// happening in the first place. Now, we just can't construct a nistec Point
+-// for an invalid pair of coordinates, because that API is safer. If we panic,
+-// we risk introducing a DoS. If we return nil, we risk a panic. If we return
+-// the input, ecdsa.Verify might fail open. The safest course seems to be to
+-// return a valid, random point, which hopefully won't help the attacker.
+-func (curve *nistCurve[Point]) randomPoint() (x, y *big.Int) {
+-	_, x, y, err := GenerateKey(curve, rand.Reader)
+-	if err != nil {
+-		panic("crypto/elliptic: failed to generate random point")
+-	}
+-	return x, y
+-}
+-
+ func (curve *nistCurve[Point]) Add(x1, y1, x2, y2 *big.Int) (*big.Int, *big.Int) {
+ 	p1, err := curve.pointFromAffine(x1, y1)
+ 	if err != nil {
+-		return curve.randomPoint()
++		panic("crypto/elliptic: Add was called on an invalid point")
+ 	}
+ 	p2, err := curve.pointFromAffine(x2, y2)
+ 	if err != nil {
+-		return curve.randomPoint()
++		panic("crypto/elliptic: Add was called on an invalid point")
+ 	}
+ 	return curve.pointToAffine(p1.Add(p1, p2))
+ }
+@@ -205,7 +187,7 @@ func (curve *nistCurve[Point]) Add(x1, y1, x2, y2 *big.Int) (*big.Int, *big.Int)
+ func (curve *nistCurve[Point]) Double(x1, y1 *big.Int) (*big.Int, *big.Int) {
+ 	p, err := curve.pointFromAffine(x1, y1)
+ 	if err != nil {
+-		return curve.randomPoint()
++		panic("crypto/elliptic: Double was called on an invalid point")
+ 	}
+ 	return curve.pointToAffine(p.Double(p))
+ }
+@@ -228,12 +210,12 @@ func (curve *nistCurve[Point]) normalizeScalar(scalar []byte) []byte {
+ func (curve *nistCurve[Point]) ScalarMult(Bx, By *big.Int, scalar []byte) (*big.Int, *big.Int) {
+ 	p, err := curve.pointFromAffine(Bx, By)
+ 	if err != nil {
+-		return curve.randomPoint()
++		panic("crypto/elliptic: ScalarMult was called on an invalid point")
+ 	}
+ 	scalar = curve.normalizeScalar(scalar)
+ 	p, err = p.ScalarMult(p, scalar)
+ 	if err != nil {
+-		panic("elliptic: nistec rejected normalized scalar")
++		panic("crypto/elliptic: nistec rejected normalized scalar")
+ 	}
+ 	return curve.pointToAffine(p)
+ }
+@@ -242,7 +224,7 @@ func (curve *nistCurve[Point]) ScalarBaseMult(scalar []byte) (*big.Int, *big.Int
+ 	scalar = curve.normalizeScalar(scalar)
+ 	p, err := curve.newPoint().ScalarBaseMult(scalar)
+ 	if err != nil {
+-		panic("elliptic: nistec rejected normalized scalar")
++		panic("crypto/elliptic: nistec rejected normalized scalar")
+ 	}
+ 	return curve.pointToAffine(p)
+ }
+@@ -253,16 +235,16 @@ func (curve *nistCurve[Point]) CombinedMult(Px, Py *big.Int, s1, s2 []byte) (x,
+ 	s1 = curve.normalizeScalar(s1)
+ 	q, err := curve.newPoint().ScalarBaseMult(s1)
+ 	if err != nil {
+-		panic("elliptic: nistec rejected normalized scalar")
++		panic("crypto/elliptic: nistec rejected normalized scalar")
+ 	}
+ 	p, err := curve.pointFromAffine(Px, Py)
+ 	if err != nil {
+-		return curve.randomPoint()
++		panic("crypto/elliptic: CombinedMult was called on an invalid point")
+ 	}
+ 	s2 = curve.normalizeScalar(s2)
+ 	p, err = p.ScalarMult(p, s2)
+ 	if err != nil {
+-		panic("elliptic: nistec rejected normalized scalar")
++		panic("crypto/elliptic: nistec rejected normalized scalar")
+ 	}
+ 	return curve.pointToAffine(p.Add(p, q))
+ }
+@@ -299,7 +281,7 @@ func (curve *nistCurve[Point]) UnmarshalCompressed(data []byte) (x, y *big.Int)
+ func bigFromDecimal(s string) *big.Int {
+ 	b, ok := new(big.Int).SetString(s, 10)
+ 	if !ok {
+-		panic("invalid encoding")
++		panic("crypto/elliptic: internal error: invalid encoding")
+ 	}
+ 	return b
+ }
+@@ -307,7 +289,7 @@ func bigFromDecimal(s string) *big.Int {
+ func bigFromHex(s string) *big.Int {
+ 	b, ok := new(big.Int).SetString(s, 16)
+ 	if !ok {
+-		panic("invalid encoding")
++		panic("crypto/elliptic: internal error: invalid encoding")
+ 	}
+ 	return b
+ }
+diff --git a/src/crypto/elliptic/nistec_p256.go b/src/crypto/elliptic/nistec_p256.go
+index 3e80a33131..205aaa12c7 100644
+--- a/src/crypto/elliptic/nistec_p256.go
++++ b/src/crypto/elliptic/nistec_p256.go
+@@ -23,7 +23,7 @@ func (c p256Curve) Inverse(k *big.Int) *big.Int {
+ 	scalar := k.FillBytes(make([]byte, 32))
+ 	inverse, err := nistec.P256OrdInverse(scalar)
+ 	if err != nil {
+-		panic("elliptic: nistec rejected normalized scalar")
++		panic("crypto/elliptic: nistec rejected normalized scalar")
+ 	}
+ 	return new(big.Int).SetBytes(inverse)
+ }
+diff --git a/src/crypto/elliptic/params.go b/src/crypto/elliptic/params.go
+index 65176bf352..0ed929d61f 100644
+--- a/src/crypto/elliptic/params.go
++++ b/src/crypto/elliptic/params.go
+@@ -97,6 +97,8 @@ func (curve *CurveParams) Add(x1, y1, x2, y2 *big.Int) (*big.Int, *big.Int) {
+ 	if specific, ok := matchesSpecificCurve(curve); ok {
+ 		return specific.Add(x1, y1, x2, y2)
+ 	}
++	panicIfNotOnCurve(curve, x1, y1)
++	panicIfNotOnCurve(curve, x2, y2)
+ 
+ 	z1 := zForAffine(x1, y1)
+ 	z2 := zForAffine(x2, y2)
+@@ -187,6 +189,7 @@ func (curve *CurveParams) Double(x1, y1 *big.Int) (*big.Int, *big.Int) {
+ 	if specific, ok := matchesSpecificCurve(curve); ok {
+ 		return specific.Double(x1, y1)
+ 	}
++	panicIfNotOnCurve(curve, x1, y1)
+ 
+ 	z1 := zForAffine(x1, y1)
+ 	return curve.affineFromJacobian(curve.doubleJacobian(x1, y1, z1))
+@@ -259,6 +262,7 @@ func (curve *CurveParams) ScalarMult(Bx, By *big.Int, k []byte) (*big.Int, *big.
+ 	if specific, ok := matchesSpecificCurve(curve); ok {
+ 		return specific.ScalarMult(Bx, By, k)
+ 	}
++	panicIfNotOnCurve(curve, Bx, By)
+ 
+ 	Bz := new(big.Int).SetInt64(1)
+ 	x, y, z := new(big.Int), new(big.Int), new(big.Int)

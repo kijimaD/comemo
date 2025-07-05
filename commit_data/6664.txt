@@ -7,7 +7,43 @@ Date:   Fri Oct 29 15:52:25 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/2789043
-
+---
  src/pkg/gob/debug.go   | 3 ++-
  src/pkg/gob/decoder.go | 5 +++--
  2 files changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/gob/debug.go b/src/pkg/gob/debug.go
+index 72645bdf07..cbd662d1c9 100644
+--- a/src/pkg/gob/debug.go
++++ b/src/pkg/gob/debug.go
+@@ -1,6 +1,7 @@
+ package gob
+ 
+ // This file is not normally included in the gob package.  Used only for debugging the package itself.
++// Add debug.go to the files listed in the Makefile to add Debug to the gob package.
+ 
+ import (
+ 	"bytes"
+@@ -14,7 +15,7 @@ import (
+ var dump = false // If true, print the remaining bytes in the input buffer at each item.
+ 
+ // Init installs the debugging facility. If this file is not compiled in the
+-// package, Debug will be a no-op.
++// package, the test in codec_test.go is a no-op.
+ func init() {
+ 	debugFunc = Debug
+ }
+diff --git a/src/pkg/gob/decoder.go b/src/pkg/gob/decoder.go
+index 4237d01aca..c28185f16c 100644
+--- a/src/pkg/gob/decoder.go
++++ b/src/pkg/gob/decoder.go
+@@ -153,6 +153,7 @@ func (dec *Decoder) DecodeValue(value reflect.Value) os.Error {
+ 	return dec.err
+ }
+ 
+-// If enabled, Debug prints a human-readable representation of the gob data read from r.
+-// If debug.go is compiled into the program it will override this link.
++// If debug.go is compiled into the program , debugFunc prints a human-readable
++// representation of the gob data read from r by calling that file's Debug function.
++// Otherwise it is nil.
+ var debugFunc func(io.Reader)

@@ -15,10 +15,191 @@ Date:   Thu Apr 28 21:03:00 2022 +0700
     Reviewed-by: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/cmd/compile/internal/typecheck/iexport.go |  2 +
  src/cmd/compile/internal/typecheck/iimport.go | 20 ++++++--
  test/fixedbugs/issue52590.dir/a.go            | 68 +++++++++++++++++++++++++++
  test/fixedbugs/issue52590.dir/b.go            | 18 +++++++
  test/fixedbugs/issue52590.go                  |  7 +++
  5 files changed, 111 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/typecheck/iexport.go b/src/cmd/compile/internal/typecheck/iexport.go
+index 12159b71e1..b2188a20fe 100644
+--- a/src/cmd/compile/internal/typecheck/iexport.go
++++ b/src/cmd/compile/internal/typecheck/iexport.go
+@@ -2001,6 +2001,7 @@ func (w *exportWriter) expr(n ir.Node) {
+ 		n := n.(*ir.BinaryExpr)
+ 		w.op(n.Op())
+ 		w.pos(n.Pos())
++		w.stmtList(n.Init())
+ 		w.expr(n.X)
+ 		w.expr(n.Y)
+ 		if go117ExportTypes {
+@@ -2037,6 +2038,7 @@ func (w *exportWriter) expr(n ir.Node) {
+ 		n := n.(*ir.CallExpr)
+ 		w.op(n.Op())
+ 		w.pos(n.Pos())
++		w.stmtList(n.Init())
+ 		w.exprList(n.Args) // emits terminating OEND
+ 		// only append() calls may contain '...' arguments
+ 		if n.Op() == ir.OAPPEND {
+diff --git a/src/cmd/compile/internal/typecheck/iimport.go b/src/cmd/compile/internal/typecheck/iimport.go
+index 654aff899d..2cf9698980 100644
+--- a/src/cmd/compile/internal/typecheck/iimport.go
++++ b/src/cmd/compile/internal/typecheck/iimport.go
+@@ -1552,20 +1552,25 @@ func (r *importReader) node() ir.Node {
+ 		return ir.NewConvExpr(r.pos(), op, r.typ(), r.expr())
+ 
+ 	case ir.OCOPY, ir.OCOMPLEX, ir.OREAL, ir.OIMAG, ir.OAPPEND, ir.OCAP, ir.OCLOSE, ir.ODELETE, ir.OLEN, ir.OMAKE, ir.ONEW, ir.OPANIC, ir.ORECOVER, ir.OPRINT, ir.OPRINTN, ir.OUNSAFEADD, ir.OUNSAFESLICE:
++		pos := r.pos()
+ 		if go117ExportTypes {
+ 			switch op {
+ 			case ir.OCOPY, ir.OCOMPLEX, ir.OUNSAFEADD, ir.OUNSAFESLICE:
+-				n := ir.NewBinaryExpr(r.pos(), op, r.expr(), r.expr())
++				init := r.stmtList()
++				n := ir.NewBinaryExpr(pos, op, r.expr(), r.expr())
++				n.SetInit(init)
+ 				n.SetType(r.typ())
+ 				return n
+ 			case ir.OREAL, ir.OIMAG, ir.OCAP, ir.OCLOSE, ir.OLEN, ir.ONEW, ir.OPANIC:
+-				n := ir.NewUnaryExpr(r.pos(), op, r.expr())
++				n := ir.NewUnaryExpr(pos, op, r.expr())
+ 				if op != ir.OPANIC {
+ 					n.SetType(r.typ())
+ 				}
+ 				return n
+ 			case ir.OAPPEND, ir.ODELETE, ir.ORECOVER, ir.OPRINT, ir.OPRINTN:
+-				n := ir.NewCallExpr(r.pos(), op, nil, r.exprList())
++				init := r.stmtList()
++				n := ir.NewCallExpr(pos, op, nil, r.exprList())
++				n.SetInit(init)
+ 				if op == ir.OAPPEND {
+ 					n.IsDDD = r.bool()
+ 				}
+@@ -1577,7 +1582,14 @@ func (r *importReader) node() ir.Node {
+ 			// ir.OMAKE
+ 			goto error
+ 		}
+-		n := builtinCall(r.pos(), op)
++		n := builtinCall(pos, op)
++		switch n.Op() {
++		case ir.OCOPY, ir.OCOMPLEX, ir.OUNSAFEADD, ir.OUNSAFESLICE:
++			// treated like other builtin calls
++			fallthrough
++		case ir.OAPPEND, ir.ODELETE, ir.ORECOVER, ir.OPRINT, ir.OPRINTN:
++			n.SetInit(r.stmtList())
++		}
+ 		n.Args = r.exprList()
+ 		if op == ir.OAPPEND {
+ 			n.IsDDD = r.bool()
+diff --git a/test/fixedbugs/issue52590.dir/a.go b/test/fixedbugs/issue52590.dir/a.go
+new file mode 100644
+index 0000000000..20031e60c7
+--- /dev/null
++++ b/test/fixedbugs/issue52590.dir/a.go
+@@ -0,0 +1,68 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++import "unsafe"
++
++func Append() {
++	_ = append(appendArgs())
++}
++
++func Delete() {
++	delete(deleteArgs())
++}
++
++func Print() {
++	print(ints())
++}
++
++func Println() {
++	println(ints())
++}
++
++func Complex() {
++	_ = complex(float64s())
++}
++
++func Copy() {
++	copy(slices())
++}
++
++func UnsafeAdd() {
++	_ = unsafe.Add(unsafeAdd())
++}
++
++func UnsafeSlice() {
++	_ = unsafe.Slice(unsafeSlice())
++}
++
++func appendArgs() ([]int, int) {
++	return []int{}, 0
++}
++
++func deleteArgs() (map[int]int, int) {
++	return map[int]int{}, 0
++}
++
++func ints() (int, int) {
++	return 1, 1
++}
++
++func float64s() (float64, float64) {
++	return 0, 0
++}
++
++func slices() ([]int, []int) {
++	return []int{}, []int{}
++}
++
++func unsafeAdd() (unsafe.Pointer, int) {
++	return nil, 0
++}
++
++func unsafeSlice() (*byte, int) {
++	var p [10]byte
++	return &p[0], 0
++}
+diff --git a/test/fixedbugs/issue52590.dir/b.go b/test/fixedbugs/issue52590.dir/b.go
+new file mode 100644
+index 0000000000..264e8d10a6
+--- /dev/null
++++ b/test/fixedbugs/issue52590.dir/b.go
+@@ -0,0 +1,18 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package b
++
++import "./a"
++
++func f() {
++	a.Append()
++	a.Delete()
++	a.Print()
++	a.Println()
++	a.Complex()
++	a.Copy()
++	a.UnsafeAdd()
++	a.UnsafeSlice()
++}
+diff --git a/test/fixedbugs/issue52590.go b/test/fixedbugs/issue52590.go
+new file mode 100644
+index 0000000000..8bb5c3e213
+--- /dev/null
++++ b/test/fixedbugs/issue52590.go
+@@ -0,0 +1,7 @@
++// compiledir
++
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ignored

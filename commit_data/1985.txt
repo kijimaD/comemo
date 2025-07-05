@@ -7,7 +7,7 @@ Date:   Thu Apr 9 18:16:21 2009 -0700
     R=r
     OCL=27293
     CL=27293
-
+---
  src/cmd/6g/cgen.c             |   8 ++--
  src/cmd/6g/gg.h               |   2 +-
  src/cmd/6g/gsubr.c            |  10 ++---
@@ -28,3 +28,1048 @@ Date:   Thu Apr 9 18:16:21 2009 -0700
  src/runtime/string.c          | 101 +++++++++++++++++++-----------------------
  src/runtime/symtab.c          |   2 +-
  19 files changed, 234 insertions(+), 169 deletions(-)
+
+diff --git a/src/cmd/6g/cgen.c b/src/cmd/6g/cgen.c
+index 5a08a15223..29f10bc832 100644
+--- a/src/cmd/6g/cgen.c
++++ b/src/cmd/6g/cgen.c
+@@ -212,8 +212,8 @@ cgen(Node *n, Node *res)
+ 		break;
+ 
+ 	case OLEN:
+-		if(istype(nl->type, TSTRING) || istype(nl->type, TMAP)) {
+-			// both string and map have len in the first 32-bit word.
++		if(istype(nl->type, TMAP)) {
++			// map hsd len in the first 32-bit word.
+ 			// a zero pointer means zero length
+ 			regalloc(&n1, types[tptr], res);
+ 			cgen(nl, &n1);
+@@ -233,7 +233,9 @@ cgen(Node *n, Node *res)
+ 			regfree(&n1);
+ 			break;
+ 		}
+-		if(isslice(nl->type)) {
++		if(istype(nl->type, TSTRING) || isslice(nl->type)) {
++			// both slice and string have len in the first 32-bit word.
++			// a zero pointer means zero length
+ 			regalloc(&n1, types[tptr], res);
+ 			agen(nl, &n1);
+ 			n1.op = OINDREG;
+diff --git a/src/cmd/6g/gg.h b/src/cmd/6g/gg.h
+index 22f328f379..51619289f7 100644
+--- a/src/cmd/6g/gg.h
++++ b/src/cmd/6g/gg.h
+@@ -45,7 +45,7 @@ EXTERN	Biobuf*	bout;
+ EXTERN	int32	dynloc;
+ EXTERN	uchar	reg[D_NONE];
+ EXTERN	int32	pcloc;		// instruction counter
+-EXTERN	String	emptystring;
++EXTERN	Strlit	emptystring;
+ extern	char*	anames[];
+ EXTERN	Hist*	hist;
+ EXTERN	Prog	zprog;
+diff --git a/src/cmd/6g/gsubr.c b/src/cmd/6g/gsubr.c
+index c76e400696..dfbbb4999a 100644
+--- a/src/cmd/6g/gsubr.c
++++ b/src/cmd/6g/gsubr.c
+@@ -152,7 +152,7 @@ ggloblsym(Sym *s, int32 width, int dupok)
+ 
+ 	p = gins(AGLOBL, N, N);
+ 	p->from.type = D_EXTERN;
+-	if(s == symstringo)
++	if(s == symstringl || s == symstringc)
+ 		p->from.type = D_STATIC;
+ 	p->from.index = D_NONE;
+ 	p->from.sym = s;
+@@ -170,6 +170,7 @@ isfat(Type *t)
+ 	switch(t->etype) {
+ 	case TSTRUCT:
+ 	case TARRAY:
++	case TSTRING:
+ 	case TINTER:	// maybe remove later
+ 	case TDDD:	// maybe remove later
+ 		return 1;
+@@ -1146,10 +1147,9 @@ naddr(Node *n, Addr *a)
+ 			break;
+ 		case CTSTR:
+ 			a->etype = simtype[n->etype];
+-			a->sym = symstringo;
+-			a->type = D_ADDR;
+-			a->index = D_STATIC;
+-			a->offset = symstringo->offset;
++			a->sym = symstringl;
++			a->type = D_STATIC;
++			a->offset = symstringl->offset;
+ 			stringpool(n);
+ 			break;
+ 		case CTBOOL:
+diff --git a/src/cmd/6g/obj.c b/src/cmd/6g/obj.c
+index 26c2d929ce..ac249b6b6d 100644
+--- a/src/cmd/6g/obj.c
++++ b/src/cmd/6g/obj.c
+@@ -261,6 +261,10 @@ dumpfuncs(void)
+ 	}
+ }
+ 
++/*
++ * dump the characters of the string
++ * pool into the array symstringc
++ */
+ void
+ datastring(char *s, int len)
+ {
+@@ -273,7 +277,7 @@ datastring(char *s, int len)
+ 	ao.type = D_STATIC;
+ 	ao.index = D_NONE;
+ 	ao.etype = TINT32;
+-	ao.sym = symstringo;
++	ao.sym = symstringc;
+ 	ao.offset = 0;		// fill in
+ 
+ 	// constant
+@@ -288,7 +292,7 @@ datastring(char *s, int len)
+ 
+ 		// .stringo<>+oo, [NSNAME], $"xxx"
+ 		p->from = ao;
+-		p->from.offset = stringo;
++		p->from.offset = stringc;
+ 
+ 		p->from.scale = NSNAME;
+ 		if(w+8 > len)
+@@ -298,23 +302,29 @@ datastring(char *s, int len)
+ 		p->to.type = D_SCONST;
+ 		p->to.offset = len;
+ 		memmove(p->to.sval, s+w, p->from.scale);
+-		stringo += p->from.scale;
++		stringc += p->from.scale;
+ 	}
+ }
+ 
++/*
++ * dump the strings into thye pool
++ * symstingl that consists of a pointer
++ * to the characters and a count
++ */
+ void
+ dumpstrings(void)
+ {
+ 	Pool *l;
+ 	Prog *p;
+-	Addr ac, ao;
+-	int32 wi;
++	Addr ac, ao, ap;
++	int32 wi, wp, ws;
+ 
+ 	if(poolist == nil)
+ 		return;
+ 
+ 	memset(&ac, 0, sizeof(ac));
+ 	memset(&ao, 0, sizeof(ao));
++	memset(&ap, 0, sizeof(ap));
+ 
+ 	// constant
+ 	ac.type = D_CONST;
+@@ -325,26 +335,44 @@ dumpstrings(void)
+ 	ao.type = D_STATIC;
+ 	ao.index = D_NONE;
+ 	ao.etype = TINT32;
+-	ao.sym = symstringo;
++	ao.sym = symstringl;
+ 	ao.offset = 0;			// fill in
+ 
+-	wi = types[TINT32]->width;
++	// $string len+ptr
++	ap.type = D_ADDR;
++	ap.index = D_STATIC;
++	ap.etype = TINT32;
++	ap.sym = symstringc;
++	ap.offset = 0;			// fill in
++
++	wi = types[TUINT32]->width;
++	wp = types[tptr]->width;
++	ws = types[TSTRING]->width;
+ 
+ 	// lay out (count+string)
+ 	for(l=poolist; l!=nil; l=l->link) {
+ 
++		// .stringl<>+ol, wp, $.stringc<>+oc
+ 		p = pc;
+ 		gins(ADATA, N, N);
++		p->from = ao;
++		p->from.offset = stringl;
++		p->from.scale = wp;
++		p->to = ap;
++		p->to.offset = stringc;
++		stringl += wp;
+ 
+-		// .stringo<>+xx, wi, $len
+-		stringo = rnd(stringo, wi);
++		// .stringl<>+ol, wi, $len
++		p = pc;
++		gins(ADATA, N, N);
+ 		p->from = ao;
+-		p->from.offset = stringo;
++		p->from.offset = stringl;
+ 		p->from.scale = wi;
+ 		p->to = ac;
+ 		p->to.offset = l->sval->len;
+-		stringo += wi;
++		stringl += wi;
+ 
++		stringl = rnd(stringl, ws);
+ 		datastring(l->sval->s, l->sval->len);
+ 	}
+ }
+@@ -361,11 +389,12 @@ dstringptr(Sym *s, int off, char *str)
+ 	p->from.sym = s;
+ 	p->from.offset = off;
+ 	p->from.scale = widthptr;
++
+ 	p->to.type = D_ADDR;
+ 	p->to.index = D_STATIC;
+ 	p->to.etype = TINT32;
+-	p->to.sym = symstringo;
+-	p->to.offset = stringo;
++	p->to.sym = symstringc;
++	p->to.offset = stringc;
+ 	off += widthptr;
+ 
+ 	datastring(str, strlen(str)+1);
+diff --git a/src/cmd/gc/align.c b/src/cmd/gc/align.c
+index 7c2960277e..d2598fd313 100644
+--- a/src/cmd/gc/align.c
++++ b/src/cmd/gc/align.c
+@@ -171,8 +171,8 @@ dowidth(Type *t)
+ 	case TANY:		// implemented as pointer
+ 		w = widthptr;
+ 		break;
+-	case TSTRING:		// implemented as pointer
+-		w = widthptr;
++	case TSTRING:
++		w = sizeof_String;
+ 		break;
+ 	case TARRAY:
+ 		if(t->type == T)
+@@ -312,7 +312,6 @@ typeinit(int lex)
+ 	/* simple aliases */
+ 	simtype[TMAP] = tptr;
+ 	simtype[TCHAN] = tptr;
+-	simtype[TSTRING] = tptr;
+ 	simtype[TFUNC] = tptr;
+ 
+ 	/* pick up the backend typedefs */
+@@ -348,6 +347,9 @@ typeinit(int lex)
+ 	Array_nel = rnd(Array_array+widthptr, types[TUINT32]->width);
+ 	Array_cap = rnd(Array_nel+types[TUINT32]->width, types[TUINT32]->width);
+ 	sizeof_Array = rnd(Array_cap+types[TUINT32]->width, maxround);
++
++	// string is same as slice wo the cap
++	sizeof_String = rnd(Array_nel+types[TUINT32]->width, maxround);
+ }
+ 
+ /*
+diff --git a/src/cmd/gc/const.c b/src/cmd/gc/const.c
+index fbb4fa3039..08826aaf0b 100644
+--- a/src/cmd/gc/const.c
++++ b/src/cmd/gc/const.c
+@@ -237,7 +237,7 @@ tostr(Val v)
+ {
+ 	Rune rune;
+ 	int l;
+-	String *s;
++	Strlit *s;
+ 
+ 	switch(v.ctype) {
+ 	case CTINT:
+@@ -281,7 +281,7 @@ evconst(Node *n)
+ {
+ 	Node *nl, *nr;
+ 	int32 len;
+-	String *str;
++	Strlit *str;
+ 	int wl, wr, lno, et;
+ 	Val v;
+ 	Mpint b;
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index 2d83d9f9fd..3a3e88b256 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -664,7 +664,7 @@ stotype(Node *n, int et, Type **t)
+ {
+ 	Type *f, *t1;
+ 	Iter save;
+-	String *note;
++	Strlit *note;
+ 	int lno;
+ 
+ 	lno = lineno;
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 256f624156..cdf2e2f1f9 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -50,12 +50,10 @@ enum
+ /*
+  * note this is the representation
+  * of the compilers string literals,
+- * it happens to also be the runtime
+- * representation, ignoring sizes and
+- * alignment, but that may change.
++ * it is not the runtime representation
+  */
+-typedef	struct	String	String;
+-struct	String
++typedef	struct	Strlit	Strlit;
++struct	Strlit
+ {
+ 	int32	len;
+ 	char	s[3];	// variable
+@@ -124,7 +122,7 @@ struct	Val
+ 		short	bval;		// bool value CTBOOL
+ 		Mpint*	xval;		// int CTINT
+ 		Mpflt*	fval;		// float CTFLT
+-		String*	sval;		// string CTSTR
++		Strlit*	sval;		// string CTSTR
+ 	} u;
+ };
+ 
+@@ -167,7 +165,7 @@ struct	Type
+ 
+ 	// TFIELD
+ 	Type*	down;		// also used in TMAP
+-	String*	note;			// literal string annotation
++	Strlit*	note;		// literal string annotation
+ 
+ 	// TARRAY
+ 	int32	bound;		// negative is dynamic array
+@@ -468,14 +466,16 @@ struct Sig
+ typedef	struct	Pool Pool;
+ struct	Pool
+ {
+-	String*	sval;
++	Strlit*	sval;
+ 	Pool*	link;
+ };
+ 
+ EXTERN	Pool*	poolist;
+ EXTERN	Pool*	poolast;
+-EXTERN	Sym*	symstringo;	// string objects
+-EXTERN	int32	stringo;	// size of string objects
++EXTERN	Sym*	symstringl;	// string literals
++EXTERN	Sym*	symstringc;	// string characters
++EXTERN	int32	stringl;	// size of string literals
++EXTERN	int32	stringc;	// size of string characters
+ 
+ typedef	struct	Io	Io;
+ struct	Io
+@@ -512,11 +512,24 @@ struct Idir
+  * 	uchar	cap[4];		// allocated number of elements
+  * } Array;
+  */
+-EXTERN	int	Array_array;	// runtime offsetof(Array,array)
+-EXTERN	int	Array_nel;	// runtime offsetof(Array,nel)
++EXTERN	int	Array_array;	// runtime offsetof(Array,array) - same for String
++EXTERN	int	Array_nel;	// runtime offsetof(Array,nel) - same for String
+ EXTERN	int	Array_cap;	// runtime offsetof(Array,cap)
+ EXTERN	int	sizeof_Array;	// runtime sizeof(Array)
+ 
++
++/*
++ * note this is the runtime representation
++ * of the compilers strings.
++ *
++ * typedef	struct
++ * {				// must not move anything
++ * 	uchar	array[8];	// pointer to data
++ * 	uchar	nel[4];		// number of elements
++ * } String;
++ */
++EXTERN	int	sizeof_String;	// runtime sizeof(String)
++
+ EXTERN	Dlist	dotlist[10];	// size is max depth of embeddeds
+ 
+ EXTERN	Io	curio;
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index d382c60852..6457bf12a2 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -66,7 +66,8 @@ main(int argc, char *argv[])
+ 	lexinit();
+ 	typeinit(LBASETYPE);
+ 
+-	symstringo = lookup(".stringo");	// strings
++	symstringl = lookup(".stringl");	// string literals (ptr to char and count)
++	symstringc = lookup(".stringc");	// string characters
+ 
+ 	lineno = 1;
+ 	block = 1;
+@@ -212,7 +213,7 @@ addidir(char* dir)
+ }
+ 
+ int
+-findpkg(String *name)
++findpkg(Strlit *name)
+ {
+ 	static char* goroot;
+ 	Idir* p;
+@@ -514,7 +515,7 @@ l0:
+ 			cp = remal(cp, clen, 1);
+ 			cp[clen++] = 0;
+ 		} while(clen & MAXALIGN);
+-		yylval.val.u.sval = (String*)cp;
++		yylval.val.u.sval = (Strlit*)cp;
+ 		yylval.val.ctype = CTSTR;
+ 		DBG("lex: string literal\n");
+ 		return LLITERAL;
+diff --git a/src/cmd/gc/obj.c b/src/cmd/gc/obj.c
+index 9c0b6edb66..aa7631bd88 100644
+--- a/src/cmd/gc/obj.c
++++ b/src/cmd/gc/obj.c
+@@ -484,8 +484,16 @@ dumpsignatures(void)
+ 		dumpsigt(progt, ifacet, rcvrt, methodt, s);
+ 	}
+ 
+-	if(stringo > 0)
+-		ggloblsym(symstringo, stringo, 0);
++	if(stringl > 0) {
++		stringl = rnd(stringl, maxround);
++		ggloblsym(symstringl, stringl, 0);
++		if(stringc == 0)
++			stringc = 1;
++	}
++	if(stringc > 0) {
++		stringc = rnd(stringc, maxround);
++		ggloblsym(symstringc, stringc, 0);
++	}
+ }
+ 
+ void
+@@ -511,10 +519,7 @@ stringpool(Node *n)
+ 		poolast->link = p;
+ 	poolast = p;
+ 
+-	w = types[TINT32]->width;
+-	symstringo->offset += w;		// len
+-	symstringo->offset += p->sval->len;	// str[len]
+-	symstringo->offset = rnd(symstringo->offset, w);
++	symstringl->offset += types[TSTRING]->width;
+ }
+ 
+ Sig*
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 1ca6c33744..cde3b58b9d 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -1361,10 +1361,10 @@ int
+ Zconv(Fmt *fp)
+ {
+ 	Rune r;
+-	String *sp;
++	Strlit *sp;
+ 	char *s, *se;
+ 
+-	sp = va_arg(fp->args, String*);
++	sp = va_arg(fp->args, Strlit*);
+ 	if(sp == nil)
+ 		return fmtstrcpy(fp, "<nil>");
+ 
+diff --git a/src/lib/reflect/typestring.c b/src/lib/reflect/typestring.c
+index 07144b3e06..af3f366a9b 100644
+--- a/src/lib/reflect/typestring.c
++++ b/src/lib/reflect/typestring.c
+@@ -2,11 +2,39 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-extern char gotypestrings[];	// really a go String, but we don't have the definition here
+ 
+-void FLUSH(void*) { }
++extern	char	gotypestrings[];	// 4-byte count followed by byte[count]
++
++void
++FLUSH(void*)
++{
++}
++
++typedef	struct	String	String;
++struct	String
++{
++	char*	str;
++	char	len[4];
++	char	cap[4];
++};
++
++void
++reflect·typestrings(String str)
++{
++	char *s;
++	int i;
+ 
+-void reflect·typestrings(void *s) {
+ 	s = gotypestrings;
+-	FLUSH(&s);
++
++	// repeat the count twice
++	// once for len, once for cap
++	for(i=0; i<4; i++) {
++		str.len[i] = s[i];
++		str.cap[i] = s[i];
++	}
++
++	// and the pointer
++	str.str = s+4;
++
++	FLUSH(&str);
+ }
+diff --git a/src/runtime/amd64/traceback.c b/src/runtime/amd64/traceback.c
+index bc2724b765..2e237a21fa 100644
+--- a/src/runtime/amd64/traceback.c
++++ b/src/runtime/amd64/traceback.c
+@@ -79,7 +79,7 @@ traceback(byte *pc0, byte *sp, G *g)
+ 
+ // func caller(n int) (pc uint64, file string, line int, ok bool)
+ void
+-sys·Caller(int32 n, uint64 retpc, string retfile, int32 retline, bool retbool)
++sys·Caller(int32 n, uint64 retpc, String retfile, int32 retline, bool retbool)
+ {
+ 	uint64 pc;
+ 	byte *sp;
+@@ -94,7 +94,7 @@ sys·Caller(int32 n, uint64 retpc, string retfile, int32 retline, bool retbool)
+ 	error:
+ 		retpc = 0;
+ 		retline = 0;
+-		retfile = nil;
++		retfile = emptystring;
+ 		retbool = false;
+ 		FLUSH(&retpc);
+ 		FLUSH(&retfile);
+diff --git a/src/runtime/iface.c b/src/runtime/iface.c
+index 4a9f6c2df4..07a57ec1f2 100644
+--- a/src/runtime/iface.c
++++ b/src/runtime/iface.c
+@@ -560,13 +560,13 @@ sys·printinter(Iface i)
+ }
+ 
+ void
+-sys·Reflect(Iface i, uint64 retit, string rettype, bool retindir)
++sys·Reflect(Iface i, uint64 retit, String rettype, bool retindir)
+ {
+ 	int32 wid;
+ 
+ 	if(i.type == nil) {
+ 		retit = 0;
+-		rettype = nil;
++		rettype = emptystring;
+ 		retindir = false;
+ 	} else {
+ 		retit = (uint64)i.data;
+@@ -651,7 +651,7 @@ static	struct {
+ 	"bool", 4+1, AMEM, sizeof(bool),
+ 
+ 	// string compare is special
+-	"string", 6+1, ASTRING, sizeof(string),
++	"string", 6+1, ASTRING, sizeof(String),
+ 
+ 	// generic types, identified by prefix
+ 	"*", 1, AMEM, sizeof(uintptr),
+@@ -661,18 +661,15 @@ static	struct {
+ };
+ 
+ static Sigt*
+-fakesigt(string type, bool indir)
++fakesigt(String type, bool indir)
+ {
+ 	Sigt *sigt;
+ 	uint32 h;
+ 	int32 i, locked;
+ 
+-	if(type == nil)
+-		type = emptystring;
+-
+ 	h = 0;
+-	for(i=0; i<type->len; i++)
+-		h = h*37 + type->str[i];
++	for(i=0; i<type.len; i++)
++		h = h*37 + type.str[i];
+ 	h += indir;
+ 	h %= nelem(fake);
+ 
+@@ -683,8 +680,8 @@ fakesigt(string type, bool indir)
+ 			// don't need to compare indir.
+ 			// same type string but different indir will have
+ 			// different hashes.
+-			if(mcmp(sigt->name, type->str, type->len) == 0)
+-			if(sigt->name[type->len] == '\0') {
++			if(mcmp(sigt->name, type.str, type.len) == 0)
++			if(sigt->name[type.len] == '\0') {
+ 				if(locked)
+ 					unlock(&ifacelock);
+ 				return sigt;
+@@ -693,8 +690,8 @@ fakesigt(string type, bool indir)
+ 	}
+ 
+ 	sigt = malloc(sizeof(*sigt));
+-	sigt->name = malloc(type->len + 1);
+-	mcpy(sigt->name, type->str, type->len);
++	sigt->name = malloc(type.len + 1);
++	mcpy(sigt->name, type.str, type.len);
+ 
+ 	sigt->alg = AFAKE;
+ 	sigt->width = 1;  // small width
+@@ -719,16 +716,15 @@ fakesigt(string type, bool indir)
+ }
+ 
+ static int32
+-cmpstringchars(string a, uint8 *b)
++cmpstringchars(String a, uint8 *b)
+ {
+ 	int32 i;
+ 	byte c1, c2;
+ 
+ 	for(i=0;; i++) {
+-		if(i == a->len)
+-			c1 = 0;
+-		else
+-			c1 = a->str[i];
++		c1 = 0;
++		if(i < a.len)
++			c1 = a.str[i];
+ 		c2 = b[i];
+ 		if(c1 < c2)
+ 			return -1;
+@@ -740,7 +736,7 @@ cmpstringchars(string a, uint8 *b)
+ }
+ 
+ static Sigt*
+-findtype(string type, bool indir)
++findtype(String type, bool indir)
+ {
+ 	int32 i, lo, hi, m;
+ 
+@@ -761,7 +757,7 @@ findtype(string type, bool indir)
+ 
+ 
+ void
+-sys·Unreflect(uint64 it, string type, bool indir, Iface ret)
++sys·Unreflect(uint64 it, String type, bool indir, Iface ret)
+ {
+ 	Sigt *sigt;
+ 
+diff --git a/src/runtime/print.c b/src/runtime/print.c
+index 987f6a5a62..974d3d72ed 100644
+--- a/src/runtime/print.c
++++ b/src/runtime/print.c
+@@ -84,7 +84,7 @@ printf(int8 *s, ...)
+ 			prints(*(int8**)arg);
+ 			break;
+ 		case 'S':
+-			sys·printstring(*(string*)arg);
++			sys·printstring(*(String*)arg);
+ 			break;
+ 		}
+ 		arg = narg;
+@@ -239,16 +239,16 @@ sys·printpointer(void *p)
+ }
+ 
+ void
+-sys·printstring(string v)
++sys·printstring(String v)
+ {
+ 	extern int32 maxstring;
+ 
+-	if(v != nil) {
+-		if(v->len > maxstring)
+-			sys·write(1, "[invalid string]", 16);
+-		else
+-			sys·write(1, v->str, v->len);
++	if(v.len > maxstring) {
++		sys·write(1, "[invalid string]", 16);
++		return;
+ 	}
++	if(v.len > 0)
++		sys·write(1, v.str, v.len);
+ }
+ 
+ void
+diff --git a/src/runtime/runtime.c b/src/runtime/runtime.c
+index 504c4781d0..e05563bd6e 100644
+--- a/src/runtime/runtime.c
++++ b/src/runtime/runtime.c
+@@ -149,8 +149,8 @@ args(int32 c, uint8 **v)
+ void
+ goargs(void)
+ {
+-	string *gargv;
+-	string *genvv;
++	String *gargv;
++	String *genvv;
+ 	int32 i, envc;
+ 
+ 	for(envc=0; argv[argc+1+envc] != 0; envc++)
+@@ -177,17 +177,17 @@ getenv(int8 *s)
+ {
+ 	int32 i, j, len;
+ 	byte *v, *bs;
+-	string* envv;
++	String* envv;
+ 	int32 envc;
+ 
+ 	bs = (byte*)s;
+ 	len = findnull(bs);
+-	envv = (string*)sys·Envs.array;
++	envv = (String*)sys·Envs.array;
+ 	envc = sys·Envs.nel;
+ 	for(i=0; i<envc; i++){
+-		if(envv[i]->len <= len)
++		if(envv[i].len <= len)
+ 			continue;
+-		v = envv[i]->str;
++		v = envv[i].str;
+ 		for(j=0; j<len; j++)
+ 			if(bs[j] != v[j])
+ 				goto nomatch;
+@@ -332,23 +332,21 @@ memcopy(uint32 s, void *a, void *b)
+ }
+ 
+ static uint64
+-strhash(uint32 s, string *a)
++strhash(uint32 s, String *a)
+ {
+ 	USED(s);
+-	if(*a == nil)
+-		return memhash(emptystring->len, emptystring->str);
+-	return memhash((*a)->len, (*a)->str);
++	return memhash((*a).len, (*a).str);
+ }
+ 
+ static uint32
+-strequal(uint32 s, string *a, string *b)
++strequal(uint32 s, String *a, String *b)
+ {
+ 	USED(s);
+ 	return cmpstring(*a, *b) == 0;
+ }
+ 
+ static void
+-strprint(uint32 s, string *a)
++strprint(uint32 s, String *a)
+ {
+ 	USED(s);
+ 	sys·printstring(*a);
+diff --git a/src/runtime/runtime.h b/src/runtime/runtime.h
+index 8d16225031..bdadbfc17e 100644
+--- a/src/runtime/runtime.h
++++ b/src/runtime/runtime.h
+@@ -51,7 +51,7 @@ typedef	struct	M		M;
+ typedef	struct	Mem		Mem;
+ typedef	union	Note		Note;
+ typedef	struct	Stktop		Stktop;
+-typedef	struct	String		*string;
++typedef	struct	String		String;
+ typedef	struct	Usema		Usema;
+ typedef	struct	SigTab		SigTab;
+ typedef	struct	MCache		MCache;
+@@ -110,13 +110,13 @@ union	Note
+ };
+ struct String
+ {
++	byte*	str;
+ 	int32	len;
+-	byte	str[1];
+ };
+ struct Iface
+ {
+-	Itype *type;
+-	void *data;
++	Itype*	type;
++	void*	data;
+ };
+ 
+ struct	Array
+@@ -209,9 +209,9 @@ enum
+ // be closer to this form.
+ struct	Func
+ {
+-	string	name;
+-	string	type;	// go type string
+-	string	src;	// src file name
++	String	name;
++	String	type;	// go type string
++	String	src;	// src file name
+ 	uint64	entry;	// entry pc
+ 	int64	frame;	// stack frame size
+ 	Array	pcln;	// pc/ln tab for this func
+@@ -258,7 +258,7 @@ struct Defer
+  * external data
+  */
+ extern	Alg	algarray[Amax];
+-extern	string	emptystring;
++extern	String	emptystring;
+ G*	allg;
+ int32	goidgen;
+ extern	int32	gomaxprocs;
+@@ -293,8 +293,8 @@ void	mcpy(byte*, byte*, uint32);
+ int32	mcmp(byte*, byte*, uint32);
+ void	mmov(byte*, byte*, uint32);
+ void*	mal(uint32);
+-uint32	cmpstring(string, string);
+-string	gostring(byte*);
++uint32	cmpstring(String, String);
++String	gostring(byte*);
+ void	initsig(void);
+ int32	gotraceback(void);
+ void	traceback(uint8 *pc, uint8 *sp, G* gp);
+@@ -343,7 +343,7 @@ void	free(void *v);
+ #pragma	varargck	type	"p"	uintptr
+ #pragma	varargck	type	"s"	int8*
+ #pragma	varargck	type	"s"	uint8*
+-#pragma	varargck	type	"S"	string
++#pragma	varargck	type	"S"	String
+ 
+ // TODO(rsc): Remove. These are only temporary,
+ // for the mark and sweep collector.
+@@ -424,17 +424,17 @@ void	sys_printbool(bool);
+ void	sys_printfloat(float64);
+ void	sys_printint(int64);
+ void	sys_printinter(Iface);
+-void	sys_printstring(string);
++void	sys_printstring(String);
+ void	sys_printpc(void*);
+ void	sys_printpointer(void*);
+ void	sys_printuint(uint64);
+ void	sys_printhex(uint64);
+ void	sys_printarray(Array);
+-void	sys_catstring(string, string, string);
+-void	sys_cmpstring(string, string, int32);
+-void	sys_slicestring(string, int32, int32, string);
+-void	sys_indexstring(string, int32, byte);
+-void	sys_intstring(int64, string);
++void	sys_catstring(String, String, String);
++void	sys_cmpstring(String, String, int32);
++void	sys_slicestring(String, int32, int32, String);
++void	sys_indexstring(String, int32, byte);
++void	sys_intstring(int64, String);
+ 
+ /*
+  * wrapped for go users
+diff --git a/src/runtime/string.c b/src/runtime/string.c
+index 001050beb4..212fa5c28c 100644
+--- a/src/runtime/string.c
++++ b/src/runtime/string.c
+@@ -4,8 +4,7 @@
+ 
+ #include "runtime.h"
+ 
+-static	int32	empty		= 0;
+-string	emptystring	= (string)&empty;
++String	emptystring;
+ 
+ int32
+ findnull(byte *s)
+@@ -21,49 +20,47 @@ findnull(byte *s)
+ 
+ int32 maxstring;
+ 
+-string
++String
+ gostringsize(int32 l)
+ {
+-	string s;
++	String s;
+ 
+-	s = mal(sizeof(s->len)+l+1);
+-	s->len = l;
++	if(l == 0)
++		return emptystring;
++	s.str = mal(l);
++	s.len = l;
+ 	if(l > maxstring)
+ 		maxstring = l;
+ 	return s;
+ }
+ 
+-string
++String
+ gostring(byte *str)
+ {
+ 	int32 l;
+-	string s;
++	String s;
+ 
+ 	l = findnull(str);
+ 	s = gostringsize(l);
+-	mcpy(s->str, str, l+1);
++	mcpy(s.str, str, l);
+ 	return s;
+ }
+ 
+ void
+-sys·catstring(string s1, string s2, string s3)
++sys·catstring(String s1, String s2, String s3)
+ {
+-	uint32 l;
+-
+-	if(s1 == nil || s1->len == 0) {
++	if(s1.len == 0) {
+ 		s3 = s2;
+ 		goto out;
+ 	}
+-	if(s2 == nil || s2->len == 0) {
++	if(s2.len == 0) {
+ 		s3 = s1;
+ 		goto out;
+ 	}
+ 
+-	l = s1->len + s2->len;
+-
+-	s3 = gostringsize(l);
+-	mcpy(s3->str, s1->str, s1->len);
+-	mcpy(s3->str+s1->len, s2->str, s2->len);
++	s3 = gostringsize(s1.len + s2.len);
++	mcpy(s3.str, s1.str, s1.len);
++	mcpy(s3.str+s1.len, s2.str, s2.len);
+ 
+ out:
+ 	FLUSH(&s3);
+@@ -84,36 +81,31 @@ prbounds(int8* s, int32 a, int32 b, int32 c)
+ }
+ 
+ uint32
+-cmpstring(string s1, string s2)
++cmpstring(String s1, String s2)
+ {
+ 	uint32 i, l;
+ 	byte c1, c2;
+ 
+-	if(s1 == nil)
+-		s1 = emptystring;
+-	if(s2 == nil)
+-		s2 = emptystring;
+-
+-	l = s1->len;
+-	if(s2->len < l)
+-		l = s2->len;
++	l = s1.len;
++	if(s2.len < l)
++		l = s2.len;
+ 	for(i=0; i<l; i++) {
+-		c1 = s1->str[i];
+-		c2 = s2->str[i];
++		c1 = s1.str[i];
++		c2 = s2.str[i];
+ 		if(c1 < c2)
+ 			return -1;
+ 		if(c1 > c2)
+ 			return +1;
+ 	}
+-	if(s1->len < s2->len)
++	if(s1.len < s2.len)
+ 		return -1;
+-	if(s1->len > s2->len)
++	if(s1.len > s2.len)
+ 		return +1;
+ 	return 0;
+ }
+ 
+ void
+-sys·cmpstring(string s1, string s2, int32 v)
++sys·cmpstring(String s1, String s2, int32 v)
+ {
+ 	v = cmpstring(s1, s2);
+ 	FLUSH(&v);
+@@ -138,62 +130,61 @@ strcmp(byte *s1, byte *s2)
+ }
+ 
+ void
+-sys·slicestring(string si, int32 lindex, int32 hindex, string so)
++sys·slicestring(String si, int32 lindex, int32 hindex, String so)
+ {
+ 	int32 l;
+ 
+-	if(si == nil)
+-		si = emptystring;
+-
+-	if(lindex < 0 || lindex > si->len ||
+-	   hindex < lindex || hindex > si->len) {
++	if(lindex < 0 || lindex > si.len ||
++	   hindex < lindex || hindex > si.len) {
+ 		sys·printpc(&si);
+ 		prints(" ");
+-		prbounds("slice", lindex, si->len, hindex);
++		prbounds("slice", lindex, si.len, hindex);
+ 	}
+ 
+ 	l = hindex-lindex;
+-	so = gostringsize(l);
+-	mcpy(so->str, si->str+lindex, l);
++	so.str = si.str + lindex;
++	so.len = l;
++
++//	alternate to create a new string
++//	so = gostringsize(l);
++//	mcpy(so.str, si.str+lindex, l);
++
+ 	FLUSH(&so);
+ }
+ 
+ void
+-sys·indexstring(string s, int32 i, byte b)
++sys·indexstring(String s, int32 i, byte b)
+ {
+-	if(s == nil)
+-		s = emptystring;
+-
+-	if(i < 0 || i >= s->len) {
++	if(i < 0 || i >= s.len) {
+ 		sys·printpc(&s);
+ 		prints(" ");
+-		prbounds("index", 0, i, s->len);
++		prbounds("index", 0, i, s.len);
+ 	}
+ 
+-	b = s->str[i];
++	b = s.str[i];
+ 	FLUSH(&b);
+ }
+ 
+ void
+-sys·intstring(int64 v, string s)
++sys·intstring(int64 v, String s)
+ {
+ 	s = gostringsize(8);
+-	s->len = runetochar(s->str, v);
++	s.len = runetochar(s.str, v);
+ 	FLUSH(&s);
+ }
+ 
+ void
+-sys·byteastring(byte *a, int32 l, string s)
++sys·byteastring(byte *a, int32 l, String s)
+ {
+ 	s = gostringsize(l);
+-	mcpy(s->str, a, l);
++	mcpy(s.str, a, l);
+ 	FLUSH(&s);
+ }
+ 
+ void
+-sys·arraystring(Array b, string s)
++sys·arraystring(Array b, String s)
+ {
+ 	s = gostringsize(b.nel);
+-	mcpy(s->str, b.array, s->len);
++	mcpy(s.str, b.array, s.len);
+ 	FLUSH(&s);
+ }
+diff --git a/src/runtime/symtab.c b/src/runtime/symtab.c
+index 901a2fe531..10debe52f0 100644
+--- a/src/runtime/symtab.c
++++ b/src/runtime/symtab.c
+@@ -195,7 +195,7 @@ static void
+ dosrcline(Sym *sym)
+ {
+ 	static byte srcbuf[1000];
+-	static string srcstring;
++	static String srcstring;
+ 	static int32 lno, incstart;
+ 	static int32 nf, nhist;
+ 	Func *f;

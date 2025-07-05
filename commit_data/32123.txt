@@ -12,7 +12,67 @@ Date:   Thu Apr 6 13:04:34 2017 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/bexport.go | 11 +----------
  src/cmd/compile/internal/gc/bimport.go | 10 +---------
  2 files changed, 2 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index 474b36412a..3555505bbf 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -1273,10 +1273,6 @@ func (p *exporter) expr(n *Node) {
+ 		p.op(ODOTTYPE)
+ 		p.pos(n)
+ 		p.expr(n.Left)
+-		if n.Right != nil {
+-			Fatalf("impossible")
+-		}
+-		p.bool(false)
+ 		p.typ(n.Type)
+ 
+ 	case OINDEX, OINDEXMAP:
+@@ -1311,13 +1307,8 @@ func (p *exporter) expr(n *Node) {
+ 	case OCONV, OCONVIFACE, OCONVNOP, OARRAYBYTESTR, OARRAYRUNESTR, OSTRARRAYBYTE, OSTRARRAYRUNE, ORUNESTR:
+ 		p.op(OCONV)
+ 		p.pos(n)
++		p.expr(n.Left)
+ 		p.typ(n.Type)
+-		if n.Left != nil {
+-			p.expr(n.Left)
+-			p.op(OEND)
+-		} else {
+-			p.exprList(n.List) // emits terminating OEND
+-		}
+ 
+ 	case OREAL, OIMAG, OAPPEND, OCAP, OCLOSE, ODELETE, OLEN, OMAKE, ONEW, OPANIC, ORECOVER, OPRINT, OPRINTN:
+ 		p.op(op)
+diff --git a/src/cmd/compile/internal/gc/bimport.go b/src/cmd/compile/internal/gc/bimport.go
+index 5f4121d7b5..10cae7c165 100644
+--- a/src/cmd/compile/internal/gc/bimport.go
++++ b/src/cmd/compile/internal/gc/bimport.go
+@@ -960,9 +960,6 @@ func (p *importer) node() *Node {
+ 
+ 	case ODOTTYPE:
+ 		n := nodl(p.pos(), ODOTTYPE, p.expr(), nil)
+-		if p.bool() {
+-			Fatalf("impossible")
+-		}
+ 		n.Type = p.typ()
+ 		return n
+ 
+@@ -986,13 +983,8 @@ func (p *importer) node() *Node {
+ 	// 	unreachable - mapped to OCONV case below by exporter
+ 
+ 	case OCONV:
+-		n := nodl(p.pos(), OCONV, nil, nil)
++		n := nodl(p.pos(), OCONV, p.expr(), nil)
+ 		n.Type = p.typ()
+-		exprs := p.exprList()
+-		if len(exprs) != 1 {
+-			Fatalf("impossible")
+-		}
+-		n.Left = exprs[0]
+ 		return n
+ 
+ 	case OCOPY, OCOMPLEX, OREAL, OIMAG, OAPPEND, OCAP, OCLOSE, ODELETE, OLEN, OMAKE, ONEW, OPANIC, ORECOVER, OPRINT, OPRINTN:

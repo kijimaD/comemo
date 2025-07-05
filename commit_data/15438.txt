@@ -7,7 +7,71 @@ Date:   Mon Feb 25 20:42:29 2013 -0800
     R=adonovan, r
     CC=golang-dev
     https://golang.org/cl/7376055
-
+---
  src/pkg/go/types/operand.go          | 12 ++++++++++--
  src/pkg/go/types/testdata/decls3.src | 22 ++++++++++++++++++++++
  2 files changed, 32 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/go/types/operand.go b/src/pkg/go/types/operand.go
+index 6b902e3015..c4c32b2f4d 100644
+--- a/src/pkg/go/types/operand.go
++++ b/src/pkg/go/types/operand.go
+@@ -300,7 +300,11 @@ func lookupFieldBreadthFirst(list []embeddedType, name QualifiedName) (res looku
+ 					// this level, f.Type appears multiple times at the next
+ 					// level.
+ 					if f.IsAnonymous && res.mode == invalid {
+-						next = append(next, embeddedType{deref(f.Type).(*NamedType), e.multiples})
++						// Ignore embedded basic types - only user-defined
++						// named types can have methods or have struct fields.
++						if t, _ := deref(f.Type).(*NamedType); t != nil {
++							next = append(next, embeddedType{t, e.multiples})
++						}
+ 					}
+ 				}
+ 
+@@ -377,7 +381,11 @@ func lookupField(typ Type, name QualifiedName) lookupResult {
+ 				// Possible optimization: If the embedded type
+ 				// is a pointer to the current type we could
+ 				// ignore it.
+-				next = append(next, embeddedType{typ: deref(f.Type).(*NamedType)})
++				// Ignore embedded basic types - only user-defined
++				// named types can have methods or have struct fields.
++				if t, _ := deref(f.Type).(*NamedType); t != nil {
++					next = append(next, embeddedType{typ: t})
++				}
+ 			}
+ 		}
+ 		if len(next) > 0 {
+diff --git a/src/pkg/go/types/testdata/decls3.src b/src/pkg/go/types/testdata/decls3.src
+index 4bc7d41494..6aa9f90e9f 100644
+--- a/src/pkg/go/types/testdata/decls3.src
++++ b/src/pkg/go/types/testdata/decls3.src
+@@ -44,6 +44,28 @@ func issue4355() {
+ 	_ = t /* ERROR "no single field or method" */ .X
+ }
+ 
++// Embedded fields can be predeclared types.
++
++func _() {
++	type T0 struct{
++		int
++		float32
++		f int
++	}
++	var x T0
++	_ = x.int
++	_ = x.float32
++	_ = x.f
++
++	type T1 struct{
++		T0
++	}
++	var y T1
++	_ = y.int
++	_ = y.float32
++	_ = y.f
++}
++
+ // Borrowed from the FieldByName test cases in reflect/all_test.go.
+ 
+ type D1 struct {

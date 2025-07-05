@@ -18,6 +18,25 @@ Date:   Wed Apr 13 00:32:15 2022 +0000
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/ssagen/ssa.go | 7 -------
  1 file changed, 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index bd0b925019..7da145e08d 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -5535,13 +5535,6 @@ func (s *state) rtcall(fn *obj.LSym, returns bool, results []*types.Type, args .
+ 	}
+ 	off = types.Rnd(off, int64(types.RegSize))
+ 
+-	// Accumulate results types and offsets
+-	offR := off
+-	for _, t := range results {
+-		offR = types.Rnd(offR, t.Alignment())
+-		offR += t.Size()
+-	}
+-
+ 	// Issue call
+ 	var call *ssa.Value
+ 	aux := ssa.StaticAuxCall(fn, s.f.ABIDefault.ABIAnalyzeTypes(nil, callArgTypes, results))

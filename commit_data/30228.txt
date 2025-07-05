@@ -25,8 +25,48 @@ Date:   Wed Oct 26 13:12:17 2016 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/html/template/template.go  | 2 +-
  src/text/template/exec.go      | 2 +-
  src/text/template/exec_test.go | 2 +-
  3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/html/template/template.go b/src/html/template/template.go
+index 9eaab4be6a..a98d151c50 100644
+--- a/src/html/template/template.go
++++ b/src/html/template/template.go
+@@ -96,7 +96,7 @@ func (t *Template) escape() error {
+ 	t.nameSpace.escaped = true
+ 	if t.escapeErr == nil {
+ 		if t.Tree == nil {
+-			return fmt.Errorf("template: %q is an incomplete or empty template%s", t.Name(), t.DefinedTemplates())
++			return fmt.Errorf("template: %q is an incomplete or empty template", t.Name())
+ 		}
+ 		if err := escapeTemplate(t, t.text.Root, t.Name()); err != nil {
+ 			return err
+diff --git a/src/text/template/exec.go b/src/text/template/exec.go
+index 5a6e454ec6..7db4a87d2e 100644
+--- a/src/text/template/exec.go
++++ b/src/text/template/exec.go
+@@ -190,7 +190,7 @@ func (t *Template) execute(wr io.Writer, data interface{}) (err error) {
+ 		vars: []variable{{"$", value}},
+ 	}
+ 	if t.Tree == nil || t.Root == nil {
+-		state.errorf("%q is an incomplete or empty template%s", t.Name(), t.DefinedTemplates())
++		state.errorf("%q is an incomplete or empty template", t.Name())
+ 	}
+ 	state.walk(value, t.Root)
+ 	return
+diff --git a/src/text/template/exec_test.go b/src/text/template/exec_test.go
+index 1c7e115554..99b9434b78 100644
+--- a/src/text/template/exec_test.go
++++ b/src/text/template/exec_test.go
+@@ -932,7 +932,7 @@ func TestMessageForExecuteEmpty(t *testing.T) {
+ 		t.Fatal("expected second error")
+ 	}
+ 	got = err.Error()
+-	want = `template: empty: "empty" is an incomplete or empty template; defined templates are: "secondary"`
++	want = `template: empty: "empty" is an incomplete or empty template`
+ 	if got != want {
+ 		t.Errorf("expected error %s got %s", want, got)
+ 	}

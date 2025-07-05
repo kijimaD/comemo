@@ -9,7 +9,7 @@ Date:   Thu Sep 3 16:20:49 2009 -0700
     DELTA=762  (201 added, 205 deleted, 356 changed)
     OCL=34335
     CL=34349
-
+---
  usr/austin/eval/compiler.go  |   3 +-
  usr/austin/eval/eval_test.go | 205 ++++++++++-------------------
  usr/austin/eval/expr.go      |  47 +------
@@ -19,3 +19,1612 @@ Date:   Thu Sep 3 16:20:49 2009 -0700
  usr/austin/eval/stmt_test.go | 303 ++++++++++++++++++++++---------------------
  usr/austin/eval/world.go     | 159 ++++++++++++++++++-----
  8 files changed, 540 insertions(+), 544 deletions(-)
+
+diff --git a/usr/austin/eval/compiler.go b/usr/austin/eval/compiler.go
+index b13cd298c1..12cace9e0c 100644
+--- a/usr/austin/eval/compiler.go
++++ b/usr/austin/eval/compiler.go
+@@ -41,8 +41,9 @@ func (a *compiler) numError() int {
+ func newUniverse() *Scope {
+ 	sc := &Scope{nil, 0};
+ 	sc.block = &block{
+-		offset: -1,
++		offset: 0,
+ 		scope: sc,
++		global: true,
+ 		defs: make(map[string] Def)
+ 	};
+ 	return sc;
+diff --git a/usr/austin/eval/eval_test.go b/usr/austin/eval/eval_test.go
+index 847a6f2fa7..cd47a76e0f 100644
+--- a/usr/austin/eval/eval_test.go
++++ b/usr/austin/eval/eval_test.go
+@@ -6,6 +6,7 @@ package eval
+ 
+ import (
+ 	"bignum";
++	"flag";
+ 	"fmt";
+ 	"go/parser";
+ 	"go/scanner";
+@@ -17,23 +18,23 @@ import (
+ )
+ 
+ // Print each statement or expression before parsing it
+-const noisy = false
++var noisy = false
++func init() {
++	flag.BoolVar(&noisy, "noisy", false, "chatter during eval tests");
++}
+ 
+ /*
+  * Generic statement/expression test framework
+  */
+ 
+-type test struct {
+-	code string;
+-	rterr string;
+-	exprs []exprTest;
+-	cerr string;
+-}
++type test []job
+ 
+-type exprTest struct {
++type job struct {
+ 	code string;
+-	val interface{};
++	cerr string;
+ 	rterr string;
++	val Value;
++	noval bool;
+ }
+ 
+ func runTests(t *testing.T, baseName string, tests []test) {
+@@ -43,168 +44,102 @@ func runTests(t *testing.T, baseName string, tests []test) {
+ 	}
+ }
+ 
+-func (a *test) run(t *testing.T, name string) {
+-	sc := newTestScope();
+-
+-	var fr *Frame;
+-	var cerr os.Error;
+-
+-	if a.code != "" {
++func (a test) run(t *testing.T, name string) {
++	w := newTestWorld();
++	for _, j := range a {
++		src := j.code;
+ 		if noisy {
+-			println(a.code);
++			println("code:", src);
+ 		}
+ 
+-		// Compile statements
+-		asts, err := parser.ParseStmtList(name, a.code);
+-		if err != nil && cerr == nil {
+-			cerr = err;
+-		}
+-		code, err := CompileStmts(sc, asts);
+-		if err != nil && cerr == nil {
+-			cerr = err;
+-		}
+-
+-		// Execute statements
+-		if cerr == nil {
+-			fr = sc.NewFrame(nil);
+-			rterr := code.Exec(fr);
+-			if a.rterr == "" && rterr != nil {
+-				t.Errorf("%s: expected %s to run, got runtime error %v", name, a.code, rterr);
+-				return;
+-			} else if !checkRTError(t, name, a.code, rterr, a.rterr) {
+-				return;
++		code, err := w.Compile(src);
++		if err != nil {
++			if j.cerr == "" {
++				t.Errorf("%s: Compile %s: %v", name, src, err);
++				break;
+ 			}
++			if !match(t, err, j.cerr) {
++				t.Errorf("%s: Compile %s = error %s; want %v", name, src, err, j.cerr);
++				break;
++			}
++			continue;
+ 		}
+-	}
+-
+-	if fr == nil {
+-		fr = sc.NewFrame(nil);
+-	}
+-	for _, e := range a.exprs {
+-		if cerr != nil {
++		if j.cerr != "" {
++			t.Errorf("%s: Compile %s succeeded; want %s", name, src, j.cerr);
+ 			break;
+ 		}
+-
+-		if noisy {
+-			println(e.code);
+-		}
+-
+-		// Compile expression
+-		ast, err := parser.ParseExpr(name, e.code);
+-		if err != nil && cerr == nil {
+-			cerr = err;
+-		}
+-		code, err := CompileExpr(sc, ast);
+-		if err != nil && cerr == nil {
+-			cerr = err;
+-		}
+-
+-		// Evaluate expression
+-		if cerr == nil {
+-			val, rterr := code.Eval(fr);
+-			if e.rterr == "" && rterr != nil {
+-				t.Errorf("%s: expected %q to have value %T(%v), got runtime error %v", name, e.code, e.val, e.val, rterr);
+-			} else if !checkRTError(t, name, e.code, rterr, e.rterr) {
+-				continue;
++		
++		val, err := code.Run();
++		if err != nil {
++			if j.rterr == "" {
++				t.Errorf("%s: Run %s: %v", name, src, err);
++				break;
+ 			}
+-			if e.val != nil {
+-				wantval := toValue(e.val);
+-				if !reflect.DeepEqual(val, wantval) {
+-					t.Errorf("%s: expected %q to have value %T(%v), got %T(%v)", name, e.code, wantval, wantval, val, val);
+-				}
++			if !match(t, err, j.rterr) {
++				t.Errorf("%s: Run %s = error %s; want %v", name, src, err, j.rterr);
++				break;
+ 			}
++			continue;
+ 		}
+-	}
+-
+-	// Check compile errors
+-	switch {
+-	case cerr == nil && a.cerr == "":
+-		// Good
+-	case cerr == nil && a.cerr != "":
+-		t.Errorf("%s: expected compile error matching %q, got no errors", name, a.cerr);
+-	case cerr != nil && a.cerr == "":
+-		t.Errorf("%s: expected no compile error, got error %v", name, cerr);
+-	case cerr != nil && a.cerr != "":
+-		cerr := cerr.(scanner.ErrorList);
+-		if len(cerr) > 1 {
+-			t.Errorf("%s: expected 1 compile error matching %q, got %v", name, a.cerr, cerr);
++		if j.rterr != "" {
++			t.Errorf("%s: Run %s succeeded; want %s", name, src, j.rterr);
+ 			break;
+ 		}
+-		m, err := testing.MatchString(a.cerr, cerr.String());
+-		if err != "" {
+-			t.Fatalf("%s: failed to compile regexp %q: %s", name, a.cerr, err);
+-		}
+-		if !m {
+-			t.Errorf("%s: expected compile error matching %q, got compile error %v", name, a.cerr, cerr);
++	
++		if !j.noval && !reflect.DeepEqual(val, j.val) {
++			t.Errorf("%s: Run %s = %T(%v) want %T(%v)", name, src, val, val, j.val, j.val);
+ 		}
+ 	}
+ }
+ 
+-func checkRTError(t *testing.T, name string, code string, rterr os.Error, pat string) bool {
+-	switch {
+-	case rterr == nil && pat == "":
+-		return true;
+-		
+-	case rterr == nil && pat != "":
+-		t.Errorf("%s: expected %s to fail with runtime error matching %q, got no error", name, code, pat);
+-		return false;
+-
+-	case rterr != nil && pat != "":
+-		m, err := testing.MatchString(pat, rterr.String());
+-		if err != "" {
+-			t.Fatalf("%s: failed to compile regexp %q: %s", name, pat, err);
+-		}
+-		if !m {
+-			t.Errorf("%s: expected runtime error matching %q, got runtime error %v", name, pat, rterr);
+-			return false;
+-		}
+-		return true;
++func match(t *testing.T, err os.Error, pat string) bool {
++	ok, errstr := testing.MatchString(pat, err.String());
++	if errstr != "" {
++		t.Fatalf("compile regexp %s: %v", pat, errstr);
+ 	}
+-	panic("rterr != nil && pat == \"\" should have been handled by the caller");
++	return ok;
+ }
+ 
++
+ /*
+  * Test constructors
+  */
+ 
+ // Expression compile error
+-func EErr(expr string, cerr string) test {
+-	return test{"", "", []exprTest{exprTest{expr, nil, ""}}, cerr};
++func CErr(expr string, cerr string) test {
++	return test([]job{job{code: expr, cerr: cerr}})
+ }
+ 
+ // Expression runtime error
+-func ERTErr(expr string, rterr string) test {
+-	return test{"", "", []exprTest{exprTest{expr, nil, rterr}}, ""};
++func RErr(expr string, rterr string) test {
++	return test([]job{job{code: expr, rterr: rterr}})
+ }
+ 
+ // Expression value
+ func Val(expr string, val interface{}) test {
+-	return test{"", "", []exprTest{exprTest{expr, val, ""}}, ""};
+-}
+-
+-// Statement compile error
+-func SErr(stmts string, cerr string) test {
+-	return test{stmts, "", nil, cerr};
+-}
+-
+-// Statement runtime error
+-func SRTErr(stmts string, rterr string) test {
+-	return test{stmts, rterr, nil, ""};
++	return test([]job{job{code: expr, val: toValue(val)}})
+ }
+ 
+ // Statement runs without error
+-func SRuns(stmts string) test {
+-	return test{stmts, "", nil, ""};
++func Run(stmts string) test {
++	return test([]job{job{code: stmts, noval: true}})
+ }
+ 
+ // Statement runs and test one expression's value
+ func Val1(stmts string, expr1 string, val1 interface{}) test {
+-	return test{stmts, "", []exprTest{exprTest{expr1, val1, ""}}, ""};
++	return test([]job{
++		job{code: stmts, noval: true},
++		job{code: expr1, val: toValue(val1)}
++	})
+ }
+ 
+ // Statement runs and test two expressions' values
+ func Val2(stmts string, expr1 string, val1 interface{}, expr2 string, val2 interface{}) test {
+-	return test{stmts, "", []exprTest{exprTest{expr1, val1, ""}, exprTest{expr2, val2, ""}}, ""};
++	return test([]job{
++		job{code: stmts, noval: true},
++		job{code: expr1, val: toValue(val1)},
++		job{code: expr2, val: toValue(val2)}
++	})
+ }
+ 
+ /*
+@@ -305,16 +240,14 @@ func (*voidFunc) NewFrame() *Frame {
+ func (*voidFunc) Call(t *Thread) {
+ }
+ 
+-func newTestScope() *Scope {
+-	sc := universe.ChildScope();
+-	p := token.Position{"<testScope>", 0, 0, 0};
++func newTestWorld() *World {
++	w := NewWorld();
+ 
+ 	def := func(name string, t Type, val interface{}) {
+-		v, _ := sc.DefineVar(name, p, t);
+-		v.Init = toValue(val);
++		w.DefineVar(name, t, toValue(val));
+ 	};
+ 
+-	sc.DefineConst("c", p, IdealIntType, toValue(bignum.Int(1)));
++	w.DefineConst("c", IdealIntType, toValue(bignum.Int(1)));
+ 	def("i", IntType, 1);
+ 	def("i2", IntType, 2);
+ 	def("u", UintType, uint(1));
+@@ -329,5 +262,5 @@ func newTestScope() *Scope {
+ 	def("void", NewFuncType([]Type{}, false, []Type {}), &voidFunc{});
+ 	def("sli", NewSliceType(IntType), vslice{varray{1, 2, 3}, 2, 3});
+ 
+-	return sc;
++	return w;
+ }
+diff --git a/usr/austin/eval/expr.go b/usr/austin/eval/expr.go
+index a29373d6a6..f24887bc21 100644
+--- a/usr/austin/eval/expr.go
++++ b/usr/austin/eval/expr.go
+@@ -336,8 +336,11 @@ func (a *assignCompiler) compile(b *block, lt Type) (func(Value, *Thread)) {
+ 	var effect func(*Thread);
+ 	if isUnpack {
+ 		// This leaks a slot, but is definitely safe.
+-		temp := b.DefineSlot(a.rmt);
++		temp := b.DefineTemp(a.rmt);
+ 		tempIdx := temp.Index;
++		if tempIdx < 0 {
++			panicln("tempidx", tempIdx);
++		}
+ 		if a.isMapUnpack {
+ 			rf := a.rs[0].evalMapValue;
+ 			vt := a.rmt.Elems[0];
+@@ -693,7 +696,7 @@ func (a *exprInfo) compileIdent(b *block, constant bool, callCtx bool, name stri
+ 			a.diag("variable %s used in constant expression", name);
+ 			return nil;
+ 		}
+-		if bl.offset < 0 {
++		if bl.global {
+ 			return a.compileGlobalVariable(def);
+ 		}
+ 		return a.compileVariable(level, def);
+@@ -1830,7 +1833,7 @@ func (a *expr) extractEffect(b *block, errOp string) (func(*Thread), *expr) {
+ 			log.Crashf("unexpected ideal type %v", tempType);
+ 		}
+ 	}
+-	temp := b.DefineSlot(tempType);
++	temp := b.DefineTemp(tempType);
+ 	tempIdx := temp.Index;
+ 
+ 	// Create "temp := rhs"
+@@ -1857,41 +1860,3 @@ func (a *expr) extractEffect(b *block, errOp string) (func(*Thread), *expr) {
+ 	}
+ 	return effect, deref;
+ }
+-
+-/*
+- * Public interface
+- */
+-
+-type Expr struct {
+-	e *expr;
+-}
+-
+-func (expr *Expr) Type() Type {
+-	return expr.e.t;
+-}
+-
+-func (expr *Expr) Eval(f *Frame) (Value, os.Error) {
+-	t := new(Thread);
+-	t.f = f;
+-	switch _ := expr.e.t.(type) {
+-	case *idealIntType:
+-		return &idealIntV{expr.e.asIdealInt()()}, nil;
+-	case *idealFloatType:
+-		return &idealFloatV{expr.e.asIdealFloat()()}, nil;
+-	}
+-	v := expr.e.t.Zero();
+-	eval := genAssign(expr.e.t, expr.e);
+-	err := t.Try(func(t *Thread){eval(v, t)});
+-	return v, err;
+-}
+-
+-func CompileExpr(scope *Scope, expr ast.Expr) (*Expr, os.Error) {
+-	errors := scanner.NewErrorVector();
+-	cc := &compiler{errors, 0, 0};
+-
+-	ec := cc.compileExpr(scope.block, false, expr);
+-	if ec == nil {
+-		return nil, errors.GetError(scanner.Sorted);
+-	}
+-	return &Expr{ec}, nil;
+-}
+diff --git a/usr/austin/eval/expr_test.go b/usr/austin/eval/expr_test.go
+index 2b2dd9d4f1..ea11cf69d9 100644
+--- a/usr/austin/eval/expr_test.go
++++ b/usr/austin/eval/expr_test.go
+@@ -26,19 +26,19 @@ var hugeInteger = bignum.Int(1).Shl(64);
+ 
+ var exprTests = []test {
+ 	Val("i", 1),
+-	EErr("zzz", undefined),
++	CErr("zzz", undefined),
+ 	// TODO(austin) Test variable in constant context
+-	//EErr("t", typeAsExpr),
++	//CErr("t", typeAsExpr),
+ 
+ 	Val("'a'", bignum.Int('a')),
+ 	Val("'\\uffff'", bignum.Int('\uffff')),
+ 	Val("'\\n'", bignum.Int('\n')),
+-	EErr("''+x", badCharLit),
++	CErr("''+x", badCharLit),
+ 	// Produces two parse errors
+-	//EErr("'''", ""),
+-	EErr("'\n'", badCharLit),
+-	EErr("'\\z'", illegalEscape),
+-	EErr("'ab'", badCharLit),
++	//CErr("'''", ""),
++	CErr("'\n'", badCharLit),
++	CErr("'\\z'", illegalEscape),
++	CErr("'ab'", badCharLit),
+ 
+ 	Val("1.0", bignum.Rat(1, 1)),
+ 	Val("1.", bignum.Rat(1, 1)),
+@@ -48,11 +48,11 @@ var exprTests = []test {
+ 	Val("\"abc\"", "abc"),
+ 	Val("\"\"", ""),
+ 	Val("\"\\n\\\"\"", "\n\""),
+-	EErr("\"\\z\"", illegalEscape),
+-	EErr("\"abc", "string not terminated"),
++	CErr("\"\\z\"", illegalEscape),
++	CErr("\"abc", "string not terminated"),
+ 
+ 	Val("\"abc\" \"def\"", "abcdef"),
+-	EErr("\"abc\" \"\\z\"", illegalEscape),
++	CErr("\"abc\" \"\\z\"", illegalEscape),
+ 
+ 	Val("(i)", 1),
+ 
+@@ -61,56 +61,56 @@ var exprTests = []test {
+ 	Val("ai[1]", 2),
+ 	Val("ai[i]", 2),
+ 	Val("ai[u]", 2),
+-	EErr("ai[f]", opTypes),
+-	EErr("ai[0][0]", opTypes),
+-	EErr("ai[2]", "index 2 exceeds"),
+-	EErr("ai[1+1]", "index 2 exceeds"),
+-	EErr("ai[-1]", "negative index"),
+-	ERTErr("ai[i+i]", "index 2 exceeds"),
+-	ERTErr("ai[-i]", "negative index"),
+-	EErr("i[0]", opTypes),
+-	EErr("f[0]", opTypes),
++	CErr("ai[f]", opTypes),
++	CErr("ai[0][0]", opTypes),
++	CErr("ai[2]", "index 2 exceeds"),
++	CErr("ai[1+1]", "index 2 exceeds"),
++	CErr("ai[-1]", "negative index"),
++	RErr("ai[i+i]", "index 2 exceeds"),
++	RErr("ai[-i]", "negative index"),
++	CErr("i[0]", opTypes),
++	CErr("f[0]", opTypes),
+ 
+ 	Val("aai[0][0]", 1),
+ 	Val("aai[1][1]", 4),
+-	EErr("aai[2][0]", "index 2 exceeds"),
+-	EErr("aai[0][2]", "index 2 exceeds"),
++	CErr("aai[2][0]", "index 2 exceeds"),
++	CErr("aai[0][2]", "index 2 exceeds"),
+ 
+ 	Val("sli[0]", 1),
+ 	Val("sli[1]", 2),
+-	EErr("sli[-1]", "negative index"),
+-	ERTErr("sli[-i]", "negative index"),
+-	ERTErr("sli[2]", "index 2 exceeds"),
++	CErr("sli[-1]", "negative index"),
++	RErr("sli[-i]", "negative index"),
++	RErr("sli[2]", "index 2 exceeds"),
+ 
+ 	Val("s[0]", uint8('a')),
+ 	Val("s[1]", uint8('b')),
+-	EErr("s[-1]", "negative index"),
+-	ERTErr("s[-i]", "negative index"),
+-	ERTErr("s[3]", "index 3 exceeds"),
+-
+-	EErr("1(2)", "cannot call"),
+-	EErr("fn(1,2)", "too many"),
+-	EErr("fn()", "not enough"),
+-	EErr("fn(true)", opTypes),
+-	EErr("fn(true)", "function call"),
++	CErr("s[-1]", "negative index"),
++	RErr("s[-i]", "negative index"),
++	RErr("s[3]", "index 3 exceeds"),
++
++	CErr("1(2)", "cannot call"),
++	CErr("fn(1,2)", "too many"),
++	CErr("fn()", "not enough"),
++	CErr("fn(true)", opTypes),
++	CErr("fn(true)", "function call"),
+ 	// Single argument functions don't say which argument.
+-	//EErr("fn(true)", "argument 1"),
++	//CErr("fn(true)", "argument 1"),
+ 	Val("fn(1)", 2),
+ 	Val("fn(1.0)", 2),
+-	EErr("fn(1.5)", constantTruncated),
++	CErr("fn(1.5)", constantTruncated),
+ 	Val("fn(i)", 2),
+-	EErr("fn(u)", opTypes),
++	CErr("fn(u)", opTypes),
+ 
+-	EErr("void()+2", opTypes),
+-	EErr("oneTwo()+2", opTypes),
++	CErr("void()+2", opTypes),
++	CErr("oneTwo()+2", opTypes),
+ 
+ 	Val("cap(ai)", 2),
+ 	Val("cap(&ai)", 2),
+ 	Val("cap(aai)", 2),
+ 	Val("cap(sli)", 3),
+-	EErr("cap(0)", opTypes),
+-	EErr("cap(i)", opTypes),
+-	EErr("cap(s)", opTypes),
++	CErr("cap(0)", opTypes),
++	CErr("cap(i)", opTypes),
++	CErr("cap(s)", opTypes),
+ 
+ 	Val("len(s)", 3),
+ 	Val("len(ai)", 2),
+@@ -118,36 +118,36 @@ var exprTests = []test {
+ 	Val("len(aai)", 2),
+ 	Val("len(sli)", 2),
+ 	// TODO(austin) Test len of map
+-	EErr("len(0)", opTypes),
+-	EErr("len(i)", opTypes),
++	CErr("len(0)", opTypes),
++	CErr("len(i)", opTypes),
+ 
+-	EErr("*i", opTypes),
++	CErr("*i", opTypes),
+ 	Val("*&i", 1),
+ 	Val("*&(i)", 1),
+-	EErr("&1", badAddrOf),
+-	EErr("&c", badAddrOf),
++	CErr("&1", badAddrOf),
++	CErr("&c", badAddrOf),
+ 	Val("*(&ai[0])", 1),
+ 
+ 	Val("+1", bignum.Int(+1)),
+ 	Val("+1.0", bignum.Rat(1, 1)),
+-	EErr("+\"x\"", opTypes),
++	CErr("+\"x\"", opTypes),
+ 
+ 	Val("-42", bignum.Int(-42)),
+ 	Val("-i", -1),
+ 	Val("-f", -1.0),
+ 	// 6g bug?
+ 	//Val("-(f-1)", -0.0),
+-	EErr("-\"x\"", opTypes),
++	CErr("-\"x\"", opTypes),
+ 
+ 	// TODO(austin) Test unary !
+ 
+ 	Val("^2", bignum.Int(^2)),
+ 	Val("^(-2)", bignum.Int(^(-2))),
+-	EErr("^2.0", opTypes),
+-	EErr("^2.5", opTypes),
++	CErr("^2.0", opTypes),
++	CErr("^2.5", opTypes),
+ 	Val("^i", ^1),
+ 	Val("^u", ^uint(1)),
+-	EErr("^f", opTypes),
++	CErr("^f", opTypes),
+ 
+ 	Val("1+i", 2),
+ 	Val("1+u", uint(2)),
+@@ -157,8 +157,8 @@ var exprTests = []test {
+ 	Val("1+f", 2.0),
+ 	Val("1.0+1", bignum.Rat(2, 1)),
+ 	Val("\"abc\" + \"def\"", "abcdef"),
+-	EErr("i+u", opTypes),
+-	EErr("-1+u", constantUnderflows),
++	CErr("i+u", opTypes),
++	CErr("-1+u", constantUnderflows),
+ 	// TODO(austin) Test named types
+ 
+ 	Val("2-1", bignum.Int(1)),
+@@ -170,14 +170,14 @@ var exprTests = []test {
+ 	Val("2*i", 2),
+ 	Val("3/2", bignum.Int(1)),
+ 	Val("3/i", 3),
+-	EErr("1/0", divByZero),
+-	EErr("1.0/0", divByZero),
+-	ERTErr("i/0", divByZero),
++	CErr("1/0", divByZero),
++	CErr("1.0/0", divByZero),
++	RErr("i/0", divByZero),
+ 	Val("3%2", bignum.Int(1)),
+ 	Val("i%2", 1),
+-	EErr("3%0", divByZero),
+-	EErr("3.0%0", opTypes),
+-	ERTErr("i%0", divByZero),
++	CErr("3%0", divByZero),
++	CErr("3.0%0", opTypes),
++	RErr("i%0", divByZero),
+ 
+ 	// Examples from "Arithmetic operators"
+ 	Val("5/3", bignum.Int(1)),
+@@ -222,56 +222,56 @@ var exprTests = []test {
+ 	// fractional float, ideal non-fractional float, int, uint,
+ 	// and float.
+ 	Val("2<<2", bignum.Int(2<<2)),
+-	EErr("2<<(-1)", constantUnderflows),
+-	EErr("2<<0x10000000000000000", constantOverflows),
+-	EErr("2<<2.5", constantTruncated),
++	CErr("2<<(-1)", constantUnderflows),
++	CErr("2<<0x10000000000000000", constantOverflows),
++	CErr("2<<2.5", constantTruncated),
+ 	Val("2<<2.0", bignum.Int(2<<2.0)),
+-	EErr("2<<i", mustBeUnsigned),
++	CErr("2<<i", mustBeUnsigned),
+ 	Val("2<<u", 2<<1),
+-	EErr("2<<f", opTypes),
++	CErr("2<<f", opTypes),
+ 
+ 	Val("-2<<2", bignum.Int(-2<<2)),
+-	EErr("-2<<(-1)", constantUnderflows),
+-	EErr("-2<<0x10000000000000000", constantOverflows),
+-	EErr("-2<<2.5", constantTruncated),
++	CErr("-2<<(-1)", constantUnderflows),
++	CErr("-2<<0x10000000000000000", constantOverflows),
++	CErr("-2<<2.5", constantTruncated),
+ 	Val("-2<<2.0", bignum.Int(-2<<2.0)),
+-	EErr("-2<<i", mustBeUnsigned),
++	CErr("-2<<i", mustBeUnsigned),
+ 	Val("-2<<u", -2<<1),
+-	EErr("-2<<f", opTypes),
++	CErr("-2<<f", opTypes),
+ 
+ 	Val("0x10000000000000000<<2", hugeInteger.Shl(2)),
+-	EErr("0x10000000000000000<<(-1)", constantUnderflows),
+-	EErr("0x10000000000000000<<0x10000000000000000", constantOverflows),
+-	EErr("0x10000000000000000<<2.5", constantTruncated),
++	CErr("0x10000000000000000<<(-1)", constantUnderflows),
++	CErr("0x10000000000000000<<0x10000000000000000", constantOverflows),
++	CErr("0x10000000000000000<<2.5", constantTruncated),
+ 	Val("0x10000000000000000<<2.0", hugeInteger.Shl(2)),
+-	EErr("0x10000000000000000<<i", mustBeUnsigned),
+-	EErr("0x10000000000000000<<u", constantOverflows),
+-	EErr("0x10000000000000000<<f", opTypes),
++	CErr("0x10000000000000000<<i", mustBeUnsigned),
++	CErr("0x10000000000000000<<u", constantOverflows),
++	CErr("0x10000000000000000<<f", opTypes),
+ 
+-	EErr("2.5<<2", opTypes),
+-	EErr("2.0<<2", opTypes),
++	CErr("2.5<<2", opTypes),
++	CErr("2.0<<2", opTypes),
+ 
+ 	Val("i<<2", 1<<2),
+-	EErr("i<<(-1)", constantUnderflows),
+-	EErr("i<<0x10000000000000000", constantOverflows),
+-	EErr("i<<2.5", constantTruncated),
++	CErr("i<<(-1)", constantUnderflows),
++	CErr("i<<0x10000000000000000", constantOverflows),
++	CErr("i<<2.5", constantTruncated),
+ 	Val("i<<2.0", 1<<2),
+-	EErr("i<<i", mustBeUnsigned),
++	CErr("i<<i", mustBeUnsigned),
+ 	Val("i<<u", 1<<1),
+-	EErr("i<<f", opTypes),
++	CErr("i<<f", opTypes),
+ 	Val("i<<u", 1<<1),
+ 
+ 	Val("u<<2", uint(1<<2)),
+-	EErr("u<<(-1)", constantUnderflows),
+-	EErr("u<<0x10000000000000000", constantOverflows),
+-	EErr("u<<2.5", constantTruncated),
++	CErr("u<<(-1)", constantUnderflows),
++	CErr("u<<0x10000000000000000", constantOverflows),
++	CErr("u<<2.5", constantTruncated),
+ 	Val("u<<2.0", uint(1<<2)),
+-	EErr("u<<i", mustBeUnsigned),
++	CErr("u<<i", mustBeUnsigned),
+ 	Val("u<<u", uint(1<<1)),
+-	EErr("u<<f", opTypes),
++	CErr("u<<f", opTypes),
+ 	Val("u<<u", uint(1<<1)),
+ 
+-	EErr("f<<2", opTypes),
++	CErr("f<<2", opTypes),
+ 
+ 	// <, <=, >, >=
+ 	Val("1<2", 1<2),
+@@ -298,11 +298,11 @@ var exprTests = []test {
+ 	Val("s>\"ac\"", false),
+ 	Val("s>=\"abc\"", true),
+ 
+-	EErr("i<u", opTypes),
+-	EErr("i<f", opTypes),
+-	EErr("i<s", opTypes),
+-	EErr("&i<&i", opTypes),
+-	EErr("ai<ai", opTypes),
++	CErr("i<u", opTypes),
++	CErr("i<f", opTypes),
++	CErr("i<s", opTypes),
++	CErr("&i<&i", opTypes),
++	CErr("ai<ai", opTypes),
+ 
+ 	// ==, !=
+ 	Val("1==1", true),
+@@ -332,12 +332,12 @@ var exprTests = []test {
+ 	Val("fn==fn", true),
+ 	Val("fn==func(int)int{return 0}", false),
+ 
+-	EErr("i==u", opTypes),
+-	EErr("i==f", opTypes),
+-	EErr("&i==&f", opTypes),
+-	EErr("ai==ai", opTypes),
+-	EErr("t==t", opTypes),
+-	EErr("fn==oneTwo", opTypes),
++	CErr("i==u", opTypes),
++	CErr("i==f", opTypes),
++	CErr("&i==&f", opTypes),
++	CErr("ai==ai", opTypes),
++	CErr("t==t", opTypes),
++	CErr("fn==oneTwo", opTypes),
+ }
+ 
+ func TestExpr(t *testing.T) {
+diff --git a/usr/austin/eval/scope.go b/usr/austin/eval/scope.go
+index 1c0acb6400..3fe94e4be4 100644
+--- a/usr/austin/eval/scope.go
++++ b/usr/austin/eval/scope.go
+@@ -56,6 +56,10 @@ type block struct {
+ 	offset int;
+ 	// The number of Variables defined in this block.
+ 	numVars int;
++	// If global, do not allocate new vars and consts in
++	// the frame; assume that the refs will be compiled in
++	// using defs[name].Init.
++	global bool;
+ }
+ 
+ // A Scope is the compile-time analogue of a Frame, which captures
+@@ -112,21 +116,25 @@ func (b *block) DefineVar(name string, pos token.Position, t Type) (*Variable, D
+ 	if prev, ok := b.defs[name]; ok {
+ 		return nil, prev;
+ 	}
+-	v := b.DefineSlot(t);
++	v := b.defineSlot(t, false);
+ 	v.Position = pos;
+ 	b.defs[name] = v;
+ 	return v, nil;
+ }
+ 
+-func (b *block) DefineSlot(t Type) *Variable {
++func (b *block) DefineTemp(t Type) *Variable {
++	return b.defineSlot(t, true)
++}
++
++func (b *block) defineSlot(t Type, temp bool) *Variable {
+ 	if b.inner != nil && b.inner.scope == b.scope {
+ 		log.Crash("Failed to exit child block before defining variable");
+ 	}
+ 	index := -1;
+-	if b.offset >= 0 {
++	if !b.global || temp {
+ 		index = b.offset+b.numVars;
+ 		b.numVars++;
+-		if index+1 > b.scope.maxVars {
++		if index >= b.scope.maxVars {
+ 			b.scope.maxVars = index+1;
+ 		}
+ 	}
+@@ -169,18 +177,7 @@ func (b *block) Lookup(name string) (bl *block, level int, def Def) {
+ }
+ 
+ func (s *Scope) NewFrame(outer *Frame) *Frame {
+-	fr := outer.child(s.maxVars);
+-	// TODO(rsc): Take this loop out once eval_test.go
+-	// no longer fiddles with init.
+-	for _, v := range s.defs {
+-		switch v := v.(type) {
+-		case *Variable:
+-			if v.Index >= 0 {
+-				fr.Vars[v.Index] = v.Init;
+-			}
+-		}
+-	}
+-	return fr;
++	return outer.child(s.maxVars);
+ }
+ 
+ /*
+diff --git a/usr/austin/eval/stmt.go b/usr/austin/eval/stmt.go
+index a3573c260d..9788bb09c0 100644
+--- a/usr/austin/eval/stmt.go
++++ b/usr/austin/eval/stmt.go
+@@ -341,36 +341,12 @@ func (a *stmtCompiler) compileDeclStmt(s *ast.DeclStmt) {
+ 		switch decl.Tok {
+ 		case token.IMPORT:
+ 			log.Crash("import at statement level");
+-
+ 		case token.CONST:
+ 			log.Crashf("%v not implemented", decl.Tok);
+-
+ 		case token.TYPE:
+ 			a.compileTypeDecl(a.block, decl);
+-
+ 		case token.VAR:
+-			for _, spec := range decl.Specs {
+-				spec := spec.(*ast.ValueSpec);
+-				if spec.Values == nil {
+-					// Declaration without assignment
+-					if spec.Type == nil {
+-						// Parser should have caught
+-						log.Crash("Type and Values nil");
+-					}
+-					t := a.compileType(a.block, spec.Type);
+-					// Define placeholders even if type compile failed
+-					for _, n := range spec.Names {
+-						a.defineVar(n, t);
+-					}
+-				} else {
+-					// Decalaration with assignment
+-					lhs := make([]ast.Expr, len(spec.Names));
+-					for i, n := range spec.Names {
+-						lhs[i] = n;
+-					}
+-					a.doAssign(lhs, spec.Values, decl.Tok, spec.Type);
+-				}
+-			}
++			a.compileVarDecl(decl);
+ 		}
+ 
+ 	default:
+@@ -378,6 +354,73 @@ func (a *stmtCompiler) compileDeclStmt(s *ast.DeclStmt) {
+ 	}
+ }
+ 
++// decl might or might not be at top level;
++func (a *stmtCompiler) compileVarDecl(decl *ast.GenDecl) {
++	for _, spec := range decl.Specs {
++		spec := spec.(*ast.ValueSpec);
++		if spec.Values == nil {
++			// Declaration without assignment
++			if spec.Type == nil {
++				// Parser should have caught
++				log.Crash("Type and Values nil");
++			}
++			t := a.compileType(a.block, spec.Type);
++			// Define placeholders even if type compile failed
++			for _, n := range spec.Names {
++				a.defineVar(n, t);
++			}
++		} else {
++			// Decalaration with assignment
++			lhs := make([]ast.Expr, len(spec.Names));
++			for i, n := range spec.Names {
++				lhs[i] = n;
++			}
++			a.doAssign(lhs, spec.Values, decl.Tok, spec.Type);
++		}
++	}
++}
++
++// decl is top level
++func (a *stmtCompiler) compileDecl(decl ast.Decl) {
++	switch d := decl.(type) {
++	case *ast.BadDecl:
++		// Do nothing.  Already reported by parser.
++		a.silentErrors++;
++
++	case *ast.FuncDecl:
++		decl := a.compileFuncType(a.block, d.Type);
++		if decl == nil {
++			return;
++		}
++		// Declare and initialize v before compiling func
++		// so that body can refer to itself.
++		c := a.block.DefineConst(d.Name.Value, a.pos, decl.Type, decl.Type.Zero());
++		// TODO(rsc): How to mark v as constant
++		// so the type checker rejects assignments to it?
++		fn := a.compileFunc(a.block, decl, d.Body);
++		if fn == nil {
++			return;
++		}
++		var zeroThread Thread;
++		c.Value.(FuncValue).Set(fn(&zeroThread));
++
++	case *ast.GenDecl:
++		switch d.Tok {
++		case token.IMPORT:
++			log.Crashf("%v not implemented", d.Tok);
++		case token.CONST:
++			log.Crashf("%v not implemented", d.Tok);
++		case token.TYPE:
++			a.compileTypeDecl(a.block, d);
++		case token.VAR:
++			a.compileVarDecl(d);
++		}
++
++	default:
++		log.Crashf("Unexpected Decl type %T", decl);
++	}
++}
++
+ func (a *stmtCompiler) compileLabeledStmt(s *ast.LabeledStmt) {
+ 	// Define label
+ 	l, ok := a.labels[s.Label.Value];
+@@ -1205,14 +1248,14 @@ func (a *compiler) compileFunc(b *block, decl *FuncDecl, body *ast.BlockStmt) (f
+ 		if decl.InNames[i] != nil {
+ 			bodyScope.DefineVar(decl.InNames[i].Value, decl.InNames[i].Pos(), t);
+ 		} else {
+-			bodyScope.DefineSlot(t);
++			bodyScope.DefineTemp(t);
+ 		}
+ 	}
+ 	for i, t := range decl.Type.Out {
+ 		if decl.OutNames[i] != nil {
+ 			bodyScope.DefineVar(decl.OutNames[i].Value, decl.OutNames[i].Pos(), t);
+ 		} else {
+-			bodyScope.DefineSlot(t);
++			bodyScope.DefineTemp(t);
+ 		}
+ 	}
+ 
+@@ -1271,46 +1314,3 @@ func (a *funcCompiler) checkLabels() {
+ 	// point of the goto.
+ 	a.flow.gotosObeyScopes(a.compiler);
+ }
+-
+-/*
+- * Public interface
+- */
+-
+-type Stmt struct {
+-	code code;
+-}
+-
+-func (s *Stmt) Exec(f *Frame) os.Error {
+-	t := new(Thread);
+-	t.f = f;
+-	return t.Try(func(t *Thread){s.code.exec(t)});
+-}
+-
+-func CompileStmts(scope *Scope, stmts []ast.Stmt) (*Stmt, os.Error) {
+-	errors := scanner.NewErrorVector();
+-	cc := &compiler{errors, 0, 0};
+-	cb := newCodeBuf();
+-	fc := &funcCompiler{
+-		compiler: cc,
+-		fnType: nil,
+-		outVarsNamed: false,
+-		codeBuf: cb,
+-		flow: newFlowBuf(cb),
+-		labels: make(map[string] *label),
+-	};
+-	bc := &blockCompiler{
+-		funcCompiler: fc,
+-		block: scope.block,
+-	};
+-	out := make([]*Stmt, len(stmts));
+-	nerr := cc.numError();
+-	for i, stmt := range stmts {
+-		bc.compileStmt(stmt);
+-	}
+-	fc.checkLabels();
+-	if nerr != cc.numError() {
+-		return nil, errors.GetError(scanner.Sorted);
+-	}
+-	code := fc.get();
+-	return &Stmt{code}, nil;
+-}
+diff --git a/usr/austin/eval/stmt_test.go b/usr/austin/eval/stmt_test.go
+index 9a62b2e0f3..0324a40f17 100644
+--- a/usr/austin/eval/stmt_test.go
++++ b/usr/austin/eval/stmt_test.go
+@@ -18,45 +18,45 @@ var stmtTests = []test {
+ 	// Parallel assignment
+ 	Val2("a, b := 1, 2", "a", 1, "b", 2),
+ 	Val2("a, i := 1, 2", "a", 1, "i", 2),
+-	SErr("a, i := 1, f", opTypes),
++	CErr("a, i := 1, f", opTypes),
+ 	// TODO(austin) The parser produces an error message for this
+ 	// one that's inconsistent with the errors I give for other
+ 	// things
+-	//SErr("a, b := 1, 2, 3", "too many"),
+-	SErr("a, b := 1, 2, 3", "arity"),
+-	SErr("a := 1, 2", "too many"),
+-	SErr("a, b := 1", "not enough"),
++	//CErr("a, b := 1, 2, 3", "too many"),
++	CErr("a, b := 1, 2, 3", "arity"),
++	CErr("a := 1, 2", "too many"),
++	CErr("a, b := 1", "not enough"),
+ 	// Mixed declarations
+-	SErr("i := 1", atLeastOneDecl),
+-	SErr("i, u := 1, 2", atLeastOneDecl),
++	CErr("i := 1", atLeastOneDecl),
++	CErr("i, u := 1, 2", atLeastOneDecl),
+ 	Val2("i, x := 2, f", "i", 2, "x", 1.0),
+ 	// Various errors
+-	SErr("1 := 2", "left side of := must be a name"),
+-	SErr("c, a := 1, 1", "cannot assign"),
++	CErr("1 := 2", "left side of := must be a name"),
++	CErr("c, a := 1, 1", "cannot assign"),
+ 	// Unpacking
+ 	Val2("x, y := oneTwo()", "x", 1, "y", 2),
+-	SErr("x := oneTwo()", "too many"),
+-	SErr("x, y, z := oneTwo()", "not enough"),
+-	SErr("x, y := oneTwo(), 2", "multi-valued"),
+-	SErr("x := oneTwo()+2", opTypes),
++	CErr("x := oneTwo()", "too many"),
++	CErr("x, y, z := oneTwo()", "not enough"),
++	CErr("x, y := oneTwo(), 2", "multi-valued"),
++	CErr("x := oneTwo()+2", opTypes),
+ 	// TOOD(austin) This error message is weird
+-	SErr("x := void()", "not enough"),
++	CErr("x := void()", "not enough"),
+ 	// Placeholders
+-	SErr("x := 1+\"x\"; i=x+1", opTypes),
++	CErr("x := 1+\"x\"; i=x+1", opTypes),
+ 
+ 	// Assignment
+ 	Val1("i = 2", "i", 2),
+ 	Val1("(i) = 2", "i", 2),
+-	SErr("1 = 2", "cannot assign"),
+-	SErr("1-1 = 2", "- expression"),
++	CErr("1 = 2", "cannot assign"),
++	CErr("1-1 = 2", "- expression"),
+ 	Val1("i = 2.0", "i", 2),
+-	SErr("i = 2.2", constantTruncated),
+-	SErr("u = -2", constantUnderflows),
+-	SErr("i = f", opTypes),
+-	SErr("i, u = 0, f", opTypes),
+-	SErr("i, u = 0, f", "value 2"),
++	CErr("i = 2.2", constantTruncated),
++	CErr("u = -2", constantUnderflows),
++	CErr("i = f", opTypes),
++	CErr("i, u = 0, f", opTypes),
++	CErr("i, u = 0, f", "value 2"),
+ 	Val2("i, i2 = i2, i", "i", 2, "i2", 1),
+-	SErr("c = 1", "cannot assign"),
++	CErr("c = 1", "cannot assign"),
+ 
+ 	Val1("x := &i; *x = 2", "i", 2),
+ 
+@@ -65,65 +65,66 @@ var stmtTests = []test {
+ 	Val1("aai = aai2", "aai", varray{ varray{5, 6}, varray{7, 8} }),
+ 
+ 	// Assignment conversions
+-	SRuns("var sl []int; sl = &ai"),
+-	SErr("type ST []int; type AT *[2]int; var x AT = &ai; var y ST = x", opTypes),
+-	SRuns("type ST []int; var y ST = &ai"),
+-	SRuns("type AT *[2]int; var x AT = &ai; var y []int = x"),
++	Run("var sl []int; sl = &ai"),
++	CErr("type ST []int; type AT *[2]int; var x AT = &ai; var y ST = x", opTypes),
++	Run("type ST []int; var y ST = &ai"),
++	Run("type AT *[2]int; var x AT = &ai; var y []int = x"),
+ 
+ 	// Op-assignment
+ 	Val1("i += 2", "i", 3),
++	Val("i", 1),
+ 	Val1("f += 2", "f", 3.0),
+-	SErr("2 += 2", "cannot assign"),
+-	SErr("i, j += 2", "cannot be combined"),
+-	SErr("i += 2, 3", "cannot be combined"),
++	CErr("2 += 2", "cannot assign"),
++	CErr("i, j += 2", "cannot be combined"),
++	CErr("i += 2, 3", "cannot be combined"),
+ 	Val2("s2 := s; s += \"def\"", "s2", "abc", "s", "abcdef"),
+-	SErr("s += 1", opTypes),
++	CErr("s += 1", opTypes),
+ 	// Single evaluation
+ 	Val2("ai[func()int{i+=1;return 0}()] *= 3; i2 = ai[0]", "i", 2, "i2", 3),
+ 
+ 	// Type declarations
+ 	// Identifiers
+-	SRuns("type T int"),
+-	SErr("type T x", "undefined"),
+-	SErr("type T c", "constant"),
+-	SErr("type T i", "variable"),
+-	SErr("type T T", "recursive"),
+-	SErr("type T x; type U T; var v U; v = 1", "undefined"),
++	Run("type T int"),
++	CErr("type T x", "undefined"),
++	CErr("type T c", "constant"),
++	CErr("type T i", "variable"),
++	CErr("type T T", "recursive"),
++	CErr("type T x; type U T; var v U; v = 1", "undefined"),
+ 	// Pointer types
+-	SRuns("type T *int"),
+-	SRuns("type T *T"),
++	Run("type T *int"),
++	Run("type T *T"),
+ 	// Array types
+-	SRuns("type T [5]int"),
+-	SRuns("type T [c+42/2]int"),
+-	SRuns("type T [2.0]int"),
+-	SErr("type T [i]int", "constant expression"),
+-	SErr("type T [2.5]int", constantTruncated),
+-	SErr("type T [-1]int", "negative"),
+-	SErr("type T [2]T", "recursive"),
++	Run("type T [5]int"),
++	Run("type T [c+42/2]int"),
++	Run("type T [2.0]int"),
++	CErr("type T [i]int", "constant expression"),
++	CErr("type T [2.5]int", constantTruncated),
++	CErr("type T [-1]int", "negative"),
++	CErr("type T [2]T", "recursive"),
+ 	// Struct types
+-	SRuns("type T struct { a int; b int }"),
+-	SRuns("type T struct { a int; int }"),
+-	SRuns("type T struct { x *T }"),
+-	SRuns("type T int; type U struct { T }"),
+-	SErr("type T *int; type U struct { T }", "embedded.*pointer"),
+-	SErr("type T *struct { T }", "embedded.*pointer"),
+-	SErr("type T struct { a int; a int }", " a .*redeclared.*:1:17"),
+-	SErr("type T struct { int; int }", "int .*redeclared.*:1:17"),
+-	SErr("type T struct { int int; int }", "int .*redeclared.*:1:17"),
+-	SRuns("type T struct { x *struct { T } }"),
+-	SErr("type T struct { x struct { T } }", "recursive"),
+-	SErr("type T struct { x }; type U struct { T }", "undefined"),
++	Run("type T struct { a int; b int }"),
++	Run("type T struct { a int; int }"),
++	Run("type T struct { x *T }"),
++	Run("type T int; type U struct { T }"),
++	CErr("type T *int; type U struct { T }", "embedded.*pointer"),
++	CErr("type T *struct { T }", "embedded.*pointer"),
++	CErr("type T struct { a int; a int }", " a .*redeclared.*:1:17"),
++	CErr("type T struct { int; int }", "int .*redeclared.*:1:17"),
++	CErr("type T struct { int int; int }", "int .*redeclared.*:1:17"),
++	Run("type T struct { x *struct { T } }"),
++	CErr("type T struct { x struct { T } }", "recursive"),
++	CErr("type T struct { x }; type U struct { T }", "undefined"),
+ 	// Function types
+-	SRuns("type T func()"),
+-	SRuns("type T func(a, b int) int"),
+-	SRuns("type T func(a, b int) (x int, y int)"),
+-	SRuns("type T func(a, a int) (a int, a int)"),
+-	SRuns("type T func(a, b int) (x, y int)"),
+-	SRuns("type T func(int, int) (int, int)"),
+-	SErr("type T func(x); type U T", "undefined"),
+-	SErr("type T func(a T)", "recursive"),
++	Run("type T func()"),
++	Run("type T func(a, b int) int"),
++	Run("type T func(a, b int) (x int, y int)"),
++	Run("type T func(a, a int) (a int, a int)"),
++	Run("type T func(a, b int) (x, y int)"),
++	Run("type T func(int, int) (int, int)"),
++	CErr("type T func(x); type U T", "undefined"),
++	CErr("type T func(a T)", "recursive"),
+ 	// Parens
+-	SRuns("type T (int)"),
++	Run("type T (int)"),
+ 
+ 	// Variable declarations
+ 	Val2("var x int", "i", 1, "x", 0),
+@@ -131,15 +132,15 @@ var stmtTests = []test {
+ 	Val1("var x = 1.0", "x", 1.0),
+ 	Val1("var x int = 1.0", "x", 1),
+ 	// Placeholders
+-	SErr("var x foo; x = 1", "undefined"),
+-	SErr("var x foo = 1; x = 1", "undefined"),
++	CErr("var x foo; x = 1", "undefined"),
++	CErr("var x foo = 1; x = 1", "undefined"),
+ 	// Redeclaration
+-	SErr("var i, x int", " i .*redeclared"),
+-	SErr("var x int; var x int", " x .*redeclared.*:1:5"),
++	CErr("var i, x int", " i .*redeclared"),
++	CErr("var x int; var x int", " x .*redeclared.*:1:5"),
+ 
+ 	// Expression statements
+-	SErr("1-1", "expression statement"),
+-	SErr("1-1", "- expression"),
++	CErr("x := func(){ 1-1 }", "expression statement"),
++	CErr("x := func(){ 1-1 }", "- expression"),
+ 	Val1("fn(2)", "i", 1),
+ 
+ 	// IncDec statements
+@@ -152,10 +153,10 @@ var stmtTests = []test {
+ 	// Single evaluation
+ 	Val2("ai[func()int{i+=1;return 0}()]++; i2 = ai[0]", "i", 2, "i2", 2),
+ 	// Operand types
+-	SErr("s++", opTypes),
+-	SErr("s++", "'\\+\\+'"),
+-	SErr("2++", "cannot assign"),
+-	SErr("c++", "cannot assign"),
++	CErr("s++", opTypes),
++	CErr("s++", "'\\+\\+'"),
++	CErr("2++", "cannot assign"),
++	CErr("c++", "cannot assign"),
+ 
+ 	// Function scoping
+ 	Val1("fn1 := func() { i=2 }; fn1()", "i", 2),
+@@ -163,9 +164,9 @@ var stmtTests = []test {
+ 	Val2("fn1 := func() int { i=2; i:=3; i=4; return i }; x := fn1()", "i", 2, "x", 4),
+ 
+ 	// Basic returns
+-	SErr("fn1 := func() int {}", "return"),
+-	SRuns("fn1 := func() {}"),
+-	SErr("fn1 := func() (r int) {}", "return"),
++	CErr("fn1 := func() int {}", "return"),
++	Run("fn1 := func() {}"),
++	CErr("fn1 := func() (r int) {}", "return"),
+ 	Val1("fn1 := func() (r int) {return}; i = fn1()", "i", 0),
+ 	Val1("fn1 := func() (r int) {r = 2; return}; i = fn1()", "i", 2),
+ 	Val1("fn1 := func() (r int) {return 2}; i = fn1()", "i", 2),
+@@ -173,40 +174,40 @@ var stmtTests = []test {
+ 
+ 	// Multi-valued returns
+ 	Val2("fn1 := func() (bool, int) {return true, 2}; x, y := fn1()", "x", true, "y", 2),
+-	SErr("fn1 := func() int {return}", "not enough values"),
+-	SErr("fn1 := func() int {return 1,2}", "too many values"),
+-	SErr("fn1 := func() {return 1}", "too many values"),
+-	SErr("fn1 := func() (int,int,int) {return 1,2}", "not enough values"),
++	CErr("fn1 := func() int {return}", "not enough values"),
++	CErr("fn1 := func() int {return 1,2}", "too many values"),
++	CErr("fn1 := func() {return 1}", "too many values"),
++	CErr("fn1 := func() (int,int,int) {return 1,2}", "not enough values"),
+ 	Val2("fn1 := func() (int, int) {return oneTwo()}; x, y := fn1()", "x", 1, "y", 2),
+-	SErr("fn1 := func() int {return oneTwo()}", "too many values"),
+-	SErr("fn1 := func() (int,int,int) {return oneTwo()}", "not enough values"),
++	CErr("fn1 := func() int {return oneTwo()}", "too many values"),
++	CErr("fn1 := func() (int,int,int) {return oneTwo()}", "not enough values"),
+ 	Val1("fn1 := func(x,y int) int {return x+y}; x := fn1(oneTwo())", "x", 3),
+ 
+ 	// Return control flow
+ 	Val2("fn1 := func(x *int) bool { *x = 2; return true; *x = 3; }; x := fn1(&i)", "i", 2, "x", true),
+ 
+ 	// Break/continue/goto/fallthrough
+-	SErr("break", "outside"),
+-	SErr("break foo", "break.*foo.*not defined"),
+-	SErr("continue", "outside"),
+-	SErr("continue foo", "continue.*foo.*not defined"),
+-	SErr("fallthrough", "outside"),
+-	SErr("goto foo", "foo.*not defined"),
+-	SErr(" foo: foo:;", "foo.*redeclared.*:1:2"),
++	CErr("break", "outside"),
++	CErr("break foo", "break.*foo.*not defined"),
++	CErr("continue", "outside"),
++	CErr("continue foo", "continue.*foo.*not defined"),
++	CErr("fallthrough", "outside"),
++	CErr("goto foo", "foo.*not defined"),
++	CErr(" foo: foo:;", "foo.*redeclared.*:1:2"),
+ 	Val1("i+=2; goto L; i+=4; L: i+=8", "i", 1+2+8),
+ 	// Return checking
+-	SErr("fn1 := func() int { goto L; return 1; L: }", "return"),
+-	SRuns("fn1 := func() int { L: goto L; i = 2 }"),
+-	SRuns("fn1 := func() int { return 1; L: goto L }"),
++	CErr("fn1 := func() int { goto L; return 1; L: }", "return"),
++	Run("fn1 := func() int { L: goto L; i = 2 }"),
++	Run("fn1 := func() int { return 1; L: goto L }"),
+ 	// Scope checking
+-	SRuns("fn1 := func() { { L: x:=1 } goto L }"),
+-	SErr("fn1 := func() { { x:=1; L: } goto L }", "into scope"),
+-	SErr("fn1 := func() { goto L; x:=1; L: }", "into scope"),
+-	SRuns("fn1 := func() { goto L; { L: x:=1 } }"),
+-	SErr("fn1 := func() { goto L; { x:=1; L: } }", "into scope"),
++	Run("fn1 := func() { { L: x:=1 } goto L }"),
++	CErr("fn1 := func() { { x:=1; L: } goto L }", "into scope"),
++	CErr("fn1 := func() { goto L; x:=1; L: }", "into scope"),
++	Run("fn1 := func() { goto L; { L: x:=1 } }"),
++	CErr("fn1 := func() { goto L; { x:=1; L: } }", "into scope"),
+ 
+ 	// Blocks
+-	SErr("fn1 := func() int {{}}", "return"),
++	CErr("fn1 := func() int {{}}", "return"),
+ 	Val1("fn1 := func() bool { { return true } }; b := fn1()", "b", true),
+ 
+ 	// If
+@@ -227,44 +228,44 @@ var stmtTests = []test {
+ 	Val2("if true { i := 2 } else { i := 3 }; i2 = i", "i", 1, "i2", 1),
+ 	Val2("if false { i := 2 } else { i := 3 }; i2 = i", "i", 1, "i2", 1),
+ 	Val2("if false { i := 2 } else i := 3; i2 = i", "i", 1, "i2", 1),
+-	SErr("if true { x := 2 }; x = 4", undefined),
++	CErr("if true { x := 2 }; x = 4", undefined),
+ 	Val2("if i := 2; true { i2 = i; i := 3 }", "i", 1, "i2", 2),
+ 	Val2("if i := 2; false {} else { i2 = i; i := 3 }", "i", 1, "i2", 2),
+ 	// Return checking
+-	SRuns("fn1 := func() int { if true { return 1 } else { return 2 } }"),
+-	SRuns("fn1 := func() int { if true { return 1 } else return 2 }"),
+-	SErr("fn1 := func() int { if true { return 1 } else { } }", "return"),
+-	SErr("fn1 := func() int { if true { } else { return 1 } }", "return"),
+-	SErr("fn1 := func() int { if true { } else return 1 }", "return"),
+-	SErr("fn1 := func() int { if true { } else { } }", "return"),
+-	SErr("fn1 := func() int { if true { return 1 } }", "return"),
+-	SErr("fn1 := func() int { if true { } }", "return"),
+-	SRuns("fn1 := func() int { if true { }; return 1 }"),
+-	SErr("fn1 := func() int { if { } }", "return"),
+-	SErr("fn1 := func() int { if { } else { return 2 } }", "return"),
+-	SRuns("fn1 := func() int { if { return 1 } }"),
+-	SRuns("fn1 := func() int { if { return 1 } else { } }"),
+-	SRuns("fn1 := func() int { if { return 1 } else { } }"),
++	Run("fn1 := func() int { if true { return 1 } else { return 2 } }"),
++	Run("fn1 := func() int { if true { return 1 } else return 2 }"),
++	CErr("fn1 := func() int { if true { return 1 } else { } }", "return"),
++	CErr("fn1 := func() int { if true { } else { return 1 } }", "return"),
++	CErr("fn1 := func() int { if true { } else return 1 }", "return"),
++	CErr("fn1 := func() int { if true { } else { } }", "return"),
++	CErr("fn1 := func() int { if true { return 1 } }", "return"),
++	CErr("fn1 := func() int { if true { } }", "return"),
++	Run("fn1 := func() int { if true { }; return 1 }"),
++	CErr("fn1 := func() int { if { } }", "return"),
++	CErr("fn1 := func() int { if { } else { return 2 } }", "return"),
++	Run("fn1 := func() int { if { return 1 } }"),
++	Run("fn1 := func() int { if { return 1 } else { } }"),
++	Run("fn1 := func() int { if { return 1 } else { } }"),
+ 
+ 	// Switch
+ 	Val1("switch { case false: i += 2; case true: i += 4; default: i += 8 }", "i", 1+4),
+ 	Val1("switch { default: i += 2; case false: i += 4; case true: i += 8 }", "i", 1+8),
+-	SErr("switch { default: i += 2; default: i += 4 }", "more than one"),
++	CErr("switch { default: i += 2; default: i += 4 }", "more than one"),
+ 	Val1("switch false { case false: i += 2; case true: i += 4; default: i += 8 }", "i", 1+2),
+-	SErr("switch s { case 1: }", opTypes),
+-	SErr("switch ai { case ai: i += 2 }", opTypes),
++	CErr("switch s { case 1: }", opTypes),
++	CErr("switch ai { case ai: i += 2 }", opTypes),
+ 	Val1("switch 1.0 { case 1: i += 2; case 2: i += 4 }", "i", 1+2),
+ 	Val1("switch 1.5 { case 1: i += 2; case 2: i += 4 }", "i", 1),
+-	SErr("switch oneTwo() {}", "multi-valued expression"),
++	CErr("switch oneTwo() {}", "multi-valued expression"),
+ 	Val1("switch 2 { case 1: i += 2; fallthrough; case 2: i += 4; fallthrough; case 3: i += 8; fallthrough }", "i", 1+4+8),
+ 	Val1("switch 5 { case 1: i += 2; fallthrough; default: i += 4; fallthrough; case 2: i += 8; fallthrough; case 3: i += 16; fallthrough }", "i", 1+4+8+16),
+-	SErr("switch { case true: fallthrough; i += 2 }", "final statement"),
++	CErr("switch { case true: fallthrough; i += 2 }", "final statement"),
+ 	Val1("switch { case true: i += 2; fallthrough; ; ; case false: i += 4 }", "i", 1+2+4),
+ 	Val1("switch 2 { case 0, 1: i += 2; case 2, 3: i += 4 }", "i", 1+4),
+ 	Val2("switch func()int{i2++;return 5}() { case 1, 2: i += 2; case 4, 5: i += 4 }", "i", 1+4, "i2", 3),
+-	SRuns("switch i { case i: }"),
++	Run("switch i { case i: }"),
+ 	// TODO(austin) Why doesn't this fail?
+-	//SErr("case 1:", "XXX"),
++	//CErr("case 1:", "XXX"),
+ 
+ 	// For
+ 	Val2("for x := 1; x < 5; x++ { i+=x }; i2 = 4", "i", 11, "i2", 4),
+@@ -278,44 +279,44 @@ var stmtTests = []test {
+ 	// Labeled break/continue
+ 	Val1("L1: for { L2: for { i+=2; break L1; i+=4 } i+=8 }", "i", 1+2),
+ 	Val1("L1: for { L2: for { i+=2; break L2; i+=4 } i+=8; break; i+=16 }", "i", 1+2+8),
+-	SErr("L1: { for { break L1 } }", "break.*not defined"),
+-	SErr("L1: for {} for { break L1 }", "break.*not defined"),
+-	SErr("L1:; for { break L1 }", "break.*not defined"),
++	CErr("L1: { for { break L1 } }", "break.*not defined"),
++	CErr("L1: for {} for { break L1 }", "break.*not defined"),
++	CErr("L1:; for { break L1 }", "break.*not defined"),
+ 	Val2("L1: for i = 0; i < 2; i++ { L2: for { i2++; continue L1; i2++ } }", "i", 2, "i2", 4),
+-	SErr("L1: { for { continue L1 } }", "continue.*not defined"),
+-	SErr("L1:; for { continue L1 }", "continue.*not defined"),
++	CErr("L1: { for { continue L1 } }", "continue.*not defined"),
++	CErr("L1:; for { continue L1 }", "continue.*not defined"),
+ 	// Return checking
+-	SRuns("fn1 := func() int{ for {} }"),
+-	SErr("fn1 := func() int{ for true {} }", "return"),
+-	SErr("fn1 := func() int{ for true {return 1} }", "return"),
+-	SErr("fn1 := func() int{ for {break} }", "return"),
+-	SRuns("fn1 := func() int{ for { for {break} } }"),
+-	SErr("fn1 := func() int{ L1: for { for {break L1} } }", "return"),
+-	SRuns("fn1 := func() int{ for true {} return 1 }"),
++	Run("fn1 := func() int{ for {} }"),
++	CErr("fn1 := func() int{ for true {} }", "return"),
++	CErr("fn1 := func() int{ for true {return 1} }", "return"),
++	CErr("fn1 := func() int{ for {break} }", "return"),
++	Run("fn1 := func() int{ for { for {break} } }"),
++	CErr("fn1 := func() int{ L1: for { for {break L1} } }", "return"),
++	Run("fn1 := func() int{ for true {} return 1 }"),
+ 
+ 	// Selectors
+ 	Val1("var x struct { a int; b int }; x.a = 42; i = x.a", "i", 42),
+ 	Val1("type T struct { x int }; var y struct { T }; y.x = 42; i = y.x", "i", 42),
+ 	Val2("type T struct { x int }; var y struct { T; x int }; y.x = 42; i = y.x; i2 = y.T.x", "i", 42, "i2", 0),
+-	SRuns("type T struct { x int }; var y struct { *T }; a := func(){i=y.x}"),
+-	SErr("type T struct { x int }; var x T; x.y = 42", "no field"),
+-	SErr("type T struct { x int }; type U struct { x int }; var y struct { T; U }; y.x = 42", "ambiguous.*\tT\\.x\n\tU\\.x"),
+-	SErr("type T struct { *T }; var x T; x.foo", "no field"),
++	Run("type T struct { x int }; var y struct { *T }; a := func(){i=y.x}"),
++	CErr("type T struct { x int }; var x T; x.y = 42", "no field"),
++	CErr("type T struct { x int }; type U struct { x int }; var y struct { T; U }; y.x = 42", "ambiguous.*\tT\\.x\n\tU\\.x"),
++	CErr("type T struct { *T }; var x T; x.foo", "no field"),
+ 
+ 	Val1("fib := func(int) int{return 0;}; fib = func(v int) int { if v < 2 { return 1 } return fib(v-1)+fib(v-2) }; i = fib(20)", "i", 10946),
+ 
+ 	// Make slice
+ 	Val2("x := make([]int, 2); x[0] = 42; i, i2 = x[0], x[1]", "i", 42, "i2", 0),
+ 	Val2("x := make([]int, 2); x[1] = 42; i, i2 = x[0], x[1]", "i", 0, "i2", 42),
+-	SRTErr("x := make([]int, 2); x[-i] = 42", "negative index"),
+-	SRTErr("x := make([]int, 2); x[2] = 42", "index 2 exceeds"),
++	RErr("x := make([]int, 2); x[-i] = 42", "negative index"),
++	RErr("x := make([]int, 2); x[2] = 42", "index 2 exceeds"),
+ 	Val2("x := make([]int, 2, 3); i, i2 = len(x), cap(x)", "i", 2, "i2", 3),
+ 	Val2("x := make([]int, 3, 2); i, i2 = len(x), cap(x)", "i", 3, "i2", 3),
+-	SRTErr("x := make([]int, -i)", "negative length"),
+-	SRTErr("x := make([]int, 2, -i)", "negative capacity"),
+-	SRTErr("x := make([]int, 2, 3); x[2] = 42", "index 2 exceeds"),
+-	SErr("x := make([]int, 2, 3, 4)", "too many"),
+-	SErr("x := make([]int)", "not enough"),
++	RErr("x := make([]int, -i)", "negative length"),
++	RErr("x := make([]int, 2, -i)", "negative capacity"),
++	RErr("x := make([]int, 2, 3); x[2] = 42", "index 2 exceeds"),
++	CErr("x := make([]int, 2, 3, 4)", "too many"),
++	CErr("x := make([]int)", "not enough"),
+ 
+ 	// TODO(austin) Test make map
+ 
+@@ -326,10 +327,10 @@ var stmtTests = []test {
+ 	// Not implemented
+ 	//Val1("x := make(map[int] int); x[1] = 42, true; i = x[1]", "i", 42),
+ 	//Val2("x := make(map[int] int); x[1] = 42; x[1] = 42, false; i, y := x[1]", "i", 0, "y", false),
+-	SRuns("var x int; a := make(map[int] int); a[0], x = 1, 2"),
+-	SErr("x := make(map[int] int); (func(a,b int){})(x[0])", "not enough"),
+-	SErr("x := make(map[int] int); x[1] = oneTwo()", "too many"),
+-	SRTErr("x := make(map[int] int); i = x[1]", "key '1' not found"),
++	Run("var x int; a := make(map[int] int); a[0], x = 1, 2"),
++	CErr("x := make(map[int] int); (func(a,b int){})(x[0])", "not enough"),
++	CErr("x := make(map[int] int); x[1] = oneTwo()", "too many"),
++	RErr("x := make(map[int] int); i = x[1]", "key '1' not found"),
+ }
+ 
+ func TestStmt(t *testing.T) {
+diff --git a/usr/austin/eval/world.go b/usr/austin/eval/world.go
+index 7f7e5fc8dd..a2a905055c 100644
+--- a/usr/austin/eval/world.go
++++ b/usr/austin/eval/world.go
+@@ -5,12 +5,14 @@
+ package eval
+ 
+ import (
+-	"os";
+ 	"go/ast";
+ 	"go/parser";
++	"go/scanner";
++	"go/token";
++	"os";
+ )
+ 
+-// TODO: Make CompileExpr and CompileStmts 
++// TODO: Make CompileExpr and CompileStmts
+ // methods on World.
+ 
+ type World struct {
+@@ -21,46 +23,143 @@ type World struct {
+ func NewWorld() (*World) {
+ 	w := new(World);
+ 	w.scope = universe.ChildScope();
+-	w.scope.offset = -1;	// this block's vars allocate directly
+-	w.scope.numVars = 1;	// inner blocks have frames: offset+numVars >= 0
++	w.scope.global = true;	// this block's vars allocate directly
+ 	return w;
+ }
+ 
++type Code interface {
++	// The type of the value Run returns, or nil if Run returns nil.
++	Type() Type;
+ 
+-type Code struct {
++	// Run runs the code; if the code is a single expression
++	// with a value, it returns the value; otherwise it returns nil.
++	Run() (Value, os.Error);
++}
++
++type stmtCode struct {
+ 	w *World;
+-	stmt *Stmt;
+-	expr *Expr;
++	code code;
+ }
+ 
+-func (w *World) Compile(text string) (*Code, os.Error) {
+-	asts, err := parser.ParseStmtList("input", text);
+-	if err != nil {
+-		return nil, err;
+-	}
+-	if len(asts) == 1 {
+-		if s, ok := asts[0].(*ast.ExprStmt); ok {
+-			expr, err := CompileExpr(w.scope, s.X);
+-			if err != nil {
+-				return nil, err;
+-			}
+-			return &Code{w: w, expr: expr}, nil;
++func (w *World) compileStmts(stmts []ast.Stmt) (Code, os.Error) {
++	if len(stmts) == 1 {
++		if s, ok := stmts[0].(*ast.ExprStmt); ok {
++			return w.compileExpr(s.X);
+ 		}
+ 	}
+-	stmt, err := CompileStmts(w.scope, asts);
+-	if err != nil {
+-		return nil, err;
++	errors := scanner.NewErrorVector();
++	cc := &compiler{errors, 0, 0};
++	cb := newCodeBuf();
++	fc := &funcCompiler{
++		compiler: cc,
++		fnType: nil,
++		outVarsNamed: false,
++		codeBuf: cb,
++		flow: newFlowBuf(cb),
++		labels: make(map[string] *label),
++	};
++	bc := &blockCompiler{
++		funcCompiler: fc,
++		block: w.scope.block,
++	};
++	nerr := cc.numError();
++	for i, stmt := range stmts {
++		bc.compileStmt(stmt);
++	}
++	fc.checkLabels();
++	if nerr != cc.numError() {
++		return nil, errors.GetError(scanner.Sorted);
++	}
++	return &stmtCode{w, fc.get()}, nil;
++}
++
++func (w *World) compileDecls(decls []ast.Decl) (Code, os.Error) {
++	stmts := make([]ast.Stmt, len(decls));
++	for i, d := range decls {
++		stmts[i] = &ast.DeclStmt{d};
+ 	}
+-	return &Code{w: w, stmt: stmt}, nil;
++	return w.compileStmts(stmts);
+ }
+ 
+-func (c *Code) Run() (Value, os.Error) {
+-	w := c.w;
+-	w.frame = w.scope.NewFrame(nil);
+-	if c.stmt != nil {
+-		return nil, c.stmt.Exec(w.frame);
++func (s *stmtCode) Type() Type {
++	return nil;
++}
++
++func (s *stmtCode) Run() (Value, os.Error) {
++	t := new(Thread);
++	t.f = s.w.scope.NewFrame(nil);
++	return nil, t.Try(func(t *Thread){s.code.exec(t)});
++}
++
++type exprCode struct {
++	w *World;
++	e *expr;
++	eval func(Value, *Thread);
++}
++
++func (w *World) compileExpr(e ast.Expr) (Code, os.Error) {
++	errors := scanner.NewErrorVector();
++	cc := &compiler{errors, 0, 0};
++
++	ec := cc.compileExpr(w.scope.block, false, e);
++	if ec == nil {
++		return nil, errors.GetError(scanner.Sorted);
+ 	}
+-	val, err := c.expr.Eval(w.frame);
+-	return val, err;
++	var eval func(Value, *Thread);
++	switch _ := ec.t.(type) {
++	case *idealIntType:
++		// nothing
++	case *idealFloatType:
++		// nothing
++	default:
++		eval = genAssign(ec.t, ec);
++	}
++	return &exprCode{w, ec, eval}, nil;
++}
++
++func (e *exprCode) Type() Type {
++	return e.e.t;
++}
++
++func (e *exprCode) Run() (Value, os.Error) {
++	t := new(Thread);
++	t.f = e.w.scope.NewFrame(nil);
++	switch _ := e.e.t.(type) {
++	case *idealIntType:
++		return &idealIntV{e.e.asIdealInt()()}, nil;
++	case *idealFloatType:
++		return &idealFloatV{e.e.asIdealFloat()()}, nil;
++	}
++	v := e.e.t.Zero();
++	eval := e.eval;
++	err := t.Try(func(t *Thread){eval(v, t)});
++	return v, err;
++}
++
++func (w *World) Compile(text string) (Code, os.Error) {
++	stmts, err := parser.ParseStmtList("input", text);
++	if err == nil {
++		return w.compileStmts(stmts);
++	}
++
++	// Otherwise try as DeclList.
++	decls, err1 := parser.ParseDeclList("input", text);
++	if err == nil {
++		return w.compileDecls(decls);
++	}
++
++	// Have to pick an error.
++	// Parsing as statement list admits more forms,
++	// its error is more likely to be useful.
++	return nil, err;
++}
++
++func (w *World) DefineConst(name string, t Type, val Value) {
++	w.scope.DefineConst(name, token.Position{}, t, val);
++}
++
++func (w *World) DefineVar(name string, t Type, val Value) {
++	v, _ := w.scope.DefineVar(name, token.Position{}, t);
++	v.Init = val;
+ }
+ 

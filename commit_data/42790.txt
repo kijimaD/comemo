@@ -13,7 +13,65 @@ Date:   Mon Jan 13 11:14:23 2020 -0500
     Change-Id: I2d14c07c590cc618c66f27fdc3a2bb8120c6d646
     Reviewed-on: https://go-review.googlesource.com/c/go/+/214427
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/go_test.go                           | 21 ---------------------
  src/cmd/go/testdata/script/build_dash_n_cgo.txt | 18 ++++++++++++++++++
  2 files changed, 18 insertions(+), 21 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 198eafccb1..afedcb816d 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -1694,27 +1694,6 @@ func TestShadowingLogic(t *testing.T) {
+ 	}
+ }
+ 
+-func TestBuildDryRunWithCgo(t *testing.T) {
+-	if !canCgo {
+-		t.Skip("skipping because cgo not enabled")
+-	}
+-
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.tempFile("foo.go", `package main
+-
+-/*
+-#include <limits.h>
+-*/
+-import "C"
+-
+-func main() {
+-        println(C.INT_MAX)
+-}`)
+-	tg.run("build", "-n", tg.path("foo.go"))
+-	tg.grepStderrNot(`os.Stat .* no such file or directory`, "unexpected stat of archive file")
+-}
+-
+ func TestCgoDependsOnSyscall(t *testing.T) {
+ 	if testing.Short() {
+ 		t.Skip("skipping test that removes $GOROOT/pkg/*_race in short mode")
+diff --git a/src/cmd/go/testdata/script/build_dash_n_cgo.txt b/src/cmd/go/testdata/script/build_dash_n_cgo.txt
+new file mode 100644
+index 0000000000..3f49ef6f9e
+--- /dev/null
++++ b/src/cmd/go/testdata/script/build_dash_n_cgo.txt
+@@ -0,0 +1,18 @@
++# Tests golang.org/issue/14944
++
++[!cgo] skip
++
++go build -n foo.go
++! stderr 'os.Stat .* no such file or directory' # there shouldn't be a stat of the archive file
++
++-- foo.go --
++package main
++
++/*
++#include <limits.h>
++*/
++import "C"
++
++func main() {
++        println(C.INT_MAX)
++}
+\ No newline at end of file

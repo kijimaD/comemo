@@ -12,6 +12,20 @@ Date:   Thu Apr 26 22:34:38 2018 -0700
     Change-Id: I189e7e21f8faf480ba72846b956a149976f720f8
     Reviewed-on: https://go-review.googlesource.com/109777
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/internal/obj/x86/asm6.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index f486aeb3ec..796ec9a8f5 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -3785,7 +3785,7 @@ func (ab *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
+ 		ab.Put1(byte(pre))
+ 	}
+ 
+-	// Сhecks to warn about instruction/arguments combinations that
++	// Checks to warn about instruction/arguments combinations that
+ 	// will unconditionally trigger illegal instruction trap (#UD).
+ 	switch p.As {
+ 	case AVGATHERDPD,

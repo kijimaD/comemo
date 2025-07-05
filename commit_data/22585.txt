@@ -23,7 +23,7 @@ Date:   Thu Dec 18 03:26:08 2014 -0500
     Reviewed-by: Russ Cox <rsc@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  misc/nacl/README                      | 19 +++++++++----------
  src/runtime/os1_nacl.go               |  7 ++-----
  src/runtime/sys_nacl_386.s            |  9 +++++++++
@@ -37,3 +37,328 @@ Date:   Thu Dec 18 03:26:08 2014 -0500
  src/syscall/zsyscall_nacl_amd64p32.go | 16 ++++++++++++++++
  src/syscall/zsyscall_nacl_arm.go      | 16 ++++++++++++++++
  12 files changed, 120 insertions(+), 31 deletions(-)
+
+diff --git a/misc/nacl/README b/misc/nacl/README
+index 72d0e08ad0..b7163d3d73 100644
+--- a/misc/nacl/README
++++ b/misc/nacl/README
+@@ -8,7 +8,7 @@ Go 1.3 supports three architectures
+ 
+  * nacl/386 which is standard 386.
+  * nacl/amd64p32 which is a 64 bit architecture, where the address space is
+-   limited to a 4gb window. 
++   limited to a 4gb window.
+  * nacl/arm which is 32-bit ARMv7A architecture with 1GB address space.
+ 
+ For background it is recommended that you read http://golang.org/s/go13nacl.
+@@ -37,21 +37,20 @@ sdk. These are released every 6-8 weeks, in line with Chrome releases.
+ 	% cd /opt/nacl_sdk
+ 	% ./naclsdk update
+ 
+-At this time pepper_34 is the stable version. If naclsdk downloads a later
+-version, please adjust accordingly. As of June 2014, only the canary sdk
+-provides support for nacl/arm.
++At this time pepper_40 is the stable version. The NaCl port needs at least pepper_39
++to work. If naclsdk downloads a later version, please adjust accordingly.
+ 
+ The cmd/go helper scripts expect that the loaders sel_ldr_{x86_{32,64},arm} and
+ nacl_helper_bootstrap_arm are in your path. I find it easiest to make a symlink
+ from the NaCl distribution to my $GOPATH/bin directory.
+ 
+-	% ln -nfs /opt/nacl_sdk/pepper_34/tools/sel_ldr_x86_32 $GOPATH/bin/sel_ldr_x86_32
+-	% ln -nfs /opt/nacl_sdk/pepper_34/tools/sel_ldr_x86_64 $GOPATH/bin/sel_ldr_x86_64
+-	% ln -nfs /opt/nacl_sdk/pepper_canary/tools/sel_ldr_arm $GOPATH/bin/sel_ldr_arm
++	% ln -nfs /opt/nacl_sdk/pepper_39/tools/sel_ldr_x86_32 $GOPATH/bin/sel_ldr_x86_32
++	% ln -nfs /opt/nacl_sdk/pepper_39/tools/sel_ldr_x86_64 $GOPATH/bin/sel_ldr_x86_64
++	% ln -nfs /opt/nacl_sdk/pepper_39/tools/sel_ldr_arm $GOPATH/bin/sel_ldr_arm
+ 
+ Additionally, for NaCl/ARM only:
+ 
+-	% ln -nfs /opt/nacl_sdk/pepper_canary/tools/nacl_helper_bootstrap_arm $GOPATH/bin/nacl_helper_bootstrap_arm 
++	% ln -nfs /opt/nacl_sdk/pepper_39/tools/nacl_helper_bootstrap_arm $GOPATH/bin/nacl_helper_bootstrap_arm
+ 
+ Support scripts
+ ---------------
+@@ -110,7 +109,7 @@ Then, run the program as:
+ 
+ The -g flag instructs the loader to stop at startup. Then, in another console:
+ 
+-	% /opt/nacl_sdk/pepper_34/toolchain/linux_x86_glibc/bin/x86_64-nacl-gdb
++	% /opt/nacl_sdk/pepper_39/toolchain/linux_x86_glibc/bin/x86_64-nacl-gdb
+ 	% nacl-manifest mybin.manifest
+ 	% target remote :4014
+ 
+@@ -118,5 +117,5 @@ If you see that the program is stopped in _rt0_amd64p32_nacl, then symbols are
+ loaded successfully and you can type 'c' to start the program.
+ Next time you can automate it as:
+ 
+-	% /opt/nacl_sdk/pepper_34/toolchain/linux_x86_glibc/bin/x86_64-nacl-gdb \
++	% /opt/nacl_sdk/pepper_39/toolchain/linux_x86_glibc/bin/x86_64-nacl-gdb \
+ 		-ex 'nacl-manifest mybin.manifest' -ex 'target remote :4014'
+diff --git a/src/runtime/os1_nacl.go b/src/runtime/os1_nacl.go
+index a27a13f114..d47d2727f7 100644
+--- a/src/runtime/os1_nacl.go
++++ b/src/runtime/os1_nacl.go
+@@ -46,11 +46,8 @@ func crash() {
+ 	*(*int32)(nil) = 0
+ }
+ 
+-//go:nosplit
+-func getRandomData(r []byte) {
+-	// TODO: does nacl have a random source we can use?
+-	extendRandom(r, 0)
+-}
++//go:noescape
++func getRandomData([]byte)
+ 
+ func goenvs() {
+ 	goenvs_unix()
+diff --git a/src/runtime/sys_nacl_386.s b/src/runtime/sys_nacl_386.s
+index 85c8175b1a..242040dd97 100644
+--- a/src/runtime/sys_nacl_386.s
++++ b/src/runtime/sys_nacl_386.s
+@@ -362,3 +362,12 @@ ret:
+ 	// 36(BP) is saved EFLAGS, never to be seen again
+ 	MOVL	32(BP), BP // saved PC
+ 	JMP	BP
++
++// func getRandomData([]byte)
++TEXT runtime·getRandomData(SB),NOSPLIT,$8-12
++	MOVL buf+0(FP), AX
++	MOVL AX, 0(SP)
++	MOVL len+4(FP), AX
++	MOVL AX, 4(SP)
++	NACL_SYSCALL(SYS_get_random_bytes)
++	RET
+diff --git a/src/runtime/sys_nacl_amd64p32.s b/src/runtime/sys_nacl_amd64p32.s
+index 7657482fd1..821610be89 100644
+--- a/src/runtime/sys_nacl_amd64p32.s
++++ b/src/runtime/sys_nacl_amd64p32.s
+@@ -412,6 +412,13 @@ nog:
+ // cannot do real signal handling yet, because gsignal has not been allocated.
+ MOVL $1, DI; NACL_SYSCALL(SYS_exit)
+ 
++// func getRandomData([]byte)
++TEXT runtime·getRandomData(SB),NOSPLIT,$0-12
++	MOVL buf+0(FP), DI
++	MOVL len+4(FP), SI
++	NACL_SYSCALL(SYS_get_random_bytes)
++	RET
++
+ TEXT runtime·nacl_sysinfo(SB),NOSPLIT,$16
+ /*
+ 	MOVL	di+0(FP), DI
+diff --git a/src/runtime/sys_nacl_arm.s b/src/runtime/sys_nacl_arm.s
+index ded95a86b5..1bae0b31ec 100644
+--- a/src/runtime/sys_nacl_arm.s
++++ b/src/runtime/sys_nacl_arm.s
+@@ -301,6 +301,13 @@ nog:
+ TEXT runtime·nacl_sysinfo(SB),NOSPLIT,$16
+ 	RET
+ 
++// func getRandomData([]byte)
++TEXT runtime·getRandomData(SB),NOSPLIT,$0-12
++	MOVW buf+0(FP), R0
++	MOVW len+4(FP), R1
++	NACL_SYSCALL(SYS_get_random_bytes)
++	RET
++
+ TEXT runtime·casp1(SB),NOSPLIT,$0
+ 	B	runtime·cas(SB)
+ 
+diff --git a/src/runtime/syscall_nacl.h b/src/runtime/syscall_nacl.h
+index b33852ec8d..834ecfc315 100644
+--- a/src/runtime/syscall_nacl.h
++++ b/src/runtime/syscall_nacl.h
+@@ -8,10 +8,10 @@
+ #define SYS_read 12
+ #define SYS_write 13
+ #define SYS_lseek 14
+-#define SYS_ioctl 15
+ #define SYS_stat 16
+ #define SYS_fstat 17
+ #define SYS_chmod 18
++#define SYS_isatty 19
+ #define SYS_brk 20
+ #define SYS_mmap 21
+ #define SYS_munmap 22
+@@ -69,3 +69,16 @@
+ #define SYS_test_crash 110
+ #define SYS_test_syscall_1 111
+ #define SYS_test_syscall_2 112
++#define SYS_futex_wait_abs 120
++#define SYS_futex_wake 121
++#define SYS_pread 130
++#define SYS_pwrite 131
++#define SYS_truncate 140
++#define SYS_lstat 141
++#define SYS_link 142
++#define SYS_rename 143
++#define SYS_symlink 144
++#define SYS_access 145
++#define SYS_readlink 146
++#define SYS_utimes 147
++#define SYS_get_random_bytes 150
+diff --git a/src/syscall/fs_nacl.go b/src/syscall/fs_nacl.go
+index f52897edc3..711809f14f 100644
+--- a/src/syscall/fs_nacl.go
++++ b/src/syscall/fs_nacl.go
+@@ -772,29 +772,24 @@ func (f *zeroFile) pread(b []byte, offset int64) (int, error) {
+ 	return len(b), nil
+ }
+ 
+-type randomFile struct {
+-	naclFD int
+-}
++type randomFile struct{}
+ 
+ func openRandom() (devFile, error) {
+-	fd, err := openNamedService("SecureRandom", O_RDONLY)
+-	if err != nil {
+-		return nil, err
+-	}
+-	return &randomFile{naclFD: fd}, nil
++	return randomFile{}, nil
+ }
+ 
+-func (f *randomFile) close() error {
+-	naclClose(f.naclFD)
+-	f.naclFD = -1
++func (f randomFile) close() error {
+ 	return nil
+ }
+ 
+-func (f *randomFile) pread(b []byte, offset int64) (int, error) {
+-	return naclRead(f.naclFD, b)
++func (f randomFile) pread(b []byte, offset int64) (int, error) {
++	if err := naclGetRandomBytes(b); err != nil {
++		return 0, err
++	}
++	return len(b), nil
+ }
+ 
+-func (f *randomFile) pwrite(b []byte, offset int64) (int, error) {
++func (f randomFile) pwrite(b []byte, offset int64) (int, error) {
+ 	return 0, EPERM
+ }
+ 
+diff --git a/src/syscall/syscall_nacl.go b/src/syscall/syscall_nacl.go
+index c2788b20ab..f8f63ef41c 100644
+--- a/src/syscall/syscall_nacl.go
++++ b/src/syscall/syscall_nacl.go
+@@ -14,6 +14,7 @@ import (
+ //sys	naclFstat(fd int, stat *Stat_t) (err error) = sys_fstat
+ //sys	naclRead(fd int, b []byte) (n int, err error) = sys_read
+ //sys	naclSeek(fd int, off *int64, whence int) (err error) = sys_lseek
++//sys	naclGetRandomBytes(b []byte) (err error) = sys_get_random_bytes
+ 
+ const direntSize = 8 + 8 + 2 + 256
+ 
+diff --git a/src/syscall/tables_nacl.go b/src/syscall/tables_nacl.go
+index 08f4ced539..098955e7c6 100644
+--- a/src/syscall/tables_nacl.go
++++ b/src/syscall/tables_nacl.go
+@@ -15,10 +15,10 @@ const (
+ 	sys_read                 = 12
+ 	sys_write                = 13
+ 	sys_lseek                = 14
+-	sys_ioctl                = 15
+ 	sys_stat                 = 16
+ 	sys_fstat                = 17
+ 	sys_chmod                = 18
++	sys_isatty               = 19
+ 	sys_brk                  = 20
+ 	sys_mmap                 = 21
+ 	sys_munmap               = 22
+@@ -76,6 +76,19 @@ const (
+ 	sys_test_crash           = 110
+ 	sys_test_syscall_1       = 111
+ 	sys_test_syscall_2       = 112
++	sys_futex_wait_abs       = 120
++	sys_futex_wake           = 121
++	sys_pread                = 130
++	sys_pwrite               = 131
++	sys_truncate             = 140
++	sys_lstat                = 141
++	sys_link                 = 142
++	sys_rename               = 143
++	sys_symlink              = 144
++	sys_access               = 145
++	sys_readlink             = 146
++	sys_utimes               = 147
++	sys_get_random_bytes     = 150
+ )
+ 
+ // TODO: Auto-generate some day. (Hard-coded in binaries so not likely to change.)
+diff --git a/src/syscall/zsyscall_nacl_386.go b/src/syscall/zsyscall_nacl_386.go
+index 32eed339af..6e3220cf9a 100644
+--- a/src/syscall/zsyscall_nacl_386.go
++++ b/src/syscall/zsyscall_nacl_386.go
+@@ -61,3 +61,19 @@ func naclSeek(fd int, off *int64, whence int) (err error) {
+ 	}
+ 	return
+ }
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func naclGetRandomBytes(b []byte) (err error) {
++	var _p0 unsafe.Pointer
++	if len(b) > 0 {
++		_p0 = unsafe.Pointer(&b[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
++	}
++	_, _, e1 := Syscall(sys_get_random_bytes, uintptr(_p0), uintptr(len(b)), 0)
++	if e1 != 0 {
++		err = e1
++	}
++	return
++}
+diff --git a/src/syscall/zsyscall_nacl_amd64p32.go b/src/syscall/zsyscall_nacl_amd64p32.go
+index 8bc81fac9e..6f06b30aae 100644
+--- a/src/syscall/zsyscall_nacl_amd64p32.go
++++ b/src/syscall/zsyscall_nacl_amd64p32.go
+@@ -61,3 +61,19 @@ func naclSeek(fd int, off *int64, whence int) (err error) {
+ 	}
+ 	return
+ }
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func naclGetRandomBytes(b []byte) (err error) {
++	var _p0 unsafe.Pointer
++	if len(b) > 0 {
++		_p0 = unsafe.Pointer(&b[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
++	}
++	_, _, e1 := Syscall(sys_get_random_bytes, uintptr(_p0), uintptr(len(b)), 0)
++	if e1 != 0 {
++		err = e1
++	}
++	return
++}
+diff --git a/src/syscall/zsyscall_nacl_arm.go b/src/syscall/zsyscall_nacl_arm.go
+index adbaed0e7d..ccaca3c34d 100644
+--- a/src/syscall/zsyscall_nacl_arm.go
++++ b/src/syscall/zsyscall_nacl_arm.go
+@@ -61,3 +61,19 @@ func naclSeek(fd int, off *int64, whence int) (err error) {
+ 	}
+ 	return
+ }
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func naclGetRandomBytes(b []byte) (err error) {
++	var _p0 unsafe.Pointer
++	if len(b) > 0 {
++		_p0 = unsafe.Pointer(&b[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
++	}
++	_, _, e1 := Syscall(sys_get_random_bytes, uintptr(_p0), uintptr(len(b)), 0)
++	if e1 != 0 {
++		err = e1
++	}
++	return
++}

@@ -8,7 +8,72 @@ Date:   Tue Oct 12 14:33:37 2010 +1100
     TBR=adg
     CC=golang-dev
     https://golang.org/cl/2449041
-
+---
  src/pkg/exp/4s/xs.go   | 24 ++++++++++++------------
  src/pkg/image/names.go |  8 ++++----
  2 files changed, 16 insertions(+), 16 deletions(-)
+
+diff --git a/src/pkg/exp/4s/xs.go b/src/pkg/exp/4s/xs.go
+index bc5c524836..0b4b29de37 100644
+--- a/src/pkg/exp/4s/xs.go
++++ b/src/pkg/exp/4s/xs.go
+@@ -144,17 +144,17 @@ var txbits = [NCOL][32]byte{
+ 	},
+ }
+ 
+-var txpix = [NCOL]image.ColorImage{
+-	image.ColorImage{image.RGBAColor{0xFF, 0xFF, 0x00, 0xFF}}, /* yellow */
+-	image.ColorImage{image.RGBAColor{0x00, 0xFF, 0xFF, 0xFF}}, /* cyan */
+-	image.ColorImage{image.RGBAColor{0x00, 0xFF, 0x00, 0xFF}}, /* lime green */
+-	image.ColorImage{image.RGBAColor{0x00, 0x5D, 0xBB, 0xFF}}, /* slate */
+-	image.ColorImage{image.RGBAColor{0xFF, 0x00, 0x00, 0xFF}}, /* red */
+-	image.ColorImage{image.RGBAColor{0x55, 0xAA, 0xAA, 0xFF}}, /* olive green */
+-	image.ColorImage{image.RGBAColor{0x00, 0x00, 0xFF, 0xFF}}, /* blue */
+-	image.ColorImage{image.RGBAColor{0xFF, 0x55, 0xAA, 0xFF}}, /* pink */
+-	image.ColorImage{image.RGBAColor{0xFF, 0xAA, 0xFF, 0xFF}}, /* lavender */
+-	image.ColorImage{image.RGBAColor{0xBB, 0x00, 0x5D, 0xFF}}, /* maroon */
++var txpix = [NCOL]image.Image{
++	image.NewColorImage(image.RGBAColor{0xFF, 0xFF, 0x00, 0xFF}), /* yellow */
++	image.NewColorImage(image.RGBAColor{0x00, 0xFF, 0xFF, 0xFF}), /* cyan */
++	image.NewColorImage(image.RGBAColor{0x00, 0xFF, 0x00, 0xFF}), /* lime green */
++	image.NewColorImage(image.RGBAColor{0x00, 0x5D, 0xBB, 0xFF}), /* slate */
++	image.NewColorImage(image.RGBAColor{0xFF, 0x00, 0x00, 0xFF}), /* red */
++	image.NewColorImage(image.RGBAColor{0x55, 0xAA, 0xAA, 0xFF}), /* olive green */
++	image.NewColorImage(image.RGBAColor{0x00, 0x00, 0xFF, 0xFF}), /* blue */
++	image.NewColorImage(image.RGBAColor{0xFF, 0x55, 0xAA, 0xFF}), /* pink */
++	image.NewColorImage(image.RGBAColor{0xFF, 0xAA, 0xFF, 0xFF}), /* lavender */
++	image.NewColorImage(image.RGBAColor{0xBB, 0x00, 0x5D, 0xFF}), /* maroon */
+ }
+ 
+ func movemouse() int {
+@@ -735,7 +735,7 @@ func Play(pp []Piece, ctxt draw.Window) {
+ 	N = len(pieces[0].d)
+ 	initPieces()
+ 	rand.Seed(int64(time.Nanoseconds() % (1e9 - 1)))
+-	whitemask = image.ColorImage{image.AlphaColor{0x7F}}
++	whitemask = image.NewColorImage(image.AlphaColor{0x7F})
+ 	tsleep = 50
+ 	timerc = time.Tick(int64(tsleep/2) * 1e6)
+ 	suspc = make(chan bool)
+diff --git a/src/pkg/image/names.go b/src/pkg/image/names.go
+index a8de71b7f7..6900ec9231 100644
+--- a/src/pkg/image/names.go
++++ b/src/pkg/image/names.go
+@@ -6,13 +6,13 @@ package image
+ 
+ var (
+ 	// Black is an opaque black ColorImage.
+-	Black = ColorImage{Gray16Color{0}}
++	Black = NewColorImage(Gray16Color{0})
+ 	// White is an opaque white ColorImage.
+-	White = ColorImage{Gray16Color{0xffff}}
++	White = NewColorImage(Gray16Color{0xffff})
+ 	// Transparent is a fully transparent ColorImage.
+-	Transparent = ColorImage{Alpha16Color{0}}
++	Transparent = NewColorImage(Alpha16Color{0})
+ 	// Opaque is a fully opaque ColorImage.
+-	Opaque = ColorImage{Alpha16Color{0xffff}}
++	Opaque = NewColorImage(Alpha16Color{0xffff})
+ )
+ 
+ // A ColorImage is a practically infinite-sized Image of uniform Color.

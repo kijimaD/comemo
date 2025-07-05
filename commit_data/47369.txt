@@ -13,6 +13,20 @@ Date:   Sun Mar 14 14:27:06 2021 -0700
     Trust: Josh Bleecher Snyder <josharian@gmail.com>
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-
+---
  src/cmd/compile/internal/ssa/gen/genericOps.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index 2a5b77bad0..85c58ef74c 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -264,7 +264,7 @@ var genericOps = []opData{
+ 	//   ±0  → ±0 (sign preserved)
+ 	//   x<0 → NaN
+ 	//   NaN → NaN
+-	{name: "Sqrt", argLength: 1},   // √arg0   (floating point, double precision)
++	{name: "Sqrt", argLength: 1},   // √arg0 (floating point, double precision)
+ 	{name: "Sqrt32", argLength: 1}, // √arg0 (floating point, single precision)
+ 
+ 	// Round to integer, float64 only.

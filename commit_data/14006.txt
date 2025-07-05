@@ -9,6 +9,22 @@ Date:   Wed Oct 3 10:33:09 2012 +1000
     R=golang-dev, alex.brainman
     CC=golang-dev
     https://golang.org/cl/6545054
-
+---
  src/pkg/os/user/lookup_windows.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/os/user/lookup_windows.go b/src/pkg/os/user/lookup_windows.go
+index 90fe0662e6..3626a4e9f0 100644
+--- a/src/pkg/os/user/lookup_windows.go
++++ b/src/pkg/os/user/lookup_windows.go
+@@ -27,7 +27,9 @@ func lookupFullName(domain, username, domainAndUser string) (string, error) {
+ 		var p *byte
+ 		e = syscall.NetUserGetInfo(d, u, 10, &p)
+ 		if e != nil {
+-			return "", e
++			// path executed when a domain user is disconnected from the domain
++			// pretend username is fullname
++			return username, nil
+ 		}
+ 		defer syscall.NetApiBufferFree(p)
+ 		i := (*syscall.UserInfo10)(unsafe.Pointer(p))

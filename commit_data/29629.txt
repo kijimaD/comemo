@@ -11,6 +11,22 @@ Date:   Wed Sep 14 15:23:41 2016 +0300
     Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/math/sqrt_amd64.s | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/math/sqrt_amd64.s b/src/math/sqrt_amd64.s
+index d72000fccb..1102903055 100644
+--- a/src/math/sqrt_amd64.s
++++ b/src/math/sqrt_amd64.s
+@@ -6,7 +6,7 @@
+ 
+ // func Sqrt(x float64) float64
+ TEXT ·Sqrt(SB), NOSPLIT, $0
+-	MOVSD  x+0(FP), X0
+-	SQRTSD X0, X1
+-	MOVSD  X1, ret+8(FP)
++	XORPS  X0, X0 // break dependency
++	SQRTSD x+0(FP), X0
++	MOVSD  X0, ret+8(FP)
+ 	RET

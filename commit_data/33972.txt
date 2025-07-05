@@ -12,6 +12,22 @@ Date:   Fri Sep 22 17:49:12 2017 +0100
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/racewalk.go | 4 ----
  1 file changed, 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/racewalk.go b/src/cmd/compile/internal/gc/racewalk.go
+index 1771e03b86..79b6b8f40d 100644
+--- a/src/cmd/compile/internal/gc/racewalk.go
++++ b/src/cmd/compile/internal/gc/racewalk.go
+@@ -553,10 +553,6 @@ func makeaddable(n *Node) {
+ 		makeaddable(n.Left)
+ 
+ 		// nothing to do
+-	case ODOTPTR:
+-		fallthrough
+-	default:
+-		break
+ 	}
+ }
+ 

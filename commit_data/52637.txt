@@ -18,9 +18,163 @@ Date:   Tue May 10 16:26:41 2022 -0700
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: David Chase <drchase@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/types/identity.go    |  2 +-
  src/cmd/compile/internal/types/sizeof_test.go |  2 +-
  src/cmd/compile/internal/types/type.go        | 36 +++++++++++++--------------
  src/cmd/compile/internal/types/universe.go    |  3 +--
  4 files changed, 20 insertions(+), 23 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types/identity.go b/src/cmd/compile/internal/types/identity.go
+index 17555d099b..6b3bc2ded1 100644
+--- a/src/cmd/compile/internal/types/identity.go
++++ b/src/cmd/compile/internal/types/identity.go
+@@ -42,7 +42,7 @@ func identical(t1, t2 *Type, flags int, assumedEqual map[typePair]struct{}) bool
+ 	if t1 == nil || t2 == nil || t1.kind != t2.kind {
+ 		return false
+ 	}
+-	if t1.sym != nil || t2.sym != nil {
++	if t1.obj != nil || t2.obj != nil {
+ 		if flags&identStrict == 0 && (t1.HasShape() || t2.HasShape()) {
+ 			switch t1.kind {
+ 			case TINT8, TUINT8, TINT16, TUINT16, TINT32, TUINT32, TINT64, TUINT64, TINT, TUINT, TUINTPTR, TCOMPLEX64, TCOMPLEX128, TFLOAT32, TFLOAT64, TBOOL, TSTRING, TPTR, TUNSAFEPTR:
+diff --git a/src/cmd/compile/internal/types/sizeof_test.go b/src/cmd/compile/internal/types/sizeof_test.go
+index 0c46077dfa..e83426654c 100644
+--- a/src/cmd/compile/internal/types/sizeof_test.go
++++ b/src/cmd/compile/internal/types/sizeof_test.go
+@@ -21,7 +21,7 @@ func TestSizeof(t *testing.T) {
+ 		_64bit uintptr     // size on 64bit platforms
+ 	}{
+ 		{Sym{}, 32, 64},
+-		{Type{}, 64, 112},
++		{Type{}, 60, 104},
+ 		{Map{}, 20, 40},
+ 		{Forward{}, 20, 32},
+ 		{Func{}, 28, 48},
+diff --git a/src/cmd/compile/internal/types/type.go b/src/cmd/compile/internal/types/type.go
+index 77aae3c4ac..2ec4f05c55 100644
+--- a/src/cmd/compile/internal/types/type.go
++++ b/src/cmd/compile/internal/types/type.go
+@@ -168,7 +168,7 @@ type Type struct {
+ 	allMethods Fields
+ 
+ 	// canonical OTYPE node for a named type (should be an ir.Name node with same sym)
+-	nod Object
++	obj Object
+ 	// the underlying type (type literal or predeclared type) for a defined type
+ 	underlying *Type
+ 
+@@ -178,7 +178,6 @@ type Type struct {
+ 		slice *Type // []T, or nil
+ 	}
+ 
+-	sym    *Sym  // symbol containing name, for named types
+ 	vargen int32 // unique name for OTYPE/ONAME
+ 
+ 	kind  Kind  // kind of type
+@@ -238,7 +237,12 @@ func (t *Type) SetHasShape(b bool) { t.flags.set(typeHasShape, b) }
+ func (t *Type) Kind() Kind { return t.kind }
+ 
+ // Sym returns the name of type t.
+-func (t *Type) Sym() *Sym { return t.sym }
++func (t *Type) Sym() *Sym {
++	if t.obj != nil {
++		return t.obj.Sym()
++	}
++	return nil
++}
+ 
+ // OrigType returns the original generic type that t is an
+ // instantiation of, if any.
+@@ -251,8 +255,8 @@ func (t *Type) Underlying() *Type { return t.underlying }
+ // Pos returns a position associated with t, if any.
+ // This should only be used for diagnostics.
+ func (t *Type) Pos() src.XPos {
+-	if t.nod != nil {
+-		return t.nod.Pos()
++	if t.obj != nil {
++		return t.obj.Pos()
+ 	}
+ 	return src.NoXPos
+ }
+@@ -1190,7 +1194,7 @@ func (t *Type) cmp(x *Type) Cmp {
+ 		return cmpForNe(t.kind < x.kind)
+ 	}
+ 
+-	if t.sym != nil || x.sym != nil {
++	if t.obj != nil || x.obj != nil {
+ 		// Special case: we keep byte and uint8 separate
+ 		// for error messages. Treat them as equal.
+ 		switch t.kind {
+@@ -1212,11 +1216,11 @@ func (t *Type) cmp(x *Type) Cmp {
+ 		}
+ 	}
+ 
+-	if c := t.sym.cmpsym(x.sym); c != CMPeq {
++	if c := t.Sym().cmpsym(x.Sym()); c != CMPeq {
+ 		return c
+ 	}
+ 
+-	if x.sym != nil {
++	if x.obj != nil {
+ 		// Syms non-nil, if vargens match then equal.
+ 		if t.vargen != x.vargen {
+ 			return cmpForNe(t.vargen < x.vargen)
+@@ -1708,9 +1712,8 @@ var (
+ // the type is complete.
+ func NewNamed(obj Object) *Type {
+ 	t := newType(TFORW)
+-	t.sym = obj.Sym()
+-	t.nod = obj
+-	if t.sym.Pkg == ShapePkg {
++	t.obj = obj
++	if obj.Sym().Pkg == ShapePkg {
+ 		t.SetIsShape(true)
+ 		t.SetHasShape(true)
+ 	}
+@@ -1719,10 +1722,7 @@ func NewNamed(obj Object) *Type {
+ 
+ // Obj returns the canonical type name node for a named type t, nil for an unnamed type.
+ func (t *Type) Obj() Object {
+-	if t.sym != nil {
+-		return t.nod
+-	}
+-	return nil
++	return t.obj
+ }
+ 
+ // typeGen tracks the number of function-scoped defined types that
+@@ -1815,8 +1815,7 @@ func fieldsHasShape(fields []*Field) bool {
+ // NewBasic returns a new basic type of the given kind.
+ func newBasic(kind Kind, obj Object) *Type {
+ 	t := newType(kind)
+-	t.sym = obj.Sym()
+-	t.nod = obj
++	t.obj = obj
+ 	return t
+ }
+ 
+@@ -1845,8 +1844,7 @@ func NewInterface(pkg *Pkg, methods []*Field, implicit bool) *Type {
+ // and specified index within the typeparam list.
+ func NewTypeParam(obj Object, index int) *Type {
+ 	t := newType(TTYPEPARAM)
+-	t.sym = obj.Sym()
+-	t.nod = obj
++	t.obj = obj
+ 	t.extra.(*Typeparam).index = index
+ 	t.SetHasTParam(true)
+ 	return t
+diff --git a/src/cmd/compile/internal/types/universe.go b/src/cmd/compile/internal/types/universe.go
+index 0ad2d35ce6..765a9f19e8 100644
+--- a/src/cmd/compile/internal/types/universe.go
++++ b/src/cmd/compile/internal/types/universe.go
+@@ -64,8 +64,7 @@ func InitTypes(defTypeName func(sym *Sym, typ *Type) Object) {
+ 	defBasic := func(kind Kind, pkg *Pkg, name string) *Type {
+ 		typ := newType(kind)
+ 		obj := defTypeName(pkg.Lookup(name), typ)
+-		typ.sym = obj.Sym()
+-		typ.nod = obj
++		typ.obj = obj
+ 		if kind != TANY {
+ 			CheckSize(typ)
+ 		}

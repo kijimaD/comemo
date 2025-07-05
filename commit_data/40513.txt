@@ -18,10 +18,94 @@ Date:   Thu May 16 02:28:47 2019 +0700
     Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/typecheck.go |  6 +++++-
  test/fixedbugs/issue31959.dir/a.go       | 12 ++++++++++++
  test/fixedbugs/issue31959.dir/main.go    | 21 +++++++++++++++++++++
  test/fixedbugs/issue31959.go             |  7 +++++++
  test/fixedbugs/issue31959.out            |  2 ++
  5 files changed, 47 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 81f59013f4..4cb28d6100 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -3671,7 +3671,11 @@ func typecheckdef(n *Node) {
+ 					n.SetDiag(true)
+ 					goto ret
+ 				}
+-				n.Sym.Def = asTypesNode(p.Ntype)
++				// For package-level type aliases, set n.Sym.Def so we can identify
++				// it as a type alias during export. See also #31959.
++				if n.Name.Curfn == nil {
++					n.Sym.Def = asTypesNode(p.Ntype)
++				}
+ 			}
+ 			break
+ 		}
+diff --git a/test/fixedbugs/issue31959.dir/a.go b/test/fixedbugs/issue31959.dir/a.go
+new file mode 100644
+index 0000000000..6c7ffa38c1
+--- /dev/null
++++ b/test/fixedbugs/issue31959.dir/a.go
+@@ -0,0 +1,12 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++type T struct{}
++
++func F() {
++	type T = int
++	println(T(0))
++}
+diff --git a/test/fixedbugs/issue31959.dir/main.go b/test/fixedbugs/issue31959.dir/main.go
+new file mode 100644
+index 0000000000..895c4e5345
+--- /dev/null
++++ b/test/fixedbugs/issue31959.dir/main.go
+@@ -0,0 +1,21 @@
++// run
++
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Check import package contains type alias in function
++// with the same name with an export type not panic
++
++package main
++
++import (
++	"fmt"
++
++	"a"
++)
++
++func main() {
++	fmt.Println(a.T{})
++	a.F()
++}
+diff --git a/test/fixedbugs/issue31959.go b/test/fixedbugs/issue31959.go
+new file mode 100644
+index 0000000000..af6f134172
+--- /dev/null
++++ b/test/fixedbugs/issue31959.go
+@@ -0,0 +1,7 @@
++// rundir
++
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ignored
+diff --git a/test/fixedbugs/issue31959.out b/test/fixedbugs/issue31959.out
+new file mode 100644
+index 0000000000..8ddcb67af1
+--- /dev/null
++++ b/test/fixedbugs/issue31959.out
+@@ -0,0 +1,2 @@
++{}
++0

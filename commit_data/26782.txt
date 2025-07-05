@@ -12,8 +12,85 @@ Date:   Thu Feb 25 13:45:22 2016 -0800
     Reviewed-on: https://go-review.googlesource.com/19923
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     Run-TryBot: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go |  9 ++++++++-
  test/nilptr3.go                    | 18 ++++++++++++++++++
  test/nilptr3_ssa.go                | 15 +++++++++++++++
  3 files changed, 41 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index a463f9dfc5..a64bdd07bd 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -4588,7 +4588,9 @@ func (s *genState) genValue(v *ssa.Value) {
+ 			case ssa.OpAMD64MOVQload, ssa.OpAMD64MOVLload, ssa.OpAMD64MOVWload, ssa.OpAMD64MOVBload,
+ 				ssa.OpAMD64MOVQstore, ssa.OpAMD64MOVLstore, ssa.OpAMD64MOVWstore, ssa.OpAMD64MOVBstore,
+ 				ssa.OpAMD64MOVBQSXload, ssa.OpAMD64MOVBQZXload, ssa.OpAMD64MOVWQSXload,
+-				ssa.OpAMD64MOVWQZXload, ssa.OpAMD64MOVLQSXload, ssa.OpAMD64MOVLQZXload:
++				ssa.OpAMD64MOVWQZXload, ssa.OpAMD64MOVLQSXload, ssa.OpAMD64MOVLQZXload,
++				ssa.OpAMD64MOVSSload, ssa.OpAMD64MOVSDload, ssa.OpAMD64MOVOload,
++				ssa.OpAMD64MOVSSstore, ssa.OpAMD64MOVSDstore, ssa.OpAMD64MOVOstore:
+ 				if w.Args[0] == v.Args[0] && w.Aux == nil && w.AuxInt >= 0 && w.AuxInt < minZeroPage {
+ 					if Debug_checknil != 0 && int(v.Line) > 1 {
+ 						Warnl(int(v.Line), "removed nil check")
+@@ -4605,6 +4607,11 @@ func (s *genState) genValue(v *ssa.Value) {
+ 				}
+ 			}
+ 			if w.Type.IsMemory() {
++				if w.Op == ssa.OpVarDef || w.Op == ssa.OpVarKill || w.Op == ssa.OpVarLive {
++					// these ops are OK
++					mem = w
++					continue
++				}
+ 				// We can't delay the nil check past the next store.
+ 				break
+ 			}
+diff --git a/test/nilptr3.go b/test/nilptr3.go
+index 1ba774d839..258547733c 100644
+--- a/test/nilptr3.go
++++ b/test/nilptr3.go
+@@ -193,3 +193,21 @@ func f4(x *[10]int) {
+ 	x = y
+ 	_ = &x[9] // ERROR "removed repeated nil check"
+ }
++
++func f5(p *float32, q *float64, r *float32, s *float64) float64 {
++	x := float64(*p) // ERROR "removed nil check"
++	y := *q          // ERROR "removed nil check"
++	*r = 7           // ERROR "removed nil check"
++	*s = 9           // ERROR "removed nil check"
++	return x + y
++}
++
++type T [29]byte
++
++func f6(p, q *T) {
++	x := *p // ERROR "generated nil check"
++	// On ARM, the nil check on this store gets removed.  On other archs,
++	// it doesn't.  Makes this hard to test.  SSA will always remove it.
++	//*q = x
++	_ = x
++}
+diff --git a/test/nilptr3_ssa.go b/test/nilptr3_ssa.go
+index d324076114..ba60a64602 100644
+--- a/test/nilptr3_ssa.go
++++ b/test/nilptr3_ssa.go
+@@ -192,3 +192,18 @@ func f4(x *[10]int) {
+ 	x = y
+ 	_ = &x[9] // ERROR "removed[a-z ]* nil check"
+ }
++
++func f5(p *float32, q *float64, r *float32, s *float64) float64 {
++	x := float64(*p) // ERROR "removed nil check"
++	y := *q          // ERROR "removed nil check"
++	*r = 7           // ERROR "removed nil check"
++	*s = 9           // ERROR "removed nil check"
++	return x + y
++}
++
++type T [29]byte
++
++func f6(p, q *T) {
++	x := *p // ERROR "removed nil check"
++	*q = x  // ERROR "removed nil check"
++}

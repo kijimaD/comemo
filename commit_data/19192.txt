@@ -10,7 +10,61 @@ Date:   Wed Apr 16 22:43:44 2014 -0400
     R=golang-codereviews, bradfitz, rsc, gobot
     CC=golang-codereviews
     https://golang.org/cl/13512052
-
+---
  src/pkg/compress/gzip/gunzip.go      | 11 +++++++++++
  src/pkg/compress/gzip/gunzip_test.go | 20 ++++++++++++++++++++
  2 files changed, 31 insertions(+)
+
+diff --git a/src/pkg/compress/gzip/gunzip.go b/src/pkg/compress/gzip/gunzip.go
+index 1fb9b0964c..d18269cfd1 100644
+--- a/src/pkg/compress/gzip/gunzip.go
++++ b/src/pkg/compress/gzip/gunzip.go
+@@ -89,6 +89,17 @@ func NewReader(r io.Reader) (*Reader, error) {
+ 	return z, nil
+ }
+ 
++// Reset discards the Reader z's state and makes it equivalent to the
++// result of its original state from NewReader, but reading from r instead.
++// This permits reusing a Reader rather than allocating a new one.
++func (z *Reader) Reset(r io.Reader) error {
++	z.r = makeReader(r)
++	z.digest.Reset()
++	z.size = 0
++	z.err = nil
++	return z.readHeader(true)
++}
++
+ // GZIP (RFC 1952) is little-endian, unlike ZLIB (RFC 1950).
+ func get4(p []byte) uint32 {
+ 	return uint32(p[0]) | uint32(p[1])<<8 | uint32(p[2])<<16 | uint32(p[3])<<24
+diff --git a/src/pkg/compress/gzip/gunzip_test.go b/src/pkg/compress/gzip/gunzip_test.go
+index 5615373737..1d5d8d9cc5 100644
+--- a/src/pkg/compress/gzip/gunzip_test.go
++++ b/src/pkg/compress/gzip/gunzip_test.go
+@@ -303,6 +303,26 @@ func TestDecompressor(t *testing.T) {
+ 		if s != tt.raw {
+ 			t.Errorf("%s: got %d-byte %q want %d-byte %q", tt.name, n, s, len(tt.raw), tt.raw)
+ 		}
++
++		// Test Reader Reset.
++		in = bytes.NewReader(tt.gzip)
++		err = gzip.Reset(in)
++		if err != nil {
++			t.Errorf("%s: Reset: %s", tt.name, err)
++			continue
++		}
++		if tt.name != gzip.Name {
++			t.Errorf("%s: got name %s", tt.name, gzip.Name)
++		}
++		b.Reset()
++		n, err = io.Copy(b, gzip)
++		if err != tt.err {
++			t.Errorf("%s: io.Copy: %v want %v", tt.name, err, tt.err)
++		}
++		s = b.String()
++		if s != tt.raw {
++			t.Errorf("%s: got %d-byte %q want %d-byte %q", tt.name, n, s, len(tt.raw), tt.raw)
++		}
+ 	}
+ }
+ 

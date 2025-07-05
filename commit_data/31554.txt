@@ -9,6 +9,19 @@ Date:   Wed Mar 1 08:41:34 2017 +1100
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/ssa/export_test.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/export_test.go b/src/cmd/compile/internal/ssa/export_test.go
+index f32d2f84e5..ce2933d4e9 100644
+--- a/src/cmd/compile/internal/ssa/export_test.go
++++ b/src/cmd/compile/internal/ssa/export_test.go
+@@ -13,7 +13,6 @@ import (
+ )
+ 
+ var CheckFunc = checkFunc
+-var PrintFunc = printFunc
+ var Opt = opt
+ var Deadcode = deadcode
+ var Copyelim = copyelim

@@ -13,7 +13,32 @@ Date:   Sat May 7 13:04:41 2022 +0000
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 0d2f66df4b..bb07bd52e8 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -673,6 +673,7 @@ Jimmy Zelinskie <jimmyzelinskie@gmail.com>
+ Jin-wook Jeong <jeweljar@hanmail.net>
+ Jingcheng Zhang <diogin@gmail.com>
+ Jingguo Yao <yaojingguo@gmail.com>
++Jinzhu Zhang <wosmvp@gmail.com>
+ Jiong Du <londevil@gmail.com>
+ Jirka Daněk <dnk@mail.muni.cz>
+ Jiulong Wang <jiulongw@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 5e44acba8d..b0314a0ffb 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -1352,6 +1352,7 @@ Jimmy Zelinskie <jimmyzelinskie@gmail.com>
+ Jin-wook Jeong <jeweljar@hanmail.net>
+ Jingcheng Zhang <diogin@gmail.com>
+ Jingguo Yao <yaojingguo@gmail.com>
++Jinzhu Zhang <wosmvp@gmail.com>
+ Jingnan Si <jingnan.si@gmail.com>
+ Jinkun Zhang <franksnolf@gmail.com>
+ Jinwen Wo <wojinwen@huawei.com>

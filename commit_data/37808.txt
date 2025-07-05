@@ -9,8 +9,60 @@ Date:   Thu Aug 30 10:01:54 2018 -0400
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/ssa/rewrite.go | 2 +-
  src/cmd/trace/annotations.go            | 5 ++---
  src/cmd/trace/trace.go                  | 4 ++--
  3 files changed, 5 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index 31195638ab..4b12a84cdf 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -1045,7 +1045,7 @@ func needRaceCleanup(sym interface{}, v *Value) bool {
+ 				// Check for racefuncenter will encounter racefuncexit and vice versa.
+ 				// Allow calls to panic*
+ 				default:
+-					// If we encounterd any call, we need to keep racefunc*,
++					// If we encountered any call, we need to keep racefunc*,
+ 					// for accurate stacktraces.
+ 					return false
+ 				}
+diff --git a/src/cmd/trace/annotations.go b/src/cmd/trace/annotations.go
+index 8071ac8879..307da58bd5 100644
+--- a/src/cmd/trace/annotations.go
++++ b/src/cmd/trace/annotations.go
+@@ -438,9 +438,8 @@ func (task *taskDesc) complete() bool {
+ 	return task.create != nil && task.end != nil
+ }
+ 
+-// descendents returns all the task nodes in the subtree rooted from this task.
+-// TODO: the method name is misspelled
+-func (task *taskDesc) decendents() []*taskDesc {
++// descendants returns all the task nodes in the subtree rooted from this task.
++func (task *taskDesc) descendants() []*taskDesc {
+ 	if task == nil {
+ 		return nil
+ 	}
+diff --git a/src/cmd/trace/trace.go b/src/cmd/trace/trace.go
+index 62ff4d68c5..d986b71f79 100644
+--- a/src/cmd/trace/trace.go
++++ b/src/cmd/trace/trace.go
+@@ -220,7 +220,7 @@ func httpJsonTrace(w http.ResponseWriter, r *http.Request) {
+ 		params.startTime = task.firstTimestamp() - 1
+ 		params.endTime = task.lastTimestamp() + 1
+ 		params.maing = goid
+-		params.tasks = task.decendents()
++		params.tasks = task.descendants()
+ 		gs := map[uint64]bool{}
+ 		for _, t := range params.tasks {
+ 			// find only directly involved goroutines
+@@ -244,7 +244,7 @@ func httpJsonTrace(w http.ResponseWriter, r *http.Request) {
+ 		params.mode = modeTaskOriented
+ 		params.startTime = task.firstTimestamp() - 1
+ 		params.endTime = task.lastTimestamp() + 1
+-		params.tasks = task.decendents()
++		params.tasks = task.descendants()
+ 	}
+ 
+ 	start := int64(0)

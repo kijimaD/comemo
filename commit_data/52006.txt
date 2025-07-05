@@ -14,7 +14,42 @@ Date:   Sun Mar 20 21:34:42 2022 +0000
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: Tobias Klauser <tobias.klauser@gmail.com>
-
+---
  src/strings/strings.go      | 3 +++
  src/strings/strings_test.go | 2 ++
  2 files changed, 5 insertions(+)
+
+diff --git a/src/strings/strings.go b/src/strings/strings.go
+index 5793d9e26f..ed3184b59c 100644
+--- a/src/strings/strings.go
++++ b/src/strings/strings.go
+@@ -244,6 +244,9 @@ func genSplit(s, sep string, sepSave, n int) []string {
+ 		n = Count(s, sep) + 1
+ 	}
+ 
++	if n > len(s)+1 {
++		n = len(s) + 1
++	}
+ 	a := make([]string, n)
+ 	n--
+ 	i := 0
+diff --git a/src/strings/strings_test.go b/src/strings/strings_test.go
+index 0f30ca738e..9e7fb85ddf 100644
+--- a/src/strings/strings_test.go
++++ b/src/strings/strings_test.go
+@@ -8,6 +8,7 @@ import (
+ 	"bytes"
+ 	"fmt"
+ 	"io"
++	"math"
+ 	"math/rand"
+ 	"reflect"
+ 	"strconv"
+@@ -404,6 +405,7 @@ var splittests = []SplitTest{
+ 	{faces, "~", -1, []string{faces}},
+ 	{"1 2 3 4", " ", 3, []string{"1", "2", "3 4"}},
+ 	{"1 2", " ", 3, []string{"1", "2"}},
++	{"", "T", math.MaxInt / 4, []string{""}},
+ }
+ 
+ func TestSplit(t *testing.T) {

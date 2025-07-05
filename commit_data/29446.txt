@@ -9,7 +9,7 @@ Date:   Fri Sep 16 00:33:29 2016 +1000
     Run-TryBot: Dave Cheney <dave@cheney.net>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/alg.go       |  8 ++--
  src/cmd/compile/internal/gc/align.go     |  4 +-
  src/cmd/compile/internal/gc/bexport.go   |  2 +-
@@ -28,3 +28,963 @@ Date:   Fri Sep 16 00:33:29 2016 +1000
  src/cmd/compile/internal/gc/universe.go  | 76 ++++++++++++++++----------------
  src/cmd/compile/internal/gc/walk.go      | 32 +++++++-------
  17 files changed, 137 insertions(+), 137 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/alg.go b/src/cmd/compile/internal/gc/alg.go
+index 8ae01f0ced..a5bde1bb48 100644
+--- a/src/cmd/compile/internal/gc/alg.go
++++ b/src/cmd/compile/internal/gc/alg.go
+@@ -313,9 +313,9 @@ func genhash(sym *Sym, t *Type) {
+ 	old_safemode := safemode
+ 	safemode = false
+ 
+-	Disable_checknil++
++	disable_checknil++
+ 	funccompile(fn)
+-	Disable_checknil--
++	disable_checknil--
+ 
+ 	safemode = old_safemode
+ }
+@@ -507,12 +507,12 @@ func geneq(sym *Sym, t *Type) {
+ 	// We are comparing a struct or an array,
+ 	// neither of which can be nil, and our comparisons
+ 	// are shallow.
+-	Disable_checknil++
++	disable_checknil++
+ 
+ 	funccompile(fn)
+ 
+ 	safemode = old_safemode
+-	Disable_checknil--
++	disable_checknil--
+ }
+ 
+ // eqfield returns the node
+diff --git a/src/cmd/compile/internal/gc/align.go b/src/cmd/compile/internal/gc/align.go
+index 173a11feb8..2aae3425d4 100644
+--- a/src/cmd/compile/internal/gc/align.go
++++ b/src/cmd/compile/internal/gc/align.go
+@@ -148,8 +148,8 @@ func dowidth(t *Type) {
+ 
+ 	// simtype == 0 during bootstrap
+ 	default:
+-		if Simtype[t.Etype] != 0 {
+-			et = Simtype[t.Etype]
++		if simtype[t.Etype] != 0 {
++			et = simtype[t.Etype]
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index 1076512fb5..1d7db3198d 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -1016,7 +1016,7 @@ func (p *exporter) value(x Val) {
+ 		p.tag(tag)
+ 
+ 	case *Mpint:
+-		if Minintval[TINT64].Cmp(x) <= 0 && x.Cmp(Maxintval[TINT64]) <= 0 {
++		if minintval[TINT64].Cmp(x) <= 0 && x.Cmp(maxintval[TINT64]) <= 0 {
+ 			// common case: x fits into an int64 - use compact encoding
+ 			p.tag(int64Tag)
+ 			p.int64(x.Int64())
+diff --git a/src/cmd/compile/internal/gc/bimport.go b/src/cmd/compile/internal/gc/bimport.go
+index 07b4925c30..e21ee0b4be 100644
+--- a/src/cmd/compile/internal/gc/bimport.go
++++ b/src/cmd/compile/internal/gc/bimport.go
+@@ -168,8 +168,8 @@ func Import(in *bufio.Reader) {
+ 		}
+ 		i0 = i
+ 
+-		if Funcdepth != 0 {
+-			formatErrorf("unexpected Funcdepth %d", Funcdepth)
++		if funcdepth != 0 {
++			formatErrorf("unexpected Funcdepth %d", funcdepth)
+ 		}
+ 
+ 		// Note: In the original code, funchdr and funcbody are called for
+diff --git a/src/cmd/compile/internal/gc/closure.go b/src/cmd/compile/internal/gc/closure.go
+index 64c99e6db4..2d72e95efe 100644
+--- a/src/cmd/compile/internal/gc/closure.go
++++ b/src/cmd/compile/internal/gc/closure.go
+@@ -12,7 +12,7 @@ import (
+ func closurehdr(ntype *Node) {
+ 	n := Nod(OCLOSURE, nil, nil)
+ 	n.Func.Ntype = ntype
+-	n.Func.Depth = Funcdepth
++	n.Func.Depth = funcdepth
+ 	n.Func.Outerfunc = Curfn
+ 
+ 	funchdr(n)
+diff --git a/src/cmd/compile/internal/gc/const.go b/src/cmd/compile/internal/gc/const.go
+index deb2a7b1d9..d7dfc37cc0 100644
+--- a/src/cmd/compile/internal/gc/const.go
++++ b/src/cmd/compile/internal/gc/const.go
+@@ -356,7 +356,7 @@ func convlit1(n *Node, t *Type, explicit bool, reuse canReuseNode) *Node {
+ 			goto bad
+ 		}
+ 		ct := n.Val().Ctype()
+-		if Isint[et] {
++		if isInt[et] {
+ 			switch ct {
+ 			default:
+ 				goto bad
+@@ -368,7 +368,7 @@ func convlit1(n *Node, t *Type, explicit bool, reuse canReuseNode) *Node {
+ 			case CTINT:
+ 				overflow(n.Val(), t)
+ 			}
+-		} else if Isfloat[et] {
++		} else if isFloat[et] {
+ 			switch ct {
+ 			default:
+ 				goto bad
+@@ -380,7 +380,7 @@ func convlit1(n *Node, t *Type, explicit bool, reuse canReuseNode) *Node {
+ 			case CTFLT:
+ 				n.SetVal(Val{truncfltlit(n.Val().U.(*Mpflt), t)})
+ 			}
+-		} else if Iscomplex[et] {
++		} else if isComplex[et] {
+ 			switch ct {
+ 			default:
+ 				goto bad
+@@ -517,7 +517,7 @@ func doesoverflow(v Val, t *Type) bool {
+ 		if !t.IsInteger() {
+ 			Fatalf("overflow: %v integer constant", t)
+ 		}
+-		return u.Cmp(Minintval[t.Etype]) < 0 || u.Cmp(Maxintval[t.Etype]) > 0
++		return u.Cmp(minintval[t.Etype]) < 0 || u.Cmp(maxintval[t.Etype]) > 0
+ 
+ 	case *Mpflt:
+ 		if !t.IsFloat() {
+@@ -557,7 +557,7 @@ func tostr(v Val) Val {
+ 	switch u := v.U.(type) {
+ 	case *Mpint:
+ 		var i int64 = 0xFFFD
+-		if u.Cmp(Minintval[TUINT32]) >= 0 && u.Cmp(Maxintval[TUINT32]) <= 0 {
++		if u.Cmp(minintval[TUINT32]) >= 0 && u.Cmp(maxintval[TUINT32]) <= 0 {
+ 			i = u.Int64()
+ 		}
+ 		v.U = string(i)
+@@ -678,7 +678,7 @@ func evconst(n *Node) {
+ 		return
+ 	}
+ 	wl := nl.Type.Etype
+-	if Isint[wl] || Isfloat[wl] || Iscomplex[wl] {
++	if isInt[wl] || isFloat[wl] || isComplex[wl] {
+ 		wl = TIDEAL
+ 	}
+ 
+@@ -788,7 +788,7 @@ func evconst(n *Node) {
+ 				TUINT64,
+ 				TUINT,
+ 				TUINTPTR:
+-				b.Set(Maxintval[et])
++				b.Set(maxintval[et])
+ 			}
+ 
+ 			v.U.(*Mpint).Xor(&b)
+@@ -821,7 +821,7 @@ func evconst(n *Node) {
+ 		return
+ 	}
+ 	wr = nr.Type.Etype
+-	if Isint[wr] || Isfloat[wr] || Iscomplex[wr] {
++	if isInt[wr] || isFloat[wr] || isComplex[wr] {
+ 		wr = TIDEAL
+ 	}
+ 
+@@ -1498,7 +1498,7 @@ func strlit(n *Node) string {
+ 
+ func smallintconst(n *Node) bool {
+ 	if n.Op == OLITERAL && Isconst(n, CTINT) && n.Type != nil {
+-		switch Simtype[n.Type.Etype] {
++		switch simtype[n.Type.Etype] {
+ 		case TINT8,
+ 			TUINT8,
+ 			TINT16,
+@@ -1510,7 +1510,7 @@ func smallintconst(n *Node) bool {
+ 			return true
+ 
+ 		case TIDEAL, TINT64, TUINT64, TPTR64:
+-			if n.Val().U.(*Mpint).Cmp(Minintval[TINT32]) < 0 || n.Val().U.(*Mpint).Cmp(Maxintval[TINT32]) > 0 {
++			if n.Val().U.(*Mpint).Cmp(minintval[TINT32]) < 0 || n.Val().U.(*Mpint).Cmp(maxintval[TINT32]) > 0 {
+ 				break
+ 			}
+ 			return true
+@@ -1522,7 +1522,7 @@ func smallintconst(n *Node) bool {
+ 
+ func nonnegconst(n *Node) int {
+ 	if n.Op == OLITERAL && n.Type != nil {
+-		switch Simtype[n.Type.Etype] {
++		switch simtype[n.Type.Etype] {
+ 		// check negative and 2^31
+ 		case TINT8,
+ 			TUINT8,
+@@ -1533,7 +1533,7 @@ func nonnegconst(n *Node) int {
+ 			TINT64,
+ 			TUINT64,
+ 			TIDEAL:
+-			if n.Val().U.(*Mpint).Cmp(Minintval[TUINT32]) < 0 || n.Val().U.(*Mpint).Cmp(Maxintval[TINT32]) > 0 {
++			if n.Val().U.(*Mpint).Cmp(minintval[TUINT32]) < 0 || n.Val().U.(*Mpint).Cmp(maxintval[TINT32]) > 0 {
+ 				break
+ 			}
+ 			return int(n.Int64())
+@@ -1583,7 +1583,7 @@ func (n *Node) Convconst(con *Node, t *Type) {
+ 	con.Type = t
+ 	con.SetVal(n.Val())
+ 
+-	if Isint[tt] {
++	if isInt[tt] {
+ 		con.SetVal(Val{new(Mpint)})
+ 		var i int64
+ 		switch n.Val().Ctype() {
+@@ -1605,7 +1605,7 @@ func (n *Node) Convconst(con *Node, t *Type) {
+ 		return
+ 	}
+ 
+-	if Isfloat[tt] {
++	if isFloat[tt] {
+ 		con.SetVal(toflt(con.Val()))
+ 		if con.Val().Ctype() != CTFLT {
+ 			Fatalf("convconst ctype=%d %v", con.Val().Ctype(), t)
+@@ -1616,7 +1616,7 @@ func (n *Node) Convconst(con *Node, t *Type) {
+ 		return
+ 	}
+ 
+-	if Iscomplex[tt] {
++	if isComplex[tt] {
+ 		con.SetVal(tocplx(con.Val()))
+ 		if tt == TCOMPLEX64 {
+ 			con.Val().U.(*Mpcplx).Real = *truncfltlit(&con.Val().U.(*Mpcplx).Real, Types[TFLOAT32])
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index 66300f0926..64513f32ad 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -211,7 +211,7 @@ func declare(n *Node, ctxt Class) {
+ 	s.Lastlineno = lineno
+ 	s.Def = n
+ 	n.Name.Vargen = int32(gen)
+-	n.Name.Funcdepth = Funcdepth
++	n.Name.Funcdepth = funcdepth
+ 	n.Class = ctxt
+ 
+ 	autoexport(n, ctxt)
+@@ -243,7 +243,7 @@ func variter(vl []*Node, t *Node, el []*Node) []*Node {
+ 			declare(v, dclcontext)
+ 			v.Name.Param.Ntype = t
+ 			v.Name.Defn = as2
+-			if Funcdepth > 0 {
++			if funcdepth > 0 {
+ 				init = append(init, Nod(ODCL, v, nil))
+ 			}
+ 		}
+@@ -266,8 +266,8 @@ func variter(vl []*Node, t *Node, el []*Node) []*Node {
+ 		declare(v, dclcontext)
+ 		v.Name.Param.Ntype = t
+ 
+-		if e != nil || Funcdepth > 0 || isblank(v) {
+-			if Funcdepth > 0 {
++		if e != nil || funcdepth > 0 || isblank(v) {
++			if funcdepth > 0 {
+ 				init = append(init, Nod(ODCL, v, nil))
+ 			}
+ 			e = Nod(OAS, v, e)
+@@ -386,7 +386,7 @@ func oldname(s *Sym) *Node {
+ 		return n
+ 	}
+ 
+-	if Curfn != nil && n.Op == ONAME && n.Name.Funcdepth > 0 && n.Name.Funcdepth != Funcdepth {
++	if Curfn != nil && n.Op == ONAME && n.Name.Funcdepth > 0 && n.Name.Funcdepth != funcdepth {
+ 		// Inner func is referring to var in outer func.
+ 		//
+ 		// TODO(rsc): If there is an outer variable x and we
+@@ -394,7 +394,7 @@ func oldname(s *Sym) *Node {
+ 		// the := it looks like a reference to the outer x so we'll
+ 		// make x a closure variable unnecessarily.
+ 		c := n.Name.Param.Innermost
+-		if c == nil || c.Name.Funcdepth != Funcdepth {
++		if c == nil || c.Name.Funcdepth != funcdepth {
+ 			// Do not have a closure var for the active closure yet; make one.
+ 			c = Nod(ONAME, nil, nil)
+ 			c.Sym = s
+@@ -404,7 +404,7 @@ func oldname(s *Sym) *Node {
+ 			c.Name.Defn = n
+ 			c.Addable = false
+ 			c.Ullman = 2
+-			c.Name.Funcdepth = Funcdepth
++			c.Name.Funcdepth = funcdepth
+ 
+ 			// Link into list of active closure variables.
+ 			// Popped from list in func closurebody.
+@@ -529,7 +529,7 @@ func ifacedcl(n *Node) {
+ // returns in auto-declaration context.
+ func funchdr(n *Node) {
+ 	// change the declaration context from extern to auto
+-	if Funcdepth == 0 && dclcontext != PEXTERN {
++	if funcdepth == 0 && dclcontext != PEXTERN {
+ 		Fatalf("funchdr: dclcontext = %d", dclcontext)
+ 	}
+ 
+@@ -672,14 +672,14 @@ func funcargs2(t *Type) {
+ }
+ 
+ var funcstack []*Node // stack of previous values of Curfn
+-var Funcdepth int32   // len(funcstack) during parsing, but then forced to be the same later during compilation
++var funcdepth int32   // len(funcstack) during parsing, but then forced to be the same later during compilation
+ 
+ // start the function.
+ // called before funcargs; undone at end of funcbody.
+ func funcstart(n *Node) {
+ 	markdcl()
+ 	funcstack = append(funcstack, Curfn)
+-	Funcdepth++
++	funcdepth++
+ 	Curfn = n
+ }
+ 
+@@ -693,8 +693,8 @@ func funcbody(n *Node) {
+ 	}
+ 	popdcl()
+ 	funcstack, Curfn = funcstack[:len(funcstack)-1], funcstack[len(funcstack)-1]
+-	Funcdepth--
+-	if Funcdepth == 0 {
++	funcdepth--
++	if funcdepth == 0 {
+ 		dclcontext = PEXTERN
+ 	}
+ }
+@@ -1256,13 +1256,13 @@ func funccompile(n *Node) {
+ 
+ 	Stksize = 0
+ 	dclcontext = PAUTO
+-	Funcdepth = n.Func.Depth + 1
++	funcdepth = n.Func.Depth + 1
+ 	compile(n)
+ 	Curfn = nil
+ 	Pc = nil
+ 	continpc = nil
+ 	breakpc = nil
+-	Funcdepth = 0
++	funcdepth = 0
+ 	dclcontext = PEXTERN
+ 	if nerrors != 0 {
+ 		// If we have compile errors, ignore any assembler/linker errors.
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index bfb0107e0c..c4cf9abbb8 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -105,11 +105,11 @@ const (
+ // 	uchar	nel[4];		// number of elements
+ // 	uchar	cap[4];		// allocated number of elements
+ // } Array;
+-var Array_array int // runtime offsetof(Array,array) - same for String
++var array_array int // runtime offsetof(Array,array) - same for String
+ 
+-var Array_nel int // runtime offsetof(Array,nel) - same for String
++var array_nel int // runtime offsetof(Array,nel) - same for String
+ 
+-var Array_cap int // runtime offsetof(Array,cap)
++var array_cap int // runtime offsetof(Array,cap)
+ 
+ var sizeof_Array int // runtime sizeof(Array)
+ 
+@@ -182,13 +182,13 @@ var localimport string
+ 
+ var asmhdr string
+ 
+-var Simtype [NTYPE]EType
++var simtype [NTYPE]EType
+ 
+ var (
+ 	isforw    [NTYPE]bool
+-	Isint     [NTYPE]bool
+-	Isfloat   [NTYPE]bool
+-	Iscomplex [NTYPE]bool
++	isInt     [NTYPE]bool
++	isFloat   [NTYPE]bool
++	isComplex [NTYPE]bool
+ 	issimple  [NTYPE]bool
+ )
+ 
+@@ -210,9 +210,9 @@ var (
+ 	iscmp [OEND]bool
+ )
+ 
+-var Minintval [NTYPE]*Mpint
++var minintval [NTYPE]*Mpint
+ 
+-var Maxintval [NTYPE]*Mpint
++var maxintval [NTYPE]*Mpint
+ 
+ var minfltval [NTYPE]*Mpflt
+ 
+@@ -292,7 +292,7 @@ var Pc *obj.Prog
+ 
+ var nodfp *Node
+ 
+-var Disable_checknil int
++var disable_checknil int
+ 
+ // interface to back end
+ 
+@@ -398,7 +398,7 @@ var Deferproc *Node
+ 
+ var Deferreturn *Node
+ 
+-var Panicindex *Node
++var panicindex *Node
+ 
+ var panicslice *Node
+ 
+diff --git a/src/cmd/compile/internal/gc/gsubr.go b/src/cmd/compile/internal/gc/gsubr.go
+index 97975b09fd..4326852a00 100644
+--- a/src/cmd/compile/internal/gc/gsubr.go
++++ b/src/cmd/compile/internal/gc/gsubr.go
+@@ -308,7 +308,7 @@ func Naddr(a *obj.Addr, n *Node) {
+ 	case ONAME:
+ 		a.Etype = 0
+ 		if n.Type != nil {
+-			a.Etype = uint8(Simtype[n.Type.Etype])
++			a.Etype = uint8(simtype[n.Type.Etype])
+ 		}
+ 		a.Offset = n.Xoffset
+ 		s := n.Sym
+@@ -416,7 +416,7 @@ func Naddr(a *obj.Addr, n *Node) {
+ 			break // idata(nil)
+ 		}
+ 		if isdirectiface(n.Type) {
+-			a.Etype = uint8(Simtype[n.Type.Etype])
++			a.Etype = uint8(simtype[n.Type.Etype])
+ 		} else {
+ 			a.Etype = uint8(Tptr)
+ 		}
+@@ -430,8 +430,8 @@ func Naddr(a *obj.Addr, n *Node) {
+ 		if a.Type == obj.TYPE_CONST && a.Offset == 0 {
+ 			break // ptr(nil)
+ 		}
+-		a.Etype = uint8(Simtype[Tptr])
+-		a.Offset += int64(Array_array)
++		a.Etype = uint8(simtype[Tptr])
++		a.Offset += int64(array_array)
+ 		a.Width = int64(Widthptr)
+ 
+ 		// len of string or slice
+@@ -441,8 +441,8 @@ func Naddr(a *obj.Addr, n *Node) {
+ 		if a.Type == obj.TYPE_CONST && a.Offset == 0 {
+ 			break // len(nil)
+ 		}
+-		a.Etype = uint8(Simtype[TUINT])
+-		a.Offset += int64(Array_nel)
++		a.Etype = uint8(simtype[TUINT])
++		a.Offset += int64(array_nel)
+ 		if Thearch.LinkArch.Family != sys.ARM { // TODO(rsc): Do this even on arm.
+ 			a.Width = int64(Widthint)
+ 		}
+@@ -454,8 +454,8 @@ func Naddr(a *obj.Addr, n *Node) {
+ 		if a.Type == obj.TYPE_CONST && a.Offset == 0 {
+ 			break // cap(nil)
+ 		}
+-		a.Etype = uint8(Simtype[TUINT])
+-		a.Offset += int64(Array_cap)
++		a.Etype = uint8(simtype[TUINT])
++		a.Offset += int64(array_cap)
+ 		if Thearch.LinkArch.Family != sys.ARM { // TODO(rsc): Do this even on arm.
+ 			a.Width = int64(Widthint)
+ 		}
+@@ -625,7 +625,7 @@ func Regalloc(n *Node, t *Type, o *Node) {
+ 	if t == nil {
+ 		Fatalf("regalloc: t nil")
+ 	}
+-	et := Simtype[t.Etype]
++	et := simtype[t.Etype]
+ 	if Ctxt.Arch.RegSize == 4 && (et == TINT64 || et == TUINT64) {
+ 		Fatalf("regalloc 64bit")
+ 	}
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 89c9e1c394..079ff9c57d 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -49,7 +49,7 @@ var debugtab = []struct {
+ }{
+ 	{"append", &Debug_append},         // print information about append compilation
+ 	{"closure", &Debug_closure},       // print information about closure compilation
+-	{"disablenil", &Disable_checknil}, // disable nil checks
++	{"disablenil", &disable_checknil}, // disable nil checks
+ 	{"gcprog", &Debug_gcprog},         // print dump of GC programs
+ 	{"nil", &Debug_checknil},          // print information about nil checks
+ 	{"panic", &Debug_panic},           // do not hide any compiler panic
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index bf6dc89de6..04f9801665 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -307,7 +307,7 @@ func compile(fn *Node) {
+ 		Newproc = Sysfunc("newproc")
+ 		Deferproc = Sysfunc("deferproc")
+ 		Deferreturn = Sysfunc("deferreturn")
+-		Panicindex = Sysfunc("panicindex")
++		panicindex = Sysfunc("panicindex")
+ 		panicslice = Sysfunc("panicslice")
+ 		panicdivide = Sysfunc("panicdivide")
+ 		growslice = Sysfunc("growslice")
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index 1d3bfbe14f..ecafdf3752 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -325,11 +325,11 @@ func staticcopy(l *Node, r *Node, out *[]*Node) bool {
+ 		a := inittemps[r]
+ 
+ 		n := *l
+-		n.Xoffset = l.Xoffset + int64(Array_array)
++		n.Xoffset = l.Xoffset + int64(array_array)
+ 		gdata(&n, Nod(OADDR, a, nil), Widthptr)
+-		n.Xoffset = l.Xoffset + int64(Array_nel)
++		n.Xoffset = l.Xoffset + int64(array_nel)
+ 		gdata(&n, r.Right, Widthint)
+-		n.Xoffset = l.Xoffset + int64(Array_cap)
++		n.Xoffset = l.Xoffset + int64(array_cap)
+ 		gdata(&n, r.Right, Widthint)
+ 		return true
+ 
+@@ -426,11 +426,11 @@ func staticassign(l *Node, r *Node, out *[]*Node) bool {
+ 		a := staticname(ta)
+ 		inittemps[r] = a
+ 		n := *l
+-		n.Xoffset = l.Xoffset + int64(Array_array)
++		n.Xoffset = l.Xoffset + int64(array_array)
+ 		gdata(&n, Nod(OADDR, a, nil), Widthptr)
+-		n.Xoffset = l.Xoffset + int64(Array_nel)
++		n.Xoffset = l.Xoffset + int64(array_nel)
+ 		gdata(&n, r.Right, Widthint)
+-		n.Xoffset = l.Xoffset + int64(Array_cap)
++		n.Xoffset = l.Xoffset + int64(array_cap)
+ 		gdata(&n, r.Right, Widthint)
+ 
+ 		// Fall through to init underlying array.
+@@ -1373,15 +1373,15 @@ func genAsInitNoCheck(n *Node, reportOnly bool) bool {
+ 		}
+ 
+ 		if !reportOnly {
+-			nam.Xoffset += int64(Array_array)
++			nam.Xoffset += int64(array_array)
+ 			gdata(&nam, ptr, Widthptr)
+ 
+-			nam.Xoffset += int64(Array_nel) - int64(Array_array)
++			nam.Xoffset += int64(array_nel) - int64(array_array)
+ 			var nod1 Node
+ 			Nodconst(&nod1, Types[TINT], nr.Type.NumElem())
+ 			gdata(&nam, &nod1, Widthint)
+ 
+-			nam.Xoffset += int64(Array_cap) - int64(Array_nel)
++			nam.Xoffset += int64(array_cap) - int64(array_nel)
+ 			gdata(&nam, &nod1, Widthint)
+ 		}
+ 
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 22fe16e801..9a4859670d 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -1938,7 +1938,7 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 		case n.Left.Type.IsString():
+ 			a := s.expr(n.Left)
+ 			i := s.expr(n.Right)
+-			i = s.extendIndex(i, Panicindex)
++			i = s.extendIndex(i, panicindex)
+ 			if !n.Bounded {
+ 				len := s.newValue1(ssa.OpStringLen, Types[TINT], a)
+ 				s.boundsCheck(i, len)
+@@ -2170,7 +2170,7 @@ func (s *state) append(n *Node, inplace bool) *ssa.Value {
+ 			// Tell liveness we're about to build a new slice
+ 			s.vars[&memVar] = s.newValue1A(ssa.OpVarDef, ssa.TypeMem, sn, s.mem())
+ 		}
+-		capaddr := s.newValue1I(ssa.OpOffPtr, pt, int64(Array_cap), addr)
++		capaddr := s.newValue1I(ssa.OpOffPtr, pt, int64(array_cap), addr)
+ 		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.IntSize, capaddr, r[2], s.mem())
+ 		s.insertWBstore(pt, addr, r[0], n.Lineno, 0)
+ 		// load the value we just stored to avoid having to spill it
+@@ -2191,7 +2191,7 @@ func (s *state) append(n *Node, inplace bool) *ssa.Value {
+ 	if inplace {
+ 		l = s.variable(&lenVar, Types[TINT]) // generates phi for len
+ 		nl = s.newValue2(s.ssaOp(OADD, Types[TINT]), Types[TINT], l, s.constInt(Types[TINT], nargs))
+-		lenaddr := s.newValue1I(ssa.OpOffPtr, pt, int64(Array_nel), addr)
++		lenaddr := s.newValue1I(ssa.OpOffPtr, pt, int64(array_nel), addr)
+ 		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.IntSize, lenaddr, nl, s.mem())
+ 	}
+ 
+@@ -2996,7 +2996,7 @@ func (s *state) addr(n *Node, bounded bool) (*ssa.Value, bool) {
+ 		if n.Left.Type.IsSlice() {
+ 			a := s.expr(n.Left)
+ 			i := s.expr(n.Right)
+-			i = s.extendIndex(i, Panicindex)
++			i = s.extendIndex(i, panicindex)
+ 			len := s.newValue1(ssa.OpSliceLen, Types[TINT], a)
+ 			if !n.Bounded {
+ 				s.boundsCheck(i, len)
+@@ -3006,7 +3006,7 @@ func (s *state) addr(n *Node, bounded bool) (*ssa.Value, bool) {
+ 		} else { // array
+ 			a, isVolatile := s.addr(n.Left, bounded)
+ 			i := s.expr(n.Right)
+-			i = s.extendIndex(i, Panicindex)
++			i = s.extendIndex(i, panicindex)
+ 			len := s.constInt(Types[TINT], n.Left.Type.NumElem())
+ 			if !n.Bounded {
+ 				s.boundsCheck(i, len)
+@@ -3132,7 +3132,7 @@ func (s *state) exprPtr(n *Node, bounded bool, lineno int32) *ssa.Value {
+ // Used only for automatically inserted nil checks,
+ // not for user code like 'x != nil'.
+ func (s *state) nilCheck(ptr *ssa.Value) {
+-	if Disable_checknil != 0 {
++	if disable_checknil != 0 {
+ 		return
+ 	}
+ 	s.newValue2(ssa.OpNilCheck, ssa.TypeVoid, ptr, s.mem())
+@@ -3148,7 +3148,7 @@ func (s *state) boundsCheck(idx, len *ssa.Value) {
+ 
+ 	// bounds check
+ 	cmp := s.newValue2(ssa.OpIsInBounds, Types[TBOOL], idx, len)
+-	s.check(cmp, Panicindex)
++	s.check(cmp, panicindex)
+ }
+ 
+ // sliceBoundsCheck generates slice bounds checking code. Checks if 0 <= idx <= len, branches to exit if not.
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 06d033fad1..4a73d772d5 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -921,7 +921,7 @@ func convertop(src *Type, dst *Type, why *string) Op {
+ 
+ 	// 4. src and dst are both integer or floating point types.
+ 	if (src.IsInteger() || src.IsFloat()) && (dst.IsInteger() || dst.IsFloat()) {
+-		if Simtype[src.Etype] == Simtype[dst.Etype] {
++		if simtype[src.Etype] == simtype[dst.Etype] {
+ 			return OCONVNOP
+ 		}
+ 		return OCONV
+@@ -929,7 +929,7 @@ func convertop(src *Type, dst *Type, why *string) Op {
+ 
+ 	// 5. src and dst are both complex types.
+ 	if src.IsComplex() && dst.IsComplex() {
+-		if Simtype[src.Etype] == Simtype[dst.Etype] {
++		if simtype[src.Etype] == simtype[dst.Etype] {
+ 			return OCONVNOP
+ 		}
+ 		return OCONV
+@@ -2007,7 +2007,7 @@ func Simsimtype(t *Type) EType {
+ 		return 0
+ 	}
+ 
+-	et := Simtype[t.Etype]
++	et := simtype[t.Etype]
+ 	switch et {
+ 	case TPTR32:
+ 		et = TUINT32
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 75aac3136d..36f80dfbe3 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -1027,7 +1027,7 @@ OpSwitch:
+ 					yyerror("invalid array index %v (out of bounds for %d-element array)", n.Right, t.NumElem())
+ 				} else if Isconst(n.Left, CTSTR) && x >= int64(len(n.Left.Val().U.(string))) {
+ 					yyerror("invalid string index %v (out of bounds for %d-byte string)", n.Right, len(n.Left.Val().U.(string)))
+-				} else if n.Right.Val().U.(*Mpint).Cmp(Maxintval[TINT]) > 0 {
++				} else if n.Right.Val().U.(*Mpint).Cmp(maxintval[TINT]) > 0 {
+ 					yyerror("invalid %s index %v (index too large)", why, n.Right)
+ 				}
+ 			}
+@@ -2173,7 +2173,7 @@ func checksliceindex(l *Node, r *Node, tp *Type) bool {
+ 		} else if Isconst(l, CTSTR) && r.Int64() > int64(len(l.Val().U.(string))) {
+ 			yyerror("invalid slice index %v (out of bounds for %d-byte string)", r, len(l.Val().U.(string)))
+ 			return false
+-		} else if r.Val().U.(*Mpint).Cmp(Maxintval[TINT]) > 0 {
++		} else if r.Val().U.(*Mpint).Cmp(maxintval[TINT]) > 0 {
+ 			yyerror("invalid slice index %v (index too large)", r)
+ 			return false
+ 		}
+@@ -3774,7 +3774,7 @@ func checkmake(t *Type, arg string, n *Node) bool {
+ 				return false
+ 			}
+ 
+-			if n.Val().U.(*Mpint).Cmp(Maxintval[TINT]) > 0 {
++			if n.Val().U.(*Mpint).Cmp(maxintval[TINT]) > 0 {
+ 				yyerror("%s argument too large in make(%v)", arg, t)
+ 				return false
+ 			}
+diff --git a/src/cmd/compile/internal/gc/universe.go b/src/cmd/compile/internal/gc/universe.go
+index 4c374c622e..13260fb558 100644
+--- a/src/cmd/compile/internal/gc/universe.go
++++ b/src/cmd/compile/internal/gc/universe.go
+@@ -149,7 +149,7 @@ func typeinit() {
+ 	}
+ 
+ 	for et := EType(0); et < NTYPE; et++ {
+-		Simtype[et] = et
++		simtype[et] = et
+ 	}
+ 
+ 	Types[TPTR32] = typ(TPTR32)
+@@ -171,23 +171,23 @@ func typeinit() {
+ 	}
+ 
+ 	for et := TINT8; et <= TUINT64; et++ {
+-		Isint[et] = true
++		isInt[et] = true
+ 	}
+-	Isint[TINT] = true
+-	Isint[TUINT] = true
+-	Isint[TUINTPTR] = true
++	isInt[TINT] = true
++	isInt[TUINT] = true
++	isInt[TUINTPTR] = true
+ 
+-	Isfloat[TFLOAT32] = true
+-	Isfloat[TFLOAT64] = true
++	isFloat[TFLOAT32] = true
++	isFloat[TFLOAT64] = true
+ 
+-	Iscomplex[TCOMPLEX64] = true
+-	Iscomplex[TCOMPLEX128] = true
++	isComplex[TCOMPLEX64] = true
++	isComplex[TCOMPLEX128] = true
+ 
+ 	isforw[TFORW] = true
+ 
+ 	// initialize okfor
+ 	for et := EType(0); et < NTYPE; et++ {
+-		if Isint[et] || et == TIDEAL {
++		if isInt[et] || et == TIDEAL {
+ 			okforeq[et] = true
+ 			okforcmp[et] = true
+ 			okforarith[et] = true
+@@ -195,11 +195,11 @@ func typeinit() {
+ 			okforand[et] = true
+ 			okforconst[et] = true
+ 			issimple[et] = true
+-			Minintval[et] = new(Mpint)
+-			Maxintval[et] = new(Mpint)
++			minintval[et] = new(Mpint)
++			maxintval[et] = new(Mpint)
+ 		}
+ 
+-		if Isfloat[et] {
++		if isFloat[et] {
+ 			okforeq[et] = true
+ 			okforcmp[et] = true
+ 			okforadd[et] = true
+@@ -210,7 +210,7 @@ func typeinit() {
+ 			maxfltval[et] = newMpflt()
+ 		}
+ 
+-		if Iscomplex[et] {
++		if isComplex[et] {
+ 			okforeq[et] = true
+ 			okforadd[et] = true
+ 			okforarith[et] = true
+@@ -302,19 +302,19 @@ func typeinit() {
+ 	iscmp[OEQ] = true
+ 	iscmp[ONE] = true
+ 
+-	Maxintval[TINT8].SetString("0x7f")
+-	Minintval[TINT8].SetString("-0x80")
+-	Maxintval[TINT16].SetString("0x7fff")
+-	Minintval[TINT16].SetString("-0x8000")
+-	Maxintval[TINT32].SetString("0x7fffffff")
+-	Minintval[TINT32].SetString("-0x80000000")
+-	Maxintval[TINT64].SetString("0x7fffffffffffffff")
+-	Minintval[TINT64].SetString("-0x8000000000000000")
++	maxintval[TINT8].SetString("0x7f")
++	minintval[TINT8].SetString("-0x80")
++	maxintval[TINT16].SetString("0x7fff")
++	minintval[TINT16].SetString("-0x8000")
++	maxintval[TINT32].SetString("0x7fffffff")
++	minintval[TINT32].SetString("-0x80000000")
++	maxintval[TINT64].SetString("0x7fffffffffffffff")
++	minintval[TINT64].SetString("-0x8000000000000000")
+ 
+-	Maxintval[TUINT8].SetString("0xff")
+-	Maxintval[TUINT16].SetString("0xffff")
+-	Maxintval[TUINT32].SetString("0xffffffff")
+-	Maxintval[TUINT64].SetString("0xffffffffffffffff")
++	maxintval[TUINT8].SetString("0xff")
++	maxintval[TUINT16].SetString("0xffff")
++	maxintval[TUINT32].SetString("0xffffffff")
++	maxintval[TUINT64].SetString("0xffffffffffffffff")
+ 
+ 	// f is valid float if min < f < max.  (min and max are not themselves valid.)
+ 	maxfltval[TFLOAT32].SetString("33554431p103") // 2^24-1 p (127-23) + 1/2 ulp
+@@ -337,19 +337,19 @@ func typeinit() {
+ 	Types[TINTER] = typ(TINTER)
+ 
+ 	// simple aliases
+-	Simtype[TMAP] = Tptr
++	simtype[TMAP] = Tptr
+ 
+-	Simtype[TCHAN] = Tptr
+-	Simtype[TFUNC] = Tptr
+-	Simtype[TUNSAFEPTR] = Tptr
++	simtype[TCHAN] = Tptr
++	simtype[TFUNC] = Tptr
++	simtype[TUNSAFEPTR] = Tptr
+ 
+-	Array_array = int(Rnd(0, int64(Widthptr)))
+-	Array_nel = int(Rnd(int64(Array_array)+int64(Widthptr), int64(Widthint)))
+-	Array_cap = int(Rnd(int64(Array_nel)+int64(Widthint), int64(Widthint)))
+-	sizeof_Array = int(Rnd(int64(Array_cap)+int64(Widthint), int64(Widthptr)))
++	array_array = int(Rnd(0, int64(Widthptr)))
++	array_nel = int(Rnd(int64(array_array)+int64(Widthptr), int64(Widthint)))
++	array_cap = int(Rnd(int64(array_nel)+int64(Widthint), int64(Widthint)))
++	sizeof_Array = int(Rnd(int64(array_cap)+int64(Widthint), int64(Widthptr)))
+ 
+ 	// string is same as slice wo the cap
+-	sizeof_String = int(Rnd(int64(Array_nel)+int64(Widthint), int64(Widthptr)))
++	sizeof_String = int(Rnd(int64(array_nel)+int64(Widthint), int64(Widthptr)))
+ 
+ 	dowidth(Types[TSTRING])
+ 	dowidth(idealstring)
+@@ -421,11 +421,11 @@ func lexinit1() {
+ 			sameas = s.sameas64
+ 		}
+ 
+-		Simtype[s.etype] = sameas
++		simtype[s.etype] = sameas
+ 		minfltval[s.etype] = minfltval[sameas]
+ 		maxfltval[s.etype] = maxfltval[sameas]
+-		Minintval[s.etype] = Minintval[sameas]
+-		Maxintval[s.etype] = Maxintval[sameas]
++		minintval[s.etype] = minintval[sameas]
++		maxintval[s.etype] = maxintval[sameas]
+ 
+ 		t := typ(s.etype)
+ 		t.Sym = s1
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 749770d4a5..e53fd7ac97 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -1193,7 +1193,7 @@ opswitch:
+ 		// rewrite complex div into function call.
+ 		et := n.Left.Type.Etype
+ 
+-		if Iscomplex[et] && n.Op == ODIV {
++		if isComplex[et] && n.Op == ODIV {
+ 			t := n.Type
+ 			n = mkcall("complex128div", Types[TCOMPLEX128], init, conv(n.Left, Types[TCOMPLEX128]), conv(n.Right, Types[TCOMPLEX128]))
+ 			n = conv(n, t)
+@@ -1201,7 +1201,7 @@ opswitch:
+ 		}
+ 
+ 		// Nothing to do for float divisions.
+-		if Isfloat[et] {
++		if isFloat[et] {
+ 			break
+ 		}
+ 
+@@ -1276,7 +1276,7 @@ opswitch:
+ 		}
+ 
+ 		if Isconst(n.Right, CTINT) {
+-			if n.Right.Val().U.(*Mpint).CmpInt64(0) < 0 || n.Right.Val().U.(*Mpint).Cmp(Maxintval[TINT]) > 0 {
++			if n.Right.Val().U.(*Mpint).CmpInt64(0) < 0 || n.Right.Val().U.(*Mpint).Cmp(maxintval[TINT]) > 0 {
+ 				yyerror("index out of bounds")
+ 			}
+ 		}
+@@ -1523,8 +1523,8 @@ opswitch:
+ 			// typechecking guarantees that TIDEAL len/cap are positive and fit in an int.
+ 			// The case of len or cap overflow when converting TUINT or TUINTPTR to TINT
+ 			// will be handled by the negative range checks in makeslice during runtime.
+-			if (len.Type.IsKind(TIDEAL) || Maxintval[len.Type.Etype].Cmp(Maxintval[TUINT]) <= 0) &&
+-				(cap.Type.IsKind(TIDEAL) || Maxintval[cap.Type.Etype].Cmp(Maxintval[TUINT]) <= 0) {
++			if (len.Type.IsKind(TIDEAL) || maxintval[len.Type.Etype].Cmp(maxintval[TUINT]) <= 0) &&
++				(cap.Type.IsKind(TIDEAL) || maxintval[cap.Type.Etype].Cmp(maxintval[TUINT]) <= 0) {
+ 				fnname = "makeslice"
+ 				argtype = Types[TINT]
+ 			}
+@@ -2063,7 +2063,7 @@ func walkprint(nn *Node, init *Nodes) *Node {
+ 		} else if n.Type.IsSlice() {
+ 			on = syslook("printslice")
+ 			on = substArgTypes(on, n.Type) // any-1
+-		} else if Isint[et] {
++		} else if isInt[et] {
+ 			if et == TUINT64 {
+ 				if (t.Sym.Pkg == Runtimepkg || compiling_runtime) && t.Sym.Name == "hex" {
+ 					on = syslook("printhex")
+@@ -2073,9 +2073,9 @@ func walkprint(nn *Node, init *Nodes) *Node {
+ 			} else {
+ 				on = syslook("printint")
+ 			}
+-		} else if Isfloat[et] {
++		} else if isFloat[et] {
+ 			on = syslook("printfloat")
+-		} else if Iscomplex[et] {
++		} else if isComplex[et] {
+ 			on = syslook("printcomplex")
+ 		} else if et == TBOOL {
+ 			on = syslook("printbool")
+@@ -3501,7 +3501,7 @@ func walkinrange(n *Node, init *Nodes) *Node {
+ 		// We need a ≤ b && ... to safely use unsigned comparison tricks.
+ 		// If a is not the maximum constant for b's type,
+ 		// we can increment a and switch to ≤.
+-		if a.Int64() >= Maxintval[b.Type.Etype].Int64() {
++		if a.Int64() >= maxintval[b.Type.Etype].Int64() {
+ 			return n
+ 		}
+ 		a = nodintconst(a.Int64() + 1)
+@@ -3675,7 +3675,7 @@ func walkdiv(n *Node, init *Nodes) *Node {
+ 			goto ret
+ 		}
+ 
+-		switch Simtype[nl.Type.Etype] {
++		switch simtype[nl.Type.Etype] {
+ 		default:
+ 			return n
+ 
+@@ -3689,7 +3689,7 @@ func walkdiv(n *Node, init *Nodes) *Node {
+ 			if m.Ua != 0 {
+ 				// Select a Go type with (at least) twice the width.
+ 				var twide *Type
+-				switch Simtype[nl.Type.Etype] {
++				switch simtype[nl.Type.Etype] {
+ 				default:
+ 					return n
+ 
+@@ -3780,7 +3780,7 @@ func walkdiv(n *Node, init *Nodes) *Node {
+ 				// nl & (2^pow-1) is (nl+1)%2^pow - 1.
+ 				var nc Node
+ 
+-				Nodconst(&nc, Types[Simtype[TUINT]], int64(w)-1)
++				Nodconst(&nc, Types[simtype[TUINT]], int64(w)-1)
+ 				n1 := Nod(ORSH, nl, &nc) // n1 = -1 iff nl < 0.
+ 				if pow == 1 {
+ 					n1 = typecheck(n1, Erv)
+@@ -3814,7 +3814,7 @@ func walkdiv(n *Node, init *Nodes) *Node {
+ 				// if nl < 0, we want to add 2^n-1 first.
+ 				var nc Node
+ 
+-				Nodconst(&nc, Types[Simtype[TUINT]], int64(w)-1)
++				Nodconst(&nc, Types[simtype[TUINT]], int64(w)-1)
+ 				n1 := Nod(ORSH, nl, &nc) // n1 = -1 iff nl < 0.
+ 				if pow == 1 {
+ 					// nl+1 is nl-(-1)
+@@ -3823,7 +3823,7 @@ func walkdiv(n *Node, init *Nodes) *Node {
+ 					// Do a logical right right on -1 to keep pow bits.
+ 					var nc Node
+ 
+-					Nodconst(&nc, Types[Simtype[TUINT]], int64(w)-int64(pow))
++					Nodconst(&nc, Types[simtype[TUINT]], int64(w)-int64(pow))
+ 					n2 := Nod(ORSH, conv(n1, nl.Type.toUnsigned()), &nc)
+ 					n.Left = Nod(OADD, nl, conv(n2, nl.Type))
+ 				}
+@@ -3832,7 +3832,7 @@ func walkdiv(n *Node, init *Nodes) *Node {
+ 				n.Op = ORSH
+ 
+ 				var n2 Node
+-				Nodconst(&n2, Types[Simtype[TUINT]], int64(pow))
++				Nodconst(&n2, Types[simtype[TUINT]], int64(pow))
+ 				n.Right = &n2
+ 				n.Typecheck = 0
+ 			}
+@@ -3853,7 +3853,7 @@ func walkdiv(n *Node, init *Nodes) *Node {
+ 			// n = nl >> pow
+ 			n.Op = ORSH
+ 
+-			Nodconst(&nc, Types[Simtype[TUINT]], int64(pow))
++			Nodconst(&nc, Types[simtype[TUINT]], int64(pow))
+ 		}
+ 
+ 		n.Typecheck = 0

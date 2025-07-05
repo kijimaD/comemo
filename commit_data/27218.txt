@@ -16,7 +16,80 @@ Date:   Tue Feb 16 11:06:00 2016 -0500
     Reviewed-by: Rick Hudson <rlh@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
     Run-TryBot: Austin Clements <austin@google.com>
-
+---
  src/runtime/runtime2.go |  2 +-
  src/runtime/select.go   | 19 +++++++++++--------
  2 files changed, 12 insertions(+), 9 deletions(-)
+
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index ac437def26..5d7f4354ef 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -314,7 +314,7 @@ type g struct {
+ 	gopc           uintptr // pc of go statement that created this goroutine
+ 	startpc        uintptr // pc of goroutine function
+ 	racectx        uintptr
+-	waiting        *sudog // sudog structures this g is waiting on (that have a valid elem ptr)
++	waiting        *sudog // sudog structures this g is waiting on (that have a valid elem ptr); in lock order
+ 
+ 	// Per-G gcController state
+ 
+diff --git a/src/runtime/select.go b/src/runtime/select.go
+index 6e016acfa0..444427ccb7 100644
+--- a/src/runtime/select.go
++++ b/src/runtime/select.go
+@@ -319,6 +319,7 @@ func selectgoImpl(sel *hselect) (uintptr, uint16) {
+ 		sglist *sudog
+ 		sgnext *sudog
+ 		qp     unsafe.Pointer
++		nextp  **sudog
+ 	)
+ 
+ loop:
+@@ -374,8 +375,9 @@ loop:
+ 	if gp.waiting != nil {
+ 		throw("gp.waiting != nil")
+ 	}
+-	for i := 0; i < int(sel.ncase); i++ {
+-		cas = &scases[pollorder[i]]
++	nextp = &gp.waiting
++	for _, casei := range lockorder {
++		cas = &scases[casei]
+ 		c = cas.c
+ 		sg := acquireSudog()
+ 		sg.g = gp
+@@ -388,9 +390,10 @@ loop:
+ 		if t0 != 0 {
+ 			sg.releasetime = -1
+ 		}
+-		sg.waitlink = gp.waiting
+ 		sg.c = c
+-		gp.waiting = sg
++		// Construct waiting list in lock order.
++		*nextp = sg
++		nextp = &sg.waitlink
+ 
+ 		switch cas.kind {
+ 		case caseRecv:
+@@ -413,8 +416,7 @@ loop:
+ 	// pass 3 - dequeue from unsuccessful chans
+ 	// otherwise they stack up on quiet channels
+ 	// record the successful case, if any.
+-	// We singly-linked up the SudoGs in case order, so when
+-	// iterating through the linked list they are in reverse order.
++	// We singly-linked up the SudoGs in lock order.
+ 	cas = nil
+ 	sglist = gp.waiting
+ 	// Clear all elem before unlinking from gp.waiting.
+@@ -424,8 +426,9 @@ loop:
+ 		sg1.c = nil
+ 	}
+ 	gp.waiting = nil
+-	for i := int(sel.ncase) - 1; i >= 0; i-- {
+-		k = &scases[pollorder[i]]
++
++	for _, casei := range lockorder {
++		k = &scases[casei]
+ 		if sglist.releasetime > 0 {
+ 			k.releasetime = sglist.releasetime
+ 		}

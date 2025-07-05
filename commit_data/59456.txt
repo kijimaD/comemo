@@ -9,7 +9,7 @@ Date:   Thu Mar 14 14:42:53 2024 -0400
     TryBot-Bypass: Russ Cox <rsc@golang.org>
     Auto-Submit: Russ Cox <rsc@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  doc/next/6-stdlib/0-heading.md                        | 2 +-
  doc/next/6-stdlib/99-minor/database/sql/64707.md      | 6 +++---
  doc/next/6-stdlib/99-minor/debug/elf/66054.md         | 6 +++---
@@ -25,3 +25,135 @@ Date:   Thu Mar 14 14:42:53 2024 -0400
  doc/next/6-stdlib/99-minor/syscall/62254.md           | 2 +-
  doc/next/6-stdlib/99-minor/syscall/65817.md           | 2 +-
  14 files changed, 21 insertions(+), 21 deletions(-)
+
+diff --git a/doc/next/6-stdlib/0-heading.md b/doc/next/6-stdlib/0-heading.md
+index a992170d43..02351ce1c0 100644
+--- a/doc/next/6-stdlib/0-heading.md
++++ b/doc/next/6-stdlib/0-heading.md
+@@ -1,2 +1,2 @@
+-## Standard library {#library}
++## Core library {#library}
+ 
+diff --git a/doc/next/6-stdlib/99-minor/database/sql/64707.md b/doc/next/6-stdlib/99-minor/database/sql/64707.md
+index 70aad889ff..b6942b66b6 100644
+--- a/doc/next/6-stdlib/99-minor/database/sql/64707.md
++++ b/doc/next/6-stdlib/99-minor/database/sql/64707.md
+@@ -1,4 +1,4 @@
+-Errors returned by [`driver.Valuer`](/database/sql/driver#Driver)
++Errors returned by [`driver.Valuer`](/pkg/database/sql/driver#Driver)
+ implementations are now wrapped for improved error handling during
+-operations like [`Query`](/database/sql#DB.Query), [`Exec`](/database/sql#DB.Exec),
+-and [`QueryRow`](/database/sql#DB.QueryRow).
++operations like [`Query`](/pkg/database/sql#DB.Query), [`Exec`](/pkg/database/sql#DB.Exec),
++and [`QueryRow`](/pkg/database/sql#DB.QueryRow).
+diff --git a/doc/next/6-stdlib/99-minor/debug/elf/66054.md b/doc/next/6-stdlib/99-minor/debug/elf/66054.md
+index 9cf1fa7ad1..c2236877c3 100644
+--- a/doc/next/6-stdlib/99-minor/debug/elf/66054.md
++++ b/doc/next/6-stdlib/99-minor/debug/elf/66054.md
+@@ -1,3 +1,3 @@
+-The debug/elf package now defines PT_OPENBSD_NOBTCFI. This elf.ProgType is
+-used to disable Branch Tracking Control Flow Integrity (BTCFI) enforcement
+-on OpenBSD binaries.
++The new [`ProgType`](/pkg/debug/elf#ProgType)
++[`PT_OPENBSD_NOBTCFI`](/pkg/debug/elf#PT_OPENBSD_NOBTCFI).
++disables Branch Tracking Control Flow Integrity (BTCFI) enforcement on OpenBSD binaries.
+diff --git a/doc/next/6-stdlib/99-minor/net/62254.md b/doc/next/6-stdlib/99-minor/net/62254.md
+index 012b7ede5e..fefc3fb50f 100644
+--- a/doc/next/6-stdlib/99-minor/net/62254.md
++++ b/doc/next/6-stdlib/99-minor/net/62254.md
+@@ -1,4 +1,4 @@
+-The new type [`KeepAliveConfig`](/net#KeepAliveConfig) permits fine-tuning
++The new type [`KeepAliveConfig`](/pkg/net#KeepAliveConfig) permits fine-tuning
+ the keep-alive options for TCP connections, via a new
+-[`TCPConn.SetKeepAliveConfig`](/net#TCPConn.SetKeepAliveConfig) method and
+-new KeepAliveConfig fields for [`Dialer`](/net#Dialer) and [`ListenConfig`](/net#ListenConfig).
++[`TCPConn.SetKeepAliveConfig`](/pkg/net#TCPConn.SetKeepAliveConfig) method and
++new KeepAliveConfig fields for [`Dialer`](/pkg/net#Dialer) and [`ListenConfig`](/pkg/net#ListenConfig).
+diff --git a/doc/next/6-stdlib/99-minor/net/http/64910.md b/doc/next/6-stdlib/99-minor/net/http/64910.md
+index 020e18b97b..26e69d2e6e 100644
+--- a/doc/next/6-stdlib/99-minor/net/http/64910.md
++++ b/doc/next/6-stdlib/99-minor/net/http/64910.md
+@@ -1,2 +1,2 @@
+-The patterns used by [`net/http.ServeMux`](//net/http#ServeMux) allow
++The patterns used by [`net/http.ServeMux`](/pkg/net/http#ServeMux) allow
+ multiple spaces matching regexp '[ \t]+'.
+diff --git a/doc/next/6-stdlib/99-minor/net/http/httptest/59473.md b/doc/next/6-stdlib/99-minor/net/http/httptest/59473.md
+index 65cc6076cf..621338d238 100644
+--- a/doc/next/6-stdlib/99-minor/net/http/httptest/59473.md
++++ b/doc/next/6-stdlib/99-minor/net/http/httptest/59473.md
+@@ -1,2 +1,2 @@
+-The new NewRequestWithContext method creates an incoming request with
+-a Context.
++The new [`NewRequestWithContext`](/pkg/net/http/httptest#NewRequestWithContext) method creates an incoming request with
++a [`context.Context`](/pkg/context#Context).
+diff --git a/doc/next/6-stdlib/99-minor/os/33357.md b/doc/next/6-stdlib/99-minor/os/33357.md
+index 3e80943263..67e66c589b 100644
+--- a/doc/next/6-stdlib/99-minor/os/33357.md
++++ b/doc/next/6-stdlib/99-minor/os/33357.md
+@@ -1,3 +1,3 @@
+-The [`os.Stat`](/os#Stat) function now sets the [`os.ModeSocket`](/os#ModeSocket)
++The [`os.Stat`](/pkg/os#Stat) function now sets the [`os.ModeSocket`](/pkg/os#ModeSocket)
+ bit for files that are Unix sockets on Windows. These files are identified by
+ having a reparse tag set to `IO_REPARSE_TAG_AF_UNIX`.
+diff --git a/doc/next/6-stdlib/99-minor/os/62484.md b/doc/next/6-stdlib/99-minor/os/62484.md
+index 81abb4bc68..305f8ad05c 100644
+--- a/doc/next/6-stdlib/99-minor/os/62484.md
++++ b/doc/next/6-stdlib/99-minor/os/62484.md
+@@ -1,2 +1,2 @@
+-The [`CopyFS`](/os#CopyFS) function copies an [`io/fs.FS`](/io/fs#FS)
++The [`CopyFS`](/pkg/os#CopyFS) function copies an [`io/fs.FS`](/pkg/io/fs#FS)
+ into the local filesystem.
+diff --git a/doc/next/6-stdlib/99-minor/os/63703.md b/doc/next/6-stdlib/99-minor/os/63703.md
+index abde9448f5..f547d496a2 100644
+--- a/doc/next/6-stdlib/99-minor/os/63703.md
++++ b/doc/next/6-stdlib/99-minor/os/63703.md
+@@ -1,4 +1,4 @@
+-On Windows, [`os.Readlink`](/os#Readlink) no longer tries
++On Windows, [`os.Readlink`](/pkg/os#Readlink) no longer tries
+ to normalize volumes to drive letters, which was not always even possible.
+ This behavior is controlled by the `winreadlinkvolume` setting.
+ For Go 1.23, it defaults to `winreadlinkvolume=1`.
+diff --git a/doc/next/6-stdlib/99-minor/path/filepath/57151.md b/doc/next/6-stdlib/99-minor/path/filepath/57151.md
+index 67e84894fe..c992447fe3 100644
+--- a/doc/next/6-stdlib/99-minor/path/filepath/57151.md
++++ b/doc/next/6-stdlib/99-minor/path/filepath/57151.md
+@@ -1,2 +1,2 @@
+-The new [`Localize`](/path/filepath#Localize) function safely converts
++The new [`Localize`](/pkg/path/filepath#Localize) function safely converts
+ a slash-separated path into an operating system path.
+diff --git a/doc/next/6-stdlib/99-minor/runtime/debug/42888.md b/doc/next/6-stdlib/99-minor/runtime/debug/42888.md
+index d75c86900f..a4e812cc06 100644
+--- a/doc/next/6-stdlib/99-minor/runtime/debug/42888.md
++++ b/doc/next/6-stdlib/99-minor/runtime/debug/42888.md
+@@ -1,5 +1,5 @@
+ 
+-The [`debug.SetCrashOutput`](/runtime#SetCrashOutput) function allows
++The [`debug.SetCrashOutput`](/pkg/runtime#SetCrashOutput) function allows
+ the user to specify an alternate file to which the runtime should
+ write its fatal crash report
+ ([#42888](https://github.com/golang/go/issues/42888)).
+diff --git a/doc/next/6-stdlib/99-minor/sync/61696.md b/doc/next/6-stdlib/99-minor/sync/61696.md
+index 173076ca5e..d138533597 100644
+--- a/doc/next/6-stdlib/99-minor/sync/61696.md
++++ b/doc/next/6-stdlib/99-minor/sync/61696.md
+@@ -1,4 +1,4 @@
+-The [`(*sync.Map) Clear()`](//sync#Map.Clear) method deletes
++The [`(*sync.Map) Clear()`](/pkg/sync#Map.Clear) method deletes
+ all the entries, resulting in an empty map
+ ([#61696](https://github.com/golang/go/issues/61696)).
+ It is analogous to `clear`.
+\ No newline at end of file
+diff --git a/doc/next/6-stdlib/99-minor/syscall/62254.md b/doc/next/6-stdlib/99-minor/syscall/62254.md
+index fe9651a178..bffb7199d8 100644
+--- a/doc/next/6-stdlib/99-minor/syscall/62254.md
++++ b/doc/next/6-stdlib/99-minor/syscall/62254.md
+@@ -1 +1 @@
+-The syscall package now defines WSAENOPROTOOPT on Windows.
++The syscall package now defines [`WSAENOPROTOOPT`](/pkg/syscall#WSAENOPROTOOPT) on Windows.
+diff --git a/doc/next/6-stdlib/99-minor/syscall/65817.md b/doc/next/6-stdlib/99-minor/syscall/65817.md
+index 0bbbc58549..a279a0ad69 100644
+--- a/doc/next/6-stdlib/99-minor/syscall/65817.md
++++ b/doc/next/6-stdlib/99-minor/syscall/65817.md
+@@ -1 +1 @@
+-The [`GetsockoptInt`](/syscall#GetsockoptInt) function is now supported on Windows.
++The [`GetsockoptInt`](/pkg/syscall#GetsockoptInt) function is now supported on Windows.

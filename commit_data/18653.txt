@@ -12,9 +12,80 @@ Date:   Tue Feb 25 14:43:53 2014 -0800
     R=rsc
     CC=golang-codereviews
     https://golang.org/cl/68750043
-
+---
  src/cmd/5g/gg.h   |  1 -
  src/cmd/5g/ggen.c |  5 +----
  src/cmd/8g/gg.h   |  1 -
  src/cmd/8g/ggen.c | 10 +---------
  4 files changed, 2 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/5g/gg.h b/src/cmd/5g/gg.h
+index a67a50080a..413e93c24a 100644
+--- a/src/cmd/5g/gg.h
++++ b/src/cmd/5g/gg.h
+@@ -28,7 +28,6 @@ EXTERN	Node*	panicindex;
+ EXTERN	Node*	panicslice;
+ EXTERN	Node*	throwreturn;
+ extern	long	unmappedzero;
+-EXTERN	int	maxstksize;
+ 
+ /*
+  * gen.c
+diff --git a/src/cmd/5g/ggen.c b/src/cmd/5g/ggen.c
+index b9930f49e7..417f381da4 100644
+--- a/src/cmd/5g/ggen.c
++++ b/src/cmd/5g/ggen.c
+@@ -22,11 +22,8 @@ defframe(Prog *ptxt)
+ 	ptxt->to.offset2 = rnd(curfn->type->argwid, widthptr);
+ 
+ 	// fill in final stack size
+-	if(stksize > maxstksize)
+-		maxstksize = stksize;
+-	frame = rnd(maxstksize+maxarg, widthptr);
++	frame = rnd(stksize+maxarg, widthptr);
+ 	ptxt->to.offset = frame;
+-	maxstksize = 0;
+ 	
+ 	p = ptxt;
+ 	if(stkzerosize > 0) {
+diff --git a/src/cmd/8g/gg.h b/src/cmd/8g/gg.h
+index 8a2fcb6772..bdefa93b5b 100644
+--- a/src/cmd/8g/gg.h
++++ b/src/cmd/8g/gg.h
+@@ -31,7 +31,6 @@ EXTERN	Node*	panicindex;
+ EXTERN	Node*	panicslice;
+ EXTERN	Node*	panicdiv;
+ EXTERN	Node*	throwreturn;
+-EXTERN	int	maxstksize;
+ extern	uint32	unmappedzero;
+ 
+ 
+diff --git a/src/cmd/8g/ggen.c b/src/cmd/8g/ggen.c
+index f761fa6b03..997811af36 100644
+--- a/src/cmd/8g/ggen.c
++++ b/src/cmd/8g/ggen.c
+@@ -21,11 +21,8 @@ defframe(Prog *ptxt)
+ 	ptxt->to.offset2 = rnd(curfn->type->argwid, widthptr);
+ 
+ 	// fill in final stack size
+-	if(stksize > maxstksize)
+-		maxstksize = stksize;
+-	frame = rnd(maxstksize+maxarg, widthptr);
++	frame = rnd(stksize+maxarg, widthptr);
+ 	ptxt->to.offset = frame;
+-	maxstksize = 0;
+ 	
+ 	// insert code to contain ambiguously live variables
+ 	// so that garbage collector only sees initialized values
+@@ -137,11 +134,6 @@ clearfat(Node *nl)
+ 		q--;
+ 	}
+ 
+-	if(c >= 4) {
+-		gconreg(AMOVL, c, D_CX);
+-		gins(AREP, N, N);	// repeat
+-		gins(ASTOSB, N, N);	// STOB AL,*(DI)+
+-	} else
+ 	while(c > 0) {
+ 		gins(ASTOSB, N, N);	// STOB AL,*(DI)+
+ 		c--;

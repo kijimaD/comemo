@@ -25,9 +25,167 @@ Date:   Sun Sep 13 02:12:02 2020 +0000
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
     Trust: Emmanuel Odeke <emm.odeke@gmail.com>
-
+---
  src/encoding/json/decode.go      | 18 ++++++++++++++++++
  src/encoding/json/decode_test.go | 31 +++++++++++++++++++++++++++++++
  src/encoding/json/encode.go      | 12 ++++++++++++
  src/encoding/json/encode_test.go | 24 +++++++++++++++++++++++-
  4 files changed, 84 insertions(+), 1 deletion(-)
+
+diff --git a/src/encoding/json/decode.go b/src/encoding/json/decode.go
+index 86d8a69db7..1b006ffb17 100644
+--- a/src/encoding/json/decode.go
++++ b/src/encoding/json/decode.go
+@@ -136,6 +136,12 @@ func (e *UnmarshalTypeError) Error() string {
+ 	return "json: cannot unmarshal " + e.Value + " into Go value of type " + e.Type.String()
+ }
+ 
++// Is returns true if target is a UnmarshalTypeError.
++func (e *UnmarshalTypeError) Is(target error) bool {
++	_, ok := target.(*UnmarshalTypeError)
++	return ok
++}
++
+ // An UnmarshalFieldError describes a JSON object key that
+ // led to an unexported (and therefore unwritable) struct field.
+ //
+@@ -150,12 +156,24 @@ func (e *UnmarshalFieldError) Error() string {
+ 	return "json: cannot unmarshal object key " + strconv.Quote(e.Key) + " into unexported field " + e.Field.Name + " of type " + e.Type.String()
+ }
+ 
++// Is returns true if target is a UnmarshalFieldError.
++func (e *UnmarshalFieldError) Is(target error) bool {
++	_, ok := target.(*UnmarshalFieldError)
++	return ok
++}
++
+ // An InvalidUnmarshalError describes an invalid argument passed to Unmarshal.
+ // (The argument to Unmarshal must be a non-nil pointer.)
+ type InvalidUnmarshalError struct {
+ 	Type reflect.Type
+ }
+ 
++// Is returns true if target is a InvalidUnmarshalError.
++func (e *InvalidUnmarshalError) Is(target error) bool {
++	_, ok := target.(*InvalidUnmarshalError)
++	return ok
++}
++
+ func (e *InvalidUnmarshalError) Error() string {
+ 	if e.Type == nil {
+ 		return "json: Unmarshal(nil)"
+diff --git a/src/encoding/json/decode_test.go b/src/encoding/json/decode_test.go
+index 219e845c7b..b707dcfa99 100644
+--- a/src/encoding/json/decode_test.go
++++ b/src/encoding/json/decode_test.go
+@@ -2572,3 +2572,34 @@ func TestUnmarshalMaxDepth(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestInvalidUnmarshalErrorIs(t *testing.T) {
++	err := fmt.Errorf("apackage: %w: failed to parse struct", &InvalidUnmarshalError{reflect.TypeOf("a")})
++	if !errors.Is(err, &InvalidUnmarshalError{}) {
++		t.Fatalf("%v should be unwrapped to a InvalidUnmarshalError", err)
++	}
++}
++
++func TestUnmarshalFieldErrorIs(t *testing.T) {
++	err := fmt.Errorf("apackage: %w: failed to parse struct", &UnmarshalFieldError{
++		Key:   "foo",
++		Type:  reflect.TypeOf("a"),
++		Field: reflect.StructField{Name: "b"},
++	})
++	if !errors.Is(err, &UnmarshalFieldError{}) {
++		t.Fatalf("%v should be unwrapped to a UnmarshalFieldError", err)
++	}
++}
++
++func TestUnmarshalTypeErrorIs(t *testing.T) {
++	err := fmt.Errorf("apackage: %w: failed to parse struct", &UnmarshalTypeError{
++		Value:  "foo",
++		Type:   reflect.TypeOf("a"),
++		Offset: 1,
++		Struct: "Foo",
++		Field:  "Bar",
++	})
++	if !errors.Is(err, &UnmarshalTypeError{}) {
++		t.Fatalf("%v should be unwrapped to a UnmarshalTypeError", err)
++	}
++}
+diff --git a/src/encoding/json/encode.go b/src/encoding/json/encode.go
+index 578d551102..8e6b342b59 100644
+--- a/src/encoding/json/encode.go
++++ b/src/encoding/json/encode.go
+@@ -245,6 +245,12 @@ func (e *UnsupportedValueError) Error() string {
+ 	return "json: unsupported value: " + e.Str
+ }
+ 
++// Is returns true if target is a UnsupportedValueError.
++func (e *UnsupportedValueError) Is(target error) bool {
++	_, ok := target.(*UnsupportedValueError)
++	return ok
++}
++
+ // Before Go 1.2, an InvalidUTF8Error was returned by Marshal when
+ // attempting to encode a string value with invalid UTF-8 sequences.
+ // As of Go 1.2, Marshal instead coerces the string to valid UTF-8 by
+@@ -279,6 +285,12 @@ func (e *MarshalerError) Error() string {
+ // Unwrap returns the underlying error.
+ func (e *MarshalerError) Unwrap() error { return e.Err }
+ 
++// Is returns true if target is a MarshalerError.
++func (e *MarshalerError) Is(target error) bool {
++	_, ok := target.(*MarshalerError)
++	return ok
++}
++
+ var hex = "0123456789abcdef"
+ 
+ // An encodeState encodes JSON into a bytes.Buffer.
+diff --git a/src/encoding/json/encode_test.go b/src/encoding/json/encode_test.go
+index 7290eca06f..90826a7f47 100644
+--- a/src/encoding/json/encode_test.go
++++ b/src/encoding/json/encode_test.go
+@@ -7,6 +7,7 @@ package json
+ import (
+ 	"bytes"
+ 	"encoding"
++	"errors"
+ 	"fmt"
+ 	"log"
+ 	"math"
+@@ -211,7 +212,7 @@ var unsupportedValues = []interface{}{
+ func TestUnsupportedValues(t *testing.T) {
+ 	for _, v := range unsupportedValues {
+ 		if _, err := Marshal(v); err != nil {
+-			if _, ok := err.(*UnsupportedValueError); !ok {
++			if !errors.Is(err, &UnsupportedValueError{}) {
+ 				t.Errorf("for %v, got %T want UnsupportedValueError", v, err)
+ 			}
+ 		} else {
+@@ -1155,3 +1156,24 @@ func TestMarshalerError(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestMarshalerErrorIs(t *testing.T) {
++	err := fmt.Errorf("apackage: %w: failed to parse struct", &MarshalerError{
++		reflect.TypeOf("a"),
++		fmt.Errorf("something"),
++		"TestMarshalerErrorIs",
++	})
++	if !errors.Is(err, &MarshalerError{}) {
++		t.Fatalf("%v should be unwrapped to a MarshalerError", err)
++	}
++}
++
++func TestUnsupportedValueErrorIs(t *testing.T) {
++	err := fmt.Errorf("apackage: %w: failed to parse struct", &UnsupportedValueError{
++		Value: reflect.Value{},
++		Str:   "Foo",
++	})
++	if !errors.Is(err, &UnsupportedValueError{}) {
++		t.Fatalf("%v should be unwrapped to a UnsupportedValueError", err)
++	}
++}

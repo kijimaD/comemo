@@ -11,7 +11,7 @@ Date:   Tue May 5 16:19:12 2015 -0700
     Change-Id: Ib6b52f48270e08dfda98f2dd842b05afc3ab01ce
     Reviewed-on: https://go-review.googlesource.com/9761
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/cmd/internal/ssa/block.go      |   5 +-
  src/cmd/internal/ssa/cgen.go       |   3 -
  src/cmd/internal/ssa/compile.go    |  25 ++-
@@ -23,3 +23,776 @@ Date:   Tue May 5 16:19:12 2015 -0700
  src/cmd/internal/ssa/sparseset.go  |  19 +-
  src/cmd/internal/ssa/stackalloc.go |  51 +++++
  10 files changed, 542 insertions(+), 40 deletions(-)
+
+diff --git a/src/cmd/internal/ssa/block.go b/src/cmd/internal/ssa/block.go
+index 81b5594f38..dcf3676bc2 100644
+--- a/src/cmd/internal/ssa/block.go
++++ b/src/cmd/internal/ssa/block.go
+@@ -19,7 +19,7 @@ type Block struct {
+ 	Kind BlockKind
+ 
+ 	// Subsequent blocks, if any.  The number and order depend on the block kind.
+-	// All blocks must be distinct (to make phi values in successors unambiguous).
++	// All successors must be distinct (to make phi values in successors unambiguous).
+ 	Succs []*Block
+ 
+ 	// Inverse of successors.
+@@ -33,8 +33,9 @@ type Block struct {
+ 	// has a memory control value.
+ 	Control *Value
+ 
+-	// The unordered set of Values contained in this block.
++	// The unordered set of Values that define the operation of this block.
+ 	// The list must include the control value, if any. (TODO: need this last condition?)
++	// After the scheduling pass, this list is ordered.
+ 	Values []*Value
+ 
+ 	// The containing function
+diff --git a/src/cmd/internal/ssa/cgen.go b/src/cmd/internal/ssa/cgen.go
+index c13e715653..51c72aacd9 100644
+--- a/src/cmd/internal/ssa/cgen.go
++++ b/src/cmd/internal/ssa/cgen.go
+@@ -18,9 +18,6 @@ func cgen(f *Func) {
+ 
+ 	// TODO: prolog, allocate stack frame
+ 
+-	// hack for now, until regalloc is done
+-	f.RegAlloc = make([]Location, f.NumValues())
+-
+ 	for idx, b := range f.Blocks {
+ 		fmt.Printf("%d:\n", b.ID)
+ 		for _, v := range b.Values {
+diff --git a/src/cmd/internal/ssa/compile.go b/src/cmd/internal/ssa/compile.go
+index 08477d470c..c1f7956791 100644
+--- a/src/cmd/internal/ssa/compile.go
++++ b/src/cmd/internal/ssa/compile.go
+@@ -63,8 +63,8 @@ var passes = [...]pass{
+ 	{"critical", critical}, // remove critical edges
+ 	{"layout", layout},     // schedule blocks
+ 	{"schedule", schedule}, // schedule values
+-	// regalloc
+-	// stack slot alloc (+size stack frame)
++	{"regalloc", regalloc},
++	{"stackalloc", stackalloc},
+ 	{"cgen", cgen},
+ }
+ 
+@@ -72,19 +72,26 @@ var passes = [...]pass{
+ // This code is intended to document the ordering requirements
+ // between different phases.  It does not override the passes
+ // list above.
+-var passOrder = map[string]string{
++type constraint struct {
++	a, b string // a must come before b
++}
++
++var passOrder = [...]constraint{
+ 	// don't layout blocks until critical edges have been removed
+-	"critical": "layout",
++	{"critical", "layout"},
+ 	// regalloc requires the removal of all critical edges
+-	//"critical": "regalloc",
++	{"critical", "regalloc"},
+ 	// regalloc requires all the values in a block to be scheduled
+-	//"schedule": "regalloc",
+-	// code generation requires register allocation
+-	//"regalloc": "cgen",
++	{"schedule", "regalloc"},
++	// stack allocation requires register allocation
++	{"regalloc", "stackalloc"},
++	// code generation requires stack allocation
++	{"stackalloc", "cgen"},
+ }
+ 
+ func init() {
+-	for a, b := range passOrder {
++	for _, c := range passOrder {
++		a, b := c.a, c.b
+ 		i := -1
+ 		j := -1
+ 		for k, p := range passes {
+diff --git a/src/cmd/internal/ssa/critical.go b/src/cmd/internal/ssa/critical.go
+index 5bbad8f2f5..503681ffd3 100644
+--- a/src/cmd/internal/ssa/critical.go
++++ b/src/cmd/internal/ssa/critical.go
+@@ -29,7 +29,7 @@ func critical(f *Func) {
+ 		// split input edges coming from multi-output blocks.
+ 		for i, c := range b.Preds {
+ 			if c.Kind == BlockPlain {
+-				continue
++				continue // only single output block
+ 			}
+ 
+ 			// allocate a new block to place on the edge
+diff --git a/src/cmd/internal/ssa/location.go b/src/cmd/internal/ssa/location.go
+index 94c1b426a2..5fc2c5c934 100644
+--- a/src/cmd/internal/ssa/location.go
++++ b/src/cmd/internal/ssa/location.go
+@@ -28,7 +28,7 @@ type LocalSlot struct {
+ }
+ 
+ func (s *LocalSlot) Name() string {
+-	return fmt.Sprintf("loc%d", s.idx)
++	return fmt.Sprintf("-%d(FP)", s.idx)
+ }
+ 
+ // An ArgSlot is a location in the parents' stack frame where it passed us an argument.
+diff --git a/src/cmd/internal/ssa/op.go b/src/cmd/internal/ssa/op.go
+index 600dc9faa6..2d60b92939 100644
+--- a/src/cmd/internal/ssa/op.go
++++ b/src/cmd/internal/ssa/op.go
+@@ -127,6 +127,9 @@ const (
+ 	OpMOVQstoreFP
+ 	OpMOVQstoreSP
+ 
++	// materialize a constant into a register
++	OpMOVQconst
++
+ 	OpMax // sentinel
+ )
+ 
+@@ -151,14 +154,13 @@ type regMask uint64
+ 
+ var regs386 = [...]string{
+ 	"AX",
+-	"BX",
+ 	"CX",
+ 	"DX",
+-	"SI",
+-	"DI",
++	"BX",
+ 	"SP",
+ 	"BP",
+-	"X0",
++	"SI",
++	"DI",
+ 
+ 	// pseudo registers
+ 	"FLAGS",
+@@ -166,10 +168,10 @@ var regs386 = [...]string{
+ }
+ 
+ // TODO: match up these with regs386 above
+-var gp regMask = 0xff
+-var cx regMask = 0x4
+-var flags regMask = 1 << 9
+-var overwrite0 regMask = 1 << 10
++var gp regMask = 0xef
++var cx regMask = 0x2
++var flags regMask = 1 << 8
++var overwrite0 regMask = 1 << 9
+ 
+ const (
+ 	// possible properties of opcodes
+@@ -177,20 +179,23 @@ const (
+ 
+ 	// architecture constants
+ 	Arch386
+-	ArchAmd64
+-	ArchArm
++	ArchAMD64
++	ArchARM
+ )
+ 
+ // general purpose registers, 2 input, 1 output
+ var gp21 = [2][]regMask{{gp, gp}, {gp}}
+-var gp21_overwrite = [2][]regMask{{gp, gp}, {overwrite0}}
++var gp21_overwrite = [2][]regMask{{gp, gp}, {gp}}
+ 
+ // general purpose registers, 1 input, 1 output
+ var gp11 = [2][]regMask{{gp}, {gp}}
+-var gp11_overwrite = [2][]regMask{{gp}, {overwrite0}}
++var gp11_overwrite = [2][]regMask{{gp}, {gp}}
++
++// general purpose registers, 0 input, 1 output
++var gp01 = [2][]regMask{{}, {gp}}
+ 
+ // shift operations
+-var shift = [2][]regMask{{gp, cx}, {overwrite0}}
++var shift = [2][]regMask{{gp, cx}, {gp}}
+ 
+ var gp2_flags = [2][]regMask{{gp, gp}, {flags}}
+ var gp1_flags = [2][]regMask{{gp}, {flags}}
+@@ -199,6 +204,9 @@ var gploadX = [2][]regMask{{gp, gp, 0}, {gp}} // indexed loads
+ var gpstore = [2][]regMask{{gp, gp, 0}, {0}}
+ var gpstoreX = [2][]regMask{{gp, gp, gp, 0}, {0}} // indexed stores
+ 
++var gpload_stack = [2][]regMask{{0}, {gp}}
++var gpstore_stack = [2][]regMask{{gp, 0}, {0}}
++
+ // Opcodes that represent the input Go program
+ var genericTable = [...]OpInfo{
+ 	// the unknown op is used only during building and should not appear in a
+@@ -284,6 +292,8 @@ var amd64Table = [...]OpInfo{
+ 	OpMOVQload8:  {asm: "MOVQ\t%A(%I0)(%I1*8),%O0", reg: gploadX},
+ 	OpMOVQstore8: {asm: "MOVQ\t%I2,%A(%I0)(%I1*8)", reg: gpstoreX},
+ 
++	OpMOVQconst: {asm: "MOVQ\t$%A,%O0", reg: gp01},
++
+ 	OpStaticCall: {asm: "CALL\t%A(SB)"},
+ 
+ 	OpCopy: {asm: "MOVQ\t%I0,%O0", reg: gp11},
+@@ -292,17 +302,17 @@ var amd64Table = [...]OpInfo{
+ 	OpSETL: {},
+ 
+ 	// ops for load/store to stack
+-	OpMOVQloadFP:  {asm: "MOVQ\t%A(FP),%O0"},
+-	OpMOVQloadSP:  {asm: "MOVQ\t%A(SP),%O0"},
+-	OpMOVQstoreFP: {asm: "MOVQ\t%I0,%A(FP)"},
+-	OpMOVQstoreSP: {asm: "MOVQ\t%I0,%A(SP)"},
++	OpMOVQloadFP:  {asm: "MOVQ\t%A(FP),%O0", reg: gpload_stack},  // mem -> value
++	OpMOVQloadSP:  {asm: "MOVQ\t%A(SP),%O0", reg: gpload_stack},  // mem -> value
++	OpMOVQstoreFP: {asm: "MOVQ\t%I0,%A(FP)", reg: gpstore_stack}, // mem, value -> mem
++	OpMOVQstoreSP: {asm: "MOVQ\t%I0,%A(SP)", reg: gpstore_stack}, // mem, value -> mem
+ 
+ 	// ops for spilling of registers
+ 	// unlike regular loads & stores, these take no memory argument.
+ 	// They are just like OpCopy but we use them during register allocation.
+ 	// TODO: different widths, float
+-	OpLoadReg8:  {asm: "MOVQ\t%I0,%O0", reg: gp11},
+-	OpStoreReg8: {asm: "MOVQ\t%I0,%O0", reg: gp11},
++	OpLoadReg8:  {asm: "MOVQ\t%I0,%O0"},
++	OpStoreReg8: {asm: "MOVQ\t%I0,%O0"},
+ }
+ 
+ // A Table is a list of opcodes with a common set of flags.
+@@ -313,7 +323,7 @@ type Table struct {
+ 
+ var tables = []Table{
+ 	{genericTable[:], 0},
+-	{amd64Table[:], ArchAmd64}, // TODO: pick this dynamically
++	{amd64Table[:], ArchAMD64}, // TODO: pick this dynamically
+ }
+ 
+ // table of opcodes, indexed by opcode ID
+diff --git a/src/cmd/internal/ssa/op_string.go b/src/cmd/internal/ssa/op_string.go
+index 5c42d22439..c095fba52b 100644
+--- a/src/cmd/internal/ssa/op_string.go
++++ b/src/cmd/internal/ssa/op_string.go
+@@ -4,9 +4,9 @@ package ssa
+ 
+ import "fmt"
+ 
+-const _Op_name = "OpUnknownOpNopOpFwdRefOpAddOpSubOpMulOpLessOpConstOpArgOpGlobalOpFuncOpCopyOpPhiOpSliceMakeOpSlicePtrOpSliceLenOpSliceCapOpStringMakeOpStringPtrOpStringLenOpSliceIndexOpSliceIndexAddrOpLoadOpStoreOpCheckNilOpCheckBoundOpCallOpStaticCallOpConvertOpConvNopOpFPAddrOpSPAddrOpStoreReg8OpLoadReg8OpADDQOpSUBQOpADDCQOpSUBCQOpMULQOpMULCQOpSHLQOpSHLCQOpNEGQOpCMPQOpCMPCQOpADDLOpTESTQOpSETEQOpSETNEOpSETLOpSETGEOpSETBOpInvertFlagsOpLEAQOpLEAQ2OpLEAQ4OpLEAQ8OpMOVQloadOpMOVQstoreOpMOVQload8OpMOVQstore8OpMOVQloadFPOpMOVQloadSPOpMOVQstoreFPOpMOVQstoreSPOpMax"
++const _Op_name = "OpUnknownOpNopOpFwdRefOpAddOpSubOpMulOpLessOpConstOpArgOpGlobalOpFuncOpCopyOpPhiOpSliceMakeOpSlicePtrOpSliceLenOpSliceCapOpStringMakeOpStringPtrOpStringLenOpSliceIndexOpSliceIndexAddrOpLoadOpStoreOpCheckNilOpCheckBoundOpCallOpStaticCallOpConvertOpConvNopOpFPAddrOpSPAddrOpStoreReg8OpLoadReg8OpADDQOpSUBQOpADDCQOpSUBCQOpMULQOpMULCQOpSHLQOpSHLCQOpNEGQOpCMPQOpCMPCQOpADDLOpTESTQOpSETEQOpSETNEOpSETLOpSETGEOpSETBOpInvertFlagsOpLEAQOpLEAQ2OpLEAQ4OpLEAQ8OpMOVQloadOpMOVQstoreOpMOVQload8OpMOVQstore8OpMOVQloadFPOpMOVQloadSPOpMOVQstoreFPOpMOVQstoreSPOpMOVQconstOpMax"
+ 
+-var _Op_index = [...]uint16{0, 9, 14, 22, 27, 32, 37, 43, 50, 55, 63, 69, 75, 80, 91, 101, 111, 121, 133, 144, 155, 167, 183, 189, 196, 206, 218, 224, 236, 245, 254, 262, 270, 281, 291, 297, 303, 310, 317, 323, 330, 336, 343, 349, 355, 362, 368, 375, 382, 389, 395, 402, 408, 421, 427, 434, 441, 448, 458, 469, 480, 492, 504, 516, 529, 542, 547}
++var _Op_index = [...]uint16{0, 9, 14, 22, 27, 32, 37, 43, 50, 55, 63, 69, 75, 80, 91, 101, 111, 121, 133, 144, 155, 167, 183, 189, 196, 206, 218, 224, 236, 245, 254, 262, 270, 281, 291, 297, 303, 310, 317, 323, 330, 336, 343, 349, 355, 362, 368, 375, 382, 389, 395, 402, 408, 421, 427, 434, 441, 448, 458, 469, 480, 492, 504, 516, 529, 542, 553, 558}
+ 
+ func (i Op) String() string {
+ 	if i < 0 || i+1 >= Op(len(_Op_index)) {
+diff --git a/src/cmd/internal/ssa/regalloc.go b/src/cmd/internal/ssa/regalloc.go
+new file mode 100644
+index 0000000000..724a0557d5
+--- /dev/null
++++ b/src/cmd/internal/ssa/regalloc.go
+@@ -0,0 +1,421 @@
++package ssa
++
++import (
++	"fmt"
++	"log"
++	"sort"
++)
++
++func setloc(home []Location, v *Value, loc Location) []Location {
++	for v.ID >= ID(len(home)) {
++		home = append(home, nil)
++	}
++	home[v.ID] = loc
++	return home
++}
++
++type register uint
++
++// TODO: make arch-dependent
++var numRegs register = 32
++
++var registers = [...]Register{
++	Register{"AX"},
++	Register{"CX"},
++	Register{"DX"},
++	Register{"BX"},
++	Register{"SP"},
++	Register{"BP"},
++	Register{"SI"},
++	Register{"DI"},
++
++	// TODO R8, X0, ...
++	// TODO: make arch-dependent
++	Register{"FLAGS"},
++	Register{"OVERWRITE"},
++}
++
++// countRegs returns the number of set bits in the register mask.
++func countRegs(r regMask) int {
++	n := 0
++	for r != 0 {
++		n += int(r & 1)
++		r >>= 1
++	}
++	return n
++}
++
++// pickReg picks an arbitrary register from the register mask.
++func pickReg(r regMask) register {
++	// pick the lowest one
++	if r == 0 {
++		panic("can't pick a register from an empty set")
++	}
++	for i := register(0); ; i++ {
++		if r&1 != 0 {
++			return i
++		}
++		r >>= 1
++	}
++}
++
++// regalloc performs register allocation on f.  It sets f.RegAlloc
++// to the resulting allocation.
++func regalloc(f *Func) {
++	// For now, a very simple allocator.  Everything has a home
++	// location on the stack (TBD as a subsequent stackalloc pass).
++	// Values live in the home locations at basic block boundaries.
++	// We use a simple greedy allocator within a basic block.
++	home := make([]Location, f.NumValues())
++
++	addPhiCopies(f) // add copies of phi inputs in preceeding blocks
++
++	// Compute live values at the end of each block.
++	live := live(f)
++	lastUse := make([]int, f.NumValues())
++
++	var oldSched []*Value
++
++	// Register allocate each block separately.  All live values will live
++	// in home locations (stack slots) between blocks.
++	for _, b := range f.Blocks {
++
++		// Compute the index of the last use of each Value in the Block.
++		// Scheduling has already happened, so Values are totally ordered.
++		// lastUse[x] = max(i) where b.Value[i] uses Value x.
++		for i, v := range b.Values {
++			lastUse[v.ID] = -1
++			for _, w := range v.Args {
++				// could condition this store on w.Block == b, but no need
++				lastUse[w.ID] = i
++			}
++		}
++		// Values which are live at block exit have a lastUse of len(b.Values).
++		if b.Control != nil {
++			lastUse[b.Control.ID] = len(b.Values)
++		}
++		// Values live after block exit have a lastUse of len(b.Values)+1.
++		for _, vid := range live[b.ID] {
++			lastUse[vid] = len(b.Values) + 1
++		}
++
++		// For each register, store which value it contains
++		type regInfo struct {
++			v     *Value // stack-homed original value (or nil if empty)
++			c     *Value // the register copy of v
++			dirty bool   // if the stack-homed copy is out of date
++		}
++		regs := make([]regInfo, numRegs)
++
++		var used regMask  // has a 1 for each non-nil entry in regs
++		var dirty regMask // has a 1 for each dirty entry in regs
++
++		oldSched = append(oldSched[:0], b.Values...)
++		b.Values = b.Values[:0]
++
++		for idx, v := range oldSched {
++			// For each instruction, do:
++			//   set up inputs to v in registers
++			//   pick output register
++			//   run insn
++			//   mark output register as dirty
++			// Note that v represents the Value at "home" (on the stack), and c
++			// is its register equivalent.  There are two ways to establish c:
++			//   - use of v.  c will be a load from v's home.
++			//   - definition of v.  c will be identical to v but will live in
++			//     a register.  v will be modified into a spill of c.
++			regspec := opcodeTable[v.Op].reg
++			if v.Op == OpConvNop {
++				regspec = opcodeTable[v.Args[0].Op].reg
++			}
++			inputs := regspec[0]
++			outputs := regspec[1]
++			if len(inputs) == 0 && len(outputs) == 0 {
++				// No register allocation required (or none specified yet)
++				b.Values = append(b.Values, v)
++				continue
++			}
++
++			// Compute a good input ordering.  Start with the most constrained input.
++			order := make([]intPair, len(inputs))
++			for i, input := range inputs {
++				order[i] = intPair{countRegs(input), i}
++			}
++			sort.Sort(byKey(order))
++
++			// nospill contains registers that we can't spill because
++			// we already set them up for use by the current instruction.
++			var nospill regMask
++
++			// Move inputs into registers
++			for _, o := range order {
++				w := v.Args[o.val]
++				mask := inputs[o.val]
++				if mask == 0 {
++					// Input doesn't need a register
++					continue
++				}
++				// TODO: 2-address overwrite instructions
++
++				// Find registers that w is already in
++				var wreg regMask
++				for r := register(0); r < numRegs; r++ {
++					if regs[r].v == w {
++						wreg |= regMask(1) << r
++					}
++				}
++
++				var r register
++				if mask&wreg != 0 {
++					// w is already in an allowed register.  We're done.
++					r = pickReg(mask & wreg)
++				} else {
++					// Pick a register for w
++					// Priorities (in order)
++					//  - an unused register
++					//  - a clean register
++					//  - a dirty register
++					// TODO: for used registers, pick the one whose next use is the
++					// farthest in the future.
++					mask &^= nospill
++					if mask & ^dirty != 0 {
++						mask &^= dirty
++					}
++					if mask & ^used != 0 {
++						mask &^= used
++					}
++					r = pickReg(mask)
++
++					// Kick out whomever is using this register.
++					if regs[r].v != nil {
++						x := regs[r].v
++						c := regs[r].c
++						if regs[r].dirty && lastUse[x.ID] > idx {
++							// Write x back to home.  Its value is currently held in c.
++							x.Op = OpStoreReg8
++							x.Aux = nil
++							x.resetArgs()
++							x.AddArg(c)
++							b.Values = append(b.Values, x)
++							regs[r].dirty = false
++							dirty &^= regMask(1) << r
++						}
++						regs[r].v = nil
++						regs[r].c = nil
++						used &^= regMask(1) << r
++					}
++
++					// Load w into this register
++					var c *Value
++					if w.Op == OpConst {
++						// Materialize w
++						// TODO: arch-specific MOV op
++						c = b.NewValue(OpMOVQconst, w.Type, w.Aux)
++					} else if wreg != 0 {
++						// Copy from another register.
++						// Typically just an optimization, but this is
++						// required if w is dirty.
++						s := pickReg(wreg)
++						// inv: s != r
++						c = b.NewValue(OpCopy, w.Type, nil)
++						c.AddArg(regs[s].c)
++					} else {
++						// Load from home location
++						c = b.NewValue(OpLoadReg8, w.Type, nil)
++						c.AddArg(w)
++					}
++					home = setloc(home, c, &registers[r])
++					// Remember what we did
++					regs[r].v = w
++					regs[r].c = c
++					regs[r].dirty = false
++					used |= regMask(1) << r
++				}
++
++				// Replace w with its in-register copy.
++				v.SetArg(o.val, regs[r].c)
++
++				// Remember not to undo this register assignment until after
++				// the instruction is issued.
++				nospill |= regMask(1) << r
++			}
++
++			// pick a register for v itself.
++			if len(outputs) > 1 {
++				panic("can't do multi-output yet")
++			}
++			if len(outputs) == 0 || outputs[0] == 0 {
++				// output doesn't need a register
++				b.Values = append(b.Values, v)
++			} else {
++				mask := outputs[0]
++				if mask & ^dirty != 0 {
++					mask &^= dirty
++				}
++				if mask & ^used != 0 {
++					mask &^= used
++				}
++				r := pickReg(mask)
++
++				// Kick out whomever is using this register.
++				if regs[r].v != nil {
++					x := regs[r].v
++					c := regs[r].c
++					if regs[r].dirty && lastUse[x.ID] > idx {
++						// Write x back to home.  Its value is currently held in c.
++						x.Op = OpStoreReg8
++						x.Aux = nil
++						x.resetArgs()
++						x.AddArg(c)
++						b.Values = append(b.Values, x)
++						regs[r].dirty = false
++						dirty &^= regMask(1) << r
++					}
++					regs[r].v = nil
++					regs[r].c = nil
++					used &^= regMask(1) << r
++				}
++
++				// Reissue v with new op, with r as its home.
++				c := b.NewValue(v.Op, v.Type, v.Aux)
++				c.AddArgs(v.Args...)
++				home = setloc(home, c, &registers[r])
++
++				// Remember what we did
++				regs[r].v = v
++				regs[r].c = c
++				regs[r].dirty = true
++				used |= regMask(1) << r
++				dirty |= regMask(1) << r
++			}
++		}
++
++		// If the block ends in a call, we must put the call after the spill code.
++		var call *Value
++		if b.Kind == BlockCall {
++			call = b.Control
++			if call != b.Values[len(b.Values)-1] {
++				log.Fatalf("call not at end of block %b %v", b, call)
++			}
++			b.Values = b.Values[:len(b.Values)-1]
++			// TODO: do this for all control types?
++		}
++
++		// at the end of the block, spill any remaining dirty, live values
++		for r := register(0); r < numRegs; r++ {
++			if !regs[r].dirty {
++				continue
++			}
++			v := regs[r].v
++			c := regs[r].c
++			if lastUse[v.ID] <= len(oldSched) {
++				continue // not live after block
++			}
++
++			// change v to be a copy of c
++			v.Op = OpStoreReg8
++			v.Aux = nil
++			v.resetArgs()
++			v.AddArg(c)
++			b.Values = append(b.Values, v)
++		}
++
++		// add call back after spills
++		if b.Kind == BlockCall {
++			b.Values = append(b.Values, call)
++		}
++	}
++	f.RegAlloc = home
++}
++
++// addPhiCopies adds copies of phi inputs in the blocks
++// immediately preceding the phi's block.
++func addPhiCopies(f *Func) {
++	for _, b := range f.Blocks {
++		for _, v := range b.Values {
++			if v.Op != OpPhi {
++				break // all phis should appear first
++			}
++			if v.Type.IsMemory() { // TODO: only "regallocable" types
++				continue
++			}
++			for i, w := range v.Args {
++				c := b.Preds[i]
++				cpy := c.NewValue1(OpCopy, v.Type, nil, w)
++				v.Args[i] = cpy
++			}
++		}
++	}
++}
++
++// live returns a map from block ID to a list of value IDs live at the end of that block
++// TODO: this could be quadratic if lots of variables are live across lots of
++// basic blocks.  Figure out a way to make this function (or, more precisely, the user
++// of this function) require only linear size & time.
++func live(f *Func) [][]ID {
++	live := make([][]ID, f.NumBlocks())
++	var phis []*Value
++
++	s := newSparseSet(f.NumValues())
++	t := newSparseSet(f.NumValues())
++	for {
++		for _, b := range f.Blocks {
++			fmt.Printf("live %s %v\n", b, live[b.ID])
++		}
++		changed := false
++
++		for _, b := range f.Blocks {
++			// Start with known live values at the end of the block
++			s.clear()
++			s.addAll(live[b.ID])
++
++			// Propagate backwards to the start of the block
++			// Assumes Values have been scheduled.
++			phis := phis[:0]
++			for i := len(b.Values) - 1; i >= 0; i-- {
++				v := b.Values[i]
++				s.remove(v.ID)
++				if v.Op == OpPhi {
++					// save phi ops for later
++					phis = append(phis, v)
++					continue
++				}
++				s.addAllValues(v.Args)
++			}
++
++			// for each predecessor of b, expand its list of live-at-end values
++			// inv: s contains the values live at the start of b (excluding phi inputs)
++			for i, p := range b.Preds {
++				t.clear()
++				t.addAll(live[p.ID])
++				t.addAll(s.contents())
++				for _, v := range phis {
++					t.add(v.Args[i].ID)
++				}
++				if t.size() == len(live[p.ID]) {
++					continue
++				}
++				// grow p's live set
++				c := make([]ID, t.size())
++				copy(c, t.contents())
++				live[p.ID] = c
++				changed = true
++			}
++		}
++
++		if !changed {
++			break
++		}
++	}
++	return live
++}
++
++// for sorting a pair of integers by key
++type intPair struct {
++	key, val int
++}
++type byKey []intPair
++
++func (a byKey) Len() int           { return len(a) }
++func (a byKey) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
++func (a byKey) Less(i, j int) bool { return a[i].key < a[j].key }
+diff --git a/src/cmd/internal/ssa/sparseset.go b/src/cmd/internal/ssa/sparseset.go
+index e1f9a9a81d..b79aee8497 100644
+--- a/src/cmd/internal/ssa/sparseset.go
++++ b/src/cmd/internal/ssa/sparseset.go
+@@ -28,9 +28,24 @@ func (s *sparseSet) contains(x ID) bool {
+ }
+ 
+ func (s *sparseSet) add(x ID) {
+-	i := len(s.dense)
++	i := s.sparse[x]
++	if i < len(s.dense) && s.dense[i] == x {
++		return
++	}
+ 	s.dense = append(s.dense, x)
+-	s.sparse[x] = i
++	s.sparse[x] = len(s.dense) - 1
++}
++
++func (s *sparseSet) addAll(a []ID) {
++	for _, x := range a {
++		s.add(x)
++	}
++}
++
++func (s *sparseSet) addAllValues(a []*Value) {
++	for _, v := range a {
++		s.add(v.ID)
++	}
+ }
+ 
+ func (s *sparseSet) remove(x ID) {
+diff --git a/src/cmd/internal/ssa/stackalloc.go b/src/cmd/internal/ssa/stackalloc.go
+new file mode 100644
+index 0000000000..aa6d829fa2
+--- /dev/null
++++ b/src/cmd/internal/ssa/stackalloc.go
+@@ -0,0 +1,51 @@
++package ssa
++
++// stackalloc allocates storage in the stack frame for
++// all Values that did not get a register.
++func stackalloc(f *Func) {
++	home := f.RegAlloc
++
++	var n int64 = 8 // 8 = space for return address.  TODO: arch-dependent
++
++	// Assign stack locations to phis first, because we
++	// must also assign the same locations to the phi copies
++	// introduced during regalloc.
++	for _, b := range f.Blocks {
++		for _, v := range b.Values {
++			if v.Op != OpPhi {
++				continue
++			}
++			n += v.Type.Size()
++			// a := v.Type.Align()
++			// n = (n + a - 1) / a * a  TODO
++			loc := &LocalSlot{n}
++			home = setloc(home, v, loc)
++			for _, w := range v.Args {
++				home = setloc(home, w, loc)
++			}
++		}
++	}
++
++	// Now do all other unassigned values.
++	for _, b := range f.Blocks {
++		for _, v := range b.Values {
++			if v.ID < ID(len(home)) && home[v.ID] != nil {
++				continue
++			}
++			if v.Type.IsMemory() { // TODO: only "regallocable" types
++				continue
++			}
++			// a := v.Type.Align()
++			// n = (n + a - 1) / a * a  TODO
++			n += v.Type.Size()
++			loc := &LocalSlot{n}
++			home = setloc(home, v, loc)
++		}
++	}
++	f.RegAlloc = home
++
++	// TODO: share stack slots among noninterfering (& gc type compatible) values
++	// TODO: align final n
++	// TODO: compute total frame size: n + max paramout space
++	// TODO: save total size somewhere
++}

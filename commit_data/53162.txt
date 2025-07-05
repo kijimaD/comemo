@@ -16,6 +16,20 @@ Date:   Sun Jul 24 13:41:16 2022 +0000
     Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Keith Randall <khr@golang.org>
-
+---
  src/runtime/string.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/string.go b/src/runtime/string.go
+index 5ab0ac3a86..359a5658c5 100644
+--- a/src/runtime/string.go
++++ b/src/runtime/string.go
+@@ -432,7 +432,7 @@ func atoi32(s string) (int32, bool) {
+ // - KiB, MiB, GiB, TiB which represent binary IEC/ISO 80000 units, or
+ // - B, which just represents bytes.
+ //
+-// Returns an int64 because that's what its callers want and recieve,
++// Returns an int64 because that's what its callers want and receive,
+ // but the result is always non-negative.
+ func parseByteCount(s string) (int64, bool) {
+ 	// The empty string is not valid.

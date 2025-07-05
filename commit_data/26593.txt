@@ -12,6 +12,20 @@ Date:   Sun Feb 14 23:53:19 2016 -0500
     Change-Id: Id5d3abbd748502a67ead3f483182ee7729db94a2
     Reviewed-on: https://go-review.googlesource.com/19505
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  doc/go1.6.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go1.6.html b/doc/go1.6.html
+index 6e3710cbad..4a1e4c1f9a 100644
+--- a/doc/go1.6.html
++++ b/doc/go1.6.html
+@@ -569,7 +569,7 @@ The <a href="/pkg/debug/elf/"><code>debug/elf</code></a> package
+ adds support for general compressed ELF sections.
+ User code needs no updating: the sections are decompressed automatically when read.
+ However, compressed
+-<a href="/pkg/debug/elf/#Section"><code>Section</code></a>'s do not support random access:
++<a href="/pkg/debug/elf/#Section"><code>Sections</code></a> do not support random access:
+ they have a nil <code>ReaderAt</code> field.
+ </li>
+ 

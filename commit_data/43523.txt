@@ -12,7 +12,267 @@ Date:   Wed Apr 8 11:56:43 2020 -0400
     Change-Id: I953d72c4a53f98c840e6b25b08fd33dc4a833dd5
     Reviewed-on: https://go-review.googlesource.com/c/go/+/227585
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/internal/goobj2/funcinfo.go    |  82 ++++++++++++++++++++-
  src/cmd/link/internal/loader/loader.go | 130 +++++++++++++++++++++++++++++++--
  2 files changed, 205 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/internal/goobj2/funcinfo.go b/src/cmd/internal/goobj2/funcinfo.go
+index 053d7adc15..36b2de20cd 100644
+--- a/src/cmd/internal/goobj2/funcinfo.go
++++ b/src/cmd/internal/goobj2/funcinfo.go
+@@ -100,8 +100,49 @@ func (a *FuncInfo) Read(b []byte) {
+ 	}
+ }
+ 
+-// Accessors reading only some fields.
+-// TODO: more accessors.
++// FuncInfoLengths is a cache containing a roadmap of offsets and
++// lengths for things within a serialized FuncInfo. Each length field
++// stores the number of items (e.g. files, inltree nodes, etc), and the
++// corresponding "off" field stores the byte offset of the start of
++// the items in question.
++type FuncInfoLengths struct {
++	NumPcdata      uint32
++	PcdataOff      uint32
++	NumFuncdataoff uint32
++	FuncdataoffOff uint32
++	NumFile        uint32
++	FileOff        uint32
++	NumInlTree     uint32
++	InlTreeOff     uint32
++	Initialized    bool
++}
++
++func (*FuncInfo) ReadFuncInfoLengths(b []byte) FuncInfoLengths {
++	var result FuncInfoLengths
++
++	const numpcdataOff = 24
++	result.NumPcdata = binary.LittleEndian.Uint32(b[numpcdataOff:])
++	result.PcdataOff = numpcdataOff + 4
++
++	numfuncdataoffOff := result.PcdataOff + 4*(result.NumPcdata+1)
++	result.NumFuncdataoff = binary.LittleEndian.Uint32(b[numfuncdataoffOff:])
++	result.FuncdataoffOff = numfuncdataoffOff + 4
++
++	numfileOff := result.FuncdataoffOff + 4*result.NumFuncdataoff
++	result.NumFile = binary.LittleEndian.Uint32(b[numfileOff:])
++	result.FileOff = numfileOff + 4
++
++	const symRefSize = 4 + 4
++	numinltreeOff := result.FileOff + symRefSize*result.NumFile
++	result.NumInlTree = binary.LittleEndian.Uint32(b[numinltreeOff:])
++	result.InlTreeOff = numinltreeOff + 4
++
++	result.Initialized = true
++
++	return result
++}
++
++func (*FuncInfo) ReadArgs(b []byte) uint32 { return binary.LittleEndian.Uint32(b) }
+ 
+ func (*FuncInfo) ReadLocals(b []byte) uint32 { return binary.LittleEndian.Uint32(b[4:]) }
+ 
+@@ -110,6 +151,43 @@ func (*FuncInfo) ReadPcsp(b []byte) (uint32, uint32) {
+ 	return binary.LittleEndian.Uint32(b[8:]), binary.LittleEndian.Uint32(b[12:])
+ }
+ 
++// return start and end offsets.
++func (*FuncInfo) ReadPcfile(b []byte) (uint32, uint32) {
++	return binary.LittleEndian.Uint32(b[12:]), binary.LittleEndian.Uint32(b[16:])
++}
++
++// return start and end offsets.
++func (*FuncInfo) ReadPcline(b []byte) (uint32, uint32) {
++	return binary.LittleEndian.Uint32(b[16:]), binary.LittleEndian.Uint32(b[20:])
++}
++
++// return start and end offsets.
++func (*FuncInfo) ReadPcinline(b []byte, pcdataoffset uint32) (uint32, uint32) {
++	return binary.LittleEndian.Uint32(b[20:]), binary.LittleEndian.Uint32(b[pcdataoffset:])
++}
++
++// return start and end offsets.
++func (*FuncInfo) ReadPcdata(b []byte, pcdataoffset uint32, k uint32) (uint32, uint32) {
++	return binary.LittleEndian.Uint32(b[pcdataoffset+4*k:]), binary.LittleEndian.Uint32(b[pcdataoffset+4+4*k:])
++}
++
++func (*FuncInfo) ReadFuncdataoff(b []byte, funcdataofffoff uint32, k uint32) int64 {
++	return int64(binary.LittleEndian.Uint32(b[funcdataofffoff+4*k:]))
++}
++
++func (*FuncInfo) ReadFile(b []byte, filesoff uint32, k uint32) SymRef {
++	p := binary.LittleEndian.Uint32(b[filesoff+8*k:])
++	s := binary.LittleEndian.Uint32(b[filesoff+4+8*k:])
++	return SymRef{p, s}
++}
++
++func (*FuncInfo) ReadInlTree(b []byte, inltreeoff uint32, k uint32) InlTreeNode {
++	const inlTreeNodeSize = 4 * 7
++	var result InlTreeNode
++	result.Read(b[inltreeoff+k*inlTreeNodeSize:])
++	return result
++}
++
+ // InlTreeNode is the serialized form of FileInfo.InlTree.
+ type InlTreeNode struct {
+ 	Parent   int32
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index cd5971c2e1..390eb1af24 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -1529,13 +1529,18 @@ func (x RelocByOff) Less(i, j int) bool { return x[i].Off < x[j].Off }
+ 
+ // FuncInfo provides hooks to access goobj2.FuncInfo in the objects.
+ type FuncInfo struct {
+-	l    *Loader
+-	r    *oReader
+-	data []byte
++	l       *Loader
++	r       *oReader
++	data    []byte
++	lengths goobj2.FuncInfoLengths
+ }
+ 
+ func (fi *FuncInfo) Valid() bool { return fi.r != nil }
+ 
++func (fi *FuncInfo) Args() int {
++	return int((*goobj2.FuncInfo)(nil).ReadArgs(fi.data))
++}
++
+ func (fi *FuncInfo) Locals() int {
+ 	return int((*goobj2.FuncInfo)(nil).ReadLocals(fi.data))
+ }
+@@ -1545,7 +1550,122 @@ func (fi *FuncInfo) Pcsp() []byte {
+ 	return fi.r.BytesAt(fi.r.PcdataBase()+pcsp, int(end-pcsp))
+ }
+ 
+-// TODO: more accessors.
++func (fi *FuncInfo) Pcfile() []byte {
++	pcf, end := (*goobj2.FuncInfo)(nil).ReadPcfile(fi.data)
++	return fi.r.BytesAt(fi.r.PcdataBase()+pcf, int(end-pcf))
++}
++
++func (fi *FuncInfo) Pcline() []byte {
++	pcln, end := (*goobj2.FuncInfo)(nil).ReadPcline(fi.data)
++	return fi.r.BytesAt(fi.r.PcdataBase()+pcln, int(end-pcln))
++}
++
++// Preload has to be called prior to invoking the various methods
++// below related to pcdata, funcdataoff, files, and inltree nodes.
++func (fi *FuncInfo) Preload() {
++	fi.lengths = (*goobj2.FuncInfo)(nil).ReadFuncInfoLengths(fi.data)
++}
++
++func (fi *FuncInfo) Pcinline() []byte {
++	if !fi.lengths.Initialized {
++		panic("need to call Preload first")
++	}
++	pcinl, end := (*goobj2.FuncInfo)(nil).ReadPcinline(fi.data, fi.lengths.PcdataOff)
++	return fi.r.BytesAt(fi.r.PcdataBase()+pcinl, int(end-pcinl))
++}
++
++func (fi *FuncInfo) NumPcdata() uint32 {
++	if !fi.lengths.Initialized {
++		panic("need to call Preload first")
++	}
++	return fi.lengths.NumPcdata
++}
++
++func (fi *FuncInfo) Pcdata(k int) []byte {
++	if !fi.lengths.Initialized {
++		panic("need to call Preload first")
++	}
++	pcdat, end := (*goobj2.FuncInfo)(nil).ReadPcdata(fi.data, fi.lengths.PcdataOff, uint32(k))
++	return fi.r.BytesAt(fi.r.PcdataBase()+pcdat, int(end-pcdat))
++}
++
++func (fi *FuncInfo) NumFuncdataoff() uint32 {
++	if !fi.lengths.Initialized {
++		panic("need to call Preload first")
++	}
++	return fi.lengths.NumFuncdataoff
++}
++
++func (fi *FuncInfo) Funcdataoff(k int) int64 {
++	if !fi.lengths.Initialized {
++		panic("need to call Preload first")
++	}
++	return (*goobj2.FuncInfo)(nil).ReadFuncdataoff(fi.data, fi.lengths.FuncdataoffOff, uint32(k))
++}
++
++func (fi *FuncInfo) Funcdata(fnsym Sym, syms []Sym) []Sym {
++	if !fi.lengths.Initialized {
++		panic("need to call Preload first")
++	}
++	if int(fi.lengths.NumFuncdataoff) > cap(syms) {
++		syms = make([]Sym, 0, fi.lengths.NumFuncdataoff)
++	} else {
++		syms = syms[:0]
++	}
++	r, li := fi.l.toLocal(fnsym)
++	auxs := r.Auxs2(li)
++	for j := range auxs {
++		a := &auxs[j]
++		if a.Type() == goobj2.AuxFuncdata {
++			syms = append(syms, fi.l.resolve(fi.r, a.Sym()))
++		}
++	}
++	return syms
++}
++
++func (fi *FuncInfo) NumFile() uint32 {
++	if !fi.lengths.Initialized {
++		panic("need to call Preload first")
++	}
++	return fi.lengths.NumFile
++}
++
++func (fi *FuncInfo) File(k int) Sym {
++	if !fi.lengths.Initialized {
++		panic("need to call Preload first")
++	}
++	sr := (*goobj2.FuncInfo)(nil).ReadFile(fi.data, fi.lengths.FileOff, uint32(k))
++	return fi.l.resolve(fi.r, sr)
++}
++
++type InlTreeNode struct {
++	Parent   int32
++	File     Sym
++	Line     int32
++	Func     Sym
++	ParentPC int32
++}
++
++func (fi *FuncInfo) NumInlTree() uint32 {
++	if !fi.lengths.Initialized {
++		panic("need to call Preload first")
++	}
++	return fi.lengths.NumInlTree
++}
++
++func (fi *FuncInfo) InlTree(k int) InlTreeNode {
++	if !fi.lengths.Initialized {
++		panic("need to call Preload first")
++	}
++	node := (*goobj2.FuncInfo)(nil).ReadInlTree(fi.data, fi.lengths.InlTreeOff, uint32(k))
++	return InlTreeNode{
++		Parent:   node.Parent,
++		File:     fi.l.resolve(fi.r, node.File),
++		Line:     node.Line,
++		Func:     fi.l.resolve(fi.r, node.Func),
++		ParentPC: node.ParentPC,
++	}
++}
+ 
+ func (l *Loader) FuncInfo(i Sym) FuncInfo {
+ 	var r *oReader
+@@ -1566,7 +1686,7 @@ func (l *Loader) FuncInfo(i Sym) FuncInfo {
+ 		a := &auxs[j]
+ 		if a.Type() == goobj2.AuxFuncInfo {
+ 			b := r.Data(int(a.Sym().SymIdx))
+-			return FuncInfo{l, r, b}
++			return FuncInfo{l, r, b, goobj2.FuncInfoLengths{}}
+ 		}
+ 	}
+ 	return FuncInfo{}

@@ -17,7 +17,7 @@ Date:   Mon Apr 13 15:37:06 2020 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/internal/ld/main.go           |   7 +-
  src/cmd/link/internal/ld/outbuf.go         | 117 ++++++++++++++++++++++-------
  src/cmd/link/internal/ld/outbuf_mmap.go    |   7 +-
@@ -25,3 +25,353 @@ Date:   Mon Apr 13 15:37:06 2020 -0400
  src/cmd/link/internal/ld/outbuf_test.go    |  59 +++++++++++++++
  src/cmd/link/internal/ld/outbuf_windows.go |   2 +-
  6 files changed, 157 insertions(+), 37 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index 2f2700652f..dd089e6efa 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -333,8 +333,6 @@ func Main(arch *sys.Arch, theArch Arch) {
+ 		thearch.Asmb(ctxt)
+ 		bench.Start("reloc")
+ 		ctxt.reloc()
+-		bench.Start("Munmap")
+-		ctxt.Out.Munmap()
+ 	} else {
+ 		// If we don't mmap, we need to apply relocations before
+ 		// writing out.
+@@ -346,6 +344,11 @@ func Main(arch *sys.Arch, theArch Arch) {
+ 	bench.Start("Asmb2")
+ 	thearch.Asmb2(ctxt)
+ 
++	if outputMmapped {
++		bench.Start("Munmap")
++		ctxt.Out.Munmap()
++	}
++
+ 	bench.Start("undef")
+ 	ctxt.undef()
+ 	bench.Start("hostlink")
+diff --git a/src/cmd/link/internal/ld/outbuf.go b/src/cmd/link/internal/ld/outbuf.go
+index 8e083477ec..c36fc74a44 100644
+--- a/src/cmd/link/internal/ld/outbuf.go
++++ b/src/cmd/link/internal/ld/outbuf.go
+@@ -28,8 +28,9 @@ import (
+ // - Mmap the output file
+ // - Write the content
+ // - possibly apply any edits in the output buffer
++// - possibly write more content to the file. These writes take place in a heap
++//   backed buffer that will get synced to disk.
+ // - Munmap the output file
+-// - possibly write more content to the file, which will not be edited later.
+ //
+ // And finally, it provides a mechanism by which you can multithread the
+ // writing of output files. This mechanism is accomplished by copying a OutBuf,
+@@ -54,20 +55,22 @@ import (
+ //    wg.Wait()
+ //  }
+ type OutBuf struct {
+-	arch          *sys.Arch
+-	off           int64
+-	w             *bufio.Writer
+-	buf           []byte // backing store of mmap'd output file
+-	name          string
+-	f             *os.File
+-	encbuf        [8]byte // temp buffer used by WriteN methods
+-	isView        bool    // true if created from View()
+-	start, length uint64  // start and length mmaped data.
++	arch *sys.Arch
++	off  int64
++
++	buf  []byte // backing store of mmap'd output file
++	heap []byte // backing store for non-mmapped data
++
++	w      *bufio.Writer
++	name   string
++	f      *os.File
++	encbuf [8]byte // temp buffer used by WriteN methods
++	isView bool    // true if created from View()
+ }
+ 
+ func (out *OutBuf) Open(name string) error {
+ 	if out.f != nil {
+-		return errors.New("cannont open more than one file")
++		return errors.New("cannot open more than one file")
+ 	}
+ 	f, err := os.OpenFile(name, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0775)
+ 	if err != nil {
+@@ -89,7 +92,7 @@ func NewOutBuf(arch *sys.Arch) *OutBuf {
+ var viewError = errors.New("output not mmapped")
+ 
+ func (out *OutBuf) View(start uint64) (*OutBuf, error) {
+-	if out.buf == nil {
++	if !out.isMmapped() {
+ 		return nil, viewError
+ 	}
+ 	return &OutBuf{
+@@ -97,8 +100,6 @@ func (out *OutBuf) View(start uint64) (*OutBuf, error) {
+ 		name:   out.name,
+ 		buf:    out.buf,
+ 		off:    int64(start),
+-		start:  start,
+-		length: out.length,
+ 		isView: true,
+ 	}, nil
+ }
+@@ -120,11 +121,67 @@ func (out *OutBuf) Close() error {
+ 	return nil
+ }
+ 
++// isMmapped returns true if the OutBuf is mmaped.
++func (out *OutBuf) isMmapped() bool {
++	return len(out.buf) != 0
++}
++
++// Munmap cleans up all the output buffer.
++func (out *OutBuf) Munmap() error {
++	wasMapped := out.isMmapped()
++	bufLen := len(out.buf)
++	heapLen := len(out.heap)
++	total := uint64(bufLen + heapLen)
++	if wasMapped {
++		out.munmap()
++		if heapLen != 0 {
++			if err := out.Mmap(total); err != nil {
++				return err
++			}
++			copy(out.buf[bufLen:], out.heap[:heapLen])
++			out.heap = nil
++			out.munmap()
++		}
++	}
++	return nil
++}
++
++// writeLoc determines the write location if a buffer is mmaped.
++// We maintain two write buffers, an mmapped section, and a heap section for
++// writing. When the mmapped section is full, we switch over the heap memory
++// for writing.
++func (out *OutBuf) writeLoc(lenToWrite int64) (int64, []byte) {
++	if !out.isMmapped() {
++		panic("shouldn't happen")
++	}
++
++	// See if we have enough space in the mmaped area.
++	bufLen := int64(len(out.buf))
++	if out.off+lenToWrite <= bufLen {
++		return out.off, out.buf
++	}
++
++	// The heap variables aren't protected by a mutex. For now, just bomb if you
++	// try to use OutBuf in parallel. (Note this probably could be fixed.)
++	if out.isView {
++		panic("cannot write to heap in parallel")
++	}
++
++	// Not enough space in the mmaped area, write to heap area instead.
++	heapPos := out.off - bufLen
++	heapLen := int64(len(out.heap))
++	lenNeeded := heapPos + lenToWrite
++	if lenNeeded > heapLen { // do we need to grow the heap storage?
++		out.heap = append(out.heap, make([]byte, lenNeeded-heapLen)...)
++	}
++	return heapPos, out.heap
++}
++
+ func (out *OutBuf) SeekSet(p int64) {
+ 	if p == out.off {
+ 		return
+ 	}
+-	if out.buf == nil {
++	if !out.isMmapped() {
+ 		out.Flush()
+ 		if _, err := out.f.Seek(p, 0); err != nil {
+ 			Exitf("seeking to %d in %s: %v", p, out.name, err)
+@@ -143,8 +200,10 @@ func (out *OutBuf) Offset() int64 {
+ // to explicitly handle the returned error as long as Flush is
+ // eventually called.
+ func (out *OutBuf) Write(v []byte) (int, error) {
+-	if out.buf != nil {
+-		n := copy(out.buf[out.off:], v)
++	if out.isMmapped() {
++		n := len(v)
++		pos, buf := out.writeLoc(int64(n))
++		copy(buf[pos:], v)
+ 		out.off += int64(n)
+ 		return n, nil
+ 	}
+@@ -154,8 +213,9 @@ func (out *OutBuf) Write(v []byte) (int, error) {
+ }
+ 
+ func (out *OutBuf) Write8(v uint8) {
+-	if out.buf != nil {
+-		out.buf[out.off] = v
++	if out.isMmapped() {
++		pos, buf := out.writeLoc(1)
++		buf[pos] = v
+ 		out.off++
+ 		return
+ 	}
+@@ -196,8 +256,9 @@ func (out *OutBuf) Write64b(v uint64) {
+ }
+ 
+ func (out *OutBuf) WriteString(s string) {
+-	if out.buf != nil {
+-		n := copy(out.buf[out.off:], s)
++	if out.isMmapped() {
++		pos, buf := out.writeLoc(int64(len(s)))
++		n := copy(buf[pos:], s)
+ 		if n != len(s) {
+ 			log.Fatalf("WriteString truncated. buffer size: %d, offset: %d, len(s)=%d", len(out.buf), out.off, len(s))
+ 		}
+@@ -237,11 +298,12 @@ func (out *OutBuf) WriteStringPad(s string, n int, pad []byte) {
+ // If the output file is not Mmap'd, just writes the content.
+ func (out *OutBuf) WriteSym(s *sym.Symbol) {
+ 	// NB: We inline the Write call for speediness.
+-	if out.buf != nil {
+-		start := out.off
+-		n := copy(out.buf[out.off:], s.P)
+-		out.off += int64(n)
+-		s.P = out.buf[start:out.off]
++	if out.isMmapped() {
++		n := int64(len(s.P))
++		pos, buf := out.writeLoc(n)
++		copy(buf[pos:], s.P)
++		out.off += n
++		s.P = buf[pos : pos+n]
+ 		s.Attr.Set(sym.AttrReadOnly, false)
+ 	} else {
+ 		n, _ := out.w.Write(s.P)
+@@ -251,9 +313,6 @@ func (out *OutBuf) WriteSym(s *sym.Symbol) {
+ 
+ func (out *OutBuf) Flush() {
+ 	var err error
+-	if out.buf != nil {
+-		err = out.Msync()
+-	}
+ 	if out.w != nil {
+ 		err = out.w.Flush()
+ 	}
+diff --git a/src/cmd/link/internal/ld/outbuf_mmap.go b/src/cmd/link/internal/ld/outbuf_mmap.go
+index c064e9686a..a2493d7d16 100644
+--- a/src/cmd/link/internal/ld/outbuf_mmap.go
++++ b/src/cmd/link/internal/ld/outbuf_mmap.go
+@@ -16,12 +16,11 @@ func (out *OutBuf) Mmap(filesize uint64) error {
+ 	if err != nil {
+ 		Exitf("resize output file failed: %v", err)
+ 	}
+-	out.length = filesize
+ 	out.buf, err = syscall.Mmap(int(out.f.Fd()), 0, int(filesize), syscall.PROT_READ|syscall.PROT_WRITE, syscall.MAP_SHARED|syscall.MAP_FILE)
+ 	return err
+ }
+ 
+-func (out *OutBuf) Munmap() {
++func (out *OutBuf) munmap() {
+ 	if out.buf == nil {
+ 		return
+ 	}
+@@ -38,12 +37,12 @@ func (out *OutBuf) Munmap() {
+ }
+ 
+ func (out *OutBuf) Msync() error {
+-	if out.buf == nil || out.length <= 0 {
++	if out.buf == nil {
+ 		return nil
+ 	}
+ 	// TODO: netbsd supports mmap and msync, but the syscall package doesn't define MSYNC.
+ 	// It is excluded from the build tag for now.
+-	_, _, errno := syscall.Syscall(syscall.SYS_MSYNC, uintptr(unsafe.Pointer(&out.buf[0])), uintptr(out.length), syscall.MS_SYNC)
++	_, _, errno := syscall.Syscall(syscall.SYS_MSYNC, uintptr(unsafe.Pointer(&out.buf[0])), uintptr(len(out.buf)), syscall.MS_SYNC)
+ 	if errno != 0 {
+ 		return errno
+ 	}
+diff --git a/src/cmd/link/internal/ld/outbuf_nommap.go b/src/cmd/link/internal/ld/outbuf_nommap.go
+index fba8cd8bc4..0b0ed91280 100644
+--- a/src/cmd/link/internal/ld/outbuf_nommap.go
++++ b/src/cmd/link/internal/ld/outbuf_nommap.go
+@@ -11,5 +11,5 @@ import "errors"
+ var errNotSupported = errors.New("mmap not supported")
+ 
+ func (out *OutBuf) Mmap(filesize uint64) error { return errNotSupported }
+-func (out *OutBuf) Munmap()                    { panic("unreachable") }
++func (out *OutBuf) munmap()                    { panic("unreachable") }
+ func (out *OutBuf) Msync() error               { panic("unreachable") }
+diff --git a/src/cmd/link/internal/ld/outbuf_test.go b/src/cmd/link/internal/ld/outbuf_test.go
+index 67e4c9c47f..aae206f511 100644
+--- a/src/cmd/link/internal/ld/outbuf_test.go
++++ b/src/cmd/link/internal/ld/outbuf_test.go
+@@ -34,3 +34,62 @@ func TestMMap(t *testing.T) {
+ 		t.Errorf("error mmapping file %v", err)
+ 	}
+ }
++
++// TestWriteLoc ensures that the math surrounding writeLoc is correct.
++func TestWriteLoc(t *testing.T) {
++	tests := []struct {
++		bufLen          int
++		off             int64
++		heapLen         int
++		lenToWrite      int64
++		expectedHeapLen int
++		writePos        int64
++		addressInHeap   bool
++	}{
++		{100, 0, 0, 100, 0, 0, false},
++		{100, 100, 0, 100, 100, 0, true},
++		{10, 10, 0, 100, 100, 0, true},
++		{10, 20, 10, 100, 110, 10, true},
++	}
++
++	for i, test := range tests {
++		ob := &OutBuf{
++			buf:  make([]byte, test.bufLen),
++			off:  test.off,
++			heap: make([]byte, test.heapLen),
++		}
++		pos, buf := ob.writeLoc(test.lenToWrite)
++		if pos != test.writePos {
++			t.Errorf("[%d] position = %d, expected %d", i, pos, test.writePos)
++		}
++		message := "mmapped area"
++		expected := ob.buf
++		if test.addressInHeap {
++			message = "heap"
++			expected = ob.heap
++		}
++		if &buf[0] != &expected[0] {
++			t.Errorf("[%d] expected position to be %q", i, message)
++		}
++		if len(ob.heap) != test.expectedHeapLen {
++			t.Errorf("[%d] expected len(ob.heap) == %d, got %d", i, test.expectedHeapLen, len(ob.heap))
++		}
++	}
++}
++
++func TestIsMmapped(t *testing.T) {
++	tests := []struct {
++		length   int
++		expected bool
++	}{
++		{0, false},
++		{1, true},
++	}
++	for i, test := range tests {
++		ob := &OutBuf{buf: make([]byte, test.length)}
++		if v := ob.isMmapped(); v != test.expected {
++
++			t.Errorf("[%d] isMmapped == %t, expected %t", i, v, test.expected)
++		}
++	}
++}
+diff --git a/src/cmd/link/internal/ld/outbuf_windows.go b/src/cmd/link/internal/ld/outbuf_windows.go
+index f745a5cb22..fc4fc5fb3b 100644
+--- a/src/cmd/link/internal/ld/outbuf_windows.go
++++ b/src/cmd/link/internal/ld/outbuf_windows.go
+@@ -31,7 +31,7 @@ func (out *OutBuf) Mmap(filesize uint64) error {
+ 	return nil
+ }
+ 
+-func (out *OutBuf) Munmap() {
++func (out *OutBuf) munmap() {
+ 	if out.buf == nil {
+ 		return
+ 	}

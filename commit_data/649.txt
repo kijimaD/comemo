@@ -9,7 +9,7 @@ Date:   Tue Sep 16 11:00:11 2008 -0700
     DELTA=279  (177 added, 16 deleted, 86 changed)
     OCL=15380
     CL=15389
-
+---
  doc/go_tutorial.txt    | 141 +++++++++++++++++++++++--------------------------
  doc/progs/cat_rot13.go |   5 +-
  doc/progs/server.go    |  49 +++++++++++++++++
@@ -17,3 +17,447 @@ Date:   Tue Sep 16 11:00:11 2008 -0700
  doc/progs/sieve.go     |  36 +++++++++++++
  doc/progs/sieve1.go    |  49 +++++++++++++++++
  6 files changed, 256 insertions(+), 79 deletions(-)
+
+diff --git a/doc/go_tutorial.txt b/doc/go_tutorial.txt
+index a8506cb064..f9f28d2175 100644
+--- a/doc/go_tutorial.txt
++++ b/doc/go_tutorial.txt
+@@ -212,9 +212,9 @@ An Interlude about Constants
+ 
+ Although integers come in lots of sizes in Go, integer constants do not.
+ There are no constants like "0ll" or "0x0UL".   Instead, integer
+-constants are evaluated as ideal, arbitrary precision values that
+-can overflow only when they are assigned to an integer variable of
+-some specific size.
++constants are evaluated as ideal, large-precision values that
++can overflow only when they are assigned to an integer variable with
++too little precision to represent the value.
+ 
+ 	const hard_eight = (1 << 100) >> 97  // legal
+ 
+@@ -313,7 +313,8 @@ initialization statement.  The "switch" on line 12 uses one to create variables
+ "nr" and "er" to hold the return values from "fd.Read()".  (The "if" on line 19
+ has the same idea.)  The "switch" statement is general: it evaluates the cases
+ from  top to bottom looking for the first case that matches the value; the
+-case expressions don't need to be constants or even integers.
++case expressions don't need to be constants or even integers, as long as
++they all have the same type.
+ 
+ Since the "switch" value is just "true", we could leave it off -- as is also true
+ in a "for" statement, a missing value means "true".  In fact, such a "switch"
+@@ -417,59 +418,59 @@ to implement the three methods for that type, like this:
+ 
+ --PROG progs/sortmain.go /type.Day/ /swap/
+ 
+-The 2,3,5 program
++Prime numbers
+ ----
+ 
+-Now we come to processes and communication - concurrent programming.
++Now we come to processes and communication -- concurrent programming.
+ It's a big subject so to be brief we assume some familiarity with the topic.
+ 
+-The prime sieve program in the language specification document is
+-an excellent illustration of concurrent programming, but for variety
+-here we'll solve a different problem in a similar way.
++A classic program in the style is the prime sieve of Eratosthenes.
++It works by taking a stream of all the natural numbers, and introducing
++a sequence of filters, one for each prime, to winnow the multiples of
++that prime.  At each step we have a sequence of filters of the primes
++so far, and the next number to pop out is the next prime, which triggers
++the creation of the next filter in the chain.
+ 
+-An old interview question is to write a program that prints all the
+-integers that can be written as multiples of 2, 3, and 5 only.
+-One way to solve it is to generate streams of numbers multiplied
+-by 2, 3, and 5, and to provide as input to the stream generators
+-the output of the program so far.  To generate the correct output,
+-we pick the least number generated each round and eliminate
+-duplicates (6 appears twice, as 2*3s and as 3*2), but that's easy.
+-
+-Here's a flow diagram:
++Here's a flow diagram; each box represents a filter element whose
++creation is triggered by the first number that flowed from the
++elements before it.
+ 
+ <br>
+ 
+-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<img src=go235.jpg >
++&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<img src='sieve.gif'>
+ 
+ <br>
+ 
+ To create a stream of integers, we use a Go <i>channel</i>, which,
+-borrowing from CSP and its descendants, represents a communications
+-channel that can connect two computations.  In Go, channel variables are
+-always pointers to channels -- it's the (hidden) object they point to that
++borrowing from CSP's descendants, represents a communications
++channel that can connect two concurrent computations.
++In Go, channel variables are
++always pointers to channels -- it's the object they point to that
+ does the communication.
+ 
+-Here are the first few lines of "progs/235A.go":
++Here is the first function in "progs/sieve.go":
++
++--PROG progs/sieve.go /Send/ /^}/
+ 
+---PROG progs/235A.go /package/ /^}/
++The function "Generate" sends the sequence 2, 3, 4, 5, ... to its
++argument channel, "ch", using the binary send operator "-&lt".
++Channels block, so if there's no recipient for the the value on "ch",
++the send operation will wait until one becomes available.
+ 
+-The numbers can get big, so we'll use 64-bit unsigned integers,
+-using the shorthand "INT" defined on line 3.
++The "Filter" function has three arguments: an input channel, an output
++channel, and a prime number.  It copies values from the input to the
++output, discarding anything divisible by the prime.  The unary prefix
++operator "&lt;-" (receive) retrieves the next value on the channel.
+ 
+-The function M is a multiplication generator.  It receives data
+-on the channel "in", using the unary receive operator "&lt;-"; the expression
+-"&lt;-in" retrieves the next value on the the channel.  The value
+-is multiplied by the factor "f" and then sent out on channel "out",
+-using the binary send operator "-&lt".  Channels block, so if there's
+-nothing available on "in" or no recipient for the the value on "out",
+-the function will block until it can proceed.
++--PROG progs/sieve.go /Copy/ /^}/
+ 
+-To deal with blocking, we want M to run in a separate thread. Go has
++
++The generator and filters execute concurrently.  Go has
+ its own model of process/threads/light-weight processes/coroutines,
+ so to avoid notational confusion we'll call concurrently executing
+ computations in Go <i>goroutines</i>.  To start a goroutine,
+ invoke the function, prefixing the call with the keyword "go";
+-this starts the function running independently of the current
++this starts the function running in parallel with the current
+ computation but in the same address space:
+ 
+ 	go sum(huge_array); // calculate sum in the background
+@@ -482,60 +483,48 @@ on which it can report back:
+ 	// ... do something else for a while
+ 	result := <-ch;  // wait for, and retrieve, result
+ 
+-Back to our 2-3-5 program.  Here's how "main" sets up the
+-calculation:
+-
+---PROG progs/235A.go /func.main/ /go.M.5/
++Back to our prime sieve.  Here's how the sieve pipeline is stitched
++together:
+ 
+-Lines 17 through 22 create the channels to connect the multipliers,
+-and lines 24 through 26 launch the goroutines.  The "100" parameter
+-to the input channels ("c2i" etc.) is a buffer size. By default,
+-Go channels are unbuffered (synchronous) but the "Multipler" inputs need to
+-be buffered because the main loop will generate data faster than
+-they process it.
++--PROG progs/sieve.go /func.main/ /^}/
+ 
+-Next we initialize a few variables.
++Line 23 creates the initial channel to pass to "Generate", which it
++then starts up.  As each prime pops out of the channel, a new "Filter"
++is added to the pipeline and <i>its</i> output becomes the new value
++of "ch".
+ 
++The sieve program can be tweaked to use a pattern common
++in this style of programming.  Here is a variant version
++of "Generate", from "progs/sieve1.go":
+ 
+---PROG progs/235A.go /x.:=/ /x5/
++--PROG progs/sieve1.go /func.Generate/ /^}/
+ 
+-The "x" variable will be the value we generate; the others will
+-hold the latest value received from each "Multiplier" goroutine.
++This version does all the setup internally. It creates the output
++channel, launches a goroutine internally using a function literal, and
++returns the channel to the caller.  It is a factory for concurrent
++execution, starting the goroutine and returning its connection.
++The same
++change can be made to "Filter":
+ 
+-Finally, here is the main loop:
++--PROG progs/sieve1.go /func.Filter/ /^}/
+ 
+---PROG progs/235A.go /for.*100/ /^.}/
++The "Sieve" function's main loop becomes simpler and clearer as a
++result, and while we're at it let's turn it into a factory too:
+ 
+-The algorithm is simple:  We send the current value to each of
+-the "Multiplier" goroutines; it needs to be multiplied by 2, 3, and 5 to
+-produce the full list.  Next, we advance the streams: each
+-channel whose latest value is the current value needs to step
+-to the next value.  Finally, we choose the least of the current
+-values, and iterate.
++--PROG progs/sieve1.go /func.Sieve/ /^}/
+ 
+-This program can be tightened up a little using a pattern common
+-in this style of programming.  Here is a variant version of "Multiplier",
+-from "progs/235B.go":
++Now "main"'s interface to the prime sieve is a channel of primes:
+ 
+---PROG progs/235B.go /func.M/ /^}/
++--PROG progs/sieve1.go /func.main/ /^}/
+ 
+-This version does all the setup internally. It creates the channels,
+-launches a goroutine internally using a function literal, and
+-returns the channels to the caller.  It is a concurrent factory,
+-starting the goroutine and returning its connections.
+-
+-The "main" function starts out simpler as a result:
+-
+---PROG progs/235B.go /func.main/ /x5/
++Service
++----
+ 
+-The rest is the same.
++here we will describe this server:
+ 
+-The program "progs/235_gen.go" generalizes the problem; by
+-filling in the elements of an array "F"
++--PROG progs/server.go
+ 
+---PROG progs/235_gen.go /F.*INT/
++and this modification, which exits cleanly
+ 
+-we can produces outputs from multiples of any integers.
+-Here is the full program, without further elucidation.
++--PROG progs/server1.go /func.Server/ END
+ 
+---PROG progs/235_gen.go
+diff --git a/doc/progs/cat_rot13.go b/doc/progs/cat_rot13.go
+index d5050155d2..a8c570add6 100644
+--- a/doc/progs/cat_rot13.go
++++ b/doc/progs/cat_rot13.go
+@@ -11,15 +11,14 @@ import (
+ 
+ var rot13_flag = Flag.Bool("rot13", false, nil, "rot13 the input")
+ 
+-func rot13(bb byte) byte {
+-	var b int = int(bb)      /// BUG: until byte division is fixed
++func rot13(b byte) byte {
+ 	if 'a' <= b && b <= 'z' {
+ 	   b = 'a' + ((b - 'a') + 13) % 26;
+ 	}
+ 	if 'A' <= b && b <= 'Z' {
+ 	   b = 'A' + ((b - 'A') + 13) % 26
+ 	}
+-	return byte(b)
++	return b
+ }
+ 
+ type Reader interface {
+diff --git a/doc/progs/server.go b/doc/progs/server.go
+new file mode 100644
+index 0000000000..3f64e9df00
+--- /dev/null
++++ b/doc/progs/server.go
+@@ -0,0 +1,49 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++type BinOp (a, b int) int;
++
++type Request struct {
++	a, b	int;
++	replyc	*chan int;
++}
++
++func Run(op *BinOp, request *Request) {
++	result := op(request.a, request.b);
++	request.replyc -< result;
++}
++
++func Server(op *BinOp, service *chan *Request) {
++	for {
++		request := <-service;
++		go Run(op, request);  // don't wait for it
++	}
++}
++
++func StartServer(op *BinOp) *chan *Request {
++	req := new(chan *Request);
++	go Server(op, req);
++	return req;
++}
++
++func main() {
++	adder := StartServer(func(a, b int) int { return a + b });
++	const N = 100;
++	var reqs [N]Request;
++	for i := 0; i < N; i++ {
++		req := &reqs[i];
++		req.a = i;
++		req.b = i + N;
++		req.replyc = new(chan int);
++		adder -< req;
++	}
++	for i := N-1; i >= 0; i-- {   // doesn't matter what order
++		if <-reqs[i].replyc != N + 2*i {
++			print("fail at ", i, "\n");
++		}
++	}
++	print("done\n");
++}
+diff --git a/doc/progs/server1.go b/doc/progs/server1.go
+new file mode 100644
+index 0000000000..5d24d8a4af
+--- /dev/null
++++ b/doc/progs/server1.go
+@@ -0,0 +1,55 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++type BinOp (a, b int) int;
++
++type Request struct {
++	a, b	int;
++	replyc	*chan int;
++}
++
++func Run(op *BinOp, request *Request) {
++	result := op(request.a, request.b);
++	request.replyc -< result;
++}
++
++func Server(op *BinOp, service *chan *Request, quit *chan bool) {
++	for {
++		var request *Request;
++		select {
++		case request <- service:      // can't say request := <-service here yet
++			go Run(op, request);  // don't wait for it
++		case <-quit:
++			return;
++		}
++	}
++}
++
++func StartServer(op *BinOp) (servch *chan *Request, quitch *chan bool) {
++	service := new(chan *Request);
++	quit := new(chan bool);
++	go Server(op, service, quit);
++	return service, quit;
++}
++
++func main() {
++	adder, quit := StartServer(func(a, b int) int { return a + b });
++	const N = 100;
++	var reqs [N]Request;
++	for i := 0; i < N; i++ {
++		req := &reqs[i];
++		req.a = i;
++		req.b = i + N;
++		req.replyc = new(chan int);
++		adder -< req;
++	}
++	for i := N-1; i >= 0; i-- {   // doesn't matter what order
++		if <-reqs[i].replyc != N + 2*i {
++			print("fail at ", i, "\n");
++		}
++	}
++	quit -< true;
++}
+diff --git a/doc/progs/sieve.go b/doc/progs/sieve.go
+new file mode 100644
+index 0000000000..60760cf4e8
+--- /dev/null
++++ b/doc/progs/sieve.go
+@@ -0,0 +1,36 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++// Send the sequence 2, 3, 4, ... to channel 'ch'.
++func Generate(ch *chan int) {
++	for i := 2; ; i++ {
++		ch -< i  // Send 'i' to channel 'ch'.
++	}
++}
++
++// Copy the values from channel 'in' to channel 'out',
++// removing those divisible by 'prime'.
++func Filter(in *chan int, out *chan int, prime int) {
++	for {
++		i := <-in  // Receive value of new variable 'i' from 'in'.
++		if i % prime != 0 {
++			out -< i  // Send 'i' to channel 'out'.
++		}
++	}
++}
++
++// The prime sieve: Daisy-chain Filter processes together.
++func main() {
++	ch := new(chan int);  // Create a new channel.
++	go Generate(ch);  // Start Generate() as a goroutine.
++	for {
++		prime := <-ch;
++		print(prime, "\n");
++		ch1 := new(chan int);
++		go Filter(ch, ch1, prime);
++		ch = ch1
++	}
++}
+diff --git a/doc/progs/sieve1.go b/doc/progs/sieve1.go
+new file mode 100644
+index 0000000000..2cb90600b8
+--- /dev/null
++++ b/doc/progs/sieve1.go
+@@ -0,0 +1,49 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++// Send the sequence 2, 3, 4, ... to returned channel 
++func Generate() *chan int {
++	ch := new(chan int);
++	go func(ch *chan int){
++		for i := 2; ; i++ {
++			ch -< i
++		}
++	}(ch);
++	return ch;
++}
++
++// Filter out input values divisible by 'prime', send rest to returned channel
++func Filter(in *chan int, prime int) *chan int{
++	out := new(chan int);
++	go func(in *chan int, out *chan int, prime int) {
++		for {
++			if i := <-in; i % prime != 0 {
++				out -< i
++			}
++		}
++	}(in, out, prime);
++	return out;
++}
++
++func Sieve() *chan int {
++	out := new(chan int);
++	go func(out *chan int) {
++		ch := Generate();
++		for {
++			prime := <-ch;
++			out -< prime;
++			ch = Filter(ch, prime);
++		}
++	}(out);
++	return out;
++}
++
++func main() {
++	primes := Sieve();
++	for {
++		print(<-primes, "\n");
++	}
++}

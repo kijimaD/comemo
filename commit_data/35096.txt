@@ -7,6 +7,27 @@ Date:   Wed Dec 13 16:40:39 2017 -0800
     Change-Id: I4e357a250b2f9cfbf780b05c5f54805682b19a62
     Reviewed-on: https://go-review.googlesource.com/83935
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/go/types/type.go | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/src/go/types/type.go b/src/go/types/type.go
+index ee7159f2e2..a58684a535 100644
+--- a/src/go/types/type.go
++++ b/src/go/types/type.go
+@@ -418,7 +418,6 @@ func (t *Named) NumMethods() int { return len(t.methods) }
+ func (t *Named) Method(i int) *Func { return t.methods[i] }
+ 
+ // SetUnderlying sets the underlying type and marks t as complete.
+-// TODO(gri) determine if there's a better solution rather than providing this function
+ func (t *Named) SetUnderlying(underlying Type) {
+ 	if underlying == nil {
+ 		panic("types.Named.SetUnderlying: underlying type must not be nil")
+@@ -430,7 +429,6 @@ func (t *Named) SetUnderlying(underlying Type) {
+ }
+ 
+ // AddMethod adds method m unless it is already in the method list.
+-// TODO(gri) find a better solution instead of providing this function
+ func (t *Named) AddMethod(m *Func) {
+ 	if i, _ := lookupMethod(t.methods, m.pkg, m.name); i < 0 {
+ 		t.methods = append(t.methods, m)

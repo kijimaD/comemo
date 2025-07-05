@@ -14,6 +14,30 @@ Date:   Wed Jul 2 16:11:37 2025 +0200
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Auto-Submit: Quim Muntal <quimmuntal@gmail.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/cgo/internal/testsanitizers/asan_test.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/cmd/cgo/internal/testsanitizers/asan_test.go b/src/cmd/cgo/internal/testsanitizers/asan_test.go
+index dd01bd0dc0..cb7d857280 100644
+--- a/src/cmd/cgo/internal/testsanitizers/asan_test.go
++++ b/src/cmd/cgo/internal/testsanitizers/asan_test.go
+@@ -8,6 +8,7 @@ package sanitizers_test
+ 
+ import (
+ 	"bytes"
++	"crypto/fips140"
+ 	"fmt"
+ 	"internal/platform"
+ 	"internal/testenv"
+@@ -157,6 +158,10 @@ func mustHaveASAN(t *testing.T) *config {
+ 		t.Skipf("skipping on %s/%s; -asan option is not supported.", goos, goarch)
+ 	}
+ 
++	if fips140.Enabled() {
++		t.Skipf("skipping with FIPS 140 mode; -asan option is not supported.")
++	}
++
+ 	// The current implementation is only compatible with the ASan library from version
+ 	// v7 to v9 (See the description in src/runtime/asan/asan.go). Therefore, using the
+ 	// -asan option must use a compatible version of ASan library, which requires that

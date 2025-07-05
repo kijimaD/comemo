@@ -21,10 +21,507 @@ Date:   Fri Oct 21 12:04:31 2016 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Quentin Smith <quentin@golang.org>
-
+---
  src/cmd/go/go_test.go                              | 253 ++++++++++++++++++++-
  src/cmd/go/pkg.go                                  | 135 +++++------
  src/cmd/go/testdata/src/importmain/ismain/main.go  |   5 +
  src/cmd/go/testdata/src/importmain/test/test.go    |   1 +
  .../go/testdata/src/importmain/test/test_test.go   |   6 +
  5 files changed, 324 insertions(+), 76 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index b02581be7b..c9bd9be03c 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -135,7 +135,15 @@ func testgo(t *testing.T) *testgoData {
+ 		t.Skip("skipping external tests on %s/%s", runtime.GOOS, runtime.GOARCH)
+ 	}
+ 
+-	return &testgoData{t: t}
++	tg := &testgoData{t: t}
++
++	// Hide user's local .gitconfig from git invocations.
++	// In particular, people using Github 2FA may configure
++	// https://github.com/ to redirect to ssh://git@github.com/
++	// using an insteadOf configuration, and that will break various
++	// of our tests.
++	tg.setenv("HOME", "/test-go-home-does-not-exist")
++	return tg
+ }
+ 
+ // must gives a fatal error if err is not nil.
+@@ -2063,6 +2071,16 @@ func TestCoverageUsesActualSettingToOverrideEvenForRace(t *testing.T) {
+ 	checkCoverage(tg, data)
+ }
+ 
++func TestCoverageImportMainLoop(t *testing.T) {
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
++	tg.runFail("test", "importmain/test")
++	tg.grepStderr("not an importable package", "did not detect import main")
++	tg.runFail("test", "-cover", "importmain/test")
++	tg.grepStderr("not an importable package", "did not detect import main")
++}
++
+ func TestBuildDryRunWithCgo(t *testing.T) {
+ 	if !canCgo {
+ 		t.Skip("skipping because cgo not enabled")
+@@ -2462,21 +2480,238 @@ func TestGoGetHTTPS404(t *testing.T) {
+ }
+ 
+ // Test that you cannot import a main package.
+-func TestIssue4210(t *testing.T) {
++// See golang.org/issue/4210 and golang.org/issue/17475.
++func TestImportMain(t *testing.T) {
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
++
++	// Importing package main from that package main's test should work.
+ 	tg.tempFile("src/x/main.go", `package main
+ 		var X int
+ 		func main() {}`)
+-	tg.tempFile("src/y/main.go", `package main
+-		import "fmt"
++	tg.tempFile("src/x/main_test.go", `package main_test
+ 		import xmain "x"
+-		func main() {
+-			fmt.Println(xmain.X)
+-		}`)
++		import "testing"
++		var _ = xmain.X
++		func TestFoo(t *testing.T) {}
++	`)
+ 	tg.setenv("GOPATH", tg.path("."))
+-	tg.runFail("build", "y")
+-	tg.grepBoth("is a program", `did not find expected error message ("is a program")`)
++	tg.run("build", "x")
++	tg.run("test", "x")
++
++	// Importing package main from another package should fail.
++	tg.tempFile("src/p1/p.go", `package p1
++		import xmain "x"
++		var _ = xmain.X
++	`)
++	tg.runFail("build", "p1")
++	tg.grepStderr("import \"x\" is a program, not an importable package", "did not diagnose package main")
++
++	// ... even in that package's test.
++	tg.tempFile("src/p2/p.go", `package p2
++	`)
++	tg.tempFile("src/p2/p_test.go", `package p2
++		import xmain "x"
++		import "testing"
++		var _ = xmain.X
++		func TestFoo(t *testing.T) {}
++	`)
++	tg.run("build", "p2")
++	tg.runFail("test", "p2")
++	tg.grepStderr("import \"x\" is a program, not an importable package", "did not diagnose package main")
++
++	// ... even if that package's test is an xtest.
++	tg.tempFile("src/p3/p.go", `package p
++	`)
++	tg.tempFile("src/p3/p_test.go", `package p_test
++		import xmain "x"
++		import "testing"
++		var _ = xmain.X
++		func TestFoo(t *testing.T) {}
++	`)
++	tg.run("build", "p3")
++	tg.runFail("test", "p3")
++	tg.grepStderr("import \"x\" is a program, not an importable package", "did not diagnose package main")
++
++	// ... even if that package is a package main
++	tg.tempFile("src/p4/p.go", `package main
++	func main() {}
++	`)
++	tg.tempFile("src/p4/p_test.go", `package main
++		import xmain "x"
++		import "testing"
++		var _ = xmain.X
++		func TestFoo(t *testing.T) {}
++	`)
++	tg.run("build", "p4")
++	tg.runFail("test", "p4")
++	tg.grepStderr("import \"x\" is a program, not an importable package", "did not diagnose package main")
++
++	// ... even if that package is a package main using an xtest.
++	tg.tempFile("src/p5/p.go", `package main
++	func main() {}
++	`)
++	tg.tempFile("src/p5/p_test.go", `package main_test
++		import xmain "x"
++		import "testing"
++		var _ = xmain.X
++		func TestFoo(t *testing.T) {}
++	`)
++	tg.run("build", "p5")
++	tg.runFail("test", "p5")
++	tg.grepStderr("import \"x\" is a program, not an importable package", "did not diagnose package main")
++}
++
++// Test that you cannot use a local import in a package
++// accessed by a non-local import (found in a GOPATH/GOROOT).
++// See golang.org/issue/17475.
++func TestImportLocal(t *testing.T) {
++	tg := testgo(t)
++	defer tg.cleanup()
++
++	// Importing package main from that package main's test should work.
++	tg.tempFile("src/dir/x/x.go", `package x
++		var X int
++	`)
++	tg.setenv("GOPATH", tg.path("."))
++	tg.run("build", "dir/x")
++
++	// Ordinary import should work.
++	tg.tempFile("src/dir/p0/p.go", `package p0
++		import "dir/x"
++		var _ = x.X
++	`)
++	tg.run("build", "dir/p0")
++
++	// Relative import should not.
++	tg.tempFile("src/dir/p1/p.go", `package p1
++		import "../x"
++		var _ = x.X
++	`)
++	tg.runFail("build", "dir/p1")
++	tg.grepStderr("local import.*in non-local package", "did not diagnose local import")
++
++	// ... even in a test.
++	tg.tempFile("src/dir/p2/p.go", `package p2
++	`)
++	tg.tempFile("src/dir/p2/p_test.go", `package p2
++		import "../x"
++		import "testing"
++		var _ = x.X
++		func TestFoo(t *testing.T) {}
++	`)
++	tg.run("build", "dir/p2")
++	tg.runFail("test", "dir/p2")
++	tg.grepStderr("local import.*in non-local package", "did not diagnose local import")
++
++	// ... even in an xtest.
++	tg.tempFile("src/dir/p2/p_test.go", `package p2_test
++		import "../x"
++		import "testing"
++		var _ = x.X
++		func TestFoo(t *testing.T) {}
++	`)
++	tg.run("build", "dir/p2")
++	tg.runFail("test", "dir/p2")
++	tg.grepStderr("local import.*in non-local package", "did not diagnose local import")
++
++	// Relative import starting with ./ should not work either.
++	tg.tempFile("src/dir/d.go", `package dir
++		import "./x"
++		var _ = x.X
++	`)
++	tg.runFail("build", "dir")
++	tg.grepStderr("local import.*in non-local package", "did not diagnose local import")
++
++	// ... even in a test.
++	tg.tempFile("src/dir/d.go", `package dir
++	`)
++	tg.tempFile("src/dir/d_test.go", `package dir
++		import "./x"
++		import "testing"
++		var _ = x.X
++		func TestFoo(t *testing.T) {}
++	`)
++	tg.run("build", "dir")
++	tg.runFail("test", "dir")
++	tg.grepStderr("local import.*in non-local package", "did not diagnose local import")
++
++	// ... even in an xtest.
++	tg.tempFile("src/dir/d_test.go", `package dir_test
++		import "./x"
++		import "testing"
++		var _ = x.X
++		func TestFoo(t *testing.T) {}
++	`)
++	tg.run("build", "dir")
++	tg.runFail("test", "dir")
++	tg.grepStderr("local import.*in non-local package", "did not diagnose local import")
++
++	// Relative import plain ".." should not work.
++	tg.tempFile("src/dir/x/y/y.go", `package dir
++		import ".."
++		var _ = x.X
++	`)
++	tg.runFail("build", "dir/x/y")
++	tg.grepStderr("local import.*in non-local package", "did not diagnose local import")
++
++	// ... even in a test.
++	tg.tempFile("src/dir/x/y/y.go", `package y
++	`)
++	tg.tempFile("src/dir/x/y/y_test.go", `package y
++		import ".."
++		import "testing"
++		var _ = x.X
++		func TestFoo(t *testing.T) {}
++	`)
++	tg.run("build", "dir/x/y")
++	tg.runFail("test", "dir/x/y")
++	tg.grepStderr("local import.*in non-local package", "did not diagnose local import")
++
++	// ... even in an x test.
++	tg.tempFile("src/dir/x/y/y_test.go", `package y_test
++		import ".."
++		import "testing"
++		var _ = x.X
++		func TestFoo(t *testing.T) {}
++	`)
++	tg.run("build", "dir/x/y")
++	tg.runFail("test", "dir/x/y")
++	tg.grepStderr("local import.*in non-local package", "did not diagnose local import")
++
++	// Relative import "." should not work.
++	tg.tempFile("src/dir/x/xx.go", `package x
++		import "."
++		var _ = x.X
++	`)
++	tg.runFail("build", "dir/x")
++	tg.grepStderr("local import.*in non-local package", "did not diagnose local import")
++
++	// ... even in a test.
++	tg.tempFile("src/dir/x/xx.go", `package x
++	`)
++	tg.tempFile("src/dir/x/xx_test.go", `package x
++		import "."
++		import "testing"
++		var _ = x.X
++		func TestFoo(t *testing.T) {}
++	`)
++	tg.run("build", "dir/x")
++	tg.runFail("test", "dir/x")
++	tg.grepStderr("local import.*in non-local package", "did not diagnose local import")
++
++	// ... even in an xtest.
++	tg.tempFile("src/dir/x/xx.go", `package x
++	`)
++	tg.tempFile("src/dir/x/xx_test.go", `package x_test
++		import "."
++		import "testing"
++		var _ = x.X
++		func TestFoo(t *testing.T) {}
++	`)
++	tg.run("build", "dir/x")
++	tg.runFail("test", "dir/x")
++	tg.grepStderr("local import.*in non-local package", "did not diagnose local import")
+ }
+ 
+ func TestGoGetInsecure(t *testing.T) {
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index 22241f597f..7505a43f2e 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -341,50 +341,52 @@ func loadImport(path, srcDir string, parent *Package, stk *importStack, importPo
+ 		importPath = path
+ 	}
+ 
+-	if p := packageCache[importPath]; p != nil {
+-		if perr := disallowInternal(srcDir, p, stk); perr != p {
+-			return perr
++	p := packageCache[importPath]
++	if p != nil {
++		p = reusePackage(p, stk)
++	} else {
++		p = new(Package)
++		p.local = isLocal
++		p.ImportPath = importPath
++		packageCache[importPath] = p
++
++		// Load package.
++		// Import always returns bp != nil, even if an error occurs,
++		// in order to return partial information.
++		//
++		// TODO: After Go 1, decide when to pass build.AllowBinary here.
++		// See issue 3268 for mistakes to avoid.
++		buildMode := build.ImportComment
++		if mode&useVendor == 0 || path != origPath {
++			// Not vendoring, or we already found the vendored path.
++			buildMode |= build.IgnoreVendor
+ 		}
+-		if mode&useVendor != 0 {
+-			if perr := disallowVendor(srcDir, origPath, p, stk); perr != p {
+-				return perr
+-			}
++		bp, err := buildContext.Import(path, srcDir, buildMode)
++		bp.ImportPath = importPath
++		if gobin != "" {
++			bp.BinDir = gobin
++		}
++		if err == nil && !isLocal && bp.ImportComment != "" && bp.ImportComment != path &&
++			!strings.Contains(path, "/vendor/") && !strings.HasPrefix(path, "vendor/") {
++			err = fmt.Errorf("code in directory %s expects import %q", bp.Dir, bp.ImportComment)
++		}
++		p.load(stk, bp, err)
++		if p.Error != nil && p.Error.Pos == "" && len(importPos) > 0 {
++			pos := importPos[0]
++			pos.Filename = shortPath(pos.Filename)
++			p.Error.Pos = pos.String()
+ 		}
+-		return reusePackage(p, stk)
+-	}
+-
+-	p := new(Package)
+-	p.local = isLocal
+-	p.ImportPath = importPath
+-	packageCache[importPath] = p
+ 
+-	// Load package.
+-	// Import always returns bp != nil, even if an error occurs,
+-	// in order to return partial information.
+-	//
+-	// TODO: After Go 1, decide when to pass build.AllowBinary here.
+-	// See issue 3268 for mistakes to avoid.
+-	buildMode := build.ImportComment
+-	if mode&useVendor == 0 || path != origPath {
+-		// Not vendoring, or we already found the vendored path.
+-		buildMode |= build.IgnoreVendor
+-	}
+-	bp, err := buildContext.Import(path, srcDir, buildMode)
+-	bp.ImportPath = importPath
+-	if gobin != "" {
+-		bp.BinDir = gobin
+-	}
+-	if err == nil && !isLocal && bp.ImportComment != "" && bp.ImportComment != path &&
+-		!strings.Contains(path, "/vendor/") && !strings.HasPrefix(path, "vendor/") {
+-		err = fmt.Errorf("code in directory %s expects import %q", bp.Dir, bp.ImportComment)
+-	}
+-	p.load(stk, bp, err)
+-	if p.Error != nil && p.Error.Pos == "" && len(importPos) > 0 {
+-		pos := importPos[0]
+-		pos.Filename = shortPath(pos.Filename)
+-		p.Error.Pos = pos.String()
++		if origPath != cleanImport(origPath) {
++			p.Error = &PackageError{
++				ImportStack: stk.copy(),
++				Err:         fmt.Sprintf("non-canonical import path: %q should be %q", origPath, pathpkg.Clean(origPath)),
++			}
++			p.Incomplete = true
++		}
+ 	}
+ 
++	// Checked on every import because the rules depend on the code doing the importing.
+ 	if perr := disallowInternal(srcDir, p, stk); perr != p {
+ 		return perr
+ 	}
+@@ -394,12 +396,32 @@ func loadImport(path, srcDir string, parent *Package, stk *importStack, importPo
+ 		}
+ 	}
+ 
+-	if origPath != cleanImport(origPath) {
+-		p.Error = &PackageError{
++	if p.Name == "main" && parent != nil && parent.Dir != p.Dir {
++		perr := *p
++		perr.Error = &PackageError{
+ 			ImportStack: stk.copy(),
+-			Err:         fmt.Sprintf("non-canonical import path: %q should be %q", origPath, pathpkg.Clean(origPath)),
++			Err:         fmt.Sprintf("import %q is a program, not an importable package", path),
+ 		}
+-		p.Incomplete = true
++		if len(importPos) > 0 {
++			pos := importPos[0]
++			pos.Filename = shortPath(pos.Filename)
++			perr.Error.Pos = pos.String()
++		}
++		return &perr
++	}
++
++	if p.local && parent != nil && !parent.local {
++		perr := *p
++		perr.Error = &PackageError{
++			ImportStack: stk.copy(),
++			Err:         fmt.Sprintf("local import %q in non-local package", path),
++		}
++		if len(importPos) > 0 {
++			pos := importPos[0]
++			pos.Filename = shortPath(pos.Filename)
++			perr.Error.Pos = pos.String()
++		}
++		return &perr
+ 	}
+ 
+ 	return p
+@@ -445,7 +467,7 @@ func vendoredImportPath(parent *Package, path string) (found string) {
+ 		root = expandPath(root)
+ 	}
+ 
+-	if !hasFilePathPrefix(dir, root) || len(dir) <= len(root) || dir[len(root)] != filepath.Separator || parent.ImportPath != "command-line-arguments" && filepath.Join(root, parent.ImportPath) != dir {
++	if !hasFilePathPrefix(dir, root) || len(dir) <= len(root) || dir[len(root)] != filepath.Separator || parent.ImportPath != "command-line-arguments" && !parent.local && filepath.Join(root, parent.ImportPath) != dir {
+ 		fatalf("unexpected directory layout:\n"+
+ 			"	import path: %s\n"+
+ 			"	root: %s\n"+
+@@ -974,7 +996,8 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package
+ 		// The same import path could produce an error or not,
+ 		// depending on what tries to import it.
+ 		// Prefer to record entries with errors, so we can report them.
+-		if deps[path] == nil || p1.Error != nil {
++		p0 := deps[path]
++		if p0 == nil || p1.Error != nil && (p0.Error == nil || len(p0.Error.ImportStack) > len(p1.Error.ImportStack)) {
+ 			deps[path] = p1
+ 		}
+ 	}
+@@ -984,28 +1007,6 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package
+ 			continue
+ 		}
+ 		p1 := loadImport(path, p.Dir, p, stk, p.build.ImportPos[path], useVendor)
+-		if p1.Name == "main" {
+-			p.Error = &PackageError{
+-				ImportStack: stk.copy(),
+-				Err:         fmt.Sprintf("import %q is a program, not an importable package", path),
+-			}
+-			pos := p.build.ImportPos[path]
+-			if len(pos) > 0 {
+-				p.Error.Pos = pos[0].String()
+-			}
+-		}
+-		if p1.local {
+-			if !p.local && p.Error == nil {
+-				p.Error = &PackageError{
+-					ImportStack: stk.copy(),
+-					Err:         fmt.Sprintf("local import %q in non-local package", path),
+-				}
+-				pos := p.build.ImportPos[path]
+-				if len(pos) > 0 {
+-					p.Error.Pos = pos[0].String()
+-				}
+-			}
+-		}
+ 		if p.Standard && p.Error == nil && !p1.Standard && p1.Error == nil {
+ 			p.Error = &PackageError{
+ 				ImportStack: stk.copy(),
+diff --git a/src/cmd/go/testdata/src/importmain/ismain/main.go b/src/cmd/go/testdata/src/importmain/ismain/main.go
+new file mode 100644
+index 0000000000..bf019076dd
+--- /dev/null
++++ b/src/cmd/go/testdata/src/importmain/ismain/main.go
+@@ -0,0 +1,5 @@
++package main
++
++import _ "importmain/test"
++
++func main() {}
+diff --git a/src/cmd/go/testdata/src/importmain/test/test.go b/src/cmd/go/testdata/src/importmain/test/test.go
+new file mode 100644
+index 0000000000..56e5404079
+--- /dev/null
++++ b/src/cmd/go/testdata/src/importmain/test/test.go
+@@ -0,0 +1 @@
++package test
+diff --git a/src/cmd/go/testdata/src/importmain/test/test_test.go b/src/cmd/go/testdata/src/importmain/test/test_test.go
+new file mode 100644
+index 0000000000..2268a8267e
+--- /dev/null
++++ b/src/cmd/go/testdata/src/importmain/test/test_test.go
+@@ -0,0 +1,6 @@
++package test_test
++
++import "testing"
++import _ "importmain/ismain"
++
++func TestCase(t *testing.T) {}

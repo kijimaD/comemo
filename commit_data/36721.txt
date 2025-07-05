@@ -12,6 +12,56 @@ Date:   Sun May 20 21:42:25 2018 +0200
     Change-Id: Ifcc11da5b690327946c2488bcf4c79c60175a339
     Reviewed-on: https://go-review.googlesource.com/113916
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/crypto/x509/x509.go | 16 +++++++++++++++-
  1 file changed, 15 insertions(+), 1 deletion(-)
+
+diff --git a/src/crypto/x509/x509.go b/src/crypto/x509/x509.go
+index bb1f94497f..34eb8b0105 100644
+--- a/src/crypto/x509/x509.go
++++ b/src/crypto/x509/x509.go
+@@ -1952,7 +1952,8 @@ func buildExtensions(template *Certificate, subjectIsEmpty bool, authorityKeyId
+ 	}
+ 
+ 	// Adding another extension here? Remember to update the maximum number
+-	// of elements in the make() at the top of the function.
++	// of elements in the make() at the top of the function and the list of
++	// template fields used in CreateCertificate documentation.
+ 
+ 	return append(ret[:n], template.ExtraExtensions...), nil
+ }
+@@ -2043,21 +2044,34 @@ var emptyASN1Subject = []byte{0x30, 0}
+ //
+ //  - AuthorityKeyId
+ //  - BasicConstraintsValid
++//  - CRLDistributionPoints
+ //  - DNSNames
++//  - EmailAddresses
+ //  - ExcludedDNSDomains
++//  - ExcludedEmailAddresses
++//  - ExcludedIPRanges
++//  - ExcludedURIDomains
+ //  - ExtKeyUsage
++//  - ExtraExtensions
+ //  - IsCA
++//  - IssuingCertificateURL
+ //  - KeyUsage
+ //  - MaxPathLen
+ //  - MaxPathLenZero
+ //  - NotAfter
+ //  - NotBefore
++//  - OCSPServer
+ //  - PermittedDNSDomains
+ //  - PermittedDNSDomainsCritical
++//  - PermittedEmailAddresses
++//  - PermittedIPRanges
++//  - PermittedURIDomains
++//  - PolicyIdentifiers
+ //  - SerialNumber
+ //  - SignatureAlgorithm
+ //  - Subject
+ //  - SubjectKeyId
++//  - URIs
+ //  - UnknownExtKeyUsage
+ //
+ // The certificate is signed by parent. If parent is equal to template then the

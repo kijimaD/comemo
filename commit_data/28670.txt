@@ -28,8 +28,50 @@ Date:   Thu Jun 23 19:46:13 2016 -0400
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/go/constant/value_test.go | 1 +
  src/math/big/ratconv.go       | 6 ++++++
  src/math/big/ratconv_test.go  | 1 +
  3 files changed, 8 insertions(+)
+
+diff --git a/src/go/constant/value_test.go b/src/go/constant/value_test.go
+index dbd96c07a3..8a8a08eaaa 100644
+--- a/src/go/constant/value_test.go
++++ b/src/go/constant/value_test.go
+@@ -244,6 +244,7 @@ var stringTests = []struct {
+ 	{"1e9999", "1e+9999", "0x.f8d4a9da224650a8cb2959e10d985ad92adbd44c62917e608b1f24c0e1b76b6f61edffeb15c135a4b601637315f7662f325f82325422b244286a07663c9415d2p+33216"},
+ 	{"1e-9999", "1e-9999", "0x.83b01ba6d8c0425eec1b21e96f7742d63c2653ed0a024cf8a2f9686df578d7b07d7a83d84df6a2ec70a921d1f6cd5574893a7eda4d28ee719e13a5dce2700759p-33215"},
+ 	{"2.71828182845904523536028747135266249775724709369995957496696763", "2.71828", "271828182845904523536028747135266249775724709369995957496696763/100000000000000000000000000000000000000000000000000000000000000"},
++	{"0e9999999999", "0", "0"}, // issue #16176
+ 
+ 	// Complex
+ 	{"0i", "(0 + 0i)", "(0 + 0i)"},
+diff --git a/src/math/big/ratconv.go b/src/math/big/ratconv.go
+index 7c127f8585..ef2b6750d0 100644
+--- a/src/math/big/ratconv.go
++++ b/src/math/big/ratconv.go
+@@ -88,6 +88,12 @@ func (z *Rat) SetString(s string) (*Rat, bool) {
+ 		return nil, false
+ 	}
+ 
++	// special-case 0 (see also issue #16176)
++	if len(z.a.abs) == 0 {
++		return z, true
++	}
++	// len(z.a.abs) > 0
++
+ 	// correct exponent
+ 	if ecorr < 0 {
+ 		exp += int64(ecorr)
+diff --git a/src/math/big/ratconv_test.go b/src/math/big/ratconv_test.go
+index 17bda47637..35ad6ccea7 100644
+--- a/src/math/big/ratconv_test.go
++++ b/src/math/big/ratconv_test.go
+@@ -48,6 +48,7 @@ var setStringTests = []StringTest{
+ 	{"53/70893980658822810696", "53/70893980658822810696", true},
+ 	{"106/141787961317645621392", "53/70893980658822810696", true},
+ 	{"204211327800791583.81095", "4084226556015831676219/20000", true},
++	{"0e9999999999", "0", true}, // issue #16176
+ 	{in: "1/0"},
+ }
+ 

@@ -7,6 +7,38 @@ Date:   Fri Mar 18 16:40:46 2016 +0100
     Change-Id: I9e887a0b32baf0adc85fa9e4b85b319e8ef333e9
     Reviewed-on: https://go-review.googlesource.com/20853
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/encoding/binary/binary_test.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/encoding/binary/binary_test.go b/src/encoding/binary/binary_test.go
+index fc6ea9534a..fe75a00b33 100644
+--- a/src/encoding/binary/binary_test.go
++++ b/src/encoding/binary/binary_test.go
+@@ -373,7 +373,7 @@ func BenchmarkReadStruct(b *testing.B) {
+ 		Read(bsr, BigEndian, &t)
+ 	}
+ 	b.StopTimer()
+-	if !reflect.DeepEqual(s, t) {
++	if b.N > 0 && !reflect.DeepEqual(s, t) {
+ 		b.Fatalf("struct doesn't match:\ngot  %v;\nwant %v", t, s)
+ 	}
+ }
+@@ -405,7 +405,7 @@ func BenchmarkReadInts(b *testing.B) {
+ 		want.Array[i] = 0
+ 	}
+ 	b.StopTimer()
+-	if !reflect.DeepEqual(ls, want) {
++	if b.N > 0 && !reflect.DeepEqual(ls, want) {
+ 		b.Fatalf("struct doesn't match:\ngot  %v;\nwant %v", ls, want)
+ 	}
+ }
+@@ -427,7 +427,7 @@ func BenchmarkWriteInts(b *testing.B) {
+ 		Write(w, BigEndian, s.Uint64)
+ 	}
+ 	b.StopTimer()
+-	if !bytes.Equal(buf.Bytes(), big[:30]) {
++	if b.N > 0 && !bytes.Equal(buf.Bytes(), big[:30]) {
+ 		b.Fatalf("first half doesn't match: %x %x", buf.Bytes(), big[:30])
+ 	}
+ }

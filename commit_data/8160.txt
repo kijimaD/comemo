@@ -9,6 +9,32 @@ Date:   Wed Apr 20 15:04:04 2011 -0400
     R=r
     CC=golang-dev
     https://golang.org/cl/4442066
-
+---
  src/pkg/reflect/value.go | 7 +++----
  1 file changed, 3 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/reflect/value.go b/src/pkg/reflect/value.go
+index 44aaebd50a..3e1ff1ee2b 100644
+--- a/src/pkg/reflect/value.go
++++ b/src/pkg/reflect/value.go
+@@ -395,8 +395,7 @@ func (v Value) Bool() bool {
+ // CanAddr returns true if the value's address can be obtained with Addr.
+ // Such values are called addressable.  A value is addressable if it is
+ // an element of a slice, an element of an addressable array,
+-// a field of an addressable struct, the result of dereferencing a pointer,
+-// or the result of a call to NewValue, MakeChan, MakeMap, or Zero.
++// a field of an addressable struct, or the result of dereferencing a pointer.
+ // If CanAddr returns false, calling Addr will panic.
+ func (v Value) CanAddr() bool {
+ 	iv := v.internal()
+@@ -404,8 +403,8 @@ func (v Value) CanAddr() bool {
+ }
+ 
+ // CanSet returns true if the value of v can be changed.
+-// Values obtained by the use of unexported struct fields
+-// can be read but not set.
++// A Value can be changed only if it is addressable and was not
++// obtained by the use of unexported struct fields.
+ // If CanSet returns false, calling Set or any type-specific
+ // setter (e.g., SetBool, SetInt64) will panic.
+ func (v Value) CanSet() bool {

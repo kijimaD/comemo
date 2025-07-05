@@ -12,6 +12,26 @@ Date:   Sat Apr 19 09:55:09 2014 +0200
     R=golang-codereviews, r
     CC=golang-codereviews
     https://golang.org/cl/82660044
-
+---
  include/plan9/mklibc.rc | 7 +------
  1 file changed, 1 insertion(+), 6 deletions(-)
+
+diff --git a/include/plan9/mklibc.rc b/include/plan9/mklibc.rc
+index 460ef1ce4b..449e15fdff 100755
+--- a/include/plan9/mklibc.rc
++++ b/include/plan9/mklibc.rc
+@@ -1,13 +1,8 @@
+ #!/bin/rc
+ 
+ pattern='/umuldiv/d
+-	/UTFmax/d
+-	/Runesync/d
+-	/Runeself/d
+-	/Runeerror/d
+-	/Runemax/d
+ 	/rune routines/,/^\/\*/d
+ 	/print routines/,/^\/\*/d
+ 	/error string for/,/^\/\*/d'
+ 
+-sed -e $pattern /sys/include/libc.h
++sed -e $pattern /sys/include/libc.h | awk '/^enum/ && !n++, /^};/ {next}1'

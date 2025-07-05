@@ -10,6 +10,20 @@ Date:   Wed Apr 15 15:18:00 2015 +0200
     Reviewed-on: https://go-review.googlesource.com/8960
     Reviewed-by: Dave Cheney <dave@cheney.net>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/dist/cpuid_386.s | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/cmd/dist/cpuid_386.s b/src/cmd/dist/cpuid_386.s
+index 853824a1bc..ed4fb523d7 100644
+--- a/src/cmd/dist/cpuid_386.s
++++ b/src/cmd/dist/cpuid_386.s
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build !gccgo
++
+ TEXT ·cpuid(SB),$0-8
+ 	MOVL ax+4(FP), AX
+ 	CPUID

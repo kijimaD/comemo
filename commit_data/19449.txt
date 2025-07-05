@@ -15,7 +15,41 @@ Date:   Tue May 27 21:38:19 2014 -0400
     R=golang-codereviews, iant
     CC=golang-codereviews
     https://golang.org/cl/98630045
-
+---
  src/cmd/gc/const.c          |  1 +
  test/fixedbugs/issue8073.go | 15 +++++++++++++++
  2 files changed, 16 insertions(+)
+
+diff --git a/src/cmd/gc/const.c b/src/cmd/gc/const.c
+index 1b46974581..143c1730d2 100644
+--- a/src/cmd/gc/const.c
++++ b/src/cmd/gc/const.c
+@@ -951,6 +951,7 @@ unary:
+ 	case TUP(OCONV, CTFLT):
+ 	case TUP(OCONV, CTSTR):
+ 		convlit1(&nl, n->type, 1);
++		v = nl->val;
+ 		break;
+ 
+ 	case TUP(OPLUS, CTINT):
+diff --git a/test/fixedbugs/issue8073.go b/test/fixedbugs/issue8073.go
+new file mode 100644
+index 0000000000..6601221104
+--- /dev/null
++++ b/test/fixedbugs/issue8073.go
+@@ -0,0 +1,15 @@
++// compile
++
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// issue 8073.
++// was "internal compiler error: overflow: float64 integer constant"
++
++package main
++
++func main() {
++	var x int
++	_ = float64(x * 0)
++}

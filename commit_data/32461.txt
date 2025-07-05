@@ -9,8 +9,95 @@ Date:   Tue Apr 25 17:44:40 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/dcl.go    | 10 +++++++---
  src/cmd/compile/internal/gc/fmt.go    |  4 ++--
  src/cmd/compile/internal/gc/syntax.go |  4 +++-
  3 files changed, 12 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index 2820b72a42..22e2fd8ea5 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -570,7 +570,7 @@ func structfield(n *Node) *types.Field {
+ 		if n.Left != nil {
+ 			n.Left.Type = n.Type
+ 		}
+-		if n.Embedded != 0 {
++		if n.Embedded() {
+ 			checkembeddedtype(n.Type)
+ 		}
+ 	}
+@@ -593,7 +593,11 @@ func structfield(n *Node) *types.Field {
+ 
+ 	if n.Left != nil && n.Left.Op == ONAME {
+ 		f.Nname = asTypesNode(n.Left)
+-		f.Embedded = n.Embedded
++		if n.Embedded() {
++			f.Embedded = 1
++		} else {
++			f.Embedded = 0
++		}
+ 		f.Sym = asNode(f.Nname).Sym
+ 	}
+ 
+@@ -779,7 +783,7 @@ func embedded(s *types.Sym, pkg *types.Pkg) *Node {
+ 		n = newname(s.Pkg.Lookup(name))
+ 	}
+ 	n = nod(ODCLFIELD, n, oldname(s))
+-	n.Embedded = 1
++	n.SetEmbedded(true)
+ 	return n
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index f712c706eb..7305a8fdff 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -501,8 +501,8 @@ func (n *Node) jconv(s fmt.State, flag FmtFlag) {
+ 		fmt.Fprintf(s, " implicit(%v)", n.Implicit())
+ 	}
+ 
+-	if n.Embedded != 0 {
+-		fmt.Fprintf(s, " embedded(%d)", n.Embedded)
++	if n.Embedded() {
++		fmt.Fprintf(s, " embedded")
+ 	}
+ 
+ 	if n.Addrtaken() {
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index 3db656e85e..bc1f8bfcb1 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -58,7 +58,6 @@ type Node struct {
+ 	Op        Op
+ 	Etype     types.EType // op for OASOP, etype for OTYPE, exclam for export, 6g saved reg, ChanDir for OTCHAN, for OINDEXMAP 1=LHS,0=RHS
+ 	Class     Class       // PPARAM, PAUTO, PEXTERN, etc
+-	Embedded  uint8       // ODCLFIELD embedded type
+ 	Typecheck uint8       // tracks state during typechecking; 2 == loop detected
+ 	Initorder uint8
+ }
+@@ -95,6 +94,7 @@ const (
+ 	_, nodeLikely   // if statement condition likely
+ 	_, nodeHasVal   // node.E contains a Val
+ 	_, nodeHasOpt   // node.E contains an Opt
++	_, nodeEmbedded // ODCLFIELD embedded type
+ )
+ 
+ func (n *Node) Walkdef() uint8 { return n.flags.get2(nodeWalkdef) }
+@@ -119,6 +119,7 @@ func (n *Node) HasCall() bool               { return n.flags&nodeHasCall != 0 }
+ func (n *Node) Likely() bool                { return n.flags&nodeLikely != 0 }
+ func (n *Node) HasVal() bool                { return n.flags&nodeHasVal != 0 }
+ func (n *Node) HasOpt() bool                { return n.flags&nodeHasOpt != 0 }
++func (n *Node) Embedded() bool              { return n.flags&nodeEmbedded != 0 }
+ 
+ func (n *Node) SetWalkdef(b uint8) { n.flags.set2(nodeWalkdef, b) }
+ 
+@@ -142,6 +143,7 @@ func (n *Node) SetHasCall(b bool)               { n.flags.set(nodeHasCall, b) }
+ func (n *Node) SetLikely(b bool)                { n.flags.set(nodeLikely, b) }
+ func (n *Node) SetHasVal(b bool)                { n.flags.set(nodeHasVal, b) }
+ func (n *Node) SetHasOpt(b bool)                { n.flags.set(nodeHasOpt, b) }
++func (n *Node) SetEmbedded(b bool)              { n.flags.set(nodeEmbedded, b) }
+ 
+ // Val returns the Val for the node.
+ func (n *Node) Val() Val {

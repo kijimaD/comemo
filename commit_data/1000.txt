@@ -7,8 +7,77 @@ Date:   Wed Oct 29 20:25:34 2008 -0700
     R=r
     OCL=18095
     CL=18095
-
+---
  src/cmd/gc/const.c    | 2 +-
  src/cmd/gc/mparith2.c | 4 ++--
  src/cmd/gc/walk.c     | 8 ++++++--
  3 files changed, 9 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/gc/const.c b/src/cmd/gc/const.c
+index aff4a09a30..7ad2110af4 100644
+--- a/src/cmd/gc/const.c
++++ b/src/cmd/gc/const.c
+@@ -12,6 +12,7 @@ convlit(Node *n, Type *t)
+ 
+ 	if(n == N || t == T)
+ 		return;
++
+ 	switch(n->op) {
+ 	default:
+ 		return;
+@@ -25,7 +26,6 @@ convlit(Node *n, Type *t)
+ 	}
+ 
+ 	et = t->etype;
+-
+ 	wt = whatis(n);
+ 
+ 	switch(wt) {
+diff --git a/src/cmd/gc/mparith2.c b/src/cmd/gc/mparith2.c
+index 591501140e..c9116e701d 100644
+--- a/src/cmd/gc/mparith2.c
++++ b/src/cmd/gc/mparith2.c
+@@ -84,7 +84,7 @@ mprsh(Mpint *a)
+ 		if(x & 1)
+ 			c = Mpbase;
+ 	}
+-	if(a->neg && lo == 0)
++	if(a->neg && lo != 0)
+ 		mpaddcfix(a, -1);
+ }
+ 
+@@ -105,7 +105,7 @@ mprshw(Mpint *a)
+ 		a1++;
+ 	}
+ 	a1[0] = 0;
+-	if(a->neg && lo == 0)
++	if(a->neg && lo != 0)
+ 		mpaddcfix(a, -1);
+ }
+ 
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index ef80c5240f..06f076d250 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -170,6 +170,8 @@ walktype(Node *n, int top)
+ 	int et, cl, cr;
+ 	int32 lno;
+ 
++	if(n == N)
++		return;
+ 	lno = setlineno(n);
+ 
+ 	/*
+@@ -645,8 +647,10 @@ loop:
+ 		evconst(n);
+ 		if(n->op == OLITERAL)
+ 			goto ret;
+-		convlit(n->right, types[TUINT]);
+-		convlit(n->left, types[TINT]);
++		if(n->left->type == T)
++			convlit(n->left, types[TINT]);
++		if(n->right->type == T)
++			convlit(n->right, types[TUINT]);
+ 		if(n->left->type == T || n->right->type == T)
+ 			goto ret;
+ 		if(issigned[n->right->type->etype])

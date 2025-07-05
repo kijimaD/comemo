@@ -29,8 +29,116 @@ Date:   Tue Sep 27 17:36:26 2022 +0000
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/debug/elf/elf_test.go  | 22 ----------------------
  src/debug/elf/file.go      | 16 +++++++++-------
  src/debug/elf/file_test.go | 24 ++++++++++++++++++++++++
  3 files changed, 33 insertions(+), 29 deletions(-)
+
+diff --git a/src/debug/elf/elf_test.go b/src/debug/elf/elf_test.go
+index b8c310dba5..a61b491090 100644
+--- a/src/debug/elf/elf_test.go
++++ b/src/debug/elf/elf_test.go
+@@ -47,25 +47,3 @@ func TestNames(t *testing.T) {
+ 		}
+ 	}
+ }
+-
+-func TestNobitsSection(t *testing.T) {
+-	const testdata = "testdata/gcc-amd64-linux-exec"
+-	f, err := Open(testdata)
+-	if err != nil {
+-		t.Fatalf("could not read %s: %v", testdata, err)
+-	}
+-	defer f.Close()
+-	bss := f.Section(".bss")
+-	bssData, err := bss.Data()
+-	if err != nil {
+-		t.Fatalf("error reading .bss section: %v", err)
+-	}
+-	if g, w := uint64(len(bssData)), bss.Size; g != w {
+-		t.Errorf(".bss section length mismatch: got %d, want %d", g, w)
+-	}
+-	for i := range bssData {
+-		if bssData[i] != 0 {
+-			t.Fatalf("unexpected non-zero byte at offset %d: %#x", i, bssData[i])
+-		}
+-	}
+-}
+diff --git a/src/debug/elf/file.go b/src/debug/elf/file.go
+index db07a2daff..83a3cbc0b8 100644
+--- a/src/debug/elf/file.go
++++ b/src/debug/elf/file.go
+@@ -102,6 +102,8 @@ type Section struct {
+ // Data reads and returns the contents of the ELF section.
+ // Even if the section is stored compressed in the ELF file,
+ // Data returns uncompressed data.
++//
++// For an SHT_NOBITS section, Data always returns a non-nil error.
+ func (s *Section) Data() ([]byte, error) {
+ 	return saferio.ReadData(s.Open(), s.Size)
+ }
+@@ -118,9 +120,12 @@ func (f *File) stringTable(link uint32) ([]byte, error) {
+ // Open returns a new ReadSeeker reading the ELF section.
+ // Even if the section is stored compressed in the ELF file,
+ // the ReadSeeker reads uncompressed data.
++//
++// For an SHT_NOBITS section, all calls to the opened reader
++// will return a non-nil error.
+ func (s *Section) Open() io.ReadSeeker {
+ 	if s.Type == SHT_NOBITS {
+-		return io.NewSectionReader(&zeroReader{}, 0, int64(s.Size))
++		return io.NewSectionReader(&nobitsSectionReader{}, 0, int64(s.Size))
+ 	}
+ 	if s.Flags&SHF_COMPRESSED == 0 {
+ 		return io.NewSectionReader(s.sr, 0, 1<<63-1)
+@@ -1602,11 +1607,8 @@ func (f *File) DynString(tag DynTag) ([]string, error) {
+ 	return all, nil
+ }
+ 
+-type zeroReader struct{}
++type nobitsSectionReader struct{}
+ 
+-func (*zeroReader) ReadAt(p []byte, off int64) (n int, err error) {
+-	for i := range p {
+-		p[i] = 0
+-	}
+-	return len(p), nil
++func (*nobitsSectionReader) ReadAt(p []byte, off int64) (n int, err error) {
++	return 0, errors.New("unexpected read from SHT_NOBITS section")
+ }
+diff --git a/src/debug/elf/file_test.go b/src/debug/elf/file_test.go
+index fe72a1908f..282e1fccd9 100644
+--- a/src/debug/elf/file_test.go
++++ b/src/debug/elf/file_test.go
+@@ -945,6 +945,30 @@ func TestNoSectionOverlaps(t *testing.T) {
+ 	}
+ }
+ 
++func TestNobitsSection(t *testing.T) {
++	const testdata = "testdata/gcc-amd64-linux-exec"
++	f, err := Open(testdata)
++	if err != nil {
++		t.Fatalf("could not read %s: %v", testdata, err)
++	}
++	defer f.Close()
++
++	wantError := "unexpected read from SHT_NOBITS section"
++	bss := f.Section(".bss")
++
++	_, err = bss.Data()
++	if err == nil || err.Error() != wantError {
++		t.Fatalf("bss.Data() got error %q, want error %q", err, wantError)
++	}
++
++	r := bss.Open()
++	p := make([]byte, 1)
++	_, err = r.Read(p)
++	if err == nil || err.Error() != wantError {
++		t.Fatalf("r.Read(p) got error %q, want error %q", err, wantError)
++	}
++}
++
+ // TestLargeNumberOfSections tests the case that a file has greater than or
+ // equal to 65280 (0xff00) sections.
+ func TestLargeNumberOfSections(t *testing.T) {

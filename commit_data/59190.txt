@@ -17,7 +17,7 @@ Date:   Fri Feb 23 13:08:46 2024 -0500
     Auto-Submit: Michael Pratt <mpratt@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/internal/syscall/unix/pidfd_linux.go          |   8 --
  src/internal/syscall/unix/siginfo_linux.go        |  64 ----------
  src/internal/syscall/unix/siginfo_linux_mipsx.go  |  12 --
@@ -38,3 +38,596 @@ Date:   Fri Feb 23 13:08:46 2024 -0500
  src/os/pidfd_linux_test.go                        |  17 ---
  src/os/pidfd_other.go                             |  27 ----
  19 files changed, 13 insertions(+), 389 deletions(-)
+
+diff --git a/src/internal/syscall/unix/pidfd_linux.go b/src/internal/syscall/unix/pidfd_linux.go
+index e9417623db..02cfaa062c 100644
+--- a/src/internal/syscall/unix/pidfd_linux.go
++++ b/src/internal/syscall/unix/pidfd_linux.go
+@@ -13,11 +13,3 @@ func PidFDSendSignal(pidfd uintptr, s syscall.Signal) error {
+ 	}
+ 	return nil
+ }
+-
+-func PidFDOpen(pid, flags int) (uintptr, error) {
+-	pidfd, _, errno := syscall.Syscall(pidfdOpenTrap, uintptr(pid), uintptr(flags), 0)
+-	if errno != 0 {
+-		return ^uintptr(0), errno
+-	}
+-	return uintptr(pidfd), nil
+-}
+diff --git a/src/internal/syscall/unix/siginfo_linux.go b/src/internal/syscall/unix/siginfo_linux.go
+deleted file mode 100644
+index 9f83114e45..0000000000
+--- a/src/internal/syscall/unix/siginfo_linux.go
++++ /dev/null
+@@ -1,64 +0,0 @@
+-// Copyright 2023 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package unix
+-
+-import (
+-	"syscall"
+-)
+-
+-const is64bit = ^uint(0) >> 63 // 0 for 32-bit hosts, 1 for 64-bit ones.
+-
+-// SiginfoChild is a struct filled in by Linux waitid syscall.
+-// In C, siginfo_t contains a union with multiple members;
+-// this struct corresponds to one used when Signo is SIGCHLD.
+-//
+-// NOTE fields are exported to be used by TestSiginfoChildLayout.
+-type SiginfoChild struct {
+-	Signo       int32
+-	siErrnoCode                // Two int32 fields, swapped on MIPS.
+-	_           [is64bit]int32 // Extra padding for 64-bit hosts only.
+-
+-	// End of common part. Beginning of signal-specific part.
+-
+-	Pid    int32
+-	Uid    uint32
+-	Status int32
+-
+-	// Pad to 128 bytes.
+-	_ [128 - (6+is64bit)*4]byte
+-}
+-
+-const (
+-	// Possible values for SiginfoChild.Code field.
+-	_CLD_EXITED    int32 = 1
+-	_CLD_KILLED          = 2
+-	_CLD_DUMPED          = 3
+-	_CLD_TRAPPED         = 4
+-	_CLD_STOPPED         = 5
+-	_CLD_CONTINUED       = 6
+-
+-	// These are the same as in syscall/syscall_linux.go.
+-	core      = 0x80
+-	stopped   = 0x7f
+-	continued = 0xffff
+-)
+-
+-// WaitStatus converts SiginfoChild, as filled in by the waitid syscall,
+-// to syscall.WaitStatus.
+-func (s *SiginfoChild) WaitStatus() (ws syscall.WaitStatus) {
+-	switch s.Code {
+-	case _CLD_EXITED:
+-		ws = syscall.WaitStatus(s.Status << 8)
+-	case _CLD_DUMPED:
+-		ws = syscall.WaitStatus(s.Status) | core
+-	case _CLD_KILLED:
+-		ws = syscall.WaitStatus(s.Status)
+-	case _CLD_TRAPPED, _CLD_STOPPED:
+-		ws = syscall.WaitStatus(s.Status<<8) | stopped
+-	case _CLD_CONTINUED:
+-		ws = continued
+-	}
+-	return
+-}
+diff --git a/src/internal/syscall/unix/siginfo_linux_mipsx.go b/src/internal/syscall/unix/siginfo_linux_mipsx.go
+deleted file mode 100644
+index 2fca0c5505..0000000000
+--- a/src/internal/syscall/unix/siginfo_linux_mipsx.go
++++ /dev/null
+@@ -1,12 +0,0 @@
+-// Copyright 2023 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build linux && (mips || mipsle || mips64 || mips64le)
+-
+-package unix
+-
+-type siErrnoCode struct {
+-	Code  int32
+-	Errno int32
+-}
+diff --git a/src/internal/syscall/unix/siginfo_linux_other.go b/src/internal/syscall/unix/siginfo_linux_other.go
+deleted file mode 100644
+index cfdc4ddf51..0000000000
+--- a/src/internal/syscall/unix/siginfo_linux_other.go
++++ /dev/null
+@@ -1,12 +0,0 @@
+-// Copyright 2023 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build linux && !(mips || mipsle || mips64 || mips64le)
+-
+-package unix
+-
+-type siErrnoCode struct {
+-	Errno int32
+-	Code  int32
+-}
+diff --git a/src/internal/syscall/unix/siginfo_linux_test.go b/src/internal/syscall/unix/siginfo_linux_test.go
+deleted file mode 100644
+index 596c2ebee3..0000000000
+--- a/src/internal/syscall/unix/siginfo_linux_test.go
++++ /dev/null
+@@ -1,59 +0,0 @@
+-// Copyright 2023 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package unix_test
+-
+-import (
+-	"internal/goarch"
+-	"internal/syscall/unix"
+-	"runtime"
+-	"strings"
+-	"testing"
+-	"unsafe"
+-)
+-
+-// TestSiginfoChildLayout validates SiginfoChild layout. Modelled after
+-// static assertions in linux kernel's arch/*/kernel/signal*.c.
+-func TestSiginfoChildLayout(t *testing.T) {
+-	var si unix.SiginfoChild
+-
+-	const host64bit = goarch.PtrSize == 8
+-
+-	if v := unsafe.Sizeof(si); v != 128 {
+-		t.Fatalf("sizeof: got %d, want 128", v)
+-	}
+-
+-	ofSigno := 0
+-	ofErrno := 4
+-	ofCode := 8
+-	if strings.HasPrefix(runtime.GOARCH, "mips") {
+-		// These two fields are swapped on MIPS platforms.
+-		ofErrno, ofCode = ofCode, ofErrno
+-	}
+-	ofPid := 12
+-	if host64bit {
+-		ofPid = 16
+-	}
+-	ofUid := ofPid + 4
+-	ofStatus := ofPid + 8
+-
+-	offsets := []struct {
+-		name string
+-		got  uintptr
+-		want int
+-	}{
+-		{"Signo", unsafe.Offsetof(si.Signo), ofSigno},
+-		{"Errno", unsafe.Offsetof(si.Errno), ofErrno},
+-		{"Code", unsafe.Offsetof(si.Code), ofCode},
+-		{"Pid", unsafe.Offsetof(si.Pid), ofPid},
+-		{"Uid", unsafe.Offsetof(si.Uid), ofUid},
+-		{"Status", unsafe.Offsetof(si.Status), ofStatus},
+-	}
+-
+-	for _, tc := range offsets {
+-		if int(tc.got) != tc.want {
+-			t.Errorf("offsetof %s: got %d, want %d", tc.name, tc.got, tc.want)
+-		}
+-	}
+-}
+diff --git a/src/internal/syscall/unix/sysnum_linux_386.go b/src/internal/syscall/unix/sysnum_linux_386.go
+index be048bcf73..9f750a1c03 100644
+--- a/src/internal/syscall/unix/sysnum_linux_386.go
++++ b/src/internal/syscall/unix/sysnum_linux_386.go
+@@ -8,5 +8,4 @@ const (
+ 	getrandomTrap       uintptr = 355
+ 	copyFileRangeTrap   uintptr = 377
+ 	pidfdSendSignalTrap uintptr = 424
+-	pidfdOpenTrap       uintptr = 434
+ )
+diff --git a/src/internal/syscall/unix/sysnum_linux_amd64.go b/src/internal/syscall/unix/sysnum_linux_amd64.go
+index 525de9cbd8..706898d41e 100644
+--- a/src/internal/syscall/unix/sysnum_linux_amd64.go
++++ b/src/internal/syscall/unix/sysnum_linux_amd64.go
+@@ -8,5 +8,4 @@ const (
+ 	getrandomTrap       uintptr = 318
+ 	copyFileRangeTrap   uintptr = 326
+ 	pidfdSendSignalTrap uintptr = 424
+-	pidfdOpenTrap       uintptr = 434
+ )
+diff --git a/src/internal/syscall/unix/sysnum_linux_arm.go b/src/internal/syscall/unix/sysnum_linux_arm.go
+index b803892278..c00644b552 100644
+--- a/src/internal/syscall/unix/sysnum_linux_arm.go
++++ b/src/internal/syscall/unix/sysnum_linux_arm.go
+@@ -8,5 +8,4 @@ const (
+ 	getrandomTrap       uintptr = 384
+ 	copyFileRangeTrap   uintptr = 391
+ 	pidfdSendSignalTrap uintptr = 424
+-	pidfdOpenTrap       uintptr = 434
+ )
+diff --git a/src/internal/syscall/unix/sysnum_linux_generic.go b/src/internal/syscall/unix/sysnum_linux_generic.go
+index b06bf69273..bf25428e7e 100644
+--- a/src/internal/syscall/unix/sysnum_linux_generic.go
++++ b/src/internal/syscall/unix/sysnum_linux_generic.go
+@@ -14,5 +14,4 @@ const (
+ 	getrandomTrap       uintptr = 278
+ 	copyFileRangeTrap   uintptr = 285
+ 	pidfdSendSignalTrap uintptr = 424
+-	pidfdOpenTrap       uintptr = 434
+ )
+diff --git a/src/internal/syscall/unix/sysnum_linux_mips64x.go b/src/internal/syscall/unix/sysnum_linux_mips64x.go
+index 8764f5dc8f..6a9e238ce3 100644
+--- a/src/internal/syscall/unix/sysnum_linux_mips64x.go
++++ b/src/internal/syscall/unix/sysnum_linux_mips64x.go
+@@ -10,5 +10,4 @@ const (
+ 	getrandomTrap       uintptr = 5313
+ 	copyFileRangeTrap   uintptr = 5320
+ 	pidfdSendSignalTrap uintptr = 5424
+-	pidfdOpenTrap       uintptr = 5434
+ )
+diff --git a/src/internal/syscall/unix/sysnum_linux_mipsx.go b/src/internal/syscall/unix/sysnum_linux_mipsx.go
+index 9b2e587ba5..22d38f148e 100644
+--- a/src/internal/syscall/unix/sysnum_linux_mipsx.go
++++ b/src/internal/syscall/unix/sysnum_linux_mipsx.go
+@@ -10,5 +10,4 @@ const (
+ 	getrandomTrap       uintptr = 4353
+ 	copyFileRangeTrap   uintptr = 4360
+ 	pidfdSendSignalTrap uintptr = 4424
+-	pidfdOpenTrap       uintptr = 4434
+ )
+diff --git a/src/internal/syscall/unix/sysnum_linux_ppc64x.go b/src/internal/syscall/unix/sysnum_linux_ppc64x.go
+index 03e9c19743..945ec28c2a 100644
+--- a/src/internal/syscall/unix/sysnum_linux_ppc64x.go
++++ b/src/internal/syscall/unix/sysnum_linux_ppc64x.go
+@@ -10,5 +10,4 @@ const (
+ 	getrandomTrap       uintptr = 359
+ 	copyFileRangeTrap   uintptr = 379
+ 	pidfdSendSignalTrap uintptr = 424
+-	pidfdOpenTrap       uintptr = 434
+ )
+diff --git a/src/internal/syscall/unix/sysnum_linux_s390x.go b/src/internal/syscall/unix/sysnum_linux_s390x.go
+index c6e3e02e46..2c74343820 100644
+--- a/src/internal/syscall/unix/sysnum_linux_s390x.go
++++ b/src/internal/syscall/unix/sysnum_linux_s390x.go
+@@ -8,5 +8,4 @@ const (
+ 	getrandomTrap       uintptr = 349
+ 	copyFileRangeTrap   uintptr = 375
+ 	pidfdSendSignalTrap uintptr = 424
+-	pidfdOpenTrap       uintptr = 434
+ )
+diff --git a/src/os/exec_posix.go b/src/os/exec_posix.go
+index 944d936c11..4f9ea08cde 100644
+--- a/src/os/exec_posix.go
++++ b/src/os/exec_posix.go
+@@ -13,10 +13,6 @@ import (
+ 	"syscall"
+ )
+ 
+-// unsetHandle is a value for Process.handle used when the handle is not set.
+-// Same as syscall.InvalidHandle for Windows.
+-const unsetHandle = ^uintptr(0)
+-
+ // The only signal values guaranteed to be present in the os package on all
+ // systems are os.Interrupt (send the process an interrupt) and os.Kill (force
+ // the process to exit). On Windows, sending os.Interrupt to a process with
+@@ -42,7 +38,7 @@ func startProcess(name string, argv []string, attr *ProcAttr) (p *Process, err e
+ 	sysattr := &syscall.ProcAttr{
+ 		Dir: attr.Dir,
+ 		Env: attr.Env,
+-		Sys: ensurePidfd(attr.Sys),
++		Sys: attr.Sys,
+ 	}
+ 	if sysattr.Env == nil {
+ 		sysattr.Env, err = execenv.Default(sysattr.Sys)
+@@ -64,10 +60,6 @@ func startProcess(name string, argv []string, attr *ProcAttr) (p *Process, err e
+ 		return nil, &PathError{Op: "fork/exec", Path: name, Err: e}
+ 	}
+ 
+-	if runtime.GOOS == "linux" {
+-		h = getPidfd(sysattr.Sys)
+-	}
+-
+ 	return newProcess(pid, h), nil
+ }
+ 
+diff --git a/src/os/exec_unix.go b/src/os/exec_unix.go
+index 2c66a8be20..36b320df18 100644
+--- a/src/os/exec_unix.go
++++ b/src/os/exec_unix.go
+@@ -17,16 +17,6 @@ func (p *Process) wait() (ps *ProcessState, err error) {
+ 	if p.Pid == -1 {
+ 		return nil, syscall.EINVAL
+ 	}
+-	// Use pidfd if possible; fallback on ENOSYS or EPERM (the latter can be
+-	// returned if syscall is prohibited by seccomp or a similar mechanism).
+-	//
+-	// When pidfd is used, there is no wait/kill race (described in CL 23967)
+-	// because PID recycle issue doesn't exist (IOW, pidfd, unlike PID, is
+-	// guaranteed to refer to one particular process). Thus, there is no
+-	// need for the workaround (blockUntilWaitable + sigMu) below.
+-	if ps, e := p.pidfdWait(); e != syscall.ENOSYS && e != syscall.EPERM {
+-		return ps, NewSyscallError("waitid", e)
+-	}
+ 
+ 	// If we can block until Wait4 will succeed immediately, do so.
+ 	ready, err := p.blockUntilWaitable()
+@@ -74,31 +64,26 @@ func (p *Process) signal(sig Signal) error {
+ 	if p.Pid == 0 {
+ 		return errors.New("os: process not initialized")
+ 	}
+-	s, ok := sig.(syscall.Signal)
+-	if !ok {
+-		return errors.New("os: unsupported signal type")
+-	}
+-	// Use pidfd if possible; fallback on ENOSYS.
+-	if err := p.pidfdSendSignal(s); err != syscall.ENOSYS {
+-		return err
+-	}
+ 	p.sigMu.RLock()
+ 	defer p.sigMu.RUnlock()
+ 	if p.done() {
+ 		return ErrProcessDone
+ 	}
+-	return convertESRCH(syscall.Kill(p.Pid, s))
+-}
+-
+-func convertESRCH(err error) error {
+-	if err == syscall.ESRCH {
+-		return ErrProcessDone
++	s, ok := sig.(syscall.Signal)
++	if !ok {
++		return errors.New("os: unsupported signal type")
+ 	}
+-	return err
++	if e := syscall.Kill(p.Pid, s); e != nil {
++		if e == syscall.ESRCH {
++			return ErrProcessDone
++		}
++		return e
++	}
++	return nil
+ }
+ 
+ func (p *Process) release() error {
+-	p.pidfdRelease()
++	// NOOP for unix.
+ 	p.Pid = -1
+ 	// no need for a finalizer anymore
+ 	runtime.SetFinalizer(p, nil)
+@@ -107,7 +92,7 @@ func (p *Process) release() error {
+ 
+ func findProcess(pid int) (p *Process, err error) {
+ 	// NOOP for unix.
+-	return newProcess(pid, unsetHandle), nil
++	return newProcess(pid, 0), nil
+ }
+ 
+ func (p *ProcessState) userTime() time.Duration {
+diff --git a/src/os/export_linux_test.go b/src/os/export_linux_test.go
+index 839242f986..942b48a17d 100644
+--- a/src/os/export_linux_test.go
++++ b/src/os/export_linux_test.go
+@@ -9,5 +9,4 @@ var (
+ 	PollSpliceFile      = &pollSplice
+ 	PollSendFile        = &pollSendFile
+ 	GetPollFDAndNetwork = getPollFDAndNetwork
+-	CheckPidfdOnce      = checkPidfdOnce
+ )
+diff --git a/src/os/pidfd_linux.go b/src/os/pidfd_linux.go
+deleted file mode 100644
+index d6e1d53eee..0000000000
+--- a/src/os/pidfd_linux.go
++++ /dev/null
+@@ -1,145 +0,0 @@
+-// Copyright 2023 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build linux
+-
+-// Support for pidfd was added during the course of a few Linux releases:
+-//  v5.1: pidfd_send_signal syscall;
+-//  v5.2: CLONE_PIDFD flag for clone syscall;
+-//  v5.3: pidfd_open syscall, clone3 syscall;
+-//  v5.4: P_PIDFD idtype support for waitid syscall;
+-//  v5.6: pidfd_getfd syscall.
+-
+-package os
+-
+-import (
+-	"internal/syscall/unix"
+-	"sync"
+-	"syscall"
+-	"unsafe"
+-)
+-
+-func ensurePidfd(sysAttr *syscall.SysProcAttr) *syscall.SysProcAttr {
+-	if !pidfdWorks() {
+-		return sysAttr
+-	}
+-
+-	var pidfd int
+-
+-	if sysAttr == nil {
+-		return &syscall.SysProcAttr{
+-			PidFD: &pidfd,
+-		}
+-	}
+-	if sysAttr.PidFD == nil {
+-		newSys := *sysAttr // copy
+-		newSys.PidFD = &pidfd
+-		return &newSys
+-	}
+-
+-	return sysAttr
+-}
+-
+-func getPidfd(sysAttr *syscall.SysProcAttr) uintptr {
+-	if !pidfdWorks() {
+-		return unsetHandle
+-	}
+-
+-	return uintptr(*sysAttr.PidFD)
+-}
+-
+-func (p *Process) pidfdRelease() {
+-	// Release pidfd unconditionally.
+-	handle := p.handle.Swap(unsetHandle)
+-	if handle != unsetHandle {
+-		syscall.Close(int(handle))
+-	}
+-}
+-
+-// _P_PIDFD is used as idtype argument to waitid syscall.
+-const _P_PIDFD = 3
+-
+-func (p *Process) pidfdWait() (*ProcessState, error) {
+-	handle := p.handle.Load()
+-	if handle == unsetHandle || !pidfdWorks() {
+-		return nil, syscall.ENOSYS
+-	}
+-	var (
+-		info   unix.SiginfoChild
+-		rusage syscall.Rusage
+-		e      syscall.Errno
+-	)
+-	for {
+-		_, _, e = syscall.Syscall6(syscall.SYS_WAITID, _P_PIDFD, handle, uintptr(unsafe.Pointer(&info)), syscall.WEXITED, uintptr(unsafe.Pointer(&rusage)), 0)
+-		if e != syscall.EINTR {
+-			break
+-		}
+-	}
+-	if e != 0 {
+-		if e == syscall.EINVAL {
+-			// This is either invalid option value (which should not happen
+-			// as we only use WEXITED), or missing P_PIDFD support (Linux
+-			// kernel < 5.4), meaning pidfd support is not implemented.
+-			e = syscall.ENOSYS
+-		}
+-		return nil, e
+-	}
+-	p.setDone()
+-	defer p.pidfdRelease()
+-	return &ProcessState{
+-		pid:    int(info.Pid),
+-		status: info.WaitStatus(),
+-		rusage: &rusage,
+-	}, nil
+-}
+-
+-func (p *Process) pidfdSendSignal(s syscall.Signal) error {
+-	handle := p.handle.Load()
+-	if handle == unsetHandle || !pidfdWorks() {
+-		return syscall.ENOSYS
+-	}
+-	return convertESRCH(unix.PidFDSendSignal(handle, s))
+-}
+-
+-func pidfdWorks() bool {
+-	return checkPidfdOnce() == nil
+-}
+-
+-var checkPidfdOnce = sync.OnceValue(checkPidfd)
+-
+-// checkPidfd checks whether all required pidfd-related syscalls work.
+-// This consists of pidfd_open and pidfd_send_signal syscalls, and waitid
+-// syscall with idtype of P_PIDFD.
+-//
+-// Reasons for non-working pidfd syscalls include an older kernel and an
+-// execution environment in which the above system calls are restricted by
+-// seccomp or a similar technology.
+-func checkPidfd() error {
+-	// Get a pidfd of the current process (opening of "/proc/self" won't
+-	// work for waitid).
+-	fd, err := unix.PidFDOpen(syscall.Getpid(), 0)
+-	if err != nil {
+-		return NewSyscallError("pidfd_open", err)
+-	}
+-	defer syscall.Close(int(fd))
+-
+-	// Check waitid(P_PIDFD) works.
+-	for {
+-		_, _, err = syscall.Syscall6(syscall.SYS_WAITID, _P_PIDFD, fd, 0, syscall.WEXITED, 0, 0)
+-		if err != syscall.EINTR {
+-			break
+-		}
+-	}
+-	// Expect ECHILD from waitid since we're not our own parent.
+-	if err != syscall.ECHILD {
+-		return NewSyscallError("pidfd_wait", err)
+-	}
+-
+-	// Check pidfd_send_signal works (should be able to send 0 to itself).
+-	if err := unix.PidFDSendSignal(fd, 0); err != nil {
+-		return NewSyscallError("pidfd_send_signal", err)
+-	}
+-
+-	return nil
+-}
+diff --git a/src/os/pidfd_linux_test.go b/src/os/pidfd_linux_test.go
+deleted file mode 100644
+index f185c3de66..0000000000
+--- a/src/os/pidfd_linux_test.go
++++ /dev/null
+@@ -1,17 +0,0 @@
+-package os_test
+-
+-import (
+-	"os"
+-	"testing"
+-)
+-
+-func TestCheckPidfd(t *testing.T) {
+-	if err := os.CheckPidfdOnce(); err != nil {
+-		t.Log("checkPidfd:", err)
+-	} else {
+-		t.Log("pidfd syscalls work")
+-	}
+-	// TODO: make some reasonable assumptions that pidfd must or must not
+-	// work in the current test environment (for example, it must work for
+-	// kernel >= 5.4), and fail if pidfdWorks is not as expected.
+-}
+diff --git a/src/os/pidfd_other.go b/src/os/pidfd_other.go
+deleted file mode 100644
+index 1918acbec5..0000000000
+--- a/src/os/pidfd_other.go
++++ /dev/null
+@@ -1,27 +0,0 @@
+-// Copyright 2023 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build (unix && !linux) || (js && wasm) || wasip1 || windows
+-
+-package os
+-
+-import "syscall"
+-
+-func ensurePidfd(sysAttr *syscall.SysProcAttr) *syscall.SysProcAttr {
+-	return sysAttr
+-}
+-
+-func getPidfd(_ *syscall.SysProcAttr) uintptr {
+-	return unsetHandle
+-}
+-
+-func (p *Process) pidfdRelease() {}
+-
+-func (_ *Process) pidfdWait() (*ProcessState, error) {
+-	return nil, syscall.ENOSYS
+-}
+-
+-func (_ *Process) pidfdSendSignal(_ syscall.Signal) error {
+-	return syscall.ENOSYS
+-}

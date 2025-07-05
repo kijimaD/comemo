@@ -91,7 +91,7 @@ Date:   Tue May 2 09:29:03 2017 +0000
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/ssa/gen/ARM.rules |   2 +
  src/cmd/compile/internal/ssa/rewriteARM.go |  28 ++++++
  src/cmd/internal/obj/arm/a.out.go          |   9 +-
@@ -99,3 +99,525 @@ Date:   Tue May 2 09:29:03 2017 +0000
  src/cmd/internal/obj/arm/asm5.go           | 107 +++++++++++++++++++----
  test/armimm.go                             | 134 +++++++++++++++++++++--------
  6 files changed, 225 insertions(+), 58 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM.rules b/src/cmd/compile/internal/ssa/gen/ARM.rules
+index e92c58b7d8..6570e8a5a4 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM.rules
+@@ -798,6 +798,8 @@
+ // generic constant folding
+ (ADDconst [c] x) && !isARMImmRot(uint32(c)) && isARMImmRot(uint32(-c)) -> (SUBconst [int64(int32(-c))] x)
+ (SUBconst [c] x) && !isARMImmRot(uint32(c)) && isARMImmRot(uint32(-c)) -> (ADDconst [int64(int32(-c))] x)
++(ANDconst [c] x) && !isARMImmRot(uint32(c)) && isARMImmRot(^uint32(c)) -> (BICconst [int64(^uint32(c))] x)
++(BICconst [c] x) && !isARMImmRot(uint32(c)) && isARMImmRot(^uint32(c)) -> (ANDconst [int64(^uint32(c))] x)
+ (ADDconst [c] (MOVWconst [d])) -> (MOVWconst [int64(int32(c+d))])
+ (ADDconst [c] (ADDconst [d] x)) -> (ADDconst [int64(int32(c+d))] x)
+ (ADDconst [c] (SUBconst [d] x)) -> (ADDconst [int64(int32(c-d))] x)
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM.go b/src/cmd/compile/internal/ssa/rewriteARM.go
+index 0ca4e41e4e..65e97e13d8 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM.go
+@@ -3223,6 +3223,20 @@ func rewriteValueARM_OpARMANDconst_0(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (ANDconst [c] x)
++	// cond: !isARMImmRot(uint32(c)) && isARMImmRot(^uint32(c))
++	// result: (BICconst [int64(^uint32(c))] x)
++	for {
++		c := v.AuxInt
++		x := v.Args[0]
++		if !(!isARMImmRot(uint32(c)) && isARMImmRot(^uint32(c))) {
++			break
++		}
++		v.reset(OpARMBICconst)
++		v.AuxInt = int64(^uint32(c))
++		v.AddArg(x)
++		return true
++	}
+ 	// match: (ANDconst [c] (MOVWconst [d]))
+ 	// cond:
+ 	// result: (MOVWconst [c&d])
+@@ -3722,6 +3736,20 @@ func rewriteValueARM_OpARMBICconst_0(v *Value) bool {
+ 		v.AuxInt = 0
+ 		return true
+ 	}
++	// match: (BICconst [c] x)
++	// cond: !isARMImmRot(uint32(c)) && isARMImmRot(^uint32(c))
++	// result: (ANDconst [int64(^uint32(c))] x)
++	for {
++		c := v.AuxInt
++		x := v.Args[0]
++		if !(!isARMImmRot(uint32(c)) && isARMImmRot(^uint32(c))) {
++			break
++		}
++		v.reset(OpARMANDconst)
++		v.AuxInt = int64(^uint32(c))
++		v.AddArg(x)
++		return true
++	}
+ 	// match: (BICconst [c] (MOVWconst [d]))
+ 	// cond:
+ 	// result: (MOVWconst [d&^c])
+diff --git a/src/cmd/internal/obj/arm/a.out.go b/src/cmd/internal/obj/arm/a.out.go
+index ea153a30da..6ea7d4be3b 100644
+--- a/src/cmd/internal/obj/arm/a.out.go
++++ b/src/cmd/internal/obj/arm/a.out.go
+@@ -121,10 +121,11 @@ const (
+ 	C_PSR
+ 	C_FCR
+ 
+-	C_RCON  /* 0xff rotated */
+-	C_NCON  /* ~RCON */
+-	C_RCON2 /* OR of two disjoint C_RCON constants */
+-	C_SCON  /* 0xffff */
++	C_RCON   /* 0xff rotated */
++	C_NCON   /* ~RCON */
++	C_RCON2A /* OR of two disjoint C_RCON constants */
++	C_RCON2S /* subtraction of two disjoint C_RCON constants */
++	C_SCON   /* 0xffff */
+ 	C_LCON
+ 	C_LCONADDR
+ 	C_ZFCON
+diff --git a/src/cmd/internal/obj/arm/anames5.go b/src/cmd/internal/obj/arm/anames5.go
+index 05892def04..bb98d3b081 100644
+--- a/src/cmd/internal/obj/arm/anames5.go
++++ b/src/cmd/internal/obj/arm/anames5.go
+@@ -16,7 +16,8 @@ var cnames5 = []string{
+ 	"FCR",
+ 	"RCON",
+ 	"NCON",
+-	"RCON2",
++	"RCON2A",
++	"RCON2S",
+ 	"SCON",
+ 	"LCON",
+ 	"LCONADDR",
+diff --git a/src/cmd/internal/obj/arm/asm5.go b/src/cmd/internal/obj/arm/asm5.go
+index 28bd7f8020..f3122f725e 100644
+--- a/src/cmd/internal/obj/arm/asm5.go
++++ b/src/cmd/internal/obj/arm/asm5.go
+@@ -88,6 +88,8 @@ var optab = []Optab{
+ 	{AADD, C_REG, C_NONE, C_REG, 1, 4, 0, 0, 0},
+ 	{AAND, C_REG, C_REG, C_REG, 1, 4, 0, 0, 0},
+ 	{AAND, C_REG, C_NONE, C_REG, 1, 4, 0, 0, 0},
++	{AORR, C_REG, C_REG, C_REG, 1, 4, 0, 0, 0},
++	{AORR, C_REG, C_NONE, C_REG, 1, 4, 0, 0, 0},
+ 	{AMOVW, C_REG, C_NONE, C_REG, 1, 4, 0, 0, 0},
+ 	{AMVN, C_REG, C_NONE, C_REG, 1, 4, 0, 0, 0},
+ 	{ACMP, C_REG, C_REG, C_NONE, 1, 4, 0, 0, 0},
+@@ -95,6 +97,8 @@ var optab = []Optab{
+ 	{AADD, C_RCON, C_NONE, C_REG, 2, 4, 0, 0, 0},
+ 	{AAND, C_RCON, C_REG, C_REG, 2, 4, 0, 0, 0},
+ 	{AAND, C_RCON, C_NONE, C_REG, 2, 4, 0, 0, 0},
++	{AORR, C_RCON, C_REG, C_REG, 2, 4, 0, 0, 0},
++	{AORR, C_RCON, C_NONE, C_REG, 2, 4, 0, 0, 0},
+ 	{AMOVW, C_RCON, C_NONE, C_REG, 2, 4, 0, 0, 0},
+ 	{AMVN, C_RCON, C_NONE, C_REG, 2, 4, 0, 0, 0},
+ 	{ACMP, C_RCON, C_REG, C_NONE, 2, 4, 0, 0, 0},
+@@ -102,6 +106,8 @@ var optab = []Optab{
+ 	{AADD, C_SHIFT, C_NONE, C_REG, 3, 4, 0, 0, 0},
+ 	{AAND, C_SHIFT, C_REG, C_REG, 3, 4, 0, 0, 0},
+ 	{AAND, C_SHIFT, C_NONE, C_REG, 3, 4, 0, 0, 0},
++	{AORR, C_SHIFT, C_REG, C_REG, 3, 4, 0, 0, 0},
++	{AORR, C_SHIFT, C_NONE, C_REG, 3, 4, 0, 0, 0},
+ 	{AMVN, C_SHIFT, C_NONE, C_REG, 3, 4, 0, 0, 0},
+ 	{ACMP, C_SHIFT, C_REG, C_NONE, 3, 4, 0, 0, 0},
+ 	{AMOVW, C_RACON, C_NONE, C_REG, 4, 4, REGSP, 0, 0},
+@@ -136,20 +142,27 @@ var optab = []Optab{
+ 	{AADD, C_NCON, C_NONE, C_REG, 13, 8, 0, 0, 0},
+ 	{AAND, C_NCON, C_REG, C_REG, 13, 8, 0, 0, 0},
+ 	{AAND, C_NCON, C_NONE, C_REG, 13, 8, 0, 0, 0},
++	{AORR, C_NCON, C_REG, C_REG, 13, 8, 0, 0, 0},
++	{AORR, C_NCON, C_NONE, C_REG, 13, 8, 0, 0, 0},
+ 	{AMVN, C_NCON, C_NONE, C_REG, 13, 8, 0, 0, 0},
+ 	{ACMP, C_NCON, C_REG, C_NONE, 13, 8, 0, 0, 0},
+ 	{AADD, C_SCON, C_REG, C_REG, 13, 8, 0, 0, 0},
+ 	{AADD, C_SCON, C_NONE, C_REG, 13, 8, 0, 0, 0},
+ 	{AAND, C_SCON, C_REG, C_REG, 13, 8, 0, 0, 0},
+ 	{AAND, C_SCON, C_NONE, C_REG, 13, 8, 0, 0, 0},
++	{AORR, C_SCON, C_REG, C_REG, 13, 8, 0, 0, 0},
++	{AORR, C_SCON, C_NONE, C_REG, 13, 8, 0, 0, 0},
+ 	{AMVN, C_SCON, C_NONE, C_REG, 13, 8, 0, 0, 0},
+ 	{ACMP, C_SCON, C_REG, C_NONE, 13, 8, 0, 0, 0},
+-	{AADD, C_RCON2, C_REG, C_REG, 106, 8, 0, 0, 0},
+-	// TODO: RCON2: how to do AND and BIC?
++	{AADD, C_RCON2A, C_REG, C_REG, 106, 8, 0, 0, 0},
++	{AORR, C_RCON2A, C_REG, C_REG, 106, 8, 0, 0, 0},
++	{AADD, C_RCON2S, C_REG, C_REG, 107, 8, 0, 0, 0},
+ 	{AADD, C_LCON, C_REG, C_REG, 13, 8, 0, LFROM, 0},
+ 	{AADD, C_LCON, C_NONE, C_REG, 13, 8, 0, LFROM, 0},
+ 	{AAND, C_LCON, C_REG, C_REG, 13, 8, 0, LFROM, 0},
+ 	{AAND, C_LCON, C_NONE, C_REG, 13, 8, 0, LFROM, 0},
++	{AORR, C_LCON, C_REG, C_REG, 13, 8, 0, LFROM, 0},
++	{AORR, C_LCON, C_NONE, C_REG, 13, 8, 0, LFROM, 0},
+ 	{AMVN, C_LCON, C_NONE, C_REG, 13, 8, 0, LFROM, 0},
+ 	{ACMP, C_LCON, C_REG, C_NONE, 13, 8, 0, LFROM, 0},
+ 	{AMOVB, C_REG, C_NONE, C_REG, 1, 4, 0, 0, 0},
+@@ -970,10 +983,10 @@ func immrot(v uint32) int32 {
+ 	return 0
+ }
+ 
+-// immrot2 returns bits encoding the immediate constant fields of two instructions,
++// immrot2a returns bits encoding the immediate constant fields of two instructions,
+ // such that the encoded constants x, y satisfy x|y==v, x&y==0.
+ // Returns 0,0 if no such decomposition of v exists.
+-func immrot2(v uint32) (uint32, uint32) {
++func immrot2a(v uint32) (uint32, uint32) {
+ 	for i := uint(1); i < 32; i++ {
+ 		m := uint32(1<<i - 1)
+ 		if x, y := immrot(v&m), immrot(v&^m); x != 0 && y != 0 {
+@@ -985,6 +998,32 @@ func immrot2(v uint32) (uint32, uint32) {
+ 	return 0, 0
+ }
+ 
++// immrot2s returns bits encoding the immediate constant fields of two instructions,
++// such that the encoded constants y, x satisfy y-x==v, y&x==0.
++// Returns 0,0 if no such decomposition of v exists.
++func immrot2s(v uint32) (uint32, uint32) {
++	if immrot(v) == 0 {
++		return v, 0
++	}
++	// suppose v in the form of {leading 00, upper effective bits, lower 8 effective bits, trailing 00}
++	// omit trailing 00
++	var i uint32
++	for i = 2; i < 32; i += 2 {
++		if v&(1<<i-1) != 0 {
++			break
++		}
++	}
++	// i must be <= 24, then adjust i just above lower 8 effective bits of v
++	i += 6
++	// let x = {the complement of lower 8 effective bits, trailing 00}, y = x + v
++	x := 1<<i - v&(1<<i-1)
++	y := v + x
++	if y, x = uint32(immrot(y)), uint32(immrot(x)); y != 0 && x != 0 {
++		return y, x
++	}
++	return 0, 0
++}
++
+ func immaddr(v int32) int32 {
+ 	if v >= 0 && v <= 0xfff {
+ 		return v&0xfff | 1<<24 | 1<<23 /* pre indexing */ /* pre indexing, up */
+@@ -1159,8 +1198,11 @@ func (c *ctxt5) aclass(a *obj.Addr) int {
+ 			if uint32(c.instoffset) <= 0xffff && objabi.GOARM == 7 {
+ 				return C_SCON
+ 			}
+-			if x, y := immrot2(uint32(c.instoffset)); x != 0 && y != 0 {
+-				return C_RCON2
++			if x, y := immrot2a(uint32(c.instoffset)); x != 0 && y != 0 {
++				return C_RCON2A
++			}
++			if y, x := immrot2s(uint32(c.instoffset)); x != 0 && y != 0 {
++				return C_RCON2S
+ 			}
+ 			return C_LCON
+ 
+@@ -1226,13 +1268,12 @@ func (c *ctxt5) oplook(p *obj.Prog) *Optab {
+ 		a2 = C_REG
+ 	}
+ 
+-	// If Scond != 0, we must use the constant pool instead of
+-	// splitting the instruction in two. The most common reason is
+-	// .S (flag updating) instructions. There may be others.
+-	if a1 == C_RCON2 && p.Scond != 0 {
++	// If current instruction has a .S suffix (flags update),
++	// we must use the constant pool instead of splitting it.
++	if (a1 == C_RCON2A || a1 == C_RCON2S) && p.Scond&C_SBIT != 0 {
+ 		a1 = C_LCON
+ 	}
+-	if a3 == C_RCON2 && p.Scond != 0 {
++	if (a3 == C_RCON2A || a3 == C_RCON2S) && p.Scond&C_SBIT != 0 {
+ 		a3 = C_LCON
+ 	}
+ 
+@@ -1266,7 +1307,7 @@ func cmp(a int, b int) bool {
+ 	}
+ 	switch a {
+ 	case C_LCON:
+-		if b == C_RCON || b == C_NCON || b == C_SCON || b == C_RCON2 {
++		if b == C_RCON || b == C_NCON || b == C_SCON || b == C_RCON2A || b == C_RCON2S {
+ 			return true
+ 		}
+ 
+@@ -1406,16 +1447,14 @@ func buildop(ctxt *obj.Link) {
+ 			log.Fatalf("bad code")
+ 
+ 		case AADD:
+-			opset(AEOR, r0)
+ 			opset(ASUB, r0)
+ 			opset(ARSB, r0)
+ 			opset(AADC, r0)
+ 			opset(ASBC, r0)
+ 			opset(ARSC, r0)
+-			opset(AORR, r0)
+ 
+-		case AAND:
+-			opset(AAND, r0)
++		case AORR:
++			opset(AEOR, r0)
+ 			opset(ABIC, r0)
+ 
+ 		case ACMP:
+@@ -1541,6 +1580,7 @@ func buildop(ctxt *obj.Link) {
+ 			ALDREXD,
+ 			ASTREXD,
+ 			APLD,
++			AAND,
+ 			obj.AUNDEF,
+ 			obj.AFUNCDATA,
+ 			obj.APCDATA,
+@@ -1609,11 +1649,11 @@ func (c *ctxt5) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		c.aclass(&p.From)
+ 		r := int(p.Reg)
+ 		rt := int(p.To.Reg)
+-		x, y := immrot2(uint32(c.instoffset))
++		x, y := immrot2a(uint32(c.instoffset))
+ 		var as2 obj.As
+ 		switch p.As {
+-		case AADD, ASUB, AORR, AEOR:
+-			as2 = p.As // ADD, SUB, ORR, EOR
++		case AADD, ASUB, AORR, AEOR, ABIC:
++			as2 = p.As // ADD, SUB, ORR, EOR, BIC
+ 		case ARSB:
+ 			as2 = AADD // RSB -> RSB/ADD pair
+ 		case AADC:
+@@ -1632,6 +1672,35 @@ func (c *ctxt5) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		o1 |= x
+ 		o2 |= y
+ 
++	case 107: /* op $I,R,R where I can be decomposed into 2 immediates */
++		c.aclass(&p.From)
++		r := int(p.Reg)
++		rt := int(p.To.Reg)
++		y, x := immrot2s(uint32(c.instoffset))
++		var as2 obj.As
++		switch p.As {
++		case AADD:
++			as2 = ASUB // ADD -> ADD/SUB pair
++		case ASUB:
++			as2 = AADD // SUB -> SUB/ADD pair
++		case ARSB:
++			as2 = ASUB // RSB -> RSB/SUB pair
++		case AADC:
++			as2 = ASUB // ADC -> ADC/SUB pair
++		case ASBC:
++			as2 = AADD // SBC -> SBC/ADD pair
++		case ARSC:
++			as2 = ASUB // RSC -> RSC/SUB pair
++		default:
++			c.ctxt.Diag("unknown second op for %v", p)
++		}
++		o1 = c.oprrr(p, p.As, int(p.Scond))
++		o2 = c.oprrr(p, as2, int(p.Scond))
++		o1 |= (uint32(r)&15)<<16 | (uint32(rt)&15)<<12
++		o2 |= (uint32(rt)&15)<<16 | (uint32(rt)&15)<<12
++		o1 |= y
++		o2 |= x
++
+ 	case 3: /* add R<<[IR],[R],R */
+ 		o1 = c.mov(p)
+ 
+diff --git a/test/armimm.go b/test/armimm.go
+index f3fb516ed4..65124ad47a 100644
+--- a/test/armimm.go
++++ b/test/armimm.go
+@@ -11,57 +11,99 @@ package main
+ 
+ import "fmt"
+ 
+-const c32 = 0xaa00dd
+-const c64 = 0xaa00dd55000066
++const c32a = 0x00aa00dd
++const c32s = 0x00ffff00
++const c64a = 0x00aa00dd55000066
++const c64s = 0x00ffff00004fff00
+ 
+ //go:noinline
+-func add32(x uint32) uint32 {
+-	return x + c32
++func add32a(x uint32) uint32 {
++	return x + c32a
+ }
+ 
+ //go:noinline
+-func sub32(x uint32) uint32 {
+-	return x - c32
++func add32s(x uint32) uint32 {
++	return x + c32s
++}
++
++//go:noinline
++func sub32a(x uint32) uint32 {
++	return x - c32a
++}
++
++//go:noinline
++func sub32s(x uint32) uint32 {
++	return x - c32s
+ }
+ 
+ //go:noinline
+ func or32(x uint32) uint32 {
+-	return x | c32
++	return x | c32a
+ }
+ 
+ //go:noinline
+ func xor32(x uint32) uint32 {
+-	return x ^ c32
++	return x ^ c32a
++}
++
++//go:noinline
++func subr32a(x uint32) uint32 {
++	return c32a - x
++}
++
++//go:noinline
++func subr32s(x uint32) uint32 {
++	return c32s - x
++}
++
++//go:noinline
++func bic32(x uint32) uint32 {
++	return x &^ c32a
++}
++
++//go:noinline
++func add64a(x uint64) uint64 {
++	return x + c64a
+ }
+ 
+ //go:noinline
+-func subr32(x uint32) uint32 {
+-	return c32 - x
++func add64s(x uint64) uint64 {
++	return x + c64s
+ }
+ 
+ //go:noinline
+-func add64(x uint64) uint64 {
+-	return x + c64
++func sub64a(x uint64) uint64 {
++	return x - c64a
+ }
+ 
+ //go:noinline
+-func sub64(x uint64) uint64 {
+-	return x - c64
++func sub64s(x uint64) uint64 {
++	return x - c64s
+ }
+ 
+ //go:noinline
+ func or64(x uint64) uint64 {
+-	return x | c64
++	return x | c64a
+ }
+ 
+ //go:noinline
+ func xor64(x uint64) uint64 {
+-	return x ^ c64
++	return x ^ c64a
++}
++
++//go:noinline
++func subr64a(x uint64) uint64 {
++	return c64a - x
++}
++
++//go:noinline
++func subr64s(x uint64) uint64 {
++	return c64s - x
+ }
+ 
+ //go:noinline
+-func subr64(x uint64) uint64 {
+-	return c64 - x
++func bic64(x uint64) uint64 {
++	return x &^ c64a
+ }
+ 
+ // Note: x-c gets rewritten to x+(-c), so SUB and SBC are not directly testable.
+@@ -75,39 +117,63 @@ func main() {
+ func test32() {
+ 	var a uint32 = 0x11111111
+ 	var want, got uint32
+-	if want, got = a+c32, add32(a); got != want {
+-		panic(fmt.Sprintf("add32(%x) = %x, want %x", a, got, want))
++	if want, got = a+c32a, add32a(a); got != want {
++		panic(fmt.Sprintf("add32a(%x) = %x, want %x", a, got, want))
+ 	}
+-	if want, got = a-c32, sub32(a); got != want {
+-		panic(fmt.Sprintf("sub32(%x) = %x, want %x", a, got, want))
++	if want, got = a+c32s, add32s(a); got != want {
++		panic(fmt.Sprintf("add32s(%x) = %x, want %x", a, got, want))
+ 	}
+-	if want, got = a|c32, or32(a); got != want {
++	if want, got = a-c32a, sub32a(a); got != want {
++		panic(fmt.Sprintf("sub32a(%x) = %x, want %x", a, got, want))
++	}
++	if want, got = a-c32s, sub32s(a); got != want {
++		panic(fmt.Sprintf("sub32s(%x) = %x, want %x", a, got, want))
++	}
++	if want, got = a|c32a, or32(a); got != want {
+ 		panic(fmt.Sprintf("or32(%x) = %x, want %x", a, got, want))
+ 	}
+-	if want, got = a^c32, xor32(a); got != want {
++	if want, got = a^c32a, xor32(a); got != want {
+ 		panic(fmt.Sprintf("xor32(%x) = %x, want %x", a, got, want))
+ 	}
+-	if want, got = c32-a, subr32(a); got != want {
+-		panic(fmt.Sprintf("subr32(%x) = %x, want %x", a, got, want))
++	if want, got = c32a-a, subr32a(a); got != want {
++		panic(fmt.Sprintf("subr32a(%x) = %x, want %x", a, got, want))
++	}
++	if want, got = c32s-a, subr32s(a); got != want {
++		panic(fmt.Sprintf("subr32s(%x) = %x, want %x", a, got, want))
++	}
++	if want, got = a&^c32a, bic32(a); got != want {
++		panic(fmt.Sprintf("bic32(%x) = %x, want %x", a, got, want))
+ 	}
+ }
+ 
+ func test64() {
+ 	var a uint64 = 0x1111111111111111
+ 	var want, got uint64
+-	if want, got = a+c64, add64(a); got != want {
+-		panic(fmt.Sprintf("add64(%x) = %x, want %x", a, got, want))
++	if want, got = a+c64a, add64a(a); got != want {
++		panic(fmt.Sprintf("add64a(%x) = %x, want %x", a, got, want))
+ 	}
+-	if want, got = a-c64, sub64(a); got != want {
+-		panic(fmt.Sprintf("sub64(%x) = %x, want %x", a, got, want))
++	if want, got = a+c64s, add64s(a); got != want {
++		panic(fmt.Sprintf("add64s(%x) = %x, want %x", a, got, want))
+ 	}
+-	if want, got = a|c64, or64(a); got != want {
++	if want, got = a-c64a, sub64a(a); got != want {
++		panic(fmt.Sprintf("sub64a(%x) = %x, want %x", a, got, want))
++	}
++	if want, got = a-c64s, sub64s(a); got != want {
++		panic(fmt.Sprintf("sub64s(%x) = %x, want %x", a, got, want))
++	}
++	if want, got = a|c64a, or64(a); got != want {
+ 		panic(fmt.Sprintf("or64(%x) = %x, want %x", a, got, want))
+ 	}
+-	if want, got = a^c64, xor64(a); got != want {
++	if want, got = a^c64a, xor64(a); got != want {
+ 		panic(fmt.Sprintf("xor64(%x) = %x, want %x", a, got, want))
+ 	}
+-	if want, got = c64-a, subr64(a); got != want {
+-		panic(fmt.Sprintf("subr64(%x) = %x, want %x", a, got, want))
++	if want, got = c64a-a, subr64a(a); got != want {
++		panic(fmt.Sprintf("subr64a(%x) = %x, want %x", a, got, want))
++	}
++	if want, got = c64s-a, subr64s(a); got != want {
++		panic(fmt.Sprintf("subr64s(%x) = %x, want %x", a, got, want))
++	}
++	if want, got = a&^c64a, bic64(a); got != want {
++		panic(fmt.Sprintf("bic64(%x) = %x, want %x", a, got, want))
+ 	}
+ }

@@ -9,8 +9,88 @@ Date:   Mon Feb 12 11:22:00 2018 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/atomic_pointer.go | 13 -------------
  src/runtime/proc.go           |  2 +-
  src/runtime/runtime1.go       | 17 +----------------
  3 files changed, 2 insertions(+), 30 deletions(-)
+
+diff --git a/src/runtime/atomic_pointer.go b/src/runtime/atomic_pointer.go
+index 09cfbda9b1..b8f0c22c63 100644
+--- a/src/runtime/atomic_pointer.go
++++ b/src/runtime/atomic_pointer.go
+@@ -13,8 +13,6 @@ import (
+ // because while ptr does not escape, new does.
+ // If new is marked as not escaping, the compiler will make incorrect
+ // escape analysis decisions about the pointer value being stored.
+-// Instead, these are wrappers around the actual atomics (casp1 and so on)
+-// that use noescape to convey which arguments do not escape.
+ 
+ // atomicwb performs a write barrier before an atomic pointer write.
+ // The caller should guard the call with "if writeBarrier.enabled".
+@@ -37,17 +35,6 @@ func atomicstorep(ptr unsafe.Pointer, new unsafe.Pointer) {
+ 	atomic.StorepNoWB(noescape(ptr), new)
+ }
+ 
+-//go:nosplit
+-func casp(ptr *unsafe.Pointer, old, new unsafe.Pointer) bool {
+-	// The write barrier is only necessary if the CAS succeeds,
+-	// but since it needs to happen before the write becomes
+-	// public, we have to do it conservatively all the time.
+-	if writeBarrier.enabled {
+-		atomicwb(ptr, new)
+-	}
+-	return atomic.Casp1((*unsafe.Pointer)(noescape(unsafe.Pointer(ptr))), noescape(old), new)
+-}
+-
+ // Like above, but implement in terms of sync/atomic's uintptr operations.
+ // We cannot just call the runtime routines, because the race detector expects
+ // to be able to intercept the sync/atomic forms but not the runtime forms.
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 32467715c4..c9cc7544b8 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -1599,7 +1599,7 @@ func allocm(_p_ *p, fn func()) *m {
+ // the following strategy: there is a stack of available m's
+ // that can be stolen. Using compare-and-swap
+ // to pop from the stack has ABA races, so we simulate
+-// a lock by doing an exchange (via casp) to steal the stack
++// a lock by doing an exchange (via Casuintptr) to steal the stack
+ // head and replace the top pointer with MLOCKED (1).
+ // This serves as a simple spin lock that we can use even
+ // without an m. The thread that locks the stack in this way
+diff --git a/src/runtime/runtime1.go b/src/runtime/runtime1.go
+index a0769bbb67..d5f78baded 100644
+--- a/src/runtime/runtime1.go
++++ b/src/runtime/runtime1.go
+@@ -145,7 +145,7 @@ func check() {
+ 		h     uint64
+ 		i, i1 float32
+ 		j, j1 float64
+-		k, k1 unsafe.Pointer
++		k     unsafe.Pointer
+ 		l     *uint16
+ 		m     [4]byte
+ 	)
+@@ -234,21 +234,6 @@ func check() {
+ 		throw("cas6")
+ 	}
+ 
+-	k = unsafe.Pointer(uintptr(0xfedcb123))
+-	if sys.PtrSize == 8 {
+-		k = unsafe.Pointer(uintptr(k) << 10)
+-	}
+-	if casp(&k, nil, nil) {
+-		throw("casp1")
+-	}
+-	k1 = add(k, 1)
+-	if !casp(&k, k, k1) {
+-		throw("casp2")
+-	}
+-	if k != k1 {
+-		throw("casp3")
+-	}
+-
+ 	m = [4]byte{1, 1, 1, 1}
+ 	atomic.Or8(&m[1], 0xf0)
+ 	if m[0] != 1 || m[1] != 0xf1 || m[2] != 1 || m[3] != 1 {

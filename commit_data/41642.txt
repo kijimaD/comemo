@@ -12,6 +12,71 @@ Date:   Thu Oct 17 16:30:49 2019 +0000
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/syscall/exec_linux_test.go | 32 ++++++++------------------------
  1 file changed, 8 insertions(+), 24 deletions(-)
+
+diff --git a/src/syscall/exec_linux_test.go b/src/syscall/exec_linux_test.go
+index acf84128ef..b7a8df21b5 100644
+--- a/src/syscall/exec_linux_test.go
++++ b/src/syscall/exec_linux_test.go
+@@ -34,6 +34,14 @@ func isLXC() bool {
+ }
+ 
+ func skipInContainer(t *testing.T) {
++	// TODO: the callers of this func are using this func to skip
++	// tests when running as some sort of "fake root" that's uid 0
++	// but lacks certain Linux capabilities. Most of the Go builds
++	// run in privileged containers, though, where root is much
++	// closer (if not identical) to the real root. We should test
++	// for what we need exactly (which capabilities are active?),
++	// instead of just assuming "docker == bad". Then we'd get more test
++	// coverage on a bunch of builders too.
+ 	if isDocker() {
+ 		t.Skip("skip this test in Docker container")
+ 	}
+@@ -341,14 +349,6 @@ func TestUnshareMountNameSpace(t *testing.T) {
+ 		t.Skip("kernel prohibits unshare in unprivileged process, unless using user namespace")
+ 	}
+ 
+-	// When running under the Go continuous build, skip tests for
+-	// now when under Kubernetes. (where things are root but not quite)
+-	// Both of these are our own environment variables.
+-	// See Issue 12815.
+-	if os.Getenv("GO_BUILDER_NAME") != "" && os.Getenv("IN_KUBERNETES") == "1" {
+-		t.Skip("skipping test on Kubernetes-based builders; see Issue 12815")
+-	}
+-
+ 	d, err := ioutil.TempDir("", "unshare")
+ 	if err != nil {
+ 		t.Fatalf("tempdir: %v", err)
+@@ -391,14 +391,6 @@ func TestUnshareMountNameSpaceChroot(t *testing.T) {
+ 		t.Skip("kernel prohibits unshare in unprivileged process, unless using user namespace")
+ 	}
+ 
+-	// When running under the Go continuous build, skip tests for
+-	// now when under Kubernetes. (where things are root but not quite)
+-	// Both of these are our own environment variables.
+-	// See Issue 12815.
+-	if os.Getenv("GO_BUILDER_NAME") != "" && os.Getenv("IN_KUBERNETES") == "1" {
+-		t.Skip("skipping test on Kubernetes-based builders; see Issue 12815")
+-	}
+-
+ 	d, err := ioutil.TempDir("", "unshare")
+ 	if err != nil {
+ 		t.Fatalf("tempdir: %v", err)
+@@ -586,14 +578,6 @@ func testAmbientCaps(t *testing.T, userns bool) {
+ 	skipInContainer(t)
+ 	mustSupportAmbientCaps(t)
+ 
+-	// When running under the Go continuous build, skip tests for
+-	// now when under Kubernetes. (where things are root but not quite)
+-	// Both of these are our own environment variables.
+-	// See Issue 12815.
+-	if os.Getenv("GO_BUILDER_NAME") != "" && os.Getenv("IN_KUBERNETES") == "1" {
+-		t.Skip("skipping test on Kubernetes-based builders; see Issue 12815")
+-	}
+-
+ 	skipUnprivilegedUserClone(t)
+ 
+ 	// skip on android, due to lack of lookup support

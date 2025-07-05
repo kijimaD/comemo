@@ -13,6 +13,87 @@ Date:   Wed Apr 10 21:38:16 2019 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/time.go | 55 ++++++++++++++++++++++++++++++++++++++++++++++++++---
  1 file changed, 52 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/time.go b/src/runtime/time.go
+index 4269fb9a3a..ffb56f1805 100644
+--- a/src/runtime/time.go
++++ b/src/runtime/time.go
+@@ -151,6 +151,9 @@ type timersBucket struct {
+ //   timerMoving     -> panic: resettimer called on active timer
+ //   timerModifiedXX -> panic: resettimer called on active timer
+ //   timerModifying  -> panic: resettimer called on active timer
++// cleantimers (looks in P's timer heap):
++//   timerDeleted    -> timerRemoving -> timerRemoved
++//   timerModifiedXX -> timerMoving -> timerWaiting
+ 
+ // Values for the timer status field.
+ const (
+@@ -763,9 +766,49 @@ func timerproc(tb *timersBucket) {
+ // slows down addtimer. Reports whether no timer problems were found.
+ // The caller must have locked the timers for pp.
+ func cleantimers(pp *p) bool {
+-	// TODO: write this.
+-	throw("cleantimers")
+-	return true
++	for {
++		if len(pp.timers) == 0 {
++			return true
++		}
++		t := pp.timers[0]
++		if t.pp.ptr() != pp {
++			throw("cleantimers: bad p")
++		}
++		switch s := atomic.Load(&t.status); s {
++		case timerDeleted:
++			if !atomic.Cas(&t.status, s, timerRemoving) {
++				continue
++			}
++			if !dodeltimer0(pp) {
++				return false
++			}
++			if !atomic.Cas(&t.status, timerRemoving, timerRemoved) {
++				return false
++			}
++		case timerModifiedEarlier, timerModifiedLater:
++			if !atomic.Cas(&t.status, s, timerMoving) {
++				continue
++			}
++			// Now we can change the when field.
++			t.when = t.nextwhen
++			// Move t to the right position.
++			if !dodeltimer0(pp) {
++				return false
++			}
++			if !doaddtimer(pp, t) {
++				return false
++			}
++			if s == timerModifiedEarlier {
++				atomic.Xadd(&pp.adjustTimers, -1)
++			}
++			if !atomic.Cas(&t.status, timerMoving, timerWaiting) {
++				return false
++			}
++		default:
++			// Head of timers does not need adjustment.
++			return true
++		}
++	}
+ }
+ 
+ // moveTimers moves a slice of timers to pp. The slice has been taken
+@@ -797,6 +840,12 @@ func runtimer(pp *p, now int64) int64 {
+ 	return -1
+ }
+ 
++// runOneTimer runs a single timer.
++// The caller must have locked the timers for pp.
++func runOneTimer(pp *p, t *timer, now int64) {
++	throw("runOneTimer: not yet implemented")
++}
++
+ func timejump() *g {
+ 	if faketime == 0 {
+ 		return nil

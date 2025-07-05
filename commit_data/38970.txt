@@ -16,6 +16,27 @@ Date:   Wed Dec 12 16:18:19 2018 -0500
     Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/os/signal/signal_test.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/os/signal/signal_test.go b/src/os/signal/signal_test.go
+index ecb05fd16c..6ea59f4697 100644
+--- a/src/os/signal/signal_test.go
++++ b/src/os/signal/signal_test.go
+@@ -432,12 +432,12 @@ func atomicStopTestProgram() {
+ 
+ 		// At this point we should either die from SIGINT or
+ 		// get a notification on cs. If neither happens, we
+-		// dropped the signal. Give it a second to deliver,
+-		// which is far far longer than it should require.
++		// dropped the signal. It is given 2 seconds to
++		// deliver, as needed for gccgo on some loaded test systems.
+ 
+ 		select {
+ 		case <-cs:
+-		case <-time.After(1 * time.Second):
++		case <-time.After(2 * time.Second):
+ 			if !printed {
+ 				fmt.Print("lost signal on tries:")
+ 				printed = true

@@ -25,9 +25,360 @@ Date:   Thu Oct 24 15:11:18 2019 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/203497
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  doc/go1.14.html                              |   4 +
  src/cmd/go/internal/modfetch/codehost/svn.go | 154 +++++++++++++++++++++++++++
  src/cmd/go/internal/modfetch/codehost/vcs.go |  92 ++++++++--------
  src/cmd/go/testdata/script/mod_get_svn.txt   |  18 ++--
  4 files changed, 215 insertions(+), 53 deletions(-)
+
+diff --git a/doc/go1.14.html b/doc/go1.14.html
+index 4a69ec4ed4..0160d9a781 100644
+--- a/doc/go1.14.html
++++ b/doc/go1.14.html
+@@ -133,6 +133,10 @@ TODO
+   trimming the ".mod" extension and appending ".sum".
+ </p>
+ 
++<p><!-- golang.org/issue/26092 -->
++  The <code>go</code> command now supports Subversion repositories in module mode.
++</p>
++
+ <h2 id="runtime">Runtime</h2>
+ 
+ <p>
+diff --git a/src/cmd/go/internal/modfetch/codehost/svn.go b/src/cmd/go/internal/modfetch/codehost/svn.go
+new file mode 100644
+index 0000000000..6ec9e59c9c
+--- /dev/null
++++ b/src/cmd/go/internal/modfetch/codehost/svn.go
+@@ -0,0 +1,154 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package codehost
++
++import (
++	"archive/zip"
++	"encoding/xml"
++	"fmt"
++	"io"
++	"os"
++	"path"
++	"path/filepath"
++	"time"
++)
++
++func svnParseStat(rev, out string) (*RevInfo, error) {
++	var log struct {
++		Logentry struct {
++			Revision int64  `xml:"revision,attr"`
++			Date     string `xml:"date"`
++		} `xml:"logentry"`
++	}
++	if err := xml.Unmarshal([]byte(out), &log); err != nil {
++		return nil, vcsErrorf("unexpected response from svn log --xml: %v\n%s", err, out)
++	}
++
++	t, err := time.Parse(time.RFC3339, log.Logentry.Date)
++	if err != nil {
++		return nil, vcsErrorf("unexpected response from svn log --xml: %v\n%s", err, out)
++	}
++
++	info := &RevInfo{
++		Name:    fmt.Sprintf("%d", log.Logentry.Revision),
++		Short:   fmt.Sprintf("%012d", log.Logentry.Revision),
++		Time:    t.UTC(),
++		Version: rev,
++	}
++	return info, nil
++}
++
++func svnReadZip(dst io.Writer, workDir, rev, subdir, remote string) (err error) {
++	// The subversion CLI doesn't provide a command to write the repository
++	// directly to an archive, so we need to export it to the local filesystem
++	// instead. Unfortunately, the local filesystem might apply arbitrary
++	// normalization to the filenames, so we need to obtain those directly.
++	//
++	// 'svn export' prints the filenames as they are written, but from reading the
++	// svn source code (as of revision 1868933), those filenames are encoded using
++	// the system locale rather than preserved byte-for-byte from the origin. For
++	// our purposes, that won't do, but we don't want to go mucking around with
++	// the user's locale settings either — that could impact error messages, and
++	// we don't know what locales the user has available or what LC_* variables
++	// their platform supports.
++	//
++	// Instead, we'll do a two-pass export: first we'll run 'svn list' to get the
++	// canonical filenames, then we'll 'svn export' and look for those filenames
++	// in the local filesystem. (If there is an encoding problem at that point, we
++	// would probably reject the resulting module anyway.)
++
++	remotePath := remote
++	if subdir != "" {
++		remotePath += "/" + subdir
++	}
++
++	out, err := Run(workDir, []string{
++		"svn", "list",
++		"--non-interactive",
++		"--xml",
++		"--incremental",
++		"--recursive",
++		"--revision", rev,
++		"--", remotePath,
++	})
++	if err != nil {
++		return err
++	}
++
++	type listEntry struct {
++		Kind string `xml:"kind,attr"`
++		Name string `xml:"name"`
++		Size int64  `xml:"size"`
++	}
++	var list struct {
++		Entries []listEntry `xml:"entry"`
++	}
++	if err := xml.Unmarshal(out, &list); err != nil {
++		return vcsErrorf("unexpected response from svn list --xml: %v\n%s", err, out)
++	}
++
++	exportDir := filepath.Join(workDir, "export")
++	// Remove any existing contents from a previous (failed) run.
++	if err := os.RemoveAll(exportDir); err != nil {
++		return err
++	}
++	defer os.RemoveAll(exportDir) // best-effort
++
++	_, err = Run(workDir, []string{
++		"svn", "export",
++		"--non-interactive",
++		"--quiet",
++
++		// Suppress any platform- or host-dependent transformations.
++		"--native-eol", "LF",
++		"--ignore-externals",
++		"--ignore-keywords",
++
++		"--revision", rev,
++		"--", remotePath,
++		exportDir,
++	})
++	if err != nil {
++		return err
++	}
++
++	// Scrape the exported files out of the filesystem and encode them in the zipfile.
++
++	// “All files in the zip file are expected to be
++	// nested in a single top-level directory, whose name is not specified.”
++	// We'll (arbitrarily) choose the base of the remote path.
++	basePath := path.Join(path.Base(remote), subdir)
++
++	zw := zip.NewWriter(dst)
++	for _, e := range list.Entries {
++		if e.Kind != "file" {
++			continue
++		}
++
++		zf, err := zw.Create(path.Join(basePath, e.Name))
++		if err != nil {
++			return err
++		}
++
++		f, err := os.Open(filepath.Join(exportDir, e.Name))
++		if err != nil {
++			if os.IsNotExist(err) {
++				return vcsErrorf("file reported by 'svn list', but not written by 'svn export': %s", e.Name)
++			}
++			return fmt.Errorf("error opening file created by 'svn export': %v", err)
++		}
++
++		n, err := io.Copy(zf, f)
++		f.Close()
++		if err != nil {
++			return err
++		}
++		if n != e.Size {
++			return vcsErrorf("file size differs between 'svn list' and 'svn export': file %s listed as %v bytes, but exported as %v bytes", e.Name, e.Size, n)
++		}
++	}
++
++	return zw.Close()
++}
+diff --git a/src/cmd/go/internal/modfetch/codehost/vcs.go b/src/cmd/go/internal/modfetch/codehost/vcs.go
+index c9f77bf3b2..7284557f4b 100644
+--- a/src/cmd/go/internal/modfetch/codehost/vcs.go
++++ b/src/cmd/go/internal/modfetch/codehost/vcs.go
+@@ -5,7 +5,7 @@
+ package codehost
+ 
+ import (
+-	"encoding/xml"
++	"errors"
+ 	"fmt"
+ 	"internal/lazyregexp"
+ 	"io"
+@@ -122,19 +122,20 @@ func newVCSRepo(vcs, remote string) (Repo, error) {
+ const vcsWorkDirType = "vcs1."
+ 
+ type vcsCmd struct {
+-	vcs           string                                            // vcs name "hg"
+-	init          func(remote string) []string                      // cmd to init repo to track remote
+-	tags          func(remote string) []string                      // cmd to list local tags
+-	tagRE         *lazyregexp.Regexp                                // regexp to extract tag names from output of tags cmd
+-	branches      func(remote string) []string                      // cmd to list local branches
+-	branchRE      *lazyregexp.Regexp                                // regexp to extract branch names from output of tags cmd
+-	badLocalRevRE *lazyregexp.Regexp                                // regexp of names that must not be served out of local cache without doing fetch first
+-	statLocal     func(rev, remote string) []string                 // cmd to stat local rev
+-	parseStat     func(rev, out string) (*RevInfo, error)           // cmd to parse output of statLocal
+-	fetch         []string                                          // cmd to fetch everything from remote
+-	latest        string                                            // name of latest commit on remote (tip, HEAD, etc)
+-	readFile      func(rev, file, remote string) []string           // cmd to read rev's file
+-	readZip       func(rev, subdir, remote, target string) []string // cmd to read rev's subdir as zip file
++	vcs           string                                                         // vcs name "hg"
++	init          func(remote string) []string                                   // cmd to init repo to track remote
++	tags          func(remote string) []string                                   // cmd to list local tags
++	tagRE         *lazyregexp.Regexp                                             // regexp to extract tag names from output of tags cmd
++	branches      func(remote string) []string                                   // cmd to list local branches
++	branchRE      *lazyregexp.Regexp                                             // regexp to extract branch names from output of tags cmd
++	badLocalRevRE *lazyregexp.Regexp                                             // regexp of names that must not be served out of local cache without doing fetch first
++	statLocal     func(rev, remote string) []string                              // cmd to stat local rev
++	parseStat     func(rev, out string) (*RevInfo, error)                        // cmd to parse output of statLocal
++	fetch         []string                                                       // cmd to fetch everything from remote
++	latest        string                                                         // name of latest commit on remote (tip, HEAD, etc)
++	readFile      func(rev, file, remote string) []string                        // cmd to read rev's file
++	readZip       func(rev, subdir, remote, target string) []string              // cmd to read rev's subdir as zip file
++	doReadZip     func(dst io.Writer, workDir, rev, subdir, remote string) error // arbitrary function to read rev's subdir as zip file
+ }
+ 
+ var re = lazyregexp.New
+@@ -191,7 +192,7 @@ var vcsCmds = map[string]*vcsCmd{
+ 		readFile: func(rev, file, remote string) []string {
+ 			return []string{"svn", "cat", "--", remote + "/" + file + "@" + rev}
+ 		},
+-		// TODO: zip
++		doReadZip: svnReadZip,
+ 	},
+ 
+ 	"bzr": {
+@@ -418,7 +419,7 @@ func (r *vcsRepo) DescendsFrom(rev, tag string) (bool, error) {
+ }
+ 
+ func (r *vcsRepo) ReadZip(rev, subdir string, maxSize int64) (zip io.ReadCloser, err error) {
+-	if r.cmd.readZip == nil {
++	if r.cmd.readZip == nil && r.cmd.doReadZip == nil {
+ 		return nil, vcsErrorf("ReadZip not implemented for %s", r.cmd.vcs)
+ 	}
+ 
+@@ -435,7 +436,17 @@ func (r *vcsRepo) ReadZip(rev, subdir string, maxSize int64) (zip io.ReadCloser,
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	if r.cmd.vcs == "fossil" {
++	if r.cmd.doReadZip != nil {
++		lw := &limitedWriter{
++			W:               f,
++			N:               maxSize,
++			ErrLimitReached: errors.New("ReadZip: encoded file exceeds allowed size"),
++		}
++		err = r.cmd.doReadZip(lw, r.dir, rev, subdir, r.remote)
++		if err == nil {
++			_, err = f.Seek(0, io.SeekStart)
++		}
++	} else if r.cmd.vcs == "fossil" {
+ 		// If you run
+ 		//	fossil zip -R .fossil --name prefix trunk /tmp/x.zip
+ 		// fossil fails with "unable to create directory /tmp" [sic].
+@@ -502,31 +513,6 @@ func hgParseStat(rev, out string) (*RevInfo, error) {
+ 	return info, nil
+ }
+ 
+-func svnParseStat(rev, out string) (*RevInfo, error) {
+-	var log struct {
+-		Logentry struct {
+-			Revision int64  `xml:"revision,attr"`
+-			Date     string `xml:"date"`
+-		} `xml:"logentry"`
+-	}
+-	if err := xml.Unmarshal([]byte(out), &log); err != nil {
+-		return nil, vcsErrorf("unexpected response from svn log --xml: %v\n%s", err, out)
+-	}
+-
+-	t, err := time.Parse(time.RFC3339, log.Logentry.Date)
+-	if err != nil {
+-		return nil, vcsErrorf("unexpected response from svn log --xml: %v\n%s", err, out)
+-	}
+-
+-	info := &RevInfo{
+-		Name:    fmt.Sprintf("%d", log.Logentry.Revision),
+-		Short:   fmt.Sprintf("%012d", log.Logentry.Revision),
+-		Time:    t.UTC(),
+-		Version: rev,
+-	}
+-	return info, nil
+-}
+-
+ func bzrParseStat(rev, out string) (*RevInfo, error) {
+ 	var revno int64
+ 	var tm time.Time
+@@ -606,3 +592,25 @@ func fossilParseStat(rev, out string) (*RevInfo, error) {
+ 	}
+ 	return nil, vcsErrorf("unexpected response from fossil info: %q", out)
+ }
++
++type limitedWriter struct {
++	W               io.Writer
++	N               int64
++	ErrLimitReached error
++}
++
++func (l *limitedWriter) Write(p []byte) (n int, err error) {
++	if l.N > 0 {
++		max := len(p)
++		if l.N < int64(max) {
++			max = int(l.N)
++		}
++		n, err = l.W.Write(p[:max])
++		l.N -= int64(n)
++		if err != nil || n >= len(p) {
++			return n, err
++		}
++	}
++
++	return n, l.ErrLimitReached
++}
+diff --git a/src/cmd/go/testdata/script/mod_get_svn.txt b/src/cmd/go/testdata/script/mod_get_svn.txt
+index 1a5376dec0..3817fce9b6 100644
+--- a/src/cmd/go/testdata/script/mod_get_svn.txt
++++ b/src/cmd/go/testdata/script/mod_get_svn.txt
+@@ -18,13 +18,10 @@ env GO111MODULE=on
+ env GOPROXY=direct
+ env GOSUMDB=off
+ 
+-# Attempting to get a module zip using svn should fail with a reasonable
+-# message instead of a panic.
+-# TODO(golang.org/issue/26092): Really, it shouldn't fail at all.
+-! go get -d vcs-test.golang.org/svn/hello.svn
+-stderr 'ReadZip not implemented for svn'
+-! go install .
+-stderr 'ReadZip not implemented for svn'
++# Attempting to get a module zip using svn should succeed.
++go get vcs-test.golang.org/svn/hello.svn@000000000001
++exists $GOPATH/pkg/mod/cache/download/vcs-test.golang.org/svn/hello.svn/@v/v0.0.0-20170922011245-000000000001.zip
++exists $GOPATH/bin/hello.svn$GOEXE
+ 
+ # Attempting to get a nonexistent module using svn should fail with a
+ # reasonable message instead of a panic.
+@@ -34,7 +31,6 @@ stderr 'go get vcs-test.golang.org/svn/nonexistent.svn: no matching versions for
+ 
+ -- go.mod --
+ module golang/go/issues/28943/main
+--- main.go --
+-package main
+-import _ "vcs-test.golang.org/svn/hello.svn"
+-func main() {}
++-- go.sum --
++vcs-test.golang.org/svn/hello.svn v0.0.0-20170922011245-000000000001 h1:rZjvboXMfQICKXdhx/QHqJ2Y/AQsJVrXnwGqwcTxQiw=
++vcs-test.golang.org/svn/hello.svn v0.0.0-20170922011245-000000000001/go.mod h1:0memnh/BRLuxiK2zF4rvUgz6ts/fhhB28l3ULFWPusc=

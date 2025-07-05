@@ -9,7 +9,45 @@ Date:   Sat Apr 6 20:02:49 2013 -0700
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/8456043
-
+---
  src/pkg/runtime/atomic_arm.c | 4 ++--
  src/pkg/runtime/sema.goc     | 6 +++---
  2 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/runtime/atomic_arm.c b/src/pkg/runtime/atomic_arm.c
+index 9193d599d3..a78b1dfe2c 100644
+--- a/src/pkg/runtime/atomic_arm.c
++++ b/src/pkg/runtime/atomic_arm.c
+@@ -5,9 +5,9 @@
+ #include "runtime.h"
+ #include "arch_GOARCH.h"
+ 
+-static union {
++static struct {
+ 	Lock l;
+-	byte pad [CacheLineSize];
++	byte pad[CacheLineSize-sizeof(Lock)];
+ } locktab[57];
+ 
+ #define LOCK(addr) (&locktab[((uintptr)(addr)>>3)%nelem(locktab)].l)
+diff --git a/src/pkg/runtime/sema.goc b/src/pkg/runtime/sema.goc
+index c4b5247b3d..4df01fc4e4 100644
+--- a/src/pkg/runtime/sema.goc
++++ b/src/pkg/runtime/sema.goc
+@@ -44,13 +44,13 @@ struct SemaRoot
+ // Prime to not correlate with any user patterns.
+ #define SEMTABLESZ 251
+ 
+-union semtable
++struct semtable
+ {
+ 	SemaRoot;
+-	uint8 pad[CacheLineSize];
++	uint8 pad[CacheLineSize-sizeof(SemaRoot)];
+ };
+ #pragma dataflag 16 /* mark semtable as 'no pointers', hiding from garbage collector */
+-static union semtable semtable[SEMTABLESZ];
++static struct semtable semtable[SEMTABLESZ];
+ 
+ static SemaRoot*
+ semroot(uint32 *addr)

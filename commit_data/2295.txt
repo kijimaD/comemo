@@ -8,10 +8,278 @@ Date:   Fri May 22 22:46:06 2009 -0700
     R=ken
     OCL=29304
     CL=29306
-
+---
  src/cmd/gc/align.c  |  2 +-
  src/cmd/gc/dcl.c    | 16 ++++++++++++----
  src/cmd/gc/export.c | 11 +++++------
  src/cmd/gc/go.y     | 35 +++--------------------------------
  src/cmd/gc/lex.c    | 41 ++++++++++++++++++-----------------------
  5 files changed, 39 insertions(+), 66 deletions(-)
+
+diff --git a/src/cmd/gc/align.c b/src/cmd/gc/align.c
+index d2598fd313..739851a338 100644
+--- a/src/cmd/gc/align.c
++++ b/src/cmd/gc/align.c
+@@ -213,7 +213,7 @@ typeinit(int lex)
+ 	int i, etype, sameas;
+ 	Type *t;
+ 	Sym *s;
+-	
++
+ 	if(widthptr == 0)
+ 		fatal("typeinit before betypeinit");
+ 
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index 67a53df4a0..52c034c19c 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -1056,7 +1056,7 @@ addconst(Node *n, Node *e, int ctxt)
+ 
+ 	redeclare("constant", s);
+ 	s->oconst = e;
+-	s->lexical = LACONST;
++	s->lexical = LNAME;
+ 
+ 	d = dcl();
+ 	d->dsym = s;
+@@ -1136,6 +1136,14 @@ oldname(Sym *s)
+ 	Node *n;
+ 	Node *c;
+ 
++	if(s->oconst) {
++		n = nod(OLITERAL, N, N);
++		n->sym = s;
++		n->val = s->oconst->val;
++		n->type = s->oconst->type;
++		return n;
++	}
++
+ 	n = s->oname;
+ 	if(n == N) {
+ 		n = nod(ONONAME, N, N);
+@@ -1205,11 +1213,11 @@ nametoanondcl(Node *na)
+ 	for(l=&na; (n=*l)->op == OLIST; l=&n->left)
+ 		n->right = nametoanondcl(n->right);
+ 
+-	if(n->sym->lexical != LATYPE && n->sym->lexical != LBASETYPE) {
++	t = n->sym->otype;
++	if(t == T) {
+ 		yyerror("%s is not a type", n->sym->name);
+ 		t = typ(TINT32);
+-	} else
+-		t = oldtype(n->sym);
++	}
+ 	n = nod(ODCLFIELD, N, N);
+ 	n->type = t;
+ 	*l = n;
+diff --git a/src/cmd/gc/export.c b/src/cmd/gc/export.c
+index 001cabde12..e9bb438d77 100644
+--- a/src/cmd/gc/export.c
++++ b/src/cmd/gc/export.c
+@@ -190,7 +190,6 @@ dumpsym(Sym *s)
+ 		yyerror("package export symbol: %S", s);
+ 		break;
+ 	case LATYPE:
+-	case LBASETYPE:
+ 		// TODO(rsc): sort methods by name
+ 		for(f=s->otype->method; f!=T; f=f->down)
+ 			dumpprereq(f);
+@@ -201,10 +200,10 @@ dumpsym(Sym *s)
+ 				f->type->type->type, f->sym, f->type);
+ 		break;
+ 	case LNAME:
+-		dumpexportvar(s);
+-		break;
+-	case LACONST:
+-		dumpexportconst(s);
++		if(s->oconst)
++			dumpexportconst(s);
++		else
++			dumpexportvar(s);
+ 		break;
+ 	}
+ }
+@@ -344,7 +343,7 @@ importconst(Node *ss, Type *t, Node *n)
+ 		return;
+ 
+ 	convlit(n, t);
+-	s = importsym(ss, LACONST);
++	s = importsym(ss, LNAME);
+ 	if(s->oconst != N) {
+ 		// TODO: check if already the same.
+ 		return;
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index 0fae90b7fa..374b671b67 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -14,7 +14,7 @@
+ }
+ %token	<val>		LLITERAL
+ %token	<lint>		LASOP
+-%token	<sym>		LNAME LBASETYPE LATYPE LPACK LACONST
++%token	<sym>		LNAME LATYPE LPACK
+ %token	<sym>		LPACKAGE LIMPORT LDEFER LCLOSE LCLOSED
+ %token	<sym>		LMAP LCHAN LINTERFACE LFUNC LSTRUCT
+ %token	<sym>		LCOLAS LFALL LRETURN LDDD
+@@ -42,7 +42,7 @@
+  * names like Bstmt, Bvardcl, etc. can't.
+  */
+ 
+-%type	<sym>		sym sym1 sym2 sym3 keyword laconst lname latype lpackatype
++%type	<sym>		sym sym1 sym2 sym3 keyword lname latype lpackatype
+ %type	<node>		xdcl xdcl_list_r oxdcl_list
+ %type	<node>		common_dcl Acommon_dcl Bcommon_dcl
+ %type	<node>		oarg_type_list arg_type_list_r arg_chunk arg_chunk_list_r arg_type_list
+@@ -913,13 +913,6 @@ pexpr:
+ 	{
+ 		$$ = nodbool(0);
+ 	}
+-|	laconst
+-	{
+-		$$ = nod(OLITERAL, N, N);
+-		$$->sym = $1;
+-		$$->val = $1->oconst->val;
+-		$$->type = $1->oconst->type;
+-	}
+ |	LIOTA
+ 	{
+ 		$$ = nodintconst(iota);
+@@ -1023,14 +1016,6 @@ lpack:
+ 	}
+  */
+ 
+-laconst:
+-	LACONST
+-|	lpack '.' LACONST
+-	{
+-		$$ = $3;
+-		context = nil;
+-	}
+-
+ lname:
+ 	LNAME
+ |	lpack '.' LNAME
+@@ -1082,7 +1067,6 @@ onew_name:
+ sym:
+ 	LATYPE
+ |	LNAME
+-|	LACONST
+ |	LPACK
+ 
+ sym1:
+@@ -1112,7 +1096,6 @@ sym3:
+ |	LPRINTN
+ |	LNEW
+ |	LMAKE
+-|	LBASETYPE
+ 
+ /*
+  * keywords that we can
+@@ -2129,20 +2112,8 @@ lpack:
+ 		YYERROR;
+ 	}
+ 
+-laconst:
+-	LATYPE
+-	{
+-		yyerror("%s is type, not var", $1->name);
+-		YYERROR;
+-	}
+-
+ latype:
+-	LACONST
+-	{
+-		yyerror("%s is const, not type", $1->name);
+-		YYERROR;
+-	}
+-|	LPACK
++	LPACK
+ 	{
+ 		yyerror("%s is package, not type", $1->name);
+ 		YYERROR;
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index e7ee30a757..e67f8f572b 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -64,7 +64,7 @@ main(int argc, char *argv[])
+ 		fatal("betypeinit failed");
+ 
+ 	lexinit();
+-	typeinit(LBASETYPE);
++	typeinit(LATYPE);
+ 
+ 	lineno = 1;
+ 	block = 1;
+@@ -775,8 +775,6 @@ talph:
+ 
+ 	DBG("lex: %S %s\n", s, lexname(s->lexical));
+ 	yylval.sym = s;
+-	if(s->lexical == LBASETYPE)
+-		return LATYPE;
+ 	return s->lexical;
+ 
+ tnum:
+@@ -1111,25 +1109,25 @@ static	struct
+ /*	name		lexical		etype
+  */
+ /* basic types */
+-	"int8",		LBASETYPE,	TINT8,
+-	"int16",	LBASETYPE,	TINT16,
+-	"int32",	LBASETYPE,	TINT32,
+-	"int64",	LBASETYPE,	TINT64,
++	"int8",		LATYPE,	TINT8,
++	"int16",	LATYPE,	TINT16,
++	"int32",	LATYPE,	TINT32,
++	"int64",	LATYPE,	TINT64,
+ 
+-	"uint8",	LBASETYPE,	TUINT8,
+-	"uint16",	LBASETYPE,	TUINT16,
+-	"uint32",	LBASETYPE,	TUINT32,
+-	"uint64",	LBASETYPE,	TUINT64,
++	"uint8",	LATYPE,	TUINT8,
++	"uint16",	LATYPE,	TUINT16,
++	"uint32",	LATYPE,	TUINT32,
++	"uint64",	LATYPE,	TUINT64,
+ 
+-	"float32",	LBASETYPE,	TFLOAT32,
+-	"float64",	LBASETYPE,	TFLOAT64,
+-	"float80",	LBASETYPE,	TFLOAT80,
++	"float32",	LATYPE,	TFLOAT32,
++	"float64",	LATYPE,	TFLOAT64,
++	"float80",	LATYPE,	TFLOAT80,
+ 
+-	"bool",		LBASETYPE,	TBOOL,
+-	"byte",		LBASETYPE,	TUINT8,
+-	"string",	LBASETYPE,	TSTRING,
++	"bool",		LATYPE,	TBOOL,
++	"byte",		LATYPE,	TUINT8,
++	"string",	LATYPE,	TSTRING,
+ 
+-	"any",		LBASETYPE,	TANY,
++	"any",		LATYPE,	TANY,
+ 
+ 	"break",	LBREAK,		Txxx,
+ 	"case",		LCASE,		Txxx,
+@@ -1197,10 +1195,10 @@ lexinit(void)
+ 		s->lexical = lex;
+ 		s->package = package;
+ 
+-		if(lex != LBASETYPE)
++		etype = syms[i].etype;
++		if(etype == Txxx)
+ 			continue;
+ 
+-		etype = syms[i].etype;
+ 		if(etype < 0 || etype >= nelem(types))
+ 			fatal("lexinit: %s bad etype", s->name);
+ 
+@@ -1234,9 +1232,6 @@ struct
+ {
+ 	LANDAND,	"ANDAND",
+ 	LASOP,		"ASOP",
+-	LACONST,	"ACONST",
+-	LATYPE,		"ATYPE",
+-	LBASETYPE,	"BASETYPE",
+ 	LBREAK,		"BREAK",
+ 	LCASE,		"CASE",
+ 	LCHAN,		"CHAN",

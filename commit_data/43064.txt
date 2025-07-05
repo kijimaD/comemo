@@ -25,9 +25,150 @@ Date:   Tue Mar 3 21:03:40 2020 +0000
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/gc/go.go   |  2 +-
  src/cmd/compile/internal/gc/walk.go | 37 ++++++++++++++++++++++++++-----------
  src/runtime/iface_test.go           | 14 ++++++++++++++
  test/codegen/smallintiface.go       | 22 ++++++++++++++++++++++
  4 files changed, 63 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index 50b866ca65..85c857c214 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -279,7 +279,7 @@ type Arch struct {
+ var thearch Arch
+ 
+ var (
+-	staticbytes,
++	staticuint64s,
+ 	zerobase *Node
+ 
+ 	assertE2I,
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index d468f241f9..14af03f58c 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -837,10 +837,12 @@ opswitch:
+ 			break
+ 		}
+ 
+-		if staticbytes == nil {
+-			staticbytes = newname(Runtimepkg.Lookup("staticbytes"))
+-			staticbytes.SetClass(PEXTERN)
+-			staticbytes.Type = types.NewArray(types.Types[TUINT8], 256)
++		if staticuint64s == nil {
++			staticuint64s = newname(Runtimepkg.Lookup("staticuint64s"))
++			staticuint64s.SetClass(PEXTERN)
++			// The actual type is [256]uint64, but we use [256*8]uint8 so we can address
++			// individual bytes.
++			staticuint64s.Type = types.NewArray(types.Types[TUINT8], 256*8)
+ 			zerobase = newname(Runtimepkg.Lookup("zerobase"))
+ 			zerobase.SetClass(PEXTERN)
+ 			zerobase.Type = types.Types[TUINTPTR]
+@@ -856,9 +858,16 @@ opswitch:
+ 			cheapexpr(n.Left, init) // Evaluate n.Left for side-effects. See issue 19246.
+ 			value = zerobase
+ 		case fromType.IsBoolean() || (fromType.Size() == 1 && fromType.IsInteger()):
+-			// n.Left is a bool/byte. Use staticbytes[n.Left].
++			// n.Left is a bool/byte. Use staticuint64s[n.Left * 8] on little-endian
++			// and staticuint64s[n.Left * 8 + 7] on big-endian.
+ 			n.Left = cheapexpr(n.Left, init)
+-			value = nod(OINDEX, staticbytes, byteindex(n.Left))
++			// byteindex widens n.Left so that the multiplication doesn't overflow.
++			index := nod(OLSH, byteindex(n.Left), nodintconst(3))
++			index.SetBounded(true)
++			if thearch.LinkArch.ByteOrder == binary.BigEndian {
++				index = nod(OADD, index, nodintconst(7))
++			}
++			value = nod(OINDEX, staticuint64s, index)
+ 			value.SetBounded(true)
+ 		case n.Left.Class() == PEXTERN && n.Left.Name != nil && n.Left.Name.Readonly():
+ 			// n.Left is a readonly global; use it directly.
+@@ -2423,15 +2432,21 @@ func convnop(n *Node, t *types.Type) *Node {
+ 	return n
+ }
+ 
+-// byteindex converts n, which is byte-sized, to a uint8.
+-// We cannot use conv, because we allow converting bool to uint8 here,
++// byteindex converts n, which is byte-sized, to an int used to index into an array.
++// We cannot use conv, because we allow converting bool to int here,
+ // which is forbidden in user code.
+ func byteindex(n *Node) *Node {
+-	if types.Identical(n.Type, types.Types[TUINT8]) {
+-		return n
++	// We cannot convert from bool to int directly.
++	// While converting from int8 to int is possible, it would yield
++	// the wrong result for negative values.
++	// Reinterpreting the value as an unsigned byte solves both cases.
++	if !types.Identical(n.Type, types.Types[TUINT8]) {
++		n = nod(OCONV, n, nil)
++		n.Type = types.Types[TUINT8]
++		n.SetTypecheck(1)
+ 	}
+ 	n = nod(OCONV, n, nil)
+-	n.Type = types.Types[TUINT8]
++	n.Type = types.Types[TINT]
+ 	n.SetTypecheck(1)
+ 	return n
+ }
+diff --git a/src/runtime/iface_test.go b/src/runtime/iface_test.go
+index 73beebffe2..4fab6c968a 100644
+--- a/src/runtime/iface_test.go
++++ b/src/runtime/iface_test.go
+@@ -95,6 +95,19 @@ func BenchmarkNeIfaceConcrete(b *testing.B) {
+ 	}
+ }
+ 
++func BenchmarkConvT2EByteSized(b *testing.B) {
++	b.Run("bool", func(b *testing.B) {
++		for i := 0; i < b.N; i++ {
++			e = yes
++		}
++	})
++	b.Run("uint8", func(b *testing.B) {
++		for i := 0; i < b.N; i++ {
++			e = eight8
++		}
++	})
++}
++
+ func BenchmarkConvT2ESmall(b *testing.B) {
+ 	for i := 0; i < b.N; i++ {
+ 		e = ts
+@@ -310,6 +323,7 @@ func TestZeroConvT2x(t *testing.T) {
+ var (
+ 	eight8  uint8 = 8
+ 	eight8I T8    = 8
++	yes     bool  = true
+ 
+ 	zero16     uint16 = 0
+ 	zero16I    T16    = 0
+diff --git a/test/codegen/smallintiface.go b/test/codegen/smallintiface.go
+new file mode 100644
+index 0000000000..0207a0af79
+--- /dev/null
++++ b/test/codegen/smallintiface.go
+@@ -0,0 +1,22 @@
++// asmcheck
++
++package codegen
++
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++func booliface() interface{} {
++	// amd64:`LEAQ\truntime.staticuint64s\+8\(SB\)`
++	return true
++}
++
++func smallint8iface() interface{} {
++	// amd64:`LEAQ\truntime.staticuint64s\+2024\(SB\)`
++	return int8(-3)
++}
++
++func smalluint8iface() interface{} {
++	// amd64:`LEAQ\truntime.staticuint64s\+24\(SB\)`
++	return uint8(3)
++}

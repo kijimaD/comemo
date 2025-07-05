@@ -8,6 +8,10 @@ Date:   Tue May 20 11:21:19 2014 -0700
     R=rsc
     CC=golang-codereviews
     https://golang.org/cl/98480043
-
+---
  src/nacltest.bash | 0
  1 file changed, 0 insertions(+), 0 deletions(-)
+
+diff --git a/src/nacltest.bash b/src/nacltest.bash
+old mode 100644
+new mode 100755

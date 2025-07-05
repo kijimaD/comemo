@@ -11,7 +11,7 @@ Date:   Sat Oct 14 17:47:57 2023 +0800
     Run-TryBot: shuang cui <imcusg@gmail.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Carlos Amedee <carlos@golang.org>
-
+---
  src/io/fs/format.go       |  2 +-
  src/io/fs/fs.go           | 12 ++++++------
  src/io/fs/walk.go         |  4 ++--
@@ -19,3 +19,315 @@ Date:   Sat Oct 14 17:47:57 2023 +0800
  src/io/ioutil/tempfile.go |  6 +++---
  src/io/pipe.go            | 12 ++++++------
  6 files changed, 39 insertions(+), 39 deletions(-)
+
+diff --git a/src/io/fs/format.go b/src/io/fs/format.go
+index 4da6682f3a..60b40df1e8 100644
+--- a/src/io/fs/format.go
++++ b/src/io/fs/format.go
+@@ -9,7 +9,7 @@ import (
+ )
+ 
+ // FormatFileInfo returns a formatted version of info for human readability.
+-// Implementations of FileInfo can call this from a String method.
++// Implementations of [FileInfo] can call this from a String method.
+ // The output for a file named "hello.go", 100 bytes, mode 0o644, created
+ // January 1, 1970 at noon is
+ //
+diff --git a/src/io/fs/fs.go b/src/io/fs/fs.go
+index 09a9dad258..d6c75c4cf4 100644
+--- a/src/io/fs/fs.go
++++ b/src/io/fs/fs.go
+@@ -17,7 +17,7 @@ import (
+ //
+ // The FS interface is the minimum implementation required of the file system.
+ // A file system may implement additional interfaces,
+-// such as ReadFileFS, to provide additional or optimized functionality.
++// such as [ReadFileFS], to provide additional or optimized functionality.
+ type FS interface {
+ 	// Open opens the named file.
+ 	//
+@@ -82,7 +82,7 @@ type File interface {
+ }
+ 
+ // A DirEntry is an entry read from a directory
+-// (using the ReadDir function or a [ReadDirFile]'s ReadDir method).
++// (using the [ReadDir] function or a [ReadDirFile]'s ReadDir method).
+ type DirEntry interface {
+ 	// Name returns the name of the file (or subdirectory) described by the entry.
+ 	// This name is only the final element of the path (the base name), not the entire path.
+@@ -147,7 +147,7 @@ func errExist() error      { return oserror.ErrExist }
+ func errNotExist() error   { return oserror.ErrNotExist }
+ func errClosed() error     { return oserror.ErrClosed }
+ 
+-// A FileInfo describes a file and is returned by Stat.
++// A FileInfo describes a file and is returned by [Stat].
+ type FileInfo interface {
+ 	Name() string       // base name of the file
+ 	Size() int64        // length in bytes for regular files; system-dependent for others
+@@ -219,7 +219,7 @@ func (m FileMode) String() string {
+ }
+ 
+ // IsDir reports whether m describes a directory.
+-// That is, it tests for the ModeDir bit being set in m.
++// That is, it tests for the [ModeDir] bit being set in m.
+ func (m FileMode) IsDir() bool {
+ 	return m&ModeDir != 0
+ }
+@@ -230,12 +230,12 @@ func (m FileMode) IsRegular() bool {
+ 	return m&ModeType == 0
+ }
+ 
+-// Perm returns the Unix permission bits in m (m & ModePerm).
++// Perm returns the Unix permission bits in m (m & [ModePerm]).
+ func (m FileMode) Perm() FileMode {
+ 	return m & ModePerm
+ }
+ 
+-// Type returns type bits in m (m & ModeType).
++// Type returns type bits in m (m & [ModeType]).
+ func (m FileMode) Type() FileMode {
+ 	return m & ModeType
+ }
+diff --git a/src/io/fs/walk.go b/src/io/fs/walk.go
+index 06228385d7..48145d4cfc 100644
+--- a/src/io/fs/walk.go
++++ b/src/io/fs/walk.go
+@@ -46,7 +46,7 @@ var SkipAll = errors.New("skip everything and stop the walk")
+ //
+ // First, if the initial [Stat] on the root directory fails, WalkDir
+ // calls the function with path set to root, d set to nil, and err set to
+-// the error from fs.Stat.
++// the error from [fs.Stat].
+ //
+ // Second, if a directory's ReadDir method (see [ReadDirFile]) fails, WalkDir calls the
+ // function with path set to the directory's path, d set to an
+@@ -106,7 +106,7 @@ func walkDir(fsys FS, name string, d DirEntry, walkDirFn WalkDirFunc) error {
+ // directory in the tree, including root.
+ //
+ // All errors that arise visiting files and directories are filtered by fn:
+-// see the fs.WalkDirFunc documentation for details.
++// see the [fs.WalkDirFunc] documentation for details.
+ //
+ // The files are walked in lexical order, which makes the output deterministic
+ // but requires WalkDir to read an entire directory into memory before proceeding
+diff --git a/src/io/io.go b/src/io/io.go
+index a383f2f309..7f16e18d7d 100644
+--- a/src/io/io.go
++++ b/src/io/io.go
+@@ -39,7 +39,7 @@ var ErrShortBuffer = errors.New("short buffer")
+ // because callers will test for EOF using ==.)
+ // Functions should return EOF only to signal a graceful end of input.
+ // If the EOF occurs unexpectedly in a structured data stream,
+-// the appropriate error is either ErrUnexpectedEOF or some other error
++// the appropriate error is either [ErrUnexpectedEOF] or some other error
+ // giving more detail.
+ var EOF = errors.New("EOF")
+ 
+@@ -47,9 +47,9 @@ var EOF = errors.New("EOF")
+ // middle of reading a fixed-size block or data structure.
+ var ErrUnexpectedEOF = errors.New("unexpected EOF")
+ 
+-// ErrNoProgress is returned by some clients of a Reader when
++// ErrNoProgress is returned by some clients of a [Reader] when
+ // many calls to Read have failed to return any data or error,
+-// usually the sign of a broken Reader implementation.
++// usually the sign of a broken [Reader] implementation.
+ var ErrNoProgress = errors.New("multiple Read calls return no data or error")
+ 
+ // Reader is the interface that wraps the basic Read method.
+@@ -112,9 +112,9 @@ type Closer interface {
+ //
+ // Seek sets the offset for the next Read or Write to offset,
+ // interpreted according to whence:
+-// SeekStart means relative to the start of the file,
+-// SeekCurrent means relative to the current offset, and
+-// SeekEnd means relative to the end
++// [SeekStart] means relative to the start of the file,
++// [SeekCurrent] means relative to the current offset, and
++// [SeekEnd] means relative to the end
+ // (for example, offset = -2 specifies the penultimate byte of the file).
+ // Seek returns the new offset relative to the start of the
+ // file or an error, if any.
+@@ -185,7 +185,7 @@ type ReadWriteSeeker interface {
+ // The return value n is the number of bytes read.
+ // Any error except EOF encountered during the read is also returned.
+ //
+-// The Copy function uses ReaderFrom if available.
++// The [Copy] function uses [ReaderFrom] if available.
+ type ReaderFrom interface {
+ 	ReadFrom(r Reader) (n int64, err error)
+ }
+@@ -257,7 +257,7 @@ type WriterAt interface {
+ // byte was consumed, and the returned byte value is undefined.
+ //
+ // ReadByte provides an efficient interface for byte-at-time
+-// processing. A Reader that does not implement  ByteReader
++// processing. A [Reader] that does not implement  ByteReader
+ // can be wrapped using bufio.NewReader to add this method.
+ type ByteReader interface {
+ 	ReadByte() (byte, error)
+@@ -269,7 +269,7 @@ type ByteReader interface {
+ // UnreadByte causes the next call to ReadByte to return the last byte read.
+ // If the last operation was not a successful call to ReadByte, UnreadByte may
+ // return an error, unread the last byte read (or the byte prior to the
+-// last-unread byte), or (in implementations that support the Seeker interface)
++// last-unread byte), or (in implementations that support the [Seeker] interface)
+ // seek to one byte before the current offset.
+ type ByteScanner interface {
+ 	ByteReader
+@@ -296,7 +296,7 @@ type RuneReader interface {
+ // UnreadRune causes the next call to ReadRune to return the last rune read.
+ // If the last operation was not a successful call to ReadRune, UnreadRune may
+ // return an error, unread the last rune read (or the rune prior to the
+-// last-unread rune), or (in implementations that support the Seeker interface)
++// last-unread rune), or (in implementations that support the [Seeker] interface)
+ // seek to the start of the rune before the current offset.
+ type RuneScanner interface {
+ 	RuneReader
+@@ -322,8 +322,8 @@ func WriteString(w Writer, s string) (n int, err error) {
+ // It returns the number of bytes copied and an error if fewer bytes were read.
+ // The error is EOF only if no bytes were read.
+ // If an EOF happens after reading fewer than min bytes,
+-// ReadAtLeast returns ErrUnexpectedEOF.
+-// If min is greater than the length of buf, ReadAtLeast returns ErrShortBuffer.
++// ReadAtLeast returns [ErrUnexpectedEOF].
++// If min is greater than the length of buf, ReadAtLeast returns [ErrShortBuffer].
+ // On return, n >= min if and only if err == nil.
+ // If r returns an error having read at least min bytes, the error is dropped.
+ func ReadAtLeast(r Reader, buf []byte, min int) (n int, err error) {
+@@ -347,7 +347,7 @@ func ReadAtLeast(r Reader, buf []byte, min int) (n int, err error) {
+ // It returns the number of bytes copied and an error if fewer bytes were read.
+ // The error is EOF only if no bytes were read.
+ // If an EOF happens after reading some but not all the bytes,
+-// ReadFull returns ErrUnexpectedEOF.
++// ReadFull returns [ErrUnexpectedEOF].
+ // On return, n == len(buf) if and only if err == nil.
+ // If r returns an error having read at least len(buf) bytes, the error is dropped.
+ func ReadFull(r Reader, buf []byte) (n int, err error) {
+@@ -481,7 +481,7 @@ func (l *LimitedReader) Read(p []byte) (n int, err error) {
+ 	return
+ }
+ 
+-// NewSectionReader returns a SectionReader that reads from r
++// NewSectionReader returns a [SectionReader] that reads from r
+ // starting at offset off and stops with EOF after n bytes.
+ func NewSectionReader(r ReaderAt, off int64, n int64) *SectionReader {
+ 	var remaining int64
+@@ -558,10 +558,10 @@ func (s *SectionReader) ReadAt(p []byte, off int64) (n int, err error) {
+ // Size returns the size of the section in bytes.
+ func (s *SectionReader) Size() int64 { return s.limit - s.base }
+ 
+-// Outer returns the underlying ReaderAt and offsets for the section.
++// Outer returns the underlying [ReaderAt] and offsets for the section.
+ //
+-// The returned values are the same that were passed to NewSectionReader
+-// when the SectionReader was created.
++// The returned values are the same that were passed to [NewSectionReader]
++// when the [SectionReader] was created.
+ func (s *SectionReader) Outer() (r ReaderAt, off int64, n int64) {
+ 	return s.r, s.base, s.n
+ }
+@@ -573,7 +573,7 @@ type OffsetWriter struct {
+ 	off  int64 // the current offset
+ }
+ 
+-// NewOffsetWriter returns an OffsetWriter that writes to w
++// NewOffsetWriter returns an [OffsetWriter] that writes to w
+ // starting at offset off.
+ func NewOffsetWriter(w WriterAt, off int64) *OffsetWriter {
+ 	return &OffsetWriter{w, off, off}
+@@ -610,7 +610,7 @@ func (o *OffsetWriter) Seek(offset int64, whence int) (int64, error) {
+ 	return offset - o.base, nil
+ }
+ 
+-// TeeReader returns a Reader that writes to w what it reads from r.
++// TeeReader returns a [Reader] that writes to w what it reads from r.
+ // All reads from r performed through it are matched with
+ // corresponding writes to w. There is no internal buffering -
+ // the write must complete before the read completes.
+@@ -634,7 +634,7 @@ func (t *teeReader) Read(p []byte) (n int, err error) {
+ 	return
+ }
+ 
+-// Discard is a Writer on which all Write calls succeed
++// Discard is a [Writer] on which all Write calls succeed
+ // without doing anything.
+ var Discard Writer = discard{}
+ 
+@@ -677,7 +677,7 @@ func (discard) ReadFrom(r Reader) (n int64, err error) {
+ 
+ // NopCloser returns a [ReadCloser] with a no-op Close method wrapping
+ // the provided [Reader] r.
+-// If r implements [WriterTo], the returned ReadCloser will implement WriterTo
++// If r implements [WriterTo], the returned [ReadCloser] will implement [WriterTo]
+ // by forwarding calls to r.
+ func NopCloser(r Reader) ReadCloser {
+ 	if _, ok := r.(WriterTo); ok {
+diff --git a/src/io/ioutil/tempfile.go b/src/io/ioutil/tempfile.go
+index 5360d96fd3..47b2e4012f 100644
+--- a/src/io/ioutil/tempfile.go
++++ b/src/io/ioutil/tempfile.go
+@@ -9,12 +9,12 @@ import (
+ )
+ 
+ // TempFile creates a new temporary file in the directory dir,
+-// opens the file for reading and writing, and returns the resulting *os.File.
++// opens the file for reading and writing, and returns the resulting *[os.File].
+ // The filename is generated by taking pattern and adding a random
+ // string to the end. If pattern includes a "*", the random string
+ // replaces the last "*".
+ // If dir is the empty string, TempFile uses the default directory
+-// for temporary files (see os.TempDir).
++// for temporary files (see [os.TempDir]).
+ // Multiple programs calling TempFile simultaneously
+ // will not choose the same file. The caller can use f.Name()
+ // to find the pathname of the file. It is the caller's responsibility
+@@ -30,7 +30,7 @@ func TempFile(dir, pattern string) (f *os.File, err error) {
+ // random string to the end. If pattern includes a "*", the random string
+ // replaces the last "*". TempDir returns the name of the new directory.
+ // If dir is the empty string, TempDir uses the
+-// default directory for temporary files (see os.TempDir).
++// default directory for temporary files (see [os.TempDir]).
+ // Multiple programs calling TempDir simultaneously
+ // will not choose the same directory. It is the caller's responsibility
+ // to remove the directory when no longer needed.
+diff --git a/src/io/pipe.go b/src/io/pipe.go
+index ae8322ee7b..f34cf25e9d 100644
+--- a/src/io/pipe.go
++++ b/src/io/pipe.go
+@@ -135,7 +135,7 @@ func (r *PipeReader) Read(data []byte) (n int, err error) {
+ }
+ 
+ // Close closes the reader; subsequent writes to the
+-// write half of the pipe will return the error ErrClosedPipe.
++// write half of the pipe will return the error [ErrClosedPipe].
+ func (r *PipeReader) Close() error {
+ 	return r.CloseWithError(nil)
+ }
+@@ -156,7 +156,7 @@ type PipeWriter struct{ r PipeReader }
+ // it writes data to the pipe, blocking until one or more readers
+ // have consumed all the data or the read end is closed.
+ // If the read end is closed with an error, that err is
+-// returned as err; otherwise err is ErrClosedPipe.
++// returned as err; otherwise err is [ErrClosedPipe].
+ func (w *PipeWriter) Write(data []byte) (n int, err error) {
+ 	return w.r.pipe.write(data)
+ }
+@@ -178,13 +178,13 @@ func (w *PipeWriter) CloseWithError(err error) error {
+ }
+ 
+ // Pipe creates a synchronous in-memory pipe.
+-// It can be used to connect code expecting an io.Reader
+-// with code expecting an io.Writer.
++// It can be used to connect code expecting an [io.Reader]
++// with code expecting an [io.Writer].
+ //
+ // Reads and Writes on the pipe are matched one to one
+ // except when multiple Reads are needed to consume a single Write.
+-// That is, each Write to the PipeWriter blocks until it has satisfied
+-// one or more Reads from the PipeReader that fully consume
++// That is, each Write to the [PipeWriter] blocks until it has satisfied
++// one or more Reads from the [PipeReader] that fully consume
+ // the written data.
+ // The data is copied directly from the Write to the corresponding
+ // Read (or Reads); there is no internal buffering.

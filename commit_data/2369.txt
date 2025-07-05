@@ -8,7 +8,7 @@ Date:   Tue Jun 2 23:22:12 2009 -0700
     DELTA=161  (153 added, 0 deleted, 8 changed)
     OCL=29802
     CL=29809
-
+---
  src/cmd/gotest/gotest                   | 12 +++--
  src/lib/sync/asm_386.s                  | 23 +++++++++
  src/lib/syscall/Makefile                |  8 ++--
@@ -18,3 +18,280 @@ Date:   Tue Jun 2 23:22:12 2009 -0700
  src/lib/syscall/types_darwin_386.c      |  5 ++
  src/runtime/mgc0.c                      |  2 +-
  8 files changed, 177 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/gotest/gotest b/src/cmd/gotest/gotest
+index 3f2b04abfd..7574926ab8 100755
+--- a/src/cmd/gotest/gotest
++++ b/src/cmd/gotest/gotest
+@@ -8,7 +8,13 @@
+ # tests.
+ # If files are named on the command line, use them instead of test*.go.
+ 
+-O=6
++case "$GOARCH" in
++amd64)	O=6;;
++arm)	O=5;;
++386)	O=8;;
++*)	echo 'unknown $GOARCH' 1>&2
++esac
++
+ GC=${GC:-${O}g}
+ GL=${GL:-${O}l}
+ export GC GL
+@@ -43,7 +49,7 @@ x)
+ 	exit 1
+ esac
+ 
+-ofiles=$(echo $gofiles | sed 's/\.go/.6/g')
++ofiles=$(echo $gofiles | sed 's/\.go/.'$O'/g')
+ files=$(echo $gofiles | sed 's/\.go//g')
+ 
+ 
+@@ -60,7 +66,7 @@ do
+ done
+ 
+ # They all compile; now generate the code to call them.
+-trap "rm -f _testmain.go _testmain.6" 0 1 2 3 14 15
++trap "rm -f _testmain.go _testmain.$O" 0 1 2 3 14 15
+ {
+ 	# package spec
+ 	echo 'package main'
+diff --git a/src/lib/sync/asm_386.s b/src/lib/sync/asm_386.s
+new file mode 100644
+index 0000000000..f71182b753
+--- /dev/null
++++ b/src/lib/sync/asm_386.s
+@@ -0,0 +1,23 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// func cas(val *int32, old, new int32) bool
++// Atomically:
++//	if *val == old {
++//		*val = new;
++//		return true;
++//	}else
++//		return false;
++TEXT sync·cas(SB), 7, $0
++	MOVL	4(SP), BX
++	MOVL	8(SP), AX
++	MOVL	12(SP), CX
++	LOCK
++	CMPXCHGL	CX, 0(BX)
++	JZ ok
++	MOVL	$0, 16(SP)
++	RET
++ok:
++	MOVL	$1, 16(SP)
++	RET
+diff --git a/src/lib/syscall/Makefile b/src/lib/syscall/Makefile
+index eadde0fb8d..0e25b22a72 100644
+--- a/src/lib/syscall/Makefile
++++ b/src/lib/syscall/Makefile
+@@ -48,10 +48,10 @@ O1=\
+ 
+ O2=\
+ 	errstr.$O\
+-	syscall_$(GOOS)_$(GOARCH).$O\
++	zsyscall_$(GOOS)_$(GOARCH).$O\
+ 
+ O3=\
+-	zsyscall_$(GOOS)_$(GOARCH).$O\
++	syscall_$(GOOS)_$(GOARCH).$O\
+ 
+ O4=\
+ 	syscall_$(GOOS).$O\
+@@ -68,11 +68,11 @@ a1: $(O1)
+ 	rm -f $(O1)
+ 
+ a2: $(O2)
+-	$(AR) grc _obj$D/syscall.a errstr.$O syscall_$(GOOS)_$(GOARCH).$O
++	$(AR) grc _obj$D/syscall.a errstr.$O zsyscall_$(GOOS)_$(GOARCH).$O
+ 	rm -f $(O2)
+ 
+ a3: $(O3)
+-	$(AR) grc _obj$D/syscall.a zsyscall_$(GOOS)_$(GOARCH).$O
++	$(AR) grc _obj$D/syscall.a syscall_$(GOOS)_$(GOARCH).$O
+ 	rm -f $(O3)
+ 
+ a4: $(O4)
+diff --git a/src/lib/syscall/asm_darwin_386.s b/src/lib/syscall/asm_darwin_386.s
+new file mode 100644
+index 0000000000..7fb90c28a5
+--- /dev/null
++++ b/src/lib/syscall/asm_darwin_386.s
+@@ -0,0 +1,83 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//
++// System call support for 386, Darwin
++//
++
++// func Syscall(trap int32, a1, a2, a3 int32) (r1, r2, err int32);
++// func Syscall6(trap int32, a1, a2, a3, a4, a5, a6 int32) (r1, r2, err int32);
++// Trap # in AX, args on stack above caller pc.
++
++TEXT	syscall·Syscall(SB),7,$0
++	CALL	sys·entersyscall(SB)
++	MOVL	4(SP), AX	// syscall entry
++	// slide args down on top of system call number
++	LEAL		8(SP), SI
++	LEAL		4(SP), DI
++	CLD
++	MOVSL
++	MOVSL
++	MOVSL
++	INT	$0x80
++	JAE	ok
++	MOVL	$-1, 20(SP)	// r1
++	MOVL	$-1, 24(SP)	// r2
++	MOVL	AX, 28(SP)		// errno
++	CALL	sys·exitsyscall(SB)
++	RET
++ok:
++	MOVL	AX, 20(SP)	// r1
++	MOVL	DX, 24(SP)	// r2 ???
++	MOVL	$0, 28(SP)	// errno
++	CALL	sys·exitsyscall(SB)
++	RET
++
++TEXT	syscall·Syscall6(SB),7,$0
++	CALL	sys·entersyscall(SB)
++	MOVL	4(SP), AX	// syscall entry
++	// slide args down on top of system call number
++	LEAL		8(SP), SI
++	LEAL		4(SP), DI
++	CLD
++	MOVSL
++	MOVSL
++	MOVSL
++	MOVSL
++	MOVSL
++	MOVSL
++	INT	$0x80
++	JAE	ok
++	MOVL	$-1, 32(SP)	// r1
++	MOVL	$-1, 36(SP)	// r2
++	MOVL	AX, 40(SP)		// errno
++	CALL	sys·exitsyscall(SB)
++	RET
++ok6:
++	MOVL	AX, 32(SP)	// r1
++	MOVL	DX, 36(SP)	// r2 ???
++	MOVL	$0, 40(SP)	// errno
++	CALL	sys·exitsyscall(SB)
++	RET
++
++TEXT syscall·RawSyscall(SB),7,$0
++	MOVL	4(SP), AX	// syscall entry
++	// slide args down on top of system call number
++	LEAL		8(SP), SI
++	LEAL		4(SP), DI
++	CLD
++	MOVSL
++	MOVSL
++	MOVSL
++	INT	$0x80
++	JAE	ok1
++	MOVL	$-1, 20(SP)	// r1
++	MOVL	$-1, 24(SP)	// r2
++	MOVL	AX, 28(SP)		// errno
++	RET
++ok1:
++	MOVL	AX, 20(SP)	// r1
++	MOVL	DX, 24(SP)	// r2 ???
++	MOVL	$0, 28(SP)	// errno
++	RET
+diff --git a/src/lib/syscall/syscall_darwin_386.go b/src/lib/syscall/syscall_darwin_386.go
+new file mode 100644
+index 0000000000..6f82e04e48
+--- /dev/null
++++ b/src/lib/syscall/syscall_darwin_386.go
+@@ -0,0 +1,40 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package syscall
++
++import "syscall"
++
++func TimespecToNsec(ts Timespec) int64 {
++	return int64(ts.Sec)*1e9 + int64(ts.Nsec);
++}
++
++func NsecToTimespec(nsec int64) (ts Timespec) {
++	ts.Sec = int32(nsec / 1e9);
++	ts.Nsec = int32(nsec % 1e9);
++	return;
++}
++
++func TimevalToNsec(tv Timeval) int64 {
++	return int64(tv.Sec)*1e9 + int64(tv.Usec)*1e3;
++}
++
++func NsecToTimeval(nsec int64) (tv Timeval) {
++	nsec += 999;	// round up to microsecond
++	tv.Usec = int32(nsec%1e9 / 1e3);
++	tv.Sec = int32(nsec/1e9);
++	return;
++}
++
++//sys	gettimeofday(tp *Timeval) (sec int64, usec int32, errno int)
++func Gettimeofday(tv *Timeval) (errno int) {
++	// The tv passed to gettimeofday must be non-nil
++	// but is otherwise unused.  The answers come back
++	// in the two registers.
++	sec, usec, err := gettimeofday(tv);
++	tv.Sec = int32(sec);
++	tv.Usec = int32(usec);
++	return err;
++}
++
+diff --git a/src/lib/syscall/syscall_darwin_amd64.go b/src/lib/syscall/syscall_darwin_amd64.go
+index 2f576ad631..31e91cda36 100644
+--- a/src/lib/syscall/syscall_darwin_amd64.go
++++ b/src/lib/syscall/syscall_darwin_amd64.go
+@@ -26,3 +26,15 @@ func NsecToTimeval(nsec int64) (tv Timeval) {
+ 	tv.Sec = int64(nsec/1e9);
+ 	return;
+ }
++
++//sys	gettimeofday(tp *Timeval) (sec int64, usec int32, errno int)
++func Gettimeofday(tv *Timeval) (errno int) {
++	// The tv passed to gettimeofday must be non-nil
++	// but is otherwise unused.  The answers come back
++	// in the two registers.
++	sec, usec, err := gettimeofday(tv);
++	tv.Sec = sec;
++	tv.Usec = usec;
++	return err;
++}
++
+diff --git a/src/lib/syscall/types_darwin_386.c b/src/lib/syscall/types_darwin_386.c
+new file mode 100644
+index 0000000000..71f98e413e
+--- /dev/null
++++ b/src/lib/syscall/types_darwin_386.c
+@@ -0,0 +1,5 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Nothing to see here.
+diff --git a/src/runtime/mgc0.c b/src/runtime/mgc0.c
+index d58d6ce44d..71f5fc9807 100644
+--- a/src/runtime/mgc0.c
++++ b/src/runtime/mgc0.c
+@@ -212,7 +212,7 @@ gc(int32 force)
+ 		else
+ 			gcpercent = atoi(p);
+ 	}
+-	if(gcpercent < 0)
++	if(gcpercent < 0 || sizeof(void*) == 4)	// TODO(rsc): broken on 32-bit right now
+ 		return;
+ 
+ 	semacquire(&gcsema);

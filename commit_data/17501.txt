@@ -10,7 +10,187 @@ Date:   Sun Sep 8 11:17:23 2013 +1000
     R=golang-dev, rsc, taj.khattra, r
     CC=golang-dev
     https://golang.org/cl/13586043
-
+---
  src/pkg/sort/example_interface_test.go | 78 ++++++++++------------------------
  src/pkg/sort/example_wrapper_test.go   | 77 +++++++++++++++++++++++++++++++++
  2 files changed, 99 insertions(+), 56 deletions(-)
+
+diff --git a/src/pkg/sort/example_interface_test.go b/src/pkg/sort/example_interface_test.go
+index 4c88821be7..c2feafe26c 100644
+--- a/src/pkg/sort/example_interface_test.go
++++ b/src/pkg/sort/example_interface_test.go
+@@ -9,69 +9,35 @@ import (
+ 	"sort"
+ )
+ 
+-type Grams int
+-
+-func (g Grams) String() string { return fmt.Sprintf("%dg", int(g)) }
+-
+-type Organ struct {
+-	Name   string
+-	Weight Grams
++type Person struct {
++	Name string
++	Age  int
+ }
+ 
+-type Organs []*Organ
+-
+-func (s Organs) Len() int      { return len(s) }
+-func (s Organs) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
+-
+-// ByName implements sort.Interface by providing Less and using the Len and
+-// Swap methods of the embedded Organs value.
+-type ByName struct{ Organs }
+-
+-func (s ByName) Less(i, j int) bool { return s.Organs[i].Name < s.Organs[j].Name }
++func (p Person) String() string {
++	return fmt.Sprintf("%s: %d", p.Name, p.Age)
++}
+ 
+-// ByWeight implements sort.Interface by providing Less and using the Len and
+-// Swap methods of the embedded Organs value.
+-type ByWeight struct{ Organs }
++// ByAge implements sort.Interface for []Person based on
++// the Age field.
++type ByAge []*Person
+ 
+-func (s ByWeight) Less(i, j int) bool { return s.Organs[i].Weight < s.Organs[j].Weight }
++func (a ByAge) Len() int           { return len(a) }
++func (a ByAge) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
++func (a ByAge) Less(i, j int) bool { return a[i].Age < a[j].Age }
+ 
+ func ExampleInterface() {
+-	s := []*Organ{
+-		{"brain", 1340},
+-		{"heart", 290},
+-		{"liver", 1494},
+-		{"pancreas", 131},
+-		{"prostate", 62},
+-		{"spleen", 162},
++	people := []*Person{
++		&Person{Name: "Bob", Age: 31},
++		&Person{Name: "John", Age: 42},
++		&Person{Name: "Michael", Age: 17},
++		&Person{Name: "Jenny", Age: 26},
+ 	}
+ 
+-	sort.Sort(ByWeight{s})
+-	fmt.Println("Organs by weight:")
+-	printOrgans(s)
+-
+-	sort.Sort(ByName{s})
+-	fmt.Println("Organs by name:")
+-	printOrgans(s)
++	fmt.Println(people)
++	sort.Sort(ByAge(people))
++	fmt.Println(people)
+ 
+-	// Output:
+-	// Organs by weight:
+-	// prostate (62g)
+-	// pancreas (131g)
+-	// spleen   (162g)
+-	// heart    (290g)
+-	// brain    (1340g)
+-	// liver    (1494g)
+-	// Organs by name:
+-	// brain    (1340g)
+-	// heart    (290g)
+-	// liver    (1494g)
+-	// pancreas (131g)
+-	// prostate (62g)
+-	// spleen   (162g)
+-}
+-
+-func printOrgans(s []*Organ) {
+-	for _, o := range s {
+-		fmt.Printf("%-8s (%v)\n", o.Name, o.Weight)
+-	}
++	// Output: [Bob: 31 John: 42 Michael: 17 Jenny: 26]
++	// [Michael: 17 Jenny: 26 Bob: 31 John: 42]
+ }
+diff --git a/src/pkg/sort/example_wrapper_test.go b/src/pkg/sort/example_wrapper_test.go
+new file mode 100644
+index 0000000000..cf6d74cf75
+--- /dev/null
++++ b/src/pkg/sort/example_wrapper_test.go
+@@ -0,0 +1,77 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package sort_test
++
++import (
++	"fmt"
++	"sort"
++)
++
++type Grams int
++
++func (g Grams) String() string { return fmt.Sprintf("%dg", int(g)) }
++
++type Organ struct {
++	Name   string
++	Weight Grams
++}
++
++type Organs []*Organ
++
++func (s Organs) Len() int      { return len(s) }
++func (s Organs) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
++
++// ByName implements sort.Interface by providing Less and using the Len and
++// Swap methods of the embedded Organs value.
++type ByName struct{ Organs }
++
++func (s ByName) Less(i, j int) bool { return s.Organs[i].Name < s.Organs[j].Name }
++
++// ByWeight implements sort.Interface by providing Less and using the Len and
++// Swap methods of the embedded Organs value.
++type ByWeight struct{ Organs }
++
++func (s ByWeight) Less(i, j int) bool { return s.Organs[i].Weight < s.Organs[j].Weight }
++
++func Example_sortWrapper() {
++	s := []*Organ{
++		{"brain", 1340},
++		{"heart", 290},
++		{"liver", 1494},
++		{"pancreas", 131},
++		{"prostate", 62},
++		{"spleen", 162},
++	}
++
++	sort.Sort(ByWeight{s})
++	fmt.Println("Organs by weight:")
++	printOrgans(s)
++
++	sort.Sort(ByName{s})
++	fmt.Println("Organs by name:")
++	printOrgans(s)
++
++	// Output:
++	// Organs by weight:
++	// prostate (62g)
++	// pancreas (131g)
++	// spleen   (162g)
++	// heart    (290g)
++	// brain    (1340g)
++	// liver    (1494g)
++	// Organs by name:
++	// brain    (1340g)
++	// heart    (290g)
++	// liver    (1494g)
++	// pancreas (131g)
++	// prostate (62g)
++	// spleen   (162g)
++}
++
++func printOrgans(s []*Organ) {
++	for _, o := range s {
++		fmt.Printf("%-8s (%v)\n", o.Name, o.Weight)
++	}
++}

@@ -7,9 +7,62 @@ Date:   Wed Jun 12 09:41:29 2013 -0400
     TBR=dvyukov
     CC=golang-dev
     https://golang.org/cl/10229043
-
+---
  src/pkg/runtime/os_plan9_386.c     | 2 +-
  src/pkg/runtime/os_plan9_amd64.c   | 2 +-
  src/pkg/runtime/os_windows_386.c   | 2 +-
  src/pkg/runtime/os_windows_amd64.c | 2 +-
  4 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/runtime/os_plan9_386.c b/src/pkg/runtime/os_plan9_386.c
+index 3396e44e72..84b6a1d37d 100644
+--- a/src/pkg/runtime/os_plan9_386.c
++++ b/src/pkg/runtime/os_plan9_386.c
+@@ -95,7 +95,7 @@ Throw:
+ 	runtime·printf("\n");
+ 
+ 	if(runtime·gotraceback(&crash)) {
+-		runtime·traceback((void*)ureg->pc, (void*)ureg->sp, 0, gp);
++		runtime·traceback(ureg->pc, ureg->sp, 0, gp);
+ 		runtime·tracebackothers(gp);
+ 		runtime·dumpregs(ureg);
+ 	}
+diff --git a/src/pkg/runtime/os_plan9_amd64.c b/src/pkg/runtime/os_plan9_amd64.c
+index cf0a82b6bc..de81b1264b 100644
+--- a/src/pkg/runtime/os_plan9_amd64.c
++++ b/src/pkg/runtime/os_plan9_amd64.c
+@@ -103,7 +103,7 @@ Throw:
+ 	runtime·printf("\n");
+ 
+ 	if(runtime·gotraceback(&crash)) {
+-		runtime·traceback((void*)ureg->ip, (void*)ureg->sp, 0, gp);
++		runtime·traceback(ureg->ip, ureg->sp, 0, gp);
+ 		runtime·tracebackothers(gp);
+ 		runtime·dumpregs(ureg);
+ 	}
+diff --git a/src/pkg/runtime/os_windows_386.c b/src/pkg/runtime/os_windows_386.c
+index 20fbea13de..c377e5b6cf 100644
+--- a/src/pkg/runtime/os_windows_386.c
++++ b/src/pkg/runtime/os_windows_386.c
+@@ -76,7 +76,7 @@ runtime·sighandler(ExceptionRecord *info, Context *r, G *gp)
+ 	runtime·printf("\n");
+ 
+ 	if(runtime·gotraceback(&crash)){
+-		runtime·traceback((void*)r->Eip, (void*)r->Esp, 0, gp);
++		runtime·traceback(r->Eip, r->Esp, 0, gp);
+ 		runtime·tracebackothers(gp);
+ 		runtime·dumpregs(r);
+ 	}
+diff --git a/src/pkg/runtime/os_windows_amd64.c b/src/pkg/runtime/os_windows_amd64.c
+index 881c73c93c..97c48feb08 100644
+--- a/src/pkg/runtime/os_windows_amd64.c
++++ b/src/pkg/runtime/os_windows_amd64.c
+@@ -83,7 +83,7 @@ runtime·sighandler(ExceptionRecord *info, Context *r, G *gp)
+ 	runtime·printf("\n");
+ 
+ 	if(runtime·gotraceback(&crash)){
+-		runtime·traceback((void*)r->Rip, (void*)r->Rsp, 0, gp);
++		runtime·traceback(r->Rip, r->Rsp, 0, gp);
+ 		runtime·tracebackothers(gp);
+ 		runtime·dumpregs(r);
+ 	}

@@ -14,8 +14,120 @@ Date:   Mon Dec 5 23:20:20 2016 -0500
     Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/link/internal/ld/elf.go  |  3 ++-
  src/cmd/link/internal/ld/lib.go  | 45 ++++++++++++++++++++++++++++++----------
  src/cmd/link/internal/ld/link.go |  2 +-
  3 files changed, 37 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index b4d5aae27a..7304b5b0d3 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -10,6 +10,7 @@ import (
+ 	"crypto/sha1"
+ 	"encoding/binary"
+ 	"encoding/hex"
++	"io"
+ 	"path/filepath"
+ 	"sort"
+ 	"strings"
+@@ -2130,7 +2131,7 @@ func (ctxt *Link) doelf() {
+ 		sort.Sort(byPkg(ctxt.Library))
+ 		h := sha1.New()
+ 		for _, l := range ctxt.Library {
+-			h.Write(l.hash)
++			io.WriteString(h, l.hash)
+ 		}
+ 		addgonote(ctxt, ".note.go.abihash", ELF_NOTE_GOABIHASH_TAG, h.Sum([]byte{}))
+ 		addgonote(ctxt, ".note.go.pkg-list", ELF_NOTE_GOPKGLIST_TAG, pkglistfornote)
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index fb321905e1..a2700d9698 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -39,6 +39,7 @@ import (
+ 	"crypto/sha1"
+ 	"debug/elf"
+ 	"encoding/binary"
++	"encoding/hex"
+ 	"fmt"
+ 	"io"
+ 	"io/ioutil"
+@@ -603,6 +604,16 @@ func (ctxt *Link) loadlib() {
+ 		}
+ 	}
+ 
++	// If package versioning is required, generate a hash of the
++	// the packages used in the link.
++	if Buildmode == BuildmodeShared || Buildmode == BuildmodePlugin || ctxt.Syms.ROLookup("plugin.Open", 0) != nil {
++		for i = 0; i < len(ctxt.Library); i++ {
++			if ctxt.Library[i].Shlib == "" {
++				genhash(ctxt, ctxt.Library[i])
++			}
++		}
++	}
++
+ 	if SysArch == sys.Arch386 {
+ 		if (Buildmode == BuildmodeCArchive && Iself) || Buildmode == BuildmodeCShared || Buildmode == BuildmodePIE || ctxt.DynlinkingGo() {
+ 			got := ctxt.Syms.Lookup("_GLOBAL_OFFSET_TABLE_", 0)
+@@ -678,6 +689,29 @@ func nextar(bp *bio.Reader, off int64, a *ArHdr) int64 {
+ 	return arsize + SAR_HDR
+ }
+ 
++func genhash(ctxt *Link, lib *Library) {
++	f, err := bio.Open(lib.File)
++	if err != nil {
++		Errorf(nil, "cannot open file %s for hash generation: %v", lib.File, err)
++		return
++	}
++	defer f.Close()
++
++	var arhdr ArHdr
++	l := nextar(f, int64(len(ARMAG)), &arhdr)
++	if l <= 0 {
++		Errorf(nil, "%s: short read on archive file symbol header", lib.File)
++		return
++	}
++
++	h := sha1.New()
++	if _, err := io.CopyN(h, f, atolwhex(arhdr.size)); err != nil {
++		Errorf(nil, "bad read of %s for hash generation: %v", lib.File, err)
++		return
++	}
++	lib.hash = hex.EncodeToString(h.Sum(nil))
++}
++
+ func objfile(ctxt *Link, lib *Library) {
+ 	pkg := pathtoprefix(lib.Pkg)
+ 
+@@ -720,17 +754,6 @@ func objfile(ctxt *Link, lib *Library) {
+ 		goto out
+ 	}
+ 
+-	if Buildmode == BuildmodeShared || Buildmode == BuildmodePlugin || ctxt.Syms.ROLookup("plugin.Open", 0) != nil {
+-		before := f.Offset()
+-		pkgdefBytes := make([]byte, atolwhex(arhdr.size))
+-		if _, err := io.ReadFull(f, pkgdefBytes); err != nil {
+-			Errorf(nil, "%s: short read on archive file symbol header: %v", lib.File, err)
+-		}
+-		hash := sha1.Sum(pkgdefBytes)
+-		lib.hash = hash[:]
+-		f.Seek(before, 0)
+-	}
+-
+ 	off += l
+ 
+ 	ldpkg(ctxt, f, pkg, atolwhex(arhdr.size), lib.File, Pkgdef)
+diff --git a/src/cmd/link/internal/ld/link.go b/src/cmd/link/internal/ld/link.go
+index ab7e49b51f..ffe0873fc8 100644
+--- a/src/cmd/link/internal/ld/link.go
++++ b/src/cmd/link/internal/ld/link.go
+@@ -223,7 +223,7 @@ type Library struct {
+ 	File        string
+ 	Pkg         string
+ 	Shlib       string
+-	hash        []byte
++	hash        string
+ 	imports     []*Library
+ 	textp       []*Symbol // text symbols defined in this library
+ 	dupTextSyms []*Symbol // dupok text symbols defined in this library

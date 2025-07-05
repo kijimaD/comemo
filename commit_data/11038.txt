@@ -10,7 +10,71 @@ Date:   Fri Jan 6 09:23:00 2012 +1100
     R=rsc, golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/5514046
-
+---
  src/cmd/go/build.go |  1 +
  src/cmd/go/run.go   | 26 ++++++++++++++++++++++----
  2 files changed, 23 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 701d6cd6d7..e3a96ea421 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -157,6 +157,7 @@ type action struct {
+ 	deps     []*action // actions that must happen before this one
+ 	triggers []*action // inverse of deps
+ 	cgo      *action   // action for cgo binary if needed
++	args     []string  // additional args for runProgram
+ 
+ 	f          func(*builder, *action) error // the action itself (nil = no-op)
+ 	ignoreFail bool                          // whether to run f even if dependencies fail
+diff --git a/src/cmd/go/run.go b/src/cmd/go/run.go
+index f4df2cf9a9..3ccb465a6a 100644
+--- a/src/cmd/go/run.go
++++ b/src/cmd/go/run.go
+@@ -12,7 +12,7 @@ func init() {
+ }
+ 
+ var cmdRun = &Command{
+-	UsageLine: "run [-a] [-n] [-x] gofiles...",
++	UsageLine: "run [-a] [-n] [-x] gofiles... [-- arguments...]",
+ 	Short:     "compile and run Go program",
+ 	Long: `
+ Run compiles and runs the main package comprising the named Go source files.
+@@ -32,16 +32,34 @@ var runX = cmdRun.Flag.Bool("x", false, "")
+ func runRun(cmd *Command, args []string) {
+ 	var b builder
+ 	b.init(*runA, *runN, *runX)
+-	p := goFilesPackage(args, "")
++	files, args := splitArgs(args)
++	p := goFilesPackage(files, "")
+ 	p.target = "" // must build - not up to date
+ 	a1 := b.action(modeBuild, modeBuild, p)
+-	a := &action{f: (*builder).runProgram, deps: []*action{a1}}
++	a := &action{f: (*builder).runProgram, args: args, deps: []*action{a1}}
+ 	b.do(a)
+ }
+ 
+ // runProgram is the action for running a binary that has already
+ // been compiled.  We ignore exit status.
+ func (b *builder) runProgram(a *action) error {
+-	run(a.deps[0].target)
++	args := append([]string{a.deps[0].target}, a.args...)
++	run(args...)
+ 	return nil
+ }
++
++// Return the argument slices before and after the "--"
++func splitArgs(args []string) (before, after []string) {
++	dashes := len(args)
++	for i, arg := range args {
++		if arg == "--" {
++			dashes = i
++			break
++		}
++	}
++	before = args[:dashes]
++	if dashes < len(args) {
++		after = args[dashes+1:]
++	}
++	return
++}

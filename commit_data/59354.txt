@@ -19,7 +19,7 @@ Date:   Wed Mar 6 12:36:58 2024 -0500
     Reviewed-by: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/go.mod                                     |  2 +-
  src/cmd/go.sum                                     |  4 +-
  src/cmd/vendor/golang.org/x/sys/unix/aliases.go    |  2 +-
@@ -33,3 +33,460 @@ Date:   Wed Mar 6 12:36:58 2024 -0500
  src/go.sum                                         |  4 +-
  src/vendor/modules.txt                             |  2 +-
  12 files changed, 186 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index 42db94ad25..b02f9b8656 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -8,7 +8,7 @@ require (
+ 	golang.org/x/build v0.0.0-20240222153247-cf4ed81bb19f
+ 	golang.org/x/mod v0.15.1-0.20240207185259-766dc5df63e3
+ 	golang.org/x/sync v0.6.0
+-	golang.org/x/sys v0.17.0
++	golang.org/x/sys v0.18.0
+ 	golang.org/x/telemetry v0.0.0-20240229223025-3d5706d2d0fb
+ 	golang.org/x/term v0.17.0
+ 	golang.org/x/tools v0.18.0
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index 1514026e62..ab61b95549 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -30,8 +30,8 @@ golang.org/x/mod v0.15.1-0.20240207185259-766dc5df63e3 h1:/p/VemLWiTsjHqHwME1Iu+
+ golang.org/x/mod v0.15.1-0.20240207185259-766dc5df63e3/go.mod h1:hTbmBsO62+eylJbnUtE2MGJUyE7QWk4xUqPFrRgJ+7c=
+ golang.org/x/sync v0.6.0 h1:5BMeUDZ7vkXGfEr1x9B4bRcTH4lpkTkpdh0T/J+qjbQ=
+ golang.org/x/sync v0.6.0/go.mod h1:Czt+wKu1gCyEFDUtn0jG5QVvpJ6rzVqr5aXyt9drQfk=
+-golang.org/x/sys v0.17.0 h1:25cE3gD+tdBA7lp7QfhuV+rJiE9YXTcS3VG1SqssI/Y=
+-golang.org/x/sys v0.17.0/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=
++golang.org/x/sys v0.18.0 h1:DBdB3niSjOA/O0blCZBqDefyWNYveAYMNF1Wum0DYQ4=
++golang.org/x/sys v0.18.0/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=
+ golang.org/x/telemetry v0.0.0-20240229223025-3d5706d2d0fb h1:LxVQXEmTbdDLG1nTKZrjqjn72V7ry1X1HLQFVioaRmE=
+ golang.org/x/telemetry v0.0.0-20240229223025-3d5706d2d0fb/go.mod h1:TeRTkGYfJXctD9OcfyVLyj2J3IxLnKwHJR8f4D8a3YE=
+ golang.org/x/term v0.17.0 h1:mkTF7LCd6WGJNL3K1Ad7kwxNfYAW6a8a8QqtMblp/4U=
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/aliases.go b/src/cmd/vendor/golang.org/x/sys/unix/aliases.go
+index e7d3df4bd3..b0e4198575 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/aliases.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/aliases.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build (aix || darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris || zos) && go1.9
++//go:build aix || darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris || zos
+ 
+ package unix
+ 
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/syscall_darwin_libSystem.go b/src/cmd/vendor/golang.org/x/sys/unix/syscall_darwin_libSystem.go
+index 16dc699379..2f0fa76e4f 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/syscall_darwin_libSystem.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/syscall_darwin_libSystem.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build darwin && go1.12
++//go:build darwin
+ 
+ package unix
+ 
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/syscall_freebsd.go b/src/cmd/vendor/golang.org/x/sys/unix/syscall_freebsd.go
+index 64d1bb4dba..2b57e0f73b 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/syscall_freebsd.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/syscall_freebsd.go
+@@ -13,6 +13,7 @@
+ package unix
+ 
+ import (
++	"errors"
+ 	"sync"
+ 	"unsafe"
+ )
+@@ -169,25 +170,26 @@ func Getfsstat(buf []Statfs_t, flags int) (n int, err error) {
+ func Uname(uname *Utsname) error {
+ 	mib := []_C_int{CTL_KERN, KERN_OSTYPE}
+ 	n := unsafe.Sizeof(uname.Sysname)
+-	if err := sysctl(mib, &uname.Sysname[0], &n, nil, 0); err != nil {
++	// Suppress ENOMEM errors to be compatible with the C library __xuname() implementation.
++	if err := sysctl(mib, &uname.Sysname[0], &n, nil, 0); err != nil && !errors.Is(err, ENOMEM) {
+ 		return err
+ 	}
+ 
+ 	mib = []_C_int{CTL_KERN, KERN_HOSTNAME}
+ 	n = unsafe.Sizeof(uname.Nodename)
+-	if err := sysctl(mib, &uname.Nodename[0], &n, nil, 0); err != nil {
++	if err := sysctl(mib, &uname.Nodename[0], &n, nil, 0); err != nil && !errors.Is(err, ENOMEM) {
+ 		return err
+ 	}
+ 
+ 	mib = []_C_int{CTL_KERN, KERN_OSRELEASE}
+ 	n = unsafe.Sizeof(uname.Release)
+-	if err := sysctl(mib, &uname.Release[0], &n, nil, 0); err != nil {
++	if err := sysctl(mib, &uname.Release[0], &n, nil, 0); err != nil && !errors.Is(err, ENOMEM) {
+ 		return err
+ 	}
+ 
+ 	mib = []_C_int{CTL_KERN, KERN_VERSION}
+ 	n = unsafe.Sizeof(uname.Version)
+-	if err := sysctl(mib, &uname.Version[0], &n, nil, 0); err != nil {
++	if err := sysctl(mib, &uname.Version[0], &n, nil, 0); err != nil && !errors.Is(err, ENOMEM) {
+ 		return err
+ 	}
+ 
+@@ -205,7 +207,7 @@ func Uname(uname *Utsname) error {
+ 
+ 	mib = []_C_int{CTL_HW, HW_MACHINE}
+ 	n = unsafe.Sizeof(uname.Machine)
+-	if err := sysctl(mib, &uname.Machine[0], &n, nil, 0); err != nil {
++	if err := sysctl(mib, &uname.Machine[0], &n, nil, 0); err != nil && !errors.Is(err, ENOMEM) {
+ 		return err
+ 	}
+ 
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux.go b/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux.go
+index 0f85e29e62..5682e2628a 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux.go
+@@ -1849,6 +1849,105 @@ func Dup2(oldfd, newfd int) error {
+ //sys	Fsmount(fd int, flags int, mountAttrs int) (fsfd int, err error)
+ //sys	Fsopen(fsName string, flags int) (fd int, err error)
+ //sys	Fspick(dirfd int, pathName string, flags int) (fd int, err error)
++
++//sys	fsconfig(fd int, cmd uint, key *byte, value *byte, aux int) (err error)
++
++func fsconfigCommon(fd int, cmd uint, key string, value *byte, aux int) (err error) {
++	var keyp *byte
++	if keyp, err = BytePtrFromString(key); err != nil {
++		return
++	}
++	return fsconfig(fd, cmd, keyp, value, aux)
++}
++
++// FsconfigSetFlag is equivalent to fsconfig(2) called
++// with cmd == FSCONFIG_SET_FLAG.
++//
++// fd is the filesystem context to act upon.
++// key the parameter key to set.
++func FsconfigSetFlag(fd int, key string) (err error) {
++	return fsconfigCommon(fd, FSCONFIG_SET_FLAG, key, nil, 0)
++}
++
++// FsconfigSetString is equivalent to fsconfig(2) called
++// with cmd == FSCONFIG_SET_STRING.
++//
++// fd is the filesystem context to act upon.
++// key the parameter key to set.
++// value is the parameter value to set.
++func FsconfigSetString(fd int, key string, value string) (err error) {
++	var valuep *byte
++	if valuep, err = BytePtrFromString(value); err != nil {
++		return
++	}
++	return fsconfigCommon(fd, FSCONFIG_SET_STRING, key, valuep, 0)
++}
++
++// FsconfigSetBinary is equivalent to fsconfig(2) called
++// with cmd == FSCONFIG_SET_BINARY.
++//
++// fd is the filesystem context to act upon.
++// key the parameter key to set.
++// value is the parameter value to set.
++func FsconfigSetBinary(fd int, key string, value []byte) (err error) {
++	if len(value) == 0 {
++		return EINVAL
++	}
++	return fsconfigCommon(fd, FSCONFIG_SET_BINARY, key, &value[0], len(value))
++}
++
++// FsconfigSetPath is equivalent to fsconfig(2) called
++// with cmd == FSCONFIG_SET_PATH.
++//
++// fd is the filesystem context to act upon.
++// key the parameter key to set.
++// path is a non-empty path for specified key.
++// atfd is a file descriptor at which to start lookup from or AT_FDCWD.
++func FsconfigSetPath(fd int, key string, path string, atfd int) (err error) {
++	var valuep *byte
++	if valuep, err = BytePtrFromString(path); err != nil {
++		return
++	}
++	return fsconfigCommon(fd, FSCONFIG_SET_PATH, key, valuep, atfd)
++}
++
++// FsconfigSetPathEmpty is equivalent to fsconfig(2) called
++// with cmd == FSCONFIG_SET_PATH_EMPTY. The same as
++// FconfigSetPath but with AT_PATH_EMPTY implied.
++func FsconfigSetPathEmpty(fd int, key string, path string, atfd int) (err error) {
++	var valuep *byte
++	if valuep, err = BytePtrFromString(path); err != nil {
++		return
++	}
++	return fsconfigCommon(fd, FSCONFIG_SET_PATH_EMPTY, key, valuep, atfd)
++}
++
++// FsconfigSetFd is equivalent to fsconfig(2) called
++// with cmd == FSCONFIG_SET_FD.
++//
++// fd is the filesystem context to act upon.
++// key the parameter key to set.
++// value is a file descriptor to be assigned to specified key.
++func FsconfigSetFd(fd int, key string, value int) (err error) {
++	return fsconfigCommon(fd, FSCONFIG_SET_FD, key, nil, value)
++}
++
++// FsconfigCreate is equivalent to fsconfig(2) called
++// with cmd == FSCONFIG_CMD_CREATE.
++//
++// fd is the filesystem context to act upon.
++func FsconfigCreate(fd int) (err error) {
++	return fsconfig(fd, FSCONFIG_CMD_CREATE, nil, nil, 0)
++}
++
++// FsconfigReconfigure is equivalent to fsconfig(2) called
++// with cmd == FSCONFIG_CMD_RECONFIGURE.
++//
++// fd is the filesystem context to act upon.
++func FsconfigReconfigure(fd int) (err error) {
++	return fsconfig(fd, FSCONFIG_CMD_RECONFIGURE, nil, nil, 0)
++}
++
+ //sys	Getdents(fd int, buf []byte) (n int, err error) = SYS_GETDENTS64
+ //sysnb	Getpgid(pid int) (pgid int, err error)
+ 
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux.go b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux.go
+index 1488d27128..87d8612a1d 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux.go
+@@ -906,6 +906,16 @@ func Fspick(dirfd int, pathName string, flags int) (fd int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func fsconfig(fd int, cmd uint, key *byte, value *byte, aux int) (err error) {
++	_, _, e1 := Syscall6(SYS_FSCONFIG, uintptr(fd), uintptr(cmd), uintptr(unsafe.Pointer(key)), uintptr(unsafe.Pointer(value)), uintptr(aux), 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func Getdents(fd int, buf []byte) (n int, err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(buf) > 0 {
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux.go b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux.go
+index dc0c955eec..eff6bcdef8 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux.go
+@@ -836,6 +836,15 @@ const (
+ 	FSPICK_EMPTY_PATH       = 0x8
+ 
+ 	FSMOUNT_CLOEXEC = 0x1
++
++	FSCONFIG_SET_FLAG        = 0x0
++	FSCONFIG_SET_STRING      = 0x1
++	FSCONFIG_SET_BINARY      = 0x2
++	FSCONFIG_SET_PATH        = 0x3
++	FSCONFIG_SET_PATH_EMPTY  = 0x4
++	FSCONFIG_SET_FD          = 0x5
++	FSCONFIG_CMD_CREATE      = 0x6
++	FSCONFIG_CMD_RECONFIGURE = 0x7
+ )
+ 
+ type OpenHow struct {
+@@ -1550,6 +1559,7 @@ const (
+ 	IFLA_DEVLINK_PORT                          = 0x3e
+ 	IFLA_GSO_IPV4_MAX_SIZE                     = 0x3f
+ 	IFLA_GRO_IPV4_MAX_SIZE                     = 0x40
++	IFLA_DPLL_PIN                              = 0x41
+ 	IFLA_PROTO_DOWN_REASON_UNSPEC              = 0x0
+ 	IFLA_PROTO_DOWN_REASON_MASK                = 0x1
+ 	IFLA_PROTO_DOWN_REASON_VALUE               = 0x2
+@@ -1565,6 +1575,7 @@ const (
+ 	IFLA_INET6_ICMP6STATS                      = 0x6
+ 	IFLA_INET6_TOKEN                           = 0x7
+ 	IFLA_INET6_ADDR_GEN_MODE                   = 0x8
++	IFLA_INET6_RA_MTU                          = 0x9
+ 	IFLA_BR_UNSPEC                             = 0x0
+ 	IFLA_BR_FORWARD_DELAY                      = 0x1
+ 	IFLA_BR_HELLO_TIME                         = 0x2
+@@ -1612,6 +1623,9 @@ const (
+ 	IFLA_BR_MCAST_MLD_VERSION                  = 0x2c
+ 	IFLA_BR_VLAN_STATS_PER_PORT                = 0x2d
+ 	IFLA_BR_MULTI_BOOLOPT                      = 0x2e
++	IFLA_BR_MCAST_QUERIER_STATE                = 0x2f
++	IFLA_BR_FDB_N_LEARNED                      = 0x30
++	IFLA_BR_FDB_MAX_LEARNED                    = 0x31
+ 	IFLA_BRPORT_UNSPEC                         = 0x0
+ 	IFLA_BRPORT_STATE                          = 0x1
+ 	IFLA_BRPORT_PRIORITY                       = 0x2
+@@ -1649,6 +1663,14 @@ const (
+ 	IFLA_BRPORT_BACKUP_PORT                    = 0x22
+ 	IFLA_BRPORT_MRP_RING_OPEN                  = 0x23
+ 	IFLA_BRPORT_MRP_IN_OPEN                    = 0x24
++	IFLA_BRPORT_MCAST_EHT_HOSTS_LIMIT          = 0x25
++	IFLA_BRPORT_MCAST_EHT_HOSTS_CNT            = 0x26
++	IFLA_BRPORT_LOCKED                         = 0x27
++	IFLA_BRPORT_MAB                            = 0x28
++	IFLA_BRPORT_MCAST_N_GROUPS                 = 0x29
++	IFLA_BRPORT_MCAST_MAX_GROUPS               = 0x2a
++	IFLA_BRPORT_NEIGH_VLAN_SUPPRESS            = 0x2b
++	IFLA_BRPORT_BACKUP_NHID                    = 0x2c
+ 	IFLA_INFO_UNSPEC                           = 0x0
+ 	IFLA_INFO_KIND                             = 0x1
+ 	IFLA_INFO_DATA                             = 0x2
+@@ -1670,6 +1692,9 @@ const (
+ 	IFLA_MACVLAN_MACADDR                       = 0x4
+ 	IFLA_MACVLAN_MACADDR_DATA                  = 0x5
+ 	IFLA_MACVLAN_MACADDR_COUNT                 = 0x6
++	IFLA_MACVLAN_BC_QUEUE_LEN                  = 0x7
++	IFLA_MACVLAN_BC_QUEUE_LEN_USED             = 0x8
++	IFLA_MACVLAN_BC_CUTOFF                     = 0x9
+ 	IFLA_VRF_UNSPEC                            = 0x0
+ 	IFLA_VRF_TABLE                             = 0x1
+ 	IFLA_VRF_PORT_UNSPEC                       = 0x0
+@@ -1693,9 +1718,22 @@ const (
+ 	IFLA_XFRM_UNSPEC                           = 0x0
+ 	IFLA_XFRM_LINK                             = 0x1
+ 	IFLA_XFRM_IF_ID                            = 0x2
++	IFLA_XFRM_COLLECT_METADATA                 = 0x3
+ 	IFLA_IPVLAN_UNSPEC                         = 0x0
+ 	IFLA_IPVLAN_MODE                           = 0x1
+ 	IFLA_IPVLAN_FLAGS                          = 0x2
++	NETKIT_NEXT                                = -0x1
++	NETKIT_PASS                                = 0x0
++	NETKIT_DROP                                = 0x2
++	NETKIT_REDIRECT                            = 0x7
++	NETKIT_L2                                  = 0x0
++	NETKIT_L3                                  = 0x1
++	IFLA_NETKIT_UNSPEC                         = 0x0
++	IFLA_NETKIT_PEER_INFO                      = 0x1
++	IFLA_NETKIT_PRIMARY                        = 0x2
++	IFLA_NETKIT_POLICY                         = 0x3
++	IFLA_NETKIT_PEER_POLICY                    = 0x4
++	IFLA_NETKIT_MODE                           = 0x5
+ 	IFLA_VXLAN_UNSPEC                          = 0x0
+ 	IFLA_VXLAN_ID                              = 0x1
+ 	IFLA_VXLAN_GROUP                           = 0x2
+@@ -1726,6 +1764,8 @@ const (
+ 	IFLA_VXLAN_GPE                             = 0x1b
+ 	IFLA_VXLAN_TTL_INHERIT                     = 0x1c
+ 	IFLA_VXLAN_DF                              = 0x1d
++	IFLA_VXLAN_VNIFILTER                       = 0x1e
++	IFLA_VXLAN_LOCALBYPASS                     = 0x1f
+ 	IFLA_GENEVE_UNSPEC                         = 0x0
+ 	IFLA_GENEVE_ID                             = 0x1
+ 	IFLA_GENEVE_REMOTE                         = 0x2
+@@ -1740,6 +1780,7 @@ const (
+ 	IFLA_GENEVE_LABEL                          = 0xb
+ 	IFLA_GENEVE_TTL_INHERIT                    = 0xc
+ 	IFLA_GENEVE_DF                             = 0xd
++	IFLA_GENEVE_INNER_PROTO_INHERIT            = 0xe
+ 	IFLA_BAREUDP_UNSPEC                        = 0x0
+ 	IFLA_BAREUDP_PORT                          = 0x1
+ 	IFLA_BAREUDP_ETHERTYPE                     = 0x2
+@@ -1752,6 +1793,8 @@ const (
+ 	IFLA_GTP_FD1                               = 0x2
+ 	IFLA_GTP_PDP_HASHSIZE                      = 0x3
+ 	IFLA_GTP_ROLE                              = 0x4
++	IFLA_GTP_CREATE_SOCKETS                    = 0x5
++	IFLA_GTP_RESTART_COUNT                     = 0x6
+ 	IFLA_BOND_UNSPEC                           = 0x0
+ 	IFLA_BOND_MODE                             = 0x1
+ 	IFLA_BOND_ACTIVE_SLAVE                     = 0x2
+@@ -1781,6 +1824,9 @@ const (
+ 	IFLA_BOND_AD_ACTOR_SYSTEM                  = 0x1a
+ 	IFLA_BOND_TLB_DYNAMIC_LB                   = 0x1b
+ 	IFLA_BOND_PEER_NOTIF_DELAY                 = 0x1c
++	IFLA_BOND_AD_LACP_ACTIVE                   = 0x1d
++	IFLA_BOND_MISSED_MAX                       = 0x1e
++	IFLA_BOND_NS_IP6_TARGET                    = 0x1f
+ 	IFLA_BOND_AD_INFO_UNSPEC                   = 0x0
+ 	IFLA_BOND_AD_INFO_AGGREGATOR               = 0x1
+ 	IFLA_BOND_AD_INFO_NUM_PORTS                = 0x2
+@@ -1796,6 +1842,7 @@ const (
+ 	IFLA_BOND_SLAVE_AD_AGGREGATOR_ID           = 0x6
+ 	IFLA_BOND_SLAVE_AD_ACTOR_OPER_PORT_STATE   = 0x7
+ 	IFLA_BOND_SLAVE_AD_PARTNER_OPER_PORT_STATE = 0x8
++	IFLA_BOND_SLAVE_PRIO                       = 0x9
+ 	IFLA_VF_INFO_UNSPEC                        = 0x0
+ 	IFLA_VF_INFO                               = 0x1
+ 	IFLA_VF_UNSPEC                             = 0x0
+@@ -1854,8 +1901,16 @@ const (
+ 	IFLA_STATS_LINK_XSTATS_SLAVE               = 0x3
+ 	IFLA_STATS_LINK_OFFLOAD_XSTATS             = 0x4
+ 	IFLA_STATS_AF_SPEC                         = 0x5
++	IFLA_STATS_GETSET_UNSPEC                   = 0x0
++	IFLA_STATS_GET_FILTERS                     = 0x1
++	IFLA_STATS_SET_OFFLOAD_XSTATS_L3_STATS     = 0x2
+ 	IFLA_OFFLOAD_XSTATS_UNSPEC                 = 0x0
+ 	IFLA_OFFLOAD_XSTATS_CPU_HIT                = 0x1
++	IFLA_OFFLOAD_XSTATS_HW_S_INFO              = 0x2
++	IFLA_OFFLOAD_XSTATS_L3_STATS               = 0x3
++	IFLA_OFFLOAD_XSTATS_HW_S_INFO_UNSPEC       = 0x0
++	IFLA_OFFLOAD_XSTATS_HW_S_INFO_REQUEST      = 0x1
++	IFLA_OFFLOAD_XSTATS_HW_S_INFO_USED         = 0x2
+ 	IFLA_XDP_UNSPEC                            = 0x0
+ 	IFLA_XDP_FD                                = 0x1
+ 	IFLA_XDP_ATTACHED                          = 0x2
+@@ -1885,6 +1940,11 @@ const (
+ 	IFLA_RMNET_UNSPEC                          = 0x0
+ 	IFLA_RMNET_MUX_ID                          = 0x1
+ 	IFLA_RMNET_FLAGS                           = 0x2
++	IFLA_MCTP_UNSPEC                           = 0x0
++	IFLA_MCTP_NET                              = 0x1
++	IFLA_DSA_UNSPEC                            = 0x0
++	IFLA_DSA_CONDUIT                           = 0x1
++	IFLA_DSA_MASTER                            = 0x1
+ )
+ 
+ const (
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index 6f3b61d878..4123757c5a 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -40,7 +40,7 @@ golang.org/x/mod/zip
+ ## explicit; go 1.18
+ golang.org/x/sync/errgroup
+ golang.org/x/sync/semaphore
+-# golang.org/x/sys v0.17.0
++# golang.org/x/sys v0.18.0
+ ## explicit; go 1.18
+ golang.org/x/sys/plan9
+ golang.org/x/sys/unix
+diff --git a/src/go.mod b/src/go.mod
+index cde7f6998b..01f826f5a1 100644
+--- a/src/go.mod
++++ b/src/go.mod
+@@ -8,6 +8,6 @@ require (
+ )
+ 
+ require (
+-	golang.org/x/sys v0.17.0 // indirect
++	golang.org/x/sys v0.18.0 // indirect
+ 	golang.org/x/text v0.14.0 // indirect
+ )
+diff --git a/src/go.sum b/src/go.sum
+index 0031e51469..b2a1bcc341 100644
+--- a/src/go.sum
++++ b/src/go.sum
+@@ -2,7 +2,7 @@ golang.org/x/crypto v0.18.0 h1:PGVlW0xEltQnzFZ55hkuX5+KLyrMYhHld1YHO4AKcdc=
+ golang.org/x/crypto v0.18.0/go.mod h1:R0j02AL6hcrfOiy9T4ZYp/rcWeMxM3L6QYxlOuEG1mg=
+ golang.org/x/net v0.20.1-0.20240110153537-07e05fd6e95a h1:VHlux4LIHGkrTO1cETOIekMY3h7UnpTakEdoxS/+o28=
+ golang.org/x/net v0.20.1-0.20240110153537-07e05fd6e95a/go.mod h1:z8BVo6PvndSri0LbOE3hAn0apkU+1YvI6E70E9jsnvY=
+-golang.org/x/sys v0.17.0 h1:25cE3gD+tdBA7lp7QfhuV+rJiE9YXTcS3VG1SqssI/Y=
+-golang.org/x/sys v0.17.0/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=
++golang.org/x/sys v0.18.0 h1:DBdB3niSjOA/O0blCZBqDefyWNYveAYMNF1Wum0DYQ4=
++golang.org/x/sys v0.18.0/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=
+ golang.org/x/text v0.14.0 h1:ScX5w1eTa3QqT8oi6+ziP7dTV1S2+ALU0bI+0zXKWiQ=
+ golang.org/x/text v0.14.0/go.mod h1:18ZOQIKpY8NJVqYksKHtTdi31H5itFRjB5/qKTNYzSU=
+diff --git a/src/vendor/modules.txt b/src/vendor/modules.txt
+index ed7a2b3bd8..9e3b5b1554 100644
+--- a/src/vendor/modules.txt
++++ b/src/vendor/modules.txt
+@@ -17,7 +17,7 @@ golang.org/x/net/idna
+ golang.org/x/net/lif
+ golang.org/x/net/nettest
+ golang.org/x/net/route
+-# golang.org/x/sys v0.17.0
++# golang.org/x/sys v0.18.0
+ ## explicit; go 1.18
+ golang.org/x/sys/cpu
+ # golang.org/x/text v0.14.0

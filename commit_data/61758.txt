@@ -13,6 +13,19 @@ Date:   Thu Nov 21 13:09:20 2024 -0800
     Reviewed-by: Tim King <taking@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/internal/copyright/copyright_test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/internal/copyright/copyright_test.go b/src/internal/copyright/copyright_test.go
+index dbaefa92dd..fa33a944b0 100644
+--- a/src/internal/copyright/copyright_test.go
++++ b/src/internal/copyright/copyright_test.go
+@@ -49,6 +49,7 @@ func TestCopyright(t *testing.T) {
+ 			t.Error(err)
+ 			return nil
+ 		}
++		defer f.Close()
+ 		n, err := f.Read(buf)
+ 		if err != nil && err != io.EOF {
+ 			t.Error(err)

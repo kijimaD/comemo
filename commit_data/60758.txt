@@ -14,6 +14,39 @@ Date:   Thu Aug 22 09:50:08 2024 -0500
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/crypto/aes/gcm_ppc64x.go | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/src/crypto/aes/gcm_ppc64x.go b/src/crypto/aes/gcm_ppc64x.go
+index f1e85129a8..e3fa48ed8d 100644
+--- a/src/crypto/aes/gcm_ppc64x.go
++++ b/src/crypto/aes/gcm_ppc64x.go
+@@ -8,6 +8,7 @@ package aes
+ 
+ import (
+ 	"crypto/cipher"
++	"crypto/internal/alias"
+ 	"crypto/subtle"
+ 	"errors"
+ 	"internal/byteorder"
+@@ -171,6 +172,9 @@ func (g *gcmAsm) Seal(dst, nonce, plaintext, data []byte) []byte {
+ 	}
+ 
+ 	ret, out := sliceForAppend(dst, len(plaintext)+g.tagSize)
++	if alias.InexactOverlap(out[:len(plaintext)], plaintext) {
++		panic("crypto/cipher: invalid buffer overlap")
++	}
+ 
+ 	var counter, tagMask [gcmBlockSize]byte
+ 	g.deriveCounter(&counter, nonce)
+@@ -210,6 +214,9 @@ func (g *gcmAsm) Open(dst, nonce, ciphertext, data []byte) ([]byte, error) {
+ 	g.auth(expectedTag[:], ciphertext, data, &tagMask)
+ 
+ 	ret, out := sliceForAppend(dst, len(ciphertext))
++	if alias.InexactOverlap(out, ciphertext) {
++		panic("crypto/cipher: invalid buffer overlap")
++	}
+ 
+ 	if subtle.ConstantTimeCompare(expectedTag[:g.tagSize], tag) != 1 {
+ 		clear(out)

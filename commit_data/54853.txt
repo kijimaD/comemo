@@ -10,6 +10,25 @@ Date:   Thu Nov 17 13:27:57 2022 +0100
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-
+---
  src/internal/profile/proto.go | 7 -------
  1 file changed, 7 deletions(-)
+
+diff --git a/src/internal/profile/proto.go b/src/internal/profile/proto.go
+index 3e9ec37253..58ff0ad2e0 100644
+--- a/src/internal/profile/proto.go
++++ b/src/internal/profile/proto.go
+@@ -136,13 +136,6 @@ func encodeStrings(b *buffer, tag int, x []string) {
+ 	}
+ }
+ 
+-func encodeStringOpt(b *buffer, tag int, x string) {
+-	if x == "" {
+-		return
+-	}
+-	encodeString(b, tag, x)
+-}
+-
+ func encodeBool(b *buffer, tag int, x bool) {
+ 	if x {
+ 		encodeUint64(b, tag, 1)

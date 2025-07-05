@@ -28,7 +28,7 @@ Date:   Tue May 9 23:25:50 2023 +0000
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Auto-Submit: Bryan Mills <bcmills@google.com>
     Run-TryBot: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/modload/buildlist.go           |  8 ++---
  src/cmd/go/internal/modload/import.go              |  4 +--
  src/cmd/go/internal/modload/init.go                |  5 +++-
@@ -37,3 +37,196 @@ Date:   Tue May 9 23:25:50 2023 +0000
  src/cmd/go/internal/modload/vendor.go              |  4 +--
  src/cmd/go/testdata/script/work_reject_modfile.txt | 34 ++++++++++++++++++++++
  7 files changed, 51 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/buildlist.go b/src/cmd/go/internal/modload/buildlist.go
+index 046743b59e..1b4d6b99d0 100644
+--- a/src/cmd/go/internal/modload/buildlist.go
++++ b/src/cmd/go/internal/modload/buildlist.go
+@@ -42,7 +42,7 @@ type Requirements struct {
+ 
+ 	// rootModules is the set of root modules of the graph, sorted and capped to
+ 	// length. It may contain duplicates, and may contain multiple versions for a
+-	// given module path. The root modules of the groph are the set of main
++	// given module path. The root modules of the graph are the set of main
+ 	// modules in workspace mode, and the main module's direct requirements
+ 	// outside workspace mode.
+ 	rootModules    []module.Version
+@@ -789,7 +789,7 @@ func tidyPrunedRoots(ctx context.Context, mainModule module.Version, direct map[
+ //     to the build is required by either the main module or one of the modules
+ //     it requires explicitly. This invariant is left up to the caller, who must
+ //     not load packages from outside the module graph but may add roots to the
+-//     graph, but is facilited by (3). If the caller adds roots to the graph in
++//     graph, but is facilitated by (3). If the caller adds roots to the graph in
+ //     order to resolve missing packages, then updatePrunedRoots will retain them,
+ //     the selected versions of those roots cannot regress, and they will
+ //     eventually be written back to the main module's go.mod file.
+@@ -1258,12 +1258,12 @@ func convertPruning(ctx context.Context, rs *Requirements, pruning modPruning) (
+ 	if rs.pruning == pruning {
+ 		return rs, nil
+ 	} else if rs.pruning == workspace || pruning == workspace {
+-		panic("attempthing to convert to/from workspace pruning and another pruning type")
++		panic("attempting to convert to/from workspace pruning and another pruning type")
+ 	}
+ 
+ 	if pruning == unpruned {
+ 		// We are converting a pruned module to an unpruned one. The roots of a
+-		// ppruned module graph are a superset of the roots of an unpruned one, so
++		// pruned module graph are a superset of the roots of an unpruned one, so
+ 		// we don't need to add any new roots — we just need to drop the ones that
+ 		// are redundant, which is exactly what updateUnprunedRoots does.
+ 		return updateUnprunedRoots(ctx, rs.direct, rs, nil)
+diff --git a/src/cmd/go/internal/modload/import.go b/src/cmd/go/internal/modload/import.go
+index 843fa2c084..86091ea34a 100644
+--- a/src/cmd/go/internal/modload/import.go
++++ b/src/cmd/go/internal/modload/import.go
+@@ -164,7 +164,7 @@ func (e *DirectImportFromImplicitDependencyError) ImportPath() string {
+ // We might need sums for multiple modules to verify the package is unique.
+ //
+ // TODO(#43653): consolidate multiple errors of this type into a single error
+-// that suggests a 'go get' command for root packages that transtively import
++// that suggests a 'go get' command for root packages that transitively import
+ // packages from modules with missing sums. load.CheckPackageErrors would be
+ // a good place to consolidate errors, but we'll need to attach the import
+ // stack here.
+@@ -581,7 +581,7 @@ func queryImport(ctx context.Context, path string, rs *Requirements) (module.Ver
+ 
+ 	// Look up module containing the package, for addition to the build list.
+ 	// Goal is to determine the module, download it to dir,
+-	// and return m, dir, ImpportMissingError.
++	// and return m, dir, ImportMissingError.
+ 	fmt.Fprintf(os.Stderr, "go: finding module for package %s\n", path)
+ 
+ 	mg, err := rs.Graph(ctx)
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index bb458b791e..6f50d667e9 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -62,7 +62,7 @@ var (
+ 	initialized bool
+ 
+ 	// These are primarily used to initialize the MainModules, and should be
+-	// eventually superceded by them but are still used in cases where the module
++	// eventually superseded by them but are still used in cases where the module
+ 	// roots are required but MainModules hasn't been initialized yet. Set to
+ 	// the modRoots of the main modules.
+ 	// modRoots != nil implies len(modRoots) > 0
+@@ -390,6 +390,9 @@ func Init() {
+ 		modRoots = nil
+ 	} else if workFilePath != "" {
+ 		// We're in workspace mode, which implies module mode.
++		if cfg.ModFile != "" {
++			base.Fatalf("go: -modfile cannot be used in workspace mode")
++		}
+ 	} else {
+ 		if modRoot := findModuleRoot(base.Cwd()); modRoot == "" {
+ 			if cfg.ModFile != "" {
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index 9b6a81dd7c..1251b56c86 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -149,7 +149,7 @@ type PackageOpts struct {
+ 	Tags map[string]bool
+ 
+ 	// Tidy, if true, requests that the build list and go.sum file be reduced to
+-	// the minimial dependencies needed to reproducibly reload the requested
++	// the minimal dependencies needed to reproducibly reload the requested
+ 	// packages.
+ 	Tidy bool
+ 
+@@ -2006,7 +2006,7 @@ func (ld *loader) checkTidyCompatibility(ctx context.Context, rs *Requirements)
+ 
+ 		if pkg.isTest() {
+ 			// We already did (or will) report an error for the package itself,
+-			// so don't report a duplicate (and more vebose) error for its test.
++			// so don't report a duplicate (and more verbose) error for its test.
+ 			if _, ok := mismatches[pkg.testOf]; !ok {
+ 				base.Fatalf("go: internal error: mismatch recorded for test %s, but not its non-test package", pkg.path)
+ 			}
+diff --git a/src/cmd/go/internal/modload/query.go b/src/cmd/go/internal/modload/query.go
+index 4affdc0374..7747ac7400 100644
+--- a/src/cmd/go/internal/modload/query.go
++++ b/src/cmd/go/internal/modload/query.go
+@@ -117,7 +117,7 @@ func checkReuse(ctx context.Context, path string, old *codehost.Origin) error {
+ // version. Any other error indicates the function was unable to determine
+ // whether the version should be allowed, for example, the function was unable
+ // to fetch or parse a go.mod file containing retractions. Typically, errors
+-// other than ErrDisallowd may be ignored.
++// other than ErrDisallowed may be ignored.
+ type AllowedFunc func(context.Context, module.Version) error
+ 
+ var errQueryDisabled error = queryDisabledError{}
+@@ -521,7 +521,7 @@ func (qm *queryMatcher) filterVersions(ctx context.Context, versions []string) (
+ 		}
+ 
+ 		if !needIncompatible {
+-			// We're not yet sure whether we need to include +incomptaible versions.
++			// We're not yet sure whether we need to include +incompatible versions.
+ 			// Keep track of the last compatible version we've seen, and use the
+ 			// presence (or absence) of a go.mod file in that version to decide: a
+ 			// go.mod file implies that the module author is supporting modules at a
+@@ -1018,7 +1018,7 @@ func (e *PackageNotInModuleError) ImportPath() string {
+ // 1.12 at least have a go directive.
+ //
+ // This function is a heuristic, since it's possible to commit a file that would
+-// pass this test. However, we only need a heurstic for determining whether
++// pass this test. However, we only need a heuristic for determining whether
+ // +incompatible versions may be "latest", which is what this function is used
+ // for.
+ //
+diff --git a/src/cmd/go/internal/modload/vendor.go b/src/cmd/go/internal/modload/vendor.go
+index e3690495cd..fea21e3285 100644
+--- a/src/cmd/go/internal/modload/vendor.go
++++ b/src/cmd/go/internal/modload/vendor.go
+@@ -98,10 +98,10 @@ func readVendorList(mainModule module.Version) {
+ 				continue
+ 			}
+ 
+-			if annonations, ok := strings.CutPrefix(line, "## "); ok {
++			if annotations, ok := strings.CutPrefix(line, "## "); ok {
+ 				// Metadata. Take the union of annotations across multiple lines, if present.
+ 				meta := vendorMeta[mod]
+-				for _, entry := range strings.Split(annonations, ";") {
++				for _, entry := range strings.Split(annotations, ";") {
+ 					entry = strings.TrimSpace(entry)
+ 					if entry == "explicit" {
+ 						meta.Explicit = true
+diff --git a/src/cmd/go/testdata/script/work_reject_modfile.txt b/src/cmd/go/testdata/script/work_reject_modfile.txt
+new file mode 100644
+index 0000000000..f0cfa3bea0
+--- /dev/null
++++ b/src/cmd/go/testdata/script/work_reject_modfile.txt
+@@ -0,0 +1,34 @@
++# Test that -modfile=path/to/go.mod is rejected in workspace mode.
++
++! go list -m -modfile=./a/go.alt.mod
++stderr 'go: -modfile cannot be used in workspace mode'
++
++env GOFLAGS=-modfile=./a/go.alt.mod
++! go list -m
++stderr 'go: -modfile cannot be used in workspace mode'
++
++-- go.work --
++go 1.20
++
++use (
++    ./a
++)
++
++-- a/go.mod --
++module example.com/foo
++
++go 1.20
++
++-- a/go.alt.mod --
++module example.com/foo
++
++go 1.20
++
++-- a/main.go --
++package main
++
++import "fmt"
++
++func main() {
++	fmt.Println("Hello world!")
++}

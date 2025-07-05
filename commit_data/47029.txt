@@ -15,6 +15,21 @@ Date:   Sat Feb 20 11:25:15 2021 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/syscall/ptrace_ios.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/syscall/ptrace_ios.go b/src/syscall/ptrace_ios.go
+index 2f61a88a08..5209d1e0dd 100644
+--- a/src/syscall/ptrace_ios.go
++++ b/src/syscall/ptrace_ios.go
+@@ -2,6 +2,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build ios
++// +build ios
++
+ package syscall
+ 
+ // Nosplit because it is called from forkAndExecInChild.

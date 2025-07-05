@@ -11,6 +11,20 @@ Date:   Mon Nov 14 09:04:38 2022 -0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Joedian Reid <joedian@golang.org>
-
+---
  src/database/sql/sql.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/database/sql/sql.go b/src/database/sql/sql.go
+index 3fbafd64f7..ad17eb3da2 100644
+--- a/src/database/sql/sql.go
++++ b/src/database/sql/sql.go
+@@ -3228,7 +3228,7 @@ func rowsColumnInfoSetupConnLocked(rowsi driver.Rows) []*ColumnType {
+ // select query will close any cursor *Rows if the parent *Rows is closed.
+ //
+ // If any of the first arguments implementing Scanner returns an error,
+-// that error will be wrapped in the returned error
++// that error will be wrapped in the returned error.
+ func (rs *Rows) Scan(dest ...any) error {
+ 	rs.closemu.RLock()
+ 

@@ -20,9 +20,181 @@ Date:   Thu Feb 24 19:23:17 2022 -0800
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/archive/zip/reader.go                |  32 ++++++++++++++++++++-----------
  src/archive/zip/reader_test.go           |  22 +++++++++++++++++++--
  src/archive/zip/testdata/readme.notzip   | Bin 1906 -> 1906 bytes
  src/archive/zip/testdata/test-prefix.zip | Bin 0 -> 1227 bytes
  4 files changed, 41 insertions(+), 13 deletions(-)
+
+diff --git a/src/archive/zip/reader.go b/src/archive/zip/reader.go
+index 19a9c3b2db..d875c7be25 100644
+--- a/src/archive/zip/reader.go
++++ b/src/archive/zip/reader.go
+@@ -33,6 +33,10 @@ type Reader struct {
+ 	Comment       string
+ 	decompressors map[uint16]Decompressor
+ 
++	// Some JAR files are zip files with a prefix that is a bash script.
++	// The baseOffset field is the start of the zip file proper.
++	baseOffset int64
++
+ 	// fileList is a list of files sorted by ename,
+ 	// for use by the Open method.
+ 	fileListOnce sync.Once
+@@ -52,7 +56,7 @@ type File struct {
+ 	FileHeader
+ 	zip          *Reader
+ 	zipr         io.ReaderAt
+-	headerOffset int64
++	headerOffset int64 // includes overall ZIP archive baseOffset
+ 	zip64        bool // zip64 extended information extra field presence
+ }
+ 
+@@ -90,11 +94,12 @@ func NewReader(r io.ReaderAt, size int64) (*Reader, error) {
+ }
+ 
+ func (z *Reader) init(r io.ReaderAt, size int64) error {
+-	end, err := readDirectoryEnd(r, size)
++	end, baseOffset, err := readDirectoryEnd(r, size)
+ 	if err != nil {
+ 		return err
+ 	}
+ 	z.r = r
++	z.baseOffset = baseOffset
+ 	// Since the number of directory records is not validated, it is not
+ 	// safe to preallocate z.File without first checking that the specified
+ 	// number of files is reasonable, since a malformed archive may
+@@ -106,7 +111,7 @@ func (z *Reader) init(r io.ReaderAt, size int64) error {
+ 	}
+ 	z.Comment = end.comment
+ 	rs := io.NewSectionReader(r, 0, size)
+-	if _, err = rs.Seek(int64(end.directoryOffset), io.SeekStart); err != nil {
++	if _, err = rs.Seek(z.baseOffset+int64(end.directoryOffset), io.SeekStart); err != nil {
+ 		return err
+ 	}
+ 	buf := bufio.NewReader(rs)
+@@ -124,6 +129,7 @@ func (z *Reader) init(r io.ReaderAt, size int64) error {
+ 		if err != nil {
+ 			return err
+ 		}
++		f.headerOffset += z.baseOffset
+ 		z.File = append(z.File, f)
+ 	}
+ 	if uint16(len(z.File)) != uint16(end.directoryRecords) { // only compare 16 bits here
+@@ -494,7 +500,7 @@ func readDataDescriptor(r io.Reader, f *File) error {
+ 	return nil
+ }
+ 
+-func readDirectoryEnd(r io.ReaderAt, size int64) (dir *directoryEnd, err error) {
++func readDirectoryEnd(r io.ReaderAt, size int64) (dir *directoryEnd, baseOffset int64, err error) {
+ 	// look for directoryEndSignature in the last 1k, then in the last 65k
+ 	var buf []byte
+ 	var directoryEndOffset int64
+@@ -504,7 +510,7 @@ func readDirectoryEnd(r io.ReaderAt, size int64) (dir *directoryEnd, err error)
+ 		}
+ 		buf = make([]byte, int(bLen))
+ 		if _, err := r.ReadAt(buf, size-bLen); err != nil && err != io.EOF {
+-			return nil, err
++			return nil, 0, err
+ 		}
+ 		if p := findSignatureInBlock(buf); p >= 0 {
+ 			buf = buf[p:]
+@@ -512,7 +518,7 @@ func readDirectoryEnd(r io.ReaderAt, size int64) (dir *directoryEnd, err error)
+ 			break
+ 		}
+ 		if i == 1 || bLen == size {
+-			return nil, ErrFormat
++			return nil, 0, ErrFormat
+ 		}
+ 	}
+ 
+@@ -529,7 +535,7 @@ func readDirectoryEnd(r io.ReaderAt, size int64) (dir *directoryEnd, err error)
+ 	}
+ 	l := int(d.commentLen)
+ 	if l > len(b) {
+-		return nil, errors.New("zip: invalid comment length")
++		return nil, 0, errors.New("zip: invalid comment length")
+ 	}
+ 	d.comment = string(b[:l])
+ 
+@@ -537,17 +543,21 @@ func readDirectoryEnd(r io.ReaderAt, size int64) (dir *directoryEnd, err error)
+ 	if d.directoryRecords == 0xffff || d.directorySize == 0xffff || d.directoryOffset == 0xffffffff {
+ 		p, err := findDirectory64End(r, directoryEndOffset)
+ 		if err == nil && p >= 0 {
++			directoryEndOffset = p
+ 			err = readDirectory64End(r, p, d)
+ 		}
+ 		if err != nil {
+-			return nil, err
++			return nil, 0, err
+ 		}
+ 	}
++
++	baseOffset = directoryEndOffset - int64(d.directorySize) - int64(d.directoryOffset)
++
+ 	// Make sure directoryOffset points to somewhere in our file.
+-	if o := int64(d.directoryOffset); o < 0 || o >= size {
+-		return nil, ErrFormat
++	if o := baseOffset + int64(d.directoryOffset); o < 0 || o >= size {
++		return nil, 0, ErrFormat
+ 	}
+-	return d, nil
++	return d, baseOffset, nil
+ }
+ 
+ // findDirectory64End tries to read the zip64 locator just before the
+diff --git a/src/archive/zip/reader_test.go b/src/archive/zip/reader_test.go
+index fd0a171304..4c1e82b9d4 100644
+--- a/src/archive/zip/reader_test.go
++++ b/src/archive/zip/reader_test.go
+@@ -90,6 +90,24 @@ var tests = []ZipTest{
+ 			},
+ 		},
+ 	},
++	{
++		Name:    "test-prefix.zip",
++		Comment: "This is a zipfile comment.",
++		File: []ZipTestFile{
++			{
++				Name:     "test.txt",
++				Content:  []byte("This is a test text file.\n"),
++				Modified: time.Date(2010, 9, 5, 12, 12, 1, 0, timeZone(+10*time.Hour)),
++				Mode:     0644,
++			},
++			{
++				Name:     "gophercolor16x16.png",
++				File:     "gophercolor16x16.png",
++				Modified: time.Date(2010, 9, 5, 15, 52, 58, 0, timeZone(+10*time.Hour)),
++				Mode:     0644,
++			},
++		},
++	},
+ 	{
+ 		Name:   "r.zip",
+ 		Source: returnRecursiveZip,
+@@ -1011,7 +1029,7 @@ func TestIssue10957(t *testing.T) {
+ 		"\x00\x00\x00\x00\x0000000000\x00\x00\x00\x00000" +
+ 		"00000000PK\x01\x0200000000" +
+ 		"0000000000000000\v\x00\x00\x00" +
+-		"\x00\x0000PK\x05\x06000000\x05\x000000" +
++		"\x00\x0000PK\x05\x06000000\x05\x00\xfd\x00\x00\x00" +
+ 		"\v\x00\x00\x00\x00\x00")
+ 	z, err := NewReader(bytes.NewReader(data), int64(len(data)))
+ 	if err != nil {
+@@ -1056,7 +1074,7 @@ func TestIssue11146(t *testing.T) {
+ 		"0000000000000000PK\x01\x02" +
+ 		"0000\b0\b\x00000000000000" +
+ 		"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x000000PK\x05\x06\x00\x00" +
+-		"\x00\x0000\x01\x0000008\x00\x00\x00\x00\x00")
++		"\x00\x0000\x01\x00\x26\x00\x00\x008\x00\x00\x00\x00\x00")
+ 	z, err := NewReader(bytes.NewReader(data), int64(len(data)))
+ 	if err != nil {
+ 		t.Fatal(err)
+diff --git a/src/archive/zip/testdata/readme.notzip b/src/archive/zip/testdata/readme.notzip
+index 81737275c6..79b1cb6de3 100644
+Binary files a/src/archive/zip/testdata/readme.notzip and b/src/archive/zip/testdata/readme.notzip differ
+diff --git a/src/archive/zip/testdata/test-prefix.zip b/src/archive/zip/testdata/test-prefix.zip
+new file mode 100644
+index 0000000000..1eabb4861e
+Binary files /dev/null and b/src/archive/zip/testdata/test-prefix.zip differ

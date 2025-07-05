@@ -7,6 +7,20 @@ Date:   Mon Dec 5 17:28:51 2016 -0800
     Change-Id: I84043b6fe4b20a2514d47217e07e44f26bec52ab
     Reviewed-on: https://go-review.googlesource.com/33973
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/request.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/http/request.go b/src/net/http/request.go
+index 81763007c4..96fa619683 100644
+--- a/src/net/http/request.go
++++ b/src/net/http/request.go
+@@ -171,7 +171,7 @@ type Request struct {
+ 	Body io.ReadCloser
+ 
+ 	// GetBody defines an optional func to return a new copy of
+-	// Body. It used for client requests when a redirect requires
++	// Body. It is used for client requests when a redirect requires
+ 	// reading the body more than once. Use of GetBody still
+ 	// requires setting Body.
+ 	//

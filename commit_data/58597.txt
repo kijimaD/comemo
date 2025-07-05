@@ -21,7 +21,92 @@ Date:   Tue Nov 21 01:02:31 2023 +0000
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Run-TryBot: Cherry Mui <cherryyz@google.com>
-
+---
  .../internal/atomic/atomic_andor_generic.go        |  2 +-
  src/runtime/internal/atomic/atomic_arm.go          | 60 ----------------------
  2 files changed, 1 insertion(+), 61 deletions(-)
+
+diff --git a/src/runtime/internal/atomic/atomic_andor_generic.go b/src/runtime/internal/atomic/atomic_andor_generic.go
+index c790e062c5..57f80ff871 100644
+--- a/src/runtime/internal/atomic/atomic_andor_generic.go
++++ b/src/runtime/internal/atomic/atomic_andor_generic.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build s390x || loong64 || mips || mipsle || mips64 || mips64le
++//go:build arm || s390x || loong64 || mips || mipsle || mips64 || mips64le
+ 
+ package atomic
+ 
+diff --git a/src/runtime/internal/atomic/atomic_arm.go b/src/runtime/internal/atomic/atomic_arm.go
+index ae609cf4db..567e951244 100644
+--- a/src/runtime/internal/atomic/atomic_arm.go
++++ b/src/runtime/internal/atomic/atomic_arm.go
+@@ -208,66 +208,6 @@ func And(addr *uint32, v uint32) {
+ 	}
+ }
+ 
+-//go:nosplit
+-func Or32(addr *uint32, v uint32) uint32 {
+-	for {
+-		old := *addr
+-		if Cas(addr, old, old|v) {
+-			return old
+-		}
+-	}
+-}
+-
+-//go:nosplit
+-func And32(addr *uint32, v uint32) uint32 {
+-	for {
+-		old := *addr
+-		if Cas(addr, old, old&v) {
+-			return old
+-		}
+-	}
+-}
+-
+-//go:nosplit
+-func Or64(addr *uint64, v uint64) uint64 {
+-	for {
+-		old := *addr
+-		if Cas64(addr, old, old|v) {
+-			return old
+-		}
+-	}
+-}
+-
+-//go:nosplit
+-func And64(addr *uint64, v uint64) uint64 {
+-	for {
+-		old := *addr
+-		if Cas64(addr, old, old&v) {
+-			return old
+-		}
+-	}
+-}
+-
+-//go:nosplit
+-func Oruintptr(addr *uintptr, v uintptr) uintptr {
+-	for {
+-		old := *addr
+-		if Casuintptr(addr, old, old|v) {
+-			return old
+-		}
+-	}
+-}
+-
+-//go:nosplit
+-func Anduintptr(addr *uintptr, v uintptr) uintptr {
+-	for {
+-		old := *addr
+-		if Casuintptr(addr, old, old&v) {
+-			return old
+-		}
+-	}
+-}
+-
+ //go:nosplit
+ func armcas(ptr *uint32, old, new uint32) bool
+ 

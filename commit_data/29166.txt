@@ -13,7 +13,65 @@ Date:   Mon Aug 29 16:19:23 2016 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/sizes.go      |  2 +-
  src/go/types/sizes_test.go | 29 +++++++++++++++++++++++++++++
  2 files changed, 30 insertions(+), 1 deletion(-)
+
+diff --git a/src/go/types/sizes.go b/src/go/types/sizes.go
+index 56dfbaccbb..6efd0b1394 100644
+--- a/src/go/types/sizes.go
++++ b/src/go/types/sizes.go
+@@ -167,7 +167,7 @@ func (conf *Config) offsetsof(T *Struct) []int64 {
+ 	if T.NumFields() > 0 {
+ 		// compute offsets on demand
+ 		if s := conf.Sizes; s != nil {
+-			offsets := s.Offsetsof(T.fields)
++			offsets = s.Offsetsof(T.fields)
+ 			// sanity checks
+ 			if len(offsets) != T.NumFields() {
+ 				panic("Config.Sizes.Offsetsof returned the wrong number of offsets")
+diff --git a/src/go/types/sizes_test.go b/src/go/types/sizes_test.go
+index 64a1d991a3..539b4e37c1 100644
+--- a/src/go/types/sizes_test.go
++++ b/src/go/types/sizes_test.go
+@@ -8,6 +8,7 @@ package types_test
+ 
+ import (
+ 	"go/ast"
++	"go/importer"
+ 	"go/parser"
+ 	"go/token"
+ 	"go/types"
+@@ -81,3 +82,31 @@ var s struct {
+ 		t.Errorf("OffsetsOf(%v) = %v want %v", ts, offsets, []int{0, 4})
+ 	}
+ }
++
++func TestIssue16902(t *testing.T) {
++	const src = `
++package a
++
++import "unsafe"
++
++const _ = unsafe.Offsetof(struct{ x int64 }{}.x)
++`
++	fset := token.NewFileSet()
++	f, err := parser.ParseFile(fset, "x.go", src, 0)
++	if err != nil {
++		t.Fatal(err)
++	}
++	info := types.Info{Types: make(map[ast.Expr]types.TypeAndValue)}
++	conf := types.Config{
++		Importer: importer.Default(),
++		Sizes:    &types.StdSizes{WordSize: 8, MaxAlign: 8},
++	}
++	_, err = conf.Check("x", fset, []*ast.File{f}, &info)
++	if err != nil {
++		t.Fatal(err)
++	}
++	for _, tv := range info.Types {
++		_ = conf.Sizes.Sizeof(tv.Type)
++		_ = conf.Sizes.Alignof(tv.Type)
++	}
++}

@@ -19,6 +19,24 @@ Date:   Tue Apr 17 14:56:29 2018 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/main.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 9496fc9a94..fb51ef537c 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -306,10 +306,10 @@ func Main(archInit func(*Arch)) {
+ 		flag_msan = false
+ 	}
+ 	if flag_race {
+-		racepkg = types.NewPkg("runtime/race", "race")
++		racepkg = types.NewPkg("runtime/race", "")
+ 	}
+ 	if flag_msan {
+-		msanpkg = types.NewPkg("runtime/msan", "msan")
++		msanpkg = types.NewPkg("runtime/msan", "")
+ 	}
+ 	if flag_race || flag_msan {
+ 		instrumenting = true

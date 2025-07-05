@@ -12,7 +12,7 @@ Date:   Fri Mar 6 21:18:41 2015 +1100
     Change-Id: I85c7ff9e66cee7122b560adedc995166c874f2f2
     Reviewed-on: https://go-review.googlesource.com/7124
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/internal/gc/closure.go   |  8 ++++----
  src/cmd/internal/gc/esc.go       |  2 +-
  src/cmd/internal/gc/fmt.go       | 24 ++++++++++++------------
@@ -29,3 +29,682 @@ Date:   Fri Mar 6 21:18:41 2015 +1100
  src/cmd/internal/gc/walk.go      | 10 +++++-----
  src/cmd/internal/gc/y.go         | 20 ++++++++++----------
  15 files changed, 77 insertions(+), 77 deletions(-)
+
+diff --git a/src/cmd/internal/gc/closure.go b/src/cmd/internal/gc/closure.go
+index 56b418985b..c29674928c 100644
+--- a/src/cmd/internal/gc/closure.go
++++ b/src/cmd/internal/gc/closure.go
+@@ -402,7 +402,7 @@ func transformclosure(xfunc *Node) {
+ 				addr = newname(Lookup(namebuf))
+ 				addr.Ntype = Nod(OIND, typenod(v.Type), nil)
+ 				addr.Class = PAUTO
+-				addr.Used = 1
++				addr.Used = true
+ 				addr.Curfn = xfunc
+ 				xfunc.Dcl = list(xfunc.Dcl, addr)
+ 				v.Heapaddr = addr
+@@ -461,7 +461,7 @@ func walkclosure(func_ *Node, init **NodeList) *Node {
+ 
+ 	clos := Nod(OCOMPLIT, nil, Nod(OIND, typ, nil))
+ 	clos.Esc = func_.Esc
+-	clos.Right.Implicit = 1
++	clos.Right.Implicit = true
+ 	clos.List = concat(list1(Nod(OCFUNC, func_.Closure.Nname, nil)), func_.Enter)
+ 
+ 	// Force type conversion from *struct to the func type.
+@@ -609,7 +609,7 @@ func makepartialcall(fn *Node, t0 *Type, meth *Node) *Node {
+ 	ptr.Class = PAUTO
+ 	ptr.Addable = 1
+ 	ptr.Ullman = 1
+-	ptr.Used = 1
++	ptr.Used = true
+ 	ptr.Curfn = xfunc
+ 	xfunc.Dcl = list(xfunc.Dcl, ptr)
+ 	var body *NodeList
+@@ -667,7 +667,7 @@ func walkpartialcall(n *Node, init **NodeList) *Node {
+ 
+ 	clos := Nod(OCOMPLIT, nil, Nod(OIND, typ, nil))
+ 	clos.Esc = n.Esc
+-	clos.Right.Implicit = 1
++	clos.Right.Implicit = true
+ 	clos.List = list1(Nod(OCFUNC, n.Nname.Nname, nil))
+ 	clos.List = list(clos.List, n.Left)
+ 
+diff --git a/src/cmd/internal/gc/esc.go b/src/cmd/internal/gc/esc.go
+index 0714f9c599..8affbaf554 100644
+--- a/src/cmd/internal/gc/esc.go
++++ b/src/cmd/internal/gc/esc.go
+@@ -1095,7 +1095,7 @@ func esccall(e *EscState, n *Node, up *Node) {
+ 		src.Class = PAUTO
+ 		src.Curfn = Curfn
+ 		src.Escloopdepth = e.loopdepth
+-		src.Used = 1
++		src.Used = true
+ 		src.Lineno = n.Lineno
+ 		n.Escretval = list(n.Escretval, src)
+ 	}
+diff --git a/src/cmd/internal/gc/fmt.go b/src/cmd/internal/gc/fmt.go
+index 43ffb80e0d..66f5d212a3 100644
+--- a/src/cmd/internal/gc/fmt.go
++++ b/src/cmd/internal/gc/fmt.go
+@@ -273,8 +273,8 @@ func Jconv(n *Node, flag int) string {
+ 		fp += fmt.Sprintf(" isddd(%d)", n.Isddd)
+ 	}
+ 
+-	if n.Implicit != 0 {
+-		fp += fmt.Sprintf(" implicit(%d)", n.Implicit)
++	if n.Implicit {
++		fp += fmt.Sprintf(" implicit(%v)", n.Implicit)
+ 	}
+ 
+ 	if n.Embedded != 0 {
+@@ -289,8 +289,8 @@ func Jconv(n *Node, flag int) string {
+ 		fp += " assigned"
+ 	}
+ 
+-	if c == 0 && n.Used != 0 {
+-		fp += fmt.Sprintf(" used(%d)", n.Used)
++	if c == 0 && n.Used {
++		fp += fmt.Sprintf(" used(%v)", n.Used)
+ 	}
+ 	return fp
+ }
+@@ -859,7 +859,7 @@ func stmtfmt(n *Node) string {
+ 		}
+ 
+ 	case OASOP:
+-		if n.Implicit != 0 {
++		if n.Implicit {
+ 			if n.Etype == OADD {
+ 				f += fmt.Sprintf("%v++", Nconv(n.Left, 0))
+ 			} else {
+@@ -1109,7 +1109,7 @@ var opprec = []int{
+ }
+ 
+ func exprfmt(n *Node, prec int) string {
+-	for n != nil && n.Implicit != 0 && (n.Op == OIND || n.Op == OADDR) {
++	for n != nil && n.Implicit && (n.Op == OIND || n.Op == OADDR) {
+ 		n = n.Left
+ 	}
+ 
+@@ -1266,9 +1266,9 @@ func exprfmt(n *Node, prec int) string {
+ 		return f
+ 
+ 	case OCOMPLIT:
+-		ptrlit := n.Right != nil && n.Right.Implicit != 0 && n.Right.Type != nil && Isptr[n.Right.Type.Etype]
++		ptrlit := n.Right != nil && n.Right.Implicit && n.Right.Type != nil && Isptr[n.Right.Type.Etype]
+ 		if fmtmode == FErr {
+-			if n.Right != nil && n.Right.Type != nil && n.Implicit == 0 {
++			if n.Right != nil && n.Right.Type != nil && !n.Implicit {
+ 				if ptrlit {
+ 					return fmt.Sprintf("&%v literal", Tconv(n.Right.Type.Type, 0))
+ 				} else {
+@@ -1289,7 +1289,7 @@ func exprfmt(n *Node, prec int) string {
+ 		return f
+ 
+ 	case OPTRLIT:
+-		if fmtmode == FExp && n.Left.Implicit != 0 {
++		if fmtmode == FExp && n.Left.Implicit {
+ 			return fmt.Sprintf("%v", Nconv(n.Left, 0))
+ 		}
+ 		var f string
+@@ -1299,7 +1299,7 @@ func exprfmt(n *Node, prec int) string {
+ 	case OSTRUCTLIT:
+ 		if fmtmode == FExp { // requires special handling of field names
+ 			var f string
+-			if n.Implicit != 0 {
++			if n.Implicit {
+ 				f += "{"
+ 			} else {
+ 				f += fmt.Sprintf("(%v{", Tconv(n.Type, 0))
+@@ -1314,7 +1314,7 @@ func exprfmt(n *Node, prec int) string {
+ 				}
+ 			}
+ 
+-			if n.Implicit == 0 {
++			if !n.Implicit {
+ 				f += "})"
+ 				return f
+ 			}
+@@ -1330,7 +1330,7 @@ func exprfmt(n *Node, prec int) string {
+ 		if fmtmode == FErr {
+ 			return fmt.Sprintf("%v literal", Tconv(n.Type, 0))
+ 		}
+-		if fmtmode == FExp && n.Implicit != 0 {
++		if fmtmode == FExp && n.Implicit {
+ 			return fmt.Sprintf("{ %v }", Hconv(n.List, obj.FmtComma))
+ 		}
+ 		var f string
+diff --git a/src/cmd/internal/gc/gen.go b/src/cmd/internal/gc/gen.go
+index 7089b9cec4..70c218e667 100644
+--- a/src/cmd/internal/gc/gen.go
++++ b/src/cmd/internal/gc/gen.go
+@@ -613,7 +613,7 @@ func Tempname(nn *Node, t *Type) {
+ func temp(t *Type) *Node {
+ 	n := Nod(OXXX, nil, nil)
+ 	Tempname(n, t)
+-	n.Sym.Def.Used = 1
++	n.Sym.Def.Used = true
+ 	return n.Orig
+ }
+ 
+diff --git a/src/cmd/internal/gc/go.y b/src/cmd/internal/gc/go.y
+index 0961da248a..2e3625da78 100644
+--- a/src/cmd/internal/gc/go.y
++++ b/src/cmd/internal/gc/go.y
+@@ -418,7 +418,7 @@ simple_stmt:
+ 		switch($$.Op) {
+ 		case ONAME, ONONAME, OTYPE, OPACK, OLITERAL:
+ 			$$ = Nod(OPAREN, $$, nil);
+-			$$.Implicit = 1;
++			$$.Implicit = true;
+ 			break;
+ 		}
+ 	}
+@@ -460,13 +460,13 @@ simple_stmt:
+ |	expr LINC
+ 	{
+ 		$$ = Nod(OASOP, $1, Nodintconst(1));
+-		$$.Implicit = 1;
++		$$.Implicit = true;
+ 		$$.Etype = OADD;
+ 	}
+ |	expr LDEC
+ 	{
+ 		$$ = Nod(OASOP, $1, Nodintconst(1));
+-		$$.Implicit = 1;
++		$$.Implicit = true;
+ 		$$.Etype = OSUB;
+ 	}
+ 
+@@ -886,7 +886,7 @@ uexpr:
+ 			// Special case for &T{...}: turn into (*T){...}.
+ 			$$ = $2;
+ 			$$.Right = Nod(OIND, $$.Right, nil);
+-			$$.Right.Implicit = 1;
++			$$.Right.Implicit = true;
+ 		} else {
+ 			$$ = Nod(OADDR, $2, nil);
+ 		}
+@@ -949,7 +949,7 @@ pexpr_no_paren:
+ 		if $1.Op == OPACK {
+ 			var s *Sym
+ 			s = restrictlookup($3.Name, $1.Pkg);
+-			$1.Used = 1;
++			$1.Used = true;
+ 			$$ = oldname(s);
+ 			break;
+ 		}
+@@ -1034,7 +1034,7 @@ bare_complitexpr:
+ 		switch($$.Op) {
+ 		case ONAME, ONONAME, OTYPE, OPACK, OLITERAL:
+ 			$$ = Nod(OPAREN, $$, nil);
+-			$$.Implicit = 1;
++			$$.Implicit = true;
+ 		}
+ 	}
+ |	'{' start_complit braced_keyval_list '}'
+@@ -1160,7 +1160,7 @@ name:
+ 	{
+ 		$$ = oldname($1);
+ 		if $$.Pack != nil {
+-			$$.Pack.Used = 1;
++			$$.Pack.Used = true;
+ 		}
+ 	}
+ 
+@@ -1238,7 +1238,7 @@ dotname:
+ 		if $1.Op == OPACK {
+ 			var s *Sym
+ 			s = restrictlookup($3.Name, $1.Pkg);
+-			$1.Used = 1;
++			$1.Used = true;
+ 			$$ = oldname(s);
+ 			break;
+ 		}
+@@ -1626,7 +1626,7 @@ packname:
+ 		$$ = $1;
+ 		n = oldname($1);
+ 		if n.Pack != nil {
+-			n.Pack.Used = 1;
++			n.Pack.Used = true;
+ 		}
+ 	}
+ |	LNAME '.' sym
+@@ -1637,7 +1637,7 @@ packname:
+ 			Yyerror("%v is not a package", Sconv($1, 0));
+ 			pkg = localpkg;
+ 		} else {
+-			$1.Def.Used = 1;
++			$1.Def.Used = true;
+ 			pkg = $1.Def.Pkg;
+ 		}
+ 		$$ = restrictlookup($3.Name, pkg);
+diff --git a/src/cmd/internal/gc/gsubr.go b/src/cmd/internal/gc/gsubr.go
+index e86d2ab3e4..44e0d22a87 100644
+--- a/src/cmd/internal/gc/gsubr.go
++++ b/src/cmd/internal/gc/gsubr.go
+@@ -174,12 +174,12 @@ func fixautoused(p *obj.Prog) {
+ 		if p == nil {
+ 			break
+ 		}
+-		if p.As == obj.ATYPE && p.From.Node != nil && p.From.Name == obj.NAME_AUTO && ((p.From.Node).(*Node)).Used == 0 {
++		if p.As == obj.ATYPE && p.From.Node != nil && p.From.Name == obj.NAME_AUTO && !((p.From.Node).(*Node)).Used {
+ 			*lp = p.Link
+ 			continue
+ 		}
+ 
+-		if (p.As == obj.AVARDEF || p.As == obj.AVARKILL) && p.To.Node != nil && ((p.To.Node).(*Node)).Used == 0 {
++		if (p.As == obj.AVARDEF || p.As == obj.AVARKILL) && p.To.Node != nil && !((p.To.Node).(*Node)).Used {
+ 			// Cannot remove VARDEF instruction, because - unlike TYPE handled above -
+ 			// VARDEFs are interspersed with other code, and a jump might be using the
+ 			// VARDEF as a target. Replace with a no-op instead. A later pass will remove
+@@ -267,11 +267,11 @@ func markautoused(p *obj.Prog) {
+ 		}
+ 
+ 		if p.From.Node != nil {
+-			((p.From.Node).(*Node)).Used = 1
++			((p.From.Node).(*Node)).Used = true
+ 		}
+ 
+ 		if p.To.Node != nil {
+-			((p.To.Node).(*Node)).Used = 1
++			((p.To.Node).(*Node)).Used = true
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/internal/gc/inl.go b/src/cmd/internal/gc/inl.go
+index c00881ee2f..6d6c7992b7 100644
+--- a/src/cmd/internal/gc/inl.go
++++ b/src/cmd/internal/gc/inl.go
+@@ -840,7 +840,7 @@ func inlvar(var_ *Node) *Node {
+ 	n := newname(var_.Sym)
+ 	n.Type = var_.Type
+ 	n.Class = PAUTO
+-	n.Used = 1
++	n.Used = true
+ 	n.Curfn = Curfn // the calling function, not the called one
+ 	n.Addrtaken = var_.Addrtaken
+ 
+@@ -863,7 +863,7 @@ func retvar(t *Type, i int) *Node {
+ 	n := newname(Lookup(namebuf))
+ 	n.Type = t.Type
+ 	n.Class = PAUTO
+-	n.Used = 1
++	n.Used = true
+ 	n.Curfn = Curfn // the calling function, not the called one
+ 	Curfn.Dcl = list(Curfn.Dcl, n)
+ 	return n
+@@ -876,7 +876,7 @@ func argvar(t *Type, i int) *Node {
+ 	n := newname(Lookup(namebuf))
+ 	n.Type = t.Type
+ 	n.Class = PAUTO
+-	n.Used = 1
++	n.Used = true
+ 	n.Curfn = Curfn // the calling function, not the called one
+ 	Curfn.Dcl = list(Curfn.Dcl, n)
+ 	return n
+diff --git a/src/cmd/internal/gc/lex.go b/src/cmd/internal/gc/lex.go
+index e712752337..816e67e89a 100644
+--- a/src/cmd/internal/gc/lex.go
++++ b/src/cmd/internal/gc/lex.go
+@@ -3131,7 +3131,7 @@ func mkpackage(pkgname string) {
+ 				// leave s->block set to cause redeclaration
+ 				// errors if a conflicting top-level name is
+ 				// introduced by a different file.
+-				if s.Def.Used == 0 && nsyntaxerrors == 0 {
++				if !s.Def.Used && nsyntaxerrors == 0 {
+ 					pkgnotused(int(s.Def.Lineno), s.Def.Pkg.Path, s.Name)
+ 				}
+ 				s.Def = nil
+@@ -3141,9 +3141,9 @@ func mkpackage(pkgname string) {
+ 			if s.Def.Sym != s {
+ 				// throw away top-level name left over
+ 				// from previous import . "x"
+-				if s.Def.Pack != nil && s.Def.Pack.Used == 0 && nsyntaxerrors == 0 {
++				if s.Def.Pack != nil && !s.Def.Pack.Used && nsyntaxerrors == 0 {
+ 					pkgnotused(int(s.Def.Pack.Lineno), s.Def.Pack.Pkg.Path, "")
+-					s.Def.Pack.Used = 1
++					s.Def.Pack.Used = true
+ 				}
+ 
+ 				s.Def = nil
+diff --git a/src/cmd/internal/gc/pgen.go b/src/cmd/internal/gc/pgen.go
+index ef6e9c1d8f..81b02e1e1b 100644
+--- a/src/cmd/internal/gc/pgen.go
++++ b/src/cmd/internal/gc/pgen.go
+@@ -197,8 +197,8 @@ func cmpstackvar(a *Node, b *Node) int {
+ 		return 0
+ 	}
+ 
+-	if (a.Used == 0) != (b.Used == 0) {
+-		return int(b.Used) - int(a.Used)
++	if a.Used != b.Used {
++		return bool2int(b.Used) - bool2int(a.Used)
+ 	}
+ 
+ 	ap := bool2int(haspointers(a.Type))
+@@ -235,7 +235,7 @@ func allocauto(ptxt *obj.Prog) {
+ 	// Mark the PAUTO's unused.
+ 	for ll := Curfn.Dcl; ll != nil; ll = ll.Next {
+ 		if ll.N.Class == PAUTO {
+-			ll.N.Used = 0
++			ll.N.Used = false
+ 		}
+ 	}
+ 
+@@ -247,7 +247,7 @@ func allocauto(ptxt *obj.Prog) {
+ 	ll := Curfn.Dcl
+ 
+ 	n := ll.N
+-	if n.Class == PAUTO && n.Op == ONAME && n.Used == 0 {
++	if n.Class == PAUTO && n.Op == ONAME && !n.Used {
+ 		// No locals used at all
+ 		Curfn.Dcl = nil
+ 
+@@ -257,7 +257,7 @@ func allocauto(ptxt *obj.Prog) {
+ 
+ 	for ll := Curfn.Dcl; ll.Next != nil; ll = ll.Next {
+ 		n = ll.Next.N
+-		if n.Class == PAUTO && n.Op == ONAME && n.Used == 0 {
++		if n.Class == PAUTO && n.Op == ONAME && !n.Used {
+ 			ll.Next = nil
+ 			Curfn.Dcl.End = ll
+ 			break
+diff --git a/src/cmd/internal/gc/select.go b/src/cmd/internal/gc/select.go
+index 4fbf826dd2..145d18688f 100644
+--- a/src/cmd/internal/gc/select.go
++++ b/src/cmd/internal/gc/select.go
+@@ -45,7 +45,7 @@ func typecheckselect(sel *Node) {
+ 			// remove implicit conversions; the eventual assignment
+ 			// will reintroduce them.
+ 			case OAS:
+-				if (n.Right.Op == OCONVNOP || n.Right.Op == OCONVIFACE) && n.Right.Implicit != 0 {
++				if (n.Right.Op == OCONVNOP || n.Right.Op == OCONVIFACE) && n.Right.Implicit {
+ 					n.Right = n.Right.Left
+ 				}
+ 
+diff --git a/src/cmd/internal/gc/subr.go b/src/cmd/internal/gc/subr.go
+index e678a98bb4..d61f9a4d96 100644
+--- a/src/cmd/internal/gc/subr.go
++++ b/src/cmd/internal/gc/subr.go
+@@ -1341,7 +1341,7 @@ func assignconv(n *Node, t *Type, context string) *Node {
+ 			r := Nod(OCONVNOP, n, nil)
+ 			r.Type = Types[TBOOL]
+ 			r.Typecheck = 1
+-			r.Implicit = 1
++			r.Implicit = true
+ 			n = r
+ 		}
+ 	}
+@@ -1360,7 +1360,7 @@ func assignconv(n *Node, t *Type, context string) *Node {
+ 	r := Nod(op, n, nil)
+ 	r.Type = t
+ 	r.Typecheck = 1
+-	r.Implicit = 1
++	r.Implicit = true
+ 	r.Orig = n.Orig
+ 	return r
+ }
+@@ -2146,7 +2146,7 @@ func adddot(n *Node) *Node {
+ 			// rebuild elided dots
+ 			for c := d - 1; c >= 0; c-- {
+ 				if n.Left.Type != nil && Isptr[n.Left.Type.Etype] {
+-					n.Left.Implicit = 1
++					n.Left.Implicit = true
+ 				}
+ 				n.Left = Nod(ODOT, n.Left, newname(dotlist[c].field.Sym))
+ 			}
+diff --git a/src/cmd/internal/gc/syntax.go b/src/cmd/internal/gc/syntax.go
+index 3a52130de3..0aca4c04be 100644
+--- a/src/cmd/internal/gc/syntax.go
++++ b/src/cmd/internal/gc/syntax.go
+@@ -43,10 +43,10 @@ type Node struct {
+ 	Local          uint8
+ 	Dodata         uint8
+ 	Initorder      uint8
+-	Used           uint8
++	Used           bool
+ 	Isddd          uint8
+ 	Readonly       bool
+-	Implicit       uint8
++	Implicit       bool
+ 	Addrtaken      bool // address taken, even if not moved to heap
+ 	Assigned       bool // is the variable ever assigned to
+ 	Captured       bool // is the variable captured by a closure
+diff --git a/src/cmd/internal/gc/typecheck.go b/src/cmd/internal/gc/typecheck.go
+index cee081729b..05311da89e 100644
+--- a/src/cmd/internal/gc/typecheck.go
++++ b/src/cmd/internal/gc/typecheck.go
+@@ -336,7 +336,7 @@ OpSwitch:
+ 				return
+ 			}
+ 
+-			n.Used = 1
++			n.Used = true
+ 		}
+ 
+ 		if top&Ecall == 0 && isunsafebuiltin(n) {
+@@ -667,7 +667,7 @@ OpSwitch:
+ 
+ 		if t.Etype != TIDEAL && !Eqtype(l.Type, r.Type) {
+ 			defaultlit2(&l, &r, 1)
+-			if n.Op == OASOP && n.Implicit != 0 {
++			if n.Op == OASOP && n.Implicit {
+ 				Yyerror("invalid operation: %v (non-numeric type %v)", Nconv(n, 0), Tconv(l.Type, 0))
+ 				n.Type = nil
+ 				return
+@@ -1146,7 +1146,7 @@ OpSwitch:
+ 			}
+ 
+ 			n.Left = Nod(OADDR, n.Left, nil)
+-			n.Left.Implicit = 1
++			n.Left.Implicit = true
+ 			typecheck(&n.Left, Erv)
+ 			l = n.Left
+ 		}
+@@ -1210,7 +1210,7 @@ OpSwitch:
+ 			}
+ 
+ 			n.Left = Nod(OADDR, n.Left, nil)
+-			n.Left.Implicit = 1
++			n.Left.Implicit = true
+ 			typecheck(&n.Left, Erv)
+ 			l = n.Left
+ 		}
+@@ -2343,7 +2343,7 @@ func implicitstar(nn **Node) {
+ 		return
+ 	}
+ 	n = Nod(OIND, n, nil)
+-	n.Implicit = 1
++	n.Implicit = true
+ 	typecheck(&n, Erv)
+ 	*nn = n
+ }
+@@ -2506,7 +2506,7 @@ func lookdot(n *Node, t *Type, dostrcmp int) bool {
+ 		if t.Etype == TINTER {
+ 			if Isptr[n.Left.Type.Etype] {
+ 				n.Left = Nod(OIND, n.Left, nil) // implicitstar
+-				n.Left.Implicit = 1
++				n.Left.Implicit = true
+ 				typecheck(&n.Left, Erv)
+ 			}
+ 
+@@ -2524,11 +2524,11 @@ func lookdot(n *Node, t *Type, dostrcmp int) bool {
+ 			if int(rcvr.Etype) == Tptr && Eqtype(rcvr.Type, tt) {
+ 				checklvalue(n.Left, "call pointer method on")
+ 				n.Left = Nod(OADDR, n.Left, nil)
+-				n.Left.Implicit = 1
++				n.Left.Implicit = true
+ 				typecheck(&n.Left, Etype|Erv)
+ 			} else if int(tt.Etype) == Tptr && int(rcvr.Etype) != Tptr && Eqtype(tt.Type, rcvr) {
+ 				n.Left = Nod(OIND, n.Left, nil)
+-				n.Left.Implicit = 1
++				n.Left.Implicit = true
+ 				typecheck(&n.Left, Etype|Erv)
+ 			} else if int(tt.Etype) == Tptr && int(tt.Type.Etype) == Tptr && Eqtype(derefall(tt), derefall(rcvr)) {
+ 				Yyerror("calling method %v with receiver %v requires explicit dereference", Nconv(n.Right, 0), Nconv(n.Left, obj.FmtLong))
+@@ -2538,7 +2538,7 @@ func lookdot(n *Node, t *Type, dostrcmp int) bool {
+ 						break
+ 					}
+ 					n.Left = Nod(OIND, n.Left, nil)
+-					n.Left.Implicit = 1
++					n.Left.Implicit = true
+ 					typecheck(&n.Left, Etype|Erv)
+ 					tt = tt.Type
+ 				}
+@@ -2551,7 +2551,7 @@ func lookdot(n *Node, t *Type, dostrcmp int) bool {
+ 		for ll.Left != nil {
+ 			ll = ll.Left
+ 		}
+-		if ll.Implicit != 0 {
++		if ll.Implicit {
+ 			if Isptr[ll.Type.Etype] && ll.Type.Sym != nil && ll.Type.Sym.Def != nil && ll.Type.Sym.Def.Op == OTYPE {
+ 				// It is invalid to automatically dereference a named pointer type when selecting a method.
+ 				// Make n->left == ll to clarify error message.
+@@ -2946,8 +2946,8 @@ func pushtype(n *Node, t *Type) {
+ 
+ 	if n.Right == nil {
+ 		n.Right = typenod(t)
+-		n.Implicit = 1       // don't print
+-		n.Right.Implicit = 1 // * is okay
++		n.Implicit = true       // don't print
++		n.Right.Implicit = true // * is okay
+ 	} else if Debug['s'] != 0 {
+ 		typecheck(&n.Right, Etype)
+ 		if n.Right.Type != nil && Eqtype(n.Right.Type, t) {
+@@ -2991,7 +2991,7 @@ func typecheckcomplit(np **Node) {
+ 	if Isptr[t.Etype] {
+ 		// For better or worse, we don't allow pointers as the composite literal type,
+ 		// except when using the &T syntax, which sets implicit on the OIND.
+-		if n.Right.Implicit == 0 {
++		if !n.Right.Implicit {
+ 			Yyerror("invalid pointer type %v for composite literal (use &%v instead)", Tconv(t, 0), Tconv(t.Type, 0))
+ 			n.Type = nil
+ 			return
+diff --git a/src/cmd/internal/gc/walk.go b/src/cmd/internal/gc/walk.go
+index 48146886a1..90636977c7 100644
+--- a/src/cmd/internal/gc/walk.go
++++ b/src/cmd/internal/gc/walk.go
+@@ -37,22 +37,22 @@ func walk(fn *Node) {
+ 
+ 	// Propagate the used flag for typeswitch variables up to the NONAME in it's definition.
+ 	for l := fn.Dcl; l != nil; l = l.Next {
+-		if l.N.Op == ONAME && l.N.Class&^PHEAP == PAUTO && l.N.Defn != nil && l.N.Defn.Op == OTYPESW && l.N.Used != 0 {
+-			l.N.Defn.Left.Used++
++		if l.N.Op == ONAME && l.N.Class&^PHEAP == PAUTO && l.N.Defn != nil && l.N.Defn.Op == OTYPESW && l.N.Used {
++			l.N.Defn.Left.Used = true
+ 		}
+ 	}
+ 
+ 	for l := fn.Dcl; l != nil; l = l.Next {
+-		if l.N.Op != ONAME || l.N.Class&^PHEAP != PAUTO || l.N.Sym.Name[0] == '&' || l.N.Used != 0 {
++		if l.N.Op != ONAME || l.N.Class&^PHEAP != PAUTO || l.N.Sym.Name[0] == '&' || l.N.Used {
+ 			continue
+ 		}
+ 		if l.N.Defn != nil && l.N.Defn.Op == OTYPESW {
+-			if l.N.Defn.Left.Used != 0 {
++			if l.N.Defn.Left.Used {
+ 				continue
+ 			}
+ 			lineno = l.N.Defn.Left.Lineno
+ 			Yyerror("%v declared and not used", Sconv(l.N.Sym, 0))
+-			l.N.Defn.Left.Used = 1 // suppress repeats
++			l.N.Defn.Left.Used = true // suppress repeats
+ 		} else {
+ 			lineno = l.N.Lineno
+ 			Yyerror("%v declared and not used", Sconv(l.N.Sym, 0))
+diff --git a/src/cmd/internal/gc/y.go b/src/cmd/internal/gc/y.go
+index e1871ffe32..2fa6a9b46a 100644
+--- a/src/cmd/internal/gc/y.go
++++ b/src/cmd/internal/gc/y.go
+@@ -1430,7 +1430,7 @@ yydefault:
+ 			switch yyVAL.node.Op {
+ 			case ONAME, ONONAME, OTYPE, OPACK, OLITERAL:
+ 				yyVAL.node = Nod(OPAREN, yyVAL.node, nil)
+-				yyVAL.node.Implicit = 1
++				yyVAL.node.Implicit = true
+ 				break
+ 			}
+ 		}
+@@ -1480,7 +1480,7 @@ yydefault:
+ 		//line go.y:461
+ 		{
+ 			yyVAL.node = Nod(OASOP, yyDollar[1].node, Nodintconst(1))
+-			yyVAL.node.Implicit = 1
++			yyVAL.node.Implicit = true
+ 			yyVAL.node.Etype = OADD
+ 		}
+ 	case 54:
+@@ -1488,7 +1488,7 @@ yydefault:
+ 		//line go.y:467
+ 		{
+ 			yyVAL.node = Nod(OASOP, yyDollar[1].node, Nodintconst(1))
+-			yyVAL.node.Implicit = 1
++			yyVAL.node.Implicit = true
+ 			yyVAL.node.Etype = OSUB
+ 		}
+ 	case 55:
+@@ -1991,7 +1991,7 @@ yydefault:
+ 				// Special case for &T{...}: turn into (*T){...}.
+ 				yyVAL.node = yyDollar[2].node
+ 				yyVAL.node.Right = Nod(OIND, yyVAL.node.Right, nil)
+-				yyVAL.node.Right.Implicit = 1
++				yyVAL.node.Right.Implicit = true
+ 			} else {
+ 				yyVAL.node = Nod(OADDR, yyDollar[2].node, nil)
+ 			}
+@@ -2069,7 +2069,7 @@ yydefault:
+ 			if yyDollar[1].node.Op == OPACK {
+ 				var s *Sym
+ 				s = restrictlookup(yyDollar[3].sym.Name, yyDollar[1].node.Pkg)
+-				yyDollar[1].node.Used = 1
++				yyDollar[1].node.Used = true
+ 				yyVAL.node = oldname(s)
+ 				break
+ 			}
+@@ -2175,7 +2175,7 @@ yydefault:
+ 			switch yyVAL.node.Op {
+ 			case ONAME, ONONAME, OTYPE, OPACK, OLITERAL:
+ 				yyVAL.node = Nod(OPAREN, yyVAL.node, nil)
+-				yyVAL.node.Implicit = 1
++				yyVAL.node.Implicit = true
+ 			}
+ 		}
+ 	case 143:
+@@ -2308,7 +2308,7 @@ yydefault:
+ 		{
+ 			yyVAL.node = oldname(yyDollar[1].sym)
+ 			if yyVAL.node.Pack != nil {
+-				yyVAL.node.Pack.Used = 1
++				yyVAL.node.Pack.Used = true
+ 			}
+ 		}
+ 	case 163:
+@@ -2393,7 +2393,7 @@ yydefault:
+ 			if yyDollar[1].node.Op == OPACK {
+ 				var s *Sym
+ 				s = restrictlookup(yyDollar[3].sym.Name, yyDollar[1].node.Pkg)
+-				yyDollar[1].node.Used = 1
++				yyDollar[1].node.Used = true
+ 				yyVAL.node = oldname(s)
+ 				break
+ 			}
+@@ -2818,7 +2818,7 @@ yydefault:
+ 			yyVAL.sym = yyDollar[1].sym
+ 			n = oldname(yyDollar[1].sym)
+ 			if n.Pack != nil {
+-				n.Pack.Used = 1
++				n.Pack.Used = true
+ 			}
+ 		}
+ 	case 237:
+@@ -2831,7 +2831,7 @@ yydefault:
+ 				Yyerror("%v is not a package", Sconv(yyDollar[1].sym, 0))
+ 				pkg = localpkg
+ 			} else {
+-				yyDollar[1].sym.Def.Used = 1
++				yyDollar[1].sym.Def.Used = true
+ 				pkg = yyDollar[1].sym.Def.Pkg
+ 			}
+ 			yyVAL.sym = restrictlookup(yyDollar[3].sym.Name, pkg)

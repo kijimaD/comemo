@@ -13,8 +13,91 @@ Date:   Mon Mar 28 22:27:36 2016 +1300
     Change-Id: I5f18e5f9743563c795aad8f0a22d17a7ed147711
     Reviewed-on: https://go-review.googlesource.com/22293
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/cmd/compile/internal/gc/pgen.go  | 13 -------------
  src/cmd/compile/internal/gc/plive.go | 13 ++++++++++++-
  src/cmd/compile/internal/gc/ssa.go   |  2 --
  3 files changed, 12 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index 984d468bc6..9de65cdf1b 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -8,7 +8,6 @@ import (
+ 	"cmd/compile/internal/ssa"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/sys"
+-	"crypto/md5"
+ 	"fmt"
+ 	"sort"
+ 	"strings"
+@@ -130,15 +129,6 @@ func removevardef(firstp *obj.Prog) {
+ 	}
+ }
+ 
+-func gcsymdup(s *Sym) {
+-	ls := Linksym(s)
+-	if len(ls.R) > 0 {
+-		Fatalf("cannot rosymdup %s with relocations", ls.Name)
+-	}
+-	ls.Name = fmt.Sprintf("gclocals·%x", md5.Sum(ls.P))
+-	ls.Dupok = true
+-}
+-
+ func emitptrargsmap() {
+ 	if Curfn.Func.Nname.Sym.Name == "_" {
+ 		return
+@@ -559,9 +549,6 @@ func genlegacy(ptxt *obj.Prog, gcargs, gclocals *Sym) {
+ 	// Emit garbage collection symbols.
+ 	liveness(Curfn, ptxt, gcargs, gclocals)
+ 
+-	gcsymdup(gcargs)
+-	gcsymdup(gclocals)
+-
+ 	Thearch.Defframe(ptxt)
+ 
+ 	if Debug['f'] != 0 {
+diff --git a/src/cmd/compile/internal/gc/plive.go b/src/cmd/compile/internal/gc/plive.go
+index e04c8563b1..5f96aa29cb 100644
+--- a/src/cmd/compile/internal/gc/plive.go
++++ b/src/cmd/compile/internal/gc/plive.go
+@@ -18,6 +18,7 @@ package gc
+ import (
+ 	"cmd/internal/obj"
+ 	"cmd/internal/sys"
++	"crypto/md5"
+ 	"fmt"
+ 	"sort"
+ 	"strings"
+@@ -1689,7 +1690,17 @@ func onebitwritesymbol(arr []Bvec, sym *Sym) {
+ 	}
+ 
+ 	duint32(sym, 0, uint32(i)) // number of bitmaps
+-	ggloblsym(sym, int32(off), obj.RODATA)
++	ls := Linksym(sym)
++	ls.Name = fmt.Sprintf("gclocals·%x", md5.Sum(ls.P))
++	ls.Dupok = true
++	sv := obj.SymVer{ls.Name, 0}
++	ls2, ok := Ctxt.Hash[sv]
++	if ok {
++		sym.Lsym = ls2
++	} else {
++		Ctxt.Hash[sv] = ls
++		ggloblsym(sym, int32(off), obj.RODATA)
++	}
+ }
+ 
+ func printprog(p *obj.Prog) {
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index b31cd878cd..61cb16d5cb 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -4005,8 +4005,6 @@ func genssa(f *ssa.Func, ptxt *obj.Prog, gcargs, gclocals *Sym) {
+ 
+ 	// Generate gc bitmaps.
+ 	liveness(Curfn, ptxt, gcargs, gclocals)
+-	gcsymdup(gcargs)
+-	gcsymdup(gclocals)
+ 
+ 	// Add frame prologue. Zero ambiguously live variables.
+ 	Thearch.Defframe(ptxt)

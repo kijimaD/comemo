@@ -13,6 +13,20 @@ Date:   Wed May 10 17:40:01 2023 -0400
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Commit-Queue: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/pgo/irgraph.go | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/pgo/irgraph.go b/src/cmd/compile/internal/pgo/irgraph.go
+index 72ffc8ce78..42ba27afb7 100644
+--- a/src/cmd/compile/internal/pgo/irgraph.go
++++ b/src/cmd/compile/internal/pgo/irgraph.go
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// WORK IN PROGRESS
+-
+ // A note on line numbers: when working with line numbers, we always use the
+ // binary-visible relative line number. i.e., the line number as adjusted by
+ // //line directives (ctxt.InnermostPos(ir.Node.Pos()).RelLine()). Use

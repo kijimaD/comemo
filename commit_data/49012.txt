@@ -22,7 +22,7 @@ Date:   Tue Jul 6 10:38:18 2021 -0700
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/lockedfile/lockedfile_filelock.go |  3 +--
  src/cmd/go/internal/lockedfile/lockedfile_plan9.go    |  6 ++----
  src/cmd/go/internal/modfetch/fetch.go                 | 17 ++++++++++++++++-
@@ -30,3 +30,217 @@ Date:   Tue Jul 6 10:38:18 2021 -0700
  src/cmd/go/internal/modload/modfile.go                | 14 ++++++++++++--
  src/cmd/go/testdata/script/mod_overlay.txt            | 10 +++++-----
  6 files changed, 53 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/go/internal/lockedfile/lockedfile_filelock.go b/src/cmd/go/internal/lockedfile/lockedfile_filelock.go
+index 729df5c681..e4923f6876 100644
+--- a/src/cmd/go/internal/lockedfile/lockedfile_filelock.go
++++ b/src/cmd/go/internal/lockedfile/lockedfile_filelock.go
+@@ -11,7 +11,6 @@ import (
+ 	"io/fs"
+ 	"os"
+ 
+-	"cmd/go/internal/fsys"
+ 	"cmd/go/internal/lockedfile/internal/filelock"
+ )
+ 
+@@ -21,7 +20,7 @@ func openFile(name string, flag int, perm fs.FileMode) (*os.File, error) {
+ 	// calls for Linux and Windows anyway, so it's simpler to use that approach
+ 	// consistently.
+ 
+-	f, err := fsys.OpenFile(name, flag&^os.O_TRUNC, perm)
++	f, err := os.OpenFile(name, flag&^os.O_TRUNC, perm)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+diff --git a/src/cmd/go/internal/lockedfile/lockedfile_plan9.go b/src/cmd/go/internal/lockedfile/lockedfile_plan9.go
+index 3d4b97d78e..979118b10a 100644
+--- a/src/cmd/go/internal/lockedfile/lockedfile_plan9.go
++++ b/src/cmd/go/internal/lockedfile/lockedfile_plan9.go
+@@ -13,8 +13,6 @@ import (
+ 	"os"
+ 	"strings"
+ 	"time"
+-
+-	"cmd/go/internal/fsys"
+ )
+ 
+ // Opening an exclusive-use file returns an error.
+@@ -59,7 +57,7 @@ func openFile(name string, flag int, perm fs.FileMode) (*os.File, error) {
+ 	// If the file was unpacked or created by some other program, it might not
+ 	// have the ModeExclusive bit set. Set it before we call OpenFile, so that we
+ 	// can be confident that a successful OpenFile implies exclusive use.
+-	if fi, err := fsys.Stat(name); err == nil {
++	if fi, err := os.Stat(name); err == nil {
+ 		if fi.Mode()&fs.ModeExclusive == 0 {
+ 			if err := os.Chmod(name, fi.Mode()|fs.ModeExclusive); err != nil {
+ 				return nil, err
+@@ -72,7 +70,7 @@ func openFile(name string, flag int, perm fs.FileMode) (*os.File, error) {
+ 	nextSleep := 1 * time.Millisecond
+ 	const maxSleep = 500 * time.Millisecond
+ 	for {
+-		f, err := fsys.OpenFile(name, flag, perm|fs.ModeExclusive)
++		f, err := os.OpenFile(name, flag, perm|fs.ModeExclusive)
+ 		if err == nil {
+ 			return f, nil
+ 		}
+diff --git a/src/cmd/go/internal/modfetch/fetch.go b/src/cmd/go/internal/modfetch/fetch.go
+index e40593abae..d3d30d970b 100644
+--- a/src/cmd/go/internal/modfetch/fetch.go
++++ b/src/cmd/go/internal/modfetch/fetch.go
+@@ -22,6 +22,7 @@ import (
+ 
+ 	"cmd/go/internal/base"
+ 	"cmd/go/internal/cfg"
++	"cmd/go/internal/fsys"
+ 	"cmd/go/internal/lockedfile"
+ 	"cmd/go/internal/par"
+ 	"cmd/go/internal/robustio"
+@@ -416,7 +417,18 @@ func initGoSum() (bool, error) {
+ 
+ 	goSum.m = make(map[module.Version][]string)
+ 	goSum.status = make(map[modSum]modSumStatus)
+-	data, err := lockedfile.Read(GoSumFile)
++	var (
++		data []byte
++		err  error
++	)
++	if actualSumFile, ok := fsys.OverlayPath(GoSumFile); ok {
++		// Don't lock go.sum if it's part of the overlay.
++		// On Plan 9, locking requires chmod, and we don't want to modify any file
++		// in the overlay. See #44700.
++		data, err = os.ReadFile(actualSumFile)
++	} else {
++		data, err = lockedfile.Read(GoSumFile)
++	}
+ 	if err != nil && !os.IsNotExist(err) {
+ 		return false, err
+ 	}
+@@ -716,6 +728,9 @@ Outer:
+ 	if cfg.BuildMod == "readonly" {
+ 		base.Fatalf("go: updates to go.sum needed, disabled by -mod=readonly")
+ 	}
++	if _, ok := fsys.OverlayPath(GoSumFile); ok {
++		base.Fatalf("go: updates to go.sum needed, but go.sum is part of the overlay specified with -overlay")
++	}
+ 
+ 	// Make a best-effort attempt to acquire the side lock, only to exclude
+ 	// previous versions of the 'go' command from making simultaneous edits.
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index 09136b7de1..a8cbd9fe16 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -412,7 +412,16 @@ func loadModFile(ctx context.Context) (rs *Requirements, needCommit bool) {
+ 	}
+ 
+ 	gomod := ModFilePath()
+-	data, err := lockedfile.Read(gomod)
++	var data []byte
++	var err error
++	if gomodActual, ok := fsys.OverlayPath(gomod); ok {
++		// Don't lock go.mod if it's part of the overlay.
++		// On Plan 9, locking requires chmod, and we don't want to modify any file
++		// in the overlay. See #44700.
++		data, err = os.ReadFile(gomodActual)
++	} else {
++		data, err = lockedfile.Read(gomodActual)
++	}
+ 	if err != nil {
+ 		base.Fatalf("go: %v", err)
+ 	}
+@@ -1026,6 +1035,13 @@ func commitRequirements(ctx context.Context, goVersion string, rs *Requirements)
+ 		}
+ 		return
+ 	}
++	gomod := ModFilePath()
++	if _, ok := fsys.OverlayPath(gomod); ok {
++		if dirty {
++			base.Fatalf("go: updates to go.mod needed, but go.mod is part of the overlay specified with -overlay")
++		}
++		return
++	}
+ 
+ 	new, err := modFile.Format()
+ 	if err != nil {
+diff --git a/src/cmd/go/internal/modload/modfile.go b/src/cmd/go/internal/modload/modfile.go
+index 1145ac4ba5..d280945ea6 100644
+--- a/src/cmd/go/internal/modload/modfile.go
++++ b/src/cmd/go/internal/modload/modfile.go
+@@ -8,6 +8,7 @@ import (
+ 	"context"
+ 	"errors"
+ 	"fmt"
++	"os"
+ 	"path/filepath"
+ 	"strings"
+ 	"sync"
+@@ -15,6 +16,7 @@ import (
+ 
+ 	"cmd/go/internal/base"
+ 	"cmd/go/internal/cfg"
++	"cmd/go/internal/fsys"
+ 	"cmd/go/internal/lockedfile"
+ 	"cmd/go/internal/modfetch"
+ 	"cmd/go/internal/par"
+@@ -601,8 +603,16 @@ func rawGoModSummary(m module.Version) (*modFileSummary, error) {
+ 				dir = filepath.Join(ModRoot(), dir)
+ 			}
+ 			gomod := filepath.Join(dir, "go.mod")
+-
+-			data, err := lockedfile.Read(gomod)
++			var data []byte
++			var err error
++			if gomodActual, ok := fsys.OverlayPath(gomod); ok {
++				// Don't lock go.mod if it's part of the overlay.
++				// On Plan 9, locking requires chmod, and we don't want to modify any file
++				// in the overlay. See #44700.
++				data, err = os.ReadFile(gomodActual)
++			} else {
++				data, err = lockedfile.Read(gomodActual)
++			}
+ 			if err != nil {
+ 				return cached{nil, module.VersionError(m, fmt.Errorf("reading %s: %v", base.ShortPath(gomod), err))}
+ 			}
+diff --git a/src/cmd/go/testdata/script/mod_overlay.txt b/src/cmd/go/testdata/script/mod_overlay.txt
+index 92e79c725a..86ab04bd3c 100644
+--- a/src/cmd/go/testdata/script/mod_overlay.txt
++++ b/src/cmd/go/testdata/script/mod_overlay.txt
+@@ -21,7 +21,7 @@ go list -deps -overlay overlay.json .
+ cd $WORK/gopath/src/get-doesnt-add-dep
+ cp $WORK/overlay/get_doesnt_add_dep_go_mod $WORK/want_go_mod
+ ! go get -d -overlay overlay.json .
+-stderr 'overlaid files can''t be opened for write'
++stderr '^go: updates to go.mod needed, but go.mod is part of the overlay specified with -overlay$'
+ cmp $WORK/overlay/get_doesnt_add_dep_go_mod $WORK/want_go_mod
+ 
+ # Content of overlaid go.sum is used.
+@@ -41,10 +41,10 @@ go mod verify -overlay overlay.json
+ # attempting to update the file
+ cp incomplete-sum-file $WORK/overlay/overlay-sum-used-correct-sums
+ ! go get -d -overlay overlay.json .
+-stderr 'overlaid files can''t be opened for write'
++stderr '^go: updates to go.sum needed, but go.sum is part of the overlay specified with -overlay$'
+ cmp incomplete-sum-file $WORK/overlay/overlay-sum-used-correct-sums
+ ! go mod tidy -overlay overlay.json
+-stderr 'overlaid files can''t be opened for write'
++stderr '^go: updates to go.sum needed, but go.sum is part of the overlay specified with -overlay$'
+ cmp incomplete-sum-file $WORK/overlay/overlay-sum-used-correct-sums
+ 
+ # -overlay works with -modfile.
+@@ -56,7 +56,7 @@ go list -modfile=alternate.mod -overlay overlay.json .
+ stdout 'found.the/module'
+ # Even with -modfile, overlaid files can't be opened for write.
+ ! go get -modfile=alternate.mod -overlay overlay.json -d rsc.io/quote
+-stderr 'overlaid files can''t be opened for write'
++stderr '^go: updates to go.mod needed, but go.mod is part of the overlay specified with -overlay$'
+ 
+ # Carving out a module by adding an overlaid go.mod file
+ cd $WORK/gopath/src/carve
+@@ -78,7 +78,7 @@ go list -overlay overlay.json all
+ stdout ^carve2/nomod$
+ # Editing go.mod file fails because overlay is read only
+ ! go get -overlay overlay.json -d rsc.io/quote
+-stderr 'overlaid files can''t be opened for write'
++stderr '^go: updates to go.mod needed, but go.mod is part of the overlay specified with -overlay$'
+ ! grep rsc.io/quote $WORK/overlay/carve2-nomod-go.mod
+ # Editing go.mod file succeeds because we use -modfile to redirect to same file
+ go get -overlay overlay.json -modfile $WORK/overlay/carve2-nomod-go.mod -d rsc.io/quote

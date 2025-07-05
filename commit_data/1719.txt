@@ -15,7 +15,7 @@ Date:   Fri Feb 27 15:40:17 2009 -0800
     R=r
     OCL=25518
     CL=25518
-
+---
  usr/gri/pretty/ast.go         | 309 +++++++++++++----------
  usr/gri/pretty/compilation.go |  11 +-
  usr/gri/pretty/parser.go      | 575 +++++++++++++++++++++++++-----------------
@@ -24,3 +24,2451 @@ Date:   Fri Feb 27 15:40:17 2009 -0800
  usr/gri/pretty/test.sh        |  15 +-
  usr/gri/pretty/typechecker.go |   6 +-
  7 files changed, 847 insertions(+), 624 deletions(-)
+
+diff --git a/usr/gri/pretty/ast.go b/usr/gri/pretty/ast.go
+index b82e1f1c5b..0bad5bb82d 100644
+--- a/usr/gri/pretty/ast.go
++++ b/usr/gri/pretty/ast.go
+@@ -14,7 +14,7 @@ import (
+ type (
+ 	Block struct;
+ 	Expr interface;
+-	Decl struct;
++	Decl interface;
+ )
+ 
+ 
+@@ -38,41 +38,7 @@ type Node struct {
+ 
+ 
+ // ----------------------------------------------------------------------------
+-// Types
+-
+-const /* form */ (
+-	// BADTYPE types are compatible with any type and don't cause further errors.
+-	// They are introduced only as a result of an error in the source code. A
+-	// correct program cannot have BAD types.
+-	BADTYPE = iota;
+-
+-	// A type name
+-	TYPENAME;
+-
+-	// composite types
+-	ARRAY; STRUCT; INTERFACE; MAP; CHANNEL; FUNCTION; POINTER;
+-
+-	// open-ended parameter type
+-	ELLIPSIS
+-)
+-
+-
+-func FormStr(form int) string {
+-	switch form {
+-	case BADTYPE: return "BADTYPE";
+-	case TYPENAME: return "TYPENAME";
+-	case ARRAY: return "ARRAY";
+-	case STRUCT: return "STRUCT";
+-	case INTERFACE: return "INTERFACE";
+-	case MAP: return "MAP";
+-	case CHANNEL: return "CHANNEL";
+-	case FUNCTION: return "FUNCTION";
+-	case POINTER: return "POINTER";
+-	case ELLIPSIS: return "ELLIPSIS";
+-	}
+-	return "<unknown Type form>";
+-}
+-
++// Expressions
+ 
+ const /* channel mode */ (
+ 	FULL = iota;
+@@ -81,62 +47,15 @@ const /* channel mode */ (
+ )
+ 
+ 
+-type Type struct {
+-	Id int;  // unique id
+-
+-	Form int;  // type form
+-	Size int;  // size in bytes
+-	Scope *SymbolTable.Scope;  // locals, fields & methods
+-
+-	// syntactic components
+-	Pos int;  // source position (< 0 if unknown position)
+-	Expr Expr;  // type name, vector length
+-	Mode int;  // channel mode
+-	Key *Type;  // receiver type or map key
+-	Elt *Type;  // type name type, vector, map, channel or pointer element type, function result type
+-	List *vector.Vector; End int;  // struct fields, interface methods, function parameters
+-}
+-
+-
+-var typeId int;
+-
+-func NewType(pos, form int) *Type {
+-	typ := new(Type);
+-	typ.Id = typeId;
+-	typeId++;
+-
+-	typ.Pos = pos;
+-	typ.Form = form;
+-
+-	return typ;
+-}
+-
+-
+-func (typ* Type) String() string {
+-	if typ != nil {
+-		return
+-			"Type(" +
+-			FormStr(typ.Form) +
+-			")";
+-	}
+-	return "nil";
+-}
+-
+-
+-var BadType = NewType(0, Scanner.ILLEGAL);
+-
+-
+-// ----------------------------------------------------------------------------
+-// Expressions
+-
+ type (
+ 	ExprVisitor interface;
++	Signature struct;
+ 
+ 	Expr interface {
+ 		Pos() int;
+ 		Visit(v ExprVisitor);
+ 	};
+-
++	
+ 	BadExpr struct {
+ 		Pos_ int;
+ 	};
+@@ -147,28 +66,32 @@ type (
+ 	};
+ 
+ 	BinaryExpr struct {
+-		Pos_, Tok int;
++		Pos_ int;
++		Tok int;
+ 		X, Y Expr;
+ 	};
+ 
+ 	UnaryExpr struct {
+-		Pos_, Tok int;
++		Pos_ int;
++		Tok int;
+ 		X Expr;
+ 	};
+ 
+ 	BasicLit struct {
+-		Pos_, Tok int;
++		Pos_ int;
++		Tok int;
+ 		Val string
+ 	};
+ 
+ 	FunctionLit struct {
+ 		Pos_ int;  // position of "func"
+-		Typ *Type;
++		Typ *Signature;
+ 		Body *Block;
+ 	};
+ 	
+-	TypeLit struct {
+-		Typ *Type;
++	Group struct {
++		Pos_ int;  // position of "("
++		X Expr;
+ 	};
+ 
+ 	Selector struct {
+@@ -180,7 +103,7 @@ type (
+ 	TypeGuard struct {
+ 		Pos_ int;  // position of "."
+ 		X Expr;
+-		Typ *Type;
++		Typ Expr;
+ 	};
+ 
+ 	Index struct {
+@@ -192,6 +115,66 @@ type (
+ 		Pos_ int;  // position of "("
+ 		F, Args Expr
+ 	};
++
++	// Type literals are treated like expressions.
++	Ellipsis struct {  // neither a type nor an expression
++		Pos_ int;
++	};
++
++	ArrayType struct {
++		Pos_ int;  // position of "["
++		Len Expr;
++		Elt Expr;
++	};
++	
++	Field struct {
++		Idents []*Ident;
++		Typ Expr;
++		Tag Expr;  // nil = no tag
++	};
++
++	StructType struct {
++		Pos_ int;  // position of "struct"
++		Fields []*Field;
++		End int;  // position of "}", End == 0 if forward declaration
++	};
++	
++	PointerType struct {
++		Pos_ int;  // position of "*"
++		Base Expr;
++	};
++	
++	Signature struct {
++		Params []*Field;
++		Result []*Field;
++	};
++
++	FunctionType struct {
++		Pos_ int;  // position of "func"
++		Sig *Signature;
++	};
++
++	InterfaceType struct {
++		Pos_ int;  // position of "interface"
++		Methods []*Field;
++		End int;  // position of "}", End == 0 if forward declaration
++	};
++
++	SliceType struct {
++		Pos_ int;  // position of "["
++	};
++	
++	MapType struct {
++		Pos_ int;  // position of "map"
++		Key Expr;
++		Val Expr;
++	};
++	
++	ChannelType struct {
++		Pos_ int;  // position of "chan" or "<-"
++		Mode int;
++		Val Expr;
++	};
+ )
+ 
+ 
+@@ -202,26 +185,47 @@ type ExprVisitor interface {
+ 	DoUnaryExpr(x *UnaryExpr);
+ 	DoBasicLit(x *BasicLit);
+ 	DoFunctionLit(x *FunctionLit);
+-	DoTypeLit(x *TypeLit);
++	DoGroup(x *Group);
+ 	DoSelector(x *Selector);
+ 	DoTypeGuard(x *TypeGuard);
+ 	DoIndex(x *Index);
+ 	DoCall(x *Call);
++	
++	DoEllipsis(x *Ellipsis);
++	DoArrayType(x *ArrayType);
++	DoStructType(x *StructType);
++	DoPointerType(x *PointerType);
++	DoFunctionType(x *FunctionType);
++	DoInterfaceType(x *InterfaceType);
++	DoSliceType(x *SliceType);
++	DoMapType(x *MapType);
++	DoChannelType(x *ChannelType);
+ }
+ 
+ 
++// TODO replace these with an embedded field
+ func (x *BadExpr) Pos() int { return x.Pos_; }
+ func (x *Ident) Pos() int { return x.Pos_; }
+ func (x *BinaryExpr) Pos() int { return x.Pos_; }
+ func (x *UnaryExpr) Pos() int { return x.Pos_; }
+ func (x *BasicLit) Pos() int { return x.Pos_; }
+ func (x *FunctionLit) Pos() int { return x.Pos_; }
+-func (x *TypeLit) Pos() int { return x.Typ.Pos; }
++func (x *Group) Pos() int { return x.Pos_; }
+ func (x *Selector) Pos() int { return x.Pos_; }
+ func (x *TypeGuard) Pos() int { return x.Pos_; }
+ func (x *Index) Pos() int { return x.Pos_; }
+ func (x *Call) Pos() int { return x.Pos_; }
+ 
++func (x *Ellipsis) Pos() int { return x.Pos_; }
++func (x *ArrayType) Pos() int { return x.Pos_; }
++func (x *StructType) Pos() int { return x.Pos_; }
++func (x *PointerType) Pos() int { return x.Pos_; }
++func (x *FunctionType) Pos() int { return x.Pos_; }
++func (x *InterfaceType) Pos() int { return x.Pos_; }
++func (x *SliceType) Pos() int { return x.Pos_; }
++func (x *MapType) Pos() int { return x.Pos_; }
++func (x *ChannelType) Pos() int { return x.Pos_; }
++
+ 
+ func (x *BadExpr) Visit(v ExprVisitor) { v.DoBadExpr(x); }
+ func (x *Ident) Visit(v ExprVisitor) { v.DoIdent(x); }
+@@ -229,12 +233,22 @@ func (x *BinaryExpr) Visit(v ExprVisitor) { v.DoBinaryExpr(x); }
+ func (x *UnaryExpr) Visit(v ExprVisitor) { v.DoUnaryExpr(x); }
+ func (x *BasicLit) Visit(v ExprVisitor) { v.DoBasicLit(x); }
+ func (x *FunctionLit) Visit(v ExprVisitor) { v.DoFunctionLit(x); }
+-func (x *TypeLit) Visit(v ExprVisitor) { v.DoTypeLit(x); }
++func (x *Group) Visit(v ExprVisitor) { v.DoGroup(x); }
+ func (x *Selector) Visit(v ExprVisitor) { v.DoSelector(x); }
+ func (x *TypeGuard) Visit(v ExprVisitor) { v.DoTypeGuard(x); }
+ func (x *Index) Visit(v ExprVisitor) { v.DoIndex(x); }
+ func (x *Call) Visit(v ExprVisitor) { v.DoCall(x); }
+ 
++func (x *Ellipsis) Visit(v ExprVisitor) { v.DoEllipsis(x); }
++func (x *ArrayType) Visit(v ExprVisitor) { v.DoArrayType(x); }
++func (x *StructType) Visit(v ExprVisitor) { v.DoStructType(x); }
++func (x *PointerType) Visit(v ExprVisitor) { v.DoPointerType(x); }
++func (x *FunctionType) Visit(v ExprVisitor) { v.DoFunctionType(x); }
++func (x *InterfaceType) Visit(v ExprVisitor) { v.DoInterfaceType(x); }
++func (x *SliceType) Visit(v ExprVisitor) { v.DoSliceType(x); }
++func (x *MapType) Visit(v ExprVisitor) { v.DoMapType(x); }
++func (x *ChannelType) Visit(v ExprVisitor) { v.DoChannelType(x); }
++
+ 
+ 
+ // Length of a comma-separated expression list.
+@@ -267,25 +281,6 @@ func ExprAt(x Expr, i int) Expr {
+ }
+ 
+ 
+-func (t *Type) Nfields() int {
+-	if t.List == nil {
+-		return 0;
+-	}
+-	nx, nt := 0, 0;
+-	for i, n := 0, t.List.Len(); i < n; i++ {
+-		if dummy, ok := t.List.At(i).(*TypeLit); ok {
+-			nt++;
+-		} else {
+-			nx++;
+-		}
+-	}
+-	if nx == 0 {
+-		return nt;
+-	}
+-	return nx;
+-}
+-
+-
+ // ----------------------------------------------------------------------------
+ // Blocks
+ //
+@@ -329,7 +324,7 @@ type (
+ 	};
+ 
+ 	DeclarationStat struct {
+-		Decl *Decl;
++		Decl Decl;
+ 	};
+ 
+ 	ExpressionStat struct {
+@@ -421,25 +416,79 @@ func (s *EmptyStat) Visit(v StatVisitor) { v.DoEmptyStat(s); }
+ // ----------------------------------------------------------------------------
+ // Declarations
+ 
+-type Decl struct {
+-	Node;
+-	Ident Expr;  // nil for ()-style declarations
+-	Typ *Type;
+-	Val Expr;
+-	Body *Block;
+-	// list of *Decl for ()-style declarations
+-	List *vector.Vector; End int;
+-}
++type (
++	DeclVisitor interface;
++
++	Decl interface {
++		Visit(v DeclVisitor);
++	};
++	
++	BadDecl struct {
++		Pos int;
++	};
++
++	ImportDecl struct {
++		Pos int;  // if > 0: position of "import"
++		Ident *Ident;
++		Path Expr;
++	};
++	
++	ConstDecl struct {
++		Pos int;  // if > 0: position of "const"
++		Idents []*Ident;
++		Typ Expr;
++		Vals Expr;
++	};
++	
++	TypeDecl struct {
++		Pos int;  // if > 0: position of "type"
++		Ident *Ident;
++		Typ Expr;
++	};
++	
++	VarDecl struct {
++		Pos int;  // if > 0: position of "var"
++		Idents []*Ident;
++		Typ Expr;
++		Vals Expr;
++	};
++
++	FuncDecl struct {
++		Pos_ int;  // position of "func"
++		Recv *Field;
++		Ident *Ident;
++		Sig *Signature;
++		Body *Block;
++	};
++	
++	DeclList struct {
++		Pos int;  // position of Tok
++		Tok int;
++		List []Decl;
++		End int;
++	};
++)
+ 
+ 
+-func NewDecl(pos, tok int) *Decl {
+-	d := new(Decl);
+-	d.Pos, d.Tok = pos, tok;
+-	return d;
++type DeclVisitor interface {
++	DoBadDecl(d *BadDecl);
++	DoImportDecl(d *ImportDecl);
++	DoConstDecl(d *ConstDecl);
++	DoTypeDecl(d *TypeDecl);
++	DoVarDecl(d *VarDecl);
++	DoFuncDecl(d *FuncDecl);
++	DoDeclList(d *DeclList);
+ }
+ 
+ 
+-var BadDecl = NewDecl(0, Scanner.ILLEGAL);
++//func (d *Decl) Visit(v DeclVisitor) { v.DoDecl(d); }
++func (d *BadDecl) Visit(v DeclVisitor) { v.DoBadDecl(d); }
++func (d *ImportDecl) Visit(v DeclVisitor) { v.DoImportDecl(d); }
++func (d *ConstDecl) Visit(v DeclVisitor) { v.DoConstDecl(d); }
++func (d *TypeDecl) Visit(v DeclVisitor) { v.DoTypeDecl(d); }
++func (d *VarDecl) Visit(v DeclVisitor) { v.DoVarDecl(d); }
++func (d *FuncDecl) Visit(v DeclVisitor) { v.DoFuncDecl(d); }
++func (d *DeclList) Visit(v DeclVisitor) { v.DoDeclList(d); }
+ 
+ 
+ // ----------------------------------------------------------------------------
+@@ -461,7 +510,7 @@ func NewComment(pos int, text string) *Comment {
+ type Program struct {
+ 	Pos int;  // tok is Scanner.PACKAGE
+ 	Ident Expr;
+-	Decls *vector.Vector;
++	Decls []Decl;
+ 	Comments *vector.Vector;
+ }
+ 
+diff --git a/usr/gri/pretty/compilation.go b/usr/gri/pretty/compilation.go
+index 460bedac52..44bcb83156 100644
+--- a/usr/gri/pretty/compilation.go
++++ b/usr/gri/pretty/compilation.go
+@@ -150,7 +150,8 @@ func fileExists(name string) bool {
+ }
+ 
+ 
+-func printDep(localset map [string] bool, wset *vector.Vector, decl *AST.Decl) {
++/*
++func printDep(localset map [string] bool, wset *vector.Vector, decl AST.Decl2) {
+ 	src := decl.Val.(*AST.BasicLit).Val;
+ 	src = src[1 : len(src) - 1];  // strip "'s
+ 
+@@ -171,6 +172,7 @@ func printDep(localset map [string] bool, wset *vector.Vector, decl *AST.Decl) {
+ 		}
+ 	}
+ }
++*/
+ 
+ 
+ func addDeps(globalset map [string] bool, wset *vector.Vector, src_file string, flags *Flags) {
+@@ -183,13 +185,15 @@ func addDeps(globalset map [string] bool, wset *vector.Vector, src_file string,
+ 			return;
+ 		}
+ 
+-		nimports := prog.Decls.Len();
++		nimports := len(prog.Decls);
+ 		if nimports > 0 {
+ 			fmt.Printf("%s.6:\t", src_file);
+ 
+ 			localset := make(map [string] bool);
+ 			for i := 0; i < nimports; i++ {
+-				decl := prog.Decls.At(i).(*AST.Decl);
++				decl := prog.Decls[i];
++				panic();
++				/*
+ 				assert(decl.Tok == Scanner.IMPORT);
+ 				if decl.List == nil {
+ 					printDep(localset, wset, decl);
+@@ -198,6 +202,7 @@ func addDeps(globalset map [string] bool, wset *vector.Vector, src_file string,
+ 						printDep(localset, wset, decl.List.At(j).(*AST.Decl));
+ 					}
+ 				}
++				*/
+ 			}
+ 			print("\n\n");
+ 		}
+diff --git a/usr/gri/pretty/parser.go b/usr/gri/pretty/parser.go
+index c2af6ce204..0eced7fdb4 100644
+--- a/usr/gri/pretty/parser.go
++++ b/usr/gri/pretty/parser.go
+@@ -29,7 +29,7 @@ type Parser struct {
+ 	val string;  // token value (for IDENT, NUMBER, STRING only)
+ 
+ 	// Non-syntactic parser control
+-	opt_semi bool;  // true if semicolon is optional
++	opt_semi bool;  // true if semicolon separator is optional in statement list
+ 
+ 	// Nesting levels
+ 	scope_lev int;  // 0 = global scope, 1 = function scope of global functions, etc.
+@@ -170,6 +170,7 @@ func (P *Parser) closeScope() {
+ }
+ 
+ 
++/*
+ func (P *Parser) declareInScope(scope *SymbolTable.Scope, x AST.Expr, kind int, typ *AST.Type) {
+ 	if P.scope_lev < 0 {
+ 		panic("cannot declare objects in other packages");
+@@ -207,15 +208,16 @@ func (P *Parser) declare(x AST.Expr, kind int, typ *AST.Type) {
+ 	}
+ 	P.declareInScope(P.top_scope, x, kind, typ);
+ }
++*/
+ 
+ 
+ // ----------------------------------------------------------------------------
+ // Common productions
+ 
+-func (P *Parser) tryType() *AST.Type;
++func (P *Parser) tryType() AST.Expr;
+ func (P *Parser) parseExpression(prec int) AST.Expr;
+ func (P *Parser) parseStatement() AST.Stat;
+-func (P *Parser) parseDeclaration() *AST.Decl;
++func (P *Parser) parseDeclaration() AST.Decl;
+ 
+ 
+ // If scope != nil, lookup identifier in scope. Otherwise create one.
+@@ -270,10 +272,34 @@ func (P *Parser) parseIdentList(x AST.Expr) AST.Expr {
+ }
+ 
+ 
++func (P *Parser) parseIdentList2(x AST.Expr) []*AST.Ident {
++	if P.trace {
++		defer un(trace(P, "IdentList"));
++	}
++
++	list := vector.New(0);
++	if x == nil {
++		x = P.parseIdent(nil);
++	}
++	list.Push(x);
++	for P.tok == Scanner.COMMA {
++		P.next();
++		list.Push(P.parseIdent(nil));
++	}
++
++	// convert vector
++	idents := make([]*AST.Ident, list.Len());
++	for i := 0; i < list.Len(); i++ {
++		idents[i] = list.At(i).(*AST.Ident);
++	}
++	return idents;
++}
++
++
+ // ----------------------------------------------------------------------------
+ // Types
+ 
+-func (P *Parser) parseType() *AST.Type {
++func (P *Parser) parseType() AST.Expr {
+ 	if P.trace {
+ 		defer un(trace(P, "Type"));
+ 	}
+@@ -281,14 +307,14 @@ func (P *Parser) parseType() *AST.Type {
+ 	t := P.tryType();
+ 	if t == nil {
+ 		P.error(P.pos, "type expected");
+-		t = AST.BadType;
++		t = &AST.BadExpr(P.pos);
+ 	}
+ 
+ 	return t;
+ }
+ 
+ 
+-func (P *Parser) parseVarType() *AST.Type {
++func (P *Parser) parseVarType() AST.Expr {
+ 	if P.trace {
+ 		defer un(trace(P, "VarType"));
+ 	}
+@@ -314,88 +340,90 @@ func (P *Parser) parseQualifiedIdent() AST.Expr {
+ }
+ 
+ 
+-func (P *Parser) parseTypeName() *AST.Type {
++func (P *Parser) parseTypeName() AST.Expr {
+ 	if P.trace {
+ 		defer un(trace(P, "TypeName"));
+ 	}
+ 
+-	t := AST.NewType(P.pos, AST.TYPENAME);
+-	t.Expr = P.parseQualifiedIdent();
+-
+-	return t;
++	return P.parseQualifiedIdent();
+ }
+ 
+ 
+-func (P *Parser) parseArrayType() *AST.Type {
++func (P *Parser) parseArrayType() *AST.ArrayType {
+ 	if P.trace {
+ 		defer un(trace(P, "ArrayType"));
+ 	}
+ 
+-	t := AST.NewType(P.pos, AST.ARRAY);
++	pos := P.pos;
+ 	P.expect(Scanner.LBRACK);
++	var len AST.Expr;
+ 	if P.tok == Scanner.ELLIPSIS {
+-		t.Expr = &AST.BinaryExpr(P.pos, Scanner.ELLIPSIS, nil, nil);
++		len = &AST.Ellipsis(P.pos);
+ 		P.next();
+ 	} else if P.tok != Scanner.RBRACK {
+-		t.Expr = P.parseExpression(1);
++		len = P.parseExpression(1);
+ 	}
+ 	P.expect(Scanner.RBRACK);
+-	t.Elt = P.parseType();
++	elt := P.parseType();
+ 
+-	return t;
++	return &AST.ArrayType(pos, len, elt);
+ }
+ 
+ 
+-func (P *Parser) parseChannelType() *AST.Type {
++func (P *Parser) parseChannelType() *AST.ChannelType {
+ 	if P.trace {
+ 		defer un(trace(P, "ChannelType"));
+ 	}
+ 
+-	t := AST.NewType(P.pos, AST.CHANNEL);
+-	t.Mode = AST.FULL;
++	pos := P.pos;
++	mode := AST.FULL;
+ 	if P.tok == Scanner.CHAN {
+ 		P.next();
+ 		if P.tok == Scanner.ARROW {
+ 			P.next();
+-			t.Mode = AST.SEND;
++			mode = AST.SEND;
+ 		}
+ 	} else {
+ 		P.expect(Scanner.ARROW);
+ 		P.expect(Scanner.CHAN);
+-		t.Mode = AST.RECV;
++		mode = AST.RECV;
+ 	}
+-	t.Elt = P.parseVarType();
++	val := P.parseVarType();
+ 
+-	return t;
++	return &AST.ChannelType(pos, mode, val);
+ }
+ 
+ 
+-func (P *Parser) parseVar(expect_ident bool) *AST.Type {
+-	t := AST.BadType;
+-	if expect_ident {
+-		x := P.parseIdent(nil);
+-		t = AST.NewType(x.Pos(), AST.TYPENAME);
+-		t.Expr = x;
+-	} else if P.tok == Scanner.ELLIPSIS {
+-		t = AST.NewType(P.pos, AST.ELLIPSIS);
++func (P *Parser) tryParameterType() AST.Expr {
++	if P.tok == Scanner.ELLIPSIS {
++		pos := P.tok;
+ 		P.next();
+-	} else {
+-		t = P.parseType();
++		return &AST.Ellipsis(pos);
+ 	}
+-	return t;
++	return P.tryType();
++}
++
++
++func (P *Parser) parseParameterType() AST.Expr {
++	typ := P.tryParameterType();
++	if typ == nil {
++		P.error(P.tok, "type expected");
++		typ = &AST.BadExpr(P.pos);
++	}
++	return typ;
+ }
+ 
+ 
+-func (P *Parser) parseVarList(list *vector.Vector, ellipsis_ok bool) {
++func (P *Parser) parseParameterDecl(ellipsis_ok bool) (*vector.Vector, AST.Expr) {
+ 	if P.trace {
+-		defer un(trace(P, "VarList"));
++		defer un(trace(P, "ParameterDecl"));
+ 	}
+ 
+-	// assume a list of types
+-	// (a list of identifiers looks like a list of type names)
+-	i0 := list.Len();
++	// a list of identifiers looks like a list of type names
++	list := vector.New(0);
+ 	for {
+-		list.Push(P.parseVar(ellipsis_ok /* param list */ && i0 > 0));
++		// TODO do not allow ()'s here
++		list.Push(P.parseParameterType());
+ 		if P.tok == Scanner.COMMA {
+ 			P.next();
+ 		} else {
+@@ -404,115 +432,87 @@ func (P *Parser) parseVarList(list *vector.Vector, ellipsis_ok bool) {
+ 	}
+ 
+ 	// if we had a list of identifiers, it must be followed by a type
+-	typ := P.tryType();
+-	if typ == nil && P.tok == Scanner.ELLIPSIS {
+-		typ = AST.NewType(P.pos, AST.ELLIPSIS);
+-		P.next();
+-	}
++	typ := P.tryParameterType();
++	
++	return list, typ;
++}
+ 
+-	if ellipsis_ok /* param list */ && i0 > 0 && typ == nil {
+-		// not the first parameter section; we must have a type
+-		P.error(P.pos, "type expected");
+-		typ = AST.BadType;
++
++func (P *Parser) parseParameterList(ellipsis_ok bool) []*AST.Field {
++	if P.trace {
++		defer un(trace(P, "ParameterList"));
+ 	}
+ 
+-	// convert the list into a list of (type) expressions
++	list, typ := P.parseParameterDecl(false);
+ 	if typ != nil {
+-		// all list entries must be identifiers
+-		// convert the type entries into identifiers
+-		for i, n := i0, list.Len(); i < n; i++ {
+-			t := list.At(i).(*AST.Type);
+-			if t.Form == AST.TYPENAME {
+-				if ident, ok := t.Expr.(*AST.Ident); ok {
+-					list.Set(i, ident);
+-					continue;
+-				}
+-			}
+-			list.Set(i, &AST.BadExpr(0));
+-			P.error(t.Pos, "identifier expected");
++		// IdentifierList Type
++		// convert list of identifiers into []*Ident
++		idents := make([]*AST.Ident, list.Len());
++		for i := 0; i < list.Len(); i++ {
++			idents[i] = list.At(i).(*AST.Ident);
++		}
++		list.Init(0);
++		list.Push(&AST.Field(idents, typ, nil));
++		
++		for P.tok == Scanner.COMMA {
++			P.next();
++			idents := P.parseIdentList2(nil);
++			typ := P.parseParameterType();
++			list.Push(&AST.Field(idents, typ, nil));
+ 		}
+-		// add type
+-		list.Push(&AST.TypeLit(typ));
+ 
+ 	} else {
+-		// all list entries are types
+-		// convert all type entries into type expressions
+-		for i, n := i0, list.Len(); i < n; i++ {
+-			t := list.At(i).(*AST.Type);
+-			list.Set(i, &AST.TypeLit(t));
++		// Type { "," Type }
++		// convert list of types into list of *Param
++		for i := 0; i < list.Len(); i++ {
++			list.Set(i, &AST.Field(nil, list.At(i).(AST.Expr), nil));
+ 		}
+ 	}
+-}
+-
+ 
+-func (P *Parser) parseParameterList(ellipsis_ok bool) *vector.Vector {
+-	if P.trace {
+-		defer un(trace(P, "ParameterList"));
++	// convert list
++	params := make([]*AST.Field, list.Len());
++	for i := 0; i < list.Len(); i++ {
++		params[i] = list.At(i).(*AST.Field);
+ 	}
+ 
+-	list := vector.New(0);
+-	P.parseVarList(list, ellipsis_ok);
+-	for P.tok == Scanner.COMMA {
+-		P.next();
+-		P.parseVarList(list, ellipsis_ok);
+-	}
+-
+-	return list;
++	return params;
+ }
+ 
+ 
+-func (P *Parser) parseParameters(ellipsis_ok bool) *AST.Type {
++// TODO make sure Go spec is updated
++func (P *Parser) parseParameters(ellipsis_ok bool) []*AST.Field {
+ 	if P.trace {
+ 		defer un(trace(P, "Parameters"));
+ 	}
+ 
+-	t := AST.NewType(P.pos, AST.STRUCT);
++	var params []*AST.Field;
+ 	P.expect(Scanner.LPAREN);
+ 	if P.tok != Scanner.RPAREN {
+-		t.List = P.parseParameterList(ellipsis_ok);
++		params = P.parseParameterList(ellipsis_ok);
+ 	}
+-	t.End = P.pos;
+ 	P.expect(Scanner.RPAREN);
+ 
+-	return t;
++	return params;
+ }
+ 
+ 
+-func (P *Parser) parseResultList() {
+-	if P.trace {
+-		defer un(trace(P, "ResultList"));
+-	}
+-
+-	P.parseType();
+-	for P.tok == Scanner.COMMA {
+-		P.next();
+-		P.parseType();
+-	}
+-	if P.tok != Scanner.RPAREN {
+-		P.parseType();
+-	}
+-}
+-
+-
+-func (P *Parser) parseResult(ftyp *AST.Type) *AST.Type {
++func (P *Parser) parseResult() []*AST.Field {
+ 	if P.trace {
+ 		defer un(trace(P, "Result"));
+ 	}
+ 
+-	var t *AST.Type;
++	var result []*AST.Field;
+ 	if P.tok == Scanner.LPAREN {
+-		t = P.parseParameters(false);
++		result = P.parseParameters(false);
+ 	} else if P.tok != Scanner.FUNC {
+ 		typ := P.tryType();
+ 		if typ != nil {
+-			t = AST.NewType(P.pos, AST.STRUCT);
+-			t.List = vector.New(0);
+-			t.List.Push(&AST.TypeLit(typ));
+-			t.End = P.pos;
++			result = make([]*AST.Field, 1);
++			result[0] = &AST.Field(nil, typ, nil);
+ 		}
+ 	}
+ 
+-	return t;
++	return result;
+ }
+ 
+ 
+@@ -522,120 +522,189 @@ func (P *Parser) parseResult(ftyp *AST.Type) *AST.Type {
+ // (params) type
+ // (params) (results)
+ 
+-func (P *Parser) parseSignature() *AST.Type {
++func (P *Parser) parseSignature() *AST.Signature {
+ 	if P.trace {
+ 		defer un(trace(P, "Signature"));
+ 	}
+ 
+-	P.openScope();
+-	P.scope_lev++;
++	//P.openScope();
++	//P.scope_lev++;
+ 
+-	t := AST.NewType(P.pos, AST.FUNCTION);
+-	t.Scope = P.top_scope;
+-	t.List = P.parseParameters(true).List;  // TODO find better solution
+-	t.End = P.pos;
+-	t.Elt = P.parseResult(t);
++	//t.Scope = P.top_scope;
++	params := P.parseParameters(true);  // TODO find better solution
++	//t.End = P.pos;
++	result := P.parseResult();
+ 
+-	P.scope_lev--;
+-	P.closeScope();
++	//P.scope_lev--;
++	//P.closeScope();
+ 
+-	return t;
++	return &AST.Signature(params, result);
+ }
+ 
+ 
+-func (P *Parser) parseFunctionType() *AST.Type {
++func (P *Parser) parseFunctionType() *AST.FunctionType {
+ 	if P.trace {
+ 		defer un(trace(P, "FunctionType"));
+ 	}
+ 
++	pos := P.pos;
+ 	P.expect(Scanner.FUNC);
+-	return P.parseSignature();
++	sig := P.parseSignature();
++	
++	return &AST.FunctionType(pos, sig);
+ }
+ 
+ 
+-func (P *Parser) parseMethodOrInterfaceSpec(list *vector.Vector) {
++func (P *Parser) parseMethodSpec() *AST.Field {
+ 	if P.trace {
+-		defer un(trace(P, "MethodOrInterfaceSpec"));
++		defer un(trace(P, "MethodSpec"));
+ 	}
+ 
++	var idents []*AST.Ident;
++	var typ AST.Expr;
+ 	x := P.parseQualifiedIdent();
+ 	if tmp, is_ident := x.(*AST.Ident); is_ident && (P.tok == Scanner.COMMA || P.tok == Scanner.LPAREN) {
+ 		// method(s)
+-		list.Push(P.parseIdentList(x));
+-		list.Push(&AST.TypeLit(P.parseSignature()));
++		idents = P.parseIdentList2(x);
++		typ = &AST.FunctionType(0, P.parseSignature());
+ 	} else {
+ 		// embedded interface
+-		list.Push(x);
++		typ = x;
+ 	}
++	
++	return &AST.Field(idents, typ, nil);
+ }
+ 
+ 
+-func (P *Parser) parseInterfaceType() *AST.Type {
++func (P *Parser) parseInterfaceType() *AST.InterfaceType {
+ 	if P.trace {
+ 		defer un(trace(P, "InterfaceType"));
+ 	}
+ 
+-	t := AST.NewType(P.pos, AST.INTERFACE);
++	pos := P.pos;
++	end := 0;
++	var methods []*AST.Field;
++
+ 	P.expect(Scanner.INTERFACE);
+ 	if P.tok == Scanner.LBRACE {
+ 		P.next();
+-		P.openScope();
+-		P.scope_lev++;
++		//P.openScope();
++		//P.scope_lev++;
+ 
+-		t.List = vector.New(0);
++		list := vector.New(0);
+ 		for P.tok == Scanner.IDENT {
+-			P.parseMethodOrInterfaceSpec(t.List);
++			list.Push(P.parseMethodSpec());
+ 			if P.tok != Scanner.RBRACE {
+ 				P.expect(Scanner.SEMICOLON);
+ 			}
+ 		}
+-		t.End = P.pos;
++		//t.End = P.pos;
+ 
+-		P.scope_lev--;
+-		P.closeScope();
++		//P.scope_lev--;
++		//P.closeScope();
++		end = P.pos;
+ 		P.expect(Scanner.RBRACE);
++		P.opt_semi = true;
++		
++		// convert vector
++		methods = make([]*AST.Field, list.Len());
++		for i := list.Len() - 1; i >= 0; i-- {
++			methods[i] = list.At(i).(*AST.Field);
++		}
+ 	}
+ 
+-	return t;
++	return &AST.InterfaceType(pos, methods, end);
+ }
+ 
+ 
+-func (P *Parser) parseMapType() *AST.Type {
++func (P *Parser) parseMapType() *AST.MapType {
+ 	if P.trace {
+ 		defer un(trace(P, "MapType"));
+ 	}
+ 
+-	t := AST.NewType(P.pos, AST.MAP);
++	pos := P.pos;
+ 	P.expect(Scanner.MAP);
+ 	P.expect(Scanner.LBRACK);
+-	t.Key = P.parseVarType();
++	key := P.parseVarType();
+ 	P.expect(Scanner.RBRACK);
+-	t.Elt = P.parseVarType();
++	val := P.parseVarType();
+ 
+-	return t;
++	return &AST.MapType(pos, key, val);
+ }
+ 
+ 
+ func (P *Parser) parseOperand() AST.Expr
+ 
+-func (P *Parser) parseStructType() *AST.Type {
++
++func (P *Parser) parseFieldDecl() *AST.Field {
++	if P.trace {
++		defer un(trace(P, "FieldDecl"));
++	}
++
++	// a list of identifiers looks like a list of type names
++	list := vector.New(0);
++	for {
++		// TODO do not allow ()'s here
++		list.Push(P.parseType());
++		if P.tok == Scanner.COMMA {
++			P.next();
++		} else {
++			break;
++		}
++	}
++
++	// if we had a list of identifiers, it must be followed by a type
++	typ := P.tryType();
++
++	// optional tag
++	var tag AST.Expr;
++	if P.tok == Scanner.STRING {
++		// ParseOperand takes care of string concatenation
++		tag = P.parseOperand();
++	}
++
++	// analyze case
++	var idents []*AST.Ident;
++	if typ != nil {
++		// non-empty identifier list followed by a type
++		idents = make([]*AST.Ident, list.Len());
++		for i := 0; i < list.Len(); i++ {
++			if ident, is_ident := list.At(i).(*AST.Ident); is_ident {
++				idents[i] = ident;
++			} else {
++				P.error(list.At(i).(AST.Expr).Pos(), "identifier expected");
++			}
++		}
++	} else {
++		// anonymous field
++		if list.Len() == 1 {
++			// TODO should do more checks here
++			typ = list.At(0).(AST.Expr);
++		} else {
++			P.error(P.pos, "anonymous field expected");
++		}
++	}
++	
++	return &AST.Field(idents, typ, tag);
++}
++
++
++func (P *Parser) parseStructType() AST.Expr {
+ 	if P.trace {
+ 		defer un(trace(P, "StructType"));
+ 	}
+ 
+-	t := AST.NewType(P.pos, AST.STRUCT);
++	pos := P.pos;
++	end := 0;
++	var fields []*AST.Field;
++	
+ 	P.expect(Scanner.STRUCT);
+ 	if P.tok == Scanner.LBRACE {
+ 		P.next();
+ 
+-		t.List = vector.New(0);
+-		t.Scope = SymbolTable.NewScope(nil);
++		list := vector.New(0);
+ 		for P.tok != Scanner.RBRACE && P.tok != Scanner.EOF {
+-			P.parseVarList(t.List, false);
+-			if P.tok == Scanner.STRING {
+-				// ParseOperand takes care of string concatenation
+-				t.List.Push(P.parseOperand());
+-			}
++			list.Push(P.parseFieldDecl());
+ 			if P.tok == Scanner.SEMICOLON {
+ 				P.next();
+ 			} else {
+@@ -643,36 +712,36 @@ func (P *Parser) parseStructType() *AST.Type {
+ 			}
+ 		}
+ 		P.OptSemicolon();
+-		t.End = P.pos;
+ 
++		end = P.pos;
+ 		P.expect(Scanner.RBRACE);
++		P.opt_semi = true;
+ 
+-		// enter fields into struct scope
+-		for i, n := 0, t.List.Len(); i < n; i++ {
+-			if x, ok := t.List.At(i).(*AST.Ident); ok {
+-				P.declareInScope(t.Scope, x, SymbolTable.FIELD, nil);
+-			}
++		// convert vector
++		fields = make([]*AST.Field, list.Len());
++		for i := list.Len() - 1; i >= 0; i-- {
++			fields[i] = list.At(i).(*AST.Field);
+ 		}
+ 	}
+ 
+-	return t;
++	return AST.StructType(pos, fields, end);
+ }
+ 
+ 
+-func (P *Parser) parsePointerType() *AST.Type {
++func (P *Parser) parsePointerType() AST.Expr {
+ 	if P.trace {
+ 		defer un(trace(P, "PointerType"));
+ 	}
+ 
+-	t := AST.NewType(P.pos, AST.POINTER);
++	pos := P.pos;
+ 	P.expect(Scanner.MUL);
+-	t.Elt = P.parseType();
++	base := P.parseType();
+ 
+-	return t;
++	return &AST.PointerType(pos, base);
+ }
+ 
+ 
+-func (P *Parser) tryType() *AST.Type {
++func (P *Parser) tryType() AST.Expr {
+ 	if P.trace {
+ 		defer un(trace(P, "Type (try)"));
+ 	}
+@@ -687,10 +756,11 @@ func (P *Parser) tryType() *AST.Type {
+ 	case Scanner.STRUCT: return P.parseStructType();
+ 	case Scanner.MUL: return P.parsePointerType();
+ 	case Scanner.LPAREN:
++		pos := P.pos;
+ 		P.next();
+ 		t := P.parseType();
+ 		P.expect(Scanner.RPAREN);
+-		return t;
++		return &AST.Group(pos, t);
+ 	}
+ 	
+ 	// no type found
+@@ -725,7 +795,7 @@ func (P *Parser) parseStatementList(list *vector.Vector) {
+ }
+ 
+ 
+-func (P *Parser) parseBlock(ftyp *AST.Type, tok int) *AST.Block {
++func (P *Parser) parseBlock(tok int) *AST.Block {
+ 	if P.trace {
+ 		defer un(trace(P, "Block"));
+ 	}
+@@ -733,6 +803,7 @@ func (P *Parser) parseBlock(ftyp *AST.Type, tok int) *AST.Block {
+ 	b := AST.NewBlock(P.pos, tok);
+ 	P.expect(tok);
+ 
++	/*
+ 	P.openScope();
+ 	// enter recv and parameters into function scope
+ 	if ftyp != nil {
+@@ -747,9 +818,13 @@ func (P *Parser) parseBlock(ftyp *AST.Type, tok int) *AST.Block {
+ 			}
+ 		}
+ 	}
+-
++	*/
++	
+ 	P.parseStatementList(b.List);
++	
++	/*
+ 	P.closeScope();
++	*/
+ 
+ 	if tok == Scanner.LBRACE {
+ 		b.End = P.pos;
+@@ -795,7 +870,7 @@ func (P *Parser) parseFunctionLit() AST.Expr {
+ 	P.expect(Scanner.FUNC);
+ 	typ := P.parseSignature();
+ 	P.scope_lev++;
+-	body := P.parseBlock(typ, Scanner.LBRACE);
++	body := P.parseBlock(Scanner.LBRACE);
+ 	P.scope_lev--;
+ 
+ 	return &AST.FunctionLit(pos, typ, body);
+@@ -812,10 +887,11 @@ func (P *Parser) parseOperand() AST.Expr {
+ 		return P.parseIdent(P.top_scope);
+ 
+ 	case Scanner.LPAREN:
++		pos := P.pos;
+ 		P.next();
+ 		x := P.parseExpression(1);
+ 		P.expect(Scanner.RPAREN);
+-		return x;
++		return &AST.Group(pos, x);
+ 
+ 	case Scanner.INT, Scanner.FLOAT, Scanner.STRING:
+ 		x := &AST.BasicLit(P.pos, P.tok, P.val);
+@@ -835,7 +911,7 @@ func (P *Parser) parseOperand() AST.Expr {
+ 	default:
+ 		t := P.tryType();
+ 		if t != nil {
+-			return &AST.TypeLit(t);
++			return t;
+ 		} else {
+ 			P.error(P.pos, "operand expected");
+ 			P.next();  // make progress
+@@ -978,6 +1054,8 @@ func (P *Parser) parseUnaryExpr() AST.Expr {
+ 		pos, tok := P.pos, P.tok;
+ 		P.next();
+ 		y := P.parseUnaryExpr();
++		return &AST.UnaryExpr(pos, tok, y);
++		/*
+ 		if lit, ok := y.(*AST.TypeLit); ok && tok == Scanner.MUL {
+ 			// pointer type
+ 			t := AST.NewType(pos, AST.POINTER);
+@@ -986,6 +1064,7 @@ func (P *Parser) parseUnaryExpr() AST.Expr {
+ 		} else {
+ 			return &AST.UnaryExpr(pos, tok, y);
+ 		}
++		*/
+ 	}
+ 
+ 	return P.parsePrimaryExpr();
+@@ -1180,7 +1259,7 @@ func (P *Parser) parseIfStat() *AST.IfStat {
+ 	pos := P.pos;
+ 	P.expect(Scanner.IF);
+ 	init, cond, dummy := P.parseControlClause(false);
+-	body := P.parseBlock(nil, Scanner.LBRACE);
++	body := P.parseBlock(Scanner.LBRACE);
+ 	var else_ AST.Stat;
+ 	if P.tok == Scanner.ELSE {
+ 		P.next();
+@@ -1211,7 +1290,7 @@ func (P *Parser) parseForStat() *AST.ForStat {
+ 	pos := P.pos;
+ 	P.expect(Scanner.FOR);
+ 	init, cond, post := P.parseControlClause(true);
+-	body := P.parseBlock(nil, Scanner.LBRACE);
++	body := P.parseBlock(Scanner.LBRACE);
+ 	P.closeScope();
+ 
+ 	return &AST.ForStat(pos, init, cond, post, body);
+@@ -1233,7 +1312,7 @@ func (P *Parser) parseCaseClause() *AST.CaseClause {
+ 		P.expect(Scanner.DEFAULT);
+ 	}
+ 
+-	return &AST.CaseClause(pos, expr, P.parseBlock(nil, Scanner.COLON));
++	return &AST.CaseClause(pos, expr, P.parseBlock(Scanner.COLON));
+ }
+ 
+ 
+@@ -1286,7 +1365,7 @@ func (P *Parser) parseCommClause() *AST.CaseClause {
+ 		P.expect(Scanner.DEFAULT);
+ 	}
+ 
+-	return &AST.CaseClause(pos, expr, P.parseBlock(nil, Scanner.COLON));
++	return &AST.CaseClause(pos, expr, P.parseBlock(Scanner.COLON));
+ }
+ 
+ 
+@@ -1337,7 +1416,7 @@ func (P *Parser) parseStatement() AST.Stat {
+ 	case Scanner.BREAK, Scanner.CONTINUE, Scanner.GOTO, Scanner.FALLTHROUGH:
+ 		return P.parseControlFlowStat(P.tok);
+ 	case Scanner.LBRACE:
+-		return &AST.CompositeStat(P.parseBlock(nil, Scanner.LBRACE));
++		return &AST.CompositeStat(P.parseBlock(Scanner.LBRACE));
+ 	case Scanner.IF:
+ 		return P.parseIfStat();
+ 	case Scanner.FOR:
+@@ -1360,90 +1439,105 @@ func (P *Parser) parseStatement() AST.Stat {
+ // ----------------------------------------------------------------------------
+ // Declarations
+ 
+-func (P *Parser) parseImportSpec(d *AST.Decl) {
++func (P *Parser) parseImportSpec(pos int) *AST.ImportDecl {
+ 	if P.trace {
+ 		defer un(trace(P, "ImportSpec"));
+ 	}
+ 
++	var ident *AST.Ident;
+ 	if P.tok == Scanner.PERIOD {
+ 		P.error(P.pos, `"import ." not yet handled properly`);
+ 		P.next();
+ 	} else if P.tok == Scanner.IDENT {
+-		d.Ident = P.parseIdent(nil);
++		ident = P.parseIdent(nil);
+ 	}
+ 
++	var path AST.Expr;
+ 	if P.tok == Scanner.STRING {
+ 		// TODO eventually the scanner should strip the quotes
+-		d.Val = &AST.BasicLit(P.pos, Scanner.STRING, P.val);
++		path = &AST.BasicLit(P.pos, Scanner.STRING, P.val);
+ 		P.next();
+ 	} else {
+ 		P.expect(Scanner.STRING);  // use expect() error handling
+ 	}
++	
++	return &AST.ImportDecl(pos, ident, path);
+ }
+ 
+ 
+-func (P *Parser) parseConstSpec(d *AST.Decl) {
++func (P *Parser) parseConstSpec(pos int) *AST.ConstDecl {
+ 	if P.trace {
+ 		defer un(trace(P, "ConstSpec"));
+ 	}
+ 
+-	d.Ident = P.parseIdentList(nil);
+-	d.Typ = P.tryType();
++	idents := P.parseIdentList2(nil);
++	typ := P.tryType();
++	var vals AST.Expr;
+ 	if P.tok == Scanner.ASSIGN {
+ 		P.next();
+-		d.Val = P.parseExpressionList();
++		vals = P.parseExpressionList();
+ 	}
++	
++	return &AST.ConstDecl(pos, idents, typ, vals);
+ }
+ 
+ 
+-func (P *Parser) parseTypeSpec(d *AST.Decl) {
++func (P *Parser) parseTypeSpec(pos int) *AST.TypeDecl {
+ 	if P.trace {
+ 		defer un(trace(P, "TypeSpec"));
+ 	}
+ 
+-	d.Ident = P.parseIdent(nil);
+-	d.Typ = P.parseType();
+-	P.opt_semi = true;
++	ident := P.parseIdent(nil);
++	typ := P.parseType();
++	
++	return &AST.TypeDecl(pos, ident, typ);
+ }
+ 
+ 
+-func (P *Parser) parseVarSpec(d *AST.Decl) {
++func (P *Parser) parseVarSpec(pos int) *AST.VarDecl {
+ 	if P.trace {
+ 		defer un(trace(P, "VarSpec"));
+ 	}
+ 
+-	d.Ident = P.parseIdentList(nil);
++	idents := P.parseIdentList2(nil);
++	var typ AST.Expr;
++	var vals AST.Expr;
+ 	if P.tok == Scanner.ASSIGN {
+ 		P.next();
+-		d.Val = P.parseExpressionList();
++		vals = P.parseExpressionList();
+ 	} else {
+-		d.Typ = P.parseVarType();
++		typ = P.parseVarType();
+ 		if P.tok == Scanner.ASSIGN {
+ 			P.next();
+-			d.Val = P.parseExpressionList();
++			vals = P.parseExpressionList();
+ 		}
+ 	}
++	
++	return &AST.VarDecl(pos, idents, typ, vals);
+ }
+ 
+ 
+-func (P *Parser) parseSpec(d *AST.Decl) {
++func (P *Parser) parseSpec(pos, keyword int) AST.Decl {
+ 	kind := SymbolTable.NONE;
+ 
+-	switch d.Tok {
+-	case Scanner.IMPORT: P.parseImportSpec(d); kind = SymbolTable.PACKAGE;
+-	case Scanner.CONST: P.parseConstSpec(d); kind = SymbolTable.CONST;
+-	case Scanner.TYPE: P.parseTypeSpec(d); kind = SymbolTable.TYPE;
+-	case Scanner.VAR: P.parseVarSpec(d); kind = SymbolTable.VAR;
+-	default: unreachable();
++	switch keyword {
++	case Scanner.IMPORT: return P.parseImportSpec(pos);
++	case Scanner.CONST: return P.parseConstSpec(pos);
++	case Scanner.TYPE: return P.parseTypeSpec(pos);
++	case Scanner.VAR: return P.parseVarSpec(pos);
+ 	}
++	
++	unreachable();
++	return nil;
+ 
++	/*
+ 	// semantic checks
+ 	if d.Tok == Scanner.IMPORT {
+ 		if d.Ident != nil {
+-			P.declare(d.Ident, kind, nil);
++			//P.declare(d.Ident, kind, nil);
+ 		}
+ 	} else {
+-		P.declare(d.Ident, kind, d.Typ);
++		//P.declare(d.Ident, kind, d.Typ);
+ 		if d.Val != nil {
+ 			// initialization/assignment
+ 			llen := AST.ExprLen(d.Ident);
+@@ -1463,38 +1557,42 @@ func (P *Parser) parseSpec(d *AST.Decl) {
+ 			// TODO
+ 		}
+ 	}
++	*/
+ }
+ 
+ 
+-func (P *Parser) parseDecl(keyword int) *AST.Decl {
++func (P *Parser) parseDecl(keyword int) AST.Decl {
+ 	if P.trace {
+ 		defer un(trace(P, "Decl"));
+ 	}
+ 
+-	d := AST.NewDecl(P.pos, keyword);
++	pos := P.pos;
+ 	P.expect(keyword);
+ 	if P.tok == Scanner.LPAREN {
+ 		P.next();
+-		d.List = vector.New(0);
++		list := vector.New(0);
+ 		for P.tok != Scanner.RPAREN && P.tok != Scanner.EOF {
+-			d1 := AST.NewDecl(P.pos, keyword);
+-			P.parseSpec(d1);
+-			d.List.Push(d1);
++			list.Push(P.parseSpec(0, keyword));
+ 			if P.tok == Scanner.SEMICOLON {
+ 				P.next();
+ 			} else {
+ 				break;
+ 			}
+ 		}
+-		d.End = P.pos;
++		end := P.pos;
+ 		P.expect(Scanner.RPAREN);
+ 		P.opt_semi = true;
+-
+-	} else {
+-		P.parseSpec(d);
++		
++		// convert vector
++		decls := make([]AST.Decl, list.Len());
++		for i := 0; i < list.Len(); i++ {
++			decls[i] = list.At(i).(AST.Decl);
++		}
++		
++		return &AST.DeclList(pos, keyword, decls, end);
+ 	}
+ 
+-	return d;
++	return P.parseSpec(pos, keyword);
+ }
+ 
+ 
+@@ -1507,54 +1605,53 @@ func (P *Parser) parseDecl(keyword int) *AST.Decl {
+ // func (recv) ident (params) type
+ // func (recv) ident (params) (results)
+ 
+-func (P *Parser) parseFunctionDecl() *AST.Decl {
++func (P *Parser) parseFunctionDecl() *AST.FuncDecl {
+ 	if P.trace {
+ 		defer un(trace(P, "FunctionDecl"));
+ 	}
+ 
+-	d := AST.NewDecl(P.pos, Scanner.FUNC);
++	pos := P.pos;
+ 	P.expect(Scanner.FUNC);
+ 
+-	var recv *AST.Type;
++	var recv *AST.Field;
+ 	if P.tok == Scanner.LPAREN {
+ 		pos := P.pos;
+-		recv = P.parseParameters(true);
+-		if recv.Nfields() != 1 {
++		tmp := P.parseParameters(true);
++		if len(tmp) == 1 {
++			recv = tmp[0];
++		} else {
+ 			P.error(pos, "must have exactly one receiver");
+ 		}
+ 	}
+ 
+ 	ident := P.parseIdent(nil);
+-	d.Ident = ident;
+-	d.Typ = P.parseSignature();
+-	d.Typ.Key = recv;
++	sig := P.parseSignature();
+ 
++	var body *AST.Block;
+ 	if P.tok == Scanner.LBRACE {
+-		d.Body = P.parseBlock(d.Typ, Scanner.LBRACE);
++		body = P.parseBlock(Scanner.LBRACE);
+ 	}
+ 
+-	return d;
++	return &AST.FuncDecl(pos, recv, ident, sig, body);
+ }
+ 
+ 
+-func (P *Parser) parseDeclaration() *AST.Decl {
++func (P *Parser) parseDeclaration() AST.Decl {
+ 	if P.trace {
+ 		defer un(trace(P, "Declaration"));
+ 	}
+ 
+-	d := AST.BadDecl;
+-
+ 	switch P.tok {
+ 	case Scanner.CONST, Scanner.TYPE, Scanner.VAR:
+-		d = P.parseDecl(P.tok);
++		return P.parseDecl(P.tok);
+ 	case Scanner.FUNC:
+-		d = P.parseFunctionDecl();
+-	default:
+-		P.error(P.pos, "declaration expected");
+-		P.next();  // make progress
++		return P.parseFunctionDecl();
+ 	}
+-
+-	return d;
++	
++	pos := P.pos;
++	P.error(pos, "declaration expected");
++	P.next();  // make progress
++	return &AST.BadDecl(pos);
+ }
+ 
+ 
+@@ -1573,18 +1670,24 @@ func (P *Parser) ParseProgram() *AST.Program {
+ 
+ 	// package body
+ 	{	P.openScope();
+-		p.Decls = vector.New(0);
++		list := vector.New(0);
+ 		for P.tok == Scanner.IMPORT {
+-			p.Decls.Push(P.parseDecl(Scanner.IMPORT));
++			list.Push(P.parseDecl(Scanner.IMPORT));
+ 			P.OptSemicolon();
+ 		}
+ 		if !P.deps {
+ 			for P.tok != Scanner.EOF {
+-				p.Decls.Push(P.parseDeclaration());
++				list.Push(P.parseDeclaration());
+ 				P.OptSemicolon();
+ 			}
+ 		}
+ 		P.closeScope();
++
++		// convert list
++		p.Decls = make([]AST.Decl, list.Len());
++		for i := 0; i < list.Len(); i++ {
++			p.Decls[i] = list.At(i).(AST.Decl);
++		}
+ 	}
+ 
+ 	p.Comments = P.comments;
+diff --git a/usr/gri/pretty/printer.go b/usr/gri/pretty/printer.go
+index 64ce715a1d..8f270216ef 100644
+--- a/usr/gri/pretty/printer.go
++++ b/usr/gri/pretty/printer.go
+@@ -93,6 +93,7 @@ type Printer struct {
+ 	indentation int;  // indentation level (may be different from scope level)
+ 
+ 	// formatting parameters
++	opt_semi bool;  // // true if semicolon separator is optional in statement list
+ 	separator int;  // pending separator
+ 	newlines int;  // pending newlines
+ 
+@@ -362,6 +363,7 @@ func (P *Printer) TaggedString(pos int, tag, s, endtag string) {
+ 
+ 	// --------------------------------
+ 	// done
++	P.opt_semi = false;
+ 	P.lastpos = pos + len(s);  // rough estimate
+ }
+ 
+@@ -422,15 +424,15 @@ func (P *Printer) HtmlIdentifier(x *AST.Ident) {
+ 		// depending on whether we have a declaration or use, generate different html
+ 		// - no need to htmlEscape ident
+ 		id := Utils.IntToString(obj.Id, 10);
+-		if x.Pos() == obj.Pos {
++		if x.Pos_ == obj.Pos {
+ 			// probably the declaration of x
+-			P.TaggedString(x.Pos(), `<a name="id` + id + `">`, obj.Ident, `</a>`);
++			P.TaggedString(x.Pos_, `<a name="id` + id + `">`, obj.Ident, `</a>`);
+ 		} else {
+ 			// probably not the declaration of x
+-			P.TaggedString(x.Pos(), `<a href="#id` + id + `">`, obj.Ident, `</a>`);
++			P.TaggedString(x.Pos_, `<a href="#id` + id + `">`, obj.Ident, `</a>`);
+ 		}
+ 	} else {
+-		P.String(x.Pos(), obj.Ident);
++		P.String(x.Pos_, obj.Ident);
+ 	}
+ }
+ 
+@@ -447,167 +449,106 @@ func (P *Printer) HtmlPackageName(pos int, name string) {
+ 
+ 
+ // ----------------------------------------------------------------------------
+-// Types
++// Support
+ 
+-func (P *Printer) Type(t *AST.Type) int
+ func (P *Printer) Expr(x AST.Expr)
+ 
+-func (P *Printer) Parameters(pos int, list *vector.Vector) {
+-	P.String(pos, "(");
+-	if list != nil {
+-		var prev int;
+-		for i, n := 0, list.Len(); i < n; i++ {
+-			x := list.At(i).(AST.Expr);
+-			tok := Scanner.TYPE;
+-			if dummy, is_ident := x.(*AST.Ident); is_ident {
+-				tok = Scanner.IDENT;
+-			}
++func (P *Printer) Idents(list []*AST.Ident) {
++	for i, x := range list {
++		if i > 0 {
++			P.Token(0, Scanner.COMMA);
++			P.separator = blank;
++			P.state = inside_list;
++		}
++		P.Expr(x);
++	}
++}
++
++
++func (P *Printer) Parameters(list []*AST.Field) {
++	P.Token(0, Scanner.LPAREN);
++	if len(list) > 0 {
++		for i, par := range list {
+ 			if i > 0 {
+-				if prev == tok || prev == Scanner.TYPE {
+-					P.separator = comma;
+-				} else {
+-					P.separator = blank;
+-				}
++				P.separator = comma;
+ 			}
+-			P.Expr(x);
+-			prev = tok;
++			if len(par.Idents) > 0 {
++				P.Idents(par.Idents);
++				P.separator = blank
++			};
++			P.Expr(par.Typ);
+ 		}
+ 	}
+-	P.String(0, ")");
++	P.Token(0, Scanner.RPAREN);
+ }
+ 
+ 
+ // Returns the separator (semicolon or none) required if
+ // the type is terminating a declaration or statement.
+-func (P *Printer) Signature(t *AST.Type) int {
+-	assert(t.Form == AST.FUNCTION);
+-	separator := none;
+-	P.Parameters(t.Pos, t.List);
+-	if t.Elt != nil {
++func (P *Printer) Signature(sig *AST.Signature) {
++	P.Parameters(sig.Params);
++	if sig.Result != nil {
+ 		P.separator = blank;
+-		list := t.Elt.List;
+-		dummy, is_type := list.At(0).(*AST.TypeLit);
+-		if list.Len() > 1 || is_type && dummy.Typ.Form == AST.FUNCTION {
+-			// single, anonymous result types which are functions must
+-			// be parenthesized as well
+-			P.Parameters(0, list);
+-		} else {
+-			// single, anonymous result type
+-			separator = P.Type(list.At(0).(*AST.TypeLit).Typ);
++
++		if len(sig.Result) == 1 && sig.Result[0].Idents == nil {
++			// single anonymous result
++			// => no parentheses needed unless it's a function type
++			fld := sig.Result[0];
++			if dummy, is_ftyp := fld.Typ.(*AST.FunctionType); !is_ftyp {
++				P.Expr(fld.Typ);
++				return;
++			}
+ 		}
++		
++		P.Parameters(sig.Result);
+ 	}
+-	return separator;
+ }
+ 
+ 
+-func (P *Printer) Fields(list *vector.Vector, end int, in_interface bool) {
++func (P *Printer) Fields(list []*AST.Field, end int, is_interface bool) {
+ 	P.state = opening_scope;
+-	P.String(0, "{");
++	P.separator = blank;
++	P.Token(0, Scanner.LBRACE);
+ 
+-	if list.Len() > 0 {
++	if len(list) > 0 {
+ 		P.newlines = 1;
+-		var prev int;
+-		for i, n := 0, list.Len(); i < n; i++ {
+-			x := list.At(i).(AST.Expr);
+-			tok := Scanner.TYPE;
+-			if dummy, is_ident := x.(*AST.Ident); is_ident {
+-				tok = Scanner.IDENT;
+-			} else if dummy, is_lit := x.(*AST.BasicLit); is_lit && dummy.Tok == Scanner.STRING {
+-				tok = Scanner.STRING;
+-			}
++		for i, fld := range list {
+ 			if i > 0 {
+-				if prev == Scanner.TYPE && tok != Scanner.STRING || prev == Scanner.STRING {
+-					P.separator = semicolon;
+-					P.newlines = 1;
+-				} else if prev == tok {
+-					P.separator = comma;
++				P.separator = semicolon;
++				P.newlines = 1;
++			}
++			if len(fld.Idents) > 0 {
++				P.Idents(fld.Idents);
++				P.separator = tab
++			};
++			if is_interface {
++				if ftyp, is_ftyp := fld.Typ.(*AST.FunctionType); is_ftyp {
++					P.Signature(ftyp.Sig);
+ 				} else {
+-					P.separator = tab;
++					P.Expr(fld.Typ);
+ 				}
+-			}
+-			if in_interface && tok == Scanner.TYPE {
+-				P.Signature(x.(*AST.TypeLit).Typ);
+ 			} else {
+-				P.Expr(x);
++				P.Expr(fld.Typ);
++				if fld.Tag != nil {
++					P.separator = tab;
++					P.Expr(fld.Tag);
++				}
+ 			}
+-			prev = tok;
+ 		}
+ 		P.newlines = 1;
+ 	}
+ 
+ 	P.state = closing_scope;
+-	P.String(end, "}");
+-}
+-
+-
+-// Returns the separator (semicolon or none) required if
+-// the type is terminating a declaration or statement.
+-func (P *Printer) Type(t *AST.Type) int {
+-	separator := semicolon;
+-
+-	switch t.Form {
+-	case AST.TYPENAME:
+-		P.Expr(t.Expr);
+-
+-	case AST.ARRAY:
+-		P.String(t.Pos, "[");
+-		if t.Expr != nil {
+-			P.Expr(t.Expr);
+-		}
+-		P.String(0, "]");
+-		separator = P.Type(t.Elt);
+-
+-	case AST.STRUCT, AST.INTERFACE:
+-		switch t.Form {
+-		case AST.STRUCT: P.String(t.Pos, "struct");
+-		case AST.INTERFACE: P.String(t.Pos, "interface");
+-		}
+-		if t.List != nil {
+-			P.separator = blank;
+-			P.Fields(t.List, t.End, t.Form == AST.INTERFACE);
+-		}
+-		separator = none;
+-
+-	case AST.MAP:
+-		P.String(t.Pos, "map [");
+-		P.Type(t.Key);
+-		P.String(0, "]");
+-		separator = P.Type(t.Elt);
+-
+-	case AST.CHANNEL:
+-		var m string;
+-		switch t.Mode {
+-		case AST.FULL: m = "chan ";
+-		case AST.RECV: m = "<-chan ";
+-		case AST.SEND: m = "chan <- ";
+-		}
+-		P.String(t.Pos, m);
+-		separator = P.Type(t.Elt);
+-
+-	case AST.POINTER:
+-		P.String(t.Pos, "*");
+-		separator = P.Type(t.Elt);
+-
+-	case AST.FUNCTION:
+-		P.Token(0, Scanner.FUNC);
+-		separator = P.Signature(t);
+-
+-	case AST.ELLIPSIS:
+-		P.String(t.Pos, "...");
+-
+-	default:
+-		P.Error(t.Pos, t.Form, "type");
+-	}
+-
+-	return separator;
++	P.Token(end, Scanner.RBRACE);
++	P.opt_semi = true;
+ }
+ 
+ 
+ // ----------------------------------------------------------------------------
+ // Expressions
+ 
+-func (P *Printer) Block(b *AST.Block, indent bool);
+-func (P *Printer) Expr1(x AST.Expr, prec1 int);
++func (P *Printer) Block(b *AST.Block, indent bool)
++func (P *Printer) Expr1(x AST.Expr, prec1 int)
+ 
+ 
+ func (P *Printer) DoBadExpr(x *AST.BadExpr) {
+@@ -624,22 +565,22 @@ func (P *Printer) DoBinaryExpr(x *AST.BinaryExpr) {
+ 	if x.Tok == Scanner.COMMA {
+ 		// (don't use binary expression printing because of different spacing)
+ 		P.Expr(x.X);
+-		P.String(x.Pos(), ",");
++		P.Token(x.Pos_, Scanner.COMMA);
+ 		P.separator = blank;
+ 		P.state = inside_list;
+ 		P.Expr(x.Y);
+ 	} else {
+ 		prec := Scanner.Precedence(x.Tok);
+ 		if prec < P.prec {
+-			P.String(0, "(");
++			P.Token(0, Scanner.LPAREN);
+ 		}
+ 		P.Expr1(x.X, prec);
+ 		P.separator = blank;
+-		P.Token(x.Pos(), x.Tok);
++		P.Token(x.Pos_, x.Tok);
+ 		P.separator = blank;
+ 		P.Expr1(x.Y, prec);
+ 		if prec < P.prec {
+-			P.String(0, ")");
++			P.Token(0, Scanner.RPAREN);
+ 		}
+ 	}
+ }
+@@ -648,31 +589,26 @@ func (P *Printer) DoBinaryExpr(x *AST.BinaryExpr) {
+ func (P *Printer) DoUnaryExpr(x *AST.UnaryExpr) {
+ 	prec := Scanner.UnaryPrec;
+ 	if prec < P.prec {
+-		P.String(0, "(");
++		P.Token(0, Scanner.LPAREN);
+ 	}
+-	P.Token(x.Pos(), x.Tok);
++	P.Token(x.Pos_, x.Tok);
+ 	if x.Tok == Scanner.RANGE {
+ 		P.separator = blank;
+ 	}
+ 	P.Expr1(x.X, prec);
+ 	if prec < P.prec {
+-		P.String(0, ")");
++		P.Token(0, Scanner.RPAREN);
+ 	}
+ }
+ 
+ 
+ func (P *Printer) DoBasicLit(x *AST.BasicLit) {
+-	P.String(x.Pos(), x.Val);
+-}
+-
+-
+-func (P *Printer) DoTypeLit(x *AST.TypeLit) {
+-	P.Type(x.Typ);
++	P.String(x.Pos_, x.Val);
+ }
+ 
+ 
+ func (P *Printer) DoFunctionLit(x *AST.FunctionLit) {
+-	P.String(x.Pos(), "func");
++	P.Token(x.Pos_, Scanner.FUNC);
+ 	P.Signature(x.Typ);
+ 	P.separator = blank;
+ 	P.Block(x.Body, true);
+@@ -680,35 +616,117 @@ func (P *Printer) DoFunctionLit(x *AST.FunctionLit) {
+ }
+ 
+ 
++func (P *Printer) DoGroup(x *AST.Group) {
++	P.Token(x.Pos_, Scanner.LPAREN);
++	P.Expr(x.X);
++	P.Token(0, Scanner.RPAREN);
++}
++
++
+ func (P *Printer) DoSelector(x *AST.Selector) {
+ 	P.Expr1(x.X, Scanner.HighestPrec);
+-	P.String(x.Pos(), ".");
++	P.Token(x.Pos_, Scanner.PERIOD);
+ 	P.Expr1(x.Sel, Scanner.HighestPrec);
+ }
+ 
+ 
+ func (P *Printer) DoTypeGuard(x *AST.TypeGuard) {
+ 	P.Expr1(x.X, Scanner.HighestPrec);
+-	P.String(x.Pos(), ".");
+-	P.String(0, "(");
+-	P.Type(x.Typ);
+-	P.String(0, ")");
++	P.Token(x.Pos_, Scanner.PERIOD);
++	P.Token(0, Scanner.LPAREN);
++	P.Expr(x.Typ);
++	P.Token(0, Scanner.RPAREN);
+ }
+ 
+ 
+ func (P *Printer) DoIndex(x *AST.Index) {
+ 	P.Expr1(x.X, Scanner.HighestPrec);
+-	P.String(x.Pos(), "[");
++	P.Token(x.Pos_, Scanner.LBRACK);
+ 	P.Expr1(x.I, 0);
+-	P.String(0, "]");
++	P.Token(0, Scanner.RBRACK);
+ }
+ 
+ 
+ func (P *Printer) DoCall(x *AST.Call) {
+ 	P.Expr1(x.F, Scanner.HighestPrec);
+-	P.String(x.Pos(), "(");
++	P.Token(x.Pos_, Scanner.LPAREN);
+ 	P.Expr(x.Args);
+-	P.String(0, ")");
++	P.Token(0, Scanner.RPAREN);
++}
++
++
++func (P *Printer) DoEllipsis(x *AST.Ellipsis) {
++	P.Token(x.Pos_, Scanner.ELLIPSIS);
++}
++
++
++func (P *Printer) DoArrayType(x *AST.ArrayType) {
++	P.Token(x.Pos_, Scanner.LBRACK);
++	if x.Len != nil {
++		P.Expr(x.Len);
++	}
++	P.Token(0, Scanner.RBRACK);
++	P.Expr(x.Elt);
++}
++
++
++func (P *Printer) DoStructType(x *AST.StructType) {
++	P.Token(x.Pos_, Scanner.STRUCT);
++	if x.End > 0 {
++		P.Fields(x.Fields, x.End, false);
++	}
++}
++
++
++func (P *Printer) DoPointerType(x *AST.PointerType) {
++	P.Token(x.Pos_, Scanner.MUL);
++	P.Expr(x.Base);
++}
++
++
++func (P *Printer) DoFunctionType(x *AST.FunctionType) {
++	P.Token(x.Pos_, Scanner.FUNC);
++	P.Signature(x.Sig);
++}
++
++
++func (P *Printer) DoInterfaceType(x *AST.InterfaceType) {
++	P.Token(x.Pos_, Scanner.INTERFACE);
++	if x.End > 0 {
++		P.Fields(x.Methods, x.End, true);
++	}
++}
++
++
++func (P *Printer) DoSliceType(x *AST.SliceType) {
++	unimplemented();
++}
++
++
++func (P *Printer) DoMapType(x *AST.MapType) {
++	P.Token(x.Pos_, Scanner.MAP);
++	P.separator = blank;
++	P.Token(0, Scanner.LBRACK);
++	P.Expr(x.Key);
++	P.Token(0, Scanner.RBRACK);
++	P.Expr(x.Val);
++}
++
++
++func (P *Printer) DoChannelType(x *AST.ChannelType) {
++	switch x.Mode {
++	case AST.FULL:
++		P.Token(x.Pos_, Scanner.CHAN);
++	case AST.RECV:
++		P.Token(x.Pos_, Scanner.ARROW);
++		P.Token(0, Scanner.CHAN);
++	case AST.SEND:
++		P.Token(x.Pos_, Scanner.CHAN);
++		P.separator = blank;
++		P.Token(0, Scanner.ARROW);
++	}
++	P.separator = blank;
++	P.Expr(x.Val);
+ }
+ 
+ 
+@@ -738,9 +756,16 @@ func (P *Printer) Stat(s AST.Stat) {
+ 
+ 
+ func (P *Printer) StatementList(list *vector.Vector) {
+-	for i, n := 0, list.Len(); i < n; i++ {
+-		P.newlines = 1;  // for first entry
+-		list.At(i).(AST.Stat).Visit(P);
++	for i := 0; i < list.Len(); i++ {
++		if i == 0 {
++			P.newlines = 1;
++		} else {  // i > 0
++			if !P.opt_semi {
++				// semicolon is required
++				P.separator = semicolon;
++			}
++		}
++		P.Stat(list.At(i).(AST.Stat));
+ 		P.newlines = 1;
+ 		P.state = inside_list;
+ 	}
+@@ -762,15 +787,15 @@ func (P *Printer) Block(b *AST.Block, indent bool) {
+ 	}
+ 	P.state = closing_scope;
+ 	if b.Tok == Scanner.LBRACE {
+-		P.String(b.End, "}");
++		P.Token(b.End, Scanner.RBRACE);
++		P.opt_semi = true;
+ 	} else {
+ 		P.String(0, "");  // process closing_scope state transition!
+ 	}
+ }
+ 
+ 
+-func (P *Printer) Declaration(d *AST.Decl, parenthesized bool);
+-
++func (P *Printer) Decl(d AST.Decl);
+ 
+ func (P *Printer) DoBadStat(s *AST.BadStat) {
+ 	panic();
+@@ -780,14 +805,13 @@ func (P *Printer) DoBadStat(s *AST.BadStat) {
+ func (P *Printer) DoLabelDecl(s *AST.LabelDecl) {
+ 	P.indentation--;
+ 	P.Expr(s.Label);
+-	P.String(s.Pos, ":");
++	P.Token(s.Pos, Scanner.COLON);
+ 	P.indentation++;
+-	P.separator = none;
+ }
+ 
+ 
+ func (P *Printer) DoDeclarationStat(s *AST.DeclarationStat) {
+-	P.Declaration(s.Decl, false);
++	P.Decl(s.Decl);
+ }
+ 
+ 
+@@ -808,7 +832,6 @@ func (P *Printer) DoExpressionStat(s *AST.ExpressionStat) {
+ 		P.Error(s.Pos, s.Tok, "DoExpressionStat");
+ 		unreachable();
+ 	}
+-	P.separator = semicolon;
+ }
+ 
+ 
+@@ -831,14 +854,14 @@ func (P *Printer) ControlClause(isForStat bool, init AST.Stat, expr AST.Expr, po
+ 			P.Stat(init);
+ 			P.separator = none;
+ 		}
+-		P.String(0, ";");
++		P.Token(0, Scanner.SEMICOLON);
+ 		P.separator = blank;
+ 		if expr != nil {
+ 			P.Expr(expr);
+ 			P.separator = none;
+ 		}
+ 		if isForStat {
+-			P.String(0, ";");
++			P.Token(0, Scanner.SEMICOLON);
+ 			P.separator = blank;
+ 			if post != nil {
+ 				P.Stat(post);
+@@ -879,7 +902,7 @@ func (P *Printer) DoCaseClause(s *AST.CaseClause) {
+ 	}
+ 	// TODO: try to use P.Block instead
+ 	// P.Block(s.Body, true);
+-	P.String(s.Body.Pos, ":");
++	P.Token(s.Body.Pos, Scanner.COLON);
+ 	P.indentation++;
+ 	P.StatementList(s.Body.List);
+ 	P.indentation--;
+@@ -907,114 +930,164 @@ func (P *Printer) DoControlFlowStat(s *AST.ControlFlowStat) {
+ 		P.separator = blank;
+ 		P.Expr(s.Label);
+ 	}
+-	P.separator = semicolon;
+ }
+ 
+ 
+ func (P *Printer) DoEmptyStat(s *AST.EmptyStat) {
+ 	P.String(s.Pos, "");
+-	P.separator = semicolon;
+ }
+ 
+ 
+ // ----------------------------------------------------------------------------
+ // Declarations
+ 
+-func (P *Printer) Declaration(d *AST.Decl, parenthesized bool) {
+-	if !parenthesized {
+-		if !*def || d.Tok == Scanner.IMPORT || d.Tok == Scanner.VAR {
+-			P.Token(d.Pos, d.Tok);
+-		} else {
+-			P.String(d.Pos, "def");
+-		}
++func (P *Printer) DoBadDecl(d *AST.BadDecl) {
++	unimplemented();
++}
++
++
++func (P *Printer) DoImportDecl(d *AST.ImportDecl) {
++	if d.Pos > 0 {
++		P.Token(d.Pos, Scanner.IMPORT);
+ 		P.separator = blank;
+ 	}
++	if d.Ident != nil {
++		P.Expr(d.Ident);
++	} else {
++		P.String(d.Path.Pos(), "");  // flush pending ';' separator/newlines
++	}
++	P.separator = tab;
++	if lit, is_lit := d.Path.(*AST.BasicLit); is_lit && lit.Tok == Scanner.STRING {
++		P.HtmlPackageName(lit.Pos_, lit.Val);
++	} else {
++		// we should only reach here for strange imports
++		// import "foo" "bar"
++		P.Expr(d.Path);
++	}
++	P.newlines = 2;
++}
+ 
+-	if d.Tok != Scanner.FUNC && d.List != nil {
+-		// group of parenthesized declarations
+-		P.state = opening_scope;
+-		P.String(0, "(");
+-		if d.List.Len() > 0 {
+-			P.newlines = 1;
+-			for i := 0; i < d.List.Len(); i++ {
+-				P.Declaration(d.List.At(i).(*AST.Decl), true);
+-				P.separator = semicolon;
+-				P.newlines = 1;
+-			}
++
++func (P *Printer) DoConstDecl(d *AST.ConstDecl) {
++	if d.Pos > 0 {
++		P.Token(d.Pos, Scanner.CONST);
++		P.separator = blank;
++	}
++	P.Idents(d.Idents);
++	if d.Typ != nil {
++		P.separator = blank;  // TODO switch to tab? (indentation problem with structs)
++		P.Expr(d.Typ);
++	}
++	if d.Vals != nil {
++		P.separator = tab;
++		P.Token(0, Scanner.ASSIGN);
++		P.separator = blank;
++		P.Expr(d.Vals);
++	}
++	P.newlines = 2;
++}
++
++
++func (P *Printer) DoTypeDecl(d *AST.TypeDecl) {
++	if d.Pos > 0 {
++		P.Token(d.Pos, Scanner.TYPE);
++		P.separator = blank;
++	}
++	P.Expr(d.Ident);
++	P.separator = blank;  // TODO switch to tab? (but indentation problem with structs)
++	P.Expr(d.Typ);
++	P.newlines = 2;
++}
++
++
++func (P *Printer) DoVarDecl(d *AST.VarDecl) {
++	if d.Pos > 0 {
++		P.Token(d.Pos, Scanner.VAR);
++		P.separator = blank;
++	}
++	P.Idents(d.Idents);
++	if d.Typ != nil {
++		P.separator = blank;  // TODO switch to tab? (indentation problem with structs)
++		P.Expr(d.Typ);
++		//P.separator = P.Type(d.Typ);
++	}
++	if d.Vals != nil {
++		P.separator = tab;
++		P.Token(0, Scanner.ASSIGN);
++		P.separator = blank;
++		P.Expr(d.Vals);
++	}
++	P.newlines = 2;
++}
++
++
++func (P *Printer) DoFuncDecl(d *AST.FuncDecl) {
++	P.Token(d.Pos_, Scanner.FUNC);
++	P.separator = blank;
++	if recv := d.Recv; recv != nil {
++		// method: print receiver
++		P.Token(0, Scanner.LPAREN);
++		if len(recv.Idents) > 0 {
++			P.Expr(recv.Idents[0]);
++			P.separator = blank;
+ 		}
+-		P.state = closing_scope;
+-		P.String(d.End, ")");
++		P.Expr(recv.Typ);
++		P.Token(0, Scanner.RPAREN);
++		P.separator = blank;
++	}
++	P.Expr(d.Ident);
++	P.Signature(d.Sig);
++	if d.Body != nil {
++		P.separator = blank;
++		P.Block(d.Body, true);
++	}
++	P.newlines = 2;
++}
+ 
++
++func (P *Printer) DoDeclList(d *AST.DeclList) {
++	if !*def || d.Tok == Scanner.IMPORT || d.Tok == Scanner.VAR {
++		P.Token(d.Pos, d.Tok);
+ 	} else {
+-		// single declaration
+-		switch d.Tok {
+-		case Scanner.IMPORT:
+-			if d.Ident != nil {
+-				P.Expr(d.Ident);
+-			} else {
+-				P.String(d.Val.Pos(), "");  // flush pending ';' separator/newlines
+-			}
+-			P.separator = tab;
+-			if lit, is_lit := d.Val.(*AST.BasicLit); is_lit && lit.Tok == Scanner.STRING {
+-				P.HtmlPackageName(lit.Pos(), lit.Val);
+-			} else {
+-				// we should only reach here for strange imports
+-				// import "foo" "bar"
+-				P.Expr(d.Val);
+-			}
+-			P.separator = semicolon;
+-
+-		case Scanner.TYPE:
+-			P.Expr(d.Ident);
+-			P.separator = blank;  // TODO switch to tab? (but indentation problem with structs)
+-			P.separator = P.Type(d.Typ);
+-
+-		case Scanner.CONST, Scanner.VAR:
+-			P.Expr(d.Ident);
+-			if d.Typ != nil {
+-				P.separator = blank;  // TODO switch to tab? (indentation problem with structs)
+-				P.separator = P.Type(d.Typ);
+-			}
+-			if d.Val != nil {
+-				P.separator = tab;
+-				P.String(0, "=");
+-				P.separator = blank;
+-				P.Expr(d.Val);
+-			}
+-			P.separator = semicolon;
++		P.String(d.Pos, "def");
++	}
++	P.separator = blank;
+ 
+-		case Scanner.FUNC:
+-			if d.Typ.Key != nil {
+-				// method: print receiver
+-				P.Parameters(0, d.Typ.Key.List);
+-				P.separator = blank;
+-			}
+-			P.Expr(d.Ident);
+-			P.separator = P.Signature(d.Typ);
+-			if d.Body != nil {
+-				P.separator = blank;
+-				P.Block(d.Body, true);
++	// group of parenthesized declarations
++	P.state = opening_scope;
++	P.Token(0, Scanner.LPAREN);
++	if len(d.List) > 0 {
++		P.newlines = 1;
++		for i := 0; i < len(d.List); i++ {
++			if i > 0 {
++				P.separator = semicolon;
+ 			}
+-
+-		default:
+-			P.Error(d.Pos, d.Tok, "decl");
++			P.Decl(d.List[i]);
++			P.newlines = 1;
+ 		}
+ 	}
+-
++	P.state = closing_scope;
++	P.Token(d.End, Scanner.RPAREN);
++	P.opt_semi = true;
+ 	P.newlines = 2;
+ }
+ 
+ 
++func (P *Printer) Decl(d AST.Decl) {
++	d.Visit(P);
++}
++
++
+ // ----------------------------------------------------------------------------
+ // Program
+ 
+ func (P *Printer) Program(p *AST.Program) {
+-	P.String(p.Pos, "package");
++	P.Token(p.Pos, Scanner.PACKAGE);
+ 	P.separator = blank;
+ 	P.Expr(p.Ident);
+ 	P.newlines = 1;
+-	for i := 0; i < p.Decls.Len(); i++ {
+-		P.Declaration(p.Decls.At(i).(*AST.Decl), false);
++	for i := 0; i < len(p.Decls); i++ {
++		P.Decl(p.Decls[i]);
+ 	}
+ 	P.newlines = 1;
+ }
+diff --git a/usr/gri/pretty/selftest1.go b/usr/gri/pretty/selftest1.go
+index dff19ca53e..d3597d26cd 100644
+--- a/usr/gri/pretty/selftest1.go
++++ b/usr/gri/pretty/selftest1.go
+@@ -10,7 +10,7 @@ import P2 /* ERROR expected */ 42 /* SYNC */
+ 
+ 
+ type S0 struct {
+-	f0, f1, f2;
++	f0, f1, f2 int;
+ }
+ 
+ 
+diff --git a/usr/gri/pretty/test.sh b/usr/gri/pretty/test.sh
+index 565e869af9..d288e20fbe 100755
+--- a/usr/gri/pretty/test.sh
++++ b/usr/gri/pretty/test.sh
+@@ -26,7 +26,7 @@ apply1() {
+ 	case `basename $F` in
+ 	# files with errors (skip them)
+ 	# the following have semantic errors: bug039.go | bug040.go
+-	method1.go | selftest1.go | func3.go | \
++	calc.go | method1.go | selftest1.go | func3.go | \
+ 	bug014.go | bug025.go | bug029.go | bug032.go | bug039.go | bug040.go | bug050.go |  bug068.go | \
+ 	bug088.go | bug083.go | bug106.go | bug121.go | bug125.go | bug126.go | bug132.go | bug133.go | bug134.go ) ;;
+ 	* ) $1 $2; count $F;;
+@@ -43,18 +43,9 @@ applydot() {
+ }
+ 
+ 
+-# apply to all files in the list
++# apply to all .go files we can find
+ apply() {
+-	for F in \
+-		$GOROOT/usr/gri/pretty/*.go \
+-		$GOROOT/test/*.go \
+-		$GOROOT/test/bugs/*.go \
+-		$GOROOT/test/fixedbugs/*.go \
+-		$GOROOT/doc/progs/*.go \
+-		$GOROOT/src/lib/*.go \
+-		$GOROOT/src/lib/*/*.go \
+-		$GOROOT/usr/r/*/*.go
+-	do
++	for F in `find $GOROOT -name "*.go" | grep -v "OLD"`; do
+ 		apply1 $1 $F
+ 	done
+ }
+diff --git a/usr/gri/pretty/typechecker.go b/usr/gri/pretty/typechecker.go
+index e8e04b32b2..a35a5b3513 100644
+--- a/usr/gri/pretty/typechecker.go
++++ b/usr/gri/pretty/typechecker.go
+@@ -52,6 +52,7 @@ func (s *state) CheckType() {
+ }
+ 
+ 
++/*
+ func (s *state) CheckDeclaration(d *AST.Decl) {
+ 	if d.Tok != Scanner.FUNC && d.List != nil {
+ 		// group of parenthesized declarations
+@@ -72,11 +73,12 @@ func (s *state) CheckDeclaration(d *AST.Decl) {
+ 		}
+ 	}
+ }
++*/
+ 
+ 
+ func (s *state) CheckProgram(p *AST.Program) {
+-	for i := 0; i < p.Decls.Len(); i++ {
+-		s.CheckDeclaration(p.Decls.At(i).(*AST.Decl));
++	for i := 0; i < len(p.Decls); i++ {
++		//s.CheckDeclaration(p.Decls[i].(*AST.Decl));
+ 	}
+ }
+ 

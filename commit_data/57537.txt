@@ -14,6 +14,27 @@ Date:   Tue Aug 15 04:33:37 2023 +0000
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  doc/go1.22.html | 9 +++++++++
  1 file changed, 9 insertions(+)
+
+diff --git a/doc/go1.22.html b/doc/go1.22.html
+index 5534a3fbad..1bf759a9a6 100644
+--- a/doc/go1.22.html
++++ b/doc/go1.22.html
+@@ -70,6 +70,15 @@ Do not send CLs removing the interior tags from such phrases.
+   TODO: complete this section
+ </p>
+ 
++<dl id="database/sql"><dt><a href="/pkg/database/sql/">database/sql</a></dt>
++  <dd>
++    <p><!-- https://go.dev/issue/60370, CL 501700 -->
++      The new <a href="/pkg/database/sql/#Null"><code>Null[T]</code></a> type
++      provide a way to scan nullable columns for any column types.
++    </p>
++  </dd>
++</dl>
++
+ <h2 id="ports">Ports</h2>
+ 
+ <p>

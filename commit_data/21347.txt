@@ -12,6 +12,20 @@ Date:   Mon Dec 22 21:18:09 2014 -0500
     Change-Id: Ie8cb64c3910382a41c7852be7734a62f0b2d5a21
     Reviewed-on: https://go-review.googlesource.com/2060
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/cgo/test/issue9400_linux.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/misc/cgo/test/issue9400_linux.go b/misc/cgo/test/issue9400_linux.go
+index d2386b80fc..b3b4b7952c 100644
+--- a/misc/cgo/test/issue9400_linux.go
++++ b/misc/cgo/test/issue9400_linux.go
+@@ -52,7 +52,7 @@ func test9400(t *testing.T) {
+ 	// Check test pattern
+ 	for i := range big {
+ 		if big[i] != pattern {
+-			t.Fatalf("entry %d of test pattern is wrong; %#x != %#x", i, big[i], pattern)
++			t.Fatalf("entry %d of test pattern is wrong; %#x != %#x", i, big[i], uint64(pattern))
+ 		}
+ 	}
+ }

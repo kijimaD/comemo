@@ -34,10 +34,333 @@ Date:   Fri Sep 15 06:45:15 2023 +0000
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/internal/zstd/block.go       |  6 +--
  src/internal/zstd/window.go      | 90 ++++++++++++++++++++++++++++++++++++++++
  src/internal/zstd/window_test.go | 72 ++++++++++++++++++++++++++++++++
  src/internal/zstd/zstd.go        | 41 ++++--------------
  src/internal/zstd/zstd_test.go   |  2 +-
  5 files changed, 173 insertions(+), 38 deletions(-)
+
+diff --git a/src/internal/zstd/block.go b/src/internal/zstd/block.go
+index bd3040ce83..cf4c954c7d 100644
+--- a/src/internal/zstd/block.go
++++ b/src/internal/zstd/block.go
+@@ -393,17 +393,17 @@ func (r *Reader) copyFromWindow(rbr *reverseBitReader, offset, match uint32) err
+ 
+ 	lenBlock := uint32(len(r.buffer))
+ 	if lenBlock < offset {
+-		lenWindow := uint32(len(r.window))
++		lenWindow := r.window.len()
+ 		windowOffset := offset - lenBlock
+ 		if windowOffset > lenWindow {
+ 			return rbr.makeError("offset past window")
+ 		}
+ 		from := lenWindow - windowOffset
+ 		if from+match <= lenWindow {
+-			r.buffer = append(r.buffer, r.window[from:from+match]...)
++			r.buffer = r.window.appendTo(r.buffer, from, from+match)
+ 			return nil
+ 		}
+-		r.buffer = append(r.buffer, r.window[from:]...)
++		r.buffer = r.window.appendTo(r.buffer, from, lenWindow)
+ 		copied := lenWindow - from
+ 		offset -= copied
+ 		match -= copied
+diff --git a/src/internal/zstd/window.go b/src/internal/zstd/window.go
+new file mode 100644
+index 0000000000..f9c5f04c3a
+--- /dev/null
++++ b/src/internal/zstd/window.go
+@@ -0,0 +1,90 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package zstd
++
++// window stores up to size bytes of data.
++// It is implemented as a circular buffer:
++// sequential save calls append to the data slice until
++// its length reaches configured size and after that,
++// save calls overwrite previously saved data at off
++// and update off such that it always points at
++// the byte stored before others.
++type window struct {
++	size int
++	data []byte
++	off  int
++}
++
++// reset clears stored data and configures window size.
++func (w *window) reset(size int) {
++	w.data = w.data[:0]
++	w.off = 0
++	w.size = size
++}
++
++// len returns the number of stored bytes.
++func (w *window) len() uint32 {
++	return uint32(len(w.data))
++}
++
++// save stores up to size last bytes from the buf.
++func (w *window) save(buf []byte) {
++	if w.size == 0 {
++		return
++	}
++	if len(buf) == 0 {
++		return
++	}
++
++	if len(buf) >= w.size {
++		from := len(buf) - w.size
++		w.data = append(w.data[:0], buf[from:]...)
++		w.off = 0
++		return
++	}
++
++	// Update off to point to the oldest remaining byte.
++	free := w.size - len(w.data)
++	if free == 0 {
++		n := copy(w.data[w.off:], buf)
++		if n == len(buf) {
++			w.off += n
++		} else {
++			w.off = copy(w.data, buf[n:])
++		}
++	} else {
++		if free >= len(buf) {
++			w.data = append(w.data, buf...)
++		} else {
++			w.data = append(w.data, buf[:free]...)
++			w.off = copy(w.data, buf[free:])
++		}
++	}
++}
++
++// appendTo appends stored bytes between from and to indices to the buf.
++// Index from must be less or equal to index to and to must be less or equal to w.len().
++func (w *window) appendTo(buf []byte, from, to uint32) []byte {
++	dataLen := uint32(len(w.data))
++	from += uint32(w.off)
++	to += uint32(w.off)
++
++	wrap := false
++	if from > dataLen {
++		from -= dataLen
++		wrap = !wrap
++	}
++	if to > dataLen {
++		to -= dataLen
++		wrap = !wrap
++	}
++
++	if wrap {
++		buf = append(buf, w.data[from:]...)
++		return append(buf, w.data[:to]...)
++	} else {
++		return append(buf, w.data[from:to]...)
++	}
++}
+diff --git a/src/internal/zstd/window_test.go b/src/internal/zstd/window_test.go
+new file mode 100644
+index 0000000000..afa2eefc1a
+--- /dev/null
++++ b/src/internal/zstd/window_test.go
+@@ -0,0 +1,72 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package zstd
++
++import (
++	"bytes"
++	"fmt"
++	"testing"
++)
++
++func makeSequence(start, n int) (seq []byte) {
++	for i := 0; i < n; i++ {
++		seq = append(seq, byte(start+i))
++	}
++	return
++}
++
++func TestWindow(t *testing.T) {
++	for size := 0; size <= 3; size++ {
++		for i := 0; i <= 2*size; i++ {
++			a := makeSequence('a', i)
++			for j := 0; j <= 2*size; j++ {
++				b := makeSequence('a'+i, j)
++				for k := 0; k <= 2*size; k++ {
++					c := makeSequence('a'+i+j, k)
++
++					t.Run(fmt.Sprintf("%d-%d-%d-%d", size, i, j, k), func(t *testing.T) {
++						testWindow(t, size, a, b, c)
++					})
++				}
++			}
++		}
++	}
++}
++
++// testWindow tests window by saving three sequences of bytes to it.
++// Third sequence tests read offset that can become non-zero only after second save.
++func testWindow(t *testing.T, size int, a, b, c []byte) {
++	var w window
++	w.reset(size)
++
++	w.save(a)
++	w.save(b)
++	w.save(c)
++
++	var tail []byte
++	tail = append(tail, a...)
++	tail = append(tail, b...)
++	tail = append(tail, c...)
++
++	if len(tail) > size {
++		tail = tail[len(tail)-size:]
++	}
++
++	if w.len() != uint32(len(tail)) {
++		t.Errorf("wrong data length: got: %d, want: %d", w.len(), len(tail))
++	}
++
++	var from, to uint32
++	for from = 0; from <= uint32(len(tail)); from++ {
++		for to = from; to <= uint32(len(tail)); to++ {
++			got := w.appendTo(nil, from, to)
++			want := tail[from:to]
++
++			if !bytes.Equal(got, want) {
++				t.Errorf("wrong data at [%d:%d]: got %q, want %q", from, to, got, want)
++			}
++		}
++	}
++}
+diff --git a/src/internal/zstd/zstd.go b/src/internal/zstd/zstd.go
+index 25a731c164..60551a4371 100644
+--- a/src/internal/zstd/zstd.go
++++ b/src/internal/zstd/zstd.go
+@@ -59,8 +59,7 @@ type Reader struct {
+ 	huffmanTableBits int
+ 
+ 	// The window for back references.
+-	windowSize int    // maximum required window size
+-	window     []byte // window data
++	window window
+ 
+ 	// A buffer available to hold a compressed block.
+ 	compressedBuf []byte
+@@ -112,7 +111,6 @@ func (r *Reader) Reset(input io.Reader) {
+ 	// repeatedOffset3
+ 	// huffmanTable
+ 	// huffmanTableBits
+-	// windowSize
+ 	// window
+ 	// compressedBuf
+ 	// literals
+@@ -236,10 +234,10 @@ retry:
+ 
+ 	// Figure out the maximum amount of data we need to retain
+ 	// for backreferences.
+-
++	var windowSize int
+ 	if singleSegment {
+ 		// No window required, as all the data is in a single buffer.
+-		r.windowSize = 0
++		windowSize = 0
+ 	} else {
+ 		// Window descriptor. RFC 3.1.1.1.2.
+ 		windowDescriptor := r.scratch[0]
+@@ -248,7 +246,7 @@ retry:
+ 		windowLog := exponent + 10
+ 		windowBase := uint64(1) << windowLog
+ 		windowAdd := (windowBase / 8) * mantissa
+-		windowSize := windowBase + windowAdd
++		windowSize = int(windowBase + windowAdd)
+ 
+ 		// Default zstd sets limits on the window size.
+ 		if fuzzing && (windowLog > 31 || windowSize > 1<<27) {
+@@ -259,8 +257,6 @@ retry:
+ 		if windowSize > 8<<20 {
+ 			windowSize = 8 << 20
+ 		}
+-
+-		r.windowSize = int(windowSize)
+ 	}
+ 
+ 	// Frame_Content_Size. RFC 3.1.1.4.
+@@ -293,7 +289,7 @@ retry:
+ 	r.repeatedOffset2 = 4
+ 	r.repeatedOffset3 = 8
+ 	r.huffmanTableBits = 0
+-	r.window = r.window[:0]
++	r.window.reset(windowSize)
+ 	r.seqTables[0] = nil
+ 	r.seqTables[1] = nil
+ 	r.seqTables[2] = nil
+@@ -368,7 +364,7 @@ func (r *Reader) readBlock() error {
+ 	// Maximum block size is smaller of window size and 128K.
+ 	// We don't record the window size for a single segment frame,
+ 	// so just use 128K. RFC 3.1.1.2.3, 3.1.1.2.4.
+-	if blockSize > 128<<10 || (r.windowSize > 0 && blockSize > r.windowSize) {
++	if blockSize > 128<<10 || (r.window.size > 0 && blockSize > r.window.size) {
+ 		return r.makeError(relativeOffset, "block size too large")
+ 	}
+ 
+@@ -414,7 +410,7 @@ func (r *Reader) readBlock() error {
+ 	}
+ 
+ 	if !lastBlock {
+-		r.saveWindow(r.buffer)
++		r.window.save(r.buffer)
+ 	} else {
+ 		if !r.frameSizeUnknown && r.remainingFrameSize != 0 {
+ 			return r.makeError(relativeOffset, "not enough uncompressed bytes for frame")
+@@ -449,29 +445,6 @@ func (r *Reader) setBufferSize(size int) {
+ 	r.buffer = r.buffer[:size]
+ }
+ 
+-// saveWindow saves bytes in the backreference window.
+-// TODO: use a circular buffer for less data movement.
+-func (r *Reader) saveWindow(buf []byte) {
+-	if r.windowSize == 0 {
+-		return
+-	}
+-
+-	if len(buf) >= r.windowSize {
+-		from := len(buf) - r.windowSize
+-		r.window = append(r.window[:0], buf[from:]...)
+-		return
+-	}
+-
+-	keep := r.windowSize - len(buf) // must be positive
+-	if keep < len(r.window) {
+-		remove := len(r.window) - keep
+-		copy(r.window[:], r.window[remove:])
+-		r.window = r.window[:keep]
+-	}
+-
+-	r.window = append(r.window, buf...)
+-}
+-
+ // zstdError is an error while decompressing.
+ type zstdError struct {
+ 	offset int64
+diff --git a/src/internal/zstd/zstd_test.go b/src/internal/zstd/zstd_test.go
+index 33f3def878..22af814acf 100644
+--- a/src/internal/zstd/zstd_test.go
++++ b/src/internal/zstd/zstd_test.go
+@@ -120,7 +120,7 @@ func bigData(t testing.TB) []byte {
+ 	bigDataOnce.Do(func() {
+ 		bigDataBytes, bigDataErr = os.ReadFile("../../testdata/Isaac.Newton-Opticks.txt")
+ 		if bigDataErr == nil {
+-			bigDataBytes = bytes.Repeat(bigDataBytes, 3)
++			bigDataBytes = bytes.Repeat(bigDataBytes, 20)
+ 		}
+ 	})
+ 	if bigDataErr != nil {

@@ -7,6 +7,20 @@ Date:   Mon Nov 28 09:50:51 2011 -0800
     R=rsc, gri
     CC=golang-dev
     https://golang.org/cl/5441048
-
+---
  src/pkg/bytes/bytes_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/bytes/bytes_test.go b/src/pkg/bytes/bytes_test.go
+index 21a1a4f580..829ef05319 100644
+--- a/src/pkg/bytes/bytes_test.go
++++ b/src/pkg/bytes/bytes_test.go
+@@ -702,7 +702,7 @@ func TestTrim(t *testing.T) {
+ 		case "TrimRight":
+ 			f = TrimRight
+ 		default:
+-			t.Error("Undefined trim function %s", name)
++			t.Errorf("Undefined trim function %s", name)
+ 		}
+ 		actual := string(f([]byte(tc.in), tc.cutset))
+ 		if actual != tc.out {

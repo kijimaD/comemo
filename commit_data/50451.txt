@@ -13,8 +13,131 @@ Date:   Tue Aug 24 14:09:26 2021 -0500
     Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Trust: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/ssa/branchelim.go   |  2 +-
  src/cmd/compile/internal/ssa/gen/PPC64.rules |  7 ++--
  src/cmd/compile/internal/ssa/rewritePPC64.go | 51 ++++++++++++++++++----------
  3 files changed, 40 insertions(+), 20 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/branchelim.go b/src/cmd/compile/internal/ssa/branchelim.go
+index 1d34f8160b..be5f9e0a8b 100644
+--- a/src/cmd/compile/internal/ssa/branchelim.go
++++ b/src/cmd/compile/internal/ssa/branchelim.go
+@@ -22,7 +22,7 @@ import "cmd/internal/src"
+ func branchelim(f *Func) {
+ 	// FIXME: add support for lowering CondSelects on more architectures
+ 	switch f.Config.arch {
+-	case "arm64", "amd64", "wasm":
++	case "arm64", "ppc64le", "ppc64", "amd64", "wasm":
+ 		// implemented
+ 	default:
+ 		return
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64.rules b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+index ccca72a416..c3f07a4e22 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64.rules
++++ b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+@@ -561,8 +561,10 @@
+ ((EQ|NE|LT|LE|GT|GE) (CMPconst [0] z:(OR x y)) yes no) && z.Uses == 1 => ((EQ|NE|LT|LE|GT|GE) (ORCC x y) yes no)
+ ((EQ|NE|LT|LE|GT|GE) (CMPconst [0] z:(XOR x y)) yes no) && z.Uses == 1 => ((EQ|NE|LT|LE|GT|GE) (XORCC x y) yes no)
+ 
+-(CondSelect x y bool) && flagArg(bool) != nil => (ISEL [2] x y bool)
+-(CondSelect x y bool) && flagArg(bool) == nil => (ISEL [2] x y (CMPWconst [0] bool))
++// Only lower after bool is lowered. It should always lower. This helps ensure the folding below happens reliably.
++(CondSelect x y bool) && flagArg(bool) == nil => (ISEL [6] x y (CMPWconst [0] bool))
++// Fold any CR -> GPR -> CR transfers when applying the above rule.
++(ISEL [6] x y (CMPWconst [0] (ISELB [c] one cmp))) => (ISEL [c] x y cmp)
+ 
+ // Lowering loads
+ (Load <t> ptr mem) && (is64BitInt(t) || isPtr(t)) => (MOVDload ptr mem)
+@@ -849,6 +851,7 @@
+ (NEG (ADDconst [c] x)) && is32Bit(-c) => (SUBFCconst [-c] x)
+ (NEG (SUBFCconst [c] x)) && is32Bit(-c) => (ADDconst [-c] x)
+ (NEG (SUB x y)) => (SUB y x)
++(NEG (NEG x)) => x
+ 
+ // Use register moves instead of stores and loads to move int<=>float values
+ // Common with math Float64bits, Float64frombits
+diff --git a/src/cmd/compile/internal/ssa/rewritePPC64.go b/src/cmd/compile/internal/ssa/rewritePPC64.go
+index ea1c1fa60a..7592b4f505 100644
+--- a/src/cmd/compile/internal/ssa/rewritePPC64.go
++++ b/src/cmd/compile/internal/ssa/rewritePPC64.go
+@@ -1168,23 +1168,8 @@ func rewriteValuePPC64_OpCondSelect(v *Value) bool {
+ 	v_0 := v.Args[0]
+ 	b := v.Block
+ 	// match: (CondSelect x y bool)
+-	// cond: flagArg(bool) != nil
+-	// result: (ISEL [2] x y bool)
+-	for {
+-		x := v_0
+-		y := v_1
+-		bool := v_2
+-		if !(flagArg(bool) != nil) {
+-			break
+-		}
+-		v.reset(OpPPC64ISEL)
+-		v.AuxInt = int32ToAuxInt(2)
+-		v.AddArg3(x, y, bool)
+-		return true
+-	}
+-	// match: (CondSelect x y bool)
+ 	// cond: flagArg(bool) == nil
+-	// result: (ISEL [2] x y (CMPWconst [0] bool))
++	// result: (ISEL [6] x y (CMPWconst [0] bool))
+ 	for {
+ 		x := v_0
+ 		y := v_1
+@@ -1193,7 +1178,7 @@ func rewriteValuePPC64_OpCondSelect(v *Value) bool {
+ 			break
+ 		}
+ 		v.reset(OpPPC64ISEL)
+-		v.AuxInt = int32ToAuxInt(2)
++		v.AuxInt = int32ToAuxInt(6)
+ 		v0 := b.NewValue0(v.Pos, OpPPC64CMPWconst, types.TypeFlags)
+ 		v0.AuxInt = int32ToAuxInt(0)
+ 		v0.AddArg(bool)
+@@ -5910,6 +5895,28 @@ func rewriteValuePPC64_OpPPC64ISEL(v *Value) bool {
+ 		v.AddArg(y)
+ 		return true
+ 	}
++	// match: (ISEL [6] x y (CMPWconst [0] (ISELB [c] one cmp)))
++	// result: (ISEL [c] x y cmp)
++	for {
++		if auxIntToInt32(v.AuxInt) != 6 {
++			break
++		}
++		x := v_0
++		y := v_1
++		if v_2.Op != OpPPC64CMPWconst || auxIntToInt32(v_2.AuxInt) != 0 {
++			break
++		}
++		v_2_0 := v_2.Args[0]
++		if v_2_0.Op != OpPPC64ISELB {
++			break
++		}
++		c := auxIntToInt32(v_2_0.AuxInt)
++		cmp := v_2_0.Args[1]
++		v.reset(OpPPC64ISEL)
++		v.AuxInt = int32ToAuxInt(c)
++		v.AddArg3(x, y, cmp)
++		return true
++	}
+ 	// match: (ISEL [2] x _ (FlagEQ))
+ 	// result: x
+ 	for {
+@@ -11384,6 +11391,16 @@ func rewriteValuePPC64_OpPPC64NEG(v *Value) bool {
+ 		v.AddArg2(y, x)
+ 		return true
+ 	}
++	// match: (NEG (NEG x))
++	// result: x
++	for {
++		if v_0.Op != OpPPC64NEG {
++			break
++		}
++		x := v_0.Args[0]
++		v.copyOf(x)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValuePPC64_OpPPC64NOR(v *Value) bool {

@@ -18,7 +18,66 @@ Date:   Thu May 16 14:32:54 2024 -0700
     Auto-Submit: Robert Griesemer <gri@google.com>
     Reviewed-by: Alan Donovan <adonovan@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
-
+---
  src/go/internal/gcimporter/gcimporter_test.go | 11 -----------
  src/go/types/resolver.go                      | 17 ++++++++++++++++-
  2 files changed, 16 insertions(+), 12 deletions(-)
+
+diff --git a/src/go/internal/gcimporter/gcimporter_test.go b/src/go/internal/gcimporter/gcimporter_test.go
+index 51b8dcd155..07ab135186 100644
+--- a/src/go/internal/gcimporter/gcimporter_test.go
++++ b/src/go/internal/gcimporter/gcimporter_test.go
+@@ -7,7 +7,6 @@ package gcimporter_test
+ import (
+ 	"bytes"
+ 	"fmt"
+-	"internal/godebug"
+ 	"internal/testenv"
+ 	"os"
+ 	"os/exec"
+@@ -205,16 +204,6 @@ func TestImportTypeparamTests(t *testing.T) {
+ 				want := types.ObjectString(checkedObj, types.RelativeTo(checked))
+ 				want = sanitizeObjectString(want)
+ 
+-				// TODO(golang/go#66859): investigate and reenable these tests,
+-				// which fail with gotypesalias=1, soon to be the default.
+-				if godebug.New("gotypesalias").Value() != "0" {
+-					symbol := name + " in " + filepath.Base(filename)
+-					switch symbol {
+-					case "Eint2 in struct.go", "A in issue50259.go":
+-						t.Skipf("%s requires gotypesalias=1", symbol)
+-					}
+-				}
+-
+ 				if got != want {
+ 					t.Errorf("imported %q as %q, want %q", name, got, want)
+ 				}
+diff --git a/src/go/types/resolver.go b/src/go/types/resolver.go
+index 918e18de3e..e6e882e35f 100644
+--- a/src/go/types/resolver.go
++++ b/src/go/types/resolver.go
+@@ -665,8 +665,23 @@ func (check *Checker) packageObjects() {
+ 		}
+ 	}
+ 
+-	if check.conf._EnableAlias {
++	if false && check.conf._EnableAlias {
+ 		// With Alias nodes we can process declarations in any order.
++		//
++		// TODO(adonovan): unfortunately, Alias nodes
++		// (GODEBUG=gotypesalias=1) don't entirely resolve
++		// problems with cycles. For example, in
++		// GOROOT/test/typeparam/issue50259.go,
++		//
++		// 	type T[_ any] struct{}
++		// 	type A T[B]
++		// 	type B = T[A]
++		//
++		// TypeName A has Type Named during checking, but by
++		// the time the unified export data is written out,
++		// its Type is Invalid.
++		//
++		// Investigate and reenable this branch.
+ 		for _, obj := range objList {
+ 			check.objDecl(obj, nil)
+ 		}

@@ -27,10 +27,181 @@ Date:   Wed May 25 16:38:02 2016 -0700
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/bexport.go | 11 +++---
  src/cmd/compile/internal/gc/bimport.go | 17 +++++++---
  test/fixedbugs/issue15838.dir/a.go     | 61 ++++++++++++++++++++++++++++++++++
  test/fixedbugs/issue15838.dir/b.go     |  9 +++++
  test/fixedbugs/issue15838.go           | 12 +++++++
  5 files changed, 100 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index 1997068d1a..80b8e4f945 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -1488,19 +1488,18 @@ func (p *exporter) stmt(n *Node) {
+ 		p.stmtList(n.List)
+ 		p.stmtList(n.Nbody)
+ 
+-	case OFALL:
+-		op = OXFALL
+-		fallthrough
++	case OFALL, OXFALL:
++		p.op(OXFALL)
+ 
+-	case OBREAK, OCONTINUE, OGOTO, OXFALL:
++	case OBREAK, OCONTINUE:
+ 		p.op(op)
+ 		p.exprsOrNil(n.Left, nil)
+ 
+ 	case OEMPTY:
+ 		// nothing to emit
+ 
+-	case OLABEL:
+-		p.op(OLABEL)
++	case OGOTO, OLABEL:
++		p.op(op)
+ 		p.expr(n.Left)
+ 
+ 	default:
+diff --git a/src/cmd/compile/internal/gc/bimport.go b/src/cmd/compile/internal/gc/bimport.go
+index b9e69c24bb..36aa0e8b9c 100644
+--- a/src/cmd/compile/internal/gc/bimport.go
++++ b/src/cmd/compile/internal/gc/bimport.go
+@@ -1038,6 +1038,7 @@ func (p *importer) node() *Node {
+ 	case OXCASE:
+ 		markdcl()
+ 		n := Nod(OXCASE, nil, nil)
++		n.Xoffset = int64(block)
+ 		n.List.Set(p.exprList())
+ 		// TODO(gri) eventually we must declare variables for type switch
+ 		// statements (type switch statements are not yet exported)
+@@ -1048,16 +1049,24 @@ func (p *importer) node() *Node {
+ 	// case OFALL:
+ 	// 	unreachable - mapped to OXFALL case below by exporter
+ 
+-	case OBREAK, OCONTINUE, OGOTO, OXFALL:
++	case OXFALL:
++		n := Nod(OXFALL, nil, nil)
++		n.Xoffset = int64(block)
++		return n
++
++	case OBREAK, OCONTINUE:
+ 		left, _ := p.exprsOrNil()
++		if left != nil {
++			left = newname(left.Sym)
++		}
+ 		return Nod(op, left, nil)
+ 
+ 	// case OEMPTY:
+ 	// 	unreachable - not emitted by exporter
+ 
+-	case OLABEL:
+-		n := Nod(OLABEL, p.expr(), nil)
+-		n.Left.Sym = dclstack // context, for goto restrictions
++	case OGOTO, OLABEL:
++		n := Nod(op, newname(p.expr().Sym), nil)
++		n.Sym = dclstack // context, for goto restrictions
+ 		return n
+ 
+ 	case OEND:
+diff --git a/test/fixedbugs/issue15838.dir/a.go b/test/fixedbugs/issue15838.dir/a.go
+new file mode 100644
+index 0000000000..15b7f1dcfa
+--- /dev/null
++++ b/test/fixedbugs/issue15838.dir/a.go
+@@ -0,0 +1,61 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++func F1() {
++L:
++	goto L
++}
++
++func F2() {
++L:
++	for {
++		break L
++	}
++}
++
++func F3() {
++L:
++	for {
++		continue L
++	}
++}
++
++func F4() {
++	switch {
++	case true:
++		fallthrough
++	default:
++	}
++}
++
++type T struct{}
++
++func (T) M1() {
++L:
++	goto L
++}
++
++func (T) M2() {
++L:
++	for {
++		break L
++	}
++}
++
++func (T) M3() {
++L:
++	for {
++		continue L
++	}
++}
++
++func (T) M4() {
++	switch {
++	case true:
++		fallthrough
++	default:
++	}
++}
+diff --git a/test/fixedbugs/issue15838.dir/b.go b/test/fixedbugs/issue15838.dir/b.go
+new file mode 100644
+index 0000000000..9fd6efc33c
+--- /dev/null
++++ b/test/fixedbugs/issue15838.dir/b.go
+@@ -0,0 +1,9 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package b
++
++import "./a"
++
++type T struct{ a.T }
+diff --git a/test/fixedbugs/issue15838.go b/test/fixedbugs/issue15838.go
+new file mode 100644
+index 0000000000..fb1c64d1ac
+--- /dev/null
++++ b/test/fixedbugs/issue15838.go
+@@ -0,0 +1,12 @@
++// compiledir
++
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test cases for issue #15838, and related failures.
++// Make sure the importer correctly sets up nodes for
++// label decls, goto, continue, break, and fallthrough
++// statements.
++
++package ignored

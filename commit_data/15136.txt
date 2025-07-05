@@ -17,8 +17,105 @@ Date:   Mon Feb 4 22:48:31 2013 -0500
     R=ken2
     CC=golang-dev, lvd
     https://golang.org/cl/7303043
-
+---
  src/cmd/gc/esc.c | 28 ++++++++++++++++++++++++----
  src/cmd/gc/go.h  |  1 +
  test/escape2.go  | 16 ++++++++++++++++
  3 files changed, 41 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/gc/esc.c b/src/cmd/gc/esc.c
+index a313e8522f..42e414ca27 100644
+--- a/src/cmd/gc/esc.c
++++ b/src/cmd/gc/esc.c
+@@ -981,15 +981,29 @@ escflood(EscState *e, Node *dst)
+ 	}
+ }
+ 
++// There appear to be some loops in the escape graph, causing
++// arbitrary recursion into deeper and deeper levels.
++// Cut this off safely by making minLevel sticky: once you
++// get that deep, you cannot go down any further but you also
++// cannot go up any further. This is a conservative fix.
++// Making minLevel smaller (more negative) would handle more
++// complex chains of indirections followed by address-of operations,
++// at the cost of repeating the traversal once for each additional
++// allowed level when a loop is encountered. Using -2 suffices to
++// pass all the tests we have written so far, which we assume matches
++// the level of complexity we want the escape analysis code to handle.
++#define MinLevel (-2)
++
+ static void
+ escwalk(EscState *e, int level, Node *dst, Node *src)
+ {
+ 	NodeList *ll;
+-	int leaks;
++	int leaks, newlevel;
+ 
+-	if(src->walkgen == walkgen)
++	if(src->walkgen == walkgen && src->esclevel <= level)
+ 		return;
+ 	src->walkgen = walkgen;
++	src->esclevel = level;
+ 
+ 	if(debug['m']>1)
+ 		print("escwalk: level:%d depth:%d %.*s %hN(%hJ) scope:%S[%d]\n",
+@@ -1039,7 +1053,10 @@ escwalk(EscState *e, int level, Node *dst, Node *src)
+ 			if(debug['m'])
+ 				warnl(src->lineno, "%hN escapes to heap", src);
+ 		}
+-		escwalk(e, level-1, dst, src->left);
++		newlevel = level;
++		if(level > MinLevel)
++			newlevel--;
++		escwalk(e, newlevel, dst, src->left);
+ 		break;
+ 
+ 	case OARRAYLIT:
+@@ -1074,7 +1091,10 @@ escwalk(EscState *e, int level, Node *dst, Node *src)
+ 	case ODOTPTR:
+ 	case OINDEXMAP:
+ 	case OIND:
+-		escwalk(e, level+1, dst, src->left);
++		newlevel = level;
++		if(level > MinLevel)
++			newlevel++;
++		escwalk(e, newlevel, dst, src->left);
+ 	}
+ 
+ recurse:
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 1f8446bd39..e0f0dae8ee 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -324,6 +324,7 @@ struct	Node
+ 	int32	ostk;
+ 	int32	iota;
+ 	uint32	walkgen;
++	int32	esclevel;
+ };
+ #define	N	((Node*)0)
+ 
+diff --git a/test/escape2.go b/test/escape2.go
+index 6c39566fec..8e3aa4de74 100644
+--- a/test/escape2.go
++++ b/test/escape2.go
+@@ -1258,3 +1258,19 @@ func foo139() *byte {
+ 	t := new(T)   // ERROR "new.T. escapes to heap"
+ 	return &t.x.y // ERROR "&t.x.y escapes to heap"
+ }
++
++// issue 4751
++func foo140() interface{} {
++	type T struct {
++		X string
++	}
++	type U struct {
++		X string
++		T *T
++	}
++	t := &T{} // ERROR "&T literal escapes to heap"
++	return U{
++		X: t.X,
++		T: t,
++	}
++}

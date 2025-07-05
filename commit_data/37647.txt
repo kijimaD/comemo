@@ -11,7 +11,43 @@ Date:   Thu Aug 2 19:15:25 2018 +0000
     Change-Id: I017bed6c24ef1e4bc30040120349fb779f203225
     Reviewed-on: https://go-review.googlesource.com/127655
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/net.go        | 11 ++++++++++-
  src/net/sock_posix.go |  2 +-
  2 files changed, 11 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/net.go b/src/net/net.go
+index c909986269..77b8f69074 100644
+--- a/src/net/net.go
++++ b/src/net/net.go
+@@ -357,7 +357,16 @@ type PacketConn interface {
+ 	SetWriteDeadline(t time.Time) error
+ }
+ 
+-var listenerBacklog = maxListenerBacklog()
++var listenerBacklogCache struct {
++	sync.Once
++	val int
++}
++
++// listenerBacklog is a caching wrapper around maxListenerBacklog.
++func listenerBacklog() int {
++	listenerBacklogCache.Do(func() { listenerBacklogCache.val = maxListenerBacklog() })
++	return listenerBacklogCache.val
++}
+ 
+ // A Listener is a generic network listener for stream-oriented protocols.
+ //
+diff --git a/src/net/sock_posix.go b/src/net/sock_posix.go
+index 677e423ffa..1cfd8a58c6 100644
+--- a/src/net/sock_posix.go
++++ b/src/net/sock_posix.go
+@@ -54,7 +54,7 @@ func socket(ctx context.Context, net string, family, sotype, proto int, ipv6only
+ 	if laddr != nil && raddr == nil {
+ 		switch sotype {
+ 		case syscall.SOCK_STREAM, syscall.SOCK_SEQPACKET:
+-			if err := fd.listenStream(laddr, listenerBacklog, ctrlFn); err != nil {
++			if err := fd.listenStream(laddr, listenerBacklog(), ctrlFn); err != nil {
+ 				fd.Close()
+ 				return nil, err
+ 			}

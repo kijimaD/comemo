@@ -16,6 +16,39 @@ Date:   Tue Feb 7 23:15:07 2023 +1100
     Commit-Queue: Robert Griesemer <gri@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
-
+---
  src/math/big/natdiv.go | 10 +++++-----
  1 file changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/math/big/natdiv.go b/src/math/big/natdiv.go
+index 96a41c0ace..084ac72658 100644
+--- a/src/math/big/natdiv.go
++++ b/src/math/big/natdiv.go
+@@ -642,15 +642,13 @@ func (q nat) divBasic(u, v nat) {
+ 	vn1 := v[n-1]
+ 	rec := reciprocalWord(vn1)
+ 
++	// Invent a leading 0 for u, for the first iteration.
++	ujn := Word(0)
++
+ 	// Compute each digit of quotient.
+ 	for j := m; j >= 0; j-- {
+ 		// Compute the 2-by-1 guess q̂.
+-		// The first iteration must invent a leading 0 for u.
+ 		qhat := Word(_M)
+-		var ujn Word
+-		if j+n < len(u) {
+-			ujn = u[j+n]
+-		}
+ 
+ 		// ujn ≤ vn1, or else q̂ would be more than one digit.
+ 		// For ujn == vn1, we set q̂ to the max digit M above.
+@@ -699,6 +697,8 @@ func (q nat) divBasic(u, v nat) {
+ 			qhat--
+ 		}
+ 
++		ujn = u[j+n-1]
++
+ 		// Save quotient digit.
+ 		// Caller may know the top digit is zero and not leave room for it.
+ 		if j == m && m == len(q) && qhat == 0 {

@@ -16,6 +16,25 @@ Date:   Tue Aug 3 12:26:48 2010 -0400
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1917044
-
+---
  src/pkg/crypto/x509/x509.go | 7 ++++++-
  1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/crypto/x509/x509.go b/src/pkg/crypto/x509/x509.go
+index 728116850f..e4a05d3ef0 100644
+--- a/src/pkg/crypto/x509/x509.go
++++ b/src/pkg/crypto/x509/x509.go
+@@ -610,7 +610,12 @@ func parseCertificate(in *certificate) (*Certificate, os.Error) {
+ 
+ 			case 14:
+ 				// RFC 5280, 4.2.1.2
+-				out.SubjectKeyId = e.Value
++				var keyid []byte
++				_, err = asn1.Unmarshal(&keyid, e.Value)
++				if err != nil {
++					return nil, err
++				}
++				out.SubjectKeyId = keyid
+ 				continue
+ 			}
+ 		}

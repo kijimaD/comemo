@@ -7,7 +7,34 @@ Date:   Wed Mar 23 11:34:03 2011 -0400
     R=r
     CC=golang-dev
     https://golang.org/cl/4280061
-
+---
  src/pkg/runtime/freebsd/mem.c | 2 +-
  src/pkg/runtime/linux/mem.c   | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/runtime/freebsd/mem.c b/src/pkg/runtime/freebsd/mem.c
+index f5bbfa6fab..f80439e38f 100644
+--- a/src/pkg/runtime/freebsd/mem.c
++++ b/src/pkg/runtime/freebsd/mem.c
+@@ -53,7 +53,7 @@ runtime·SysMap(void *v, uintptr n)
+ 	if(sizeof(void*) == 8) {
+ 		p = runtime·mmap(v, n, PROT_READ|PROT_WRITE|PROT_EXEC, MAP_ANON|MAP_PRIVATE, -1, 0);
+ 		if(p != v) {
+-			runtime·printf("runtime: address space conflict: map(%v) = %v\n", v, p);
++			runtime·printf("runtime: address space conflict: map(%p) = %p\n", v, p);
+ 			runtime·throw("runtime: address space conflict");
+ 		}
+ 		return;
+diff --git a/src/pkg/runtime/linux/mem.c b/src/pkg/runtime/linux/mem.c
+index 633ad0c62e..d2f6f82046 100644
+--- a/src/pkg/runtime/linux/mem.c
++++ b/src/pkg/runtime/linux/mem.c
+@@ -59,7 +59,7 @@ runtime·SysMap(void *v, uintptr n)
+ 	if(sizeof(void*) == 8) {
+ 		p = runtime·mmap(v, n, PROT_READ|PROT_WRITE|PROT_EXEC, MAP_ANON|MAP_PRIVATE, -1, 0);
+ 		if(p != v) {
+-			runtime·printf("runtime: address space conflict: map(%v) = %v\n", v, p);
++			runtime·printf("runtime: address space conflict: map(%p) = %p\n", v, p);
+ 			runtime·throw("runtime: address space conflict");
+ 		}
+ 		return;

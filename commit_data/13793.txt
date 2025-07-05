@@ -7,6 +7,27 @@ Date:   Tue Sep 11 14:06:34 2012 +1000
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/6506096
-
+---
  src/run.bat | 9 +++++----
  1 file changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/src/run.bat b/src/run.bat
+index 8c52e6ea54..6138d64a8c 100644
+--- a/src/run.bat
++++ b/src/run.bat
+@@ -65,10 +65,11 @@ echo.
+ 
+ :: cgo tests
+ if x%CGO_ENABLED% == x0 goto nocgo
+-echo # ..\misc\cgo\life
+-go run %GOROOT%\test\run.go - ..\misc\cgo\life
+-if errorlevel 1 goto fail
+-echo.
++:: TODO(brainman) disabled, because it is broken on go builder - http://golang.org/issue/4063
++::echo # ..\misc\cgo\life
++::go run %GOROOT%\test\run.go - ..\misc\cgo\life
++::if errorlevel 1 goto fail
++::echo.
+ 
+ :: TODO ..\misc\cgo\stdio
+ ::echo # ..\misc\cgo\stdio

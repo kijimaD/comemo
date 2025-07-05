@@ -11,6 +11,28 @@ Date:   Sun Sep 4 19:51:27 2022 +0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/cmd/api/goapi_test.go | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/cmd/api/goapi_test.go b/src/cmd/api/goapi_test.go
+index 862ab183b2..e905e65b24 100644
+--- a/src/cmd/api/goapi_test.go
++++ b/src/cmd/api/goapi_test.go
+@@ -5,7 +5,6 @@
+ package main
+ 
+ import (
+-	"bytes"
+ 	"flag"
+ 	"fmt"
+ 	"go/build"
+@@ -152,7 +151,7 @@ func TestCompareAPI(t *testing.T) {
+ 		},
+ 	}
+ 	for _, tt := range tests {
+-		buf := new(bytes.Buffer)
++		buf := new(strings.Builder)
+ 		gotok := compareAPI(buf, tt.features, tt.required, tt.optional, tt.exception, true)
+ 		if gotok != tt.ok {
+ 			t.Errorf("%s: ok = %v; want %v", tt.name, gotok, tt.ok)

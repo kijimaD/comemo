@@ -9,7 +9,32 @@ Date:   Sun Dec 16 19:17:50 2012 -0500
     R=gobot
     CC=golang-dev
     https://golang.org/cl/6947067
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 0c69dabc8a..e3f14c3934 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -58,6 +58,7 @@ Chris Lennert <calennert@gmail.com>
+ Christian Himpel <chressie@googlemail.com>
+ Christine Hansmann <chhansmann@gmail.com>
+ Christoph Hack <christoph@tux21b.org>
++Christopher Cahoon <chris.cahoon@gmail.com>
+ Christopher Nielsen <m4dh4tt3r@gmail.com>
+ Christopher Redden <christopher.redden@gmail.com>
+ Christopher Wedgwood <cw@f00f.org>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 6403cec9c1..d666da9d78 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -101,6 +101,7 @@ Chris Lennert <calennert@gmail.com>
+ Christian Himpel <chressie@googlemail.com> <chressie@gmail.com>
+ Christine Hansmann <chhansmann@gmail.com>
+ Christoph Hack <christoph@tux21b.org>
++Christopher Cahoon <chris.cahoon@gmail.com>
+ Christopher Nielsen <m4dh4tt3r@gmail.com>
+ Christopher Redden <christopher.redden@gmail.com>
+ Christopher Swenson <cswenson@google.com>

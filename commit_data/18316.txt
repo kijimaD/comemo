@@ -17,9 +17,329 @@ Date:   Tue Jan 21 19:46:34 2014 -0500
     R=golang-codereviews, iant
     CC=golang-codereviews
     https://golang.org/cl/55160043
-
+---
  src/cmd/ld/data.c         |  11 ++++-
  src/liblink/asm5.c        |  20 ++++----
  src/liblink/obj5.c        | 114 +++++++++++++++++++++++-----------------------
  src/pkg/runtime/asm_arm.s |   8 +++-
  4 files changed, 82 insertions(+), 71 deletions(-)
+
+diff --git a/src/cmd/ld/data.c b/src/cmd/ld/data.c
+index 0e3854fb57..506bfd3b07 100644
+--- a/src/cmd/ld/data.c
++++ b/src/cmd/ld/data.c
+@@ -878,6 +878,14 @@ dodata(void)
+ 			growdatsize(&datsize, s);
+ 		}
+ 		sect->len = datsize;
++	} else {
++		// References to STLSBSS symbols may be in the binary
++		// but should not be used. Give them an invalid address
++		// so that any uses will fault. Using 1 instead of 0 so that
++		// if used as an offset on ARM it will result in an unaligned
++		// address and still cause a fault.
++		for(; s != nil && s->type == STLSBSS; s = s->next)
++			s->value = 1;
+ 	}
+ 	
+ 	if(s != nil) {
+@@ -1127,7 +1135,8 @@ address(void)
+ 
+ 	for(sym = datap; sym != nil; sym = sym->next) {
+ 		ctxt->cursym = sym;
+-		sym->value += sym->sect->vaddr;
++		if(sym->sect != nil)
++			sym->value += sym->sect->vaddr;
+ 		for(sub = sym->sub; sub != nil; sub = sub->sub)
+ 			sub->value += sym->value;
+ 	}
+diff --git a/src/liblink/asm5.c b/src/liblink/asm5.c
+index 923c059222..8d58fd38fe 100644
+--- a/src/liblink/asm5.c
++++ b/src/liblink/asm5.c
+@@ -368,7 +368,7 @@ static struct {
+ static int	checkpool(Link*, Prog*, int);
+ static int 	flushpool(Link*, Prog*, int, int);
+ static void	addpool(Link*, Prog*, Addr*);
+-static void	asmout(Link*, Prog*, Optab*, int32*, LSym*);
++static void	asmout(Link*, Prog*, Optab*, int32*);
+ static Optab*	oplook(Link*, Prog*);
+ static int32	oprrr(Link*, int, int);
+ static int32	olr(Link*, int32, int, int, int);
+@@ -394,7 +394,7 @@ static	uchar	repop[ALAST];
+ 
+ static Prog zprg = {
+ 	.as = AGOK,
+-	.scond = 14,
++	.scond = C_SCOND_NONE,
+ 	.reg = NREG,
+ 	.from = {
+ 		.name = D_NONE,
+@@ -458,7 +458,6 @@ span5(Link *ctxt, LSym *cursym)
+ 	int m, bflag, i, v;
+ 	int32 c, out[6];
+ 	uchar *bp;
+-	LSym *gmsym;
+ 
+ 	p = cursym->text;
+ 	if(p == nil || p->link == nil) // handle external functions and ELF section symbols
+@@ -496,11 +495,11 @@ span5(Link *ctxt, LSym *cursym)
+ 			addpool(ctxt, p, &p->to);
+ 			break;
+ 		case LPOOL:
+-			if ((p->scond&C_SCOND) == 14)
++			if ((p->scond&C_SCOND) == C_SCOND_NONE)
+ 				flushpool(ctxt, p, 0, 0);
+ 			break;
+ 		}
+-		if(p->as==AMOVW && p->to.type==D_REG && p->to.reg==REGPC && (p->scond&C_SCOND) == 14)
++		if(p->as==AMOVW && p->to.type==D_REG && p->to.reg==REGPC && (p->scond&C_SCOND) == C_SCOND_NONE)
+ 			flushpool(ctxt, p, 0, 0);
+ 		c += m;
+ 	}
+@@ -570,9 +569,8 @@ span5(Link *ctxt, LSym *cursym)
+ 	 * code references to be relocated too, and then
+ 	 * perhaps we'd be able to parallelize the span loop above.
+ 	 */
+-	gmsym = nil;
+-	if(ctxt->linkmode == LinkExternal)
+-		gmsym = linklookup(ctxt, "runtime.tlsgm", 0);
++	if(ctxt->gmsym == nil)
++		ctxt->gmsym = linklookup(ctxt, "runtime.tlsgm", 0);
+ 
+ 	p = cursym->text;
+ 	ctxt->autosize = p->to.offset + 4;
+@@ -583,7 +581,7 @@ span5(Link *ctxt, LSym *cursym)
+ 		ctxt->pc = p->pc;
+ 		ctxt->curp = p;
+ 		o = oplook(ctxt, p);
+-		asmout(ctxt, p, o, out, gmsym);
++		asmout(ctxt, p, o, out);
+ 		for(i=0; i<o->size/4; i++) {
+ 			v = out[i];
+ 			*bp++ = v;
+@@ -1213,7 +1211,7 @@ buildop(Link *ctxt)
+ }
+ 
+ static void
+-asmout(Link *ctxt, Prog *p, Optab *o, int32 *out, LSym *gmsym)
++asmout(Link *ctxt, Prog *p, Optab *o, int32 *out)
+ {
+ 	int32 o1, o2, o3, o4, o5, o6, v;
+ 	int r, rf, rt, rt2;
+@@ -1366,7 +1364,7 @@ if(0 /*debug['G']*/) print("%ux: %s: arm %d\n", (uint32)(p->pc), p->from.sym->na
+ 			rel->siz = 4;
+ 			rel->sym = p->to.sym;
+ 			rel->add = p->to.offset;
+-			if(rel->sym == gmsym) {
++			if(rel->sym == ctxt->gmsym) {
+ 				rel->type = D_TLS;
+ 				if(ctxt->flag_shared)
+ 					rel->add += ctxt->pc - p->pcrel->pc - 8 - rel->siz;
+diff --git a/src/liblink/obj5.c b/src/liblink/obj5.c
+index 6505459b0f..665108cb97 100644
+--- a/src/liblink/obj5.c
++++ b/src/liblink/obj5.c
+@@ -37,7 +37,7 @@
+ 
+ static Prog zprg = {
+ 	.as = AGOK,
+-	.scond = 14,
++	.scond = C_SCOND_NONE,
+ 	.reg = NREG,
+ 	.from = {
+ 		.name = D_NONE,
+@@ -207,8 +207,7 @@ addstacksplit(Link *ctxt, LSym *cursym)
+ 		ctxt->symmorestack[0] = linklookup(ctxt, "runtime.morestack", 0);
+ 	
+ 	tlsfallback = linklookup(ctxt, "runtime.read_tls_fallback", 0);
+-	ctxt->gmsym = nil;
+-	if(ctxt->linkmode == LinkExternal)
++	if(ctxt->gmsym == nil)
+ 		ctxt->gmsym = linklookup(ctxt, "runtime.tlsgm", 0);
+ 	q = nil;
+ 	
+@@ -355,7 +354,9 @@ addstacksplit(Link *ctxt, LSym *cursym)
+ 			if((p->to.offset & 0xffff0fff) == 0xee1d0f70) {
+ 				if(ctxt->headtype == Hopenbsd) {
+ 					p->as = ARET;
+-				} else if(ctxt->goarm < 7) {
++					break;
++				}
++				if(ctxt->goarm < 7) {
+ 					// BL runtime.read_tls_fallback(SB)
+ 					p->as = ABL;
+ 					p->to.type = D_BRANCH;
+@@ -363,63 +364,62 @@ addstacksplit(Link *ctxt, LSym *cursym)
+ 					p->to.offset = 0;
+ 					cursym->text->mark &= ~LEAF;
+ 				}
+-				if(ctxt->linkmode == LinkExternal) {
+-					// runtime.tlsgm is relocated with R_ARM_TLS_LE32
+-					// and $runtime.tlsgm will contain the TLS offset.
+-					//
+-					// MOV $runtime.tlsgm+ctxt->tlsoffset(SB), REGTMP
+-					// ADD REGTMP, <reg>
+-					//
+-					// In shared mode, runtime.tlsgm is relocated with
+-					// R_ARM_TLS_IE32 and runtime.tlsgm(SB) will point
+-					// to the GOT entry containing the TLS offset.
+-					//
+-					// MOV runtime.tlsgm(SB), REGTMP
+-					// ADD REGTMP, <reg>
+-					// SUB -ctxt->tlsoffset, <reg>
+-					//
+-					// The SUB compensates for ctxt->tlsoffset
+-					// used in runtime.save_gm and runtime.load_gm.
+-					q = p;
+-					p = appendp(ctxt, p);
+-					p->as = AMOVW;
+-					p->scond = 14;
+-					p->reg = NREG;
+-					if(ctxt->flag_shared) {
+-						p->from.type = D_OREG;
+-						p->from.offset = 0;
+-					} else {
+-						p->from.type = D_CONST;
+-						p->from.offset = ctxt->tlsoffset;
+-					}
+-					p->from.sym = ctxt->gmsym;
+-					p->from.name = D_EXTERN;
+-					p->to.type = D_REG;
+-					p->to.reg = REGTMP;
+-					p->to.offset = 0;
++				// runtime.tlsgm is relocated with R_ARM_TLS_LE32
++				// and $runtime.tlsgm will contain the TLS offset.
++				//
++				// MOV $runtime.tlsgm+ctxt->tlsoffset(SB), REGTMP
++				// ADD REGTMP, <reg>
++				//
++				// In shared mode, runtime.tlsgm is relocated with
++				// R_ARM_TLS_IE32 and runtime.tlsgm(SB) will point
++				// to the GOT entry containing the TLS offset.
++				//
++				// MOV runtime.tlsgm(SB), REGTMP
++				// ADD REGTMP, <reg>
++				// SUB -ctxt->tlsoffset, <reg>
++				//
++				// The SUB compensates for ctxt->tlsoffset
++				// used in runtime.save_gm and runtime.load_gm.
++				q = p;
++				p = appendp(ctxt, p);
++				p->as = AMOVW;
++				p->scond = C_SCOND_NONE;
++				p->reg = NREG;
++				if(ctxt->flag_shared) {
++					p->from.type = D_OREG;
++					p->from.offset = 0;
++				} else {
++					p->from.type = D_CONST;
++					p->from.offset = ctxt->tlsoffset;
++				}
++				p->from.sym = ctxt->gmsym;
++				p->from.name = D_EXTERN;
++				p->to.type = D_REG;
++				p->to.reg = REGTMP;
++				p->to.offset = 0;
+ 
++				p = appendp(ctxt, p);
++				p->as = AADD;
++				p->scond = C_SCOND_NONE;
++				p->reg = NREG;
++				p->from.type = D_REG;
++				p->from.reg = REGTMP;
++				p->to.type = D_REG;
++				p->to.reg = (q->to.offset & 0xf000) >> 12;
++				p->to.offset = 0;
++
++				if(ctxt->flag_shared) {
+ 					p = appendp(ctxt, p);
+-					p->as = AADD;
+-					p->scond = 14;
++					p->as = ASUB;
++					p->scond = C_SCOND_NONE;
+ 					p->reg = NREG;
+-					p->from.type = D_REG;
+-					p->from.reg = REGTMP;
++					p->from.type = D_CONST;
++					p->from.offset = -ctxt->tlsoffset;
+ 					p->to.type = D_REG;
+ 					p->to.reg = (q->to.offset & 0xf000) >> 12;
+ 					p->to.offset = 0;
+-
+-					if(ctxt->flag_shared) {
+-						p = appendp(ctxt, p);
+-						p->as = ASUB;
+-						p->scond = 14;
+-						p->reg = NREG;
+-						p->from.type = D_CONST;
+-						p->from.offset = -ctxt->tlsoffset;
+-						p->to.type = D_REG;
+-						p->to.reg = (q->to.offset & 0xf000) >> 12;
+-						p->to.offset = 0;
+-					}
+ 				}
++				break;
+ 			}
+ 		}
+ 		q = p;
+@@ -984,7 +984,7 @@ loop:
+ 				i--;
+ 				continue;
+ 			}
+-			if(a == AB || (a == ARET && q->scond == 14) || a == ARFE || a == AUNDEF)
++			if(a == AB || (a == ARET && q->scond == C_SCOND_NONE) || a == ARFE || a == AUNDEF)
+ 				goto copy;
+ 			if(q->pcond == nil || (q->pcond->mark&FOLL))
+ 				continue;
+@@ -1005,7 +1005,7 @@ loop:
+ 				}
+ 				(*last)->link = r;
+ 				*last = r;
+-				if(a == AB || (a == ARET && q->scond == 14) || a == ARFE || a == AUNDEF)
++				if(a == AB || (a == ARET && q->scond == C_SCOND_NONE) || a == ARFE || a == AUNDEF)
+ 					return;
+ 				r->as = ABNE;
+ 				if(a == ABNE)
+@@ -1031,7 +1031,7 @@ loop:
+ 	p->mark |= FOLL;
+ 	(*last)->link = p;
+ 	*last = p;
+-	if(a == AB || (a == ARET && p->scond == 14) || a == ARFE || a == AUNDEF){
++	if(a == AB || (a == ARET && p->scond == C_SCOND_NONE) || a == ARFE || a == AUNDEF){
+ 		return;
+ 	}
+ 	if(p->pcond != nil)
+diff --git a/src/pkg/runtime/asm_arm.s b/src/pkg/runtime/asm_arm.s
+index fa5540bdf0..164cd80292 100644
+--- a/src/pkg/runtime/asm_arm.s
++++ b/src/pkg/runtime/asm_arm.s
+@@ -627,14 +627,19 @@ _next:
+ // Note: all three functions will clobber R0, and the last
+ // two can be called from 5c ABI code.
+ 
+-// g (R10) at 8(TP), m (R9) at 12(TP)
+ TEXT runtime·save_gm(SB),NOSPLIT,$0
++	// NOTE: Liblink adds some instructions following the MRC
++	// to adjust R0 so that 8(R0) and 12(R0) are the TLS copies of
++	// the g and m registers. It's a bit too magical for its own good.
+ 	MRC		15, 0, R0, C13, C0, 3 // Fetch TLS register
+ 	MOVW	g, 8(R0)
+ 	MOVW	m, 12(R0)
+ 	RET
+ 
+ TEXT runtime·load_gm(SB),NOSPLIT,$0
++	// NOTE: Liblink adds some instructions following the MRC
++	// to adjust R0 so that 8(R0) and 12(R0) are the TLS copies of
++	// the g and m registers. It's a bit too magical for its own good.
+ 	MRC		15, 0, R0, C13, C0, 3 // Fetch TLS register
+ 	MOVW	8(R0), g
+ 	MOVW	12(R0), m
+@@ -646,7 +651,6 @@ TEXT setmg_gcc<>(SB),NOSPLIT,$0
+ 	MOVW	R1, g
+ 	B		runtime·save_gm(SB)
+ 
+-
+ // TODO: share code with memeq?
+ TEXT bytes·Equal(SB),NOSPLIT,$0
+ 	MOVW	a_len+4(FP), R1

@@ -14,7 +14,38 @@ Date:   Thu Nov 12 11:01:23 2020 +0100
     Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
     Trust: Alberto Donizetti <alb.donizetti@gmail.com>
     Trust: Tobias Klauser <tobias.klauser@gmail.com>
-
+---
  src/os/executable_dragonfly.go | 6 +++---
  src/os/executable_freebsd.go   | 6 +++---
  2 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/os/executable_dragonfly.go b/src/os/executable_dragonfly.go
+index b0deb7bbe5..19c2ae890f 100644
+--- a/src/os/executable_dragonfly.go
++++ b/src/os/executable_dragonfly.go
+@@ -6,7 +6,7 @@ package os
+ 
+ // From DragonFly's <sys/sysctl.h>
+ const (
+-        _CTL_KERN           = 1
+-        _KERN_PROC          = 14
+-        _KERN_PROC_PATHNAME = 9
++	_CTL_KERN           = 1
++	_KERN_PROC          = 14
++	_KERN_PROC_PATHNAME = 9
+ )
+diff --git a/src/os/executable_freebsd.go b/src/os/executable_freebsd.go
+index 57930b1b16..95f1a93cb9 100644
+--- a/src/os/executable_freebsd.go
++++ b/src/os/executable_freebsd.go
+@@ -6,7 +6,7 @@ package os
+ 
+ // From FreeBSD's <sys/sysctl.h>
+ const (
+-        _CTL_KERN           = 1
+-        _KERN_PROC          = 14
+-        _KERN_PROC_PATHNAME = 12
++	_CTL_KERN           = 1
++	_KERN_PROC          = 14
++	_KERN_PROC_PATHNAME = 12
+ )

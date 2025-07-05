@@ -13,7 +13,63 @@ Date:   Mon Sep 5 19:07:02 2022 +0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/test/inl_test.go | 15 ++++++++++-----
  src/sync/atomic/type.go                   |  4 ++++
  2 files changed, 14 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/test/inl_test.go b/src/cmd/compile/internal/test/inl_test.go
+index 622224d85e..fd3b489d13 100644
+--- a/src/cmd/compile/internal/test/inl_test.go
++++ b/src/cmd/compile/internal/test/inl_test.go
+@@ -6,6 +6,7 @@ package test
+ 
+ import (
+ 	"bufio"
++	"internal/buildcfg"
+ 	"internal/testenv"
+ 	"io"
+ 	"math/bits"
+@@ -205,11 +206,7 @@ func TestIntendedInlining(t *testing.T) {
+ 			"(*Uintptr).Load",
+ 			"(*Uintptr).Store",
+ 			"(*Uintptr).Swap",
+-			// TODO(rsc): Why are these not reported as inlined?
+-			// "(*Pointer[T]).CompareAndSwap",
+-			// "(*Pointer[T]).Load",
+-			// "(*Pointer[T]).Store",
+-			// "(*Pointer[T]).Swap",
++			// (*Pointer[T])'s methods' handled below.
+ 		},
+ 	}
+ 
+@@ -235,6 +232,14 @@ func TestIntendedInlining(t *testing.T) {
+ 		// (*Bool).CompareAndSwap is just over budget on 32-bit systems (386, arm).
+ 		want["sync/atomic"] = append(want["sync/atomic"], "(*Bool).CompareAndSwap")
+ 	}
++	if buildcfg.Experiment.Unified {
++		// Non-unified IR does not report "inlining call ..." for atomic.Pointer[T]'s methods.
++		// TODO(cuonglm): remove once non-unified IR frontend gone.
++		want["sync/atomic"] = append(want["sync/atomic"], "(*Pointer[go.shape.int]).CompareAndSwap")
++		want["sync/atomic"] = append(want["sync/atomic"], "(*Pointer[go.shape.int]).Load")
++		want["sync/atomic"] = append(want["sync/atomic"], "(*Pointer[go.shape.int]).Store")
++		want["sync/atomic"] = append(want["sync/atomic"], "(*Pointer[go.shape.int]).Swap")
++	}
+ 
+ 	switch runtime.GOARCH {
+ 	case "386", "wasm", "arm":
+diff --git a/src/sync/atomic/type.go b/src/sync/atomic/type.go
+index f7b8f5a3b7..87c98b1e77 100644
+--- a/src/sync/atomic/type.go
++++ b/src/sync/atomic/type.go
+@@ -35,6 +35,10 @@ func b32(b bool) uint32 {
+ 	return 0
+ }
+ 
++// For testing *Pointer[T]'s methods can be inlined.
++// Keep in sync with cmd/compile/internal/test/inl_test.go:TestIntendedInlining.
++var _ = &Pointer[int]{}
++
+ // A Pointer is an atomic pointer of type *T. The zero value is a nil *T.
+ type Pointer[T any] struct {
+ 	_ noCopy

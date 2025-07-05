@@ -29,6 +29,22 @@ Date:   Sun Nov 25 14:53:24 2018 +0000
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/encoding/base64/base64.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/encoding/base64/base64.go b/src/encoding/base64/base64.go
+index 0bb37b311a..a90e4dfa12 100644
+--- a/src/encoding/base64/base64.go
++++ b/src/encoding/base64/base64.go
+@@ -123,6 +123,10 @@ func (enc *Encoding) Encode(dst, src []byte) {
+ 	if len(src) == 0 {
+ 		return
+ 	}
++	// enc is a pointer receiver, so the use of enc.encode within the hot
++	// loop below means a nil check at every operation. Lift that nil check
++	// outside of the loop to speed up the encoder.
++	_ = enc.encode
+ 
+ 	di, si := 0, 0
+ 	n := (len(src) / 3) * 3

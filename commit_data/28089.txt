@@ -22,9 +22,115 @@ Date:   Thu Apr 28 11:15:44 2016 -0700
     Change-Id: I3b0173dfedf31bd08eaea1069968b416850864a1
     Reviewed-on: https://go-review.googlesource.com/22556
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/dnsclient_unix.go      | 1 -
  src/net/dnsclient_unix_test.go | 4 ++--
  src/net/dnsconfig_unix.go      | 8 ++++----
  src/net/dnsconfig_unix_test.go | 8 ++++----
  4 files changed, 10 insertions(+), 11 deletions(-)
+
+diff --git a/src/net/dnsclient_unix.go b/src/net/dnsclient_unix.go
+index 1adfda7b06..12d12eba9c 100644
+--- a/src/net/dnsclient_unix.go
++++ b/src/net/dnsclient_unix.go
+@@ -190,7 +190,6 @@ func tryOneName(ctx context.Context, cfg *dnsConfig, name string, qtype uint16)
+ 	var lastErr error
+ 	for i := 0; i < cfg.attempts; i++ {
+ 		for _, server := range cfg.servers {
+-			server = JoinHostPort(server, "53")
+ 			msg, err := exchange(ctx, server, name, qtype)
+ 			if err != nil {
+ 				lastErr = &DNSError{
+diff --git a/src/net/dnsclient_unix_test.go b/src/net/dnsclient_unix_test.go
+index b4aacef54f..c1ef5a32d3 100644
+--- a/src/net/dnsclient_unix_test.go
++++ b/src/net/dnsclient_unix_test.go
+@@ -221,7 +221,7 @@ var updateResolvConfTests = []struct {
+ 	{
+ 		name:    "golang.org",
+ 		lines:   []string{"nameserver 8.8.8.8"},
+-		servers: []string{"8.8.8.8"},
++		servers: []string{"8.8.8.8:53"},
+ 	},
+ 	{
+ 		name:    "",
+@@ -231,7 +231,7 @@ var updateResolvConfTests = []struct {
+ 	{
+ 		name:    "www.example.com",
+ 		lines:   []string{"nameserver 8.8.4.4"},
+-		servers: []string{"8.8.4.4"},
++		servers: []string{"8.8.4.4:53"},
+ 	},
+ }
+ 
+diff --git a/src/net/dnsconfig_unix.go b/src/net/dnsconfig_unix.go
+index 68ed64e541..88d168d8d2 100644
+--- a/src/net/dnsconfig_unix.go
++++ b/src/net/dnsconfig_unix.go
+@@ -14,12 +14,12 @@ import (
+ )
+ 
+ var (
+-	defaultNS   = []string{"127.0.0.1", "::1"}
++	defaultNS   = []string{"127.0.0.1:53", "[::1]:53"}
+ 	getHostname = os.Hostname // variable for testing
+ )
+ 
+ type dnsConfig struct {
+-	servers    []string      // servers to use
++	servers    []string      // server addresses (in host:port form) to use
+ 	search     []string      // suffixes to append to local name
+ 	ndots      int           // number of dots in name to trigger absolute lookup
+ 	timeout    time.Duration // wait before giving up on a query, including retries
+@@ -70,9 +70,9 @@ func dnsReadConfig(filename string) *dnsConfig {
+ 				// just an IP address. Otherwise we need DNS
+ 				// to look it up.
+ 				if parseIPv4(f[1]) != nil {
+-					conf.servers = append(conf.servers, f[1])
++					conf.servers = append(conf.servers, JoinHostPort(f[1], "53"))
+ 				} else if ip, _ := parseIPv6(f[1], true); ip != nil {
+-					conf.servers = append(conf.servers, f[1])
++					conf.servers = append(conf.servers, JoinHostPort(f[1], "53"))
+ 				}
+ 			}
+ 
+diff --git a/src/net/dnsconfig_unix_test.go b/src/net/dnsconfig_unix_test.go
+index 17b344b704..7e27a72887 100644
+--- a/src/net/dnsconfig_unix_test.go
++++ b/src/net/dnsconfig_unix_test.go
+@@ -21,7 +21,7 @@ var dnsReadConfigTests = []struct {
+ 	{
+ 		name: "testdata/resolv.conf",
+ 		want: &dnsConfig{
+-			servers:    []string{"8.8.8.8", "2001:4860:4860::8888", "fe80::1%lo0"},
++			servers:    []string{"8.8.8.8:53", "[2001:4860:4860::8888]:53", "[fe80::1%lo0]:53"},
+ 			search:     []string{"localdomain"},
+ 			ndots:      5,
+ 			timeout:    10 * time.Second,
+@@ -33,7 +33,7 @@ var dnsReadConfigTests = []struct {
+ 	{
+ 		name: "testdata/domain-resolv.conf",
+ 		want: &dnsConfig{
+-			servers:  []string{"8.8.8.8"},
++			servers:  []string{"8.8.8.8:53"},
+ 			search:   []string{"localdomain"},
+ 			ndots:    1,
+ 			timeout:  5 * time.Second,
+@@ -43,7 +43,7 @@ var dnsReadConfigTests = []struct {
+ 	{
+ 		name: "testdata/search-resolv.conf",
+ 		want: &dnsConfig{
+-			servers:  []string{"8.8.8.8"},
++			servers:  []string{"8.8.8.8:53"},
+ 			search:   []string{"test", "invalid"},
+ 			ndots:    1,
+ 			timeout:  5 * time.Second,
+@@ -67,7 +67,7 @@ var dnsReadConfigTests = []struct {
+ 			timeout:  5 * time.Second,
+ 			attempts: 2,
+ 			lookup:   []string{"file", "bind"},
+-			servers:  []string{"169.254.169.254", "10.240.0.1"},
++			servers:  []string{"169.254.169.254:53", "10.240.0.1:53"},
+ 			search:   []string{"c.symbolic-datum-552.internal."},
+ 		},
+ 	},

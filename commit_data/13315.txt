@@ -11,7 +11,47 @@ Date:   Thu Jun 7 11:59:18 2012 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/6299055
-
+---
  src/cmd/gc/gen.c         |  3 +++
  test/fixedbugs/bug444.go | 19 +++++++++++++++++++
  2 files changed, 22 insertions(+)
+
+diff --git a/src/cmd/gc/gen.c b/src/cmd/gc/gen.c
+index 9806600277..569bf46173 100644
+--- a/src/cmd/gc/gen.c
++++ b/src/cmd/gc/gen.c
+@@ -647,6 +647,9 @@ cgen_as(Node *nl, Node *nr)
+ 		dump("cgen_as = ", nr);
+ 	}
+ 
++	while(nr != N && nr->op == OCONVNOP)
++		nr = nr->left;
++
+ 	if(nl == N || isblank(nl)) {
+ 		cgen_discard(nr);
+ 		return;
+diff --git a/test/fixedbugs/bug444.go b/test/fixedbugs/bug444.go
+new file mode 100644
+index 0000000000..0bbd16faed
+--- /dev/null
++++ b/test/fixedbugs/bug444.go
+@@ -0,0 +1,19 @@
++// run
++
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// The no-op conversion here used to confuse the compiler
++// into doing a load-effective-address of nil.
++
++package main
++
++import "reflect"
++
++type T interface {}
++
++func main() {
++        reflect.TypeOf(nil)
++        reflect.TypeOf(T(nil)) // used to fail
++}

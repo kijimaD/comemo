@@ -14,6 +14,20 @@ Date:   Fri May 19 07:31:44 2023 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Jonathan Amsterdam <jba@google.com>
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/log/slog/handler.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/log/slog/handler.go b/src/log/slog/handler.go
+index b10a6bd247..8cd1e563eb 100644
+--- a/src/log/slog/handler.go
++++ b/src/log/slog/handler.go
+@@ -469,7 +469,7 @@ func (s *handleState) appendError(err error) {
+ 
+ func (s *handleState) appendKey(key string) {
+ 	s.buf.WriteString(s.sep)
+-	if s.prefix != nil {
++	if s.prefix != nil && len(*s.prefix) > 0 {
+ 		// TODO: optimize by avoiding allocation.
+ 		s.appendString(string(*s.prefix) + key)
+ 	} else {

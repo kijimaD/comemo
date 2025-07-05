@@ -22,7 +22,7 @@ Date:   Mon Apr 9 13:57:56 2018 -0700
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/fmt_test.go                 |  1 -
  src/cmd/compile/internal/gc/reflect.go      | 89 +++++++++--------------------
  src/cmd/compile/internal/gc/reflect_test.go | 51 -----------------
@@ -30,3 +30,393 @@ Date:   Mon Apr 9 13:57:56 2018 -0700
  src/cmd/compile/internal/types/sym.go       | 26 +++++++++
  src/cmd/compile/internal/types/sym_test.go  | 59 +++++++++++++++++++
  6 files changed, 117 insertions(+), 149 deletions(-)
+
+diff --git a/src/cmd/compile/fmt_test.go b/src/cmd/compile/fmt_test.go
+index cb76ad5de2..cc9c182ad6 100644
+--- a/src/cmd/compile/fmt_test.go
++++ b/src/cmd/compile/fmt_test.go
+@@ -600,7 +600,6 @@ var knownFormats = map[string]string{
+ 	"*math/big.Int %s":                                "",
+ 	"[16]byte %x":                                     "",
+ 	"[]*cmd/compile/internal/gc.Node %v":              "",
+-	"[]*cmd/compile/internal/gc.Sig %#v":              "",
+ 	"[]*cmd/compile/internal/ssa.Block %v":            "",
+ 	"[]*cmd/compile/internal/ssa.Value %v":            "",
+ 	"[]byte %s":                                       "",
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index 27fbd7b8d8..7bf6de1394 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -42,29 +42,13 @@ var (
+ )
+ 
+ type Sig struct {
+-	name  string
+-	pkg   *types.Pkg
++	name  *types.Sym
+ 	isym  *types.Sym
+ 	tsym  *types.Sym
+ 	type_ *types.Type
+ 	mtype *types.Type
+ }
+ 
+-// siglt sorts method signatures by name with exported methods first,
+-// and then non-exported methods by their package path.
+-func siglt(a, b *Sig) bool {
+-	if (a.pkg == nil) != (b.pkg == nil) {
+-		return a.pkg == nil
+-	}
+-	if a.name != b.name {
+-		return a.name < b.name
+-	}
+-	if a.pkg != nil && a.pkg != b.pkg {
+-		return a.pkg.Path < b.pkg.Path
+-	}
+-	return false
+-}
+-
+ // Builds a type representing a Bucket structure for
+ // the given map type. This type is not visible to users -
+ // we include only enough information to generate a correct GC
+@@ -410,21 +394,14 @@ func methods(t *types.Type) []*Sig {
+ 			continue
+ 		}
+ 
+-		var sig Sig
+-		ms = append(ms, &sig)
+-
+-		sig.name = method.Name
+-		if !types.IsExported(method.Name) {
+-			if method.Pkg == nil {
+-				Fatalf("methods: missing package")
+-			}
+-			sig.pkg = method.Pkg
++		sig := &Sig{
++			name:  method,
++			isym:  methodSym(it, method),
++			tsym:  methodSym(t, method),
++			type_: methodfunc(f.Type, t),
++			mtype: methodfunc(f.Type, nil),
+ 		}
+-
+-		sig.isym = methodSym(it, method)
+-		sig.tsym = methodSym(t, method)
+-		sig.type_ = methodfunc(f.Type, t)
+-		sig.mtype = methodfunc(f.Type, nil)
++		ms = append(ms, sig)
+ 
+ 		this := f.Type.Recv().Type
+ 
+@@ -457,38 +434,28 @@ func imethods(t *types.Type) []*Sig {
+ 		if f.Type.Etype != TFUNC || f.Sym == nil {
+ 			continue
+ 		}
+-		method := f.Sym
+-		var sig = Sig{
+-			name: method.Name,
+-		}
+-		if !types.IsExported(method.Name) {
+-			if method.Pkg == nil {
+-				Fatalf("imethods: missing package")
+-			}
+-			sig.pkg = method.Pkg
++		if f.Sym.IsBlank() {
++			Fatalf("unexpected blank symbol in interface method set")
+ 		}
+-
+-		sig.mtype = f.Type
+-		sig.type_ = methodfunc(f.Type, nil)
+-
+ 		if n := len(methods); n > 0 {
+ 			last := methods[n-1]
+-			if !(siglt(last, &sig)) {
+-				Fatalf("sigcmp vs sortinter %s %s", last.name, sig.name)
++			if !last.name.Less(f.Sym) {
++				Fatalf("sigcmp vs sortinter %v %v", last.name, f.Sym)
+ 			}
+ 		}
+-		methods = append(methods, &sig)
+ 
+-		// Compiler can only refer to wrappers for non-blank methods.
+-		if method.IsBlank() {
+-			continue
++		sig := &Sig{
++			name:  f.Sym,
++			mtype: f.Type,
++			type_: methodfunc(f.Type, nil),
+ 		}
++		methods = append(methods, sig)
+ 
+ 		// NOTE(rsc): Perhaps an oversight that
+ 		// IfaceType.Method is not in the reflect data.
+ 		// Generate the method body, so that compiled
+ 		// code can refer to it.
+-		isym := methodSym(t, method)
++		isym := methodSym(t, f.Sym)
+ 		if !isym.Siggen() {
+ 			isym.SetSiggen(true)
+ 			genwrapper(t, f, isym)
+@@ -675,7 +642,7 @@ func dextratype(lsym *obj.LSym, ot int, t *types.Type, dataAdd int) int {
+ 	if mcount != int(uint16(mcount)) {
+ 		Fatalf("too many methods on %v: %d", t, mcount)
+ 	}
+-	xcount := sort.Search(mcount, func(i int) bool { return m[i].pkg != nil })
++	xcount := sort.Search(mcount, func(i int) bool { return !types.IsExported(m[i].name.Name) })
+ 	if dataAdd != int(uint32(dataAdd)) {
+ 		Fatalf("methods are too far away on %v: %d", t, dataAdd)
+ 	}
+@@ -708,12 +675,12 @@ func typePkg(t *types.Type) *types.Pkg {
+ func dextratypeData(lsym *obj.LSym, ot int, t *types.Type) int {
+ 	for _, a := range methods(t) {
+ 		// ../../../../runtime/type.go:/method
+-		exported := types.IsExported(a.name)
++		exported := types.IsExported(a.name.Name)
+ 		var pkg *types.Pkg
+-		if !exported && a.pkg != typePkg(t) {
+-			pkg = a.pkg
++		if !exported && a.name.Pkg != typePkg(t) {
++			pkg = a.name.Pkg
+ 		}
+-		nsym := dname(a.name, "", pkg, exported)
++		nsym := dname(a.name.Name, "", pkg, exported)
+ 
+ 		ot = dsymptrOff(lsym, ot, nsym)
+ 		ot = dmethodptrOff(lsym, ot, dtypesym(a.mtype))
+@@ -1267,12 +1234,12 @@ func dtypesym(t *types.Type) *obj.LSym {
+ 
+ 		for _, a := range m {
+ 			// ../../../../runtime/type.go:/imethod
+-			exported := types.IsExported(a.name)
++			exported := types.IsExported(a.name.Name)
+ 			var pkg *types.Pkg
+-			if !exported && a.pkg != tpkg {
+-				pkg = a.pkg
++			if !exported && a.name.Pkg != tpkg {
++				pkg = a.name.Pkg
+ 			}
+-			nsym := dname(a.name, "", pkg, exported)
++			nsym := dname(a.name.Name, "", pkg, exported)
+ 
+ 			ot = dsymptrOff(lsym, ot, nsym)
+ 			ot = dsymptrOff(lsym, ot, dtypesym(a.type_))
+@@ -1430,7 +1397,7 @@ func genfun(t, it *types.Type) []*obj.LSym {
+ 	// both sigs and methods are sorted by name,
+ 	// so we can find the intersect in a single pass
+ 	for _, m := range methods {
+-		if m.name == sigs[0].name {
++		if m.name.Name == sigs[0].name.Name {
+ 			out = append(out, m.isym.Linksym())
+ 			sigs = sigs[1:]
+ 			if len(sigs) == 0 {
+diff --git a/src/cmd/compile/internal/gc/reflect_test.go b/src/cmd/compile/internal/gc/reflect_test.go
+deleted file mode 100644
+index 1e280c281a..0000000000
+--- a/src/cmd/compile/internal/gc/reflect_test.go
++++ /dev/null
+@@ -1,51 +0,0 @@
+-// Copyright 2015 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package gc
+-
+-import (
+-	"cmd/compile/internal/types"
+-	"cmd/internal/obj"
+-	"reflect"
+-	"testing"
+-)
+-
+-func TestSortingBySigLT(t *testing.T) {
+-	data := []*Sig{
+-		&Sig{name: "b", pkg: &types.Pkg{Path: "abc"}},
+-		&Sig{name: "B", pkg: nil},
+-		&Sig{name: "C", pkg: nil},
+-		&Sig{name: "c", pkg: &types.Pkg{Path: "uvw"}},
+-		&Sig{name: "C", pkg: nil},
+-		&Sig{name: "φ", pkg: &types.Pkg{Path: "gr"}},
+-		&Sig{name: "Φ", pkg: nil},
+-		&Sig{name: "b", pkg: &types.Pkg{Path: "xyz"}},
+-		&Sig{name: "a", pkg: &types.Pkg{Path: "abc"}},
+-		&Sig{name: "B", pkg: nil},
+-	}
+-	want := []*Sig{
+-		&Sig{name: "B", pkg: nil},
+-		&Sig{name: "B", pkg: nil},
+-		&Sig{name: "C", pkg: nil},
+-		&Sig{name: "C", pkg: nil},
+-		&Sig{name: "Φ", pkg: nil},
+-		&Sig{name: "a", pkg: &types.Pkg{Path: "abc"}},
+-		&Sig{name: "b", pkg: &types.Pkg{Path: "abc"}},
+-		&Sig{name: "b", pkg: &types.Pkg{Path: "xyz"}},
+-		&Sig{name: "c", pkg: &types.Pkg{Path: "uvw"}},
+-		&Sig{name: "φ", pkg: &types.Pkg{Path: "gr"}},
+-	}
+-	if len(data) != len(want) {
+-		t.Fatal("want and data must match")
+-	}
+-	if reflect.DeepEqual(data, want) {
+-		t.Fatal("data must be shuffled")
+-	}
+-	obj.SortSlice(data, func(i, j int) bool { return siglt(data[i], data[j]) })
+-	if !reflect.DeepEqual(data, want) {
+-		t.Logf("want: %#v", want)
+-		t.Logf("data: %#v", data)
+-		t.Errorf("sorting failed")
+-	}
+-}
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 7b3d4cea1a..49c1b485c9 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -369,44 +369,12 @@ func (n *Node) copy() *Node {
+ 	return &n2
+ }
+ 
+-// methcmp sorts methods by name with exported methods first,
+-// and then non-exported methods by their package path.
++// methcmp sorts methods by symbol.
+ type methcmp []*types.Field
+ 
+-func (x methcmp) Len() int      { return len(x) }
+-func (x methcmp) Swap(i, j int) { x[i], x[j] = x[j], x[i] }
+-func (x methcmp) Less(i, j int) bool {
+-	a := x[i]
+-	b := x[j]
+-	if a.Sym == b.Sym {
+-		return false
+-	}
+-
+-	// Blank methods to the end.
+-	if a.Sym == nil {
+-		return false
+-	}
+-	if b.Sym == nil {
+-		return true
+-	}
+-
+-	// Exported methods to the front.
+-	ea := types.IsExported(a.Sym.Name)
+-	eb := types.IsExported(b.Sym.Name)
+-	if ea != eb {
+-		return ea
+-	}
+-
+-	// Sort by name and then package.
+-	if a.Sym.Name != b.Sym.Name {
+-		return a.Sym.Name < b.Sym.Name
+-	}
+-	if !ea && a.Sym.Pkg.Path != b.Sym.Pkg.Path {
+-		return a.Sym.Pkg.Path < b.Sym.Pkg.Path
+-	}
+-
+-	return false
+-}
++func (x methcmp) Len() int           { return len(x) }
++func (x methcmp) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
++func (x methcmp) Less(i, j int) bool { return x[i].Sym.Less(x[j].Sym) }
+ 
+ func nodintconst(v int64) *Node {
+ 	u := new(Mpint)
+diff --git a/src/cmd/compile/internal/types/sym.go b/src/cmd/compile/internal/types/sym.go
+index e9b454d83a..fe6ddbf5a2 100644
+--- a/src/cmd/compile/internal/types/sym.go
++++ b/src/cmd/compile/internal/types/sym.go
+@@ -77,6 +77,32 @@ func (sym *Sym) Linksym() *obj.LSym {
+ 	return Ctxt.Lookup(sym.LinksymName())
+ }
+ 
++// Less reports whether symbol a is ordered before symbol b.
++//
++// Symbols are ordered exported before non-exported, then by name, and
++// finally (for non-exported symbols) by package path.
++func (a *Sym) Less(b *Sym) bool {
++	if a == b {
++		return false
++	}
++
++	// Exported symbols before non-exported.
++	ea := IsExported(a.Name)
++	eb := IsExported(b.Name)
++	if ea != eb {
++		return ea
++	}
++
++	// Order by name and then (for non-exported names) by package.
++	if a.Name != b.Name {
++		return a.Name < b.Name
++	}
++	if !ea {
++		return a.Pkg.Path < b.Pkg.Path
++	}
++	return false
++}
++
+ // IsExported reports whether name is an exported Go symbol (that is,
+ // whether it begins with an upper-case letter).
+ func IsExported(name string) bool {
+diff --git a/src/cmd/compile/internal/types/sym_test.go b/src/cmd/compile/internal/types/sym_test.go
+new file mode 100644
+index 0000000000..a2bb02deda
+--- /dev/null
++++ b/src/cmd/compile/internal/types/sym_test.go
+@@ -0,0 +1,59 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package types_test
++
++import (
++	"cmd/compile/internal/types"
++	"cmd/internal/obj"
++	"reflect"
++	"testing"
++)
++
++func TestSymLess(t *testing.T) {
++	var (
++		local = types.NewPkg("", "")
++		abc   = types.NewPkg("abc", "")
++		uvw   = types.NewPkg("uvw", "")
++		xyz   = types.NewPkg("xyz", "")
++		gr    = types.NewPkg("gr", "")
++	)
++
++	data := []*types.Sym{
++		abc.Lookup("b"),
++		local.Lookup("B"),
++		local.Lookup("C"),
++		uvw.Lookup("c"),
++		local.Lookup("C"),
++		gr.Lookup("φ"),
++		local.Lookup("Φ"),
++		xyz.Lookup("b"),
++		abc.Lookup("a"),
++		local.Lookup("B"),
++	}
++	want := []*types.Sym{
++		local.Lookup("B"),
++		local.Lookup("B"),
++		local.Lookup("C"),
++		local.Lookup("C"),
++		local.Lookup("Φ"),
++		abc.Lookup("a"),
++		abc.Lookup("b"),
++		xyz.Lookup("b"),
++		uvw.Lookup("c"),
++		gr.Lookup("φ"),
++	}
++	if len(data) != len(want) {
++		t.Fatal("want and data must match")
++	}
++	if reflect.DeepEqual(data, want) {
++		t.Fatal("data must be shuffled")
++	}
++	obj.SortSlice(data, func(i, j int) bool { return data[i].Less(data[j]) })
++	if !reflect.DeepEqual(data, want) {
++		t.Logf("want: %#v", want)
++		t.Logf("data: %#v", data)
++		t.Errorf("sorting failed")
++	}
++}

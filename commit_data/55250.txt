@@ -15,7 +15,49 @@ Date:   Thu Dec 1 21:59:00 2022 +0100
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Reviewed-by: Damien Neil <dneil@google.com>
     Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
-
+---
  src/path/filepath/path_windows_test.go | 10 ++++++++--
  src/path/filepath/symlink_windows.go   |  2 --
  2 files changed, 8 insertions(+), 4 deletions(-)
+
+diff --git a/src/path/filepath/path_windows_test.go b/src/path/filepath/path_windows_test.go
+index e37dddcead..8553485a2d 100644
+--- a/src/path/filepath/path_windows_test.go
++++ b/src/path/filepath/path_windows_test.go
+@@ -347,7 +347,11 @@ func TestToNorm(t *testing.T) {
+ 	}
+ 
+ 	for _, test := range tests {
+-		got, err := filepath.ToNorm(test.arg, stubBase)
++		var path string
++		if test.arg != "" {
++			path = filepath.Clean(test.arg)
++		}
++		got, err := filepath.ToNorm(path, stubBase)
+ 		if err != nil {
+ 			t.Errorf("toNorm(%s) failed: %v\n", test.arg, err)
+ 		} else if got != test.want {
+@@ -439,7 +443,9 @@ func TestToNorm(t *testing.T) {
+ 				continue
+ 			}
+ 		}
+-
++		if arg != "" {
++			arg = filepath.Clean(arg)
++		}
+ 		got, err := filepath.ToNorm(arg, filepath.NormBase)
+ 		if err != nil {
+ 			t.Errorf("toNorm(%s) failed: %v (wd=%s)\n", arg, err, wd)
+diff --git a/src/path/filepath/symlink_windows.go b/src/path/filepath/symlink_windows.go
+index 9a436d5978..8047ff83c1 100644
+--- a/src/path/filepath/symlink_windows.go
++++ b/src/path/filepath/symlink_windows.go
+@@ -63,8 +63,6 @@ func toNorm(path string, normBase func(string) (string, error)) (string, error)
+ 		return path, nil
+ 	}
+ 
+-	path = Clean(path)
+-
+ 	volume := normVolumeName(path)
+ 	path = path[len(volume):]
+ 

@@ -8,6 +8,22 @@ Date:   Thu Apr 26 17:39:04 2012 +1000
     R=adg, r, bsiegert
     CC=golang-dev
     https://golang.org/cl/6119054
-
+---
  doc/progs/image_draw.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/progs/image_draw.go b/doc/progs/image_draw.go
+index 2cc5c632f3..bb73c8a714 100644
+--- a/doc/progs/image_draw.go
++++ b/doc/progs/image_draw.go
+@@ -84,8 +84,8 @@ func ConvAndCircle() {
+ 
+ 	// CONV OMIT
+ 	b := src.Bounds()
+-	m := image.NewRGBA(image.Rect(0, 0, b.Dx(), b.Dy()))
+-	draw.Draw(m, m.Bounds(), src, b.Min, draw.Src)
++	m := image.NewRGBA(b)
++	draw.Draw(m, b, src, b.Min, draw.Src)
+ 	// STOP OMIT
+ 
+ 	p := image.Point{100, 100}

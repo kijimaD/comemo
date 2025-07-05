@@ -22,10 +22,184 @@ Date:   Fri Feb 24 18:15:32 2023 +0100
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Auto-Submit: Michael Pratt <mpratt@google.com>
     Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
-
+---
  src/runtime/os_windows.go       | 15 +++++----------
  src/runtime/sys_windows_386.s   | 37 -------------------------------------
  src/runtime/sys_windows_amd64.s | 33 ---------------------------------
  src/runtime/sys_windows_arm.s   |  7 -------
  src/runtime/sys_windows_arm64.s |  7 -------
  5 files changed, 5 insertions(+), 94 deletions(-)
+
+diff --git a/src/runtime/os_windows.go b/src/runtime/os_windows.go
+index 62509df030..40e7aade1e 100644
+--- a/src/runtime/os_windows.go
++++ b/src/runtime/os_windows.go
+@@ -440,13 +440,7 @@ func createHighResTimer() uintptr {
+ 		_SYNCHRONIZE|_TIMER_QUERY_STATE|_TIMER_MODIFY_STATE)
+ }
+ 
+-const highResTimerSupported = GOARCH == "386" || GOARCH == "amd64"
+-
+ func initHighResTimer() {
+-	if !highResTimerSupported {
+-		// TODO: Not yet implemented.
+-		return
+-	}
+ 	h := createHighResTimer()
+ 	if h != 0 {
+ 		haveHighResTimer = true
+@@ -1130,7 +1124,6 @@ func stdcall7(fn stdFunction, a0, a1, a2, a3, a4, a5, a6 uintptr) uintptr {
+ 
+ // These must run on the system stack only.
+ func usleep2(dt int32)
+-func usleep2HighRes(dt int32)
+ func switchtothread()
+ 
+ //go:nosplit
+@@ -1152,13 +1145,15 @@ func usleep_no_g(us uint32) {
+ //go:nosplit
+ func usleep(us uint32) {
+ 	systemstack(func() {
+-		dt := -10 * int32(us) // relative sleep (negative), 100ns units
++		dt := -10 * int64(us) // relative sleep (negative), 100ns units
+ 		// If the high-res timer is available and its handle has been allocated for this m, use it.
+ 		// Otherwise fall back to the low-res one, which doesn't need a handle.
+ 		if haveHighResTimer && getg().m.highResTimer != 0 {
+-			usleep2HighRes(dt)
++			h := getg().m.highResTimer
++			stdcall6(_SetWaitableTimer, h, uintptr(unsafe.Pointer(&dt)), 0, 0, 0, 0)
++			stdcall3(_NtWaitForSingleObject, h, 0, 0)
+ 		} else {
+-			usleep2(dt)
++			usleep2(int32(dt))
+ 		}
+ 	})
+ }
+diff --git a/src/runtime/sys_windows_386.s b/src/runtime/sys_windows_386.s
+index 818f1b4d79..f5ce977f36 100644
+--- a/src/runtime/sys_windows_386.s
++++ b/src/runtime/sys_windows_386.s
+@@ -241,43 +241,6 @@ TEXT runtime·usleep2(SB),NOSPLIT,$20-4
+ 	MOVL	BP, SP
+ 	RET
+ 
+-// Runs on OS stack.
+-// duration (in -100ns units) is in dt+0(FP).
+-// g is valid.
+-TEXT runtime·usleep2HighRes(SB),NOSPLIT,$36-4
+-	MOVL	dt+0(FP), BX
+-	MOVL	$-1, hi-4(SP)
+-	MOVL	BX, lo-8(SP)
+-
+-	get_tls(CX)
+-	MOVL	g(CX), CX
+-	MOVL	g_m(CX), CX
+-	MOVL	(m_mOS+mOS_highResTimer)(CX), CX
+-	MOVL	CX, saved_timer-12(SP)
+-
+-	MOVL	$0, fResume-16(SP)
+-	MOVL	$0, lpArgToCompletionRoutine-20(SP)
+-	MOVL	$0, pfnCompletionRoutine-24(SP)
+-	MOVL	$0, lPeriod-28(SP)
+-	LEAL	lo-8(SP), BX
+-	MOVL	BX, lpDueTime-32(SP)
+-	MOVL	CX, hTimer-36(SP)
+-	MOVL	SP, BP
+-	MOVL	runtime·_SetWaitableTimer(SB), AX
+-	CALL	AX
+-	MOVL	BP, SP
+-
+-	MOVL	$0, ptime-28(SP)
+-	MOVL	$0, alertable-32(SP)
+-	MOVL	saved_timer-12(SP), CX
+-	MOVL	CX, handle-36(SP)
+-	MOVL	SP, BP
+-	MOVL	runtime·_NtWaitForSingleObject(SB), AX
+-	CALL	AX
+-	MOVL	BP, SP
+-
+-	RET
+-
+ // Runs on OS stack.
+ TEXT runtime·switchtothread(SB),NOSPLIT,$0
+ 	MOVL	SP, BP
+diff --git a/src/runtime/sys_windows_amd64.s b/src/runtime/sys_windows_amd64.s
+index 5eb03b014e..367cb2ba76 100644
+--- a/src/runtime/sys_windows_amd64.s
++++ b/src/runtime/sys_windows_amd64.s
+@@ -251,39 +251,6 @@ TEXT runtime·usleep2(SB),NOSPLIT,$48-4
+ 	MOVQ	40(SP), SP
+ 	RET
+ 
+-// Runs on OS stack. duration (in -100ns units) is in dt+0(FP).
+-// g is valid.
+-TEXT runtime·usleep2HighRes(SB),NOSPLIT,$72-4
+-	MOVLQSX	dt+0(FP), BX
+-	get_tls(CX)
+-
+-	MOVQ	SP, AX
+-	ANDQ	$~15, SP	// alignment as per Windows requirement
+-	MOVQ	AX, 64(SP)
+-
+-	MOVQ	g(CX), CX
+-	MOVQ	g_m(CX), CX
+-	MOVQ	(m_mOS+mOS_highResTimer)(CX), CX	// hTimer
+-	MOVQ	CX, 48(SP)				// save hTimer for later
+-	LEAQ	56(SP), DX				// lpDueTime
+-	MOVQ	BX, (DX)
+-	MOVQ	$0, R8					// lPeriod
+-	MOVQ	$0, R9					// pfnCompletionRoutine
+-	MOVQ	$0, AX
+-	MOVQ	AX, 32(SP)				// lpArgToCompletionRoutine
+-	MOVQ	AX, 40(SP)				// fResume
+-	MOVQ	runtime·_SetWaitableTimer(SB), AX
+-	CALL	AX
+-
+-	MOVQ	48(SP), CX				// handle
+-	MOVQ	$0, DX					// alertable
+-	MOVQ	$0, R8					// ptime
+-	MOVQ	runtime·_NtWaitForSingleObject(SB), AX
+-	CALL	AX
+-
+-	MOVQ	64(SP), SP
+-	RET
+-
+ // Runs on OS stack.
+ TEXT runtime·switchtothread(SB),NOSPLIT,$0
+ 	MOVQ	SP, AX
+diff --git a/src/runtime/sys_windows_arm.s b/src/runtime/sys_windows_arm.s
+index 0af19db352..67009df723 100644
+--- a/src/runtime/sys_windows_arm.s
++++ b/src/runtime/sys_windows_arm.s
+@@ -211,13 +211,6 @@ TEXT runtime·usleep2(SB),NOSPLIT|NOFRAME,$0-4
+ 	MOVW	R4, R13			// Restore SP
+ 	MOVM.IA.W (R13), [R4, R15]	// pop {R4, pc}
+ 
+-// Runs on OS stack.
+-// duration (in -100ns units) is in dt+0(FP).
+-// g is valid.
+-// TODO: needs to be implemented properly.
+-TEXT runtime·usleep2HighRes(SB),NOSPLIT|NOFRAME,$0-4
+-	B	runtime·abort(SB)
+-
+ // Runs on OS stack.
+ TEXT runtime·switchtothread(SB),NOSPLIT|NOFRAME,$0
+ 	MOVM.DB.W [R4, R14], (R13)  	// push {R4, lr}
+diff --git a/src/runtime/sys_windows_arm64.s b/src/runtime/sys_windows_arm64.s
+index 6da866ac88..1161ad0132 100644
+--- a/src/runtime/sys_windows_arm64.s
++++ b/src/runtime/sys_windows_arm64.s
+@@ -239,13 +239,6 @@ TEXT runtime·usleep2(SB),NOSPLIT,$32-4
+ 	ADD	$16, RSP
+ 	RET
+ 
+-// Runs on OS stack.
+-// duration (in -100ns units) is in dt+0(FP).
+-// g is valid.
+-// TODO: needs to be implemented properly.
+-TEXT runtime·usleep2HighRes(SB),NOSPLIT|NOFRAME,$0-4
+-	B	runtime·abort(SB)
+-
+ // Runs on OS stack.
+ TEXT runtime·switchtothread(SB),NOSPLIT,$16-0
+ 	MOVD	runtime·_SwitchToThread(SB), R0

@@ -12,6 +12,26 @@ Date:   Wed Apr 14 12:57:21 2021 +0200
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/os/exec/lp_unix_test.go | 8 +-------
  1 file changed, 1 insertion(+), 7 deletions(-)
+
+diff --git a/src/os/exec/lp_unix_test.go b/src/os/exec/lp_unix_test.go
+index 75bcdb1fdd..9fded0eb0a 100644
+--- a/src/os/exec/lp_unix_test.go
++++ b/src/os/exec/lp_unix_test.go
+@@ -37,13 +37,7 @@ func TestLookPathUnixEmptyPath(t *testing.T) {
+ 		t.Fatal("Close failed: ", err)
+ 	}
+ 
+-	pathenv := os.Getenv("PATH")
+-	defer os.Setenv("PATH", pathenv)
+-
+-	err = os.Setenv("PATH", "")
+-	if err != nil {
+-		t.Fatal("Setenv failed: ", err)
+-	}
++	t.Setenv("PATH", "")
+ 
+ 	path, err := LookPath("exec_me")
+ 	if err == nil {

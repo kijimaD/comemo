@@ -9,6 +9,19 @@ Date:   Mon Apr 4 10:06:09 2011 +1000
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4300054
-
+---
  src/version.bash | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/version.bash b/src/version.bash
+index 7b2c06801a..b45f15a6c4 100755
+--- a/src/version.bash
++++ b/src/version.bash
+@@ -18,6 +18,7 @@ fi
+ 
+ # Find most recent known release tag.
+ TAG=$(hg tags |
++	sed 's/:.*//' |
+ 	sort -rn -k2 |
+ 	awk -v ver=$VERSION '$2 <= ver && $1~/^(release|weekly)\./ {print $1}' |
+ 	sed -n 1p)

@@ -17,6 +17,42 @@ Date:   Tue Feb 18 22:23:55 2014 -0500
     R=adonovan
     CC=golang-codereviews
     https://golang.org/cl/65750044
-
+---
  misc/emacs/go-mode.el | 10 ++++++++++
  1 file changed, 10 insertions(+)
+
+diff --git a/misc/emacs/go-mode.el b/misc/emacs/go-mode.el
+index b5a2d8f892..e19dcdcde8 100644
+--- a/misc/emacs/go-mode.el
++++ b/misc/emacs/go-mode.el
+@@ -7,6 +7,7 @@
+ (require 'cl)
+ (require 'etags)
+ (require 'ffap)
++(require 'find-file)
+ (require 'ring)
+ (require 'url)
+ 
+@@ -168,6 +169,13 @@ from https://github.com/bradfitz/goimports."
+   :type 'string
+   :group 'go)
+ 
++(defcustom go-other-file-alist
++  '(("_test\\.go\\'" (".go"))
++    ("\\.go\\'" ("_test.go")))
++  "See the documentation of `ff-other-file-alist' for details."
++  :type '(repeat (list regexp (choice (repeat string) function)))
++  :group 'go)
++
+ (defface go-coverage-untracked
+   '((t (:foreground "#505050")))
+   "Coverage color of untracked code."
+@@ -561,6 +569,8 @@ recommended that you look at goflymake
+   (set (make-local-variable 'go-dangling-cache) (make-hash-table :test 'eql))
+   (add-hook 'before-change-functions (lambda (x y) (setq go-dangling-cache (make-hash-table :test 'eql))) t t)
+ 
++  ;; ff-find-other-file
++  (setq ff-other-file-alist 'go-other-file-alist)
+ 
+   (setq imenu-generic-expression
+         '(("type" "^type *\\([^ \t\n\r\f]*\\)" 1)

@@ -12,8 +12,153 @@ Date:   Wed Jul 2 15:28:57 2014 -0700
     R=davidben, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/102670044
-
+---
  src/pkg/crypto/rsa/pkcs1v15.go         | 43 ++++++++++++++++++++++------------
  src/pkg/crypto/rsa/pkcs1v15_test.go    | 20 ++++++++++++++++
  src/pkg/crypto/subtle/constant_time.go |  9 +++++--
  3 files changed, 55 insertions(+), 17 deletions(-)
+
+diff --git a/src/pkg/crypto/rsa/pkcs1v15.go b/src/pkg/crypto/rsa/pkcs1v15.go
+index d9957aec1d..59e8bb5b7b 100644
+--- a/src/pkg/crypto/rsa/pkcs1v15.go
++++ b/src/pkg/crypto/rsa/pkcs1v15.go
+@@ -53,11 +53,14 @@ func DecryptPKCS1v15(rand io.Reader, priv *PrivateKey, ciphertext []byte) (out [
+ 	if err := checkPub(&priv.PublicKey); err != nil {
+ 		return nil, err
+ 	}
+-	valid, out, err := decryptPKCS1v15(rand, priv, ciphertext)
+-	if err == nil && valid == 0 {
+-		err = ErrDecryption
++	valid, out, index, err := decryptPKCS1v15(rand, priv, ciphertext)
++	if err != nil {
++		return
+ 	}
+-
++	if valid == 0 {
++		return nil, ErrDecryption
++	}
++	out = out[index:]
+ 	return
+ }
+ 
+@@ -80,21 +83,32 @@ func DecryptPKCS1v15SessionKey(rand io.Reader, priv *PrivateKey, ciphertext []by
+ 	}
+ 	k := (priv.N.BitLen() + 7) / 8
+ 	if k-(len(key)+3+8) < 0 {
+-		err = ErrDecryption
+-		return
++		return ErrDecryption
+ 	}
+ 
+-	valid, msg, err := decryptPKCS1v15(rand, priv, ciphertext)
++	valid, em, index, err := decryptPKCS1v15(rand, priv, ciphertext)
+ 	if err != nil {
+ 		return
+ 	}
+ 
+-	valid &= subtle.ConstantTimeEq(int32(len(msg)), int32(len(key)))
+-	subtle.ConstantTimeCopy(valid, key, msg)
++	if len(em) != k {
++		// This should be impossible because decryptPKCS1v15 always
++		// returns the full slice.
++		return ErrDecryption
++	}
++
++	valid &= subtle.ConstantTimeEq(int32(len(em)-index), int32(len(key)))
++	subtle.ConstantTimeCopy(valid, key, em[len(em)-len(key):])
+ 	return
+ }
+ 
+-func decryptPKCS1v15(rand io.Reader, priv *PrivateKey, ciphertext []byte) (valid int, msg []byte, err error) {
++// decryptPKCS1v15 decrypts ciphertext using priv and blinds the operation if
++// rand is not nil. It returns one or zero in valid that indicates whether the
++// plaintext was correctly structured. In either case, the plaintext is
++// returned in em so that it may be read independently of whether it was valid
++// in order to maintain constant memory access patterns. If the plaintext was
++// valid then index contains the index of the original message in em.
++func decryptPKCS1v15(rand io.Reader, priv *PrivateKey, ciphertext []byte) (valid int, em []byte, index int, err error) {
+ 	k := (priv.N.BitLen() + 7) / 8
+ 	if k < 11 {
+ 		err = ErrDecryption
+@@ -107,7 +121,7 @@ func decryptPKCS1v15(rand io.Reader, priv *PrivateKey, ciphertext []byte) (valid
+ 		return
+ 	}
+ 
+-	em := leftPad(m.Bytes(), k)
++	em = leftPad(m.Bytes(), k)
+ 	firstByteIsZero := subtle.ConstantTimeByteEq(em[0], 0)
+ 	secondByteIsTwo := subtle.ConstantTimeByteEq(em[1], 2)
+ 
+@@ -115,8 +129,7 @@ func decryptPKCS1v15(rand io.Reader, priv *PrivateKey, ciphertext []byte) (valid
+ 	// octets, followed by a 0, followed by the message.
+ 	//   lookingForIndex: 1 iff we are still looking for the zero.
+ 	//   index: the offset of the first zero byte.
+-	var lookingForIndex, index int
+-	lookingForIndex = 1
++	lookingForIndex := 1
+ 
+ 	for i := 2; i < len(em); i++ {
+ 		equals0 := subtle.ConstantTimeByteEq(em[i], 0)
+@@ -129,8 +142,8 @@ func decryptPKCS1v15(rand io.Reader, priv *PrivateKey, ciphertext []byte) (valid
+ 	validPS := subtle.ConstantTimeLessOrEq(2+8, index)
+ 
+ 	valid = firstByteIsZero & secondByteIsTwo & (^lookingForIndex & 1) & validPS
+-	msg = em[index+1:]
+-	return
++	index = subtle.ConstantTimeSelect(valid, index+1, 0)
++	return valid, em, index, nil
+ }
+ 
+ // nonZeroRandomBytes fills the given slice with non-zero random octets.
+diff --git a/src/pkg/crypto/rsa/pkcs1v15_test.go b/src/pkg/crypto/rsa/pkcs1v15_test.go
+index 37c14d1d94..2dc5dbc2c8 100644
+--- a/src/pkg/crypto/rsa/pkcs1v15_test.go
++++ b/src/pkg/crypto/rsa/pkcs1v15_test.go
+@@ -227,6 +227,26 @@ func TestUnpaddedSignature(t *testing.T) {
+ 	}
+ }
+ 
++func TestShortSessionKey(t *testing.T) {
++	// This tests that attempting to decrypt a session key where the
++	// ciphertext is too small doesn't run outside the array bounds.
++	ciphertext, err := EncryptPKCS1v15(rand.Reader, &rsaPrivateKey.PublicKey, []byte{1})
++	if err != nil {
++		t.Fatalf("Failed to encrypt short message: %s", err)
++	}
++
++	var key [32]byte
++	if err := DecryptPKCS1v15SessionKey(nil, rsaPrivateKey, ciphertext, key[:]); err != nil {
++		t.Fatalf("Failed to decrypt short message: %s", err)
++	}
++
++	for _, v := range key {
++		if v != 0 {
++			t.Fatal("key was modified when ciphertext was invalid")
++		}
++	}
++}
++
+ // In order to generate new test vectors you'll need the PEM form of this key:
+ // -----BEGIN RSA PRIVATE KEY-----
+ // MIIBOgIBAAJBALKZD0nEffqM1ACuak0bijtqE2QrI/KLADv7l3kK3ppMyCuLKoF0
+diff --git a/src/pkg/crypto/subtle/constant_time.go b/src/pkg/crypto/subtle/constant_time.go
+index de1a4e8c54..9c4b14a65f 100644
+--- a/src/pkg/crypto/subtle/constant_time.go
++++ b/src/pkg/crypto/subtle/constant_time.go
+@@ -49,9 +49,14 @@ func ConstantTimeEq(x, y int32) int {
+ 	return int(z & 1)
+ }
+ 
+-// ConstantTimeCopy copies the contents of y into x iff v == 1. If v == 0, x is left unchanged.
+-// Its behavior is undefined if v takes any other value.
++// ConstantTimeCopy copies the contents of y into x (a slice of equal length)
++// if v == 1. If v == 0, x is left unchanged. Its behavior is undefined if v
++// takes any other value.
+ func ConstantTimeCopy(v int, x, y []byte) {
++	if len(x) != len(y) {
++		panic("subtle: slices have different lengths")
++	}
++
+ 	xmask := byte(v - 1)
+ 	ymask := byte(^(v - 1))
+ 	for i := 0; i < len(x); i++ {

@@ -14,6 +14,20 @@ Date:   Tue Feb 17 15:01:43 2015 -0500
     Change-Id: Iba2618b46d3dc49cef62ffb72484b83ea7b0317d
     Reviewed-on: https://go-review.googlesource.com/5060
     Reviewed-by: Dave Cheney <dave@cheney.net>
-
+---
  src/runtime/runtime-gdb_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/runtime-gdb_test.go b/src/runtime/runtime-gdb_test.go
+index a946749f47..a926f5fb85 100644
+--- a/src/runtime/runtime-gdb_test.go
++++ b/src/runtime/runtime-gdb_test.go
+@@ -75,7 +75,7 @@ func TestGdbPython(t *testing.T) {
+ 		blocks[string(subs[1])] = string(subs[2])
+ 	}
+ 
+-	infoGoroutinesRe := regexp.MustCompile(`\d+\s+running\s+runtime`)
++	infoGoroutinesRe := regexp.MustCompile(`\*\s+\d+\s+running\s+`)
+ 	if bl := blocks["info goroutines"]; !infoGoroutinesRe.MatchString(bl) {
+ 		t.Fatalf("info goroutines failed: %s", bl)
+ 	}

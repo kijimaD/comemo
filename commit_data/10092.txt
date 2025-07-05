@@ -7,6 +7,19 @@ Date:   Tue Oct 25 22:19:09 2011 -0700
     R=gri
     CC=golang-dev
     https://golang.org/cl/5295045
-
+---
  src/pkg/exp/types/universe.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/pkg/exp/types/universe.go b/src/pkg/exp/types/universe.go
+index 80db127829..f0435966d1 100644
+--- a/src/pkg/exp/types/universe.go
++++ b/src/pkg/exp/types/universe.go
+@@ -54,6 +54,7 @@ func init() {
+ 
+ 	Bool = defType("bool")
+ 	defType("byte") // TODO(gri) should be an alias for uint8
++	defType("rune") // TODO(gri) should be an alias for int
+ 	defType("complex64")
+ 	Complex128 = defType("complex128")
+ 	defType("float32")

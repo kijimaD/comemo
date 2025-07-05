@@ -11,8 +11,93 @@ Date:   Mon Jul 30 09:14:49 2012 +0200
     R=rsc, golang-dev
     CC=golang-dev, remy
     https://golang.org/cl/6455055
-
+---
  src/cmd/gc/reflect.c     |  7 ++++++-
  src/cmd/gc/sinit.c       |  6 ++++++
  test/fixedbugs/bug446.go | 36 ++++++++++++++++++++++++++++++++++++
  3 files changed, 48 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/reflect.c b/src/cmd/gc/reflect.c
+index fa9bc993bb..f4c235a480 100644
+--- a/src/cmd/gc/reflect.c
++++ b/src/cmd/gc/reflect.c
+@@ -130,7 +130,12 @@ methodfunc(Type *f, Type *receiver)
+ 		out = list(out, d);
+ 	}
+ 
+-	return functype(N, in, out);
++	t = functype(N, in, out);
++	if(f->nname) {
++		// Link to name of original method function.
++		t->nname = f->nname;
++	}
++	return t;
+ }
+ 
+ /*
+diff --git a/src/cmd/gc/sinit.c b/src/cmd/gc/sinit.c
+index 34e6ea1a57..1ee1696fee 100644
+--- a/src/cmd/gc/sinit.c
++++ b/src/cmd/gc/sinit.c
+@@ -36,6 +36,10 @@ init1(Node *n, NodeList **out)
+ 	init1(n->right, out);
+ 	for(l=n->list; l; l=l->next)
+ 		init1(l->n, out);
++	if(n->left && n->type && n->left->op == OTYPE && n->class == PFUNC) {
++		// Definitions for method expressions are stored in type->nname.
++		init1(n->type->nname, out);
++	}
+ 
+ 	if(n->op != ONAME)
+ 		return;
+@@ -170,6 +174,8 @@ init2(Node *n, NodeList **out)
+ 	
+ 	if(n->op == OCLOSURE)
+ 		init2list(n->closure->nbody, out);
++	if(n->op == ODOTMETH)
++		init2(n->type->nname, out);
+ }
+ 
+ static void
+diff --git a/test/fixedbugs/bug446.go b/test/fixedbugs/bug446.go
+new file mode 100644
+index 0000000000..1e435e1109
+--- /dev/null
++++ b/test/fixedbugs/bug446.go
+@@ -0,0 +1,36 @@
++// run
++
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 3824.
++// Method calls are ignored when deciding initialization
++// order.
++
++package main
++
++type T int
++
++func (r T) Method1() int { return a }
++func (r T) Method2() int { return b }
++
++// dummy1 and dummy2 must be initialized after a and b.
++var dummy1 = T(0).Method1()
++var dummy2 = T.Method2(0)
++
++// Use a function call to force generating code.
++var a = identity(1)
++var b = identity(2)
++
++func identity(a int) int { return a }
++
++func main() {
++	if dummy1 != 1 {
++		panic("dummy1 != 1")
++	}
++	if dummy2 != 2 {
++		panic("dummy2 != 2")
++	}
++}
++

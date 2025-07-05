@@ -22,9 +22,2567 @@ Date:   Tue Mar 29 13:16:35 2022 -0400
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/compile/internal/abt/avlint32.go      | 849 ++++++++++++++++++++++++++
  src/cmd/compile/internal/abt/avlint32_test.go | 700 +++++++++++++++++++++
  src/cmd/compile/internal/ssa/debug.go         | 642 +++++++++++--------
  src/cmd/compile/internal/ssagen/ssa.go        |   2 +-
  4 files changed, 1945 insertions(+), 248 deletions(-)
+
+diff --git a/src/cmd/compile/internal/abt/avlint32.go b/src/cmd/compile/internal/abt/avlint32.go
+new file mode 100644
+index 0000000000..00bbccf45a
+--- /dev/null
++++ b/src/cmd/compile/internal/abt/avlint32.go
+@@ -0,0 +1,849 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package abt
++
++import (
++	"fmt"
++	"strconv"
++)
++
++const (
++	LEAF_HEIGHT = 1
++	ZERO_HEIGHT = 0
++	NOT_KEY32   = int32(-0x80000000)
++)
++
++// T is the exported applicative balanced tree data type.
++// A T can be used as a value; updates to one copy of the value
++// do not change other copies.
++type T struct {
++	root *node32
++	size int
++}
++
++// node32 is the internal tree node data type
++type node32 struct {
++	// Standard conventions hold for left = smaller, right = larger
++	left, right *node32
++	data        interface{}
++	key         int32
++	height_     int8
++}
++
++func makeNode(key int32) *node32 {
++	return &node32{key: key, height_: LEAF_HEIGHT}
++}
++
++// IsSingle returns true iff t is empty.
++func (t *T) IsEmpty() bool {
++	return t.root == nil
++}
++
++// IsSingle returns true iff t is a singleton (leaf).
++func (t *T) IsSingle() bool {
++	return t.root != nil && t.root.isLeaf()
++}
++
++// VisitInOrder applies f to the key and data pairs in t,
++// with keys ordered from smallest to largest.
++func (t *T) VisitInOrder(f func(int32, interface{})) {
++	if t.root == nil {
++		return
++	}
++	t.root.visitInOrder(f)
++}
++
++func (n *node32) nilOrData() interface{} {
++	if n == nil {
++		return nil
++	}
++	return n.data
++}
++
++func (n *node32) nilOrKeyAndData() (k int32, d interface{}) {
++	if n == nil {
++		k = NOT_KEY32
++		d = nil
++	} else {
++		k = n.key
++		d = n.data
++	}
++	return
++}
++
++func (n *node32) height() int8 {
++	if n == nil {
++		return 0
++	}
++	return n.height_
++}
++
++// Find returns the data associated with x in the tree, or
++// nil if x is not in the tree.
++func (t *T) Find(x int32) interface{} {
++	return t.root.find(x).nilOrData()
++}
++
++// Insert either adds x to the tree if x was not previously
++// a key in the tree, or updates the data for x in the tree if
++// x was already a key in the tree.  The previous data associated
++// with x is returned, and is nil if x was not previously a
++// key in the tree.
++func (t *T) Insert(x int32, data interface{}) interface{} {
++	if x == NOT_KEY32 {
++		panic("Cannot use sentinel value -0x80000000 as key")
++	}
++	n := t.root
++	var newroot *node32
++	var o *node32
++	if n == nil {
++		n = makeNode(x)
++		newroot = n
++	} else {
++		newroot, n, o = n.aInsert(x)
++	}
++	var r interface{}
++	if o != nil {
++		r = o.data
++	} else {
++		t.size++
++	}
++	n.data = data
++	t.root = newroot
++	return r
++}
++
++func (t *T) Copy() *T {
++	u := *t
++	return &u
++}
++
++func (t *T) Delete(x int32) interface{} {
++	n := t.root
++	if n == nil {
++		return nil
++	}
++	d, s := n.aDelete(x)
++	if d == nil {
++		return nil
++	}
++	t.root = s
++	t.size--
++	return d.data
++}
++
++func (t *T) DeleteMin() (int32, interface{}) {
++	n := t.root
++	if n == nil {
++		return NOT_KEY32, nil
++	}
++	d, s := n.aDeleteMin()
++	if d == nil {
++		return NOT_KEY32, nil
++	}
++	t.root = s
++	t.size--
++	return d.key, d.data
++}
++
++func (t *T) DeleteMax() (int32, interface{}) {
++	n := t.root
++	if n == nil {
++		return NOT_KEY32, nil
++	}
++	d, s := n.aDeleteMax()
++	if d == nil {
++		return NOT_KEY32, nil
++	}
++	t.root = s
++	t.size--
++	return d.key, d.data
++}
++
++func (t *T) Size() int {
++	return t.size
++}
++
++// Intersection returns the intersection of t and u, where the result
++// data for any common keys is given by f(t's data, u's data) -- f need
++// not be symmetric.  If f returns nil, then the key and data are not
++// added to the result.  If f itself is nil, then whatever value was
++// already present in the smaller set is used.
++func (t *T) Intersection(u *T, f func(x, y interface{}) interface{}) *T {
++	if t.Size() == 0 || u.Size() == 0 {
++		return &T{}
++	}
++
++	// For faster execution and less allocation, prefer t smaller, iterate over t.
++	if t.Size() <= u.Size() {
++		v := t.Copy()
++		for it := t.Iterator(); !it.Done(); {
++			k, d := it.Next()
++			e := u.Find(k)
++			if e == nil {
++				v.Delete(k)
++				continue
++			}
++			if f == nil {
++				continue
++			}
++			if c := f(d, e); c != d {
++				if c == nil {
++					v.Delete(k)
++				} else {
++					v.Insert(k, c)
++				}
++			}
++		}
++		return v
++	}
++	v := u.Copy()
++	for it := u.Iterator(); !it.Done(); {
++		k, e := it.Next()
++		d := t.Find(k)
++		if d == nil {
++			v.Delete(k)
++			continue
++		}
++		if f == nil {
++			continue
++		}
++		if c := f(d, e); c != d {
++			if c == nil {
++				v.Delete(k)
++			} else {
++				v.Insert(k, c)
++			}
++		}
++	}
++
++	return v
++}
++
++// Union returns the union of t and u, where the result data for any common keys
++// is given by f(t's data, u's data) -- f need not be symmetric.  If f returns nil,
++// then the key and data are not added to the result.  If f itself is nil, then
++// whatever value was already present in the larger set is used.
++func (t *T) Union(u *T, f func(x, y interface{}) interface{}) *T {
++	if t.Size() == 0 {
++		return u
++	}
++	if u.Size() == 0 {
++		return t
++	}
++
++	if t.Size() >= u.Size() {
++		v := t.Copy()
++		for it := u.Iterator(); !it.Done(); {
++			k, e := it.Next()
++			d := t.Find(k)
++			if d == nil {
++				v.Insert(k, e)
++				continue
++			}
++			if f == nil {
++				continue
++			}
++			if c := f(d, e); c != d {
++				if c == nil {
++					v.Delete(k)
++				} else {
++					v.Insert(k, c)
++				}
++			}
++		}
++		return v
++	}
++
++	v := u.Copy()
++	for it := t.Iterator(); !it.Done(); {
++		k, d := it.Next()
++		e := u.Find(k)
++		if e == nil {
++			v.Insert(k, d)
++			continue
++		}
++		if f == nil {
++			continue
++		}
++		if c := f(d, e); c != d {
++			if c == nil {
++				v.Delete(k)
++			} else {
++				v.Insert(k, c)
++			}
++		}
++	}
++	return v
++}
++
++// Difference returns the difference of t and u, subject to the result
++// of f applied to data corresponding to equal keys.  If f returns nil
++// (or if f is nil) then the key+data are excluded, as usual.  If f
++// returns not-nil, then that key+data pair is inserted. instead.
++func (t *T) Difference(u *T, f func(x, y interface{}) interface{}) *T {
++	if t.Size() == 0 {
++		return &T{}
++	}
++	if u.Size() == 0 {
++		return t
++	}
++	v := t.Copy()
++	for it := t.Iterator(); !it.Done(); {
++		k, d := it.Next()
++		e := u.Find(k)
++		if e != nil {
++			if f == nil {
++				v.Delete(k)
++				continue
++			}
++			c := f(d, e)
++			if c == nil {
++				v.Delete(k)
++				continue
++			}
++			if c != d {
++				v.Insert(k, c)
++			}
++		}
++	}
++	return v
++}
++
++func (t *T) Iterator() Iterator {
++	return Iterator{it: t.root.iterator()}
++}
++
++func (t *T) Equals(u *T) bool {
++	if t == u {
++		return true
++	}
++	if t.Size() != u.Size() {
++		return false
++	}
++	return t.root.equals(u.root)
++}
++
++// This doesn't build with go1.4, sigh
++// func (t *T) String() string {
++// 	var b strings.Builder
++// 	first := true
++// 	for it := t.Iterator(); !it.IsEmpty(); {
++// 		k, v := it.Next()
++// 		if first {
++// 			first = false
++// 		} else {
++// 			b.WriteString("; ")
++// 		}
++// 		b.WriteString(strconv.FormatInt(int64(k), 10))
++// 		b.WriteString(":")
++// 		b.WriteString(v.String())
++// 	}
++// 	return b.String()
++// }
++
++func (t *T) String() string {
++	var b string
++	first := true
++	for it := t.Iterator(); !it.Done(); {
++		k, v := it.Next()
++		if first {
++			first = false
++		} else {
++			b += ("; ")
++		}
++		b += (strconv.FormatInt(int64(k), 10))
++		b += (":")
++		b += fmt.Sprint(v)
++	}
++	return b
++}
++
++func (t *node32) equals(u *node32) bool {
++	if t == u {
++		return true
++	}
++	it, iu := t.iterator(), u.iterator()
++	for !it.done() && !iu.done() {
++		nt := it.next()
++		nu := iu.next()
++		if nt == nu {
++			continue
++		}
++		if nt.key != nu.key {
++			return false
++		}
++		if nt.data != nu.data {
++			return false
++		}
++	}
++	return it.done() == iu.done()
++}
++
++func (t *T) Equiv(u *T, eqv func(x, y interface{}) bool) bool {
++	if t == u {
++		return true
++	}
++	if t.Size() != u.Size() {
++		return false
++	}
++	return t.root.equiv(u.root, eqv)
++}
++
++func (t *node32) equiv(u *node32, eqv func(x, y interface{}) bool) bool {
++	if t == u {
++		return true
++	}
++	it, iu := t.iterator(), u.iterator()
++	for !it.done() && !iu.done() {
++		nt := it.next()
++		nu := iu.next()
++		if nt == nu {
++			continue
++		}
++		if nt.key != nu.key {
++			return false
++		}
++		if !eqv(nt.data, nu.data) {
++			return false
++		}
++	}
++	return it.done() == iu.done()
++}
++
++type iterator struct {
++	parents []*node32
++}
++
++type Iterator struct {
++	it iterator
++}
++
++func (it *Iterator) Next() (int32, interface{}) {
++	x := it.it.next()
++	if x == nil {
++		return NOT_KEY32, nil
++	}
++	return x.key, x.data
++}
++
++func (it *Iterator) Done() bool {
++	return len(it.it.parents) == 0
++}
++
++func (t *node32) iterator() iterator {
++	if t == nil {
++		return iterator{}
++	}
++	it := iterator{parents: make([]*node32, 0, int(t.height()))}
++	it.leftmost(t)
++	return it
++}
++
++func (it *iterator) leftmost(t *node32) {
++	for t != nil {
++		it.parents = append(it.parents, t)
++		t = t.left
++	}
++}
++
++func (it *iterator) done() bool {
++	return len(it.parents) == 0
++}
++
++func (it *iterator) next() *node32 {
++	l := len(it.parents)
++	if l == 0 {
++		return nil
++	}
++	x := it.parents[l-1] // return value
++	if x.right != nil {
++		it.leftmost(x.right)
++		return x
++	}
++	// discard visited top of parents
++	l--
++	it.parents = it.parents[:l]
++	y := x // y is known visited/returned
++	for l > 0 && y == it.parents[l-1].right {
++		y = it.parents[l-1]
++		l--
++		it.parents = it.parents[:l]
++	}
++
++	return x
++}
++
++// Min returns the minimum element of t.
++// If t is empty, then (NOT_KEY32, nil) is returned.
++func (t *T) Min() (k int32, d interface{}) {
++	return t.root.min().nilOrKeyAndData()
++}
++
++// Max returns the maximum element of t.
++// If t is empty, then (NOT_KEY32, nil) is returned.
++func (t *T) Max() (k int32, d interface{}) {
++	return t.root.max().nilOrKeyAndData()
++}
++
++// Glb returns the greatest-lower-bound-exclusive of x and the associated
++// data.  If x has no glb in the tree, then (NOT_KEY32, nil) is returned.
++func (t *T) Glb(x int32) (k int32, d interface{}) {
++	return t.root.glb(x, false).nilOrKeyAndData()
++}
++
++// GlbEq returns the greatest-lower-bound-inclusive of x and the associated
++// data.  If x has no glbEQ in the tree, then (NOT_KEY32, nil) is returned.
++func (t *T) GlbEq(x int32) (k int32, d interface{}) {
++	return t.root.glb(x, true).nilOrKeyAndData()
++}
++
++// Lub returns the least-upper-bound-exclusive of x and the associated
++// data.  If x has no lub in the tree, then (NOT_KEY32, nil) is returned.
++func (t *T) Lub(x int32) (k int32, d interface{}) {
++	return t.root.lub(x, false).nilOrKeyAndData()
++}
++
++// LubEq returns the least-upper-bound-inclusive of x and the associated
++// data.  If x has no lubEq in the tree, then (NOT_KEY32, nil) is returned.
++func (t *T) LubEq(x int32) (k int32, d interface{}) {
++	return t.root.lub(x, true).nilOrKeyAndData()
++}
++
++func (t *node32) isLeaf() bool {
++	return t.left == nil && t.right == nil && t.height_ == LEAF_HEIGHT
++}
++
++func (t *node32) visitInOrder(f func(int32, interface{})) {
++	if t.left != nil {
++		t.left.visitInOrder(f)
++	}
++	f(t.key, t.data)
++	if t.right != nil {
++		t.right.visitInOrder(f)
++	}
++}
++
++func (t *node32) find(key int32) *node32 {
++	for t != nil {
++		if key < t.key {
++			t = t.left
++		} else if key > t.key {
++			t = t.right
++		} else {
++			return t
++		}
++	}
++	return nil
++}
++
++func (t *node32) min() *node32 {
++	if t == nil {
++		return t
++	}
++	for t.left != nil {
++		t = t.left
++	}
++	return t
++}
++
++func (t *node32) max() *node32 {
++	if t == nil {
++		return t
++	}
++	for t.right != nil {
++		t = t.right
++	}
++	return t
++}
++
++func (t *node32) glb(key int32, allow_eq bool) *node32 {
++	var best *node32 = nil
++	for t != nil {
++		if key <= t.key {
++			if allow_eq && key == t.key {
++				return t
++			}
++			// t is too big, glb is to left.
++			t = t.left
++		} else {
++			// t is a lower bound, record it and seek a better one.
++			best = t
++			t = t.right
++		}
++	}
++	return best
++}
++
++func (t *node32) lub(key int32, allow_eq bool) *node32 {
++	var best *node32 = nil
++	for t != nil {
++		if key >= t.key {
++			if allow_eq && key == t.key {
++				return t
++			}
++			// t is too small, lub is to right.
++			t = t.right
++		} else {
++			// t is a upper bound, record it and seek a better one.
++			best = t
++			t = t.left
++		}
++	}
++	return best
++}
++
++func (t *node32) aInsert(x int32) (newroot, newnode, oldnode *node32) {
++	// oldnode default of nil is good, others should be assigned.
++	if x == t.key {
++		oldnode = t
++		newt := *t
++		newnode = &newt
++		newroot = newnode
++		return
++	}
++	if x < t.key {
++		if t.left == nil {
++			t = t.copy()
++			n := makeNode(x)
++			t.left = n
++			newnode = n
++			newroot = t
++			t.height_ = 2 // was balanced w/ 0, sibling is height 0 or 1
++			return
++		}
++		var new_l *node32
++		new_l, newnode, oldnode = t.left.aInsert(x)
++		t = t.copy()
++		t.left = new_l
++		if new_l.height() > 1+t.right.height() {
++			newroot = t.aLeftIsHigh(newnode)
++		} else {
++			t.height_ = 1 + max(t.left.height(), t.right.height())
++			newroot = t
++		}
++	} else { // x > t.key
++		if t.right == nil {
++			t = t.copy()
++			n := makeNode(x)
++			t.right = n
++			newnode = n
++			newroot = t
++			t.height_ = 2 // was balanced w/ 0, sibling is height 0 or 1
++			return
++		}
++		var new_r *node32
++		new_r, newnode, oldnode = t.right.aInsert(x)
++		t = t.copy()
++		t.right = new_r
++		if new_r.height() > 1+t.left.height() {
++			newroot = t.aRightIsHigh(newnode)
++		} else {
++			t.height_ = 1 + max(t.left.height(), t.right.height())
++			newroot = t
++		}
++	}
++	return
++}
++
++func (t *node32) aDelete(key int32) (deleted, newSubTree *node32) {
++	if t == nil {
++		return nil, nil
++	}
++
++	if key < t.key {
++		oh := t.left.height()
++		d, tleft := t.left.aDelete(key)
++		if tleft == t.left {
++			return d, t
++		}
++		return d, t.copy().aRebalanceAfterLeftDeletion(oh, tleft)
++	} else if key > t.key {
++		oh := t.right.height()
++		d, tright := t.right.aDelete(key)
++		if tright == t.right {
++			return d, t
++		}
++		return d, t.copy().aRebalanceAfterRightDeletion(oh, tright)
++	}
++
++	if t.height() == LEAF_HEIGHT {
++		return t, nil
++	}
++
++	// Interior delete by removing left.Max or right.Min,
++	// then swapping contents
++	if t.left.height() > t.right.height() {
++		oh := t.left.height()
++		d, tleft := t.left.aDeleteMax()
++		r := t
++		t = t.copy()
++		t.data, t.key = d.data, d.key
++		return r, t.aRebalanceAfterLeftDeletion(oh, tleft)
++	}
++
++	oh := t.right.height()
++	d, tright := t.right.aDeleteMin()
++	r := t
++	t = t.copy()
++	t.data, t.key = d.data, d.key
++	return r, t.aRebalanceAfterRightDeletion(oh, tright)
++}
++
++func (t *node32) aDeleteMin() (deleted, newSubTree *node32) {
++	if t == nil {
++		return nil, nil
++	}
++	if t.left == nil { // leaf or left-most
++		return t, t.right
++	}
++	oh := t.left.height()
++	d, tleft := t.left.aDeleteMin()
++	if tleft == t.left {
++		return d, t
++	}
++	return d, t.copy().aRebalanceAfterLeftDeletion(oh, tleft)
++}
++
++func (t *node32) aDeleteMax() (deleted, newSubTree *node32) {
++	if t == nil {
++		return nil, nil
++	}
++
++	if t.right == nil { // leaf or right-most
++		return t, t.left
++	}
++
++	oh := t.right.height()
++	d, tright := t.right.aDeleteMax()
++	if tright == t.right {
++		return d, t
++	}
++	return d, t.copy().aRebalanceAfterRightDeletion(oh, tright)
++}
++
++func (t *node32) aRebalanceAfterLeftDeletion(oldLeftHeight int8, tleft *node32) *node32 {
++	t.left = tleft
++
++	if oldLeftHeight == tleft.height() || oldLeftHeight == t.right.height() {
++		// this node is still balanced and its height is unchanged
++		return t
++	}
++
++	if oldLeftHeight > t.right.height() {
++		// left was larger
++		t.height_--
++		return t
++	}
++
++	// left height fell by 1 and it was already less than right height
++	t.right = t.right.copy()
++	return t.aRightIsHigh(nil)
++}
++
++func (t *node32) aRebalanceAfterRightDeletion(oldRightHeight int8, tright *node32) *node32 {
++	t.right = tright
++
++	if oldRightHeight == tright.height() || oldRightHeight == t.left.height() {
++		// this node is still balanced and its height is unchanged
++		return t
++	}
++
++	if oldRightHeight > t.left.height() {
++		// left was larger
++		t.height_--
++		return t
++	}
++
++	// right height fell by 1 and it was already less than left height
++	t.left = t.left.copy()
++	return t.aLeftIsHigh(nil)
++}
++
++// aRightIsHigh does rotations necessary to fix a high right child
++// assume that t and t.right are already fresh copies.
++func (t *node32) aRightIsHigh(newnode *node32) *node32 {
++	right := t.right
++	if right.right.height() < right.left.height() {
++		// double rotation
++		if newnode != right.left {
++			right.left = right.left.copy()
++		}
++		t.right = right.leftToRoot()
++	}
++	t = t.rightToRoot()
++	return t
++}
++
++// aLeftIsHigh does rotations necessary to fix a high left child
++// assume that t and t.left are already fresh copies.
++func (t *node32) aLeftIsHigh(newnode *node32) *node32 {
++	left := t.left
++	if left.left.height() < left.right.height() {
++		// double rotation
++		if newnode != left.right {
++			left.right = left.right.copy()
++		}
++		t.left = left.rightToRoot()
++	}
++	t = t.leftToRoot()
++	return t
++}
++
++// rightToRoot does that rotation, modifying t and t.right in the process.
++func (t *node32) rightToRoot() *node32 {
++	//    this
++	// left  right
++	//      rl   rr
++	//
++	// becomes
++	//
++	//       right
++	//    this   rr
++	// left  rl
++	//
++	right := t.right
++	rl := right.left
++	right.left = t
++	// parent's child ptr fixed in caller
++	t.right = rl
++	t.height_ = 1 + max(rl.height(), t.left.height())
++	right.height_ = 1 + max(t.height(), right.right.height())
++	return right
++}
++
++// leftToRoot does that rotation, modifying t and t.left in the process.
++func (t *node32) leftToRoot() *node32 {
++	//     this
++	//  left  right
++	// ll  lr
++	//
++	// becomes
++	//
++	//    left
++	//   ll  this
++	//      lr  right
++	//
++	left := t.left
++	lr := left.right
++	left.right = t
++	// parent's child ptr fixed in caller
++	t.left = lr
++	t.height_ = 1 + max(lr.height(), t.right.height())
++	left.height_ = 1 + max(t.height(), left.left.height())
++	return left
++}
++
++func max(a, b int8) int8 {
++	if a > b {
++		return a
++	}
++	return b
++}
++
++func (t *node32) copy() *node32 {
++	u := *t
++	return &u
++}
+diff --git a/src/cmd/compile/internal/abt/avlint32_test.go b/src/cmd/compile/internal/abt/avlint32_test.go
+new file mode 100644
+index 0000000000..7fa9ed4fd6
+--- /dev/null
++++ b/src/cmd/compile/internal/abt/avlint32_test.go
+@@ -0,0 +1,700 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package abt
++
++import (
++	"fmt"
++	"strconv"
++	"testing"
++)
++
++func makeTree(te *testing.T, x []int32, check bool) (t *T, k int, min, max int32) {
++	t = &T{}
++	k = 0
++	min = int32(0x7fffffff)
++	max = int32(-0x80000000)
++	history := []*T{}
++
++	for _, d := range x {
++		d = d + d // double everything for Glb/Lub testing.
++
++		if check {
++			history = append(history, t.Copy())
++		}
++
++		t.Insert(d, stringer(fmt.Sprintf("%v", d)))
++
++		k++
++		if d < min {
++			min = d
++		}
++		if d > max {
++			max = d
++		}
++
++		if !check {
++			continue
++		}
++
++		for j, old := range history {
++			s, i := old.wellFormed()
++			if s != "" {
++				te.Errorf("Old tree consistency problem %v at k=%d, j=%d, old=\n%v, t=\n%v", s, k, j, old.DebugString(), t.DebugString())
++				return
++			}
++			if i != j {
++				te.Errorf("Wrong tree size %v, expected %v for old %v", i, j, old.DebugString())
++			}
++		}
++		s, i := t.wellFormed()
++		if s != "" {
++			te.Errorf("Tree consistency problem at %v", s)
++			return
++		}
++		if i != k {
++			te.Errorf("Wrong tree size %v, expected %v for %v", i, k, t.DebugString())
++			return
++		}
++		if t.Size() != k {
++			te.Errorf("Wrong t.Size() %v, expected %v for %v", t.Size(), k, t.DebugString())
++			return
++		}
++	}
++	return
++}
++
++func applicInsert(te *testing.T, x []int32) {
++	makeTree(te, x, true)
++}
++
++func applicFind(te *testing.T, x []int32) {
++	t, _, _, _ := makeTree(te, x, false)
++
++	for _, d := range x {
++		d = d + d // double everything for Glb/Lub testing.
++		s := fmt.Sprintf("%v", d)
++		f := t.Find(d)
++
++		// data
++		if s != fmt.Sprint(f) {
++			te.Errorf("s(%v) != f(%v)", s, f)
++		}
++	}
++}
++
++func applicBounds(te *testing.T, x []int32) {
++	t, _, min, max := makeTree(te, x, false)
++	for _, d := range x {
++		d = d + d // double everything for Glb/Lub testing.
++		s := fmt.Sprintf("%v", d)
++
++		kg, g := t.Glb(d + 1)
++		kge, ge := t.GlbEq(d)
++		kl, l := t.Lub(d - 1)
++		kle, le := t.LubEq(d)
++
++		// keys
++		if d != kg {
++			te.Errorf("d(%v) != kg(%v)", d, kg)
++		}
++		if d != kl {
++			te.Errorf("d(%v) != kl(%v)", d, kl)
++		}
++		if d != kge {
++			te.Errorf("d(%v) != kge(%v)", d, kge)
++		}
++		if d != kle {
++			te.Errorf("d(%v) != kle(%v)", d, kle)
++		}
++		// data
++		if s != fmt.Sprint(g) {
++			te.Errorf("s(%v) != g(%v)", s, g)
++		}
++		if s != fmt.Sprint(l) {
++			te.Errorf("s(%v) != l(%v)", s, l)
++		}
++		if s != fmt.Sprint(ge) {
++			te.Errorf("s(%v) != ge(%v)", s, ge)
++		}
++		if s != fmt.Sprint(le) {
++			te.Errorf("s(%v) != le(%v)", s, le)
++		}
++	}
++
++	for _, d := range x {
++		d = d + d // double everything for Glb/Lub testing.
++		s := fmt.Sprintf("%v", d)
++		kge, ge := t.GlbEq(d + 1)
++		kle, le := t.LubEq(d - 1)
++		if d != kge {
++			te.Errorf("d(%v) != kge(%v)", d, kge)
++		}
++		if d != kle {
++			te.Errorf("d(%v) != kle(%v)", d, kle)
++		}
++		if s != fmt.Sprint(ge) {
++			te.Errorf("s(%v) != ge(%v)", s, ge)
++		}
++		if s != fmt.Sprint(le) {
++			te.Errorf("s(%v) != le(%v)", s, le)
++		}
++	}
++
++	kg, g := t.Glb(min)
++	kge, ge := t.GlbEq(min - 1)
++	kl, l := t.Lub(max)
++	kle, le := t.LubEq(max + 1)
++	fmin := t.Find(min - 1)
++	fmax := t.Find(max + 1)
++
++	if kg != NOT_KEY32 || kge != NOT_KEY32 || kl != NOT_KEY32 || kle != NOT_KEY32 {
++		te.Errorf("Got non-error-key for missing query")
++	}
++
++	if g != nil || ge != nil || l != nil || le != nil || fmin != nil || fmax != nil {
++		te.Errorf("Got non-error-data for missing query")
++	}
++}
++
++func applicDeleteMin(te *testing.T, x []int32) {
++	t, _, _, _ := makeTree(te, x, false)
++	_, size := t.wellFormed()
++	history := []*T{}
++	for !t.IsEmpty() {
++		k, _ := t.Min()
++		history = append(history, t.Copy())
++		kd, _ := t.DeleteMin()
++		if kd != k {
++			te.Errorf("Deleted minimum key %v not equal to minimum %v", kd, k)
++		}
++		for j, old := range history {
++			s, i := old.wellFormed()
++			if s != "" {
++				te.Errorf("Tree consistency problem %s at old after DeleteMin, old=\n%stree=\n%v", s, old.DebugString(), t.DebugString())
++				return
++			}
++			if i != len(x)-j {
++				te.Errorf("Wrong old tree size %v, expected %v after DeleteMin, old=\n%vtree\n%v", i, len(x)-j, old.DebugString(), t.DebugString())
++				return
++			}
++		}
++		size--
++		s, i := t.wellFormed()
++		if s != "" {
++			te.Errorf("Tree consistency problem at %v after DeleteMin, tree=\n%v", s, t.DebugString())
++			return
++		}
++		if i != size {
++			te.Errorf("Wrong tree size %v, expected %v after DeleteMin", i, size)
++			return
++		}
++		if t.Size() != size {
++			te.Errorf("Wrong t.Size() %v, expected %v for %v", t.Size(), i, t.DebugString())
++			return
++		}
++	}
++}
++
++func applicDeleteMax(te *testing.T, x []int32) {
++	t, _, _, _ := makeTree(te, x, false)
++	_, size := t.wellFormed()
++	history := []*T{}
++
++	for !t.IsEmpty() {
++		k, _ := t.Max()
++		history = append(history, t.Copy())
++		kd, _ := t.DeleteMax()
++		if kd != k {
++			te.Errorf("Deleted maximum key %v not equal to maximum %v", kd, k)
++		}
++
++		for j, old := range history {
++			s, i := old.wellFormed()
++			if s != "" {
++				te.Errorf("Tree consistency problem %s at old after DeleteMin, old=\n%stree=\n%v", s, old.DebugString(), t.DebugString())
++				return
++			}
++			if i != len(x)-j {
++				te.Errorf("Wrong old tree size %v, expected %v after DeleteMin, old=\n%vtree\n%v", i, len(x)-j, old.DebugString(), t.DebugString())
++				return
++			}
++		}
++
++		size--
++		s, i := t.wellFormed()
++		if s != "" {
++			te.Errorf("Tree consistency problem at %v after DeleteMax, tree=\n%v", s, t.DebugString())
++			return
++		}
++		if i != size {
++			te.Errorf("Wrong tree size %v, expected %v after DeleteMax", i, size)
++			return
++		}
++		if t.Size() != size {
++			te.Errorf("Wrong t.Size() %v, expected %v for %v", t.Size(), i, t.DebugString())
++			return
++		}
++	}
++}
++
++func applicDelete(te *testing.T, x []int32) {
++	t, _, _, _ := makeTree(te, x, false)
++	_, size := t.wellFormed()
++	history := []*T{}
++
++	missing := t.Delete(11)
++	if missing != nil {
++		te.Errorf("Returned a value when there should have been none, %v", missing)
++		return
++	}
++
++	s, i := t.wellFormed()
++	if s != "" {
++		te.Errorf("Tree consistency problem at %v after delete of missing value, tree=\n%v", s, t.DebugString())
++		return
++	}
++	if size != i {
++		te.Errorf("Delete of missing data should not change tree size, expected %d, got %d", size, i)
++		return
++	}
++
++	for _, d := range x {
++		d += d // double
++		vWant := fmt.Sprintf("%v", d)
++		history = append(history, t.Copy())
++		v := t.Delete(d)
++
++		for j, old := range history {
++			s, i := old.wellFormed()
++			if s != "" {
++				te.Errorf("Tree consistency problem %s at old after DeleteMin, old=\n%stree=\n%v", s, old.DebugString(), t.DebugString())
++				return
++			}
++			if i != len(x)-j {
++				te.Errorf("Wrong old tree size %v, expected %v after DeleteMin, old=\n%vtree\n%v", i, len(x)-j, old.DebugString(), t.DebugString())
++				return
++			}
++		}
++
++		if v.(*sstring).s != vWant {
++			te.Errorf("Deleted %v expected %v but got %v", d, vWant, v)
++			return
++		}
++		size--
++		s, i := t.wellFormed()
++		if s != "" {
++			te.Errorf("Tree consistency problem at %v after Delete %d, tree=\n%v", s, d, t.DebugString())
++			return
++		}
++		if i != size {
++			te.Errorf("Wrong tree size %v, expected %v after Delete", i, size)
++			return
++		}
++		if t.Size() != size {
++			te.Errorf("Wrong t.Size() %v, expected %v for %v", t.Size(), i, t.DebugString())
++			return
++		}
++	}
++
++}
++
++func applicIterator(te *testing.T, x []int32) {
++	t, _, _, _ := makeTree(te, x, false)
++	it := t.Iterator()
++	for !it.Done() {
++		k0, d0 := it.Next()
++		k1, d1 := t.DeleteMin()
++		if k0 != k1 || d0 != d1 {
++			te.Errorf("Iterator and deleteMin mismatch, k0, k1, d0, d1 = %v, %v, %v, %v", k0, k1, d0, d1)
++			return
++		}
++	}
++	if t.Size() != 0 {
++		te.Errorf("Iterator ended early, remaining tree = \n%s", t.DebugString())
++		return
++	}
++}
++
++func equiv(a, b interface{}) bool {
++	sa, sb := a.(*sstring), b.(*sstring)
++	return *sa == *sb
++}
++
++func applicEquals(te *testing.T, x, y []int32) {
++	t, _, _, _ := makeTree(te, x, false)
++	u, _, _, _ := makeTree(te, y, false)
++	if !t.Equiv(t, equiv) {
++		te.Errorf("Equiv failure, t == t, =\n%v", t.DebugString())
++		return
++	}
++	if !t.Equiv(t.Copy(), equiv) {
++		te.Errorf("Equiv failure, t == t.Copy(), =\n%v", t.DebugString())
++		return
++	}
++	if !t.Equiv(u, equiv) {
++		te.Errorf("Equiv failure, t == u, =\n%v", t.DebugString())
++		return
++	}
++	v := t.Copy()
++
++	v.DeleteMax()
++	if t.Equiv(v, equiv) {
++		te.Errorf("!Equiv failure, t != v, =\n%v\nand%v\n", t.DebugString(), v.DebugString())
++		return
++	}
++
++	if v.Equiv(u, equiv) {
++		te.Errorf("!Equiv failure, v != u, =\n%v\nand%v\n", v.DebugString(), u.DebugString())
++		return
++	}
++
++}
++
++func tree(x []int32) *T {
++	t := &T{}
++	for _, d := range x {
++		t.Insert(d, stringer(fmt.Sprintf("%v", d)))
++	}
++	return t
++}
++
++func treePlus1(x []int32) *T {
++	t := &T{}
++	for _, d := range x {
++		t.Insert(d, stringer(fmt.Sprintf("%v", d+1)))
++	}
++	return t
++}
++func TestApplicInsert(t *testing.T) {
++	applicInsert(t, []int32{24, 22, 20, 18, 16, 14, 12, 10, 8, 6, 4, 2, 1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25})
++	applicInsert(t, []int32{1, 2, 3, 4})
++	applicInsert(t, []int32{1, 2, 3, 4, 5, 6, 7, 8, 9})
++	applicInsert(t, []int32{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25})
++	applicInsert(t, []int32{25, 24, 23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1})
++	applicInsert(t, []int32{25, 24, 23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1})
++	applicInsert(t, []int32{1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24})
++	applicInsert(t, []int32{1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 24, 22, 20, 18, 16, 14, 12, 10, 8, 6, 4, 2})
++}
++
++func TestApplicFind(t *testing.T) {
++	applicFind(t, []int32{24, 22, 20, 18, 16, 14, 12, 10, 8, 6, 4, 2, 1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25})
++	applicFind(t, []int32{1, 2, 3, 4})
++	applicFind(t, []int32{1, 2, 3, 4, 5, 6, 7, 8, 9})
++	applicFind(t, []int32{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25})
++	applicFind(t, []int32{25, 24, 23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1})
++	applicFind(t, []int32{25, 24, 23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1})
++	applicFind(t, []int32{1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24})
++	applicFind(t, []int32{1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 24, 22, 20, 18, 16, 14, 12, 10, 8, 6, 4, 2})
++}
++
++func TestBounds(t *testing.T) {
++	applicBounds(t, []int32{24, 22, 20, 18, 16, 14, 12, 10, 8, 6, 4, 2, 1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25})
++	applicBounds(t, []int32{1, 2, 3, 4})
++	applicBounds(t, []int32{1, 2, 3, 4, 5, 6, 7, 8, 9})
++	applicBounds(t, []int32{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25})
++	applicBounds(t, []int32{25, 24, 23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1})
++	applicBounds(t, []int32{25, 24, 23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1})
++	applicBounds(t, []int32{1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24})
++	applicBounds(t, []int32{1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 24, 22, 20, 18, 16, 14, 12, 10, 8, 6, 4, 2})
++}
++func TestDeleteMin(t *testing.T) {
++	applicDeleteMin(t, []int32{1, 2, 3, 4})
++	applicDeleteMin(t, []int32{24, 22, 20, 18, 16, 14, 12, 10, 8, 6, 4, 2, 1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25})
++	applicDeleteMin(t, []int32{1, 2, 3, 4, 5, 6, 7, 8, 9})
++	applicDeleteMin(t, []int32{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25})
++	applicDeleteMin(t, []int32{25, 24, 23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1})
++	applicDeleteMin(t, []int32{25, 24, 23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1})
++	applicDeleteMin(t, []int32{1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24})
++	applicDeleteMin(t, []int32{1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 24, 22, 20, 18, 16, 14, 12, 10, 8, 6, 4, 2})
++}
++func TestDeleteMax(t *testing.T) {
++	applicDeleteMax(t, []int32{24, 22, 20, 18, 16, 14, 12, 10, 8, 6, 4, 2, 1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25})
++	applicDeleteMax(t, []int32{1, 2, 3, 4})
++	applicDeleteMax(t, []int32{1, 2, 3, 4, 5, 6, 7, 8, 9})
++	applicDeleteMax(t, []int32{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25})
++	applicDeleteMax(t, []int32{25, 24, 23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1})
++	applicDeleteMax(t, []int32{25, 24, 23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1})
++	applicDeleteMax(t, []int32{1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24})
++	applicDeleteMax(t, []int32{1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 24, 22, 20, 18, 16, 14, 12, 10, 8, 6, 4, 2})
++}
++func TestDelete(t *testing.T) {
++	applicDelete(t, []int32{24, 22, 20, 18, 16, 14, 12, 10, 8, 6, 4, 2, 1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25})
++	applicDelete(t, []int32{1, 2, 3, 4})
++	applicDelete(t, []int32{1, 2, 3, 4, 5, 6, 7, 8, 9})
++	applicDelete(t, []int32{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25})
++	applicDelete(t, []int32{25, 24, 23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1})
++	applicDelete(t, []int32{25, 24, 23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1})
++	applicDelete(t, []int32{1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24})
++	applicDelete(t, []int32{1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 24, 22, 20, 18, 16, 14, 12, 10, 8, 6, 4, 2})
++}
++func TestIterator(t *testing.T) {
++	applicIterator(t, []int32{1, 2, 3, 4})
++	applicIterator(t, []int32{1, 2, 3, 4, 5, 6, 7, 8, 9})
++	applicIterator(t, []int32{24, 22, 20, 18, 16, 14, 12, 10, 8, 6, 4, 2, 1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25})
++	applicIterator(t, []int32{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25})
++	applicIterator(t, []int32{25, 24, 23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1})
++	applicIterator(t, []int32{25, 24, 23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1})
++	applicIterator(t, []int32{1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24})
++	applicIterator(t, []int32{1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 24, 22, 20, 18, 16, 14, 12, 10, 8, 6, 4, 2})
++}
++func TestEquals(t *testing.T) {
++	applicEquals(t, []int32{1, 2, 3, 4}, []int32{4, 3, 2, 1})
++
++	applicEquals(t, []int32{24, 22, 20, 18, 16, 14, 12, 10, 8, 6, 4, 2, 1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25},
++		[]int32{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25})
++	applicEquals(t, []int32{25, 24, 23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1},
++		[]int32{25, 24, 23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1})
++	applicEquals(t, []int32{1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24},
++		[]int32{1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 24, 22, 20, 18, 16, 14, 12, 10, 8, 6, 4, 2})
++}
++
++func first(x, y interface{}) interface{} {
++	return x
++}
++func second(x, y interface{}) interface{} {
++	return y
++}
++func alwaysNil(x, y interface{}) interface{} {
++	return nil
++}
++func smaller(x, y interface{}) interface{} {
++	xi, _ := strconv.Atoi(fmt.Sprint(x))
++	yi, _ := strconv.Atoi(fmt.Sprint(y))
++	if xi < yi {
++		return x
++	}
++	return y
++}
++func assert(t *testing.T, expected, got *T, what string) {
++	s, _ := got.wellFormed()
++	if s != "" {
++		t.Errorf("Tree consistency problem %v for 'got' in assert for %s, tree=\n%v", s, what, got.DebugString())
++		return
++	}
++
++	if !expected.Equiv(got, equiv) {
++		t.Errorf("%s fail, expected\n%vgot\n%v\n", what, expected.DebugString(), got.DebugString())
++	}
++}
++
++func TestSetOps(t *testing.T) {
++	A := tree([]int32{1, 2, 3, 4})
++	B := tree([]int32{3, 4, 5, 6, 7})
++
++	AIB := tree([]int32{3, 4})
++	ADB := tree([]int32{1, 2})
++	BDA := tree([]int32{5, 6, 7})
++	AUB := tree([]int32{1, 2, 3, 4, 5, 6, 7})
++	AXB := tree([]int32{1, 2, 5, 6, 7})
++
++	aib1 := A.Intersection(B, first)
++	assert(t, AIB, aib1, "aib1")
++	if A.Find(3) != aib1.Find(3) {
++		t.Errorf("Failed aliasing/reuse check, A/aib1")
++	}
++	aib2 := A.Intersection(B, second)
++	assert(t, AIB, aib2, "aib2")
++	if B.Find(3) != aib2.Find(3) {
++		t.Errorf("Failed aliasing/reuse check, B/aib2")
++	}
++	aib3 := B.Intersection(A, first)
++	assert(t, AIB, aib3, "aib3")
++	if A.Find(3) != aib3.Find(3) {
++		// A is smaller, intersection favors reuse from smaller when function is "first"
++		t.Errorf("Failed aliasing/reuse check, A/aib3")
++	}
++	aib4 := B.Intersection(A, second)
++	assert(t, AIB, aib4, "aib4")
++	if A.Find(3) != aib4.Find(3) {
++		t.Errorf("Failed aliasing/reuse check, A/aib4")
++	}
++
++	aub1 := A.Union(B, first)
++	assert(t, AUB, aub1, "aub1")
++	if B.Find(3) != aub1.Find(3) {
++		// B is larger, union favors reuse from larger when function is "first"
++		t.Errorf("Failed aliasing/reuse check, A/aub1")
++	}
++	aub2 := A.Union(B, second)
++	assert(t, AUB, aub2, "aub2")
++	if B.Find(3) != aub2.Find(3) {
++		t.Errorf("Failed aliasing/reuse check, B/aub2")
++	}
++	aub3 := B.Union(A, first)
++	assert(t, AUB, aub3, "aub3")
++	if B.Find(3) != aub3.Find(3) {
++		t.Errorf("Failed aliasing/reuse check, B/aub3")
++	}
++	aub4 := B.Union(A, second)
++	assert(t, AUB, aub4, "aub4")
++	if A.Find(3) != aub4.Find(3) {
++		t.Errorf("Failed aliasing/reuse check, A/aub4")
++	}
++
++	axb1 := A.Union(B, alwaysNil)
++	assert(t, AXB, axb1, "axb1")
++	axb2 := B.Union(A, alwaysNil)
++	assert(t, AXB, axb2, "axb2")
++
++	adb := A.Difference(B, alwaysNil)
++	assert(t, ADB, adb, "adb")
++	bda := B.Difference(A, nil)
++	assert(t, BDA, bda, "bda")
++
++	Ap1 := treePlus1([]int32{1, 2, 3, 4})
++
++	ada1_1 := A.Difference(Ap1, smaller)
++	assert(t, A, ada1_1, "ada1_1")
++	ada1_2 := Ap1.Difference(A, smaller)
++	assert(t, A, ada1_2, "ada1_2")
++
++}
++
++type sstring struct {
++	s string
++}
++
++func (s *sstring) String() string {
++	return s.s
++}
++
++func stringer(s string) interface{} {
++	return &sstring{s}
++}
++
++// wellFormed ensures that a red-black tree meets
++// all of its invariants and returns a string identifying
++// the first problem encountered. If there is no problem
++// then the returned string is empty. The size is also
++// returned to allow comparison of calculated tree size
++// with expected.
++func (t *T) wellFormed() (s string, i int) {
++	if t.root == nil {
++		s = ""
++		i = 0
++		return
++	}
++	return t.root.wellFormedSubtree(nil, -0x80000000, 0x7fffffff)
++}
++
++// wellFormedSubtree ensures that a red-black subtree meets
++// all of its invariants and returns a string identifying
++// the first problem encountered. If there is no problem
++// then the returned string is empty. The size is also
++// returned to allow comparison of calculated tree size
++// with expected.
++func (t *node32) wellFormedSubtree(parent *node32, keyMin, keyMax int32) (s string, i int) {
++	i = -1 // initialize to a failing value
++	s = "" // s is the reason for failure; empty means okay.
++
++	if keyMin >= t.key {
++		s = " min >= t.key"
++		return
++	}
++
++	if keyMax <= t.key {
++		s = " max <= t.key"
++		return
++	}
++
++	l := t.left
++	r := t.right
++
++	lh := l.height()
++	rh := r.height()
++	mh := max(lh, rh)
++	th := t.height()
++	dh := lh - rh
++	if dh < 0 {
++		dh = -dh
++	}
++	if dh > 1 {
++		s = fmt.Sprintf(" dh > 1, t=%d", t.key)
++		return
++	}
++
++	if l == nil && r == nil {
++		if th != LEAF_HEIGHT {
++			s = " leaf height wrong"
++			return
++		}
++	}
++
++	if th != mh+1 {
++		s = " th != mh + 1"
++		return
++	}
++
++	if l != nil {
++		if th <= lh {
++			s = " t.height <= l.height"
++		} else if th > 2+lh {
++			s = " t.height > 2+l.height"
++		} else if t.key <= l.key {
++			s = " t.key <= l.key"
++		}
++		if s != "" {
++			return
++		}
++
++	}
++
++	if r != nil {
++		if th <= rh {
++			s = " t.height <= r.height"
++		} else if th > 2+rh {
++			s = " t.height > 2+r.height"
++		} else if t.key >= r.key {
++			s = " t.key >= r.key"
++		}
++		if s != "" {
++			return
++		}
++	}
++
++	ii := 1
++	if l != nil {
++		res, il := l.wellFormedSubtree(t, keyMin, t.key)
++		if res != "" {
++			s = ".L" + res
++			return
++		}
++		ii += il
++	}
++	if r != nil {
++		res, ir := r.wellFormedSubtree(t, t.key, keyMax)
++		if res != "" {
++			s = ".R" + res
++			return
++		}
++		ii += ir
++	}
++	i = ii
++	return
++}
++
++func (t *T) DebugString() string {
++	if t.root == nil {
++		return ""
++	}
++	return t.root.DebugString(0)
++}
++
++// DebugString prints the tree with nested information
++// to allow an eyeball check on the tree balance.
++func (t *node32) DebugString(indent int) string {
++	s := ""
++	if t.left != nil {
++		s = s + t.left.DebugString(indent+1)
++	}
++	for i := 0; i < indent; i++ {
++		s = s + "    "
++	}
++	s = s + fmt.Sprintf("%v=%v:%d\n", t.key, t.data, t.height_)
++	if t.right != nil {
++		s = s + t.right.DebugString(indent+1)
++	}
++	return s
++}
+diff --git a/src/cmd/compile/internal/ssa/debug.go b/src/cmd/compile/internal/ssa/debug.go
+index 2c18d35204..4ed016f4ad 100644
+--- a/src/cmd/compile/internal/ssa/debug.go
++++ b/src/cmd/compile/internal/ssa/debug.go
+@@ -6,6 +6,7 @@ package ssa
+ 
+ import (
+ 	"cmd/compile/internal/abi"
++	"cmd/compile/internal/abt"
+ 	"cmd/compile/internal/ir"
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/dwarf"
+@@ -23,8 +24,8 @@ type SlotID int32
+ type VarID int32
+ 
+ // A FuncDebug contains all the debug information for the variables in a
+-// function. Variables are identified by their LocalSlot, which may be the
+-// result of decomposing a larger variable.
++// function. Variables are identified by their LocalSlot, which may be
++// the result of decomposing a larger variable.
+ type FuncDebug struct {
+ 	// Slots is all the slots used in the debug info, indexed by their SlotID.
+ 	Slots []LocalSlot
+@@ -43,27 +44,37 @@ type FuncDebug struct {
+ }
+ 
+ type BlockDebug struct {
++	// State at the start and end of the block. These are initialized,
++	// and updated from new information that flows on back edges.
++	startState, endState abt.T
++	// Use these to avoid excess work in the merge. If none of the
++	// predecessors has changed since the last check, the old answer is
++	// still good.
++	lastCheckedTime, lastChangedTime int32
+ 	// Whether the block had any changes to user variables at all.
+ 	relevant bool
+-	// State at the end of the block if it's fully processed. Immutable once initialized.
+-	endState []liveSlot
++	// false until the block has been processed at least once. This
++	// affects how the merge is done; the goal is to maximize sharing
++	// and avoid allocation.
++	everProcessed bool
+ }
+ 
+ // A liveSlot is a slot that's live in loc at entry/exit of a block.
+ type liveSlot struct {
+-	// An inlined VarLoc, so it packs into 16 bytes instead of 20.
+-	Registers RegisterSet
+-	StackOffset
++	VarLoc
++}
+ 
+-	slot SlotID
++func (ls *liveSlot) String() string {
++	return fmt.Sprintf("0x%x.%d.%d", ls.Registers, ls.stackOffsetValue(), int32(ls.StackOffset)&1)
+ }
+ 
+ func (loc liveSlot) absent() bool {
+ 	return loc.Registers == 0 && !loc.onStack()
+ }
+ 
+-// StackOffset encodes whether a value is on the stack and if so, where. It is
+-// a 31-bit integer followed by a presence flag at the low-order bit.
++// StackOffset encodes whether a value is on the stack and if so, where.
++// It is a 31-bit integer followed by a presence flag at the low-order
++// bit.
+ type StackOffset int32
+ 
+ func (s StackOffset) onStack() bool {
+@@ -83,7 +94,7 @@ type stateAtPC struct {
+ }
+ 
+ // reset fills state with the live variables from live.
+-func (state *stateAtPC) reset(live []liveSlot) {
++func (state *stateAtPC) reset(live abt.T) {
+ 	slots, registers := state.slots, state.registers
+ 	for i := range slots {
+ 		slots[i] = VarLoc{}
+@@ -91,13 +102,15 @@ func (state *stateAtPC) reset(live []liveSlot) {
+ 	for i := range registers {
+ 		registers[i] = registers[i][:0]
+ 	}
+-	for _, live := range live {
+-		slots[live.slot] = VarLoc{live.Registers, live.StackOffset}
+-		if live.Registers == 0 {
++	for it := live.Iterator(); !it.Done(); {
++		k, d := it.Next()
++		live := d.(*liveSlot)
++		slots[k] = live.VarLoc
++		if live.VarLoc.Registers == 0 {
+ 			continue
+ 		}
+ 
+-		mask := uint64(live.Registers)
++		mask := uint64(live.VarLoc.Registers)
+ 		for {
+ 			if mask == 0 {
+ 				break
+@@ -105,7 +118,7 @@ func (state *stateAtPC) reset(live []liveSlot) {
+ 			reg := uint8(bits.TrailingZeros64(mask))
+ 			mask &^= 1 << reg
+ 
+-			registers[reg] = append(registers[reg], live.slot)
++			registers[reg] = append(registers[reg], SlotID(k))
+ 		}
+ 	}
+ 	state.slots, state.registers = slots, registers
+@@ -118,7 +131,7 @@ func (s *debugState) LocString(loc VarLoc) string {
+ 
+ 	var storage []string
+ 	if loc.onStack() {
+-		storage = append(storage, "stack")
++		storage = append(storage, fmt.Sprintf("@%+d", loc.stackOffsetValue()))
+ 	}
+ 
+ 	mask := uint64(loc.Registers)
+@@ -147,6 +160,14 @@ func (loc VarLoc) absent() bool {
+ 	return loc.Registers == 0 && !loc.onStack()
+ }
+ 
++func (loc VarLoc) intersect(other VarLoc) VarLoc {
++	if !loc.onStack() || !other.onStack() || loc.StackOffset != other.StackOffset {
++		loc.StackOffset = 0
++	}
++	loc.Registers &= other.Registers
++	return loc
++}
++
+ var BlockStart = &Value{
+ 	ID:  -10000,
+ 	Op:  OpInvalid,
+@@ -168,8 +189,9 @@ var FuncEnd = &Value{
+ // RegisterSet is a bitmap of registers, indexed by Register.num.
+ type RegisterSet uint64
+ 
+-// logf prints debug-specific logging to stdout (always stdout) if the current
+-// function is tagged by GOSSAFUNC (for ssa output directed either to stdout or html).
++// logf prints debug-specific logging to stdout (always stdout) if the
++// current function is tagged by GOSSAFUNC (for ssa output directed
++// either to stdout or html).
+ func (s *debugState) logf(msg string, args ...interface{}) {
+ 	if s.f.PrintOrHtmlSSA {
+ 		fmt.Printf(msg, args...)
+@@ -186,29 +208,28 @@ type debugState struct {
+ 	// The user variable that each slot rolls up to, indexed by SlotID.
+ 	slotVars []VarID
+ 
+-	f              *Func
+-	loggingEnabled bool
+-	registers      []Register
+-	stackOffset    func(LocalSlot) int32
+-	ctxt           *obj.Link
++	f             *Func
++	loggingLevel  int
++	convergeCount int // testing; iterate over block debug state this many times
++	registers     []Register
++	stackOffset   func(LocalSlot) int32
++	ctxt          *obj.Link
+ 
+ 	// The names (slots) associated with each value, indexed by Value ID.
+ 	valueNames [][]SlotID
+ 
+ 	// The current state of whatever analysis is running.
+ 	currentState stateAtPC
+-	liveCount    []int
+ 	changedVars  *sparseSet
++	changedSlots *sparseSet
+ 
+ 	// The pending location list entry for each user variable, indexed by VarID.
+ 	pendingEntries []pendingEntry
+ 
+-	varParts           map[*ir.Name][]SlotID
+-	blockDebug         []BlockDebug
+-	pendingSlotLocs    []VarLoc
+-	liveSlots          []liveSlot
+-	liveSlotSliceBegin int
+-	partsByVarOffset   sort.Interface
++	varParts         map[*ir.Name][]SlotID
++	blockDebug       []BlockDebug
++	pendingSlotLocs  []VarLoc
++	partsByVarOffset sort.Interface
+ }
+ 
+ func (state *debugState) initializeCache(f *Func, numVars, numSlots int) {
+@@ -247,15 +268,9 @@ func (state *debugState) initializeCache(f *Func, numVars, numSlots int) {
+ 		state.currentState.registers = state.currentState.registers[:len(state.registers)]
+ 	}
+ 
+-	// Used many times by mergePredecessors.
+-	if cap(state.liveCount) < numSlots {
+-		state.liveCount = make([]int, numSlots)
+-	} else {
+-		state.liveCount = state.liveCount[:numSlots]
+-	}
+-
+ 	// A relatively small slice, but used many times as the return from processValue.
+ 	state.changedVars = newSparseSet(numVars)
++	state.changedSlots = newSparseSet(numSlots)
+ 
+ 	// A pending entry per user variable, with space to track each of its pieces.
+ 	numPieces := 0
+@@ -291,25 +306,12 @@ func (state *debugState) initializeCache(f *Func, numVars, numSlots int) {
+ 			state.lists[i] = nil
+ 		}
+ 	}
+-
+-	state.liveSlots = state.liveSlots[:0]
+-	state.liveSlotSliceBegin = 0
+ }
+ 
+ func (state *debugState) allocBlock(b *Block) *BlockDebug {
+ 	return &state.blockDebug[b.ID]
+ }
+ 
+-func (state *debugState) appendLiveSlot(ls liveSlot) {
+-	state.liveSlots = append(state.liveSlots, ls)
+-}
+-
+-func (state *debugState) getLiveSlotSlice() []liveSlot {
+-	s := state.liveSlots[state.liveSlotSliceBegin:]
+-	state.liveSlotSliceBegin = len(state.liveSlots)
+-	return s
+-}
+-
+ func (s *debugState) blockEndStateString(b *BlockDebug) string {
+ 	endState := stateAtPC{slots: make([]VarLoc, len(s.slots)), registers: make([][]SlotID, len(s.registers))}
+ 	endState.reset(b.endState)
+@@ -550,15 +552,21 @@ func PopulateABIInRegArgOps(f *Func) {
+ 	f.Entry.Values = append(newValues, f.Entry.Values...)
+ }
+ 
+-// BuildFuncDebug debug information for f, placing the results in "rval".
+-// f must be fully processed, so that each Value is where it will be when
+-// machine code is emitted.
+-func BuildFuncDebug(ctxt *obj.Link, f *Func, loggingEnabled bool, stackOffset func(LocalSlot) int32, rval *FuncDebug) {
++// BuildFuncDebug debug information for f, placing the results
++// in "rval". f must be fully processed, so that each Value is where it
++// will be when machine code is emitted.
++func BuildFuncDebug(ctxt *obj.Link, f *Func, loggingLevel int, stackOffset func(LocalSlot) int32, rval *FuncDebug) {
+ 	if f.RegAlloc == nil {
+ 		f.Fatalf("BuildFuncDebug on func %v that has not been fully processed", f)
+ 	}
+ 	state := &f.Cache.debugState
+-	state.loggingEnabled = loggingEnabled
++	state.loggingLevel = loggingLevel % 1000
++
++	// A specific number demands exactly that many iterations. Under
++	// particular circumstances it make require more than the total of
++	// 2 passes implied by a single run through liveness and a single
++	// run through location list generation.
++	state.convergeCount = loggingLevel / 1000
+ 	state.f = f
+ 	state.registers = f.Config.registers
+ 	state.stackOffset = stackOffset
+@@ -568,7 +576,7 @@ func BuildFuncDebug(ctxt *obj.Link, f *Func, loggingEnabled bool, stackOffset fu
+ 		PopulateABIInRegArgOps(f)
+ 	}
+ 
+-	if state.loggingEnabled {
++	if state.loggingLevel > 0 {
+ 		state.logf("Generating location lists for function %q\n", f.Name)
+ 	}
+ 
+@@ -674,242 +682,372 @@ func BuildFuncDebug(ctxt *obj.Link, f *Func, loggingEnabled bool, stackOffset fu
+ // and end state of each block.
+ func (state *debugState) liveness() []*BlockDebug {
+ 	blockLocs := make([]*BlockDebug, state.f.NumBlocks())
++	counterTime := int32(1)
+ 
+ 	// Reverse postorder: visit a block after as many as possible of its
+ 	// predecessors have been visited.
+ 	po := state.f.Postorder()
+-	for i := len(po) - 1; i >= 0; i-- {
+-		b := po[i]
+-
+-		// Build the starting state for the block from the final
+-		// state of its predecessors.
+-		startState, startValid := state.mergePredecessors(b, blockLocs, nil)
+-		changed := false
+-		if state.loggingEnabled {
+-			state.logf("Processing %v, initial state:\n%v", b, state.stateString(state.currentState))
+-		}
++	converged := false
++
++	// The iteration rule is that by default, run until converged, but
++	// if a particular iteration count is specified, run that many
++	// iterations, no more, no less.  A count is specified as the
++	// thousands digit of the location lists debug flag,
++	// e.g. -d=locationlists=4000
++	keepGoing := func(k int) bool {
++		if state.convergeCount == 0 {
++			return !converged
++		}
++		return k < state.convergeCount
++	}
++	for k := 0; keepGoing(k); k++ {
++		if state.loggingLevel > 0 {
++			state.logf("Liveness pass %d\n", k)
++		}
++		converged = true
++		for i := len(po) - 1; i >= 0; i-- {
++			b := po[i]
++			locs := blockLocs[b.ID]
++			if locs == nil {
++				locs = state.allocBlock(b)
++				blockLocs[b.ID] = locs
++			}
+ 
+-		// Update locs/registers with the effects of each Value.
+-		for _, v := range b.Values {
+-			slots := state.valueNames[v.ID]
++			// Build the starting state for the block from the final
++			// state of its predecessors.
++			startState, blockChanged := state.mergePredecessors(b, blockLocs, nil, false)
++			locs.lastCheckedTime = counterTime
++			counterTime++
++			if state.loggingLevel > 1 {
++				state.logf("Processing %v, block changed %v, initial state:\n%v", b, blockChanged, state.stateString(state.currentState))
++			}
+ 
+-			// Loads and stores inherit the names of their sources.
+-			var source *Value
+-			switch v.Op {
+-			case OpStoreReg:
+-				source = v.Args[0]
+-			case OpLoadReg:
+-				switch a := v.Args[0]; a.Op {
+-				case OpArg, OpPhi:
+-					source = a
+-				case OpStoreReg:
+-					source = a.Args[0]
+-				default:
+-					if state.loggingEnabled {
+-						state.logf("at %v: load with unexpected source op: %v (%v)\n", v, a.Op, a)
++			if blockChanged {
++				// If the start did not change, then the old endState is good
++				converged = false
++				changed := false
++				state.changedSlots.clear()
++
++				// Update locs/registers with the effects of each Value.
++				for _, v := range b.Values {
++					slots := state.valueNames[v.ID]
++
++					// Loads and stores inherit the names of their sources.
++					var source *Value
++					switch v.Op {
++					case OpStoreReg:
++						source = v.Args[0]
++					case OpLoadReg:
++						switch a := v.Args[0]; a.Op {
++						case OpArg, OpPhi:
++							source = a
++						case OpStoreReg:
++							source = a.Args[0]
++						default:
++							if state.loggingLevel > 1 {
++								state.logf("at %v: load with unexpected source op: %v (%v)\n", v, a.Op, a)
++							}
++						}
++					}
++					// Update valueNames with the source so that later steps
++					// don't need special handling.
++					if source != nil && k == 0 {
++						// limit to k == 0 otherwise there are duplicates.
++						slots = append(slots, state.valueNames[source.ID]...)
++						state.valueNames[v.ID] = slots
+ 					}
+-				}
+-			}
+-			// Update valueNames with the source so that later steps
+-			// don't need special handling.
+-			if source != nil {
+-				slots = append(slots, state.valueNames[source.ID]...)
+-				state.valueNames[v.ID] = slots
+-			}
+ 
+-			reg, _ := state.f.getHome(v.ID).(*Register)
+-			c := state.processValue(v, slots, reg)
+-			changed = changed || c
+-		}
++					reg, _ := state.f.getHome(v.ID).(*Register)
++					c := state.processValue(v, slots, reg)
++					changed = changed || c
++				}
+ 
+-		if state.loggingEnabled {
+-			state.f.Logf("Block %v done, locs:\n%v", b, state.stateString(state.currentState))
+-		}
++				if state.loggingLevel > 1 {
++					state.logf("Block %v done, locs:\n%v", b, state.stateString(state.currentState))
++				}
+ 
+-		locs := state.allocBlock(b)
+-		locs.relevant = changed
+-		if !changed && startValid {
+-			locs.endState = startState
+-		} else {
+-			for slotID, slotLoc := range state.currentState.slots {
+-				if slotLoc.absent() {
+-					continue
++				locs.relevant = locs.relevant || changed
++				if !changed {
++					locs.endState = startState
++				} else {
++					for _, id := range state.changedSlots.contents() {
++						slotID := SlotID(id)
++						slotLoc := state.currentState.slots[slotID]
++						if slotLoc.absent() {
++							startState.Delete(int32(slotID))
++							continue
++						}
++						old := startState.Find(int32(slotID)) // do NOT replace existing values
++						if oldLS, ok := old.(*liveSlot); !ok || oldLS.VarLoc != slotLoc {
++							startState.Insert(int32(slotID),
++								&liveSlot{VarLoc: slotLoc})
++						}
++					}
++					locs.endState = startState
+ 				}
+-				state.appendLiveSlot(liveSlot{slot: SlotID(slotID), Registers: slotLoc.Registers, StackOffset: slotLoc.StackOffset})
++				locs.lastChangedTime = counterTime
+ 			}
+-			locs.endState = state.getLiveSlotSlice()
++			counterTime++
+ 		}
+-		blockLocs[b.ID] = locs
+ 	}
+ 	return blockLocs
+ }
+ 
+ // mergePredecessors takes the end state of each of b's predecessors and
+-// intersects them to form the starting state for b. It puts that state in
+-// blockLocs, and fills state.currentState with it. If convenient, it returns
+-// a reused []liveSlot, true that represents the starting state.
+-// If previousBlock is non-nil, it registers changes vs. that block's end
+-// state in state.changedVars. Note that previousBlock will often not be a
+-// predecessor.
+-func (state *debugState) mergePredecessors(b *Block, blockLocs []*BlockDebug, previousBlock *Block) ([]liveSlot, bool) {
++// intersects them to form the starting state for b. It puts that state
++// in blockLocs[b.ID].startState, and fills state.currentState with it.
++// It returns the start state and whether this is changed from the
++// previously approximated value of startState for this block.  After
++// the first call, subsequent calls can only shrink startState.
++//
++// Passing forLocationLists=true enables additional side-effects that
++// are necessary for building location lists but superflous while still
++// iterating to an answer.
++//
++// If previousBlock is non-nil, it registers changes vs. that block's
++// end state in state.changedVars. Note that previousBlock will often
++// not be a predecessor.
++//
++// Note that mergePredecessors behaves slightly differently between
++// first and subsequent calls for a block.  For the first call, the
++// starting state is approximated by taking the state from the
++// predecessor whose state is smallest, and removing any elements not
++// in all the other predecessors; this makes the smallest number of
++// changes and shares the most state.  On subsequent calls the old
++// value of startState is adjusted with new information; this is judged
++// to do the least amount of extra work.
++//
++// To improve performance, each block's state information is marked with
++// lastChanged and lastChecked "times" so unchanged predecessors can be
++// skipped on after-the-first iterations.  Doing this allows extra
++// iterations by the caller to be almost free.
++//
++// It is important to know that the set representation used for
++// startState, endState, and merges can share data for two sets where
++// one is a small delta from the other.  Doing this does require a
++// little care in how sets are updated, both in mergePredecessors, and
++// using its result.
++func (state *debugState) mergePredecessors(b *Block, blockLocs []*BlockDebug, previousBlock *Block, forLocationLists bool) (abt.T, bool) {
+ 	// Filter out back branches.
+ 	var predsBuf [10]*Block
++
+ 	preds := predsBuf[:0]
++	locs := blockLocs[b.ID]
++
++	blockChanged := !locs.everProcessed // the first time it always changes.
++	updating := locs.everProcessed
++
++	// For the first merge, exclude predecessors that have not been seen yet.
++	// I.e., backedges.
+ 	for _, pred := range b.Preds {
+-		if blockLocs[pred.b.ID] != nil {
++		if bl := blockLocs[pred.b.ID]; bl != nil && bl.everProcessed {
++			// crucially, a self-edge has bl != nil, but bl.everProcessed is false the first time.
+ 			preds = append(preds, pred.b)
+ 		}
+ 	}
+ 
+-	if state.loggingEnabled {
++	locs.everProcessed = true
++
++	if state.loggingLevel > 1 {
+ 		// The logf below would cause preds to be heap-allocated if
+ 		// it were passed directly.
+ 		preds2 := make([]*Block, len(preds))
+ 		copy(preds2, preds)
+-		state.logf("Merging %v into %v\n", preds2, b)
++		state.logf("Merging %v into %v (changed=%d, checked=%d)\n", preds2, b, locs.lastChangedTime, locs.lastCheckedTime)
+ 	}
+ 
+-	// TODO all the calls to this are overkill; only need to do this for slots that are not present in the merge.
+-	markChangedVars := func(slots []liveSlot) {
+-		for _, live := range slots {
+-			state.changedVars.add(ID(state.slotVars[live.slot]))
++	state.changedVars.clear()
++
++	markChangedVars := func(slots, merged abt.T) {
++		if !forLocationLists {
++			return
++		}
++		// Fill changedVars with those that differ between the previous
++		// block (in the emit order, not necessarily a flow predecessor)
++		// and the start state for this block.
++		for it := slots.Iterator(); !it.Done(); {
++			k, v := it.Next()
++			m := merged.Find(k)
++			if m == nil || v.(*liveSlot).VarLoc != m.(*liveSlot).VarLoc {
++				state.changedVars.add(ID(state.slotVars[k]))
++			}
+ 		}
+ 	}
+ 
++	reset := func(ourStartState abt.T) {
++		if !(forLocationLists || blockChanged) {
++			// there is no change and this is not for location lists, do
++			// not bother to reset currentState because it will not be
++			// examined.
++			return
++		}
++		state.currentState.reset(ourStartState)
++	}
++
++	// Zero predecessors
+ 	if len(preds) == 0 {
+ 		if previousBlock != nil {
+-			// Mark everything in previous block as changed because it is not a predecessor.
+-			markChangedVars(blockLocs[previousBlock.ID].endState)
++			state.f.Fatalf("Function %v, block %s with no predecessors is not first block, has previous %s", state.f, b.String(), previousBlock.String())
+ 		}
+-		state.currentState.reset(nil)
+-		return nil, true
++		// startState is empty
++		reset(abt.T{})
++		return abt.T{}, blockChanged
+ 	}
+ 
+-	p0 := blockLocs[preds[0].ID].endState
++	// One predecessor
++	l0 := blockLocs[preds[0].ID]
++	p0 := l0.endState
+ 	if len(preds) == 1 {
+ 		if previousBlock != nil && preds[0].ID != previousBlock.ID {
+-			// Mark everything in previous block as changed because it is not a predecessor.
+-			markChangedVars(blockLocs[previousBlock.ID].endState)
++			// Change from previous block is its endState minus the predecessor's endState
++			markChangedVars(blockLocs[previousBlock.ID].endState, p0)
++		}
++		locs.startState = p0
++		blockChanged = blockChanged || l0.lastChangedTime > locs.lastCheckedTime
++		reset(p0)
++		return p0, blockChanged
++	}
++
++	// More than one predecessor
++
++	if updating {
++		// After the first approximation, i.e., when updating, results
++		// can only get smaller, because initially backedge
++		// predecessors do not participate in the intersection.  This
++		// means that for the update, given the prior approximation of
++		// startState, there is no need to re-intersect with unchanged
++		// blocks.  Therefore remove unchanged blocks from the
++		// predecessor list.
++		for i := len(preds) - 1; i >= 0; i-- {
++			pred := preds[i]
++			if blockLocs[pred.ID].lastChangedTime > locs.lastCheckedTime {
++				continue // keep this predecessor
++			}
++			preds[i] = preds[len(preds)-1]
++			preds = preds[:len(preds)-1]
++			if state.loggingLevel > 2 {
++				state.logf("Pruned b%d, lastChanged was %d but b%d lastChecked is %d\n", pred.ID, blockLocs[pred.ID].lastChangedTime, b.ID, locs.lastCheckedTime)
++			}
++		}
++		// Check for an early out; this should always hit for the update
++		// if there are no cycles.
++		if len(preds) == 0 {
++			blockChanged = false
++
++			reset(locs.startState)
++			if state.loggingLevel > 2 {
++				state.logf("Early out, no predecessors changed since last check\n")
++			}
++			if previousBlock != nil {
++				markChangedVars(blockLocs[previousBlock.ID].endState, locs.startState)
++			}
++			return locs.startState, blockChanged
+ 		}
+-		state.currentState.reset(p0)
+-		return p0, true
+ 	}
+ 
+ 	baseID := preds[0].ID
+ 	baseState := p0
+ 
+-	// If previous block is not a predecessor, its location information changes at boundary with this block.
+-	previousBlockIsNotPredecessor := previousBlock != nil // If it's nil, no info to change.
+-
+-	if previousBlock != nil {
+-		// Try to use previousBlock as the base state
+-		// if possible.
+-		for _, pred := range preds[1:] {
+-			if pred.ID == previousBlock.ID {
+-				baseID = pred.ID
+-				baseState = blockLocs[pred.ID].endState
+-				previousBlockIsNotPredecessor = false
+-				break
+-			}
++	// Choose the predecessor with the smallest endState for intersection work
++	for _, pred := range preds[1:] {
++		if blockLocs[pred.ID].endState.Size() < baseState.Size() {
++			baseState = blockLocs[pred.ID].endState
++			baseID = pred.ID
+ 		}
+ 	}
+ 
+-	if state.loggingEnabled {
++	if state.loggingLevel > 2 {
+ 		state.logf("Starting %v with state from b%v:\n%v", b, baseID, state.blockEndStateString(blockLocs[baseID]))
+-	}
+-
+-	slotLocs := state.currentState.slots
+-	for _, predSlot := range baseState {
+-		slotLocs[predSlot.slot] = VarLoc{predSlot.Registers, predSlot.StackOffset}
+-		state.liveCount[predSlot.slot] = 1
+-	}
+-	for _, pred := range preds {
+-		if pred.ID == baseID {
+-			continue
+-		}
+-		if state.loggingEnabled {
+-			state.logf("Merging in state from %v:\n%v", pred, state.blockEndStateString(blockLocs[pred.ID]))
+-		}
+-		for _, predSlot := range blockLocs[pred.ID].endState {
+-			state.liveCount[predSlot.slot]++
+-			liveLoc := slotLocs[predSlot.slot]
+-			if !liveLoc.onStack() || !predSlot.onStack() || liveLoc.StackOffset != predSlot.StackOffset {
+-				liveLoc.StackOffset = 0
++		for _, pred := range preds {
++			if pred.ID == baseID {
++				continue
+ 			}
+-			liveLoc.Registers &= predSlot.Registers
+-			slotLocs[predSlot.slot] = liveLoc
++			state.logf("Merging in state from %v:\n%v", pred, state.blockEndStateString(blockLocs[pred.ID]))
+ 		}
+ 	}
+ 
+-	// Check if the final state is the same as the first predecessor's
+-	// final state, and reuse it if so. In principle it could match any,
+-	// but it's probably not worth checking more than the first.
+-	unchanged := true
+-	for _, predSlot := range baseState {
+-		if state.liveCount[predSlot.slot] != len(preds) ||
+-			slotLocs[predSlot.slot].Registers != predSlot.Registers ||
+-			slotLocs[predSlot.slot].StackOffset != predSlot.StackOffset {
+-			unchanged = false
+-			break
+-		}
+-	}
+-	if unchanged {
+-		if state.loggingEnabled {
+-			state.logf("After merge, %v matches b%v exactly.\n", b, baseID)
+-		}
+-		if previousBlockIsNotPredecessor {
+-			// Mark everything in previous block as changed because it is not a predecessor.
+-			markChangedVars(blockLocs[previousBlock.ID].endState)
+-		}
+-		state.currentState.reset(baseState)
+-		return baseState, true
+-	}
++	state.currentState.reset(abt.T{})
++	// The normal logic of "reset" is incuded in the intersection loop below.
++
++	slotLocs := state.currentState.slots
+ 
+-	for reg := range state.currentState.registers {
+-		state.currentState.registers[reg] = state.currentState.registers[reg][:0]
++	// If this is the first call, do updates on the "baseState"; if this
++	// is a subsequent call, tweak the startState instead. Note that
++	// these "set" values are values; there are no side effects to
++	// other values as these are modified.
++	newState := baseState
++	if updating {
++		newState = blockLocs[b.ID].startState
+ 	}
+ 
+-	// A slot is live if it was seen in all predecessors, and they all had
+-	// some storage in common.
+-	for _, predSlot := range baseState {
+-		slotLoc := slotLocs[predSlot.slot]
++	for it := newState.Iterator(); !it.Done(); {
++		k, d := it.Next()
++		thisSlot := d.(*liveSlot)
++		x := thisSlot.VarLoc
++		x0 := x // initial value in newState
++
++		// Intersect this slot with the slot in all the predecessors
++		for _, other := range preds {
++			if !updating && other.ID == baseID {
++				continue
++			}
++			otherSlot := blockLocs[other.ID].endState.Find(k)
++			if otherSlot == nil {
++				x = VarLoc{}
++				break
++			}
++			y := otherSlot.(*liveSlot).VarLoc
++			x = x.intersect(y)
++			if x.absent() {
++				x = VarLoc{}
++				break
++			}
++		}
+ 
+-		if state.liveCount[predSlot.slot] != len(preds) {
+-			// Seen in only some predecessors. Clear it out.
+-			slotLocs[predSlot.slot] = VarLoc{}
++		// Delete if necessary, but not otherwise (in order to maximize sharing).
++		if x.absent() {
++			if !x0.absent() {
++				blockChanged = true
++				newState.Delete(k)
++			}
++			slotLocs[k] = VarLoc{}
+ 			continue
+ 		}
++		if x != x0 {
++			blockChanged = true
++			newState.Insert(k, &liveSlot{VarLoc: x})
++		}
+ 
+-		// Present in all predecessors.
+-		mask := uint64(slotLoc.Registers)
++		slotLocs[k] = x
++		mask := uint64(x.Registers)
+ 		for {
+ 			if mask == 0 {
+ 				break
+ 			}
+ 			reg := uint8(bits.TrailingZeros64(mask))
+ 			mask &^= 1 << reg
+-			state.currentState.registers[reg] = append(state.currentState.registers[reg], predSlot.slot)
++			state.currentState.registers[reg] = append(state.currentState.registers[reg], SlotID(k))
+ 		}
+ 	}
+ 
+-	if previousBlockIsNotPredecessor {
+-		// Mark everything in previous block as changed because it is not a predecessor.
+-		markChangedVars(blockLocs[previousBlock.ID].endState)
+-
++	if previousBlock != nil {
++		markChangedVars(blockLocs[previousBlock.ID].endState, newState)
+ 	}
+-	return nil, false
++	locs.startState = newState
++	return newState, blockChanged
+ }
+ 
+-// processValue updates locs and state.registerContents to reflect v, a value with
+-// the names in vSlots and homed in vReg.  "v" becomes visible after execution of
+-// the instructions evaluating it. It returns which VarIDs were modified by the
+-// Value's execution.
++// processValue updates locs and state.registerContents to reflect v, a
++// value with the names in vSlots and homed in vReg.  "v" becomes
++// visible after execution of the instructions evaluating it. It
++// returns which VarIDs were modified by the Value's execution.
+ func (state *debugState) processValue(v *Value, vSlots []SlotID, vReg *Register) bool {
+ 	locs := state.currentState
+ 	changed := false
+ 	setSlot := func(slot SlotID, loc VarLoc) {
+ 		changed = true
+ 		state.changedVars.add(ID(state.slotVars[slot]))
++		state.changedSlots.add(ID(slot))
+ 		state.currentState.slots[slot] = loc
+ 	}
+ 
+@@ -925,7 +1063,7 @@ func (state *debugState) processValue(v *Value, vSlots []SlotID, vReg *Register)
+ 		clobbers &^= 1 << reg
+ 
+ 		for _, slot := range locs.registers[reg] {
+-			if state.loggingEnabled {
++			if state.loggingLevel > 1 {
+ 				state.logf("at %v: %v clobbered out of %v\n", v, state.slots[slot], &state.registers[reg])
+ 			}
+ 
+@@ -954,7 +1092,7 @@ func (state *debugState) processValue(v *Value, vSlots []SlotID, vReg *Register)
+ 			stackOffset = StackOffset(state.stackOffset(state.slots[slotID])<<1 | 1)
+ 		}
+ 		setSlot(slotID, VarLoc{0, stackOffset})
+-		if state.loggingEnabled {
++		if state.loggingLevel > 1 {
+ 			if v.Op == OpVarDef {
+ 				state.logf("at %v: stack-only var %v now live\n", v, state.slots[slotID])
+ 			} else {
+@@ -966,7 +1104,7 @@ func (state *debugState) processValue(v *Value, vSlots []SlotID, vReg *Register)
+ 		home := state.f.getHome(v.ID).(LocalSlot)
+ 		stackOffset := state.stackOffset(home)<<1 | 1
+ 		for _, slot := range vSlots {
+-			if state.loggingEnabled {
++			if state.loggingLevel > 1 {
+ 				state.logf("at %v: arg %v now on stack in location %v\n", v, state.slots[slot], home)
+ 				if last := locs.slots[slot]; !last.absent() {
+ 					state.logf("at %v: unexpected arg op on already-live slot %v\n", v, state.slots[slot])
+@@ -982,20 +1120,20 @@ func (state *debugState) processValue(v *Value, vSlots []SlotID, vReg *Register)
+ 		for _, slot := range vSlots {
+ 			last := locs.slots[slot]
+ 			if last.absent() {
+-				if state.loggingEnabled {
++				if state.loggingLevel > 1 {
+ 					state.logf("at %v: unexpected spill of unnamed register %s\n", v, vReg)
+ 				}
+ 				break
+ 			}
+ 
+ 			setSlot(slot, VarLoc{last.Registers, StackOffset(stackOffset)})
+-			if state.loggingEnabled {
+-				state.logf("at %v: %v spilled to stack location %v\n", v, state.slots[slot], home)
++			if state.loggingLevel > 1 {
++				state.logf("at %v: %v spilled to stack location %v@%d\n", v, state.slots[slot], home, state.stackOffset(home))
+ 			}
+ 		}
+ 
+ 	case vReg != nil:
+-		if state.loggingEnabled {
++		if state.loggingLevel > 1 {
+ 			newSlots := make([]bool, len(state.slots))
+ 			for _, slot := range vSlots {
+ 				newSlots[slot] = true
+@@ -1015,7 +1153,7 @@ func (state *debugState) processValue(v *Value, vSlots []SlotID, vReg *Register)
+ 		locs.registers[vReg.num] = locs.registers[vReg.num][:0]
+ 		locs.registers[vReg.num] = append(locs.registers[vReg.num], vSlots...)
+ 		for _, slot := range vSlots {
+-			if state.loggingEnabled {
++			if state.loggingLevel > 1 {
+ 				state.logf("at %v: %v now in %s\n", v, state.slots[slot], vReg)
+ 			}
+ 
+@@ -1067,8 +1205,10 @@ func (e *pendingEntry) clear() {
+ 	}
+ }
+ 
+-// canMerge reports whether the location description for new is the same as
+-// pending.
++// canMerge reports whether a new location description is a superset
++// of the (non-empty) pending location description, if so, the two
++// can be merged (i.e., pending is still a valid and useful location
++// description).
+ func canMerge(pending, new VarLoc) bool {
+ 	if pending.absent() && new.absent() {
+ 		return true
+@@ -1076,13 +1216,18 @@ func canMerge(pending, new VarLoc) bool {
+ 	if pending.absent() || new.absent() {
+ 		return false
+ 	}
+-	if pending.onStack() {
+-		return pending.StackOffset == new.StackOffset
++	// pending is not absent, therefore it has either a stack mapping,
++	// or registers, or both.
++	if pending.onStack() && pending.StackOffset != new.StackOffset {
++		// if pending has a stack offset, then new must also, and it
++		// must be the same (StackOffset encodes onStack).
++		return false
+ 	}
+-	if pending.Registers != 0 && new.Registers != 0 {
+-		return firstReg(pending.Registers) == firstReg(new.Registers)
++	if pending.Registers&new.Registers != pending.Registers {
++		// There is at least one register in pending not mentioned in new.
++		return false
+ 	}
+-	return false
++	return true
+ }
+ 
+ // firstReg returns the first register in set that is present.
+@@ -1095,24 +1240,26 @@ func firstReg(set RegisterSet) uint8 {
+ 	return uint8(bits.TrailingZeros64(uint64(set)))
+ }
+ 
+-// buildLocationLists builds location lists for all the user variables in
+-// state.f, using the information about block state in blockLocs.
+-// The returned location lists are not fully complete. They are in terms of
+-// SSA values rather than PCs, and have no base address/end entries. They will
+-// be finished by PutLocationList.
++// buildLocationLists builds location lists for all the user variables
++// in state.f, using the information about block state in blockLocs.
++// The returned location lists are not fully complete. They are in
++// terms of SSA values rather than PCs, and have no base address/end
++// entries. They will be finished by PutLocationList.
+ func (state *debugState) buildLocationLists(blockLocs []*BlockDebug) {
+ 	// Run through the function in program text order, building up location
+ 	// lists as we go. The heavy lifting has mostly already been done.
+ 
+ 	var prevBlock *Block
+ 	for _, b := range state.f.Blocks {
+-		state.mergePredecessors(b, blockLocs, prevBlock)
++		state.mergePredecessors(b, blockLocs, prevBlock, true)
++
++		// Handle any differences among predecessor blocks and previous block (perhaps not a predecessor)
++		for _, varID := range state.changedVars.contents() {
++			state.updateVar(VarID(varID), b, BlockStart)
++		}
++		state.changedVars.clear()
+ 
+ 		if !blockLocs[b.ID].relevant {
+-			// Handle any differences among predecessor blocks and previous block (perhaps not a predecessor)
+-			for _, varID := range state.changedVars.contents() {
+-				state.updateVar(VarID(varID), b, BlockStart)
+-			}
+ 			continue
+ 		}
+ 
+@@ -1213,7 +1360,7 @@ func (state *debugState) buildLocationLists(blockLocs []*BlockDebug) {
+ 		prevBlock = b
+ 	}
+ 
+-	if state.loggingEnabled {
++	if state.loggingLevel > 0 {
+ 		state.logf("location lists:\n")
+ 	}
+ 
+@@ -1221,7 +1368,7 @@ func (state *debugState) buildLocationLists(blockLocs []*BlockDebug) {
+ 	for varID := range state.lists {
+ 		state.writePendingEntry(VarID(varID), state.f.Blocks[len(state.f.Blocks)-1].ID, FuncEnd.ID)
+ 		list := state.lists[varID]
+-		if state.loggingEnabled {
++		if state.loggingLevel > 0 {
+ 			if len(list) == 0 {
+ 				state.logf("\t%v : empty list\n", state.vars[varID])
+ 			} else {
+@@ -1292,9 +1439,10 @@ func (state *debugState) writePendingEntry(varID VarID, endBlock, endValue ID) {
+ 		return
+ 	}
+ 	if start == end {
+-		if state.loggingEnabled {
++		if state.loggingLevel > 1 {
+ 			// Printf not logf so not gated by GOSSAFUNC; this should fire very rarely.
+-			fmt.Printf("Skipping empty location list for %v in %s\n", state.vars[varID], state.f.Name)
++			// TODO this fires a lot, need to figure out why.
++			state.logf("Skipping empty location list for %v in %s\n", state.vars[varID], state.f.Name)
+ 		}
+ 		return
+ 	}
+@@ -1307,7 +1455,7 @@ func (state *debugState) writePendingEntry(varID VarID, endBlock, endValue ID) {
+ 	sizeIdx := len(list)
+ 	list = list[:len(list)+2]
+ 
+-	if state.loggingEnabled {
++	if state.loggingLevel > 1 {
+ 		var partStrs []string
+ 		for i, slot := range state.varSlots[varID] {
+ 			partStrs = append(partStrs, fmt.Sprintf("%v@%v", state.slots[slot], state.LocString(pending.pieces[i])))
+@@ -1389,11 +1537,11 @@ func (debugInfo *FuncDebug) PutLocationList(list []byte, ctxt *obj.Link, listSym
+ 	listSym.WriteInt(ctxt, listSym.Size, ctxt.Arch.PtrSize, 0)
+ }
+ 
+-// Pack a value and block ID into an address-sized uint, returning encoded
+-// value and boolean indicating whether the encoding succeeded.  For
+-// 32-bit architectures the process may fail for very large procedures
+-// (the theory being that it's ok to have degraded debug quality in
+-// this case).
++// Pack a value and block ID into an address-sized uint, returning
++// encoded value and boolean indicating whether the encoding succeeded.
++// For 32-bit architectures the process may fail for very large
++// procedures(the theory being that it's ok to have degraded debug
++// quality in this case).
+ func encodeValue(ctxt *obj.Link, b, v ID) (uint64, bool) {
+ 	if ctxt.Arch.PtrSize == 8 {
+ 		result := uint64(b)<<32 | uint64(uint32(v))
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index f8ed8765f9..8da536c5fa 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -7096,7 +7096,7 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
+ 		if e.curfn.ABI == obj.ABIInternal && base.Flag.N != 0 {
+ 			ssa.BuildFuncDebugNoOptimized(base.Ctxt, f, base.Debug.LocationLists > 1, StackOffset, debugInfo)
+ 		} else {
+-			ssa.BuildFuncDebug(base.Ctxt, f, base.Debug.LocationLists > 1, StackOffset, debugInfo)
++			ssa.BuildFuncDebug(base.Ctxt, f, base.Debug.LocationLists, StackOffset, debugInfo)
+ 		}
+ 		bstart := s.bstart
+ 		idToIdx := make([]int, f.NumBlocks())

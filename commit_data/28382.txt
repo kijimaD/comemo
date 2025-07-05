@@ -18,6 +18,25 @@ Date:   Mon May 16 15:39:43 2016 -0700
     Reviewed-on: https://go-review.googlesource.com/23153
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/proc.go | 7 ++++++-
  1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index d7e51d7deb..15dcb95c9c 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -2445,7 +2445,12 @@ func exitsyscall(dummy int32) {
+ 
+ 	_g_.m.locks++ // see comment in entersyscall
+ 	if getcallersp(unsafe.Pointer(&dummy)) > _g_.syscallsp {
+-		throw("exitsyscall: syscall frame is no longer valid")
++		// throw calls print which may try to grow the stack,
++		// but throwsplit == true so the stack can not be grown;
++		// use systemstack to avoid that possible problem.
++		systemstack(func() {
++			throw("exitsyscall: syscall frame is no longer valid")
++		})
+ 	}
+ 
+ 	_g_.waitsince = 0

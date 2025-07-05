@@ -7,7 +7,92 @@ Date:   Wed Feb 25 15:38:15 2015 -0800
     Change-Id: I2a60ea4a196eef1af5d2aae6cc239c64bddb6fb2
     Reviewed-on: https://go-review.googlesource.com/6301
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/math/big/float.go      | 17 +++++++++++------
  src/math/big/float_test.go | 27 ++++++++++++++++++++++++---
  2 files changed, 35 insertions(+), 9 deletions(-)
+
+diff --git a/src/math/big/float.go b/src/math/big/float.go
+index c1a197917c..c4ae2ffd2a 100644
+--- a/src/math/big/float.go
++++ b/src/math/big/float.go
+@@ -82,12 +82,6 @@ const (
+ 	MaxPrec = math.MaxUint32 // largest (theoretically) supported precision; likely memory-limited
+ )
+ 
+-// NewInf returns a new infinite Float value with value +Inf (sign >= 0),
+-// or -Inf (sign < 0).
+-func NewInf(sign int) *Float {
+-	return &Float{neg: sign < 0, exp: infExp}
+-}
+-
+ // Accuracy describes the rounding error produced by the most recent
+ // operation that generated a Float value, relative to the exact value:
+ //
+@@ -633,6 +627,17 @@ func (z *Float) SetRat(x *Rat) *Float {
+ 	return z.Quo(&a, &b)
+ }
+ 
++// SetInf sets z to the infinite Float +Inf for sign >= 0,
++// or -Inf for sign < 0, and returns z. The precision of
++// z is unchanged and the result is always Exact.
++func (z *Float) SetInf(sign int) *Float {
++	z.acc = Exact
++	z.neg = sign < 0
++	z.mant = z.mant[:0]
++	z.exp = infExp
++	return z
++}
++
+ // Set sets z to the (possibly rounded) value of x and returns z.
+ // If z's precision is 0, it is changed to the precision of x
+ // before setting z (and rounding will have no effect).
+diff --git a/src/math/big/float_test.go b/src/math/big/float_test.go
+index cc58d966e3..c7486b1330 100644
+--- a/src/math/big/float_test.go
++++ b/src/math/big/float_test.go
+@@ -90,13 +90,13 @@ func TestFloatZeroValue(t *testing.T) {
+ }
+ 
+ func makeFloat(s string) *Float {
++	var x Float
+ 	if s == "Inf" || s == "+Inf" {
+-		return NewInf(+1)
++		return x.SetInf(+1)
+ 	}
+ 	if s == "-Inf" {
+-		return NewInf(-1)
++		return x.SetInf(-1)
+ 	}
+-	var x Float
+ 	x.SetPrec(1000)
+ 	if _, ok := x.SetString(s); !ok {
+ 		panic(fmt.Sprintf("%q is not a valid float", s))
+@@ -694,6 +694,27 @@ func TestFloatSetRat(t *testing.T) {
+ 	}
+ }
+ 
++func TestFloatSetInf(t *testing.T) {
++	var f Float
++	for _, test := range []struct {
++		sign int
++		prec uint
++		want string
++	}{
++		{0, 0, "+Inf"},
++		{100, 0, "+Inf"},
++		{-1, 0, "-Inf"},
++		{0, 10, "+Inf"},
++		{100, 20, "+Inf"},
++		{-1, 30, "-Inf"},
++	} {
++		x := f.SetPrec(test.prec).SetInf(test.sign)
++		if got := x.String(); got != test.want || x.Prec() != test.prec {
++			t.Errorf("SetInf(%d) = %s (prec = %d); want %s (prec = %d)", test.sign, got, x.Prec(), test.want, test.prec)
++		}
++	}
++}
++
+ func TestFloatUint64(t *testing.T) {
+ 	for _, test := range []struct {
+ 		x   string

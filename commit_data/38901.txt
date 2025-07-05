@@ -21,8 +21,223 @@ Date:   Wed Dec 5 09:52:58 2018 -0500
     Reviewed-by: Jay Conrod <jayconrod@google.com>
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/internal/modload/import.go             |  52 ++++++++++-
  src/cmd/go/testdata/script/mod_replace.txt        |   3 +-
  src/cmd/go/testdata/script/mod_replace_import.txt | 109 ++++++++++++++++++++++
  3 files changed, 161 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/import.go b/src/cmd/go/internal/modload/import.go
+index 96e546d6df..3210e16c25 100644
+--- a/src/cmd/go/internal/modload/import.go
++++ b/src/cmd/go/internal/modload/import.go
+@@ -12,13 +12,17 @@ import (
+ 	"internal/goroot"
+ 	"os"
+ 	"path/filepath"
++	"sort"
+ 	"strings"
++	"time"
+ 
+ 	"cmd/go/internal/cfg"
++	"cmd/go/internal/modfetch"
+ 	"cmd/go/internal/modfetch/codehost"
+ 	"cmd/go/internal/module"
+ 	"cmd/go/internal/par"
+ 	"cmd/go/internal/search"
++	"cmd/go/internal/semver"
+ )
+ 
+ type ImportMissingError struct {
+@@ -122,14 +126,58 @@ func Import(path string) (m module.Version, dir string, err error) {
+ 		return module.Version{}, "", errors.New(buf.String())
+ 	}
+ 
+-	// Not on build list.
+-
+ 	// Look up module containing the package, for addition to the build list.
+ 	// Goal is to determine the module, download it to dir, and return m, dir, ErrMissing.
+ 	if cfg.BuildMod == "readonly" {
+ 		return module.Version{}, "", fmt.Errorf("import lookup disabled by -mod=%s", cfg.BuildMod)
+ 	}
+ 
++	// Not on build list.
++	// To avoid spurious remote fetches, next try the latest replacement for each module.
++	// (golang.org/issue/26241)
++	if modFile != nil {
++		latest := map[string]string{} // path -> version
++		for _, r := range modFile.Replace {
++			if maybeInModule(path, r.Old.Path) {
++				latest[r.Old.Path] = semver.Max(r.Old.Version, latest[r.Old.Path])
++			}
++		}
++
++		mods = make([]module.Version, 0, len(latest))
++		for p, v := range latest {
++			// If the replacement didn't specify a version, synthesize a
++			// pseudo-version with an appropriate major version and a timestamp below
++			// any real timestamp. That way, if the main module is used from within
++			// some other module, the user will be able to upgrade the requirement to
++			// any real version they choose.
++			if v == "" {
++				if _, pathMajor, ok := module.SplitPathVersion(p); ok && len(pathMajor) > 0 {
++					v = modfetch.PseudoVersion(pathMajor[1:], "", time.Time{}, "000000000000")
++				} else {
++					v = modfetch.PseudoVersion("v0", "", time.Time{}, "000000000000")
++				}
++			}
++			mods = append(mods, module.Version{Path: p, Version: v})
++		}
++
++		// Every module path in mods is a prefix of the import path.
++		// As in QueryPackage, prefer the longest prefix that satisfies the import.
++		sort.Slice(mods, func(i, j int) bool {
++			return len(mods[i].Path) > len(mods[j].Path)
++		})
++		for _, m := range mods {
++			root, isLocal, err := fetch(m)
++			if err != nil {
++				// Report fetch error as above.
++				return module.Version{}, "", err
++			}
++			_, ok := dirInModule(path, m.Path, root, isLocal)
++			if ok {
++				return m, "", &ImportMissingError{ImportPath: path, Module: m}
++			}
++		}
++	}
++
+ 	m, _, err = QueryPackage(path, "latest", Allowed)
+ 	if err != nil {
+ 		if _, ok := err.(*codehost.VCSError); ok {
+diff --git a/src/cmd/go/testdata/script/mod_replace.txt b/src/cmd/go/testdata/script/mod_replace.txt
+index b9cf00c36c..78d6729fce 100644
+--- a/src/cmd/go/testdata/script/mod_replace.txt
++++ b/src/cmd/go/testdata/script/mod_replace.txt
+@@ -30,9 +30,10 @@ stderr 'rsc.io/quote/v3@v3.0.0 used for two different module paths \(not-rsc.io/
+ 
+ # Modules that do not (yet) exist upstream can be replaced too.
+ cp go.mod.orig go.mod
+-go mod edit -require not-rsc.io/quote/v3@v3.0.0 -replace=not-rsc.io/quote/v3=./local/rsc.io/quote/v3
++go mod edit -replace=not-rsc.io/quote/v3@v3.1.0=./local/rsc.io/quote/v3
+ go build -o a5.exe ./usenewmodule
+ ! stderr 'finding not-rsc.io/quote/v3'
++grep 'not-rsc.io/quote/v3 v3.1.0' go.mod
+ exec ./a5.exe
+ stdout 'Concurrency is not parallelism.'
+ 
+diff --git a/src/cmd/go/testdata/script/mod_replace_import.txt b/src/cmd/go/testdata/script/mod_replace_import.txt
+new file mode 100644
+index 0000000000..0da753a1a7
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_replace_import.txt
+@@ -0,0 +1,109 @@
++env GO111MODULE=on
++
++# 'go list -mod=readonly' should not add requirements even if they can be
++# resolved locally.
++cp go.mod go.mod.orig
++! go list -mod=readonly all
++cmp go.mod go.mod.orig
++
++# 'go list' should resolve imports using replacements.
++go list all
++stdout 'example.com/a/b$'
++stdout 'example.com/x/v3$'
++stdout 'example.com/y/z/w$'
++stdout 'example.com/v'
++
++# The selected modules should prefer longer paths,
++# but should try shorter paths if needed.
++# Modules with a major-version suffix should have a corresponding pseudo-version.
++# Replacements that specify a version should use the latest such version.
++go list -m all
++stdout 'example.com/a/b v0.0.0-00010101000000-000000000000 => ./b'
++stdout 'example.com/y v0.0.0-00010101000000-000000000000 => ./y'
++stdout 'example.com/x/v3 v3.0.0-00010101000000-000000000000 => ./v3'
++stdout 'example.com/v v1.12.0 => ./v12'
++
++-- go.mod --
++module example.com/m
++
++replace (
++	example.com/a => ./a
++	example.com/a/b => ./b
++)
++
++replace (
++	example.com/x => ./x
++	example.com/x/v3 => ./v3
++)
++
++replace (
++	example.com/y/z/w => ./w
++	example.com/y => ./y
++)
++
++replace (
++	example.com/v v1.11.0 => ./v11
++	example.com/v v1.12.0 => ./v12
++	example.com/v => ./v
++)
++
++-- m.go --
++package main
++import (
++	_ "example.com/a/b"
++	_ "example.com/x/v3"
++	_ "example.com/y/z/w"
++	_ "example.com/v"
++)
++func main() {}
++
++-- a/go.mod --
++module a.localhost
++-- a/a.go --
++package a
++-- a/b/b.go--
++package b
++
++-- b/go.mod --
++module a.localhost/b
++-- b/b.go --
++package b
++
++-- x/go.mod --
++module x.localhost
++-- x/x.go --
++package x
++-- x/v3.go --
++package v3
++import _ "x.localhost/v3"
++
++-- v3/go.mod --
++module x.localhost/v3
++-- v3/x.go --
++package x
++
++-- w/go.mod --
++module w.localhost
++-- w/skip/skip.go --
++// Package skip is nested below nonexistent package w.
++package skip
++
++-- y/go.mod --
++module y.localhost
++-- y/z/w/w.go --
++package w
++
++-- v12/go.mod --
++module v.localhost
++-- v12/v.go --
++package v
++
++-- v11/go.mod --
++module v.localhost
++-- v11/v.go --
++package v
++
++-- v/go.mod --
++module v.localhost
++-- v/v.go --
++package v

@@ -8,6 +8,20 @@ Date:   Wed Jan 22 15:55:56 2014 -0800
     R=iant, dave
     CC=golang-codereviews
     https://golang.org/cl/54760044
-
+---
  src/cmd/gc/doc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/doc.go b/src/cmd/gc/doc.go
+index ce9ebcfb2a..3cb0ea42ca 100644
+--- a/src/cmd/gc/doc.go
++++ b/src/cmd/gc/doc.go
+@@ -38,7 +38,7 @@ Flags:
+ 	-o file
+ 		output file, default file.6 for 6g, etc.
+ 	-pack
+-		write a package file rather than an object file
++		write an archive file rather than an object file
+ 	-e
+ 		normally the compiler quits after 10 errors; -e prints all errors
+ 	-p path

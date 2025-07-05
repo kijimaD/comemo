@@ -34,7 +34,7 @@ Date:   Tue Mar 4 09:26:01 2014 +0900
     R=golang-codereviews, rsc, minux.ma, gobot, iant
     CC=golang-codereviews
     https://golang.org/cl/56770044
-
+---
  src/pkg/syscall/mkall.sh                 |   6 +-
  src/pkg/syscall/mkerrors.sh              |   9 +++
  src/pkg/syscall/mksysnum_freebsd.pl      |  13 ++++
@@ -49,3 +49,1383 @@ Date:   Tue Mar 4 09:26:01 2014 +0900
  src/pkg/syscall/ztypes_freebsd_amd64.go  |  45 +++++++++++--
  src/pkg/syscall/ztypes_freebsd_arm.go    | 110 ++++++++++++++++++++++---------
  13 files changed, 409 insertions(+), 93 deletions(-)
+
+diff --git a/src/pkg/syscall/mkall.sh b/src/pkg/syscall/mkall.sh
+index 1bd6ccb021..57db0868c8 100755
+--- a/src/pkg/syscall/mkall.sh
++++ b/src/pkg/syscall/mkall.sh
+@@ -136,18 +136,18 @@ dragonfly_amd64)
+ freebsd_386)
+ 	mkerrors="$mkerrors -m32"
+ 	mksyscall="./mksyscall.pl -l32"
+-	mksysnum="curl -s 'http://svn.freebsd.org/base/head/sys/kern/syscalls.master' | ./mksysnum_freebsd.pl"
++	mksysnum="curl -s 'http://svn.freebsd.org/base/stable/10/sys/kern/syscalls.master' | ./mksysnum_freebsd.pl"
+ 	mktypes="GOARCH=$GOARCH go tool cgo -godefs"
+ 	;;
+ freebsd_amd64)
+ 	mkerrors="$mkerrors -m64"
+-	mksysnum="curl -s 'http://svn.freebsd.org/base/head/sys/kern/syscalls.master' | ./mksysnum_freebsd.pl"
++	mksysnum="curl -s 'http://svn.freebsd.org/base/stable/10/sys/kern/syscalls.master' | ./mksysnum_freebsd.pl"
+ 	mktypes="GOARCH=$GOARCH go tool cgo -godefs"
+ 	;;
+ freebsd_arm)
+ 	mkerrors="$mkerrors"
+ 	mksyscall="./mksyscall.pl -l32 -arm"
+-	mksysnum="curl -s 'http://svn.freebsd.org/base/head/sys/kern/syscalls.master' | ./mksysnum_freebsd.pl"
++	mksysnum="curl -s 'http://svn.freebsd.org/base/stable/10/sys/kern/syscalls.master' | ./mksysnum_freebsd.pl"
+ 	# Let the type of C char be singed for making the bare syscall
+ 	# API consistent across over platforms.
+ 	mktypes="GOARCH=$GOARCH go tool cgo -godefs -- -fsigned-char"
+diff --git a/src/pkg/syscall/mkerrors.sh b/src/pkg/syscall/mkerrors.sh
+index 172d0e0875..2d33f24194 100755
+--- a/src/pkg/syscall/mkerrors.sh
++++ b/src/pkg/syscall/mkerrors.sh
+@@ -57,6 +57,7 @@ includes_DragonFly='
+ '
+ 
+ includes_FreeBSD='
++#include <sys/param.h>
+ #include <sys/types.h>
+ #include <sys/event.h>
+ #include <sys/socket.h>
+@@ -73,6 +74,14 @@ includes_FreeBSD='
+ #include <termios.h>
+ #include <netinet/ip.h>
+ #include <netinet/ip_mroute.h>
++
++#if __FreeBSD__ >= 10
++#define IFT_CARP	0xf8	// IFT_CARP is deprecated in FreeBSD 10
++#undef SIOCAIFADDR
++#define SIOCAIFADDR	_IOW(105, 26, struct oifaliasreq)	// ifaliasreq contains if_data
++#undef SIOCSIFPHYADDR
++#define SIOCSIFPHYADDR	_IOW(105, 70, struct oifaliasreq)	// ifaliasreq contains if_data
++#endif
+ '
+ 
+ includes_Linux='
+diff --git a/src/pkg/syscall/mksysnum_freebsd.pl b/src/pkg/syscall/mksysnum_freebsd.pl
+index 5c156338ee..cd675780b5 100755
+--- a/src/pkg/syscall/mksysnum_freebsd.pl
++++ b/src/pkg/syscall/mksysnum_freebsd.pl
+@@ -33,8 +33,21 @@ while(<>){
+ 		if($name eq 'SYS_SYS_EXIT'){
+ 			$name = 'SYS_EXIT';
+ 		}
++		if($name =~ /^SYS_CAP_+/ || $name =~ /^SYS___CAP_+/){
++			next
++		}
+ 
+ 		print "	$name = $num;  // $proto\n";
++
++		# We keep Capsicum syscall numbers for FreeBSD
++		# 9-STABLE here because we are not sure whether they
++		# are mature and stable.
++		if($num == 513){
++			print " SYS_CAP_NEW = 514 // { int cap_new(int fd, uint64_t rights); }\n";
++			print " SYS_CAP_GETRIGHTS = 515 // { int cap_getrights(int fd, \\\n";
++			print " SYS_CAP_ENTER = 516 // { int cap_enter(void); }\n";
++			print " SYS_CAP_GETMODE = 517 // { int cap_getmode(u_int *modep); }\n";
++		}
+ 	}
+ }
+ 
+diff --git a/src/pkg/syscall/types_freebsd.go b/src/pkg/syscall/types_freebsd.go
+index ff3adc3f6e..68a69312b2 100644
+--- a/src/pkg/syscall/types_freebsd.go
++++ b/src/pkg/syscall/types_freebsd.go
+@@ -60,6 +60,91 @@ struct sockaddr_any {
+ 	char pad[sizeof(union sockaddr_all) - sizeof(struct sockaddr)];
+ };
+ 
++// This structure is a duplicate of stat on FreeBSD 8-STABLE.
++// See /usr/include/sys/stat.h.
++struct stat8 {
++#undef st_atimespec	st_atim
++#undef st_mtimespec	st_mtim
++#undef st_ctimespec	st_ctim
++#undef st_birthtimespec	st_birthtim
++	__dev_t   st_dev;
++	ino_t     st_ino;
++	mode_t    st_mode;
++	nlink_t   st_nlink;
++	uid_t     st_uid;
++	gid_t     st_gid;
++	__dev_t   st_rdev;
++#if __BSD_VISIBLE
++	struct  timespec st_atimespec;
++	struct  timespec st_mtimespec;
++	struct  timespec st_ctimespec;
++#else
++	time_t    st_atime;
++	long      __st_atimensec;
++	time_t    st_mtime;
++	long      __st_mtimensec;
++	time_t    st_ctime;
++	long      __st_ctimensec;
++#endif
++	off_t     st_size;
++	blkcnt_t st_blocks;
++	blksize_t st_blksize;
++	fflags_t  st_flags;
++	__uint32_t st_gen;
++	__int32_t st_lspare;
++#if __BSD_VISIBLE
++	struct timespec st_birthtimespec;
++	unsigned int :(8 / 2) * (16 - (int)sizeof(struct timespec));
++	unsigned int :(8 / 2) * (16 - (int)sizeof(struct timespec));
++#else
++	time_t    st_birthtime;
++	long      st_birthtimensec;
++	unsigned int :(8 / 2) * (16 - (int)sizeof(struct __timespec));
++	unsigned int :(8 / 2) * (16 - (int)sizeof(struct __timespec));
++#endif
++};
++
++// This structure is a duplicate of if_data on FreeBSD 8-STABLE.
++// See /usr/include/net/if.h.
++struct if_data8 {
++	u_char  ifi_type;
++	u_char  ifi_physical;
++	u_char  ifi_addrlen;
++	u_char  ifi_hdrlen;
++	u_char  ifi_link_state;
++	u_char  ifi_spare_char1;
++	u_char  ifi_spare_char2;
++	u_char  ifi_datalen;
++	u_long  ifi_mtu;
++	u_long  ifi_metric;
++	u_long  ifi_baudrate;
++	u_long  ifi_ipackets;
++	u_long  ifi_ierrors;
++	u_long  ifi_opackets;
++	u_long  ifi_oerrors;
++	u_long  ifi_collisions;
++	u_long  ifi_ibytes;
++	u_long  ifi_obytes;
++	u_long  ifi_imcasts;
++	u_long  ifi_omcasts;
++	u_long  ifi_iqdrops;
++	u_long  ifi_noproto;
++	u_long  ifi_hwassist;
++	time_t  ifi_epoch;
++	struct  timeval ifi_lastchange;
++};
++
++// This structure is a duplicate of if_msghdr on FreeBSD 8-STABLE.
++// See /usr/include/net/if.h.
++struct if_msghdr8 {
++	u_short ifm_msglen;
++	u_char  ifm_version;
++	u_char  ifm_type;
++	int     ifm_addrs;
++	int     ifm_flags;
++	u_short ifm_index;
++	struct  if_data8 ifm_data;
++};
+ */
+ import "C"
+ 
+@@ -98,10 +183,6 @@ type _Gid_t C.gid_t
+ 
+ // Files
+ 
+-const (
+-	O_CLOEXEC = 0 // not supported
+-)
+-
+ const ( // Directory mode bits
+ 	S_IFMT   = C.S_IFMT
+ 	S_IFIFO  = C.S_IFIFO
+@@ -119,7 +200,7 @@ const ( // Directory mode bits
+ 	S_IXUSR  = C.S_IXUSR
+ )
+ 
+-type Stat_t C.struct_stat
++type Stat_t C.struct_stat8
+ 
+ type Statfs_t C.struct_statfs
+ 
+@@ -201,8 +282,10 @@ type FdSet C.fd_set
+ // Routing and interface messages
+ 
+ const (
+-	SizeofIfMsghdr         = C.sizeof_struct_if_msghdr
+-	SizeofIfData           = C.sizeof_struct_if_data
++	sizeofIfMsghdr         = C.sizeof_struct_if_msghdr
++	SizeofIfMsghdr         = C.sizeof_struct_if_msghdr8
++	sizeofIfData           = C.sizeof_struct_if_data
++	SizeofIfData           = C.sizeof_struct_if_data8
+ 	SizeofIfaMsghdr        = C.sizeof_struct_ifa_msghdr
+ 	SizeofIfmaMsghdr       = C.sizeof_struct_ifma_msghdr
+ 	SizeofIfAnnounceMsghdr = C.sizeof_struct_if_announcemsghdr
+@@ -210,9 +293,13 @@ const (
+ 	SizeofRtMetrics        = C.sizeof_struct_rt_metrics
+ )
+ 
+-type IfMsghdr C.struct_if_msghdr
++type ifMsghdr C.struct_if_msghdr
++
++type IfMsghdr C.struct_if_msghdr8
++
++type ifData C.struct_if_data
+ 
+-type IfData C.struct_if_data
++type IfData C.struct_if_data8
+ 
+ type IfaMsghdr C.struct_ifa_msghdr
+ 
+diff --git a/src/pkg/syscall/zerrors_freebsd_386.go b/src/pkg/syscall/zerrors_freebsd_386.go
+index 43d7c5969d..cd3aa80a9c 100644
+--- a/src/pkg/syscall/zerrors_freebsd_386.go
++++ b/src/pkg/syscall/zerrors_freebsd_386.go
+@@ -25,13 +25,15 @@ const (
+ 	AF_IMPLINK                        = 0x3
+ 	AF_INET                           = 0x2
+ 	AF_INET6                          = 0x1c
++	AF_INET6_SDP                      = 0x2a
++	AF_INET_SDP                       = 0x28
+ 	AF_IPX                            = 0x17
+ 	AF_ISDN                           = 0x1a
+ 	AF_ISO                            = 0x7
+ 	AF_LAT                            = 0xe
+ 	AF_LINK                           = 0x12
+ 	AF_LOCAL                          = 0x1
+-	AF_MAX                            = 0x26
++	AF_MAX                            = 0x2a
+ 	AF_NATM                           = 0x1d
+ 	AF_NETBIOS                        = 0x6
+ 	AF_NETGRAPH                       = 0x20
+@@ -332,10 +334,11 @@ const (
+ 	DLT_LINUX_SLL                     = 0x71
+ 	DLT_LOOP                          = 0x6c
+ 	DLT_LTALK                         = 0x72
+-	DLT_MATCHING_MAX                  = 0xf2
++	DLT_MATCHING_MAX                  = 0xf6
+ 	DLT_MATCHING_MIN                  = 0x68
+ 	DLT_MFR                           = 0xb6
+ 	DLT_MOST                          = 0xd3
++	DLT_MPEG_2_TS                     = 0xf3
+ 	DLT_MPLS                          = 0xdb
+ 	DLT_MTP2                          = 0x8c
+ 	DLT_MTP2_WITH_PHDR                = 0x8b
+@@ -343,7 +346,9 @@ const (
+ 	DLT_MUX27010                      = 0xec
+ 	DLT_NETANALYZER                   = 0xf0
+ 	DLT_NETANALYZER_TRANSPARENT       = 0xf1
++	DLT_NFC_LLCP                      = 0xf5
+ 	DLT_NFLOG                         = 0xef
++	DLT_NG40                          = 0xf4
+ 	DLT_NULL                          = 0x0
+ 	DLT_PCI_EXP                       = 0x7d
+ 	DLT_PFLOG                         = 0x75
+@@ -423,6 +428,7 @@ const (
+ 	EV_DELETE                         = 0x2
+ 	EV_DISABLE                        = 0x8
+ 	EV_DISPATCH                       = 0x80
++	EV_DROP                           = 0x1000
+ 	EV_ENABLE                         = 0x4
+ 	EV_EOF                            = 0x8000
+ 	EV_ERROR                          = 0x4000
+@@ -789,6 +795,7 @@ const (
+ 	IPPROTO_MHRP                      = 0x30
+ 	IPPROTO_MICP                      = 0x5f
+ 	IPPROTO_MOBILE                    = 0x37
++	IPPROTO_MPLS                      = 0x89
+ 	IPPROTO_MTP                       = 0x5c
+ 	IPPROTO_MUX                       = 0x12
+ 	IPPROTO_ND                        = 0x4d
+@@ -996,6 +1003,9 @@ const (
+ 	MADV_RANDOM                       = 0x1
+ 	MADV_SEQUENTIAL                   = 0x2
+ 	MADV_WILLNEED                     = 0x3
++	MAP_ALIGNED_SUPER                 = 0x1000000
++	MAP_ALIGNMENT_MASK                = -0x1000000
++	MAP_ALIGNMENT_SHIFT               = 0x18
+ 	MAP_ANON                          = 0x1000
+ 	MAP_ANONYMOUS                     = 0x1000
+ 	MAP_COPY                          = 0x2
+@@ -1014,6 +1024,7 @@ const (
+ 	MAP_STACK                         = 0x400
+ 	MCL_CURRENT                       = 0x1
+ 	MCL_FUTURE                        = 0x2
++	MSG_CMSG_CLOEXEC                  = 0x40000
+ 	MSG_COMPAT                        = 0x8000
+ 	MSG_CTRUNC                        = 0x20
+ 	MSG_DONTROUTE                     = 0x4
+@@ -1030,6 +1041,7 @@ const (
+ 	MS_ASYNC                          = 0x1
+ 	MS_INVALIDATE                     = 0x2
+ 	MS_SYNC                           = 0x0
++	NAME_MAX                          = 0xff
+ 	NET_RT_DUMP                       = 0x1
+ 	NET_RT_FLAGS                      = 0x2
+ 	NET_RT_IFLIST                     = 0x3
+@@ -1069,6 +1081,7 @@ const (
+ 	O_ACCMODE                         = 0x3
+ 	O_APPEND                          = 0x8
+ 	O_ASYNC                           = 0x40
++	O_CLOEXEC                         = 0x100000
+ 	O_CREAT                           = 0x200
+ 	O_DIRECT                          = 0x10000
+ 	O_DIRECTORY                       = 0x20000
+@@ -1129,6 +1142,7 @@ const (
+ 	RTF_DYNAMIC                       = 0x10
+ 	RTF_FMASK                         = 0x1004d808
+ 	RTF_GATEWAY                       = 0x2
++	RTF_GWFLAG_COMPAT                 = 0x80000000
+ 	RTF_HOST                          = 0x4
+ 	RTF_LLDATA                        = 0x400
+ 	RTF_LLINFO                        = 0x400
+@@ -1177,6 +1191,7 @@ const (
+ 	RTV_WEIGHT                        = 0x100
+ 	RT_CACHING_CONTEXT                = 0x1
+ 	RT_DEFAULT_FIB                    = 0x0
++	RT_NORTREF                        = 0x2
+ 	RUSAGE_CHILDREN                   = -0x1
+ 	RUSAGE_SELF                       = 0x0
+ 	RUSAGE_THREAD                     = 0x1
+@@ -1258,8 +1273,10 @@ const (
+ 	SIOCSLIFPHYADDR                   = 0x8118694a
+ 	SIOCSLOWAT                        = 0x80047302
+ 	SIOCSPGRP                         = 0x80047308
++	SOCK_CLOEXEC                      = 0x10000000
+ 	SOCK_DGRAM                        = 0x2
+ 	SOCK_MAXADDRLEN                   = 0xff
++	SOCK_NONBLOCK                     = 0x20000000
+ 	SOCK_RAW                          = 0x3
+ 	SOCK_RDM                          = 0x4
+ 	SOCK_SEQPACKET                    = 0x5
+@@ -1299,6 +1316,7 @@ const (
+ 	SO_TYPE                           = 0x1008
+ 	SO_USELOOPBACK                    = 0x40
+ 	SO_USER_COOKIE                    = 0x1015
++	SO_VENDOR                         = 0x80000000
+ 	TCIFLUSH                          = 0x1
+ 	TCIOFLUSH                         = 0x3
+ 	TCOFLUSH                          = 0x2
+@@ -1322,6 +1340,7 @@ const (
+ 	TCP_NODELAY                       = 0x1
+ 	TCP_NOOPT                         = 0x8
+ 	TCP_NOPUSH                        = 0x4
++	TCP_VENDOR                        = 0x80000000
+ 	TCSAFLUSH                         = 0x2
+ 	TIOCCBRK                          = 0x2000747a
+ 	TIOCCDTR                          = 0x20007478
+@@ -1407,10 +1426,12 @@ const (
+ 	VWERASE                           = 0x4
+ 	WCONTINUED                        = 0x4
+ 	WCOREFLAG                         = 0x80
++	WEXITED                           = 0x10
+ 	WLINUXCLONE                       = 0x80000000
+ 	WNOHANG                           = 0x1
+ 	WNOWAIT                           = 0x8
+ 	WSTOPPED                          = 0x2
++	WTRAPPED                          = 0x20
+ 	WUNTRACED                         = 0x2
+ )
+ 
+@@ -1453,7 +1474,7 @@ const (
+ 	EIO             = Errno(0x5)
+ 	EISCONN         = Errno(0x38)
+ 	EISDIR          = Errno(0x15)
+-	ELAST           = Errno(0x5e)
++	ELAST           = Errno(0x60)
+ 	ELOOP           = Errno(0x3e)
+ 	EMFILE          = Errno(0x18)
+ 	EMLINK          = Errno(0x1f)
+@@ -1482,12 +1503,14 @@ const (
+ 	ENOTCONN        = Errno(0x39)
+ 	ENOTDIR         = Errno(0x14)
+ 	ENOTEMPTY       = Errno(0x42)
++	ENOTRECOVERABLE = Errno(0x5f)
+ 	ENOTSOCK        = Errno(0x26)
+ 	ENOTSUP         = Errno(0x2d)
+ 	ENOTTY          = Errno(0x19)
+ 	ENXIO           = Errno(0x6)
+ 	EOPNOTSUPP      = Errno(0x2d)
+ 	EOVERFLOW       = Errno(0x54)
++	EOWNERDEAD      = Errno(0x60)
+ 	EPERM           = Errno(0x1)
+ 	EPFNOSUPPORT    = Errno(0x2e)
+ 	EPIPE           = Errno(0x20)
+@@ -1531,6 +1554,7 @@ const (
+ 	SIGIO     = Signal(0x17)
+ 	SIGIOT    = Signal(0x6)
+ 	SIGKILL   = Signal(0x9)
++	SIGLIBRT  = Signal(0x21)
+ 	SIGLWP    = Signal(0x20)
+ 	SIGPIPE   = Signal(0xd)
+ 	SIGPROF   = Signal(0x1b)
+@@ -1649,6 +1673,8 @@ var errors = [...]string{
+ 	92: "protocol error",
+ 	93: "capabilities insufficient",
+ 	94: "not permitted in capability mode",
++	95: "state not recoverable",
++	96: "previous owner died",
+ }
+ 
+ // Signal table
+@@ -1685,4 +1711,5 @@ var signals = [...]string{
+ 	30: "user defined signal 1",
+ 	31: "user defined signal 2",
+ 	32: "unknown signal",
++	33: "unknown signal",
+ }
+diff --git a/src/pkg/syscall/zerrors_freebsd_amd64.go b/src/pkg/syscall/zerrors_freebsd_amd64.go
+index 8e03f45e2f..9edce6e2fa 100644
+--- a/src/pkg/syscall/zerrors_freebsd_amd64.go
++++ b/src/pkg/syscall/zerrors_freebsd_amd64.go
+@@ -25,13 +25,15 @@ const (
+ 	AF_IMPLINK                        = 0x3
+ 	AF_INET                           = 0x2
+ 	AF_INET6                          = 0x1c
++	AF_INET6_SDP                      = 0x2a
++	AF_INET_SDP                       = 0x28
+ 	AF_IPX                            = 0x17
+ 	AF_ISDN                           = 0x1a
+ 	AF_ISO                            = 0x7
+ 	AF_LAT                            = 0xe
+ 	AF_LINK                           = 0x12
+ 	AF_LOCAL                          = 0x1
+-	AF_MAX                            = 0x26
++	AF_MAX                            = 0x2a
+ 	AF_NATM                           = 0x1d
+ 	AF_NETBIOS                        = 0x6
+ 	AF_NETGRAPH                       = 0x20
+@@ -332,10 +334,11 @@ const (
+ 	DLT_LINUX_SLL                     = 0x71
+ 	DLT_LOOP                          = 0x6c
+ 	DLT_LTALK                         = 0x72
+-	DLT_MATCHING_MAX                  = 0xf2
++	DLT_MATCHING_MAX                  = 0xf6
+ 	DLT_MATCHING_MIN                  = 0x68
+ 	DLT_MFR                           = 0xb6
+ 	DLT_MOST                          = 0xd3
++	DLT_MPEG_2_TS                     = 0xf3
+ 	DLT_MPLS                          = 0xdb
+ 	DLT_MTP2                          = 0x8c
+ 	DLT_MTP2_WITH_PHDR                = 0x8b
+@@ -343,7 +346,9 @@ const (
+ 	DLT_MUX27010                      = 0xec
+ 	DLT_NETANALYZER                   = 0xf0
+ 	DLT_NETANALYZER_TRANSPARENT       = 0xf1
++	DLT_NFC_LLCP                      = 0xf5
+ 	DLT_NFLOG                         = 0xef
++	DLT_NG40                          = 0xf4
+ 	DLT_NULL                          = 0x0
+ 	DLT_PCI_EXP                       = 0x7d
+ 	DLT_PFLOG                         = 0x75
+@@ -423,6 +428,7 @@ const (
+ 	EV_DELETE                         = 0x2
+ 	EV_DISABLE                        = 0x8
+ 	EV_DISPATCH                       = 0x80
++	EV_DROP                           = 0x1000
+ 	EV_ENABLE                         = 0x4
+ 	EV_EOF                            = 0x8000
+ 	EV_ERROR                          = 0x4000
+@@ -789,6 +795,7 @@ const (
+ 	IPPROTO_MHRP                      = 0x30
+ 	IPPROTO_MICP                      = 0x5f
+ 	IPPROTO_MOBILE                    = 0x37
++	IPPROTO_MPLS                      = 0x89
+ 	IPPROTO_MTP                       = 0x5c
+ 	IPPROTO_MUX                       = 0x12
+ 	IPPROTO_ND                        = 0x4d
+@@ -996,6 +1003,10 @@ const (
+ 	MADV_RANDOM                       = 0x1
+ 	MADV_SEQUENTIAL                   = 0x2
+ 	MADV_WILLNEED                     = 0x3
++	MAP_32BIT                         = 0x80000
++	MAP_ALIGNED_SUPER                 = 0x1000000
++	MAP_ALIGNMENT_MASK                = -0x1000000
++	MAP_ALIGNMENT_SHIFT               = 0x18
+ 	MAP_ANON                          = 0x1000
+ 	MAP_ANONYMOUS                     = 0x1000
+ 	MAP_COPY                          = 0x2
+@@ -1014,6 +1025,7 @@ const (
+ 	MAP_STACK                         = 0x400
+ 	MCL_CURRENT                       = 0x1
+ 	MCL_FUTURE                        = 0x2
++	MSG_CMSG_CLOEXEC                  = 0x40000
+ 	MSG_COMPAT                        = 0x8000
+ 	MSG_CTRUNC                        = 0x20
+ 	MSG_DONTROUTE                     = 0x4
+@@ -1030,6 +1042,7 @@ const (
+ 	MS_ASYNC                          = 0x1
+ 	MS_INVALIDATE                     = 0x2
+ 	MS_SYNC                           = 0x0
++	NAME_MAX                          = 0xff
+ 	NET_RT_DUMP                       = 0x1
+ 	NET_RT_FLAGS                      = 0x2
+ 	NET_RT_IFLIST                     = 0x3
+@@ -1069,6 +1082,7 @@ const (
+ 	O_ACCMODE                         = 0x3
+ 	O_APPEND                          = 0x8
+ 	O_ASYNC                           = 0x40
++	O_CLOEXEC                         = 0x100000
+ 	O_CREAT                           = 0x200
+ 	O_DIRECT                          = 0x10000
+ 	O_DIRECTORY                       = 0x20000
+@@ -1129,6 +1143,7 @@ const (
+ 	RTF_DYNAMIC                       = 0x10
+ 	RTF_FMASK                         = 0x1004d808
+ 	RTF_GATEWAY                       = 0x2
++	RTF_GWFLAG_COMPAT                 = 0x80000000
+ 	RTF_HOST                          = 0x4
+ 	RTF_LLDATA                        = 0x400
+ 	RTF_LLINFO                        = 0x400
+@@ -1177,6 +1192,7 @@ const (
+ 	RTV_WEIGHT                        = 0x100
+ 	RT_CACHING_CONTEXT                = 0x1
+ 	RT_DEFAULT_FIB                    = 0x0
++	RT_NORTREF                        = 0x2
+ 	RUSAGE_CHILDREN                   = -0x1
+ 	RUSAGE_SELF                       = 0x0
+ 	RUSAGE_THREAD                     = 0x1
+@@ -1258,8 +1274,10 @@ const (
+ 	SIOCSLIFPHYADDR                   = 0x8118694a
+ 	SIOCSLOWAT                        = 0x80047302
+ 	SIOCSPGRP                         = 0x80047308
++	SOCK_CLOEXEC                      = 0x10000000
+ 	SOCK_DGRAM                        = 0x2
+ 	SOCK_MAXADDRLEN                   = 0xff
++	SOCK_NONBLOCK                     = 0x20000000
+ 	SOCK_RAW                          = 0x3
+ 	SOCK_RDM                          = 0x4
+ 	SOCK_SEQPACKET                    = 0x5
+@@ -1299,6 +1317,7 @@ const (
+ 	SO_TYPE                           = 0x1008
+ 	SO_USELOOPBACK                    = 0x40
+ 	SO_USER_COOKIE                    = 0x1015
++	SO_VENDOR                         = 0x80000000
+ 	TCIFLUSH                          = 0x1
+ 	TCIOFLUSH                         = 0x3
+ 	TCOFLUSH                          = 0x2
+@@ -1322,6 +1341,7 @@ const (
+ 	TCP_NODELAY                       = 0x1
+ 	TCP_NOOPT                         = 0x8
+ 	TCP_NOPUSH                        = 0x4
++	TCP_VENDOR                        = 0x80000000
+ 	TCSAFLUSH                         = 0x2
+ 	TIOCCBRK                          = 0x2000747a
+ 	TIOCCDTR                          = 0x20007478
+@@ -1407,10 +1427,12 @@ const (
+ 	VWERASE                           = 0x4
+ 	WCONTINUED                        = 0x4
+ 	WCOREFLAG                         = 0x80
++	WEXITED                           = 0x10
+ 	WLINUXCLONE                       = 0x80000000
+ 	WNOHANG                           = 0x1
+ 	WNOWAIT                           = 0x8
+ 	WSTOPPED                          = 0x2
++	WTRAPPED                          = 0x20
+ 	WUNTRACED                         = 0x2
+ )
+ 
+@@ -1453,7 +1475,7 @@ const (
+ 	EIO             = Errno(0x5)
+ 	EISCONN         = Errno(0x38)
+ 	EISDIR          = Errno(0x15)
+-	ELAST           = Errno(0x5e)
++	ELAST           = Errno(0x60)
+ 	ELOOP           = Errno(0x3e)
+ 	EMFILE          = Errno(0x18)
+ 	EMLINK          = Errno(0x1f)
+@@ -1482,12 +1504,14 @@ const (
+ 	ENOTCONN        = Errno(0x39)
+ 	ENOTDIR         = Errno(0x14)
+ 	ENOTEMPTY       = Errno(0x42)
++	ENOTRECOVERABLE = Errno(0x5f)
+ 	ENOTSOCK        = Errno(0x26)
+ 	ENOTSUP         = Errno(0x2d)
+ 	ENOTTY          = Errno(0x19)
+ 	ENXIO           = Errno(0x6)
+ 	EOPNOTSUPP      = Errno(0x2d)
+ 	EOVERFLOW       = Errno(0x54)
++	EOWNERDEAD      = Errno(0x60)
+ 	EPERM           = Errno(0x1)
+ 	EPFNOSUPPORT    = Errno(0x2e)
+ 	EPIPE           = Errno(0x20)
+@@ -1531,6 +1555,7 @@ const (
+ 	SIGIO     = Signal(0x17)
+ 	SIGIOT    = Signal(0x6)
+ 	SIGKILL   = Signal(0x9)
++	SIGLIBRT  = Signal(0x21)
+ 	SIGLWP    = Signal(0x20)
+ 	SIGPIPE   = Signal(0xd)
+ 	SIGPROF   = Signal(0x1b)
+@@ -1649,6 +1674,8 @@ var errors = [...]string{
+ 	92: "protocol error",
+ 	93: "capabilities insufficient",
+ 	94: "not permitted in capability mode",
++	95: "state not recoverable",
++	96: "previous owner died",
+ }
+ 
+ // Signal table
+@@ -1685,4 +1712,5 @@ var signals = [...]string{
+ 	30: "user defined signal 1",
+ 	31: "user defined signal 2",
+ 	32: "unknown signal",
++	33: "unknown signal",
+ }
+diff --git a/src/pkg/syscall/zerrors_freebsd_arm.go b/src/pkg/syscall/zerrors_freebsd_arm.go
+index 269f179b30..f29dd057b6 100644
+--- a/src/pkg/syscall/zerrors_freebsd_arm.go
++++ b/src/pkg/syscall/zerrors_freebsd_arm.go
+@@ -25,13 +25,15 @@ const (
+ 	AF_IMPLINK                        = 0x3
+ 	AF_INET                           = 0x2
+ 	AF_INET6                          = 0x1c
++	AF_INET6_SDP                      = 0x2a
++	AF_INET_SDP                       = 0x28
+ 	AF_IPX                            = 0x17
+ 	AF_ISDN                           = 0x1a
+ 	AF_ISO                            = 0x7
+ 	AF_LAT                            = 0xe
+ 	AF_LINK                           = 0x12
+ 	AF_LOCAL                          = 0x1
+-	AF_MAX                            = 0x26
++	AF_MAX                            = 0x2a
+ 	AF_NATM                           = 0x1d
+ 	AF_NETBIOS                        = 0x6
+ 	AF_NETGRAPH                       = 0x20
+@@ -128,7 +130,7 @@ const (
+ 	BIOCGETZMAX                       = 0x4004427f
+ 	BIOCGHDRCMPLT                     = 0x40044274
+ 	BIOCGRSIG                         = 0x40044272
+-	BIOCGRTIMEOUT                     = 0x400c426e
++	BIOCGRTIMEOUT                     = 0x4010426e
+ 	BIOCGSEESENT                      = 0x40044276
+ 	BIOCGSTATS                        = 0x4008426f
+ 	BIOCGTSTAMP                       = 0x40044283
+@@ -147,7 +149,7 @@ const (
+ 	BIOCSETZBUF                       = 0x800c4281
+ 	BIOCSHDRCMPLT                     = 0x80044275
+ 	BIOCSRSIG                         = 0x80044273
+-	BIOCSRTIMEOUT                     = 0x800c426d
++	BIOCSRTIMEOUT                     = 0x8010426d
+ 	BIOCSSEESENT                      = 0x80044277
+ 	BIOCSTSTAMP                       = 0x80044284
+ 	BIOCVERSION                       = 0x40044271
+@@ -426,6 +428,7 @@ const (
+ 	EV_DELETE                         = 0x2
+ 	EV_DISABLE                        = 0x8
+ 	EV_DISPATCH                       = 0x80
++	EV_DROP                           = 0x1000
+ 	EV_ENABLE                         = 0x4
+ 	EV_EOF                            = 0x8000
+ 	EV_ERROR                          = 0x4000
+@@ -521,6 +524,7 @@ const (
+ 	IFT_BGPPOLICYACCOUNTING           = 0xa2
+ 	IFT_BRIDGE                        = 0xd1
+ 	IFT_BSC                           = 0x53
++	IFT_CARP                          = 0xf8
+ 	IFT_CCTEMUL                       = 0x3d
+ 	IFT_CEPT                          = 0x13
+ 	IFT_CES                           = 0x85
+@@ -999,6 +1003,9 @@ const (
+ 	MADV_RANDOM                       = 0x1
+ 	MADV_SEQUENTIAL                   = 0x2
+ 	MADV_WILLNEED                     = 0x3
++	MAP_ALIGNED_SUPER                 = 0x1000000
++	MAP_ALIGNMENT_MASK                = -0x1000000
++	MAP_ALIGNMENT_SHIFT               = 0x18
+ 	MAP_ANON                          = 0x1000
+ 	MAP_ANONYMOUS                     = 0x1000
+ 	MAP_COPY                          = 0x2
+@@ -1017,6 +1024,7 @@ const (
+ 	MAP_STACK                         = 0x400
+ 	MCL_CURRENT                       = 0x1
+ 	MCL_FUTURE                        = 0x2
++	MSG_CMSG_CLOEXEC                  = 0x40000
+ 	MSG_COMPAT                        = 0x8000
+ 	MSG_CTRUNC                        = 0x20
+ 	MSG_DONTROUTE                     = 0x4
+@@ -1033,6 +1041,7 @@ const (
+ 	MS_ASYNC                          = 0x1
+ 	MS_INVALIDATE                     = 0x2
+ 	MS_SYNC                           = 0x0
++	NAME_MAX                          = 0xff
+ 	NET_RT_DUMP                       = 0x1
+ 	NET_RT_FLAGS                      = 0x2
+ 	NET_RT_IFLIST                     = 0x3
+@@ -1072,6 +1081,7 @@ const (
+ 	O_ACCMODE                         = 0x3
+ 	O_APPEND                          = 0x8
+ 	O_ASYNC                           = 0x40
++	O_CLOEXEC                         = 0x100000
+ 	O_CREAT                           = 0x200
+ 	O_DIRECT                          = 0x10000
+ 	O_DIRECTORY                       = 0x20000
+@@ -1132,6 +1142,7 @@ const (
+ 	RTF_DYNAMIC                       = 0x10
+ 	RTF_FMASK                         = 0x1004d808
+ 	RTF_GATEWAY                       = 0x2
++	RTF_GWFLAG_COMPAT                 = 0x80000000
+ 	RTF_HOST                          = 0x4
+ 	RTF_LLDATA                        = 0x400
+ 	RTF_LLINFO                        = 0x400
+@@ -1193,7 +1204,7 @@ const (
+ 	SHUT_WR                           = 0x1
+ 	SIOCADDMULTI                      = 0x80206931
+ 	SIOCADDRT                         = 0x8030720a
+-	SIOCAIFADDR                       = 0x8044692b
++	SIOCAIFADDR                       = 0x8040691a
+ 	SIOCAIFGROUP                      = 0x80246987
+ 	SIOCALIFADDR                      = 0x8118691b
+ 	SIOCATMARK                        = 0x40047307
+@@ -1227,7 +1238,7 @@ const (
+ 	SIOCGIFPDSTADDR                   = 0xc0206948
+ 	SIOCGIFPHYS                       = 0xc0206935
+ 	SIOCGIFPSRCADDR                   = 0xc0206947
+-	SIOCGIFSTATUS                     = 0xc334693b
++	SIOCGIFSTATUS                     = 0xc331693b
+ 	SIOCGLIFADDR                      = 0xc118691c
+ 	SIOCGLIFPHYADDR                   = 0xc118694b
+ 	SIOCGLOWAT                        = 0x40047303
+@@ -1255,15 +1266,17 @@ const (
+ 	SIOCSIFMTU                        = 0x80206934
+ 	SIOCSIFNAME                       = 0x80206928
+ 	SIOCSIFNETMASK                    = 0x80206916
+-	SIOCSIFPHYADDR                    = 0x80446946
++	SIOCSIFPHYADDR                    = 0x80406946
+ 	SIOCSIFPHYS                       = 0x80206936
+ 	SIOCSIFRVNET                      = 0xc020695b
+ 	SIOCSIFVNET                       = 0xc020695a
+ 	SIOCSLIFPHYADDR                   = 0x8118694a
+ 	SIOCSLOWAT                        = 0x80047302
+ 	SIOCSPGRP                         = 0x80047308
++	SOCK_CLOEXEC                      = 0x10000000
+ 	SOCK_DGRAM                        = 0x2
+ 	SOCK_MAXADDRLEN                   = 0xff
++	SOCK_NONBLOCK                     = 0x20000000
+ 	SOCK_RAW                          = 0x3
+ 	SOCK_RDM                          = 0x4
+ 	SOCK_SEQPACKET                    = 0x5
+@@ -1303,6 +1316,7 @@ const (
+ 	SO_TYPE                           = 0x1008
+ 	SO_USELOOPBACK                    = 0x40
+ 	SO_USER_COOKIE                    = 0x1015
++	SO_VENDOR                         = 0x80000000
+ 	TCIFLUSH                          = 0x1
+ 	TCIOFLUSH                         = 0x3
+ 	TCOFLUSH                          = 0x2
+@@ -1326,6 +1340,7 @@ const (
+ 	TCP_NODELAY                       = 0x1
+ 	TCP_NOOPT                         = 0x8
+ 	TCP_NOPUSH                        = 0x4
++	TCP_VENDOR                        = 0x80000000
+ 	TCSAFLUSH                         = 0x2
+ 	TIOCCBRK                          = 0x2000747a
+ 	TIOCCDTR                          = 0x20007478
+@@ -1387,7 +1402,7 @@ const (
+ 	TIOCSTI                           = 0x80017472
+ 	TIOCSTOP                          = 0x2000746f
+ 	TIOCSWINSZ                        = 0x80087467
+-	TIOCTIMESTAMP                     = 0x400c7459
++	TIOCTIMESTAMP                     = 0x40107459
+ 	TIOCUCNTL                         = 0x80047466
+ 	TOSTOP                            = 0x400000
+ 	VDISCARD                          = 0xf
+@@ -1459,7 +1474,7 @@ const (
+ 	EIO             = Errno(0x5)
+ 	EISCONN         = Errno(0x38)
+ 	EISDIR          = Errno(0x15)
+-	ELAST           = Errno(0x5e)
++	ELAST           = Errno(0x60)
+ 	ELOOP           = Errno(0x3e)
+ 	EMFILE          = Errno(0x18)
+ 	EMLINK          = Errno(0x1f)
+@@ -1488,12 +1503,14 @@ const (
+ 	ENOTCONN        = Errno(0x39)
+ 	ENOTDIR         = Errno(0x14)
+ 	ENOTEMPTY       = Errno(0x42)
++	ENOTRECOVERABLE = Errno(0x5f)
+ 	ENOTSOCK        = Errno(0x26)
+ 	ENOTSUP         = Errno(0x2d)
+ 	ENOTTY          = Errno(0x19)
+ 	ENXIO           = Errno(0x6)
+ 	EOPNOTSUPP      = Errno(0x2d)
+ 	EOVERFLOW       = Errno(0x54)
++	EOWNERDEAD      = Errno(0x60)
+ 	EPERM           = Errno(0x1)
+ 	EPFNOSUPPORT    = Errno(0x2e)
+ 	EPIPE           = Errno(0x20)
+@@ -1656,6 +1673,8 @@ var errors = [...]string{
+ 	92: "protocol error",
+ 	93: "capabilities insufficient",
+ 	94: "not permitted in capability mode",
++	95: "state not recoverable",
++	96: "previous owner died",
+ }
+ 
+ // Signal table
+diff --git a/src/pkg/syscall/zsysnum_freebsd_386.go b/src/pkg/syscall/zsysnum_freebsd_386.go
+index 74400b6f66..dfca558bb5 100644
+--- a/src/pkg/syscall/zsysnum_freebsd_386.go
++++ b/src/pkg/syscall/zsysnum_freebsd_386.go
+@@ -34,8 +34,8 @@ const (
+ 	SYS_GETPEERNAME              = 31  // { int getpeername(int fdes, \
+ 	SYS_GETSOCKNAME              = 32  // { int getsockname(int fdes, \
+ 	SYS_ACCESS                   = 33  // { int access(char *path, int amode); }
+-	SYS_CHFLAGS                  = 34  // { int chflags(char *path, int flags); }
+-	SYS_FCHFLAGS                 = 35  // { int fchflags(int fd, int flags); }
++	SYS_CHFLAGS                  = 34  // { int chflags(const char *path, u_long flags); }
++	SYS_FCHFLAGS                 = 35  // { int fchflags(int fd, u_long flags); }
+ 	SYS_SYNC                     = 36  // { int sync(void); }
+ 	SYS_KILL                     = 37  // { int kill(int pid, int signum); }
+ 	SYS_GETPPID                  = 39  // { pid_t getppid(void); }
+@@ -208,14 +208,14 @@ const (
+ 	SYS___ACL_ACLCHECK_FILE      = 353 // { int __acl_aclcheck_file(const char *path, \
+ 	SYS___ACL_ACLCHECK_FD        = 354 // { int __acl_aclcheck_fd(int filedes, \
+ 	SYS_EXTATTRCTL               = 355 // { int extattrctl(const char *path, int cmd, \
+-	SYS_EXTATTR_SET_FILE         = 356 // { int extattr_set_file( \
++	SYS_EXTATTR_SET_FILE         = 356 // { ssize_t extattr_set_file( \
+ 	SYS_EXTATTR_GET_FILE         = 357 // { ssize_t extattr_get_file( \
+ 	SYS_EXTATTR_DELETE_FILE      = 358 // { int extattr_delete_file(const char *path, \
+ 	SYS_GETRESUID                = 360 // { int getresuid(uid_t *ruid, uid_t *euid, \
+ 	SYS_GETRESGID                = 361 // { int getresgid(gid_t *rgid, gid_t *egid, \
+ 	SYS_KQUEUE                   = 362 // { int kqueue(void); }
+ 	SYS_KEVENT                   = 363 // { int kevent(int fd, \
+-	SYS_EXTATTR_SET_FD           = 371 // { int extattr_set_fd(int fd, \
++	SYS_EXTATTR_SET_FD           = 371 // { ssize_t extattr_set_fd(int fd, \
+ 	SYS_EXTATTR_GET_FD           = 372 // { ssize_t extattr_get_fd(int fd, \
+ 	SYS_EXTATTR_DELETE_FD        = 373 // { int extattr_delete_fd(int fd, \
+ 	SYS___SETUGID                = 374 // { int __setugid(int flag); }
+@@ -228,7 +228,7 @@ const (
+ 	SYS___MAC_SET_FD             = 388 // { int __mac_set_fd(int fd, \
+ 	SYS___MAC_SET_FILE           = 389 // { int __mac_set_file(const char *path_p, \
+ 	SYS_KENV                     = 390 // { int kenv(int what, const char *name, \
+-	SYS_LCHFLAGS                 = 391 // { int lchflags(const char *path, int flags); }
++	SYS_LCHFLAGS                 = 391 // { int lchflags(const char *path, \
+ 	SYS_UUIDGEN                  = 392 // { int uuidgen(struct uuid *store, \
+ 	SYS_SENDFILE                 = 393 // { int sendfile(int fd, int s, off_t offset, \
+ 	SYS_MAC_SYSCALL              = 394 // { int mac_syscall(const char *policy, \
+@@ -239,7 +239,7 @@ const (
+ 	SYS___MAC_GET_PID            = 409 // { int __mac_get_pid(pid_t pid, \
+ 	SYS___MAC_GET_LINK           = 410 // { int __mac_get_link(const char *path_p, \
+ 	SYS___MAC_SET_LINK           = 411 // { int __mac_set_link(const char *path_p, \
+-	SYS_EXTATTR_SET_LINK         = 412 // { int extattr_set_link( \
++	SYS_EXTATTR_SET_LINK         = 412 // { ssize_t extattr_set_link( \
+ 	SYS_EXTATTR_GET_LINK         = 413 // { ssize_t extattr_get_link( \
+ 	SYS_EXTATTR_DELETE_LINK      = 414 // { int extattr_delete_link( \
+ 	SYS___MAC_EXECVE             = 415 // { int __mac_execve(char *fname, char **argv, \
+@@ -338,5 +338,11 @@ const (
+ 	SYS_RCTL_REMOVE_RULE         = 529 // { int rctl_remove_rule(const void *inbufp, \
+ 	SYS_POSIX_FALLOCATE          = 530 // { int posix_fallocate(int fd, \
+ 	SYS_POSIX_FADVISE            = 531 // { int posix_fadvise(int fd, off_t offset, \
+-	SYS_WAIT6                    = 532 // { int wait6(int idtype, int id, \
++	SYS_WAIT6                    = 532 // { int wait6(idtype_t idtype, id_t id, \
++	SYS_BINDAT                   = 538 // { int bindat(int fd, int s, caddr_t name, \
++	SYS_CONNECTAT                = 539 // { int connectat(int fd, int s, caddr_t name, \
++	SYS_CHFLAGSAT                = 540 // { int chflagsat(int fd, const char *path, \
++	SYS_ACCEPT4                  = 541 // { int accept4(int s, \
++	SYS_PIPE2                    = 542 // { int pipe2(int *fildes, int flags); }
++	SYS_PROCCTL                  = 544 // { int procctl(idtype_t idtype, id_t id, \
+ )
+diff --git a/src/pkg/syscall/zsysnum_freebsd_amd64.go b/src/pkg/syscall/zsysnum_freebsd_amd64.go
+index 74400b6f66..dfca558bb5 100644
+--- a/src/pkg/syscall/zsysnum_freebsd_amd64.go
++++ b/src/pkg/syscall/zsysnum_freebsd_amd64.go
+@@ -34,8 +34,8 @@ const (
+ 	SYS_GETPEERNAME              = 31  // { int getpeername(int fdes, \
+ 	SYS_GETSOCKNAME              = 32  // { int getsockname(int fdes, \
+ 	SYS_ACCESS                   = 33  // { int access(char *path, int amode); }
+-	SYS_CHFLAGS                  = 34  // { int chflags(char *path, int flags); }
+-	SYS_FCHFLAGS                 = 35  // { int fchflags(int fd, int flags); }
++	SYS_CHFLAGS                  = 34  // { int chflags(const char *path, u_long flags); }
++	SYS_FCHFLAGS                 = 35  // { int fchflags(int fd, u_long flags); }
+ 	SYS_SYNC                     = 36  // { int sync(void); }
+ 	SYS_KILL                     = 37  // { int kill(int pid, int signum); }
+ 	SYS_GETPPID                  = 39  // { pid_t getppid(void); }
+@@ -208,14 +208,14 @@ const (
+ 	SYS___ACL_ACLCHECK_FILE      = 353 // { int __acl_aclcheck_file(const char *path, \
+ 	SYS___ACL_ACLCHECK_FD        = 354 // { int __acl_aclcheck_fd(int filedes, \
+ 	SYS_EXTATTRCTL               = 355 // { int extattrctl(const char *path, int cmd, \
+-	SYS_EXTATTR_SET_FILE         = 356 // { int extattr_set_file( \
++	SYS_EXTATTR_SET_FILE         = 356 // { ssize_t extattr_set_file( \
+ 	SYS_EXTATTR_GET_FILE         = 357 // { ssize_t extattr_get_file( \
+ 	SYS_EXTATTR_DELETE_FILE      = 358 // { int extattr_delete_file(const char *path, \
+ 	SYS_GETRESUID                = 360 // { int getresuid(uid_t *ruid, uid_t *euid, \
+ 	SYS_GETRESGID                = 361 // { int getresgid(gid_t *rgid, gid_t *egid, \
+ 	SYS_KQUEUE                   = 362 // { int kqueue(void); }
+ 	SYS_KEVENT                   = 363 // { int kevent(int fd, \
+-	SYS_EXTATTR_SET_FD           = 371 // { int extattr_set_fd(int fd, \
++	SYS_EXTATTR_SET_FD           = 371 // { ssize_t extattr_set_fd(int fd, \
+ 	SYS_EXTATTR_GET_FD           = 372 // { ssize_t extattr_get_fd(int fd, \
+ 	SYS_EXTATTR_DELETE_FD        = 373 // { int extattr_delete_fd(int fd, \
+ 	SYS___SETUGID                = 374 // { int __setugid(int flag); }
+@@ -228,7 +228,7 @@ const (
+ 	SYS___MAC_SET_FD             = 388 // { int __mac_set_fd(int fd, \
+ 	SYS___MAC_SET_FILE           = 389 // { int __mac_set_file(const char *path_p, \
+ 	SYS_KENV                     = 390 // { int kenv(int what, const char *name, \
+-	SYS_LCHFLAGS                 = 391 // { int lchflags(const char *path, int flags); }
++	SYS_LCHFLAGS                 = 391 // { int lchflags(const char *path, \
+ 	SYS_UUIDGEN                  = 392 // { int uuidgen(struct uuid *store, \
+ 	SYS_SENDFILE                 = 393 // { int sendfile(int fd, int s, off_t offset, \
+ 	SYS_MAC_SYSCALL              = 394 // { int mac_syscall(const char *policy, \
+@@ -239,7 +239,7 @@ const (
+ 	SYS___MAC_GET_PID            = 409 // { int __mac_get_pid(pid_t pid, \
+ 	SYS___MAC_GET_LINK           = 410 // { int __mac_get_link(const char *path_p, \
+ 	SYS___MAC_SET_LINK           = 411 // { int __mac_set_link(const char *path_p, \
+-	SYS_EXTATTR_SET_LINK         = 412 // { int extattr_set_link( \
++	SYS_EXTATTR_SET_LINK         = 412 // { ssize_t extattr_set_link( \
+ 	SYS_EXTATTR_GET_LINK         = 413 // { ssize_t extattr_get_link( \
+ 	SYS_EXTATTR_DELETE_LINK      = 414 // { int extattr_delete_link( \
+ 	SYS___MAC_EXECVE             = 415 // { int __mac_execve(char *fname, char **argv, \
+@@ -338,5 +338,11 @@ const (
+ 	SYS_RCTL_REMOVE_RULE         = 529 // { int rctl_remove_rule(const void *inbufp, \
+ 	SYS_POSIX_FALLOCATE          = 530 // { int posix_fallocate(int fd, \
+ 	SYS_POSIX_FADVISE            = 531 // { int posix_fadvise(int fd, off_t offset, \
+-	SYS_WAIT6                    = 532 // { int wait6(int idtype, int id, \
++	SYS_WAIT6                    = 532 // { int wait6(idtype_t idtype, id_t id, \
++	SYS_BINDAT                   = 538 // { int bindat(int fd, int s, caddr_t name, \
++	SYS_CONNECTAT                = 539 // { int connectat(int fd, int s, caddr_t name, \
++	SYS_CHFLAGSAT                = 540 // { int chflagsat(int fd, const char *path, \
++	SYS_ACCEPT4                  = 541 // { int accept4(int s, \
++	SYS_PIPE2                    = 542 // { int pipe2(int *fildes, int flags); }
++	SYS_PROCCTL                  = 544 // { int procctl(idtype_t idtype, id_t id, \
+ )
+diff --git a/src/pkg/syscall/zsysnum_freebsd_arm.go b/src/pkg/syscall/zsysnum_freebsd_arm.go
+index 61a6a32953..dfca558bb5 100644
+--- a/src/pkg/syscall/zsysnum_freebsd_arm.go
++++ b/src/pkg/syscall/zsysnum_freebsd_arm.go
+@@ -34,8 +34,8 @@ const (
+ 	SYS_GETPEERNAME              = 31  // { int getpeername(int fdes, \
+ 	SYS_GETSOCKNAME              = 32  // { int getsockname(int fdes, \
+ 	SYS_ACCESS                   = 33  // { int access(char *path, int amode); }
+-	SYS_CHFLAGS                  = 34  // { int chflags(char *path, int flags); }
+-	SYS_FCHFLAGS                 = 35  // { int fchflags(int fd, int flags); }
++	SYS_CHFLAGS                  = 34  // { int chflags(const char *path, u_long flags); }
++	SYS_FCHFLAGS                 = 35  // { int fchflags(int fd, u_long flags); }
+ 	SYS_SYNC                     = 36  // { int sync(void); }
+ 	SYS_KILL                     = 37  // { int kill(int pid, int signum); }
+ 	SYS_GETPPID                  = 39  // { pid_t getppid(void); }
+@@ -208,14 +208,14 @@ const (
+ 	SYS___ACL_ACLCHECK_FILE      = 353 // { int __acl_aclcheck_file(const char *path, \
+ 	SYS___ACL_ACLCHECK_FD        = 354 // { int __acl_aclcheck_fd(int filedes, \
+ 	SYS_EXTATTRCTL               = 355 // { int extattrctl(const char *path, int cmd, \
+-	SYS_EXTATTR_SET_FILE         = 356 // { int extattr_set_file( \
++	SYS_EXTATTR_SET_FILE         = 356 // { ssize_t extattr_set_file( \
+ 	SYS_EXTATTR_GET_FILE         = 357 // { ssize_t extattr_get_file( \
+ 	SYS_EXTATTR_DELETE_FILE      = 358 // { int extattr_delete_file(const char *path, \
+ 	SYS_GETRESUID                = 360 // { int getresuid(uid_t *ruid, uid_t *euid, \
+ 	SYS_GETRESGID                = 361 // { int getresgid(gid_t *rgid, gid_t *egid, \
+ 	SYS_KQUEUE                   = 362 // { int kqueue(void); }
+ 	SYS_KEVENT                   = 363 // { int kevent(int fd, \
+-	SYS_EXTATTR_SET_FD           = 371 // { int extattr_set_fd(int fd, \
++	SYS_EXTATTR_SET_FD           = 371 // { ssize_t extattr_set_fd(int fd, \
+ 	SYS_EXTATTR_GET_FD           = 372 // { ssize_t extattr_get_fd(int fd, \
+ 	SYS_EXTATTR_DELETE_FD        = 373 // { int extattr_delete_fd(int fd, \
+ 	SYS___SETUGID                = 374 // { int __setugid(int flag); }
+@@ -228,7 +228,7 @@ const (
+ 	SYS___MAC_SET_FD             = 388 // { int __mac_set_fd(int fd, \
+ 	SYS___MAC_SET_FILE           = 389 // { int __mac_set_file(const char *path_p, \
+ 	SYS_KENV                     = 390 // { int kenv(int what, const char *name, \
+-	SYS_LCHFLAGS                 = 391 // { int lchflags(const char *path, int flags); }
++	SYS_LCHFLAGS                 = 391 // { int lchflags(const char *path, \
+ 	SYS_UUIDGEN                  = 392 // { int uuidgen(struct uuid *store, \
+ 	SYS_SENDFILE                 = 393 // { int sendfile(int fd, int s, off_t offset, \
+ 	SYS_MAC_SYSCALL              = 394 // { int mac_syscall(const char *policy, \
+@@ -239,7 +239,7 @@ const (
+ 	SYS___MAC_GET_PID            = 409 // { int __mac_get_pid(pid_t pid, \
+ 	SYS___MAC_GET_LINK           = 410 // { int __mac_get_link(const char *path_p, \
+ 	SYS___MAC_SET_LINK           = 411 // { int __mac_set_link(const char *path_p, \
+-	SYS_EXTATTR_SET_LINK         = 412 // { int extattr_set_link( \
++	SYS_EXTATTR_SET_LINK         = 412 // { ssize_t extattr_set_link( \
+ 	SYS_EXTATTR_GET_LINK         = 413 // { ssize_t extattr_get_link( \
+ 	SYS_EXTATTR_DELETE_LINK      = 414 // { int extattr_delete_link( \
+ 	SYS___MAC_EXECVE             = 415 // { int __mac_execve(char *fname, char **argv, \
+@@ -322,7 +322,7 @@ const (
+ 	SYS_CLOSEFROM                = 509 // { int closefrom(int lowfd); }
+ 	SYS_LPATHCONF                = 513 // { int lpathconf(char *path, int name); }
+ 	SYS_CAP_NEW                  = 514 // { int cap_new(int fd, uint64_t rights); }
+-	SYS_CAP_RIGHTS_GET           = 515 // { int cap_rights_get(int fd, \
++	SYS_CAP_GETRIGHTS            = 515 // { int cap_getrights(int fd, \
+ 	SYS_CAP_ENTER                = 516 // { int cap_enter(void); }
+ 	SYS_CAP_GETMODE              = 517 // { int cap_getmode(u_int *modep); }
+ 	SYS_PDFORK                   = 518 // { int pdfork(int *fdp, int flags); }
+@@ -338,10 +338,11 @@ const (
+ 	SYS_RCTL_REMOVE_RULE         = 529 // { int rctl_remove_rule(const void *inbufp, \
+ 	SYS_POSIX_FALLOCATE          = 530 // { int posix_fallocate(int fd, \
+ 	SYS_POSIX_FADVISE            = 531 // { int posix_fadvise(int fd, off_t offset, \
+-	SYS_WAIT6                    = 532 // { int wait6(int idtype, int id, \
+-	SYS_CAP_RIGHTS_LIMIT         = 533 // { int cap_rights_limit(int fd, \
+-	SYS_CAP_IOCTLS_LIMIT         = 534 // { int cap_ioctls_limit(int fd, \
+-	SYS_CAP_IOCTLS_GET           = 535 // { ssize_t cap_ioctls_get(int fd, \
+-	SYS_CAP_FCNTLS_LIMIT         = 536 // { int cap_fcntls_limit(int fd, \
+-	SYS_CAP_FCNTLS_GET           = 537 // { int cap_fcntls_get(int fd, \
++	SYS_WAIT6                    = 532 // { int wait6(idtype_t idtype, id_t id, \
++	SYS_BINDAT                   = 538 // { int bindat(int fd, int s, caddr_t name, \
++	SYS_CONNECTAT                = 539 // { int connectat(int fd, int s, caddr_t name, \
++	SYS_CHFLAGSAT                = 540 // { int chflagsat(int fd, const char *path, \
++	SYS_ACCEPT4                  = 541 // { int accept4(int s, \
++	SYS_PIPE2                    = 542 // { int pipe2(int *fildes, int flags); }
++	SYS_PROCCTL                  = 544 // { int procctl(idtype_t idtype, id_t id, \
+ )
+diff --git a/src/pkg/syscall/ztypes_freebsd_386.go b/src/pkg/syscall/ztypes_freebsd_386.go
+index 3df7c51731..b809eea37a 100644
+--- a/src/pkg/syscall/ztypes_freebsd_386.go
++++ b/src/pkg/syscall/ztypes_freebsd_386.go
+@@ -54,10 +54,6 @@ type Rlimit struct {
+ 
+ type _Gid_t uint32
+ 
+-const (
+-	O_CLOEXEC = 0
+-)
+-
+ const (
+ 	S_IFMT   = 0xf000
+ 	S_IFIFO  = 0x1000
+@@ -282,7 +278,9 @@ type FdSet struct {
+ }
+ 
+ const (
++	sizeofIfMsghdr         = 0x64
+ 	SizeofIfMsghdr         = 0x60
++	sizeofIfData           = 0x54
+ 	SizeofIfData           = 0x50
+ 	SizeofIfaMsghdr        = 0x14
+ 	SizeofIfmaMsghdr       = 0x10
+@@ -291,6 +289,17 @@ const (
+ 	SizeofRtMetrics        = 0x38
+ )
+ 
++type ifMsghdr struct {
++	Msglen    uint16
++	Version   uint8
++	Type      uint8
++	Addrs     int32
++	Flags     int32
++	Index     uint16
++	Pad_cgo_0 [2]byte
++	Data      ifData
++}
++
+ type IfMsghdr struct {
+ 	Msglen    uint16
+ 	Version   uint8
+@@ -302,6 +311,34 @@ type IfMsghdr struct {
+ 	Data      IfData
+ }
+ 
++type ifData struct {
++	Type        uint8
++	Physical    uint8
++	Addrlen     uint8
++	Hdrlen      uint8
++	Link_state  uint8
++	Vhid        uint8
++	Baudrate_pf uint8
++	Datalen     uint8
++	Mtu         uint32
++	Metric      uint32
++	Baudrate    uint32
++	Ipackets    uint32
++	Ierrors     uint32
++	Opackets    uint32
++	Oerrors     uint32
++	Collisions  uint32
++	Ibytes      uint32
++	Obytes      uint32
++	Imcasts     uint32
++	Omcasts     uint32
++	Iqdrops     uint32
++	Noproto     uint32
++	Hwassist    uint64
++	Epoch       int32
++	Lastchange  Timeval
++}
++
+ type IfData struct {
+ 	Type        uint8
+ 	Physical    uint8
+diff --git a/src/pkg/syscall/ztypes_freebsd_amd64.go b/src/pkg/syscall/ztypes_freebsd_amd64.go
+index 49ad8af81f..a05908aed1 100644
+--- a/src/pkg/syscall/ztypes_freebsd_amd64.go
++++ b/src/pkg/syscall/ztypes_freebsd_amd64.go
+@@ -54,10 +54,6 @@ type Rlimit struct {
+ 
+ type _Gid_t uint32
+ 
+-const (
+-	O_CLOEXEC = 0
+-)
+-
+ const (
+ 	S_IFMT   = 0xf000
+ 	S_IFIFO  = 0x1000
+@@ -284,7 +280,9 @@ type FdSet struct {
+ }
+ 
+ const (
++	sizeofIfMsghdr         = 0xa8
+ 	SizeofIfMsghdr         = 0xa8
++	sizeofIfData           = 0x98
+ 	SizeofIfData           = 0x98
+ 	SizeofIfaMsghdr        = 0x14
+ 	SizeofIfmaMsghdr       = 0x10
+@@ -293,6 +291,17 @@ const (
+ 	SizeofRtMetrics        = 0x70
+ )
+ 
++type ifMsghdr struct {
++	Msglen    uint16
++	Version   uint8
++	Type      uint8
++	Addrs     int32
++	Flags     int32
++	Index     uint16
++	Pad_cgo_0 [2]byte
++	Data      ifData
++}
++
+ type IfMsghdr struct {
+ 	Msglen    uint16
+ 	Version   uint8
+@@ -304,6 +313,34 @@ type IfMsghdr struct {
+ 	Data      IfData
+ }
+ 
++type ifData struct {
++	Type        uint8
++	Physical    uint8
++	Addrlen     uint8
++	Hdrlen      uint8
++	Link_state  uint8
++	Vhid        uint8
++	Baudrate_pf uint8
++	Datalen     uint8
++	Mtu         uint64
++	Metric      uint64
++	Baudrate    uint64
++	Ipackets    uint64
++	Ierrors     uint64
++	Opackets    uint64
++	Oerrors     uint64
++	Collisions  uint64
++	Ibytes      uint64
++	Obytes      uint64
++	Imcasts     uint64
++	Omcasts     uint64
++	Iqdrops     uint64
++	Noproto     uint64
++	Hwassist    uint64
++	Epoch       int64
++	Lastchange  Timeval
++}
++
+ type IfData struct {
+ 	Type        uint8
+ 	Physical    uint8
+diff --git a/src/pkg/syscall/ztypes_freebsd_arm.go b/src/pkg/syscall/ztypes_freebsd_arm.go
+index 3d943f1346..9303816f91 100644
+--- a/src/pkg/syscall/ztypes_freebsd_arm.go
++++ b/src/pkg/syscall/ztypes_freebsd_arm.go
+@@ -1,5 +1,5 @@
+ // Created by cgo -godefs - DO NOT EDIT
+-// cgo -godefs types_freebsd.go
++// cgo -godefs -- -fsigned-char types_freebsd.go
+ 
+ package syscall
+ 
+@@ -56,10 +56,6 @@ type Rlimit struct {
+ 
+ type _Gid_t uint32
+ 
+-const (
+-	O_CLOEXEC = 0 // not supported
+-)
+-
+ const (
+ 	S_IFMT   = 0xf000
+ 	S_IFIFO  = 0x1000
+@@ -95,7 +91,6 @@ type Stat_t struct {
+ 	Gen           uint32
+ 	Lspare        int32
+ 	Birthtimespec Timespec
+-	Pad_cgo_0     [4]byte
+ }
+ 
+ type Statfs_t struct {
+@@ -124,12 +119,13 @@ type Statfs_t struct {
+ }
+ 
+ type Flock_t struct {
+-	Start  int64
+-	Len    int64
+-	Pid    int32
+-	Type   int16
+-	Whence int16
+-	Sysid  int32
++	Start     int64
++	Len       int64
++	Pid       int32
++	Type      int16
++	Whence    int16
++	Sysid     int32
++	Pad_cgo_0 [4]byte
+ }
+ 
+ type Dirent struct {
+@@ -162,22 +158,20 @@ type RawSockaddrInet6 struct {
+ }
+ 
+ type RawSockaddrUnix struct {
+-	Len       uint8
+-	Family    uint8
+-	Path      [104]int8
+-	Pad_cgo_0 [2]byte
++	Len    uint8
++	Family uint8
++	Path   [104]int8
+ }
+ 
+ type RawSockaddrDatalink struct {
+-	Len       uint8
+-	Family    uint8
+-	Index     uint16
+-	Type      uint8
+-	Nlen      uint8
+-	Alen      uint8
+-	Slen      uint8
+-	Data      [46]int8
+-	Pad_cgo_0 [2]byte
++	Len    uint8
++	Family uint8
++	Index  uint16
++	Type   uint8
++	Nlen   uint8
++	Alen   uint8
++	Slen   uint8
++	Data   [46]int8
+ }
+ 
+ type RawSockaddr struct {
+@@ -253,8 +247,8 @@ const (
+ 	SizeofSockaddrInet4    = 0x10
+ 	SizeofSockaddrInet6    = 0x1c
+ 	SizeofSockaddrAny      = 0x6c
+-	SizeofSockaddrUnix     = 0x6c
+-	SizeofSockaddrDatalink = 0x38
++	SizeofSockaddrUnix     = 0x6a
++	SizeofSockaddrDatalink = 0x36
+ 	SizeofLinger           = 0x8
+ 	SizeofIPMreq           = 0x8
+ 	SizeofIPMreqn          = 0xc
+@@ -286,8 +280,10 @@ type FdSet struct {
+ }
+ 
+ const (
+-	SizeofIfMsghdr         = 0x68
+-	SizeofIfData           = 0x58
++	sizeofIfMsghdr         = 0x70
++	SizeofIfMsghdr         = 0x70
++	sizeofIfData           = 0x60
++	SizeofIfData           = 0x60
+ 	SizeofIfaMsghdr        = 0x14
+ 	SizeofIfmaMsghdr       = 0x10
+ 	SizeofIfAnnounceMsghdr = 0x18
+@@ -295,6 +291,17 @@ const (
+ 	SizeofRtMetrics        = 0x38
+ )
+ 
++type ifMsghdr struct {
++	Msglen    uint16
++	Version   uint8
++	Type      uint8
++	Addrs     int32
++	Flags     int32
++	Index     uint16
++	Pad_cgo_0 [2]byte
++	Data      ifData
++}
++
+ type IfMsghdr struct {
+ 	Msglen    uint16
+ 	Version   uint8
+@@ -306,13 +313,41 @@ type IfMsghdr struct {
+ 	Data      IfData
+ }
+ 
++type ifData struct {
++	Type        uint8
++	Physical    uint8
++	Addrlen     uint8
++	Hdrlen      uint8
++	Link_state  uint8
++	Vhid        uint8
++	Baudrate_pf uint8
++	Datalen     uint8
++	Mtu         uint32
++	Metric      uint32
++	Baudrate    uint32
++	Ipackets    uint32
++	Ierrors     uint32
++	Opackets    uint32
++	Oerrors     uint32
++	Collisions  uint32
++	Ibytes      uint32
++	Obytes      uint32
++	Imcasts     uint32
++	Omcasts     uint32
++	Iqdrops     uint32
++	Noproto     uint32
++	Hwassist    uint64
++	Epoch       int64
++	Lastchange  Timeval
++}
++
+ type IfData struct {
+ 	Type        uint8
+ 	Physical    uint8
+ 	Addrlen     uint8
+ 	Hdrlen      uint8
+ 	Link_state  uint8
+-	Spare_char1 uint8 //Vhid        uint8
++	Spare_char1 uint8
+ 	Spare_char2 uint8
+ 	Datalen     uint8
+ 	Mtu         uint32
+@@ -330,6 +365,7 @@ type IfData struct {
+ 	Iqdrops     uint32
+ 	Noproto     uint32
+ 	Hwassist    uint32
++	Pad_cgo_0   [4]byte
+ 	Epoch       int64
+ 	Lastchange  Timeval
+ }
+@@ -401,7 +437,7 @@ const (
+ 	SizeofBpfZbuf       = 0xc
+ 	SizeofBpfProgram    = 0x8
+ 	SizeofBpfInsn       = 0x8
+-	SizeofBpfHdr        = 0x18
++	SizeofBpfHdr        = 0x20
+ 	SizeofBpfZbufHeader = 0x20
+ )
+ 
+@@ -438,7 +474,7 @@ type BpfHdr struct {
+ 	Caplen    uint32
+ 	Datalen   uint32
+ 	Hdrlen    uint16
+-	Pad_cgo_0 [2]byte
++	Pad_cgo_0 [6]byte
+ }
+ 
+ type BpfZbufHeader struct {
+@@ -447,3 +483,13 @@ type BpfZbufHeader struct {
+ 	User_gen   uint32
+ 	X_bzh_pad  [5]uint32
+ }
++
++type Termios struct {
++	Iflag  uint32
++	Oflag  uint32
++	Cflag  uint32
++	Lflag  uint32
++	Cc     [20]uint8
++	Ispeed uint32
++	Ospeed uint32
++}

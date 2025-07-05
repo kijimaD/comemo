@@ -13,7 +13,7 @@ Date:   Mon Jan 9 13:54:50 2023 -0800
     Auto-Submit: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
     Run-TryBot: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/api_test.go |  5 +++--
  src/cmd/compile/internal/types2/check.go    |  1 +
  src/go/types/api_test.go                    |  7 +++++--
@@ -41,3 +41,768 @@ Date:   Mon Jan 9 13:54:50 2023 -0800
  src/go/types/typeterm_test.go               |  3 +--
  src/go/types/universe.go                    | 23 +++++++++++------------
  26 files changed, 85 insertions(+), 88 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/api_test.go b/src/cmd/compile/internal/types2/api_test.go
+index fe84720052..af315e7b70 100644
+--- a/src/cmd/compile/internal/types2/api_test.go
++++ b/src/cmd/compile/internal/types2/api_test.go
+@@ -18,6 +18,9 @@ import (
+ 	. "cmd/compile/internal/types2"
+ )
+ 
++// nopos indicates an unknown position
++var nopos syntax.Pos
++
+ func parse(path, src string) (*syntax.File, error) {
+ 	errh := func(error) {} // dummy error handler so that parsing continues in presence of errors
+ 	return syntax.Parse(syntax.NewFileBase(path), strings.NewReader(src), errh, nil, 0)
+@@ -1821,8 +1824,6 @@ func F(){
+ 	}
+ }
+ 
+-var nopos syntax.Pos
+-
+ // newDefined creates a new defined type named T with the given underlying type.
+ func newDefined(underlying Type) *Named {
+ 	tname := NewTypeName(nopos, nil, "T", nil)
+diff --git a/src/cmd/compile/internal/types2/check.go b/src/cmd/compile/internal/types2/check.go
+index c495293009..33b57c0c2c 100644
+--- a/src/cmd/compile/internal/types2/check.go
++++ b/src/cmd/compile/internal/types2/check.go
+@@ -14,6 +14,7 @@ import (
+ 	. "internal/types/errors"
+ )
+ 
++// nopos indicates an unknown position
+ var nopos syntax.Pos
+ 
+ // debugging/development support
+diff --git a/src/go/types/api_test.go b/src/go/types/api_test.go
+index 98ef6c423f..df6d0c3d44 100644
+--- a/src/go/types/api_test.go
++++ b/src/go/types/api_test.go
+@@ -21,6 +21,9 @@ import (
+ 	. "go/types"
+ )
+ 
++// nopos indicates an unknown position
++var nopos token.Pos
++
+ func parse(fset *token.FileSet, filename, src string) (*ast.File, error) {
+ 	return parser.ParseFile(fset, filename, src, 0)
+ }
+@@ -1816,7 +1819,7 @@ func F(){
+ // newDefined creates a new defined type named T with the given underlying type.
+ // Helper function for use with TestIncompleteInterfaces only.
+ func newDefined(underlying Type) *Named {
+-	tname := NewTypeName(token.NoPos, nil, "T", nil)
++	tname := NewTypeName(nopos, nil, "T", nil)
+ 	return NewNamed(tname, underlying, nil)
+ }
+ 
+@@ -1932,7 +1935,7 @@ func TestIdentical_issue15173(t *testing.T) {
+ }
+ 
+ func TestIdenticalUnions(t *testing.T) {
+-	tname := NewTypeName(token.NoPos, nil, "myInt", nil)
++	tname := NewTypeName(nopos, nil, "myInt", nil)
+ 	myInt := NewNamed(tname, Typ[Int], nil)
+ 	tmap := map[string]*Term{
+ 		"int":     NewTerm(false, Typ[Int]),
+diff --git a/src/go/types/assignments.go b/src/go/types/assignments.go
+index 4d5acb1052..ab24441844 100644
+--- a/src/go/types/assignments.go
++++ b/src/go/types/assignments.go
+@@ -9,7 +9,6 @@ package types
+ import (
+ 	"fmt"
+ 	"go/ast"
+-	"go/token"
+ 	. "internal/types/errors"
+ 	"strings"
+ )
+@@ -335,8 +334,8 @@ func (check *Checker) initVars(lhs []*Var, origRHS []ast.Expr, returnStmt ast.St
+ 				at = rhs[len(rhs)-1].expr // report at last value
+ 			}
+ 			err := newErrorf(at, WrongResultCount, "%s return values", qualifier)
+-			err.errorf(token.NoPos, "have %s", check.typesSummary(operandTypes(rhs), false))
+-			err.errorf(token.NoPos, "want %s", check.typesSummary(varTypes(lhs), false))
++			err.errorf(nopos, "have %s", check.typesSummary(operandTypes(rhs), false))
++			err.errorf(nopos, "want %s", check.typesSummary(varTypes(lhs), false))
+ 			check.report(err)
+ 			return
+ 		}
+diff --git a/src/go/types/builtins.go b/src/go/types/builtins.go
+index d3bca606b2..fb3be066a1 100644
+--- a/src/go/types/builtins.go
++++ b/src/go/types/builtins.go
+@@ -968,7 +968,7 @@ func (check *Checker) applyTypeFunc(f func(Type) Type, x *operand, id builtinId)
+ 		// Construct a suitable new type parameter for the result type.
+ 		// The type parameter is placed in the current package so export/import
+ 		// works as expected.
+-		tpar := NewTypeName(token.NoPos, check.pkg, tp.obj.name, nil)
++		tpar := NewTypeName(nopos, check.pkg, tp.obj.name, nil)
+ 		ptyp := check.newTypeParam(tpar, NewInterfaceType(nil, []Type{NewUnion(terms)})) // assigns type to tpar as a side-effect
+ 		ptyp.index = tp.index
+ 
+@@ -983,13 +983,13 @@ func (check *Checker) applyTypeFunc(f func(Type) Type, x *operand, id builtinId)
+ func makeSig(res Type, args ...Type) *Signature {
+ 	list := make([]*Var, len(args))
+ 	for i, param := range args {
+-		list[i] = NewVar(token.NoPos, nil, "", Default(param))
++		list[i] = NewVar(nopos, nil, "", Default(param))
+ 	}
+ 	params := NewTuple(list...)
+ 	var result *Tuple
+ 	if res != nil {
+ 		assert(!isUntyped(res))
+-		result = NewTuple(NewVar(token.NoPos, nil, "", res))
++		result = NewTuple(NewVar(nopos, nil, "", res))
+ 	}
+ 	return &Signature{params: params, results: result}
+ }
+diff --git a/src/go/types/call.go b/src/go/types/call.go
+index f0d612d018..53c5a64fb0 100644
+--- a/src/go/types/call.go
++++ b/src/go/types/call.go
+@@ -391,8 +391,8 @@ func (check *Checker) arguments(call *ast.CallExpr, sig *Signature, targs []Type
+ 			params = sig.params.vars
+ 		}
+ 		err := newErrorf(at, WrongArgCount, "%s arguments in call to %s", qualifier, call.Fun)
+-		err.errorf(token.NoPos, "have %s", check.typesSummary(operandTypes(args), false))
+-		err.errorf(token.NoPos, "want %s", check.typesSummary(varTypes(params), sig.variadic))
++		err.errorf(nopos, "have %s", check.typesSummary(operandTypes(args), false))
++		err.errorf(nopos, "want %s", check.typesSummary(varTypes(params), sig.variadic))
+ 		check.report(err)
+ 		return
+ 	}
+@@ -799,7 +799,7 @@ func (check *Checker) useLHS(arg ...ast.Expr) {
+ 			if ident.Name == "_" {
+ 				continue
+ 			}
+-			if _, obj := check.scope.LookupParent(ident.Name, token.NoPos); obj != nil {
++			if _, obj := check.scope.LookupParent(ident.Name, nopos); obj != nil {
+ 				// It's ok to mark non-local variables, but ignore variables
+ 				// from other packages to avoid potential race conditions with
+ 				// dot-imported variables.
+diff --git a/src/go/types/check.go b/src/go/types/check.go
+index 76be498042..60d3e1ac4b 100644
+--- a/src/go/types/check.go
++++ b/src/go/types/check.go
+@@ -15,6 +15,9 @@ import (
+ 	. "internal/types/errors"
+ )
+ 
++// nopos indicates an unknown position
++var nopos token.Pos
++
+ // debugging/development support
+ const debug = false // leave on during development
+ 
+@@ -378,7 +381,7 @@ func (check *Checker) processDelayed(top int) {
+ 			if a.desc != nil {
+ 				check.trace(a.desc.pos.Pos(), "-- "+a.desc.format, a.desc.args...)
+ 			} else {
+-				check.trace(token.NoPos, "-- delayed %p", a.f)
++				check.trace(nopos, "-- delayed %p", a.f)
+ 			}
+ 		}
+ 		a.f() // may append to check.delayed
+diff --git a/src/go/types/context_test.go b/src/go/types/context_test.go
+index ec30050202..b323651e29 100644
+--- a/src/go/types/context_test.go
++++ b/src/go/types/context_test.go
+@@ -5,7 +5,6 @@
+ package types
+ 
+ import (
+-	"go/token"
+ 	"testing"
+ )
+ 
+@@ -28,18 +27,18 @@ func TestContextHashCollisions(t *testing.T) {
+ 	var nullaryP, nullaryQ, unaryP Type
+ 	{
+ 		// type nullaryP = func[P any]()
+-		tparam := NewTypeParam(NewTypeName(token.NoPos, nil, "P", nil), &emptyInterface)
++		tparam := NewTypeParam(NewTypeName(nopos, nil, "P", nil), &emptyInterface)
+ 		nullaryP = NewSignatureType(nil, nil, []*TypeParam{tparam}, nil, nil, false)
+ 	}
+ 	{
+ 		// type nullaryQ = func[Q any]()
+-		tparam := NewTypeParam(NewTypeName(token.NoPos, nil, "Q", nil), &emptyInterface)
++		tparam := NewTypeParam(NewTypeName(nopos, nil, "Q", nil), &emptyInterface)
+ 		nullaryQ = NewSignatureType(nil, nil, []*TypeParam{tparam}, nil, nil, false)
+ 	}
+ 	{
+ 		// type unaryP = func[P any](_ P)
+-		tparam := NewTypeParam(NewTypeName(token.NoPos, nil, "P", nil), &emptyInterface)
+-		params := NewTuple(NewVar(token.NoPos, nil, "_", tparam))
++		tparam := NewTypeParam(NewTypeName(nopos, nil, "P", nil), &emptyInterface)
++		params := NewTuple(NewVar(nopos, nil, "_", tparam))
+ 		unaryP = NewSignatureType(nil, nil, []*TypeParam{tparam}, params, nil, false)
+ 	}
+ 
+diff --git a/src/go/types/errors.go b/src/go/types/errors.go
+index 4c4cd03814..95ee51e2ca 100644
+--- a/src/go/types/errors.go
++++ b/src/go/types/errors.go
+@@ -54,7 +54,7 @@ func (err *error_) empty() bool {
+ 
+ func (err *error_) pos() token.Pos {
+ 	if err.empty() {
+-		return token.NoPos
++		return nopos
+ 	}
+ 	return err.desc[0].posn.Pos()
+ }
+@@ -367,7 +367,7 @@ func spanOf(at positioner) posSpan {
+ 			pos := x.Pos()
+ 			return posSpan{pos, pos, x.expr.End()}
+ 		}
+-		return posSpan{token.NoPos, token.NoPos, token.NoPos}
++		return posSpan{nopos, nopos, nopos}
+ 	default:
+ 		pos := at.Pos()
+ 		return posSpan{pos, pos, pos}
+diff --git a/src/go/types/errors_test.go b/src/go/types/errors_test.go
+index 4b5dab68e4..3fb9c55ac5 100644
+--- a/src/go/types/errors_test.go
++++ b/src/go/types/errors_test.go
+@@ -5,7 +5,6 @@
+ package types
+ 
+ import (
+-	"go/token"
+ 	"testing"
+ )
+ 
+@@ -17,13 +16,13 @@ func TestError(t *testing.T) {
+ 	}
+ 
+ 	want = "0: foo 42"
+-	err.errorf(token.NoPos, "foo %d", 42)
++	err.errorf(nopos, "foo %d", 42)
+ 	if got := err.String(); got != want {
+ 		t.Errorf("simple error: got %q, want %q", got, want)
+ 	}
+ 
+ 	want = "0: foo 42\n\tbar 43"
+-	err.errorf(token.NoPos, "bar %d", 43)
++	err.errorf(nopos, "bar %d", 43)
+ 	if got := err.String(); got != want {
+ 		t.Errorf("simple error: got %q, want %q", got, want)
+ 	}
+diff --git a/src/go/types/eval.go b/src/go/types/eval.go
+index 084f746fe6..1e4d64fe96 100644
+--- a/src/go/types/eval.go
++++ b/src/go/types/eval.go
+@@ -58,7 +58,7 @@ func CheckExpr(fset *token.FileSet, pkg *Package, pos token.Pos, expr ast.Expr,
+ 	var scope *Scope
+ 	if pkg == nil {
+ 		scope = Universe
+-		pos = token.NoPos
++		pos = nopos
+ 	} else if !pos.IsValid() {
+ 		scope = pkg.scope
+ 	} else {
+diff --git a/src/go/types/eval_test.go b/src/go/types/eval_test.go
+index b0745c16d9..4e995afd7e 100644
+--- a/src/go/types/eval_test.go
++++ b/src/go/types/eval_test.go
+@@ -59,14 +59,14 @@ func testEval(t *testing.T, fset *token.FileSet, pkg *Package, pos token.Pos, ex
+ func TestEvalBasic(t *testing.T) {
+ 	fset := token.NewFileSet()
+ 	for _, typ := range Typ[Bool : String+1] {
+-		testEval(t, fset, nil, token.NoPos, typ.Name(), typ, "", "")
++		testEval(t, fset, nil, nopos, typ.Name(), typ, "", "")
+ 	}
+ }
+ 
+ func TestEvalComposite(t *testing.T) {
+ 	fset := token.NewFileSet()
+ 	for _, test := range independentTestTypes {
+-		testEval(t, fset, nil, token.NoPos, test.src, nil, test.str, "")
++		testEval(t, fset, nil, nopos, test.src, nil, test.str, "")
+ 	}
+ }
+ 
+@@ -83,7 +83,7 @@ func TestEvalArith(t *testing.T) {
+ 	}
+ 	fset := token.NewFileSet()
+ 	for _, test := range tests {
+-		testEval(t, fset, nil, token.NoPos, test, Typ[UntypedBool], "", "true")
++		testEval(t, fset, nil, nopos, test, Typ[UntypedBool], "", "true")
+ 	}
+ }
+ 
+diff --git a/src/go/types/infer.go b/src/go/types/infer.go
+index 4ce58fcbbc..c1a1dd693b 100644
+--- a/src/go/types/infer.go
++++ b/src/go/types/infer.go
+@@ -9,7 +9,6 @@ package types
+ 
+ import (
+ 	"fmt"
+-	"go/token"
+ 	. "internal/types/errors"
+ 	"strings"
+ )
+@@ -174,7 +173,7 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
+ 	//           but that doesn't impact the isParameterized check for now).
+ 	if params.Len() > 0 {
+ 		smap := makeSubstMap(tparams, targs)
+-		params = check.subst(token.NoPos, params, smap, nil, check.context()).(*Tuple)
++		params = check.subst(nopos, params, smap, nil, check.context()).(*Tuple)
+ 	}
+ 
+ 	// Unify parameter and argument types for generic parameters with typed arguments
+@@ -618,7 +617,7 @@ func (check *Checker) inferB(posn positioner, tparams []*TypeParam, targs []Type
+ 		n := 0
+ 		for _, index := range dirty {
+ 			t0 := types[index]
+-			if t1 := check.subst(token.NoPos, t0, smap, nil, check.context()); t1 != t0 {
++			if t1 := check.subst(nopos, t0, smap, nil, check.context()); t1 != t0 {
+ 				types[index] = t1
+ 				dirty[n] = index
+ 				n++
+diff --git a/src/go/types/instantiate.go b/src/go/types/instantiate.go
+index 2cf48c17d2..f1448d69d4 100644
+--- a/src/go/types/instantiate.go
++++ b/src/go/types/instantiate.go
+@@ -55,12 +55,12 @@ func Instantiate(ctxt *Context, orig Type, targs []Type, validate bool) (Type, e
+ 		if len(targs) != len(tparams) {
+ 			return nil, fmt.Errorf("got %d type arguments but %s has %d type parameters", len(targs), orig, len(tparams))
+ 		}
+-		if i, err := (*Checker)(nil).verify(token.NoPos, tparams, targs, ctxt); err != nil {
++		if i, err := (*Checker)(nil).verify(nopos, tparams, targs, ctxt); err != nil {
+ 			return nil, &ArgumentError{i, err}
+ 		}
+ 	}
+ 
+-	inst := (*Checker)(nil).instance(token.NoPos, orig, targs, nil, ctxt)
++	inst := (*Checker)(nil).instance(nopos, orig, targs, nil, ctxt)
+ 	return inst, nil
+ }
+ 
+diff --git a/src/go/types/instantiate_test.go b/src/go/types/instantiate_test.go
+index 0b44a1a1d9..8b551187bd 100644
+--- a/src/go/types/instantiate_test.go
++++ b/src/go/types/instantiate_test.go
+@@ -5,7 +5,6 @@
+ package types_test
+ 
+ import (
+-	"go/token"
+ 	. "go/types"
+ 	"strings"
+ 	"testing"
+@@ -43,13 +42,13 @@ func TestInstantiateEquality(t *testing.T) {
+ 			// interface{interface{...}} is equivalent to interface{...}
+ 			"package equivalentinterfaces; type T[P any] int",
+ 			"T", []Type{
+-				NewInterfaceType([]*Func{NewFunc(token.NoPos, nil, "M", emptySignature)}, nil),
++				NewInterfaceType([]*Func{NewFunc(nopos, nil, "M", emptySignature)}, nil),
+ 			},
+ 			"T", []Type{
+ 				NewInterfaceType(
+ 					nil,
+ 					[]Type{
+-						NewInterfaceType([]*Func{NewFunc(token.NoPos, nil, "M", emptySignature)}, nil),
++						NewInterfaceType([]*Func{NewFunc(nopos, nil, "M", emptySignature)}, nil),
+ 					},
+ 				),
+ 			},
+diff --git a/src/go/types/interface.go b/src/go/types/interface.go
+index 83538d2885..f2bb15e84b 100644
+--- a/src/go/types/interface.go
++++ b/src/go/types/interface.go
+@@ -26,7 +26,7 @@ type Interface struct {
+ }
+ 
+ // typeSet returns the type set for interface t.
+-func (t *Interface) typeSet() *_TypeSet { return computeInterfaceTypeSet(t.check, token.NoPos, t) }
++func (t *Interface) typeSet() *_TypeSet { return computeInterfaceTypeSet(t.check, nopos, t) }
+ 
+ // emptyInterface represents the empty (completed) interface
+ var emptyInterface = Interface{complete: true, tset: &topTypeSet}
+diff --git a/src/go/types/issues_test.go b/src/go/types/issues_test.go
+index bb6b4c3161..d1e78eded7 100644
+--- a/src/go/types/issues_test.go
++++ b/src/go/types/issues_test.go
+@@ -516,14 +516,14 @@ func TestIssue43088(t *testing.T) {
+ 	//                 _ T2
+ 	//         }
+ 	// }
+-	n1 := NewTypeName(token.NoPos, nil, "T1", nil)
++	n1 := NewTypeName(nopos, nil, "T1", nil)
+ 	T1 := NewNamed(n1, nil, nil)
+-	n2 := NewTypeName(token.NoPos, nil, "T2", nil)
++	n2 := NewTypeName(nopos, nil, "T2", nil)
+ 	T2 := NewNamed(n2, nil, nil)
+-	s1 := NewStruct([]*Var{NewField(token.NoPos, nil, "_", T2, false)}, nil)
++	s1 := NewStruct([]*Var{NewField(nopos, nil, "_", T2, false)}, nil)
+ 	T1.SetUnderlying(s1)
+-	s2 := NewStruct([]*Var{NewField(token.NoPos, nil, "_", T2, false)}, nil)
+-	s3 := NewStruct([]*Var{NewField(token.NoPos, nil, "_", s2, false)}, nil)
++	s2 := NewStruct([]*Var{NewField(nopos, nil, "_", T2, false)}, nil)
++	s3 := NewStruct([]*Var{NewField(nopos, nil, "_", s2, false)}, nil)
+ 	T2.SetUnderlying(s3)
+ 
+ 	// These calls must terminate (no endless recursion).
+@@ -644,7 +644,7 @@ func TestIssue50646(t *testing.T) {
+ func TestIssue55030(t *testing.T) {
+ 	// makeSig makes the signature func(typ...)
+ 	makeSig := func(typ Type) {
+-		par := NewVar(token.NoPos, nil, "", typ)
++		par := NewVar(nopos, nil, "", typ)
+ 		params := NewTuple(par)
+ 		NewSignatureType(nil, nil, nil, params, nil, true)
+ 	}
+@@ -658,22 +658,22 @@ func TestIssue55030(t *testing.T) {
+ 
+ 	// P where P's core type is string
+ 	{
+-		P := NewTypeName(token.NoPos, nil, "P", nil) // [P string]
++		P := NewTypeName(nopos, nil, "P", nil) // [P string]
+ 		makeSig(NewTypeParam(P, NewInterfaceType(nil, []Type{Typ[String]})))
+ 	}
+ 
+ 	// P where P's core type is an (unnamed) slice
+ 	{
+-		P := NewTypeName(token.NoPos, nil, "P", nil) // [P []int]
++		P := NewTypeName(nopos, nil, "P", nil) // [P []int]
+ 		makeSig(NewTypeParam(P, NewInterfaceType(nil, []Type{NewSlice(Typ[Int])})))
+ 	}
+ 
+ 	// P where P's core type is bytestring (i.e., string or []byte)
+ 	{
+-		t1 := NewTerm(true, Typ[String])             // ~string
+-		t2 := NewTerm(false, NewSlice(Typ[Byte]))    // []byte
+-		u := NewUnion([]*Term{t1, t2})               // ~string | []byte
+-		P := NewTypeName(token.NoPos, nil, "P", nil) // [P ~string | []byte]
++		t1 := NewTerm(true, Typ[String])          // ~string
++		t2 := NewTerm(false, NewSlice(Typ[Byte])) // []byte
++		u := NewUnion([]*Term{t1, t2})            // ~string | []byte
++		P := NewTypeName(nopos, nil, "P", nil)    // [P ~string | []byte]
+ 		makeSig(NewTypeParam(P, NewInterfaceType(nil, []Type{u})))
+ 	}
+ }
+diff --git a/src/go/types/object.go b/src/go/types/object.go
+index 6e63948680..3013552bf5 100644
+--- a/src/go/types/object.go
++++ b/src/go/types/object.go
+@@ -189,7 +189,7 @@ type PkgName struct {
+ // NewPkgName returns a new PkgName object representing an imported package.
+ // The remaining arguments set the attributes found with all Objects.
+ func NewPkgName(pos token.Pos, pkg *Package, name string, imported *Package) *PkgName {
+-	return &PkgName{object{nil, pos, pkg, name, Typ[Invalid], 0, black, token.NoPos}, imported, false}
++	return &PkgName{object{nil, pos, pkg, name, Typ[Invalid], 0, black, nopos}, imported, false}
+ }
+ 
+ // Imported returns the package that was imported.
+@@ -205,7 +205,7 @@ type Const struct {
+ // NewConst returns a new constant with value val.
+ // The remaining arguments set the attributes found with all Objects.
+ func NewConst(pos token.Pos, pkg *Package, name string, typ Type, val constant.Value) *Const {
+-	return &Const{object{nil, pos, pkg, name, typ, 0, colorFor(typ), token.NoPos}, val}
++	return &Const{object{nil, pos, pkg, name, typ, 0, colorFor(typ), nopos}, val}
+ }
+ 
+ // Val returns the constant's value.
+@@ -226,7 +226,7 @@ type TypeName struct {
+ // argument for NewNamed, which will set the TypeName's type as a side-
+ // effect.
+ func NewTypeName(pos token.Pos, pkg *Package, name string, typ Type) *TypeName {
+-	return &TypeName{object{nil, pos, pkg, name, typ, 0, colorFor(typ), token.NoPos}}
++	return &TypeName{object{nil, pos, pkg, name, typ, 0, colorFor(typ), nopos}}
+ }
+ 
+ // _NewTypeNameLazy returns a new defined type like NewTypeName, but it
+@@ -275,19 +275,19 @@ type Var struct {
+ // NewVar returns a new variable.
+ // The arguments set the attributes found with all Objects.
+ func NewVar(pos token.Pos, pkg *Package, name string, typ Type) *Var {
+-	return &Var{object: object{nil, pos, pkg, name, typ, 0, colorFor(typ), token.NoPos}}
++	return &Var{object: object{nil, pos, pkg, name, typ, 0, colorFor(typ), nopos}}
+ }
+ 
+ // NewParam returns a new variable representing a function parameter.
+ func NewParam(pos token.Pos, pkg *Package, name string, typ Type) *Var {
+-	return &Var{object: object{nil, pos, pkg, name, typ, 0, colorFor(typ), token.NoPos}, used: true} // parameters are always 'used'
++	return &Var{object: object{nil, pos, pkg, name, typ, 0, colorFor(typ), nopos}, used: true} // parameters are always 'used'
+ }
+ 
+ // NewField returns a new variable representing a struct field.
+ // For embedded fields, the name is the unqualified type name
+ // under which the field is accessible.
+ func NewField(pos token.Pos, pkg *Package, name string, typ Type, embedded bool) *Var {
+-	return &Var{object: object{nil, pos, pkg, name, typ, 0, colorFor(typ), token.NoPos}, embedded: embedded, isField: true}
++	return &Var{object: object{nil, pos, pkg, name, typ, 0, colorFor(typ), nopos}, embedded: embedded, isField: true}
+ }
+ 
+ // Anonymous reports whether the variable is an embedded field.
+@@ -333,7 +333,7 @@ func NewFunc(pos token.Pos, pkg *Package, name string, sig *Signature) *Func {
+ 	if sig != nil {
+ 		typ = sig
+ 	}
+-	return &Func{object{nil, pos, pkg, name, typ, 0, colorFor(typ), token.NoPos}, false, nil}
++	return &Func{object{nil, pos, pkg, name, typ, 0, colorFor(typ), nopos}, false, nil}
+ }
+ 
+ // FullName returns the package- or receiver-type-qualified name of
+diff --git a/src/go/types/object_test.go b/src/go/types/object_test.go
+index 60e7a84ca6..118669b332 100644
+--- a/src/go/types/object_test.go
++++ b/src/go/types/object_test.go
+@@ -131,7 +131,7 @@ func TestObjectString(t *testing.T) {
+ 			t.Errorf("%s: invalid object path %s", test.src, test.obj)
+ 			continue
+ 		}
+-		_, obj := pkg.Scope().LookupParent(names[0], token.NoPos)
++		_, obj := pkg.Scope().LookupParent(names[0], nopos)
+ 		if obj == nil {
+ 			t.Errorf("%s: %s not found", test.src, names[0])
+ 			continue
+diff --git a/src/go/types/operand.go b/src/go/types/operand.go
+index 819c99e684..a23e195ad6 100644
+--- a/src/go/types/operand.go
++++ b/src/go/types/operand.go
+@@ -59,11 +59,11 @@ type operand struct {
+ }
+ 
+ // Pos returns the position of the expression corresponding to x.
+-// If x is invalid the position is token.NoPos.
++// If x is invalid the position is nopos.
+ func (x *operand) Pos() token.Pos {
+ 	// x.expr may not be set if x is invalid
+ 	if x.expr == nil {
+-		return token.NoPos
++		return nopos
+ 	}
+ 	return x.expr.Pos()
+ }
+diff --git a/src/go/types/package.go b/src/go/types/package.go
+index 2b72ff1509..201f603234 100644
+--- a/src/go/types/package.go
++++ b/src/go/types/package.go
+@@ -6,7 +6,6 @@ package types
+ 
+ import (
+ 	"fmt"
+-	"go/token"
+ )
+ 
+ // A Package describes a Go package.
+@@ -23,7 +22,7 @@ type Package struct {
+ // NewPackage returns a new Package for the given package path and name.
+ // The package is not complete and contains no explicit imports.
+ func NewPackage(path, name string) *Package {
+-	scope := NewScope(Universe, token.NoPos, token.NoPos, fmt.Sprintf("package %q", path))
++	scope := NewScope(Universe, nopos, nopos, fmt.Sprintf("package %q", path))
+ 	return &Package{path: path, name: name, scope: scope}
+ }
+ 
+diff --git a/src/go/types/predicates.go b/src/go/types/predicates.go
+index e9a0e438d8..b26b5beb9c 100644
+--- a/src/go/types/predicates.go
++++ b/src/go/types/predicates.go
+@@ -6,8 +6,6 @@
+ 
+ package types
+ 
+-import "go/token"
+-
+ // The isX predicates below report whether t is an X.
+ // If t is a type parameter the result is false; i.e.,
+ // these predicates don't look inside a type parameter.
+@@ -312,14 +310,14 @@ func identical(x, y Type, cmpTags bool, p *ifacePair) bool {
+ 
+ 			// Constraints must be pair-wise identical, after substitution.
+ 			for i, xtparam := range xtparams {
+-				ybound := check.subst(token.NoPos, ytparams[i].bound, smap, nil, ctxt)
++				ybound := check.subst(nopos, ytparams[i].bound, smap, nil, ctxt)
+ 				if !identical(xtparam.bound, ybound, cmpTags, p) {
+ 					return false
+ 				}
+ 			}
+ 
+-			yparams = check.subst(token.NoPos, y.params, smap, nil, ctxt).(*Tuple)
+-			yresults = check.subst(token.NoPos, y.results, smap, nil, ctxt).(*Tuple)
++			yparams = check.subst(nopos, y.params, smap, nil, ctxt).(*Tuple)
++			yresults = check.subst(nopos, y.results, smap, nil, ctxt).(*Tuple)
+ 		}
+ 
+ 		return x.variadic == y.variadic &&
+@@ -331,8 +329,8 @@ func identical(x, y Type, cmpTags bool, p *ifacePair) bool {
+ 			// TODO(rfindley): can this be reached during type checking? If so,
+ 			// consider passing a type set map.
+ 			unionSets := make(map[*Union]*_TypeSet)
+-			xset := computeUnionTypeSet(nil, unionSets, token.NoPos, x)
+-			yset := computeUnionTypeSet(nil, unionSets, token.NoPos, y)
++			xset := computeUnionTypeSet(nil, unionSets, nopos, x)
++			yset := computeUnionTypeSet(nil, unionSets, nopos, y)
+ 			return xset.terms.equal(yset.terms)
+ 		}
+ 
+diff --git a/src/go/types/resolver.go b/src/go/types/resolver.go
+index 075bd91261..f1038c151f 100644
+--- a/src/go/types/resolver.go
++++ b/src/go/types/resolver.go
+@@ -118,7 +118,7 @@ func (check *Checker) declarePkgObj(ident *ast.Ident, obj Object, d *declInfo) {
+ 		return
+ 	}
+ 
+-	check.declare(check.pkg.scope, ident, obj, token.NoPos)
++	check.declare(check.pkg.scope, ident, obj, nopos)
+ 	check.objMap[obj] = d
+ 	obj.setOrder(uint32(len(check.objMap)))
+ }
+@@ -338,7 +338,7 @@ func (check *Checker) collectObjects() {
+ 				} else {
+ 					// declare imported package object in file scope
+ 					// (no need to provide s.Name since we called check.recordDef earlier)
+-					check.declare(fileScope, nil, pkgName, token.NoPos)
++					check.declare(fileScope, nil, pkgName, nopos)
+ 				}
+ 			case constDecl:
+ 				// declare all constants
+@@ -425,7 +425,7 @@ func (check *Checker) collectObjects() {
+ 							check.softErrorf(obj, MissingInitBody, "missing function body")
+ 						}
+ 					} else {
+-						check.declare(pkg.scope, d.decl.Name, obj, token.NoPos)
++						check.declare(pkg.scope, d.decl.Name, obj, nopos)
+ 					}
+ 				} else {
+ 					// method
+diff --git a/src/go/types/signature.go b/src/go/types/signature.go
+index 83460eaf1f..5986ec83a7 100644
+--- a/src/go/types/signature.go
++++ b/src/go/types/signature.go
+@@ -7,7 +7,6 @@ package types
+ import (
+ 	"fmt"
+ 	"go/ast"
+-	"go/token"
+ 	. "internal/types/errors"
+ )
+ 
+@@ -180,7 +179,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
+ 	// Value (non-type) parameters' scope starts in the function body. Use a temporary scope for their
+ 	// declarations and then squash that scope into the parent scope (and report any redeclarations at
+ 	// that time).
+-	scope := NewScope(check.scope, token.NoPos, token.NoPos, "function body (temp. scope)")
++	scope := NewScope(check.scope, nopos, nopos, "function body (temp. scope)")
+ 	recvList, _ := check.collectParams(scope, recvPar, false)
+ 	params, variadic := check.collectParams(scope, ftyp.Params, true)
+ 	results, _ := check.collectParams(scope, ftyp.Results, false)
+@@ -197,7 +196,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
+ 		switch len(recvList) {
+ 		case 0:
+ 			// error reported by resolver
+-			recv = NewParam(token.NoPos, nil, "", Typ[Invalid]) // ignore recv below
++			recv = NewParam(nopos, nil, "", Typ[Invalid]) // ignore recv below
+ 		default:
+ 			// more than one receiver
+ 			check.error(recvList[len(recvList)-1], InvalidRecv, "method has multiple receivers")
+diff --git a/src/go/types/typeterm_test.go b/src/go/types/typeterm_test.go
+index 24a14102d0..683b95ee56 100644
+--- a/src/go/types/typeterm_test.go
++++ b/src/go/types/typeterm_test.go
+@@ -5,13 +5,12 @@
+ package types
+ 
+ import (
+-	"go/token"
+ 	"strings"
+ 	"testing"
+ )
+ 
+ var myInt = func() Type {
+-	tname := NewTypeName(token.NoPos, nil, "myInt", nil)
++	tname := NewTypeName(nopos, nil, "myInt", nil)
+ 	return NewNamed(tname, Typ[Int], nil)
+ }()
+ 
+diff --git a/src/go/types/universe.go b/src/go/types/universe.go
+index 9103fca713..8860aadfca 100644
+--- a/src/go/types/universe.go
++++ b/src/go/types/universe.go
+@@ -8,7 +8,6 @@ package types
+ 
+ import (
+ 	"go/constant"
+-	"go/token"
+ 	"strings"
+ )
+ 
+@@ -73,33 +72,33 @@ var aliases = [...]*Basic{
+ 
+ func defPredeclaredTypes() {
+ 	for _, t := range Typ {
+-		def(NewTypeName(token.NoPos, nil, t.name, t))
++		def(NewTypeName(nopos, nil, t.name, t))
+ 	}
+ 	for _, t := range aliases {
+-		def(NewTypeName(token.NoPos, nil, t.name, t))
++		def(NewTypeName(nopos, nil, t.name, t))
+ 	}
+ 
+ 	// type any = interface{}
+ 	// Note: don't use &emptyInterface for the type of any. Using a unique
+ 	// pointer allows us to detect any and format it as "any" rather than
+ 	// interface{}, which clarifies user-facing error messages significantly.
+-	def(NewTypeName(token.NoPos, nil, "any", &Interface{complete: true, tset: &topTypeSet}))
++	def(NewTypeName(nopos, nil, "any", &Interface{complete: true, tset: &topTypeSet}))
+ 
+ 	// type error interface{ Error() string }
+ 	{
+-		obj := NewTypeName(token.NoPos, nil, "error", nil)
++		obj := NewTypeName(nopos, nil, "error", nil)
+ 		obj.setColor(black)
+ 		typ := NewNamed(obj, nil, nil)
+ 
+ 		// error.Error() string
+-		recv := NewVar(token.NoPos, nil, "", typ)
+-		res := NewVar(token.NoPos, nil, "", Typ[String])
++		recv := NewVar(nopos, nil, "", typ)
++		res := NewVar(nopos, nil, "", Typ[String])
+ 		sig := NewSignatureType(recv, nil, nil, nil, NewTuple(res), false)
+-		err := NewFunc(token.NoPos, nil, "Error", sig)
++		err := NewFunc(nopos, nil, "Error", sig)
+ 
+ 		// interface{ Error() string }
+ 		ityp := &Interface{methods: []*Func{err}, complete: true}
+-		computeInterfaceTypeSet(nil, token.NoPos, ityp) // prevent races due to lazy computation of tset
++		computeInterfaceTypeSet(nil, nopos, ityp) // prevent races due to lazy computation of tset
+ 
+ 		typ.SetUnderlying(ityp)
+ 		def(obj)
+@@ -107,7 +106,7 @@ func defPredeclaredTypes() {
+ 
+ 	// type comparable interface{} // marked as comparable
+ 	{
+-		obj := NewTypeName(token.NoPos, nil, "comparable", nil)
++		obj := NewTypeName(nopos, nil, "comparable", nil)
+ 		obj.setColor(black)
+ 		typ := NewNamed(obj, nil, nil)
+ 
+@@ -131,7 +130,7 @@ var predeclaredConsts = [...]struct {
+ 
+ func defPredeclaredConsts() {
+ 	for _, c := range predeclaredConsts {
+-		def(NewConst(token.NoPos, nil, c.name, Typ[c.kind], c.val))
++		def(NewConst(nopos, nil, c.name, Typ[c.kind], c.val))
+ 	}
+ }
+ 
+@@ -234,7 +233,7 @@ func DefPredeclaredTestFuncs() {
+ }
+ 
+ func init() {
+-	Universe = NewScope(nil, token.NoPos, token.NoPos, "universe")
++	Universe = NewScope(nil, nopos, nopos, "universe")
+ 	Unsafe = NewPackage("unsafe", "unsafe")
+ 	Unsafe.complete = true
+ 

@@ -9,6 +9,38 @@ Date:   Mon Dec 21 10:10:17 2015 -0800
     Change-Id: I9825864d23aeba1971cf5f581e1e59ac4c9b87fd
     Reviewed-on: https://go-review.googlesource.com/18090
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  misc/cgo/testcarchive/test.bash | 21 ++++++++++++++-------
  1 file changed, 14 insertions(+), 7 deletions(-)
+
+diff --git a/misc/cgo/testcarchive/test.bash b/misc/cgo/testcarchive/test.bash
+index 32365a209e..d561c02ab7 100755
+--- a/misc/cgo/testcarchive/test.bash
++++ b/misc/cgo/testcarchive/test.bash
+@@ -54,12 +54,19 @@ if ! $bin arg1 arg2; then
+ fi
+ rm -rf libgo.a libgo.h testp pkg
+ 
+-GOPATH=$(pwd) go build -buildmode=c-archive -o libgo2.a libgo2
+-$(go env CC) $(go env GOGCCFLAGS) $ccargs -o testp main2.c libgo2.a
+-if ! $bin; then
+-    echo "FAIL test4"
+-    status=1
+-fi
+-rm -rf libgo2.a libgo2.h testp pkg
++case "$(go env GOOS)/$(go env GOARCH)" in
++"darwin/arm" | "darwin/arm64")
++    echo "Skipping test4; see https://golang.org/issue/13701"
++    ;;
++*)
++    GOPATH=$(pwd) go build -buildmode=c-archive -o libgo2.a libgo2
++    $(go env CC) $(go env GOGCCFLAGS) $ccargs -o testp main2.c libgo2.a
++    if ! $bin; then
++        echo "FAIL test4"
++        status=1
++    fi
++    rm -rf libgo2.a libgo2.h testp pkg
++    ;;
++esac
+ 
+ exit $status

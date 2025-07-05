@@ -9,6 +9,38 @@ Date:   Thu Dec 17 13:34:41 2015 -0800
     Change-Id: I0df40585cdd4dae8d365ed9860a81e0cb23f21b9
     Reviewed-on: https://go-review.googlesource.com/18032
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  doc/go1.6.html | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/doc/go1.6.html b/doc/go1.6.html
+index 69a7fab27b..3dee58fb2d 100644
+--- a/doc/go1.6.html
++++ b/doc/go1.6.html
+@@ -33,7 +33,7 @@ We expect almost all Go programs to continue to compile and run as before.
+ <p>
+ The release adds new ports to <a href="#ports">Linux on 64-bit MIPS and Android on 32-bit x86</a>;
+ defined and enforced <a href="#cgo">rules for sharing Go pointers with C</a>;
+-transparent, automatic <a href="#http">support for HTTP/2</a>;
++transparent, automatic <a href="#http2">support for HTTP/2</a>;
+ and a new mechanism for <a href="#template">template reuse</a>.
+ </p>
+ 
+@@ -258,7 +258,7 @@ to implementations of the
+ 
+ <h2 id="library">Core library</h2>
+ 
+-<h3 id="http">HTTP</h3>
++<h3 id="http2">HTTP/2</h3>
+ 
+ <p>
+ Go 1.6 adds transparent support in the
+@@ -697,7 +697,7 @@ and
+ 
+ <li>
+ Also in the <a href="/pkg/net/http/"><code>net/http</code></a> package,
+-there are a few change related to the handling of a
++there are a few changes related to the handling of a
+ <a href="/pkg/http/#Request"><code>Request</code></a> data structure with its <code>Method</code> field set to the empty string.
+ An empty <code>Method</code> field has always been documented as an alias for <code>"GET"</code>
+ and it remains so.

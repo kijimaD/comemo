@@ -18,7 +18,57 @@ Date:   Wed May 25 23:27:45 2022 +0700
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/cmd/compile/internal/noder/reader.go | 7 +++++++
  test/run.go                              | 9 +++------
  2 files changed, 10 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index 7c35172f12..d050275f9e 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -599,6 +599,7 @@ func (pr *pkgReader) objIdx(idx pkgbits.Index, implicits, explicits []*types.Typ
+ 
+ 	do := func(op ir.Op, hasTParams bool) *ir.Name {
+ 		pos := r.pos()
++		setBasePos(pos)
+ 		if hasTParams {
+ 			r.typeParamNames()
+ 		}
+@@ -1812,6 +1813,7 @@ func (r *reader) exprType(nilOK bool) ir.Node {
+ 	}
+ 
+ 	pos := r.pos()
++	setBasePos(pos)
+ 
+ 	lsymPtr := func(lsym *obj.LSym) ir.Node {
+ 		return typecheck.Expr(typecheck.NodAddr(ir.NewLinksymExpr(pos, lsym, types.Types[types.TUINT8])))
+@@ -2530,3 +2532,8 @@ func addTailCall(pos src.XPos, fn *ir.Func, recv ir.Node, method *types.Field) {
+ 	ret.Results = []ir.Node{call}
+ 	fn.Body.Append(ret)
+ }
++
++func setBasePos(pos src.XPos) {
++	// Set the position for any error messages we might print (e.g. too large types).
++	base.Pos = pos
++}
+diff --git a/test/run.go b/test/run.go
+index a4ec19c73c..8763660ea8 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -1997,12 +1997,9 @@ var unifiedFailures = setOf(
+ 	"escape4.go",  // unified IR can inline f5 and f6; test doesn't expect this
+ 	"inline.go",   // unified IR reports function literal diagnostics on different lines than -d=inlfuncswithclosures
+ 
+-	"fixedbugs/issue7921.go",   // prints "… escapes to heap", but test expects "string(…) escapes to heap"
+-	"typeparam/issue47631.go",  // unified IR can handle local type declarations
+-	"fixedbugs/issue42058a.go", // unified IR doesn't report channel element too large
+-	"fixedbugs/issue42058b.go", // unified IR doesn't report channel element too large
+-	"fixedbugs/issue49767.go",  // unified IR doesn't report channel element too large
+-	"fixedbugs/issue49814.go",  // unified IR doesn't report array type too large
++	"fixedbugs/issue7921.go",  // prints "… escapes to heap", but test expects "string(…) escapes to heap"
++	"typeparam/issue47631.go", // unified IR can handle local type declarations
++	"fixedbugs/issue49767.go", // unified IR reports channel element too large on different line than irgen
+ )
+ 
+ func setOf(keys ...string) map[string]bool {

@@ -10,6 +10,20 @@ Date:   Tue Mar 13 16:03:19 2012 +1100
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/5777073
-
+---
  src/cmd/gc/subr.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 22c371e534..4fc658f7bc 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -3639,7 +3639,7 @@ isbadimport(Strlit *path)
+ 			yyerror("import path contains space character: \"%s\"", path->s);
+ 			return 1;
+ 		}
+-		if(utfrune("!\"#$%&'()*,:;<=>?[]^`{|}~", r)) {
++		if(utfrune("!\"#$%&'()*,:;<=>?[]^`{|}", r)) {
+ 			yyerror("import path contains invalid character '%C': \"%s\"", r, path->s);
+ 			return 1;
+ 		}

@@ -7,6 +7,24 @@ Date:   Wed Feb 27 21:15:36 2013 -0300
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/7230059
-
+---
  src/pkg/net/http/transfer.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/http/transfer.go b/src/pkg/net/http/transfer.go
+index 25b34addec..83b7ee7cb4 100644
+--- a/src/pkg/net/http/transfer.go
++++ b/src/pkg/net/http/transfer.go
+@@ -194,10 +194,11 @@ func (t *transferWriter) WriteBody(w io.Writer) (err error) {
+ 			ncopy, err = io.Copy(w, t.Body)
+ 		} else {
+ 			ncopy, err = io.Copy(w, io.LimitReader(t.Body, t.ContentLength))
+-			nextra, err := io.Copy(ioutil.Discard, t.Body)
+ 			if err != nil {
+ 				return err
+ 			}
++			var nextra int64
++			nextra, err = io.Copy(ioutil.Discard, t.Body)
+ 			ncopy += nextra
+ 		}
+ 		if err != nil {

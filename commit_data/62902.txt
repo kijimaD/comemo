@@ -24,7 +24,7 @@ Date:   Thu Mar 20 01:09:23 2025 +1100
     Reviewed-by: Meng Zhuo <mengzhuo1203@gmail.com>
     Reviewed-by: Carlos Amedee <carlos@golang.org>
     Reviewed-by: Junyang Shao <shaojunyang@google.com>
-
+---
  src/cmd/compile/internal/riscv64/ssa.go            |  3 +-
  src/cmd/compile/internal/ssa/_gen/RISCV64.rules    |  5 +++
  src/cmd/compile/internal/ssa/_gen/RISCV64Ops.go    |  1 +
@@ -34,3 +34,308 @@ Date:   Thu Mar 20 01:09:23 2025 +1100
  src/cmd/compile/internal/ssagen/intrinsics_test.go |  5 +++
  test/codegen/mathbits.go                           | 20 +++++----
  8 files changed, 118 insertions(+), 20 deletions(-)
+
+diff --git a/src/cmd/compile/internal/riscv64/ssa.go b/src/cmd/compile/internal/riscv64/ssa.go
+index 952a2050a0..4428d359a8 100644
+--- a/src/cmd/compile/internal/riscv64/ssa.go
++++ b/src/cmd/compile/internal/riscv64/ssa.go
+@@ -419,7 +419,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		ssa.OpRISCV64FMVSX, ssa.OpRISCV64FMVDX,
+ 		ssa.OpRISCV64FCVTSW, ssa.OpRISCV64FCVTSL, ssa.OpRISCV64FCVTWS, ssa.OpRISCV64FCVTLS,
+ 		ssa.OpRISCV64FCVTDW, ssa.OpRISCV64FCVTDL, ssa.OpRISCV64FCVTWD, ssa.OpRISCV64FCVTLD, ssa.OpRISCV64FCVTDS, ssa.OpRISCV64FCVTSD,
+-		ssa.OpRISCV64NOT, ssa.OpRISCV64NEG, ssa.OpRISCV64NEGW, ssa.OpRISCV64CLZ, ssa.OpRISCV64CLZW, ssa.OpRISCV64CTZ, ssa.OpRISCV64CTZW:
++		ssa.OpRISCV64NOT, ssa.OpRISCV64NEG, ssa.OpRISCV64NEGW, ssa.OpRISCV64CLZ, ssa.OpRISCV64CLZW, ssa.OpRISCV64CTZ, ssa.OpRISCV64CTZW,
++		ssa.OpRISCV64REV8:
+ 		p := s.Prog(v.Op.Asm())
+ 		p.From.Type = obj.TYPE_REG
+ 		p.From.Reg = v.Args[0].Reg()
+diff --git a/src/cmd/compile/internal/ssa/_gen/RISCV64.rules b/src/cmd/compile/internal/ssa/_gen/RISCV64.rules
+index a5d4fb72ec..b8b0429de2 100644
+--- a/src/cmd/compile/internal/ssa/_gen/RISCV64.rules
++++ b/src/cmd/compile/internal/ssa/_gen/RISCV64.rules
+@@ -231,6 +231,11 @@
+ (BitLen16 x) => (BitLen64 (ZeroExt16to64 x))
+ (BitLen8  x) => (BitLen64 (ZeroExt8to64 x))
+ 
++// Byte swap (note that these will only be emitted for rva22u64 and above).
++(Bswap64 ...) => (REV8 ...)
++(Bswap32 <t> x) => (SRLI [32] (REV8 <t> x))
++(Bswap16 <t> x) => (SRLI [48] (REV8 <t> x))
++
+ (Less64  ...) => (SLT  ...)
+ (Less32  x y) => (SLT  (SignExt32to64 x) (SignExt32to64 y))
+ (Less16  x y) => (SLT  (SignExt16to64 x) (SignExt16to64 y))
+diff --git a/src/cmd/compile/internal/ssa/_gen/RISCV64Ops.go b/src/cmd/compile/internal/ssa/_gen/RISCV64Ops.go
+index cc2302ff37..86412ce8a6 100644
+--- a/src/cmd/compile/internal/ssa/_gen/RISCV64Ops.go
++++ b/src/cmd/compile/internal/ssa/_gen/RISCV64Ops.go
+@@ -237,6 +237,7 @@ func init() {
+ 		{name: "OR", argLength: 2, reg: gp21, asm: "OR", commutative: true},     // arg0 | arg1
+ 		{name: "ORN", argLength: 2, reg: gp21, asm: "ORN"},                      // ^arg0 | arg1
+ 		{name: "ORI", argLength: 1, reg: gp11, asm: "ORI", aux: "Int64"},        // arg0 | auxint
++		{name: "REV8", argLength: 1, reg: gp11, asm: "REV8"},                    // reverse bytes
+ 		{name: "ROL", argLength: 2, reg: gp21, asm: "ROL"},                      // rotate left arg0 by (arg1 & 63)
+ 		{name: "ROLW", argLength: 2, reg: gp21, asm: "ROLW"},                    // rotate left least significant word of arg0 by (arg1 & 31), sign extended
+ 		{name: "ROR", argLength: 2, reg: gp21, asm: "ROR"},                      // rotate right arg0 by (arg1 & 63)
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index de6ccf25f2..6eeb90721b 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -2520,6 +2520,7 @@ const (
+ 	OpRISCV64OR
+ 	OpRISCV64ORN
+ 	OpRISCV64ORI
++	OpRISCV64REV8
+ 	OpRISCV64ROL
+ 	OpRISCV64ROLW
+ 	OpRISCV64ROR
+@@ -33968,6 +33969,19 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:   "REV8",
++		argLen: 1,
++		asm:    riscv.AREV8,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
++			},
++			outputs: []outputInfo{
++				{0, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
++			},
++		},
++	},
+ 	{
+ 		name:   "ROL",
+ 		argLen: 2,
+diff --git a/src/cmd/compile/internal/ssa/rewriteRISCV64.go b/src/cmd/compile/internal/ssa/rewriteRISCV64.go
+index 182ca2d3fd..d0e2c909e0 100644
+--- a/src/cmd/compile/internal/ssa/rewriteRISCV64.go
++++ b/src/cmd/compile/internal/ssa/rewriteRISCV64.go
+@@ -110,6 +110,13 @@ func rewriteValueRISCV64(v *Value) bool {
+ 		return rewriteValueRISCV64_OpBitLen64(v)
+ 	case OpBitLen8:
+ 		return rewriteValueRISCV64_OpBitLen8(v)
++	case OpBswap16:
++		return rewriteValueRISCV64_OpBswap16(v)
++	case OpBswap32:
++		return rewriteValueRISCV64_OpBswap32(v)
++	case OpBswap64:
++		v.Op = OpRISCV64REV8
++		return true
+ 	case OpClosureCall:
+ 		v.Op = OpRISCV64CALLclosure
+ 		return true
+@@ -1002,6 +1009,38 @@ func rewriteValueRISCV64_OpBitLen8(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueRISCV64_OpBswap16(v *Value) bool {
++	v_0 := v.Args[0]
++	b := v.Block
++	// match: (Bswap16 <t> x)
++	// result: (SRLI [48] (REV8 <t> x))
++	for {
++		t := v.Type
++		x := v_0
++		v.reset(OpRISCV64SRLI)
++		v.AuxInt = int64ToAuxInt(48)
++		v0 := b.NewValue0(v.Pos, OpRISCV64REV8, t)
++		v0.AddArg(x)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValueRISCV64_OpBswap32(v *Value) bool {
++	v_0 := v.Args[0]
++	b := v.Block
++	// match: (Bswap32 <t> x)
++	// result: (SRLI [32] (REV8 <t> x))
++	for {
++		t := v.Type
++		x := v_0
++		v.reset(OpRISCV64SRLI)
++		v.AuxInt = int64ToAuxInt(32)
++		v0 := b.NewValue0(v.Pos, OpRISCV64REV8, t)
++		v0.AddArg(x)
++		v.AddArg(v0)
++		return true
++	}
++}
+ func rewriteValueRISCV64_OpConst16(v *Value) bool {
+ 	// match: (Const16 [val])
+ 	// result: (MOVDconst [int64(val)])
+diff --git a/src/cmd/compile/internal/ssagen/intrinsics.go b/src/cmd/compile/internal/ssagen/intrinsics.go
+index eaced0b277..86ab98118d 100644
+--- a/src/cmd/compile/internal/ssagen/intrinsics.go
++++ b/src/cmd/compile/internal/ssagen/intrinsics.go
+@@ -184,22 +184,44 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
+ 		},
+ 		all...)
+ 
+-	brev_arch := []sys.ArchFamily{sys.AMD64, sys.I386, sys.ARM64, sys.ARM, sys.Loong64, sys.S390X}
+-	if cfg.goppc64 >= 10 {
+-		// Use only on Power10 as the new byte reverse instructions that Power10 provide
+-		// make it worthwhile as an intrinsic
+-		brev_arch = append(brev_arch, sys.PPC64)
+-	}
+ 	addF("internal/runtime/sys", "Bswap32",
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue1(ssa.OpBswap32, types.Types[types.TUINT32], args[0])
+ 		},
+-		brev_arch...)
++		sys.AMD64, sys.I386, sys.ARM64, sys.ARM, sys.Loong64, sys.S390X)
+ 	addF("internal/runtime/sys", "Bswap64",
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue1(ssa.OpBswap64, types.Types[types.TUINT64], args[0])
+ 		},
+-		brev_arch...)
++		sys.AMD64, sys.I386, sys.ARM64, sys.ARM, sys.Loong64, sys.S390X)
++
++	if cfg.goppc64 >= 10 {
++		// Use only on Power10 as the new byte reverse instructions that Power10 provide
++		// make it worthwhile as an intrinsic
++		addF("internal/runtime/sys", "Bswap32",
++			func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
++				return s.newValue1(ssa.OpBswap32, types.Types[types.TUINT32], args[0])
++			},
++			sys.PPC64)
++		addF("internal/runtime/sys", "Bswap64",
++			func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
++				return s.newValue1(ssa.OpBswap64, types.Types[types.TUINT64], args[0])
++			},
++			sys.PPC64)
++	}
++
++	if cfg.goriscv64 >= 22 {
++		addF("internal/runtime/sys", "Bswap32",
++			func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
++				return s.newValue1(ssa.OpBswap32, types.Types[types.TUINT32], args[0])
++			},
++			sys.RISCV64)
++		addF("internal/runtime/sys", "Bswap64",
++			func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
++				return s.newValue1(ssa.OpBswap64, types.Types[types.TUINT64], args[0])
++			},
++			sys.RISCV64)
++	}
+ 
+ 	/****** Prefetch ******/
+ 	makePrefetchFunc := func(op ssa.Op) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+@@ -924,23 +946,30 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
+ 			sys.RISCV64)
+ 	}
+ 
++	// ReverseBytes inlines correctly, no need to intrinsify it.
+ 	alias("math/bits", "ReverseBytes64", "internal/runtime/sys", "Bswap64", all...)
+ 	alias("math/bits", "ReverseBytes32", "internal/runtime/sys", "Bswap32", all...)
++	// Nothing special is needed for targets where ReverseBytes16 lowers to a rotate
+ 	addF("math/bits", "ReverseBytes16",
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue1(ssa.OpBswap16, types.Types[types.TUINT16], args[0])
+ 		},
+ 		sys.Loong64)
+-	// ReverseBytes inlines correctly, no need to intrinsify it.
+-	// Nothing special is needed for targets where ReverseBytes16 lowers to a rotate
+-	// On Power10, 16-bit rotate is not available so use BRH instruction
+ 	if cfg.goppc64 >= 10 {
++		// On Power10, 16-bit rotate is not available so use BRH instruction
+ 		addF("math/bits", "ReverseBytes16",
+ 			func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 				return s.newValue1(ssa.OpBswap16, types.Types[types.TUINT], args[0])
+ 			},
+ 			sys.PPC64)
+ 	}
++	if cfg.goriscv64 >= 22 {
++		addF("math/bits", "ReverseBytes16",
++			func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
++				return s.newValue1(ssa.OpBswap16, types.Types[types.TUINT16], args[0])
++			},
++			sys.RISCV64)
++	}
+ 
+ 	addF("math/bits", "Len64",
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+diff --git a/src/cmd/compile/internal/ssagen/intrinsics_test.go b/src/cmd/compile/internal/ssagen/intrinsics_test.go
+index 230a7bdf67..e6275734f2 100644
+--- a/src/cmd/compile/internal/ssagen/intrinsics_test.go
++++ b/src/cmd/compile/internal/ssagen/intrinsics_test.go
+@@ -1107,6 +1107,8 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
+ 	{"riscv64", "internal/runtime/math", "Add64"}:                      struct{}{},
+ 	{"riscv64", "internal/runtime/math", "Mul64"}:                      struct{}{},
+ 	{"riscv64", "internal/runtime/math", "MulUintptr"}:                 struct{}{},
++	{"riscv64", "internal/runtime/sys", "Bswap32"}:                     struct{}{},
++	{"riscv64", "internal/runtime/sys", "Bswap64"}:                     struct{}{},
+ 	{"riscv64", "internal/runtime/sys", "GetCallerPC"}:                 struct{}{},
+ 	{"riscv64", "internal/runtime/sys", "GetCallerSP"}:                 struct{}{},
+ 	{"riscv64", "internal/runtime/sys", "GetClosurePtr"}:               struct{}{},
+@@ -1129,6 +1131,9 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
+ 	{"riscv64", "math/bits", "Len8"}:                                   struct{}{},
+ 	{"riscv64", "math/bits", "Mul"}:                                    struct{}{},
+ 	{"riscv64", "math/bits", "Mul64"}:                                  struct{}{},
++	{"riscv64", "math/bits", "ReverseBytes16"}:                         struct{}{},
++	{"riscv64", "math/bits", "ReverseBytes32"}:                         struct{}{},
++	{"riscv64", "math/bits", "ReverseBytes64"}:                         struct{}{},
+ 	{"riscv64", "math/bits", "RotateLeft"}:                             struct{}{},
+ 	{"riscv64", "math/bits", "RotateLeft16"}:                           struct{}{},
+ 	{"riscv64", "math/bits", "RotateLeft32"}:                           struct{}{},
+diff --git a/test/codegen/mathbits.go b/test/codegen/mathbits.go
+index 873354b838..e9dfbb1443 100644
+--- a/test/codegen/mathbits.go
++++ b/test/codegen/mathbits.go
+@@ -261,42 +261,46 @@ func Reverse8(n uint8) uint8 {
+ // ----------------------- //
+ 
+ func ReverseBytes(n uint) uint {
+-	// amd64:"BSWAPQ"
+ 	// 386:"BSWAPL"
+-	// s390x:"MOVDBR"
++	// amd64:"BSWAPQ"
+ 	// arm64:"REV"
+ 	// loong64:"REVBV"
++	// riscv64/rva22u64,riscv64/rva23u64:"REV8"
++	// s390x:"MOVDBR"
+ 	return bits.ReverseBytes(n)
+ }
+ 
+ func ReverseBytes64(n uint64) uint64 {
+-	// amd64:"BSWAPQ"
+ 	// 386:"BSWAPL"
+-	// s390x:"MOVDBR"
++	// amd64:"BSWAPQ"
+ 	// arm64:"REV"
+-	// ppc64x/power10: "BRD"
+ 	// loong64:"REVBV"
++	// ppc64x/power10: "BRD"
++	// riscv64/rva22u64,riscv64/rva23u64:"REV8"
++	// s390x:"MOVDBR"
+ 	return bits.ReverseBytes64(n)
+ }
+ 
+ func ReverseBytes32(n uint32) uint32 {
+-	// amd64:"BSWAPL"
+ 	// 386:"BSWAPL"
+-	// s390x:"MOVWBR"
++	// amd64:"BSWAPL"
+ 	// arm64:"REVW"
+ 	// loong64:"REVB2W"
+ 	// ppc64x/power10: "BRW"
++	// riscv64/rva22u64,riscv64/rva23u64:"REV8","SRLI\t\\$32"
++	// s390x:"MOVWBR"
+ 	return bits.ReverseBytes32(n)
+ }
+ 
+ func ReverseBytes16(n uint16) uint16 {
+ 	// amd64:"ROLW"
+-	// arm64:"REV16W",-"UBFX",-"ORR"
+ 	// arm/5:"SLL","SRL","ORR"
+ 	// arm/6:"REV16"
+ 	// arm/7:"REV16"
++	// arm64:"REV16W",-"UBFX",-"ORR"
+ 	// loong64:"REVB2H"
+ 	// ppc64x/power10: "BRH"
++	// riscv64/rva22u64,riscv64/rva23u64:"REV8","SRLI\t\\$48"
+ 	return bits.ReverseBytes16(n)
+ }
+ 

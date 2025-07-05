@@ -13,6 +13,21 @@ Date:   Thu Sep 10 14:16:41 2015 -0700
     Change-Id: Ia4090a02ba122e9f8317ed86c4c9839ae2c539e0
     Reviewed-on: https://go-review.googlesource.com/14496
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/mime/encodedword.go | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/mime/encodedword.go b/src/mime/encodedword.go
+index 9796f506dc..ebf6164bb6 100644
+--- a/src/mime/encodedword.go
++++ b/src/mime/encodedword.go
+@@ -98,8 +98,7 @@ type WordDecoder struct {
+ 	CharsetReader func(charset string, input io.Reader) (io.Reader, error)
+ }
+ 
+-// Decode decodes an encoded-word. If word is not a valid RFC 2047 encoded-word,
+-// word is returned unchanged.
++// Decode decodes an RFC 2047 encoded-word.
+ func (d *WordDecoder) Decode(word string) (string, error) {
+ 	fields := strings.Split(word, "?") // TODO: remove allocation?
+ 	if len(fields) != 5 || fields[0] != "=" || fields[4] != "=" || len(fields[2]) != 1 {

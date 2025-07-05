@@ -18,7 +18,7 @@ Date:   Tue Apr 9 15:20:21 2024 -0400
     Auto-Submit: Alan Donovan <adonovan@google.com>
     Commit-Queue: Alan Donovan <adonovan@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/go/internal/gcimporter/ureader.go |  5 +++--
  src/go/types/api_test.go              |  1 -
  src/go/types/check.go                 | 12 ++++++++++--
@@ -28,3 +28,150 @@ Date:   Tue Apr 9 15:20:21 2024 -0400
  src/go/types/issues_test.go           |  2 +-
  src/internal/godebugs/table.go        |  2 +-
  8 files changed, 21 insertions(+), 21 deletions(-)
+
+diff --git a/src/go/internal/gcimporter/ureader.go b/src/go/internal/gcimporter/ureader.go
+index b7d7b6c861..738dc54d9c 100644
+--- a/src/go/internal/gcimporter/ureader.go
++++ b/src/go/internal/gcimporter/ureader.go
+@@ -659,9 +659,10 @@ func pkgScope(pkg *types.Package) *types.Scope {
+ 
+ // newAliasTypeName returns a new TypeName, with a materialized *types.Alias if supported.
+ func newAliasTypeName(pos token.Pos, pkg *types.Package, name string, rhs types.Type) *types.TypeName {
+-	// When GODEBUG=gotypesalias=1, the Type() of the return value is a
++	// When GODEBUG=gotypesalias=1 or unset, the Type() of the return value is a
+ 	// *types.Alias. Copied from x/tools/internal/aliases.NewAlias.
+-	if godebug.New("gotypesalias").Value() == "1" {
++	switch godebug.New("gotypesalias").Value() {
++	case "", "1":
+ 		tname := types.NewTypeName(pos, pkg, name, nil)
+ 		_ = types.NewAlias(tname, rhs) // form TypeName -> Alias cycle
+ 		return tname
+diff --git a/src/go/types/api_test.go b/src/go/types/api_test.go
+index 5d7f793f71..5ce17e3ddc 100644
+--- a/src/go/types/api_test.go
++++ b/src/go/types/api_test.go
+@@ -2997,7 +2997,6 @@ func TestTooNew(t *testing.T) {
+ 
+ // This is a regression test for #66704.
+ func TestUnaliasTooSoonInCycle(t *testing.T) {
+-	t.Setenv("GODEBUG", "gotypesalias=1")
+ 	const src = `package a
+ 
+ var x T[B] // this appears to cause Unalias to be called on B while still Invalid
+diff --git a/src/go/types/check.go b/src/go/types/check.go
+index d201b3ef9f..74849171f2 100644
+--- a/src/go/types/check.go
++++ b/src/go/types/check.go
+@@ -23,7 +23,9 @@ var noposn = atPos(nopos)
+ // debugging/development support
+ const debug = false // leave on during development
+ 
+-// gotypesalias controls the use of Alias types
++// gotypesalias controls the use of Alias types.
++// As of Apr 12 2024 it is on by default.
++// It will be removed soon.
+ var gotypesalias = godebug.New("gotypesalias")
+ 
+ // exprInfo stores information about an untyped expression.
+@@ -258,8 +260,14 @@ func NewChecker(conf *Config, fset *token.FileSet, pkg *Package, info *Info) *Ch
+ 	//
+ 	// (previously, pkg.goVersion was mutated here: go.dev/issue/61212)
+ 
++	enableAlias := false
++	switch gotypesalias.Value() {
++	case "", "1":
++		enableAlias = true
++	}
++
+ 	return &Checker{
+-		enableAlias: gotypesalias.Value() == "1",
++		enableAlias: enableAlias,
+ 		conf:        conf,
+ 		ctxt:        conf.Context,
+ 		fset:        fset,
+diff --git a/src/go/types/check_test.go b/src/go/types/check_test.go
+index fc9723a67f..63891e9056 100644
+--- a/src/go/types/check_test.go
++++ b/src/go/types/check_test.go
+@@ -124,8 +124,6 @@ func parseFlags(src []byte, flags *flag.FlagSet) error {
+ 
+ // testFiles type-checks the package consisting of the given files, and
+ // compares the resulting errors with the ERROR annotations in the source.
+-// Except for manual tests, each package is type-checked twice, once without
+-// use of Alias types, and once with Alias types.
+ //
+ // The srcs slice contains the file content for the files named in the
+ // filenames slice. The colDelta parameter specifies the tolerance for position
+@@ -134,15 +132,6 @@ func parseFlags(src []byte, flags *flag.FlagSet) error {
+ //
+ // If provided, opts may be used to mutate the Config before type-checking.
+ func testFiles(t *testing.T, filenames []string, srcs [][]byte, manual bool, opts ...func(*Config)) {
+-	// Alias types are disabled by default
+-	testFilesImpl(t, filenames, srcs, manual, opts...)
+-	if !manual {
+-		t.Setenv("GODEBUG", "gotypesalias=1")
+-		testFilesImpl(t, filenames, srcs, manual, opts...)
+-	}
+-}
+-
+-func testFilesImpl(t *testing.T, filenames []string, srcs [][]byte, manual bool, opts ...func(*Config)) {
+ 	if len(filenames) == 0 {
+ 		t.Fatal("no source files")
+ 	}
+diff --git a/src/go/types/decl.go b/src/go/types/decl.go
+index b5d5334659..937163fc75 100644
+--- a/src/go/types/decl.go
++++ b/src/go/types/decl.go
+@@ -608,7 +608,7 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *ast.TypeSpec, def *TypeName
+ 			Unalias(alias) // resolve alias.actual
+ 		} else {
+ 			if !versionErr && tparam0 != nil {
+-				check.error(tdecl, UnsupportedFeature, "generic type alias requires GODEBUG=gotypesalias=1")
++				check.error(tdecl, UnsupportedFeature, "generic type alias requires GODEBUG=gotypesalias=1 or unset")
+ 				versionErr = true
+ 			}
+ 
+diff --git a/src/go/types/eval_test.go b/src/go/types/eval_test.go
+index c0ac8225ac..b9afb9117f 100644
+--- a/src/go/types/eval_test.go
++++ b/src/go/types/eval_test.go
+@@ -178,8 +178,11 @@ func TestEvalPos(t *testing.T) {
+ 		// Materialized aliases give a different (better)
+ 		// result for the final test, so skip it for now.
+ 		// TODO(adonovan): reenable when gotypesalias=1 is the default.
+-		if gotypesalias.Value() == "1" && strings.Contains(src, "interface{R}.Read") {
+-			continue
++		switch gotypesalias.Value() {
++		case "", "1":
++			if strings.Contains(src, "interface{R}.Read") {
++				continue
++			}
+ 		}
+ 
+ 		files = append(files, file)
+diff --git a/src/go/types/issues_test.go b/src/go/types/issues_test.go
+index 4f4bf6f077..eb627eaee7 100644
+--- a/src/go/types/issues_test.go
++++ b/src/go/types/issues_test.go
+@@ -998,7 +998,7 @@ type A = []int
+ type S struct{ A }
+ `
+ 
+-	t.Setenv("GODEBUG", "gotypesalias=1")
++	// t.Setenv("GODEBUG", "gotypesalias=1") // now on by default
+ 	pkg := mustTypecheck(src, nil, nil)
+ 
+ 	S := pkg.Scope().Lookup("S")
+diff --git a/src/internal/godebugs/table.go b/src/internal/godebugs/table.go
+index a97c391cd4..e9e043df4c 100644
+--- a/src/internal/godebugs/table.go
++++ b/src/internal/godebugs/table.go
+@@ -30,7 +30,7 @@ var All = []Info{
+ 	{Name: "gocachehash", Package: "cmd/go"},
+ 	{Name: "gocachetest", Package: "cmd/go"},
+ 	{Name: "gocacheverify", Package: "cmd/go"},
+-	{Name: "gotypesalias", Package: "go/types", Opaque: true}, // bug #66216: remove Opaque
++	{Name: "gotypesalias", Package: "go/types", Changed: 23, Old: "0", Opaque: true}, // bug #66216: remove Opaque
+ 	{Name: "http2client", Package: "net/http"},
+ 	{Name: "http2debug", Package: "net/http", Opaque: true},
+ 	{Name: "http2server", Package: "net/http"},

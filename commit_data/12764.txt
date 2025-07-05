@@ -11,6 +11,31 @@ Date:   Tue Mar 27 12:44:17 2012 +1100
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5916044
-
+---
  src/cmd/godoc/godoc.go | 13 ++++++++++++-
  1 file changed, 12 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index 26814d2fa3..f21c20496c 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -1315,7 +1315,18 @@ func refreshMetadataLoop() {
+ //
+ func metadataFor(relpath string) *Metadata {
+ 	if m, _ := docMetadata.get(); m != nil {
+-		return m.(map[string]*Metadata)[relpath]
++		meta := m.(map[string]*Metadata)
++		// If metadata for this relpath exists, return it.
++		if p := meta[relpath]; p != nil {
++			return p
++		}
++		// Try with or without trailing slash.
++		if strings.HasSuffix(relpath, "/") {
++			relpath = relpath[:len(relpath)-1]
++		} else {
++			relpath = relpath + "/"
++		}
++		return meta[relpath]
+ 	}
+ 	return nil
+ }

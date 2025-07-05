@@ -28,9 +28,161 @@ Date:   Wed Jan 27 10:05:18 2016 -0500
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/go_test.go | 37 ++++++++++++++++++++++++++++++++++---
  src/cmd/go/main.go    |  5 ++---
  src/cmd/go/pkg.go     | 28 ++++++++++++++++++++++++++--
  src/cmd/go/run.go     | 14 ++++++++++++--
  4 files changed, 74 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index dc6fd469af..a901ca8666 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -666,10 +666,41 @@ func TestGoBuildDashAInReleaseBranch(t *testing.T) {
+ 
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+-	tg.run("install", "math") // should be up to date already but just in case
++	tg.run("install", "math", "net/http") // should be up to date already but just in case
+ 	tg.setenv("TESTGO_IS_GO_RELEASE", "1")
+-	tg.run("build", "-v", "-a", "math")
+-	tg.grepStderr("runtime", "testgo build -a math in dev branch did not build runtime, but should have")
++	tg.run("install", "-v", "-a", "math")
++	tg.grepStderr("runtime", "testgo build -a math in release branch DID NOT build runtime, but should have")
++
++	// Now runtime.a is updated (newer mtime), so everything would look stale if not for being a release.
++	//
++	tg.run("build", "-v", "net/http")
++	tg.grepStderrNot("strconv", "testgo build -v net/http in release branch with newer runtime.a DID build strconv but should not have")
++	tg.grepStderrNot("golang.org/x/net/http2/hpack", "testgo build -v net/http in release branch with newer runtime.a DID build .../golang.org/x/net/http2/hpack but should not have")
++	tg.grepStderrNot("net/http", "testgo build -v net/http in release branch with newer runtime.a DID build net/http but should not have")
++}
++
++func TestGoListStandard(t *testing.T) {
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.cd(runtime.GOROOT() + "/src")
++	tg.run("list", "-f", "{{if not .Standard}}{{.ImportPath}}{{end}}", "./...")
++	stdout := tg.getStdout()
++	for _, line := range strings.Split(stdout, "\n") {
++		if strings.HasPrefix(line, "_/") && strings.HasSuffix(line, "/src") {
++			// $GOROOT/src shows up if there are any .go files there.
++			// We don't care.
++			continue
++		}
++		if line == "" {
++			continue
++		}
++		t.Errorf("package in GOROOT not listed as standard: %v", line)
++	}
++
++	// Similarly, expanding std should include some of our vendored code.
++	tg.run("list", "std", "cmd")
++	tg.grepStdout("golang.org/x/net/http2/hpack", "list std cmd did not mention vendored hpack")
++	tg.grepStdout("golang.org/x/arch/x86/x86asm", "list std cmd did not mention vendored x86asm")
+ }
+ 
+ func TestGoInstallCleansUpAfterGoBuild(t *testing.T) {
+diff --git a/src/cmd/go/main.go b/src/cmd/go/main.go
+index c6d77f7884..c8697ffe98 100644
+--- a/src/cmd/go/main.go
++++ b/src/cmd/go/main.go
+@@ -588,10 +588,9 @@ func matchPackages(pattern string) []string {
+ 			}
+ 
+ 			name := filepath.ToSlash(path[len(src):])
+-			if pattern == "std" && (strings.Contains(name, ".") || name == "cmd") {
++			if pattern == "std" && (!isStandardImportPath(name) || name == "cmd") {
+ 				// The name "std" is only the standard library.
+-				// If the name has a dot, assume it's a domain name for go get,
+-				// and if the name is cmd, it's the root of the command tree.
++				// If the name is cmd, it's the root of the command tree.
+ 				return filepath.SkipDir
+ 			}
+ 			if !treeCanMatch(name) {
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index 0507841c6b..112f820d80 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -153,7 +153,7 @@ func (p *Package) copyBuild(pp *build.Package) {
+ 	p.ConflictDir = pp.ConflictDir
+ 	// TODO? Target
+ 	p.Goroot = pp.Goroot
+-	p.Standard = p.Goroot && p.ImportPath != "" && !strings.Contains(p.ImportPath, ".")
++	p.Standard = p.Goroot && p.ImportPath != "" && isStandardImportPath(p.ImportPath)
+ 	p.GoFiles = pp.GoFiles
+ 	p.CgoFiles = pp.CgoFiles
+ 	p.IgnoredGoFiles = pp.IgnoredGoFiles
+@@ -177,6 +177,19 @@ func (p *Package) copyBuild(pp *build.Package) {
+ 	p.XTestImports = pp.XTestImports
+ }
+ 
++// isStandardImportPath reports whether $GOROOT/src/path should be considered
++// part of the standard distribution. For historical reasons we allow people to add
++// their own code to $GOROOT instead of using $GOPATH, but we assume that
++// code will start with a domain name (dot in the first element).
++func isStandardImportPath(path string) bool {
++	i := strings.Index(path, "/")
++	if i < 0 {
++		i = len(path)
++	}
++	elem := path[:i]
++	return !strings.Contains(elem, ".")
++}
++
+ // A PackageError describes an error loading information about a package.
+ type PackageError struct {
+ 	ImportStack   []string // shortest path from package named on command line to this one
+@@ -362,7 +375,7 @@ func loadImport(path, srcDir string, parent *Package, stk *importStack, importPo
+ 		err = fmt.Errorf("code in directory %s expects import %q", bp.Dir, bp.ImportComment)
+ 	}
+ 	p.load(stk, bp, err)
+-	if p.Error != nil && len(importPos) > 0 {
++	if p.Error != nil && p.Error.Pos == "" && len(importPos) > 0 {
+ 		pos := importPos[0]
+ 		pos.Filename = shortPath(pos.Filename)
+ 		p.Error.Pos = pos.String()
+@@ -933,6 +946,17 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package
+ 				}
+ 			}
+ 		}
++		if p.Standard && !p1.Standard && p.Error == nil {
++			p.Error = &PackageError{
++				ImportStack: stk.copy(),
++				Err:         fmt.Sprintf("non-standard import %q in standard package %q", path, p.ImportPath),
++			}
++			pos := p.build.ImportPos[path]
++			if len(pos) > 0 {
++				p.Error.Pos = pos[0].String()
++			}
++		}
++
+ 		path = p1.ImportPath
+ 		importPaths[i] = path
+ 		if i < len(p.Imports) {
+diff --git a/src/cmd/go/run.go b/src/cmd/go/run.go
+index 7ee067a003..bf10f4f3e9 100644
+--- a/src/cmd/go/run.go
++++ b/src/cmd/go/run.go
+@@ -89,8 +89,18 @@ func runRun(cmd *Command, args []string) {
+ 		fatalf("%s", p.Error)
+ 	}
+ 	p.omitDWARF = true
+-	for _, err := range p.DepsErrors {
+-		errorf("%s", err)
++	if len(p.DepsErrors) > 0 {
++		// Since these are errors in dependencies,
++		// the same error might show up multiple times,
++		// once in each package that depends on it.
++		// Only print each once.
++		printed := map[*PackageError]bool{}
++		for _, err := range p.DepsErrors {
++			if !printed[err] {
++				printed[err] = true
++				errorf("%s", err)
++			}
++		}
+ 	}
+ 	exitIfErrors()
+ 	if p.Name != "main" {

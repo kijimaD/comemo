@@ -23,7 +23,7 @@ Date:   Mon Mar 11 13:58:20 2019 +0700
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/os/export_test.go  |  1 +
  src/os/file.go         | 15 ++++++++++++++-
  src/os/file_plan9.go   |  7 ++++---
@@ -31,3 +31,127 @@ Date:   Mon Mar 11 13:58:20 2019 +0700
  src/os/file_windows.go |  7 ++++---
  src/os/os_test.go      | 15 +++++++++++++++
  6 files changed, 39 insertions(+), 7 deletions(-)
+
+diff --git a/src/os/export_test.go b/src/os/export_test.go
+index d735aeea61..812432cee4 100644
+--- a/src/os/export_test.go
++++ b/src/os/export_test.go
+@@ -8,3 +8,4 @@ package os
+ 
+ var Atime = atime
+ var LstatP = &lstat
++var ErrWriteAtInAppendMode = errWriteAtInAppendMode
+diff --git a/src/os/file.go b/src/os/file.go
+index a44263ee8a..258a3e6109 100644
+--- a/src/os/file.go
++++ b/src/os/file.go
+@@ -163,13 +163,20 @@ func (f *File) Write(b []byte) (n int, err error) {
+ 	return n, err
+ }
+ 
++var errWriteAtInAppendMode = errors.New("os: invalid use of WriteAt on file opened with O_APPEND")
++
+ // WriteAt writes len(b) bytes to the File starting at byte offset off.
+ // It returns the number of bytes written and an error, if any.
+ // WriteAt returns a non-nil error when n != len(b).
++//
++// If file was opened with the O_APPEND flag, WriteAt returns an error.
+ func (f *File) WriteAt(b []byte, off int64) (n int, err error) {
+ 	if err := f.checkValid("write"); err != nil {
+ 		return 0, err
+ 	}
++	if f.appendMode {
++		return 0, errWriteAtInAppendMode
++	}
+ 
+ 	if off < 0 {
+ 		return 0, &PathError{"writeat", f.name, errors.New("negative offset")}
+@@ -286,7 +293,13 @@ func Create(name string) (*File, error) {
+ // If there is an error, it will be of type *PathError.
+ func OpenFile(name string, flag int, perm FileMode) (*File, error) {
+ 	testlog.Open(name)
+-	return openFileNolog(name, flag, perm)
++	f, err := openFileNolog(name, flag, perm)
++	if err != nil {
++		return nil, err
++	}
++	f.appendMode = flag&O_APPEND != 0
++
++	return f, nil
+ }
+ 
+ // lstat is overridden in tests.
+diff --git a/src/os/file_plan9.go b/src/os/file_plan9.go
+index 3fa12e6816..14091873cf 100644
+--- a/src/os/file_plan9.go
++++ b/src/os/file_plan9.go
+@@ -22,9 +22,10 @@ func fixLongPath(path string) string {
+ // can overwrite this data, which could cause the finalizer
+ // to close the wrong file descriptor.
+ type file struct {
+-	fd      int
+-	name    string
+-	dirinfo *dirInfo // nil unless directory being read
++	fd         int
++	name       string
++	dirinfo    *dirInfo // nil unless directory being read
++	appendMode bool     // whether file is opened for appending
+ }
+ 
+ // Fd returns the integer Plan 9 file descriptor referencing the open file.
+diff --git a/src/os/file_unix.go b/src/os/file_unix.go
+index 4b62abfb5c..1cd8000dd4 100644
+--- a/src/os/file_unix.go
++++ b/src/os/file_unix.go
+@@ -52,6 +52,7 @@ type file struct {
+ 	dirinfo     *dirInfo // nil unless directory being read
+ 	nonblock    bool     // whether we set nonblocking mode
+ 	stdoutOrErr bool     // whether this is stdout or stderr
++	appendMode  bool     // whether file is opened for appending
+ }
+ 
+ // Fd returns the integer Unix file descriptor referencing the open file.
+diff --git a/src/os/file_windows.go b/src/os/file_windows.go
+index f311ae11d9..08444d728f 100644
+--- a/src/os/file_windows.go
++++ b/src/os/file_windows.go
+@@ -19,9 +19,10 @@ import (
+ // can overwrite this data, which could cause the finalizer
+ // to close the wrong file descriptor.
+ type file struct {
+-	pfd     poll.FD
+-	name    string
+-	dirinfo *dirInfo // nil unless directory being read
++	pfd        poll.FD
++	name       string
++	dirinfo    *dirInfo // nil unless directory being read
++	appendMode bool     // whether file is opened for appending
+ }
+ 
+ // Fd returns the Windows handle referencing the open file.
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index c5c6b49e8f..1de46c29f5 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -1646,6 +1646,21 @@ func TestWriteAtNegativeOffset(t *testing.T) {
+ 	}
+ }
+ 
++// Verify that WriteAt doesn't work in append mode.
++func TestWriteAtInAppendMode(t *testing.T) {
++	defer chtmpdir(t)()
++	f, err := OpenFile("write_at_in_append_mode.txt", O_APPEND|O_CREATE, 0666)
++	if err != nil {
++		t.Fatalf("OpenFile: %v", err)
++	}
++	defer f.Close()
++
++	_, err = f.WriteAt([]byte(""), 1)
++	if err != ErrWriteAtInAppendMode {
++		t.Fatalf("f.WriteAt returned %v, expected %v", err, ErrWriteAtInAppendMode)
++	}
++}
++
+ func writeFile(t *testing.T, fname string, flag int, text string) string {
+ 	f, err := OpenFile(fname, flag, 0666)
+ 	if err != nil {

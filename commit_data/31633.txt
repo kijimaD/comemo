@@ -9,6 +9,40 @@ Date:   Sat Mar 4 16:28:59 2017 -0800
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/string_test.go | 15 +++++++++++++++
  1 file changed, 15 insertions(+)
+
+diff --git a/src/runtime/string_test.go b/src/runtime/string_test.go
+index fcfc52291f..7633cfde04 100644
+--- a/src/runtime/string_test.go
++++ b/src/runtime/string_test.go
+@@ -6,6 +6,7 @@ package runtime_test
+ 
+ import (
+ 	"runtime"
++	"strconv"
+ 	"strings"
+ 	"testing"
+ )
+@@ -89,6 +90,20 @@ func BenchmarkConcatStringAndBytes(b *testing.B) {
+ 	}
+ }
+ 
++var escapeString string
++
++func BenchmarkSliceByteToString(b *testing.B) {
++	buf := []byte{'!'}
++	for n := 0; n < 8; n++ {
++		b.Run(strconv.Itoa(len(buf)), func(b *testing.B) {
++			for i := 0; i < b.N; i++ {
++				escapeString = string(buf)
++			}
++		})
++		buf = append(buf, buf...)
++	}
++}
++
+ var stringdata = []struct{ name, data string }{
+ 	{"ASCII", "01234567890"},
+ 	{"Japanese", "日本語日本語日本語"},

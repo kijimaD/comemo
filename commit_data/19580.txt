@@ -9,6 +9,31 @@ Date:   Thu Jun 19 22:04:37 2014 -0700
     R=mikioh.mikioh
     CC=golang-codereviews
     https://golang.org/cl/103920044
-
+---
  src/pkg/net/dial.go | 12 +++++-------
  1 file changed, 5 insertions(+), 7 deletions(-)
+
+diff --git a/src/pkg/net/dial.go b/src/pkg/net/dial.go
+index 93569c253c..ac5c59fe79 100644
+--- a/src/pkg/net/dial.go
++++ b/src/pkg/net/dial.go
+@@ -214,14 +214,12 @@ func dialMulti(net, addr string, la Addr, ras addrList, deadline time.Time) (Con
+ 	nracers := len(ras)
+ 	for nracers > 0 {
+ 		sig <- true
+-		select {
+-		case racer := <-lane:
+-			if racer.error == nil {
+-				return racer.Conn, nil
+-			}
+-			lastErr = racer.error
+-			nracers--
++		racer := <-lane
++		if racer.error == nil {
++			return racer.Conn, nil
+ 		}
++		lastErr = racer.error
++		nracers--
+ 	}
+ 	return nil, lastErr
+ }

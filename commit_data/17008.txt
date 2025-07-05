@@ -7,7 +7,37 @@ Date:   Fri Aug 2 19:14:13 2013 -0700
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/12320045
-
+---
  .hgignore    | 2 ++
  src/run.bash | 1 +
  2 files changed, 3 insertions(+)
+
+diff --git a/.hgignore b/.hgignore
+index d85ce379a7..afe76cf220 100644
+--- a/.hgignore
++++ b/.hgignore
+@@ -35,10 +35,12 @@ misc/osx/*.dmg
+ src/cmd/?a/y.output
+ src/cmd/?l/enam.c
+ src/cmd/cc/y.output
++src/cmd/cgo/zdefaultcc.go
+ src/cmd/dist/dist.dSYM
+ src/cmd/gc/mkbuiltin1
+ src/cmd/gc/opnames.h
+ src/cmd/gc/y.output
++src/cmd/go/zdefaultcc.go
+ src/pkg/go/doc/headscan
+ src/pkg/runtime/goc2c
+ src/pkg/runtime/mkversion
+diff --git a/src/run.bash b/src/run.bash
+index 8f416f6018..ded465b668 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -161,6 +161,7 @@ time ./run || exit 1
+ echo
+ echo '#' ../misc/goplay
+ go build ../misc/goplay
++rm -f goplay
+ 
+ [ "$GOARCH" == arm ] ||
+ (xcd ../test/bench/shootout

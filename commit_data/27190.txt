@@ -13,7 +13,77 @@ Date:   Sun Mar 13 17:59:26 2016 -0700
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/encoding/base64/base64.go      |  2 +-
  src/encoding/base64/base64_test.go | 45 ++++++++++++++++++++++++++++++++++++++
  2 files changed, 46 insertions(+), 1 deletion(-)
+
+diff --git a/src/encoding/base64/base64.go b/src/encoding/base64/base64.go
+index 0de9b40f85..c2116d8a34 100644
+--- a/src/encoding/base64/base64.go
++++ b/src/encoding/base64/base64.go
+@@ -459,7 +459,7 @@ func NewDecoder(enc *Encoding, r io.Reader) io.Reader {
+ func (enc *Encoding) DecodedLen(n int) int {
+ 	if enc.padChar == NoPadding {
+ 		// Unpadded data may end with partial block of 2-3 characters.
+-		return (n*6 + 7) / 8
++		return n * 6 / 8
+ 	}
+ 	// Padded base64 should always be a multiple of 4 characters in length.
+ 	return n / 4 * 3
+diff --git a/src/encoding/base64/base64_test.go b/src/encoding/base64/base64_test.go
+index eebf113212..19ddb92f64 100644
+--- a/src/encoding/base64/base64_test.go
++++ b/src/encoding/base64/base64_test.go
+@@ -234,6 +234,51 @@ func TestDecodeCorrupt(t *testing.T) {
+ 	}
+ }
+ 
++func TestEncodedLen(t *testing.T) {
++	for _, tt := range []struct {
++		enc  *Encoding
++		n    int
++		want int
++	}{
++		{RawStdEncoding, 0, 0},
++		{RawStdEncoding, 1, 2},
++		{RawStdEncoding, 2, 3},
++		{RawStdEncoding, 3, 4},
++		{RawStdEncoding, 7, 10},
++		{StdEncoding, 0, 0},
++		{StdEncoding, 1, 4},
++		{StdEncoding, 2, 4},
++		{StdEncoding, 3, 4},
++		{StdEncoding, 4, 8},
++		{StdEncoding, 7, 12},
++	} {
++		if got := tt.enc.EncodedLen(tt.n); got != tt.want {
++			t.Errorf("EncodedLen(%d): got %d, want %d", tt.n, got, tt.want)
++		}
++	}
++}
++
++func TestDecodedLen(t *testing.T) {
++	for _, tt := range []struct {
++		enc  *Encoding
++		n    int
++		want int
++	}{
++		{RawStdEncoding, 0, 0},
++		{RawStdEncoding, 2, 1},
++		{RawStdEncoding, 3, 2},
++		{RawStdEncoding, 4, 3},
++		{RawStdEncoding, 10, 7},
++		{StdEncoding, 0, 0},
++		{StdEncoding, 4, 3},
++		{StdEncoding, 8, 6},
++	} {
++		if got := tt.enc.DecodedLen(tt.n); got != tt.want {
++			t.Errorf("DecodedLen(%d): got %d, want %d", tt.n, got, tt.want)
++		}
++	}
++}
++
+ func TestBig(t *testing.T) {
+ 	n := 3*1000 + 1
+ 	raw := make([]byte, n)

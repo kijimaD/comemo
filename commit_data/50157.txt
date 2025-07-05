@@ -17,9 +17,250 @@ Date:   Wed Jun 16 16:25:57 2021 +0000
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     Trust: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/ssa/gen/generic.rules |  20 ++++-
  src/cmd/compile/internal/ssa/rewrite.go        |   5 ++
  src/cmd/compile/internal/ssa/rewritegeneric.go | 100 +++++++++++++++++++++++++
  test/codegen/comparisons.go                    |  62 +++++++++++++++
  4 files changed, 186 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index 40db1a6ee8..6dbe9b47d0 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -2011,12 +2011,30 @@
+ 	=> (Invalid)
+ 
+ // for late-expanded calls, recognize memequal applied to a single constant byte
+-// TODO figure out breakeven number of bytes for this optimization.
++// Support is limited by 1, 2, 4, 8 byte sizes
+ (StaticLECall {callAux} sptr (Addr {scon} (SB)) (Const64 [1]) mem)
+   && isSameCall(callAux, "runtime.memequal")
+   && symIsRO(scon)
+   => (MakeResult (Eq8 (Load <typ.Int8> sptr mem) (Const8 <typ.Int8> [int8(read8(scon,0))])) mem)
+ 
++(StaticLECall {callAux} sptr (Addr {scon} (SB)) (Const64 [2]) mem)
++  && isSameCall(callAux, "runtime.memequal")
++  && symIsRO(scon)
++  && canLoadUnaligned(config)
++  => (MakeResult (Eq16 (Load <typ.Int16> sptr mem) (Const16 <typ.Int16> [int16(read16(scon,0,config.ctxt.Arch.ByteOrder))])) mem)
++
++(StaticLECall {callAux} sptr (Addr {scon} (SB)) (Const64 [4]) mem)
++  && isSameCall(callAux, "runtime.memequal")
++  && symIsRO(scon)
++  && canLoadUnaligned(config)
++  => (MakeResult (Eq32 (Load <typ.Int32> sptr mem) (Const32 <typ.Int32> [int32(read32(scon,0,config.ctxt.Arch.ByteOrder))])) mem)
++
++(StaticLECall {callAux} sptr (Addr {scon} (SB)) (Const64 [8]) mem)
++  && isSameCall(callAux, "runtime.memequal")
++  && symIsRO(scon)
++  && canLoadUnaligned(config) && config.PtrSize == 8
++  => (MakeResult (Eq64 (Load <typ.Int64> sptr mem) (Const64 <typ.Int64> [int64(read64(scon,0,config.ctxt.Arch.ByteOrder))])) mem)
++
+ // Evaluate constant address comparisons.
+ (EqPtr  x x) => (ConstBool [true])
+ (NeqPtr x x) => (ConstBool [false])
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index 79f9efaebf..2fe0ca64c8 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -415,6 +415,11 @@ func isSameCall(sym interface{}, name string) bool {
+ 	return fn != nil && fn.String() == name
+ }
+ 
++// canLoadUnaligned reports if the achitecture supports unaligned load operations
++func canLoadUnaligned(c *Config) bool {
++	return c.ctxt.Arch.Alignment == 1
++}
++
+ // nlz returns the number of leading zeros.
+ func nlz64(x int64) int { return bits.LeadingZeros64(uint64(x)) }
+ func nlz32(x int32) int { return bits.LeadingZeros32(uint32(x)) }
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index a6757e0d10..fbf227562a 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -21746,6 +21746,7 @@ func rewriteValuegeneric_OpSqrt(v *Value) bool {
+ }
+ func rewriteValuegeneric_OpStaticLECall(v *Value) bool {
+ 	b := v.Block
++	config := b.Func.Config
+ 	typ := &b.Func.Config.Types
+ 	// match: (StaticLECall {callAux} sptr (Addr {scon} (SB)) (Const64 [1]) mem)
+ 	// cond: isSameCall(callAux, "runtime.memequal") && symIsRO(scon)
+@@ -21780,6 +21781,105 @@ func rewriteValuegeneric_OpStaticLECall(v *Value) bool {
+ 		v.AddArg2(v0, mem)
+ 		return true
+ 	}
++	// match: (StaticLECall {callAux} sptr (Addr {scon} (SB)) (Const64 [2]) mem)
++	// cond: isSameCall(callAux, "runtime.memequal") && symIsRO(scon) && canLoadUnaligned(config)
++	// result: (MakeResult (Eq16 (Load <typ.Int16> sptr mem) (Const16 <typ.Int16> [int16(read16(scon,0,config.ctxt.Arch.ByteOrder))])) mem)
++	for {
++		if len(v.Args) != 4 {
++			break
++		}
++		callAux := auxToCall(v.Aux)
++		mem := v.Args[3]
++		sptr := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpAddr {
++			break
++		}
++		scon := auxToSym(v_1.Aux)
++		v_1_0 := v_1.Args[0]
++		if v_1_0.Op != OpSB {
++			break
++		}
++		v_2 := v.Args[2]
++		if v_2.Op != OpConst64 || auxIntToInt64(v_2.AuxInt) != 2 || !(isSameCall(callAux, "runtime.memequal") && symIsRO(scon) && canLoadUnaligned(config)) {
++			break
++		}
++		v.reset(OpMakeResult)
++		v0 := b.NewValue0(v.Pos, OpEq16, typ.Bool)
++		v1 := b.NewValue0(v.Pos, OpLoad, typ.Int16)
++		v1.AddArg2(sptr, mem)
++		v2 := b.NewValue0(v.Pos, OpConst16, typ.Int16)
++		v2.AuxInt = int16ToAuxInt(int16(read16(scon, 0, config.ctxt.Arch.ByteOrder)))
++		v0.AddArg2(v1, v2)
++		v.AddArg2(v0, mem)
++		return true
++	}
++	// match: (StaticLECall {callAux} sptr (Addr {scon} (SB)) (Const64 [4]) mem)
++	// cond: isSameCall(callAux, "runtime.memequal") && symIsRO(scon) && canLoadUnaligned(config)
++	// result: (MakeResult (Eq32 (Load <typ.Int32> sptr mem) (Const32 <typ.Int32> [int32(read32(scon,0,config.ctxt.Arch.ByteOrder))])) mem)
++	for {
++		if len(v.Args) != 4 {
++			break
++		}
++		callAux := auxToCall(v.Aux)
++		mem := v.Args[3]
++		sptr := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpAddr {
++			break
++		}
++		scon := auxToSym(v_1.Aux)
++		v_1_0 := v_1.Args[0]
++		if v_1_0.Op != OpSB {
++			break
++		}
++		v_2 := v.Args[2]
++		if v_2.Op != OpConst64 || auxIntToInt64(v_2.AuxInt) != 4 || !(isSameCall(callAux, "runtime.memequal") && symIsRO(scon) && canLoadUnaligned(config)) {
++			break
++		}
++		v.reset(OpMakeResult)
++		v0 := b.NewValue0(v.Pos, OpEq32, typ.Bool)
++		v1 := b.NewValue0(v.Pos, OpLoad, typ.Int32)
++		v1.AddArg2(sptr, mem)
++		v2 := b.NewValue0(v.Pos, OpConst32, typ.Int32)
++		v2.AuxInt = int32ToAuxInt(int32(read32(scon, 0, config.ctxt.Arch.ByteOrder)))
++		v0.AddArg2(v1, v2)
++		v.AddArg2(v0, mem)
++		return true
++	}
++	// match: (StaticLECall {callAux} sptr (Addr {scon} (SB)) (Const64 [8]) mem)
++	// cond: isSameCall(callAux, "runtime.memequal") && symIsRO(scon) && canLoadUnaligned(config) && config.PtrSize == 8
++	// result: (MakeResult (Eq64 (Load <typ.Int64> sptr mem) (Const64 <typ.Int64> [int64(read64(scon,0,config.ctxt.Arch.ByteOrder))])) mem)
++	for {
++		if len(v.Args) != 4 {
++			break
++		}
++		callAux := auxToCall(v.Aux)
++		mem := v.Args[3]
++		sptr := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpAddr {
++			break
++		}
++		scon := auxToSym(v_1.Aux)
++		v_1_0 := v_1.Args[0]
++		if v_1_0.Op != OpSB {
++			break
++		}
++		v_2 := v.Args[2]
++		if v_2.Op != OpConst64 || auxIntToInt64(v_2.AuxInt) != 8 || !(isSameCall(callAux, "runtime.memequal") && symIsRO(scon) && canLoadUnaligned(config) && config.PtrSize == 8) {
++			break
++		}
++		v.reset(OpMakeResult)
++		v0 := b.NewValue0(v.Pos, OpEq64, typ.Bool)
++		v1 := b.NewValue0(v.Pos, OpLoad, typ.Int64)
++		v1.AddArg2(sptr, mem)
++		v2 := b.NewValue0(v.Pos, OpConst64, typ.Int64)
++		v2.AuxInt = int64ToAuxInt(int64(read64(scon, 0, config.ctxt.Arch.ByteOrder)))
++		v0.AddArg2(v1, v2)
++		v.AddArg2(v0, mem)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValuegeneric_OpStore(v *Value) bool {
+diff --git a/test/codegen/comparisons.go b/test/codegen/comparisons.go
+index 17dcd94ae1..35a181f83b 100644
+--- a/test/codegen/comparisons.go
++++ b/test/codegen/comparisons.go
+@@ -538,3 +538,65 @@ func CmpToOneU_ex2(a uint8, b uint16, c uint32, d uint64) int {
+ 	}
+ 	return 0
+ }
++
++// Check that small memequals are replaced with eq instructions
++
++func equalConstString1() bool {
++	a := string("A")
++	b := string("Z")
++	// amd64:-".*memequal"
++	// arm64:-".*memequal"
++	return a == b
++}
++
++func equalVarString1(a string) bool {
++	b := string("Z")
++	// amd64:-".*memequal"
++	// arm64:-".*memequal"
++	return a[:1] == b
++}
++
++func equalConstString2() bool {
++	a := string("AA")
++	b := string("ZZ")
++	// amd64:-".*memequal"
++	// arm64:-".*memequal"
++	return a == b
++}
++
++func equalVarString2(a string) bool {
++	b := string("ZZ")
++	// amd64:-".*memequal"
++	// arm64:-".*memequal"
++	return a[:2] == b
++}
++
++func equalConstString4() bool {
++	a := string("AAAA")
++	b := string("ZZZZ")
++	// amd64:-".*memequal"
++	// arm64:-".*memequal"
++	return a == b
++}
++
++func equalVarString4(a string) bool {
++	b := string("ZZZZ")
++	// amd64:-".*memequal"
++	// arm64:-".*memequal"
++	return a[:4] == b
++}
++
++func equalConstString8() bool {
++	a := string("AAAAAAAA")
++	b := string("ZZZZZZZZ")
++	// amd64:-".*memequal"
++	// arm64:-".*memequal"
++	return a == b
++}
++
++func equalVarString8(a string) bool {
++	b := string("ZZZZZZZZ")
++	// amd64:-".*memequal"
++	// arm64:-".*memequal"
++	return a[:8] == b
++}

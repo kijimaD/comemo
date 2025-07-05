@@ -13,7 +13,7 @@ Date:   Sun Nov 15 23:28:57 2020 +1100
     Reviewed-on: https://go-review.googlesource.com/c/go/+/270379
     Trust: Joel Sing <joel@sing.id.au>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/runtime/defs_openbsd.go        |   5 +
  src/runtime/defs_openbsd_amd64.go  |   5 +
  src/runtime/mmap.go                |  11 +-
@@ -27,3 +27,1138 @@ Date:   Sun Nov 15 23:28:57 2020 +1100
  src/runtime/sys_openbsd_amd64.s    | 552 ++++++++++++++++++-------------------
  src/runtime/timestub2.go           |   5 +-
  12 files changed, 641 insertions(+), 343 deletions(-)
+
+diff --git a/src/runtime/defs_openbsd.go b/src/runtime/defs_openbsd.go
+index 57717abf7e..ff7e21c71e 100644
+--- a/src/runtime/defs_openbsd.go
++++ b/src/runtime/defs_openbsd.go
+@@ -56,6 +56,11 @@ const (
+ 
+ 	PTHREAD_CREATE_DETACHED = C.PTHREAD_CREATE_DETACHED
+ 
++	F_SETFD    = C.F_SETFD
++	F_GETFL    = C.F_GETFL
++	F_SETFL    = C.F_SETFL
++	FD_CLOEXEC = C.FD_CLOEXEC
++
+ 	SIGHUP    = C.SIGHUP
+ 	SIGINT    = C.SIGINT
+ 	SIGQUIT   = C.SIGQUIT
+diff --git a/src/runtime/defs_openbsd_amd64.go b/src/runtime/defs_openbsd_amd64.go
+index 01ca934cea..46f1245201 100644
+--- a/src/runtime/defs_openbsd_amd64.go
++++ b/src/runtime/defs_openbsd_amd64.go
+@@ -32,6 +32,11 @@ const (
+ 
+ 	_PTHREAD_CREATE_DETACHED = 0x1
+ 
++	_F_SETFD    = 0x2
++	_F_GETFL    = 0x3
++	_F_SETFL    = 0x4
++	_FD_CLOEXEC = 0x1
++
+ 	_SIGHUP    = 0x1
+ 	_SIGINT    = 0x2
+ 	_SIGQUIT   = 0x3
+diff --git a/src/runtime/mmap.go b/src/runtime/mmap.go
+index 9fe31cb416..1b1848b79e 100644
+--- a/src/runtime/mmap.go
++++ b/src/runtime/mmap.go
+@@ -2,14 +2,15 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build !aix
++// +build !darwin
++// +build !js
++// +build !linux !amd64
++// +build !linux !arm64
++// +build !openbsd
+ // +build !plan9
+ // +build !solaris
+ // +build !windows
+-// +build !linux !amd64
+-// +build !linux !arm64
+-// +build !js
+-// +build !darwin
+-// +build !aix
+ 
+ package runtime
+ 
+diff --git a/src/runtime/os_openbsd.go b/src/runtime/os_openbsd.go
+index 56b686a2fa..6259b96c22 100644
+--- a/src/runtime/os_openbsd.go
++++ b/src/runtime/os_openbsd.go
+@@ -13,49 +13,6 @@ type mOS struct {
+ 	waitsemacount uint32
+ }
+ 
+-//go:noescape
+-func setitimer(mode int32, new, old *itimerval)
+-
+-//go:noescape
+-func sigaction(sig uint32, new, old *sigactiont)
+-
+-//go:noescape
+-func sigaltstack(new, old *stackt)
+-
+-//go:noescape
+-func obsdsigprocmask(how int32, new sigset) sigset
+-
+-//go:nosplit
+-//go:nowritebarrierrec
+-func sigprocmask(how int32, new, old *sigset) {
+-	n := sigset(0)
+-	if new != nil {
+-		n = *new
+-	}
+-	r := obsdsigprocmask(how, n)
+-	if old != nil {
+-		*old = r
+-	}
+-}
+-
+-//go:noescape
+-func sysctl(mib *uint32, miblen uint32, out *byte, size *uintptr, dst *byte, ndst uintptr) int32
+-
+-func raiseproc(sig uint32)
+-
+-func getthrid() int32
+-func thrkill(tid int32, sig int)
+-
+-func kqueue() int32
+-
+-//go:noescape
+-func kevent(kq int32, ch *keventt, nch int32, ev *keventt, nev int32, ts *timespec) int32
+-
+-func pipe() (r, w int32, errno int32)
+-func pipe2(flags int32) (r, w int32, errno int32)
+-func closeonexec(fd int32)
+-func setNonblock(fd int32)
+-
+ const (
+ 	_ESRCH       = 3
+ 	_EWOULDBLOCK = _EAGAIN
+diff --git a/src/runtime/os_openbsd_syscall2.go b/src/runtime/os_openbsd_syscall2.go
+new file mode 100644
+index 0000000000..74eb271c2c
+--- /dev/null
++++ b/src/runtime/os_openbsd_syscall2.go
+@@ -0,0 +1,95 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build openbsd,!amd64
++
++package runtime
++
++import (
++	"unsafe"
++)
++
++//go:noescape
++func sigaction(sig uint32, new, old *sigactiont)
++
++func kqueue() int32
++
++//go:noescape
++func kevent(kq int32, ch *keventt, nch int32, ev *keventt, nev int32, ts *timespec) int32
++
++func raiseproc(sig uint32)
++
++func getthrid() int32
++func thrkill(tid int32, sig int)
++
++// read calls the read system call.
++// It returns a non-negative number of bytes written or a negative errno value.
++func read(fd int32, p unsafe.Pointer, n int32) int32
++
++func closefd(fd int32) int32
++
++func exit(code int32)
++func usleep(usec uint32)
++
++// write calls the write system call.
++// It returns a non-negative number of bytes written or a negative errno value.
++//go:noescape
++func write1(fd uintptr, p unsafe.Pointer, n int32) int32
++
++//go:noescape
++func open(name *byte, mode, perm int32) int32
++
++// return value is only set on linux to be used in osinit()
++func madvise(addr unsafe.Pointer, n uintptr, flags int32) int32
++
++// exitThread terminates the current thread, writing *wait = 0 when
++// the stack is safe to reclaim.
++//
++//go:noescape
++func exitThread(wait *uint32)
++
++//go:noescape
++func obsdsigprocmask(how int32, new sigset) sigset
++
++//go:nosplit
++//go:nowritebarrierrec
++func sigprocmask(how int32, new, old *sigset) {
++	n := sigset(0)
++	if new != nil {
++		n = *new
++	}
++	r := obsdsigprocmask(how, n)
++	if old != nil {
++		*old = r
++	}
++}
++
++func pipe() (r, w int32, errno int32)
++func pipe2(flags int32) (r, w int32, errno int32)
++
++//go:noescape
++func setitimer(mode int32, new, old *itimerval)
++
++//go:noescape
++func sysctl(mib *uint32, miblen uint32, out *byte, size *uintptr, dst *byte, ndst uintptr) int32
++
++// mmap calls the mmap system call. It is implemented in assembly.
++// We only pass the lower 32 bits of file offset to the
++// assembly routine; the higher bits (if required), should be provided
++// by the assembly routine as 0.
++// The err result is an OS error code such as ENOMEM.
++func mmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) (p unsafe.Pointer, err int)
++
++// munmap calls the munmap system call. It is implemented in assembly.
++func munmap(addr unsafe.Pointer, n uintptr)
++
++func nanotime1() int64
++
++//go:noescape
++func sigaltstack(new, old *stackt)
++
++func closeonexec(fd int32)
++func setNonblock(fd int32)
++
++func walltime1() (sec int64, nsec int32)
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 30033712aa..aa44c625c5 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -1212,6 +1212,8 @@ func usesLibcall() bool {
+ 	switch GOOS {
+ 	case "aix", "darwin", "illumos", "ios", "solaris", "windows":
+ 		return true
++	case "openbsd":
++		return GOARCH == "amd64"
+ 	}
+ 	return false
+ }
+diff --git a/src/runtime/signal_openbsd.go b/src/runtime/signal_openbsd.go
+index 99c601ce58..d2c5c5e39a 100644
+--- a/src/runtime/signal_openbsd.go
++++ b/src/runtime/signal_openbsd.go
+@@ -37,5 +37,5 @@ var sigtable = [...]sigTabT{
+ 	/* 29 */ {_SigNotify, "SIGINFO: status request from keyboard"},
+ 	/* 30 */ {_SigNotify, "SIGUSR1: user-defined signal 1"},
+ 	/* 31 */ {_SigNotify, "SIGUSR2: user-defined signal 2"},
+-	/* 32 */ {_SigNotify, "SIGTHR: reserved"},
++	/* 32 */ {0, "SIGTHR: reserved"}, // thread AST - cannot be registered.
+ }
+diff --git a/src/runtime/stubs2.go b/src/runtime/stubs2.go
+index 4a1a5cc3d9..85088b3ab9 100644
+--- a/src/runtime/stubs2.go
++++ b/src/runtime/stubs2.go
+@@ -2,12 +2,13 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build !aix
++// +build !darwin
++// +build !js
++// +build !openbsd
+ // +build !plan9
+ // +build !solaris
+ // +build !windows
+-// +build !js
+-// +build !darwin
+-// +build !aix
+ 
+ package runtime
+ 
+diff --git a/src/runtime/stubs3.go b/src/runtime/stubs3.go
+index 95eecc7eca..1885d32051 100644
+--- a/src/runtime/stubs3.go
++++ b/src/runtime/stubs3.go
+@@ -2,11 +2,12 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build !aix
++// +build !darwin
++// +build !freebsd
++// +build !openbsd
+ // +build !plan9
+ // +build !solaris
+-// +build !freebsd
+-// +build !darwin
+-// +build !aix
+ 
+ package runtime
+ 
+diff --git a/src/runtime/sys_openbsd2.go b/src/runtime/sys_openbsd2.go
+new file mode 100644
+index 0000000000..73592df226
+--- /dev/null
++++ b/src/runtime/sys_openbsd2.go
+@@ -0,0 +1,250 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build openbsd,amd64
++
++package runtime
++
++import "unsafe"
++
++// This is exported via linkname to assembly in runtime/cgo.
++//go:linkname exit
++//go:nosplit
++//go:cgo_unsafe_args
++func exit(code int32) {
++	libcCall(unsafe.Pointer(funcPC(exit_trampoline)), unsafe.Pointer(&code))
++}
++func exit_trampoline()
++
++//go:nosplit
++//go:cgo_unsafe_args
++func getthrid() (tid int32) {
++	libcCall(unsafe.Pointer(funcPC(getthrid_trampoline)), unsafe.Pointer(&tid))
++	return
++}
++func getthrid_trampoline()
++
++//go:nosplit
++//go:cgo_unsafe_args
++func raiseproc(sig uint32) {
++	libcCall(unsafe.Pointer(funcPC(raiseproc_trampoline)), unsafe.Pointer(&sig))
++}
++func raiseproc_trampoline()
++
++//go:nosplit
++//go:cgo_unsafe_args
++func thrkill(tid int32, sig int) {
++	libcCall(unsafe.Pointer(funcPC(thrkill_trampoline)), unsafe.Pointer(&tid))
++}
++func thrkill_trampoline()
++
++// mmap is used to do low-level memory allocation via mmap. Don't allow stack
++// splits, since this function (used by sysAlloc) is called in a lot of low-level
++// parts of the runtime and callers often assume it won't acquire any locks.
++// go:nosplit
++func mmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) (unsafe.Pointer, int) {
++	args := struct {
++		addr            unsafe.Pointer
++		n               uintptr
++		prot, flags, fd int32
++		off             uint32
++		ret1            unsafe.Pointer
++		ret2            int
++	}{addr, n, prot, flags, fd, off, nil, 0}
++	libcCall(unsafe.Pointer(funcPC(mmap_trampoline)), unsafe.Pointer(&args))
++	return args.ret1, args.ret2
++}
++func mmap_trampoline()
++
++//go:nosplit
++//go:cgo_unsafe_args
++func munmap(addr unsafe.Pointer, n uintptr) {
++	libcCall(unsafe.Pointer(funcPC(munmap_trampoline)), unsafe.Pointer(&addr))
++}
++func munmap_trampoline()
++
++//go:nosplit
++//go:cgo_unsafe_args
++func madvise(addr unsafe.Pointer, n uintptr, flags int32) {
++	libcCall(unsafe.Pointer(funcPC(madvise_trampoline)), unsafe.Pointer(&addr))
++}
++func madvise_trampoline()
++
++//go:nosplit
++//go:cgo_unsafe_args
++func open(name *byte, mode, perm int32) (ret int32) {
++	return libcCall(unsafe.Pointer(funcPC(open_trampoline)), unsafe.Pointer(&name))
++}
++func open_trampoline()
++
++//go:nosplit
++//go:cgo_unsafe_args
++func closefd(fd int32) int32 {
++	return libcCall(unsafe.Pointer(funcPC(close_trampoline)), unsafe.Pointer(&fd))
++}
++func close_trampoline()
++
++//go:nosplit
++//go:cgo_unsafe_args
++func read(fd int32, p unsafe.Pointer, n int32) int32 {
++	return libcCall(unsafe.Pointer(funcPC(read_trampoline)), unsafe.Pointer(&fd))
++}
++func read_trampoline()
++
++//go:nosplit
++//go:cgo_unsafe_args
++func write1(fd uintptr, p unsafe.Pointer, n int32) int32 {
++	return libcCall(unsafe.Pointer(funcPC(write_trampoline)), unsafe.Pointer(&fd))
++}
++func write_trampoline()
++
++func pipe() (r, w int32, errno int32) {
++	return pipe2(0)
++}
++
++func pipe2(flags int32) (r, w int32, errno int32) {
++	var p [2]int32
++	args := struct {
++		p     unsafe.Pointer
++		flags int32
++	}{noescape(unsafe.Pointer(&p)), flags}
++	errno = libcCall(unsafe.Pointer(funcPC(pipe2_trampoline)), unsafe.Pointer(&args))
++	return p[0], p[1], errno
++}
++func pipe2_trampoline()
++
++//go:nosplit
++//go:cgo_unsafe_args
++func setitimer(mode int32, new, old *itimerval) {
++	libcCall(unsafe.Pointer(funcPC(setitimer_trampoline)), unsafe.Pointer(&mode))
++}
++func setitimer_trampoline()
++
++//go:nosplit
++//go:cgo_unsafe_args
++func usleep(usec uint32) {
++	libcCall(unsafe.Pointer(funcPC(usleep_trampoline)), unsafe.Pointer(&usec))
++}
++func usleep_trampoline()
++
++//go:nosplit
++//go:cgo_unsafe_args
++func sysctl(mib *uint32, miblen uint32, out *byte, size *uintptr, dst *byte, ndst uintptr) int32 {
++	return libcCall(unsafe.Pointer(funcPC(sysctl_trampoline)), unsafe.Pointer(&mib))
++}
++func sysctl_trampoline()
++
++//go:nosplit
++//go:cgo_unsafe_args
++func fcntl(fd, cmd, arg int32) int32 {
++	return libcCall(unsafe.Pointer(funcPC(fcntl_trampoline)), unsafe.Pointer(&fd))
++}
++func fcntl_trampoline()
++
++//go:nosplit
++func nanotime1() int64 {
++	var ts timespec
++	args := struct {
++		clock_id int32
++		tp       unsafe.Pointer
++	}{_CLOCK_MONOTONIC, unsafe.Pointer(&ts)}
++	libcCall(unsafe.Pointer(funcPC(clock_gettime_trampoline)), unsafe.Pointer(&args))
++	return ts.tv_sec*1e9 + int64(ts.tv_nsec)
++}
++func clock_gettime_trampoline()
++
++//go:nosplit
++func walltime1() (int64, int32) {
++	var ts timespec
++	args := struct {
++		clock_id int32
++		tp       unsafe.Pointer
++	}{_CLOCK_REALTIME, unsafe.Pointer(&ts)}
++	libcCall(unsafe.Pointer(funcPC(clock_gettime_trampoline)), unsafe.Pointer(&args))
++	return ts.tv_sec, int32(ts.tv_nsec)
++}
++
++//go:nosplit
++//go:cgo_unsafe_args
++func kqueue() int32 {
++	return libcCall(unsafe.Pointer(funcPC(kqueue_trampoline)), nil)
++}
++func kqueue_trampoline()
++
++//go:nosplit
++//go:cgo_unsafe_args
++func kevent(kq int32, ch *keventt, nch int32, ev *keventt, nev int32, ts *timespec) int32 {
++	return libcCall(unsafe.Pointer(funcPC(kevent_trampoline)), unsafe.Pointer(&kq))
++}
++func kevent_trampoline()
++
++//go:nosplit
++//go:cgo_unsafe_args
++func sigaction(sig uint32, new *sigactiont, old *sigactiont) {
++	libcCall(unsafe.Pointer(funcPC(sigaction_trampoline)), unsafe.Pointer(&sig))
++}
++func sigaction_trampoline()
++
++//go:nosplit
++//go:cgo_unsafe_args
++func sigprocmask(how uint32, new *sigset, old *sigset) {
++	libcCall(unsafe.Pointer(funcPC(sigprocmask_trampoline)), unsafe.Pointer(&how))
++}
++func sigprocmask_trampoline()
++
++//go:nosplit
++//go:cgo_unsafe_args
++func sigaltstack(new *stackt, old *stackt) {
++	libcCall(unsafe.Pointer(funcPC(sigaltstack_trampoline)), unsafe.Pointer(&new))
++}
++func sigaltstack_trampoline()
++
++// Not used on OpenBSD, but must be defined.
++func exitThread(wait *uint32) {
++}
++
++//go:nosplit
++func closeonexec(fd int32) {
++	fcntl(fd, _F_SETFD, _FD_CLOEXEC)
++}
++
++//go:nosplit
++func setNonblock(fd int32) {
++	flags := fcntl(fd, _F_GETFL, 0)
++	fcntl(fd, _F_SETFL, flags|_O_NONBLOCK)
++}
++
++// Tell the linker that the libc_* functions are to be found
++// in a system library, with the libc_ prefix missing.
++
++//go:cgo_import_dynamic libc_errno __errno "libc.so"
++//go:cgo_import_dynamic libc_exit exit "libc.so"
++//go:cgo_import_dynamic libc_getthrid getthrid "libc.so"
++//go:cgo_import_dynamic libc_sched_yield sched_yield "libc.so"
++//go:cgo_import_dynamic libc_thrkill thrkill "libc.so"
++
++//go:cgo_import_dynamic libc_mmap mmap "libc.so"
++//go:cgo_import_dynamic libc_munmap munmap "libc.so"
++//go:cgo_import_dynamic libc_madvise madvise "libc.so"
++
++//go:cgo_import_dynamic libc_open open "libc.so"
++//go:cgo_import_dynamic libc_close close "libc.so"
++//go:cgo_import_dynamic libc_read read "libc.so"
++//go:cgo_import_dynamic libc_write write "libc.so"
++//go:cgo_import_dynamic libc_pipe2 pipe2 "libc.so"
++
++//go:cgo_import_dynamic libc_clock_gettime clock_gettime "libc.so"
++//go:cgo_import_dynamic libc_setitimer setitimer "libc.so"
++//go:cgo_import_dynamic libc_usleep usleep "libc.so"
++//go:cgo_import_dynamic libc_sysctl sysctl "libc.so"
++//go:cgo_import_dynamic libc_fcntl fcntl "libc.so"
++//go:cgo_import_dynamic libc_getpid getpid "libc.so"
++//go:cgo_import_dynamic libc_kill kill "libc.so"
++//go:cgo_import_dynamic libc_kqueue kqueue "libc.so"
++//go:cgo_import_dynamic libc_kevent kevent "libc.so"
++
++//go:cgo_import_dynamic libc_sigaction sigaction "libc.so"
++//go:cgo_import_dynamic libc_sigaltstack sigaltstack "libc.so"
++
++//go:cgo_import_dynamic _ _ "libc.so"
+diff --git a/src/runtime/sys_openbsd_amd64.s b/src/runtime/sys_openbsd_amd64.s
+index 1086557aab..4680a7f7aa 100644
+--- a/src/runtime/sys_openbsd_amd64.s
++++ b/src/runtime/sys_openbsd_amd64.s
+@@ -150,13 +150,23 @@ TEXT runtime·pthread_create_trampoline(SB),NOSPLIT,$0
+ 	POPQ	BP
+ 	RET
+ 
++TEXT runtime·thrkill_trampoline(SB),NOSPLIT,$0
++	PUSHQ	BP
++	MOVQ	SP, BP
++	MOVL	8(DI), SI		// arg 2 - signal
++	MOVQ	$0, DX			// arg 3 - tcb
++	MOVL	0(DI), DI		// arg 1 - tid
++	CALL	libc_thrkill(SB)
++	POPQ	BP
++	RET
++
+ TEXT runtime·thrsleep_trampoline(SB),NOSPLIT,$0
+ 	PUSHQ	BP
+ 	MOVQ	SP, BP
+ 	MOVL	8(DI), SI		// arg 2 - clock_id
+ 	MOVQ	16(DI), DX		// arg 3 - abstime
+-	MOVQ	24(DI), CX		// arg 3 - lock
+-	MOVQ	32(DI), R8		// arg 4 - abort
++	MOVQ	24(DI), CX		// arg 4 - lock
++	MOVQ	32(DI), R8		// arg 5 - abort
+ 	MOVQ	0(DI), DI		// arg 1 - id
+ 	CALL	libc_thrsleep(SB)
+ 	POPQ	BP
+@@ -171,6 +181,35 @@ TEXT runtime·thrwakeup_trampoline(SB),NOSPLIT,$0
+ 	POPQ	BP
+ 	RET
+ 
++TEXT runtime·exit_trampoline(SB),NOSPLIT,$0
++	PUSHQ	BP
++	MOVQ	SP, BP
++	MOVL	0(DI), DI		// arg 1 exit status
++	CALL	libc_exit(SB)
++	MOVL	$0xf1, 0xf1  // crash
++	POPQ	BP
++	RET
++
++TEXT runtime·getthrid_trampoline(SB),NOSPLIT,$0
++	PUSHQ	BP
++	MOVQ	SP, BP
++	MOVQ	DI, BX			// BX is caller-save
++	CALL	libc_getthrid(SB)
++	MOVL	AX, 0(BX)		// return value
++	POPQ	BP
++	RET
++
++TEXT runtime·raiseproc_trampoline(SB),NOSPLIT,$0
++	PUSHQ	BP
++	MOVQ	SP, BP
++	MOVL	0(DI), BX	// signal
++	CALL	libc_getpid(SB)
++	MOVL	AX, DI		// arg 1 pid
++	MOVL	BX, SI		// arg 2 signal
++	CALL	libc_kill(SB)
++	POPQ	BP
++	RET
++
+ TEXT runtime·sched_yield_trampoline(SB),NOSPLIT,$0
+ 	PUSHQ	BP
+ 	MOVQ	SP, BP
+@@ -178,290 +217,231 @@ TEXT runtime·sched_yield_trampoline(SB),NOSPLIT,$0
+ 	POPQ	BP
+ 	RET
+ 
+-// Exit the entire program (like C exit)
+-TEXT runtime·exit(SB),NOSPLIT,$-8
+-	MOVL	code+0(FP), DI		// arg 1 - exit status
+-	MOVL	$1, AX			// sys_exit
+-	SYSCALL
+-	MOVL	$0xf1, 0xf1		// crash
+-	RET
+-
+-// func exitThread(wait *uint32)
+-TEXT runtime·exitThread(SB),NOSPLIT,$0-8
+-	MOVQ	wait+0(FP), DI		// arg 1 - notdead
+-	MOVL	$302, AX		// sys___threxit
+-	SYSCALL
+-	MOVL	$0xf1, 0xf1		// crash
+-	JMP	0(PC)
+-
+-TEXT runtime·open(SB),NOSPLIT,$-8
+-	MOVQ	name+0(FP), DI		// arg 1 pathname
+-	MOVL	mode+8(FP), SI		// arg 2 flags
+-	MOVL	perm+12(FP), DX		// arg 3 mode
+-	MOVL	$5, AX
+-	SYSCALL
+-	JCC	2(PC)
+-	MOVL	$-1, AX
+-	MOVL	AX, ret+16(FP)
+-	RET
+-
+-TEXT runtime·closefd(SB),NOSPLIT,$-8
+-	MOVL	fd+0(FP), DI		// arg 1 fd
+-	MOVL	$6, AX
+-	SYSCALL
+-	JCC	2(PC)
+-	MOVL	$-1, AX
+-	MOVL	AX, ret+8(FP)
+-	RET
+-
+-TEXT runtime·read(SB),NOSPLIT,$-8
+-	MOVL	fd+0(FP), DI		// arg 1 fd
+-	MOVQ	p+8(FP), SI		// arg 2 buf
+-	MOVL	n+16(FP), DX		// arg 3 count
+-	MOVL	$3, AX
+-	SYSCALL
+-	JCC	2(PC)
+-	NEGQ	AX			// caller expects negative errno
+-	MOVL	AX, ret+24(FP)
+-	RET
+-
+-// func pipe() (r, w int32, errno int32)
+-TEXT runtime·pipe(SB),NOSPLIT,$0-12
+-	LEAQ	r+0(FP), DI
+-	MOVL	$263, AX
+-	SYSCALL
+-	MOVL	AX, errno+8(FP)
+-	RET
+-
+-// func pipe2(flags int32) (r, w int32, errno int32)
+-TEXT runtime·pipe2(SB),NOSPLIT,$0-20
+-	LEAQ	r+8(FP), DI
+-	MOVL	flags+0(FP), SI
+-	MOVL	$101, AX
+-	SYSCALL
+-	MOVL	AX, errno+16(FP)
+-	RET
+-
+-TEXT runtime·write1(SB),NOSPLIT,$-8
+-	MOVQ	fd+0(FP), DI		// arg 1 - fd
+-	MOVQ	p+8(FP), SI		// arg 2 - buf
+-	MOVL	n+16(FP), DX		// arg 3 - nbyte
+-	MOVL	$4, AX			// sys_write
+-	SYSCALL
+-	JCC	2(PC)
+-	NEGQ	AX			// caller expects negative errno
+-	MOVL	AX, ret+24(FP)
+-	RET
+-
+-TEXT runtime·usleep(SB),NOSPLIT,$16
+-	MOVL	$0, DX
+-	MOVL	usec+0(FP), AX
+-	MOVL	$1000000, CX
+-	DIVL	CX
+-	MOVQ	AX, 0(SP)		// tv_sec
+-	MOVL	$1000, AX
+-	MULL	DX
+-	MOVQ	AX, 8(SP)		// tv_nsec
+-
+-	MOVQ	SP, DI			// arg 1 - rqtp
+-	MOVQ	$0, SI			// arg 2 - rmtp
+-	MOVL	$91, AX			// sys_nanosleep
+-	SYSCALL
+-	RET
+-
+-TEXT runtime·getthrid(SB),NOSPLIT,$0-4
+-	MOVL	$299, AX		// sys_getthrid
+-	SYSCALL
+-	MOVL	AX, ret+0(FP)
+-	RET
+-
+-TEXT runtime·thrkill(SB),NOSPLIT,$0-16
+-	MOVL	tid+0(FP), DI		// arg 1 - tid
+-	MOVQ	sig+8(FP), SI		// arg 2 - signum
+-	MOVQ	$0, DX			// arg 3 - tcb
+-	MOVL	$119, AX		// sys_thrkill
+-	SYSCALL
+-	RET
+-
+-TEXT runtime·raiseproc(SB),NOSPLIT,$16
+-	MOVL	$20, AX			// sys_getpid
+-	SYSCALL
+-	MOVQ	AX, DI			// arg 1 - pid
+-	MOVL	sig+0(FP), SI		// arg 2 - signum
+-	MOVL	$122, AX		// sys_kill
+-	SYSCALL
+-	RET
+-
+-TEXT runtime·setitimer(SB),NOSPLIT,$-8
+-	MOVL	mode+0(FP), DI		// arg 1 - which
+-	MOVQ	new+8(FP), SI		// arg 2 - itv
+-	MOVQ	old+16(FP), DX		// arg 3 - oitv
+-	MOVL	$69, AX			// sys_setitimer
+-	SYSCALL
+-	RET
+-
+-// func walltime1() (sec int64, nsec int32)
+-TEXT runtime·walltime1(SB), NOSPLIT, $32
+-	MOVQ	$0, DI			// arg 1 - clock_id
+-	LEAQ	8(SP), SI		// arg 2 - tp
+-	MOVL	$87, AX			// sys_clock_gettime
+-	SYSCALL
+-	MOVQ	8(SP), AX		// sec
+-	MOVQ	16(SP), DX		// nsec
+-
+-	// sec is in AX, nsec in DX
+-	MOVQ	AX, sec+0(FP)
+-	MOVL	DX, nsec+8(FP)
+-	RET
+-
+-TEXT runtime·nanotime1(SB),NOSPLIT,$24
+-	MOVQ	CLOCK_MONOTONIC, DI	// arg 1 - clock_id
+-	LEAQ	8(SP), SI		// arg 2 - tp
+-	MOVL	$87, AX			// sys_clock_gettime
+-	SYSCALL
+-	MOVQ	8(SP), AX		// sec
+-	MOVQ	16(SP), DX		// nsec
+-
+-	// sec is in AX, nsec in DX
+-	// return nsec in AX
+-	IMULQ	$1000000000, AX
+-	ADDQ	DX, AX
+-	MOVQ	AX, ret+0(FP)
+-	RET
+-
+-TEXT runtime·sigaction(SB),NOSPLIT,$-8
+-	MOVL	sig+0(FP), DI		// arg 1 - signum
+-	MOVQ	new+8(FP), SI		// arg 2 - nsa
+-	MOVQ	old+16(FP), DX		// arg 3 - osa
+-	MOVL	$46, AX
+-	SYSCALL
+-	JCC	2(PC)
+-	MOVL	$0xf1, 0xf1		// crash
+-	RET
+-
+-TEXT runtime·obsdsigprocmask(SB),NOSPLIT,$0
+-	MOVL	how+0(FP), DI		// arg 1 - how
+-	MOVL	new+4(FP), SI		// arg 2 - set
+-	MOVL	$48, AX			// sys_sigprocmask
+-	SYSCALL
+-	JCC	2(PC)
+-	MOVL	$0xf1, 0xf1		// crash
+-	MOVL	AX, ret+8(FP)
+-	RET
+-
+-TEXT runtime·mmap(SB),NOSPLIT,$0
+-	MOVQ	addr+0(FP), DI		// arg 1 - addr
+-	MOVQ	n+8(FP), SI		// arg 2 - len
+-	MOVL	prot+16(FP), DX		// arg 3 - prot
+-	MOVL	flags+20(FP), R10		// arg 4 - flags
+-	MOVL	fd+24(FP), R8		// arg 5 - fd
+-	MOVL	off+28(FP), R9
+-	SUBQ	$16, SP
+-	MOVQ	R9, 8(SP)		// arg 7 - offset (passed on stack)
+-	MOVQ	$0, R9			// arg 6 - pad
+-	MOVL	$197, AX
+-	SYSCALL
+-	JCC	ok
+-	ADDQ	$16, SP
+-	MOVQ	$0, p+32(FP)
+-	MOVQ	AX, err+40(FP)
++TEXT runtime·mmap_trampoline(SB),NOSPLIT,$0
++	PUSHQ	BP			// make a frame; keep stack aligned
++	MOVQ	SP, BP
++	MOVQ	DI, BX
++	MOVQ	0(BX), DI		// arg 1 addr
++	MOVQ	8(BX), SI		// arg 2 len
++	MOVL	16(BX), DX		// arg 3 prot
++	MOVL	20(BX), CX		// arg 4 flags
++	MOVL	24(BX), R8		// arg 5 fid
++	MOVL	28(BX), R9		// arg 6 offset
++	CALL	libc_mmap(SB)
++	XORL	DX, DX
++	CMPQ	AX, $-1
++	JNE	ok
++	CALL	libc_errno(SB)
++	MOVLQSX	(AX), DX		// errno
++	XORQ	AX, AX
++ok:
++	MOVQ	AX, 32(BX)
++	MOVQ	DX, 40(BX)
++	POPQ	BP
+ 	RET
++
++TEXT runtime·munmap_trampoline(SB),NOSPLIT,$0
++	PUSHQ	BP
++	MOVQ	SP, BP
++	MOVQ	8(DI), SI		// arg 2 len
++	MOVQ	0(DI), DI		// arg 1 addr
++	CALL	libc_munmap(SB)
++	TESTQ	AX, AX
++	JEQ	2(PC)
++	MOVL	$0xf1, 0xf1  // crash
++	POPQ	BP
++	RET
++
++TEXT runtime·madvise_trampoline(SB), NOSPLIT, $0
++	PUSHQ	BP
++	MOVQ	SP, BP
++	MOVQ	8(DI), SI	// arg 2 len
++	MOVL	16(DI), DX	// arg 3 advice
++	MOVQ	0(DI), DI	// arg 1 addr
++	CALL	libc_madvise(SB)
++	// ignore failure - maybe pages are locked
++	POPQ	BP
++	RET
++
++TEXT runtime·open_trampoline(SB),NOSPLIT,$0
++	PUSHQ	BP
++	MOVQ	SP, BP
++	MOVL	8(DI), SI		// arg 2 - flags
++	MOVL	12(DI), DX		// arg 3 - mode
++	MOVQ	0(DI), DI		// arg 1 - path
++	XORL	AX, AX			// vararg: say "no float args"
++	CALL	libc_open(SB)
++	POPQ	BP
++	RET
++
++TEXT runtime·close_trampoline(SB),NOSPLIT,$0
++	PUSHQ	BP
++	MOVQ	SP, BP
++	MOVL	0(DI), DI		// arg 1 - fd
++	CALL	libc_close(SB)
++	POPQ	BP
++	RET
++
++TEXT runtime·read_trampoline(SB),NOSPLIT,$0
++	PUSHQ	BP
++	MOVQ	SP, BP
++	MOVQ	8(DI), SI		// arg 2 - buf
++	MOVL	16(DI), DX		// arg 3 - count
++	MOVL	0(DI), DI		// arg 1 - fd
++	CALL	libc_read(SB)
++	TESTL	AX, AX
++	JGE	noerr
++	CALL	libc_errno(SB)
++	MOVL	(AX), AX		// errno
++	NEGL	AX			// caller expects negative errno value
++noerr:
++	POPQ	BP
++	RET
++
++TEXT runtime·write_trampoline(SB),NOSPLIT,$0
++	PUSHQ	BP
++	MOVQ	SP, BP
++	MOVQ	8(DI), SI		// arg 2 buf
++	MOVL	16(DI), DX		// arg 3 count
++	MOVL	0(DI), DI		// arg 1 fd
++	CALL	libc_write(SB)
++	TESTL	AX, AX
++	JGE	noerr
++	CALL	libc_errno(SB)
++	MOVL	(AX), AX		// errno
++	NEGL	AX			// caller expects negative errno value
++noerr:
++	POPQ	BP
++	RET
++
++TEXT runtime·pipe2_trampoline(SB),NOSPLIT,$0
++	PUSHQ	BP
++	MOVQ	SP, BP
++	MOVL	8(DI), SI		// arg 2 flags
++	MOVQ	0(DI), DI		// arg 1 filedes
++	CALL	libc_pipe2(SB)
++	TESTL	AX, AX
++	JEQ	3(PC)
++	CALL	libc_errno(SB)
++	MOVL	(AX), AX		// errno
++	NEGL	AX			// caller expects negative errno value
++	POPQ	BP
++	RET
++
++TEXT runtime·setitimer_trampoline(SB),NOSPLIT,$0
++	PUSHQ	BP
++	MOVQ	SP, BP
++	MOVQ	8(DI), SI		// arg 2 new
++	MOVQ	16(DI), DX		// arg 3 old
++	MOVL	0(DI), DI		// arg 1 which
++	CALL	libc_setitimer(SB)
++	POPQ	BP
++	RET
++
++TEXT runtime·usleep_trampoline(SB),NOSPLIT,$0
++	PUSHQ	BP
++	MOVQ	SP, BP
++	MOVL	0(DI), DI		// arg 1 usec
++	CALL	libc_usleep(SB)
++	POPQ	BP
++	RET
++
++TEXT runtime·sysctl_trampoline(SB),NOSPLIT,$0
++	PUSHQ	BP
++	MOVQ	SP, BP
++	MOVL	8(DI), SI		// arg 2 miblen
++	MOVQ	16(DI), DX		// arg 3 out
++	MOVQ	24(DI), CX		// arg 4 size
++	MOVQ	32(DI), R8		// arg 5 dst
++	MOVQ	40(DI), R9		// arg 6 ndst
++	MOVQ	0(DI), DI		// arg 1 mib
++	CALL	libc_sysctl(SB)
++	POPQ	BP
++	RET
++
++TEXT runtime·kqueue_trampoline(SB),NOSPLIT,$0
++	PUSHQ	BP
++	MOVQ	SP, BP
++	CALL	libc_kqueue(SB)
++	POPQ	BP
++	RET
++
++TEXT runtime·kevent_trampoline(SB),NOSPLIT,$0
++	PUSHQ	BP
++	MOVQ	SP, BP
++	MOVQ	8(DI), SI		// arg 2 keventt
++	MOVL	16(DI), DX		// arg 3 nch
++	MOVQ	24(DI), CX		// arg 4 ev
++	MOVL	32(DI), R8		// arg 5 nev
++	MOVQ	40(DI), R9		// arg 6 ts
++	MOVL	0(DI), DI		// arg 1 kq
++	CALL	libc_kevent(SB)
++	CMPL	AX, $-1
++	JNE	ok
++	CALL	libc_errno(SB)
++	MOVL	(AX), AX		// errno
++	NEGL	AX			// caller expects negative errno value
+ ok:
+-	ADDQ	$16, SP
+-	MOVQ	AX, p+32(FP)
+-	MOVQ	$0, err+40(FP)
+-	RET
+-
+-TEXT runtime·munmap(SB),NOSPLIT,$0
+-	MOVQ	addr+0(FP), DI		// arg 1 - addr
+-	MOVQ	n+8(FP), SI		// arg 2 - len
+-	MOVL	$73, AX			// sys_munmap
+-	SYSCALL
+-	JCC	2(PC)
+-	MOVL	$0xf1, 0xf1		// crash
+-	RET
+-
+-TEXT runtime·madvise(SB),NOSPLIT,$0
+-	MOVQ	addr+0(FP), DI		// arg 1 - addr
+-	MOVQ	n+8(FP), SI		// arg 2 - len
+-	MOVL	flags+16(FP), DX	// arg 3 - behav
+-	MOVQ	$75, AX			// sys_madvise
+-	SYSCALL
+-	JCC	2(PC)
+-	MOVL	$-1, AX
+-	MOVL	AX, ret+24(FP)
+-	RET
+-
+-TEXT runtime·sigaltstack(SB),NOSPLIT,$-8
+-	MOVQ	new+0(FP), DI		// arg 1 - nss
+-	MOVQ	old+8(FP), SI		// arg 2 - oss
+-	MOVQ	$288, AX		// sys_sigaltstack
+-	SYSCALL
+-	JCC	2(PC)
+-	MOVL	$0xf1, 0xf1		// crash
+-	RET
+-
+-TEXT runtime·sysctl(SB),NOSPLIT,$0
+-	MOVQ	mib+0(FP), DI		// arg 1 - name
+-	MOVL	miblen+8(FP), SI		// arg 2 - namelen
+-	MOVQ	out+16(FP), DX		// arg 3 - oldp
+-	MOVQ	size+24(FP), R10		// arg 4 - oldlenp
+-	MOVQ	dst+32(FP), R8		// arg 5 - newp
+-	MOVQ	ndst+40(FP), R9		// arg 6 - newlen
+-	MOVQ	$202, AX		// sys___sysctl
+-	SYSCALL
+-	JCC	4(PC)
+-	NEGQ	AX
+-	MOVL	AX, ret+48(FP)
+-	RET
+-	MOVL	$0, AX
+-	MOVL	AX, ret+48(FP)
+-	RET
+-
+-// int32 runtime·kqueue(void);
+-TEXT runtime·kqueue(SB),NOSPLIT,$0
+-	MOVL	$269, AX
+-	SYSCALL
+-	JCC	2(PC)
+-	NEGQ	AX
+-	MOVL	AX, ret+0(FP)
+-	RET
+-
+-// int32 runtime·kevent(int kq, Kevent *changelist, int nchanges, Kevent *eventlist, int nevents, Timespec *timeout);
+-TEXT runtime·kevent(SB),NOSPLIT,$0
+-	MOVL	kq+0(FP), DI
+-	MOVQ	ch+8(FP), SI
+-	MOVL	nch+16(FP), DX
+-	MOVQ	ev+24(FP), R10
+-	MOVL	nev+32(FP), R8
+-	MOVQ	ts+40(FP), R9
+-	MOVL	$72, AX
+-	SYSCALL
+-	JCC	2(PC)
+-	NEGQ	AX
+-	MOVL	AX, ret+48(FP)
+-	RET
+-
+-// void runtime·closeonexec(int32 fd);
+-TEXT runtime·closeonexec(SB),NOSPLIT,$0
+-	MOVL	fd+0(FP), DI	// fd
+-	MOVQ	$2, SI		// F_SETFD
+-	MOVQ	$1, DX		// FD_CLOEXEC
+-	MOVL	$92, AX		// fcntl
+-	SYSCALL
+-	RET
+-
+-// func runtime·setNonblock(int32 fd)
+-TEXT runtime·setNonblock(SB),NOSPLIT,$0-4
+-	MOVL    fd+0(FP), DI  // fd
+-	MOVQ    $3, SI  // F_GETFL
+-	MOVQ    $0, DX
+-	MOVL	$92, AX // fcntl
+-	SYSCALL
+-	MOVL	fd+0(FP), DI // fd
+-	MOVQ	$4, SI // F_SETFL
+-	MOVQ	$4, DX // O_NONBLOCK
+-	ORL	AX, DX
+-	MOVL	$92, AX // fcntl
+-	SYSCALL
++	POPQ	BP
++	RET
++
++TEXT runtime·clock_gettime_trampoline(SB),NOSPLIT,$0
++	PUSHQ	BP			// make a frame; keep stack aligned
++	MOVQ	SP, BP
++	MOVQ	8(DI), SI		// arg 2 tp
++	MOVL	0(DI), DI		// arg 1 clock_id
++	CALL	libc_clock_gettime(SB)
++	TESTL	AX, AX
++	JEQ	2(PC)
++	MOVL	$0xf1, 0xf1  // crash
++	POPQ	BP
++	RET
++
++TEXT runtime·fcntl_trampoline(SB),NOSPLIT,$0
++	PUSHQ	BP
++	MOVQ	SP, BP
++	MOVL	4(DI), SI		// arg 2 cmd
++	MOVL	8(DI), DX		// arg 3 arg
++	MOVL	0(DI), DI		// arg 1 fd
++	XORL	AX, AX			// vararg: say "no float args"
++	CALL	libc_fcntl(SB)
++	POPQ	BP
++	RET
++
++TEXT runtime·sigaction_trampoline(SB),NOSPLIT,$0
++	PUSHQ	BP
++	MOVQ	SP, BP
++	MOVQ	8(DI), SI		// arg 2 new
++	MOVQ	16(DI), DX		// arg 3 old
++	MOVL	0(DI), DI		// arg 1 sig
++	CALL	libc_sigaction(SB)
++	TESTL	AX, AX
++	JEQ	2(PC)
++	MOVL	$0xf1, 0xf1  // crash
++	POPQ	BP
++	RET
++
++TEXT runtime·sigprocmask_trampoline(SB),NOSPLIT,$0
++	PUSHQ	BP
++	MOVQ	SP, BP
++	MOVQ	8(DI), SI	// arg 2 new
++	MOVQ	16(DI), DX	// arg 3 old
++	MOVL	0(DI), DI	// arg 1 how
++	CALL	libc_pthread_sigmask(SB)
++	TESTL	AX, AX
++	JEQ	2(PC)
++	MOVL	$0xf1, 0xf1  // crash
++	POPQ	BP
++	RET
++
++TEXT runtime·sigaltstack_trampoline(SB),NOSPLIT,$0
++	PUSHQ	BP
++	MOVQ	SP, BP
++	MOVQ	8(DI), SI		// arg 2 old
++	MOVQ	0(DI), DI		// arg 1 new
++	CALL	libc_sigaltstack(SB)
++	TESTQ	AX, AX
++	JEQ	2(PC)
++	MOVL	$0xf1, 0xf1  // crash
++	POPQ	BP
+ 	RET
+diff --git a/src/runtime/timestub2.go b/src/runtime/timestub2.go
+index 6d73aabc35..68777ee4a9 100644
+--- a/src/runtime/timestub2.go
++++ b/src/runtime/timestub2.go
+@@ -2,11 +2,12 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build !aix
+ // +build !darwin
+-// +build !windows
+ // +build !freebsd
+-// +build !aix
++// +build !openbsd
+ // +build !solaris
++// +build !windows
+ 
+ package runtime
+ 

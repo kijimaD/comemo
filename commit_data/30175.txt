@@ -14,8 +14,144 @@ Date:   Wed Sep 28 21:31:52 2016 -0400
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/udpsock.go            |  2 +-
  src/net/udpsock_plan9.go      | 38 +++++++++++++++++++++++-
  src/net/udpsock_plan9_test.go | 69 +++++++++++++++++++++++++++++++++++++++++++
  3 files changed, 107 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/udpsock.go b/src/net/udpsock.go
+index 246d644336..6a4aaf9e59 100644
+--- a/src/net/udpsock.go
++++ b/src/net/udpsock.go
+@@ -15,7 +15,7 @@ import (
+ // BUG(mikio): On Windows, the File method of UDPConn is not
+ // implemented.
+ 
+-// BUG(mikio): On NaCl and Plan 9, the ListenMulticastUDP function is
++// BUG(mikio): On NaCl the ListenMulticastUDP function is
+ // not implemented.
+ 
+ // UDPAddr represents the address of a UDP end point.
+diff --git a/src/net/udpsock_plan9.go b/src/net/udpsock_plan9.go
+index 666f20622f..1ce7f88c62 100644
+--- a/src/net/udpsock_plan9.go
++++ b/src/net/udpsock_plan9.go
+@@ -109,5 +109,41 @@ func listenUDP(ctx context.Context, network string, laddr *UDPAddr) (*UDPConn, e
+ }
+ 
+ func listenMulticastUDP(ctx context.Context, network string, ifi *Interface, gaddr *UDPAddr) (*UDPConn, error) {
+-	return nil, syscall.EPLAN9
++	l, err := listenPlan9(ctx, network, gaddr)
++	if err != nil {
++		return nil, err
++	}
++	_, err = l.ctl.WriteString("headers")
++	if err != nil {
++		return nil, err
++	}
++	var addrs []Addr
++	if ifi != nil {
++		addrs, err = ifi.Addrs()
++		if err != nil {
++			return nil, err
++		}
++	} else {
++		addrs, err = InterfaceAddrs()
++		if err != nil {
++			return nil, err
++		}
++	}
++	for _, addr := range addrs {
++		if ipnet, ok := addr.(*IPNet); ok {
++			_, err = l.ctl.WriteString("addmulti " + ipnet.IP.String() + " " + gaddr.IP.String())
++			if err != nil {
++				return nil, err
++			}
++		}
++	}
++	l.data, err = os.OpenFile(l.dir+"/data", os.O_RDWR, 0)
++	if err != nil {
++		return nil, err
++	}
++	fd, err := l.netFD()
++	if err != nil {
++		return nil, err
++	}
++	return newUDPConn(fd), nil
+ }
+diff --git a/src/net/udpsock_plan9_test.go b/src/net/udpsock_plan9_test.go
+new file mode 100644
+index 0000000000..09f5a5dc65
+--- /dev/null
++++ b/src/net/udpsock_plan9_test.go
+@@ -0,0 +1,69 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package net
++
++import (
++	"internal/testenv"
++	"runtime"
++	"testing"
++)
++
++func TestListenMulticastUDP(t *testing.T) {
++	testenv.MustHaveExternalNetwork(t)
++
++	ifcs, err := Interfaces()
++	if err != nil {
++		t.Skip(err.Error())
++	}
++	if len(ifcs) == 0 {
++		t.Skip("no network interfaces found")
++	}
++
++	var mifc *Interface
++	for _, ifc := range ifcs {
++		if ifc.Flags&FlagUp|FlagMulticast != FlagUp|FlagMulticast {
++			continue
++		}
++		mifc = &ifc
++		break
++	}
++
++	if mifc == nil {
++		t.Skipf("no multicast interfaces found")
++	}
++
++	c1, err := ListenMulticastUDP("udp4", mifc, &UDPAddr{IP: ParseIP("224.0.0.254")})
++	if err != nil {
++		t.Fatalf("multicast not working on %s", runtime.GOOS)
++	}
++	c1addr := c1.LocalAddr().(*UDPAddr)
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer c1.Close()
++
++	c2, err := ListenUDP("udp4", &UDPAddr{IP: IPv4zero, Port: 0})
++	c2addr := c2.LocalAddr().(*UDPAddr)
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer c2.Close()
++
++	n, err := c2.WriteToUDP([]byte("data"), c1addr)
++	if err != nil {
++		t.Fatal(err)
++	}
++	if n != 4 {
++		t.Fatalf("got %d; want 4", n)
++	}
++
++	n, err = c1.WriteToUDP([]byte("data"), c2addr)
++	if err != nil {
++		t.Fatal(err)
++	}
++	if n != 4 {
++		t.Fatalf("got %d; want 4", n)
++	}
++}

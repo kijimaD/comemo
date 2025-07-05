@@ -9,7 +9,53 @@ Date:   Wed Dec 16 09:35:23 2015 +0900
     Change-Id: I6c33d577f144643781f370ba2ab0997d1c1a3820
     Reviewed-on: https://go-review.googlesource.com/17880
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/dial_test.go  | 5 ++++-
  src/net/error_test.go | 4 ++--
  2 files changed, 6 insertions(+), 3 deletions(-)
+
+diff --git a/src/net/dial_test.go b/src/net/dial_test.go
+index dbaca9efce..2311b10824 100644
+--- a/src/net/dial_test.go
++++ b/src/net/dial_test.go
+@@ -722,7 +722,7 @@ func TestDialCancel(t *testing.T) {
+ 	if runtime.GOOS == "plan9" || runtime.GOOS == "nacl" {
+ 		// plan9 is not implemented and nacl doesn't have
+ 		// external network access.
+-		t.Skip("skipping on %s", runtime.GOOS)
++		t.Skipf("skipping on %s", runtime.GOOS)
+ 	}
+ 	onGoBuildFarm := testenv.Builder() != ""
+ 	if testing.Short() && !onGoBuildFarm {
+@@ -767,6 +767,9 @@ func TestDialCancel(t *testing.T) {
+ 			c.Close()
+ 			t.Fatal("unexpected successful connection")
+ 		case err := <-errc:
++			if perr := parseDialError(err); perr != nil {
++				t.Error(perr)
++			}
+ 			if ticks < cancelTick {
+ 				t.Fatalf("dial error after %d ticks (%d before cancel sent): %v",
+ 					ticks, cancelTick-ticks, err)
+diff --git a/src/net/error_test.go b/src/net/error_test.go
+index 6e85362938..1aab14c449 100644
+--- a/src/net/error_test.go
++++ b/src/net/error_test.go
+@@ -93,7 +93,7 @@ second:
+ 		goto third
+ 	}
+ 	switch nestedErr {
+-	case errClosing, errMissingAddress:
++	case errCanceled, errClosing, errMissingAddress:
+ 		return nil
+ 	}
+ 	return fmt.Errorf("unexpected type on 2nd nested level: %T", nestedErr)
+@@ -413,7 +413,7 @@ second:
+ 		goto third
+ 	}
+ 	switch nestedErr {
+-	case errClosing, errTimeout, ErrWriteToConnected, io.ErrUnexpectedEOF:
++	case errCanceled, errClosing, errTimeout, ErrWriteToConnected, io.ErrUnexpectedEOF:
+ 		return nil
+ 	}
+ 	return fmt.Errorf("unexpected type on 2nd nested level: %T", nestedErr)

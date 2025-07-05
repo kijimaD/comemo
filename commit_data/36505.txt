@@ -19,6 +19,21 @@ Date:   Wed May 2 12:58:18 2018 +0200
     Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/go_test.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 19e4116eb3..2b2e17a71a 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -5037,7 +5037,8 @@ func TestWrongGOOSErrorBeforeLoadError(t *testing.T) {
+ }
+ 
+ func TestUpxCompression(t *testing.T) {
+-	if runtime.GOOS != "linux" || runtime.GOARCH != "amd64" {
++	if runtime.GOOS != "linux" ||
++		(runtime.GOARCH != "amd64" && runtime.GOARCH != "386") {
+ 		t.Skipf("skipping upx test on %s/%s", runtime.GOOS, runtime.GOARCH)
+ 	}
+ 

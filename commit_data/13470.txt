@@ -13,9 +13,319 @@ Date:   Fri Jul 13 11:38:00 2012 +0200
     R=r
     CC=golang-dev
     https://golang.org/cl/6346092
-
+---
  src/pkg/exp/locale/collate/build/contract.go      | 33 +++++++------
  src/pkg/exp/locale/collate/build/contract_test.go | 56 +++++++++++------------
  src/pkg/exp/locale/collate/contract.go            | 13 ++++--
  src/pkg/exp/locale/collate/contract_test.go       | 28 ++++++------
  4 files changed, 70 insertions(+), 60 deletions(-)
+
+diff --git a/src/pkg/exp/locale/collate/build/contract.go b/src/pkg/exp/locale/collate/build/contract.go
+index 1f8691ba04..45d8f74b9b 100644
+--- a/src/pkg/exp/locale/collate/build/contract.go
++++ b/src/pkg/exp/locale/collate/build/contract.go
+@@ -41,6 +41,11 @@ import (
+ // also includes the length and offset to the next sequence of entries
+ // to check in case of a match. 
+ 
++const (
++	final   = 0
++	noIndex = 0xFF
++)
++
+ // ctEntry associates to a matching byte an offset and/or next sequence of 
+ // bytes to check. A ctEntry c is called final if a match means that the
+ // longest suffix has been found.  An entry c is final if c.n == 0.
+@@ -50,24 +55,24 @@ import (
+ // Examples:
+ // The suffix strings "ab" and "ac" can be represented as:
+ // []ctEntry{
+-//     {'a', 1, 1, 0xFF},  // 'a' by itself does not match, so i is 0xFF.
++//     {'a', 1, 1, noIndex},  // 'a' by itself does not match, so i is 0xFF.
+ //     {'b', 'c', 0, 1},   // "ab" -> 1, "ac" -> 2
+ // }
+ // 
+ // The suffix strings "ab", "abc", "abd", and "abcd" can be represented as:
+ // []ctEntry{
+-//     {'a', 1, 1, 0xFF}, // 'a' must be followed by 'b'.
+-//     {'b', 2, 2, 1},    // "ab" -> 1, may be followed by 'c' or 'd'.
+-//     {'d', 'd', 0, 3},  // "abd" -> 3
++//     {'a', 1, 1, noIndex}, // 'a' must be followed by 'b'.
++//     {'b', 1, 2, 1},    // "ab" -> 1, may be followed by 'c' or 'd'.
++//     {'d', 'd', final, 3},  // "abd" -> 3
+ //     {'c', 4, 1, 2},    // "abc" -> 2, may be followed by 'd'.
+-//     {'d', 'd', 0, 4},  // "abcd" -> 4
++//     {'d', 'd', final, 4},  // "abcd" -> 4
+ // }
+ // See genStateTests in contract_test.go for more examples.
+ type ctEntry struct {
+ 	l uint8 // non-final: byte value to match; final: lowest match in range.
+ 	h uint8 // non-final: relative index to next block; final: highest match in range.
+-	n uint8 // non-final: length of next block; final: 0
+-	i uint8 // result offset. Will be 0xFF if more bytes are needed to complete. 
++	n uint8 // non-final: length of next block; final: final
++	i uint8 // result offset. Will be noIndex if more bytes are needed to complete. 
+ }
+ 
+ // contractTrieSet holds a set of contraction tries. The tries are stored
+@@ -124,7 +129,7 @@ func (ct *contractTrieSet) genStates(sis []stridx) (int, error) {
+ 				}
+ 			}
+ 			if !added {
+-				*ct = append(*ct, ctEntry{l: c, i: 0xFF})
++				*ct = append(*ct, ctEntry{l: c, i: noIndex})
+ 			}
+ 		} else {
+ 			for j := len(*ct) - 1; j >= start; j-- {
+@@ -140,7 +145,7 @@ func (ct *contractTrieSet) genStates(sis []stridx) (int, error) {
+ 				}
+ 			}
+ 			if !added {
+-				*ct = append(*ct, ctEntry{l: c, h: c, i: uint8(si.index)})
++				*ct = append(*ct, ctEntry{l: c, h: c, n: final, i: uint8(si.index)})
+ 			}
+ 		}
+ 	}
+@@ -150,7 +155,7 @@ func (ct *contractTrieSet) genStates(sis []stridx) (int, error) {
+ 	for i, end := start, len(*ct); i < end; i++ {
+ 		fe := (*ct)[i]
+ 		if fe.h == 0 { // uninitialized non-final
+-			ln := len(*ct) - start
++			ln := len(*ct) - start - n
+ 			if ln > 0xFF {
+ 				return 0, fmt.Errorf("genStates: relative block offset too large: %d > 255", ln)
+ 			}
+@@ -238,16 +243,16 @@ func (ct *contractTrieSet) lookup(h ctHandle, str []byte) (index, ns int) {
+ 		if c >= e.l {
+ 			p++
+ 			if e.l == c {
+-				if e.i != 0xFF {
++				if e.i != noIndex {
+ 					index, ns = int(e.i), p
+ 				}
+-				if e.n != 0 {
++				if e.n != final {
+ 					// set to new state
+-					i, states, n = 0, states[e.h:], int(e.n)
++					i, states, n = 0, states[int(e.h)+n:], int(e.n)
+ 				} else {
+ 					return
+ 				}
+-			} else if e.n == 0 && c <= e.h {
++			} else if e.n == final && c <= e.h {
+ 				return int(c-e.l) + int(e.i), p
+ 			}
+ 		} else {
+diff --git a/src/pkg/exp/locale/collate/build/contract_test.go b/src/pkg/exp/locale/collate/build/contract_test.go
+index ea5f3c077a..eeca0c8954 100644
+--- a/src/pkg/exp/locale/collate/build/contract_test.go
++++ b/src/pkg/exp/locale/collate/build/contract_test.go
+@@ -111,9 +111,9 @@ var genStateTests = []GenStateTest{
+ 	},
+ 		1,
+ 		contractTrieSet{
+-			{'a', 1, 1, 0xFF},
+-			{'b', 1, 1, 0xFF},
+-			{'c', 'c', 0, 1},
++			{'a', 0, 1, noIndex},
++			{'b', 0, 1, noIndex},
++			{'c', 'c', final, 1},
+ 		},
+ 	},
+ 	{[]stridx{
+@@ -123,9 +123,9 @@ var genStateTests = []GenStateTest{
+ 	},
+ 		1,
+ 		contractTrieSet{
+-			{'a', 1, 1, 0xFF},
+-			{'b', 1, 1, 0xFF},
+-			{'c', 'e', 0, 1},
++			{'a', 0, 1, noIndex},
++			{'b', 0, 1, noIndex},
++			{'c', 'e', final, 1},
+ 		},
+ 	},
+ 	{[]stridx{
+@@ -135,9 +135,9 @@ var genStateTests = []GenStateTest{
+ 	},
+ 		1,
+ 		contractTrieSet{
+-			{'a', 1, 1, 3},
+-			{'b', 1, 1, 2},
+-			{'c', 'c', 0, 1},
++			{'a', 0, 1, 3},
++			{'b', 0, 1, 2},
++			{'c', 'c', final, 1},
+ 		},
+ 	},
+ 	{[]stridx{
+@@ -150,11 +150,11 @@ var genStateTests = []GenStateTest{
+ 	},
+ 		2,
+ 		contractTrieSet{
+-			{'b', 'b', 0, 6},
+-			{'a', 2, 2, 5},
+-			{'c', 'c', 0, 4},
+-			{'b', 2, 1, 3},
+-			{'c', 'd', 0, 1},
++			{'b', 'b', final, 6},
++			{'a', 0, 2, 5},
++			{'c', 'c', final, 4},
++			{'b', 0, 1, 3},
++			{'c', 'd', final, 1},
+ 		},
+ 	},
+ 	{[]stridx{
+@@ -168,14 +168,14 @@ var genStateTests = []GenStateTest{
+ 	},
+ 		2,
+ 		contractTrieSet{
+-			{'b', 5, 1, 0xFF},
+-			{'a', 2, 1, 0xFF},
+-			{'b', 1, 1, 6},
+-			{'c', 1, 1, 4},
+-			{'d', 'd', 0, 1},
+-			{'c', 1, 1, 7},
+-			{'d', 1, 1, 5},
+-			{'e', 'f', 0, 2},
++			{'b', 3, 1, noIndex},
++			{'a', 0, 1, noIndex},
++			{'b', 0, 1, 6},
++			{'c', 0, 1, 4},
++			{'d', 'd', final, 1},
++			{'c', 0, 1, 7},
++			{'d', 0, 1, 5},
++			{'e', 'f', final, 2},
+ 		},
+ 	},
+ }
+@@ -251,13 +251,13 @@ func TestPrintContractionTrieSet(t *testing.T) {
+ 
+ const contractTrieOutput = `// testCTEntries: 8 entries, 32 bytes
+ var testCTEntries = [8]struct{l,h,n,i uint8}{
+-	{0x62, 0x5, 1, 255},
+-	{0x61, 0x2, 1, 255},
+-	{0x62, 0x1, 1, 6},
+-	{0x63, 0x1, 1, 4},
++	{0x62, 0x3, 1, 255},
++	{0x61, 0x0, 1, 255},
++	{0x62, 0x0, 1, 6},
++	{0x63, 0x0, 1, 4},
+ 	{0x64, 0x64, 0, 1},
+-	{0x63, 0x1, 1, 7},
+-	{0x64, 0x1, 1, 5},
++	{0x63, 0x0, 1, 7},
++	{0x64, 0x0, 1, 5},
+ 	{0x65, 0x66, 0, 2},
+ }
+ var testContractTrieSet = contractTrieSet( testCTEntries[:] )
+diff --git a/src/pkg/exp/locale/collate/contract.go b/src/pkg/exp/locale/collate/contract.go
+index 28b9a04aca..0d9bc401bc 100644
+--- a/src/pkg/exp/locale/collate/contract.go
++++ b/src/pkg/exp/locale/collate/contract.go
+@@ -37,6 +37,11 @@ func (s *ctScanner) result() (i, p int) {
+ 	return s.index, s.pindex
+ }
+ 
++const (
++	final   = 0
++	noIndex = 0xFF
++)
++
+ // scan matches the longest suffix at the current location in the input
+ // and returns the number of bytes consumed.
+ func (s *ctScanner) scan(p int) int {
+@@ -53,12 +58,12 @@ func (s *ctScanner) scan(p int) int {
+ 		if c >= e.l {
+ 			if e.l == c {
+ 				p++
+-				if e.i != 0xFF {
++				if e.i != noIndex {
+ 					s.index = int(e.i)
+ 					s.pindex = p
+ 				}
+-				if e.n != 0 {
+-					i, states, n = 0, states[e.h:], int(e.n)
++				if e.n != final {
++					i, states, n = 0, states[int(e.h)+n:], int(e.n)
+ 					if p >= len(str) || utf8.RuneStart(str[p]) {
+ 						s.states, s.n, pr = states, n, p
+ 					}
+@@ -67,7 +72,7 @@ func (s *ctScanner) scan(p int) int {
+ 					return p
+ 				}
+ 				continue
+-			} else if e.n == 0 && c <= e.h {
++			} else if e.n == final && c <= e.h {
+ 				p++
+ 				s.done = true
+ 				s.index = int(c-e.l) + int(e.i)
+diff --git a/src/pkg/exp/locale/collate/contract_test.go b/src/pkg/exp/locale/collate/contract_test.go
+index fd94d9c5c0..f3710a183a 100644
+--- a/src/pkg/exp/locale/collate/contract_test.go
++++ b/src/pkg/exp/locale/collate/contract_test.go
+@@ -30,8 +30,8 @@ var lookupTests = []LookupTest{
+ 	},
+ 		1,
+ 		contractTrieSet{
+-			{'a', 1, 1, 0xFF},
+-			{'b', 1, 1, 0xFF},
++			{'a', 0, 1, 0xFF},
++			{'b', 0, 1, 0xFF},
+ 			{'c', 'c', 0, 1},
+ 		},
+ 	},
+@@ -46,8 +46,8 @@ var lookupTests = []LookupTest{
+ 	},
+ 		1,
+ 		contractTrieSet{
+-			{'a', 1, 1, 0xFF},
+-			{'b', 1, 1, 0xFF},
++			{'a', 0, 1, 0xFF},
++			{'b', 0, 1, 0xFF},
+ 			{'c', 'e', 0, 1},
+ 		},
+ 	},
+@@ -60,8 +60,8 @@ var lookupTests = []LookupTest{
+ 	},
+ 		1,
+ 		contractTrieSet{
+-			{'a', 1, 1, 3},
+-			{'b', 1, 1, 2},
++			{'a', 0, 1, 3},
++			{'b', 0, 1, 2},
+ 			{'c', 'c', 0, 1},
+ 		},
+ 	},
+@@ -77,9 +77,9 @@ var lookupTests = []LookupTest{
+ 		2,
+ 		contractTrieSet{
+ 			{'b', 'b', 0, 6},
+-			{'a', 2, 2, 5},
++			{'a', 0, 2, 5},
+ 			{'c', 'c', 0, 4},
+-			{'b', 2, 1, 3},
++			{'b', 0, 1, 3},
+ 			{'c', 'd', 0, 1},
+ 		},
+ 	},
+@@ -94,13 +94,13 @@ var lookupTests = []LookupTest{
+ 	},
+ 		2,
+ 		contractTrieSet{
+-			{'b', 5, 1, 0xFF},
+-			{'a', 2, 1, 0xFF},
+-			{'b', 1, 1, 6},
+-			{'c', 1, 1, 4},
++			{'b', 3, 1, 0xFF},
++			{'a', 0, 1, 0xFF},
++			{'b', 0, 1, 6},
++			{'c', 0, 1, 4},
+ 			{'d', 'd', 0, 1},
+-			{'c', 1, 1, 7},
+-			{'d', 1, 1, 5},
++			{'c', 0, 1, 7},
++			{'d', 0, 1, 5},
+ 			{'e', 'f', 0, 2},
+ 		},
+ 	},

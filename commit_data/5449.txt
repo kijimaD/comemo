@@ -7,6 +7,23 @@ Date:   Thu May 6 09:34:12 2010 -0700
     R=ken2
     CC=golang-dev
     https://golang.org/cl/1138041
-
+---
  src/cmd/gc/print.c | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/print.c b/src/cmd/gc/print.c
+index 8d85d04652..83ab1cb86c 100644
+--- a/src/cmd/gc/print.c
++++ b/src/cmd/gc/print.c
+@@ -251,7 +251,10 @@ exprfmt(Fmt *f, Node *n, int prec)
+ 		break;
+ 	
+ 	case OARRAYLIT:
+-		fmtprint(f, "slice literal");
++		if(isslice(n->type))
++			fmtprint(f, "slice literal");
++		else
++			fmtprint(f, "array literal");
+ 		break;
+ 	
+ 	case OMAPLIT:

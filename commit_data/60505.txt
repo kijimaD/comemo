@@ -22,10 +22,157 @@ Date:   Wed Apr 3 15:13:04 2024 +0800
     Auto-Submit: abner chenc <chenguoqi@loongson.cn>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/asm/internal/arch/loong64.go            | 11 -----------
  src/cmd/asm/internal/asm/asm.go                 |  6 ------
  src/cmd/asm/internal/asm/testdata/loong64enc1.s | 14 +++++++-------
  src/cmd/compile/internal/loong64/ssa.go         |  2 ++
  src/cmd/internal/obj/loong64/asm.go             | 25 ++++++++++++++++++++++---
  5 files changed, 31 insertions(+), 27 deletions(-)
+
+diff --git a/src/cmd/asm/internal/arch/loong64.go b/src/cmd/asm/internal/arch/loong64.go
+index bf34a94f07..48a62c4952 100644
+--- a/src/cmd/asm/internal/arch/loong64.go
++++ b/src/cmd/asm/internal/arch/loong64.go
+@@ -21,17 +21,6 @@ func jumpLoong64(word string) bool {
+ 	return false
+ }
+ 
+-// IsLoong64CMP reports whether the op (as defined by an loong64.A* constant) is
+-// one of the CMP instructions that require special handling.
+-func IsLoong64CMP(op obj.As) bool {
+-	switch op {
+-	case loong64.ACMPEQF, loong64.ACMPEQD, loong64.ACMPGEF, loong64.ACMPGED,
+-		loong64.ACMPGTF, loong64.ACMPGTD:
+-		return true
+-	}
+-	return false
+-}
+-
+ // IsLoong64MUL reports whether the op (as defined by an loong64.A* constant) is
+ // one of the MUL/DIV/REM instructions that require special handling.
+ func IsLoong64MUL(op obj.As) bool {
+diff --git a/src/cmd/asm/internal/asm/asm.go b/src/cmd/asm/internal/asm/asm.go
+index b2eaa0a28d..bdbb3e17e0 100644
+--- a/src/cmd/asm/internal/asm/asm.go
++++ b/src/cmd/asm/internal/asm/asm.go
+@@ -642,12 +642,6 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
+ 				break
+ 			}
+ 		} else if p.arch.Family == sys.Loong64 {
+-			if arch.IsLoong64CMP(op) {
+-				prog.From = a[0]
+-				prog.Reg = p.getRegister(prog, op, &a[1])
+-				break
+-			}
+-
+ 			if arch.IsLoong64RDTIME(op) {
+ 				// The Loong64 RDTIME family of instructions is a bit special,
+ 				// in that both its register operands are outputs
+diff --git a/src/cmd/asm/internal/asm/testdata/loong64enc1.s b/src/cmd/asm/internal/asm/testdata/loong64enc1.s
+index a98fca08aa..a45ef88150 100644
+--- a/src/cmd/asm/internal/asm/testdata/loong64enc1.s
++++ b/src/cmd/asm/internal/asm/testdata/loong64enc1.s
+@@ -53,8 +53,7 @@ lable2:
+ 	CLZ	R4, R5			// 85140000
+ 	CPUCFG	R4, R5			// 856c0000
+ 	ADDF	F4, F5			// a5900001
+-	ADDF	F4, R5, F6		// a6900001
+-	CMPEQF	F4, R5			// a010120c
++	ADDF	F4, F5, F6		// a6900001
+ 	ABSF	F4, F5			// 85041401
+ 	MOVVF	F4, F5			// 85181d01
+ 	MOVF	F4, F5			// 85941401
+@@ -220,11 +219,12 @@ lable2:
+ 	MOVWR	y+8(FP), R4 		// 6440402e
+ 	MOVWR	1(R5), R4 		// a404402e
+ 
+-	CMPGTF	F4, R5 			// a090110c
+-	CMPGTD	F4, R5 			// a090210c
+-	CMPGEF	F4, R5			// a090130c
+-	CMPGED	F4, R5			// a090230c
+-	CMPEQD	F4, R5			// a010220c
++	CMPEQF	F4, F5, FCC0		// a010120c
++	CMPGTF	F4, F5, FCC1 		// a190110c
++	CMPGTD	F4, F5, FCC2 		// a290210c
++	CMPGEF	F4, F5, FCC3		// a390130c
++	CMPGED	F4, F5, FCC4		// a490230c
++	CMPEQD	F4, F5, FCC5		// a510220c
+ 
+ 	RDTIMELW R4, R0			// 80600000
+ 	RDTIMEHW R4, R0			// 80640000
+diff --git a/src/cmd/compile/internal/loong64/ssa.go b/src/cmd/compile/internal/loong64/ssa.go
+index e7298bdb9f..1b1fdfdc71 100644
+--- a/src/cmd/compile/internal/loong64/ssa.go
++++ b/src/cmd/compile/internal/loong64/ssa.go
+@@ -244,6 +244,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p.From.Type = obj.TYPE_REG
+ 		p.From.Reg = v.Args[0].Reg()
+ 		p.Reg = v.Args[1].Reg()
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = loong64.REG_FCC0
+ 	case ssa.OpLOONG64MOVVaddr:
+ 		p := s.Prog(loong64.AMOVV)
+ 		p.From.Type = obj.TYPE_ADDR
+diff --git a/src/cmd/internal/obj/loong64/asm.go b/src/cmd/internal/obj/loong64/asm.go
+index 9ce63c1f58..8325cbf905 100644
+--- a/src/cmd/internal/obj/loong64/asm.go
++++ b/src/cmd/internal/obj/loong64/asm.go
+@@ -82,13 +82,14 @@ var optab = []Optab{
+ 	{ACLO, C_REG, C_NONE, C_NONE, C_REG, C_NONE, 9, 4, 0, 0},
+ 
+ 	{AADDF, C_FREG, C_NONE, C_NONE, C_FREG, C_NONE, 32, 4, 0, 0},
+-	{AADDF, C_FREG, C_REG, C_NONE, C_FREG, C_NONE, 32, 4, 0, 0},
+-	{ACMPEQF, C_FREG, C_REG, C_NONE, C_NONE, C_NONE, 32, 4, 0, 0},
++	{AADDF, C_FREG, C_FREG, C_NONE, C_FREG, C_NONE, 32, 4, 0, 0},
+ 	{AABSF, C_FREG, C_NONE, C_NONE, C_FREG, C_NONE, 33, 4, 0, 0},
+ 	{AMOVVF, C_FREG, C_NONE, C_NONE, C_FREG, C_NONE, 33, 4, 0, 0},
+ 	{AMOVF, C_FREG, C_NONE, C_NONE, C_FREG, C_NONE, 33, 4, 0, 0},
+ 	{AMOVD, C_FREG, C_NONE, C_NONE, C_FREG, C_NONE, 33, 4, 0, 0},
+ 
++	{ACMPEQF, C_FREG, C_FREG, C_NONE, C_FCCREG, C_NONE, 29, 4, 0, 0},
++
+ 	{AMOVW, C_REG, C_NONE, C_NONE, C_SEXT, C_NONE, 7, 4, 0, 0},
+ 	{AMOVWU, C_REG, C_NONE, C_NONE, C_SEXT, C_NONE, 7, 4, 0, 0},
+ 	{AMOVV, C_REG, C_NONE, C_NONE, C_SEXT, C_NONE, 7, 4, 0, 0},
+@@ -850,6 +851,21 @@ func (c *ctxt0) aclass(a *obj.Addr) int {
+ 	return C_GOK
+ }
+ 
++func (c *ctxt0) rclass(r int16) int {
++	switch {
++	case REG_R0 <= r && r <= REG_R31:
++		return C_REG
++	case REG_F0 <= r && r <= REG_F31:
++		return C_FREG
++	case REG_FCC0 <= r && r <= REG_FCC31:
++		return C_FCCREG
++	case REG_FCSR0 <= r && r <= REG_FCSR31:
++		return C_FCSRREG
++	}
++
++	return C_GOK
++}
++
+ func prasm(p *obj.Prog) {
+ 	fmt.Printf("%v\n", p)
+ }
+@@ -883,7 +899,7 @@ func (c *ctxt0) oplook(p *obj.Prog) *Optab {
+ 	// 2nd source operand
+ 	a2 := C_NONE
+ 	if p.Reg != 0 {
+-		a2 = C_REG
++		a2 = c.rclass(p.Reg)
+ 	}
+ 
+ 	// 2nd destination operand
+@@ -1620,6 +1636,9 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 			o1 = OP_12IRR(c.opirr(a), uint32(v), uint32(r), uint32(p.From.Reg))
+ 		}
+ 
++	case 29: // fcmp.cond.x fj, fk, fcc
++		o1 = OP_RRR(c.oprrr(p.As), uint32(p.From.Reg), uint32(p.Reg), uint32(p.To.Reg))
++
+ 	case 30: // movw r,fr
+ 		a := OP_TEN(8, 1321) // movgr2fr.w
+ 		o1 = OP_RR(a, uint32(p.From.Reg), uint32(p.To.Reg))

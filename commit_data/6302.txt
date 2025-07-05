@@ -7,6 +7,20 @@ Date:   Fri Sep 17 12:39:01 2010 +1000
     R=rsc, gri
     CC=golang-dev
     https://golang.org/cl/2191043
-
+---
  doc/go_for_cpp_programmers.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go_for_cpp_programmers.html b/doc/go_for_cpp_programmers.html
+index 33e3412421..fae2ec44e6 100644
+--- a/doc/go_for_cpp_programmers.html
++++ b/doc/go_for_cpp_programmers.html
+@@ -668,7 +668,7 @@ func manager(ch chan cmd) {
+ 	var val int = 0
+ 	for {
+ 		c := &lt;- ch
+-		if c.get { c.val = val ch &lt;- c }
++		if c.get { c.val = val; ch &lt;- c }
+ 		else { val = c.val }
+ 	}
+ }

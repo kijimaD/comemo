@@ -15,6 +15,79 @@ Date:   Mon Aug 28 12:41:27 2017 +0200
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/regexp/example_test.go | 64 ++++++++++++++++++++++++++++++++++++++++++++++
  1 file changed, 64 insertions(+)
+
+diff --git a/src/regexp/example_test.go b/src/regexp/example_test.go
+index 2ac92d4382..0bf1f6bee7 100644
+--- a/src/regexp/example_test.go
++++ b/src/regexp/example_test.go
+@@ -179,3 +179,67 @@ func ExampleRegexp_Split() {
+ 	// [pizza]
+ 	// [pi a]
+ }
++
++func ExampleRegexp_Expand() {
++	content := []byte(`
++	# comment line
++	option1: value1
++	option2: value2
++
++	# another comment line
++	option3: value3
++`)
++
++	// Regex pattern captures "key: value" pair from the content.
++	pattern := regexp.MustCompile(`(?m)(?P<key>\w+):\s+(?P<value>\w+)$`)
++
++	// Template to convert "key: value" to "key=value" by
++	// referencing the values captured by the regex pattern.
++	template := []byte("$key=$value\n")
++
++	result := []byte{}
++
++	// For each match of the regex in the content.
++	for _, submatches := range pattern.FindAllSubmatchIndex(content, -1) {
++		// Apply the captured submatches to the template and append the output
++		// to the result.
++		result = pattern.Expand(result, template, content, submatches)
++	}
++	fmt.Println(string(result))
++	// Output:
++	// option1=value1
++	// option2=value2
++	// option3=value3
++}
++
++func ExampleRegexp_ExpandString() {
++	content := `
++	# comment line
++	option1: value1
++	option2: value2
++
++	# another comment line
++	option3: value3
++`
++
++	// Regex pattern captures "key: value" pair from the content.
++	pattern := regexp.MustCompile(`(?m)(?P<key>\w+):\s+(?P<value>\w+)$`)
++
++	// Template to convert "key: value" to "key=value" by
++	// referencing the values captured by the regex pattern.
++	template := "$key=$value\n"
++
++	result := []byte{}
++
++	// For each match of the regex in the content.
++	for _, submatches := range pattern.FindAllStringSubmatchIndex(content, -1) {
++		// Apply the captured submatches to the template and append the output
++		// to the result.
++		result = pattern.ExpandString(result, template, content, submatches)
++	}
++	fmt.Println(string(result))
++	// Output:
++	// option1=value1
++	// option2=value2
++	// option3=value3
++}

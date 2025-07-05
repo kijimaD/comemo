@@ -8,9 +8,75 @@ Date:   Tue Oct 9 11:56:38 2012 +1100
     R=golang-dev, dsymonds, bradfitz
     CC=golang-dev
     https://golang.org/cl/6637047
-
+---
  src/pkg/encoding/gob/decode.go    | 2 ++
  src/pkg/encoding/gob/encode.go    | 2 ++
  src/pkg/encoding/gob/type.go      | 3 +++
  src/pkg/encoding/gob/type_test.go | 5 ++++-
  4 files changed, 11 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/encoding/gob/decode.go b/src/pkg/encoding/gob/decode.go
+index 8690b35d71..900c69ddb4 100644
+--- a/src/pkg/encoding/gob/decode.go
++++ b/src/pkg/encoding/gob/decode.go
+@@ -717,7 +717,9 @@ func (dec *Decoder) decodeInterface(ityp reflect.Type, state *decoderState, p ui
+ 		errorf("name too long (%d bytes): %.20q...", len(name), name)
+ 	}
+ 	// The concrete type must be registered.
++	registerLock.RLock()
+ 	typ, ok := nameToConcreteType[name]
++	registerLock.RUnlock()
+ 	if !ok {
+ 		errorf("name not registered for interface: %q", name)
+ 	}
+diff --git a/src/pkg/encoding/gob/encode.go b/src/pkg/encoding/gob/encode.go
+index e89f68fa08..ea37a6cbd5 100644
+--- a/src/pkg/encoding/gob/encode.go
++++ b/src/pkg/encoding/gob/encode.go
+@@ -441,7 +441,9 @@ func (enc *Encoder) encodeInterface(b *bytes.Buffer, iv reflect.Value) {
+ 	}
+ 
+ 	ut := userType(iv.Elem().Type())
++	registerLock.RLock()
+ 	name, ok := concreteTypeToName[ut.base]
++	registerLock.RUnlock()
+ 	if !ok {
+ 		errorf("type not registered for interface: %s", ut.base)
+ 	}
+diff --git a/src/pkg/encoding/gob/type.go b/src/pkg/encoding/gob/type.go
+index a8ee2fa4a5..ea0db4eac4 100644
+--- a/src/pkg/encoding/gob/type.go
++++ b/src/pkg/encoding/gob/type.go
+@@ -712,6 +712,7 @@ type GobDecoder interface {
+ }
+ 
+ var (
++	registerLock       sync.RWMutex
+ 	nameToConcreteType = make(map[string]reflect.Type)
+ 	concreteTypeToName = make(map[reflect.Type]string)
+ )
+@@ -723,6 +724,8 @@ func RegisterName(name string, value interface{}) {
+ 		// reserved for nil
+ 		panic("attempt to register empty name")
+ 	}
++	registerLock.Lock()
++	defer registerLock.Unlock()
+ 	ut := userType(reflect.TypeOf(value))
+ 	// Check for incompatible duplicates. The name must refer to the
+ 	// same user type, and vice versa.
+diff --git a/src/pkg/encoding/gob/type_test.go b/src/pkg/encoding/gob/type_test.go
+index 734fbb04b4..e55fba98d5 100644
+--- a/src/pkg/encoding/gob/type_test.go
++++ b/src/pkg/encoding/gob/type_test.go
+@@ -177,7 +177,10 @@ func TestRegistrationNaming(t *testing.T) {
+ 		Register(tc.t)
+ 
+ 		tct := reflect.TypeOf(tc.t)
+-		if ct := nameToConcreteType[tc.name]; ct != tct {
++		registerLock.RLock()
++		ct := nameToConcreteType[tc.name]
++		registerLock.RUnlock()
++		if ct != tct {
+ 			t.Errorf("nameToConcreteType[%q] = %v, want %v", tc.name, ct, tct)
+ 		}
+ 		// concreteTypeToName is keyed off the base type.

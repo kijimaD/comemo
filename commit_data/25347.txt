@@ -13,6 +13,29 @@ Date:   Wed Oct 21 13:50:06 2015 -0400
     Change-Id: I909e4cc7095ac95ef63bdf6ddc4cb2c698f3459e
     Reviewed-on: https://go-review.googlesource.com/16151
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/androidtest.bash | 11 ++++++++++-
  1 file changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/src/androidtest.bash b/src/androidtest.bash
+index 0010738614..326bce6608 100755
+--- a/src/androidtest.bash
++++ b/src/androidtest.bash
+@@ -56,7 +56,16 @@ mkdir -p $FAKE_GOROOT/pkg
+ cp -a "${GOROOT}/src" "${FAKE_GOROOT}/"
+ cp -a "${GOROOT}/test" "${FAKE_GOROOT}/"
+ cp -a "${GOROOT}/lib" "${FAKE_GOROOT}/"
+-cp -a "${GOROOT}/pkg/android_$GOARCH" "${FAKE_GOROOT}/pkg/"
++
++# For android, the go tool will install the compiled package in
++# pkg/android_${GOARCH}_shared directory by default, not in
++# the usual pkg/${GOOS}_${GOARCH}. Some tests in src/go/* assume
++# the compiled packages were installed in the usual places.
++# Instead of reflecting this exception into the go/* packages,
++# we copy the compiled packages into the usual places.
++cp -a "${GOROOT}/pkg/android_${GOARCH}_shared" "${FAKE_GOROOT}/pkg/"
++mv "${FAKE_GOROOT}/pkg/android_${GOARCH}_shared" "${FAKE_GOROOT}/pkg/android_${GOARCH}"
++
+ echo '# Syncing test files to android device'
+ adb shell mkdir -p /data/local/tmp/goroot
+ time adb sync data &> /dev/null

@@ -8,9 +8,112 @@ Date:   Sun Sep 26 20:45:54 2021 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/352312
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/infer.go | 2 +-
  src/cmd/compile/internal/types2/unify.go | 6 ++++--
  src/go/types/infer.go                    | 2 +-
  src/go/types/unify.go                    | 6 ++++--
  4 files changed, 10 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/infer.go b/src/cmd/compile/internal/types2/infer.go
+index 914ee9ea5d..ad8c6ac412 100644
+--- a/src/cmd/compile/internal/types2/infer.go
++++ b/src/cmd/compile/internal/types2/infer.go
+@@ -334,7 +334,7 @@ func (w *tpWalker) isParameterized(typ Type) (res bool) {
+ 
+ 	case *TypeParam:
+ 		// t must be one of w.tparams
+-		return t.index < len(w.tparams) && w.tparams[t.index] == t
++		return tparamIndex(w.tparams, t) >= 0
+ 
+ 	default:
+ 		unreachable()
+diff --git a/src/cmd/compile/internal/types2/unify.go b/src/cmd/compile/internal/types2/unify.go
+index bb69f0d27b..a252c5e1a5 100644
+--- a/src/cmd/compile/internal/types2/unify.go
++++ b/src/cmd/compile/internal/types2/unify.go
+@@ -108,7 +108,7 @@ func (d *tparamsList) init(tparams []*TypeParam) {
+ 
+ // join unifies the i'th type parameter of x with the j'th type parameter of y.
+ // If both type parameters already have a type associated with them and they are
+-// not joined, join fails and return false.
++// not joined, join fails and returns false.
+ func (u *unifier) join(i, j int) bool {
+ 	ti := u.x.indices[i]
+ 	tj := u.y.indices[j]
+@@ -132,6 +132,7 @@ func (u *unifier) join(i, j int) bool {
+ 		break
+ 	case ti > 0 && tj > 0:
+ 		// Both type parameters have (possibly different) inferred types. Cannot join.
++		// TODO(gri) Should we check if types are identical? Investigate.
+ 		return false
+ 	case ti > 0:
+ 		// Only the type parameter for x has an inferred type. Use x slot for y.
+@@ -226,7 +227,7 @@ func (u *unifier) nifyEq(x, y Type, p *ifacePair) bool {
+ }
+ 
+ // nify implements the core unification algorithm which is an
+-// adapted version of Checker.identical0. For changes to that
++// adapted version of Checker.identical. For changes to that
+ // code the corresponding changes should be made here.
+ // Must not be called directly from outside the unifier.
+ func (u *unifier) nify(x, y Type, p *ifacePair) bool {
+@@ -427,6 +428,7 @@ func (u *unifier) nify(x, y Type, p *ifacePair) bool {
+ 		}
+ 
+ 	case *Named:
++		// TODO(gri) This code differs now from the parallel code in Checker.identical. Investigate.
+ 		if y, ok := y.(*Named); ok {
+ 			xargs := x.targs.list()
+ 			yargs := y.targs.list()
+diff --git a/src/go/types/infer.go b/src/go/types/infer.go
+index 1c4915571d..0be01d31e8 100644
+--- a/src/go/types/infer.go
++++ b/src/go/types/infer.go
+@@ -329,7 +329,7 @@ func (w *tpWalker) isParameterized(typ Type) (res bool) {
+ 
+ 	case *TypeParam:
+ 		// t must be one of w.tparams
+-		return t.index < len(w.tparams) && w.tparams[t.index] == t
++		return tparamIndex(w.tparams, t) >= 0
+ 
+ 	default:
+ 		unreachable()
+diff --git a/src/go/types/unify.go b/src/go/types/unify.go
+index 6d10f71a90..ce78fc8241 100644
+--- a/src/go/types/unify.go
++++ b/src/go/types/unify.go
+@@ -109,7 +109,7 @@ func (d *tparamsList) init(tparams []*TypeParam) {
+ 
+ // join unifies the i'th type parameter of x with the j'th type parameter of y.
+ // If both type parameters already have a type associated with them and they are
+-// not joined, join fails and return false.
++// not joined, join fails and returns false.
+ func (u *unifier) join(i, j int) bool {
+ 	ti := u.x.indices[i]
+ 	tj := u.y.indices[j]
+@@ -133,6 +133,7 @@ func (u *unifier) join(i, j int) bool {
+ 		break
+ 	case ti > 0 && tj > 0:
+ 		// Both type parameters have (possibly different) inferred types. Cannot join.
++		// TODO(gri) Should we check if types are identical? Investigate.
+ 		return false
+ 	case ti > 0:
+ 		// Only the type parameter for x has an inferred type. Use x slot for y.
+@@ -223,7 +224,7 @@ func (u *unifier) nifyEq(x, y Type, p *ifacePair) bool {
+ }
+ 
+ // nify implements the core unification algorithm which is an
+-// adapted version of Checker.identical0. For changes to that
++// adapted version of Checker.identical. For changes to that
+ // code the corresponding changes should be made here.
+ // Must not be called directly from outside the unifier.
+ func (u *unifier) nify(x, y Type, p *ifacePair) bool {
+@@ -424,6 +425,7 @@ func (u *unifier) nify(x, y Type, p *ifacePair) bool {
+ 		}
+ 
+ 	case *Named:
++		// TODO(gri) This code differs now from the parallel code in Checker.identical. Investigate.
+ 		if y, ok := y.(*Named); ok {
+ 			xargs := x.targs.list()
+ 			yargs := y.targs.list()

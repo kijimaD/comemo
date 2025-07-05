@@ -9,7 +9,7 @@ Date:   Fri Jun 8 02:42:28 2012 +0800
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/6265045
-
+---
  src/cmd/5a/a.y      |   7 +--
  src/cmd/5a/lex.c    |   6 +++
  src/cmd/5a/y.tab.c  | 150 ++++++++++++++++++++++++++--------------------------
@@ -27,3 +27,940 @@ Date:   Fri Jun 8 02:42:28 2012 +0800
  src/cmd/5l/span.c   |  13 ++++-
  src/libmach/5obj.c  |   1 +
  16 files changed, 153 insertions(+), 84 deletions(-)
+
+diff --git a/src/cmd/5a/a.y b/src/cmd/5a/a.y
+index 45e192e62e..c9fdf05d51 100644
+--- a/src/cmd/5a/a.y
++++ b/src/cmd/5a/a.y
+@@ -286,18 +286,19 @@ inst:
+ 		outcode(AWORD, Always, &nullgen, NREG, &g);
+ 	}
+ /*
+- * MULL hi,lo,r1,r2
++ * MULL r1,r2,(hi,lo)
+  */
+ |	LTYPEM cond reg ',' reg ',' regreg
+ 	{
+ 		outcode($1, $2, &$3, $5.reg, &$7);
+ 	}
+ /*
+- * MULA hi,lo,r1,r2
++ * MULA r1,r2,r3,r4: (r1*r2+r3) & 0xffffffff -> r4
++ * MULAW{T,B} r1,r2,r3,r4
+  */
+ |	LTYPEN cond reg ',' reg ',' reg ',' spreg
+ 	{
+-		$7.type = D_REGREG;
++		$7.type = D_REGREG2;
+ 		$7.offset = $9;
+ 		outcode($1, $2, &$3, $5.reg, &$7);
+ 	}
+diff --git a/src/cmd/5a/lex.c b/src/cmd/5a/lex.c
+index 6064becb9f..19e5982bfc 100644
+--- a/src/cmd/5a/lex.c
++++ b/src/cmd/5a/lex.c
+@@ -408,6 +408,11 @@ struct
+ 	"UNDEF",	LTYPEE,	AUNDEF,
+ 	"CLZ",		LTYPE2, ACLZ,
+ 
++	"MULWT",	LTYPE1, AMULWT,
++	"MULWB",	LTYPE1, AMULWB,
++	"MULAWT",	LTYPEN, AMULAWT,
++	"MULAWB",	LTYPEN, AMULAWB,
++
+ 	0
+ };
+ 
+@@ -511,6 +516,7 @@ zaddr(Gen *a, int s)
+ 		break;
+ 
+ 	case D_REGREG:
++	case D_REGREG2:
+ 		Bputc(&obuf, a->offset);
+ 		break;
+ 
+diff --git a/src/cmd/5a/y.tab.c b/src/cmd/5a/y.tab.c
+index 0b25671779..ce97ee3151 100644
+--- a/src/cmd/5a/y.tab.c
++++ b/src/cmd/5a/y.tab.c
+@@ -586,16 +586,16 @@ static const yytype_uint16 yyrline[] =
+       93,    99,   100,   101,   107,   111,   115,   122,   129,   136,
+      140,   147,   154,   161,   168,   175,   184,   196,   200,   204,
+      211,   218,   222,   229,   236,   243,   250,   254,   258,   262,
+-     269,   291,   298,   307,   314,   320,   323,   327,   332,   333,
+-     336,   342,   351,   359,   365,   370,   375,   381,   384,   390,
+-     398,   402,   411,   417,   418,   419,   420,   425,   431,   437,
+-     443,   444,   447,   448,   456,   465,   466,   475,   476,   482,
+-     485,   486,   487,   489,   497,   505,   514,   520,   526,   532,
+-     540,   546,   554,   555,   559,   567,   568,   574,   575,   583,
+-     584,   587,   593,   601,   609,   617,   627,   630,   634,   640,
+-     641,   642,   645,   646,   650,   654,   658,   662,   668,   671,
+-     677,   678,   682,   686,   690,   694,   698,   702,   706,   710,
+-     714
++     269,   291,   299,   308,   315,   321,   324,   328,   333,   334,
++     337,   343,   352,   360,   366,   371,   376,   382,   385,   391,
++     399,   403,   412,   418,   419,   420,   421,   426,   432,   438,
++     444,   445,   448,   449,   457,   466,   467,   476,   477,   483,
++     486,   487,   488,   490,   498,   506,   515,   521,   527,   533,
++     541,   547,   555,   556,   560,   568,   569,   575,   576,   584,
++     585,   588,   594,   602,   610,   618,   628,   631,   635,   641,
++     642,   643,   646,   647,   651,   655,   659,   663,   669,   672,
++     678,   679,   683,   687,   691,   695,   699,   703,   707,   711,
++     715
+ };
+ #endif
+ 
+@@ -2084,9 +2084,9 @@ yyreduce:
+   case 42:
+ 
+ /* Line 1455 of yacc.c  */
+-#line 299 "a.y"
++#line 300 "a.y"
+     {
+-		(yyvsp[(7) - (9)].gen).type = D_REGREG;
++		(yyvsp[(7) - (9)].gen).type = D_REGREG2;
+ 		(yyvsp[(7) - (9)].gen).offset = (yyvsp[(9) - (9)].lval);
+ 		outcode((yyvsp[(1) - (9)].lval), (yyvsp[(2) - (9)].lval), &(yyvsp[(3) - (9)].gen), (yyvsp[(5) - (9)].gen).reg, &(yyvsp[(7) - (9)].gen));
+ 	}
+@@ -2095,7 +2095,7 @@ yyreduce:
+   case 43:
+ 
+ /* Line 1455 of yacc.c  */
+-#line 308 "a.y"
++#line 309 "a.y"
+     {
+ 		outcode((yyvsp[(1) - (2)].lval), Always, &(yyvsp[(2) - (2)].gen), NREG, &nullgen);
+ 	}
+@@ -2104,7 +2104,7 @@ yyreduce:
+   case 44:
+ 
+ /* Line 1455 of yacc.c  */
+-#line 315 "a.y"
++#line 316 "a.y"
+     {
+ 		outcode((yyvsp[(1) - (2)].lval), Always, &nullgen, NREG, &nullgen);
+ 	}
+@@ -2113,7 +2113,7 @@ yyreduce:
+   case 45:
+ 
+ /* Line 1455 of yacc.c  */
+-#line 320 "a.y"
++#line 321 "a.y"
+     {
+ 		(yyval.lval) = Always;
+ 	}
+@@ -2122,7 +2122,7 @@ yyreduce:
+   case 46:
+ 
+ /* Line 1455 of yacc.c  */
+-#line 324 "a.y"
++#line 325 "a.y"
+     {
+ 		(yyval.lval) = ((yyvsp[(1) - (2)].lval) & ~C_SCOND) | (yyvsp[(2) - (2)].lval);
+ 	}
+@@ -2131,7 +2131,7 @@ yyreduce:
+   case 47:
+ 
+ /* Line 1455 of yacc.c  */
+-#line 328 "a.y"
++#line 329 "a.y"
+     {
+ 		(yyval.lval) = (yyvsp[(1) - (2)].lval) | (yyvsp[(2) - (2)].lval);
+ 	}
+@@ -2140,7 +2140,7 @@ yyreduce:
+   case 50:
+ 
+ /* Line 1455 of yacc.c  */
+-#line 337 "a.y"
++#line 338 "a.y"
+     {
+ 		(yyval.gen) = nullgen;
+ 		(yyval.gen).type = D_BRANCH;
+@@ -2151,7 +2151,7 @@ yyreduce:
+   case 51:
+ 
+ /* Line 1455 of yacc.c  */
+-#line 343 "a.y"
++#line 344 "a.y"
+     {
+ 		(yyval.gen) = nullgen;
+ 		if(pass == 2)
+@@ -2165,7 +2165,7 @@ yyreduce:
+   case 52:
+ 
+ /* Line 1455 of yacc.c  */
+-#line 352 "a.y"
++#line 353 "a.y"
+     {
+ 		(yyval.gen) = nullgen;
+ 		(yyval.gen).type = D_BRANCH;
+@@ -2177,7 +2177,7 @@ yyreduce:
+   case 53:
+ 
+ /* Line 1455 of yacc.c  */
+-#line 360 "a.y"
++#line 361 "a.y"
+     {
+ 		(yyval.gen) = nullgen;
+ 		(yyval.gen).type = D_CONST;
+@@ -2188,7 +2188,7 @@ yyreduce:
+   case 54:
+ 
+ /* Line 1455 of yacc.c  */
+-#line 366 "a.y"
++#line 367 "a.y"
+     {
+ 		(yyval.gen) = (yyvsp[(2) - (2)].gen);
+ 		(yyval.gen).type = D_CONST;
+@@ -2198,7 +2198,7 @@ yyreduce:
+   case 55:
+ 
+ /* Line 1455 of yacc.c  */
+-#line 371 "a.y"
++#line 372 "a.y"
+     {
+ 		(yyval.gen) = (yyvsp[(4) - (4)].gen);
+ 		(yyval.gen).type = D_OCONST;
+@@ -2208,7 +2208,7 @@ yyreduce:
+   case 56:
+ 
+ /* Line 1455 of yacc.c  */
+-#line 376 "a.y"
++#line 377 "a.y"
+     {
+ 		(yyval.gen) = nullgen;
+ 		(yyval.gen).type = D_SCONST;
+@@ -2219,7 +2219,7 @@ yyreduce:
+   case 58:
+ 
+ /* Line 1455 of yacc.c  */
+-#line 385 "a.y"
++#line 386 "a.y"
+     {
+ 		(yyval.gen) = nullgen;
+ 		(yyval.gen).type = D_FCONST;
+@@ -2230,7 +2230,7 @@ yyreduce:
+   case 59:
+ 
+ /* Line 1455 of yacc.c  */
+-#line 391 "a.y"
++#line 392 "a.y"
+     {
+ 		(yyval.gen) = nullgen;
+ 		(yyval.gen).type = D_FCONST;
+@@ -2241,7 +2241,7 @@ yyreduce:
+   case 60:
+ 
+ /* Line 1455 of yacc.c  */
+-#line 399 "a.y"
++#line 400 "a.y"
+     {
+ 		(yyval.lval) = 1 << (yyvsp[(1) - (1)].lval);
+ 	}
+@@ -2250,7 +2250,7 @@ yyreduce:
+   case 61:
+ 
+ /* Line 1455 of yacc.c  */
+-#line 403 "a.y"
++#line 404 "a.y"
+     {
+ 		int i;
+ 		(yyval.lval)=0;
+@@ -2264,7 +2264,7 @@ yyreduce:
+   case 62:
+ 
+ /* Line 1455 of yacc.c  */
+-#line 412 "a.y"
++#line 413 "a.y"
+     {
+ 		(yyval.lval) = (1<<(yyvsp[(1) - (3)].lval)) | (yyvsp[(3) - (3)].lval);
+ 	}
+@@ -2273,7 +2273,7 @@ yyreduce:
+   case 66:
+ 
+ /* Line 1455 of yacc.c  */
+-#line 421 "a.y"
++#line 422 "a.y"
+     {
+ 		(yyval.gen) = (yyvsp[(1) - (4)].gen);
+ 		(yyval.gen).reg = (yyvsp[(3) - (4)].lval);
+@@ -2283,7 +2283,7 @@ yyreduce:
+   case 67:
+ 
+ /* Line 1455 of yacc.c  */
+-#line 426 "a.y"
++#line 427 "a.y"
+     {
+ 		(yyval.gen) = nullgen;
+ 		(yyval.gen).type = D_PSR;
+@@ -2294,7 +2294,7 @@ yyreduce:
+   case 68:
+ 
+ /* Line 1455 of yacc.c  */
+-#line 432 "a.y"
++#line 433 "a.y"
+     {
+ 		(yyval.gen) = nullgen;
+ 		(yyval.gen).type = D_FPCR;
+@@ -2305,7 +2305,7 @@ yyreduce:
+   case 69:
+ 
+ /* Line 1455 of yacc.c  */
+-#line 438 "a.y"
++#line 439 "a.y"
+     {
+ 		(yyval.gen) = nullgen;
+ 		(yyval.gen).type = D_OREG;
+@@ -2316,7 +2316,7 @@ yyreduce:
+   case 73:
+ 
+ /* Line 1455 of yacc.c  */
+-#line 449 "a.y"
++#line 450 "a.y"
+     {
+ 		(yyval.gen) = (yyvsp[(1) - (1)].gen);
+ 		if((yyvsp[(1) - (1)].gen).name != D_EXTERN && (yyvsp[(1) - (1)].gen).name != D_STATIC) {
+@@ -2327,7 +2327,7 @@ yyreduce:
+   case 74:
+ 
+ /* Line 1455 of yacc.c  */
+-#line 457 "a.y"
++#line 458 "a.y"
+     {
+ 		(yyval.gen) = nullgen;
+ 		(yyval.gen).type = D_OREG;
+@@ -2339,7 +2339,7 @@ yyreduce:
+   case 76:
+ 
+ /* Line 1455 of yacc.c  */
+-#line 467 "a.y"
++#line 468 "a.y"
+     {
+ 		(yyval.gen) = nullgen;
+ 		(yyval.gen).type = D_OREG;
+@@ -2351,7 +2351,7 @@ yyreduce:
+   case 78:
+ 
+ /* Line 1455 of yacc.c  */
+-#line 477 "a.y"
++#line 478 "a.y"
+     {
+ 		(yyval.gen) = (yyvsp[(1) - (4)].gen);
+ 		(yyval.gen).type = D_OREG;
+@@ -2362,7 +2362,7 @@ yyreduce:
+   case 83:
+ 
+ /* Line 1455 of yacc.c  */
+-#line 490 "a.y"
++#line 491 "a.y"
+     {
+ 		(yyval.gen) = nullgen;
+ 		(yyval.gen).type = D_CONST;
+@@ -2373,7 +2373,7 @@ yyreduce:
+   case 84:
+ 
+ /* Line 1455 of yacc.c  */
+-#line 498 "a.y"
++#line 499 "a.y"
+     {
+ 		(yyval.gen) = nullgen;
+ 		(yyval.gen).type = D_REG;
+@@ -2384,7 +2384,7 @@ yyreduce:
+   case 85:
+ 
+ /* Line 1455 of yacc.c  */
+-#line 506 "a.y"
++#line 507 "a.y"
+     {
+ 		(yyval.gen) = nullgen;
+ 		(yyval.gen).type = D_REGREG;
+@@ -2396,7 +2396,7 @@ yyreduce:
+   case 86:
+ 
+ /* Line 1455 of yacc.c  */
+-#line 515 "a.y"
++#line 516 "a.y"
+     {
+ 		(yyval.gen) = nullgen;
+ 		(yyval.gen).type = D_SHIFT;
+@@ -2407,7 +2407,7 @@ yyreduce:
+   case 87:
+ 
+ /* Line 1455 of yacc.c  */
+-#line 521 "a.y"
++#line 522 "a.y"
+     {
+ 		(yyval.gen) = nullgen;
+ 		(yyval.gen).type = D_SHIFT;
+@@ -2418,7 +2418,7 @@ yyreduce:
+   case 88:
+ 
+ /* Line 1455 of yacc.c  */
+-#line 527 "a.y"
++#line 528 "a.y"
+     {
+ 		(yyval.gen) = nullgen;
+ 		(yyval.gen).type = D_SHIFT;
+@@ -2429,7 +2429,7 @@ yyreduce:
+   case 89:
+ 
+ /* Line 1455 of yacc.c  */
+-#line 533 "a.y"
++#line 534 "a.y"
+     {
+ 		(yyval.gen) = nullgen;
+ 		(yyval.gen).type = D_SHIFT;
+@@ -2440,7 +2440,7 @@ yyreduce:
+   case 90:
+ 
+ /* Line 1455 of yacc.c  */
+-#line 541 "a.y"
++#line 542 "a.y"
+     {
+ 		if((yyval.lval) < 0 || (yyval.lval) >= 16)
+ 			print("register value out of range\n");
+@@ -2451,7 +2451,7 @@ yyreduce:
+   case 91:
+ 
+ /* Line 1455 of yacc.c  */
+-#line 547 "a.y"
++#line 548 "a.y"
+     {
+ 		if((yyval.lval) < 0 || (yyval.lval) >= 32)
+ 			print("shift value out of range\n");
+@@ -2462,7 +2462,7 @@ yyreduce:
+   case 93:
+ 
+ /* Line 1455 of yacc.c  */
+-#line 556 "a.y"
++#line 557 "a.y"
+     {
+ 		(yyval.lval) = REGPC;
+ 	}
+@@ -2471,7 +2471,7 @@ yyreduce:
+   case 94:
+ 
+ /* Line 1455 of yacc.c  */
+-#line 560 "a.y"
++#line 561 "a.y"
+     {
+ 		if((yyvsp[(3) - (4)].lval) < 0 || (yyvsp[(3) - (4)].lval) >= NREG)
+ 			print("register value out of range\n");
+@@ -2482,7 +2482,7 @@ yyreduce:
+   case 96:
+ 
+ /* Line 1455 of yacc.c  */
+-#line 569 "a.y"
++#line 570 "a.y"
+     {
+ 		(yyval.lval) = REGSP;
+ 	}
+@@ -2491,7 +2491,7 @@ yyreduce:
+   case 98:
+ 
+ /* Line 1455 of yacc.c  */
+-#line 576 "a.y"
++#line 577 "a.y"
+     {
+ 		if((yyvsp[(3) - (4)].lval) < 0 || (yyvsp[(3) - (4)].lval) >= NREG)
+ 			print("register value out of range\n");
+@@ -2502,7 +2502,7 @@ yyreduce:
+   case 101:
+ 
+ /* Line 1455 of yacc.c  */
+-#line 588 "a.y"
++#line 589 "a.y"
+     {
+ 		(yyval.gen) = nullgen;
+ 		(yyval.gen).type = D_FREG;
+@@ -2513,7 +2513,7 @@ yyreduce:
+   case 102:
+ 
+ /* Line 1455 of yacc.c  */
+-#line 594 "a.y"
++#line 595 "a.y"
+     {
+ 		(yyval.gen) = nullgen;
+ 		(yyval.gen).type = D_FREG;
+@@ -2524,7 +2524,7 @@ yyreduce:
+   case 103:
+ 
+ /* Line 1455 of yacc.c  */
+-#line 602 "a.y"
++#line 603 "a.y"
+     {
+ 		(yyval.gen) = nullgen;
+ 		(yyval.gen).type = D_OREG;
+@@ -2537,7 +2537,7 @@ yyreduce:
+   case 104:
+ 
+ /* Line 1455 of yacc.c  */
+-#line 610 "a.y"
++#line 611 "a.y"
+     {
+ 		(yyval.gen) = nullgen;
+ 		(yyval.gen).type = D_OREG;
+@@ -2550,7 +2550,7 @@ yyreduce:
+   case 105:
+ 
+ /* Line 1455 of yacc.c  */
+-#line 618 "a.y"
++#line 619 "a.y"
+     {
+ 		(yyval.gen) = nullgen;
+ 		(yyval.gen).type = D_OREG;
+@@ -2563,7 +2563,7 @@ yyreduce:
+   case 106:
+ 
+ /* Line 1455 of yacc.c  */
+-#line 627 "a.y"
++#line 628 "a.y"
+     {
+ 		(yyval.lval) = 0;
+ 	}
+@@ -2572,7 +2572,7 @@ yyreduce:
+   case 107:
+ 
+ /* Line 1455 of yacc.c  */
+-#line 631 "a.y"
++#line 632 "a.y"
+     {
+ 		(yyval.lval) = (yyvsp[(2) - (2)].lval);
+ 	}
+@@ -2581,7 +2581,7 @@ yyreduce:
+   case 108:
+ 
+ /* Line 1455 of yacc.c  */
+-#line 635 "a.y"
++#line 636 "a.y"
+     {
+ 		(yyval.lval) = -(yyvsp[(2) - (2)].lval);
+ 	}
+@@ -2590,7 +2590,7 @@ yyreduce:
+   case 113:
+ 
+ /* Line 1455 of yacc.c  */
+-#line 647 "a.y"
++#line 648 "a.y"
+     {
+ 		(yyval.lval) = (yyvsp[(1) - (1)].sym)->value;
+ 	}
+@@ -2599,7 +2599,7 @@ yyreduce:
+   case 114:
+ 
+ /* Line 1455 of yacc.c  */
+-#line 651 "a.y"
++#line 652 "a.y"
+     {
+ 		(yyval.lval) = -(yyvsp[(2) - (2)].lval);
+ 	}
+@@ -2608,7 +2608,7 @@ yyreduce:
+   case 115:
+ 
+ /* Line 1455 of yacc.c  */
+-#line 655 "a.y"
++#line 656 "a.y"
+     {
+ 		(yyval.lval) = (yyvsp[(2) - (2)].lval);
+ 	}
+@@ -2617,7 +2617,7 @@ yyreduce:
+   case 116:
+ 
+ /* Line 1455 of yacc.c  */
+-#line 659 "a.y"
++#line 660 "a.y"
+     {
+ 		(yyval.lval) = ~(yyvsp[(2) - (2)].lval);
+ 	}
+@@ -2626,7 +2626,7 @@ yyreduce:
+   case 117:
+ 
+ /* Line 1455 of yacc.c  */
+-#line 663 "a.y"
++#line 664 "a.y"
+     {
+ 		(yyval.lval) = (yyvsp[(2) - (3)].lval);
+ 	}
+@@ -2635,7 +2635,7 @@ yyreduce:
+   case 118:
+ 
+ /* Line 1455 of yacc.c  */
+-#line 668 "a.y"
++#line 669 "a.y"
+     {
+ 		(yyval.lval) = 0;
+ 	}
+@@ -2644,7 +2644,7 @@ yyreduce:
+   case 119:
+ 
+ /* Line 1455 of yacc.c  */
+-#line 672 "a.y"
++#line 673 "a.y"
+     {
+ 		(yyval.lval) = (yyvsp[(2) - (2)].lval);
+ 	}
+@@ -2653,7 +2653,7 @@ yyreduce:
+   case 121:
+ 
+ /* Line 1455 of yacc.c  */
+-#line 679 "a.y"
++#line 680 "a.y"
+     {
+ 		(yyval.lval) = (yyvsp[(1) - (3)].lval) + (yyvsp[(3) - (3)].lval);
+ 	}
+@@ -2662,7 +2662,7 @@ yyreduce:
+   case 122:
+ 
+ /* Line 1455 of yacc.c  */
+-#line 683 "a.y"
++#line 684 "a.y"
+     {
+ 		(yyval.lval) = (yyvsp[(1) - (3)].lval) - (yyvsp[(3) - (3)].lval);
+ 	}
+@@ -2671,7 +2671,7 @@ yyreduce:
+   case 123:
+ 
+ /* Line 1455 of yacc.c  */
+-#line 687 "a.y"
++#line 688 "a.y"
+     {
+ 		(yyval.lval) = (yyvsp[(1) - (3)].lval) * (yyvsp[(3) - (3)].lval);
+ 	}
+@@ -2680,7 +2680,7 @@ yyreduce:
+   case 124:
+ 
+ /* Line 1455 of yacc.c  */
+-#line 691 "a.y"
++#line 692 "a.y"
+     {
+ 		(yyval.lval) = (yyvsp[(1) - (3)].lval) / (yyvsp[(3) - (3)].lval);
+ 	}
+@@ -2689,7 +2689,7 @@ yyreduce:
+   case 125:
+ 
+ /* Line 1455 of yacc.c  */
+-#line 695 "a.y"
++#line 696 "a.y"
+     {
+ 		(yyval.lval) = (yyvsp[(1) - (3)].lval) % (yyvsp[(3) - (3)].lval);
+ 	}
+@@ -2698,7 +2698,7 @@ yyreduce:
+   case 126:
+ 
+ /* Line 1455 of yacc.c  */
+-#line 699 "a.y"
++#line 700 "a.y"
+     {
+ 		(yyval.lval) = (yyvsp[(1) - (4)].lval) << (yyvsp[(4) - (4)].lval);
+ 	}
+@@ -2707,7 +2707,7 @@ yyreduce:
+   case 127:
+ 
+ /* Line 1455 of yacc.c  */
+-#line 703 "a.y"
++#line 704 "a.y"
+     {
+ 		(yyval.lval) = (yyvsp[(1) - (4)].lval) >> (yyvsp[(4) - (4)].lval);
+ 	}
+@@ -2716,7 +2716,7 @@ yyreduce:
+   case 128:
+ 
+ /* Line 1455 of yacc.c  */
+-#line 707 "a.y"
++#line 708 "a.y"
+     {
+ 		(yyval.lval) = (yyvsp[(1) - (3)].lval) & (yyvsp[(3) - (3)].lval);
+ 	}
+@@ -2725,7 +2725,7 @@ yyreduce:
+   case 129:
+ 
+ /* Line 1455 of yacc.c  */
+-#line 711 "a.y"
++#line 712 "a.y"
+     {
+ 		(yyval.lval) = (yyvsp[(1) - (3)].lval) ^ (yyvsp[(3) - (3)].lval);
+ 	}
+@@ -2734,7 +2734,7 @@ yyreduce:
+   case 130:
+ 
+ /* Line 1455 of yacc.c  */
+-#line 715 "a.y"
++#line 716 "a.y"
+     {
+ 		(yyval.lval) = (yyvsp[(1) - (3)].lval) | (yyvsp[(3) - (3)].lval);
+ 	}
+diff --git a/src/cmd/5g/cgen64.c b/src/cmd/5g/cgen64.c
+index 015fcd67bd..ef11e2adb9 100644
+--- a/src/cmd/5g/cgen64.c
++++ b/src/cmd/5g/cgen64.c
+@@ -176,7 +176,7 @@ cgen64(Node *n, Node *res)
+ 		p1->from.type = D_REG;
+ 		p1->from.reg = bl.val.u.reg;
+ 		p1->reg = ch.val.u.reg;
+-		p1->to.type = D_REGREG;
++		p1->to.type = D_REGREG2;
+ 		p1->to.reg = ah.val.u.reg;
+ 		p1->to.offset = ah.val.u.reg;
+ //print("%P\n", p1);
+@@ -186,7 +186,7 @@ cgen64(Node *n, Node *res)
+ 		p1->from.type = D_REG;
+ 		p1->from.reg = bh.val.u.reg;
+ 		p1->reg = cl.val.u.reg;
+-		p1->to.type = D_REGREG;
++		p1->to.type = D_REGREG2;
+ 		p1->to.reg = ah.val.u.reg;
+ 		p1->to.offset = ah.val.u.reg;
+ //print("%P\n", p1);
+diff --git a/src/cmd/5g/gobj.c b/src/cmd/5g/gobj.c
+index 2763e7b167..4c9d0b7a1c 100644
+--- a/src/cmd/5g/gobj.c
++++ b/src/cmd/5g/gobj.c
+@@ -147,6 +147,7 @@ zaddr(Biobuf *b, Addr *a, int s)
+ 		break;
+ 
+ 	case D_REGREG:
++	case D_REGREG2:
+ 		Bputc(b, a->offset);
+ 		break;
+ 
+diff --git a/src/cmd/5g/list.c b/src/cmd/5g/list.c
+index 3105d5669e..13e187145c 100644
+--- a/src/cmd/5g/list.c
++++ b/src/cmd/5g/list.c
+@@ -153,6 +153,12 @@ Dconv(Fmt *fp)
+ 			sprint(str, "%M(R%d)(REG)", a, a->reg);
+ 		break;
+ 
++	case D_REGREG2:
++		sprint(str, "R%d,R%d", a->reg, (int)a->offset);
++		if(a->name != D_NONE || a->sym != S)
++			sprint(str, "%M(R%d)(REG)", a, a->reg);
++		break;
++
+ 	case D_FREG:
+ 		sprint(str, "F%d", a->reg);
+ 		if(a->name != D_NONE || a->sym != S)
+diff --git a/src/cmd/5g/peep.c b/src/cmd/5g/peep.c
+index 4874ee1103..75c691c150 100644
+--- a/src/cmd/5g/peep.c
++++ b/src/cmd/5g/peep.c
+@@ -1213,7 +1213,7 @@ copyau(Adr *a, Adr *v)
+ 			if(a->reg == v->reg)
+ 				return 1;
+ 		} else
+-		if(a->type == D_REGREG) {
++		if(a->type == D_REGREG || a->type == D_REGREG2) {
+ 			if(a->reg == v->reg)
+ 				return 1;
+ 			if(a->offset == v->reg)
+@@ -1276,7 +1276,7 @@ copysub(Adr *a, Adr *v, Adr *s, int f)
+ 			if((a->offset&(1<<4)) && (a->offset>>8) == v->reg)
+ 				a->offset = (a->offset&~(0xf<<8))|(s->reg<<8);
+ 		} else
+-		if(a->type == D_REGREG) {
++		if(a->type == D_REGREG || a->type == D_REGREG2) {
+ 			if(a->offset == v->reg)
+ 				a->offset = s->reg;
+ 			if(a->reg == v->reg)
+diff --git a/src/cmd/5g/reg.c b/src/cmd/5g/reg.c
+index b598b78bb2..d130fc6ba2 100644
+--- a/src/cmd/5g/reg.c
++++ b/src/cmd/5g/reg.c
+@@ -874,6 +874,7 @@ mkvar(Reg *r, Adr *a)
+ 		goto onereg;
+ 
+ 	case D_REGREG:
++	case D_REGREG2:
+ 		bit = zbits;
+ 		if(a->offset != NREG)
+ 			bit.b[0] |= RtoB(a->offset);
+diff --git a/src/cmd/5l/5.out.h b/src/cmd/5l/5.out.h
+index df5b5186a2..ff13c64a6e 100644
+--- a/src/cmd/5l/5.out.h
++++ b/src/cmd/5l/5.out.h
+@@ -189,6 +189,11 @@ enum	as
+ 
+ 	ACLZ,
+ 
++	AMULWT,
++	AMULWB,
++	AMULAWT,
++	AMULAWB,
++
+ 	ALAST,
+ };
+ 
+@@ -242,12 +247,14 @@ enum	as
+ 
+ #define	D_SHIFT		(D_NONE+19)
+ #define	D_FPCR		(D_NONE+20)
+-#define	D_REGREG	(D_NONE+21)
++#define	D_REGREG	(D_NONE+21) // (reg, reg)
+ #define	D_ADDR		(D_NONE+22)
+ 
+ #define	D_SBIG		(D_NONE+23)
+ #define	D_CONST2	(D_NONE+24)
+ 
++#define	D_REGREG2	(D_NONE+25) // reg, reg
++
+ /* name */
+ #define	D_EXTERN	(D_NONE+3)
+ #define	D_STATIC	(D_NONE+4)
+diff --git a/src/cmd/5l/asm.c b/src/cmd/5l/asm.c
+index d8fde46832..693e515709 100644
+--- a/src/cmd/5l/asm.c
++++ b/src/cmd/5l/asm.c
+@@ -1806,6 +1806,19 @@ if(debug['G']) print("%ux: %s: arm %d\n", (uint32)(p->pc), p->from.sym->name, p-
+  		o1 |= p->to.reg << 12;
+  		o1 |= p->from.reg;
+ 		break;
++	case 98:	/* MULW{T,B} Rs, Rm, Rd */
++		o1 = oprrr(p->as, p->scond);
++		o1 |= p->to.reg << 16;
++		o1 |= p->from.reg << 8;
++		o1 |= p->reg;
++		break;
++	case 99:	/* MULAW{T,B} Rs, Rm, Rn, Rd */
++		o1 = oprrr(p->as, p->scond);
++		o1 |= p->to.reg << 12;
++		o1 |= p->from.reg << 8;
++		o1 |= p->reg;
++		o1 |= p->to.offset << 16;
++		break;
+ 	}
+ 	
+ 	out[0] = o1;
+@@ -1967,6 +1980,15 @@ oprrr(int a, int sc)
+ 	case ACLZ:
+ 		// CLZ doesn't support .S
+ 		return (o & (0xf<<28)) | (0x16f<<16) | (0xf1<<4);
++
++	case AMULWT:
++		return (o & (0xf<<28)) | (0x12 << 20) | (0xe<<4);
++	case AMULWB:
++		return (o & (0xf<<28)) | (0x12 << 20) | (0xa<<4);
++	case AMULAWT:
++		return (o & (0xf<<28)) | (0x12 << 20) | (0xc<<4);
++	case AMULAWB:
++		return (o & (0xf<<28)) | (0x12 << 20) | (0x8<<4);
+ 	}
+ 	diag("bad rrr %d", a);
+ 	prasm(curp);
+diff --git a/src/cmd/5l/l.h b/src/cmd/5l/l.h
+index 9c0c4ff348..190bfa9ee1 100644
+--- a/src/cmd/5l/l.h
++++ b/src/cmd/5l/l.h
+@@ -212,6 +212,7 @@ enum
+ 	C_NONE		= 0,
+ 	C_REG,
+ 	C_REGREG,
++	C_REGREG2,
+ 	C_SHIFT,
+ 	C_FREG,
+ 	C_PSR,
+diff --git a/src/cmd/5l/list.c b/src/cmd/5l/list.c
+index 89c1c63026..2fd69edeb8 100644
+--- a/src/cmd/5l/list.c
++++ b/src/cmd/5l/list.c
+@@ -225,6 +225,12 @@ Dconv(Fmt *fp)
+ 			snprint(str, sizeof str, "%N(R%d)(REG)", a, a->reg);
+ 		break;
+ 
++	case D_REGREG2:
++		snprint(str, sizeof str, "R%d,R%d", a->reg, (int)a->offset);
++		if(a->name != D_NONE || a->sym != S)
++			snprint(str, sizeof str, "%N(R%d)(REG)", a, a->reg);
++		break;
++
+ 	case D_FREG:
+ 		snprint(str, sizeof str, "F%d", a->reg);
+ 		if(a->name != D_NONE || a->sym != S)
+@@ -438,6 +444,7 @@ cnames[] =
+ 	[C_RCON]	= "C_RCON",
+ 	[C_REG]		= "C_REG",
+ 	[C_REGREG]	= "C_REGREG",
++	[C_REGREG2]	= "C_REGREG2",
+ 	[C_ROREG]	= "C_ROREG",
+ 	[C_SAUTO]	= "C_SAUTO",
+ 	[C_SBRA]	= "C_SBRA",
+diff --git a/src/cmd/5l/obj.c b/src/cmd/5l/obj.c
+index 069509ec57..3c345de2ab 100644
+--- a/src/cmd/5l/obj.c
++++ b/src/cmd/5l/obj.c
+@@ -338,6 +338,7 @@ zaddr(Biobuf *f, Adr *a, Sym *h[])
+ 		break;
+ 
+ 	case D_REGREG:
++	case D_REGREG2:
+ 		a->offset = BGETC(f);
+ 		break;
+ 
+diff --git a/src/cmd/5l/optab.c b/src/cmd/5l/optab.c
+index 9edbec09d6..cb29cfd685 100644
+--- a/src/cmd/5l/optab.c
++++ b/src/cmd/5l/optab.c
+@@ -103,6 +103,7 @@ Optab	optab[] =
+ 	{ ADIV,		C_REG,	C_NONE,	C_REG,		16, 4, 0 },
+ 
+ 	{ AMULL,	C_REG,	C_REG,	C_REGREG,	17, 4, 0 },
++	{ AMULA,	C_REG,	C_REG,	C_REGREG2,	17, 4, 0 },
+ 
+ 	{ AMOVW,	C_REG,	C_NONE,	C_SAUTO,	20, 4, REGSP },
+ 	{ AMOVW,	C_REG,	C_NONE,	C_SOREG,	20, 4, 0 },
+@@ -238,5 +239,8 @@ Optab	optab[] =
+ 
+ 	{ ACLZ,		C_REG,	C_NONE,	C_REG,		97, 4, 0 },
+ 
++	{ AMULWT,	C_REG,	C_REG,	C_REG,		98, 4, 0 },
++	{ AMULAWT,	C_REG,	C_REG,	C_REGREG2,		99, 4, 0 },
++
+ 	{ AXXX,		C_NONE,	C_NONE,	C_NONE,		 0, 4, 0 },
+ };
+diff --git a/src/cmd/5l/span.c b/src/cmd/5l/span.c
+index bda4981ee1..93991ba49c 100644
+--- a/src/cmd/5l/span.c
++++ b/src/cmd/5l/span.c
+@@ -447,6 +447,9 @@ aclass(Adr *a)
+ 	case D_REGREG:
+ 		return C_REGREG;
+ 
++	case D_REGREG2:
++		return C_REGREG2;
++
+ 	case D_SHIFT:
+ 		return C_SHIFT;
+ 
+@@ -835,12 +838,20 @@ buildop(void)
+ 			break;
+ 
+ 		case AMULL:
+-			oprange[AMULA] = oprange[r];
+ 			oprange[AMULAL] = oprange[r];
+ 			oprange[AMULLU] = oprange[r];
+ 			oprange[AMULALU] = oprange[r];
+ 			break;
+ 
++		case AMULWT:
++			oprange[AMULWB] = oprange[r];
++			break;
++
++		case AMULAWT:
++			oprange[AMULAWB] = oprange[r];
++			break;
++
++		case AMULA:
+ 		case ALDREX:
+ 		case ASTREX:
+ 		case ALDREXD:
+diff --git a/src/libmach/5obj.c b/src/libmach/5obj.c
+index e539362b0b..0f6bfa171c 100644
+--- a/src/libmach/5obj.c
++++ b/src/libmach/5obj.c
+@@ -124,6 +124,7 @@ addr(Biobuf *bp)
+ 	case D_FPCR:
+ 		break;
+ 	case D_REGREG:
++	case D_REGREG2:
+ 		Bgetc(bp);
+ 		break;
+ 	case D_CONST2:

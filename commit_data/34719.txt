@@ -11,7 +11,68 @@ Date:   Thu Nov 9 22:19:49 2017 -0800
     Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-
+---
  src/net/platform_test.go  |  5 +++--
  src/net/protoconn_test.go | 10 +++++-----
  2 files changed, 8 insertions(+), 7 deletions(-)
+
+diff --git a/src/net/platform_test.go b/src/net/platform_test.go
+index 8b2b7c264b..2b87bf4d0a 100644
+--- a/src/net/platform_test.go
++++ b/src/net/platform_test.go
+@@ -149,12 +149,13 @@ func testableListenArgs(network, address, client string) bool {
+ 	return true
+ }
+ 
+-func condFatalf(t *testing.T, api string, format string, args ...interface{}) {
++func condFatalf(t *testing.T, network string, format string, args ...interface{}) {
++	t.Helper()
+ 	// A few APIs like File and Read/WriteMsg{UDP,IP} are not
+ 	// fully implemented yet on Plan 9 and Windows.
+ 	switch runtime.GOOS {
+ 	case "windows":
+-		if api == "file" {
++		if network == "file+net" {
+ 			t.Logf(format, args...)
+ 			return
+ 		}
+diff --git a/src/net/protoconn_test.go b/src/net/protoconn_test.go
+index d89c463011..05c45d02b9 100644
+--- a/src/net/protoconn_test.go
++++ b/src/net/protoconn_test.go
+@@ -54,7 +54,7 @@ func TestTCPListenerSpecificMethods(t *testing.T) {
+ 	}
+ 
+ 	if f, err := ln.File(); err != nil {
+-		condFatalf(t, "file", "%v", err)
++		condFatalf(t, "file+net", "%v", err)
+ 	} else {
+ 		f.Close()
+ 	}
+@@ -139,14 +139,14 @@ func TestUDPConnSpecificMethods(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 	if _, _, err := c.WriteMsgUDP(wb, nil, c.LocalAddr().(*UDPAddr)); err != nil {
+-		condFatalf(t, "udp", "%v", err)
++		condFatalf(t, c.LocalAddr().Network(), "%v", err)
+ 	}
+ 	if _, _, _, _, err := c.ReadMsgUDP(rb, nil); err != nil {
+-		condFatalf(t, "udp", "%v", err)
++		condFatalf(t, c.LocalAddr().Network(), "%v", err)
+ 	}
+ 
+ 	if f, err := c.File(); err != nil {
+-		condFatalf(t, "file", "%v", err)
++		condFatalf(t, "file+net", "%v", err)
+ 	} else {
+ 		f.Close()
+ 	}
+@@ -184,7 +184,7 @@ func TestIPConnSpecificMethods(t *testing.T) {
+ 	c.SetWriteBuffer(2048)
+ 
+ 	if f, err := c.File(); err != nil {
+-		condFatalf(t, "file", "%v", err)
++		condFatalf(t, "file+net", "%v", err)
+ 	} else {
+ 		f.Close()
+ 	}

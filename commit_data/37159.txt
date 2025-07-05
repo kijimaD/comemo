@@ -12,6 +12,26 @@ Date:   Tue Jul 3 12:08:37 2018 +0200
     Reviewed-on: https://go-review.googlesource.com/122055
     Run-TryBot: Richard Musiol <neelance@gmail.com>
     Reviewed-by: Richard Musiol <neelance@gmail.com>
-
+---
  misc/wasm/wasm_exec.js | 8 +++++++-
  1 file changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/misc/wasm/wasm_exec.js b/misc/wasm/wasm_exec.js
+index 7246d7bc71..5790effb4a 100644
+--- a/misc/wasm/wasm_exec.js
++++ b/misc/wasm/wasm_exec.js
+@@ -27,7 +27,13 @@
+ 		global.TextEncoder = util.TextEncoder;
+ 		global.TextDecoder = util.TextDecoder;
+ 	} else {
+-		window.global = window;
++		if (typeof window !== "undefined") {
++			window.global = window;
++		} else if (typeof self !== "undefined") {
++			self.global = self;
++		} else {
++			throw new Error("cannot export Go (neither window nor self is defined)");
++		}
+ 
+ 		let outputBuf = "";
+ 		global.fs = {

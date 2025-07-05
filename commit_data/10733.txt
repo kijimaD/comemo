@@ -7,6 +7,20 @@ Date:   Tue Dec 13 10:12:45 2011 +0900
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5488052
-
+---
  src/pkg/net/Makefile | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/Makefile b/src/pkg/net/Makefile
+index bae7e5d521..a345e1a962 100644
+--- a/src/pkg/net/Makefile
++++ b/src/pkg/net/Makefile
+@@ -111,7 +111,7 @@ GOFILES_netbsd=\
+ 	fd_$(GOOS).go\
+ 	file.go\
+ 	interface_bsd.go\
+-	interface_openbsd.go\
++	interface_netbsd.go\
+ 	iprawsock_posix.go\
+ 	ipsock_posix.go\
+ 	lookup_unix.go\

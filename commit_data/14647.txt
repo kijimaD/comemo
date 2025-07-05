@@ -11,7 +11,39 @@ Date:   Thu Dec 13 15:11:31 2012 -0800
     R=golang-dev, minux.ma
     CC=golang-dev
     https://golang.org/cl/6947049
-
+---
  test/fixedbugs/bug085.go | 2 +-
  test/fixedbugs/bug228.go | 4 ++--
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/test/fixedbugs/bug085.go b/test/fixedbugs/bug085.go
+index 93ae7e0a49..dae83f8a49 100644
+--- a/test/fixedbugs/bug085.go
++++ b/test/fixedbugs/bug085.go
+@@ -20,7 +20,7 @@ Bus error
+ 
+ /* expected scope hierarchy (outermost to innermost)
+ 
+-universe scope (contains predeclared identifiers int, float, int32, len, etc.)
++universe scope (contains predeclared identifiers int, float32, int32, len, etc.)
+ "solar" scope (just holds the package name P so it can be found but doesn't conflict)
+ global scope (the package global scope)
+ local scopes (function scopes)
+diff --git a/test/fixedbugs/bug228.go b/test/fixedbugs/bug228.go
+index 3d23609dde..3fccd17288 100644
+--- a/test/fixedbugs/bug228.go
++++ b/test/fixedbugs/bug228.go
+@@ -8,11 +8,11 @@ package main
+ 
+ func f(x int, y ...int)	// ok
+ 
+-func g(x int, y float) (...)	// ERROR "[.][.][.]" "final argument"
++func g(x int, y float32) (...)	// ERROR "[.][.][.]" "final argument"
+ 
+ func h(x, y ...int)		// ERROR "[.][.][.]"
+ 
+-func i(x int, y ...int, z float)	// ERROR "[.][.][.]"
++func i(x int, y ...int, z float32)	// ERROR "[.][.][.]"
+ 
+ var x ...int;		// ERROR "[.][.][.]|syntax|type"
+ 

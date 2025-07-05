@@ -13,7 +13,7 @@ Date:   Tue Oct 7 23:27:25 2014 -0400
     TBR=brainman
     CC=golang-codereviews
     https://golang.org/cl/149640043
-
+---
  src/runtime/asm_386.s      |  3 +++
  src/runtime/asm_amd64.s    |  3 +++
  src/runtime/asm_amd64p32.s |  3 +++
@@ -21,3 +21,134 @@ Date:   Tue Oct 7 23:27:25 2014 -0400
  src/runtime/os_windows.c   | 14 +++++++-------
  src/runtime/runtime.h      |  4 +++-
  6 files changed, 22 insertions(+), 8 deletions(-)
+
+diff --git a/src/runtime/asm_386.s b/src/runtime/asm_386.s
+index 1495246a25..c401741ef9 100644
+--- a/src/runtime/asm_386.s
++++ b/src/runtime/asm_386.s
+@@ -479,6 +479,9 @@ TEXT runtime·atomicloaduintptr(SB), NOSPLIT, $0-8
+ TEXT runtime·atomicloaduint(SB), NOSPLIT, $0-8
+ 	JMP	runtime·atomicload(SB)
+ 
++TEXT runtime·atomicstoreuintptr(SB), NOSPLIT, $0-8
++	JMP	runtime·atomicstore(SB)
++
+ // bool runtime·cas64(uint64 *val, uint64 old, uint64 new)
+ // Atomically:
+ //	if(*val == *old){
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index 3f7f608410..e21270d8cc 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -491,6 +491,9 @@ TEXT runtime·atomicloaduintptr(SB), NOSPLIT, $0-16
+ TEXT runtime·atomicloaduint(SB), NOSPLIT, $0-16
+ 	JMP	runtime·atomicload64(SB)
+ 
++TEXT runtime·atomicstoreuintptr(SB), NOSPLIT, $0-16
++	JMP	runtime·atomicstore64(SB)
++
+ // bool casp(void **val, void *old, void *new)
+ // Atomically:
+ //	if(*val == old){
+diff --git a/src/runtime/asm_amd64p32.s b/src/runtime/asm_amd64p32.s
+index 13a1642568..c2bc91a3f5 100644
+--- a/src/runtime/asm_amd64p32.s
++++ b/src/runtime/asm_amd64p32.s
+@@ -440,6 +440,9 @@ TEXT runtime·atomicloaduintptr(SB), NOSPLIT, $0-12
+ TEXT runtime·atomicloaduint(SB), NOSPLIT, $0-12
+ 	JMP	runtime·atomicload(SB)
+ 
++TEXT runtime·atomicstoreuintptr(SB), NOSPLIT, $0-12
++	JMP	runtime·atomicstore(SB)
++
+ // bool	runtime·cas64(uint64 *val, uint64 old, uint64 new)
+ // Atomically:
+ //	if(*val == *old){
+diff --git a/src/runtime/asm_arm.s b/src/runtime/asm_arm.s
+index 36fb022f95..a1535aeec3 100644
+--- a/src/runtime/asm_arm.s
++++ b/src/runtime/asm_arm.s
+@@ -724,6 +724,9 @@ TEXT runtime·atomicloaduintptr(SB),NOSPLIT,$0-8
+ TEXT runtime·atomicloaduint(SB),NOSPLIT,$0-8
+ 	B	runtime·atomicload(SB)
+ 
++TEXT runtime·atomicstoreuintptr(SB),NOSPLIT,$0-8
++	B	runtime·atomicstore(SB)
++
+ // AES hashing not implemented for ARM
+ TEXT runtime·aeshash(SB),NOSPLIT,$-4-0
+ 	MOVW	$0, R0
+diff --git a/src/runtime/os_windows.c b/src/runtime/os_windows.c
+index 77f99062cf..6337dde2af 100644
+--- a/src/runtime/os_windows.c
++++ b/src/runtime/os_windows.c
+@@ -268,19 +268,19 @@ runtime·mpreinit(M *mp)
+ void
+ runtime·minit(void)
+ {
+-	void *thandle;
++	uintptr thandle;
+ 
+ 	// -1 = current process, -2 = current thread
+ 	runtime·stdcall7(runtime·DuplicateHandle, -1, -2, -1, (uintptr)&thandle, 0, 0, DUPLICATE_SAME_ACCESS);
+-	runtime·atomicstorep(&g->m->thread, thandle);
++	runtime·atomicstoreuintptr(&g->m->thread, thandle);
+ }
+ 
+ // Called from dropm to undo the effect of an minit.
+ void
+ runtime·unminit(void)
+ {
+-	runtime·stdcall1(runtime·CloseHandle, (uintptr)g->m->thread);
+-	g->m->thread = nil;
++	runtime·stdcall1(runtime·CloseHandle, g->m->thread);
++	g->m->thread = 0;
+ }
+ 
+ // Described in http://www.dcl.hpi.uni-potsdam.de/research/WRK/2007/08/getting-os-information-the-kuser_shared_data-structure/
+@@ -532,7 +532,7 @@ void
+ runtime·profileloop1(void)
+ {
+ 	M *mp, *allm;
+-	void *thread;
++	uintptr thread;
+ 
+ 	runtime·stdcall2(runtime·SetThreadPriority, -2, THREAD_PRIORITY_HIGHEST);
+ 
+@@ -540,11 +540,11 @@ runtime·profileloop1(void)
+ 		runtime·stdcall2(runtime·WaitForSingleObject, (uintptr)profiletimer, -1);
+ 		allm = runtime·atomicloadp(&runtime·allm);
+ 		for(mp = allm; mp != nil; mp = mp->alllink) {
+-			thread = runtime·atomicloadp(&mp->thread);
++			thread = runtime·atomicloaduintptr(&mp->thread);
+ 			// Do not profile threads blocked on Notes,
+ 			// this includes idle worker threads,
+ 			// idle timer thread, idle heap scavenger, etc.
+-			if(thread == nil || mp->profilehz == 0 || mp->blocked)
++			if(thread == 0 || mp->profilehz == 0 || mp->blocked)
+ 				continue;
+ 			runtime·stdcall1(runtime·SuspendThread, (uintptr)thread);
+ 			if(mp->profilehz != 0 && !mp->blocked)
+diff --git a/src/runtime/runtime.h b/src/runtime/runtime.h
+index c4d8786089..27a809a07e 100644
+--- a/src/runtime/runtime.h
++++ b/src/runtime/runtime.h
+@@ -371,7 +371,7 @@ struct	M
+ 	uintptr scalararg[4];	// scalar argument/return for mcall
+ 	void*   ptrarg[4];	// pointer argument/return for mcall
+ #ifdef GOOS_windows
+-	void*	thread;		// thread handle
++	uintptr	thread;		// thread handle
+ 	// these are here because they are too large to be on the stack
+ 	// of low-level NOSPLIT functions.
+ 	LibCall	libcall;
+@@ -885,7 +885,9 @@ void	runtime·atomicstore(uint32 volatile*, uint32);
+ void	runtime·atomicstore64(uint64 volatile*, uint64);
+ uint64	runtime·atomicload64(uint64 volatile*);
+ void*	runtime·atomicloadp(void* volatile*);
++uintptr	runtime·atomicloaduintptr(uintptr volatile*);
+ void	runtime·atomicstorep(void* volatile*, void*);
++void	runtime·atomicstoreuintptr(uintptr volatile*, uintptr);
+ void	runtime·atomicor8(byte volatile*, byte);
+ 
+ void	runtime·setg(G*);

@@ -17,6 +17,22 @@ Date:   Thu Jan 5 09:08:25 2023 -0500
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/pprof/proto.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/runtime/pprof/proto.go b/src/runtime/pprof/proto.go
+index 8a49e144b9..b68f30d923 100644
+--- a/src/runtime/pprof/proto.go
++++ b/src/runtime/pprof/proto.go
+@@ -395,6 +395,10 @@ func (b *profileBuilder) build() {
+ // location ID slice, locs. The addresses in the stack are return PCs or 1 + the PC of
+ // an inline marker as the runtime traceback function returns.
+ //
++// It may return an empty slice even if locs is non-empty, for example if locs consists
++// solely of runtime.goexit. We still count these empty stacks in profiles in order to
++// get the right cumulative sample count.
++//
+ // It may emit to b.pb, so there must be no message encoding in progress.
+ func (b *profileBuilder) appendLocsForStack(locs []uint64, stk []uintptr) (newLocs []uint64) {
+ 	b.deck.reset()

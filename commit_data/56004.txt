@@ -12,6 +12,25 @@ Date:   Thu Mar 30 11:04:48 2023 +0200
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
-
+---
  src/net/lookup_test.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/net/lookup_test.go b/src/net/lookup_test.go
+index 0868b1f083..dfcf62b1c4 100644
+--- a/src/net/lookup_test.go
++++ b/src/net/lookup_test.go
+@@ -1028,10 +1028,10 @@ func (lcr *lookupCustomResolver) dial() func(ctx context.Context, network, addre
+ // TestConcurrentPreferGoResolversDial tests that multiple resolvers with the
+ // PreferGo option used concurrently are all dialed properly.
+ func TestConcurrentPreferGoResolversDial(t *testing.T) {
+-	// The windows and plan9 implementation of the resolver does not use
+-	// the Dial function.
+ 	switch runtime.GOOS {
+-	case "windows", "plan9":
++	case "plan9":
++		// TODO: plan9 implementation of the resolver uses the Dial function since
++		// https://go.dev/cl/409234, this test could probably be reenabled.
+ 		t.Skipf("skip on %v", runtime.GOOS)
+ 	}
+ 

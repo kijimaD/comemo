@@ -27,6 +27,32 @@ Date:   Fri Sep 20 10:51:32 2019 -0400
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/signal_unix.go | 14 +++++++-------
  1 file changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/src/runtime/signal_unix.go b/src/runtime/signal_unix.go
+index c9f57a7ba4..6a8b5b7ace 100644
+--- a/src/runtime/signal_unix.go
++++ b/src/runtime/signal_unix.go
+@@ -280,13 +280,13 @@ func sigpipe() {
+ //
+ //go:nosplit
+ func sigFetchG(c *sigctxt) *g {
+-    switch GOARCH {
+-    case "arm", "arm64", "ppc64", "ppc64le":
+-        if inVDSOPage(c.sigpc()) {
+-            return nil
+-        }
+-    }
+-    return getg()
++	switch GOARCH {
++	case "arm", "arm64":
++		if inVDSOPage(c.sigpc()) {
++			return nil
++		}
++	}
++	return getg()
+ }
+ 
+ // sigtrampgo is called from the signal handler function, sigtramp,

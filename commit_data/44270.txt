@@ -17,6 +17,22 @@ Date:   Wed Jun 3 20:38:20 2020 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  test/fixedbugs/issue8606.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/test/fixedbugs/issue8606.go b/test/fixedbugs/issue8606.go
+index 676c06c0b2..8122b1d2b6 100644
+--- a/test/fixedbugs/issue8606.go
++++ b/test/fixedbugs/issue8606.go
+@@ -22,6 +22,10 @@ func main() {
+ 		{true, A{[]byte{1}, 1}, A{[]byte{1}, 2}},
+ 		{false, S{1, []byte{1}}, S{2, []byte{1}}},
+ 		{true, S{[]byte{1}, 1}, S{[]byte{1}, 2}},
++		{false, A{1, []byte{1}}, A{"2", []byte{1}}},
++		{true, A{[]byte{1}, 1}, A{[]byte{1}, "2"}},
++		{false, S{1, []byte{1}}, S{"2", []byte{1}}},
++		{true, S{[]byte{1}, 1}, S{[]byte{1}, "2"}},
+ 	} {
+ 		f := func() {
+ 			if test.a == test.b {

@@ -7,6 +7,20 @@ Date:   Thu Nov 12 23:19:12 2009 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/152117
-
+---
  src/sudo.bash | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/sudo.bash b/src/sudo.bash
+index f85ccdf406..7c7b43cb3b 100755
+--- a/src/sudo.bash
++++ b/src/sudo.bash
+@@ -10,7 +10,7 @@ Darwin)
+ 	exit 0
+ esac
+ 
+-for i in acid db prof cov
++for i in prof cov
+ do
+ 	sudo cp $GOROOT/src/cmd/$i/6$i /usr/local/bin/6$i
+ 	sudo chgrp procmod /usr/local/bin/6$i

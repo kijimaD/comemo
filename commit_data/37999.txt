@@ -10,6 +10,20 @@ Date:   Sat Sep 22 23:05:06 2018 +0900
     Change-Id: Ifd694382a44a24c44acbed3fe1b17bca6dab998f
     Reviewed-on: https://go-review.googlesource.com/136835
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  test/bench/garbage/tree.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/test/bench/garbage/tree.go b/test/bench/garbage/tree.go
+index 0a3ec234db..524cfebc73 100644
+--- a/test/bench/garbage/tree.go
++++ b/test/bench/garbage/tree.go
+@@ -28,7 +28,7 @@ POSSIBILITY OF SUCH DAMAGE.
+ */
+ 
+ /* The Computer Language Benchmarks Game
+- * http://shootout.alioth.debian.org/
++ * https://benchmarksgame-team.pages.debian.net/benchmarksgame/
+  *
+  * contributed by The Go Authors.
+  * based on C program by Kevin Carson

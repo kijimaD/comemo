@@ -15,7 +15,38 @@ Date:   Thu Nov 14 08:26:32 2024 +0100
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Russ Cox <rsc@golang.org>
-
+---
  src/crypto/internal/fips/cast.go      | 2 +-
  src/crypto/internal/fips/indicator.go | 4 ++--
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/crypto/internal/fips/cast.go b/src/crypto/internal/fips/cast.go
+index f203a82c56..3e73f27dae 100644
+--- a/src/crypto/internal/fips/cast.go
++++ b/src/crypto/internal/fips/cast.go
+@@ -13,7 +13,7 @@ import (
+ 
+ // fatal is [runtime.fatal], pushed via linkname.
+ //
+-//go:linkname fatal
++//go:linkname fatal crypto/internal/fips.fatal
+ func fatal(string)
+ 
+ // failfipscast is a GODEBUG key allowing simulation of a Cryptographic Algorithm
+diff --git a/src/crypto/internal/fips/indicator.go b/src/crypto/internal/fips/indicator.go
+index 538531d143..9e4f3c7845 100644
+--- a/src/crypto/internal/fips/indicator.go
++++ b/src/crypto/internal/fips/indicator.go
+@@ -16,10 +16,10 @@ import _ "unsafe" // for go:linkname
+ // negative. Finally, we expose indicatorUnset as negative to the user, so that
+ // we don't need to explicitly annotate fully non-approved services.
+ 
+-//go:linkname getIndicator
++//go:linkname getIndicator crypto/internal/fips.getIndicator
+ func getIndicator() uint8
+ 
+-//go:linkname setIndicator
++//go:linkname setIndicator crypto/internal/fips.setIndicator
+ func setIndicator(uint8)
+ 
+ const (

@@ -11,9 +11,145 @@ Date:   Wed May 30 15:50:12 2012 +1000
     R=nigeltao
     CC=golang-dev
     https://golang.org/cl/6260046
-
+---
  src/pkg/exp/html/escape.go                         |  4 ++-
  .../exp/html/testlogs/plain-text-unsafe.dat.log    |  4 +--
  src/pkg/exp/html/token.go                          | 35 +++++++++++++++++++++-
  src/pkg/exp/html/token_test.go                     | 27 +++++++++++++++++
  4 files changed, 66 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/exp/html/escape.go b/src/pkg/exp/html/escape.go
+index c177a66068..6a9d8f6e6f 100644
+--- a/src/pkg/exp/html/escape.go
++++ b/src/pkg/exp/html/escape.go
+@@ -192,7 +192,7 @@ func lower(b []byte) []byte {
+ 	return b
+ }
+ 
+-const escapedChars = `&'<>"`
++const escapedChars = "&'<>\"\r"
+ 
+ func escape(w writer, s string) error {
+ 	i := strings.IndexAny(s, escapedChars)
+@@ -214,6 +214,8 @@ func escape(w writer, s string) error {
+ 		case '"':
+ 			// "&#34;" is shorter than "&quot;".
+ 			esc = "&#34;"
++		case '\r':
++			esc = "&#13;"
+ 		default:
+ 			panic("unrecognized escape character")
+ 		}
+diff --git a/src/pkg/exp/html/testlogs/plain-text-unsafe.dat.log b/src/pkg/exp/html/testlogs/plain-text-unsafe.dat.log
+index acf1780cf2..1d8aee8423 100644
+--- a/src/pkg/exp/html/testlogs/plain-text-unsafe.dat.log
++++ b/src/pkg/exp/html/testlogs/plain-text-unsafe.dat.log
+@@ -21,8 +21,8 @@ PASS "<svg>\x00 </svg><frameset>"
+ FAIL "<svg>\x00a</svg><frameset>"
+ PASS "<svg><path></path></svg><frameset>"
+ PASS "<svg><p><frameset>"
+-FAIL "<!DOCTYPE html><pre>\r\n\r\nA</pre>"
+-FAIL "<!DOCTYPE html><pre>\r\rA</pre>"
++PASS "<!DOCTYPE html><pre>\r\n\r\nA</pre>"
++PASS "<!DOCTYPE html><pre>\r\rA</pre>"
+ PASS "<!DOCTYPE html><pre>\rA</pre>"
+ PASS "<!DOCTYPE html><table><tr><td><math><mtext>\x00a"
+ PASS "<!DOCTYPE html><table><tr><td><svg><foreignObject>\x00a"
+diff --git a/src/pkg/exp/html/token.go b/src/pkg/exp/html/token.go
+index b5e9c2d6ea..c9ab6e0761 100644
+--- a/src/pkg/exp/html/token.go
++++ b/src/pkg/exp/html/token.go
+@@ -696,6 +696,38 @@ func (z *Tokenizer) Raw() []byte {
+ 	return z.buf[z.raw.start:z.raw.end]
+ }
+ 
++// convertNewlines converts "\r" and "\r\n" in s to "\n".
++// The conversion happens in place, but the resulting slice may be shorter.
++func convertNewlines(s []byte) []byte {
++	for i, c := range s {
++		if c != '\r' {
++			continue
++		}
++
++		src := i + 1
++		if src >= len(s) || s[src] != '\n' {
++			s[i] = '\n'
++			continue
++		}
++
++		dst := i
++		for src < len(s) {
++			if s[src] == '\r' {
++				if src+1 < len(s) && s[src+1] == '\n' {
++					src++
++				}
++				s[dst] = '\n'
++			} else {
++				s[dst] = s[src]
++			}
++			src++
++			dst++
++		}
++		return s[:dst]
++	}
++	return s
++}
++
+ // Text returns the unescaped text of a text, comment or doctype token. The
+ // contents of the returned slice may change on the next call to Next.
+ func (z *Tokenizer) Text() []byte {
+@@ -704,6 +736,7 @@ func (z *Tokenizer) Text() []byte {
+ 		s := z.buf[z.data.start:z.data.end]
+ 		z.data.start = z.raw.end
+ 		z.data.end = z.raw.end
++		s = convertNewlines(s)
+ 		if !z.textIsRaw {
+ 			s = unescape(s)
+ 		}
+@@ -739,7 +772,7 @@ func (z *Tokenizer) TagAttr() (key, val []byte, moreAttr bool) {
+ 			z.nAttrReturned++
+ 			key = z.buf[x[0].start:x[0].end]
+ 			val = z.buf[x[1].start:x[1].end]
+-			return lower(key), unescape(val), z.nAttrReturned < len(z.attr)
++			return lower(key), unescape(convertNewlines(val)), z.nAttrReturned < len(z.attr)
+ 		}
+ 	}
+ 	return nil, nil, false
+diff --git a/src/pkg/exp/html/token_test.go b/src/pkg/exp/html/token_test.go
+index 942bbc8cf4..a802bf3f2c 100644
+--- a/src/pkg/exp/html/token_test.go
++++ b/src/pkg/exp/html/token_test.go
+@@ -592,6 +592,33 @@ loop:
+ 	}
+ }
+ 
++func TestConvertNewlines(t *testing.T) {
++	testCases := map[string]string{
++		"Mac\rDOS\r\nUnix\n":    "Mac\nDOS\nUnix\n",
++		"Unix\nMac\rDOS\r\n":    "Unix\nMac\nDOS\n",
++		"DOS\r\nDOS\r\nDOS\r\n": "DOS\nDOS\nDOS\n",
++		"":                      "",
++		"\n":                    "\n",
++		"\n\r":                  "\n\n",
++		"\r":                    "\n",
++		"\r\n":                  "\n",
++		"\r\n\n":                "\n\n",
++		"\r\n\r":                "\n\n",
++		"\r\n\r\n":              "\n\n",
++		"\r\r":                  "\n\n",
++		"\r\r\n":                "\n\n",
++		"\r\r\n\n":              "\n\n\n",
++		"\r\r\r\n":              "\n\n\n",
++		"\r \n":                 "\n \n",
++		"xyz":                   "xyz",
++	}
++	for in, want := range testCases {
++		if got := string(convertNewlines([]byte(in))); got != want {
++			t.Errorf("input %q: got %q, want %q", in, got, want)
++		}
++	}
++}
++
+ const (
+ 	rawLevel = iota
+ 	lowLevel

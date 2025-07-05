@@ -17,7 +17,78 @@ Date:   Mon Aug 16 22:25:47 2021 +0800
     Trust: Robert Griesemer <gri@golang.org>
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/typecheck/subr.go | 13 +++++++---
  test/typeparam/issue47708.go               | 40 ++++++++++++++++++++++++++++++
  2 files changed, 50 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/typecheck/subr.go b/src/cmd/compile/internal/typecheck/subr.go
+index 541e1907c0..4696b62cd2 100644
+--- a/src/cmd/compile/internal/typecheck/subr.go
++++ b/src/cmd/compile/internal/typecheck/subr.go
+@@ -740,9 +740,16 @@ func implements(t, iface *types.Type, m, samename **types.Field, ptr *int) bool
+ 
+ 	if t.IsInterface() || t.IsTypeParam() {
+ 		if t.IsTypeParam() {
+-			// A typeparam satisfies an interface if its type bound
+-			// has all the methods of that interface.
+-			t = t.Bound()
++			// If t is a simple type parameter T, its type and underlying is the same.
++			// If t is a type definition:'type P[T any] T', its type is P[T] and its
++			// underlying is T. Therefore we use 't.Underlying() != t' to distinguish them.
++			if t.Underlying() != t {
++				CalcMethods(t)
++			} else {
++				// A typeparam satisfies an interface if its type bound
++				// has all the methods of that interface.
++				t = t.Bound()
++			}
+ 		}
+ 		i := 0
+ 		tms := t.AllMethods().Slice()
+diff --git a/test/typeparam/issue47708.go b/test/typeparam/issue47708.go
+new file mode 100644
+index 0000000000..261d6efb61
+--- /dev/null
++++ b/test/typeparam/issue47708.go
+@@ -0,0 +1,40 @@
++// run -gcflags=-G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"fmt"
++)
++
++type FooType[T any] interface {
++	Foo(BarType[T])string
++}
++type BarType[T any] interface {
++	Bar(FooType[T])string
++}
++
++type Baz[T any] T
++func (l Baz[T]) Foo(v BarType[T]) string {
++	return v.Bar(l)
++}
++type Bob[T any] T
++func (l Bob[T]) Bar(v FooType[T]) string {
++	if v,ok := v.(Baz[T]);ok{
++		return fmt.Sprintf("%v%v",v,l)
++	}
++	return ""
++}
++
++
++func main() {
++	var baz Baz[int] = 123
++	var bob Bob[int] = 456
++
++	if got, want := baz.Foo(bob), "123456"; got != want {
++		panic(fmt.Sprintf("got %s want %s", got, want))
++	}
++}

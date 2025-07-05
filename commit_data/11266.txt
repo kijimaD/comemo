@@ -7,7 +7,7 @@ Date:   Thu Jan 19 10:14:56 2012 -0800
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5554064
-
+---
  src/pkg/crypto/ocsp/ocsp_test.go       | 4 ++++
  src/pkg/encoding/gob/debug.go          | 4 ++++
  src/pkg/encoding/gob/dump.go           | 4 ++++
@@ -26,3 +26,202 @@ Date:   Thu Jan 19 10:14:56 2012 -0800
  src/pkg/syscall/zsysnum_linux_arm.go   | 4 ++++
  src/pkg/time/format.go                 | 4 ++++
  17 files changed, 62 insertions(+)
+
+diff --git a/src/pkg/crypto/ocsp/ocsp_test.go b/src/pkg/crypto/ocsp/ocsp_test.go
+index 49d8ea29b9..f0e9f94ee7 100644
+--- a/src/pkg/crypto/ocsp/ocsp_test.go
++++ b/src/pkg/crypto/ocsp/ocsp_test.go
+@@ -1,3 +1,7 @@
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package ocsp
+ 
+ import (
+diff --git a/src/pkg/encoding/gob/debug.go b/src/pkg/encoding/gob/debug.go
+index b21c7fa0b2..4a61d0fb2f 100644
+--- a/src/pkg/encoding/gob/debug.go
++++ b/src/pkg/encoding/gob/debug.go
+@@ -1,3 +1,7 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package gob
+ 
+ // This file is not normally included in the gob package.  Used only for debugging the package itself.
+diff --git a/src/pkg/encoding/gob/dump.go b/src/pkg/encoding/gob/dump.go
+index 0d0017cc78..f7d822c11e 100644
+--- a/src/pkg/encoding/gob/dump.go
++++ b/src/pkg/encoding/gob/dump.go
+@@ -1,3 +1,7 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package main
+ 
+ // Need to compile package gob with debug.go to build this program.
+diff --git a/src/pkg/exp/gotype/testdata/test1.go b/src/pkg/exp/gotype/testdata/test1.go
+index a3298e6e5f..ba8a51f135 100644
+--- a/src/pkg/exp/gotype/testdata/test1.go
++++ b/src/pkg/exp/gotype/testdata/test1.go
+@@ -1,3 +1,7 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package p
+ 
+ func _() {
+diff --git a/src/pkg/exp/norm/trie_test.go b/src/pkg/exp/norm/trie_test.go
+index 7308d281b5..c457c9d974 100644
+--- a/src/pkg/exp/norm/trie_test.go
++++ b/src/pkg/exp/norm/trie_test.go
+@@ -1,3 +1,7 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package norm
+ 
+ import (
+diff --git a/src/pkg/go/build/pkgtest/sqrt_test.go b/src/pkg/go/build/pkgtest/sqrt_test.go
+index 95fb625525..ee9fd5de68 100644
+--- a/src/pkg/go/build/pkgtest/sqrt_test.go
++++ b/src/pkg/go/build/pkgtest/sqrt_test.go
+@@ -1,3 +1,7 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package pkgtest
+ 
+ import "fmt"
+diff --git a/src/pkg/go/build/pkgtest/xsqrt_test.go b/src/pkg/go/build/pkgtest/xsqrt_test.go
+index 77e903d96c..3898d1dda5 100644
+--- a/src/pkg/go/build/pkgtest/xsqrt_test.go
++++ b/src/pkg/go/build/pkgtest/xsqrt_test.go
+@@ -1,3 +1,7 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package pkgtest_test
+ 
+ import "pkgtest"
+diff --git a/src/pkg/old/regexp/regexp.go b/src/pkg/old/regexp/regexp.go
+index 86df4dedd9..d3044d0c1d 100644
+--- a/src/pkg/old/regexp/regexp.go
++++ b/src/pkg/old/regexp/regexp.go
+@@ -1,3 +1,4 @@
++// Copyright 2010 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+diff --git a/src/pkg/patch/textdiff.go b/src/pkg/patch/textdiff.go
+index adb629a293..c9cffee11c 100644
+--- a/src/pkg/patch/textdiff.go
++++ b/src/pkg/patch/textdiff.go
+@@ -1,3 +1,7 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package patch
+ 
+ import (
+diff --git a/src/pkg/regexp/exec.go b/src/pkg/regexp/exec.go
+index e16a1b5b9e..333ca25542 100644
+--- a/src/pkg/regexp/exec.go
++++ b/src/pkg/regexp/exec.go
+@@ -1,3 +1,7 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package regexp
+ 
+ import (
+diff --git a/src/pkg/regexp/regexp.go b/src/pkg/regexp/regexp.go
+index c161acdfeb..ef94fa09b1 100644
+--- a/src/pkg/regexp/regexp.go
++++ b/src/pkg/regexp/regexp.go
+@@ -1,3 +1,4 @@
++// Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+diff --git a/src/pkg/regexp/syntax/compile.go b/src/pkg/regexp/syntax/compile.go
+index 21c6565b99..41955bfc29 100644
+--- a/src/pkg/regexp/syntax/compile.go
++++ b/src/pkg/regexp/syntax/compile.go
+@@ -1,3 +1,7 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package syntax
+ 
+ import "unicode"
+diff --git a/src/pkg/regexp/syntax/prog.go b/src/pkg/regexp/syntax/prog.go
+index 84ebb83558..902d3b3a57 100644
+--- a/src/pkg/regexp/syntax/prog.go
++++ b/src/pkg/regexp/syntax/prog.go
+@@ -1,3 +1,7 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package syntax
+ 
+ import (
+diff --git a/src/pkg/regexp/syntax/prog_test.go b/src/pkg/regexp/syntax/prog_test.go
+index e3e3f4d142..663d5a8d77 100644
+--- a/src/pkg/regexp/syntax/prog_test.go
++++ b/src/pkg/regexp/syntax/prog_test.go
+@@ -1,3 +1,7 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package syntax
+ 
+ import (
+diff --git a/src/pkg/runtime/gc_test.go b/src/pkg/runtime/gc_test.go
+index 63c6037969..00b3a04ce9 100644
+--- a/src/pkg/runtime/gc_test.go
++++ b/src/pkg/runtime/gc_test.go
+@@ -1,3 +1,7 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package runtime_test
+ 
+ import (
+diff --git a/src/pkg/syscall/zsysnum_linux_arm.go b/src/pkg/syscall/zsysnum_linux_arm.go
+index 8d22929ef7..f751556185 100644
+--- a/src/pkg/syscall/zsysnum_linux_arm.go
++++ b/src/pkg/syscall/zsysnum_linux_arm.go
+@@ -1,3 +1,7 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ // hand generated
+ 
+ package syscall
+diff --git a/src/pkg/time/format.go b/src/pkg/time/format.go
+index bd02b48672..76bf6ff419 100644
+--- a/src/pkg/time/format.go
++++ b/src/pkg/time/format.go
+@@ -1,3 +1,7 @@
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package time
+ 
+ import "errors"

@@ -12,6 +12,18 @@ Date:   Mon Dec 10 07:05:17 2012 +1100
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/6906058
-
+---
  src/cmd/go/version.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/version.go b/src/cmd/go/version.go
+index 09e2f16334..a41f4a7361 100644
+--- a/src/cmd/go/version.go
++++ b/src/cmd/go/version.go
+@@ -21,5 +21,5 @@ func runVersion(cmd *Command, args []string) {
+ 		cmd.Usage()
+ 	}
+ 
+-	fmt.Printf("go version %s\n", runtime.Version())
++	fmt.Printf("go version %s %s/%s\n", runtime.Version(), runtime.GOOS, runtime.GOARCH)
+ }

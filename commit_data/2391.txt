@@ -7,8 +7,76 @@ Date:   Thu Jun 4 16:18:13 2009 -0700
     R=ken
     OCL=29907
     CL=29907
-
+---
  src/cmd/gc/dcl.c         |  6 ++++++
  src/cmd/gc/subr.c        |  2 +-
  test/fixedbugs/bug161.go | 17 +++++++++++++++++
  3 files changed, 24 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index e5d6392e65..c5359dc5cb 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -956,6 +956,8 @@ addvar(Node *n, Type *t, int ctxt)
+ 	s->vargen = gen;
+ 	s->oname = n;
+ 	s->offset = 0;
++	s->oconst = nil;
++	s->otype = nil;
+ 	s->lexical = LNAME;
+ 
+ 	n->funcdepth = funcdepth;
+@@ -1003,6 +1005,8 @@ addtyp(Type *n, int ctxt)
+ 
+ 	redeclare("type", s);
+ 	s->otype = n;
++	s->oconst = nil;
++	s->oname = nil;
+ 	s->lexical = LATYPE;
+ 
+ 	d = dcl();
+@@ -1056,6 +1060,8 @@ addconst(Node *n, Node *e, int ctxt)
+ 
+ 	redeclare("constant", s);
+ 	s->oconst = e;
++	s->otype = nil;
++	s->oname = nil;
+ 	s->lexical = LNAME;
+ 
+ 	d = dcl();
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index a29f28cd08..0e025072c5 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -1045,7 +1045,7 @@ Tpretty(Fmt *fp, Type *t)
+ 			else
+ 				fmtprint(fp, "%lS", s);
+ 			if(strcmp(s->package, package) == 0)
+-			if(s->otype != t || (!s->export && !s->imported)) {
++			if((s->otype != t || !s->export) && !s->imported) {
+ 				fmtprint(fp, "·%s", filename);
+ 				if(t->vargen)
+ 					fmtprint(fp, "·%d", t->vargen);
+diff --git a/test/fixedbugs/bug161.go b/test/fixedbugs/bug161.go
+new file mode 100644
+index 0000000000..e5f25f746d
+--- /dev/null
++++ b/test/fixedbugs/bug161.go
+@@ -0,0 +1,17 @@
++// $G $D/$F.go || echo BUG: should compile
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package P
++
++const a = 0;
++
++func f(a int) {
++	a = 0;
++}
++
++/*
++bug161.go:8: operation LITERAL not allowed in assignment context
++*/

@@ -9,6 +9,39 @@ Date:   Mon Mar 21 18:19:56 2016 +1100
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  api/next.txt | 27 +++++++++++++++++++++++++++
  1 file changed, 27 insertions(+)
+
+diff --git a/api/next.txt b/api/next.txt
+index e69de29bb2..df2741595b 100644
+--- a/api/next.txt
++++ b/api/next.txt
+@@ -0,0 +1,27 @@
++pkg crypto/tls, type Config struct, DynamicRecordSizingDisabled bool
++pkg go/build, type Package struct, CgoFFLAGS []string
++pkg go/build, type Package struct, FFiles []string
++pkg go/doc, type Example struct, Unordered bool
++pkg net/http/httptest, method (*ResponseRecorder) Trailers() http.Header
++pkg net/url, type URL struct, ForceQuery bool
++pkg os/user, func LookupGroup(string) (*Group, error)
++pkg os/user, func LookupGroupId(string) (*Group, error)
++pkg os/user, method (*User) GroupIds() ([]string, error)
++pkg os/user, method (UnknownGroupError) Error() string
++pkg os/user, method (UnknownGroupIdError) Error() string
++pkg os/user, type Group struct
++pkg os/user, type Group struct, Gid string
++pkg os/user, type Group struct, Name string
++pkg os/user, type UnknownGroupError string
++pkg os/user, type UnknownGroupIdError string
++pkg runtime, func CallersFrames([]uintptr) *Frames
++pkg runtime, method (*Frames) Next() (Frame, bool)
++pkg runtime, type Frame struct
++pkg runtime, type Frame struct, Entry uintptr
++pkg runtime, type Frame struct, File string
++pkg runtime, type Frame struct, Func *Func
++pkg runtime, type Frame struct, Function string
++pkg runtime, type Frame struct, Line int
++pkg runtime, type Frame struct, PC uintptr
++pkg runtime, type Frames struct
++pkg testing, type InternalExample struct, Unordered bool

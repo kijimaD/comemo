@@ -8,7 +8,31 @@ Date:   Fri Mar 25 10:16:40 2016 +0100
     Reviewed-on: https://go-review.googlesource.com/21131
     Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/alldocs.go | 2 +-
  src/cmd/go/main.go    | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 0f3747d51d..a58ffe8613 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -1,4 +1,4 @@
+-// Copyright 2011 The Go Authors.  All rights reserved.
++// Copyright 2011 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+diff --git a/src/cmd/go/main.go b/src/cmd/go/main.go
+index 4e0987d69e..177c2af190 100644
+--- a/src/cmd/go/main.go
++++ b/src/cmd/go/main.go
+@@ -214,7 +214,7 @@ var helpTemplate = `{{if .Runnable}}usage: go {{.UsageLine}}
+ {{end}}{{.Long | trim}}
+ `
+ 
+-var documentationTemplate = `// Copyright 2011 The Go Authors.  All rights reserved.
++var documentationTemplate = `// Copyright 2011 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 

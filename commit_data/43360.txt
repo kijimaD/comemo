@@ -7,6 +7,20 @@ Date:   Sun Mar 29 17:59:08 2020 +0100
     Change-Id: I78c7197b8b93590470a782b492bba177a14d80ec
     Reviewed-on: https://go-review.googlesource.com/c/go/+/226340
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/contribute.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/contribute.html b/doc/contribute.html
+index 4135d13652..5fefac6bba 100644
+--- a/doc/contribute.html
++++ b/doc/contribute.html
+@@ -1006,7 +1006,7 @@ followed by <code>run.bash</code>.
+ 
+ <li>
+ In this section, we'll call the directory into which you cloned the Go repository <code>$GODIR</code>.
+-The <code>go</code> tool built by <code>$GODIR/make.bash</code> will be installed
++The <code>go</code> tool built by <code>$GODIR/src/make.bash</code> will be installed
+ in <code>$GODIR/bin/go</code> and you
+ can invoke it to test your code.
+ For instance, if you

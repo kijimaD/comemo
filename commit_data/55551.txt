@@ -15,8 +15,97 @@ Date:   Tue Feb 21 12:51:34 2023 -0800
     Run-TryBot: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Findley <rfindley@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/expr.go             | 11 ++++++-----
  src/go/types/expr.go                                | 14 +++++++-------
  src/internal/types/testdata/fixedbugs/issue58612.go | 14 ++++++++++++++
  3 files changed, 27 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/expr.go b/src/cmd/compile/internal/types2/expr.go
+index 0be2a4533c..f53ecec855 100644
+--- a/src/cmd/compile/internal/types2/expr.go
++++ b/src/cmd/compile/internal/types2/expr.go
+@@ -1613,6 +1613,11 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
+ 		if x.mode == invalid {
+ 			goto Error
+ 		}
++		// x.(type) expressions are encoded via TypeSwitchGuards
++		if e.Type == nil {
++			check.error(e, InvalidSyntaxTree, "invalid use of AssertExpr")
++			goto Error
++		}
+ 		// TODO(gri) we may want to permit type assertions on type parameter values at some point
+ 		if isTypeParam(x.typ) {
+ 			check.errorf(x, InvalidAssert, invalidOp+"cannot use type assertion on type parameter value %s", x)
+@@ -1622,11 +1627,6 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
+ 			check.errorf(x, InvalidAssert, invalidOp+"%s is not an interface", x)
+ 			goto Error
+ 		}
+-		// x.(type) expressions are encoded via TypeSwitchGuards
+-		if e.Type == nil {
+-			check.error(e, InvalidSyntaxTree, "invalid use of AssertExpr")
+-			goto Error
+-		}
+ 		T := check.varType(e.Type)
+ 		if T == Typ[Invalid] {
+ 			goto Error
+@@ -1638,6 +1638,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
+ 	case *syntax.TypeSwitchGuard:
+ 		// x.(type) expressions are handled explicitly in type switches
+ 		check.error(e, InvalidSyntaxTree, "use of .(type) outside type switch")
++		check.use(e.X)
+ 		goto Error
+ 
+ 	case *syntax.CallExpr:
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index d67bc8b756..df2ada4b25 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -1596,6 +1596,13 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
+ 		if x.mode == invalid {
+ 			goto Error
+ 		}
++		// x.(type) expressions are handled explicitly in type switches
++		if e.Type == nil {
++			// Don't use invalidAST because this can occur in the AST produced by
++			// go/parser.
++			check.error(e, BadTypeKeyword, "use of .(type) outside type switch")
++			goto Error
++		}
+ 		// TODO(gri) we may want to permit type assertions on type parameter values at some point
+ 		if isTypeParam(x.typ) {
+ 			check.errorf(x, InvalidAssert, invalidOp+"cannot use type assertion on type parameter value %s", x)
+@@ -1605,13 +1612,6 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
+ 			check.errorf(x, InvalidAssert, invalidOp+"%s is not an interface", x)
+ 			goto Error
+ 		}
+-		// x.(type) expressions are handled explicitly in type switches
+-		if e.Type == nil {
+-			// Don't use invalidAST because this can occur in the AST produced by
+-			// go/parser.
+-			check.error(e, BadTypeKeyword, "use of .(type) outside type switch")
+-			goto Error
+-		}
+ 		T := check.varType(e.Type)
+ 		if T == Typ[Invalid] {
+ 			goto Error
+diff --git a/src/internal/types/testdata/fixedbugs/issue58612.go b/src/internal/types/testdata/fixedbugs/issue58612.go
+new file mode 100644
+index 0000000000..db6a62d247
+--- /dev/null
++++ b/src/internal/types/testdata/fixedbugs/issue58612.go
+@@ -0,0 +1,14 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func _() {
++	var x = new(T)
++	f[x /* ERROR "not a type" */ /* ERROR "use of .(type) outside type switch" */ .(type)]()
++}
++
++type T struct{}
++
++func f[_ any]() {}

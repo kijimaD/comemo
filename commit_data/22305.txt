@@ -11,7 +11,72 @@ Date:   Wed Mar 4 16:16:26 2015 +1100
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  misc/cgo/testso/test.bat |  2 +-
  src/cmd/dist/test.go     | 34 ++++++++++++++++++----------------
  2 files changed, 19 insertions(+), 17 deletions(-)
+
+diff --git a/misc/cgo/testso/test.bat b/misc/cgo/testso/test.bat
+index dec654d9dc..7bbabea6b9 100644
+--- a/misc/cgo/testso/test.bat
++++ b/misc/cgo/testso/test.bat
+@@ -13,6 +13,6 @@ main.exe
+ goto :end
+ 
+ :fail
+-:: echo FAIL
++echo FAIL
+ :end
+ del /F cgoso_c.o libcgosotest.dll main.exe 2>NUL
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 555855edae..dd88eda833 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -267,22 +267,7 @@ func (t *tester) registerTests() {
+ 			t.tests = append(t.tests, distTest{
+ 				name:    "testso",
+ 				heading: "../misc/cgo/testso",
+-				fn: func() error {
+-					// TODO(brainman): finish this; https://golang.org/issue/10072
+-					return nil
+-
+-					cmd := t.dirCmd("misc/cgo/testso", "./test.bat")
+-					var buf bytes.Buffer
+-					cmd.Stdout = &buf
+-					cmd.Stderr = &buf
+-					err := cmd.Run()
+-					s := buf.String()
+-					fmt.Println(s)
+-					if err == nil && strings.Contains(s, "FAIL") {
+-						return errors.New("test failed")
+-					}
+-					return err
+-				},
++				fn:      t.cgoTestSOWindows,
+ 			})
+ 		} else if t.hasBash() {
+ 			t.registerTest("testso", "../misc/cgo/testso", "./test.bash")
+@@ -517,6 +502,23 @@ func (t *tester) cgoTest() error {
+ 	return nil
+ }
+ 
++func (t *tester) cgoTestSOWindows() error {
++	cmd := t.dirCmd("misc/cgo/testso", `.\test`)
++	var buf bytes.Buffer
++	cmd.Stdout = &buf
++	cmd.Stderr = &buf
++	err := cmd.Run()
++	s := buf.String()
++	fmt.Println(s)
++	if err != nil {
++		return err
++	}
++	if strings.Contains(s, "FAIL") {
++		return errors.New("test failed")
++	}
++	return nil
++}
++
+ func (t *tester) hasBash() bool {
+ 	switch t.gohostos {
+ 	case "windows", "plan9":

@@ -11,6 +11,24 @@ Date:   Fri Jan 13 11:40:13 2023 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/461957
     TryBot-Bypass: Austin Clements <austin@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  doc/go1.20.html | 6 ++++--
  1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go1.20.html b/doc/go1.20.html
+index 23fa82c41b..a497f87712 100644
+--- a/doc/go1.20.html
++++ b/doc/go1.20.html
+@@ -350,8 +350,10 @@ Do not send CLs removing the interior tags from such phrases.
+ </p>
+ 
+ <p><!-- https://go.dev/issue/49569 -->
+-  Relative to Go 1.19, generated code performance is generally slightly improved,
+-  build wall times are slightly increased, build user times are slightly decreased.
++  Go 1.18 and 1.19 saw regressions in build speed, largely due to the addition
++  of support for generics and follow-on work. Go 1.20 improves build speeds by
++  up to 10%, bringing it back in line with Go 1.17.
++  Relative to Go 1.19, generated code performance is also generally slightly improved.
+ </p>
+ 
+ <h2 id="linker">Linker</h2>

@@ -11,9 +11,127 @@ Date:   Mon Jul 16 22:40:05 2018 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/module/module.go               | 38 +++++++++-------------
  src/cmd/go/internal/module/module_test.go          |  8 +++++
  src/cmd/go/mod_test.go                             |  4 +--
  src/cmd/go/testdata/mod/rsc.io_badfile3_v1.0.0.txt |  2 +-
  4 files changed, 26 insertions(+), 26 deletions(-)
+
+diff --git a/src/cmd/go/internal/module/module.go b/src/cmd/go/internal/module/module.go
+index 629aca1a10..11a45e092b 100644
+--- a/src/cmd/go/internal/module/module.go
++++ b/src/cmd/go/internal/module/module.go
+@@ -12,6 +12,9 @@ package module
+ // There are many subtle considerations, including Unicode ambiguity,
+ // security, network, and file system representations.
+ //
++// This file also defines the set of valid module path and version combinations,
++// another topic with many subtle considerations.
++//
+ // Changes to the semantics in this file require approval from rsc.
+ 
+ import (
+@@ -50,31 +53,17 @@ func Check(path, version string) error {
+ 	if !semver.IsValid(version) {
+ 		return fmt.Errorf("malformed semantic version %v", version)
+ 	}
+-	vm := semver.Major(version)
+-	_, pathVersion, _ := SplitPathVersion(path)
+-
+-	if strings.HasPrefix(pathVersion, ".") {
+-		// Special-case gopkg.in path requirements.
+-		pathVersion = pathVersion[1:] // cut .
+-		if vm == pathVersion {
+-			return nil
+-		}
+-	} else {
+-		// Standard path requirements.
+-		if pathVersion != "" {
+-			pathVersion = pathVersion[1:] // cut /
+-		}
+-		if vm == "v0" || vm == "v1" {
+-			vm = ""
++	_, pathMajor, _ := SplitPathVersion(path)
++	if !MatchPathMajor(version, pathMajor) {
++		if pathMajor == "" {
++			pathMajor = "v0 or v1"
+ 		}
+-		if vm == pathVersion {
+-			return nil
+-		}
+-		if pathVersion == "" {
+-			pathVersion = "v0 or v1"
++		if pathMajor[0] == '.' { // .v1
++			pathMajor = pathMajor[1:]
+ 		}
++		return fmt.Errorf("mismatched module path %v and version %v (want %v)", path, version, pathMajor)
+ 	}
+-	return fmt.Errorf("mismatched module path %v and version %v (want %v)", path, version, pathVersion)
++	return nil
+ }
+ 
+ // firstPathOK reports whether r can appear in the first element of a module path.
+@@ -328,6 +317,11 @@ func splitGopkgIn(path string) (prefix, pathMajor string, ok bool) {
+ // MatchPathMajor reports whether the semantic version v
+ // matches the path major version pathMajor.
+ func MatchPathMajor(v, pathMajor string) bool {
++	if strings.HasPrefix(v, "v0.0.0-") && pathMajor == ".v1" {
++		// Allow old bug in pseudo-versions that generated v0.0.0- pseudoversion for gopkg .v1.
++		// For example, gopkg.in/yaml.v2@v2.2.1's go.mod requires gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405.
++		return true
++	}
+ 	m := semver.Major(v)
+ 	if pathMajor == "" {
+ 		return m == "v0" || m == "v1"
+diff --git a/src/cmd/go/internal/module/module_test.go b/src/cmd/go/internal/module/module_test.go
+index 83e8d1af1b..686e2897ea 100644
+--- a/src/cmd/go/internal/module/module_test.go
++++ b/src/cmd/go/internal/module/module_test.go
+@@ -37,6 +37,14 @@ var checkTests = []struct {
+ 	{"gopkg.in/yaml.v1", "v2.1.5", false},
+ 	{"gopkg.in/yaml.v1", "v3.0.0", false},
+ 
++	// For gopkg.in, .v1 means v1 only (not v0).
++	// But early versions of vgo still generated v0 pseudo-versions for it.
++	// Even though now we'd generate those as v1 pseudo-versions,
++	// we accept the old pseudo-versions to avoid breaking existing go.mod files.
++	// For example gopkg.in/yaml.v2@v2.2.1's go.mod requires check.v1 at a v0 pseudo-version.
++	{"gopkg.in/check.v1", "v0.0.0", false},
++	{"gopkg.in/check.v1", "v0.0.0-20160102150405-abcdef123456", true},
++
+ 	{"gopkg.in/yaml.v2", "v1.0.0", false},
+ 	{"gopkg.in/yaml.v2", "v2.0.0", true},
+ 	{"gopkg.in/yaml.v2", "v2.1.5", true},
+diff --git a/src/cmd/go/mod_test.go b/src/cmd/go/mod_test.go
+index 3e8a01090b..0199559fd2 100644
+--- a/src/cmd/go/mod_test.go
++++ b/src/cmd/go/mod_test.go
+@@ -834,14 +834,12 @@ func TestModFileNames(t *testing.T) {
+ 		"rsc.io/badfile3",
+ 		"rsc.io/badfile4",
+ 		"rsc.io/badfile5",
+-		"rsc.io/badfile6",
+ 	)
+ 	tg.grepStderrNot(`unzip .*badfile1.*:`, "badfile1 should be OK")
+ 	tg.grepStderr(`rsc.io/badfile2.*malformed file path "☺.go": invalid char '☺'`, "want diagnosed invalid character")
+-	tg.grepStderr(`rsc.io/badfile3.*malformed file path "x@y.go": invalid char '@'`, "want diagnosed invalid character")
++	tg.grepStderr(`rsc.io/badfile3.*malformed file path "x\?y.go": invalid char '\?'`, "want diagnosed invalid character")
+ 	tg.grepStderr(`rsc.io/badfile4.*case-insensitive file name collision: "x/Y.go" and "x/y.go"`, "want case collision")
+ 	tg.grepStderr(`rsc.io/badfile5.*case-insensitive file name collision: "x/y" and "x/Y"`, "want case collision")
+-	tg.grepStderr(`rsc.io/badfile6.*malformed file path "x/.gitignore/y": leading dot in path element`, "want leading dot in path element")
+ }
+ 
+ func TestModBadDomain(t *testing.T) {
+diff --git a/src/cmd/go/testdata/mod/rsc.io_badfile3_v1.0.0.txt b/src/cmd/go/testdata/mod/rsc.io_badfile3_v1.0.0.txt
+index 91bd65f903..a008448c5f 100644
+--- a/src/cmd/go/testdata/mod/rsc.io_badfile3_v1.0.0.txt
++++ b/src/cmd/go/testdata/mod/rsc.io_badfile3_v1.0.0.txt
+@@ -7,6 +7,6 @@ module rsc.io/badfile3
+ {"Version":"v1.0.0"}
+ -- go.mod --
+ module rsc.io/badfile3
+--- x@y.go --
++-- x?y.go --
+ package x
+ 

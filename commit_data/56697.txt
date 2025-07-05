@@ -17,6 +17,21 @@ Date:   Mon May 22 11:38:46 2023 -0700
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/runtime/crash_cgo_test.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/runtime/crash_cgo_test.go b/src/runtime/crash_cgo_test.go
+index 2a07678b52..e3417527c4 100644
+--- a/src/runtime/crash_cgo_test.go
++++ b/src/runtime/crash_cgo_test.go
+@@ -410,6 +410,9 @@ func TestRaceSignal(t *testing.T) {
+ 		t.Skipf("skipping: test requires pthread support")
+ 		// TODO: Can this test be rewritten to use the C11 thread API instead?
+ 	}
++	if runtime.GOOS == "darwin" || runtime.GOOS == "ios" {
++		testenv.SkipFlaky(t, 60316)
++	}
+ 
+ 	t.Parallel()
+ 

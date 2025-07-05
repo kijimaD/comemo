@@ -21,8 +21,116 @@ Date:   Fri Nov 2 16:00:33 2018 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/work/exec.go              | 13 ++++++++-----
  src/cmd/go/internal/work/gc.go                |  3 +++
  src/cmd/go/testdata/script/mod_go_version.txt | 16 ++++++++++++++--
  3 files changed, 25 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index d9c59aab80..92e814ee6f 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -434,10 +434,6 @@ func (b *Builder) build(a *Action) (err error) {
+ 		return fmt.Errorf("missing or invalid binary-only package; expected file %q", a.Package.Target)
+ 	}
+ 
+-	if p.Module != nil && !allowedVersion(p.Module.GoVersion) {
+-		return fmt.Errorf("module requires Go %s", p.Module.GoVersion)
+-	}
+-
+ 	if err := b.Mkdir(a.Objdir); err != nil {
+ 		return err
+ 	}
+@@ -638,12 +634,19 @@ func (b *Builder) build(a *Action) (err error) {
+ 	objpkg := objdir + "_pkg_.a"
+ 	ofile, out, err := BuildToolchain.gc(b, a, objpkg, icfg.Bytes(), len(sfiles) > 0, gofiles)
+ 	if len(out) > 0 {
+-		b.showOutput(a, a.Package.Dir, a.Package.Desc(), b.processOutput(out))
++		output := b.processOutput(out)
++		if p.Module != nil && !allowedVersion(p.Module.GoVersion) {
++			output += "note: module requires Go " + p.Module.GoVersion
++		}
++		b.showOutput(a, a.Package.Dir, a.Package.Desc(), output)
+ 		if err != nil {
+ 			return errPrintedOutput
+ 		}
+ 	}
+ 	if err != nil {
++		if p.Module != nil && !allowedVersion(p.Module.GoVersion) {
++			b.showOutput(a, a.Package.Dir, a.Package.Desc(), "note: module requires Go "+p.Module.GoVersion)
++		}
+ 		return err
+ 	}
+ 	if ofile != objpkg {
+diff --git a/src/cmd/go/internal/work/gc.go b/src/cmd/go/internal/work/gc.go
+index 6e5333ccbc..5a0bd1c2cf 100644
+--- a/src/cmd/go/internal/work/gc.go
++++ b/src/cmd/go/internal/work/gc.go
+@@ -53,6 +53,9 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg []byte, a
+ 		pkgpath = "main"
+ 	}
+ 	gcargs := []string{"-p", pkgpath}
++	if p.Module != nil && p.Module.GoVersion != "" && allowedVersion(p.Module.GoVersion) {
++		gcargs = append(gcargs, "-lang=go"+p.Module.GoVersion)
++	}
+ 	if p.Standard {
+ 		gcargs = append(gcargs, "-std")
+ 	}
+diff --git a/src/cmd/go/testdata/script/mod_go_version.txt b/src/cmd/go/testdata/script/mod_go_version.txt
+index f2de74cee8..37f173531b 100644
+--- a/src/cmd/go/testdata/script/mod_go_version.txt
++++ b/src/cmd/go/testdata/script/mod_go_version.txt
+@@ -3,9 +3,10 @@
+ env GO111MODULE=on
+ 
+ go list
+-! go build
+-stderr 'module requires Go 1.999'
++go build
+ go build sub.1
++go build subver.1
++! stderr 'module requires'
+ ! go build badsub.1
+ stderr 'module requires Go 1.11111'
+ 
+@@ -19,11 +20,13 @@ module m
+ go 1.999
+ require (
+ 	sub.1 v1.0.0
++	subver.1 v1.0.0
+ 	badsub.1 v1.0.0
+ 	versioned.1 v1.0.0
+ )
+ replace (
+ 	sub.1 => ./sub
++	subver.1 => ./subver
+ 	badsub.1 => ./badsub
+ 	versioned.1 v1.0.0 => ./versioned1
+ 	versioned.1 v1.1.0 => ./versioned2
+@@ -39,12 +42,20 @@ go 1.11
+ -- sub/x.go --
+ package x
+ 
++-- subver/go.mod --
++module m
++go 1.11111
++
++-- subver/x.go --
++package x
++
+ -- badsub/go.mod --
+ module m
+ go 1.11111
+ 
+ -- badsub/x.go --
+ package x
++invalid syntax
+ 
+ -- versioned1/go.mod --
+ module versioned
+@@ -59,3 +70,4 @@ go 1.99999
+ 
+ -- versioned2/x.go --
+ package x
++invalid syntax

@@ -16,7 +16,7 @@ Date:   Sun Oct 14 22:28:58 2018 +0200
     Run-TryBot: Martin Möhrmann <moehrmann@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/gc/builtin.go         |  12 +--
  src/cmd/compile/internal/gc/builtin/runtime.go |   4 +-
  src/cmd/compile/internal/gc/op_string.go       |   4 +-
@@ -27,3 +27,341 @@ Date:   Sun Oct 14 22:28:58 2018 +0200
  src/runtime/runtime-gdb_test.go                |   5 +-
  src/runtime/slice.go                           |   7 +-
  9 files changed, 136 insertions(+), 76 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/builtin.go b/src/cmd/compile/internal/gc/builtin.go
+index 8051c7d0df..325bf4aa0e 100644
+--- a/src/cmd/compile/internal/gc/builtin.go
++++ b/src/cmd/compile/internal/gc/builtin.go
+@@ -117,8 +117,8 @@ var runtimeDecls = [...]struct {
+ 	{"selectsetpc", funcTag, 56},
+ 	{"selectgo", funcTag, 93},
+ 	{"block", funcTag, 5},
+-	{"makeslice", funcTag, 95},
+-	{"makeslice64", funcTag, 96},
++	{"makeslice", funcTag, 94},
++	{"makeslice64", funcTag, 95},
+ 	{"growslice", funcTag, 97},
+ 	{"memmove", funcTag, 98},
+ 	{"memclrNoHeapPointers", funcTag, 99},
+@@ -249,10 +249,10 @@ func runtimeTypes() []*types.Type {
+ 	typs[91] = types.NewPtr(typs[11])
+ 	typs[92] = functype(nil, []*Node{anonfield(typs[3]), anonfield(typs[91]), anonfield(typs[79])}, []*Node{anonfield(typs[11])})
+ 	typs[93] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[1]), anonfield(typs[32])}, []*Node{anonfield(typs[32]), anonfield(typs[11])})
+-	typs[94] = types.NewSlice(typs[2])
+-	typs[95] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[32]), anonfield(typs[32])}, []*Node{anonfield(typs[94])})
+-	typs[96] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[15]), anonfield(typs[15])}, []*Node{anonfield(typs[94])})
+-	typs[97] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[94]), anonfield(typs[32])}, []*Node{anonfield(typs[94])})
++	typs[94] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[32]), anonfield(typs[32])}, []*Node{anonfield(typs[58])})
++	typs[95] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[15]), anonfield(typs[15])}, []*Node{anonfield(typs[58])})
++	typs[96] = types.NewSlice(typs[2])
++	typs[97] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[96]), anonfield(typs[32])}, []*Node{anonfield(typs[96])})
+ 	typs[98] = functype(nil, []*Node{anonfield(typs[3]), anonfield(typs[3]), anonfield(typs[47])}, nil)
+ 	typs[99] = functype(nil, []*Node{anonfield(typs[58]), anonfield(typs[47])}, nil)
+ 	typs[100] = functype(nil, []*Node{anonfield(typs[3]), anonfield(typs[3]), anonfield(typs[47])}, []*Node{anonfield(typs[11])})
+diff --git a/src/cmd/compile/internal/gc/builtin/runtime.go b/src/cmd/compile/internal/gc/builtin/runtime.go
+index 028936b875..e6d174bc4b 100644
+--- a/src/cmd/compile/internal/gc/builtin/runtime.go
++++ b/src/cmd/compile/internal/gc/builtin/runtime.go
+@@ -153,8 +153,8 @@ func selectsetpc(cas *byte)
+ func selectgo(cas0 *byte, order0 *byte, ncases int) (int, bool)
+ func block()
+ 
+-func makeslice(typ *byte, len int, cap int) (ary []any)
+-func makeslice64(typ *byte, len int64, cap int64) (ary []any)
++func makeslice(typ *byte, len int, cap int) unsafe.Pointer
++func makeslice64(typ *byte, len int64, cap int64) unsafe.Pointer
+ func growslice(typ *byte, old []any, cap int) (ary []any)
+ func memmove(to *any, frm *any, length uintptr)
+ func memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr)
+diff --git a/src/cmd/compile/internal/gc/op_string.go b/src/cmd/compile/internal/gc/op_string.go
+index 8358854bf2..83283c72c6 100644
+--- a/src/cmd/compile/internal/gc/op_string.go
++++ b/src/cmd/compile/internal/gc/op_string.go
+@@ -4,9 +4,9 @@ package gc
+ 
+ import "strconv"
+ 
+-const _Op_name = "XXXNAMENONAMETYPEPACKLITERALADDSUBORXORADDSTRADDRANDANDAPPENDARRAYBYTESTRARRAYBYTESTRTMPARRAYRUNESTRSTRARRAYBYTESTRARRAYBYTETMPSTRARRAYRUNEASAS2AS2FUNCAS2RECVAS2MAPRAS2DOTTYPEASOPCALLCALLFUNCCALLMETHCALLINTERCALLPARTCAPCLOSECLOSURECOMPLITMAPLITSTRUCTLITARRAYLITSLICELITPTRLITCONVCONVIFACECONVNOPCOPYDCLDCLFUNCDCLFIELDDCLCONSTDCLTYPEDELETEDOTDOTPTRDOTMETHDOTINTERXDOTDOTTYPEDOTTYPE2EQNELTLEGEGTINDINDEXINDEXMAPKEYSTRUCTKEYLENMAKEMAKECHANMAKEMAPMAKESLICEMULDIVMODLSHRSHANDANDNOTNEWNOTCOMPLUSMINUSORORPANICPRINTPRINTNPARENSENDSLICESLICEARRSLICESTRSLICE3SLICE3ARRRECOVERRECVRUNESTRSELRECVSELRECV2IOTAREALIMAGCOMPLEXALIGNOFOFFSETOFSIZEOFBLOCKBREAKCASEXCASECONTINUEDEFEREMPTYFALLFORFORUNTILGOTOIFLABELPROCRANGERETURNSELECTSWITCHTYPESWTCHANTMAPTSTRUCTTINTERTFUNCTARRAYDDDDDDARGINLCALLEFACEITABIDATASPTRCLOSUREVARCFUNCCHECKNILVARDEFVARKILLVARLIVEINDREGSPRETJMPGETGEND"
++const _Op_name = "XXXNAMENONAMETYPEPACKLITERALADDSUBORXORADDSTRADDRANDANDAPPENDARRAYBYTESTRARRAYBYTESTRTMPARRAYRUNESTRSTRARRAYBYTESTRARRAYBYTETMPSTRARRAYRUNEASAS2AS2FUNCAS2RECVAS2MAPRAS2DOTTYPEASOPCALLCALLFUNCCALLMETHCALLINTERCALLPARTCAPCLOSECLOSURECOMPLITMAPLITSTRUCTLITARRAYLITSLICELITPTRLITCONVCONVIFACECONVNOPCOPYDCLDCLFUNCDCLFIELDDCLCONSTDCLTYPEDELETEDOTDOTPTRDOTMETHDOTINTERXDOTDOTTYPEDOTTYPE2EQNELTLEGEGTINDINDEXINDEXMAPKEYSTRUCTKEYLENMAKEMAKECHANMAKEMAPMAKESLICEMULDIVMODLSHRSHANDANDNOTNEWNOTCOMPLUSMINUSORORPANICPRINTPRINTNPARENSENDSLICESLICEARRSLICESTRSLICEHEADERSLICE3SLICE3ARRRECOVERRECVRUNESTRSELRECVSELRECV2IOTAREALIMAGCOMPLEXALIGNOFOFFSETOFSIZEOFBLOCKBREAKCASEXCASECONTINUEDEFEREMPTYFALLFORFORUNTILGOTOIFLABELPROCRANGERETURNSELECTSWITCHTYPESWTCHANTMAPTSTRUCTTINTERTFUNCTARRAYDDDDDDARGINLCALLEFACEITABIDATASPTRCLOSUREVARCFUNCCHECKNILVARDEFVARKILLVARLIVEINDREGSPRETJMPGETGEND"
+ 
+-var _Op_index = [...]uint16{0, 3, 7, 13, 17, 21, 28, 31, 34, 36, 39, 45, 49, 55, 61, 73, 88, 100, 112, 127, 139, 141, 144, 151, 158, 165, 175, 179, 183, 191, 199, 208, 216, 219, 224, 231, 238, 244, 253, 261, 269, 275, 279, 288, 295, 299, 302, 309, 317, 325, 332, 338, 341, 347, 354, 362, 366, 373, 381, 383, 385, 387, 389, 391, 393, 396, 401, 409, 412, 421, 424, 428, 436, 443, 452, 455, 458, 461, 464, 467, 470, 476, 479, 482, 485, 489, 494, 498, 503, 508, 514, 519, 523, 528, 536, 544, 550, 559, 566, 570, 577, 584, 592, 596, 600, 604, 611, 618, 626, 632, 637, 642, 646, 651, 659, 664, 669, 673, 676, 684, 688, 690, 695, 699, 704, 710, 716, 722, 728, 733, 737, 744, 750, 755, 761, 764, 770, 777, 782, 786, 791, 795, 805, 810, 818, 824, 831, 838, 846, 852, 856, 859}
++var _Op_index = [...]uint16{0, 3, 7, 13, 17, 21, 28, 31, 34, 36, 39, 45, 49, 55, 61, 73, 88, 100, 112, 127, 139, 141, 144, 151, 158, 165, 175, 179, 183, 191, 199, 208, 216, 219, 224, 231, 238, 244, 253, 261, 269, 275, 279, 288, 295, 299, 302, 309, 317, 325, 332, 338, 341, 347, 354, 362, 366, 373, 381, 383, 385, 387, 389, 391, 393, 396, 401, 409, 412, 421, 424, 428, 436, 443, 452, 455, 458, 461, 464, 467, 470, 476, 479, 482, 485, 489, 494, 498, 503, 508, 514, 519, 523, 528, 536, 544, 555, 561, 570, 577, 581, 588, 595, 603, 607, 611, 615, 622, 629, 637, 643, 648, 653, 657, 662, 670, 675, 680, 684, 687, 695, 699, 701, 706, 710, 715, 721, 727, 733, 739, 744, 748, 755, 761, 766, 772, 775, 781, 788, 793, 797, 802, 806, 816, 821, 829, 835, 842, 849, 857, 863, 867, 870}
+ 
+ func (i Op) String() string {
+ 	if i >= Op(len(_Op_index)-1) {
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 549038e7d1..4607cf1912 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -2321,6 +2321,12 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 		data := s.expr(n.Right)
+ 		return s.newValue2(ssa.OpIMake, n.Type, tab, data)
+ 
++	case OSLICEHEADER:
++		p := s.expr(n.Left)
++		l := s.expr(n.List.First())
++		c := s.expr(n.List.Second())
++		return s.newValue3(ssa.OpSliceMake, n.Type, p, l, c)
++
+ 	case OSLICE, OSLICEARR, OSLICE3, OSLICE3ARR:
+ 		v := s.expr(n.Left)
+ 		var i, j, k *ssa.Value
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index 87b6d036c5..0fe6defe99 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -636,65 +636,66 @@ const (
+ 	ODCLCONST // const pi = 3.14
+ 	ODCLTYPE  // type Int int or type Int = int
+ 
+-	ODELETE    // delete(Left, Right)
+-	ODOT       // Left.Sym (Left is of struct type)
+-	ODOTPTR    // Left.Sym (Left is of pointer to struct type)
+-	ODOTMETH   // Left.Sym (Left is non-interface, Right is method name)
+-	ODOTINTER  // Left.Sym (Left is interface, Right is method name)
+-	OXDOT      // Left.Sym (before rewrite to one of the preceding)
+-	ODOTTYPE   // Left.Right or Left.Type (.Right during parsing, .Type once resolved); after walk, .Right contains address of interface type descriptor and .Right.Right contains address of concrete type descriptor
+-	ODOTTYPE2  // Left.Right or Left.Type (.Right during parsing, .Type once resolved; on rhs of OAS2DOTTYPE); after walk, .Right contains address of interface type descriptor
+-	OEQ        // Left == Right
+-	ONE        // Left != Right
+-	OLT        // Left < Right
+-	OLE        // Left <= Right
+-	OGE        // Left >= Right
+-	OGT        // Left > Right
+-	OIND       // *Left
+-	OINDEX     // Left[Right] (index of array or slice)
+-	OINDEXMAP  // Left[Right] (index of map)
+-	OKEY       // Left:Right (key:value in struct/array/map literal)
+-	OSTRUCTKEY // Sym:Left (key:value in struct literal, after type checking)
+-	OLEN       // len(Left)
+-	OMAKE      // make(List) (before type checking converts to one of the following)
+-	OMAKECHAN  // make(Type, Left) (type is chan)
+-	OMAKEMAP   // make(Type, Left) (type is map)
+-	OMAKESLICE // make(Type, Left, Right) (type is slice)
+-	OMUL       // Left * Right
+-	ODIV       // Left / Right
+-	OMOD       // Left % Right
+-	OLSH       // Left << Right
+-	ORSH       // Left >> Right
+-	OAND       // Left & Right
+-	OANDNOT    // Left &^ Right
+-	ONEW       // new(Left)
+-	ONOT       // !Left
+-	OCOM       // ^Left
+-	OPLUS      // +Left
+-	OMINUS     // -Left
+-	OOROR      // Left || Right
+-	OPANIC     // panic(Left)
+-	OPRINT     // print(List)
+-	OPRINTN    // println(List)
+-	OPAREN     // (Left)
+-	OSEND      // Left <- Right
+-	OSLICE     // Left[List[0] : List[1]] (Left is untypechecked or slice)
+-	OSLICEARR  // Left[List[0] : List[1]] (Left is array)
+-	OSLICESTR  // Left[List[0] : List[1]] (Left is string)
+-	OSLICE3    // Left[List[0] : List[1] : List[2]] (Left is untypedchecked or slice)
+-	OSLICE3ARR // Left[List[0] : List[1] : List[2]] (Left is array)
+-	ORECOVER   // recover()
+-	ORECV      // <-Left
+-	ORUNESTR   // Type(Left) (Type is string, Left is rune)
+-	OSELRECV   // Left = <-Right.Left: (appears as .Left of OCASE; Right.Op == ORECV)
+-	OSELRECV2  // List = <-Right.Left: (apperas as .Left of OCASE; count(List) == 2, Right.Op == ORECV)
+-	OIOTA      // iota
+-	OREAL      // real(Left)
+-	OIMAG      // imag(Left)
+-	OCOMPLEX   // complex(Left, Right)
+-	OALIGNOF   // unsafe.Alignof(Left)
+-	OOFFSETOF  // unsafe.Offsetof(Left)
+-	OSIZEOF    // unsafe.Sizeof(Left)
++	ODELETE      // delete(Left, Right)
++	ODOT         // Left.Sym (Left is of struct type)
++	ODOTPTR      // Left.Sym (Left is of pointer to struct type)
++	ODOTMETH     // Left.Sym (Left is non-interface, Right is method name)
++	ODOTINTER    // Left.Sym (Left is interface, Right is method name)
++	OXDOT        // Left.Sym (before rewrite to one of the preceding)
++	ODOTTYPE     // Left.Right or Left.Type (.Right during parsing, .Type once resolved); after walk, .Right contains address of interface type descriptor and .Right.Right contains address of concrete type descriptor
++	ODOTTYPE2    // Left.Right or Left.Type (.Right during parsing, .Type once resolved; on rhs of OAS2DOTTYPE); after walk, .Right contains address of interface type descriptor
++	OEQ          // Left == Right
++	ONE          // Left != Right
++	OLT          // Left < Right
++	OLE          // Left <= Right
++	OGE          // Left >= Right
++	OGT          // Left > Right
++	OIND         // *Left
++	OINDEX       // Left[Right] (index of array or slice)
++	OINDEXMAP    // Left[Right] (index of map)
++	OKEY         // Left:Right (key:value in struct/array/map literal)
++	OSTRUCTKEY   // Sym:Left (key:value in struct literal, after type checking)
++	OLEN         // len(Left)
++	OMAKE        // make(List) (before type checking converts to one of the following)
++	OMAKECHAN    // make(Type, Left) (type is chan)
++	OMAKEMAP     // make(Type, Left) (type is map)
++	OMAKESLICE   // make(Type, Left, Right) (type is slice)
++	OMUL         // Left * Right
++	ODIV         // Left / Right
++	OMOD         // Left % Right
++	OLSH         // Left << Right
++	ORSH         // Left >> Right
++	OAND         // Left & Right
++	OANDNOT      // Left &^ Right
++	ONEW         // new(Left)
++	ONOT         // !Left
++	OCOM         // ^Left
++	OPLUS        // +Left
++	OMINUS       // -Left
++	OOROR        // Left || Right
++	OPANIC       // panic(Left)
++	OPRINT       // print(List)
++	OPRINTN      // println(List)
++	OPAREN       // (Left)
++	OSEND        // Left <- Right
++	OSLICE       // Left[List[0] : List[1]] (Left is untypechecked or slice)
++	OSLICEARR    // Left[List[0] : List[1]] (Left is array)
++	OSLICESTR    // Left[List[0] : List[1]] (Left is string)
++	OSLICE3      // Left[List[0] : List[1] : List[2]] (Left is untypedchecked or slice)
++	OSLICE3ARR   // Left[List[0] : List[1] : List[2]] (Left is array)
++	OSLICEHEADER // sliceheader{Left, List[0], List[1]} (Left is unsafe.Pointer, List[0] is length, List[1] is capacity)
++	ORECOVER     // recover()
++	ORECV        // <-Left
++	ORUNESTR     // Type(Left) (Type is string, Left is rune)
++	OSELRECV     // Left = <-Right.Left: (appears as .Left of OCASE; Right.Op == ORECV)
++	OSELRECV2    // List = <-Right.Left: (apperas as .Left of OCASE; count(List) == 2, Right.Op == ORECV)
++	OIOTA        // iota
++	OREAL        // real(Left)
++	OIMAG        // imag(Left)
++	OCOMPLEX     // complex(Left, Right)
++	OALIGNOF     // unsafe.Alignof(Left)
++	OOFFSETOF    // unsafe.Offsetof(Left)
++	OSIZEOF      // unsafe.Sizeof(Left)
+ 
+ 	// statements
+ 	OBLOCK    // { List } (block of code)
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index cf26d84521..6ee52eae84 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -1086,6 +1086,47 @@ func typecheck1(n *Node, top int) *Node {
+ 		n.Right = assignconv(r, t.Elem(), "send")
+ 		n.Type = nil
+ 
++	case OSLICEHEADER:
++		// Errors here are Fatalf instead of yyerror because only the compiler
++		// can construct an OSLICEHEADER node.
++		// Components used in OSLICEHEADER that are supplied by parsed source code
++		// have already been typechecked in e.g. OMAKESLICE earlier.
++		ok |= Erv
++
++		t := n.Type
++		if !t.IsSlice() {
++			Fatalf("invalid type %v for OSLICEHEADER", n.Type)
++		}
++
++		if !n.Left.Type.IsUnsafePtr() {
++			Fatalf("need unsafe.Pointer for OSLICEHEADER")
++		}
++
++		if x := n.List.Len(); x != 2 {
++			Fatalf("expected 2 params (len, cap) for OSLICEHEADER, got %d", x)
++		}
++
++		n.Left = typecheck(n.Left, Erv)
++		l := typecheck(n.List.First(), Erv)
++		c := typecheck(n.List.Second(), Erv)
++		l = defaultlit(l, types.Types[TINT])
++		c = defaultlit(c, types.Types[TINT])
++
++		if Isconst(l, CTINT) && l.Int64() < 0 {
++			Fatalf("len for OSLICEHEADER must be non-negative")
++		}
++
++		if Isconst(c, CTINT) && c.Int64() < 0 {
++			Fatalf("cap for OSLICEHEADER must be non-negative")
++		}
++
++		if Isconst(l, CTINT) && Isconst(c, CTINT) && l.Val().U.(*Mpint).Cmp(c.Val().U.(*Mpint)) > 0 {
++			Fatalf("len larger than cap for OSLICEHEADER")
++		}
++
++		n.List.SetFirst(l)
++		n.List.SetSecond(c)
++
+ 	case OSLICE, OSLICE3:
+ 		ok |= Erv
+ 		n.Left = typecheck(n.Left, Erv)
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 6c1110a294..c0fb5bfd28 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -1118,6 +1118,11 @@ opswitch:
+ 	case ORECV:
+ 		Fatalf("walkexpr ORECV") // should see inside OAS only
+ 
++	case OSLICEHEADER:
++		n.Left = walkexpr(n.Left, init)
++		n.List.SetFirst(walkexpr(n.List.First(), init))
++		n.List.SetSecond(walkexpr(n.List.Second(), init))
++
+ 	case OSLICE, OSLICEARR, OSLICESTR, OSLICE3, OSLICE3ARR:
+ 		n.Left = walkexpr(n.Left, init)
+ 		low, high, max := n.SliceBounds()
+@@ -1339,8 +1344,13 @@ opswitch:
+ 			}
+ 
+ 			fn := syslook(fnname)
+-			fn = substArgTypes(fn, t.Elem()) // any-1
+-			n = mkcall1(fn, t, init, typename(t.Elem()), conv(len, argtype), conv(cap, argtype))
++			n.Left = mkcall1(fn, types.Types[TUNSAFEPTR], init, typename(t.Elem()), conv(len, argtype), conv(cap, argtype))
++			n.Left.SetNonNil(true)
++			n.List.Set2(conv(len, types.Types[TINT]), conv(cap, types.Types[TINT]))
++			n.Op = OSLICEHEADER
++			n.Type = t
++			n = typecheck(n, Erv)
++			n = walkexpr(n, init)
+ 		}
+ 
+ 	case ORUNESTR:
+diff --git a/src/runtime/runtime-gdb_test.go b/src/runtime/runtime-gdb_test.go
+index 0c24d3dce6..ee63285ec5 100644
+--- a/src/runtime/runtime-gdb_test.go
++++ b/src/runtime/runtime-gdb_test.go
+@@ -266,8 +266,11 @@ func testGdbPython(t *testing.T, cgo bool) {
+ 	infoLocalsRe1 := regexp.MustCompile(`slicevar *= *\[\]string *= *{"def"}`)
+ 	// Format output from gdb v8.2
+ 	infoLocalsRe2 := regexp.MustCompile(`^slicevar = .*\nmapvar = .*\nstrvar = 0x[0-9a-f]+ "abc"`)
++	// Format output from gdb v7.7
++	infoLocalsRe3 := regexp.MustCompile(`^mapvar = .*\nstrvar = "abc"\nslicevar *= *\[\]string`)
+ 	if bl := blocks["info locals"]; !infoLocalsRe1.MatchString(bl) &&
+-		!infoLocalsRe2.MatchString(bl) {
++		!infoLocalsRe2.MatchString(bl) &&
++		!infoLocalsRe3.MatchString(bl) {
+ 		t.Fatalf("info locals failed: %s", bl)
+ 	}
+ 
+diff --git a/src/runtime/slice.go b/src/runtime/slice.go
+index 9a081043b0..2309b1a615 100644
+--- a/src/runtime/slice.go
++++ b/src/runtime/slice.go
+@@ -31,7 +31,7 @@ func panicmakeslicecap() {
+ 	panic(errorString("makeslice: cap out of range"))
+ }
+ 
+-func makeslice(et *_type, len, cap int) slice {
++func makeslice(et *_type, len, cap int) unsafe.Pointer {
+ 	mem, overflow := math.MulUintptr(et.size, uintptr(cap))
+ 	if overflow || mem > maxAlloc || len < 0 || len > cap {
+ 		// NOTE: Produce a 'len out of range' error instead of a
+@@ -45,12 +45,11 @@ func makeslice(et *_type, len, cap int) slice {
+ 		}
+ 		panicmakeslicecap()
+ 	}
+-	p := mallocgc(mem, et, true)
+ 
+-	return slice{p, len, cap}
++	return mallocgc(mem, et, true)
+ }
+ 
+-func makeslice64(et *_type, len64, cap64 int64) slice {
++func makeslice64(et *_type, len64, cap64 int64) unsafe.Pointer {
+ 	len := int(len64)
+ 	if int64(len) != len64 {
+ 		panicmakeslicelen()

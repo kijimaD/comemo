@@ -10,7 +10,34 @@ Date:   Wed Sep 14 11:35:29 2016 -0700
     Reviewed-on: https://go-review.googlesource.com/29162
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/ssa/decompose.go | 2 +-
  src/cmd/link/internal/ld/data.go          | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/decompose.go b/src/cmd/compile/internal/ssa/decompose.go
+index 2a26a40428..04f45c1134 100644
+--- a/src/cmd/compile/internal/ssa/decompose.go
++++ b/src/cmd/compile/internal/ssa/decompose.go
+@@ -97,7 +97,7 @@ func decomposeBuiltIn(f *Func) {
+ 		case t.IsFloat():
+ 			// floats are never decomposed, even ones bigger than IntSize
+ 		case t.Size() > f.Config.IntSize:
+-			f.Fatalf("undecomposed named type %s %s", name, t)
++			f.Fatalf("undecomposed named type %v %v", name, t)
+ 		default:
+ 			newNames = append(newNames, name)
+ 		}
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 04e6d3bdb7..3fd2deb157 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -452,7 +452,7 @@ func relocsym(ctxt *Link, s *Symbol) {
+ 				// We are linking the final executable, so we
+ 				// can optimize any TLS IE relocation to LE.
+ 				if Thearch.TLSIEtoLE == nil {
+-					log.Fatalf("internal linking of TLS IE not supported on %s", SysArch.Family)
++					log.Fatalf("internal linking of TLS IE not supported on %v", SysArch.Family)
+ 				}
+ 				Thearch.TLSIEtoLE(s, int(off), int(r.Siz))
+ 				o = int64(ctxt.Tlsoffset)

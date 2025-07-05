@@ -13,8 +13,95 @@ Date:   Thu Mar 3 22:06:57 2016 -0800
     Change-Id: I277e0311f538981c8b9c62e7b7382a0c8755ce4c
     Reviewed-on: https://go-review.googlesource.com/20217
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/gc/lex.go      |  1 +
  src/cmd/compile/internal/gc/ssa.go      |  5 +++++
  src/cmd/compile/internal/ssa/compile.go | 19 +++++++++++++++++--
  3 files changed, 23 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/lex.go b/src/cmd/compile/internal/gc/lex.go
+index 6509e83c92..3fa876ad40 100644
+--- a/src/cmd/compile/internal/gc/lex.go
++++ b/src/cmd/compile/internal/gc/lex.go
+@@ -231,6 +231,7 @@ func Main() {
+ 	obj.Flagstr("cpuprofile", "write cpu profile to `file`", &cpuprofile)
+ 	obj.Flagstr("memprofile", "write memory profile to `file`", &memprofile)
+ 	obj.Flagint64("memprofilerate", "set runtime.MemProfileRate to `rate`", &memprofilerate)
++	flag.BoolVar(&ssaEnabled, "ssa", true, "use SSA backend to generate code")
+ 	obj.Flagparse(usage)
+ 
+ 	if flag_dynlink {
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index f83b88d79e..615ec6e6eb 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -17,6 +17,8 @@ import (
+ 	"cmd/internal/obj/x86"
+ )
+ 
++var ssaEnabled = true
++
+ // Smallest possible faulting page at address zero.
+ const minZeroPage = 4096
+ 
+@@ -36,6 +38,9 @@ func shouldssa(fn *Node) bool {
+ 	if Thearch.Thestring != "amd64" {
+ 		return false
+ 	}
++	if !ssaEnabled {
++		return false
++	}
+ 
+ 	// Environment variable control of SSA CG
+ 	// 1. IF GOSSAFUNC == current function name THEN
+diff --git a/src/cmd/compile/internal/ssa/compile.go b/src/cmd/compile/internal/ssa/compile.go
+index 5a13b147fc..40830c9419 100644
+--- a/src/cmd/compile/internal/ssa/compile.go
++++ b/src/cmd/compile/internal/ssa/compile.go
+@@ -40,7 +40,9 @@ func Compile(f *Func) {
+ 	// Run all the passes
+ 	printFunc(f)
+ 	f.Config.HTML.WriteFunc("start", f)
+-	checkFunc(f)
++	if checkEnabled {
++		checkFunc(f)
++	}
+ 	const logMemStats = false
+ 	for _, p := range passes {
+ 		if !f.Config.optimize && !p.required {
+@@ -93,7 +95,9 @@ func Compile(f *Func) {
+ 				f.logStat("TIME(ns):BYTES:ALLOCS", time, nBytes, nAllocs)
+ 			}
+ 		}
+-		checkFunc(f)
++		if checkEnabled {
++			checkFunc(f)
++		}
+ 	}
+ 
+ 	// Squash error printing defer
+@@ -112,6 +116,9 @@ type pass struct {
+ 	test     int  // pass-specific ad-hoc option, perhaps useful in development
+ }
+ 
++// Run consistency checker between each phase
++var checkEnabled = true
++
+ // PhaseOption sets the specified flag in the specified ssa phase,
+ // returning empty string if this was successful or a string explaining
+ // the error if it was not. A version of the phase name with "_"
+@@ -120,6 +127,14 @@ type pass struct {
+ // GO_GCFLAGS=-d=ssa/generic_cse/time,ssa/generic_cse/stats,ssa/generic_cse/debug=3 ./make.bash ...
+ //
+ func PhaseOption(phase, flag string, val int) string {
++	if phase == "check" && flag == "on" {
++		checkEnabled = val != 0
++		return ""
++	}
++	if phase == "check" && flag == "off" {
++		checkEnabled = val == 0
++		return ""
++	}
+ 	underphase := strings.Replace(phase, "_", " ", -1)
+ 	for i, p := range passes {
+ 		if p.name == phase || p.name == underphase {

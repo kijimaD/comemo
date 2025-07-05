@@ -7,7 +7,7 @@ Date:   Tue Dec 13 10:27:23 2011 +0900
     R=golang-dev, jsing, rsc
     CC=golang-dev
     https://golang.org/cl/5479054
-
+---
  src/pkg/syscall/zerrors_darwin_386.go    | 15 +++++++++++++++
  src/pkg/syscall/zerrors_darwin_amd64.go  | 15 +++++++++++++++
  src/pkg/syscall/zerrors_freebsd_386.go   |  5 +++++
@@ -15,3 +15,226 @@ Date:   Tue Dec 13 10:27:23 2011 +0900
  src/pkg/syscall/zsysnum_freebsd_386.go   |  9 ++++++---
  src/pkg/syscall/zsysnum_freebsd_amd64.go |  9 ++++++---
  6 files changed, 52 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/syscall/zerrors_darwin_386.go b/src/pkg/syscall/zerrors_darwin_386.go
+index 5d6fb0175d..634e7a09ab 100644
+--- a/src/pkg/syscall/zerrors_darwin_386.go
++++ b/src/pkg/syscall/zerrors_darwin_386.go
+@@ -211,6 +211,7 @@ const (
+ 	F_MARKDEPENDENCY            = 0x3c
+ 	F_NOCACHE                   = 0x30
+ 	F_NODIRECT                  = 0x3e
++	F_OK                        = 0x0
+ 	F_PATHPKG_CHECK             = 0x34
+ 	F_PEOFPOSMODE               = 0x3
+ 	F_PREALLOCATE               = 0x2a
+@@ -559,6 +560,10 @@ const (
+ 	IP_TRAFFIC_MGT_BACKGROUND   = 0x41
+ 	IP_TTL                      = 0x4
+ 	IP_UNBLOCK_SOURCE           = 0x49
++	LOCK_EX                     = 0x2
++	LOCK_NB                     = 0x4
++	LOCK_SH                     = 0x1
++	LOCK_UN                     = 0x8
+ 	MADV_CAN_REUSE              = 0x9
+ 	MADV_DONTNEED               = 0x4
+ 	MADV_FREE                   = 0x5
+@@ -660,6 +665,14 @@ const (
+ 	PT_WRITE_D                  = 0x5
+ 	PT_WRITE_I                  = 0x4
+ 	PT_WRITE_U                  = 0x6
++	RLIMIT_AS                   = 0x5
++	RLIMIT_CORE                 = 0x4
++	RLIMIT_CPU                  = 0x0
++	RLIMIT_DATA                 = 0x2
++	RLIMIT_FSIZE                = 0x1
++	RLIMIT_NOFILE               = 0x8
++	RLIMIT_STACK                = 0x3
++	RLIM_INFINITY               = 0x7fffffffffffffff
+ 	RTAX_AUTHOR                 = 0x6
+ 	RTAX_BRD                    = 0x7
+ 	RTAX_DST                    = 0x0
+@@ -731,6 +744,8 @@ const (
+ 	RTV_RTTVAR                  = 0x80
+ 	RTV_SPIPE                   = 0x10
+ 	RTV_SSTHRESH                = 0x20
++	RUSAGE_CHILDREN             = -0x1
++	RUSAGE_SELF                 = 0x0
+ 	SCM_CREDS                   = 0x3
+ 	SCM_RIGHTS                  = 0x1
+ 	SCM_TIMESTAMP               = 0x2
+diff --git a/src/pkg/syscall/zerrors_darwin_amd64.go b/src/pkg/syscall/zerrors_darwin_amd64.go
+index 108d60a69d..611135405c 100644
+--- a/src/pkg/syscall/zerrors_darwin_amd64.go
++++ b/src/pkg/syscall/zerrors_darwin_amd64.go
+@@ -211,6 +211,7 @@ const (
+ 	F_MARKDEPENDENCY            = 0x3c
+ 	F_NOCACHE                   = 0x30
+ 	F_NODIRECT                  = 0x3e
++	F_OK                        = 0x0
+ 	F_PATHPKG_CHECK             = 0x34
+ 	F_PEOFPOSMODE               = 0x3
+ 	F_PREALLOCATE               = 0x2a
+@@ -559,6 +560,10 @@ const (
+ 	IP_TRAFFIC_MGT_BACKGROUND   = 0x41
+ 	IP_TTL                      = 0x4
+ 	IP_UNBLOCK_SOURCE           = 0x49
++	LOCK_EX                     = 0x2
++	LOCK_NB                     = 0x4
++	LOCK_SH                     = 0x1
++	LOCK_UN                     = 0x8
+ 	MADV_CAN_REUSE              = 0x9
+ 	MADV_DONTNEED               = 0x4
+ 	MADV_FREE                   = 0x5
+@@ -660,6 +665,14 @@ const (
+ 	PT_WRITE_D                  = 0x5
+ 	PT_WRITE_I                  = 0x4
+ 	PT_WRITE_U                  = 0x6
++	RLIMIT_AS                   = 0x5
++	RLIMIT_CORE                 = 0x4
++	RLIMIT_CPU                  = 0x0
++	RLIMIT_DATA                 = 0x2
++	RLIMIT_FSIZE                = 0x1
++	RLIMIT_NOFILE               = 0x8
++	RLIMIT_STACK                = 0x3
++	RLIM_INFINITY               = 0x7fffffffffffffff
+ 	RTAX_AUTHOR                 = 0x6
+ 	RTAX_BRD                    = 0x7
+ 	RTAX_DST                    = 0x0
+@@ -731,6 +744,8 @@ const (
+ 	RTV_RTTVAR                  = 0x80
+ 	RTV_SPIPE                   = 0x10
+ 	RTV_SSTHRESH                = 0x20
++	RUSAGE_CHILDREN             = -0x1
++	RUSAGE_SELF                 = 0x0
+ 	SCM_CREDS                   = 0x3
+ 	SCM_RIGHTS                  = 0x1
+ 	SCM_TIMESTAMP               = 0x2
+diff --git a/src/pkg/syscall/zerrors_freebsd_386.go b/src/pkg/syscall/zerrors_freebsd_386.go
+index f66b5ec1b2..83243d0968 100644
+--- a/src/pkg/syscall/zerrors_freebsd_386.go
++++ b/src/pkg/syscall/zerrors_freebsd_386.go
+@@ -354,6 +354,7 @@ const (
+ 	F_GETLK                           = 0xb
+ 	F_GETOWN                          = 0x5
+ 	F_OGETLK                          = 0x7
++	F_OK                              = 0x0
+ 	F_OSETLK                          = 0x8
+ 	F_OSETLKW                         = 0x9
+ 	F_RDAHEAD                         = 0x10
+@@ -864,6 +865,10 @@ const (
+ 	IP_TOS                            = 0x3
+ 	IP_TTL                            = 0x4
+ 	IP_UNBLOCK_SOURCE                 = 0x49
++	LOCK_EX                           = 0x2
++	LOCK_NB                           = 0x4
++	LOCK_SH                           = 0x1
++	LOCK_UN                           = 0x8
+ 	MSG_COMPAT                        = 0x8000
+ 	MSG_CTRUNC                        = 0x20
+ 	MSG_DONTROUTE                     = 0x4
+diff --git a/src/pkg/syscall/zerrors_freebsd_amd64.go b/src/pkg/syscall/zerrors_freebsd_amd64.go
+index 14bb9e589c..61f69c9810 100644
+--- a/src/pkg/syscall/zerrors_freebsd_amd64.go
++++ b/src/pkg/syscall/zerrors_freebsd_amd64.go
+@@ -354,6 +354,7 @@ const (
+ 	F_GETLK                           = 0xb
+ 	F_GETOWN                          = 0x5
+ 	F_OGETLK                          = 0x7
++	F_OK                              = 0x0
+ 	F_OSETLK                          = 0x8
+ 	F_OSETLKW                         = 0x9
+ 	F_RDAHEAD                         = 0x10
+@@ -864,6 +865,10 @@ const (
+ 	IP_TOS                            = 0x3
+ 	IP_TTL                            = 0x4
+ 	IP_UNBLOCK_SOURCE                 = 0x49
++	LOCK_EX                           = 0x2
++	LOCK_NB                           = 0x4
++	LOCK_SH                           = 0x1
++	LOCK_UN                           = 0x8
+ 	MSG_COMPAT                        = 0x8000
+ 	MSG_CTRUNC                        = 0x20
+ 	MSG_DONTROUTE                     = 0x4
+diff --git a/src/pkg/syscall/zsysnum_freebsd_386.go b/src/pkg/syscall/zsysnum_freebsd_386.go
+index e2b943b129..e986abac52 100644
+--- a/src/pkg/syscall/zsysnum_freebsd_386.go
++++ b/src/pkg/syscall/zsysnum_freebsd_386.go
+@@ -33,7 +33,7 @@ const (
+ 	SYS_ACCEPT                   = 30  // { int accept(int s, \
+ 	SYS_GETPEERNAME              = 31  // { int getpeername(int fdes, \
+ 	SYS_GETSOCKNAME              = 32  // { int getsockname(int fdes, \
+-	SYS_ACCESS                   = 33  // { int access(char *path, int flags); }
++	SYS_ACCESS                   = 33  // { int access(char *path, int amode); }
+ 	SYS_CHFLAGS                  = 34  // { int chflags(char *path, int flags); }
+ 	SYS_FCHFLAGS                 = 35  // { int fchflags(int fd, int flags); }
+ 	SYS_SYNC                     = 36  // { int sync(void); }
+@@ -146,6 +146,9 @@ const (
+ 	SYS_KTIMER_GETTIME           = 238 // { int ktimer_gettime(int timerid, struct \
+ 	SYS_KTIMER_GETOVERRUN        = 239 // { int ktimer_getoverrun(int timerid); }
+ 	SYS_NANOSLEEP                = 240 // { int nanosleep(const struct timespec *rqtp, \
++	SYS_FFCLOCK_GETCOUNTER       = 241 // { int ffclock_getcounter(ffcounter *ffcount); }
++	SYS_FFCLOCK_SETESTIMATE      = 242 // { int ffclock_setestimate( \
++	SYS_FFCLOCK_GETESTIMATE      = 243 // { int ffclock_getestimate( \
+ 	SYS_NTP_GETTIME              = 248 // { int ntp_gettime(struct ntptimeval *ntvp); }
+ 	SYS_MINHERIT                 = 250 // { int minherit(void *addr, size_t len, \
+ 	SYS_RFORK                    = 251 // { int rfork(int flags); }
+@@ -215,7 +218,7 @@ const (
+ 	SYS_EXTATTR_GET_FD           = 372 // { ssize_t extattr_get_fd(int fd, \
+ 	SYS_EXTATTR_DELETE_FD        = 373 // { int extattr_delete_fd(int fd, \
+ 	SYS___SETUGID                = 374 // { int __setugid(int flag); }
+-	SYS_EACCESS                  = 376 // { int eaccess(char *path, int flags); }
++	SYS_EACCESS                  = 376 // { int eaccess(char *path, int amode); }
+ 	SYS_NMOUNT                   = 378 // { int nmount(struct iovec *iovp, \
+ 	SYS___MAC_GET_PROC           = 384 // { int __mac_get_proc(struct mac *mac_p); }
+ 	SYS___MAC_SET_PROC           = 385 // { int __mac_set_proc(struct mac *mac_p); }
+@@ -296,7 +299,7 @@ const (
+ 	SYS_CPUSET_GETID             = 486 // { int cpuset_getid(cpulevel_t level, \
+ 	SYS_CPUSET_GETAFFINITY       = 487 // { int cpuset_getaffinity(cpulevel_t level, \
+ 	SYS_CPUSET_SETAFFINITY       = 488 // { int cpuset_setaffinity(cpulevel_t level, \
+-	SYS_FACCESSAT                = 489 // { int faccessat(int fd, char *path, int mode, \
++	SYS_FACCESSAT                = 489 // { int faccessat(int fd, char *path, int amode, \
+ 	SYS_FCHMODAT                 = 490 // { int fchmodat(int fd, char *path, mode_t mode, \
+ 	SYS_FCHOWNAT                 = 491 // { int fchownat(int fd, char *path, uid_t uid, \
+ 	SYS_FEXECVE                  = 492 // { int fexecve(int fd, char **argv, \
+diff --git a/src/pkg/syscall/zsysnum_freebsd_amd64.go b/src/pkg/syscall/zsysnum_freebsd_amd64.go
+index e2b943b129..e986abac52 100644
+--- a/src/pkg/syscall/zsysnum_freebsd_amd64.go
++++ b/src/pkg/syscall/zsysnum_freebsd_amd64.go
+@@ -33,7 +33,7 @@ const (
+ 	SYS_ACCEPT                   = 30  // { int accept(int s, \
+ 	SYS_GETPEERNAME              = 31  // { int getpeername(int fdes, \
+ 	SYS_GETSOCKNAME              = 32  // { int getsockname(int fdes, \
+-	SYS_ACCESS                   = 33  // { int access(char *path, int flags); }
++	SYS_ACCESS                   = 33  // { int access(char *path, int amode); }
+ 	SYS_CHFLAGS                  = 34  // { int chflags(char *path, int flags); }
+ 	SYS_FCHFLAGS                 = 35  // { int fchflags(int fd, int flags); }
+ 	SYS_SYNC                     = 36  // { int sync(void); }
+@@ -146,6 +146,9 @@ const (
+ 	SYS_KTIMER_GETTIME           = 238 // { int ktimer_gettime(int timerid, struct \
+ 	SYS_KTIMER_GETOVERRUN        = 239 // { int ktimer_getoverrun(int timerid); }
+ 	SYS_NANOSLEEP                = 240 // { int nanosleep(const struct timespec *rqtp, \
++	SYS_FFCLOCK_GETCOUNTER       = 241 // { int ffclock_getcounter(ffcounter *ffcount); }
++	SYS_FFCLOCK_SETESTIMATE      = 242 // { int ffclock_setestimate( \
++	SYS_FFCLOCK_GETESTIMATE      = 243 // { int ffclock_getestimate( \
+ 	SYS_NTP_GETTIME              = 248 // { int ntp_gettime(struct ntptimeval *ntvp); }
+ 	SYS_MINHERIT                 = 250 // { int minherit(void *addr, size_t len, \
+ 	SYS_RFORK                    = 251 // { int rfork(int flags); }
+@@ -215,7 +218,7 @@ const (
+ 	SYS_EXTATTR_GET_FD           = 372 // { ssize_t extattr_get_fd(int fd, \
+ 	SYS_EXTATTR_DELETE_FD        = 373 // { int extattr_delete_fd(int fd, \
+ 	SYS___SETUGID                = 374 // { int __setugid(int flag); }
+-	SYS_EACCESS                  = 376 // { int eaccess(char *path, int flags); }
++	SYS_EACCESS                  = 376 // { int eaccess(char *path, int amode); }
+ 	SYS_NMOUNT                   = 378 // { int nmount(struct iovec *iovp, \
+ 	SYS___MAC_GET_PROC           = 384 // { int __mac_get_proc(struct mac *mac_p); }
+ 	SYS___MAC_SET_PROC           = 385 // { int __mac_set_proc(struct mac *mac_p); }
+@@ -296,7 +299,7 @@ const (
+ 	SYS_CPUSET_GETID             = 486 // { int cpuset_getid(cpulevel_t level, \
+ 	SYS_CPUSET_GETAFFINITY       = 487 // { int cpuset_getaffinity(cpulevel_t level, \
+ 	SYS_CPUSET_SETAFFINITY       = 488 // { int cpuset_setaffinity(cpulevel_t level, \
+-	SYS_FACCESSAT                = 489 // { int faccessat(int fd, char *path, int mode, \
++	SYS_FACCESSAT                = 489 // { int faccessat(int fd, char *path, int amode, \
+ 	SYS_FCHMODAT                 = 490 // { int fchmodat(int fd, char *path, mode_t mode, \
+ 	SYS_FCHOWNAT                 = 491 // { int fchownat(int fd, char *path, uid_t uid, \
+ 	SYS_FEXECVE                  = 492 // { int fexecve(int fd, char **argv, \

@@ -18,8 +18,98 @@ Date:   Thu Nov 14 23:07:01 2019 +0300
     Reviewed-on: https://go-review.googlesource.com/c/go/+/207297
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/dial.go      | 27 ++++++++++++++-------------
  src/net/dial_test.go | 29 +++++++++++++++++++++++++++++
  src/net/fd_unix.go   |  2 +-
  3 files changed, 44 insertions(+), 14 deletions(-)
+
+diff --git a/src/net/dial.go b/src/net/dial.go
+index 60ab0f2973..d8be1c222d 100644
+--- a/src/net/dial.go
++++ b/src/net/dial.go
+@@ -529,20 +529,21 @@ func (sd *sysDialer) dialSerial(ctx context.Context, ras addrList) (Conn, error)
+ 		default:
+ 		}
+ 
+-		deadline, _ := ctx.Deadline()
+-		partialDeadline, err := partialDeadline(time.Now(), deadline, len(ras)-i)
+-		if err != nil {
+-			// Ran out of time.
+-			if firstErr == nil {
+-				firstErr = &OpError{Op: "dial", Net: sd.network, Source: sd.LocalAddr, Addr: ra, Err: err}
+-			}
+-			break
+-		}
+ 		dialCtx := ctx
+-		if partialDeadline.Before(deadline) {
+-			var cancel context.CancelFunc
+-			dialCtx, cancel = context.WithDeadline(ctx, partialDeadline)
+-			defer cancel()
++		if deadline, hasDeadline := ctx.Deadline(); hasDeadline {
++			partialDeadline, err := partialDeadline(time.Now(), deadline, len(ras)-i)
++			if err != nil {
++				// Ran out of time.
++				if firstErr == nil {
++					firstErr = &OpError{Op: "dial", Net: sd.network, Source: sd.LocalAddr, Addr: ra, Err: err}
++				}
++				break
++			}
++			if partialDeadline.Before(deadline) {
++				var cancel context.CancelFunc
++				dialCtx, cancel = context.WithDeadline(ctx, partialDeadline)
++				defer cancel()
++			}
+ 		}
+ 
+ 		c, err := sd.dialSingle(dialCtx, ra)
+diff --git a/src/net/dial_test.go b/src/net/dial_test.go
+index 2eddac8284..4312a6df71 100644
+--- a/src/net/dial_test.go
++++ b/src/net/dial_test.go
+@@ -980,3 +980,32 @@ func mustHaveExternalNetwork(t *testing.T) {
+ 		testenv.MustHaveExternalNetwork(t)
+ 	}
+ }
++
++type contextWithNonZeroDeadline struct {
++	context.Context
++}
++
++func (contextWithNonZeroDeadline) Deadline() (time.Time, bool) {
++	// Return non-zero time.Time value with false indicating that no deadline is set.
++	return time.Unix(0, 0), false
++}
++
++func TestDialWithNonZeroDeadline(t *testing.T) {
++	ln, err := newLocalListener("tcp")
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer ln.Close()
++	_, port, err := SplitHostPort(ln.Addr().String())
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	ctx := contextWithNonZeroDeadline{Context: context.Background()}
++	var dialer Dialer
++	c, err := dialer.DialContext(ctx, "tcp", JoinHostPort("", port))
++	if err != nil {
++		t.Fatal(err)
++	}
++	c.Close()
++}
+diff --git a/src/net/fd_unix.go b/src/net/fd_unix.go
+index a6d6453810..da88c74f6b 100644
+--- a/src/net/fd_unix.go
++++ b/src/net/fd_unix.go
+@@ -96,7 +96,7 @@ func (fd *netFD) connect(ctx context.Context, la, ra syscall.Sockaddr) (rsa sysc
+ 	if err := fd.pfd.Init(fd.net, true); err != nil {
+ 		return nil, err
+ 	}
+-	if deadline, _ := ctx.Deadline(); !deadline.IsZero() {
++	if deadline, hasDeadline := ctx.Deadline(); hasDeadline {
+ 		fd.pfd.SetWriteDeadline(deadline)
+ 		defer fd.pfd.SetWriteDeadline(noDeadline)
+ 	}

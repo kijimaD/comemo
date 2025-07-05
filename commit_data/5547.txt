@@ -7,6 +7,21 @@ Date:   Mon May 24 21:25:01 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1270042
-
+---
  doc/go_spec.html | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 8c958b159d..d56efcc2bc 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -3278,7 +3278,8 @@ of <code>x</code> and thus has no run-time cost.
+ </p>
+ 
+ <p>
+-Specific rules apply to conversions where <code>T</code> is a numeric or string type.
++Specific rules apply to conversions where <code>T</code> is a
++numeric or string type, or where <code>x</code> is of string type.
+ These conversions may change the representation of a value and incur a run-time cost.
+ </p>
+ 

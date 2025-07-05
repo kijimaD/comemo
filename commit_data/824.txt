@@ -9,6 +9,20 @@ Date:   Tue Oct 7 17:25:32 2008 -0700
     DELTA=1  (0 added, 0 deleted, 1 changed)
     OCL=16688
     CL=16690
-
+---
  src/lib/net/fd_linux.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/lib/net/fd_linux.go b/src/lib/net/fd_linux.go
+index 05b7250e59..5f9687c85f 100644
+--- a/src/lib/net/fd_linux.go
++++ b/src/lib/net/fd_linux.go
+@@ -39,7 +39,7 @@ export func NewPollster() (p *Pollster, err *os.Error) {
+ }
+ 
+ func (p *Pollster) AddFD(fd int64, mode int, repeat bool) *os.Error {
+-	var ev syscall.EpollEvent
++	var ev syscall.EpollEvent;
+ 	var already bool;
+ 	ev.fd = int32(fd);
+ 	ev.events, already = p.events[fd];

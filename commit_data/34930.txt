@@ -10,6 +10,20 @@ Date:   Wed Nov 29 19:34:10 2017 +0100
     Change-Id: I0fce915c341aaaea3a7cc365819abbc5f2c468c3
     Reviewed-on: https://go-review.googlesource.com/80715
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/sys_x86.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/sys_x86.go b/src/runtime/sys_x86.go
+index 7e4e27354e..2b4ed8bdf5 100644
+--- a/src/runtime/sys_x86.go
++++ b/src/runtime/sys_x86.go
+@@ -11,7 +11,7 @@ import (
+ 	"unsafe"
+ )
+ 
+-// adjust Gobuf as it if executed a call to fn with context ctxt
++// adjust Gobuf as if it executed a call to fn with context ctxt
+ // and then did an immediate gosave.
+ func gostartcall(buf *gobuf, fn, ctxt unsafe.Pointer) {
+ 	sp := buf.sp

@@ -20,6 +20,18 @@ Date:   Wed May 10 21:44:14 2023 +0000
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/strings/reader.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/strings/reader.go b/src/strings/reader.go
+index 6f069a62ca..04f31a1e8f 100644
+--- a/src/strings/reader.go
++++ b/src/strings/reader.go
+@@ -156,5 +156,5 @@ func (r *Reader) WriteTo(w io.Writer) (n int64, err error) {
+ func (r *Reader) Reset(s string) { *r = Reader{s, 0, -1} }
+ 
+ // NewReader returns a new Reader reading from s.
+-// It is similar to bytes.NewBufferString but more efficient and read-only.
++// It is similar to bytes.NewBufferString but more efficient and non-writable.
+ func NewReader(s string) *Reader { return &Reader{s, 0, -1} }

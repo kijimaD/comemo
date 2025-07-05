@@ -9,9 +9,207 @@ Date:   Thu Sep 8 10:09:25 2011 -0400
     R=r
     CC=golang-dev
     https://golang.org/cl/4967059
-
+---
  src/pkg/exp/regexp/exec.go      |  33 ++++++++------
  src/pkg/exp/regexp/exec_test.go |  92 +++++++++++++++++++++++++++++++---------
  src/pkg/exp/regexp/re2.txt.gz   | Bin 764518 -> 960863 bytes
  src/pkg/exp/regexp/regexp.go    |   1 +
  4 files changed, 93 insertions(+), 33 deletions(-)
+
+diff --git a/src/pkg/exp/regexp/exec.go b/src/pkg/exp/regexp/exec.go
+index 88b16032ee..43499a92f0 100644
+--- a/src/pkg/exp/regexp/exec.go
++++ b/src/pkg/exp/regexp/exec.go
+@@ -128,6 +128,11 @@ func (m *machine) match(i input, pos int) bool {
+ 		if width == 0 {
+ 			break
+ 		}
++		if len(m.matchcap) == 0 && m.matched {
++			// Found a match and not paying attention
++			// to where it is, so any match will do.
++			break
++		}
+ 		pos += width
+ 		rune, width = rune1, width1
+ 		if rune != endOfText {
+@@ -155,37 +160,37 @@ func (m *machine) clear(q *queue) {
+ // which starts at position pos and ends at nextPos.
+ // nextCond gives the setting for the empty-width flags after c.
+ func (m *machine) step(runq, nextq *queue, pos, nextPos, c int, nextCond syntax.EmptyOp) {
++	longest := m.re.longest
+ 	for j := 0; j < len(runq.dense); j++ {
+ 		d := &runq.dense[j]
+ 		t := d.t
+ 		if t == nil {
+ 			continue
+ 		}
+-		/*
+-			 * If we support leftmost-longest matching:
+-				if longest && matched && match[0] < t.cap[0] {
+-					m.free(t)
+-					continue
+-				}
+-		*/
+-
++		if longest && m.matched && len(t.cap) > 0 && m.matchcap[0] < t.cap[0] {
++			m.free(t)
++			continue
++		}
+ 		i := t.inst
+ 		switch i.Op {
+ 		default:
+ 			panic("bad inst")
+ 
+ 		case syntax.InstMatch:
+-			if len(t.cap) > 0 {
++			if len(t.cap) > 0 && (!longest || !m.matched || m.matchcap[1] < pos) {
+ 				t.cap[1] = pos
+ 				copy(m.matchcap, t.cap)
+ 			}
+-			m.matched = true
+-			for _, d := range runq.dense[j+1:] {
+-				if d.t != nil {
+-					m.free(d.t)
++			if !longest {
++				// First-match mode: cut off all lower-priority threads.
++				for _, d := range runq.dense[j+1:] {
++					if d.t != nil {
++						m.free(d.t)
++					}
+ 				}
++				runq.dense = runq.dense[:0]
+ 			}
+-			runq.dense = runq.dense[:0]
++			m.matched = true
+ 
+ 		case syntax.InstRune:
+ 			if i.MatchRune(c) {
+diff --git a/src/pkg/exp/regexp/exec_test.go b/src/pkg/exp/regexp/exec_test.go
+index 15c4c532a4..69f673aca9 100644
+--- a/src/pkg/exp/regexp/exec_test.go
++++ b/src/pkg/exp/regexp/exec_test.go
+@@ -164,29 +164,29 @@ func TestRE2(t *testing.T) {
+ 				continue
+ 			}
+ 			res := strings.Split(line, ";")
+-			if len(res) != 2 {
+-				t.Fatalf("re2.txt:%d: have %d test results, want 2", lineno, len(res))
++			if len(res) != len(run) {
++				t.Fatalf("re2.txt:%d: have %d test results, want %d", lineno, len(res), len(run))
+ 			}
+-			// res[0] is full match
+-			// res[1] is partial match
+-			// Run partial match first; don't bother with full if partial fails.
+-			have := re.FindStringSubmatchIndex(text)
+-			want := parseResult(t, lineno, res[1])
+-			if !same(have, want) {
+-				t.Errorf("re2.txt:%d: %#q.FindSubmatchIndex(%#q) = %v, want %v", lineno, re, text, have, want)
+-				if nfail++; nfail >= 100 {
+-					t.Fatalf("stopping after %d errors", nfail)
++			for i := range res {
++				have, suffix := run[i](re, refull, text)
++				want := parseResult(t, lineno, res[i])
++				if !same(have, want) {
++					t.Errorf("re2.txt:%d: %#q%s.FindSubmatchIndex(%#q) = %v, want %v", lineno, re, suffix, text, have, want)
++					if nfail++; nfail >= 100 {
++						t.Fatalf("stopping after %d errors", nfail)
++					}
++					continue
+ 				}
+-				continue
+-			}
+-			have = refull.FindStringSubmatchIndex(text)
+-			want = parseResult(t, lineno, res[0])
+-			if !same(have, want) {
+-				t.Errorf("re2.txt:%d: %#q.FindSubmatchIndex(%#q) = %v, want %v", lineno, refull, text, have, want)
+-				if nfail++; nfail >= 100 {
+-					t.Fatalf("stopping after %d errors", nfail)
++				b, suffix := match[i](re, refull, text)
++				if b != (want != nil) {
++					t.Errorf("re2.txt:%d: %#q%s.MatchString(%#q) = %v, want %v", lineno, re, suffix, text, b, !b)
++					if nfail++; nfail >= 100 {
++						t.Fatalf("stopping after %d errors", nfail)
++					}
++					continue
+ 				}
+ 			}
++
+ 		default:
+ 			t.Fatalf("re2.txt:%d: out of sync: %s\n", lineno, line)
+ 		}
+@@ -197,6 +197,60 @@ func TestRE2(t *testing.T) {
+ 	t.Logf("%d cases tested", ncase)
+ }
+ 
++var run = []func(*Regexp, *Regexp, string) ([]int, string){
++	runFull,
++	runPartial,
++	runFullLongest,
++	runPartialLongest,
++}
++
++func runFull(re, refull *Regexp, text string) ([]int, string) {
++	refull.longest = false
++	return refull.FindStringSubmatchIndex(text), "[full]"
++}
++
++func runPartial(re, refull *Regexp, text string) ([]int, string) {
++	re.longest = false
++	return re.FindStringSubmatchIndex(text), ""
++}
++
++func runFullLongest(re, refull *Regexp, text string) ([]int, string) {
++	refull.longest = true
++	return refull.FindStringSubmatchIndex(text), "[full,longest]"
++}
++
++func runPartialLongest(re, refull *Regexp, text string) ([]int, string) {
++	re.longest = true
++	return re.FindStringSubmatchIndex(text), "[longest]"
++}
++
++var match = []func(*Regexp, *Regexp, string) (bool, string){
++	matchFull,
++	matchPartial,
++	matchFullLongest,
++	matchPartialLongest,
++}
++
++func matchFull(re, refull *Regexp, text string) (bool, string) {
++	refull.longest = false
++	return refull.MatchString(text), "[full]"
++}
++
++func matchPartial(re, refull *Regexp, text string) (bool, string) {
++	re.longest = false
++	return re.MatchString(text), ""
++}
++
++func matchFullLongest(re, refull *Regexp, text string) (bool, string) {
++	refull.longest = true
++	return refull.MatchString(text), "[full,longest]"
++}
++
++func matchPartialLongest(re, refull *Regexp, text string) (bool, string) {
++	re.longest = true
++	return re.MatchString(text), "[longest]"
++}
++
+ func isSingleBytes(s string) bool {
+ 	for _, c := range s {
+ 		if c >= utf8.RuneSelf {
+diff --git a/src/pkg/exp/regexp/re2.txt.gz b/src/pkg/exp/regexp/re2.txt.gz
+index 2b8c832e52..85b8eadf86 100644
+Binary files a/src/pkg/exp/regexp/re2.txt.gz and b/src/pkg/exp/regexp/re2.txt.gz differ
+diff --git a/src/pkg/exp/regexp/regexp.go b/src/pkg/exp/regexp/regexp.go
+index 11feecd55e..1d0fc9df8d 100644
+--- a/src/pkg/exp/regexp/regexp.go
++++ b/src/pkg/exp/regexp/regexp.go
+@@ -85,6 +85,7 @@ type Regexp struct {
+ 	prefixRune     int            // first rune in prefix
+ 	cond           syntax.EmptyOp // empty-width conditions required at start of match
+ 	numSubexp      int
++	longest        bool
+ 
+ 	// cache of machines for running regexp
+ 	mu      sync.Mutex

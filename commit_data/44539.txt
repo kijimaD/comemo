@@ -20,8 +20,56 @@ Date:   Mon Aug 3 17:59:41 2020 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
-
+---
  src/cmd/link/internal/ld/data.go  | 3 +++
  src/cmd/link/internal/ld/pcln.go  | 2 ++
  src/cmd/link/internal/ld/xcoff.go | 2 ++
  3 files changed, 7 insertions(+)
+
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 39f65364b7..b9e2408942 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -1925,6 +1925,9 @@ func (state *dodataState) allocateDataSections(ctxt *Link) {
+ 	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.funcnametab", 0), sect)
+ 	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.pclntab_old", 0), sect)
+ 	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.epclntab", 0), sect)
++	if ctxt.HeadType == objabi.Haix {
++		xcoffUpdateOuterSize(ctxt, int64(sect.Length), sym.SPCLNTAB)
++	}
+ 
+ 	// 6g uses 4-byte relocation offsets, so the entire segment must fit in 32 bits.
+ 	if state.datsize != int64(uint32(state.datsize)) {
+diff --git a/src/cmd/link/internal/ld/pcln.go b/src/cmd/link/internal/ld/pcln.go
+index 3b6f9d4bff..936cfe2868 100644
+--- a/src/cmd/link/internal/ld/pcln.go
++++ b/src/cmd/link/internal/ld/pcln.go
+@@ -78,6 +78,7 @@ func (state *pclntab) addGeneratedSym(ctxt *Link, name string, size int64, f gen
+ 	s := ctxt.createGeneratorSymbol(name, 0, sym.SPCLNTAB, size, f)
+ 	ctxt.loader.SetAttrReachable(s, true)
+ 	ctxt.loader.SetCarrierSym(s, state.carrier)
++	ctxt.loader.SetAttrNotInSymbolTable(s, true)
+ 	return s
+ }
+ 
+@@ -455,6 +456,7 @@ func (ctxt *Link) pclntab(container loader.Bitmap) *pclntab {
+ 
+ 	funcdataBytes := int64(0)
+ 	ldr.SetCarrierSym(state.pclntab, state.carrier)
++	ldr.SetAttrNotInSymbolTable(state.pclntab, true)
+ 	ftab := ldr.MakeSymbolUpdater(state.pclntab)
+ 	ftab.SetValue(state.size)
+ 	ftab.SetType(sym.SPCLNTAB)
+diff --git a/src/cmd/link/internal/ld/xcoff.go b/src/cmd/link/internal/ld/xcoff.go
+index 7eb7f94ca4..7bf06eaa46 100644
+--- a/src/cmd/link/internal/ld/xcoff.go
++++ b/src/cmd/link/internal/ld/xcoff.go
+@@ -605,6 +605,8 @@ func xcoffUpdateOuterSize(ctxt *Link, size int64, stype sym.SymKind) {
+ 		outerSymSize["go.funcrel.*"] = size
+ 	case sym.SGCBITS:
+ 		outerSymSize["runtime.gcbits.*"] = size
++	case sym.SPCLNTAB:
++		outerSymSize["runtime.pclntab"] = size
+ 	}
+ }
+ 

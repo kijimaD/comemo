@@ -11,8 +11,85 @@ Date:   Mon Nov 27 08:12:50 2017 -0800
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/main.go     | 13 -------------
  src/cmd/compile/internal/gc/walk.go     | 26 --------------------------
  src/cmd/compile/internal/ssa/rewrite.go |  4 ----
  3 files changed, 43 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 262d000f3d..a045c2f403 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -109,19 +109,6 @@ func hidePanic() {
+ 	}
+ }
+ 
+-func doversion() {
+-	p := objabi.Expstring()
+-	if p == objabi.DefaultExpstring() {
+-		p = ""
+-	}
+-	sep := ""
+-	if p != "" {
+-		sep = " "
+-	}
+-	fmt.Printf("compile version %s%s%s\n", objabi.Version, sep, p)
+-	os.Exit(0)
+-}
+-
+ // supportsDynlink reports whether or not the code generator for the given
+ // architecture supports the -shared and -dynlink flags.
+ func supportsDynlink(arch *sys.Arch) bool {
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index cbbd635f6d..55e9211977 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -2227,32 +2227,6 @@ func iscallret(n *Node) bool {
+ 	return n.Op == OINDREGSP
+ }
+ 
+-func isstack(n *Node) bool {
+-	n = outervalue(n)
+-
+-	// If n is *autotmp and autotmp = &foo, replace n with foo.
+-	// We introduce such temps when initializing struct literals.
+-	if n.Op == OIND && n.Left.Op == ONAME && n.Left.IsAutoTmp() {
+-		defn := n.Left.Name.Defn
+-		if defn != nil && defn.Op == OAS && defn.Right.Op == OADDR {
+-			n = defn.Right.Left
+-		}
+-	}
+-
+-	switch n.Op {
+-	case OINDREGSP:
+-		return true
+-
+-	case ONAME:
+-		switch n.Class() {
+-		case PAUTO, PPARAM, PPARAMOUT:
+-			return true
+-		}
+-	}
+-
+-	return false
+-}
+-
+ // isReflectHeaderDataField reports whether l is an expression p.Data
+ // where p has type reflect.SliceHeader or reflect.StringHeader.
+ func isReflectHeaderDataField(l *Node) bool {
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index 6d77da079b..4e8eb4d3b6 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -117,10 +117,6 @@ func isSigned(t *types.Type) bool {
+ 	return t.IsSigned()
+ }
+ 
+-func typeSize(t *types.Type) int64 {
+-	return t.Size()
+-}
+-
+ // mergeSym merges two symbolic offsets. There is no real merging of
+ // offsets, we just pick the non-nil one.
+ func mergeSym(x, y interface{}) interface{} {

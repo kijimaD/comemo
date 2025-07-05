@@ -7,7 +7,79 @@ Date:   Mon Jun 5 14:52:31 2017 +1000
     Change-Id: I8b23bfb85da9ece47e337f262bafd97f303dd1d1
     Reviewed-on: https://go-review.googlesource.com/56313
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/link/internal/ld/dwarf.go |  2 +-
  src/cmd/link/internal/ld/pe.go    | 40 +++++++++++++++++++--------------------
  2 files changed, 21 insertions(+), 21 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/dwarf.go b/src/cmd/link/internal/ld/dwarf.go
+index c36069e5de..53684fd0f5 100644
+--- a/src/cmd/link/internal/ld/dwarf.go
++++ b/src/cmd/link/internal/ld/dwarf.go
+@@ -1668,7 +1668,7 @@ func dwarfaddpeheaders(ctxt *Link) {
+ 		return
+ 	}
+ 	for _, sect := range Segdwarf.Sections {
+-		h := newPEDWARFSection(ctxt, sect.Name, int64(sect.Length))
++		h := pefile.addDWARFSection(sect.Name, int(sect.Length))
+ 		fileoff := sect.Vaddr - Segdwarf.Vaddr + Segdwarf.Fileoff
+ 		if uint64(h.PointerToRawData) != fileoff {
+ 			Exitf("%s.PointerToRawData = %#x, want %#x", sect.Name, h.PointerToRawData, fileoff)
+diff --git a/src/cmd/link/internal/ld/pe.go b/src/cmd/link/internal/ld/pe.go
+index 7d17a6471d..18248e0943 100644
+--- a/src/cmd/link/internal/ld/pe.go
++++ b/src/cmd/link/internal/ld/pe.go
+@@ -450,6 +450,26 @@ func (f *peFile) addSection(name string, sectsize int, filesize int) *peSection
+ 	return sect
+ }
+ 
++// addDWARFSection adds DWARF section to the COFF file f.
++// This function is similar to addSection, but DWARF section names are
++// longer than 8 characters, so they need to be stored in the string table.
++func (f *peFile) addDWARFSection(name string, size int) *peSection {
++	if size == 0 {
++		Exitf("DWARF section %q is empty", name)
++	}
++	// DWARF section names are longer than 8 characters.
++	// PE format requires such names to be stored in string table,
++	// and section names replaced with slash (/) followed by
++	// correspondent string table index.
++	// see http://www.microsoft.com/whdc/system/platform/firmware/PECOFFdwn.mspx
++	// for details
++	off := f.stringTable.add(name)
++	h := f.addSection(name, size, size)
++	h.shortName = fmt.Sprintf("/%d", off)
++	h.Characteristics = IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_DISCARDABLE
++	return h
++}
++
+ var pefile peFile
+ 
+ func chksectoff(ctxt *Link, h *peSection, off int64) {
+@@ -985,26 +1005,6 @@ func (ctxt *Link) dope() {
+ 	initdynexport(ctxt)
+ }
+ 
+-/*
+- * For more than 8 characters section names, name contains a slash (/) that is
+- * followed by an ASCII representation of a decimal number that is an offset into
+- * the string table.
+- * reference: pecoff_v8.docx Page 24.
+- * <http://www.microsoft.com/whdc/system/platform/firmware/PECOFFdwn.mspx>
+- */
+-func newPEDWARFSection(ctxt *Link, name string, size int64) *peSection {
+-	if size == 0 {
+-		return nil
+-	}
+-
+-	off := pefile.stringTable.add(name)
+-	h := pefile.addSection(name, int(size), int(size))
+-	h.shortName = fmt.Sprintf("/%d", off)
+-	h.Characteristics = IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_DISCARDABLE
+-
+-	return h
+-}
+-
+ // writePESymTableRecords writes all COFF symbol table records.
+ // It returns number of records written.
+ func writePESymTableRecords(ctxt *Link) int {

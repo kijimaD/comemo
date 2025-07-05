@@ -18,6 +18,20 @@ Date:   Mon Jul 11 15:56:37 2022 +0000
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/cmd/compile/internal/walk/compare.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/walk/compare.go b/src/cmd/compile/internal/walk/compare.go
+index df7cb731f7..8a8f9b6d93 100644
+--- a/src/cmd/compile/internal/walk/compare.go
++++ b/src/cmd/compile/internal/walk/compare.go
+@@ -116,7 +116,7 @@ func walkCompare(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
+ 
+ 	switch t.Kind() {
+ 	default:
+-		if base.Debug.Libfuzzer != 0 && t.IsInteger() {
++		if base.Debug.Libfuzzer != 0 && t.IsInteger() && (n.X.Name() == nil || !n.X.Name().Libfuzzer8BitCounter()) {
+ 			n.X = cheapExpr(n.X, init)
+ 			n.Y = cheapExpr(n.Y, init)
+ 

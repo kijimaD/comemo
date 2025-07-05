@@ -8,8 +8,133 @@ Date:   Wed Jun 27 14:37:17 2012 -0700
     R=nigeltao
     CC=golang-dev
     https://golang.org/cl/6326057
-
+---
  src/pkg/image/jpeg/reader.go | 27 +++++++++++++++++----------
  src/pkg/image/ycbcr.go       |  9 +++++++++
  src/pkg/image/ycbcr_test.go  |  1 +
  3 files changed, 27 insertions(+), 10 deletions(-)
+
+diff --git a/src/pkg/image/jpeg/reader.go b/src/pkg/image/jpeg/reader.go
+index d9adf6e587..bf67b7ee9a 100644
+--- a/src/pkg/image/jpeg/reader.go
++++ b/src/pkg/image/jpeg/reader.go
+@@ -51,7 +51,7 @@ const (
+ 	// A color JPEG image has Y, Cb and Cr components.
+ 	nColorComponent = 3
+ 
+-	// We only support 4:4:4, 4:2:2 and 4:2:0 downsampling, and therefore the
++	// We only support 4:4:4, 4:4:0, 4:2:2 and 4:2:0 downsampling, and therefore the
+ 	// number of luma samples per chroma sample is at most 2 in the horizontal
+ 	// and 2 in the vertical direction.
+ 	maxH = 2
+@@ -154,12 +154,12 @@ func (d *decoder) processSOF(n int) error {
+ 		if d.nComp == nGrayComponent {
+ 			continue
+ 		}
+-		// For color images, we only support 4:4:4, 4:2:2 or 4:2:0 chroma
++		// For color images, we only support 4:4:4, 4:4:0, 4:2:2 or 4:2:0 chroma
+ 		// downsampling ratios. This implies that the (h, v) values for the Y
+-		// component are either (1, 1), (2, 1) or (2, 2), and the (h, v)
++		// component are either (1, 1), (1, 2), (2, 1) or (2, 2), and the (h, v)
+ 		// values for the Cr and Cb components must be (1, 1).
+ 		if i == 0 {
+-			if hv != 0x11 && hv != 0x21 && hv != 0x22 {
++			if hv != 0x11 && hv != 0x21 && hv != 0x22 && hv != 0x12 {
+ 				return UnsupportedError("luma downsample ratio")
+ 			}
+ 		} else if hv != 0x11 {
+@@ -203,12 +203,14 @@ func (d *decoder) makeImg(h0, v0, mxx, myy int) {
+ 		return
+ 	}
+ 	var subsampleRatio image.YCbCrSubsampleRatio
+-	switch h0 * v0 {
+-	case 1:
++	switch {
++	case h0 == 1 && v0 == 1:
+ 		subsampleRatio = image.YCbCrSubsampleRatio444
+-	case 2:
++	case h0 == 1 && v0 == 2:
++		subsampleRatio = image.YCbCrSubsampleRatio440
++	case h0 == 2 && v0 == 1:
+ 		subsampleRatio = image.YCbCrSubsampleRatio422
+-	case 4:
++	case h0 == 2 && v0 == 2:
+ 		subsampleRatio = image.YCbCrSubsampleRatio420
+ 	default:
+ 		panic("unreachable")
+@@ -313,8 +315,13 @@ func (d *decoder) processSOS(n int) error {
+ 					} else {
+ 						switch i {
+ 						case 0:
+-							mx0 := h0*mx + (j % 2)
+-							my0 := v0*my + (j / 2)
++							mx0, my0 := h0*mx, v0*my
++							if h0 == 1 {
++								my0 += j
++							} else {
++								mx0 += j % 2
++								my0 += j / 2
++							}
+ 							idct(d.img3.Y[8*(my0*d.img3.YStride+mx0):], d.img3.YStride, &b)
+ 						case 1:
+ 							idct(d.img3.Cb[8*(my*d.img3.CStride+mx):], d.img3.CStride, &b)
+diff --git a/src/pkg/image/ycbcr.go b/src/pkg/image/ycbcr.go
+index c1a0b666f8..5b73bef789 100644
+--- a/src/pkg/image/ycbcr.go
++++ b/src/pkg/image/ycbcr.go
+@@ -15,6 +15,7 @@ const (
+ 	YCbCrSubsampleRatio444 YCbCrSubsampleRatio = iota
+ 	YCbCrSubsampleRatio422
+ 	YCbCrSubsampleRatio420
++	YCbCrSubsampleRatio440
+ )
+ 
+ func (s YCbCrSubsampleRatio) String() string {
+@@ -25,6 +26,8 @@ func (s YCbCrSubsampleRatio) String() string {
+ 		return "YCbCrSubsampleRatio422"
+ 	case YCbCrSubsampleRatio420:
+ 		return "YCbCrSubsampleRatio420"
++	case YCbCrSubsampleRatio440:
++		return "YCbCrSubsampleRatio440"
+ 	}
+ 	return "YCbCrSubsampleRatioUnknown"
+ }
+@@ -39,6 +42,7 @@ func (s YCbCrSubsampleRatio) String() string {
+ //	For 4:4:4, CStride == YStride/1 && len(Cb) == len(Cr) == len(Y)/1.
+ //	For 4:2:2, CStride == YStride/2 && len(Cb) == len(Cr) == len(Y)/2.
+ //	For 4:2:0, CStride == YStride/2 && len(Cb) == len(Cr) == len(Y)/4.
++//	For 4:4:0, CStride == YStride/1 && len(Cb) == len(Cr) == len(Y)/2.
+ type YCbCr struct {
+ 	Y, Cb, Cr      []uint8
+ 	YStride        int
+@@ -82,6 +86,8 @@ func (p *YCbCr) COffset(x, y int) int {
+ 		return (y-p.Rect.Min.Y)*p.CStride + (x/2 - p.Rect.Min.X/2)
+ 	case YCbCrSubsampleRatio420:
+ 		return (y/2-p.Rect.Min.Y/2)*p.CStride + (x/2 - p.Rect.Min.X/2)
++	case YCbCrSubsampleRatio440:
++		return (y/2-p.Rect.Min.Y/2)*p.CStride + (x - p.Rect.Min.X)
+ 	}
+ 	// Default to 4:4:4 subsampling.
+ 	return (y-p.Rect.Min.Y)*p.CStride + (x - p.Rect.Min.X)
+@@ -126,6 +132,9 @@ func NewYCbCr(r Rectangle, subsampleRatio YCbCrSubsampleRatio) *YCbCr {
+ 	case YCbCrSubsampleRatio420:
+ 		cw = (r.Max.X+1)/2 - r.Min.X/2
+ 		ch = (r.Max.Y+1)/2 - r.Min.Y/2
++	case YCbCrSubsampleRatio440:
++		cw = w
++		ch = (r.Max.Y+1)/2 - r.Min.Y/2
+ 	default:
+ 		// Default to 4:4:4 subsampling.
+ 		cw = w
+diff --git a/src/pkg/image/ycbcr_test.go b/src/pkg/image/ycbcr_test.go
+index 5fa95be3e0..a5f4482654 100644
+--- a/src/pkg/image/ycbcr_test.go
++++ b/src/pkg/image/ycbcr_test.go
+@@ -36,6 +36,7 @@ func TestYCbCr(t *testing.T) {
+ 		YCbCrSubsampleRatio444,
+ 		YCbCrSubsampleRatio422,
+ 		YCbCrSubsampleRatio420,
++		YCbCrSubsampleRatio440,
+ 	}
+ 	deltas := []Point{
+ 		Pt(0, 0),

@@ -29,7 +29,45 @@ Date:   Tue Feb 15 13:40:49 2022 -0800
     Reviewed-by: Damien Neil <dneil@google.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/net/dnsclient_unix.go      | 6 +++++-
  src/net/dnsclient_unix_test.go | 2 +-
  2 files changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/dnsclient_unix.go b/src/net/dnsclient_unix.go
+index 21aa91f665..9a4a6ee68c 100644
+--- a/src/net/dnsclient_unix.go
++++ b/src/net/dnsclient_unix.go
+@@ -30,6 +30,10 @@ const (
+ 	// to be used as a useTCP parameter to exchange
+ 	useTCPOnly  = true
+ 	useUDPOrTCP = false
++
++	// Maximum DNS packet size.
++	// Value taken from https://dnsflagday.net/2020/.
++	maxDNSPacketSize = 1232
+ )
+ 
+ var (
+@@ -82,7 +86,7 @@ func dnsPacketRoundTrip(c Conn, id uint16, query dnsmessage.Question, b []byte)
+ 		return dnsmessage.Parser{}, dnsmessage.Header{}, err
+ 	}
+ 
+-	b = make([]byte, 512) // see RFC 1035
++	b = make([]byte, maxDNSPacketSize)
+ 	for {
+ 		n, err := c.Read(b)
+ 		if err != nil {
+diff --git a/src/net/dnsclient_unix_test.go b/src/net/dnsclient_unix_test.go
+index 14366eca8c..e46decab16 100644
+--- a/src/net/dnsclient_unix_test.go
++++ b/src/net/dnsclient_unix_test.go
+@@ -881,7 +881,7 @@ func (f *fakeDNSPacketConn) Close() error {
+ func TestIgnoreDNSForgeries(t *testing.T) {
+ 	c, s := Pipe()
+ 	go func() {
+-		b := make([]byte, 512)
++		b := make([]byte, maxDNSPacketSize)
+ 		n, err := s.Read(b)
+ 		if err != nil {
+ 			t.Error(err)

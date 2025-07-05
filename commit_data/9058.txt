@@ -8,8 +8,182 @@ Date:   Thu Jul 14 07:52:07 2011 +1000
     R=rsc, r
     CC=golang-dev
     https://golang.org/cl/4705047
-
+---
  src/pkg/exp/template/doc.go       | 13 ++++++-----
  src/pkg/exp/template/exec.go      | 46 +++++++++++++++++++--------------------
  src/pkg/exp/template/exec_test.go | 25 ++++++++++++++++++++-
  3 files changed, 55 insertions(+), 29 deletions(-)
+
+diff --git a/src/pkg/exp/template/doc.go b/src/pkg/exp/template/doc.go
+index f6d2788eb0..3764bc70d5 100644
+--- a/src/pkg/exp/template/doc.go
++++ b/src/pkg/exp/template/doc.go
+@@ -105,11 +105,11 @@ An argument is a simple value, denoted by one of the following.
+ 	  any type) or two return values, the second of which is an os.Error.
+ 	  If it has two and the returned error is non-nil, execution terminates
+ 	  and an error is returned to the caller as the value of Execute.
+-	  Method invocations may be chained, but only the last element of
+-	  the chain may be a method; others must be struct fields:
+-	    .Field1.Field2.Method
++	  Method invocations may be chained and combined with fields
++	  to any depth:
++	    .Field1.Method1.Field2.Method2
+ 	  Methods can also be evaluated on variables, including chaining:
+-	    $x.Field1.Method
++	    $x.Method1.Field
+ 	- The name of a niladic function, such as
+ 		fun
+ 	  The result is the value of invoking the function, fun(). The return
+@@ -125,7 +125,10 @@ value (argument) or a function or method call, possibly with multiple arguments:
+ 	Argument
+ 		The result is the value of evaluating the argument.
+ 	.Method [Argument...]
+-		The result is the value of calling the method with the arguments:
++		The method can be alone or the last element of a chain but,
++		unlike methods in the middle of a chain, it can take arguments.
++		The result is the value of calling the method with the
++		arguments:
+ 			dot.Method(Argument1, etc.)
+ 	functionName [Argument...]
+ 		The result is the value of calling the function associated
+diff --git a/src/pkg/exp/template/exec.go b/src/pkg/exp/template/exec.go
+index 7aab7f7de3..6955809308 100644
+--- a/src/pkg/exp/template/exec.go
++++ b/src/pkg/exp/template/exec.go
+@@ -331,13 +331,15 @@ func (s *state) evalVariableNode(dot reflect.Value, v *variableNode, args []node
+ 	return s.evalFieldChain(dot, value, v.ident[1:], args, final)
+ }
+ 
++// evalFieldChain evaluates .X.Y.Z possibly followed by arguments.
++// dot is the environment in which to evaluate arguments, while
++// receiver is the value being walked along the chain.
+ func (s *state) evalFieldChain(dot, receiver reflect.Value, ident []string, args []node, final reflect.Value) reflect.Value {
+-	// Up to the last entry, it must be a field.
+ 	n := len(ident)
+ 	for i := 0; i < n-1; i++ {
+-		dot = s.evalField(dot, ident[i], nil, zero, zero)
++		receiver = s.evalField(dot, ident[i], args[:1], zero, receiver)
+ 	}
+-	// Now it can be a field or method and if a method, gets arguments.
++	// Now if it's a method, it gets the arguments.
+ 	return s.evalField(dot, ident[n-1], args, final, receiver)
+ }
+ 
+@@ -358,27 +360,25 @@ func isExported(name string) bool {
+ // evalField evaluates an expression like (.Field) or (.Field arg1 arg2).
+ // The 'final' argument represents the return value from the preceding
+ // value of the pipeline, if any.
+-// If we're in a chain, such as (.X.Y.Z), .X and .Y cannot be methods;
+-// canBeMethod will be true only for the last element of such chains (here .Z).
+-func (s *state) evalField(dot reflect.Value, fieldName string, args []node, final reflect.Value,
+-receiver reflect.Value) reflect.Value {
+-	typ := dot.Type()
+-	if receiver.IsValid() {
+-		receiver, _ = indirect(receiver)
+-		// Need to get to a value of type *T to guarantee we see all
+-		// methods of T and *T.
+-		ptr := receiver
+-		if ptr.CanAddr() {
+-			ptr = ptr.Addr()
+-		}
+-		if method, ok := methodByName(ptr.Type(), fieldName); ok {
+-			return s.evalCall(dot, ptr, method.Func, fieldName, args, final)
+-		}
++func (s *state) evalField(dot reflect.Value, fieldName string, args []node, final, receiver reflect.Value) reflect.Value {
++	if !receiver.IsValid() {
++		return zero
++	}
++	typ := receiver.Type()
++	receiver, _ = indirect(receiver)
++	// Need to get to a value of type *T to guarantee we see all
++	// methods of T and *T.
++	ptr := receiver
++	if ptr.CanAddr() {
++		ptr = ptr.Addr()
++	}
++	if method, ok := methodByName(ptr.Type(), fieldName); ok {
++		return s.evalCall(dot, ptr, method.Func, fieldName, args, final)
+ 	}
+ 	// It's not a method; is it a field of a struct?
+-	dot, isNil := indirect(dot)
+-	if dot.Kind() == reflect.Struct {
+-		field := dot.FieldByName(fieldName)
++	receiver, isNil := indirect(receiver)
++	if receiver.Kind() == reflect.Struct {
++		field := receiver.FieldByName(fieldName)
+ 		if field.IsValid() {
+ 			if len(args) > 1 || final.IsValid() {
+ 				s.errorf("%s is not a method but has arguments", fieldName)
+@@ -391,7 +391,7 @@ receiver reflect.Value) reflect.Value {
+ 	if isNil {
+ 		s.errorf("nil pointer evaluating %s.%s", typ, fieldName)
+ 	}
+-	s.errorf("can't handle evaluation of field %s in type %s", fieldName, typ)
++	s.errorf("can't evaluate field %s in type %s", fieldName, typ)
+ 	panic("not reached")
+ }
+ 
+diff --git a/src/pkg/exp/template/exec_test.go b/src/pkg/exp/template/exec_test.go
+index b154a90fd6..fc77c48e95 100644
+--- a/src/pkg/exp/template/exec_test.go
++++ b/src/pkg/exp/template/exec_test.go
+@@ -17,6 +17,7 @@ import (
+ // T has lots of interesting pieces to use to test execution.
+ type T struct {
+ 	// Basics
++	True        bool
+ 	I           int
+ 	U16         uint16
+ 	X           string
+@@ -52,6 +53,7 @@ type U struct {
+ }
+ 
+ var tVal = &T{
++	True:   true,
+ 	I:      17,
+ 	U16:    16,
+ 	X:      "x",
+@@ -128,6 +130,18 @@ func (t *T) EPERM(error bool) (bool, os.Error) {
+ 	return false, nil
+ }
+ 
++// A few methods to test chaining.
++func (t *T) GetU() *U {
++	return t.U
++}
++
++func (u *U) TrueFalse(b bool) string {
++	if b {
++		return "true"
++	}
++	return ""
++}
++
+ func typeOf(arg interface{}) string {
+ 	return fmt.Sprintf("%T", arg)
+ }
+@@ -211,6 +225,15 @@ var execTests = []execTest{
+ 	{".Method2(.U16, `str`)", "-{{.Method2 .U16 `str`}}-", "-Method2: 16 str-", tVal, true},
+ 	{".Method2(.U16, $x)", "{{if $x := .X}}-{{.Method2 .U16 $x}}{{end}}-", "-Method2: 16 x-", tVal, true},
+ 	{"method on var", "{{if $x := .}}-{{$x.Method2 .U16 $x.X}}{{end}}-", "-Method2: 16 x-", tVal, true},
++	{"method on chained var",
++		"{{range .MSIone}}{{if $.U.TrueFalse $.True}}{{$.U.TrueFalse $.True}}{{else}}WRONG{{end}}{{end}}",
++		"true", tVal, true},
++	{"chained method",
++		"{{range .MSIone}}{{if $.GetU.TrueFalse $.True}}{{$.U.TrueFalse $.True}}{{else}}WRONG{{end}}{{end}}",
++		"true", tVal, true},
++	{"chained method on variable",
++		"{{with $x := .}}{{with .SI}}{{$.GetU.TrueFalse $.True}}{{end}}{{end}}",
++		"true", tVal, true},
+ 
+ 	// Pipelines.
+ 	{"pipeline", "-{{.Method0 | .Method2 .U16}}-", "-Method2: 16 M0-", tVal, true},
+@@ -309,7 +332,7 @@ var execTests = []execTest{
+ 
+ 	// Fixed bugs.
+ 	// Must separate dot and receiver; otherwise args are evaluated with dot set to variable.
+-	{"problem", "{{range .MSIone}}-{{if $.Method1 .}}X{{end}}{{end}}-", "-X-", tVal, true},
++	{"bug0", "{{range .MSIone}}{{if $.Method1 .}}X{{end}}{{end}}", "X", tVal, true},
+ }
+ 
+ func zeroArgs() string {

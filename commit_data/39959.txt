@@ -13,7 +13,41 @@ Date:   Fri Apr 5 17:10:40 2019 +0200
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/syscall/syscall_unix.go      | 6 +++++-
  src/syscall/syscall_unix_test.go | 8 ++++++++
  2 files changed, 13 insertions(+), 1 deletion(-)
+
+diff --git a/src/syscall/syscall_unix.go b/src/syscall/syscall_unix.go
+index fd54dc0dc7..f73f55462a 100644
+--- a/src/syscall/syscall_unix.go
++++ b/src/syscall/syscall_unix.go
+@@ -323,7 +323,11 @@ func SetsockoptLinger(fd, level, opt int, l *Linger) (err error) {
+ }
+ 
+ func SetsockoptString(fd, level, opt int, s string) (err error) {
+-	return setsockopt(fd, level, opt, unsafe.Pointer(&[]byte(s)[0]), uintptr(len(s)))
++	var p unsafe.Pointer
++	if len(s) > 0 {
++		p = unsafe.Pointer(&[]byte(s)[0])
++	}
++	return setsockopt(fd, level, opt, p, uintptr(len(s)))
+ }
+ 
+ func SetsockoptTimeval(fd, level, opt int, tv *Timeval) (err error) {
+diff --git a/src/syscall/syscall_unix_test.go b/src/syscall/syscall_unix_test.go
+index 085afb2941..1a2c41dacd 100644
+--- a/src/syscall/syscall_unix_test.go
++++ b/src/syscall/syscall_unix_test.go
+@@ -355,3 +355,11 @@ func TestSeekFailure(t *testing.T) {
+ 		t.Fatalf("Seek(-1, 0, 0) return error with empty message")
+ 	}
+ }
++
++func TestSetsockoptString(t *testing.T) {
++	// should not panic on empty string, see issue #31277
++	err := syscall.SetsockoptString(-1, 0, 0, "")
++	if err == nil {
++		t.Fatalf("SetsockoptString: did not fail")
++	}
++}

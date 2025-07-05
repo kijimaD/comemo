@@ -9,7 +9,65 @@ Date:   Fri Feb 8 10:45:46 2013 -0800
     R=golang-dev, iant, bradfitz
     CC=golang-dev
     https://golang.org/cl/7311061
-
+---
  src/pkg/os/env_unix_test.go | 30 ++++++++++++++++++++++++++++++
  src/pkg/syscall/env_unix.go | 10 ++++++++++
  2 files changed, 40 insertions(+)
+
+diff --git a/src/pkg/os/env_unix_test.go b/src/pkg/os/env_unix_test.go
+new file mode 100644
+index 0000000000..7eb4dc0ff4
+--- /dev/null
++++ b/src/pkg/os/env_unix_test.go
+@@ -0,0 +1,30 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build darwin freebsd linux netbsd openbsd
++
++package os_test
++
++import (
++	. "os"
++	"testing"
++)
++
++var setenvEinvalTests = []struct {
++	k, v string
++}{
++	{"", ""},      // empty key
++	{"k=v", ""},   // '=' in key
++	{"\x00", ""},  // '\x00' in key
++	{"k", "\x00"}, // '\x00' in value
++}
++
++func TestSetenvUnixEinval(t *testing.T) {
++	for _, tt := range setenvEinvalTests {
++		err := Setenv(tt.k, tt.v)
++		if err == nil {
++			t.Errorf(`Setenv(%q, %q) == nil, want error`, tt.k, tt.v)
++		}
++	}
++}
+diff --git a/src/pkg/syscall/env_unix.go b/src/pkg/syscall/env_unix.go
+index 8b1868c271..8573d79c78 100644
+--- a/src/pkg/syscall/env_unix.go
++++ b/src/pkg/syscall/env_unix.go
+@@ -71,6 +71,16 @@ func Setenv(key, value string) error {
+ 	if len(key) == 0 {
+ 		return EINVAL
+ 	}
++	for i := 0; i < len(key); i++ {
++		if key[i] == '=' || key[i] == 0 {
++			return EINVAL
++		}
++	}
++	for i := 0; i < len(value); i++ {
++		if value[i] == 0 {
++			return EINVAL
++		}
++	}
+ 
+ 	envLock.Lock()
+ 	defer envLock.Unlock()

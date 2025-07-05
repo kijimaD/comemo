@@ -7,10 +7,153 @@ Date:   Mon Dec 6 14:38:25 2010 -0500
     R=rsc
     CC=golang-dev
     https://golang.org/cl/3483041
-
+---
  src/cmd/goyacc/goyacc.go      |  2 +-
  src/pkg/bytes/buffer_test.go  | 10 +++++-----
  src/pkg/unicode/maketables.go |  6 +++---
  src/pkg/utf8/string_test.go   |  6 +++---
  src/pkg/utf8/utf8_test.go     |  6 +++---
  5 files changed, 15 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/goyacc/goyacc.go b/src/cmd/goyacc/goyacc.go
+index 63e287a9a5..c9fa6bfb96 100644
+--- a/src/cmd/goyacc/goyacc.go
++++ b/src/cmd/goyacc/goyacc.go
+@@ -3139,7 +3139,7 @@ out:
+ 		c = yyTok2[1] /* unknown char */
+ 	}
+ 	if yyDebug >= 3 {
+-		fmt.Printf("lex %.4x %s\n", uint(yychar), yyTokname(c))
++		fmt.Printf("lex %U %s\n", uint(yychar), yyTokname(c))
+ 	}
+ 	return c
+ }
+diff --git a/src/pkg/bytes/buffer_test.go b/src/pkg/bytes/buffer_test.go
+index 2801ad10fd..ef42d430cb 100644
+--- a/src/pkg/bytes/buffer_test.go
++++ b/src/pkg/bytes/buffer_test.go
+@@ -275,10 +275,10 @@ func TestRuneIO(t *testing.T) {
+ 		size := utf8.EncodeRune(b[n:], r)
+ 		nbytes, err := buf.WriteRune(r)
+ 		if err != nil {
+-			t.Fatalf("WriteRune(U+%.4x) error: %s", r, err)
++			t.Fatalf("WriteRune(%U) error: %s", r, err)
+ 		}
+ 		if nbytes != size {
+-			t.Fatalf("WriteRune(U+%.4x) expected %d, got %d", r, size, nbytes)
++			t.Fatalf("WriteRune(%U) expected %d, got %d", r, size, nbytes)
+ 		}
+ 		n += size
+ 	}
+@@ -295,7 +295,7 @@ func TestRuneIO(t *testing.T) {
+ 		size := utf8.EncodeRune(p, r)
+ 		nr, nbytes, err := buf.ReadRune()
+ 		if nr != r || nbytes != size || err != nil {
+-			t.Fatalf("ReadRune(U+%.4x) got U+%.4x,%d not U+%.4x,%d (err=%s)", r, nr, nbytes, r, size, err)
++			t.Fatalf("ReadRune(%U) got %U,%d not %U,%d (err=%s)", r, nr, nbytes, r, size, err)
+ 		}
+ 	}
+ 
+@@ -305,11 +305,11 @@ func TestRuneIO(t *testing.T) {
+ 	for r := 0; r < NRune; r++ {
+ 		r1, size, _ := buf.ReadRune()
+ 		if err := buf.UnreadRune(); err != nil {
+-			t.Fatalf("UnreadRune(U+%.4x) got error %q", r, err)
++			t.Fatalf("UnreadRune(%U) got error %q", r, err)
+ 		}
+ 		r2, nbytes, err := buf.ReadRune()
+ 		if r1 != r2 || r1 != r || nbytes != size || err != nil {
+-			t.Fatalf("ReadRune(U+%.4x) after UnreadRune got U+%.4x,%d not U+%.4x,%d (err=%s)", r, r2, nbytes, r, size, err)
++			t.Fatalf("ReadRune(%U) after UnreadRune got %U,%d not %U,%d (err=%s)", r, r2, nbytes, r, size, err)
+ 		}
+ 	}
+ }
+diff --git a/src/pkg/unicode/maketables.go b/src/pkg/unicode/maketables.go
+index 65a55de9d5..4c6d83f3e6 100644
+--- a/src/pkg/unicode/maketables.go
++++ b/src/pkg/unicode/maketables.go
+@@ -157,7 +157,7 @@ func parseCategory(line string) (state State) {
+ 	char := &chars[point]
+ 	char.field = field
+ 	if char.codePoint != 0 {
+-		die.Logf("point U+%04x reused\n")
++		die.Logf("point %U reused\n")
+ 	}
+ 	char.codePoint = lastChar
+ 	char.category = field[FGeneralCategory]
+@@ -167,7 +167,7 @@ func parseCategory(line string) (state State) {
+ 		// Decimal digit
+ 		_, err := strconv.Atoi(field[FNumericValue])
+ 		if err != nil {
+-			die.Log("U+%04x: bad numeric field: %s", point, err)
++			die.Log("%U: bad numeric field: %s", point, err)
+ 		}
+ 	case "Lu":
+ 		char.letter(field[FCodePoint], field[FSimpleLowercaseMapping], field[FSimpleTitlecaseMapping])
+@@ -208,7 +208,7 @@ func (char *Char) letterValue(s string, cas string) int {
+ 	v, err := strconv.Btoui64(s, 16)
+ 	if err != nil {
+ 		char.dump(cas)
+-		die.Logf("U+%04x: bad letter(%s): %s", char.codePoint, s, err)
++		die.Logf("%U: bad letter(%s): %s", char.codePoint, s, err)
+ 	}
+ 	return int(v)
+ }
+diff --git a/src/pkg/utf8/string_test.go b/src/pkg/utf8/string_test.go
+index 484d46fbff..0733b061c1 100644
+--- a/src/pkg/utf8/string_test.go
++++ b/src/pkg/utf8/string_test.go
+@@ -21,7 +21,7 @@ func TestScanForwards(t *testing.T) {
+ 		for i, expect := range runes {
+ 			got := str.At(i)
+ 			if got != expect {
+-				t.Errorf("%s[%d]: expected %c (U+%04x); got %c (U+%04x)", s, i, expect, expect, got, got)
++				t.Errorf("%s[%d]: expected %c (%U); got %c (%U)", s, i, expect, expect, got, got)
+ 			}
+ 		}
+ 	}
+@@ -39,7 +39,7 @@ func TestScanBackwards(t *testing.T) {
+ 			expect := runes[i]
+ 			got := str.At(i)
+ 			if got != expect {
+-				t.Errorf("%s[%d]: expected %c (U+%04x); got %c (U+%04x)", s, i, expect, expect, got, got)
++				t.Errorf("%s[%d]: expected %c (%U); got %c (%U)", s, i, expect, expect, got, got)
+ 			}
+ 		}
+ 	}
+@@ -63,7 +63,7 @@ func TestRandomAccess(t *testing.T) {
+ 			expect := runes[i]
+ 			got := str.At(i)
+ 			if got != expect {
+-				t.Errorf("%s[%d]: expected %c (U+%04x); got %c (U+%04x)", s, i, expect, expect, got, got)
++				t.Errorf("%s[%d]: expected %c (%U); got %c (%U)", s, i, expect, expect, got, got)
+ 			}
+ 		}
+ 	}
+diff --git a/src/pkg/utf8/utf8_test.go b/src/pkg/utf8/utf8_test.go
+index ecaf2d872a..59896aa656 100644
+--- a/src/pkg/utf8/utf8_test.go
++++ b/src/pkg/utf8/utf8_test.go
+@@ -58,11 +58,11 @@ func TestFullRune(t *testing.T) {
+ 		m := utf8map[i]
+ 		b := []byte(m.str)
+ 		if !FullRune(b) {
+-			t.Errorf("FullRune(%q) (rune %04x) = false, want true", b, m.rune)
++			t.Errorf("FullRune(%q) (%U) = false, want true", b, m.rune)
+ 		}
+ 		s := m.str
+ 		if !FullRuneInString(s) {
+-			t.Errorf("FullRuneInString(%q) (rune %04x) = false, want true", s, m.rune)
++			t.Errorf("FullRuneInString(%q) (%U) = false, want true", s, m.rune)
+ 		}
+ 		b1 := b[0 : len(b)-1]
+ 		if FullRune(b1) {
+@@ -172,7 +172,7 @@ func TestIntConversion(t *testing.T) {
+ 		i := 0
+ 		for _, r := range ts {
+ 			if r != runes[i] {
+-				t.Errorf("%q[%d]: expected %c (U+%04x); got %c (U+%04x)", ts, i, runes[i], runes[i], r, r)
++				t.Errorf("%q[%d]: expected %c (%U); got %c (%U)", ts, i, runes[i], runes[i], r, r)
+ 			}
+ 			i++
+ 		}

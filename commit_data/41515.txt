@@ -37,7 +37,7 @@ Date:   Thu Aug 15 21:53:37 2019 +0100
     Run-TryBot: Michael Munday <mike.munday@ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/asm/internal/arch/s390x.go        |  2 ++
  src/cmd/asm/internal/asm/testdata/s390x.s |  3 +++
  src/cmd/compile/internal/s390x/ggen.go    | 12 ++++--------
@@ -45,3 +45,123 @@ Date:   Thu Aug 15 21:53:37 2019 +0100
  src/cmd/internal/obj/s390x/anames.go      |  2 ++
  src/cmd/internal/obj/s390x/asmz.go        | 19 +++++++++++++++++++
  6 files changed, 34 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/asm/internal/arch/s390x.go b/src/cmd/asm/internal/arch/s390x.go
+index 6efae26e1c..0a4d278899 100644
+--- a/src/cmd/asm/internal/arch/s390x.go
++++ b/src/cmd/asm/internal/arch/s390x.go
+@@ -30,6 +30,8 @@ func jumpS390x(word string) bool {
+ 		"BR",
+ 		"BVC",
+ 		"BVS",
++		"BRCT",
++		"BRCTG",
+ 		"CMPBEQ",
+ 		"CMPBGE",
+ 		"CMPBGT",
+diff --git a/src/cmd/asm/internal/asm/testdata/s390x.s b/src/cmd/asm/internal/asm/testdata/s390x.s
+index 6888651007..bc0a49c8cc 100644
+--- a/src/cmd/asm/internal/asm/testdata/s390x.s
++++ b/src/cmd/asm/internal/asm/testdata/s390x.s
+@@ -266,6 +266,9 @@ TEXT main·foo(SB),DUPOK|NOSPLIT,$16-0 // TEXT main.foo(SB), DUPOK|NOSPLIT, $16-
+ 	BLTU	0(PC)                  // a7540000
+ 	BLEU	0(PC)                  // a7d40000
+ 
++	BRCT	R1, 0(PC)              // a7160000
++	BRCTG	R2, 0(PC)              // a7270000
++
+ 	CMPBNE	R1, R2, 0(PC)          // ec1200007064
+ 	CMPBEQ	R3, R4, 0(PC)          // ec3400008064
+ 	CMPBLT	R5, R6, 0(PC)          // ec5600004064
+diff --git a/src/cmd/compile/internal/s390x/ggen.go b/src/cmd/compile/internal/s390x/ggen.go
+index ae9965c378..16af190b2f 100644
+--- a/src/cmd/compile/internal/s390x/ggen.go
++++ b/src/cmd/compile/internal/s390x/ggen.go
+@@ -38,18 +38,14 @@ func zerorange(pp *gc.Progs, p *obj.Prog, off, cnt int64, _ *uint32) *obj.Prog {
+ 
+ 	// Generate a loop of large clears.
+ 	if cnt > clearLoopCutoff {
+-		n := cnt - (cnt % 256)
+-		end := int16(s390x.REGRT2)
+-		p = pp.Appendpp(p, s390x.AADD, obj.TYPE_CONST, 0, off+n, obj.TYPE_REG, end, 0)
+-		p.Reg = reg
++		ireg := int16(s390x.REGRT2) // register holds number of remaining loop iterations
++		p = pp.Appendpp(p, s390x.AMOVD, obj.TYPE_CONST, 0, cnt/256, obj.TYPE_REG, ireg, 0)
+ 		p = pp.Appendpp(p, s390x.ACLEAR, obj.TYPE_CONST, 0, 256, obj.TYPE_MEM, reg, off)
+ 		pl := p
+ 		p = pp.Appendpp(p, s390x.AADD, obj.TYPE_CONST, 0, 256, obj.TYPE_REG, reg, 0)
+-		p = pp.Appendpp(p, s390x.ACMP, obj.TYPE_REG, reg, 0, obj.TYPE_REG, end, 0)
+-		p = pp.Appendpp(p, s390x.ABNE, obj.TYPE_NONE, 0, 0, obj.TYPE_BRANCH, 0, 0)
++		p = pp.Appendpp(p, s390x.ABRCTG, obj.TYPE_REG, ireg, 0, obj.TYPE_BRANCH, 0, 0)
+ 		gc.Patch(p, pl)
+-
+-		cnt -= n
++		cnt = cnt % 256
+ 	}
+ 
+ 	// Generate remaining clear instructions without a loop.
+diff --git a/src/cmd/internal/obj/s390x/a.out.go b/src/cmd/internal/obj/s390x/a.out.go
+index b44531cfe6..7dcf3e8cfe 100644
+--- a/src/cmd/internal/obj/s390x/a.out.go
++++ b/src/cmd/internal/obj/s390x/a.out.go
+@@ -409,6 +409,10 @@ const (
+ 	ABVS
+ 	ASYSCALL
+ 
++	// branch on count
++	ABRCT
++	ABRCTG
++
+ 	// compare and branch
+ 	ACRJ
+ 	ACGRJ
+diff --git a/src/cmd/internal/obj/s390x/anames.go b/src/cmd/internal/obj/s390x/anames.go
+index dad710bc45..c3a76a0df0 100644
+--- a/src/cmd/internal/obj/s390x/anames.go
++++ b/src/cmd/internal/obj/s390x/anames.go
+@@ -155,6 +155,8 @@ var Anames = []string{
+ 	"BVC",
+ 	"BVS",
+ 	"SYSCALL",
++	"BRCT",
++	"BRCTG",
+ 	"CRJ",
+ 	"CGRJ",
+ 	"CLRJ",
+diff --git a/src/cmd/internal/obj/s390x/asmz.go b/src/cmd/internal/obj/s390x/asmz.go
+index ea254c74a8..3cc7d0b160 100644
+--- a/src/cmd/internal/obj/s390x/asmz.go
++++ b/src/cmd/internal/obj/s390x/asmz.go
+@@ -256,6 +256,10 @@ var optab = []Optab{
+ 	{i: 90, as: ACLGIJ, a1: C_SCON, a2: C_REG, a3: C_ADDCON, a6: C_SBRA},
+ 	{i: 90, as: ACMPUBEQ, a1: C_REG, a3: C_ANDCON, a6: C_SBRA},
+ 
++	// branch on count
++	{i: 41, as: ABRCT, a1: C_REG, a6: C_SBRA},
++	{i: 41, as: ABRCTG, a1: C_REG, a6: C_SBRA},
++
+ 	// move on condition
+ 	{i: 17, as: AMOVDEQ, a1: C_REG, a6: C_REG},
+ 
+@@ -3394,6 +3398,21 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
+ 			*asm = append(*asm, uint8(wd))
+ 		}
+ 
++	case 41: // branch on count
++		r1 := p.From.Reg
++		ri2 := (p.Pcond.Pc - p.Pc) >> 1
++		if int64(int16(ri2)) != ri2 {
++			c.ctxt.Diag("branch target too far away")
++		}
++		var opcode uint32
++		switch p.As {
++		case ABRCT:
++			opcode = op_BRCT
++		case ABRCTG:
++			opcode = op_BRCTG
++		}
++		zRI(opcode, uint32(r1), uint32(ri2), asm)
++
+ 	case 47: // negate [reg] reg
+ 		r := p.From.Reg
+ 		if r == 0 {

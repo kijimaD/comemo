@@ -7,6 +7,20 @@ Date:   Tue Mar 29 13:18:52 2011 -0700
     R=rsc, gri
     CC=golang-dev
     https://golang.org/cl/4336042
-
+---
  src/cmd/govet/govet.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/govet/govet.go b/src/cmd/govet/govet.go
+index c9b0a9db37..c112844162 100644
+--- a/src/cmd/govet/govet.go
++++ b/src/cmd/govet/govet.go
+@@ -256,7 +256,7 @@ func (f *File) checkPrintf(call *ast.CallExpr, name string, skip int) {
+ 		return
+ 	}
+ 	if lit.Kind == token.STRING {
+-		if strings.Contains(lit.Value, "%") {
++		if !strings.Contains(lit.Value, "%") {
+ 			if len(call.Args) > skip+1 {
+ 				f.Badf(call.Pos(), "no formatting directive in %s call", name)
+ 			}

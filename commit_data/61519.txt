@@ -32,9 +32,135 @@ Date:   Fri Jan 26 14:45:30 2024 -0500
     Reviewed-by: Russ Cox <rsc@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
-
+---
  src/cmd/go/internal/load/test.go                |  6 +-
  src/cmd/go/internal/test/test.go                |  3 +-
  src/cmd/go/testdata/script/test_flags.txt       |  3 +-
  src/cmd/go/testdata/script/test_setup_error.txt | 74 +++++++++++++++++++++++++
  4 files changed, 82 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/internal/load/test.go b/src/cmd/go/internal/load/test.go
+index 5f0be71255..4cac7ba432 100644
+--- a/src/cmd/go/internal/load/test.go
++++ b/src/cmd/go/internal/load/test.go
+@@ -176,8 +176,10 @@ func TestPackagesAndErrors(ctx context.Context, done func(), opts PackageOpts, p
+ 	if len(p.TestGoFiles) > 0 || p.Name == "main" || cover != nil && cover.Local {
+ 		ptest = new(Package)
+ 		*ptest = *p
+-		ptest.Error = ptestErr
+-		ptest.Incomplete = incomplete
++		if ptest.Error == nil {
++			ptest.Error = ptestErr
++		}
++		ptest.Incomplete = ptest.Incomplete || incomplete
+ 		ptest.ForTest = p.ImportPath
+ 		ptest.GoFiles = nil
+ 		ptest.GoFiles = append(ptest.GoFiles, p.GoFiles...)
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index 3f4f3accaa..2a83890a33 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -703,7 +703,8 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
+ 
+ 	pkgOpts := load.PackageOpts{ModResolveTests: true}
+ 	pkgs = load.PackagesAndErrors(ctx, pkgOpts, pkgArgs)
+-	load.CheckPackageErrors(pkgs)
++	// We *don't* call load.CheckPackageErrors here because we want to report
++	// loading errors as per-package test setup errors later.
+ 	if len(pkgs) == 0 {
+ 		base.Fatalf("no packages to test")
+ 	}
+diff --git a/src/cmd/go/testdata/script/test_flags.txt b/src/cmd/go/testdata/script/test_flags.txt
+index 3f7964b0a7..7adf4e273c 100644
+--- a/src/cmd/go/testdata/script/test_flags.txt
++++ b/src/cmd/go/testdata/script/test_flags.txt
+@@ -15,7 +15,8 @@ stdout '\Aok\s+example.com/x\s+[0-9.s]+\n\z'
+ # Even though ./x looks like a package path, the real package should be
+ # the implicit '.'.
+ ! go test --answer=42 ./x
+-stderr '^no Go files in '$PWD'$'
++stdout '^FAIL\t. \[build failed\]'
++stderr '^\.: no Go files in '$PWD'$'
+ 
+ # However, *flags* that appear after unrecognized flags should still be
+ # interpreted as flags, under the (possibly-erroneous) assumption that
+diff --git a/src/cmd/go/testdata/script/test_setup_error.txt b/src/cmd/go/testdata/script/test_setup_error.txt
+new file mode 100644
+index 0000000000..2999067f2c
+--- /dev/null
++++ b/src/cmd/go/testdata/script/test_setup_error.txt
+@@ -0,0 +1,74 @@
++[short] skip
++
++# Test that a loading error in a test file is reported as a "setup failed" error
++# and doesn't prevent running other tests.
++! go test -o=$devnull ./t1/p ./t
++stderr '# m/t1/p\n.*package x is not in std'
++stdout 'FAIL	m/t1/p \[setup failed\]'
++stdout 'ok  	m/t'
++
++# Test a loading error in a test package, but not in the test file
++! go test -o=$devnull ./t2/p ./t
++stderr '# m/t2/p\n.*package x is not in std'
++stdout 'FAIL	m/t2/p \[setup failed\]'
++stdout 'ok  	m/t'
++
++# Test a loading error in a package imported by a test file
++! go test -o=$devnull ./t3/p ./t
++stderr '# m/t3/p\n.*package x is not in std'
++stdout 'FAIL	m/t3/p \[setup failed\]'
++stdout 'ok  	m/t'
++
++# Test a loading error in a package imported by a test package
++! go test -o=$devnull ./t4/p ./t
++stderr '# m/t4/p\n.*package x is not in std'
++stdout 'FAIL	m/t4/p \[setup failed\]'
++stdout 'ok  	m/t'
++
++# Test that two loading errors are both reported.
++! go test -o=$devnull ./t1/p ./t2/p ./t
++stderr '# m/t1/p\n.*package x is not in std'
++stdout 'FAIL	m/t1/p \[setup failed\]'
++stderr '# m/t2/p\n.*package x is not in std'
++stdout 'FAIL	m/t2/p \[setup failed\]'
++stdout 'ok  	m/t'
++
++# Finally, this one is a build error, but produced by cmd/go directly
++! go test -o=$devnull . ./t
++stderr '^\.: no Go files in '$PWD'$'
++stdout 'FAIL	. \[build failed\]'
++stdout 'ok  	m/t'
++
++-- go.mod --
++module m
++go 1.21
++-- t/t_test.go --
++package t
++
++import "testing"
++
++func TestGood(t *testing.T) {}
++-- t1/p/p_test.go --
++package p
++
++import "x"
++-- t2/p/p_test.go --
++package p
++-- t2/p/p.go --
++package p
++
++import "x"
++-- t3/p/p_test.go --
++package p
++
++import "m/bad"
++-- t4/p/p_test.go --
++package p
++-- t4/p/p.go --
++package p
++
++import "m/bad"
++-- bad/bad.go --
++package bad
++
++import "x"

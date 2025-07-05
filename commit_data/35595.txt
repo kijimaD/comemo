@@ -25,6 +25,20 @@ Date:   Fri Feb 23 10:40:12 2018 +0100
     Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/gc/ssa.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index a740e455c9..5061c6eef1 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -2913,7 +2913,7 @@ func init() {
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue1(ssa.OpSqrt, types.Types[TFLOAT64], args[0])
+ 		},
+-		sys.AMD64, sys.ARM, sys.ARM64, sys.MIPS, sys.MIPS64, sys.PPC64, sys.S390X)
++		sys.I386, sys.AMD64, sys.ARM, sys.ARM64, sys.MIPS, sys.MIPS64, sys.PPC64, sys.S390X)
+ 	addF("math", "Trunc",
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue1(ssa.OpTrunc, types.Types[TFLOAT64], args[0])

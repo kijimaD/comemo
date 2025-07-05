@@ -17,10 +17,113 @@ Date:   Tue Jan 12 12:25:33 2021 -0800
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ir/func.go        |  2 --
  src/cmd/compile/internal/ir/sizeof_test.go |  2 +-
  src/cmd/compile/internal/noder/noder.go    |  2 --
  src/cmd/compile/internal/typecheck/func.go |  4 ++--
  src/cmd/compile/internal/walk/closure.go   | 10 +++++-----
  5 files changed, 8 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/func.go b/src/cmd/compile/internal/ir/func.go
+index 3fe23635f4..30cddd298e 100644
+--- a/src/cmd/compile/internal/ir/func.go
++++ b/src/cmd/compile/internal/ir/func.go
+@@ -71,8 +71,6 @@ type Func struct {
+ 	// Anonymous and blank PPARAMOUTs are declared as ~rNN and ~bNN Names, respectively.
+ 	Dcl []*Name
+ 
+-	ClosureType Ntype // closure representation type
+-
+ 	// ClosureVars lists the free variables that are used within a
+ 	// function literal, but formally declared in an enclosing
+ 	// function. The variables in this slice are the closure function's
+diff --git a/src/cmd/compile/internal/ir/sizeof_test.go b/src/cmd/compile/internal/ir/sizeof_test.go
+index f95f77d6a2..553dc53760 100644
+--- a/src/cmd/compile/internal/ir/sizeof_test.go
++++ b/src/cmd/compile/internal/ir/sizeof_test.go
+@@ -20,7 +20,7 @@ func TestSizeof(t *testing.T) {
+ 		_32bit uintptr     // size on 32bit platforms
+ 		_64bit uintptr     // size on 64bit platforms
+ 	}{
+-		{Func{}, 196, 344},
++		{Func{}, 188, 328},
+ 		{Name{}, 116, 208},
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/noder/noder.go b/src/cmd/compile/internal/noder/noder.go
+index ec0debdbbd..edd30a1fc1 100644
+--- a/src/cmd/compile/internal/noder/noder.go
++++ b/src/cmd/compile/internal/noder/noder.go
+@@ -1856,7 +1856,6 @@ func fakeRecv() *ir.Field {
+ 
+ func (p *noder) funcLit(expr *syntax.FuncLit) ir.Node {
+ 	xtype := p.typeExpr(expr.Type)
+-	ntype := p.typeExpr(expr.Type)
+ 
+ 	fn := ir.NewFunc(p.pos(expr))
+ 	fn.SetIsHiddenClosure(ir.CurFunc != nil)
+@@ -1867,7 +1866,6 @@ func (p *noder) funcLit(expr *syntax.FuncLit) ir.Node {
+ 	fn.Nname.Defn = fn
+ 
+ 	clo := ir.NewClosureExpr(p.pos(expr), fn)
+-	fn.ClosureType = ntype
+ 	fn.OClosure = clo
+ 
+ 	p.funcBody(fn, expr.Body)
+diff --git a/src/cmd/compile/internal/typecheck/func.go b/src/cmd/compile/internal/typecheck/func.go
+index 8f7411daec..03a10f594a 100644
+--- a/src/cmd/compile/internal/typecheck/func.go
++++ b/src/cmd/compile/internal/typecheck/func.go
+@@ -293,20 +293,20 @@ func tcClosure(clo *ir.ClosureExpr, top int) {
+ 		fn.Iota = x
+ 	}
+ 
+-	fn.ClosureType = typecheckNtype(fn.ClosureType)
+-	clo.SetType(fn.ClosureType.Type())
+ 	fn.SetClosureCalled(top&ctxCallee != 0)
+ 
+ 	// Do not typecheck fn twice, otherwise, we will end up pushing
+ 	// fn to Target.Decls multiple times, causing initLSym called twice.
+ 	// See #30709
+ 	if fn.Typecheck() == 1 {
++		clo.SetType(fn.Type())
+ 		return
+ 	}
+ 
+ 	fn.Nname.SetSym(closurename(ir.CurFunc))
+ 	ir.MarkFunc(fn.Nname)
+ 	Func(fn)
++	clo.SetType(fn.Type())
+ 
+ 	// Type check the body now, but only if we're inside a function.
+ 	// At top level (in a variable initialization: curfn==nil) we're not
+diff --git a/src/cmd/compile/internal/walk/closure.go b/src/cmd/compile/internal/walk/closure.go
+index e9b3698080..694aa99940 100644
+--- a/src/cmd/compile/internal/walk/closure.go
++++ b/src/cmd/compile/internal/walk/closure.go
+@@ -64,10 +64,12 @@ func directClosureCall(n *ir.CallExpr) {
+ 
+ 	// f is ONAME of the actual function.
+ 	f := clofn.Nname
+-
+-	// Prepend params and decls.
+ 	typ := f.Type()
+-	typ.Params().SetFields(append(params, typ.Params().FieldSlice()...))
++
++	// Create new function type with parameters prepended, and
++	// then update type and declarations.
++	typ = types.NewSignature(typ.Pkg(), nil, append(params, typ.Params().FieldSlice()...), typ.Results().FieldSlice())
++	f.SetType(typ)
+ 	clofn.Dcl = append(decls, clofn.Dcl...)
+ 
+ 	// Rewrite call.
+@@ -78,8 +80,6 @@ func directClosureCall(n *ir.CallExpr) {
+ 	// because typecheck gave it the result type of the OCLOSURE
+ 	// node, but we only rewrote the ONAME node's type. Logically,
+ 	// they're the same, but the stack offsets probably changed.
+-	//
+-	// TODO(mdempsky): Reuse a single type for both.
+ 	if typ.NumResults() == 1 {
+ 		n.SetType(typ.Results().Field(0).Type)
+ 	} else {

@@ -9,6 +9,31 @@ Date:   Thu Dec 1 16:25:07 2016 -0800
     Change-Id: I119f26796bb2b66d302e132dd118847ac3bd6633
     Reviewed-on: https://go-review.googlesource.com/33807
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go1.8.html | 13 -------------
  1 file changed, 13 deletions(-)
+
+diff --git a/doc/go1.8.html b/doc/go1.8.html
+index c05e70a586..244e8cc8ca 100644
+--- a/doc/go1.8.html
++++ b/doc/go1.8.html
+@@ -1469,19 +1469,6 @@ crypto/x509: return error for missing SerialNumber (CL 27238)
+   </dd>
+ </dl>
+ 
+-<dl id="os_signal"><dt><a href="/pkg/os/signal/">os/signal</a></dt>
+-  <dd>
+-    <p> <!-- CL 32796 -->
+-      In a Go library built with <code>-buildmode=c-archive</code>
+-      or <code>c-shared</code>, when C code calls a Go function,
+-      the <code>SIGPIPE</code> signal will be treated as usual for Go code.
+-      In particular, when <code>SIGPIPE</code> is triggered by a write
+-      to a closed Go network connection, it will not cause the program
+-      to exit.
+-    </p>
+-  </dd>
+-</dl>
+-
+ <dl id="path_filepath"><dt><a href="/pkg/path/filepath/">path/filepath</a></dt>
+   <dd>
+     <p>

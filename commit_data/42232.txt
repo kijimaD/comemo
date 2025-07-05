@@ -11,7 +11,36 @@ Date:   Mon Nov 18 09:54:45 2019 -0500
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/fix/main.go      | 4 +---
  src/cmd/fix/main_test.go | 1 +
  2 files changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/fix/main.go b/src/cmd/fix/main.go
+index 80b3c76350..e72c66398f 100644
+--- a/src/cmd/fix/main.go
++++ b/src/cmd/fix/main.go
+@@ -203,10 +203,8 @@ func processFile(filename string, useStdin bool) error {
+ 	return ioutil.WriteFile(f.Name(), newSrc, 0)
+ }
+ 
+-var gofmtBuf bytes.Buffer
+-
+ func gofmt(n interface{}) string {
+-	gofmtBuf.Reset()
++	var gofmtBuf bytes.Buffer
+ 	if err := format.Node(&gofmtBuf, fset, n); err != nil {
+ 		return "<" + err.Error() + ">"
+ 	}
+diff --git a/src/cmd/fix/main_test.go b/src/cmd/fix/main_test.go
+index ee74f24c6e..af16bcaa31 100644
+--- a/src/cmd/fix/main_test.go
++++ b/src/cmd/fix/main_test.go
+@@ -76,6 +76,7 @@ func parseFixPrint(t *testing.T, fn func(*ast.File) bool, desc, in string, mustB
+ 
+ func TestRewrite(t *testing.T) {
+ 	for _, tt := range testCases {
++		tt := tt
+ 		t.Run(tt.Name, func(t *testing.T) {
+ 			t.Parallel()
+ 			// Apply fix: should get tt.Out.

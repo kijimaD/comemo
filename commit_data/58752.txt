@@ -20,7 +20,86 @@ Date:   Thu Dec 7 11:11:01 2023 -0500
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Auto-Submit: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/rand.go      | 22 ++++++++++++++++++++++
  src/runtime/rand_test.go | 33 +++++++++++++++++++++++++++++++++
  2 files changed, 55 insertions(+)
+
+diff --git a/src/runtime/rand.go b/src/runtime/rand.go
+index 6cb8deef51..10cd116fad 100644
+--- a/src/runtime/rand.go
++++ b/src/runtime/rand.go
+@@ -223,3 +223,25 @@ func cheaprandn(n uint32) uint32 {
+ 	// See https://lemire.me/blog/2016/06/27/a-fast-alternative-to-the-modulo-reduction/
+ 	return uint32((uint64(cheaprand()) * uint64(n)) >> 32)
+ }
++
++// Too much legacy code has go:linkname references
++// to runtime.fastrand and friends, so keep these around for now.
++// Code should migrate to math/rand/v2.Uint64,
++// which is just as fast, but that's only available in Go 1.22+.
++// It would be reasonable to remove these in Go 1.24.
++// Do not call these from package runtime.
++
++//go:linkname legacy_fastrand runtime.fastrand
++func legacy_fastrand() uint32 {
++	return uint32(rand())
++}
++
++//go:linkname legacy_fastrandn runtime.fastrandn
++func legacy_fastrandn(n uint32) uint32 {
++	return randn(n)
++}
++
++//go:linkname legacy_fastrand64 runtime.fastrand64
++func legacy_fastrand64() uint64 {
++	return rand()
++}
+diff --git a/src/runtime/rand_test.go b/src/runtime/rand_test.go
+index 94648c5216..baecb6984d 100644
+--- a/src/runtime/rand_test.go
++++ b/src/runtime/rand_test.go
+@@ -8,6 +8,7 @@ import (
+ 	. "runtime"
+ 	"strconv"
+ 	"testing"
++	_ "unsafe" // for go:linkname
+ )
+ 
+ func TestReadRandom(t *testing.T) {
+@@ -62,3 +63,35 @@ func BenchmarkFastrandn(b *testing.B) {
+ 		})
+ 	}
+ }
++
++//go:linkname fastrand runtime.fastrand
++func fastrand() uint32
++
++//go:linkname fastrandn runtime.fastrandn
++func fastrandn(uint32) uint32
++
++//go:linkname fastrand64 runtime.fastrand64
++func fastrand64() uint64
++
++func TestLegacyFastrand(t *testing.T) {
++	// Testing mainly that the calls work at all,
++	// but check that all three don't return the same number (1 in 2^64 chance)
++	{
++		x, y, z := fastrand(), fastrand(), fastrand()
++		if x == y && y == z {
++			t.Fatalf("fastrand three times = %#x, %#x, %#x, want different numbers", x, y, z)
++		}
++	}
++	{
++		x, y, z := fastrandn(1e9), fastrandn(1e9), fastrandn(1e9)
++		if x == y && y == z {
++			t.Fatalf("fastrandn three times = %#x, %#x, %#x, want different numbers", x, y, z)
++		}
++	}
++	{
++		x, y, z := fastrand64(), fastrand64(), fastrand64()
++		if x == y && y == z {
++			t.Fatalf("fastrand64 three times = %#x, %#x, %#x, want different numbers", x, y, z)
++		}
++	}
++}

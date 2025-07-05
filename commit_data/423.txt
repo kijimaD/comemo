@@ -9,8 +9,247 @@ Date:   Fri Jul 25 11:58:26 2008 -0700
     DELTA=120  (108 added, 0 deleted, 12 changed)
     OCL=13468
     CL=13468
-
+---
  src/cmd/gc/subr.c  |  6 +++++
  src/cmd/gc/walk.c  | 53 +++++++++++++++++++++++++++++++++++-----
  src/runtime/chan.c | 71 ++++++++++++++++++++++++++++++++++++++++++++++++++----
  3 files changed, 119 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 8609f39dfc..db76f831ab 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -446,6 +446,7 @@ loop:
+ 	case OIF:
+ 	case OSWITCH:
+ 	case OFOR:
++	case OSELECT:
+ 		dodump(n->ninit, dep);
+ 		break;
+ 	}
+@@ -480,6 +481,11 @@ loop:
+ 		}
+ 		return;
+ 
++	case OSELECT:
++		print("%O%J\n", n->op, n);
++		dodump(n->nbody, dep+1);
++		return;
++
+ 	case OSWITCH:
+ 	case OFOR:
+ 		print("%O%J\n", n->op, n);
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 422b551367..dcc4fa0770 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -915,13 +915,18 @@ loop:
+ }
+ 
+ Node*
+-selcase(Node *c, Node *var)
++selcase(Node *n, Node *var)
+ {
+-	Node *a, *r, *on;
++	Node *a, *r, *on, *c;
+ 	Type *t;
+ 
++	c = n->left;
++	if(c->op == ORECV)
++		goto recv;
++
+ 	walktype(c->left, Erv);		// chan
+ 	walktype(c->right, Erv);	// elem
++
+ 	t = fixchan(c->left->type);
+ 	if(t == T)
+ 		return;
+@@ -937,11 +942,44 @@ selcase(Node *c, Node *var)
+ 	argtype(on, t->type);
+ 	argtype(on, t->type);
+ 
+-	a = c->right;		// elem
++	a = c->right;			// elem
+ 	r = a;
+-	a = c->left;		// chan
++	a = c->left;			// chan
+ 	r = list(a, r);
+-	a = var;		// sel-var
++	a = var;			// sel-var
++	r = list(a, r);
++
++	a = nod(OCALL, on, r);
++	r = nod(OIF, N, N);
++	r->ntest = a;
++
++	return r;
++
++recv:
++	walktype(c->left, Elv);		// elem
++	walktype(c->right, Erv);	// chan
++
++	t = fixchan(c->right->type);
++	if(t == T)
++		return;
++
++	convlit(c->left, t->type);
++	if(!ascompat(t->type, c->left->type)) {
++		badtype(c->op, t->type, c->left->type);
++		return;
++	}
++
++	// selectrecv(sel *byte, hchan *chan any, elem *any) (selected bool);
++	on = syslook("selectrecv", 1);
++	argtype(on, t->type);
++	argtype(on, t->type);
++
++	a = c->left;			// elem
++	a = nod(OADDR, a, N);
++	r = a;
++	a = c->right;			// chan
++	r = list(a, r);
++	a = var;			// sel-var
+ 	r = list(a, r);
+ 
+ 	a = nod(OCALL, on, r);
+@@ -991,11 +1029,12 @@ walkselect(Node *sel)
+ 				break;
+ 
+ 			case OSEND:
++			case ORECV:
+ 				if(oc != N) {
+ 					bod = list(bod, nod(OBREAK, N, N));
+ 					oc->nbody = rev(bod);
+ 				}
+-				oc = selcase(n->left, var);
++				oc = selcase(n, var);
+ 				res = list(res, oc);
+ 				break;
+ 			}
+@@ -1030,6 +1069,8 @@ walkselect(Node *sel)
+ 	walktype(sel->ninit, Etop);
+ 	walktype(sel->nbody, Etop);
+ 
++dump("sel", sel);
++
+ 	lineno = lno;
+ }
+ 
+diff --git a/src/runtime/chan.c b/src/runtime/chan.c
+index 9f48c5d7ca..ffaf55448f 100644
+--- a/src/runtime/chan.c
++++ b/src/runtime/chan.c
+@@ -54,7 +54,10 @@ struct	Scase
+ 	byte*	pc;			// return pc
+ 	uint16	send;			// 0-recv 1-send
+ 	uint16	so;			// vararg of selected bool
+-	byte	elem[8];		// element
++	union {
++		byte	elem[8];	// element (send)
++		byte*	elemp;		// pointer to element (recv)
++	} u;
+ };
+ 
+ struct	Select
+@@ -390,7 +393,7 @@ sys·selectsend(Select *sel, Hchan *c, ...)
+ 	cas->send = 1;
+ 
+ 	ae = (byte*)&sel + eo;
+-	c->elemalg->copy(c->elemsize, cas->elem, ae);
++	c->elemalg->copy(c->elemsize, cas->u.elem, ae);
+ 
+ 	as = (byte*)&sel + cas->so;
+ 	*as = false;
+@@ -414,7 +417,45 @@ sys·selectsend(Select *sel, Hchan *c, ...)
+ void
+ sys·selectrecv(Select *sel, Hchan *c, ...)
+ {
+-	throw("selectrecv");
++	int32 i, epo;
++	Scase *cas;
++	byte *as;
++
++	// return val, selected, is preset to false
++	if(c == nil)
++		return;
++
++	i = sel->ncase;
++	if(i >= sel->tcase)
++		throw("selectsend: too many cases");
++	sel->ncase = i+1;
++	cas = &sel->scase[i];
++
++	cas->pc = sys·getcallerpc(&sel);
++	cas->chan = c;
++
++	epo = rnd(sizeof(sel), sizeof(c));
++	epo = rnd(epo+sizeof(c), sizeof(byte*));
++	cas->so = rnd(epo+sizeof(byte*), 1);
++	cas->send = 0;
++	cas->u.elemp = *(byte**)((byte*)&sel + epo);
++
++	as = (byte*)&sel + cas->so;
++	*as = false;
++
++	if(debug) {
++		prints("newselect s=");
++		sys·printpointer(sel);
++		prints(" pc=");
++		sys·printpointer(cas->pc);
++		prints(" chan=");
++		sys·printpointer(cas->chan);
++		prints(" so=");
++		sys·printint(cas->so);
++		prints(" send=");
++		sys·printint(cas->send);
++		prints("\n");
++	}
+ }
+ 
+ // selectgo(sel *byte);
+@@ -429,6 +470,9 @@ sys·selectgo(Select *sel)
+ 	SudoG *sgr;
+ 	G *gr;
+ 
++	SudoG *sgs;
++	G *gs;
++
+ 	if(sel->ncase < 1) {
+ 		throw("selectgo: no cases");
+ 	}
+@@ -453,16 +497,33 @@ sys·selectgo(Select *sel)
+ 		c = cas->chan;
+ 		if(cas->send) {
+ 			if(c->dataqsiz > 0) {
+-				throw("selectgo: asynch");
++				throw("selectgo: send asynch");
+ 			}
+ 			sgr = dequeue(&c->recvq, c);
+ 			if(sgr == nil)
+ 				continue;
+ 
+-			c->elemalg->copy(c->elemsize, sgr->elem, cas->elem);
++			c->elemalg->copy(c->elemsize, sgr->elem, cas->u.elem);
+ 			gr = sgr->g;
+ 			gr->status = Grunnable;
+ 
++			goto retc;
++		} else {
++			if(c->dataqsiz > 0) {
++				throw("selectgo: recv asynch");
++			}
++			sgs = dequeue(&c->sendq, c);
++			if(sgs == nil)
++				continue;
++
++			if(cas->u.elemp != nil)
++				c->elemalg->copy(c->elemsize, cas->u.elemp, sgs->elem);
++
++			gs = sgs->g;
++			gs->status = Grunnable;
++
++			freesg(c, sgs);
++
+ 			goto retc;
+ 		}
+ 

@@ -15,6 +15,20 @@ Date:   Wed Sep 12 12:05:34 2012 -0400
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/6498120
-
+---
  src/cmd/dist/build.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/dist/build.c b/src/cmd/dist/build.c
+index f21b5afda3..9522dffb2b 100644
+--- a/src/cmd/dist/build.c
++++ b/src/cmd/dist/build.c
+@@ -1352,7 +1352,7 @@ cmdenv(int argc, char **argv)
+ 		vflag++;
+ 		break;
+ 	case 'w':
+-		format = "set %s=%s\n";
++		format = "set %s=%s\r\n";
+ 		break;
+ 	default:
+ 		usage();

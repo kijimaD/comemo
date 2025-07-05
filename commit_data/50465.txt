@@ -13,7 +13,177 @@ Date:   Fri Oct 22 11:21:28 2021 +1100
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/go/internal/vcs/vcs.go                     | 55 +++++++++++++
  .../go/testdata/script/version_buildvcs_fossil.txt | 90 ++++++++++++++++++++++
  2 files changed, 145 insertions(+)
+
+diff --git a/src/cmd/go/internal/vcs/vcs.go b/src/cmd/go/internal/vcs/vcs.go
+index 990e1d4248..6d2996e17a 100644
+--- a/src/cmd/go/internal/vcs/vcs.go
++++ b/src/cmd/go/internal/vcs/vcs.go
+@@ -455,6 +455,7 @@ var vcsFossil = &Cmd{
+ 
+ 	Scheme:     []string{"https", "http"},
+ 	RemoteRepo: fossilRemoteRepo,
++	Status:     fossilStatus,
+ }
+ 
+ func fossilRemoteRepo(vcsFossil *Cmd, rootDir string) (remoteRepo string, err error) {
+@@ -465,6 +466,60 @@ func fossilRemoteRepo(vcsFossil *Cmd, rootDir string) (remoteRepo string, err er
+ 	return strings.TrimSpace(string(out)), nil
+ }
+ 
++var errFossilInfo = errors.New("unable to parse output of fossil info")
++
++func fossilStatus(vcsFossil *Cmd, rootDir string) (Status, error) {
++	outb, err := vcsFossil.runOutputVerboseOnly(rootDir, "info")
++	if err != nil {
++		return Status{}, err
++	}
++	out := string(outb)
++
++	// Expect:
++	// ...
++	// checkout:     91ed71f22c77be0c3e250920f47bfd4e1f9024d2 2021-09-21 12:00:00 UTC
++	// ...
++
++	// Extract revision and commit time.
++	// Ensure line ends with UTC (known timezone offset).
++	const prefix = "\ncheckout:"
++	const suffix = " UTC"
++	i := strings.Index(out, prefix)
++	if i < 0 {
++		return Status{}, errFossilInfo
++	}
++	checkout := out[i+len(prefix):]
++	i = strings.Index(checkout, suffix)
++	if i < 0 {
++		return Status{}, errFossilInfo
++	}
++	checkout = strings.TrimSpace(checkout[:i])
++
++	i = strings.IndexByte(checkout, ' ')
++	if i < 0 {
++		return Status{}, errFossilInfo
++	}
++	rev := checkout[:i]
++
++	commitTime, err := time.ParseInLocation("2006-01-02 15:04:05", checkout[i+1:], time.UTC)
++	if err != nil {
++		return Status{}, fmt.Errorf("%v: %v", errFossilInfo, err)
++	}
++
++	// Also look for untracked changes.
++	outb, err = vcsFossil.runOutputVerboseOnly(rootDir, "changes --differ")
++	if err != nil {
++		return Status{}, err
++	}
++	uncommitted := len(outb) > 0
++
++	return Status{
++		Revision:    rev,
++		CommitTime:  commitTime,
++		Uncommitted: uncommitted,
++	}, nil
++}
++
+ func (v *Cmd) String() string {
+ 	return v.Name
+ }
+diff --git a/src/cmd/go/testdata/script/version_buildvcs_fossil.txt b/src/cmd/go/testdata/script/version_buildvcs_fossil.txt
+new file mode 100644
+index 0000000000..3a4bde883f
+--- /dev/null
++++ b/src/cmd/go/testdata/script/version_buildvcs_fossil.txt
+@@ -0,0 +1,90 @@
++# This test checks that VCS information is stamped into Go binaries by default,
++# controlled with -buildvcs. This test focuses on Fossil specifics.
++# The Git test covers common functionality.
++
++# "fossil" is the Fossil file server on Plan 9.
++[plan9] skip
++[!exec:fossil] skip
++[short] skip
++env GOBIN=$WORK/gopath/bin
++env oldpath=$PATH
++env HOME=$WORK
++env USER=gopher
++[!windows] env fslckout=.fslckout
++[windows] env fslckout=_FOSSIL_
++exec pwd
++exec fossil init repo.fossil
++cd repo/a
++
++# If there's no local repository, there's no VCS info.
++go install
++go version -m $GOBIN/a$GOEXE
++! stdout fossilrevision
++rm $GOBIN/a$GOEXE
++
++# If there is a repository, but it can't be used for some reason,
++# there should be an error. It should hint about -buildvcs=false.
++cd ..
++mkdir $fslckout
++env PATH=$WORK${/}fakebin${:}$oldpath
++chmod 0755 $WORK/fakebin/fossil
++! exec fossil help
++cd a
++! go install
++stderr '^error obtaining VCS status: exit status 1\n\tUse -buildvcs=false to disable VCS stamping.$'
++rm $GOBIN/a$GOEXE
++cd ..
++env PATH=$oldpath
++rm $fslckout
++
++# Revision and commit time are tagged for repositories with commits.
++exec fossil open ../repo.fossil -f
++exec fossil add a README
++exec fossil commit -m 'initial commit'
++cd a
++go install
++go version -m $GOBIN/a$GOEXE
++stdout '^\tbuild\tfossilrevision\t'
++stdout '^\tbuild\tfossilcommittime\t'
++stdout '^\tbuild\tfossiluncommitted\tfalse$'
++rm $GOBIN/a$GOEXE
++
++# Building with -buildvcs=false suppresses the info.
++go install -buildvcs=false
++go version -m $GOBIN/a$GOEXE
++! stdout fossilrevision
++rm $GOBIN/a$GOEXE
++
++# An untracked file is shown as uncommitted, even if it isn't part of the build.
++cp ../../outside/empty.txt .
++go install
++go version -m $GOBIN/a$GOEXE
++stdout '^\tbuild\tfossiluncommitted\ttrue$'
++rm empty.txt
++rm $GOBIN/a$GOEXE
++
++# An edited file is shown as uncommitted, even if it isn't part of the build.
++cp ../../outside/empty.txt ../README
++go install
++go version -m $GOBIN/a$GOEXE
++stdout '^\tbuild\tfossiluncommitted\ttrue$'
++exec fossil revert ../README
++rm $GOBIN/a$GOEXE
++
++-- $WORK/fakebin/fossil --
++#!/bin/sh
++exit 1
++-- $WORK/fakebin/fossil.bat --
++exit 1
++-- repo/README --
++Far out in the uncharted backwaters of the unfashionable end of the western
++spiral arm of the Galaxy lies a small, unregarded yellow sun.
++-- repo/a/go.mod --
++module example.com/a
++
++go 1.18
++-- repo/a/a.go --
++package main
++
++func main() {}
++-- outside/empty.txt --

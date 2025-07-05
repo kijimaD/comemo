@@ -17,6 +17,22 @@ Date:   Mon Dec 6 18:05:53 2021 -0500
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Trust: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  misc/cgo/testplugin/plugin_test.go | 4 ----
  1 file changed, 4 deletions(-)
+
+diff --git a/misc/cgo/testplugin/plugin_test.go b/misc/cgo/testplugin/plugin_test.go
+index 9697dbf7a7..a6accc1dfb 100644
+--- a/misc/cgo/testplugin/plugin_test.go
++++ b/misc/cgo/testplugin/plugin_test.go
+@@ -265,10 +265,6 @@ func TestIssue25756(t *testing.T) {
+ 
+ // Test with main using -buildmode=pie with plugin for issue #43228
+ func TestIssue25756pie(t *testing.T) {
+-	if os.Getenv("GO_BUILDER_NAME") == "darwin-arm64-11_0-toothrot" {
+-		t.Skip("broken on darwin/arm64 builder in sharded mode; see issue 46239")
+-	}
+-
+ 	goCmd(t, "build", "-buildmode=plugin", "-o", "life.so", "./issue25756/plugin")
+ 	goCmd(t, "build", "-buildmode=pie", "-o", "issue25756pie.exe", "./issue25756/main.go")
+ 	run(t, "./issue25756pie.exe")

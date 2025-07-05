@@ -10,8 +10,80 @@ Date:   Fri Apr 7 15:39:36 2017 -0700
     Reviewed-on: https://go-review.googlesource.com/39996
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/alg.go  | 12 ++++++------
  src/cmd/compile/internal/gc/subr.go | 14 +++++++-------
  src/cmd/compile/internal/gc/walk.go | 12 ++++++------
  3 files changed, 19 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/alg.go b/src/cmd/compile/internal/gc/alg.go
+index e98df71b34..cdb21a7d4b 100644
+--- a/src/cmd/compile/internal/gc/alg.go
++++ b/src/cmd/compile/internal/gc/alg.go
+@@ -343,12 +343,12 @@ func hashfor(t *types.Type) *Node {
+ 
+ 	n := newname(sym)
+ 	n.SetClass(PFUNC)
+-	tfn := nod(OTFUNC, nil, nil)
+-	tfn.List.Append(anonfield(types.NewPtr(t)))
+-	tfn.List.Append(anonfield(types.Types[TUINTPTR]))
+-	tfn.Rlist.Append(anonfield(types.Types[TUINTPTR]))
+-	tfn = typecheck(tfn, Etype)
+-	n.Type = tfn.Type
++	n.Type = functype(nil, []*Node{
++		anonfield(types.NewPtr(t)),
++		anonfield(types.Types[TUINTPTR]),
++	}, []*Node{
++		anonfield(types.Types[TUINTPTR]),
++	})
+ 	return n
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 5143c3e3d5..86d5539ca2 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -1803,13 +1803,13 @@ func hashmem(t *types.Type) *Node {
+ 
+ 	n := newname(sym)
+ 	n.SetClass(PFUNC)
+-	tfn := nod(OTFUNC, nil, nil)
+-	tfn.List.Append(anonfield(types.NewPtr(t)))
+-	tfn.List.Append(anonfield(types.Types[TUINTPTR]))
+-	tfn.List.Append(anonfield(types.Types[TUINTPTR]))
+-	tfn.Rlist.Append(anonfield(types.Types[TUINTPTR]))
+-	tfn = typecheck(tfn, Etype)
+-	n.Type = tfn.Type
++	n.Type = functype(nil, []*Node{
++		anonfield(types.NewPtr(t)),
++		anonfield(types.Types[TUINTPTR]),
++		anonfield(types.Types[TUINTPTR]),
++	}, []*Node{
++		anonfield(types.Types[TUINTPTR]),
++	})
+ 	return n
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 872b20925e..51def75a33 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -3215,12 +3215,12 @@ func eqfor(t *types.Type) (n *Node, needsize bool) {
+ 		sym := typesymprefix(".eq", t)
+ 		n := newname(sym)
+ 		n.SetClass(PFUNC)
+-		ntype := nod(OTFUNC, nil, nil)
+-		ntype.List.Append(anonfield(types.NewPtr(t)))
+-		ntype.List.Append(anonfield(types.NewPtr(t)))
+-		ntype.Rlist.Append(anonfield(types.Types[TBOOL]))
+-		ntype = typecheck(ntype, Etype)
+-		n.Type = ntype.Type
++		n.Type = functype(nil, []*Node{
++			anonfield(types.NewPtr(t)),
++			anonfield(types.NewPtr(t)),
++		}, []*Node{
++			anonfield(types.Types[TBOOL]),
++		})
+ 		return n, false
+ 	}
+ 	Fatalf("eqfor %v", t)

@@ -11,7 +11,44 @@ Date:   Sun Nov 3 23:40:44 2019 -0500
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/modget/get.go             | 3 +++
  src/cmd/go/testdata/script/mod_issue35317.txt | 8 ++++++++
  2 files changed, 11 insertions(+)
+
+diff --git a/src/cmd/go/internal/modget/get.go b/src/cmd/go/internal/modget/get.go
+index eb0534f24b..9a6b29350a 100644
+--- a/src/cmd/go/internal/modget/get.go
++++ b/src/cmd/go/internal/modget/get.go
+@@ -454,6 +454,7 @@ func runGet(cmd *base.Command, args []string) {
+ 	// This includes explicitly requested modules that don't have a root package
+ 	// and modules with a target version of "none".
+ 	var wg sync.WaitGroup
++	var modOnlyMu sync.Mutex
+ 	modOnly := make(map[string]*query)
+ 	for _, q := range queries {
+ 		if q.m.Version == "none" {
+@@ -466,7 +467,9 @@ func runGet(cmd *base.Command, args []string) {
+ 				if hasPkg, err := modload.ModuleHasRootPackage(q.m); err != nil {
+ 					base.Errorf("go get: %v", err)
+ 				} else if !hasPkg {
++					modOnlyMu.Lock()
+ 					modOnly[q.m.Path] = q
++					modOnlyMu.Unlock()
+ 				}
+ 				wg.Done()
+ 			}(q)
+diff --git a/src/cmd/go/testdata/script/mod_issue35317.txt b/src/cmd/go/testdata/script/mod_issue35317.txt
+new file mode 100644
+index 0000000000..003390b710
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_issue35317.txt
+@@ -0,0 +1,8 @@
++# Regression test for golang.org/issue/35317:
++# 'go get' with multiple module-only arguments was racy.
++
++env GO111MODULE=on
++[short] skip
++
++go mod init example.com
++go get golang.org/x/text@v0.3.0 golang.org/x/internal@v0.1.0

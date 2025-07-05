@@ -12,9 +12,105 @@ Date:   Tue Sep 21 16:05:57 2021 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/modfetch/cache.go         |  2 +-
  src/cmd/go/internal/modload/init.go           | 17 +++++++++++------
  src/cmd/go/testdata/script/mod_gomodcache.txt | 13 ++++++++++---
  src/cmd/go/testdata/script/mod_no_gopath.txt  | 15 +++++++++++++++
  4 files changed, 37 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/go/internal/modfetch/cache.go b/src/cmd/go/internal/modfetch/cache.go
+index b01b467413..8d299e931a 100644
+--- a/src/cmd/go/internal/modfetch/cache.go
++++ b/src/cmd/go/internal/modfetch/cache.go
+@@ -720,7 +720,7 @@ func checkCacheDir() error {
+ 	if cfg.GOMODCACHE == "" {
+ 		// modload.Init exits if GOPATH[0] is empty, and cfg.GOMODCACHE
+ 		// is set to GOPATH[0]/pkg/mod if GOMODCACHE is empty, so this should never happen.
+-		return fmt.Errorf("internal error: cfg.GOMODCACHE not set")
++		return fmt.Errorf("module cache not found: neither GOMODCACHE nor GOPATH is set")
+ 	}
+ 	if !filepath.IsAbs(cfg.GOMODCACHE) {
+ 		return fmt.Errorf("GOMODCACHE entry is relative; must be absolute path: %q.\n", cfg.GOMODCACHE)
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index a855e6c851..83414feb3c 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -246,6 +246,12 @@ func ModFile() *modfile.File {
+ 
+ func BinDir() string {
+ 	Init()
++	if cfg.GOBIN != "" {
++		return cfg.GOBIN
++	}
++	if gopath == "" {
++		return ""
++	}
+ 	return filepath.Join(gopath, "bin")
+ }
+ 
+@@ -381,12 +387,11 @@ func Init() {
+ 		"verify, graph, and why. Implement support for go mod download and add test cases" +
+ 		"to ensure verify, graph, and why work properly.")
+ 	list := filepath.SplitList(cfg.BuildContext.GOPATH)
+-	if len(list) == 0 || list[0] == "" {
+-		base.Fatalf("missing $GOPATH")
+-	}
+-	gopath = list[0]
+-	if _, err := fsys.Stat(filepath.Join(gopath, "go.mod")); err == nil {
+-		base.Fatalf("$GOPATH/go.mod exists but should not")
++	if len(list) > 0 && list[0] != "" {
++		gopath = list[0]
++		if _, err := fsys.Stat(filepath.Join(gopath, "go.mod")); err == nil {
++			base.Fatalf("$GOPATH/go.mod exists but should not")
++		}
+ 	}
+ 
+ 	if inWorkspaceMode() {
+diff --git a/src/cmd/go/testdata/script/mod_gomodcache.txt b/src/cmd/go/testdata/script/mod_gomodcache.txt
+index 74a3c79622..a9d7ab3f04 100644
+--- a/src/cmd/go/testdata/script/mod_gomodcache.txt
++++ b/src/cmd/go/testdata/script/mod_gomodcache.txt
+@@ -31,11 +31,18 @@ env GOPATH=
+ go env GOMODCACHE
+ stdout $HOME[/\\]go[/\\]pkg[/\\]mod
+ 
+-# If GOMODCACHE isn't set and GOPATH starts with the path list separator, it's an error.
++# If GOMODCACHE isn't set and GOPATH starts with the path list separator,
++# GOMODCACHE is empty and any command that needs it errors out.
+ env GOMODCACHE=
+ env GOPATH=${:}$WORK/this/is/ignored
+-! go env GOMODCACHE
+-stderr 'missing \$GOPATH'
++
++go env GOMODCACHE
++stdout '^$'
++! stdout .
++! stderr .
++
++! go mod download rsc.io/quote@v1.0.0
++stderr '^go: module cache not found: neither GOMODCACHE nor GOPATH is set$'
+ 
+ # If GOMODCACHE isn't set and GOPATH has multiple elements only the first is used.
+ env GOMODCACHE=
+diff --git a/src/cmd/go/testdata/script/mod_no_gopath.txt b/src/cmd/go/testdata/script/mod_no_gopath.txt
+new file mode 100644
+index 0000000000..ed91f5d42e
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_no_gopath.txt
+@@ -0,0 +1,15 @@
++# https://golang.org/issue/43938: 'go build' should succeed
++# if GOPATH and the variables needed for its default value
++# are all unset but not relevant to the specific command.
++
++env HOME=''
++env home=''
++env GOPATH=''
++
++go list -deps main.go
++stdout '^io$'
++
++-- main.go --
++package main
++
++import _ "io"

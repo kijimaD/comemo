@@ -12,6 +12,20 @@ Date:   Thu Jan 19 22:07:20 2017 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  misc/cgo/test/issue18146.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/misc/cgo/test/issue18146.go b/misc/cgo/test/issue18146.go
+index ffb04e9037..3c600463f0 100644
+--- a/misc/cgo/test/issue18146.go
++++ b/misc/cgo/test/issue18146.go
+@@ -73,7 +73,7 @@ func test18146(t *testing.T) {
+ 		}
+ 		runtime.GOMAXPROCS(threads)
+ 		argv := append(os.Args, "-test.run=NoSuchTestExists")
+-		if err := syscall.Exec(os.Args[0], argv, nil); err != nil {
++		if err := syscall.Exec(os.Args[0], argv, os.Environ()); err != nil {
+ 			t.Fatal(err)
+ 		}
+ 	}

@@ -8,7 +8,50 @@ Date:   Sun Nov 8 00:51:08 2009 -0800
     
     R=rsc
     http://go/go-review/1024021
-
+---
  lib/godoc/dirList.html | 23 -----------------------
  src/cmd/godoc/godoc.go |  2 +-
  2 files changed, 1 insertion(+), 24 deletions(-)
+
+diff --git a/lib/godoc/dirList.html b/lib/godoc/dirList.html
+deleted file mode 100644
+index 03980078fb..0000000000
+--- a/lib/godoc/dirList.html
++++ /dev/null
+@@ -1,23 +0,0 @@
+-<!--
+-	Copyright 2009 The Go Authors. All rights reserved.
+-	Use of this source code is governed by a BSD-style
+-	license that can be found in the LICENSE file.
+--->
+-
+-<p>
+-<table class="layout">
+-<tr>
+-	<th align="left">File</th>
+-	<th width="100" align="right">Size</th>
+-</tr>
+-<tr>
+-	<td><a href=".." class="noline">..</a></td>
+-</tr>
+-{.repeated section @}
+-<tr>
+-	<td align="left"><a href="{Name|html}" class="noline">{Name|html}</a></td>
+-	<td align="right">{Size|html}</td>
+-</tr>
+-{.end}
+-</table>
+-</p>
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index 16a4982cf4..cecc2d8c3a 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -566,7 +566,7 @@ var (
+ func readTemplates() {
+ 	// have to delay until after flags processing,
+ 	// so that main has chdir'ed to goroot.
+-	dirListHtml = readTemplate("dirList.html");
++	dirListHtml = readTemplate("dirlist.html");
+ 	dirsHtml = readTemplate("dirs.html");
+ 	godocHtml = readTemplate("godoc.html");
+ 	packageHtml = readTemplate("package.html");

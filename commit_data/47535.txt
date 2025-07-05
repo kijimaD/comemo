@@ -16,6 +16,25 @@ Date:   Tue Mar 23 12:19:50 2021 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/304129
     Reviewed-by: Robert Findley <rfindley@google.com>
     Trust: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/types2/lookup.go | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/lookup.go b/src/cmd/compile/internal/types2/lookup.go
+index 34d18acdfc..a62def4183 100644
+--- a/src/cmd/compile/internal/types2/lookup.go
++++ b/src/cmd/compile/internal/types2/lookup.go
+@@ -1,4 +1,3 @@
+-// UNREVIEWED
+ // Copyright 2013 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+@@ -141,7 +140,7 @@ func (check *Checker) rawLookupFieldOrMethod(T Type, addressable bool, pkg *Pack
+ 
+ 				// continue with underlying type, but only if it's not a type parameter
+ 				// TODO(gri) is this what we want to do for type parameters? (spec question)
+-				typ = under(named)
++				typ = named.under()
+ 				if asTypeParam(typ) != nil {
+ 					continue
+ 				}

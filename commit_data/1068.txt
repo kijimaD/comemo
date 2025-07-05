@@ -9,7 +9,40 @@ Date:   Wed Nov 5 16:09:12 2008 -0800
     DELTA=10  (2 added, 8 deleted, 0 changed)
     OCL=18601
     CL=18605
-
+---
  src/cmd/6l/go.c     | 2 ++
  src/runtime/iface.c | 8 --------
  2 files changed, 2 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/6l/go.c b/src/cmd/6l/go.c
+index 19984336b3..4d2f5ec541 100644
+--- a/src/cmd/6l/go.c
++++ b/src/cmd/6l/go.c
+@@ -451,6 +451,8 @@ definetypesigs(void)
+ 		prog->to.sym = all[i];
+ 	}
+ 	s->value = PtrSize*n;
++	if(n == 0)
++		s->value = 1;	// must have non-zero size or 6l complains
+ 
+ 	// emit count
+ 	s = lookup("ngotypesigs", 0);
+diff --git a/src/runtime/iface.c b/src/runtime/iface.c
+index 4a394fc888..07bd325843 100644
+--- a/src/runtime/iface.c
++++ b/src/runtime/iface.c
+@@ -449,14 +449,6 @@ fakesigt(string type)
+ 	// TODO(rsc): Cache these by type string.
+ 	Sigt *sigt;
+ 
+-	// Must be pointer in order for alg, width to be right.
+-	if(type == nil || type->len == 0 || type->str[0] != '*') {
+-		// TODO(rsc): What to do here?
+-		prints("bad unreflect type: ");
+-		sys·printstring(type);
+-		prints("\n");
+-		throw("unreflect");
+-	}
+ 	sigt = mal(2*sizeof sigt[0]);
+ 	sigt[0].name = mal(type->len + 1);
+ 	mcpy(sigt[0].name, type->str, type->len);

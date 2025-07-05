@@ -7,7 +7,97 @@ Date:   Tue May 22 10:30:35 2012 -0700
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/6206096
-
+---
  src/pkg/go/ast/ast.go      | 14 +++++++------
  src/pkg/go/ast/ast_test.go | 50 ++++++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 58 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/go/ast/ast.go b/src/pkg/go/ast/ast.go
+index 7123fe58f5..d2e75dc1c0 100644
+--- a/src/pkg/go/ast/ast.go
++++ b/src/pkg/go/ast/ast.go
+@@ -87,8 +87,12 @@ func stripTrailingWhitespace(s string) string {
+ 	return s[0:i]
+ }
+ 
+-// Text returns the text of the comment,
+-// with the comment markers - //, /*, and */ - removed.
++// Text returns the text of the comment.
++// Comment markers (//, /*, and */), the first space of a line comment, and
++// leading and trailing empty lines are removed. Multiple empty lines are
++// reduced to one, and trailing space on lines is trimmed. Unless the result
++// is empty, it is newline-terminated.
++//
+ func (g *CommentGroup) Text() string {
+ 	if g == nil {
+ 		return ""
+@@ -104,11 +108,9 @@ func (g *CommentGroup) Text() string {
+ 		// The parser has given us exactly the comment text.
+ 		switch c[1] {
+ 		case '/':
+-			//-style comment
++			//-style comment (no newline at the end)
+ 			c = c[2:]
+-			// Remove leading space after //, if there is one.
+-			// TODO(gri) This appears to be necessary in isolated
+-			//           cases (bignum.RatFromString) - why?
++			// strip first space - required for Example tests
+ 			if len(c) > 0 && c[0] == ' ' {
+ 				c = c[1:]
+ 			}
+diff --git a/src/pkg/go/ast/ast_test.go b/src/pkg/go/ast/ast_test.go
+new file mode 100644
+index 0000000000..1a6a283f23
+--- /dev/null
++++ b/src/pkg/go/ast/ast_test.go
+@@ -0,0 +1,50 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ast
++
++import (
++	"testing"
++)
++
++var comments = []struct {
++	list []string
++	text string
++}{
++	{[]string{"//"}, ""},
++	{[]string{"//   "}, ""},
++	{[]string{"//", "//", "//   "}, ""},
++	{[]string{"// foo   "}, "foo\n"},
++	{[]string{"//", "//", "// foo"}, "foo\n"},
++	{[]string{"// foo  bar  "}, "foo  bar\n"},
++	{[]string{"// foo", "// bar"}, "foo\nbar\n"},
++	{[]string{"// foo", "//", "//", "//", "// bar"}, "foo\n\nbar\n"},
++	{[]string{"// foo", "/* bar */"}, "foo\n bar\n"},
++	{[]string{"//", "//", "//", "// foo", "//", "//", "//"}, "foo\n"},
++
++	{[]string{"/**/"}, ""},
++	{[]string{"/*   */"}, ""},
++	{[]string{"/**/", "/**/", "/*   */"}, ""},
++	{[]string{"/* Foo   */"}, " Foo\n"},
++	{[]string{"/* Foo  Bar  */"}, " Foo  Bar\n"},
++	{[]string{"/* Foo*/", "/* Bar*/"}, " Foo\n Bar\n"},
++	{[]string{"/* Foo*/", "/**/", "/**/", "/**/", "// Bar"}, " Foo\n\nBar\n"},
++	{[]string{"/* Foo*/", "/*\n*/", "//", "/*\n*/", "// Bar"}, " Foo\n\nBar\n"},
++	{[]string{"/* Foo*/", "// Bar"}, " Foo\nBar\n"},
++	{[]string{"/* Foo\n Bar*/"}, " Foo\n Bar\n"},
++}
++
++func TestCommentText(t *testing.T) {
++	for i, c := range comments {
++		list := make([]*Comment, len(c.list))
++		for i, s := range c.list {
++			list[i] = &Comment{Text: s}
++		}
++
++		text := (&CommentGroup{list}).Text()
++		if text != c.text {
++			t.Errorf("case %d: got %q; expected %q", i, text, c.text)
++		}
++	}
++}

@@ -8,7 +8,39 @@ Date:   Wed Jul 29 15:24:42 2009 -0700
     DELTA=5  (0 added, 1 deleted, 4 changed)
     OCL=32465
     CL=32467
-
+---
  src/pkg/gob/decoder.go      | 7 +++----
  src/pkg/gob/encoder_test.go | 2 +-
  2 files changed, 4 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/gob/decoder.go b/src/pkg/gob/decoder.go
+index b4c0acdfa7..7e0c939300 100644
+--- a/src/pkg/gob/decoder.go
++++ b/src/pkg/gob/decoder.go
+@@ -79,10 +79,9 @@ func (dec *Decoder) Decode(e interface{}) os.Error {
+ 		var n int;
+ 		n, dec.state.err = io.ReadFull(dec.r, dec.buf[0:nbytes]);
+ 		if dec.state.err != nil {
+-			break;
+-		}
+-		if n < int(nbytes) {
+-			dec.state.err = io.ErrUnexpectedEOF;
++			if dec.state.err ==  os.EOF {
++				dec.state.err = io.ErrUnexpectedEOF;
++			}
+ 			break;
+ 		}
+ 
+diff --git a/src/pkg/gob/encoder_test.go b/src/pkg/gob/encoder_test.go
+index 06420c08e3..e1c64e4dd7 100644
+--- a/src/pkg/gob/encoder_test.go
++++ b/src/pkg/gob/encoder_test.go
+@@ -240,7 +240,7 @@ func corruptDataCheck(s string, err os.Error, t *testing.T) {
+ 
+ // Check that we survive bad data.
+ func TestBadData(t *testing.T) {
+-	corruptDataCheck("\x01\x01\x01", os.EOF, t);
++	corruptDataCheck("", os.EOF, t);
+ 	corruptDataCheck("\x7Fhi", io.ErrUnexpectedEOF, t);
+ 	corruptDataCheck("\x03now is the time for all good men", errBadType, t);
+ }

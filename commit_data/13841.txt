@@ -11,7 +11,62 @@ Date:   Mon Sep 17 21:29:10 2012 +0200
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/6497147
-
+---
  src/cmd/gc/swt.c |  7 +++++++
  test/switch.go   | 11 +++++++++++
  2 files changed, 18 insertions(+)
+
+diff --git a/src/cmd/gc/swt.c b/src/cmd/gc/swt.c
+index aff1b5ea87..860fed84a9 100644
+--- a/src/cmd/gc/swt.c
++++ b/src/cmd/gc/swt.c
+@@ -442,6 +442,10 @@ exprbsw(Case *c0, int ncase, int arg)
+ 			n = c0->node;
+ 			lno = setlineno(n);
+ 
++			if(assignop(n->left->type, exprname->type, nil) == OCONVIFACE ||
++			   assignop(exprname->type, n->left->type, nil) == OCONVIFACE)
++				goto snorm;
++
+ 			switch(arg) {
+ 			case Strue:
+ 				a = nod(OIF, N, N);
+@@ -457,6 +461,7 @@ exprbsw(Case *c0, int ncase, int arg)
+ 				break;
+ 
+ 			default:
++			snorm:
+ 				a = nod(OIF, N, N);
+ 				a->ntest = nod(OEQ, exprname, n->left);	// if name == val
+ 				typecheck(&a->ntest, Erv);
+@@ -520,6 +525,8 @@ exprswitch(Node *sw)
+ 		exprname = temp(sw->ntest->type);
+ 		cas = list1(nod(OAS, exprname, sw->ntest));
+ 		typechecklist(cas, Etop);
++	} else {
++		exprname = nodbool(arg == Strue);
+ 	}
+ 
+ 	c0 = mkcaselist(sw, arg);
+diff --git a/test/switch.go b/test/switch.go
+index a4242f2571..fd8748b9bc 100644
+--- a/test/switch.go
++++ b/test/switch.go
+@@ -294,6 +294,17 @@ func main() {
+ 		assert(false, `i should be "hello"`)
+ 	}
+ 
++	// switch on implicit bool converted to interface
++	// was broken: see issue 3980
++	switch i := interface{}(true); {
++	case i:
++		assert(true, "true")
++	case false:
++		assert(false, "i should be true")
++	default:
++		assert(false, "i should be true")
++	}
++
+ 	// switch on array.
+ 	switch ar := [3]int{1, 2, 3}; ar {
+ 	case [3]int{1,2,3}:

@@ -9,7 +9,100 @@ Date:   Thu Aug 18 15:22:32 2016 -0700
     Change-Id: Ib9012a9141e815f5b95f8ca2307e65ffc4587a5b
     Reviewed-on: https://go-review.googlesource.com/27370
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/go/types/api_test.go | 71 ++++++++++++++++++++++++++++++++++++++++++++++++
  src/go/types/object.go   |  2 +-
  2 files changed, 72 insertions(+), 1 deletion(-)
+
+diff --git a/src/go/types/api_test.go b/src/go/types/api_test.go
+index 1d74612dc0..92c6d75e70 100644
+--- a/src/go/types/api_test.go
++++ b/src/go/types/api_test.go
+@@ -1224,3 +1224,74 @@ func TestCompositeLitTypes(t *testing.T) {
+ 		cmptype(rhs.(*ast.CompositeLit).Type, test.typ)
+ 	}
+ }
++
++// TestObjectParents verifies that objects have parent scopes or not
++// as specified by the Object interface.
++func TestObjectParents(t *testing.T) {
++	const src = `
++package p
++
++const C = 0
++
++type T1 struct {
++	a, b int
++	T2
++}
++
++type T2 interface {
++	im1()
++	im2()
++}
++
++func (T1) m1() {}
++func (*T1) m2() {}
++
++func f(x int) { y := x; print(y) }
++`
++
++	fset := token.NewFileSet()
++	f, err := parser.ParseFile(fset, "src", src, 0)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	info := &Info{
++		Defs: make(map[*ast.Ident]Object),
++	}
++	if _, err = new(Config).Check("p", fset, []*ast.File{f}, info); err != nil {
++		t.Fatal(err)
++	}
++
++	for ident, obj := range info.Defs {
++		if obj == nil {
++			// only package names and implicit vars have a nil object
++			// (in this test we only need to handle the package name)
++			if ident.Name != "p" {
++				t.Errorf("%v has nil object", ident)
++			}
++			continue
++		}
++
++		// struct fields, type-associated and interface methods
++		// have no parent scope
++		wantParent := true
++		switch obj := obj.(type) {
++		case *Var:
++			if obj.IsField() {
++				wantParent = false
++			}
++		case *Func:
++			if obj.Type().(*Signature).Recv() != nil { // method
++				wantParent = false
++			}
++		}
++
++		gotParent := obj.Parent() != nil
++		switch {
++		case gotParent && !wantParent:
++			t.Errorf("%v: want no parent, got %s", ident, obj.Parent())
++		case !gotParent && wantParent:
++			t.Errorf("%v: no parent found", ident)
++		}
++	}
++}
+diff --git a/src/go/types/object.go b/src/go/types/object.go
+index 15936f9401..b83be4336a 100644
+--- a/src/go/types/object.go
++++ b/src/go/types/object.go
+@@ -19,7 +19,7 @@ import (
+ // All objects implement the Object interface.
+ //
+ type Object interface {
+-	Parent() *Scope // scope in which this object is declared
++	Parent() *Scope // scope in which this object is declared; nil for methods and struct fields
+ 	Pos() token.Pos // position of object identifier in declaration
+ 	Pkg() *Package  // nil for objects in the Universe scope and labels
+ 	Name() string   // package local object name

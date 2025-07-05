@@ -10,9 +10,83 @@ Date:   Mon Oct 24 15:56:48 2016 -0700
     Change-Id: I912ff222a24c51fab483be0c67dad534f5a84488
     Reviewed-on: https://go-review.googlesource.com/31859
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/path/filepath/path_test.go |  4 ++--
  test/bugs/bug395.go            | 24 ------------------------
  test/bugs/placeholder          |  2 --
  test/run.go                    |  2 +-
  4 files changed, 3 insertions(+), 29 deletions(-)
+
+diff --git a/src/path/filepath/path_test.go b/src/path/filepath/path_test.go
+index e319e3c973..94f9c01459 100644
+--- a/src/path/filepath/path_test.go
++++ b/src/path/filepath/path_test.go
+@@ -1295,7 +1295,7 @@ func TestBug3486(t *testing.T) { // https://golang.org/issue/3486
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+-	bugs := filepath.Join(root, "bugs")
++	bugs := filepath.Join(root, "fixedbugs")
+ 	ken := filepath.Join(root, "ken")
+ 	seenBugs := false
+ 	seenKen := false
+@@ -1310,7 +1310,7 @@ func TestBug3486(t *testing.T) { // https://golang.org/issue/3486
+ 			return filepath.SkipDir
+ 		case ken:
+ 			if !seenBugs {
+-				t.Fatal("filepath.Walk out of order - ken before bugs")
++				t.Fatal("filepath.Walk out of order - ken before fixedbugs")
+ 			}
+ 			seenKen = true
+ 		}
+diff --git a/test/bugs/bug395.go b/test/bugs/bug395.go
+deleted file mode 100644
+index 4fe81e07b4..0000000000
+--- a/test/bugs/bug395.go
++++ /dev/null
+@@ -1,24 +0,0 @@
+-// skip
+-
+-// When issue 1909 is fixed, change from skip to compile.
+-
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Issue 1909
+-// Would OOM due to exponential recursion on Foo's expanded methodset in nodefmt
+-
+-package test
+-
+-type Foo interface {
+-	Bar() interface {
+-		Foo
+-	}
+-	Baz() interface {
+-		Foo
+-	}
+-	Bug() interface {
+-		Foo
+-	}
+-}
+diff --git a/test/bugs/placeholder b/test/bugs/placeholder
+deleted file mode 100644
+index b816d34fc3..0000000000
+--- a/test/bugs/placeholder
++++ /dev/null
+@@ -1,2 +0,0 @@
+-This file keeps Mercurial from deleting the directory
+-when there are no known bugs.
+diff --git a/test/run.go b/test/run.go
+index 07eff4ddb9..0dee6b5caa 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -52,7 +52,7 @@ var (
+ 
+ 	// dirs are the directories to look for *.go files in.
+ 	// TODO(bradfitz): just use all directories?
+-	dirs = []string{".", "ken", "chan", "interface", "syntax", "dwarf", "fixedbugs", "bugs"}
++	dirs = []string{".", "ken", "chan", "interface", "syntax", "dwarf", "fixedbugs"}
+ 
+ 	// ratec controls the max number of tests running at a time.
+ 	ratec chan bool

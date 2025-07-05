@@ -11,6 +11,45 @@ Date:   Tue Aug 16 13:52:51 2016 -0700
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  test/run.go | 6 ------
  1 file changed, 6 deletions(-)
+
+diff --git a/test/run.go b/test/run.go
+index a1ab9d5bec..19210b4ff1 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -531,7 +531,6 @@ func (t *test) run() {
+ 	}
+ 
+ 	useTmp := true
+-	ssaMain := false
+ 	runcmd := func(args ...string) ([]byte, error) {
+ 		cmd := exec.Command(args[0], args[1:]...)
+ 		var buf bytes.Buffer
+@@ -543,9 +542,6 @@ func (t *test) run() {
+ 		} else {
+ 			cmd.Env = os.Environ()
+ 		}
+-		if ssaMain && os.Getenv("GOARCH") == "amd64" {
+-			cmd.Env = append(cmd.Env, "GOSSAPKG=main")
+-		}
+ 		err := cmd.Run()
+ 		if err != nil {
+ 			err = fmt.Errorf("%s\n%s", err, buf.Bytes())
+@@ -680,7 +676,6 @@ func (t *test) run() {
+ 
+ 	case "run":
+ 		useTmp = false
+-		ssaMain = true
+ 		cmd := []string{"go", "run"}
+ 		if *linkshared {
+ 			cmd = append(cmd, "-linkshared")
+@@ -716,7 +711,6 @@ func (t *test) run() {
+ 			t.err = fmt.Errorf("write tempfile:%s", err)
+ 			return
+ 		}
+-		ssaMain = true
+ 		cmd = []string{"go", "run"}
+ 		if *linkshared {
+ 			cmd = append(cmd, "-linkshared")

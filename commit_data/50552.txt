@@ -13,7 +13,7 @@ Date:   Mon Nov 1 17:28:19 2021 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/internal/poll/fd_windows.go |  8 ++------
  src/syscall/syscall_aix.go      | 16 ++++------------
  src/syscall/syscall_bsd.go      | 24 ++++++------------------
@@ -21,3 +21,314 @@ Date:   Mon Nov 1 17:28:19 2021 -0700
  src/syscall/syscall_solaris.go  | 16 ++++------------
  src/syscall/syscall_windows.go  | 16 ++++------------
  6 files changed, 26 insertions(+), 78 deletions(-)
+
+diff --git a/src/internal/poll/fd_windows.go b/src/internal/poll/fd_windows.go
+index 48fcdf306c..d883cd1ecc 100644
+--- a/src/internal/poll/fd_windows.go
++++ b/src/internal/poll/fd_windows.go
+@@ -1102,9 +1102,7 @@ func sockaddrToRaw(sa syscall.Sockaddr) (unsafe.Pointer, int32, error) {
+ 		p := (*[2]byte)(unsafe.Pointer(&raw.Port))
+ 		p[0] = byte(sa.Port >> 8)
+ 		p[1] = byte(sa.Port)
+-		for i := 0; i < len(sa.Addr); i++ {
+-			raw.Addr[i] = sa.Addr[i]
+-		}
++		raw.Addr = sa.Addr
+ 		return unsafe.Pointer(&raw), int32(unsafe.Sizeof(raw)), nil
+ 	case *syscall.SockaddrInet6:
+ 		var raw syscall.RawSockaddrInet6
+@@ -1113,9 +1111,7 @@ func sockaddrToRaw(sa syscall.Sockaddr) (unsafe.Pointer, int32, error) {
+ 		p[0] = byte(sa.Port >> 8)
+ 		p[1] = byte(sa.Port)
+ 		raw.Scope_id = sa.ZoneId
+-		for i := 0; i < len(sa.Addr); i++ {
+-			raw.Addr[i] = sa.Addr[i]
+-		}
++		raw.Addr = sa.Addr
+ 		return unsafe.Pointer(&raw), int32(unsafe.Sizeof(raw)), nil
+ 	default:
+ 		return nil, 0, syscall.EWINDOWS
+diff --git a/src/syscall/syscall_aix.go b/src/syscall/syscall_aix.go
+index 20e77ac875..f3b160cae4 100644
+--- a/src/syscall/syscall_aix.go
++++ b/src/syscall/syscall_aix.go
+@@ -255,9 +255,7 @@ func (sa *SockaddrInet4) sockaddr() (unsafe.Pointer, _Socklen, error) {
+ 	p := (*[2]byte)(unsafe.Pointer(&sa.raw.Port))
+ 	p[0] = byte(sa.Port >> 8)
+ 	p[1] = byte(sa.Port)
+-	for i := 0; i < len(sa.Addr); i++ {
+-		sa.raw.Addr[i] = sa.Addr[i]
+-	}
++	sa.raw.Addr = sa.Addr
+ 	return unsafe.Pointer(&sa.raw), SizeofSockaddrInet4, nil
+ }
+ 
+@@ -270,9 +268,7 @@ func (sa *SockaddrInet6) sockaddr() (unsafe.Pointer, _Socklen, error) {
+ 	p[0] = byte(sa.Port >> 8)
+ 	p[1] = byte(sa.Port)
+ 	sa.raw.Scope_id = sa.ZoneId
+-	for i := 0; i < len(sa.Addr); i++ {
+-		sa.raw.Addr[i] = sa.Addr[i]
+-	}
++	sa.raw.Addr = sa.Addr
+ 	return unsafe.Pointer(&sa.raw), SizeofSockaddrInet6, nil
+ }
+ 
+@@ -443,9 +439,7 @@ func anyToSockaddr(rsa *RawSockaddrAny) (Sockaddr, error) {
+ 		sa := new(SockaddrInet4)
+ 		p := (*[2]byte)(unsafe.Pointer(&pp.Port))
+ 		sa.Port = int(p[0])<<8 + int(p[1])
+-		for i := 0; i < len(sa.Addr); i++ {
+-			sa.Addr[i] = pp.Addr[i]
+-		}
++		sa.Addr = pp.Addr
+ 		return sa, nil
+ 
+ 	case AF_INET6:
+@@ -453,9 +447,7 @@ func anyToSockaddr(rsa *RawSockaddrAny) (Sockaddr, error) {
+ 		sa := new(SockaddrInet6)
+ 		p := (*[2]byte)(unsafe.Pointer(&pp.Port))
+ 		sa.Port = int(p[0])<<8 + int(p[1])
+-		for i := 0; i < len(sa.Addr); i++ {
+-			sa.Addr[i] = pp.Addr[i]
+-		}
++		sa.Addr = pp.Addr
+ 		return sa, nil
+ 	}
+ 	return nil, EAFNOSUPPORT
+diff --git a/src/syscall/syscall_bsd.go b/src/syscall/syscall_bsd.go
+index ebe99ff230..8945661300 100644
+--- a/src/syscall/syscall_bsd.go
++++ b/src/syscall/syscall_bsd.go
+@@ -167,9 +167,7 @@ func (sa *SockaddrInet4) sockaddr() (unsafe.Pointer, _Socklen, error) {
+ 	p := (*[2]byte)(unsafe.Pointer(&sa.raw.Port))
+ 	p[0] = byte(sa.Port >> 8)
+ 	p[1] = byte(sa.Port)
+-	for i := 0; i < len(sa.Addr); i++ {
+-		sa.raw.Addr[i] = sa.Addr[i]
+-	}
++	sa.raw.Addr = sa.Addr
+ 	return unsafe.Pointer(&sa.raw), _Socklen(sa.raw.Len), nil
+ }
+ 
+@@ -183,9 +181,7 @@ func (sa *SockaddrInet6) sockaddr() (unsafe.Pointer, _Socklen, error) {
+ 	p[0] = byte(sa.Port >> 8)
+ 	p[1] = byte(sa.Port)
+ 	sa.raw.Scope_id = sa.ZoneId
+-	for i := 0; i < len(sa.Addr); i++ {
+-		sa.raw.Addr[i] = sa.Addr[i]
+-	}
++	sa.raw.Addr = sa.Addr
+ 	return unsafe.Pointer(&sa.raw), _Socklen(sa.raw.Len), nil
+ }
+ 
+@@ -214,9 +210,7 @@ func (sa *SockaddrDatalink) sockaddr() (unsafe.Pointer, _Socklen, error) {
+ 	sa.raw.Nlen = sa.Nlen
+ 	sa.raw.Alen = sa.Alen
+ 	sa.raw.Slen = sa.Slen
+-	for i := 0; i < len(sa.raw.Data); i++ {
+-		sa.raw.Data[i] = sa.Data[i]
+-	}
++	sa.raw.Data = sa.Data
+ 	return unsafe.Pointer(&sa.raw), SizeofSockaddrDatalink, nil
+ }
+ 
+@@ -232,9 +226,7 @@ func anyToSockaddr(rsa *RawSockaddrAny) (Sockaddr, error) {
+ 		sa.Nlen = pp.Nlen
+ 		sa.Alen = pp.Alen
+ 		sa.Slen = pp.Slen
+-		for i := 0; i < len(sa.Data); i++ {
+-			sa.Data[i] = pp.Data[i]
+-		}
++		sa.Data = pp.Data
+ 		return sa, nil
+ 
+ 	case AF_UNIX:
+@@ -266,9 +258,7 @@ func anyToSockaddr(rsa *RawSockaddrAny) (Sockaddr, error) {
+ 		sa := new(SockaddrInet4)
+ 		p := (*[2]byte)(unsafe.Pointer(&pp.Port))
+ 		sa.Port = int(p[0])<<8 + int(p[1])
+-		for i := 0; i < len(sa.Addr); i++ {
+-			sa.Addr[i] = pp.Addr[i]
+-		}
++		sa.Addr = pp.Addr
+ 		return sa, nil
+ 
+ 	case AF_INET6:
+@@ -277,9 +267,7 @@ func anyToSockaddr(rsa *RawSockaddrAny) (Sockaddr, error) {
+ 		p := (*[2]byte)(unsafe.Pointer(&pp.Port))
+ 		sa.Port = int(p[0])<<8 + int(p[1])
+ 		sa.ZoneId = pp.Scope_id
+-		for i := 0; i < len(sa.Addr); i++ {
+-			sa.Addr[i] = pp.Addr[i]
+-		}
++		sa.Addr = pp.Addr
+ 		return sa, nil
+ 	}
+ 	return nil, EAFNOSUPPORT
+diff --git a/src/syscall/syscall_linux.go b/src/syscall/syscall_linux.go
+index f02fa45a89..1c6033bbab 100644
+--- a/src/syscall/syscall_linux.go
++++ b/src/syscall/syscall_linux.go
+@@ -393,9 +393,7 @@ func (sa *SockaddrInet4) sockaddr() (unsafe.Pointer, _Socklen, error) {
+ 	p := (*[2]byte)(unsafe.Pointer(&sa.raw.Port))
+ 	p[0] = byte(sa.Port >> 8)
+ 	p[1] = byte(sa.Port)
+-	for i := 0; i < len(sa.Addr); i++ {
+-		sa.raw.Addr[i] = sa.Addr[i]
+-	}
++	sa.raw.Addr = sa.Addr
+ 	return unsafe.Pointer(&sa.raw), SizeofSockaddrInet4, nil
+ }
+ 
+@@ -408,9 +406,7 @@ func (sa *SockaddrInet6) sockaddr() (unsafe.Pointer, _Socklen, error) {
+ 	p[0] = byte(sa.Port >> 8)
+ 	p[1] = byte(sa.Port)
+ 	sa.raw.Scope_id = sa.ZoneId
+-	for i := 0; i < len(sa.Addr); i++ {
+-		sa.raw.Addr[i] = sa.Addr[i]
+-	}
++	sa.raw.Addr = sa.Addr
+ 	return unsafe.Pointer(&sa.raw), SizeofSockaddrInet6, nil
+ }
+ 
+@@ -461,9 +457,7 @@ func (sa *SockaddrLinklayer) sockaddr() (unsafe.Pointer, _Socklen, error) {
+ 	sa.raw.Hatype = sa.Hatype
+ 	sa.raw.Pkttype = sa.Pkttype
+ 	sa.raw.Halen = sa.Halen
+-	for i := 0; i < len(sa.Addr); i++ {
+-		sa.raw.Addr[i] = sa.Addr[i]
+-	}
++	sa.raw.Addr = sa.Addr
+ 	return unsafe.Pointer(&sa.raw), SizeofSockaddrLinklayer, nil
+ }
+ 
+@@ -502,9 +496,7 @@ func anyToSockaddr(rsa *RawSockaddrAny) (Sockaddr, error) {
+ 		sa.Hatype = pp.Hatype
+ 		sa.Pkttype = pp.Pkttype
+ 		sa.Halen = pp.Halen
+-		for i := 0; i < len(sa.Addr); i++ {
+-			sa.Addr[i] = pp.Addr[i]
+-		}
++		sa.Addr = pp.Addr
+ 		return sa, nil
+ 
+ 	case AF_UNIX:
+@@ -537,9 +529,7 @@ func anyToSockaddr(rsa *RawSockaddrAny) (Sockaddr, error) {
+ 		sa := new(SockaddrInet4)
+ 		p := (*[2]byte)(unsafe.Pointer(&pp.Port))
+ 		sa.Port = int(p[0])<<8 + int(p[1])
+-		for i := 0; i < len(sa.Addr); i++ {
+-			sa.Addr[i] = pp.Addr[i]
+-		}
++		sa.Addr = pp.Addr
+ 		return sa, nil
+ 
+ 	case AF_INET6:
+@@ -548,9 +538,7 @@ func anyToSockaddr(rsa *RawSockaddrAny) (Sockaddr, error) {
+ 		p := (*[2]byte)(unsafe.Pointer(&pp.Port))
+ 		sa.Port = int(p[0])<<8 + int(p[1])
+ 		sa.ZoneId = pp.Scope_id
+-		for i := 0; i < len(sa.Addr); i++ {
+-			sa.Addr[i] = pp.Addr[i]
+-		}
++		sa.Addr = pp.Addr
+ 		return sa, nil
+ 	}
+ 	return nil, EAFNOSUPPORT
+diff --git a/src/syscall/syscall_solaris.go b/src/syscall/syscall_solaris.go
+index dedfbd03c0..13616fca9d 100644
+--- a/src/syscall/syscall_solaris.go
++++ b/src/syscall/syscall_solaris.go
+@@ -69,9 +69,7 @@ func (sa *SockaddrInet4) sockaddr() (unsafe.Pointer, _Socklen, error) {
+ 	p := (*[2]byte)(unsafe.Pointer(&sa.raw.Port))
+ 	p[0] = byte(sa.Port >> 8)
+ 	p[1] = byte(sa.Port)
+-	for i := 0; i < len(sa.Addr); i++ {
+-		sa.raw.Addr[i] = sa.Addr[i]
+-	}
++	sa.raw.Addr = sa.Addr
+ 	return unsafe.Pointer(&sa.raw), SizeofSockaddrInet4, nil
+ }
+ 
+@@ -84,9 +82,7 @@ func (sa *SockaddrInet6) sockaddr() (unsafe.Pointer, _Socklen, error) {
+ 	p[0] = byte(sa.Port >> 8)
+ 	p[1] = byte(sa.Port)
+ 	sa.raw.Scope_id = sa.ZoneId
+-	for i := 0; i < len(sa.Addr); i++ {
+-		sa.raw.Addr[i] = sa.Addr[i]
+-	}
++	sa.raw.Addr = sa.Addr
+ 	return unsafe.Pointer(&sa.raw), SizeofSockaddrInet6, nil
+ }
+ 
+@@ -304,9 +300,7 @@ func anyToSockaddr(rsa *RawSockaddrAny) (Sockaddr, error) {
+ 		sa := new(SockaddrInet4)
+ 		p := (*[2]byte)(unsafe.Pointer(&pp.Port))
+ 		sa.Port = int(p[0])<<8 + int(p[1])
+-		for i := 0; i < len(sa.Addr); i++ {
+-			sa.Addr[i] = pp.Addr[i]
+-		}
++		sa.Addr = pp.Addr
+ 		return sa, nil
+ 
+ 	case AF_INET6:
+@@ -315,9 +309,7 @@ func anyToSockaddr(rsa *RawSockaddrAny) (Sockaddr, error) {
+ 		p := (*[2]byte)(unsafe.Pointer(&pp.Port))
+ 		sa.Port = int(p[0])<<8 + int(p[1])
+ 		sa.ZoneId = pp.Scope_id
+-		for i := 0; i < len(sa.Addr); i++ {
+-			sa.Addr[i] = pp.Addr[i]
+-		}
++		sa.Addr = pp.Addr
+ 		return sa, nil
+ 	}
+ 	return nil, EAFNOSUPPORT
+diff --git a/src/syscall/syscall_windows.go b/src/syscall/syscall_windows.go
+index d4e51e541d..a8a78b9ef8 100644
+--- a/src/syscall/syscall_windows.go
++++ b/src/syscall/syscall_windows.go
+@@ -738,9 +738,7 @@ func (sa *SockaddrInet4) sockaddr() (unsafe.Pointer, int32, error) {
+ 	p := (*[2]byte)(unsafe.Pointer(&sa.raw.Port))
+ 	p[0] = byte(sa.Port >> 8)
+ 	p[1] = byte(sa.Port)
+-	for i := 0; i < len(sa.Addr); i++ {
+-		sa.raw.Addr[i] = sa.Addr[i]
+-	}
++	sa.raw.Addr = sa.Addr
+ 	return unsafe.Pointer(&sa.raw), int32(unsafe.Sizeof(sa.raw)), nil
+ }
+ 
+@@ -760,9 +758,7 @@ func (sa *SockaddrInet6) sockaddr() (unsafe.Pointer, int32, error) {
+ 	p[0] = byte(sa.Port >> 8)
+ 	p[1] = byte(sa.Port)
+ 	sa.raw.Scope_id = sa.ZoneId
+-	for i := 0; i < len(sa.Addr); i++ {
+-		sa.raw.Addr[i] = sa.Addr[i]
+-	}
++	sa.raw.Addr = sa.Addr
+ 	return unsafe.Pointer(&sa.raw), int32(unsafe.Sizeof(sa.raw)), nil
+ }
+ 
+@@ -835,9 +831,7 @@ func (rsa *RawSockaddrAny) Sockaddr() (Sockaddr, error) {
+ 		sa := new(SockaddrInet4)
+ 		p := (*[2]byte)(unsafe.Pointer(&pp.Port))
+ 		sa.Port = int(p[0])<<8 + int(p[1])
+-		for i := 0; i < len(sa.Addr); i++ {
+-			sa.Addr[i] = pp.Addr[i]
+-		}
++		sa.Addr = pp.Addr
+ 		return sa, nil
+ 
+ 	case AF_INET6:
+@@ -846,9 +840,7 @@ func (rsa *RawSockaddrAny) Sockaddr() (Sockaddr, error) {
+ 		p := (*[2]byte)(unsafe.Pointer(&pp.Port))
+ 		sa.Port = int(p[0])<<8 + int(p[1])
+ 		sa.ZoneId = pp.Scope_id
+-		for i := 0; i < len(sa.Addr); i++ {
+-			sa.Addr[i] = pp.Addr[i]
+-		}
++		sa.Addr = pp.Addr
+ 		return sa, nil
+ 	}
+ 	return nil, EAFNOSUPPORT

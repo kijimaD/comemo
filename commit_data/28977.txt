@@ -15,8 +15,122 @@ Date:   Thu Aug 18 16:44:08 2016 -0700
     Run-TryBot: Adam Langley <agl@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/crypto/x509/cert_pool.go   | 16 ++++++++++++++++
  src/crypto/x509/verify.go      | 10 +++++++---
  src/crypto/x509/verify_test.go | 43 ++++++++++++++++++++++++++++++++++++++++++
  3 files changed, 66 insertions(+), 3 deletions(-)
+
+diff --git a/src/crypto/x509/cert_pool.go b/src/crypto/x509/cert_pool.go
+index 59ab887105..7650494824 100644
+--- a/src/crypto/x509/cert_pool.go
++++ b/src/crypto/x509/cert_pool.go
+@@ -5,6 +5,7 @@
+ package x509
+ 
+ import (
++	"bytes"
+ 	"encoding/pem"
+ 	"errors"
+ 	"runtime"
+@@ -64,6 +65,21 @@ func (s *CertPool) findVerifiedParents(cert *Certificate) (parents []int, errCer
+ 	return
+ }
+ 
++func (s *CertPool) contains(cert *Certificate) bool {
++	if s == nil {
++		return false
++	}
++
++	candidates := s.byName[string(cert.RawSubject)]
++	for _, c := range candidates {
++		if bytes.Equal(cert.Raw, s.certs[c].Raw) {
++			return true
++		}
++	}
++
++	return false
++}
++
+ // AddCert adds a certificate to a pool.
+ func (s *CertPool) AddCert(cert *Certificate) {
+ 	if cert == nil {
+diff --git a/src/crypto/x509/verify.go b/src/crypto/x509/verify.go
+index 85c083fbb2..825a8f849f 100644
+--- a/src/crypto/x509/verify.go
++++ b/src/crypto/x509/verify.go
+@@ -262,9 +262,13 @@ func (c *Certificate) Verify(opts VerifyOptions) (chains [][]*Certificate, err e
+ 		}
+ 	}
+ 
+-	candidateChains, err := c.buildChains(make(map[int][][]*Certificate), []*Certificate{c}, &opts)
+-	if err != nil {
+-		return
++	var candidateChains [][]*Certificate
++	if opts.Roots.contains(c) {
++		candidateChains = append(candidateChains, []*Certificate{c})
++	} else {
++		if candidateChains, err = c.buildChains(make(map[int][][]*Certificate), []*Certificate{c}, &opts); err != nil {
++			return nil, err
++		}
+ 	}
+ 
+ 	keyUsages := opts.KeyUsages
+diff --git a/src/crypto/x509/verify_test.go b/src/crypto/x509/verify_test.go
+index bacf7ded29..0bd1a2c790 100644
+--- a/src/crypto/x509/verify_test.go
++++ b/src/crypto/x509/verify_test.go
+@@ -235,6 +235,30 @@ var verifyTests = []verifyTest{
+ 			},
+ 		},
+ 	},
++	{
++		// Putting a certificate as a root directly should work as a
++		// way of saying “exactly this”.
++		leaf:        selfSigned,
++		roots:       []string{selfSigned},
++		currentTime: 1471624472,
++		dnsName:     "foo.example",
++		systemSkip:  true,
++
++		expectedChains: [][]string{
++			{"Acme Co"},
++		},
++	},
++	{
++		// Putting a certificate as a root directly should not skip
++		// other checks however.
++		leaf:        selfSigned,
++		roots:       []string{selfSigned},
++		currentTime: 1471624472,
++		dnsName:     "notfoo.example",
++		systemSkip:  true,
++
++		errorCallback: expectHostnameError,
++	},
+ }
+ 
+ func expectHostnameError(t *testing.T, i int, err error) (ok bool) {
+@@ -1088,3 +1112,22 @@ Nr4TDea9Y355e6cJDUCrat2PisP29owaQgVR1EX1n6diIWgVIEM8med8vSTYqZEX
+ c4g/VhsxOBi0cQ+azcgOno4uG+GMmIPLHzHxREzGBHNJdmAPx/i9F4BrLunMTA5a
+ mnkPIAou1Z5jJh5VkpTYghdae9C8x49OhgQ=
+ -----END CERTIFICATE-----`
++
++const selfSigned = `-----BEGIN CERTIFICATE-----
++MIIC/DCCAeSgAwIBAgIRAK0SWRVmi67xU3z0gkgY+PkwDQYJKoZIhvcNAQELBQAw
++EjEQMA4GA1UEChMHQWNtZSBDbzAeFw0xNjA4MTkxNjMzNDdaFw0xNzA4MTkxNjMz
++NDdaMBIxEDAOBgNVBAoTB0FjbWUgQ28wggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAw
++ggEKAoIBAQDWkm1kdCwxyKEt6OTmZitkmLGH8cQu9z7rUdrhW8lWNm4kh2SuaUWP
++pscBjda5iqg51aoKuWJR2rw6ElDne+X5eit2FT8zJgAU8v39lMFjbaVZfS9TFOYF
++w0Tk0Luo/PyKJpZnwhsP++iiGQiteJbndy8aLKmJ2MpLfpDGIgxEIyNb5dgoDi0D
++WReDCpE6K9WDYqvKVGnQ2Jvqqra6Gfx0tFkuqJxQuqA8aUOlPHcCH4KBZdNEoXdY
++YL3E4dCAh0YiDs80wNZx4cHqEM3L8gTEFqW2Tn1TSuPZO6gjJ9QPsuUZVjaMZuuO
++NVxqLGujZkDzARhC3fBpptMuaAfi20+BAgMBAAGjTTBLMA4GA1UdDwEB/wQEAwIF
++oDATBgNVHSUEDDAKBggrBgEFBQcDATAMBgNVHRMBAf8EAjAAMBYGA1UdEQQPMA2C
++C2Zvby5leGFtcGxlMA0GCSqGSIb3DQEBCwUAA4IBAQBPvvfnDhsHWt+/cfwdAVim
++4EDn+hYOMkTQwU0pouYIvY8QXYkZ8MBxpBtBMK4JhFU+ewSWoBAEH2dCCvx/BDxN
++UGTSJHMbsvJHcFvdmsvvRxOqQ/cJz7behx0cfoeHMwcs0/vWv8ms5wHesb5Ek7L0
++pl01FCBGTcncVqr6RK1r4fTpeCCfRIERD+YRJz8TtPH6ydesfLL8jIV40H8NiDfG
++vRAvOtNiKtPzFeQVdbRPOskC4rcHyPeiDAMAMixeLi63+CFty4da3r5lRezeedCE
++cw3ESZzThBwWqvPOtJdpXdm+r57pDW8qD+/0lY8wfImMNkQAyCUCLg/1Lxt/hrBj
++-----END CERTIFICATE-----`

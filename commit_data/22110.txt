@@ -16,7 +16,51 @@ Date:   Mon Feb 23 15:11:39 2015 -0800
     Reviewed-on: https://go-review.googlesource.com/5691
     Reviewed-by: Andrew Gerrand <adg@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/crypto/x509/verify.go    | 2 +-
  src/crypto/x509/x509_test.go | 9 ++++++---
  2 files changed, 7 insertions(+), 4 deletions(-)
+
+diff --git a/src/crypto/x509/verify.go b/src/crypto/x509/verify.go
+index 0181f140fa..7a7db75023 100644
+--- a/src/crypto/x509/verify.go
++++ b/src/crypto/x509/verify.go
+@@ -337,7 +337,7 @@ func matchHostnames(pattern, host string) bool {
+ 	}
+ 
+ 	for i, patternPart := range patternParts {
+-		if patternPart == "*" {
++		if i == 0 && patternPart == "*" {
+ 			continue
+ 		}
+ 		if patternPart != hostParts[i] {
+diff --git a/src/crypto/x509/x509_test.go b/src/crypto/x509/x509_test.go
+index 011a84c07a..f3a9f3cdc9 100644
+--- a/src/crypto/x509/x509_test.go
++++ b/src/crypto/x509/x509_test.go
+@@ -163,11 +163,14 @@ var matchHostnamesTests = []matchHostnamesTest{
+ 	{"example.com", "example.com", true},
+ 	{"example.com", "example.com.", true},
+ 	{"example.com", "www.example.com", false},
++	{"*.example.com", "example.com", false},
+ 	{"*.example.com", "www.example.com", true},
+ 	{"*.example.com", "www.example.com.", true},
+ 	{"*.example.com", "xyz.www.example.com", false},
+-	{"*.*.example.com", "xyz.www.example.com", true},
+-	{"*.www.*.com", "xyz.www.example.com", true},
++	{"*.*.example.com", "xyz.www.example.com", false},
++	{"*.www.*.com", "xyz.www.example.com", false},
++	{"*bar.example.com", "foobar.example.com", false},
++	{"f*.example.com", "foobar.example.com", false},
+ 	{"", ".", false},
+ 	{".", "", false},
+ 	{".", ".", false},
+@@ -177,7 +180,7 @@ func TestMatchHostnames(t *testing.T) {
+ 	for i, test := range matchHostnamesTests {
+ 		r := matchHostnames(test.pattern, test.host)
+ 		if r != test.ok {
+-			t.Errorf("#%d mismatch got: %t want: %t", i, r, test.ok)
++			t.Errorf("#%d mismatch got: %t want: %t when matching '%s' against '%s'", i, r, test.ok, test.host, test.pattern)
+ 		}
+ 	}
+ }

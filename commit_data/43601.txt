@@ -45,7 +45,61 @@ Date:   Tue Apr 14 12:30:47 2020 -0700
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/math/big/floatconv.go |  2 +-
  src/math/big/sqrt.go      | 20 ++++++++++++++++----
  2 files changed, 17 insertions(+), 5 deletions(-)
+
+diff --git a/src/math/big/floatconv.go b/src/math/big/floatconv.go
+index 95e32d3319..57b7df3936 100644
+--- a/src/math/big/floatconv.go
++++ b/src/math/big/floatconv.go
+@@ -290,7 +290,7 @@ func ParseFloat(s string, base int, prec uint, mode RoundingMode) (f *Float, b i
+ 	return new(Float).SetPrec(prec).SetMode(mode).Parse(s, base)
+ }
+ 
+-var _ fmt.Scanner = &floatZero // *Float must implement fmt.Scanner
++var _ fmt.Scanner = (*Float)(nil) // *Float must implement fmt.Scanner
+ 
+ // Scan is a support routine for fmt.Scanner; it sets z to the value of
+ // the scanned number. It accepts formats whose verbs are supported by
+diff --git a/src/math/big/sqrt.go b/src/math/big/sqrt.go
+index ac2094f28e..e11504ad07 100644
+--- a/src/math/big/sqrt.go
++++ b/src/math/big/sqrt.go
+@@ -4,12 +4,23 @@
+ 
+ package big
+ 
+-import "math"
+-
+-var (
+-	three = NewFloat(3.0)
++import (
++	"math"
++	"sync"
+ )
+ 
++var threeOnce struct {
++	sync.Once
++	v *Float
++}
++
++func three() *Float {
++	threeOnce.Do(func() {
++		threeOnce.v = NewFloat(3.0)
++	})
++	return threeOnce.v
++}
++
+ // Sqrt sets z to the rounded square root of x, and returns it.
+ //
+ // If z's precision is 0, it is changed to x's precision before the
+@@ -129,6 +140,7 @@ func (z *Float) sqrtInverse(x *Float) {
+ 	//   t2 = t - g(t) = ½t(3 - xt²)
+ 	u := newFloat(z.prec)
+ 	v := newFloat(z.prec)
++	three := three()
+ 	ng := func(t *Float) *Float {
+ 		u.prec = t.prec
+ 		v.prec = t.prec

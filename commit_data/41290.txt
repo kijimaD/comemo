@@ -14,6 +14,20 @@ Date:   Sat Sep 21 14:08:07 2019 +0000
     Run-TryBot: Andrew Bonventre <andybons@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-
+---
  src/runtime/type.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/type.go b/src/runtime/type.go
+index b5e37b9886..9fb6558a32 100644
+--- a/src/runtime/type.go
++++ b/src/runtime/type.go
+@@ -32,7 +32,7 @@ type _type struct {
+ 	hash       uint32
+ 	tflag      tflag
+ 	align      uint8
+-	fieldalign uint8
++	fieldAlign uint8
+ 	kind       uint8
+ 	// function for comparing objects of this type
+ 	// (ptr to object A, ptr to object B) -> ==?

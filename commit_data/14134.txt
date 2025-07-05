@@ -8,6 +8,20 @@ Date:   Fri Oct 12 11:00:00 2012 +1100
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/6658051
-
+---
  src/pkg/time/tick.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/time/tick.go b/src/pkg/time/tick.go
+index 8c6b9bc3b2..8e43559048 100644
+--- a/src/pkg/time/tick.go
++++ b/src/pkg/time/tick.go
+@@ -6,7 +6,7 @@ package time
+ 
+ import "errors"
+ 
+-// A Ticker holds a synchronous channel that delivers `ticks' of a clock
++// A Ticker holds a channel that delivers `ticks' of a clock
+ // at intervals.
+ type Ticker struct {
+ 	C <-chan Time // The channel on which the ticks are delivered.

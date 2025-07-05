@@ -27,7 +27,7 @@ Date:   Sun Apr 3 16:30:08 2022 -0400
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Jonathan Amsterdam <jba@google.com>
-
+---
  api/next/51082.txt                    |  1 +
  src/go/doc/comment/html.go            | 16 ++++++
  src/go/doc/comment/markdown.go        | 18 ++++++-
@@ -38,3 +38,420 @@ Date:   Sun Apr 3 16:30:08 2022 -0400
  src/go/doc/comment/testdata/head3.txt |  7 +++
  src/go/doc/comment/text.go            |  9 +++-
  9 files changed, 266 insertions(+), 10 deletions(-)
+
+diff --git a/api/next/51082.txt b/api/next/51082.txt
+index 0e5cbc5880..72c5b2e246 100644
+--- a/api/next/51082.txt
++++ b/api/next/51082.txt
+@@ -1,5 +1,6 @@
+ pkg go/doc/comment, func DefaultLookupPackage(string) (string, bool) #51082
+ pkg go/doc/comment, method (*DocLink) DefaultURL(string) string #51082
++pkg go/doc/comment, method (*Heading) DefaultID() string #51082
+ pkg go/doc/comment, method (*List) BlankBefore() bool #51082
+ pkg go/doc/comment, method (*List) BlankBetween() bool #51082
+ pkg go/doc/comment, method (*Parser) Parse(string) *Doc #51082
+diff --git a/src/go/doc/comment/html.go b/src/go/doc/comment/html.go
+index da2300d128..f6ea588b3d 100644
+--- a/src/go/doc/comment/html.go
++++ b/src/go/doc/comment/html.go
+@@ -7,6 +7,7 @@ package comment
+ import (
+ 	"bytes"
+ 	"fmt"
++	"strconv"
+ )
+ 
+ // An htmlPrinter holds the state needed for printing a Doc as HTML.
+@@ -35,6 +36,21 @@ func (p *htmlPrinter) block(out *bytes.Buffer, x Block) {
+ 		out.WriteString("<p>")
+ 		p.text(out, x.Text)
+ 		out.WriteString("\n")
++
++	case *Heading:
++		out.WriteString("<h")
++		h := strconv.Itoa(p.headingLevel())
++		out.WriteString(h)
++		if id := p.headingID(x); id != "" {
++			out.WriteString(` id="`)
++			p.escape(out, id)
++			out.WriteString(`"`)
++		}
++		out.WriteString(">")
++		p.text(out, x.Text)
++		out.WriteString("</h")
++		out.WriteString(h)
++		out.WriteString(">\n")
+ 	}
+ }
+ 
+diff --git a/src/go/doc/comment/markdown.go b/src/go/doc/comment/markdown.go
+index 309e180573..44ea727dae 100644
+--- a/src/go/doc/comment/markdown.go
++++ b/src/go/doc/comment/markdown.go
+@@ -13,13 +13,17 @@ import (
+ // An mdPrinter holds the state needed for printing a Doc as Markdown.
+ type mdPrinter struct {
+ 	*Printer
+-	raw bytes.Buffer
++	headingPrefix string
++	raw           bytes.Buffer
+ }
+ 
+ // Markdown returns a Markdown formatting of the Doc.
+ // See the [Printer] documentation for ways to customize the Markdown output.
+ func (p *Printer) Markdown(d *Doc) []byte {
+-	mp := &mdPrinter{Printer: p}
++	mp := &mdPrinter{
++		Printer:       p,
++		headingPrefix: strings.Repeat("#", p.headingLevel()) + " ",
++	}
+ 
+ 	var out bytes.Buffer
+ 	for i, x := range d.Content {
+@@ -40,6 +44,16 @@ func (p *mdPrinter) block(out *bytes.Buffer, x Block) {
+ 	case *Paragraph:
+ 		p.text(out, x.Text)
+ 		out.WriteString("\n")
++
++	case *Heading:
++		out.WriteString(p.headingPrefix)
++		p.text(out, x.Text)
++		if id := p.headingID(x); id != "" {
++			out.WriteString(" {#")
++			out.WriteString(id)
++			out.WriteString("}")
++		}
++		out.WriteString("\n")
+ 	}
+ }
+ 
+diff --git a/src/go/doc/comment/parse.go b/src/go/doc/comment/parse.go
+index 920b446c7e..25b5f10f2f 100644
+--- a/src/go/doc/comment/parse.go
++++ b/src/go/doc/comment/parse.go
+@@ -298,15 +298,34 @@ func (p *Parser) Parse(text string) *Doc {
+ 	// First pass: break into block structure and collect known links.
+ 	// The text is all recorded as Plain for now.
+ 	// TODO: Break into actual block structure.
++	didHeading := false
++	all := lines
+ 	for len(lines) > 0 {
+ 		line := lines[0]
+-		if line != "" {
+-			var b Block
++		n := len(lines)
++		var b Block
++
++		switch {
++		case line == "":
++			// emit nothing
++
++		case (len(lines) == 1 || lines[1] == "") && !didHeading && isOldHeading(line, all, len(all)-n):
++			b = d.oldHeading(line)
++			didHeading = true
++
++		case (len(lines) == 1 || lines[1] == "") && isHeading(line):
++			b = d.heading(line)
++			didHeading = true
++
++		default:
+ 			b, lines = d.paragraph(lines)
+-			if b != nil {
+-				d.Content = append(d.Content, b)
+-			}
+-		} else {
++			didHeading = false
++		}
++
++		if b != nil {
++			d.Content = append(d.Content, b)
++		}
++		if len(lines) == n {
+ 			lines = lines[1:]
+ 		}
+ 	}
+@@ -436,6 +455,24 @@ func isOldHeading(line string, all []string, off int) bool {
+ 	return true
+ }
+ 
++// oldHeading returns the *Heading for the given old-style section heading line.
++func (d *parseDoc) oldHeading(line string) Block {
++	return &Heading{Text: []Text{Plain(strings.TrimSpace(line))}}
++}
++
++// isHeading reports whether line is a new-style section heading.
++func isHeading(line string) bool {
++	return len(line) >= 2 &&
++		line[0] == '#' &&
++		(line[1] == ' ' || line[1] == '\t') &&
++		strings.TrimSpace(line) != "#"
++}
++
++// heading returns the *Heading for the given new-style section heading line.
++func (d *parseDoc) heading(line string) Block {
++	return &Heading{Text: []Text{Plain(strings.TrimSpace(line[1:]))}}
++}
++
+ // paragraph returns a paragraph block built from the
+ // unindented text at the start of lines, along with the remainder of the lines.
+ // If there is no unindented text at the start of lines,
+diff --git a/src/go/doc/comment/print.go b/src/go/doc/comment/print.go
+index 2ef8d7375d..db520e8192 100644
+--- a/src/go/doc/comment/print.go
++++ b/src/go/doc/comment/print.go
+@@ -55,6 +55,20 @@ type Printer struct {
+ 	TextWidth int
+ }
+ 
++func (p *Printer) headingLevel() int {
++	if p.HeadingLevel <= 0 {
++		return 3
++	}
++	return p.HeadingLevel
++}
++
++func (p *Printer) headingID(h *Heading) string {
++	if p.HeadingID == nil {
++		return h.DefaultID()
++	}
++	return p.HeadingID(h)
++}
++
+ func (p *Printer) docLinkURL(link *DocLink) string {
+ 	if p.DocLinkURL != nil {
+ 		return p.DocLinkURL(link)
+@@ -103,6 +117,35 @@ func (l *DocLink) DefaultURL(baseURL string) string {
+ 	return "#" + l.Name
+ }
+ 
++// DefaultID returns the default anchor ID for the heading h.
++//
++// The default anchor ID is constructed by converting every
++// rune that is not alphanumeric ASCII to an underscore
++// and then adding the prefix “hdr-”.
++// For example, if the heading text is “Go Doc Comments”,
++// the default ID is “hdr-Go_Doc_Comments”.
++func (h *Heading) DefaultID() string {
++	// Note: The “hdr-” prefix is important to avoid DOM clobbering attacks.
++	// See https://pkg.go.dev/github.com/google/safehtml#Identifier.
++	var out strings.Builder
++	var p textPrinter
++	p.oneLongLine(&out, h.Text)
++	s := strings.TrimSpace(out.String())
++	if s == "" {
++		return ""
++	}
++	out.Reset()
++	out.WriteString("hdr-")
++	for _, r := range s {
++		if r < 0x80 && isIdentASCII(byte(r)) {
++			out.WriteByte(byte(r))
++		} else {
++			out.WriteByte('_')
++		}
++	}
++	return out.String()
++}
++
+ type commentPrinter struct {
+ 	*Printer
+ 	headingPrefix string
+@@ -165,6 +208,11 @@ func (p *commentPrinter) block(out *bytes.Buffer, x Block) {
+ 	case *Paragraph:
+ 		p.text(out, "", x.Text)
+ 		out.WriteString("\n")
++
++	case *Heading:
++		out.WriteString("# ")
++		p.text(out, "", x.Text)
++		out.WriteString("\n")
+ 	}
+ }
+ 
+diff --git a/src/go/doc/comment/testdata/head.txt b/src/go/doc/comment/testdata/head.txt
+new file mode 100644
+index 0000000000..b99a8c59f3
+--- /dev/null
++++ b/src/go/doc/comment/testdata/head.txt
+@@ -0,0 +1,92 @@
++-- input --
++Some text.
++
++An Old Heading
++
++Not An Old Heading.
++
++And some text.
++
++# A New Heading.
++
++And some more text.
++
++# Not a heading,
++because text follows it.
++
++Because text precedes it,
++# not a heading.
++
++## Not a heading either.
++
++-- gofmt --
++Some text.
++
++# An Old Heading
++
++Not An Old Heading.
++
++And some text.
++
++# A New Heading.
++
++And some more text.
++
++# Not a heading,
++because text follows it.
++
++Because text precedes it,
++# not a heading.
++
++## Not a heading either.
++
++-- text --
++Some text.
++
++# An Old Heading
++
++Not An Old Heading.
++
++And some text.
++
++# A New Heading.
++
++And some more text.
++
++# Not a heading, because text follows it.
++
++Because text precedes it, # not a heading.
++
++## Not a heading either.
++
++-- markdown --
++Some text.
++
++### An Old Heading {#hdr-An_Old_Heading}
++
++Not An Old Heading.
++
++And some text.
++
++### A New Heading. {#hdr-A_New_Heading_}
++
++And some more text.
++
++\# Not a heading, because text follows it.
++
++Because text precedes it, # not a heading.
++
++\## Not a heading either.
++
++-- html --
++<p>Some text.
++<h3 id="hdr-An_Old_Heading">An Old Heading</h3>
++<p>Not An Old Heading.
++<p>And some text.
++<h3 id="hdr-A_New_Heading_">A New Heading.</h3>
++<p>And some more text.
++<p># Not a heading,
++because text follows it.
++<p>Because text precedes it,
++# not a heading.
++<p>## Not a heading either.
+diff --git a/src/go/doc/comment/testdata/head2.txt b/src/go/doc/comment/testdata/head2.txt
+new file mode 100644
+index 0000000000..d3576325e0
+--- /dev/null
++++ b/src/go/doc/comment/testdata/head2.txt
+@@ -0,0 +1,36 @@
++-- input --
++✦
++
++Almost a+heading
++
++✦
++
++Don't be a heading
++
++✦
++
++A.b is a heading
++
++✦
++
++A. b is not a heading
++
++✦
++-- gofmt --
++✦
++
++Almost a+heading
++
++✦
++
++Don't be a heading
++
++✦
++
++# A.b is a heading
++
++✦
++
++A. b is not a heading
++
++✦
+diff --git a/src/go/doc/comment/testdata/head3.txt b/src/go/doc/comment/testdata/head3.txt
+new file mode 100644
+index 0000000000..dbb7cb3ffb
+--- /dev/null
++++ b/src/go/doc/comment/testdata/head3.txt
+@@ -0,0 +1,7 @@
++{"HeadingLevel": 5}
++-- input --
++# Heading
++-- markdown --
++##### Heading {#hdr-Heading}
++-- html --
++<h5 id="hdr-Heading">Heading</h5>
+diff --git a/src/go/doc/comment/text.go b/src/go/doc/comment/text.go
+index d6d651b5d6..1eddad30fd 100644
+--- a/src/go/doc/comment/text.go
++++ b/src/go/doc/comment/text.go
+@@ -15,7 +15,7 @@ import (
+ // A textPrinter holds the state needed for printing a Doc as plain text.
+ type textPrinter struct {
+ 	*Printer
+-	long   bytes.Buffer
++	long   strings.Builder
+ 	prefix string
+ 	width  int
+ }
+@@ -81,6 +81,11 @@ func (p *textPrinter) block(out *bytes.Buffer, x Block) {
+ 	case *Paragraph:
+ 		out.WriteString(p.prefix)
+ 		p.text(out, x.Text)
++
++	case *Heading:
++		out.WriteString(p.prefix)
++		out.WriteString("# ")
++		p.text(out, x.Text)
+ 	}
+ }
+ 
+@@ -114,7 +119,7 @@ func (p *textPrinter) text(out *bytes.Buffer, x []Text) {
+ // oneLongLine prints the text sequence x to out as one long line,
+ // without worrying about line wrapping.
+ // Explicit links have the [ ] dropped to improve readability.
+-func (p *textPrinter) oneLongLine(out *bytes.Buffer, x []Text) {
++func (p *textPrinter) oneLongLine(out *strings.Builder, x []Text) {
+ 	for _, t := range x {
+ 		switch t := t.(type) {
+ 		case Plain:

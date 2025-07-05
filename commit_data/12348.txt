@@ -7,6 +7,20 @@ Date:   Sun Mar 4 09:57:09 2012 +1100
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/5731056
-
+---
  lib/godoc/package.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/lib/godoc/package.html b/lib/godoc/package.html
+index 3e8af0fca0..fdebbf5d91 100644
+--- a/lib/godoc/package.html
++++ b/lib/godoc/package.html
+@@ -163,7 +163,7 @@
+ 
+ {{with .Dirs}}
+ 	{{/* DirList entries are numbers and strings - no need for FSet */}}
+-	<h2 id="subdirectories">Subdirectories</h2>
++	{{if $.PDoc}}<h2 id="subdirectories">Subdirectories</h2>{{end}}
+ 	<table class="dir">
+ 	<tr>
+ 	<th>Name</th>

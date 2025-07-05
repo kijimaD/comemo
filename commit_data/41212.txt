@@ -20,7 +20,87 @@ Date:   Fri Sep 13 11:10:36 2019 -0400
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/internal/load/test.go                    | 11 +++++++----
  .../testdata/script/cover_pkgall_multiple_mains.txt | 21 ++++++++++++---------
  2 files changed, 19 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/go/internal/load/test.go b/src/cmd/go/internal/load/test.go
+index afff5deaaa..2864fb5ebb 100644
+--- a/src/cmd/go/internal/load/test.go
++++ b/src/cmd/go/internal/load/test.go
+@@ -399,10 +399,13 @@ func recompileForTest(pmain, preal, ptest, pxtest *Package) {
+ 			}
+ 		}
+ 
+-		// Don't compile build info from a main package. This can happen
+-		// if -coverpkg patterns include main packages, since those packages
+-		// are imported by pmain. See golang.org/issue/30907.
+-		if p.Internal.BuildInfo != "" && p != pmain {
++		// Force main packages the test imports to be built as libraries.
++		// Normal imports of main packages are forbidden by the package loader,
++		// but this can still happen if -coverpkg patterns include main packages:
++		// covered packages are imported by pmain. Linking multiple packages
++		// compiled with '-p main' causes duplicate symbol errors.
++		// See golang.org/issue/30907, golang.org/issue/34114.
++		if p.Name == "main" && p != pmain {
+ 			split()
+ 		}
+ 	}
+diff --git a/src/cmd/go/testdata/script/cover_pkgall_multiple_mains.txt b/src/cmd/go/testdata/script/cover_pkgall_multiple_mains.txt
+index ab7cd66949..f21cd8b3a8 100644
+--- a/src/cmd/go/testdata/script/cover_pkgall_multiple_mains.txt
++++ b/src/cmd/go/testdata/script/cover_pkgall_multiple_mains.txt
+@@ -1,29 +1,32 @@
+ # This test checks that multiple main packages can be tested
+ # with -coverpkg=all without duplicate symbol errors.
+-# Verifies golang.org/issue/30374.
+-
+-env GO111MODULE=on
++# Verifies golang.org/issue/30374, golang.org/issue/34114.
+ 
+ [short] skip
++cd $GOPATH/src/example.com/cov
++
++env GO111MODULE=on
++go test -coverpkg=all ./...
+ 
++env GO111MODULE=off
+ go test -coverpkg=all ./...
+ 
+--- go.mod --
++-- $GOPATH/src/example.com/cov/go.mod --
+ module example.com/cov
+ 
+--- mainonly/mainonly.go --
++-- $GOPATH/src/example.com/cov/mainonly/mainonly.go --
+ package main
+ 
+ func main() {}
+ 
+--- mainwithtest/mainwithtest.go --
++-- $GOPATH/src/example.com/cov/mainwithtest/mainwithtest.go --
+ package main
+ 
+ func main() {}
+ 
+ func Foo() {}
+ 
+--- mainwithtest/mainwithtest_test.go --
++-- $GOPATH/src/example.com/cov/mainwithtest/mainwithtest_test.go --
+ package main
+ 
+ import "testing"
+@@ -32,10 +35,10 @@ func TestFoo(t *testing.T) {
+   Foo()
+ }
+ 
+--- xtest/x.go --
++-- $GOPATH/src/example.com/cov/xtest/x.go --
+ package x
+ 
+--- xtest/x_test.go --
++-- $GOPATH/src/example.com/cov/xtest/x_test.go --
+ package x_test
+ 
+ import "testing"

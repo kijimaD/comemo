@@ -18,7 +18,91 @@ Date:   Fri Oct 28 08:11:39 2016 -0700
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/httputil/reverseproxy.go      | 13 ++++++++++
  src/net/http/httputil/reverseproxy_test.go | 41 ++++++++++++++++++++++++++++++
  2 files changed, 54 insertions(+)
+
+diff --git a/src/net/http/httputil/reverseproxy.go b/src/net/http/httputil/reverseproxy.go
+index f18dd886cc..7867505708 100644
+--- a/src/net/http/httputil/reverseproxy.go
++++ b/src/net/http/httputil/reverseproxy.go
+@@ -52,6 +52,11 @@ type ReverseProxy struct {
+ 	// get byte slices for use by io.CopyBuffer when
+ 	// copying HTTP response bodies.
+ 	BufferPool BufferPool
++
++	// ModifyResponse is an optional function that
++	// modifies the Response from the backend.
++	// If it returns an error, the proxy returns a StatusBadGateway error.
++	ModifyResponse func(*http.Response) error
+ }
+ 
+ // A BufferPool is an interface for getting and returning temporary
+@@ -216,6 +221,14 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+ 		res.Header.Del(h)
+ 	}
+ 
++	if p.ModifyResponse != nil {
++		if err := p.ModifyResponse(res); err != nil {
++			p.logf("http: proxy error: %v", err)
++			rw.WriteHeader(http.StatusBadGateway)
++			return
++		}
++	}
++
+ 	copyHeader(rw.Header(), res.Header)
+ 
+ 	// The "Trailer" header isn't included in the Transport's response,
+diff --git a/src/net/http/httputil/reverseproxy_test.go b/src/net/http/httputil/reverseproxy_test.go
+index b3270a1a63..20c4e16bcb 100644
+--- a/src/net/http/httputil/reverseproxy_test.go
++++ b/src/net/http/httputil/reverseproxy_test.go
+@@ -583,6 +583,47 @@ func TestReverseProxy_NilBody(t *testing.T) {
+ 	}
+ }
+ 
++// Issue 14237. Test ModifyResponse and that an error from it
++// causes the proxy to return StatusBadGateway, or StatusOK otherwise.
++func TestReverseProxyModifyResponse(t *testing.T) {
++	backendServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
++		w.Header().Add("X-Hit-Mod", fmt.Sprintf("%v", r.URL.Path == "/mod"))
++	}))
++	defer backendServer.Close()
++
++	rpURL, _ := url.Parse(backendServer.URL)
++	rproxy := NewSingleHostReverseProxy(rpURL)
++	rproxy.ErrorLog = log.New(ioutil.Discard, "", 0) // quiet for tests
++	rproxy.ModifyResponse = func(resp *http.Response) error {
++		if resp.Header.Get("X-Hit-Mod") != "true" {
++			return fmt.Errorf("tried to by-pass proxy")
++		}
++		return nil
++	}
++
++	frontendProxy := httptest.NewServer(rproxy)
++	defer frontendProxy.Close()
++
++	tests := []struct {
++		url      string
++		wantCode int
++	}{
++		{frontendProxy.URL + "/mod", http.StatusOK},
++		{frontendProxy.URL + "/schedule", http.StatusBadGateway},
++	}
++
++	for i, tt := range tests {
++		resp, err := http.Get(tt.url)
++		if err != nil {
++			t.Fatalf("failed to reach proxy: %v", err)
++		}
++		if g, e := resp.StatusCode, tt.wantCode; g != e {
++			t.Errorf("#%d: got res.StatusCode %d; expected %d", i, g, e)
++		}
++		resp.Body.Close()
++	}
++}
++
+ // Issue 16659: log errors from short read
+ func TestReverseProxy_CopyBuffer(t *testing.T) {
+ 	backendServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

@@ -12,9 +12,90 @@ Date:   Tue Aug 31 18:26:16 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/go/types/expr.go                           |  1 -
  src/go/types/stmt.go                           |  1 -
  src/go/types/testdata/fixedbugs/issue42758.go2 |  2 +-
  src/go/types/typexpr.go                        | 19 +++++++------------
  4 files changed, 8 insertions(+), 15 deletions(-)
+
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index 2a204cf5f6..e574156562 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -1386,7 +1386,6 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
+ 			check.invalidOp(x, _InvalidAssert, "%s is not an interface", x)
+ 			goto Error
+ 		}
+-		check.ordinaryType(x, xtyp)
+ 		// x.(type) expressions are handled explicitly in type switches
+ 		if e.Type == nil {
+ 			// Don't use invalidAST because this can occur in the AST produced by
+diff --git a/src/go/types/stmt.go b/src/go/types/stmt.go
+index e74862afef..e5830bfdd4 100644
+--- a/src/go/types/stmt.go
++++ b/src/go/types/stmt.go
+@@ -696,7 +696,6 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
+ 			check.errorf(&x, _InvalidTypeSwitch, "%s is not an interface", &x)
+ 			return
+ 		}
+-		check.ordinaryType(&x, xtyp)
+ 
+ 		check.multipleDefaults(s.Body.List)
+ 
+diff --git a/src/go/types/testdata/fixedbugs/issue42758.go2 b/src/go/types/testdata/fixedbugs/issue42758.go2
+index bf0031f5d2..dd66e9648b 100644
+--- a/src/go/types/testdata/fixedbugs/issue42758.go2
++++ b/src/go/types/testdata/fixedbugs/issue42758.go2
+@@ -28,6 +28,6 @@ func _[T constraint](x interface{}){
+ }
+ 
+ func _(x constraint /* ERROR contains type constraints */ ) {
+-	switch x /* ERROR contains type constraints */ .(type) {
++	switch x.(type) { // no need to report another error
+ 	}
+ }
+diff --git a/src/go/types/typexpr.go b/src/go/types/typexpr.go
+index a126241afa..533f976f1d 100644
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@ -132,32 +132,27 @@ func (check *Checker) typ(e ast.Expr) Type {
+ }
+ 
+ // varType type-checks the type expression e and returns its type, or Typ[Invalid].
+-// The type must not be an (uninstantiated) generic type and it must be ordinary
+-// (see ordinaryType).
++// The type must not be an (uninstantiated) generic type and it must not be a
++// constraint interface.
+ func (check *Checker) varType(e ast.Expr) Type {
+ 	typ := check.definedType(e, nil)
+-	check.ordinaryType(e, typ)
+-	return typ
+-}
+-
+-// ordinaryType reports an error if typ is an interface type containing
+-// type lists or is (or embeds) the predeclared type comparable.
+-func (check *Checker) ordinaryType(pos positioner, typ Type) {
+ 	// We don't want to call under() (via asInterface) or complete interfaces while we
+ 	// are in the middle of type-checking parameter declarations that might belong to
+ 	// interface methods. Delay this check to the end of type-checking.
+ 	check.later(func() {
+ 		if t := asInterface(typ); t != nil {
+-			tset := computeInterfaceTypeSet(check, pos.Pos(), t) // TODO(gri) is this the correct position?
++			tset := computeInterfaceTypeSet(check, e.Pos(), t) // TODO(gri) is this the correct position?
+ 			if tset.IsConstraint() {
+ 				if tset.comparable {
+-					check.softErrorf(pos, _Todo, "interface is (or embeds) comparable")
++					check.softErrorf(e, _Todo, "interface is (or embeds) comparable")
+ 				} else {
+-					check.softErrorf(pos, _Todo, "interface contains type constraints")
++					check.softErrorf(e, _Todo, "interface contains type constraints")
+ 				}
+ 			}
+ 		}
+ 	})
++
++	return typ
+ }
+ 
+ // anyType type-checks the type expression e and returns its type, or Typ[Invalid].

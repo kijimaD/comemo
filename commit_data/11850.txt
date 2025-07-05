@@ -7,7 +7,7 @@ Date:   Mon Feb 13 13:58:17 2012 -0500
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5645099
-
+---
  src/pkg/crypto/tls/handshake_client_test.go | 2 +-
  src/pkg/crypto/tls/handshake_server_test.go | 8 ++++----
  src/pkg/go/printer/performance_test.go      | 2 +-
@@ -21,3 +21,187 @@ Date:   Mon Feb 13 13:58:17 2012 -0500
  src/pkg/sync/mutex_test.go                  | 2 +-
  src/pkg/sync/rwmutex_test.go                | 2 +-
  12 files changed, 15 insertions(+), 15 deletions(-)
+
+diff --git a/src/pkg/crypto/tls/handshake_client_test.go b/src/pkg/crypto/tls/handshake_client_test.go
+index c0abcda200..8c56daaf61 100644
+--- a/src/pkg/crypto/tls/handshake_client_test.go
++++ b/src/pkg/crypto/tls/handshake_client_test.go
+@@ -62,7 +62,7 @@ func TestRunClient(t *testing.T) {
+ 
+ // Script of interaction with gnutls implementation.
+ // The values for this test are obtained by building and running in client mode:
+-//   % gotest -test.run "TestRunClient" -connect
++//   % go test -run "TestRunClient" -connect
+ // and then:
+ //   % gnutls-serv -p 10443 --debug 100 --x509keyfile key.pem --x509certfile cert.pem -a > /tmp/log 2>&1
+ //   % python parse-gnutls-cli-debug-log.py < /tmp/log
+diff --git a/src/pkg/crypto/tls/handshake_server_test.go b/src/pkg/crypto/tls/handshake_server_test.go
+index 4bff5327e2..bd31d31ae1 100644
+--- a/src/pkg/crypto/tls/handshake_server_test.go
++++ b/src/pkg/crypto/tls/handshake_server_test.go
+@@ -284,7 +284,7 @@ func loadPEMCert(in string) *x509.Certificate {
+ 
+ // Script of interaction with gnutls implementation.
+ // The values for this test are obtained by building and running in server mode:
+-//   % gotest -test.run "TestRunServer" -serve
++//   % go test -run "TestRunServer" -serve
+ // and then:
+ //   % gnutls-cli --insecure --debug 100 -p 10443 localhost > /tmp/log 2>&1
+ //   % python parse-gnutls-cli-debug-log.py < /tmp/log
+@@ -949,7 +949,7 @@ var sslv3ServerScript = [][]byte{
+ 
+ var clientauthTests = []clientauthTest{
+ 	// Server doesn't asks for cert
+-	// gotest -test.run "TestRunServer" -serve -clientauth 0
++	// go test -run "TestRunServer" -serve -clientauth 0
+ 	// gnutls-cli --insecure --debug 100 -p 10443 localhost 2>&1 |
+ 	//   python parse-gnutls-cli-debug-log.py
+ 	{"NoClientCert", NoClientCert, nil,
+@@ -1115,7 +1115,7 @@ var clientauthTests = []clientauthTest{
+ 				0x03, 0x11, 0x43, 0x3e, 0xee, 0xb7, 0x4d, 0x69,
+ 			}}},
+ 	// Server asks for cert with empty CA list, client doesn't give it.
+-	// gotest -test.run "TestRunServer" -serve -clientauth 1
++	// go test -run "TestRunServer" -serve -clientauth 1
+ 	// gnutls-cli --insecure --debug 100 -p 10443 localhost
+ 	{"RequestClientCert, none given", RequestClientCert, nil,
+ 		[][]byte{{
+@@ -1282,7 +1282,7 @@ var clientauthTests = []clientauthTest{
+ 				0xf4, 0x70, 0xcc, 0xb4, 0xed, 0x07, 0x76, 0x3a,
+ 			}}},
+ 	// Server asks for cert with empty CA list, client gives one
+-	// gotest -test.run "TestRunServer" -serve -clientauth 1
++	// go test -run "TestRunServer" -serve -clientauth 1
+ 	// gnutls-cli --insecure --debug 100 -p 10443 localhost
+ 	{"RequestClientCert, client gives it", RequestClientCert,
+ 		[]*x509.Certificate{clicert},
+diff --git a/src/pkg/go/printer/performance_test.go b/src/pkg/go/printer/performance_test.go
+index dbd942292b..0c6a4e71f1 100644
+--- a/src/pkg/go/printer/performance_test.go
++++ b/src/pkg/go/printer/performance_test.go
+@@ -3,7 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // This file implements a simple printer performance benchmark:
+-// gotest -bench=BenchmarkPrint 
++// go test -bench=BenchmarkPrint 
+ 
+ package printer
+ 
+diff --git a/src/pkg/go/printer/printer.go b/src/pkg/go/printer/printer.go
+index e9ab5fd5de..f99b7bc7b4 100644
+--- a/src/pkg/go/printer/printer.go
++++ b/src/pkg/go/printer/printer.go
+@@ -413,7 +413,7 @@ func (p *printer) writeCommentPrefix(pos, next token.Position, prev, comment *as
+ 
+ // Split comment text into lines
+ // (using strings.Split(text, "\n") is significantly slower for
+-// this specific purpose, as measured with: gotest -bench=Print)
++// this specific purpose, as measured with: go test -bench=Print)
+ func split(text string) []string {
+ 	// count lines (comment text never ends in a newline)
+ 	n := 1
+diff --git a/src/pkg/go/printer/printer_test.go b/src/pkg/go/printer/printer_test.go
+index 38eaf65303..fa133cd35f 100644
+--- a/src/pkg/go/printer/printer_test.go
++++ b/src/pkg/go/printer/printer_test.go
+@@ -140,7 +140,7 @@ type entry struct {
+ 	mode           checkMode
+ }
+ 
+-// Use gotest -update to create/update the respective golden files.
++// Use go test -update to create/update the respective golden files.
+ var data = []entry{
+ 	{"empty.input", "empty.golden", 0},
+ 	{"comments.input", "comments.golden", 0},
+diff --git a/src/pkg/math/big/calibrate_test.go b/src/pkg/math/big/calibrate_test.go
+index 0950eeedbd..efe1837bba 100644
+--- a/src/pkg/math/big/calibrate_test.go
++++ b/src/pkg/math/big/calibrate_test.go
+@@ -8,7 +8,7 @@
+ // results are somewhat fragile; use repeated runs to get
+ // a clear picture.
+ 
+-// Usage: gotest -calibrate
++// Usage: go test -run=TestCalibrate -calibrate
+ 
+ package big
+ 
+diff --git a/src/pkg/math/big/nat.go b/src/pkg/math/big/nat.go
+index 6e1c7ffde4..da1ac944c5 100644
+--- a/src/pkg/math/big/nat.go
++++ b/src/pkg/math/big/nat.go
+@@ -897,7 +897,7 @@ func (q nat) convertWords(s []byte, charset string, b Word, ndigits int, bb Word
+ }
+ 
+ // Split blocks greater than leafSize Words (or set to 0 to disable recursive conversion)
+-// Benchmark and configure leafSize using: gotest -test.bench="Leaf"
++// Benchmark and configure leafSize using: go test -bench="Leaf"
+ //   8 and 16 effective on 3.0 GHz Xeon "Clovertown" CPU (128 byte cache lines)
+ //   8 and 16 effective on 2.66 GHz Core 2 Duo "Penryn" CPU
+ var leafSize int = 8 // number of Word-size binary values treat as a monolithic block
+diff --git a/src/pkg/net/http/httptest/server.go b/src/pkg/net/http/httptest/server.go
+index 5b02e143d4..ace1bf3828 100644
+--- a/src/pkg/net/http/httptest/server.go
++++ b/src/pkg/net/http/httptest/server.go
+@@ -61,7 +61,7 @@ func newLocalListener() net.Listener {
+ 
+ // When debugging a particular http server-based test,
+ // this flag lets you run
+-//	gotest -run=BrokenTest -httptest.serve=127.0.0.1:8000
++//	go test -run=BrokenTest -httptest.serve=127.0.0.1:8000
+ // to start the broken server so you can interact with it manually.
+ var serve = flag.String("httptest.serve", "", "if non-empty, httptest.NewServer serves on this address and blocks")
+ 
+diff --git a/src/pkg/path/filepath/path_test.go b/src/pkg/path/filepath/path_test.go
+index 6f5100b2ff..4572707ace 100644
+--- a/src/pkg/path/filepath/path_test.go
++++ b/src/pkg/path/filepath/path_test.go
+@@ -357,7 +357,7 @@ func TestWalk(t *testing.T) {
+ 
+ 	// Test permission errors.  Only possible if we're not root
+ 	// and only on some file systems (AFS, FAT).  To avoid errors during
+-	// all.bash on those file systems, skip during gotest -short.
++	// all.bash on those file systems, skip during go test -short.
+ 	if os.Getuid() > 0 && !testing.Short() {
+ 		// introduce 2 errors: chmod top-level directories to 0
+ 		os.Chmod(filepath.Join(tree.name, tree.entries[1].name), 0)
+diff --git a/src/pkg/runtime/softfloat64.go b/src/pkg/runtime/softfloat64.go
+index e0c3b7b738..4fcf8f2690 100644
+--- a/src/pkg/runtime/softfloat64.go
++++ b/src/pkg/runtime/softfloat64.go
+@@ -4,7 +4,7 @@
+ 
+ // Software IEEE754 64-bit floating point.
+ // Only referred to (and thus linked in) by arm port
+-// and by gotest in this directory.
++// and by tests in this directory.
+ 
+ package runtime
+ 
+diff --git a/src/pkg/sync/mutex_test.go b/src/pkg/sync/mutex_test.go
+index 47758844f2..a514b4ad4c 100644
+--- a/src/pkg/sync/mutex_test.go
++++ b/src/pkg/sync/mutex_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// GOMAXPROCS=10 gotest
++// GOMAXPROCS=10 go test
+ 
+ package sync_test
+ 
+diff --git a/src/pkg/sync/rwmutex_test.go b/src/pkg/sync/rwmutex_test.go
+index dc8ce9653c..39d5d6540d 100644
+--- a/src/pkg/sync/rwmutex_test.go
++++ b/src/pkg/sync/rwmutex_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// GOMAXPROCS=10 gotest
++// GOMAXPROCS=10 go test
+ 
+ package sync_test
+ 

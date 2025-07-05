@@ -11,9 +11,86 @@ Date:   Tue Oct 4 14:03:01 2022 -0700
     Reviewed-by: Robert Griesemer <gri@google.com>
     Run-TryBot: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/types2/errors.go | 4 ----
  src/cmd/compile/internal/types2/expr.go   | 2 +-
  src/cmd/compile/internal/types2/subst.go  | 6 ++++--
  src/go/types/subst.go                     | 6 ++++--
  4 files changed, 9 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/errors.go b/src/cmd/compile/internal/types2/errors.go
+index 09d44f6899..0906a1b45c 100644
+--- a/src/cmd/compile/internal/types2/errors.go
++++ b/src/cmd/compile/internal/types2/errors.go
+@@ -15,10 +15,6 @@ import (
+ 	"strings"
+ )
+ 
+-func unimplemented() {
+-	panic("unimplemented")
+-}
+-
+ func assert(p bool) {
+ 	if !p {
+ 		msg := "assertion failed"
+diff --git a/src/cmd/compile/internal/types2/expr.go b/src/cmd/compile/internal/types2/expr.go
+index 7543431f8d..6abd9ca311 100644
+--- a/src/cmd/compile/internal/types2/expr.go
++++ b/src/cmd/compile/internal/types2/expr.go
+@@ -562,7 +562,7 @@ func (check *Checker) updateExprType0(parent, x syntax.Expr, typ Type, final boo
+ 				// see commented out code for StarExpr above
+ 				// TODO(gri) needs cleanup
+ 				if debug {
+-					unimplemented()
++					panic("unimplemented")
+ 				}
+ 				return
+ 			}
+diff --git a/src/cmd/compile/internal/types2/subst.go b/src/cmd/compile/internal/types2/subst.go
+index d5a48c6995..74d6294dff 100644
+--- a/src/cmd/compile/internal/types2/subst.go
++++ b/src/cmd/compile/internal/types2/subst.go
+@@ -6,7 +6,9 @@
+ 
+ package types2
+ 
+-import "cmd/compile/internal/syntax"
++import (
++	"cmd/compile/internal/syntax"
++)
+ 
+ type substMap map[*TypeParam]Type
+ 
+@@ -262,7 +264,7 @@ func (subst *subster) typ(typ Type) Type {
+ 		return subst.smap.lookup(t)
+ 
+ 	default:
+-		unimplemented()
++		unreachable()
+ 	}
+ 
+ 	return typ
+diff --git a/src/go/types/subst.go b/src/go/types/subst.go
+index 42f3619f88..5a49c0447f 100644
+--- a/src/go/types/subst.go
++++ b/src/go/types/subst.go
+@@ -6,7 +6,9 @@
+ 
+ package types
+ 
+-import "go/token"
++import (
++	"go/token"
++)
+ 
+ type substMap map[*TypeParam]Type
+ 
+@@ -262,7 +264,7 @@ func (subst *subster) typ(typ Type) Type {
+ 		return subst.smap.lookup(t)
+ 
+ 	default:
+-		panic("unimplemented")
++		unreachable()
+ 	}
+ 
+ 	return typ

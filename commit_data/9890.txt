@@ -30,7 +30,7 @@ Date:   Thu Oct 6 11:56:17 2011 -0700
     R=gri, r, rsc
     CC=golang-dev
     https://golang.org/cl/5137041
-
+---
  doc/all.css                  |  9 +++++
  doc/godocs.js                | 22 ++++++++++++
  lib/godoc/example.html       | 11 ++++++
@@ -44,3 +44,552 @@ Date:   Thu Oct 6 11:56:17 2011 -0700
  src/pkg/testing/example.go   | 84 ++++++++++++++++++++++++++++++++++++++++++++
  src/pkg/testing/testing.go   | 23 ++++++------
  12 files changed, 292 insertions(+), 24 deletions(-)
+
+diff --git a/doc/all.css b/doc/all.css
+index f8f8c653fe..94d4774dd9 100644
+--- a/doc/all.css
++++ b/doc/all.css
+@@ -202,3 +202,12 @@ sup.new {
+   font-size: 8px;
+   line-height: 0;
+ }
++.example .expanded {
++  display: none;
++}
++.exampleVisible .collapsed {
++  display: none;
++}
++.exampleHeading {
++  cursor: pointer;
++}
+diff --git a/doc/godocs.js b/doc/godocs.js
+index 946c4c39fd..cf97b31508 100644
+--- a/doc/godocs.js
++++ b/doc/godocs.js
+@@ -24,6 +24,7 @@ function godocs_onload() {
+   godocs_bindSearchEvents();
+   godocs_generateTOC();
+   godocs_addTopLinks();
++  godocs_bindExampleToggles();
+ }
+ 
+ function godocs_bindSearchEvents() {
+@@ -188,3 +189,24 @@ function godocs_addTopLinks() {
+     headers[i].appendChild(span);
+   }
+ }
++
++function godocs_bindExampleToggles() {
++  var examples = document.getElementsByClassName("example");
++  for (var i = 0; i < examples.length; i++) {
++    var eg = examples[i];
++    console.log(eg);
++    godocs_bindExampleToggle(eg);
++  }
++}
++function godocs_bindExampleToggle(eg) {
++  var heading = eg.getElementsByClassName("exampleHeading");
++  for (var i = 0; i < heading.length; i++) {
++    bindEvent(heading[i], "click", function() {
++      if (eg.className == "example") {
++        eg.className = "exampleVisible";
++      } else {
++        eg.className = "example";
++      }
++    });
++  }
++}
+diff --git a/lib/godoc/example.html b/lib/godoc/example.html
+new file mode 100644
+index 0000000000..8c1fd1adc6
+--- /dev/null
++++ b/lib/godoc/example.html
+@@ -0,0 +1,11 @@
++<div class="example">
++	<div class="collapsed">
++		<p class="exampleHeading">▹ Example</p>
++	</div>
++	<div class="expanded">
++		<p class="exampleHeading">▾ Example Code:</p>
++		<p class="code"><pre>{{.Code}}</pre></p>
++		<p>Output:</p>
++		<p class="output"><pre>{{html .Output}}</pre></p>
++	</div>
++</div>
+diff --git a/lib/godoc/package.html b/lib/godoc/package.html
+index 559fe2dddd..55812d17bc 100644
+--- a/lib/godoc/package.html
++++ b/lib/godoc/package.html
+@@ -45,14 +45,17 @@
+ 			<h2 id="{{$name_html}}">func <a href="/{{posLink_url .Decl $.FSet}}">{{$name_html}}</a></h2>
+ 			<p><code>{{node_html .Decl $.FSet}}</code></p>
+ 			{{comment_html .Doc}}
++			{{example_html .Name $.Examples $.FSet}}
+ 		{{end}}
+ 	{{end}}
+ 	{{with .Types}}
+ 		{{range .}}
++			{{$tname := printf "%s" .Type.Name}}
+ 			{{$tname_html := node_html .Type.Name $.FSet}}
+ 			<h2 id="{{$tname_html}}">type <a href="/{{posLink_url .Decl $.FSet}}">{{$tname_html}}</a></h2>
+ 			{{comment_html .Doc}}
+ 			<p><pre>{{node_html .Decl $.FSet}}</pre></p>
++			{{example_html $tname $.Examples $.FSet}}
+ 			{{range .Consts}}
+ 				{{comment_html .Doc}}
+ 				<pre>{{node_html .Decl $.FSet}}</pre>
+@@ -66,12 +69,15 @@
+ 				<h3 id="{{$name_html}}">func <a href="/{{posLink_url .Decl $.FSet}}">{{$name_html}}</a></h3>
+ 				<p><code>{{node_html .Decl $.FSet}}</code></p>
+ 				{{comment_html .Doc}}
++				{{example_html .Name $.Examples $.FSet}}
+ 			{{end}}
+ 			{{range .Methods}}
+ 				{{$name_html := html .Name}}
+ 				<h3 id="{{$tname_html}}.{{$name_html}}">func ({{node_html .Recv $.FSet}}) <a href="/{{posLink_url .Decl $.FSet}}">{{$name_html}}</a></h3>
+ 				<p><code>{{node_html .Decl $.FSet}}</code></p>
+ 				{{comment_html .Doc}}
++				{{$name := printf "%s_%s" $tname .Name}}
++				{{example_html $name $.Examples $.FSet}}
+ 			{{end}}
+ 		{{end}}
+ 	{{end}}
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index f3db2c4d3d..08dff260d4 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -458,6 +458,28 @@ func comment_htmlFunc(comment string) string {
+ 	return buf.String()
+ }
+ 
++func example_htmlFunc(name string, examples []*doc.Example, fset *token.FileSet) string {
++	var buf bytes.Buffer
++	for _, eg := range examples {
++		if eg.Name != name {
++			continue
++		}
++
++		// print code, unindent and remove surrounding braces
++		code := node_htmlFunc(eg.Body, fset)
++		code = strings.Replace(code, "\n    ", "\n", -1)
++		code = code[2 : len(code)-2]
++
++		err := exampleHTML.Execute(&buf, struct {
++			Code, Output string
++		}{code, eg.Output})
++		if err != nil {
++			log.Print(err)
++		}
++	}
++	return buf.String()
++}
++
+ func pkgLinkFunc(path string) string {
+ 	relpath := relativeURL(path)
+ 	// because of the irregular mapping under goroot
+@@ -531,6 +553,9 @@ var fmap = template.FuncMap{
+ 	"pkgLink":     pkgLinkFunc,
+ 	"srcLink":     relativeURL,
+ 	"posLink_url": posLink_urlFunc,
++
++	// formatting of Examples
++	"example_html": example_htmlFunc,
+ }
+ 
+ func readTemplate(name string) *template.Template {
+@@ -563,6 +588,7 @@ var (
+ 	codewalkdirHTML,
+ 	dirlistHTML,
+ 	errorHTML,
++	exampleHTML,
+ 	godocHTML,
+ 	packageHTML,
+ 	packageText,
+@@ -576,6 +602,7 @@ func readTemplates() {
+ 	codewalkdirHTML = readTemplate("codewalkdir.html")
+ 	dirlistHTML = readTemplate("dirlist.html")
+ 	errorHTML = readTemplate("error.html")
++	exampleHTML = readTemplate("example.html")
+ 	godocHTML = readTemplate("godoc.html")
+ 	packageHTML = readTemplate("package.html")
+ 	packageText = readTemplate("package.txt")
+@@ -794,15 +821,16 @@ const (
+ )
+ 
+ type PageInfo struct {
+-	Dirname string          // directory containing the package
+-	PList   []string        // list of package names found
+-	FSet    *token.FileSet  // corresponding file set
+-	PAst    *ast.File       // nil if no single AST with package exports
+-	PDoc    *doc.PackageDoc // nil if no single package documentation
+-	Dirs    *DirList        // nil if no directory information
+-	DirTime int64           // directory time stamp in seconds since epoch
+-	IsPkg   bool            // false if this is not documenting a real package
+-	Err     os.Error        // directory read error or nil
++	Dirname  string          // directory containing the package
++	PList    []string        // list of package names found
++	FSet     *token.FileSet  // corresponding file set
++	PAst     *ast.File       // nil if no single AST with package exports
++	PDoc     *doc.PackageDoc // nil if no single package documentation
++	Examples []*doc.Example  // nil if no example code
++	Dirs     *DirList        // nil if no directory information
++	DirTime  int64           // directory time stamp in seconds since epoch
++	IsPkg    bool            // false if this is not documenting a real package
++	Err      os.Error        // directory read error or nil
+ }
+ 
+ func (info *PageInfo) IsEmpty() bool {
+@@ -958,6 +986,19 @@ func (h *httpHandler) getPageInfo(abspath, relpath, pkgname string, mode PageInf
+ 		plist = plist[0:i]
+ 	}
+ 
++	// get examples from *_test.go files
++	var examples []*doc.Example
++	filter = func(d FileInfo) bool {
++		return isGoFile(d) && strings.HasSuffix(d.Name(), "_test.go")
++	}
++	if testpkgs, err := parseDir(fset, abspath, filter); err != nil {
++		log.Println("parsing test files:", err)
++	} else {
++		for _, testpkg := range testpkgs {
++			examples = append(examples, doc.Examples(testpkg)...)
++		}
++	}
++
+ 	// compute package documentation
+ 	var past *ast.File
+ 	var pdoc *doc.PackageDoc
+@@ -1014,7 +1055,7 @@ func (h *httpHandler) getPageInfo(abspath, relpath, pkgname string, mode PageInf
+ 		timestamp = time.Seconds()
+ 	}
+ 
+-	return PageInfo{abspath, plist, fset, past, pdoc, dir.listing(true), timestamp, h.isPkg, nil}
++	return PageInfo{abspath, plist, fset, past, pdoc, examples, dir.listing(true), timestamp, h.isPkg, nil}
+ }
+ 
+ func (h *httpHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+diff --git a/src/cmd/gotest/gotest.go b/src/cmd/gotest/gotest.go
+index 88c746c1b7..69b0d580b0 100644
+--- a/src/cmd/gotest/gotest.go
++++ b/src/cmd/gotest/gotest.go
+@@ -10,6 +10,7 @@ import (
+ 	"fmt"
+ 	"go/ast"
+ 	"go/build"
++	"go/doc"
+ 	"go/parser"
+ 	"go/token"
+ 	"io/ioutil"
+@@ -68,6 +69,12 @@ type File struct {
+ 	astFile    *ast.File
+ 	tests      []string // The names of the TestXXXs.
+ 	benchmarks []string // The names of the BenchmarkXXXs.
++	examples   []example
++}
++
++type example struct {
++	name   string // The name of the example function (ExampleXXX).
++	output string // The expected output (stdout/stderr) of the function.
+ }
+ 
+ func main() {
+@@ -190,7 +197,7 @@ func parseFiles() {
+ 	fileSet := token.NewFileSet()
+ 	for _, f := range files {
+ 		// Report declaration errors so we can abort if the files are incorrect Go.
+-		file, err := parser.ParseFile(fileSet, f.name, nil, parser.DeclarationErrors)
++		file, err := parser.ParseFile(fileSet, f.name, nil, parser.DeclarationErrors|parser.ParseComments)
+ 		if err != nil {
+ 			Fatalf("parse error: %s", err)
+ 		}
+@@ -219,6 +226,11 @@ func getTestNames() {
+ 				f.tests = append(f.tests, name)
+ 			} else if isTest(name, "Benchmark") {
+ 				f.benchmarks = append(f.benchmarks, name)
++			} else if isTest(name, "Example") {
++				f.examples = append(f.examples, example{
++					name:   name,
++					output: doc.CommentText(n.Doc),
++				})
+ 			}
+ 			// TODO: worth checking the signature? Probably not.
+ 		}
+@@ -405,6 +417,15 @@ func writeTestmainGo() {
+ 	}
+ 	fmt.Fprintln(b, "}")
+ 
++	// Examples.
++	fmt.Fprintf(b, "var examples = []testing.InternalExample{")
++	for _, f := range files {
++		for _, eg := range f.examples {
++			fmt.Fprintf(b, "\t{%q, %s.%s, %q},\n", eg.name, f.pkg, eg.name, eg.output)
++		}
++	}
++	fmt.Fprintln(b, "}")
++
+ 	// Body.
+ 	fmt.Fprintln(b, testBody)
+ }
+@@ -434,5 +455,5 @@ func matchString(pat, str string) (result bool, err __os__.Error) {
+ }
+ 
+ func main() {
+-	testing.Main(matchString, tests, benchmarks)
++	testing.Main(matchString, tests, benchmarks, examples)
+ }`
+diff --git a/src/pkg/go/doc/Makefile b/src/pkg/go/doc/Makefile
+index a5152c7937..04c9fe74f4 100644
+--- a/src/pkg/go/doc/Makefile
++++ b/src/pkg/go/doc/Makefile
+@@ -8,5 +8,6 @@ TARG=go/doc
+ GOFILES=\
+ 	comment.go\
+ 	doc.go\
++	example.go\
+ 
+ include ../../../Make.pkg
+diff --git a/src/pkg/go/doc/example.go b/src/pkg/go/doc/example.go
+new file mode 100644
+index 0000000000..008f2b86b9
+--- /dev/null
++++ b/src/pkg/go/doc/example.go
+@@ -0,0 +1,56 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Extract example functions from package ASTs.
++
++package doc
++
++import (
++	"go/ast"
++	"strings"
++	"unicode"
++	"utf8"
++)
++
++type Example struct {
++	Name   string         // name of the item being demonstrated
++	Body   *ast.BlockStmt // code
++	Output string         // expected output
++}
++
++func Examples(pkg *ast.Package) []*Example {
++	var examples []*Example
++	for _, src := range pkg.Files {
++		for _, decl := range src.Decls {
++			f, ok := decl.(*ast.FuncDecl)
++			if !ok {
++				continue
++			}
++			name := f.Name.Name
++			if !isTest(name, "Example") {
++				continue
++			}
++			examples = append(examples, &Example{
++				Name:   name[len("Example"):],
++				Body:   f.Body,
++				Output: CommentText(f.Doc),
++			})
++		}
++	}
++	return examples
++}
++
++// isTest tells whether name looks like a test (or benchmark, according to prefix).
++// It is a Test (say) if there is a character after Test that is not a lower-case letter.
++// We don't want Testiness.
++func isTest(name, prefix string) bool {
++	if !strings.HasPrefix(name, prefix) {
++		return false
++	}
++	if len(name) == len(prefix) { // "Test" is ok
++		return true
++	}
++	rune, _ := utf8.DecodeRuneInString(name[len(prefix):])
++	return !unicode.IsLower(rune)
++}
+diff --git a/src/pkg/sort/example_test.go b/src/pkg/sort/example_test.go
+new file mode 100644
+index 0000000000..2f5ee90818
+--- /dev/null
++++ b/src/pkg/sort/example_test.go
+@@ -0,0 +1,17 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package sort_test
++
++import (
++	"fmt"
++	"sort"
++)
++
++// [1 2 3 4 5 6]
++func ExampleInts() {
++	s := []int{5, 2, 6, 3, 1, 4}
++	sort.Ints(s)
++	fmt.Println(s)
++}
+diff --git a/src/pkg/testing/Makefile b/src/pkg/testing/Makefile
+index 9e8bd17569..04e5c75950 100644
+--- a/src/pkg/testing/Makefile
++++ b/src/pkg/testing/Makefile
+@@ -7,6 +7,7 @@ include ../../Make.inc
+ TARG=testing
+ GOFILES=\
+         benchmark.go\
++        example.go\
+ 	testing.go\
+ 
+ include ../../Make.pkg
+diff --git a/src/pkg/testing/example.go b/src/pkg/testing/example.go
+new file mode 100644
+index 0000000000..f148951d4f
+--- /dev/null
++++ b/src/pkg/testing/example.go
+@@ -0,0 +1,84 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package testing
++
++import (
++	"bytes"
++	"fmt"
++	"io"
++	"os"
++	"time"
++)
++
++type InternalExample struct {
++	Name   string
++	F      func()
++	Output string
++}
++
++func RunExamples(examples []InternalExample) (ok bool) {
++	ok = true
++
++	stdout, stderr := os.Stdout, os.Stderr
++	defer func() {
++		os.Stdout, os.Stderr = stdout, stderr
++		if e := recover(); e != nil {
++			if err, ok := e.(os.Error); ok {
++				fmt.Fprintln(os.Stderr, err)
++				os.Exit(1)
++			}
++			panic(e)
++		}
++	}()
++
++	for _, eg := range examples {
++		if *chatty {
++			fmt.Fprintln(os.Stderr, "=== RUN:", eg.Name)
++		}
++
++		// capture stdout and stderr for testing purposes
++		r, w, err := os.Pipe()
++		if err != nil {
++			fmt.Fprintln(os.Stderr, err)
++			os.Exit(1)
++		}
++		os.Stdout, os.Stderr = w, w
++		outC := make(chan string)
++		go func() {
++			buf := new(bytes.Buffer)
++			_, err := io.Copy(buf, r)
++			if err != nil {
++				fmt.Fprintln(os.Stderr, err)
++				os.Exit(1)
++			}
++			outC <- buf.String()
++		}()
++
++		// run example
++		ns := -time.Nanoseconds()
++		eg.F()
++		ns += time.Nanoseconds()
++
++		// close pipe, restore stdout/stderr, get output
++		w.Close()
++		os.Stdout, os.Stderr = stdout, stderr
++		out := <-outC
++
++		// report any errors
++		if out != eg.Output {
++			fmt.Fprintf(
++				os.Stderr,
++				"--- FAIL: %s\ngot:\n%s\nwant:\n%s\n",
++				eg.Name, out, eg.Output,
++			)
++			ok = false
++		} else if *chatty {
++			tstr := fmt.Sprintf("(%.2f seconds)", float64(ns)/1e9)
++			fmt.Fprintln(os.Stderr, "--- PASS:", eg.Name, tstr)
++		}
++	}
++
++	return
++}
+diff --git a/src/pkg/testing/testing.go b/src/pkg/testing/testing.go
+index 37b5ca864c..4c2ff3d487 100644
+--- a/src/pkg/testing/testing.go
++++ b/src/pkg/testing/testing.go
+@@ -172,13 +172,19 @@ func tRunner(t *T, test *InternalTest) {
+ 
+ // An internal function but exported because it is cross-package; part of the implementation
+ // of gotest.
+-func Main(matchString func(pat, str string) (bool, os.Error), tests []InternalTest, benchmarks []InternalBenchmark) {
++func Main(matchString func(pat, str string) (bool, os.Error), tests []InternalTest, benchmarks []InternalBenchmark, examples []InternalExample) {
+ 	flag.Parse()
+ 	parseCpuList()
+ 
+ 	before()
+ 	startAlarm()
+-	RunTests(matchString, tests)
++	testOk := RunTests(matchString, tests)
++	exampleOk := RunExamples(examples)
++	if !testOk || !exampleOk {
++		fmt.Fprintln(os.Stderr, "FAIL")
++		os.Exit(1)
++	}
++	fmt.Fprintln(os.Stderr, "PASS")
+ 	stopAlarm()
+ 	RunBenchmarks(matchString, benchmarks)
+ 	after()
+@@ -194,15 +200,13 @@ func report(t *T) {
+ 	}
+ }
+ 
+-func RunTests(matchString func(pat, str string) (bool, os.Error), tests []InternalTest) {
++func RunTests(matchString func(pat, str string) (bool, os.Error), tests []InternalTest) (ok bool) {
++	ok = true
+ 	if len(tests) == 0 {
+ 		fmt.Fprintln(os.Stderr, "testing: warning: no tests to run")
+ 		return
+ 	}
+-
+-	ok := true
+ 	ch := make(chan *T)
+-
+ 	for _, procs := range cpuList {
+ 		runtime.GOMAXPROCS(procs)
+ 
+@@ -250,12 +254,7 @@ func RunTests(matchString func(pat, str string) (bool, os.Error), tests []Intern
+ 			running--
+ 		}
+ 	}
+-
+-	if !ok {
+-		println("FAIL")
+-		os.Exit(1)
+-	}
+-	println("PASS")
++	return
+ }
+ 
+ // before runs before all testing.

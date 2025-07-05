@@ -8,7 +8,83 @@ Date:   Mon Apr 2 22:33:38 2012 +0800
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5967057
-
+---
  src/cmd/dist/build.c | 13 ++++++++-----
  src/sudo.bash        |  7 ++++++-
  2 files changed, 14 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/dist/build.c b/src/cmd/dist/build.c
+index 567c9f3366..3ef65f85d5 100644
+--- a/src/cmd/dist/build.c
++++ b/src/cmd/dist/build.c
+@@ -19,7 +19,7 @@ char *goos;
+ char *goroot = GOROOT_FINAL;
+ char *goroot_final = GOROOT_FINAL;
+ char *workdir;
+-char	*tooldir;
++char *tooldir;
+ char *gochar;
+ char *goversion;
+ char *slash;	// / for unix, \ for windows
+@@ -1462,7 +1462,7 @@ void
+ cmdbanner(int argc, char **argv)
+ {
+ 	char *pathsep;
+-	Buf b, b1, search;
++	Buf b, b1, search, path;
+ 
+ 	ARGBEGIN{
+ 	case 'v':
+@@ -1478,6 +1478,7 @@ cmdbanner(int argc, char **argv)
+ 	binit(&b);
+ 	binit(&b1);
+ 	binit(&search);
++	binit(&path);
+ 
+ 	xprintf("\n");
+ 	xprintf("---\n");
+@@ -1495,9 +1496,10 @@ cmdbanner(int argc, char **argv)
+ 		xprintf("*** You need to add %s to your PATH.\n", gobin);
+ 
+ 	if(streq(gohostos, "darwin")) {
+-		xprintf("\n"
+-			"On OS X the debuggers must be installed setgid procmod.\n"
+-			"Read and run ./sudo.bash to install the debuggers.\n");
++		if(isfile(bpathf(&path, "%s/cov", tooldir)))
++			xprintf("\n"
++				"On OS X the debuggers must be installed setgid procmod.\n"
++				"Read and run ./sudo.bash to install the debuggers.\n");
+ 	}
+ 
+ 	if(!streq(goroot_final, goroot)) {
+@@ -1509,6 +1511,7 @@ cmdbanner(int argc, char **argv)
+ 	bfree(&b);
+ 	bfree(&b1);
+ 	bfree(&search);
++	bfree(&path);
+ }
+ 
+ // Version prints the Go version.
+diff --git a/src/sudo.bash b/src/sudo.bash
+index cccebd3427..40f8d1aa19 100755
+--- a/src/sudo.bash
++++ b/src/sudo.bash
+@@ -12,12 +12,17 @@ Darwin)
+ 	exit 0
+ esac
+ 
++eval $(go env)
++if ! [ -x $GOTOOLDIR/cov -a -x $GOTOOLDIR/prof ]; then
++	echo "You don't need to run sudo.bash." >&2
++	exit 2
++fi
++
+ if [[ ! -d /usr/local/bin ]]; then
+ 	echo 1>&2 'sudo.bash: problem with /usr/local/bin; cannot install tools.'
+ 	exit 2
+ fi
+ 
+-eval $(go env)
+ cd $(dirname $0)
+ for i in prof cov
+ do

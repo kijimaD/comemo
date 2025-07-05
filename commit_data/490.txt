@@ -7,7 +7,79 @@ Date:   Tue Aug 5 16:09:49 2008 -0700
     R=r
     OCL=13898
     CL=13898
-
+---
  test/bugs/bug085.go | 27 +++++++++++++++++++++++++++
  test/golden.out     | 12 ++++++++----
  2 files changed, 35 insertions(+), 4 deletions(-)
+
+diff --git a/test/bugs/bug085.go b/test/bugs/bug085.go
+new file mode 100644
+index 0000000000..e803a50a2a
+--- /dev/null
++++ b/test/bugs/bug085.go
+@@ -0,0 +1,27 @@
++// errchk $G $D/$F.go
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package P
++
++var x int
++
++func foo() {
++	print P.x;  // P should be defined between the outermost "universe" scope and the global scope
++}
++
++/*
++uetli:~/Source/go1/test/bugs gri$ 6g bug085.go 
++bug085.go:6: P: undefined
++Bus error
++*/
++
++/* expected scope hierarchy (outermost to innermost)
++
++universe scope (contains predeclared identifiers int, float, int32, len, etc.)
++"solar" scope (just holds the package name P so it can be found but doesn't conflict)
++global scope (the package global scope)
++local scopes (function scopes)
++*/
+diff --git a/test/golden.out b/test/golden.out
+index 997f568fa7..e703fd02c6 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -211,10 +211,10 @@ inner loop top i 0
+ do break
+ outer loop top k 1
+ k not zero
+-panic on line 305 PC=0x1362
++panic on line 310 PC=0x1362
+ 0x1362?zi
+-	main·main(1, 0, 1606414952, ...)
+-	main·main(0x1, 0x7fff5fbff268, 0x0, ...)
++	main·main(1, 0, 1606416392, ...)
++	main·main(0x1, 0x7fff5fbff808, 0x0, ...)
+ BUG: crashes
+ 
+ =========== bugs/bug072.go
+@@ -255,6 +255,10 @@ BUG: fails incorrectly
+ 
+ =========== bugs/bug083.go
+ 
++=========== bugs/bug085.go
++bugs/bug085.go:8: P: undefined
++BUG: fails incorrectly
++
+ =========== fixedbugs/bug000.go
+ 
+ =========== fixedbugs/bug001.go
+@@ -318,7 +322,7 @@ fixedbugs/bug035.go:7: var f redeclared in this block
+ 
+ =========== fixedbugs/bug037.go
+ fixedbugs/bug037.go:6: vlong: undefined
+-fixedbugs/bug037.go:6: fatal error: addvar: n=NAME-s G0 a(1) l(301) t=<T> nil
++fixedbugs/bug037.go:6: fatal error: addvar: n=NAME-s G0 a(1) l(306) t=<T> nil
+ 
+ =========== fixedbugs/bug038.go
+ 

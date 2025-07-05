@@ -23,8 +23,76 @@ Date:   Wed Apr 14 14:54:14 2021 -0700
     Run-TryBot: Dan Scales <danscales@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/ir/expr.go       |  7 -------
  src/cmd/compile/internal/noder/stencil.go | 10 +++++++---
  test/typeparam/issue45547.go              | 20 ++++++++++++++++++++
  3 files changed, 27 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/expr.go b/src/cmd/compile/internal/ir/expr.go
+index c95ea36909..112d3941ce 100644
+--- a/src/cmd/compile/internal/ir/expr.go
++++ b/src/cmd/compile/internal/ir/expr.go
+@@ -748,13 +748,6 @@ func IsAddressable(n Node) bool {
+ 	case ODEREF, ODOTPTR:
+ 		return true
+ 
+-	case OXDOT:
+-		// TODO(danscales): remove this case as we remove calls to the old
+-		// typechecker in (*irgen).funcBody().
+-		if base.Flag.G == 0 {
+-			return false
+-		}
+-		fallthrough
+ 	case ODOT:
+ 		n := n.(*SelectorExpr)
+ 		return IsAddressable(n.X)
+diff --git a/src/cmd/compile/internal/noder/stencil.go b/src/cmd/compile/internal/noder/stencil.go
+index 329c80098a..2745016545 100644
+--- a/src/cmd/compile/internal/noder/stencil.go
++++ b/src/cmd/compile/internal/noder/stencil.go
+@@ -53,11 +53,15 @@ func (g *irgen) stencil() {
+ 				continue
+ 			}
+ 
+-		case ir.OAS:
+-
+-		case ir.OAS2:
++		case ir.OAS, ir.OAS2, ir.OAS2DOTTYPE, ir.OAS2FUNC, ir.OAS2MAPR, ir.OAS2RECV, ir.OASOP:
++			// These are all the various kinds of global assignments,
++			// whose right-hand-sides might contain a function
++			// instantiation.
+ 
+ 		default:
++			// The other possible ops at the top level are ODCLCONST
++			// and ODCLTYPE, which don't have any function
++			// instantiations.
+ 			continue
+ 		}
+ 
+diff --git a/test/typeparam/issue45547.go b/test/typeparam/issue45547.go
+new file mode 100644
+index 0000000000..0a08d66b70
+--- /dev/null
++++ b/test/typeparam/issue45547.go
+@@ -0,0 +1,20 @@
++// compile -G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func f[T any]() (f, g T) { return f, g }
++
++// Tests for generic function instantiation on the right hande side of multi-value
++// assignments.
++
++func _() {
++	// Multi-value assignment within a function
++	var _, _ = f[int]()
++}
++
++// Multi-value assignment outside a function.
++var _, _ = f[int]()

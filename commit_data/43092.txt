@@ -9,6 +9,20 @@ Date:   Mon Mar 9 16:57:08 2020 +0000
     GitHub-Pull-Request: golang/go#37760
     Reviewed-on: https://go-review.googlesource.com/c/go/+/222621
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/errors/wrap.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/errors/wrap.go b/src/errors/wrap.go
+index 272d056b31..b82ca34b46 100644
+--- a/src/errors/wrap.go
++++ b/src/errors/wrap.go
+@@ -70,7 +70,7 @@ func Is(err, target error) bool {
+ // setting target.
+ //
+ // An error type might provide an As method so it can be treated as if it were a
+-// a different error type.
++// different error type.
+ //
+ // As panics if target is not a non-nil pointer to either a type that implements
+ // error, or to any interface type.

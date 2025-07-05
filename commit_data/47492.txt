@@ -22,9 +22,120 @@ Date:   Mon Mar 15 15:27:51 2021 +0000
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: Emmanuel Odeke <emmanuel@orijtech.com>
-
+---
  src/net/dnsclient_unix.go      | 18 ++++++++++++------
  src/net/dnsclient_unix_test.go |  4 ++--
  src/net/lookup_unix.go         |  4 ++--
  src/net/netgo_unix_test.go     |  2 +-
  4 files changed, 17 insertions(+), 11 deletions(-)
+
+diff --git a/src/net/dnsclient_unix.go b/src/net/dnsclient_unix.go
+index 86f64335ea..50e9bb0f20 100644
+--- a/src/net/dnsclient_unix.go
++++ b/src/net/dnsclient_unix.go
+@@ -532,7 +532,7 @@ func (r *Resolver) goLookupHostOrder(ctx context.Context, name string, order hos
+ 			return
+ 		}
+ 	}
+-	ips, _, err := r.goLookupIPCNAMEOrder(ctx, name, order)
++	ips, _, err := r.goLookupIPCNAMEOrder(ctx, "ip", name, order)
+ 	if err != nil {
+ 		return
+ 	}
+@@ -558,13 +558,13 @@ func goLookupIPFiles(name string) (addrs []IPAddr) {
+ 
+ // goLookupIP is the native Go implementation of LookupIP.
+ // The libc versions are in cgo_*.go.
+-func (r *Resolver) goLookupIP(ctx context.Context, host string) (addrs []IPAddr, err error) {
++func (r *Resolver) goLookupIP(ctx context.Context, network, host string) (addrs []IPAddr, err error) {
+ 	order := systemConf().hostLookupOrder(r, host)
+-	addrs, _, err = r.goLookupIPCNAMEOrder(ctx, host, order)
++	addrs, _, err = r.goLookupIPCNAMEOrder(ctx, network, host, order)
+ 	return
+ }
+ 
+-func (r *Resolver) goLookupIPCNAMEOrder(ctx context.Context, name string, order hostLookupOrder) (addrs []IPAddr, cname dnsmessage.Name, err error) {
++func (r *Resolver) goLookupIPCNAMEOrder(ctx context.Context, network, name string, order hostLookupOrder) (addrs []IPAddr, cname dnsmessage.Name, err error) {
+ 	if order == hostLookupFilesDNS || order == hostLookupFiles {
+ 		addrs = goLookupIPFiles(name)
+ 		if len(addrs) > 0 || order == hostLookupFiles {
+@@ -585,7 +585,13 @@ func (r *Resolver) goLookupIPCNAMEOrder(ctx context.Context, name string, order
+ 		error
+ 	}
+ 	lane := make(chan result, 1)
+-	qtypes := [...]dnsmessage.Type{dnsmessage.TypeA, dnsmessage.TypeAAAA}
++	qtypes := []dnsmessage.Type{dnsmessage.TypeA, dnsmessage.TypeAAAA}
++	switch ipVersion(network) {
++	case '4':
++		qtypes = []dnsmessage.Type{dnsmessage.TypeA}
++	case '6':
++		qtypes = []dnsmessage.Type{dnsmessage.TypeAAAA}
++	}
+ 	var queryFn func(fqdn string, qtype dnsmessage.Type)
+ 	var responseFn func(fqdn string, qtype dnsmessage.Type) result
+ 	if conf.singleRequest {
+@@ -730,7 +736,7 @@ func (r *Resolver) goLookupIPCNAMEOrder(ctx context.Context, name string, order
+ // goLookupCNAME is the native Go (non-cgo) implementation of LookupCNAME.
+ func (r *Resolver) goLookupCNAME(ctx context.Context, host string) (string, error) {
+ 	order := systemConf().hostLookupOrder(r, host)
+-	_, cname, err := r.goLookupIPCNAMEOrder(ctx, host, order)
++	_, cname, err := r.goLookupIPCNAMEOrder(ctx, "ip", host, order)
+ 	return cname.String(), err
+ }
+ 
+diff --git a/src/net/dnsclient_unix_test.go b/src/net/dnsclient_unix_test.go
+index b47b83af15..ec690a1c0c 100644
+--- a/src/net/dnsclient_unix_test.go
++++ b/src/net/dnsclient_unix_test.go
+@@ -601,14 +601,14 @@ func TestGoLookupIPOrderFallbackToFile(t *testing.T) {
+ 		name := fmt.Sprintf("order %v", order)
+ 
+ 		// First ensure that we get an error when contacting a non-existent host.
+-		_, _, err := r.goLookupIPCNAMEOrder(context.Background(), "notarealhost", order)
++		_, _, err := r.goLookupIPCNAMEOrder(context.Background(), "ip", "notarealhost", order)
+ 		if err == nil {
+ 			t.Errorf("%s: expected error while looking up name not in hosts file", name)
+ 			continue
+ 		}
+ 
+ 		// Now check that we get an address when the name appears in the hosts file.
+-		addrs, _, err := r.goLookupIPCNAMEOrder(context.Background(), "thor", order) // entry is in "testdata/hosts"
++		addrs, _, err := r.goLookupIPCNAMEOrder(context.Background(), "ip", "thor", order) // entry is in "testdata/hosts"
+ 		if err != nil {
+ 			t.Errorf("%s: expected to successfully lookup host entry", name)
+ 			continue
+diff --git a/src/net/lookup_unix.go b/src/net/lookup_unix.go
+index c09afb300f..8030e3d99e 100644
+--- a/src/net/lookup_unix.go
++++ b/src/net/lookup_unix.go
+@@ -90,7 +90,7 @@ func (r *Resolver) lookupHost(ctx context.Context, host string) (addrs []string,
+ 
+ func (r *Resolver) lookupIP(ctx context.Context, network, host string) (addrs []IPAddr, err error) {
+ 	if r.preferGo() {
+-		return r.goLookupIP(ctx, host)
++		return r.goLookupIP(ctx, network, host)
+ 	}
+ 	order := systemConf().hostLookupOrder(r, host)
+ 	if order == hostLookupCgo {
+@@ -100,7 +100,7 @@ func (r *Resolver) lookupIP(ctx context.Context, network, host string) (addrs []
+ 		// cgo not available (or netgo); fall back to Go's DNS resolver
+ 		order = hostLookupFilesDNS
+ 	}
+-	ips, _, err := r.goLookupIPCNAMEOrder(ctx, host, order)
++	ips, _, err := r.goLookupIPCNAMEOrder(ctx, network, host, order)
+ 	return ips, err
+ }
+ 
+diff --git a/src/net/netgo_unix_test.go b/src/net/netgo_unix_test.go
+index 0dfd6c2cd7..5551e47de7 100644
+--- a/src/net/netgo_unix_test.go
++++ b/src/net/netgo_unix_test.go
+@@ -24,7 +24,7 @@ func TestGoLookupIP(t *testing.T) {
+ 	if err != nil {
+ 		t.Error(err)
+ 	}
+-	if _, err := DefaultResolver.goLookupIP(ctx, host); err != nil {
++	if _, err := DefaultResolver.goLookupIP(ctx, "ip", host); err != nil {
+ 		t.Error(err)
+ 	}
+ }

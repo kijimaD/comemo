@@ -17,7 +17,7 @@ Date:   Tue Apr 21 18:37:43 2020 -0400
     Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/link/internal/amd64/asm.go            | 260 +++----
  src/cmd/link/internal/amd64/asm2.go           | 402 +++++++++++
  src/cmd/link/internal/amd64/obj.go            |   1 +
@@ -37,3 +37,3735 @@ Date:   Tue Apr 21 18:37:43 2020 -0400
  src/cmd/link/internal/ppc64/asm.go            |   2 +-
  src/cmd/link/internal/sym/segment.go          |   5 +-
  18 files changed, 2209 insertions(+), 562 deletions(-)
+
+diff --git a/src/cmd/link/internal/amd64/asm.go b/src/cmd/link/internal/amd64/asm.go
+index d26a9a234c..fa0f6ab9b5 100644
+--- a/src/cmd/link/internal/amd64/asm.go
++++ b/src/cmd/link/internal/amd64/asm.go
+@@ -78,48 +78,53 @@ func makeWritable(s *sym.Symbol) {
+ 	}
+ }
+ 
+-func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s *sym.Symbol, r *sym.Reloc) bool {
+-	targ := r.Sym
++func adddynrel2(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loader.Sym, r *loader.Reloc2, rIdx int) bool {
++	targ := r.Sym()
++	var targType sym.SymKind
++	if targ != 0 {
++		targType = ldr.SymType(targ)
++	}
+ 
+-	switch r.Type {
++	su := ldr.MakeSymbolUpdater(s)
++	switch r.Type() {
+ 	default:
+-		if r.Type >= objabi.ElfRelocOffset {
+-			ld.Errorf(s, "unexpected relocation type %d (%s)", r.Type, sym.RelocName(target.Arch, r.Type))
++		if r.Type() >= objabi.ElfRelocOffset {
++			ldr.Errorf(s, "unexpected relocation type %d (%s)", r.Type(), sym.RelocName(target.Arch, r.Type()))
+ 			return false
+ 		}
+ 
+ 		// Handle relocations found in ELF object files.
+ 	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_X86_64_PC32):
+-		if targ.Type == sym.SDYNIMPORT {
+-			ld.Errorf(s, "unexpected R_X86_64_PC32 relocation for dynamic symbol %s", targ.Name)
++		if targType == sym.SDYNIMPORT {
++			ldr.Errorf(s, "unexpected R_X86_64_PC32 relocation for dynamic symbol %s", ldr.SymName(targ))
+ 		}
+ 		// TODO(mwhudson): the test of VisibilityHidden here probably doesn't make
+ 		// sense and should be removed when someone has thought about it properly.
+-		if (targ.Type == 0 || targ.Type == sym.SXREF) && !targ.Attr.VisibilityHidden() {
+-			ld.Errorf(s, "unknown symbol %s in pcrel", targ.Name)
++		if (targType == 0 || targType == sym.SXREF) && !ldr.AttrVisibilityHidden(targ) {
++			ldr.Errorf(s, "unknown symbol %s in pcrel", ldr.SymName(targ))
+ 		}
+-		r.Type = objabi.R_PCREL
+-		r.Add += 4
++		su.SetRelocType(rIdx, objabi.R_PCREL)
++		su.SetRelocAdd(rIdx, r.Add()+4)
+ 		return true
+ 
+ 	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_X86_64_PC64):
+-		if targ.Type == sym.SDYNIMPORT {
+-			ld.Errorf(s, "unexpected R_X86_64_PC64 relocation for dynamic symbol %s", targ.Name)
++		if targType == sym.SDYNIMPORT {
++			ldr.Errorf(s, "unexpected R_X86_64_PC64 relocation for dynamic symbol %s", ldr.SymName(targ))
+ 		}
+-		if targ.Type == 0 || targ.Type == sym.SXREF {
+-			ld.Errorf(s, "unknown symbol %s in pcrel", targ.Name)
++		if targType == 0 || targType == sym.SXREF {
++			ldr.Errorf(s, "unknown symbol %s in pcrel", ldr.SymName(targ))
+ 		}
+-		r.Type = objabi.R_PCREL
+-		r.Add += 8
++		su.SetRelocType(rIdx, objabi.R_PCREL)
++		su.SetRelocAdd(rIdx, r.Add()+8)
+ 		return true
+ 
+ 	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_X86_64_PLT32):
+-		r.Type = objabi.R_PCREL
+-		r.Add += 4
+-		if targ.Type == sym.SDYNIMPORT {
+-			addpltsym(target, syms, targ)
+-			r.Sym = syms.PLT
+-			r.Add += int64(targ.Plt())
++		su.SetRelocType(rIdx, objabi.R_PCREL)
++		su.SetRelocAdd(rIdx, r.Add()+4)
++		if targType == sym.SDYNIMPORT {
++			addpltsym2(target, ldr, syms, targ)
++			su.SetRelocSym(rIdx, syms.PLT2)
++			su.SetRelocAdd(rIdx, r.Add()+int64(ldr.SymPlt(targ)))
+ 		}
+ 
+ 		return true
+@@ -127,34 +132,35 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s *sym.
+ 	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_X86_64_GOTPCREL),
+ 		objabi.ElfRelocOffset + objabi.RelocType(elf.R_X86_64_GOTPCRELX),
+ 		objabi.ElfRelocOffset + objabi.RelocType(elf.R_X86_64_REX_GOTPCRELX):
+-		if targ.Type != sym.SDYNIMPORT {
++		if targType != sym.SDYNIMPORT {
+ 			// have symbol
+-			if r.Off >= 2 && s.P[r.Off-2] == 0x8b {
+-				makeWritable(s)
++			sData := ldr.Data(s)
++			if r.Off() >= 2 && sData[r.Off()-2] == 0x8b {
++				su := ldr.MakeSymbolUpdater(s)
++				su.MakeWritable()
+ 				// turn MOVQ of GOT entry into LEAQ of symbol itself
+-				s.P[r.Off-2] = 0x8d
+-
+-				r.Type = objabi.R_PCREL
+-				r.Add += 4
++				writeableData := su.Data()
++				writeableData[r.Off()-2] = 0x8d
++				su.SetRelocType(rIdx, objabi.R_PCREL)
++				su.SetRelocAdd(rIdx, r.Add()+4)
+ 				return true
+ 			}
+ 		}
+ 
+ 		// fall back to using GOT and hope for the best (CMOV*)
+ 		// TODO: just needs relocation, no need to put in .dynsym
+-		addgotsym(target, syms, targ)
++		addgotsym2(target, ldr, syms, targ)
+ 
+-		r.Type = objabi.R_PCREL
+-		r.Sym = syms.GOT
+-		r.Add += 4
+-		r.Add += int64(targ.Got())
++		su.SetRelocType(rIdx, objabi.R_PCREL)
++		su.SetRelocSym(rIdx, syms.GOT2)
++		su.SetRelocAdd(rIdx, r.Add()+4+int64(ldr.SymGot(targ)))
+ 		return true
+ 
+ 	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_X86_64_64):
+-		if targ.Type == sym.SDYNIMPORT {
+-			ld.Errorf(s, "unexpected R_X86_64_64 relocation for dynamic symbol %s", targ.Name)
++		if targType == sym.SDYNIMPORT {
++			ldr.Errorf(s, "unexpected R_X86_64_64 relocation for dynamic symbol %s", ldr.SymName(targ))
+ 		}
+-		r.Type = objabi.R_ADDR
++		su.SetRelocType(rIdx, objabi.R_ADDR)
+ 		if target.IsPIE() && target.IsInternal() {
+ 			// For internal linking PIE, this R_ADDR relocation cannot
+ 			// be resolved statically. We need to generate a dynamic
+@@ -168,19 +174,19 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s *sym.
+ 		objabi.MachoRelocOffset + ld.MACHO_X86_64_RELOC_SIGNED*2 + 0,
+ 		objabi.MachoRelocOffset + ld.MACHO_X86_64_RELOC_BRANCH*2 + 0:
+ 		// TODO: What is the difference between all these?
+-		r.Type = objabi.R_ADDR
++		su.SetRelocType(rIdx, objabi.R_ADDR)
+ 
+-		if targ.Type == sym.SDYNIMPORT {
+-			ld.Errorf(s, "unexpected reloc for dynamic symbol %s", targ.Name)
++		if targType == sym.SDYNIMPORT {
++			ldr.Errorf(s, "unexpected reloc for dynamic symbol %s", ldr.SymName(targ))
+ 		}
+ 		return true
+ 
+ 	case objabi.MachoRelocOffset + ld.MACHO_X86_64_RELOC_BRANCH*2 + 1:
+-		if targ.Type == sym.SDYNIMPORT {
+-			addpltsym(target, syms, targ)
+-			r.Sym = syms.PLT
+-			r.Add = int64(targ.Plt())
+-			r.Type = objabi.R_PCREL
++		if targType == sym.SDYNIMPORT {
++			addpltsym2(target, ldr, syms, targ)
++			su.SetRelocSym(rIdx, syms.PLT2)
++			su.SetRelocType(rIdx, objabi.R_PCREL)
++			su.SetRelocAdd(rIdx, int64(ldr.SymPlt(targ)))
+ 			return true
+ 		}
+ 		fallthrough
+@@ -190,44 +196,51 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s *sym.
+ 		objabi.MachoRelocOffset + ld.MACHO_X86_64_RELOC_SIGNED_1*2 + 1,
+ 		objabi.MachoRelocOffset + ld.MACHO_X86_64_RELOC_SIGNED_2*2 + 1,
+ 		objabi.MachoRelocOffset + ld.MACHO_X86_64_RELOC_SIGNED_4*2 + 1:
+-		r.Type = objabi.R_PCREL
++		su.SetRelocType(rIdx, objabi.R_PCREL)
+ 
+-		if targ.Type == sym.SDYNIMPORT {
+-			ld.Errorf(s, "unexpected pc-relative reloc for dynamic symbol %s", targ.Name)
++		if targType == sym.SDYNIMPORT {
++			ldr.Errorf(s, "unexpected pc-relative reloc for dynamic symbol %s", ldr.SymName(targ))
+ 		}
+ 		return true
+ 
+ 	case objabi.MachoRelocOffset + ld.MACHO_X86_64_RELOC_GOT_LOAD*2 + 1:
+-		if targ.Type != sym.SDYNIMPORT {
++		if targType != sym.SDYNIMPORT {
+ 			// have symbol
+ 			// turn MOVQ of GOT entry into LEAQ of symbol itself
+-			if r.Off < 2 || s.P[r.Off-2] != 0x8b {
+-				ld.Errorf(s, "unexpected GOT_LOAD reloc for non-dynamic symbol %s", targ.Name)
++			sdata := ldr.Data(s)
++			if r.Off() < 2 || sdata[r.Off()-2] != 0x8b {
++				ldr.Errorf(s, "unexpected GOT_LOAD reloc for non-dynamic symbol %s", ldr.SymName(targ))
+ 				return false
+ 			}
+ 
+-			makeWritable(s)
+-			s.P[r.Off-2] = 0x8d
+-			r.Type = objabi.R_PCREL
++			su := ldr.MakeSymbolUpdater(s)
++			su.MakeWritable()
++			sdata = su.Data()
++			sdata[r.Off()-2] = 0x8d
++			su.SetRelocType(rIdx, objabi.R_PCREL)
+ 			return true
+ 		}
+ 		fallthrough
+ 
+ 	case objabi.MachoRelocOffset + ld.MACHO_X86_64_RELOC_GOT*2 + 1:
+-		if targ.Type != sym.SDYNIMPORT {
+-			ld.Errorf(s, "unexpected GOT reloc for non-dynamic symbol %s", targ.Name)
++		if targType != sym.SDYNIMPORT {
++			ldr.Errorf(s, "unexpected GOT reloc for non-dynamic symbol %s", ldr.SymName(targ))
+ 		}
+-		addgotsym(target, syms, targ)
+-		r.Type = objabi.R_PCREL
+-		r.Sym = syms.GOT
+-		r.Add += int64(targ.Got())
++		addgotsym2(target, ldr, syms, targ)
++		su.SetRelocType(rIdx, objabi.R_PCREL)
++		su.SetRelocSym(rIdx, syms.GOT2)
++		su.SetRelocAdd(rIdx, r.Add()+int64(ldr.SymGot(targ)))
+ 		return true
+ 	}
+ 
+-	switch r.Type {
++	// Reread the reloc to incorporate any changes in type above.
++	relocs := ldr.Relocs(s)
++	*r = relocs.At2(rIdx)
++
++	switch r.Type() {
+ 	case objabi.R_CALL,
+ 		objabi.R_PCREL:
+-		if targ.Type != sym.SDYNIMPORT {
++		if targType != sym.SDYNIMPORT {
+ 			// nothing to do, the relocation will be laid out in reloc
+ 			return true
+ 		}
+@@ -237,26 +250,26 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s *sym.
+ 		}
+ 		// Internal linking, for both ELF and Mach-O.
+ 		// Build a PLT entry and change the relocation target to that entry.
+-		addpltsym(target, syms, targ)
+-		r.Sym = syms.PLT
+-		r.Add = int64(targ.Plt())
++		addpltsym2(target, ldr, syms, targ)
++		su.SetRelocSym(rIdx, syms.PLT2)
++		su.SetRelocAdd(rIdx, int64(ldr.SymPlt(targ)))
+ 		return true
+ 
+ 	case objabi.R_ADDR:
+-		if s.Type == sym.STEXT && target.IsElf() {
++		if ldr.SymType(s) == sym.STEXT && target.IsElf() {
+ 			if target.IsSolaris() {
+-				addpltsym(target, syms, targ)
+-				r.Sym = syms.PLT
+-				r.Add += int64(targ.Plt())
++				addpltsym2(target, ldr, syms, targ)
++				su.SetRelocSym(rIdx, syms.PLT2)
++				su.SetRelocAdd(rIdx, r.Add()+int64(ldr.SymPlt(targ)))
+ 				return true
+ 			}
+ 			// The code is asking for the address of an external
+ 			// function. We provide it with the address of the
+ 			// correspondent GOT symbol.
+-			addgotsym(target, syms, targ)
++			addgotsym2(target, ldr, syms, targ)
+ 
+-			r.Sym = syms.GOT
+-			r.Add += int64(targ.Got())
++			su.SetRelocSym(rIdx, syms.GOT2)
++			su.SetRelocAdd(rIdx, r.Add()+int64(ldr.SymGot(targ)))
+ 			return true
+ 		}
+ 
+@@ -293,7 +306,7 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s *sym.
+ 			// symbol offset as determined by reloc(), not the
+ 			// final dynamically linked address as a dynamic
+ 			// relocation would provide.
+-			switch s.Name {
++			switch ldr.SymName(s) {
+ 			case ".dynsym", ".rela", ".rela.plt", ".got.plt", ".dynamic":
+ 				return false
+ 			}
+@@ -304,7 +317,7 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s *sym.
+ 			// linking, in which case the relocation will be
+ 			// prepared in the 'reloc' phase and passed to the
+ 			// external linker in the 'asmb' phase.
+-			if s.Type != sym.SDATA && s.Type != sym.SRODATA {
++			if ldr.SymType(s) != sym.SDATA && ldr.SymType(s) != sym.SRODATA {
+ 				break
+ 			}
+ 		}
+@@ -327,14 +340,14 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s *sym.
+ 			// AddAddrPlus is used for r_offset and r_addend to
+ 			// generate new R_ADDR relocations that will update
+ 			// these fields in the 'reloc' phase.
+-			rela := syms.Rela
+-			rela.AddAddrPlus(target.Arch, s, int64(r.Off))
+-			if r.Siz == 8 {
++			rela := ldr.MakeSymbolUpdater(syms.Rela2)
++			rela.AddAddrPlus(target.Arch, s, int64(r.Off()))
++			if r.Siz() == 8 {
+ 				rela.AddUint64(target.Arch, ld.ELF64_R_INFO(0, uint32(elf.R_X86_64_RELATIVE)))
+ 			} else {
+-				ld.Errorf(s, "unexpected relocation for dynamic symbol %s", targ.Name)
++				ldr.Errorf(s, "unexpected relocation for dynamic symbol %s", ldr.SymName(targ))
+ 			}
+-			rela.AddAddrPlus(target.Arch, targ, int64(r.Add))
++			rela.AddAddrPlus(target.Arch, targ, int64(r.Add()))
+ 			// Not mark r done here. So we still apply it statically,
+ 			// so in the file content we'll also have the right offset
+ 			// to the relocation target. So it can be examined statically
+@@ -342,7 +355,7 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s *sym.
+ 			return true
+ 		}
+ 
+-		if target.IsDarwin() && s.Size == int64(target.Arch.PtrSize) && r.Off == 0 {
++		if target.IsDarwin() && ldr.SymSize(s) == int64(target.Arch.PtrSize) && r.Off() == 0 {
+ 			// Mach-O relocations are a royal pain to lay out.
+ 			// They use a compact stateful bytecode representation
+ 			// that is too much bother to deal with.
+@@ -353,18 +366,17 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s *sym.
+ 			// just in case the C code assigns to the variable,
+ 			// and of course it only works for single pointers,
+ 			// but we only need to support cgo and that's all it needs.
+-			ld.Adddynsym(target, syms, targ)
+-
+-			got := syms.GOT
+-			s.Type = got.Type
+-			s.Attr |= sym.AttrSubSymbol
+-			s.Outer = got
+-			s.Sub = got.Sub
+-			got.Sub = s
+-			s.Value = got.Size
++			ld.Adddynsym2(ldr, target, syms, targ)
++
++			got := ldr.MakeSymbolUpdater(syms.GOT2)
++			su := ldr.MakeSymbolUpdater(s)
++			su.SetType(got.Type())
++			got.PrependSub(s)
++			su.SetValue(got.Size())
+ 			got.AddUint64(target.Arch, 0)
+-			syms.LinkEditGOT.AddUint32(target.Arch, uint32(targ.Dynid))
+-			r.Type = objabi.ElfRelocOffset // ignore during relocsym
++			leg := ldr.MakeSymbolUpdater(syms.LinkEditGOT2)
++			leg.AddUint32(target.Arch, uint32(ldr.SymDynid(targ)))
++			su.SetRelocType(rIdx, objabi.ElfRelocOffset) // ignore during relocsym
+ 			return true
+ 		}
+ 	}
+@@ -569,18 +581,18 @@ func elfsetupplt(ctxt *ld.Link, plt, got *loader.SymbolBuilder, dynamic loader.S
+ 	}
+ }
+ 
+-func addpltsym(target *ld.Target, syms *ld.ArchSyms, s *sym.Symbol) {
+-	if s.Plt() >= 0 {
++func addpltsym2(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loader.Sym) {
++	if ldr.SymPlt(s) >= 0 {
+ 		return
+ 	}
+ 
+-	ld.Adddynsym(target, syms, s)
++	ld.Adddynsym2(ldr, target, syms, s)
+ 
+ 	if target.IsElf() {
+-		plt := syms.PLT
+-		got := syms.GOTPLT
+-		rela := syms.RelaPLT
+-		if plt.Size == 0 {
++		plt := ldr.MakeSymbolUpdater(syms.PLT2)
++		got := ldr.MakeSymbolUpdater(syms.GOTPLT2)
++		rela := ldr.MakeSymbolUpdater(syms.RelaPLT2)
++		if plt.Size() == 0 {
+ 			panic("plt is not set up")
+ 		}
+ 
+@@ -588,28 +600,29 @@ func addpltsym(target *ld.Target, syms *ld.ArchSyms, s *sym.Symbol) {
+ 		plt.AddUint8(0xff)
+ 
+ 		plt.AddUint8(0x25)
+-		plt.AddPCRelPlus(target.Arch, got, got.Size)
++		plt.AddPCRelPlus(target.Arch, got.Sym(), got.Size())
+ 
+ 		// add to got: pointer to current pos in plt
+-		got.AddAddrPlus(target.Arch, plt, plt.Size)
++		got.AddAddrPlus(target.Arch, plt.Sym(), plt.Size())
+ 
+ 		// pushq $x
+ 		plt.AddUint8(0x68)
+ 
+-		plt.AddUint32(target.Arch, uint32((got.Size-24-8)/8))
++		plt.AddUint32(target.Arch, uint32((got.Size()-24-8)/8))
+ 
+ 		// jmpq .plt
+ 		plt.AddUint8(0xe9)
+ 
+-		plt.AddUint32(target.Arch, uint32(-(plt.Size + 4)))
++		plt.AddUint32(target.Arch, uint32(-(plt.Size() + 4)))
+ 
+ 		// rela
+-		rela.AddAddrPlus(target.Arch, got, got.Size-8)
++		rela.AddAddrPlus(target.Arch, got.Sym(), got.Size()-8)
+ 
+-		rela.AddUint64(target.Arch, ld.ELF64_R_INFO(uint32(s.Dynid), uint32(elf.R_X86_64_JMP_SLOT)))
++		sDynid := ldr.SymDynid(s)
++		rela.AddUint64(target.Arch, ld.ELF64_R_INFO(uint32(sDynid), uint32(elf.R_X86_64_JMP_SLOT)))
+ 		rela.AddUint64(target.Arch, 0)
+ 
+-		s.SetPlt(int32(plt.Size - 16))
++		ldr.SetPlt(s, int32(plt.Size()-16))
+ 	} else if target.IsDarwin() {
+ 		// To do lazy symbol lookup right, we're supposed
+ 		// to tell the dynamic loader which library each
+@@ -621,41 +634,44 @@ func addpltsym(target *ld.Target, syms *ld.ArchSyms, s *sym.Symbol) {
+ 		// https://networkpx.blogspot.com/2009/09/about-lcdyldinfoonly-command.html
+ 		// has details about what we're avoiding.
+ 
+-		addgotsym(target, syms, s)
+-		plt := syms.PLT
++		addgotsym2(target, ldr, syms, s)
++		plt := ldr.MakeSymbolUpdater(syms.PLT2)
+ 
+-		syms.LinkEditPLT.AddUint32(target.Arch, uint32(s.Dynid))
++		sDynid := ldr.SymDynid(s)
++		lep := ldr.MakeSymbolUpdater(syms.LinkEditPLT2)
++		lep.AddUint32(target.Arch, uint32(sDynid))
+ 
+ 		// jmpq *got+size(IP)
+-		s.SetPlt(int32(plt.Size))
++		ldr.SetPlt(s, int32(plt.Size()))
+ 
+ 		plt.AddUint8(0xff)
+ 		plt.AddUint8(0x25)
+-		plt.AddPCRelPlus(target.Arch, syms.GOT, int64(s.Got()))
++		plt.AddPCRelPlus(target.Arch, syms.GOT2, int64(ldr.SymGot(s)))
+ 	} else {
+-		ld.Errorf(s, "addpltsym: unsupported binary format")
++		ldr.Errorf(s, "addpltsym: unsupported binary format")
+ 	}
+ }
+ 
+-func addgotsym(target *ld.Target, syms *ld.ArchSyms, s *sym.Symbol) {
+-	if s.Got() >= 0 {
++func addgotsym2(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loader.Sym) {
++	if ldr.SymGot(s) >= 0 {
+ 		return
+ 	}
+ 
+-	ld.Adddynsym(target, syms, s)
+-	got := syms.GOT
+-	s.SetGot(int32(got.Size))
++	ld.Adddynsym2(ldr, target, syms, s)
++	got := ldr.MakeSymbolUpdater(syms.GOT2)
++	ldr.SetGot(s, int32(got.Size()))
+ 	got.AddUint64(target.Arch, 0)
+ 
+ 	if target.IsElf() {
+-		rela := syms.Rela
+-		rela.AddAddrPlus(target.Arch, got, int64(s.Got()))
+-		rela.AddUint64(target.Arch, ld.ELF64_R_INFO(uint32(s.Dynid), uint32(elf.R_X86_64_GLOB_DAT)))
++		rela := ldr.MakeSymbolUpdater(syms.Rela2)
++		rela.AddAddrPlus(target.Arch, got.Sym(), int64(ldr.SymGot(s)))
++		rela.AddUint64(target.Arch, ld.ELF64_R_INFO(uint32(ldr.SymDynid(s)), uint32(elf.R_X86_64_GLOB_DAT)))
+ 		rela.AddUint64(target.Arch, 0)
+ 	} else if target.IsDarwin() {
+-		syms.LinkEditGOT.AddUint32(target.Arch, uint32(s.Dynid))
++		leg := ldr.MakeSymbolUpdater(syms.LinkEditGOT2)
++		leg.AddUint32(target.Arch, uint32(ldr.SymDynid(s)))
+ 	} else {
+-		ld.Errorf(s, "addgotsym: unsupported binary format")
++		ldr.Errorf(s, "addgotsym: unsupported binary format")
+ 	}
+ }
+ 
+diff --git a/src/cmd/link/internal/amd64/asm2.go b/src/cmd/link/internal/amd64/asm2.go
+new file mode 100644
+index 0000000000..ae12784105
+--- /dev/null
++++ b/src/cmd/link/internal/amd64/asm2.go
+@@ -0,0 +1,402 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package amd64
++
++import (
++	"cmd/internal/objabi"
++	"cmd/link/internal/ld"
++	"cmd/link/internal/loader"
++	"cmd/link/internal/sym"
++	"debug/elf"
++)
++
++// Temporary dumping around for sym.Symbol version of helper
++// functions in asm.go, still being used for some oses.
++// FIXME: get rid of this file when dodata() is completely
++// converted.
++
++func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s *sym.Symbol, r *sym.Reloc) bool {
++	targ := r.Sym
++
++	switch r.Type {
++	default:
++		if r.Type >= objabi.ElfRelocOffset {
++			ld.Errorf(s, "unexpected relocation type %d (%s)", r.Type, sym.RelocName(target.Arch, r.Type))
++			return false
++		}
++
++		// Handle relocations found in ELF object files.
++	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_X86_64_PC32):
++		if targ.Type == sym.SDYNIMPORT {
++			ld.Errorf(s, "unexpected R_X86_64_PC32 relocation for dynamic symbol %s", targ.Name)
++		}
++		// TODO(mwhudson): the test of VisibilityHidden here probably doesn't make
++		// sense and should be removed when someone has thought about it properly.
++		if (targ.Type == 0 || targ.Type == sym.SXREF) && !targ.Attr.VisibilityHidden() {
++			ld.Errorf(s, "unknown symbol %s in pcrel", targ.Name)
++		}
++		r.Type = objabi.R_PCREL
++		r.Add += 4
++		return true
++
++	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_X86_64_PC64):
++		if targ.Type == sym.SDYNIMPORT {
++			ld.Errorf(s, "unexpected R_X86_64_PC64 relocation for dynamic symbol %s", targ.Name)
++		}
++		if targ.Type == 0 || targ.Type == sym.SXREF {
++			ld.Errorf(s, "unknown symbol %s in pcrel", targ.Name)
++		}
++		r.Type = objabi.R_PCREL
++		r.Add += 8
++		return true
++
++	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_X86_64_PLT32):
++		r.Type = objabi.R_PCREL
++		r.Add += 4
++		if targ.Type == sym.SDYNIMPORT {
++			addpltsym(target, syms, targ)
++			r.Sym = syms.PLT
++			r.Add += int64(targ.Plt())
++		}
++
++		return true
++
++	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_X86_64_GOTPCREL),
++		objabi.ElfRelocOffset + objabi.RelocType(elf.R_X86_64_GOTPCRELX),
++		objabi.ElfRelocOffset + objabi.RelocType(elf.R_X86_64_REX_GOTPCRELX):
++		if targ.Type != sym.SDYNIMPORT {
++			// have symbol
++			if r.Off >= 2 && s.P[r.Off-2] == 0x8b {
++				makeWritable(s)
++				// turn MOVQ of GOT entry into LEAQ of symbol itself
++				s.P[r.Off-2] = 0x8d
++
++				r.Type = objabi.R_PCREL
++				r.Add += 4
++				return true
++			}
++		}
++
++		// fall back to using GOT and hope for the best (CMOV*)
++		// TODO: just needs relocation, no need to put in .dynsym
++		addgotsym(target, syms, targ)
++
++		r.Type = objabi.R_PCREL
++		r.Sym = syms.GOT
++		r.Add += 4
++		r.Add += int64(targ.Got())
++		return true
++
++	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_X86_64_64):
++		if targ.Type == sym.SDYNIMPORT {
++			ld.Errorf(s, "unexpected R_X86_64_64 relocation for dynamic symbol %s", targ.Name)
++		}
++		r.Type = objabi.R_ADDR
++		if target.IsPIE() && target.IsInternal() {
++			// For internal linking PIE, this R_ADDR relocation cannot
++			// be resolved statically. We need to generate a dynamic
++			// relocation. Let the code below handle it.
++			break
++		}
++		return true
++
++	// Handle relocations found in Mach-O object files.
++	case objabi.MachoRelocOffset + ld.MACHO_X86_64_RELOC_UNSIGNED*2 + 0,
++		objabi.MachoRelocOffset + ld.MACHO_X86_64_RELOC_SIGNED*2 + 0,
++		objabi.MachoRelocOffset + ld.MACHO_X86_64_RELOC_BRANCH*2 + 0:
++		// TODO: What is the difference between all these?
++		r.Type = objabi.R_ADDR
++
++		if targ.Type == sym.SDYNIMPORT {
++			ld.Errorf(s, "unexpected reloc for dynamic symbol %s", targ.Name)
++		}
++		return true
++
++	case objabi.MachoRelocOffset + ld.MACHO_X86_64_RELOC_BRANCH*2 + 1:
++		if targ.Type == sym.SDYNIMPORT {
++			addpltsym(target, syms, targ)
++			r.Sym = syms.PLT
++			r.Add = int64(targ.Plt())
++			r.Type = objabi.R_PCREL
++			return true
++		}
++		fallthrough
++
++	case objabi.MachoRelocOffset + ld.MACHO_X86_64_RELOC_UNSIGNED*2 + 1,
++		objabi.MachoRelocOffset + ld.MACHO_X86_64_RELOC_SIGNED*2 + 1,
++		objabi.MachoRelocOffset + ld.MACHO_X86_64_RELOC_SIGNED_1*2 + 1,
++		objabi.MachoRelocOffset + ld.MACHO_X86_64_RELOC_SIGNED_2*2 + 1,
++		objabi.MachoRelocOffset + ld.MACHO_X86_64_RELOC_SIGNED_4*2 + 1:
++		r.Type = objabi.R_PCREL
++
++		if targ.Type == sym.SDYNIMPORT {
++			ld.Errorf(s, "unexpected pc-relative reloc for dynamic symbol %s", targ.Name)
++		}
++		return true
++
++	case objabi.MachoRelocOffset + ld.MACHO_X86_64_RELOC_GOT_LOAD*2 + 1:
++		if targ.Type != sym.SDYNIMPORT {
++			// have symbol
++			// turn MOVQ of GOT entry into LEAQ of symbol itself
++			if r.Off < 2 || s.P[r.Off-2] != 0x8b {
++				ld.Errorf(s, "unexpected GOT_LOAD reloc for non-dynamic symbol %s", targ.Name)
++				return false
++			}
++
++			makeWritable(s)
++			s.P[r.Off-2] = 0x8d
++			r.Type = objabi.R_PCREL
++			return true
++		}
++		fallthrough
++
++	case objabi.MachoRelocOffset + ld.MACHO_X86_64_RELOC_GOT*2 + 1:
++		if targ.Type != sym.SDYNIMPORT {
++			ld.Errorf(s, "unexpected GOT reloc for non-dynamic symbol %s", targ.Name)
++		}
++		addgotsym(target, syms, targ)
++		r.Type = objabi.R_PCREL
++		r.Sym = syms.GOT
++		r.Add += int64(targ.Got())
++		return true
++	}
++
++	switch r.Type {
++	case objabi.R_CALL,
++		objabi.R_PCREL:
++		if targ.Type != sym.SDYNIMPORT {
++			// nothing to do, the relocation will be laid out in reloc
++			return true
++		}
++		if target.IsExternal() {
++			// External linker will do this relocation.
++			return true
++		}
++		// Internal linking, for both ELF and Mach-O.
++		// Build a PLT entry and change the relocation target to that entry.
++		addpltsym(target, syms, targ)
++		r.Sym = syms.PLT
++		r.Add = int64(targ.Plt())
++		return true
++
++	case objabi.R_ADDR:
++		if s.Type == sym.STEXT && target.IsElf() {
++			if target.IsSolaris() {
++				addpltsym(target, syms, targ)
++				r.Sym = syms.PLT
++				r.Add += int64(targ.Plt())
++				return true
++			}
++			// The code is asking for the address of an external
++			// function. We provide it with the address of the
++			// correspondent GOT symbol.
++			addgotsym(target, syms, targ)
++
++			r.Sym = syms.GOT
++			r.Add += int64(targ.Got())
++			return true
++		}
++
++		// Process dynamic relocations for the data sections.
++		if target.IsPIE() && target.IsInternal() {
++			// When internally linking, generate dynamic relocations
++			// for all typical R_ADDR relocations. The exception
++			// are those R_ADDR that are created as part of generating
++			// the dynamic relocations and must be resolved statically.
++			//
++			// There are three phases relevant to understanding this:
++			//
++			//	dodata()  // we are here
++			//	address() // symbol address assignment
++			//	reloc()   // resolution of static R_ADDR relocs
++			//
++			// At this point symbol addresses have not been
++			// assigned yet (as the final size of the .rela section
++			// will affect the addresses), and so we cannot write
++			// the Elf64_Rela.r_offset now. Instead we delay it
++			// until after the 'address' phase of the linker is
++			// complete. We do this via Addaddrplus, which creates
++			// a new R_ADDR relocation which will be resolved in
++			// the 'reloc' phase.
++			//
++			// These synthetic static R_ADDR relocs must be skipped
++			// now, or else we will be caught in an infinite loop
++			// of generating synthetic relocs for our synthetic
++			// relocs.
++			//
++			// Furthermore, the rela sections contain dynamic
++			// relocations with R_ADDR relocations on
++			// Elf64_Rela.r_offset. This field should contain the
++			// symbol offset as determined by reloc(), not the
++			// final dynamically linked address as a dynamic
++			// relocation would provide.
++			switch s.Name {
++			case ".dynsym", ".rela", ".rela.plt", ".got.plt", ".dynamic":
++				return false
++			}
++		} else {
++			// Either internally linking a static executable,
++			// in which case we can resolve these relocations
++			// statically in the 'reloc' phase, or externally
++			// linking, in which case the relocation will be
++			// prepared in the 'reloc' phase and passed to the
++			// external linker in the 'asmb' phase.
++			if s.Type != sym.SDATA && s.Type != sym.SRODATA {
++				break
++			}
++		}
++
++		if target.IsElf() {
++			// Generate R_X86_64_RELATIVE relocations for best
++			// efficiency in the dynamic linker.
++			//
++			// As noted above, symbol addresses have not been
++			// assigned yet, so we can't generate the final reloc
++			// entry yet. We ultimately want:
++			//
++			// r_offset = s + r.Off
++			// r_info = R_X86_64_RELATIVE
++			// r_addend = targ + r.Add
++			//
++			// The dynamic linker will set *offset = base address +
++			// addend.
++			//
++			// AddAddrPlus is used for r_offset and r_addend to
++			// generate new R_ADDR relocations that will update
++			// these fields in the 'reloc' phase.
++			rela := syms.Rela
++			rela.AddAddrPlus(target.Arch, s, int64(r.Off))
++			if r.Siz == 8 {
++				rela.AddUint64(target.Arch, ld.ELF64_R_INFO(0, uint32(elf.R_X86_64_RELATIVE)))
++			} else {
++				ld.Errorf(s, "unexpected relocation for dynamic symbol %s", targ.Name)
++			}
++			rela.AddAddrPlus(target.Arch, targ, int64(r.Add))
++			// Not mark r done here. So we still apply it statically,
++			// so in the file content we'll also have the right offset
++			// to the relocation target. So it can be examined statically
++			// (e.g. go version).
++			return true
++		}
++
++		if target.IsDarwin() && s.Size == int64(target.Arch.PtrSize) && r.Off == 0 {
++			// Mach-O relocations are a royal pain to lay out.
++			// They use a compact stateful bytecode representation
++			// that is too much bother to deal with.
++			// Instead, interpret the C declaration
++			//	void *_Cvar_stderr = &stderr;
++			// as making _Cvar_stderr the name of a GOT entry
++			// for stderr. This is separate from the usual GOT entry,
++			// just in case the C code assigns to the variable,
++			// and of course it only works for single pointers,
++			// but we only need to support cgo and that's all it needs.
++			ld.Adddynsym(target, syms, targ)
++
++			got := syms.GOT
++			s.Type = got.Type
++			s.Attr |= sym.AttrSubSymbol
++			s.Outer = got
++			s.Sub = got.Sub
++			got.Sub = s
++			s.Value = got.Size
++			got.AddUint64(target.Arch, 0)
++			syms.LinkEditGOT.AddUint32(target.Arch, uint32(targ.Dynid))
++			r.Type = objabi.ElfRelocOffset // ignore during relocsym
++			return true
++		}
++	}
++
++	return false
++}
++
++func addpltsym(target *ld.Target, syms *ld.ArchSyms, s *sym.Symbol) {
++	if s.Plt() >= 0 {
++		return
++	}
++
++	ld.Adddynsym(target, syms, s)
++
++	if target.IsElf() {
++		plt := syms.PLT
++		got := syms.GOTPLT
++		rela := syms.RelaPLT
++		if plt.Size == 0 {
++			panic("plt is not set up")
++		}
++
++		// jmpq *got+size(IP)
++		plt.AddUint8(0xff)
++
++		plt.AddUint8(0x25)
++		plt.AddPCRelPlus(target.Arch, got, got.Size)
++
++		// add to got: pointer to current pos in plt
++		got.AddAddrPlus(target.Arch, plt, plt.Size)
++
++		// pushq $x
++		plt.AddUint8(0x68)
++
++		plt.AddUint32(target.Arch, uint32((got.Size-24-8)/8))
++
++		// jmpq .plt
++		plt.AddUint8(0xe9)
++
++		plt.AddUint32(target.Arch, uint32(-(plt.Size + 4)))
++
++		// rela
++		rela.AddAddrPlus(target.Arch, got, got.Size-8)
++
++		rela.AddUint64(target.Arch, ld.ELF64_R_INFO(uint32(s.Dynid), uint32(elf.R_X86_64_JMP_SLOT)))
++		rela.AddUint64(target.Arch, 0)
++
++		s.SetPlt(int32(plt.Size - 16))
++	} else if target.IsDarwin() {
++		// To do lazy symbol lookup right, we're supposed
++		// to tell the dynamic loader which library each
++		// symbol comes from and format the link info
++		// section just so. I'm too lazy (ha!) to do that
++		// so for now we'll just use non-lazy pointers,
++		// which don't need to be told which library to use.
++		//
++		// https://networkpx.blogspot.com/2009/09/about-lcdyldinfoonly-command.html
++		// has details about what we're avoiding.
++
++		addgotsym(target, syms, s)
++		plt := syms.PLT
++
++		syms.LinkEditPLT.AddUint32(target.Arch, uint32(s.Dynid))
++
++		// jmpq *got+size(IP)
++		s.SetPlt(int32(plt.Size))
++
++		plt.AddUint8(0xff)
++		plt.AddUint8(0x25)
++		plt.AddPCRelPlus(target.Arch, syms.GOT, int64(s.Got()))
++	} else {
++		ld.Errorf(s, "addpltsym: unsupported binary format")
++	}
++}
++
++func addgotsym(target *ld.Target, syms *ld.ArchSyms, s *sym.Symbol) {
++	if s.Got() >= 0 {
++		return
++	}
++
++	ld.Adddynsym(target, syms, s)
++	got := syms.GOT
++	s.SetGot(int32(got.Size))
++	got.AddUint64(target.Arch, 0)
++
++	if target.IsElf() {
++		rela := syms.Rela
++		rela.AddAddrPlus(target.Arch, got, int64(s.Got()))
++		rela.AddUint64(target.Arch, ld.ELF64_R_INFO(uint32(s.Dynid), uint32(elf.R_X86_64_GLOB_DAT)))
++		rela.AddUint64(target.Arch, 0)
++	} else if target.IsDarwin() {
++		syms.LinkEditGOT.AddUint32(target.Arch, uint32(s.Dynid))
++	} else {
++		ld.Errorf(s, "addgotsym: unsupported binary format")
++	}
++}
+diff --git a/src/cmd/link/internal/amd64/obj.go b/src/cmd/link/internal/amd64/obj.go
+index fec775f142..b9d0bf4b83 100644
+--- a/src/cmd/link/internal/amd64/obj.go
++++ b/src/cmd/link/internal/amd64/obj.go
+@@ -47,6 +47,7 @@ func Init() (*sys.Arch, ld.Arch) {
+ 		Dwarfreglr: dwarfRegLR,
+ 
+ 		Adddynrel:        adddynrel,
++		Adddynrel2:       adddynrel2,
+ 		Archinit:         archinit,
+ 		Archreloc:        archreloc,
+ 		Archrelocvariant: archrelocvariant,
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 5cd7727cd0..505f22d595 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -677,32 +677,38 @@ func (ctxt *Link) windynrelocsyms() {
+ 	ctxt.Textp2 = append(ctxt.Textp2, rel)
+ }
+ 
+-func dynrelocsym(ctxt *Link, s *sym.Symbol) {
++func dynrelocsym2(ctxt *Link, s loader.Sym) {
+ 	target := &ctxt.Target
+ 	ldr := ctxt.loader
+ 	syms := &ctxt.ArchSyms
+-	for ri := range s.R {
+-		r := &s.R[ri]
++	relocs := ldr.Relocs(s)
++	for ri := 0; ri < relocs.Count(); ri++ {
++		r := relocs.At2(ri)
++		// FIXME: the call to Adddynrel2 below is going to wind up
++		// eagerly promoting the symbol to external, which is not great--
++		// it would improve things for internal/PIE if we could
++		// create the symbol updater lazily.
+ 		if ctxt.BuildMode == BuildModePIE && ctxt.LinkMode == LinkInternal {
+ 			// It's expected that some relocations will be done
+ 			// later by relocsym (R_TLS_LE, R_ADDROFF), so
+ 			// don't worry if Adddynrel returns false.
+-			thearch.Adddynrel(target, ldr, syms, s, r)
++			thearch.Adddynrel2(target, ldr, syms, s, &r, ri)
+ 			continue
+ 		}
+ 
+-		if r.Sym != nil && r.Sym.Type == sym.SDYNIMPORT || r.Type >= objabi.ElfRelocOffset {
+-			if r.Sym != nil && !r.Sym.Attr.Reachable() {
+-				Errorf(s, "dynamic relocation to unreachable symbol %s", r.Sym.Name)
++		rSym := r.Sym()
++		if rSym != 0 && ldr.SymType(rSym) == sym.SDYNIMPORT || r.Type() >= objabi.ElfRelocOffset {
++			if rSym != 0 && !ldr.AttrReachable(rSym) {
++				ctxt.Errorf(s, "dynamic relocation to unreachable symbol %s", ldr.SymName(rSym))
+ 			}
+-			if !thearch.Adddynrel(target, ldr, syms, s, r) {
+-				Errorf(s, "unsupported dynamic relocation for symbol %s (type=%d (%s) stype=%d (%s))", r.Sym.Name, r.Type, sym.RelocName(ctxt.Arch, r.Type), r.Sym.Type, r.Sym.Type)
++			if !thearch.Adddynrel2(target, ldr, syms, s, &r, ri) {
++				ctxt.Errorf(s, "unsupported dynamic relocation for symbol %s (type=%d (%s) stype=%d (%s))", ldr.SymName(rSym), r.Type(), sym.RelocName(ctxt.Arch, r.Type()), ldr.SymType(rSym), ldr.SymType(rSym))
+ 			}
+ 		}
+ 	}
+ }
+ 
+-func (state *dodataState) dynreloc(ctxt *Link) {
++func (state *dodataState) dynreloc2(ctxt *Link) {
+ 	if ctxt.HeadType == objabi.Hwindows {
+ 		return
+ 	}
+@@ -712,16 +718,16 @@ func (state *dodataState) dynreloc(ctxt *Link) {
+ 		return
+ 	}
+ 
+-	for _, s := range ctxt.Textp {
+-		dynrelocsym(ctxt, s)
++	for _, s := range ctxt.Textp2 {
++		dynrelocsym2(ctxt, s)
+ 	}
+-	for _, syms := range state.data {
++	for _, syms := range state.data2 {
+ 		for _, s := range syms {
+-			dynrelocsym(ctxt, s)
++			dynrelocsym2(ctxt, s)
+ 		}
+ 	}
+ 	if ctxt.IsELF {
+-		elfdynhash(ctxt)
++		elfdynhash2(ctxt)
+ 	}
+ }
+ 
+@@ -1120,21 +1126,6 @@ func (ctxt *Link) dostrdata() {
+ 	}
+ }
+ 
+-func Addstring(s *sym.Symbol, str string) int64 {
+-	if s.Type == 0 {
+-		s.Type = sym.SNOPTRDATA
+-	}
+-	s.Attr |= sym.AttrReachable
+-	r := s.Size
+-	if s.Name == ".shstrtab" {
+-		elfsetstring(s, str, int(r))
+-	}
+-	s.P = append(s.P, str...)
+-	s.P = append(s.P, 0)
+-	s.Size = int64(len(s.P))
+-	return r
+-}
+-
+ // addgostring adds str, as a Go string value, to s. symname is the name of the
+ // symbol used to define the string data and must be unique per linked object.
+ func addgostring(ctxt *Link, ldr *loader.Loader, s *loader.SymbolBuilder, symname, str string) {
+@@ -1161,102 +1152,37 @@ func addinitarrdata(ctxt *Link, ldr *loader.Loader, s loader.Sym) {
+ }
+ 
+ // symalign returns the required alignment for the given symbol s.
+-func symalign(s *sym.Symbol) int32 {
++func (state *dodataState) symalign2(s loader.Sym) int32 {
+ 	min := int32(thearch.Minalign)
+-	if s.Align >= min {
+-		return s.Align
+-	} else if s.Align != 0 {
++	ldr := state.ctxt.loader
++	align := ldr.SymAlign(s)
++	if align >= min {
++		return align
++	} else if align != 0 {
+ 		return min
+ 	}
+-	if strings.HasPrefix(s.Name, "go.string.") || strings.HasPrefix(s.Name, "type..namedata.") {
++	// FIXME: figure out a way to avoid checking by name here.
++	sname := ldr.SymName(s)
++	if strings.HasPrefix(sname, "go.string.") || strings.HasPrefix(sname, "type..namedata.") {
+ 		// String data is just bytes.
+ 		// If we align it, we waste a lot of space to padding.
+ 		return min
+ 	}
+-	align := int32(thearch.Maxalign)
+-	for int64(align) > s.Size && align > min {
++	align = int32(thearch.Maxalign)
++	ssz := ldr.SymSize(s)
++	for int64(align) > ssz && align > min {
+ 		align >>= 1
+ 	}
+-	s.Align = align
++	ldr.SetSymAlign(s, align)
+ 	return align
+ }
+ 
+-func aligndatsize(datsize int64, s *sym.Symbol) int64 {
+-	return Rnd(datsize, int64(symalign(s)))
++func aligndatsize2(state *dodataState, datsize int64, s loader.Sym) int64 {
++	return Rnd(datsize, int64(state.symalign2(s)))
+ }
+ 
+ const debugGCProg = false
+ 
+-type GCProg struct {
+-	ctxt *Link
+-	sym  *sym.Symbol
+-	w    gcprog.Writer
+-}
+-
+-func (p *GCProg) Init(ctxt *Link, name string) {
+-	p.ctxt = ctxt
+-	p.sym = ctxt.Syms.Lookup(name, 0)
+-	p.w.Init(p.writeByte(ctxt))
+-	if debugGCProg {
+-		fmt.Fprintf(os.Stderr, "ld: start GCProg %s\n", name)
+-		p.w.Debug(os.Stderr)
+-	}
+-}
+-
+-func (p *GCProg) writeByte(ctxt *Link) func(x byte) {
+-	return func(x byte) {
+-		p.sym.AddUint8(x)
+-	}
+-}
+-
+-func (p *GCProg) End(size int64) {
+-	p.w.ZeroUntil(size / int64(p.ctxt.Arch.PtrSize))
+-	p.w.End()
+-	if debugGCProg {
+-		fmt.Fprintf(os.Stderr, "ld: end GCProg\n")
+-	}
+-}
+-
+-func (p *GCProg) AddSym(s *sym.Symbol) {
+-	typ := s.Gotype
+-	// Things without pointers should be in sym.SNOPTRDATA or sym.SNOPTRBSS;
+-	// everything we see should have pointers and should therefore have a type.
+-	if typ == nil {
+-		switch s.Name {
+-		case "runtime.data", "runtime.edata", "runtime.bss", "runtime.ebss":
+-			// Ignore special symbols that are sometimes laid out
+-			// as real symbols. See comment about dyld on darwin in
+-			// the address function.
+-			return
+-		}
+-		Errorf(s, "missing Go type information for global symbol: size %d", s.Size)
+-		return
+-	}
+-
+-	ptrsize := int64(p.ctxt.Arch.PtrSize)
+-	nptr := decodetypePtrdata(p.ctxt.Arch, typ.P) / ptrsize
+-
+-	if debugGCProg {
+-		fmt.Fprintf(os.Stderr, "gcprog sym: %s at %d (ptr=%d+%d)\n", s.Name, s.Value, s.Value/ptrsize, nptr)
+-	}
+-
+-	if decodetypeUsegcprog(p.ctxt.Arch, typ.P) == 0 {
+-		// Copy pointers from mask into program.
+-		mask := decodetypeGcmask(p.ctxt, typ)
+-		for i := int64(0); i < nptr; i++ {
+-			if (mask[i/8]>>uint(i%8))&1 != 0 {
+-				p.w.Ptr(s.Value/ptrsize + i)
+-			}
+-		}
+-		return
+-	}
+-
+-	// Copy program.
+-	prog := decodetypeGcprog(p.ctxt, typ)
+-	p.w.ZeroUntil(s.Value / ptrsize)
+-	p.w.Append(prog[4:], nptr)
+-}
+-
+ type GCProg2 struct {
+ 	ctxt *Link
+ 	sym  *loader.SymbolBuilder
+@@ -1332,26 +1258,6 @@ func (p *GCProg2) AddSym(s loader.Sym) {
+ 	p.w.Append(prog[4:], nptr)
+ }
+ 
+-// dataSortKey is used to sort a slice of data symbol *sym.Symbol pointers.
+-// The sort keys are kept inline to improve cache behavior while sorting.
+-type dataSortKey struct {
+-	size int64
+-	name string
+-	sym  *sym.Symbol
+-}
+-
+-type bySizeAndName []dataSortKey
+-
+-func (d bySizeAndName) Len() int      { return len(d) }
+-func (d bySizeAndName) Swap(i, j int) { d[i], d[j] = d[j], d[i] }
+-func (d bySizeAndName) Less(i, j int) bool {
+-	s1, s2 := d[i], d[j]
+-	if s1.size != s2.size {
+-		return s1.size < s2.size
+-	}
+-	return s1.name < s2.name
+-}
+-
+ // cutoff is the maximum data section size permitted by the linker
+ // (see issue #9862).
+ const cutoff = 2e9 // 2 GB (or so; looks better in errors than 2^31)
+@@ -1363,7 +1269,7 @@ func (state *dodataState) checkdatsize(symn sym.SymKind) {
+ }
+ 
+ // fixZeroSizedSymbols gives a few special symbols with zero size some space.
+-func fixZeroSizedSymbols(ctxt *Link) {
++func fixZeroSizedSymbols2(ctxt *Link) {
+ 	// The values in moduledata are filled out by relocations
+ 	// pointing to the addresses of these special symbols.
+ 	// Typically these symbols have no size and are not laid
+@@ -1391,44 +1297,48 @@ func fixZeroSizedSymbols(ctxt *Link) {
+ 		return
+ 	}
+ 
+-	bss := ctxt.Syms.Lookup("runtime.bss", 0)
+-	bss.Size = 8
+-	bss.Attr.Set(sym.AttrSpecial, false)
++	ldr := ctxt.loader
++	bss := ldr.CreateSymForUpdate("runtime.bss", 0)
++	bss.SetSize(8)
++	ldr.SetAttrSpecial(bss.Sym(), false)
++
++	ebss := ldr.CreateSymForUpdate("runtime.ebss", 0)
++	ldr.SetAttrSpecial(ebss.Sym(), false)
+ 
+-	ctxt.Syms.Lookup("runtime.ebss", 0).Attr.Set(sym.AttrSpecial, false)
++	data := ldr.CreateSymForUpdate("runtime.data", 0)
++	data.SetSize(8)
++	ldr.SetAttrSpecial(data.Sym(), false)
+ 
+-	data := ctxt.Syms.Lookup("runtime.data", 0)
+-	data.Size = 8
+-	data.Attr.Set(sym.AttrSpecial, false)
++	edata := ldr.CreateSymForUpdate("runtime.edata", 0)
++	ldr.SetAttrSpecial(edata.Sym(), false)
+ 
+-	edata := ctxt.Syms.Lookup("runtime.edata", 0)
+-	edata.Attr.Set(sym.AttrSpecial, false)
+ 	if ctxt.HeadType == objabi.Haix {
+ 		// XCOFFTOC symbols are part of .data section.
+-		edata.Type = sym.SXCOFFTOC
++		edata.SetType(sym.SXCOFFTOC)
+ 	}
+ 
+-	types := ctxt.Syms.Lookup("runtime.types", 0)
+-	types.Type = sym.STYPE
+-	types.Size = 8
+-	types.Attr.Set(sym.AttrSpecial, false)
++	types := ldr.CreateSymForUpdate("runtime.types", 0)
++	types.SetType(sym.STYPE)
++	types.SetSize(8)
++	ldr.SetAttrSpecial(types.Sym(), false)
+ 
+-	etypes := ctxt.Syms.Lookup("runtime.etypes", 0)
+-	etypes.Type = sym.SFUNCTAB
+-	etypes.Attr.Set(sym.AttrSpecial, false)
++	etypes := ldr.CreateSymForUpdate("runtime.etypes", 0)
++	etypes.SetType(sym.SFUNCTAB)
++	ldr.SetAttrSpecial(etypes.Sym(), false)
+ 
+ 	if ctxt.HeadType == objabi.Haix {
+-		rodata := ctxt.Syms.Lookup("runtime.rodata", 0)
+-		rodata.Type = sym.SSTRING
+-		rodata.Size = 8
+-		rodata.Attr.Set(sym.AttrSpecial, false)
++		rodata := ldr.CreateSymForUpdate("runtime.rodata", 0)
++		rodata.SetType(sym.SSTRING)
++		rodata.SetSize(8)
++		ldr.SetAttrSpecial(rodata.Sym(), false)
+ 
+-		ctxt.Syms.Lookup("runtime.erodata", 0).Attr.Set(sym.AttrSpecial, false)
++		erodata := ldr.CreateSymForUpdate("runtime.erodata", 0)
++		ldr.SetAttrSpecial(erodata.Sym(), false)
+ 	}
+ }
+ 
+ // makeRelroForSharedLib creates a section of readonly data if necessary.
+-func (state *dodataState) makeRelroForSharedLib(target *Link) {
++func (state *dodataState) makeRelroForSharedLib2(target *Link) {
+ 	if !target.UseRelro() {
+ 		return
+ 	}
+@@ -1436,31 +1346,33 @@ func (state *dodataState) makeRelroForSharedLib(target *Link) {
+ 	// "read only" data with relocations needs to go in its own section
+ 	// when building a shared library. We do this by boosting objects of
+ 	// type SXXX with relocations to type SXXXRELRO.
++	ldr := target.loader
+ 	for _, symnro := range sym.ReadOnly {
+ 		symnrelro := sym.RelROMap[symnro]
+ 
+-		ro := []*sym.Symbol{}
+-		relro := state.data[symnrelro]
++		ro := []loader.Sym{}
++		relro := state.data2[symnrelro]
+ 
+-		for _, s := range state.data[symnro] {
+-			isRelro := len(s.R) > 0
+-			switch s.Type {
++		for _, s := range state.data2[symnro] {
++			relocs := ldr.Relocs(s)
++			isRelro := relocs.Count() > 0
++			switch state.symType(s) {
+ 			case sym.STYPE, sym.STYPERELRO, sym.SGOFUNCRELRO:
+ 				// Symbols are not sorted yet, so it is possible
+ 				// that an Outer symbol has been changed to a
+ 				// relro Type before it reaches here.
+ 				isRelro = true
+ 			case sym.SFUNCTAB:
+-				if target.IsAIX() && s.Name == "runtime.etypes" {
++				if target.IsAIX() && ldr.SymName(s) == "runtime.etypes" {
+ 					// runtime.etypes must be at the end of
+ 					// the relro datas.
+ 					isRelro = true
+ 				}
+ 			}
+ 			if isRelro {
+-				s.Type = symnrelro
+-				if s.Outer != nil {
+-					s.Outer.Type = s.Type
++				state.setSymType(s, symnrelro)
++				if outer := ldr.OuterSym(s); outer != 0 {
++					state.setSymType(outer, symnrelro)
+ 				}
+ 				relro = append(relro, s)
+ 			} else {
+@@ -1473,14 +1385,18 @@ func (state *dodataState) makeRelroForSharedLib(target *Link) {
+ 		// become references to the outer symbol + offset it's vital that the
+ 		// symbol and the outer end up in the same section).
+ 		for _, s := range relro {
+-			if s.Outer != nil && s.Outer.Type != s.Type {
+-				Errorf(s, "inconsistent types for symbol and its Outer %s (%v != %v)",
+-					s.Outer.Name, s.Type, s.Outer.Type)
++			if outer := ldr.OuterSym(s); outer != 0 {
++				st := state.symType(s)
++				ost := state.symType(outer)
++				if st != ost {
++					state.ctxt.Errorf(s, "inconsistent types for symbol and its Outer %s (%v != %v)",
++						ldr.SymName(outer), st, ost)
++				}
+ 			}
+ 		}
+ 
+-		state.data[symnro] = ro
+-		state.data[symnrelro] = relro
++		state.data2[symnro] = ro
++		state.data2[symnrelro] = relro
+ 	}
+ }
+ 
+@@ -1492,26 +1408,81 @@ type dodataState struct {
+ 	ctxt *Link
+ 	// Data symbols bucketed by type.
+ 	data [sym.SXREF][]*sym.Symbol
++	// Data symbols bucketed by type.
++	data2 [sym.SXREF][]loader.Sym
+ 	// Max alignment for each flavor of data symbol.
+ 	dataMaxAlign [sym.SXREF]int32
++	// Overridden sym type
++	symGroupType []sym.SymKind
+ 	// Current data size so far.
+ 	datsize int64
+ }
+ 
+-func (ctxt *Link) dodata() {
++// A note on symType/setSymType below:
++//
++// In the legacy linker, the types of symbols (notably data symbols) are
++// changed during the symtab() phase so as to insure that similar symbols
++// are bucketed together, then their types are changed back again during
++// dodata. Symbol to section assignment also plays tricks along these lines
++// in the case where a relro segment is needed.
++//
++// The value returned from setType() below reflects the effects of
++// any overrides made by symtab and/or dodata.
++
++// symType returns the (possibly overridden) type of 's'.
++func (state *dodataState) symType(s loader.Sym) sym.SymKind {
++	if int(s) < len(state.symGroupType) {
++		if override := state.symGroupType[s]; override != 0 {
++			return override
++		}
++	}
++	return state.ctxt.loader.SymType(s)
++}
++
++// setSymType sets a new override type for 's'.
++func (state *dodataState) setSymType(s loader.Sym, kind sym.SymKind) {
++	if s == 0 {
++		panic("bad")
++	}
++	if int(s) < len(state.symGroupType) {
++		state.symGroupType[s] = kind
++	} else {
++		su := state.ctxt.loader.MakeSymbolUpdater(s)
++		su.SetType(kind)
++	}
++}
++
++func (ctxt *Link) dodata2(symGroupType []sym.SymKind) {
++
+ 	// Give zeros sized symbols space if necessary.
+-	fixZeroSizedSymbols(ctxt)
++	fixZeroSizedSymbols2(ctxt)
+ 
+ 	// Collect data symbols by type into data.
+-	state := dodataState{ctxt: ctxt}
+-	for _, s := range ctxt.Syms.Allsym {
+-		if !s.Attr.Reachable() || s.Attr.Special() || s.Attr.SubSymbol() {
++	state := dodataState{ctxt: ctxt, symGroupType: symGroupType}
++	ldr := ctxt.loader
++	for s := loader.Sym(1); s < loader.Sym(ldr.NSym()); s++ {
++		if !ldr.AttrReachable(s) || ldr.AttrSpecial(s) || ldr.AttrSubSymbol(s) ||
++			!ldr.TopLevelSym(s) {
+ 			continue
+ 		}
+-		if s.Type <= sym.STEXT || s.Type >= sym.SXREF {
++
++		st := state.symType(s)
++
++		if st <= sym.STEXT || st >= sym.SXREF {
+ 			continue
+ 		}
+-		state.data[s.Type] = append(state.data[s.Type], s)
++		state.data2[st] = append(state.data2[st], s)
++
++		// Set explicit alignment here, so as to avoid having to update
++		// symbol alignment in doDataSect2, which would cause a concurrent
++		// map read/write violation.
++		state.symalign2(s)
++
++		// Similarly with checking the onlist attr.
++		if ldr.AttrOnList(s) {
++			log.Fatalf("symbol %s listed multiple times", ldr.SymName(s))
++		}
++		ldr.SetAttrOnList(s, true)
+ 	}
+ 
+ 	// Now that we have the data symbols, but before we start
+@@ -1521,39 +1492,75 @@ func (ctxt *Link) dodata() {
+ 	//
+ 	// On darwin, we need the symbol table numbers for dynreloc.
+ 	if ctxt.HeadType == objabi.Hdarwin {
+-		machosymorder(ctxt)
++		panic("not yet implemented for darwin")
++		//	machosymorder(ctxt)
+ 	}
+-	state.dynreloc(ctxt)
++	state.dynreloc2(ctxt)
+ 
+ 	// Move any RO data with relocations to a separate section.
+-	state.makeRelroForSharedLib(ctxt)
++	state.makeRelroForSharedLib2(ctxt)
+ 
+ 	// Sort symbols.
+ 	var wg sync.WaitGroup
+-	for symn := range state.data {
++	for symn := range state.data2 {
+ 		symn := sym.SymKind(symn)
+ 		wg.Add(1)
+ 		go func() {
+-			state.data[symn], state.dataMaxAlign[symn] = dodataSect(ctxt, symn, state.data[symn])
++			state.data2[symn], state.dataMaxAlign[symn] = state.dodataSect2(ctxt, symn, state.data2[symn])
+ 			wg.Done()
+ 		}()
+ 	}
+ 	wg.Wait()
+ 
++	if ctxt.IsELF {
++		// Make .rela and .rela.plt contiguous, the ELF ABI requires this
++		// and Solaris actually cares.
++		syms := state.data2[sym.SELFROSECT]
++		reli, plti := -1, -1
++		for i, s := range syms {
++			switch ldr.SymName(s) {
++			case ".rel.plt", ".rela.plt":
++				plti = i
++			case ".rel", ".rela":
++				reli = i
++			}
++		}
++		if reli >= 0 && plti >= 0 && plti != reli+1 {
++			var first, second int
++			if plti > reli {
++				first, second = reli, plti
++			} else {
++				first, second = plti, reli
++			}
++			rel, plt := syms[reli], syms[plti]
++			copy(syms[first+2:], syms[first+1:second])
++			syms[first+0] = rel
++			syms[first+1] = plt
++
++			// Make sure alignment doesn't introduce a gap.
++			// Setting the alignment explicitly prevents
++			// symalign from basing it on the size and
++			// getting it wrong.
++			ldr.SetSymAlign(rel, int32(ctxt.Arch.RegSize))
++			ldr.SetSymAlign(plt, int32(ctxt.Arch.RegSize))
++		}
++		state.data2[sym.SELFROSECT] = syms
++	}
++
+ 	if ctxt.HeadType == objabi.Haix && ctxt.LinkMode == LinkExternal {
+ 		// These symbols must have the same alignment as their section.
+ 		// Otherwize, ld might change the layout of Go sections.
+-		ctxt.Syms.ROLookup("runtime.data", 0).Align = state.dataMaxAlign[sym.SDATA]
+-		ctxt.Syms.ROLookup("runtime.bss", 0).Align = state.dataMaxAlign[sym.SBSS]
++		ldr.SetSymAlign(ldr.Lookup("runtime.data", 0), state.dataMaxAlign[sym.SDATA])
++		ldr.SetSymAlign(ldr.Lookup("runtime.bss", 0), state.dataMaxAlign[sym.SBSS])
+ 	}
+ 
+ 	// Create *sym.Section objects and assign symbols to sections for
+ 	// data/rodata (and related) symbols.
+-	state.allocateDataSections(ctxt)
++	state.allocateDataSections2(ctxt)
+ 
+ 	// Create *sym.Section objects and assign symbols to sections for
+ 	// DWARF symbols.
+-	state.allocateDwarfSections(ctxt)
++	state.allocateDwarfSections2(ctxt)
+ 
+ 	/* number the sections */
+ 	n := int16(1)
+@@ -1584,9 +1591,11 @@ func (ctxt *Link) dodata() {
+ // single symbol will be placed. Here "seg" is the segment into which
+ // the section will go, "s" is the symbol to be placed into the new
+ // section, and "rwx" contains permissions for the section.
+-func (state *dodataState) allocateDataSectionForSym(seg *sym.Segment, s *sym.Symbol, rwx int) *sym.Section {
+-	sect := addsection(state.ctxt.loader, state.ctxt.Arch, seg, s.Name, rwx)
+-	sect.Align = symalign(s)
++func (state *dodataState) allocateDataSectionForSym2(seg *sym.Segment, s loader.Sym, rwx int) *sym.Section {
++	ldr := state.ctxt.loader
++	sname := ldr.SymName(s)
++	sect := addsection(ldr, state.ctxt.Arch, seg, sname, rwx)
++	sect.Align = state.symalign2(s)
+ 	state.datsize = Rnd(state.datsize, int64(sect.Align))
+ 	sect.Vaddr = uint64(state.datsize)
+ 	return sect
+@@ -1622,21 +1631,22 @@ func (state *dodataState) allocateNamedDataSection(seg *sym.Segment, sName strin
+ // "forceType" (if non-zero) contains a new sym type to apply to each
+ // sym during the assignment, and "aligner" is a hook to call to
+ // handle alignment during the assignment process.
+-func (state *dodataState) assignDsymsToSection(sect *sym.Section, syms []*sym.Symbol, forceType sym.SymKind, aligner func(datsize int64, s *sym.Symbol) int64) {
++func (state *dodataState) assignDsymsToSection2(sect *sym.Section, syms []loader.Sym, forceType sym.SymKind, aligner func(state *dodataState, datsize int64, s loader.Sym) int64) {
++	ldr := state.ctxt.loader
+ 	for _, s := range syms {
+-		state.datsize = aligner(state.datsize, s)
+-		s.Sect = sect
++		state.datsize = aligner(state, state.datsize, s)
++		ldr.SetSymSect(s, sect)
+ 		if forceType != sym.Sxxx {
+-			s.Type = forceType
++			state.setSymType(s, forceType)
+ 		}
+-		s.Value = int64(uint64(state.datsize) - sect.Vaddr)
+-		state.datsize += s.Size
++		ldr.SetSymValue(s, int64(uint64(state.datsize)-sect.Vaddr))
++		state.datsize += ldr.SymSize(s)
+ 	}
+ 	sect.Length = uint64(state.datsize) - sect.Vaddr
+ }
+ 
+-func (state *dodataState) assignToSection(sect *sym.Section, symn sym.SymKind, forceType sym.SymKind) {
+-	state.assignDsymsToSection(sect, state.data[symn], forceType, aligndatsize)
++func (state *dodataState) assignToSection2(sect *sym.Section, symn sym.SymKind, forceType sym.SymKind) {
++	state.assignDsymsToSection2(sect, state.data2[symn], forceType, aligndatsize2)
+ 	state.checkdatsize(symn)
+ }
+ 
+@@ -1646,13 +1656,14 @@ func (state *dodataState) assignToSection(sect *sym.Section, symn sym.SymKind, f
+ // symbol name. "Seg" is the segment into which to place the new
+ // section, "forceType" is the new sym.SymKind to assign to the symbol
+ // within the section, and "rwx" holds section permissions.
+-func (state *dodataState) allocateSingleSymSections(seg *sym.Segment, symn sym.SymKind, forceType sym.SymKind, rwx int) {
+-	for _, s := range state.data[symn] {
+-		sect := state.allocateDataSectionForSym(seg, s, rwx)
+-		s.Sect = sect
+-		s.Type = forceType
+-		s.Value = int64(uint64(state.datsize) - sect.Vaddr)
+-		state.datsize += s.Size
++func (state *dodataState) allocateSingleSymSections2(seg *sym.Segment, symn sym.SymKind, forceType sym.SymKind, rwx int) {
++	ldr := state.ctxt.loader
++	for _, s := range state.data2[symn] {
++		sect := state.allocateDataSectionForSym2(seg, s, rwx)
++		ldr.SetSymSect(s, sect)
++		state.setSymType(s, forceType)
++		ldr.SetSymValue(s, int64(uint64(state.datsize)-sect.Vaddr))
++		state.datsize += ldr.SymSize(s)
+ 		sect.Length = uint64(state.datsize) - sect.Vaddr
+ 	}
+ 	state.checkdatsize(symn)
+@@ -1665,16 +1676,16 @@ func (state *dodataState) allocateSingleSymSections(seg *sym.Segment, symn sym.S
+ // name to give to the new section, "forceType" (if non-zero) contains
+ // a new sym type to apply to each sym during the assignment, and
+ // "rwx" holds section permissions.
+-func (state *dodataState) allocateNamedSectionAndAssignSyms(seg *sym.Segment, secName string, symn sym.SymKind, forceType sym.SymKind, rwx int) *sym.Section {
++func (state *dodataState) allocateNamedSectionAndAssignSyms2(seg *sym.Segment, secName string, symn sym.SymKind, forceType sym.SymKind, rwx int) *sym.Section {
+ 
+ 	sect := state.allocateNamedDataSection(seg, secName, []sym.SymKind{symn}, rwx)
+-	state.assignDsymsToSection(sect, state.data[symn], forceType, aligndatsize)
++	state.assignDsymsToSection2(sect, state.data2[symn], forceType, aligndatsize2)
+ 	return sect
+ }
+ 
+ // allocateDataSections allocates sym.Section objects for data/rodata
+ // (and related) symbols, and then assigns symbols to those sections.
+-func (state *dodataState) allocateDataSections(ctxt *Link) {
++func (state *dodataState) allocateDataSections2(ctxt *Link) {
+ 	// Allocate sections.
+ 	// Data is processed before segtext, because we need
+ 	// to see all symbols in the .data and .bss sections in order
+@@ -1689,32 +1700,31 @@ func (state *dodataState) allocateDataSections(ctxt *Link) {
+ 		sym.SWINDOWS,
+ 	}
+ 	for _, symn := range writable {
+-		state.allocateSingleSymSections(&Segdata, symn, sym.SDATA, 06)
++		state.allocateSingleSymSections2(&Segdata, symn, sym.SDATA, 06)
+ 	}
++	ldr := ctxt.loader
+ 
+ 	// .got (and .toc on ppc64)
+-	if len(state.data[sym.SELFGOT]) > 0 {
+-		sect := state.allocateNamedSectionAndAssignSyms(&Segdata, ".got", sym.SELFGOT, sym.SDATA, 06)
++	if len(state.data2[sym.SELFGOT]) > 0 {
++		sect := state.allocateNamedSectionAndAssignSyms2(&Segdata, ".got", sym.SELFGOT, sym.SDATA, 06)
+ 		if ctxt.IsPPC64() {
+-			for _, s := range state.data[sym.SELFGOT] {
++			for _, s := range state.data2[sym.SELFGOT] {
+ 				// Resolve .TOC. symbol for this object file (ppc64)
+-				toc := ctxt.Syms.ROLookup(".TOC.", int(s.Version))
+-				if toc != nil {
+-					toc.Sect = sect
+-					toc.Outer = s
+-					toc.Sub = s.Sub
+-					s.Sub = toc
+-
+-					toc.Value = 0x8000
++
++				toc := ldr.Lookup(".TOC.", int(ldr.SymVersion(s)))
++				if toc != 0 {
++					ldr.SetSymSect(toc, sect)
++					ldr.PrependSub(s, toc)
++					ldr.SetSymValue(toc, 0x8000)
+ 				}
+ 			}
+ 		}
+ 	}
+ 
+ 	/* pointer-free data */
+-	sect := state.allocateNamedSectionAndAssignSyms(&Segdata, ".noptrdata", sym.SNOPTRDATA, sym.SDATA, 06)
+-	ctxt.Syms.Lookup("runtime.noptrdata", 0).Sect = sect
+-	ctxt.Syms.Lookup("runtime.enoptrdata", 0).Sect = sect
++	sect := state.allocateNamedSectionAndAssignSyms2(&Segdata, ".noptrdata", sym.SNOPTRDATA, sym.SDATA, 06)
++	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.noptrdata", 0), sect)
++	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.enoptrdata", 0), sect)
+ 
+ 	hasinitarr := ctxt.linkShared
+ 
+@@ -1725,31 +1735,31 @@ func (state *dodataState) allocateDataSections(ctxt *Link) {
+ 	}
+ 
+ 	if ctxt.HeadType == objabi.Haix {
+-		if len(state.data[sym.SINITARR]) > 0 {
++		if len(state.data2[sym.SINITARR]) > 0 {
+ 			Errorf(nil, "XCOFF format doesn't allow .init_array section")
+ 		}
+ 	}
+ 
+-	if hasinitarr && len(state.data[sym.SINITARR]) > 0 {
+-		state.allocateNamedSectionAndAssignSyms(&Segdata, ".init_array", sym.SINITARR, sym.Sxxx, 06)
++	if hasinitarr && len(state.data2[sym.SINITARR]) > 0 {
++		state.allocateNamedSectionAndAssignSyms2(&Segdata, ".init_array", sym.SINITARR, sym.Sxxx, 06)
+ 	}
+ 
+ 	/* data */
+-	sect = state.allocateNamedSectionAndAssignSyms(&Segdata, ".data", sym.SDATA, sym.SDATA, 06)
+-	ctxt.Syms.Lookup("runtime.data", 0).Sect = sect
+-	ctxt.Syms.Lookup("runtime.edata", 0).Sect = sect
++	sect = state.allocateNamedSectionAndAssignSyms2(&Segdata, ".data", sym.SDATA, sym.SDATA, 06)
++	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.data", 0), sect)
++	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.edata", 0), sect)
+ 	dataGcEnd := state.datsize - int64(sect.Vaddr)
+ 
+ 	// On AIX, TOC entries must be the last of .data
+ 	// These aren't part of gc as they won't change during the runtime.
+-	state.assignToSection(sect, sym.SXCOFFTOC, sym.SDATA)
++	state.assignToSection2(sect, sym.SXCOFFTOC, sym.SDATA)
+ 	state.checkdatsize(sym.SDATA)
+ 	sect.Length = uint64(state.datsize) - sect.Vaddr
+ 
+ 	/* bss */
+-	sect = state.allocateNamedSectionAndAssignSyms(&Segdata, ".bss", sym.SBSS, sym.Sxxx, 06)
+-	ctxt.Syms.Lookup("runtime.bss", 0).Sect = sect
+-	ctxt.Syms.Lookup("runtime.ebss", 0).Sect = sect
++	sect = state.allocateNamedSectionAndAssignSyms2(&Segdata, ".bss", sym.SBSS, sym.Sxxx, 06)
++	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.bss", 0), sect)
++	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.ebss", 0), sect)
+ 	bssGcEnd := state.datsize - int64(sect.Vaddr)
+ 
+ 	// Emit gcdata for bcc symbols now that symbol values have been assigned.
+@@ -1762,41 +1772,43 @@ func (state *dodataState) allocateDataSections(ctxt *Link) {
+ 		{"runtime.gcbss", sym.SBSS, bssGcEnd},
+ 	}
+ 	for _, g := range gcsToEmit {
+-		var gc GCProg
++		var gc GCProg2
+ 		gc.Init(ctxt, g.symName)
+-		for _, s := range state.data[g.symKind] {
++		for _, s := range state.data2[g.symKind] {
+ 			gc.AddSym(s)
+ 		}
+ 		gc.End(g.gcEnd)
+ 	}
+ 
+ 	/* pointer-free bss */
+-	sect = state.allocateNamedSectionAndAssignSyms(&Segdata, ".noptrbss", sym.SNOPTRBSS, sym.Sxxx, 06)
+-	ctxt.Syms.Lookup("runtime.noptrbss", 0).Sect = sect
+-	ctxt.Syms.Lookup("runtime.enoptrbss", 0).Sect = sect
+-	ctxt.Syms.Lookup("runtime.end", 0).Sect = sect
++	sect = state.allocateNamedSectionAndAssignSyms2(&Segdata, ".noptrbss", sym.SNOPTRBSS, sym.Sxxx, 06)
++	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.noptrbss", 0), sect)
++	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.enoptrbss", 0), sect)
++	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.end", 0), sect)
+ 
+ 	// Coverage instrumentation counters for libfuzzer.
+ 	if len(state.data[sym.SLIBFUZZER_EXTRA_COUNTER]) > 0 {
+-		state.allocateNamedSectionAndAssignSyms(&Segdata, "__libfuzzer_extra_counters", sym.SLIBFUZZER_EXTRA_COUNTER, sym.Sxxx, 06)
++		state.allocateNamedSectionAndAssignSyms2(&Segdata, "__libfuzzer_extra_counters", sym.SLIBFUZZER_EXTRA_COUNTER, sym.Sxxx, 06)
+ 	}
+ 
+-	if len(state.data[sym.STLSBSS]) > 0 {
++	if len(state.data2[sym.STLSBSS]) > 0 {
+ 		var sect *sym.Section
+ 		// FIXME: not clear why it is sometimes necessary to suppress .tbss section creation.
+ 		if (ctxt.IsELF || ctxt.HeadType == objabi.Haix) && (ctxt.LinkMode == LinkExternal || !*FlagD) {
+-			sect = addsection(ctxt.loader, ctxt.Arch, &Segdata, ".tbss", 06)
++			sect = addsection(ldr, ctxt.Arch, &Segdata, ".tbss", 06)
+ 			sect.Align = int32(ctxt.Arch.PtrSize)
+ 			// FIXME: why does this need to be set to zero?
+ 			sect.Vaddr = 0
+ 		}
+ 		state.datsize = 0
+ 
+-		for _, s := range state.data[sym.STLSBSS] {
+-			state.datsize = aligndatsize(state.datsize, s)
+-			s.Sect = sect
+-			s.Value = state.datsize
+-			state.datsize += s.Size
++		for _, s := range state.data2[sym.STLSBSS] {
++			state.datsize = aligndatsize2(state, state.datsize, s)
++			if sect != nil {
++				ldr.SetSymSect(s, sect)
++			}
++			ldr.SetSymValue(s, state.datsize)
++			state.datsize += ldr.SymSize(s)
+ 		}
+ 		state.checkdatsize(sym.STLSBSS)
+ 
+@@ -1826,34 +1838,35 @@ func (state *dodataState) allocateDataSections(ctxt *Link) {
+ 	state.datsize = 0
+ 
+ 	/* read-only executable ELF, Mach-O sections */
+-	if len(state.data[sym.STEXT]) != 0 {
+-		Errorf(nil, "dodata found an sym.STEXT symbol: %s", state.data[sym.STEXT][0].Name)
++	if len(state.data2[sym.STEXT]) != 0 {
++		culprit := ldr.SymName(state.data2[sym.STEXT][0])
++		Errorf(nil, "dodata found an sym.STEXT symbol: %s", culprit)
+ 	}
+-	state.allocateSingleSymSections(&Segtext, sym.SELFRXSECT, sym.SRODATA, 04)
++	state.allocateSingleSymSections2(&Segtext, sym.SELFRXSECT, sym.SRODATA, 04)
+ 
+ 	/* read-only data */
+ 	sect = state.allocateNamedDataSection(segro, ".rodata", sym.ReadOnly, 04)
+-	ctxt.Syms.Lookup("runtime.rodata", 0).Sect = sect
+-	ctxt.Syms.Lookup("runtime.erodata", 0).Sect = sect
++	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.rodata", 0), sect)
++	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.erodata", 0), sect)
+ 	if !ctxt.UseRelro() {
+-		ctxt.Syms.Lookup("runtime.types", 0).Sect = sect
+-		ctxt.Syms.Lookup("runtime.etypes", 0).Sect = sect
++		ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.types", 0), sect)
++		ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.etypes", 0), sect)
+ 	}
+ 	for _, symn := range sym.ReadOnly {
+ 		symnStartValue := state.datsize
+-		state.assignToSection(sect, symn, sym.SRODATA)
++		state.assignToSection2(sect, symn, sym.SRODATA)
+ 		if ctxt.HeadType == objabi.Haix {
+ 			// Read-only symbols might be wrapped inside their outer
+ 			// symbol.
+ 			// XCOFF symbol table needs to know the size of
+ 			// these outer symbols.
+-			xcoffUpdateOuterSize(ctxt, state.datsize-symnStartValue, symn)
++			xcoffUpdateOuterSize2(ctxt, state.datsize-symnStartValue, symn)
+ 		}
+ 	}
+ 
+ 	/* read-only ELF, Mach-O sections */
+-	state.allocateSingleSymSections(segro, sym.SELFROSECT, sym.SRODATA, 04)
+-	state.allocateSingleSymSections(segro, sym.SMACHOPLT, sym.SRODATA, 04)
++	state.allocateSingleSymSections2(segro, sym.SELFROSECT, sym.SRODATA, 04)
++	state.allocateSingleSymSections2(segro, sym.SMACHOPLT, sym.SRODATA, 04)
+ 
+ 	// There is some data that are conceptually read-only but are written to by
+ 	// relocations. On GNU systems, we can arrange for the dynamic linker to
+@@ -1902,8 +1915,8 @@ func (state *dodataState) allocateDataSections(ctxt *Link) {
+ 		/* data only written by relocations */
+ 		sect = state.allocateNamedDataSection(segrelro, genrelrosecname(""), relroReadOnly, relroSecPerm)
+ 
+-		ctxt.Syms.Lookup("runtime.types", 0).Sect = sect
+-		ctxt.Syms.Lookup("runtime.etypes", 0).Sect = sect
++		ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.types", 0), sect)
++		ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.etypes", 0), sect)
+ 
+ 		for i, symnro := range sym.ReadOnly {
+ 			if i == 0 && symnro == sym.STYPE && ctxt.HeadType != objabi.Haix {
+@@ -1917,18 +1930,19 @@ func (state *dodataState) allocateDataSections(ctxt *Link) {
+ 			symn := sym.RelROMap[symnro]
+ 			symnStartValue := state.datsize
+ 
+-			for _, s := range state.data[symn] {
+-				if s.Outer != nil && s.Outer.Sect != nil && s.Outer.Sect != sect {
+-					Errorf(s, "s.Outer (%s) in different section from s, %s != %s", s.Outer.Name, s.Outer.Sect.Name, sect.Name)
++			for _, s := range state.data2[symn] {
++				outer := ldr.OuterSym(s)
++				if s != 0 && ldr.SymSect(outer) != nil && ldr.SymSect(outer) != sect {
++					ctxt.Errorf(s, "s.Outer (%s) in different section from s, %s != %s", ldr.SymName(outer), ldr.SymSect(outer).Name, sect.Name)
+ 				}
+ 			}
+-			state.assignToSection(sect, symn, sym.SRODATA)
++			state.assignToSection2(sect, symn, sym.SRODATA)
+ 			if ctxt.HeadType == objabi.Haix {
+ 				// Read-only symbols might be wrapped inside their outer
+ 				// symbol.
+ 				// XCOFF symbol table needs to know the size of
+ 				// these outer symbols.
+-				xcoffUpdateOuterSize(ctxt, state.datsize-symnStartValue, symn)
++				xcoffUpdateOuterSize2(ctxt, state.datsize-symnStartValue, symn)
+ 			}
+ 		}
+ 
+@@ -1937,32 +1951,33 @@ func (state *dodataState) allocateDataSections(ctxt *Link) {
+ 
+ 	/* typelink */
+ 	sect = state.allocateNamedDataSection(seg, genrelrosecname(".typelink"), []sym.SymKind{sym.STYPELINK}, relroSecPerm)
+-	typelink := ctxt.Syms.Lookup("runtime.typelink", 0)
+-	typelink.Sect = sect
+-	typelink.Type = sym.SRODATA
+-	state.datsize += typelink.Size
++
++	typelink := ldr.CreateSymForUpdate("runtime.typelink", 0)
++	ldr.SetSymSect(typelink.Sym(), sect)
++	typelink.SetType(sym.SRODATA)
++	state.datsize += typelink.Size()
+ 	state.checkdatsize(sym.STYPELINK)
+ 	sect.Length = uint64(state.datsize) - sect.Vaddr
+ 
+ 	/* itablink */
+-	sect = state.allocateNamedSectionAndAssignSyms(seg, genrelrosecname(".itablink"), sym.SITABLINK, sym.Sxxx, relroSecPerm)
+-	ctxt.Syms.Lookup("runtime.itablink", 0).Sect = sect
+-	ctxt.Syms.Lookup("runtime.eitablink", 0).Sect = sect
++	sect = state.allocateNamedSectionAndAssignSyms2(seg, genrelrosecname(".itablink"), sym.SITABLINK, sym.Sxxx, relroSecPerm)
++	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.itablink", 0), sect)
++	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.eitablink", 0), sect)
+ 	if ctxt.HeadType == objabi.Haix {
+ 		// Store .itablink size because its symbols are wrapped
+ 		// under an outer symbol: runtime.itablink.
+-		xcoffUpdateOuterSize(ctxt, int64(sect.Length), sym.SITABLINK)
++		xcoffUpdateOuterSize2(ctxt, int64(sect.Length), sym.SITABLINK)
+ 	}
+ 
+ 	/* gosymtab */
+-	sect = state.allocateNamedSectionAndAssignSyms(seg, genrelrosecname(".gosymtab"), sym.SSYMTAB, sym.SRODATA, relroSecPerm)
+-	ctxt.Syms.Lookup("runtime.symtab", 0).Sect = sect
+-	ctxt.Syms.Lookup("runtime.esymtab", 0).Sect = sect
++	sect = state.allocateNamedSectionAndAssignSyms2(seg, genrelrosecname(".gosymtab"), sym.SSYMTAB, sym.SRODATA, relroSecPerm)
++	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.symtab", 0), sect)
++	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.esymtab", 0), sect)
+ 
+ 	/* gopclntab */
+-	sect = state.allocateNamedSectionAndAssignSyms(seg, genrelrosecname(".gopclntab"), sym.SPCLNTAB, sym.SRODATA, relroSecPerm)
+-	ctxt.Syms.Lookup("runtime.pclntab", 0).Sect = sect
+-	ctxt.Syms.Lookup("runtime.epclntab", 0).Sect = sect
++	sect = state.allocateNamedSectionAndAssignSyms2(seg, genrelrosecname(".gopclntab"), sym.SPCLNTAB, sym.SRODATA, relroSecPerm)
++	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.pclntab", 0), sect)
++	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.epclntab", 0), sect)
+ 
+ 	// 6g uses 4-byte relocation offsets, so the entire segment must fit in 32 bits.
+ 	if state.datsize != int64(uint32(state.datsize)) {
+@@ -1970,37 +1985,38 @@ func (state *dodataState) allocateDataSections(ctxt *Link) {
+ 	}
+ 
+ 	for symn := sym.SELFRXSECT; symn < sym.SXREF; symn++ {
+-		ctxt.datap = append(ctxt.datap, state.data[symn]...)
++		ctxt.datap2 = append(ctxt.datap2, state.data2[symn]...)
+ 	}
+ }
+ 
+ // allocateDwarfSections allocates sym.Section objects for DWARF
+ // symbols, and assigns symbols to sections.
+-func (state *dodataState) allocateDwarfSections(ctxt *Link) {
++func (state *dodataState) allocateDwarfSections2(ctxt *Link) {
+ 
+-	alignOne := func(datsize int64, s *sym.Symbol) int64 { return datsize }
++	alignOne := func(state *dodataState, datsize int64, s loader.Sym) int64 { return datsize }
+ 
+-	for i := 0; i < len(dwarfp); i++ {
++	ldr := ctxt.loader
++	for i := 0; i < len(dwarfp2); i++ {
+ 		// First the section symbol.
+-		s := dwarfp[i].secSym()
+-		sect := state.allocateNamedDataSection(&Segdwarf, s.Name, []sym.SymKind{}, 04)
+-		sect.Sym = s
+-		s.Sect = sect
+-		s.Type = sym.SRODATA
+-		s.Value = int64(uint64(state.datsize) - sect.Vaddr)
+-		state.datsize += s.Size
+-		curType := s.Type
++		s := dwarfp2[i].secSym()
++		sect := state.allocateNamedDataSection(&Segdwarf, ldr.SymName(s), []sym.SymKind{}, 04)
++		ldr.SetSymSect(s, sect)
++		sect.Sym2 = sym.LoaderSym(s)
++		curType := ldr.SymType(s)
++		state.setSymType(s, sym.SRODATA)
++		ldr.SetSymValue(s, int64(uint64(state.datsize)-sect.Vaddr))
++		state.datsize += ldr.SymSize(s)
+ 
+ 		// Then any sub-symbols for the section symbol.
+-		subSyms := dwarfp[i].subSyms()
+-		state.assignDsymsToSection(sect, subSyms, sym.SRODATA, alignOne)
++		subSyms := dwarfp2[i].subSyms()
++		state.assignDsymsToSection2(sect, subSyms, sym.SRODATA, alignOne)
+ 
+ 		for j := 0; j < len(subSyms); j++ {
+ 			s := subSyms[j]
+ 			if ctxt.HeadType == objabi.Haix && curType == sym.SDWARFLOC {
+ 				// Update the size of .debug_loc for this symbol's
+ 				// package.
+-				addDwsectCUSize(".debug_loc", s.File, uint64(s.Size))
++				addDwsectCUSize(".debug_loc", ldr.SymPkg(s), uint64(ldr.SymSize(s)))
+ 			}
+ 		}
+ 		sect.Length = uint64(state.datsize) - sect.Vaddr
+@@ -2008,40 +2024,38 @@ func (state *dodataState) allocateDwarfSections(ctxt *Link) {
+ 	}
+ }
+ 
+-func dodataSect(ctxt *Link, symn sym.SymKind, syms []*sym.Symbol) (result []*sym.Symbol, maxAlign int32) {
++func (state *dodataState) dodataSect2(ctxt *Link, symn sym.SymKind, syms []loader.Sym) (result []loader.Sym, maxAlign int32) {
+ 	if ctxt.HeadType == objabi.Hdarwin {
+ 		// Some symbols may no longer belong in syms
+ 		// due to movement in machosymorder.
+-		newSyms := make([]*sym.Symbol, 0, len(syms))
++		newSyms := make([]loader.Sym, 0, len(syms))
+ 		for _, s := range syms {
+-			if s.Type == symn {
++			if state.symType(s) == symn {
+ 				newSyms = append(newSyms, s)
+ 			}
+ 		}
+ 		syms = newSyms
+ 	}
+ 
+-	var head, tail *sym.Symbol
+-	symsSort := make([]dataSortKey, 0, len(syms))
++	var head, tail loader.Sym
++	ldr := ctxt.loader
+ 	for _, s := range syms {
+-		if s.Attr.OnList() {
+-			log.Fatalf("symbol %s listed multiple times", s.Name)
+-		}
+-		s.Attr |= sym.AttrOnList
++		ss := ldr.SymSize(s)
++		ds := int64(len(ldr.Data(s)))
+ 		switch {
+-		case s.Size < int64(len(s.P)):
+-			Errorf(s, "initialize bounds (%d < %d)", s.Size, len(s.P))
+-		case s.Size < 0:
+-			Errorf(s, "negative size (%d bytes)", s.Size)
+-		case s.Size > cutoff:
+-			Errorf(s, "symbol too large (%d bytes)", s.Size)
++		case ss < ds:
++			ctxt.Errorf(s, "initialize bounds (%d < %d)", ss, ds)
++		case ss < 0:
++			ctxt.Errorf(s, "negative size (%d bytes)", ss)
++		case ss > cutoff:
++			ctxt.Errorf(s, "symbol too large (%d bytes)", ss)
+ 		}
+ 
+ 		// If the usually-special section-marker symbols are being laid
+ 		// out as regular symbols, put them either at the beginning or
+ 		// end of their section.
+ 		if (ctxt.DynlinkingGo() && ctxt.HeadType == objabi.Hdarwin) || (ctxt.HeadType == objabi.Haix && ctxt.LinkMode == LinkExternal) {
+-			switch s.Name {
++			switch ldr.SymName(s) {
+ 			case "runtime.text", "runtime.bss", "runtime.data", "runtime.types", "runtime.rodata":
+ 				head = s
+ 				continue
+@@ -2050,73 +2064,46 @@ func dodataSect(ctxt *Link, symn sym.SymKind, syms []*sym.Symbol) (result []*sym
+ 				continue
+ 			}
+ 		}
+-
+-		key := dataSortKey{
+-			size: s.Size,
+-			name: s.Name,
+-			sym:  s,
+-		}
+-
+-		switch s.Type {
+-		case sym.SELFGOT:
+-			// For ppc64, we want to interleave the .got and .toc sections
+-			// from input files. Both are type sym.SELFGOT, so in that case
+-			// we skip size comparison and fall through to the name
+-			// comparison (conveniently, .got sorts before .toc).
+-			key.size = 0
+-		}
+-
+-		symsSort = append(symsSort, key)
+ 	}
+ 
+-	sort.Sort(bySizeAndName(symsSort))
++	// For ppc64, we want to interleave the .got and .toc sections
++	// from input files. Both are type sym.SELFGOT, so in that case
++	// we skip size comparison and fall through to the name
++	// comparison (conveniently, .got sorts before .toc).
++	checkSize := symn != sym.SELFGOT
+ 
+-	off := 0
+-	if head != nil {
+-		syms[0] = head
+-		off++
+-	}
+-	for i, symSort := range symsSort {
+-		syms[i+off] = symSort.sym
+-		align := symalign(symSort.sym)
+-		if maxAlign < align {
+-			maxAlign = align
+-		}
+-	}
+-	if tail != nil {
+-		syms[len(syms)-1] = tail
+-	}
+-
+-	if ctxt.IsELF && symn == sym.SELFROSECT {
+-		// Make .rela and .rela.plt contiguous, the ELF ABI requires this
+-		// and Solaris actually cares.
+-		reli, plti := -1, -1
+-		for i, s := range syms {
+-			switch s.Name {
+-			case ".rel.plt", ".rela.plt":
+-				plti = i
+-			case ".rel", ".rela":
+-				reli = i
+-			}
+-		}
+-		if reli >= 0 && plti >= 0 && plti != reli+1 {
+-			var first, second int
+-			if plti > reli {
+-				first, second = reli, plti
+-			} else {
+-				first, second = plti, reli
++	// Perform the sort.
++	sort.Slice(syms, func(i, j int) bool {
++		si, sj := syms[i], syms[j]
++		switch {
++		case si == head, sj == tail:
++			return true
++		case sj == head, si == tail:
++			return false
++		}
++		if checkSize {
++			isz := ldr.SymSize(si)
++			jsz := ldr.SymSize(sj)
++			if isz != jsz {
++				return isz < jsz
++			}
++		}
++		iname := ldr.SymName(si)
++		jname := ldr.SymName(sj)
++		if iname != jname {
++			return iname < jname
++		}
++		return si < sj
++	})
++
++	// Reap alignment.
++	for k := range syms {
++		s := syms[k]
++		if s != head && s != tail {
++			align := state.symalign2(s)
++			if maxAlign < align {
++				maxAlign = align
+ 			}
+-			rel, plt := syms[reli], syms[plti]
+-			copy(syms[first+2:], syms[first+1:second])
+-			syms[first+0] = rel
+-			syms[first+1] = plt
+-
+-			// Make sure alignment doesn't introduce a gap.
+-			// Setting the alignment explicitly prevents
+-			// symalign from basing it on the size and
+-			// getting it wrong.
+-			rel.Align = int32(ctxt.Arch.RegSize)
+-			plt.Align = int32(ctxt.Arch.RegSize)
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/link/internal/ld/data2.go b/src/cmd/link/internal/ld/data2.go
+new file mode 100644
+index 0000000000..3eb45818d2
+--- /dev/null
++++ b/src/cmd/link/internal/ld/data2.go
+@@ -0,0 +1,938 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ld
++
++import (
++	"cmd/internal/gcprog"
++	"cmd/internal/objabi"
++	"cmd/link/internal/loader"
++	"cmd/link/internal/sym"
++	"fmt"
++	"log"
++	"os"
++	"sort"
++	"strings"
++	"sync"
++)
++
++// Temporary dumping around for sym.Symbol version of helper
++// functions in dodata(), still being used for some archs/oses.
++// FIXME: get rid of this file when dodata() is completely
++// converted.
++
++func (ctxt *Link) dodata() {
++	// Give zeros sized symbols space if necessary.
++	fixZeroSizedSymbols(ctxt)
++
++	// Collect data symbols by type into data.
++	state := dodataState{ctxt: ctxt}
++	for _, s := range ctxt.Syms.Allsym {
++		if !s.Attr.Reachable() || s.Attr.Special() || s.Attr.SubSymbol() {
++			continue
++		}
++		if s.Type <= sym.STEXT || s.Type >= sym.SXREF {
++			continue
++		}
++		state.data[s.Type] = append(state.data[s.Type], s)
++	}
++
++	// Now that we have the data symbols, but before we start
++	// to assign addresses, record all the necessary
++	// dynamic relocations. These will grow the relocation
++	// symbol, which is itself data.
++	//
++	// On darwin, we need the symbol table numbers for dynreloc.
++	if ctxt.HeadType == objabi.Hdarwin {
++		machosymorder(ctxt)
++	}
++	state.dynreloc(ctxt)
++
++	// Move any RO data with relocations to a separate section.
++	state.makeRelroForSharedLib(ctxt)
++
++	// Temporary for debugging.
++	symToIdx := make(map[*sym.Symbol]loader.Sym)
++	for s := loader.Sym(1); s < loader.Sym(ctxt.loader.NSym()); s++ {
++		sp := ctxt.loader.Syms[s]
++		if sp != nil {
++			symToIdx[sp] = s
++		}
++	}
++
++	// Sort symbols.
++	var wg sync.WaitGroup
++	for symn := range state.data {
++		symn := sym.SymKind(symn)
++		wg.Add(1)
++		go func() {
++			state.data[symn], state.dataMaxAlign[symn] = dodataSect(ctxt, symn, state.data[symn], symToIdx)
++			wg.Done()
++		}()
++	}
++	wg.Wait()
++
++	if ctxt.HeadType == objabi.Haix && ctxt.LinkMode == LinkExternal {
++		// These symbols must have the same alignment as their section.
++		// Otherwize, ld might change the layout of Go sections.
++		ctxt.Syms.ROLookup("runtime.data", 0).Align = state.dataMaxAlign[sym.SDATA]
++		ctxt.Syms.ROLookup("runtime.bss", 0).Align = state.dataMaxAlign[sym.SBSS]
++	}
++
++	// Create *sym.Section objects and assign symbols to sections for
++	// data/rodata (and related) symbols.
++	state.allocateDataSections(ctxt)
++
++	// Create *sym.Section objects and assign symbols to sections for
++	// DWARF symbols.
++	state.allocateDwarfSections(ctxt)
++
++	/* number the sections */
++	n := int16(1)
++
++	for _, sect := range Segtext.Sections {
++		sect.Extnum = n
++		n++
++	}
++	for _, sect := range Segrodata.Sections {
++		sect.Extnum = n
++		n++
++	}
++	for _, sect := range Segrelrodata.Sections {
++		sect.Extnum = n
++		n++
++	}
++	for _, sect := range Segdata.Sections {
++		sect.Extnum = n
++		n++
++	}
++	for _, sect := range Segdwarf.Sections {
++		sect.Extnum = n
++		n++
++	}
++}
++
++// makeRelroForSharedLib creates a section of readonly data if necessary.
++func (state *dodataState) makeRelroForSharedLib(target *Link) {
++	if !target.UseRelro() {
++		return
++	}
++
++	// "read only" data with relocations needs to go in its own section
++	// when building a shared library. We do this by boosting objects of
++	// type SXXX with relocations to type SXXXRELRO.
++	for _, symnro := range sym.ReadOnly {
++		symnrelro := sym.RelROMap[symnro]
++
++		ro := []*sym.Symbol{}
++		relro := state.data[symnrelro]
++
++		for _, s := range state.data[symnro] {
++			isRelro := len(s.R) > 0
++			switch s.Type {
++			case sym.STYPE, sym.STYPERELRO, sym.SGOFUNCRELRO:
++				// Symbols are not sorted yet, so it is possible
++				// that an Outer symbol has been changed to a
++				// relro Type before it reaches here.
++				isRelro = true
++			case sym.SFUNCTAB:
++				if target.IsAIX() && s.Name == "runtime.etypes" {
++					// runtime.etypes must be at the end of
++					// the relro datas.
++					isRelro = true
++				}
++			}
++			if isRelro {
++				s.Type = symnrelro
++				if s.Outer != nil {
++					s.Outer.Type = s.Type
++				}
++				relro = append(relro, s)
++			} else {
++				ro = append(ro, s)
++			}
++		}
++
++		// Check that we haven't made two symbols with the same .Outer into
++		// different types (because references two symbols with non-nil Outer
++		// become references to the outer symbol + offset it's vital that the
++		// symbol and the outer end up in the same section).
++		for _, s := range relro {
++			if s.Outer != nil && s.Outer.Type != s.Type {
++				Errorf(s, "inconsistent types for symbol and its Outer %s (%v != %v)",
++					s.Outer.Name, s.Type, s.Outer.Type)
++			}
++		}
++
++		state.data[symnro] = ro
++		state.data[symnrelro] = relro
++	}
++}
++
++func dynrelocsym(ctxt *Link, s *sym.Symbol) {
++	target := &ctxt.Target
++	ldr := ctxt.loader
++	syms := &ctxt.ArchSyms
++	for ri := range s.R {
++		r := &s.R[ri]
++		if ctxt.BuildMode == BuildModePIE && ctxt.LinkMode == LinkInternal {
++			// It's expected that some relocations will be done
++			// later by relocsym (R_TLS_LE, R_ADDROFF), so
++			// don't worry if Adddynrel returns false.
++			thearch.Adddynrel(target, ldr, syms, s, r)
++			continue
++		}
++
++		if r.Sym != nil && r.Sym.Type == sym.SDYNIMPORT || r.Type >= objabi.ElfRelocOffset {
++			if r.Sym != nil && !r.Sym.Attr.Reachable() {
++				Errorf(s, "dynamic relocation to unreachable symbol %s", r.Sym.Name)
++			}
++			if !thearch.Adddynrel(target, ldr, syms, s, r) {
++				Errorf(s, "unsupported dynamic relocation for symbol %s (type=%d (%s) stype=%d (%s))", r.Sym.Name, r.Type, sym.RelocName(ctxt.Arch, r.Type), r.Sym.Type, r.Sym.Type)
++			}
++		}
++	}
++}
++
++func (state *dodataState) dynreloc(ctxt *Link) {
++	if ctxt.HeadType == objabi.Hwindows {
++		return
++	}
++	// -d suppresses dynamic loader format, so we may as well not
++	// compute these sections or mark their symbols as reachable.
++	if *FlagD {
++		return
++	}
++
++	for _, s := range ctxt.Textp {
++		dynrelocsym(ctxt, s)
++	}
++	for _, syms := range state.data {
++		for _, s := range syms {
++			dynrelocsym(ctxt, s)
++		}
++	}
++	if ctxt.IsELF {
++		elfdynhash(ctxt)
++	}
++}
++
++func Addstring(s *sym.Symbol, str string) int64 {
++	if s.Type == 0 {
++		s.Type = sym.SNOPTRDATA
++	}
++	s.Attr |= sym.AttrReachable
++	r := s.Size
++	if s.Name == ".shstrtab" {
++		elfsetstring(s, str, int(r))
++	}
++	s.P = append(s.P, str...)
++	s.P = append(s.P, 0)
++	s.Size = int64(len(s.P))
++	return r
++}
++
++// symalign returns the required alignment for the given symbol s.
++func symalign(s *sym.Symbol) int32 {
++	min := int32(thearch.Minalign)
++	if s.Align >= min {
++		return s.Align
++	} else if s.Align != 0 {
++		return min
++	}
++	if strings.HasPrefix(s.Name, "go.string.") || strings.HasPrefix(s.Name, "type..namedata.") {
++		// String data is just bytes.
++		// If we align it, we waste a lot of space to padding.
++		return min
++	}
++	align := int32(thearch.Maxalign)
++	for int64(align) > s.Size && align > min {
++		align >>= 1
++	}
++	s.Align = align
++	return align
++}
++
++func aligndatsize(datsize int64, s *sym.Symbol) int64 {
++	return Rnd(datsize, int64(symalign(s)))
++}
++
++type GCProg struct {
++	ctxt *Link
++	sym  *sym.Symbol
++	w    gcprog.Writer
++}
++
++func (p *GCProg) Init(ctxt *Link, name string) {
++	p.ctxt = ctxt
++	p.sym = ctxt.Syms.Lookup(name, 0)
++	p.w.Init(p.writeByte(ctxt))
++	if debugGCProg {
++		fmt.Fprintf(os.Stderr, "ld: start GCProg %s\n", name)
++		p.w.Debug(os.Stderr)
++	}
++}
++
++func (p *GCProg) writeByte(ctxt *Link) func(x byte) {
++	return func(x byte) {
++		p.sym.AddUint8(x)
++	}
++}
++
++func (p *GCProg) End(size int64) {
++	p.w.ZeroUntil(size / int64(p.ctxt.Arch.PtrSize))
++	p.w.End()
++	if debugGCProg {
++		fmt.Fprintf(os.Stderr, "ld: end GCProg\n")
++	}
++}
++
++func (p *GCProg) AddSym(s *sym.Symbol) {
++	typ := s.Gotype
++	// Things without pointers should be in sym.SNOPTRDATA or sym.SNOPTRBSS;
++	// everything we see should have pointers and should therefore have a type.
++	if typ == nil {
++		switch s.Name {
++		case "runtime.data", "runtime.edata", "runtime.bss", "runtime.ebss":
++			// Ignore special symbols that are sometimes laid out
++			// as real symbols. See comment about dyld on darwin in
++			// the address function.
++			return
++		}
++		Errorf(s, "missing Go type information for global symbol: size %d", s.Size)
++		return
++	}
++
++	ptrsize := int64(p.ctxt.Arch.PtrSize)
++	nptr := decodetypePtrdata(p.ctxt.Arch, typ.P) / ptrsize
++
++	if debugGCProg {
++		fmt.Fprintf(os.Stderr, "gcprog sym: %s at %d (ptr=%d+%d)\n", s.Name, s.Value, s.Value/ptrsize, nptr)
++	}
++
++	if decodetypeUsegcprog(p.ctxt.Arch, typ.P) == 0 {
++		// Copy pointers from mask into program.
++		mask := decodetypeGcmask(p.ctxt, typ)
++		for i := int64(0); i < nptr; i++ {
++			if (mask[i/8]>>uint(i%8))&1 != 0 {
++				p.w.Ptr(s.Value/ptrsize + i)
++			}
++		}
++		return
++	}
++
++	// Copy program.
++	prog := decodetypeGcprog(p.ctxt, typ)
++	p.w.ZeroUntil(s.Value / ptrsize)
++	p.w.Append(prog[4:], nptr)
++}
++
++// dataSortKey is used to sort a slice of data symbol *sym.Symbol pointers.
++// The sort keys are kept inline to improve cache behavior while sorting.
++type dataSortKey struct {
++	size   int64
++	name   string
++	sym    *sym.Symbol
++	symIdx loader.Sym
++}
++
++type bySizeAndName []dataSortKey
++
++func (d bySizeAndName) Len() int      { return len(d) }
++func (d bySizeAndName) Swap(i, j int) { d[i], d[j] = d[j], d[i] }
++func (d bySizeAndName) Less(i, j int) bool {
++	s1, s2 := d[i], d[j]
++	if s1.size != s2.size {
++		return s1.size < s2.size
++	}
++	if s1.name != s2.name {
++		return s1.name < s2.name
++	}
++	return s1.symIdx < s2.symIdx
++}
++
++// fixZeroSizedSymbols gives a few special symbols with zero size some space.
++func fixZeroSizedSymbols(ctxt *Link) {
++	// The values in moduledata are filled out by relocations
++	// pointing to the addresses of these special symbols.
++	// Typically these symbols have no size and are not laid
++	// out with their matching section.
++	//
++	// However on darwin, dyld will find the special symbol
++	// in the first loaded module, even though it is local.
++	//
++	// (An hypothesis, formed without looking in the dyld sources:
++	// these special symbols have no size, so their address
++	// matches a real symbol. The dynamic linker assumes we
++	// want the normal symbol with the same address and finds
++	// it in the other module.)
++	//
++	// To work around this we lay out the symbls whose
++	// addresses are vital for multi-module programs to work
++	// as normal symbols, and give them a little size.
++	//
++	// On AIX, as all DATA sections are merged together, ld might not put
++	// these symbols at the beginning of their respective section if there
++	// aren't real symbols, their alignment might not match the
++	// first symbol alignment. Therefore, there are explicitly put at the
++	// beginning of their section with the same alignment.
++	if !(ctxt.DynlinkingGo() && ctxt.HeadType == objabi.Hdarwin) && !(ctxt.HeadType == objabi.Haix && ctxt.LinkMode == LinkExternal) {
++		return
++	}
++
++	bss := ctxt.Syms.Lookup("runtime.bss", 0)
++	bss.Size = 8
++	bss.Attr.Set(sym.AttrSpecial, false)
++
++	ctxt.Syms.Lookup("runtime.ebss", 0).Attr.Set(sym.AttrSpecial, false)
++
++	data := ctxt.Syms.Lookup("runtime.data", 0)
++	data.Size = 8
++	data.Attr.Set(sym.AttrSpecial, false)
++
++	edata := ctxt.Syms.Lookup("runtime.edata", 0)
++	edata.Attr.Set(sym.AttrSpecial, false)
++	if ctxt.HeadType == objabi.Haix {
++		// XCOFFTOC symbols are part of .data section.
++		edata.Type = sym.SXCOFFTOC
++	}
++
++	types := ctxt.Syms.Lookup("runtime.types", 0)
++	types.Type = sym.STYPE
++	types.Size = 8
++	types.Attr.Set(sym.AttrSpecial, false)
++
++	etypes := ctxt.Syms.Lookup("runtime.etypes", 0)
++	etypes.Type = sym.SFUNCTAB
++	etypes.Attr.Set(sym.AttrSpecial, false)
++
++	if ctxt.HeadType == objabi.Haix {
++		rodata := ctxt.Syms.Lookup("runtime.rodata", 0)
++		rodata.Type = sym.SSTRING
++		rodata.Size = 8
++		rodata.Attr.Set(sym.AttrSpecial, false)
++
++		ctxt.Syms.Lookup("runtime.erodata", 0).Attr.Set(sym.AttrSpecial, false)
++	}
++}
++
++// allocateDataSectionForSym creates a new sym.Section into which a a
++// single symbol will be placed. Here "seg" is the segment into which
++// the section will go, "s" is the symbol to be placed into the new
++// section, and "rwx" contains permissions for the section.
++func (state *dodataState) allocateDataSectionForSym(seg *sym.Segment, s *sym.Symbol, rwx int) *sym.Section {
++	sect := addsection(state.ctxt.loader, state.ctxt.Arch, seg, s.Name, rwx)
++	sect.Align = symalign(s)
++	state.datsize = Rnd(state.datsize, int64(sect.Align))
++	sect.Vaddr = uint64(state.datsize)
++	return sect
++}
++
++// assignDsymsToSection assigns a collection of data symbols to a
++// newly created section. "sect" is the section into which to place
++// the symbols, "syms" holds the list of symbols to assign,
++// "forceType" (if non-zero) contains a new sym type to apply to each
++// sym during the assignment, and "aligner" is a hook to call to
++// handle alignment during the assignment process.
++func (state *dodataState) assignDsymsToSection(sect *sym.Section, syms []*sym.Symbol, forceType sym.SymKind, aligner func(datsize int64, s *sym.Symbol) int64) {
++	for _, s := range syms {
++		state.datsize = aligner(state.datsize, s)
++		s.Sect = sect
++		if forceType != sym.Sxxx {
++			s.Type = forceType
++		}
++		s.Value = int64(uint64(state.datsize) - sect.Vaddr)
++		state.datsize += s.Size
++	}
++	sect.Length = uint64(state.datsize) - sect.Vaddr
++}
++
++func (state *dodataState) assignToSection(sect *sym.Section, symn sym.SymKind, forceType sym.SymKind) {
++	state.assignDsymsToSection(sect, state.data[symn], forceType, aligndatsize)
++	state.checkdatsize(symn)
++}
++
++// allocateSingleSymSections walks through the bucketed data symbols
++// with type 'symn', creates a new section for each sym, and assigns
++// the sym to a newly created section. Section name is set from the
++// symbol name. "Seg" is the segment into which to place the new
++// section, "forceType" is the new sym.SymKind to assign to the symbol
++// within the section, and "rwx" holds section permissions.
++func (state *dodataState) allocateSingleSymSections(seg *sym.Segment, symn sym.SymKind, forceType sym.SymKind, rwx int) {
++	for _, s := range state.data[symn] {
++		sect := state.allocateDataSectionForSym(seg, s, rwx)
++		s.Sect = sect
++		s.Type = forceType
++		s.Value = int64(uint64(state.datsize) - sect.Vaddr)
++		state.datsize += s.Size
++		sect.Length = uint64(state.datsize) - sect.Vaddr
++	}
++	state.checkdatsize(symn)
++}
++
++// allocateNamedSectionAndAssignSyms creates a new section with the
++// specified name, then walks through the bucketed data symbols with
++// type 'symn' and assigns each of them to this new section. "Seg" is
++// the segment into which to place the new section, "secName" is the
++// name to give to the new section, "forceType" (if non-zero) contains
++// a new sym type to apply to each sym during the assignment, and
++// "rwx" holds section permissions.
++func (state *dodataState) allocateNamedSectionAndAssignSyms(seg *sym.Segment, secName string, symn sym.SymKind, forceType sym.SymKind, rwx int) *sym.Section {
++
++	sect := state.allocateNamedDataSection(seg, secName, []sym.SymKind{symn}, rwx)
++	state.assignDsymsToSection(sect, state.data[symn], forceType, aligndatsize)
++	return sect
++}
++
++// allocateDataSections allocates sym.Section objects for data/rodata
++// (and related) symbols, and then assigns symbols to those sections.
++func (state *dodataState) allocateDataSections(ctxt *Link) {
++	// Allocate sections.
++	// Data is processed before segtext, because we need
++	// to see all symbols in the .data and .bss sections in order
++	// to generate garbage collection information.
++
++	// Writable data sections that do not need any specialized handling.
++	writable := []sym.SymKind{
++		sym.SBUILDINFO,
++		sym.SELFSECT,
++		sym.SMACHO,
++		sym.SMACHOGOT,
++		sym.SWINDOWS,
++	}
++	for _, symn := range writable {
++		state.allocateSingleSymSections(&Segdata, symn, sym.SDATA, 06)
++	}
++
++	// .got (and .toc on ppc64)
++	if len(state.data[sym.SELFGOT]) > 0 {
++		sect := state.allocateNamedSectionAndAssignSyms(&Segdata, ".got", sym.SELFGOT, sym.SDATA, 06)
++		if ctxt.IsPPC64() {
++			for _, s := range state.data[sym.SELFGOT] {
++				// Resolve .TOC. symbol for this object file (ppc64)
++				toc := ctxt.Syms.ROLookup(".TOC.", int(s.Version))
++				if toc != nil {
++					toc.Sect = sect
++					toc.Outer = s
++					toc.Sub = s.Sub
++					s.Sub = toc
++
++					toc.Value = 0x8000
++				}
++			}
++		}
++	}
++
++	/* pointer-free data */
++	sect := state.allocateNamedSectionAndAssignSyms(&Segdata, ".noptrdata", sym.SNOPTRDATA, sym.SDATA, 06)
++	ctxt.Syms.Lookup("runtime.noptrdata", 0).Sect = sect
++	ctxt.Syms.Lookup("runtime.enoptrdata", 0).Sect = sect
++
++	hasinitarr := ctxt.linkShared
++
++	/* shared library initializer */
++	switch ctxt.BuildMode {
++	case BuildModeCArchive, BuildModeCShared, BuildModeShared, BuildModePlugin:
++		hasinitarr = true
++	}
++
++	if ctxt.HeadType == objabi.Haix {
++		if len(state.data[sym.SINITARR]) > 0 {
++			Errorf(nil, "XCOFF format doesn't allow .init_array section")
++		}
++	}
++
++	if hasinitarr && len(state.data[sym.SINITARR]) > 0 {
++		state.allocateNamedSectionAndAssignSyms(&Segdata, ".init_array", sym.SINITARR, sym.Sxxx, 06)
++	}
++
++	/* data */
++	sect = state.allocateNamedSectionAndAssignSyms(&Segdata, ".data", sym.SDATA, sym.SDATA, 06)
++	ctxt.Syms.Lookup("runtime.data", 0).Sect = sect
++	ctxt.Syms.Lookup("runtime.edata", 0).Sect = sect
++	dataGcEnd := state.datsize - int64(sect.Vaddr)
++
++	// On AIX, TOC entries must be the last of .data
++	// These aren't part of gc as they won't change during the runtime.
++	state.assignToSection(sect, sym.SXCOFFTOC, sym.SDATA)
++	state.checkdatsize(sym.SDATA)
++	sect.Length = uint64(state.datsize) - sect.Vaddr
++
++	/* bss */
++	sect = state.allocateNamedSectionAndAssignSyms(&Segdata, ".bss", sym.SBSS, sym.Sxxx, 06)
++	ctxt.Syms.Lookup("runtime.bss", 0).Sect = sect
++	ctxt.Syms.Lookup("runtime.ebss", 0).Sect = sect
++	bssGcEnd := state.datsize - int64(sect.Vaddr)
++
++	// Emit gcdata for bcc symbols now that symbol values have been assigned.
++	gcsToEmit := []struct {
++		symName string
++		symKind sym.SymKind
++		gcEnd   int64
++	}{
++		{"runtime.gcdata", sym.SDATA, dataGcEnd},
++		{"runtime.gcbss", sym.SBSS, bssGcEnd},
++	}
++	for _, g := range gcsToEmit {
++		var gc GCProg
++		gc.Init(ctxt, g.symName)
++		for _, s := range state.data[g.symKind] {
++			gc.AddSym(s)
++		}
++		gc.End(g.gcEnd)
++	}
++
++	/* pointer-free bss */
++	sect = state.allocateNamedSectionAndAssignSyms(&Segdata, ".noptrbss", sym.SNOPTRBSS, sym.Sxxx, 06)
++	ctxt.Syms.Lookup("runtime.noptrbss", 0).Sect = sect
++	ctxt.Syms.Lookup("runtime.enoptrbss", 0).Sect = sect
++	ctxt.Syms.Lookup("runtime.end", 0).Sect = sect
++
++	// Coverage instrumentation counters for libfuzzer.
++	if len(state.data[sym.SLIBFUZZER_EXTRA_COUNTER]) > 0 {
++		state.allocateNamedSectionAndAssignSyms(&Segdata, "__libfuzzer_extra_counters", sym.SLIBFUZZER_EXTRA_COUNTER, sym.Sxxx, 06)
++	}
++
++	if len(state.data[sym.STLSBSS]) > 0 {
++		var sect *sym.Section
++		// FIXME: not clear why it is sometimes necessary to suppress .tbss section creation.
++		if (ctxt.IsELF || ctxt.HeadType == objabi.Haix) && (ctxt.LinkMode == LinkExternal || !*FlagD) {
++			sect = addsection(ctxt.loader, ctxt.Arch, &Segdata, ".tbss", 06)
++			sect.Align = int32(ctxt.Arch.PtrSize)
++			// FIXME: why does this need to be set to zero?
++			sect.Vaddr = 0
++		}
++		state.datsize = 0
++
++		for _, s := range state.data[sym.STLSBSS] {
++			state.datsize = aligndatsize(state.datsize, s)
++			s.Sect = sect
++			s.Value = state.datsize
++			state.datsize += s.Size
++		}
++		state.checkdatsize(sym.STLSBSS)
++
++		if sect != nil {
++			sect.Length = uint64(state.datsize)
++		}
++	}
++
++	/*
++	 * We finished data, begin read-only data.
++	 * Not all systems support a separate read-only non-executable data section.
++	 * ELF and Windows PE systems do.
++	 * OS X and Plan 9 do not.
++	 * And if we're using external linking mode, the point is moot,
++	 * since it's not our decision; that code expects the sections in
++	 * segtext.
++	 */
++	var segro *sym.Segment
++	if ctxt.IsELF && ctxt.LinkMode == LinkInternal {
++		segro = &Segrodata
++	} else if ctxt.HeadType == objabi.Hwindows {
++		segro = &Segrodata
++	} else {
++		segro = &Segtext
++	}
++
++	state.datsize = 0
++
++	/* read-only executable ELF, Mach-O sections */
++	if len(state.data[sym.STEXT]) != 0 {
++		Errorf(nil, "dodata found an sym.STEXT symbol: %s", state.data[sym.STEXT][0].Name)
++	}
++	state.allocateSingleSymSections(&Segtext, sym.SELFRXSECT, sym.SRODATA, 04)
++
++	/* read-only data */
++	sect = state.allocateNamedDataSection(segro, ".rodata", sym.ReadOnly, 04)
++	ctxt.Syms.Lookup("runtime.rodata", 0).Sect = sect
++	ctxt.Syms.Lookup("runtime.erodata", 0).Sect = sect
++	if !ctxt.UseRelro() {
++		ctxt.Syms.Lookup("runtime.types", 0).Sect = sect
++		ctxt.Syms.Lookup("runtime.etypes", 0).Sect = sect
++	}
++	for _, symn := range sym.ReadOnly {
++		symnStartValue := state.datsize
++		state.assignToSection(sect, symn, sym.SRODATA)
++		if ctxt.HeadType == objabi.Haix {
++			// Read-only symbols might be wrapped inside their outer
++			// symbol.
++			// XCOFF symbol table needs to know the size of
++			// these outer symbols.
++			xcoffUpdateOuterSize(ctxt, state.datsize-symnStartValue, symn)
++		}
++	}
++
++	/* read-only ELF, Mach-O sections */
++	state.allocateSingleSymSections(segro, sym.SELFROSECT, sym.SRODATA, 04)
++	state.allocateSingleSymSections(segro, sym.SMACHOPLT, sym.SRODATA, 04)
++
++	// There is some data that are conceptually read-only but are written to by
++	// relocations. On GNU systems, we can arrange for the dynamic linker to
++	// mprotect sections after relocations are applied by giving them write
++	// permissions in the object file and calling them ".data.rel.ro.FOO". We
++	// divide the .rodata section between actual .rodata and .data.rel.ro.rodata,
++	// but for the other sections that this applies to, we just write a read-only
++	// .FOO section or a read-write .data.rel.ro.FOO section depending on the
++	// situation.
++	// TODO(mwhudson): It would make sense to do this more widely, but it makes
++	// the system linker segfault on darwin.
++	const relroPerm = 06
++	const fallbackPerm = 04
++	relroSecPerm := fallbackPerm
++	genrelrosecname := func(suffix string) string {
++		return suffix
++	}
++	seg := segro
++
++	if ctxt.UseRelro() {
++		segrelro := &Segrelrodata
++		if ctxt.LinkMode == LinkExternal && ctxt.HeadType != objabi.Haix {
++			// Using a separate segment with an external
++			// linker results in some programs moving
++			// their data sections unexpectedly, which
++			// corrupts the moduledata. So we use the
++			// rodata segment and let the external linker
++			// sort out a rel.ro segment.
++			segrelro = segro
++		} else {
++			// Reset datsize for new segment.
++			state.datsize = 0
++		}
++
++		genrelrosecname = func(suffix string) string {
++			return ".data.rel.ro" + suffix
++		}
++		relroReadOnly := []sym.SymKind{}
++		for _, symnro := range sym.ReadOnly {
++			symn := sym.RelROMap[symnro]
++			relroReadOnly = append(relroReadOnly, symn)
++		}
++		seg = segrelro
++		relroSecPerm = relroPerm
++
++		/* data only written by relocations */
++		sect = state.allocateNamedDataSection(segrelro, genrelrosecname(""), relroReadOnly, relroSecPerm)
++
++		ctxt.Syms.Lookup("runtime.types", 0).Sect = sect
++		ctxt.Syms.Lookup("runtime.etypes", 0).Sect = sect
++
++		for i, symnro := range sym.ReadOnly {
++			if i == 0 && symnro == sym.STYPE && ctxt.HeadType != objabi.Haix {
++				// Skip forward so that no type
++				// reference uses a zero offset.
++				// This is unlikely but possible in small
++				// programs with no other read-only data.
++				state.datsize++
++			}
++
++			symn := sym.RelROMap[symnro]
++			symnStartValue := state.datsize
++
++			for _, s := range state.data[symn] {
++				if s.Outer != nil && s.Outer.Sect != nil && s.Outer.Sect != sect {
++					Errorf(s, "s.Outer (%s) in different section from s, %s != %s", s.Outer.Name, s.Outer.Sect.Name, sect.Name)
++				}
++			}
++			state.assignToSection(sect, symn, sym.SRODATA)
++			if ctxt.HeadType == objabi.Haix {
++				// Read-only symbols might be wrapped inside their outer
++				// symbol.
++				// XCOFF symbol table needs to know the size of
++				// these outer symbols.
++				xcoffUpdateOuterSize(ctxt, state.datsize-symnStartValue, symn)
++			}
++		}
++
++		sect.Length = uint64(state.datsize) - sect.Vaddr
++	}
++
++	/* typelink */
++	sect = state.allocateNamedDataSection(seg, genrelrosecname(".typelink"), []sym.SymKind{sym.STYPELINK}, relroSecPerm)
++	typelink := ctxt.Syms.Lookup("runtime.typelink", 0)
++	typelink.Sect = sect
++	typelink.Type = sym.SRODATA
++	state.datsize += typelink.Size
++	state.checkdatsize(sym.STYPELINK)
++	sect.Length = uint64(state.datsize) - sect.Vaddr
++
++	/* itablink */
++	sect = state.allocateNamedSectionAndAssignSyms(seg, genrelrosecname(".itablink"), sym.SITABLINK, sym.Sxxx, relroSecPerm)
++	ctxt.Syms.Lookup("runtime.itablink", 0).Sect = sect
++	ctxt.Syms.Lookup("runtime.eitablink", 0).Sect = sect
++	if ctxt.HeadType == objabi.Haix {
++		// Store .itablink size because its symbols are wrapped
++		// under an outer symbol: runtime.itablink.
++		xcoffUpdateOuterSize(ctxt, int64(sect.Length), sym.SITABLINK)
++	}
++
++	/* gosymtab */
++	sect = state.allocateNamedSectionAndAssignSyms(seg, genrelrosecname(".gosymtab"), sym.SSYMTAB, sym.SRODATA, relroSecPerm)
++	ctxt.Syms.Lookup("runtime.symtab", 0).Sect = sect
++	ctxt.Syms.Lookup("runtime.esymtab", 0).Sect = sect
++
++	/* gopclntab */
++	sect = state.allocateNamedSectionAndAssignSyms(seg, genrelrosecname(".gopclntab"), sym.SPCLNTAB, sym.SRODATA, relroSecPerm)
++	ctxt.Syms.Lookup("runtime.pclntab", 0).Sect = sect
++	ctxt.Syms.Lookup("runtime.epclntab", 0).Sect = sect
++
++	// 6g uses 4-byte relocation offsets, so the entire segment must fit in 32 bits.
++	if state.datsize != int64(uint32(state.datsize)) {
++		Errorf(nil, "read-only data segment too large: %d", state.datsize)
++	}
++
++	for symn := sym.SELFRXSECT; symn < sym.SXREF; symn++ {
++		ctxt.datap = append(ctxt.datap, state.data[symn]...)
++	}
++}
++
++// allocateDwarfSections allocates sym.Section objects for DWARF
++// symbols, and assigns symbols to sections.
++func (state *dodataState) allocateDwarfSections(ctxt *Link) {
++
++	alignOne := func(datsize int64, s *sym.Symbol) int64 { return datsize }
++
++	for i := 0; i < len(dwarfp); i++ {
++		// First the section symbol.
++		s := dwarfp[i].secSym()
++		sect := state.allocateNamedDataSection(&Segdwarf, s.Name, []sym.SymKind{}, 04)
++		sect.Sym = s
++		s.Sect = sect
++		curType := s.Type
++		s.Type = sym.SRODATA
++		s.Value = int64(uint64(state.datsize) - sect.Vaddr)
++		state.datsize += s.Size
++
++		// Then any sub-symbols for the section symbol.
++		subSyms := dwarfp[i].subSyms()
++		state.assignDsymsToSection(sect, subSyms, sym.SRODATA, alignOne)
++
++		for j := 0; j < len(subSyms); j++ {
++			s := subSyms[j]
++			if ctxt.HeadType == objabi.Haix && curType == sym.SDWARFLOC {
++				// Update the size of .debug_loc for this symbol's
++				// package.
++				addDwsectCUSize(".debug_loc", s.File, uint64(s.Size))
++			}
++		}
++		sect.Length = uint64(state.datsize) - sect.Vaddr
++		state.checkdatsize(curType)
++	}
++}
++
++func dodataSect(ctxt *Link, symn sym.SymKind, syms []*sym.Symbol, symToIdx map[*sym.Symbol]loader.Sym) (result []*sym.Symbol, maxAlign int32) {
++	if ctxt.HeadType == objabi.Hdarwin {
++		// Some symbols may no longer belong in syms
++		// due to movement in machosymorder.
++		newSyms := make([]*sym.Symbol, 0, len(syms))
++		for _, s := range syms {
++			if s.Type == symn {
++				newSyms = append(newSyms, s)
++			}
++		}
++		syms = newSyms
++	}
++
++	var head, tail *sym.Symbol
++	symsSort := make([]dataSortKey, 0, len(syms))
++	for _, s := range syms {
++		if s.Attr.OnList() {
++			log.Fatalf("symbol %s listed multiple times", s.Name)
++		}
++		s.Attr |= sym.AttrOnList
++		switch {
++		case s.Size < int64(len(s.P)):
++			Errorf(s, "initialize bounds (%d < %d)", s.Size, len(s.P))
++		case s.Size < 0:
++			Errorf(s, "negative size (%d bytes)", s.Size)
++		case s.Size > cutoff:
++			Errorf(s, "symbol too large (%d bytes)", s.Size)
++		}
++
++		// If the usually-special section-marker symbols are being laid
++		// out as regular symbols, put them either at the beginning or
++		// end of their section.
++		if (ctxt.DynlinkingGo() && ctxt.HeadType == objabi.Hdarwin) || (ctxt.HeadType == objabi.Haix && ctxt.LinkMode == LinkExternal) {
++			switch s.Name {
++			case "runtime.text", "runtime.bss", "runtime.data", "runtime.types", "runtime.rodata":
++				head = s
++				continue
++			case "runtime.etext", "runtime.ebss", "runtime.edata", "runtime.etypes", "runtime.erodata":
++				tail = s
++				continue
++			}
++		}
++
++		key := dataSortKey{
++			size:   s.Size,
++			name:   s.Name,
++			sym:    s,
++			symIdx: symToIdx[s],
++		}
++
++		switch s.Type {
++		case sym.SELFGOT:
++			// For ppc64, we want to interleave the .got and .toc sections
++			// from input files. Both are type sym.SELFGOT, so in that case
++			// we skip size comparison and fall through to the name
++			// comparison (conveniently, .got sorts before .toc).
++			key.size = 0
++		}
++
++		symsSort = append(symsSort, key)
++	}
++
++	sort.Sort(bySizeAndName(symsSort))
++
++	off := 0
++	if head != nil {
++		syms[0] = head
++		off++
++	}
++	for i, symSort := range symsSort {
++		syms[i+off] = symSort.sym
++		align := symalign(symSort.sym)
++		if maxAlign < align {
++			maxAlign = align
++		}
++	}
++	if tail != nil {
++		syms[len(syms)-1] = tail
++	}
++
++	if ctxt.IsELF && symn == sym.SELFROSECT {
++		// Make .rela and .rela.plt contiguous, the ELF ABI requires this
++		// and Solaris actually cares.
++		reli, plti := -1, -1
++		for i, s := range syms {
++			switch s.Name {
++			case ".rel.plt", ".rela.plt":
++				plti = i
++			case ".rel", ".rela":
++				reli = i
++			}
++		}
++		if reli >= 0 && plti >= 0 && plti != reli+1 {
++			var first, second int
++			if plti > reli {
++				first, second = reli, plti
++			} else {
++				first, second = plti, reli
++			}
++			rel, plt := syms[reli], syms[plti]
++			copy(syms[first+2:], syms[first+1:second])
++			syms[first+0] = rel
++			syms[first+1] = plt
++
++			// Make sure alignment doesn't introduce a gap.
++			// Setting the alignment explicitly prevents
++			// symalign from basing it on the size and
++			// getting it wrong.
++			rel.Align = int32(ctxt.Arch.RegSize)
++			plt.Align = int32(ctxt.Arch.RegSize)
++		}
++	}
++
++	return syms, maxAlign
++}
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index fa7221ffb1..d3270720f1 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -628,9 +628,9 @@ func elfwriteshdrs(out *OutBuf) uint32 {
+ 	return uint32(ehdr.shnum) * ELF32SHDRSIZE
+ }
+ 
+-func elfsetstring(s *sym.Symbol, str string, off int) {
++func elfsetstring2(ctxt *Link, s loader.Sym, str string, off int) {
+ 	if nelfstr >= len(elfstr) {
+-		Errorf(s, "too many elf strings")
++		ctxt.Errorf(s, "too many elf strings")
+ 		errorexit()
+ 	}
+ 
+@@ -753,8 +753,8 @@ func elfWriteDynEnt(arch *sys.Arch, s *sym.Symbol, tag int, val uint64) {
+ 	}
+ }
+ 
+-func elfWriteDynEntSym(arch *sys.Arch, s *sym.Symbol, tag int, t *sym.Symbol) {
+-	Elfwritedynentsymplus(arch, s, tag, t, 0)
++func elfWriteDynEntSym2(ctxt *Link, s *loader.SymbolBuilder, tag int, t loader.Sym) {
++	Elfwritedynentsymplus2(ctxt, s, tag, t, 0)
+ }
+ 
+ func Elfwritedynentsymplus(arch *sys.Arch, s *sym.Symbol, tag int, t *sym.Symbol, add int64) {
+@@ -1057,15 +1057,16 @@ havelib:
+ 	return aux
+ }
+ 
+-func elfdynhash(ctxt *Link) {
++func elfdynhash2(ctxt *Link) {
+ 	if !ctxt.IsELF {
+ 		return
+ 	}
+ 
+ 	nsym := Nelfsym
+-	s := ctxt.Syms.Lookup(".hash", 0)
+-	s.Type = sym.SELFROSECT
+-	s.Attr |= sym.AttrReachable
++	ldr := ctxt.loader
++	s := ldr.CreateSymForUpdate(".hash", 0)
++	s.SetType(sym.SELFROSECT)
++	s.SetReachable(true)
+ 
+ 	i := nsym
+ 	nbucket := 1
+@@ -1079,21 +1080,19 @@ func elfdynhash(ctxt *Link) {
+ 	chain := make([]uint32, nsym)
+ 	buckets := make([]uint32, nbucket)
+ 
+-	for _, sy := range ctxt.Syms.Allsym {
+-		if sy.Dynid <= 0 {
+-			continue
+-		}
++	for _, sy := range ldr.DynidSyms() {
+ 
+-		if sy.Dynimpvers() != "" {
+-			need[sy.Dynid] = addelflib(&needlib, sy.Dynimplib(), sy.Dynimpvers())
++		dynid := ldr.SymDynid(sy)
++		if ldr.SymDynimpvers(sy) != "" {
++			need[dynid] = addelflib(&needlib, ldr.SymDynimplib(sy), ldr.SymDynimpvers(sy))
+ 		}
+ 
+-		name := sy.Extname()
++		name := ldr.SymExtname(sy)
+ 		hc := elfhash(name)
+ 
+ 		b := hc % uint32(nbucket)
+-		chain[sy.Dynid] = buckets[b]
+-		buckets[b] = uint32(sy.Dynid)
++		chain[dynid] = buckets[b]
++		buckets[b] = uint32(dynid)
+ 	}
+ 
+ 	// s390x (ELF64) hash table entries are 8 bytes
+@@ -1117,10 +1116,11 @@ func elfdynhash(ctxt *Link) {
+ 		}
+ 	}
+ 
+-	// version symbols
+-	dynstr := ctxt.Syms.Lookup(".dynstr", 0)
++	dynstr := ldr.CreateSymForUpdate(".dynstr", 0)
+ 
+-	s = ctxt.Syms.Lookup(".gnu.version_r", 0)
++	// version symbols
++	gnuVersionR := ldr.CreateSymForUpdate(".gnu.version_r", 0)
++	s = gnuVersionR
+ 	i = 2
+ 	nfile := 0
+ 	for l := needlib; l != nil; l = l.next {
+@@ -1132,9 +1132,9 @@ func elfdynhash(ctxt *Link) {
+ 		for x := l.aux; x != nil; x = x.next {
+ 			j++
+ 		}
+-		s.AddUint16(ctxt.Arch, uint16(j))                         // aux count
+-		s.AddUint32(ctxt.Arch, uint32(Addstring(dynstr, l.file))) // file string offset
+-		s.AddUint32(ctxt.Arch, 16)                                // offset from header to first aux
++		s.AddUint16(ctxt.Arch, uint16(j))                        // aux count
++		s.AddUint32(ctxt.Arch, uint32(dynstr.Addstring(l.file))) // file string offset
++		s.AddUint32(ctxt.Arch, 16)                               // offset from header to first aux
+ 		if l.next != nil {
+ 			s.AddUint32(ctxt.Arch, 16+uint32(j)*16) // offset from this header to next
+ 		} else {
+@@ -1146,10 +1146,10 @@ func elfdynhash(ctxt *Link) {
+ 			i++
+ 
+ 			// aux struct
+-			s.AddUint32(ctxt.Arch, elfhash(x.vers))                   // hash
+-			s.AddUint16(ctxt.Arch, 0)                                 // flags
+-			s.AddUint16(ctxt.Arch, uint16(x.num))                     // other - index we refer to this by
+-			s.AddUint32(ctxt.Arch, uint32(Addstring(dynstr, x.vers))) // version string offset
++			s.AddUint32(ctxt.Arch, elfhash(x.vers))                  // hash
++			s.AddUint16(ctxt.Arch, 0)                                // flags
++			s.AddUint16(ctxt.Arch, uint16(x.num))                    // other - index we refer to this by
++			s.AddUint32(ctxt.Arch, uint32(dynstr.Addstring(x.vers))) // version string offset
+ 			if x.next != nil {
+ 				s.AddUint32(ctxt.Arch, 16) // offset from this aux to next
+ 			} else {
+@@ -1159,7 +1159,8 @@ func elfdynhash(ctxt *Link) {
+ 	}
+ 
+ 	// version references
+-	s = ctxt.Syms.Lookup(".gnu.version", 0)
++	gnuVersion := ldr.CreateSymForUpdate(".gnu.version", 0)
++	s = gnuVersion
+ 
+ 	for i := 0; i < nsym; i++ {
+ 		if i == 0 {
+@@ -1171,26 +1172,26 @@ func elfdynhash(ctxt *Link) {
+ 		}
+ 	}
+ 
+-	s = ctxt.Syms.Lookup(".dynamic", 0)
++	s = ldr.CreateSymForUpdate(".dynamic", 0)
+ 	elfverneed = nfile
+ 	if elfverneed != 0 {
+-		elfWriteDynEntSym(ctxt.Arch, s, DT_VERNEED, ctxt.Syms.Lookup(".gnu.version_r", 0))
+-		elfWriteDynEnt(ctxt.Arch, s, DT_VERNEEDNUM, uint64(nfile))
+-		elfWriteDynEntSym(ctxt.Arch, s, DT_VERSYM, ctxt.Syms.Lookup(".gnu.version", 0))
++		elfWriteDynEntSym2(ctxt, s, DT_VERNEED, gnuVersionR.Sym())
++		Elfwritedynent2(ctxt.Arch, s, DT_VERNEEDNUM, uint64(nfile))
++		elfWriteDynEntSym2(ctxt, s, DT_VERSYM, gnuVersion.Sym())
+ 	}
+ 
+-	sy := ctxt.Syms.Lookup(elfRelType+".plt", 0)
+-	if sy.Size > 0 {
++	sy := ldr.CreateSymForUpdate(elfRelType+".plt", 0)
++	if sy.Size() > 0 {
+ 		if elfRelType == ".rela" {
+-			elfWriteDynEnt(ctxt.Arch, s, DT_PLTREL, DT_RELA)
++			Elfwritedynent2(ctxt.Arch, s, DT_PLTREL, DT_RELA)
+ 		} else {
+-			elfWriteDynEnt(ctxt.Arch, s, DT_PLTREL, DT_REL)
++			Elfwritedynent2(ctxt.Arch, s, DT_PLTREL, DT_REL)
+ 		}
+-		elfWriteDynEntSymSize(ctxt.Arch, s, DT_PLTRELSZ, sy)
+-		elfWriteDynEntSym(ctxt.Arch, s, DT_JMPREL, sy)
++		elfwritedynentsymsize2(ctxt, s, DT_PLTRELSZ, sy.Sym())
++		elfWriteDynEntSym2(ctxt, s, DT_JMPREL, sy.Sym())
+ 	}
+ 
+-	elfWriteDynEnt(ctxt.Arch, s, DT_NULL, 0)
++	Elfwritedynent2(ctxt.Arch, s, DT_NULL, 0)
+ }
+ 
+ func elfphload(seg *sym.Segment) *ElfPhdr {
+diff --git a/src/cmd/link/internal/ld/elf2.go b/src/cmd/link/internal/ld/elf2.go
+new file mode 100644
+index 0000000000..e77510f4a6
+--- /dev/null
++++ b/src/cmd/link/internal/ld/elf2.go
+@@ -0,0 +1,166 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ld
++
++import (
++	"cmd/internal/sys"
++	"cmd/link/internal/sym"
++)
++
++// Temporary dumping around for sym.Symbol version of helper
++// functions in elf.go, still being used for some archs/oses.
++// FIXME: get rid of this file when dodata() is completely
++// converted and the sym.Symbol functions are not needed.
++
++func elfsetstring(s *sym.Symbol, str string, off int) {
++	if nelfstr >= len(elfstr) {
++		Errorf(s, "too many elf strings")
++		errorexit()
++	}
++
++	elfstr[nelfstr].s = str
++	elfstr[nelfstr].off = off
++	nelfstr++
++}
++
++func elfWriteDynEntSym(arch *sys.Arch, s *sym.Symbol, tag int, t *sym.Symbol) {
++	Elfwritedynentsymplus(arch, s, tag, t, 0)
++}
++
++func elfdynhash(ctxt *Link) {
++	if !ctxt.IsELF {
++		return
++	}
++
++	nsym := Nelfsym
++	s := ctxt.Syms.Lookup(".hash", 0)
++	s.Type = sym.SELFROSECT
++	s.Attr |= sym.AttrReachable
++
++	i := nsym
++	nbucket := 1
++	for i > 0 {
++		nbucket++
++		i >>= 1
++	}
++
++	var needlib *Elflib
++	need := make([]*Elfaux, nsym)
++	chain := make([]uint32, nsym)
++	buckets := make([]uint32, nbucket)
++
++	for _, sy := range ctxt.Syms.Allsym {
++		if sy.Dynid <= 0 {
++			continue
++		}
++
++		if sy.Dynimpvers() != "" {
++			need[sy.Dynid] = addelflib(&needlib, sy.Dynimplib(), sy.Dynimpvers())
++		}
++
++		name := sy.Extname()
++		hc := elfhash(name)
++
++		b := hc % uint32(nbucket)
++		chain[sy.Dynid] = buckets[b]
++		buckets[b] = uint32(sy.Dynid)
++	}
++
++	// s390x (ELF64) hash table entries are 8 bytes
++	if ctxt.Arch.Family == sys.S390X {
++		s.AddUint64(ctxt.Arch, uint64(nbucket))
++		s.AddUint64(ctxt.Arch, uint64(nsym))
++		for i := 0; i < nbucket; i++ {
++			s.AddUint64(ctxt.Arch, uint64(buckets[i]))
++		}
++		for i := 0; i < nsym; i++ {
++			s.AddUint64(ctxt.Arch, uint64(chain[i]))
++		}
++	} else {
++		s.AddUint32(ctxt.Arch, uint32(nbucket))
++		s.AddUint32(ctxt.Arch, uint32(nsym))
++		for i := 0; i < nbucket; i++ {
++			s.AddUint32(ctxt.Arch, buckets[i])
++		}
++		for i := 0; i < nsym; i++ {
++			s.AddUint32(ctxt.Arch, chain[i])
++		}
++	}
++
++	// version symbols
++	dynstr := ctxt.Syms.Lookup(".dynstr", 0)
++
++	s = ctxt.Syms.Lookup(".gnu.version_r", 0)
++	i = 2
++	nfile := 0
++	for l := needlib; l != nil; l = l.next {
++		nfile++
++
++		// header
++		s.AddUint16(ctxt.Arch, 1) // table version
++		j := 0
++		for x := l.aux; x != nil; x = x.next {
++			j++
++		}
++		s.AddUint16(ctxt.Arch, uint16(j))                         // aux count
++		s.AddUint32(ctxt.Arch, uint32(Addstring(dynstr, l.file))) // file string offset
++		s.AddUint32(ctxt.Arch, 16)                                // offset from header to first aux
++		if l.next != nil {
++			s.AddUint32(ctxt.Arch, 16+uint32(j)*16) // offset from this header to next
++		} else {
++			s.AddUint32(ctxt.Arch, 0)
++		}
++
++		for x := l.aux; x != nil; x = x.next {
++			x.num = i
++			i++
++
++			// aux struct
++			s.AddUint32(ctxt.Arch, elfhash(x.vers))                   // hash
++			s.AddUint16(ctxt.Arch, 0)                                 // flags
++			s.AddUint16(ctxt.Arch, uint16(x.num))                     // other - index we refer to this by
++			s.AddUint32(ctxt.Arch, uint32(Addstring(dynstr, x.vers))) // version string offset
++			if x.next != nil {
++				s.AddUint32(ctxt.Arch, 16) // offset from this aux to next
++			} else {
++				s.AddUint32(ctxt.Arch, 0)
++			}
++		}
++	}
++
++	// version references
++	s = ctxt.Syms.Lookup(".gnu.version", 0)
++
++	for i := 0; i < nsym; i++ {
++		if i == 0 {
++			s.AddUint16(ctxt.Arch, 0) // first entry - no symbol
++		} else if need[i] == nil {
++			s.AddUint16(ctxt.Arch, 1) // global
++		} else {
++			s.AddUint16(ctxt.Arch, uint16(need[i].num))
++		}
++	}
++
++	s = ctxt.Syms.Lookup(".dynamic", 0)
++	elfverneed = nfile
++	if elfverneed != 0 {
++		elfWriteDynEntSym(ctxt.Arch, s, DT_VERNEED, ctxt.Syms.Lookup(".gnu.version_r", 0))
++		elfWriteDynEnt(ctxt.Arch, s, DT_VERNEEDNUM, uint64(nfile))
++		elfWriteDynEntSym(ctxt.Arch, s, DT_VERSYM, ctxt.Syms.Lookup(".gnu.version", 0))
++	}
++
++	sy := ctxt.Syms.Lookup(elfRelType+".plt", 0)
++	if sy.Size > 0 {
++		if elfRelType == ".rela" {
++			elfWriteDynEnt(ctxt.Arch, s, DT_PLTREL, DT_RELA)
++		} else {
++			elfWriteDynEnt(ctxt.Arch, s, DT_PLTREL, DT_REL)
++		}
++		elfWriteDynEntSymSize(ctxt.Arch, s, DT_PLTRELSZ, sy)
++		elfWriteDynEntSym(ctxt.Arch, s, DT_JMPREL, sy)
++	}
++
++	elfWriteDynEnt(ctxt.Arch, s, DT_NULL, 0)
++}
+diff --git a/src/cmd/link/internal/ld/go.go b/src/cmd/link/internal/ld/go.go
+index 8474cefa39..3bcd56ef6d 100644
+--- a/src/cmd/link/internal/ld/go.go
++++ b/src/cmd/link/internal/ld/go.go
+@@ -331,7 +331,7 @@ func adddynlib(ctxt *Link, lib string) {
+ 	}
+ }
+ 
+-func Adddynsym2(ldr *loader.Loader, reporter *ErrorReporter, target *Target, syms *ArchSyms, s loader.Sym) {
++func Adddynsym2(ldr *loader.Loader, target *Target, syms *ArchSyms, s loader.Sym) {
+ 	if ldr.SymDynid(s) >= 0 || target.LinkMode == LinkExternal {
+ 		return
+ 	}
+@@ -339,11 +339,11 @@ func Adddynsym2(ldr *loader.Loader, reporter *ErrorReporter, target *Target, sym
+ 	if target.IsELF {
+ 		elfadddynsym2(ldr, target, syms, s)
+ 	} else if target.HeadType == objabi.Hdarwin {
+-		reporter.Errorf(s, "adddynsym: missed symbol (Extname=%s)", ldr.SymExtname(s))
++		ldr.Errorf(s, "adddynsym: missed symbol (Extname=%s)", ldr.SymExtname(s))
+ 	} else if target.HeadType == objabi.Hwindows {
+ 		// already taken care of
+ 	} else {
+-		reporter.Errorf(s, "adddynsym: unsupported binary format")
++		ldr.Errorf(s, "adddynsym: unsupported binary format")
+ 	}
+ }
+ 
+@@ -425,7 +425,7 @@ func (ctxt *Link) addexport() {
+ 	}
+ 
+ 	for _, exp := range ctxt.dynexp2 {
+-		Adddynsym2(ctxt.loader, &ctxt.ErrorReporter, &ctxt.Target, &ctxt.ArchSyms, exp)
++		Adddynsym2(ctxt.loader, &ctxt.Target, &ctxt.ArchSyms, exp)
+ 	}
+ 	for _, lib := range dynlib {
+ 		adddynlib(ctxt, lib)
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 675103ee45..ede7596770 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -232,6 +232,7 @@ type Arch struct {
+ 	Dragonflydynld string
+ 	Solarisdynld   string
+ 	Adddynrel      func(*Target, *loader.Loader, *ArchSyms, *sym.Symbol, *sym.Reloc) bool
++	Adddynrel2     func(*Target, *loader.Loader, *ArchSyms, loader.Sym, *loader.Reloc2, int) bool
+ 	Archinit       func(*Link)
+ 	// Archreloc is an arch-specific hook that assists in
+ 	// relocation processing (invoked by 'relocsym'); it handles
+@@ -2800,7 +2801,7 @@ func addToTextp(ctxt *Link) {
+ 	ctxt.Textp = textp
+ }
+ 
+-func (ctxt *Link) loadlibfull() {
++func (ctxt *Link) loadlibfull(symGroupType []sym.SymKind) {
+ 
+ 	// Load full symbol contents, resolve indexed references.
+ 	ctxt.loader.LoadFull(ctxt.Arch, ctxt.Syms)
+@@ -2841,12 +2842,41 @@ func (ctxt *Link) loadlibfull() {
+ 		dwarfp = append(dwarfp, dwarfSecInfo2{syms: syms})
+ 	}
+ 
++	// Populate datap from datap2
++	ctxt.datap = make([]*sym.Symbol, len(ctxt.datap2))
++	for i, symIdx := range ctxt.datap2 {
++		s := ctxt.loader.Syms[symIdx]
++		if s == nil {
++			panic(fmt.Sprintf("nil sym for datap2 element %d", symIdx))
++		}
++		ctxt.datap[i] = s
++	}
++
++	// Populate the sym.Section 'Sym' fields based on their 'Sym2'
++	// fields.
++	allSegments := []*sym.Segment{&Segtext, &Segrodata, &Segrelrodata, &Segdata, &Segdwarf}
++	for _, seg := range allSegments {
++		for _, sect := range seg.Sections {
++			if sect.Sym2 != 0 {
++				s := ctxt.loader.Syms[sect.Sym2]
++				if s == nil {
++					panic(fmt.Sprintf("nil sym for sect %s sym %d", sect.Name, sect.Sym2))
++				}
++				sect.Sym = s
++			}
++		}
++	}
++
+ 	// For now, overwrite symbol type with its "group" type, as dodata
+ 	// expected. Once we converted dodata, this will probably not be
+ 	// needed.
+ 	for i, t := range symGroupType {
+ 		if t != sym.Sxxx {
+-			ctxt.loader.Syms[i].Type = t
++			s := ctxt.loader.Syms[i]
++			if s == nil {
++				panic(fmt.Sprintf("nil sym for symGroupType t=%s entry %d", t.String(), i))
++			}
++			s.Type = t
+ 		}
+ 	}
+ 	symGroupType = nil
+diff --git a/src/cmd/link/internal/ld/link.go b/src/cmd/link/internal/ld/link.go
+index f6441a5b65..6597d84368 100644
+--- a/src/cmd/link/internal/ld/link.go
++++ b/src/cmd/link/internal/ld/link.go
+@@ -92,6 +92,7 @@ type Link struct {
+ 	cgo_export_dynamic map[string]bool
+ 
+ 	datap   []*sym.Symbol
++	datap2  []loader.Sym
+ 	dynexp2 []loader.Sym
+ 
+ 	// Elf symtab variables.
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index 91656170b8..fe65d944c1 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -95,6 +95,7 @@ var (
+ 	cpuprofile     = flag.String("cpuprofile", "", "write cpu profile to `file`")
+ 	memprofile     = flag.String("memprofile", "", "write memory profile to `file`")
+ 	memprofilerate = flag.Int64("memprofilerate", 0, "set runtime.MemProfileRate to `rate`")
++	flagnewDoData  = flag.Bool("newdodata", true, "New style dodata")
+ 
+ 	benchmarkFlag     = flag.String("benchmark", "", "set to 'mem' or 'cpu' to enable phase benchmarking")
+ 	benchmarkFileFlag = flag.String("benchmarkprofile", "", "emit phase profiles to `base`_phase.{cpu,mem}prof")
+@@ -155,6 +156,13 @@ func Main(arch *sys.Arch, theArch Arch) {
+ 		}
+ 	}
+ 
++	if *flagnewDoData {
++		// New dodata() is currently only implemented for linux/amd64.
++		if !(ctxt.IsElf() && ctxt.IsAMD64()) {
++			*flagnewDoData = false
++		}
++	}
++
+ 	checkStrictDups = *FlagStrictDups
+ 
+ 	startProfile()
+@@ -297,11 +305,17 @@ func Main(arch *sys.Arch, theArch Arch) {
+ 	bench.Start("dwarfGenerateDebugSyms")
+ 	dwarfGenerateDebugSyms(ctxt)
+ 	bench.Start("symtab")
+-	ctxt.symtab()
++	symGroupType := ctxt.symtab()
++	if *flagnewDoData {
++		bench.Start("dodata")
++		ctxt.dodata2(symGroupType)
++	}
+ 	bench.Start("loadlibfull")
+-	ctxt.loadlibfull() // XXX do it here for now
+-	bench.Start("dodata")
+-	ctxt.dodata()
++	ctxt.loadlibfull(symGroupType) // XXX do it here for now
++	if !*flagnewDoData {
++		bench.Start("dodata")
++		ctxt.dodata()
++	}
+ 	bench.Start("address")
+ 	order := ctxt.address()
+ 	bench.Start("dwarfcompress")
+diff --git a/src/cmd/link/internal/ld/symtab.go b/src/cmd/link/internal/ld/symtab.go
+index 9aca0ded3b..5954176b1c 100644
+--- a/src/cmd/link/internal/ld/symtab.go
++++ b/src/cmd/link/internal/ld/symtab.go
+@@ -327,9 +327,7 @@ func textsectionmap(ctxt *Link) (loader.Sym, uint32) {
+ 	return t.Sym(), uint32(n)
+ }
+ 
+-var symGroupType []sym.SymKind // temporarily assign a symbol's "group" type
+-
+-func (ctxt *Link) symtab() {
++func (ctxt *Link) symtab() []sym.SymKind {
+ 	ldr := ctxt.loader
+ 
+ 	if !ctxt.IsAIX() {
+@@ -441,7 +439,7 @@ func (ctxt *Link) symtab() {
+ 	// just defined above will be first.
+ 	// hide the specific symbols.
+ 	nsym := loader.Sym(ldr.NSym())
+-	symGroupType = make([]sym.SymKind, nsym)
++	symGroupType := make([]sym.SymKind, nsym)
+ 	for s := loader.Sym(1); s < nsym; s++ {
+ 		name := ldr.SymName(s)
+ 		if !ctxt.IsExternal() && isStaticTemp(name) {
+@@ -709,6 +707,7 @@ func (ctxt *Link) symtab() {
+ 		lastmoduledatap.SetData(nil)
+ 		lastmoduledatap.AddAddr(ctxt.Arch, moduledata.Sym())
+ 	}
++	return symGroupType
+ }
+ 
+ func isStaticTemp(name string) bool {
+diff --git a/src/cmd/link/internal/ld/xcoff.go b/src/cmd/link/internal/ld/xcoff.go
+index 94920f4457..b0c0c5d65c 100644
+--- a/src/cmd/link/internal/ld/xcoff.go
++++ b/src/cmd/link/internal/ld/xcoff.go
+@@ -567,11 +567,12 @@ var (
+ 
+ // xcoffUpdateOuterSize stores the size of outer symbols in order to have it
+ // in the symbol table.
+-func xcoffUpdateOuterSize(ctxt *Link, size int64, stype sym.SymKind) {
++func xcoffUpdateOuterSize2(ctxt *Link, size int64, stype sym.SymKind) {
+ 	if size == 0 {
+ 		return
+ 	}
+ 
++	ldr := ctxt.loader
+ 	switch stype {
+ 	default:
+ 		Errorf(nil, "unknown XCOFF outer symbol for type %s", stype.String())
+@@ -580,14 +581,16 @@ func xcoffUpdateOuterSize(ctxt *Link, size int64, stype sym.SymKind) {
+ 	case sym.STYPERELRO:
+ 		if ctxt.UseRelro() && (ctxt.BuildMode == BuildModeCArchive || ctxt.BuildMode == BuildModeCShared || ctxt.BuildMode == BuildModePIE) {
+ 			// runtime.types size must be removed, as it's a real symbol.
+-			outerSymSize["typerel.*"] = size - ctxt.Syms.ROLookup("runtime.types", 0).Size
++			tsize := ldr.SymSize(ldr.Lookup("runtime.types", 0))
++			outerSymSize["typerel.*"] = size - tsize
+ 			return
+ 		}
+ 		fallthrough
+ 	case sym.STYPE:
+ 		if !ctxt.DynlinkingGo() {
+ 			// runtime.types size must be removed, as it's a real symbol.
+-			outerSymSize["type.*"] = size - ctxt.Syms.ROLookup("runtime.types", 0).Size
++			tsize := ldr.SymSize(ldr.Lookup("runtime.types", 0))
++			outerSymSize["type.*"] = size - tsize
+ 		}
+ 	case sym.SGOSTRING:
+ 		outerSymSize["go.string.*"] = size
+@@ -603,7 +606,6 @@ func xcoffUpdateOuterSize(ctxt *Link, size int64, stype sym.SymKind) {
+ 		outerSymSize["runtime.itablink"] = size
+ 
+ 	}
+-
+ }
+ 
+ // addSymbol writes a symbol or an auxiliary symbol entry on ctxt.out.
+diff --git a/src/cmd/link/internal/ld/xcoff2.go b/src/cmd/link/internal/ld/xcoff2.go
+new file mode 100644
+index 0000000000..f2c893feca
+--- /dev/null
++++ b/src/cmd/link/internal/ld/xcoff2.go
+@@ -0,0 +1,52 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ld
++
++import "cmd/link/internal/sym"
++
++// Temporary dumping around for sym.Symbol version of helper
++// functions in xcoff.go, still being used for some archs/oses.
++// FIXME: get rid of this file when dodata() is completely
++// converted.
++
++// xcoffUpdateOuterSize stores the size of outer symbols in order to have it
++// in the symbol table.
++func xcoffUpdateOuterSize(ctxt *Link, size int64, stype sym.SymKind) {
++	if size == 0 {
++		return
++	}
++
++	switch stype {
++	default:
++		Errorf(nil, "unknown XCOFF outer symbol for type %s", stype.String())
++	case sym.SRODATA, sym.SRODATARELRO, sym.SFUNCTAB, sym.SSTRING:
++		// Nothing to do
++	case sym.STYPERELRO:
++		if ctxt.UseRelro() && (ctxt.BuildMode == BuildModeCArchive || ctxt.BuildMode == BuildModeCShared || ctxt.BuildMode == BuildModePIE) {
++			// runtime.types size must be removed, as it's a real symbol.
++			outerSymSize["typerel.*"] = size - ctxt.Syms.ROLookup("runtime.types", 0).Size
++			return
++		}
++		fallthrough
++	case sym.STYPE:
++		if !ctxt.DynlinkingGo() {
++			// runtime.types size must be removed, as it's a real symbol.
++			outerSymSize["type.*"] = size - ctxt.Syms.ROLookup("runtime.types", 0).Size
++		}
++	case sym.SGOSTRING:
++		outerSymSize["go.string.*"] = size
++	case sym.SGOFUNC:
++		if !ctxt.DynlinkingGo() {
++			outerSymSize["go.func.*"] = size
++		}
++	case sym.SGOFUNCRELRO:
++		outerSymSize["go.funcrel.*"] = size
++	case sym.SGCBITS:
++		outerSymSize["runtime.gcbits.*"] = size
++	case sym.SITABLINK:
++		outerSymSize["runtime.itablink"] = size
++
++	}
++}
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index 458c87a6b6..114bd43477 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -1268,6 +1268,17 @@ func (l *Loader) SetSymDynid(i Sym, val int32) {
+ 	}
+ }
+ 
++// DynIdSyms returns the set of symbols for which dynID is set to an
++// interesting (non-default) value. This is expected to be a fairly
++// small set.
++func (l *Loader) DynidSyms() []Sym {
++	sl := make([]Sym, 0, len(l.dynid))
++	for s := range l.dynid {
++		sl = append(sl, s)
++	}
++	return sl
++}
++
+ // SymGoType returns the 'Gotype' property for a given symbol (set by
+ // the Go compiler for variable symbols). This version relies on
+ // reading aux symbols for the target sym -- it could be that a faster
+@@ -2255,6 +2266,30 @@ func (l *Loader) addNewSym(i Sym, name string, ver int, unit *sym.CompilationUni
+ 	return s
+ }
+ 
++// TopLevelSym tests a symbol (by name and kind) to determine whether
++// the symbol first class sym (participating in the link) or is an
++// anonymous aux or sub-symbol containing some sub-part or payload of
++// another symbol.
++func (l *Loader) TopLevelSym(s Sym) bool {
++	return topLevelSym(l.RawSymName(s), l.SymType(s))
++}
++
++// topLevelSym tests a symbol name and kind to determine whether
++// the symbol first class sym (participating in the link) or is an
++// anonymous aux or sub-symbol containing some sub-part or payload of
++// another symbol.
++func topLevelSym(sname string, skind sym.SymKind) bool {
++	if sname != "" {
++		return true
++	}
++	switch skind {
++	case sym.SDWARFINFO, sym.SDWARFRANGE, sym.SDWARFLOC, sym.SDWARFLINES, sym.SGOFUNC:
++		return true
++	default:
++		return false
++	}
++}
++
+ // loadObjSyms creates sym.Symbol objects for the live Syms in the
+ // object corresponding to object reader "r". Return value is the
+ // number of sym.Reloc entries required for all the new symbols.
+@@ -2268,16 +2303,11 @@ func loadObjSyms(l *Loader, syms *sym.Symbols, r *oReader) int {
+ 		osym := r.Sym(i)
+ 		name := strings.Replace(osym.Name(r.Reader), "\"\".", r.pkgprefix, -1)
+ 		t := sym.AbiSymKindToSymKind[objabi.SymKind(osym.Type())]
+-		// NB: for the test below, we can skip most anonymous symbols
+-		// since they will never be turned into sym.Symbols (eg:
+-		// funcdata). DWARF symbols are an exception however -- we
+-		// want to include all reachable but nameless DWARF symbols.
+-		if name == "" {
+-			switch t {
+-			case sym.SDWARFINFO, sym.SDWARFRANGE, sym.SDWARFLOC, sym.SDWARFLINES:
+-			default:
+-				continue
+-			}
++
++		// Skip non-dwarf anonymous symbols (e.g. funcdata),
++		// since they will never be turned into sym.Symbols.
++		if !topLevelSym(name, t) {
++			continue
+ 		}
+ 		ver := abiToVer(osym.ABI(), r.version)
+ 		if t == sym.SXREF {
+diff --git a/src/cmd/link/internal/loader/symbolbuilder.go b/src/cmd/link/internal/loader/symbolbuilder.go
+index 21ed621f80..70adb369a4 100644
+--- a/src/cmd/link/internal/loader/symbolbuilder.go
++++ b/src/cmd/link/internal/loader/symbolbuilder.go
+@@ -447,3 +447,10 @@ func GenAddAddrPlusFunc(internalExec bool) func(s *SymbolBuilder, arch *sys.Arch
+ 		return (*SymbolBuilder).AddAddrPlus
+ 	}
+ }
++
++func (sb *SymbolBuilder) MakeWritable() {
++	if sb.ReadOnly() {
++		sb.data = append([]byte(nil), sb.data...)
++		sb.l.SetAttrReadOnly(sb.symIdx, false)
++	}
++}
+diff --git a/src/cmd/link/internal/ppc64/asm.go b/src/cmd/link/internal/ppc64/asm.go
+index 0e3a691432..8f7fe35220 100644
+--- a/src/cmd/link/internal/ppc64/asm.go
++++ b/src/cmd/link/internal/ppc64/asm.go
+@@ -972,7 +972,7 @@ func addpltsym2(ctxt *ld.Link, ldr *loader.Loader, s loader.Sym) {
+ 		return
+ 	}
+ 
+-	ld.Adddynsym2(ldr, &ctxt.ErrorReporter, &ctxt.Target, &ctxt.ArchSyms, s)
++	ld.Adddynsym2(ldr, &ctxt.Target, &ctxt.ArchSyms, s)
+ 
+ 	if ctxt.IsELF {
+ 		plt := ldr.MakeSymbolUpdater(ctxt.PLT2)
+diff --git a/src/cmd/link/internal/sym/segment.go b/src/cmd/link/internal/sym/segment.go
+index 5ca0228163..662e8e0c8f 100644
+--- a/src/cmd/link/internal/sym/segment.go
++++ b/src/cmd/link/internal/sym/segment.go
+@@ -55,6 +55,7 @@ type Section struct {
+ 	Elfsect interface{} // an *ld.ElfShdr
+ 	Reloff  uint64
+ 	Rellen  uint64
+-	Sym     *Symbol // symbol for the section, if any
+-	Index   uint16  // each section has a unique index, used internally
++	Sym     *Symbol   // symbol for the section, if any
++	Sym2    LoaderSym // symbol for the section, if any
++	Index   uint16    // each section has a unique index, used internally
+ }

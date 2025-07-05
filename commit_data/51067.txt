@@ -16,6 +16,33 @@ Date:   Fri Nov 19 16:51:47 2021 -0500
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  doc/go1.18.html | 8 ++++++--
  1 file changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go1.18.html b/doc/go1.18.html
+index d9da160ab5..74d0e0c23e 100644
+--- a/doc/go1.18.html
++++ b/doc/go1.18.html
+@@ -290,7 +290,7 @@ proposal</a>.
+ <dl id="bufio"><dt><a href="/pkg/bufio/">bufio</a></dt>
+   <dd>
+     <p><!-- CL 345569 -->
+-      The new <a href="/pkg/bufio#AvailableBuffer"><code>Writer.AvailableBuffer</code></a>
++      The new <a href="/pkg/bufio#Writer.AvailableBuffer"><code>Writer.AvailableBuffer</code></a>
+       method returns an empty buffer with a possibly non-empty capacity for use
+       with append-like APIs. After appending, the buffer can be provided to a
+ 			succeeding <code>Write</code> call and possibly avoid any copying.
+@@ -517,7 +517,11 @@ proposal</a>.
+ <dl id="text/template"><dt><a href="/pkg/text/template/">text/template</a></dt>
+   <dd>
+     <p><!-- CL 321490 -->
+-      TODO: <a href="https://golang.org/cl/321490">https://golang.org/cl/321490</a>: implement short-circuit and, or
++      The <code>and</code> function no longer always evaluates all arguments; it
++      stops evaluating arguments after the first argument that evaluates to
++      false.  Similarly, the <code>or</code> function now stops evaluating
++      arguments after the first argument that evaluates to true. This makes a
++      difference if any of the arguments is a function call.
+     </p>
+   </dd>
+ </dl><!-- text/template -->

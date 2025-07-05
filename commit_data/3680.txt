@@ -7,6 +7,10 @@ Date:   Fri Oct 30 10:34:01 2009 -0700
     R=rsc
     CC=go-dev
     http://go/go-review/1016007
-
+---
  doc/sieve.gif | Bin 11567 -> 11019 bytes
  1 file changed, 0 insertions(+), 0 deletions(-)
+
+diff --git a/doc/sieve.gif b/doc/sieve.gif
+index c33bafd06b..8018ae225e 100644
+Binary files a/doc/sieve.gif and b/doc/sieve.gif differ

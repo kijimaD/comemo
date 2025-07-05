@@ -17,8 +17,79 @@ Date:   Fri Sep 30 17:08:43 2022 -0400
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Run-TryBot: Michael Pratt <mpratt@google.com>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/pprof/proto.go   | 9 ++++++++-
  src/runtime/pprof/runtime.go | 4 ++++
  src/runtime/symtab.go        | 7 +++++++
  3 files changed, 19 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/pprof/proto.go b/src/runtime/pprof/proto.go
+index e856c7643e..8a49e144b9 100644
+--- a/src/runtime/pprof/proto.go
++++ b/src/runtime/pprof/proto.go
+@@ -590,6 +590,7 @@ func (b *profileBuilder) emitLocation() uint64 {
+ 	type newFunc struct {
+ 		id         uint64
+ 		name, file string
++		startLine  int64
+ 	}
+ 	newFuncs := make([]newFunc, 0, 8)
+ 
+@@ -610,7 +611,12 @@ func (b *profileBuilder) emitLocation() uint64 {
+ 		if funcID == 0 {
+ 			funcID = uint64(len(b.funcs)) + 1
+ 			b.funcs[frame.Function] = int(funcID)
+-			newFuncs = append(newFuncs, newFunc{funcID, frame.Function, frame.File})
++			newFuncs = append(newFuncs, newFunc{
++				id:        funcID,
++				name:      frame.Function,
++				file:      frame.File,
++				startLine: int64(runtime_FrameStartLine(&frame)),
++			})
+ 		}
+ 		b.pbLine(tagLocation_Line, funcID, int64(frame.Line))
+ 	}
+@@ -633,6 +639,7 @@ func (b *profileBuilder) emitLocation() uint64 {
+ 		b.pb.int64Opt(tagFunction_Name, b.stringIndex(fn.name))
+ 		b.pb.int64Opt(tagFunction_SystemName, b.stringIndex(fn.name))
+ 		b.pb.int64Opt(tagFunction_Filename, b.stringIndex(fn.file))
++		b.pb.int64Opt(tagFunction_StartLine, fn.startLine)
+ 		b.pb.endMessage(tagProfile_Function, start)
+ 	}
+ 
+diff --git a/src/runtime/pprof/runtime.go b/src/runtime/pprof/runtime.go
+index dd2545b339..57e9ca480b 100644
+--- a/src/runtime/pprof/runtime.go
++++ b/src/runtime/pprof/runtime.go
+@@ -6,9 +6,13 @@ package pprof
+ 
+ import (
+ 	"context"
++	"runtime"
+ 	"unsafe"
+ )
+ 
++// runtime_FrameStartLine is defined in runtime/symtab.go.
++func runtime_FrameStartLine(f *runtime.Frame) int
++
+ // runtime_expandFinalInlineFrame is defined in runtime/symtab.go.
+ func runtime_expandFinalInlineFrame(stk []uintptr) []uintptr
+ 
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index 920ec12d54..f47f96dd0f 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -170,6 +170,13 @@ func (ci *Frames) Next() (frame Frame, more bool) {
+ 	return
+ }
+ 
++// runtime_FrameStartLine returns the start line of the function in a Frame.
++//
++//go:linkname runtime_FrameStartLine runtime/pprof.runtime_FrameStartLine
++func runtime_FrameStartLine(f *Frame) int {
++	return f.startLine
++}
++
+ // runtime_expandFinalInlineFrame expands the final pc in stk to include all
+ // "callers" if pc is inline.
+ //

@@ -21,7 +21,94 @@ Date:   Tue Aug 25 01:49:39 2020 +0300
     Reviewed-by: Jay Conrod <jayconrod@google.com>
     Trust: Bryan C. Mills <bcmills@google.com>
     Trust: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/envcmd/env.go        | 24 ++++++++++++++++++++----
  src/cmd/go/testdata/script/env_write.txt | 26 ++++++++++++++++++++++++++
  2 files changed, 46 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/internal/envcmd/env.go b/src/cmd/go/internal/envcmd/env.go
+index e1f2400f60..59d0ded658 100644
+--- a/src/cmd/go/internal/envcmd/env.go
++++ b/src/cmd/go/internal/envcmd/env.go
+@@ -203,10 +203,19 @@ func runEnv(ctx context.Context, cmd *base.Command, args []string) {
+ 	}
+ 
+ 	// Do we need to call ExtraEnvVarsCostly, which is a bit expensive?
+-	// Only if we're listing all environment variables ("go env")
+-	// or the variables being requested are in the extra list.
+-	needCostly := true
+-	if len(args) > 0 {
++	needCostly := false
++	if *envU || *envW {
++		// We're overwriting or removing default settings,
++		// so it doesn't really matter what the existing settings are.
++		//
++		// Moreover, we haven't validated the new settings yet, so it is
++		// important that we NOT perform any actions based on them,
++		// such as initializing the builder to compute other variables.
++	} else if len(args) == 0 {
++		// We're listing all environment variables ("go env"),
++		// including the expensive ones.
++		needCostly = true
++	} else {
+ 		needCostly = false
+ 		for _, arg := range args {
+ 			switch argKey(arg) {
+@@ -269,6 +278,13 @@ func runEnv(ctx context.Context, cmd *base.Command, args []string) {
+ 			}
+ 		}
+ 
++		gotmp, okGOTMP := add["GOTMPDIR"]
++		if okGOTMP {
++			if !filepath.IsAbs(gotmp) && gotmp != "" {
++				base.Fatalf("go env -w: GOTMPDIR must be an absolute path")
++			}
++		}
++
+ 		updateEnvFile(add, nil)
+ 		return
+ 	}
+diff --git a/src/cmd/go/testdata/script/env_write.txt b/src/cmd/go/testdata/script/env_write.txt
+index 2366c3f580..bdb9bc4077 100644
+--- a/src/cmd/go/testdata/script/env_write.txt
++++ b/src/cmd/go/testdata/script/env_write.txt
+@@ -24,6 +24,12 @@ stdout GOARCH=
+ stdout GOOS=
+ stdout GOROOT=
+ 
++# checking errors
++! go env -w
++stderr 'go env -w: no KEY=VALUE arguments given'
++! go env -u
++stderr 'go env -u: no arguments given'
++
+ # go env -w changes default setting
+ env root=
+ [windows] env root=c:
+@@ -97,6 +103,26 @@ stderr 'GOPATH entry cannot start with shell metacharacter'
+ ! go env -w GOPATH=./go
+ stderr 'GOPATH entry is relative; must be absolute path'
+ 
++# go env -w rejects invalid GOTMPDIR values
++! go env -w GOTMPDIR=x
++stderr 'go env -w: GOTMPDIR must be an absolute path'
++
++# go env -w should accept absolute GOTMPDIR value
++# and should not create it
++[windows] go env -w GOTMPDIR=$WORK\x\y\z
++[!windows] go env -w GOTMPDIR=$WORK/x/y/z
++! exists $WORK/x/y/z
++# we should be able to clear an env
++go env -u GOTMPDIR
++go env GOTMPDIR
++stdout ^$
++
++[windows] go env -w GOTMPDIR=$WORK\x\y\z
++[!windows] go env -w GOTMPDIR=$WORK/x/y/z
++go env -w GOTMPDIR=
++go env GOTMPDIR
++stdout ^$
++
+ # go env -w/-u checks validity of GOOS/ARCH combinations
+ env GOOS=
+ env GOARCH=

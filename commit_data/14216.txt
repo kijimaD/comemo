@@ -7,6 +7,24 @@ Date:   Thu Oct 25 13:41:04 2012 +0800
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/6763043
-
+---
  src/pkg/syscall/syscall_linux_arm.go | 5 ++---
  1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/syscall/syscall_linux_arm.go b/src/pkg/syscall/syscall_linux_arm.go
+index 766cf37c6c..547a4eb9bc 100644
+--- a/src/pkg/syscall/syscall_linux_arm.go
++++ b/src/pkg/syscall/syscall_linux_arm.go
+@@ -170,10 +170,9 @@ func Setrlimit(resource int, rlim *Rlimit) (err error) {
+ 	return setrlimit(resource, &rl)
+ }
+ 
+-// TODO(kaib): add support for tracing
+-func (r *PtraceRegs) PC() uint64 { return 0 }
++func (r *PtraceRegs) PC() uint64 { return uint64(r.Uregs[15]) }
+ 
+-func (r *PtraceRegs) SetPC(pc uint64) {}
++func (r *PtraceRegs) SetPC(pc uint64) { r.Uregs[15] = uint32(pc) }
+ 
+ func (iov *Iovec) SetLen(length int) {
+ 	iov.Len = uint32(length)

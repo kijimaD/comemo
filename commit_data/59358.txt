@@ -9,9 +9,145 @@ Date:   Wed Feb 21 12:39:31 2024 +0800
     Reviewed-by: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Damien Neil <dneil@google.com>
-
+---
  src/internal/syscall/windows/net_windows.go     | 11 -----------
  src/internal/syscall/windows/version_windows.go | 24 +++++++++++++++++++++++-
  src/net/fd_windows.go                           |  2 +-
  src/net/unixsock_windows_test.go                | 25 +++----------------------
  4 files changed, 27 insertions(+), 35 deletions(-)
+
+diff --git a/src/internal/syscall/windows/net_windows.go b/src/internal/syscall/windows/net_windows.go
+index 42c600c144..9fa5ecf840 100644
+--- a/src/internal/syscall/windows/net_windows.go
++++ b/src/internal/syscall/windows/net_windows.go
+@@ -5,7 +5,6 @@
+ package windows
+ 
+ import (
+-	"sync"
+ 	"syscall"
+ 	_ "unsafe"
+ )
+@@ -28,13 +27,3 @@ type TCP_INITIAL_RTO_PARAMETERS struct {
+ 	Rtt                   uint16
+ 	MaxSynRetransmissions uint8
+ }
+-
+-var Support_TCP_INITIAL_RTO_NO_SYN_RETRANSMISSIONS = sync.OnceValue(func() bool {
+-	var maj, min, build uint32
+-	rtlGetNtVersionNumbers(&maj, &min, &build)
+-	return maj >= 10 && build&0xffff >= 16299
+-})
+-
+-//go:linkname rtlGetNtVersionNumbers syscall.rtlGetNtVersionNumbers
+-//go:noescape
+-func rtlGetNtVersionNumbers(majorVersion *uint32, minorVersion *uint32, buildNumber *uint32)
+diff --git a/src/internal/syscall/windows/version_windows.go b/src/internal/syscall/windows/version_windows.go
+index c0861ec509..f0abb5d5a2 100644
+--- a/src/internal/syscall/windows/version_windows.go
++++ b/src/internal/syscall/windows/version_windows.go
+@@ -4,7 +4,10 @@
+ 
+ package windows
+ 
+-import "sync"
++import (
++	"sync"
++	_ "unsafe" // for linkname
++)
+ 
+ // Version retrieves the major, minor, and build version numbers
+ // of the current Windows OS from the RtlGetNtVersionNumbers API
+@@ -15,6 +18,10 @@ func Version() (major, minor, build uint32) {
+ 	return
+ }
+ 
++//go:linkname rtlGetNtVersionNumbers syscall.rtlGetNtVersionNumbers
++//go:noescape
++func rtlGetNtVersionNumbers(majorVersion *uint32, minorVersion *uint32, buildNumber *uint32)
++
+ // SupportFullTCPKeepAlive indicates whether the current Windows version
+ // supports the full TCP keep-alive configurations, the minimal requirement
+ // is Windows 10, version 1709.
+@@ -22,3 +29,18 @@ var SupportFullTCPKeepAlive = sync.OnceValue(func() bool {
+ 	major, _, build := Version()
+ 	return major >= 10 && build >= 16299
+ })
++
++// SupportTCPInitialRTONoSYNRetransmissions indicates whether the current
++// Windows version supports the TCP_INITIAL_RTO_NO_SYN_RETRANSMISSIONS, the
++// minimal requirement is Windows 10.0.16299.
++var SupportTCPInitialRTONoSYNRetransmissions = sync.OnceValue(func() bool {
++	major, _, build := Version()
++	return major >= 10 && build >= 16299
++})
++
++// SupportUnixSocket indicates whether the current Windows version supports
++// Unix Domain Sockets, the minimal requirement is Windows 10, build 17063.
++var SupportUnixSocket = sync.OnceValue(func() bool {
++	major, _, build := Version()
++	return major >= 10 && build >= 17063
++})
+diff --git a/src/net/fd_windows.go b/src/net/fd_windows.go
+index 254a5d491e..5d7a1d54c3 100644
+--- a/src/net/fd_windows.go
++++ b/src/net/fd_windows.go
+@@ -135,7 +135,7 @@ func (fd *netFD) connect(ctx context.Context, la, ra syscall.Sockaddr) (syscall.
+ 			Rtt:                   windows.TCP_INITIAL_RTO_UNSPECIFIED_RTT, // use the default or overridden by the Administrator
+ 			MaxSynRetransmissions: 1,                                       // minimum possible value before Windows 10.0.16299
+ 		}
+-		if windows.Support_TCP_INITIAL_RTO_NO_SYN_RETRANSMISSIONS() {
++		if windows.SupportTCPInitialRTONoSYNRetransmissions() {
+ 			// In Windows 10.0.16299 TCP_INITIAL_RTO_NO_SYN_RETRANSMISSIONS makes ConnectEx() fails instantly.
+ 			params.MaxSynRetransmissions = windows.TCP_INITIAL_RTO_NO_SYN_RETRANSMISSIONS
+ 		}
+diff --git a/src/net/unixsock_windows_test.go b/src/net/unixsock_windows_test.go
+index 1e54d6171a..585136b42f 100644
+--- a/src/net/unixsock_windows_test.go
++++ b/src/net/unixsock_windows_test.go
+@@ -7,34 +7,15 @@
+ package net
+ 
+ import (
+-	"internal/syscall/windows/registry"
++	"internal/syscall/windows"
+ 	"os"
+ 	"reflect"
+ 	"runtime"
+-	"strconv"
+ 	"testing"
+ )
+ 
+-func isBuild17063() bool {
+-	k, err := registry.OpenKey(registry.LOCAL_MACHINE, `SOFTWARE\Microsoft\Windows NT\CurrentVersion`, registry.READ)
+-	if err != nil {
+-		return false
+-	}
+-	defer k.Close()
+-
+-	s, _, err := k.GetStringValue("CurrentBuild")
+-	if err != nil {
+-		return false
+-	}
+-	ver, err := strconv.Atoi(s)
+-	if err != nil {
+-		return false
+-	}
+-	return ver >= 17063
+-}
+-
+ func skipIfUnixSocketNotSupported(t *testing.T) {
+-	// TODO: the isBuild17063 check should be enough, investigate why 386 and arm
++	// TODO: the windows.SupportUnixSocket check should be enough, investigate why 386 and arm
+ 	// can't run these tests on newer Windows.
+ 	switch runtime.GOARCH {
+ 	case "386":
+@@ -42,7 +23,7 @@ func skipIfUnixSocketNotSupported(t *testing.T) {
+ 	case "arm":
+ 		t.Skip("not supported on windows/arm, see golang.org/issue/28061")
+ 	}
+-	if !isBuild17063() {
++	if !windows.SupportUnixSocket() {
+ 		t.Skip("unix test")
+ 	}
+ }

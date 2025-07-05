@@ -8,7 +8,67 @@ Date:   Tue Sep 6 15:34:38 2011 -0700
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/4967056
-
+---
  src/pkg/template/exec.go      | 13 ++++++++++++-
  src/pkg/template/exec_test.go | 11 +++++++++++
  2 files changed, 23 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/template/exec.go b/src/pkg/template/exec.go
+index dbe6541dbf..f1590b3bb6 100644
+--- a/src/pkg/template/exec.go
++++ b/src/pkg/template/exec.go
+@@ -506,7 +506,18 @@ func (s *state) validateType(value reflect.Value, typ reflect.Type) reflect.Valu
+ 		s.errorf("invalid value; expected %s", typ)
+ 	}
+ 	if !value.Type().AssignableTo(typ) {
+-		s.errorf("wrong type for value; expected %s; got %s", typ, value.Type())
++		// Does one dereference or indirection work? We could do more, as we
++		// do with method receivers, but that gets messy and method receivers
++		// are much more constrained, so it makes more sense there than here.
++		// Besides, one is almost always all you need.
++		switch {
++		case value.Kind() == reflect.Ptr && value.Elem().Type().AssignableTo(typ):
++			value = value.Elem()
++		case reflect.PtrTo(value.Type()).AssignableTo(typ) && value.CanAddr():
++			value = value.Addr()
++		default:
++			s.errorf("wrong type for value; expected %s; got %s", typ, value.Type())
++		}
+ 	}
+ 	return value
+ }
+diff --git a/src/pkg/template/exec_test.go b/src/pkg/template/exec_test.go
+index 7e07e8c2db..8e1894ea03 100644
+--- a/src/pkg/template/exec_test.go
++++ b/src/pkg/template/exec_test.go
+@@ -416,6 +416,11 @@ var execTests = []execTest{
+ 	{"bug4", "{{if .Empty0}}non-nil{{else}}nil{{end}}", "nil", tVal, true},
+ 	// Stringer.
+ 	{"bug5", "{{.Str}}", "foozle", tVal, true},
++	// Args need to be indirected and dereferenced sometimes.
++	{"bug6a", "{{vfunc .V0 .V1}}", "vfunc", tVal, true},
++	{"bug6b", "{{vfunc .V0 .V0}}", "vfunc", tVal, true},
++	{"bug6c", "{{vfunc .V1 .V0}}", "vfunc", tVal, true},
++	{"bug6d", "{{vfunc .V1 .V1}}", "vfunc", tVal, true},
+ }
+ 
+ func zeroArgs() string {
+@@ -441,12 +446,18 @@ func count(n int) chan string {
+ 	return c
+ }
+ 
++// vfunc takes a *V and a V
++func vfunc(V, *V) string {
++	return "vfunc"
++}
++
+ func testExecute(execTests []execTest, set *Set, t *testing.T) {
+ 	b := new(bytes.Buffer)
+ 	funcs := FuncMap{
+ 		"count":    count,
+ 		"oneArg":   oneArg,
+ 		"typeOf":   typeOf,
++		"vfunc":    vfunc,
+ 		"zeroArgs": zeroArgs,
+ 	}
+ 	for _, test := range execTests {

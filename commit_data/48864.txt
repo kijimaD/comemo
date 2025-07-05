@@ -17,8 +17,189 @@ Date:   Mon Jun 21 22:03:02 2021 -0700
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Trust: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/escape/escape.go | 21 +++++--------
  src/cmd/compile/internal/ir/node.go       | 19 +++++------
  src/cmd/compile/internal/walk/order.go    | 52 ++++++++++++++++++-------------
  3 files changed, 48 insertions(+), 44 deletions(-)
+
+diff --git a/src/cmd/compile/internal/escape/escape.go b/src/cmd/compile/internal/escape/escape.go
+index e3727bca27..3a937518ec 100644
+--- a/src/cmd/compile/internal/escape/escape.go
++++ b/src/cmd/compile/internal/escape/escape.go
+@@ -1132,7 +1132,7 @@ func (e *escape) tagHole(ks []hole, fn *ir.Name, param *types.Field) hole {
+ 
+ 	// Call to previously tagged function.
+ 
+-	if param.Note == UintptrEscapesNote {
++	if fn.Func != nil && fn.Func.Pragma&ir.UintptrEscapes != 0 && (param.Type.IsUintptr() || param.IsDDD() && param.Type.Elem().IsUintptr()) {
+ 		k := e.heapHole()
+ 		k.uintptrEscapesHack = true
+ 		return k
+@@ -2048,15 +2048,6 @@ func HeapAllocReason(n ir.Node) string {
+ 	return ""
+ }
+ 
+-// This special tag is applied to uintptr variables
+-// that we believe may hold unsafe.Pointers for
+-// calls into assembly functions.
+-const UnsafeUintptrNote = "unsafe-uintptr"
+-
+-// This special tag is applied to uintptr parameters of functions
+-// marked go:uintptrescapes.
+-const UintptrEscapesNote = "uintptr-escapes"
+-
+ func (b *batch) paramTag(fn *ir.Func, narg int, f *types.Field) string {
+ 	name := func() string {
+ 		if f.Sym != nil {
+@@ -2072,11 +2063,13 @@ func (b *batch) paramTag(fn *ir.Func, narg int, f *types.Field) string {
+ 		// This really doesn't have much to do with escape analysis per se,
+ 		// but we are reusing the ability to annotate an individual function
+ 		// argument and pass those annotations along to importing code.
++		fn.Pragma |= ir.UintptrKeepAlive
++
+ 		if f.Type.IsUintptr() {
+ 			if base.Flag.LowerM != 0 {
+ 				base.WarnfAt(f.Pos, "assuming %v is unsafe uintptr", name())
+ 			}
+-			return UnsafeUintptrNote
++			return ""
+ 		}
+ 
+ 		if !f.Type.HasPointers() { // don't bother tagging for scalars
+@@ -2102,18 +2095,20 @@ func (b *batch) paramTag(fn *ir.Func, narg int, f *types.Field) string {
+ 	}
+ 
+ 	if fn.Pragma&ir.UintptrEscapes != 0 {
++		fn.Pragma |= ir.UintptrKeepAlive
++
+ 		if f.Type.IsUintptr() {
+ 			if base.Flag.LowerM != 0 {
+ 				base.WarnfAt(f.Pos, "marking %v as escaping uintptr", name())
+ 			}
+-			return UintptrEscapesNote
++			return ""
+ 		}
+ 		if f.IsDDD() && f.Type.Elem().IsUintptr() {
+ 			// final argument is ...uintptr.
+ 			if base.Flag.LowerM != 0 {
+ 				base.WarnfAt(f.Pos, "marking %v as escaping ...uintptr", name())
+ 			}
+-			return UintptrEscapesNote
++			return ""
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/ir/node.go b/src/cmd/compile/internal/ir/node.go
+index 9191eeb1d6..7c3dc10e46 100644
+--- a/src/cmd/compile/internal/ir/node.go
++++ b/src/cmd/compile/internal/ir/node.go
+@@ -436,18 +436,19 @@ func (s NameSet) Sorted(less func(*Name, *Name) bool) []*Name {
+ 	return res
+ }
+ 
+-type PragmaFlag int16
++type PragmaFlag uint16
+ 
+ const (
+ 	// Func pragmas.
+-	Nointerface    PragmaFlag = 1 << iota
+-	Noescape                  // func parameters don't escape
+-	Norace                    // func must not have race detector annotations
+-	Nosplit                   // func should not execute on separate stack
+-	Noinline                  // func should not be inlined
+-	NoCheckPtr                // func should not be instrumented by checkptr
+-	CgoUnsafeArgs             // treat a pointer to one arg as a pointer to them all
+-	UintptrEscapes            // pointers converted to uintptr escape
++	Nointerface      PragmaFlag = 1 << iota
++	Noescape                    // func parameters don't escape
++	Norace                      // func must not have race detector annotations
++	Nosplit                     // func should not execute on separate stack
++	Noinline                    // func should not be inlined
++	NoCheckPtr                  // func should not be instrumented by checkptr
++	CgoUnsafeArgs               // treat a pointer to one arg as a pointer to them all
++	UintptrKeepAlive            // pointers converted to uintptr must be kept alive (compiler internal only)
++	UintptrEscapes              // pointers converted to uintptr escape
+ 
+ 	// Runtime-only func pragmas.
+ 	// See ../../../../runtime/README.md for detailed descriptions.
+diff --git a/src/cmd/compile/internal/walk/order.go b/src/cmd/compile/internal/walk/order.go
+index 845bf03657..b9aff03240 100644
+--- a/src/cmd/compile/internal/walk/order.go
++++ b/src/cmd/compile/internal/walk/order.go
+@@ -9,7 +9,6 @@ import (
+ 	"go/constant"
+ 
+ 	"cmd/compile/internal/base"
+-	"cmd/compile/internal/escape"
+ 	"cmd/compile/internal/ir"
+ 	"cmd/compile/internal/reflectdata"
+ 	"cmd/compile/internal/staticinit"
+@@ -554,37 +553,46 @@ func (o *orderState) call(nn ir.Node) {
+ 	n.X = o.expr(n.X, nil)
+ 	o.exprList(n.Args)
+ 
+-	if n.Op() == ir.OCALLINTER {
++	// Pick out the function callee, if statically known.
++	// TODO(mdempsky): De-duplicate with similar code in escape analysis.
++	var callee *ir.Func
++	switch n.Op() {
++	case ir.OCALLFUNC:
++		if fn, ok := n.X.(*ir.Name); ok && fn.Op() == ir.ONAME && fn.Class == ir.PFUNC {
++			callee = fn.Func
++		}
++	case ir.OCALLMETH:
++		callee = ir.MethodExprName(n.X).Func
++	}
++
++	if callee == nil || callee.Pragma&ir.UintptrKeepAlive == 0 {
+ 		return
+ 	}
+-	keepAlive := func(arg ir.Node) {
++
++	keepAlive := func(args []ir.Node) {
+ 		// If the argument is really a pointer being converted to uintptr,
+ 		// arrange for the pointer to be kept alive until the call returns,
+ 		// by copying it into a temp and marking that temp
+ 		// still alive when we pop the temp stack.
+-		if arg.Op() == ir.OCONVNOP {
+-			arg := arg.(*ir.ConvExpr)
+-			if arg.X.Type().IsUnsafePtr() {
+-				x := o.copyExpr(arg.X)
+-				arg.X = x
+-				x.SetAddrtaken(true) // ensure SSA keeps the x variable
+-				n.KeepAlive = append(n.KeepAlive, x)
++		for _, arg := range args {
++			if arg.Op() == ir.OCONVNOP && arg.Type().IsUintptr() {
++				arg := arg.(*ir.ConvExpr)
++				if arg.X.Type().IsUnsafePtr() {
++					x := o.copyExpr(arg.X)
++					arg.X = x
++					x.SetAddrtaken(true) // ensure SSA keeps the x variable
++					n.KeepAlive = append(n.KeepAlive, x)
++				}
+ 			}
+ 		}
+ 	}
+ 
+-	// Check for "unsafe-uintptr" tag provided by escape analysis.
+-	for i, param := range n.X.Type().Params().FieldSlice() {
+-		if param.Note == escape.UnsafeUintptrNote || param.Note == escape.UintptrEscapesNote {
+-			if arg := n.Args[i]; arg.Op() == ir.OSLICELIT {
+-				arg := arg.(*ir.CompLitExpr)
+-				for _, elt := range arg.List {
+-					keepAlive(elt)
+-				}
+-			} else {
+-				keepAlive(arg)
+-			}
+-		}
++	last := len(n.Args) - 1
++	if n.IsDDD && n.Args[last].Op() == ir.OSLICELIT {
++		keepAlive(n.Args[:last])
++		keepAlive(n.Args[last].(*ir.CompLitExpr).List)
++	} else {
++		keepAlive(n.Args)
+ 	}
+ }
+ 

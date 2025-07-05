@@ -9,9 +9,139 @@ Date:   Mon Nov 28 16:40:39 2011 -0500
     R=ken2
     CC=golang-dev
     https://golang.org/cl/5444048
-
+---
  src/cmd/gc/dcl.c       |  8 --------
  src/cmd/gc/subr.c      | 11 +++++------
  src/cmd/gc/typecheck.c | 15 +++++++++++++++
  test/blank.go          | 24 ++++++++++++++++++++++++
  4 files changed, 44 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index 12c7001846..da59e917fd 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -771,7 +771,6 @@ structfield(Node *n)
+ 		break;
+ 	}
+ 
+-	// tofunarg will undo this for _ arguments
+ 	if(n->left && n->left->op == ONAME) {
+ 		f->nname = n->left;
+ 		f->embedded = n->embedded;
+@@ -840,13 +839,6 @@ tofunargs(NodeList *l)
+ 	for(tp = &t->type; l; l=l->next) {
+ 		f = structfield(l->n);
+ 
+-		// Unlink the name for _ arguments.
+-		if(l->n->left && l->n->left->op == ONAME && isblank(l->n->left)) {
+-			f->nname = nil;
+-			f->sym = nil;
+-			f->embedded = 0;
+-		}
+-
+ 		// esc.c needs to find f given a PPARAM to add the tag.
+ 		if(l->n->left && l->n->left->class == PPARAM)
+ 			l->n->left->paramfld = f;
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 36dbb7b437..2ee5868bc6 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -2226,13 +2226,12 @@ structargs(Type **tl, int mustname)
+ 	gen = 0;
+ 	for(t = structfirst(&savet, tl); t != T; t = structnext(&savet)) {
+ 		n = N;
+-		if(t->sym)
+-			n = newname(t->sym);
+-		else if(mustname) {
+-			// have to give it a name so we can refer to it in trampoline
++		if(mustname && (t->sym == nil || strcmp(t->sym->name, "_") == 0)) {
++			// invent a name so that we can refer to it in the trampoline
+ 			snprint(buf, sizeof buf, ".anon%d", gen++);
+ 			n = newname(lookup(buf));
+-		}
++		} else if(t->sym)
++			n = newname(t->sym);
+ 		a = nod(ODCLFIELD, n, typenod(t->type));
+ 		a->isddd = t->isddd;
+ 		if(n != N)
+@@ -2274,7 +2273,7 @@ genwrapper(Type *rcvr, Type *method, Sym *newnam, int iface)
+ 	int isddd;
+ 	Val v;
+ 
+-	if(0 && debug['r'])
++	if(debug['r'])
+ 		print("genwrapper rcvrtype=%T method=%T newnam=%S\n",
+ 			rcvr, method, newnam);
+ 
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 2ec3c72971..d9501358d9 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -2465,6 +2465,7 @@ static void
+ domethod(Node *n)
+ {
+ 	Node *nt;
++	Type *t;
+ 
+ 	nt = n->type->nname;
+ 	typecheck(&nt, Etype);
+@@ -2474,6 +2475,20 @@ domethod(Node *n)
+ 		n->type->nod = N;
+ 		return;
+ 	}
++	
++	// If we have
++	//	type I interface {
++	//		M(_ int)
++	//	}
++	// then even though I.M looks like it doesn't care about the
++	// value of its argument, a specific implementation of I may
++	// care.  The _ would suppress the assignment to that argument
++	// while generating a call, so remove it.
++	for(t=getinargx(nt->type)->type; t; t=t->down) {
++		if(t->sym != nil && strcmp(t->sym->name, "_") == 0)
++			t->sym = nil;
++	}
++
+ 	*n->type = *nt->type;
+ 	n->type->nod = N;
+ 	checkwidth(n->type);
+diff --git a/test/blank.go b/test/blank.go
+index 681a5e77cb..581bc85c80 100644
+--- a/test/blank.go
++++ b/test/blank.go
+@@ -101,6 +101,29 @@ func main() {
+ 	}
+ 
+ 	h(a, b)
++	
++	m()
++}
++
++type I interface {
++	M(_ int, y int)
++}
++
++type TI struct{}
++
++func (TI) M(x int, y int) {
++	if x != y {
++		println("invalid M call:", x, y)
++		panic("bad M")
++	}
++}
++
++func m() {
++	var i I
++	
++	i = TI{}
++	i.M(1, 1)
++	i.M(2, 2)
+ }
+ 
+ // useless but legal
+@@ -120,3 +143,4 @@ func _() {
+ func ff() {
+ 	var _ int = 1
+ }
++

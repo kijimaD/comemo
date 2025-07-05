@@ -15,6 +15,38 @@ Date:   Wed Sep 5 18:49:52 2018 +0300
     Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/gc/esc.go | 18 ++++++++----------
  1 file changed, 8 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/esc.go b/src/cmd/compile/internal/gc/esc.go
+index 9db6c8e0b4..254427be4f 100644
+--- a/src/cmd/compile/internal/gc/esc.go
++++ b/src/cmd/compile/internal/gc/esc.go
+@@ -689,18 +689,16 @@ func (e *EscState) mayAffectMemory(n *Node) bool {
+ 	switch n.Op {
+ 	case ONAME, OCLOSUREVAR, OLITERAL:
+ 		return false
+-	case ODOT, ODOTPTR:
+-		return e.mayAffectMemory(n.Left)
+-	case OIND, OCONVNOP:
+-		return e.mayAffectMemory(n.Left)
+-	case OCONV:
+-		return e.mayAffectMemory(n.Left)
+-	case OINDEX:
+-		return e.mayAffectMemory(n.Left) || e.mayAffectMemory(n.Right)
+-	case OADD, OSUB, OOR, OXOR, OMUL, OLSH, ORSH, OAND, OANDNOT, ODIV, OMOD:
++
++	// Left+Right group.
++	case OINDEX, OADD, OSUB, OOR, OXOR, OMUL, OLSH, ORSH, OAND, OANDNOT, ODIV, OMOD:
+ 		return e.mayAffectMemory(n.Left) || e.mayAffectMemory(n.Right)
+-	case ONOT, OCOM, OPLUS, OMINUS, OALIGNOF, OOFFSETOF, OSIZEOF:
++
++	// Left group.
++	case ODOT, ODOTPTR, OIND, OCONVNOP, OCONV, OLEN, OCAP,
++		ONOT, OCOM, OPLUS, OMINUS, OALIGNOF, OOFFSETOF, OSIZEOF:
+ 		return e.mayAffectMemory(n.Left)
++
+ 	default:
+ 		return true
+ 	}

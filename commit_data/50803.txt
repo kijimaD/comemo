@@ -16,6 +16,20 @@ Date:   Wed Nov 10 19:51:34 2021 +0100
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: Dmitry Vyukov <dvyukov@google.com>
-
+---
  src/cmd/link/internal/loadelf/ldelf.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/loadelf/ldelf.go b/src/cmd/link/internal/loadelf/ldelf.go
+index b4f565a153..d05d8e3b4b 100644
+--- a/src/cmd/link/internal/loadelf/ldelf.go
++++ b/src/cmd/link/internal/loadelf/ldelf.go
+@@ -599,7 +599,7 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader,
+ 			if strings.HasPrefix(elfsym.name, ".LASF") { // gcc on s390x does this
+ 				continue
+ 			}
+-			return errorf("%v: sym#%d: ignoring symbol in section %d (type %d)", elfsym.sym, i, elfsym.shndx, elfsym.type_)
++			return errorf("%v: sym#%d (%s): ignoring symbol in section %d (type %d)", elfsym.sym, i, elfsym.name, elfsym.shndx, elfsym.type_)
+ 		}
+ 
+ 		s := elfsym.sym

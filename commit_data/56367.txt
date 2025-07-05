@@ -13,9 +13,125 @@ Date:   Tue May 2 10:06:44 2023 -0700
     Run-TryBot: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/noder/irgen.go        |  5 ++--
  src/cmd/compile/internal/types2/stdlib_test.go | 11 ++++++--
  src/go/types/stdlib_test.go                    |  7 ++++-
  test/fixedbugs/issue59338.go                   | 39 ++++++++++++++++++++++++++
  4 files changed, 56 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/irgen.go b/src/cmd/compile/internal/noder/irgen.go
+index 3adf9e5d11..8f31687e9f 100644
+--- a/src/cmd/compile/internal/noder/irgen.go
++++ b/src/cmd/compile/internal/noder/irgen.go
+@@ -50,8 +50,9 @@ func checkFiles(m posMap, noders []*noder) (*types2.Package, *types2.Info) {
+ 			}
+ 			base.ErrorfAt(m.makeXPos(terr.Pos), terr.Code, "%s", msg)
+ 		},
+-		Importer: &importer,
+-		Sizes:    &gcSizes{},
++		Importer:                   &importer,
++		Sizes:                      &gcSizes{},
++		EnableReverseTypeInference: true,
+ 	}
+ 	info := &types2.Info{
+ 		StoreTypesInSyntax: true,
+diff --git a/src/cmd/compile/internal/types2/stdlib_test.go b/src/cmd/compile/internal/types2/stdlib_test.go
+index c5903a12d3..d9db545dc6 100644
+--- a/src/cmd/compile/internal/types2/stdlib_test.go
++++ b/src/cmd/compile/internal/types2/stdlib_test.go
+@@ -138,7 +138,11 @@ func testTestDir(t *testing.T, path string, ignore ...string) {
+ 		}
+ 		file, err := syntax.ParseFile(filename, nil, nil, 0)
+ 		if err == nil {
+-			conf := Config{GoVersion: goVersion, Importer: stdLibImporter}
++			conf := Config{
++				GoVersion:                  goVersion,
++				Importer:                   stdLibImporter,
++				EnableReverseTypeInference: true,
++			}
+ 			_, err = conf.Check(filename, []*syntax.File{file}, nil)
+ 		}
+ 
+@@ -250,8 +254,9 @@ func typecheckFiles(t *testing.T, path string, filenames []string) {
+ 
+ 	// typecheck package files
+ 	conf := Config{
+-		Error:    func(err error) { t.Error(err) },
+-		Importer: stdLibImporter,
++		Error:                      func(err error) { t.Error(err) },
++		Importer:                   stdLibImporter,
++		EnableReverseTypeInference: true,
+ 	}
+ 	info := Info{Uses: make(map[*syntax.Name]Object)}
+ 	conf.Check(path, files, &info)
+diff --git a/src/go/types/stdlib_test.go b/src/go/types/stdlib_test.go
+index f2290c5725..88338cc2bd 100644
+--- a/src/go/types/stdlib_test.go
++++ b/src/go/types/stdlib_test.go
+@@ -139,7 +139,11 @@ func testTestDir(t *testing.T, path string, ignore ...string) {
+ 		// parse and type-check file
+ 		file, err := parser.ParseFile(fset, filename, nil, 0)
+ 		if err == nil {
+-			conf := Config{GoVersion: goVersion, Importer: stdLibImporter}
++			conf := Config{
++				GoVersion: goVersion,
++				Importer:  stdLibImporter,
++			}
++			*boolFieldAddr(&conf, "_EnableReverseTypeInference") = true
+ 			_, err = conf.Check(filename, fset, []*ast.File{file}, nil)
+ 		}
+ 
+@@ -267,6 +271,7 @@ func typecheckFiles(t *testing.T, path string, filenames []string) {
+ 		},
+ 		Importer: stdLibImporter,
+ 	}
++	*boolFieldAddr(&conf, "_EnableReverseTypeInference") = true
+ 	info := Info{Uses: make(map[*ast.Ident]Object)}
+ 	conf.Check(path, fset, files, &info)
+ 
+diff --git a/test/fixedbugs/issue59338.go b/test/fixedbugs/issue59338.go
+new file mode 100644
+index 0000000000..dc8604f319
+--- /dev/null
++++ b/test/fixedbugs/issue59338.go
+@@ -0,0 +1,39 @@
++// run
++
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Smoke test for reverse type inference.
++// The type checker has more expansive tests.
++
++package main
++
++func main() {
++	var f1 func(int) int
++	f1 = g1
++	if f1(1) != g1(1) {
++		panic(1)
++	}
++
++	var f2 func(int) string = g2
++	if f2(2) != "" {
++		panic(2)
++	}
++
++	// Disabled for now - requires some noder work
++	// TODO fix this
++	// if g3(g1, 3) != g1(3) {
++	// 	panic(3)
++	// }
++
++	// if g4(g2, 4) != "" {
++	// 	panic(4)
++	// }
++}
++
++func g1[P any](x P) P    { return x }
++func g2[P, Q any](x P) Q { var q Q; return q }
++
++func g3(f1 func(int) int, x int) int       { return f1(x) }
++func g4(f2 func(int) string, x int) string { return f2(x) }

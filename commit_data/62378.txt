@@ -15,8 +15,48 @@ Date:   Tue Feb 25 11:46:15 2025 +0100
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/os/root_openat.go           | 2 +-
  src/os/root_unix.go             | 2 +-
  src/syscall/badlinkname_unix.go | 2 +-
  3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/os/root_openat.go b/src/os/root_openat.go
+index cac0b1df0f..e25cba64af 100644
+--- a/src/os/root_openat.go
++++ b/src/os/root_openat.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build aix || darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris || windows || wasip1
++//go:build unix || windows || wasip1
+ 
+ package os
+ 
+diff --git a/src/os/root_unix.go b/src/os/root_unix.go
+index 76d6b74eb7..f2f8e52bb2 100644
+--- a/src/os/root_unix.go
++++ b/src/os/root_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build aix || darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris || wasip1
++//go:build unix || wasip1
+ 
+ package os
+ 
+diff --git a/src/syscall/badlinkname_unix.go b/src/syscall/badlinkname_unix.go
+index 4964a830b0..70ba073b37 100644
+--- a/src/syscall/badlinkname_unix.go
++++ b/src/syscall/badlinkname_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build aix || darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris
++//go:build unix
+ 
+ package syscall
+ 

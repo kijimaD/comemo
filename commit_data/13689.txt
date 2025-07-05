@@ -10,7 +10,39 @@ Date:   Fri Aug 24 13:00:24 2012 -0700
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/6473059
-
+---
  src/pkg/text/template/parse/lex.go        | 6 ++++++
  src/pkg/text/template/parse/parse_test.go | 3 +++
  2 files changed, 9 insertions(+)
+
+diff --git a/src/pkg/text/template/parse/lex.go b/src/pkg/text/template/parse/lex.go
+index c73f533d19..2f4c6ffe64 100644
+--- a/src/pkg/text/template/parse/lex.go
++++ b/src/pkg/text/template/parse/lex.go
+@@ -354,6 +354,12 @@ func lexInsideAction(l *lexer) stateFn {
+ 		if l.parenDepth < 0 {
+ 			return l.errorf("unexpected right paren %#U", r)
+ 		}
++		// Catch the mistake of (a).X, which will parse as two args.
++		// See issue 3999. TODO: Remove once arg parsing is
++		// better defined.
++		if l.peek() == '.' {
++			return l.errorf("cannot evaluate field of parenthesized expression")
++		}
+ 		return lexInsideAction
+ 	case r <= unicode.MaxASCII && unicode.IsPrint(r):
+ 		l.emit(itemChar)
+diff --git a/src/pkg/text/template/parse/parse_test.go b/src/pkg/text/template/parse/parse_test.go
+index da0df20950..da1ce1dd17 100644
+--- a/src/pkg/text/template/parse/parse_test.go
++++ b/src/pkg/text/template/parse/parse_test.go
+@@ -232,6 +232,9 @@ var parseTests = []parseTest{
+ 	{"invalid punctuation", "{{printf 3, 4}}", hasError, ""},
+ 	{"multidecl outside range", "{{with $v, $u := 3}}{{end}}", hasError, ""},
+ 	{"too many decls in range", "{{range $u, $v, $w := 3}}{{end}}", hasError, ""},
++	// This one should work but doesn't. Caught as a parse error to avoid confusion.
++	// TODO: Update after issue 3999 is resolved.
++	{"dot applied to parentheses", "{{printf (printf .).}}", hasError, ""},
+ 	// Equals (and other chars) do not assignments make (yet).
+ 	{"bug0a", "{{$x := 0}}{{$x}}", noError, "{{$x := 0}}{{$x}}"},
+ 	{"bug0b", "{{$x = 1}}{{$x}}", hasError, ""},

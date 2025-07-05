@@ -9,7 +9,55 @@ Date:   Fri Sep 10 20:56:29 2021 +0800
     Reviewed-by: Dan Scales <danscales@google.com>
     Trust: Dan Scales <danscales@google.com>
     Trust: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/typecheck/iimport.go | 22 +++++++++++++++++++---
  test/run.go                                   |  2 --
  2 files changed, 19 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/typecheck/iimport.go b/src/cmd/compile/internal/typecheck/iimport.go
+index 6eec94a984..b3a0eb8871 100644
+--- a/src/cmd/compile/internal/typecheck/iimport.go
++++ b/src/cmd/compile/internal/typecheck/iimport.go
+@@ -1166,10 +1166,26 @@ func (r *importReader) stmtList() []ir.Node {
+ 		if n.Op() == ir.OBLOCK {
+ 			n := n.(*ir.BlockStmt)
+ 			list = append(list, n.List...)
+-		} else {
+-			list = append(list, n)
++			continue
+ 		}
+-
++		if len(list) > 0 {
++			// check for an optional label that can only immediately
++			// precede a for/range/select/switch statement.
++			if last := list[len(list)-1]; last.Op() == ir.OLABEL {
++				label := last.(*ir.LabelStmt).Label
++				switch n.Op() {
++				case ir.OFOR:
++					n.(*ir.ForStmt).Label = label
++				case ir.ORANGE:
++					n.(*ir.RangeStmt).Label = label
++				case ir.OSELECT:
++					n.(*ir.SelectStmt).Label = label
++				case ir.OSWITCH:
++					n.(*ir.SwitchStmt).Label = label
++				}
++			}
++		}
++		list = append(list, n)
+ 	}
+ 	return list
+ }
+diff --git a/test/run.go b/test/run.go
+index 790b54bfd2..3fb87af397 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -2187,8 +2187,6 @@ var g3Failures = setOf(
+ 	"writebarrier.go", // correct diagnostics, but different lines (probably irgen's fault)
+ 
+ 	"typeparam/nested.go", // -G=3 doesn't support function-local types with generics
+-
+-	"typeparam/mdempsky/4.go", // -G=3 can't export functions with labeled breaks in loops
+ )
+ 
+ var unifiedFailures = setOf(

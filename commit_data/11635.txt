@@ -7,6 +7,45 @@ Date:   Mon Feb 6 14:00:23 2012 +1100
     R=r
     CC=golang-dev
     https://golang.org/cl/5633044
-
+---
  src/pkg/testing/testing.go | 20 ++++++++++++++++++++
  1 file changed, 20 insertions(+)
+
+diff --git a/src/pkg/testing/testing.go b/src/pkg/testing/testing.go
+index f1acb97e1b..68ecebb36f 100644
+--- a/src/pkg/testing/testing.go
++++ b/src/pkg/testing/testing.go
+@@ -225,6 +225,19 @@ func (c *common) Fatalf(format string, args ...interface{}) {
+ 	c.FailNow()
+ }
+ 
++// TODO(dsymonds): Consider hooking into runtime·traceback instead.
++func (c *common) stack() {
++	for i := 2; ; i++ { // Caller we care about is the user, 2 frames up
++		pc, file, line, ok := runtime.Caller(i)
++		f := runtime.FuncForPC(pc)
++		if !ok || f == nil {
++			break
++		}
++		c.Logf("%s:%d (0x%x)", file, line, pc)
++		c.Logf("\t%s", f.Name())
++	}
++}
++
+ // Parallel signals that this test is to be run in parallel with (and only with) 
+ // other parallel tests in this CPU group.
+ func (t *T) Parallel() {
+@@ -247,6 +260,13 @@ func tRunner(t *T, test *InternalTest) {
+ 	// a call to runtime.Goexit, record the duration and send
+ 	// a signal saying that the test is done.
+ 	defer func() {
++		// Consider any uncaught panic a failure.
++		if err := recover(); err != nil {
++			t.failed = true
++			t.Log(err)
++			t.stack()
++		}
++
+ 		t.duration = time.Now().Sub(t.start)
+ 		t.signal <- t
+ 	}()

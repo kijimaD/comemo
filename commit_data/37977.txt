@@ -13,6 +13,28 @@ Date:   Tue Sep 18 01:53:42 2018 +0000
     Run-TryBot: Ben Shi <powerman1st@163.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/amd64/ssa.go | 9 ++-------
  1 file changed, 2 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/ssa.go b/src/cmd/compile/internal/amd64/ssa.go
+index 2afb556d80..818bc35941 100644
+--- a/src/cmd/compile/internal/amd64/ssa.go
++++ b/src/cmd/compile/internal/amd64/ssa.go
+@@ -759,14 +759,9 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 			p.To.Type = obj.TYPE_MEM
+ 			p.To.Reg = v.Args[0].Reg()
+ 			gc.AddAux2(&p.To, v, off)
+-		} else {
+-			p := s.Prog(v.Op.Asm())
+-			p.From.Type = obj.TYPE_CONST
+-			p.From.Offset = val
+-			p.To.Type = obj.TYPE_MEM
+-			p.To.Reg = v.Args[0].Reg()
+-			gc.AddAux2(&p.To, v, off)
++			break
+ 		}
++		fallthrough
+ 	case ssa.OpAMD64ANDQconstmodify, ssa.OpAMD64ANDLconstmodify, ssa.OpAMD64ORQconstmodify, ssa.OpAMD64ORLconstmodify,
+ 		ssa.OpAMD64XORQconstmodify, ssa.OpAMD64XORLconstmodify:
+ 		sc := v.AuxValAndOff()

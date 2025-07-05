@@ -7,6 +7,20 @@ Date:   Tue Oct 11 08:49:09 2011 -0700
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5252050
-
+---
  src/pkg/fmt/doc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/fmt/doc.go b/src/pkg/fmt/doc.go
+index 35a11e19fa..c993e57a40 100644
+--- a/src/pkg/fmt/doc.go
++++ b/src/pkg/fmt/doc.go
+@@ -122,7 +122,7 @@
+ 
+ 	An analogous set of functions scans formatted text to yield
+ 	values.  Scan, Scanf and Scanln read from os.Stdin; Fscan,
+-	Fscanf and Fscanln read from a specified os.Reader; Sscan,
++	Fscanf and Fscanln read from a specified io.Reader; Sscan,
+ 	Sscanf and Sscanln read from an argument string.  Scanln,
+ 	Fscanln and Sscanln stop scanning at a newline and require that
+ 	the items be followed by one; Sscanf, Fscanf and Sscanf require

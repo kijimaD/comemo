@@ -27,8 +27,241 @@ Date:   Wed May 11 15:25:17 2016 -0400
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/main.go     |  6 +-
  src/cmd/compile/internal/ssa/compile.go | 98 +++++++++++++++++++++++++++++++--
  src/cmd/compile/internal/ssa/func.go    |  3 +-
  3 files changed, 99 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 0e6965c4bd..c3648e9dc5 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -246,6 +246,7 @@ func Main() {
+ 				continue
+ 			}
+ 			val := 1
++			valstring := ""
+ 			if i := strings.Index(name, "="); i >= 0 {
+ 				var err error
+ 				val, err = strconv.Atoi(name[i+1:])
+@@ -253,6 +254,9 @@ func Main() {
+ 					log.Fatalf("invalid debug value %v", name)
+ 				}
+ 				name = name[:i]
++			} else if i := strings.Index(name, ":"); i >= 0 {
++				valstring = name[i+1:]
++				name = name[:i]
+ 			}
+ 			for _, t := range debugtab {
+ 				if t.name == name {
+@@ -273,7 +277,7 @@ func Main() {
+ 					flag = phase[i+1:]
+ 					phase = phase[:i]
+ 				}
+-				err := ssa.PhaseOption(phase, flag, val)
++				err := ssa.PhaseOption(phase, flag, val, valstring)
+ 				if err != "" {
+ 					log.Fatalf(err)
+ 				}
+diff --git a/src/cmd/compile/internal/ssa/compile.go b/src/cmd/compile/internal/ssa/compile.go
+index f13d3ae291..401299a06b 100644
+--- a/src/cmd/compile/internal/ssa/compile.go
++++ b/src/cmd/compile/internal/ssa/compile.go
+@@ -7,6 +7,7 @@ package ssa
+ import (
+ 	"fmt"
+ 	"log"
++	"os"
+ 	"regexp"
+ 	"runtime"
+ 	"strings"
+@@ -41,6 +42,9 @@ func Compile(f *Func) {
+ 	// Run all the passes
+ 	printFunc(f)
+ 	f.Config.HTML.WriteFunc("start", f)
++	if BuildDump != "" && BuildDump == f.Name {
++		f.dumpFile("build")
++	}
+ 	if checkEnabled {
+ 		checkFunc(f)
+ 	}
+@@ -96,6 +100,10 @@ func Compile(f *Func) {
+ 				f.LogStat("TIME(ns):BYTES:ALLOCS", time, nBytes, nAllocs)
+ 			}
+ 		}
++		if p.dump != nil && p.dump[f.Name] {
++			// Dump function to appropriately named file
++			f.dumpFile(phaseName)
++		}
+ 		if checkEnabled {
+ 			checkFunc(f)
+ 		}
+@@ -105,16 +113,48 @@ func Compile(f *Func) {
+ 	phaseName = ""
+ }
+ 
++// TODO: should be a config field
++var dumpFileSeq int
++
++// dumpFile creates a file from the phase name and function name
++// Dumping is done to files to avoid buffering huge strings before
++// output.
++func (f *Func) dumpFile(phaseName string) {
++	dumpFileSeq++
++	fname := fmt.Sprintf("%s__%s_%d.dump", phaseName, f.Name, dumpFileSeq)
++	fname = strings.Replace(fname, " ", "_", -1)
++	fname = strings.Replace(fname, "/", "_", -1)
++	fname = strings.Replace(fname, ":", "_", -1)
++
++	fi, err := os.Create(fname)
++	if err != nil {
++		f.Config.Warnl(0, "Unable to create after-phase dump file %s", fname)
++		return
++	}
++
++	p := stringFuncPrinter{w: fi}
++	fprintFunc(p, f)
++	fi.Close()
++}
++
+ type pass struct {
+ 	name     string
+ 	fn       func(*Func)
+ 	required bool
+ 	disabled bool
+-	time     bool // report time to run pass
+-	mem      bool // report mem stats to run pass
+-	stats    int  // pass reports own "stats" (e.g., branches removed)
+-	debug    int  // pass performs some debugging. =1 should be in error-testing-friendly Warnl format.
+-	test     int  // pass-specific ad-hoc option, perhaps useful in development
++	time     bool            // report time to run pass
++	mem      bool            // report mem stats to run pass
++	stats    int             // pass reports own "stats" (e.g., branches removed)
++	debug    int             // pass performs some debugging. =1 should be in error-testing-friendly Warnl format.
++	test     int             // pass-specific ad-hoc option, perhaps useful in development
++	dump     map[string]bool // dump if function name matches
++}
++
++func (p *pass) addDump(s string) {
++	if p.dump == nil {
++		p.dump = make(map[string]bool)
++	}
++	p.dump[s] = true
+ }
+ 
+ // Run consistency checker between each phase
+@@ -127,6 +167,7 @@ var IntrinsicsDisable bool
+ var BuildDebug int
+ var BuildTest int
+ var BuildStats int
++var BuildDump string // name of function to dump after initial build of ssa
+ 
+ // PhaseOption sets the specified flag in the specified ssa phase,
+ // returning empty string if this was successful or a string explaining
+@@ -146,7 +187,35 @@ var BuildStats int
+ //
+ // BOOT_GO_GCFLAGS=-d='ssa/~^.*scc$/off' GO_GCFLAGS='-d=ssa/~^.*scc$/off' ./make.bash
+ //
+-func PhaseOption(phase, flag string, val int) string {
++func PhaseOption(phase, flag string, val int, valString string) string {
++	if phase == "help" {
++		lastcr := 0
++		phasenames := "check, all, build, intrinsics"
++		for _, p := range passes {
++			pn := strings.Replace(p.name, " ", "_", -1)
++			if len(pn)+len(phasenames)-lastcr > 70 {
++				phasenames += "\n"
++				lastcr = len(phasenames)
++				phasenames += pn
++			} else {
++				phasenames += ", " + pn
++			}
++		}
++		return "" +
++			`GcFlag -d=ssa/<phase>/<flag>[=<value>]|[:<function_name>]
++<phase> is one of:
++` + phasenames + `
++<flag> is one of on, off, debug, mem, time, test, stats, dump
++<value> defaults to 1
++<function_name> is required for "dump", specifies name of function to dump after <phase>
++Except for dump, output is directed to standard out; dump appears in a file.
++Phase "all" supports flags "time", "mem", and "dump".
++Phases "intrinsics" supports flags "on", "off", and "debug".
++Interpretation of the "debug" value depends on the phase.
++Dump files are named <phase>__<function_name>_<seq>.dump.
++`
++	}
++
+ 	if phase == "check" && flag == "on" {
+ 		checkEnabled = val != 0
+ 		return ""
+@@ -157,9 +226,18 @@ func PhaseOption(phase, flag string, val int) string {
+ 	}
+ 
+ 	alltime := false
++	allmem := false
++	alldump := false
+ 	if phase == "all" {
+ 		if flag == "time" {
+ 			alltime = val != 0
++		} else if flag == "mem" {
++			allmem = val != 0
++		} else if flag == "dump" {
++			alldump = val != 0
++			if alldump {
++				BuildDump = valString
++			}
+ 		} else {
+ 			return fmt.Sprintf("Did not find a flag matching %s in -d=ssa/%s debug option", flag, phase)
+ 		}
+@@ -186,6 +264,8 @@ func PhaseOption(phase, flag string, val int) string {
+ 			BuildTest = val
+ 		case "stats":
+ 			BuildStats = val
++		case "dump":
++			BuildDump = valString
+ 		default:
+ 			return fmt.Sprintf("Did not find a flag matching %s in -d=ssa/%s debug option", flag, phase)
+ 		}
+@@ -205,6 +285,10 @@ func PhaseOption(phase, flag string, val int) string {
+ 	for i, p := range passes {
+ 		if phase == "all" {
+ 			p.time = alltime
++			p.mem = allmem
++			if alldump {
++				p.addDump(valString)
++			}
+ 			passes[i] = p
+ 			matchedOne = true
+ 		} else if p.name == phase || p.name == underphase || re != nil && re.MatchString(p.name) {
+@@ -223,6 +307,8 @@ func PhaseOption(phase, flag string, val int) string {
+ 				p.stats = val
+ 			case "test":
+ 				p.test = val
++			case "dump":
++				p.addDump(valString)
+ 			default:
+ 				return fmt.Sprintf("Did not find a flag matching %s in -d=ssa/%s debug option", flag, phase)
+ 			}
+diff --git a/src/cmd/compile/internal/ssa/func.go b/src/cmd/compile/internal/ssa/func.go
+index dbdc42d1f8..7b2097bcae 100644
+--- a/src/cmd/compile/internal/ssa/func.go
++++ b/src/cmd/compile/internal/ssa/func.go
+@@ -7,6 +7,7 @@ package ssa
+ import (
+ 	"fmt"
+ 	"math"
++	"strings"
+ )
+ 
+ // A Func represents a Go func declaration (or function literal) and
+@@ -113,7 +114,7 @@ func (f *Func) LogStat(key string, args ...interface{}) {
+ 	}
+ 	n := "missing_pass"
+ 	if f.pass != nil {
+-		n = f.pass.name
++		n = strings.Replace(f.pass.name, " ", "_", -1)
+ 	}
+ 	f.Config.Warnl(f.Entry.Line, "\t%s\t%s%s\t%s", n, key, value, f.Name)
+ }

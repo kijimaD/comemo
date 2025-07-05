@@ -23,7 +23,7 @@ Date:   Wed Apr 26 01:43:20 2023 -0400
     Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/list/list.go                   |  2 +-
  src/cmd/go/internal/modload/import.go              | 12 ++++
  src/cmd/go/internal/modload/init.go                | 14 +++-
@@ -41,3 +41,390 @@ Date:   Wed Apr 26 01:43:20 2023 -0400
  .../script/mod_tidy_compat_incompatible.txt        |  2 +-
  .../testdata/script/mod_tidy_compat_irrelevant.txt |  2 +-
  16 files changed, 131 insertions(+), 24 deletions(-)
+
+diff --git a/src/cmd/go/internal/list/list.go b/src/cmd/go/internal/list/list.go
+index be2dd60dff..4a45a2157d 100644
+--- a/src/cmd/go/internal/list/list.go
++++ b/src/cmd/go/internal/list/list.go
+@@ -649,7 +649,7 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
+ 				} else {
+ 					pmain, ptest, pxtest, err = load.TestPackagesFor(ctx, pkgOpts, p, nil)
+ 					if err != nil {
+-						base.Fatalf("can't load test package: %s", err)
++						base.Fatalf("go: can't load test package: %s", err)
+ 					}
+ 				}
+ 				testPackages = append(testPackages, testPackageSet{p, pmain, ptest, pxtest})
+diff --git a/src/cmd/go/internal/modload/import.go b/src/cmd/go/internal/modload/import.go
+index a8b4a2d21f..ec1632b175 100644
+--- a/src/cmd/go/internal/modload/import.go
++++ b/src/cmd/go/internal/modload/import.go
+@@ -435,6 +435,18 @@ func importFromModules(ctx context.Context, path string, rs *Requirements, mg *M
+ 		}
+ 
+ 		if len(mods) == 1 {
++			// We've found the unique module containing the package.
++			// However, in order to actually compile it we need to know what
++			// Go language version to use, which requires its go.mod file.
++			//
++			// If the module graph is pruned and this is a test-only dependency
++			// of a package in "all", we didn't necessarily load that file
++			// when we read the module graph, so do it now to be sure.
++			if cfg.BuildMod != "vendor" && mods[0].Path != "" && !MainModules.Contains(mods[0].Path) {
++				if _, err := goModSummary(mods[0]); err != nil {
++					return module.Version{}, "", "", nil, err
++				}
++			}
+ 			return mods[0], roots[0], dirs[0], altMods, nil
+ 		}
+ 
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index c25b25f15c..bb458b791e 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -1591,7 +1591,8 @@ func commitRequirements(ctx context.Context) (err error) {
+ // keepSums returns the set of modules (and go.mod file entries) for which
+ // checksums would be needed in order to reload the same set of packages
+ // loaded by the most recent call to LoadPackages or ImportFromFiles,
+-// including any go.mod files needed to reconstruct the MVS result,
++// including any go.mod files needed to reconstruct the MVS result
++// or identify go versions,
+ // in addition to the checksums for every module in keepMods.
+ func keepSums(ctx context.Context, ld *loader, rs *Requirements, which whichSums) map[module.Version]bool {
+ 	// Every module in the full module graph contributes its requirements,
+@@ -1613,6 +1614,16 @@ func keepSums(ctx context.Context, ld *loader, rs *Requirements, which whichSums
+ 				continue
+ 			}
+ 
++			// We need the checksum for the go.mod file for pkg.mod
++			// so that we know what Go version to use to compile pkg.
++			// However, we didn't do so before Go 1.21, and the bug is relatively
++			// minor, so we maintain the previous (buggy) behavior in 'go mod tidy' to
++			// avoid introducing unnecessary churn.
++			if !ld.Tidy || semver.Compare("v"+ld.GoVersion, tidyGoModSumVersionV) >= 0 {
++				r := resolveReplacement(pkg.mod)
++				keep[modkey(r)] = true
++			}
++
+ 			if rs.pruning == pruned && pkg.mod.Path != "" {
+ 				if v, ok := rs.rootSelected(pkg.mod.Path); ok && v == pkg.mod.Version {
+ 					// pkg was loaded from a root module, and because the main module has
+@@ -1668,6 +1679,7 @@ func keepSums(ctx context.Context, ld *loader, rs *Requirements, which whichSums
+ 		if which == addBuildListZipSums {
+ 			for _, m := range mg.BuildList() {
+ 				r := resolveReplacement(m)
++				keep[modkey(r)] = true // we need the go version from the go.mod file to do anything useful with the zipfile
+ 				keep[r] = true
+ 			}
+ 		}
+diff --git a/src/cmd/go/internal/modload/modfile.go b/src/cmd/go/internal/modload/modfile.go
+index 0e42292c01..79ec530caa 100644
+--- a/src/cmd/go/internal/modload/modfile.go
++++ b/src/cmd/go/internal/modload/modfile.go
+@@ -45,6 +45,13 @@ const (
+ 	// "// indirect" dependencies are added in a block separate from the direct
+ 	// ones. See https://golang.org/issue/45965.
+ 	separateIndirectVersionV = "v1.17"
++
++	// tidyGoModSumVersionV is the Go version (plus leading "v") at which
++	// 'go mod tidy' preserves go.mod checksums needed to build test dependencies
++	// of packages in "all", so that 'go test all' can be run without checksum
++	// errors.
++	// See https://go.dev/issue/56222.
++	tidyGoModSumVersionV = "v1.21"
+ )
+ 
+ // ReadModFile reads and parses the mod file at gomod. ReadModFile properly applies the
+@@ -566,6 +573,8 @@ func goModSummary(m module.Version) (*modFileSummary, error) {
+ 		summary := &modFileSummary{
+ 			module: module.Version{Path: m.Path},
+ 		}
++
++		readVendorList(MainModules.mustGetSingleMainModule())
+ 		if vendorVersion[m.Path] != m.Version {
+ 			// This module is not vendored, so packages cannot be loaded from it and
+ 			// it cannot be relevant to the build.
+@@ -574,8 +583,6 @@ func goModSummary(m module.Version) (*modFileSummary, error) {
+ 
+ 		// For every module other than the target,
+ 		// return the full list of modules from modules.txt.
+-		readVendorList(MainModules.mustGetSingleMainModule())
+-
+ 		// We don't know what versions the vendored module actually relies on,
+ 		// so assume that it requires everything.
+ 		summary.require = vendorList
+@@ -583,10 +590,10 @@ func goModSummary(m module.Version) (*modFileSummary, error) {
+ 	}
+ 
+ 	actual := resolveReplacement(m)
+-	if HasModRoot() && cfg.BuildMod == "readonly" && !inWorkspaceMode() && actual.Version != "" {
++	if mustHaveSums() && actual.Version != "" {
+ 		key := module.Version{Path: actual.Path, Version: actual.Version + "/go.mod"}
+ 		if !modfetch.HaveSum(key) {
+-			suggestion := fmt.Sprintf("; to add it:\n\tgo mod download %s", m.Path)
++			suggestion := fmt.Sprintf(" for go.mod file; to add it:\n\tgo mod download %s", m.Path)
+ 			return nil, module.VersionError(actual, &sumMissingError{suggestion: suggestion})
+ 		}
+ 	}
+diff --git a/src/cmd/go/testdata/script/list_parse_err.txt b/src/cmd/go/testdata/script/list_parse_err.txt
+index 3c5345801a..0a3eb02c04 100644
+--- a/src/cmd/go/testdata/script/list_parse_err.txt
++++ b/src/cmd/go/testdata/script/list_parse_err.txt
+@@ -4,9 +4,9 @@ stderr '^p[/\\]b.go:2:2: expected ''package'', found ''EOF''$'
+ ! go list -f '{{range .Imports}}{{.}} {{end}}' ./p
+ stderr '^p[/\\]b.go:2:2: expected ''package'', found ''EOF''$'
+ ! go list -test ./t
+-stderr '^can''t load test package: t[/\\]t_test.go:8:1: expected declaration, found ʕ'
++stderr '^go: can''t load test package: t[/\\]t_test.go:8:1: expected declaration, found ʕ'
+ ! go list -test -f '{{range .Imports}}{{.}} {{end}}' ./t
+-stderr '^can''t load test package: t[/\\]t_test.go:8:1: expected declaration, found ʕ'
++stderr '^go: can''t load test package: t[/\\]t_test.go:8:1: expected declaration, found ʕ'
+ 
+ # 'go list -e' should report imports, even if some files have parse errors
+ # before the import block.
+diff --git a/src/cmd/go/testdata/script/list_test_cycle.txt b/src/cmd/go/testdata/script/list_test_cycle.txt
+index 2ab8528926..ea63792007 100644
+--- a/src/cmd/go/testdata/script/list_test_cycle.txt
++++ b/src/cmd/go/testdata/script/list_test_cycle.txt
+@@ -14,7 +14,7 @@ cmp stderr wanterr.txt
+ cmp stderr wanterr.txt
+ 
+ -- wanterr.txt --
+-can't load test package: package example/p
++go: can't load test package: package example/p
+ 	imports example/r
+ 	imports example/q: import cycle not allowed in test
+ -- go.mod --
+diff --git a/src/cmd/go/testdata/script/mod_install_pkg_version.txt b/src/cmd/go/testdata/script/mod_install_pkg_version.txt
+index e3f59fc152..53c3e4134b 100644
+--- a/src/cmd/go/testdata/script/mod_install_pkg_version.txt
++++ b/src/cmd/go/testdata/script/mod_install_pkg_version.txt
+@@ -16,7 +16,8 @@ env GO111MODULE=auto
+ cd m
+ cp go.mod go.mod.orig
+ ! go list -m all
+-stderr '^go: example.com/cmd@v1.1.0-doesnotexist: missing go.sum entry; to add it:\n\tgo mod download example.com/cmd$'
++stderr '^go: example.com/cmd@v1.1.0-doesnotexist: reading http.*/mod/example.com/cmd/@v/v1.1.0-doesnotexist.info: 404 Not Found\n\tserver response: 404 page not found$'
++stderr '^go: example.com/cmd@v1.1.0-doesnotexist: missing go.sum entry for go.mod file; to add it:\n\tgo mod download example.com/cmd$'
+ go install example.com/cmd/a@latest
+ cmp go.mod go.mod.orig
+ exists $GOPATH/bin/a$GOEXE
+diff --git a/src/cmd/go/testdata/script/mod_list_sums.txt b/src/cmd/go/testdata/script/mod_list_sums.txt
+index 6c2f57c2b2..cf1c18b575 100644
+--- a/src/cmd/go/testdata/script/mod_list_sums.txt
++++ b/src/cmd/go/testdata/script/mod_list_sums.txt
+@@ -29,4 +29,4 @@ stderr '^go: updates to go.sum needed, disabled by -mod=readonly$'
+ #
+ # TODO(#41297): This should not be an error either.
+ ! go list -m -mod=readonly -versions rsc.io/sampler
+-stderr '^go: rsc\.io/quote@v1\.5\.1: missing go\.sum entry; to add it:\n\tgo mod download rsc\.io/quote$'
++stderr '^go: rsc\.io/quote@v1\.5\.1: missing go\.sum entry for go.mod file; to add it:\n\tgo mod download rsc\.io/quote$'
+diff --git a/src/cmd/go/testdata/script/mod_run_pkg_version.txt b/src/cmd/go/testdata/script/mod_run_pkg_version.txt
+index c3a218d553..969852c1ee 100644
+--- a/src/cmd/go/testdata/script/mod_run_pkg_version.txt
++++ b/src/cmd/go/testdata/script/mod_run_pkg_version.txt
+@@ -21,7 +21,8 @@ env GO111MODULE=on
+ cd m
+ cp go.mod go.mod.orig
+ ! go list -m all
+-stderr '^go: example.com/cmd@v1.1.0-doesnotexist: missing go.sum entry; to add it:\n\tgo mod download example.com/cmd$'
++stderr '^go: example.com/cmd@v1.1.0-doesnotexist: reading http.*/mod/example\.com/cmd/@v/v1.1.0-doesnotexist.info: 404 Not Found\n\tserver response: 404 page not found$'
++stderr '^go: example.com/cmd@v1.1.0-doesnotexist: missing go.sum entry for go.mod file; to add it:\n\tgo mod download example.com/cmd$'
+ go run example.com/cmd/a@v1.0.0
+ stdout '^a@v1.0.0$'
+ cmp go.mod go.mod.orig
+diff --git a/src/cmd/go/testdata/script/mod_sum_issue56222.txt b/src/cmd/go/testdata/script/mod_sum_issue56222.txt
+new file mode 100644
+index 0000000000..aaffc7d107
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_sum_issue56222.txt
+@@ -0,0 +1,74 @@
++# Regression test for #56222: 'go get -t' and 'go mod tidy'
++# should save enough checksums to run 'go test' on the named
++# packages or any package in "all" respectively.
++
++# 'go mod tidy' in a module at go 1.21 or higher should preserve
++# checksums needed to run 'go test all'.
++cd m1
++go mod tidy
++
++go list -f '{{if eq .ImportPath "example.com/generics"}}{{.Module.GoVersion}}{{end}}' -deps -test example.com/m2/q
++stdout 1.18
++[!short] go test -o $devnull -c all
++
++cat go.sum
++replace 'example.com/generics v1.0.0/go.mod' 'example.com/notgenerics v1.0.0/go.mod' go.sum
++
++! go list -f '{{if eq .ImportPath "example.com/generics"}}{{.Module.GoVersion}}{{end}}' -deps -test example.com/m2/q
++stderr '^go: can''t load test package: \.\.'${/}m2${/}q${/}'q_test.go:3:8: example\.com/generics@v1\.0\.0: missing go.sum entry for go.mod file; to add it:\n\tgo mod download example\.com/generics$'
++
++go mod download -json example.com/generics
++stdout '"GoModSum":'
++go list -f '{{if eq .ImportPath "example.com/generics"}}{{.Module.GoVersion}}{{end}}' -deps -test example.com/m2/q
++stdout 1.18
++
++
++# At go 1.20 or earlier, 'go mod tidy' should preserve the historical go.sum
++# contents, but 'go test' should flag the missing checksums (instead of trying
++# to build the test dependency with the wrong language version).
++
++go mod tidy -go=1.20
++! go test -o $devnull -c all
++stderr '^# example.com/m2/q\n'..${/}m2${/}q${/}'q_test.go:3:8: example.com/generics@v1.0.0: missing go.sum entry for go.mod file; to add it:\n\tgo mod download example.com/generics$'
++
++go mod download -json example.com/generics
++go list -f '{{if eq .ImportPath "example.com/generics"}}{{.Module.GoVersion}}{{end}}' -deps -test example.com/m2/q
++stdout 1.18
++
++
++# Regardless of the go version in go.mod, 'go get -t' should fetch
++# enough checksums to run 'go test' on the named package.
++
++rm p
++go mod tidy
++go list -m all
++! stdout example.com/generics
++go get -t example.com/m2/q@v1.0.0
++go list -f '{{if eq .ImportPath "example.com/generics"}}{{.Module.GoVersion}}{{end}}' -deps -test example.com/m2/q
++stdout 1.18
++[!short] go test -o $devnull -c example.com/m2/q
++
++
++-- m1/go.mod --
++module example.com/m1
++
++go 1.21
++
++require example.com/m2 v1.0.0
++replace example.com/m2 => ../m2
++-- m1/p/p.go --
++package p
++
++import _ "example.com/m2/q"
++-- m2/go.mod --
++module example.com/m2
++
++go 1.21
++
++require example.com/generics v1.0.0
++-- m2/q/q.go --
++package q
++-- m2/q/q_test.go --
++package q
++
++import _ "example.com/generics"
+diff --git a/src/cmd/go/testdata/script/mod_sum_readonly.txt b/src/cmd/go/testdata/script/mod_sum_readonly.txt
+index 57c5bbeefd..c4260739e2 100644
+--- a/src/cmd/go/testdata/script/mod_sum_readonly.txt
++++ b/src/cmd/go/testdata/script/mod_sum_readonly.txt
+@@ -4,7 +4,7 @@ env GO111MODULE=on
+ # When a sum is needed to load the build list, we get an error for the
+ # specific module. The .mod file is not downloaded, and go.sum is not written.
+ ! go list -m all
+-stderr '^go: rsc.io/quote@v1.5.2: missing go.sum entry; to add it:\n\tgo mod download rsc.io/quote$'
++stderr '^go: rsc.io/quote@v1.5.2: missing go.sum entry for go.mod file; to add it:\n\tgo mod download rsc.io/quote$'
+ ! exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.mod
+ ! exists go.sum
+ 
+@@ -12,7 +12,7 @@ stderr '^go: rsc.io/quote@v1.5.2: missing go.sum entry; to add it:\n\tgo mod dow
+ # we should see the same error.
+ cp go.sum.h2only go.sum
+ ! go list -m all
+-stderr '^go: rsc.io/quote@v1.5.2: missing go.sum entry; to add it:\n\tgo mod download rsc.io/quote$'
++stderr '^go: rsc.io/quote@v1.5.2: missing go.sum entry for go.mod file; to add it:\n\tgo mod download rsc.io/quote$'
+ ! exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.mod
+ cmp go.sum go.sum.h2only
+ rm go.sum
+@@ -21,7 +21,7 @@ rm go.sum
+ cp go.mod go.mod.orig
+ go mod edit -replace rsc.io/quote@v1.5.2=rsc.io/quote@v1.5.1
+ ! go list -m all
+-stderr '^go: rsc.io/quote@v1.5.2 \(replaced by rsc.io/quote@v1.5.1\): missing go.sum entry; to add it:\n\tgo mod download rsc.io/quote$'
++stderr '^go: rsc.io/quote@v1.5.2 \(replaced by rsc.io/quote@v1.5.1\): missing go.sum entry for go.mod file; to add it:\n\tgo mod download rsc.io/quote$'
+ ! exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.1.mod
+ ! exists go.sum
+ cp go.mod.orig go.mod
+diff --git a/src/cmd/go/testdata/script/mod_tidy_compat.txt b/src/cmd/go/testdata/script/mod_tidy_compat.txt
+index 18b297da60..724c83e14e 100644
+--- a/src/cmd/go/testdata/script/mod_tidy_compat.txt
++++ b/src/cmd/go/testdata/script/mod_tidy_compat.txt
+@@ -50,7 +50,7 @@ cmp stdout m_all.txt
+ 
+ go mod edit -go=1.16
+ ! go list -m all
+-stderr '^go: example.net/lazy@v0.1.0 requires\n\texample.com/version@v1.0.1: missing go.sum entry; to add it:\n\tgo mod download example.com/version$'
++stderr '^go: example.net/lazy@v0.1.0 requires\n\texample.com/version@v1.0.1: missing go.sum entry for go.mod file; to add it:\n\tgo mod download example.com/version$'
+ 
+ 
+ -- go.mod --
+diff --git a/src/cmd/go/testdata/script/mod_tidy_compat_ambiguous.txt b/src/cmd/go/testdata/script/mod_tidy_compat_ambiguous.txt
+index a45de5ad8c..8f29f74875 100644
+--- a/src/cmd/go/testdata/script/mod_tidy_compat_ambiguous.txt
++++ b/src/cmd/go/testdata/script/mod_tidy_compat_ambiguous.txt
+@@ -62,7 +62,7 @@ cmp stdout all-m.txt
+ 
+ go mod edit -go=1.16
+ ! go list -m all
+-stderr '^go: example\.net/indirect@v0\.1\.0 requires\n\texample\.net/ambiguous@v0\.1\.0: missing go\.sum entry; to add it:\n\tgo mod download example\.net/ambiguous\n'
++stderr '^go: example\.net/indirect@v0\.1\.0 requires\n\texample\.net/ambiguous@v0\.1\.0: missing go\.sum entry for go\.mod file; to add it:\n\tgo mod download example\.net/ambiguous\n'
+ 
+ 
+ -- go.mod --
+diff --git a/src/cmd/go/testdata/script/mod_tidy_compat_implicit.txt b/src/cmd/go/testdata/script/mod_tidy_compat_implicit.txt
+index 186a3f8e67..8b5869780c 100644
+--- a/src/cmd/go/testdata/script/mod_tidy_compat_implicit.txt
++++ b/src/cmd/go/testdata/script/mod_tidy_compat_implicit.txt
+@@ -45,14 +45,14 @@ go mod tidy -compat=1.17
+ ! stderr .
+ cmp go.mod go.mod.orig
+ 
+-go list -deps -test -f $MODFMT all
+-stdout '^example\.com/retract/incompatible v1\.0\.0$'
++go list -deps -test -f $MODFMT ./...
++stdout '^example.net/lazy v0.1.0$'
+ 
+ go mod edit -go=1.16
+-! go list -deps -test -f $MODFMT all
++! go list -deps -test -f $MODFMT ./...
+ 
+ 	# TODO(#46160): -count=1 instead of -count=2.
+-stderr -count=2 '^go: example\.net/lazy@v0\.1\.0 requires\n\texample\.com/retract/incompatible@v1\.0\.0: missing go\.sum entry; to add it:\n\tgo mod download example\.com/retract/incompatible$'
++stderr -count=2 '^go: example\.net/lazy@v0\.1\.0 requires\n\texample\.com/retract/incompatible@v1\.0\.0: missing go\.sum entry for go\.mod file; to add it:\n\tgo mod download example\.com/retract/incompatible$'
+ 
+ 
+ # If we combine a Go 1.16 go.sum file...
+@@ -63,7 +63,7 @@ cp go.mod.orig go.mod
+ 
+ # ...then Go 1.17 no longer works. 😞
+ ! go list -deps -test -f $MODFMT all
+-stderr -count=1 '^can''t load test package: lazy[/\\]lazy_test.go:3:8: missing go\.sum entry for module providing package example\.com/retract/incompatible \(imported by example\.net/lazy\); to add:\n\tgo get -t example.net/lazy@v0\.1\.0$'
++stderr -count=1 '^go: can''t load test package: lazy[/\\]lazy_test.go:3:8: missing go\.sum entry for module providing package example\.com/retract/incompatible \(imported by example\.net/lazy\); to add:\n\tgo get -t example.net/lazy@v0\.1\.0$'
+ 
+ 
+ # However, if we take the union of the go.sum files...
+diff --git a/src/cmd/go/testdata/script/mod_tidy_compat_incompatible.txt b/src/cmd/go/testdata/script/mod_tidy_compat_incompatible.txt
+index 11313f144c..1fef4b629c 100644
+--- a/src/cmd/go/testdata/script/mod_tidy_compat_incompatible.txt
++++ b/src/cmd/go/testdata/script/mod_tidy_compat_incompatible.txt
+@@ -49,7 +49,7 @@ cmp go.mod go.mod.orig
+ go mod edit -go=1.16
+ ! go list -f $MODFMT -deps ./...
+ 	# TODO(#46160): -count=1 instead of -count=2.
+-stderr -count=2 '^go: example\.net/lazy@v0\.1\.0 requires\n\texample\.net/requireincompatible@v0\.1\.0 requires\n\texample\.com/retract/incompatible@v2\.0\.0\+incompatible: missing go.sum entry; to add it:\n\tgo mod download example.com/retract/incompatible$'
++stderr -count=2 '^go: example\.net/lazy@v0\.1\.0 requires\n\texample\.net/requireincompatible@v0\.1\.0 requires\n\texample\.com/retract/incompatible@v2\.0\.0\+incompatible: missing go.sum entry for go.mod file; to add it:\n\tgo mod download example.com/retract/incompatible$'
+ 
+ 
+ # There are two ways for the module author to bring the two into alignment.
+diff --git a/src/cmd/go/testdata/script/mod_tidy_compat_irrelevant.txt b/src/cmd/go/testdata/script/mod_tidy_compat_irrelevant.txt
+index 7c22fca6c0..59926d06d6 100644
+--- a/src/cmd/go/testdata/script/mod_tidy_compat_irrelevant.txt
++++ b/src/cmd/go/testdata/script/mod_tidy_compat_irrelevant.txt
+@@ -48,7 +48,7 @@ cmp stdout out-117.txt
+ go mod edit -go=1.16
+ ! go list -deps -test -f $MODFMT all
+ 	# TODO(#46160): -count=1 instead of -count=2.
+-stderr -count=2 '^go: example.net/lazy@v0.1.0 requires\n\texample.com/retract/incompatible@v1.0.0: missing go.sum entry; to add it:\n\tgo mod download example.com/retract/incompatible$'
++stderr -count=2 '^go: example.net/lazy@v0.1.0 requires\n\texample.com/retract/incompatible@v1.0.0: missing go.sum entry for go.mod file; to add it:\n\tgo mod download example.com/retract/incompatible$'
+ 
+ 
+ -- go.mod --

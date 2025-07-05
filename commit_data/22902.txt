@@ -26,7 +26,43 @@ Date:   Tue Apr 14 12:46:15 2015 +0300
     Reviewed-by: David Chase <drchase@google.com>
     Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/internal/gc/esc.go   |  1 +
  test/fixedbugs/issue10441.go | 17 +++++++++++++++++
  2 files changed, 18 insertions(+)
+
+diff --git a/src/cmd/internal/gc/esc.go b/src/cmd/internal/gc/esc.go
+index 6f894c9165..0ca407a734 100644
+--- a/src/cmd/internal/gc/esc.go
++++ b/src/cmd/internal/gc/esc.go
+@@ -885,6 +885,7 @@ func escassign(e *EscState, dst *Node, src *Node) {
+ 		a := Nod(OADDR, src, nil)
+ 		a.Lineno = src.Lineno
+ 		a.Escloopdepth = src.Escloopdepth
++		a.Type = Ptrto(src.Type)
+ 		escflows(e, dst, a)
+ 
+ 		// Flowing multiple returns to a single dst happens when
+diff --git a/test/fixedbugs/issue10441.go b/test/fixedbugs/issue10441.go
+new file mode 100644
+index 0000000000..25832fac45
+--- /dev/null
++++ b/test/fixedbugs/issue10441.go
+@@ -0,0 +1,17 @@
++// build
++
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func bar() {
++	f := func() {}
++	foo(&f)
++}
++
++func foo(f *func()) func() {
++	defer func() {}() // prevent inlining of foo
++	return *f
++}

@@ -11,7 +11,52 @@ Date:   Sun Feb 3 22:41:00 2013 -0500
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/7289049
-
+---
  src/pkg/time/time_test.go     | 16 ++++++++++++++++
  src/pkg/time/zoneinfo_read.go |  6 ++++++
  2 files changed, 22 insertions(+)
+
+diff --git a/src/pkg/time/time_test.go b/src/pkg/time/time_test.go
+index 04b0ade242..3698c4fe2a 100644
+--- a/src/pkg/time/time_test.go
++++ b/src/pkg/time/time_test.go
+@@ -1265,6 +1265,22 @@ func TestCountMallocs(t *testing.T) {
+ 	}
+ }
+ 
++func TestLoadFixed(t *testing.T) {
++	// Issue 4064: handle locations without any zone transitions.
++	loc, err := LoadLocation("Etc/GMT+1")
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	// The tzdata name Etc/GMT+1 uses "east is negative",
++	// but Go and most other systems use "east is positive".
++	// So GMT+1 corresponds to -3600 in the Go zone, not +3600.
++	name, offset := Now().In(loc).Zone()
++	if name != "GMT+1" || offset != -1*60*60 {
++		t.Errorf("Now().In(loc).Zone() = %q, %d, want %q, %d", name, offset, "GMT+1", -1*60*60)
++	}
++}
++
+ func BenchmarkNow(b *testing.B) {
+ 	for i := 0; i < b.N; i++ {
+ 		t = Now()
+diff --git a/src/pkg/time/zoneinfo_read.go b/src/pkg/time/zoneinfo_read.go
+index a5a2de218e..4519c99623 100644
+--- a/src/pkg/time/zoneinfo_read.go
++++ b/src/pkg/time/zoneinfo_read.go
+@@ -174,6 +174,12 @@ func loadZoneData(bytes []byte) (l *Location, err error) {
+ 		}
+ 	}
+ 
++	if len(tx) == 0 {
++		// Build fake transition to cover all time.
++		// This happens in fixed locations like "Etc/GMT0".
++		tx = append(tx, zoneTrans{when: -1 << 63, index: 0})
++	}
++
+ 	// Committed to succeed.
+ 	l = &Location{zone: zone, tx: tx}
+ 

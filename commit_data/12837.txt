@@ -9,6 +9,27 @@ Date:   Thu Apr 5 15:17:24 2012 +1000
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/5986045
-
+---
  src/pkg/path/filepath/path_test.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/pkg/path/filepath/path_test.go b/src/pkg/path/filepath/path_test.go
+index b8766588cf..e4b4da43cb 100644
+--- a/src/pkg/path/filepath/path_test.go
++++ b/src/pkg/path/filepath/path_test.go
+@@ -684,10 +684,15 @@ func TestAbs(t *testing.T) {
+ 	}
+ 	defer os.RemoveAll(root)
+ 
++	wd, err := os.Getwd()
++	if err != nil {
++		t.Fatal("getwd failed: ", err)
++	}
+ 	err = os.Chdir(root)
+ 	if err != nil {
+ 		t.Fatal("chdir failed: ", err)
+ 	}
++	defer os.Chdir(wd)
+ 
+ 	for _, dir := range absTestDirs {
+ 		err = os.Mkdir(dir, 0777)

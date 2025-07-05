@@ -9,8 +9,87 @@ Date:   Tue Dec 13 09:09:10 2011 +0100
     R=rsc, rogpeppe
     CC=golang-dev
     https://golang.org/cl/5483048
-
+---
  src/cmd/gc/sinit.c               | 27 +++++++++++++--------------
  test/fixedbugs/bug382.dir/pkg.go |  7 +++++++
  test/fixedbugs/bug382.go         | 10 ++++++++++
  3 files changed, 30 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/gc/sinit.c b/src/cmd/gc/sinit.c
+index 3ef914a60e..8798d2136b 100644
+--- a/src/cmd/gc/sinit.c
++++ b/src/cmd/gc/sinit.c
+@@ -302,18 +302,18 @@ staticcopy(Node *l, Node *r, NodeList **out)
+ 			n1.type = e->expr->type;
+ 			if(e->expr->op == OLITERAL)
+ 				gdata(&n1, e->expr, n1.type->width);
+-			else if(staticassign(&n1, e->expr, out)) {
+-				// Done
+-			} else {
+-				// Requires computation, but we're
+-				// copying someone else's computation.
++			else {
+ 				ll = nod(OXXX, N, N);
+ 				*ll = n1;
+-				rr = nod(OXXX, N, N);
+-				*rr = *orig;
+-				rr->type = ll->type;
+-				rr->xoffset += e->xoffset;
+-				*out = list(*out, nod(OAS, ll, rr));
++				if(!staticassign(ll, e->expr, out)) {
++					// Requires computation, but we're
++					// copying someone else's computation.
++					rr = nod(OXXX, N, N);
++					*rr = *orig;
++					rr->type = ll->type;
++					rr->xoffset += e->xoffset;
++					*out = list(*out, nod(OAS, ll, rr));
++				}
+ 			}
+ 		}
+ 		return 1;
+@@ -407,12 +407,11 @@ staticassign(Node *l, Node *r, NodeList **out)
+ 			n1.type = e->expr->type;
+ 			if(e->expr->op == OLITERAL)
+ 				gdata(&n1, e->expr, n1.type->width);
+-			else if(staticassign(&n1, e->expr, out)) {
+-				// done
+-			} else {
++			else {
+ 				a = nod(OXXX, N, N);
+ 				*a = n1;
+-				*out = list(*out, nod(OAS, a, e->expr));
++				if(!staticassign(a, e->expr, out))
++					*out = list(*out, nod(OAS, a, e->expr));
+ 			}
+ 		}
+ 		return 1;
+diff --git a/test/fixedbugs/bug382.dir/pkg.go b/test/fixedbugs/bug382.dir/pkg.go
+new file mode 100644
+index 0000000000..f8d75d4541
+--- /dev/null
++++ b/test/fixedbugs/bug382.dir/pkg.go
+@@ -0,0 +1,7 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package pkg
++type T struct {}
++var E T
+diff --git a/test/fixedbugs/bug382.go b/test/fixedbugs/bug382.go
+new file mode 100644
+index 0000000000..6212fbf507
+--- /dev/null
++++ b/test/fixedbugs/bug382.go
+@@ -0,0 +1,10 @@
++// $G $D/$F.dir/pkg.go && $G $D/$F.go || echo "Bug 382"
++
++// Issue 2529
++
++package main
++import "./pkg"
++
++var x = pkg.E
++
++var fo = struct {F pkg.T}{F: x}

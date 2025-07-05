@@ -31,7 +31,7 @@ Date:   Sat Mar 19 18:17:58 2016 -0700
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/closure.go |  4 ++--
  src/cmd/compile/internal/gc/dcl.go     |  4 ++--
  src/cmd/compile/internal/gc/gen.go     |  2 +-
@@ -41,3 +41,186 @@ Date:   Sat Mar 19 18:17:58 2016 -0700
  src/cmd/compile/internal/gc/sinit.go   |  2 +-
  src/cmd/compile/internal/gc/subr.go    | 10 ++++++++++
  8 files changed, 26 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/closure.go b/src/cmd/compile/internal/gc/closure.go
+index 0677c3030b..a908b3d268 100644
+--- a/src/cmd/compile/internal/gc/closure.go
++++ b/src/cmd/compile/internal/gc/closure.go
+@@ -529,7 +529,7 @@ func makepartialcall(fn *Node, t0 *Type, meth *Sym) *Node {
+ 	var fld *Node
+ 	var n *Node
+ 	for _, t := range t0.Params().Fields().Slice() {
+-		n = newname(Lookupf("a%d", i))
++		n = newname(LookupN("a%d", i))
+ 		i++
+ 		n.Class = PPARAM
+ 		xfunc.Func.Dcl = append(xfunc.Func.Dcl, n)
+@@ -548,7 +548,7 @@ func makepartialcall(fn *Node, t0 *Type, meth *Sym) *Node {
+ 	l = nil
+ 	var retargs []*Node
+ 	for _, t := range t0.Results().Fields().Slice() {
+-		n = newname(Lookupf("r%d", i))
++		n = newname(LookupN("r", i))
+ 		i++
+ 		n.Class = PPARAMOUT
+ 		xfunc.Func.Dcl = append(xfunc.Func.Dcl, n)
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index 45d65b1967..0107d437b1 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -613,7 +613,7 @@ func funcargs(nt *Node) {
+ 
+ 		if n.Left == nil {
+ 			// Name so that escape analysis can track it. ~r stands for 'result'.
+-			n.Left = newname(Lookupf("~r%d", gen))
++			n.Left = newname(LookupN("~r", gen))
+ 			gen++
+ 		}
+ 
+@@ -633,7 +633,7 @@ func funcargs(nt *Node) {
+ 
+ 			*nn = *n.Left
+ 			nn.Orig = nn
+-			nn.Sym = Lookupf("~b%d", gen)
++			nn.Sym = LookupN("~b", gen)
+ 			gen++
+ 			n.Left = nn
+ 		}
+diff --git a/src/cmd/compile/internal/gc/gen.go b/src/cmd/compile/internal/gc/gen.go
+index 7e192a864a..72b606e0ab 100644
+--- a/src/cmd/compile/internal/gc/gen.go
++++ b/src/cmd/compile/internal/gc/gen.go
+@@ -594,7 +594,7 @@ func Tempname(nn *Node, t *Type) {
+ 
+ 	// give each tmp a different name so that there
+ 	// a chance to registerizer them
+-	s := Lookupf("autotmp_%.4d", statuniqgen)
++	s := LookupN("autotmp_", statuniqgen)
+ 	statuniqgen++
+ 	n := Nod(ONAME, nil, nil)
+ 	n.Sym = s
+diff --git a/src/cmd/compile/internal/gc/init.go b/src/cmd/compile/internal/gc/init.go
+index 0424e4727a..345d8eb480 100644
+--- a/src/cmd/compile/internal/gc/init.go
++++ b/src/cmd/compile/internal/gc/init.go
+@@ -27,7 +27,7 @@ var renameinit_initgen int
+ 
+ func renameinit() *Sym {
+ 	renameinit_initgen++
+-	return Lookupf("init.%d", renameinit_initgen)
++	return LookupN("init.", renameinit_initgen)
+ }
+ 
+ // hand-craft the following initialization code
+@@ -154,7 +154,7 @@ func fninit(n []*Node) {
+ 	// (9)
+ 	// could check that it is fn of no args/returns
+ 	for i := 1; ; i++ {
+-		s := Lookupf("init.%d", i)
++		s := LookupN("init.", i)
+ 		if s.Def == nil {
+ 			break
+ 		}
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index 77cdc195f0..77e45898a4 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -851,7 +851,7 @@ func inlvar(var_ *Node) *Node {
+ 
+ // Synthesize a variable to store the inlined function's results in.
+ func retvar(t *Field, i int) *Node {
+-	n := newname(Lookupf("~r%d", i))
++	n := newname(LookupN("~r", i))
+ 	n.Type = t.Type
+ 	n.Class = PAUTO
+ 	n.Used = true
+@@ -863,7 +863,7 @@ func retvar(t *Field, i int) *Node {
+ // Synthesize a variable to store the inlined function's arguments
+ // when they come from a multiple return call.
+ func argvar(t *Type, i int) *Node {
+-	n := newname(Lookupf("~arg%d", i))
++	n := newname(LookupN("~arg", i))
+ 	n.Type = t.Type
+ 	n.Class = PAUTO
+ 	n.Used = true
+@@ -876,7 +876,7 @@ var newlabel_inl_label int
+ 
+ func newlabel_inl() *Node {
+ 	newlabel_inl_label++
+-	n := newname(Lookupf(".inlret%.6d", newlabel_inl_label))
++	n := newname(LookupN(".inlret", newlabel_inl_label))
+ 	n.Etype = 1 // flag 'safe' for escape analysis (no backjumps)
+ 	return n
+ }
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index 43b692d59d..6be4da8da7 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -15,12 +15,12 @@ import (
+ 
+ // "Portable" code generation.
+ 
+-var makefuncdatasym_nsym int32
++var makefuncdatasym_nsym int
+ 
+-func makefuncdatasym(namefmt string, funcdatakind int64) *Sym {
++func makefuncdatasym(nameprefix string, funcdatakind int64) *Sym {
+ 	var nod Node
+ 
+-	sym := Lookupf(namefmt, makefuncdatasym_nsym)
++	sym := LookupN(nameprefix, makefuncdatasym_nsym)
+ 	makefuncdatasym_nsym++
+ 	pnod := newname(sym)
+ 	pnod.Class = PEXTERN
+@@ -456,8 +456,8 @@ func compile(fn *Node) {
+ 
+ 	ginit()
+ 
+-	gcargs := makefuncdatasym("gcargs·%d", obj.FUNCDATA_ArgsPointerMaps)
+-	gclocals := makefuncdatasym("gclocals·%d", obj.FUNCDATA_LocalsPointerMaps)
++	gcargs := makefuncdatasym("gcargs·", obj.FUNCDATA_ArgsPointerMaps)
++	gclocals := makefuncdatasym("gclocals·", obj.FUNCDATA_LocalsPointerMaps)
+ 
+ 	if obj.Fieldtrack_enabled != 0 && len(Curfn.Func.FieldTrack) > 0 {
+ 		trackSyms := make([]*Sym, 0, len(Curfn.Func.FieldTrack))
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index 63865177e0..5c8fd0fc30 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -500,7 +500,7 @@ func staticassign(l *Node, r *Node, out *[]*Node) bool {
+ // data statements for the constant
+ // part of the composite literal.
+ func staticname(t *Type, ctxt int) *Node {
+-	n := newname(Lookupf("statictmp_%.4d", statuniqgen))
++	n := newname(LookupN("statictmp_", statuniqgen))
+ 	statuniqgen++
+ 	if ctxt == 0 {
+ 		n.Name.Readonly = true
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 153e6210cc..0d197886b0 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -12,6 +12,7 @@ import (
+ 	"fmt"
+ 	"os"
+ 	"sort"
++	"strconv"
+ 	"strings"
+ 	"unicode"
+ 	"unicode/utf8"
+@@ -223,6 +224,15 @@ func LookupBytes(name []byte) *Sym {
+ 	return localpkg.LookupBytes(name)
+ }
+ 
++// LookupN looks up the symbol starting with prefix and ending with
++// the decimal n. If prefix is too long, LookupN panics.
++func LookupN(prefix string, n int) *Sym {
++	var buf [20]byte // plenty long enough for all current users
++	copy(buf[:], prefix)
++	b := strconv.AppendInt(buf[:len(prefix)], int64(n), 10)
++	return LookupBytes(b)
++}
++
+ var initSyms []*Sym
+ 
+ var nopkg = &Pkg{

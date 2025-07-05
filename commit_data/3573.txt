@@ -11,7 +11,7 @@ Date:   Thu Oct 15 23:10:49 2009 -0700
     DELTA=732  (114 added, 93 deleted, 525 changed)
     OCL=35811
     CL=35824
-
+---
  src/cmd/5l/noop.c                  |   8 +-
  src/cmd/6l/pass.c                  |  22 +++---
  src/cmd/8l/pass.c                  |   4 +-
@@ -69,3 +69,3070 @@ Date:   Thu Oct 15 23:10:49 2009 -0700
  src/pkg/syscall/asm_nacl_386.s     |  12 +--
  test/runtime.go                    |  20 +++++
  56 files changed, 517 insertions(+), 496 deletions(-)
+
+diff --git a/src/cmd/5l/noop.c b/src/cmd/5l/noop.c
+index 19fc56764b..afa3492f00 100644
+--- a/src/cmd/5l/noop.c
++++ b/src/cmd/5l/noop.c
+@@ -128,7 +128,7 @@ noops(void)
+ 	Bflush(&bso);
+ 
+ 	pmorestack = P;
+-	symmorestack = lookup("sys·morestackx", 0);
++	symmorestack = lookup("runtime·morestackx", 0);
+ 
+ 	if(symmorestack->type == STEXT)
+ 	for(p = firstp; p != P; p = p->link) {
+@@ -142,7 +142,7 @@ noops(void)
+ 	}
+ 	// TODO(kaib): make lack of morestack an error
+ //	if(pmorestack == P)
+-//		diag("sys·morestack not defined");
++//		diag("runtime·morestack not defined");
+ 
+ 	curframe = 0;
+ 	curbecome = 0;
+@@ -360,7 +360,7 @@ noops(void)
+ 				// CMP			R1, $-autosize(SP)
+ 				// MOVW.LT		$args, R2
+ 				// MOVW.W.LT	R14, R3
+-				// BL.LT		sys·morestackx(SB) // modifies LR
++				// BL.LT		runtime·morestackx(SB) // modifies LR
+ 				// MOVW.W		R14,$-autosize(SP)
+ 
+ 				// TODO(kaib): add more trampolines
+@@ -401,7 +401,7 @@ noops(void)
+ 				p->to.type = D_REG;
+ 				p->to.reg = 3;
+ 
+-				// BL.LT		sys·morestackx(SB) // modifies LR
++				// BL.LT		runtime·morestackx(SB) // modifies LR
+ 				p = appendp(p);
+ 				p->as = ABL;
+ 				p->scond = C_SCOND_LT;
+diff --git a/src/cmd/6l/pass.c b/src/cmd/6l/pass.c
+index 7a95f7427e..4a7f66af31 100644
+--- a/src/cmd/6l/pass.c
++++ b/src/cmd/6l/pass.c
+@@ -513,17 +513,17 @@ brloop(Prog *p)
+ static char*
+ morename[] =
+ {
+-	"sys·morestack00",
+-	"sys·morestack10",
+-	"sys·morestack01",
+-	"sys·morestack11",
+-
+-	"sys·morestack8",
+-	"sys·morestack16",
+-	"sys·morestack24",
+-	"sys·morestack32",
+-	"sys·morestack40",
+-	"sys·morestack48",
++	"runtime·morestack00",
++	"runtime·morestack10",
++	"runtime·morestack01",
++	"runtime·morestack11",
++
++	"runtime·morestack8",
++	"runtime·morestack16",
++	"runtime·morestack24",
++	"runtime·morestack32",
++	"runtime·morestack40",
++	"runtime·morestack48",
+ };
+ Prog*	pmorestack[nelem(morename)];
+ Sym*	symmorestack[nelem(morename)];
+diff --git a/src/cmd/8l/pass.c b/src/cmd/8l/pass.c
+index aee0c129c5..16f5a1b5e1 100644
+--- a/src/cmd/8l/pass.c
++++ b/src/cmd/8l/pass.c
+@@ -477,7 +477,7 @@ dostkoff(void)
+ 	Sym *symmorestack;
+ 
+ 	pmorestack = P;
+-	symmorestack = lookup("sys·morestack", 0);
++	symmorestack = lookup("runtime·morestack", 0);
+ 
+ 	if(symmorestack->type == STEXT)
+ 	for(p = firstp; p != P; p = p->link) {
+@@ -490,7 +490,7 @@ dostkoff(void)
+ 		}
+ 	}
+ 	if(pmorestack == P)
+-		diag("sys·morestack not defined");
++		diag("runtime·morestack not defined");
+ 
+ 	curframe = 0;
+ 	curbecome = 0;
+diff --git a/src/cmd/gc/Makefile b/src/cmd/gc/Makefile
+index d552a91015..94019322a2 100644
+--- a/src/cmd/gc/Makefile
++++ b/src/cmd/gc/Makefile
+@@ -54,7 +54,7 @@ y.tab.h: $(YFILES)
+ y.tab.c: y.tab.h
+ 	test -f y.tab.c && touch y.tab.c
+ 
+-builtin.c:	sys.go unsafe.go mkbuiltin1.c mkbuiltin
++builtin.c:	runtime.go unsafe.go mkbuiltin1.c mkbuiltin
+ 	./mkbuiltin >builtin.c || \
+ 	(echo 'mkbuiltin failed; using bootstrap copy of builtin.c'; cp builtin.c.boot builtin.c)
+ 
+diff --git a/src/cmd/gc/builtin.c.boot b/src/cmd/gc/builtin.c.boot
+index ed2bea22ac..fc8a6d1f60 100644
+--- a/src/cmd/gc/builtin.c.boot
++++ b/src/cmd/gc/builtin.c.boot
+@@ -1,78 +1,78 @@
+-char *sysimport =
+-	"package sys\n"
+-	"func sys.mal (? int32) (? *any)\n"
+-	"func sys.throwindex ()\n"
+-	"func sys.throwreturn ()\n"
+-	"func sys.throwinit ()\n"
+-	"func sys.panicl ()\n"
+-	"func sys.printbool (? bool)\n"
+-	"func sys.printfloat (? float64)\n"
+-	"func sys.printint (? int64)\n"
+-	"func sys.printuint (? uint64)\n"
+-	"func sys.printstring (? string)\n"
+-	"func sys.printpointer (? any)\n"
+-	"func sys.printiface (? any)\n"
+-	"func sys.printeface (? any)\n"
+-	"func sys.printslice (? any)\n"
+-	"func sys.printnl ()\n"
+-	"func sys.printsp ()\n"
+-	"func sys.catstring (? string, ? string) (? string)\n"
+-	"func sys.cmpstring (? string, ? string) (? int)\n"
+-	"func sys.slicestring (? string, ? int, ? int) (? string)\n"
+-	"func sys.indexstring (? string, ? int) (? uint8)\n"
+-	"func sys.intstring (? int64) (? string)\n"
+-	"func sys.slicebytetostring (? []uint8) (? string)\n"
+-	"func sys.sliceinttostring (? []int) (? string)\n"
+-	"func sys.stringiter (? string, ? int) (? int)\n"
+-	"func sys.stringiter2 (? string, ? int) (retk int, retv int)\n"
+-	"func sys.ifaceI2E (iface any) (ret any)\n"
+-	"func sys.ifaceE2I (typ *uint8, iface any) (ret any)\n"
+-	"func sys.ifaceT2E (typ *uint8, elem any) (ret any)\n"
+-	"func sys.ifaceE2T (typ *uint8, elem any) (ret any)\n"
+-	"func sys.ifaceE2I2 (typ *uint8, iface any) (ret any, ok bool)\n"
+-	"func sys.ifaceE2T2 (typ *uint8, elem any) (ret any, ok bool)\n"
+-	"func sys.ifaceT2I (typ1 *uint8, typ2 *uint8, elem any) (ret any)\n"
+-	"func sys.ifaceI2T (typ *uint8, iface any) (ret any)\n"
+-	"func sys.ifaceI2T2 (typ *uint8, iface any) (ret any, ok bool)\n"
+-	"func sys.ifaceI2I (typ *uint8, iface any) (ret any)\n"
+-	"func sys.ifaceI2Ix (typ *uint8, iface any) (ret any)\n"
+-	"func sys.ifaceI2I2 (typ *uint8, iface any) (ret any, ok bool)\n"
+-	"func sys.ifaceeq (i1 any, i2 any) (ret bool)\n"
+-	"func sys.efaceeq (i1 any, i2 any) (ret bool)\n"
+-	"func sys.ifacethash (i1 any) (ret uint32)\n"
+-	"func sys.efacethash (i1 any) (ret uint32)\n"
+-	"func sys.makemap (key *uint8, val *uint8, hint int) (hmap map[any] any)\n"
+-	"func sys.mapaccess1 (hmap map[any] any, key any) (val any)\n"
+-	"func sys.mapaccess2 (hmap map[any] any, key any) (val any, pres bool)\n"
+-	"func sys.mapassign1 (hmap map[any] any, key any, val any)\n"
+-	"func sys.mapassign2 (hmap map[any] any, key any, val any, pres bool)\n"
+-	"func sys.mapiterinit (hmap map[any] any, hiter *any)\n"
+-	"func sys.mapiternext (hiter *any)\n"
+-	"func sys.mapiter1 (hiter *any) (key any)\n"
+-	"func sys.mapiter2 (hiter *any) (key any, val any)\n"
+-	"func sys.makechan (elem *uint8, hint int) (hchan chan any)\n"
+-	"func sys.chanrecv1 (hchan <-chan any) (elem any)\n"
+-	"func sys.chanrecv2 (hchan <-chan any) (elem any, pres bool)\n"
+-	"func sys.chansend1 (hchan chan<- any, elem any)\n"
+-	"func sys.chansend2 (hchan chan<- any, elem any) (pres bool)\n"
+-	"func sys.closechan (hchan any)\n"
+-	"func sys.closedchan (hchan any) (? bool)\n"
+-	"func sys.newselect (size int) (sel *uint8)\n"
+-	"func sys.selectsend (sel *uint8, hchan chan<- any, elem any) (selected bool)\n"
+-	"func sys.selectrecv (sel *uint8, hchan <-chan any, elem *any) (selected bool)\n"
+-	"func sys.selectdefault (sel *uint8) (selected bool)\n"
+-	"func sys.selectgo (sel *uint8)\n"
+-	"func sys.makeslice (nel int, cap int, width int) (ary []any)\n"
+-	"func sys.sliceslice (old []any, lb int, hb int, width int) (ary []any)\n"
+-	"func sys.slicearray (old *any, nel int, lb int, hb int, width int) (ary []any)\n"
+-	"func sys.arraytoslice (old *any, nel int) (ary []any)\n"
+-	"func sys.closure ()\n"
+-	"func sys.int64div (? int64, ? int64) (? int64)\n"
+-	"func sys.uint64div (? uint64, ? uint64) (? uint64)\n"
+-	"func sys.int64mod (? int64, ? int64) (? int64)\n"
+-	"func sys.uint64mod (? uint64, ? uint64) (? uint64)\n"
+-	"func sys.float64toint64 (? float64) (? int64)\n"
+-	"func sys.int64tofloat64 (? int64) (? float64)\n"
++char *runtimeimport =
++	"package runtime\n"
++	"func runtime.mal (? int32) (? *any)\n"
++	"func runtime.throwindex ()\n"
++	"func runtime.throwreturn ()\n"
++	"func runtime.throwinit ()\n"
++	"func runtime.panicl ()\n"
++	"func runtime.printbool (? bool)\n"
++	"func runtime.printfloat (? float64)\n"
++	"func runtime.printint (? int64)\n"
++	"func runtime.printuint (? uint64)\n"
++	"func runtime.printstring (? string)\n"
++	"func runtime.printpointer (? any)\n"
++	"func runtime.printiface (? any)\n"
++	"func runtime.printeface (? any)\n"
++	"func runtime.printslice (? any)\n"
++	"func runtime.printnl ()\n"
++	"func runtime.printsp ()\n"
++	"func runtime.catstring (? string, ? string) (? string)\n"
++	"func runtime.cmpstring (? string, ? string) (? int)\n"
++	"func runtime.slicestring (? string, ? int, ? int) (? string)\n"
++	"func runtime.indexstring (? string, ? int) (? uint8)\n"
++	"func runtime.intstring (? int64) (? string)\n"
++	"func runtime.slicebytetostring (? []uint8) (? string)\n"
++	"func runtime.sliceinttostring (? []int) (? string)\n"
++	"func runtime.stringiter (? string, ? int) (? int)\n"
++	"func runtime.stringiter2 (? string, ? int) (retk int, retv int)\n"
++	"func runtime.ifaceI2E (iface any) (ret any)\n"
++	"func runtime.ifaceE2I (typ *uint8, iface any) (ret any)\n"
++	"func runtime.ifaceT2E (typ *uint8, elem any) (ret any)\n"
++	"func runtime.ifaceE2T (typ *uint8, elem any) (ret any)\n"
++	"func runtime.ifaceE2I2 (typ *uint8, iface any) (ret any, ok bool)\n"
++	"func runtime.ifaceE2T2 (typ *uint8, elem any) (ret any, ok bool)\n"
++	"func runtime.ifaceT2I (typ1 *uint8, typ2 *uint8, elem any) (ret any)\n"
++	"func runtime.ifaceI2T (typ *uint8, iface any) (ret any)\n"
++	"func runtime.ifaceI2T2 (typ *uint8, iface any) (ret any, ok bool)\n"
++	"func runtime.ifaceI2I (typ *uint8, iface any) (ret any)\n"
++	"func runtime.ifaceI2Ix (typ *uint8, iface any) (ret any)\n"
++	"func runtime.ifaceI2I2 (typ *uint8, iface any) (ret any, ok bool)\n"
++	"func runtime.ifaceeq (i1 any, i2 any) (ret bool)\n"
++	"func runtime.efaceeq (i1 any, i2 any) (ret bool)\n"
++	"func runtime.ifacethash (i1 any) (ret uint32)\n"
++	"func runtime.efacethash (i1 any) (ret uint32)\n"
++	"func runtime.makemap (key *uint8, val *uint8, hint int) (hmap map[any] any)\n"
++	"func runtime.mapaccess1 (hmap map[any] any, key any) (val any)\n"
++	"func runtime.mapaccess2 (hmap map[any] any, key any) (val any, pres bool)\n"
++	"func runtime.mapassign1 (hmap map[any] any, key any, val any)\n"
++	"func runtime.mapassign2 (hmap map[any] any, key any, val any, pres bool)\n"
++	"func runtime.mapiterinit (hmap map[any] any, hiter *any)\n"
++	"func runtime.mapiternext (hiter *any)\n"
++	"func runtime.mapiter1 (hiter *any) (key any)\n"
++	"func runtime.mapiter2 (hiter *any) (key any, val any)\n"
++	"func runtime.makechan (elem *uint8, hint int) (hchan chan any)\n"
++	"func runtime.chanrecv1 (hchan <-chan any) (elem any)\n"
++	"func runtime.chanrecv2 (hchan <-chan any) (elem any, pres bool)\n"
++	"func runtime.chansend1 (hchan chan<- any, elem any)\n"
++	"func runtime.chansend2 (hchan chan<- any, elem any) (pres bool)\n"
++	"func runtime.closechan (hchan any)\n"
++	"func runtime.closedchan (hchan any) (? bool)\n"
++	"func runtime.newselect (size int) (sel *uint8)\n"
++	"func runtime.selectsend (sel *uint8, hchan chan<- any, elem any) (selected bool)\n"
++	"func runtime.selectrecv (sel *uint8, hchan <-chan any, elem *any) (selected bool)\n"
++	"func runtime.selectdefault (sel *uint8) (selected bool)\n"
++	"func runtime.selectgo (sel *uint8)\n"
++	"func runtime.makeslice (nel int, cap int, width int) (ary []any)\n"
++	"func runtime.sliceslice (old []any, lb int, hb int, width int) (ary []any)\n"
++	"func runtime.slicearray (old *any, nel int, lb int, hb int, width int) (ary []any)\n"
++	"func runtime.arraytoslice (old *any, nel int) (ary []any)\n"
++	"func runtime.closure ()\n"
++	"func runtime.int64div (? int64, ? int64) (? int64)\n"
++	"func runtime.uint64div (? uint64, ? uint64) (? uint64)\n"
++	"func runtime.int64mod (? int64, ? int64) (? int64)\n"
++	"func runtime.uint64mod (? uint64, ? uint64) (? uint64)\n"
++	"func runtime.float64toint64 (? float64) (? int64)\n"
++	"func runtime.int64tofloat64 (? int64) (? float64)\n"
+ 	"\n"
+ 	"$$\n";
+ char *unsafeimport =
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index fc0cd6b825..1be129f9bd 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -14,7 +14,7 @@ dflag(void)
+ 		return 0;
+ 	if(debug['y'])
+ 		return 1;
+-	if(inimportsys)
++	if(incannedimport)
+ 		return 0;
+ 	return 1;
+ }
+diff --git a/src/cmd/gc/export.c b/src/cmd/gc/export.c
+index bd0e185c16..de27091cd5 100644
+--- a/src/cmd/gc/export.c
++++ b/src/cmd/gc/export.c
+@@ -294,10 +294,10 @@ pkgtype(Sym *s)
+ static int
+ mypackage(Sym *s)
+ {
+-	// we import all definitions for sys.
++	// we import all definitions for runtime.
+ 	// lowercase ones can only be used by the compiler.
+ 	return strcmp(s->package, package) == 0
+-		|| strcmp(s->package, "sys") == 0;
++		|| strcmp(s->package, "runtime") == 0;
+ }
+ 
+ void
+diff --git a/src/cmd/gc/gen.c b/src/cmd/gc/gen.c
+index e570d589c6..149ef80f34 100644
+--- a/src/cmd/gc/gen.c
++++ b/src/cmd/gc/gen.c
+@@ -14,7 +14,7 @@ sysfunc(char *name)
+ {
+ 	Node *n;
+ 
+-	n = newname(pkglookup(name, "sys"));
++	n = newname(pkglookup(name, "runtime"));
+ 	n->class = PFUNC;
+ 	return n;
+ }
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 2f23d63fd9..bd6d3aa147 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -627,7 +627,7 @@ EXTERN	Sym*	hash[NHASH];
+ EXTERN	Sym*	pkgmyname;	// my name for package
+ EXTERN	Sym*	pkgimportname;	// package name from imported package
+ EXTERN	int	tptr;		// either TPTR32 or TPTR64
+-extern	char*	sysimport;
++extern	char*	runtimeimport;
+ extern	char*	unsafeimport;
+ EXTERN	Idir*	idirs;
+ 
+@@ -665,7 +665,7 @@ EXTERN	NodeList*	closures;
+ EXTERN	NodeList*	exportlist;
+ EXTERN	NodeList*	typelist;
+ EXTERN	int	dclcontext;		// PEXTERN/PAUTO
+-EXTERN	int	inimportsys;
++EXTERN	int	incannedimport;
+ EXTERN	int	statuniqgen;		// name generator for static temps
+ EXTERN	int	loophack;
+ 
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index 35084c0303..02e941c16f 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -139,13 +139,13 @@ package:
+ 	}
+ 
+ /*
+- * this loads the definitions for the sys functions,
++ * this loads the definitions for the low-level runtime functions,
+  * so that the compiler can generate calls to them,
+- * but does not make the name "sys" visible as a package.
++ * but does not make the name "runtime" visible as a package.
+  */
+ loadsys:
+ 	{
+-		cannedimports("sys.6", sysimport);
++		cannedimports("runtime.builtin", runtimeimport);
+ 	}
+ 	import_package
+ 	import_there
+@@ -245,7 +245,7 @@ import_package:
+ 		// statements have to go away in programs building
+ 		// against the release.  Once the programs have converted
+ 		// it should probably just go away.
+-		if(strcmp($2->name, package) == 0)
++		if(strcmp($2->name, package) == 0 && strcmp(package, "runtime") != 0)
+ 			yyerror("package cannot import itself (anymore)");
+ 	}
+ 
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 6b05972baa..11e9b5a5c3 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -339,7 +339,7 @@ unimportfile(void)
+ 
+ 	curio = pushedio;
+ 	pushedio.bin = nil;
+-	inimportsys = 0;
++	incannedimport = 0;
+ 	typecheckok = 0;
+ }
+ 
+@@ -357,7 +357,7 @@ cannedimports(char *file, char *cp)
+ 
+ 	pkgmyname = S;
+ 	typecheckok = 1;
+-	inimportsys = 1;
++	incannedimport = 1;
+ }
+ 
+ int
+diff --git a/src/cmd/gc/mkbuiltin b/src/cmd/gc/mkbuiltin
+index 4e7e914411..7fa7170532 100755
+--- a/src/cmd/gc/mkbuiltin
++++ b/src/cmd/gc/mkbuiltin
+@@ -13,7 +13,7 @@ fi
+ 
+ gcc -o mkbuiltin1 mkbuiltin1.c
+ rm -f _builtin.c
+-for i in sys unsafe
++for i in runtime unsafe
+ do
+ 	$GC -A $i.go
+ 	O=$O ./mkbuiltin1 $i >>_builtin.c
+diff --git a/src/cmd/gc/sys.go b/src/cmd/gc/runtime.go
+similarity index 100%
+rename from src/cmd/gc/sys.go
+rename to src/cmd/gc/runtime.go
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 90ca992de2..35f7053e71 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -311,6 +311,7 @@ pkglookup(char *name, char *pkg)
+ 
+ 	s->link = hash[h];
+ 	hash[h] = s;
++	s->lexical = LNAME;
+ 
+ 	return s;
+ }
+@@ -1543,13 +1544,13 @@ isselect(Node *n)
+ 	if(n == N)
+ 		return 0;
+ 	n = n->left;
+-	s = pkglookup("selectsend", "sys");
++	s = pkglookup("selectsend", "runtime");
+ 	if(s == n->sym)
+ 		return 1;
+-	s = pkglookup("selectrecv", "sys");
++	s = pkglookup("selectrecv", "runtime");
+ 	if(s == n->sym)
+ 		return 1;
+-	s = pkglookup("selectdefault", "sys");
++	s = pkglookup("selectdefault", "runtime");
+ 	if(s == n->sym)
+ 		return 1;
+ 	return 0;
+@@ -1960,9 +1961,9 @@ syslook(char *name, int copy)
+ 	Sym *s;
+ 	Node *n;
+ 
+-	s = pkglookup(name, "sys");
++	s = pkglookup(name, "runtime");
+ 	if(s == S || s->def == N)
+-		fatal("looksys: cant find sys.%s", name);
++		fatal("looksys: cant find runtime.%s", name);
+ 
+ 	if(!copy)
+ 		return s->def;
+diff --git a/src/cmd/ld/go.c b/src/cmd/ld/go.c
+index ca304525db..aa006a847e 100644
+--- a/src/cmd/ld/go.c
++++ b/src/cmd/ld/go.c
+@@ -455,20 +455,20 @@ sweeplist(Prog **first, Prog **last)
+ static char*
+ morename[] =
+ {
+-	"sys·morestack",
+-	"sys·morestackx",
+-
+-	"sys·morestack00",
+-	"sys·morestack10",
+-	"sys·morestack01",
+-	"sys·morestack11",
+-
+-	"sys·morestack8",
+-	"sys·morestack16",
+-	"sys·morestack24",
+-	"sys·morestack32",
+-	"sys·morestack40",
+-	"sys·morestack48",
++	"runtime·morestack",
++	"runtime·morestackx",
++
++	"runtime·morestack00",
++	"runtime·morestack10",
++	"runtime·morestack01",
++	"runtime·morestack11",
++
++	"runtime·morestack8",
++	"runtime·morestack16",
++	"runtime·morestack24",
++	"runtime·morestack32",
++	"runtime·morestack40",
++	"runtime·morestack48",
+ };
+ 
+ void
+diff --git a/src/pkg/runtime/386/asm.s b/src/pkg/runtime/386/asm.s
+index 9df7fb1466..bd88f0fdc5 100644
+--- a/src/pkg/runtime/386/asm.s
++++ b/src/pkg/runtime/386/asm.s
+@@ -64,7 +64,7 @@ ok:
+ 	// create a new goroutine to start program
+ 	PUSHL	$mainstart(SB)	// entry
+ 	PUSHL	$0	// arg size
+-	CALL	sys·newproc(SB)
++	CALL	runtime·newproc(SB)
+ 	POPL	AX
+ 	POPL	AX
+ 
+@@ -137,7 +137,7 @@ TEXT gogocall(SB), 7, $0
+  */
+ 
+ // Called during function prolog when more stack is needed.
+-TEXT sys·morestack(SB),7,$0
++TEXT runtime·morestack(SB),7,$0
+ 	// Cannot grow scheduler stack (m->g0).
+ 	MOVL	m, BX
+ 	MOVL	m_g0(BX), SI
+@@ -215,7 +215,7 @@ TEXT reflect·call(SB), 7, $0
+ 
+ 
+ // Return point when leaving stack.
+-TEXT sys·lessstack(SB), 7, $0
++TEXT runtime·lessstack(SB), 7, $0
+ 	// Save return value in m->cret
+ 	MOVL	m, BX
+ 	MOVL	AX, m_cret(BX)
+@@ -260,7 +260,7 @@ TEXT jmpdefer(SB), 7, $0
+ 	SUBL	$5, (SP)	// return to CALL again
+ 	JMP	AX	// but first run the deferred function
+ 
+-TEXT	sys·memclr(SB),7,$0
++TEXT	runtime·memclr(SB),7,$0
+ 	MOVL	4(SP), DI		// arg 1 addr
+ 	MOVL	8(SP), CX		// arg 2 count
+ 	ADDL	$3, CX
+@@ -271,12 +271,12 @@ TEXT	sys·memclr(SB),7,$0
+ 	STOSL
+ 	RET
+ 
+-TEXT	sys·getcallerpc+0(SB),7,$0
++TEXT	runtime·getcallerpc+0(SB),7,$0
+ 	MOVL	x+0(FP),AX		// addr of first arg
+ 	MOVL	-4(AX),AX		// get calling pc
+ 	RET
+ 
+-TEXT	sys·setcallerpc+0(SB),7,$0
++TEXT	runtime·setcallerpc+0(SB),7,$0
+ 	MOVL	x+0(FP),AX		// addr of first arg
+ 	MOVL	x+4(FP), BX
+ 	MOVL	BX, -4(AX)		// set calling pc
+diff --git a/src/pkg/runtime/386/closure.c b/src/pkg/runtime/386/closure.c
+index 763fc45da3..24d1d0361f 100644
+--- a/src/pkg/runtime/386/closure.c
++++ b/src/pkg/runtime/386/closure.c
+@@ -9,7 +9,7 @@
+ //	fn func(arg0, arg1, arg2 *ptr, callerpc uintptr, xxx) yyy,
+ //	arg0, arg1, arg2 *ptr) (func(xxx) yyy)
+ void
+-sys·closure(int32 siz, byte *fn, byte *arg0)
++runtime·closure(int32 siz, byte *fn, byte *arg0)
+ {
+ 	byte *p, *q, **ret;
+ 	int32 i, n;
+diff --git a/src/pkg/runtime/386/traceback.c b/src/pkg/runtime/386/traceback.c
+index 2f5c5e80be..307980eb97 100644
+--- a/src/pkg/runtime/386/traceback.c
++++ b/src/pkg/runtime/386/traceback.c
+@@ -27,7 +27,7 @@ traceback(byte *pc0, byte *sp, G *g)
+ 
+ 	stk = (Stktop*)g->stackbase;
+ 	for(n=0; n<100; n++) {
+-		if(pc == (uint64)sys·lessstack) {
++		if(pc == (uint64)runtime·lessstack) {
+ 			// printf("--\n");
+ 			// pop to earlier stack block
+ 			pc = (uintptr)stk->gobuf.pc;
+@@ -68,7 +68,7 @@ traceback(byte *pc0, byte *sp, G *g)
+ 		for(i = 0; i < f->args; i++) {
+ 			if(i != 0)
+ 				prints(", ");
+-			sys·printhex(((uint32*)sp)[i]);
++			runtime·printhex(((uint32*)sp)[i]);
+ 			if(i >= 4) {
+ 				prints(", ...");
+ 				break;
+@@ -112,7 +112,7 @@ runtime·Caller(int32 n, uintptr retpc, String retfile, int32 retline, bool retb
+ 	// now unwind n levels
+ 	stk = (Stktop*)g->stackbase;
+ 	while(n-- > 0) {
+-		while(pc == (uintptr)sys·lessstack) {
++		while(pc == (uintptr)runtime·lessstack) {
+ 			pc = (uintptr)stk->gobuf.pc;
+ 			sp = stk->gobuf.sp;
+ 			stk = (Stktop*)stk->stackbase;
+diff --git a/src/pkg/runtime/386/vlrt.c b/src/pkg/runtime/386/vlrt.c
+index 093cca70dd..9087104ea9 100755
+--- a/src/pkg/runtime/386/vlrt.c
++++ b/src/pkg/runtime/386/vlrt.c
+@@ -270,7 +270,7 @@ _divvu(Vlong *q, Vlong n, Vlong d)
+ }
+ 
+ void
+-sys·uint64div(Vlong n, Vlong d, Vlong q)
++runtime·uint64div(Vlong n, Vlong d, Vlong q)
+ {
+ 	_divvu(&q, n, d);
+ }
+@@ -288,7 +288,7 @@ _modvu(Vlong *r, Vlong n, Vlong d)
+ }
+ 
+ void
+-sys·uint64mod(Vlong n, Vlong d, Vlong q)
++runtime·uint64mod(Vlong n, Vlong d, Vlong q)
+ {
+ 	_modvu(&q, n, d);
+ }
+@@ -334,7 +334,7 @@ _divv(Vlong *q, Vlong n, Vlong d)
+ }
+ 
+ void
+-sys·int64div(Vlong n, Vlong d, Vlong q)
++runtime·int64div(Vlong n, Vlong d, Vlong q)
+ {
+ 	_divv(&q, n, d);
+ }
+@@ -368,7 +368,7 @@ _modv(Vlong *r, Vlong n, Vlong d)
+ }
+ 
+ void
+-sys·int64mod(Vlong n, Vlong d, Vlong q)
++runtime·int64mod(Vlong n, Vlong d, Vlong q)
+ {
+ 	_modv(&q, n, d);
+ }
+diff --git a/src/pkg/runtime/amd64/asm.s b/src/pkg/runtime/amd64/asm.s
+index 87bc222e14..df81c0eb79 100644
+--- a/src/pkg/runtime/amd64/asm.s
++++ b/src/pkg/runtime/amd64/asm.s
+@@ -38,7 +38,7 @@ TEXT	_rt0_amd64(SB),7,$-8
+ 	// create a new goroutine to start program
+ 	PUSHQ	$mainstart(SB)		// entry
+ 	PUSHQ	$0			// arg size
+-	CALL	sys·newproc(SB)
++	CALL	runtime·newproc(SB)
+ 	POPQ	AX
+ 	POPQ	AX
+ 
+@@ -108,7 +108,7 @@ TEXT gogocall(SB), 7, $0
+  */
+ 
+ // Called during function prolog when more stack is needed.
+-TEXT sys·morestack(SB),7,$0
++TEXT runtime·morestack(SB),7,$0
+ 	// Called from f.
+ 	// Set m->morebuf to f's caller.
+ 	MOVQ	8(SP), AX	// f's caller's PC
+@@ -166,7 +166,7 @@ TEXT reflect·call(SB), 7, $0
+ 	RET
+ 
+ // Return point when leaving stack.
+-TEXT sys·lessstack(SB), 7, $0
++TEXT runtime·lessstack(SB), 7, $0
+ 	// Save return value in m->cret
+ 	MOVQ	AX, m_cret(m)
+ 
+@@ -178,66 +178,66 @@ TEXT sys·lessstack(SB), 7, $0
+ 	RET
+ 
+ // morestack trampolines
+-TEXT	sys·morestack00+0(SB),7,$0
++TEXT	runtime·morestack00+0(SB),7,$0
+ 	MOVQ	$0, AX
+ 	MOVQ	AX, m_moreframe(m)
+-	MOVQ	$sys·morestack+0(SB), AX
++	MOVQ	$runtime·morestack+0(SB), AX
+ 	JMP	AX
+ 
+-TEXT	sys·morestack01+0(SB),7,$0
++TEXT	runtime·morestack01+0(SB),7,$0
+ 	SHLQ	$32, AX
+ 	MOVQ	AX, m_moreframe(m)
+-	MOVQ	$sys·morestack+0(SB), AX
++	MOVQ	$runtime·morestack+0(SB), AX
+ 	JMP	AX
+ 
+-TEXT	sys·morestack10+0(SB),7,$0
++TEXT	runtime·morestack10+0(SB),7,$0
+ 	MOVLQZX	AX, AX
+ 	MOVQ	AX, m_moreframe(m)
+-	MOVQ	$sys·morestack+0(SB), AX
++	MOVQ	$runtime·morestack+0(SB), AX
+ 	JMP	AX
+ 
+-TEXT	sys·morestack11+0(SB),7,$0
++TEXT	runtime·morestack11+0(SB),7,$0
+ 	MOVQ	AX, m_moreframe(m)
+-	MOVQ	$sys·morestack+0(SB), AX
++	MOVQ	$runtime·morestack+0(SB), AX
+ 	JMP	AX
+ 
+ // subcases of morestack01
+ // with const of 8,16,...48
+-TEXT	sys·morestack8(SB),7,$0
++TEXT	runtime·morestack8(SB),7,$0
+ 	PUSHQ	$1
+-	MOVQ	$sys·morestackx(SB), AX
++	MOVQ	$runtime·morestackx(SB), AX
+ 	JMP	AX
+ 
+-TEXT	sys·morestack16(SB),7,$0
++TEXT	runtime·morestack16(SB),7,$0
+ 	PUSHQ	$2
+-	MOVQ	$sys·morestackx(SB), AX
++	MOVQ	$runtime·morestackx(SB), AX
+ 	JMP	AX
+ 
+-TEXT	sys·morestack24(SB),7,$0
++TEXT	runtime·morestack24(SB),7,$0
+ 	PUSHQ	$3
+-	MOVQ	$sys·morestackx(SB), AX
++	MOVQ	$runtime·morestackx(SB), AX
+ 	JMP	AX
+ 
+-TEXT	sys·morestack32(SB),7,$0
++TEXT	runtime·morestack32(SB),7,$0
+ 	PUSHQ	$4
+-	MOVQ	$sys·morestackx(SB), AX
++	MOVQ	$runtime·morestackx(SB), AX
+ 	JMP	AX
+ 
+-TEXT	sys·morestack40(SB),7,$0
++TEXT	runtime·morestack40(SB),7,$0
+ 	PUSHQ	$5
+-	MOVQ	$sys·morestackx(SB), AX
++	MOVQ	$runtime·morestackx(SB), AX
+ 	JMP	AX
+ 
+-TEXT	sys·morestack48(SB),7,$0
++TEXT	runtime·morestack48(SB),7,$0
+ 	PUSHQ	$6
+-	MOVQ	$sys·morestackx(SB), AX
++	MOVQ	$runtime·morestackx(SB), AX
+ 	JMP	AX
+ 
+-TEXT	sys·morestackx(SB),7,$0
++TEXT	runtime·morestackx(SB),7,$0
+ 	POPQ	AX
+ 	SHLQ	$35, AX
+ 	MOVQ	AX, m_moreframe(m)
+-	MOVQ	$sys·morestack(SB), AX
++	MOVQ	$runtime·morestack(SB), AX
+ 	JMP	AX
+ 
+ // bool cas(int32 *val, int32 old, int32 new)
+diff --git a/src/pkg/runtime/amd64/closure.c b/src/pkg/runtime/amd64/closure.c
+index 21ac7c3834..44c399bbe9 100644
+--- a/src/pkg/runtime/amd64/closure.c
++++ b/src/pkg/runtime/amd64/closure.c
+@@ -9,7 +9,7 @@
+ //	fn func(arg0, arg1, arg2 *ptr, callerpc uintptr, xxx) yyy,
+ //	arg0, arg1, arg2 *ptr) (func(xxx) yyy)
+ void
+-sys·closure(int32 siz, byte *fn, byte *arg0)
++runtime·closure(int32 siz, byte *fn, byte *arg0)
+ {
+ 	byte *p, *q, **ret;
+ 	int32 i, n;
+diff --git a/src/pkg/runtime/amd64/traceback.c b/src/pkg/runtime/amd64/traceback.c
+index 40e84f5cbf..7b0306f8c1 100644
+--- a/src/pkg/runtime/amd64/traceback.c
++++ b/src/pkg/runtime/amd64/traceback.c
+@@ -24,7 +24,7 @@ traceback(byte *pc0, byte *sp, G *g)
+ 
+ 	stk = (Stktop*)g->stackbase;
+ 	for(n=0; n<100; n++) {
+-		if(pc == (uint64)sys·lessstack) {
++		if(pc == (uint64)runtime·lessstack) {
+ 			// pop to earlier stack block
+ 			// printf("-- stack jump %p => %p\n", sp, stk->gobuf.sp);
+ 			pc = (uintptr)stk->gobuf.pc;
+@@ -65,7 +65,7 @@ traceback(byte *pc0, byte *sp, G *g)
+ 		for(i = 0; i < f->args; i++) {
+ 			if(i != 0)
+ 				prints(", ");
+-			sys·printhex(((uint32*)sp)[i]);
++			runtime·printhex(((uint32*)sp)[i]);
+ 			if(i >= 4) {
+ 				prints(", ...");
+ 				break;
+@@ -109,7 +109,7 @@ runtime·Caller(int32 n, uint64 retpc, String retfile, int32 retline, bool retbo
+ 	// now unwind n levels
+ 	stk = (Stktop*)g->stackbase;
+ 	while(n-- > 0) {
+-		while(pc == (uintptr)sys·lessstack) {
++		while(pc == (uintptr)runtime·lessstack) {
+ 			pc = (uintptr)stk->gobuf.pc;
+ 			sp = stk->gobuf.sp;
+ 			stk = (Stktop*)stk->stackbase;
+diff --git a/src/pkg/runtime/arm/asm.s b/src/pkg/runtime/arm/asm.s
+index 07230e5d6b..4052bccba1 100644
+--- a/src/pkg/runtime/arm/asm.s
++++ b/src/pkg/runtime/arm/asm.s
+@@ -49,7 +49,7 @@ TEXT _rt0_arm(SB),7,$-4
+ 	MOVW.W	R0, -4(R13)
+ 	MOVW	$0, R0
+ 	MOVW.W	R0, -4(R13)	// push $0 as guard
+-	BL	sys·newproc(SB)
++	BL	runtime·newproc(SB)
+ 	MOVW	$12(R13), R13	// pop args and LR
+ 
+ 	// start this M
+@@ -132,7 +132,7 @@ TEXT gogocall(SB), 7, $-4
+ // R2 arg size
+ // R3 prolog's LR
+ // using frame size $-4 means do not save LR on stack.
+-TEXT sys·morestack(SB),7,$-4
++TEXT runtime·morestack(SB),7,$-4
+ 	// Cannot grow scheduler stack (m->g0).
+ 	MOVW	m_g0(m), R4
+ 	CMP	g, R4
+@@ -195,7 +195,7 @@ TEXT reflect·call(SB), 7, $-4
+ 
+ // Return point when leaving stack.
+ // using frame size $-4 means do not save LR on stack.
+-TEXT sys·lessstack(SB), 7, $-4
++TEXT runtime·lessstack(SB), 7, $-4
+ 	// Save return value in m->cret
+ 	MOVW	R0, m_cret(m)
+ 
+@@ -209,9 +209,9 @@ TEXT sys·lessstack(SB), 7, $-4
+ // R2 is argsize
+ // R3 is LR for f (f's caller's PC)
+ // using frame size $-4 means do not save LR on stack.
+-TEXT sys·morestackx(SB), 7, $-4
++TEXT runtime·morestackx(SB), 7, $-4
+ 	MOVW	$0, R1		// set frame size
+-	B	sys·morestack(SB)
++	B	runtime·morestack(SB)
+ 
+ 
+ // void jmpdefer(fn, sp);
+@@ -227,7 +227,7 @@ TEXT jmpdefer(SB), 7, $0
+ 	MOVW	$-4(R1), SP	// correct for sp pointing to arg0, past stored lr
+ 	B		(R0)
+ 
+-TEXT	sys·memclr(SB),7,$20
++TEXT	runtime·memclr(SB),7,$20
+ 	MOVW	0(FP), R0
+ 	MOVW	$0, R1		// c = 0
+ 	MOVW	R1, -16(SP)
+@@ -240,13 +240,13 @@ TEXT	sys·memclr(SB),7,$20
+ 	MOVW	-4(SP), g
+ 	RET
+ 
+-TEXT	sys·getcallerpc+0(SB),7,$0
++TEXT	runtime·getcallerpc+0(SB),7,$0
+ 	BL	abort(SB)
+ //	MOVL	x+0(FP),AX		// addr of first arg
+ //	MOVL	-4(AX),AX		// get calling pc
+ //	RET
+ 
+-TEXT	sys·setcallerpc+0(SB),7,$0
++TEXT	runtime·setcallerpc+0(SB),7,$0
+ 	BL	abort(SB)
+ //	MOVL	x+0(FP),AX		// addr of first arg
+ //	MOVL	x+4(FP), BX
+diff --git a/src/pkg/runtime/arm/traceback.c b/src/pkg/runtime/arm/traceback.c
+index 3b862c3ee4..455f21e559 100644
+--- a/src/pkg/runtime/arm/traceback.c
++++ b/src/pkg/runtime/arm/traceback.c
+@@ -65,7 +65,7 @@ traceback(byte *pc0, byte *sp, G *g)
+ // 		for(i = 0; i < f->args; i++) {
+ // 			if(i != 0)
+ // 				prints(", ");
+-// 			sys·printhex(((uint32*)sp)[i]);
++// 			runtime·printhex(((uint32*)sp)[i]);
+ // 			if(i >= 4) {
+ // 				prints(", ...");
+ // 				break;
+diff --git a/src/pkg/runtime/arm/vlrt.c b/src/pkg/runtime/arm/vlrt.c
+index 8e3aa624c6..b8b4cffbe2 100755
+--- a/src/pkg/runtime/arm/vlrt.c
++++ b/src/pkg/runtime/arm/vlrt.c
+@@ -143,7 +143,7 @@ _f2v(Vlong *y, float f)
+ }
+ 
+ void
+-sys·float64toint64(double d, Vlong y)
++runtime·float64toint64(double d, Vlong y)
+ {
+ 	_d2v(&y, d);
+ }
+@@ -169,7 +169,7 @@ _v2f(Vlong x)
+ }
+ 
+ void
+-sys·int64tofloat64(Vlong y, double d)
++runtime·int64tofloat64(Vlong y, double d)
+ {
+ 	d = _v2d(y);
+ }
+@@ -250,7 +250,7 @@ _divvu(Vlong *q, Vlong n, Vlong d)
+ }
+ 
+ void
+-sys·uint64div(Vlong n, Vlong d, Vlong q)
++runtime·uint64div(Vlong n, Vlong d, Vlong q)
+ {
+ 	_divvu(&q, n, d);
+ }
+@@ -268,7 +268,7 @@ _modvu(Vlong *r, Vlong n, Vlong d)
+ }
+ 
+ void
+-sys·uint64mod(Vlong n, Vlong d, Vlong q)
++runtime·uint64mod(Vlong n, Vlong d, Vlong q)
+ {
+ 	_modvu(&q, n, d);
+ }
+@@ -313,7 +313,7 @@ _divv(Vlong *q, Vlong n, Vlong d)
+ }
+ 
+ void
+-sys·int64div(Vlong n, Vlong d, Vlong q)
++runtime·int64div(Vlong n, Vlong d, Vlong q)
+ {
+ 	_divv(&q, n, d);
+ }
+@@ -340,7 +340,7 @@ _modv(Vlong *r, Vlong n, Vlong d)
+ }
+ 
+ void
+-sys·int64mod(Vlong n, Vlong d, Vlong q)
++runtime·int64mod(Vlong n, Vlong d, Vlong q)
+ {
+ 	_modv(&q, n, d);
+ }
+diff --git a/src/pkg/runtime/cgocall.c b/src/pkg/runtime/cgocall.c
+index 70382ceee1..ce6d7dbd33 100644
+--- a/src/pkg/runtime/cgocall.c
++++ b/src/pkg/runtime/cgocall.c
+@@ -7,8 +7,8 @@
+ 
+ void *initcgo;	/* filled in by dynamic linker when Cgo is available */
+ int64 ncgocall;
+-void sys·entersyscall(void);
+-void sys·exitsyscall(void);
++void runtime·entersyscall(void);
++void runtime·exitsyscall(void);
+ 
+ void
+ cgocall(void (*fn)(void*), void *arg)
+@@ -24,9 +24,9 @@ cgocall(void (*fn)(void*), void *arg)
+ 	 * M to run goroutines while we are in the
+ 	 * foreign code.
+ 	 */
+-	sys·entersyscall();
++	runtime·entersyscall();
+ 	runcgo(fn, arg);
+-	sys·exitsyscall();
++	runtime·exitsyscall();
+ 	return;
+ }
+ 
+diff --git a/src/pkg/runtime/chan.c b/src/pkg/runtime/chan.c
+index 7611023be4..04566b41cb 100644
+--- a/src/pkg/runtime/chan.c
++++ b/src/pkg/runtime/chan.c
+@@ -97,7 +97,7 @@ makechan(Type *elem, uint32 hint)
+ 
+ 	if(elem->alg >= nelem(algarray)) {
+ 		printf("chan(alg=%d)\n", elem->alg);
+-		throw("sys·makechan: unsupported elem type");
++		throw("runtime·makechan: unsupported elem type");
+ 	}
+ 
+ 	c = mal(sizeof(*c));
+@@ -128,15 +128,15 @@ makechan(Type *elem, uint32 hint)
+ 
+ 	if(debug) {
+ 		prints("makechan: chan=");
+-		sys·printpointer(c);
++		runtime·printpointer(c);
+ 		prints("; elemsize=");
+-		sys·printint(elem->size);
++		runtime·printint(elem->size);
+ 		prints("; elemalg=");
+-		sys·printint(elem->alg);
++		runtime·printint(elem->alg);
+ 		prints("; elemalign=");
+-		sys·printint(elem->align);
++		runtime·printint(elem->align);
+ 		prints("; dataqsiz=");
+-		sys·printint(c->dataqsiz);
++		runtime·printint(c->dataqsiz);
+ 		prints("\n");
+ 	}
+ 
+@@ -145,7 +145,7 @@ makechan(Type *elem, uint32 hint)
+ 
+ // makechan(elemsize uint32, elemalg uint32, hint uint32) (hchan *chan any);
+ void
+-sys·makechan(Type *elem, uint32 hint, Hchan *ret)
++runtime·makechan(Type *elem, uint32 hint, Hchan *ret)
+ {
+ 	ret = makechan(elem, hint);
+ 	FLUSH(&ret);
+@@ -178,7 +178,7 @@ chansend(Hchan *c, byte *ep, bool *pres)
+ 
+ 	if(debug) {
+ 		prints("chansend: chan=");
+-		sys·printpointer(c);
++		runtime·printpointer(c);
+ 		prints("; elem=");
+ 		c->elemalg->print(c->elemsize, ep);
+ 		prints("\n");
+@@ -281,7 +281,7 @@ chanrecv(Hchan* c, byte *ep, bool* pres)
+ 
+ 	if(debug) {
+ 		prints("chanrecv: chan=");
+-		sys·printpointer(c);
++		runtime·printpointer(c);
+ 		prints("\n");
+ 	}
+ 
+@@ -379,7 +379,7 @@ closed:
+ 
+ // chansend1(hchan *chan any, elem any);
+ void
+-sys·chansend1(Hchan* c, ...)
++runtime·chansend1(Hchan* c, ...)
+ {
+ 	int32 o;
+ 	byte *ae;
+@@ -391,7 +391,7 @@ sys·chansend1(Hchan* c, ...)
+ 
+ // chansend2(hchan *chan any, elem any) (pres bool);
+ void
+-sys·chansend2(Hchan* c, ...)
++runtime·chansend2(Hchan* c, ...)
+ {
+ 	int32 o;
+ 	byte *ae, *ap;
+@@ -406,7 +406,7 @@ sys·chansend2(Hchan* c, ...)
+ 
+ // chanrecv1(hchan *chan any) (elem any);
+ void
+-sys·chanrecv1(Hchan* c, ...)
++runtime·chanrecv1(Hchan* c, ...)
+ {
+ 	int32 o;
+ 	byte *ae;
+@@ -419,7 +419,7 @@ sys·chanrecv1(Hchan* c, ...)
+ 
+ // chanrecv2(hchan *chan any) (elem any, pres bool);
+ void
+-sys·chanrecv2(Hchan* c, ...)
++runtime·chanrecv2(Hchan* c, ...)
+ {
+ 	int32 o;
+ 	byte *ae, *ap;
+@@ -434,7 +434,7 @@ sys·chanrecv2(Hchan* c, ...)
+ 
+ // newselect(size uint32) (sel *byte);
+ void
+-sys·newselect(int32 size, ...)
++runtime·newselect(int32 size, ...)
+ {
+ 	int32 n, o;
+ 	Select **selp;
+@@ -462,16 +462,16 @@ sys·newselect(int32 size, ...)
+ 	*selp = sel;
+ 	if(debug) {
+ 		prints("newselect s=");
+-		sys·printpointer(sel);
++		runtime·printpointer(sel);
+ 		prints(" size=");
+-		sys·printint(size);
++		runtime·printint(size);
+ 		prints("\n");
+ 	}
+ }
+ 
+ // selectsend(sel *byte, hchan *chan any, elem any) (selected bool);
+ void
+-sys·selectsend(Select *sel, Hchan *c, ...)
++runtime·selectsend(Select *sel, Hchan *c, ...)
+ {
+ 	int32 i, eo;
+ 	Scase *cas;
+@@ -491,7 +491,7 @@ sys·selectsend(Select *sel, Hchan *c, ...)
+ 		sel->scase[i] = cas;
+ 	}
+ 
+-	cas->pc = sys·getcallerpc(&sel);
++	cas->pc = runtime·getcallerpc(&sel);
+ 	cas->chan = c;
+ 
+ 	eo = rnd(sizeof(sel), sizeof(c));
+@@ -504,22 +504,22 @@ sys·selectsend(Select *sel, Hchan *c, ...)
+ 
+ 	if(debug) {
+ 		prints("selectsend s=");
+-		sys·printpointer(sel);
++		runtime·printpointer(sel);
+ 		prints(" pc=");
+-		sys·printpointer(cas->pc);
++		runtime·printpointer(cas->pc);
+ 		prints(" chan=");
+-		sys·printpointer(cas->chan);
++		runtime·printpointer(cas->chan);
+ 		prints(" po=");
+-		sys·printint(cas->so);
++		runtime·printint(cas->so);
+ 		prints(" send=");
+-		sys·printint(cas->send);
++		runtime·printint(cas->send);
+ 		prints("\n");
+ 	}
+ }
+ 
+ // selectrecv(sel *byte, hchan *chan any, elem *any) (selected bool);
+ void
+-sys·selectrecv(Select *sel, Hchan *c, ...)
++runtime·selectrecv(Select *sel, Hchan *c, ...)
+ {
+ 	int32 i, eo;
+ 	Scase *cas;
+@@ -537,7 +537,7 @@ sys·selectrecv(Select *sel, Hchan *c, ...)
+ 		cas = mal(sizeof *cas);
+ 		sel->scase[i] = cas;
+ 	}
+-	cas->pc = sys·getcallerpc(&sel);
++	cas->pc = runtime·getcallerpc(&sel);
+ 	cas->chan = c;
+ 
+ 	eo = rnd(sizeof(sel), sizeof(c));
+@@ -548,15 +548,15 @@ sys·selectrecv(Select *sel, Hchan *c, ...)
+ 
+ 	if(debug) {
+ 		prints("selectrecv s=");
+-		sys·printpointer(sel);
++		runtime·printpointer(sel);
+ 		prints(" pc=");
+-		sys·printpointer(cas->pc);
++		runtime·printpointer(cas->pc);
+ 		prints(" chan=");
+-		sys·printpointer(cas->chan);
++		runtime·printpointer(cas->chan);
+ 		prints(" so=");
+-		sys·printint(cas->so);
++		runtime·printint(cas->so);
+ 		prints(" send=");
+-		sys·printint(cas->send);
++		runtime·printint(cas->send);
+ 		prints("\n");
+ 	}
+ }
+@@ -564,7 +564,7 @@ sys·selectrecv(Select *sel, Hchan *c, ...)
+ 
+ // selectdefaul(sel *byte) (selected bool);
+ void
+-sys·selectdefault(Select *sel, ...)
++runtime·selectdefault(Select *sel, ...)
+ {
+ 	int32 i;
+ 	Scase *cas;
+@@ -578,7 +578,7 @@ sys·selectdefault(Select *sel, ...)
+ 		cas = mal(sizeof *cas);
+ 		sel->scase[i] = cas;
+ 	}
+-	cas->pc = sys·getcallerpc(&sel);
++	cas->pc = runtime·getcallerpc(&sel);
+ 	cas->chan = nil;
+ 
+ 	cas->so = rnd(sizeof(sel), Structrnd);
+@@ -587,20 +587,20 @@ sys·selectdefault(Select *sel, ...)
+ 
+ 	if(debug) {
+ 		prints("selectdefault s=");
+-		sys·printpointer(sel);
++		runtime·printpointer(sel);
+ 		prints(" pc=");
+-		sys·printpointer(cas->pc);
++		runtime·printpointer(cas->pc);
+ 		prints(" so=");
+-		sys·printint(cas->so);
++		runtime·printint(cas->so);
+ 		prints(" send=");
+-		sys·printint(cas->send);
++		runtime·printint(cas->send);
+ 		prints("\n");
+ 	}
+ }
+ 
+ // selectgo(sel *byte);
+ void
+-sys·selectgo(Select *sel)
++runtime·selectgo(Select *sel)
+ {
+ 	uint32 p, o, i;
+ 	Scase *cas, *dfl;
+@@ -611,7 +611,7 @@ sys·selectgo(Select *sel)
+ 
+ 	if(debug) {
+ 		prints("selectgo: sel=");
+-		sys·printpointer(sel);
++		runtime·printpointer(sel);
+ 		prints("\n");
+ 	}
+ 
+@@ -768,15 +768,15 @@ loop:
+ 
+ 	if(debug) {
+ 		prints("wait-return: sel=");
+-		sys·printpointer(sel);
++		runtime·printpointer(sel);
+ 		prints(" c=");
+-		sys·printpointer(c);
++		runtime·printpointer(c);
+ 		prints(" cas=");
+-		sys·printpointer(cas);
++		runtime·printpointer(cas);
+ 		prints(" send=");
+-		sys·printint(cas->send);
++		runtime·printint(cas->send);
+ 		prints(" o=");
+-		sys·printint(o);
++		runtime·printint(o);
+ 		prints("\n");
+ 	}
+ 
+@@ -818,11 +818,11 @@ gotr:
+ 	// recv path to wakeup the sender (sg)
+ 	if(debug) {
+ 		prints("gotr: sel=");
+-		sys·printpointer(sel);
++		runtime·printpointer(sel);
+ 		prints(" c=");
+-		sys·printpointer(c);
++		runtime·printpointer(c);
+ 		prints(" o=");
+-		sys·printint(o);
++		runtime·printint(o);
+ 		prints("\n");
+ 	}
+ 	if(cas->u.elemp != nil)
+@@ -843,11 +843,11 @@ gots:
+ 	// send path to wakeup the receiver (sg)
+ 	if(debug) {
+ 		prints("gots: sel=");
+-		sys·printpointer(sel);
++		runtime·printpointer(sel);
+ 		prints(" c=");
+-		sys·printpointer(c);
++		runtime·printpointer(c);
+ 		prints(" o=");
+-		sys·printint(o);
++		runtime·printint(o);
+ 		prints("\n");
+ 	}
+ 	if(c->closed & Wclosed)
+@@ -869,14 +869,14 @@ retc:
+ 	}
+ 	unlock(&chanlock);
+ 
+-	sys·setcallerpc(&sel, cas->pc);
++	runtime·setcallerpc(&sel, cas->pc);
+ 	as = (byte*)&sel + cas->so;
+ 	*as = true;
+ }
+ 
+ // closechan(sel *byte);
+ void
+-sys·closechan(Hchan *c)
++runtime·closechan(Hchan *c)
+ {
+ 	SudoG *sg;
+ 	G* gp;
+@@ -913,7 +913,7 @@ sys·closechan(Hchan *c)
+ void
+ chanclose(Hchan *c)
+ {
+-	sys·closechan(c);
++	runtime·closechan(c);
+ }
+ 
+ bool
+@@ -937,7 +937,7 @@ chancap(Hchan *c)
+ 
+ // closedchan(sel *byte) bool;
+ void
+-sys·closedchan(Hchan *c, bool closed)
++runtime·closedchan(Hchan *c, bool closed)
+ {
+ 	closed = chanclosed(c);
+ 	FLUSH(&closed);
+diff --git a/src/pkg/runtime/darwin/386/sys.s b/src/pkg/runtime/darwin/386/sys.s
+index 617847039f..719fcbb5f0 100644
+--- a/src/pkg/runtime/darwin/386/sys.s
++++ b/src/pkg/runtime/darwin/386/sys.s
+@@ -35,7 +35,7 @@ TEXT write(SB),7,$0
+ 	CALL	notok(SB)
+ 	RET
+ 
+-TEXT sys·mmap(SB),7,$0
++TEXT runtime·mmap(SB),7,$0
+ 	MOVL	$197, AX
+ 	INT	$0x80
+ 	JAE	2(PC)
+diff --git a/src/pkg/runtime/darwin/amd64/sys.s b/src/pkg/runtime/darwin/amd64/sys.s
+index b8f046497f..c39c44a699 100644
+--- a/src/pkg/runtime/darwin/amd64/sys.s
++++ b/src/pkg/runtime/darwin/amd64/sys.s
+@@ -63,7 +63,7 @@ TEXT sigtramp(SB),7,$40
+ 	SYSCALL
+ 	INT $3	// not reached
+ 
+-TEXT	sys·mmap(SB),7,$-8
++TEXT	runtime·mmap(SB),7,$-8
+ 	MOVQ	8(SP), DI		// arg 1 addr
+ 	MOVL	16(SP), SI		// arg 2 len
+ 	MOVL	20(SP), DX		// arg 3 prot
+@@ -81,7 +81,7 @@ TEXT	notok(SB),7,$-8
+ 	MOVQ	BP, (BP)
+ 	RET
+ 
+-TEXT	sys·memclr(SB),7,$-8
++TEXT	runtime·memclr(SB),7,$-8
+ 	MOVQ	8(SP), DI		// arg 1 addr
+ 	MOVL	16(SP), CX		// arg 2 count
+ 	ADDL	$7, CX
+@@ -92,12 +92,12 @@ TEXT	sys·memclr(SB),7,$-8
+ 	STOSQ
+ 	RET
+ 
+-TEXT	sys·getcallerpc+0(SB),7,$0
++TEXT	runtime·getcallerpc+0(SB),7,$0
+ 	MOVQ	x+0(FP),AX		// addr of first arg
+ 	MOVQ	-8(AX),AX		// get calling pc
+ 	RET
+ 
+-TEXT	sys·setcallerpc+0(SB),7,$0
++TEXT	runtime·setcallerpc+0(SB),7,$0
+ 	MOVQ	x+0(FP),AX		// addr of first arg
+ 	MOVQ	x+8(FP), BX
+ 	MOVQ	BX, -8(AX)		// set calling pc
+diff --git a/src/pkg/runtime/darwin/thread.c b/src/pkg/runtime/darwin/thread.c
+index 7e6d7c2d75..bf66f86732 100644
+--- a/src/pkg/runtime/darwin/thread.c
++++ b/src/pkg/runtime/darwin/thread.c
+@@ -245,7 +245,7 @@ machcall(MachHeader *h, int32 maxsize, int32 rxsize)
+ 		prints("send:\t");
+ 		for(i=0; i<h->msgh_size/sizeof(p[0]); i++){
+ 			prints(" ");
+-			sys·printpointer((void*)p[i]);
++			runtime·printpointer((void*)p[i]);
+ 			if(i%8 == 7)
+ 				prints("\n\t");
+ 		}
+@@ -258,7 +258,7 @@ machcall(MachHeader *h, int32 maxsize, int32 rxsize)
+ 	if(ret != 0){
+ 		if(DebugMach){
+ 			prints("mach_msg error ");
+-			sys·printint(ret);
++			runtime·printint(ret);
+ 			prints("\n");
+ 		}
+ 		return ret;
+@@ -269,7 +269,7 @@ machcall(MachHeader *h, int32 maxsize, int32 rxsize)
+ 		prints("recv:\t");
+ 		for(i=0; i<h->msgh_size/sizeof(p[0]); i++){
+ 			prints(" ");
+-			sys·printpointer((void*)p[i]);
++			runtime·printpointer((void*)p[i]);
+ 			if(i%8 == 7)
+ 				prints("\n\t");
+ 		}
+@@ -280,9 +280,9 @@ machcall(MachHeader *h, int32 maxsize, int32 rxsize)
+ 	if(h->msgh_id != id+Reply){
+ 		if(DebugMach){
+ 			prints("mach_msg reply id mismatch ");
+-			sys·printint(h->msgh_id);
++			runtime·printint(h->msgh_id);
+ 			prints(" != ");
+-			sys·printint(id+Reply);
++			runtime·printint(id+Reply);
+ 			prints("\n");
+ 		}
+ 		return -303;	// MIG_REPLY_MISMATCH
+@@ -299,7 +299,7 @@ machcall(MachHeader *h, int32 maxsize, int32 rxsize)
+ 	&& !(h->msgh_bits & MACH_MSGH_BITS_COMPLEX)){
+ 		if(DebugMach){
+ 			prints("mig result ");
+-			sys·printint(c->code);
++			runtime·printint(c->code);
+ 			prints("\n");
+ 		}
+ 		return c->code;
+@@ -308,9 +308,9 @@ machcall(MachHeader *h, int32 maxsize, int32 rxsize)
+ 	if(h->msgh_size != rxsize){
+ 		if(DebugMach){
+ 			prints("mach_msg reply size mismatch ");
+-			sys·printint(h->msgh_size);
++			runtime·printint(h->msgh_size);
+ 			prints(" != ");
+-			sys·printint(rxsize);
++			runtime·printint(rxsize);
+ 			prints("\n");
+ 		}
+ 		return -307;	// MIG_ARRAY_TOO_LARGE
+diff --git a/src/pkg/runtime/hashmap.c b/src/pkg/runtime/hashmap.c
+index b95941414f..870274ae91 100644
+--- a/src/pkg/runtime/hashmap.c
++++ b/src/pkg/runtime/hashmap.c
+@@ -679,12 +679,12 @@ makemap(Type *key, Type *val, uint32 hint)
+ 
+ 	if(keyalg >= nelem(algarray) || algarray[keyalg].hash == nohash) {
+ 		printf("map(keyalg=%d)\n", keyalg);
+-		throw("sys·makemap: unsupported map key type");
++		throw("runtime·makemap: unsupported map key type");
+ 	}
+ 
+ 	if(valalg >= nelem(algarray)) {
+ 		printf("map(valalg=%d)\n", valalg);
+-		throw("sys·makemap: unsupported map value type");
++		throw("runtime·makemap: unsupported map value type");
+ 	}
+ 
+ 	h = mal(sizeof(*h));
+@@ -733,7 +733,7 @@ makemap(Type *key, Type *val, uint32 hint)
+ 
+ // makemap(key, val *Type, hint uint32) (hmap *map[any]any);
+ void
+-sys·makemap(Type *key, Type *val, uint32 hint, Hmap *ret)
++runtime·makemap(Type *key, Type *val, uint32 hint, Hmap *ret)
+ {
+ 	ret = makemap(key, val, hint);
+ 	FLUSH(&ret);
+@@ -756,7 +756,7 @@ mapaccess(Hmap *h, byte *ak, byte *av, bool *pres)
+ 
+ // mapaccess1(hmap *map[any]any, key any) (val any);
+ void
+-sys·mapaccess1(Hmap *h, ...)
++runtime·mapaccess1(Hmap *h, ...)
+ {
+ 	byte *ak, *av;
+ 	bool pres;
+@@ -766,24 +766,24 @@ sys·mapaccess1(Hmap *h, ...)
+ 
+ 	mapaccess(h, ak, av, &pres);
+ 	if(!pres)
+-		throw("sys·mapaccess1: key not in map");
++		throw("runtime·mapaccess1: key not in map");
+ 
+ 	if(debug) {
+-		prints("sys·mapaccess1: map=");
+-		sys·printpointer(h);
++		prints("runtime·mapaccess1: map=");
++		runtime·printpointer(h);
+ 		prints("; key=");
+ 		h->keyalg->print(h->keysize, ak);
+ 		prints("; val=");
+ 		h->valalg->print(h->valsize, av);
+ 		prints("; pres=");
+-		sys·printbool(pres);
++		runtime·printbool(pres);
+ 		prints("\n");
+ 	}
+ }
+ 
+ // mapaccess2(hmap *map[any]any, key any) (val any, pres bool);
+ void
+-sys·mapaccess2(Hmap *h, ...)
++runtime·mapaccess2(Hmap *h, ...)
+ {
+ 	byte *ak, *av, *ap;
+ 
+@@ -794,14 +794,14 @@ sys·mapaccess2(Hmap *h, ...)
+ 	mapaccess(h, ak, av, ap);
+ 
+ 	if(debug) {
+-		prints("sys·mapaccess2: map=");
+-		sys·printpointer(h);
++		prints("runtime·mapaccess2: map=");
++		runtime·printpointer(h);
+ 		prints("; key=");
+ 		h->keyalg->print(h->keysize, ak);
+ 		prints("; val=");
+ 		h->valalg->print(h->valsize, av);
+ 		prints("; pres=");
+-		sys·printbool(*ap);
++		runtime·printbool(*ap);
+ 		prints("\n");
+ 	}
+ }
+@@ -824,22 +824,22 @@ mapassign(Hmap *h, byte *ak, byte *av)
+ 
+ 	if(debug) {
+ 		prints("mapassign: map=");
+-		sys·printpointer(h);
++		runtime·printpointer(h);
+ 		prints("; key=");
+ 		h->keyalg->print(h->keysize, ak);
+ 		prints("; val=");
+ 		h->valalg->print(h->valsize, av);
+ 		prints("; hit=");
+-		sys·printint(hit);
++		runtime·printint(hit);
+ 		prints("; res=");
+-		sys·printpointer(res);
++		runtime·printpointer(res);
+ 		prints("\n");
+ 	}
+ }
+ 
+ // mapassign1(hmap *map[any]any, key any, val any);
+ void
+-sys·mapassign1(Hmap *h, ...)
++runtime·mapassign1(Hmap *h, ...)
+ {
+ 	byte *ak, *av;
+ 
+@@ -851,7 +851,7 @@ sys·mapassign1(Hmap *h, ...)
+ 
+ // mapassign2(hmap *map[any]any, key any, val any, pres bool);
+ void
+-sys·mapassign2(Hmap *h, ...)
++runtime·mapassign2(Hmap *h, ...)
+ {
+ 	byte *ak, *av, *ap;
+ 
+@@ -866,7 +866,7 @@ sys·mapassign2(Hmap *h, ...)
+ 
+ 	if(debug) {
+ 		prints("mapassign2: map=");
+-		sys·printpointer(h);
++		runtime·printpointer(h);
+ 		prints("; key=");
+ 		h->keyalg->print(h->keysize, ak);
+ 		prints("\n");
+@@ -875,7 +875,7 @@ sys·mapassign2(Hmap *h, ...)
+ 
+ // mapiterinit(hmap *map[any]any, hiter *any);
+ void
+-sys·mapiterinit(Hmap *h, struct hash_iter *it)
++runtime·mapiterinit(Hmap *h, struct hash_iter *it)
+ {
+ 	if(h == nil) {
+ 		it->data = nil;
+@@ -884,12 +884,12 @@ sys·mapiterinit(Hmap *h, struct hash_iter *it)
+ 	hash_iter_init(h, it);
+ 	it->data = hash_next(it);
+ 	if(debug) {
+-		prints("sys·mapiterinit: map=");
+-		sys·printpointer(h);
++		prints("runtime·mapiterinit: map=");
++		runtime·printpointer(h);
+ 		prints("; iter=");
+-		sys·printpointer(it);
++		runtime·printpointer(it);
+ 		prints("; data=");
+-		sys·printpointer(it->data);
++		runtime·printpointer(it->data);
+ 		prints("\n");
+ 	}
+ }
+@@ -900,20 +900,20 @@ mapiterinit(Hmap *h)
+ 	struct hash_iter *it;
+ 
+ 	it = mal(sizeof *it);
+-	sys·mapiterinit(h, it);
++	runtime·mapiterinit(h, it);
+ 	return it;
+ }
+ 
+ // mapiternext(hiter *any);
+ void
+-sys·mapiternext(struct hash_iter *it)
++runtime·mapiternext(struct hash_iter *it)
+ {
+ 	it->data = hash_next(it);
+ 	if(debug) {
+-		prints("sys·mapiternext: iter=");
+-		sys·printpointer(it);
++		prints("runtime·mapiternext: iter=");
++		runtime·printpointer(it);
+ 		prints("; data=");
+-		sys·printpointer(it->data);
++		runtime·printpointer(it->data);
+ 		prints("\n");
+ 	}
+ }
+@@ -921,12 +921,12 @@ sys·mapiternext(struct hash_iter *it)
+ void
+ mapiternext(struct hash_iter *it)
+ {
+-	sys·mapiternext(it);
++	runtime·mapiternext(it);
+ }
+ 
+ // mapiter1(hiter *any) (key any);
+ void
+-sys·mapiter1(struct hash_iter *it, ...)
++runtime·mapiter1(struct hash_iter *it, ...)
+ {
+ 	Hmap *h;
+ 	byte *ak, *res;
+@@ -936,15 +936,15 @@ sys·mapiter1(struct hash_iter *it, ...)
+ 
+ 	res = it->data;
+ 	if(res == nil)
+-		throw("sys·mapiter2: key:val nil pointer");
++		throw("runtime·mapiter2: key:val nil pointer");
+ 
+ 	h->keyalg->copy(h->keysize, ak, res);
+ 
+ 	if(debug) {
+ 		prints("mapiter2: iter=");
+-		sys·printpointer(it);
++		runtime·printpointer(it);
+ 		prints("; map=");
+-		sys·printpointer(h);
++		runtime·printpointer(h);
+ 		prints("\n");
+ 	}
+ }
+@@ -965,7 +965,7 @@ mapiterkey(struct hash_iter *it, void *ak)
+ 
+ // mapiter2(hiter *any) (key any, val any);
+ void
+-sys·mapiter2(struct hash_iter *it, ...)
++runtime·mapiter2(struct hash_iter *it, ...)
+ {
+ 	Hmap *h;
+ 	byte *ak, *av, *res;
+@@ -976,16 +976,16 @@ sys·mapiter2(struct hash_iter *it, ...)
+ 
+ 	res = it->data;
+ 	if(res == nil)
+-		throw("sys·mapiter2: key:val nil pointer");
++		throw("runtime·mapiter2: key:val nil pointer");
+ 
+ 	h->keyalg->copy(h->keysize, ak, res);
+ 	h->valalg->copy(h->valsize, av, res+h->datavo);
+ 
+ 	if(debug) {
+ 		prints("mapiter2: iter=");
+-		sys·printpointer(it);
++		runtime·printpointer(it);
+ 		prints("; map=");
+-		sys·printpointer(h);
++		runtime·printpointer(h);
+ 		prints("\n");
+ 	}
+ }
+diff --git a/src/pkg/runtime/hashmap.h b/src/pkg/runtime/hashmap.h
+index e8bcfab293..984b80cbd6 100644
+--- a/src/pkg/runtime/hashmap.h
++++ b/src/pkg/runtime/hashmap.h
+@@ -66,7 +66,7 @@
+ #define	malloc		mal
+ #define	free(a)		USED(a)
+ #define	offsetof(s,m)	(uint32)(&(((s*)0)->m))
+-#define	memset(a,b,c)	sys·memclr((byte*)(a), (uint32)(c))
++#define	memset(a,b,c)	runtime·memclr((byte*)(a), (uint32)(c))
+ #define	memmove(a,b,c)	mmov((byte*)(a),(byte*)(b),(uint32)(c))
+ #define	memcpy(a,b,c)	mcpy((byte*)(a),(byte*)(b),(uint32)(c))
+ #define	assert(a)	if(!(a)) throw("assert")
+diff --git a/src/pkg/runtime/iface.c b/src/pkg/runtime/iface.c
+index 6bd2f93ff2..7ae2a6da35 100644
+--- a/src/pkg/runtime/iface.c
++++ b/src/pkg/runtime/iface.c
+@@ -171,7 +171,7 @@ copyout(Type *t, void **src, void *dst)
+ // ifaceT2I(sigi *byte, sigt *byte, elem any) (ret Iface);
+ #pragma textflag 7
+ void
+-sys·ifaceT2I(InterfaceType *inter, Type *t, ...)
++runtime·ifaceT2I(InterfaceType *inter, Type *t, ...)
+ {
+ 	byte *elem;
+ 	Iface *ret;
+@@ -187,7 +187,7 @@ sys·ifaceT2I(InterfaceType *inter, Type *t, ...)
+ // ifaceT2E(sigt *byte, elem any) (ret Eface);
+ #pragma textflag 7
+ void
+-sys·ifaceT2E(Type *t, ...)
++runtime·ifaceT2E(Type *t, ...)
+ {
+ 	byte *elem;
+ 	Eface *ret;
+@@ -204,7 +204,7 @@ sys·ifaceT2E(Type *t, ...)
+ // ifaceI2T(sigt *byte, iface any) (ret any);
+ #pragma textflag 7
+ void
+-sys·ifaceI2T(Type *t, Iface i, ...)
++runtime·ifaceI2T(Type *t, Iface i, ...)
+ {
+ 	Itab *tab;
+ 	byte *ret;
+@@ -225,7 +225,7 @@ sys·ifaceI2T(Type *t, Iface i, ...)
+ // ifaceI2T2(sigt *byte, i Iface) (ret any, ok bool);
+ #pragma textflag 7
+ void
+-sys·ifaceI2T2(Type *t, Iface i, ...)
++runtime·ifaceI2T2(Type *t, Iface i, ...)
+ {
+ 	byte *ret;
+ 	bool *ok;
+@@ -237,7 +237,7 @@ sys·ifaceI2T2(Type *t, Iface i, ...)
+ 
+ 	if(i.tab == nil || i.tab->type != t) {
+ 		*ok = false;
+-		sys·memclr(ret, wid);
++		runtime·memclr(ret, wid);
+ 		return;
+ 	}
+ 
+@@ -248,7 +248,7 @@ sys·ifaceI2T2(Type *t, Iface i, ...)
+ // ifaceE2T(sigt *byte, e Eface) (ret any);
+ #pragma textflag 7
+ void
+-sys·ifaceE2T(Type *t, Eface e, ...)
++runtime·ifaceE2T(Type *t, Eface e, ...)
+ {
+ 	byte *ret;
+ 
+@@ -267,7 +267,7 @@ sys·ifaceE2T(Type *t, Eface e, ...)
+ // ifaceE2T2(sigt *byte, iface any) (ret any, ok bool);
+ #pragma textflag 7
+ void
+-sys·ifaceE2T2(Type *t, Eface e, ...)
++runtime·ifaceE2T2(Type *t, Eface e, ...)
+ {
+ 	byte *ret;
+ 	bool *ok;
+@@ -279,7 +279,7 @@ sys·ifaceE2T2(Type *t, Eface e, ...)
+ 
+ 	if(t != e.type) {
+ 		*ok = false;
+-		sys·memclr(ret, wid);
++		runtime·memclr(ret, wid);
+ 		return;
+ 	}
+ 
+@@ -290,7 +290,7 @@ sys·ifaceE2T2(Type *t, Eface e, ...)
+ // ifaceI2E(sigi *byte, iface any) (ret any);
+ // TODO(rsc): Move to back end, throw away function.
+ void
+-sys·ifaceI2E(Iface i, Eface ret)
++runtime·ifaceI2E(Iface i, Eface ret)
+ {
+ 	Itab *tab;
+ 
+@@ -307,7 +307,7 @@ sys·ifaceI2E(Iface i, Eface ret)
+ // called only for implicit (no type assertion) conversions.
+ // converting nil is okay.
+ void
+-sys·ifaceI2I(InterfaceType *inter, Iface i, Iface ret)
++runtime·ifaceI2I(InterfaceType *inter, Iface i, Iface ret)
+ {
+ 	Itab *tab;
+ 
+@@ -330,7 +330,7 @@ sys·ifaceI2I(InterfaceType *inter, Iface i, Iface ret)
+ // called only for explicit conversions (with type assertion).
+ // converting nil is not okay.
+ void
+-sys·ifaceI2Ix(InterfaceType *inter, Iface i, Iface ret)
++runtime·ifaceI2Ix(InterfaceType *inter, Iface i, Iface ret)
+ {
+ 	Itab *tab;
+ 
+@@ -350,7 +350,7 @@ sys·ifaceI2Ix(InterfaceType *inter, Iface i, Iface ret)
+ 
+ // ifaceI2I2(sigi *byte, iface any) (ret any, ok bool);
+ void
+-sys·ifaceI2I2(InterfaceType *inter, Iface i, Iface ret, bool ok)
++runtime·ifaceI2I2(InterfaceType *inter, Iface i, Iface ret, bool ok)
+ {
+ 	Itab *tab;
+ 
+@@ -397,14 +397,14 @@ ifaceE2I(InterfaceType *inter, Eface e, Iface *ret)
+ // ifaceE2I(sigi *byte, iface any) (ret any);
+ // Called only for explicit conversions (with type assertion).
+ void
+-sys·ifaceE2I(InterfaceType *inter, Eface e, Iface ret)
++runtime·ifaceE2I(InterfaceType *inter, Eface e, Iface ret)
+ {
+ 	ifaceE2I(inter, e, &ret);
+ }
+ 
+ // ifaceE2I2(sigi *byte, iface any) (ret any, ok bool);
+ void
+-sys·ifaceE2I2(InterfaceType *inter, Eface e, Iface ret, bool ok)
++runtime·ifaceE2I2(InterfaceType *inter, Eface e, Iface ret, bool ok)
+ {
+ 	Type *t;
+ 
+@@ -508,7 +508,7 @@ efaceeq(Eface e1, Eface e2)
+ 
+ // ifaceeq(i1 any, i2 any) (ret bool);
+ void
+-sys·ifaceeq(Iface i1, Iface i2, bool ret)
++runtime·ifaceeq(Iface i1, Iface i2, bool ret)
+ {
+ 	ret = ifaceeq(i1, i2);
+ 	FLUSH(&ret);
+@@ -516,7 +516,7 @@ sys·ifaceeq(Iface i1, Iface i2, bool ret)
+ 
+ // efaceeq(i1 any, i2 any) (ret bool)
+ void
+-sys·efaceeq(Eface e1, Eface e2, bool ret)
++runtime·efaceeq(Eface e1, Eface e2, bool ret)
+ {
+ 	ret = efaceeq(e1, e2);
+ 	FLUSH(&ret);
+@@ -524,7 +524,7 @@ sys·efaceeq(Eface e1, Eface e2, bool ret)
+ 
+ // ifacethash(i1 any) (ret uint32);
+ void
+-sys·ifacethash(Iface i1, uint32 ret)
++runtime·ifacethash(Iface i1, uint32 ret)
+ {
+ 	Itab *tab;
+ 
+@@ -537,7 +537,7 @@ sys·ifacethash(Iface i1, uint32 ret)
+ 
+ // efacethash(e1 any) (ret uint32)
+ void
+-sys·efacethash(Eface e1, uint32 ret)
++runtime·efacethash(Eface e1, uint32 ret)
+ {
+ 	Type *t;
+ 
+@@ -549,13 +549,13 @@ sys·efacethash(Eface e1, uint32 ret)
+ }
+ 
+ void
+-sys·printiface(Iface i)
++runtime·printiface(Iface i)
+ {
+ 	printiface(i);
+ }
+ 
+ void
+-sys·printeface(Eface e)
++runtime·printeface(Eface e)
+ {
+ 	printeface(e);
+ }
+diff --git a/src/pkg/runtime/linux/386/sys.s b/src/pkg/runtime/linux/386/sys.s
+index 3b0babcd05..cc793b4208 100755
+--- a/src/pkg/runtime/linux/386/sys.s
++++ b/src/pkg/runtime/linux/386/sys.s
+@@ -58,7 +58,7 @@ TEXT sigreturn(SB),7,$0
+ 	INT $3	// not reached
+ 	RET
+ 
+-TEXT sys·mmap(SB),7,$0
++TEXT runtime·mmap(SB),7,$0
+ 	MOVL	$192, AX	// mmap2
+ 	MOVL	4(SP), BX
+ 	MOVL	8(SP), CX
+diff --git a/src/pkg/runtime/linux/amd64/sys.s b/src/pkg/runtime/linux/amd64/sys.s
+index 8ee0ed2f90..a78357fdbd 100644
+--- a/src/pkg/runtime/linux/amd64/sys.s
++++ b/src/pkg/runtime/linux/amd64/sys.s
+@@ -36,7 +36,7 @@ TEXT	write(SB),7,$0-24
+ 	SYSCALL
+ 	RET
+ 
+-TEXT	sys·write(SB),7,$0-24
++TEXT	runtime·write(SB),7,$0-24
+ 	MOVL	8(SP), DI
+ 	MOVQ	16(SP), SI
+ 	MOVL	24(SP), DX
+@@ -69,7 +69,7 @@ TEXT sigreturn(SB),7,$0
+ 	SYSCALL
+ 	INT $3	// not reached
+ 
+-TEXT	sys·mmap(SB),7,$0-32
++TEXT	runtime·mmap(SB),7,$0-32
+ 	MOVQ	8(SP), DI
+ 	MOVQ	$0, SI
+ 	MOVL	16(SP), SI
+@@ -90,7 +90,7 @@ TEXT	notok(SB),7,$0
+ 	MOVQ	BP, (BP)
+ 	RET
+ 
+-TEXT	sys·memclr(SB),7,$0-16
++TEXT	runtime·memclr(SB),7,$0-16
+ 	MOVQ	8(SP), DI		// arg 1 addr
+ 	MOVL	16(SP), CX		// arg 2 count (cannot be zero)
+ 	ADDL	$7, CX
+@@ -101,12 +101,12 @@ TEXT	sys·memclr(SB),7,$0-16
+ 	STOSQ
+ 	RET
+ 
+-TEXT	sys·getcallerpc+0(SB),7,$0
++TEXT	runtime·getcallerpc+0(SB),7,$0
+ 	MOVQ	x+0(FP),AX		// addr of first arg
+ 	MOVQ	-8(AX),AX		// get calling pc
+ 	RET
+ 
+-TEXT	sys·setcallerpc+0(SB),7,$0
++TEXT	runtime·setcallerpc+0(SB),7,$0
+ 	MOVQ	x+0(FP),AX		// addr of first arg
+ 	MOVQ	x+8(FP), BX
+ 	MOVQ	BX, -8(AX)		// set calling pc
+diff --git a/src/pkg/runtime/linux/arm/sys.s b/src/pkg/runtime/linux/arm/sys.s
+index d7eb43e739..4eb38f1ce8 100644
+--- a/src/pkg/runtime/linux/arm/sys.s
++++ b/src/pkg/runtime/linux/arm/sys.s
+@@ -22,7 +22,7 @@ TEXT exit(SB),7,$0
+ 	// Exit value already in R0
+ 	SWI	$SYS_exit
+ 
+-TEXT sys·mmap(SB),7,$0
++TEXT runtime·mmap(SB),7,$0
+ 	MOVW	0(FP), R0
+ 	MOVW	4(FP), R1
+ 	MOVW	8(FP), R2
+diff --git a/src/pkg/runtime/linux/thread.c b/src/pkg/runtime/linux/thread.c
+index fd488d4da0..425e6695b2 100644
+--- a/src/pkg/runtime/linux/thread.c
++++ b/src/pkg/runtime/linux/thread.c
+@@ -49,11 +49,11 @@ futexsleep(uint32 *addr, uint32 val)
+ 		return;
+ 
+ 	prints("futexsleep addr=");
+-	sys·printpointer(addr);
++	runtime·printpointer(addr);
+ 	prints(" val=");
+-	sys·printint(val);
++	runtime·printint(val);
+ 	prints(" returned ");
+-	sys·printint(ret);
++	runtime·printint(ret);
+ 	prints("\n");
+ 	*(int32*)0x1005 = 0x1005;
+ }
+@@ -74,9 +74,9 @@ futexwakeup(uint32 *addr)
+ 	// safe to loop and call futex again.
+ 
+ 	prints("futexwakeup addr=");
+-	sys·printpointer(addr);
++	runtime·printpointer(addr);
+ 	prints(" returned ");
+-	sys·printint(ret);
++	runtime·printint(ret);
+ 	prints("\n");
+ 	*(int32*)0x1006 = 0x1006;
+ }
+diff --git a/src/pkg/runtime/malloc.cgo b/src/pkg/runtime/malloc.cgo
+index 0fdb13d95a..6a769c9e08 100644
+--- a/src/pkg/runtime/malloc.cgo
++++ b/src/pkg/runtime/malloc.cgo
+@@ -113,7 +113,7 @@ free(void *v)
+ 		if(sizeclass == 0) {
+ 			// Large object.
+ 			mstats.alloc -= s->npages<<PageShift;
+-			sys_memclr(v, s->npages<<PageShift);
++			runtime_memclr(v, s->npages<<PageShift);
+ 			MHeap_Free(&mheap, s);
+ 			goto out;
+ 		}
+@@ -123,7 +123,7 @@ free(void *v)
+ 	// Small object.
+ 	c = m->mcache;
+ 	size = class_to_size[sizeclass];
+-	sys_memclr(v, size);
++	runtime_memclr(v, size);
+ 	mstats.alloc -= size;
+ 	MCache_Free(c, v, sizeclass, size);
+ 
+@@ -209,7 +209,7 @@ void*
+ SysAlloc(uintptr n)
+ {
+ 	mstats.sys += n;
+-	return sys_mmap(nil, n, PROT_READ|PROT_WRITE|PROT_EXEC, MAP_ANON|MAP_PRIVATE, -1, 0);
++	return runtime_mmap(nil, n, PROT_READ|PROT_WRITE|PROT_EXEC, MAP_ANON|MAP_PRIVATE, -1, 0);
+ }
+ 
+ void
+diff --git a/src/pkg/runtime/mem.c b/src/pkg/runtime/mem.c
+index 2d6e36ae83..616d1a0e18 100644
+--- a/src/pkg/runtime/mem.c
++++ b/src/pkg/runtime/mem.c
+@@ -19,7 +19,7 @@ brk(uint32 n)
+ {
+ 	byte *v;
+ 
+-	v = sys_mmap(nil, n, PROT_READ|PROT_WRITE|PROT_EXEC, MAP_ANON|MAP_PRIVATE, 0, 0);
++	v = runtime_mmap(nil, n, PROT_READ|PROT_WRITE|PROT_EXEC, MAP_ANON|MAP_PRIVATE, 0, 0);
+ 	m->mem.nmmap += n;
+ 	return v;
+ }
+@@ -51,10 +51,10 @@ oldmal(uint32 n)
+ 			// hunk, and then once brk returned we'd immediately
+ 			// overwrite that hunk with our own.
+ 			// (the net result would be a memory leak, not a crash.)
+-			// so we have to call sys_mmap directly - it is written
++			// so we have to call runtime_mmap directly - it is written
+ 			// in assembly and tagged not to grow the stack.
+ 			m->mem.hunk =
+-				sys_mmap(nil, NHUNK, PROT_READ|PROT_WRITE|PROT_EXEC,
++				runtime_mmap(nil, NHUNK, PROT_READ|PROT_WRITE|PROT_EXEC,
+ 					MAP_ANON|MAP_PRIVATE, 0, 0);
+ 			m->mem.nhunk = NHUNK;
+ 			m->mem.nmmap += NHUNK;
+@@ -68,7 +68,7 @@ oldmal(uint32 n)
+ }
+ 
+ void
+-sys·mal(uint32 n, uint8 *ret)
++runtime·mal(uint32 n, uint8 *ret)
+ {
+ 	ret = mal(n);
+ 	FLUSH(&ret);
+diff --git a/src/pkg/runtime/mheapmap32.c b/src/pkg/runtime/mheapmap32.c
+index 420ca2d833..8cea825c33 100644
+--- a/src/pkg/runtime/mheapmap32.c
++++ b/src/pkg/runtime/mheapmap32.c
+@@ -84,7 +84,7 @@ MHeapMap_Preallocate(MHeapMap *m, PageID k, uintptr len)
+ 			p2 = m->allocator(sizeof *p2);
+ 			if(p2 == nil)
+ 				return false;
+-			sys_memclr((byte*)p2, sizeof *p2);
++			runtime_memclr((byte*)p2, sizeof *p2);
+ 			m->p[i1] = p2;
+ 		}
+ 
+diff --git a/src/pkg/runtime/mheapmap64.c b/src/pkg/runtime/mheapmap64.c
+index 1886ba5297..7930291786 100644
+--- a/src/pkg/runtime/mheapmap64.c
++++ b/src/pkg/runtime/mheapmap64.c
+@@ -96,7 +96,7 @@ MHeapMap_Preallocate(MHeapMap *m, PageID k, uintptr len)
+ 			p2 = m->allocator(sizeof *p2);
+ 			if(p2 == nil)
+ 				return false;
+-			sys_memclr((byte*)p2, sizeof *p2);
++			runtime_memclr((byte*)p2, sizeof *p2);
+ 			m->p[i1] = p2;
+ 		}
+ 
+@@ -105,7 +105,7 @@ MHeapMap_Preallocate(MHeapMap *m, PageID k, uintptr len)
+ 			p3 = m->allocator(sizeof *p3);
+ 			if(p3 == nil)
+ 				return false;
+-			sys_memclr((byte*)p3, sizeof *p3);
++			runtime_memclr((byte*)p3, sizeof *p3);
+ 			p2->p[i2] = p3;
+ 		}
+ 
+diff --git a/src/pkg/runtime/nacl/386/sys.s b/src/pkg/runtime/nacl/386/sys.s
+index 5f8a1c0ac2..87cbc1e275 100755
+--- a/src/pkg/runtime/nacl/386/sys.s
++++ b/src/pkg/runtime/nacl/386/sys.s
+@@ -54,7 +54,7 @@ TEXT	mutex_unlock(SB),7,$0
+ TEXT thread_create(SB),7,$0
+ 	JMP	SYSCALL(thread_create)
+ 
+-TEXT sys·mmap(SB),7,$24
++TEXT runtime·mmap(SB),7,$24
+ 	MOVL	a1+0(FP), BX
+ 	MOVL	a2+4(FP), CX	// round up to 64 kB boundary; silences nacl warning
+ 	ADDL	$(64*1024-1), CX
+diff --git a/src/pkg/runtime/print.c b/src/pkg/runtime/print.c
+index 15cffdfd40..ed6ea9fb0c 100644
+--- a/src/pkg/runtime/print.c
++++ b/src/pkg/runtime/print.c
+@@ -12,8 +12,8 @@ dump(byte *p, int32 n)
+ 	int32 i;
+ 
+ 	for(i=0; i<n; i++) {
+-		sys·printpointer((byte*)(p[i]>>4));
+-		sys·printpointer((byte*)(p[i]&0xf));
++		runtime·printpointer((byte*)(p[i]>>4));
++		runtime·printpointer((byte*)(p[i]&0xf));
+ 		if((i&15) == 15)
+ 			prints("\n");
+ 		else
+@@ -73,25 +73,25 @@ printf(int8 *s, ...)
+ 		}
+ 		switch(*p) {
+ 		case 'd':
+-			sys·printint(*(int32*)arg);
++			runtime·printint(*(int32*)arg);
+ 			break;
+ 		case 'D':
+-			sys·printint(*(int64*)arg);
++			runtime·printint(*(int64*)arg);
+ 			break;
+ 		case 'x':
+-			sys·printhex(*(uint32*)arg);
++			runtime·printhex(*(uint32*)arg);
+ 			break;
+ 		case 'X':
+-			sys·printhex(*(uint64*)arg);
++			runtime·printhex(*(uint64*)arg);
+ 			break;
+ 		case 'p':
+-			sys·printpointer(*(void**)arg);
++			runtime·printpointer(*(void**)arg);
+ 			break;
+ 		case 's':
+ 			prints(*(int8**)arg);
+ 			break;
+ 		case 'S':
+-			sys·printstring(*(String*)arg);
++			runtime·printstring(*(String*)arg);
+ 			break;
+ 		}
+ 		arg = narg;
+@@ -105,14 +105,14 @@ printf(int8 *s, ...)
+ 
+ 
+ void
+-sys·printpc(void *p)
++runtime·printpc(void *p)
+ {
+ 	prints("PC=");
+-	sys·printhex((uint64)sys·getcallerpc(p));
++	runtime·printhex((uint64)runtime·getcallerpc(p));
+ }
+ 
+ void
+-sys·printbool(bool v)
++runtime·printbool(bool v)
+ {
+ 	if(v) {
+ 		write(fd, (byte*)"true", 4);
+@@ -122,7 +122,7 @@ sys·printbool(bool v)
+ }
+ 
+ void
+-sys·printfloat(float64 v)
++runtime·printfloat(float64 v)
+ {
+ 	byte buf[20];
+ 	int32 e, s, i, n;
+@@ -200,7 +200,7 @@ sys·printfloat(float64 v)
+ }
+ 
+ void
+-sys·printuint(uint64 v)
++runtime·printuint(uint64 v)
+ {
+ 	byte buf[100];
+ 	int32 i;
+@@ -215,17 +215,17 @@ sys·printuint(uint64 v)
+ }
+ 
+ void
+-sys·printint(int64 v)
++runtime·printint(int64 v)
+ {
+ 	if(v < 0) {
+ 		write(fd, "-", 1);
+ 		v = -v;
+ 	}
+-	sys·printuint(v);
++	runtime·printuint(v);
+ }
+ 
+ void
+-sys·printhex(uint64 v)
++runtime·printhex(uint64 v)
+ {
+ 	static int8 *dig = "0123456789abcdef";
+ 	byte buf[100];
+@@ -242,13 +242,13 @@ sys·printhex(uint64 v)
+ }
+ 
+ void
+-sys·printpointer(void *p)
++runtime·printpointer(void *p)
+ {
+-	sys·printhex((uint64)p);
++	runtime·printhex((uint64)p);
+ }
+ 
+ void
+-sys·printstring(String v)
++runtime·printstring(String v)
+ {
+ 	extern int32 maxstring;
+ 
+@@ -261,13 +261,13 @@ sys·printstring(String v)
+ }
+ 
+ void
+-sys·printsp(void)
++runtime·printsp(void)
+ {
+ 	write(fd, " ", 1);
+ }
+ 
+ void
+-sys·printnl(void)
++runtime·printnl(void)
+ {
+ 	write(fd, "\n", 1);
+ }
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 4113002ada..0619a0330a 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -522,7 +522,7 @@ gosched(void)
+ // from the low-level system calls used by the runtime.
+ // The "arguments" are syscall.Syscall's stack frame
+ void
+-sys·entersyscall(uint64 callerpc, int64 trap)
++runtime·entersyscall(uint64 callerpc, int64 trap)
+ {
+ 	USED(callerpc, trap);
+ 
+@@ -552,7 +552,7 @@ sys·entersyscall(uint64 callerpc, int64 trap)
+ // This is called only from the go syscall library, not
+ // from the low-level system calls used by the runtime.
+ void
+-sys·exitsyscall(void)
++runtime·exitsyscall(void)
+ {
+ 	lock(&sched);
+ 	if(sched.predawn) {
+@@ -715,7 +715,7 @@ newstack(void)
+ 	// Continue as if lessstack had just called m->morepc
+ 	// (the PC that decided to grow the stack).
+ 	label.sp = sp;
+-	label.pc = (byte*)sys·lessstack;
++	label.pc = (byte*)runtime·lessstack;
+ 	label.g = m->curg;
+ 	gogocall(&label, m->morepc);
+ 
+@@ -747,7 +747,7 @@ malg(int32 stacksize)
+  */
+ #pragma textflag 7
+ void
+-sys·newproc(int32 siz, byte* fn, byte* arg0)
++runtime·newproc(int32 siz, byte* fn, byte* arg0)
+ {
+ 	byte *stk, *sp;
+ 	G *newg;
+@@ -756,7 +756,7 @@ sys·newproc(int32 siz, byte* fn, byte* arg0)
+ 
+ 	siz = (siz+7) & ~7;
+ 	if(siz > 1024)
+-		throw("sys·newproc: too many args");
++		throw("runtime·newproc: too many args");
+ 
+ 	lock(&sched);
+ 
+@@ -795,7 +795,7 @@ sys·newproc(int32 siz, byte* fn, byte* arg0)
+ 
+ #pragma textflag 7
+ void
+-sys·deferproc(int32 siz, byte* fn, byte* arg0)
++runtime·deferproc(int32 siz, byte* fn, byte* arg0)
+ {
+ 	Defer *d;
+ 
+@@ -811,7 +811,7 @@ sys·deferproc(int32 siz, byte* fn, byte* arg0)
+ 
+ #pragma textflag 7
+ void
+-sys·deferreturn(uintptr arg0)
++runtime·deferreturn(uintptr arg0)
+ {
+ 	Defer *d;
+ 	byte *sp, *fn;
+diff --git a/src/pkg/runtime/runtime.c b/src/pkg/runtime/runtime.c
+index 4dcd3da150..39fda98283 100644
+--- a/src/pkg/runtime/runtime.c
++++ b/src/pkg/runtime/runtime.c
+@@ -20,7 +20,7 @@ gotraceback(void)
+ }
+ 
+ void
+-sys·panicl(int32 lno)
++runtime·panicl(int32 lno)
+ {
+ 	uint8 *sp;
+ 
+@@ -34,7 +34,7 @@ sys·panicl(int32 lno)
+ 	printf("\npanic PC=%X\n", (uint64)(uintptr)&lno);
+ 	sp = (uint8*)&lno;
+ 	if(gotraceback()){
+-		traceback(sys·getcallerpc(&lno), sp, g);
++		traceback(runtime·getcallerpc(&lno), sp, g);
+ 		tracebackothers(g);
+ 	}
+ 	breakpoint();  // so we can grab it in a debugger
+@@ -42,25 +42,25 @@ sys·panicl(int32 lno)
+ }
+ 
+ void
+-sys·throwindex(void)
++runtime·throwindex(void)
+ {
+ 	throw("index out of range");
+ }
+ 
+ void
+-sys·throwslice(void)
++runtime·throwslice(void)
+ {
+ 	throw("slice out of range");
+ }
+ 
+ void
+-sys·throwreturn(void)
++runtime·throwreturn(void)
+ {
+ 	throw("no return at end of a typed function");
+ }
+ 
+ void
+-sys·throwinit(void)
++runtime·throwinit(void)
+ {
+ 	throw("recursive call during initialization");
+ }
+@@ -70,7 +70,7 @@ throw(int8 *s)
+ {
+ 	fd = 2;
+ 	printf("throw: %s\n", s);
+-	sys·panicl(-1);
++	runtime·panicl(-1);
+ 	*(int32*)0 = 0;	// not reached
+ 	exit(1);	// even more not reached
+ }
+@@ -332,7 +332,7 @@ memprint(uint32 s, void *a)
+ 		v = *(uint64*)a;
+ 		break;
+ 	}
+-	sys·printint(v);
++	runtime·printint(v);
+ }
+ 
+ static void
+@@ -370,7 +370,7 @@ static void
+ strprint(uint32 s, String *a)
+ {
+ 	USED(s);
+-	sys·printstring(*a);
++	runtime·printstring(*a);
+ }
+ 
+ static uintptr
+@@ -384,7 +384,7 @@ static void
+ interprint(uint32 s, Iface *a)
+ {
+ 	USED(s);
+-	sys·printiface(*a);
++	runtime·printiface(*a);
+ }
+ 
+ static uint32
+@@ -405,7 +405,7 @@ static void
+ nilinterprint(uint32 s, Eface *a)
+ {
+ 	USED(s);
+-	sys·printeface(*a);
++	runtime·printeface(*a);
+ }
+ 
+ static uint32
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index d45ac50405..fac0008ee1 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -330,7 +330,7 @@ int32	charntorune(int32*, uint8*, int32);
+ void	gogo(Gobuf*, uintptr);
+ void	gogocall(Gobuf*, void(*)(void));
+ uintptr	gosave(Gobuf*);
+-void	sys·lessstack(void);
++void	runtime·lessstack(void);
+ void	goargs(void);
+ void	FLUSH(void*);
+ void*	getu(void);
+@@ -430,45 +430,45 @@ void	notewakeup(Note*);
+  * UTF-8 characters in identifiers.
+  */
+ #ifndef __GNUC__
+-#define sys_memclr sys·memclr
+-#define sys_getcallerpc sys·getcallerpc
+-#define sys_mmap sys·mmap
+-#define sys_printslice sys·printslice
+-#define sys_printbool sys·printbool
+-#define sys_printfloat sys·printfloat
+-#define sys_printhex sys·printhex
+-#define sys_printint sys·printint
+-#define sys_printiface sys·printiface
+-#define sys_printeface sys·printeface
+-#define sys_printpc sys·printpc
+-#define sys_printpointer sys·printpointer
+-#define sys_printstring sys·printstring
+-#define sys_printuint sys·printuint
+-#define sys_setcallerpc sys·setcallerpc
++#define runtime_memclr runtime·memclr
++#define runtime_getcallerpc runtime·getcallerpc
++#define runtime_mmap runtime·mmap
++#define runtime_printslice runtime·printslice
++#define runtime_printbool runtime·printbool
++#define runtime_printfloat runtime·printfloat
++#define runtime_printhex runtime·printhex
++#define runtime_printint runtime·printint
++#define runtime_printiface runtime·printiface
++#define runtime_printeface runtime·printeface
++#define runtime_printpc runtime·printpc
++#define runtime_printpointer runtime·printpointer
++#define runtime_printstring runtime·printstring
++#define runtime_printuint runtime·printuint
++#define runtime_setcallerpc runtime·setcallerpc
+ #endif
+ 
+ /*
+  * low level go-called
+  */
+-uint8*	sys_mmap(byte*, uint32, int32, int32, int32, uint32);
+-void	sys_memclr(byte*, uint32);
+-void	sys_setcallerpc(void*, void*);
+-void*	sys_getcallerpc(void*);
++uint8*	runtime_mmap(byte*, uint32, int32, int32, int32, uint32);
++void	runtime_memclr(byte*, uint32);
++void	runtime_setcallerpc(void*, void*);
++void*	runtime_getcallerpc(void*);
+ 
+ /*
+  * runtime go-called
+  */
+-void	sys_printbool(bool);
+-void	sys_printfloat(float64);
+-void	sys_printint(int64);
+-void	sys_printiface(Iface);
+-void	sys_printeface(Eface);
+-void	sys_printstring(String);
+-void	sys_printpc(void*);
+-void	sys_printpointer(void*);
+-void	sys_printuint(uint64);
+-void	sys_printhex(uint64);
+-void	sys_printslice(Slice);
++void	runtime_printbool(bool);
++void	runtime_printfloat(float64);
++void	runtime_printint(int64);
++void	runtime_printiface(Iface);
++void	runtime_printeface(Eface);
++void	runtime_printstring(String);
++void	runtime_printpc(void*);
++void	runtime_printpointer(void*);
++void	runtime_printuint(uint64);
++void	runtime_printhex(uint64);
++void	runtime_printslice(Slice);
+ 
+ /*
+  * wrapped for go users
+diff --git a/src/pkg/runtime/slice.c b/src/pkg/runtime/slice.c
+index d7a5a062f1..040029e5ea 100644
+--- a/src/pkg/runtime/slice.c
++++ b/src/pkg/runtime/slice.c
+@@ -8,7 +8,7 @@ static	int32	debug	= 0;
+ 
+ // makeslice(nel int, cap int, width int) (ary []any);
+ void
+-sys·makeslice(uint32 nel, uint32 cap, uint32 width, Slice ret)
++runtime·makeslice(uint32 nel, uint32 cap, uint32 width, Slice ret)
+ {
+ 	uint64 size;
+ 
+@@ -24,13 +24,13 @@ sys·makeslice(uint32 nel, uint32 cap, uint32 width, Slice ret)
+ 
+ 	if(debug) {
+ 		prints("makeslice: nel=");
+-		sys·printint(nel);
++		runtime·printint(nel);
+ 		prints("; cap=");
+-		sys·printint(cap);
++		runtime·printint(cap);
+ 		prints("; width=");
+-		sys·printint(width);
++		runtime·printint(width);
+ 		prints("; ret=");
+-		sys·printslice(ret);
++		runtime·printslice(ret);
+ 		prints("\n");
+ 	}
+ }
+@@ -39,36 +39,36 @@ static void
+ throwslice(uint32 lb, uint32 hb, uint32 n)
+ {
+ 	prints("slice[");
+-	sys·printint(lb);
++	runtime·printint(lb);
+ 	prints(":");
+-	sys·printint(hb);
++	runtime·printint(hb);
+ 	prints("] of [");
+-	sys·printint(n);
++	runtime·printint(n);
+ 	prints("] array\n");
+ 	throw("array slice");
+ }
+ 
+ // sliceslice(old []any, lb int, hb int, width int) (ary []any);
+ void
+-sys·sliceslice(Slice old, uint32 lb, uint32 hb, uint32 width, Slice ret)
++runtime·sliceslice(Slice old, uint32 lb, uint32 hb, uint32 width, Slice ret)
+ {
+ 
+ 	if(hb > old.cap || lb > hb) {
+ 		if(debug) {
+-			prints("sys·sliceslice: old=");
+-			sys·printslice(old);
++			prints("runtime·sliceslice: old=");
++			runtime·printslice(old);
+ 			prints("; lb=");
+-			sys·printint(lb);
++			runtime·printint(lb);
+ 			prints("; hb=");
+-			sys·printint(hb);
++			runtime·printint(hb);
+ 			prints("; width=");
+-			sys·printint(width);
++			runtime·printint(width);
+ 			prints("\n");
+ 
+ 			prints("oldarray: nel=");
+-			sys·printint(old.len);
++			runtime·printint(old.len);
+ 			prints("; cap=");
+-			sys·printint(old.cap);
++			runtime·printint(old.cap);
+ 			prints("\n");
+ 		}
+ 		throwslice(lb, hb, old.cap);
+@@ -82,37 +82,37 @@ sys·sliceslice(Slice old, uint32 lb, uint32 hb, uint32 width, Slice ret)
+ 	FLUSH(&ret);
+ 
+ 	if(debug) {
+-		prints("sys·sliceslice: old=");
+-		sys·printslice(old);
++		prints("runtime·sliceslice: old=");
++		runtime·printslice(old);
+ 		prints("; lb=");
+-		sys·printint(lb);
++		runtime·printint(lb);
+ 		prints("; hb=");
+-		sys·printint(hb);
++		runtime·printint(hb);
+ 		prints("; width=");
+-		sys·printint(width);
++		runtime·printint(width);
+ 		prints("; ret=");
+-		sys·printslice(ret);
++		runtime·printslice(ret);
+ 		prints("\n");
+ 	}
+ }
+ 
+ // slicearray(old *any, nel int, lb int, hb int, width int) (ary []any);
+ void
+-sys·slicearray(byte* old, uint32 nel, uint32 lb, uint32 hb, uint32 width, Slice ret)
++runtime·slicearray(byte* old, uint32 nel, uint32 lb, uint32 hb, uint32 width, Slice ret)
+ {
+ 
+ 	if(hb > nel || lb > hb) {
+ 		if(debug) {
+-			prints("sys·slicearray: old=");
+-			sys·printpointer(old);
++			prints("runtime·slicearray: old=");
++			runtime·printpointer(old);
+ 			prints("; nel=");
+-			sys·printint(nel);
++			runtime·printint(nel);
+ 			prints("; lb=");
+-			sys·printint(lb);
++			runtime·printint(lb);
+ 			prints("; hb=");
+-			sys·printint(hb);
++			runtime·printint(hb);
+ 			prints("; width=");
+-			sys·printint(width);
++			runtime·printint(width);
+ 			prints("\n");
+ 		}
+ 		throwslice(lb, hb, nel);
+@@ -126,25 +126,25 @@ sys·slicearray(byte* old, uint32 nel, uint32 lb, uint32 hb, uint32 width, Slice
+ 	FLUSH(&ret);
+ 
+ 	if(debug) {
+-		prints("sys·slicearray: old=");
+-		sys·printpointer(old);
++		prints("runtime·slicearray: old=");
++		runtime·printpointer(old);
+ 		prints("; nel=");
+-		sys·printint(nel);
++		runtime·printint(nel);
+ 		prints("; lb=");
+-		sys·printint(lb);
++		runtime·printint(lb);
+ 		prints("; hb=");
+-		sys·printint(hb);
++		runtime·printint(hb);
+ 		prints("; width=");
+-		sys·printint(width);
++		runtime·printint(width);
+ 		prints("; ret=");
+-		sys·printslice(ret);
++		runtime·printslice(ret);
+ 		prints("\n");
+ 	}
+ }
+ 
+ // arraytoslice(old *any, nel int) (ary []any)
+ void
+-sys·arraytoslice(byte* old, uint32 nel, Slice ret)
++runtime·arraytoslice(byte* old, uint32 nel, Slice ret)
+ {
+ 
+ 	// new dope to old array
+@@ -155,21 +155,21 @@ sys·arraytoslice(byte* old, uint32 nel, Slice ret)
+ 	FLUSH(&ret);
+ 
+ 	if(debug) {
+-		prints("sys·slicearrayp: old=");
+-		sys·printpointer(old);
++		prints("runtime·slicearrayp: old=");
++		runtime·printpointer(old);
+ 		prints("; ret=");
+-		sys·printslice(ret);
++		runtime·printslice(ret);
+ 		prints("\n");
+ 	}
+ }
+ 
+ void
+-sys·printslice(Slice a)
++runtime·printslice(Slice a)
+ {
+ 	prints("[");
+-	sys·printint(a.len);
++	runtime·printint(a.len);
+ 	prints("/");
+-	sys·printint(a.cap);
++	runtime·printint(a.cap);
+ 	prints("]");
+-	sys·printpointer(a.array);
++	runtime·printpointer(a.array);
+ }
+diff --git a/src/pkg/runtime/string.cgo b/src/pkg/runtime/string.cgo
+index 3134cbbfe6..bafa6791b0 100644
+--- a/src/pkg/runtime/string.cgo
++++ b/src/pkg/runtime/string.cgo
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package sys
++package runtime
+ #include "runtime.h"
+ 
+ String	emptystring;
+@@ -68,11 +68,11 @@ prbounds(int8* s, int32 a, int32 b, int32 c)
+ {
+ 	prints(s);
+ 	prints(" ");
+-	sys·printint(a);
++	runtime·printint(a);
+ 	prints("<");
+-	sys·printint(b);
++	runtime·printint(b);
+ 	prints(">");
+-	sys·printint(c);
++	runtime·printint(c);
+ 	prints("\n");
+ 	throw("string bounds");
+ }
+@@ -128,7 +128,7 @@ func slicestring(si String, lindex int32, hindex int32) (so String) {
+ 
+ 	if(lindex < 0 || lindex > si.len ||
+ 	   hindex < lindex || hindex > si.len) {
+-		sys·printpc(&si);
++		runtime·printpc(&si);
+ 		prints(" ");
+ 		prbounds("slice", lindex, si.len, hindex);
+ 	}
+@@ -144,7 +144,7 @@ func slicestring(si String, lindex int32, hindex int32) (so String) {
+ 
+ func indexstring(s String, i int32) (b byte) {
+ 	if(i < 0 || i >= s.len) {
+-		sys·printpc(&s);
++		runtime·printpc(&s);
+ 		prints(" ");
+ 		prbounds("index", 0, i, s.len);
+ 	}
+diff --git a/src/pkg/runtime/symtab.c b/src/pkg/runtime/symtab.c
+index a082a7615d..18ce07a1cf 100644
+--- a/src/pkg/runtime/symtab.c
++++ b/src/pkg/runtime/symtab.c
+@@ -27,7 +27,7 @@
+ 
+ // Return a pointer to a byte array containing the symbol table segment.
+ void
+-sys·symdat(Slice *symtab, Slice *pclntab)
++runtime·symdat(Slice *symtab, Slice *pclntab)
+ {
+ 	Slice *a;
+ 	int32 *v;
+diff --git a/src/pkg/syscall/asm_darwin_386.s b/src/pkg/syscall/asm_darwin_386.s
+index 646851b7e6..0ea5dd2c57 100644
+--- a/src/pkg/syscall/asm_darwin_386.s
++++ b/src/pkg/syscall/asm_darwin_386.s
+@@ -11,7 +11,7 @@
+ // Trap # in AX, args on stack above caller pc.
+ 
+ TEXT	syscall·Syscall(SB),7,$0
+-	CALL	sys·entersyscall(SB)
++	CALL	runtime·entersyscall(SB)
+ 	MOVL	4(SP), AX	// syscall entry
+ 	// slide args down on top of system call number
+ 	LEAL		8(SP), SI
+@@ -25,17 +25,17 @@ TEXT	syscall·Syscall(SB),7,$0
+ 	MOVL	$-1, 20(SP)	// r1
+ 	MOVL	$-1, 24(SP)	// r2
+ 	MOVL	AX, 28(SP)		// errno
+-	CALL	sys·exitsyscall(SB)
++	CALL	runtime·exitsyscall(SB)
+ 	RET
+ ok:
+ 	MOVL	AX, 20(SP)	// r1
+ 	MOVL	DX, 24(SP)	// r2
+ 	MOVL	$0, 28(SP)	// errno
+-	CALL	sys·exitsyscall(SB)
++	CALL	runtime·exitsyscall(SB)
+ 	RET
+ 
+ TEXT	syscall·Syscall6(SB),7,$0
+-	CALL	sys·entersyscall(SB)
++	CALL	runtime·entersyscall(SB)
+ 	MOVL	4(SP), AX	// syscall entry
+ 	// slide args down on top of system call number
+ 	LEAL		8(SP), SI
+@@ -52,13 +52,13 @@ TEXT	syscall·Syscall6(SB),7,$0
+ 	MOVL	$-1, 32(SP)	// r1
+ 	MOVL	$-1, 36(SP)	// r2
+ 	MOVL	AX, 40(SP)		// errno
+-	CALL	sys·exitsyscall(SB)
++	CALL	runtime·exitsyscall(SB)
+ 	RET
+ ok6:
+ 	MOVL	AX, 32(SP)	// r1
+ 	MOVL	DX, 36(SP)	// r2
+ 	MOVL	$0, 40(SP)	// errno
+-	CALL	sys·exitsyscall(SB)
++	CALL	runtime·exitsyscall(SB)
+ 	RET
+ 
+ TEXT syscall·RawSyscall(SB),7,$0
+diff --git a/src/pkg/syscall/asm_darwin_amd64.s b/src/pkg/syscall/asm_darwin_amd64.s
+index 29cc2932ac..d73a8aeea4 100644
+--- a/src/pkg/syscall/asm_darwin_amd64.s
++++ b/src/pkg/syscall/asm_darwin_amd64.s
+@@ -11,7 +11,7 @@
+ // Trap # in AX, args in DI SI DX, return in AX DX
+ 
+ TEXT	syscall·Syscall(SB),7,$0
+-	CALL	sys·entersyscall(SB)
++	CALL	runtime·entersyscall(SB)
+ 	MOVQ	16(SP), DI
+ 	MOVQ	24(SP), SI
+ 	MOVQ	32(SP), DX
+@@ -25,17 +25,17 @@ TEXT	syscall·Syscall(SB),7,$0
+ 	MOVQ	$-1, 40(SP)	// r1
+ 	MOVQ	$0, 48(SP)	// r2
+ 	MOVQ	AX, 56(SP)  // errno
+-	CALL	sys·exitsyscall(SB)
++	CALL	runtime·exitsyscall(SB)
+ 	RET
+ ok:
+ 	MOVQ	AX, 40(SP)	// r1
+ 	MOVQ	DX, 48(SP)	// r2
+ 	MOVQ	$0, 56(SP)	// errno
+-	CALL	sys·exitsyscall(SB)
++	CALL	runtime·exitsyscall(SB)
+ 	RET
+ 
+ TEXT	syscall·Syscall6(SB),7,$0
+-	CALL	sys·entersyscall(SB)
++	CALL	runtime·entersyscall(SB)
+ 	MOVQ	16(SP), DI
+ 	MOVQ	24(SP), SI
+ 	MOVQ	32(SP), DX
+@@ -49,13 +49,13 @@ TEXT	syscall·Syscall6(SB),7,$0
+ 	MOVQ	$-1, 64(SP)	// r1
+ 	MOVQ	$0, 72(SP)	// r2
+ 	MOVQ	AX, 80(SP)  // errno
+-	CALL	sys·exitsyscall(SB)
++	CALL	runtime·exitsyscall(SB)
+ 	RET
+ ok6:
+ 	MOVQ	AX, 64(SP)	// r1
+ 	MOVQ	DX, 72(SP)	// r2
+ 	MOVQ	$0, 80(SP)	// errno
+-	CALL	sys·exitsyscall(SB)
++	CALL	runtime·exitsyscall(SB)
+ 	RET
+ 
+ TEXT syscall·RawSyscall(SB),7,$0
+diff --git a/src/pkg/syscall/asm_linux_386.s b/src/pkg/syscall/asm_linux_386.s
+index 638a31dbce..533dddaf9b 100644
+--- a/src/pkg/syscall/asm_linux_386.s
++++ b/src/pkg/syscall/asm_linux_386.s
+@@ -10,7 +10,7 @@
+ // Trap # in AX, args in BX CX DX SI DI, return in AX
+ 
+ TEXT	syscall·Syscall(SB),7,$0
+-	CALL	sys·entersyscall(SB)
++	CALL	runtime·entersyscall(SB)
+ 	MOVL	4(SP), AX	// syscall entry
+ 	MOVL	8(SP), BX
+ 	MOVL	12(SP), CX
+@@ -24,19 +24,19 @@ TEXT	syscall·Syscall(SB),7,$0
+ 	MOVL	$0, 24(SP)	// r2
+ 	NEGL	AX
+ 	MOVL	AX, 28(SP)  // errno
+-	CALL	sys·exitsyscall(SB)
++	CALL	runtime·exitsyscall(SB)
+ 	RET
+ ok:
+ 	MOVL	AX, 20(SP)	// r1
+ 	MOVL	DX, 24(SP)	// r2
+ 	MOVL	$0, 28(SP)	// errno
+-	CALL	sys·exitsyscall(SB)
++	CALL	runtime·exitsyscall(SB)
+ 	RET
+ 
+ // func Syscall6(trap uintptr, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr);
+ // Actually Syscall5 but the rest of the code expects it to be named Syscall6.
+ TEXT	syscall·Syscall6(SB),7,$0
+-	CALL	sys·entersyscall(SB)
++	CALL	runtime·entersyscall(SB)
+ 	MOVL	4(SP), AX	// syscall entry
+ 	MOVL	8(SP), BX
+ 	MOVL	12(SP), CX
+@@ -51,13 +51,13 @@ TEXT	syscall·Syscall6(SB),7,$0
+ 	MOVL	$0, 36(SP)	// r2
+ 	NEGL	AX
+ 	MOVL	AX, 40(SP)  // errno
+-	CALL	sys·exitsyscall(SB)
++	CALL	runtime·exitsyscall(SB)
+ 	RET
+ ok6:
+ 	MOVL	AX, 32(SP)	// r1
+ 	MOVL	DX, 36(SP)	// r2
+ 	MOVL	$0, 40(SP)	// errno
+-	CALL	sys·exitsyscall(SB)
++	CALL	runtime·exitsyscall(SB)
+ 	RET
+ 
+ // func RawSyscall(trap uintptr, a1, a2, a3 uintptr) (r1, r2, err uintptr);
+@@ -75,7 +75,7 @@ TEXT syscall·RawSyscall(SB),7,$0
+ 	MOVL	$0, 24(SP)	// r2
+ 	NEGL	AX
+ 	MOVL	AX, 28(SP)  // errno
+-	CALL	sys·exitsyscall(SB)
++	CALL	runtime·exitsyscall(SB)
+ 	RET
+ ok1:
+ 	MOVL	AX, 20(SP)	// r1
+@@ -88,7 +88,7 @@ ok1:
+ // func socketcall(call int, a0, a1, a2, a3, a4, a5 uintptr) (n int, errno int)
+ // Kernel interface gets call sub-number and pointer to a0.
+ TEXT syscall·socketcall(SB),7,$0
+-	CALL	sys·entersyscall(SB)
++	CALL	runtime·entersyscall(SB)
+ 	MOVL	$SYS_SOCKETCALL, AX	// syscall entry
+ 	MOVL	4(SP), BX	// socket call number
+ 	LEAL		8(SP), CX	// pointer to call arguments
+@@ -101,12 +101,12 @@ TEXT syscall·socketcall(SB),7,$0
+ 	MOVL	$-1, 32(SP)	// n
+ 	NEGL	AX
+ 	MOVL	AX, 36(SP)  // errno
+-	CALL	sys·exitsyscall(SB)
++	CALL	runtime·exitsyscall(SB)
+ 	RET
+ oksock:
+ 	MOVL	AX, 32(SP)	// n
+ 	MOVL	$0, 36(SP)	// errno
+-	CALL	sys·exitsyscall(SB)
++	CALL	runtime·exitsyscall(SB)
+ 	RET
+ 
+ #define SYS__LLSEEK 140	/* from zsysnum_linux_386.go */
+@@ -116,7 +116,7 @@ oksock:
+ // Underlying system call is
+ //	llseek(int fd, int offhi, int offlo, int64 *result, int whence)
+ TEXT syscall·Seek(SB),7,$0
+-	CALL	sys·entersyscall(SB)
++	CALL	runtime·entersyscall(SB)
+ 	MOVL	$SYS__LLSEEK, AX	// syscall entry
+ 	MOVL	4(SP), BX	// fd
+ 	MOVL	12(SP), CX	// offset-high
+@@ -130,10 +130,10 @@ TEXT syscall·Seek(SB),7,$0
+ 	MOVL	$-1, 24(SP)	// newoffset high
+ 	NEGL	AX
+ 	MOVL	AX, 28(SP)  // errno
+-	CALL	sys·exitsyscall(SB)
++	CALL	runtime·exitsyscall(SB)
+ 	RET
+ okseek:
+ 	// system call filled in newoffset already
+ 	MOVL	$0, 28(SP)	// errno
+-	CALL	sys·exitsyscall(SB)
++	CALL	runtime·exitsyscall(SB)
+ 	RET
+diff --git a/src/pkg/syscall/asm_linux_amd64.s b/src/pkg/syscall/asm_linux_amd64.s
+index 0f071d2fda..e37f56404b 100644
+--- a/src/pkg/syscall/asm_linux_amd64.s
++++ b/src/pkg/syscall/asm_linux_amd64.s
+@@ -12,7 +12,7 @@
+ // would pass 4th arg in CX, not R10.
+ 
+ TEXT	syscall·Syscall(SB),7,$0
+-	CALL	sys·entersyscall(SB)
++	CALL	runtime·entersyscall(SB)
+ 	MOVQ	16(SP), DI
+ 	MOVQ	24(SP), SI
+ 	MOVQ	32(SP), DX
+@@ -27,17 +27,17 @@ TEXT	syscall·Syscall(SB),7,$0
+ 	MOVQ	$0, 48(SP)	// r2
+ 	NEGQ	AX
+ 	MOVQ	AX, 56(SP)  // errno
+-	CALL	sys·exitsyscall(SB)
++	CALL	runtime·exitsyscall(SB)
+ 	RET
+ ok:
+ 	MOVQ	AX, 40(SP)	// r1
+ 	MOVQ	DX, 48(SP)	// r2
+ 	MOVQ	$0, 56(SP)	// errno
+-	CALL	sys·exitsyscall(SB)
++	CALL	runtime·exitsyscall(SB)
+ 	RET
+ 
+ TEXT syscall·Syscall6(SB),7,$0
+-	CALL	sys·entersyscall(SB)
++	CALL	runtime·entersyscall(SB)
+ 	MOVQ	16(SP), DI
+ 	MOVQ	24(SP), SI
+ 	MOVQ	32(SP), DX
+@@ -52,13 +52,13 @@ TEXT syscall·Syscall6(SB),7,$0
+ 	MOVQ	$0, 72(SP)	// r2
+ 	NEGQ	AX
+ 	MOVQ	AX, 80(SP)  // errno
+-	CALL	sys·exitsyscall(SB)
++	CALL	runtime·exitsyscall(SB)
+ 	RET
+ ok6:
+ 	MOVQ	AX, 64(SP)	// r1
+ 	MOVQ	DX, 72(SP)	// r2
+ 	MOVQ	$0, 80(SP)	// errno
+-	CALL	sys·exitsyscall(SB)
++	CALL	runtime·exitsyscall(SB)
+ 	RET
+ 
+ TEXT syscall·RawSyscall(SB),7,$0
+diff --git a/src/pkg/syscall/asm_linux_arm.s b/src/pkg/syscall/asm_linux_arm.s
+index 8aa5f348cb..50ee69d86d 100644
+--- a/src/pkg/syscall/asm_linux_arm.s
++++ b/src/pkg/syscall/asm_linux_arm.s
+@@ -14,7 +14,7 @@
+ // func Syscall(syscall uintptr, a1, a2, a3 uintptr) (r1, r2, err uintptr);
+ 
+ TEXT	syscall·Syscall(SB),7,$0
+-	BL		sys·entersyscall(SB)
++	BL		runtime·entersyscall(SB)
+ 	MOVW	4(SP), R7
+ 	MOVW	8(SP), R0
+ 	MOVW	12(SP), R1
+@@ -24,13 +24,13 @@ TEXT	syscall·Syscall(SB),7,$0
+ 	MOVW	R1, 24(SP)	// r2
+ 	MOVW	$0, R0
+ 	MOVW	R0, 28(SP)	// errno
+-	BL		sys·exitsyscall(SB)
++	BL		runtime·exitsyscall(SB)
+ 	RET
+ 
+ // func Syscall6(trap uintptr, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr);
+ // Actually Syscall5 but the rest of the code expects it to be named Syscall6.
+ TEXT	syscall·Syscall6(SB),7,$0
+-	BL		sys·entersyscall(SB)
++	BL		runtime·entersyscall(SB)
+ 	MOVW	4(SP), R7	// syscall entry
+ 	MOVW	8(SP), R0
+ 	MOVW	12(SP), R1
+@@ -43,7 +43,7 @@ TEXT	syscall·Syscall6(SB),7,$0
+ 	MOVW	R1, 36(SP)	// r2
+ 	MOVW	$0, R0
+ 	MOVW	R0, 40(SP)	// errno
+-	BL		sys·exitsyscall(SB)
++	BL		runtime·exitsyscall(SB)
+ 	RET
+ 
+ // func RawSyscall(trap uintptr, a1, a2, a3 uintptr) (r1, r2, err uintptr);
+diff --git a/src/pkg/syscall/asm_nacl_386.s b/src/pkg/syscall/asm_nacl_386.s
+index c1b1921434..d76759b989 100644
+--- a/src/pkg/syscall/asm_nacl_386.s
++++ b/src/pkg/syscall/asm_nacl_386.s
+@@ -12,7 +12,7 @@
+ // Trap # in AX, args in BX CX DX SI DI, return in AX
+ 
+ TEXT	syscall·Syscall(SB),7,$20
+-	CALL	sys·entersyscall(SB)
++	CALL	runtime·entersyscall(SB)
+ 	MOVL	trap+0(FP), AX	// syscall entry
+ 	MOVL	a1+4(FP), BX
+ 	MOVL	a2+8(FP), CX
+@@ -37,18 +37,18 @@ TEXT	syscall·Syscall(SB),7,$20
+ 	MOVL	$0, r2+20(FP)
+ 	NEGL	AX
+ 	MOVL	AX, errno+24(FP)
+-	CALL	sys·exitsyscall(SB)
++	CALL	runtime·exitsyscall(SB)
+ 	RET
+ ok:
+ 	MOVL	AX, r1+16(FP)
+ 	MOVL	DX, r2+20(FP)
+ 	MOVL	$0, errno+24(FP)
+-	CALL	sys·exitsyscall(SB)
++	CALL	runtime·exitsyscall(SB)
+ 	RET
+ 
+ // func Syscall6(trap uintptr, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr);
+ TEXT	syscall·Syscall6(SB),7,$24
+-	CALL	sys·entersyscall(SB)
++	CALL	runtime·entersyscall(SB)
+ 	MOVL	a1+4(FP), BX
+ 	MOVL	a2+8(FP), CX
+ 	MOVL	a3+12(FP), DX
+@@ -75,13 +75,13 @@ TEXT	syscall·Syscall6(SB),7,$24
+ 	MOVL	$0, r2+32(FP)
+ 	NEGL	AX
+ 	MOVL	AX, errno+36(FP)
+-	CALL	sys·exitsyscall(SB)
++	CALL	runtime·exitsyscall(SB)
+ 	RET
+ ok6:
+ 	MOVL	AX, r1+28(FP)
+ 	MOVL	DX, r2+32(FP)
+ 	MOVL	$0, errno+36(FP)
+-	CALL	sys·exitsyscall(SB)
++	CALL	runtime·exitsyscall(SB)
+ 	RET
+ 
+ // func RawSyscall(trap uintptr, a1, a2, a3 uintptr) (r1, r2, err uintptr);
+diff --git a/test/runtime.go b/test/runtime.go
+new file mode 100644
+index 0000000000..5bf76e0036
+--- /dev/null
++++ b/test/runtime.go
+@@ -0,0 +1,20 @@
++// errchk $G $D/$F.go
++
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// make sure that even if a file imports runtime,
++// it cannot get at the low-level runtime definitions
++// known to the compiler.  for normal packages
++// the compiler doesn't even record the lower case
++// functions in its symbol table, but some functions
++// in runtime are hard-coded into the compiler.
++
++package main
++
++import "runtime"
++
++func main() {
++	runtime.printbool(true);	// ERROR "cannot refer"
++}

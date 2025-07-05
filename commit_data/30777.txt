@@ -9,6 +9,20 @@ Date:   Thu Dec 1 22:06:41 2016 -0800
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/syntax/parser.go | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/syntax/parser.go b/src/cmd/compile/internal/syntax/parser.go
+index a2e307f46f..121dfb75e5 100644
+--- a/src/cmd/compile/internal/syntax/parser.go
++++ b/src/cmd/compile/internal/syntax/parser.go
+@@ -26,8 +26,6 @@ type parser struct {
+ 	indent []byte // tracing support
+ }
+ 
+-type parserError string // for error recovery if no error handler was installed
+-
+ func (p *parser) init(src io.Reader, errh ErrorHandler, pragh PragmaHandler) {
+ 	p.scanner.init(src, errh, pragh)
+ 

@@ -12,7 +12,39 @@ Date:   Sat Sep 2 14:31:13 2017 +0200
     Run-TryBot: Martin Möhrmann <moehrmann@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/order.go | 5 +++--
  src/cmd/compile/internal/gc/range.go | 3 +--
  2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/order.go b/src/cmd/compile/internal/gc/order.go
+index 3265805000..27c3272cab 100644
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@ -762,8 +762,9 @@ func orderstmt(n *Node, order *Order) {
+ 			r := n.Right
+ 			n.Right = ordercopyexpr(r, r.Type, order, 0)
+ 
+-			// n->alloc is the temp for the iterator.
+-			prealloc[n] = ordertemp(types.Types[TUINT8], order, true)
++			// prealloc[n] is the temp for the iterator.
++			// hiter contains pointers and needs to be zeroed.
++			prealloc[n] = ordertemp(hiter(n.Type), order, true)
+ 		}
+ 		for i := range n.List.Slice() {
+ 			n.List.SetIndex(i, orderexprinplace(n.List.Index(i), order))
+diff --git a/src/cmd/compile/internal/gc/range.go b/src/cmd/compile/internal/gc/range.go
+index 032601ca3d..c9f2f01282 100644
+--- a/src/cmd/compile/internal/gc/range.go
++++ b/src/cmd/compile/internal/gc/range.go
+@@ -249,9 +249,8 @@ func walkrange(n *Node) *Node {
+ 		// we only use a once, so no copy needed.
+ 		ha := a
+ 
+-		th := hiter(t)
+ 		hit := prealloc[n]
+-		hit.Type = th
++		th := hit.Type
+ 		n.Left = nil
+ 		keysym := th.Field(0).Sym // depends on layout of iterator struct.  See reflect.go:hiter
+ 		valsym := th.Field(1).Sym // ditto

@@ -9,7 +9,50 @@ Date:   Sun Nov 6 22:13:54 2011 +0100
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5353046
-
+---
  src/cmd/gc/swt.c         | 6 +++---
  test/fixedbugs/bug340.go | 2 +-
  2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/gc/swt.c b/src/cmd/gc/swt.c
+index 0381132d03..97874e264a 100644
+--- a/src/cmd/gc/swt.c
++++ b/src/cmd/gc/swt.c
+@@ -825,7 +825,7 @@ typecheckswitch(Node *n)
+ 		typecheck(&n->ntest->right, Erv);
+ 		t = n->ntest->right->type;
+ 		if(t != T && t->etype != TINTER)
+-			yyerror("cannot type switch on non-interface value %+N", n->ntest->right);
++			yyerror("cannot type switch on non-interface value %lN", n->ntest->right);
+ 	} else {
+ 		// value switch
+ 		top = Erv;
+@@ -860,13 +860,13 @@ typecheckswitch(Node *n)
+ 					if(ll->n->op == OTYPE)
+ 						yyerror("type %T is not an expression", ll->n->type);
+ 					else if(ll->n->type != T && !eqtype(ll->n->type, t))
+-						yyerror("case %+N in %T switch", ll->n, t);
++						yyerror("case %lN in %T switch", ll->n, t);
+ 					break;
+ 				case Etype:	// type switch
+ 					if(ll->n->op == OLITERAL && istype(ll->n->type, TNIL)) {
+ 						;
+ 					} else if(ll->n->op != OTYPE && ll->n->type != T) {
+-						yyerror("%#N is not a type", ll->n);
++						yyerror("%lN is not a type", ll->n);
+ 						// reset to original type
+ 						ll->n = n->ntest->right;
+ 					}
+diff --git a/test/fixedbugs/bug340.go b/test/fixedbugs/bug340.go
+index 2241090d69..37731aad67 100644
+--- a/test/fixedbugs/bug340.go
++++ b/test/fixedbugs/bug340.go
+@@ -10,7 +10,7 @@ package main
+ 
+ func main() {
+ 	var x interface{}
+-	switch t := x.(type) { // GC_ERROR "0 is not a type"
++	switch t := x.(type) { // GC_ERROR "is not a type"
+ 	case 0:		// GCCGO_ERROR "expected type"
+ 		t.x = 1 // ERROR "type interface \{\}|reference to undefined field or method"
+ 	}

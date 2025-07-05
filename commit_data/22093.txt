@@ -9,9 +9,203 @@ Date:   Mon Feb 23 14:10:08 2015 -0500
     Change-Id: Ia2353abd9426026a81a263cb46a72dd39c360ce4
     Reviewed-on: https://go-review.googlesource.com/5634
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/dist/build.go     | 35 ++++-------------------------------
  src/cmd/dist/buildtool.go | 17 ++++++++---------
  src/cmd/go/build.go       | 13 -------------
  src/cmd/go/pkg.go         | 17 ++++++++---------
  4 files changed, 20 insertions(+), 62 deletions(-)
+
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index e72b156190..c816ff751d 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -536,21 +536,6 @@ var deptab = []struct {
+ 		"anames8.c",
+ 		"anames9.c",
+ 	}},
+-	{"cmd/gc", []string{
+-		"opnames.h",
+-	}},
+-	{"cmd/5g", []string{
+-		"$GOROOT/pkg/obj/${GOHOSTOS}_$GOHOSTARCH/libgc.a",
+-	}},
+-	{"cmd/6g", []string{
+-		"$GOROOT/pkg/obj/${GOHOSTOS}_$GOHOSTARCH/libgc.a",
+-	}},
+-	{"cmd/8g", []string{
+-		"$GOROOT/pkg/obj/${GOHOSTOS}_$GOHOSTARCH/libgc.a",
+-	}},
+-	{"cmd/9g", []string{
+-		"$GOROOT/pkg/obj/${GOHOSTOS}_$GOHOSTARCH/libgc.a",
+-	}},
+ 	{"cmd/5l", []string{
+ 		"$GOROOT/pkg/obj/${GOHOSTOS}_$GOHOSTARCH/libld.a",
+ 	}},
+@@ -589,7 +574,6 @@ var gentab = []struct {
+ 	nameprefix string
+ 	gen        func(string, string)
+ }{
+-	{"opnames.h", gcopnames},
+ 	{"anames5.c", mkanames},
+ 	{"anames6.c", mkanames},
+ 	{"anames8.c", mkanames},
+@@ -656,10 +640,10 @@ func install(dir string) {
+ 	case "lib9", "libbio", "liblink", "cmd/gc", "cmd/ld":
+ 		islib = true
+ 		isgo = false
+-	case "cmd/5a", "cmd/5g", "cmd/5l",
+-		"cmd/6a", "cmd/6g", "cmd/6l",
+-		"cmd/8a", "cmd/8g", "cmd/8l",
+-		"cmd/9a", "cmd/9g", "cmd/9l":
++	case "cmd/5l",
++		"cmd/6l",
++		"cmd/8l",
++		"cmd/9l":
+ 		isgo = false
+ 	}
+ 
+@@ -1134,12 +1118,8 @@ var buildorder = []string{
+ 	"lib9",
+ 	"libbio",
+ 	"liblink",
+-
+-	"cmd/gc",  // must be before g
+ 	"cmd/ld",  // must be before l
+ 	"cmd/%sl", // must be before a, g
+-	"cmd/%sa",
+-	"cmd/%sg",
+ 
+ 	// Go libraries and programs for bootstrap.
+ 	"runtime",
+@@ -1184,12 +1164,6 @@ var buildorder = []string{
+ 	"text/template",
+ 	"go/doc",
+ 	"go/build",
+-	"cmd/internal/obj",
+-	"cmd/internal/obj/arm",
+-	"cmd/internal/obj/i386",
+-	"cmd/internal/obj/ppc64",
+-	"cmd/internal/obj/x86",
+-	"cmd/objwriter",
+ 	"cmd/go",
+ }
+ 
+@@ -1210,7 +1184,6 @@ var cleantab = []string{
+ 	"cmd/9a",
+ 	"cmd/9g",
+ 	"cmd/9l",
+-	"cmd/gc",
+ 	"cmd/go",
+ 	"lib9",
+ 	"libbio",
+diff --git a/src/cmd/dist/buildtool.go b/src/cmd/dist/buildtool.go
+index 94f09b1a00..45a2d0c82f 100644
+--- a/src/cmd/dist/buildtool.go
++++ b/src/cmd/dist/buildtool.go
+@@ -23,6 +23,14 @@ import (
+ // which are commands, and entries beginning with internal/, which are
+ // packages supporting the commands.
+ var bootstrapDirs = []string{
++	"5a",
++	"5g",
++	"6a",
++	"6g",
++	"8a",
++	"8g",
++	"9a",
++	"9g",
+ 	"asm",
+ 	"asm/internal/arch",
+ 	"asm/internal/asm",
+@@ -35,15 +43,6 @@ var bootstrapDirs = []string{
+ 	"internal/obj/i386",
+ 	"internal/obj/ppc64",
+ 	"internal/obj/x86",
+-	"new5a",
+-	"new6a",
+-	"new8a",
+-	"new9a",
+-	"new5g",
+-	"new6g",
+-	"new8g",
+-	"new9g",
+-	"objwriter",
+ }
+ 
+ func bootstrapBuildTools() {
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index fba122a04e..e1aa9fcb31 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -1645,11 +1645,6 @@ func (gcToolchain) linker() string {
+ 	return tool(archChar + "l")
+ }
+ 
+-// verifyCompiler specifies whether to check the compilers written in Go
+-// against the assemblers written in C. If set, asm will run both (say) 6g and new6g
+-// and fail if the two produce different output files.
+-const verifyCompiler = true
+-
+ func (gcToolchain) gc(b *builder, p *Package, archive, obj string, asmhdr bool, importArgs []string, gofiles []string) (ofile string, output []byte, err error) {
+ 	if archive != "" {
+ 		ofile = archive
+@@ -1695,11 +1690,6 @@ func (gcToolchain) gc(b *builder, p *Package, archive, obj string, asmhdr bool,
+ 	}
+ 
+ 	output, err = b.runOut(p.Dir, p.ImportPath, nil, args...)
+-	if err == nil && verifyCompiler {
+-		if err := toolVerify(b, p, "new"+archChar+"g", ofile, args); err != nil {
+-			return ofile, output, err
+-		}
+-	}
+ 	return ofile, output, err
+ }
+ 
+@@ -1717,9 +1707,6 @@ func (gcToolchain) asm(b *builder, p *Package, obj, ofile, sfile string) error {
+ 		return err
+ 	}
+ 	if verifyAsm {
+-		if err := toolVerify(b, p, "new"+archChar+"a", ofile, args); err != nil {
+-			return err
+-		}
+ 		if err := toolVerify(b, p, "asm", ofile, args); err != nil {
+ 			return err
+ 		}
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index 0d6e913334..7a1f0fd021 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -391,6 +391,14 @@ const (
+ 
+ // goTools is a map of Go program import path to install target directory.
+ var goTools = map[string]targetDir{
++	"cmd/5a":                               toTool,
++	"cmd/5g":                               toTool,
++	"cmd/6a":                               toTool,
++	"cmd/6g":                               toTool,
++	"cmd/8a":                               toTool,
++	"cmd/8g":                               toTool,
++	"cmd/9a":                               toTool,
++	"cmd/9g":                               toTool,
+ 	"cmd/addr2line":                        toTool,
+ 	"cmd/api":                              toTool,
+ 	"cmd/asm":                              toTool,
+@@ -398,17 +406,8 @@ var goTools = map[string]targetDir{
+ 	"cmd/dist":                             toTool,
+ 	"cmd/fix":                              toTool,
+ 	"cmd/link":                             toTool,
+-	"cmd/new5a":                            toTool,
+-	"cmd/new6a":                            toTool,
+-	"cmd/new8a":                            toTool,
+-	"cmd/new9a":                            toTool,
+-	"cmd/new5g":                            toTool,
+-	"cmd/new6g":                            toTool,
+-	"cmd/new8g":                            toTool,
+-	"cmd/new9g":                            toTool,
+ 	"cmd/nm":                               toTool,
+ 	"cmd/objdump":                          toTool,
+-	"cmd/objwriter":                        toTool,
+ 	"cmd/pack":                             toTool,
+ 	"cmd/pprof":                            toTool,
+ 	"cmd/trace":                            toTool,

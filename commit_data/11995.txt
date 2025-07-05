@@ -13,7 +13,7 @@ Date:   Thu Feb 16 23:46:28 2012 -0500
     R=golang-dev, r, dsymonds
     CC=golang-dev
     https://golang.org/cl/5672072
-
+---
  src/cmd/fix/go1pkgrename_test.go                   |  4 +--
  src/cmd/fix/{cryptotype.go => go1rename.go}        | 33 ++++++++++++++++---
  .../fix/{cryptotype_test.go => go1rename_test.go}  | 18 +++++++++--
@@ -21,3 +21,312 @@ Date:   Thu Feb 16 23:46:28 2012 -0500
  src/pkg/net/url/url.go                             | 37 +++++++++-------------
  src/pkg/net/url/url_test.go                        | 35 +++-----------------
  6 files changed, 67 insertions(+), 64 deletions(-)
+
+diff --git a/src/cmd/fix/go1pkgrename_test.go b/src/cmd/fix/go1pkgrename_test.go
+index 22443f806b..840e443b01 100644
+--- a/src/cmd/fix/go1pkgrename_test.go
++++ b/src/cmd/fix/go1pkgrename_test.go
+@@ -5,10 +5,10 @@
+ package main
+ 
+ func init() {
+-	addTestCases(go1renameTests, go1pkgrename)
++	addTestCases(go1pkgrenameTests, go1pkgrename)
+ }
+ 
+-var go1renameTests = []testCase{
++var go1pkgrenameTests = []testCase{
+ 	{
+ 		Name: "go1rename.0",
+ 		In: `package main
+diff --git a/src/cmd/fix/cryptotype.go b/src/cmd/fix/go1rename.go
+similarity index 51%
+rename from src/cmd/fix/cryptotype.go
+rename to src/cmd/fix/go1rename.go
+index abcf7714a8..5d12f18701 100644
+--- a/src/cmd/fix/cryptotype.go
++++ b/src/cmd/fix/go1rename.go
+@@ -4,17 +4,22 @@
+ 
+ package main
+ 
+-var cryptotypeFix = fix{
+-	"cryptotype",
++func init() {
++	register(go1renameFix)
++}
++
++var go1renameFix = fix{
++	"go1rename",
+ 	"2012-02-12",
+-	renameFix(cryptotypeReplace),
+-	`Rewrite uses of concrete cipher types to refer to the generic cipher.Block.
++	renameFix(go1renameReplace),
++	`Rewrite package-level names that have been renamed in Go 1.
+ 
+ http://codereview.appspot.com/5625045/
++http://codereview.appspot.com/5672072/
+ `,
+ }
+ 
+-var cryptotypeReplace = []rename{
++var go1renameReplace = []rename{
+ 	{
+ 		OldImport: "crypto/aes",
+ 		NewImport: "crypto/cipher",
+@@ -33,4 +38,22 @@ var cryptotypeReplace = []rename{
+ 		Old:       "*des.TripleDESCipher",
+ 		New:       "cipher.Block",
+ 	},
++	{
++		OldImport: "net/url",
++		NewImport: "",
++		Old:       "url.ParseWithReference",
++		New:       "url.Parse",
++	},
++	{
++		OldImport: "net/url",
++		NewImport: "",
++		Old:       "url.ParseRequest",
++		New:       "url.ParseRequestURI",
++	},
++	{
++		OldImport: "os",
++		NewImport: "syscall",
++		Old:       "os.Exec",
++		New:       "syscall.Exec",
++	},
+ }
+diff --git a/src/cmd/fix/cryptotype_test.go b/src/cmd/fix/go1rename_test.go
+similarity index 62%
+rename from src/cmd/fix/cryptotype_test.go
+rename to src/cmd/fix/go1rename_test.go
+index 7accceef3e..0a7dcf46cf 100644
+--- a/src/cmd/fix/cryptotype_test.go
++++ b/src/cmd/fix/go1rename_test.go
+@@ -5,17 +5,19 @@
+ package main
+ 
+ func init() {
+-	addTestCases(cryptotypeTests, cryptotypeFix.f)
++	addTestCases(go1renameTests, go1renameFix.f)
+ }
+ 
+-var cryptotypeTests = []testCase{
++var go1renameTests = []testCase{
+ 	{
+-		Name: "cryptotype.0",
++		Name: "go1rename.0",
+ 		In: `package main
+ 
+ import (
+ 	"crypto/aes"
+ 	"crypto/des"
++	"net/url"
++	"os"
+ )
+ 
+ var (
+@@ -23,6 +25,10 @@ var (
+ 	_ *des.Cipher
+ 	_ *des.TripleDESCipher
+ 	_ = aes.New()
++	_ = url.Parse
++	_ = url.ParseWithReference
++	_ = url.ParseRequest
++	_ = os.Exec
+ )
+ `,
+ 		Out: `package main
+@@ -30,6 +36,8 @@ var (
+ import (
+ 	"crypto/aes"
+ 	"crypto/cipher"
++	"net/url"
++	"syscall"
+ )
+ 
+ var (
+@@ -37,6 +45,10 @@ var (
+ 	_ cipher.Block
+ 	_ cipher.Block
+ 	_ = aes.New()
++	_ = url.Parse
++	_ = url.Parse
++	_ = url.ParseRequestURI
++	_ = syscall.Exec
+ )
+ `,
+ 	},
+diff --git a/src/pkg/net/http/request.go b/src/pkg/net/http/request.go
+index 0bbec53be7..5277657805 100644
+--- a/src/pkg/net/http/request.go
++++ b/src/pkg/net/http/request.go
+@@ -186,7 +186,7 @@ func (r *Request) Cookies() []*Cookie {
+ 	return readCookies(r.Header, "")
+ }
+ 
+-var ErrNoCookie = errors.New("http: named cookied not present")
++var ErrNoCookie = errors.New("http: named cookie not present")
+ 
+ // Cookie returns the named cookie provided in the request or
+ // ErrNoCookie if not found.
+@@ -486,7 +486,7 @@ func ReadRequest(b *bufio.Reader) (req *Request, err error) {
+ 		rawurl = "http://" + rawurl
+ 	}
+ 
+-	if req.URL, err = url.ParseRequest(rawurl); err != nil {
++	if req.URL, err = url.ParseRequestURI(rawurl); err != nil {
+ 		return nil, err
+ 	}
+ 
+diff --git a/src/pkg/net/url/url.go b/src/pkg/net/url/url.go
+index 1d824c0609..88ff7ebfef 100644
+--- a/src/pkg/net/url/url.go
++++ b/src/pkg/net/url/url.go
+@@ -321,19 +321,28 @@ func split(s string, c byte, cutc bool) (string, string) {
+ }
+ 
+ // Parse parses rawurl into a URL structure.
+-// The string rawurl is assumed not to have a #fragment suffix.
+-// (Web browsers strip #fragment before sending the URL to a web server.)
+ // The rawurl may be relative or absolute.
+ func Parse(rawurl string) (url *URL, err error) {
+-	return parse(rawurl, false)
++	// Cut off #frag
++	u, frag := split(rawurl, '#', true)
++	if url, err = parse(u, false); err != nil {
++		return nil, err
++	}
++	if frag == "" {
++		return url, nil
++	}
++	if url.Fragment, err = unescape(frag, encodeFragment); err != nil {
++		return nil, &Error{"parse", rawurl, err}
++	}
++	return url, nil
+ }
+ 
+-// ParseRequest parses rawurl into a URL structure.  It assumes that
+-// rawurl was received from an HTTP request, so the rawurl is interpreted
++// ParseRequestURI parses rawurl into a URL structure.  It assumes that
++// rawurl was received in an HTTP request, so the rawurl is interpreted
+ // only as an absolute URI or an absolute path.
+ // The string rawurl is assumed not to have a #fragment suffix.
+ // (Web browsers strip #fragment before sending the URL to a web server.)
+-func ParseRequest(rawurl string) (url *URL, err error) {
++func ParseRequestURI(rawurl string) (url *URL, err error) {
+ 	return parse(rawurl, true)
+ }
+ 
+@@ -415,22 +424,6 @@ func parseAuthority(authority string) (user *Userinfo, host string, err error) {
+ 	return
+ }
+ 
+-// ParseWithFragment is like Parse but allows a trailing #fragment.
+-func ParseWithFragment(rawurl string) (url *URL, err error) {
+-	// Cut off #frag
+-	u, frag := split(rawurl, '#', true)
+-	if url, err = Parse(u); err != nil {
+-		return nil, err
+-	}
+-	if frag == "" {
+-		return url, nil
+-	}
+-	if url.Fragment, err = unescape(frag, encodeFragment); err != nil {
+-		return nil, &Error{"parse", rawurl, err}
+-	}
+-	return url, nil
+-}
+-
+ // String reassembles the URL into a valid URL string.
+ func (u *URL) String() string {
+ 	// TODO: Rewrite to use bytes.Buffer
+diff --git a/src/pkg/net/url/url_test.go b/src/pkg/net/url/url_test.go
+index 72d734461f..2d911ed505 100644
+--- a/src/pkg/net/url/url_test.go
++++ b/src/pkg/net/url/url_test.go
+@@ -188,22 +188,6 @@ var urltests = []URLTest{
+ 		},
+ 		"http://user:password@google.com",
+ 	},
+-}
+-
+-var urlnofragtests = []URLTest{
+-	{
+-		"http://www.google.com/?q=go+language#foo",
+-		&URL{
+-			Scheme:   "http",
+-			Host:     "www.google.com",
+-			Path:     "/",
+-			RawQuery: "q=go+language#foo",
+-		},
+-		"",
+-	},
+-}
+-
+-var urlfragtests = []URLTest{
+ 	{
+ 		"http://www.google.com/?q=go+language#foo",
+ 		&URL{
+@@ -257,12 +241,6 @@ func DoTest(t *testing.T, parse func(string) (*URL, error), name string, tests [
+ 
+ func TestParse(t *testing.T) {
+ 	DoTest(t, Parse, "Parse", urltests)
+-	DoTest(t, Parse, "Parse", urlnofragtests)
+-}
+-
+-func TestParseWithFragment(t *testing.T) {
+-	DoTest(t, ParseWithFragment, "ParseWithFragment", urltests)
+-	DoTest(t, ParseWithFragment, "ParseWithFragment", urlfragtests)
+ }
+ 
+ const pathThatLooksSchemeRelative = "//not.a.user@not.a.host/just/a/path"
+@@ -281,16 +259,16 @@ var parseRequestUrlTests = []struct {
+ 	{"../dir/", false},
+ }
+ 
+-func TestParseRequest(t *testing.T) {
++func TestParseRequestURI(t *testing.T) {
+ 	for _, test := range parseRequestUrlTests {
+-		_, err := ParseRequest(test.url)
++		_, err := ParseRequestURI(test.url)
+ 		valid := err == nil
+ 		if valid != test.expectedValid {
+ 			t.Errorf("Expected valid=%v for %q; got %v", test.expectedValid, test.url, valid)
+ 		}
+ 	}
+ 
+-	url, err := ParseRequest(pathThatLooksSchemeRelative)
++	url, err := ParseRequestURI(pathThatLooksSchemeRelative)
+ 	if err != nil {
+ 		t.Fatalf("Unexpected error %v", err)
+ 	}
+@@ -319,9 +297,6 @@ func DoTestString(t *testing.T, parse func(string) (*URL, error), name string, t
+ 
+ func TestURLString(t *testing.T) {
+ 	DoTestString(t, Parse, "Parse", urltests)
+-	DoTestString(t, Parse, "Parse", urlnofragtests)
+-	DoTestString(t, ParseWithFragment, "ParseWithFragment", urltests)
+-	DoTestString(t, ParseWithFragment, "ParseWithFragment", urlfragtests)
+ }
+ 
+ type EscapeTest struct {
+@@ -538,7 +513,7 @@ var resolveReferenceTests = []struct {
+ 
+ func TestResolveReference(t *testing.T) {
+ 	mustParse := func(url string) *URL {
+-		u, err := ParseWithFragment(url)
++		u, err := Parse(url)
+ 		if err != nil {
+ 			t.Fatalf("Expected URL to parse: %q, got error: %v", url, err)
+ 		}
+@@ -589,7 +564,7 @@ func TestResolveReference(t *testing.T) {
+ 
+ func TestResolveReferenceOpaque(t *testing.T) {
+ 	mustParse := func(url string) *URL {
+-		u, err := ParseWithFragment(url)
++		u, err := Parse(url)
+ 		if err != nil {
+ 			t.Fatalf("Expected URL to parse: %q, got error: %v", url, err)
+ 		}

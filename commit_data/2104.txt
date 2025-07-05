@@ -7,8 +7,57 @@ Date:   Tue Apr 28 13:52:56 2009 -0700
     R=r
     OCL=27987
     CL=27987
-
+---
  src/cmd/6g/cgen.c                  | 5 ++++-
  test/{bugs => fixedbugs}/bug139.go | 0
  test/golden.out                    | 5 -----
  3 files changed, 4 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/6g/cgen.c b/src/cmd/6g/cgen.c
+index 85d86d5d63..a2fbea43ec 100644
+--- a/src/cmd/6g/cgen.c
++++ b/src/cmd/6g/cgen.c
+@@ -632,6 +632,7 @@ bgen(Node *n, int true, Prog *to)
+ 
+ 	switch(n->op) {
+ 	default:
++	def:
+ 		regalloc(&n1, n->type, N);
+ 		cgen(n, &n1);
+ 		nodconst(&n2, n->type, 0);
+@@ -644,12 +645,14 @@ bgen(Node *n, int true, Prog *to)
+ 		goto ret;
+ 
+ 	case OLITERAL:
+-// need to ask if it is bool?
++		// need to ask if it is bool?
+ 		if(!true == !n->val.u.bval)
+ 			patch(gbranch(AJMP, T), to);
+ 		goto ret;
+ 
+ 	case ONAME:
++		if(n->addable == 0)
++			goto def;
+ 		nodconst(&n1, n->type, 0);
+ 		gins(optoas(OCMP, n->type), n, &n1);
+ 		a = AJNE;
+diff --git a/test/bugs/bug139.go b/test/fixedbugs/bug139.go
+similarity index 100%
+rename from test/bugs/bug139.go
+rename to test/fixedbugs/bug139.go
+diff --git a/test/golden.out b/test/golden.out
+index fda5e1e000..a3ab91b213 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -106,11 +106,6 @@ BUG: compilation succeeds incorrectly
+ =========== bugs/bug136.go
+ BUG: should not compile
+ 
+-=========== bugs/bug139.go
+-bugs/bug139.go:7: fatal error: naddr: ONAME class x 5
+-
+-BUG should compile
+-
+ =========== bugs/bug140.go
+ bugs/bug140.go:6: syntax error near L1
+ bugs/bug140.go:7: syntax error near L2

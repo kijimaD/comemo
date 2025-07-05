@@ -30,7 +30,34 @@ Date:   Mon May 12 12:40:36 2025 +0000
     Reviewed-by: Keith Randall <khr@google.com>
     Auto-Submit: Keith Randall <khr@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/bytes/bytes.go     | 2 +-
  src/strings/strings.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/bytes/bytes.go b/src/bytes/bytes.go
+index 8198415c3e..a0a8fa0b29 100644
+--- a/src/bytes/bytes.go
++++ b/src/bytes/bytes.go
+@@ -1228,7 +1228,7 @@ func ReplaceAll(s, old, new []byte) []byte {
+ func EqualFold(s, t []byte) bool {
+ 	// ASCII fast path
+ 	i := 0
+-	for ; i < len(s) && i < len(t); i++ {
++	for n := min(len(s), len(t)); i < n; i++ {
+ 		sr := s[i]
+ 		tr := t[i]
+ 		if sr|tr >= utf8.RuneSelf {
+diff --git a/src/strings/strings.go b/src/strings/strings.go
+index d07a064228..d2cda74f68 100644
+--- a/src/strings/strings.go
++++ b/src/strings/strings.go
+@@ -1194,7 +1194,7 @@ func ReplaceAll(s, old, new string) string {
+ func EqualFold(s, t string) bool {
+ 	// ASCII fast path
+ 	i := 0
+-	for ; i < len(s) && i < len(t); i++ {
++	for n := min(len(s), len(t)); i < n; i++ {
+ 		sr := s[i]
+ 		tr := t[i]
+ 		if sr|tr >= utf8.RuneSelf {

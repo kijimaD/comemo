@@ -10,6 +10,20 @@ Date:   Mon Oct 27 20:47:15 2014 -0400
     TBR=adg
     CC=golang-codereviews
     https://golang.org/cl/159600044
-
+---
  src/runtime/rt0_nacl_amd64p32.s | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/rt0_nacl_amd64p32.s b/src/runtime/rt0_nacl_amd64p32.s
+index 6ad8bea6c7..54e4b1de89 100644
+--- a/src/runtime/rt0_nacl_amd64p32.s
++++ b/src/runtime/rt0_nacl_amd64p32.s
+@@ -25,6 +25,6 @@ TEXT _rt0_amd64p32_nacl(SB),NOSPLIT,$16
+ 
+ TEXT main(SB),NOSPLIT,$0
+ 	// Uncomment for fake time like on Go Playground.
+-	MOVQ	$1257894000000000000, AX
+-	MOVQ	AX, runtime·faketime(SB)
++	//MOVQ	$1257894000000000000, AX
++	//MOVQ	AX, runtime·faketime(SB)
+ 	JMP	runtime·rt0_go(SB)

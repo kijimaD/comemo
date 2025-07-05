@@ -12,7 +12,41 @@ Date:   Fri Mar 25 13:51:56 2016 -0500
     Change-Id: Ia746914dcb3146a52413d32c57b089af763f0810
     Reviewed-on: https://go-review.googlesource.com/21145
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/signal_solaris_amd64.go | 4 ----
  src/runtime/sys_solaris_amd64.s     | 7 +++----
  2 files changed, 3 insertions(+), 8 deletions(-)
+
+diff --git a/src/runtime/signal_solaris_amd64.go b/src/runtime/signal_solaris_amd64.go
+index 7ba368f25b..a577c8c199 100644
+--- a/src/runtime/signal_solaris_amd64.go
++++ b/src/runtime/signal_solaris_amd64.go
+@@ -11,10 +11,6 @@ type sigctxt struct {
+ 	ctxt unsafe.Pointer
+ }
+ 
+-func makesigctxt(info *siginfo, ctxt unsafe.Pointer) *sigctxt {
+-	return &sigctxt{info, ctxt}
+-}
+-
+ func (c *sigctxt) regs() *mcontext {
+ 	return (*mcontext)(unsafe.Pointer(&(*ucontext)(c.ctxt).uc_mcontext))
+ }
+diff --git a/src/runtime/sys_solaris_amd64.s b/src/runtime/sys_solaris_amd64.s
+index f8b7da5c62..07a7acef11 100644
+--- a/src/runtime/sys_solaris_amd64.s
++++ b/src/runtime/sys_solaris_amd64.s
+@@ -173,10 +173,9 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$0
+ 	MOVQ	g(BX), R10
+ 	CMPQ	R10, $0
+ 	JNE	allgood
+-	MOVQ	SI, 0(SP)
+-	MOVQ	DX, 8(SP)
+-	CALL	runtime·makesigctxt(SB)
+-	MOVQ	16(SP), AX
++	MOVQ	SI, 80(SP)
++	MOVQ	DX, 88(SP)
++	LEAQ	80(SP), AX
+ 	MOVQ	DI, 0(SP)
+ 	MOVQ	AX, 8(SP)
+ 	MOVQ	$runtime·badsignal(SB), AX

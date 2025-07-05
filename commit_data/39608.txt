@@ -17,7 +17,7 @@ Date:   Tue Mar 5 20:44:29 2019 +0000
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/compile/internal/gc/pgen.go      | 4 +---
  src/cmd/compile/internal/gc/reflect.go   | 4 +---
  src/cmd/compile/internal/gc/walk.go      | 4 +---
@@ -32,3 +32,217 @@ Date:   Tue Mar 5 20:44:29 2019 +0000
  src/runtime/type.go                      | 5 +----
  src/text/template/funcs.go               | 4 +---
  13 files changed, 13 insertions(+), 43 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index 6914e3c5f8..5b9b6ce45e 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -553,11 +553,9 @@ func createDwarfVars(fnsym *obj.LSym, fn *Func, automDecls []*Node) ([]*Node, []
+ 		decls, vars, selected = createSimpleVars(automDecls)
+ 	}
+ 
+-	var dcl []*Node
++	dcl := automDecls
+ 	if fnsym.WasInlined() {
+ 		dcl = preInliningDcls(fnsym)
+-	} else {
+-		dcl = automDecls
+ 	}
+ 
+ 	// If optimization is enabled, the list above will typically be
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index 8b058330dd..03fbbb123d 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -477,12 +477,10 @@ func dimportpath(p *types.Pkg) {
+ 		return
+ 	}
+ 
+-	var str string
++	str := p.Path
+ 	if p == localpkg {
+ 		// Note: myimportpath != "", or else dgopkgpath won't call dimportpath.
+ 		str = myimportpath
+-	} else {
+-		str = p.Path
+ 	}
+ 
+ 	s := Ctxt.Lookup("type..importpath." + p.Prefix + ".")
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 41a9d8e9dc..77f578197c 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -3116,11 +3116,9 @@ func walkcompare(n *Node, init *Nodes) *Node {
+ 	if l != nil {
+ 		// Handle both == and !=.
+ 		eq := n.Op
+-		var andor Op
++		andor := OOROR
+ 		if eq == OEQ {
+ 			andor = OANDAND
+-		} else {
+-			andor = OOROR
+ 		}
+ 		// Check for types equal.
+ 		// For empty interface, this is:
+diff --git a/src/cmd/compile/internal/ssa/schedule.go b/src/cmd/compile/internal/ssa/schedule.go
+index c5b4c53843..ca0e82953e 100644
+--- a/src/cmd/compile/internal/ssa/schedule.go
++++ b/src/cmd/compile/internal/ssa/schedule.go
+@@ -233,14 +233,10 @@ func schedule(f *Func) {
+ 		// Schedule highest priority value, update use counts, repeat.
+ 		order = order[:0]
+ 		tuples := make(map[ID][]*Value)
+-		for {
++		for priq.Len() > 0 {
+ 			// Find highest priority schedulable value.
+ 			// Note that schedule is assembled backwards.
+ 
+-			if priq.Len() == 0 {
+-				break
+-			}
+-
+ 			v := heap.Pop(priq).(*Value)
+ 
+ 			// Add it to the schedule.
+diff --git a/src/cmd/internal/obj/pass.go b/src/cmd/internal/obj/pass.go
+index 87de6a5fd1..0c401710f6 100644
+--- a/src/cmd/internal/obj/pass.go
++++ b/src/cmd/internal/obj/pass.go
+@@ -141,10 +141,7 @@ func linkpatch(ctxt *Link, sym *LSym, newprog ProgAlloc) {
+ 			continue
+ 		}
+ 		q := sym.Func.Text
+-		for q != nil {
+-			if p.To.Offset == q.Pc {
+-				break
+-			}
++		for q != nil && p.To.Offset != q.Pc {
+ 			if q.Forwd != nil && p.To.Offset >= q.Forwd.Pc {
+ 				q = q.Forwd
+ 			} else {
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index 19bcbbb87a..3995a9423d 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -1290,11 +1290,9 @@ func elfshreloc(arch *sys.Arch, sect *sym.Section) *ElfShdr {
+ 		return nil
+ 	}
+ 
+-	var typ int
++	typ := SHT_REL
+ 	if elfRelType == ".rela" {
+ 		typ = SHT_RELA
+-	} else {
+-		typ = SHT_REL
+ 	}
+ 
+ 	sh := elfshname(elfRelType + sect.Name)
+diff --git a/src/encoding/json/encode.go b/src/encoding/json/encode.go
+index de6d2632f4..e3c5ffc9cb 100644
+--- a/src/encoding/json/encode.go
++++ b/src/encoding/json/encode.go
+@@ -1069,8 +1069,7 @@ func typeFields(t reflect.Type) []field {
+ 	next := []field{{typ: t}}
+ 
+ 	// Count of queued names for current level and the next.
+-	count := map[reflect.Type]int{}
+-	nextCount := map[reflect.Type]int{}
++	var count, nextCount map[reflect.Type]int
+ 
+ 	// Types already visited at an earlier level.
+ 	visited := map[reflect.Type]bool{}
+diff --git a/src/encoding/json/stream_test.go b/src/encoding/json/stream_test.go
+index aaf32e0a24..8dc74e5466 100644
+--- a/src/encoding/json/stream_test.go
++++ b/src/encoding/json/stream_test.go
+@@ -296,7 +296,7 @@ type decodeThis struct {
+ 	v interface{}
+ }
+ 
+-var tokenStreamCases []tokenStreamCase = []tokenStreamCase{
++var tokenStreamCases = []tokenStreamCase{
+ 	// streaming token cases
+ 	{json: `10`, expTokens: []interface{}{float64(10)}},
+ 	{json: ` [10] `, expTokens: []interface{}{
+diff --git a/src/internal/reflectlite/type.go b/src/internal/reflectlite/type.go
+index 35bc0db2c7..70c3723de7 100644
+--- a/src/internal/reflectlite/type.go
++++ b/src/internal/reflectlite/type.go
+@@ -510,10 +510,7 @@ func (t *rtype) Name() string {
+ 	}
+ 	s := t.String()
+ 	i := len(s) - 1
+-	for i >= 0 {
+-		if s[i] == '.' {
+-			break
+-		}
++	for i >= 0 && s[i] != '.' {
+ 		i--
+ 	}
+ 	return s[i+1:]
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index 5c7ed243d5..b1df4f22fc 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -875,10 +875,7 @@ func (t *rtype) Name() string {
+ 	}
+ 	s := t.String()
+ 	i := len(s) - 1
+-	for i >= 0 {
+-		if s[i] == '.' {
+-			break
+-		}
++	for i >= 0 && s[i] != '.' {
+ 		i--
+ 	}
+ 	return s[i+1:]
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index a536fb2a71..0bb7fc2831 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -1289,10 +1289,7 @@ func printCgoTraceback(callers *cgoCallers) {
+ func printOneCgoTraceback(pc uintptr, max int, arg *cgoSymbolizerArg) int {
+ 	c := 0
+ 	arg.pc = pc
+-	for {
+-		if c > max {
+-			break
+-		}
++	for c <= max {
+ 		callCgoSymbolizer(arg)
+ 		if arg.funcName != nil {
+ 			// Note that we don't print any argument
+diff --git a/src/runtime/type.go b/src/runtime/type.go
+index f7f99924ea..dc7f62eff7 100644
+--- a/src/runtime/type.go
++++ b/src/runtime/type.go
+@@ -118,10 +118,7 @@ func (t *_type) name() string {
+ 	}
+ 	s := t.string()
+ 	i := len(s) - 1
+-	for i >= 0 {
+-		if s[i] == '.' {
+-			break
+-		}
++	for i >= 0 && s[i] != '.' {
+ 		i--
+ 	}
+ 	return s[i+1:]
+diff --git a/src/text/template/funcs.go b/src/text/template/funcs.go
+index 72d3f66691..a626247c2c 100644
+--- a/src/text/template/funcs.go
++++ b/src/text/template/funcs.go
+@@ -263,11 +263,9 @@ func call(fn reflect.Value, args ...reflect.Value) (reflect.Value, error) {
+ 	for i, arg := range args {
+ 		value := indirectInterface(arg)
+ 		// Compute the expected type. Clumsy because of variadics.
+-		var argType reflect.Type
++		argType := dddType
+ 		if !typ.IsVariadic() || i < numIn-1 {
+ 			argType = typ.In(i)
+-		} else {
+-			argType = dddType
+ 		}
+ 
+ 		var err error

@@ -9,6 +9,20 @@ Date:   Tue Mar 31 19:44:19 2020 +0100
     Change-Id: Ibeb0fbd3c096a69181c19b1fb2bc6291612b6da3
     Reviewed-on: https://go-review.googlesource.com/c/go/+/226657
     Reviewed-by: David du Colombier <0intro@gmail.com>
-
+---
  src/runtime/runtime-gdb_test.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/runtime/runtime-gdb_test.go b/src/runtime/runtime-gdb_test.go
+index 79b4621614..5dbe4bf88a 100644
+--- a/src/runtime/runtime-gdb_test.go
++++ b/src/runtime/runtime-gdb_test.go
+@@ -41,6 +41,8 @@ func checkGdbEnvironment(t *testing.T) {
+ 		if testing.Short() {
+ 			t.Skip("skipping gdb tests on AIX; see https://golang.org/issue/35710")
+ 		}
++	case "plan9":
++		t.Skip("there is no gdb on Plan 9")
+ 	}
+ 	if final := os.Getenv("GOROOT_FINAL"); final != "" && runtime.GOROOT() != final {
+ 		t.Skip("gdb test can fail with GOROOT_FINAL pending")

@@ -9,6 +9,20 @@ Date:   Thu Dec 15 18:05:26 2016 +0100
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  test/nosplit.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/test/nosplit.go b/test/nosplit.go
+index 5f4e62f5b1..e0d531c116 100644
+--- a/test/nosplit.go
++++ b/test/nosplit.go
+@@ -261,6 +261,8 @@ TestCases:
+ 		var buf bytes.Buffer
+ 		ptrSize := 4
+ 		switch goarch {
++		case "mips", "mipsle":
++			fmt.Fprintf(&buf, "#define CALL JAL\n#define REGISTER (R0)\n")
+ 		case "mips64", "mips64le":
+ 			ptrSize = 8
+ 			fmt.Fprintf(&buf, "#define CALL JAL\n#define REGISTER (R0)\n")

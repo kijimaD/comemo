@@ -14,6 +14,22 @@ Date:   Sat Jun 4 09:44:11 2022 -0400
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  doc/go1.19.html | 4 ----
  1 file changed, 4 deletions(-)
+
+diff --git a/doc/go1.19.html b/doc/go1.19.html
+index 4de93d1565..6d49cedfd4 100644
+--- a/doc/go1.19.html
++++ b/doc/go1.19.html
+@@ -282,10 +282,6 @@ Do not send CLs removing the interior tags from such phrases.
+ 
+ <dl id="io"><dt><a href="/pkg/io/">io</a></dt>
+   <dd>
+-    <p><!-- CL 396215 -->
+-      TODO: <a href="https://go.dev/cl/396215">https://go.dev/cl/396215</a>: add an Err field to LimitedReader
+-    </p>
+-
+     <p><!-- CL 400236 -->
+       TODO: <a href="https://go.dev/cl/400236">https://go.dev/cl/400236</a>: NopCloser forward WriterTo implementations if the reader supports it
+     </p>

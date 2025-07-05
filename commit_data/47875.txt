@@ -41,7 +41,7 @@ Date:   Sat Apr 10 00:05:07 2021 +0000
     Reviewed-by: Austin Clements <austin@google.com>
     Reviewed-by: Alessandro Arzilli <alessandro.arzilli@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/internal/objabi/funcid.go               |  4 +-
  src/runtime/asm_amd64.s                         | 45 +++++++++--------
  src/runtime/debug_test.go                       | 67 +++++++++++++++++--------
@@ -53,3 +53,612 @@ Date:   Sat Apr 10 00:05:07 2021 +0000
  src/runtime/runtime2.go                         | 27 +++++++---
  src/runtime/symtab.go                           |  2 +-
  10 files changed, 203 insertions(+), 78 deletions(-)
+
+diff --git a/src/cmd/internal/objabi/funcid.go b/src/cmd/internal/objabi/funcid.go
+index 2634106cdf..93ebd7be94 100644
+--- a/src/cmd/internal/objabi/funcid.go
++++ b/src/cmd/internal/objabi/funcid.go
+@@ -28,7 +28,7 @@ const (
+ 	FuncID_asmcgocall
+ 	FuncID_asyncPreempt
+ 	FuncID_cgocallback
+-	FuncID_debugCallV1
++	FuncID_debugCallV2
+ 	FuncID_gcBgMarkWorker
+ 	FuncID_goexit
+ 	FuncID_gogo
+@@ -53,7 +53,7 @@ var funcIDs = map[string]FuncID{
+ 	"asmcgocall":       FuncID_asmcgocall,
+ 	"asyncPreempt":     FuncID_asyncPreempt,
+ 	"cgocallback":      FuncID_cgocallback,
+-	"debugCallV1":      FuncID_debugCallV1,
++	"debugCallV2":      FuncID_debugCallV2,
+ 	"gcBgMarkWorker":   FuncID_gcBgMarkWorker,
+ 	"go":               FuncID_rt0_go,
+ 	"goexit":           FuncID_goexit,
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index e883f20045..a88cd17e6b 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -231,9 +231,9 @@ ok:
+ 	CALL	runtime·abort(SB)	// mstart should never return
+ 	RET
+ 
+-	// Prevent dead-code elimination of debugCallV1, which is
++	// Prevent dead-code elimination of debugCallV2, which is
+ 	// intended to be called by debuggers.
+-	MOVQ	$runtime·debugCallV1<ABIInternal>(SB), AX
++	MOVQ	$runtime·debugCallV2<ABIInternal>(SB), AX
+ 	RET
+ 
+ // mainPC is a function value for runtime.main, to be passed to newproc.
+@@ -1763,7 +1763,7 @@ TEXT runtime·gcWriteBarrierR9<ABIInternal>(SB),NOSPLIT,$0
+ DATA	debugCallFrameTooLarge<>+0x00(SB)/20, $"call frame too large"
+ GLOBL	debugCallFrameTooLarge<>(SB), RODATA, $20	// Size duplicated below
+ 
+-// debugCallV1 is the entry point for debugger-injected function
++// debugCallV2 is the entry point for debugger-injected function
+ // calls on running goroutines. It informs the runtime that a
+ // debug call has been injected and creates a call frame for the
+ // debugger to fill in.
+@@ -1776,7 +1776,7 @@ GLOBL	debugCallFrameTooLarge<>(SB), RODATA, $20	// Size duplicated below
+ //    after step 2).
+ // 4. Save all machine registers (including flags and XMM reigsters)
+ //    so they can be restored later by the debugger.
+-// 5. Set the PC to debugCallV1 and resume execution.
++// 5. Set the PC to debugCallV2 and resume execution.
+ //
+ // If the goroutine is in state _Grunnable, then it's not generally
+ // safe to inject a call because it may return out via other runtime
+@@ -1786,19 +1786,19 @@ GLOBL	debugCallFrameTooLarge<>(SB), RODATA, $20	// Size duplicated below
+ //
+ // If the goroutine is in any other state, it's not safe to inject a call.
+ //
+-// This function communicates back to the debugger by setting RAX and
++// This function communicates back to the debugger by setting R12 and
+ // invoking INT3 to raise a breakpoint signal. See the comments in the
+ // implementation for the protocol the debugger is expected to
+ // follow. InjectDebugCall in the runtime tests demonstrates this protocol.
+ //
+ // The debugger must ensure that any pointers passed to the function
+ // obey escape analysis requirements. Specifically, it must not pass
+-// a stack pointer to an escaping argument. debugCallV1 cannot check
++// a stack pointer to an escaping argument. debugCallV2 cannot check
+ // this invariant.
+ //
+ // This is ABIInternal because Go code injects its PC directly into new
+ // goroutine stacks.
+-TEXT runtime·debugCallV1<ABIInternal>(SB),NOSPLIT,$152-0
++TEXT runtime·debugCallV2<ABIInternal>(SB),NOSPLIT,$152-0
+ 	// Save all registers that may contain pointers so they can be
+ 	// conservatively scanned.
+ 	//
+@@ -1838,10 +1838,10 @@ TEXT runtime·debugCallV1<ABIInternal>(SB),NOSPLIT,$152-0
+ 	MOVQ	AX, 0(SP)
+ 	MOVQ	16(SP), AX
+ 	MOVQ	AX, 8(SP)
+-	// Set AX to 8 and invoke INT3. The debugger should get the
++	// Set R12 to 8 and invoke INT3. The debugger should get the
+ 	// reason a call can't be injected from the top of the stack
+ 	// and resume execution.
+-	MOVQ	$8, AX
++	MOVQ	$8, R12
+ 	BYTE	$0xcc
+ 	JMP	restore
+ 
+@@ -1849,17 +1849,18 @@ good:
+ 	// Registers are saved and it's safe to make a call.
+ 	// Open up a call frame, moving the stack if necessary.
+ 	//
+-	// Once the frame is allocated, this will set AX to 0 and
++	// Once the frame is allocated, this will set R12 to 0 and
+ 	// invoke INT3. The debugger should write the argument
+-	// frame for the call at SP, push the trapping PC on the
+-	// stack, set the PC to the function to call, set RCX to point
+-	// to the closure (if a closure call), and resume execution.
++	// frame for the call at SP, set up argument registers, push
++	// the trapping PC on the stack, set the PC to the function to
++	// call, set RDX to point to the closure (if a closure call),
++	// and resume execution.
+ 	//
+-	// If the function returns, this will set AX to 1 and invoke
++	// If the function returns, this will set R12 to 1 and invoke
+ 	// INT3. The debugger can then inspect any return value saved
+-	// on the stack at SP and resume execution again.
++	// on the stack at SP and in registers and resume execution again.
+ 	//
+-	// If the function panics, this will set AX to 2 and invoke INT3.
++	// If the function panics, this will set R12 to 2 and invoke INT3.
+ 	// The interface{} value of the panic will be at SP. The debugger
+ 	// can inspect the panic value and resume execution again.
+ #define DEBUG_CALL_DISPATCH(NAME,MAXSIZE)	\
+@@ -1887,16 +1888,16 @@ good:
+ 	MOVQ	$debugCallFrameTooLarge<>(SB), AX
+ 	MOVQ	AX, 0(SP)
+ 	MOVQ	$20, 8(SP) // length of debugCallFrameTooLarge string
+-	MOVQ	$8, AX
++	MOVQ	$8, R12
+ 	BYTE	$0xcc
+ 	JMP	restore
+ 
+ restore:
+ 	// Calls and failures resume here.
+ 	//
+-	// Set AX to 16 and invoke INT3. The debugger should restore
++	// Set R12 to 16 and invoke INT3. The debugger should restore
+ 	// all registers except RIP and RSP and resume execution.
+-	MOVQ	$16, AX
++	MOVQ	$16, R12
+ 	BYTE	$0xcc
+ 	// We must not modify flags after this point.
+ 
+@@ -1925,9 +1926,9 @@ restore:
+ #define DEBUG_CALL_FN(NAME,MAXSIZE)		\
+ TEXT NAME(SB),WRAPPER,$MAXSIZE-0;		\
+ 	NO_LOCAL_POINTERS;			\
+-	MOVQ	$0, AX;				\
++	MOVQ	$0, R12;				\
+ 	BYTE	$0xcc;				\
+-	MOVQ	$1, AX;				\
++	MOVQ	$1, R12;				\
+ 	BYTE	$0xcc;				\
+ 	RET
+ DEBUG_CALL_FN(debugCall32<>, 32)
+@@ -1950,7 +1951,7 @@ TEXT runtime·debugCallPanicked(SB),NOSPLIT,$16-16
+ 	MOVQ	AX, 0(SP)
+ 	MOVQ	val_data+8(FP), AX
+ 	MOVQ	AX, 8(SP)
+-	MOVQ	$2, AX
++	MOVQ	$2, R12
+ 	BYTE	$0xcc
+ 	RET
+ 
+diff --git a/src/runtime/debug_test.go b/src/runtime/debug_test.go
+index 7f9e460303..f74383457f 100644
+--- a/src/runtime/debug_test.go
++++ b/src/runtime/debug_test.go
+@@ -9,17 +9,16 @@
+ // spends all of its time in the race runtime, which isn't a safe
+ // point.
+ 
+-// TODO(register args): We skip this under GOEXPERIMENT=regabidefer
+-// because debugCallWrap passes a non-empty frame to newproc1,
+-// triggering a panic.
+-
+-//go:build amd64 && linux && !race && !goexperiment.regabidefer
+-// +build amd64,linux,!race,!goexperiment.regabidefer
++//go:build amd64 && linux && !race
++// +build amd64,linux,!race
+ 
+ package runtime_test
+ 
+ import (
+ 	"fmt"
++	"internal/abi"
++	"internal/goexperiment"
++	"math"
+ 	"os"
+ 	"regexp"
+ 	"runtime"
+@@ -119,21 +118,49 @@ func TestDebugCall(t *testing.T) {
+ 	g, after := startDebugCallWorker(t)
+ 	defer after()
+ 
++	type stackArgs struct {
++		x0    int
++		x1    float64
++		y0Ret int
++		y1Ret float64
++	}
++
+ 	// Inject a call into the debugCallWorker goroutine and test
+ 	// basic argument and result passing.
+-	var args struct {
+-		x    int
+-		yRet int
++	fn := func(x int, y float64) (y0Ret int, y1Ret float64) {
++		return x + 1, y + 1.0
+ 	}
+-	fn := func(x int) (yRet int) {
+-		return x + 1
++	var args *stackArgs
++	var regs abi.RegArgs
++	intRegs := regs.Ints[:]
++	floatRegs := regs.Floats[:]
++	fval := float64(42.0)
++	if goexperiment.RegabiArgs {
++		intRegs[0] = 42
++		floatRegs[0] = math.Float64bits(fval)
++	} else {
++		args = &stackArgs{
++			x0: 42,
++			x1: 42.0,
++		}
+ 	}
+-	args.x = 42
+-	if _, err := runtime.InjectDebugCall(g, fn, &args, debugCallTKill, false); err != nil {
++	if _, err := runtime.InjectDebugCall(g, fn, &regs, args, debugCallTKill, false); err != nil {
+ 		t.Fatal(err)
+ 	}
+-	if args.yRet != 43 {
+-		t.Fatalf("want 43, got %d", args.yRet)
++	var result0 int
++	var result1 float64
++	if goexperiment.RegabiArgs {
++		result0 = int(intRegs[0])
++		result1 = math.Float64frombits(floatRegs[0])
++	} else {
++		result0 = args.y0Ret
++		result1 = args.y1Ret
++	}
++	if result0 != 43 {
++		t.Errorf("want 43, got %d", result0)
++	}
++	if result1 != fval+1 {
++		t.Errorf("want 43, got %f", result1)
+ 	}
+ }
+ 
+@@ -158,7 +185,7 @@ func TestDebugCallLarge(t *testing.T) {
+ 		args.in[i] = i
+ 		want[i] = i + 1
+ 	}
+-	if _, err := runtime.InjectDebugCall(g, fn, &args, debugCallTKill, false); err != nil {
++	if _, err := runtime.InjectDebugCall(g, fn, nil, &args, debugCallTKill, false); err != nil {
+ 		t.Fatal(err)
+ 	}
+ 	if want != args.out {
+@@ -171,7 +198,7 @@ func TestDebugCallGC(t *testing.T) {
+ 	defer after()
+ 
+ 	// Inject a call that performs a GC.
+-	if _, err := runtime.InjectDebugCall(g, runtime.GC, nil, debugCallTKill, false); err != nil {
++	if _, err := runtime.InjectDebugCall(g, runtime.GC, nil, nil, debugCallTKill, false); err != nil {
+ 		t.Fatal(err)
+ 	}
+ }
+@@ -182,7 +209,7 @@ func TestDebugCallGrowStack(t *testing.T) {
+ 
+ 	// Inject a call that grows the stack. debugCallWorker checks
+ 	// for stack pointer breakage.
+-	if _, err := runtime.InjectDebugCall(g, func() { growStack(nil) }, nil, debugCallTKill, false); err != nil {
++	if _, err := runtime.InjectDebugCall(g, func() { growStack(nil) }, nil, nil, debugCallTKill, false); err != nil {
+ 		t.Fatal(err)
+ 	}
+ }
+@@ -218,7 +245,7 @@ func TestDebugCallUnsafePoint(t *testing.T) {
+ 		runtime.Gosched()
+ 	}
+ 
+-	_, err := runtime.InjectDebugCall(g, func() {}, nil, debugCallTKill, true)
++	_, err := runtime.InjectDebugCall(g, func() {}, nil, nil, debugCallTKill, true)
+ 	if msg := "call not at safe point"; err == nil || err.Error() != msg {
+ 		t.Fatalf("want %q, got %s", msg, err)
+ 	}
+@@ -242,7 +269,7 @@ func TestDebugCallPanic(t *testing.T) {
+ 	}()
+ 	g := <-ready
+ 
+-	p, err := runtime.InjectDebugCall(g, func() { panic("test") }, nil, debugCallTKill, false)
++	p, err := runtime.InjectDebugCall(g, func() { panic("test") }, nil, nil, debugCallTKill, false)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+diff --git a/src/runtime/debugcall.go b/src/runtime/debugcall.go
+index 2fe0b1d12f..faddf59eed 100644
+--- a/src/runtime/debugcall.go
++++ b/src/runtime/debugcall.go
+@@ -16,7 +16,7 @@ const (
+ 	debugCallUnsafePoint = "call not at safe point"
+ )
+ 
+-func debugCallV1()
++func debugCallV2()
+ func debugCallPanicked(val interface{})
+ 
+ // debugCallCheck checks whether it is safe to inject a debugger
+@@ -96,7 +96,7 @@ func debugCallCheck(pc uintptr) string {
+ // function at PC dispatch.
+ //
+ // This must be deeply nosplit because there are untyped values on the
+-// stack from debugCallV1.
++// stack from debugCallV2.
+ //
+ //go:nosplit
+ func debugCallWrap(dispatch uintptr) {
+@@ -108,14 +108,16 @@ func debugCallWrap(dispatch uintptr) {
+ 	// Create a new goroutine to execute the call on. Run this on
+ 	// the system stack to avoid growing our stack.
+ 	systemstack(func() {
+-		var args struct {
+-			dispatch uintptr
+-			callingG *g
+-		}
+-		args.dispatch = dispatch
+-		args.callingG = gp
++		// TODO(mknyszek): It would be nice to wrap these arguments in an allocated
++		// closure and start the goroutine with that closure, but the compiler disallows
++		// implicit closure allocation in the runtime.
+ 		fn := debugCallWrap1
+-		newg := newproc1(*(**funcval)(unsafe.Pointer(&fn)), unsafe.Pointer(&args), int32(unsafe.Sizeof(args)), gp, callerpc)
++		newg := newproc1(*(**funcval)(unsafe.Pointer(&fn)), nil, 0, gp, callerpc)
++		args := &debugCallWrapArgs{
++			dispatch: dispatch,
++			callingG: gp,
++		}
++		newg.param = unsafe.Pointer(args)
+ 
+ 		// If the current G is locked, then transfer that
+ 		// locked-ness to the new goroutine.
+@@ -185,9 +187,19 @@ func debugCallWrap(dispatch uintptr) {
+ 	gp.asyncSafePoint = false
+ }
+ 
++type debugCallWrapArgs struct {
++	dispatch uintptr
++	callingG *g
++}
++
+ // debugCallWrap1 is the continuation of debugCallWrap on the callee
+ // goroutine.
+-func debugCallWrap1(dispatch uintptr, callingG *g) {
++func debugCallWrap1() {
++	gp := getg()
++	args := (*debugCallWrapArgs)(gp.param)
++	dispatch, callingG := args.dispatch, args.callingG
++	gp.param = nil
++
+ 	// Dispatch call and trap panics.
+ 	debugCallWrap2(dispatch)
+ 
+diff --git a/src/runtime/export_debug_regabiargs_off_test.go b/src/runtime/export_debug_regabiargs_off_test.go
+new file mode 100644
+index 0000000000..fce37ab4d1
+--- /dev/null
++++ b/src/runtime/export_debug_regabiargs_off_test.go
+@@ -0,0 +1,17 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build amd64 && linux && !goexperiment.regabiargs
++// +build amd64,linux
++// +build !goexperiment.regabiargs
++
++package runtime
++
++import "internal/abi"
++
++func storeRegArgs(dst *sigcontext, src *abi.RegArgs) {
++}
++
++func loadRegArgs(dst *abi.RegArgs, src *sigcontext) {
++}
+diff --git a/src/runtime/export_debug_regabiargs_on_test.go b/src/runtime/export_debug_regabiargs_on_test.go
+new file mode 100644
+index 0000000000..3c65127e56
+--- /dev/null
++++ b/src/runtime/export_debug_regabiargs_on_test.go
+@@ -0,0 +1,47 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build amd64 && linux && goexperiment.regabiargs
++// +build amd64,linux
++// +build goexperiment.regabiargs
++
++package runtime
++
++import "internal/abi"
++
++// storeRegArgs sets up argument registers in the signal
++// context state from an abi.RegArgs.
++//
++// Both src and dst must be non-nil.
++func storeRegArgs(dst *sigcontext, src *abi.RegArgs) {
++	dst.rax = uint64(src.Ints[0])
++	dst.rbx = uint64(src.Ints[1])
++	dst.rcx = uint64(src.Ints[2])
++	dst.rdi = uint64(src.Ints[3])
++	dst.rsi = uint64(src.Ints[4])
++	dst.r8 = uint64(src.Ints[5])
++	dst.r9 = uint64(src.Ints[6])
++	dst.r10 = uint64(src.Ints[7])
++	dst.r11 = uint64(src.Ints[8])
++	for i := range src.Floats {
++		dst.fpstate._xmm[i].element[0] = uint32(src.Floats[i] >> 0)
++		dst.fpstate._xmm[i].element[1] = uint32(src.Floats[i] >> 32)
++	}
++}
++
++func loadRegArgs(dst *abi.RegArgs, src *sigcontext) {
++	dst.Ints[0] = uintptr(src.rax)
++	dst.Ints[1] = uintptr(src.rbx)
++	dst.Ints[2] = uintptr(src.rcx)
++	dst.Ints[3] = uintptr(src.rdi)
++	dst.Ints[4] = uintptr(src.rsi)
++	dst.Ints[5] = uintptr(src.r8)
++	dst.Ints[6] = uintptr(src.r9)
++	dst.Ints[7] = uintptr(src.r10)
++	dst.Ints[8] = uintptr(src.r11)
++	for i := range dst.Floats {
++		dst.Floats[i] = uint64(src.fpstate._xmm[i].element[0]) << 0
++		dst.Floats[i] |= uint64(src.fpstate._xmm[i].element[1]) << 32
++	}
++}
+diff --git a/src/runtime/export_debug_test.go b/src/runtime/export_debug_test.go
+index 18ccecd5cd..fe4c9045c1 100644
+--- a/src/runtime/export_debug_test.go
++++ b/src/runtime/export_debug_test.go
+@@ -8,19 +8,22 @@
+ package runtime
+ 
+ import (
++	"internal/abi"
+ 	"runtime/internal/sys"
+ 	"unsafe"
+ )
+ 
+-// InjectDebugCall injects a debugger call to fn into g. args must be
+-// a pointer to a valid call frame (including arguments and return
+-// space) for fn, or nil. tkill must be a function that will send
+-// SIGTRAP to thread ID tid. gp must be locked to its OS thread and
++// InjectDebugCall injects a debugger call to fn into g. regArgs must
++// contain any arguments to fn that are passed in registers, according
++// to the internal Go ABI. It may be nil if no arguments are passed in
++// registers to fn. args must be a pointer to a valid call frame (including
++// arguments and return space) for fn, or nil. tkill must be a function that
++// will send SIGTRAP to thread ID tid. gp must be locked to its OS thread and
+ // running.
+ //
+ // On success, InjectDebugCall returns the panic value of fn or nil.
+ // If fn did not panic, its results will be available in args.
+-func InjectDebugCall(gp *g, fn, args interface{}, tkill func(tid int) error, returnOnUnsafePoint bool) (interface{}, error) {
++func InjectDebugCall(gp *g, fn interface{}, regArgs *abi.RegArgs, stackArgs interface{}, tkill func(tid int) error, returnOnUnsafePoint bool) (interface{}, error) {
+ 	if gp.lockedm == 0 {
+ 		return nil, plainError("goroutine not locked to thread")
+ 	}
+@@ -36,7 +39,7 @@ func InjectDebugCall(gp *g, fn, args interface{}, tkill func(tid int) error, ret
+ 	}
+ 	fv := (*funcval)(f.data)
+ 
+-	a := efaceOf(&args)
++	a := efaceOf(&stackArgs)
+ 	if a._type != nil && a._type.kind&kindMask != kindPtr {
+ 		return nil, plainError("args must be a pointer or nil")
+ 	}
+@@ -51,7 +54,7 @@ func InjectDebugCall(gp *g, fn, args interface{}, tkill func(tid int) error, ret
+ 	// gp may not be running right now, but we can still get the M
+ 	// it will run on since it's locked.
+ 	h.mp = gp.lockedm.ptr()
+-	h.fv, h.argp, h.argSize = fv, argp, argSize
++	h.fv, h.regArgs, h.argp, h.argSize = fv, regArgs, argp, argSize
+ 	h.handleF = h.handle // Avoid allocating closure during signal
+ 
+ 	defer func() { testSigtrap = nil }()
+@@ -91,6 +94,7 @@ type debugCallHandler struct {
+ 	gp      *g
+ 	mp      *m
+ 	fv      *funcval
++	regArgs *abi.RegArgs
+ 	argp    unsafe.Pointer
+ 	argSize uintptr
+ 	panic   interface{}
+@@ -120,8 +124,8 @@ func (h *debugCallHandler) inject(info *siginfo, ctxt *sigctxt, gp2 *g) bool {
+ 		h.savedRegs = *ctxt.regs()
+ 		h.savedFP = *h.savedRegs.fpstate
+ 		h.savedRegs.fpstate = nil
+-		// Set PC to debugCallV1.
+-		ctxt.set_rip(uint64(funcPC(debugCallV1)))
++		// Set PC to debugCallV2.
++		ctxt.set_rip(uint64(funcPC(debugCallV2)))
+ 		// Call injected. Switch to the debugCall protocol.
+ 		testSigtrap = h.handleF
+ 	case _Grunnable:
+@@ -153,22 +157,28 @@ func (h *debugCallHandler) handle(info *siginfo, ctxt *sigctxt, gp2 *g) bool {
+ 		return false
+ 	}
+ 
+-	switch status := ctxt.rax(); status {
++	switch status := ctxt.r12(); status {
+ 	case 0:
+-		// Frame is ready. Copy the arguments to the frame.
++		// Frame is ready. Copy the arguments to the frame and to registers.
+ 		sp := ctxt.rsp()
+ 		memmove(unsafe.Pointer(uintptr(sp)), h.argp, h.argSize)
++		if h.regArgs != nil {
++			storeRegArgs(ctxt.regs(), h.regArgs)
++		}
+ 		// Push return PC.
+ 		sp -= sys.PtrSize
+ 		ctxt.set_rsp(sp)
+ 		*(*uint64)(unsafe.Pointer(uintptr(sp))) = ctxt.rip()
+ 		// Set PC to call and context register.
+ 		ctxt.set_rip(uint64(h.fv.fn))
+-		ctxt.regs().rcx = uint64(uintptr(unsafe.Pointer(h.fv)))
++		ctxt.regs().rdx = uint64(uintptr(unsafe.Pointer(h.fv)))
+ 	case 1:
+-		// Function returned. Copy frame back out.
++		// Function returned. Copy frame and result registers back out.
+ 		sp := ctxt.rsp()
+ 		memmove(h.argp, unsafe.Pointer(uintptr(sp)), h.argSize)
++		if h.regArgs != nil {
++			loadRegArgs(h.regArgs, ctxt.regs())
++		}
+ 	case 2:
+ 		// Function panicked. Copy panic out.
+ 		sp := ctxt.rsp()
+@@ -191,7 +201,7 @@ func (h *debugCallHandler) handle(info *siginfo, ctxt *sigctxt, gp2 *g) bool {
+ 		// Done
+ 		notewakeup(&h.done)
+ 	default:
+-		h.err = plainError("unexpected debugCallV1 status")
++		h.err = plainError("unexpected debugCallV2 status")
+ 		notewakeup(&h.done)
+ 	}
+ 	// Resume execution.
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index cb73caf3bb..061d2f5c9d 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -872,7 +872,7 @@ func scanframeworker(frame *stkframe, state *stackScanState, gcw *gcWork) {
+ 	}
+ 
+ 	isAsyncPreempt := frame.fn.valid() && frame.fn.funcID == funcID_asyncPreempt
+-	isDebugCall := frame.fn.valid() && frame.fn.funcID == funcID_debugCallV1
++	isDebugCall := frame.fn.valid() && frame.fn.funcID == funcID_debugCallV2
+ 	if state.conservative || isAsyncPreempt || isDebugCall {
+ 		if debugScanConservative {
+ 			println("conservatively scanning function", funcname(frame.fn), "at PC", hex(frame.continpc))
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 402d49ac82..9e547f8200 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -412,14 +412,25 @@ type g struct {
+ 	stackguard0 uintptr // offset known to liblink
+ 	stackguard1 uintptr // offset known to liblink
+ 
+-	_panic       *_panic // innermost panic - offset known to liblink
+-	_defer       *_defer // innermost defer
+-	m            *m      // current m; offset known to arm liblink
+-	sched        gobuf
+-	syscallsp    uintptr        // if status==Gsyscall, syscallsp = sched.sp to use during gc
+-	syscallpc    uintptr        // if status==Gsyscall, syscallpc = sched.pc to use during gc
+-	stktopsp     uintptr        // expected sp at top of stack, to check in traceback
+-	param        unsafe.Pointer // passed parameter on wakeup
++	_panic    *_panic // innermost panic - offset known to liblink
++	_defer    *_defer // innermost defer
++	m         *m      // current m; offset known to arm liblink
++	sched     gobuf
++	syscallsp uintptr // if status==Gsyscall, syscallsp = sched.sp to use during gc
++	syscallpc uintptr // if status==Gsyscall, syscallpc = sched.pc to use during gc
++	stktopsp  uintptr // expected sp at top of stack, to check in traceback
++	// param is a generic pointer parameter field used to pass
++	// values in particular contexts where other storage for the
++	// parameter would be difficult to find. It is currently used
++	// in three ways:
++	// 1. When a channel operation wakes up a blocked goroutine, it sets param to
++	//    point to the sudog of the completed blocking operation.
++	// 2. By gcAssistAlloc1 to signal back to its caller that the goroutine completed
++	//    the GC cycle. It is unsafe to do so in any other way, because the goroutine's
++	//    stack may have moved in the meantime.
++	// 3. By debugCallWrap to pass parameters to a new goroutine because allocating a
++	//    closure in the runtime is forbidden.
++	param        unsafe.Pointer
+ 	atomicstatus uint32
+ 	stackLock    uint32 // sigprof/scang lock; TODO: fold in to atomicstatus
+ 	goid         int64
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index cf759153e7..e8c7447f61 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -316,7 +316,7 @@ const (
+ 	funcID_asmcgocall
+ 	funcID_asyncPreempt
+ 	funcID_cgocallback
+-	funcID_debugCallV1
++	funcID_debugCallV2
+ 	funcID_gcBgMarkWorker
+ 	funcID_goexit
+ 	funcID_gogo

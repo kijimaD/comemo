@@ -10,6 +10,19 @@ Date:   Wed Jun 25 05:52:48 2014 +1000
     R=adg
     CC=golang-codereviews
     https://golang.org/cl/110150043
-
+---
  CONTRIBUTORS | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index d91e11c5e1..d59775de7d 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -235,6 +235,7 @@ Georg Reinke <guelfey@gmail.com>
+ Gerasimos Dimitriadis <gedimitr@gmail.com>
+ Gideon Jan-Wessel Redelinghuys <gjredelinghuys@gmail.com>
+ Giles Lean <giles.lean@pobox.com>
++Glenn Lewis <gmlewis@google.com>
+ Gordon Klaus <gordon.klaus@gmail.com>
+ Graham King <graham4king@gmail.com>
+ Graham Miller <graham.miller@gmail.com>

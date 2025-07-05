@@ -10,7 +10,32 @@ Date:   Fri May 9 12:18:50 2014 -0400
     R=r
     CC=golang-codereviews
     https://golang.org/cl/90930044
-
+---
  doc/go1.3.html             | 1 +
  src/pkg/testing/testing.go | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/doc/go1.3.html b/doc/go1.3.html
+index 62a5c0e1e6..60effb294d 100644
+--- a/doc/go1.3.html
++++ b/doc/go1.3.html
+@@ -439,6 +439,7 @@ alongside the existing function
+ <li>
+ The <a href="/pkg/testing/"><code>testing</code></a> package now
+ diagnoses tests that call <code>panic(nil)</code>, which are almost always erroneous.
++Also, tests now write profiles (if invoked with profiling flags) even on failure.
+ </li>
+ 
+ <li>
+diff --git a/src/pkg/testing/testing.go b/src/pkg/testing/testing.go
+index 2e6d55596f..8078ba7cc0 100644
+--- a/src/pkg/testing/testing.go
++++ b/src/pkg/testing/testing.go
+@@ -437,6 +437,7 @@ func Main(matchString func(pat, str string) (bool, error), tests []InternalTest,
+ 	stopAlarm()
+ 	if !testOk || !exampleOk {
+ 		fmt.Println("FAIL")
++		after()
+ 		os.Exit(1)
+ 	}
+ 	fmt.Println("PASS")

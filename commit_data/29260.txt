@@ -9,6 +9,35 @@ Date:   Tue Sep 6 04:11:59 2016 +0000
     Change-Id: I98aa203176f8f2ca2fcca6e334a65bc60d6f824d
     Reviewed-on: https://go-review.googlesource.com/28535
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/syscall/syscall_bsd_test.go | 12 ++++++++++++
  1 file changed, 12 insertions(+)
+
+diff --git a/src/syscall/syscall_bsd_test.go b/src/syscall/syscall_bsd_test.go
+index c9e9808784..aaabafaeca 100644
+--- a/src/syscall/syscall_bsd_test.go
++++ b/src/syscall/syscall_bsd_test.go
+@@ -7,6 +7,7 @@
+ package syscall_test
+ 
+ import (
++	"os/exec"
+ 	"syscall"
+ 	"testing"
+ )
+@@ -33,4 +34,15 @@ func TestGetfsstat(t *testing.T) {
+ 			t.Errorf("index %v is an empty Statfs_t struct", i)
+ 		}
+ 	}
++	if t.Failed() {
++		for i, stat := range data {
++			t.Logf("data[%v] = %+v", i, stat)
++		}
++		mount, err := exec.Command("mount").CombinedOutput()
++		if err != nil {
++			t.Logf("mount: %v\n%s", err, mount)
++		} else {
++			t.Logf("mount: %s", mount)
++		}
++	}
+ }

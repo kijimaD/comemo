@@ -18,6 +18,47 @@ Date:   Sat Dec 17 20:40:29 2016 -0800
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/transport_test.go | 28 +++++++++++++++++++---------
  1 file changed, 19 insertions(+), 9 deletions(-)
+
+diff --git a/src/net/http/transport_test.go b/src/net/http/transport_test.go
+index a58b1839cc..e3de3eb91b 100644
+--- a/src/net/http/transport_test.go
++++ b/src/net/http/transport_test.go
+@@ -3426,16 +3426,26 @@ func testTransportEventTrace(t *testing.T, h2 bool, noHooks bool) {
+ 	}
+ }
+ 
+-func TestTransportEventTraceRealDNS(t *testing.T) {
+-	if testing.Short() && testenv.Builder() == "" {
+-		// Skip this test in short mode (the default for
+-		// all.bash), in case the user is using a shady/ISP
+-		// DNS server hijacking queries.
+-		// See issues 16732, 16716.
+-		// Our builders use 8.8.8.8, though, which correctly
+-		// returns NXDOMAIN, so still run this test there.
+-		t.Skip("skipping in short mode")
++var (
++	isDNSHijackedOnce sync.Once
++	isDNSHijacked     bool
++)
++
++func skipIfDNSHijacked(t *testing.T) {
++	// Skip this test if the user is using a shady/ISP
++	// DNS server hijacking queries.
++	// See issues 16732, 16716.
++	isDNSHijackedOnce.Do(func() {
++		addrs, _ := net.LookupHost("dns-should-not-resolve.golang.")
++		isDNSHijacked = len(addrs) != 0
++	})
++	if isDNSHijacked {
++		t.Skip("skipping; test requires non-hijacking DNS server")
+ 	}
++}
++
++func TestTransportEventTraceRealDNS(t *testing.T) {
++	skipIfDNSHijacked(t)
+ 	defer afterTest(t)
+ 	tr := &Transport{}
+ 	defer tr.CloseIdleConnections()

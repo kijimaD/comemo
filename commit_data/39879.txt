@@ -27,8 +27,170 @@ Date:   Wed Mar 27 12:15:47 2019 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/const.go | 63 +++++++++++++++++++++++-------------
  test/const1.go                       |  2 +-
  test/fixedbugs/issue31060.go         | 30 +++++++++++++++++
  3 files changed, 72 insertions(+), 23 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/const.go b/src/cmd/compile/internal/gc/const.go
+index ef4b933f68..39adba0f07 100644
+--- a/src/cmd/compile/internal/gc/const.go
++++ b/src/cmd/compile/internal/gc/const.go
+@@ -838,15 +838,13 @@ Outer:
+ 		case ODIV:
+ 			if y.CmpInt64(0) == 0 {
+ 				yyerror("division by zero")
+-				u.SetOverflow()
+-				break
++				return Val{}
+ 			}
+ 			u.Quo(y)
+ 		case OMOD:
+ 			if y.CmpInt64(0) == 0 {
+ 				yyerror("division by zero")
+-				u.SetOverflow()
+-				break
++				return Val{}
+ 			}
+ 			u.Rem(y)
+ 		case OOR:
+@@ -877,13 +875,13 @@ Outer:
+ 		case ODIV:
+ 			if y.CmpFloat64(0) == 0 {
+ 				yyerror("division by zero")
+-				u.SetFloat64(1)
+-				break
++				return Val{}
+ 			}
+ 			u.Quo(y)
+-		case OMOD:
+-			// TODO(mdempsky): Move to typecheck.
+-			yyerror("illegal constant expression: floating-point %% operation")
++		case OMOD, OOR, OAND, OANDNOT, OXOR:
++			// TODO(mdempsky): Move to typecheck; see #31060.
++			yyerror("invalid operation: operator %v not defined on untyped float", op)
++			return Val{}
+ 		default:
+ 			break Outer
+ 		}
+@@ -907,9 +905,12 @@ Outer:
+ 		case ODIV:
+ 			if !u.Div(y) {
+ 				yyerror("complex division by zero")
+-				u.Real.SetFloat64(1)
+-				u.Imag.SetFloat64(0)
++				return Val{}
+ 			}
++		case OMOD, OOR, OAND, OANDNOT, OXOR:
++			// TODO(mdempsky): Move to typecheck; see #31060.
++			yyerror("invalid operation: operator %v not defined on untyped complex", op)
++			return Val{}
+ 		default:
+ 			break Outer
+ 		}
+@@ -956,19 +957,31 @@ func unaryOp(op Op, x Val, t *types.Type) Val {
+ 		}
+ 
+ 	case OBITNOT:
+-		x := x.U.(*Mpint)
++		switch x.Ctype() {
++		case CTINT, CTRUNE:
++			x := x.U.(*Mpint)
+ 
+-		u := new(Mpint)
+-		u.Rune = x.Rune
+-		if t.IsSigned() || t.IsUntyped() {
+-			// Signed values change sign.
+-			u.SetInt64(-1)
+-		} else {
+-			// Unsigned values invert their bits.
+-			u.Set(maxintval[t.Etype])
++			u := new(Mpint)
++			u.Rune = x.Rune
++			if t.IsSigned() || t.IsUntyped() {
++				// Signed values change sign.
++				u.SetInt64(-1)
++			} else {
++				// Unsigned values invert their bits.
++				u.Set(maxintval[t.Etype])
++			}
++			u.Xor(x)
++			return Val{U: u}
++
++		case CTFLT:
++			// TODO(mdempsky): Move to typecheck; see #31060.
++			yyerror("invalid operation: operator %v not defined on untyped float", op)
++			return Val{}
++		case CTCPLX:
++			// TODO(mdempsky): Move to typecheck; see #31060.
++			yyerror("invalid operation: operator %v not defined on untyped complex", op)
++			return Val{}
+ 		}
+-		u.Xor(x)
+-		return Val{U: u}
+ 
+ 	case ONOT:
+ 		return Val{U: !x.U.(bool)}
+@@ -1001,6 +1014,12 @@ func shiftOp(x Val, op Op, y Val) Val {
+ 
+ // setconst rewrites n as an OLITERAL with value v.
+ func setconst(n *Node, v Val) {
++	// If constant folding failed, mark n as broken and give up.
++	if v.U == nil {
++		n.Type = nil
++		return
++	}
++
+ 	// Ensure n.Orig still points to a semantically-equivalent
+ 	// expression after we rewrite n into a constant.
+ 	if n.Orig == n {
+diff --git a/test/const1.go b/test/const1.go
+index 62abe4145a..3fd5b55522 100644
+--- a/test/const1.go
++++ b/test/const1.go
+@@ -68,7 +68,7 @@ var (
+ 	c3 float64 = float64(Big) * Big // ERROR "overflow"
+ 	c4         = Big * Big          // ERROR "overflow"
+ 	c5         = Big / 0            // ERROR "division by zero"
+-	c6         = 1000 % 1e3         // ERROR "floating-point % operation|expected integer type"
++	c6         = 1000 % 1e3         // ERROR "invalid operation|expected integer type"
+ )
+ 
+ func f(int)
+diff --git a/test/fixedbugs/issue31060.go b/test/fixedbugs/issue31060.go
+new file mode 100644
+index 0000000000..a1ba705160
+--- /dev/null
++++ b/test/fixedbugs/issue31060.go
+@@ -0,0 +1,30 @@
++// errorcheck
++
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++const (
++	f = 1.0
++	c = 1.0i
++
++	_ = ^f // ERROR "invalid operation|expected integer"
++	_ = ^c // ERROR "invalid operation|expected integer"
++
++	_ = f % f // ERROR "invalid operation|expected integer"
++	_ = c % c // ERROR "invalid operation|expected integer"
++
++	_ = f & f // ERROR "invalid operation|expected integer"
++	_ = c & c // ERROR "invalid operation|expected integer"
++
++	_ = f | f // ERROR "invalid operation|expected integer"
++	_ = c | c // ERROR "invalid operation|expected integer"
++
++	_ = f ^ f // ERROR "invalid operation|expected integer"
++	_ = c ^ c // ERROR "invalid operation|expected integer"
++
++	_ = f &^ f // ERROR "invalid operation|expected integer"
++	_ = c &^ c // ERROR "invalid operation|expected integer"
++)

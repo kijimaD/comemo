@@ -9,7 +9,57 @@ Date:   Tue Jul 7 10:42:42 2009 -0700
     DELTA=28  (28 added, 0 deleted, 0 changed)
     OCL=31271
     CL=31273
-
+---
  test/bugs/bug167.go | 26 ++++++++++++++++++++++++++
  test/golden.out     |  6 ++++++
  2 files changed, 32 insertions(+)
+
+diff --git a/test/bugs/bug167.go b/test/bugs/bug167.go
+new file mode 100644
+index 0000000000..729299b665
+--- /dev/null
++++ b/test/bugs/bug167.go
+@@ -0,0 +1,26 @@
++// $G $D/$F.go && $L $F.$A || echo BUG: bug167
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func f1() {
++	type T struct { x int }
++}
++
++func f2() {
++	type T struct { x float }
++}
++
++func main() {
++	f1();
++	f2();
++}
++
++/*
++1606416576: conflicting definitions for main.T·bug167
++bug167.6:	type main.T·bug167 struct { x int }
++bug167.6:	type main.T·bug167 struct { x float }
++*/
+diff --git a/test/golden.out b/test/golden.out
+index bcbebb6fe1..9b4bf47172 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -105,6 +105,12 @@ BUG: bug159
+ 123
+ BUG: should fail
+ 
++=========== bugs/bug167.go
++BUG: bug167
++1606416656: conflicting definitions for main.T·bug167
++bug167.6:	type main.T·bug167 struct { x int }
++bug167.6:	type main.T·bug167 struct { x float }
++
+ =========== fixedbugs/bug016.go
+ fixedbugs/bug016.go:7: constant -3 overflows uint
+ 

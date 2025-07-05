@@ -18,9 +18,184 @@ Date:   Sun Nov 19 20:18:50 2023 -0800
     Reviewed-by: Than McIntosh <thanm@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Matthew Dempsky <mdempsky@google.com>
-
+---
  .../compile/internal/devirtualize/devirtualize.go  | 30 +++++++++---------
  src/cmd/compile/internal/inline/inl.go             | 16 +---------
  src/cmd/compile/internal/ir/expr.go                |  3 +-
  src/cmd/compile/internal/typecheck/stmt.go         | 36 ++++++++++++----------
  4 files changed, 38 insertions(+), 47 deletions(-)
+
+diff --git a/src/cmd/compile/internal/devirtualize/devirtualize.go b/src/cmd/compile/internal/devirtualize/devirtualize.go
+index 7b3a869d8e..b5e55c6d48 100644
+--- a/src/cmd/compile/internal/devirtualize/devirtualize.go
++++ b/src/cmd/compile/internal/devirtualize/devirtualize.go
+@@ -23,24 +23,10 @@ import (
+ func Static(fn *ir.Func) {
+ 	ir.CurFunc = fn
+ 
+-	// For promoted methods (including value-receiver methods promoted to pointer-receivers),
+-	// the interface method wrapper may contain expressions that can panic (e.g., ODEREF, ODOTPTR, ODOTINTER).
+-	// Devirtualization involves inlining these expressions (and possible panics) to the call site.
+-	// This normally isn't a problem, but for go/defer statements it can move the panic from when/where
+-	// the call executes to the go/defer statement itself, which is a visible change in semantics (e.g., #52072).
+-	// To prevent this, we skip devirtualizing calls within go/defer statements altogether.
+-	goDeferCall := make(map[*ir.CallExpr]bool)
+ 	ir.VisitList(fn.Body, func(n ir.Node) {
+ 		switch n := n.(type) {
+-		case *ir.GoDeferStmt:
+-			if call, ok := n.Call.(*ir.CallExpr); ok {
+-				goDeferCall[call] = true
+-			}
+-			return
+ 		case *ir.CallExpr:
+-			if !goDeferCall[n] {
+-				staticCall(n)
+-			}
++			staticCall(n)
+ 		}
+ 	})
+ }
+@@ -48,6 +34,20 @@ func Static(fn *ir.Func) {
+ // staticCall devirtualizes the given call if possible when the concrete callee
+ // is available statically.
+ func staticCall(call *ir.CallExpr) {
++	// For promoted methods (including value-receiver methods promoted
++	// to pointer-receivers), the interface method wrapper may contain
++	// expressions that can panic (e.g., ODEREF, ODOTPTR,
++	// ODOTINTER). Devirtualization involves inlining these expressions
++	// (and possible panics) to the call site. This normally isn't a
++	// problem, but for go/defer statements it can move the panic from
++	// when/where the call executes to the go/defer statement itself,
++	// which is a visible change in semantics (e.g., #52072). To prevent
++	// this, we skip devirtualizing calls within go/defer statements
++	// altogether.
++	if call.GoDefer {
++		return
++	}
++
+ 	if call.Op() != ir.OCALLINTER {
+ 		return
+ 	}
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index 2677ae3086..d89be8437d 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -845,15 +845,6 @@ func inlnode(callerfn *ir.Func, n ir.Node, bigCaller bool, inlCalls *[]*ir.Inlin
+ 	}
+ 
+ 	switch n.Op() {
+-	case ir.ODEFER, ir.OGO:
+-		n := n.(*ir.GoDeferStmt)
+-		switch call := n.Call; call.Op() {
+-		case ir.OCALLMETH:
+-			base.FatalfAt(call.Pos(), "OCALLMETH missed by typecheck")
+-		case ir.OCALLFUNC:
+-			call := call.(*ir.CallExpr)
+-			call.NoInline = true
+-		}
+ 	case ir.OTAILCALL:
+ 		n := n.(*ir.TailCallStmt)
+ 		n.Call.NoInline = true // Not inline a tail call for now. Maybe we could inline it just like RETURN fn(arg)?
+@@ -862,8 +853,6 @@ func inlnode(callerfn *ir.Func, n ir.Node, bigCaller bool, inlCalls *[]*ir.Inlin
+ 	// so escape analysis can avoid more heapmoves.
+ 	case ir.OCLOSURE:
+ 		return n
+-	case ir.OCALLMETH:
+-		base.FatalfAt(n.Pos(), "OCALLMETH missed by typecheck")
+ 	case ir.OCALLFUNC:
+ 		n := n.(*ir.CallExpr)
+ 		if n.Fun.Op() == ir.OMETHEXPR {
+@@ -889,12 +878,9 @@ func inlnode(callerfn *ir.Func, n ir.Node, bigCaller bool, inlCalls *[]*ir.Inlin
+ 	// transmogrify this node itself unless inhibited by the
+ 	// switch at the top of this function.
+ 	switch n.Op() {
+-	case ir.OCALLMETH:
+-		base.FatalfAt(n.Pos(), "OCALLMETH missed by typecheck")
+-
+ 	case ir.OCALLFUNC:
+ 		call := n.(*ir.CallExpr)
+-		if call.NoInline {
++		if call.GoDefer || call.NoInline {
+ 			break
+ 		}
+ 		if base.Flag.LowerM > 3 {
+diff --git a/src/cmd/compile/internal/ir/expr.go b/src/cmd/compile/internal/ir/expr.go
+index ca2a2d5008..1bf9a15ae0 100644
+--- a/src/cmd/compile/internal/ir/expr.go
++++ b/src/cmd/compile/internal/ir/expr.go
+@@ -190,7 +190,8 @@ type CallExpr struct {
+ 	RType     Node    `mknode:"-"` // see reflectdata/helpers.go
+ 	KeepAlive []*Name // vars to be kept alive until call returns
+ 	IsDDD     bool
+-	NoInline  bool
++	GoDefer   bool // whether this call is part of a go or defer statement
++	NoInline  bool // whether this call must not be inlined
+ }
+ 
+ func NewCallExpr(pos src.XPos, op Op, fun Node, args []Node) *CallExpr {
+diff --git a/src/cmd/compile/internal/typecheck/stmt.go b/src/cmd/compile/internal/typecheck/stmt.go
+index e54d5256e6..8d792485d8 100644
+--- a/src/cmd/compile/internal/typecheck/stmt.go
++++ b/src/cmd/compile/internal/typecheck/stmt.go
+@@ -198,32 +198,36 @@ func tcFor(n *ir.ForStmt) ir.Node {
+ 	return n
+ }
+ 
+-// tcGoDefer typechecks an OGO/ODEFER statement.
++// tcGoDefer typechecks (normalizes) an OGO/ODEFER statement.
++func tcGoDefer(n *ir.GoDeferStmt) {
++	call := normalizeGoDeferCall(n.Pos(), n.Op(), n.Call, n.PtrInit())
++	call.GoDefer = true
++	n.Call = call
++}
++
++// normalizeGoDeferCall normalizes call into a normal function call
++// with no arguments and no results, suitable for use in an OGO/ODEFER
++// statement.
+ //
+-// Really, this means normalizing the statement to always use a simple
+-// function call with no arguments and no results. For example, it
+-// rewrites:
++// For example, it normalizes:
+ //
+-//	defer f(x, y)
++//	f(x, y)
+ //
+ // into:
+ //
+-//	x1, y1 := x, y
+-//	defer func() { f(x1, y1) }()
+-func tcGoDefer(n *ir.GoDeferStmt) {
+-	call := n.Call
+-
+-	init := n.PtrInit()
++//	x1, y1 := x, y          // added to init
++//	func() { f(x1, y1) }()  // result
++func normalizeGoDeferCall(pos src.XPos, op ir.Op, call ir.Node, init *ir.Nodes) *ir.CallExpr {
+ 	init.Append(ir.TakeInit(call)...)
+ 
+-	if call, ok := n.Call.(*ir.CallExpr); ok && call.Op() == ir.OCALLFUNC {
++	if call, ok := call.(*ir.CallExpr); ok && call.Op() == ir.OCALLFUNC {
+ 		if sig := call.Fun.Type(); sig.NumParams()+sig.NumResults() == 0 {
+-			return // already in normal form
++			return call // already in normal form
+ 		}
+ 	}
+ 
+ 	// Create a new wrapper function without parameters or results.
+-	wrapperFn := ir.NewClosureFunc(n.Pos(), n.Pos(), n.Op(), types.NewSignature(nil, nil, nil), ir.CurFunc, Target)
++	wrapperFn := ir.NewClosureFunc(pos, pos, op, types.NewSignature(nil, nil, nil), ir.CurFunc, Target)
+ 	wrapperFn.DeclareParams(true)
+ 	wrapperFn.SetWrapper(true)
+ 
+@@ -372,8 +376,8 @@ func tcGoDefer(n *ir.GoDeferStmt) {
+ 	// evaluate there.
+ 	wrapperFn.Body = []ir.Node{call}
+ 
+-	// Finally, rewrite the go/defer statement to call the wrapper.
+-	n.Call = Call(call.Pos(), wrapperFn.OClosure, nil, false)
++	// Finally, construct a call to the wrapper.
++	return Call(call.Pos(), wrapperFn.OClosure, nil, false).(*ir.CallExpr)
+ }
+ 
+ // tcIf typechecks an OIF node.

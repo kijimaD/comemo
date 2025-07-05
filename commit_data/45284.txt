@@ -29,7 +29,75 @@ Date:   Fri Oct 16 21:57:46 2020 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-
+---
  src/cmd/go/internal/modload/query.go            | 6 +++---
  src/cmd/go/testdata/script/mod_get_replaced.txt | 9 +++++----
  2 files changed, 8 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/query.go b/src/cmd/go/internal/modload/query.go
+index d16a247f72..3b27e66d01 100644
+--- a/src/cmd/go/internal/modload/query.go
++++ b/src/cmd/go/internal/modload/query.go
+@@ -891,12 +891,12 @@ func (rr *replacementRepo) ModulePath() string { return rr.repo.ModulePath() }
+ // Versions returns the versions from rr.repo augmented with any matching
+ // replacement versions.
+ func (rr *replacementRepo) Versions(prefix string) ([]string, error) {
+-	versions, err := rr.repo.Versions(prefix)
++	repoVersions, err := rr.repo.Versions(prefix)
+ 	if err != nil && !errors.Is(err, os.ErrNotExist) {
+ 		return nil, err
+ 	}
+ 
+-	added := false
++	versions := repoVersions
+ 	if index != nil && len(index.replace) > 0 {
+ 		path := rr.ModulePath()
+ 		for m, _ := range index.replace {
+@@ -906,7 +906,7 @@ func (rr *replacementRepo) Versions(prefix string) ([]string, error) {
+ 		}
+ 	}
+ 
+-	if !added {
++	if len(versions) == len(repoVersions) { // No replacement versions added.
+ 		return versions, nil
+ 	}
+ 
+diff --git a/src/cmd/go/testdata/script/mod_get_replaced.txt b/src/cmd/go/testdata/script/mod_get_replaced.txt
+index 0b82eb7f4f..2e2dc51ca7 100644
+--- a/src/cmd/go/testdata/script/mod_get_replaced.txt
++++ b/src/cmd/go/testdata/script/mod_get_replaced.txt
+@@ -19,7 +19,7 @@ go get -d example.com/x
+ go list -m example.com/x
+ stdout '^example.com/x v0.2.0 '
+ 
+-go get -d example.com/x@'<v0.2.0'
++go get -d example.com/x@<v0.2.0
+ go list -m example.com/x
+ stdout '^example.com/x v0.1.0 '
+ 
+@@ -36,13 +36,14 @@ go list -m example.com/x
+ stdout '^example.com/x v0.0.0-00010101000000-000000000000 '
+ 
+ # If specific-version replacements exist, the highest matching version should be used.
+-go mod edit -replace=example.com/x@v0.1.0=./x -replace=example.com/x@v0.2.0=./x
++go mod edit -replace=example.com/x@v0.1.0=./x
++go mod edit -replace=example.com/x@v0.2.0=./x
+ 
+ go get -d example.com/x
+ go list -m example.com/x
+ stdout '^example.com/x v0.2.0 '
+ 
+-go get -d example.com/x@'<v0.2.0'
++go get -d example.com/x@<v0.2.0
+ go list -m example.com/x
+ stdout '^example.com/x v0.1.0 '
+ 
+@@ -69,7 +70,7 @@ go get -d rsc.io/quote@v1.3
+ go list -m rsc.io/quote
+ stdout '^rsc.io/quote v1.3.1 '
+ 
+-go get -d rsc.io/quote@'>v1.3.1'
++go get -d rsc.io/quote@>v1.3.1
+ go list -m rsc.io/quote
+ stdout '^rsc.io/quote v1.4.0'
+ 

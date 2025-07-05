@@ -13,7 +13,36 @@ Date:   Tue Sep 24 23:56:50 2019 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/typecheck.go | 2 +-
  test/escape_iface.go                     | 4 ++--
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index b35ab543ec..580e9154e1 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -3026,7 +3026,7 @@ func typecheckcomplit(n *Node) (res *Node) {
+ 
+ 	n.Orig = norig
+ 	if n.Type.IsPtr() {
+-		n = nod(OPTRLIT, n, nil)
++		n = nodl(n.Pos, OPTRLIT, n, nil)
+ 		n.SetTypecheck(1)
+ 		n.Type = n.Left.Type
+ 		n.Left.Type = t
+diff --git a/test/escape_iface.go b/test/escape_iface.go
+index 898f504b31..118ed3c56f 100644
+--- a/test/escape_iface.go
++++ b/test/escape_iface.go
+@@ -220,8 +220,8 @@ type T2 struct {
+ func dotTypeEscape() *T2 { // #11931
+ 	var x interface{}
+ 	x = &T1{p: new(int)} // ERROR "new\(int\) escapes to heap" "&T1 literal does not escape"
+-	return &T2{
+-		T1: *(x.(*T1)), // ERROR "&T2 literal escapes to heap"
++	return &T2{          // ERROR "&T2 literal escapes to heap"
++		T1: *(x.(*T1)),
+ 	}
+ }
+ 

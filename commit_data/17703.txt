@@ -8,7 +8,48 @@ Date:   Wed Sep 25 16:18:33 2013 -0400
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/13925043
-
+---
  src/cmd/go/test.bash | 9 ++++++++-
  src/cmd/go/test.go   | 2 +-
  2 files changed, 9 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/test.bash b/src/cmd/go/test.bash
+index c5effe757e..f71d678182 100755
+--- a/src/cmd/go/test.bash
++++ b/src/cmd/go/test.bash
+@@ -408,7 +408,7 @@ if ! grep -q '^hello world' hello.out; then
+ 	cat hello.out
+ 	ok=false
+ fi
+-rm -rf $d
++rm -rf $d hello.out
+ 
+ TEST go test -cpuprofile leaves binary behind
+ ./testgo test -cpuprofile strings.prof strings || ok=false
+@@ -613,6 +613,13 @@ fi
+ rm -rf $d
+ unset GOPATH
+ 
++TEST 'Issue 6480: "go test -c -test.bench=XXX fmt" should not hang'
++if ! ./testgo test -c -test.bench=XXX fmt; then
++	echo build test failed
++	ok=false
++fi
++rm -f fmt.test
++
+ # clean up
+ if $started; then stop; fi
+ rm -rf testdata/bin testdata/bin1
+diff --git a/src/cmd/go/test.go b/src/cmd/go/test.go
+index eab075db7c..06ac9d2062 100644
+--- a/src/cmd/go/test.go
++++ b/src/cmd/go/test.go
+@@ -449,7 +449,7 @@ func runTest(cmd *Command, args []string) {
+ 	}
+ 
+ 	// Force benchmarks to run in serial.
+-	if testBench {
++	if !testC && testBench {
+ 		// The first run must wait for all builds.
+ 		// Later runs must wait for the previous run's print.
+ 		for i, run := range runs {

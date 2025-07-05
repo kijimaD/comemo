@@ -35,7 +35,7 @@ Date:   Wed Apr 1 15:51:08 2020 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/doc.go                     |  58 +++++++++++-----
  src/cmd/compile/internal/gc/lex.go         |  37 ++++++++---
  src/cmd/compile/internal/gc/noder.go       | 102 ++++++++++++++++++++++++-----
@@ -47,3 +47,879 @@ Date:   Wed Apr 1 15:51:08 2020 -0400
  src/go/types/stdlib_test.go                |   1 +
  test/directive.go                          |  95 +++++++++++++++++++++++++++
  10 files changed, 345 insertions(+), 88 deletions(-)
+
+diff --git a/src/cmd/compile/doc.go b/src/cmd/compile/doc.go
+index 11d48154ad..36dd4bb5cd 100644
+--- a/src/cmd/compile/doc.go
++++ b/src/cmd/compile/doc.go
+@@ -195,30 +195,58 @@ directive can skip over a directive like any other comment.
+ // Line directives typically appear in machine-generated code, so that compilers and debuggers
+ // will report positions in the original input to the generator.
+ /*
+-The line directive is an historical special case; all other directives are of the form
+-//go:name and must start at the beginning of a line, indicating that the directive is defined
+-by the Go toolchain.
++The line directive is a historical special case; all other directives are of the form
++//go:name, indicating that they are defined by the Go toolchain.
++Each directive must be placed its own line, with only leading spaces and tabs
++allowed before the comment.
++Each directive applies to the Go code that immediately follows it,
++which typically must be a declaration.
+ 
+ 	//go:noescape
+ 
+-The //go:noescape directive specifies that the next declaration in the file, which
+-must be a func without a body (meaning that it has an implementation not written
+-in Go) does not allow any of the pointers passed as arguments to escape into the
+-heap or into the values returned from the function. This information can be used
+-during the compiler's escape analysis of Go code calling the function.
++The //go:noescape directive must be followed by a function declaration without
++a body (meaning that the function has an implementation not written in Go).
++It specifies that the function does not allow any of the pointers passed as
++arguments to escape into the heap or into the values returned from the function.
++This information can be used during the compiler's escape analysis of Go code
++calling the function.
++
++	//go:uintptrescapes
++
++The //go:uintptrescapes directive must be followed by a function declaration.
++It specifies that the function's uintptr arguments may be pointer values
++that have been converted to uintptr and must be treated as such by the
++garbage collector. The conversion from pointer to uintptr must appear in
++the argument list of any call to this function. This directive is necessary
++for some low-level system call implementations and should be avoided otherwise.
++
++	//go:noinline
++
++The //go:noinline directive must be followed by a function declaration.
++It specifies that calls to the function should not be inlined, overriding
++the compiler's usual optimization rules. This is typically only needed
++for special runtime functions or when debugging the compiler.
++
++	//go:norace
++
++The //go:norace directive must be followed by a function declaration.
++It specifies that the function's memory accesses must be ignored by the
++race detector. This is most commonly used in low-level code invoked
++at times when it is unsafe to call into the race detector runtime.
+ 
+ 	//go:nosplit
+ 
+-The //go:nosplit directive specifies that the next function declared in the file must
+-not include a stack overflow check. This is most commonly used by low-level
+-runtime sources invoked at times when it is unsafe for the calling goroutine to be
+-preempted.
++The //go:nosplit directive must be followed by a function declaration.
++It specifies that the function must omit its usual stack overflow check.
++This is most commonly used by low-level runtime code invoked
++at times when it is unsafe for the calling goroutine to be preempted.
+ 
+ 	//go:linkname localname [importpath.name]
+ 
+-The //go:linkname directive instructs the compiler to use ``importpath.name'' as the
+-object file symbol name for the variable or function declared as ``localname'' in the
+-source code.
++This special directive does not apply to the Go code that follows it.
++Instead, the //go:linkname directive instructs the compiler to use ``importpath.name''
++as the object file symbol name for the variable or function declared as ``localname''
++in the source code.
+ If the ``importpath.name'' argument is omitted, the directive uses the
+ symbol's default object file symbol name and only has the effect of making
+ the symbol accessible to other packages.
+diff --git a/src/cmd/compile/internal/gc/lex.go b/src/cmd/compile/internal/gc/lex.go
+index 2b502c4601..1a344c6566 100644
+--- a/src/cmd/compile/internal/gc/lex.go
++++ b/src/cmd/compile/internal/gc/lex.go
+@@ -28,16 +28,18 @@ func isQuoted(s string) bool {
+ 	return len(s) >= 2 && s[0] == '"' && s[len(s)-1] == '"'
+ }
+ 
++type PragmaFlag int16
++
+ const (
+ 	// Func pragmas.
+-	Nointerface    syntax.Pragma = 1 << iota
+-	Noescape                     // func parameters don't escape
+-	Norace                       // func must not have race detector annotations
+-	Nosplit                      // func should not execute on separate stack
+-	Noinline                     // func should not be inlined
+-	NoCheckPtr                   // func should not be instrumented by checkptr
+-	CgoUnsafeArgs                // treat a pointer to one arg as a pointer to them all
+-	UintptrEscapes               // pointers converted to uintptr escape
++	Nointerface    PragmaFlag = 1 << iota
++	Noescape                  // func parameters don't escape
++	Norace                    // func must not have race detector annotations
++	Nosplit                   // func should not execute on separate stack
++	Noinline                  // func should not be inlined
++	NoCheckPtr                // func should not be instrumented by checkptr
++	CgoUnsafeArgs             // treat a pointer to one arg as a pointer to them all
++	UintptrEscapes            // pointers converted to uintptr escape
+ 
+ 	// Runtime-only func pragmas.
+ 	// See ../../../../runtime/README.md for detailed descriptions.
+@@ -50,7 +52,24 @@ const (
+ 	NotInHeap // values of this type must not be heap allocated
+ )
+ 
+-func pragmaValue(verb string) syntax.Pragma {
++const (
++	FuncPragmas = Nointerface |
++		Noescape |
++		Norace |
++		Nosplit |
++		Noinline |
++		NoCheckPtr |
++		CgoUnsafeArgs |
++		UintptrEscapes |
++		Systemstack |
++		Nowritebarrier |
++		Nowritebarrierrec |
++		Yeswritebarrierrec
++
++	TypePragmas = NotInHeap
++)
++
++func pragmaFlag(verb string) PragmaFlag {
+ 	switch verb {
+ 	case "go:nointerface":
+ 		if objabi.Fieldtrack_enabled != 0 {
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index b956a7d13c..31fe46ad62 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -241,6 +241,10 @@ func (p *noder) node() {
+ 	p.setlineno(p.file.PkgName)
+ 	mkpackage(p.file.PkgName.Value)
+ 
++	if pragma, ok := p.file.Pragma.(*Pragma); ok {
++		p.checkUnused(pragma)
++	}
++
+ 	xtop = append(xtop, p.decls(p.file.DeclList)...)
+ 
+ 	for _, n := range p.linknames {
+@@ -313,6 +317,10 @@ func (p *noder) importDecl(imp *syntax.ImportDecl) {
+ 		return // avoid follow-on errors if there was a syntax error
+ 	}
+ 
++	if pragma, ok := imp.Pragma.(*Pragma); ok {
++		p.checkUnused(pragma)
++	}
++
+ 	val := p.basicLit(imp.Path)
+ 	ipkg := importfile(&val)
+ 
+@@ -363,6 +371,10 @@ func (p *noder) varDecl(decl *syntax.VarDecl) []*Node {
+ 		exprs = p.exprList(decl.Values)
+ 	}
+ 
++	if pragma, ok := decl.Pragma.(*Pragma); ok {
++		p.checkUnused(pragma)
++	}
++
+ 	p.setlineno(decl)
+ 	return variter(names, typ, exprs)
+ }
+@@ -384,6 +396,10 @@ func (p *noder) constDecl(decl *syntax.ConstDecl, cs *constState) []*Node {
+ 		}
+ 	}
+ 
++	if pragma, ok := decl.Pragma.(*Pragma); ok {
++		p.checkUnused(pragma)
++	}
++
+ 	names := p.declNames(decl.NameList)
+ 	typ := p.typeExprOrNil(decl.Type)
+ 
+@@ -438,11 +454,13 @@ func (p *noder) typeDecl(decl *syntax.TypeDecl) *Node {
+ 
+ 	param := n.Name.Param
+ 	param.Ntype = typ
+-	param.Pragma = decl.Pragma
+ 	param.Alias = decl.Alias
+-	if param.Alias && param.Pragma != 0 {
+-		yyerror("cannot specify directive with type alias")
+-		param.Pragma = 0
++	if pragma, ok := decl.Pragma.(*Pragma); ok {
++		if !decl.Alias {
++			param.Pragma = pragma.Flag & TypePragmas
++			pragma.Flag &^= TypePragmas
++		}
++		p.checkUnused(pragma)
+ 	}
+ 
+ 	nod := p.nod(decl, ODCLTYPE, n, nil)
+@@ -493,10 +511,13 @@ func (p *noder) funcDecl(fun *syntax.FuncDecl) *Node {
+ 	f.Func.Nname.Name.Defn = f
+ 	f.Func.Nname.Name.Param.Ntype = t
+ 
+-	pragma := fun.Pragma
+-	f.Func.Pragma = fun.Pragma
+-	if pragma&Systemstack != 0 && pragma&Nosplit != 0 {
+-		yyerrorl(f.Pos, "go:nosplit and go:systemstack cannot be combined")
++	if pragma, ok := fun.Pragma.(*Pragma); ok {
++		f.Func.Pragma = pragma.Flag & FuncPragmas
++		if pragma.Flag&Systemstack != 0 && pragma.Flag&Nosplit != 0 {
++			yyerrorl(f.Pos, "go:nosplit and go:systemstack cannot be combined")
++		}
++		pragma.Flag &^= FuncPragmas
++		p.checkUnused(pragma)
+ 	}
+ 
+ 	if fun.Recv == nil {
+@@ -1479,13 +1500,58 @@ var allowedStdPragmas = map[string]bool{
+ 	"go:generate":           true,
+ }
+ 
++// *Pragma is the value stored in a syntax.Pragma during parsing.
++type Pragma struct {
++	Flag PragmaFlag  // collected bits
++	Pos  []PragmaPos // position of each individual flag
++}
++
++type PragmaPos struct {
++	Flag PragmaFlag
++	Pos  syntax.Pos
++}
++
++func (p *noder) checkUnused(pragma *Pragma) {
++	for _, pos := range pragma.Pos {
++		if pos.Flag&pragma.Flag != 0 {
++			p.yyerrorpos(pos.Pos, "misplaced compiler directive")
++		}
++	}
++}
++
++func (p *noder) checkUnusedDuringParse(pragma *Pragma) {
++	for _, pos := range pragma.Pos {
++		if pos.Flag&pragma.Flag != 0 {
++			p.error(syntax.Error{Pos: pos.Pos, Msg: "misplaced compiler directive"})
++		}
++	}
++}
++
+ // pragma is called concurrently if files are parsed concurrently.
+-func (p *noder) pragma(pos syntax.Pos, text string) syntax.Pragma {
+-	switch {
+-	case strings.HasPrefix(text, "line "):
++func (p *noder) pragma(pos syntax.Pos, blankLine bool, text string, old syntax.Pragma) syntax.Pragma {
++	pragma, _ := old.(*Pragma)
++	if pragma == nil {
++		pragma = new(Pragma)
++	}
++
++	if text == "" {
++		// unused pragma; only called with old != nil.
++		p.checkUnusedDuringParse(pragma)
++		return nil
++	}
++
++	if strings.HasPrefix(text, "line ") {
+ 		// line directives are handled by syntax package
+ 		panic("unreachable")
++	}
+ 
++	if !blankLine {
++		// directive must be on line by itself
++		p.error(syntax.Error{Pos: pos, Msg: "misplaced compiler directive"})
++		return pragma
++	}
++
++	switch {
+ 	case strings.HasPrefix(text, "go:linkname "):
+ 		f := strings.Fields(text)
+ 		if !(2 <= len(f) && len(f) <= 3) {
+@@ -1513,7 +1579,8 @@ func (p *noder) pragma(pos syntax.Pos, text string) syntax.Pragma {
+ 				p.error(syntax.Error{Pos: pos, Msg: fmt.Sprintf("invalid library name %q in cgo_import_dynamic directive", lib)})
+ 			}
+ 			p.pragcgo(pos, text)
+-			return pragmaValue("go:cgo_import_dynamic")
++			pragma.Flag |= pragmaFlag("go:cgo_import_dynamic")
++			break
+ 		}
+ 		fallthrough
+ 	case strings.HasPrefix(text, "go:cgo_"):
+@@ -1530,18 +1597,19 @@ func (p *noder) pragma(pos syntax.Pos, text string) syntax.Pragma {
+ 		if i := strings.Index(text, " "); i >= 0 {
+ 			verb = verb[:i]
+ 		}
+-		prag := pragmaValue(verb)
++		flag := pragmaFlag(verb)
+ 		const runtimePragmas = Systemstack | Nowritebarrier | Nowritebarrierrec | Yeswritebarrierrec
+-		if !compiling_runtime && prag&runtimePragmas != 0 {
++		if !compiling_runtime && flag&runtimePragmas != 0 {
+ 			p.error(syntax.Error{Pos: pos, Msg: fmt.Sprintf("//%s only allowed in runtime", verb)})
+ 		}
+-		if prag == 0 && !allowedStdPragmas[verb] && compiling_std {
++		if flag == 0 && !allowedStdPragmas[verb] && compiling_std {
+ 			p.error(syntax.Error{Pos: pos, Msg: fmt.Sprintf("//%s is not allowed in the standard library", verb)})
+ 		}
+-		return prag
++		pragma.Flag |= flag
++		pragma.Pos = append(pragma.Pos, PragmaPos{flag, pos})
+ 	}
+ 
+-	return 0
++	return pragma
+ }
+ 
+ // isCgoGeneratedFile reports whether pos is in a file
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index fe2d097e09..940105a345 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -8,7 +8,6 @@ package gc
+ 
+ import (
+ 	"cmd/compile/internal/ssa"
+-	"cmd/compile/internal/syntax"
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/objabi"
+@@ -483,7 +482,7 @@ type Param struct {
+ 	// OTYPE
+ 	//
+ 	// TODO: Should Func pragmas also be stored on the Name?
+-	Pragma syntax.Pragma
++	Pragma PragmaFlag
+ 	Alias  bool // node is alias for Ntype (only used when type-checking ODCLTYPE)
+ }
+ 
+@@ -565,7 +564,7 @@ type Func struct {
+ 	Endlineno src.XPos
+ 	WBPos     src.XPos // position of first write barrier; see SetWBPos
+ 
+-	Pragma syntax.Pragma // go:xxx function annotations
++	Pragma PragmaFlag // go:xxx function annotations
+ 
+ 	flags      bitset16
+ 	numDefers  int // number of defer calls in the function
+diff --git a/src/cmd/compile/internal/syntax/nodes.go b/src/cmd/compile/internal/syntax/nodes.go
+index 9a74c0250b..815630fcd4 100644
+--- a/src/cmd/compile/internal/syntax/nodes.go
++++ b/src/cmd/compile/internal/syntax/nodes.go
+@@ -34,6 +34,7 @@ func (*node) aNode()     {}
+ 
+ // package PkgName; DeclList[0], DeclList[1], ...
+ type File struct {
++	Pragma   Pragma
+ 	PkgName  *Name
+ 	DeclList []Decl
+ 	Lines    uint
+@@ -52,9 +53,10 @@ type (
+ 	//              Path
+ 	// LocalPkgName Path
+ 	ImportDecl struct {
++		Group        *Group // nil means not part of a group
++		Pragma       Pragma
+ 		LocalPkgName *Name // including "."; nil means no rename present
+ 		Path         *BasicLit
+-		Group        *Group // nil means not part of a group
+ 		decl
+ 	}
+ 
+@@ -62,20 +64,21 @@ type (
+ 	// NameList      = Values
+ 	// NameList Type = Values
+ 	ConstDecl struct {
+-		NameList []*Name
+-		Type     Expr   // nil means no type
+-		Values   Expr   // nil means no values
+ 		Group    *Group // nil means not part of a group
++		Pragma   Pragma
++		NameList []*Name
++		Type     Expr // nil means no type
++		Values   Expr // nil means no values
+ 		decl
+ 	}
+ 
+ 	// Name Type
+ 	TypeDecl struct {
++		Group  *Group // nil means not part of a group
++		Pragma Pragma
+ 		Name   *Name
+ 		Alias  bool
+ 		Type   Expr
+-		Group  *Group // nil means not part of a group
+-		Pragma Pragma
+ 		decl
+ 	}
+ 
+@@ -83,10 +86,11 @@ type (
+ 	// NameList Type = Values
+ 	// NameList      = Values
+ 	VarDecl struct {
+-		NameList []*Name
+-		Type     Expr   // nil means no type
+-		Values   Expr   // nil means no values
+ 		Group    *Group // nil means not part of a group
++		Pragma   Pragma
++		NameList []*Name
++		Type     Expr // nil means no type
++		Values   Expr // nil means no values
+ 		decl
+ 	}
+ 
+@@ -95,12 +99,11 @@ type (
+ 	// func Receiver Name Type { Body }
+ 	// func Receiver Name Type
+ 	FuncDecl struct {
+-		Attr   map[string]bool // go:attr map
+-		Recv   *Field          // nil means regular function
++		Pragma Pragma
++		Recv   *Field // nil means regular function
+ 		Name   *Name
+ 		Type   *FuncType
+ 		Body   *BlockStmt // nil means no body (forward declaration)
+-		Pragma Pragma     // TODO(mdempsky): Cleaner solution.
+ 		decl
+ 	}
+ )
+diff --git a/src/cmd/compile/internal/syntax/parser.go b/src/cmd/compile/internal/syntax/parser.go
+index 5e52800b39..9601fab9e0 100644
+--- a/src/cmd/compile/internal/syntax/parser.go
++++ b/src/cmd/compile/internal/syntax/parser.go
+@@ -15,15 +15,16 @@ const debug = false
+ const trace = false
+ 
+ type parser struct {
+-	file *PosBase
+-	errh ErrorHandler
+-	mode Mode
++	file  *PosBase
++	errh  ErrorHandler
++	mode  Mode
++	pragh PragmaHandler
+ 	scanner
+ 
+ 	base   *PosBase // current position base
+ 	first  error    // first error encountered
+ 	errcnt int      // number of errors encountered
+-	pragma Pragma   // pragma flags
++	pragma Pragma   // pragmas
+ 
+ 	fnest  int    // function nesting level (for error handling)
+ 	xnest  int    // expression nesting level (for complit ambiguity resolution)
+@@ -34,6 +35,7 @@ func (p *parser) init(file *PosBase, r io.Reader, errh ErrorHandler, pragh Pragm
+ 	p.file = file
+ 	p.errh = errh
+ 	p.mode = mode
++	p.pragh = pragh
+ 	p.scanner.init(
+ 		r,
+ 		// Error and directive handler for scanner.
+@@ -47,9 +49,11 @@ func (p *parser) init(file *PosBase, r io.Reader, errh ErrorHandler, pragh Pragm
+ 				return
+ 			}
+ 
+-			// otherwise it must be a comment containing a line or go: directive
++			// otherwise it must be a comment containing a line or go: directive.
++			// //line directives must be at the start of the line (column colbase).
++			// /*line*/ directives can be anywhere in the line.
+ 			text := commentText(msg)
+-			if strings.HasPrefix(text, "line ") {
++			if (col == colbase || msg[1] == '*') && strings.HasPrefix(text, "line ") {
+ 				var pos Pos // position immediately following the comment
+ 				if msg[1] == '/' {
+ 					// line comment (newline is part of the comment)
+@@ -67,7 +71,7 @@ func (p *parser) init(file *PosBase, r io.Reader, errh ErrorHandler, pragh Pragm
+ 
+ 			// go: directive (but be conservative and test)
+ 			if pragh != nil && strings.HasPrefix(text, "go:") {
+-				p.pragma |= pragh(p.posAt(line, col+2), text) // +2 to skip over // or /*
++				p.pragma = pragh(p.posAt(line, col+2), p.scanner.blank, text, p.pragma) // +2 to skip over // or /*
+ 			}
+ 		},
+ 		directives,
+@@ -76,13 +80,32 @@ func (p *parser) init(file *PosBase, r io.Reader, errh ErrorHandler, pragh Pragm
+ 	p.base = file
+ 	p.first = nil
+ 	p.errcnt = 0
+-	p.pragma = 0
++	p.pragma = nil
+ 
+ 	p.fnest = 0
+ 	p.xnest = 0
+ 	p.indent = nil
+ }
+ 
++// takePragma returns the current parsed pragmas
++// and clears them from the parser state.
++func (p *parser) takePragma() Pragma {
++	prag := p.pragma
++	p.pragma = nil
++	return prag
++}
++
++// clearPragma is called at the end of a statement or
++// other Go form that does NOT accept a pragma.
++// It sends the pragma back to the pragma handler
++// to be reported as unused.
++func (p *parser) clearPragma() {
++	if p.pragma != nil {
++		p.pragh(p.pos(), p.scanner.blank, "", p.pragma)
++		p.pragma = nil
++	}
++}
++
+ // updateBase sets the current position base to a new line base at pos.
+ // The base's filename, line, and column values are extracted from text
+ // which is positioned at (tline, tcol) (only needed for error messages).
+@@ -362,6 +385,7 @@ func (p *parser) fileOrNil() *File {
+ 		p.syntaxError("package statement must be first")
+ 		return nil
+ 	}
++	f.Pragma = p.takePragma()
+ 	f.PkgName = p.name()
+ 	p.want(_Semi)
+ 
+@@ -410,7 +434,7 @@ func (p *parser) fileOrNil() *File {
+ 
+ 		// Reset p.pragma BEFORE advancing to the next token (consuming ';')
+ 		// since comments before may set pragmas for the next function decl.
+-		p.pragma = 0
++		p.clearPragma()
+ 
+ 		if p.tok != _EOF && !p.got(_Semi) {
+ 			p.syntaxError("after top level declaration")
+@@ -419,6 +443,7 @@ func (p *parser) fileOrNil() *File {
+ 	}
+ 	// p.tok == _EOF
+ 
++	p.clearPragma()
+ 	f.Lines = p.line
+ 
+ 	return f
+@@ -469,6 +494,7 @@ func (p *parser) list(open, sep, close token, f func() bool) Pos {
+ func (p *parser) appendGroup(list []Decl, f func(*Group) Decl) []Decl {
+ 	if p.tok == _Lparen {
+ 		g := new(Group)
++		p.clearPragma()
+ 		p.list(_Lparen, _Semi, _Rparen, func() bool {
+ 			list = append(list, f(g))
+ 			return false
+@@ -497,6 +523,8 @@ func (p *parser) importDecl(group *Group) Decl {
+ 
+ 	d := new(ImportDecl)
+ 	d.pos = p.pos()
++	d.Group = group
++	d.Pragma = p.takePragma()
+ 
+ 	switch p.tok {
+ 	case _Name:
+@@ -511,7 +539,6 @@ func (p *parser) importDecl(group *Group) Decl {
+ 		p.advance(_Semi, _Rparen)
+ 		return nil
+ 	}
+-	d.Group = group
+ 
+ 	return d
+ }
+@@ -524,6 +551,8 @@ func (p *parser) constDecl(group *Group) Decl {
+ 
+ 	d := new(ConstDecl)
+ 	d.pos = p.pos()
++	d.Group = group
++	d.Pragma = p.takePragma()
+ 
+ 	d.NameList = p.nameList(p.name())
+ 	if p.tok != _EOF && p.tok != _Semi && p.tok != _Rparen {
+@@ -532,7 +561,6 @@ func (p *parser) constDecl(group *Group) Decl {
+ 			d.Values = p.exprList()
+ 		}
+ 	}
+-	d.Group = group
+ 
+ 	return d
+ }
+@@ -545,6 +573,8 @@ func (p *parser) typeDecl(group *Group) Decl {
+ 
+ 	d := new(TypeDecl)
+ 	d.pos = p.pos()
++	d.Group = group
++	d.Pragma = p.takePragma()
+ 
+ 	d.Name = p.name()
+ 	d.Alias = p.gotAssign()
+@@ -554,8 +584,6 @@ func (p *parser) typeDecl(group *Group) Decl {
+ 		p.syntaxError("in type declaration")
+ 		p.advance(_Semi, _Rparen)
+ 	}
+-	d.Group = group
+-	d.Pragma = p.pragma
+ 
+ 	return d
+ }
+@@ -568,6 +596,8 @@ func (p *parser) varDecl(group *Group) Decl {
+ 
+ 	d := new(VarDecl)
+ 	d.pos = p.pos()
++	d.Group = group
++	d.Pragma = p.takePragma()
+ 
+ 	d.NameList = p.nameList(p.name())
+ 	if p.gotAssign() {
+@@ -578,7 +608,6 @@ func (p *parser) varDecl(group *Group) Decl {
+ 			d.Values = p.exprList()
+ 		}
+ 	}
+-	d.Group = group
+ 
+ 	return d
+ }
+@@ -595,6 +624,7 @@ func (p *parser) funcDeclOrNil() *FuncDecl {
+ 
+ 	f := new(FuncDecl)
+ 	f.pos = p.pos()
++	f.Pragma = p.takePragma()
+ 
+ 	if p.tok == _Lparen {
+ 		rcvr := p.paramList()
+@@ -620,7 +650,6 @@ func (p *parser) funcDeclOrNil() *FuncDecl {
+ 	if p.tok == _Lbrace {
+ 		f.Body = p.funcBody()
+ 	}
+-	f.Pragma = p.pragma
+ 
+ 	return f
+ }
+@@ -2054,6 +2083,7 @@ func (p *parser) stmtOrNil() Stmt {
+ 	// Most statements (assignments) start with an identifier;
+ 	// look for it first before doing anything more expensive.
+ 	if p.tok == _Name {
++		p.clearPragma()
+ 		lhs := p.exprList()
+ 		if label, ok := lhs.(*Name); ok && p.tok == _Colon {
+ 			return p.labeledStmtOrNil(label)
+@@ -2062,9 +2092,6 @@ func (p *parser) stmtOrNil() Stmt {
+ 	}
+ 
+ 	switch p.tok {
+-	case _Lbrace:
+-		return p.blockStmt("")
+-
+ 	case _Var:
+ 		return p.declStmt(p.varDecl)
+ 
+@@ -2073,6 +2100,13 @@ func (p *parser) stmtOrNil() Stmt {
+ 
+ 	case _Type:
+ 		return p.declStmt(p.typeDecl)
++	}
++
++	p.clearPragma()
++
++	switch p.tok {
++	case _Lbrace:
++		return p.blockStmt("")
+ 
+ 	case _Operator, _Star:
+ 		switch p.op {
+@@ -2151,6 +2185,7 @@ func (p *parser) stmtList() (l []Stmt) {
+ 
+ 	for p.tok != _EOF && p.tok != _Rbrace && p.tok != _Case && p.tok != _Default {
+ 		s := p.stmtOrNil()
++		p.clearPragma()
+ 		if s == nil {
+ 			break
+ 		}
+diff --git a/src/cmd/compile/internal/syntax/scanner.go b/src/cmd/compile/internal/syntax/scanner.go
+index 6cb7ff83a0..9fe4965984 100644
+--- a/src/cmd/compile/internal/syntax/scanner.go
++++ b/src/cmd/compile/internal/syntax/scanner.go
+@@ -34,6 +34,7 @@ type scanner struct {
+ 
+ 	// current token, valid after calling next()
+ 	line, col uint
++	blank     bool // line is blank up to col
+ 	tok       token
+ 	lit       string   // valid if tok is _Name, _Literal, or _Semi ("semicolon", "newline", or "EOF"); may be malformed if bad is true
+ 	bad       bool     // valid if tok is _Literal, true if a syntax error occurred, lit may be malformed
+@@ -83,10 +84,7 @@ func (s *scanner) setLit(kind LitKind, ok bool) {
+ //
+ // If the scanner mode includes the directives (but not the comments)
+ // flag, only comments containing a //line, /*line, or //go: directive
+-// are reported, in the same way as regular comments. Directives in
+-// //-style comments are only recognized if they are at the beginning
+-// of a line.
+-//
++// are reported, in the same way as regular comments.
+ func (s *scanner) next() {
+ 	nlsemi := s.nlsemi
+ 	s.nlsemi = false
+@@ -94,12 +92,14 @@ func (s *scanner) next() {
+ redo:
+ 	// skip white space
+ 	s.stop()
++	startLine, startCol := s.pos()
+ 	for s.ch == ' ' || s.ch == '\t' || s.ch == '\n' && !nlsemi || s.ch == '\r' {
+ 		s.nextch()
+ 	}
+ 
+ 	// token start
+ 	s.line, s.col = s.pos()
++	s.blank = s.line > startLine || startCol == colbase
+ 	s.start()
+ 	if isLetter(s.ch) || s.ch >= utf8.RuneSelf && s.atIdentChar(true) {
+ 		s.nextch()
+@@ -741,8 +741,8 @@ func (s *scanner) lineComment() {
+ 		return
+ 	}
+ 
+-	// directives must start at the beginning of the line (s.col == colbase)
+-	if s.mode&directives == 0 || s.col != colbase || (s.ch != 'g' && s.ch != 'l') {
++	// are we saving directives? or is this definitely not a directive?
++	if s.mode&directives == 0 || (s.ch != 'g' && s.ch != 'l') {
+ 		s.stop()
+ 		s.skipLine()
+ 		return
+diff --git a/src/cmd/compile/internal/syntax/syntax.go b/src/cmd/compile/internal/syntax/syntax.go
+index b8c387419f..e51b5538b3 100644
+--- a/src/cmd/compile/internal/syntax/syntax.go
++++ b/src/cmd/compile/internal/syntax/syntax.go
+@@ -33,15 +33,24 @@ var _ error = Error{} // verify that Error implements error
+ // An ErrorHandler is called for each error encountered reading a .go file.
+ type ErrorHandler func(err error)
+ 
+-// A Pragma value is a set of flags that augment a function or
+-// type declaration. Callers may assign meaning to the flags as
+-// appropriate.
+-type Pragma uint16
++// A Pragma value augments a package, import, const, func, type, or var declaration.
++// Its meaning is entirely up to the PragmaHandler,
++// except that nil is used to mean “no pragma seen.”
++type Pragma interface{}
+ 
+-// A PragmaHandler is used to process //go: directives as
+-// they're scanned. The returned Pragma value will be unioned into the
+-// next FuncDecl node.
+-type PragmaHandler func(pos Pos, text string) Pragma
++// A PragmaHandler is used to process //go: directives while scanning.
++// It is passed the current pragma value, which starts out being nil,
++// and it returns an updated pragma value.
++// The text is the directive, with the "//" prefix stripped.
++// The current pragma is saved at each package, import, const, func, type, or var
++// declaration, into the File, ImportDecl, ConstDecl, FuncDecl, TypeDecl, or VarDecl node.
++//
++// If text is the empty string, the pragma is being returned
++// to the handler unused, meaning it appeared before a non-declaration.
++// The handler may wish to report an error. In this case, pos is the
++// current parser position, not the position of the pragma itself.
++// Blank specifies whether the line is blank before the pragma.
++type PragmaHandler func(pos Pos, blank bool, text string, current Pragma) Pragma
+ 
+ // Parse parses a single Go source file from src and returns the corresponding
+ // syntax tree. If there are errors, Parse will return the first error found,
+diff --git a/src/go/types/stdlib_test.go b/src/go/types/stdlib_test.go
+index 1b1db5d2dd..51ee0b1c36 100644
+--- a/src/go/types/stdlib_test.go
++++ b/src/go/types/stdlib_test.go
+@@ -156,6 +156,7 @@ func TestStdTest(t *testing.T) {
+ 
+ 	testTestDir(t, filepath.Join(runtime.GOROOT(), "test"),
+ 		"cmplxdivide.go", // also needs file cmplxdivide1.go - ignore
++		"directive.go",   // tests compiler rejection of bad directive placement - ignore
+ 	)
+ }
+ 
+diff --git a/test/directive.go b/test/directive.go
+new file mode 100644
+index 0000000000..6167cd6279
+--- /dev/null
++++ b/test/directive.go
+@@ -0,0 +1,95 @@
++// errorcheck
++
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Verify that misplaced directives are diagnosed.
++
++//go:noinline // ERROR "misplaced compiler directive"
++
++//go:noinline // ERROR "misplaced compiler directive"
++package main
++
++//go:nosplit
++func f1() {}
++
++//go:nosplit
++//go:noinline
++func f2() {}
++
++//go:noinline // ERROR "misplaced compiler directive"
++
++//go:noinline // ERROR "misplaced compiler directive"
++var x int
++
++//go:noinline // ERROR "misplaced compiler directive"
++const c = 1
++
++//go:noinline // ERROR "misplaced compiler directive"
++type T int
++
++// ok
++//go:notinheap
++type T1 int
++
++//go:notinheap // ERROR "misplaced compiler directive"
++type (
++	//go:notinheap
++	//go:noinline // ERROR "misplaced compiler directive"
++	T2  int //go:notinheap // ERROR "misplaced compiler directive"
++	T2b int
++	//go:notinheap
++	T2c int
++	//go:noinline // ERROR "misplaced compiler directive"
++	T3 int
++)
++
++//go:notinheap // ERROR "misplaced compiler directive"
++type (
++	//go:notinheap
++	T4 int
++)
++
++//go:notinheap // ERROR "misplaced compiler directive"
++type ()
++
++type T5 int
++
++func g() {} //go:noinline // ERROR "misplaced compiler directive"
++
++// ok: attached to f (duplicated yes, but ok)
++//go:noinline
++
++//go:noinline
++func f() {
++	//go:noinline // ERROR "misplaced compiler directive"
++	x := 1
++
++	//go:noinline // ERROR "misplaced compiler directive"
++	{
++		_ = x //go:noinline // ERROR "misplaced compiler directive"
++	}
++	//go:noinline // ERROR "misplaced compiler directive"
++	var y int //go:noinline // ERROR "misplaced compiler directive"
++	//go:noinline // ERROR "misplaced compiler directive"
++	_ = y
++
++	//go:noinline // ERROR "misplaced compiler directive"
++	const c = 1
++
++	//go:noinline // ERROR "misplaced compiler directive"
++	_ = func() {}
++
++	//go:noinline // ERROR "misplaced compiler directive"
++	// ok:
++	//go:notinheap
++	type T int
++}
++
++// someday there might be a directive that can apply to type aliases, but go:notinheap doesn't.
++//go:notinheap // ERROR "misplaced compiler directive"
++type T6 = int
++
++// EOF
++//go:noinline // ERROR "misplaced compiler directive"

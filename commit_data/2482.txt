@@ -8,8 +8,241 @@ Date:   Thu Jun 18 17:55:47 2009 -0700
     DELTA=189  (187 added, 0 deleted, 2 changed)
     OCL=30205
     CL=30517
-
+---
  src/pkg/Make.deps          |   2 +-
  src/pkg/regexp/all_test.go | 122 +++++++++++++++++++++++++++++++++++++++++++++
  src/pkg/regexp/regexp.go   |  67 ++++++++++++++++++++++++-
  3 files changed, 189 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/Make.deps b/src/pkg/Make.deps
+index d710c59e35..eb99e558c9 100644
+--- a/src/pkg/Make.deps
++++ b/src/pkg/Make.deps
+@@ -37,7 +37,7 @@ os.install: once.install syscall.install
+ path.install: io.install
+ rand.install:
+ reflect.install: strconv.install sync.install utf8.install
+-regexp.install: container/vector.install os.install runtime.install utf8.install
++regexp.install: container/vector.install io.install os.install runtime.install utf8.install
+ runtime.install:
+ sort.install:
+ strconv.install: bytes.install math.install os.install utf8.install
+diff --git a/src/pkg/regexp/all_test.go b/src/pkg/regexp/all_test.go
+index a9f275893a..23c22003ee 100644
+--- a/src/pkg/regexp/all_test.go
++++ b/src/pkg/regexp/all_test.go
+@@ -233,3 +233,125 @@ func TestMatchFunction(t *testing.T) {
+ 		matchFunctionTest(t, test.re, test.text, test.match)
+ 	}
+ }
++
++type ReplaceTest struct {
++	pattern, replacement, input, output string;
++}
++
++var replaceTests = []ReplaceTest {
++	// Test empty input and/or replacement, with pattern that matches the empty string.
++	ReplaceTest{"", "", "", ""},
++	ReplaceTest{"", "x", "", "x"},
++	ReplaceTest{"", "", "abc", "abc"},
++	ReplaceTest{"", "x", "abc", "xaxbxcx"},
++
++	// Test empty input and/or replacement, with pattern that does not match the empty string.
++	ReplaceTest{"b", "", "", ""},
++	ReplaceTest{"b", "x", "", ""},
++	ReplaceTest{"b", "", "abc", "ac"},
++	ReplaceTest{"b", "x", "abc", "axc"},
++	ReplaceTest{"y", "", "", ""},
++	ReplaceTest{"y", "x", "", ""},
++	ReplaceTest{"y", "", "abc", "abc"},
++	ReplaceTest{"y", "x", "abc", "abc"},
++
++	// Multibyte characters -- verify that we don't try to match in the middle
++	// of a character.
++	ReplaceTest{"[a-c]*", "x", "\u65e5", "x\u65e5x"},
++	ReplaceTest{"[^\u65e5]", "x", "abc\u65e5def", "xxx\u65e5xxx"},
++
++	// Start and end of a string.
++	ReplaceTest{"^[a-c]*", "x", "abcdabc", "xdabc"},
++	ReplaceTest{"[a-c]*$", "x", "abcdabc", "abcdx"},
++	ReplaceTest{"^[a-c]*$", "x", "abcdabc", "abcdabc"},
++	ReplaceTest{"^[a-c]*", "x", "abc", "x"},
++	ReplaceTest{"[a-c]*$", "x", "abc", "x"},
++	ReplaceTest{"^[a-c]*$", "x", "abc", "x"},
++	ReplaceTest{"^[a-c]*", "x", "dabce", "xdabce"},
++	ReplaceTest{"[a-c]*$", "x", "dabce", "dabcex"},
++	ReplaceTest{"^[a-c]*$", "x", "dabce", "dabce"},
++	ReplaceTest{"^[a-c]*", "x", "", "x"},
++	ReplaceTest{"[a-c]*$", "x", "", "x"},
++	ReplaceTest{"^[a-c]*$", "x", "", "x"},
++
++	ReplaceTest{"^[a-c]+", "x", "abcdabc", "xdabc"},
++	ReplaceTest{"[a-c]+$", "x", "abcdabc", "abcdx"},
++	ReplaceTest{"^[a-c]+$", "x", "abcdabc", "abcdabc"},
++	ReplaceTest{"^[a-c]+", "x", "abc", "x"},
++	ReplaceTest{"[a-c]+$", "x", "abc", "x"},
++	ReplaceTest{"^[a-c]+$", "x", "abc", "x"},
++	ReplaceTest{"^[a-c]+", "x", "dabce", "dabce"},
++	ReplaceTest{"[a-c]+$", "x", "dabce", "dabce"},
++	ReplaceTest{"^[a-c]+$", "x", "dabce", "dabce"},
++	ReplaceTest{"^[a-c]+", "x", "", ""},
++	ReplaceTest{"[a-c]+$", "x", "", ""},
++	ReplaceTest{"^[a-c]+$", "x", "", ""},
++
++	// Other cases.
++	ReplaceTest{"abc", "def", "abcdefg", "defdefg"},
++	ReplaceTest{"bc", "BC", "abcbcdcdedef", "aBCBCdcdedef"},
++	ReplaceTest{"abc", "", "abcdabc", "d"},
++	ReplaceTest{"x", "xXx", "xxxXxxx", "xXxxXxxXxXxXxxXxxXx"},
++	ReplaceTest{"abc", "d", "", ""},
++	ReplaceTest{"abc", "d", "abc", "d"},
++	ReplaceTest{".+", "x", "abc", "x"},
++	ReplaceTest{"[a-c]*", "x", "def", "xdxexfx"},
++	ReplaceTest{"[a-c]+", "x", "abcbcdcdedef", "xdxdedef"},
++	ReplaceTest{"[a-c]*", "x", "abcbcdcdedef", "xdxdxexdxexfx"},
++}
++
++func TestReplaceAll(t *testing.T) {
++	for i, tc := range replaceTests {
++		re, err := Compile(tc.pattern);
++		if err != nil {
++			t.Errorf("Unexpected error compiling %q: %v", tc.pattern, err);
++			continue;
++		}
++		actual := re.ReplaceAll(tc.input, tc.replacement);
++		if actual != tc.output {
++			t.Errorf("%q.Replace(%q,%q) = %q; want %q",
++				tc.pattern, tc.input, tc.replacement, actual, tc.output);
++		}
++	}
++}
++
++type QuoteMetaTest struct {
++	pattern, output string;
++}
++
++var quoteMetaTests = []QuoteMetaTest {
++	QuoteMetaTest{``, ``},
++	QuoteMetaTest{`foo`, `foo`},
++	QuoteMetaTest{`!@#$%^&*()_+-=[{]}\|,<.>/?~`, `!@#\$%\^&\*\(\)_\+-=\[{\]}\\\|,<\.>/\?~`},
++}
++
++func TestQuoteMeta(t *testing.T) {
++	for i, tc := range quoteMetaTests {
++		// Verify that QuoteMeta returns the expected string.
++		quoted := QuoteMeta(tc.pattern);
++		if quoted != tc.output {
++			t.Errorf("QuoteMeta(`%s`) = `%s`; want `%s`",
++				tc.pattern, quoted, tc.output);
++			continue;
++		}
++
++		// Verify that the quoted string is in fact treated as expected
++		// by Compile -- i.e. that it matches the original, unquoted string.
++		if tc.pattern != "" {
++			re, err := Compile(quoted);
++			if err != nil {
++				t.Errorf("Unexpected error compiling QuoteMeta(`%s`): %v", tc.pattern, err);
++				continue;
++			}
++			src := "abc" + tc.pattern + "def";
++			repl := "xyz";
++			replaced := re.ReplaceAll(src, repl);
++			expected := "abcxyzdef";
++			if replaced != expected {
++				t.Errorf("QuoteMeta(`%s`).Replace(`%s`,`%s`) = `%s`; want `%s`",
++					tc.pattern, src, repl, replaced, expected);
++			}
++		}
++	}
++}
++
+diff --git a/src/pkg/regexp/regexp.go b/src/pkg/regexp/regexp.go
+index b79800dd95..5fb606a27e 100644
+--- a/src/pkg/regexp/regexp.go
++++ b/src/pkg/regexp/regexp.go
+@@ -24,6 +24,7 @@ package regexp
+ 
+ import (
+ 	"container/vector";
++	"io";
+ 	"os";
+ 	"runtime";
+ 	"utf8";
+@@ -282,7 +283,7 @@ func (p *parser) regexp() (start, end instr)
+ var iNULL instr
+ 
+ func special(c int) bool {
+-	s := `\.+*?()|[]`;
++	s := `\.+*?()|[]^$`;
+ 	for i := 0; i < len(s); i++ {
+ 		if c == int(s[i]) {
+ 			return true
+@@ -762,3 +763,67 @@ func Match(pattern string, s string) (matched bool, error os.Error) {
+ 	}
+ 	return re.Match(s), nil
+ }
++
++// ReplaceAll returns a copy of src in which all matches for the Regexp
++// have been replaced by repl.  No support is provided for expressions
++// (e.g. \1 or $1) in the replacement string.
++func (re *Regexp) ReplaceAll(src, repl string) string {
++	lastMatchEnd := 0; // end position of the most recent match
++	searchPos := 0; // position where we next look for a match
++	buf := new(io.ByteBuffer);
++	for searchPos <= len(src) {
++		a := re.doExecute(src, searchPos);
++		if len(a) == 0 {
++			break; // no more matches
++		}
++
++		// Copy the unmatched characters before this match.
++		io.WriteString(buf, src[lastMatchEnd:a[0]]);
++
++		// Now insert a copy of the replacement string, but not for a
++		// match of the empty string immediately after another match.
++		// (Otherwise, we get double replacement for patterns that
++		// match both empty and nonempty strings.)
++		if a[1] > lastMatchEnd || a[0] == 0 {
++			io.WriteString(buf, repl);
++		}
++		lastMatchEnd = a[1];
++
++		// Advance past this match; always advance at least one character.
++		rune, width := utf8.DecodeRuneInString(src[searchPos:len(src)]);
++		if searchPos + width > a[1] {
++			searchPos += width;
++		} else if searchPos + 1 > a[1] {
++			// This clause is only needed at the end of the input
++			// string.  In that case, DecodeRuneInString returns width=0.
++			searchPos++;
++		} else {
++			searchPos = a[1];
++		}
++	}
++
++	// Copy the unmatched characters after the last match.
++	io.WriteString(buf, src[lastMatchEnd:len(src)]);
++
++	return string(buf.Data());
++}
++
++// QuoteMeta returns a string that quotes all regular expression metacharacters
++// inside the argument text; the returned string is a regular expression matching
++// the literal text.  For example, QuoteMeta(`[foo]`) returns `\[foo\]`.
++func QuoteMeta(s string) string {
++	b := make([]byte, 2 * len(s));
++
++	// A byte loop is correct because all metacharacters are ASCII.
++	j := 0;
++	for i := 0; i < len(s); i++ {
++		if special(int(s[i])) {
++			b[j] = '\\';
++			j++;
++		}
++		b[j] = s[i];
++		j++;
++	}
++	return string(b[0:j]);
++}
++

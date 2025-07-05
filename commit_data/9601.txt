@@ -9,7 +9,7 @@ Date:   Tue Sep 6 09:59:08 2011 +1000
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4934049
-
+---
  src/pkg/os/file_posix.go                  | 33 ---------------
  src/pkg/os/file_unix.go                   | 33 +++++++++++++++
  src/pkg/os/file_windows.go                | 40 ++++--------------
@@ -19,3 +19,448 @@ Date:   Tue Sep 6 09:59:08 2011 +1000
  src/pkg/syscall/zsyscall_windows_amd64.go | 18 +++++++-
  src/pkg/syscall/ztypes_windows.go         | 20 ++++++---
  8 files changed, 150 insertions(+), 114 deletions(-)
+
+diff --git a/src/pkg/os/file_posix.go b/src/pkg/os/file_posix.go
+index 0791a0dc04..14ddd92c4a 100644
+--- a/src/pkg/os/file_posix.go
++++ b/src/pkg/os/file_posix.go
+@@ -21,39 +21,6 @@ func epipecheck(file *File, e int) {
+ 	}
+ }
+ 
+-// Stat returns a FileInfo structure describing the named file and an error, if any.
+-// If name names a valid symbolic link, the returned FileInfo describes
+-// the file pointed at by the link and has fi.FollowedSymlink set to true.
+-// If name names an invalid symbolic link, the returned FileInfo describes
+-// the link itself and has fi.FollowedSymlink set to false.
+-func Stat(name string) (fi *FileInfo, err Error) {
+-	var lstat, stat syscall.Stat_t
+-	e := syscall.Lstat(name, &lstat)
+-	if iserror(e) {
+-		return nil, &PathError{"stat", name, Errno(e)}
+-	}
+-	statp := &lstat
+-	if lstat.Mode&syscall.S_IFMT == syscall.S_IFLNK {
+-		e := syscall.Stat(name, &stat)
+-		if !iserror(e) {
+-			statp = &stat
+-		}
+-	}
+-	return fileInfoFromStat(name, new(FileInfo), &lstat, statp), nil
+-}
+-
+-// Lstat returns the FileInfo structure describing the named file and an
+-// error, if any.  If the file is a symbolic link, the returned FileInfo
+-// describes the symbolic link.  Lstat makes no attempt to follow the link.
+-func Lstat(name string) (fi *FileInfo, err Error) {
+-	var stat syscall.Stat_t
+-	e := syscall.Lstat(name, &stat)
+-	if iserror(e) {
+-		return nil, &PathError{"lstat", name, Errno(e)}
+-	}
+-	return fileInfoFromStat(name, new(FileInfo), &stat, &stat), nil
+-}
+-
+ // Remove removes the named file or directory.
+ func Remove(name string) Error {
+ 	// System call interface forces us to know
+diff --git a/src/pkg/os/file_unix.go b/src/pkg/os/file_unix.go
+index 301c2f473f..ab32ce98d4 100644
+--- a/src/pkg/os/file_unix.go
++++ b/src/pkg/os/file_unix.go
+@@ -94,6 +94,39 @@ func (file *File) Stat() (fi *FileInfo, err Error) {
+ 	return fileInfoFromStat(file.name, new(FileInfo), &stat, &stat), nil
+ }
+ 
++// Stat returns a FileInfo structure describing the named file and an error, if any.
++// If name names a valid symbolic link, the returned FileInfo describes
++// the file pointed at by the link and has fi.FollowedSymlink set to true.
++// If name names an invalid symbolic link, the returned FileInfo describes
++// the link itself and has fi.FollowedSymlink set to false.
++func Stat(name string) (fi *FileInfo, err Error) {
++	var lstat, stat syscall.Stat_t
++	e := syscall.Lstat(name, &lstat)
++	if iserror(e) {
++		return nil, &PathError{"stat", name, Errno(e)}
++	}
++	statp := &lstat
++	if lstat.Mode&syscall.S_IFMT == syscall.S_IFLNK {
++		e := syscall.Stat(name, &stat)
++		if !iserror(e) {
++			statp = &stat
++		}
++	}
++	return fileInfoFromStat(name, new(FileInfo), &lstat, statp), nil
++}
++
++// Lstat returns the FileInfo structure describing the named file and an
++// error, if any.  If the file is a symbolic link, the returned FileInfo
++// describes the symbolic link.  Lstat makes no attempt to follow the link.
++func Lstat(name string) (fi *FileInfo, err Error) {
++	var stat syscall.Stat_t
++	e := syscall.Lstat(name, &stat)
++	if iserror(e) {
++		return nil, &PathError{"lstat", name, Errno(e)}
++	}
++	return fileInfoFromStat(name, new(FileInfo), &stat, &stat), nil
++}
++
+ // Readdir reads the contents of the directory associated with file and
+ // returns an array of up to n FileInfo structures, as would be returned
+ // by Lstat, in directory order. Subsequent calls on the same file will yield
+diff --git a/src/pkg/os/file_windows.go b/src/pkg/os/file_windows.go
+index 70dd6e2410..0cdd2fdf65 100644
+--- a/src/pkg/os/file_windows.go
++++ b/src/pkg/os/file_windows.go
+@@ -39,8 +39,8 @@ func NewFile(fd syscall.Handle, name string) *File {
+ 
+ // Auxiliary information if the File describes a directory
+ type dirInfo struct {
+-	stat         syscall.Stat_t
+-	usefirststat bool
++	data     syscall.Win32finddata
++	needdata bool
+ }
+ 
+ const DevNull = "NUL"
+@@ -64,12 +64,11 @@ func openFile(name string, flag int, perm uint32) (file *File, err Error) {
+ 
+ func openDir(name string) (file *File, err Error) {
+ 	d := new(dirInfo)
+-	r, e := syscall.FindFirstFile(syscall.StringToUTF16Ptr(name+"\\*"), &d.stat.Windata)
++	r, e := syscall.FindFirstFile(syscall.StringToUTF16Ptr(name+`\*`), &d.data)
+ 	if e != 0 {
+ 		return nil, &PathError{"open", name, Errno(e)}
+ 	}
+ 	f := NewFile(r, name)
+-	d.usefirststat = true
+ 	f.dirinfo = d
+ 	return f, nil
+ }
+@@ -128,28 +127,6 @@ func (file *File) Close() Error {
+ 	return err
+ }
+ 
+-func (file *File) statFile(name string) (fi *FileInfo, err Error) {
+-	var stat syscall.ByHandleFileInformation
+-	e := syscall.GetFileInformationByHandle(syscall.Handle(file.fd), &stat)
+-	if e != 0 {
+-		return nil, &PathError{"stat", file.name, Errno(e)}
+-	}
+-	return fileInfoFromByHandleInfo(new(FileInfo), file.name, &stat), nil
+-}
+-
+-// Stat returns the FileInfo structure describing file.
+-// It returns the FileInfo and an error, if any.
+-func (file *File) Stat() (fi *FileInfo, err Error) {
+-	if file == nil || file.fd < 0 {
+-		return nil, EINVAL
+-	}
+-	if file.isdir() {
+-		// I don't know any better way to do that for directory
+-		return Stat(file.name)
+-	}
+-	return file.statFile(file.name)
+-}
+-
+ // Readdir reads the contents of the directory associated with file and
+ // returns an array of up to n FileInfo structures, as would be returned
+ // by Lstat, in directory order. Subsequent calls on the same file will yield
+@@ -172,7 +149,6 @@ func (file *File) Readdir(n int) (fi []FileInfo, err Error) {
+ 	if !file.isdir() {
+ 		return nil, &PathError{"Readdir", file.name, ENOTDIR}
+ 	}
+-	di := file.dirinfo
+ 	wantAll := n <= 0
+ 	size := n
+ 	if wantAll {
+@@ -180,11 +156,10 @@ func (file *File) Readdir(n int) (fi []FileInfo, err Error) {
+ 		size = 100
+ 	}
+ 	fi = make([]FileInfo, 0, size) // Empty with room to grow.
++	d := &file.dirinfo.data
+ 	for n != 0 {
+-		if di.usefirststat {
+-			di.usefirststat = false
+-		} else {
+-			e := syscall.FindNextFile(syscall.Handle(file.fd), &di.stat.Windata)
++		if file.dirinfo.needdata {
++			e := syscall.FindNextFile(syscall.Handle(file.fd), d)
+ 			if e != 0 {
+ 				if e == syscall.ERROR_NO_MORE_FILES {
+ 					break
+@@ -198,7 +173,8 @@ func (file *File) Readdir(n int) (fi []FileInfo, err Error) {
+ 			}
+ 		}
+ 		var f FileInfo
+-		fileInfoFromWin32finddata(&f, &di.stat.Windata)
++		setFileInfo(&f, string(syscall.UTF16ToString(d.FileName[0:])), d.FileAttributes, d.FileSizeHigh, d.FileSizeLow, d.CreationTime, d.LastAccessTime, d.LastWriteTime)
++		file.dirinfo.needdata = true
+ 		if f.Name == "." || f.Name == ".." { // Useless names
+ 			continue
+ 		}
+diff --git a/src/pkg/os/stat_windows.go b/src/pkg/os/stat_windows.go
+index 11088436a3..2009d1f1b5 100644
+--- a/src/pkg/os/stat_windows.go
++++ b/src/pkg/os/stat_windows.go
+@@ -4,24 +4,76 @@
+ 
+ package os
+ 
+-import "syscall"
++import (
++	"unsafe"
++	"syscall"
++)
+ 
+-func fileInfoFromStat(name string, fi *FileInfo, lstat, stat *syscall.Stat_t) *FileInfo {
+-	return fileInfoFromWin32finddata(fi, &stat.Windata)
++// Stat returns the FileInfo structure describing file.
++// It returns the FileInfo and an error, if any.
++func (file *File) Stat() (fi *FileInfo, err Error) {
++	if file == nil || file.fd < 0 {
++		return nil, EINVAL
++	}
++	if file.isdir() {
++		// I don't know any better way to do that for directory
++		return Stat(file.name)
++	}
++	var d syscall.ByHandleFileInformation
++	e := syscall.GetFileInformationByHandle(syscall.Handle(file.fd), &d)
++	if e != 0 {
++		return nil, &PathError{"GetFileInformationByHandle", file.name, Errno(e)}
++	}
++	return setFileInfo(new(FileInfo), basename(file.name), d.FileAttributes, d.FileSizeHigh, d.FileSizeLow, d.CreationTime, d.LastAccessTime, d.LastWriteTime), nil
+ }
+ 
+-func fileInfoFromWin32finddata(fi *FileInfo, d *syscall.Win32finddata) *FileInfo {
+-	return setFileInfo(fi, string(syscall.UTF16ToString(d.FileName[0:])), d.FileAttributes, d.FileSizeHigh, d.FileSizeLow, d.CreationTime, d.LastAccessTime, d.LastWriteTime)
++// Stat returns a FileInfo structure describing the named file and an error, if any.
++// If name names a valid symbolic link, the returned FileInfo describes
++// the file pointed at by the link and has fi.FollowedSymlink set to true.
++// If name names an invalid symbolic link, the returned FileInfo describes
++// the link itself and has fi.FollowedSymlink set to false.
++func Stat(name string) (fi *FileInfo, err Error) {
++	if len(name) == 0 {
++		return nil, &PathError{"Stat", name, Errno(syscall.ERROR_PATH_NOT_FOUND)}
++	}
++	var d syscall.Win32FileAttributeData
++	e := syscall.GetFileAttributesEx(syscall.StringToUTF16Ptr(name), syscall.GetFileExInfoStandard, (*byte)(unsafe.Pointer(&d)))
++	if e != 0 {
++		return nil, &PathError{"GetFileAttributesEx", name, Errno(e)}
++	}
++	return setFileInfo(new(FileInfo), basename(name), d.FileAttributes, d.FileSizeHigh, d.FileSizeLow, d.CreationTime, d.LastAccessTime, d.LastWriteTime), nil
+ }
+ 
+-func fileInfoFromByHandleInfo(fi *FileInfo, name string, d *syscall.ByHandleFileInformation) *FileInfo {
+-	for i := len(name) - 1; i >= 0; i-- {
++// Lstat returns the FileInfo structure describing the named file and an
++// error, if any.  If the file is a symbolic link, the returned FileInfo
++// describes the symbolic link.  Lstat makes no attempt to follow the link.
++func Lstat(name string) (fi *FileInfo, err Error) {
++	// No links on Windows
++	return Stat(name)
++}
++
++// basename removes trailing slashes and the leading
++// directory name and drive letter from path name.
++func basename(name string) string {
++	// Remove drive letter
++	if len(name) == 2 && name[1] == ':' {
++		name = "."
++	} else if len(name) > 2 && name[1] == ':' {
++		name = name[2:]
++	}
++	i := len(name) - 1
++	// Remove trailing slashes
++	for ; i > 0 && (name[i] == '/' || name[i] == '\\'); i-- {
++		name = name[:i]
++	}
++	// Remove leading directory name
++	for i--; i >= 0; i-- {
+ 		if name[i] == '/' || name[i] == '\\' {
+ 			name = name[i+1:]
+ 			break
+ 		}
+ 	}
+-	return setFileInfo(fi, name, d.FileAttributes, d.FileSizeHigh, d.FileSizeLow, d.CreationTime, d.LastAccessTime, d.LastWriteTime)
++	return name
+ }
+ 
+ func setFileInfo(fi *FileInfo, name string, fa, sizehi, sizelo uint32, ctime, atime, wtime syscall.Filetime) *FileInfo {
+diff --git a/src/pkg/syscall/syscall_windows.go b/src/pkg/syscall/syscall_windows.go
+index 30df718491..7bc26d3cf4 100644
+--- a/src/pkg/syscall/syscall_windows.go
++++ b/src/pkg/syscall/syscall_windows.go
+@@ -207,6 +207,7 @@ func NewCallback(fn interface{}) uintptr
+ //sys	SetFileTime(handle Handle, ctime *Filetime, atime *Filetime, wtime *Filetime) (errno int)
+ //sys	GetFileAttributes(name *uint16) (attrs uint32, errno int) [failretval==INVALID_FILE_ATTRIBUTES] = kernel32.GetFileAttributesW
+ //sys	SetFileAttributes(name *uint16, attrs uint32) (errno int) = kernel32.SetFileAttributesW
++//sys	GetFileAttributesEx(name *uint16, level uint32, info *byte) (errno int) = kernel32.GetFileAttributesExW
+ //sys	GetCommandLine() (cmd *uint16) = kernel32.GetCommandLineW
+ //sys	CommandLineToArgv(cmd *uint16, argc *int32) (argv *[8192]*[8192]uint16, errno int) [failretval==nil] = shell32.CommandLineToArgvW
+ //sys	LocalFree(hmem Handle) (handle Handle, errno int) [failretval!=0]
+@@ -354,39 +355,6 @@ func getStdHandle(h int) (fd Handle) {
+ 	return r
+ }
+ 
+-func Stat(path string, stat *Stat_t) (errno int) {
+-	if len(path) == 0 {
+-		return ERROR_PATH_NOT_FOUND
+-	}
+-	// Remove trailing slash.
+-	if path[len(path)-1] == '/' || path[len(path)-1] == '\\' {
+-		// Check if we're given root directory ("\" or "c:\").
+-		if len(path) == 1 || (len(path) == 3 && path[1] == ':') {
+-			// TODO(brainman): Perhaps should fetch other fields, not just FileAttributes.
+-			stat.Windata = Win32finddata{}
+-			a, e := GetFileAttributes(StringToUTF16Ptr(path))
+-			if e != 0 {
+-				return e
+-			}
+-			stat.Windata.FileAttributes = a
+-			return 0
+-		}
+-		path = path[:len(path)-1]
+-	}
+-	h, e := FindFirstFile(StringToUTF16Ptr(path), &stat.Windata)
+-	if e != 0 {
+-		return e
+-	}
+-	defer FindClose(h)
+-	stat.Mode = 0
+-	return 0
+-}
+-
+-func Lstat(path string, stat *Stat_t) (errno int) {
+-	// no links on windows, just call Stat
+-	return Stat(path, stat)
+-}
+-
+ const ImplementsGetwd = true
+ 
+ func Getwd() (wd string, errno int) {
+diff --git a/src/pkg/syscall/zsyscall_windows_386.go b/src/pkg/syscall/zsyscall_windows_386.go
+index b7e9f606c3..24c82a4792 100644
+--- a/src/pkg/syscall/zsyscall_windows_386.go
++++ b/src/pkg/syscall/zsyscall_windows_386.go
+@@ -66,6 +66,7 @@ var (
+ 	procSetFileTime                = modkernel32.NewProc("SetFileTime")
+ 	procGetFileAttributesW         = modkernel32.NewProc("GetFileAttributesW")
+ 	procSetFileAttributesW         = modkernel32.NewProc("SetFileAttributesW")
++	procGetFileAttributesExW       = modkernel32.NewProc("GetFileAttributesExW")
+ 	procGetCommandLineW            = modkernel32.NewProc("GetCommandLineW")
+ 	procCommandLineToArgvW         = modshell32.NewProc("CommandLineToArgvW")
+ 	procLocalFree                  = modkernel32.NewProc("LocalFree")
+@@ -142,7 +143,8 @@ func FreeLibrary(handle Handle) (errno int) {
+ }
+ 
+ func GetProcAddress(module Handle, procname string) (proc uintptr, errno int) {
+-	proc, _, e1 := Syscall(procGetProcAddress.Addr(), 2, uintptr(module), uintptr(unsafe.Pointer(StringBytePtr(procname))), 0)
++	r0, _, e1 := Syscall(procGetProcAddress.Addr(), 2, uintptr(module), uintptr(unsafe.Pointer(StringBytePtr(procname))), 0)
++	proc = uintptr(r0)
+ 	if proc == 0 {
+ 		if e1 != 0 {
+ 			errno = int(e1)
+@@ -847,6 +849,20 @@ func SetFileAttributes(name *uint16, attrs uint32) (errno int) {
+ 	return
+ }
+ 
++func GetFileAttributesEx(name *uint16, level uint32, info *byte) (errno int) {
++	r1, _, e1 := Syscall(procGetFileAttributesExW.Addr(), 3, uintptr(unsafe.Pointer(name)), uintptr(level), uintptr(unsafe.Pointer(info)))
++	if int(r1) == 0 {
++		if e1 != 0 {
++			errno = int(e1)
++		} else {
++			errno = EINVAL
++		}
++	} else {
++		errno = 0
++	}
++	return
++}
++
+ func GetCommandLine() (cmd *uint16) {
+ 	r0, _, _ := Syscall(procGetCommandLineW.Addr(), 0, 0, 0, 0)
+ 	cmd = (*uint16)(unsafe.Pointer(r0))
+diff --git a/src/pkg/syscall/zsyscall_windows_amd64.go b/src/pkg/syscall/zsyscall_windows_amd64.go
+index a791130e0a..06bb114bab 100644
+--- a/src/pkg/syscall/zsyscall_windows_amd64.go
++++ b/src/pkg/syscall/zsyscall_windows_amd64.go
+@@ -66,6 +66,7 @@ var (
+ 	procSetFileTime                = modkernel32.NewProc("SetFileTime")
+ 	procGetFileAttributesW         = modkernel32.NewProc("GetFileAttributesW")
+ 	procSetFileAttributesW         = modkernel32.NewProc("SetFileAttributesW")
++	procGetFileAttributesExW       = modkernel32.NewProc("GetFileAttributesExW")
+ 	procGetCommandLineW            = modkernel32.NewProc("GetCommandLineW")
+ 	procCommandLineToArgvW         = modshell32.NewProc("CommandLineToArgvW")
+ 	procLocalFree                  = modkernel32.NewProc("LocalFree")
+@@ -142,7 +143,8 @@ func FreeLibrary(handle Handle) (errno int) {
+ }
+ 
+ func GetProcAddress(module Handle, procname string) (proc uintptr, errno int) {
+-	proc, _, e1 := Syscall(procGetProcAddress.Addr(), 2, uintptr(module), uintptr(unsafe.Pointer(StringBytePtr(procname))), 0)
++	r0, _, e1 := Syscall(procGetProcAddress.Addr(), 2, uintptr(module), uintptr(unsafe.Pointer(StringBytePtr(procname))), 0)
++	proc = uintptr(r0)
+ 	if proc == 0 {
+ 		if e1 != 0 {
+ 			errno = int(e1)
+@@ -847,6 +849,20 @@ func SetFileAttributes(name *uint16, attrs uint32) (errno int) {
+ 	return
+ }
+ 
++func GetFileAttributesEx(name *uint16, level uint32, info *byte) (errno int) {
++	r1, _, e1 := Syscall(procGetFileAttributesExW.Addr(), 3, uintptr(unsafe.Pointer(name)), uintptr(level), uintptr(unsafe.Pointer(info)))
++	if int(r1) == 0 {
++		if e1 != 0 {
++			errno = int(e1)
++		} else {
++			errno = EINVAL
++		}
++	} else {
++		errno = 0
++	}
++	return
++}
++
+ func GetCommandLine() (cmd *uint16) {
+ 	r0, _, _ := Syscall(procGetCommandLineW.Addr(), 0, 0, 0, 0)
+ 	cmd = (*uint16)(unsafe.Pointer(r0))
+diff --git a/src/pkg/syscall/ztypes_windows.go b/src/pkg/syscall/ztypes_windows.go
+index 01984473a8..5b8c33a21a 100644
+--- a/src/pkg/syscall/ztypes_windows.go
++++ b/src/pkg/syscall/ztypes_windows.go
+@@ -244,6 +244,20 @@ type ByHandleFileInformation struct {
+ 	FileIndexLow       uint32
+ }
+ 
++const (
++	GetFileExInfoStandard = 0
++	GetFileExMaxInfoLevel = 1
++)
++
++type Win32FileAttributeData struct {
++	FileAttributes uint32
++	CreationTime   Filetime
++	LastAccessTime Filetime
++	LastWriteTime  Filetime
++	FileSizeHigh   uint32
++	FileSizeLow    uint32
++}
++
+ // ShowWindow constants
+ const (
+ 	// winuser.h
+@@ -291,12 +305,6 @@ type ProcessInformation struct {
+ 	ThreadId  uint32
+ }
+ 
+-// Invented values to support what package os expects.
+-type Stat_t struct {
+-	Windata Win32finddata
+-	Mode    uint32
+-}
+-
+ type Systemtime struct {
+ 	Year         uint16
+ 	Month        uint16

@@ -7,6 +7,20 @@ Date:   Wed Feb 8 20:15:17 2012 +0400
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5642059
-
+---
  src/cmd/dist/build.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/dist/build.c b/src/cmd/dist/build.c
+index 6aed1b4359..d229fe65c8 100644
+--- a/src/cmd/dist/build.c
++++ b/src/cmd/dist/build.c
+@@ -694,7 +694,7 @@ install(char *dir)
+ 	// For cmd/prof, copy pprof into the tool directory.
+ 	if(streq(dir, "cmd/prof")) {
+ 		copy(bpathf(&b, "%s/bin/tool/pprof", goroot),
+-			bpathf(&b, "%s/src/cmd/prof/pprof", goroot));
++			bpathf(&b1, "%s/src/cmd/prof/pprof", goroot));
+ 	}
+ 
+ 	// Generate any missing files; regenerate existing ones.

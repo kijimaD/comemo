@@ -8,6 +8,20 @@ Date:   Wed Jun 12 13:38:45 2019 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/181942
     Reviewed-by: Katie Hockman <katie@golang.org>
     Reviewed-by: Andrew Bonventre <andybons@golang.org>
-
+---
  doc/go1.13.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go1.13.html b/doc/go1.13.html
+index 5731cbbd81..939299c90e 100644
+--- a/doc/go1.13.html
++++ b/doc/go1.13.html
+@@ -192,7 +192,7 @@ TODO
+ <dl id="log"><dt><a href="/pkg/log/">log</a></dt>
+   <dd>
+     <p><!-- CL 168920 -->
+-      TODO: <a href="https://golang.org/cl/168920">https://golang.org/cl/168920</a>: expose Writer() method of the standard logger
++      The new <a href="/pkg/log/#Writer"><code>Writer</code></a> function returns the output destination for the standard logger.
+     </p>
+ 
+ </dl><!-- log -->

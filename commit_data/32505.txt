@@ -15,7 +15,64 @@ Date:   Thu Apr 27 06:00:18 2017 -0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/ssa/deadstore.go    |  2 +-
  src/cmd/compile/internal/ssa/writebarrier.go | 13 ++++++-------
  2 files changed, 7 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/deadstore.go b/src/cmd/compile/internal/ssa/deadstore.go
+index f1b6318708..dfbea3f3f4 100644
+--- a/src/cmd/compile/internal/ssa/deadstore.go
++++ b/src/cmd/compile/internal/ssa/deadstore.go
+@@ -64,7 +64,7 @@ func dse(f *Func) {
+ 				continue
+ 			}
+ 			if last != nil {
+-				b.Fatalf("two final stores - simultaneous live stores %s %s", last, v)
++				b.Fatalf("two final stores - simultaneous live stores %s %s", last.LongString(), v.LongString())
+ 			}
+ 			last = v
+ 		}
+diff --git a/src/cmd/compile/internal/ssa/writebarrier.go b/src/cmd/compile/internal/ssa/writebarrier.go
+index c2b2e00152..f4f14c8e59 100644
+--- a/src/cmd/compile/internal/ssa/writebarrier.go
++++ b/src/cmd/compile/internal/ssa/writebarrier.go
+@@ -172,15 +172,12 @@ func writebarrier(f *Func) {
+ 		memThen := mem
+ 		memElse := mem
+ 		for _, w := range stores {
+-			var val *Value
+ 			ptr := w.Args[0]
+-			var typ interface{}
+-			if w.Op != OpStoreWB {
+-				typ = &ExternSymbol{Sym: w.Aux.(Type).Symbol()}
+-			}
+-			pos = w.Pos
++			pos := w.Pos
+ 
+ 			var fn *obj.LSym
++			var typ *ExternSymbol
++			var val *Value
+ 			switch w.Op {
+ 			case OpStoreWB:
+ 				fn = writebarrierptr
+@@ -188,8 +185,10 @@ func writebarrier(f *Func) {
+ 			case OpMoveWB:
+ 				fn = typedmemmove
+ 				val = w.Args[1]
++				typ = &ExternSymbol{Sym: w.Aux.(Type).Symbol()}
+ 			case OpZeroWB:
+ 				fn = typedmemclr
++				typ = &ExternSymbol{Sym: w.Aux.(Type).Symbol()}
+ 			}
+ 
+ 			// then block: emit write barrier call
+@@ -255,7 +254,7 @@ func writebarrier(f *Func) {
+ 
+ // wbcall emits write barrier runtime call in b, returns memory.
+ // if valIsVolatile, it moves val into temp space before making the call.
+-func wbcall(pos src.XPos, b *Block, fn *obj.LSym, typ interface{}, ptr, val, mem, sp, sb *Value, valIsVolatile bool) *Value {
++func wbcall(pos src.XPos, b *Block, fn *obj.LSym, typ *ExternSymbol, ptr, val, mem, sp, sb *Value, valIsVolatile bool) *Value {
+ 	config := b.Func.Config
+ 
+ 	var tmp GCNode

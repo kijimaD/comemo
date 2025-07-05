@@ -7,7 +7,137 @@ Date:   Thu Jun 27 17:16:25 2013 -0400
     R=agl, agl
     CC=gobot, golang-dev
     https://golang.org/cl/10245048
-
+---
  src/pkg/crypto/x509/x509.go      | 58 +++++++++++++++++++++++++++++++++++++++-
  src/pkg/crypto/x509/x509_test.go | 11 ++++++++
  2 files changed, 68 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/crypto/x509/x509.go b/src/pkg/crypto/x509/x509.go
+index 7dea7b66ec..f8561d3e56 100644
+--- a/src/pkg/crypto/x509/x509.go
++++ b/src/pkg/crypto/x509/x509.go
+@@ -463,6 +463,10 @@ type Certificate struct {
+ 	SubjectKeyId   []byte
+ 	AuthorityKeyId []byte
+ 
++	// RFC 5280, 4.2.2.1 (Authority Information Access)
++	OCSPServer            []string
++	IssuingCertificateURL []string
++
+ 	// Subject Alternate Name values
+ 	DNSNames       []string
+ 	EmailAddresses []string
+@@ -662,6 +666,12 @@ type generalSubtree struct {
+ 	Name string `asn1:"tag:2,optional,ia5"`
+ }
+ 
++// RFC 5280, 4.2.2.1
++type authorityInfoAccess struct {
++	Method   asn1.ObjectIdentifier
++	Location asn1.RawValue
++}
++
+ // RFC 5280, 4.2.1.14
+ type distributionPoint struct {
+ 	DistributionPoint distributionPointName `asn1:"optional,tag:0"`
+@@ -1000,6 +1010,24 @@ func parseCertificate(in *certificate) (*Certificate, error) {
+ 					out.PolicyIdentifiers[i] = policy.Policy
+ 				}
+ 			}
++		} else if e.Id.Equal(oidExtensionAuthorityInfoAccess) {
++			// RFC 5280 4.2.2.1: Authority Information Access
++			var aia []authorityInfoAccess
++			if _, err = asn1.Unmarshal(e.Value, &aia); err != nil {
++				return nil, err
++			}
++
++			for _, v := range aia {
++				// GeneralName: uniformResourceIdentifier [6] IA5String
++				if v.Location.Tag != 6 {
++					continue
++				}
++				if v.Method.Equal(oidAuthorityInfoAccessOcsp) {
++					out.OCSPServer = append(out.OCSPServer, string(v.Location.Bytes))
++				} else if v.Method.Equal(oidAuthorityInfoAccessIssuers) {
++					out.IssuingCertificateURL = append(out.IssuingCertificateURL, string(v.Location.Bytes))
++				}
++			}
+ 		}
+ 
+ 		if e.Critical {
+@@ -1068,10 +1096,16 @@ var (
+ 	oidExtensionCertificatePolicies   = []int{2, 5, 29, 32}
+ 	oidExtensionNameConstraints       = []int{2, 5, 29, 30}
+ 	oidExtensionCRLDistributionPoints = []int{2, 5, 29, 31}
++	oidExtensionAuthorityInfoAccess   = []int{1, 3, 6, 1, 5, 5, 7, 1, 1}
++)
++
++var (
++	oidAuthorityInfoAccessOcsp    = asn1.ObjectIdentifier{1, 3, 6, 1, 5, 5, 7, 48, 1}
++	oidAuthorityInfoAccessIssuers = asn1.ObjectIdentifier{1, 3, 6, 1, 5, 5, 7, 48, 2}
+ )
+ 
+ func buildExtensions(template *Certificate) (ret []pkix.Extension, err error) {
+-	ret = make([]pkix.Extension, 9 /* maximum number of elements. */)
++	ret = make([]pkix.Extension, 10 /* maximum number of elements. */)
+ 	n := 0
+ 
+ 	if template.KeyUsage != 0 {
+@@ -1143,6 +1177,28 @@ func buildExtensions(template *Certificate) (ret []pkix.Extension, err error) {
+ 		n++
+ 	}
+ 
++	if len(template.OCSPServer) > 0 || len(template.IssuingCertificateURL) > 0 {
++		ret[n].Id = oidExtensionAuthorityInfoAccess
++		var aiaValues []authorityInfoAccess
++		for _, name := range template.OCSPServer {
++			aiaValues = append(aiaValues, authorityInfoAccess{
++				Method:   oidAuthorityInfoAccessOcsp,
++				Location: asn1.RawValue{Tag: 6, Class: 2, Bytes: []byte(name)},
++			})
++		}
++		for _, name := range template.IssuingCertificateURL {
++			aiaValues = append(aiaValues, authorityInfoAccess{
++				Method:   oidAuthorityInfoAccessIssuers,
++				Location: asn1.RawValue{Tag: 6, Class: 2, Bytes: []byte(name)},
++			})
++		}
++		ret[n].Value, err = asn1.Marshal(aiaValues)
++		if err != nil {
++			return
++		}
++		n++
++	}
++
+ 	if len(template.DNSNames) > 0 || len(template.EmailAddresses) > 0 || len(template.IPAddresses) > 0 {
+ 		ret[n].Id = oidExtensionSubjectAltName
+ 		var rawValues []asn1.RawValue
+diff --git a/src/pkg/crypto/x509/x509_test.go b/src/pkg/crypto/x509/x509_test.go
+index 08dd09f926..5671b56a6d 100644
+--- a/src/pkg/crypto/x509/x509_test.go
++++ b/src/pkg/crypto/x509/x509_test.go
+@@ -330,6 +330,9 @@ func TestCreateSelfSignedCertificate(t *testing.T) {
+ 			BasicConstraintsValid: true,
+ 			IsCA: true,
+ 
++			OCSPServer:            []string{"http://ocsp.example.com"},
++			IssuingCertificateURL: []string{"http://crt.example.com/ca1.crt"},
++
+ 			DNSNames:       []string{"test.example.com"},
+ 			EmailAddresses: []string{"gopher@golang.org"},
+ 			IPAddresses:    []net.IP{net.IPv4(127, 0, 0, 1).To4(), net.ParseIP("2001:4860:0:2001::68")},
+@@ -376,6 +379,14 @@ func TestCreateSelfSignedCertificate(t *testing.T) {
+ 			t.Errorf("%s: unknown extkeyusage wasn't correctly copied from the template. Got %v, want %v", test.name, cert.UnknownExtKeyUsage, testUnknownExtKeyUsage)
+ 		}
+ 
++		if !reflect.DeepEqual(cert.OCSPServer, template.OCSPServer) {
++			t.Errorf("%s: OCSP servers differ from template. Got %v, want %v", test.name, cert.OCSPServer, template.OCSPServer)
++		}
++
++		if !reflect.DeepEqual(cert.IssuingCertificateURL, template.IssuingCertificateURL) {
++			t.Errorf("%s: Issuing certificate URLs differ from template. Got %v, want %v", test.name, cert.IssuingCertificateURL, template.IssuingCertificateURL)
++		}
++
+ 		if !reflect.DeepEqual(cert.DNSNames, template.DNSNames) {
+ 			t.Errorf("%s: SAN DNS names differ from template. Got %v, want %v", test.name, cert.DNSNames, template.DNSNames)
+ 		}

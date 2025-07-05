@@ -23,7 +23,72 @@ Date:   Fri Oct 25 12:39:20 2019 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/203501
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/link/internal/ld/deadcode2.go  |  8 +++++---
  src/cmd/link/internal/loader/loader.go | 27 +++++++++++++++++++++++++++
  2 files changed, 32 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/deadcode2.go b/src/cmd/link/internal/ld/deadcode2.go
+index 368e151377..04a2e925c3 100644
+--- a/src/cmd/link/internal/ld/deadcode2.go
++++ b/src/cmd/link/internal/ld/deadcode2.go
+@@ -105,6 +105,7 @@ func (d *deadcodePass2) init() {
+ 
+ func (d *deadcodePass2) flood() {
+ 	symRelocs := []loader.Reloc{}
++	auxSyms := []loader.Sym{}
+ 	for !d.wq.empty() {
+ 		symIdx := d.wq.pop()
+ 
+@@ -147,9 +148,10 @@ func (d *deadcodePass2) flood() {
+ 			}
+ 			d.mark(r.Sym)
+ 		}
+-		naux := d.ldr.NAux(symIdx)
+-		for i := 0; i < naux; i++ {
+-			d.mark(d.ldr.AuxSym(symIdx, i))
++
++		auxSyms = d.ldr.ReadAuxSyms(symIdx, auxSyms)
++		for i := 0; i < len(auxSyms); i++ {
++			d.mark(auxSyms[i])
+ 		}
+ 
+ 		if len(methods) != 0 {
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index 95e3005af2..42a5aa50a7 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -475,6 +475,33 @@ func (l *Loader) AuxSym(i Sym, j int) Sym {
+ 	return l.resolve(r, a.Sym)
+ }
+ 
++// ReadAuxSyms reads the aux symbol ids for the specified symbol into the
++// slice passed as a parameter. If the slice capacity is not large enough, a new
++// larger slice will be allocated. Final slice is returned.
++func (l *Loader) ReadAuxSyms(symIdx Sym, dst []Sym) []Sym {
++	if l.isExternal(symIdx) {
++		return dst[:0]
++	}
++	naux := l.NAux(symIdx)
++	if naux == 0 {
++		return dst[:0]
++	}
++
++	if cap(dst) < naux {
++		dst = make([]Sym, naux)
++	}
++	dst = dst[:0]
++
++	r, li := l.toLocal(symIdx)
++	for i := 0; i < naux; i++ {
++		a := goobj2.Aux{}
++		a.Read(r.Reader, r.AuxOff(li, i))
++		dst = append(dst, l.resolve(r, a.Sym))
++	}
++
++	return dst
++}
++
+ // Initialize Reachable bitmap for running deadcode pass.
+ func (l *Loader) InitReachable() {
+ 	l.Reachable = makeBitmap(l.NSym())

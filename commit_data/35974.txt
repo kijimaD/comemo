@@ -19,7 +19,36 @@ Date:   Fri Mar 23 11:30:58 2018 -0400
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/compile/internal/gc/main.go               | 2 +-
  src/cmd/compile/internal/ssa/loopreschedchecks.go | 4 +++-
  2 files changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index e47b8a8a9c..33fbb90be4 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -1223,7 +1223,7 @@ func concurrentBackendAllowed() bool {
+ 		return false
+ 	}
+ 	// TODO: Test and delete these conditions.
+-	if objabi.Fieldtrack_enabled != 0 || objabi.Preemptibleloops_enabled != 0 || objabi.Clobberdead_enabled != 0 {
++	if objabi.Fieldtrack_enabled != 0 || objabi.Clobberdead_enabled != 0 {
+ 		return false
+ 	}
+ 	// TODO: fix races and enable the following flags
+diff --git a/src/cmd/compile/internal/ssa/loopreschedchecks.go b/src/cmd/compile/internal/ssa/loopreschedchecks.go
+index cc6cb52972..30ba1e9d66 100644
+--- a/src/cmd/compile/internal/ssa/loopreschedchecks.go
++++ b/src/cmd/compile/internal/ssa/loopreschedchecks.go
+@@ -179,7 +179,9 @@ func insertLoopReschedChecks(f *Func) {
+ 		if p.i != 0 {
+ 			likely = BranchUnlikely
+ 		}
+-		bb.Likely = likely
++		if bb.Kind != BlockPlain { // backedges can be unconditional. e.g., if x { something; continue }
++			bb.Likely = likely
++		}
+ 
+ 		// rewrite edge to include reschedule check
+ 		// existing edges:

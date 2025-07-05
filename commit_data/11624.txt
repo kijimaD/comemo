@@ -7,7 +7,34 @@ Date:   Sat Feb 4 21:55:38 2012 +1100
     R=r
     CC=golang-dev
     https://golang.org/cl/5608061
-
+---
  doc/go1.html | 2 +-
  doc/go1.tmpl | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go1.html b/doc/go1.html
+index 3f72831b05..59ff009642 100644
+--- a/doc/go1.html
++++ b/doc/go1.html
+@@ -927,7 +927,7 @@ and
+ <p>
+ <em>Updating</em>:
+ Most code using <code>expvar</code> will not need changing. The rare code that used
+-<code>Iter</code> can be updated to pass a closure to Do to achieve the same effect.
++<code>Iter</code> can be updated to pass a closure to <code>Do</code> to achieve the same effect.
+ </p>
+ 
+ <h3 id="flag">The flag package</h3>
+diff --git a/doc/go1.tmpl b/doc/go1.tmpl
+index c4f486bac3..d43ebf7a68 100644
+--- a/doc/go1.tmpl
++++ b/doc/go1.tmpl
+@@ -831,7 +831,7 @@ and
+ <p>
+ <em>Updating</em>:
+ Most code using <code>expvar</code> will not need changing. The rare code that used
+-<code>Iter</code> can be updated to pass a closure to Do to achieve the same effect.
++<code>Iter</code> can be updated to pass a closure to <code>Do</code> to achieve the same effect.
+ </p>
+ 
+ <h3 id="flag">The flag package</h3>

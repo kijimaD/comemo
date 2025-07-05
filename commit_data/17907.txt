@@ -10,8 +10,80 @@ Date:   Tue Dec 3 14:27:08 2013 -0800
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/35940047
-
+---
  src/cmd/gc/fmt.c     | 18 +++++++++++-------
  src/cmd/gc/go.h      |  1 +
  src/cmd/gc/reflect.c |  5 +++--
  3 files changed, 15 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/gc/fmt.c b/src/cmd/gc/fmt.c
+index afa9d8020c..576017e8b7 100644
+--- a/src/cmd/gc/fmt.c
++++ b/src/cmd/gc/fmt.c
+@@ -702,13 +702,17 @@ typefmt(Fmt *fp, Type *t)
+ 	case TSTRUCT:
+ 		// Format the bucket struct for map[x]y as map.bucket[x]y.
+ 		// This avoids a recursive print that generates very long names.
+-		if(t->hmap != T) {
+-			t = t->hmap;
+-			return fmtprint(fp, "map.bucket[%T]%T", t->down, t->type);
+-		}
+-		if(t->hiter != T) {
+-			t = t->hiter;
+-			return fmtprint(fp, "map.iter[%T]%T", t->down, t->type);
++		if(t->map != T) {
++			if(t->map->bucket == t) {
++				return fmtprint(fp, "map.bucket[%T]%T", t->map->down, t->map->type);
++			}
++			if(t->map->hmap == t) {
++				return fmtprint(fp, "map.hdr[%T]%T", t->map->down, t->map->type);
++			}
++			if(t->map->hiter == t) {
++				return fmtprint(fp, "map.iter[%T]%T", t->map->down, t->map->type);
++			}
++			yyerror("unknown internal map type");
+ 		}
+ 
+ 		if(t->funarg) {
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 5bf3068175..821f30492e 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -191,6 +191,7 @@ struct	Type
+ 	Type*	bucket;		// internal type representing a hash bucket
+ 	Type*	hmap;		// internal type representing a Hmap (map header object)
+ 	Type*	hiter;		// internal type representing hash iterator state
++	Type*	map;		// link from the above 3 internal types back to the map type.
+ 
+ 	int32	maplineno;	// first use of TFORW as map key
+ 	int32	embedlineno;	// first use of TFORW as embedded type
+diff --git a/src/cmd/gc/reflect.c b/src/cmd/gc/reflect.c
+index 1097d15219..9e4c072523 100644
+--- a/src/cmd/gc/reflect.c
++++ b/src/cmd/gc/reflect.c
+@@ -173,6 +173,7 @@ mapbucket(Type *t)
+ 	bucket->width = offset;
+ 	bucket->local = t->local;
+ 	t->bucket = bucket;
++	bucket->map = t;
+ 	return bucket;
+ }
+ 
+@@ -229,7 +230,7 @@ hmap(Type *t)
+ 	h->width = offset;
+ 	h->local = t->local;
+ 	t->hmap = h;
+-	h->hmap = t;
++	h->map = t;
+ 	return h;
+ }
+ 
+@@ -308,7 +309,7 @@ hiter(Type *t)
+ 	if(off != 11 * widthptr)
+ 		yyerror("hash_iter size not correct %d %d", off, 11 * widthptr);
+ 	t->hiter = i;
+-	i->hiter = t;
++	i->map = t;
+ 	return i;
+ }
+ 

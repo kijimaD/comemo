@@ -11,6 +11,20 @@ Date:   Wed Dec 21 12:43:05 2016 +0900
     Change-Id: I06fb3b5178c6319e86199823fe4769a8eb9dc49c
     Reviewed-on: https://go-review.googlesource.com/34671
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/go/parser/interface.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/go/parser/interface.go b/src/go/parser/interface.go
+index bff79cab46..724d8658a7 100644
+--- a/src/go/parser/interface.go
++++ b/src/go/parser/interface.go
+@@ -173,7 +173,7 @@ func ParseDir(fset *token.FileSet, path string, filter func(os.FileInfo) bool, m
+ }
+ 
+ // ParseExprFrom is a convenience function for parsing an expression.
+-// The arguments have the same meaning as for Parse, but the source must
++// The arguments have the same meaning as for ParseFile, but the source must
+ // be a valid Go (type or value) expression. Specifically, fset must not
+ // be nil.
+ //

@@ -25,7 +25,7 @@ Date:   Mon Jan 6 10:31:39 2020 -0500
     Change-Id: Ib7532d7e12466b17e04c4e2075c2a456dc98f610
     Reviewed-on: https://go-review.googlesource.com/c/go/+/222660
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/main.go            | 30 ++++++++++++++++--
  src/cmd/compile/internal/gc/ssa.go             | 31 +++++++++++++++++--
  src/cmd/compile/internal/ssa/gen/AMD64.rules   |  3 ++
@@ -34,3 +34,287 @@ Date:   Mon Jan 6 10:31:39 2020 -0500
  src/cmd/compile/internal/ssa/rewriteAMD64.go   | 42 ++++++++++++++++++++++++++
  test/codegen/spectre.go                        | 38 +++++++++++++++++++++++
  7 files changed, 155 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 18a210baa4..e3a47339be 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -36,7 +36,9 @@ import (
+ var imported_unsafe bool
+ 
+ var (
+-	buildid string
++	buildid      string
++	spectre      string
++	spectreIndex bool
+ )
+ 
+ var (
+@@ -250,6 +252,7 @@ func Main(archInit func(*Arch)) {
+ 	if sys.RaceDetectorSupported(objabi.GOOS, objabi.GOARCH) {
+ 		flag.BoolVar(&flag_race, "race", false, "enable race detector")
+ 	}
++	flag.StringVar(&spectre, "spectre", spectre, "enable spectre mitigations in `list` (all, index, ret)")
+ 	if enableTrace {
+ 		flag.BoolVar(&trace, "t", false, "trace type-checking")
+ 	}
+@@ -282,10 +285,33 @@ func Main(archInit func(*Arch)) {
+ 
+ 	objabi.Flagparse(usage)
+ 
++	for _, f := range strings.Split(spectre, ",") {
++		f = strings.TrimSpace(f)
++		switch f {
++		default:
++			log.Fatalf("unknown setting -spectre=%s", f)
++		case "":
++			// nothing
++		case "all":
++			spectreIndex = true
++		case "index":
++			spectreIndex = true
++		}
++	}
++
++	if spectreIndex {
++		switch objabi.GOARCH {
++		case "amd64":
++			// ok
++		default:
++			log.Fatalf("GOARCH=%s does not support -spectre=index", objabi.GOARCH)
++		}
++	}
++
+ 	// Record flags that affect the build result. (And don't
+ 	// record flags that don't, since that would cause spurious
+ 	// changes in the binary.)
+-	recordFlags("B", "N", "l", "msan", "race", "shared", "dynlink", "dwarflocationlists", "dwarfbasentries", "smallframes", "newobj")
++	recordFlags("B", "N", "l", "msan", "race", "shared", "dynlink", "dwarflocationlists", "dwarfbasentries", "smallframes", "spectre", "newobj")
+ 
+ 	if smallFrames {
+ 		maxStackVarSize = 128 * 1024
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index ddd40010e5..2553feefbc 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -2606,7 +2606,7 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 					return s.newValue0(ssa.OpUnknown, n.Type)
+ 				}
+ 				len := s.constInt(types.Types[TINT], bound)
+-				i = s.boundsCheck(i, len, ssa.BoundsIndex, n.Bounded())
++				s.boundsCheck(i, len, ssa.BoundsIndex, n.Bounded()) // checks i == 0
+ 				return s.newValue1I(ssa.OpArraySelect, n.Type, 0, a)
+ 			}
+ 			p := s.addr(n, false)
+@@ -3009,7 +3009,7 @@ func (s *state) assign(left *Node, right *ssa.Value, deref bool, skip skipMask)
+ 			}
+ 			// Rewrite to a = [1]{v}
+ 			len := s.constInt(types.Types[TINT], 1)
+-			i = s.boundsCheck(i, len, ssa.BoundsIndex, false)
++			s.boundsCheck(i, len, ssa.BoundsIndex, false) // checks i == 0
+ 			v := s.newValue1(ssa.OpArrayMake1, t, right)
+ 			s.assign(left.Left, v, false, 0)
+ 			return
+@@ -4781,6 +4781,24 @@ func (s *state) boundsCheck(idx, len *ssa.Value, kind ssa.BoundsKind, bounded bo
+ 	if bounded || Debug['B'] != 0 {
+ 		// If bounded or bounds checking is flag-disabled, then no check necessary,
+ 		// just return the extended index.
++		//
++		// Here, bounded == true if the compiler generated the index itself,
++		// such as in the expansion of a slice initializer. These indexes are
++		// compiler-generated, not Go program variables, so they cannot be
++		// attacker-controlled, so we can omit Spectre masking as well.
++		//
++		// Note that we do not want to omit Spectre masking in code like:
++		//
++		//	if 0 <= i && i < len(x) {
++		//		use(x[i])
++		//	}
++		//
++		// Lucky for us, bounded==false for that code.
++		// In that case (handled below), we emit a bound check (and Spectre mask)
++		// and then the prove pass will remove the bounds check.
++		// In theory the prove pass could potentially remove certain
++		// Spectre masks, but it's very delicate and probably better
++		// to be conservative and leave them all in.
+ 		return idx
+ 	}
+ 
+@@ -4832,6 +4850,15 @@ func (s *state) boundsCheck(idx, len *ssa.Value, kind ssa.BoundsKind, bounded bo
+ 	}
+ 	s.startBlock(bNext)
+ 
++	// In Spectre index mode, apply an appropriate mask to avoid speculative out-of-bounds accesses.
++	if spectreIndex {
++		op := ssa.OpSpectreIndex
++		if kind != ssa.BoundsIndex && kind != ssa.BoundsIndexU {
++			op = ssa.OpSpectreSliceIndex
++		}
++		idx = s.newValue2(op, types.Types[TINT], idx, len)
++	}
++
+ 	return idx
+ }
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index 07981d2e81..c6fad48f3c 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -129,6 +129,9 @@
+ 
+ (Slicemask <t> x) -> (SARQconst (NEGQ <t> x) [63])
+ 
++(SpectreIndex <t> x y) -> (CMOVQCC x (MOVQconst [0]) (CMPQ x y))
++(SpectreSliceIndex <t> x y) -> (CMOVQHI x (MOVQconst [0]) (CMPQ x y))
++
+ // Lowering truncation
+ // Because we ignore high parts of registers, truncates are just copies.
+ (Trunc16to8  ...) -> (Copy ...)
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index b7e91a1f20..2892a0b3cf 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -520,6 +520,9 @@ var genericOps = []opData{
+ 	{name: "Zeromask", argLength: 1, typ: "UInt32"}, // 0 if arg0 == 0, 0xffffffff if arg0 != 0
+ 	{name: "Slicemask", argLength: 1},               // 0 if arg0 == 0, -1 if arg0 > 0, undef if arg0<0. Type is native int size.
+ 
++	{name: "SpectreIndex", argLength: 2},      // arg0 if 0 <= arg0 < arg1, 0 otherwise. Type is native int size.
++	{name: "SpectreSliceIndex", argLength: 2}, // arg0 if 0 <= arg0 <= arg1, 0 otherwise. Type is native int size.
++
+ 	{name: "Cvt32Uto32F", argLength: 1}, // uint32 -> float32, only used on 32-bit arch
+ 	{name: "Cvt32Uto64F", argLength: 1}, // uint32 -> float64, only used on 32-bit arch
+ 	{name: "Cvt32Fto32U", argLength: 1}, // float32 -> uint32, only used on 32-bit arch
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 9da7376a8a..2573ba1f2f 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -2654,6 +2654,8 @@ const (
+ 	OpSignmask
+ 	OpZeromask
+ 	OpSlicemask
++	OpSpectreIndex
++	OpSpectreSliceIndex
+ 	OpCvt32Uto32F
+ 	OpCvt32Uto64F
+ 	OpCvt32Fto32U
+@@ -33041,6 +33043,16 @@ var opcodeTable = [...]opInfo{
+ 		argLen:  1,
+ 		generic: true,
+ 	},
++	{
++		name:    "SpectreIndex",
++		argLen:  2,
++		generic: true,
++	},
++	{
++		name:    "SpectreSliceIndex",
++		argLen:  2,
++		generic: true,
++	},
+ 	{
+ 		name:    "Cvt32Uto32F",
+ 		argLen:  1,
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 16a3f64158..e178c1251e 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -1096,6 +1096,10 @@ func rewriteValueAMD64(v *Value) bool {
+ 		return true
+ 	case OpSlicemask:
+ 		return rewriteValueAMD64_OpSlicemask(v)
++	case OpSpectreIndex:
++		return rewriteValueAMD64_OpSpectreIndex(v)
++	case OpSpectreSliceIndex:
++		return rewriteValueAMD64_OpSpectreSliceIndex(v)
+ 	case OpSqrt:
+ 		v.Op = OpAMD64SQRTSD
+ 		return true
+@@ -33033,6 +33037,44 @@ func rewriteValueAMD64_OpSlicemask(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueAMD64_OpSpectreIndex(v *Value) bool {
++	v_1 := v.Args[1]
++	v_0 := v.Args[0]
++	b := v.Block
++	typ := &b.Func.Config.Types
++	// match: (SpectreIndex <t> x y)
++	// result: (CMOVQCC x (MOVQconst [0]) (CMPQ x y))
++	for {
++		x := v_0
++		y := v_1
++		v.reset(OpAMD64CMOVQCC)
++		v0 := b.NewValue0(v.Pos, OpAMD64MOVQconst, typ.UInt64)
++		v0.AuxInt = 0
++		v1 := b.NewValue0(v.Pos, OpAMD64CMPQ, types.TypeFlags)
++		v1.AddArg2(x, y)
++		v.AddArg3(x, v0, v1)
++		return true
++	}
++}
++func rewriteValueAMD64_OpSpectreSliceIndex(v *Value) bool {
++	v_1 := v.Args[1]
++	v_0 := v.Args[0]
++	b := v.Block
++	typ := &b.Func.Config.Types
++	// match: (SpectreSliceIndex <t> x y)
++	// result: (CMOVQHI x (MOVQconst [0]) (CMPQ x y))
++	for {
++		x := v_0
++		y := v_1
++		v.reset(OpAMD64CMOVQHI)
++		v0 := b.NewValue0(v.Pos, OpAMD64MOVQconst, typ.UInt64)
++		v0.AuxInt = 0
++		v1 := b.NewValue0(v.Pos, OpAMD64CMPQ, types.TypeFlags)
++		v1.AddArg2(x, y)
++		v.AddArg3(x, v0, v1)
++		return true
++	}
++}
+ func rewriteValueAMD64_OpStore(v *Value) bool {
+ 	v_2 := v.Args[2]
+ 	v_1 := v.Args[1]
+diff --git a/test/codegen/spectre.go b/test/codegen/spectre.go
+new file mode 100644
+index 0000000000..3753498d09
+--- /dev/null
++++ b/test/codegen/spectre.go
+@@ -0,0 +1,38 @@
++// +build amd64
++// asmcheck -gcflags=-spectre=index
++
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package codegen
++
++func IndexArray(x *[10]int, i int) int {
++	// amd64:`CMOVQCC`
++	return x[i]
++}
++
++func IndexString(x string, i int) byte {
++	// amd64:`CMOVQCC`
++	return x[i]
++}
++
++func IndexSlice(x []float64, i int) float64 {
++	// amd64:`CMOVQCC`
++	return x[i]
++}
++
++func SliceArray(x *[10]int, i, j int) []int {
++	// amd64:`CMOVQHI`
++	return x[i:j]
++}
++
++func SliceString(x string, i, j int) string {
++	// amd64:`CMOVQHI`
++	return x[i:j]
++}
++
++func SliceSlice(x []float64, i, j int) []float64 {
++	// amd64:`CMOVQHI`
++	return x[i:j]
++}

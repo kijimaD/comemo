@@ -16,10 +16,346 @@ Date:   Thu Jun 15 16:42:08 2017 -0700
     Reviewed-on: https://go-review.googlesource.com/45991
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/export_test.go  |  24 ++++++
  src/runtime/rwmutex.go      |  80 +++++++++++++++++++
  src/runtime/rwmutex_test.go | 183 ++++++++++++++++++++++++++++++++++++++++++++
  src/sync/rwmutex.go         |   3 +
  src/sync/rwmutex_test.go    |   3 +
  5 files changed, 293 insertions(+)
+
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index af91d5291c..d83afcef2d 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -349,3 +349,27 @@ func blockOnSystemStackInternal() {
+ 	lock(&deadlock)
+ 	lock(&deadlock)
+ }
++
++type RWMutex struct {
++	rw rwmutex
++}
++
++func (rw *RWMutex) Init() {
++	rw.rw.init()
++}
++
++func (rw *RWMutex) RLock() {
++	rw.rw.rlock()
++}
++
++func (rw *RWMutex) RUnlock() {
++	rw.rw.runlock()
++}
++
++func (rw *RWMutex) Lock() {
++	rw.rw.lock()
++}
++
++func (rw *RWMutex) Unlock() {
++	rw.rw.unlock()
++}
+diff --git a/src/runtime/rwmutex.go b/src/runtime/rwmutex.go
+new file mode 100644
+index 0000000000..7b32769915
+--- /dev/null
++++ b/src/runtime/rwmutex.go
+@@ -0,0 +1,80 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++import (
++	"runtime/internal/atomic"
++)
++
++// This is a copy of sync/rwmutex.go rewritten to work in the runtime.
++
++// An rwmutex is a reader/writer mutual exclusion lock.
++// The lock can be held by an arbitrary number of readers or a single writer.
++// This is a variant of sync.RWMutex, for the runtime package.
++// This is less convenient than sync.RWMutex, because it must be
++// initialized before use. Sorry.
++type rwmutex struct {
++	w           uint32 // semaphore for pending writers
++	writerSem   uint32 // semaphore for writers to wait for completing readers
++	readerSem   uint32 // semaphore for readers to wait for completing writers
++	readerCount uint32 // number of pending readers
++	readerWait  uint32 // number of departing readers
++}
++
++const rwmutexMaxReaders = 1 << 30
++
++// init initializes rw. This must be called before any other methods.
++func (rw *rwmutex) init() {
++	rw.w = 1
++}
++
++// rlock locks rw for reading.
++func (rw *rwmutex) rlock() {
++	if int32(atomic.Xadd(&rw.readerCount, 1)) < 0 {
++		// A writer is pending.
++		semacquire(&rw.readerSem)
++	}
++}
++
++// runlock undoes a single rlock call on rw.
++func (rw *rwmutex) runlock() {
++	if r := int32(atomic.Xadd(&rw.readerCount, -1)); r < 0 {
++		if r+1 == 0 || r+1 == -rwmutexMaxReaders {
++			throw("runlock of unlocked rwmutex")
++		}
++		// A writer is pending.
++		if atomic.Xadd(&rw.readerWait, -1) == 0 {
++			// The last reader unblocks the writer.
++			semrelease(&rw.writerSem)
++		}
++	}
++}
++
++// lock locks rw for writing.
++func (rw *rwmutex) lock() {
++	// Resolve competition with other writers.
++	semacquire(&rw.w)
++	// Announce that there is a pending writer.
++	r := int32(atomic.Xadd(&rw.readerCount, -rwmutexMaxReaders)) + rwmutexMaxReaders
++	// Wait for any active readers to complete.
++	if r != 0 && atomic.Xadd(&rw.readerWait, r) != 0 {
++		semacquire(&rw.writerSem)
++	}
++}
++
++// unlock unlocks rw for writing.
++func (rw *rwmutex) unlock() {
++	// Announce to readers that there is no active writer.
++	r := int32(atomic.Xadd(&rw.readerCount, rwmutexMaxReaders))
++	if r >= rwmutexMaxReaders {
++		throw("unlock of unlocked rwmutex")
++	}
++	// Unblock blocked readers, if any.
++	for i := int32(0); i < r; i++ {
++		semrelease(&rw.readerSem)
++	}
++	// Allow other writers to proceed.
++	semrelease(&rw.w)
++}
+diff --git a/src/runtime/rwmutex_test.go b/src/runtime/rwmutex_test.go
+new file mode 100644
+index 0000000000..f21a531256
+--- /dev/null
++++ b/src/runtime/rwmutex_test.go
+@@ -0,0 +1,183 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// GOMAXPROCS=10 go test
++
++// This is a copy of sync/rwmutex_test.go rewritten to test the
++// runtime rwmutex.
++
++package runtime_test
++
++import (
++	"fmt"
++	. "runtime"
++	"sync/atomic"
++	"testing"
++)
++
++func parallelReader(m *RWMutex, clocked, cunlock, cdone chan bool) {
++	m.RLock()
++	clocked <- true
++	<-cunlock
++	m.RUnlock()
++	cdone <- true
++}
++
++func doTestParallelReaders(numReaders, gomaxprocs int) {
++	GOMAXPROCS(gomaxprocs)
++	var m RWMutex
++	m.Init()
++	clocked := make(chan bool)
++	cunlock := make(chan bool)
++	cdone := make(chan bool)
++	for i := 0; i < numReaders; i++ {
++		go parallelReader(&m, clocked, cunlock, cdone)
++	}
++	// Wait for all parallel RLock()s to succeed.
++	for i := 0; i < numReaders; i++ {
++		<-clocked
++	}
++	for i := 0; i < numReaders; i++ {
++		cunlock <- true
++	}
++	// Wait for the goroutines to finish.
++	for i := 0; i < numReaders; i++ {
++		<-cdone
++	}
++}
++
++func TestParallelRWMutexReaders(t *testing.T) {
++	defer GOMAXPROCS(GOMAXPROCS(-1))
++	doTestParallelReaders(1, 4)
++	doTestParallelReaders(3, 4)
++	doTestParallelReaders(4, 2)
++}
++
++func reader(rwm *RWMutex, num_iterations int, activity *int32, cdone chan bool) {
++	for i := 0; i < num_iterations; i++ {
++		rwm.RLock()
++		n := atomic.AddInt32(activity, 1)
++		if n < 1 || n >= 10000 {
++			panic(fmt.Sprintf("wlock(%d)\n", n))
++		}
++		for i := 0; i < 100; i++ {
++		}
++		atomic.AddInt32(activity, -1)
++		rwm.RUnlock()
++	}
++	cdone <- true
++}
++
++func writer(rwm *RWMutex, num_iterations int, activity *int32, cdone chan bool) {
++	for i := 0; i < num_iterations; i++ {
++		rwm.Lock()
++		n := atomic.AddInt32(activity, 10000)
++		if n != 10000 {
++			panic(fmt.Sprintf("wlock(%d)\n", n))
++		}
++		for i := 0; i < 100; i++ {
++		}
++		atomic.AddInt32(activity, -10000)
++		rwm.Unlock()
++	}
++	cdone <- true
++}
++
++func HammerRWMutex(gomaxprocs, numReaders, num_iterations int) {
++	GOMAXPROCS(gomaxprocs)
++	// Number of active readers + 10000 * number of active writers.
++	var activity int32
++	var rwm RWMutex
++	rwm.Init()
++	cdone := make(chan bool)
++	go writer(&rwm, num_iterations, &activity, cdone)
++	var i int
++	for i = 0; i < numReaders/2; i++ {
++		go reader(&rwm, num_iterations, &activity, cdone)
++	}
++	go writer(&rwm, num_iterations, &activity, cdone)
++	for ; i < numReaders; i++ {
++		go reader(&rwm, num_iterations, &activity, cdone)
++	}
++	// Wait for the 2 writers and all readers to finish.
++	for i := 0; i < 2+numReaders; i++ {
++		<-cdone
++	}
++}
++
++func TestRWMutex(t *testing.T) {
++	defer GOMAXPROCS(GOMAXPROCS(-1))
++	n := 1000
++	if testing.Short() {
++		n = 5
++	}
++	HammerRWMutex(1, 1, n)
++	HammerRWMutex(1, 3, n)
++	HammerRWMutex(1, 10, n)
++	HammerRWMutex(4, 1, n)
++	HammerRWMutex(4, 3, n)
++	HammerRWMutex(4, 10, n)
++	HammerRWMutex(10, 1, n)
++	HammerRWMutex(10, 3, n)
++	HammerRWMutex(10, 10, n)
++	HammerRWMutex(10, 5, n)
++}
++
++func BenchmarkRWMutexUncontended(b *testing.B) {
++	type PaddedRWMutex struct {
++		RWMutex
++		pad [32]uint32
++	}
++	b.RunParallel(func(pb *testing.PB) {
++		var rwm PaddedRWMutex
++		rwm.RWMutex.Init()
++		for pb.Next() {
++			rwm.RLock()
++			rwm.RLock()
++			rwm.RUnlock()
++			rwm.RUnlock()
++			rwm.Lock()
++			rwm.Unlock()
++		}
++	})
++}
++
++func benchmarkRWMutex(b *testing.B, localWork, writeRatio int) {
++	var rwm RWMutex
++	rwm.Init()
++	b.RunParallel(func(pb *testing.PB) {
++		foo := 0
++		for pb.Next() {
++			foo++
++			if foo%writeRatio == 0 {
++				rwm.Lock()
++				rwm.Unlock()
++			} else {
++				rwm.RLock()
++				for i := 0; i != localWork; i += 1 {
++					foo *= 2
++					foo /= 2
++				}
++				rwm.RUnlock()
++			}
++		}
++		_ = foo
++	})
++}
++
++func BenchmarkRWMutexWrite100(b *testing.B) {
++	benchmarkRWMutex(b, 0, 100)
++}
++
++func BenchmarkRWMutexWrite10(b *testing.B) {
++	benchmarkRWMutex(b, 0, 10)
++}
++
++func BenchmarkRWMutexWorkWrite100(b *testing.B) {
++	benchmarkRWMutex(b, 100, 100)
++}
++
++func BenchmarkRWMutexWorkWrite10(b *testing.B) {
++	benchmarkRWMutex(b, 100, 10)
++}
+diff --git a/src/sync/rwmutex.go b/src/sync/rwmutex.go
+index 94889149a1..cb2dfe1ad8 100644
+--- a/src/sync/rwmutex.go
++++ b/src/sync/rwmutex.go
+@@ -10,6 +10,9 @@ import (
+ 	"unsafe"
+ )
+ 
++// There is a modified copy of this file in runtime/rwmutex.go.
++// If you make any changes here, see if you should make them there.
++
+ // An RWMutex is a reader/writer mutual exclusion lock.
+ // The lock can be held by an arbitrary number of readers or a single writer.
+ // The zero value for a RWMutex is an unlocked mutex.
+diff --git a/src/sync/rwmutex_test.go b/src/sync/rwmutex_test.go
+index 0436f97239..9ee8864ceb 100644
+--- a/src/sync/rwmutex_test.go
++++ b/src/sync/rwmutex_test.go
+@@ -14,6 +14,9 @@ import (
+ 	"testing"
+ )
+ 
++// There is a modified copy of this file in runtime/rwmutex_test.go.
++// If you make any changes here, see if you should make them there.
++
+ func parallelReader(m *RWMutex, clocked, cunlock, cdone chan bool) {
+ 	m.RLock()
+ 	clocked <- true

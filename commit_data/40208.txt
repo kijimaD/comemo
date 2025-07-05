@@ -23,7 +23,89 @@ Date:   Wed Jan 30 12:38:15 2019 +0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/time/format.go      |  7 +++++--
  src/time/format_test.go | 46 ++++++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 51 insertions(+), 2 deletions(-)
+
+diff --git a/src/time/format.go b/src/time/format.go
+index d8e295f696..b531cb4760 100644
+--- a/src/time/format.go
++++ b/src/time/format.go
+@@ -865,9 +865,12 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
+ 				err = errBad
+ 				break
+ 			}
++			hold := value
+ 			p, value = value[0:2], value[2:]
+ 			year, err = atoi(p)
+-			if year >= 69 { // Unix time starts Dec 31 1969 in some time zones
++			if err != nil {
++				value = hold
++			} else if year >= 69 { // Unix time starts Dec 31 1969 in some time zones
+ 				year += 1900
+ 			} else {
+ 				year += 2000
+@@ -887,7 +890,7 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
+ 			month++
+ 		case stdNumMonth, stdZeroMonth:
+ 			month, value, err = getnum(value, std == stdZeroMonth)
+-			if month <= 0 || 12 < month {
++			if err == nil && (month <= 0 || 12 < month) {
+ 				rangeErrString = "month"
+ 			}
+ 		case stdWeekDay:
+diff --git a/src/time/format_test.go b/src/time/format_test.go
+index 516099266c..c08ff87d10 100644
+--- a/src/time/format_test.go
++++ b/src/time/format_test.go
+@@ -710,3 +710,49 @@ func TestUnderscoreTwoThousand(t *testing.T) {
+ 		t.Errorf("Incorrect minute, got %d", m)
+ 	}
+ }
++
++// Issue 29918, 29916
++func TestStd0xParseError(t *testing.T) {
++	tests := []struct {
++		format, value, valueElemPrefix string
++	}{
++		{"01 MST", "0 MST", "0"},
++		{"01 MST", "1 MST", "1"},
++		{RFC850, "Thursday, 04-Feb-1 21:00:57 PST", "1"},
++	}
++	for _, tt := range tests {
++		_, err := Parse(tt.format, tt.value)
++		if err == nil {
++			t.Errorf("Parse(%q, %q) did not fail as expected", tt.format, tt.value)
++		} else if perr, ok := err.(*ParseError); !ok {
++			t.Errorf("Parse(%q, %q) returned error type %T, expected ParseError", tt.format, tt.value, perr)
++		} else if !strings.Contains(perr.Error(), "cannot parse") || !strings.HasPrefix(perr.ValueElem, tt.valueElemPrefix) {
++			t.Errorf("Parse(%q, %q) returned wrong parsing error message: %v", tt.format, tt.value, perr)
++		}
++	}
++}
++
++var monthOutOfRangeTests = []struct {
++	value string
++	ok    bool
++}{
++	{"00-01", false},
++	{"13-01", false},
++	{"01-01", true},
++}
++
++func TestParseMonthOutOfRange(t *testing.T) {
++	for _, test := range monthOutOfRangeTests {
++		_, err := Parse("01-02", test.value)
++		switch {
++		case !test.ok && err != nil:
++			if !strings.Contains(err.Error(), "month out of range") {
++				t.Errorf("%q: expected 'month' error, got %v", test.value, err)
++			}
++		case test.ok && err != nil:
++			t.Errorf("%q: unexpected error: %v", test.value, err)
++		case !test.ok && err == nil:
++			t.Errorf("%q: expected 'month' error, got none", test.value)
++		}
++	}
++}

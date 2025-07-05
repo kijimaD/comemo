@@ -7,8 +7,48 @@ Date:   Wed Mar 7 12:41:43 2012 +0800
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5757050
-
+---
  src/cmd/go/build.go         | 2 +-
  src/cmd/godoc/godoc.go      | 2 +-
  src/pkg/net/unicast_test.go | 2 +-
  3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index be0178c9f2..b31d0a4ed8 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -1112,7 +1112,7 @@ type toolchain interface {
+ type noToolchain struct{}
+ 
+ func noCompiler() error {
+-	log.Fatal("unknown compiler %q", buildContext.Compiler)
++	log.Fatalf("unknown compiler %q", buildContext.Compiler)
+ 	return nil
+ }
+ 
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index b290e31a89..01b609b055 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -88,7 +88,7 @@ func initHandlers() {
+ 	for _, p := range filepath.SplitList(*pkgPath) {
+ 		_, elem := filepath.Split(p)
+ 		if elem == "" {
+-			log.Fatal("invalid -path argument: %q has no final element", p)
++			log.Fatalf("invalid -path argument: %q has no final element", p)
+ 		}
+ 		fs.Bind("/src/pkg/"+elem, OS(p), "/", bindReplace)
+ 	}
+diff --git a/src/pkg/net/unicast_test.go b/src/pkg/net/unicast_test.go
+index 8bfe2796e0..f164f34825 100644
+--- a/src/pkg/net/unicast_test.go
++++ b/src/pkg/net/unicast_test.go
+@@ -545,7 +545,7 @@ func TestProhibitionaryDialArgs(t *testing.T) {
+ 	for _, tt := range prohibitionaryDialArgTests {
+ 		_, err = Dial(tt.net, tt.addr+":"+port)
+ 		if err == nil {
+-			t.Fatal("Dial(%q, %q) should fail", tt.net, tt.addr)
++			t.Fatalf("Dial(%q, %q) should fail", tt.net, tt.addr)
+ 		}
+ 	}
+ }

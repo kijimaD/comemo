@@ -7,9 +7,59 @@ Date:   Tue Mar 15 19:39:50 2011 -0400
     R=r
     CC=golang-dev
     https://golang.org/cl/4273060
-
+---
  src/pkg/debug/proc/proc_darwin.go  | 2 +-
  src/pkg/debug/proc/proc_freebsd.go | 2 +-
  src/pkg/debug/proc/proc_windows.go | 2 +-
  src/pkg/exp/ogle/cmd.go            | 2 +-
  4 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/debug/proc/proc_darwin.go b/src/pkg/debug/proc/proc_darwin.go
+index 7caf3a21a4..49f0a5361f 100644
+--- a/src/pkg/debug/proc/proc_darwin.go
++++ b/src/pkg/debug/proc/proc_darwin.go
+@@ -12,6 +12,6 @@ func Attach(pid int) (Process, os.Error) {
+ 	return nil, os.NewError("debug/proc not implemented on OS X")
+ }
+ 
+-func ForkExec(argv0 string, argv []string, envv []string, dir string, fd []*os.File) (Process, os.Error) {
++func StartProcess(argv0 string, argv []string, attr *os.ProcAttr) (Process, os.Error) {
+ 	return Attach(0)
+ }
+diff --git a/src/pkg/debug/proc/proc_freebsd.go b/src/pkg/debug/proc/proc_freebsd.go
+index f6474ce80c..4df07c365a 100644
+--- a/src/pkg/debug/proc/proc_freebsd.go
++++ b/src/pkg/debug/proc/proc_freebsd.go
+@@ -12,6 +12,6 @@ func Attach(pid int) (Process, os.Error) {
+ 	return nil, os.NewError("debug/proc not implemented on FreeBSD")
+ }
+ 
+-func ForkExec(argv0 string, argv []string, envv []string, dir string, fd []*os.File) (Process, os.Error) {
++func StartProcess(argv0 string, argv []string, attr *os.ProcAttr) (Process, os.Error) {
+ 	return Attach(0)
+ }
+diff --git a/src/pkg/debug/proc/proc_windows.go b/src/pkg/debug/proc/proc_windows.go
+index dc22faef81..661474b67a 100644
+--- a/src/pkg/debug/proc/proc_windows.go
++++ b/src/pkg/debug/proc/proc_windows.go
+@@ -12,6 +12,6 @@ func Attach(pid int) (Process, os.Error) {
+ 	return nil, os.NewError("debug/proc not implemented on windows")
+ }
+ 
+-func ForkExec(argv0 string, argv []string, envv []string, dir string, fd []*os.File) (Process, os.Error) {
++func StartProcess(argv0 string, argv []string, attr *os.ProcAttr) (Process, os.Error) {
+ 	return Attach(0)
+ }
+diff --git a/src/pkg/exp/ogle/cmd.go b/src/pkg/exp/ogle/cmd.go
+index 4f67032d0c..9920ff6b88 100644
+--- a/src/pkg/exp/ogle/cmd.go
++++ b/src/pkg/exp/ogle/cmd.go
+@@ -160,7 +160,7 @@ func cmdLoad(args []byte) os.Error {
+ 		} else {
+ 			fname = parts[0]
+ 		}
+-		tproc, err = proc.ForkExec(fname, parts, os.Environ(), "", []*os.File{os.Stdin, os.Stdout, os.Stderr})
++		tproc, err = proc.StartProcess(fname, parts, &os.ProcAttr{Files: []*os.File{os.Stdin, os.Stdout, os.Stderr}})
+ 		if err != nil {
+ 			return err
+ 		}

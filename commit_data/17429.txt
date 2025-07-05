@@ -9,7 +9,7 @@ Date:   Thu Aug 29 12:36:59 2013 -0700
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/13310043
-
+---
  src/cmd/cc/dpchk.c           | 28 ++++++++++++++++++++++++++--
  src/cmd/ld/textflag.h        | 10 +++++-----
  src/pkg/runtime/hashmap.c    |  4 ++--
@@ -20,3 +20,196 @@ Date:   Thu Aug 29 12:36:59 2013 -0700
  src/pkg/runtime/os_windows.c |  2 +-
  src/pkg/runtime/sema.goc     |  3 ++-
  9 files changed, 41 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/cc/dpchk.c b/src/cmd/cc/dpchk.c
+index 34163ff926..606bf40dd9 100644
+--- a/src/cmd/cc/dpchk.c
++++ b/src/cmd/cc/dpchk.c
+@@ -567,7 +567,19 @@ pragfpround(void)
+ void
+ pragtextflag(void)
+ {
+-	textflag = getnsn();
++	Sym *s;
++
++	s = getsym();
++	if(s == S) {
++		textflag = getnsn();
++	} else {
++		if(s->macro) {
++			macexpand(s, symb);
++		}
++		if(symb[0] < '0' || symb[0] > '9')
++			yyerror("pragma textflag not an integer");
++		textflag = atoi(symb);
++	}
+ 	while(getnsc() != '\n')
+ 		;
+ 	if(debug['f'])
+@@ -577,7 +589,19 @@ pragtextflag(void)
+ void
+ pragdataflag(void)
+ {
+-	dataflag = getnsn();
++	Sym *s;
++
++	s = getsym();
++	if(s == S) {
++		dataflag = getnsn();
++	} else {
++		if(s->macro) {
++			macexpand(s, symb);
++		}
++		if(symb[0] < '0' || symb[0] > '9')
++			yyerror("pragma dataflag not an integer");
++		dataflag = atoi(symb);
++	}
+ 	while(getnsc() != '\n')
+ 		;
+ 	if(debug['f'])
+diff --git a/src/cmd/ld/textflag.h b/src/cmd/ld/textflag.h
+index 7b16865be4..64ae647fb6 100644
+--- a/src/cmd/ld/textflag.h
++++ b/src/cmd/ld/textflag.h
+@@ -7,13 +7,13 @@
+ // all agree on these values.
+ 
+ // Don't profile the marked routine.  This flag is deprecated.
+-#define NOPROF	(1<<0)
++#define NOPROF	1
+ // It is ok for the linker to get multiple of these symbols.  It will
+ // pick one of the duplicates to use.
+-#define DUPOK	(1<<1)
++#define DUPOK	2
+ // Don't insert stack check preamble.
+-#define NOSPLIT	(1<<2)
++#define NOSPLIT	4
+ // Put this data in a read-only section.
+-#define RODATA	(1<<3)
++#define RODATA	8
+ // This data contains no pointers.
+-#define NOPTR	(1<<4)
++#define NOPTR	16
+diff --git a/src/pkg/runtime/hashmap.c b/src/pkg/runtime/hashmap.c
+index a721d4a535..36cbda5abe 100644
+--- a/src/pkg/runtime/hashmap.c
++++ b/src/pkg/runtime/hashmap.c
+@@ -8,6 +8,7 @@
+ #include "hashmap.h"
+ #include "type.h"
+ #include "race.h"
++#include "../../cmd/ld/textflag.h"
+ 
+ // This file contains the implementation of Go's map type.
+ //
+@@ -524,7 +525,7 @@ hash_lookup(MapType *t, Hmap *h, byte **keyp)
+ }
+ 
+ // When an item is not found, fast versions return a pointer to this zeroed memory.
+-#pragma dataflag 16 // no pointers
++#pragma dataflag RODATA
+ static uint8 empty_value[MAXVALUESIZE];
+ 
+ // Specialized versions of mapaccess1 for specific types.
+@@ -593,7 +594,6 @@ static uint8 empty_value[MAXVALUESIZE];
+ #define SLOW_EQ(x,y) runtime·memeq((x).str, (y).str, (x).len)
+ #define MAYBE_EQ(x,y) (*(CHECKTYPE*)(x).str == *(CHECKTYPE*)(y).str && *(CHECKTYPE*)((x).str + (x).len - sizeof(CHECKTYPE)) == *(CHECKTYPE*)((y).str + (x).len - sizeof(CHECKTYPE)))
+ #include "hashmap_fast.c"
+-#include "../../cmd/ld/textflag.h"
+ 
+ static void
+ hash_insert(MapType *t, Hmap *h, void *key, void *value)
+diff --git a/src/pkg/runtime/malloc.goc b/src/pkg/runtime/malloc.goc
+index 405eae1f11..a28e35d04b 100644
+--- a/src/pkg/runtime/malloc.goc
++++ b/src/pkg/runtime/malloc.goc
+@@ -17,7 +17,7 @@ package runtime
+ #include "../../cmd/ld/textflag.h"
+ 
+ // Mark mheap as 'no pointers', it does not contain interesting pointers but occupies ~45K.
+-#pragma dataflag 16
++#pragma dataflag NOPTR
+ MHeap runtime·mheap;
+ 
+ int32	runtime·checking;
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index 9fbf008b4a..23e1140465 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -14,6 +14,7 @@
+ #include "typekind.h"
+ #include "hashmap.h"
+ #include "funcdata.h"
++#include "../../cmd/ld/textflag.h"
+ 
+ enum {
+ 	Debug = 0,
+@@ -299,7 +300,7 @@ struct BufferList
+ 	uint32 busy;
+ 	byte pad[CacheLineSize];
+ };
+-#pragma dataflag 16  // no pointers
++#pragma dataflag NOPTR
+ static BufferList bufferList[MaxGcproc];
+ 
+ static Type *itabtype;
+diff --git a/src/pkg/runtime/os_linux.c b/src/pkg/runtime/os_linux.c
+index 0c2c40441a..cb45fe8cee 100644
+--- a/src/pkg/runtime/os_linux.c
++++ b/src/pkg/runtime/os_linux.c
+@@ -169,7 +169,7 @@ runtime·get_random_data(byte **rnd, int32 *rnd_len)
+ 		*rnd = runtime·startup_random_data;
+ 		*rnd_len = runtime·startup_random_data_len;
+ 	} else {
+-		#pragma dataflag 16 // no pointers
++		#pragma dataflag NOPTR
+ 		static byte urandom_data[HashRandomBytes];
+ 		int32 fd;
+ 		fd = runtime·open("/dev/urandom", 0 /* O_RDONLY */, 0);
+diff --git a/src/pkg/runtime/os_plan9.c b/src/pkg/runtime/os_plan9.c
+index 2f6d4f224f..07db2c3055 100644
+--- a/src/pkg/runtime/os_plan9.c
++++ b/src/pkg/runtime/os_plan9.c
+@@ -324,7 +324,7 @@ runtime·memlimit(void)
+ 	return 0;
+ }
+ 
+-#pragma dataflag 16 // no pointers
++#pragma dataflag NOPTR
+ static int8 badsignal[] = "runtime: signal received on thread not created by Go.\n";
+ 
+ // This runs on a foreign stack, without an m or a g.  No stack split.
+diff --git a/src/pkg/runtime/os_windows.c b/src/pkg/runtime/os_windows.c
+index 96d9f91c5b..c3e296aa67 100644
+--- a/src/pkg/runtime/os_windows.c
++++ b/src/pkg/runtime/os_windows.c
+@@ -478,7 +478,7 @@ runtime·memlimit(void)
+ 	return 0;
+ }
+ 
+-#pragma dataflag 16 // no pointers
++#pragma dataflag NOPTR
+ int8 runtime·badsignalmsg[] = "runtime: signal received on thread not created by Go.\n";
+ int32 runtime·badsignallen = sizeof runtime·badsignalmsg - 1;
+ 
+diff --git a/src/pkg/runtime/sema.goc b/src/pkg/runtime/sema.goc
+index 51a38adafe..57f32a0ddb 100644
+--- a/src/pkg/runtime/sema.goc
++++ b/src/pkg/runtime/sema.goc
+@@ -20,6 +20,7 @@
+ package sync
+ #include "runtime.h"
+ #include "arch_GOARCH.h"
++#include "../../cmd/ld/textflag.h"
+ 
+ typedef struct SemaWaiter SemaWaiter;
+ struct SemaWaiter
+@@ -50,7 +51,7 @@ struct semtable
+ 	SemaRoot;
+ 	uint8 pad[CacheLineSize-sizeof(SemaRoot)];
+ };
+-#pragma dataflag 16 /* mark semtable as 'no pointers', hiding from garbage collector */
++#pragma dataflag NOPTR /* mark semtable as 'no pointers', hiding from garbage collector */
+ static struct semtable semtable[SEMTABLESZ];
+ 
+ static SemaRoot*

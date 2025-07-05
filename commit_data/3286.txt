@@ -8,7 +8,7 @@ Date:   Wed Sep 16 10:43:27 2009 -0700
     DELTA=940  (929 added, 1 deleted, 10 changed)
     OCL=34679
     CL=34686
-
+---
  src/pkg/Makefile                         |   1 -
  src/pkg/debug/dwarf/Makefile             |   1 +
  src/pkg/debug/dwarf/buf.go               |   2 +-
@@ -20,3 +20,1082 @@ Date:   Wed Sep 16 10:43:27 2009 -0700
  src/pkg/debug/dwarf/type.go              | 607 +++++++++++++++++++++++++++++++
  src/pkg/debug/dwarf/type_test.go         | 102 ++++++
  10 files changed, 933 insertions(+), 10 deletions(-)
+
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index 78a2d6dbe1..263b9fedaa 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -82,7 +82,6 @@ DIRS=\
+ 	utf8\
+ 
+ NOTEST=\
+-	debug/dwarf\
+ 	debug/proc\
+ 	go/ast\
+ 	go/doc\
+diff --git a/src/pkg/debug/dwarf/Makefile b/src/pkg/debug/dwarf/Makefile
+index dfa0d90099..8825c597ec 100644
+--- a/src/pkg/debug/dwarf/Makefile
++++ b/src/pkg/debug/dwarf/Makefile
+@@ -10,6 +10,7 @@ GOFILES=\
+ 	const.go\
+ 	entry.go\
+ 	open.go\
++	type.go\
+ 	unit.go\
+ 
+ include $(GOROOT)/src/Make.pkg
+diff --git a/src/pkg/debug/dwarf/buf.go b/src/pkg/debug/dwarf/buf.go
+index a9d45e527f..3089180ac0 100644
+--- a/src/pkg/debug/dwarf/buf.go
++++ b/src/pkg/debug/dwarf/buf.go
+@@ -152,6 +152,6 @@ type DecodeError struct {
+ }
+ 
+ func (e DecodeError) String() string {
+-	return "decoding dwarf section " + e.Name + " at offset " + strconv.Itoa64(int64(e.Offset)) + ": " + e.Error;
++	return "decoding dwarf section " + e.Name + " at offset 0x" + strconv.Itob64(int64(e.Offset), 16) + ": " + e.Error;
+ }
+ 
+diff --git a/src/pkg/debug/dwarf/const.go b/src/pkg/debug/dwarf/const.go
+index 73abdb66a2..c2878bd6f5 100644
+--- a/src/pkg/debug/dwarf/const.go
++++ b/src/pkg/debug/dwarf/const.go
+@@ -350,3 +350,84 @@ func (t Tag) GoString() string {
+ 	return "dwarf.Tag(" + strconv.Itoa64(int64(t)) + ")";
+ }
+ 
++// Location expression operators.
++// The debug info encodes value locations like 8(R3)
++// as a sequence of these op codes.
++// This package does not implement full expressions;
++// the opPlusUconst operator is expected by the type parser.
++const (
++	opAddr = 0x03;	/* 1 op, const addr */
++	opDeref = 0x06;
++	opConst1u = 0x08;	/* 1 op, 1 byte const */
++	opConst1s = 0x09;	/*	" signed */
++	opConst2u = 0x0A;	/* 1 op, 2 byte const  */
++	opConst2s = 0x0B;	/*	" signed */
++	opConst4u = 0x0C;	/* 1 op, 4 byte const */
++	opConst4s = 0x0D;	/*	" signed */
++	opConst8u = 0x0E;	/* 1 op, 8 byte const */
++	opConst8s = 0x0F;	/*	" signed */
++	opConstu = 0x10;	/* 1 op, LEB128 const */
++	opConsts = 0x11;	/*	" signed */
++	opDup = 0x12;
++	opDrop = 0x13;
++	opOver = 0x14;
++	opPick = 0x15;		/* 1 op, 1 byte stack index */
++	opSwap = 0x16;
++	opRot = 0x17;
++	opXderef = 0x18;
++	opAbs = 0x19;
++	opAnd = 0x1A;
++	opDiv = 0x1B;
++	opMinus = 0x1C;
++	opMod = 0x1D;
++	opMul = 0x1E;
++	opNeg = 0x1F;
++	opNot = 0x20;
++	opOr = 0x21;
++	opPlus = 0x22;
++	opPlusUconst = 0x23;	/* 1 op, ULEB128 addend */
++	opShl = 0x24;
++	opShr = 0x25;
++	opShra = 0x26;
++	opXor = 0x27;
++	opSkip = 0x2F;		/* 1 op, signed 2-byte constant */
++	opBra = 0x28;		/* 1 op, signed 2-byte constant */
++	opEq = 0x29;
++	opGe = 0x2A;
++	opGt = 0x2B;
++	opLe = 0x2C;
++	opLt = 0x2D;
++	opNe = 0x2E;
++	opLit0 = 0x30;
++		/* OpLitN = OpLit0 + N for N = 0..31 */
++	opReg0 = 0x50;
++		/* OpRegN = OpReg0 + N for N = 0..31 */
++	opBreg0 = 0x70;	/* 1 op, signed LEB128 constant */
++		/* OpBregN = OpBreg0 + N for N = 0..31 */
++	opRegx = 0x90;	/* 1 op, ULEB128 register */
++	opFbreg = 0x91;	/* 1 op, SLEB128 offset */
++	opBregx = 0x92;	/* 2 op, ULEB128 reg; SLEB128 off */
++	opPiece = 0x93;	/* 1 op, ULEB128 size of piece */
++	opDerefSize = 0x94;	/* 1-byte size of data retrieved */
++	opXderefSize = 0x95;	/* 1-byte size of data retrieved */
++	opNop = 0x96;
++	/* next four new in Dwarf v3 */
++	opPushObjAddr = 0x97;
++	opCall2 = 0x98;	/* 2-byte offset of DIE */
++	opCall4 = 0x99;	/* 4-byte offset of DIE */
++	opCallRef = 0x9A	/* 4- or 8- byte offset of DIE */
++	/* 0xE0-0xFF reserved for user-specific */
++)
++
++// Basic type encodings -- the value for AttrEncoding in a TagBaseType Entry.
++const (
++	encAddress = 0x01;
++	encBoolean = 0x02;
++	encComplexFloat = 0x03;
++	encFloat = 0x04;
++	encSigned = 0x05;
++	encSignedChar = 0x06;
++	encUnsigned = 0x07;
++	encUnsignedChar = 0x08;
++	encImaginaryFloat = 0x09;
++)
+diff --git a/src/pkg/debug/dwarf/entry.go b/src/pkg/debug/dwarf/entry.go
+index 472ee91d8a..98a8b2ea04 100644
+--- a/src/pkg/debug/dwarf/entry.go
++++ b/src/pkg/debug/dwarf/entry.go
+@@ -107,6 +107,22 @@ type Field struct {
+ 	Val interface{};
+ }
+ 
++// Val returns the value associated with attribute Attr in Entry,
++// or nil if there is no such attribute.
++//
++// A common idiom is to merge the check for nil return with
++// the check that the value has the expected dynamic type, as in:
++//	v, ok := e.Val(AttrSibling).(int64);
++//
++func (e *Entry) Val(a Attr) interface{} {
++	for _, f := range e.Field {
++		if f.Attr == a {
++			return f.Val;
++		}
++	}
++	return nil;
++}
++
+ // An Offset represents the location of an Entry within the DWARF info.
+ // (See Reader.Seek.)
+ type Offset uint32
+@@ -157,17 +173,17 @@ func (b *buf) entry(atab abbrevTable, ubase Offset) *Entry {
+ 
+ 		// constant
+ 		case formData1:
+-			val = uint64(b.uint8());
++			val = int64(b.uint8());
+ 		case formData2:
+-			val = uint64(b.uint16());
++			val = int64(b.uint16());
+ 		case formData4:
+-			val = uint64(b.uint32());
++			val = int64(b.uint32());
+ 		case formData8:
+-			val = uint64(b.uint64());
++			val = int64(b.uint64());
+ 		case formSdata:
+ 			val = int64(b.int());
+ 		case formUdata:
+-			val = uint64(b.uint());
++			val = int64(b.uint());
+ 
+ 		// flag
+ 		case formFlag:
+@@ -212,11 +228,17 @@ func (b *buf) entry(atab abbrevTable, ubase Offset) *Entry {
+ }
+ 
+ // A Reader allows reading Entry structures from a DWARF ``info'' section.
++// The Entry structures are arranged in a tree.  The Reader's Next function
++// return successive entries from a pre-order traversal of the tree.
++// If an entry has children, its Children field will be true, and the children
++// follow, terminated by an Entry with Tag 0.
+ type Reader struct {
+ 	b buf;
+ 	d *Data;
+ 	err os.Error;
+ 	unit int;
++	lastChildren bool;	// .Children of last entry returned by Next
++	lastSibling Offset;	// .Val(AttrSibling) of last entry returned by Next
+ }
+ 
+ // Reader returns a new Reader for Data.
+@@ -232,6 +254,7 @@ func (d *Data) Reader() *Reader {
+ func (r *Reader) Seek(off Offset) {
+ 	d := r.d;
+ 	r.err = nil;
++	r.lastChildren = false;
+ 	if off == 0 {
+ 		if len(d.unit) == 0 {
+ 			return;
+@@ -258,7 +281,7 @@ func (r *Reader) Seek(off Offset) {
+ 
+ // maybeNextUnit advances to the next unit if this one is finished.
+ func (r *Reader) maybeNextUnit() {
+-	for len(r.b.data) == 0 && r.unit < len(r.d.unit) {
++	for len(r.b.data) == 0 && r.unit+1 < len(r.d.unit) {
+ 		r.unit++;
+ 		u := &r.d.unit[r.unit];
+ 		r.b = makeBuf(r.d, "info", u.off, u.data, u.addrsize);
+@@ -279,6 +302,46 @@ func (r *Reader) Next() (*Entry, os.Error) {
+ 	}
+ 	u := &r.d.unit[r.unit];
+ 	e := r.b.entry(u.atable, u.base);
+-	r.err = r.b.err;
+-	return e, r.err;
++	if r.b.err != nil {
++		r.err = r.b.err;
++		return nil, r.err;
++	}
++	if e != nil {
++		r.lastChildren = e.Children;
++		if r.lastChildren {
++			r.lastSibling, _ = e.Val(AttrSibling).(Offset);
++		}
++	} else {
++		r.lastChildren = false;
++	}
++	return e, nil;
+ }
++
++// SkipChildren skips over the child entries associated with
++// the last Entry returned by Next.  If that Entry did not have
++// children or Next has not been called, SkipChildren is a no-op.
++func (r *Reader) SkipChildren() {
++	if r.err != nil || !r.lastChildren{
++		return;
++	}
++
++	// If the last entry had a sibling attribute,
++	// that attribute gives the offset of the next
++	// sibling, so we can avoid decoding the
++	// child subtrees.
++	if r.lastSibling >= r.b.off {
++		r.Seek(r.lastSibling);
++		return;
++	}
++
++	for {
++		e, err := r.Next();
++		if err != nil || e == nil || e.Tag == 0 {
++			break;
++		}
++		if e.Children {
++			r.SkipChildren();
++		}
++	}
++}
++
+diff --git a/src/pkg/debug/dwarf/open.go b/src/pkg/debug/dwarf/open.go
+index 8694508386..e252ce5f4e 100644
+--- a/src/pkg/debug/dwarf/open.go
++++ b/src/pkg/debug/dwarf/open.go
+@@ -30,6 +30,7 @@ type Data struct {
+ 	abbrevCache map[uint32] abbrevTable;
+ 	addrsize int;
+ 	order binary.ByteOrder;
++	typeCache map[Offset] Type;
+ 	unit []unit;
+ }
+ 
+@@ -51,6 +52,7 @@ func New(abbrev, aranges, frame, info, line, pubnames, ranges, str []byte) (*Dat
+ 		ranges: ranges,
+ 		str: str,
+ 		abbrevCache: make(map[uint32]abbrevTable),
++		typeCache: make(map[uint32]Type),
+ 	};
+ 
+ 	// Sniff .debug_info to figure out byte order.
+diff --git a/src/pkg/debug/dwarf/testdata/typedef.c b/src/pkg/debug/dwarf/testdata/typedef.c
+new file mode 100644
+index 0000000000..9a46d42e08
+--- /dev/null
++++ b/src/pkg/debug/dwarf/testdata/typedef.c
+@@ -0,0 +1,68 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++/*
++gcc -gdwarf-2 -c typedef.c && gcc -gdwarf-2 -o typedef.elf typedef.o
++*/
++
++typedef volatile int* t_ptr_volatile_int;
++typedef const char *t_ptr_const_char;
++typedef long t_long;
++typedef unsigned short t_ushort;
++typedef int t_func_int_of_float_double(float, double);
++typedef int (*t_ptr_func_int_of_float_double)(float, double);
++typedef int *t_func_ptr_int_of_char_schar_uchar(char, signed char, unsigned char);
++typedef void t_func_void_of_char(char);
++typedef void t_func_void_of_void(void);
++typedef void t_func_void_of_ptr_char_dots(char*, ...);
++typedef struct my_struct {
++	volatile int vi;
++	char x : 1;
++	int y : 4;
++	long long array[40];
++} t_my_struct;
++typedef union my_union {
++	volatile int vi;
++	char x : 1;
++	int y : 4;
++	long long array[40];
++} t_my_union;
++typedef enum my_enum {
++	e1 = 1,
++	e2 = 2,
++	e3 = -5,
++	e4 = 1000000000000000LL,
++} t_my_enum;
++
++typedef struct list t_my_list;
++struct list {
++	short val;
++	t_my_list *next;
++};
++
++typedef struct tree {
++	struct tree *left, *right;
++	unsigned long long val;
++} t_my_tree;
++
++t_ptr_volatile_int *a2;
++t_ptr_const_char **a3a;
++t_long *a4;
++t_ushort *a5;
++t_func_int_of_float_double *a6;
++t_ptr_func_int_of_float_double *a7;
++t_func_ptr_int_of_char_schar_uchar *a8;
++t_func_void_of_char *a9;
++t_func_void_of_void *a10;
++t_func_void_of_ptr_char_dots *a11;
++t_my_struct *a12;
++t_my_union *a12a;
++t_my_enum *a13;
++t_my_list *a14;
++t_my_tree *a15;
++
++int main()
++{
++	return 0;
++}
+diff --git a/src/pkg/debug/dwarf/testdata/typedef.elf b/src/pkg/debug/dwarf/testdata/typedef.elf
+new file mode 100755
+index 0000000000..ea9291fce7
+Binary files /dev/null and b/src/pkg/debug/dwarf/testdata/typedef.elf differ
+diff --git a/src/pkg/debug/dwarf/type.go b/src/pkg/debug/dwarf/type.go
+new file mode 100644
+index 0000000000..335ef314a1
+--- /dev/null
++++ b/src/pkg/debug/dwarf/type.go
+@@ -0,0 +1,607 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// DWARF type information structures.
++// The format is heavily biased toward C, but for simplicity
++// the String methods use a pseudo-Go syntax.
++
++package dwarf
++
++import (
++	"os";
++	"strconv";
++)
++
++// A CommonType holds fields common to multiple types.
++// If a field is not known or not applicable for a given type,
++// the zero value is used.
++type CommonType struct {
++	ByteSize int64;		// size of value of this type, in bytes
++	Name string;		// name that can be used to refer to type
++}
++
++func (c *CommonType) Common() *CommonType {
++	return c;
++}
++
++// Basic types
++
++// A BasicType holds fields common to all basic types.
++type BasicType struct {
++	CommonType;
++	BitSize int64;
++	BitOffset int64;
++}
++
++func (b *BasicType) Basic() *BasicType {
++	return b;
++}
++
++func (t *BasicType) String() string {
++	if t.Name != "" {
++		return t.Name;
++	}
++	return "?"
++}
++
++// A CharType represents a signed character type.
++type CharType struct {
++	BasicType;
++}
++
++// A UcharType represents an unsigned character type.
++type UcharType struct {
++	BasicType;
++}
++
++// An IntType represents a signed integer type.
++type IntType struct {
++	BasicType;
++}
++
++// A UintType represents an unsigned integer type.
++type UintType struct {
++	BasicType;
++}
++
++// A FloatType represents a floating point type.
++type FloatType struct {
++	BasicType;
++}
++
++// A ComplexType represents a complex floating point type.
++type ComplexType struct {
++	BasicType;
++}
++
++// A BoolType represents a boolean type.
++type BoolType struct {
++	BasicType;
++}
++
++// An AddrType represents a machine address type.
++type AddrType struct {
++	BasicType;
++}
++
++// qualifiers
++
++// A QualType represents a type that has the C/C++ "const", "restrict", or "volatile" qualifier.
++type QualType struct {
++	CommonType;
++	Qual string;
++	Type Type;
++}
++
++func (t *QualType) String() string {
++	return t.Qual + " " + t.Type.String();
++}
++
++// An ArrayType represents a fixed size array type.
++type ArrayType struct {
++	CommonType;
++	Type Type;
++	StrideBitSize int64;	// if > 0, number of bits to hold each element
++	Count int64;
++}
++
++func (t *ArrayType) String() string {
++	return "[" + strconv.Itoa64(t.Count) + "]" + t.Type.String();
++}
++
++// A VoidType represents the C void type.
++// It is only used as the subtype for a pointer:
++// a FuncType that returns no value has a nil ReturnType.
++type VoidType struct {
++	CommonType;
++}
++
++func (t *VoidType) String() string {
++	return "void";
++}
++
++// A PtrType represents a pointer type.
++type PtrType struct {
++	CommonType;
++	Type Type;
++}
++
++func (t *PtrType) String() string {
++	return "*" + t.Type.String();
++}
++
++// A StructType represents a struct, union, or C++ class type.
++type StructType struct {
++	CommonType;
++	StructName string;
++	Kind string;	// "struct", "union", or "class".
++	Field []*StructField;
++	Incomplete bool;	// if true, struct, union, class is declared but not defined
++}
++
++// A StructField represents a field in a struct, union, or C++ class type.
++type StructField struct {
++	Name string;
++	Type Type;
++	ByteOffset int64;
++	ByteSize int64;
++	BitOffset int64;	// within the ByteSize bytes at ByteOffset
++	BitSize int64;	// zero if not a bit field
++}
++
++func (t *StructType) String() string {
++	if t.StructName != "" {
++		return t.Kind + " " + t.StructName;
++	}
++	return t.Defn();
++}
++
++func (t *StructType) Defn() string {
++	s := t.Kind;
++	if t.StructName != "" {
++		s += " " + t.StructName;
++	}
++	if t.Incomplete {
++		s += " /*incomplete*/";
++		return s;
++	}
++	s += " {";
++	for i, f := range t.Field {
++		if i > 0 {
++			s += "; ";
++		}
++		s += f.Name + " " + f.Type.String();
++		s += "@" + strconv.Itoa64(f.ByteOffset);
++		if f.BitSize > 0 {
++			s += " : " + strconv.Itoa64(f.BitSize);
++			s += "@" + strconv.Itoa64(f.BitOffset);
++		}
++	}
++	s += "}";
++	return s;
++}
++
++// An EnumType represents an enumerated type.
++// The only indication of its native integer type is its ByteSize
++// (inside CommonType).
++type EnumType struct {
++	CommonType;
++	EnumName string;
++	Val []*EnumValue;
++}
++
++// An EnumValue represents a single enumeration value.
++type EnumValue struct {
++	Name string;
++	Val int64;
++}
++
++func (t *EnumType) String() string {
++	s := "enum";
++	if t.EnumName != "" {
++		s += " " + t.EnumName;
++	}
++	s += " {";
++	for i, v := range t.Val {
++		if i > 0 {
++			s += "; ";
++		}
++		s += v.Name + "=" + strconv.Itoa64(v.Val);
++	}
++	s += "}";
++	return s;
++}
++
++// A FuncType represents a function type.
++type FuncType struct {
++	CommonType;
++	ReturnType Type;
++	ParamType []Type;
++}
++
++func (t *FuncType) String() string {
++	s := "func(";
++	for i, t := range t.ParamType {
++		if i > 0 {
++			s += ", ";
++		}
++		s += t.String();
++	}
++	s += ")";
++	if t.ReturnType != nil {
++		s += " " + t.ReturnType.String();
++	}
++	return s;
++}
++
++// A DotDotDotType represents the variadic ... function parameter.
++type DotDotDotType struct {
++	CommonType;
++}
++
++func (t *DotDotDotType) String() string {
++	return "...";
++}
++
++// A TypedefType represents a named type.
++type TypedefType struct {
++	CommonType;
++	Type Type;
++}
++
++func (t *TypedefType) String() string {
++	return t.Name;
++}
++
++// A Type conventionally represents a pointer to any of the
++// specific Type structures (CharType, StructType, etc.).
++type Type interface {
++	Common() *CommonType;
++	String() string;
++}
++
++func (d *Data) Type(off Offset) (Type, os.Error) {
++	if t, ok := d.typeCache[off]; ok {
++		return t, nil;
++	}
++
++	r := d.Reader();
++	r.Seek(off);
++	e, err := r.Next();
++	if err != nil {
++		return nil, err;
++	}
++	if e == nil || e.Offset != off {
++		return nil, DecodeError{"info", off, "no type at offset"};
++	}
++
++	// Parse type from Entry.
++	// Must always set d.typeCache[off] before calling
++	// d.Type recursively, to handle circular types correctly.
++	var typ Type;
++
++	// Get next child; set err if error happens.
++	next := func() *Entry {
++		if !e.Children {
++			return nil;
++		}
++		kid, err1 := r.Next();
++		if err1 != nil {
++			err = err1;
++			return nil;
++		}
++		if kid == nil {
++			err = DecodeError{"info", r.b.off, "unexpected end of DWARF entries"};
++			return nil;
++		}
++		if kid.Tag == 0 {
++			return nil;
++		}
++		return kid;
++	};
++
++	// Get Type referred to by Entry's AttrType field.
++	// Set err if error happens.  Not having a type is an error.
++	typeOf := func(e *Entry) Type {
++		toff, ok := e.Val(AttrType).(Offset);
++		if !ok {
++			err = DecodeError{"info", e.Offset, "missing type attribute"};
++			return nil;
++		}
++		var t Type;
++		if t, err = d.Type(toff); err != nil {
++			return nil;
++		}
++		return t;
++	};
++
++	switch e.Tag {
++	case TagArrayType:
++		// Multi-dimensional array.  (DWARF v2 §5.4)
++		// Attributes:
++		//	AttrType:subtype [required]
++		//	AttrStrideSize: size in bits of each element of the array
++		//	AttrByteSize: size of entire array
++		// Children:
++		//	TagSubrangeType or TagEnumerationType giving one dimension.
++		//	dimensions are in left to right order.
++		t := new(ArrayType);
++		typ = t;
++		d.typeCache[off] = t;
++		if t.Type = typeOf(e); err != nil {
++			goto Error;
++		}
++		t.StrideBitSize, _ = e.Val(AttrStrideSize).(int64);
++
++		// Accumulate dimensions,
++		ndim := 0;
++		for kid := next(); kid != nil; kid = next() {
++			// TODO(rsc): Can also be TagEnumerationType
++			// but haven't seen that in the wild yet.
++			switch kid.Tag {
++			case TagSubrangeType:
++				max, ok := kid.Val(AttrUpperBound).(int64);
++				if !ok {
++					err = DecodeError{"info", kid.Offset, "missing upper bound"};
++					goto Error;
++				}
++				if ndim == 0 {
++					t.Count = max+1;
++				} else {
++					// Multidimensional array.
++					// Create new array type underneath this one.
++					t.Type = &ArrayType{Type: t.Type, Count: max+1};
++				}
++				ndim++;
++			case TagEnumerationType:
++				err = DecodeError{"info", kid.Offset, "cannot handle enumeration type as array bound"};
++				goto Error;
++			}
++		}
++		if ndim == 0 {
++			err = DecodeError{"info", e.Offset, "missing dimension for array"};
++			goto Error;
++		}
++
++	case TagBaseType:
++		// Basic type.  (DWARF v2 §5.1)
++		// Attributes:
++		//	AttrName: name of base type in programming language of the compilation unit [required]
++		//	AttrEncoding: encoding value for type (encFloat etc) [required]
++		//	AttrByteSize: size of type in bytes [required]
++		//	AttrBitOffset: for sub-byte types, size in bits
++		//	AttrBitSize: for sub-byte types, bit offset of high order bit in the AttrByteSize bytes
++		name, _ := e.Val(AttrName).(string);
++		enc, ok := e.Val(AttrEncoding).(int64);
++		if !ok {
++			err = DecodeError{"info", e.Offset, "missing encoding attribute for " + name};
++			goto Error;
++		}
++		switch enc {
++		default:
++			err = DecodeError{"info", e.Offset, "unrecognized encoding attribute value"};
++			goto Error;
++
++		case encAddress:
++			typ = new(AddrType);
++		case encBoolean:
++			typ = new(BoolType);
++		case encComplexFloat:
++			typ = new(ComplexType);
++		case encFloat:
++			typ = new(FloatType);
++		case encSigned:
++			typ = new(IntType);
++		case encUnsigned:
++			typ = new(UintType);
++		case encSignedChar:
++			typ = new(CharType);
++		case encUnsignedChar:
++			typ = new(UcharType);
++		}
++		d.typeCache[off] = typ;
++		t := typ.(interface{Basic() *BasicType}).Basic();
++		t.Name = name;
++		t.BitSize, _ = e.Val(AttrBitSize).(int64);
++		t.BitOffset, _ = e.Val(AttrBitOffset).(int64);
++
++	case TagClassType, TagStructType, TagUnionType:
++		// Structure, union, or class type.  (DWARF v2 §5.5)
++		// Attributes:
++		//	AttrName: name of struct, union, or class
++		//	AttrByteSize: byte size [required]
++		//	AttrDeclaration: if true, struct/union/class is incomplete
++		// Children:
++		//	TagMember to describe one member.
++		//		AttrName: name of member [required]
++		//		AttrType: type of member [required]
++		//		AttrByteSize: size in bytes
++		//		AttrBitOffset: bit offset within bytes for bit fields
++		//		AttrBitSize: bit size for bit fields
++		//		AttrDataMemberLoc: location within struct [required for struct, class]
++		// There is much more to handle C++, all ignored for now.
++		t := new(StructType);
++		typ = t;
++		d.typeCache[off] = t;
++		switch e.Tag {
++		case TagClassType:
++			t.Kind = "class";
++		case TagStructType:
++			t.Kind = "struct";
++		case TagUnionType:
++			t.Kind = "union";
++		}
++		t.StructName, _ = e.Val(AttrName).(string);
++		t.Incomplete = e.Val(AttrDeclaration) != nil;
++		t.Field = make([]*StructField, 0, 8);
++		for kid := next(); kid != nil; kid = next() {
++			if kid.Tag == TagMember {
++				f := new(StructField);
++				if f.Type = typeOf(kid); err != nil {
++					goto Error;
++				}
++				if loc, ok := kid.Val(AttrDataMemberLoc).([]byte); ok {
++					b := makeBuf(d, "location", 0, loc, d.addrsize);
++					if b.uint8() != opPlusUconst {
++						err = DecodeError{"info", kid.Offset, "unexpected opcode"};
++						goto Error;
++					}
++					f.ByteOffset = int64(b.uint());
++					if b.err != nil {
++						err = b.err;
++						goto Error;
++					}
++				}
++				f.Name, _ = kid.Val(AttrName).(string);
++				f.ByteSize, _ = kid.Val(AttrByteSize).(int64);
++				f.BitOffset, _ = kid.Val(AttrBitOffset).(int64);
++				f.BitSize, _ = kid.Val(AttrBitSize).(int64);
++				n := len(t.Field);
++				if n >= cap(t.Field) {
++					fld := make([]*StructField, n, n*2);
++					for i, f := range t.Field {
++						fld[i] = f;
++					}
++					t.Field = fld;
++				}
++				t.Field = t.Field[0:n+1];
++				t.Field[n] = f;
++			}
++		}
++
++	case TagConstType, TagVolatileType, TagRestrictType:
++		// Type modifier (DWARF v2 §5.2)
++		// Attributes:
++		//	AttrType: subtype
++		t := new(QualType);
++		typ = t;
++		d.typeCache[off] = t;
++		if t.Type = typeOf(e); err != nil {
++			goto Error;
++		}
++		switch e.Tag {
++		case TagConstType:
++			t.Qual = "const";
++		case TagRestrictType:
++			t.Qual = "restrict";
++		case TagVolatileType:
++			t.Qual = "volatile";
++		}
++
++	case TagEnumerationType:
++		// Enumeration type (DWARF v2 §5.6)
++		// Attributes:
++		//	AttrName: enum name if any
++		//	AttrByteSize: bytes required to represent largest value
++		// Children:
++		//	TagEnumerator:
++		//		AttrName: name of constant
++		//		AttrConstValue: value of constant
++		t := new(EnumType);
++		typ = t;
++		d.typeCache[off] = t;
++		t.EnumName, _ = e.Val(AttrName).(string);
++		t.Val = make([]*EnumValue, 0, 8);
++		for kid := next(); kid != nil; kid = next() {
++			if kid.Tag == TagEnumerator {
++				f := new(EnumValue);
++				f.Name, _ = kid.Val(AttrName).(string);
++				f.Val, _ = kid.Val(AttrConstValue).(int64);
++				n := len(t.Val);
++				if n >= cap(t.Val) {
++					val := make([]*EnumValue, n, n*2);
++					for i, f := range t.Val {
++						val[i] = f;
++					}
++					t.Val = val;
++				}
++				t.Val = t.Val[0:n+1];
++				t.Val[n] = f;
++			}
++		}
++
++	case TagPointerType:
++		// Type modifier (DWARF v2 §5.2)
++		// Attributes:
++		//	AttrType: subtype [not required!  void* has no AttrType]
++		//	AttrAddrClass: address class [ignored]
++		t := new(PtrType);
++		typ = t;
++		d.typeCache[off] = t;
++		if e.Val(AttrType) == nil {
++			t.Type = &VoidType{};
++			break;
++		}
++		t.Type = typeOf(e);
++
++	case TagSubroutineType:
++		// Subroutine type.  (DWARF v2 §5.7)
++		// Attributes:
++		//	AttrType: type of return value if any
++		//	AttrName: possible name of type [ignored]
++		//	AttrPrototyped: whether used ANSI C prototye [ignored]
++		// Children:
++		//	TagFormalParameter: typed parameter
++		//		AttrType: type of parameter
++		//	TagUnspecifiedParameter: final ...
++		t := new(FuncType);
++		typ = t;
++		d.typeCache[off] = t;
++		if e.Val(AttrType) != nil {
++			if t.ReturnType = typeOf(e); err != nil {
++				goto Error;
++			}
++		}
++		t.ParamType = make([]Type, 0, 8);
++		for kid := next(); kid != nil; kid = next() {
++			var tkid Type;
++			switch kid.Tag {
++			default:
++				continue;
++			case TagFormalParameter:
++				if tkid = typeOf(kid); err != nil {
++					goto Error;
++				}
++			case TagUnspecifiedParameters:
++				tkid = &DotDotDotType{};
++			}
++			n := len(t.ParamType);
++			if n >= cap(t.ParamType) {
++				param := make([]Type, n, n*2);
++				for i, t := range t.ParamType {
++					param[i] = t;
++				}
++				t.ParamType = param;
++			}
++			t.ParamType = t.ParamType[0:n+1];
++			t.ParamType[n] = tkid;
++		}
++
++	case TagTypedef:
++		// Typedef (DWARF v2 §5.3)
++		// Attributes:
++		//	AttrName: name [required]
++		//	AttrType: type definition [required]
++		t := new(TypedefType);
++		typ = t;
++		d.typeCache[off] = t;
++		t.Name, _ = e.Val(AttrName).(string);
++		t.Type = typeOf(e);
++	}
++
++	if err != nil {
++		goto Error;
++	}
++
++	typ.Common().ByteSize, _ = e.Val(AttrByteSize).(int64);
++
++	return typ, nil;
++
++Error:
++	// If the parse fails, take the type out of the cache
++	// so that the next call with this offset doesn't hit
++	// the cache and return success.
++	d.typeCache[off] = nil, false;
++	return nil, err;
++}
+diff --git a/src/pkg/debug/dwarf/type_test.go b/src/pkg/debug/dwarf/type_test.go
+new file mode 100644
+index 0000000000..ea7f219767
+--- /dev/null
++++ b/src/pkg/debug/dwarf/type_test.go
+@@ -0,0 +1,102 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package dwarf
++
++import (
++	"debug/elf";
++	"testing";
++)
++
++var typedefTests = map[string]string {
++	"t_ptr_volatile_int": "*volatile int",
++	"t_ptr_const_char": "*const char",
++	"t_long": "long int",
++	"t_ushort": "short unsigned int",
++	"t_func_int_of_float_double": "func(float, double) int",
++	"t_ptr_func_int_of_float_double": "*func(float, double) int",
++	"t_func_ptr_int_of_char_schar_uchar": "func(char, signed char, unsigned char) *int",
++	"t_func_void_of_char": "func(char)",
++	"t_func_void_of_void": "func()",
++	"t_func_void_of_ptr_char_dots": "func(*char, ...)",
++	"t_my_struct": "struct my_struct {vi volatile int@0; x char@4 : 1@7; y int@4 : 4@27; array [40]long long int@8}",
++	"t_my_union": "union my_union {vi volatile int@0; x char@0 : 1@7; y int@0 : 4@28; array [40]long long int@0}",
++	"t_my_enum": "enum my_enum {e1=1; e2=2; e3=-5; e4=1000000000000000}",
++	"t_my_list": "struct list {val short int@0; next *t_my_list@8}",
++	"t_my_tree": "struct tree {left *struct tree@0; right *struct tree@8; val long long unsigned int@16}"
++};
++
++func elfData(t *testing.T, name string) *Data {
++	f, err := elf.Open(name);
++	if err != nil {
++		t.Fatal(err);
++	}
++	
++	dat := func(name string) []byte {
++		s := f.Section(".debug_" + name);
++		if s == nil {
++			return nil
++		}
++		b, err := s.Data();
++		if err != nil {
++			t.Fatal(".debug_"+name+":", err);
++		}
++		return b;
++	};
++	
++	d, err := New(dat("abbrev"), nil, nil, dat("info"), nil, nil, nil, dat("str"));
++	if err != nil {
++		t.Fatal("New:", err);
++	}
++	
++	return d;
++}
++
++
++func TestTypedefs(t *testing.T) {
++	d := elfData(t, "testdata/typedef.elf");
++	r := d.Reader();
++	seen := make(map[string]bool);
++	for {
++		e, err := r.Next();
++		if err != nil {
++			t.Fatal("r.Next:", err);
++		}
++		if e == nil {
++			break;
++		}
++		if e.Tag == TagTypedef {
++			typ, err := d.Type(e.Offset);
++			if err != nil {
++				t.Fatal("d.Type:", err);
++			}
++			t1 := typ.(*TypedefType);
++			var typstr string;
++			if ts, ok := t1.Type.(*StructType); ok {
++				typstr = ts.Defn();
++			} else {
++				typstr = t1.Type.String();
++			}
++			
++			if want, ok := typedefTests[t1.Name]; ok {
++				if _, ok := seen[t1.Name]; ok {
++					t.Errorf("multiple definitions for %s", t1.Name);
++				}
++				seen[t1.Name] = true;
++				if typstr != want {
++					t.Errorf("%s:\n\thave %s\n\twant %s", t1.Name, typstr, want);
++				}
++			}
++		}
++		if e.Tag != TagCompileUnit {
++			r.SkipChildren();
++		}
++	}
++	
++	for k := range typedefTests {
++		if _, ok := seen[k]; !ok {
++			t.Errorf("missing %s", k);
++		}
++	}
++}

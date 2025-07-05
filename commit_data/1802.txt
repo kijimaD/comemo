@@ -7,8 +7,51 @@ Date:   Tue Mar 10 19:16:31 2009 -0700
     R=r
     OCL=26090
     CL=26090
-
+---
  src/cmd/gc/walk.c                  | 4 +++-
  test/{bugs => fixedbugs}/bug087.go | 0
  test/golden.out                    | 5 -----
  3 files changed, 3 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index d82dfd4ebf..6c93c11cfe 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -733,7 +733,6 @@ loop:
+ 			goto nottop;
+ 		walktype(n->left, Erv);
+ 		implicitstar(&n->left);
+-		evconst(n);
+ 		t = n->left->type;
+ 		if(t == T)
+ 			goto ret;
+@@ -741,6 +740,9 @@ loop:
+ 		default:
+ 			goto badt;
+ 		case TSTRING:
++			if(whatis(n->left) == Wlitstr)
++				nodconst(n, types[TINT], n->left->val.u.sval->len);
++			break;
+ 		case TMAP:
+ 			break;
+ 		case TARRAY:
+diff --git a/test/bugs/bug087.go b/test/fixedbugs/bug087.go
+similarity index 100%
+rename from test/bugs/bug087.go
+rename to test/fixedbugs/bug087.go
+diff --git a/test/golden.out b/test/golden.out
+index 31616f4faa..5dfe1953aa 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -115,11 +115,6 @@ abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz
+ =========== chan/nonblock.go
+ PASS
+ 
+-=========== bugs/bug087.go
+-bugs/bug087.go:8: illegal combination of literals LEN 9
+-bugs/bug087.go:8: illegal combination of literals LEN 9
+-BUG: fails incorrectly
+-
+ =========== bugs/bug108.go
+ bugs/bug108.go:4: stupid shift: 1025
+ BUG: errchk: command succeeded unexpectedly:  6g bugs/bug108.go

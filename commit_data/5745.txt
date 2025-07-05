@@ -18,9 +18,195 @@ Date:   Wed Jun 30 18:03:09 2010 -0700
     R=r, cw
     CC=golang-dev
     https://golang.org/cl/1731048
-
+---
  src/pkg/bytes/bytes.go          | 33 ++++++++++++++++++++++++++++
  src/pkg/bytes/bytes_test.go     | 36 +++++++++++++++++++++++++++++++
  src/pkg/strings/strings.go      | 48 +++++++++++++++++++++++++++++++++++++++++
  src/pkg/strings/strings_test.go | 36 +++++++++++++++++++++++++++++++
  4 files changed, 153 insertions(+)
+
+diff --git a/src/pkg/bytes/bytes.go b/src/pkg/bytes/bytes.go
+index 852e0f8529..64292ef648 100644
+--- a/src/pkg/bytes/bytes.go
++++ b/src/pkg/bytes/bytes.go
+@@ -462,3 +462,36 @@ func Runes(s []byte) []int {
+ 	}
+ 	return t
+ }
++
++// Replace returns a copy of the slice s with the first n
++// non-overlapping instances of old replaced by new.
++// If n <= 0, there is no limit on the number of replacements.
++func Replace(s, old, new []byte, n int) []byte {
++	// Compute number of replacements.
++	if m := Count(s, old); m == 0 {
++		return s // avoid allocation
++	} else if n <= 0 || m < n {
++		n = m
++	}
++
++	// Apply replacements to buffer.
++	t := make([]byte, len(s)+n*(len(new)-len(old)))
++	w := 0
++	start := 0
++	for i := 0; i < n; i++ {
++		j := start
++		if len(old) == 0 {
++			if i > 0 {
++				_, wid := utf8.DecodeRune(s[start:])
++				j += wid
++			}
++		} else {
++			j += Index(s[start:], old)
++		}
++		w += copy(t[w:], s[start:j])
++		w += copy(t[w:], new)
++		start = j + len(old)
++	}
++	w += copy(t[w:], s[start:])
++	return t[0:w]
++}
+diff --git a/src/pkg/bytes/bytes_test.go b/src/pkg/bytes/bytes_test.go
+index 2bea1737fd..26ff2d16f3 100644
+--- a/src/pkg/bytes/bytes_test.go
++++ b/src/pkg/bytes/bytes_test.go
+@@ -645,3 +645,39 @@ func TestTrimFunc(t *testing.T) {
+ 		}
+ 	}
+ }
++
++type ReplaceTest struct {
++	in       string
++	old, new string
++	n        int
++	out      string
++}
++
++var ReplaceTests = []ReplaceTest{
++	ReplaceTest{"hello", "l", "L", 0, "heLLo"},
++	ReplaceTest{"hello", "x", "X", 0, "hello"},
++	ReplaceTest{"", "x", "X", 0, ""},
++	ReplaceTest{"radar", "r", "<r>", 0, "<r>ada<r>"},
++	ReplaceTest{"", "", "<>", 0, "<>"},
++	ReplaceTest{"banana", "a", "<>", 0, "b<>n<>n<>"},
++	ReplaceTest{"banana", "a", "<>", 1, "b<>nana"},
++	ReplaceTest{"banana", "a", "<>", 1000, "b<>n<>n<>"},
++	ReplaceTest{"banana", "an", "<>", 0, "b<><>a"},
++	ReplaceTest{"banana", "ana", "<>", 0, "b<>na"},
++	ReplaceTest{"banana", "", "<>", 0, "<>b<>a<>n<>a<>n<>a<>"},
++	ReplaceTest{"banana", "", "<>", 10, "<>b<>a<>n<>a<>n<>a<>"},
++	ReplaceTest{"banana", "", "<>", 6, "<>b<>a<>n<>a<>n<>a"},
++	ReplaceTest{"banana", "", "<>", 5, "<>b<>a<>n<>a<>na"},
++	ReplaceTest{"banana", "", "<>", 1, "<>banana"},
++	ReplaceTest{"banana", "a", "a", 0, "banana"},
++	ReplaceTest{"banana", "a", "a", 1, "banana"},
++	ReplaceTest{"☺☻☹", "", "<>", 0, "<>☺<>☻<>☹<>"},
++}
++
++func TestReplace(t *testing.T) {
++	for _, tt := range ReplaceTests {
++		if s := string(Replace([]byte(tt.in), []byte(tt.old), []byte(tt.new), tt.n)); s != tt.out {
++			t.Errorf("Replace(%q, %q, %q, %d) = %q, want %q", tt.in, tt.old, tt.new, tt.n, s, tt.out)
++		}
++	}
++}
+diff --git a/src/pkg/strings/strings.go b/src/pkg/strings/strings.go
+index c192b1826e..5de83250c1 100644
+--- a/src/pkg/strings/strings.go
++++ b/src/pkg/strings/strings.go
+@@ -459,3 +459,51 @@ func TrimRight(s string, cutset string) string {
+ func TrimSpace(s string) string {
+ 	return TrimFunc(s, unicode.IsSpace)
+ }
++
++// Replace returns a copy of the string s with the first n
++// non-overlapping instances of old replaced by new.
++// If n <= 0, there is no limit on the number of replacements.
++func Replace(s, old, new string, n int) string {
++	if old == new {
++		return s // avoid allocation
++	}
++
++	// Compute number of replacements.
++	if m := Count(s, old); m == 0 {
++		return s // avoid allocation
++	} else if n <= 0 || m < n {
++		n = m
++	}
++
++	// Apply replacements to buffer.
++	t := make([]byte, len(s)+n*(len(new)-len(old)))
++	w := 0
++	start := 0
++	for i := 0; i < n; i++ {
++		j := start
++		if len(old) == 0 {
++			if i > 0 {
++				_, wid := utf8.DecodeRuneInString(s[start:])
++				j += wid
++			}
++		} else {
++			j += Index(s[start:], old)
++		}
++		w += copyString(t[w:], s[start:j])
++		w += copyString(t[w:], new)
++		start = j + len(old)
++	}
++	w += copyString(t[w:], s[start:])
++	return string(t[0:w])
++}
++
++func copyString(dst []byte, src string) int {
++	n := len(dst)
++	if n > len(src) {
++		n = len(src)
++	}
++	for i := 0; i < n; i++ {
++		dst[i] = src[i]
++	}
++	return n
++}
+diff --git a/src/pkg/strings/strings_test.go b/src/pkg/strings/strings_test.go
+index e4134d8d67..5ac6970c6b 100644
+--- a/src/pkg/strings/strings_test.go
++++ b/src/pkg/strings/strings_test.go
+@@ -700,3 +700,39 @@ func TestReadRune(t *testing.T) {
+ 		}
+ 	}
+ }
++
++type ReplaceTest struct {
++	in       string
++	old, new string
++	n        int
++	out      string
++}
++
++var ReplaceTests = []ReplaceTest{
++	ReplaceTest{"hello", "l", "L", 0, "heLLo"},
++	ReplaceTest{"hello", "x", "X", 0, "hello"},
++	ReplaceTest{"", "x", "X", 0, ""},
++	ReplaceTest{"radar", "r", "<r>", 0, "<r>ada<r>"},
++	ReplaceTest{"", "", "<>", 0, "<>"},
++	ReplaceTest{"banana", "a", "<>", 0, "b<>n<>n<>"},
++	ReplaceTest{"banana", "a", "<>", 1, "b<>nana"},
++	ReplaceTest{"banana", "a", "<>", 1000, "b<>n<>n<>"},
++	ReplaceTest{"banana", "an", "<>", 0, "b<><>a"},
++	ReplaceTest{"banana", "ana", "<>", 0, "b<>na"},
++	ReplaceTest{"banana", "", "<>", 0, "<>b<>a<>n<>a<>n<>a<>"},
++	ReplaceTest{"banana", "", "<>", 10, "<>b<>a<>n<>a<>n<>a<>"},
++	ReplaceTest{"banana", "", "<>", 6, "<>b<>a<>n<>a<>n<>a"},
++	ReplaceTest{"banana", "", "<>", 5, "<>b<>a<>n<>a<>na"},
++	ReplaceTest{"banana", "", "<>", 1, "<>banana"},
++	ReplaceTest{"banana", "a", "a", 0, "banana"},
++	ReplaceTest{"banana", "a", "a", 1, "banana"},
++	ReplaceTest{"☺☻☹", "", "<>", 0, "<>☺<>☻<>☹<>"},
++}
++
++func TestReplace(t *testing.T) {
++	for _, tt := range ReplaceTests {
++		if s := Replace(tt.in, tt.old, tt.new, tt.n); s != tt.out {
++			t.Errorf("Replace(%q, %q, %q, %d) = %q, want %q", tt.in, tt.old, tt.new, tt.n, s, tt.out)
++		}
++	}
++}

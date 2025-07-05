@@ -25,7 +25,7 @@ Date:   Tue Aug 16 11:14:26 2011 -0400
     R=lvd, r, iant
     CC=golang-dev
     https://golang.org/cl/4869044
-
+---
  test/declbad.go            |  2 +-
  test/errchk                | 49 +++++++++++++++++++++++++---------------------
  test/fixedbugs/bug205.go   |  2 +-
@@ -43,3 +43,288 @@ Date:   Tue Aug 16 11:14:26 2011 -0400
  test/rename1.go            |  2 +-
  test/shift1.go             |  6 +++---
  16 files changed, 48 insertions(+), 41 deletions(-)
+
+diff --git a/test/declbad.go b/test/declbad.go
+index 5e5e145011..09f1dfb576 100644
+--- a/test/declbad.go
++++ b/test/declbad.go
+@@ -40,7 +40,7 @@ func main() {
+ 	{
+ 		// single redeclaration
+ 		i, f, s := f3()
+-		i := f1() // ERROR "redeclared|no new|incompatible"
++		i := 1 // ERROR "redeclared|no new|incompatible"
+ 		_, _, _ = i, f, s
+ 	}
+ 	// double redeclaration
+diff --git a/test/errchk b/test/errchk
+index 8fdf77a30a..6b00570bde 100755
+--- a/test/errchk
++++ b/test/errchk
+@@ -88,41 +88,46 @@ sub chk {
+ 		$line++;
+ 		next if $src =~ m|////|;  # double comment disables ERROR
+ 		next unless $src =~ m|// (GC_)?ERROR (.*)|;
+-		$regexp = $2;
+-		if($regexp !~ /^"([^"]*)"/) {
++		my $all = $2;
++		if($all !~ /^"([^"]*)"/) {
+ 			print STDERR "$file:$line: malformed regexp\n";
+ 			next;
+ 		}
+-		$regexp = $1;
+-		
+-		# Turn relative line number in message into absolute line number.
+-		if($regexp =~ /LINE(([+-])([0-9]+))?/) {
+-			my $n = $line;
+-			if(defined($1)) {
+-				if($2 eq "+") {
+-					$n += int($3);
+-				} else {
+-					$n -= int($3);
+-				}
+-			}
+-			$regexp = "$`$file:$n$'";
+-		}
+-
+ 		@errmsg = grep { /$file:$line[:[]/ } @out;
+ 		@out = grep { !/$file:$line[:[]/ } @out;
+ 		if(@errmsg == 0) {
+ 			bug();
+-			print STDERR "errchk: $file:$line: missing expected error: '$regexp'\n";
++			print STDERR "errchk: $file:$line: missing expected error: '$all'\n";
+ 			next;
+ 		}
+-		@match = grep { /$regexp/ } @errmsg;
+-		if(@match == 0) {
++		foreach my $regexp ($all =~ /"([^"]*)"/g) {
++			# Turn relative line number in message into absolute line number.
++			if($regexp =~ /LINE(([+-])([0-9]+))?/) {
++				my $n = $line;
++				if(defined($1)) {
++					if($2 eq "+") {
++						$n += int($3);
++					} else {
++						$n -= int($3);
++					}
++				}
++				$regexp = "$`$file:$n$'";
++			}
++	
++			@match = grep { /$regexp/ } @errmsg;
++			if(@match == 0) {
++				bug();
++				print STDERR "errchk: $file:$line: error messages do not match '$regexp'\n";
++				next;
++			}
++			@errmsg = grep { !/$regexp/ } @errmsg;
++		}
++		if(@errmsg != 0) {
+ 			bug();
+-			print STDERR "errchk: $file:$line: error message does not match '$regexp'\n";
++			print STDERR "errchk: $file:$line: unmatched error messages:\n";
+ 			foreach my $l (@errmsg) {
+ 				print STDERR "> $l";
+ 			}
+-			next;
+ 		}
+ 	}
+ }
+diff --git a/test/fixedbugs/bug205.go b/test/fixedbugs/bug205.go
+index 4262ec10dc..e12be72f92 100644
+--- a/test/fixedbugs/bug205.go
++++ b/test/fixedbugs/bug205.go
+@@ -12,7 +12,7 @@ var m map[string]int;
+ 
+ func main() {
+ 	println(t["hi"]);	// ERROR "integer"
+-	println(s["hi"]);	// ERROR "integer"
++	println(s["hi"]);	// ERROR "integer" "to type uint"
+ 	println(m[0]);	// ERROR "map index"
+ }
+ 
+diff --git a/test/fixedbugs/bug228.go b/test/fixedbugs/bug228.go
+index 81bc908569..da335dbc05 100644
+--- a/test/fixedbugs/bug228.go
++++ b/test/fixedbugs/bug228.go
+@@ -8,7 +8,7 @@ package main
+ 
+ func f(x int, y ...int)	// ok
+ 
+-func g(x int, y float) (...)	// ERROR "[.][.][.]"
++func g(x int, y float) (...)	// ERROR "[.][.][.]" "final argument"
+ 
+ func h(x, y ...int)		// ERROR "[.][.][.]"
+ 
+diff --git a/test/fixedbugs/bug229.go b/test/fixedbugs/bug229.go
+index fe0f0d8c75..6c9de9ba93 100644
+--- a/test/fixedbugs/bug229.go
++++ b/test/fixedbugs/bug229.go
+@@ -16,5 +16,5 @@ func main() {
+ 
+ 	t.ch = nil	// ERROR "unexported"
+ 	
+-	println(testing.anyLowercaseName("asdf"))	// ERROR "unexported"
++	println(testing.anyLowercaseName("asdf"))	// ERROR "unexported" "undefined: testing.anyLowercaseName"
+ }
+diff --git a/test/fixedbugs/bug231.go b/test/fixedbugs/bug231.go
+index 91996d313c..9500e582bb 100644
+--- a/test/fixedbugs/bug231.go
++++ b/test/fixedbugs/bug231.go
+@@ -17,6 +17,6 @@ func main() {
+ 	var i I
+ 	
+ 	i = m
+-	i = t	// ERROR "not a method|has no methods"
++	i = t	// ERROR "not a method|has no methods" "does not implement I"
+ 	_ = i
+ }
+diff --git a/test/fixedbugs/bug297.go b/test/fixedbugs/bug297.go
+index ba029427f2..8767cdfea5 100644
+--- a/test/fixedbugs/bug297.go
++++ b/test/fixedbugs/bug297.go
+@@ -11,5 +11,5 @@ package main
+ type ByteSize float64
+ const (
+ 	_ = iota;   // ignore first value by assigning to blank identifier
+-	KB ByteSize = 1<<(10*X) // ERROR "undefined"
++	KB ByteSize = 1<<(10*X) // ERROR "undefined" "as type ByteSize"
+ )
+diff --git a/test/fixedbugs/bug351.go b/test/fixedbugs/bug351.go
+index c33e28271e..2f631bbbbc 100644
+--- a/test/fixedbugs/bug351.go
++++ b/test/fixedbugs/bug351.go
+@@ -6,6 +6,8 @@
+ 
+ package main
+ 
++var x int
++
+ func main() {
+ 	(x) := 0  // ERROR "non-name [(]x[)]"
+ }
+diff --git a/test/fixedbugs/bug359.go b/test/fixedbugs/bug359.go
+index 6ced608bcc..7f34672f1d 100644
+--- a/test/fixedbugs/bug359.go
++++ b/test/fixedbugs/bug359.go
+@@ -16,7 +16,7 @@ type Painting struct {
+ }
+ 
+ func (p Painting) Foo() {
+-	for e := p.fragments; e.Front() != nil; e = e.Next() {  // ERROR "unexported field"
++	for e := p.fragments; e.Front() != nil; {  // ERROR "unexported field"
+ 	}
+ }
+ 
+diff --git a/test/import1.go b/test/import1.go
+index 8bb2a94a24..ebd704ef99 100644
+--- a/test/import1.go
++++ b/test/import1.go
+@@ -9,9 +9,9 @@
+ package main
+ 
+ import "bufio"	// GCCGO_ERROR "previous|not used"
+-import bufio "os"	// ERROR "redeclared|redefinition|incompatible"
++import bufio "os"	// ERROR "redeclared|redefinition|incompatible" "imported and not used"
+ 
+ import (
+ 	"fmt"	// GCCGO_ERROR "previous|not used"
+-	fmt "math"	// ERROR "redeclared|redefinition|incompatible"
++	fmt "math"	// ERROR "redeclared|redefinition|incompatible" "imported and not used"
+ )
+diff --git a/test/initializerr.go b/test/initializerr.go
+index 37f8a602db..e7f8b0e92f 100644
+--- a/test/initializerr.go
++++ b/test/initializerr.go
+@@ -17,7 +17,7 @@ type T struct {
+ var x = 1
+ var a1 = S { 0, X: 1 }	// ERROR "mixture|undefined"
+ var a2 = S { Y: 3, Z: 2, Y: 3 } // ERROR "duplicate"
+-var a3 = T { 1, 2, 3, 4, 5, 6 }	// ERROR "convert|too many"
++var a3 = T { S{}, 2, 3, 4, 5, 6 }	// ERROR "convert|too many"
+ var a4 = [5]byte{ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 }	// ERROR "index|too many"
+ var a5 = []byte { x: 2 }	// ERROR "index"
+ 
+diff --git a/test/interface/explicit.go b/test/interface/explicit.go
+index b6a582fffb..daae59b361 100644
+--- a/test/interface/explicit.go
++++ b/test/interface/explicit.go
+@@ -48,7 +48,7 @@ func main() {
+ 	i2 = I2(i) // ERROR "invalid|missing N method"
+ 
+ 	e = E(t) // ok
+-	t = T(e) // ERROR "need explicit|need type assertion|incompatible"
++	t = T(e) // ERROR "need explicit|need type assertion|incompatible" "as type [*]T"
+ }
+ 
+ type M interface {
+diff --git a/test/interface/pointer.go b/test/interface/pointer.go
+index 076469c8de..fe4d8e3ef9 100644
+--- a/test/interface/pointer.go
++++ b/test/interface/pointer.go
+@@ -33,5 +33,5 @@ func main() {
+ 	print("call addinst\n")
+ 	var x Inst = AddInst(new(Start)) // ERROR "pointer to interface"
+ 	print("return from  addinst\n")
+-	var x *Inst = new(Start)  // ERROR "pointer to interface"
++	var y *Inst = new(Start)  // ERROR "pointer to interface"
+ }
+diff --git a/test/nul1.go b/test/nul1.go
+index 9cf51125bc..142d4deb1f 100644
+--- a/test/nul1.go
++++ b/test/nul1.go
+@@ -39,7 +39,7 @@ var y = ` + "`in raw string \x00 foo`" + `  // ERROR "NUL"
+ 
+ /* in other comment ` + "\x00" + ` */ // ERROR "NUL"
+ 
+-/* in source code */ ` + "\x00" + `// ERROR "NUL"
++/* in source code */ ` + "\x00" + `// ERROR "NUL" "illegal character"
+ 
+ var xx = "in string ` + "\xc2\xff" + `" // ERROR "UTF-8"
+ 
+@@ -50,9 +50,9 @@ var yy = ` + "`in raw string \xff foo`" + `  // ERROR "UTF-8"
+ /* in other comment ` + "\xe0\x00\x00" + ` */ // ERROR "UTF-8|NUL"
+ 
+ /* in variable name */
+-var z` + "\xc1\x81" + ` int // ERROR "UTF-8"
++var z` + "\xc1\x81" + ` int // ERROR "UTF-8" "invalid identifier character"
+ 
+-/* in source code */ ` + "\xc2A" + `// ERROR "UTF-8"
++/* in source code */ ` + "var \xc2A int" + `// ERROR "UTF-8" "invalid identifier character"
+ 
+ `)
+ }
+diff --git a/test/rename1.go b/test/rename1.go
+index f239999986..3e78bfca0b 100644
+--- a/test/rename1.go
++++ b/test/rename1.go
+@@ -10,7 +10,7 @@ func main() {
+ 	var n byte       // ERROR "not a type|expected type"
+ 	var y = float(0) // ERROR "cannot call|expected function"
+ 	const (
+-		a = 1 + iota // ERROR "string|incompatible types"
++		a = 1 + iota // ERROR "string|incompatible types" "convert iota"
+ 	)
+ 
+ }
+diff --git a/test/shift1.go b/test/shift1.go
+index 8fa48a03cf..6a8e26e5e6 100644
+--- a/test/shift1.go
++++ b/test/shift1.go
+@@ -16,13 +16,13 @@ func h(x float64) int     { return 0 }
+ var (
+ 	s uint    = 33
+ 	u         = 1.0 << s // ERROR "invalid operation"
+-	v float32 = 1 << s   // ERROR "invalid operation"
++	v float32 = 1 << s   // ERROR "invalid operation" "as type float32"
+ )
+ 
+ // non-constant shift expressions
+ var (
+-	e1       = g(2.0 << s) // ERROR "invalid operation"
+-	f1       = h(2 << s)   // ERROR "invalid operation"
++	e1       = g(2.0 << s) // ERROR "invalid operation" "as type interface"
++	f1       = h(2 << s)   // ERROR "invalid operation" "as type float64"
+ 	g1 int64 = 1.1 << s    // ERROR "truncated"
+ )
+ 

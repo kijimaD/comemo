@@ -13,9 +13,70 @@ Date:   Tue Apr 20 12:58:53 2021 +0200
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/internal/poll/sock_cloexec.go | 4 ++--
  src/internal/poll/sys_cloexec.go  | 4 ++--
  src/net/sock_cloexec.go           | 4 ++--
  src/net/sys_cloexec.go            | 4 ++--
  4 files changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/src/internal/poll/sock_cloexec.go b/src/internal/poll/sock_cloexec.go
+index 52191d85c6..b3038290b9 100644
+--- a/src/internal/poll/sock_cloexec.go
++++ b/src/internal/poll/sock_cloexec.go
+@@ -2,8 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// This file implements sysSocket and accept for platforms that
+-// provide a fast path for setting SetNonblock and CloseOnExec.
++// This file implements accept for platforms that provide a fast path for
++// setting SetNonblock and CloseOnExec.
+ 
+ //go:build dragonfly || freebsd || illumos || linux || netbsd || openbsd
+ // +build dragonfly freebsd illumos linux netbsd openbsd
+diff --git a/src/internal/poll/sys_cloexec.go b/src/internal/poll/sys_cloexec.go
+index 69207a4b89..7e6d422d62 100644
+--- a/src/internal/poll/sys_cloexec.go
++++ b/src/internal/poll/sys_cloexec.go
+@@ -2,8 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// This file implements sysSocket and accept for platforms that do not
+-// provide a fast path for setting SetNonblock and CloseOnExec.
++// This file implements accept for platforms that do not provide a fast path for
++// setting SetNonblock and CloseOnExec.
+ 
+ //go:build aix || darwin || (js && wasm) || (solaris && !illumos)
+ // +build aix darwin js,wasm solaris,!illumos
+diff --git a/src/net/sock_cloexec.go b/src/net/sock_cloexec.go
+index efc91fdb53..6861c4bf63 100644
+--- a/src/net/sock_cloexec.go
++++ b/src/net/sock_cloexec.go
+@@ -2,8 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// This file implements sysSocket and accept for platforms that
+-// provide a fast path for setting SetNonblock and CloseOnExec.
++// This file implements sysSocket for platforms that provide a fast path for
++// setting SetNonblock and CloseOnExec.
+ 
+ //go:build dragonfly || freebsd || illumos || linux || netbsd || openbsd
+ // +build dragonfly freebsd illumos linux netbsd openbsd
+diff --git a/src/net/sys_cloexec.go b/src/net/sys_cloexec.go
+index 4d7112051f..a32483e2df 100644
+--- a/src/net/sys_cloexec.go
++++ b/src/net/sys_cloexec.go
+@@ -2,8 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// This file implements sysSocket and accept for platforms that do not
+-// provide a fast path for setting SetNonblock and CloseOnExec.
++// This file implements sysSocket for platforms that do not provide a fast path
++// for setting SetNonblock and CloseOnExec.
+ 
+ //go:build aix || darwin || (solaris && !illumos)
+ // +build aix darwin solaris,!illumos

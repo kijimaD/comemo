@@ -9,7 +9,7 @@ Date:   Fri Mar 15 11:43:43 2013 -0400
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/7759048
-
+---
  src/pkg/runtime/signal_386.c          | 4 ++--
  src/pkg/runtime/signal_amd64.c        | 4 ++--
  src/pkg/runtime/signal_arm.c          | 4 ++--
@@ -17,3 +17,121 @@ Date:   Fri Mar 15 11:43:43 2013 -0400
  src/pkg/runtime/signal_netbsd_amd64.h | 2 +-
  src/pkg/runtime/signal_netbsd_arm.h   | 2 +-
  6 files changed, 11 insertions(+), 11 deletions(-)
+
+diff --git a/src/pkg/runtime/signal_386.c b/src/pkg/runtime/signal_386.c
+index c409aee507..72b4a66f85 100644
+--- a/src/pkg/runtime/signal_386.c
++++ b/src/pkg/runtime/signal_386.c
+@@ -45,7 +45,7 @@ runtime·sighandler(int32 sig, Siginfo *info, void *ctxt, G *gp)
+ 	}
+ 
+ 	t = &runtime·sigtab[sig];
+-	if(info->si_code != SI_USER && (t->flags & SigPanic)) {
++	if(SIG_CODE0(info, ctxt) != SI_USER && (t->flags & SigPanic)) {
+ 		if(gp == nil || gp == m->g0)
+ 			goto Throw;
+ 
+@@ -87,7 +87,7 @@ runtime·sighandler(int32 sig, Siginfo *info, void *ctxt, G *gp)
+ 		return;
+ 	}
+ 
+-	if(info->si_code == SI_USER || (t->flags & SigNotify))
++	if(SIG_CODE0(info, ctxt) == SI_USER || (t->flags & SigNotify))
+ 		if(runtime·sigsend(sig))
+ 			return;
+ 	if(t->flags & SigKill)
+diff --git a/src/pkg/runtime/signal_amd64.c b/src/pkg/runtime/signal_amd64.c
+index 157e0ee46d..ce17bf36d0 100644
+--- a/src/pkg/runtime/signal_amd64.c
++++ b/src/pkg/runtime/signal_amd64.c
+@@ -53,7 +53,7 @@ runtime·sighandler(int32 sig, Siginfo *info, void *ctxt, G *gp)
+ 	}
+ 
+ 	t = &runtime·sigtab[sig];
+-	if(info->si_code != SI_USER && (t->flags & SigPanic)) {
++	if(SIG_CODE0(info, ctxt) != SI_USER && (t->flags & SigPanic)) {
+ 		if(gp == nil || gp == m->g0)
+ 			goto Throw;
+ 
+@@ -97,7 +97,7 @@ runtime·sighandler(int32 sig, Siginfo *info, void *ctxt, G *gp)
+ 		return;
+ 	}
+ 
+-	if(info->si_code == SI_USER || (t->flags & SigNotify))
++	if(SIG_CODE0(info, ctxt) == SI_USER || (t->flags & SigNotify))
+ 		if(runtime·sigsend(sig))
+ 			return;
+ 	if(t->flags & SigKill)
+diff --git a/src/pkg/runtime/signal_arm.c b/src/pkg/runtime/signal_arm.c
+index a7f373bd5e..adf61de6bf 100644
+--- a/src/pkg/runtime/signal_arm.c
++++ b/src/pkg/runtime/signal_arm.c
+@@ -52,7 +52,7 @@ runtime·sighandler(int32 sig, Siginfo *info, void *ctxt, G *gp)
+ 	}
+ 
+ 	t = &runtime·sigtab[sig];
+-	if(info->si_code != SI_USER && (t->flags & SigPanic)) {
++	if(SIG_CODE0(info, ctxt) != SI_USER && (t->flags & SigPanic)) {
+ 		if(gp == nil || gp == m->g0)
+ 			goto Throw;
+ 
+@@ -85,7 +85,7 @@ runtime·sighandler(int32 sig, Siginfo *info, void *ctxt, G *gp)
+ 		return;
+ 	}
+ 
+-	if(info->si_code == SI_USER || (t->flags & SigNotify))
++	if(SIG_CODE0(info, ctxt) == SI_USER || (t->flags & SigNotify))
+ 		if(runtime·sigsend(sig))
+ 			return;
+ 	if(t->flags & SigKill)
+diff --git a/src/pkg/runtime/signal_netbsd_386.h b/src/pkg/runtime/signal_netbsd_386.h
+index 9cbd0385df..d5a8a0c4bc 100644
+--- a/src/pkg/runtime/signal_netbsd_386.h
++++ b/src/pkg/runtime/signal_netbsd_386.h
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#define SIG_REGS(ctxt) (((Ucontext*)(ctxt))->uc_mcontext)
++#define SIG_REGS(ctxt) (((UcontextT*)(ctxt))->uc_mcontext)
+ 
+ #define SIG_EAX(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_EAX])
+ #define SIG_EBX(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_EBX])
+@@ -11,9 +11,9 @@
+ #define SIG_EDI(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_EDI])
+ #define SIG_ESI(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_ESI])
+ #define SIG_EBP(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_EBP])
+-#define SIG_ESP(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_ESP])
++#define SIG_ESP(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_UESP])
+ #define SIG_EIP(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_EIP])
+-#define SIG_EFLAGS(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_EFLAGS])
++#define SIG_EFLAGS(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_EFL])
+ 
+ #define SIG_CS(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_CS])
+ #define SIG_FS(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_FS])
+diff --git a/src/pkg/runtime/signal_netbsd_amd64.h b/src/pkg/runtime/signal_netbsd_amd64.h
+index 4a339c1656..7ec4cd98cd 100644
+--- a/src/pkg/runtime/signal_netbsd_amd64.h
++++ b/src/pkg/runtime/signal_netbsd_amd64.h
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#define SIG_REGS(ctxt) (((Ucontext*)(ctxt))->uc_mcontext)
++#define SIG_REGS(ctxt) (((UcontextT*)(ctxt))->uc_mcontext)
+ 
+ #define SIG_RAX(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_RAX])
+ #define SIG_RBX(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_RBX])
+diff --git a/src/pkg/runtime/signal_netbsd_arm.h b/src/pkg/runtime/signal_netbsd_arm.h
+index 16df26df4b..cc0da1e9f9 100644
+--- a/src/pkg/runtime/signal_netbsd_arm.h
++++ b/src/pkg/runtime/signal_netbsd_arm.h
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#define SIG_REGS(ctxt) (((Ucontext*)(ctxt))->uc_mcontext)
++#define SIG_REGS(ctxt) (((UcontextT*)(ctxt))->uc_mcontext)
+ 
+ #define SIG_R0(info, ctxt) (SIG_REGS(ctxt).__gregs[0])
+ #define SIG_R1(info, ctxt) (SIG_REGS(ctxt).__gregs[1])

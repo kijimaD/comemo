@@ -14,7 +14,34 @@ Date:   Mon Jun 14 14:30:46 2021 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/reflect/all_test.go | 2 +-
  src/reflect/value.go    | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index 17104ad4fa..0db5e13217 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -4371,7 +4371,7 @@ func TestConvertPanic(t *testing.T) {
+ 	if !v.Type().ConvertibleTo(pt) {
+ 		t.Errorf("[]byte should be convertible to *[8]byte")
+ 	}
+-	shouldPanic("reflect: cannot convert slice with length 4 to array pointer with length 8", func() {
++	shouldPanic("reflect: cannot convert slice with length 4 to pointer to array with length 8", func() {
+ 		_ = v.Convert(pt)
+ 	})
+ }
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index c963a407bc..6ba6202a1a 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -3067,7 +3067,7 @@ func cvtSliceArrayPtr(v Value, t Type) Value {
+ 	n := t.Elem().Len()
+ 	h := (*unsafeheader.Slice)(v.ptr)
+ 	if n > h.Len {
+-		panic("reflect: cannot convert slice with length " + itoa.Itoa(h.Len) + " to array pointer with length " + itoa.Itoa(n))
++		panic("reflect: cannot convert slice with length " + itoa.Itoa(h.Len) + " to pointer to array with length " + itoa.Itoa(n))
+ 	}
+ 	return Value{t.common(), h.Data, v.flag&^(flagIndir|flagAddr|flagKindMask) | flag(Ptr)}
+ }

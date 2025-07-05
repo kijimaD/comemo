@@ -82,7 +82,7 @@ Date:   Mon Jul 16 11:38:57 2018 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/internal/modconv/convert.go             |   5 +-
  src/cmd/go/internal/modconv/convert_test.go        |   2 +-
  src/cmd/go/internal/modfetch/cache.go              |   6 +-
@@ -102,3 +102,828 @@ Date:   Mon Jul 16 11:38:57 2018 -0400
  src/cmd/go/testdata/mod/rsc.io_breaker_v2.0.0.txt  |  11 ++
  .../go/testdata/script/mod_get_incompatible.txt    |  26 ++++
  18 files changed, 375 insertions(+), 62 deletions(-)
+
+diff --git a/src/cmd/go/internal/modconv/convert.go b/src/cmd/go/internal/modconv/convert.go
+index c2a78132cf..6fc6718e47 100644
+--- a/src/cmd/go/internal/modconv/convert.go
++++ b/src/cmd/go/internal/modconv/convert.go
+@@ -63,7 +63,10 @@ func ConvertLegacyConfig(f *modfile.File, file string, data []byte) error {
+ 		}
+ 		mu.Lock()
+ 		path := repo.ModulePath()
+-		need[path] = semver.Max(need[path], info.Version)
++		// Don't use semver.Max here; need to preserve +incompatible suffix.
++		if v, ok := need[path]; !ok || semver.Compare(v, info.Version) < 0 {
++			need[path] = info.Version
++		}
+ 		mu.Unlock()
+ 	})
+ 
+diff --git a/src/cmd/go/internal/modconv/convert_test.go b/src/cmd/go/internal/modconv/convert_test.go
+index 811bbb1934..72baa7e302 100644
+--- a/src/cmd/go/internal/modconv/convert_test.go
++++ b/src/cmd/go/internal/modconv/convert_test.go
+@@ -125,7 +125,7 @@ func TestConvertLegacyConfig(t *testing.T) {
+ 				cloud.google.com/go v0.18.0
+ 				github.com/fishy/fsdb v0.0.0-20180217030800-5527ded01371
+ 				github.com/golang/protobuf v1.0.0
+-				github.com/googleapis/gax-go v0.0.0-20170915024731-317e0006254c
++				github.com/googleapis/gax-go v2.0.0+incompatible
+ 				golang.org/x/net v0.0.0-20180216171745-136a25c244d3
+ 				golang.org/x/oauth2 v0.0.0-20180207181906-543e37812f10
+ 				golang.org/x/text v0.0.0-20180208041248-4e4a3210bb54
+diff --git a/src/cmd/go/internal/modfetch/cache.go b/src/cmd/go/internal/modfetch/cache.go
+index 31cdf42c60..d3cf8f3af1 100644
+--- a/src/cmd/go/internal/modfetch/cache.go
++++ b/src/cmd/go/internal/modfetch/cache.go
+@@ -43,7 +43,7 @@ func CachePath(m module.Version, suffix string) (string, error) {
+ 	if !semver.IsValid(m.Version) {
+ 		return "", fmt.Errorf("non-semver module version %q", m.Version)
+ 	}
+-	if semver.Canonical(m.Version) != m.Version {
++	if module.CanonicalVersion(m.Version) != m.Version {
+ 		return "", fmt.Errorf("non-canonical module version %q", m.Version)
+ 	}
+ 	return filepath.Join(dir, m.Version+"."+suffix), nil
+@@ -60,7 +60,7 @@ func DownloadDir(m module.Version) (string, error) {
+ 	if !semver.IsValid(m.Version) {
+ 		return "", fmt.Errorf("non-semver module version %q", m.Version)
+ 	}
+-	if semver.Canonical(m.Version) != m.Version {
++	if module.CanonicalVersion(m.Version) != m.Version {
+ 		return "", fmt.Errorf("non-canonical module version %q", m.Version)
+ 	}
+ 	return filepath.Join(SrcMod, enc+"@"+m.Version), nil
+@@ -433,7 +433,7 @@ func rewriteVersionList(dir string) {
+ 		name := info.Name()
+ 		if strings.HasSuffix(name, ".mod") {
+ 			v := strings.TrimSuffix(name, ".mod")
+-			if semver.IsValid(v) && semver.Canonical(v) == v {
++			if v != "" && module.CanonicalVersion(v) == v {
+ 				list = append(list, v)
+ 			}
+ 		}
+diff --git a/src/cmd/go/internal/modfetch/codehost/codehost.go b/src/cmd/go/internal/modfetch/codehost/codehost.go
+index f47b8ad35f..d0a2b0ae9d 100644
+--- a/src/cmd/go/internal/modfetch/codehost/codehost.go
++++ b/src/cmd/go/internal/modfetch/codehost/codehost.go
+@@ -54,6 +54,21 @@ type Repo interface {
+ 	// os.IsNotExist(err) returns true.
+ 	ReadFile(rev, file string, maxSize int64) (data []byte, err error)
+ 
++	// ReadFileRevs reads a single file at multiple versions.
++	// It should refuse to read more than maxSize bytes.
++	// The result is a map from each requested rev strings
++	// to the associated FileRev. The map must have a non-nil
++	// entry for every requested rev (unless ReadFileRevs returned an error).
++	// A file simply being missing or even corrupted in revs[i]
++	// should be reported only in files[revs[i]].Err, not in the error result
++	// from ReadFileRevs.
++	// The overall call should return an error (and no map) only
++	// in the case of a problem with obtaining the data, such as
++	// a network failure.
++	// Implementations may assume that revs only contain tags,
++	// not direct commit hashes.
++	ReadFileRevs(revs []string, file string, maxSize int64) (files map[string]*FileRev, err error)
++
+ 	// ReadZip downloads a zip file for the subdir subdirectory
+ 	// of the given revision to a new file in a given temporary directory.
+ 	// It should refuse to read more than maxSize bytes.
+@@ -73,6 +88,13 @@ type RevInfo struct {
+ 	Tags    []string  // known tags for commit
+ }
+ 
++// A FileRev describes the result of reading a file at a given revision.
++type FileRev struct {
++	Rev  string // requested revision
++	Data []byte // file data
++	Err  error  // error if any; os.IsNotExist(Err)==true if rev exists but file does not exist in that rev
++}
++
+ // AllHex reports whether the revision rev is entirely lower-case hexadecimal digits.
+ func AllHex(rev string) bool {
+ 	for i := 0; i < len(rev); i++ {
+@@ -167,6 +189,10 @@ var dirLock sync.Map
+ // a *RunError indicating the command, exit status, and standard error.
+ // Standard error is unavailable for commands that exit successfully.
+ func Run(dir string, cmdline ...interface{}) ([]byte, error) {
++	return RunWithStdin(dir, nil, cmdline...)
++}
++
++func RunWithStdin(dir string, stdin io.Reader, cmdline ...interface{}) ([]byte, error) {
+ 	if dir != "" {
+ 		muIface, ok := dirLock.Load(dir)
+ 		if !ok {
+@@ -196,6 +222,7 @@ func Run(dir string, cmdline ...interface{}) ([]byte, error) {
+ 	var stdout bytes.Buffer
+ 	c := exec.Command(cmd[0], cmd[1:]...)
+ 	c.Dir = dir
++	c.Stdin = stdin
+ 	c.Stderr = &stderr
+ 	c.Stdout = &stdout
+ 	err := c.Run()
+diff --git a/src/cmd/go/internal/modfetch/codehost/git.go b/src/cmd/go/internal/modfetch/codehost/git.go
+index ef23e53775..d021a13890 100644
+--- a/src/cmd/go/internal/modfetch/codehost/git.go
++++ b/src/cmd/go/internal/modfetch/codehost/git.go
+@@ -245,10 +245,12 @@ func (r *gitRepo) stat(rev string) (*RevInfo, error) {
+ 	}
+ 
+ 	// Fast path: maybe rev is a hash we already have locally.
++	didStatLocal := false
+ 	if len(rev) >= minHashDigits && len(rev) <= 40 && AllHex(rev) {
+ 		if info, err := r.statLocal(rev, rev); err == nil {
+ 			return info, nil
+ 		}
++		didStatLocal = true
+ 	}
+ 
+ 	// Maybe rev is a tag we already have locally.
+@@ -308,11 +310,25 @@ func (r *gitRepo) stat(rev string) (*RevInfo, error) {
+ 	r.mu.Lock()
+ 	defer r.mu.Unlock()
+ 
++	// Perhaps r.localTags did not have the ref when we loaded local tags,
++	// but we've since done fetches that pulled down the hash we need
++	// (or already have the hash we need, just without its tag).
++	// Either way, try a local stat before falling back to network I/O.
++	if !didStatLocal {
++		if info, err := r.statLocal(rev, hash); err == nil {
++			if strings.HasPrefix(ref, "refs/tags/") {
++				// Make sure tag exists, so it will be in localTags next time the go command is run.
++				Run(r.dir, "git", "tag", strings.TrimPrefix(ref, "refs/tags/"), hash)
++			}
++			return info, nil
++		}
++	}
++
+ 	// If we know a specific commit we need, fetch it.
+ 	if r.fetchLevel <= fetchSome && hash != "" && !r.local {
+ 		r.fetchLevel = fetchSome
+ 		var refspec string
+-		if ref != "" && ref != "head" {
++		if ref != "" && ref != "HEAD" {
+ 			// If we do know the ref name, save the mapping locally
+ 			// so that (if it is a tag) it can show up in localTags
+ 			// on a future call. Also, some servers refuse to allow
+@@ -438,6 +454,154 @@ func (r *gitRepo) ReadFile(rev, file string, maxSize int64) ([]byte, error) {
+ 	return out, nil
+ }
+ 
++func (r *gitRepo) ReadFileRevs(revs []string, file string, maxSize int64) (map[string]*FileRev, error) {
++	// Create space to hold results.
++	files := make(map[string]*FileRev)
++	for _, rev := range revs {
++		f := &FileRev{Rev: rev}
++		files[rev] = f
++	}
++
++	// Collect locally-known revs.
++	need, err := r.readFileRevs(revs, file, files)
++	if err != nil {
++		return nil, err
++	}
++	if len(need) == 0 {
++		return files, nil
++	}
++
++	// Build list of known remote refs that might help.
++	var redo []string
++	r.refsOnce.Do(r.loadRefs)
++	if r.refsErr != nil {
++		return nil, r.refsErr
++	}
++	for _, tag := range need {
++		if r.refs["refs/tags/"+tag] != "" {
++			redo = append(redo, tag)
++		}
++	}
++	if len(redo) == 0 {
++		return files, nil
++	}
++
++	// Protect r.fetchLevel and the "fetch more and more" sequence.
++	// See stat method above.
++	r.mu.Lock()
++	defer r.mu.Unlock()
++
++	var refs []string
++	var protoFlag []string
++	var unshallowFlag []string
++	for _, tag := range redo {
++		refs = append(refs, "refs/tags/"+tag+":refs/tags/"+tag)
++	}
++	if len(refs) > 1 {
++		unshallowFlag = unshallow(r.dir)
++		if len(unshallowFlag) > 0 {
++			// To work around a protocol version 2 bug that breaks --unshallow,
++			// add -c protocol.version=0.
++			// TODO(rsc): The bug is believed to be server-side, meaning only
++			// on Google's Git servers. Once the servers are fixed, drop the
++			// protocol.version=0. See Google-internal bug b/110495752.
++			protoFlag = []string{"-c", "protocol.version=0"}
++		}
++	}
++	if _, err := Run(r.dir, "git", protoFlag, "fetch", unshallowFlag, "-f", r.remote, refs); err != nil {
++		return nil, err
++	}
++
++	if _, err := r.readFileRevs(redo, file, files); err != nil {
++		return nil, err
++	}
++
++	return files, nil
++}
++
++func (r *gitRepo) readFileRevs(tags []string, file string, fileMap map[string]*FileRev) (missing []string, err error) {
++	var stdin bytes.Buffer
++	for _, tag := range tags {
++		fmt.Fprintf(&stdin, "refs/tags/%s\n", tag)
++		fmt.Fprintf(&stdin, "refs/tags/%s:%s\n", tag, file)
++	}
++
++	data, err := RunWithStdin(r.dir, &stdin, "git", "cat-file", "--batch")
++	if err != nil {
++		return nil, err
++	}
++
++	next := func() (typ string, body []byte, ok bool) {
++		var line string
++		i := bytes.IndexByte(data, '\n')
++		if i < 0 {
++			return "", nil, false
++		}
++		line, data = string(bytes.TrimSpace(data[:i])), data[i+1:]
++		if strings.HasSuffix(line, " missing") {
++			return "missing", nil, true
++		}
++		f := strings.Fields(line)
++		if len(f) != 3 {
++			return "", nil, false
++		}
++		n, err := strconv.Atoi(f[2])
++		if err != nil || n > len(data) {
++			return "", nil, false
++		}
++		body, data = data[:n], data[n:]
++		if len(data) > 0 && data[0] == '\r' {
++			data = data[1:]
++		}
++		if len(data) > 0 && data[0] == '\n' {
++			data = data[1:]
++		}
++		return f[1], body, true
++	}
++
++	badGit := func() ([]string, error) {
++		return nil, fmt.Errorf("malformed output from git cat-file --batch")
++	}
++
++	for _, tag := range tags {
++		commitType, _, ok := next()
++		if !ok {
++			return badGit()
++		}
++		fileType, fileData, ok := next()
++		if !ok {
++			return badGit()
++		}
++		f := fileMap[tag]
++		f.Data = nil
++		f.Err = nil
++		switch commitType {
++		default:
++			f.Err = fmt.Errorf("unexpected non-commit type %q for rev %s", commitType, tag)
++
++		case "missing":
++			// Note: f.Err must not satisfy os.IsNotExist. That's reserved for the file not existing in a valid commit.
++			f.Err = fmt.Errorf("no such rev %s", tag)
++			missing = append(missing, tag)
++
++		case "tag", "commit":
++			switch fileType {
++			default:
++				f.Err = &os.PathError{Path: tag + ":" + file, Op: "read", Err: fmt.Errorf("unexpected non-blob type %q", fileType)}
++			case "missing":
++				f.Err = &os.PathError{Path: tag + ":" + file, Op: "read", Err: os.ErrNotExist}
++			case "blob":
++				f.Data = fileData
++			}
++		}
++	}
++	if len(bytes.TrimSpace(data)) != 0 {
++		return badGit()
++	}
++
++	return missing, nil
++}
++
+ func (r *gitRepo) ReadZip(rev, subdir string, maxSize int64) (zip io.ReadCloser, actualSubdir string, err error) {
+ 	// TODO: Use maxSize or drop it.
+ 	args := []string{}
+diff --git a/src/cmd/go/internal/modfetch/codehost/vcs.go b/src/cmd/go/internal/modfetch/codehost/vcs.go
+index 12e45cbabc..4436efd57c 100644
+--- a/src/cmd/go/internal/modfetch/codehost/vcs.go
++++ b/src/cmd/go/internal/modfetch/codehost/vcs.go
+@@ -325,6 +325,10 @@ func (r *vcsRepo) ReadFile(rev, file string, maxSize int64) ([]byte, error) {
+ 	return out, nil
+ }
+ 
++func (r *vcsRepo) ReadFileRevs(revs []string, file string, maxSize int64) (map[string]*FileRev, error) {
++	return nil, fmt.Errorf("ReadFileRevs not implemented")
++}
++
+ func (r *vcsRepo) ReadZip(rev, subdir string, maxSize int64) (zip io.ReadCloser, actualSubdir string, err error) {
+ 	if rev == "latest" {
+ 		rev = r.cmd.latest
+diff --git a/src/cmd/go/internal/modfetch/coderepo.go b/src/cmd/go/internal/modfetch/coderepo.go
+index 33be117de9..f5d2e3e27f 100644
+--- a/src/cmd/go/internal/modfetch/coderepo.go
++++ b/src/cmd/go/internal/modfetch/coderepo.go
+@@ -97,7 +97,9 @@ func (r *codeRepo) Versions(prefix string) ([]string, error) {
+ 	if err != nil {
+ 		return nil, err
+ 	}
++
+ 	list := []string{}
++	var incompatible []string
+ 	for _, tag := range tags {
+ 		if !strings.HasPrefix(tag, p) {
+ 			continue
+@@ -106,11 +108,34 @@ func (r *codeRepo) Versions(prefix string) ([]string, error) {
+ 		if r.codeDir != "" {
+ 			v = v[len(r.codeDir)+1:]
+ 		}
+-		if !semver.IsValid(v) || v != semver.Canonical(v) || IsPseudoVersion(v) || !module.MatchPathMajor(v, r.pathMajor) {
++		if v == "" || v != module.CanonicalVersion(v) || IsPseudoVersion(v) {
++			continue
++		}
++		if !module.MatchPathMajor(v, r.pathMajor) {
++			if r.codeDir == "" && r.pathMajor == "" && semver.Major(v) > "v1" {
++				incompatible = append(incompatible, v)
++			}
+ 			continue
+ 		}
+ 		list = append(list, v)
+ 	}
++
++	if len(incompatible) > 0 {
++		// Check for later versions that were created not following semantic import versioning,
++		// as indicated by the absence of a go.mod file. Those versions can be addressed
++		// by referring to them with a +incompatible suffix, as in v17.0.0+incompatible.
++		files, err := r.code.ReadFileRevs(incompatible, "go.mod", codehost.MaxGoMod)
++		if err != nil {
++			return nil, err
++		}
++		for _, rev := range incompatible {
++			f := files[rev]
++			if os.IsNotExist(f.Err) {
++				list = append(list, rev+"+incompatible")
++			}
++		}
++	}
++
+ 	SortVersions(list)
+ 	return list, nil
+ }
+@@ -146,7 +171,7 @@ func (r *codeRepo) convert(info *codehost.RevInfo, statVers string) (*RevInfo, e
+ 	}
+ 
+ 	// Determine version.
+-	if semver.IsValid(statVers) && statVers == semver.Canonical(statVers) && module.MatchPathMajor(statVers, r.pathMajor) {
++	if module.CanonicalVersion(statVers) == statVers && module.MatchPathMajor(statVers, r.pathMajor) {
+ 		// The original call was repo.Stat(statVers), and requestedVersion is OK, so use it.
+ 		info2.Version = statVers
+ 	} else {
+@@ -157,22 +182,43 @@ func (r *codeRepo) convert(info *codehost.RevInfo, statVers string) (*RevInfo, e
+ 			p = r.codeDir + "/"
+ 		}
+ 
+-		tagOK := func(v string) bool {
++		// If this is a plain tag (no dir/ prefix)
++		// and the module path is unversioned,
++		// and if the underlying file tree has no go.mod,
++		// then allow using the tag with a +incompatible suffix.
++		canUseIncompatible := false
++		if r.codeDir == "" && r.pathMajor == "" {
++			_, errGoMod := r.code.ReadFile(info.Name, "go.mod", codehost.MaxGoMod)
++			if errGoMod != nil {
++				canUseIncompatible = true
++			}
++		}
++
++		tagOK := func(v string) string {
+ 			if !strings.HasPrefix(v, p) {
+-				return false
++				return ""
+ 			}
+ 			v = v[len(p):]
+-			return semver.IsValid(v) && v == semver.Canonical(v) && module.MatchPathMajor(v, r.pathMajor) && !IsPseudoVersion(v)
++			if module.CanonicalVersion(v) != v || IsPseudoVersion(v) {
++				return ""
++			}
++			if module.MatchPathMajor(v, r.pathMajor) {
++				return v
++			}
++			if canUseIncompatible {
++				return v + "+incompatible"
++			}
++			return ""
+ 		}
+ 
+ 		// If info.Version is OK, use it.
+-		if tagOK(info.Version) {
+-			info2.Version = info.Version[len(p):]
++		if v := tagOK(info.Version); v != "" {
++			info2.Version = v
+ 		} else {
+ 			// Otherwise look through all known tags for latest in semver ordering.
+ 			for _, tag := range info.Tags {
+-				if tagOK(tag) && semver.Compare(info2.Version, tag[len(p):]) < 0 {
+-					info2.Version = tag[len(p):]
++				if v := tagOK(tag); v != "" && semver.Compare(info2.Version, v) < 0 {
++					info2.Version = v
+ 				}
+ 			}
+ 			// Otherwise make a pseudo-version.
+@@ -185,6 +231,7 @@ func (r *codeRepo) convert(info *codehost.RevInfo, statVers string) (*RevInfo, e
+ 	// Do not allow a successful stat of a pseudo-version for a subdirectory
+ 	// unless the subdirectory actually does have a go.mod.
+ 	if IsPseudoVersion(info2.Version) && r.codeDir != "" {
++		// TODO: git describe --first-parent --match 'v[0-9]*' --tags
+ 		_, _, _, err := r.findDir(info2.Version)
+ 		if err != nil {
+ 			// TODO: It would be nice to return an error like "not a module".
+@@ -203,6 +250,9 @@ func (r *codeRepo) revToRev(rev string) string {
+ 			j := strings.Index(rev[i+1:], "-")
+ 			return rev[i+1+j+1:]
+ 		}
++		if semver.Build(rev) == "+incompatible" {
++			rev = rev[:len(rev)-len("+incompatible")]
++		}
+ 		if r.codeDir == "" {
+ 			return rev
+ 		}
+diff --git a/src/cmd/go/internal/modfetch/coderepo_test.go b/src/cmd/go/internal/modfetch/coderepo_test.go
+index b1790e6f42..d6cbf33361 100644
+--- a/src/cmd/go/internal/modfetch/coderepo_test.go
++++ b/src/cmd/go/internal/modfetch/coderepo_test.go
+@@ -88,9 +88,9 @@ var codeRepoTests = []struct {
+ 		path:    "github.com/rsc/vgotest1/v2",
+ 		rev:     "v2.0.0",
+ 		version: "v2.0.0",
+-		name:    "80d85c5d4d17598a0e9055e7c175a32b415d6128",
+-		short:   "80d85c5d4d17",
+-		time:    time.Date(2018, 2, 19, 23, 10, 6, 0, time.UTC),
++		name:    "45f53230a74ad275c7127e117ac46914c8126160",
++		short:   "45f53230a74a",
++		time:    time.Date(2018, 7, 19, 1, 21, 27, 0, time.UTC),
+ 		ziperr:  "missing github.com/rsc/vgotest1/go.mod and .../v2/go.mod at revision v2.0.0",
+ 	},
+ 	{
+@@ -121,11 +121,11 @@ var codeRepoTests = []struct {
+ 	},
+ 	{
+ 		path:     "github.com/rsc/vgotest1/v2",
+-		rev:      "80d85c5",
++		rev:      "45f53230a",
+ 		version:  "v2.0.0",
+-		name:     "80d85c5d4d17598a0e9055e7c175a32b415d6128",
+-		short:    "80d85c5d4d17",
+-		time:     time.Date(2018, 2, 19, 23, 10, 6, 0, time.UTC),
++		name:     "45f53230a74ad275c7127e117ac46914c8126160",
++		short:    "45f53230a74a",
++		time:     time.Date(2018, 7, 19, 1, 21, 27, 0, time.UTC),
+ 		gomoderr: "missing github.com/rsc/vgotest1/go.mod and .../v2/go.mod at revision v2.0.0",
+ 		ziperr:   "missing github.com/rsc/vgotest1/go.mod and .../v2/go.mod at revision v2.0.0",
+ 	},
+@@ -459,6 +459,7 @@ var hgmap = map[string]string{
+ 	"2f615117ce481c8efef46e0cc0b4b4dccfac8fea": "879ea98f7743c8eff54f59a918f3a24123d1cf46",
+ 	"80d85c5d4d17598a0e9055e7c175a32b415d6128": "e125018e286a4b09061079a81e7b537070b7ff71",
+ 	"1f863feb76bc7029b78b21c5375644838962f88d": "bf63880162304a9337477f3858f5b7e255c75459",
++	"45f53230a74ad275c7127e117ac46914c8126160": "814fce58e83abd5bf2a13892e0b0e1198abefcd4",
+ }
+ 
+ func remap(name string, m map[string]string) string {
+@@ -486,10 +487,9 @@ var codeRepoVersionsTests = []struct {
+ 	prefix   string
+ 	versions []string
+ }{
+-	// TODO: Why do we allow a prefix here at all?
+ 	{
+ 		path:     "github.com/rsc/vgotest1",
+-		versions: []string{"v0.0.0", "v0.0.1", "v1.0.0", "v1.0.1", "v1.0.2", "v1.0.3", "v1.1.0"},
++		versions: []string{"v0.0.0", "v0.0.1", "v1.0.0", "v1.0.1", "v1.0.2", "v1.0.3", "v1.1.0", "v2.0.0+incompatible"},
+ 	},
+ 	{
+ 		path:     "github.com/rsc/vgotest1",
+@@ -605,6 +605,9 @@ type fixedTagsRepo struct {
+ func (ch *fixedTagsRepo) Tags(string) ([]string, error)                  { return ch.tags, nil }
+ func (ch *fixedTagsRepo) Latest() (*codehost.RevInfo, error)             { panic("not impl") }
+ func (ch *fixedTagsRepo) ReadFile(string, string, int64) ([]byte, error) { panic("not impl") }
++func (ch *fixedTagsRepo) ReadFileRevs([]string, string, int64) (map[string]*codehost.FileRev, error) {
++	panic("not impl")
++}
+ func (ch *fixedTagsRepo) ReadZip(string, string, int64) (io.ReadCloser, string, error) {
+ 	panic("not impl")
+ }
+diff --git a/src/cmd/go/internal/modfile/rule.go b/src/cmd/go/internal/modfile/rule.go
+index 80a3bbc7b3..bf6dd5aefc 100644
+--- a/src/cmd/go/internal/modfile/rule.go
++++ b/src/cmd/go/internal/modfile/rule.go
+@@ -167,13 +167,16 @@ func (f *File) add(errs *bytes.Buffer, line *Line, verb string, args []string, f
+ 			fmt.Fprintf(errs, "%s:%d: invalid module version %q: %v\n", f.Syntax.Name, line.Start.Line, old, err)
+ 			return
+ 		}
+-		v1, err := moduleMajorVersion(s)
++		pathMajor, err := modulePathMajor(s)
+ 		if err != nil {
+ 			fmt.Fprintf(errs, "%s:%d: %v\n", f.Syntax.Name, line.Start.Line, err)
+ 			return
+ 		}
+-		if v2 := semver.Major(v); v1 != v2 && (v1 != "v1" || v2 != "v0") {
+-			fmt.Fprintf(errs, "%s:%d: invalid module: %s should be %s, not %s (%s)\n", f.Syntax.Name, line.Start.Line, s, v1, v2, v)
++		if !module.MatchPathMajor(v, pathMajor) {
++			if pathMajor == "" {
++				pathMajor = "v0 or v1"
++			}
++			fmt.Fprintf(errs, "%s:%d: invalid module: %s should be %s, not %s (%s)\n", f.Syntax.Name, line.Start.Line, s, pathMajor, semver.Major(v), v)
+ 			return
+ 		}
+ 		if verb == "require" {
+@@ -202,7 +205,7 @@ func (f *File) add(errs *bytes.Buffer, line *Line, verb string, args []string, f
+ 			fmt.Fprintf(errs, "%s:%d: invalid quoted string: %v\n", f.Syntax.Name, line.Start.Line, err)
+ 			return
+ 		}
+-		v1, err := moduleMajorVersion(s)
++		pathMajor, err := modulePathMajor(s)
+ 		if err != nil {
+ 			fmt.Fprintf(errs, "%s:%d: %v\n", f.Syntax.Name, line.Start.Line, err)
+ 			return
+@@ -215,8 +218,11 @@ func (f *File) add(errs *bytes.Buffer, line *Line, verb string, args []string, f
+ 				fmt.Fprintf(errs, "%s:%d: invalid module version %v: %v\n", f.Syntax.Name, line.Start.Line, old, err)
+ 				return
+ 			}
+-			if v2 := semver.Major(v); v1 != v2 && (v1 != "v1" || v2 != "v0") {
+-				fmt.Fprintf(errs, "%s:%d: invalid module: %s should be %s, not %s (%s)\n", f.Syntax.Name, line.Start.Line, s, v1, v2, v)
++			if !module.MatchPathMajor(v, pathMajor) {
++				if pathMajor == "" {
++					pathMajor = "v0 or v1"
++				}
++				fmt.Fprintf(errs, "%s:%d: invalid module: %s should be %s, not %s (%s)\n", f.Syntax.Name, line.Start.Line, s, pathMajor, semver.Major(v), v)
+ 				return
+ 			}
+ 		}
+@@ -364,39 +370,19 @@ func parseVersion(path string, s *string, fix VersionFixer) (string, error) {
+ 			return "", err
+ 		}
+ 	}
+-	if semver.IsValid(t) {
+-		*s = semver.Canonical(t)
++	if v := module.CanonicalVersion(t); v != "" {
++		*s = v
+ 		return *s, nil
+ 	}
+ 	return "", fmt.Errorf("version must be of the form v1.2.3")
+ }
+ 
+-func moduleMajorVersion(p string) (string, error) {
+-	if _, _, major, _, ok := ParseGopkgIn(p); ok {
+-		return major, nil
+-	}
+-
+-	start := strings.LastIndex(p, "/") + 1
+-	v := p[start:]
+-	if !isMajorVersion(v) {
+-		return "v1", nil
+-	}
+-	if v[1] == '0' || v == "v1" {
+-		return "", fmt.Errorf("module path has invalid version number %s", v)
+-	}
+-	return v, nil
+-}
+-
+-func isMajorVersion(v string) bool {
+-	if len(v) < 2 || v[0] != 'v' {
+-		return false
+-	}
+-	for i := 1; i < len(v); i++ {
+-		if v[i] < '0' || '9' < v[i] {
+-			return false
+-		}
++func modulePathMajor(path string) (string, error) {
++	_, major, ok := module.SplitPathVersion(path)
++	if !ok {
++		return "", fmt.Errorf("invalid module path")
+ 	}
+-	return true
++	return major, nil
+ }
+ 
+ func (f *File) Format() ([]byte, error) {
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index 82820899e6..cfcc65cb39 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -17,7 +17,6 @@ import (
+ 	"cmd/go/internal/module"
+ 	"cmd/go/internal/mvs"
+ 	"cmd/go/internal/search"
+-	"cmd/go/internal/semver"
+ 	"cmd/go/internal/str"
+ 	"encoding/json"
+ 	"fmt"
+@@ -525,7 +524,7 @@ func fixVersion(path, vers string) (string, error) {
+ 	if !ok {
+ 		return "", fmt.Errorf("malformed module path: %s", path)
+ 	}
+-	if semver.IsValid(vers) && vers == semver.Canonical(vers) && module.MatchPathMajor(vers, pathMajor) {
++	if vers != "" && module.CanonicalVersion(vers) == vers && module.MatchPathMajor(vers, pathMajor) {
+ 		return vers, nil
+ 	}
+ 
+diff --git a/src/cmd/go/internal/modload/query.go b/src/cmd/go/internal/modload/query.go
+index 2973f8196c..c69e49acd9 100644
+--- a/src/cmd/go/internal/modload/query.go
++++ b/src/cmd/go/internal/modload/query.go
+@@ -40,6 +40,7 @@ func Query(path, query string, allowed func(module.Version) bool) (*modfetch.Rev
+ 		return nil, fmt.Errorf("invalid semantic version %q in range %q", v, query)
+ 	}
+ 	var ok func(module.Version) bool
++	var prefix string
+ 	var preferOlder bool
+ 	switch {
+ 	case query == "latest":
+@@ -95,9 +96,10 @@ func Query(path, query string, allowed func(module.Version) bool) (*modfetch.Rev
+ 		ok = func(m module.Version) bool {
+ 			return matchSemverPrefix(query, m.Version) && allowed(m)
+ 		}
++		prefix = query + "."
+ 
+ 	case semver.IsValid(query):
+-		vers := semver.Canonical(query)
++		vers := module.CanonicalVersion(query)
+ 		if !allowed(module.Version{Path: path, Version: vers}) {
+ 			return nil, fmt.Errorf("%s@%s excluded", path, vers)
+ 		}
+@@ -120,7 +122,7 @@ func Query(path, query string, allowed func(module.Version) bool) (*modfetch.Rev
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	versions, err := repo.Versions("")
++	versions, err := repo.Versions(prefix)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+diff --git a/src/cmd/go/internal/module/module.go b/src/cmd/go/internal/module/module.go
+index 11a45e092b..992b19e3ed 100644
+--- a/src/cmd/go/internal/module/module.go
++++ b/src/cmd/go/internal/module/module.go
+@@ -324,11 +324,21 @@ func MatchPathMajor(v, pathMajor string) bool {
+ 	}
+ 	m := semver.Major(v)
+ 	if pathMajor == "" {
+-		return m == "v0" || m == "v1"
++		return m == "v0" || m == "v1" || semver.Build(v) == "+incompatible"
+ 	}
+ 	return (pathMajor[0] == '/' || pathMajor[0] == '.') && m == pathMajor[1:]
+ }
+ 
++// CanonicalVersion returns the canonical form of the version string v.
++// It is the same as semver.Canonical(v) except that it preserves the special build suffix "+incompatible".
++func CanonicalVersion(v string) string {
++	cv := semver.Canonical(v)
++	if semver.Build(v) == "+incompatible" {
++		cv += "+incompatible"
++	}
++	return cv
++}
++
+ // Sort sorts the list by Path, breaking ties by comparing Versions.
+ func Sort(list []Version) {
+ 	sort.Slice(list, func(i, j int) bool {
+diff --git a/src/cmd/go/internal/module/module_test.go b/src/cmd/go/internal/module/module_test.go
+index 686e2897ea..f21d620d32 100644
+--- a/src/cmd/go/internal/module/module_test.go
++++ b/src/cmd/go/internal/module/module_test.go
+@@ -49,6 +49,9 @@ var checkTests = []struct {
+ 	{"gopkg.in/yaml.v2", "v2.0.0", true},
+ 	{"gopkg.in/yaml.v2", "v2.1.5", true},
+ 	{"gopkg.in/yaml.v2", "v3.0.0", false},
++
++	{"rsc.io/quote", "v17.0.0", false},
++	{"rsc.io/quote", "v17.0.0+incompatible", true},
+ }
+ 
+ func TestCheck(t *testing.T) {
+diff --git a/src/cmd/go/proxy_test.go b/src/cmd/go/proxy_test.go
+index 2b15f0ed6e..5ecfa32e2f 100644
+--- a/src/cmd/go/proxy_test.go
++++ b/src/cmd/go/proxy_test.go
+@@ -159,6 +159,7 @@ func proxyHandler(w http.ResponseWriter, r *http.Request) {
+ 
+ 	a := readArchive(path, vers)
+ 	if a == nil {
++		fmt.Fprintf(os.Stderr, "go proxy: no archive %s %s\n", path, vers)
+ 		http.Error(w, "cannot load archive", 500)
+ 		return
+ 	}
+@@ -200,6 +201,7 @@ func proxyHandler(w http.ResponseWriter, r *http.Request) {
+ 		}).(cached)
+ 
+ 		if c.err != nil {
++			fmt.Fprintf(os.Stderr, "go proxy: %v\n", c.err)
+ 			http.Error(w, c.err.Error(), 500)
+ 			return
+ 		}
+@@ -232,6 +234,7 @@ var archiveCache par.Cache
+ func readArchive(path, vers string) *txtar.Archive {
+ 	enc, err := module.EncodePath(path)
+ 	if err != nil {
++		fmt.Fprintf(os.Stderr, "go proxy: %v\n", err)
+ 		return nil
+ 	}
+ 
+diff --git a/src/cmd/go/testdata/mod/rsc.io_breaker_v1.0.0.txt b/src/cmd/go/testdata/mod/rsc.io_breaker_v1.0.0.txt
+new file mode 100644
+index 0000000000..a103e3f8aa
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/rsc.io_breaker_v1.0.0.txt
+@@ -0,0 +1,11 @@
++rsc.io/breaker v1.0.0
++written by hand
++
++-- .mod --
++module rsc.io/breaker
++-- .info --
++{"Version":"v1.0.0"}
++-- breaker.go --
++package breaker
++
++const X = 1
+diff --git a/src/cmd/go/testdata/mod/rsc.io_breaker_v2.0.0+incompatible.txt b/src/cmd/go/testdata/mod/rsc.io_breaker_v2.0.0+incompatible.txt
+new file mode 100644
+index 0000000000..59d8bacf07
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/rsc.io_breaker_v2.0.0+incompatible.txt
+@@ -0,0 +1,11 @@
++rsc.io/breaker v2.0.0+incompatible
++written by hand
++
++-- .mod --
++module rsc.io/breaker
++-- .info --
++{"Version":"v2.0.0+incompatible", "Name": "7307b307f4f0dde421900f8e5126fadac1e13aed", "Short": "7307b307f4f0"}
++-- breaker.go --
++package breaker
++
++const XX = 2
+diff --git a/src/cmd/go/testdata/mod/rsc.io_breaker_v2.0.0.txt b/src/cmd/go/testdata/mod/rsc.io_breaker_v2.0.0.txt
+new file mode 100644
+index 0000000000..59d8bacf07
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/rsc.io_breaker_v2.0.0.txt
+@@ -0,0 +1,11 @@
++rsc.io/breaker v2.0.0+incompatible
++written by hand
++
++-- .mod --
++module rsc.io/breaker
++-- .info --
++{"Version":"v2.0.0+incompatible", "Name": "7307b307f4f0dde421900f8e5126fadac1e13aed", "Short": "7307b307f4f0"}
++-- breaker.go --
++package breaker
++
++const XX = 2
+diff --git a/src/cmd/go/testdata/script/mod_get_incompatible.txt b/src/cmd/go/testdata/script/mod_get_incompatible.txt
+new file mode 100644
+index 0000000000..b210715a5d
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_get_incompatible.txt
+@@ -0,0 +1,26 @@
++env GO111MODULE=on
++
++go list x
++go list -m all
++stdout 'rsc.io/breaker v2.0.0\+incompatible'
++
++cp go.mod2 go.mod
++go get rsc.io/breaker@7307b30
++go list -m all
++stdout 'rsc.io/breaker v2.0.0\+incompatible'
++
++go get rsc.io/breaker@v2.0.0
++go list -m all
++stdout 'rsc.io/breaker v2.0.0\+incompatible'
++
++-- go.mod --
++module x
++
++-- go.mod2 --
++module x
++require rsc.io/breaker v1.0.0
++
++-- x.go --
++package x
++import "rsc.io/breaker"
++var _ = breaker.XX

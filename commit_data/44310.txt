@@ -11,7 +11,46 @@ Date:   Mon Jun 8 14:35:07 2020 -0700
     Change-Id: I8de97517c8f92c08f0c8a51f651a17e31617979b
     Reviewed-on: https://go-review.googlesource.com/c/go/+/236997
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/os/file_unix.go    | 6 ++----
  src/os/removeall_at.go | 3 +--
  2 files changed, 3 insertions(+), 6 deletions(-)
+
+diff --git a/src/os/file_unix.go b/src/os/file_unix.go
+index b93e2bd56a..f2c00ae0cb 100644
+--- a/src/os/file_unix.go
++++ b/src/os/file_unix.go
+@@ -202,10 +202,8 @@ func openFileNolog(name string, flag int, perm FileMode) (*File, error) {
+ 			break
+ 		}
+ 
+-		// On OS X, sigaction(2) doesn't guarantee that SA_RESTART will cause
+-		// open(2) to be restarted for regular files. This is easy to reproduce on
+-		// fuse file systems (see https://golang.org/issue/11180).
+-		if runtime.GOOS == "darwin" && e == syscall.EINTR {
++		// We have to check EINTR here, per issues 11180 and 39237.
++		if e == syscall.EINTR {
+ 			continue
+ 		}
+ 
+diff --git a/src/os/removeall_at.go b/src/os/removeall_at.go
+index e619851f9c..37bf1b8f2f 100644
+--- a/src/os/removeall_at.go
++++ b/src/os/removeall_at.go
+@@ -9,7 +9,6 @@ package os
+ import (
+ 	"internal/syscall/unix"
+ 	"io"
+-	"runtime"
+ 	"syscall"
+ )
+ 
+@@ -178,7 +177,7 @@ func openFdAt(dirfd int, name string) (*File, error) {
+ 		}
+ 
+ 		// See comment in openFileNolog.
+-		if runtime.GOOS == "darwin" && e == syscall.EINTR {
++		if e == syscall.EINTR {
+ 			continue
+ 		}
+ 

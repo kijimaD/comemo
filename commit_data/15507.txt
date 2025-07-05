@@ -28,7 +28,7 @@ Date:   Thu Feb 28 13:54:23 2013 -0800
     R=golang-dev
     CC=golang-dev
     https://golang.org/cl/7440045
-
+---
  src/pkg/runtime/cgo/callbacks.c         | 16 ++++++++++++++++
  src/pkg/runtime/cgo/gcc_darwin_386.c    |  1 -
  src/pkg/runtime/cgo/gcc_darwin_amd64.c  |  1 -
@@ -49,3 +49,301 @@ Date:   Thu Feb 28 13:54:23 2013 -0800
  src/pkg/runtime/cgo/gcc_windows_amd64.c |  1 -
  src/pkg/runtime/cgo/setenv.c            | 10 ++++++++++
  19 files changed, 27 insertions(+), 36 deletions(-)
+
+diff --git a/src/pkg/runtime/cgo/callbacks.c b/src/pkg/runtime/cgo/callbacks.c
+index cefd67de87..86de808fb1 100644
+--- a/src/pkg/runtime/cgo/callbacks.c
++++ b/src/pkg/runtime/cgo/callbacks.c
+@@ -77,3 +77,19 @@ _cgo_panic(void *a, int32 n)
+ {
+ 	runtime·cgocallback((void(*)(void))_cgo_panic_internal, a, n);
+ }
++
++#pragma cgo_static_import x_cgo_init
++extern void x_cgo_init(G*);
++void (*_cgo_init)(G*) = x_cgo_init;
++
++#pragma cgo_static_import x_cgo_malloc
++extern void x_cgo_malloc(void*);
++void (*_cgo_malloc)(void*) = x_cgo_malloc;
++
++#pragma cgo_static_import x_cgo_free
++extern void x_cgo_free(void*);
++void (*_cgo_free)(void*) = x_cgo_free;
++
++#pragma cgo_static_import x_cgo_thread_start
++extern void x_cgo_thread_start(void*);
++void (*_cgo_thread_start)(void*) = x_cgo_thread_start;
+diff --git a/src/pkg/runtime/cgo/gcc_darwin_386.c b/src/pkg/runtime/cgo/gcc_darwin_386.c
+index fd4d7a63a9..ad9fb5abf6 100644
+--- a/src/pkg/runtime/cgo/gcc_darwin_386.c
++++ b/src/pkg/runtime/cgo/gcc_darwin_386.c
+@@ -115,7 +115,6 @@ x_cgo_init(G *g)
+ 	inittls();
+ }
+ 
+-void (*_cgo_init)(G*) = x_cgo_init;
+ 
+ void
+ _cgo_sys_thread_start(ThreadStart *ts)
+diff --git a/src/pkg/runtime/cgo/gcc_darwin_amd64.c b/src/pkg/runtime/cgo/gcc_darwin_amd64.c
+index c3519360a4..65d381633d 100644
+--- a/src/pkg/runtime/cgo/gcc_darwin_amd64.c
++++ b/src/pkg/runtime/cgo/gcc_darwin_amd64.c
+@@ -85,7 +85,6 @@ x_cgo_init(G *g)
+ 	inittls();
+ }
+ 
+-void (*_cgo_init)(G*) = x_cgo_init;
+ 
+ void
+ _cgo_sys_thread_start(ThreadStart *ts)
+diff --git a/src/pkg/runtime/cgo/gcc_freebsd_386.c b/src/pkg/runtime/cgo/gcc_freebsd_386.c
+index f22d47b591..7c62a1bc49 100644
+--- a/src/pkg/runtime/cgo/gcc_freebsd_386.c
++++ b/src/pkg/runtime/cgo/gcc_freebsd_386.c
+@@ -23,7 +23,6 @@ x_cgo_init(G *g)
+ 	pthread_attr_destroy(&attr);
+ }
+ 
+-void (*_cgo_init)(G*) = x_cgo_init;
+ 
+ void
+ _cgo_sys_thread_start(ThreadStart *ts)
+diff --git a/src/pkg/runtime/cgo/gcc_freebsd_amd64.c b/src/pkg/runtime/cgo/gcc_freebsd_amd64.c
+index 27023c3a5e..6be8bd251a 100644
+--- a/src/pkg/runtime/cgo/gcc_freebsd_amd64.c
++++ b/src/pkg/runtime/cgo/gcc_freebsd_amd64.c
+@@ -23,7 +23,6 @@ x_cgo_init(G *g)
+ 	pthread_attr_destroy(&attr);
+ }
+ 
+-void (*_cgo_init)(G*) = x_cgo_init;
+ 
+ void
+ _cgo_sys_thread_start(ThreadStart *ts)
+diff --git a/src/pkg/runtime/cgo/gcc_freebsd_arm.c b/src/pkg/runtime/cgo/gcc_freebsd_arm.c
+index 9052b63073..3bcb0b2701 100644
+--- a/src/pkg/runtime/cgo/gcc_freebsd_arm.c
++++ b/src/pkg/runtime/cgo/gcc_freebsd_arm.c
+@@ -55,10 +55,6 @@ x_cgo_save_gm(void)
+ 	);
+ }
+ 
+-// both cgo_tls_{get,set}_gm can be called from runtime
+-void (*_cgo_load_gm)(void) = x_cgo_load_gm;
+-void (*_cgo_save_gm)(void) = x_cgo_save_gm;
+-
+ void
+ x_cgo_init(G *g)
+ {
+@@ -72,7 +68,6 @@ x_cgo_init(G *g)
+ 	pthread_attr_destroy(&attr);
+ }
+ 
+-void (*_cgo_init)(G*) = x_cgo_init;
+ 
+ void
+ _cgo_sys_thread_start(ThreadStart *ts)
+diff --git a/src/pkg/runtime/cgo/gcc_linux_386.c b/src/pkg/runtime/cgo/gcc_linux_386.c
+index 0cac96f81f..9357a63f71 100644
+--- a/src/pkg/runtime/cgo/gcc_linux_386.c
++++ b/src/pkg/runtime/cgo/gcc_linux_386.c
+@@ -21,7 +21,6 @@ x_cgo_init(G *g)
+ 	pthread_attr_destroy(&attr);
+ }
+ 
+-void (*_cgo_init)(G*) = x_cgo_init;
+ 
+ void
+ _cgo_sys_thread_start(ThreadStart *ts)
+diff --git a/src/pkg/runtime/cgo/gcc_linux_amd64.c b/src/pkg/runtime/cgo/gcc_linux_amd64.c
+index 10981d62c5..bc76117d35 100644
+--- a/src/pkg/runtime/cgo/gcc_linux_amd64.c
++++ b/src/pkg/runtime/cgo/gcc_linux_amd64.c
+@@ -21,7 +21,6 @@ x_cgo_init(G* g)
+ 	pthread_attr_destroy(&attr);
+ }
+ 
+-void (*_cgo_init)(G*) = x_cgo_init;
+ 
+ void
+ _cgo_sys_thread_start(ThreadStart *ts)
+diff --git a/src/pkg/runtime/cgo/gcc_linux_arm.c b/src/pkg/runtime/cgo/gcc_linux_arm.c
+index 93004ddcbc..46a1126ad3 100644
+--- a/src/pkg/runtime/cgo/gcc_linux_arm.c
++++ b/src/pkg/runtime/cgo/gcc_linux_arm.c
+@@ -55,10 +55,6 @@ x_cgo_save_gm(void)
+ 	);
+ }
+ 
+-// both cgo_tls_{get,set}_gm can be called from runtime
+-void (*_cgo_load_gm)(void) = x_cgo_load_gm;
+-void (*_cgo_save_gm)(void) = x_cgo_save_gm;
+-
+ void
+ x_cgo_init(G *g)
+ {
+@@ -72,7 +68,6 @@ x_cgo_init(G *g)
+ 	pthread_attr_destroy(&attr);
+ }
+ 
+-void (*_cgo_init)(G*) = x_cgo_init;
+ 
+ void
+ _cgo_sys_thread_start(ThreadStart *ts)
+diff --git a/src/pkg/runtime/cgo/gcc_netbsd_386.c b/src/pkg/runtime/cgo/gcc_netbsd_386.c
+index 1232541547..09b271df4f 100644
+--- a/src/pkg/runtime/cgo/gcc_netbsd_386.c
++++ b/src/pkg/runtime/cgo/gcc_netbsd_386.c
+@@ -22,7 +22,6 @@ x_cgo_init(G *g)
+ 	pthread_attr_destroy(&attr);
+ }
+ 
+-void (*_cgo_init)(G*) = x_cgo_init;
+ 
+ void
+ _cgo_sys_thread_start(ThreadStart *ts)
+diff --git a/src/pkg/runtime/cgo/gcc_netbsd_amd64.c b/src/pkg/runtime/cgo/gcc_netbsd_amd64.c
+index bc2e2b9c66..080c59ba49 100644
+--- a/src/pkg/runtime/cgo/gcc_netbsd_amd64.c
++++ b/src/pkg/runtime/cgo/gcc_netbsd_amd64.c
+@@ -22,7 +22,6 @@ x_cgo_init(G *g)
+ 	pthread_attr_destroy(&attr);
+ }
+ 
+-void (*_cgo_init)(G*) = x_cgo_init;
+ 
+ void
+ _cgo_sys_thread_start(ThreadStart *ts)
+diff --git a/src/pkg/runtime/cgo/gcc_netbsd_arm.c b/src/pkg/runtime/cgo/gcc_netbsd_arm.c
+index 1b9ba39361..d93b531e7b 100644
+--- a/src/pkg/runtime/cgo/gcc_netbsd_arm.c
++++ b/src/pkg/runtime/cgo/gcc_netbsd_arm.c
+@@ -61,10 +61,6 @@ x_cgo_save_gm(void)
+ 	);
+ }
+ 
+-// both cgo_tls_{get,set}_gm can be called from runtime
+-void (*_cgo_load_gm)(void) = x_cgo_load_gm;
+-void (*_cgo_save_gm)(void) = x_cgo_save_gm;
+-
+ void
+ x_cgo_init(G *g)
+ {
+@@ -78,7 +74,6 @@ x_cgo_init(G *g)
+ 	pthread_attr_destroy(&attr);
+ }
+ 
+-void (*_cgo_init)(G*) = x_cgo_init;
+ 
+ void
+ _cgo_sys_thread_start(ThreadStart *ts)
+diff --git a/src/pkg/runtime/cgo/gcc_openbsd_386.c b/src/pkg/runtime/cgo/gcc_openbsd_386.c
+index c0b90cce69..86c1365adc 100644
+--- a/src/pkg/runtime/cgo/gcc_openbsd_386.c
++++ b/src/pkg/runtime/cgo/gcc_openbsd_386.c
+@@ -109,7 +109,6 @@ x_cgo_init(G *g)
+ 	tcb_fixup(1);
+ }
+ 
+-void (*_cgo_init)(G*) = x_cgo_init;
+ 
+ void
+ _cgo_sys_thread_start(ThreadStart *ts)
+diff --git a/src/pkg/runtime/cgo/gcc_openbsd_amd64.c b/src/pkg/runtime/cgo/gcc_openbsd_amd64.c
+index 3984480dfa..d3a5e36b03 100644
+--- a/src/pkg/runtime/cgo/gcc_openbsd_amd64.c
++++ b/src/pkg/runtime/cgo/gcc_openbsd_amd64.c
+@@ -109,7 +109,6 @@ x_cgo_init(G *g)
+ 	tcb_fixup(1);
+ }
+ 
+-void (*_cgo_init)(G*) = x_cgo_init;
+ 
+ void
+ _cgo_sys_thread_start(ThreadStart *ts)
+diff --git a/src/pkg/runtime/cgo/gcc_setenv.c b/src/pkg/runtime/cgo/gcc_setenv.c
+index c99853a0ff..a0938166d1 100644
+--- a/src/pkg/runtime/cgo/gcc_setenv.c
++++ b/src/pkg/runtime/cgo/gcc_setenv.c
+@@ -1,4 +1,4 @@
+-// Copyright 20111 The Go Authors.  All rights reserved.
++// Copyright 2011 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+@@ -14,5 +14,3 @@ x_cgo_setenv(char **arg)
+ {
+ 	setenv(arg[0], arg[1], 1);
+ }
+-
+-void (*_cgo_setenv)(char**) = x_cgo_setenv;
+diff --git a/src/pkg/runtime/cgo/gcc_util.c b/src/pkg/runtime/cgo/gcc_util.c
+index 0e289166fc..20913d7369 100644
+--- a/src/pkg/runtime/cgo/gcc_util.c
++++ b/src/pkg/runtime/cgo/gcc_util.c
+@@ -16,8 +16,6 @@ x_cgo_malloc(void *p)
+ 	a->ret = malloc(a->n);
+ }
+ 
+-void (*_cgo_malloc)(void*) = x_cgo_malloc;
+-
+ /* Stub for calling free from Go */
+ void
+ x_cgo_free(void *p)
+@@ -29,8 +27,6 @@ x_cgo_free(void *p)
+ 	free(a->arg);
+ }
+ 
+-void (*_cgo_free)(void*) = x_cgo_free;
+-
+ /* Stub for creating a new thread */
+ void
+ x_cgo_thread_start(ThreadStart *arg)
+@@ -47,5 +43,3 @@ x_cgo_thread_start(ThreadStart *arg)
+ 
+ 	_cgo_sys_thread_start(ts);	/* OS-dependent half */
+ }
+-
+-void (*_cgo_thread_start)(ThreadStart*) = x_cgo_thread_start;
+diff --git a/src/pkg/runtime/cgo/gcc_windows_386.c b/src/pkg/runtime/cgo/gcc_windows_386.c
+index 5e9d4a94d5..02eab12e59 100644
+--- a/src/pkg/runtime/cgo/gcc_windows_386.c
++++ b/src/pkg/runtime/cgo/gcc_windows_386.c
+@@ -21,7 +21,6 @@ x_cgo_init(G *g)
+ 	g->stackguard = (uintptr)&tmp - STACKSIZE + 8*1024;
+ }
+ 
+-void (*_cgo_init)(G*) = x_cgo_init;
+ 
+ void
+ _cgo_sys_thread_start(ThreadStart *ts)
+diff --git a/src/pkg/runtime/cgo/gcc_windows_amd64.c b/src/pkg/runtime/cgo/gcc_windows_amd64.c
+index 386e5bbe3a..f7695a1cc2 100644
+--- a/src/pkg/runtime/cgo/gcc_windows_amd64.c
++++ b/src/pkg/runtime/cgo/gcc_windows_amd64.c
+@@ -21,7 +21,6 @@ x_cgo_init(G *g)
+ 	g->stackguard = (uintptr)&tmp - STACKSIZE + 8*1024;
+ }
+ 
+-void (*_cgo_init)(G*) = x_cgo_init;
+ 
+ void
+ _cgo_sys_thread_start(ThreadStart *ts)
+diff --git a/src/pkg/runtime/cgo/setenv.c b/src/pkg/runtime/cgo/setenv.c
+new file mode 100644
+index 0000000000..4c47cdb002
+--- /dev/null
++++ b/src/pkg/runtime/cgo/setenv.c
+@@ -0,0 +1,10 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build darwin freebsd linux netbsd openbsd
++
++#pragma cgo_import_static x_cgo_setenv
++
++void x_cgo_setenv(char**);
++void (*_cgo_setenv)(char**) = x_cgo_setenv;

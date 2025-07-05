@@ -12,7 +12,67 @@ Date:   Tue May 10 07:06:47 2016 -0700
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/reflect/all_test.go | 35 +++++++++++++++++++++++++++++++++++
  src/reflect/type.go     |  2 +-
  2 files changed, 36 insertions(+), 1 deletion(-)
+
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index d4c3e4e588..1a7952d789 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -5221,6 +5221,41 @@ func TestLargeGCProg(t *testing.T) {
+ 	fv.Call([]Value{ValueOf([256]*byte{})})
+ }
+ 
++func fieldIndexRecover(t Type, i int) (recovered interface{}) {
++	defer func() {
++		recovered = recover()
++	}()
++
++	t.Field(i)
++	return
++}
++
++// Issue 15046.
++func TestTypeFieldOutOfRangePanic(t *testing.T) {
++	typ := TypeOf(struct{ X int }{10})
++	testIndices := [...]struct {
++		i         int
++		mustPanic bool
++	}{
++		0: {-2, true},
++		1: {0, false},
++		2: {1, true},
++		3: {1 << 10, true},
++	}
++	for i, tt := range testIndices {
++		recoveredErr := fieldIndexRecover(typ, tt.i)
++		if tt.mustPanic {
++			if recoveredErr == nil {
++				t.Errorf("#%d: fieldIndex %d expected to panic", i, tt.i)
++			}
++		} else {
++			if recoveredErr != nil {
++				t.Errorf("#%d: got err=%v, expected no panic", i, recoveredErr)
++			}
++		}
++	}
++}
++
+ // Issue 9179.
+ func TestCallGC(t *testing.T) {
+ 	f := func(a, b, c, d, e string) {
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index 2ceb3d3f66..b499d01a2c 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -1178,7 +1178,7 @@ func (tag StructTag) Lookup(key string) (value string, ok bool) {
+ // Field returns the i'th struct field.
+ func (t *structType) Field(i int) (f StructField) {
+ 	if i < 0 || i >= len(t.fields) {
+-		return
++		panic("reflect: Field index out of bounds")
+ 	}
+ 	p := &t.fields[i]
+ 	f.Type = toType(p.typ)

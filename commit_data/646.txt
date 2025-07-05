@@ -8,9 +8,183 @@ Date:   Mon Sep 15 14:27:15 2008 -0700
     R=gri
     OCL=15367
     CL=15367
-
+---
  test/bugs/bug060.go          |  2 +-
  test/bugs/bug100.go          | 27 ------------
  test/{fmt.go => fmt_test.go} |  0
  test/map.go                  | 98 ++------------------------------------------
  4 files changed, 4 insertions(+), 123 deletions(-)
+
+diff --git a/test/bugs/bug060.go b/test/bugs/bug060.go
+index dddd23b29f..6d558a4f1d 100644
+--- a/test/bugs/bug060.go
++++ b/test/bugs/bug060.go
+@@ -11,7 +11,7 @@ func main() {
+ 	m[0] = 0;
+ 	m[0]++;
+ 	if m[0] != 1 {
+-		print("map does not increment");
++		print("map does not increment\n");
+ 		sys.exit(1)
+ 	}
+ }
+diff --git a/test/bugs/bug100.go b/test/bugs/bug100.go
+deleted file mode 100644
+index 99c4484b33..0000000000
+--- a/test/bugs/bug100.go
++++ /dev/null
+@@ -1,27 +0,0 @@
+-// Copyright 2009 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// $G $D/$F.go || (echo BUG: should compile cleanly; exit 1)
+-package main
+-
+-func f() int {
+-	i := 0
+-	for {
+-		if i >= sys.argc() {
+-			return i
+-		}
+-		i++
+-	}
+-}
+-
+-func g() int {
+-	for {
+-	}
+-}
+-
+-func h() int {
+-	for {
+-		return 1
+-	}
+-}
+diff --git a/test/fmt.go b/test/fmt_test.go
+similarity index 100%
+rename from test/fmt.go
+rename to test/fmt_test.go
+diff --git a/test/map.go b/test/map.go
+index c5544e5297..33658bae0f 100644
+--- a/test/map.go
++++ b/test/map.go
+@@ -4,7 +4,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-
+ package main
+ 
+ import fmt "fmt"
+@@ -169,100 +168,6 @@ func main() {
+ 		}
+ 	}
+ 
+-	// test existence with zero check
+-	// failed lookups yield the 'zero' of the type.
+-	// a later loop uses the more reliable tuple check.
+-	for i := 1; i < count; i++ {	// loop from 1 to avoid the real 'zeros'
+-		s := F.d(i).str();
+-		f := float(i);
+-		// BUG t := T(s, f);
+-		var t T; t.s = s; t.f = f;
+-		// BUG m := M(i, i+1);
+-		if mib[i] == false {
+-			F.s("existence: mib[").d(i).s("] == false").putnl();
+-		}
+-		if mii[i] == 0 {
+-			F.s("existence: mii[").d(i).s("] == 0").putnl();
+-		}
+-		if mfi[f] == 0 {
+-			F.s("existence: mfi[").g(f).s("] == 0").putnl();
+-		}
+-		if mif[i] == 0.0 {
+-			F.s("existence: mif[").d(i).s("] == 0.0").putnl();
+-		}
+-		if mis[i] == "" {
+-			F.s("existence: mis[").d(i).s("] == ``").putnl();
+-		}
+-		if msi[s] == 0 {
+-			F.s("existence: msi[").s(s).s("] == 0").putnl();
+-		}
+-		if mss[s] == `` {
+-			F.s("existence: mss[").s(s).s("] == ``").putnl();
+-		}
+-		if mspa[s] == nil {
+-			F.s("existence: mspa[").s(s).s("] == ``").putnl();
+-		}
+-		if mipT[i] == nil {
+-			F.s("existence: mipT[").d(i).s("] == nil").putnl();
+-		}
+-		if mpTi[apT[i]] == 0 {
+-			F.s("existence: mpTi[apT[").d(i).s("]] == 0").putnl();
+-		}
+-//		if mti[t]  == 0 {
+-//			//emit stdout <- format("haskey mti[%s] false", string(t));
+-//		}
+-		if mipM[i] == nil {
+-			F.s("existence: mipM[").d(i).s("] == nil").putnl();
+-		}
+-	}
+-
+-	// test nonexistence with zero check
+-	// failed lookups yield the 'zero' of the type.
+-	// a later loop uses the more reliable tuple check.
+-	for i := count; i < 2*count; i++ {
+-		s := F.d(i).str();
+-		f := float(i);
+-		// BUG t := T(s, f);
+-		var t T; t.s = s; t.f = f;
+-		// BUG m := M(i, i+1);
+-		if mib[i] != false {
+-			F.s("nonexistence: mib[").d(i).s("] != false").putnl();
+-		}
+-		if mii[i] != 0 {
+-			F.s("nonexistence: mii[").d(i).s("] != 0").putnl();
+-		}
+-		if mfi[f] != 0 {
+-			F.s("nonexistence: mfi[").g(f).s("] != 0").putnl();
+-		}
+-		if mif[i] != 0.0 {
+-			F.s("nonexistence: mif[").d(i).s("] != 0.0").putnl();
+-		}
+-		if mis[i] != `` {
+-			F.s("nonexistence: mis[").d(i).s("] != ``").putnl();
+-		}
+-		if msi[s] != 0 {
+-			F.s("nonexistence: msi[").s(s).s("] != 0").putnl();
+-		}
+-		if mss[s] != `` {
+-			F.s("nonexistence: mss[").s(s).s("] != ``").putnl();
+-		}
+-		if mspa[s] != nil {
+-			F.s("nonexistence: mspa[").s(s).s("] != ``").putnl();
+-		}
+-		if mipT[i] != nil {
+-			F.s("nonexistence: mipT[").d(i).s("] != nil").putnl();
+-		}
+-		if mpTi[apT[i]] != 0 {
+-			F.s("nonexistence: mpTi[apT[").d(i).s("]] != 0").putnl();
+-		}
+-//		if mti[t] != 0 {
+-//			// emit stdout <- format("haskey mti[%s] false", string(t));
+-//
+-		if mipM[i] != nil {
+-			F.s("nonexistence: mipM[").d(i).s("] != nil").putnl();
+-		}
+-	}
+-
+ 	// test existence with tuple check
+ 	// failed lookups yield a false value for the boolean.
+ 	for i := 0; i < count; i++ {
+@@ -506,6 +411,9 @@ func main() {
+ 			}
+ 		}
+ 	}
++	
++	print("skipping increment test until bug060 is fixed\n");
++	return;
+ 
+ 	// tests for structured map element updates
+ 	for i := 0; i < count; i++ {

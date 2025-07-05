@@ -7,6 +7,26 @@ Date:   Thu Jan 7 13:29:43 2010 +1100
     R=rsc
     CC=golang-dev
     https://golang.org/cl/181163
-
+---
  src/pkg/io/io.go | 8 ++++++++
  1 file changed, 8 insertions(+)
+
+diff --git a/src/pkg/io/io.go b/src/pkg/io/io.go
+index 5d18476f53..4357d5c6fb 100644
+--- a/src/pkg/io/io.go
++++ b/src/pkg/io/io.go
+@@ -150,6 +150,14 @@ type WriterAt interface {
+ 	WriteAt(p []byte, off int64) (n int, err os.Error)
+ }
+ 
++// ReadByter is the interface that wraps the ReadByte method.
++//
++// ReadByte reads and returns the next byte from the input.
++// If no byte is available, err will be set.
++type ReadByter interface {
++	ReadByte() (c byte, err os.Error)
++}
++
+ // WriteString writes the contents of the string s to w, which accepts an array of bytes.
+ func WriteString(w Writer, s string) (n int, err os.Error) {
+ 	return w.Write(strings.Bytes(s))

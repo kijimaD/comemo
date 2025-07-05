@@ -10,7 +10,221 @@ Date:   Fri Jan 15 13:21:47 2010 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/186118
-
+---
  src/pkg/math/all_test.go | 104 ++++++++++++++++++++++++++++++++++++-----------
  src/pkg/math/hypot.go    |  15 ++++++-
  2 files changed, 95 insertions(+), 24 deletions(-)
+
+diff --git a/src/pkg/math/all_test.go b/src/pkg/math/all_test.go
+index 0c65dd787f..15d289be1b 100644
+--- a/src/pkg/math/all_test.go
++++ b/src/pkg/math/all_test.go
+@@ -309,6 +309,41 @@ var fmodSC = []float64{
+ 	NaN(),
+ }
+ 
++var vfhypotSC = [][2]float64{
++	[2]float64{Inf(-1), Inf(-1)},
++	[2]float64{Inf(-1), 0},
++	[2]float64{Inf(-1), Inf(1)},
++	[2]float64{Inf(-1), NaN()},
++	[2]float64{0, Inf(-1)},
++	[2]float64{0, Inf(1)},
++	[2]float64{0, NaN()},
++	[2]float64{Inf(1), Inf(-1)},
++	[2]float64{Inf(1), 0},
++	[2]float64{Inf(1), Inf(1)},
++	[2]float64{Inf(1), NaN()},
++	[2]float64{NaN(), Inf(-1)},
++	[2]float64{NaN(), 0},
++	[2]float64{NaN(), Inf(1)},
++	[2]float64{NaN(), NaN()},
++}
++var hypotSC = []float64{
++	Inf(1),
++	Inf(1),
++	Inf(1),
++	Inf(1),
++	Inf(1),
++	Inf(1),
++	NaN(),
++	Inf(1),
++	Inf(1),
++	Inf(1),
++	Inf(1),
++	Inf(1),
++	NaN(),
++	Inf(1),
++	NaN(),
++}
++
+ var vflogSC = []float64{
+ 	Inf(-1),
+ 	-Pi,
+@@ -413,6 +448,19 @@ var powSC = []float64{
+ 	1,
+ }
+ 
++var vfsqrtSC = []float64{
++	Inf(-1),
++	-Pi,
++	Inf(1),
++	NaN(),
++}
++var sqrtSC = []float64{
++	NaN(),
++	NaN(),
++	Inf(1),
++	NaN(),
++}
++
+ func tolerance(a, b, e float64) bool {
+ 	d := a - b
+ 	if d < 0 {
+@@ -525,12 +573,26 @@ func TestFloor(t *testing.T) {
+ func TestFmod(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+ 		if f := Fmod(10, vf[i]); !close(fmod[i], f) {
+-			t.Errorf("Fmod(10, %.17g) = %.17g, want %.17g\n", vf[i], f, fmod[i])
++			t.Errorf("Fmod(10, %g) = %g, want %g\n", vf[i], f, fmod[i])
+ 		}
+ 	}
+ 	for i := 0; i < len(vffmodSC); i++ {
+ 		if f := Fmod(vffmodSC[i][0], vffmodSC[i][1]); !alike(fmodSC[i], f) {
+-			t.Errorf("Fmod(%.17g, %.17g) = %.17g, want %.17g\n", vffmodSC[i][0], vffmodSC[i][1], f, fmodSC[i])
++			t.Errorf("Fmod(%g, %g) = %g, want %g\n", vffmodSC[i][0], vffmodSC[i][1], f, fmodSC[i])
++		}
++	}
++}
++
++func TestHypot(t *testing.T) {
++	for i := 0; i < len(vf); i++ {
++		a := Fabs(tanh[i] * Sqrt(2))
++		if f := Hypot(tanh[i], tanh[i]); a != f {
++			t.Errorf("Hypot(%g, %g) = %g, want %g\n", tanh[i], tanh[i], f, a)
++		}
++	}
++	for i := 0; i < len(vfhypotSC); i++ {
++		if f := Hypot(vfhypotSC[i][0], vfhypotSC[i][1]); !alike(hypotSC[i], f) {
++			t.Errorf("Hypot(%g, %g) = %g, want %g\n", vfhypotSC[i][0], vfhypotSC[i][1], f, hypotSC[i])
+ 		}
+ 	}
+ }
+@@ -572,12 +634,12 @@ func TestLog10(t *testing.T) {
+ func TestPow(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+ 		if f := Pow(10, vf[i]); !close(pow[i], f) {
+-			t.Errorf("Pow(10, %.17g) = %.17g, want %.17g\n", vf[i], f, pow[i])
++			t.Errorf("Pow(10, %g) = %g, want %g\n", vf[i], f, pow[i])
+ 		}
+ 	}
+ 	for i := 0; i < len(vfpowSC); i++ {
+ 		if f := Pow(vfpowSC[i][0], vfpowSC[i][1]); !alike(powSC[i], f) {
+-			t.Errorf("Pow(%.17g, %.17g) = %.17g, want %.17g\n", vfpowSC[i][0], vfpowSC[i][1], f, powSC[i])
++			t.Errorf("Pow(%g, %g) = %g, want %g\n", vfpowSC[i][0], vfpowSC[i][1], f, powSC[i])
+ 		}
+ 	}
+ }
+@@ -609,6 +671,11 @@ func TestSqrt(t *testing.T) {
+ 			t.Errorf("Sqrt(%g) = %g, want %g\n", a, f, sqrt[i])
+ 		}
+ 	}
++	for i := 0; i < len(vfsqrtSC); i++ {
++		if f := Log10(vfsqrtSC[i]); !alike(sqrtSC[i], f) {
++			t.Errorf("Sqrt(%g) = %g, want %g\n", vfsqrtSC[i], f, sqrtSC[i])
++		}
++	}
+ }
+ 
+ func TestTan(t *testing.T) {
+@@ -627,15 +694,6 @@ func TestTanh(t *testing.T) {
+ 	}
+ }
+ 
+-func TestHypot(t *testing.T) {
+-	for i := 0; i < len(vf); i++ {
+-		a := Fabs(tanh[i] * Sqrt(2))
+-		if f := Hypot(tanh[i], tanh[i]); a != f {
+-			t.Errorf("Hypot(%g, %g) = %g, want %g\n", tanh[i], tanh[i], f, a)
+-		}
+-	}
+-}
+-
+ // Check that math functions of high angle values
+ // return similar results to low angle values
+ func TestLargeSin(t *testing.T) {
+@@ -700,33 +758,33 @@ func TestFloatMinMax(t *testing.T) {
+ 
+ // Benchmarks
+ 
+-func BenchmarkPowInt(b *testing.B) {
++func BenchmarkAtan(b *testing.B) {
+ 	for i := 0; i < b.N; i++ {
+-		Pow(2, 2)
++		Atan(.5)
+ 	}
+ }
+ 
+-func BenchmarkPowFrac(b *testing.B) {
++func BenchmarkAsin(b *testing.B) {
+ 	for i := 0; i < b.N; i++ {
+-		Pow(2.5, 1.5)
++		Asin(.5)
+ 	}
+ }
+ 
+-func BenchmarkAtan(b *testing.B) {
++func BenchmarkAcos(b *testing.B) {
+ 	for i := 0; i < b.N; i++ {
+-		Atan(.5)
++		Acos(.5)
+ 	}
+ }
+ 
+-func BenchmarkAsin(b *testing.B) {
++func BenchmarkPowInt(b *testing.B) {
+ 	for i := 0; i < b.N; i++ {
+-		Asin(.5)
++		Pow(2, 2)
+ 	}
+ }
+ 
+-func BenchmarkAcos(b *testing.B) {
++func BenchmarkPowFrac(b *testing.B) {
+ 	for i := 0; i < b.N; i++ {
+-		Acos(.5)
++		Pow(2.5, 1.5)
+ 	}
+ }
+ 
+diff --git a/src/pkg/math/hypot.go b/src/pkg/math/hypot.go
+index 760fc9da4d..31924165e7 100644
+--- a/src/pkg/math/hypot.go
++++ b/src/pkg/math/hypot.go
+@@ -1,4 +1,4 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
++// Copyright 2009-2010 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+@@ -15,7 +15,20 @@ package math
+ 
+ // Hypot computes Sqrt(p*p + q*q), taking care to avoid
+ // unnecessary overflow and underflow.
++//
++// Special cases are:
++//	Hypot(p, q) = +Inf if p or q is infinite
++//	Hypot(p, q) = NaN if p or q is NaN
+ func Hypot(p, q float64) float64 {
++	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
++	// when compiler does it for us
++	// special cases
++	switch {
++	case p < -MaxFloat64 || p > MaxFloat64 || q < -MaxFloat64 || q > MaxFloat64: // IsInf(p, 0) || IsInf(q, 0):
++		return Inf(1)
++	case p != p || q != q: // IsNaN(p) || IsNaN(q):
++		return NaN()
++	}
+ 	if p < 0 {
+ 		p = -p
+ 	}

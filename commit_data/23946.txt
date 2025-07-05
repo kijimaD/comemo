@@ -9,6 +9,22 @@ Date:   Wed Jun 24 07:23:40 2015 -0700
     Change-Id: I6817d499e6c02e4a9c83f80bc66a2bee368a69ec
     Reviewed-on: https://go-review.googlesource.com/11406
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/compile/internal/gc/align.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/align.go b/src/cmd/compile/internal/gc/align.go
+index 741c5dd76c..0fc3c2b97c 100644
+--- a/src/cmd/compile/internal/gc/align.go
++++ b/src/cmd/compile/internal/gc/align.go
+@@ -119,6 +119,10 @@ func dowidth(t *Type) {
+ 	}
+ 
+ 	if t.Width > 0 {
++		if t.Align == 0 {
++			// See issue 11354
++			Fatal("zero alignment with nonzero size %v", t)
++		}
+ 		return
+ 	}
+ 

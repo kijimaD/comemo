@@ -29,7 +29,7 @@ Date:   Mon Oct 18 14:31:48 2021 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/typecheck/crawler.go | 33 ++++++++++++++++++------
  test/fixedbugs/issue49016.dir/a.go            | 36 +++++++++++++++++++++++++++
  test/fixedbugs/issue49016.dir/b.go            | 13 ++++++++++
@@ -40,3 +40,203 @@ Date:   Mon Oct 18 14:31:48 2021 +0700
  test/fixedbugs/issue49016.dir/g.go            |  9 +++++++
  test/fixedbugs/issue49016.go                  |  7 ++++++
  9 files changed, 128 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/typecheck/crawler.go b/src/cmd/compile/internal/typecheck/crawler.go
+index 667e76e130..b214ef2279 100644
+--- a/src/cmd/compile/internal/typecheck/crawler.go
++++ b/src/cmd/compile/internal/typecheck/crawler.go
+@@ -195,18 +195,35 @@ func (p *crawler) markInlBody(n *ir.Name) {
+ 	var doFlood func(n ir.Node)
+ 	doFlood = func(n ir.Node) {
+ 		t := n.Type()
+-		if t != nil && (t.HasTParam() || t.IsFullyInstantiated()) {
+-			// Ensure that we call markType() on any base generic type
+-			// that is written to the export file (even if not explicitly
+-			// marked for export), so we will call markInlBody on its
+-			// methods, and the methods will be available for
+-			// instantiation if needed.
+-			p.markType(t)
++		if t != nil {
++			if t.HasTParam() || t.IsFullyInstantiated() {
++				// Ensure that we call markType() on any base generic type
++				// that is written to the export file (even if not explicitly
++				// marked for export), so we will call markInlBody on its
++				// methods, and the methods will be available for
++				// instantiation if needed.
++				p.markType(t)
++			}
++			if base.Debug.Unified == 0 {
++				// If a method of un-exported type is promoted and accessible by
++				// embedding in an exported type, it makes that type reachable.
++				//
++				// Example:
++				//
++				//     type t struct {}
++				//     func (t) M() {}
++				//
++				//     func F() interface{} { return struct{ t }{} }
++				//
++				// We generate the wrapper for "struct{ t }".M, and inline call
++				// to "struct{ t }".M, which makes "t.M" reachable.
++				p.markEmbed(t)
++			}
+ 		}
++
+ 		switch n.Op() {
+ 		case ir.OMETHEXPR, ir.ODOTMETH:
+ 			p.markInlBody(ir.MethodExprName(n))
+-
+ 		case ir.ONAME:
+ 			n := n.(*ir.Name)
+ 			switch n.Class {
+diff --git a/test/fixedbugs/issue49016.dir/a.go b/test/fixedbugs/issue49016.dir/a.go
+new file mode 100644
+index 0000000000..36639b73d4
+--- /dev/null
++++ b/test/fixedbugs/issue49016.dir/a.go
+@@ -0,0 +1,36 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++type Node interface {
++	Position()
++}
++
++type noder struct{}
++
++func (noder) Position() {}
++
++type Scope map[int][]Node
++
++func (s Scope) M1() Scope {
++	if x, ok := s[0]; ok {
++		return x[0].(struct {
++			noder
++			Scope
++		}).Scope
++	}
++	return nil
++}
++
++func (s Scope) M2() Scope {
++	if x, ok := s[0]; ok {
++		st, _ := x[0].(struct {
++			noder
++			Scope
++		})
++		return st.Scope
++	}
++	return nil
++}
+diff --git a/test/fixedbugs/issue49016.dir/b.go b/test/fixedbugs/issue49016.dir/b.go
+new file mode 100644
+index 0000000000..1dd63f87b6
+--- /dev/null
++++ b/test/fixedbugs/issue49016.dir/b.go
+@@ -0,0 +1,13 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package b
++
++type t int
++
++func (t) m() {}
++
++func F1() interface{} { return struct{ t }{} }
++func F2() interface{} { return *new(struct{ t }) }
++func F3() interface{} { var x [1]struct{ t }; return x[0] }
+diff --git a/test/fixedbugs/issue49016.dir/c.go b/test/fixedbugs/issue49016.dir/c.go
+new file mode 100644
+index 0000000000..2cc6681b95
+--- /dev/null
++++ b/test/fixedbugs/issue49016.dir/c.go
+@@ -0,0 +1,9 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package c
++
++import "./a"
++
++var _ = (&a.Scope{}).M1()
+diff --git a/test/fixedbugs/issue49016.dir/d.go b/test/fixedbugs/issue49016.dir/d.go
+new file mode 100644
+index 0000000000..e933dc08e4
+--- /dev/null
++++ b/test/fixedbugs/issue49016.dir/d.go
+@@ -0,0 +1,9 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package d
++
++import "./a"
++
++var _ = (&a.Scope{}).M2()
+diff --git a/test/fixedbugs/issue49016.dir/e.go b/test/fixedbugs/issue49016.dir/e.go
+new file mode 100644
+index 0000000000..5f43179c37
+--- /dev/null
++++ b/test/fixedbugs/issue49016.dir/e.go
+@@ -0,0 +1,11 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package e
++
++import (
++	"./b"
++)
++
++var _ = b.F1()
+diff --git a/test/fixedbugs/issue49016.dir/f.go b/test/fixedbugs/issue49016.dir/f.go
+new file mode 100644
+index 0000000000..2cd978eace
+--- /dev/null
++++ b/test/fixedbugs/issue49016.dir/f.go
+@@ -0,0 +1,9 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package f
++
++import "./b"
++
++var _ = b.F2()
+diff --git a/test/fixedbugs/issue49016.dir/g.go b/test/fixedbugs/issue49016.dir/g.go
+new file mode 100644
+index 0000000000..b90353fcff
+--- /dev/null
++++ b/test/fixedbugs/issue49016.dir/g.go
+@@ -0,0 +1,9 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package g
++
++import "./b"
++
++var _ = b.F3()
+diff --git a/test/fixedbugs/issue49016.go b/test/fixedbugs/issue49016.go
+new file mode 100644
+index 0000000000..b83fbd7af1
+--- /dev/null
++++ b/test/fixedbugs/issue49016.go
+@@ -0,0 +1,7 @@
++// compiledir
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ignored

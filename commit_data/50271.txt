@@ -22,7 +22,60 @@ Date:   Fri Sep 17 02:29:00 2021 +0000
     Run-TryBot: Alexander Rakoczy <alex@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Damien Neil <dneil@google.com>
-
+---
  src/net/http/httputil/reverseproxy.go      |  3 ++-
  src/net/http/httputil/reverseproxy_test.go | 20 ++++++++++++++++++++
  2 files changed, 22 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/http/httputil/reverseproxy.go b/src/net/http/httputil/reverseproxy.go
+index 8b63368386..71849bb8f7 100644
+--- a/src/net/http/httputil/reverseproxy.go
++++ b/src/net/http/httputil/reverseproxy.go
+@@ -11,6 +11,7 @@ import (
+ 	"fmt"
+ 	"io"
+ 	"log"
++	"mime"
+ 	"net"
+ 	"net/http"
+ 	"net/http/internal/ascii"
+@@ -412,7 +413,7 @@ func (p *ReverseProxy) flushInterval(res *http.Response) time.Duration {
+ 
+ 	// For Server-Sent Events responses, flush immediately.
+ 	// The MIME type is defined in https://www.w3.org/TR/eventsource/#text-event-stream
+-	if resCT == "text/event-stream" {
++	if baseCT, _, _ := mime.ParseMediaType(resCT); baseCT == "text/event-stream" {
+ 		return -1 // negative means immediately
+ 	}
+ 
+diff --git a/src/net/http/httputil/reverseproxy_test.go b/src/net/http/httputil/reverseproxy_test.go
+index 4b6ad77a29..90e8903e9c 100644
+--- a/src/net/http/httputil/reverseproxy_test.go
++++ b/src/net/http/httputil/reverseproxy_test.go
+@@ -1194,6 +1194,26 @@ func TestSelectFlushInterval(t *testing.T) {
+ 			p:    &ReverseProxy{FlushInterval: 0},
+ 			want: -1,
+ 		},
++		{
++			name: "server-sent events with media-type parameters overrides non-zero",
++			res: &http.Response{
++				Header: http.Header{
++					"Content-Type": {"text/event-stream;charset=utf-8"},
++				},
++			},
++			p:    &ReverseProxy{FlushInterval: 123},
++			want: -1,
++		},
++		{
++			name: "server-sent events with media-type parameters overrides zero",
++			res: &http.Response{
++				Header: http.Header{
++					"Content-Type": {"text/event-stream;charset=utf-8"},
++				},
++			},
++			p:    &ReverseProxy{FlushInterval: 0},
++			want: -1,
++		},
+ 		{
+ 			name: "Content-Length: -1, overrides non-zero",
+ 			res: &http.Response{

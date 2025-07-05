@@ -11,6 +11,21 @@ Date:   Tue Jun 16 14:54:57 2020 -0400
     Change-Id: I4a4256c5f5eb34211729e1311582bb0e210f1f8d
     Reviewed-on: https://go-review.googlesource.com/c/go/+/238240
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  doc/go1.15.html | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/doc/go1.15.html b/doc/go1.15.html
+index df6acc80ee..33598a262d 100644
+--- a/doc/go1.15.html
++++ b/doc/go1.15.html
+@@ -313,7 +313,8 @@ Do not send CLs removing the interior tags from such phrases.
+ <p>
+   For a representative set of large Go programs, linking is 20% faster
+   and requires 30% less memory on average, for <code>ELF</code>-based
+-  OSes running on <code>amd64</code> architectures, with more modest
++  OSes (Linux, FreeBSD, NetBSD, OpenBSD, Dragonfly, and Solaris)
++  running on <code>amd64</code> architectures, with more modest
+   improvements for other architecture/OS combinations.
+ </p>
+ 

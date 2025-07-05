@@ -14,6 +14,20 @@ Date:   Thu Aug 17 10:24:13 2017 -0700
     Reviewed-by: Avelino <t@avelino.xxx>
     Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/hashmap.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/hashmap.go b/src/runtime/hashmap.go
+index f3434eb788..dcaab8c185 100644
+--- a/src/runtime/hashmap.go
++++ b/src/runtime/hashmap.go
+@@ -1140,7 +1140,7 @@ func evacuate(t *maptype, h *hmap, oldbucket uintptr) {
+ 
+ 	// Advance evacuation mark
+ 	if oldbucket == h.nevacuate {
+-		h.nevacuate = oldbucket + 1
++		h.nevacuate++
+ 		// Experiments suggest that 1024 is overkill by at least an order of magnitude.
+ 		// Put it in there as a safeguard anyway, to ensure O(1) behavior.
+ 		stop := h.nevacuate + 1024

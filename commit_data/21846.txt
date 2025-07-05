@@ -12,9 +12,62 @@ Date:   Sat Feb 7 13:26:28 2015 +0100
     Change-Id: I745ea852d8b58ecbbd32723e2a67aa784a729ff8
     Reviewed-on: https://go-review.googlesource.com/4112
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/liblink/list5.c | 2 +-
  src/liblink/list6.c | 2 +-
  src/liblink/list8.c | 2 +-
  src/liblink/list9.c | 2 +-
  4 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/liblink/list5.c b/src/liblink/list5.c
+index 3d3e8e7d12..0610bb3bed 100644
+--- a/src/liblink/list5.c
++++ b/src/liblink/list5.c
+@@ -168,7 +168,7 @@ Dconv(Fmt *fp)
+ 		if(a->u.argsize == ArgsSizeUnknown)
+ 			sprint(str, "$%lld", a->offset);
+ 		else
+-			sprint(str, "$%lld-%lld", a->offset, a->u.argsize);
++			sprint(str, "$%lld-%d", a->offset, a->u.argsize);
+ 		break;
+ 
+ 	case TYPE_SHIFT:
+diff --git a/src/liblink/list6.c b/src/liblink/list6.c
+index db8b0011af..827f5de142 100644
+--- a/src/liblink/list6.c
++++ b/src/liblink/list6.c
+@@ -208,7 +208,7 @@ Dconv(Fmt *fp)
+ 		if(a->u.argsize == ArgsSizeUnknown)
+ 			sprint(str, "$%lld", a->offset);
+ 		else
+-			sprint(str, "$%lld-%lld", a->offset, a->u.argsize);
++			sprint(str, "$%lld-%d", a->offset, a->u.argsize);
+ 		break;
+ 
+ 	case TYPE_FCONST:
+diff --git a/src/liblink/list8.c b/src/liblink/list8.c
+index 66db2f1d78..fcdd734c6d 100644
+--- a/src/liblink/list8.c
++++ b/src/liblink/list8.c
+@@ -202,7 +202,7 @@ Dconv(Fmt *fp)
+ 		if(a->u.argsize == ArgsSizeUnknown)
+ 			sprint(str, "$%lld", a->offset);
+ 		else
+-			sprint(str, "$%lld-%lld", a->offset, a->u.argsize);
++			sprint(str, "$%lld-%d", a->offset, a->u.argsize);
+ 		break;
+ 
+ 	case TYPE_FCONST:
+diff --git a/src/liblink/list9.c b/src/liblink/list9.c
+index a45e73e61e..ac37bb566e 100644
+--- a/src/liblink/list9.c
++++ b/src/liblink/list9.c
+@@ -172,7 +172,7 @@ Dconv(Fmt *fp)
+ 		if(a->u.argsize == ArgsSizeUnknown)
+ 			sprint(str, "$%lld", a->offset);
+ 		else
+-			sprint(str, "$%lld-%lld", a->offset, a->u.argsize);
++			sprint(str, "$%lld-%d", a->offset, a->u.argsize);
+ 		break;
+ 
+ 	case TYPE_MEM:

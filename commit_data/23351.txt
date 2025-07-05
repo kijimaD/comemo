@@ -12,7 +12,7 @@ Date:   Thu May 7 00:48:09 2015 -0400
     Run-TryBot: Minux Ma <minux@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/5l/l.go                 |  3 ++-
  src/cmd/5l/obj.go               |  1 +
  src/cmd/6l/l.go                 |  3 ++-
@@ -27,3 +27,244 @@ Date:   Thu May 7 00:48:09 2015 -0400
  src/cmd/internal/ld/lib.go      |  1 +
  src/runtime/runtime-gdb_test.go |  2 +-
  13 files changed, 48 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/5l/l.go b/src/cmd/5l/l.go
+index a52154594d..adc8d286ae 100644
+--- a/src/cmd/5l/l.go
++++ b/src/cmd/5l/l.go
+@@ -72,7 +72,8 @@ const (
+ 	MINLC     = 4
+ )
+ 
+-/* Used by ../ld/dwarf.c */
++/* Used by ../internal/ld/dwarf.go */
+ const (
+ 	DWARFREGSP = 13
++	DWARFREGLR = 14
+ )
+diff --git a/src/cmd/5l/obj.go b/src/cmd/5l/obj.go
+index fa74908005..e4fffdec6a 100644
+--- a/src/cmd/5l/obj.go
++++ b/src/cmd/5l/obj.go
+@@ -56,6 +56,7 @@ func linkarchinit() {
+ 	ld.Thearch.Maxalign = MaxAlign
+ 	ld.Thearch.Minlc = MINLC
+ 	ld.Thearch.Dwarfregsp = DWARFREGSP
++	ld.Thearch.Dwarfreglr = DWARFREGLR
+ 
+ 	ld.Thearch.Adddynlib = adddynlib
+ 	ld.Thearch.Adddynrel = adddynrel
+diff --git a/src/cmd/6l/l.go b/src/cmd/6l/l.go
+index 6b42088de3..64466d126a 100644
+--- a/src/cmd/6l/l.go
++++ b/src/cmd/6l/l.go
+@@ -40,7 +40,8 @@ const (
+ 	MINLC = 1
+ )
+ 
+-/* Used by ../ld/dwarf.c */
++/* Used by ../internal/ld/dwarf.go */
+ const (
+ 	DWARFREGSP = 7
++	DWARFREGLR = 16
+ )
+diff --git a/src/cmd/6l/obj.go b/src/cmd/6l/obj.go
+index 9e6dc60e2d..8ee7bb28db 100644
+--- a/src/cmd/6l/obj.go
++++ b/src/cmd/6l/obj.go
+@@ -59,6 +59,7 @@ func linkarchinit() {
+ 	ld.Thearch.Maxalign = MaxAlign
+ 	ld.Thearch.Minlc = MINLC
+ 	ld.Thearch.Dwarfregsp = DWARFREGSP
++	ld.Thearch.Dwarfreglr = DWARFREGLR
+ 
+ 	ld.Thearch.Adddynlib = adddynlib
+ 	ld.Thearch.Adddynrel = adddynrel
+diff --git a/src/cmd/7l/l.go b/src/cmd/7l/l.go
+index 6f90acb107..7227cc430f 100644
+--- a/src/cmd/7l/l.go
++++ b/src/cmd/7l/l.go
+@@ -71,7 +71,8 @@ const (
+ 	MINLC     = 4
+ )
+ 
+-/* Used by ../ld/dwarf.c */
++/* Used by ../internal/ld/dwarf.go */
+ const (
+ 	DWARFREGSP = 31
++	DWARFREGLR = 30
+ )
+diff --git a/src/cmd/7l/obj.go b/src/cmd/7l/obj.go
+index f8ac7d33ea..aeea421bc2 100644
+--- a/src/cmd/7l/obj.go
++++ b/src/cmd/7l/obj.go
+@@ -56,6 +56,7 @@ func linkarchinit() {
+ 	ld.Thearch.Maxalign = MaxAlign
+ 	ld.Thearch.Minlc = MINLC
+ 	ld.Thearch.Dwarfregsp = DWARFREGSP
++	ld.Thearch.Dwarfreglr = DWARFREGLR
+ 
+ 	ld.Thearch.Adddynlib = adddynlib
+ 	ld.Thearch.Adddynrel = adddynrel
+diff --git a/src/cmd/8l/l.go b/src/cmd/8l/l.go
+index 60050857c4..5cb9f8d8af 100644
+--- a/src/cmd/8l/l.go
++++ b/src/cmd/8l/l.go
+@@ -40,7 +40,8 @@ const (
+ 	MINLC     = 1
+ )
+ 
+-/* Used by ../ld/dwarf.c */
++/* Used by ../internal/ld/dwarf.go */
+ const (
+ 	DWARFREGSP = 4
++	DWARFREGLR = 8
+ )
+diff --git a/src/cmd/8l/obj.go b/src/cmd/8l/obj.go
+index 7b490ae87c..5af3f9249b 100644
+--- a/src/cmd/8l/obj.go
++++ b/src/cmd/8l/obj.go
+@@ -56,6 +56,7 @@ func linkarchinit() {
+ 	ld.Thearch.Maxalign = MaxAlign
+ 	ld.Thearch.Minlc = MINLC
+ 	ld.Thearch.Dwarfregsp = DWARFREGSP
++	ld.Thearch.Dwarfreglr = DWARFREGLR
+ 
+ 	ld.Thearch.Adddynlib = adddynlib
+ 	ld.Thearch.Adddynrel = adddynrel
+diff --git a/src/cmd/9l/l.go b/src/cmd/9l/l.go
+index e7dc102af2..8723eaeca4 100644
+--- a/src/cmd/9l/l.go
++++ b/src/cmd/9l/l.go
+@@ -71,7 +71,8 @@ const (
+ 	MINLC     = 4
+ )
+ 
+-/* Used by ../ld/dwarf.c */
++/* Used by ../internal/ld/dwarf.go */
+ const (
+ 	DWARFREGSP = 1
++	DWARFREGLR = 65
+ )
+diff --git a/src/cmd/9l/obj.go b/src/cmd/9l/obj.go
+index 46a92396e4..2da37561e9 100644
+--- a/src/cmd/9l/obj.go
++++ b/src/cmd/9l/obj.go
+@@ -60,6 +60,7 @@ func linkarchinit() {
+ 	ld.Thearch.Maxalign = MaxAlign
+ 	ld.Thearch.Minlc = MINLC
+ 	ld.Thearch.Dwarfregsp = DWARFREGSP
++	ld.Thearch.Dwarfreglr = DWARFREGLR
+ 
+ 	ld.Thearch.Adddynlib = adddynlib
+ 	ld.Thearch.Adddynrel = adddynrel
+diff --git a/src/cmd/internal/ld/dwarf.go b/src/cmd/internal/ld/dwarf.go
+index 6d90404b13..476b329e7a 100644
+--- a/src/cmd/internal/ld/dwarf.go
++++ b/src/cmd/internal/ld/dwarf.go
+@@ -1692,11 +1692,17 @@ func writelines() {
+ 			switch a.Name {
+ 			case obj.A_AUTO:
+ 				dt = DW_ABRV_AUTO
+-				offs = int64(a.Aoffset) - int64(Thearch.Ptrsize)
++				offs = int64(a.Aoffset)
++				if !haslinkregister() {
++					offs -= int64(Thearch.Ptrsize)
++				}
+ 
+ 			case obj.A_PARAM:
+ 				dt = DW_ABRV_PARAM
+ 				offs = int64(a.Aoffset)
++				if haslinkregister() {
++					offs += int64(Thearch.Ptrsize)
++				}
+ 
+ 			default:
+ 				continue
+@@ -1749,7 +1755,6 @@ func writelines() {
+ const (
+ 	CIERESERVE          = 16
+ 	DATAALIGNMENTFACTOR = -4
+-	FAKERETURNCOLUMN    = 16 // TODO gdb6 doesn't like > 15?
+ )
+ 
+ func putpccfadelta(deltapc int64, cfa int64) {
+@@ -1778,21 +1783,30 @@ func writeframes() {
+ 	frameo = Cpos()
+ 
+ 	// Emit the CIE, Section 6.4.1
+-	Thearch.Lput(CIERESERVE)        // initial length, must be multiple of thearch.ptrsize
+-	Thearch.Lput(0xffffffff)        // cid.
+-	Cput(3)                         // dwarf version (appendix F)
+-	Cput(0)                         // augmentation ""
+-	uleb128put(1)                   // code_alignment_factor
+-	sleb128put(DATAALIGNMENTFACTOR) // guess
+-	uleb128put(FAKERETURNCOLUMN)    // return_address_register
++	Thearch.Lput(CIERESERVE)              // initial length, must be multiple of thearch.ptrsize
++	Thearch.Lput(0xffffffff)              // cid.
++	Cput(3)                               // dwarf version (appendix F)
++	Cput(0)                               // augmentation ""
++	uleb128put(1)                         // code_alignment_factor
++	sleb128put(DATAALIGNMENTFACTOR)       // guess
++	uleb128put(int64(Thearch.Dwarfreglr)) // return_address_register
+ 
+ 	Cput(DW_CFA_def_cfa)
+ 
+ 	uleb128put(int64(Thearch.Dwarfregsp)) // register SP (**ABI-dependent, defined in l.h)
+-	uleb128put(int64(Thearch.Ptrsize))    // offset
++	if haslinkregister() {
++		uleb128put(int64(0)) // offset
++	} else {
++		uleb128put(int64(Thearch.Ptrsize)) // offset
++	}
+ 
+-	Cput(DW_CFA_offset + FAKERETURNCOLUMN)                    // return address
+-	uleb128put(int64(-Thearch.Ptrsize) / DATAALIGNMENTFACTOR) // at cfa - x*4
++	Cput(DW_CFA_offset_extended)
++	uleb128put(int64(Thearch.Dwarfreglr)) // return address
++	if haslinkregister() {
++		uleb128put(int64(0) / DATAALIGNMENTFACTOR) // at cfa - 0
++	} else {
++		uleb128put(int64(-Thearch.Ptrsize) / DATAALIGNMENTFACTOR) // at cfa - x*4
++	}
+ 
+ 	// 4 is to exclude the length field.
+ 	pad := CIERESERVE + frameo + 4 - Cpos()
+@@ -1834,7 +1848,11 @@ func writeframes() {
+ 				}
+ 			}
+ 
+-			putpccfadelta(int64(nextpc)-int64(pcsp.pc), int64(Thearch.Ptrsize)+int64(pcsp.value))
++			if haslinkregister() {
++				putpccfadelta(int64(nextpc)-int64(pcsp.pc), int64(pcsp.value))
++			} else {
++				putpccfadelta(int64(nextpc)-int64(pcsp.pc), int64(Thearch.Ptrsize)+int64(pcsp.value))
++			}
+ 		}
+ 
+ 		fdesize = Cpos() - fdeo - 4 // exclude the length field.
+diff --git a/src/cmd/internal/ld/lib.go b/src/cmd/internal/ld/lib.go
+index 184175e026..edafaebb0b 100644
+--- a/src/cmd/internal/ld/lib.go
++++ b/src/cmd/internal/ld/lib.go
+@@ -86,6 +86,7 @@ type Arch struct {
+ 	Maxalign         int
+ 	Minlc            int
+ 	Dwarfregsp       int
++	Dwarfreglr       int
+ 	Linuxdynld       string
+ 	Freebsddynld     string
+ 	Netbsddynld      string
+diff --git a/src/runtime/runtime-gdb_test.go b/src/runtime/runtime-gdb_test.go
+index fe7d38a39c..8d04f6328c 100644
+--- a/src/runtime/runtime-gdb_test.go
++++ b/src/runtime/runtime-gdb_test.go
+@@ -85,7 +85,7 @@ func TestGdbPython(t *testing.T) {
+ 	// stack frames on RISC architectures.
+ 	canBackTrace := false
+ 	switch runtime.GOARCH {
+-	case "amd64", "386":
++	case "amd64", "386", "ppc64", "ppc64le", "arm", "arm64":
+ 		canBackTrace = true
+ 		args = append(args,
+ 			"-ex", "echo BEGIN goroutine 2 bt\n",

@@ -7,6 +7,25 @@ Date:   Tue Oct 12 14:05:50 2010 +1100
     R=adg
     CC=golang-dev
     https://golang.org/cl/2448041
-
+---
  src/pkg/exp/draw/draw_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/exp/draw/draw_test.go b/src/pkg/exp/draw/draw_test.go
+index 30b856b709..fccc8c2c48 100644
+--- a/src/pkg/exp/draw/draw_test.go
++++ b/src/pkg/exp/draw/draw_test.go
+@@ -16,11 +16,11 @@ func eq(c0, c1 image.Color) bool {
+ }
+ 
+ func fillBlue(alpha int) image.Image {
+-	return image.ColorImage{image.RGBAColor{0, 0, uint8(alpha), uint8(alpha)}}
++	return image.NewColorImage(image.RGBAColor{0, 0, uint8(alpha), uint8(alpha)})
+ }
+ 
+ func fillAlpha(alpha int) image.Image {
+-	return image.ColorImage{image.AlphaColor{uint8(alpha)}}
++	return image.NewColorImage(image.AlphaColor{uint8(alpha)})
+ }
+ 
+ func vgradGreen(alpha int) image.Image {

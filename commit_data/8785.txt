@@ -9,7 +9,7 @@ Date:   Mon Jun 20 11:54:07 2011 +1000
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/4528123
-
+---
  src/cmd/godefs/Makefile                     |  3 ++
  src/cmd/godefs/test.sh                      | 45 +++++++++++++++++++++++++++++
  src/cmd/godefs/testdata.c                   | 41 ++++++++++++++++++++++++++
@@ -17,3 +17,203 @@ Date:   Mon Jun 20 11:54:07 2011 +1000
  src/cmd/godefs/testdata_darwin_amd64.golden | 31 ++++++++++++++++++++
  src/run.bash                                |  4 +++
  6 files changed, 155 insertions(+)
+
+diff --git a/src/cmd/godefs/Makefile b/src/cmd/godefs/Makefile
+index b5c76fb0fe..77cd26c04b 100644
+--- a/src/cmd/godefs/Makefile
++++ b/src/cmd/godefs/Makefile
+@@ -14,3 +14,6 @@ OFILES=\
+ HFILES=a.h
+ 
+ include ../../Make.ccmd
++
++test: $(TARG)
++	./test.sh
+diff --git a/src/cmd/godefs/test.sh b/src/cmd/godefs/test.sh
+new file mode 100755
+index 0000000000..c035af8f4f
+--- /dev/null
++++ b/src/cmd/godefs/test.sh
+@@ -0,0 +1,45 @@
++#!/usr/bin/env bash
++# Copyright 2011 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++eval $(gomake --no-print-directory -f ../../Make.inc go-env)
++
++TMP="testdata_tmp.go"
++TEST="testdata.c"
++GOLDEN="testdata_${GOOS}_${GOARCH}.golden"
++
++case ${GOARCH} in
++"amd64") CCARG="-f-m64";;
++"386") CCARG="-f-m32";;
++*) CCARG="";;
++esac
++
++cleanup() {
++	rm ${TMP}
++}
++
++error() {
++	cleanup
++	echo $1
++	exit 1
++}
++
++if [ ! -e ${GOLDEN} ]; then
++	echo "skipping - no golden defined for this platform"
++	exit
++fi
++
++./godefs -g test ${CCARG} ${TEST} > ${TMP}
++if [ $? != 0 ]; then
++	error "Error: Could not run godefs for ${TEST}"
++fi
++
++diff ${TMP} ${GOLDEN}
++if [ $? != 0 ]; then
++	error "FAIL: godefs for ${TEST} did not match ${GOLDEN}"
++fi
++
++cleanup
++
++echo "PASS"
+diff --git a/src/cmd/godefs/testdata.c b/src/cmd/godefs/testdata.c
+new file mode 100644
+index 0000000000..3f459c41ba
+--- /dev/null
++++ b/src/cmd/godefs/testdata.c
+@@ -0,0 +1,41 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include <stdint.h>
++
++// Issue 432 - enum fields in struct can cause misaligned struct fields
++typedef enum {
++	a
++} T1;
++
++struct T2 {
++	uint8_t a;
++	T1 b;
++	T1 c;
++	uint16_t d;
++};
++
++typedef struct T2 T2;
++typedef T2 $T2;
++
++// Issue 1162 - structs with fields named Pad[0-9]+ conflict with field
++// names used by godefs for padding
++struct T3 {
++	uint8_t a;
++	int Pad0;
++};
++
++typedef struct T3 $T3;
++
++// Issue 1466 - forward references to types in stabs debug info were
++// always treated as enums
++struct T4 {};
++
++struct T5 {
++	struct T4 *a;
++};
++
++typedef struct T5 T5;
++typedef struct T4 $T4;
++typedef T5 $T5;
+\ No newline at end of file
+diff --git a/src/cmd/godefs/testdata_darwin_386.golden b/src/cmd/godefs/testdata_darwin_386.golden
+new file mode 100644
+index 0000000000..d929238b0a
+--- /dev/null
++++ b/src/cmd/godefs/testdata_darwin_386.golden
+@@ -0,0 +1,31 @@
++// ./godefs -g test -f-m32 testdata.c
++
++// MACHINE GENERATED - DO NOT EDIT.
++
++package test
++
++// Constants
++
++// Types
++
++type T2 struct {
++	A uint8;
++	Pad_godefs_0 [3]byte;
++	B uint32;
++	C uint32;
++	D uint16;
++	Pad_godefs_1 [2]byte;
++}
++
++type T3 struct {
++	A uint8;
++	Pad_godefs_0 [3]byte;
++	Pad0 int32;
++}
++
++type T4 struct {
++}
++
++type T5 struct {
++	A *T4;
++}
+diff --git a/src/cmd/godefs/testdata_darwin_amd64.golden b/src/cmd/godefs/testdata_darwin_amd64.golden
+new file mode 100644
+index 0000000000..a694f4a73d
+--- /dev/null
++++ b/src/cmd/godefs/testdata_darwin_amd64.golden
+@@ -0,0 +1,31 @@
++// ./godefs -g test -f-m64 testdata.c
++
++// MACHINE GENERATED - DO NOT EDIT.
++
++package test
++
++// Constants
++
++// Types
++
++type T2 struct {
++	A uint8;
++	Pad_godefs_0 [3]byte;
++	B uint32;
++	C uint32;
++	D uint16;
++	Pad_godefs_1 [2]byte;
++}
++
++type T3 struct {
++	A uint8;
++	Pad_godefs_0 [3]byte;
++	Pad0 int32;
++}
++
++type T4 struct {
++}
++
++type T5 struct {
++	A *T4;
++}
+diff --git a/src/run.bash b/src/run.bash
+index bb3d06c45c..4c9d2ec38b 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -49,6 +49,10 @@ GOMAXPROCS=10 gomake testshort
+ time gomake test
+ ) || exit $?
+ 
++(xcd cmd/godefs
++gomake test
++) || exit $?
++
+ [ "$GOARCH" == arm ] ||
+ [ "$GOHOSTOS" == windows ] ||
+ (xcd ../misc/cgo/stdio

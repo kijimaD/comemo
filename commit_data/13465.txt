@@ -9,6 +9,19 @@ Date:   Thu Jul 12 23:26:52 2012 +0200
     R=golang-dev, rsc, r
     CC=golang-dev, remy
     https://golang.org/cl/6352106
-
+---
  src/cmd/gc/subr.c | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 1bb83272c9..dfb425efcf 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -1384,6 +1384,7 @@ assignconv(Node *n, Type *t, char *context)
+ 	r->type = t;
+ 	r->typecheck = 1;
+ 	r->implicit = 1;
++	r->orig = n;
+ 	return r;
+ }
+ 

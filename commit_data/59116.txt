@@ -13,6 +13,26 @@ Date:   Fri Feb 16 09:52:40 2024 +0000
     Reviewed-by: Damien Neil <dneil@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/crypto/subtle/xor_test.go | 8 --------
  1 file changed, 8 deletions(-)
+
+diff --git a/src/crypto/subtle/xor_test.go b/src/crypto/subtle/xor_test.go
+index 7d89b83f40..a348660c63 100644
+--- a/src/crypto/subtle/xor_test.go
++++ b/src/crypto/subtle/xor_test.go
+@@ -63,14 +63,6 @@ func TestXorBytesPanic(t *testing.T) {
+ 	})
+ }
+ 
+-func min(a, b []byte) int {
+-	n := len(a)
+-	if len(b) < n {
+-		n = len(b)
+-	}
+-	return n
+-}
+-
+ func BenchmarkXORBytes(b *testing.B) {
+ 	dst := make([]byte, 1<<15)
+ 	data0 := make([]byte, 1<<15)

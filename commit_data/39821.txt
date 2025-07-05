@@ -17,9 +17,99 @@ Date:   Sat Mar 23 14:18:19 2019 +0100
     Run-TryBot: Richard Musiol <neelance@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/install-source.html           | 11 +++++++++++
  src/cmd/go/internal/cfg/cfg.go    |  1 +
  src/cmd/go/internal/envcmd/env.go |  2 ++
  src/cmd/internal/objabi/util.go   | 24 ++++++++++++++++++++++++
  4 files changed, 38 insertions(+)
+
+diff --git a/doc/install-source.html b/doc/install-source.html
+index c11151be64..46dc618a9c 100644
+--- a/doc/install-source.html
++++ b/doc/install-source.html
+@@ -638,6 +638,17 @@ for which the compiler will target. The default is <code>power8</code>.
+ </ul>
+ </li>
+ 
++
++<li><code>$GOWASM</code> (for <code>wasm</code> only)
++	<p>
++	This variable is a comma separated list of <a href="https://github.com/WebAssembly/proposals">experimental WebAssembly features</a> that the compiled WebAssembly binary is allowed to use.
++	The default is to use no experimental features.
++	</p>
++	<ul>
++		<li>(no features yet)</li>
++	</ul>
++</li>
++
+ </ul>
+ 
+ <p>
+diff --git a/src/cmd/go/internal/cfg/cfg.go b/src/cmd/go/internal/cfg/cfg.go
+index 80a154b066..35f7f1a173 100644
+--- a/src/cmd/go/internal/cfg/cfg.go
++++ b/src/cmd/go/internal/cfg/cfg.go
+@@ -105,6 +105,7 @@ var (
+ 	GOMIPS   = objabi.GOMIPS
+ 	GOMIPS64 = objabi.GOMIPS64
+ 	GOPPC64  = fmt.Sprintf("%s%d", "power", objabi.GOPPC64)
++	GOWASM   = objabi.GOWASM
+ )
+ 
+ // Update build context to use our computed GOROOT.
+diff --git a/src/cmd/go/internal/envcmd/env.go b/src/cmd/go/internal/envcmd/env.go
+index 08291dfb14..645f83246a 100644
+--- a/src/cmd/go/internal/envcmd/env.go
++++ b/src/cmd/go/internal/envcmd/env.go
+@@ -83,6 +83,8 @@ func MkEnv() []cfg.EnvVar {
+ 		env = append(env, cfg.EnvVar{Name: "GOMIPS64", Value: cfg.GOMIPS64})
+ 	case "ppc64", "ppc64le":
+ 		env = append(env, cfg.EnvVar{Name: "GOPPC64", Value: cfg.GOPPC64})
++	case "wasm":
++		env = append(env, cfg.EnvVar{Name: "GOWASM", Value: cfg.GOWASM.String()})
+ 	}
+ 
+ 	cc := cfg.DefaultCC(cfg.Goos, cfg.Goarch)
+diff --git a/src/cmd/internal/objabi/util.go b/src/cmd/internal/objabi/util.go
+index 665c8b3be6..c007f6c475 100644
+--- a/src/cmd/internal/objabi/util.go
++++ b/src/cmd/internal/objabi/util.go
+@@ -29,6 +29,7 @@ var (
+ 	GOMIPS   = gomips()
+ 	GOMIPS64 = gomips64()
+ 	GOPPC64  = goppc64()
++	GOWASM   = gowasm()
+ 	GO_LDSO  = defaultGO_LDSO
+ 	Version  = version
+ )
+@@ -76,6 +77,29 @@ func goppc64() int {
+ 	panic("unreachable")
+ }
+ 
++type gowasmFeatures struct {
++	// no features yet
++}
++
++func (f *gowasmFeatures) String() string {
++	var flags []string
++	// no features yet
++	return strings.Join(flags, ",")
++}
++
++func gowasm() (f gowasmFeatures) {
++	for _, opt := range strings.Split(envOr("GOWASM", ""), ",") {
++		switch opt {
++		// no features yet
++		case "":
++			// ignore
++		default:
++			log.Fatalf("Invalid GOWASM value. No such feature: " + opt)
++		}
++	}
++	return
++}
++
+ func Getgoextlinkenabled() string {
+ 	return envOr("GO_EXTLINK_ENABLED", defaultGO_EXTLINK_ENABLED)
+ }

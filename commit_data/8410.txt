@@ -14,7 +14,7 @@ Date:   Mon May 16 17:03:06 2011 -0400
     R=bradfitz, rsc
     CC=golang-dev
     https://golang.org/cl/4438066
-
+---
  src/pkg/net/dial.go            |   9 +--
  src/pkg/net/dialgoogle_test.go |   8 +--
  src/pkg/net/file_test.go       |   6 +-
@@ -27,3 +27,569 @@ Date:   Mon May 16 17:03:06 2011 -0400
  src/pkg/net/tcpsock.go         |   9 +--
  src/pkg/net/udpsock.go         |   9 +--
  11 files changed, 183 insertions(+), 95 deletions(-)
+
+diff --git a/src/pkg/net/dial.go b/src/pkg/net/dial.go
+index 16896b4269..ead775fe63 100644
+--- a/src/pkg/net/dial.go
++++ b/src/pkg/net/dial.go
+@@ -60,7 +60,7 @@ func Dial(net, addr string) (c Conn, err os.Error) {
+ 		return c, nil
+ 	case "ip", "ip4", "ip6":
+ 		var ra *IPAddr
+-		if ra, err = ResolveIPAddr(raddr); err != nil {
++		if ra, err = ResolveIPAddr(net, raddr); err != nil {
+ 			goto Error
+ 		}
+ 		c, err := DialIP(net, nil, ra)
+@@ -139,12 +139,13 @@ func ListenPacket(net, laddr string) (c PacketConn, err os.Error) {
+ 		return c, nil
+ 	}
+ 
+-	if i := last(net, ':'); i > 0 {
+-		switch net[0:i] {
++	var rawnet string
++	if rawnet, _, err = splitNetProto(net); err != nil {
++		switch rawnet {
+ 		case "ip", "ip4", "ip6":
+ 			var la *IPAddr
+ 			if laddr != "" {
+-				if la, err = ResolveIPAddr(laddr); err != nil {
++				if la, err = ResolveIPAddr(rawnet, laddr); err != nil {
+ 					return nil, err
+ 				}
+ 			}
+diff --git a/src/pkg/net/dialgoogle_test.go b/src/pkg/net/dialgoogle_test.go
+index e90c4f3f89..9ad1770dab 100644
+--- a/src/pkg/net/dialgoogle_test.go
++++ b/src/pkg/net/dialgoogle_test.go
+@@ -105,14 +105,12 @@ func TestDialGoogleIPv4(t *testing.T) {
+ 		doDial(t, "tcp", addr)
+ 		if addr[0] != '[' {
+ 			doDial(t, "tcp4", addr)
+-			if !preferIPv4 {
+-				// make sure preferIPv4 flag works.
+-				preferIPv4 = true
++			if supportsIPv6 {
++				// make sure syscall.SocketDisableIPv6 flag works.
+ 				syscall.SocketDisableIPv6 = true
+ 				doDial(t, "tcp", addr)
+ 				doDial(t, "tcp4", addr)
+ 				syscall.SocketDisableIPv6 = false
+-				preferIPv4 = false
+ 			}
+ 		}
+ 	}
+@@ -132,7 +130,7 @@ func TestDialGoogleIPv6(t *testing.T) {
+ 		return
+ 	}
+ 	// Only run tcp6 if the kernel will take it.
+-	if !*ipv6 || !kernelSupportsIPv6() {
++	if !*ipv6 || !supportsIPv6 {
+ 		return
+ 	}
+ 
+diff --git a/src/pkg/net/file_test.go b/src/pkg/net/file_test.go
+index 1ec05fdeea..bd1e2c9d7b 100644
+--- a/src/pkg/net/file_test.go
++++ b/src/pkg/net/file_test.go
+@@ -62,7 +62,7 @@ func TestFileListener(t *testing.T) {
+ 	}
+ 	testFileListener(t, "tcp", "127.0.0.1")
+ 	testFileListener(t, "tcp", "127.0.0.1")
+-	if kernelSupportsIPv6() {
++	if supportsIPv6 && supportsIPv4map {
+ 		testFileListener(t, "tcp", "[::ffff:127.0.0.1]")
+ 		testFileListener(t, "tcp", "127.0.0.1")
+ 		testFileListener(t, "tcp", "[::ffff:127.0.0.1]")
+@@ -121,8 +121,10 @@ func TestFilePacketConn(t *testing.T) {
+ 	}
+ 	testFilePacketConnListen(t, "udp", "127.0.0.1:0")
+ 	testFilePacketConnDial(t, "udp", "127.0.0.1:12345")
+-	if kernelSupportsIPv6() {
++	if supportsIPv6 {
+ 		testFilePacketConnListen(t, "udp", "[::1]:0")
++	}
++	if supportsIPv6 && supportsIPv4map {
+ 		testFilePacketConnDial(t, "udp", "[::ffff:127.0.0.1]:12345")
+ 	}
+ 	if syscall.OS == "linux" {
+diff --git a/src/pkg/net/ip.go b/src/pkg/net/ip.go
+index 61b2c687e2..4c651aee3a 100644
+--- a/src/pkg/net/ip.go
++++ b/src/pkg/net/ip.go
+@@ -75,8 +75,12 @@ var (
+ 
+ // Well-known IPv6 addresses
+ var (
+-	IPzero       = make(IP, IPv6len) // all zeros
+-	IPv6loopback = IP([]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1})
++	IPv6zero                   = IP{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
++	IPv6unspecified            = IP{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
++	IPv6loopback               = IP{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}
++	IPv6interfacelocalallnodes = IP{0xff, 0x01, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x01}
++	IPv6linklocalallnodes      = IP{0xff, 0x02, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x01}
++	IPv6linklocalallrouters    = IP{0xff, 0x02, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x02}
+ )
+ 
+ // Is p all zeros?
+diff --git a/src/pkg/net/ip_test.go b/src/pkg/net/ip_test.go
+index 2008953ef3..8a06421cc3 100644
+--- a/src/pkg/net/ip_test.go
++++ b/src/pkg/net/ip_test.go
+@@ -143,3 +143,36 @@ func TestJoinHostPort(t *testing.T) {
+ 		}
+ 	}
+ }
++
++var ipaftests = []struct {
++	in  IP
++	af4 bool
++	af6 bool
++}{
++	{IPv4bcast, true, false},
++	{IPv4allsys, true, false},
++	{IPv4allrouter, true, false},
++	{IPv4zero, true, false},
++	{IPv4(224, 0, 0, 1), true, false},
++	{IPv4(127, 0, 0, 1), true, false},
++	{IPv4(240, 0, 0, 1), true, false},
++	{IPv6unspecified, false, true},
++	{IPv6loopback, false, true},
++	{IPv6interfacelocalallnodes, false, true},
++	{IPv6linklocalallnodes, false, true},
++	{IPv6linklocalallrouters, false, true},
++	{ParseIP("ff05::a:b:c:d"), false, true},
++	{ParseIP("fe80::1:2:3:4"), false, true},
++	{ParseIP("2001:db8::123:12:1"), false, true},
++}
++
++func TestIPAddrFamily(t *testing.T) {
++	for _, tt := range ipaftests {
++		if af := tt.in.To4() != nil; af != tt.af4 {
++			t.Errorf("verifying IPv4 address family for %#q = %v, want %v", tt.in, af, tt.af4)
++		}
++		if af := len(tt.in) == IPv6len && tt.in.To4() == nil; af != tt.af6 {
++			t.Errorf("verifying IPv6 address family for %#q = %v, want %v", tt.in, af, tt.af6)
++		}
++	}
++}
+diff --git a/src/pkg/net/ipraw_test.go b/src/pkg/net/ipraw_test.go
+index 0c0b675f87..7cc9604b54 100644
+--- a/src/pkg/net/ipraw_test.go
++++ b/src/pkg/net/ipraw_test.go
+@@ -75,15 +75,15 @@ func TestICMP(t *testing.T) {
+ 		err   os.Error
+ 	)
+ 	if *srchost != "" {
+-		laddr, err = ResolveIPAddr(*srchost)
++		laddr, err = ResolveIPAddr("ip4", *srchost)
+ 		if err != nil {
+-			t.Fatalf(`net.ResolveIPAddr("%v") = %v, %v`, *srchost, laddr, err)
++			t.Fatalf(`net.ResolveIPAddr("ip4", %v") = %v, %v`, *srchost, laddr, err)
+ 		}
+ 	}
+ 
+-	raddr, err := ResolveIPAddr(*dsthost)
++	raddr, err := ResolveIPAddr("ip4", *dsthost)
+ 	if err != nil {
+-		t.Fatalf(`net.ResolveIPAddr("%v") = %v, %v`, *dsthost, raddr, err)
++		t.Fatalf(`net.ResolveIPAddr("ip4", %v") = %v, %v`, *dsthost, raddr, err)
+ 	}
+ 
+ 	c, err := ListenIP("ip4:icmp", laddr)
+diff --git a/src/pkg/net/iprawsock.go b/src/pkg/net/iprawsock.go
+index 5be6fe4e0b..a811027b1c 100644
+--- a/src/pkg/net/iprawsock.go
++++ b/src/pkg/net/iprawsock.go
+@@ -43,7 +43,7 @@ func (a *IPAddr) family() int {
+ 	if a == nil || len(a.IP) <= 4 {
+ 		return syscall.AF_INET
+ 	}
+-	if ip := a.IP.To4(); ip != nil {
++	if a.IP.To4() != nil {
+ 		return syscall.AF_INET
+ 	}
+ 	return syscall.AF_INET6
+@@ -61,10 +61,11 @@ func (a *IPAddr) toAddr() sockaddr {
+ }
+ 
+ // ResolveIPAddr parses addr as a IP address and resolves domain
+-// names to numeric addresses.  A literal IPv6 host address must be
++// names to numeric addresses on the network net, which must be
++// "ip", "ip4" or "ip6".  A literal IPv6 host address must be
+ // enclosed in square brackets, as in "[::]".
+-func ResolveIPAddr(addr string) (*IPAddr, os.Error) {
+-	ip, err := hostToIP(addr)
++func ResolveIPAddr(net, addr string) (*IPAddr, os.Error) {
++	ip, err := hostToIP(net, addr)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+@@ -234,32 +235,36 @@ func (c *IPConn) WriteTo(b []byte, addr Addr) (n int, err os.Error) {
+ }
+ 
+ // Convert "host" into IP address.
+-func hostToIP(host string) (ip IP, err os.Error) {
++func hostToIP(net, host string) (ip IP, err os.Error) {
+ 	var addr IP
+ 	// Try as an IP address.
+ 	addr = ParseIP(host)
+ 	if addr == nil {
++		filter := anyaddr
++		if net != "" && net[len(net)-1] == '4' {
++			filter = ipv4only
++		}
++		if net != "" && net[len(net)-1] == '6' {
++			filter = ipv6only
++		}
+ 		// Not an IP address.  Try as a DNS name.
+ 		addrs, err1 := LookupHost(host)
+ 		if err1 != nil {
+ 			err = err1
+ 			goto Error
+ 		}
+-		addr = firstSupportedAddr(anyaddr, addrs)
++		addr = firstFavoriteAddr(filter, addrs)
+ 		if addr == nil {
+ 			// should not happen
+-			err = &AddrError{"LookupHost returned invalid address", addrs[0]}
++			err = &AddrError{"LookupHost returned no suitable address", addrs[0]}
+ 			goto Error
+ 		}
+ 	}
+-
+ 	return addr, nil
+-
+ Error:
+ 	return nil, err
+ }
+ 
+-
+ var protocols map[string]int
+ 
+ func readProtocols() {
+@@ -285,7 +290,7 @@ func readProtocols() {
+ 	}
+ }
+ 
+-func netProtoSplit(netProto string) (net string, proto int, err os.Error) {
++func splitNetProto(netProto string) (net string, proto int, err os.Error) {
+ 	onceReadProtocols.Do(readProtocols)
+ 	i := last(netProto, ':')
+ 	if i < 0 { // no colon
+@@ -307,7 +312,7 @@ func netProtoSplit(netProto string) (net string, proto int, err os.Error) {
+ // DialIP connects to the remote address raddr on the network net,
+ // which must be "ip", "ip4", or "ip6".
+ func DialIP(netProto string, laddr, raddr *IPAddr) (c *IPConn, err os.Error) {
+-	net, proto, err := netProtoSplit(netProto)
++	net, proto, err := splitNetProto(netProto)
+ 	if err != nil {
+ 		return
+ 	}
+@@ -331,7 +336,7 @@ func DialIP(netProto string, laddr, raddr *IPAddr) (c *IPConn, err os.Error) {
+ // and WriteTo methods can be used to receive and send IP
+ // packets with per-packet addressing.
+ func ListenIP(netProto string, laddr *IPAddr) (c *IPConn, err os.Error) {
+-	net, proto, err := netProtoSplit(netProto)
++	net, proto, err := splitNetProto(netProto)
+ 	if err != nil {
+ 		return
+ 	}
+diff --git a/src/pkg/net/ipsock.go b/src/pkg/net/ipsock.go
+index 43357fe014..532f925b05 100644
+--- a/src/pkg/net/ipsock.go
++++ b/src/pkg/net/ipsock.go
+@@ -15,25 +15,86 @@ import (
+ // only dealing with IPv4 sockets?  As long as the host system
+ // understands IPv6, it's okay to pass IPv4 addresses to the IPv6
+ // interface.  That simplifies our code and is most general.
+-// Unfortunately, we need to run on kernels built without IPv6 support too.
+-// So probe the kernel to figure it out.
+-func kernelSupportsIPv6() bool {
+-	s, err := syscall.Socket(syscall.AF_INET6, syscall.SOCK_STREAM, syscall.IPPROTO_TCP)
+-	if err != 0 {
+-		return false
++// Unfortunately, we need to run on kernels built without IPv6
++// support too.  So probe the kernel to figure it out.
++//
++// probeIPv6Stack probes both basic IPv6 capability and IPv6 IPv4-
++// mapping capability which is controlled by IPV6_V6ONLY socket
++// option and/or kernel state "net.inet6.ip6.v6only".
++// It returns two boolean values.  If the first boolean value is
++// true, kernel supports basic IPv6 functionality.  If the second
++// boolean value is true, kernel supports IPv6 IPv4-mapping.
++func probeIPv6Stack() (supportsIPv6, supportsIPv4map bool) {
++	var probes = []struct {
++		s  int
++		la TCPAddr
++		ok bool
++	}{
++		// IPv6 communication capability
++		{-1, TCPAddr{IP: ParseIP("::1")}, false},
++		// IPv6 IPv4-mapped address communication capability
++		{-1, TCPAddr{IP: IPv4(127, 0, 0, 1)}, false},
+ 	}
+-	defer closesocket(s)
++	var errno int
+ 
+-	la := &TCPAddr{IP: IPv4(127, 0, 0, 1)}
+-	sa, oserr := la.toAddr().sockaddr(syscall.AF_INET6)
+-	if oserr != nil {
+-		return false
++	for i := range probes {
++		probes[i].s, errno = syscall.Socket(syscall.AF_INET6, syscall.SOCK_STREAM, syscall.IPPROTO_TCP)
++		if errno != 0 {
++			continue
++		}
++		defer closesocket(probes[i].s)
++		sa, err := probes[i].la.toAddr().sockaddr(syscall.AF_INET6)
++		if err != nil {
++			continue
++		}
++		errno = syscall.Bind(probes[i].s, sa)
++		if errno != 0 {
++			continue
++		}
++		probes[i].ok = true
+ 	}
+ 
+-	return syscall.Bind(s, sa) == 0
++	return probes[0].ok, probes[1].ok
++}
++
++var supportsIPv6, supportsIPv4map = probeIPv6Stack()
++
++func favoriteAddrFamily(net string, raddr, laddr sockaddr) (family int) {
++	// Figure out IP version.
++	// If network has a suffix like "tcp4", obey it.
++	family = syscall.AF_INET6
++	switch net[len(net)-1] {
++	case '4':
++		family = syscall.AF_INET
++	case '6':
++		// nothing to do
++	default:
++		// Otherwise, guess.
++		// If the addresses are IPv4, use 4; else 6.
++		if (laddr == nil || laddr.family() == syscall.AF_INET) &&
++			(raddr == nil || raddr.family() == syscall.AF_INET) {
++			family = syscall.AF_INET
++		}
++	}
++	return
+ }
+ 
+-var preferIPv4 = !kernelSupportsIPv6()
++func firstFavoriteAddr(filter func(IP) IP, addrs []string) (addr IP) {
++	if filter == anyaddr {
++		// We'll take any IP address, but since the dialing code
++		// does not yet try multiple addresses, prefer to use
++		// an IPv4 address if possible.  This is especially relevant
++		// if localhost resolves to [ipv6-localhost, ipv4-localhost].
++		// Too much code assumes localhost == ipv4-localhost.
++		addr = firstSupportedAddr(ipv4only, addrs)
++		if addr == nil {
++			addr = firstSupportedAddr(anyaddr, addrs)
++		}
++	} else {
++		addr = firstSupportedAddr(filter, addrs)
++	}
++	return
++}
+ 
+ func firstSupportedAddr(filter func(IP) IP, addrs []string) IP {
+ 	for _, s := range addrs {
+@@ -44,19 +105,25 @@ func firstSupportedAddr(filter func(IP) IP, addrs []string) IP {
+ 	return nil
+ }
+ 
+-func anyaddr(x IP) IP  { return x }
++func anyaddr(x IP) IP {
++	if x4 := x.To4(); x4 != nil {
++		return x4
++	}
++	if supportsIPv6 {
++		return x
++	}
++	return nil
++}
++
+ func ipv4only(x IP) IP { return x.To4() }
+ 
+ func ipv6only(x IP) IP {
+ 	// Only return addresses that we can use
+ 	// with the kernel's IPv6 addressing modes.
+-	// If preferIPv4 is set, it means the IPv6 stack
+-	// cannot take IPv4 addresses directly (we prefer
+-	// to use the IPv4 stack) so reject IPv4 addresses.
+-	if x.To4() != nil && preferIPv4 {
+-		return nil
++	if len(x) == IPv6len && x.To4() == nil && supportsIPv6 {
++		return x
+ 	}
+-	return x
++	return nil
+ }
+ 
+ // TODO(rsc): if syscall.OS == "linux", we're supposd to read
+@@ -78,23 +145,8 @@ func internetSocket(net string, laddr, raddr sockaddr, socktype, proto int, mode
+ 	// Figure out IP version.
+ 	// If network has a suffix like "tcp4", obey it.
+ 	var oserr os.Error
+-	family := syscall.AF_INET6
+-	switch net[len(net)-1] {
+-	case '4':
+-		family = syscall.AF_INET
+-	case '6':
+-		// nothing to do
+-	default:
+-		// Otherwise, guess.
+-		// If the addresses are IPv4 and we prefer IPv4, use 4; else 6.
+-		if preferIPv4 &&
+-			(laddr == nil || laddr.family() == syscall.AF_INET) &&
+-			(raddr == nil || raddr.family() == syscall.AF_INET) {
+-			family = syscall.AF_INET
+-		}
+-	}
+-
+ 	var la, ra syscall.Sockaddr
++	family := favoriteAddrFamily(net, raddr, laddr)
+ 	if laddr != nil {
+ 		if la, oserr = laddr.sockaddr(family); oserr != nil {
+ 			goto Error
+@@ -142,13 +194,13 @@ func ipToSockaddr(family int, ip IP, port int) (syscall.Sockaddr, os.Error) {
+ 		return s, nil
+ 	case syscall.AF_INET6:
+ 		if len(ip) == 0 {
+-			ip = IPzero
++			ip = IPv6zero
+ 		}
+ 		// IPv4 callers use 0.0.0.0 to mean "announce on any available address".
+ 		// In IPv6 mode, Linux treats that as meaning "announce on 0.0.0.0",
+ 		// which it refuses to do.  Rewrite to the IPv6 all zeros.
+-		if p4 := ip.To4(); p4 != nil && p4[0] == 0 && p4[1] == 0 && p4[2] == 0 && p4[3] == 0 {
+-			ip = IPzero
++		if ip.Equal(IPv4zero) {
++			ip = IPv6zero
+ 		}
+ 		if ip = ip.To16(); ip == nil {
+ 			return nil, InvalidAddrError("non-IPv6 address")
+@@ -212,9 +264,10 @@ func hostPortToIP(net, hostport string) (ip IP, iport int, err os.Error) {
+ 		addr = ParseIP(host)
+ 		if addr == nil {
+ 			filter := anyaddr
+-			if len(net) >= 4 && net[3] == '4' {
++			if net != "" && net[len(net)-1] == '4' {
+ 				filter = ipv4only
+-			} else if len(net) >= 4 && net[3] == '6' {
++			}
++			if net != "" && net[len(net)-1] == '6' {
+ 				filter = ipv6only
+ 			}
+ 			// Not an IP address.  Try as a DNS name.
+@@ -223,22 +276,10 @@ func hostPortToIP(net, hostport string) (ip IP, iport int, err os.Error) {
+ 				err = err1
+ 				goto Error
+ 			}
+-			if filter == anyaddr {
+-				// We'll take any IP address, but since the dialing code
+-				// does not yet try multiple addresses, prefer to use
+-				// an IPv4 address if possible.  This is especially relevant
+-				// if localhost resolves to [ipv6-localhost, ipv4-localhost].
+-				// Too much code assumes localhost == ipv4-localhost.
+-				addr = firstSupportedAddr(ipv4only, addrs)
+-				if addr == nil {
+-					addr = firstSupportedAddr(anyaddr, addrs)
+-				}
+-			} else {
+-				addr = firstSupportedAddr(filter, addrs)
+-			}
++			addr = firstFavoriteAddr(filter, addrs)
+ 			if addr == nil {
+ 				// should not happen
+-				err = &AddrError{"LookupHost returned invalid address", addrs[0]}
++				err = &AddrError{"LookupHost returned no suitable address", addrs[0]}
+ 				goto Error
+ 			}
+ 		}
+diff --git a/src/pkg/net/server_test.go b/src/pkg/net/server_test.go
+index 075748b83b..d44e8afc9e 100644
+--- a/src/pkg/net/server_test.go
++++ b/src/pkg/net/server_test.go
+@@ -109,8 +109,10 @@ func doTest(t *testing.T, network, listenaddr, dialaddr string) {
+ 
+ func TestTCPServer(t *testing.T) {
+ 	doTest(t, "tcp", "127.0.0.1", "127.0.0.1")
+-	if kernelSupportsIPv6() {
++	if supportsIPv6 {
+ 		doTest(t, "tcp", "[::1]", "[::1]")
++	}
++	if supportsIPv6 && supportsIPv4map {
+ 		doTest(t, "tcp", "127.0.0.1", "[::ffff:127.0.0.1]")
+ 	}
+ }
+@@ -186,7 +188,7 @@ func TestUDPServer(t *testing.T) {
+ 	for _, isEmpty := range []bool{false, true} {
+ 		doTestPacket(t, "udp", "0.0.0.0", "127.0.0.1", isEmpty)
+ 		doTestPacket(t, "udp", "", "127.0.0.1", isEmpty)
+-		if kernelSupportsIPv6() {
++		if supportsIPv6 && supportsIPv4map {
+ 			doTestPacket(t, "udp", "[::]", "[::ffff:127.0.0.1]", isEmpty)
+ 			doTestPacket(t, "udp", "[::]", "127.0.0.1", isEmpty)
+ 			doTestPacket(t, "udp", "0.0.0.0", "[::ffff:127.0.0.1]", isEmpty)
+diff --git a/src/pkg/net/tcpsock.go b/src/pkg/net/tcpsock.go
+index d9aa7cf19a..8aeed48958 100644
+--- a/src/pkg/net/tcpsock.go
++++ b/src/pkg/net/tcpsock.go
+@@ -41,7 +41,7 @@ func (a *TCPAddr) family() int {
+ 	if a == nil || len(a.IP) <= 4 {
+ 		return syscall.AF_INET
+ 	}
+-	if ip := a.IP.To4(); ip != nil {
++	if a.IP.To4() != nil {
+ 		return syscall.AF_INET
+ 	}
+ 	return syscall.AF_INET6
+@@ -60,10 +60,11 @@ func (a *TCPAddr) toAddr() sockaddr {
+ 
+ // ResolveTCPAddr parses addr as a TCP address of the form
+ // host:port and resolves domain names or port names to
+-// numeric addresses.  A literal IPv6 host address must be
++// numeric addresses on the network net, which must be "tcp",
++// "tcp4" or "tcp6".  A literal IPv6 host address must be
+ // enclosed in square brackets, as in "[::]:80".
+-func ResolveTCPAddr(network, addr string) (*TCPAddr, os.Error) {
+-	ip, port, err := hostPortToIP(network, addr)
++func ResolveTCPAddr(net, addr string) (*TCPAddr, os.Error) {
++	ip, port, err := hostPortToIP(net, addr)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+diff --git a/src/pkg/net/udpsock.go b/src/pkg/net/udpsock.go
+index 67684471b7..409355667b 100644
+--- a/src/pkg/net/udpsock.go
++++ b/src/pkg/net/udpsock.go
+@@ -41,7 +41,7 @@ func (a *UDPAddr) family() int {
+ 	if a == nil || len(a.IP) <= 4 {
+ 		return syscall.AF_INET
+ 	}
+-	if ip := a.IP.To4(); ip != nil {
++	if a.IP.To4() != nil {
+ 		return syscall.AF_INET
+ 	}
+ 	return syscall.AF_INET6
+@@ -60,10 +60,11 @@ func (a *UDPAddr) toAddr() sockaddr {
+ 
+ // ResolveUDPAddr parses addr as a UDP address of the form
+ // host:port and resolves domain names or port names to
+-// numeric addresses.  A literal IPv6 host address must be
++// numeric addresses on the network net, which must be "udp",
++// "udp4" or "udp6".  A literal IPv6 host address must be
+ // enclosed in square brackets, as in "[::]:80".
+-func ResolveUDPAddr(network, addr string) (*UDPAddr, os.Error) {
+-	ip, port, err := hostPortToIP(network, addr)
++func ResolveUDPAddr(net, addr string) (*UDPAddr, os.Error) {
++	ip, port, err := hostPortToIP(net, addr)
+ 	if err != nil {
+ 		return nil, err
+ 	}

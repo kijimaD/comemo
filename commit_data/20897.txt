@@ -8,6 +8,19 @@ Date:   Sat Oct 25 10:30:14 2014 -0700
     R=iant, minux
     CC=golang-codereviews, golang-dev
     https://golang.org/cl/157460043
-
+---
  src/cmd/go/build.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 49b84709e2..79a27116a1 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -1945,6 +1945,7 @@ func (tools gccgoToolchain) ld(b *builder, p *Package, out string, allactions []
+ 	}
+ 	ldflags = append(ldflags, afiles...)
+ 	ldflags = append(ldflags, cgoldflags...)
++	ldflags = append(ldflags, envList("CGO_LDFLAGS", "")...)
+ 	ldflags = append(ldflags, p.CgoLDFLAGS...)
+ 	if usesCgo && goos == "linux" {
+ 		ldflags = append(ldflags, "-Wl,-E")

@@ -29,8 +29,151 @@ Date:   Sun Mar 14 14:31:50 2021 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/reflect/all_test.go | 44 ++++++++++++++++++++++++++++++++++++++++++++
  src/reflect/type.go     |  2 ++
  src/reflect/value.go    | 18 +++++++++++++++++-
  3 files changed, 63 insertions(+), 1 deletion(-)
+
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index 3269f5ffce..065ff04611 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -3822,6 +3822,10 @@ type MyStruct2 struct {
+ }
+ type MyString string
+ type MyBytes []byte
++type MyBytesArrayPtr0 *[0]byte
++type MyBytesArrayPtr *[4]byte
++type MyBytesArray0 [0]byte
++type MyBytesArray [4]byte
+ type MyRunes []int32
+ type MyFunc func()
+ type MyByte byte
+@@ -4128,6 +4132,30 @@ var convertTests = []struct {
+ 	{V(MyString("runes♝")), V(MyRunes("runes♝"))},
+ 	{V(MyRunes("runes♕")), V(MyString("runes♕"))},
+ 
++	// slice to array pointer
++	{V([]byte(nil)), V((*[0]byte)(nil))},
++	{V([]byte{}), V(new([0]byte))},
++	{V([]byte{7}), V(&[1]byte{7})},
++	{V(MyBytes([]byte(nil))), V((*[0]byte)(nil))},
++	{V(MyBytes([]byte{})), V(new([0]byte))},
++	{V(MyBytes([]byte{9})), V(&[1]byte{9})},
++	{V([]byte(nil)), V(MyBytesArrayPtr0(nil))},
++	{V([]byte{}), V(MyBytesArrayPtr0(new([0]byte)))},
++	{V([]byte{1, 2, 3, 4}), V(MyBytesArrayPtr(&[4]byte{1, 2, 3, 4}))},
++	{V(MyBytes([]byte{})), V(MyBytesArrayPtr0(new([0]byte)))},
++	{V(MyBytes([]byte{5, 6, 7, 8})), V(MyBytesArrayPtr(&[4]byte{5, 6, 7, 8}))},
++
++	{V([]byte(nil)), V((*MyBytesArray0)(nil))},
++	{V([]byte{}), V((*MyBytesArray0)(new([0]byte)))},
++	{V([]byte{1, 2, 3, 4}), V(&MyBytesArray{1, 2, 3, 4})},
++	{V(MyBytes([]byte(nil))), V((*MyBytesArray0)(nil))},
++	{V(MyBytes([]byte{})), V((*MyBytesArray0)(new([0]byte)))},
++	{V(MyBytes([]byte{5, 6, 7, 8})), V(&MyBytesArray{5, 6, 7, 8})},
++	{V(new([0]byte)), V(new(MyBytesArray0))},
++	{V(new(MyBytesArray0)), V(new([0]byte))},
++	{V(MyBytesArrayPtr0(nil)), V((*[0]byte)(nil))},
++	{V((*[0]byte)(nil)), V(MyBytesArrayPtr0(nil))},
++
+ 	// named types and equal underlying types
+ 	{V(new(int)), V(new(integer))},
+ 	{V(new(integer)), V(new(int))},
+@@ -4288,6 +4316,9 @@ func TestConvert(t *testing.T) {
+ 		if vout2.Type() != tt.out.Type() || !DeepEqual(out2, tt.out.Interface()) {
+ 			t.Errorf("ValueOf(%T(%[1]v)).Convert(%s) = %T(%[3]v), want %T(%[4]v)", tt.in.Interface(), t2, out2, tt.out.Interface())
+ 		}
++		if got, want := vout2.Kind(), vout2.Type().Kind(); got != want {
++			t.Errorf("ValueOf(%T(%[1]v)).Convert(%s) has internal kind %v want %v", tt.in.Interface(), t1, got, want)
++		}
+ 
+ 		// vout3 represents a new value of the out type, set to vout2.  This makes
+ 		// sure the converted value vout2 is really usable as a regular value.
+@@ -4332,6 +4363,19 @@ func TestConvert(t *testing.T) {
+ 	}
+ }
+ 
++func TestConvertPanic(t *testing.T) {
++	s := make([]byte, 4)
++	p := new([8]byte)
++	v := ValueOf(s)
++	pt := TypeOf(p)
++	if !v.Type().ConvertibleTo(pt) {
++		t.Errorf("[]byte should be convertible to *[8]byte")
++	}
++	shouldPanic("reflect: cannot convert slice with length 4 to array pointer with length 8", func() {
++		_ = v.Convert(pt)
++	})
++}
++
+ var gFloat32 float32
+ 
+ func TestConvertNaNs(t *testing.T) {
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index d50559e933..9727bfe467 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -106,9 +106,11 @@ type Type interface {
+ 	AssignableTo(u Type) bool
+ 
+ 	// ConvertibleTo reports whether a value of the type is convertible to type u.
++	// Even if ConvertibleTo returns true, the conversion may still panic.
+ 	ConvertibleTo(u Type) bool
+ 
+ 	// Comparable reports whether values of this type are comparable.
++	// Even if Comparable returns true, the comparison may still panic.
+ 	Comparable() bool
+ 
+ 	// Methods applicable only to some types, depending on Kind.
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index 6f1a3c02d6..418dff781f 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -6,6 +6,7 @@ package reflect
+ 
+ import (
+ 	"internal/abi"
++	"internal/itoa"
+ 	"internal/unsafeheader"
+ 	"math"
+ 	"runtime"
+@@ -2770,7 +2771,7 @@ func (v Value) assignTo(context string, dst *rtype, target unsafe.Pointer) Value
+ 
+ // Convert returns the value v converted to type t.
+ // If the usual Go conversion rules do not allow conversion
+-// of the value v to type t, Convert panics.
++// of the value v to type t, or if converting v to type t panics, Convert panics.
+ func (v Value) Convert(t Type) Value {
+ 	if v.flag&flagMethod != 0 {
+ 		v = makeMethodValue("Convert", v)
+@@ -2841,6 +2842,11 @@ func convertOp(dst, src *rtype) func(Value, Type) Value {
+ 				return cvtRunesString
+ 			}
+ 		}
++		// "x is a slice, T is a pointer-to-array type,
++		// and the slice and array types have identical element types."
++		if dst.Kind() == Ptr && dst.Elem().Kind() == Array && src.Elem() == dst.Elem().Elem() {
++			return cvtSliceArrayPtr
++		}
+ 
+ 	case Chan:
+ 		if dst.Kind() == Chan && specialChannelAssignability(dst, src) {
+@@ -3034,6 +3040,16 @@ func cvtStringRunes(v Value, t Type) Value {
+ 	return makeRunes(v.flag.ro(), []rune(v.String()), t)
+ }
+ 
++// convertOp: []T -> *[N]T
++func cvtSliceArrayPtr(v Value, t Type) Value {
++	n := t.Elem().Len()
++	h := (*unsafeheader.Slice)(v.ptr)
++	if n > h.Len {
++		panic("reflect: cannot convert slice with length " + itoa.Itoa(h.Len) + " to array pointer with length " + itoa.Itoa(n))
++	}
++	return Value{t.common(), h.Data, v.flag&^(flagIndir|flagAddr|flagKindMask) | flag(Ptr)}
++}
++
+ // convertOp: direct copy
+ func cvtDirect(v Value, typ Type) Value {
+ 	f := v.flag

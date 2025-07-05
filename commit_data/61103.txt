@@ -16,7 +16,7 @@ Date:   Wed Oct 2 13:00:17 2024 +0200
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-
+---
  src/archive/tar/writer.go                     | 11 +++--------
  src/database/sql/sql.go                       |  8 ++------
  src/internal/coverage/cformat/format.go       | 16 +++-------------
@@ -28,3 +28,304 @@ Date:   Wed Oct 2 13:00:17 2024 +0200
  src/net/url/url.go                            |  8 ++------
  src/testing/fstest/testfs.go                  |  9 ++-------
  10 files changed, 23 insertions(+), 76 deletions(-)
+
+diff --git a/src/archive/tar/writer.go b/src/archive/tar/writer.go
+index dcefc2a8f8..059669767f 100644
+--- a/src/archive/tar/writer.go
++++ b/src/archive/tar/writer.go
+@@ -9,6 +9,7 @@ import (
+ 	"fmt"
+ 	"io"
+ 	"io/fs"
++	"maps"
+ 	"path"
+ 	"slices"
+ 	"strings"
+@@ -169,16 +170,10 @@ func (tw *Writer) writePAXHeader(hdr *Header, paxHdrs map[string]string) error {
+ 	// Write PAX records to the output.
+ 	isGlobal := hdr.Typeflag == TypeXGlobalHeader
+ 	if len(paxHdrs) > 0 || isGlobal {
+-		// Sort keys for deterministic ordering.
+-		var keys []string
+-		for k := range paxHdrs {
+-			keys = append(keys, k)
+-		}
+-		slices.Sort(keys)
+-
+ 		// Write each record to a buffer.
+ 		var buf strings.Builder
+-		for _, k := range keys {
++		// Sort keys for deterministic ordering.
++		for _, k := range slices.Sorted(maps.Keys(paxHdrs)) {
+ 			rec, err := formatPAXRecord(k, paxHdrs[k])
+ 			if err != nil {
+ 				return err
+diff --git a/src/database/sql/sql.go b/src/database/sql/sql.go
+index c247a9b506..b7cf3d12fa 100644
+--- a/src/database/sql/sql.go
++++ b/src/database/sql/sql.go
+@@ -21,6 +21,7 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"io"
++	"maps"
+ 	"math/rand/v2"
+ 	"reflect"
+ 	"runtime"
+@@ -75,12 +76,7 @@ func unregisterAllDrivers() {
+ func Drivers() []string {
+ 	driversMu.RLock()
+ 	defer driversMu.RUnlock()
+-	list := make([]string, 0, len(drivers))
+-	for name := range drivers {
+-		list = append(list, name)
+-	}
+-	slices.Sort(list)
+-	return list
++	return slices.Sorted(maps.Keys(drivers))
+ }
+ 
+ // A NamedArg is a named argument. NamedArg values may be used as
+diff --git a/src/internal/coverage/cformat/format.go b/src/internal/coverage/cformat/format.go
+index 0f9e981df8..4df0e70b81 100644
+--- a/src/internal/coverage/cformat/format.go
++++ b/src/internal/coverage/cformat/format.go
+@@ -36,6 +36,7 @@ import (
+ 	"internal/coverage"
+ 	"internal/coverage/cmerge"
+ 	"io"
++	"maps"
+ 	"slices"
+ 	"strings"
+ 	"text/tabwriter"
+@@ -174,12 +175,7 @@ func (fm *Formatter) EmitTextual(w io.Writer) error {
+ 	if _, err := fmt.Fprintf(w, "mode: %s\n", fm.cm.String()); err != nil {
+ 		return err
+ 	}
+-	pkgs := make([]string, 0, len(fm.pm))
+-	for importpath := range fm.pm {
+-		pkgs = append(pkgs, importpath)
+-	}
+-	slices.Sort(pkgs)
+-	for _, importpath := range pkgs {
++	for _, importpath := range slices.Sorted(maps.Keys(fm.pm)) {
+ 		p := fm.pm[importpath]
+ 		units := make([]extcu, 0, len(p.unitTable))
+ 		for u := range p.unitTable {
+@@ -281,14 +277,8 @@ func (fm *Formatter) EmitFuncs(w io.Writer) error {
+ 	allStmts := uint64(0)
+ 	covStmts := uint64(0)
+ 
+-	pkgs := make([]string, 0, len(fm.pm))
+-	for importpath := range fm.pm {
+-		pkgs = append(pkgs, importpath)
+-	}
+-	slices.Sort(pkgs)
+-
+ 	// Emit functions for each package, sorted by import path.
+-	for _, importpath := range pkgs {
++	for _, importpath := range slices.Sorted(maps.Keys(fm.pm)) {
+ 		p := fm.pm[importpath]
+ 		if len(p.unitTable) == 0 {
+ 			continue
+diff --git a/src/internal/coverage/encodecounter/encode.go b/src/internal/coverage/encodecounter/encode.go
+index d50827014b..82fd328faf 100644
+--- a/src/internal/coverage/encodecounter/encode.go
++++ b/src/internal/coverage/encodecounter/encode.go
+@@ -13,6 +13,7 @@ import (
+ 	"internal/coverage/stringtab"
+ 	"internal/coverage/uleb128"
+ 	"io"
++	"maps"
+ 	"os"
+ 	"slices"
+ )
+@@ -122,11 +123,7 @@ func (cfw *CoverageDataWriter) writeSegmentPreamble(args map[string]string, ws *
+ 	}
+ 	cfw.csh.StrTabLen = uint32(len(ws.BytesWritten())) - hdrsz
+ 
+-	akeys := make([]string, 0, len(args))
+-	for k := range args {
+-		akeys = append(akeys, k)
+-	}
+-	slices.Sort(akeys)
++	akeys := slices.Sorted(maps.Keys(args))
+ 
+ 	wrULEB128 := func(v uint) error {
+ 		cfw.tmp = cfw.tmp[:0]
+diff --git a/src/mime/mediatype.go b/src/mime/mediatype.go
+index 97f3563a2d..f0a0be2155 100644
+--- a/src/mime/mediatype.go
++++ b/src/mime/mediatype.go
+@@ -7,6 +7,7 @@ package mime
+ import (
+ 	"errors"
+ 	"fmt"
++	"maps"
+ 	"slices"
+ 	"strings"
+ 	"unicode"
+@@ -33,13 +34,7 @@ func FormatMediaType(t string, param map[string]string) string {
+ 		b.WriteString(strings.ToLower(sub))
+ 	}
+ 
+-	attrs := make([]string, 0, len(param))
+-	for a := range param {
+-		attrs = append(attrs, a)
+-	}
+-	slices.Sort(attrs)
+-
+-	for _, attribute := range attrs {
++	for _, attribute := range slices.Sorted(maps.Keys(param)) {
+ 		value := param[attribute]
+ 		b.WriteByte(';')
+ 		b.WriteByte(' ')
+diff --git a/src/mime/multipart/writer.go b/src/mime/multipart/writer.go
+index 5e589c499b..818970d7a7 100644
+--- a/src/mime/multipart/writer.go
++++ b/src/mime/multipart/writer.go
+@@ -10,6 +10,7 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"io"
++	"maps"
+ 	"net/textproto"
+ 	"slices"
+ 	"strings"
+@@ -107,12 +108,7 @@ func (w *Writer) CreatePart(header textproto.MIMEHeader) (io.Writer, error) {
+ 		fmt.Fprintf(&b, "--%s\r\n", w.boundary)
+ 	}
+ 
+-	keys := make([]string, 0, len(header))
+-	for k := range header {
+-		keys = append(keys, k)
+-	}
+-	slices.Sort(keys)
+-	for _, k := range keys {
++	for _, k := range slices.Sorted(maps.Keys(header)) {
+ 		for _, v := range header[k] {
+ 			fmt.Fprintf(&b, "%s: %s\r\n", k, v)
+ 		}
+diff --git a/src/net/http/cgi/cgi_main.go b/src/net/http/cgi/cgi_main.go
+index 033036d07f..1435f1b779 100644
+--- a/src/net/http/cgi/cgi_main.go
++++ b/src/net/http/cgi/cgi_main.go
+@@ -7,6 +7,7 @@ package cgi
+ import (
+ 	"fmt"
+ 	"io"
++	"maps"
+ 	"net/http"
+ 	"os"
+ 	"path"
+@@ -63,22 +64,12 @@ func testCGI() {
+ 
+ 	fmt.Printf("test=Hello CGI\r\n")
+ 
+-	keys := make([]string, 0, len(params))
+-	for k := range params {
+-		keys = append(keys, k)
+-	}
+-	slices.Sort(keys)
+-	for _, key := range keys {
++	for _, key := range slices.Sorted(maps.Keys(params)) {
+ 		fmt.Printf("param-%s=%s\r\n", key, params.Get(key))
+ 	}
+ 
+ 	envs := envMap(os.Environ())
+-	keys = make([]string, 0, len(envs))
+-	for k := range envs {
+-		keys = append(keys, k)
+-	}
+-	slices.Sort(keys)
+-	for _, key := range keys {
++	for _, key := range slices.Sorted(maps.Keys(envs)) {
+ 		fmt.Printf("env-%s=%s\r\n", key, envs[key])
+ 	}
+ 
+diff --git a/src/net/http/clientserver_test.go b/src/net/http/clientserver_test.go
+index 0c2142a063..3734e28afb 100644
+--- a/src/net/http/clientserver_test.go
++++ b/src/net/http/clientserver_test.go
+@@ -17,6 +17,7 @@ import (
+ 	"hash"
+ 	"io"
+ 	"log"
++	"maps"
+ 	"net"
+ 	. "net/http"
+ 	"net/http/httptest"
+@@ -689,12 +690,6 @@ func testCancelRequestMidBody(t *testing.T, mode testMode) {
+ func TestTrailersClientToServer(t *testing.T) { run(t, testTrailersClientToServer) }
+ func testTrailersClientToServer(t *testing.T, mode testMode) {
+ 	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+-		var decl []string
+-		for k := range r.Trailer {
+-			decl = append(decl, k)
+-		}
+-		slices.Sort(decl)
+-
+ 		slurp, err := io.ReadAll(r.Body)
+ 		if err != nil {
+ 			t.Errorf("Server reading request body: %v", err)
+@@ -705,6 +700,7 @@ func testTrailersClientToServer(t *testing.T, mode testMode) {
+ 		if r.Trailer == nil {
+ 			io.WriteString(w, "nil Trailer")
+ 		} else {
++			decl := slices.Sorted(maps.Keys(r.Trailer))
+ 			fmt.Fprintf(w, "decl: %v, vals: %s, %s",
+ 				decl,
+ 				r.Trailer.Get("Client-Trailer-A"),
+diff --git a/src/net/url/url.go b/src/net/url/url.go
+index 9af192fa1f..8a8de1c6a8 100644
+--- a/src/net/url/url.go
++++ b/src/net/url/url.go
+@@ -13,6 +13,7 @@ package url
+ import (
+ 	"errors"
+ 	"fmt"
++	"maps"
+ 	"path"
+ 	"slices"
+ 	"strconv"
+@@ -1004,12 +1005,7 @@ func (v Values) Encode() string {
+ 		return ""
+ 	}
+ 	var buf strings.Builder
+-	keys := make([]string, 0, len(v))
+-	for k := range v {
+-		keys = append(keys, k)
+-	}
+-	slices.Sort(keys)
+-	for _, k := range keys {
++	for _, k := range slices.Sorted(maps.Keys(v)) {
+ 		vs := v[k]
+ 		keyEscaped := QueryEscape(k)
+ 		for _, v := range vs {
+diff --git a/src/testing/fstest/testfs.go b/src/testing/fstest/testfs.go
+index 76a2cff62d..2917a303b2 100644
+--- a/src/testing/fstest/testfs.go
++++ b/src/testing/fstest/testfs.go
+@@ -10,6 +10,7 @@ import (
+ 	"fmt"
+ 	"io"
+ 	"io/fs"
++	"maps"
+ 	"path"
+ 	"slices"
+ 	"strings"
+@@ -71,13 +72,7 @@ func testFS(fsys fs.FS, expected ...string) error {
+ 	}
+ 	delete(found, ".")
+ 	if len(expected) == 0 && len(found) > 0 {
+-		var list []string
+-		for k := range found {
+-			if k != "." {
+-				list = append(list, k)
+-			}
+-		}
+-		slices.Sort(list)
++		list := slices.Sorted(maps.Keys(found))
+ 		if len(list) > 15 {
+ 			list = append(list[:10], "...")
+ 		}

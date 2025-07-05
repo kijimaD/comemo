@@ -7,7 +7,53 @@ Date:   Thu Jan 19 15:33:29 2012 +0900
     R=bradfitz
     CC=golang-dev
     https://golang.org/cl/5558047
-
+---
  src/pkg/encoding/json/encode.go      | 3 ++-
  src/pkg/encoding/json/tagkey_test.go | 6 +++---
  2 files changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/encoding/json/encode.go b/src/pkg/encoding/json/encode.go
+index 042142d2c5..eac14a47ed 100644
+--- a/src/pkg/encoding/json/encode.go
++++ b/src/pkg/encoding/json/encode.go
+@@ -79,7 +79,8 @@ import (
+ //    Int64String int64 `json:",string"`
+ //
+ // The key name will be used if it's a non-empty string consisting of
+-// only Unicode letters, digits, dollar signs, hyphens, and underscores.
++// only Unicode letters, digits, dollar signs, percent signs, hyphens,
++// underscores and slashes.
+ //
+ // Map values encode as JSON objects.
+ // The map's key type must be string; the object keys are used directly
+diff --git a/src/pkg/encoding/json/tagkey_test.go b/src/pkg/encoding/json/tagkey_test.go
+index 1a15241cb0..bba5730353 100644
+--- a/src/pkg/encoding/json/tagkey_test.go
++++ b/src/pkg/encoding/json/tagkey_test.go
+@@ -9,7 +9,7 @@ import (
+ )
+ 
+ type basicLatin2xTag struct {
+-	V string `json:"$-"`
++	V string `json:"$%-/"`
+ }
+ 
+ type basicLatin3xTag struct {
+@@ -53,7 +53,7 @@ type badFormatTag struct {
+ }
+ 
+ type badCodeTag struct {
+-	Z string `json:" !\"#%&'()*+,./"`
++	Z string `json:" !\"#&'()*+,."`
+ }
+ 
+ var structTagObjectKeyTests = []struct {
+@@ -61,7 +61,7 @@ var structTagObjectKeyTests = []struct {
+ 	value string
+ 	key   string
+ }{
+-	{basicLatin2xTag{"2x"}, "2x", "$-"},
++	{basicLatin2xTag{"2x"}, "2x", "$%-/"},
+ 	{basicLatin3xTag{"3x"}, "3x", "0123456789"},
+ 	{basicLatin4xTag{"4x"}, "4x", "ABCDEFGHIJKLMO"},
+ 	{basicLatin5xTag{"5x"}, "5x", "PQRSTUVWXYZ_"},

@@ -7,8 +7,129 @@ Date:   Mon Jul 26 15:55:01 2010 +1000
     R=brainman, rsc
     CC=golang-dev
     https://golang.org/cl/1715046
-
+---
  src/pkg/syscall/syscall_windows.go      | 22 ++++++++++++++++++++--
  src/pkg/syscall/zsyscall_windows_386.go | 32 ++++++++++++++++++++++++++++++++
  src/pkg/syscall/ztypes_windows_386.go   |  8 ++++++++
  3 files changed, 60 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/syscall/syscall_windows.go b/src/pkg/syscall/syscall_windows.go
+index 159b9d6b15..951621ab4d 100644
+--- a/src/pkg/syscall/syscall_windows.go
++++ b/src/pkg/syscall/syscall_windows.go
+@@ -138,6 +138,8 @@ func getSysProcAddr(m uint32, pname string) uintptr {
+ //sys	DuplicateHandle(hSourceProcessHandle int32, hSourceHandle int32, hTargetProcessHandle int32, lpTargetHandle *int32, dwDesiredAccess uint32, bInheritHandle bool, dwOptions uint32) (ok bool, errno int)
+ //sys	WaitForSingleObject(handle int32, waitMilliseconds uint32) (event uint32, errno int) [failretval=0xffffffff]
+ //sys	GetTempPath(buflen uint32, buf *uint16) (n uint32, errno int) = GetTempPathW
++//sys	CreatePipe(readhandle *uint32, writehandle *uint32, lpsa *byte, size uint32) (ok bool, errno int)
++//sys	GetFileType(filehandle uint32) (n uint32, errno int)
+ //sys	CryptAcquireContext(provhandle *uint32, container *uint16, provider *uint16, provtype uint32, flags uint32) (ok bool, errno int) = advapi32.CryptAcquireContextW
+ //sys	CryptReleaseContext(provhandle uint32, flags uint32) (ok bool, errno int) = advapi32.CryptReleaseContext
+ //sys	CryptGenRandom(provhandle uint32, buflen uint32, buf *byte) (ok bool, errno int) = advapi32.CryptGenRandom
+@@ -261,6 +263,11 @@ func Seek(fd int, offset int64, whence int) (newoffset int64, errno int) {
+ 	}
+ 	hi := int32(offset >> 32)
+ 	lo := int32(offset)
++	// use GetFileType to check pipe, pipe can't do seek
++	ft, _ := GetFileType(uint32(fd))
++	if ft == FILE_TYPE_PIPE {
++		return 0, EPIPE
++	}
+ 	rlo, e := SetFilePointer(int32(fd), lo, &hi, w)
+ 	if e != 0 {
+ 		return 0, e
+@@ -388,6 +395,19 @@ func Sleep(nsec int64) (errno int) {
+ 	return 0
+ }
+ 
++func Pipe(p []int) (errno int) {
++	if len(p) != 2 {
++		return EINVAL
++	}
++	var r, w uint32
++	if ok, errno := CreatePipe(&r, &w, nil, 0); !ok {
++		return errno
++	}
++	p[0] = int(r)
++	p[1] = int(w)
++	return 0
++}
++
+ // TODO(brainman): implement Utimes, or rewrite os.file.Chtimes() instead
+ func Utimes(path string, tv []Timeval) (errno int) {
+ 	return EWINDOWS
+@@ -605,8 +625,6 @@ func Getgroups() (gids []int, errno int) { return nil, EWINDOWS }
+ 
+ // TODO(brainman): fix all this meaningless code, it is here to compile exec.go
+ 
+-func Pipe(p []int) (errno int) { return EWINDOWS }
+-
+ func read(fd int, buf *byte, nbuf int) (n int, errno int) {
+ 	return 0, EWINDOWS
+ }
+diff --git a/src/pkg/syscall/zsyscall_windows_386.go b/src/pkg/syscall/zsyscall_windows_386.go
+index f6e98dc167..a5fffc3bc6 100644
+--- a/src/pkg/syscall/zsyscall_windows_386.go
++++ b/src/pkg/syscall/zsyscall_windows_386.go
+@@ -47,6 +47,8 @@ var (
+ 	procDuplicateHandle            = getSysProcAddr(modkernel32, "DuplicateHandle")
+ 	procWaitForSingleObject        = getSysProcAddr(modkernel32, "WaitForSingleObject")
+ 	procGetTempPathW               = getSysProcAddr(modkernel32, "GetTempPathW")
++	procCreatePipe                 = getSysProcAddr(modkernel32, "CreatePipe")
++	procGetFileType                = getSysProcAddr(modkernel32, "GetFileType")
+ 	procCryptAcquireContextW       = getSysProcAddr(modadvapi32, "CryptAcquireContextW")
+ 	procCryptReleaseContext        = getSysProcAddr(modadvapi32, "CryptReleaseContext")
+ 	procCryptGenRandom             = getSysProcAddr(modadvapi32, "CryptGenRandom")
+@@ -591,6 +593,36 @@ func GetTempPath(buflen uint32, buf *uint16) (n uint32, errno int) {
+ 	return
+ }
+ 
++func CreatePipe(readhandle *uint32, writehandle *uint32, lpsa *byte, size uint32) (ok bool, errno int) {
++	r0, _, e1 := Syscall6(procCreatePipe, uintptr(unsafe.Pointer(readhandle)), uintptr(unsafe.Pointer(writehandle)), uintptr(unsafe.Pointer(lpsa)), uintptr(size), 0, 0)
++	ok = bool(r0 != 0)
++	if !ok {
++		if e1 != 0 {
++			errno = int(e1)
++		} else {
++			errno = EINVAL
++		}
++	} else {
++		errno = 0
++	}
++	return
++}
++
++func GetFileType(filehandle uint32) (n uint32, errno int) {
++	r0, _, e1 := Syscall(procGetFileType, uintptr(filehandle), 0, 0)
++	n = uint32(r0)
++	if n == 0 {
++		if e1 != 0 {
++			errno = int(e1)
++		} else {
++			errno = EINVAL
++		}
++	} else {
++		errno = 0
++	}
++	return
++}
++
+ func CryptAcquireContext(provhandle *uint32, container *uint16, provider *uint16, provtype uint32, flags uint32) (ok bool, errno int) {
+ 	r0, _, e1 := Syscall6(procCryptAcquireContextW, uintptr(unsafe.Pointer(provhandle)), uintptr(unsafe.Pointer(container)), uintptr(unsafe.Pointer(provider)), uintptr(provtype), uintptr(flags), 0)
+ 	ok = bool(r0 != 0)
+diff --git a/src/pkg/syscall/ztypes_windows_386.go b/src/pkg/syscall/ztypes_windows_386.go
+index 3f50480e42..88b6a78712 100644
+--- a/src/pkg/syscall/ztypes_windows_386.go
++++ b/src/pkg/syscall/ztypes_windows_386.go
+@@ -328,3 +328,11 @@ const (
+ 	S_IWUSR    = 0x80
+ 	S_IXUSR    = 0x40
+ )
++
++const (
++	FILE_TYPE_CHAR    = 0x0002
++	FILE_TYPE_DISK    = 0x0001
++	FILE_TYPE_PIPE    = 0x0003
++	FILE_TYPE_REMOTE  = 0x8000
++	FILE_TYPE_UNKNOWN = 0x0000
++)

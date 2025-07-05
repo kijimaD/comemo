@@ -23,6 +23,19 @@ Date:   Sun Aug 15 14:57:00 2021 +0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/342303
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: Cherry Mui <cherryyz@google.com>
-
+---
  AUTHORS | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 08caca5f68..96704bd564 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -829,6 +829,7 @@ Liberty Fund Inc
+ Linaro Limited
+ Lion Yang <lion@aosc.xyz>
+ Lloyd Dewolf <foolswisdom@gmail.com>
++Loongson Technology Corporation Limited
+ Lorenzo Masini <rugginoso@develer.com>
+ Lorenzo Stoakes <lstoakes@gmail.com>
+ Luan Santos <cfcluan@gmail.com>

@@ -20,7 +20,108 @@ Date:   Wed Jun 23 15:28:37 2021 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/330430
     Trust: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/load/test.go                   | 50 ++++++++++++++++------
  src/cmd/go/testdata/script/mod_list_test_cycle.txt | 23 ++++++++++
  2 files changed, 59 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/go/internal/load/test.go b/src/cmd/go/internal/load/test.go
+index 6baa1db14f..c828296566 100644
+--- a/src/cmd/go/internal/load/test.go
++++ b/src/cmd/go/internal/load/test.go
+@@ -116,7 +116,7 @@ func TestPackagesAndErrors(ctx context.Context, opts PackageOpts, p *Package, co
+ 			// Can't change that code, because that code is only for loading the
+ 			// non-test copy of a package.
+ 			ptestErr = &PackageError{
+-				ImportStack:   testImportStack(stk[0], p1, p.ImportPath),
++				ImportStack:   importCycleStack(p1, p.ImportPath),
+ 				Err:           errors.New("import cycle not allowed in test"),
+ 				IsImportCycle: true,
+ 			}
+@@ -375,22 +375,44 @@ func TestPackagesAndErrors(ctx context.Context, opts PackageOpts, p *Package, co
+ 	return pmain, ptest, pxtest
+ }
+ 
+-func testImportStack(top string, p *Package, target string) []string {
+-	stk := []string{top, p.ImportPath}
+-Search:
+-	for p.ImportPath != target {
+-		for _, p1 := range p.Internal.Imports {
+-			if p1.ImportPath == target || str.Contains(p1.Deps, target) {
+-				stk = append(stk, p1.ImportPath)
+-				p = p1
+-				continue Search
++// importCycleStack returns an import stack from p to the package whose import
++// path is target.
++func importCycleStack(p *Package, target string) []string {
++	// importerOf maps each import path to its importer nearest to p.
++	importerOf := map[string]string{p.ImportPath: ""}
++
++	// q is a breadth-first queue of packages to search for target.
++	// Every package added to q has a corresponding entry in pathTo.
++	//
++	// We search breadth-first for two reasons:
++	//
++	// 	1. We want to report the shortest cycle.
++	//
++	// 	2. If p contains multiple cycles, the first cycle we encounter might not
++	// 	   contain target. To ensure termination, we have to break all cycles
++	// 	   other than the first.
++	q := []*Package{p}
++
++	for len(q) > 0 {
++		p := q[0]
++		q = q[1:]
++		if path := p.ImportPath; path == target {
++			var stk []string
++			for path != "" {
++				stk = append(stk, path)
++				path = importerOf[path]
++			}
++			return stk
++		}
++		for _, dep := range p.Internal.Imports {
++			if _, ok := importerOf[dep.ImportPath]; !ok {
++				importerOf[dep.ImportPath] = p.ImportPath
++				q = append(q, dep)
+ 			}
+ 		}
+-		// Can't happen, but in case it does...
+-		stk = append(stk, "<lost path to cycle>")
+-		break
+ 	}
+-	return stk
++
++	panic("lost path to cycle")
+ }
+ 
+ // recompileForTest copies and replaces certain packages in pmain's dependency
+diff --git a/src/cmd/go/testdata/script/mod_list_test_cycle.txt b/src/cmd/go/testdata/script/mod_list_test_cycle.txt
+new file mode 100644
+index 0000000000..755e50b076
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_list_test_cycle.txt
+@@ -0,0 +1,23 @@
++# https://golang.org/issue/45863: a typo in a test package leading to an
++# import cycle should be diagnosed, instead of causing an infinite loop.
++# The failure mode of this test prior to the fix was a timeout or OOM crash.
++
++go list -e -test -deps ./datastore/sql
++
++-- go.mod --
++module golang.org/issue45863
++
++go 1.17
++-- datastore/datastore_health.go --
++package datastore
++
++import (
++	"golang.org/issue45863/datastore"
++	"golang.org/issue45863/datastore/sql"
++)
++-- datastore/sql/sql.go --
++package sql
++-- datastore/sql/sql_test.go --
++package sql
++
++import _ "golang.org/issue45863/datastore"

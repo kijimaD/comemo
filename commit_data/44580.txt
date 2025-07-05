@@ -13,7 +13,7 @@ Date:   Fri Aug 7 11:31:20 2020 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/247399
     Reviewed-by: Austin Clements <austin@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/internal/goobj/funcinfo.go     | 82 ++++++++++++++++++----------------
  src/cmd/internal/goobj/objfile.go      | 12 +++--
  src/cmd/internal/obj/link.go           | 15 +++----
@@ -25,3 +25,633 @@ Date:   Fri Aug 7 11:31:20 2020 -0400
  src/cmd/link/internal/ld/pcln.go       | 13 +++---
  src/cmd/link/internal/loader/loader.go | 46 +++++++++----------
  10 files changed, 182 insertions(+), 132 deletions(-)
+
+diff --git a/src/cmd/internal/goobj/funcinfo.go b/src/cmd/internal/goobj/funcinfo.go
+index e0e6068b4b..2cca8f6c4e 100644
+--- a/src/cmd/internal/goobj/funcinfo.go
++++ b/src/cmd/internal/goobj/funcinfo.go
+@@ -23,12 +23,11 @@ type FuncInfo struct {
+ 	Locals uint32
+ 	FuncID objabi.FuncID
+ 
+-	Pcsp        uint32
+-	Pcfile      uint32
+-	Pcline      uint32
+-	Pcinline    uint32
+-	Pcdata      []uint32
+-	PcdataEnd   uint32
++	Pcsp        SymRef
++	Pcfile      SymRef
++	Pcline      SymRef
++	Pcinline    SymRef
++	Pcdata      []SymRef
+ 	Funcdataoff []uint32
+ 	File        []CUFileIndex
+ 
+@@ -41,20 +40,24 @@ func (a *FuncInfo) Write(w *bytes.Buffer) {
+ 		binary.LittleEndian.PutUint32(b[:], x)
+ 		w.Write(b[:])
+ 	}
++	writeSymRef := func(s SymRef) {
++		writeUint32(s.PkgIdx)
++		writeUint32(s.SymIdx)
++	}
+ 
+ 	writeUint32(a.Args)
+ 	writeUint32(a.Locals)
+ 	writeUint32(uint32(a.FuncID))
+ 
+-	writeUint32(a.Pcsp)
+-	writeUint32(a.Pcfile)
+-	writeUint32(a.Pcline)
+-	writeUint32(a.Pcinline)
++	writeSymRef(a.Pcsp)
++	writeSymRef(a.Pcfile)
++	writeSymRef(a.Pcline)
++	writeSymRef(a.Pcinline)
+ 	writeUint32(uint32(len(a.Pcdata)))
+-	for _, x := range a.Pcdata {
+-		writeUint32(x)
++	for _, sym := range a.Pcdata {
++		writeSymRef(sym)
+ 	}
+-	writeUint32(a.PcdataEnd)
++
+ 	writeUint32(uint32(len(a.Funcdataoff)))
+ 	for _, x := range a.Funcdataoff {
+ 		writeUint32(x)
+@@ -75,21 +78,23 @@ func (a *FuncInfo) Read(b []byte) {
+ 		b = b[4:]
+ 		return x
+ 	}
++	readSymIdx := func() SymRef {
++		return SymRef{readUint32(), readUint32()}
++	}
+ 
+ 	a.Args = readUint32()
+ 	a.Locals = readUint32()
+ 	a.FuncID = objabi.FuncID(readUint32())
+ 
+-	a.Pcsp = readUint32()
+-	a.Pcfile = readUint32()
+-	a.Pcline = readUint32()
+-	a.Pcinline = readUint32()
+-	pcdatalen := readUint32()
+-	a.Pcdata = make([]uint32, pcdatalen)
++	a.Pcsp = readSymIdx()
++	a.Pcfile = readSymIdx()
++	a.Pcline = readSymIdx()
++	a.Pcinline = readSymIdx()
++	a.Pcdata = make([]SymRef, readUint32())
+ 	for i := range a.Pcdata {
+-		a.Pcdata[i] = readUint32()
++		a.Pcdata[i] = readSymIdx()
+ 	}
+-	a.PcdataEnd = readUint32()
++
+ 	funcdataofflen := readUint32()
+ 	a.Funcdataoff = make([]uint32, funcdataofflen)
+ 	for i := range a.Funcdataoff {
+@@ -127,11 +132,13 @@ type FuncInfoLengths struct {
+ func (*FuncInfo) ReadFuncInfoLengths(b []byte) FuncInfoLengths {
+ 	var result FuncInfoLengths
+ 
+-	const numpcdataOff = 28
++	// Offset to the number of pcdata values. This value is determined by counting
++	// the number of bytes until we write pcdata to the file.
++	const numpcdataOff = 44
+ 	result.NumPcdata = binary.LittleEndian.Uint32(b[numpcdataOff:])
+ 	result.PcdataOff = numpcdataOff + 4
+ 
+-	numfuncdataoffOff := result.PcdataOff + 4*(result.NumPcdata+1)
++	numfuncdataoffOff := result.PcdataOff + 8*result.NumPcdata
+ 	result.NumFuncdataoff = binary.LittleEndian.Uint32(b[numfuncdataoffOff:])
+ 	result.FuncdataoffOff = numfuncdataoffOff + 4
+ 
+@@ -154,29 +161,28 @@ func (*FuncInfo) ReadLocals(b []byte) uint32 { return binary.LittleEndian.Uint32
+ 
+ func (*FuncInfo) ReadFuncID(b []byte) uint32 { return binary.LittleEndian.Uint32(b[8:]) }
+ 
+-// return start and end offsets.
+-func (*FuncInfo) ReadPcsp(b []byte) (uint32, uint32) {
+-	return binary.LittleEndian.Uint32(b[12:]), binary.LittleEndian.Uint32(b[16:])
++func (*FuncInfo) ReadPcsp(b []byte) SymRef {
++	return SymRef{binary.LittleEndian.Uint32(b[12:]), binary.LittleEndian.Uint32(b[16:])}
+ }
+ 
+-// return start and end offsets.
+-func (*FuncInfo) ReadPcfile(b []byte) (uint32, uint32) {
+-	return binary.LittleEndian.Uint32(b[16:]), binary.LittleEndian.Uint32(b[20:])
++func (*FuncInfo) ReadPcfile(b []byte) SymRef {
++	return SymRef{binary.LittleEndian.Uint32(b[20:]), binary.LittleEndian.Uint32(b[24:])}
+ }
+ 
+-// return start and end offsets.
+-func (*FuncInfo) ReadPcline(b []byte) (uint32, uint32) {
+-	return binary.LittleEndian.Uint32(b[20:]), binary.LittleEndian.Uint32(b[24:])
++func (*FuncInfo) ReadPcline(b []byte) SymRef {
++	return SymRef{binary.LittleEndian.Uint32(b[28:]), binary.LittleEndian.Uint32(b[32:])}
+ }
+ 
+-// return start and end offsets.
+-func (*FuncInfo) ReadPcinline(b []byte, pcdataoffset uint32) (uint32, uint32) {
+-	return binary.LittleEndian.Uint32(b[24:]), binary.LittleEndian.Uint32(b[pcdataoffset:])
++func (*FuncInfo) ReadPcinline(b []byte) SymRef {
++	return SymRef{binary.LittleEndian.Uint32(b[36:]), binary.LittleEndian.Uint32(b[40:])}
+ }
+ 
+-// return start and end offsets.
+-func (*FuncInfo) ReadPcdata(b []byte, pcdataoffset uint32, k uint32) (uint32, uint32) {
+-	return binary.LittleEndian.Uint32(b[pcdataoffset+4*k:]), binary.LittleEndian.Uint32(b[pcdataoffset+4+4*k:])
++func (*FuncInfo) ReadPcdata(b []byte) []SymRef {
++	syms := make([]SymRef, binary.LittleEndian.Uint32(b[44:]))
++	for i := range syms {
++		syms[i] = SymRef{binary.LittleEndian.Uint32(b[48+i*8:]), binary.LittleEndian.Uint32(b[52+i*8:])}
++	}
++	return syms
+ }
+ 
+ func (*FuncInfo) ReadFuncdataoff(b []byte, funcdataofffoff uint32, k uint32) int64 {
+diff --git a/src/cmd/internal/goobj/objfile.go b/src/cmd/internal/goobj/objfile.go
+index 5d4a253024..9a64f96cd6 100644
+--- a/src/cmd/internal/goobj/objfile.go
++++ b/src/cmd/internal/goobj/objfile.go
+@@ -421,8 +421,11 @@ const (
+ 	AuxDwarfLoc
+ 	AuxDwarfRanges
+ 	AuxDwarfLines
+-
+-	// TODO: more. Pcdata?
++	AuxPcsp
++	AuxPcfile
++	AuxPcline
++	AuxPcinline
++	AuxPcdata
+ )
+ 
+ func (a *Aux) Type() uint8 { return a[0] }
+@@ -827,11 +830,6 @@ func (r *Reader) Data(i uint32) []byte {
+ 	return r.BytesAt(base+off, int(end-off))
+ }
+ 
+-// AuxDataBase returns the base offset of the aux data block.
+-func (r *Reader) PcdataBase() uint32 {
+-	return r.h.Offsets[BlkPcdata]
+-}
+-
+ // NRefName returns the number of referenced symbol names.
+ func (r *Reader) NRefName() int {
+ 	return int(r.h.Offsets[BlkRefName+1]-r.h.Offsets[BlkRefName]) / RefNameSize
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index dc47e51be9..11fab63065 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -624,11 +624,12 @@ func (s *LSym) CanBeAnSSASym() {
+ }
+ 
+ type Pcln struct {
+-	Pcsp        Pcdata
+-	Pcfile      Pcdata
+-	Pcline      Pcdata
+-	Pcinline    Pcdata
+-	Pcdata      []Pcdata
++	// Aux symbols for pcln
++	Pcsp        *LSym
++	Pcfile      *LSym
++	Pcline      *LSym
++	Pcinline    *LSym
++	Pcdata      []*LSym
+ 	Funcdata    []*LSym
+ 	Funcdataoff []int64
+ 	UsedFiles   map[goobj.CUFileIndex]struct{} // file indices used while generating pcfile
+@@ -650,10 +651,6 @@ type Auto struct {
+ 	Gotype  *LSym
+ }
+ 
+-type Pcdata struct {
+-	P []byte
+-}
+-
+ // Link holds the context for writing object code from a compiler
+ // to be linker input or for reading that input into the linker.
+ type Link struct {
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index 8234697d72..a2bbdff24e 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -185,7 +185,11 @@ func WriteObjFile(ctxt *Link, b *bio.Writer) {
+ 	// Pcdata
+ 	h.Offsets[goobj.BlkPcdata] = w.Offset()
+ 	for _, s := range ctxt.Text { // iteration order must match genFuncInfoSyms
+-		if s.Func != nil {
++		// Because of the phase order, it's possible that we try to write an invalid
++		// object file, and the Pcln variables haven't been filled in. As such, we
++		// need to check that Pcsp exists, and assume the other pcln variables exist
++		// as well. Tests like test/fixedbugs/issue22200.go demonstrate this issue.
++		if s.Func != nil && s.Func.Pcln.Pcsp != nil {
+ 			pc := &s.Func.Pcln
+ 			w.Bytes(pc.Pcsp.P)
+ 			w.Bytes(pc.Pcfile.P)
+@@ -478,6 +482,22 @@ func (w *writer) Aux(s *LSym) {
+ 		if s.Func.dwarfDebugLinesSym != nil && s.Func.dwarfDebugLinesSym.Size != 0 {
+ 			w.aux1(goobj.AuxDwarfLines, s.Func.dwarfDebugLinesSym)
+ 		}
++		if s.Func.Pcln.Pcsp != nil && s.Func.Pcln.Pcsp.Size != 0 {
++			w.aux1(goobj.AuxPcsp, s.Func.Pcln.Pcsp)
++		}
++		if s.Func.Pcln.Pcfile != nil && s.Func.Pcln.Pcfile.Size != 0 {
++			w.aux1(goobj.AuxPcfile, s.Func.Pcln.Pcfile)
++		}
++		if s.Func.Pcln.Pcline != nil && s.Func.Pcln.Pcline.Size != 0 {
++			w.aux1(goobj.AuxPcline, s.Func.Pcln.Pcline)
++		}
++		if s.Func.Pcln.Pcinline != nil && s.Func.Pcln.Pcinline.Size != 0 {
++			w.aux1(goobj.AuxPcinline, s.Func.Pcln.Pcinline)
++		}
++		for _, pcSym := range s.Func.Pcln.Pcdata {
++			w.aux1(goobj.AuxPcdata, pcSym)
++		}
++
+ 	}
+ }
+ 
+@@ -559,6 +579,19 @@ func nAuxSym(s *LSym) int {
+ 		if s.Func.dwarfDebugLinesSym != nil && s.Func.dwarfDebugLinesSym.Size != 0 {
+ 			n++
+ 		}
++		if s.Func.Pcln.Pcsp != nil && s.Func.Pcln.Pcsp.Size != 0 {
++			n++
++		}
++		if s.Func.Pcln.Pcfile != nil && s.Func.Pcln.Pcfile.Size != 0 {
++			n++
++		}
++		if s.Func.Pcln.Pcline != nil && s.Func.Pcln.Pcline.Size != 0 {
++			n++
++		}
++		if s.Func.Pcln.Pcinline != nil && s.Func.Pcln.Pcinline.Size != 0 {
++			n++
++		}
++		n += len(s.Func.Pcln.Pcdata)
+ 	}
+ 	return n
+ }
+@@ -566,7 +599,17 @@ func nAuxSym(s *LSym) int {
+ // generate symbols for FuncInfo.
+ func genFuncInfoSyms(ctxt *Link) {
+ 	infosyms := make([]*LSym, 0, len(ctxt.Text))
+-	var pcdataoff uint32
++	hashedsyms := make([]*LSym, 0, 4*len(ctxt.Text))
++	preparePcSym := func(s *LSym) *LSym {
++		if s == nil {
++			return s
++		}
++		s.PkgIdx = goobj.PkgIdxHashed
++		s.SymIdx = int32(len(hashedsyms) + len(ctxt.hasheddefs))
++		s.Set(AttrIndexed, true)
++		hashedsyms = append(hashedsyms, s)
++		return s
++	}
+ 	var b bytes.Buffer
+ 	symidx := int32(len(ctxt.defs))
+ 	for _, s := range ctxt.Text {
+@@ -579,20 +622,14 @@ func genFuncInfoSyms(ctxt *Link) {
+ 			FuncID: objabi.FuncID(s.Func.FuncID),
+ 		}
+ 		pc := &s.Func.Pcln
+-		o.Pcsp = pcdataoff
+-		pcdataoff += uint32(len(pc.Pcsp.P))
+-		o.Pcfile = pcdataoff
+-		pcdataoff += uint32(len(pc.Pcfile.P))
+-		o.Pcline = pcdataoff
+-		pcdataoff += uint32(len(pc.Pcline.P))
+-		o.Pcinline = pcdataoff
+-		pcdataoff += uint32(len(pc.Pcinline.P))
+-		o.Pcdata = make([]uint32, len(pc.Pcdata))
+-		for i, pcd := range pc.Pcdata {
+-			o.Pcdata[i] = pcdataoff
+-			pcdataoff += uint32(len(pcd.P))
+-		}
+-		o.PcdataEnd = pcdataoff
++		o.Pcsp = makeSymRef(preparePcSym(pc.Pcsp))
++		o.Pcfile = makeSymRef(preparePcSym(pc.Pcfile))
++		o.Pcline = makeSymRef(preparePcSym(pc.Pcline))
++		o.Pcinline = makeSymRef(preparePcSym(pc.Pcinline))
++		o.Pcdata = make([]goobj.SymRef, len(pc.Pcdata))
++		for i, pcSym := range pc.Pcdata {
++			o.Pcdata[i] = makeSymRef(preparePcSym(pcSym))
++		}
+ 		o.Funcdataoff = make([]uint32, len(pc.Funcdataoff))
+ 		for i, x := range pc.Funcdataoff {
+ 			o.Funcdataoff[i] = uint32(x)
+@@ -642,9 +679,9 @@ func genFuncInfoSyms(ctxt *Link) {
+ 		}
+ 	}
+ 	ctxt.defs = append(ctxt.defs, infosyms...)
++	ctxt.hasheddefs = append(ctxt.hasheddefs, hashedsyms...)
+ }
+ 
+-// debugDumpAux is a dumper for selected aux symbols.
+ func writeAuxSymDebug(ctxt *Link, par *LSym, aux *LSym) {
+ 	// Most aux symbols (ex: funcdata) are not interesting--
+ 	// pick out just the DWARF ones for now.
+diff --git a/src/cmd/internal/obj/pcln.go b/src/cmd/internal/obj/pcln.go
+index 1f7ccf47ef..7750637796 100644
+--- a/src/cmd/internal/obj/pcln.go
++++ b/src/cmd/internal/obj/pcln.go
+@@ -6,6 +6,7 @@ package obj
+ 
+ import (
+ 	"cmd/internal/goobj"
++	"cmd/internal/objabi"
+ 	"encoding/binary"
+ 	"log"
+ )
+@@ -14,16 +15,19 @@ import (
+ // returned by valfunc parameterized by arg. The invocation of valfunc to update the
+ // current value is, for each p,
+ //
+-//	val = valfunc(func, val, p, 0, arg);
+-//	record val as value at p->pc;
+-//	val = valfunc(func, val, p, 1, arg);
++//	sym = valfunc(func, p, 0, arg);
++//	record sym.P as value at p->pc;
++//	sym = valfunc(func, p, 1, arg);
+ //
+ // where func is the function, val is the current value, p is the instruction being
+ // considered, and arg can be used to further parameterize valfunc.
+-func funcpctab(ctxt *Link, dst *Pcdata, func_ *LSym, desc string, valfunc func(*Link, *LSym, int32, *Prog, int32, interface{}) int32, arg interface{}) {
++func funcpctab(ctxt *Link, func_ *LSym, desc string, valfunc func(*Link, *LSym, int32, *Prog, int32, interface{}) int32, arg interface{}) *LSym {
+ 	dbg := desc == ctxt.Debugpcln
+-
+-	dst.P = dst.P[:0]
++	dst := []byte{}
++	sym := &LSym{
++		Type:      objabi.SRODATA,
++		Attribute: AttrContentAddressable,
++	}
+ 
+ 	if dbg {
+ 		ctxt.Logf("funcpctab %s [valfunc=%s]\n", func_.Name, desc)
+@@ -32,7 +36,8 @@ func funcpctab(ctxt *Link, dst *Pcdata, func_ *LSym, desc string, valfunc func(*
+ 	val := int32(-1)
+ 	oldval := val
+ 	if func_.Func.Text == nil {
+-		return
++		// Return the emtpy symbol we've built so far.
++		return sym
+ 	}
+ 
+ 	pc := func_.Func.Text.Pc
+@@ -88,13 +93,13 @@ func funcpctab(ctxt *Link, dst *Pcdata, func_ *LSym, desc string, valfunc func(*
+ 		if started {
+ 			pcdelta := (p.Pc - pc) / int64(ctxt.Arch.MinLC)
+ 			n := binary.PutUvarint(buf, uint64(pcdelta))
+-			dst.P = append(dst.P, buf[:n]...)
++			dst = append(dst, buf[:n]...)
+ 			pc = p.Pc
+ 		}
+ 
+ 		delta := val - oldval
+ 		n := binary.PutVarint(buf, int64(delta))
+-		dst.P = append(dst.P, buf[:n]...)
++		dst = append(dst, buf[:n]...)
+ 		oldval = val
+ 		started = true
+ 		val = valfunc(ctxt, func_, val, p, 1, arg)
+@@ -109,18 +114,22 @@ func funcpctab(ctxt *Link, dst *Pcdata, func_ *LSym, desc string, valfunc func(*
+ 			ctxt.Diag("negative pc offset: %v", v)
+ 		}
+ 		n := binary.PutUvarint(buf, uint64(v))
+-		dst.P = append(dst.P, buf[:n]...)
++		dst = append(dst, buf[:n]...)
+ 		// add terminating varint-encoded 0, which is just 0
+-		dst.P = append(dst.P, 0)
++		dst = append(dst, 0)
+ 	}
+ 
+ 	if dbg {
+-		ctxt.Logf("wrote %d bytes to %p\n", len(dst.P), dst)
+-		for _, p := range dst.P {
++		ctxt.Logf("wrote %d bytes to %p\n", len(dst), dst)
++		for _, p := range dst {
+ 			ctxt.Logf(" %02x", p)
+ 		}
+ 		ctxt.Logf("\n")
+ 	}
++
++	sym.Size = int64(len(dst))
++	sym.P = dst
++	return sym
+ }
+ 
+ // pctofileline computes either the file number (arg == 0)
+@@ -268,18 +277,17 @@ func linkpcln(ctxt *Link, cursym *LSym) {
+ 		}
+ 	}
+ 
+-	pcln.Pcdata = make([]Pcdata, npcdata)
+-	pcln.Pcdata = pcln.Pcdata[:npcdata]
++	pcln.Pcdata = make([]*LSym, npcdata)
+ 	pcln.Funcdata = make([]*LSym, nfuncdata)
+ 	pcln.Funcdataoff = make([]int64, nfuncdata)
+ 	pcln.Funcdataoff = pcln.Funcdataoff[:nfuncdata]
+ 
+-	funcpctab(ctxt, &pcln.Pcsp, cursym, "pctospadj", pctospadj, nil)
+-	funcpctab(ctxt, &pcln.Pcfile, cursym, "pctofile", pctofileline, pcln)
+-	funcpctab(ctxt, &pcln.Pcline, cursym, "pctoline", pctofileline, nil)
++	pcln.Pcsp = funcpctab(ctxt, cursym, "pctospadj", pctospadj, nil)
++	pcln.Pcfile = funcpctab(ctxt, cursym, "pctofile", pctofileline, pcln)
++	pcln.Pcline = funcpctab(ctxt, cursym, "pctoline", pctofileline, nil)
+ 
+ 	pcinlineState := new(pcinlineState)
+-	funcpctab(ctxt, &pcln.Pcinline, cursym, "pctoinline", pcinlineState.pctoinline, nil)
++	pcln.Pcinline = funcpctab(ctxt, cursym, "pctoinline", pcinlineState.pctoinline, nil)
+ 	for _, inlMark := range cursym.Func.InlMarks {
+ 		pcinlineState.setParentPC(ctxt, int(inlMark.id), int32(inlMark.p.Pc))
+ 	}
+@@ -309,9 +317,14 @@ func linkpcln(ctxt *Link, cursym *LSym) {
+ 	// pcdata.
+ 	for i := 0; i < npcdata; i++ {
+ 		if (havepc[i/32]>>uint(i%32))&1 == 0 {
+-			continue
++			// use an empty symbol.
++			pcln.Pcdata[i] = &LSym{
++				Type:      objabi.SRODATA,
++				Attribute: AttrContentAddressable,
++			}
++		} else {
++			pcln.Pcdata[i] = funcpctab(ctxt, cursym, "pctopcdata", pctopcdata, interface{}(uint32(i)))
+ 		}
+-		funcpctab(ctxt, &pcln.Pcdata[i], cursym, "pctopcdata", pctopcdata, interface{}(uint32(i)))
+ 	}
+ 
+ 	// funcdata
+diff --git a/src/cmd/internal/objfile/goobj.go b/src/cmd/internal/objfile/goobj.go
+index e838f58aed..8eecebb1df 100644
+--- a/src/cmd/internal/objfile/goobj.go
++++ b/src/cmd/internal/objfile/goobj.go
+@@ -236,7 +236,15 @@ func (f *goobjFile) PCToLine(pc uint64) (string, int, *gosym.Func) {
+ 	if arch == nil {
+ 		return "", 0, nil
+ 	}
+-	pcdataBase := r.PcdataBase()
++	getSymData := func(s goobj.SymRef) []byte {
++		if s.PkgIdx != goobj.PkgIdxHashed {
++			// We don't need the data for non-hashed symbols, yet.
++			panic("not supported")
++		}
++		i := uint32(s.SymIdx + uint32(r.NSym()+r.NHashed64def()))
++		return r.BytesAt(r.DataOff(i), r.DataSize(i))
++	}
++
+ 	ndef := uint32(r.NSym() + r.NHashed64def() + r.NHasheddef() + r.NNonpkgdef())
+ 	for i := uint32(0); i < ndef; i++ {
+ 		osym := r.Sym(i)
+@@ -262,11 +270,9 @@ func (f *goobjFile) PCToLine(pc uint64) (string, int, *gosym.Func) {
+ 		b := r.BytesAt(r.DataOff(isym), r.DataSize(isym))
+ 		var info *goobj.FuncInfo
+ 		lengths := info.ReadFuncInfoLengths(b)
+-		off, end := info.ReadPcline(b)
+-		pcline := r.BytesAt(pcdataBase+off, int(end-off))
++		pcline := getSymData(info.ReadPcline(b))
+ 		line := int(pcValue(pcline, pc-addr, arch))
+-		off, end = info.ReadPcfile(b)
+-		pcfile := r.BytesAt(pcdataBase+off, int(end-off))
++		pcfile := getSymData(info.ReadPcfile(b))
+ 		fileID := pcValue(pcfile, pc-addr, arch)
+ 		globalFileID := info.ReadFile(b, lengths.FileOff, uint32(fileID))
+ 		fileName := r.File(int(globalFileID))
+diff --git a/src/cmd/link/internal/ld/dwarf.go b/src/cmd/link/internal/ld/dwarf.go
+index d1f2ac583d..2b95ad5a67 100644
+--- a/src/cmd/link/internal/ld/dwarf.go
++++ b/src/cmd/link/internal/ld/dwarf.go
+@@ -1421,7 +1421,7 @@ func (d *dwctxt) writeframes(fs loader.Sym) dwarfSecInfo {
+ 			deltaBuf = dwarf.AppendUleb128(deltaBuf, uint64(thearch.Dwarfreglr))
+ 		}
+ 
+-		for pcsp.Init(fpcsp); !pcsp.Done; pcsp.Next() {
++		for pcsp.Init(d.linkctxt.loader.Data(fpcsp)); !pcsp.Done; pcsp.Next() {
+ 			nextpc := pcsp.NextPC
+ 
+ 			// pciterinit goes up to the end of the function,
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 09c7bbfb53..caa4566190 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -2252,7 +2252,7 @@ func (sc *stkChk) check(up *chain, depth int) int {
+ 	var ch1 chain
+ 	pcsp := obj.NewPCIter(uint32(ctxt.Arch.MinLC))
+ 	ri := 0
+-	for pcsp.Init(info.Pcsp()); !pcsp.Done; pcsp.Next() {
++	for pcsp.Init(ldr.Data(info.Pcsp())); !pcsp.Done; pcsp.Next() {
+ 		// pcsp.value is in effect for [pcsp.pc, pcsp.nextpc).
+ 
+ 		// Check stack size in effect for this span.
+diff --git a/src/cmd/link/internal/ld/pcln.go b/src/cmd/link/internal/ld/pcln.go
+index c7535f6a61..e9fd5937e7 100644
+--- a/src/cmd/link/internal/ld/pcln.go
++++ b/src/cmd/link/internal/ld/pcln.go
+@@ -592,9 +592,8 @@ func (ctxt *Link) pclntab(container loader.Bitmap) *pclntab {
+ 		fi := ldr.FuncInfo(s)
+ 		if fi.Valid() {
+ 			fi.Preload()
+-			npc := fi.NumPcdata()
+-			for i := uint32(0); i < npc; i++ {
+-				pcdata = append(pcdata, sym.Pcdata{P: fi.Pcdata(int(i))})
++			for _, dataSym := range fi.Pcdata() {
++				pcdata = append(pcdata, sym.Pcdata{P: ldr.Data(dataSym)})
+ 			}
+ 			nfd := fi.NumFuncdataoff()
+ 			for i := uint32(0); i < nfd; i++ {
+@@ -666,15 +665,15 @@ func (ctxt *Link) pclntab(container loader.Bitmap) *pclntab {
+ 
+ 		cu := ldr.SymUnit(s)
+ 		if fi.Valid() {
+-			pcsp = sym.Pcdata{P: fi.Pcsp()}
+-			pcfile = sym.Pcdata{P: fi.Pcfile()}
+-			pcline = sym.Pcdata{P: fi.Pcline()}
++			pcsp = sym.Pcdata{P: ldr.Data(fi.Pcsp())}
++			pcfile = sym.Pcdata{P: ldr.Data(fi.Pcfile())}
++			pcline = sym.Pcdata{P: ldr.Data(fi.Pcline())}
+ 		}
+ 
+ 		if fi.Valid() && fi.NumInlTree() > 0 {
+ 			its := oldState.genInlTreeSym(cu, fi, ctxt.Arch, state)
+ 			funcdata[objabi.FUNCDATA_InlTree] = its
+-			pcdata[objabi.PCDATA_InlTreeIndex] = sym.Pcdata{P: fi.Pcinline()}
++			pcdata[objabi.PCDATA_InlTreeIndex] = sym.Pcdata{P: ldr.Data(fi.Pcinline())}
+ 		}
+ 
+ 		// pcdata
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index 8fd10b0848..f149e3c831 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -1878,19 +1878,24 @@ func (fi *FuncInfo) FuncID() objabi.FuncID {
+ 	return objabi.FuncID((*goobj.FuncInfo)(nil).ReadFuncID(fi.data))
+ }
+ 
+-func (fi *FuncInfo) Pcsp() []byte {
+-	pcsp, end := (*goobj.FuncInfo)(nil).ReadPcsp(fi.data)
+-	return fi.r.BytesAt(fi.r.PcdataBase()+pcsp, int(end-pcsp))
++func (fi *FuncInfo) Pcsp() Sym {
++	sym := (*goobj.FuncInfo)(nil).ReadPcsp(fi.data)
++	return fi.l.resolve(fi.r, sym)
+ }
+ 
+-func (fi *FuncInfo) Pcfile() []byte {
+-	pcf, end := (*goobj.FuncInfo)(nil).ReadPcfile(fi.data)
+-	return fi.r.BytesAt(fi.r.PcdataBase()+pcf, int(end-pcf))
++func (fi *FuncInfo) Pcfile() Sym {
++	sym := (*goobj.FuncInfo)(nil).ReadPcfile(fi.data)
++	return fi.l.resolve(fi.r, sym)
+ }
+ 
+-func (fi *FuncInfo) Pcline() []byte {
+-	pcln, end := (*goobj.FuncInfo)(nil).ReadPcline(fi.data)
+-	return fi.r.BytesAt(fi.r.PcdataBase()+pcln, int(end-pcln))
++func (fi *FuncInfo) Pcline() Sym {
++	sym := (*goobj.FuncInfo)(nil).ReadPcline(fi.data)
++	return fi.l.resolve(fi.r, sym)
++}
++
++func (fi *FuncInfo) Pcinline() Sym {
++	sym := (*goobj.FuncInfo)(nil).ReadPcinline(fi.data)
++	return fi.l.resolve(fi.r, sym)
+ }
+ 
+ // Preload has to be called prior to invoking the various methods
+@@ -1899,27 +1904,16 @@ func (fi *FuncInfo) Preload() {
+ 	fi.lengths = (*goobj.FuncInfo)(nil).ReadFuncInfoLengths(fi.data)
+ }
+ 
+-func (fi *FuncInfo) Pcinline() []byte {
++func (fi *FuncInfo) Pcdata() []Sym {
+ 	if !fi.lengths.Initialized {
+ 		panic("need to call Preload first")
+ 	}
+-	pcinl, end := (*goobj.FuncInfo)(nil).ReadPcinline(fi.data, fi.lengths.PcdataOff)
+-	return fi.r.BytesAt(fi.r.PcdataBase()+pcinl, int(end-pcinl))
+-}
+-
+-func (fi *FuncInfo) NumPcdata() uint32 {
+-	if !fi.lengths.Initialized {
+-		panic("need to call Preload first")
+-	}
+-	return fi.lengths.NumPcdata
+-}
+-
+-func (fi *FuncInfo) Pcdata(k int) []byte {
+-	if !fi.lengths.Initialized {
+-		panic("need to call Preload first")
++	syms := (*goobj.FuncInfo)(nil).ReadPcdata(fi.data)
++	ret := make([]Sym, len(syms))
++	for i := range ret {
++		ret[i] = fi.l.resolve(fi.r, syms[i])
+ 	}
+-	pcdat, end := (*goobj.FuncInfo)(nil).ReadPcdata(fi.data, fi.lengths.PcdataOff, uint32(k))
+-	return fi.r.BytesAt(fi.r.PcdataBase()+pcdat, int(end-pcdat))
++	return ret
+ }
+ 
+ func (fi *FuncInfo) NumFuncdataoff() uint32 {

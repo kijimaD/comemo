@@ -13,7 +13,72 @@ Date:   Sun Oct 31 21:12:45 2021 +0800
     Trust: mzh <mzh@golangcn.org>
     Run-TryBot: mzh <mzh@golangcn.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/riscv64/galign.go |  2 ++
  src/cmd/compile/internal/riscv64/ssa.go    | 31 ++++++++++++++++++++++++++++++
  2 files changed, 33 insertions(+)
+
+diff --git a/src/cmd/compile/internal/riscv64/galign.go b/src/cmd/compile/internal/riscv64/galign.go
+index 846ed8fb38..4244afba3e 100644
+--- a/src/cmd/compile/internal/riscv64/galign.go
++++ b/src/cmd/compile/internal/riscv64/galign.go
+@@ -21,4 +21,6 @@ func Init(arch *ssagen.ArchInfo) {
+ 	arch.SSAMarkMoves = ssaMarkMoves
+ 	arch.SSAGenValue = ssaGenValue
+ 	arch.SSAGenBlock = ssaGenBlock
++	arch.LoadRegResult = loadRegResult
++	arch.SpillArgReg = spillArgReg
+ }
+diff --git a/src/cmd/compile/internal/riscv64/ssa.go b/src/cmd/compile/internal/riscv64/ssa.go
+index d4faee9ee3..b6e6dc1a03 100644
+--- a/src/cmd/compile/internal/riscv64/ssa.go
++++ b/src/cmd/compile/internal/riscv64/ssa.go
+@@ -7,6 +7,7 @@ package riscv64
+ import (
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/ir"
++	"cmd/compile/internal/objw"
+ 	"cmd/compile/internal/ssa"
+ 	"cmd/compile/internal/ssagen"
+ 	"cmd/compile/internal/types"
+@@ -231,6 +232,17 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p.From.Reg = v.Args[0].Reg()
+ 		ssagen.AddrAuto(&p.To, v)
+ 	case ssa.OpArgIntReg, ssa.OpArgFloatReg:
++		// The assembler needs to wrap the entry safepoint/stack growth code with spill/unspill
++		// The loop only runs once.
++		for _, a := range v.Block.Func.RegArgs {
++			// Pass the spill/unspill information along to the assembler, offset by size of
++			// the saved LR slot.
++			addr := ssagen.SpillSlotAddr(a, riscv.REG_SP, base.Ctxt.FixedFrameSize())
++			s.FuncInfo().AddSpill(
++				obj.RegSpill{Reg: a.Reg, Addr: addr, Unspill: loadByType(a.Type), Spill: storeByType(a.Type)})
++		}
++		v.Block.Func.RegArgs = nil
++
+ 		ssagen.CheckArgReg(v)
+ 	case ssa.OpSP, ssa.OpSB, ssa.OpGetG:
+ 		// nothing to do
+@@ -775,3 +787,22 @@ func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
+ 		b.Fatalf("Unhandled block: %s", b.LongString())
+ 	}
+ }
++
++func loadRegResult(s *ssagen.State, f *ssa.Func, t *types.Type, reg int16, n *ir.Name, off int64) *obj.Prog {
++	p := s.Prog(loadByType(t))
++	p.From.Type = obj.TYPE_MEM
++	p.From.Name = obj.NAME_AUTO
++	p.From.Sym = n.Linksym()
++	p.From.Offset = n.FrameOffset() + off
++	p.To.Type = obj.TYPE_REG
++	p.To.Reg = reg
++	return p
++}
++
++func spillArgReg(pp *objw.Progs, p *obj.Prog, f *ssa.Func, t *types.Type, reg int16, n *ir.Name, off int64) *obj.Prog {
++	p = pp.Append(p, storeByType(t), obj.TYPE_REG, reg, 0, obj.TYPE_MEM, 0, n.FrameOffset()+off)
++	p.To.Name = obj.NAME_PARAM
++	p.To.Sym = n.Linksym()
++	p.Pos = p.Pos.WithNotStmt()
++	return p
++}

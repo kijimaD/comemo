@@ -13,7 +13,7 @@ Date:   Fri Dec 25 12:02:04 2020 -0500
     Trust: Emmanuel Odeke <emmanuel@orijtech.com>
     Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/bufio/bufio.go          |  3 ++-
  src/bufio/bufio_test.go     | 14 ++++++++++++++
  src/bytes/buffer.go         |  3 ++-
@@ -21,3 +21,129 @@ Date:   Fri Dec 25 12:02:04 2020 -0500
  src/strings/builder.go      |  3 ++-
  src/strings/builder_test.go | 11 +++++++++++
  6 files changed, 42 insertions(+), 3 deletions(-)
+
+diff --git a/src/bufio/bufio.go b/src/bufio/bufio.go
+index 6baf9b9e40..ec928e7ad6 100644
+--- a/src/bufio/bufio.go
++++ b/src/bufio/bufio.go
+@@ -670,7 +670,8 @@ func (b *Writer) WriteByte(c byte) error {
+ // WriteRune writes a single Unicode code point, returning
+ // the number of bytes written and any error.
+ func (b *Writer) WriteRune(r rune) (size int, err error) {
+-	if r < utf8.RuneSelf {
++	// Compare as uint32 to correctly handle negative runes.
++	if uint32(r) < utf8.RuneSelf {
+ 		err = b.WriteByte(byte(r))
+ 		if err != nil {
+ 			return 0, err
+diff --git a/src/bufio/bufio_test.go b/src/bufio/bufio_test.go
+index d7b34bd0d8..ebcc711db9 100644
+--- a/src/bufio/bufio_test.go
++++ b/src/bufio/bufio_test.go
+@@ -534,6 +534,20 @@ func TestReadWriteRune(t *testing.T) {
+ 	}
+ }
+ 
++func TestWriteInvalidRune(t *testing.T) {
++	// Invalid runes, including negative ones, should be written as the
++	// replacement character.
++	for _, r := range []rune{-1, utf8.MaxRune + 1} {
++		var buf bytes.Buffer
++		w := NewWriter(&buf)
++		w.WriteRune(r)
++		w.Flush()
++		if s := buf.String(); s != "\uFFFD" {
++			t.Errorf("WriteRune(%d) wrote %q, not replacement character", r, s)
++		}
++	}
++}
++
+ func TestReadStringAllocs(t *testing.T) {
+ 	r := strings.NewReader("       foo       foo        42        42        42        42        42        42        42        42       4.2       4.2       4.2       4.2\n")
+ 	buf := NewReader(r)
+diff --git a/src/bytes/buffer.go b/src/bytes/buffer.go
+index f19a4cfff0..549b077708 100644
+--- a/src/bytes/buffer.go
++++ b/src/bytes/buffer.go
+@@ -275,7 +275,8 @@ func (b *Buffer) WriteByte(c byte) error {
+ // included to match bufio.Writer's WriteRune. The buffer is grown as needed;
+ // if it becomes too large, WriteRune will panic with ErrTooLarge.
+ func (b *Buffer) WriteRune(r rune) (n int, err error) {
+-	if r < utf8.RuneSelf {
++	// Compare as uint32 to correctly handle negative runes.
++	if uint32(r) < utf8.RuneSelf {
+ 		b.WriteByte(byte(r))
+ 		return 1, nil
+ 	}
+diff --git a/src/bytes/buffer_test.go b/src/bytes/buffer_test.go
+index fec5ef8a35..9c9b7440ff 100644
+--- a/src/bytes/buffer_test.go
++++ b/src/bytes/buffer_test.go
+@@ -6,6 +6,7 @@ package bytes_test
+ 
+ import (
+ 	. "bytes"
++	"fmt"
+ 	"io"
+ 	"math/rand"
+ 	"testing"
+@@ -387,6 +388,16 @@ func TestRuneIO(t *testing.T) {
+ 	}
+ }
+ 
++func TestWriteInvalidRune(t *testing.T) {
++	// Invalid runes, including negative ones, should be written as
++	// utf8.RuneError.
++	for _, r := range []rune{-1, utf8.MaxRune + 1} {
++		var buf Buffer
++		buf.WriteRune(r)
++		check(t, fmt.Sprintf("TestWriteInvalidRune (%d)", r), &buf, "\uFFFD")
++	}
++}
++
+ func TestNext(t *testing.T) {
+ 	b := []byte{0, 1, 2, 3, 4}
+ 	tmp := make([]byte, 5)
+diff --git a/src/strings/builder.go b/src/strings/builder.go
+index 6ff151d74b..547e52e84d 100644
+--- a/src/strings/builder.go
++++ b/src/strings/builder.go
+@@ -103,7 +103,8 @@ func (b *Builder) WriteByte(c byte) error {
+ // It returns the length of r and a nil error.
+ func (b *Builder) WriteRune(r rune) (int, error) {
+ 	b.copyCheck()
+-	if r < utf8.RuneSelf {
++	// Compare as uint32 to correctly handle negative runes.
++	if uint32(r) < utf8.RuneSelf {
+ 		b.buf = append(b.buf, byte(r))
+ 		return 1, nil
+ 	}
+diff --git a/src/strings/builder_test.go b/src/strings/builder_test.go
+index b662efe7a5..e3d239266f 100644
+--- a/src/strings/builder_test.go
++++ b/src/strings/builder_test.go
+@@ -8,6 +8,7 @@ import (
+ 	"bytes"
+ 	. "strings"
+ 	"testing"
++	"unicode/utf8"
+ )
+ 
+ func check(t *testing.T, b *Builder, want string) {
+@@ -301,6 +302,16 @@ func TestBuilderCopyPanic(t *testing.T) {
+ 	}
+ }
+ 
++func TestBuilderWriteInvalidRune(t *testing.T) {
++	// Invalid runes, including negative ones, should be written as
++	// utf8.RuneError.
++	for _, r := range []rune{-1, utf8.MaxRune + 1} {
++		var b Builder
++		b.WriteRune(r)
++		check(t, &b, "\uFFFD")
++	}
++}
++
+ var someBytes = []byte("some bytes sdljlk jsklj3lkjlk djlkjw")
+ 
+ var sinkS string

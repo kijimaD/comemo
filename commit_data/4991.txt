@@ -7,7 +7,32 @@ Date:   Thu Mar 4 16:16:56 2010 -0800
     R=adg
     CC=golang-dev
     https://golang.org/cl/240041
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index f3358bab05..10f43265bd 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -58,6 +58,7 @@ Ross Light <rlight2@gmail.com>
+ Sergei Skorobogatov <skorobo@rambler.ru>
+ Sergey 'SnakE'  Gromov <snake.scaly@gmail.com>
+ Sergio Luis O. B. Correia <sergio@larces.uece.br>
++Spring Mc <heresy.mc@gmail.com>
+ Stephen Weinberg <stephen@q5comm.com>
+ Sven Almgren <sven@tras.se>
+ Timo Savola <timo.savola@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 01d52e9ad4..4d626f70c3 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -102,6 +102,7 @@ Scott Schwartz <scotts@golang.org>
+ Sergei Skorobogatov <skorobo@rambler.ru>
+ Sergey 'SnakE' Gromov <snake.scaly@gmail.com>
+ Sergio Luis O. B. Correia <sergio@larces.uece.br>
++Spring Mc <heresy.mc@gmail.com>
+ Stephen Ma <stephenm@golang.org>
+ Stephen Weinberg <stephen@q5comm.com>
+ Sven Almgren <sven@tras.se>

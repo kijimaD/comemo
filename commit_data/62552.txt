@@ -44,6 +44,24 @@ Date:   Wed Mar 12 12:05:11 2025 -0400
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Alessandro Arzilli <alessandro.arzilli@gmail.com>
-
+---
  src/cmd/internal/dwarf/dwarf.go | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/internal/dwarf/dwarf.go b/src/cmd/internal/dwarf/dwarf.go
+index 88dac10c1b..7673c3f6ba 100644
+--- a/src/cmd/internal/dwarf/dwarf.go
++++ b/src/cmd/internal/dwarf/dwarf.go
+@@ -1295,8 +1295,11 @@ func putInlinedFunc(ctxt Context, s *FnState, callIdx int) error {
+ 	ic := s.InlCalls.Calls[callIdx]
+ 	callee := ic.AbsFunSym
+ 
++	// For DWARF 5, we always use the ranges form of the abbrev, since
++	// it is more compact than using explicit hi/lo PC attrs.  See
++	// issue #72821 for more on why this makes sense.
+ 	abbrev := DW_ABRV_INLINED_SUBROUTINE_RANGES
+-	if len(ic.Ranges) == 1 {
++	if len(ic.Ranges) == 1 && !buildcfg.Experiment.Dwarf5 {
+ 		abbrev = DW_ABRV_INLINED_SUBROUTINE
+ 	}
+ 	Uleb128put(ctxt, s.Info, int64(abbrev))

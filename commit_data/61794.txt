@@ -17,6 +17,31 @@ Date:   Fri Nov 22 15:19:35 2024 -0800
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/crypto/internal/fips140/aes/ctr.go | 9 ++++++++-
  1 file changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/src/crypto/internal/fips140/aes/ctr.go b/src/crypto/internal/fips140/aes/ctr.go
+index ec1959a225..f612034d85 100644
+--- a/src/crypto/internal/fips140/aes/ctr.go
++++ b/src/crypto/internal/fips140/aes/ctr.go
+@@ -18,11 +18,18 @@ type CTR struct {
+ }
+ 
+ func NewCTR(b *Block, iv []byte) *CTR {
++	// Allocate the CTR here, in an easily inlineable function, so
++	// the allocation can be done in the caller's stack frame
++	// instead of the heap.  See issue 70499.
++	c := newCTR(b, iv)
++	return &c
++}
++func newCTR(b *Block, iv []byte) CTR {
+ 	if len(iv) != BlockSize {
+ 		panic("bad IV length")
+ 	}
+ 
+-	return &CTR{
++	return CTR{
+ 		b:      *b,
+ 		ivlo:   byteorder.BEUint64(iv[8:16]),
+ 		ivhi:   byteorder.BEUint64(iv[0:8]),

@@ -9,6 +9,20 @@ Date:   Tue Apr 14 15:22:02 2015 -0700
     Change-Id: I57fcebaaef768b00263b6b91211b1434f6a4b229
     Reviewed-on: https://go-review.googlesource.com/8919
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/os/types.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/os/types.go b/src/os/types.go
+index 473d431d4d..9d6f8e13d6 100644
+--- a/src/os/types.go
++++ b/src/os/types.go
+@@ -53,7 +53,7 @@ const (
+ 	// Mask for the type bits. For regular files, none will be set.
+ 	ModeType = ModeDir | ModeSymlink | ModeNamedPipe | ModeSocket | ModeDevice
+ 
+-	ModePerm FileMode = 0777 // permission bits
++	ModePerm FileMode = 0777 // Unix permission bits
+ )
+ 
+ func (m FileMode) String() string {

@@ -55,8 +55,98 @@ Date:   Sun Mar 3 17:02:14 2019 -0800
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/internal/poll/errno_unix.go      | 33 +++++++++++++++++++++++++++++++++
  src/internal/poll/errno_windows.go   | 31 +++++++++++++++++++++++++++++++
  src/internal/poll/fd_poll_runtime.go |  2 +-
  3 files changed, 65 insertions(+), 1 deletion(-)
+
+diff --git a/src/internal/poll/errno_unix.go b/src/internal/poll/errno_unix.go
+new file mode 100644
+index 0000000000..0b23fc3210
+--- /dev/null
++++ b/src/internal/poll/errno_unix.go
+@@ -0,0 +1,33 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build aix darwin dragonfly freebsd linux netbsd openbsd solaris
++
++package poll
++
++import "syscall"
++
++// Do the interface allocations only once for common
++// Errno values.
++var (
++	errEAGAIN error = syscall.EAGAIN
++	errEINVAL error = syscall.EINVAL
++	errENOENT error = syscall.ENOENT
++)
++
++// errnoErr returns common boxed Errno values, to prevent
++// allocations at runtime.
++func errnoErr(e syscall.Errno) error {
++	switch e {
++	case 0:
++		return nil
++	case syscall.EAGAIN:
++		return errEAGAIN
++	case syscall.EINVAL:
++		return errEINVAL
++	case syscall.ENOENT:
++		return errENOENT
++	}
++	return e
++}
+diff --git a/src/internal/poll/errno_windows.go b/src/internal/poll/errno_windows.go
+new file mode 100644
+index 0000000000..e3bddb4bb2
+--- /dev/null
++++ b/src/internal/poll/errno_windows.go
+@@ -0,0 +1,31 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build windows
++
++package poll
++
++import "syscall"
++
++// Do the interface allocations only once for common
++// Errno values.
++
++var (
++	errERROR_IO_PENDING error = syscall.Errno(syscall.ERROR_IO_PENDING)
++)
++
++// ErrnoErr returns common boxed Errno values, to prevent
++// allocations at runtime.
++func errnoErr(e syscall.Errno) error {
++	switch e {
++	case 0:
++		return nil
++	case syscall.ERROR_IO_PENDING:
++		return errERROR_IO_PENDING
++	}
++	// TODO: add more here, after collecting data on the common
++	// error values see on Windows. (perhaps when running
++	// all.bat?)
++	return e
++}
+diff --git a/src/internal/poll/fd_poll_runtime.go b/src/internal/poll/fd_poll_runtime.go
+index 687f702556..2932615d85 100644
+--- a/src/internal/poll/fd_poll_runtime.go
++++ b/src/internal/poll/fd_poll_runtime.go
+@@ -42,7 +42,7 @@ func (pd *pollDesc) init(fd *FD) error {
+ 			runtime_pollUnblock(ctx)
+ 			runtime_pollClose(ctx)
+ 		}
+-		return syscall.Errno(errno)
++		return errnoErr(syscall.Errno(errno))
+ 	}
+ 	pd.runtimeCtx = ctx
+ 	return nil

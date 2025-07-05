@@ -8,6 +8,28 @@ Date:   Wed Feb 27 14:42:53 2013 -0800
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/7377061
-
+---
  doc/effective_go.html | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/doc/effective_go.html b/doc/effective_go.html
+index a373776892..4bc92870ac 100644
+--- a/doc/effective_go.html
++++ b/doc/effective_go.html
+@@ -3041,7 +3041,6 @@ Similarly, assigning <code>greeting</code> to a blank identifier
+ will silence the unused variable error.
+ </p>
+ {{code "/doc/progs/unused2.go" `/package/` `$`}}
+-<p>
+ 
+ <h3 id="blank_import">Import for side effect</h3>
+ 
+@@ -3103,7 +3102,7 @@ cause the compiler to verify this automatically.
+ A declaration can be used to add such a check:
+ </p>
+ <pre>
+-var _ json.Marshaler = (*MyMessage)(nil)
++var _ json.Marshaler = (*RawMessage)(nil)
+ </pre>
+ <p>
+ As part of type-checking this static assignment of a

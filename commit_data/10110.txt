@@ -17,7 +17,81 @@ Date:   Wed Oct 26 15:27:29 2011 +0900
     R=bradfitz, dsymonds
     CC=golang-dev
     https://golang.org/cl/5296055
-
+---
  src/pkg/http/reverseproxy.go      | 25 +++++++++++++++++++------
  src/pkg/http/reverseproxy_test.go |  5 +++++
  2 files changed, 24 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/http/reverseproxy.go b/src/pkg/http/reverseproxy.go
+index 3f8bfdc80c..3a63db009f 100644
+--- a/src/pkg/http/reverseproxy.go
++++ b/src/pkg/http/reverseproxy.go
+@@ -69,6 +69,14 @@ func NewSingleHostReverseProxy(target *url.URL) *ReverseProxy {
+ 	return &ReverseProxy{Director: director}
+ }
+ 
++func copyHeader(dst, src Header) {
++	for k, vv := range src {
++		for _, v := range vv {
++			dst.Add(k, v)
++		}
++	}
++}
++
+ func (p *ReverseProxy) ServeHTTP(rw ResponseWriter, req *Request) {
+ 	transport := p.Transport
+ 	if transport == nil {
+@@ -84,6 +92,16 @@ func (p *ReverseProxy) ServeHTTP(rw ResponseWriter, req *Request) {
+ 	outreq.ProtoMinor = 1
+ 	outreq.Close = false
+ 
++	// Remove the connection header to the backend.  We want a
++	// persistent connection, regardless of what the client sent
++	// to us.  This is modifying the same underlying map from req
++	// (shallow copied above) so we only copy it if necessary.
++	if outreq.Header.Get("Connection") != "" {
++		outreq.Header = make(Header)
++		copyHeader(outreq.Header, req.Header)
++		outreq.Header.Del("Connection")
++	}
++
+ 	if clientIp, _, err := net.SplitHostPort(req.RemoteAddr); err == nil {
+ 		outreq.Header.Set("X-Forwarded-For", clientIp)
+ 	}
+@@ -95,12 +113,7 @@ func (p *ReverseProxy) ServeHTTP(rw ResponseWriter, req *Request) {
+ 		return
+ 	}
+ 
+-	hdr := rw.Header()
+-	for k, vv := range res.Header {
+-		for _, v := range vv {
+-			hdr.Add(k, v)
+-		}
+-	}
++	copyHeader(rw.Header(), res.Header)
+ 
+ 	rw.WriteHeader(res.StatusCode)
+ 
+diff --git a/src/pkg/http/reverseproxy_test.go b/src/pkg/http/reverseproxy_test.go
+index 8078c8d10d..663218d61b 100644
+--- a/src/pkg/http/reverseproxy_test.go
++++ b/src/pkg/http/reverseproxy_test.go
+@@ -24,6 +24,9 @@ func TestReverseProxy(t *testing.T) {
+ 		if r.Header.Get("X-Forwarded-For") == "" {
+ 			t.Errorf("didn't get X-Forwarded-For header")
+ 		}
++		if c := r.Header.Get("Connection"); c != "" {
++			t.Errorf("handler got Connection header value %q", c)
++		}
+ 		if g, e := r.Host, "some-name"; g != e {
+ 			t.Errorf("backend got Host header %q, want %q", g, e)
+ 		}
+@@ -43,6 +46,8 @@ func TestReverseProxy(t *testing.T) {
+ 
+ 	getReq, _ := NewRequest("GET", frontend.URL, nil)
+ 	getReq.Host = "some-name"
++	getReq.Header.Set("Connection", "close")
++	getReq.Close = true
+ 	res, err := DefaultClient.Do(getReq)
+ 	if err != nil {
+ 		t.Fatalf("Get: %v", err)

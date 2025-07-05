@@ -7,7 +7,70 @@ Date:   Tue Mar 29 15:04:19 2011 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4271086
-
+---
  test/interface/private.go  | 32 ++++++++++++++++++++++++++++++++
  test/interface/private1.go | 18 ++++++++++++++++++
  2 files changed, 50 insertions(+)
+
+diff --git a/test/interface/private.go b/test/interface/private.go
+new file mode 100644
+index 0000000000..37890c923a
+--- /dev/null
++++ b/test/interface/private.go
+@@ -0,0 +1,32 @@
++// $G $D/${F}1.go && errchk $G $D/$F.go
++
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "./private1"
++
++type Exported interface {
++	private()
++}
++
++type Implementation struct{}
++
++func (p *Implementation) private() {}
++
++func main() {
++	var x Exported
++	x = new(Implementation)
++	x.private()
++
++	var px p.Exported
++	px = p.X
++
++	px.private()			// ERROR "private"
++
++	px = new(Implementation)	// ERROR "private"
++
++	x = px				// ERROR "private"
++}
+diff --git a/test/interface/private1.go b/test/interface/private1.go
+new file mode 100644
+index 0000000000..3173fbef41
+--- /dev/null
++++ b/test/interface/private1.go
+@@ -0,0 +1,18 @@
++// true  # used by private.go
++
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type Exported interface {
++	private()
++}
++
++type Implementation struct{}
++
++func (p *Implementation) private() {}
++
++var X = new(Implementation)
++

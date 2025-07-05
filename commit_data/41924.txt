@@ -23,6 +23,27 @@ Date:   Fri Nov 1 11:06:21 2019 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/proc.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index fc8aa3330a..f9a22ca5e3 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -4359,6 +4359,7 @@ func checkdead() {
+ 	}
+ 	unlock(&allglock)
+ 	if grunning == 0 { // possible if main goroutine calls runtime·Goexit()
++		unlock(&sched.lock) // unlock so that GODEBUG=scheddetail=1 doesn't hang
+ 		throw("no goroutines (main called runtime.Goexit) - deadlock!")
+ 	}
+ 
+@@ -4411,6 +4412,7 @@ func checkdead() {
+ 	}
+ 
+ 	getg().m.throwing = -1 // do not dump full stacks
++	unlock(&sched.lock)    // unlock so that GODEBUG=scheddetail=1 doesn't hang
+ 	throw("all goroutines are asleep - deadlock!")
+ }
+ 

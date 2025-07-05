@@ -7,6 +7,29 @@ Date:   Wed Sep 16 10:29:53 2015 -0400
     Change-Id: I81a7f22be827519b5290b4acbcba357680cad3c4
     Reviewed-on: https://go-review.googlesource.com/14605
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/runtime/debug/stack.go | 6 ++----
  1 file changed, 2 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/debug/stack.go b/src/runtime/debug/stack.go
+index 952d834bc4..5d810af540 100644
+--- a/src/runtime/debug/stack.go
++++ b/src/runtime/debug/stack.go
+@@ -11,15 +11,13 @@ import (
+ 	"runtime"
+ )
+ 
+-// PrintStack prints to standard error the stack trace returned by Stack.
++// PrintStack prints to standard error the stack trace returned by runtime.Stack.
+ func PrintStack() {
+ 	os.Stderr.Write(Stack())
+ }
+ 
+ // Stack returns a formatted stack trace of the goroutine that calls it.
+-// For each routine, it includes the source line information and PC value,
+-// then attempts to discover, for Go functions, the calling function or
+-// method.
++// It calls runtime.Stack with a large enough buffer to capture the entire trace.
+ func Stack() []byte {
+ 	buf := make([]byte, 1024)
+ 	for {

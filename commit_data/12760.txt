@@ -8,6 +8,39 @@ Date:   Tue Mar 27 11:16:29 2012 +1100
     R=golang-dev, rsc, adg
     CC=golang-dev
     https://golang.org/cl/5888043
-
+---
  misc/goplay/goplay.go | 12 ++++++++++--
  1 file changed, 10 insertions(+), 2 deletions(-)
+
+diff --git a/misc/goplay/goplay.go b/misc/goplay/goplay.go
+index c113abb6f2..9ce4f89aeb 100644
+--- a/misc/goplay/goplay.go
++++ b/misc/goplay/goplay.go
+@@ -209,17 +209,25 @@ function autoindent(el) {
+ 	}, 1);
+ }
+ 
++function preventDefault(e) {
++	if (e.preventDefault) {
++		e.preventDefault();
++	} else {
++		e.cancelBubble = true;
++	}
++}
++
+ function keyHandler(event) {
+ 	var e = window.event || event;
+ 	if (e.keyCode == 9) { // tab
+ 		insertTabs(1);
+-		e.preventDefault();
++		preventDefault(e);
+ 		return false;
+ 	}
+ 	if (e.keyCode == 13) { // enter
+ 		if (e.shiftKey) { // +shift
+ 			compile(e.target);
+-			e.preventDefault();
++			preventDefault(e);
+ 			return false;
+ 		} else {
+ 			autoindent(e.target);

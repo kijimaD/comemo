@@ -11,6 +11,20 @@ Date:   Thu Dec 8 14:31:38 2022 -0500
     Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  doc/go1.20.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go1.20.html b/doc/go1.20.html
+index e479fce8a1..e742be3a78 100644
+--- a/doc/go1.20.html
++++ b/doc/go1.20.html
+@@ -308,7 +308,7 @@ Do not send CLs removing the interior tags from such phrases.
+ <p><!-- https://go.dev/issue/51430 -->
+   Go 1.20 adds a new <code>runtime/coverage</code> package
+   containing APIs for writing coverage profile data at
+-  runtime from a long-running and/or server programs that
++  runtime from long-running and/or server programs that
+   do not terminate via <code>os.Exit()</code>.
+ </p>
+ 

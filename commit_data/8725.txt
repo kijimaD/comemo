@@ -9,6 +9,20 @@ Date:   Tue Jun 14 15:13:54 2011 -0300
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/4607048
-
+---
  src/cmd/ld/data.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/ld/data.c b/src/cmd/ld/data.c
+index cd485072e7..140712b298 100644
+--- a/src/cmd/ld/data.c
++++ b/src/cmd/ld/data.c
+@@ -781,7 +781,7 @@ dodata(void)
+ 	 */
+ 
+ 	/* read-only data */
+-	sect = addsection(&segtext, ".rodata", 06);
++	sect = addsection(&segtext, ".rodata", 04);
+ 	sect->vaddr = 0;
+ 	datsize = 0;
+ 	s = datap;

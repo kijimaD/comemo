@@ -13,10 +13,105 @@ Date:   Fri Jun 4 23:01:13 2021 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Dan Scales <danscales@google.com>
-
+---
  src/cmd/compile/internal/noder/helpers.go     | 2 +-
  src/cmd/compile/internal/typecheck/iexport.go | 8 ++++----
  src/cmd/compile/internal/typecheck/iimport.go | 2 +-
  src/cmd/compile/internal/typecheck/subr.go    | 2 +-
  src/cmd/compile/internal/types/type.go        | 4 ++++
  5 files changed, 11 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/helpers.go b/src/cmd/compile/internal/noder/helpers.go
+index ea30a3bfa9..456df312a6 100644
+--- a/src/cmd/compile/internal/noder/helpers.go
++++ b/src/cmd/compile/internal/noder/helpers.go
+@@ -63,7 +63,7 @@ func FixValue(typ *types.Type, val constant.Value) constant.Value {
+ 	if !typ.IsUntyped() {
+ 		val = typecheck.DefaultLit(ir.NewBasicLit(src.NoXPos, val), typ).Val()
+ 	}
+-	if typ.Kind() != types.TTYPEPARAM {
++	if !typ.IsTypeParam() {
+ 		ir.AssertValidTypeForConst(typ, val)
+ 	}
+ 	return val
+diff --git a/src/cmd/compile/internal/typecheck/iexport.go b/src/cmd/compile/internal/typecheck/iexport.go
+index 6987bc9918..10d4bd6e7e 100644
+--- a/src/cmd/compile/internal/typecheck/iexport.go
++++ b/src/cmd/compile/internal/typecheck/iexport.go
+@@ -522,7 +522,7 @@ func (p *iexporter) doDecl(n *ir.Name) {
+ 		}
+ 
+ 	case ir.OTYPE:
+-		if n.Type().Kind() == types.TTYPEPARAM && n.Type().Underlying() == n.Type() {
++		if n.Type().IsTypeParam() && n.Type().Underlying() == n.Type() {
+ 			// Even though it has local scope, a typeparam requires a
+ 			// declaration via its package and unique name, because it
+ 			// may be referenced within its type bound during its own
+@@ -898,7 +898,7 @@ func (w *exportWriter) doTyp(t *types.Type) {
+ 	// The 't.Underlying() == t' check is to confirm this is a base typeparam
+ 	// type, rather than a defined type with typeparam underlying type, like:
+ 	// type orderedAbs[T any] T
+-	if t.Kind() == types.TTYPEPARAM && t.Underlying() == t {
++	if t.IsTypeParam() && t.Underlying() == t {
+ 		assert(base.Flag.G > 0)
+ 		if s.Pkg == types.BuiltinPkg || s.Pkg == ir.Pkgs.Unsafe {
+ 			base.Fatalf("builtin type missing from typIndex: %v", t)
+@@ -1042,7 +1042,7 @@ func (w *exportWriter) typeList(ts []*types.Type) {
+ func (w *exportWriter) tparamList(fs []*types.Field) {
+ 	w.uint64(uint64(len(fs)))
+ 	for _, f := range fs {
+-		if f.Type.Kind() != types.TTYPEPARAM {
++		if !f.Type.IsTypeParam() {
+ 			base.Fatalf("unexpected non-typeparam")
+ 		}
+ 		w.typ(f.Type)
+@@ -1095,7 +1095,7 @@ func (w *exportWriter) value(typ *types.Type, v constant.Value) {
+ 	var kind constant.Kind
+ 	var valType *types.Type
+ 
+-	if typ.Kind() == types.TTYPEPARAM {
++	if typ.IsTypeParam() {
+ 		// A constant will have a TYPEPARAM type if it appears in a place
+ 		// where it must match that typeparam type (e.g. in a binary
+ 		// operation with a variable of that typeparam type). If so, then
+diff --git a/src/cmd/compile/internal/typecheck/iimport.go b/src/cmd/compile/internal/typecheck/iimport.go
+index cafb18d7a8..6d42875f49 100644
+--- a/src/cmd/compile/internal/typecheck/iimport.go
++++ b/src/cmd/compile/internal/typecheck/iimport.go
+@@ -415,7 +415,7 @@ func (p *importReader) value(typ *types.Type) constant.Value {
+ 	var kind constant.Kind
+ 	var valType *types.Type
+ 
+-	if typ.Kind() == types.TTYPEPARAM {
++	if typ.IsTypeParam() {
+ 		// If a constant had a typeparam type, then we wrote out its
+ 		// actual constant kind as well.
+ 		kind = constant.Kind(p.int64())
+diff --git a/src/cmd/compile/internal/typecheck/subr.go b/src/cmd/compile/internal/typecheck/subr.go
+index 8ef49f91c8..e9a9a57126 100644
+--- a/src/cmd/compile/internal/typecheck/subr.go
++++ b/src/cmd/compile/internal/typecheck/subr.go
+@@ -984,7 +984,7 @@ func (ts *Tsubster) Typ(t *types.Type) *types.Type {
+ 		return t
+ 	}
+ 
+-	if t.Kind() == types.TTYPEPARAM {
++	if t.IsTypeParam() {
+ 		for i, tp := range ts.Tparams {
+ 			if tp == t {
+ 				return ts.Targs[i]
+diff --git a/src/cmd/compile/internal/types/type.go b/src/cmd/compile/internal/types/type.go
+index a3a6050c52..075009d6a3 100644
+--- a/src/cmd/compile/internal/types/type.go
++++ b/src/cmd/compile/internal/types/type.go
+@@ -1487,6 +1487,10 @@ func (t *Type) IsUnion() bool {
+ 	return t.kind == TUNION
+ }
+ 
++func (t *Type) IsTypeParam() bool {
++	return t.kind == TTYPEPARAM
++}
++
+ // IsEmptyInterface reports whether t is an empty interface type.
+ func (t *Type) IsEmptyInterface() bool {
+ 	return t.IsInterface() && t.AllMethods().Len() == 0

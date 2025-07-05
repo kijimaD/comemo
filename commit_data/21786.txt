@@ -15,6 +15,20 @@ Date:   Tue Feb 3 21:14:47 2015 -0500
     Change-Id: Ie84810657c14ab16dce9f0e0a932955251b0bf33
     Reviewed-on: https://go-review.googlesource.com/3850
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-
+---
  src/runtime/arch1_amd64.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/arch1_amd64.go b/src/runtime/arch1_amd64.go
+index 7a7f3e75fc..199686db6f 100644
+--- a/src/runtime/arch1_amd64.go
++++ b/src/runtime/arch1_amd64.go
+@@ -8,7 +8,7 @@ const (
+ 	thechar           = '6'
+ 	_BigEndian        = 0
+ 	_CacheLineSize    = 64
+-	_RuntimeGogoBytes = 80 + (goos_plan9|goos_solaris|goos_windows)*16
++	_RuntimeGogoBytes = 80 + (goos_solaris)*16
+ 	_PhysPageSize     = 4096
+ 	_PCQuantum        = 1
+ 	_Int64Align       = 8

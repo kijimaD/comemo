@@ -7,6 +7,22 @@ Date:   Mon Sep 19 17:30:19 2011 +0200
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5046041
-
+---
  src/pkg/exp/norm/normregtest.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/exp/norm/normregtest.go b/src/pkg/exp/norm/normregtest.go
+index b2d8b1ffd7..3ab10b77b6 100644
+--- a/src/pkg/exp/norm/normregtest.go
++++ b/src/pkg/exp/norm/normregtest.go
+@@ -114,8 +114,8 @@ func (t Test) Name() string {
+ 	return fmt.Sprintf("%s:%d", part[t.partnr].name, t.number)
+ }
+ 
+-var partRe = regexp.MustCompile(`@Part(\d) # (.*)\n`) // TODO: using $ iso \n does not work
+-var testRe = regexp.MustCompile(`^` + strings.Repeat(`([\dA-F ]+);`, 5) + ` # (.*)\n`)
++var partRe = regexp.MustCompile(`@Part(\d) # (.*)\n$`)
++var testRe = regexp.MustCompile(`^` + strings.Repeat(`([\dA-F ]+);`, 5) + ` # (.*)\n?$`)
+ 
+ var counter int
+ 

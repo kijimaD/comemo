@@ -14,8 +14,58 @@ Date:   Thu Jan 2 15:39:28 2020 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/213127
     Run-TryBot: Michael Matloob <matloob@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/go_test.go                        | 10 ----------
  src/cmd/go/testdata/script/test_no_tests.txt | 11 +++++++++++
  src/cmd/go/testdata/src/testnorun/p.go       |  5 -----
  3 files changed, 11 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index f8771ddff7..b2d92b7668 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -5271,16 +5271,6 @@ func TestCDAndGOPATHAreDifferent(t *testing.T) {
+ 	}
+ }
+ 
+-// Issue 26242.
+-func TestGoTestWithoutTests(t *testing.T) {
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.parallel()
+-	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
+-	tg.run("test", "testnorun")
+-	tg.grepStdout(`testnorun\t\[no test files\]`, "do not want test to run")
+-}
+-
+ // Issue 25579.
+ func TestGoBuildDashODevNull(t *testing.T) {
+ 	tooSlow(t)
+diff --git a/src/cmd/go/testdata/script/test_no_tests.txt b/src/cmd/go/testdata/script/test_no_tests.txt
+new file mode 100644
+index 0000000000..d75bcff934
+--- /dev/null
++++ b/src/cmd/go/testdata/script/test_no_tests.txt
+@@ -0,0 +1,11 @@
++# Tests issue #26242
++
++go test testnorun
++stdout 'testnorun\t\[no test files\]'
++
++-- testnorun/p.go --
++package p
++
++func init() {
++	panic("go test must not link and run test binaries without tests")
++}
+diff --git a/src/cmd/go/testdata/src/testnorun/p.go b/src/cmd/go/testdata/src/testnorun/p.go
+deleted file mode 100644
+index 71a9a561ef..0000000000
+--- a/src/cmd/go/testdata/src/testnorun/p.go
++++ /dev/null
+@@ -1,5 +0,0 @@
+-package p
+-
+-func init() {
+-	panic("go test must not link and run test binaries without tests")
+-}

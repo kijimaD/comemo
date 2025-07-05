@@ -17,7 +17,53 @@ Date:   Wed Aug 5 15:08:54 2020 +0800
     Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: Alberto Donizetti <alb.donizetti@gmail.com>
-
+---
  src/encoding/binary/binary.go      |  2 +-
  src/encoding/binary/binary_test.go | 24 ++++++++++++++++++++++++
  2 files changed, 25 insertions(+), 1 deletion(-)
+
+diff --git a/src/encoding/binary/binary.go b/src/encoding/binary/binary.go
+index a99ca01994..a31149979d 100644
+--- a/src/encoding/binary/binary.go
++++ b/src/encoding/binary/binary.go
+@@ -306,7 +306,7 @@ func Write(w io.Writer, order ByteOrder, data interface{}) error {
+ 		case uint8:
+ 			bs[0] = v
+ 		case []uint8:
+-			bs = v // TODO(josharian): avoid allocating bs in this case?
++			bs = v
+ 		case *int16:
+ 			order.PutUint16(bs, uint16(*v))
+ 		case int16:
+diff --git a/src/encoding/binary/binary_test.go b/src/encoding/binary/binary_test.go
+index aeb4212ec2..5971e0966a 100644
+--- a/src/encoding/binary/binary_test.go
++++ b/src/encoding/binary/binary_test.go
+@@ -706,3 +706,27 @@ func BenchmarkWriteSlice1000Float32s(b *testing.B) {
+ 	}
+ 	b.StopTimer()
+ }
++
++func BenchmarkReadSlice1000Uint8s(b *testing.B) {
++	bsr := &byteSliceReader{}
++	slice := make([]uint8, 1000)
++	buf := make([]byte, len(slice))
++	b.SetBytes(int64(len(buf)))
++	b.ResetTimer()
++	for i := 0; i < b.N; i++ {
++		bsr.remain = buf
++		Read(bsr, BigEndian, slice)
++	}
++}
++
++func BenchmarkWriteSlice1000Uint8s(b *testing.B) {
++	slice := make([]uint8, 1000)
++	buf := new(bytes.Buffer)
++	var w io.Writer = buf
++	b.SetBytes(1000)
++	b.ResetTimer()
++	for i := 0; i < b.N; i++ {
++		buf.Reset()
++		Write(w, BigEndian, slice)
++	}
++}

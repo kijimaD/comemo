@@ -18,9 +18,43 @@ Date:   Wed Aug 28 12:34:48 2019 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/internal/test2json/test2json.go             | 2 +-
  src/cmd/internal/test2json/testdata/benchshort.json | 2 +-
  src/cmd/internal/test2json/testdata/empty.json      | 1 +
  src/cmd/internal/test2json/testdata/empty.test      | 0
  4 files changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/internal/test2json/test2json.go b/src/cmd/internal/test2json/test2json.go
+index f8052136be..aa63c8b9a6 100644
+--- a/src/cmd/internal/test2json/test2json.go
++++ b/src/cmd/internal/test2json/test2json.go
+@@ -284,7 +284,7 @@ func (c *converter) flushReport(depth int) {
+ func (c *converter) Close() error {
+ 	c.input.flush()
+ 	c.output.flush()
+-	e := &event{Action: "fail"}
++	e := &event{Action: "pass"}
+ 	if c.result != "" {
+ 		e.Action = c.result
+ 	}
+diff --git a/src/cmd/internal/test2json/testdata/benchshort.json b/src/cmd/internal/test2json/testdata/benchshort.json
+index 8c61d95d8d..28e287c848 100644
+--- a/src/cmd/internal/test2json/testdata/benchshort.json
++++ b/src/cmd/internal/test2json/testdata/benchshort.json
+@@ -4,4 +4,4 @@
+ {"Action":"output","Output":"# but to avoid questions of timing, we just use a file with no \\n at all.\n"}
+ {"Action":"output","Output":"BenchmarkFoo   \t"}
+ {"Action":"output","Output":"10000 early EOF"}
+-{"Action":"fail"}
++{"Action":"pass"}
+diff --git a/src/cmd/internal/test2json/testdata/empty.json b/src/cmd/internal/test2json/testdata/empty.json
+new file mode 100644
+index 0000000000..80b5217501
+--- /dev/null
++++ b/src/cmd/internal/test2json/testdata/empty.json
+@@ -0,0 +1 @@
++{"Action":"pass"}
+diff --git a/src/cmd/internal/test2json/testdata/empty.test b/src/cmd/internal/test2json/testdata/empty.test
+new file mode 100644
+index 0000000000..e69de29bb2

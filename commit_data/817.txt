@@ -14,7 +14,7 @@ Date:   Tue Oct 7 12:31:31 2008 -0700
     R=r,gri
     OCL=16620
     CL=16643
-
+---
  src/lib/bufio.go                 |  78 +++++++--------
  src/lib/flag.go                  |  12 +--
  src/lib/io.go                    |   4 +-
@@ -54,3 +54,2624 @@ Date:   Tue Oct 7 12:31:31 2008 -0700
  test/timelib.go                  |   4 +-
  usr/gri/gosrc/compilation.go     |  24 ++---
  38 files changed, 430 insertions(+), 430 deletions(-)
+
+diff --git a/src/lib/bufio.go b/src/lib/bufio.go
+index 3c29b236c3..8831836290 100644
+--- a/src/lib/bufio.go
++++ b/src/lib/bufio.go
+@@ -55,13 +55,13 @@ export func NewBufReadSize(rd io.Read, size int) (b *BufRead, err *os.Error) {
+ 	}
+ 	b = new(BufRead);
+ 	b.buf = new([]byte, size);
+-	b.rd = rd
++	b.rd = rd;
+ 	return b, nil
+ }
+ 
+ export func NewBufRead(rd io.Read) (b *BufRead, err *os.Error) {
+ 	// 6g BUG return NewBufReadSize(rd, DefaultBufSize)
+-	r, e := NewBufReadSize(rd, DefaultBufSize)
++	r, e := NewBufReadSize(rd, DefaultBufSize);
+ 	return r, e
+ }
+ 
+@@ -70,7 +70,7 @@ func (b *BufRead) Fill() *os.Error {
+ 	if b.err != nil {
+ 		return b.err
+ 	}
+-	
++
+ 	// Slide existing data to beginning.
+ 	if b.w >  b.r {
+ 		CopySlice(b.buf[0:b.w-b.r], b.buf[b.r:b.w]);
+@@ -81,12 +81,12 @@ func (b *BufRead) Fill() *os.Error {
+ 	b.r = 0;
+ 
+ 	// Read new data.
+-	n, e := b.rd.Read(b.buf[b.w:len(b.buf)])
++	n, e := b.rd.Read(b.buf[b.w:len(b.buf)]);
+ 	if e != nil {
+-		b.err = e
++		b.err = e;
+ 		return e
+ 	}
+-	b.w += n
++	b.w += n;
+ 	return nil
+ }
+ 
+@@ -95,11 +95,11 @@ func (b *BufRead) Fill() *os.Error {
+ // If nn < len(p), also returns an error explaining
+ // why the read is short.
+ func (b *BufRead) Read(p *[]byte) (nn int, err *os.Error) {
+-	nn = 0
++	nn = 0;
+ 	for len(p) > 0 {
+-		n := len(p)
++		n := len(p);
+ 		if b.w == b.r {
+-			b.Fill()
++			b.Fill();
+ 			if b.err != nil {
+ 				return nn, b.err
+ 			}
+@@ -122,7 +122,7 @@ func (b *BufRead) Read(p *[]byte) (nn int, err *os.Error) {
+ // If no byte available, returns error.
+ func (b *BufRead) ReadByte() (c byte, err *os.Error) {
+ 	if b.w == b.r {
+-		b.Fill()
++		b.Fill();
+ 		if b.err != nil {
+ 			return 0, b.err
+ 		}
+@@ -131,7 +131,7 @@ func (b *BufRead) ReadByte() (c byte, err *os.Error) {
+ 		}
+ 	}
+ 	c = b.buf[b.r];
+-	b.r++
++	b.r++;
+ 	return c, nil
+ }
+ 
+@@ -143,7 +143,7 @@ func (b *BufRead) UnreadByte() *os.Error {
+ 	if b.r <= 0 {
+ 		return PhaseError
+ 	}
+-	b.r--
++	b.r--;
+ 	return nil
+ }
+ 
+@@ -167,20 +167,20 @@ func (b *BufRead) Buffered() int {
+ // returning a slice pointing at the bytes in the buffer.
+ // The bytes stop being valid at the next read call.
+ // Fails if the line doesn't fit in the buffer.
+-// For internal (or advanced) use only.   
++// For internal (or advanced) use only.
+ // Use ReadLineString or ReadLineBytes instead.
+ func (b *BufRead) ReadLineSlice(delim byte) (line *[]byte, err *os.Error) {
+ 	if b.err != nil {
+ 		return nil, b.err
+ 	}
+-	
++
+ 	// Look in buffer.
+ 	if i := FindByte(b.buf[b.r:b.w], delim); i >= 0 {
+ 		line1 := b.buf[b.r:b.r+i+1];
+ 		b.r += i+1;
+ 		return line1, nil
+ 	}
+-	
++
+ 	// Read more into buffer, until buffer fills or we find delim.
+ 	for {
+ 		n := b.Buffered();
+@@ -191,34 +191,34 @@ func (b *BufRead) ReadLineSlice(delim byte) (line *[]byte, err *os.Error) {
+ 		if b.Buffered() == n {	// no data added; end of file
+ 			return nil, EndOfFile
+ 		}
+-	
++
+ 		// Search new part of buffer
+ 		if i := FindByte(b.buf[n:b.w], delim); i >= 0 {
+ 			line := b.buf[0:n+i+1];
+-			b.r = n+i+1
++			b.r = n+i+1;
+ 			return line, nil
+ 		}
+-		
++
+ 		// Buffer is full?
+ 		if b.Buffered() >= len(b.buf) {
+ 			return nil, BufferFull
+ 		}
+ 	}
+-	
++
+ 	// BUG 6g bug100
+ 	return nil, nil
+ }
+ 
+ // Read until the first occurrence of delim in the input,
+ // returning a new byte array containing the line.
+-// If an error happens, returns the data (without a delimiter) 
++// If an error happens, returns the data (without a delimiter)
+ // and the error.  (Can't leave the data in the buffer because
+ // we might have read more than the buffer size.)
+ func (b *BufRead) ReadLineBytes(delim byte) (line *[]byte, err *os.Error) {
+ 	if b.err != nil {
+ 		return nil, b.err
+ 	}
+-	
++
+ 	// Use ReadLineSlice to look for array,
+ 	// accumulating full buffers.
+ 	var frag *[]byte;
+@@ -236,22 +236,22 @@ func (b *BufRead) ReadLineBytes(delim byte) (line *[]byte, err *os.Error) {
+ 			err = e;
+ 			break
+ 		}
+-		
++
+ 		// Read bytes out of buffer.
+ 		buf := new([]byte, b.Buffered());
+ 		var n int;
+ 		n, e = b.Read(buf);
+ 		if e != nil {
+ 			frag = buf[0:n];
+-			err = e
++			err = e;
+ 			break
+ 		}
+ 		if n != len(buf) {
+ 			frag = buf[0:n];
+-			err = InternalError
++			err = InternalError;
+ 			break
+ 		}
+-		
++
+ 		// Grow list if needed.
+ 		if full == nil {
+ 			full = new([]*[]byte, 16);
+@@ -266,11 +266,11 @@ func (b *BufRead) ReadLineBytes(delim byte) (line *[]byte, err *os.Error) {
+ 
+ 		// Save buffer
+ 		full[nfull] = buf;
+-		nfull++
++		nfull++;
+ 	}
+-	
++
+ 	// Allocate new buffer to hold the full pieces and the fragment.
+-	n := 0
++	n := 0;
+ 	for i := 0; i < nfull; i++ {
+ 		n += len(full[i])
+ 	}
+@@ -280,7 +280,7 @@ func (b *BufRead) ReadLineBytes(delim byte) (line *[]byte, err *os.Error) {
+ 
+ 	// Copy full pieces and fragment in.
+ 	buf := new([]byte, n);
+-	n = 0
++	n = 0;
+ 	for i := 0; i < nfull; i++ {
+ 		CopySlice(buf[n:n+len(full[i])], full[i]);
+ 		n += len(full[i])
+@@ -303,7 +303,7 @@ func ToString(p *[]byte) string {
+ // returning a new string containing the line.
+ // If savedelim, keep delim in the result; otherwise chop it off.
+ func (b *BufRead) ReadLineString(delim byte, savedelim bool) (line string, err *os.Error) {
+-	bytes, e := b.ReadLineBytes(delim)
++	bytes, e := b.ReadLineBytes(delim);
+ 	if e != nil {
+ 		return ToString(bytes), e
+ 	}
+@@ -329,13 +329,13 @@ export func NewBufWriteSize(wr io.Write, size int) (b *BufWrite, err *os.Error)
+ 	}
+ 	b = new(BufWrite);
+ 	b.buf = new([]byte, size);
+-	b.wr = wr
++	b.wr = wr;
+ 	return b, nil
+ }
+ 
+ export func NewBufWrite(wr io.Write) (b *BufWrite, err *os.Error) {
+ 	// 6g BUG return NewBufWriteSize(wr, DefaultBufSize)
+-	r, e := NewBufWriteSize(wr, DefaultBufSize)
++	r, e := NewBufWriteSize(wr, DefaultBufSize);
+ 	return r, e
+ }
+ 
+@@ -344,10 +344,10 @@ func (b *BufWrite) Flush() *os.Error {
+ 	if b.err != nil {
+ 		return b.err
+ 	}
+-	n := 0
++	n := 0;
+ 	for n < b.n {
+ 		m, e := b.wr.Write(b.buf[n:b.n]);
+-		n += m
++		n += m;
+ 		if m == 0 && e == nil {
+ 			e = ShortWrite
+ 		}
+@@ -356,11 +356,11 @@ func (b *BufWrite) Flush() *os.Error {
+ 				CopySlice(b.buf[0:b.n-n], b.buf[n:b.n])
+ 			}
+ 			b.n -= n;
+-			b.err = e
++			b.err = e;
+ 			return e
+ 		}
+ 	}
+-	b.n = 0
++	b.n = 0;
+ 	return nil
+ }
+ 
+@@ -376,9 +376,9 @@ func (b *BufWrite) Write(p *[]byte) (nn int, err *os.Error) {
+ 	if b.err != nil {
+ 		return 0, b.err
+ 	}
+-	nn = 0
++	nn = 0;
+ 	for len(p) > 0 {
+-		n := b.Available()
++		n := b.Available();
+ 		if n <= 0 {
+ 			if b.Flush(); b.err != nil {
+ 				break
+@@ -404,7 +404,7 @@ func (b *BufWrite) WriteByte(c byte) *os.Error {
+ 		return b.err
+ 	}
+ 	b.buf[b.n] = c;
+-	b.n++
++	b.n++;
+ 	return nil
+ }
+ 
+diff --git a/src/lib/flag.go b/src/lib/flag.go
+index 3d6496ce39..968790edf0 100644
+--- a/src/lib/flag.go
++++ b/src/lib/flag.go
+@@ -36,7 +36,7 @@ package flag
+  *	Integer flags accept 1234, 0664, 0x1234 and may be negative.
+  *	Boolean flags may be 1, 0, t, f, true, false, TRUE, FALSE, True, False.
+  */
+- 
++
+ import fmt "fmt"
+ 
+ //export Bool, Int, String
+@@ -71,13 +71,13 @@ func atoi(s string) (value int64, ok bool) {
+ 	var base int64 = 10;
+ 	i := 0;
+ 	if s[0] == '0' {
+-		base = 8
++		base = 8;
+ 		if len(s) > 1 && (s[1] == 'x' || s[1] == 'X') {
+ 			base = 16;
+ 			i += 2;
+ 		}
+ 	}
+-	var n int64 = 0
++	var n int64 = 0;
+ 	for ; i < len(s); i++ {
+ 		k := ctoi(int64(s[i]));
+ 		if k >= base {
+@@ -91,7 +91,7 @@ func atoi(s string) (value int64, ok bool) {
+ func atob(str string) (value bool, ok bool) {
+ 	switch str {
+ 		case "1", "t", "T", "true", "TRUE", "True":
+-			return true, true
++			return true, true;
+ 		case "0", "f", "F", "false", "FALSE", "False":
+ 			return false, true
+ 	}
+@@ -395,7 +395,7 @@ func (f *Flags) ParseOne(index int) (ok bool, next int)
+ 		return false, -1
+ 	}
+ 	if s[1] == '-' {
+-		num_minuses++
++		num_minuses++;
+ 		if len(s) == 2 {	// "--" terminates the flags
+ 			return false, index + 1
+ 		}
+@@ -456,7 +456,7 @@ func (f *Flags) ParseOne(index int) (ok bool, next int)
+ 				print("invalid integer value ", value, " for flag: -", name, "\n");
+ 				Usage();
+ 			}
+-			flag.value.AsInt().Set(k)
++			flag.value.AsInt().Set(k);
+ 		case flag.value.IsString():
+ 			if !has_value {
+ 				print("flag needs an argument: -", name, "\n");
+diff --git a/src/lib/io.go b/src/lib/io.go
+index 266d948fc4..8ab751a022 100644
+--- a/src/lib/io.go
++++ b/src/lib/io.go
+@@ -20,11 +20,11 @@ export type ReadWrite interface {
+ }
+ 
+ export func WriteString(w Write, s string) (n int, err *os.Error) {
+-	b := new([]byte, len(s)+1)
++	b := new([]byte, len(s)+1);
+ 	if !syscall.StringToBytes(b, s) {
+ 		return -1, os.EINVAL
+ 	}
+ 	// BUG return w.Write(b[0:len(s)])
+-	r, e := w.Write(b[0:len(s)])
++	r, e := w.Write(b[0:len(s)]);
+ 	return r, e
+ }
+diff --git a/src/lib/net/fd.go b/src/lib/net/fd.go
+index a93dac007d..977df37a49 100644
+--- a/src/lib/net/fd.go
++++ b/src/lib/net/fd.go
+@@ -28,11 +28,11 @@ export type FD struct {
+ 
+ // Make reads and writes on fd return EAGAIN instead of blocking.
+ func SetNonblock(fd int64) *os.Error {
+-	flags, e := syscall.fcntl(fd, syscall.F_GETFL, 0)
++	flags, e := syscall.fcntl(fd, syscall.F_GETFL, 0);
+ 	if e != 0 {
+ 		return os.ErrnoToError(e)
+ 	}
+-	flags, e = syscall.fcntl(fd, syscall.F_SETFL, flags | syscall.O_NONBLOCK)
++	flags, e = syscall.fcntl(fd, syscall.F_SETFL, flags | syscall.O_NONBLOCK);
+ 	if e != 0 {
+ 		return os.ErrnoToError(e)
+ 	}
+@@ -87,7 +87,7 @@ func NewPollServer() (s *PollServer, err *os.Error) {
+ 	if err = SetNonblock(s.pr.fd); err != nil {
+ 	Error:
+ 		s.pr.Close();
+-		s.pw.Close()
++		s.pw.Close();
+ 		return nil, err
+ 	}
+ 	if err = SetNonblock(s.pw.fd); err != nil {
+@@ -97,40 +97,40 @@ func NewPollServer() (s *PollServer, err *os.Error) {
+ 		goto Error
+ 	}
+ 	if err = s.poll.AddFD(s.pr.fd, 'r', true); err != nil {
+-		s.poll.Close()
++		s.poll.Close();
+ 		goto Error
+ 	}
+-	s.pending = new(map[int64] *FD)
+-	go s.Run()
++	s.pending = new(map[int64] *FD);
++	go s.Run();
+ 	return s, nil
+ }
+ 
+ func (s *PollServer) AddFD(fd *FD, mode int) {
+ 	if err := s.poll.AddFD(fd.fd, mode, false); err != nil {
+-		print("PollServer AddFD: ", err.String(), "\n")
++		print("PollServer AddFD: ", err.String(), "\n");
+ 		return
+ 	}
+ 
+-	key := fd.fd << 1
++	key := fd.fd << 1;
+ 	if mode == 'r' {
+-		fd.ncr++
++		fd.ncr++;
+ 	} else {
+-		fd.ncw++
+-		key++
++		fd.ncw++;
++		key++;
+ 	}
+ 	s.pending[key] = fd
+ }
+ 
+ func (s *PollServer) LookupFD(fd int64, mode int) *FD {
+-	key := fd << 1
++	key := fd << 1;
+ 	if mode == 'w' {
+-		key++
++		key++;
+ 	}
+-	netfd, ok := s.pending[key]
++	netfd, ok := s.pending[key];
+ 	if !ok {
+ 		return nil
+ 	}
+-	s.pending[key] = nil, false
++	s.pending[key] = nil, false;
+ 	return netfd
+ }
+ 
+@@ -139,7 +139,7 @@ func (s *PollServer) Run() {
+ 	for {
+ 		fd, mode, err := s.poll.WaitFD();
+ 		if err != nil {
+-			print("PollServer WaitFD: ", err.String(), "\n")
++			print("PollServer WaitFD: ", err.String(), "\n");
+ 			return
+ 		}
+ 		if fd == s.pr.fd {
+@@ -156,19 +156,19 @@ func (s *PollServer) Run() {
+ 				s.AddFD(fd, 'w')
+ 			}
+ 		} else {
+-			netfd := s.LookupFD(fd, mode)
++			netfd := s.LookupFD(fd, mode);
+ 			if netfd == nil {
+-				print("PollServer: unexpected wakeup for fd=", netfd, " mode=", string(mode), "\n")
++				print("PollServer: unexpected wakeup for fd=", netfd, " mode=", string(mode), "\n");
+ 				continue
+ 			}
+ 			if mode == 'r' {
+ 				for netfd.ncr > 0 {
+-					netfd.ncr--
++					netfd.ncr--;
+ 					netfd.cr <- netfd
+ 				}
+ 			} else {
+ 				for netfd.ncw > 0 {
+-					netfd.ncw--
++					netfd.ncw--;
+ 					netfd.cw <- netfd
+ 				}
+ 			}
+@@ -200,7 +200,7 @@ func (s *PollServer) WaitWrite(fd *FD) {
+ var pollserver *PollServer
+ 
+ func StartServer() {
+-	p, err := NewPollServer()
++	p, err := NewPollServer();
+ 	if err != nil {
+ 		print("Start PollServer: ", err.String(), "\n")
+ 	}
+@@ -228,7 +228,7 @@ func (fd *FD) Close() *os.Error {
+ 	}
+ 	e := fd.osfd.Close();
+ 	fd.osfd = nil;
+-	fd.fd = -1
++	fd.fd = -1;
+ 	return e
+ }
+ 
+@@ -236,7 +236,7 @@ func (fd *FD) Read(p *[]byte) (n int, err *os.Error) {
+ 	if fd == nil || fd.osfd == nil {
+ 		return -1, os.EINVAL
+ 	}
+-	n, err = fd.osfd.Read(p)
++	n, err = fd.osfd.Read(p);
+ 	for err == os.EAGAIN {
+ 		pollserver.WaitRead(fd);
+ 		n, err = fd.osfd.Read(p)
+@@ -249,7 +249,7 @@ func (fd *FD) Write(p *[]byte) (n int, err *os.Error) {
+ 		return -1, os.EINVAL
+ 	}
+ 	err = nil;
+-	nn := 0
++	nn := 0;
+ 	for nn < len(p) && err == nil {
+ 		n, err = fd.osfd.Write(p[nn:len(p)]);
+ 		for err == os.EAGAIN {
+@@ -270,7 +270,7 @@ func (fd *FD) Accept(sa *syscall.Sockaddr) (nfd *FD, err *os.Error) {
+ 	if fd == nil || fd.osfd == nil {
+ 		return nil, os.EINVAL
+ 	}
+-	s, e := syscall.accept(fd.fd, sa)
++	s, e := syscall.accept(fd.fd, sa);
+ 	for e == syscall.EAGAIN {
+ 		pollserver.WaitRead(fd);
+ 		s, e = syscall.accept(fd.fd, sa)
+@@ -279,7 +279,7 @@ func (fd *FD) Accept(sa *syscall.Sockaddr) (nfd *FD, err *os.Error) {
+ 		return nil, os.ErrnoToError(e)
+ 	}
+ 	if nfd, err = NewFD(s); err != nil {
+-		syscall.close(s)
++		syscall.close(s);
+ 		return nil, err
+ 	}
+ 	return nfd, nil
+diff --git a/src/lib/net/fd_darwin.go b/src/lib/net/fd_darwin.go
+index 16f0d4e025..3f2816737e 100644
+--- a/src/lib/net/fd_darwin.go
++++ b/src/lib/net/fd_darwin.go
+@@ -24,7 +24,7 @@ export func NewPollster() (p *Pollster, err *os.Error) {
+ 	if p.kq, e = syscall.kqueue(); e != 0 {
+ 		return nil, os.ErrnoToError(e)
+ 	}
+-	p.events = (&p.eventbuf)[0:0]
++	p.events = (&p.eventbuf)[0:0];
+ 	return p, nil
+ }
+ 
+@@ -44,7 +44,7 @@ func (p *Pollster) AddFD(fd int64, mode int, repeat bool) *os.Error {
+ 	// EV_RECEIPT - generate fake EV_ERROR as result of add,
+ 	//	rather than waiting for real event
+ 	// EV_ONESHOT - delete the event the first time it triggers
+-	ev.flags = syscall.EV_ADD | syscall.EV_RECEIPT
++	ev.flags = syscall.EV_ADD | syscall.EV_RECEIPT;
+ 	if !repeat {
+ 		ev.flags |= syscall.EV_ONESHOT
+ 	}
+@@ -64,7 +64,7 @@ func (p *Pollster) AddFD(fd int64, mode int, repeat bool) *os.Error {
+ 
+ func (p *Pollster) WaitFD() (fd int64, mode int, err *os.Error) {
+ 	for len(p.events) == 0 {
+-		nn, e := syscall.kevent(p.kq, nil, &p.eventbuf, nil)
++		nn, e := syscall.kevent(p.kq, nil, &p.eventbuf, nil);
+ 		if e != 0 {
+ 			if e == syscall.EAGAIN || e == syscall.EINTR {
+ 				continue
+@@ -85,6 +85,6 @@ func (p *Pollster) WaitFD() (fd int64, mode int, err *os.Error) {
+ }
+ 
+ func (p *Pollster) Close() *os.Error {
+-	r, e := syscall.close(p.kq)
++	r, e := syscall.close(p.kq);
+ 	return os.ErrnoToError(e)
+ }
+diff --git a/src/lib/net/fd_linux.go b/src/lib/net/fd_linux.go
+index e20ca94011..05b7250e59 100644
+--- a/src/lib/net/fd_linux.go
++++ b/src/lib/net/fd_linux.go
+@@ -34,7 +34,7 @@ export func NewPollster() (p *Pollster, err *os.Error) {
+ 	if p.epfd, e = syscall.epoll_create(16); e != 0 {
+ 		return nil, os.ErrnoToError(e)
+ 	}
+-	p.events = new(map[int64] uint)
++	p.events = new(map[int64] uint);
+ 	return p, nil
+ }
+ 
+@@ -42,7 +42,7 @@ func (p *Pollster) AddFD(fd int64, mode int, repeat bool) *os.Error {
+ 	var ev syscall.EpollEvent
+ 	var already bool;
+ 	ev.fd = int32(fd);
+-	ev.events, already = p.events[fd]
++	ev.events, already = p.events[fd];
+ 	if !repeat {
+ 		ev.events |= syscall.EPOLLONESHOT
+ 	}
+@@ -52,7 +52,7 @@ func (p *Pollster) AddFD(fd int64, mode int, repeat bool) *os.Error {
+ 		ev.events |= Write
+ 	}
+ 
+-	var op int64
++	var op int64;
+ 	if already {
+ 		op = syscall.EPOLL_CTL_MOD
+ 	} else {
+@@ -61,14 +61,14 @@ func (p *Pollster) AddFD(fd int64, mode int, repeat bool) *os.Error {
+ 	if e := syscall.epoll_ctl(p.epfd, op, fd, &ev); e != 0 {
+ 		return os.ErrnoToError(e)
+ 	}
+-	p.events[fd] = ev.events
++	p.events[fd] = ev.events;
+ 	return nil
+ }
+ 
+ func (p *Pollster) StopWaiting(fd int64, bits uint) {
+-	events, already := p.events[fd]
++	events, already := p.events[fd];
+ 	if !already {
+-		print("Epoll unexpected fd=", fd, "\n")
++		print("Epoll unexpected fd=", fd, "\n");
+ 		return
+ 	}
+ 
+@@ -81,7 +81,7 @@ func (p *Pollster) StopWaiting(fd int64, bits uint) {
+ 	// Disable the given bits.
+ 	// If we're still waiting for other events, modify the fd
+ 	// event in the kernel.  Otherwise, delete it.
+-	events &= ^bits
++	events &= ^bits;
+ 	if int32(events) & ^syscall.EPOLLONESHOT != 0 {
+ 		var ev syscall.EpollEvent;
+ 		ev.fd = int32(fd);
+@@ -102,35 +102,35 @@ func (p *Pollster) WaitFD() (fd int64, mode int, err *os.Error) {
+ 	// Get an event.
+ 	var evarray [1]syscall.EpollEvent;
+ 	ev := &evarray[0];
+-	n, e := syscall.epoll_wait(p.epfd, &evarray, -1)
++	n, e := syscall.epoll_wait(p.epfd, &evarray, -1);
+ 	for e == syscall.EAGAIN || e == syscall.EINTR {
+ 		n, e = syscall.epoll_wait(p.epfd, &evarray, -1)
+ 	}
+ 	if e != 0 {
+ 		return -1, 0, os.ErrnoToError(e)
+ 	}
+-	fd = int64(ev.fd)
++	fd = int64(ev.fd);
+ 
+ 	if ev.events & Write != 0 {
+-		p.StopWaiting(fd, Write)
++		p.StopWaiting(fd, Write);
+ 		return fd, 'w', nil
+ 	}
+ 	if ev.events & Read != 0 {
+-		p.StopWaiting(fd, Read)
++		p.StopWaiting(fd, Read);
+ 		return fd, 'r', nil
+ 	}
+ 
+ 	// Other events are error conditions - wake whoever is waiting.
+-	events, already := p.events[fd]
++	events, already := p.events[fd];
+ 	if events & Write != 0 {
+-		p.StopWaiting(fd, Write)
++		p.StopWaiting(fd, Write);
+ 		return fd, 'w', nil
+ 	}
+-	p.StopWaiting(fd, Read)
++	p.StopWaiting(fd, Read);
+ 	return fd, 'r', nil
+ }
+ 
+ func (p *Pollster) Close() *os.Error {
+-	r, e := syscall.close(p.epfd)
++	r, e := syscall.close(p.epfd);
+ 	return os.ErrnoToError(e)
+ }
+diff --git a/src/lib/net/ip.go b/src/lib/net/ip.go
+index 8c53d6f189..47134ca1fb 100644
+--- a/src/lib/net/ip.go
++++ b/src/lib/net/ip.go
+@@ -19,7 +19,7 @@ export const (
+ 
+ // Make the 4 bytes into an IPv4 address (in IPv6 form)
+ func MakeIPv4(a, b, c, d byte) *[]byte {
+-	p := new([]byte, IPv6len)
++	p := new([]byte, IPv6len);
+ 	for i := 0; i < 10; i++ {
+ 		p[i] = 0
+ 	}
+@@ -28,7 +28,7 @@ func MakeIPv4(a, b, c, d byte) *[]byte {
+ 	p[12] = a;
+ 	p[13] = b;
+ 	p[14] = c;
+-	p[15] = d
++	p[15] = d;
+ 	return p
+ }
+ 
+@@ -107,11 +107,11 @@ export func DefaultMask(p *[]byte) *[]byte {
+ 
+ // Apply mask to ip, returning new address.
+ export func Mask(ip *[]byte, mask *[]byte) *[]byte {
+-	n := len(ip)
++	n := len(ip);
+ 	if n != len(mask) {
+ 		return nil
+ 	}
+-	out := new([]byte, n)
++	out := new([]byte, n);
+ 	for i := 0; i < n; i++ {
+ 		out[i] = ip[i] & mask[i];
+ 	}
+@@ -169,9 +169,9 @@ export func IPToString(p *[]byte) string {
+ 
+ 	// Find longest run of zeros.
+ 	e0 := -1;
+-	e1 := -1
++	e1 := -1;
+ 	for i := 0; i < 16; i+=2 {
+-		j := i
++		j := i;
+ 		for j < 16 && p[j] == 0 && p[j+1] == 0 {
+ 			j += 2
+ 		}
+@@ -186,7 +186,7 @@ export func IPToString(p *[]byte) string {
+ 	for i := 0; i < 16; i += 2 {
+ 		if i == e0 {
+ 			s += "::";
+-			i = e1
++			i = e1;
+ 			if i >= 16 {
+ 				break
+ 			}
+@@ -201,16 +201,16 @@ export func IPToString(p *[]byte) string {
+ // If mask is a sequence of 1 bits followed by 0 bits,
+ // return the number of 1 bits.
+ func SimpleMaskLength(mask *[]byte) int {
+-	var i int
++	var i int;
+ 	for i = 0; i < len(mask); i++ {
+ 		if mask[i] != 0xFF {
+ 			break
+ 		}
+ 	}
+ 	n := 8*i;
+-	v := mask[i]
++	v := mask[i];
+ 	for v & 0x80 != 0 {
+-		n++
++		n++;
+ 		v <<= 1
+ 	}
+ 	if v != 0 {
+@@ -227,12 +227,12 @@ func SimpleMaskLength(mask *[]byte) int {
+ export func MaskToString(mask *[]byte) string {
+ 	switch len(mask) {
+ 	case 4:
+-		n := SimpleMaskLength(mask)
++		n := SimpleMaskLength(mask);
+ 		if n >= 0 {
+ 			return itod(uint(n+(IPv6len-IPv4len)*8))
+ 		}
+ 	case 16:
+-		n := SimpleMaskLength(mask)
++		n := SimpleMaskLength(mask);
+ 		if n >= 0 {
+ 			return itod(uint(n))
+ 		}
+@@ -253,7 +253,7 @@ func dtoi(s string, i int) (n int, i1 int, ok bool) {
+ 	}
+ 	n = 0;
+ 	for ; i < len(s) && '0' <= s[i] && s[i] <= '9'; i++ {
+-		n = n*10 + int(s[i] - '0')
++		n = n*10 + int(s[i] - '0');
+ 		if n >= Big {
+ 			return 0, i, false
+ 		}
+@@ -277,7 +277,7 @@ func xtoi(s string, i int) (n int, i1 int, ok bool) {
+ 
+ 	n = 0;
+ 	for ; i < len(s) && ishex(s[i]); i++ {
+-		n *= 16
++		n *= 16;
+ 		if '0' <= s[i] && s[i] <= '9' {
+ 			n += int(s[i] - '0')
+ 		} else if 'a' <= s[i] && s[i] <= 'f' {
+@@ -294,20 +294,20 @@ func xtoi(s string, i int) (n int, i1 int, ok bool) {
+ 
+ // Parse IPv4 address (d.d.d.d).
+ func ParseIPv4(s string) *[]byte {
+-	var p [IPv4len]byte
+-	i := 0
++	var p [IPv4len]byte;
++	i := 0;
+ 	for j := 0; j < IPv4len; j++ {
+ 		if j > 0 {
+ 			if s[i] != '.' {
+ 				return nil
+ 			}
+-			i++
++			i++;
+ 		}
+ 		var (
+ 			n int;
+ 			ok bool
+ 		)
+-		n, i, ok = dtoi(s, i)
++		n, i, ok = dtoi(s, i);
+ 		if !ok || n > 0xFF {
+ 			return nil
+ 		}
+@@ -335,7 +335,7 @@ func ParseIPv6(s string) *[]byte {
+ 	// Might have leading ellipsis
+ 	if len(s) >= 2 && s[0] == ':' && s[1] == ':' {
+ 		ellipsis = 0;
+-		i = 2
++		i = 2;
+ 		// Might be only ellipsis
+ 		if i == len(s) {
+ 			return p
+@@ -346,7 +346,7 @@ func ParseIPv6(s string) *[]byte {
+ 	j := 0;
+ L:	for j < IPv6len {
+ 		// Hex number.
+-		n, i1, ok := xtoi(s, i)
++		n, i1, ok := xtoi(s, i);
+ 		if !ok || n > 0xFFFF {
+ 			return nil
+ 		}
+@@ -371,7 +371,7 @@ L:	for j < IPv6len {
+ 			p[j+2] = p4[14];
+ 			p[j+3] = p4[15];
+ 			i = len(s);
+-			j += 4
++			j += 4;
+ 			break
+ 		}
+ 
+@@ -381,7 +381,7 @@ L:	for j < IPv6len {
+ 		j += 2;
+ 
+ 		// Stop at end of string.
+-		i = i1
++		i = i1;
+ 		if i == len(s) {
+ 			break
+ 		}
+@@ -390,7 +390,7 @@ L:	for j < IPv6len {
+ 		if s[i] != ':' && i+1 == len(s) {
+ 			return nil
+ 		}
+-		i++
++		i++;
+ 
+ 		// Look for ellipsis.
+ 		if s[i] == ':' {
+@@ -414,7 +414,7 @@ L:	for j < IPv6len {
+ 		if ellipsis < 0 {
+ 			return nil
+ 		}
+-		n := IPv6len - j
++		n := IPv6len - j;
+ 		for k := j-1; k >= ellipsis; k-- {
+ 			p[k+n] = p[k]
+ 		}
+@@ -426,7 +426,7 @@ L:	for j < IPv6len {
+ }
+ 
+ export func ParseIP(s string) *[]byte {
+-	p := ParseIPv4(s)
++	p := ParseIPv4(s);
+ 	if p != nil {
+ 		return p
+ 	}
+diff --git a/src/lib/net/net.go b/src/lib/net/net.go
+index 7df4130550..49d9c1bcc8 100644
+--- a/src/lib/net/net.go
++++ b/src/lib/net/net.go
+@@ -24,7 +24,7 @@ export var (
+ // Host cannot contain colons unless it is bracketed.
+ func SplitHostPort(hostport string) (host, port string, err *os.Error) {
+ 	// The port starts after the last colon.
+-	var i int
++	var i int;
+ 	for i = len(hostport)-1; i >= 0; i-- {
+ 		if hostport[i] == ':' {
+ 			break
+@@ -69,7 +69,7 @@ func xdtoi(s string) (n int, ok bool) {
+ 	}
+ 	n = 0;
+ 	for i := 0; i < len(s) && '0' <= s[i] && s[i] <= '9'; i++ {
+-		n = n*10 + int(s[i] - '0')
++		n = n*10 + int(s[i] - '0');
+ 		if n >= 1000000 {	// bigger than we need
+ 			return 0, false
+ 		}
+@@ -108,12 +108,12 @@ func HostPortToIP(net string, hostport string) (ip *[]byte, iport int, err *os.E
+ func SockaddrToHostPort(sa *syscall.Sockaddr) (hostport string, err *os.Error) {
+ 	switch sa.family {
+ 	case syscall.AF_INET, syscall.AF_INET6:
+-		addr, port, e := SockaddrToIP(sa)
++		addr, port, e := SockaddrToIP(sa);
+ 		if e != nil {
+ 			return "", e
+ 		}
+ 		host := IPToString(addr);
+-		return JoinHostPort(host, strings.itoa(port)), nil
++		return JoinHostPort(host, strings.itoa(port)), nil;
+ 	default:
+ 		return "", UnknownSocketFamily
+ 	}
+@@ -136,28 +136,28 @@ func Socket(f, p, t int64, la, ra *syscall.Sockaddr) (fd *FD, err *os.Error) {
+ 	}
+ 
+ 	// Allow reuse of recently-used addresses.
+-	syscall.setsockopt_int(s, syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1)
++	syscall.setsockopt_int(s, syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1);
+ 
+-	var r int64
++	var r int64;
+ 	if la != nil {
+-		r, e = syscall.bind(s, la)
++		r, e = syscall.bind(s, la);
+ 		if e != 0 {
+-			syscall.close(s)
++			syscall.close(s);
+ 			return nil, os.ErrnoToError(e)
+ 		}
+ 	}
+ 
+ 	if ra != nil {
+-		r, e = syscall.connect(s, ra)
++		r, e = syscall.connect(s, ra);
+ 		if e != 0 {
+-			syscall.close(s)
++			syscall.close(s);
+ 			return nil, os.ErrnoToError(e)
+ 		}
+ 	}
+ 
+-	fd, err = NewFD(s)
++	fd, err = NewFD(s);
+ 	if err != nil {
+-		syscall.close(s)
++		syscall.close(s);
+ 		return nil, err
+ 	}
+ 
+@@ -179,12 +179,12 @@ func (c *ConnBase) FD() int64 {
+ }
+ 
+ func (c *ConnBase) Read(b *[]byte) (n int, err *os.Error) {
+-	n, err = c.fd.Read(b)
++	n, err = c.fd.Read(b);
+ 	return n, err
+ }
+ 
+ func (c *ConnBase) Write(b *[]byte) (n int, err *os.Error) {
+-	n, err = c.fd.Write(b)
++	n, err = c.fd.Write(b);
+ 	return n, err
+ }
+ 
+@@ -192,7 +192,7 @@ func (c *ConnBase) ReadFrom(b *[]byte) (n int, raddr string, err *os.Error) {
+ 	if c == nil {
+ 		return -1, "", os.EINVAL
+ 	}
+-	n, err = c.Read(b)
++	n, err = c.Read(b);
+ 	return n, c.raddr, err
+ }
+ 
+@@ -203,7 +203,7 @@ func (c *ConnBase) WriteTo(raddr string, b *[]byte) (n int, err *os.Error) {
+ 	if raddr != c.raddr {
+ 		return -1, os.EINVAL
+ 	}
+-	n, err = c.Write(b)
++	n, err = c.Write(b);
+ 	return n, err
+ }
+ 
+@@ -264,7 +264,7 @@ func (c *ConnBase) SetKeepAlive(keepalive bool) *os.Error {
+ }
+ 
+ func (c *ConnBase) SetLinger(sec int) *os.Error {
+-	e := syscall.setsockopt_linger(c.FD(), syscall.SOL_SOCKET, syscall.SO_LINGER, sec)
++	e := syscall.setsockopt_linger(c.FD(), syscall.SOL_SOCKET, syscall.SO_LINGER, sec);
+ 	return os.ErrnoToError(e);
+ }
+ 
+@@ -281,24 +281,24 @@ const PreferIPv4 = false
+ 
+ func InternetSocket(net, laddr, raddr string, proto int64) (fd *FD, err *os.Error) {
+ 	// Parse addresses (unless they are empty).
+-	var lip, rip *[]byte
+-	var lport, rport int
+-	var lerr, rerr *os.Error
++	var lip, rip *[]byte;
++	var lport, rport int;
++	var lerr, rerr *os.Error;
+ // BUG 6g doesn't zero var lists
+ lip = nil;
+ rip = nil;
+ lport = 0;
+ rport = 0;
+ lerr = nil;
+-rerr = nil
++rerr = nil;
+ 	if laddr != "" {
+-		lip, lport, lerr = HostPortToIP(net, laddr)
++		lip, lport, lerr = HostPortToIP(net, laddr);
+ 		if lerr != nil {
+ 			return nil, lerr
+ 		}
+ 	}
+ 	if raddr != "" {
+-		rip, rport, rerr = HostPortToIP(net, raddr)
++		rip, rport, rerr = HostPortToIP(net, raddr);
+ 		if rerr != nil {
+ 			return nil, rerr
+ 		}
+@@ -309,9 +309,9 @@ rerr = nil
+ 	vers := 0;
+ 	switch net[len(net)-1] {
+ 	case '4':
+-		vers = 4
++		vers = 4;
+ 	case '6':
+-		vers = 6
++		vers = 6;
+ 	default:
+ 		// Otherwise, guess.
+ 		// If the addresses are IPv4 and we prefer IPv4, use 4; else 6.
+@@ -324,8 +324,8 @@ rerr = nil
+ 		}
+ 	}
+ 
+-	var cvt *(addr *[]byte, port int) (sa *syscall.Sockaddr, err *os.Error)
+-	var family int64
++	var cvt *(addr *[]byte, port int) (sa *syscall.Sockaddr, err *os.Error);
++	var family int64;
+ 	if vers == 4 {
+ 		cvt = &IPv4ToSockaddr;
+ 		family = syscall.AF_INET
+@@ -337,7 +337,7 @@ rerr = nil
+ 	var la, ra *syscall.Sockaddr;
+ // BUG
+ la = nil;
+-ra = nil
++ra = nil;
+ 	if lip != nil {
+ 		la, lerr = cvt(lip, lport);
+ 		if lerr != nil {
+@@ -372,19 +372,19 @@ func (c *ConnTCP) SetNoDelay(nodelay bool) *os.Error {
+ 
+ // Wrappers
+ func (c *ConnTCP) Read(b *[]byte) (n int, err *os.Error) {
+-	n, err = (&c.base).Read(b)
++	n, err = (&c.base).Read(b);
+ 	return n, err
+ }
+ func (c *ConnTCP) Write(b *[]byte) (n int, err *os.Error) {
+-	n, err = (&c.base).Write(b)
++	n, err = (&c.base).Write(b);
+ 	return n, err
+ }
+ func (c *ConnTCP) ReadFrom(b *[]byte) (n int, raddr string, err *os.Error) {
+-	n, raddr, err = (&c.base).ReadFrom(b)
++	n, raddr, err = (&c.base).ReadFrom(b);
+ 	return n, raddr, err
+ }
+ func (c *ConnTCP) WriteTo(raddr string, b *[]byte) (n int, err *os.Error) {
+-	n, err = (&c.base).WriteTo(raddr, b)
++	n, err = (&c.base).WriteTo(raddr, b);
+ 	return n, err
+ }
+ func (c *ConnTCP) Close() *os.Error {
+@@ -433,7 +433,7 @@ export func DialTCP(net, laddr, raddr string) (c *ConnTCP, err *os.Error) {
+ 	if raddr == "" {
+ 		return nil, MissingAddress
+ 	}
+-	fd, e := InternetSocket(net, laddr, raddr, syscall.SOCK_STREAM)
++	fd, e := InternetSocket(net, laddr, raddr, syscall.SOCK_STREAM);
+ 	if e != nil {
+ 		return nil, e
+ 	}
+@@ -499,23 +499,23 @@ var noconn NoConn
+ export func Dial(net, laddr, raddr string) (c Conn, err *os.Error) {
+ 	switch net {
+ 	case "tcp", "tcp4", "tcp6":
+-		c, err := DialTCP(net, laddr, raddr)
++		c, err := DialTCP(net, laddr, raddr);
+ 		if err != nil {
+ 			return &noconn, err
+ 		}
+-		return c, nil
++		return c, nil;
+ /*
+ 	case "udp", "udp4", "upd6":
+-		c, err := DialUDP(net, laddr, raddr)
+-		return c, err
++		c, err := DialUDP(net, laddr, raddr);
++		return c, err;
+ 	case "ether":
+-		c, err := DialEther(net, laddr, raddr)
+-		return c, err
++		c, err := DialEther(net, laddr, raddr);
++		return c, err;
+ 	case "ipv4":
+-		c, err := DialIPv4(net, laddr, raddr)
+-		return c, err
++		c, err := DialIPv4(net, laddr, raddr);
++		return c, err;
+ 	case "ipv6":
+-		c, err := DialIPv6(net, laddr, raddr)
++		c, err := DialIPv6(net, laddr, raddr);
+ 		return c, err
+ */
+ 	}
+@@ -542,17 +542,17 @@ export type ListenerTCP struct {
+ }
+ 
+ export func ListenTCP(net, laddr string) (l *ListenerTCP, err *os.Error) {
+-	fd, e := InternetSocket(net, laddr, "", syscall.SOCK_STREAM)
++	fd, e := InternetSocket(net, laddr, "", syscall.SOCK_STREAM);
+ 	if e != nil {
+ 		return nil, e
+ 	}
+-	r, e1 := syscall.listen(fd.fd, ListenBacklog())
++	r, e1 := syscall.listen(fd.fd, ListenBacklog());
+ 	if e1 != 0 {
+-		syscall.close(fd.fd)
++		syscall.close(fd.fd);
+ 		return nil, os.ErrnoToError(e1)
+ 	}
+ 	l = new(ListenerTCP);
+-	l.fd = fd
++	l.fd = fd;
+ 	return l, nil
+ }
+ 
+@@ -561,20 +561,20 @@ func (l *ListenerTCP) AcceptTCP() (c *ConnTCP, raddr string, err *os.Error) {
+ 		return nil, "", os.EINVAL
+ 	}
+ 	var sa syscall.Sockaddr;
+-	fd, e := l.fd.Accept(&sa)
++	fd, e := l.fd.Accept(&sa);
+ 	if e != nil {
+ 		return nil, "", e
+ 	}
+-	raddr, err = SockaddrToHostPort(&sa)
++	raddr, err = SockaddrToHostPort(&sa);
+ 	if err != nil {
+-		fd.Close()
++		fd.Close();
+ 		return nil, "", err
+ 	}
+ 	return NewConnTCP(fd, raddr), raddr, nil
+ }
+ 
+ func (l *ListenerTCP) Accept() (c Conn, raddr string, err *os.Error) {
+-	c1, r1, e1 := l.AcceptTCP()
++	c1, r1, e1 := l.AcceptTCP();
+ 	if e1 != nil {
+ 		return &noconn, "", e1
+ 	}
+@@ -591,7 +591,7 @@ func (l *ListenerTCP) Close() *os.Error {
+ export func Listen(net, laddr string) (l Listener, err *os.Error) {
+ 	switch net {
+ 	case "tcp", "tcp4", "tcp6":
+-		l, err := ListenTCP(net, laddr)
++		l, err := ListenTCP(net, laddr);
+ 		if err != nil {
+ 			return &nolistener, err
+ 		}
+diff --git a/src/lib/net/net_darwin.go b/src/lib/net/net_darwin.go
+index 3accbe13bb..8ce94da6c3 100644
+--- a/src/lib/net/net_darwin.go
++++ b/src/lib/net/net_darwin.go
+@@ -11,7 +11,7 @@ import (
+ )
+ 
+ export func IPv4ToSockaddr(p *[]byte, port int) (sa1 *syscall.Sockaddr, err *os.Error) {
+-	p = ToIPv4(p)
++	p = ToIPv4(p);
+ 	if p == nil || port < 0 || port > 0xFFFF {
+ 		return nil, os.EINVAL
+ 	}
+@@ -27,7 +27,7 @@ export func IPv4ToSockaddr(p *[]byte, port int) (sa1 *syscall.Sockaddr, err *os.
+ }
+ 
+ export func IPv6ToSockaddr(p *[]byte, port int) (sa1 *syscall.Sockaddr, err *os.Error) {
+-	p = ToIPv6(p)
++	p = ToIPv6(p);
+ 	if p == nil || port < 0 || port > 0xFFFF {
+ 		return nil, os.EINVAL
+ 	}
+@@ -46,18 +46,18 @@ export func SockaddrToIP(sa1 *syscall.Sockaddr) (p *[]byte, port int, err *os.Er
+ 	switch sa1.family {
+ 	case syscall.AF_INET:
+ 		sa := syscall.SockaddrToSockaddrInet4(sa1);
+-		a := ToIPv6(&sa.addr)
++		a := ToIPv6(&sa.addr);
+ 		if a == nil {
+ 			return nil, 0, os.EINVAL
+ 		}
+-		return a, int(sa.port[0])<<8 + int(sa.port[1]), nil
++		return a, int(sa.port[0])<<8 + int(sa.port[1]), nil;
+ 	case syscall.AF_INET6:
+ 		sa := syscall.SockaddrToSockaddrInet6(sa1);
+-		a := ToIPv6(&sa.addr)
++		a := ToIPv6(&sa.addr);
+ 		if a == nil {
+ 			return nil, 0, os.EINVAL
+ 		}
+-		return a, int(sa.port[0])<<8 + int(sa.port[1]), nil
++		return a, int(sa.port[0])<<8 + int(sa.port[1]), nil;
+ 	default:
+ 		return nil, 0, os.EINVAL
+ 	}
+diff --git a/src/lib/net/net_linux.go b/src/lib/net/net_linux.go
+index 17ffa5a9ec..a7c1ecc008 100644
+--- a/src/lib/net/net_linux.go
++++ b/src/lib/net/net_linux.go
+@@ -11,7 +11,7 @@ import (
+ )
+ 
+ export func IPv4ToSockaddr(p *[]byte, port int) (sa1 *syscall.Sockaddr, err *os.Error) {
+-	p = ToIPv4(p)
++	p = ToIPv4(p);
+ 	if p == nil || port < 0 || port > 0xFFFF {
+ 		return nil, os.EINVAL
+ 	}
+@@ -28,7 +28,7 @@ export func IPv4ToSockaddr(p *[]byte, port int) (sa1 *syscall.Sockaddr, err *os.
+ var IPv6zero [16]byte;
+ 
+ export func IPv6ToSockaddr(p *[]byte, port int) (sa1 *syscall.Sockaddr, err *os.Error) {
+-	p = ToIPv6(p)
++	p = ToIPv6(p);
+ 	if p == nil || port < 0 || port > 0xFFFF {
+ 		return nil, os.EINVAL
+ 	}
+@@ -54,18 +54,18 @@ export func SockaddrToIP(sa1 *syscall.Sockaddr) (p *[]byte, port int, err *os.Er
+ 	switch sa1.family {
+ 	case syscall.AF_INET:
+ 		sa := syscall.SockaddrToSockaddrInet4(sa1);
+-		a := ToIPv6(&sa.addr)
++		a := ToIPv6(&sa.addr);
+ 		if a == nil {
+ 			return nil, 0, os.EINVAL
+ 		}
+-		return a, int(sa.port[0])<<8 + int(sa.port[1]), nil
++		return a, int(sa.port[0])<<8 + int(sa.port[1]), nil;
+ 	case syscall.AF_INET6:
+ 		sa := syscall.SockaddrToSockaddrInet6(sa1);
+-		a := ToIPv6(&sa.addr)
++		a := ToIPv6(&sa.addr);
+ 		if a == nil {
+ 			return nil, 0, os.EINVAL
+ 		}
+-		return a, int(sa.port[0])<<8 + int(sa.port[1]), nil
++		return a, int(sa.port[0])<<8 + int(sa.port[1]), nil;
+ 	default:
+ 		return nil, 0, os.EINVAL
+ 	}
+diff --git a/src/lib/once.go b/src/lib/once.go
+index c8433e8619..7585a44235 100644
+--- a/src/lib/once.go
++++ b/src/lib/once.go
+@@ -32,7 +32,7 @@ var jobmap = new(map[*()]*Job)
+ func Server() {
+ 	for {
+ 		req := <-service;
+-		job, present := jobmap[req.f]
++		job, present := jobmap[req.f];
+ 		if !present {
+ 			job = new(Job);
+ 			job.doit = new(chan bool, 1);
+@@ -48,8 +48,8 @@ export func Do(f *()) {
+ 	// If not there, ask map server to make one.
+ 	// TODO: Uncomment use of jobmap[f] once
+ 	// maps are thread-safe.
+-	var job *Job
+-	var present bool
++	var job *Job;
++	var present bool;
+ 	// job, present = jobmap[f]
+ 	if !present {
+ 		c := new(chan *Job);
+diff --git a/src/lib/os/os_error.go b/src/lib/os/os_error.go
+index 95a6714971..dee1357846 100644
+--- a/src/lib/os/os_error.go
++++ b/src/lib/os/os_error.go
+@@ -16,7 +16,7 @@ var ErrorTab = new(map[int64] *Error);
+ 
+ export func NewError(s string) *Error {
+ 	e := new(Error);
+-	e.s = s
++	e.s = s;
+ 	return e
+ }
+ 
+@@ -24,7 +24,7 @@ export func ErrnoToError(errno int64) *Error {
+ 	if errno == 0 {
+ 		return nil
+ 	}
+-	err, ok := ErrorTab[errno]
++	err, ok := ErrorTab[errno];
+ 	if ok {
+ 		return err
+ 	}
+diff --git a/src/lib/os/os_file.go b/src/lib/os/os_file.go
+index 0b1d2e0df5..3fa62ba7ca 100644
+--- a/src/lib/os/os_file.go
++++ b/src/lib/os/os_file.go
+@@ -84,7 +84,7 @@ func (fd *FD) WriteString(s string) (ret int, err *Error) {
+ }
+ 
+ export func Pipe() (fd1 *FD, fd2 *FD, err *Error) {
+-	var p [2]int64
++	var p [2]int64;
+ 	r, e := syscall.pipe(&p);
+ 	if e != 0 {
+ 		return nil, nil, ErrnoToError(e)
+diff --git a/src/lib/os/os_time.go b/src/lib/os/os_time.go
+index 2efd4a5d06..b396eafab1 100644
+--- a/src/lib/os/os_time.go
++++ b/src/lib/os/os_time.go
+@@ -11,7 +11,7 @@ import (
+ 
+ export func Time() (sec int64, nsec int64, err *Error) {
+ 	var errno int64;
+-	sec, nsec, errno = syscall.gettimeofday()
++	sec, nsec, errno = syscall.gettimeofday();
+ 	if errno != 0 {
+ 		return 0, 0, ErrnoToError(errno)
+ 	}
+diff --git a/src/lib/rand.go b/src/lib/rand.go
+index ac58411476..8619cc48c2 100644
+--- a/src/lib/rand.go
++++ b/src/lib/rand.go
+@@ -65,7 +65,7 @@ srand(seed int32)
+ 	for i := -20; i < LEN; i++ {
+ 		x = seedrand(x);
+ 		if i >= 0 {
+-			var u int64
++			var u int64;
+ 			u = int64(x) << 20;
+ 			x = seedrand(x);
+ 			u ^= int64(x) << 10;
+@@ -121,7 +121,7 @@ nrand63(n int64) int64
+ 		return 0
+ 	}
+ 	max := int64((1<<63)-1 - (1<<63) % uint64(n));
+-	v := rand63()
++	v := rand63();
+ 	for v > max {
+ 		v = rand63()
+ 	}
+diff --git a/src/lib/syscall/errstr_darwin.go b/src/lib/syscall/errstr_darwin.go
+index 65c525501f..8d62f74e88 100644
+--- a/src/lib/syscall/errstr_darwin.go
++++ b/src/lib/syscall/errstr_darwin.go
+@@ -114,109 +114,109 @@ export const (
+ var error [ELAST]string;
+ 
+ func init(){
+-	error[ENONE] = "No error"; 
+-	error[EPERM] = "Operation not permitted"; 
+-	error[ENOENT] = "No such file or directory"; 
+-	error[ESRCH] = "No such process"; 
+-	error[EINTR] = "Interrupted system call"; 
+-	error[EIO] = "Input/output error"; 
+-	error[ENXIO] = "Device not configured"; 
+-	error[E2BIG] = "Argument list too long"; 
+-	error[ENOEXEC] = "Exec format error"; 
+-	error[EBADF] = "Bad file descriptor"; 
+-	error[ECHILD] = "No child processes"; 
+-	error[EDEADLK] = "Resource deadlock avoided"; 
+-	error[ENOMEM] = "Cannot allocate memory"; 
+-	error[EACCES] = "Permission denied"; 
+-	error[EFAULT] = "Bad address"; 
+-	error[ENOTBLK] = "Block device required"; 
+-	error[EBUSY] = "Device / Resource busy"; 
+-	error[EEXIST] = "File exists"; 
+-	error[EXDEV] = "Cross-device link"; 
+-	error[ENODEV] = "Operation not supported by device"; 
+-	error[ENOTDIR] = "Not a directory"; 
+-	error[EISDIR] = "Is a directory"; 
+-	error[EINVAL] = "Invalid argument"; 
+-	error[ENFILE] = "Too many open files in system"; 
+-	error[EMFILE] = "Too many open files"; 
+-	error[ENOTTY] = "Inappropriate ioctl for device"; 
+-	error[ETXTBSY] = "Text file busy"; 
+-	error[EFBIG] = "File too large"; 
+-	error[ENOSPC] = "No space left on device"; 
+-	error[ESPIPE] = "Illegal seek"; 
+-	error[EROFS] = "Read-only file system"; 
+-	error[EMLINK] = "Too many links"; 
+-	error[EPIPE] = "Broken pipe"; 
+-	error[EDOM] = "Numerical argument out of domain"; 
+-	error[ERANGE] = "Result too large"; 
+-	error[EAGAIN] = "Resource temporarily unavailable"; 
+-	error[EINPROGRESS] = "Operation now in progress"; 
+-	error[EALREADY] = "Operation already in progress"; 
+-	error[ENOTSOCK] = "Socket operation on non-socket"; 
+-	error[EDESTADDRREQ] = "Destination address required"; 
+-	error[EMSGSIZE] = "Message too long"; 
+-	error[EPROTOTYPE] = "Protocol wrong type for socket"; 
+-	error[ENOPROTOOPT] = "Protocol not available"; 
+-	error[EPROTONOSUPPORT] = "Protocol not supported"; 
+-	error[ESOCKTNOSUPPORT] = "Socket type not supported"; 
+-	error[ENOTSUP] = "Operation not supported"; 
+-	error[EPFNOSUPPORT] = "Protocol family not supported"; 
+-	error[EAFNOSUPPORT] = "Address family not supported by protocol family"; 
+-	error[EADDRINUSE] = "Address already in use"; 
+-	error[EADDRNOTAVAIL] = "Can't assign requested address"; 
+-	error[ENETDOWN] = "Network is down"; 
+-	error[ENETUNREACH] = "Network is unreachable"; 
+-	error[ENETRESET] = "Network dropped connection on reset"; 
+-	error[ECONNABORTED] = "Software caused connection abort"; 
+-	error[ECONNRESET] = "Connection reset by peer"; 
+-	error[ENOBUFS] = "No buffer space available"; 
+-	error[EISCONN] = "Socket is already connected"; 
+-	error[ENOTCONN] = "Socket is not connected"; 
+-	error[ESHUTDOWN] = "Can't send after socket shutdown"; 
+-	error[ETOOMANYREFS] = "Too many references: can't splice"; 
+-	error[ETIMEDOUT] = "Operation timed out"; 
+-	error[ECONNREFUSED] = "Connection refused"; 
+-	error[ELOOP] = "Too many levels of symbolic links"; 
+-	error[ENAMETOOLONG] = "File name too long"; 
+-	error[EHOSTDOWN] = "Host is down"; 
+-	error[EHOSTUNREACH] = "No route to host"; 
+-	error[ENOTEMPTY] = "Directory not empty"; 
+-	error[EPROCLIM] = "Too many processes"; 
+-	error[EUSERS] = "Too many users"; 
+-	error[EDQUOT] = "Disc quota exceeded"; 
+-	error[ESTALE] = "Stale NFS file handle"; 
+-	error[EREMOTE] = "Too many levels of remote in path"; 
+-	error[EBADRPC] = "RPC struct is bad"; 
+-	error[ERPCMISMATCH] = "RPC version wrong"; 
+-	error[EPROGUNAVAIL] = "RPC prog. not avail"; 
+-	error[EPROGMISMATCH] = "Program version wrong"; 
+-	error[EPROCUNAVAIL] = "Bad procedure for program"; 
+-	error[ENOLCK] = "No locks available"; 
+-	error[ENOSYS] = "Function not implemented"; 
+-	error[EFTYPE] = "Inappropriate file type or format"; 
+-	error[EAUTH] = "Authentication error"; 
+-	error[ENEEDAUTH] = "Need authenticator"; 
+-	error[EPWROFF] = "Device power is off"; 
+-	error[EDEVERR] = "Device error, e.g. paper out"; 
+-	error[EOVERFLOW] = "Value too large to be stored in data type"; 
+-	error[EBADEXEC] = "Bad executable"; 
+-	error[EBADARCH] = "Bad CPU type in executable"; 
+-	error[ESHLIBVERS] = "Shared library version mismatch"; 
+-	error[EBADMACHO] = "Malformed Macho file"; 
+-	error[ECANCELED] = "Operation canceled"; 
+-	error[EIDRM] = "Identifier removed"; 
+-	error[ENOMSG] = "No message of desired type"; 
+-	error[EILSEQ] = "Illegal byte sequence"; 
+-	error[ENOATTR] = "Attribute not found"; 
+-	error[EBADMSG] = "Bad message"; 
+-	error[EMULTIHOP] = "Reserved"; 
+-	error[ENODATA] = "No message available on STREAM"; 
+-	error[ENOLINK] = "Reserved"; 
+-	error[ENOSR] = "No STREAM resources"; 
+-	error[ENOSTR] = "Not a STREAM"; 
+-	error[EPROTO] = "Protocol error"; 
+-	error[ETIME] = "STREAM ioctl timeout"; 
+-	error[EOPNOTSUPP] = "Operation not supported on socket"; 
++	error[ENONE] = "No error";
++	error[EPERM] = "Operation not permitted";
++	error[ENOENT] = "No such file or directory";
++	error[ESRCH] = "No such process";
++	error[EINTR] = "Interrupted system call";
++	error[EIO] = "Input/output error";
++	error[ENXIO] = "Device not configured";
++	error[E2BIG] = "Argument list too long";
++	error[ENOEXEC] = "Exec format error";
++	error[EBADF] = "Bad file descriptor";
++	error[ECHILD] = "No child processes";
++	error[EDEADLK] = "Resource deadlock avoided";
++	error[ENOMEM] = "Cannot allocate memory";
++	error[EACCES] = "Permission denied";
++	error[EFAULT] = "Bad address";
++	error[ENOTBLK] = "Block device required";
++	error[EBUSY] = "Device / Resource busy";
++	error[EEXIST] = "File exists";
++	error[EXDEV] = "Cross-device link";
++	error[ENODEV] = "Operation not supported by device";
++	error[ENOTDIR] = "Not a directory";
++	error[EISDIR] = "Is a directory";
++	error[EINVAL] = "Invalid argument";
++	error[ENFILE] = "Too many open files in system";
++	error[EMFILE] = "Too many open files";
++	error[ENOTTY] = "Inappropriate ioctl for device";
++	error[ETXTBSY] = "Text file busy";
++	error[EFBIG] = "File too large";
++	error[ENOSPC] = "No space left on device";
++	error[ESPIPE] = "Illegal seek";
++	error[EROFS] = "Read-only file system";
++	error[EMLINK] = "Too many links";
++	error[EPIPE] = "Broken pipe";
++	error[EDOM] = "Numerical argument out of domain";
++	error[ERANGE] = "Result too large";
++	error[EAGAIN] = "Resource temporarily unavailable";
++	error[EINPROGRESS] = "Operation now in progress";
++	error[EALREADY] = "Operation already in progress";
++	error[ENOTSOCK] = "Socket operation on non-socket";
++	error[EDESTADDRREQ] = "Destination address required";
++	error[EMSGSIZE] = "Message too long";
++	error[EPROTOTYPE] = "Protocol wrong type for socket";
++	error[ENOPROTOOPT] = "Protocol not available";
++	error[EPROTONOSUPPORT] = "Protocol not supported";
++	error[ESOCKTNOSUPPORT] = "Socket type not supported";
++	error[ENOTSUP] = "Operation not supported";
++	error[EPFNOSUPPORT] = "Protocol family not supported";
++	error[EAFNOSUPPORT] = "Address family not supported by protocol family";
++	error[EADDRINUSE] = "Address already in use";
++	error[EADDRNOTAVAIL] = "Can't assign requested address";
++	error[ENETDOWN] = "Network is down";
++	error[ENETUNREACH] = "Network is unreachable";
++	error[ENETRESET] = "Network dropped connection on reset";
++	error[ECONNABORTED] = "Software caused connection abort";
++	error[ECONNRESET] = "Connection reset by peer";
++	error[ENOBUFS] = "No buffer space available";
++	error[EISCONN] = "Socket is already connected";
++	error[ENOTCONN] = "Socket is not connected";
++	error[ESHUTDOWN] = "Can't send after socket shutdown";
++	error[ETOOMANYREFS] = "Too many references: can't splice";
++	error[ETIMEDOUT] = "Operation timed out";
++	error[ECONNREFUSED] = "Connection refused";
++	error[ELOOP] = "Too many levels of symbolic links";
++	error[ENAMETOOLONG] = "File name too long";
++	error[EHOSTDOWN] = "Host is down";
++	error[EHOSTUNREACH] = "No route to host";
++	error[ENOTEMPTY] = "Directory not empty";
++	error[EPROCLIM] = "Too many processes";
++	error[EUSERS] = "Too many users";
++	error[EDQUOT] = "Disc quota exceeded";
++	error[ESTALE] = "Stale NFS file handle";
++	error[EREMOTE] = "Too many levels of remote in path";
++	error[EBADRPC] = "RPC struct is bad";
++	error[ERPCMISMATCH] = "RPC version wrong";
++	error[EPROGUNAVAIL] = "RPC prog. not avail";
++	error[EPROGMISMATCH] = "Program version wrong";
++	error[EPROCUNAVAIL] = "Bad procedure for program";
++	error[ENOLCK] = "No locks available";
++	error[ENOSYS] = "Function not implemented";
++	error[EFTYPE] = "Inappropriate file type or format";
++	error[EAUTH] = "Authentication error";
++	error[ENEEDAUTH] = "Need authenticator";
++	error[EPWROFF] = "Device power is off";
++	error[EDEVERR] = "Device error, e.g. paper out";
++	error[EOVERFLOW] = "Value too large to be stored in data type";
++	error[EBADEXEC] = "Bad executable";
++	error[EBADARCH] = "Bad CPU type in executable";
++	error[ESHLIBVERS] = "Shared library version mismatch";
++	error[EBADMACHO] = "Malformed Macho file";
++	error[ECANCELED] = "Operation canceled";
++	error[EIDRM] = "Identifier removed";
++	error[ENOMSG] = "No message of desired type";
++	error[EILSEQ] = "Illegal byte sequence";
++	error[ENOATTR] = "Attribute not found";
++	error[EBADMSG] = "Bad message";
++	error[EMULTIHOP] = "Reserved";
++	error[ENODATA] = "No message available on STREAM";
++	error[ENOLINK] = "Reserved";
++	error[ENOSR] = "No STREAM resources";
++	error[ENOSTR] = "Not a STREAM";
++	error[EPROTO] = "Protocol error";
++	error[ETIME] = "STREAM ioctl timeout";
++	error[EOPNOTSUPP] = "Operation not supported on socket";
+ }
+ 
+ func str(val int64) string {  // do it here rather than with fmt to avoid dependency
+diff --git a/src/lib/syscall/file_darwin.go b/src/lib/syscall/file_darwin.go
+index c481b0d1ed..120003b288 100644
+--- a/src/lib/syscall/file_darwin.go
++++ b/src/lib/syscall/file_darwin.go
+@@ -82,7 +82,7 @@ export func unlink(name string) (ret int64, errno int64) {
+ }
+ 
+ export func fcntl(fd, cmd, arg int64) (ret int64, errno int64) {
+-	r1, r2, err := Syscall(SYS_FCNTL, fd, cmd, arg)
++	r1, r2, err := Syscall(SYS_FCNTL, fd, cmd, arg);
+ 	return r1, err
+ }
+ 
+diff --git a/src/lib/syscall/file_linux.go b/src/lib/syscall/file_linux.go
+index b5120a70b7..09d5379c27 100644
+--- a/src/lib/syscall/file_linux.go
++++ b/src/lib/syscall/file_linux.go
+@@ -83,7 +83,7 @@ export func unlink(name string) (ret int64, errno int64) {
+ }
+ 
+ export func fcntl(fd, cmd, arg int64) (ret int64, errno int64) {
+-	r1, r2, err := Syscall(SYS_FCNTL, fd, cmd, arg)
++	r1, r2, err := Syscall(SYS_FCNTL, fd, cmd, arg);
+ 	return r1, err
+ }
+ 
+diff --git a/src/lib/syscall/socket_darwin.go b/src/lib/syscall/socket_darwin.go
+index c8104da0b1..b11ba5713c 100644
+--- a/src/lib/syscall/socket_darwin.go
++++ b/src/lib/syscall/socket_darwin.go
+@@ -50,7 +50,7 @@ export func setsockopt(fd, level, opt, valueptr, length int64) (ret int64, err i
+ 
+ export func setsockopt_int(fd, level, opt int64, value int) int64 {
+ 	n := int32(opt);
+-	r1, e := setsockopt(fd, level, opt, Int32Ptr(&n), 4)
++	r1, e := setsockopt(fd, level, opt, Int32Ptr(&n), 4);
+ 	return e
+ }
+ 
+@@ -59,7 +59,7 @@ export func setsockopt_tv(fd, level, opt, nsec int64) int64 {
+ 	nsec += 999;
+ 	tv.sec = int64(nsec/1000000000);
+ 	tv.usec = uint32(nsec%1000000000);
+-	r1, e := setsockopt(fd, level, opt, TimevalPtr(&tv), 4)
++	r1, e := setsockopt(fd, level, opt, TimevalPtr(&tv), 4);
+ 	return e
+ }
+ 
+@@ -72,7 +72,7 @@ export func setsockopt_linger(fd, level, opt int64, sec int) int64 {
+ 		l.yes = 0;
+ 		l.sec = 0
+ 	}
+-	r1, err := setsockopt(fd, level, opt, LingerPtr(&l), 8)
++	r1, err := setsockopt(fd, level, opt, LingerPtr(&l), 8);
+ 	return err
+ }
+ 
+diff --git a/src/lib/syscall/socket_linux.go b/src/lib/syscall/socket_linux.go
+index be55bca7bf..47f9aa7688 100644
+--- a/src/lib/syscall/socket_linux.go
++++ b/src/lib/syscall/socket_linux.go
+@@ -17,9 +17,9 @@ export func SockaddrInet6ToSockaddr(s *SockaddrInet6) *Sockaddr;
+ func Len(s *Sockaddr) int64 {
+ 	switch s.family {
+ 	case AF_UNIX:
+-		return SizeofSockaddrUnix
++		return SizeofSockaddrUnix;
+ 	case AF_INET:
+-		return SizeofSockaddrInet4
++		return SizeofSockaddrInet4;
+ 	case AF_INET6:
+ 		return SizeofSockaddrInet6
+ 	}
+@@ -62,7 +62,7 @@ export func setsockopt(fd, level, opt, valueptr, length int64) (ret int64, err i
+ 
+ export func setsockopt_int(fd, level, opt int64, value int) int64 {
+ 	n := int32(opt);
+-	r1, e := setsockopt(fd, level, opt, Int32Ptr(&n), 4)
++	r1, e := setsockopt(fd, level, opt, Int32Ptr(&n), 4);
+ 	return e
+ }
+ 
+@@ -71,7 +71,7 @@ export func setsockopt_tv(fd, level, opt, nsec int64) int64 {
+ 	nsec += 999;
+ 	tv.sec = int64(nsec/1000000000);
+ 	tv.usec = uint64(nsec%1000000000);
+-	r1, e := setsockopt(fd, level, opt, TimevalPtr(&tv), 4)
++	r1, e := setsockopt(fd, level, opt, TimevalPtr(&tv), 4);
+ 	return e
+ }
+ 
+@@ -84,7 +84,7 @@ export func setsockopt_linger(fd, level, opt int64, sec int) int64 {
+ 		l.yes = 0;
+ 		l.sec = 0
+ 	}
+-	r1, err := setsockopt(fd, level, opt, LingerPtr(&l), 8)
++	r1, err := setsockopt(fd, level, opt, LingerPtr(&l), 8);
+ 	return err
+ }
+ 
+diff --git a/src/lib/time/time.go b/src/lib/time/time.go
+index 5705ff10fd..b539c385a6 100644
+--- a/src/lib/time/time.go
++++ b/src/lib/time/time.go
+@@ -12,14 +12,14 @@ import (
+ // Seconds since January 1, 1970 00:00:00 GMT
+ export func Seconds() (sec int64, err *os.Error) {
+ 	var nsec int64;
+-	sec, nsec, err = os.Time()
++	sec, nsec, err = os.Time();
+ 	return sec, err
+ }
+ 
+ // Nanoseconds since January 1, 1970 00:00:00 GMT
+ export func Nanoseconds() (nsec int64, err *os.Error) {
+ 	var sec int64;
+-	sec, nsec, err = os.Time()
++	sec, nsec, err = os.Time();
+ 	return sec*1e9 + nsec, err
+ }
+ 
+@@ -75,7 +75,7 @@ export func SecondsToUTC(sec int64) *Time {
+ 	day := sec/SecondsPerDay;
+ 	sec -= day*SecondsPerDay;
+ 	if sec < 0 {
+-		day--
++		day--;
+ 		sec += SecondsPerDay
+ 	}
+ 
+@@ -85,7 +85,7 @@ export func SecondsToUTC(sec int64) *Time {
+ 	t.second = int(sec%60);
+ 
+ 	// Day 0 = January 1, 1970 was a Thursday
+-	t.weekday = int((day + Thursday) % 7)
++	t.weekday = int((day + Thursday) % 7);
+ 	if t.weekday < 0 {
+ 		t.weekday += 7
+ 	}
+@@ -95,7 +95,7 @@ export func SecondsToUTC(sec int64) *Time {
+ 	// (2001 begins 4-, 100-, and 400-year cycles ending in a leap year.)
+ 	day -= Days1970To2001;
+ 
+-	year := int64(2001)
++	year := int64(2001);
+ 	if day < 0 {
+ 		// Go back enough 400 year cycles to make day positive.
+ 		n := -day/DaysPer400Years + 1;
+@@ -143,7 +143,7 @@ export func SecondsToUTC(sec int64) *Time {
+ 
+ export func UTC() (t *Time, err *os.Error) {
+ 	var sec int64;
+-	sec, err = Seconds()
++	sec, err = Seconds();
+ 	if err != nil {
+ 		return nil, err
+ 	}
+@@ -152,7 +152,7 @@ export func UTC() (t *Time, err *os.Error) {
+ 
+ // TODO: Should this return an error?
+ export func SecondsToLocalTime(sec int64) *Time {
+-	zone, offset, err := time.LookupTimezone(sec)
++	zone, offset, err := time.LookupTimezone(sec);
+ 	if err != nil {
+ 		return SecondsToUTC(sec)
+ 	}
+@@ -164,7 +164,7 @@ export func SecondsToLocalTime(sec int64) *Time {
+ 
+ export func LocalTime() (t *Time, err *os.Error) {
+ 	var sec int64;
+-	sec, err = Seconds()
++	sec, err = Seconds();
+ 	if err != nil {
+ 		return nil, err
+ 	}
+@@ -175,7 +175,7 @@ export func LocalTime() (t *Time, err *os.Error) {
+ func (t *Time) Seconds() int64 {
+ 	// First, accumulate days since January 1, 2001.
+ 	// Using 2001 instead of 1970 makes the leap-year
+-	// handling easier (see SecondsToUTC), because 
++	// handling easier (see SecondsToUTC), because
+ 	// it is at the beginning of the 4-, 100-, and 400-year cycles.
+ 	day := int64(0);
+ 
+@@ -225,7 +225,7 @@ func (t *Time) Seconds() int64 {
+ 	sec += Days1970To2001 * SecondsPerDay;
+ 
+ 	// Account for local time zone.
+-	sec -= int64(t.zoneoffset)
++	sec -= int64(t.zoneoffset);
+ 	return sec
+ }
+ 
+@@ -282,7 +282,7 @@ func Decimal(dst *[]byte, n int) {
+ 
+ func AddString(buf *[]byte, bp int, s string) int {
+ 	n := len(s);
+-	Copy(buf[bp:bp+n], s)
++	Copy(buf[bp:bp+n], s);
+ 	return bp+n
+ }
+ 
+@@ -290,21 +290,21 @@ func AddString(buf *[]byte, bp int, s string) int {
+ // Not exported.
+ func Format(t *Time, fmt string) string {
+ 	buf := new([]byte, 128);
+-	bp := 0
++	bp := 0;
+ 
+ 	for i := 0; i < len(fmt); i++ {
+ 		if fmt[i] == '%' {
+-			i++
++			i++;
+ 			switch fmt[i] {
+ 			case 'A':	// %A full weekday name
+-				bp = AddString(buf, bp, LongDayNames[t.weekday])
++				bp = AddString(buf, bp, LongDayNames[t.weekday]);
+ 			case 'a':	// %a abbreviated weekday name
+-				bp = AddString(buf, bp, ShortDayNames[t.weekday])
++				bp = AddString(buf, bp, ShortDayNames[t.weekday]);
+ 			case 'b':	// %b abbreviated month name
+-				bp = AddString(buf, bp, ShortMonthNames[t.month-1])
++				bp = AddString(buf, bp, ShortMonthNames[t.month-1]);
+ 			case 'd':	// %d day of month (01-31)
+ 				Decimal(buf[bp:bp+2], t.day);
+-				bp += 2
++				bp += 2;
+ 			case 'e':	// %e day of month ( 1-31)
+ 				if t.day >= 10 {
+ 					Decimal(buf[bp:bp+2], t.day)
+@@ -312,24 +312,24 @@ func Format(t *Time, fmt string) string {
+ 					buf[bp] = ' ';
+ 					buf[bp+1] = byte(t.day + '0')
+ 				}
+-				bp += 2
++				bp += 2;
+ 			case 'H':	// %H hour 00-23
+ 				Decimal(buf[bp:bp+2], t.hour);
+-				bp += 2
++				bp += 2;
+ 			case 'M':	// %M minute 00-59
+ 				Decimal(buf[bp:bp+2], t.minute);
+-				bp += 2
++				bp += 2;
+ 			case 'S':	// %S second 00-59
+ 				Decimal(buf[bp:bp+2], t.second);
+-				bp += 2
++				bp += 2;
+ 			case 'Y':	// %Y year 2008
+ 				Decimal(buf[bp:bp+4], int(t.year));
+-				bp += 4
++				bp += 4;
+ 			case 'y':	// %y year 08
+ 				Decimal(buf[bp:bp+2], int(t.year%100));
+-				bp += 2
++				bp += 2;
+ 			case 'Z':
+-				bp = AddString(buf, bp, t.zone)
++				bp = AddString(buf, bp, t.zone);
+ 			default:
+ 				buf[bp] = '%';
+ 				buf[bp+1] = fmt[i];
+@@ -337,7 +337,7 @@ func Format(t *Time, fmt string) string {
+ 			}
+ 		} else {
+ 			buf[bp] = fmt[i];
+-			bp++
++			bp++;
+ 		}
+ 	}
+ 	return string(buf[0:bp])
+diff --git a/src/lib/time/zoneinfo.go b/src/lib/time/zoneinfo.go
+index 83ae8b9c73..b355d880c0 100644
+--- a/src/lib/time/zoneinfo.go
++++ b/src/lib/time/zoneinfo.go
+@@ -31,16 +31,16 @@ type Data struct {
+ 
+ func (d *Data) Read(n int) *[]byte {
+ 	if d.p == nil || len(d.p) < n {
+-		d.p = nil
++		d.p = nil;
+ 		return nil
+ 	}
+ 	p := d.p[0:n];
+-	d.p = d.p[n:len(d.p)]
++	d.p = d.p[n:len(d.p)];
+ 	return p
+ }
+ 
+ func (d *Data) Big4() (n uint32, ok bool) {
+-	p := d.Read(4)
++	p := d.Read(4);
+ 	if p == nil {
+ 		return 0, false
+ 	}
+@@ -48,7 +48,7 @@ func (d *Data) Big4() (n uint32, ok bool) {
+ }
+ 
+ func (d *Data) Byte() (n byte, ok bool) {
+-	p := d.Read(1)
++	p := d.Read(1);
+ 	if p == nil {
+ 		return 0, false
+ 	}
+@@ -89,11 +89,11 @@ func ParseZoneinfo(bytes *[]byte) (zt *[]Zonetime, err *os.Error) {
+ 	}
+ 
+ 	// 1-byte version, then 15 bytes of padding
+-	var p *[]byte
++	var p *[]byte;
+ 	if p = data.Read(16); p == nil || p[0] != 0 && p[0] != '2' {
+ 		return nil, BadZoneinfo
+ 	}
+-	vers := p[0]
++	vers := p[0];
+ 
+ 	// six big-endian 32-bit integers:
+ 	//	number of UTC/local indicators
+@@ -110,9 +110,9 @@ func ParseZoneinfo(bytes *[]byte) (zt *[]Zonetime, err *os.Error) {
+ 		NZone;
+ 		NChar
+ 	)
+-	var n [6]int
++	var n [6]int;
+ 	for i := 0; i < 6; i++ {
+-		nn, ok := data.Big4()
++		nn, ok := data.Big4();
+ 		if !ok {
+ 			return nil, BadZoneinfo
+ 		}
+@@ -156,19 +156,19 @@ func ParseZoneinfo(bytes *[]byte) (zt *[]Zonetime, err *os.Error) {
+ 	// Now we can build up a useful data structure.
+ 	// First the zone information.
+ 	//	utcoff[4] isdst[1] nameindex[1]
+-	zone := new([]Zone, n[NZone])
++	zone := new([]Zone, n[NZone]);
+ 	for i := 0; i < len(zone); i++ {
+ 		var ok bool;
+-		var n uint32
++		var n uint32;
+ 		if n, ok = zonedata.Big4(); !ok {
+ 			return nil, BadZoneinfo
+ 		}
+-		zone[i].utcoff = int(n)
+-		var b byte
++		zone[i].utcoff = int(n);
++		var b byte;
+ 		if b, ok = zonedata.Byte(); !ok {
+ 			return nil, BadZoneinfo
+ 		}
+-		zone[i].isdst = b != 0
++		zone[i].isdst = b != 0;
+ 		if b, ok = zonedata.Byte(); !ok || int(b) >= len(abbrev) {
+ 			return nil, BadZoneinfo
+ 		}
+@@ -176,14 +176,14 @@ func ParseZoneinfo(bytes *[]byte) (zt *[]Zonetime, err *os.Error) {
+ 	}
+ 
+ 	// Now the transition time info.
+-	zt = new([]Zonetime, n[NTime])
++	zt = new([]Zonetime, n[NTime]);
+ 	for i := 0; i < len(zt); i++ {
+ 		var ok bool;
+-		var n uint32
++		var n uint32;
+ 		if n, ok = txtimes.Big4(); !ok {
+ 			return nil, BadZoneinfo
+ 		}
+-		zt[i].time = int32(n)
++		zt[i].time = int32(n);
+ 		if int(txzones[i]) >= len(zone) {
+ 			return nil, BadZoneinfo
+ 		}
+@@ -199,35 +199,35 @@ func ParseZoneinfo(bytes *[]byte) (zt *[]Zonetime, err *os.Error) {
+ }
+ 
+ func ReadFile(name string, max int) (p *[]byte, err *os.Error) {
+-	fd, e := os.Open(name, os.O_RDONLY, 0)
++	fd, e := os.Open(name, os.O_RDONLY, 0);
+ 	if e != nil {
+ 		return nil, e
+ 	}
+ 	p = new([]byte, max+1)[0:0];
+-	n := 0
++	n := 0;
+ 	for len(p) < max {
+-		nn, e := fd.Read(p[n:cap(p)])
++		nn, e := fd.Read(p[n:cap(p)]);
+ 		if e != nil {
+-			fd.Close()
++			fd.Close();
+ 			return nil, e
+ 		}
+ 		if nn == 0 {
+-			fd.Close()
++			fd.Close();
+ 			return p, nil
+ 		}
+ 		p = p[0:n+nn]
+ 	}
+-	fd.Close()
++	fd.Close();
+ 	return nil, BadZoneinfo	// too long
+ }
+ 
+ 
+ func ReadZoneinfoFile(name string) (tx *[]Zonetime, err *os.Error) {
+-	data, e := ReadFile(name, MaxFileSize)
++	data, e := ReadFile(name, MaxFileSize);
+ 	if e != nil {
+ 		return nil, e
+ 	}
+-	tx, err = ParseZoneinfo(data)
++	tx, err = ParseZoneinfo(data);
+ 	return tx, err
+ }
+ 
+@@ -238,13 +238,13 @@ func SetupZone() {
+ 	// TODO: /etc/localtime is the default time zone info
+ 	// for the system, but libc allows setting an environment
+ 	// variable in order to direct reading a different file
+-	// (in /usr/share/zoneinfo).  We should check that 
++	// (in /usr/share/zoneinfo).  We should check that
+ 	// environment variable.
+ 	zones, zoneerr = ReadZoneinfoFile("/etc/localtime");
+ }
+ 
+ export func LookupTimezone(sec int64) (zone string, offset int, err *os.Error) {
+-	once.Do(&SetupZone)
++	once.Do(&SetupZone);
+ 	if zoneerr != nil || zones == nil || len(zones) == 0 {
+ 		return "GMT", 0, zoneerr
+ 	}
+@@ -259,6 +259,6 @@ export func LookupTimezone(sec int64) (zone string, offset int, err *os.Error) {
+ 			tz = tz[m:len(tz)]
+ 		}
+ 	}
+-	z := tz[0].zone
++	z := tz[0].zone;
+ 	return z.name, z.utcoff, nil
+ }
+diff --git a/test/bufiolib.go b/test/bufiolib.go
+index a3c05036f7..d27bda655d 100644
+--- a/test/bufiolib.go
++++ b/test/bufiolib.go
+@@ -22,7 +22,7 @@ func StringToBytes(s string) *[]byte {
+ 	return b
+ }
+ 
+-// Should be in language!  
++// Should be in language!
+ func Copy(p *[]byte, q *[]byte) {
+ 	for i := 0; i < len(p); i++ {
+ 		p[i] = q[i]
+@@ -36,17 +36,17 @@ type ByteReader struct {
+ 
+ func NewByteReader(p *[]byte) io.Read {
+ 	b := new(ByteReader);
+-	b.p = p
++	b.p = p;
+ 	return b
+ }
+ 
+ func (b *ByteReader) Read(p *[]byte) (int, *os.Error) {
+-	n := len(p)
++	n := len(p);
+ 	if n > len(b.p) {
+ 		n = len(b.p)
+ 	}
+ 	Copy(p[0:n], b.p[0:n]);
+-	b.p = b.p[n:len(b.p)]
++	b.p = b.p[n:len(b.p)];
+ 	return n, nil
+ }
+ 
+@@ -58,12 +58,12 @@ type HalfByteReader struct {
+ 
+ func NewHalfByteReader(p *[]byte) io.Read {
+ 	b := new(HalfByteReader);
+-	b.p = p
++	b.p = p;
+ 	return b
+ }
+ 
+ func (b *HalfByteReader) Read(p *[]byte) (int, *os.Error) {
+-	n := len(p)/2
++	n := len(p)/2;
+ 	if n == 0 && len(p) > 0 {
+ 		n = 1
+ 	}
+@@ -71,7 +71,7 @@ func (b *HalfByteReader) Read(p *[]byte) (int, *os.Error) {
+ 		n = len(b.p)
+ 	}
+ 	Copy(p[0:n], b.p[0:n]);
+-	b.p = b.p[n:len(b.p)]
++	b.p = b.p[n:len(b.p)];
+ 	return n, nil
+ }
+ 
+@@ -82,12 +82,12 @@ type Rot13Reader struct {
+ 
+ func NewRot13Reader(r io.Read) *Rot13Reader {
+ 	r13 := new(Rot13Reader);
+-	r13.r = r
++	r13.r = r;
+ 	return r13
+ }
+ 
+ func (r13 *Rot13Reader) Read(p *[]byte) (int, *os.Error) {
+-	n, e := r13.r.Read(p)
++	n, e := r13.r.Read(p);
+ 	if e != nil {
+ 		return n, e
+ 	}
+@@ -100,7 +100,7 @@ func (r13 *Rot13Reader) Read(p *[]byte) (int, *os.Error) {
+ 			}
+ 		}
+ 	}
+-	return n, nil	
++	return n, nil
+ }
+ 
+ func MakeByteReader(p *[]byte) io.Read {
+@@ -119,9 +119,9 @@ var readmakers = []*(p *[]byte) io.Read {
+ // Call ReadLineString (which ends up calling everything else)
+ // to accumulate the text of a file.
+ func ReadLines(b *bufio.BufRead) string {
+-	s := ""
++	s := "";
+ 	for {
+-		s1, e := b.ReadLineString('\n', true)
++		s1, e := b.ReadLineString('\n', true);
+ 		if e == bufio.EndOfFile {
+ 			break
+ 		}
+@@ -136,9 +136,9 @@ func ReadLines(b *bufio.BufRead) string {
+ // Call ReadByte to accumulate the text of a file
+ func ReadBytes(buf *bufio.BufRead) string {
+ 	var b [1000]byte;
+-	nb := 0
++	nb := 0;
+ 	for {
+-		c, e := buf.ReadByte()
++		c, e := buf.ReadByte();
+ 		if e == bufio.EndOfFile {
+ 			break
+ 		}
+@@ -146,7 +146,7 @@ func ReadBytes(buf *bufio.BufRead) string {
+ 			panic("GetBytes: "+e.String())
+ 		}
+ 		b[nb] = c;
+-		nb++
++		nb++;
+ 	}
+ 	// BUG return string(b[0:nb]) ?
+ 	return string(b)[0:nb]
+@@ -155,11 +155,11 @@ func ReadBytes(buf *bufio.BufRead) string {
+ // Call Read to accumulate the text of a file
+ func Reads(buf *bufio.BufRead, m int) string {
+ 	var b [1000]byte;
+-	nb := 0
++	nb := 0;
+ 	for {
+ 		// BUG parens around (&b) should not be needed
+ 		n, e := buf.Read((&b)[nb:nb+m]);
+-		nb += n
++		nb += n;
+ 		if e == bufio.EndOfFile {
+ 			break
+ 		}
+@@ -190,7 +190,7 @@ func TestBufRead() {
+ 	// work around 6g bug101
+ 	readmakers[0] = &NewByteReader;
+ 	readmakers[1] = &NewHalfByteReader;
+-	
++
+ 	bufreaders[0] = &Read1;
+ 	bufreaders[1] = &Read2;
+ 	bufreaders[2] = &Read3;
+@@ -199,7 +199,7 @@ func TestBufRead() {
+ 	bufreaders[5] = &Read7;
+ 	bufreaders[6] = &ReadBytes;
+ 	bufreaders[7] = &ReadLines;
+-	
++
+ 	bufsizes[0] = 1;
+ 	bufsizes[1] = 2;
+ 	bufsizes[2] = 3;
+@@ -218,17 +218,17 @@ func TestBufRead() {
+ 	bufsizes[15] = 128;
+ 	bufsizes[16] = 1024;
+ 	bufsizes[17] = 4096;
+-	
+-	var texts [31]string
++
++	var texts [31]string;
+ 	str := "";
+-	all := ""
++	all := "";
+ 	for i := 0; i < len(texts)-1; i++ {
+ 		texts[i] = str + "\n";
+ 		all += texts[i];
+ 		str += string(i%26+'a')
+ 	}
+ 	texts[len(texts)-1] = all;
+-	
++
+ 	// BUG 6g should not need nbr temporary (bug099)
+ 	nbr := NewByteReader(StringToBytes("hello world"));
+ 	b, e := bufio.NewBufRead(nbr);
+@@ -242,11 +242,11 @@ func TestBufRead() {
+ 
+ 	for h := 0; h < len(texts); h++ {
+ 		text := texts[h];
+-		textbytes := StringToBytes(text)
++		textbytes := StringToBytes(text);
+ 		for i := 0; i < len(readmakers); i++ {
+-			readmaker := readmakers[i]
++			readmaker := readmakers[i];
+ 			for j := 0; j < len(bufreaders); j++ {
+-				bufreader := bufreaders[j]
++				bufreader := bufreaders[j];
+ 				for k := 0; k < len(bufsizes); k++ {
+ 					bufsize := bufsizes[k];
+ 					read := readmaker(textbytes);
+@@ -288,7 +288,7 @@ func (w *ByteWriter) Write(p *[]byte) (int, *os.Error) {
+ 		w.p = newp
+ 	}
+ 	Copy(w.p[w.n:w.n+len(p)], p);
+-	w.n += len(p)
++	w.n += len(p);
+ 	return len(p), nil
+ }
+ 
+@@ -296,7 +296,7 @@ func (w *ByteWriter) GetBytes() *[]byte {
+ 	return w.p[0:w.n]
+ }
+ 
+-// Accumulates bytes written into a byte array 
++// Accumulates bytes written into a byte array
+ // but Write only takes half of what you give it.
+ type HalfByteWriter struct {
+ 	bw WriteBuffer
+@@ -304,14 +304,14 @@ type HalfByteWriter struct {
+ 
+ func NewHalfByteWriter() WriteBuffer {
+ 	w := new(HalfByteWriter);
+-	w.bw = NewByteWriter()
++	w.bw = NewByteWriter();
+ 	return w
+ }
+ 
+ func (w *HalfByteWriter) Write(p *[]byte) (int, *os.Error) {
+ 	n := (len(p)+1) / 2;
+ 	// BUG return w.bw.Write(p[0:n])
+-	r, e := w.bw.Write(p[0:n])
++	r, e := w.bw.Write(p[0:n]);
+ 	return r, e
+ }
+ 
+@@ -320,7 +320,7 @@ func (w *HalfByteWriter) GetBytes() *[]byte {
+ }
+ 
+ func TestBufWrite() {
+-	var data [8192]byte
++	var data [8192]byte;
+ 
+ 	var writers [2]*()WriteBuffer;
+ 	writers[0] = &NewByteWriter;
+@@ -334,7 +334,7 @@ func TestBufWrite() {
+ 			for k := 0; k < len(writers); k++ {
+ 				nwrite := bufsizes[i];
+ 				bs := bufsizes[j];
+-	
++
+ 				// Write nwrite bytes using buffer size bs.
+ 				// Check that the right amount makes it out
+ 				// and that the data is correct.
+@@ -344,18 +344,18 @@ func TestBufWrite() {
+ 				if e != nil {
+ 					panic("NewBufWriteSize error: "+e.String())
+ 				}
+-				n, e1 := buf.Write((&data)[0:nwrite])
++				n, e1 := buf.Write((&data)[0:nwrite]);
+ 				if e1 != nil {
+ 					panic("buf.Write error "+e1.String())
+ 				}
+ 				if n != nwrite {
+ 					panic("buf.Write wrong count")
+ 				}
+-				e = buf.Flush()
++				e = buf.Flush();
+ 				if e != nil {
+ 					panic("buf.Flush error "+e.String())
+ 				}
+-				
++
+ 				written := write.GetBytes();
+ 				if len(written) != nwrite {
+ 					panic("wrong amount written")
+diff --git a/test/bugs/bug102.go b/test/bugs/bug102.go
+index 6ce4329fbe..314a37f3df 100644
+--- a/test/bugs/bug102.go
++++ b/test/bugs/bug102.go
+@@ -16,7 +16,7 @@ func main() {
+ 	if string(b1) != "hello" {
+ 		panic("bad convert 1")
+ 	}
+-	var b2 = new([]byte, 5)
++	var b2 = new([]byte, 5);
+ 	for i := 0; i < 5; i++ { b2[i] = b1[i] }
+ 	if string(b2) != "hello" {
+ 		panic("bad convert 2")
+diff --git a/test/bugs/bug111.go b/test/bugs/bug111.go
+index e49357aa9a..39da9b4dd6 100644
+--- a/test/bugs/bug111.go
++++ b/test/bugs/bug111.go
+@@ -17,7 +17,7 @@ export type Stucky struct {
+ }
+ 
+ func (s *Stucky) Me() Iffy {
+-	ncall++
++	ncall++;
+ 	return s
+ }
+ 
+diff --git a/test/chan/powser1.go b/test/chan/powser1.go
+index 193bab1bd0..4b0aa6128e 100644
+--- a/test/chan/powser1.go
++++ b/test/chan/powser1.go
+@@ -137,7 +137,7 @@ func getn(in *[]*dch, n int) *[]item {
+ 		dat[i] = nil;
+ 	}
+ 	for n=2*n; n>0; n-- {
+-		seqno++
++		seqno++;
+ 
+ 		select{
+ 		case req[0] <- seqno:
+@@ -337,7 +337,7 @@ func Add(U, V PS) PS{
+ 				copy(V,Z);
+ 			case 2:
+ 				Z.dat <- uv[0];
+-				copy(U,Z)
++				copy(U,Z);
+ 			case 3:
+ 				Z.dat <- finis;
+ 			}
+@@ -612,7 +612,7 @@ func Init() {
+ 
+ func check(U PS, c item, count int, str string) {
+ 	for i := 0; i < count; i++ {
+-		r := get(U)
++		r := get(U);
+ 		if !r.eq(c) {
+ 			print("got: ");
+ 			r.pr();
+@@ -665,7 +665,7 @@ func main() {
+ 		checka(in, a, "Integ");  // 0 1 1/2 1/3 1/4 1/5
+ 		check(Cmul(neg(one), Twos), itor(-2), 10, "CMul");  // -1 -1 -1 -1 -1
+ 		check(Sub(Ones, Twos), itor(-1), 0, "Sub Ones Twos");  // -1 -1 -1 -1 -1
+-		m := Mul(Ones, Ones)
++		m := Mul(Ones, Ones);
+ 		// BUG: want array initializer
+ 		for i:=0; i < N; i++ {
+ 			a[i] = itor(int64(i+1))
+diff --git a/test/chan/sieve.go b/test/chan/sieve.go
+index 0b596a874d..f45373b483 100644
+--- a/test/chan/sieve.go
++++ b/test/chan/sieve.go
+@@ -20,7 +20,7 @@ func Generate(ch *chan<- int) {
+ // removing those divisible by 'prime'.
+ func Filter(in *<-chan int, out *chan<- int, prime int) {
+ 	for {
+-		i := <-in  // Receive value of new variable 'i' from 'in'.
++		i := <-in;  // Receive value of new variable 'i' from 'in'.
+ 		if i % prime != 0 {
+ 			out <- i  // Send 'i' to channel 'out'.
+ 		}
+@@ -43,7 +43,7 @@ func Sieve(primes *chan<- int) {
+ func main() {
+ 	primes := new(chan int);
+ 	go Sieve(primes);
+-	a := []int{2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97}
++	a := []int{2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97};
+ 	for i := 0; i < len(a); i++ {
+ 		if <-primes != a[i] { panic(a[i])}
+ 	}
+diff --git a/test/dialgoogle.go b/test/dialgoogle.go
+index 58dc0af537..ca2c35cce4 100644
+--- a/test/dialgoogle.go
++++ b/test/dialgoogle.go
+@@ -59,7 +59,7 @@ func FetchGoogle(fd net.Conn) {
+ }
+ 
+ func TestDial(network, addr string) {
+-	fd, err := net.Dial(network, "", addr)
++	fd, err := net.Dial(network, "", addr);
+ 	if err != nil {
+ 		panic("net.Dial ", network, " ", addr, ": ", err.String())
+ 	}
+@@ -67,7 +67,7 @@ func TestDial(network, addr string) {
+ }
+ 
+ func TestDialTCP(network, addr string) {
+-	fd, err := net.DialTCP(network, "", addr)
++	fd, err := net.DialTCP(network, "", addr);
+ 	if err != nil {
+ 		panic("net.DialTCP ", network, " ", addr, ": ", err.String())
+ 	}
+@@ -87,20 +87,20 @@ var addrs = []string {
+ 
+ func main()
+ {
+-	flag.Parse()
++	flag.Parse();
+ 	// If no ipv6 tunnel, don't try the last address.
+ 	if !ipv6 {
+ 		addrs[len(addrs)-1] = ""
+ 	}
+ 
+ 	for i := 0; i < len(addrs); i++ {
+-		addr := addrs[i]
++		addr := addrs[i];
+ 		if addr == "" {
+ 			continue
+ 		}
+ 	//	print(addr, "\n");
+ 		TestDial("tcp", addr);
+-		TestDialTCP("tcp", addr)
++		TestDialTCP("tcp", addr);
+ 		if addr[0] != '[' {
+ 			TestDial("tcp4", addr);
+ 			TestDialTCP("tcp4", addr)
+diff --git a/test/fixedbugs/bug055.go b/test/fixedbugs/bug055.go
+index cf9dcd7c86..a8b1a6cd2b 100644
+--- a/test/fixedbugs/bug055.go
++++ b/test/fixedbugs/bug055.go
+@@ -7,15 +7,15 @@
+ package main
+ 
+ func main() {
+-	var i int
+-	var j int
++	var i int;
++	var j int;
+ 	if true {}
+ 	{ return }
+-	i = 0
+-	if true {} else i++
++	i = 0;
++	if true {} else i++;
+ 	type s struct {};
+-	i = 0
+-	type s2 int
++	i = 0;
++	type s2 int;
+ 	var k = func (a int) int { return a+1 }(3);
+ ro:
+ }
+diff --git a/test/fixedbugs/bug067.go b/test/fixedbugs/bug067.go
+index 451ebbbf30..fd22cd6f89 100644
+--- a/test/fixedbugs/bug067.go
++++ b/test/fixedbugs/bug067.go
+@@ -9,7 +9,7 @@ package main
+ var c *chan int
+ 
+ func main() {
+-	c = new(chan int)
++	c = new(chan int);
+ 	go func() { print("ok\n"); c <- 0 } ();
+ 	<-c
+ }
+diff --git a/test/ken/chan.go b/test/ken/chan.go
+index 8913528a87..73f4a8bb19 100644
+--- a/test/ken/chan.go
++++ b/test/ken/chan.go
+@@ -65,7 +65,7 @@ send() bool
+ 	tots++;
+ 	c.sv = expect(c.sv, c.sv);
+ 	if c.sv == End {
+-		c.sc = nil
++		c.sc = nil;
+ 		return true;
+ 	}
+ 	return false;
+diff --git a/test/ken/rob2.go b/test/ken/rob2.go
+index f7bec7bb78..cca74e57a5 100644
+--- a/test/ken/rob2.go
++++ b/test/ken/rob2.go
+@@ -134,7 +134,7 @@ func Get() int
+ 		peekc = -1;
+ 	} else {
+ 		c = convert(int, input[inputindex]);
+-		inputindex++
++		inputindex++;
+ 		if c == '\n' {
+ 			lineno = lineno + 1;
+ 		}
+diff --git a/test/method.go b/test/method.go
+index 7d4122d000..dcbc28c1e4 100644
+--- a/test/method.go
++++ b/test/method.go
+@@ -40,7 +40,7 @@ func main() {
+ 	var p P;
+ 	var pp *P1;
+ 	var t T;
+-	var pt *T1
++	var pt *T1;
+ 
+ 	if s.val() != 1 { panicln("s.val:", s.val()) }
+ 	if ps.val() != 2 { panicln("ps.val:", ps.val()) }
+diff --git a/test/readfile.go b/test/readfile.go
+index c9cf11a2dd..db8ca99e4d 100644
+--- a/test/readfile.go
++++ b/test/readfile.go
+@@ -8,8 +8,8 @@
+ package main
+ 
+ func main() {
+-	var s string
+-	var ok bool
++	var s string;
++	var ok bool;
+ 
+ 	s, ok = sys.readfile("readfile.go");
+ 	if !ok {
+diff --git a/test/sieve.go b/test/sieve.go
+index 998c4be669..366d5b94ce 100644
+--- a/test/sieve.go
++++ b/test/sieve.go
+@@ -17,7 +17,7 @@ func Generate(ch *chan<- int) {
+ // removing those divisible by 'prime'.
+ func Filter(in *<-chan int, out *chan<- int, prime int) {
+ 	for {
+-		i := <-in  // Receive value of new variable 'i' from 'in'.
++		i := <-in;  // Receive value of new variable 'i' from 'in'.
+ 		if i % prime != 0 {
+ 			out <- i  // Send 'i' to channel 'out'.
+ 		}
+diff --git a/test/tcpserver.go b/test/tcpserver.go
+index b4de505029..2ad2d8d887 100644
+--- a/test/tcpserver.go
++++ b/test/tcpserver.go
+@@ -48,7 +48,7 @@ func Serve(network, addr string, listening, done *chan<- int) {
+ 		if err != nil {
+ 			break;
+ 		}
+-		echodone := new(chan int)
++		echodone := new(chan int);
+ 		go Echo(fd, echodone);
+ 		<-echodone;	// make sure Echo stops
+ 		l.Close();
+diff --git a/test/timelib.go b/test/timelib.go
+index 5a27ddf42c..aeb44b1a5d 100644
+--- a/test/timelib.go
++++ b/test/timelib.go
+@@ -57,7 +57,7 @@ func main() {
+ 		sec := UTCTests[i].seconds;
+ 		golden := &UTCTests[i].golden;
+ 		t := time.SecondsToUTC(sec);
+-		newsec := t.Seconds()
++		newsec := t.Seconds();
+ 		if newsec != sec {
+ 			panic("SecondsToUTC and back ", sec, " ", newsec)
+ 		}
+@@ -72,7 +72,7 @@ func main() {
+ 		sec := LocalTests[i].seconds;
+ 		golden := &LocalTests[i].golden;
+ 		t := time.SecondsToLocalTime(sec);
+-		newsec := t.Seconds()
++		newsec := t.Seconds();
+ 		if newsec != sec {
+ 			panic("SecondsToLocalTime and back ", sec, " ", newsec)
+ 		}
+diff --git a/usr/gri/gosrc/compilation.go b/usr/gri/gosrc/compilation.go
+index d8a78be10a..595c4f1080 100644
+--- a/usr/gri/gosrc/compilation.go
++++ b/usr/gri/gosrc/compilation.go
+@@ -29,12 +29,12 @@ func ReadImport(comp* Globals.Compilation, filename string, update bool) (data s
+ 	if ok {
+ 		return data, ok;
+ 	}
+-	
++
+ 	if filename[0] == '/' {
+ 		// absolute path
+ 		panic(`don't know how to handle absolute import file path "` + filename + `"`);
+ 	}
+-	
++
+ 	// relative path
+ 	// try relative to the $GOROOT/pkg directory
+ 	std_filename := Platform.GOROOT + "/pkg/" + filename;
+@@ -42,11 +42,11 @@ func ReadImport(comp* Globals.Compilation, filename string, update bool) (data s
+ 	if ok {
+ 		return data, ok;
+ 	}
+-	
++
+ 	if !update {
+ 		return "", false;
+ 	}
+-	
++
+ 	// TODO BIG HACK - fix this!
+ 	// look for a src file
+ 	// see if it just works
+@@ -58,13 +58,13 @@ func ReadImport(comp* Globals.Compilation, filename string, update bool) (data s
+ 			return data, ok;
+ 		}
+ 	}
+-	
++
+ 	return "", false;
+ }
+ 
+ 
+ export func Import(comp *Globals.Compilation, pkg_file string) *Globals.Package {
+-	data, ok := ReadImport(comp, pkg_file, comp.flags.update_packages)
++	data, ok := ReadImport(comp, pkg_file, comp.flags.update_packages);
+ 	var pkg *Globals.Package;
+ 	if ok {
+ 		pkg = Importer.Import(comp, data);
+@@ -88,14 +88,14 @@ export func Compile(comp *Globals.Compilation, src_file string) {
+ 		print("cannot open ", src_file, "\n");
+ 		return;
+ 	}
+-	
++
+ 	if comp.flags.verbosity > 0 {
+ 		print(src_file, "\n");
+ 	}
+ 
+ 	scanner := new(Scanner.Scanner);
+ 	scanner.Open(src_file, src);
+-	
++
+ 	var tstream *chan *Scanner.Token;
+ 	if comp.flags.token_chan {
+ 		tstream = new(chan *Scanner.Token, 100);
+@@ -109,16 +109,16 @@ export func Compile(comp *Globals.Compilation, src_file string) {
+ 	if parser.S.nerrors > 0 {
+ 		return;
+ 	}
+-	
++
+ 	if !comp.flags.ast {
+ 		return;
+ 	}
+-	
++
+ 	Verifier.Verify(comp);
+-	
++
+ 	if comp.flags.print_interface {
+ 		Printer.PrintObject(comp, comp.pkg_list[0].obj, false);
+ 	}
+-	
++
+ 	Export(comp, src_file);
+ }

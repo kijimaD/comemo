@@ -9,8 +9,92 @@ Date:   Fri Jun 3 12:23:50 2011 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4550112
-
+---
  src/pkg/http/serve_test.go | 37 +++++++++++++++++++++++++++++++++++++
  src/pkg/http/server.go     |  4 ++++
  src/pkg/os/error_posix.go  |  2 +-
  3 files changed, 42 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/http/serve_test.go b/src/pkg/http/serve_test.go
+index c923c8a76d..1054d4797c 100644
+--- a/src/pkg/http/serve_test.go
++++ b/src/pkg/http/serve_test.go
+@@ -18,6 +18,7 @@ import (
+ 	"net"
+ 	"reflect"
+ 	"strings"
++	"syscall"
+ 	"testing"
+ 	"time"
+ )
+@@ -773,6 +774,42 @@ func TestHandlerPanic(t *testing.T) {
+ 	}
+ }
+ 
++type errorListener struct {
++	errs []os.Error
++}
++
++func (l *errorListener) Accept() (c net.Conn, err os.Error) {
++	if len(l.errs) == 0 {
++		return nil, os.EOF
++	}
++	err = l.errs[0]
++	l.errs = l.errs[1:]
++	return
++}
++
++func (l *errorListener) Close() os.Error {
++	return nil
++}
++
++func (l *errorListener) Addr() net.Addr {
++	return dummyAddr("test-address")
++}
++
++func TestAcceptMaxFds(t *testing.T) {
++	log.SetOutput(ioutil.Discard) // is noisy otherwise
++	defer log.SetOutput(os.Stderr)
++
++	ln := &errorListener{[]os.Error{
++		&net.OpError{
++			Op:    "accept",
++			Error: os.Errno(syscall.EMFILE),
++		}}}
++	err := Serve(ln, HandlerFunc(HandlerFunc(func(ResponseWriter, *Request) {})))
++	if err != os.EOF {
++		t.Errorf("got error %v, want EOF", err)
++	}
++}
++
+ func BenchmarkClientServer(b *testing.B) {
+ 	b.StopTimer()
+ 	ts := httptest.NewServer(HandlerFunc(func(rw ResponseWriter, r *Request) {
+diff --git a/src/pkg/http/server.go b/src/pkg/http/server.go
+index 93d9d2ff4f..4063fad224 100644
+--- a/src/pkg/http/server.go
++++ b/src/pkg/http/server.go
+@@ -860,6 +860,10 @@ func (srv *Server) Serve(l net.Listener) os.Error {
+ 	for {
+ 		rw, e := l.Accept()
+ 		if e != nil {
++			if ne, ok := e.(net.Error); ok && ne.Temporary() {
++				log.Printf("http: Accept error: %v", e)
++				continue
++			}
+ 			return e
+ 		}
+ 		if srv.ReadTimeout != 0 {
+diff --git a/src/pkg/os/error_posix.go b/src/pkg/os/error_posix.go
+index 0ee34e4b0e..d43f1786d3 100644
+--- a/src/pkg/os/error_posix.go
++++ b/src/pkg/os/error_posix.go
+@@ -13,7 +13,7 @@ type Errno int64
+ func (e Errno) String() string { return syscall.Errstr(int(e)) }
+ 
+ func (e Errno) Temporary() bool {
+-	return e == Errno(syscall.EINTR) || e.Timeout()
++	return e == Errno(syscall.EINTR) || e == Errno(syscall.EMFILE) || e.Timeout()
+ }
+ 
+ func (e Errno) Timeout() bool {

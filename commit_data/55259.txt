@@ -11,7 +11,7 @@ Date:   Tue Jan 24 09:20:13 2023 +0800
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/typecheck/typecheck.go |  2 +-
  src/cmd/compile/internal/types/type.go          |  2 +-
  src/cmd/compile/internal/types2/assignments.go  |  2 +-
@@ -31,3 +31,319 @@ Date:   Tue Jan 24 09:20:13 2023 +0800
  src/go/types/index.go                           |  2 +-
  src/syscall/timestruct.go                       |  2 +-
  18 files changed, 28 insertions(+), 28 deletions(-)
+
+diff --git a/src/cmd/compile/internal/typecheck/typecheck.go b/src/cmd/compile/internal/typecheck/typecheck.go
+index 1857994b62..57dc5a39ec 100644
+--- a/src/cmd/compile/internal/typecheck/typecheck.go
++++ b/src/cmd/compile/internal/typecheck/typecheck.go
+@@ -1469,7 +1469,7 @@ func sigrepr(t *types.Type, isddd bool) string {
+ 	return t.String()
+ }
+ 
+-// sigerr returns the signature of the types at the call or return.
++// fmtSignature returns the signature of the types at the call or return.
+ func fmtSignature(nl ir.Nodes, isddd bool) string {
+ 	if len(nl) < 1 {
+ 		return "()"
+diff --git a/src/cmd/compile/internal/types/type.go b/src/cmd/compile/internal/types/type.go
+index 4bdbc3d931..d426c2cb8e 100644
+--- a/src/cmd/compile/internal/types/type.go
++++ b/src/cmd/compile/internal/types/type.go
+@@ -579,7 +579,7 @@ func (f *Fields) Append(s ...*Field) {
+ 	*f.s = append(*f.s, s...)
+ }
+ 
+-// New returns a new Type of the specified kind.
++// newType returns a new Type of the specified kind.
+ func newType(et Kind) *Type {
+ 	t := &Type{
+ 		kind:  et,
+diff --git a/src/cmd/compile/internal/types2/assignments.go b/src/cmd/compile/internal/types2/assignments.go
+index ca8c04e1e2..35fb3f5b14 100644
+--- a/src/cmd/compile/internal/types2/assignments.go
++++ b/src/cmd/compile/internal/types2/assignments.go
+@@ -427,7 +427,7 @@ func (check *Checker) assignVars(lhs, orig_rhs []syntax.Expr) {
+ 	}
+ }
+ 
+-// unpack unpacks a *syntax.ListExpr into a list of syntax.Expr.
++// unpackExpr unpacks a *syntax.ListExpr into a list of syntax.Expr.
+ // Helper introduced for the go/types -> types2 port.
+ // TODO(gri) Should find a more efficient solution that doesn't
+ // require introduction of a new slice for simple
+diff --git a/src/cmd/compile/internal/types2/conversions.go b/src/cmd/compile/internal/types2/conversions.go
+index a80857b203..267324421d 100644
+--- a/src/cmd/compile/internal/types2/conversions.go
++++ b/src/cmd/compile/internal/types2/conversions.go
+@@ -12,7 +12,7 @@ import (
+ 	"unicode"
+ )
+ 
+-// Conversion type-checks the conversion T(x).
++// conversion type-checks the conversion T(x).
+ // The result is in x.
+ func (check *Checker) conversion(x *operand, T Type) {
+ 	constArg := x.mode == constant_
+diff --git a/src/cmd/compile/internal/types2/index.go b/src/cmd/compile/internal/types2/index.go
+index 9e5c4d8afa..38134ec2cc 100644
+--- a/src/cmd/compile/internal/types2/index.go
++++ b/src/cmd/compile/internal/types2/index.go
+@@ -415,7 +415,7 @@ func (check *Checker) isValidIndex(x *operand, code Code, what string, allowNega
+ 	return true
+ }
+ 
+-// indexElts checks the elements (elts) of an array or slice composite literal
++// indexedElts checks the elements (elts) of an array or slice composite literal
+ // against the literal's element type (typ), and the element indices against
+ // the literal length if known (length >= 0). It returns the length of the
+ // literal (maximum index value + 1).
+diff --git a/src/cmd/compile/internal/walk/builtin.go b/src/cmd/compile/internal/walk/builtin.go
+index 31c4b060d5..4c5ee9baec 100644
+--- a/src/cmd/compile/internal/walk/builtin.go
++++ b/src/cmd/compile/internal/walk/builtin.go
+@@ -652,7 +652,7 @@ func walkPrint(nn *ir.CallExpr, init *ir.Nodes) ir.Node {
+ 	return walkStmt(typecheck.Stmt(r))
+ }
+ 
+-// walkRecover walks an ORECOVERFP node.
++// walkRecoverFP walks an ORECOVERFP node.
+ func walkRecoverFP(nn *ir.CallExpr, init *ir.Nodes) ir.Node {
+ 	return mkcall("gorecover", nn.Type(), init, walkExpr(nn.Args[0], init))
+ }
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index 75daf7fdbe..4d118f1a64 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -1107,7 +1107,7 @@ func shouldbuild(file, pkg string) bool {
+ 	return true
+ }
+ 
+-// copy copies the file src to dst, via memory (so only good for small files).
++// copyfile copies the file src to dst, via memory (so only good for small files).
+ func copyfile(dst, src string, flag int) {
+ 	if vflag > 1 {
+ 		errprintf("cp %s %s\n", src, dst)
+diff --git a/src/cmd/dist/buildgo.go b/src/cmd/dist/buildgo.go
+index 495244a3a1..7f1bc0105e 100644
+--- a/src/cmd/dist/buildgo.go
++++ b/src/cmd/dist/buildgo.go
+@@ -91,7 +91,7 @@ func defaultCCFunc(name string, defaultcc map[string]string) string {
+ 	return buf.String()
+ }
+ 
+-// mkzcgo writes zosarch.go for cmd/go.
++// mkzosarch writes zosarch.go for cmd/go.
+ func mkzosarch(dir, file string) {
+ 	// sort for deterministic zosarch.go file
+ 	var list []string
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 56a4e5eaed..7aee65667d 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -2662,19 +2662,19 @@ func (p *Package) InternalXGoFiles() []string {
+ 	return p.mkAbs(p.XTestGoFiles)
+ }
+ 
+-// InternalGoFiles returns the list of all Go files possibly relevant for the package,
++// InternalAllGoFiles returns the list of all Go files possibly relevant for the package,
+ // using absolute paths. "Possibly relevant" means that files are not excluded
+ // due to build tags, but files with names beginning with . or _ are still excluded.
+ func (p *Package) InternalAllGoFiles() []string {
+ 	return p.mkAbs(str.StringList(p.IgnoredGoFiles, p.GoFiles, p.CgoFiles, p.TestGoFiles, p.XTestGoFiles))
+ }
+ 
+-// usesSwig reports whether the package needs to run SWIG.
++// UsesSwig reports whether the package needs to run SWIG.
+ func (p *Package) UsesSwig() bool {
+ 	return len(p.SwigFiles) > 0 || len(p.SwigCXXFiles) > 0
+ }
+ 
+-// usesCgo reports whether the package needs to run cgo
++// UsesCgo reports whether the package needs to run cgo
+ func (p *Package) UsesCgo() bool {
+ 	return len(p.CgoFiles) > 0
+ }
+@@ -3433,7 +3433,7 @@ func SelectCoverPackages(roots []*Package, match []func(*Package) bool, op strin
+ 	return covered
+ }
+ 
+-// declareCoverVars attaches the required cover variables names
++// DeclareCoverVars attaches the required cover variables names
+ // to the files, to be used when annotating the files. This
+ // function only called when using legacy coverage test/build
+ // (e.g. GOEXPERIMENT=coverageredesign is off).
+diff --git a/src/cmd/go/internal/modget/get.go b/src/cmd/go/internal/modget/get.go
+index 08a474f61b..d0beff5485 100644
+--- a/src/cmd/go/internal/modget/get.go
++++ b/src/cmd/go/internal/modget/get.go
+@@ -547,7 +547,7 @@ func (r *resolver) queryModule(ctx context.Context, mPath, query string, selecte
+ 	return module.Version{Path: mPath, Version: rev.Version}, nil
+ }
+ 
+-// queryPackage wraps modload.QueryPackage, substituting r.checkAllowedOr to
++// queryPackages wraps modload.QueryPackage, substituting r.checkAllowedOr to
+ // decide allowed versions.
+ func (r *resolver) queryPackages(ctx context.Context, pattern, query string, selected func(string) string) (pkgMods []module.Version, err error) {
+ 	results, err := modload.QueryPackages(ctx, pattern, query, selected, r.checkAllowedOr(query, selected))
+diff --git a/src/cmd/go/internal/search/search.go b/src/cmd/go/internal/search/search.go
+index c107a02c24..60953fdee3 100644
+--- a/src/cmd/go/internal/search/search.go
++++ b/src/cmd/go/internal/search/search.go
+@@ -45,20 +45,20 @@ func (m *Match) AddError(err error) {
+ 	m.Errs = append(m.Errs, &MatchError{Match: m, Err: err})
+ }
+ 
+-// Literal reports whether the pattern is free of wildcards and meta-patterns.
++// IsLiteral reports whether the pattern is free of wildcards and meta-patterns.
+ //
+ // A literal pattern must match at most one package.
+ func (m *Match) IsLiteral() bool {
+ 	return !strings.Contains(m.pattern, "...") && !m.IsMeta()
+ }
+ 
+-// Local reports whether the pattern must be resolved from a specific root or
++// IsLocal reports whether the pattern must be resolved from a specific root or
+ // directory, such as a filesystem path or a single module.
+ func (m *Match) IsLocal() bool {
+ 	return build.IsLocalImport(m.pattern) || filepath.IsAbs(m.pattern)
+ }
+ 
+-// Meta reports whether the pattern is a “meta-package” keyword that represents
++// IsMeta reports whether the pattern is a “meta-package” keyword that represents
+ // multiple packages, such as "std", "cmd", or "all".
+ func (m *Match) IsMeta() bool {
+ 	return IsMetaPackage(m.pattern)
+diff --git a/src/cmd/go/internal/vcs/vcs.go b/src/cmd/go/internal/vcs/vcs.go
+index 12ea052482..ef54c6626d 100644
+--- a/src/cmd/go/internal/vcs/vcs.go
++++ b/src/cmd/go/internal/vcs/vcs.go
+@@ -759,7 +759,7 @@ func (v *Cmd) Tags(dir string) ([]string, error) {
+ 	return tags, nil
+ }
+ 
+-// tagSync syncs the repo in dir to the named tag,
++// TagSync syncs the repo in dir to the named tag,
+ // which either is a tag returned by tags or is v.tagDefault.
+ func (v *Cmd) TagSync(dir, tag string) error {
+ 	if v.TagSyncCmd == nil {
+diff --git a/src/cmd/go/internal/web/http.go b/src/cmd/go/internal/web/http.go
+index a3b7787720..cd3e39afe0 100644
+--- a/src/cmd/go/internal/web/http.go
++++ b/src/cmd/go/internal/web/http.go
+@@ -44,7 +44,7 @@ var impatientInsecureHTTPClient = &http.Client{
+ 
+ var securityPreservingDefaultClient = securityPreservingHTTPClient(http.DefaultClient)
+ 
+-// securityPreservingDefaultClient returns a client that is like the original
++// securityPreservingHTTPClient returns a client that is like the original
+ // but rejects redirects to plain-HTTP URLs if the original URL was secure.
+ func securityPreservingHTTPClient(original *http.Client) *http.Client {
+ 	c := new(http.Client)
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index d6fa847be0..7f2924f73d 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -64,7 +64,7 @@ func actionList(root *Action) []*Action {
+ 	return all
+ }
+ 
+-// do runs the action graph rooted at root.
++// Do runs the action graph rooted at root.
+ func (b *Builder) Do(ctx context.Context, root *Action) {
+ 	ctx, span := trace.StartSpan(ctx, "exec.Builder.Do ("+root.Mode+" "+root.Target+")")
+ 	defer span.Done()
+@@ -2060,7 +2060,7 @@ func (b *Builder) fmtcmd(dir string, format string, args ...any) string {
+ 	return cmd
+ }
+ 
+-// showcmd prints the given command to standard output
++// Showcmd prints the given command to standard output
+ // for the implementation of -n or -x.
+ func (b *Builder) Showcmd(dir string, format string, args ...any) {
+ 	b.output.Lock()
+@@ -2311,7 +2311,7 @@ func (b *Builder) cCompilerEnv() []string {
+ 	return []string{"TERM=dumb"}
+ }
+ 
+-// mkdir makes the named directory.
++// Mkdir makes the named directory.
+ func (b *Builder) Mkdir(dir string) error {
+ 	// Make Mkdir(a.Objdir) a no-op instead of an error when a.Objdir == "".
+ 	if dir == "" {
+@@ -2340,7 +2340,7 @@ func (b *Builder) Mkdir(dir string) error {
+ 	return nil
+ }
+ 
+-// symlink creates a symlink newname -> oldname.
++// Symlink creates a symlink newname -> oldname.
+ func (b *Builder) Symlink(oldname, newname string) error {
+ 	// It's not an error to try to recreate an existing symlink.
+ 	if link, err := os.Readlink(newname); err == nil && link == oldname {
+@@ -2583,13 +2583,13 @@ func (b *Builder) gccld(a *Action, p *load.Package, objdir, outfile string, flag
+ 	return err
+ }
+ 
+-// gccCmd returns a gcc command line prefix
++// GccCmd returns a gcc command line prefix
+ // defaultCC is defined in zdefaultcc.go, written by cmd/dist.
+ func (b *Builder) GccCmd(incdir, workdir string) []string {
+ 	return b.compilerCmd(b.ccExe(), incdir, workdir)
+ }
+ 
+-// gxxCmd returns a g++ command line prefix
++// GxxCmd returns a g++ command line prefix
+ // defaultCXX is defined in zdefaultcc.go, written by cmd/dist.
+ func (b *Builder) GxxCmd(incdir, workdir string) []string {
+ 	return b.compilerCmd(b.cxxExe(), incdir, workdir)
+diff --git a/src/cmd/internal/archive/archive.go b/src/cmd/internal/archive/archive.go
+index e35a418e17..8ac50e202f 100644
+--- a/src/cmd/internal/archive/archive.go
++++ b/src/cmd/internal/archive/archive.go
+@@ -189,7 +189,7 @@ func (r *objReader) readByte() byte {
+ 	return b
+ }
+ 
+-// read reads exactly len(b) bytes from the input file.
++// readFull reads exactly len(b) bytes from the input file.
+ // If an error occurs, read returns the error but also
+ // records it, so it is safe for callers to ignore the result
+ // as long as delaying the report is not a problem.
+diff --git a/src/go/types/conversions.go b/src/go/types/conversions.go
+index 984d0c69ca..8853926afe 100644
+--- a/src/go/types/conversions.go
++++ b/src/go/types/conversions.go
+@@ -12,7 +12,7 @@ import (
+ 	"unicode"
+ )
+ 
+-// Conversion type-checks the conversion T(x).
++// conversion type-checks the conversion T(x).
+ // The result is in x.
+ func (check *Checker) conversion(x *operand, T Type) {
+ 	constArg := x.mode == constant_
+diff --git a/src/go/types/index.go b/src/go/types/index.go
+index 45d591e31c..2fcc3f3492 100644
+--- a/src/go/types/index.go
++++ b/src/go/types/index.go
+@@ -408,7 +408,7 @@ func (check *Checker) isValidIndex(x *operand, code Code, what string, allowNega
+ 	return true
+ }
+ 
+-// indexElts checks the elements (elts) of an array or slice composite literal
++// indexedElts checks the elements (elts) of an array or slice composite literal
+ // against the literal's element type (typ), and the element indices against
+ // the literal length if known (length >= 0). It returns the length of the
+ // literal (maximum index value + 1).
+diff --git a/src/syscall/timestruct.go b/src/syscall/timestruct.go
+index 8a03171ee5..42418a693c 100644
+--- a/src/syscall/timestruct.go
++++ b/src/syscall/timestruct.go
+@@ -6,7 +6,7 @@
+ 
+ package syscall
+ 
+-// TimespecToNSec returns the time stored in ts as nanoseconds.
++// TimespecToNsec returns the time stored in ts as nanoseconds.
+ func TimespecToNsec(ts Timespec) int64 { return ts.Nano() }
+ 
+ // NsecToTimespec converts a number of nanoseconds into a Timespec.

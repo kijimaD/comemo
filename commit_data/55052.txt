@@ -31,8 +31,135 @@ Date:   Thu Dec 8 10:03:03 2022 -0500
     Run-TryBot: Robert Findley <rfindley@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/types2/infer.go           | 40 ++++++++--------------
  src/go/types/infer.go                              | 40 ++++++++--------------
  .../types/testdata/fixedbugs/issue57155.go         | 14 ++++++++
  3 files changed, 42 insertions(+), 52 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/infer.go b/src/cmd/compile/internal/types2/infer.go
+index 1075457aca..5750ece32f 100644
+--- a/src/cmd/compile/internal/types2/infer.go
++++ b/src/cmd/compile/internal/types2/infer.go
+@@ -89,34 +89,22 @@ func (check *Checker) infer(pos syntax.Pos, tparams []*TypeParam, targs []Type,
+ 		//    f(p)
+ 		//  }
+ 		//
+-		// We can turn the first example into the second example by renaming type
+-		// parameters in the original signature to give them a new identity. As an
+-		// optimization, we do this only for self-recursive calls.
+-
+-		// We can detect if we are in a self-recursive call by comparing the
+-		// identity of the first type parameter in the current function with the
+-		// first type parameter in tparams. This works because type parameters are
+-		// unique to their type parameter list.
+-		selfRecursive := check.sig != nil && check.sig.tparams.Len() > 0 && tparams[0] == check.sig.tparams.At(0)
+-
+-		if selfRecursive {
+-			// In self-recursive inference, rename the type parameters with new type
+-			// parameters that are the same but for their pointer identity.
+-			tparams2 := make([]*TypeParam, len(tparams))
+-			for i, tparam := range tparams {
+-				tname := NewTypeName(tparam.Obj().Pos(), tparam.Obj().Pkg(), tparam.Obj().Name(), nil)
+-				tparams2[i] = NewTypeParam(tname, nil)
+-				tparams2[i].index = tparam.index // == i
+-			}
+-
+-			renameMap := makeRenameMap(tparams, tparams2)
+-			for i, tparam := range tparams {
+-				tparams2[i].bound = check.subst(pos, tparam.bound, renameMap, nil, check.context())
+-			}
++		// We turn the first example into the second example by renaming type
++		// parameters in the original signature to give them a new identity.
++		tparams2 := make([]*TypeParam, len(tparams))
++		for i, tparam := range tparams {
++			tname := NewTypeName(tparam.Obj().Pos(), tparam.Obj().Pkg(), tparam.Obj().Name(), nil)
++			tparams2[i] = NewTypeParam(tname, nil)
++			tparams2[i].index = tparam.index // == i
++		}
+ 
+-			tparams = tparams2
+-			params = check.subst(pos, params, renameMap, nil, check.context()).(*Tuple)
++		renameMap := makeRenameMap(tparams, tparams2)
++		for i, tparam := range tparams {
++			tparams2[i].bound = check.subst(pos, tparam.bound, renameMap, nil, check.context())
+ 		}
++
++		tparams = tparams2
++		params = check.subst(pos, params, renameMap, nil, check.context()).(*Tuple)
+ 	}
+ 
+ 	// If we have more than 2 arguments, we may have arguments with named and unnamed types.
+diff --git a/src/go/types/infer.go b/src/go/types/infer.go
+index 1c1d4e03fc..dc87902c4c 100644
+--- a/src/go/types/infer.go
++++ b/src/go/types/infer.go
+@@ -89,34 +89,22 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
+ 		//    f(p)
+ 		//  }
+ 		//
+-		// We can turn the first example into the second example by renaming type
+-		// parameters in the original signature to give them a new identity. As an
+-		// optimization, we do this only for self-recursive calls.
+-
+-		// We can detect if we are in a self-recursive call by comparing the
+-		// identity of the first type parameter in the current function with the
+-		// first type parameter in tparams. This works because type parameters are
+-		// unique to their type parameter list.
+-		selfRecursive := check.sig != nil && check.sig.tparams.Len() > 0 && tparams[0] == check.sig.tparams.At(0)
+-
+-		if selfRecursive {
+-			// In self-recursive inference, rename the type parameters with new type
+-			// parameters that are the same but for their pointer identity.
+-			tparams2 := make([]*TypeParam, len(tparams))
+-			for i, tparam := range tparams {
+-				tname := NewTypeName(tparam.Obj().Pos(), tparam.Obj().Pkg(), tparam.Obj().Name(), nil)
+-				tparams2[i] = NewTypeParam(tname, nil)
+-				tparams2[i].index = tparam.index // == i
+-			}
+-
+-			renameMap := makeRenameMap(tparams, tparams2)
+-			for i, tparam := range tparams {
+-				tparams2[i].bound = check.subst(posn.Pos(), tparam.bound, renameMap, nil, check.context())
+-			}
++		// We turn the first example into the second example by renaming type
++		// parameters in the original signature to give them a new identity.
++		tparams2 := make([]*TypeParam, len(tparams))
++		for i, tparam := range tparams {
++			tname := NewTypeName(tparam.Obj().Pos(), tparam.Obj().Pkg(), tparam.Obj().Name(), nil)
++			tparams2[i] = NewTypeParam(tname, nil)
++			tparams2[i].index = tparam.index // == i
++		}
+ 
+-			tparams = tparams2
+-			params = check.subst(posn.Pos(), params, renameMap, nil, check.context()).(*Tuple)
++		renameMap := makeRenameMap(tparams, tparams2)
++		for i, tparam := range tparams {
++			tparams2[i].bound = check.subst(posn.Pos(), tparam.bound, renameMap, nil, check.context())
+ 		}
++
++		tparams = tparams2
++		params = check.subst(posn.Pos(), params, renameMap, nil, check.context()).(*Tuple)
+ 	}
+ 
+ 	// If we have more than 2 arguments, we may have arguments with named and unnamed types.
+diff --git a/src/internal/types/testdata/fixedbugs/issue57155.go b/src/internal/types/testdata/fixedbugs/issue57155.go
+new file mode 100644
+index 0000000000..ec9fb2bad3
+--- /dev/null
++++ b/src/internal/types/testdata/fixedbugs/issue57155.go
+@@ -0,0 +1,14 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func f[P *Q, Q any](p P, q Q) {
++	func() {
++		_ = f[P]
++		f(p, q)
++		f[P](p, q)
++		f[P, Q](p, q)
++	}()
++}

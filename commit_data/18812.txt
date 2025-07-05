@@ -10,6 +10,19 @@ Date:   Sun Mar 9 13:18:12 2014 +1100
     R=iant, rsc, mikioh.mikioh, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/73100043
-
+---
  src/pkg/syscall/net_nacl.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/pkg/syscall/net_nacl.go b/src/pkg/syscall/net_nacl.go
+index f6d9e20f64..a2588d0419 100644
+--- a/src/pkg/syscall/net_nacl.go
++++ b/src/pkg/syscall/net_nacl.go
+@@ -112,6 +112,7 @@ const (
+ 	SO_SNDBUF
+ 	SO_KEEPALIVE
+ 	SO_LINGER
++	SO_ERROR
+ 	IP_MULTICAST_IF
+ 	IP_MULTICAST_LOOP
+ 	IP_ADD_MEMBERSHIP

@@ -76,7 +76,7 @@ Date:   Thu Apr 21 13:24:58 2016 -0400
     Reviewed-by: Keith Randall <khr@golang.org>
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  .../internal/gc/sparselocatephifunctions.go        | 199 ++++++++++
  src/cmd/compile/internal/gc/ssa.go                 |  18 +-
  src/cmd/compile/internal/ssa/check.go              |   2 +-
@@ -94,3 +94,1572 @@ Date:   Thu Apr 21 13:24:58 2016 -0400
  src/cmd/compile/internal/ssa/sparsetreemap.go      | 169 ++++++++
  src/cmd/compile/internal/ssa/stackalloc.go         |   2 +-
  16 files changed, 1194 insertions(+), 52 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/sparselocatephifunctions.go b/src/cmd/compile/internal/gc/sparselocatephifunctions.go
+new file mode 100644
+index 0000000000..e15f22123f
+--- /dev/null
++++ b/src/cmd/compile/internal/gc/sparselocatephifunctions.go
+@@ -0,0 +1,199 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package gc
++
++import (
++	"cmd/compile/internal/ssa"
++	"fmt"
++	"math"
++)
++
++// sparseDefState contains a Go map from ONAMEs (*Node) to sparse definition trees, and
++// a search helper for the CFG's dominator tree in which those definitions are embedded.
++// Once initialized, given a use of an ONAME within a block, the ssa definition for
++// that ONAME can be discovered in time roughly proportional to the log of the number
++// of SSA definitions of that ONAME (thus avoiding pathological quadratic behavior for
++// very large programs).  The helper contains state (a dominator tree numbering) common
++// to all the sparse definition trees, as well as some necessary data obtained from
++// the ssa package.
++//
++// This algorithm has improved asymptotic complexity, but the constant factor is
++// rather large and thus it is only preferred for very large inputs containing
++// 1000s of blocks and variables.
++type sparseDefState struct {
++	helper         *ssa.SparseTreeHelper // contains one copy of information needed to do sparse mapping
++	defmapForOname map[*Node]*onameDefs  // for each ONAME, its definition set (normal and phi)
++}
++
++// onameDefs contains a record of definitions (ordinary and implied phi function) for a single OName.
++// stm is the set of definitions for the OName.
++// firstdef and lastuse are postorder block numberings that
++// conservatively bracket the entire lifetime of the OName.
++type onameDefs struct {
++	stm *ssa.SparseTreeMap
++	// firstdef and lastuse define an interval in the postorder numbering
++	// that is guaranteed to include the entire lifetime of an ONAME.
++	// In the postorder numbering, math.MaxInt32 is before anything,
++	// and 0 is after-or-equal all exit nodes and infinite loops.
++	firstdef int32 // the first definition of this ONAME *in the postorder numbering*
++	lastuse  int32 // the last use of this ONAME *in the postorder numbering*
++}
++
++// defsFor finds or creates-and-inserts-in-map the definition information
++// (sparse tree and live range) for a given OName.
++func (m *sparseDefState) defsFor(n *Node) *onameDefs {
++	d := m.defmapForOname[n]
++	if d != nil {
++		return d
++	}
++	// Reminder: firstdef/lastuse are postorder indices, not block indices,
++	// so these default values define an empty interval, not the entire one.
++	d = &onameDefs{stm: m.helper.NewTree(), firstdef: 0, lastuse: math.MaxInt32}
++	m.defmapForOname[n] = d
++	return d
++}
++
++// Insert adds a definition at b (with specified before/within/after adjustment)
++// to sparse tree onameDefs.  The lifetime is extended as necessary.
++func (m *sparseDefState) Insert(tree *onameDefs, b *ssa.Block, adjust int32) {
++	bponum := m.helper.Ponums[b.ID]
++	if bponum > tree.firstdef {
++		tree.firstdef = bponum
++	}
++	tree.stm.Insert(b, adjust, b, m.helper)
++}
++
++// Use updates tree to record a use within b, extending the lifetime as necessary.
++func (m *sparseDefState) Use(tree *onameDefs, b *ssa.Block) {
++	bponum := m.helper.Ponums[b.ID]
++	if bponum < tree.lastuse {
++		tree.lastuse = bponum
++	}
++}
++
++// locatePotentialPhiFunctions finds all the places where phi functions
++// will be inserted into a program and records those and ordinary definitions
++// in a "map" (not a Go map) that given an OName and use site, returns the
++// SSA definition for that OName that will reach the use site (that is,
++// the use site's nearest def/phi site in the dominator tree.)
++func (s *state) locatePotentialPhiFunctions(fn *Node) *sparseDefState {
++	// s.config.SparsePhiCutoff() is compared with product of numblocks and numvalues,
++	// if product is smaller than cutoff, use old non-sparse method.
++	// cutoff == 0 implies all sparse
++	// cutoff == uint(-1) implies all non-sparse
++	if uint64(s.f.NumValues())*uint64(s.f.NumBlocks()) < s.config.SparsePhiCutoff() {
++		return nil
++	}
++
++	helper := ssa.NewSparseTreeHelper(s.f)
++	po := helper.Po // index by block.ID to obtain postorder # of block.
++	trees := make(map[*Node]*onameDefs)
++	dm := &sparseDefState{defmapForOname: trees, helper: helper}
++
++	// Process params, taking note of their special lifetimes
++	b := s.f.Entry
++	for _, n := range fn.Func.Dcl {
++		switch n.Class {
++		case PPARAM, PPARAMOUT:
++			t := dm.defsFor(n)
++			dm.Insert(t, b, ssa.AdjustBefore) // define param at entry block
++			if n.Class == PPARAMOUT {
++				dm.Use(t, po[0]) // Explicitly use PPARAMOUT at very last block
++			}
++		default:
++		}
++	}
++
++	// Process memory variable.
++	t := dm.defsFor(&memVar)
++	dm.Insert(t, b, ssa.AdjustBefore) // define memory at entry block
++	dm.Use(t, po[0])                  // Explicitly use memory at last block
++
++	// Next load the map w/ basic definitions for ONames recorded per-block
++	// Iterate over po to avoid unreachable blocks.
++	for i := len(po) - 1; i >= 0; i-- {
++		b := po[i]
++		m := s.defvars[b.ID]
++		for n := range m { // no specified order, but per-node trees are independent.
++			t := dm.defsFor(n)
++			dm.Insert(t, b, ssa.AdjustWithin)
++		}
++	}
++
++	// Find last use of each variable
++	for _, v := range s.fwdRefs {
++		b := v.Block
++		name := v.Aux.(*Node)
++		t := dm.defsFor(name)
++		dm.Use(t, b)
++	}
++
++	for _, t := range trees {
++		// iterating over names in the outer loop
++		for change := true; change; {
++			change = false
++			for i := t.firstdef; i >= t.lastuse; i-- {
++				// Iterating in reverse of post-order reduces number of 'change' iterations;
++				// all possible forward flow goes through each time.
++				b := po[i]
++				// Within tree t, would a use at b require a phi function to ensure a single definition?
++				// TODO: perhaps more efficient to record specific use sites instead of range?
++				if len(b.Preds) < 2 {
++					continue // no phi possible
++				}
++				phi := t.stm.Find(b, ssa.AdjustWithin, helper) // Look for defs in earlier block or AdjustBefore in this one.
++				if phi != nil && phi.(*ssa.Block) == b {
++					continue // has a phi already in this block.
++				}
++				var defseen interface{}
++				// Do preds see different definitions? if so, need a phi function.
++				for _, e := range b.Preds {
++					p := e.Block()
++					dm.Use(t, p)                                // always count phi pred as "use"; no-op except for loop edges, which matter.
++					x := t.stm.Find(p, ssa.AdjustAfter, helper) // Look for defs reaching or within predecessors.
++					if defseen == nil {
++						defseen = x
++					}
++					if defseen != x || x == nil { // TODO: too conservative at loops, does better if x == nil -> continue
++						// Need to insert a phi function here because predecessors's definitions differ.
++						change = true
++						// Phi insertion is at AdjustBefore, visible with find in same block at AdjustWithin or AdjustAfter.
++						dm.Insert(t, b, ssa.AdjustBefore)
++						break
++					}
++				}
++			}
++		}
++	}
++	return dm
++}
++
++// FindBetterDefiningBlock tries to find a better block for a definition of OName name
++// reaching (or within) p than p itself.  If it cannot, it returns p instead.
++// This aids in more efficient location of phi functions, since it can skip over
++// branch code that might contain a definition of name if it actually does not.
++func (m *sparseDefState) FindBetterDefiningBlock(name *Node, p *ssa.Block) *ssa.Block {
++	if m == nil {
++		return p
++	}
++	t := m.defmapForOname[name]
++	// For now this is fail-soft, since the old algorithm still works using the unimproved block.
++	if t == nil {
++		return p
++	}
++	x := t.stm.Find(p, ssa.AdjustAfter, m.helper)
++	if x == nil {
++		return p
++	}
++	b := x.(*ssa.Block)
++	if b == nil {
++		return p
++	}
++	return b
++}
++
++func (d *onameDefs) String() string {
++	return fmt.Sprintf("onameDefs:first=%d,last=%d,tree=%s", d.firstdef, d.lastuse, d.stm.String())
++}
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 19af92100a..fdf040d5af 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -218,8 +218,16 @@ func buildssa(fn *Node) *ssa.Func {
+ 		return nil
+ 	}
+ 
++	prelinkNumvars := s.f.NumValues()
++	sparseDefState := s.locatePotentialPhiFunctions(fn)
++
+ 	// Link up variable uses to variable definitions
+-	s.linkForwardReferences()
++	s.linkForwardReferences(sparseDefState)
++
++	if ssa.BuildStats > 0 {
++		s.f.LogStat("build", s.f.NumBlocks(), "blocks", prelinkNumvars, "vars_before",
++			s.f.NumValues(), "vars_after", prelinkNumvars*s.f.NumBlocks(), "ssa_phi_loc_cutoff_score")
++	}
+ 
+ 	// Don't carry reference this around longer than necessary
+ 	s.exitCode = Nodes{}
+@@ -3741,7 +3749,8 @@ func (s *state) mem() *ssa.Value {
+ 	return s.variable(&memVar, ssa.TypeMem)
+ }
+ 
+-func (s *state) linkForwardReferences() {
++func (s *state) linkForwardReferences(dm *sparseDefState) {
++
+ 	// Build SSA graph. Each variable on its first use in a basic block
+ 	// leaves a FwdRef in that block representing the incoming value
+ 	// of that variable. This function links that ref up with possible definitions,
+@@ -3756,13 +3765,13 @@ func (s *state) linkForwardReferences() {
+ 	for len(s.fwdRefs) > 0 {
+ 		v := s.fwdRefs[len(s.fwdRefs)-1]
+ 		s.fwdRefs = s.fwdRefs[:len(s.fwdRefs)-1]
+-		s.resolveFwdRef(v)
++		s.resolveFwdRef(v, dm)
+ 	}
+ }
+ 
+ // resolveFwdRef modifies v to be the variable's value at the start of its block.
+ // v must be a FwdRef op.
+-func (s *state) resolveFwdRef(v *ssa.Value) {
++func (s *state) resolveFwdRef(v *ssa.Value, dm *sparseDefState) {
+ 	b := v.Block
+ 	name := v.Aux.(*Node)
+ 	v.Aux = nil
+@@ -3801,6 +3810,7 @@ func (s *state) resolveFwdRef(v *ssa.Value) {
+ 	args := argstore[:0]
+ 	for _, e := range b.Preds {
+ 		p := e.Block()
++		p = dm.FindBetterDefiningBlock(name, p) // try sparse improvement on p
+ 		args = append(args, s.lookupVarOutgoing(p, v.Type, name, v.Line))
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/ssa/check.go b/src/cmd/compile/internal/ssa/check.go
+index 60be3de521..bfedd47794 100644
+--- a/src/cmd/compile/internal/ssa/check.go
++++ b/src/cmd/compile/internal/ssa/check.go
+@@ -316,7 +316,7 @@ func checkFunc(f *Func) {
+ }
+ 
+ // domCheck reports whether x dominates y (including x==y).
+-func domCheck(f *Func, sdom sparseTree, x, y *Block) bool {
++func domCheck(f *Func, sdom SparseTree, x, y *Block) bool {
+ 	if !sdom.isAncestorEq(f.Entry, y) {
+ 		// unreachable - ignore
+ 		return true
+diff --git a/src/cmd/compile/internal/ssa/compile.go b/src/cmd/compile/internal/ssa/compile.go
+index bc9c830ee9..b3c7544ad1 100644
+--- a/src/cmd/compile/internal/ssa/compile.go
++++ b/src/cmd/compile/internal/ssa/compile.go
+@@ -86,14 +86,14 @@ func Compile(f *Func) {
+ 			// Surround timing information w/ enough context to allow comparisons.
+ 			time := tEnd.Sub(tStart).Nanoseconds()
+ 			if p.time {
+-				f.logStat("TIME(ns)", time)
++				f.LogStat("TIME(ns)", time)
+ 			}
+ 			if p.mem {
+ 				var mEnd runtime.MemStats
+ 				runtime.ReadMemStats(&mEnd)
+ 				nBytes := mEnd.TotalAlloc - mStart.TotalAlloc
+ 				nAllocs := mEnd.Mallocs - mStart.Mallocs
+-				f.logStat("TIME(ns):BYTES:ALLOCS", time, nBytes, nAllocs)
++				f.LogStat("TIME(ns):BYTES:ALLOCS", time, nBytes, nAllocs)
+ 			}
+ 		}
+ 		if checkEnabled {
+@@ -124,6 +124,10 @@ var checkEnabled = false
+ var IntrinsicsDebug int
+ var IntrinsicsDisable bool
+ 
++var BuildDebug int
++var BuildTest int
++var BuildStats int
++
+ // PhaseOption sets the specified flag in the specified ssa phase,
+ // returning empty string if this was successful or a string explaining
+ // the error if it was not.
+@@ -174,6 +178,19 @@ func PhaseOption(phase, flag string, val int) string {
+ 		}
+ 		return ""
+ 	}
++	if phase == "build" {
++		switch flag {
++		case "debug":
++			BuildDebug = val
++		case "test":
++			BuildTest = val
++		case "stats":
++			BuildStats = val
++		default:
++			return fmt.Sprintf("Did not find a flag matching %s in -d=ssa/%s debug option", flag, phase)
++		}
++		return ""
++	}
+ 
+ 	underphase := strings.Replace(phase, "_", " ", -1)
+ 	var re *regexp.Regexp
+diff --git a/src/cmd/compile/internal/ssa/config.go b/src/cmd/compile/internal/ssa/config.go
+index 2a676e39b3..e8ab17806c 100644
+--- a/src/cmd/compile/internal/ssa/config.go
++++ b/src/cmd/compile/internal/ssa/config.go
+@@ -9,22 +9,24 @@ import (
+ 	"crypto/sha1"
+ 	"fmt"
+ 	"os"
++	"strconv"
+ 	"strings"
+ )
+ 
+ type Config struct {
+-	arch         string                     // "amd64", etc.
+-	IntSize      int64                      // 4 or 8
+-	PtrSize      int64                      // 4 or 8
+-	lowerBlock   func(*Block) bool          // lowering function
+-	lowerValue   func(*Value, *Config) bool // lowering function
+-	registers    []Register                 // machine registers
+-	fe           Frontend                   // callbacks into compiler frontend
+-	HTML         *HTMLWriter                // html writer, for debugging
+-	ctxt         *obj.Link                  // Generic arch information
+-	optimize     bool                       // Do optimization
+-	noDuffDevice bool                       // Don't use Duff's device
+-	curFunc      *Func
++	arch            string                     // "amd64", etc.
++	IntSize         int64                      // 4 or 8
++	PtrSize         int64                      // 4 or 8
++	lowerBlock      func(*Block) bool          // lowering function
++	lowerValue      func(*Value, *Config) bool // lowering function
++	registers       []Register                 // machine registers
++	fe              Frontend                   // callbacks into compiler frontend
++	HTML            *HTMLWriter                // html writer, for debugging
++	ctxt            *obj.Link                  // Generic arch information
++	optimize        bool                       // Do optimization
++	noDuffDevice    bool                       // Don't use Duff's device
++	sparsePhiCutoff uint64                     // Sparse phi location algorithm used above this #blocks*#variables score
++	curFunc         *Func
+ 
+ 	// TODO: more stuff. Compiler flags of interest, ...
+ 
+@@ -159,10 +161,27 @@ func NewConfig(arch string, fe Frontend, ctxt *obj.Link, optimize bool) *Config
+ 
+ 	c.logfiles = make(map[string]*os.File)
+ 
++	// cutoff is compared with product of numblocks and numvalues,
++	// if product is smaller than cutoff, use old non-sparse method.
++	// cutoff == 0 implies all sparse.
++	// cutoff == -1 implies none sparse.
++	// Good cutoff values seem to be O(million) depending on constant factor cost of sparse.
++	// TODO: get this from a flag, not an environment variable
++	c.sparsePhiCutoff = 2500000 // 0 for testing. // 2500000 determined with crude experiments w/ make.bash
++	ev := os.Getenv("GO_SSA_PHI_LOC_CUTOFF")
++	if ev != "" {
++		v, err := strconv.ParseInt(ev, 10, 64)
++		if err != nil {
++			fe.Fatalf(0, "Environment variable GO_SSA_PHI_LOC_CUTOFF (value '%s') did not parse as a number", ev)
++		}
++		c.sparsePhiCutoff = uint64(v) // convert -1 to maxint, for never use sparse
++	}
++
+ 	return c
+ }
+ 
+-func (c *Config) Frontend() Frontend { return c.fe }
++func (c *Config) Frontend() Frontend      { return c.fe }
++func (c *Config) SparsePhiCutoff() uint64 { return c.sparsePhiCutoff }
+ 
+ // NewFunc returns a new, empty function object.
+ // Caller must call f.Free() before calling NewFunc again.
+@@ -259,3 +278,7 @@ func (c *Config) DebugHashMatch(evname, name string) bool {
+ 	}
+ 	return false
+ }
++
++func (c *Config) DebugNameMatch(evname, name string) bool {
++	return os.Getenv(evname) == name
++}
+diff --git a/src/cmd/compile/internal/ssa/cse.go b/src/cmd/compile/internal/ssa/cse.go
+index 8cc0db1d17..20ea45ab3e 100644
+--- a/src/cmd/compile/internal/ssa/cse.go
++++ b/src/cmd/compile/internal/ssa/cse.go
+@@ -190,7 +190,7 @@ func cse(f *Func) {
+ 		}
+ 	}
+ 	if f.pass.stats > 0 {
+-		f.logStat("CSE REWRITES", rewrites)
++		f.LogStat("CSE REWRITES", rewrites)
+ 	}
+ }
+ 
+@@ -313,7 +313,7 @@ func (sv sortvalues) Less(i, j int) bool {
+ 
+ type sortbyentry struct {
+ 	a    []*Value // array of values
+-	sdom sparseTree
++	sdom SparseTree
+ }
+ 
+ func (sv sortbyentry) Len() int      { return len(sv.a) }
+diff --git a/src/cmd/compile/internal/ssa/dom.go b/src/cmd/compile/internal/ssa/dom.go
+index 78ba2e9e1b..0c532c87ff 100644
+--- a/src/cmd/compile/internal/ssa/dom.go
++++ b/src/cmd/compile/internal/ssa/dom.go
+@@ -20,9 +20,9 @@ const (
+ // postorder computes a postorder traversal ordering for the
+ // basic blocks in f. Unreachable blocks will not appear.
+ func postorder(f *Func) []*Block {
+-	return postorderWithNumbering(f, []int{})
++	return postorderWithNumbering(f, []int32{})
+ }
+-func postorderWithNumbering(f *Func, ponums []int) []*Block {
++func postorderWithNumbering(f *Func, ponums []int32) []*Block {
+ 	mark := make([]markKind, f.NumBlocks())
+ 
+ 	// result ordering
+@@ -40,7 +40,7 @@ func postorderWithNumbering(f *Func, ponums []int) []*Block {
+ 			s = s[:len(s)-1]
+ 			mark[b.ID] = done
+ 			if len(ponums) > 0 {
+-				ponums[b.ID] = len(order)
++				ponums[b.ID] = int32(len(order))
+ 			}
+ 			order = append(order, b)
+ 		case notExplored:
+diff --git a/src/cmd/compile/internal/ssa/func.go b/src/cmd/compile/internal/ssa/func.go
+index 2c7a8a1f11..1d60bb606a 100644
+--- a/src/cmd/compile/internal/ssa/func.go
++++ b/src/cmd/compile/internal/ssa/func.go
+@@ -37,7 +37,7 @@ type Func struct {
+ 	freeBlocks *Block // free Blocks linked by succstorage[0].b.  All other fields except ID are 0/nil.
+ 
+ 	idom []*Block   // precomputed immediate dominators
+-	sdom sparseTree // precomputed dominator tree
++	sdom SparseTree // precomputed dominator tree
+ 
+ 	constants map[int64][]*Value // constants cache, keyed by constant value; users must check value's Op and Type
+ }
+@@ -104,12 +104,16 @@ func (f *Func) newValue(op Op, t Type, b *Block, line int32) *Value {
+ // context to allow item-by-item comparisons across runs.
+ // For example:
+ // awk 'BEGIN {FS="\t"} $3~/TIME/{sum+=$4} END{print "t(ns)=",sum}' t.log
+-func (f *Func) logStat(key string, args ...interface{}) {
++func (f *Func) LogStat(key string, args ...interface{}) {
+ 	value := ""
+ 	for _, a := range args {
+ 		value += fmt.Sprintf("\t%v", a)
+ 	}
+-	f.Config.Warnl(f.Entry.Line, "\t%s\t%s%s\t%s", f.pass.name, key, value, f.Name)
++	n := "missing_pass"
++	if f.pass != nil {
++		n = f.pass.name
++	}
++	f.Config.Warnl(f.Entry.Line, "\t%s\t%s%s\t%s", n, key, value, f.Name)
+ }
+ 
+ // freeValue frees a value. It must no longer be referenced.
+diff --git a/src/cmd/compile/internal/ssa/likelyadjust.go b/src/cmd/compile/internal/ssa/likelyadjust.go
+index 3f03943a74..cb2d82f352 100644
+--- a/src/cmd/compile/internal/ssa/likelyadjust.go
++++ b/src/cmd/compile/internal/ssa/likelyadjust.go
+@@ -32,7 +32,7 @@ type loop struct {
+ }
+ 
+ // outerinner records that outer contains inner
+-func (sdom sparseTree) outerinner(outer, inner *loop) {
++func (sdom SparseTree) outerinner(outer, inner *loop) {
+ 	oldouter := inner.outer
+ 	if oldouter == nil || sdom.isAncestorEq(oldouter.header, outer.header) {
+ 		inner.outer = outer
+@@ -59,7 +59,7 @@ type loopnest struct {
+ 	f     *Func
+ 	b2l   []*loop
+ 	po    []*Block
+-	sdom  sparseTree
++	sdom  SparseTree
+ 	loops []*loop
+ 
+ 	// Record which of the lazily initialized fields have actually been initialized.
+@@ -238,7 +238,7 @@ func (l *loop) LongString() string {
+ // containing block b; the header must dominate b.  loop itself
+ // is assumed to not be that loop. For acceptable performance,
+ // we're relying on loop nests to not be terribly deep.
+-func (l *loop) nearestOuterLoop(sdom sparseTree, b *Block) *loop {
++func (l *loop) nearestOuterLoop(sdom SparseTree, b *Block) *loop {
+ 	var o *loop
+ 	for o = l.outer; o != nil && !sdom.isAncestorEq(o.header, b); o = o.outer {
+ 	}
+@@ -335,7 +335,7 @@ func loopnestfor(f *Func) *loopnest {
+ 				inner++
+ 			}
+ 
+-			f.logStat("loopstats:",
++			f.LogStat("loopstats:",
+ 				l.depth, "depth", x, "exits",
+ 				inner, "is_inner", cf, "is_callfree", l.nBlocks, "n_blocks")
+ 		}
+diff --git a/src/cmd/compile/internal/ssa/prove.go b/src/cmd/compile/internal/ssa/prove.go
+index 17ef5e461a..4416fa2cf3 100644
+--- a/src/cmd/compile/internal/ssa/prove.go
++++ b/src/cmd/compile/internal/ssa/prove.go
+@@ -515,7 +515,7 @@ func prove(f *Func) {
+ 
+ // getBranch returns the range restrictions added by p
+ // when reaching b. p is the immediate dominator of b.
+-func getBranch(sdom sparseTree, p *Block, b *Block) branch {
++func getBranch(sdom SparseTree, p *Block, b *Block) branch {
+ 	if p == nil || p.Kind != BlockIf {
+ 		return unknown
+ 	}
+diff --git a/src/cmd/compile/internal/ssa/redblack32.go b/src/cmd/compile/internal/ssa/redblack32.go
+new file mode 100644
+index 0000000000..ae1ec352e7
+--- /dev/null
++++ b/src/cmd/compile/internal/ssa/redblack32.go
+@@ -0,0 +1,429 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ssa
++
++import "fmt"
++
++const (
++	rankLeaf rbrank = 1
++	rankZero rbrank = 0
++)
++
++type rbrank int8
++
++// RBTint32 is a red-black tree with data stored at internal nodes,
++// following Tarjan, Data Structures and Network Algorithms,
++// pp 48-52, using explicit rank instead of red and black.
++// Deletion is not yet implemented because it is not yet needed.
++// Extra operations glb, lub, glbEq, lubEq are provided for
++// use in sparse lookup algorithms.
++type RBTint32 struct {
++	root *node32
++	// An extra-clever implementation will have special cases
++	// for small sets, but we are not extra-clever today.
++}
++
++func (t *RBTint32) String() string {
++	if t.root == nil {
++		return "[]"
++	}
++	return "[" + t.root.String() + "]"
++}
++
++func (t *node32) String() string {
++	s := ""
++	if t.left != nil {
++		s = t.left.String() + " "
++	}
++	s = s + fmt.Sprintf("k=%d,d=%v", t.key, t.data)
++	if t.right != nil {
++		s = s + " " + t.right.String()
++	}
++	return s
++}
++
++type node32 struct {
++	// Standard conventions hold for left = smaller, right = larger
++	left, right, parent *node32
++	data                interface{}
++	key                 int32
++	rank                rbrank // From Tarjan pp 48-49:
++	// If x is a node with a parent, then x.rank <= x.parent.rank <= x.rank+1.
++	// If x is a node with a grandparent, then x.rank < x.parent.parent.rank.
++	// If x is an "external [null] node", then x.rank = 0 && x.parent.rank = 1.
++	// Any node with one or more null children should have rank = 1.
++}
++
++// makeNode returns a new leaf node with the given key and nil data.
++func (t *RBTint32) makeNode(key int32) *node32 {
++	return &node32{key: key, rank: rankLeaf}
++}
++
++// IsEmpty reports whether t is empty.
++func (t *RBTint32) IsEmpty() bool {
++	return t.root == nil
++}
++
++// IsSingle reports whether t is a singleton (leaf).
++func (t *RBTint32) IsSingle() bool {
++	return t.root != nil && t.root.isLeaf()
++}
++
++// VisitInOrder applies f to the key and data pairs in t,
++// with keys ordered from smallest to largest.
++func (t *RBTint32) VisitInOrder(f func(int32, interface{})) {
++	if t.root == nil {
++		return
++	}
++	t.root.visitInOrder(f)
++}
++
++func (n *node32) Data() interface{} {
++	if n == nil {
++		return nil
++	}
++	return n.data
++}
++
++func (n *node32) keyAndData() (k int32, d interface{}) {
++	if n == nil {
++		k = 0
++		d = nil
++	} else {
++		k = n.key
++		d = n.data
++	}
++	return
++}
++
++func (n *node32) Rank() rbrank {
++	if n == nil {
++		return 0
++	}
++	return n.rank
++}
++
++// Find returns the data associated with key in the tree, or
++// nil if key is not in the tree.
++func (t *RBTint32) Find(key int32) interface{} {
++	return t.root.find(key).Data()
++}
++
++// Insert adds key to the tree and associates key with data.
++// If key was already in the tree, it updates the associated data.
++// Insert returns the previous data associated with key,
++// or nil if key was not present.
++// Insert panics if data is nil.
++func (t *RBTint32) Insert(key int32, data interface{}) interface{} {
++	if data == nil {
++		panic("Cannot insert nil data into tree")
++	}
++	n := t.root
++	var newroot *node32
++	if n == nil {
++		n = t.makeNode(key)
++		newroot = n
++	} else {
++		newroot, n = n.insert(key, t)
++	}
++	r := n.data
++	n.data = data
++	t.root = newroot
++	return r
++}
++
++// Min returns the minimum element of t and its associated data.
++// If t is empty, then (0, nil) is returned.
++func (t *RBTint32) Min() (k int32, d interface{}) {
++	return t.root.min().keyAndData()
++}
++
++// Max returns the maximum element of t and its associated data.
++// If t is empty, then (0, nil) is returned.
++func (t *RBTint32) Max() (k int32, d interface{}) {
++	return t.root.max().keyAndData()
++}
++
++// Glb returns the greatest-lower-bound-exclusive of x and its associated
++// data.  If x has no glb in the tree, then (0, nil) is returned.
++func (t *RBTint32) Glb(x int32) (k int32, d interface{}) {
++	return t.root.glb(x, false).keyAndData()
++}
++
++// GlbEq returns the greatest-lower-bound-inclusive of x and its associated
++// data.  If x has no glbEQ in the tree, then (0, nil) is returned.
++func (t *RBTint32) GlbEq(x int32) (k int32, d interface{}) {
++	return t.root.glb(x, true).keyAndData()
++}
++
++// Lub returns the least-upper-bound-exclusive of x and its associated
++// data.  If x has no lub in the tree, then (0, nil) is returned.
++func (t *RBTint32) Lub(x int32) (k int32, d interface{}) {
++	return t.root.lub(x, false).keyAndData()
++}
++
++// LubEq returns the least-upper-bound-inclusive of x and its associated
++// data.  If x has no lubEq in the tree, then (0, nil) is returned.
++func (t *RBTint32) LubEq(x int32) (k int32, d interface{}) {
++	return t.root.lub(x, true).keyAndData()
++}
++
++func (t *node32) isLeaf() bool {
++	return t.left == nil && t.right == nil
++}
++
++func (t *node32) visitInOrder(f func(int32, interface{})) {
++	if t.left != nil {
++		t.left.visitInOrder(f)
++	}
++	f(t.key, t.data)
++	if t.right != nil {
++		t.right.visitInOrder(f)
++	}
++}
++
++func (t *node32) maxChildRank() rbrank {
++	if t.left == nil {
++		if t.right == nil {
++			return rankZero
++		}
++		return t.right.rank
++	}
++	if t.right == nil {
++		return t.left.rank
++	}
++	if t.right.rank > t.left.rank {
++		return t.right.rank
++	}
++	return t.left.rank
++}
++
++func (t *node32) minChildRank() rbrank {
++	if t.left == nil || t.right == nil {
++		return rankZero
++	}
++	if t.right.rank < t.left.rank {
++		return t.right.rank
++	}
++	return t.left.rank
++}
++
++func (t *node32) find(key int32) *node32 {
++	for t != nil {
++		if key < t.key {
++			t = t.left
++		} else if key > t.key {
++			t = t.right
++		} else {
++			return t
++		}
++	}
++	return nil
++}
++
++func (t *node32) min() *node32 {
++	if t == nil {
++		return t
++	}
++	for t.left != nil {
++		t = t.left
++	}
++	return t
++}
++
++func (t *node32) max() *node32 {
++	if t == nil {
++		return t
++	}
++	for t.right != nil {
++		t = t.right
++	}
++	return t
++}
++
++func (t *node32) glb(key int32, allow_eq bool) *node32 {
++	var best *node32 = nil
++	for t != nil {
++		if key <= t.key {
++			if key == t.key && allow_eq {
++				return t
++			}
++			// t is too big, glb is to left.
++			t = t.left
++		} else {
++			// t is a lower bound, record it and seek a better one.
++			best = t
++			t = t.right
++		}
++	}
++	return best
++}
++
++func (t *node32) lub(key int32, allow_eq bool) *node32 {
++	var best *node32 = nil
++	for t != nil {
++		if key >= t.key {
++			if key == t.key && allow_eq {
++				return t
++			}
++			// t is too small, lub is to right.
++			t = t.right
++		} else {
++			// t is a upper bound, record it and seek a better one.
++			best = t
++			t = t.left
++		}
++	}
++	return best
++}
++
++func (t *node32) insert(x int32, w *RBTint32) (newroot, newnode *node32) {
++	// defaults
++	newroot = t
++	newnode = t
++	if x == t.key {
++		return
++	}
++	if x < t.key {
++		if t.left == nil {
++			n := w.makeNode(x)
++			n.parent = t
++			t.left = n
++			newnode = n
++			return
++		}
++		var new_l *node32
++		new_l, newnode = t.left.insert(x, w)
++		t.left = new_l
++		new_l.parent = t
++		newrank := 1 + new_l.maxChildRank()
++		if newrank > t.rank {
++			if newrank > 1+t.right.Rank() { // rotations required
++				if new_l.left.Rank() < new_l.right.Rank() {
++					// double rotation
++					t.left = new_l.rightToRoot()
++				}
++				newroot = t.leftToRoot()
++				return
++			} else {
++				t.rank = newrank
++			}
++		}
++	} else { // x > t.key
++		if t.right == nil {
++			n := w.makeNode(x)
++			n.parent = t
++			t.right = n
++			newnode = n
++			return
++		}
++		var new_r *node32
++		new_r, newnode = t.right.insert(x, w)
++		t.right = new_r
++		new_r.parent = t
++		newrank := 1 + new_r.maxChildRank()
++		if newrank > t.rank {
++			if newrank > 1+t.left.Rank() { // rotations required
++				if new_r.right.Rank() < new_r.left.Rank() {
++					// double rotation
++					t.right = new_r.leftToRoot()
++				}
++				newroot = t.rightToRoot()
++				return
++			} else {
++				t.rank = newrank
++			}
++		}
++	}
++	return
++}
++
++func (t *node32) rightToRoot() *node32 {
++	//    this
++	// left  right
++	//      rl   rr
++	//
++	// becomes
++	//
++	//       right
++	//    this   rr
++	// left  rl
++	//
++	right := t.right
++	rl := right.left
++	right.parent = t.parent
++	right.left = t
++	t.parent = right
++	// parent's child ptr fixed in caller
++	t.right = rl
++	if rl != nil {
++		rl.parent = t
++	}
++	return right
++}
++
++func (t *node32) leftToRoot() *node32 {
++	//     this
++	//  left  right
++	// ll  lr
++	//
++	// becomes
++	//
++	//    left
++	//   ll  this
++	//      lr  right
++	//
++	left := t.left
++	lr := left.right
++	left.parent = t.parent
++	left.right = t
++	t.parent = left
++	// parent's child ptr fixed in caller
++	t.left = lr
++	if lr != nil {
++		lr.parent = t
++	}
++	return left
++}
++
++// next returns the successor of t in a left-to-right
++// walk of the tree in which t is embedded.
++func (t *node32) next() *node32 {
++	// If there is a right child, it is to the right
++	r := t.right
++	if r != nil {
++		return r.min()
++	}
++	// if t is p.left, then p, else repeat.
++	p := t.parent
++	for p != nil {
++		if p.left == t {
++			return p
++		}
++		t = p
++		p = t.parent
++	}
++	return nil
++}
++
++// prev returns the predecessor of t in a left-to-right
++// walk of the tree in which t is embedded.
++func (t *node32) prev() *node32 {
++	// If there is a left child, it is to the left
++	l := t.left
++	if l != nil {
++		return l.max()
++	}
++	// if t is p.right, then p, else repeat.
++	p := t.parent
++	for p != nil {
++		if p.right == t {
++			return p
++		}
++		t = p
++		p = t.parent
++	}
++	return nil
++}
+diff --git a/src/cmd/compile/internal/ssa/redblack32_test.go b/src/cmd/compile/internal/ssa/redblack32_test.go
+new file mode 100644
+index 0000000000..6d72a3eee5
+--- /dev/null
++++ b/src/cmd/compile/internal/ssa/redblack32_test.go
+@@ -0,0 +1,276 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ssa
++
++import (
++	"fmt"
++	"testing"
++)
++
++type sstring string
++
++func (s sstring) String() string {
++	return string(s)
++}
++
++// wellFormed ensures that a red-black tree meets
++// all of its invariants and returns a string identifying
++// the first problem encountered. If there is no problem
++// then the returned string is empty. The size is also
++// returned to allow comparison of calculated tree size
++// with expected.
++func (t *RBTint32) wellFormed() (s string, i int) {
++	if t.root == nil {
++		s = ""
++		i = 0
++		return
++	}
++	return t.root.wellFormedSubtree(nil, -0x80000000, 0x7fffffff)
++}
++
++// wellFormedSubtree ensures that a red-black subtree meets
++// all of its invariants and returns a string identifying
++// the first problem encountered. If there is no problem
++// then the returned string is empty. The size is also
++// returned to allow comparison of calculated tree size
++// with expected.
++func (t *node32) wellFormedSubtree(parent *node32, min, max int32) (s string, i int) {
++	i = -1 // initialize to a failing value
++	s = "" // s is the reason for failure; empty means okay.
++
++	if t.parent != parent {
++		s = "t.parent != parent"
++		return
++	}
++
++	if min >= t.key {
++		s = "min >= t.key"
++		return
++	}
++
++	if max <= t.key {
++		s = "max <= t.key"
++		return
++	}
++
++	l := t.left
++	r := t.right
++	if l == nil && r == nil {
++		if t.rank != rankLeaf {
++			s = "leaf rank wrong"
++			return
++		}
++	}
++	if l != nil {
++		if t.rank < l.rank {
++			s = "t.rank < l.rank"
++		} else if t.rank > 1+l.rank {
++			s = "t.rank > 1+l.rank"
++		} else if t.rank <= l.maxChildRank() {
++			s = "t.rank <= l.maxChildRank()"
++		} else if t.key <= l.key {
++			s = "t.key <= l.key"
++		}
++		if s != "" {
++			return
++		}
++	} else {
++		if t.rank != 1 {
++			s = "t w/ left nil has rank != 1"
++			return
++		}
++	}
++	if r != nil {
++		if t.rank < r.rank {
++			s = "t.rank < r.rank"
++		} else if t.rank > 1+r.rank {
++			s = "t.rank > 1+r.rank"
++		} else if t.rank <= r.maxChildRank() {
++			s = "t.rank <= r.maxChildRank()"
++		} else if t.key >= r.key {
++			s = "t.key >= r.key"
++		}
++		if s != "" {
++			return
++		}
++	} else {
++		if t.rank != 1 {
++			s = "t w/ right nil has rank != 1"
++			return
++		}
++	}
++	ii := 1
++	if l != nil {
++		res, il := l.wellFormedSubtree(t, min, t.key)
++		if res != "" {
++			s = "L." + res
++			return
++		}
++		ii += il
++	}
++	if r != nil {
++		res, ir := r.wellFormedSubtree(t, t.key, max)
++		if res != "" {
++			s = "R." + res
++			return
++		}
++		ii += ir
++	}
++	i = ii
++	return
++}
++
++func (t *RBTint32) DebugString() string {
++	if t.root == nil {
++		return ""
++	}
++	return t.root.DebugString()
++}
++
++// DebugString prints the tree with nested information
++// to allow an eyeball check on the tree balance.
++func (t *node32) DebugString() string {
++	s := ""
++	if t.left != nil {
++		s = s + "["
++		s = s + t.left.DebugString()
++		s = s + "]"
++	}
++	s = s + fmt.Sprintf("%v=%v:%d", t.key, t.data, t.rank)
++	if t.right != nil {
++		s = s + "["
++		s = s + t.right.DebugString()
++		s = s + "]"
++	}
++	return s
++}
++
++func allRBT32Ops(te *testing.T, x []int32) {
++	t := &RBTint32{}
++	for i, d := range x {
++		x[i] = d + d // Double everything for glb/lub testing
++	}
++
++	// fmt.Printf("Inserting double of %v", x)
++	k := 0
++	min := int32(0x7fffffff)
++	max := int32(-0x80000000)
++	for _, d := range x {
++		if d < min {
++			min = d
++		}
++
++		if d > max {
++			max = d
++		}
++
++		t.Insert(d, sstring(fmt.Sprintf("%v", d)))
++		k++
++		s, i := t.wellFormed()
++		if i != k {
++			te.Errorf("Wrong tree size %v, expected %v for %v", i, k, t.DebugString())
++		}
++		if s != "" {
++			te.Errorf("Tree consistency problem at %v", s)
++			return
++		} else {
++			// fmt.Printf("%s", t.DebugString())
++		}
++	}
++
++	oops := false
++
++	for _, d := range x {
++		s := fmt.Sprintf("%v", d)
++		f := t.Find(d)
++
++		// data
++		if s != fmt.Sprintf("%v", f) {
++			te.Errorf("s(%v) != f(%v)", s, f)
++			oops = true
++		}
++	}
++
++	if !oops {
++		for _, d := range x {
++			s := fmt.Sprintf("%v", d)
++
++			kg, g := t.Glb(d + 1)
++			kge, ge := t.GlbEq(d)
++			kl, l := t.Lub(d - 1)
++			kle, le := t.LubEq(d)
++
++			// keys
++			if d != kg {
++				te.Errorf("d(%v) != kg(%v)", d, kg)
++			}
++			if d != kl {
++				te.Errorf("d(%v) != kl(%v)", d, kl)
++			}
++			if d != kge {
++				te.Errorf("d(%v) != kge(%v)", d, kge)
++			}
++			if d != kle {
++				te.Errorf("d(%v) != kle(%v)", d, kle)
++			}
++			// data
++			if s != fmt.Sprintf("%v", g) {
++				te.Errorf("s(%v) != g(%v)", s, g)
++			}
++			if s != fmt.Sprintf("%v", l) {
++				te.Errorf("s(%v) != l(%v)", s, l)
++			}
++			if s != fmt.Sprintf("%v", ge) {
++				te.Errorf("s(%v) != ge(%v)", s, ge)
++			}
++			if s != fmt.Sprintf("%v", le) {
++				te.Errorf("s(%v) != le(%v)", s, le)
++			}
++		}
++
++		for _, d := range x {
++			s := fmt.Sprintf("%v", d)
++			kge, ge := t.GlbEq(d + 1)
++			kle, le := t.LubEq(d - 1)
++			if d != kge {
++				te.Errorf("d(%v) != kge(%v)", d, kge)
++			}
++			if d != kle {
++				te.Errorf("d(%v) != kle(%v)", d, kle)
++			}
++			if s != fmt.Sprintf("%v", ge) {
++				te.Errorf("s(%v) != ge(%v)", s, ge)
++			}
++			if s != fmt.Sprintf("%v", le) {
++				te.Errorf("s(%v) != le(%v)", s, le)
++			}
++		}
++
++		kg, g := t.Glb(min)
++		kge, ge := t.GlbEq(min - 1)
++		kl, l := t.Lub(max)
++		kle, le := t.LubEq(max + 1)
++		fmin := t.Find(min - 1)
++		fmax := t.Find(min + 11)
++
++		if kg != 0 || kge != 0 || kl != 0 || kle != 0 {
++			te.Errorf("Got non-zero-key for missing query")
++		}
++
++		if g != nil || ge != nil || l != nil || le != nil || fmin != nil || fmax != nil {
++			te.Errorf("Got non-error-data for missing query")
++		}
++
++	}
++}
++
++func TestAllRBTreeOps(t *testing.T) {
++	allRBT32Ops(t, []int32{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25})
++	allRBT32Ops(t, []int32{22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 3, 2, 1, 25, 24, 23, 12, 11, 10, 9, 8, 7, 6, 5, 4})
++	allRBT32Ops(t, []int32{25, 24, 23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1})
++	allRBT32Ops(t, []int32{1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24})
++	allRBT32Ops(t, []int32{1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 24, 22, 20, 18, 16, 14, 12, 10, 8, 6, 4, 2})
++	allRBT32Ops(t, []int32{24, 22, 20, 18, 16, 14, 12, 10, 8, 6, 4, 2, 1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25})
++}
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index 6c391aba29..c9ef0d3017 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -1529,7 +1529,7 @@ sinking:
+ 	}
+ 
+ 	if f.pass.stats > 0 {
+-		f.logStat("spills_info",
++		f.LogStat("spills_info",
+ 			nSpills, "spills", nSpillsInner, "inner_spills_remaining", nSpillsSunk, "inner_spills_sunk", nSpillsSunkUnused, "inner_spills_unused", nSpillsNotSunkLateUse, "inner_spills_shuffled", nSpillsChanged, "inner_spills_changed")
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/ssa/sparsetree.go b/src/cmd/compile/internal/ssa/sparsetree.go
+index 45c7897496..21fe68601e 100644
+--- a/src/cmd/compile/internal/ssa/sparsetree.go
++++ b/src/cmd/compile/internal/ssa/sparsetree.go
+@@ -4,7 +4,9 @@
+ 
+ package ssa
+ 
+-type sparseTreeNode struct {
++import "fmt"
++
++type SparseTreeNode struct {
+ 	child   *Block
+ 	sibling *Block
+ 	parent  *Block
+@@ -20,26 +22,39 @@ type sparseTreeNode struct {
+ 	entry, exit int32
+ }
+ 
++func (s *SparseTreeNode) String() string {
++	return fmt.Sprintf("[%d,%d]", s.entry, s.exit)
++}
++
++func (s *SparseTreeNode) Entry() int32 {
++	return s.entry
++}
++
++func (s *SparseTreeNode) Exit() int32 {
++	return s.exit
++}
++
+ const (
+ 	// When used to lookup up definitions in a sparse tree,
+ 	// these adjustments to a block's entry (+adjust) and
+ 	// exit (-adjust) numbers allow a distinction to be made
+ 	// between assignments (typically branch-dependent
+-	// conditionals) occurring "before" phi functions, the
+-	// phi functions, and at the bottom of a block.
+-	ADJUST_BEFORE = -1 // defined before phi
+-	ADJUST_TOP    = 0  // defined by phi
+-	ADJUST_BOTTOM = 1  // defined within block
++	// conditionals) occurring "before" the block (e.g., as inputs
++	// to the block and its phi functions), "within" the block,
++	// and "after" the block.
++	AdjustBefore = -1 // defined before phi
++	AdjustWithin = 0  // defined by phi
++	AdjustAfter  = 1  // defined within block
+ )
+ 
+-// A sparseTree is a tree of Blocks.
++// A SparseTree is a tree of Blocks.
+ // It allows rapid ancestor queries,
+ // such as whether one block dominates another.
+-type sparseTree []sparseTreeNode
++type SparseTree []SparseTreeNode
+ 
+-// newSparseTree creates a sparseTree from a block-to-parent map (array indexed by Block.ID)
+-func newSparseTree(f *Func, parentOf []*Block) sparseTree {
+-	t := make(sparseTree, f.NumBlocks())
++// newSparseTree creates a SparseTree from a block-to-parent map (array indexed by Block.ID)
++func newSparseTree(f *Func, parentOf []*Block) SparseTree {
++	t := make(SparseTree, f.NumBlocks())
+ 	for _, b := range f.Blocks {
+ 		n := &t[b.ID]
+ 		if p := parentOf[b.ID]; p != nil {
+@@ -80,7 +95,7 @@ func newSparseTree(f *Func, parentOf []*Block) sparseTree {
+ //   root     left     left      right       right       root
+ //  1 2e 3 | 4 5e 6 | 7 8x 9 | 10 11e 12 | 13 14x 15 | 16 17x 18
+ 
+-func (t sparseTree) numberBlock(b *Block, n int32) int32 {
++func (t SparseTree) numberBlock(b *Block, n int32) int32 {
+ 	// reserve n for entry-1, assign n+1 to entry
+ 	n++
+ 	t[b.ID].entry = n
+@@ -103,19 +118,19 @@ func (t sparseTree) numberBlock(b *Block, n int32) int32 {
+ // to assign entry and exit numbers in the treewalk, those
+ // numbers are also consistent with this order (i.e.,
+ // Sibling(x) has entry number larger than x's exit number).
+-func (t sparseTree) Sibling(x *Block) *Block {
++func (t SparseTree) Sibling(x *Block) *Block {
+ 	return t[x.ID].sibling
+ }
+ 
+ // Child returns a child of x in the dominator tree, or
+ // nil if there are none. The choice of first child is
+ // arbitrary but repeatable.
+-func (t sparseTree) Child(x *Block) *Block {
++func (t SparseTree) Child(x *Block) *Block {
+ 	return t[x.ID].child
+ }
+ 
+ // isAncestorEq reports whether x is an ancestor of or equal to y.
+-func (t sparseTree) isAncestorEq(x, y *Block) bool {
++func (t SparseTree) isAncestorEq(x, y *Block) bool {
+ 	if x == y {
+ 		return true
+ 	}
+@@ -125,7 +140,7 @@ func (t sparseTree) isAncestorEq(x, y *Block) bool {
+ }
+ 
+ // isAncestor reports whether x is a strict ancestor of y.
+-func (t sparseTree) isAncestor(x, y *Block) bool {
++func (t SparseTree) isAncestor(x, y *Block) bool {
+ 	if x == y {
+ 		return false
+ 	}
+@@ -136,6 +151,6 @@ func (t sparseTree) isAncestor(x, y *Block) bool {
+ 
+ // maxdomorder returns a value to allow a maximal dominator first sort.  maxdomorder(x) < maxdomorder(y) is true
+ // if x may dominate y, and false if x cannot dominate y.
+-func (t sparseTree) maxdomorder(x *Block) int32 {
++func (t SparseTree) maxdomorder(x *Block) int32 {
+ 	return t[x.ID].entry
+ }
+diff --git a/src/cmd/compile/internal/ssa/sparsetreemap.go b/src/cmd/compile/internal/ssa/sparsetreemap.go
+new file mode 100644
+index 0000000000..61276985b1
+--- /dev/null
++++ b/src/cmd/compile/internal/ssa/sparsetreemap.go
+@@ -0,0 +1,169 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ssa
++
++import "fmt"
++
++// A SparseTreeMap encodes a subset of nodes within a tree
++// used for sparse-ancestor queries.
++//
++// Combined with a SparseTreeHelper, this supports an Insert
++// to add a tree node to the set and a Find operation to locate
++// the nearest tree ancestor of a given node such that the
++// ancestor is also in the set.
++//
++// Given a set of blocks {B1, B2, B3} within the dominator tree, established by
++// stm.Insert()ing B1, B2, B3, etc, a query at block B
++// (performed with stm.Find(stm, B, adjust, helper))
++// will return the member of the set that is the nearest strict
++// ancestor of B within the dominator tree, or nil if none exists.
++// The expected complexity of this operation is the log of the size
++// the set, given certain assumptions about sparsity (the log complexity
++// could be guaranteed with additional data structures whose constant-
++// factor overhead has not yet been justified.)
++//
++// The adjust parameter allows positioning of the insertion
++// and lookup points within a block -- one of
++// AdjustBefore, AdjustWithin, AdjustAfter,
++// where lookups at AdjustWithin can find insertions at
++// AdjustBefore in the same block, and lookups at AdjustAfter
++// can find insertions at either AdjustBefore or AdjustWithin
++// in the same block.  (Note that this assumes a gappy numbering
++// such that exit number or exit number is separated from its
++// nearest neighbor by at least 3).
++//
++// The Sparse Tree lookup algorithm is described by
++// Paul F. Dietz. Maintaining order in a linked list. In
++// Proceedings of the Fourteenth Annual ACM Symposium on
++// Theory of Computing, pages 122–127, May 1982.
++// and by
++// Ben Wegbreit. Faster retrieval from context trees.
++// Communications of the ACM, 19(9):526–529, September 1976.
++type SparseTreeMap RBTint32
++
++// A SparseTreeHelper contains indexing and allocation data
++// structures common to a collection of SparseTreeMaps, as well
++// as exposing some useful control-flow-related data to other
++// packages, such as gc.
++type SparseTreeHelper struct {
++	Sdom   []SparseTreeNode // indexed by block.ID
++	Po     []*Block         // exported data
++	Dom    []*Block         // exported data
++	Ponums []int32          // exported data
++}
++
++// NewSparseTreeHelper returns a SparseTreeHelper for use
++// in the gc package, for example in phi-function placement.
++func NewSparseTreeHelper(f *Func) *SparseTreeHelper {
++	dom := dominators(f)
++	ponums := make([]int32, f.NumBlocks())
++	po := postorderWithNumbering(f, ponums)
++	return makeSparseTreeHelper(newSparseTree(f, dom), dom, po, ponums)
++}
++
++func (h *SparseTreeHelper) NewTree() *SparseTreeMap {
++	return &SparseTreeMap{}
++}
++
++func makeSparseTreeHelper(sdom SparseTree, dom, po []*Block, ponums []int32) *SparseTreeHelper {
++	helper := &SparseTreeHelper{Sdom: []SparseTreeNode(sdom),
++		Dom:    dom,
++		Po:     po,
++		Ponums: ponums,
++	}
++	return helper
++}
++
++// A sparseTreeMapEntry contains the data stored in a binary search
++// data structure indexed by (dominator tree walk) entry and exit numbers.
++// Each entry is added twice, once keyed by entry-1/entry/entry+1 and
++// once keyed by exit+1/exit/exit-1. (there are three choices of paired indices, not 9, and they properly nest)
++type sparseTreeMapEntry struct {
++	index *SparseTreeNode
++	block *Block // TODO: store this in a separate index.
++	data  interface{}
++}
++
++// Insert creates a definition within b with data x.
++// adjust indicates where in the block should be inserted:
++// AdjustBefore means defined at a phi function (visible Within or After in the same block)
++// AdjustWithin means defined within the block (visible After in the same block)
++// AdjustAfter means after the block (visible within child blocks)
++func (m *SparseTreeMap) Insert(b *Block, adjust int32, x interface{}, helper *SparseTreeHelper) {
++	rbtree := (*RBTint32)(m)
++	blockIndex := &helper.Sdom[b.ID]
++	if blockIndex.entry == 0 {
++		// assert unreachable
++		return
++	}
++	entry := &sparseTreeMapEntry{index: blockIndex, data: x}
++	right := blockIndex.exit - adjust
++	_ = rbtree.Insert(right, entry)
++
++	left := blockIndex.entry + adjust
++	_ = rbtree.Insert(left, entry)
++}
++
++// Find returns the definition visible from block b, or nil if none can be found.
++// Adjust indicates where the block should be searched.
++// AdjustBefore searches before the phi functions of b.
++// AdjustWithin searches starting at the phi functions of b.
++// AdjustAfter searches starting at the exit from the block, including normal within-block definitions.
++//
++// Note that Finds are properly nested with Inserts:
++// m.Insert(b, a) followed by m.Find(b, a) will not return the result of the insert,
++// but m.Insert(b, AdjustBefore) followed by m.Find(b, AdjustWithin) will.
++//
++// Another way to think of this is that Find searches for inputs, Insert defines outputs.
++func (m *SparseTreeMap) Find(b *Block, adjust int32, helper *SparseTreeHelper) interface{} {
++	rbtree := (*RBTint32)(m)
++	if rbtree == nil {
++		return nil
++	}
++	blockIndex := &helper.Sdom[b.ID]
++	_, v := rbtree.Glb(blockIndex.entry + adjust)
++	for v != nil {
++		otherEntry := v.(*sparseTreeMapEntry)
++		otherIndex := otherEntry.index
++		// Two cases -- either otherIndex brackets blockIndex,
++		// or it doesn't.
++		//
++		// Note that if otherIndex and blockIndex are
++		// the same block, then the glb test only passed
++		// because the definition is "before",
++		// i.e., k == blockIndex.entry-1
++		// allowing equality is okay on the blocks check.
++		if otherIndex.exit >= blockIndex.exit {
++			// bracketed.
++			return otherEntry.data
++		}
++		// In the not-bracketed case, we could memoize the results of
++		// walking up the tree, but for now we won't.
++		// Memoize plan is to take the gap (inclusive)
++		// from otherIndex.exit+1 to blockIndex.entry-1
++		// and insert it into this or a second tree.
++		// Said tree would then need adjusting whenever
++		// an insertion occurred.
++
++		// Expectation is that per-variable tree is sparse,
++		// therefore probe siblings instead of climbing up.
++		// Note that each sibling encountered in this walk
++		// to find a defining ancestor shares that ancestor
++		// because the walk skips over the interior -- each
++		// Glb will be an exit, and the iteration is to the
++		// Glb of the entry.
++		_, v = rbtree.Glb(otherIndex.entry - 1)
++	}
++	return nil // nothing found
++}
++
++func (m *SparseTreeMap) String() string {
++	tree := (*RBTint32)(m)
++	return tree.String()
++}
++
++func (e *sparseTreeMapEntry) String() string {
++	return fmt.Sprintf("index=%v, data=%v", e.index, e.data)
++}
+diff --git a/src/cmd/compile/internal/ssa/stackalloc.go b/src/cmd/compile/internal/ssa/stackalloc.go
+index c08ed79cd6..83f65d093b 100644
+--- a/src/cmd/compile/internal/ssa/stackalloc.go
++++ b/src/cmd/compile/internal/ssa/stackalloc.go
+@@ -84,7 +84,7 @@ func stackalloc(f *Func, spillLive [][]ID) [][]ID {
+ 
+ 	s.stackalloc()
+ 	if f.pass.stats > 0 {
+-		f.logStat("stack_alloc_stats",
++		f.LogStat("stack_alloc_stats",
+ 			s.nArgSlot, "arg_slots", s.nNotNeed, "slot_not_needed",
+ 			s.nNamedSlot, "named_slots", s.nAuto, "auto_slots",
+ 			s.nReuse, "reused_slots", s.nSelfInterfere, "self_interfering")

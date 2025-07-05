@@ -14,7 +14,45 @@ Date:   Mon Jan 4 10:37:48 2021 +0700
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ir/name.go        | 6 ------
  src/cmd/compile/internal/typecheck/syms.go | 6 +++---
  2 files changed, 3 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/name.go b/src/cmd/compile/internal/ir/name.go
+index afee6e1308..689ef983f6 100644
+--- a/src/cmd/compile/internal/ir/name.go
++++ b/src/cmd/compile/internal/ir/name.go
+@@ -147,12 +147,6 @@ func (n *Name) copy() Node                         { panic(n.no("copy")) }
+ func (n *Name) doChildren(do func(Node) bool) bool { return false }
+ func (n *Name) editChildren(edit func(Node) Node)  {}
+ 
+-// CloneName makes a cloned copy of the name.
+-// It's not ir.Copy(n) because in general that operation is a mistake on names,
+-// which uniquely identify variables.
+-// Callers must use n.CloneName to make clear they intend to create a separate name.
+-func (n *Name) CloneName() *Name { c := *n; return &c }
+-
+ // TypeDefn returns the type definition for a named OTYPE.
+ // That is, given "type T Defn", it returns Defn.
+ // It is used by package types.
+diff --git a/src/cmd/compile/internal/typecheck/syms.go b/src/cmd/compile/internal/typecheck/syms.go
+index 2251062e16..01c03b5f9f 100644
+--- a/src/cmd/compile/internal/typecheck/syms.go
++++ b/src/cmd/compile/internal/typecheck/syms.go
+@@ -26,12 +26,12 @@ func LookupRuntime(name string) *ir.Name {
+ // The result of SubstArgTypes MUST be assigned back to old, e.g.
+ // 	n.Left = SubstArgTypes(n.Left, t1, t2)
+ func SubstArgTypes(old *ir.Name, types_ ...*types.Type) *ir.Name {
+-	n := old.CloneName()
+-
+ 	for _, t := range types_ {
+ 		types.CalcSize(t)
+ 	}
+-	n.SetType(types.SubstAny(n.Type(), &types_))
++	n := ir.NewNameAt(old.Pos(), old.Sym())
++	n.Class_ = old.Class()
++	n.SetType(types.SubstAny(old.Type(), &types_))
+ 	if len(types_) > 0 {
+ 		base.Fatalf("substArgTypes: too many argument types")
+ 	}

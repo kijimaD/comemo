@@ -10,6 +10,20 @@ Date:   Tue Feb 25 23:03:01 2014 +0900
     R=golang-codereviews, dvyukov
     CC=golang-codereviews
     https://golang.org/cl/67730048
-
+---
  src/pkg/runtime/sys_linux_arm.s | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/sys_linux_arm.s b/src/pkg/runtime/sys_linux_arm.s
+index 42aef56a76..c537a87223 100644
+--- a/src/pkg/runtime/sys_linux_arm.s
++++ b/src/pkg/runtime/sys_linux_arm.s
+@@ -175,7 +175,7 @@ TEXT time·now(SB), NOSPLIT, $32
+ // int64 nanotime(void) so really
+ // void nanotime(int64 *nsec)
+ TEXT runtime·nanotime(SB),NOSPLIT,$32
+-	MOVW	$0, R0  // CLOCK_REALTIME
++	MOVW	$1, R0  // CLOCK_MONOTONIC
+ 	MOVW	$8(R13), R1  // timespec
+ 	MOVW	$SYS_clock_gettime, R7
+ 	SWI	$0

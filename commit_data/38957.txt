@@ -11,6 +11,20 @@ Date:   Wed Dec 12 17:05:06 2018 -0500
     Reviewed-on: https://go-review.googlesource.com/c/153825
     Reviewed-by: Channing Kimble-Brown <ckimblebrown@google.com>
     Reviewed-by: Andrew Bonventre <andybons@golang.org>
-
+---
  src/syscall/dll_windows.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/syscall/dll_windows.go b/src/syscall/dll_windows.go
+index 816334226f..c57cd34f82 100644
+--- a/src/syscall/dll_windows.go
++++ b/src/syscall/dll_windows.go
+@@ -132,7 +132,7 @@ func (p *Proc) Addr() uintptr {
+ 
+ //go:uintptrescapes
+ 
+-// Call executes procedure p with arguments a. It will panic, if more than 15 arguments
++// Call executes procedure p with arguments a. It will panic if more than 18 arguments
+ // are supplied.
+ //
+ // The returned error is always non-nil, constructed from the result of GetLastError.

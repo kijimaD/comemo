@@ -21,7 +21,7 @@ Date:   Wed Feb 23 14:47:42 2011 -0500
     R=r
     CC=golang-dev
     https://golang.org/cl/4203042
-
+---
  src/pkg/runtime/darwin/386/signal.c    |  9 ++++----
  src/pkg/runtime/darwin/386/sys.s       | 29 +++++++++++------------
  src/pkg/runtime/darwin/amd64/signal.c  |  9 ++++----
@@ -37,3 +37,539 @@ Date:   Wed Feb 23 14:47:42 2011 -0500
  src/pkg/runtime/linux/arm/signal.c     |  9 ++++----
  src/pkg/runtime/linux/arm/sys.s        | 13 +++++++++++
  14 files changed, 120 insertions(+), 87 deletions(-)
+
+diff --git a/src/pkg/runtime/darwin/386/signal.c b/src/pkg/runtime/darwin/386/signal.c
+index 33f47d44f9..dd3050f033 100644
+--- a/src/pkg/runtime/darwin/386/signal.c
++++ b/src/pkg/runtime/darwin/386/signal.c
+@@ -34,20 +34,19 @@ runtime·signame(int32 sig)
+ }
+ 
+ void
+-runtime·sighandler(int32 sig, Siginfo *info, void *context)
++runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp)
+ {
+ 	Ucontext *uc;
+ 	Mcontext *mc;
+ 	Regs *r;
+ 	uintptr *sp;
+-	G *gp;
+ 	byte *pc;
+ 
+ 	uc = context;
+ 	mc = uc->uc_mcontext;
+ 	r = &mc->ss;
+ 
+-	if((gp = m->curg) != nil && (runtime·sigtab[sig].flags & SigPanic)) {
++	if(gp != nil && (runtime·sigtab[sig].flags & SigPanic)) {
+ 		// Work around Leopard bug that doesn't set FPE_INTDIV.
+ 		// Look at instruction to see if it is a divide.
+ 		// Not necessary in Snow Leopard (si_code will be != 0).
+@@ -103,8 +102,8 @@ runtime·sighandler(int32 sig, Siginfo *info, void *context)
+ 	runtime·printf("\n");
+ 
+ 	if(runtime·gotraceback()){
+-		runtime·traceback((void*)r->eip, (void*)r->esp, 0, m->curg);
+-		runtime·tracebackothers(m->curg);
++		runtime·traceback((void*)r->eip, (void*)r->esp, 0, gp);
++		runtime·tracebackothers(gp);
+ 		runtime·dumpregs(r);
+ 	}
+ 
+diff --git a/src/pkg/runtime/darwin/386/sys.s b/src/pkg/runtime/darwin/386/sys.s
+index 7961e369c3..9d2caca0a1 100644
+--- a/src/pkg/runtime/darwin/386/sys.s
++++ b/src/pkg/runtime/darwin/386/sys.s
+@@ -80,33 +80,34 @@ TEXT runtime·sigtramp(SB),7,$40
+ 	get_tls(CX)
+ 
+ 	// save g
+-	MOVL	g(CX), BP
+-	MOVL	BP, 20(SP)
++	MOVL	g(CX), DI
++	MOVL	DI, 20(SP)
+ 	
+ 	// g = m->gsignal
+ 	MOVL	m(CX), BP
+ 	MOVL	m_gsignal(BP), BP
+ 	MOVL	BP, g(CX)
+ 
+-	MOVL	handler+0(FP), DI
+-	// 4(FP) is sigstyle
+-	MOVL	signo+8(FP), AX
+-	MOVL	siginfo+12(FP), BX
+-	MOVL	context+16(FP), CX
+-
+-	MOVL	AX, 0(SP)
++	// copy arguments to sighandler
++	MOVL	sig+8(FP), BX
++	MOVL	BX, 0(SP)
++	MOVL	info+12(FP), BX
+ 	MOVL	BX, 4(SP)
+-	MOVL	CX, 8(SP)
+-	CALL	DI
++	MOVL	context+16(FP), BX
++	MOVL	BX, 8(SP)
++	MOVL	DI, 12(SP)
++	
++	MOVL	handler+0(FP), BX
++	CALL	BX
+ 
+ 	// restore g
+ 	get_tls(CX)
+-	MOVL	20(SP), BP
+-	MOVL	BP, g(CX)
++	MOVL	20(SP), DI
++	MOVL	DI, g(CX)
+ 
++	// call sigreturn
+ 	MOVL	context+16(FP), CX
+ 	MOVL	style+4(FP), BX
+-
+ 	MOVL	$0, 0(SP)	// "caller PC" - ignored
+ 	MOVL	CX, 4(SP)
+ 	MOVL	BX, 8(SP)
+diff --git a/src/pkg/runtime/darwin/amd64/signal.c b/src/pkg/runtime/darwin/amd64/signal.c
+index 948b6c9c20..d12b12f3e6 100644
+--- a/src/pkg/runtime/darwin/amd64/signal.c
++++ b/src/pkg/runtime/darwin/amd64/signal.c
+@@ -42,12 +42,11 @@ runtime·signame(int32 sig)
+ }
+ 
+ void
+-runtime·sighandler(int32 sig, Siginfo *info, void *context)
++runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp)
+ {
+ 	Ucontext *uc;
+ 	Mcontext *mc;
+ 	Regs *r;
+-	G *gp;
+ 	uintptr *sp;
+ 	byte *pc;
+ 
+@@ -55,7 +54,7 @@ runtime·sighandler(int32 sig, Siginfo *info, void *context)
+ 	mc = uc->uc_mcontext;
+ 	r = &mc->ss;
+ 
+-	if((gp = m->curg) != nil && (runtime·sigtab[sig].flags & SigPanic)) {
++	if(gp != nil && (runtime·sigtab[sig].flags & SigPanic)) {
+ 		// Work around Leopard bug that doesn't set FPE_INTDIV.
+ 		// Look at instruction to see if it is a divide.
+ 		// Not necessary in Snow Leopard (si_code will be != 0).
+@@ -113,8 +112,8 @@ runtime·sighandler(int32 sig, Siginfo *info, void *context)
+ 	runtime·printf("\n");
+ 
+ 	if(runtime·gotraceback()){
+-		runtime·traceback((void*)r->rip, (void*)r->rsp, 0, g);
+-		runtime·tracebackothers(g);
++		runtime·traceback((void*)r->rip, (void*)r->rsp, 0, gp);
++		runtime·tracebackothers(gp);
+ 		runtime·dumpregs(r);
+ 	}
+ 
+diff --git a/src/pkg/runtime/darwin/amd64/sys.s b/src/pkg/runtime/darwin/amd64/sys.s
+index bc970156a3..4f9e0d77a5 100644
+--- a/src/pkg/runtime/darwin/amd64/sys.s
++++ b/src/pkg/runtime/darwin/amd64/sys.s
+@@ -66,8 +66,8 @@ TEXT runtime·sigtramp(SB),7,$64
+ 	get_tls(BX)
+ 	
+ 	// save g
+-	MOVQ	g(BX), BP
+-	MOVQ	BP, 40(SP)
++	MOVQ	g(BX), R10
++	MOVQ	R10, 48(SP)
+ 	
+ 	// g = m->gsignal
+ 	MOVQ	m(BX), BP
+@@ -77,18 +77,21 @@ TEXT runtime·sigtramp(SB),7,$64
+ 	MOVL	DX, 0(SP)
+ 	MOVQ	CX, 8(SP)
+ 	MOVQ	R8, 16(SP)
+-	MOVQ	R8, 24(SP)	// save ucontext
+-	MOVQ	SI, 32(SP)	// save infostyle
++	MOVQ	R10, 24(SP)
++
++	MOVQ	R8, 32(SP)	// save ucontext
++	MOVQ	SI, 40(SP)	// save infostyle
+ 	CALL	DI
+ 
+ 	// restore g
+ 	get_tls(BX)
+-	MOVQ	40(SP), BP
+-	MOVQ	BP, g(BX)
++	MOVQ	48(SP), R10
++	MOVQ	R10, g(BX)
+ 
++	// call sigreturn
+ 	MOVL	$(0x2000000+184), AX	// sigreturn(ucontext, infostyle)
+-	MOVQ	24(SP), DI	// saved ucontext
+-	MOVQ	32(SP), SI	// saved infostyle
++	MOVQ	32(SP), DI	// saved ucontext
++	MOVQ	40(SP), SI	// saved infostyle
+ 	SYSCALL
+ 	INT $3	// not reached
+ 
+diff --git a/src/pkg/runtime/freebsd/386/signal.c b/src/pkg/runtime/freebsd/386/signal.c
+index ddb11fc3ba..bf40c8bd02 100644
+--- a/src/pkg/runtime/freebsd/386/signal.c
++++ b/src/pkg/runtime/freebsd/386/signal.c
+@@ -45,17 +45,16 @@ runtime·signame(int32 sig)
+ }
+ 
+ void
+-runtime·sighandler(int32 sig, Siginfo* info, void* context)
++runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp)
+ {
+ 	Ucontext *uc;
+ 	Mcontext *r;
+-	G *gp;
+ 	uintptr *sp;
+ 
+ 	uc = context;
+ 	r = &uc->uc_mcontext;
+ 
+-	if((gp = m->curg) != nil && (runtime·sigtab[sig].flags & SigPanic)) {
++	if(gp != nil && (runtime·sigtab[sig].flags & SigPanic)) {
+ 		// Make it look like a call to the signal func.
+ 		// Have to pass arguments out of band since
+ 		// augmenting the stack frame would break
+@@ -99,8 +98,8 @@ runtime·sighandler(int32 sig, Siginfo* info, void* context)
+ 	runtime·printf("\n");
+ 
+ 	if(runtime·gotraceback()){
+-		runtime·traceback((void*)r->mc_eip, (void*)r->mc_esp, 0, m->curg);
+-		runtime·tracebackothers(m->curg);
++		runtime·traceback((void*)r->mc_eip, (void*)r->mc_esp, 0, gp);
++		runtime·tracebackothers(gp);
+ 		runtime·dumpregs(r);
+ 	}
+ 
+diff --git a/src/pkg/runtime/freebsd/386/sys.s b/src/pkg/runtime/freebsd/386/sys.s
+index 7110e6924e..60c189bf83 100644
+--- a/src/pkg/runtime/freebsd/386/sys.s
++++ b/src/pkg/runtime/freebsd/386/sys.s
+@@ -111,30 +111,36 @@ TEXT runtime·sigaction(SB),7,$-4
+ 	CALL	runtime·notok(SB)
+ 	RET
+ 
+-TEXT runtime·sigtramp(SB),7,$40
+-	// g = m->gsignal
+-	get_tls(DX)
+-	MOVL	m(DX), BP
+-	MOVL	m_gsignal(BP), BP
+-	MOVL	BP, g(DX)
++TEXT runtime·sigtramp(SB),7,$44
++	get_tls(CX)
+ 
+-	MOVL	signo+0(FP), AX
+-	MOVL	siginfo+4(FP), BX
+-	MOVL	context+8(FP), CX
++	// save g
++	MOVL	g(CX), DI
++	MOVL	DI, 20(SP)
++	
++	// g = m->gsignal
++	MOVL	m(CX), BX
++	MOVL	m_gsignal(BX), BX
++	MOVL	BX, g(CX)
+ 
+-	MOVL	AX, 0(SP)
++	// copy arguments for call to sighandler
++	MOVL	signo+0(FP), BX
++	MOVL	BX, 0(SP)
++	MOVL	info+4(FP), BX
+ 	MOVL	BX, 4(SP)
+-	MOVL	CX, 8(SP)
+-	CALL	runtime·sighandler(SB)
++	MOVL	context+8(FP), BX
++	MOVL	BX, 8(SP)
++	MOVL	DI, 12(SP)
+ 
+-	// g = m->curg
+-	get_tls(DX)
+-	MOVL	m(DX), BP
+-	MOVL	m_curg(BP), BP
+-	MOVL	BP, g(DX)
++	CALL	runtime·sighandler(SB)
+ 
++	// restore g
++	get_tls(CX)
++	MOVL	20(SP), BX
++	MOVL	BX, g(CX)
++	
++	// call sigreturn
+ 	MOVL	context+8(FP), AX
+-
+ 	MOVL	$0, 0(SP)	// syscall gap
+ 	MOVL	AX, 4(SP)
+ 	MOVL	$417, AX	// sigreturn(ucontext)
+diff --git a/src/pkg/runtime/freebsd/amd64/signal.c b/src/pkg/runtime/freebsd/amd64/signal.c
+index 9f873d276b..b2313fad32 100644
+--- a/src/pkg/runtime/freebsd/amd64/signal.c
++++ b/src/pkg/runtime/freebsd/amd64/signal.c
+@@ -53,17 +53,16 @@ runtime·signame(int32 sig)
+ }
+ 
+ void
+-runtime·sighandler(int32 sig, Siginfo* info, void* context)
++runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp)
+ {
+ 	Ucontext *uc;
+ 	Mcontext *r;
+-	G *gp;
+ 	uintptr *sp;
+ 
+ 	uc = context;
+ 	r = &uc->uc_mcontext;
+ 
+-	if((gp = m->curg) != nil && (runtime·sigtab[sig].flags & SigPanic)) {
++	if(gp != nil && (runtime·sigtab[sig].flags & SigPanic)) {
+ 		// Make it look like a call to the signal func.
+ 		// Have to pass arguments out of band since
+ 		// augmenting the stack frame would break
+@@ -107,8 +106,8 @@ runtime·sighandler(int32 sig, Siginfo* info, void* context)
+ 	runtime·printf("\n");
+ 
+ 	if(runtime·gotraceback()){
+-		runtime·traceback((void*)r->mc_rip, (void*)r->mc_rsp, 0, g);
+-		runtime·tracebackothers(g);
++		runtime·traceback((void*)r->mc_rip, (void*)r->mc_rsp, 0, gp);
++		runtime·tracebackothers(gp);
+ 		runtime·dumpregs(r);
+ 	}
+ 
+diff --git a/src/pkg/runtime/freebsd/amd64/sys.s b/src/pkg/runtime/freebsd/amd64/sys.s
+index b9cf3832dd..d986e9ac07 100644
+--- a/src/pkg/runtime/freebsd/amd64/sys.s
++++ b/src/pkg/runtime/freebsd/amd64/sys.s
+@@ -90,15 +90,29 @@ TEXT runtime·sigaction(SB),7,$-8
+ 	CALL	runtime·notok(SB)
+ 	RET
+ 
+-TEXT runtime·sigtramp(SB),7,$24-16
+-	get_tls(CX)
+-	MOVQ	m(CX), AX
+-	MOVQ	m_gsignal(AX), AX
+-	MOVQ	AX, g(CX)
++TEXT runtime·sigtramp(SB),7,$64
++	get_tls(BX)
++	
++	// save g
++	MOVQ	g(BX), R10
++	MOVQ	R10, 40(SP)
++	
++	// g = m->signal
++	MOVQ	m(BX), BP
++	MOVQ	m_gsignal(BP), BP
++	MOVQ	BP, g(BX)
++	
+ 	MOVQ	DI, 0(SP)
+ 	MOVQ	SI, 8(SP)
+ 	MOVQ	DX, 16(SP)
++	MOVQ	R10, 24(SP)
++	
+ 	CALL	runtime·sighandler(SB)
++
++	// restore g
++	get_tls(BX)
++	MOVQ	40(SP), R10
++	MOVQ	R10, g(BX)
+ 	RET
+ 
+ TEXT runtime·mmap(SB),7,$0
+diff --git a/src/pkg/runtime/linux/386/signal.c b/src/pkg/runtime/linux/386/signal.c
+index 9651a6f280..7f20d058b8 100644
+--- a/src/pkg/runtime/linux/386/signal.c
++++ b/src/pkg/runtime/linux/386/signal.c
+@@ -42,17 +42,16 @@ runtime·signame(int32 sig)
+ }
+ 
+ void
+-runtime·sighandler(int32 sig, Siginfo* info, void* context)
++runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp)
+ {
+ 	Ucontext *uc;
+ 	Sigcontext *r;
+ 	uintptr *sp;
+-	G *gp;
+ 
+ 	uc = context;
+ 	r = &uc->uc_mcontext;
+ 
+-	if((gp = m->curg) != nil && (runtime·sigtab[sig].flags & SigPanic)) {
++	if(gp != nil && (runtime·sigtab[sig].flags & SigPanic)) {
+ 		// Make it look like a call to the signal func.
+ 		// Have to pass arguments out of band since
+ 		// augmenting the stack frame would break
+@@ -96,8 +95,8 @@ runtime·sighandler(int32 sig, Siginfo* info, void* context)
+ 	runtime·printf("\n");
+ 
+ 	if(runtime·gotraceback()){
+-		runtime·traceback((void*)r->eip, (void*)r->esp, 0, m->curg);
+-		runtime·tracebackothers(m->curg);
++		runtime·traceback((void*)r->eip, (void*)r->esp, 0, gp);
++		runtime·tracebackothers(gp);
+ 		runtime·dumpregs(r);
+ 	}
+ 
+diff --git a/src/pkg/runtime/linux/386/sys.s b/src/pkg/runtime/linux/386/sys.s
+index a1505b0b06..a684371bea 100644
+--- a/src/pkg/runtime/linux/386/sys.s
++++ b/src/pkg/runtime/linux/386/sys.s
+@@ -56,12 +56,12 @@ TEXT runtime·rt_sigaction(SB),7,$0
+ 	INT	$0x80
+ 	RET
+ 
+-TEXT runtime·sigtramp(SB),7,$40
++TEXT runtime·sigtramp(SB),7,$44
+ 	get_tls(CX)
+ 	
+ 	// save g
+-	MOVL	g(CX), BX
+-	MOVL	BX, 20(SP)
++	MOVL	g(CX), DI
++	MOVL	DI, 20(SP)
+ 	
+ 	// g = m->gsignal
+ 	MOVL	m(CX), BX
+@@ -75,6 +75,7 @@ TEXT runtime·sigtramp(SB),7,$40
+ 	MOVL	BX, 4(SP)
+ 	MOVL	context+8(FP), BX
+ 	MOVL	BX, 8(SP)
++	MOVL	DI, 12(SP)
+ 
+ 	CALL	runtime·sighandler(SB)
+ 	
+diff --git a/src/pkg/runtime/linux/amd64/signal.c b/src/pkg/runtime/linux/amd64/signal.c
+index 9e501c96d8..462f9a74d7 100644
+--- a/src/pkg/runtime/linux/amd64/signal.c
++++ b/src/pkg/runtime/linux/amd64/signal.c
+@@ -50,19 +50,18 @@ runtime·signame(int32 sig)
+ }
+ 
+ void
+-runtime·sighandler(int32 sig, Siginfo* info, void* context)
++runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp)
+ {
+ 	Ucontext *uc;
+ 	Mcontext *mc;
+ 	Sigcontext *r;
+ 	uintptr *sp;
+-	G *gp;
+ 
+ 	uc = context;
+ 	mc = &uc->uc_mcontext;
+ 	r = (Sigcontext*)mc;	// same layout, more conveient names
+ 
+-	if((gp = m->curg) != nil && (runtime·sigtab[sig].flags & SigPanic)) {
++	if(gp != nil && (runtime·sigtab[sig].flags & SigPanic)) {
+ 		// Make it look like a call to the signal func.
+ 		// Have to pass arguments out of band since
+ 		// augmenting the stack frame would break
+@@ -106,8 +105,8 @@ runtime·sighandler(int32 sig, Siginfo* info, void* context)
+ 	runtime·printf("\n");
+ 
+ 	if(runtime·gotraceback()){
+-		runtime·traceback((void*)r->rip, (void*)r->rsp, 0, g);
+-		runtime·tracebackothers(g);
++		runtime·traceback((void*)r->rip, (void*)r->rsp, 0, gp);
++		runtime·tracebackothers(gp);
+ 		runtime·dumpregs(r);
+ 	}
+ 
+diff --git a/src/pkg/runtime/linux/amd64/sys.s b/src/pkg/runtime/linux/amd64/sys.s
+index 170b659fc8..1bf734dc06 100644
+--- a/src/pkg/runtime/linux/amd64/sys.s
++++ b/src/pkg/runtime/linux/amd64/sys.s
+@@ -64,8 +64,8 @@ TEXT runtime·sigtramp(SB),7,$64
+ 	get_tls(BX)
+ 
+ 	// save g
+-	MOVQ	g(BX), BP
+-	MOVQ	BP, 40(SP)
++	MOVQ	g(BX), R10
++	MOVQ	R10, 40(SP)
+ 
+ 	// g = m->gsignal
+ 	MOVQ	m(BX), BP
+@@ -75,12 +75,14 @@ TEXT runtime·sigtramp(SB),7,$64
+ 	MOVQ	DI, 0(SP)
+ 	MOVQ	SI, 8(SP)
+ 	MOVQ	DX, 16(SP)
++	MOVQ	R10, 24(SP)
++
+ 	CALL	runtime·sighandler(SB)
+ 
+ 	// restore g
+ 	get_tls(BX)
+-	MOVQ	40(SP), BP
+-	MOVQ	BP, g(BX)
++	MOVQ	40(SP), R10
++	MOVQ	R10, g(BX)
+ 	RET
+ 
+ TEXT runtime·sigignore(SB),7,$0
+diff --git a/src/pkg/runtime/linux/arm/signal.c b/src/pkg/runtime/linux/arm/signal.c
+index 481bd13c62..843c40b683 100644
+--- a/src/pkg/runtime/linux/arm/signal.c
++++ b/src/pkg/runtime/linux/arm/signal.c
+@@ -50,16 +50,15 @@ runtime·signame(int32 sig)
+ }
+ 
+ void
+-runtime·sighandler(int32 sig, Siginfo *info, void *context)
++runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp)
+ {
+ 	Ucontext *uc;
+ 	Sigcontext *r;
+-	G *gp;
+ 
+ 	uc = context;
+ 	r = &uc->uc_mcontext;
+ 
+-	if((gp = m->curg) != nil && (runtime·sigtab[sig].flags & SigPanic)) {
++	if(gp != nil && (runtime·sigtab[sig].flags & SigPanic)) {
+ 		// Make it look like a call to the signal func.
+ 		// Have to pass arguments out of band since
+ 		// augmenting the stack frame would break
+@@ -99,8 +98,8 @@ runtime·sighandler(int32 sig, Siginfo *info, void *context)
+ 	runtime·printf("\n");
+ 
+ 	if(runtime·gotraceback()){
+-		runtime·traceback((void*)r->arm_pc, (void*)r->arm_sp, (void*)r->arm_lr, m->curg);
+-		runtime·tracebackothers(m->curg);
++		runtime·traceback((void*)r->arm_pc, (void*)r->arm_sp, (void*)r->arm_lr, gp);
++		runtime·tracebackothers(gp);
+ 		runtime·printf("\n");
+ 		runtime·dumpregs(r);
+ 	}
+diff --git a/src/pkg/runtime/linux/arm/sys.s b/src/pkg/runtime/linux/arm/sys.s
+index b25cf81aaa..6c222fc8aa 100644
+--- a/src/pkg/runtime/linux/arm/sys.s
++++ b/src/pkg/runtime/linux/arm/sys.s
+@@ -197,11 +197,24 @@ TEXT runtime·sigignore(SB),7,$0
+ 	RET
+ 
+ TEXT runtime·sigtramp(SB),7,$24
++	// save g
++	MOVW	g, R3
++	MOVW	g, 20(R13)
++	
++	// g = m->gsignal
+ 	MOVW	m_gsignal(m), g
++
++	// copy arguments for call to sighandler
+ 	MOVW	R0, 4(R13)
+ 	MOVW	R1, 8(R13)
+ 	MOVW	R2, 12(R13)
++	MOVW	R3, 16(R13)
++
+ 	BL	runtime·sighandler(SB)
++	
++	// restore g
++	MOVW	20(R13), g
++
+ 	RET
+ 
+ TEXT runtime·rt_sigaction(SB),7,$0

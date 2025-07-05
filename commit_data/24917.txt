@@ -7,6 +7,18 @@ Date:   Tue Sep 8 22:28:50 2015 -0700
     Change-Id: I3bf1862c304ff08bfb87f84b6ccbb50204225244
     Reviewed-on: https://go-review.googlesource.com/14407
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  doc/go1.6.txt | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go1.6.txt b/doc/go1.6.txt
+index a2f671c52c..9f138bfef7 100644
+--- a/doc/go1.6.txt
++++ b/doc/go1.6.txt
+@@ -8,5 +8,5 @@ NaCl is no longer restricted to pepper_41 (https://golang.org/cl/13958/)
+ 
+ API additions and behavior changes:
+ 
+-strconv: QuoteTOGraphic (https://golang.org/cl/14184/)
++strconv: QuoteToGraphic (https://golang.org/cl/14184/)
+ text/template: ExecError (https://golang.org/cl/13957/)

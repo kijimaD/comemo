@@ -7,6 +7,20 @@ Date:   Sun Jan 27 21:36:47 2013 -0800
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/7232045
-
+---
  src/pkg/go/ast/scope.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/go/ast/scope.go b/src/pkg/go/ast/scope.go
+index c32369a518..8df5b2c656 100644
+--- a/src/pkg/go/ast/scope.go
++++ b/src/pkg/go/ast/scope.go
+@@ -135,7 +135,7 @@ func (obj *Object) Pos() token.Pos {
+ 	return token.NoPos
+ }
+ 
+-// ObKind describes what an object represents.
++// ObjKind describes what an object represents.
+ type ObjKind int
+ 
+ // The list of possible Object kinds.

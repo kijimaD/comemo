@@ -13,8 +13,164 @@ Date:   Fri Jul 16 10:27:17 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/decl.go                           | 58 ++++++++++----------------
  src/go/types/testdata/fixedbugs/issue40789.go2 | 37 ++++++++++++++++
  src/go/types/type.go                           |  6 ++-
  3 files changed, 65 insertions(+), 36 deletions(-)
+
+diff --git a/src/go/types/decl.go b/src/go/types/decl.go
+index ac1b3815d2..f0e7c5d5ad 100644
+--- a/src/go/types/decl.go
++++ b/src/go/types/decl.go
+@@ -724,13 +724,8 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *ast.TypeSpec, def *Named) {
+ 
+ }
+ 
+-func (check *Checker) collectTypeParams(list *ast.FieldList) (tparams []*TypeName) {
+-	// Type parameter lists should not be empty. The parser will
+-	// complain but we still may get an incorrect AST: ignore it.
+-	if list.NumFields() == 0 {
+-		return
+-	}
+-
++func (check *Checker) collectTypeParams(list *ast.FieldList) []*TypeName {
++	var tparams []*TypeName
+ 	// Declare type parameters up-front, with empty interface as type bound.
+ 	// The scope of type parameters starts at the beginning of the type parameter
+ 	// list (so we can have mutually recursive parameterized interfaces).
+@@ -738,46 +733,22 @@ func (check *Checker) collectTypeParams(list *ast.FieldList) (tparams []*TypeNam
+ 		tparams = check.declareTypeParams(tparams, f.Names)
+ 	}
+ 
+-	setBoundAt := func(at int, bound Type) {
+-		assert(IsInterface(bound))
+-		tparams[at].typ.(*TypeParam).bound = bound
+-	}
+-
+ 	index := 0
+ 	var bound Type
+ 	for _, f := range list.List {
+ 		if f.Type == nil {
+ 			goto next
+ 		}
+-
+-		// The predeclared identifier "any" is visible only as a constraint
+-		// in a type parameter list. Look for it before general constraint
+-		// resolution.
+-		if tident, _ := unparen(f.Type).(*ast.Ident); tident != nil && tident.Name == "any" && check.lookup("any") == nil {
+-			bound = universeAny
+-		} else {
+-			bound = check.typ(f.Type)
+-		}
+-
+-		// type bound must be an interface
+-		// TODO(gri) We should delay the interface check because
+-		//           we may not have a complete interface yet:
+-		//           type C(type T C) interface {}
+-		//           (issue #39724).
+-		if _, ok := under(bound).(*Interface); ok {
+-			// Otherwise, set the bound for each type parameter.
+-			for i := range f.Names {
+-				setBoundAt(index+i, bound)
+-			}
+-		} else if bound != Typ[Invalid] {
+-			check.errorf(f.Type, _Todo, "%s is not an interface", bound)
++		bound = check.boundType(f.Type)
++		for i := range f.Names {
++			tparams[index+i].typ.(*TypeParam).bound = bound
+ 		}
+ 
+ 	next:
+ 		index += len(f.Names)
+ 	}
+ 
+-	return
++	return tparams
+ }
+ 
+ func (check *Checker) declareTypeParams(tparams []*TypeName, names []*ast.Ident) []*TypeName {
+@@ -795,6 +766,23 @@ func (check *Checker) declareTypeParams(tparams []*TypeName, names []*ast.Ident)
+ 	return tparams
+ }
+ 
++// boundType type-checks the type expression e and returns its type, or Typ[Invalid].
++// The type must be an interface, including the predeclared type "any".
++func (check *Checker) boundType(e ast.Expr) Type {
++	// The predeclared identifier "any" is visible only as a type bound in a type parameter list.
++	if name, _ := unparen(e).(*ast.Ident); name != nil && name.Name == "any" && check.lookup("any") == nil {
++		return universeAny
++	}
++
++	bound := check.typ(e)
++	check.later(func() {
++		if _, ok := under(bound).(*Interface); !ok && bound != Typ[Invalid] {
++			check.errorf(e, _Todo, "%s is not an interface", bound)
++		}
++	})
++	return bound
++}
++
+ func (check *Checker) collectMethods(obj *TypeName) {
+ 	// get associated methods
+ 	// (Checker.collectObjects only collects methods with non-blank names;
+diff --git a/src/go/types/testdata/fixedbugs/issue40789.go2 b/src/go/types/testdata/fixedbugs/issue40789.go2
+new file mode 100644
+index 0000000000..9eea4ad60a
+--- /dev/null
++++ b/src/go/types/testdata/fixedbugs/issue40789.go2
+@@ -0,0 +1,37 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "fmt"
++
++func main() {
++	m := map[string]int{
++		"a": 6,
++		"b": 7,
++	}
++	fmt.Println(copyMap[map[string]int, string, int](m))
++}
++
++type Map[K comparable, V any] interface {
++	map[K] V
++}
++
++func copyMap[M Map[K, V], K comparable, V any](m M) M {
++	m1 := make(M)
++	for k, v := range m {
++		m1[k] = v
++	}
++	return m1
++}
++
++// simpler test case from the same issue
++
++type A[X comparable] interface {
++	[]X
++}
++
++func f[B A[X], X comparable]() B {
++	return nil
++}
+diff --git a/src/go/types/type.go b/src/go/types/type.go
+index c1b307b642..03c1586774 100644
+--- a/src/go/types/type.go
++++ b/src/go/types/type.go
+@@ -623,7 +623,11 @@ func (check *Checker) newTypeParam(obj *TypeName, index int, bound Type) *TypePa
+ }
+ 
+ func (t *TypeParam) Bound() *Interface {
+-	iface := asInterface(t.bound)
++	// we may not have an interface (error reported elsewhere)
++	iface, _ := under(t.bound).(*Interface)
++	if iface == nil {
++		return &emptyInterface
++	}
+ 	// use the type bound position if we have one
+ 	pos := token.NoPos
+ 	if n, _ := t.bound.(*Named); n != nil {

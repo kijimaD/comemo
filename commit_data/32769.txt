@@ -11,6 +11,37 @@ Date:   Thu May 25 03:21:17 2017 +0200
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: David du Colombier <0intro@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/vendor/golang_org/x/net/nettest/conntest.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/vendor/golang_org/x/net/nettest/conntest.go b/src/vendor/golang_org/x/net/nettest/conntest.go
+index c246bbe399..5bd3a8c68c 100644
+--- a/src/vendor/golang_org/x/net/nettest/conntest.go
++++ b/src/vendor/golang_org/x/net/nettest/conntest.go
+@@ -12,6 +12,7 @@ import (
+ 	"io/ioutil"
+ 	"math/rand"
+ 	"net"
++	"runtime"
+ 	"sync"
+ 	"testing"
+ 	"time"
+@@ -341,6 +342,9 @@ func testCloseTimeout(t *testing.T, c1, c2 net.Conn) {
+ // testConcurrentMethods tests that the methods of net.Conn can safely
+ // be called concurrently.
+ func testConcurrentMethods(t *testing.T, c1, c2 net.Conn) {
++	if runtime.GOOS == "plan9" {
++		t.Skip("skipping on plan9; see https://golang.org/issue/20489")
++	}
+ 	go chunkedCopy(c2, c2)
+ 
+ 	// The results of the calls may be nonsensical, but this should
+@@ -433,6 +437,7 @@ func resyncConn(t *testing.T, c net.Conn) {
+ 		}
+ 		if err != nil {
+ 			t.Errorf("unexpected Read error: %v", err)
++			break
+ 		}
+ 	}
+ 	if err := <-errCh; err != nil {

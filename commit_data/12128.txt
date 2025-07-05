@@ -7,8 +7,54 @@ Date:   Wed Feb 22 15:02:31 2012 +1100
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5685075
-
+---
  doc/go1.html  | 6 ------
  doc/go1.tmpl  | 6 ------
  doc/style.css | 3 +++
  3 files changed, 3 insertions(+), 12 deletions(-)
+
+diff --git a/doc/go1.html b/doc/go1.html
+index 53b338b865..38cd0e94f2 100644
+--- a/doc/go1.html
++++ b/doc/go1.html
+@@ -7,12 +7,6 @@
+ -->
+ 
+ 
+-<!-- Center the tables, and disable the 1995-era 3D borders -->
+-<style type="text/css">
+-table { margin-left: auto; margin-right: auto; border-style: none; }
+-hr { border-style: none; border-top: 1px solid black; }
+-</style>
+-
+ <h2 id="introduction">Introduction to Go 1</h2>
+ 
+ <p>
+diff --git a/doc/go1.tmpl b/doc/go1.tmpl
+index b487c009af..f61dcd5cce 100644
+--- a/doc/go1.tmpl
++++ b/doc/go1.tmpl
+@@ -3,12 +3,6 @@
+ }-->
+ {{donotedit}}
+ 
+-<!-- Center the tables, and disable the 1995-era 3D borders -->
+-<style type="text/css">
+-table { margin-left: auto; margin-right: auto; border-style: none; }
+-hr { border-style: none; border-top: 1px solid black; }
+-</style>
+-
+ <h2 id="introduction">Introduction to Go 1</h2>
+ 
+ <p>
+diff --git a/doc/style.css b/doc/style.css
+index c53f93dd05..c387705214 100644
+--- a/doc/style.css
++++ b/doc/style.css
+@@ -328,3 +328,6 @@ body {
+ .example .expanded { display: none; }
+ .exampleVisible .collapsed { display: none; }
+ .exampleVisible .expanded { display: block; }
++
++table.codetable { margin-left: auto; margin-right: auto; border-style: none; }
++hr { border-style: none; border-top: 1px solid black; }

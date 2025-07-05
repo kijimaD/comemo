@@ -21,6 +21,27 @@ Date:   Tue Apr 9 07:35:06 2013 +0800
     R=iant, minux.ma
     CC=golang-dev
     https://golang.org/cl/8465043
-
+---
  src/cmd/cgo/main.go | 9 +++++++++
  1 file changed, 9 insertions(+)
+
+diff --git a/src/cmd/cgo/main.go b/src/cmd/cgo/main.go
+index ca370ef3f2..9bea97dbd9 100644
+--- a/src/cmd/cgo/main.go
++++ b/src/cmd/cgo/main.go
+@@ -208,6 +208,15 @@ func main() {
+ 
+ 	p := newPackage(args[:i])
+ 
++	// Record CGO_LDFLAGS from the environment for external linking.
++	if ldflags := os.Getenv("CGO_LDFLAGS"); ldflags != "" {
++		args, err := splitQuoted(ldflags)
++		if err != nil {
++			fatalf("bad CGO_LDFLAGS: %q (%s)", ldflags, err)
++		}
++		p.addToFlag("LDFLAGS", args)
++	}
++
+ 	// Need a unique prefix for the global C symbols that
+ 	// we use to coordinate between gcc and ourselves.
+ 	// We already put _cgo_ at the beginning, so the main

@@ -7,6 +7,21 @@ Date:   Tue May 29 15:46:07 2012 -0700
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/6259052
-
+---
  src/pkg/net/net_test.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/net_test.go b/src/pkg/net/net_test.go
+index b627e27130..8a299245da 100644
+--- a/src/pkg/net/net_test.go
++++ b/src/pkg/net/net_test.go
+@@ -61,7 +61,8 @@ func TestShutdown(t *testing.T) {
+ }
+ 
+ func TestShutdownUnix(t *testing.T) {
+-	if runtime.GOOS == "plan9" {
++	switch runtime.GOOS {
++	case "windows", "plan9":
+ 		t.Logf("skipping test on %q", runtime.GOOS)
+ 		return
+ 	}

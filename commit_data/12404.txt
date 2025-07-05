@@ -7,7 +7,7 @@ Date:   Tue Mar 6 12:50:52 2012 +1100
     R=golang-dev, bradfitz, r
     CC=golang-dev
     https://golang.org/cl/5753047
-
+---
  doc/contrib.html       |   2 ++
  doc/docs.html          |   6 ++++++
  doc/gopher/doc.png     | Bin 0 -> 4818 bytes
@@ -21,3 +21,142 @@ Date:   Tue Mar 6 12:50:52 2012 +1100
  doc/style.css          |  17 +++++++++++++++++
  lib/godoc/package.html |   8 +++++++-
  12 files changed, 35 insertions(+), 2 deletions(-)
+
+diff --git a/doc/contrib.html b/doc/contrib.html
+index 76cee1ffd4..7a96b8db7b 100644
+--- a/doc/contrib.html
++++ b/doc/contrib.html
+@@ -3,6 +3,8 @@
+ 	"Path": "/project/"
+ }-->
+ 
++<img class="gopher" src="/doc/gopher/project.png" />
++
+ <div id="manual-nav"></div>
+ 
+ <p>
+diff --git a/doc/docs.html b/doc/docs.html
+index 52ec28edbf..f48eb0a08f 100644
+--- a/doc/docs.html
++++ b/doc/docs.html
+@@ -31,6 +31,8 @@ libraries.
+ 
+ <h2 id="learning">Learning Go</h2>
+ 
++<img class="gopher" src="/doc/gopher/doc.png"/>
++
+ <h3 id="go_tour"><a href="http://tour.golang.org/">A Tour of Go</a></h3>
+ <p>
+ An interactive introduction to Go in three sections.
+@@ -117,6 +119,8 @@ Guided tours of Go programs.
+ 
+ <h2 id="talks">Talks</h2>
+ 
++<img class="gopher" src="/doc/gopher/talks.png"/>
++
+ <p>
+ The talks marked with a red asterisk (<font color="red">*</font>) were written
+ before Go 1 and contain some examples that are no longer correct, but they are
+@@ -179,6 +183,8 @@ documentation.
+ 
+ <h2 id="community">The Go Community</h2>
+ 
++<img class="gopher" src="/doc/gopher/project.png"/>
++
+ <h3 id="mailinglist"><a href="http://groups.google.com/group/golang-nuts">Go Nuts Mailing List</a></h3>
+ <p>The <a href="http://groups.google.com/group/golang-nuts">golang-nuts</a> 
+ mailing list is for general Go discussion.</p>
+diff --git a/doc/gopher/doc.png b/doc/gopher/doc.png
+new file mode 100644
+index 0000000000..3604e397c0
+Binary files /dev/null and b/doc/gopher/doc.png differ
+diff --git a/doc/gopher/help.png b/doc/gopher/help.png
+new file mode 100644
+index 0000000000..75aa74ab85
+Binary files /dev/null and b/doc/gopher/help.png differ
+diff --git a/doc/gopher/pkg.png b/doc/gopher/pkg.png
+new file mode 100644
+index 0000000000..9091b93026
+Binary files /dev/null and b/doc/gopher/pkg.png differ
+diff --git a/doc/gopher/project.png b/doc/gopher/project.png
+new file mode 100644
+index 0000000000..e729a318e6
+Binary files /dev/null and b/doc/gopher/project.png differ
+diff --git a/doc/gopher/run.png b/doc/gopher/run.png
+new file mode 100644
+index 0000000000..4547371f8c
+Binary files /dev/null and b/doc/gopher/run.png differ
+diff --git a/doc/gopher/talks.png b/doc/gopher/talks.png
+new file mode 100644
+index 0000000000..03ab7ef150
+Binary files /dev/null and b/doc/gopher/talks.png differ
+diff --git a/doc/help.html b/doc/help.html
+index 2efda4e30a..fadf80a038 100644
+--- a/doc/help.html
++++ b/doc/help.html
+@@ -3,6 +3,8 @@
+ 	"Path": "/help/"
+ }-->
+ 
++<img class="gopher" src="/doc/gopher/help.png"/>
++
+ <p>
+ Need help with Go? Try these resources.
+ </p>
+diff --git a/doc/reference.html b/doc/reference.html
+index 12a6ef96da..1b6953e027 100644
+--- a/doc/reference.html
++++ b/doc/reference.html
+@@ -3,7 +3,7 @@
+ 	"Path":  "/ref/"
+ }-->
+ 
+-<img src="/doc/gopher/ref.png" align="right"/>
++<img class="gopher" src="/doc/gopher/ref.png" />
+ 
+ <p>Good bedtime reading.</p>
+ 
+diff --git a/doc/style.css b/doc/style.css
+index b180a615d2..a62dbc9517 100644
+--- a/doc/style.css
++++ b/doc/style.css
+@@ -367,3 +367,20 @@ div#blog .read {
+ 
+ table.codetable { margin-left: auto; margin-right: auto; border-style: none; }
+ hr { border-style: none; border-top: 1px solid black; }
++
++img.gopher {
++	float: right;
++	margin-left: 10px;
++	margin-bottom: 10px;
++}
++.pkgGopher {
++	text-align: right;
++}
++.pkgGopher .gopher {
++	float: none;
++	position: relative;
++	top: -40px;
++	margin-bottom: -120px;
++}
++h2 { clear: right; }
++
+diff --git a/lib/godoc/package.html b/lib/godoc/package.html
+index e46300f6b6..848e68df77 100644
+--- a/lib/godoc/package.html
++++ b/lib/godoc/package.html
+@@ -163,7 +163,13 @@
+ 
+ {{with .Dirs}}
+ 	{{/* DirList entries are numbers and strings - no need for FSet */}}
+-	{{if $.PDoc}}<h2 id="subdirectories">Subdirectories</h2>{{end}}
++	{{if $.PDoc}}
++		<h2 id="subdirectories">Subdirectories</h2>
++	{{else}}
++		<div class="pkgGopher">
++			<img class="gopher" src="/doc/gopher/pkg.png"/>
++		</div>
++	{{end}}
+ 	<table class="dir">
+ 	<tr>
+ 	<th>Name</th>

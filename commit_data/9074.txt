@@ -11,7 +11,55 @@ Date:   Thu Jul 14 13:30:08 2011 +1000
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4701047
-
+---
  src/pkg/json/decode_test.go | 12 ++++++++++++
  src/pkg/json/encode.go      |  6 +++++-
  2 files changed, 17 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/json/decode_test.go b/src/pkg/json/decode_test.go
+index 24c97e576f..c0ef5bc3aa 100644
+--- a/src/pkg/json/decode_test.go
++++ b/src/pkg/json/decode_test.go
+@@ -208,6 +208,18 @@ func TestUnmarshalPtrPtr(t *testing.T) {
+ 	}
+ }
+ 
++func TestEscape(t *testing.T) {
++	const input = `"foobar"<html>`
++	const expected = `"\"foobar\"\u003chtml\u003e"`
++	b, err := Marshal(input)
++	if err != nil {
++		t.Fatalf("Marshal error: %v", err)
++	}
++	if s := string(b); s != expected {
++		t.Errorf("Encoding of [%s] was [%s], want [%s]", input, s, expected)
++	}
++}
++
+ func TestHTMLEscape(t *testing.T) {
+ 	b, err := MarshalForHTML("foobarbaz<>&quux")
+ 	if err != nil {
+diff --git a/src/pkg/json/encode.go b/src/pkg/json/encode.go
+index fbc00355a6..a60de55efa 100644
+--- a/src/pkg/json/encode.go
++++ b/src/pkg/json/encode.go
+@@ -337,7 +337,7 @@ func (e *encodeState) string(s string) {
+ 	start := 0
+ 	for i := 0; i < len(s); {
+ 		if b := s[i]; b < utf8.RuneSelf {
+-			if 0x20 <= b && b != '\\' && b != '"' {
++			if 0x20 <= b && b != '\\' && b != '"' && b != '<' && b != '>' {
+ 				i++
+ 				continue
+ 			}
+@@ -355,6 +355,10 @@ func (e *encodeState) string(s string) {
+ 				e.WriteByte('\\')
+ 				e.WriteByte('r')
+ 			default:
++				// This encodes bytes < 0x20 except for \n and \r,
++				// as well as < and >. The latter are escaped because they
++				// can lead to security holes when user-controlled strings
++				// are rendered into JSON and served to some browsers.
+ 				e.WriteString(`\u00`)
+ 				e.WriteByte(hex[b>>4])
+ 				e.WriteByte(hex[b&0xF])

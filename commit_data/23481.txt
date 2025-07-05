@@ -11,6 +11,20 @@ Date:   Sat May 16 20:05:58 2015 -0400
     Change-Id: I350cc16999372422ad3d2e0327d52d467886a5b1
     Reviewed-on: https://go-review.googlesource.com/10180
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/buildall.bash | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/buildall.bash b/src/buildall.bash
+index a07529e733..ba23d31a50 100755
+--- a/src/buildall.bash
++++ b/src/buildall.bash
+@@ -36,7 +36,7 @@ fi
+ targets="$((ls runtime | sed -n 's/^rt0_\(.*\)_\(.*\)\.s/\1-\2/p'; echo linux-386-387 linux-arm-arm5) | sort | egrep -v android-arm | egrep "$pattern" | egrep 'linux|nacl')
+ $(ls runtime | sed -n 's/^rt0_\(.*\)_\(.*\)\.s/\1-\2/p' | egrep -v 'android-arm|darwin-arm' | egrep "$pattern" | egrep -v 'linux|nacl')"
+ 
+-./make.bash
++./make.bash || exit 1
+ GOROOT="$(cd .. && pwd)"
+ 
+ failed=false

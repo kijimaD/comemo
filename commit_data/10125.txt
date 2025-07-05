@@ -7,6 +7,20 @@ Date:   Thu Oct 27 15:40:57 2011 +0900
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/5306070
-
+---
  doc/devel/weekly.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/devel/weekly.html b/doc/devel/weekly.html
+index 2eb4975187..5c68125e3c 100644
+--- a/doc/devel/weekly.html
++++ b/doc/devel/weekly.html
+@@ -51,7 +51,7 @@ signatures updated.
+ * gotest: explicit -help flag, use $GCFLAGS like make does.
+ * govet: check canonical dynamic method signatures.
+ * html: improved parsing (thanks Andrew Balholm),
+-	parse <select> tags, parse and render comment nodes,
++	parse &lt;select&gt; tags, parse and render comment nodes,
+ 	remove the Tokenizer.ReturnComments option.
+ * http: Transport: with TLS InsecureSkipVerify, skip hostname check.
+ * misc/vim: add highlighting for delete (thanks Dave Cheney).

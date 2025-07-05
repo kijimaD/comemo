@@ -19,7 +19,32 @@ Date:   Wed Jan 1 15:08:28 2025 +0100
     Reviewed-by: Joel Sing <joel@sing.id.au>
     Reviewed-by: صادق <sadq04724@gmail.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/dist/test.go                   | 1 +
  src/crypto/internal/fips140/fips140.go | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index bfed14c915..0c992118f4 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -1812,6 +1812,7 @@ func (t *tester) fipsSupported() bool {
+ 	case goarch == "wasm",
+ 		goos == "windows" && goarch == "386",
+ 		goos == "windows" && goarch == "arm",
++		goos == "openbsd",
+ 		goos == "aix":
+ 		return false
+ 	}
+diff --git a/src/crypto/internal/fips140/fips140.go b/src/crypto/internal/fips140/fips140.go
+index cf015db644..c7b167b82a 100644
+--- a/src/crypto/internal/fips140/fips140.go
++++ b/src/crypto/internal/fips140/fips140.go
+@@ -46,6 +46,7 @@ func Supported() error {
+ 	case runtime.GOARCH == "wasm",
+ 		runtime.GOOS == "windows" && runtime.GOARCH == "386",
+ 		runtime.GOOS == "windows" && runtime.GOARCH == "arm",
++		runtime.GOOS == "openbsd", // due to -fexecute-only, see #70880
+ 		runtime.GOOS == "aix":
+ 		return errors.New("FIPS 140-3 mode is not supported on " + runtime.GOOS + "-" + runtime.GOARCH)
+ 	}

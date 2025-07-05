@@ -11,6 +11,20 @@ Date:   Wed Nov 13 11:53:01 2013 +1100
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/25670043
-
+---
  doc/install.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/install.html b/doc/install.html
+index 92f7189bab..02260fe783 100644
+--- a/doc/install.html
++++ b/doc/install.html
+@@ -51,7 +51,7 @@ proceeding. If your OS or architecture is not on the list, it's possible that
+ <tr><td colspan="3"><hr></td></tr>
+ <tr><td>FreeBSD 7 or later</td> <td>amd64, 386, arm</td> <td>Debian GNU/kFreeBSD not supported; FreeBSD/ARM needs FreeBSD 10 or later</td></tr>
+ <tr><td>Linux 2.6.23 or later with glibc</td> <td>amd64, 386, arm</td> <td>CentOS/RHEL 5.x not supported; no binary distribution for ARM yet</td></tr>
+-<tr><td>Mac OS X 10.6 and above</td> <td>amd64, 386</td> <td>use the gcc<sup>&#8224;</sup> that comes with Xcode<sup>&#8225;</sup></td></tr>
++<tr><td>Mac OS X 10.6 or later</td> <td>amd64, 386</td> <td>use the gcc<sup>&#8224;</sup> that comes with Xcode<sup>&#8225;</sup></td></tr>
+ <tr><td>Windows 2000 or later</td> <td>amd64, 386</td> <td>use mingw gcc<sup>&#8224;</sup>; cygwin or msys is not needed</td></tr>
+ <tr><td>NetBSD 6 or later</td> <td>amd64, 386</td> <td></td></tr>
+ </table>

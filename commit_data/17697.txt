@@ -16,7 +16,39 @@ Date:   Wed Sep 25 10:00:09 2013 +1000
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/13877043
-
+---
  src/pkg/html/template/escape_test.go | 5 +++++
  src/pkg/html/template/template.go    | 2 ++
  2 files changed, 7 insertions(+)
+
+diff --git a/src/pkg/html/template/escape_test.go b/src/pkg/html/template/escape_test.go
+index befdb215be..58383a6cd4 100644
+--- a/src/pkg/html/template/escape_test.go
++++ b/src/pkg/html/template/escape_test.go
+@@ -655,6 +655,11 @@ func TestEscape(t *testing.T) {
+ 	for _, test := range tests {
+ 		tmpl := New(test.name)
+ 		tmpl = Must(tmpl.Parse(test.input))
++		// Check for bug 6459: Tree field was not set in Parse.
++		if tmpl.Tree != tmpl.text.Tree {
++			t.Errorf("%s: tree not set properly", test.name)
++			continue
++		}
+ 		b := new(bytes.Buffer)
+ 		if err := tmpl.Execute(b, data); err != nil {
+ 			t.Errorf("%s: template execution failed: %s", test.name, err)
+diff --git a/src/pkg/html/template/template.go b/src/pkg/html/template/template.go
+index db7244e424..11cc34a50a 100644
+--- a/src/pkg/html/template/template.go
++++ b/src/pkg/html/template/template.go
+@@ -128,8 +128,10 @@ func (t *Template) Parse(src string) (*Template, error) {
+ 		if tmpl == nil {
+ 			tmpl = t.new(name)
+ 		}
++		// Restore our record of this text/template to its unescaped original state.
+ 		tmpl.escaped = false
+ 		tmpl.text = v
++		tmpl.Tree = v.Tree
+ 	}
+ 	return t, nil
+ }

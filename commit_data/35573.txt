@@ -11,7 +11,135 @@ Date:   Fri Jan 26 10:18:16 2018 -0500
     Change-Id: I2adb342e92b36d30bee2860393618eb4064450cf
     Reviewed-on: https://go-review.googlesource.com/90220
     Reviewed-by: Heschi Kreinick <heschi@google.com>
-
+---
  src/cmd/trace/annotations.go | 17 ++++++++++++-----
  src/cmd/trace/trace.go       | 40 ++++++++++++++++++++++++++++++++--------
  2 files changed, 44 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/trace/annotations.go b/src/cmd/trace/annotations.go
+index 3b853cc7f2..f2c4440a9a 100644
+--- a/src/cmd/trace/annotations.go
++++ b/src/cmd/trace/annotations.go
+@@ -850,6 +850,17 @@ func asMillisecond(d time.Duration) float64 {
+ 	return float64(d.Nanoseconds()) / 1e6
+ }
+ 
++func formatUserLog(ev *trace.Event) string {
++	k, v := ev.SArgs[0], ev.SArgs[1]
++	if k == "" {
++		return v
++	}
++	if v == "" {
++		return k
++	}
++	return fmt.Sprintf("%v=%v", k, v)
++}
++
+ func describeEvent(ev *trace.Event) string {
+ 	switch ev.Type {
+ 	case trace.EvGoCreate:
+@@ -857,11 +868,7 @@ func describeEvent(ev *trace.Event) string {
+ 	case trace.EvGoEnd, trace.EvGoStop:
+ 		return "goroutine stopped"
+ 	case trace.EvUserLog:
+-		if k, v := ev.SArgs[0], ev.SArgs[1]; k == "" {
+-			return v
+-		} else {
+-			return fmt.Sprintf("%v=%v", k, v)
+-		}
++		return formatUserLog(ev)
+ 	case trace.EvUserSpan:
+ 		if ev.Args[1] == 0 {
+ 			duration := "unknown"
+diff --git a/src/cmd/trace/trace.go b/src/cmd/trace/trace.go
+index bf5fde508c..2832b90b82 100644
+--- a/src/cmd/trace/trace.go
++++ b/src/cmd/trace/trace.go
+@@ -544,12 +544,12 @@ func generateTrace(params *traceParams) (ViewerData, error) {
+ 			if ctx.mode != defaultTraceview {
+ 				continue
+ 			}
+-			ctx.emitInstant(ev, "proc start")
++			ctx.emitInstant(ev, "proc start", "")
+ 		case trace.EvProcStop:
+ 			if ctx.mode != defaultTraceview {
+ 				continue
+ 			}
+-			ctx.emitInstant(ev, "proc stop")
++			ctx.emitInstant(ev, "proc stop", "")
+ 		case trace.EvGCStart:
+ 			ctx.emitSlice(ev, "GC")
+ 		case trace.EvGCDone:
+@@ -605,9 +605,15 @@ func generateTrace(params *traceParams) (ViewerData, error) {
+ 		case trace.EvGoUnblock:
+ 			ctx.emitArrow(ev, "unblock")
+ 		case trace.EvGoSysCall:
+-			ctx.emitInstant(ev, "syscall")
++			ctx.emitInstant(ev, "syscall", "")
+ 		case trace.EvGoSysExit:
+ 			ctx.emitArrow(ev, "sysexit")
++		case trace.EvUserLog:
++			ctx.emitInstant(ev, formatUserLog(ev), "user event")
++		case trace.EvUserTaskCreate:
++			ctx.emitInstant(ev, "task start", "user event")
++		case trace.EvUserTaskEnd:
++			ctx.emitInstant(ev, "task end", "user event")
+ 		}
+ 		// Emit any counter updates.
+ 		ctx.emitThreadCounters(ev)
+@@ -649,8 +655,18 @@ func generateTrace(params *traceParams) (ViewerData, error) {
+ 			taskName := fmt.Sprintf("Task %s(%d)", task.name, task.id)
+ 			ctx.emit(&ViewerEvent{Name: "thread_name", Phase: "M", Pid: 0, Tid: taskRow, Arg: &NameArg{"Tasks"}})
+ 			ctx.emit(&ViewerEvent{Name: "thread_sort_index", Phase: "M", Pid: 0, Tid: taskRow, Arg: &SortIndexArg{-3}})
+-			ctx.emit(&ViewerEvent{Category: "task", Name: taskName, Phase: "b", Time: float64(task.firstTimestamp()) / 1e3, Tid: taskRow, ID: task.id, Cname: "bad"})
+-			ctx.emit(&ViewerEvent{Category: "task", Name: taskName, Phase: "e", Time: float64(task.lastTimestamp()) / 1e3, Tid: taskRow, ID: task.id, Cname: "bad"})
++			tBegin := &ViewerEvent{Category: "task", Name: taskName, Phase: "b", Time: float64(task.firstTimestamp()) / 1e3, Tid: taskRow, ID: task.id, Cname: "bad"}
++			if task.create != nil {
++				tBegin.Stack = ctx.stack(task.create.Stk)
++			}
++			ctx.emit(tBegin)
++
++			tEnd := &ViewerEvent{Category: "task", Name: taskName, Phase: "e", Time: float64(task.lastTimestamp()) / 1e3, Tid: taskRow, ID: task.id, Cname: "bad"}
++			if task.end != nil {
++				tEnd.Stack = ctx.stack(task.end.Stk)
++			}
++			ctx.emit(tEnd)
++
+ 			// Spans
+ 			for _, s := range task.spans {
+ 				ctx.emitSpan(s)
+@@ -818,7 +834,7 @@ func (ctx *traceContext) emitThreadCounters(ev *trace.Event) {
+ 	ctx.prevThreadStats = ctx.threadStats
+ }
+ 
+-func (ctx *traceContext) emitInstant(ev *trace.Event, name string) {
++func (ctx *traceContext) emitInstant(ev *trace.Event, name, category string) {
+ 	var arg interface{}
+ 	if ev.Type == trace.EvProcStart {
+ 		type Arg struct {
+@@ -826,7 +842,15 @@ func (ctx *traceContext) emitInstant(ev *trace.Event, name string) {
+ 		}
+ 		arg = &Arg{ev.Args[0]}
+ 	}
+-	ctx.emit(&ViewerEvent{Name: name, Phase: "I", Scope: "t", Time: ctx.time(ev), Tid: ctx.proc(ev), Stack: ctx.stack(ev.Stk), Arg: arg})
++	ctx.emit(&ViewerEvent{
++		Name:     name,
++		Category: category,
++		Phase:    "I",
++		Scope:    "t",
++		Time:     ctx.time(ev),
++		Tid:      ctx.proc(ev),
++		Stack:    ctx.stack(ev.Stk),
++		Arg:      arg})
+ }
+ 
+ func (ctx *traceContext) emitArrow(ev *trace.Event, name string) {
+@@ -842,7 +866,7 @@ func (ctx *traceContext) emitArrow(ev *trace.Event, name string) {
+ 	if ev.P == trace.NetpollP || ev.P == trace.TimerP || ev.P == trace.SyscallP {
+ 		// Trace-viewer discards arrows if they don't start/end inside of a slice or instant.
+ 		// So emit a fake instant at the start of the arrow.
+-		ctx.emitInstant(&trace.Event{P: ev.P, Ts: ev.Ts}, "unblock")
++		ctx.emitInstant(&trace.Event{P: ev.P, Ts: ev.Ts}, "unblock", "")
+ 	}
+ 
+ 	ctx.arrowSeq++

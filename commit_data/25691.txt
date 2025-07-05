@@ -17,6 +17,23 @@ Date:   Sun Nov 15 23:09:16 2015 -0500
     Change-Id: I61a6c9be19ac1c95863cf6a8435e19790c8bfc9a
     Reviewed-on: https://go-review.googlesource.com/16926
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/malloc.go | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index 6430511d7d..8ce420a653 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -414,7 +414,10 @@ func (h *mheap) sysAlloc(n uintptr) unsafe.Pointer {
+ 				h.arena_used = used
+ 				h.arena_reserved = reserved
+ 			} else {
+-				var stat uint64
++				// We haven't added this allocation to
++				// the stats, so subtract it from a
++				// fake stat (but avoid underflow).
++				stat := uint64(p_size)
+ 				sysFree(unsafe.Pointer(p), p_size, &stat)
+ 			}
+ 		}

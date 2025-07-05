@@ -27,7 +27,7 @@ Date:   Sun Nov 6 06:37:13 2022 +0100
     Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/amd64/ssa.go         |   7 +-
  src/cmd/compile/internal/ssa/_gen/AMD64.rules |  17 +-
  src/cmd/compile/internal/ssa/_gen/AMD64Ops.go |  16 +-
@@ -35,3 +35,816 @@ Date:   Sun Nov 6 06:37:13 2022 +0100
  src/cmd/compile/internal/ssa/rewriteAMD64.go  | 452 +++++++++++++++++++++++++-
  test/codegen/bmi.go                           | 104 ++++++
  6 files changed, 583 insertions(+), 29 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/ssa.go b/src/cmd/compile/internal/amd64/ssa.go
+index 6139d5e23b..cad410cfef 100644
+--- a/src/cmd/compile/internal/amd64/ssa.go
++++ b/src/cmd/compile/internal/amd64/ssa.go
+@@ -274,7 +274,12 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p.From.Type = obj.TYPE_REG
+ 		p.From.Reg = v.Args[0].Reg()
+ 		p.To.Type = obj.TYPE_REG
+-		p.To.Reg = v.Reg()
++		switch v.Op {
++		case ssa.OpAMD64BLSRQ, ssa.OpAMD64BLSRL:
++			p.To.Reg = v.Reg0()
++		default:
++			p.To.Reg = v.Reg()
++		}
+ 
+ 	case ssa.OpAMD64ANDNQ, ssa.OpAMD64ANDNL:
+ 		p := s.Prog(v.Op.Asm())
+diff --git a/src/cmd/compile/internal/ssa/_gen/AMD64.rules b/src/cmd/compile/internal/ssa/_gen/AMD64.rules
+index c50710ec90..d58a34630b 100644
+--- a/src/cmd/compile/internal/ssa/_gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/_gen/AMD64.rules
+@@ -2173,10 +2173,19 @@
+ (PrefetchCacheStreamed ...) => (PrefetchNTA ...)
+ 
+ // CPUID feature: BMI1.
+-(AND(Q|L) x (NOT(Q|L) y))           && buildcfg.GOAMD64 >= 3 => (ANDN(Q|L) x y)
+-(AND(Q|L) x (NEG(Q|L) x))           && buildcfg.GOAMD64 >= 3 => (BLSI(Q|L) x)
+-(XOR(Q|L) x (ADD(Q|L)const [-1] x)) && buildcfg.GOAMD64 >= 3 => (BLSMSK(Q|L) x)
+-(AND(Q|L) x (ADD(Q|L)const [-1] x)) && buildcfg.GOAMD64 >= 3 => (BLSR(Q|L) x)
++(AND(Q|L) x (NOT(Q|L) y))               && buildcfg.GOAMD64 >= 3 => (ANDN(Q|L) x y)
++(AND(Q|L) x (NEG(Q|L) x))               && buildcfg.GOAMD64 >= 3 => (BLSI(Q|L) x)
++(XOR(Q|L) x (ADD(Q|L)const [-1] x))     && buildcfg.GOAMD64 >= 3 => (BLSMSK(Q|L) x)
++(AND(Q|L) <t> x (ADD(Q|L)const [-1] x)) && buildcfg.GOAMD64 >= 3 => (Select0 <t> (BLSR(Q|L) x))
++// eliminate TEST instruction in classical "isPowerOfTwo" check
++(SETEQ       (TEST(Q|L) s:(Select0 blsr:(BLSR(Q|L) _)) s))        => (SETEQ       (Select1 <types.TypeFlags> blsr))
++(CMOVQEQ x y (TEST(Q|L) s:(Select0 blsr:(BLSR(Q|L) _)) s))        => (CMOVQEQ x y (Select1 <types.TypeFlags> blsr))
++(CMOVLEQ x y (TEST(Q|L) s:(Select0 blsr:(BLSR(Q|L) _)) s))        => (CMOVLEQ x y (Select1 <types.TypeFlags> blsr))
++(EQ          (TEST(Q|L) s:(Select0 blsr:(BLSR(Q|L) _)) s) yes no) => (EQ          (Select1 <types.TypeFlags> blsr) yes no)
++(SETNE       (TEST(Q|L) s:(Select0 blsr:(BLSR(Q|L) _)) s))        => (SETNE       (Select1 <types.TypeFlags> blsr))
++(CMOVQNE x y (TEST(Q|L) s:(Select0 blsr:(BLSR(Q|L) _)) s))        => (CMOVQNE x y (Select1 <types.TypeFlags> blsr))
++(CMOVLNE x y (TEST(Q|L) s:(Select0 blsr:(BLSR(Q|L) _)) s))        => (CMOVLNE x y (Select1 <types.TypeFlags> blsr))
++(NE          (TEST(Q|L) s:(Select0 blsr:(BLSR(Q|L) _)) s) yes no) => (NE          (Select1 <types.TypeFlags> blsr) yes no)
+ 
+ (BSWAP(Q|L) (BSWAP(Q|L) p)) => p
+ 
+diff --git a/src/cmd/compile/internal/ssa/_gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/_gen/AMD64Ops.go
+index 3cb7053105..23daebf131 100644
+--- a/src/cmd/compile/internal/ssa/_gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/_gen/AMD64Ops.go
+@@ -1018,14 +1018,14 @@ func init() {
+ 		{name: "PrefetchNTA", argLength: 2, reg: prefreg, asm: "PREFETCHNTA", hasSideEffects: true},
+ 
+ 		// CPUID feature: BMI1.
+-		{name: "ANDNQ", argLength: 2, reg: gp21, asm: "ANDNQ", clobberFlags: true},     // arg0 &^ arg1
+-		{name: "ANDNL", argLength: 2, reg: gp21, asm: "ANDNL", clobberFlags: true},     // arg0 &^ arg1
+-		{name: "BLSIQ", argLength: 1, reg: gp11, asm: "BLSIQ", clobberFlags: true},     // arg0 & -arg0
+-		{name: "BLSIL", argLength: 1, reg: gp11, asm: "BLSIL", clobberFlags: true},     // arg0 & -arg0
+-		{name: "BLSMSKQ", argLength: 1, reg: gp11, asm: "BLSMSKQ", clobberFlags: true}, // arg0 ^ (arg0 - 1)
+-		{name: "BLSMSKL", argLength: 1, reg: gp11, asm: "BLSMSKL", clobberFlags: true}, // arg0 ^ (arg0 - 1)
+-		{name: "BLSRQ", argLength: 1, reg: gp11, asm: "BLSRQ", clobberFlags: true},     // arg0 & (arg0 - 1)
+-		{name: "BLSRL", argLength: 1, reg: gp11, asm: "BLSRL", clobberFlags: true},     // arg0 & (arg0 - 1)
++		{name: "ANDNQ", argLength: 2, reg: gp21, asm: "ANDNQ", clobberFlags: true},         // arg0 &^ arg1
++		{name: "ANDNL", argLength: 2, reg: gp21, asm: "ANDNL", clobberFlags: true},         // arg0 &^ arg1
++		{name: "BLSIQ", argLength: 1, reg: gp11, asm: "BLSIQ", clobberFlags: true},         // arg0 & -arg0
++		{name: "BLSIL", argLength: 1, reg: gp11, asm: "BLSIL", clobberFlags: true},         // arg0 & -arg0
++		{name: "BLSMSKQ", argLength: 1, reg: gp11, asm: "BLSMSKQ", clobberFlags: true},     // arg0 ^ (arg0 - 1)
++		{name: "BLSMSKL", argLength: 1, reg: gp11, asm: "BLSMSKL", clobberFlags: true},     // arg0 ^ (arg0 - 1)
++		{name: "BLSRQ", argLength: 1, reg: gp11flags, asm: "BLSRQ", typ: "(UInt64,Flags)"}, // arg0 & (arg0 - 1)
++		{name: "BLSRL", argLength: 1, reg: gp11flags, asm: "BLSRL", typ: "(UInt32,Flags)"}, // arg0 & (arg0 - 1)
+ 		// count the number of trailing zero bits, prefer TZCNTQ over BSFQ, as TZCNTQ(0)==64
+ 		// and BSFQ(0) is undefined. Same for TZCNTL(0)==32
+ 		{name: "TZCNTQ", argLength: 1, reg: gp11, asm: "TZCNTQ", clobberFlags: true},
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 9db2aec462..6c26213eac 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -13980,29 +13980,29 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:         "BLSRQ",
+-		argLen:       1,
+-		clobberFlags: true,
+-		asm:          x86.ABLSRQ,
++		name:   "BLSRQ",
++		argLen: 1,
++		asm:    x86.ABLSRQ,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+ 			},
+ 			outputs: []outputInfo{
++				{1, 0},
+ 				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+ 			},
+ 		},
+ 	},
+ 	{
+-		name:         "BLSRL",
+-		argLen:       1,
+-		clobberFlags: true,
+-		asm:          x86.ABLSRL,
++		name:   "BLSRL",
++		argLen: 1,
++		asm:    x86.ABLSRL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+ 			},
+ 			outputs: []outputInfo{
++				{1, 0},
+ 				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+ 			},
+ 		},
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index fa00bd4f5f..d0982ce17b 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -2590,6 +2590,8 @@ func rewriteValueAMD64_OpAMD64ADDSSload(v *Value) bool {
+ func rewriteValueAMD64_OpAMD64ANDL(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
++	b := v.Block
++	typ := &b.Func.Config.Types
+ 	// match: (ANDL (NOTL (SHLL (MOVLconst [1]) y)) x)
+ 	// result: (BTRL x y)
+ 	for {
+@@ -2718,17 +2720,21 @@ func rewriteValueAMD64_OpAMD64ANDL(v *Value) bool {
+ 		}
+ 		break
+ 	}
+-	// match: (ANDL x (ADDLconst [-1] x))
++	// match: (ANDL <t> x (ADDLconst [-1] x))
+ 	// cond: buildcfg.GOAMD64 >= 3
+-	// result: (BLSRL x)
++	// result: (Select0 <t> (BLSRL x))
+ 	for {
++		t := v.Type
+ 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+ 			x := v_0
+ 			if v_1.Op != OpAMD64ADDLconst || auxIntToInt32(v_1.AuxInt) != -1 || x != v_1.Args[0] || !(buildcfg.GOAMD64 >= 3) {
+ 				continue
+ 			}
+-			v.reset(OpAMD64BLSRL)
+-			v.AddArg(x)
++			v.reset(OpSelect0)
++			v.Type = t
++			v0 := b.NewValue0(v.Pos, OpAMD64BLSRL, types.NewTuple(typ.UInt32, types.TypeFlags))
++			v0.AddArg(x)
++			v.AddArg(v0)
+ 			return true
+ 		}
+ 		break
+@@ -3056,6 +3062,8 @@ func rewriteValueAMD64_OpAMD64ANDNQ(v *Value) bool {
+ func rewriteValueAMD64_OpAMD64ANDQ(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
++	b := v.Block
++	typ := &b.Func.Config.Types
+ 	// match: (ANDQ (NOTQ (SHLQ (MOVQconst [1]) y)) x)
+ 	// result: (BTRQ x y)
+ 	for {
+@@ -3188,17 +3196,21 @@ func rewriteValueAMD64_OpAMD64ANDQ(v *Value) bool {
+ 		}
+ 		break
+ 	}
+-	// match: (ANDQ x (ADDQconst [-1] x))
++	// match: (ANDQ <t> x (ADDQconst [-1] x))
+ 	// cond: buildcfg.GOAMD64 >= 3
+-	// result: (BLSRQ x)
++	// result: (Select0 <t> (BLSRQ x))
+ 	for {
++		t := v.Type
+ 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+ 			x := v_0
+ 			if v_1.Op != OpAMD64ADDQconst || auxIntToInt32(v_1.AuxInt) != -1 || x != v_1.Args[0] || !(buildcfg.GOAMD64 >= 3) {
+ 				continue
+ 			}
+-			v.reset(OpAMD64BLSRQ)
+-			v.AddArg(x)
++			v.reset(OpSelect0)
++			v.Type = t
++			v0 := b.NewValue0(v.Pos, OpAMD64BLSRQ, types.NewTuple(typ.UInt64, types.TypeFlags))
++			v0.AddArg(x)
++			v.AddArg(v0)
+ 			return true
+ 		}
+ 		break
+@@ -4346,6 +4358,7 @@ func rewriteValueAMD64_OpAMD64CMOVLEQ(v *Value) bool {
+ 	v_2 := v.Args[2]
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
++	b := v.Block
+ 	// match: (CMOVLEQ x y (InvertFlags cond))
+ 	// result: (CMOVLEQ x y cond)
+ 	for {
+@@ -4409,6 +4422,62 @@ func rewriteValueAMD64_OpAMD64CMOVLEQ(v *Value) bool {
+ 		v.copyOf(y)
+ 		return true
+ 	}
++	// match: (CMOVLEQ x y (TESTQ s:(Select0 blsr:(BLSRQ _)) s))
++	// result: (CMOVLEQ x y (Select1 <types.TypeFlags> blsr))
++	for {
++		x := v_0
++		y := v_1
++		if v_2.Op != OpAMD64TESTQ {
++			break
++		}
++		_ = v_2.Args[1]
++		v_2_0 := v_2.Args[0]
++		v_2_1 := v_2.Args[1]
++		for _i0 := 0; _i0 <= 1; _i0, v_2_0, v_2_1 = _i0+1, v_2_1, v_2_0 {
++			s := v_2_0
++			if s.Op != OpSelect0 {
++				continue
++			}
++			blsr := s.Args[0]
++			if blsr.Op != OpAMD64BLSRQ || s != v_2_1 {
++				continue
++			}
++			v.reset(OpAMD64CMOVLEQ)
++			v0 := b.NewValue0(v.Pos, OpSelect1, types.TypeFlags)
++			v0.AddArg(blsr)
++			v.AddArg3(x, y, v0)
++			return true
++		}
++		break
++	}
++	// match: (CMOVLEQ x y (TESTL s:(Select0 blsr:(BLSRL _)) s))
++	// result: (CMOVLEQ x y (Select1 <types.TypeFlags> blsr))
++	for {
++		x := v_0
++		y := v_1
++		if v_2.Op != OpAMD64TESTL {
++			break
++		}
++		_ = v_2.Args[1]
++		v_2_0 := v_2.Args[0]
++		v_2_1 := v_2.Args[1]
++		for _i0 := 0; _i0 <= 1; _i0, v_2_0, v_2_1 = _i0+1, v_2_1, v_2_0 {
++			s := v_2_0
++			if s.Op != OpSelect0 {
++				continue
++			}
++			blsr := s.Args[0]
++			if blsr.Op != OpAMD64BLSRL || s != v_2_1 {
++				continue
++			}
++			v.reset(OpAMD64CMOVLEQ)
++			v0 := b.NewValue0(v.Pos, OpSelect1, types.TypeFlags)
++			v0.AddArg(blsr)
++			v.AddArg3(x, y, v0)
++			return true
++		}
++		break
++	}
+ 	return false
+ }
+ func rewriteValueAMD64_OpAMD64CMOVLGE(v *Value) bool {
+@@ -4829,6 +4898,7 @@ func rewriteValueAMD64_OpAMD64CMOVLNE(v *Value) bool {
+ 	v_2 := v.Args[2]
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
++	b := v.Block
+ 	// match: (CMOVLNE x y (InvertFlags cond))
+ 	// result: (CMOVLNE x y cond)
+ 	for {
+@@ -4892,6 +4962,62 @@ func rewriteValueAMD64_OpAMD64CMOVLNE(v *Value) bool {
+ 		v.copyOf(x)
+ 		return true
+ 	}
++	// match: (CMOVLNE x y (TESTQ s:(Select0 blsr:(BLSRQ _)) s))
++	// result: (CMOVLNE x y (Select1 <types.TypeFlags> blsr))
++	for {
++		x := v_0
++		y := v_1
++		if v_2.Op != OpAMD64TESTQ {
++			break
++		}
++		_ = v_2.Args[1]
++		v_2_0 := v_2.Args[0]
++		v_2_1 := v_2.Args[1]
++		for _i0 := 0; _i0 <= 1; _i0, v_2_0, v_2_1 = _i0+1, v_2_1, v_2_0 {
++			s := v_2_0
++			if s.Op != OpSelect0 {
++				continue
++			}
++			blsr := s.Args[0]
++			if blsr.Op != OpAMD64BLSRQ || s != v_2_1 {
++				continue
++			}
++			v.reset(OpAMD64CMOVLNE)
++			v0 := b.NewValue0(v.Pos, OpSelect1, types.TypeFlags)
++			v0.AddArg(blsr)
++			v.AddArg3(x, y, v0)
++			return true
++		}
++		break
++	}
++	// match: (CMOVLNE x y (TESTL s:(Select0 blsr:(BLSRL _)) s))
++	// result: (CMOVLNE x y (Select1 <types.TypeFlags> blsr))
++	for {
++		x := v_0
++		y := v_1
++		if v_2.Op != OpAMD64TESTL {
++			break
++		}
++		_ = v_2.Args[1]
++		v_2_0 := v_2.Args[0]
++		v_2_1 := v_2.Args[1]
++		for _i0 := 0; _i0 <= 1; _i0, v_2_0, v_2_1 = _i0+1, v_2_1, v_2_0 {
++			s := v_2_0
++			if s.Op != OpSelect0 {
++				continue
++			}
++			blsr := s.Args[0]
++			if blsr.Op != OpAMD64BLSRL || s != v_2_1 {
++				continue
++			}
++			v.reset(OpAMD64CMOVLNE)
++			v0 := b.NewValue0(v.Pos, OpSelect1, types.TypeFlags)
++			v0.AddArg(blsr)
++			v.AddArg3(x, y, v0)
++			return true
++		}
++		break
++	}
+ 	return false
+ }
+ func rewriteValueAMD64_OpAMD64CMOVQCC(v *Value) bool {
+@@ -5036,6 +5162,7 @@ func rewriteValueAMD64_OpAMD64CMOVQEQ(v *Value) bool {
+ 	v_2 := v.Args[2]
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
++	b := v.Block
+ 	// match: (CMOVQEQ x y (InvertFlags cond))
+ 	// result: (CMOVQEQ x y cond)
+ 	for {
+@@ -5145,6 +5272,62 @@ func rewriteValueAMD64_OpAMD64CMOVQEQ(v *Value) bool {
+ 		v.copyOf(x)
+ 		return true
+ 	}
++	// match: (CMOVQEQ x y (TESTQ s:(Select0 blsr:(BLSRQ _)) s))
++	// result: (CMOVQEQ x y (Select1 <types.TypeFlags> blsr))
++	for {
++		x := v_0
++		y := v_1
++		if v_2.Op != OpAMD64TESTQ {
++			break
++		}
++		_ = v_2.Args[1]
++		v_2_0 := v_2.Args[0]
++		v_2_1 := v_2.Args[1]
++		for _i0 := 0; _i0 <= 1; _i0, v_2_0, v_2_1 = _i0+1, v_2_1, v_2_0 {
++			s := v_2_0
++			if s.Op != OpSelect0 {
++				continue
++			}
++			blsr := s.Args[0]
++			if blsr.Op != OpAMD64BLSRQ || s != v_2_1 {
++				continue
++			}
++			v.reset(OpAMD64CMOVQEQ)
++			v0 := b.NewValue0(v.Pos, OpSelect1, types.TypeFlags)
++			v0.AddArg(blsr)
++			v.AddArg3(x, y, v0)
++			return true
++		}
++		break
++	}
++	// match: (CMOVQEQ x y (TESTL s:(Select0 blsr:(BLSRL _)) s))
++	// result: (CMOVQEQ x y (Select1 <types.TypeFlags> blsr))
++	for {
++		x := v_0
++		y := v_1
++		if v_2.Op != OpAMD64TESTL {
++			break
++		}
++		_ = v_2.Args[1]
++		v_2_0 := v_2.Args[0]
++		v_2_1 := v_2.Args[1]
++		for _i0 := 0; _i0 <= 1; _i0, v_2_0, v_2_1 = _i0+1, v_2_1, v_2_0 {
++			s := v_2_0
++			if s.Op != OpSelect0 {
++				continue
++			}
++			blsr := s.Args[0]
++			if blsr.Op != OpAMD64BLSRL || s != v_2_1 {
++				continue
++			}
++			v.reset(OpAMD64CMOVQEQ)
++			v0 := b.NewValue0(v.Pos, OpSelect1, types.TypeFlags)
++			v0.AddArg(blsr)
++			v.AddArg3(x, y, v0)
++			return true
++		}
++		break
++	}
+ 	return false
+ }
+ func rewriteValueAMD64_OpAMD64CMOVQGE(v *Value) bool {
+@@ -5565,6 +5748,7 @@ func rewriteValueAMD64_OpAMD64CMOVQNE(v *Value) bool {
+ 	v_2 := v.Args[2]
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
++	b := v.Block
+ 	// match: (CMOVQNE x y (InvertFlags cond))
+ 	// result: (CMOVQNE x y cond)
+ 	for {
+@@ -5628,6 +5812,62 @@ func rewriteValueAMD64_OpAMD64CMOVQNE(v *Value) bool {
+ 		v.copyOf(x)
+ 		return true
+ 	}
++	// match: (CMOVQNE x y (TESTQ s:(Select0 blsr:(BLSRQ _)) s))
++	// result: (CMOVQNE x y (Select1 <types.TypeFlags> blsr))
++	for {
++		x := v_0
++		y := v_1
++		if v_2.Op != OpAMD64TESTQ {
++			break
++		}
++		_ = v_2.Args[1]
++		v_2_0 := v_2.Args[0]
++		v_2_1 := v_2.Args[1]
++		for _i0 := 0; _i0 <= 1; _i0, v_2_0, v_2_1 = _i0+1, v_2_1, v_2_0 {
++			s := v_2_0
++			if s.Op != OpSelect0 {
++				continue
++			}
++			blsr := s.Args[0]
++			if blsr.Op != OpAMD64BLSRQ || s != v_2_1 {
++				continue
++			}
++			v.reset(OpAMD64CMOVQNE)
++			v0 := b.NewValue0(v.Pos, OpSelect1, types.TypeFlags)
++			v0.AddArg(blsr)
++			v.AddArg3(x, y, v0)
++			return true
++		}
++		break
++	}
++	// match: (CMOVQNE x y (TESTL s:(Select0 blsr:(BLSRL _)) s))
++	// result: (CMOVQNE x y (Select1 <types.TypeFlags> blsr))
++	for {
++		x := v_0
++		y := v_1
++		if v_2.Op != OpAMD64TESTL {
++			break
++		}
++		_ = v_2.Args[1]
++		v_2_0 := v_2.Args[0]
++		v_2_1 := v_2.Args[1]
++		for _i0 := 0; _i0 <= 1; _i0, v_2_0, v_2_1 = _i0+1, v_2_1, v_2_0 {
++			s := v_2_0
++			if s.Op != OpSelect0 {
++				continue
++			}
++			blsr := s.Args[0]
++			if blsr.Op != OpAMD64BLSRL || s != v_2_1 {
++				continue
++			}
++			v.reset(OpAMD64CMOVQNE)
++			v0 := b.NewValue0(v.Pos, OpSelect1, types.TypeFlags)
++			v0.AddArg(blsr)
++			v.AddArg3(x, y, v0)
++			return true
++		}
++		break
++	}
+ 	return false
+ }
+ func rewriteValueAMD64_OpAMD64CMOVWCC(v *Value) bool {
+@@ -21056,6 +21296,58 @@ func rewriteValueAMD64_OpAMD64SETEQ(v *Value) bool {
+ 		v.AuxInt = int32ToAuxInt(0)
+ 		return true
+ 	}
++	// match: (SETEQ (TESTQ s:(Select0 blsr:(BLSRQ _)) s))
++	// result: (SETEQ (Select1 <types.TypeFlags> blsr))
++	for {
++		if v_0.Op != OpAMD64TESTQ {
++			break
++		}
++		_ = v_0.Args[1]
++		v_0_0 := v_0.Args[0]
++		v_0_1 := v_0.Args[1]
++		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
++			s := v_0_0
++			if s.Op != OpSelect0 {
++				continue
++			}
++			blsr := s.Args[0]
++			if blsr.Op != OpAMD64BLSRQ || s != v_0_1 {
++				continue
++			}
++			v.reset(OpAMD64SETEQ)
++			v0 := b.NewValue0(v.Pos, OpSelect1, types.TypeFlags)
++			v0.AddArg(blsr)
++			v.AddArg(v0)
++			return true
++		}
++		break
++	}
++	// match: (SETEQ (TESTL s:(Select0 blsr:(BLSRL _)) s))
++	// result: (SETEQ (Select1 <types.TypeFlags> blsr))
++	for {
++		if v_0.Op != OpAMD64TESTL {
++			break
++		}
++		_ = v_0.Args[1]
++		v_0_0 := v_0.Args[0]
++		v_0_1 := v_0.Args[1]
++		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
++			s := v_0_0
++			if s.Op != OpSelect0 {
++				continue
++			}
++			blsr := s.Args[0]
++			if blsr.Op != OpAMD64BLSRL || s != v_0_1 {
++				continue
++			}
++			v.reset(OpAMD64SETEQ)
++			v0 := b.NewValue0(v.Pos, OpSelect1, types.TypeFlags)
++			v0.AddArg(blsr)
++			v.AddArg(v0)
++			return true
++		}
++		break
++	}
+ 	return false
+ }
+ func rewriteValueAMD64_OpAMD64SETEQstore(v *Value) bool {
+@@ -22972,6 +23264,58 @@ func rewriteValueAMD64_OpAMD64SETNE(v *Value) bool {
+ 		v.AuxInt = int32ToAuxInt(1)
+ 		return true
+ 	}
++	// match: (SETNE (TESTQ s:(Select0 blsr:(BLSRQ _)) s))
++	// result: (SETNE (Select1 <types.TypeFlags> blsr))
++	for {
++		if v_0.Op != OpAMD64TESTQ {
++			break
++		}
++		_ = v_0.Args[1]
++		v_0_0 := v_0.Args[0]
++		v_0_1 := v_0.Args[1]
++		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
++			s := v_0_0
++			if s.Op != OpSelect0 {
++				continue
++			}
++			blsr := s.Args[0]
++			if blsr.Op != OpAMD64BLSRQ || s != v_0_1 {
++				continue
++			}
++			v.reset(OpAMD64SETNE)
++			v0 := b.NewValue0(v.Pos, OpSelect1, types.TypeFlags)
++			v0.AddArg(blsr)
++			v.AddArg(v0)
++			return true
++		}
++		break
++	}
++	// match: (SETNE (TESTL s:(Select0 blsr:(BLSRL _)) s))
++	// result: (SETNE (Select1 <types.TypeFlags> blsr))
++	for {
++		if v_0.Op != OpAMD64TESTL {
++			break
++		}
++		_ = v_0.Args[1]
++		v_0_0 := v_0.Args[0]
++		v_0_1 := v_0.Args[1]
++		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
++			s := v_0_0
++			if s.Op != OpSelect0 {
++				continue
++			}
++			blsr := s.Args[0]
++			if blsr.Op != OpAMD64BLSRL || s != v_0_1 {
++				continue
++			}
++			v.reset(OpAMD64SETNE)
++			v0 := b.NewValue0(v.Pos, OpSelect1, types.TypeFlags)
++			v0.AddArg(blsr)
++			v.AddArg(v0)
++			return true
++		}
++		break
++	}
+ 	return false
+ }
+ func rewriteValueAMD64_OpAMD64SETNEstore(v *Value) bool {
+@@ -33533,6 +33877,52 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			b.swapSuccessors()
+ 			return true
+ 		}
++		// match: (EQ (TESTQ s:(Select0 blsr:(BLSRQ _)) s) yes no)
++		// result: (EQ (Select1 <types.TypeFlags> blsr) yes no)
++		for b.Controls[0].Op == OpAMD64TESTQ {
++			v_0 := b.Controls[0]
++			_ = v_0.Args[1]
++			v_0_0 := v_0.Args[0]
++			v_0_1 := v_0.Args[1]
++			for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
++				s := v_0_0
++				if s.Op != OpSelect0 {
++					continue
++				}
++				blsr := s.Args[0]
++				if blsr.Op != OpAMD64BLSRQ || s != v_0_1 {
++					continue
++				}
++				v0 := b.NewValue0(v_0.Pos, OpSelect1, types.TypeFlags)
++				v0.AddArg(blsr)
++				b.resetWithControl(BlockAMD64EQ, v0)
++				return true
++			}
++			break
++		}
++		// match: (EQ (TESTL s:(Select0 blsr:(BLSRL _)) s) yes no)
++		// result: (EQ (Select1 <types.TypeFlags> blsr) yes no)
++		for b.Controls[0].Op == OpAMD64TESTL {
++			v_0 := b.Controls[0]
++			_ = v_0.Args[1]
++			v_0_0 := v_0.Args[0]
++			v_0_1 := v_0.Args[1]
++			for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
++				s := v_0_0
++				if s.Op != OpSelect0 {
++					continue
++				}
++				blsr := s.Args[0]
++				if blsr.Op != OpAMD64BLSRL || s != v_0_1 {
++					continue
++				}
++				v0 := b.NewValue0(v_0.Pos, OpSelect1, types.TypeFlags)
++				v0.AddArg(blsr)
++				b.resetWithControl(BlockAMD64EQ, v0)
++				return true
++			}
++			break
++		}
+ 	case BlockAMD64GE:
+ 		// match: (GE (InvertFlags cmp) yes no)
+ 		// result: (LE cmp yes no)
+@@ -34414,6 +34804,52 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			b.Reset(BlockFirst)
+ 			return true
+ 		}
++		// match: (NE (TESTQ s:(Select0 blsr:(BLSRQ _)) s) yes no)
++		// result: (NE (Select1 <types.TypeFlags> blsr) yes no)
++		for b.Controls[0].Op == OpAMD64TESTQ {
++			v_0 := b.Controls[0]
++			_ = v_0.Args[1]
++			v_0_0 := v_0.Args[0]
++			v_0_1 := v_0.Args[1]
++			for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
++				s := v_0_0
++				if s.Op != OpSelect0 {
++					continue
++				}
++				blsr := s.Args[0]
++				if blsr.Op != OpAMD64BLSRQ || s != v_0_1 {
++					continue
++				}
++				v0 := b.NewValue0(v_0.Pos, OpSelect1, types.TypeFlags)
++				v0.AddArg(blsr)
++				b.resetWithControl(BlockAMD64NE, v0)
++				return true
++			}
++			break
++		}
++		// match: (NE (TESTL s:(Select0 blsr:(BLSRL _)) s) yes no)
++		// result: (NE (Select1 <types.TypeFlags> blsr) yes no)
++		for b.Controls[0].Op == OpAMD64TESTL {
++			v_0 := b.Controls[0]
++			_ = v_0.Args[1]
++			v_0_0 := v_0.Args[0]
++			v_0_1 := v_0.Args[1]
++			for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
++				s := v_0_0
++				if s.Op != OpSelect0 {
++					continue
++				}
++				blsr := s.Args[0]
++				if blsr.Op != OpAMD64BLSRL || s != v_0_1 {
++					continue
++				}
++				v0 := b.NewValue0(v_0.Pos, OpSelect1, types.TypeFlags)
++				v0.AddArg(blsr)
++				b.resetWithControl(BlockAMD64NE, v0)
++				return true
++			}
++			break
++		}
+ 	case BlockAMD64UGE:
+ 		// match: (UGE (TESTQ x x) yes no)
+ 		// result: (First yes no)
+diff --git a/test/codegen/bmi.go b/test/codegen/bmi.go
+index 3b125a1b59..aa61b03928 100644
+--- a/test/codegen/bmi.go
++++ b/test/codegen/bmi.go
+@@ -46,6 +46,110 @@ func blsr32(x int32) int32 {
+ 	return x & (x - 1)
+ }
+ 
++func isPowerOfTwo64(x int64) bool {
++	// amd64/v3:"BLSRQ",-"TESTQ",-"CALL"
++	return blsr64(x) == 0
++}
++
++func isPowerOfTwo32(x int32) bool {
++	// amd64/v3:"BLSRL",-"TESTL",-"CALL"
++	return blsr32(x) == 0
++}
++
++func isPowerOfTwoSelect64(x, a, b int64) int64 {
++	var r int64
++	// amd64/v3:"BLSRQ",-"TESTQ",-"CALL"
++	if isPowerOfTwo64(x) {
++		r = a
++	} else {
++		r = b
++	}
++	// amd64/v3:"CMOVQEQ",-"TESTQ",-"CALL"
++	return r * 2 // force return blocks joining
++}
++
++func isPowerOfTwoSelect32(x, a, b int32) int32 {
++	var r int32
++	// amd64/v3:"BLSRL",-"TESTL",-"CALL"
++	if isPowerOfTwo32(x) {
++		r = a
++	} else {
++		r = b
++	}
++	// amd64/v3:"CMOVLEQ",-"TESTL",-"CALL"
++	return r * 2 // force return blocks joining
++}
++
++func isPowerOfTwoBranch64(x int64, a func(bool), b func(string)) {
++	// amd64/v3:"BLSRQ",-"TESTQ",-"CALL"
++	if isPowerOfTwo64(x) {
++		a(true)
++	} else {
++		b("false")
++	}
++}
++
++func isPowerOfTwoBranch32(x int32, a func(bool), b func(string)) {
++	// amd64/v3:"BLSRL",-"TESTL",-"CALL"
++	if isPowerOfTwo32(x) {
++		a(true)
++	} else {
++		b("false")
++	}
++}
++
++func isNotPowerOfTwo64(x int64) bool {
++	// amd64/v3:"BLSRQ",-"TESTQ",-"CALL"
++	return blsr64(x) != 0
++}
++
++func isNotPowerOfTwo32(x int32) bool {
++	// amd64/v3:"BLSRL",-"TESTL",-"CALL"
++	return blsr32(x) != 0
++}
++
++func isNotPowerOfTwoSelect64(x, a, b int64) int64 {
++	var r int64
++	// amd64/v3:"BLSRQ",-"TESTQ",-"CALL"
++	if isNotPowerOfTwo64(x) {
++		r = a
++	} else {
++		r = b
++	}
++	// amd64/v3:"CMOVQNE",-"TESTQ",-"CALL"
++	return r * 2 // force return blocks joining
++}
++
++func isNotPowerOfTwoSelect32(x, a, b int32) int32 {
++	var r int32
++	// amd64/v3:"BLSRL",-"TESTL",-"CALL"
++	if isNotPowerOfTwo32(x) {
++		r = a
++	} else {
++		r = b
++	}
++	// amd64/v3:"CMOVLNE",-"TESTL",-"CALL"
++	return r * 2 // force return blocks joining
++}
++
++func isNotPowerOfTwoBranch64(x int64, a func(bool), b func(string)) {
++	// amd64/v3:"BLSRQ",-"TESTQ",-"CALL"
++	if isNotPowerOfTwo64(x) {
++		a(true)
++	} else {
++		b("false")
++	}
++}
++
++func isNotPowerOfTwoBranch32(x int32, a func(bool), b func(string)) {
++	// amd64/v3:"BLSRL",-"TESTL",-"CALL"
++	if isNotPowerOfTwo32(x) {
++		a(true)
++	} else {
++		b("false")
++	}
++}
++
+ func sarx64(x, y int64) int64 {
+ 	// amd64/v3:"SARXQ"
+ 	return x >> y

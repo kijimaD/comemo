@@ -14,7 +14,106 @@ Date:   Wed Nov 18 11:13:19 2015 -0800
     Change-Id: I00826e0d73e317a31bdeae5c7e46bf95b0c6ae6a
     Reviewed-on: https://go-review.googlesource.com/17060
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/reflect/all_test.go | 29 +++++++++++++++++++++++++++++
  src/reflect/value.go    | 22 +++++++++++++++-------
  2 files changed, 44 insertions(+), 7 deletions(-)
+
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index 11ab63a3ce..7da692d1db 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -4965,3 +4965,32 @@ func TestPtrToMethods(t *testing.T) {
+ 		t.Fatal("does not implement Stringer, but should")
+ 	}
+ }
++
++func TestMapAlloc(t *testing.T) {
++	m := ValueOf(make(map[int]int, 10))
++	k := ValueOf(5)
++	v := ValueOf(7)
++	allocs := testing.AllocsPerRun(100, func() {
++		m.SetMapIndex(k, v)
++	})
++	if allocs > 0.5 {
++		t.Errorf("allocs per map assignment: want 0 got %f", allocs)
++	}
++}
++
++func TestChanAlloc(t *testing.T) {
++	// Note: for a chan int, the return Value must be allocated, so we
++	// use a chan *int instead.
++	c := ValueOf(make(chan *int, 1))
++	v := ValueOf(new(int))
++	allocs := testing.AllocsPerRun(100, func() {
++		c.Send(v)
++		_, _ = c.Recv()
++	})
++	if allocs < 0.5 || allocs > 1.5 {
++		t.Errorf("allocs per chan send/recv: want 1 got %f", allocs)
++	}
++	// Note: there is one allocation in reflect.recv which seems to be
++	// a limitation of escape analysis.  If that is ever fixed the
++	// allocs < 0.5 condition will trigger and this test should be fixed.
++}
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index 2317a7bec3..182c45a1ce 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -142,7 +142,7 @@ func unpackEface(i interface{}) Value {
+ 	if ifaceIndir(t) {
+ 		f |= flagIndir
+ 	}
+-	return Value{t, unsafe.Pointer(e.word), f}
++	return Value{t, e.word, f}
+ }
+ 
+ // A ValueError occurs when a Value method is invoked on
+@@ -590,7 +590,7 @@ func storeRcvr(v Value, p unsafe.Pointer) {
+ 	if t.Kind() == Interface {
+ 		// the interface data word becomes the receiver word
+ 		iface := (*nonEmptyInterface)(v.ptr)
+-		*(*unsafe.Pointer)(p) = unsafe.Pointer(iface.word)
++		*(*unsafe.Pointer)(p) = iface.word
+ 	} else if v.flag&flagIndir != 0 && !ifaceIndir(t) {
+ 		*(*unsafe.Pointer)(p) = *(*unsafe.Pointer)(v.ptr)
+ 	} else {
+@@ -2086,11 +2086,10 @@ func ValueOf(i interface{}) Value {
+ 		return Value{}
+ 	}
+ 
+-	// TODO(rsc): Eliminate this terrible hack.
+-	// In the call to unpackEface, i.typ doesn't escape,
+-	// and i.word is an integer.  So it looks like
+-	// i doesn't escape.  But really it does,
+-	// because i.word is actually a pointer.
++	// TODO: Maybe allow contents of a Value to live on the stack.
++	// For now we make the contents always escape to the heap.  It
++	// makes life easier in a few places (see chanrecv/mapassign
++	// comment below).
+ 	escapes(i)
+ 
+ 	return unpackEface(i)
+@@ -2446,6 +2445,14 @@ func chancap(ch unsafe.Pointer) int
+ func chanclose(ch unsafe.Pointer)
+ func chanlen(ch unsafe.Pointer) int
+ 
++// Note: some of the noescape annotations below are technically a lie,
++// but safe in the context of this package.  Functions like chansend
++// and mapassign don't escape the referent, but may escape anything
++// the referent points to (they do shallow copies of the referent).
++// It is safe in this package because the referent may only point
++// to something a Value may point to, and that is always in the heap
++// (due to the escapes() call in ValueOf).
++
+ //go:noescape
+ func chanrecv(t *rtype, ch unsafe.Pointer, nb bool, val unsafe.Pointer) (selected, received bool)
+ 
+@@ -2458,6 +2465,7 @@ func makemap(t *rtype) (m unsafe.Pointer)
+ //go:noescape
+ func mapaccess(t *rtype, m unsafe.Pointer, key unsafe.Pointer) (val unsafe.Pointer)
+ 
++//go:noescape
+ func mapassign(t *rtype, m unsafe.Pointer, key, val unsafe.Pointer)
+ 
+ //go:noescape

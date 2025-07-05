@@ -12,8 +12,94 @@ Date:   Sat Dec 20 17:05:05 2014 -0800
     Change-Id: Ia604ecf9014805579dfda4b5c8e627a52783d56e
     Reviewed-on: https://go-review.googlesource.com/1910
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/bootstrap.go |  8 ++++++++
  src/cmd/go/http.go      | 14 +++++++++++++-
  src/cmd/go/vcs.go       | 23 +++++++++++++++++++----
  3 files changed, 40 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/go/bootstrap.go b/src/cmd/go/bootstrap.go
+index dc7ed5f4c0..0c13380054 100644
+--- a/src/cmd/go/bootstrap.go
++++ b/src/cmd/go/bootstrap.go
+@@ -17,6 +17,14 @@ import (
+ 
+ var errHTTP = errors.New("no http in bootstrap go command")
+ 
++type httpError struct {
++	statusCode int
++}
++
++func (e *httpError) Error() string {
++	panic("unreachable")
++}
++
+ func httpGET(url string) ([]byte, error) {
+ 	return nil, errHTTP
+ }
+diff --git a/src/cmd/go/http.go b/src/cmd/go/http.go
+index 107b820f28..8b1247bfbe 100644
+--- a/src/cmd/go/http.go
++++ b/src/cmd/go/http.go
+@@ -24,6 +24,16 @@ import (
+ // changed by tests, without modifying http.DefaultClient.
+ var httpClient = http.DefaultClient
+ 
++type httpError struct {
++	status     string
++	statusCode int
++	url        string
++}
++
++func (e *httpError) Error() string {
++	return fmt.Sprintf("%s: %s", e.url, e.status)
++}
++
+ // httpGET returns the data from an HTTP GET request for the given URL.
+ func httpGET(url string) ([]byte, error) {
+ 	resp, err := httpClient.Get(url)
+@@ -32,7 +42,9 @@ func httpGET(url string) ([]byte, error) {
+ 	}
+ 	defer resp.Body.Close()
+ 	if resp.StatusCode != 200 {
+-		return nil, fmt.Errorf("%s: %s", url, resp.Status)
++		err := &httpError{status: resp.Status, statusCode: resp.StatusCode, url: url}
++
++		return nil, err
+ 	}
+ 	b, err := ioutil.ReadAll(resp.Body)
+ 	if err != nil {
+diff --git a/src/cmd/go/vcs.go b/src/cmd/go/vcs.go
+index 86f5ea82e8..43027134e1 100644
+--- a/src/cmd/go/vcs.go
++++ b/src/cmd/go/vcs.go
+@@ -808,10 +808,25 @@ func bitbucketVCS(match map[string]string) error {
+ 	url := expand(match, "https://api.bitbucket.org/1.0/repositories/{bitname}")
+ 	data, err := httpGET(url)
+ 	if err != nil {
+-		return err
+-	}
+-	if err := json.Unmarshal(data, &resp); err != nil {
+-		return fmt.Errorf("decoding %s: %v", url, err)
++		if httpErr, ok := err.(*httpError); ok && httpErr.statusCode == 403 {
++			// this may be a private repository. If so, attempt to determine which
++			// VCS it uses. See issue 5375.
++			root := match["root"]
++			for _, vcs := range []string{"git", "hg"} {
++				if vcsByCmd(vcs).ping("https", root) == nil {
++					resp.SCM = vcs
++					break
++				}
++			}
++		}
++
++		if resp.SCM == "" {
++			return err
++		}
++	} else {
++		if err := json.Unmarshal(data, &resp); err != nil {
++			return fmt.Errorf("decoding %s: %v", url, err)
++		}
+ 	}
+ 
+ 	if vcsByCmd(resp.SCM) != nil {

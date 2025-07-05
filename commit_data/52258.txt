@@ -18,7 +18,126 @@ Date:   Tue Apr 19 12:05:10 2022 -0700
     Run-TryBot: Roland Shoemaker <roland@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Damien Neil <dneil@google.com>
-
+---
  src/crypto/x509/verify.go      | 58 ++++++++++++++++++++++++++++++++++--------
  src/crypto/x509/verify_test.go | 23 +++++++++++++++++
  2 files changed, 70 insertions(+), 11 deletions(-)
+
+diff --git a/src/crypto/x509/verify.go b/src/crypto/x509/verify.go
+index 77ad6868fa..a739956cfe 100644
+--- a/src/crypto/x509/verify.go
++++ b/src/crypto/x509/verify.go
+@@ -7,6 +7,7 @@ package x509
+ import (
+ 	"bytes"
+ 	"crypto"
++	"crypto/x509/pkix"
+ 	"errors"
+ 	"fmt"
+ 	"net"
+@@ -825,6 +826,50 @@ func appendToFreshChain(chain []*Certificate, cert *Certificate) []*Certificate
+ 	return n
+ }
+ 
++// alreadyInChain checks whether a candidate certificate is present in a chain.
++// Rather than doing a direct byte for byte equivalency check, we check if the
++// subject, public key, and SAN, if present, are equal. This prevents loops that
++// are created by mutual cross-signatures, or other cross-signature bridge
++// oddities.
++func alreadyInChain(candidate *Certificate, chain []*Certificate) bool {
++	type pubKeyEqual interface {
++		Equal(crypto.PublicKey) bool
++	}
++
++	var candidateSAN *pkix.Extension
++	for _, ext := range candidate.Extensions {
++		if ext.Id.Equal(oidExtensionSubjectAltName) {
++			candidateSAN = &ext
++			break
++		}
++	}
++
++	for _, cert := range chain {
++		if !bytes.Equal(candidate.RawSubject, cert.RawSubject) {
++			continue
++		}
++		if !candidate.PublicKey.(pubKeyEqual).Equal(cert.PublicKey) {
++			continue
++		}
++		var certSAN *pkix.Extension
++		for _, ext := range cert.Extensions {
++			if ext.Id.Equal(oidExtensionSubjectAltName) {
++				certSAN = &ext
++				break
++			}
++		}
++		if candidateSAN == nil && certSAN == nil {
++			return true
++		} else if candidateSAN == nil || certSAN == nil {
++			return false
++		}
++		if bytes.Equal(candidateSAN.Value, certSAN.Value) {
++			return true
++		}
++	}
++	return false
++}
++
+ // maxChainSignatureChecks is the maximum number of CheckSignatureFrom calls
+ // that an invocation of buildChains will (transitively) make. Most chains are
+ // less than 15 certificates long, so this leaves space for multiple chains and
+@@ -837,18 +882,9 @@ func (c *Certificate) buildChains(currentChain []*Certificate, sigChecks *int, o
+ 		hintCert *Certificate
+ 	)
+ 
+-	type pubKeyEqual interface {
+-		Equal(crypto.PublicKey) bool
+-	}
+-
+ 	considerCandidate := func(certType int, candidate *Certificate) {
+-		for _, cert := range currentChain {
+-			// If a certificate already appeared in the chain we've built, don't
+-			// reconsider it. This prevents loops, for isntance those created by
+-			// mutual cross-signatures, or other cross-signature bridges oddities.
+-			if bytes.Equal(cert.RawSubject, candidate.RawSubject) && cert.PublicKey.(pubKeyEqual).Equal(candidate.PublicKey) {
+-				return
+-			}
++		if alreadyInChain(candidate, currentChain) {
++			return
+ 		}
+ 
+ 		if sigChecks == nil {
+diff --git a/src/crypto/x509/verify_test.go b/src/crypto/x509/verify_test.go
+index 1b2cbe34dd..8a7b08ab58 100644
+--- a/src/crypto/x509/verify_test.go
++++ b/src/crypto/x509/verify_test.go
+@@ -2340,6 +2340,29 @@ func TestPathBuilding(t *testing.T) {
+ 				"CN=leaf -> CN=inter b -> CN=inter c -> CN=root",
+ 			},
+ 		},
++		{
++			// Build a simple two node graph, where the leaf is directly issued from
++			// the root and both certificates have matching subject and public key, but
++			// the leaf has SANs.
++			name: "leaf with same subject, key, as parent but with SAN",
++			graph: trustGraphDescription{
++				Roots: []string{"root"},
++				Leaf:  "root",
++				Graph: []trustGraphEdge{
++					{
++						Issuer:  "root",
++						Subject: "root",
++						Type:    leafCertificate,
++						MutateTemplate: func(c *Certificate) {
++							c.DNSNames = []string{"localhost"}
++						},
++					},
++				},
++			},
++			expectedChains: []string{
++				"CN=root -> CN=root",
++			},
++		},
+ 	}
+ 
+ 	for _, tc := range tests {

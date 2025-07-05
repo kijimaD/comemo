@@ -18,7 +18,7 @@ Date:   Mon Feb 20 06:55:42 2023 -0500
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/syscall/exec_aix_test.go      | 2 +-
  src/syscall/exec_libc.go          | 4 ++++
  src/syscall/exec_solaris_test.go  | 2 +-
@@ -26,3 +26,109 @@ Date:   Mon Feb 20 06:55:42 2023 -0500
  src/syscall/export_darwin_test.go | 6 ++++--
  src/syscall/export_unix_test.go   | 6 ++++--
  6 files changed, 18 insertions(+), 10 deletions(-)
+
+diff --git a/src/syscall/exec_aix_test.go b/src/syscall/exec_aix_test.go
+index f2d54a40bd..e8eeae193b 100644
+--- a/src/syscall/exec_aix_test.go
++++ b/src/syscall/exec_aix_test.go
+@@ -34,4 +34,4 @@ func Getpgrp() (pgrp int) {
+ 	return
+ }
+ 
+-var Ioctl = ioctl
++var IoctlPtr = ioctlPtr
+diff --git a/src/syscall/exec_libc.go b/src/syscall/exec_libc.go
+index f8769b9aba..0f8a7b5375 100644
+--- a/src/syscall/exec_libc.go
++++ b/src/syscall/exec_libc.go
+@@ -305,3 +305,7 @@ childerror:
+ 		exit(253)
+ 	}
+ }
++
++func ioctlPtr(fd, req uintptr, arg unsafe.Pointer) (err Errno) {
++	return ioctl(fd, req, uintptr(arg))
++}
+diff --git a/src/syscall/exec_solaris_test.go b/src/syscall/exec_solaris_test.go
+index 90e5349bf4..0c653f71da 100644
+--- a/src/syscall/exec_solaris_test.go
++++ b/src/syscall/exec_solaris_test.go
+@@ -34,4 +34,4 @@ func Getpgrp() (pgrp int) {
+ 	return
+ }
+ 
+-var Ioctl = ioctl
++var IoctlPtr = ioctlPtr
+diff --git a/src/syscall/exec_unix_test.go b/src/syscall/exec_unix_test.go
+index 4253cda5cb..942a254cb9 100644
+--- a/src/syscall/exec_unix_test.go
++++ b/src/syscall/exec_unix_test.go
+@@ -177,7 +177,7 @@ func TestForeground(t *testing.T) {
+ 	// equivalent.
+ 	fpgrp := int32(0)
+ 
+-	errno := syscall.Ioctl(tty.Fd(), syscall.TIOCGPGRP, uintptr(unsafe.Pointer(&fpgrp)))
++	errno := syscall.IoctlPtr(tty.Fd(), syscall.TIOCGPGRP, unsafe.Pointer(&fpgrp))
+ 	if errno != 0 {
+ 		t.Fatalf("TIOCGPGRP failed with error code: %s", errno)
+ 	}
+@@ -214,7 +214,7 @@ func TestForeground(t *testing.T) {
+ 
+ 	// This call fails on darwin/arm64. The failure doesn't matter, though.
+ 	// This is just best effort.
+-	syscall.Ioctl(tty.Fd(), syscall.TIOCSPGRP, uintptr(unsafe.Pointer(&fpgrp)))
++	syscall.IoctlPtr(tty.Fd(), syscall.TIOCSPGRP, unsafe.Pointer(&fpgrp))
+ }
+ 
+ func TestForegroundSignal(t *testing.T) {
+@@ -228,7 +228,7 @@ func TestForegroundSignal(t *testing.T) {
+ 	// equivalent.
+ 	fpgrp := int32(0)
+ 
+-	errno := syscall.Ioctl(tty.Fd(), syscall.TIOCGPGRP, uintptr(unsafe.Pointer(&fpgrp)))
++	errno := syscall.IoctlPtr(tty.Fd(), syscall.TIOCGPGRP, unsafe.Pointer(&fpgrp))
+ 	if errno != 0 {
+ 		t.Fatalf("TIOCGPGRP failed with error code: %s", errno)
+ 	}
+@@ -239,7 +239,7 @@ func TestForegroundSignal(t *testing.T) {
+ 
+ 	defer func() {
+ 		signal.Ignore(syscall.SIGTTIN, syscall.SIGTTOU)
+-		syscall.Ioctl(tty.Fd(), syscall.TIOCSPGRP, uintptr(unsafe.Pointer(&fpgrp)))
++		syscall.IoctlPtr(tty.Fd(), syscall.TIOCSPGRP, unsafe.Pointer(&fpgrp))
+ 		signal.Reset()
+ 	}()
+ 
+diff --git a/src/syscall/export_darwin_test.go b/src/syscall/export_darwin_test.go
+index 40d18f9144..0cf992bb00 100644
+--- a/src/syscall/export_darwin_test.go
++++ b/src/syscall/export_darwin_test.go
+@@ -4,8 +4,10 @@
+ 
+ package syscall
+ 
+-func Ioctl(fd, req, arg uintptr) Errno {
+-	err := ioctl(int(fd), int(req), int(arg))
++import "unsafe"
++
++func IoctlPtr(fd, req uintptr, arg unsafe.Pointer) Errno {
++	err := ioctlPtr(int(fd), uint(req), arg)
+ 	if err != nil {
+ 		return err.(Errno)
+ 	}
+diff --git a/src/syscall/export_unix_test.go b/src/syscall/export_unix_test.go
+index 2f678d2566..c7486af595 100644
+--- a/src/syscall/export_unix_test.go
++++ b/src/syscall/export_unix_test.go
+@@ -6,7 +6,9 @@
+ 
+ package syscall
+ 
+-func Ioctl(fd, req, arg uintptr) (err Errno) {
+-	_, _, err = Syscall(SYS_IOCTL, fd, req, arg)
++import "unsafe"
++
++func IoctlPtr(fd, req uintptr, arg unsafe.Pointer) (err Errno) {
++	_, _, err = Syscall(SYS_IOCTL, fd, req, uintptr(arg))
+ 	return err
+ }

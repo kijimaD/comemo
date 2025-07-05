@@ -7,9 +7,166 @@ Date:   Mon Sep 29 20:33:51 2008 -0700
     R=r
     OCL=16163
     CL=16163
-
+---
  src/cmd/gc/export.c |  4 ++++
  src/cmd/gc/go.h     |  3 +--
  src/cmd/gc/go.y     | 14 ++++++--------
  src/cmd/gc/walk.c   | 24 +++++++++++-------------
  4 files changed, 22 insertions(+), 23 deletions(-)
+
+diff --git a/src/cmd/gc/export.c b/src/cmd/gc/export.c
+index 50d1e3bdfd..94147ffe16 100644
+--- a/src/cmd/gc/export.c
++++ b/src/cmd/gc/export.c
+@@ -176,6 +176,10 @@ dumpexporttype(Sym *s)
+ 	case TPTR64:
+ 		if(t->type == T)
+ 			fatal("dumpexporttype: ptr %S", s);
++		if(t->type->etype == TFORW) {
++			yyerror("export of a undefined forward reference: %S", s);
++			break;
++		}
+ 		makeexportsym(t->type);
+ 		ts = t->type->sym;
+ 		if(ts->exported == 0)
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 45716c362b..024cd8dcef 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -265,8 +265,7 @@ enum
+ 	ONAME, ONONAME,
+ 	ODOT, ODOTPTR, ODOTMETH, ODOTINTER,
+ 	ODCLFUNC, ODCLFIELD, ODCLARG,
+-	OLIST, OCMP,
+-	OPTR, OARRAY,
++	OLIST, OCMP, OPTR, OARRAY,
+ 	ORETURN, OFOR, OIF, OSWITCH,
+ 	OAS, OASOP, OCASE, OXCASE, OFALL, OXFALL,
+ 	OGOTO, OPROC, ONEW, OEMPTY, OSELECT,
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index 69b7c76d0d..74af515881 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -800,8 +800,11 @@ pexpr:
+ 	}
+ |	convtype '{' keyexpr_list '}'
+ 	{
+-		// struct literal and conversions
+-		$$ = nod(OCONV, rev($3), N);
++		// composite literal
++		$$ = rev($3);
++		if($$ == N)
++			$$ = nod(OEMPTY, N, N);
++		$$ = nod(OCONV, $$, N);
+ 		$$->type = $1;
+ 	}
+ |	fnliteral
+@@ -1266,11 +1269,6 @@ structdcl:
+ 			$$->type = types[TINT32];
+ 		};
+ 	}
+-|	LIMPORT structdcl
+-	{
+-		$$ = $2;
+-		$$->etype = OIMPORT;
+-	}
+ 
+ interfacedcl:
+ 	new_name ',' interfacedcl
+@@ -1695,7 +1693,7 @@ hidden_importfield:
+  * to check whether the rest of the grammar is free of
+  * reduce/reduce conflicts, comment this section out by
+  * removing the slash on the next line.
+- *
++ */
+ lpack:
+ 	LATYPE
+ 	{
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 6029214c4e..d57dbe69d4 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -287,11 +287,6 @@ loop:
+ 		walkselect(n);
+ 		goto ret;
+ 
+-	case OEMPTY:
+-		if(top != Etop)
+-			goto nottop;
+-		goto ret;
+-
+ 	case OIF:
+ 		if(top != Etop)
+ 			goto nottop;
+@@ -500,16 +495,18 @@ loop:
+ 
+ 	case OFALL:
+ 	case OINDREG:
++	case OEMPTY:
+ 		goto ret;
+ 
+ 	case OCONV:
+ 		if(top == Etop)
+ 			goto nottop;
+-		walktype(n->left, Erv);
+ 
+ 		l = n->left;
+ 		if(l == N)
+ 			goto ret;
++		walktype(l, Erv);
++
+ 		t = n->type;
+ 		if(t == T)
+ 			goto ret;
+@@ -552,7 +549,6 @@ loop:
+ 		// interface and structure
+ 		et = isandss(n->type, l);
+ 		if(et != Inone) {
+-if(et == I2I) dump("conv", n);
+ 			indir(n, ifaceop(n->type, l, et));
+ 			goto ret;
+ 		}
+@@ -2980,14 +2976,10 @@ structlit(Node *n)
+ 
+ 	l = structfirst(&savel, &n->type);
+ 	r = listfirst(&saver, &n->left);
++	if(r != N && r->op == OEMPTY)
++		r = N;
+ 
+ loop:
+-	if(l != T && l->etype == TFIELD && l->type->etype == TFUNC) {
+-		// skip methods
+-		l = structnext(&savel);
+-		goto loop;
+-	}
+-
+ 	if(l == T || r == N) {
+ 		if(l != T)
+ 			yyerror("struct literal expect expr of type %T", l);
+@@ -3027,6 +3019,8 @@ arraylit(Node *n)
+ 
+ 		// make it a closed array
+ 		r = listfirst(&saver, &n->left);
++		if(r != N && r->op == OEMPTY)
++			r = N;
+ 		for(idx=0; r!=N; idx++)
+ 			r = listnext(&saver);
+ 		t->bound = idx;
+@@ -3037,6 +3031,8 @@ arraylit(Node *n)
+ 
+ 	idx = 0;
+ 	r = listfirst(&saver, &n->left);
++	if(r != N && r->op == OEMPTY)
++		r = N;
+ 
+ loop:
+ 	if(r == N)
+@@ -3075,6 +3071,8 @@ maplit(Node *n)
+ 	addtop = list(addtop, a);
+ 
+ 	r = listfirst(&saver, &n->left);
++	if(r != N && r->op == OEMPTY)
++		r = N;
+ 
+ loop:
+ 	if(r == N) {

@@ -28,10 +28,240 @@ Date:   Tue Jun 13 12:01:56 2017 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rick Hudson <rlh@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/mgc.go     | 10 ++--------
  src/runtime/mgcmark.go |  3 ---
  src/runtime/mstats.go  |  6 ------
  src/runtime/proc.go    | 41 +++++++++++++++++------------------------
  src/runtime/trace.go   |  6 ------
  5 files changed, 19 insertions(+), 47 deletions(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 23dc79d79a..d80e05c0f2 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -466,9 +466,6 @@ func (c *gcControllerState) startCycle() {
+ 
+ 	// Clear per-P state
+ 	for _, p := range allp {
+-		if p == nil {
+-			break
+-		}
+ 		p.gcAssistTime = 0
+ 	}
+ 
+@@ -1663,9 +1660,6 @@ func gcBgMarkStartWorkers() {
+ 	// Background marking is performed by per-P G's. Ensure that
+ 	// each P has a background GC G.
+ 	for _, p := range allp {
+-		if p == nil || p.status == _Pdead {
+-			break
+-		}
+ 		if p.gcBgMarkWorker == 0 {
+ 			go gcBgMarkWorker(p)
+ 			notetsleepg(&work.bgMarkReady, -1)
+@@ -1962,8 +1956,8 @@ func gcMark(start_time int64) {
+ 
+ 	// Double-check that all gcWork caches are empty. This should
+ 	// be ensured by mark 2 before we enter mark termination.
+-	for i := 0; i < int(gomaxprocs); i++ {
+-		gcw := &allp[i].gcw
++	for _, p := range allp {
++		gcw := &p.gcw
+ 		if !gcw.empty() {
+ 			throw("P has cached GC work at end of mark termination")
+ 		}
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index efc1a042f9..016c1f786b 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -1357,9 +1357,6 @@ func gcmarknewobject(obj, size, scanSize uintptr) {
+ // The world must be stopped.
+ func gcMarkTinyAllocs() {
+ 	for _, p := range allp {
+-		if p == nil || p.status == _Pdead {
+-			break
+-		}
+ 		c := p.mcache
+ 		if c == nil || c.tiny == 0 {
+ 			continue
+diff --git a/src/runtime/mstats.go b/src/runtime/mstats.go
+index 8538bad0db..18b8401cc4 100644
+--- a/src/runtime/mstats.go
++++ b/src/runtime/mstats.go
+@@ -596,9 +596,6 @@ func updatememstats() {
+ //go:nowritebarrier
+ func cachestats() {
+ 	for _, p := range allp {
+-		if p == nil {
+-			break
+-		}
+ 		c := p.mcache
+ 		if c == nil {
+ 			continue
+@@ -614,9 +611,6 @@ func cachestats() {
+ //go:nowritebarrier
+ func flushmcache(i int) {
+ 	p := allp[i]
+-	if p == nil {
+-		return
+-	}
+ 	c := p.mcache
+ 	if c == nil {
+ 		return
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 81652288fb..f8716b171e 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -997,8 +997,7 @@ func stopTheWorldWithSema() {
+ 	_g_.m.p.ptr().status = _Pgcstop // Pgcstop is only diagnostic.
+ 	sched.stopwait--
+ 	// try to retake all P's in Psyscall status
+-	for i := 0; i < int(gomaxprocs); i++ {
+-		p := allp[i]
++	for _, p := range allp {
+ 		s := p.status
+ 		if s == _Psyscall && atomic.Cas(&p.status, s, _Pgcstop) {
+ 			if trace.enabled {
+@@ -1038,8 +1037,7 @@ func stopTheWorldWithSema() {
+ 	if sched.stopwait != 0 {
+ 		bad = "stopTheWorld: not stopped (stopwait != 0)"
+ 	} else {
+-		for i := 0; i < int(gomaxprocs); i++ {
+-			p := allp[i]
++		for _, p := range allp {
+ 			if p.status != _Pgcstop {
+ 				bad = "stopTheWorld: not stopped (status != _Pgcstop)"
+ 			}
+@@ -1219,7 +1217,7 @@ func forEachP(fn func(*p)) {
+ 	sched.safePointFn = fn
+ 
+ 	// Ask all Ps to run the safe point function.
+-	for _, p := range allp[:gomaxprocs] {
++	for _, p := range allp {
+ 		if p != _p_ {
+ 			atomic.Store(&p.runSafePointFn, 1)
+ 		}
+@@ -1247,8 +1245,7 @@ func forEachP(fn func(*p)) {
+ 
+ 	// Force Ps currently in _Psyscall into _Pidle and hand them
+ 	// off to induce safe point function execution.
+-	for i := 0; i < int(gomaxprocs); i++ {
+-		p := allp[i]
++	for _, p := range allp {
+ 		s := p.status
+ 		if s == _Psyscall && p.runSafePointFn == 1 && atomic.Cas(&p.status, s, _Pidle) {
+ 			if trace.enabled {
+@@ -1277,8 +1274,7 @@ func forEachP(fn func(*p)) {
+ 	if sched.safePointWait != 0 {
+ 		throw("forEachP: not done")
+ 	}
+-	for i := 0; i < int(gomaxprocs); i++ {
+-		p := allp[i]
++	for _, p := range allp {
+ 		if p.runSafePointFn != 0 {
+ 			throw("forEachP: P did not run fn")
+ 		}
+@@ -2072,9 +2068,8 @@ stop:
+ 	}
+ 
+ 	// check all runqueues once again
+-	for i := 0; i < int(gomaxprocs); i++ {
+-		_p_ := allp[i]
+-		if _p_ != nil && !runqempty(_p_) {
++	for _, _p_ := range allp {
++		if !runqempty(_p_) {
+ 			lock(&sched.lock)
+ 			_p_ = pidleget()
+ 			unlock(&sched.lock)
+@@ -3229,9 +3224,6 @@ func badunlockosthread() {
+ func gcount() int32 {
+ 	n := int32(allglen) - sched.ngfree - int32(atomic.Load(&sched.ngsys))
+ 	for _, _p_ := range allp {
+-		if _p_ == nil {
+-			break
+-		}
+ 		n -= _p_.gfreecnt
+ 	}
+ 
+@@ -3641,6 +3633,7 @@ func procresize(nprocs int32) *p {
+ 			raceprocdestroy(p.racectx)
+ 			p.racectx = 0
+ 		}
++		p.gcAssistTime = 0
+ 		p.status = _Pdead
+ 		// can't free P itself because it can be referenced by an M in syscall
+ 	}
+@@ -3980,9 +3973,14 @@ func retake(now int64) uint32 {
+ 	// Prevent allp slice changes. This lock will be completely
+ 	// uncontended unless we're already stopping the world.
+ 	lock(&allpLock)
++	// We can't use a range loop over allp because we may
++	// temporarily drop the allpLock. Hence, we need to re-fetch
++	// allp each time around the loop.
+ 	for i := 0; i < len(allp); i++ {
+ 		_p_ := allp[i]
+ 		if _p_ == nil {
++			// This can happen if procresize has grown
++			// allp but not yet created new Ps.
+ 			continue
+ 		}
+ 		pd := &_p_.sysmontick
+@@ -4044,9 +4042,8 @@ func retake(now int64) uint32 {
+ // Returns true if preemption request was issued to at least one goroutine.
+ func preemptall() bool {
+ 	res := false
+-	for i := int32(0); i < gomaxprocs; i++ {
+-		_p_ := allp[i]
+-		if _p_ == nil || _p_.status != _Prunning {
++	for _, _p_ := range allp {
++		if _p_.status != _Prunning {
+ 			continue
+ 		}
+ 		if preemptone(_p_) {
+@@ -4102,11 +4099,7 @@ func schedtrace(detailed bool) {
+ 	// We must be careful while reading data from P's, M's and G's.
+ 	// Even if we hold schedlock, most data can be changed concurrently.
+ 	// E.g. (p->m ? p->m->id : -1) can crash if p->m changes from non-nil to nil.
+-	for i := int32(0); i < gomaxprocs; i++ {
+-		_p_ := allp[i]
+-		if _p_ == nil {
+-			continue
+-		}
++	for i, _p_ := range allp {
+ 		mp := _p_.m.ptr()
+ 		h := atomic.Load(&_p_.runqhead)
+ 		t := atomic.Load(&_p_.runqtail)
+@@ -4124,7 +4117,7 @@ func schedtrace(detailed bool) {
+ 				print("[")
+ 			}
+ 			print(t - h)
+-			if i == gomaxprocs-1 {
++			if i == len(allp)-1 {
+ 				print("]\n")
+ 			}
+ 		}
+diff --git a/src/runtime/trace.go b/src/runtime/trace.go
+index 398d0449b4..e179e18b9f 100644
+--- a/src/runtime/trace.go
++++ b/src/runtime/trace.go
+@@ -280,9 +280,6 @@ func StopTrace() {
+ 	// Loop over all allocated Ps because dead Ps may still have
+ 	// trace buffers.
+ 	for _, p := range allp[:cap(allp)] {
+-		if p == nil {
+-			break
+-		}
+ 		buf := p.tracebuf
+ 		if buf != 0 {
+ 			traceFullQueue(buf)
+@@ -323,9 +320,6 @@ func StopTrace() {
+ 	// The lock protects us from races with StartTrace/StopTrace because they do stop-the-world.
+ 	lock(&trace.lock)
+ 	for _, p := range allp[:cap(allp)] {
+-		if p == nil {
+-			break
+-		}
+ 		if p.tracebuf != 0 {
+ 			throw("trace: non-empty trace buffer in proc")
+ 		}

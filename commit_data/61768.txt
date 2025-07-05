@@ -26,7 +26,7 @@ Date:   Sat Nov 16 11:17:54 2024 -0800
     Reviewed-by: Damien Neil <dneil@google.com>
     Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  api/next/68484.txt                                 |  13 +
  doc/next/6-stdlib/99-minor/crypto/x509/68484.md    |   5 +
  src/crypto/x509/oid_test.go                        |  63 ++-
@@ -65,3 +65,1865 @@ Date:   Sat Nov 16 11:17:54 2024 -0800
  src/crypto/x509/x509.go                            |  74 ++++
  src/crypto/x509/x509_test.go                       |  10 +-
  37 files changed, 1386 insertions(+), 53 deletions(-)
+
+diff --git a/api/next/68484.txt b/api/next/68484.txt
+new file mode 100644
+index 0000000000..99cef3259c
+--- /dev/null
++++ b/api/next/68484.txt
+@@ -0,0 +1,13 @@
++pkg crypto/x509, type Certificate struct, InhibitAnyPolicy int #68484
++pkg crypto/x509, type Certificate struct, InhibitAnyPolicyZero bool #68484
++pkg crypto/x509, type Certificate struct, InhibitPolicyMapping int #68484
++pkg crypto/x509, type Certificate struct, InhibitPolicyMappingZero bool #68484
++pkg crypto/x509, type Certificate struct, PolicyMappings []PolicyMapping #68484
++pkg crypto/x509, type Certificate struct, RequireExplicitPolicy int #68484
++pkg crypto/x509, type Certificate struct, RequireExplicitPolicyZero bool #68484
++pkg crypto/x509, type PolicyMapping struct #68484
++pkg crypto/x509, type PolicyMapping struct, IssuerDomainPolicy OID #68484
++pkg crypto/x509, type PolicyMapping struct, SubjectDomainPolicy OID #68484
++pkg crypto/x509, type VerifyOptions struct, CertificatePolicies []OID #68484
++pkg crypto/x509, const NoValidChains = 10 #68484
++pkg crypto/x509, const NoValidChains InvalidReason #68484
+diff --git a/doc/next/6-stdlib/99-minor/crypto/x509/68484.md b/doc/next/6-stdlib/99-minor/crypto/x509/68484.md
+new file mode 100644
+index 0000000000..ee819546c5
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/crypto/x509/68484.md
+@@ -0,0 +1,5 @@
++[Certificate.Verify] now supports policy validation, as defined by RFC 5280 and
++RFC 9618. In order to enable policy validation,
++[VerifyOptions.CertificatePolicies] must be set to an acceptable set of policy
++[OIDs]. When enabled, only certificate chains with valid policy graphs will be
++returned from [Certificate.Verify].
+\ No newline at end of file
+diff --git a/src/crypto/x509/oid_test.go b/src/crypto/x509/oid_test.go
+index 0b60895a12..ce3a0672a6 100644
+--- a/src/crypto/x509/oid_test.go
++++ b/src/crypto/x509/oid_test.go
+@@ -133,12 +133,12 @@ func TestOIDEqual(t *testing.T) {
+ 		oid2 OID
+ 		eq   bool
+ 	}{
+-		{oid: mustNewOIDFromInts(t, []uint64{1, 2, 3}), oid2: mustNewOIDFromInts(t, []uint64{1, 2, 3}), eq: true},
+-		{oid: mustNewOIDFromInts(t, []uint64{1, 2, 3}), oid2: mustNewOIDFromInts(t, []uint64{1, 2, 4}), eq: false},
+-		{oid: mustNewOIDFromInts(t, []uint64{1, 2, 3}), oid2: mustNewOIDFromInts(t, []uint64{1, 2, 3, 4}), eq: false},
+-		{oid: mustNewOIDFromInts(t, []uint64{2, 33, 22}), oid2: mustNewOIDFromInts(t, []uint64{2, 33, 23}), eq: false},
++		{oid: mustNewOIDFromInts([]uint64{1, 2, 3}), oid2: mustNewOIDFromInts([]uint64{1, 2, 3}), eq: true},
++		{oid: mustNewOIDFromInts([]uint64{1, 2, 3}), oid2: mustNewOIDFromInts([]uint64{1, 2, 4}), eq: false},
++		{oid: mustNewOIDFromInts([]uint64{1, 2, 3}), oid2: mustNewOIDFromInts([]uint64{1, 2, 3, 4}), eq: false},
++		{oid: mustNewOIDFromInts([]uint64{2, 33, 22}), oid2: mustNewOIDFromInts([]uint64{2, 33, 23}), eq: false},
+ 		{oid: OID{}, oid2: OID{}, eq: true},
+-		{oid: OID{}, oid2: mustNewOIDFromInts(t, []uint64{2, 33, 23}), eq: false},
++		{oid: OID{}, oid2: mustNewOIDFromInts([]uint64{2, 33, 23}), eq: false},
+ 	}
+ 
+ 	for _, tt := range cases {
+@@ -277,32 +277,32 @@ func TestOIDEqualASN1OID(t *testing.T) {
+ 		oid2 asn1.ObjectIdentifier
+ 		eq   bool
+ 	}{
+-		{oid: mustNewOIDFromInts(t, []uint64{1, 2, 3}), oid2: asn1.ObjectIdentifier{1, 2, 3}, eq: true},
+-		{oid: mustNewOIDFromInts(t, []uint64{1, 2, 3}), oid2: asn1.ObjectIdentifier{1, 2, 4}, eq: false},
+-		{oid: mustNewOIDFromInts(t, []uint64{1, 2, 3}), oid2: asn1.ObjectIdentifier{1, 2, 3, 4}, eq: false},
+-		{oid: mustNewOIDFromInts(t, []uint64{1, 33, 22}), oid2: asn1.ObjectIdentifier{1, 33, 23}, eq: false},
+-		{oid: mustNewOIDFromInts(t, []uint64{1, 33, 23}), oid2: asn1.ObjectIdentifier{1, 33, 22}, eq: false},
+-		{oid: mustNewOIDFromInts(t, []uint64{1, 33, 127}), oid2: asn1.ObjectIdentifier{1, 33, 127}, eq: true},
+-		{oid: mustNewOIDFromInts(t, []uint64{1, 33, 128}), oid2: asn1.ObjectIdentifier{1, 33, 127}, eq: false},
+-		{oid: mustNewOIDFromInts(t, []uint64{1, 33, 128}), oid2: asn1.ObjectIdentifier{1, 33, 128}, eq: true},
+-		{oid: mustNewOIDFromInts(t, []uint64{1, 33, 129}), oid2: asn1.ObjectIdentifier{1, 33, 129}, eq: true},
+-		{oid: mustNewOIDFromInts(t, []uint64{1, 33, 128}), oid2: asn1.ObjectIdentifier{1, 33, 129}, eq: false},
+-		{oid: mustNewOIDFromInts(t, []uint64{1, 33, 129}), oid2: asn1.ObjectIdentifier{1, 33, 128}, eq: false},
+-		{oid: mustNewOIDFromInts(t, []uint64{1, 33, 255}), oid2: asn1.ObjectIdentifier{1, 33, 255}, eq: true},
+-		{oid: mustNewOIDFromInts(t, []uint64{1, 33, 256}), oid2: asn1.ObjectIdentifier{1, 33, 256}, eq: true},
+-		{oid: mustNewOIDFromInts(t, []uint64{2, 33, 257}), oid2: asn1.ObjectIdentifier{2, 33, 256}, eq: false},
+-		{oid: mustNewOIDFromInts(t, []uint64{2, 33, 256}), oid2: asn1.ObjectIdentifier{2, 33, 257}, eq: false},
+-
+-		{oid: mustNewOIDFromInts(t, []uint64{1, 33}), oid2: asn1.ObjectIdentifier{1, 33, math.MaxInt32}, eq: false},
+-		{oid: mustNewOIDFromInts(t, []uint64{1, 33, math.MaxInt32}), oid2: asn1.ObjectIdentifier{1, 33}, eq: false},
+-		{oid: mustNewOIDFromInts(t, []uint64{1, 33, math.MaxInt32}), oid2: asn1.ObjectIdentifier{1, 33, math.MaxInt32}, eq: true},
++		{oid: mustNewOIDFromInts([]uint64{1, 2, 3}), oid2: asn1.ObjectIdentifier{1, 2, 3}, eq: true},
++		{oid: mustNewOIDFromInts([]uint64{1, 2, 3}), oid2: asn1.ObjectIdentifier{1, 2, 4}, eq: false},
++		{oid: mustNewOIDFromInts([]uint64{1, 2, 3}), oid2: asn1.ObjectIdentifier{1, 2, 3, 4}, eq: false},
++		{oid: mustNewOIDFromInts([]uint64{1, 33, 22}), oid2: asn1.ObjectIdentifier{1, 33, 23}, eq: false},
++		{oid: mustNewOIDFromInts([]uint64{1, 33, 23}), oid2: asn1.ObjectIdentifier{1, 33, 22}, eq: false},
++		{oid: mustNewOIDFromInts([]uint64{1, 33, 127}), oid2: asn1.ObjectIdentifier{1, 33, 127}, eq: true},
++		{oid: mustNewOIDFromInts([]uint64{1, 33, 128}), oid2: asn1.ObjectIdentifier{1, 33, 127}, eq: false},
++		{oid: mustNewOIDFromInts([]uint64{1, 33, 128}), oid2: asn1.ObjectIdentifier{1, 33, 128}, eq: true},
++		{oid: mustNewOIDFromInts([]uint64{1, 33, 129}), oid2: asn1.ObjectIdentifier{1, 33, 129}, eq: true},
++		{oid: mustNewOIDFromInts([]uint64{1, 33, 128}), oid2: asn1.ObjectIdentifier{1, 33, 129}, eq: false},
++		{oid: mustNewOIDFromInts([]uint64{1, 33, 129}), oid2: asn1.ObjectIdentifier{1, 33, 128}, eq: false},
++		{oid: mustNewOIDFromInts([]uint64{1, 33, 255}), oid2: asn1.ObjectIdentifier{1, 33, 255}, eq: true},
++		{oid: mustNewOIDFromInts([]uint64{1, 33, 256}), oid2: asn1.ObjectIdentifier{1, 33, 256}, eq: true},
++		{oid: mustNewOIDFromInts([]uint64{2, 33, 257}), oid2: asn1.ObjectIdentifier{2, 33, 256}, eq: false},
++		{oid: mustNewOIDFromInts([]uint64{2, 33, 256}), oid2: asn1.ObjectIdentifier{2, 33, 257}, eq: false},
++
++		{oid: mustNewOIDFromInts([]uint64{1, 33}), oid2: asn1.ObjectIdentifier{1, 33, math.MaxInt32}, eq: false},
++		{oid: mustNewOIDFromInts([]uint64{1, 33, math.MaxInt32}), oid2: asn1.ObjectIdentifier{1, 33}, eq: false},
++		{oid: mustNewOIDFromInts([]uint64{1, 33, math.MaxInt32}), oid2: asn1.ObjectIdentifier{1, 33, math.MaxInt32}, eq: true},
+ 		{
+-			oid:  mustNewOIDFromInts(t, []uint64{1, 33, math.MaxInt32 + 1}),
++			oid:  mustNewOIDFromInts([]uint64{1, 33, math.MaxInt32 + 1}),
+ 			oid2: asn1.ObjectIdentifier{1, 33 /*convert to int, so that it compiles on 32bit*/, int(maxInt32PlusOne)},
+ 			eq:   false,
+ 		},
+ 
+-		{oid: mustNewOIDFromInts(t, []uint64{1, 33, 256}), oid2: asn1.ObjectIdentifier{}, eq: false},
++		{oid: mustNewOIDFromInts([]uint64{1, 33, 256}), oid2: asn1.ObjectIdentifier{}, eq: false},
+ 		{oid: OID{}, oid2: asn1.ObjectIdentifier{1, 33, 256}, eq: false},
+ 		{oid: OID{}, oid2: asn1.ObjectIdentifier{}, eq: false},
+ 	}
+@@ -331,7 +331,7 @@ func TestOIDUnmarshalBinary(t *testing.T) {
+ }
+ 
+ func BenchmarkOIDMarshalUnmarshalText(b *testing.B) {
+-	oid := mustNewOIDFromInts(b, []uint64{1, 2, 3, 9999, 1024})
++	oid := mustNewOIDFromInts([]uint64{1, 2, 3, 9999, 1024})
+ 	for range b.N {
+ 		text, err := oid.MarshalText()
+ 		if err != nil {
+@@ -343,12 +343,3 @@ func BenchmarkOIDMarshalUnmarshalText(b *testing.B) {
+ 		}
+ 	}
+ }
+-
+-func mustNewOIDFromInts(t testing.TB, ints []uint64) OID {
+-	t.Helper()
+-	oid, err := OIDFromInts(ints)
+-	if err != nil {
+-		t.Fatalf("OIDFromInts(%v) unexpected error: %v", ints, err)
+-	}
+-	return oid
+-}
+diff --git a/src/crypto/x509/parser.go b/src/crypto/x509/parser.go
+index 3ba5f6a4e1..88d9114625 100644
+--- a/src/crypto/x509/parser.go
++++ b/src/crypto/x509/parser.go
+@@ -458,6 +458,7 @@ func parseExtKeyUsageExtension(der cryptobyte.String) ([]ExtKeyUsage, []asn1.Obj
+ 
+ func parseCertificatePoliciesExtension(der cryptobyte.String) ([]OID, error) {
+ 	var oids []OID
++	seenOIDs := map[string]bool{}
+ 	if !der.ReadASN1(&der, cryptobyte_asn1.SEQUENCE) {
+ 		return nil, errors.New("x509: invalid certificate policies")
+ 	}
+@@ -467,6 +468,10 @@ func parseCertificatePoliciesExtension(der cryptobyte.String) ([]OID, error) {
+ 		if !der.ReadASN1(&cp, cryptobyte_asn1.SEQUENCE) || !cp.ReadASN1(&OIDBytes, cryptobyte_asn1.OBJECT_IDENTIFIER) {
+ 			return nil, errors.New("x509: invalid certificate policies")
+ 		}
++		if seenOIDs[string(OIDBytes)] {
++			return nil, errors.New("x509: invalid certificate policies")
++		}
++		seenOIDs[string(OIDBytes)] = true
+ 		oid, ok := newOIDFromDER(OIDBytes)
+ 		if !ok {
+ 			return nil, errors.New("x509: invalid certificate policies")
+@@ -747,13 +752,41 @@ func processExtensions(out *Certificate) error {
+ 				if err != nil {
+ 					return err
+ 				}
++			case 36:
++				val := cryptobyte.String(e.Value)
++				if !val.ReadASN1(&val, cryptobyte_asn1.SEQUENCE) {
++					return errors.New("x509: invalid policy constraints extension")
++				}
++				if val.PeekASN1Tag(cryptobyte_asn1.Tag(0).ContextSpecific()) {
++					var v int64
++					if !val.ReadASN1Int64WithTag(&v, cryptobyte_asn1.Tag(0).ContextSpecific()) {
++						return errors.New("x509: invalid policy constraints extension")
++					}
++					out.RequireExplicitPolicy = int(v)
++					// Check for overflow.
++					if int64(out.RequireExplicitPolicy) != v {
++						return errors.New("x509: policy constraints requireExplicitPolicy field overflows int")
++					}
++					out.RequireExplicitPolicyZero = out.RequireExplicitPolicy == 0
++				}
++				if val.PeekASN1Tag(cryptobyte_asn1.Tag(1).ContextSpecific()) {
++					var v int64
++					if !val.ReadASN1Int64WithTag(&v, cryptobyte_asn1.Tag(1).ContextSpecific()) {
++						return errors.New("x509: invalid policy constraints extension")
++					}
++					out.InhibitPolicyMapping = int(v)
++					// Check for overflow.
++					if int64(out.InhibitPolicyMapping) != v {
++						return errors.New("x509: policy constraints inhibitPolicyMapping field overflows int")
++					}
++					out.InhibitPolicyMappingZero = out.InhibitPolicyMapping == 0
++				}
+ 			case 37:
+ 				out.ExtKeyUsage, out.UnknownExtKeyUsage, err = parseExtKeyUsageExtension(e.Value)
+ 				if err != nil {
+ 					return err
+ 				}
+-			case 14:
+-				// RFC 5280, 4.2.1.2
++			case 14: // RFC 5280, 4.2.1.2
+ 				if e.Critical {
+ 					// Conforming CAs MUST mark this extension as non-critical
+ 					return errors.New("x509: subject key identifier incorrectly marked critical")
+@@ -775,6 +808,27 @@ func processExtensions(out *Certificate) error {
+ 						out.PolicyIdentifiers = append(out.PolicyIdentifiers, oid)
+ 					}
+ 				}
++			case 33:
++				val := cryptobyte.String(e.Value)
++				if !val.ReadASN1(&val, cryptobyte_asn1.SEQUENCE) {
++					return errors.New("x509: invalid policy mappings extension")
++				}
++				for !val.Empty() {
++					var s cryptobyte.String
++					var issuer, subject cryptobyte.String
++					if !val.ReadASN1(&s, cryptobyte_asn1.SEQUENCE) ||
++						!s.ReadASN1(&issuer, cryptobyte_asn1.OBJECT_IDENTIFIER) ||
++						!s.ReadASN1(&subject, cryptobyte_asn1.OBJECT_IDENTIFIER) {
++						return errors.New("x509: invalid policy mappings extension")
++					}
++					out.PolicyMappings = append(out.PolicyMappings, PolicyMapping{OID{issuer}, OID{subject}})
++				}
++			case 54:
++				val := cryptobyte.String(e.Value)
++				if !val.ReadASN1Integer(&out.InhibitAnyPolicy) {
++					return errors.New("x509: invalid inhibit any policy extension")
++				}
++				out.InhibitAnyPolicyZero = out.InhibitAnyPolicy == 0
+ 			default:
+ 				// Unknown extensions are recorded if critical.
+ 				unhandled = true
+diff --git a/src/crypto/x509/parser_test.go b/src/crypto/x509/parser_test.go
+index b31f9cdb24..1ffc32daef 100644
+--- a/src/crypto/x509/parser_test.go
++++ b/src/crypto/x509/parser_test.go
+@@ -6,6 +6,8 @@ package x509
+ 
+ import (
+ 	"encoding/asn1"
++	"encoding/pem"
++	"os"
+ 	"testing"
+ 
+ 	cryptobyte_asn1 "golang.org/x/crypto/cryptobyte/asn1"
+@@ -101,3 +103,84 @@ func TestParseASN1String(t *testing.T) {
+ 		})
+ 	}
+ }
++
++const policyPEM = `-----BEGIN CERTIFICATE-----
++MIIGeDCCBWCgAwIBAgIUED9KQBi0ScBDoufB2mgAJ63G5uIwDQYJKoZIhvcNAQEL
++BQAwVTELMAkGA1UEBhMCVVMxGDAWBgNVBAoTD1UuUy4gR292ZXJubWVudDENMAsG
++A1UECxMERlBLSTEdMBsGA1UEAxMURmVkZXJhbCBCcmlkZ2UgQ0EgRzQwHhcNMjAx
++MDIyMTcwNDE5WhcNMjMxMDIyMTcwNDE5WjCBgTELMAkGA1UEBhMCVVMxHTAbBgNV
++BAoTFFN5bWFudGVjIENvcnBvcmF0aW9uMR8wHQYDVQQLExZTeW1hbnRlYyBUcnVz
++dCBOZXR3b3JrMTIwMAYDVQQDEylTeW1hbnRlYyBDbGFzcyAzIFNTUCBJbnRlcm1l
++ZGlhdGUgQ0EgLSBHMzCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAL2p
++75cMpx86sS2aH4r+0o8r+m/KTrPrknWP0RA9Kp6sewAzkNa7BVwg0jOhyamiv1iP
++Cns10usoH93nxYbXLWF54vOLRdYU/53KEPNmgkj2ipMaTLuaReBghNibikWSnAmy
++S8RItaDMs8tdF2goKPI4xWiamNwqe92VC+pic2tq0Nva3Y4kvMDJjtyje3uduTtL
++oyoaaHkrX7i7gE67psnMKj1THUtre1JV1ohl9+oOuyot4p3eSxVlrMWiiwb11bnk
++CakecOz/mP2DHMGg6pZ/BeJ+ThaLUylAXECARIqHc9UwRPKC9BfLaCX4edIoeYiB
++loRs4KdqLdg/I9eTwKkCAwEAAaOCAxEwggMNMB0GA1UdDgQWBBQ1Jn1QleGhwb0F
++1cOdd0LHDBOWjDAfBgNVHSMEGDAWgBR58ABJ6393wl1BAmU0ipAjmx4HbzAOBgNV
++HQ8BAf8EBAMCAQYwDwYDVR0TAQH/BAUwAwEB/zCBiAYDVR0gBIGAMH4wDAYKYIZI
++AWUDAgEDAzAMBgpghkgBZQMCAQMMMAwGCmCGSAFlAwIBAw4wDAYKYIZIAWUDAgED
++DzAMBgpghkgBZQMCAQMSMAwGCmCGSAFlAwIBAxMwDAYKYIZIAWUDAgEDFDAMBgpg
++hkgBZQMCAQMlMAwGCmCGSAFlAwIBAyYwggESBgNVHSEEggEJMIIBBTAbBgpghkgB
++ZQMCAQMDBg1ghkgBhvhFAQcXAwEGMBsGCmCGSAFlAwIBAwwGDWCGSAGG+EUBBxcD
++AQcwGwYKYIZIAWUDAgEDDgYNYIZIAYb4RQEHFwMBDjAbBgpghkgBZQMCAQMPBg1g
++hkgBhvhFAQcXAwEPMBsGCmCGSAFlAwIBAxIGDWCGSAGG+EUBBxcDARIwGwYKYIZI
++AWUDAgEDEwYNYIZIAYb4RQEHFwMBETAbBgpghkgBZQMCAQMUBg1ghkgBhvhFAQcX
++AwEUMBsGCmCGSAFlAwIBAyUGDWCGSAGG+EUBBxcDAQgwGwYKYIZIAWUDAgEDJgYN
++YIZIAYb4RQEHFwMBJDBgBggrBgEFBQcBCwRUMFIwUAYIKwYBBQUHMAWGRGh0dHA6
++Ly9zc3Atc2lhLnN5bWF1dGguY29tL1NUTlNTUC9DZXJ0c19Jc3N1ZWRfYnlfQ2xh
++c3MzU1NQQ0EtRzMucDdjMA8GA1UdJAQIMAaAAQCBAQAwCgYDVR02BAMCAQAwUQYI
++KwYBBQUHAQEERTBDMEEGCCsGAQUFBzAChjVodHRwOi8vcmVwby5mcGtpLmdvdi9i
++cmlkZ2UvY2FDZXJ0c0lzc3VlZFRvZmJjYWc0LnA3YzA3BgNVHR8EMDAuMCygKqAo
++hiZodHRwOi8vcmVwby5mcGtpLmdvdi9icmlkZ2UvZmJjYWc0LmNybDANBgkqhkiG
++9w0BAQsFAAOCAQEAA751TycC1f/WTkHmedF9ZWxP58Jstmwvkyo8bKueJ0eF7LTG
++BgQlzE2B9vke4sFhd4V+BdgOPGE1dsGzllYKCWg0BhkCBs5kIJ7F6Ay6G1TBuGU1
++Ie8247GL+P9pcC5TVvXHC/62R2w3DuD/vAPLbYEbSQjobXlsqt8Kmtd6yK/jVuDV
++BTZMdZmvoNtjemqmgcBXHsf0ctVm0m6tH5uYqyVxu8tfyUis6Cf303PHj+spWP1k
++gc5PYnVF0ot7qAmNFENIpbKg3BdusBkF9rGxLaDSUBvSc7+s9iQz9d/iRuAebrYu
+++eqUlJ2lsjS1U8qyPmlH+spfPNbAEQEsuP32Aw==
++-----END CERTIFICATE-----
++`
++
++func TestPolicyParse(t *testing.T) {
++	b, _ := pem.Decode([]byte(policyPEM))
++	c, err := ParseCertificate(b.Bytes)
++	if err != nil {
++		t.Fatal(err)
++	}
++	if len(c.Policies) != 9 {
++		t.Errorf("unexpected number of policies: got %d, want %d", len(c.Policies), 9)
++	}
++	if len(c.PolicyMappings) != 9 {
++		t.Errorf("unexpected number of policy mappings: got %d, want %d", len(c.PolicyMappings), 9)
++	}
++	if !c.RequireExplicitPolicyZero {
++		t.Error("expected RequireExplicitPolicyZero to be set")
++	}
++	if !c.InhibitPolicyMappingZero {
++		t.Error("expected InhibitPolicyMappingZero to be set")
++	}
++	if !c.InhibitAnyPolicyZero {
++		t.Error("expected InhibitAnyPolicyZero to be set")
++	}
++}
++
++func TestParsePolicies(t *testing.T) {
++	for _, tc := range []string{
++		"testdata/policy_leaf_duplicate.pem",
++		"testdata/policy_leaf_invalid.pem",
++	} {
++		t.Run(tc, func(t *testing.T) {
++			b, err := os.ReadFile(tc)
++			if err != nil {
++				t.Fatal(err)
++			}
++			p, _ := pem.Decode(b)
++			_, err = ParseCertificate(p.Bytes)
++			if err == nil {
++				t.Error("parsing should've failed")
++			}
++		})
++	}
++}
+diff --git a/src/crypto/x509/root_unix_test.go b/src/crypto/x509/root_unix_test.go
+index e2b678d48b..b03a03d116 100644
+--- a/src/crypto/x509/root_unix_test.go
++++ b/src/crypto/x509/root_unix_test.go
+@@ -17,7 +17,6 @@ import (
+ )
+ 
+ const (
+-	testDir     = "testdata"
+ 	testDirCN   = "test-dir"
+ 	testFile    = "test-file.crt"
+ 	testFileCN  = "test-file"
+@@ -25,6 +24,17 @@ const (
+ )
+ 
+ func TestEnvVars(t *testing.T) {
++	tmpDir := t.TempDir()
++	testCert, err := os.ReadFile("testdata/test-dir.crt")
++	if err != nil {
++		t.Fatalf("failed to read test cert: %s", err)
++	}
++	if err := os.WriteFile(filepath.Join(tmpDir, testFile), testCert, 0644); err != nil {
++		if err != nil {
++			t.Fatalf("failed to write test cert: %s", err)
++		}
++	}
++
+ 	testCases := []struct {
+ 		name    string
+ 		fileEnv string
+@@ -39,7 +49,7 @@ func TestEnvVars(t *testing.T) {
+ 			fileEnv: testMissing,
+ 			dirEnv:  testMissing,
+ 			files:   []string{testFile},
+-			dirs:    []string{testDir},
++			dirs:    []string{tmpDir},
+ 			cns:     nil,
+ 		},
+ 		{
+@@ -55,7 +65,7 @@ func TestEnvVars(t *testing.T) {
+ 			// Directory environment overrides default directory locations.
+ 			name:    "dir",
+ 			fileEnv: "",
+-			dirEnv:  testDir,
++			dirEnv:  tmpDir,
+ 			files:   nil,
+ 			dirs:    nil,
+ 			cns:     []string{testDirCN},
+@@ -64,7 +74,7 @@ func TestEnvVars(t *testing.T) {
+ 			// File & directory environment overrides both default locations.
+ 			name:    "file+dir",
+ 			fileEnv: testFile,
+-			dirEnv:  testDir,
++			dirEnv:  tmpDir,
+ 			files:   nil,
+ 			dirs:    nil,
+ 			cns:     []string{testFileCN, testDirCN},
+@@ -75,7 +85,7 @@ func TestEnvVars(t *testing.T) {
+ 			fileEnv: "",
+ 			dirEnv:  "",
+ 			files:   []string{testFile},
+-			dirs:    []string{testDir},
++			dirs:    []string{tmpDir},
+ 			cns:     []string{testFileCN, testDirCN},
+ 		},
+ 	}
+diff --git a/src/crypto/x509/testdata/policy_intermediate.pem b/src/crypto/x509/testdata/policy_intermediate.pem
+new file mode 100644
+index 0000000000..759deb4c43
+--- /dev/null
++++ b/src/crypto/x509/testdata/policy_intermediate.pem
+@@ -0,0 +1,11 @@
++-----BEGIN CERTIFICATE-----
++MIIBqjCCAVGgAwIBAgIBAjAKBggqhkjOPQQDAjAWMRQwEgYDVQQDEwtQb2xpY3kg
++Um9vdDAgFw0wMDAxMDEwMDAwMDBaGA8yMTAwMDEwMTAwMDAwMFowHjEcMBoGA1UE
++AxMTUG9saWN5IEludGVybWVkaWF0ZTBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IA
++BOI6fKiM3jFLkLyAn88cvlw4SwxuygRjopP3FFBKHyUQvh3VVvfqSpSCSmp50Qia
++jQ6Dg7CTpVZVVH+bguT7JTCjgYUwgYIwDgYDVR0PAQH/BAQDAgIEMBMGA1UdJQQM
++MAoGCCsGAQUFBwMBMA8GA1UdEwEB/wQFMAMBAf8wHQYDVR0OBBYEFJDS9/4O7qhr
++CIRhwsXrPVBagG2uMCsGA1UdIAQkMCIwDwYNKoZIhvcSBAGEtwkCATAPBg0qhkiG
++9xIEAYS3CQICMAoGCCqGSM49BAMCA0cAMEQCIFN2ZtknXQ9vz23qD1ecprC9iIo7
++j/SI42Ub64qZQaraAiA+CRCWJz/l+NQ1+TPWYDDWY6Wh2L9Wbddh1Nj5KJEkhQ==
++-----END CERTIFICATE-----
+diff --git a/src/crypto/x509/testdata/policy_intermediate_any.pem b/src/crypto/x509/testdata/policy_intermediate_any.pem
+new file mode 100644
+index 0000000000..0931964f52
+--- /dev/null
++++ b/src/crypto/x509/testdata/policy_intermediate_any.pem
+@@ -0,0 +1,11 @@
++-----BEGIN CERTIFICATE-----
++MIIBkDCCATWgAwIBAgIBAjAKBggqhkjOPQQDAjAWMRQwEgYDVQQDEwtQb2xpY3kg
++Um9vdDAgFw0wMDAxMDEwMDAwMDBaGA8yMTAwMDEwMTAwMDAwMFowHjEcMBoGA1UE
++AxMTUG9saWN5IEludGVybWVkaWF0ZTBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IA
++BOI6fKiM3jFLkLyAn88cvlw4SwxuygRjopP3FFBKHyUQvh3VVvfqSpSCSmp50Qia
++jQ6Dg7CTpVZVVH+bguT7JTCjajBoMA4GA1UdDwEB/wQEAwICBDATBgNVHSUEDDAK
++BggrBgEFBQcDATAPBgNVHRMBAf8EBTADAQH/MB0GA1UdDgQWBBSQ0vf+Du6oawiE
++YcLF6z1QWoBtrjARBgNVHSAECjAIMAYGBFUdIAAwCgYIKoZIzj0EAwIDSQAwRgIh
++AJbyXshUwjsFCiqrJkg91GzJdhZZ+3WXOekCJgi8uEESAiEAhv4sEE0wRRqgHDjl
++vIt26IELfFE2Z/FBF3ihGmi6NoI=
++-----END CERTIFICATE-----
+diff --git a/src/crypto/x509/testdata/policy_intermediate_duplicate.pem b/src/crypto/x509/testdata/policy_intermediate_duplicate.pem
+new file mode 100644
+index 0000000000..0eafe8d86a
+--- /dev/null
++++ b/src/crypto/x509/testdata/policy_intermediate_duplicate.pem
+@@ -0,0 +1,12 @@
++-----BEGIN CERTIFICATE-----
++MIIBvDCCAWKgAwIBAgIBAjAKBggqhkjOPQQDAjAWMRQwEgYDVQQDEwtQb2xpY3kg
++Um9vdDAgFw0wMDAxMDEwMDAwMDBaGA8yMTAwMDEwMTAwMDAwMFowHjEcMBoGA1UE
++AxMTUG9saWN5IEludGVybWVkaWF0ZTBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IA
++BOI6fKiM3jFLkLyAn88cvlw4SwxuygRjopP3FFBKHyUQvh3VVvfqSpSCSmp50Qia
++jQ6Dg7CTpVZVVH+bguT7JTCjgZYwgZMwDgYDVR0PAQH/BAQDAgIEMBMGA1UdJQQM
++MAoGCCsGAQUFBwMBMA8GA1UdEwEB/wQFMAMBAf8wHQYDVR0OBBYEFJDS9/4O7qhr
++CIRhwsXrPVBagG2uMDwGA1UdIAQ1MDMwDwYNKoZIhvcSBAGEtwkCATAPBg0qhkiG
++9xIEAYS3CQICMA8GDSqGSIb3EgQBhLcJAgIwCgYIKoZIzj0EAwIDSAAwRQIgUpG6
++FUeWrC62BtTPHiSlWBdnLWUYH0llS6uYUkpJFJECIQCWfhoZYXvHdMhgBDSI/vzY
++Sw4uNdcMxrC2kP6lIioUSw==
++-----END CERTIFICATE-----
+diff --git a/src/crypto/x509/testdata/policy_intermediate_invalid.pem b/src/crypto/x509/testdata/policy_intermediate_invalid.pem
+new file mode 100644
+index 0000000000..11c95afcea
+--- /dev/null
++++ b/src/crypto/x509/testdata/policy_intermediate_invalid.pem
+@@ -0,0 +1,11 @@
++-----BEGIN CERTIFICATE-----
++MIIBjDCCATKgAwIBAgIBAjAKBggqhkjOPQQDAjAWMRQwEgYDVQQDEwtQb2xpY3kg
++Um9vdDAgFw0wMDAxMDEwMDAwMDBaGA8yMTAwMDEwMTAwMDAwMFowHjEcMBoGA1UE
++AxMTUG9saWN5IEludGVybWVkaWF0ZTBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IA
++BOI6fKiM3jFLkLyAn88cvlw4SwxuygRjopP3FFBKHyUQvh3VVvfqSpSCSmp50Qia
++jQ6Dg7CTpVZVVH+bguT7JTCjZzBlMA4GA1UdDwEB/wQEAwICBDATBgNVHSUEDDAK
++BggrBgEFBQcDATAPBgNVHRMBAf8EBTADAQH/MB0GA1UdDgQWBBSQ0vf+Du6oawiE
++YcLF6z1QWoBtrjAOBgNVHSAEB0lOVkFMSUQwCgYIKoZIzj0EAwIDSAAwRQIgS2uK
++cYlZ1bxeqgMy3X0Sfi0arAnqpePsAqAeEf+HJHQCIQDwfCnXrWyHET9lM/gJSkfN
++j/JRJvJELDrAMVewCxZWKA==
++-----END CERTIFICATE-----
+diff --git a/src/crypto/x509/testdata/policy_intermediate_mapped.pem b/src/crypto/x509/testdata/policy_intermediate_mapped.pem
+new file mode 100644
+index 0000000000..fa45e604b4
+--- /dev/null
++++ b/src/crypto/x509/testdata/policy_intermediate_mapped.pem
+@@ -0,0 +1,17 @@
++-----BEGIN CERTIFICATE-----
++MIICrjCCAlSgAwIBAgIBAjAKBggqhkjOPQQDAjAWMRQwEgYDVQQDEwtQb2xpY3kg
++Um9vdDAgFw0wMDAxMDEwMDAwMDBaGA8yMTAwMDEwMTAwMDAwMFowHjEcMBoGA1UE
++AxMTUG9saWN5IEludGVybWVkaWF0ZTBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IA
++BOI6fKiM3jFLkLyAn88cvlw4SwxuygRjopP3FFBKHyUQvh3VVvfqSpSCSmp50Qia
++jQ6Dg7CTpVZVVH+bguT7JTCjggGHMIIBgzAOBgNVHQ8BAf8EBAMCAgQwEwYDVR0l
++BAwwCgYIKwYBBQUHAwEwDwYDVR0TAQH/BAUwAwEB/zAdBgNVHQ4EFgQUkNL3/g7u
++qGsIhGHCxes9UFqAba4wXgYDVR0gBFcwVTAPBg0qhkiG9xIEAYS3CQIBMA8GDSqG
++SIb3EgQBhLcJAgIwDwYNKoZIhvcSBAGEtwkCAzAPBg0qhkiG9xIEAYS3CQIEMA8G
++DSqGSIb3EgQBhLcJAgUwgcsGA1UdIQSBwzCBwDAeBg0qhkiG9xIEAYS3CQIDBg0q
++hkiG9xIEAYS3CQIBMB4GDSqGSIb3EgQBhLcJAgMGDSqGSIb3EgQBhLcJAgIwHgYN
++KoZIhvcSBAGEtwkCBAYNKoZIhvcSBAGEtwkCBDAeBg0qhkiG9xIEAYS3CQIEBg0q
++hkiG9xIEAYS3CQIFMB4GDSqGSIb3EgQBhLcJAgUGDSqGSIb3EgQBhLcJAgQwHgYN
++KoZIhvcSBAGEtwkCBQYNKoZIhvcSBAGEtwkCBTAKBggqhkjOPQQDAgNIADBFAiAe
++Ah2vJMZsW/RV35mM7b7/NjsjScjPEIxfDJu49inNXQIhANmGBqyWUogh/gXyVB0/
++IfDro27pANW3R02A+zH34q5k
++-----END CERTIFICATE-----
+diff --git a/src/crypto/x509/testdata/policy_intermediate_mapped_any.pem b/src/crypto/x509/testdata/policy_intermediate_mapped_any.pem
+new file mode 100644
+index 0000000000..ae47bf45ce
+--- /dev/null
++++ b/src/crypto/x509/testdata/policy_intermediate_mapped_any.pem
+@@ -0,0 +1,15 @@
++-----BEGIN CERTIFICATE-----
++MIICYjCCAgegAwIBAgIBAjAKBggqhkjOPQQDAjAWMRQwEgYDVQQDEwtQb2xpY3kg
++Um9vdDAgFw0wMDAxMDEwMDAwMDBaGA8yMTAwMDEwMTAwMDAwMFowHjEcMBoGA1UE
++AxMTUG9saWN5IEludGVybWVkaWF0ZTBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IA
++BOI6fKiM3jFLkLyAn88cvlw4SwxuygRjopP3FFBKHyUQvh3VVvfqSpSCSmp50Qia
++jQ6Dg7CTpVZVVH+bguT7JTCjggE6MIIBNjAOBgNVHQ8BAf8EBAMCAgQwEwYDVR0l
++BAwwCgYIKwYBBQUHAwEwDwYDVR0TAQH/BAUwAwEB/zAdBgNVHQ4EFgQUkNL3/g7u
++qGsIhGHCxes9UFqAba4wEQYDVR0gBAowCDAGBgRVHSAAMIHLBgNVHSEEgcMwgcAw
++HgYNKoZIhvcSBAGEtwkCAwYNKoZIhvcSBAGEtwkCATAeBg0qhkiG9xIEAYS3CQID
++Bg0qhkiG9xIEAYS3CQICMB4GDSqGSIb3EgQBhLcJAgQGDSqGSIb3EgQBhLcJAgQw
++HgYNKoZIhvcSBAGEtwkCBAYNKoZIhvcSBAGEtwkCBTAeBg0qhkiG9xIEAYS3CQIF
++Bg0qhkiG9xIEAYS3CQIEMB4GDSqGSIb3EgQBhLcJAgUGDSqGSIb3EgQBhLcJAgUw
++CgYIKoZIzj0EAwIDSQAwRgIhAIOx3GL5xlldQGdTLIvTTAvczm8wiYHzZDAif2yj
++wAjEAiEAg4K02kTYX9x7PC/u1PYdwvo+LVbnGbO6AN6U3K2d7gs=
++-----END CERTIFICATE-----
+diff --git a/src/crypto/x509/testdata/policy_intermediate_mapped_oid3.pem b/src/crypto/x509/testdata/policy_intermediate_mapped_oid3.pem
+new file mode 100644
+index 0000000000..c04a38a48f
+--- /dev/null
++++ b/src/crypto/x509/testdata/policy_intermediate_mapped_oid3.pem
+@@ -0,0 +1,15 @@
++-----BEGIN CERTIFICATE-----
++MIICajCCAhCgAwIBAgIBAjAKBggqhkjOPQQDAjAWMRQwEgYDVQQDEwtQb2xpY3kg
++Um9vdDAgFw0wMDAxMDEwMDAwMDBaGA8yMTAwMDEwMTAwMDAwMFowHjEcMBoGA1UE
++AxMTUG9saWN5IEludGVybWVkaWF0ZTBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IA
++BOI6fKiM3jFLkLyAn88cvlw4SwxuygRjopP3FFBKHyUQvh3VVvfqSpSCSmp50Qia
++jQ6Dg7CTpVZVVH+bguT7JTCjggFDMIIBPzAOBgNVHQ8BAf8EBAMCAgQwEwYDVR0l
++BAwwCgYIKwYBBQUHAwEwDwYDVR0TAQH/BAUwAwEB/zAdBgNVHQ4EFgQUkNL3/g7u
++qGsIhGHCxes9UFqAba4wGgYDVR0gBBMwETAPBg0qhkiG9xIEAYS3CQIDMIHLBgNV
++HSEEgcMwgcAwHgYNKoZIhvcSBAGEtwkCAwYNKoZIhvcSBAGEtwkCATAeBg0qhkiG
++9xIEAYS3CQIDBg0qhkiG9xIEAYS3CQICMB4GDSqGSIb3EgQBhLcJAgQGDSqGSIb3
++EgQBhLcJAgQwHgYNKoZIhvcSBAGEtwkCBAYNKoZIhvcSBAGEtwkCBTAeBg0qhkiG
++9xIEAYS3CQIFBg0qhkiG9xIEAYS3CQIEMB4GDSqGSIb3EgQBhLcJAgUGDSqGSIb3
++EgQBhLcJAgUwCgYIKoZIzj0EAwIDSAAwRQIhAK0bRaGgd5qQlX+zTw3IUynFHxfk
++zRbZagnTzjYtkNNmAiBJ2kOnvRdW930eHAwZPGpc1Hn5hMSOQdUhNZ3XZDASkQ==
++-----END CERTIFICATE-----
+diff --git a/src/crypto/x509/testdata/policy_intermediate_require.pem b/src/crypto/x509/testdata/policy_intermediate_require.pem
+new file mode 100644
+index 0000000000..5cf5d5bfe6
+--- /dev/null
++++ b/src/crypto/x509/testdata/policy_intermediate_require.pem
+@@ -0,0 +1,12 @@
++-----BEGIN CERTIFICATE-----
++MIIBuDCCAV+gAwIBAgIBAjAKBggqhkjOPQQDAjAWMRQwEgYDVQQDEwtQb2xpY3kg
++Um9vdDAgFw0wMDAxMDEwMDAwMDBaGA8yMTAwMDEwMTAwMDAwMFowHjEcMBoGA1UE
++AxMTUG9saWN5IEludGVybWVkaWF0ZTBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IA
++BOI6fKiM3jFLkLyAn88cvlw4SwxuygRjopP3FFBKHyUQvh3VVvfqSpSCSmp50Qia
++jQ6Dg7CTpVZVVH+bguT7JTCjgZMwgZAwDgYDVR0PAQH/BAQDAgIEMBMGA1UdJQQM
++MAoGCCsGAQUFBwMBMA8GA1UdEwEB/wQFMAMBAf8wHQYDVR0OBBYEFJDS9/4O7qhr
++CIRhwsXrPVBagG2uMCsGA1UdIAQkMCIwDwYNKoZIhvcSBAGEtwkCATAPBg0qhkiG
++9xIEAYS3CQICMAwGA1UdJAQFMAOAAQAwCgYIKoZIzj0EAwIDRwAwRAIgbPUZ9ezH
++SgTqom7VLPOvrQQXwy3b/ijSobs7+SOouKMCIDaqcb9143BG005etqeTvlgUyOGF
++GQDWhiW8bizH+KEl
++-----END CERTIFICATE-----
+diff --git a/src/crypto/x509/testdata/policy_intermediate_require1.pem b/src/crypto/x509/testdata/policy_intermediate_require1.pem
+new file mode 100644
+index 0000000000..7087404b3f
+--- /dev/null
++++ b/src/crypto/x509/testdata/policy_intermediate_require1.pem
+@@ -0,0 +1,12 @@
++-----BEGIN CERTIFICATE-----
++MIIBujCCAV+gAwIBAgIBAjAKBggqhkjOPQQDAjAWMRQwEgYDVQQDEwtQb2xpY3kg
++Um9vdDAgFw0wMDAxMDEwMDAwMDBaGA8yMTAwMDEwMTAwMDAwMFowHjEcMBoGA1UE
++AxMTUG9saWN5IEludGVybWVkaWF0ZTBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IA
++BOI6fKiM3jFLkLyAn88cvlw4SwxuygRjopP3FFBKHyUQvh3VVvfqSpSCSmp50Qia
++jQ6Dg7CTpVZVVH+bguT7JTCjgZMwgZAwDgYDVR0PAQH/BAQDAgIEMBMGA1UdJQQM
++MAoGCCsGAQUFBwMBMA8GA1UdEwEB/wQFMAMBAf8wHQYDVR0OBBYEFJDS9/4O7qhr
++CIRhwsXrPVBagG2uMCsGA1UdIAQkMCIwDwYNKoZIhvcSBAGEtwkCATAPBg0qhkiG
++9xIEAYS3CQICMAwGA1UdJAQFMAOAAQEwCgYIKoZIzj0EAwIDSQAwRgIhAIAwvhHB
++GQDN5YXlidd+n3OT/SqoeXfp7RiEonBnCkW4AiEA+iFc47EOBchHb+Gy0gg8F9Po
++RnlpoulWDfbDwx9r4lc=
++-----END CERTIFICATE-----
+diff --git a/src/crypto/x509/testdata/policy_intermediate_require2.pem b/src/crypto/x509/testdata/policy_intermediate_require2.pem
+new file mode 100644
+index 0000000000..350f419198
+--- /dev/null
++++ b/src/crypto/x509/testdata/policy_intermediate_require2.pem
+@@ -0,0 +1,12 @@
++-----BEGIN CERTIFICATE-----
++MIIBuTCCAV+gAwIBAgIBAjAKBggqhkjOPQQDAjAWMRQwEgYDVQQDEwtQb2xpY3kg
++Um9vdDAgFw0wMDAxMDEwMDAwMDBaGA8yMTAwMDEwMTAwMDAwMFowHjEcMBoGA1UE
++AxMTUG9saWN5IEludGVybWVkaWF0ZTBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IA
++BOI6fKiM3jFLkLyAn88cvlw4SwxuygRjopP3FFBKHyUQvh3VVvfqSpSCSmp50Qia
++jQ6Dg7CTpVZVVH+bguT7JTCjgZMwgZAwDgYDVR0PAQH/BAQDAgIEMBMGA1UdJQQM
++MAoGCCsGAQUFBwMBMA8GA1UdEwEB/wQFMAMBAf8wHQYDVR0OBBYEFJDS9/4O7qhr
++CIRhwsXrPVBagG2uMCsGA1UdIAQkMCIwDwYNKoZIhvcSBAGEtwkCATAPBg0qhkiG
++9xIEAYS3CQICMAwGA1UdJAQFMAOAAQIwCgYIKoZIzj0EAwIDSAAwRQIgOpliSKKA
+++wy/auQnKKl+wwtn/hGw6eZXgIOtFgDmyMYCIQC84zoJL87AE64gsrdX4XSHq6lb
++WhZQp9ZnDaNu88SQLQ==
++-----END CERTIFICATE-----
+diff --git a/src/crypto/x509/testdata/policy_intermediate_require_duplicate.pem b/src/crypto/x509/testdata/policy_intermediate_require_duplicate.pem
+new file mode 100644
+index 0000000000..733087af91
+--- /dev/null
++++ b/src/crypto/x509/testdata/policy_intermediate_require_duplicate.pem
+@@ -0,0 +1,12 @@
++-----BEGIN CERTIFICATE-----
++MIIByjCCAXCgAwIBAgIBAjAKBggqhkjOPQQDAjAWMRQwEgYDVQQDEwtQb2xpY3kg
++Um9vdDAgFw0wMDAxMDEwMDAwMDBaGA8yMTAwMDEwMTAwMDAwMFowHjEcMBoGA1UE
++AxMTUG9saWN5IEludGVybWVkaWF0ZTBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IA
++BOI6fKiM3jFLkLyAn88cvlw4SwxuygRjopP3FFBKHyUQvh3VVvfqSpSCSmp50Qia
++jQ6Dg7CTpVZVVH+bguT7JTCjgaQwgaEwDgYDVR0PAQH/BAQDAgIEMBMGA1UdJQQM
++MAoGCCsGAQUFBwMBMA8GA1UdEwEB/wQFMAMBAf8wHQYDVR0OBBYEFJDS9/4O7qhr
++CIRhwsXrPVBagG2uMDwGA1UdIAQ1MDMwDwYNKoZIhvcSBAGEtwkCATAPBg0qhkiG
++9xIEAYS3CQICMA8GDSqGSIb3EgQBhLcJAgIwDAYDVR0kBAUwA4ABADAKBggqhkjO
++PQQDAgNIADBFAiA2GxzMRYYo7NNq8u/ZvffXkCj/phqXQ8I64tEDd0X8pgIhAOJJ
++e+dzzf4vbWfMlYkOQ4kf6ei5Zf+J2PL6VrqVrHQa
++-----END CERTIFICATE-----
+diff --git a/src/crypto/x509/testdata/policy_intermediate_require_no_policies.pem b/src/crypto/x509/testdata/policy_intermediate_require_no_policies.pem
+new file mode 100644
+index 0000000000..1e81e0c116
+--- /dev/null
++++ b/src/crypto/x509/testdata/policy_intermediate_require_no_policies.pem
+@@ -0,0 +1,11 @@
++-----BEGIN CERTIFICATE-----
++MIIBizCCATCgAwIBAgIBAjAKBggqhkjOPQQDAjAWMRQwEgYDVQQDEwtQb2xpY3kg
++Um9vdDAgFw0wMDAxMDEwMDAwMDBaGA8yMTAwMDEwMTAwMDAwMFowHjEcMBoGA1UE
++AxMTUG9saWN5IEludGVybWVkaWF0ZTBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IA
++BOI6fKiM3jFLkLyAn88cvlw4SwxuygRjopP3FFBKHyUQvh3VVvfqSpSCSmp50Qia
++jQ6Dg7CTpVZVVH+bguT7JTCjZTBjMA4GA1UdDwEB/wQEAwICBDATBgNVHSUEDDAK
++BggrBgEFBQcDATAPBgNVHRMBAf8EBTADAQH/MB0GA1UdDgQWBBSQ0vf+Du6oawiE
++YcLF6z1QWoBtrjAMBgNVHSQEBTADgAEAMAoGCCqGSM49BAMCA0kAMEYCIQDJYPgf
++50fFDVho5TFeqkNVONx0ArVNgULPB27yPDHLrwIhAN+eua6oM4Q/O0jUESQ4VAKt
++ts7ZCquTZbvgRgyqtjuT
++-----END CERTIFICATE-----
+diff --git a/src/crypto/x509/testdata/policy_leaf.pem b/src/crypto/x509/testdata/policy_leaf.pem
+new file mode 100644
+index 0000000000..fb70306c8a
+--- /dev/null
++++ b/src/crypto/x509/testdata/policy_leaf.pem
+@@ -0,0 +1,11 @@
++-----BEGIN CERTIFICATE-----
++MIIBpzCCAU2gAwIBAgIBAzAKBggqhkjOPQQDAjAeMRwwGgYDVQQDExNQb2xpY3kg
++SW50ZXJtZWRpYXRlMCAXDTAwMDEwMTAwMDAwMFoYDzIxMDAwMTAxMDAwMDAwWjAa
++MRgwFgYDVQQDEw93d3cuZXhhbXBsZS5jb20wWTATBgcqhkjOPQIBBggqhkjOPQMB
++BwNCAASRKti8VW2Rkma+Kt9jQkMNitlCs0l5w8u3SSwm7HZREvmcBCJBjVIREacR
++qI0umhzR2V5NLzBBP9yPD/A+Ch5Xo34wfDAOBgNVHQ8BAf8EBAMCAgQwEwYDVR0l
++BAwwCgYIKwYBBQUHAwEwDAYDVR0TAQH/BAIwADAaBgNVHREEEzARgg93d3cuZXhh
++bXBsZS5jb20wKwYDVR0gBCQwIjAPBg0qhkiG9xIEAYS3CQIBMA8GDSqGSIb3EgQB
++hLcJAgIwCgYIKoZIzj0EAwIDSAAwRQIgBEOriD1N3/cqoAofxEtf73M7Wi4UfjFK
++jiU9nQhwnnoCIQD1v/XDp2BkWNHxNq7TaPnil3xXTvMX97yUbkUg8IRo0w==
++-----END CERTIFICATE-----
+diff --git a/src/crypto/x509/testdata/policy_leaf_any.pem b/src/crypto/x509/testdata/policy_leaf_any.pem
+new file mode 100644
+index 0000000000..d2c1b9e955
+--- /dev/null
++++ b/src/crypto/x509/testdata/policy_leaf_any.pem
+@@ -0,0 +1,11 @@
++-----BEGIN CERTIFICATE-----
++MIIBjTCCATOgAwIBAgIBAzAKBggqhkjOPQQDAjAeMRwwGgYDVQQDExNQb2xpY3kg
++SW50ZXJtZWRpYXRlMCAXDTAwMDEwMTAwMDAwMFoYDzIxMDAwMTAxMDAwMDAwWjAa
++MRgwFgYDVQQDEw93d3cuZXhhbXBsZS5jb20wWTATBgcqhkjOPQIBBggqhkjOPQMB
++BwNCAASRKti8VW2Rkma+Kt9jQkMNitlCs0l5w8u3SSwm7HZREvmcBCJBjVIREacR
++qI0umhzR2V5NLzBBP9yPD/A+Ch5Xo2QwYjAOBgNVHQ8BAf8EBAMCAgQwEwYDVR0l
++BAwwCgYIKwYBBQUHAwEwDAYDVR0TAQH/BAIwADAaBgNVHREEEzARgg93d3cuZXhh
++bXBsZS5jb20wEQYDVR0gBAowCDAGBgRVHSAAMAoGCCqGSM49BAMCA0gAMEUCIQC4
++UwAf1R4HefSzyO8lyQ3fmMjkptVEhFBee0a7N12IvwIgJMYZgQ52VTbqXyXqraJ8
++V+y+o7eHds7NewqnyuLbc78=
++-----END CERTIFICATE-----
+diff --git a/src/crypto/x509/testdata/policy_leaf_duplicate.pem b/src/crypto/x509/testdata/policy_leaf_duplicate.pem
+new file mode 100644
+index 0000000000..bdeb13cbd6
+--- /dev/null
++++ b/src/crypto/x509/testdata/policy_leaf_duplicate.pem
+@@ -0,0 +1,12 @@
++-----BEGIN CERTIFICATE-----
++MIIBsTCCAVigAwIBAgIBAzAKBggqhkjOPQQDAjAWMRQwEgYDVQQDEwtQb2xpY3kg
++Um9vdDAgFw0wMDAxMDEwMDAwMDBaGA8yMTAwMDEwMTAwMDAwMFowGjEYMBYGA1UE
++AxMPd3d3LmV4YW1wbGUuY29tMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEkSrY
++vFVtkZJmvirfY0JDDYrZQrNJecPLt0ksJux2URL5nAQiQY1SERGnEaiNLpoc0dle
++TS8wQT/cjw/wPgoeV6OBkDCBjTAOBgNVHQ8BAf8EBAMCAgQwEwYDVR0lBAwwCgYI
++KwYBBQUHAwEwDAYDVR0TAQH/BAIwADAaBgNVHREEEzARgg93d3cuZXhhbXBsZS5j
++b20wPAYDVR0gBDUwMzAPBg0qhkiG9xIEAYS3CQIBMA8GDSqGSIb3EgQBhLcJAgIw
++DwYNKoZIhvcSBAGEtwkCAjAKBggqhkjOPQQDAgNHADBEAiBjYDwsWcs35hU/wPqa
++5gf0QUMvV/8z5LPX14fB2y4RGQIgMw0ekrt9K5UcgkvFupV/XXIjLRFQvc8URA3C
++/+w+2/4=
++-----END CERTIFICATE-----
+diff --git a/src/crypto/x509/testdata/policy_leaf_invalid.pem b/src/crypto/x509/testdata/policy_leaf_invalid.pem
+new file mode 100644
+index 0000000000..de7a5e9b20
+--- /dev/null
++++ b/src/crypto/x509/testdata/policy_leaf_invalid.pem
+@@ -0,0 +1,11 @@
++-----BEGIN CERTIFICATE-----
++MIIBgjCCASigAwIBAgIBAzAKBggqhkjOPQQDAjAWMRQwEgYDVQQDEwtQb2xpY3kg
++Um9vdDAgFw0wMDAxMDEwMDAwMDBaGA8yMTAwMDEwMTAwMDAwMFowGjEYMBYGA1UE
++AxMPd3d3LmV4YW1wbGUuY29tMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEkSrY
++vFVtkZJmvirfY0JDDYrZQrNJecPLt0ksJux2URL5nAQiQY1SERGnEaiNLpoc0dle
++TS8wQT/cjw/wPgoeV6NhMF8wDgYDVR0PAQH/BAQDAgIEMBMGA1UdJQQMMAoGCCsG
++AQUFBwMBMAwGA1UdEwEB/wQCMAAwGgYDVR0RBBMwEYIPd3d3LmV4YW1wbGUuY29t
++MA4GA1UdIAQHSU5WQUxJRDAKBggqhkjOPQQDAgNIADBFAiAgfcDIeqmV+u5YtUe4
++aBnj13tZAJAQh6ttum1xZ+xHEgIhAJqvGX5c0/d1qYelBlm/jE3UuivijdEjVsLX
++GVH+X1VA
++-----END CERTIFICATE-----
+diff --git a/src/crypto/x509/testdata/policy_leaf_none.pem b/src/crypto/x509/testdata/policy_leaf_none.pem
+new file mode 100644
+index 0000000000..13ad7cec01
+--- /dev/null
++++ b/src/crypto/x509/testdata/policy_leaf_none.pem
+@@ -0,0 +1,10 @@
++-----BEGIN CERTIFICATE-----
++MIIBezCCASCgAwIBAgIBAzAKBggqhkjOPQQDAjAeMRwwGgYDVQQDExNQb2xpY3kg
++SW50ZXJtZWRpYXRlMCAXDTAwMDEwMTAwMDAwMFoYDzIxMDAwMTAxMDAwMDAwWjAa
++MRgwFgYDVQQDEw93d3cuZXhhbXBsZS5jb20wWTATBgcqhkjOPQIBBggqhkjOPQMB
++BwNCAASRKti8VW2Rkma+Kt9jQkMNitlCs0l5w8u3SSwm7HZREvmcBCJBjVIREacR
++qI0umhzR2V5NLzBBP9yPD/A+Ch5Xo1EwTzAOBgNVHQ8BAf8EBAMCAgQwEwYDVR0l
++BAwwCgYIKwYBBQUHAwEwDAYDVR0TAQH/BAIwADAaBgNVHREEEzARgg93d3cuZXhh
++bXBsZS5jb20wCgYIKoZIzj0EAwIDSQAwRgIhAIDFeeYJ8nmYo09OnJFpNS3A6fYO
++ZliHkAqOsg193DTnAiEA3OSHLCczcvRjMG+qd/FI61u2sKU1hhHh7uHtD/YO/dA=
++-----END CERTIFICATE-----
+diff --git a/src/crypto/x509/testdata/policy_leaf_oid1.pem b/src/crypto/x509/testdata/policy_leaf_oid1.pem
+new file mode 100644
+index 0000000000..94cd1a77b4
+--- /dev/null
++++ b/src/crypto/x509/testdata/policy_leaf_oid1.pem
+@@ -0,0 +1,11 @@
++-----BEGIN CERTIFICATE-----
++MIIBlTCCATygAwIBAgIBAzAKBggqhkjOPQQDAjAeMRwwGgYDVQQDExNQb2xpY3kg
++SW50ZXJtZWRpYXRlMCAXDTAwMDEwMTAwMDAwMFoYDzIxMDAwMTAxMDAwMDAwWjAa
++MRgwFgYDVQQDEw93d3cuZXhhbXBsZS5jb20wWTATBgcqhkjOPQIBBggqhkjOPQMB
++BwNCAASRKti8VW2Rkma+Kt9jQkMNitlCs0l5w8u3SSwm7HZREvmcBCJBjVIREacR
++qI0umhzR2V5NLzBBP9yPD/A+Ch5Xo20wazAOBgNVHQ8BAf8EBAMCAgQwEwYDVR0l
++BAwwCgYIKwYBBQUHAwEwDAYDVR0TAQH/BAIwADAaBgNVHREEEzARgg93d3cuZXhh
++bXBsZS5jb20wGgYDVR0gBBMwETAPBg0qhkiG9xIEAYS3CQIBMAoGCCqGSM49BAMC
++A0cAMEQCIHh4Bo8l/HVJhLMWcYusPOE0arqoDrJ5E0M6nEi3nRhgAiAArK8bBohG
++fZ3DmVMq/2BJtQZwRRj+50VKWuf9mBSflQ==
++-----END CERTIFICATE-----
+diff --git a/src/crypto/x509/testdata/policy_leaf_oid2.pem b/src/crypto/x509/testdata/policy_leaf_oid2.pem
+new file mode 100644
+index 0000000000..10adf86c52
+--- /dev/null
++++ b/src/crypto/x509/testdata/policy_leaf_oid2.pem
+@@ -0,0 +1,11 @@
++-----BEGIN CERTIFICATE-----
++MIIBlzCCATygAwIBAgIBAzAKBggqhkjOPQQDAjAeMRwwGgYDVQQDExNQb2xpY3kg
++SW50ZXJtZWRpYXRlMCAXDTAwMDEwMTAwMDAwMFoYDzIxMDAwMTAxMDAwMDAwWjAa
++MRgwFgYDVQQDEw93d3cuZXhhbXBsZS5jb20wWTATBgcqhkjOPQIBBggqhkjOPQMB
++BwNCAASRKti8VW2Rkma+Kt9jQkMNitlCs0l5w8u3SSwm7HZREvmcBCJBjVIREacR
++qI0umhzR2V5NLzBBP9yPD/A+Ch5Xo20wazAOBgNVHQ8BAf8EBAMCAgQwEwYDVR0l
++BAwwCgYIKwYBBQUHAwEwDAYDVR0TAQH/BAIwADAaBgNVHREEEzARgg93d3cuZXhh
++bXBsZS5jb20wGgYDVR0gBBMwETAPBg0qhkiG9xIEAYS3CQICMAoGCCqGSM49BAMC
++A0kAMEYCIQDvW7rdL6MSW/0BPNET4hEeECO6LWmZZHKCHIu6o33dsAIhAPwgm6lD
++KV2hMOxkE6rBDQzlCr+zAkQrxSzQZqJp5p+W
++-----END CERTIFICATE-----
+diff --git a/src/crypto/x509/testdata/policy_leaf_oid3.pem b/src/crypto/x509/testdata/policy_leaf_oid3.pem
+new file mode 100644
+index 0000000000..e5c103151b
+--- /dev/null
++++ b/src/crypto/x509/testdata/policy_leaf_oid3.pem
+@@ -0,0 +1,11 @@
++-----BEGIN CERTIFICATE-----
++MIIBlzCCATygAwIBAgIBAzAKBggqhkjOPQQDAjAeMRwwGgYDVQQDExNQb2xpY3kg
++SW50ZXJtZWRpYXRlMCAXDTAwMDEwMTAwMDAwMFoYDzIxMDAwMTAxMDAwMDAwWjAa
++MRgwFgYDVQQDEw93d3cuZXhhbXBsZS5jb20wWTATBgcqhkjOPQIBBggqhkjOPQMB
++BwNCAASRKti8VW2Rkma+Kt9jQkMNitlCs0l5w8u3SSwm7HZREvmcBCJBjVIREacR
++qI0umhzR2V5NLzBBP9yPD/A+Ch5Xo20wazAOBgNVHQ8BAf8EBAMCAgQwEwYDVR0l
++BAwwCgYIKwYBBQUHAwEwDAYDVR0TAQH/BAIwADAaBgNVHREEEzARgg93d3cuZXhh
++bXBsZS5jb20wGgYDVR0gBBMwETAPBg0qhkiG9xIEAYS3CQIDMAoGCCqGSM49BAMC
++A0kAMEYCIQDBPnPpRsOH20ncg8TKUdlONfbO62WafQj9SKgyi/nGBQIhAMhT8J7f
++fTEou6jlAilaIQwlAgZzVKRqgghIHezFY86T
++-----END CERTIFICATE-----
+diff --git a/src/crypto/x509/testdata/policy_leaf_oid4.pem b/src/crypto/x509/testdata/policy_leaf_oid4.pem
+new file mode 100644
+index 0000000000..7dd7a547af
+--- /dev/null
++++ b/src/crypto/x509/testdata/policy_leaf_oid4.pem
+@@ -0,0 +1,11 @@
++-----BEGIN CERTIFICATE-----
++MIIBlzCCATygAwIBAgIBAzAKBggqhkjOPQQDAjAeMRwwGgYDVQQDExNQb2xpY3kg
++SW50ZXJtZWRpYXRlMCAXDTAwMDEwMTAwMDAwMFoYDzIxMDAwMTAxMDAwMDAwWjAa
++MRgwFgYDVQQDEw93d3cuZXhhbXBsZS5jb20wWTATBgcqhkjOPQIBBggqhkjOPQMB
++BwNCAASRKti8VW2Rkma+Kt9jQkMNitlCs0l5w8u3SSwm7HZREvmcBCJBjVIREacR
++qI0umhzR2V5NLzBBP9yPD/A+Ch5Xo20wazAOBgNVHQ8BAf8EBAMCAgQwEwYDVR0l
++BAwwCgYIKwYBBQUHAwEwDAYDVR0TAQH/BAIwADAaBgNVHREEEzARgg93d3cuZXhh
++bXBsZS5jb20wGgYDVR0gBBMwETAPBg0qhkiG9xIEAYS3CQIEMAoGCCqGSM49BAMC
++A0kAMEYCIQD2gnpCTMxUalCtEV52eXzqeJgsKMYvEpJTuU/VqH5KwQIhAPEavAkt
++cSJsgMgJcJnbBzAdSrbOgHXF2etDHmFbg0hz
++-----END CERTIFICATE-----
+diff --git a/src/crypto/x509/testdata/policy_leaf_oid5.pem b/src/crypto/x509/testdata/policy_leaf_oid5.pem
+new file mode 100644
+index 0000000000..2a9aee73b5
+--- /dev/null
++++ b/src/crypto/x509/testdata/policy_leaf_oid5.pem
+@@ -0,0 +1,11 @@
++-----BEGIN CERTIFICATE-----
++MIIBlzCCATygAwIBAgIBAzAKBggqhkjOPQQDAjAeMRwwGgYDVQQDExNQb2xpY3kg
++SW50ZXJtZWRpYXRlMCAXDTAwMDEwMTAwMDAwMFoYDzIxMDAwMTAxMDAwMDAwWjAa
++MRgwFgYDVQQDEw93d3cuZXhhbXBsZS5jb20wWTATBgcqhkjOPQIBBggqhkjOPQMB
++BwNCAASRKti8VW2Rkma+Kt9jQkMNitlCs0l5w8u3SSwm7HZREvmcBCJBjVIREacR
++qI0umhzR2V5NLzBBP9yPD/A+Ch5Xo20wazAOBgNVHQ8BAf8EBAMCAgQwEwYDVR0l
++BAwwCgYIKwYBBQUHAwEwDAYDVR0TAQH/BAIwADAaBgNVHREEEzARgg93d3cuZXhh
++bXBsZS5jb20wGgYDVR0gBBMwETAPBg0qhkiG9xIEAYS3CQIFMAoGCCqGSM49BAMC
++A0kAMEYCIQDDFVjhlQ1Wu0KITcRX8kELpVDeYSKSlvEbZc3rn1QjkQIhAMPthqBi
++I0acz8DPQcdFmHXV0xR2xyC1yuen0gES5WLR
++-----END CERTIFICATE-----
+diff --git a/src/crypto/x509/testdata/policy_leaf_require.pem b/src/crypto/x509/testdata/policy_leaf_require.pem
+new file mode 100644
+index 0000000000..169b844419
+--- /dev/null
++++ b/src/crypto/x509/testdata/policy_leaf_require.pem
+@@ -0,0 +1,12 @@
++-----BEGIN CERTIFICATE-----
++MIIBuDCCAV2gAwIBAgIBAzAKBggqhkjOPQQDAjAeMRwwGgYDVQQDExNQb2xpY3kg
++SW50ZXJtZWRpYXRlMCAXDTAwMDEwMTAwMDAwMFoYDzIxMDAwMTAxMDAwMDAwWjAa
++MRgwFgYDVQQDEw93d3cuZXhhbXBsZS5jb20wWTATBgcqhkjOPQIBBggqhkjOPQMB
++BwNCAASRKti8VW2Rkma+Kt9jQkMNitlCs0l5w8u3SSwm7HZREvmcBCJBjVIREacR
++qI0umhzR2V5NLzBBP9yPD/A+Ch5Xo4GNMIGKMA4GA1UdDwEB/wQEAwICBDATBgNV
++HSUEDDAKBggrBgEFBQcDATAMBgNVHRMBAf8EAjAAMBoGA1UdEQQTMBGCD3d3dy5l
++eGFtcGxlLmNvbTArBgNVHSAEJDAiMA8GDSqGSIb3EgQBhLcJAgEwDwYNKoZIhvcS
++BAGEtwkCAjAMBgNVHSQEBTADgAEAMAoGCCqGSM49BAMCA0kAMEYCIQDrNQPi/mdK
++l7Nd/YmMXWYTHJBWWin1zA64Ohkd7z4jGgIhAJpw/umk5MxS1MwSi+YTkkcSQKpl
++YROQH6+T53DauoW6
++-----END CERTIFICATE-----
+diff --git a/src/crypto/x509/testdata/policy_leaf_require1.pem b/src/crypto/x509/testdata/policy_leaf_require1.pem
+new file mode 100644
+index 0000000000..261ef954f1
+--- /dev/null
++++ b/src/crypto/x509/testdata/policy_leaf_require1.pem
+@@ -0,0 +1,12 @@
++-----BEGIN CERTIFICATE-----
++MIIBuDCCAV2gAwIBAgIBAzAKBggqhkjOPQQDAjAeMRwwGgYDVQQDExNQb2xpY3kg
++SW50ZXJtZWRpYXRlMCAXDTAwMDEwMTAwMDAwMFoYDzIxMDAwMTAxMDAwMDAwWjAa
++MRgwFgYDVQQDEw93d3cuZXhhbXBsZS5jb20wWTATBgcqhkjOPQIBBggqhkjOPQMB
++BwNCAASRKti8VW2Rkma+Kt9jQkMNitlCs0l5w8u3SSwm7HZREvmcBCJBjVIREacR
++qI0umhzR2V5NLzBBP9yPD/A+Ch5Xo4GNMIGKMA4GA1UdDwEB/wQEAwICBDATBgNV
++HSUEDDAKBggrBgEFBQcDATAMBgNVHRMBAf8EAjAAMBoGA1UdEQQTMBGCD3d3dy5l
++eGFtcGxlLmNvbTArBgNVHSAEJDAiMA8GDSqGSIb3EgQBhLcJAgEwDwYNKoZIhvcS
++BAGEtwkCAjAMBgNVHSQEBTADgAEBMAoGCCqGSM49BAMCA0kAMEYCIQCtXENGJrKv
++IOeLHO/3Nu/SMRXc69Vb3q+4b/uHBFbuqwIhAK22Wfh/ZIHKu3FwbjL+sN0Z39pf
++Dsak6fp1y4tqNuvK
++-----END CERTIFICATE-----
+diff --git a/src/crypto/x509/testdata/policy_root.pem b/src/crypto/x509/testdata/policy_root.pem
+new file mode 100644
+index 0000000000..595f8a132a
+--- /dev/null
++++ b/src/crypto/x509/testdata/policy_root.pem
+@@ -0,0 +1,10 @@
++-----BEGIN CERTIFICATE-----
++MIIBdTCCARqgAwIBAgIBATAKBggqhkjOPQQDAjAWMRQwEgYDVQQDEwtQb2xpY3kg
++Um9vdDAgFw0wMDAxMDEwMDAwMDBaGA8yMTAwMDEwMTAwMDAwMFowFjEUMBIGA1UE
++AxMLUG9saWN5IFJvb3QwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAAQmdqXYl1Gv
++Y7y3jcTTK6MVXIQr44TqChRYI6IeV9tIB6jIsOY+Qol1bk8x/7A5FGOnUWFVLEAP
++EPSJwPndjolto1cwVTAOBgNVHQ8BAf8EBAMCAgQwEwYDVR0lBAwwCgYIKwYBBQUH
++AwEwDwYDVR0TAQH/BAUwAwEB/zAdBgNVHQ4EFgQU0GnnoB+yeN63WMthnh6Uh1HH
++dRIwCgYIKoZIzj0EAwIDSQAwRgIhAKVxVAaJnmvt+q4SqegGS23QSzKPM9Yakw9e
++bOUU9+52AiEAjXPRBdd90YDey4VFu4f/78yVe0cxMK30lll7lLl7TTA=
++-----END CERTIFICATE-----
+diff --git a/src/crypto/x509/testdata/policy_root2.pem b/src/crypto/x509/testdata/policy_root2.pem
+new file mode 100644
+index 0000000000..1350035fd4
+--- /dev/null
++++ b/src/crypto/x509/testdata/policy_root2.pem
+@@ -0,0 +1,10 @@
++-----BEGIN CERTIFICATE-----
++MIIBeDCCAR6gAwIBAgIBATAKBggqhkjOPQQDAjAYMRYwFAYDVQQDEw1Qb2xpY3kg
++Um9vdCAyMCAXDTAwMDEwMTAwMDAwMFoYDzIxMDAwMTAxMDAwMDAwWjAYMRYwFAYD
++VQQDEw1Qb2xpY3kgUm9vdCAyMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEJnal
++2JdRr2O8t43E0yujFVyEK+OE6goUWCOiHlfbSAeoyLDmPkKJdW5PMf+wORRjp1Fh
++VSxADxD0icD53Y6JbaNXMFUwDgYDVR0PAQH/BAQDAgIEMBMGA1UdJQQMMAoGCCsG
++AQUFBwMBMA8GA1UdEwEB/wQFMAMBAf8wHQYDVR0OBBYEFNBp56Afsnjet1jLYZ4e
++lIdRx3USMAoGCCqGSM49BAMCA0gAMEUCIQDm9rw9ODVtJUPBn2lWoK8s7ElbyY4/
++Gc2thHR50UUzbgIgKRenEDhKiBR6cGC77RaIiaaafW8b7HMd7obuZdDU/58=
++-----END CERTIFICATE-----
+diff --git a/src/crypto/x509/testdata/policy_root_cross_inhibit_mapping.pem b/src/crypto/x509/testdata/policy_root_cross_inhibit_mapping.pem
+new file mode 100644
+index 0000000000..9273a53086
+--- /dev/null
++++ b/src/crypto/x509/testdata/policy_root_cross_inhibit_mapping.pem
+@@ -0,0 +1,11 @@
++-----BEGIN CERTIFICATE-----
++MIIBljCCAT2gAwIBAgIBATAKBggqhkjOPQQDAjAYMRYwFAYDVQQDEw1Qb2xpY3kg
++Um9vdCAyMCAXDTAwMDEwMTAwMDAwMFoYDzIxMDAwMTAxMDAwMDAwWjAWMRQwEgYD
++VQQDEwtQb2xpY3kgUm9vdDBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABCZ2pdiX
++Ua9jvLeNxNMroxVchCvjhOoKFFgjoh5X20gHqMiw5j5CiXVuTzH/sDkUY6dRYVUs
++QA8Q9InA+d2OiW2jeDB2MA4GA1UdDwEB/wQEAwICBDATBgNVHSUEDDAKBggrBgEF
++BQcDATAPBgNVHRMBAf8EBTADAQH/MB0GA1UdDgQWBBTQaeegH7J43rdYy2GeHpSH
++Ucd1EjARBgNVHSAECjAIMAYGBFUdIAAwDAYDVR0kBAUwA4EBADAKBggqhkjOPQQD
++AgNHADBEAiBzR3JGEf9PITYuiXTx+vx9gXji5idGsVog9wRUbY98wwIgVVeYNQQb
++x+RN2wYp3kmm8iswUOrqiI6J4PSzT8CYP8Q=
++-----END CERTIFICATE-----
+diff --git a/src/crypto/x509/verify.go b/src/crypto/x509/verify.go
+index 60e376a8d5..d2384f5665 100644
+--- a/src/crypto/x509/verify.go
++++ b/src/crypto/x509/verify.go
+@@ -10,6 +10,8 @@ import (
+ 	"crypto/x509/pkix"
+ 	"errors"
+ 	"fmt"
++	"iter"
++	"maps"
+ 	"net"
+ 	"net/url"
+ 	"reflect"
+@@ -56,6 +58,8 @@ const (
+ 	// CANotAuthorizedForExtKeyUsage results when an intermediate or root
+ 	// certificate does not permit a requested extended key usage.
+ 	CANotAuthorizedForExtKeyUsage
++	// NoValidChains results when there are no valid chains to return.
++	NoValidChains
+ )
+ 
+ // CertificateInvalidError results when an odd error occurs. Users of this
+@@ -86,6 +90,12 @@ func (e CertificateInvalidError) Error() string {
+ 		return "x509: issuer has name constraints but leaf doesn't have a SAN extension"
+ 	case UnconstrainedName:
+ 		return "x509: issuer has name constraints but leaf contains unknown or unconstrained name: " + e.Detail
++	case NoValidChains:
++		s := "x509: no valid chains built"
++		if e.Detail != "" {
++			s = fmt.Sprintf("%s: %s", s, e.Detail)
++		}
++		return s
+ 	}
+ 	return "x509: unknown error"
+ }
+@@ -201,6 +211,27 @@ type VerifyOptions struct {
+ 	// certificates from consuming excessive amounts of CPU time when
+ 	// validating. It does not apply to the platform verifier.
+ 	MaxConstraintComparisions int
++
++	// CertificatePolicies specifies which certificate policy OIDs are
++	// acceptable during policy validation. An empty CertificatePolices
++	// field implies any valid policy is acceptable.
++	CertificatePolicies []OID
++
++	// The following policy fields are unexported, because we do not expect
++	// users to actually need to use them, but are useful for testing the
++	// policy validation code.
++
++	// inhibitPolicyMapping indicates if policy mapping should be allowed
++	// during path validation.
++	inhibitPolicyMapping bool
++
++	// requireExplicitPolicy indidicates if explicit policies must be present
++	// for each certificate being validated.
++	requireExplicitPolicy bool
++
++	// inhibitAnyPolicy indicates if the anyPolicy policy should be
++	// processed if present in a certificate being validated.
++	inhibitAnyPolicy bool
+ }
+ 
+ const (
+@@ -820,14 +851,31 @@ func (c *Certificate) Verify(opts VerifyOptions) (chains [][]*Certificate, err e
+ 	}
+ 
+ 	chains = make([][]*Certificate, 0, len(candidateChains))
++	var incompatibleKeyUsageChains, invalidPoliciesChains int
+ 	for _, candidate := range candidateChains {
+-		if checkChainForKeyUsage(candidate, opts.KeyUsages) {
+-			chains = append(chains, candidate)
++		if !checkChainForKeyUsage(candidate, opts.KeyUsages) {
++			incompatibleKeyUsageChains++
++			continue
+ 		}
++		if !policiesValid(candidate, opts) {
++			invalidPoliciesChains++
++			continue
++		}
++		chains = append(chains, candidate)
+ 	}
+-
+ 	if len(chains) == 0 {
+-		return nil, CertificateInvalidError{c, IncompatibleUsage, ""}
++		var details []string
++		if incompatibleKeyUsageChains > 0 {
++			if invalidPoliciesChains == 0 {
++				return nil, CertificateInvalidError{c, IncompatibleUsage, ""}
++			}
++			details = append(details, fmt.Sprintf("%d chains with incompatible key usage", incompatibleKeyUsageChains))
++		}
++		if invalidPoliciesChains > 0 {
++			details = append(details, fmt.Sprintf("%d chains with invalid policies", invalidPoliciesChains))
++		}
++		err = CertificateInvalidError{c, NoValidChains, strings.Join(details, ", ")}
++		return nil, err
+ 	}
+ 
+ 	return chains, nil
+@@ -1187,3 +1235,369 @@ NextCert:
+ 
+ 	return true
+ }
++
++func mustNewOIDFromInts(ints []uint64) OID {
++	oid, err := OIDFromInts(ints)
++	if err != nil {
++		panic(fmt.Sprintf("OIDFromInts(%v) unexpected error: %v", ints, err))
++	}
++	return oid
++}
++
++type policyGraphNode struct {
++	validPolicy       OID
++	expectedPolicySet []OID
++	// we do not implement qualifiers, so we don't track qualifier_set
++
++	parents  map[*policyGraphNode]bool
++	children map[*policyGraphNode]bool
++}
++
++func newPolicyGraphNode(valid OID, parents []*policyGraphNode) *policyGraphNode {
++	n := &policyGraphNode{
++		validPolicy:       valid,
++		expectedPolicySet: []OID{valid},
++		children:          map[*policyGraphNode]bool{},
++		parents:           map[*policyGraphNode]bool{},
++	}
++	for _, p := range parents {
++		p.children[n] = true
++		n.parents[p] = true
++	}
++	return n
++}
++
++type policyGraph struct {
++	strata []map[string]*policyGraphNode
++	// map of OID -> nodes at strata[depth-1] with OID in their expectedPolicySet
++	parentIndex map[string][]*policyGraphNode
++	depth       int
++}
++
++var anyPolicyOID = mustNewOIDFromInts([]uint64{2, 5, 29, 32, 0})
++
++func newPolicyGraph() *policyGraph {
++	root := policyGraphNode{
++		validPolicy:       anyPolicyOID,
++		expectedPolicySet: []OID{anyPolicyOID},
++		children:          map[*policyGraphNode]bool{},
++		parents:           map[*policyGraphNode]bool{},
++	}
++	return &policyGraph{
++		depth:  0,
++		strata: []map[string]*policyGraphNode{{string(anyPolicyOID.der): &root}},
++	}
++}
++
++func (pg *policyGraph) insert(n *policyGraphNode) {
++	pg.strata[pg.depth][string(n.validPolicy.der)] = n
++}
++
++func (pg *policyGraph) parentsWithExpected(expected OID) []*policyGraphNode {
++	if pg.depth == 0 {
++		return nil
++	}
++	return pg.parentIndex[string(expected.der)]
++}
++
++func (pg *policyGraph) parentWithAnyPolicy() *policyGraphNode {
++	if pg.depth == 0 {
++		return nil
++	}
++	return pg.strata[pg.depth-1][string(anyPolicyOID.der)]
++}
++
++func (pg *policyGraph) parents() iter.Seq[*policyGraphNode] {
++	if pg.depth == 0 {
++		return nil
++	}
++	return maps.Values(pg.strata[pg.depth-1])
++}
++
++func (pg *policyGraph) leaves() map[string]*policyGraphNode {
++	return pg.strata[pg.depth]
++}
++
++func (pg *policyGraph) leafWithPolicy(policy OID) *policyGraphNode {
++	return pg.strata[pg.depth][string(policy.der)]
++}
++
++func (pg *policyGraph) deleteLeaf(policy OID) {
++	n := pg.strata[pg.depth][string(policy.der)]
++	if n == nil {
++		return
++	}
++	for p := range n.parents {
++		delete(p.children, n)
++	}
++	for c := range n.children {
++		delete(c.parents, n)
++	}
++	delete(pg.strata[pg.depth], string(policy.der))
++}
++
++func (pg *policyGraph) validPolicyNodes() []*policyGraphNode {
++	var validNodes []*policyGraphNode
++	for i := pg.depth; i >= 0; i-- {
++		for _, n := range pg.strata[i] {
++			if n.validPolicy.Equal(anyPolicyOID) {
++				continue
++			}
++
++			if len(n.parents) == 1 {
++				for p := range n.parents {
++					if p.validPolicy.Equal(anyPolicyOID) {
++						validNodes = append(validNodes, n)
++					}
++				}
++			}
++		}
++	}
++	return validNodes
++}
++
++func (pg *policyGraph) prune() {
++	for i := pg.depth - 1; i > 0; i-- {
++		for _, n := range pg.strata[i] {
++			if len(n.children) == 0 {
++				for p := range n.parents {
++					delete(p.children, n)
++				}
++				delete(pg.strata[i], string(n.validPolicy.der))
++			}
++		}
++	}
++}
++
++func (pg *policyGraph) incrDepth() {
++	pg.parentIndex = map[string][]*policyGraphNode{}
++	for _, n := range pg.strata[pg.depth] {
++		for _, e := range n.expectedPolicySet {
++			pg.parentIndex[string(e.der)] = append(pg.parentIndex[string(e.der)], n)
++		}
++	}
++
++	pg.depth++
++	pg.strata = append(pg.strata, map[string]*policyGraphNode{})
++}
++
++func policiesValid(chain []*Certificate, opts VerifyOptions) bool {
++	// The following code implements the policy verification algorithm as
++	// specified in RFC 5280 and updated by RFC 9618. In particular the
++	// following sections are replaced by RFC 9618:
++	//	* 6.1.2 (a)
++	//	* 6.1.3 (d)
++	//	* 6.1.3 (e)
++	//	* 6.1.3 (f)
++	//	* 6.1.4 (b)
++	//	* 6.1.5 (g)
++
++	if len(chain) == 1 {
++		return true
++	}
++
++	// n is the length of the chain minus the trust anchor
++	n := len(chain) - 1
++
++	pg := newPolicyGraph()
++	var inhibitAnyPolicy, explicitPolicy, policyMapping int
++	if !opts.inhibitAnyPolicy {
++		inhibitAnyPolicy = n + 1
++	}
++	if !opts.requireExplicitPolicy {
++		explicitPolicy = n + 1
++	}
++	if !opts.inhibitPolicyMapping {
++		policyMapping = n + 1
++	}
++
++	initialUserPolicySet := map[string]bool{}
++	for _, p := range opts.CertificatePolicies {
++		initialUserPolicySet[string(p.der)] = true
++	}
++	// If the user does not pass any policies, we consider
++	// that equivalent to passing anyPolicyOID.
++	if len(initialUserPolicySet) == 0 {
++		initialUserPolicySet[string(anyPolicyOID.der)] = true
++	}
++
++	for i := n - 1; i >= 0; i-- {
++		cert := chain[i]
++
++		isSelfSigned := bytes.Equal(cert.RawIssuer, cert.RawSubject)
++
++		// 6.1.3 (e) -- as updated by RFC 9618
++		if len(cert.Policies) == 0 {
++			pg = nil
++		}
++
++		// 6.1.3 (f) -- as updated by RFC 9618
++		if explicitPolicy == 0 && pg == nil {
++			return false
++		}
++
++		if pg != nil {
++			pg.incrDepth()
++
++			policies := map[string]bool{}
++
++			// 6.1.3 (d) (1) -- as updated by RFC 9618
++			for _, policy := range cert.Policies {
++				policies[string(policy.der)] = true
++
++				if policy.Equal(anyPolicyOID) {
++					continue
++				}
++
++				// 6.1.3 (d) (1) (i) -- as updated by RFC 9618
++				parents := pg.parentsWithExpected(policy)
++				if len(parents) == 0 {
++					// 6.1.3 (d) (1) (ii) -- as updated by RFC 9618
++					if anyParent := pg.parentWithAnyPolicy(); anyParent != nil {
++						parents = []*policyGraphNode{anyParent}
++					}
++				}
++				if len(parents) > 0 {
++					pg.insert(newPolicyGraphNode(policy, parents))
++				}
++			}
++
++			// 6.1.3 (d) (2) -- as updated by RFC 9618
++			// NOTE: in the check "n-i < n" our i is different from the i in the specification.
++			// In the specification chains go from the trust anchor to the leaf, whereas our
++			// chains go from the leaf to the trust anchor, so our i's our inverted. Our
++			// check here matches the check "i < n" in the specification.
++			if policies[string(anyPolicyOID.der)] && (inhibitAnyPolicy > 0 || (n-i < n && isSelfSigned)) {
++				missing := map[string][]*policyGraphNode{}
++				leaves := pg.leaves()
++				for p := range pg.parents() {
++					for _, expected := range p.expectedPolicySet {
++						if leaves[string(expected.der)] == nil {
++							missing[string(expected.der)] = append(missing[string(expected.der)], p)
++						}
++					}
++				}
++
++				for oidStr, parents := range missing {
++					pg.insert(newPolicyGraphNode(OID{der: []byte(oidStr)}, parents))
++				}
++			}
++
++			// 6.1.3 (d) (3) -- as updated by RFC 9618
++			pg.prune()
++
++			if i != 0 {
++				// 6.1.4 (b) -- as updated by RFC 9618
++				if len(cert.PolicyMappings) > 0 {
++					// collect map of issuer -> []subject
++					mappings := map[string][]OID{}
++
++					for _, mapping := range cert.PolicyMappings {
++						if policyMapping > 0 {
++							if mapping.IssuerDomainPolicy.Equal(anyPolicyOID) || mapping.SubjectDomainPolicy.Equal(anyPolicyOID) {
++								// Invalid mapping
++								return false
++							}
++							mappings[string(mapping.IssuerDomainPolicy.der)] = append(mappings[string(mapping.IssuerDomainPolicy.der)], mapping.SubjectDomainPolicy)
++						} else {
++							// 6.1.4 (b) (3) (i) -- as updated by RFC 9618
++							pg.deleteLeaf(mapping.IssuerDomainPolicy)
++
++							// 6.1.4 (b) (3) (ii) -- as updated by RFC 9618
++							pg.prune()
++						}
++					}
++
++					for issuerStr, subjectPolicies := range mappings {
++						// 6.1.4 (b) (1) -- as updated by RFC 9618
++						if matching := pg.leafWithPolicy(OID{der: []byte(issuerStr)}); matching != nil {
++							matching.expectedPolicySet = subjectPolicies
++						} else if matching := pg.leafWithPolicy(anyPolicyOID); matching != nil {
++							// 6.1.4 (b) (2) -- as updated by RFC 9618
++							n := newPolicyGraphNode(OID{der: []byte(issuerStr)}, []*policyGraphNode{matching})
++							n.expectedPolicySet = subjectPolicies
++							pg.insert(n)
++						}
++					}
++				}
++			}
++		}
++
++		if i != 0 {
++			// 6.1.4 (h)
++			if !isSelfSigned {
++				if explicitPolicy > 0 {
++					explicitPolicy--
++				}
++				if policyMapping > 0 {
++					policyMapping--
++				}
++				if inhibitAnyPolicy > 0 {
++					inhibitAnyPolicy--
++				}
++			}
++
++			// 6.1.4 (i)
++			if (cert.RequireExplicitPolicy > 0 || cert.RequireExplicitPolicyZero) && cert.RequireExplicitPolicy < explicitPolicy {
++				explicitPolicy = cert.RequireExplicitPolicy
++			}
++			if (cert.InhibitPolicyMapping > 0 || cert.InhibitPolicyMappingZero) && cert.InhibitPolicyMapping < policyMapping {
++				policyMapping = cert.InhibitPolicyMapping
++			}
++			// 6.1.4 (j)
++			if (cert.InhibitAnyPolicy > 0 || cert.InhibitAnyPolicyZero) && cert.InhibitAnyPolicy < inhibitAnyPolicy {
++				inhibitAnyPolicy = cert.InhibitAnyPolicy
++			}
++		}
++	}
++
++	// 6.1.5 (a)
++	if explicitPolicy > 0 {
++		explicitPolicy--
++	}
++
++	// 6.1.5 (b)
++	if chain[0].RequireExplicitPolicyZero {
++		explicitPolicy = 0
++	}
++
++	// 6.1.5 (g) (1) -- as updated by RFC 9618
++	var validPolicyNodeSet []*policyGraphNode
++	// 6.1.5 (g) (2) -- as updated by RFC 9618
++	if pg != nil {
++		validPolicyNodeSet = pg.validPolicyNodes()
++		// 6.1.5 (g) (3) -- as updated by RFC 9618
++		if currentAny := pg.leafWithPolicy(anyPolicyOID); currentAny != nil {
++			validPolicyNodeSet = append(validPolicyNodeSet, currentAny)
++		}
++	}
++
++	// 6.1.5 (g) (4) -- as updated by RFC 9618
++	authorityConstrainedPolicySet := map[string]bool{}
++	for _, n := range validPolicyNodeSet {
++		authorityConstrainedPolicySet[string(n.validPolicy.der)] = true
++	}
++	// 6.1.5 (g) (5) -- as updated by RFC 9618
++	userConstrainedPolicySet := maps.Clone(authorityConstrainedPolicySet)
++	// 6.1.5 (g) (6) -- as updated by RFC 9618
++	if len(initialUserPolicySet) != 1 || !initialUserPolicySet[string(anyPolicyOID.der)] {
++		// 6.1.5 (g) (6) (i) -- as updated by RFC 9618
++		for p := range userConstrainedPolicySet {
++			if !initialUserPolicySet[p] {
++				delete(userConstrainedPolicySet, p)
++			}
++		}
++		// 6.1.5 (g) (6) (ii) -- as updated by RFC 9618
++		if authorityConstrainedPolicySet[string(anyPolicyOID.der)] {
++			for policy := range initialUserPolicySet {
++				userConstrainedPolicySet[policy] = true
++			}
++		}
++	}
++
++	if explicitPolicy == 0 && len(userConstrainedPolicySet) == 0 {
++		return false
++	}
++
++	return true
++}
+diff --git a/src/crypto/x509/verify_test.go b/src/crypto/x509/verify_test.go
+index a2de1ac470..1175e7d808 100644
+--- a/src/crypto/x509/verify_test.go
++++ b/src/crypto/x509/verify_test.go
+@@ -16,6 +16,7 @@ import (
+ 	"fmt"
+ 	"internal/testenv"
+ 	"math/big"
++	"os"
+ 	"os/exec"
+ 	"runtime"
+ 	"slices"
+@@ -2518,7 +2519,7 @@ func TestEKUEnforcement(t *testing.T) {
+ 			if err == nil && tc.err != "" {
+ 				t.Errorf("expected error")
+ 			} else if err != nil && err.Error() != tc.err {
+-				t.Errorf("unexpected error: want %q, got %q", err.Error(), tc.err)
++				t.Errorf("unexpected error: got %q, want %q", err.Error(), tc.err)
+ 			}
+ 		})
+ 	}
+@@ -2639,3 +2640,375 @@ func TestVerifyBareWildcard(t *testing.T) {
+ 		t.Fatalf("VerifyHostname unexpected success with bare wildcard SAN")
+ 	}
+ }
++
++func TestPoliciesValid(t *testing.T) {
++	// These test cases, the comments, and the certificates they rely on, are
++	// stolen from BoringSSL [0]. We skip the tests which involve certificate
++	// parsing as part of the verification process. Those tests are in
++	// TestParsePolicies.
++	//
++	// [0] https://boringssl.googlesource.com/boringssl/+/264f4f7a958af6c4ccb04662e302a99dfa7c5b85/crypto/x509/x509_test.cc#5913
++
++	testOID1 := mustNewOIDFromInts([]uint64{1, 2, 840, 113554, 4, 1, 72585, 2, 1})
++	testOID2 := mustNewOIDFromInts([]uint64{1, 2, 840, 113554, 4, 1, 72585, 2, 2})
++	testOID3 := mustNewOIDFromInts([]uint64{1, 2, 840, 113554, 4, 1, 72585, 2, 3})
++	testOID4 := mustNewOIDFromInts([]uint64{1, 2, 840, 113554, 4, 1, 72585, 2, 4})
++	testOID5 := mustNewOIDFromInts([]uint64{1, 2, 840, 113554, 4, 1, 72585, 2, 5})
++
++	loadTestCert := func(t *testing.T, path string) *Certificate {
++		b, err := os.ReadFile(path)
++		if err != nil {
++			t.Fatal(err)
++		}
++		p, _ := pem.Decode(b)
++		c, err := ParseCertificate(p.Bytes)
++		if err != nil {
++			t.Fatal(err)
++		}
++		return c
++	}
++
++	root := loadTestCert(t, "testdata/policy_root.pem")
++	root_cross_inhibit_mapping := loadTestCert(t, "testdata/policy_root_cross_inhibit_mapping.pem")
++	root2 := loadTestCert(t, "testdata/policy_root2.pem")
++	intermediate := loadTestCert(t, "testdata/policy_intermediate.pem")
++	intermediate_any := loadTestCert(t, "testdata/policy_intermediate_any.pem")
++	intermediate_mapped := loadTestCert(t, "testdata/policy_intermediate_mapped.pem")
++	intermediate_mapped_any := loadTestCert(t, "testdata/policy_intermediate_mapped_any.pem")
++	intermediate_mapped_oid3 := loadTestCert(t, "testdata/policy_intermediate_mapped_oid3.pem")
++	intermediate_require := loadTestCert(t, "testdata/policy_intermediate_require.pem")
++	intermediate_require1 := loadTestCert(t, "testdata/policy_intermediate_require1.pem")
++	intermediate_require2 := loadTestCert(t, "testdata/policy_intermediate_require2.pem")
++	intermediate_require_no_policies := loadTestCert(t, "testdata/policy_intermediate_require_no_policies.pem")
++	leaf := loadTestCert(t, "testdata/policy_leaf.pem")
++	leaf_any := loadTestCert(t, "testdata/policy_leaf_any.pem")
++	leaf_none := loadTestCert(t, "testdata/policy_leaf_none.pem")
++	leaf_oid1 := loadTestCert(t, "testdata/policy_leaf_oid1.pem")
++	leaf_oid2 := loadTestCert(t, "testdata/policy_leaf_oid2.pem")
++	leaf_oid3 := loadTestCert(t, "testdata/policy_leaf_oid3.pem")
++	leaf_oid4 := loadTestCert(t, "testdata/policy_leaf_oid4.pem")
++	leaf_oid5 := loadTestCert(t, "testdata/policy_leaf_oid5.pem")
++	leaf_require := loadTestCert(t, "testdata/policy_leaf_require.pem")
++	leaf_require1 := loadTestCert(t, "testdata/policy_leaf_require1.pem")
++
++	type testCase struct {
++		chain                 []*Certificate
++		policies              []OID
++		requireExplicitPolicy bool
++		inhibitPolicyMapping  bool
++		inhibitAnyPolicy      bool
++		valid                 bool
++	}
++
++	tests := []testCase{
++		// The chain is good for |oid1| and |oid2|, but not |oid3|.
++		{
++			chain:                 []*Certificate{leaf, intermediate, root},
++			requireExplicitPolicy: true,
++			valid:                 true,
++		},
++		{
++			chain:                 []*Certificate{leaf, intermediate, root},
++			policies:              []OID{testOID1},
++			requireExplicitPolicy: true,
++			valid:                 true,
++		},
++		{
++			chain:                 []*Certificate{leaf, intermediate, root},
++			policies:              []OID{testOID2},
++			requireExplicitPolicy: true,
++			valid:                 true,
++		},
++		{
++			chain:                 []*Certificate{leaf, intermediate, root},
++			policies:              []OID{testOID3},
++			requireExplicitPolicy: true,
++			valid:                 false,
++		},
++		{
++			chain:                 []*Certificate{leaf, intermediate, root},
++			policies:              []OID{testOID1, testOID2},
++			requireExplicitPolicy: true,
++			valid:                 true,
++		},
++		{
++			chain:                 []*Certificate{leaf, intermediate, root},
++			policies:              []OID{testOID1, testOID3},
++			requireExplicitPolicy: true,
++			valid:                 true,
++		},
++		// Without |X509_V_FLAG_EXPLICIT_POLICY|, the policy tree is built and
++		// intersected with user-specified policies, but it is not required to result
++		// in any valid policies.
++		{
++			chain:    []*Certificate{leaf, intermediate, root},
++			policies: []OID{testOID1},
++			valid:    true,
++		},
++		{
++			chain:    []*Certificate{leaf, intermediate, root},
++			policies: []OID{testOID3},
++			valid:    true,
++		},
++		// However, a CA with policy constraints can require an explicit policy.
++		{
++			chain:    []*Certificate{leaf, intermediate_require, root},
++			policies: []OID{testOID1},
++			valid:    true,
++		},
++		{
++			chain:    []*Certificate{leaf, intermediate_require, root},
++			policies: []OID{testOID3},
++			valid:    false,
++		},
++		// requireExplicitPolicy applies even if the application does not configure a
++		// user-initial-policy-set. If the validation results in no policies, the
++		// chain is invalid.
++		{
++			chain:                 []*Certificate{leaf_none, intermediate_require, root},
++			requireExplicitPolicy: true,
++			valid:                 false,
++		},
++		// A leaf can also set requireExplicitPolicy.
++		{
++			chain: []*Certificate{leaf_require, intermediate, root},
++			valid: true,
++		},
++		{
++			chain:    []*Certificate{leaf_require, intermediate, root},
++			policies: []OID{testOID1},
++			valid:    true,
++		},
++		{
++			chain:    []*Certificate{leaf_require, intermediate, root},
++			policies: []OID{testOID3},
++			valid:    false,
++		},
++		// requireExplicitPolicy is a count of certificates to skip. If the value is
++		// not zero by the end of the chain, it doesn't count.
++		{
++			chain:    []*Certificate{leaf, intermediate_require1, root},
++			policies: []OID{testOID3},
++			valid:    false,
++		},
++		{
++			chain:    []*Certificate{leaf, intermediate_require2, root},
++			policies: []OID{testOID3},
++			valid:    true,
++		},
++		{
++			chain:    []*Certificate{leaf_require1, intermediate, root},
++			policies: []OID{testOID3},
++			valid:    true,
++		},
++		// If multiple certificates specify the constraint, the more constrained value
++		// wins.
++		{
++			chain:    []*Certificate{leaf_require1, intermediate_require1, root},
++			policies: []OID{testOID3},
++			valid:    false,
++		},
++		{
++			chain:    []*Certificate{leaf_require, intermediate_require2, root},
++			policies: []OID{testOID3},
++			valid:    false,
++		},
++		// An intermediate that requires an explicit policy, but then specifies no
++		// policies should fail verification as a result.
++		{
++			chain:    []*Certificate{leaf, intermediate_require_no_policies, root},
++			policies: []OID{testOID1},
++			valid:    false,
++		},
++		// A constrained intermediate's policy extension has a duplicate policy, which
++		// is invalid.
++		// {
++		// 	chain:    []*Certificate{leaf, intermediate_require_duplicate, root},
++		// 	policies: []OID{testOID1},
++		// 	valid:    false,
++		// },
++		// The leaf asserts anyPolicy, but the intermediate does not. The resulting
++		// valid policies are the intersection.
++		{
++			chain:                 []*Certificate{leaf_any, intermediate, root},
++			policies:              []OID{testOID1},
++			requireExplicitPolicy: true,
++			valid:                 true,
++		},
++		{
++			chain:                 []*Certificate{leaf_any, intermediate, root},
++			policies:              []OID{testOID3},
++			requireExplicitPolicy: true,
++			valid:                 false,
++		},
++		// The intermediate asserts anyPolicy, but the leaf does not. The resulting
++		// valid policies are the intersection.
++		{
++			chain:                 []*Certificate{leaf, intermediate_any, root},
++			policies:              []OID{testOID1},
++			requireExplicitPolicy: true,
++			valid:                 true,
++		},
++		{
++			chain:                 []*Certificate{leaf, intermediate_any, root},
++			policies:              []OID{testOID3},
++			requireExplicitPolicy: true,
++			valid:                 false,
++		},
++		// Both assert anyPolicy. All policies are valid.
++		{
++			chain:                 []*Certificate{leaf_any, intermediate_any, root},
++			policies:              []OID{testOID1},
++			requireExplicitPolicy: true,
++			valid:                 true,
++		},
++		{
++			chain:                 []*Certificate{leaf_any, intermediate_any, root},
++			policies:              []OID{testOID3},
++			requireExplicitPolicy: true,
++			valid:                 true,
++		},
++		// With just a trust anchor, policy checking silently succeeds.
++		{
++			chain:                 []*Certificate{root},
++			policies:              []OID{testOID1},
++			requireExplicitPolicy: true,
++			valid:                 true,
++		},
++		// Although |intermediate_mapped_oid3| contains many mappings, it only accepts
++		// OID3. Nodes should not be created for the other mappings.
++		{
++			chain:                 []*Certificate{leaf_oid1, intermediate_mapped_oid3, root},
++			policies:              []OID{testOID3},
++			requireExplicitPolicy: true,
++			valid:                 true,
++		},
++		{
++			chain:                 []*Certificate{leaf_oid4, intermediate_mapped_oid3, root},
++			policies:              []OID{testOID4},
++			requireExplicitPolicy: true,
++			valid:                 false,
++		},
++		// Policy mapping can be inhibited, either by the caller or a certificate in
++		// the chain, in which case mapped policies are unassertable (apart from some
++		// anyPolicy edge cases).
++		{
++			chain:                 []*Certificate{leaf_oid1, intermediate_mapped_oid3, root},
++			policies:              []OID{testOID3},
++			requireExplicitPolicy: true,
++			inhibitPolicyMapping:  true,
++			valid:                 false,
++		},
++		{
++			chain:                 []*Certificate{leaf_oid1, intermediate_mapped_oid3, root_cross_inhibit_mapping, root2},
++			policies:              []OID{testOID3},
++			requireExplicitPolicy: true,
++			valid:                 false,
++		},
++	}
++
++	for _, useAny := range []bool{false, true} {
++		var intermediate *Certificate
++		if useAny {
++			intermediate = intermediate_mapped_any
++		} else {
++			intermediate = intermediate_mapped
++		}
++		extraTests := []testCase{
++			// OID3 is mapped to {OID1, OID2}, which means OID1 and OID2 (or both) are
++			// acceptable for OID3.
++			{
++				chain:                 []*Certificate{leaf, intermediate, root},
++				policies:              []OID{testOID3},
++				requireExplicitPolicy: true,
++				valid:                 true,
++			},
++			{
++				chain:                 []*Certificate{leaf_oid1, intermediate, root},
++				policies:              []OID{testOID3},
++				requireExplicitPolicy: true,
++				valid:                 true,
++			},
++			{
++				chain:                 []*Certificate{leaf_oid2, intermediate, root},
++				policies:              []OID{testOID3},
++				requireExplicitPolicy: true,
++				valid:                 true,
++			},
++			// If the intermediate's policies were anyPolicy, OID3 at the leaf, despite
++			// being mapped, is still acceptable as OID3 at the root. Despite the OID3
++			// having expected_policy_set = {OID1, OID2}, it can match the anyPolicy
++			// node instead.
++			//
++			// If the intermediate's policies listed OIDs explicitly, OID3 at the leaf
++			// is not acceptable as OID3 at the root. OID3 has expected_polciy_set =
++			// {OID1, OID2} and no other node allows OID3.
++			{
++				chain:                 []*Certificate{leaf_oid3, intermediate, root},
++				policies:              []OID{testOID3},
++				requireExplicitPolicy: true,
++				valid:                 useAny,
++			},
++			// If the intermediate's policies were anyPolicy, OID1 at the leaf is no
++			// longer acceptable as OID1 at the root because policies only match
++			// anyPolicy when they match no other policy.
++			//
++			// If the intermediate's policies listed OIDs explicitly, OID1 at the leaf
++			// is acceptable as OID1 at the root because it will match both OID1 and
++			// OID3 (mapped) policies.
++			{
++				chain:                 []*Certificate{leaf_oid1, intermediate, root},
++				policies:              []OID{testOID1},
++				requireExplicitPolicy: true,
++				valid:                 !useAny,
++			},
++			// All pairs of OID4 and OID5 are mapped together, so either can stand for
++			// the other.
++			{
++				chain:                 []*Certificate{leaf_oid4, intermediate, root},
++				policies:              []OID{testOID4},
++				requireExplicitPolicy: true,
++				valid:                 true,
++			},
++			{
++				chain:                 []*Certificate{leaf_oid4, intermediate, root},
++				policies:              []OID{testOID5},
++				requireExplicitPolicy: true,
++				valid:                 true,
++			},
++			{
++				chain:                 []*Certificate{leaf_oid5, intermediate, root},
++				policies:              []OID{testOID4},
++				requireExplicitPolicy: true,
++				valid:                 true,
++			},
++			{
++				chain:                 []*Certificate{leaf_oid5, intermediate, root},
++				policies:              []OID{testOID5},
++				requireExplicitPolicy: true,
++				valid:                 true,
++			},
++			{
++				chain:                 []*Certificate{leaf_oid4, intermediate, root},
++				policies:              []OID{testOID4, testOID5},
++				requireExplicitPolicy: true,
++				valid:                 true,
++			},
++		}
++		tests = append(tests, extraTests...)
++	}
++
++	for i, tc := range tests {
++		t.Run(fmt.Sprint(i), func(t *testing.T) {
++			valid := policiesValid(tc.chain, VerifyOptions{
++				CertificatePolicies:   tc.policies,
++				requireExplicitPolicy: tc.requireExplicitPolicy,
++				inhibitPolicyMapping:  tc.inhibitPolicyMapping,
++				inhibitAnyPolicy:      tc.inhibitAnyPolicy,
++			})
++			if valid != tc.valid {
++				t.Errorf("policiesValid: got %t, want %t", valid, tc.valid)
++			}
++		})
++	}
++}
+diff --git a/src/crypto/x509/x509.go b/src/crypto/x509/x509.go
+index eaa171aeed..a21405f499 100644
+--- a/src/crypto/x509/x509.go
++++ b/src/crypto/x509/x509.go
+@@ -791,6 +791,80 @@ type Certificate struct {
+ 	// Policies contains all policy identifiers included in the certificate.
+ 	// In Go 1.22, encoding/gob cannot handle and ignores this field.
+ 	Policies []OID
++
++	// InhibitAnyPolicy and InhibitAnyPolicyZero indicate the presence and value
++	// of the inhibitAnyPolicy extension.
++	//
++	// The value of InhibitAnyPolicy indicates the number of additional
++	// certificates in the path after this certificate that may use the
++	// anyPolicy policy OID to indicate a match with any other policy.
++	//
++	// When parsing a certificate, a positive non-zero InhibitAnyPolicy means
++	// that the field was specified, -1 means it was unset, and
++	// InhibitAnyPolicyZero being true mean that the field was explicitly set to
++	// zero. The case of InhibitAnyPolicy==0 with InhibitAnyPolicyZero==false
++	// should be treated equivalent to -1 (unset).
++	InhibitAnyPolicy int
++	// InhibitAnyPolicyZero indicates that InhibitAnyPolicy==0 should be
++	// interpreted as an actual maximum path length of zero. Otherwise, that
++	// combination is interpreted as InhibitAnyPolicy not being set.
++	InhibitAnyPolicyZero bool
++
++	// InhibitPolicyMapping and InhibitPolicyMappingZero indicate the presence
++	// and value of the inhibitPolicyMapping field of the policyConstraints
++	// extension.
++	//
++	// The value of InhibitPolicyMapping indicates the number of additional
++	// certificates in the path after this certificate that may use policy
++	// mapping.
++	//
++	// When parsing a certificate, a positive non-zero InhibitPolicyMapping
++	// means that the field was specified, -1 means it was unset, and
++	// InhibitPolicyMappingZero being true mean that the field was explicitly
++	// set to zero. The case of InhibitPolicyMapping==0 with
++	// InhibitPolicyMappingZero==false should be treated equivalent to -1
++	// (unset).
++	InhibitPolicyMapping int
++	// InhibitPolicyMappingZero indicates that InhibitPolicyMapping==0 should be
++	// interpreted as an actual maximum path length of zero. Otherwise, that
++	// combination is interpreted as InhibitAnyPolicy not being set.
++	InhibitPolicyMappingZero bool
++
++	// RequireExplicitPolicy and RequireExplicitPolicyZero indicate the presence
++	// and value of the requireExplicitPolicy field of the policyConstraints
++	// extension.
++	//
++	// The value of RequireExplicitPolicy indicates the number of additional
++	// certificates in the path after this certificate before an explicit policy
++	// is required for the rest of the path. When an explicit policy is required,
++	// each subsequent certificate in the path must contain a required policy OID,
++	// or a policy OID which has been declared as equivalent through the policy
++	// mapping extension.
++	//
++	// When parsing a certificate, a positive non-zero RequireExplicitPolicy
++	// means that the field was specified, -1 means it was unset, and
++	// RequireExplicitPolicyZero being true mean that the field was explicitly
++	// set to zero. The case of RequireExplicitPolicy==0 with
++	// RequireExplicitPolicyZero==false should be treated equivalent to -1
++	// (unset).
++	RequireExplicitPolicy int
++	// RequireExplicitPolicyZero indicates that RequireExplicitPolicy==0 should be
++	// interpreted as an actual maximum path length of zero. Otherwise, that
++	// combination is interpreted as InhibitAnyPolicy not being set.
++	RequireExplicitPolicyZero bool
++
++	// PolicyMappings contains a list of policy mappings included in the certificate.
++	PolicyMappings []PolicyMapping
++}
++
++// PolicyMapping represents a policy mapping entry in the policyMappings extension.
++type PolicyMapping struct {
++	// IssuerDomainPolicy contains a policy OID the issuing certificate considers
++	// equivalent to SubjectDomainPolicy in the subject certificate.
++	IssuerDomainPolicy OID
++	// SubjectDomainPolicy contains a OID the issuing certificate considers
++	// equivalent to IssuerDomainPolicy in the subject certificate.
++	SubjectDomainPolicy OID
+ }
+ 
+ // ErrUnsupportedAlgorithm results from attempting to perform an operation that
+diff --git a/src/crypto/x509/x509_test.go b/src/crypto/x509/x509_test.go
+index 5ba6a5ad83..873598c3b0 100644
+--- a/src/crypto/x509/x509_test.go
++++ b/src/crypto/x509/x509_test.go
+@@ -674,7 +674,7 @@ func TestCreateSelfSignedCertificate(t *testing.T) {
+ 			URIs:           []*url.URL{parseURI("https://foo.com/wibble#foo")},
+ 
+ 			PolicyIdentifiers:       []asn1.ObjectIdentifier{[]int{1, 2, 3}},
+-			Policies:                []OID{mustNewOIDFromInts(t, []uint64{1, 2, 3, math.MaxUint32, math.MaxUint64})},
++			Policies:                []OID{mustNewOIDFromInts([]uint64{1, 2, 3, math.MaxUint32, math.MaxUint64})},
+ 			PermittedDNSDomains:     []string{".example.com", "example.com"},
+ 			ExcludedDNSDomains:      []string{"bar.example.com"},
+ 			PermittedIPRanges:       []*net.IPNet{parseCIDR("192.168.1.1/16"), parseCIDR("1.2.3.4/8")},
+@@ -3934,7 +3934,7 @@ func TestCertificateOIDPolicies(t *testing.T) {
+ 	}
+ 
+ 	var expectPolicies = []OID{
+-		mustNewOIDFromInts(t, []uint64{1, 2, 3}),
++		mustNewOIDFromInts([]uint64{1, 2, 3}),
+ 	}
+ 
+ 	certDER, err := CreateCertificate(rand.Reader, &template, &template, rsaPrivateKey.Public(), rsaPrivateKey)
+@@ -3963,10 +3963,10 @@ func TestCertificatePoliciesGODEBUG(t *testing.T) {
+ 		NotBefore:         time.Unix(1000, 0),
+ 		NotAfter:          time.Unix(100000, 0),
+ 		PolicyIdentifiers: []asn1.ObjectIdentifier{[]int{1, 2, 3}},
+-		Policies:          []OID{mustNewOIDFromInts(t, []uint64{1, 2, math.MaxUint32 + 1})},
++		Policies:          []OID{mustNewOIDFromInts([]uint64{1, 2, math.MaxUint32 + 1})},
+ 	}
+ 
+-	expectPolicies := []OID{mustNewOIDFromInts(t, []uint64{1, 2, 3})}
++	expectPolicies := []OID{mustNewOIDFromInts([]uint64{1, 2, 3})}
+ 	certDER, err := CreateCertificate(rand.Reader, &template, &template, rsaPrivateKey.Public(), rsaPrivateKey)
+ 	if err != nil {
+ 		t.Fatalf("CreateCertificate() unexpected error: %v", err)
+@@ -3982,7 +3982,7 @@ func TestCertificatePoliciesGODEBUG(t *testing.T) {
+ 	}
+ 
+ 	t.Setenv("GODEBUG", "x509usepolicies=1")
+-	expectPolicies = []OID{mustNewOIDFromInts(t, []uint64{1, 2, math.MaxUint32 + 1})}
++	expectPolicies = []OID{mustNewOIDFromInts([]uint64{1, 2, math.MaxUint32 + 1})}
+ 
+ 	certDER, err = CreateCertificate(rand.Reader, &template, &template, rsaPrivateKey.Public(), rsaPrivateKey)
+ 	if err != nil {

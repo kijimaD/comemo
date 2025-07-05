@@ -15,8 +15,87 @@ Date:   Fri Mar 17 20:10:38 2017 -0700
     Reviewed-on: https://go-review.googlesource.com/38335
     Reviewed-by: Rob Pike <r@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/reflect/all_test.go | 18 ++++++++++++++++++
  src/reflect/value.go    | 13 +++++++++----
  src/runtime/hashmap.go  |  4 ++--
  3 files changed, 29 insertions(+), 6 deletions(-)
+
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index 382ad6be2a..ff0e7e5791 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -5850,6 +5850,24 @@ func TestMapAlloc(t *testing.T) {
+ 	if allocs > 0.5 {
+ 		t.Errorf("allocs per map assignment: want 0 got %f", allocs)
+ 	}
++
++	const size = 1000
++	tmp := 0
++	val := ValueOf(&tmp).Elem()
++	allocs = testing.AllocsPerRun(100, func() {
++		mv := MakeMapWithSize(TypeOf(map[int]int{}), size)
++		// Only adding half of the capacity to not trigger re-allocations due too many overloaded buckets.
++		for i := 0; i < size/2; i++ {
++			val.SetInt(int64(i))
++			mv.SetMapIndex(val, val)
++		}
++	})
++	if allocs > 10 {
++		t.Errorf("allocs per map assignment: want at most 10 got %f", allocs)
++	}
++	// Empirical testing shows that with capacity hint single run will trigger 3 allocations and without 91. I set
++	// the threshold to 10, to not make it overly brittle if something changes in the initial allocation of the
++	// map, but to still catch a regression where we keep re-allocating in the hashmap as new entries are added.
+ }
+ 
+ func TestChanAlloc(t *testing.T) {
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index dd4bafac24..290d04d74a 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -2077,12 +2077,17 @@ func MakeChan(typ Type, buffer int) Value {
+ 	return Value{typ.common(), ch, flag(Chan)}
+ }
+ 
+-// MakeMap creates a new map of the specified type.
++// MakeMap creates a new map with the specified type.
+ func MakeMap(typ Type) Value {
++	return MakeMapWithSize(typ, 0)
++}
++
++// MakeMapWithSize creates a new map with the specified type and initial capacity.
++func MakeMapWithSize(typ Type, cap int) Value {
+ 	if typ.Kind() != Map {
+-		panic("reflect.MakeMap of non-map type")
++		panic("reflect.MakeMapWithSize of non-map type")
+ 	}
+-	m := makemap(typ.(*rtype))
++	m := makemap(typ.(*rtype), cap)
+ 	return Value{typ.common(), m, flag(Map)}
+ }
+ 
+@@ -2477,7 +2482,7 @@ func chanrecv(ch unsafe.Pointer, nb bool, val unsafe.Pointer) (selected, receive
+ func chansend(ch unsafe.Pointer, val unsafe.Pointer, nb bool) bool
+ 
+ func makechan(typ *rtype, size uint64) (ch unsafe.Pointer)
+-func makemap(t *rtype) (m unsafe.Pointer)
++func makemap(t *rtype, cap int) (m unsafe.Pointer)
+ 
+ //go:noescape
+ func mapaccess(t *rtype, m unsafe.Pointer, key unsafe.Pointer) (val unsafe.Pointer)
+diff --git a/src/runtime/hashmap.go b/src/runtime/hashmap.go
+index 5fd8e882bb..9b214a3ac2 100644
+--- a/src/runtime/hashmap.go
++++ b/src/runtime/hashmap.go
+@@ -1139,8 +1139,8 @@ func ismapkey(t *_type) bool {
+ // Reflect stubs. Called from ../reflect/asm_*.s
+ 
+ //go:linkname reflect_makemap reflect.makemap
+-func reflect_makemap(t *maptype) *hmap {
+-	return makemap(t, 0, nil, nil)
++func reflect_makemap(t *maptype, cap int) *hmap {
++	return makemap(t, int64(cap), nil, nil)
+ }
+ 
+ //go:linkname reflect_mapaccess reflect.mapaccess

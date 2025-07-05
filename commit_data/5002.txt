@@ -9,6 +9,20 @@ Date:   Fri Mar 5 19:29:14 2010 -0800
     R=ken2
     CC=golang-dev
     https://golang.org/cl/255043
-
+---
  src/cmd/gc/walk.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 5ee82eeac7..1f7312e5e0 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -1078,7 +1078,7 @@ walkexpr(Node **np, NodeList **init)
+ 		t = n->type;
+ 		fn = syslook("makeslice", 1);
+ 		argtype(fn, t->type);			// any-1
+-		n = mkcall1(fn, n->type, nil,
++		n = mkcall1(fn, n->type, init,
+ 			typename(n->type),
+ 			conv(n->left, types[TINT]),
+ 			conv(n->right, types[TINT]));

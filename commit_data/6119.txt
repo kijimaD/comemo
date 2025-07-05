@@ -9,7 +9,54 @@ Date:   Fri Aug 27 14:02:00 2010 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/2055041
-
+---
  src/cmd/8g/cgen.c  | 11 ++---------
  src/cmd/8g/gsubr.c |  5 +++++
  2 files changed, 7 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/8g/cgen.c b/src/cmd/8g/cgen.c
+index 519907aa6d..f054a89f40 100644
+--- a/src/cmd/8g/cgen.c
++++ b/src/cmd/8g/cgen.c
+@@ -392,23 +392,16 @@ uop:	// unary
+ 	gmove(&n1, res);
+ 	return;
+ 
+-flt:	// floating-point.  387 (not SSE2) to interoperate with 6c
++flt:	// floating-point.  387 (not SSE2) to interoperate with 8c
+ 	nodreg(&f0, nl->type, D_F0);
+ 	nodreg(&f1, n->type, D_F0+1);
+ 	if(nr != N)
+ 		goto flt2;
+ 
+-	if(n->op == OMINUS) {
+-		nr = nodintconst(-1);
+-		convlit(&nr, n->type);
+-		n->op = OMUL;
+-		goto flt2;
+-	}
+-
+ 	// unary
+ 	cgen(nl, &f0);
+ 	if(n->op != OCONV && n->op != OPLUS)
+-		gins(foptoas(n->op, n->type, 0), &f0, &f0);
++		gins(foptoas(n->op, n->type, 0), N, N);
+ 	gmove(&f0, res);
+ 	return;
+ 
+diff --git a/src/cmd/8g/gsubr.c b/src/cmd/8g/gsubr.c
+index 6890c683e6..a63d03e66e 100644
+--- a/src/cmd/8g/gsubr.c
++++ b/src/cmd/8g/gsubr.c
+@@ -661,6 +661,11 @@ foptoas(int op, Type *t, int flg)
+ 		return AFCOMDP;
+ 	case FCASE(OCMP, TFLOAT64, Fpop2):
+ 		return AFCOMDPP;
++	
++	case FCASE(OMINUS, TFLOAT32, 0):
++		return AFCHS;
++	case FCASE(OMINUS, TFLOAT64, 0):
++		return AFCHS;
+ 	}
+ 
+ 	fatal("foptoas %O %T %#x", op, t, flg);

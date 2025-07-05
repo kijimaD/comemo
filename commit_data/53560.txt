@@ -14,6 +14,31 @@ Date:   Mon Aug 22 07:59:49 2022 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Run-TryBot: Than McIntosh <thanm@google.com>
-
+---
  src/internal/xcoff/file.go | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/internal/xcoff/file.go b/src/internal/xcoff/file.go
+index 1c5a266caf..e859de932a 100644
+--- a/src/internal/xcoff/file.go
++++ b/src/internal/xcoff/file.go
+@@ -283,6 +283,9 @@ func NewFile(r io.ReaderAt) (*File, error) {
+ 				return nil, err
+ 			}
+ 			numaux = int(se.Nnumaux)
++			if numaux < 0 {
++				return nil, fmt.Errorf("malformed symbol table, invalid number of aux symbols")
++			}
+ 			sym.SectionNumber = int(se.Nscnum)
+ 			sym.StorageClass = int(se.Nsclass)
+ 			sym.Value = uint64(se.Nvalue)
+@@ -303,6 +306,9 @@ func NewFile(r io.ReaderAt) (*File, error) {
+ 				return nil, err
+ 			}
+ 			numaux = int(se.Nnumaux)
++			if numaux < 0 {
++				return nil, fmt.Errorf("malformed symbol table, invalid number of aux symbols")
++			}
+ 			sym.SectionNumber = int(se.Nscnum)
+ 			sym.StorageClass = int(se.Nsclass)
+ 			sym.Value = se.Nvalue

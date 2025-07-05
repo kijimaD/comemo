@@ -15,7 +15,7 @@ Date:   Thu Apr 5 12:48:28 2018 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/reflect.go |  8 ++++++-
  src/cmd/compile/internal/types/sym.go  | 15 ++++++++++++--
  test/fixedbugs/issue24693.dir/a.go     | 11 ++++++++++
@@ -24,3 +24,174 @@ Date:   Thu Apr 5 12:48:28 2018 -0700
  test/fixedbugs/issue24693.go           |  7 +++++++
  test/fixedbugs/issue24693.out          |  2 ++
  7 files changed, 90 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index 7bf6de1394..33b71a40c2 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -1390,6 +1390,8 @@ func genfun(t, it *types.Type) []*obj.LSym {
+ 	sigs := imethods(it)
+ 	methods := methods(t)
+ 	out := make([]*obj.LSym, 0, len(sigs))
++	// TODO(mdempsky): Short circuit before calling methods(t)?
++	// See discussion on CL 105039.
+ 	if len(sigs) == 0 {
+ 		return nil
+ 	}
+@@ -1397,7 +1399,7 @@ func genfun(t, it *types.Type) []*obj.LSym {
+ 	// both sigs and methods are sorted by name,
+ 	// so we can find the intersect in a single pass
+ 	for _, m := range methods {
+-		if m.name.Name == sigs[0].name.Name {
++		if m.name == sigs[0].name {
+ 			out = append(out, m.isym.Linksym())
+ 			sigs = sigs[1:]
+ 			if len(sigs) == 0 {
+@@ -1406,6 +1408,10 @@ func genfun(t, it *types.Type) []*obj.LSym {
+ 		}
+ 	}
+ 
++	if len(sigs) != 0 {
++		Fatalf("incomplete itab")
++	}
++
+ 	return out
+ }
+ 
+diff --git a/src/cmd/compile/internal/types/sym.go b/src/cmd/compile/internal/types/sym.go
+index fe6ddbf5a2..49233ad386 100644
+--- a/src/cmd/compile/internal/types/sym.go
++++ b/src/cmd/compile/internal/types/sym.go
+@@ -80,7 +80,14 @@ func (sym *Sym) Linksym() *obj.LSym {
+ // Less reports whether symbol a is ordered before symbol b.
+ //
+ // Symbols are ordered exported before non-exported, then by name, and
+-// finally (for non-exported symbols) by package path.
++// finally (for non-exported symbols) by package height and path.
++//
++// Ordering by package height is necessary to establish a consistent
++// ordering for non-exported names with the same spelling but from
++// different packages. We don't necessarily know the path for the
++// package being compiled, but by definition it will have a height
++// greater than any other packages seen within the compilation unit.
++// For more background, see issue #24693.
+ func (a *Sym) Less(b *Sym) bool {
+ 	if a == b {
+ 		return false
+@@ -93,11 +100,15 @@ func (a *Sym) Less(b *Sym) bool {
+ 		return ea
+ 	}
+ 
+-	// Order by name and then (for non-exported names) by package.
++	// Order by name and then (for non-exported names) by package
++	// height and path.
+ 	if a.Name != b.Name {
+ 		return a.Name < b.Name
+ 	}
+ 	if !ea {
++		if a.Pkg.Height != b.Pkg.Height {
++			return a.Pkg.Height < b.Pkg.Height
++		}
+ 		return a.Pkg.Path < b.Pkg.Path
+ 	}
+ 	return false
+diff --git a/test/fixedbugs/issue24693.dir/a.go b/test/fixedbugs/issue24693.dir/a.go
+new file mode 100644
+index 0000000000..8a845ed86c
+--- /dev/null
++++ b/test/fixedbugs/issue24693.dir/a.go
+@@ -0,0 +1,11 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++type T struct{}
++
++func (T) m() { println("FAIL") }
++
++type I interface{ m() }
+diff --git a/test/fixedbugs/issue24693.dir/b.go b/test/fixedbugs/issue24693.dir/b.go
+new file mode 100644
+index 0000000000..15ffa4f7ca
+--- /dev/null
++++ b/test/fixedbugs/issue24693.dir/b.go
+@@ -0,0 +1,38 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package b
++
++import "./a"
++
++type T struct{ a.T }
++
++func (T) m() { println("ok") }
++
++// The compiler used to not pay attention to package for non-exported
++// methods when statically constructing itabs. The consequence of this
++// was that the call to b.F1(b.T{}) in c.go would create an itab using
++// a.T.m instead of b.T.m.
++func F1(i interface{ m() }) { i.m() }
++
++// The interface method calling convention depends on interface method
++// sets being sorted in the same order across compilation units.  In
++// the test case below, at the call to b.F2(b.T{}) in c.go, the
++// interface method set is sorted as { a.m(); b.m() }.
++//
++// However, while compiling package b, its package path is set to "",
++// so the code produced for F2 uses { b.m(); a.m() } as the method set
++// order. So again, it ends up calling the wrong method.
++//
++// Also, this function is marked noinline because it's critical to the
++// test that the interface method call happen in this compilation
++// unit, and the itab construction happens in c.go.
++//
++//go:noinline
++func F2(i interface {
++	m()
++	a.I // embeds m() from package a
++}) {
++	i.m()
++}
+diff --git a/test/fixedbugs/issue24693.dir/c.go b/test/fixedbugs/issue24693.dir/c.go
+new file mode 100644
+index 0000000000..8c6e27b140
+--- /dev/null
++++ b/test/fixedbugs/issue24693.dir/c.go
+@@ -0,0 +1,12 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "./b"
++
++func main() {
++	b.F1(b.T{})
++	b.F2(b.T{})
++}
+diff --git a/test/fixedbugs/issue24693.go b/test/fixedbugs/issue24693.go
+new file mode 100644
+index 0000000000..3da6a81af3
+--- /dev/null
++++ b/test/fixedbugs/issue24693.go
+@@ -0,0 +1,7 @@
++// rundir
++
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ignored
+diff --git a/test/fixedbugs/issue24693.out b/test/fixedbugs/issue24693.out
+new file mode 100644
+index 0000000000..79ebd0860f
+--- /dev/null
++++ b/test/fixedbugs/issue24693.out
+@@ -0,0 +1,2 @@
++ok
++ok

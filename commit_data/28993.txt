@@ -12,7 +12,44 @@ Date:   Sun Aug 21 09:57:01 2016 +0200
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go |  3 +++
  test/fixedbugs/issue16804.go       | 16 ++++++++++++++++
  2 files changed, 19 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 781fe1b2d5..304f446df1 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -966,6 +966,9 @@ func (s *state) stmt(n *Node) {
+ 		p := s.expr(n.Left)
+ 		s.nilCheck(p)
+ 
++	case OSQRT:
++		s.expr(n.Left)
++
+ 	default:
+ 		s.Unimplementedf("unhandled stmt %s", n.Op)
+ 	}
+diff --git a/test/fixedbugs/issue16804.go b/test/fixedbugs/issue16804.go
+new file mode 100644
+index 0000000000..46dd4a33cc
+--- /dev/null
++++ b/test/fixedbugs/issue16804.go
+@@ -0,0 +1,16 @@
++// compile
++
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 16804: internal error for math.Sqrt as statement
++//              rather than expression
++
++package main
++
++import "math"
++
++func sqrt() {
++	math.Sqrt(2.0)
++}

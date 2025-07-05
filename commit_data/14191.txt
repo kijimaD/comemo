@@ -7,6 +7,27 @@ Date:   Sun Oct 21 17:04:07 2012 -0400
     R=golang-dev, minux.ma, ality
     CC=golang-dev
     https://golang.org/cl/6743052
-
+---
  include/plan9/arm/u.h | 14 ++++++++++++++
  1 file changed, 14 insertions(+)
+
+diff --git a/include/plan9/arm/u.h b/include/plan9/arm/u.h
+new file mode 100644
+index 0000000000..c387ae7b18
+--- /dev/null
++++ b/include/plan9/arm/u.h
+@@ -0,0 +1,14 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "/arm/include/u.h"
++
++typedef char   int8;
++typedef uchar  uint8;
++typedef short  int16;
++typedef ushort uint16;
++typedef int    int32;
++typedef uint   uint32;
++typedef vlong  int64;
++typedef uvlong uint64;

@@ -9,7 +9,107 @@ Date:   Fri Mar 17 15:34:39 2017 +1100
     Change-Id: I414cb3b1c2dab20f41a7f4e7aba49c534ff19942
     Reviewed-on: https://go-review.googlesource.com/38271
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/image/png/reader.go      | 16 ++++++++++--
  src/image/png/reader_test.go | 61 ++++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 75 insertions(+), 2 deletions(-)
+
+diff --git a/src/image/png/reader.go b/src/image/png/reader.go
+index 32f78f0ffe..4f043a0e42 100644
+--- a/src/image/png/reader.go
++++ b/src/image/png/reader.go
+@@ -612,8 +612,20 @@ func (d *decoder) readImagePass(r io.Reader, pass int, allocateOnly bool) (image
+ 				}
+ 			}
+ 		case cbG8:
+-			copy(gray.Pix[pixOffset:], cdat)
+-			pixOffset += gray.Stride
++			if d.useTransparent {
++				ty := d.transparent[1]
++				for x := 0; x < width; x++ {
++					ycol := cdat[x]
++					acol := uint8(0xff)
++					if ycol == ty {
++						acol = 0x00
++					}
++					nrgba.SetNRGBA(x, y, color.NRGBA{ycol, ycol, ycol, acol})
++				}
++			} else {
++				copy(gray.Pix[pixOffset:], cdat)
++				pixOffset += gray.Stride
++			}
+ 		case cbGA8:
+ 			for x := 0; x < width; x++ {
+ 				ycol := cdat[2*x+0]
+diff --git a/src/image/png/reader_test.go b/src/image/png/reader_test.go
+index b9e9f4d02c..cabf533adc 100644
+--- a/src/image/png/reader_test.go
++++ b/src/image/png/reader_test.go
+@@ -588,6 +588,67 @@ func TestUnknownChunkLengthUnderflow(t *testing.T) {
+ 	}
+ }
+ 
++func TestGray8Transparent(t *testing.T) {
++	// These bytes come from https://github.com/golang/go/issues/19553
++	m, err := Decode(bytes.NewReader([]byte{
++		0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52,
++		0x00, 0x00, 0x00, 0x0f, 0x00, 0x00, 0x00, 0x0b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x85, 0x2c, 0x88,
++		0x80, 0x00, 0x00, 0x00, 0x02, 0x74, 0x52, 0x4e, 0x53, 0x00, 0xff, 0x5b, 0x91, 0x22, 0xb5, 0x00,
++		0x00, 0x00, 0x02, 0x62, 0x4b, 0x47, 0x44, 0x00, 0xff, 0x87, 0x8f, 0xcc, 0xbf, 0x00, 0x00, 0x00,
++		0x09, 0x70, 0x48, 0x59, 0x73, 0x00, 0x00, 0x0a, 0xf0, 0x00, 0x00, 0x0a, 0xf0, 0x01, 0x42, 0xac,
++		0x34, 0x98, 0x00, 0x00, 0x00, 0x07, 0x74, 0x49, 0x4d, 0x45, 0x07, 0xd5, 0x04, 0x02, 0x12, 0x11,
++		0x11, 0xf7, 0x65, 0x3d, 0x8b, 0x00, 0x00, 0x00, 0x4f, 0x49, 0x44, 0x41, 0x54, 0x08, 0xd7, 0x63,
++		0xf8, 0xff, 0xff, 0xff, 0xb9, 0xbd, 0x70, 0xf0, 0x8c, 0x01, 0xc8, 0xaf, 0x6e, 0x99, 0x02, 0x05,
++		0xd9, 0x7b, 0xc1, 0xfc, 0x6b, 0xff, 0xa1, 0xa0, 0x87, 0x30, 0xff, 0xd9, 0xde, 0xbd, 0xd5, 0x4b,
++		0xf7, 0xee, 0xfd, 0x0e, 0xe3, 0xef, 0xcd, 0x06, 0x19, 0x14, 0xf5, 0x1e, 0xce, 0xef, 0x01, 0x31,
++		0x92, 0xd7, 0x82, 0x41, 0x31, 0x9c, 0x3f, 0x07, 0x02, 0xee, 0xa1, 0xaa, 0xff, 0xff, 0x9f, 0xe1,
++		0xd9, 0x56, 0x30, 0xf8, 0x0e, 0xe5, 0x03, 0x00, 0xa9, 0x42, 0x84, 0x3d, 0xdf, 0x8f, 0xa6, 0x8f,
++		0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4e, 0x44, 0xae, 0x42, 0x60, 0x82,
++	}))
++	if err != nil {
++		t.Fatalf("Decode: %v", err)
++	}
++
++	const hex = "0123456789abcdef"
++	var got []byte
++	bounds := m.Bounds()
++	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
++		for x := bounds.Min.X; x < bounds.Max.X; x++ {
++			if r, _, _, a := m.At(x, y).RGBA(); a != 0 {
++				got = append(got,
++					hex[0x0f&(r>>12)],
++					hex[0x0f&(r>>8)],
++					' ',
++				)
++			} else {
++				got = append(got,
++					'.',
++					'.',
++					' ',
++				)
++			}
++		}
++		got = append(got, '\n')
++	}
++
++	const want = "" +
++		".. .. .. ce bd bd bd bd bd bd bd bd bd bd e6 \n" +
++		".. .. .. 7b 84 94 94 94 94 94 94 94 94 6b bd \n" +
++		".. .. .. 7b d6 .. .. .. .. .. .. .. .. 8c bd \n" +
++		".. .. .. 7b d6 .. .. .. .. .. .. .. .. 8c bd \n" +
++		".. .. .. 7b d6 .. .. .. .. .. .. .. .. 8c bd \n" +
++		"e6 bd bd 7b a5 bd bd f7 .. .. .. .. .. 8c bd \n" +
++		"bd 6b 94 94 94 94 5a ef .. .. .. .. .. 8c bd \n" +
++		"bd 8c .. .. .. .. 63 ad ad ad ad ad ad 73 bd \n" +
++		"bd 8c .. .. .. .. 63 9c 9c 9c 9c 9c 9c 9c de \n" +
++		"bd 6b 94 94 94 94 5a ef .. .. .. .. .. .. .. \n" +
++		"e6 b5 b5 b5 b5 b5 b5 f7 .. .. .. .. .. .. .. \n"
++
++	if string(got) != want {
++		t.Errorf("got:\n%swant:\n%s", got, want)
++	}
++}
++
+ func benchmarkDecode(b *testing.B, filename string, bytesPerPixel int) {
+ 	b.StopTimer()
+ 	data, err := ioutil.ReadFile(filename)

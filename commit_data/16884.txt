@@ -14,7 +14,7 @@ Date:   Fri Jul 26 21:17:24 2013 +0400
     R=golang-dev, iant, nightlyone, rsc, dave, khr, bradfitz, r
     CC=golang-dev
     https://golang.org/cl/10136043
-
+---
  src/pkg/runtime/chan.c     |   3 +-
  src/pkg/runtime/hashmap.c  |  26 ++++------
  src/pkg/runtime/malloc.goc | 121 ++++++++++++++-------------------------------
@@ -25,3 +25,478 @@ Date:   Fri Jul 26 21:17:24 2013 +0400
  src/pkg/runtime/stack.c    |   2 +-
  src/pkg/runtime/string.goc |   8 +--
  9 files changed, 62 insertions(+), 119 deletions(-)
+
+diff --git a/src/pkg/runtime/chan.c b/src/pkg/runtime/chan.c
+index c750faba49..678aa3a943 100644
+--- a/src/pkg/runtime/chan.c
++++ b/src/pkg/runtime/chan.c
+@@ -107,11 +107,10 @@ runtime·makechan_c(ChanType *t, int64 hint)
+ 		runtime·panicstring("makechan: size out of range");
+ 
+ 	// allocate memory in one call
+-	c = (Hchan*)runtime·mal(sizeof(*c) + hint*elem->size);
++	c = (Hchan*)runtime·mallocgc(sizeof(*c) + hint*elem->size, (uintptr)t | TypeInfo_Chan, 0);
+ 	c->elemsize = elem->size;
+ 	c->elemalg = elem->alg;
+ 	c->dataqsiz = hint;
+-	runtime·settype(c, (uintptr)t | TypeInfo_Chan);
+ 
+ 	if(debug)
+ 		runtime·printf("makechan: chan=%p; elemsize=%D; elemalg=%p; dataqsiz=%D\n",
+diff --git a/src/pkg/runtime/hashmap.c b/src/pkg/runtime/hashmap.c
+index 0215a4718e..898404cba8 100644
+--- a/src/pkg/runtime/hashmap.c
++++ b/src/pkg/runtime/hashmap.c
+@@ -259,7 +259,7 @@ hash_init(MapType *t, Hmap *h, uint32 hint)
+ 		// done lazily later.
+ 		buckets = nil;
+ 	} else {
+-		buckets = runtime·mallocgc(bucketsize << B, 0, 1, 0);
++		buckets = runtime·mallocgc(bucketsize << B, 0, FlagNoZero);
+ 		for(i = 0; i < (uintptr)1 << B; i++) {
+ 			b = (Bucket*)(buckets + i * bucketsize);
+ 			clearbucket(b);
+@@ -330,7 +330,7 @@ evacuate(MapType *t, Hmap *h, uintptr oldbucket)
+ 				if((hash & newbit) == 0) {
+ 					if(xi == BUCKETSIZE) {
+ 						if(checkgc) mstats.next_gc = mstats.heap_alloc;
+-						newx = runtime·mallocgc(h->bucketsize, 0, 1, 0);
++						newx = runtime·mallocgc(h->bucketsize, 0, FlagNoZero);
+ 						clearbucket(newx);
+ 						x->overflow = newx;
+ 						x = newx;
+@@ -355,7 +355,7 @@ evacuate(MapType *t, Hmap *h, uintptr oldbucket)
+ 				} else {
+ 					if(yi == BUCKETSIZE) {
+ 						if(checkgc) mstats.next_gc = mstats.heap_alloc;
+-						newy = runtime·mallocgc(h->bucketsize, 0, 1, 0);
++						newy = runtime·mallocgc(h->bucketsize, 0, FlagNoZero);
+ 						clearbucket(newy);
+ 						y->overflow = newy;
+ 						y = newy;
+@@ -451,7 +451,7 @@ hash_grow(MapType *t, Hmap *h)
+ 	old_buckets = h->buckets;
+ 	// NOTE: this could be a big malloc, but since we don't need zeroing it is probably fast.
+ 	if(checkgc) mstats.next_gc = mstats.heap_alloc;
+-	new_buckets = runtime·mallocgc((uintptr)h->bucketsize << (h->B + 1), 0, 1, 0);
++	new_buckets = runtime·mallocgc((uintptr)h->bucketsize << (h->B + 1), 0, FlagNoZero);
+ 	flags = (h->flags & ~(Iterator | OldIterator));
+ 	if((h->flags & Iterator) != 0) {
+ 		flags |= OldIterator;
+@@ -597,7 +597,7 @@ hash_insert(MapType *t, Hmap *h, void *key, void *value)
+ 	hash = h->hash0;
+ 	t->key->alg->hash(&hash, t->key->size, key);
+ 	if(h->buckets == nil) {
+-		h->buckets = runtime·mallocgc(h->bucketsize, 0, 1, 0);
++		h->buckets = runtime·mallocgc(h->bucketsize, 0, FlagNoZero);
+ 		b = (Bucket*)(h->buckets);
+ 		clearbucket(b);
+ 	}
+@@ -647,7 +647,7 @@ hash_insert(MapType *t, Hmap *h, void *key, void *value)
+ 	if(inserti == nil) {
+ 		// all current buckets are full, allocate a new one.
+ 		if(checkgc) mstats.next_gc = mstats.heap_alloc;
+-		newb = runtime·mallocgc(h->bucketsize, 0, 1, 0);
++		newb = runtime·mallocgc(h->bucketsize, 0, FlagNoZero);
+ 		clearbucket(newb);
+ 		b->overflow = newb;
+ 		inserti = newb->tophash;
+@@ -658,13 +658,13 @@ hash_insert(MapType *t, Hmap *h, void *key, void *value)
+ 	// store new key/value at insert position
+ 	if((h->flags & IndirectKey) != 0) {
+ 		if(checkgc) mstats.next_gc = mstats.heap_alloc;
+-		kmem = runtime·mallocgc(t->key->size, 0, 1, 0);
++		kmem = runtime·mallocgc(t->key->size, 0, FlagNoZero);
+ 		*(byte**)insertk = kmem;
+ 		insertk = kmem;
+ 	}
+ 	if((h->flags & IndirectValue) != 0) {
+ 		if(checkgc) mstats.next_gc = mstats.heap_alloc;
+-		vmem = runtime·mallocgc(t->elem->size, 0, 1, 0);
++		vmem = runtime·mallocgc(t->elem->size, 0, FlagNoZero);
+ 		*(byte**)insertv = vmem;
+ 		insertv = vmem;
+ 	}
+@@ -1102,15 +1102,7 @@ runtime·makemap_c(MapType *typ, int64 hint)
+ 	if(key->alg->hash == runtime·nohash)
+ 		runtime·throw("runtime.makemap: unsupported map key type");
+ 
+-	h = runtime·mal(sizeof(*h));
+-
+-	if(UseSpanType) {
+-		if(false) {
+-			runtime·printf("makemap %S: %p\n", *typ->string, h);
+-		}
+-		runtime·settype(h, (uintptr)typ | TypeInfo_Map);
+-	}
+-
++	h = runtime·mallocgc(sizeof(*h), (uintptr)typ | TypeInfo_Map, 0);
+ 	hash_init(typ, h, hint);
+ 
+ 	// these calculations are compiler dependent.
+diff --git a/src/pkg/runtime/malloc.goc b/src/pkg/runtime/malloc.goc
+index 352f93f69d..f31f119082 100644
+--- a/src/pkg/runtime/malloc.goc
++++ b/src/pkg/runtime/malloc.goc
+@@ -28,8 +28,9 @@ extern volatile intgo runtime·MemProfileRate;
+ // Allocate an object of at least size bytes.
+ // Small objects are allocated from the per-thread cache's free lists.
+ // Large objects (> 32 kB) are allocated straight from the heap.
++// If the block will be freed with runtime·free(), typ must be 0.
+ void*
+-runtime·mallocgc(uintptr size, uint32 flag, int32 dogc, int32 zeroed)
++runtime·mallocgc(uintptr size, uintptr typ, uint32 flag)
+ {
+ 	int32 sizeclass;
+ 	intgo rate;
+@@ -39,13 +40,20 @@ runtime·mallocgc(uintptr size, uint32 flag, int32 dogc, int32 zeroed)
+ 	MSpan *s;
+ 	MLink *v;
+ 
+-	if(runtime·gcwaiting && g != m->g0 && m->locks == 0 && dogc)
++	if(runtime·gcwaiting && g != m->g0 && m->locks == 0 && !(flag & FlagNoInvokeGC))
+ 		runtime·gosched();
++	if(size == 0) {
++		// All 0-length allocations use this pointer.
++		// The language does not require the allocations to
++		// have distinct values.
++		return &runtime·zerobase;
++	}
+ 	if(m->mallocing)
+ 		runtime·throw("malloc/free - deadlock");
++	// Disable preemption during settype_flush.
++	// We can not use m->mallocing for this, because settype_flush calls mallocgc.
++	m->locks++;
+ 	m->mallocing = 1;
+-	if(size == 0)
+-		size = 1;
+ 
+ 	if(DebugTypeAtBlockEnd)
+ 		size += sizeof(uintptr);
+@@ -65,7 +73,7 @@ runtime·mallocgc(uintptr size, uint32 flag, int32 dogc, int32 zeroed)
+ 		v = l->list;
+ 		l->list = v->next;
+ 		l->nlist--;
+-		if(zeroed) {
++		if(!(flag & FlagNoZero)) {
+ 			v->next = nil;
+ 			// block is zeroed iff second word is zero ...
+ 			if(size > sizeof(uintptr) && ((uintptr*)v)[1] != 0)
+@@ -79,7 +87,7 @@ runtime·mallocgc(uintptr size, uint32 flag, int32 dogc, int32 zeroed)
+ 		npages = size >> PageShift;
+ 		if((size & PageMask) != 0)
+ 			npages++;
+-		s = runtime·MHeap_Alloc(&runtime·mheap, npages, 0, 1, zeroed);
++		s = runtime·MHeap_Alloc(&runtime·mheap, npages, 0, 1, !(flag & FlagNoZero));
+ 		if(s == nil)
+ 			runtime·throw("out of memory");
+ 		s->limit = (byte*)(s->start<<PageShift) + size;
+@@ -94,10 +102,23 @@ runtime·mallocgc(uintptr size, uint32 flag, int32 dogc, int32 zeroed)
+ 		runtime·markallocated(v, size, (flag&FlagNoPointers) != 0);
+ 
+ 	if(DebugTypeAtBlockEnd)
+-		*(uintptr*)((uintptr)v+size-sizeof(uintptr)) = 0;
++		*(uintptr*)((uintptr)v+size-sizeof(uintptr)) = typ;
++
++	if(UseSpanType && !(flag & FlagNoPointers) && typ != 0) {
++		uintptr *buf, i;
++
++		buf = m->settype_buf;
++		i = m->settype_bufsize;
++		buf[i++] = (uintptr)v;
++		buf[i++] = typ;
++		m->settype_bufsize = i;
++	}
+ 
+ 	m->mallocing = 0;
+-	if(g->preempt)  // restore the preemption request in case we've cleared it in newstack
++	if(UseSpanType && !(flag & FlagNoPointers) && typ != 0 && m->settype_bufsize == nelem(m->settype_buf))
++		runtime·settype_flush(m, false);
++	m->locks--;
++	if(m->locks == 0 && g->preempt)  // restore the preemption request in case we've cleared it in newstack
+ 		g->stackguard0 = StackPreempt;
+ 
+ 	if(!(flag & FlagNoProfiling) && (rate = runtime·MemProfileRate) > 0) {
+@@ -117,7 +138,7 @@ runtime·mallocgc(uintptr size, uint32 flag, int32 dogc, int32 zeroed)
+ 		}
+ 	}
+ 
+-	if(dogc && mstats.heap_alloc >= mstats.next_gc)
++	if(!(flag & FlagNoInvokeGC) && mstats.heap_alloc >= mstats.next_gc)
+ 		runtime·gc(0);
+ 
+ 	if(raceenabled) {
+@@ -130,7 +151,7 @@ runtime·mallocgc(uintptr size, uint32 flag, int32 dogc, int32 zeroed)
+ void*
+ runtime·malloc(uintptr size)
+ {
+-	return runtime·mallocgc(size, 0, 0, 1);
++	return runtime·mallocgc(size, 0, FlagNoInvokeGC);
+ }
+ 
+ // Free the object whose base pointer is v.
+@@ -586,7 +607,7 @@ runtime·settype_flush(M *mp, bool sysalloc)
+ 			nbytes3 = 8*sizeof(uintptr) + 1*ntypes;
+ 
+ 			if(!sysalloc) {
+-				data3 = runtime·mallocgc(nbytes3, FlagNoProfiling|FlagNoPointers, 0, 1);
++				data3 = runtime·mallocgc(nbytes3, 0, FlagNoProfiling|FlagNoPointers|FlagNoInvokeGC);
+ 			} else {
+ 				data3 = runtime·SysAlloc(nbytes3);
+ 				if(data3 == nil)
+@@ -624,7 +645,7 @@ runtime·settype_flush(M *mp, bool sysalloc)
+ 				nbytes2 = ntypes * sizeof(uintptr);
+ 
+ 				if(!sysalloc) {
+-					data2 = runtime·mallocgc(nbytes2, FlagNoProfiling|FlagNoPointers, 0, 1);
++					data2 = runtime·mallocgc(nbytes2, 0, FlagNoProfiling|FlagNoPointers|FlagNoInvokeGC);
+ 				} else {
+ 					data2 = runtime·SysAlloc(nbytes2);
+ 					if(data2 == nil)
+@@ -660,42 +681,6 @@ runtime·settype_flush(M *mp, bool sysalloc)
+ 	mp->settype_bufsize = 0;
+ }
+ 
+-// It is forbidden to use this function if it is possible that
+-// explicit deallocation via calling runtime·free(v) may happen.
+-void
+-runtime·settype(void *v, uintptr t)
+-{
+-	M *mp;
+-	uintptr *buf;
+-	uintptr i;
+-	MSpan *s;
+-
+-	if(t == 0)
+-		runtime·throw("settype: zero type");
+-
+-	mp = m;
+-	m->locks++;
+-	buf = mp->settype_buf;
+-	i = mp->settype_bufsize;
+-	buf[i+0] = (uintptr)v;
+-	buf[i+1] = t;
+-	i += 2;
+-	mp->settype_bufsize = i;
+-
+-	if(i == nelem(mp->settype_buf)) {
+-		runtime·settype_flush(mp, false);
+-	}
+-
+-	if(DebugTypeAtBlockEnd) {
+-		s = runtime·MHeap_Lookup(&runtime·mheap, v);
+-		*(uintptr*)((uintptr)v+s->elemsize-sizeof(uintptr)) = t;
+-	}
+-
+-	m->locks--;
+-	if(m->locks == 0 && g->preempt)  // restore the preemption request in case we've cleared it in newstack
+-		g->stackguard0 = StackPreempt;
+-}
+-
+ void
+ runtime·settype_sysfree(MSpan *s)
+ {
+@@ -767,61 +752,27 @@ runtime·gettype(void *v)
+ void*
+ runtime·mal(uintptr n)
+ {
+-	return runtime·mallocgc(n, 0, 1, 1);
++	return runtime·mallocgc(n, 0, 0);
+ }
+ 
+ #pragma textflag 7
+ void
+ runtime·new(Type *typ, uint8 *ret)
+ {
+-	uint32 flag;
+-
+ 	if(raceenabled)
+ 		m->racepc = runtime·getcallerpc(&typ);
+-
+-	if(typ->size == 0) {
+-		// All 0-length allocations use this pointer.
+-		// The language does not require the allocations to
+-		// have distinct values.
+-		ret = (uint8*)&runtime·zerobase;
+-	} else {
+-		flag = typ->kind&KindNoPointers ? FlagNoPointers : 0;
+-		ret = runtime·mallocgc(typ->size, flag, 1, 1);
+-
+-		if(UseSpanType && !flag) {
+-			if(false)
+-				runtime·printf("new %S: %p\n", *typ->string, ret);
+-			runtime·settype(ret, (uintptr)typ | TypeInfo_SingleObject);
+-		}
+-	}
+-
++	ret = runtime·mallocgc(typ->size, (uintptr)typ | TypeInfo_SingleObject, typ->kind&KindNoPointers ? FlagNoPointers : 0);
+ 	FLUSH(&ret);
+ }
+ 
+ static void*
+ cnew(Type *typ, intgo n, int32 objtyp)
+ {
+-	uint32 flag;
+-	void *ret;
+-
+ 	if((objtyp&(PtrSize-1)) != objtyp)
+ 		runtime·throw("runtime: invalid objtyp");
+ 	if(n < 0 || (typ->size > 0 && n > MaxMem/typ->size))
+ 		runtime·panicstring("runtime: allocation size out of range");
+-	if(typ->size == 0 || n == 0) {
+-		// All 0-length allocations use this pointer.
+-		// The language does not require the allocations to
+-		// have distinct values.
+-		return &runtime·zerobase;
+-	}
+-	flag = typ->kind&KindNoPointers ? FlagNoPointers : 0;
+-	ret = runtime·mallocgc(typ->size*n, flag, 1, 1);
+-	if(UseSpanType && !flag) {
+-		if(false)
+-			runtime·printf("cnew [%D]%S: %p\n", (int64)n, *typ->string, ret);
+-		runtime·settype(ret, (uintptr)typ | objtyp);
+-	}
+-	return ret;
++	return runtime·mallocgc(typ->size*n, (uintptr)typ | objtyp, typ->kind&KindNoPointers ? FlagNoPointers : 0);
+ }
+ 
+ // same as runtime·new, but callable from C
+diff --git a/src/pkg/runtime/malloc.h b/src/pkg/runtime/malloc.h
+index 94907b1b0e..1ad65c0286 100644
+--- a/src/pkg/runtime/malloc.h
++++ b/src/pkg/runtime/malloc.h
+@@ -442,7 +442,7 @@ void	runtime·MHeap_MapBits(MHeap *h);
+ void	runtime·MHeap_MapSpans(MHeap *h);
+ void	runtime·MHeap_Scavenger(void);
+ 
+-void*	runtime·mallocgc(uintptr size, uint32 flag, int32 dogc, int32 zeroed);
++void*	runtime·mallocgc(uintptr size, uintptr typ, uint32 flag);
+ void*	runtime·persistentalloc(uintptr size, uintptr align);
+ int32	runtime·mlookup(void *v, byte **base, uintptr *size, MSpan **s);
+ void	runtime·gc(int32 force);
+@@ -459,7 +459,6 @@ void	runtime·purgecachedstats(MCache*);
+ void*	runtime·cnew(Type*);
+ void*	runtime·cnewarray(Type*, intgo);
+ 
+-void	runtime·settype(void*, uintptr);
+ void	runtime·settype_flush(M*, bool);
+ void	runtime·settype_sysfree(MSpan*);
+ uintptr	runtime·gettype(void*);
+@@ -467,9 +466,11 @@ uintptr	runtime·gettype(void*);
+ enum
+ {
+ 	// flags to malloc
+-	FlagNoPointers = 1<<0,	// no pointers here
+-	FlagNoProfiling = 1<<1,	// must not profile
+-	FlagNoGC = 1<<2,	// must not free or scan for pointers
++	FlagNoPointers	= 1<<0,	// no pointers here
++	FlagNoProfiling	= 1<<1,	// must not profile
++	FlagNoGC	= 1<<2,	// must not free or scan for pointers
++	FlagNoZero	= 1<<3, // don't zero memory
++	FlagNoInvokeGC	= 1<<4, // don't invoke GC
+ };
+ 
+ void	runtime·MProf_Malloc(void*, uintptr);
+diff --git a/src/pkg/runtime/mfinal.c b/src/pkg/runtime/mfinal.c
+index 2f5e4277dd..1216fd4157 100644
+--- a/src/pkg/runtime/mfinal.c
++++ b/src/pkg/runtime/mfinal.c
+@@ -117,8 +117,8 @@ resizefintab(Fintab *tab)
+ 		newtab.max *= 3;
+ 	}
+ 	
+-	newtab.key = runtime·mallocgc(newtab.max*sizeof newtab.key[0], FlagNoPointers, 0, 1);
+-	newtab.val = runtime·mallocgc(newtab.max*sizeof newtab.val[0], 0, 0, 1);
++	newtab.key = runtime·mallocgc(newtab.max*sizeof newtab.key[0], 0, FlagNoInvokeGC|FlagNoPointers);
++	newtab.val = runtime·mallocgc(newtab.max*sizeof newtab.val[0], 0, FlagNoInvokeGC);
+ 	
+ 	for(i=0; i<tab->max; i++) {
+ 		k = tab->key[i];
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index 8654e38544..644bb299d3 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -2298,7 +2298,7 @@ runfinq(void)
+ 					// all not yet finalized objects are stored in finc.
+ 					// If we do not mark it as FlagNoPointers,
+ 					// the last finalized object is not collected.
+-					frame = runtime·mallocgc(framesz, FlagNoPointers, 0, 1);
++					frame = runtime·mallocgc(framesz, 0, FlagNoPointers|FlagNoInvokeGC);
+ 					framecap = framesz;
+ 				}
+ 				*(void**)frame = f->arg;
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 0e9785e456..135a112f52 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -1941,7 +1941,7 @@ procresize(int32 new)
+ 	for(i = 0; i < new; i++) {
+ 		p = runtime·allp[i];
+ 		if(p == nil) {
+-			p = (P*)runtime·mallocgc(sizeof(*p), 0, 0, 1);
++			p = (P*)runtime·mallocgc(sizeof(*p), 0, FlagNoInvokeGC);
+ 			p->status = Pgcstop;
+ 			runtime·atomicstorep(&runtime·allp[i], p);
+ 		}
+@@ -1953,7 +1953,7 @@ procresize(int32 new)
+ 		}
+ 		if(p->runq == nil) {
+ 			p->runqsize = 128;
+-			p->runq = (G**)runtime·mallocgc(p->runqsize*sizeof(G*), 0, 0, 1);
++			p->runq = (G**)runtime·mallocgc(p->runqsize*sizeof(G*), 0, FlagNoInvokeGC);
+ 		}
+ 	}
+ 
+diff --git a/src/pkg/runtime/stack.c b/src/pkg/runtime/stack.c
+index 76e2ca62df..dda65f9463 100644
+--- a/src/pkg/runtime/stack.c
++++ b/src/pkg/runtime/stack.c
+@@ -105,7 +105,7 @@ runtime·stackalloc(uint32 n)
+ 		m->stackinuse++;
+ 		return v;
+ 	}
+-	return runtime·mallocgc(n, FlagNoProfiling|FlagNoGC, 0, 0);
++	return runtime·mallocgc(n, 0, FlagNoProfiling|FlagNoGC|FlagNoZero|FlagNoInvokeGC);
+ }
+ 
+ void
+diff --git a/src/pkg/runtime/string.goc b/src/pkg/runtime/string.goc
+index 108487d69d..15d690a921 100644
+--- a/src/pkg/runtime/string.goc
++++ b/src/pkg/runtime/string.goc
+@@ -45,7 +45,7 @@ gostringsize(intgo l)
+ 	if(l == 0)
+ 		return runtime·emptystring;
+ 	// leave room for NUL for C runtime (e.g., callers of getenv)
+-	s.str = runtime·mallocgc(l+1, FlagNoPointers, 1, 0);
++	s.str = runtime·mallocgc(l+1, 0, FlagNoPointers|FlagNoZero);
+ 	s.len = l;
+ 	s.str[l] = 0;
+ 	for(;;) {
+@@ -83,7 +83,7 @@ runtime·gobytes(byte *p, intgo n)
+ {
+ 	Slice sl;
+ 
+-	sl.array = runtime·mallocgc(n, FlagNoPointers, 1, 0);
++	sl.array = runtime·mallocgc(n, 0, FlagNoPointers|FlagNoZero);
+ 	sl.len = n;
+ 	sl.cap = n;
+ 	runtime·memmove(sl.array, p, n);
+@@ -250,7 +250,7 @@ func slicebytetostring(b Slice) (s String) {
+ }
+ 
+ func stringtoslicebyte(s String) (b Slice) {
+-	b.array = runtime·mallocgc(s.len, FlagNoPointers, 1, 0);
++	b.array = runtime·mallocgc(s.len, 0, FlagNoPointers|FlagNoZero);
+ 	b.len = s.len;
+ 	b.cap = s.len;
+ 	runtime·memmove(b.array, s.str, s.len);
+@@ -299,7 +299,7 @@ func stringtoslicerune(s String) (b Slice) {
+ 		n++;
+ 	}
+ 
+-	b.array = runtime·mallocgc(n*sizeof(r[0]), FlagNoPointers, 1, 0);
++	b.array = runtime·mallocgc(n*sizeof(r[0]), 0, FlagNoPointers|FlagNoZero);
+ 	b.len = n;
+ 	b.cap = n;
+ 	p = s.str;

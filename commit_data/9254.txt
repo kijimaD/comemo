@@ -9,8 +9,72 @@ Date:   Fri Jul 29 13:47:20 2011 -0400
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/4823057
-
+---
  src/pkg/syscall/syscall_bsd.go     | 10 ----------
  src/pkg/syscall/syscall_darwin.go  | 10 ++++++++++
  src/pkg/syscall/syscall_freebsd.go | 10 ++++++++++
  3 files changed, 20 insertions(+), 10 deletions(-)
+
+diff --git a/src/pkg/syscall/syscall_bsd.go b/src/pkg/syscall/syscall_bsd.go
+index 2df75917b4..7fd85a3203 100644
+--- a/src/pkg/syscall/syscall_bsd.go
++++ b/src/pkg/syscall/syscall_bsd.go
+@@ -135,16 +135,6 @@ func Wait4(pid int, wstatus *WaitStatus, options int, rusage *Rusage) (wpid int,
+ 	return
+ }
+ 
+-//sysnb	pipe() (r int, w int, errno int)
+-
+-func Pipe(p []int) (errno int) {
+-	if len(p) != 2 {
+-		return EINVAL
+-	}
+-	p[0], p[1], errno = pipe()
+-	return
+-}
+-
+ func Sleep(ns int64) (errno int) {
+ 	tv := NsecToTimeval(ns)
+ 	return Select(0, nil, nil, nil, &tv)
+diff --git a/src/pkg/syscall/syscall_darwin.go b/src/pkg/syscall/syscall_darwin.go
+index d43d486d5a..11dc8aae22 100644
+--- a/src/pkg/syscall/syscall_darwin.go
++++ b/src/pkg/syscall/syscall_darwin.go
+@@ -60,6 +60,16 @@ func ParseDirent(buf []byte, max int, names []string) (consumed int, count int,
+ func PtraceAttach(pid int) (errno int) { return ptrace(PT_ATTACH, pid, 0, 0) }
+ func PtraceDetach(pid int) (errno int) { return ptrace(PT_DETACH, pid, 0, 0) }
+ 
++//sysnb pipe() (r int, w int, errno int)
++
++func Pipe(p []int) (errno int) {
++	if len(p) != 2 {
++		return EINVAL
++	}
++	p[0], p[1], errno = pipe()
++	return
++}
++
+ // TODO
+ func Sendfile(outfd int, infd int, offset *int64, count int) (written int, errno int) {
+ 	return -1, ENOSYS
+diff --git a/src/pkg/syscall/syscall_freebsd.go b/src/pkg/syscall/syscall_freebsd.go
+index ac2f505d10..c2bddd99d5 100644
+--- a/src/pkg/syscall/syscall_freebsd.go
++++ b/src/pkg/syscall/syscall_freebsd.go
+@@ -56,6 +56,16 @@ func ParseDirent(buf []byte, max int, names []string) (consumed int, count int,
+ 	return origlen - len(buf), count, names
+ }
+ 
++//sysnb pipe() (r int, w int, errno int)
++
++func Pipe(p []int) (errno int) {
++	if len(p) != 2 {
++		return EINVAL
++	}
++	p[0], p[1], errno = pipe()
++	return
++}
++
+ // TODO
+ func Sendfile(outfd int, infd int, offset *int64, count int) (written int, errno int) {
+ 	return -1, ENOSYS

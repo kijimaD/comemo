@@ -10,9 +10,207 @@ Date:   Mon Jul 12 16:09:27 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1761042
-
+---
  src/pkg/big/int.go      | 25 +++++++++++++++++++++++++
  src/pkg/big/int_test.go | 29 +++++++++++++++++++++++++++++
  src/pkg/big/rat.go      | 25 +++++++++++++++++++++++++
  src/pkg/big/rat_test.go | 46 ++++++++++++++++++++++++++++++++++++++++++++++
  4 files changed, 125 insertions(+)
+
+diff --git a/src/pkg/big/int.go b/src/pkg/big/int.go
+index f16c0d93a7..e7ba4021ef 100755
+--- a/src/pkg/big/int.go
++++ b/src/pkg/big/int.go
+@@ -20,6 +20,23 @@ type Int struct {
+ var intOne = &Int{false, natOne}
+ 
+ 
++// Sign returns:
++//
++//	-1 if x <  0
++//	 0 if x == 0
++//	+1 if x >  0
++//
++func (x *Int) Sign() int {
++	if len(x.abs) == 0 {
++		return 0
++	}
++	if x.neg {
++		return -1
++	}
++	return 1
++}
++
++
+ // SetInt64 sets z to x and returns z.
+ func (z *Int) SetInt64(x int64) *Int {
+ 	neg := false
+@@ -47,6 +64,14 @@ func (z *Int) Set(x *Int) *Int {
+ }
+ 
+ 
++// Abs sets z to |x| (the absolute value of x) and returns z.
++func (z *Int) Abs(x *Int) *Int {
++	z.abs = z.abs.set(x.abs)
++	z.neg = false
++	return z
++}
++
++
+ // Neg sets z to -x and returns z.
+ func (z *Int) Neg(x *Int) *Int {
+ 	z.abs = z.abs.set(x.abs)
+diff --git a/src/pkg/big/int_test.go b/src/pkg/big/int_test.go
+index 82b5417dae..66379ca1ba 100755
+--- a/src/pkg/big/int_test.go
++++ b/src/pkg/big/int_test.go
+@@ -47,6 +47,18 @@ var prodZZ = []argZZ{
+ }
+ 
+ 
++func TestSignZ(t *testing.T) {
++	var zero Int
++	for _, a := range sumZZ {
++		s := a.z.Sign()
++		e := a.z.Cmp(&zero)
++		if s != e {
++			t.Errorf("got %d; want %d for z = %v", s, e, a.z)
++		}
++	}
++}
++
++
+ func TestSetZ(t *testing.T) {
+ 	for _, a := range sumZZ {
+ 		var z Int
+@@ -61,6 +73,23 @@ func TestSetZ(t *testing.T) {
+ }
+ 
+ 
++func TestAbsZ(t *testing.T) {
++	var zero Int
++	for _, a := range sumZZ {
++		var z Int
++		z.Abs(a.z)
++		var e Int
++		e.Set(a.z)
++		if e.Cmp(&zero) < 0 {
++			e.Sub(&zero, &e)
++		}
++		if z.Cmp(&e) != 0 {
++			t.Errorf("got z = %v; want %v", z, e)
++		}
++	}
++}
++
++
+ func testFunZZ(t *testing.T, msg string, f funZZ, a argZZ) {
+ 	var z Int
+ 	f(&z, a.x, a.y)
+diff --git a/src/pkg/big/rat.go b/src/pkg/big/rat.go
+index c465ab86bf..d8d6dc4bee 100644
+--- a/src/pkg/big/rat.go
++++ b/src/pkg/big/rat.go
+@@ -60,6 +60,23 @@ func (z *Rat) SetInt64(x int64) *Rat {
+ }
+ 
+ 
++// Sign returns:
++//
++//	-1 if x <  0
++//	 0 if x == 0
++//	+1 if x >  0
++//
++func (x *Rat) Sign() int {
++	return x.a.Sign()
++}
++
++
++// IsInt returns true if the denominator of x is 1.
++func (x *Rat) IsInt() bool {
++	return len(x.b) == 1 && x.b[0] == 1
++}
++
++
+ // Num returns the numerator of z; it may be <= 0.
+ // The result is a reference to z's numerator; it
+ // may change if a new value is assigned to z.
+@@ -126,6 +143,14 @@ func (x *Rat) Cmp(y *Rat) (r int) {
+ }
+ 
+ 
++// Abs sets z to |x| (the absolute value of x) and returns z.
++func (z *Rat) Abs(x *Rat) *Rat {
++	z.a.Abs(&x.a)
++	z.b = z.b.set(x.b)
++	return z
++}
++
++
+ // Add sets z to the sum x+y and returns z.
+ func (z *Rat) Add(x, y *Rat) *Rat {
+ 	a1 := mulNat(&x.a, y.b)
+diff --git a/src/pkg/big/rat_test.go b/src/pkg/big/rat_test.go
+index c74ec857f3..a3793b2e81 100644
+--- a/src/pkg/big/rat_test.go
++++ b/src/pkg/big/rat_test.go
+@@ -84,6 +84,20 @@ func TestFloatString(t *testing.T) {
+ }
+ 
+ 
++func TestRatSign(t *testing.T) {
++	zero := NewRat(0, 1)
++	for _, a := range setStringTests {
++		var x Rat
++		x.SetString(a.in)
++		s := x.Sign()
++		e := x.Cmp(zero)
++		if s != e {
++			t.Errorf("got %d; want %d for z = %v", s, e, &x)
++		}
++	}
++}
++
++
+ type ratCmpTest struct {
+ 	rat1, rat2 string
+ 	out        int
+@@ -114,6 +128,38 @@ func TestRatCmp(t *testing.T) {
+ }
+ 
+ 
++func TestIsInt(t *testing.T) {
++	one := NewInt(1)
++	for _, a := range setStringTests {
++		var x Rat
++		x.SetString(a.in)
++		i := x.IsInt()
++		e := x.Denom().Cmp(one) == 0
++		if i != e {
++			t.Errorf("got %v; want %v for z = %v", i, e, &x)
++		}
++	}
++}
++
++
++func TestRatAbs(t *testing.T) {
++	zero := NewRat(0, 1)
++	for _, a := range setStringTests {
++		var z Rat
++		z.SetString(a.in)
++		var e Rat
++		e.Set(&z)
++		if e.Cmp(zero) < 0 {
++			e.Sub(zero, &e)
++		}
++		z.Abs(&z)
++		if z.Cmp(&e) != 0 {
++			t.Errorf("got z = %v; want %v", &z, &e)
++		}
++	}
++}
++
++
+ type ratBinFun func(z, x, y *Rat) *Rat
+ type ratBinArg struct {
+ 	x, y, z string

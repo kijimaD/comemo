@@ -11,7 +11,7 @@ Date:   Tue Oct 18 09:41:32 2011 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/5265048
-
+---
  src/cmd/gc/builtin.c.boot |  1 +
  src/cmd/gc/go.h           |  4 +++-
  src/cmd/gc/lex.c          |  1 +
@@ -21,3 +21,232 @@ Date:   Tue Oct 18 09:41:32 2011 -0400
  src/cmd/gc/walk.c         | 31 +++++++++++++++++++++++++++++++
  src/pkg/runtime/hashmap.c | 22 ++++++++++++++++++++++
  8 files changed, 94 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/gc/builtin.c.boot b/src/cmd/gc/builtin.c.boot
+index 745791eb03..b2e9465c47 100644
+--- a/src/cmd/gc/builtin.c.boot
++++ b/src/cmd/gc/builtin.c.boot
+@@ -64,6 +64,7 @@ char *runtimeimport =
+ 	"func @\"\".mapassign1 (mapType *uint8, hmap map[any] any, key any, val any)\n"
+ 	"func @\"\".mapassign2 (mapType *uint8, hmap map[any] any, key any, val any, pres bool)\n"
+ 	"func @\"\".mapiterinit (mapType *uint8, hmap map[any] any, hiter *any)\n"
++	"func @\"\".mapdelete (mapType *uint8, hmap map[any] any, key any)\n"
+ 	"func @\"\".mapiternext (hiter *any)\n"
+ 	"func @\"\".mapiter1 (hiter *any) any\n"
+ 	"func @\"\".mapiter2 (hiter *any) (key any, val any)\n"
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 741d9527aa..5c2de998e5 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -425,7 +425,8 @@ enum
+ 	OAPPEND,
+ 	OARRAYBYTESTR, OARRAYRUNESTR,
+ 	OSTRARRAYBYTE, OSTRARRAYRUNE,
+-	OAS, OAS2, OAS2MAPW, OAS2FUNC, OAS2RECV, OAS2MAPR, OAS2DOTTYPE, OASOP,
++	OAS, OAS2, OAS2MAPW, OAS2FUNC, OAS2RECV, OAS2MAPR, OAS2DOTTYPE,
++	OASOP,
+ 	OBAD,
+ 	OCALL, OCALLFUNC, OCALLMETH, OCALLINTER,
+ 	OCAP,
+@@ -436,6 +437,7 @@ enum
+ 	OCONV, OCONVIFACE, OCONVNOP,
+ 	OCOPY,
+ 	ODCL, ODCLFUNC, ODCLFIELD, ODCLCONST, ODCLTYPE,
++	ODELETE,
+ 	ODOT, ODOTPTR, ODOTMETH, ODOTINTER, OXDOT,
+ 	ODOTTYPE,
+ 	ODOTTYPE2,
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 54970dc8f4..8328b38a31 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -1624,6 +1624,7 @@ static	struct
+ 	"close",	LNAME,		Txxx,		OCLOSE,
+ 	"complex",	LNAME,		Txxx,		OCOMPLEX,
+ 	"copy",		LNAME,		Txxx,		OCOPY,
++	"delete",		LNAME,		Txxx,		ODELETE,
+ 	"imag",		LNAME,		Txxx,		OIMAG,
+ 	"len",		LNAME,		Txxx,		OLEN,
+ 	"make",		LNAME,		Txxx,		OMAKE,
+diff --git a/src/cmd/gc/runtime.go b/src/cmd/gc/runtime.go
+index d45542b729..b190e50a7a 100644
+--- a/src/cmd/gc/runtime.go
++++ b/src/cmd/gc/runtime.go
+@@ -87,6 +87,7 @@ func mapaccess2(mapType *byte, hmap map[any]any, key any) (val any, pres bool)
+ func mapassign1(mapType *byte, hmap map[any]any, key any, val any)
+ func mapassign2(mapType *byte, hmap map[any]any, key any, val any, pres bool)
+ func mapiterinit(mapType *byte, hmap map[any]any, hiter *any)
++func mapdelete(mapType *byte, hmap map[any]any, key any)
+ func mapiternext(hiter *any)
+ func mapiter1(hiter *any) (key any)
+ func mapiter2(hiter *any) (key any, val any)
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index bf83dd8fa6..c0e22c2be8 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -923,6 +923,7 @@ goopnames[] =
+ 	[OCOPY]		= "copy",
+ 	[ODEC]		= "--",
+ 	[ODEFER]	= "defer",
++	[ODELETE]	= "delete",
+ 	[ODIV]		= "/",
+ 	[OEQ]		= "==",
+ 	[OFALL]		= "fallthrough",
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 0b2e6f0ca6..20411a1a0e 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -991,6 +991,31 @@ reswitch:
+ 		ok |= Etop;
+ 		goto ret;
+ 
++	case ODELETE:
++		args = n->list;
++		if(args == nil) {
++			yyerror("missing arguments to delete");
++			goto error;
++		}
++		if(args->next == nil) {
++			yyerror("missing second (key) argument to delete");
++			goto error;
++		}
++		if(args->next->next != nil) {
++			yyerror("too many arguments to delete");
++			goto error;
++		}
++		ok |= Etop;
++		typechecklist(args, Erv);
++		l = args->n;
++		r = args->next->n;
++		if(l->type != T && l->type->etype != TMAP) {
++			yyerror("first argument to delete must be map; have %lT", l->type);
++			goto error;
++		}
++		args->next->n = assignconv(r, l->type->down, "delete");
++		goto ret;
++
+ 	case OAPPEND:
+ 		ok |= Erv;
+ 		args = n->list;
+@@ -2284,7 +2309,7 @@ typecheckas2(Node *n)
+ {
+ 	int cl, cr;
+ 	NodeList *ll, *lr;
+-	Node *l, *r;
++	Node *l, *r, *rr;
+ 	Iter s;
+ 	Type *t;
+ 
+@@ -2325,8 +2350,14 @@ typecheckas2(Node *n)
+ 			goto out;
+ 		n->op = OAS2MAPW;
+ 		n->rlist->n = assignconv(r, l->type, "assignment");
+-		r = n->rlist->next->n;
+-		n->rlist->next->n = assignconv(r, types[TBOOL], "assignment");
++		rr = n->rlist->next->n;
++		n->rlist->next->n = assignconv(rr, types[TBOOL], "assignment");
++		if(isconst(rr, CTBOOL) && !rr->val.u.bval) {
++			n->op = ODELETE;
++			n->list = list(list1(l->left), l->right);
++			n->right = n->rlist->n;
++			n->rlist = nil;
++		}
+ 		goto out;
+ 	}
+ 
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index de7004e3e9..9d06f1b7f5 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -9,6 +9,7 @@
+ static	Node*	walkprint(Node*, NodeList**, int);
+ static	Node*	conv(Node*, Type*);
+ static	Node*	mapfn(char*, Type*);
++static	Node*	mapfndel(char*, Type*);
+ static	Node*	makenewvar(Type*, NodeList**, Node**);
+ static	Node*	ascompatee1(int, Node*, Node*, NodeList**);
+ static	NodeList*	ascompatee(int, NodeList*, NodeList*, NodeList**);
+@@ -173,6 +174,7 @@ walkstmt(Node **np)
+ 	case OCALLINTER:
+ 	case OCALL:
+ 	case OCALLFUNC:
++	case ODELETE:
+ 	case OSEND:
+ 	case ORECV:
+ 	case OPRINT:
+@@ -610,6 +612,21 @@ walkexpr(Node **np, NodeList **init)
+ 		n->op = OAS2FUNC;
+ 		goto as2func;
+ 
++	case ODELETE:
++		*init = concat(*init, n->ninit);
++		n->ninit = nil;
++		l = n->list->n;
++		r = n->list->next->n;
++		if(n->right != N) {
++			// TODO: Remove once two-element map assigment is gone.
++			l = safeexpr(l, init);
++			r = safeexpr(r, init);
++			safeexpr(n->right, init);  // cause side effects from n->right
++		}
++		t = l->type;
++		n = mkcall1(mapfndel("mapdelete", t), t->down, init, typename(t), l, r);
++		goto ret;
++
+ 	case OAS2MAPW:
+ 		// map[] = a,b - mapassign2
+ 		// a,b = m[i];
+@@ -2254,6 +2271,20 @@ mapfn(char *name, Type *t)
+ 	return fn;
+ }
+ 
++static Node*
++mapfndel(char *name, Type *t)
++{
++	Node *fn;
++
++	if(t->etype != TMAP)
++		fatal("mapfn %T", t);
++	fn = syslook(name, 1);
++	argtype(fn, t->down);
++	argtype(fn, t->type);
++	argtype(fn, t->down);
++	return fn;
++}
++
+ static Node*
+ addstr(Node *n, NodeList **init)
+ {
+diff --git a/src/pkg/runtime/hashmap.c b/src/pkg/runtime/hashmap.c
+index f904bd3275..b88cc35641 100644
+--- a/src/pkg/runtime/hashmap.c
++++ b/src/pkg/runtime/hashmap.c
+@@ -1028,6 +1028,28 @@ runtime·mapassign2(MapType *t, Hmap *h, ...)
+ 	}
+ }
+ 
++// mapdelete(mapType *type, hmap *map[any]any, key any)
++#pragma textflag 7
++void
++runtime·mapdelete(MapType *t, Hmap *h, ...)
++{
++	byte *ak;
++
++	if(h == nil)
++		runtime·panicstring("deletion of entry in nil map");
++
++	ak = (byte*)&h + h->ko2;
++	runtime·mapassign(t, h, ak, nil);
++
++	if(debug) {
++		runtime·prints("mapdelete: map=");
++		runtime·printpointer(h);
++		runtime·prints("; key=");
++		h->keyalg->print(h->keysize, ak);
++		runtime·prints("\n");
++	}
++}
++
+ // For reflect:
+ //	func mapassign(t type h map, key, val iword, pres bool)
+ // where an iword is the same word an interface value would use:

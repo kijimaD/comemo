@@ -10,7 +10,43 @@ Date:   Mon Jul 18 15:54:11 2011 +1000
     R=r
     CC=golang-dev
     https://golang.org/cl/4764045
-
+---
  src/pkg/runtime/chan.c |  2 +-
  test/chan/zerosize.go  | 16 ++++++++++++++++
  2 files changed, 17 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/chan.c b/src/pkg/runtime/chan.c
+index 78f67b817c..efaceebf5a 100644
+--- a/src/pkg/runtime/chan.c
++++ b/src/pkg/runtime/chan.c
+@@ -97,7 +97,7 @@ runtime·makechan_c(Type *elem, int64 hint)
+ 	int32 n;
+ 	byte *by;
+ 
+-	if(hint < 0 || (int32)hint != hint || hint > ((uintptr)-1) / elem->size)
++	if(hint < 0 || (int32)hint != hint || (elem->size > 0 && hint > ((uintptr)-1) / elem->size))
+ 		runtime·panicstring("makechan: size out of range");
+ 
+ 	if(elem->alg >= nelem(runtime·algarray)) {
+diff --git a/test/chan/zerosize.go b/test/chan/zerosize.go
+new file mode 100644
+index 0000000000..617c9dab34
+--- /dev/null
++++ b/test/chan/zerosize.go
+@@ -0,0 +1,16 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Making channels of a zero-sized type should not panic.
++
++package main
++
++func main() {
++	_ = make(chan [0]byte)
++	_ = make(chan [0]byte, 1)
++	_ = make(chan struct{})
++	_ = make(chan struct{}, 1)
++}

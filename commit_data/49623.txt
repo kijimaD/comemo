@@ -15,8 +15,80 @@ Date:   Tue Aug 31 19:06:46 2021 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/346669
     Reviewed-by: Keith Randall <khr@golang.org>
     Trust: Dan Scales <danscales@google.com>
-
+---
  src/cmd/compile/internal/noder/stencil.go  |  2 +-
  src/cmd/compile/internal/typecheck/subr.go |  2 +-
  test/typeparam/issue48013.go               | 39 ++++++++++++++++++++++++++++++
  3 files changed, 41 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/stencil.go b/src/cmd/compile/internal/noder/stencil.go
+index cf3894e096..1717317925 100644
+--- a/src/cmd/compile/internal/noder/stencil.go
++++ b/src/cmd/compile/internal/noder/stencil.go
+@@ -1917,7 +1917,7 @@ func parameterizedBy1(t *types.Type, params []*types.Type, visited map[*types.Ty
+ 
+ 	case types.TINT, types.TINT8, types.TINT16, types.TINT32, types.TINT64,
+ 		types.TUINT, types.TUINT8, types.TUINT16, types.TUINT32, types.TUINT64,
+-		types.TUINTPTR, types.TBOOL, types.TSTRING, types.TFLOAT32, types.TFLOAT64, types.TCOMPLEX64, types.TCOMPLEX128:
++		types.TUINTPTR, types.TBOOL, types.TSTRING, types.TFLOAT32, types.TFLOAT64, types.TCOMPLEX64, types.TCOMPLEX128, types.TUNSAFEPTR:
+ 		return true
+ 
+ 	case types.TUNION:
+diff --git a/src/cmd/compile/internal/typecheck/subr.go b/src/cmd/compile/internal/typecheck/subr.go
+index 3ec2cc5d56..541e1907c0 100644
+--- a/src/cmd/compile/internal/typecheck/subr.go
++++ b/src/cmd/compile/internal/typecheck/subr.go
+@@ -1189,7 +1189,7 @@ func (ts *Tsubster) typ1(t *types.Type) *types.Type {
+ 		}
+ 	case types.TINT, types.TINT8, types.TINT16, types.TINT32, types.TINT64,
+ 		types.TUINT, types.TUINT8, types.TUINT16, types.TUINT32, types.TUINT64,
+-		types.TUINTPTR, types.TBOOL, types.TSTRING, types.TFLOAT32, types.TFLOAT64, types.TCOMPLEX64, types.TCOMPLEX128:
++		types.TUINTPTR, types.TBOOL, types.TSTRING, types.TFLOAT32, types.TFLOAT64, types.TCOMPLEX64, types.TCOMPLEX128, types.TUNSAFEPTR:
+ 		newt = t.Underlying()
+ 	case types.TUNION:
+ 		nt := t.NumTerms()
+diff --git a/test/typeparam/issue48013.go b/test/typeparam/issue48013.go
+new file mode 100644
+index 0000000000..179d9f44e9
+--- /dev/null
++++ b/test/typeparam/issue48013.go
+@@ -0,0 +1,39 @@
++// run -gcflags=-G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"fmt"
++	"unsafe"
++)
++
++type S[T any] struct {
++	val T
++}
++
++// Test type substitution where base type is unsafe.Pointer
++type U[T any] unsafe.Pointer
++
++func test[T any]() T {
++	var q U[T]
++	var v struct {
++		// Test derived type that contains an unsafe.Pointer
++		p   unsafe.Pointer
++		val T
++	}
++	_ = q
++	return v.val
++}
++
++func main() {
++	want := 0
++	got := test[int]()
++	if got != want {
++		panic(fmt.Sprintf("got %f, want %f", got, want))
++	}
++
++}

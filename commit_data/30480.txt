@@ -7,6 +7,19 @@ Date:   Mon Nov 7 19:16:17 2016 -0500
     Change-Id: Id3d571666b9275e3fa5cb20762afbd391dbcdeba
     Reviewed-on: https://go-review.googlesource.com/32883
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  doc/go1.8.txt | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/doc/go1.8.txt b/doc/go1.8.txt
+index d8d2b2635e..ae9c455620 100644
+--- a/doc/go1.8.txt
++++ b/doc/go1.8.txt
+@@ -259,6 +259,7 @@ net: there are no invalid domain names anymore (CL 31468)
+ net: use libresolv rules for ndots range and validation (CL 24901)
+ os, syscall: fix incorrect offset calculation in Readlink on windows (CL 31118)
+ os: add ErrClosed, return for use of closed File (CL 30614)
++os: add Executable() (CL 16551)
+ os: consider only files from #M as regular on Plan 9 (CL 32152)
+ os: don't let File.Readdir return an empty slice and nil error (CL 28056)
+ os: make IsExist report true on ERROR_DIR_NOT_EMPTY on Windows (CL 29753)

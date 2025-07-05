@@ -15,7 +15,7 @@ Date:   Thu Sep 9 09:26:40 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/importer/iimport.go |  2 +-
  src/cmd/compile/internal/noder/reader2.go    |  2 +-
  src/cmd/compile/internal/noder/types.go      |  2 +-
@@ -28,3 +28,300 @@ Date:   Thu Sep 9 09:26:40 2021 -0400
  src/go/types/lookup.go                       |  6 +++---
  src/go/types/signature.go                    | 18 +++++++++---------
  11 files changed, 38 insertions(+), 38 deletions(-)
+
+diff --git a/src/cmd/compile/internal/importer/iimport.go b/src/cmd/compile/internal/importer/iimport.go
+index 8fdd879705..b61b1e97fb 100644
+--- a/src/cmd/compile/internal/importer/iimport.go
++++ b/src/cmd/compile/internal/importer/iimport.go
+@@ -349,7 +349,7 @@ func (r *importReader) obj(name string) {
+ 					for i := range rparams {
+ 						rparams[i] = types2.AsTypeParam(targs.At(i))
+ 					}
+-					msig.SetRParams(rparams)
++					msig.SetRecvTypeParams(rparams)
+ 				}
+ 
+ 				named.AddMethod(types2.NewFunc(mpos, r.currPkg, mname, msig))
+diff --git a/src/cmd/compile/internal/noder/reader2.go b/src/cmd/compile/internal/noder/reader2.go
+index 0cfde24b58..dcd9a65f40 100644
+--- a/src/cmd/compile/internal/noder/reader2.go
++++ b/src/cmd/compile/internal/noder/reader2.go
+@@ -492,7 +492,7 @@ func (r *reader2) method() *types2.Func {
+ 
+ 	rparams := r.typeParamNames()
+ 	sig := r.signature(r.param())
+-	sig.SetRParams(rparams)
++	sig.SetRecvTypeParams(rparams)
+ 
+ 	_ = r.pos() // TODO(mdempsky): Remove; this is a hacker for linker.go.
+ 	return types2.NewFunc(pos, pkg, name, sig)
+diff --git a/src/cmd/compile/internal/noder/types.go b/src/cmd/compile/internal/noder/types.go
+index b0b9c1592a..03fb96c48b 100644
+--- a/src/cmd/compile/internal/noder/types.go
++++ b/src/cmd/compile/internal/noder/types.go
+@@ -309,7 +309,7 @@ func (g *irgen) fillinMethods(typ *types2.Named, ntyp *types.Type) {
+ 				meth2 = newsym.Def.(*ir.Name)
+ 			} else {
+ 				meth2 = ir.NewNameAt(meth.Pos(), newsym)
+-				rparams := types2.AsSignature(m.Type()).RParams()
++				rparams := types2.AsSignature(m.Type()).RecvTypeParams()
+ 				tparams := make([]*types.Type, rparams.Len())
+ 				for i := range tparams {
+ 					tparams[i] = g.typ1(rparams.At(i))
+diff --git a/src/cmd/compile/internal/noder/writer.go b/src/cmd/compile/internal/noder/writer.go
+index e1413da1d8..6a66bea239 100644
+--- a/src/cmd/compile/internal/noder/writer.go
++++ b/src/cmd/compile/internal/noder/writer.go
+@@ -648,7 +648,7 @@ func (w *writer) method(wext *writer, meth *types2.Func) {
+ 	w.sync(syncMethod)
+ 	w.pos(meth)
+ 	w.selector(meth)
+-	w.typeParamNames(sig.RParams())
++	w.typeParamNames(sig.RecvTypeParams())
+ 	w.param(sig.Recv())
+ 	w.signature(sig)
+ 
+@@ -1665,7 +1665,7 @@ func (w *writer) pkgDecl(decl syntax.Decl) {
+ 		obj := w.p.info.Defs[decl.Name].(*types2.Func)
+ 		sig := obj.Type().(*types2.Signature)
+ 
+-		if sig.RParams() != nil || sig.TypeParams() != nil {
++		if sig.RecvTypeParams() != nil || sig.TypeParams() != nil {
+ 			break // skip generic functions
+ 		}
+ 
+@@ -1851,7 +1851,7 @@ func objTypeParams(obj types2.Object) *types2.TypeParamList {
+ 	case *types2.Func:
+ 		sig := obj.Type().(*types2.Signature)
+ 		if sig.Recv() != nil {
+-			return sig.RParams()
++			return sig.RecvTypeParams()
+ 		}
+ 		return sig.TypeParams()
+ 	case *types2.TypeName:
+diff --git a/src/cmd/compile/internal/types2/call.go b/src/cmd/compile/internal/types2/call.go
+index f6aaa461b9..ba3bb475a3 100644
+--- a/src/cmd/compile/internal/types2/call.go
++++ b/src/cmd/compile/internal/types2/call.go
+@@ -535,7 +535,7 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr) {
+ 		// the signature accordingly.
+ 		// TODO(gri) factor this code out
+ 		sig := m.typ.(*Signature)
+-		if sig.RParams().Len() > 0 {
++		if sig.RecvTypeParams().Len() > 0 {
+ 			// For inference to work, we must use the receiver type
+ 			// matching the receiver in the actual method declaration.
+ 			// If the method is embedded, the matching receiver is the
+@@ -564,7 +564,7 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr) {
+ 			// the receiver type arguments here, the receiver must be be otherwise invalid
+ 			// and an error has been reported elsewhere.
+ 			arg := operand{mode: variable, expr: x.expr, typ: recv}
+-			targs := check.infer(m.pos, sig.RParams().list(), nil, NewTuple(sig.recv), []*operand{&arg}, false /* no error reporting */)
++			targs := check.infer(m.pos, sig.RecvTypeParams().list(), nil, NewTuple(sig.recv), []*operand{&arg}, false /* no error reporting */)
+ 			//check.dump("### inferred targs = %s", targs)
+ 			if targs == nil {
+ 				// We may reach here if there were other errors (see issue #40056).
+@@ -574,7 +574,7 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr) {
+ 			// (If we modify m, some tests will fail; possibly because the m is in use.)
+ 			// TODO(gri) investigate and provide a correct explanation here
+ 			copy := *m
+-			copy.typ = check.subst(e.Pos(), m.typ, makeSubstMap(sig.RParams().list(), targs), nil)
++			copy.typ = check.subst(e.Pos(), m.typ, makeSubstMap(sig.RecvTypeParams().list(), targs), nil)
+ 			obj = &copy
+ 		}
+ 		// TODO(gri) we also need to do substitution for parameterized interface methods
+diff --git a/src/cmd/compile/internal/types2/lookup.go b/src/cmd/compile/internal/types2/lookup.go
+index 67cdc1e68a..81bac7b6ff 100644
+--- a/src/cmd/compile/internal/types2/lookup.go
++++ b/src/cmd/compile/internal/types2/lookup.go
+@@ -394,10 +394,10 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method,
+ 			// here. Exit early in this case to prevent an assertion
+ 			// failure in makeSubstMap.
+ 			// TODO(gri) Can we avoid this check by fixing the lengths?
+-			if len(ftyp.RParams().list()) != Vn.targs.Len() {
++			if len(ftyp.RecvTypeParams().list()) != Vn.targs.Len() {
+ 				return
+ 			}
+-			ftyp = check.subst(nopos, ftyp, makeSubstMap(ftyp.RParams().list(), Vn.targs.list()), nil).(*Signature)
++			ftyp = check.subst(nopos, ftyp, makeSubstMap(ftyp.RecvTypeParams().list(), Vn.targs.list()), nil).(*Signature)
+ 		}
+ 
+ 		// If the methods have type parameters we don't care whether they
+@@ -416,9 +416,9 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method,
+ 			// unimplemented call so that we test this code if we
+ 			// enable method type parameters.
+ 			unimplemented()
+-			u.x.init(append(ftyp.RParams().list(), ftyp.TypeParams().list()...))
++			u.x.init(append(ftyp.RecvTypeParams().list(), ftyp.TypeParams().list()...))
+ 		} else {
+-			u.x.init(ftyp.RParams().list())
++			u.x.init(ftyp.RecvTypeParams().list())
+ 		}
+ 		if !u.unify(ftyp, mtyp) {
+ 			return m, f
+diff --git a/src/cmd/compile/internal/types2/signature.go b/src/cmd/compile/internal/types2/signature.go
+index eeaf1acbd6..009ac77012 100644
+--- a/src/cmd/compile/internal/types2/signature.go
++++ b/src/cmd/compile/internal/types2/signature.go
+@@ -59,11 +59,11 @@ func (s *Signature) TypeParams() *TypeParamList { return s.tparams }
+ // SetTypeParams sets the type parameters of signature s.
+ func (s *Signature) SetTypeParams(tparams []*TypeParam) { s.tparams = bindTParams(tparams) }
+ 
+-// RParams returns the receiver type parameters of signature s, or nil.
+-func (s *Signature) RParams() *TypeParamList { return s.rparams }
++// RecvTypeParams returns the receiver type parameters of signature s, or nil.
++func (s *Signature) RecvTypeParams() *TypeParamList { return s.rparams }
+ 
+-// SetRParams sets the receiver type params of signature s.
+-func (s *Signature) SetRParams(rparams []*TypeParam) { s.rparams = bindTParams(rparams) }
++// SetRecvTypeParams sets the receiver type params of signature s.
++func (s *Signature) SetRecvTypeParams(rparams []*TypeParam) { s.rparams = bindTParams(rparams) }
+ 
+ // Params returns the parameters of signature s, or nil.
+ func (s *Signature) Params() *Tuple { return s.params }
+@@ -138,14 +138,14 @@ func (check *Checker) funcType(sig *Signature, recvPar *syntax.Field, tparams []
+ 			}
+ 			// provide type parameter bounds
+ 			// - only do this if we have the right number (otherwise an error is reported elsewhere)
+-			if sig.RParams().Len() == len(recvTParams) {
++			if sig.RecvTypeParams().Len() == len(recvTParams) {
+ 				// We have a list of *TypeNames but we need a list of Types.
+-				list := make([]Type, sig.RParams().Len())
+-				for i, t := range sig.RParams().list() {
++				list := make([]Type, sig.RecvTypeParams().Len())
++				for i, t := range sig.RecvTypeParams().list() {
+ 					list[i] = t
+ 				}
+ 				smap := makeSubstMap(recvTParams, list)
+-				for i, tpar := range sig.RParams().list() {
++				for i, tpar := range sig.RecvTypeParams().list() {
+ 					bound := recvTParams[i].bound
+ 					// bound is (possibly) parameterized in the context of the
+ 					// receiver type declaration. Substitute parameters for the
+@@ -213,7 +213,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *syntax.Field, tparams []
+ 				T.expand(nil)
+ 				// The receiver type may be an instantiated type referred to
+ 				// by an alias (which cannot have receiver parameters for now).
+-				if T.TypeArgs() != nil && sig.RParams() == nil {
++				if T.TypeArgs() != nil && sig.RecvTypeParams() == nil {
+ 					check.errorf(recv.pos, "cannot define methods on instantiated type %s", recv.typ)
+ 					break
+ 				}
+diff --git a/src/go/internal/gcimporter/iimport.go b/src/go/internal/gcimporter/iimport.go
+index 1fe139da17..039fc6a61b 100644
+--- a/src/go/internal/gcimporter/iimport.go
++++ b/src/go/internal/gcimporter/iimport.go
+@@ -339,7 +339,7 @@ func (r *importReader) obj(name string) {
+ 					for i := range rparams {
+ 						rparams[i], _ = targs.At(i).(*types.TypeParam)
+ 					}
+-					msig.SetRParams(rparams)
++					msig.SetRecvTypeParams(rparams)
+ 				}
+ 
+ 				named.AddMethod(types.NewFunc(mpos, r.currPkg, mname, msig))
+diff --git a/src/go/types/call.go b/src/go/types/call.go
+index 3710756c29..4de5fed46e 100644
+--- a/src/go/types/call.go
++++ b/src/go/types/call.go
+@@ -537,7 +537,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
+ 		// the signature accordingly.
+ 		// TODO(gri) factor this code out
+ 		sig := m.typ.(*Signature)
+-		if sig.RParams().Len() > 0 {
++		if sig.RecvTypeParams().Len() > 0 {
+ 			// For inference to work, we must use the receiver type
+ 			// matching the receiver in the actual method declaration.
+ 			// If the method is embedded, the matching receiver is the
+@@ -565,7 +565,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
+ 			// the receiver type arguments here, the receiver must be be otherwise invalid
+ 			// and an error has been reported elsewhere.
+ 			arg := operand{mode: variable, expr: x.expr, typ: recv}
+-			targs := check.infer(m, sig.RParams().list(), nil, NewTuple(sig.recv), []*operand{&arg}, false /* no error reporting */)
++			targs := check.infer(m, sig.RecvTypeParams().list(), nil, NewTuple(sig.recv), []*operand{&arg}, false /* no error reporting */)
+ 			if targs == nil {
+ 				// We may reach here if there were other errors (see issue #40056).
+ 				goto Error
+@@ -574,7 +574,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
+ 			// (If we modify m, some tests will fail; possibly because the m is in use.)
+ 			// TODO(gri) investigate and provide a correct explanation here
+ 			copy := *m
+-			copy.typ = check.subst(e.Pos(), m.typ, makeSubstMap(sig.RParams().list(), targs), nil)
++			copy.typ = check.subst(e.Pos(), m.typ, makeSubstMap(sig.RecvTypeParams().list(), targs), nil)
+ 			obj = &copy
+ 		}
+ 		// TODO(gri) we also need to do substitution for parameterized interface methods
+diff --git a/src/go/types/lookup.go b/src/go/types/lookup.go
+index f5bdd31a6f..4664a0b33b 100644
+--- a/src/go/types/lookup.go
++++ b/src/go/types/lookup.go
+@@ -392,10 +392,10 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method,
+ 			// here. Exit early in this case to prevent an assertion
+ 			// failure in makeSubstMap.
+ 			// TODO(gri) Can we avoid this check by fixing the lengths?
+-			if len(ftyp.RParams().list()) != Vn.targs.Len() {
++			if len(ftyp.RecvTypeParams().list()) != Vn.targs.Len() {
+ 				return
+ 			}
+-			ftyp = check.subst(token.NoPos, ftyp, makeSubstMap(ftyp.RParams().list(), Vn.targs.list()), nil).(*Signature)
++			ftyp = check.subst(token.NoPos, ftyp, makeSubstMap(ftyp.RecvTypeParams().list(), Vn.targs.list()), nil).(*Signature)
+ 		}
+ 
+ 		// If the methods have type parameters we don't care whether they
+@@ -404,7 +404,7 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method,
+ 		// TODO(gri) is this always correct? what about type bounds?
+ 		// (Alternative is to rename/subst type parameters and compare.)
+ 		u := newUnifier(true)
+-		u.x.init(ftyp.RParams().list())
++		u.x.init(ftyp.RecvTypeParams().list())
+ 		if !u.unify(ftyp, mtyp) {
+ 			return m, f
+ 		}
+diff --git a/src/go/types/signature.go b/src/go/types/signature.go
+index ec2030a689..37811828ee 100644
+--- a/src/go/types/signature.go
++++ b/src/go/types/signature.go
+@@ -61,11 +61,11 @@ func (s *Signature) TypeParams() *TypeParamList { return s.tparams }
+ // SetTypeParams sets the type parameters of signature s.
+ func (s *Signature) SetTypeParams(tparams []*TypeParam) { s.tparams = bindTParams(tparams) }
+ 
+-// RParams returns the receiver type parameters of signature s, or nil.
+-func (s *Signature) RParams() *TypeParamList { return s.rparams }
++// RecvTypeParams returns the receiver type parameters of signature s, or nil.
++func (s *Signature) RecvTypeParams() *TypeParamList { return s.rparams }
+ 
+-// SetRParams sets the receiver type params of signature s.
+-func (s *Signature) SetRParams(rparams []*TypeParam) { s.rparams = bindTParams(rparams) }
++// SetRecvTypeParams sets the receiver type params of signature s.
++func (s *Signature) SetRecvTypeParams(rparams []*TypeParam) { s.rparams = bindTParams(rparams) }
+ 
+ // Params returns the parameters of signature s, or nil.
+ func (s *Signature) Params() *Tuple { return s.params }
+@@ -133,14 +133,14 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
+ 			}
+ 			// provide type parameter bounds
+ 			// - only do this if we have the right number (otherwise an error is reported elsewhere)
+-			if sig.RParams().Len() == len(recvTParams) {
++			if sig.RecvTypeParams().Len() == len(recvTParams) {
+ 				// We have a list of *TypeNames but we need a list of Types.
+-				list := make([]Type, sig.RParams().Len())
+-				for i, t := range sig.RParams().list() {
++				list := make([]Type, sig.RecvTypeParams().Len())
++				for i, t := range sig.RecvTypeParams().list() {
+ 					list[i] = t
+ 				}
+ 				smap := makeSubstMap(recvTParams, list)
+-				for i, tpar := range sig.RParams().list() {
++				for i, tpar := range sig.RecvTypeParams().list() {
+ 					bound := recvTParams[i].bound
+ 					// bound is (possibly) parameterized in the context of the
+ 					// receiver type declaration. Substitute parameters for the
+@@ -203,7 +203,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
+ 				T.expand(nil)
+ 				// The receiver type may be an instantiated type referred to
+ 				// by an alias (which cannot have receiver parameters for now).
+-				if T.TypeArgs() != nil && sig.RParams() == nil {
++				if T.TypeArgs() != nil && sig.RecvTypeParams() == nil {
+ 					check.errorf(atPos(recv.pos), _Todo, "cannot define methods on instantiated type %s", recv.typ)
+ 					break
+ 				}

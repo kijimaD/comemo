@@ -11,6 +11,20 @@ Date:   Tue Mar 1 13:47:48 2016 -0800
     Reviewed-by: David Chase <drchase@google.com>
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 6bf08617f0..0add627a11 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -81,7 +81,7 @@ func shouldssa(fn *Node) bool {
+ // buildssa builds an SSA function.
+ func buildssa(fn *Node) *ssa.Func {
+ 	name := fn.Func.Nname.Sym.Name
+-	printssa := strings.HasSuffix(name, "_ssa") || strings.Contains(name, "_ssa.") || name == os.Getenv("GOSSAFUNC")
++	printssa := name == os.Getenv("GOSSAFUNC")
+ 	if printssa {
+ 		fmt.Println("generating SSA for", name)
+ 		dumpslice("buildssa-enter", fn.Func.Enter.Slice())

@@ -30,7 +30,45 @@ Date:   Wed Nov 29 14:44:43 2017 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/reflect/all_test.go | 9 +++++++++
  src/reflect/value.go    | 6 ++++++
  2 files changed, 15 insertions(+)
+
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index 0a1a38dd2e..e51d19efdd 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -1631,6 +1631,15 @@ func TestFunc(t *testing.T) {
+ 	}
+ }
+ 
++func TestCallConvert(t *testing.T) {
++	v := ValueOf(new(io.ReadWriter)).Elem()
++	f := ValueOf(func(r io.Reader) io.Reader { return r })
++	out := f.Call([]Value{v})
++	if len(out) != 1 || out[0].Type() != TypeOf(new(io.Reader)).Elem() || !out[0].IsNil() {
++		t.Errorf("expected [nil], got %v", out)
++	}
++}
++
+ type emptyStruct struct{}
+ 
+ type nonEmptyStruct struct {
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index 0184e6820e..d3575cae6b 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -2197,6 +2197,12 @@ func (v Value) assignTo(context string, dst *rtype, target unsafe.Pointer) Value
+ 		if target == nil {
+ 			target = unsafe_New(dst)
+ 		}
++		if v.Kind() == Interface && v.IsNil() {
++			// A nil ReadWriter passed to nil Reader is OK,
++			// but using ifaceE2I below will panic.
++			// Avoid the panic by returning a nil dst (e.g., Reader) explicitly.
++			return Value{dst, nil, flag(Interface)}
++		}
+ 		x := valueInterface(v, false)
+ 		if dst.NumMethod() == 0 {
+ 			*(*interface{})(target) = x

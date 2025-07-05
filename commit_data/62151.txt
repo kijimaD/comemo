@@ -33,7 +33,63 @@ Date:   Fri Feb 7 11:29:34 2025 +0000
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Auto-Submit: Filippo Valsorda <filippo@golang.org>
-
+---
  .../internal/fips140/edwards25519/field/fe.go      | 28 ++++++++++++----------
  .../fips140/edwards25519/field/fe_bench_test.go    |  8 +++++++
  2 files changed, 24 insertions(+), 12 deletions(-)
+
+diff --git a/src/crypto/internal/fips140/edwards25519/field/fe.go b/src/crypto/internal/fips140/edwards25519/field/fe.go
+index 2d76ba7274..21bedefa0c 100644
+--- a/src/crypto/internal/fips140/edwards25519/field/fe.go
++++ b/src/crypto/internal/fips140/edwards25519/field/fe.go
+@@ -233,18 +233,22 @@ func (v *Element) bytes(out *[32]byte) []byte {
+ 	t := *v
+ 	t.reduce()
+ 
+-	var buf [8]byte
+-	for i, l := range [5]uint64{t.l0, t.l1, t.l2, t.l3, t.l4} {
+-		bitsOffset := i * 51
+-		byteorder.LEPutUint64(buf[:], l<<uint(bitsOffset%8))
+-		for i, bb := range buf {
+-			off := bitsOffset/8 + i
+-			if off >= len(out) {
+-				break
+-			}
+-			out[off] |= bb
+-		}
+-	}
++	// Pack five 51-bit limbs into four 64-bit words:
++	//
++	//  255    204    153    102     51      0
++	//    ├──l4──┼──l3──┼──l2──┼──l1──┼──l0──┤
++	//   ├───u3───┼───u2───┼───u1───┼───u0───┤
++	// 256      192      128       64        0
++
++	u0 := t.l1<<51 | t.l0
++	u1 := t.l2<<(102-64) | t.l1>>(64-51)
++	u2 := t.l3<<(153-128) | t.l2>>(128-102)
++	u3 := t.l4<<(204-192) | t.l3>>(192-153)
++
++	byteorder.LEPutUint64(out[0*8:], u0)
++	byteorder.LEPutUint64(out[1*8:], u1)
++	byteorder.LEPutUint64(out[2*8:], u2)
++	byteorder.LEPutUint64(out[3*8:], u3)
+ 
+ 	return out[:]
+ }
+diff --git a/src/crypto/internal/fips140/edwards25519/field/fe_bench_test.go b/src/crypto/internal/fips140/edwards25519/field/fe_bench_test.go
+index 84fdf05a8e..fb80ca88fe 100644
+--- a/src/crypto/internal/fips140/edwards25519/field/fe_bench_test.go
++++ b/src/crypto/internal/fips140/edwards25519/field/fe_bench_test.go
+@@ -47,3 +47,11 @@ func BenchmarkMult32(b *testing.B) {
+ 		x.Mult32(x, 0xaa42aa42)
+ 	}
+ }
++
++func BenchmarkBytes(b *testing.B) {
++	x := new(Element).One()
++	b.ResetTimer()
++	for i := 0; i < b.N; i++ {
++		x.Bytes()
++	}
++}

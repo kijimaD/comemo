@@ -14,7 +14,7 @@ Date:   Wed Apr 22 22:20:44 2020 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
-
+---
  src/cmd/internal/goobj2/objfile.go              |  2 +
  src/cmd/link/internal/ld/ld.go                  | 15 ++++---
  src/cmd/link/internal/ld/lib.go                 | 30 ++++++++++---
@@ -27,3 +27,398 @@ Date:   Wed Apr 22 22:20:44 2020 -0400
  src/cmd/link/testdata/testIndexMismatch/b.go    |  8 ++++
  src/cmd/link/testdata/testIndexMismatch/main.go |  9 ++++
  11 files changed, 147 insertions(+), 33 deletions(-)
+
+diff --git a/src/cmd/internal/goobj2/objfile.go b/src/cmd/internal/goobj2/objfile.go
+index 3d3bc20133..28702ebf07 100644
+--- a/src/cmd/internal/goobj2/objfile.go
++++ b/src/cmd/internal/goobj2/objfile.go
+@@ -125,6 +125,8 @@ const stringRefSize = 8 // two uint32s
+ 
+ type FingerprintType [8]byte
+ 
++func (fp FingerprintType) IsZero() bool { return fp == FingerprintType{} }
++
+ // Package Index.
+ const (
+ 	PkgIdxNone    = (1<<31 - 1) - iota // Non-package symbols
+diff --git a/src/cmd/link/internal/ld/ld.go b/src/cmd/link/internal/ld/ld.go
+index 85038f3ad2..c913a519a1 100644
+--- a/src/cmd/link/internal/ld/ld.go
++++ b/src/cmd/link/internal/ld/ld.go
+@@ -32,6 +32,7 @@
+ package ld
+ 
+ import (
++	"cmd/internal/goobj2"
+ 	"cmd/link/internal/loader"
+ 	"cmd/link/internal/sym"
+ 	"io/ioutil"
+@@ -155,11 +156,12 @@ func findlib(ctxt *Link, lib string) (string, bool) {
+ 	return pname, isshlib
+ }
+ 
+-func addlib(ctxt *Link, src string, obj string, lib string) *sym.Library {
++func addlib(ctxt *Link, src, obj, lib string, fingerprint goobj2.FingerprintType) *sym.Library {
+ 	pkg := pkgname(ctxt, lib)
+ 
+ 	// already loaded?
+ 	if l := ctxt.LibraryByPkg[pkg]; l != nil {
++		checkFingerprint(l, l.Fingerprint, src, fingerprint)
+ 		return l
+ 	}
+ 
+@@ -170,9 +172,9 @@ func addlib(ctxt *Link, src string, obj string, lib string) *sym.Library {
+ 	}
+ 
+ 	if isshlib {
+-		return addlibpath(ctxt, src, obj, "", pkg, pname)
++		return addlibpath(ctxt, src, obj, "", pkg, pname, fingerprint)
+ 	}
+-	return addlibpath(ctxt, src, obj, pname, pkg, "")
++	return addlibpath(ctxt, src, obj, pname, pkg, "", fingerprint)
+ }
+ 
+ /*
+@@ -182,14 +184,16 @@ func addlib(ctxt *Link, src string, obj string, lib string) *sym.Library {
+  *	file: object file, e.g., /home/rsc/go/pkg/container/vector.a
+  *	pkg: package import path, e.g. container/vector
+  *	shlib: path to shared library, or .shlibname file holding path
++ *	fingerprint: if not 0, expected fingerprint for import from srcref
++ *	             fingerprint is 0 if the library is not imported (e.g. main)
+  */
+-func addlibpath(ctxt *Link, srcref string, objref string, file string, pkg string, shlib string) *sym.Library {
++func addlibpath(ctxt *Link, srcref, objref, file, pkg, shlib string, fingerprint goobj2.FingerprintType) *sym.Library {
+ 	if l := ctxt.LibraryByPkg[pkg]; l != nil {
+ 		return l
+ 	}
+ 
+ 	if ctxt.Debugvlog > 1 {
+-		ctxt.Logf("addlibpath: srcref: %s objref: %s file: %s pkg: %s shlib: %s\n", srcref, objref, file, pkg, shlib)
++		ctxt.Logf("addlibpath: srcref: %s objref: %s file: %s pkg: %s shlib: %s fingerprint: %x\n", srcref, objref, file, pkg, shlib, fingerprint)
+ 	}
+ 
+ 	l := &sym.Library{}
+@@ -199,6 +203,7 @@ func addlibpath(ctxt *Link, srcref string, objref string, file string, pkg strin
+ 	l.Srcref = srcref
+ 	l.File = file
+ 	l.Pkg = pkg
++	l.Fingerprint = fingerprint
+ 	if shlib != "" {
+ 		if strings.HasSuffix(shlib, ".shlibname") {
+ 			data, err := ioutil.ReadFile(shlib)
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index ede7596770..5d01babd5f 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -33,6 +33,7 @@ package ld
+ import (
+ 	"bytes"
+ 	"cmd/internal/bio"
++	"cmd/internal/goobj2"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/objabi"
+ 	"cmd/internal/sys"
+@@ -425,14 +426,15 @@ func errorexit() {
+ }
+ 
+ func loadinternal(ctxt *Link, name string) *sym.Library {
++	zerofp := goobj2.FingerprintType{}
+ 	if ctxt.linkShared && ctxt.PackageShlib != nil {
+ 		if shlib := ctxt.PackageShlib[name]; shlib != "" {
+-			return addlibpath(ctxt, "internal", "internal", "", name, shlib)
++			return addlibpath(ctxt, "internal", "internal", "", name, shlib, zerofp)
+ 		}
+ 	}
+ 	if ctxt.PackageFile != nil {
+ 		if pname := ctxt.PackageFile[name]; pname != "" {
+-			return addlibpath(ctxt, "internal", "internal", pname, name, "")
++			return addlibpath(ctxt, "internal", "internal", pname, name, "", zerofp)
+ 		}
+ 		ctxt.Logf("loadinternal: cannot find %s\n", name)
+ 		return nil
+@@ -445,7 +447,7 @@ func loadinternal(ctxt *Link, name string) *sym.Library {
+ 				ctxt.Logf("searching for %s.a in %s\n", name, shlibname)
+ 			}
+ 			if _, err := os.Stat(shlibname); err == nil {
+-				return addlibpath(ctxt, "internal", "internal", "", name, shlibname)
++				return addlibpath(ctxt, "internal", "internal", "", name, shlibname, zerofp)
+ 			}
+ 		}
+ 		pname := filepath.Join(libdir, name+".a")
+@@ -453,7 +455,7 @@ func loadinternal(ctxt *Link, name string) *sym.Library {
+ 			ctxt.Logf("searching for %s.a in %s\n", name, pname)
+ 		}
+ 		if _, err := os.Stat(pname); err == nil {
+-			return addlibpath(ctxt, "internal", "internal", pname, name, "")
++			return addlibpath(ctxt, "internal", "internal", pname, name, "", zerofp)
+ 		}
+ 	}
+ 
+@@ -1985,11 +1987,29 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
+ 	ldpkg(ctxt, f, lib, import1-import0-2, pn) // -2 for !\n
+ 	f.MustSeek(import1, 0)
+ 
+-	ctxt.loader.Preload(ctxt.Syms, f, lib, unit, eof-f.Offset(), 0)
++	fingerprint := ctxt.loader.Preload(ctxt.Syms, f, lib, unit, eof-f.Offset())
++	if !fingerprint.IsZero() { // Assembly objects don't have fingerprints. Ignore them.
++		// Check fingerprint, to ensure the importing and imported packages
++		// have consistent view of symbol indices.
++		// Normally the go command should ensure this. But in case something
++		// goes wrong, it could lead to obscure bugs like run-time crash.
++		// Check it here to be sure.
++		if lib.Fingerprint.IsZero() { // Not yet imported. Update its fingerprint.
++			lib.Fingerprint = fingerprint
++		}
++		checkFingerprint(lib, fingerprint, lib.Srcref, lib.Fingerprint)
++	}
++
+ 	addImports(ctxt, lib, pn)
+ 	return nil
+ }
+ 
++func checkFingerprint(lib *sym.Library, libfp goobj2.FingerprintType, src string, srcfp goobj2.FingerprintType) {
++	if libfp != srcfp {
++		Exitf("fingerprint mismatch: %s has %x, import from %s expecting %x", lib, libfp, src, srcfp)
++	}
++}
++
+ func readelfsymboldata(ctxt *Link, f *elf.File, sym *elf.Symbol) []byte {
+ 	data := make([]byte, sym.Size)
+ 	sect := f.Sections[sym.Section]
+diff --git a/src/cmd/link/internal/ld/link.go b/src/cmd/link/internal/ld/link.go
+index 6597d84368..839ee0ca7e 100644
+--- a/src/cmd/link/internal/ld/link.go
++++ b/src/cmd/link/internal/ld/link.go
+@@ -130,11 +130,11 @@ func (ctxt *Link) Logf(format string, args ...interface{}) {
+ 
+ func addImports(ctxt *Link, l *sym.Library, pn string) {
+ 	pkg := objabi.PathToPrefix(l.Pkg)
+-	for _, importStr := range l.ImportStrings {
+-		lib := addlib(ctxt, pkg, pn, importStr)
++	for _, imp := range l.Autolib {
++		lib := addlib(ctxt, pkg, pn, imp.Pkg, imp.Fingerprint)
+ 		if lib != nil {
+ 			l.Imports = append(l.Imports, lib)
+ 		}
+ 	}
+-	l.ImportStrings = nil
++	l.Autolib = nil
+ }
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index d8b4c8a94d..c361773c3c 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -32,6 +32,7 @@ package ld
+ 
+ import (
+ 	"bufio"
++	"cmd/internal/goobj2"
+ 	"cmd/internal/objabi"
+ 	"cmd/internal/sys"
+ 	"cmd/link/internal/benchmark"
+@@ -215,6 +216,7 @@ func Main(arch *sys.Arch, theArch Arch) {
+ 		ctxt.Logf("HEADER = -H%d -T0x%x -R0x%x\n", ctxt.HeadType, uint64(*FlagTextAddr), uint32(*FlagRound))
+ 	}
+ 
++	zerofp := goobj2.FingerprintType{}
+ 	switch ctxt.BuildMode {
+ 	case BuildModeShared:
+ 		for i := 0; i < flag.NArg(); i++ {
+@@ -228,12 +230,12 @@ func Main(arch *sys.Arch, theArch Arch) {
+ 			}
+ 			pkglistfornote = append(pkglistfornote, pkgpath...)
+ 			pkglistfornote = append(pkglistfornote, '\n')
+-			addlibpath(ctxt, "command line", "command line", file, pkgpath, "")
++			addlibpath(ctxt, "command line", "command line", file, pkgpath, "", zerofp)
+ 		}
+ 	case BuildModePlugin:
+-		addlibpath(ctxt, "command line", "command line", flag.Arg(0), *flagPluginPath, "")
++		addlibpath(ctxt, "command line", "command line", flag.Arg(0), *flagPluginPath, "", zerofp)
+ 	default:
+-		addlibpath(ctxt, "command line", "command line", flag.Arg(0), "main", "")
++		addlibpath(ctxt, "command line", "command line", flag.Arg(0), "main", "", zerofp)
+ 	}
+ 	bench.Start("loadlib")
+ 	ctxt.loadlib()
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index 7b59e680ee..375e5c32b6 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -1760,7 +1760,8 @@ func (l *Loader) FuncInfo(i Sym) FuncInfo {
+ // Preload a package: add autolibs, add defined package symbols to the symbol table.
+ // Does not add non-package symbols yet, which will be done in LoadNonpkgSyms.
+ // Does not read symbol data.
+-func (l *Loader) Preload(syms *sym.Symbols, f *bio.Reader, lib *sym.Library, unit *sym.CompilationUnit, length int64, flags int) {
++// Returns the fingerprint of the object.
++func (l *Loader) Preload(syms *sym.Symbols, f *bio.Reader, lib *sym.Library, unit *sym.CompilationUnit, length int64) goobj2.FingerprintType {
+ 	roObject, readonly, err := f.Slice(uint64(length))
+ 	if err != nil {
+ 		log.Fatal("cannot read object file:", err)
+@@ -1779,11 +1780,7 @@ func (l *Loader) Preload(syms *sym.Symbols, f *bio.Reader, lib *sym.Library, uni
+ 	or := &oReader{r, unit, localSymVersion, r.Flags(), pkgprefix, make([]Sym, ndef+nnonpkgdef+r.NNonpkgref()), ndef, uint32(len(l.objs))}
+ 
+ 	// Autolib
+-	autolib := r.Autolib()
+-	for _, p := range autolib {
+-		lib.ImportStrings = append(lib.ImportStrings, p.Pkg)
+-		// TODO: fingerprint is ignored for now
+-	}
++	lib.Autolib = append(lib.Autolib, r.Autolib()...)
+ 
+ 	// DWARF file table
+ 	nfile := r.NDwarfFile()
+@@ -1797,6 +1794,8 @@ func (l *Loader) Preload(syms *sym.Symbols, f *bio.Reader, lib *sym.Library, uni
+ 
+ 	// The caller expects us consuming all the data
+ 	f.MustSeek(length, os.SEEK_CUR)
++
++	return r.Fingerprint()
+ }
+ 
+ // Preload symbols of given kind from an object.
+diff --git a/src/cmd/link/internal/sym/library.go b/src/cmd/link/internal/sym/library.go
+index bed16565ba..c9be3abb27 100644
+--- a/src/cmd/link/internal/sym/library.go
++++ b/src/cmd/link/internal/sym/library.go
+@@ -4,18 +4,21 @@
+ 
+ package sym
+ 
++import "cmd/internal/goobj2"
++
+ type Library struct {
+-	Objref        string
+-	Srcref        string
+-	File          string
+-	Pkg           string
+-	Shlib         string
+-	Hash          string
+-	ImportStrings []string
+-	Imports       []*Library
+-	Main          bool
+-	Safe          bool
+-	Units         []*CompilationUnit
++	Objref      string
++	Srcref      string
++	File        string
++	Pkg         string
++	Shlib       string
++	Hash        string
++	Fingerprint goobj2.FingerprintType
++	Autolib     []goobj2.ImportedPkg
++	Imports     []*Library
++	Main        bool
++	Safe        bool
++	Units       []*CompilationUnit
+ 
+ 	Textp2       []LoaderSym // text syms defined in this library
+ 	DupTextSyms2 []LoaderSym // dupok text syms defined in this library
+diff --git a/src/cmd/link/link_test.go b/src/cmd/link/link_test.go
+index bf097532de..1c9e177911 100644
+--- a/src/cmd/link/link_test.go
++++ b/src/cmd/link/link_test.go
+@@ -675,3 +675,61 @@ func TestTrampoline(t *testing.T) {
+ 		t.Errorf("unexpected output:\n%s", out)
+ 	}
+ }
++
++func TestIndexMismatch(t *testing.T) {
++	// Test that index mismatch will cause a link-time error (not run-time error).
++	// This shouldn't happen with "go build". We invoke the compiler and the linker
++	// manually, and try to "trick" the linker with an inconsistent object file.
++	testenv.MustHaveGoBuild(t)
++
++	tmpdir, err := ioutil.TempDir("", "TestIndexMismatch")
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer os.RemoveAll(tmpdir)
++
++	aSrc := filepath.Join("testdata", "testIndexMismatch", "a.go")
++	bSrc := filepath.Join("testdata", "testIndexMismatch", "b.go")
++	mSrc := filepath.Join("testdata", "testIndexMismatch", "main.go")
++	aObj := filepath.Join(tmpdir, "a.o")
++	mObj := filepath.Join(tmpdir, "main.o")
++	exe := filepath.Join(tmpdir, "main.exe")
++
++	// Build a program with main package importing package a.
++	cmd := exec.Command(testenv.GoToolPath(t), "tool", "compile", "-o", aObj, aSrc)
++	t.Log(cmd)
++	out, err := cmd.CombinedOutput()
++	if err != nil {
++		t.Fatalf("compiling a.go failed: %v\n%s", err, out)
++	}
++	cmd = exec.Command(testenv.GoToolPath(t), "tool", "compile", "-I", tmpdir, "-o", mObj, mSrc)
++	t.Log(cmd)
++	out, err = cmd.CombinedOutput()
++	if err != nil {
++		t.Fatalf("compiling main.go failed: %v\n%s", err, out)
++	}
++	cmd = exec.Command(testenv.GoToolPath(t), "tool", "link", "-L", tmpdir, "-o", exe, mObj)
++	t.Log(cmd)
++	out, err = cmd.CombinedOutput()
++	if err != nil {
++		t.Errorf("linking failed: %v\n%s", err, out)
++	}
++
++	// Now, overwrite a.o with the object of b.go. This should
++	// result in an index mismatch.
++	cmd = exec.Command(testenv.GoToolPath(t), "tool", "compile", "-o", aObj, bSrc)
++	t.Log(cmd)
++	out, err = cmd.CombinedOutput()
++	if err != nil {
++		t.Fatalf("compiling a.go failed: %v\n%s", err, out)
++	}
++	cmd = exec.Command(testenv.GoToolPath(t), "tool", "link", "-L", tmpdir, "-o", exe, mObj)
++	t.Log(cmd)
++	out, err = cmd.CombinedOutput()
++	if err == nil {
++		t.Fatalf("linking didn't fail")
++	}
++	if !bytes.Contains(out, []byte("fingerprint mismatch")) {
++		t.Errorf("did not see expected error message. out:\n%s", out)
++	}
++}
+diff --git a/src/cmd/link/testdata/testIndexMismatch/a.go b/src/cmd/link/testdata/testIndexMismatch/a.go
+new file mode 100644
+index 0000000000..1f3b2c52d2
+--- /dev/null
++++ b/src/cmd/link/testdata/testIndexMismatch/a.go
+@@ -0,0 +1,8 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++//go:noinline
++func A() { println("A") }
+diff --git a/src/cmd/link/testdata/testIndexMismatch/b.go b/src/cmd/link/testdata/testIndexMismatch/b.go
+new file mode 100644
+index 0000000000..9b55dbf771
+--- /dev/null
++++ b/src/cmd/link/testdata/testIndexMismatch/b.go
+@@ -0,0 +1,8 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++//go:noinline
++func B() { println("B") }
+diff --git a/src/cmd/link/testdata/testIndexMismatch/main.go b/src/cmd/link/testdata/testIndexMismatch/main.go
+new file mode 100644
+index 0000000000..bc15236f1e
+--- /dev/null
++++ b/src/cmd/link/testdata/testIndexMismatch/main.go
+@@ -0,0 +1,9 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "a"
++
++func main() { a.A() }

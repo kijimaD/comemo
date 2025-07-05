@@ -14,8 +14,94 @@ Date:   Wed Nov 2 15:36:33 2011 +0100
     R=rsc, dave
     CC=golang-dev
     https://golang.org/cl/5319065
-
+---
  src/cmd/gc/fmt.c       | 11 ++++-------
  src/cmd/gc/typecheck.c |  1 +
  test/escape2.go        |  6 +++---
  3 files changed, 8 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/gc/fmt.c b/src/cmd/gc/fmt.c
+index 12ea302827..9447e9b1eb 100644
+--- a/src/cmd/gc/fmt.c
++++ b/src/cmd/gc/fmt.c
+@@ -921,7 +921,6 @@ static int opprec[] = {
+ 
+ 	[OINDEXMAP] = 8,
+ 	[OINDEX] = 8,
+-	[OIND] = 8,
+ 	[ODOTINTER] = 8,
+ 	[ODOTMETH] = 8,
+ 	[ODOTPTR] = 8,
+@@ -1146,6 +1145,7 @@ exprfmt(Fmt *f, Node *n, int prec)
+ 		exprfmt(f, n->left, nprec);
+ 		return fmtprint(f, "[%N]", n->right);
+ 
++	case OCOPY:
+ 	case OCOMPLEX:
+ 		return fmtprint(f, "%#O(%N, %N)", n->op, n->left, n->right);
+ 
+@@ -1167,7 +1167,6 @@ exprfmt(Fmt *f, Node *n, int prec)
+ 	case OCAP:
+ 	case OCLOSE:
+ 	case OLEN:
+-	case OCOPY:
+ 	case OMAKE:
+ 	case ONEW:
+ 	case OPANIC:
+@@ -1188,13 +1187,11 @@ exprfmt(Fmt *f, Node *n, int prec)
+ 			return fmtprint(f, "(%,H...)", n->list);
+ 		return fmtprint(f, "(%,H)", n->list);
+ 
+-	case OMAKESLICE:
+-		if(count(n->list) > 2)
+-			return fmtprint(f, "make(%T, %N, %N)", n->type, n->left, n->right);   // count list, but print l/r?
+-		return fmtprint(f, "make(%T, %N)", n->type, n->left);
+-
+ 	case OMAKEMAP:
+ 	case OMAKECHAN:
++	case OMAKESLICE:
++		if(n->list->next)
++			return fmtprint(f, "make(%T, %,H)", n->type, n->list->next);
+ 		return fmtprint(f, "make(%T)", n->type);
+ 
+ 	case OADD:
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 87a8d78358..d2268e6641 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -745,6 +745,7 @@ reswitch:
+ 		defaultlit(&n->right->right, T);
+ 		if(isfixedarray(n->left->type)) {
+ 			n->left = nod(OADDR, n->left, N);
++			n->left->implicit = 1;
+ 			typecheck(&n->left, top);
+ 		}
+ 		if(n->right->left != N) {
+diff --git a/test/escape2.go b/test/escape2.go
+index 06ada5aaa0..3f7d6e3a16 100644
+--- a/test/escape2.go
++++ b/test/escape2.go
+@@ -148,7 +148,7 @@ func (b *Bar2) NoLeak() int { // ERROR "b does not escape"
+ }
+ 
+ func (b *Bar2) Leak() []int { // ERROR "leaking param: b"
+-	return b.i[:] // ERROR "&b.i escapes to heap"
++	return b.i[:]  // ERROR "b.i escapes to heap"
+ }
+ 
+ func (b *Bar2) AlsoNoLeak() []int { // ERROR "b does not escape"
+@@ -156,12 +156,12 @@ func (b *Bar2) AlsoNoLeak() []int { // ERROR "b does not escape"
+ }
+ 
+ func (b *Bar2) LeakSelf() { // ERROR "leaking param: b"
+-	b.ii = b.i[0:4] // ERROR "&b.i escapes to heap"
++	b.ii = b.i[0:4]  // ERROR "b.i escapes to heap"
+ }
+ 
+ func (b *Bar2) LeakSelf2() { // ERROR "leaking param: b"
+ 	var buf []int
+-	buf = b.i[0:] // ERROR "&b.i escapes to heap"
++	buf = b.i[0:]  // ERROR "b.i escapes to heap"
+ 	b.ii = buf
+ }
+ 

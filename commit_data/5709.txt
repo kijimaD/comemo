@@ -8,7 +8,119 @@ Date:   Thu Jun 24 15:24:25 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1675048
-
+---
  src/pkg/fmt/scan.go      | 13 +++++++++++--
  src/pkg/fmt/scan_test.go | 42 ++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 53 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/fmt/scan.go b/src/pkg/fmt/scan.go
+index 9f3b401173..ded1f77191 100644
+--- a/src/pkg/fmt/scan.go
++++ b/src/pkg/fmt/scan.go
+@@ -125,12 +125,15 @@ type scanError struct {
+ 	err os.Error
+ }
+ 
++const EOF = -1
++
+ // ss is the internal implementation of ScanState.
+ type ss struct {
+ 	rr         readRuner    // where to read input
+ 	buf        bytes.Buffer // token accumulator
+ 	nlIsSpace  bool         // whether newline counts as white space
+ 	peekRune   int          // one-rune lookahead
++	atEOF      bool         // already read EOF
+ 	maxWid     int          // max width of field, in runes
+ 	widPresent bool         // width was specified
+ 	wid        int          // width consumed so far; used in accept()
+@@ -150,11 +153,12 @@ func (s *ss) Width() (wid int, ok bool) {
+ 	return s.maxWid, s.widPresent
+ }
+ 
+-const EOF = -1
+-
+ // The public method returns an error; this private one panics.
+ // If getRune reaches EOF, the return value is EOF (-1).
+ func (s *ss) getRune() (rune int) {
++	if s.atEOF {
++		return EOF
++	}
+ 	if s.peekRune >= 0 {
+ 		rune = s.peekRune
+ 		s.peekRune = -1
+@@ -163,6 +167,7 @@ func (s *ss) getRune() (rune int) {
+ 	rune, _, err := s.rr.ReadRune()
+ 	if err != nil {
+ 		if err == os.EOF {
++			s.atEOF = true
+ 			return EOF
+ 		}
+ 		s.error(err)
+@@ -174,6 +179,9 @@ func (s *ss) getRune() (rune int) {
+ // It is called in cases such as string scanning where an EOF is a
+ // syntax error.
+ func (s *ss) mustGetRune() (rune int) {
++	if s.atEOF {
++		s.error(io.ErrUnexpectedEOF)
++	}
+ 	if s.peekRune >= 0 {
+ 		rune = s.peekRune
+ 		s.peekRune = -1
+@@ -291,6 +299,7 @@ func newScanState(r io.Reader, nlIsSpace bool) *ss {
+ 	}
+ 	s.nlIsSpace = nlIsSpace
+ 	s.peekRune = -1
++	s.atEOF = false
+ 	s.maxWid = 0
+ 	s.widPresent = false
+ 	return s
+diff --git a/src/pkg/fmt/scan_test.go b/src/pkg/fmt/scan_test.go
+index f195c0317c..1e0319836c 100644
+--- a/src/pkg/fmt/scan_test.go
++++ b/src/pkg/fmt/scan_test.go
+@@ -493,3 +493,45 @@ func TestScanlnWithMiddleNewline(t *testing.T) {
+ 		t.Errorf("expected newline error scanning string with extra newline, got: %s", err)
+ 	}
+ }
++
++// Special Reader that counts reads at end of file.
++type eofCounter struct {
++	reader   *strings.Reader
++	eofCount int
++}
++
++func (ec *eofCounter) Read(b []byte) (n int, err os.Error) {
++	n, err = ec.reader.Read(b)
++	if n == 0 {
++		ec.eofCount++
++	}
++	return
++}
++
++// Verify that when we scan, we see at most EOF once per call to a Scan function,
++// and then only when it's really an EOF
++func TestEOF(t *testing.T) {
++	ec := &eofCounter{strings.NewReader("123\n"), 0}
++	var a int
++	n, err := Fscanln(ec, &a)
++	if err != nil {
++		t.Error("unexpected error", err)
++	}
++	if n != 1 {
++		t.Error("expected to scan one item, got", n)
++	}
++	if ec.eofCount != 0 {
++		t.Error("expected zero EOFs", ec.eofCount)
++		ec.eofCount = 0 // reset for next test
++	}
++	n, err = Fscanln(ec, &a)
++	if err == nil {
++		t.Error("expected error scanning empty string")
++	}
++	if n != 0 {
++		t.Error("expected to scan zero items, got", n)
++	}
++	if ec.eofCount != 1 {
++		t.Error("expected one EOF, got", ec.eofCount)
++	}
++}

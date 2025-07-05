@@ -19,7 +19,66 @@ Date:   Tue Feb 2 06:35:34 2016 -0500
     Change-Id: I7f9de8a7cae192648a7413bfb18a6690fad34375
     Reviewed-on: https://go-review.googlesource.com/19152
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/config.go |  2 ++
  src/cmd/compile/internal/ssa/func.go   | 14 ++++++--------
  2 files changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/config.go b/src/cmd/compile/internal/ssa/config.go
+index 060eec2335..530c480004 100644
+--- a/src/cmd/compile/internal/ssa/config.go
++++ b/src/cmd/compile/internal/ssa/config.go
+@@ -23,6 +23,8 @@ type Config struct {
+ 	// Storage for low-numbered values and blocks.
+ 	values [2000]Value
+ 	blocks [200]Block
++
++	scrSparse []*sparseSet // scratch sparse sets to be re-used.
+ }
+ 
+ type TypeSource interface {
+diff --git a/src/cmd/compile/internal/ssa/func.go b/src/cmd/compile/internal/ssa/func.go
+index 9da390904d..6e101ec1cb 100644
+--- a/src/cmd/compile/internal/ssa/func.go
++++ b/src/cmd/compile/internal/ssa/func.go
+@@ -31,8 +31,6 @@ type Func struct {
+ 
+ 	freeValues *Value // free Values linked by argstorage[0].  All other fields except ID are 0/nil.
+ 	freeBlocks *Block // free Blocks linked by succstorage[0].  All other fields except ID are 0/nil.
+-
+-	scrSparse []*sparseSet // sparse sets to be re-used.
+ }
+ 
+ // NumBlocks returns an integer larger than the id of any Block in the Func.
+@@ -47,9 +45,9 @@ func (f *Func) NumValues() int {
+ 
+ // newSparseSet returns a sparse set that can store at least up to n integers.
+ func (f *Func) newSparseSet(n int) *sparseSet {
+-	for i, scr := range f.scrSparse {
++	for i, scr := range f.Config.scrSparse {
+ 		if scr != nil && scr.cap() >= n {
+-			f.scrSparse[i] = nil
++			f.Config.scrSparse[i] = nil
+ 			scr.clear()
+ 			return scr
+ 		}
+@@ -57,15 +55,15 @@ func (f *Func) newSparseSet(n int) *sparseSet {
+ 	return newSparseSet(n)
+ }
+ 
+-// retSparseSet returns a sparse set to the function's cache to be reused by f.newSparseSet.
++// retSparseSet returns a sparse set to the config's cache of sparse sets to be reused by f.newSparseSet.
+ func (f *Func) retSparseSet(ss *sparseSet) {
+-	for i, scr := range f.scrSparse {
++	for i, scr := range f.Config.scrSparse {
+ 		if scr == nil {
+-			f.scrSparse[i] = ss
++			f.Config.scrSparse[i] = ss
+ 			return
+ 		}
+ 	}
+-	f.scrSparse = append(f.scrSparse, ss)
++	f.Config.scrSparse = append(f.Config.scrSparse, ss)
+ }
+ 
+ // newValue allocates a new Value with the given fields and places it at the end of b.Values.

@@ -7,6 +7,20 @@ Date:   Mon Nov 24 14:23:53 2008 -0800
     R=rsc
     OCL=19929
     CL=19929
-
+---
  src/cmd/gc/go.y | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index 797923f030..082a83fdea 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -2011,7 +2011,7 @@ hidden_importsym:
+  * to check whether the rest of the grammar is free of
+  * reduce/reduce conflicts, comment this section out by
+  * removing the slash on the next line.
+- *
++ */
+ lpack:
+ 	LATYPE
+ 	{

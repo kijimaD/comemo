@@ -26,7 +26,7 @@ Date:   Thu Feb 21 14:48:52 2019 -0500
     Reviewed-by: Keith Randall <khr@golang.org>
     Run-TryBot: Andrew Bonventre <andybons@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/amd64/galign.go  | 1 +
  src/cmd/compile/internal/arm/galign.go    | 1 +
  src/cmd/compile/internal/arm64/galign.go  | 1 +
@@ -39,3 +39,145 @@ Date:   Thu Feb 21 14:48:52 2019 -0500
  src/cmd/compile/internal/wasm/ssa.go      | 1 +
  src/cmd/compile/internal/x86/galign.go    | 1 +
  11 files changed, 15 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/galign.go b/src/cmd/compile/internal/amd64/galign.go
+index 58c469995f..f6bb961c29 100644
+--- a/src/cmd/compile/internal/amd64/galign.go
++++ b/src/cmd/compile/internal/amd64/galign.go
+@@ -24,6 +24,7 @@ func Init(arch *gc.Arch) {
+ 	arch.ZeroRange = zerorange
+ 	arch.ZeroAuto = zeroAuto
+ 	arch.Ginsnop = ginsnop
++	arch.Ginsnopdefer = ginsnop
+ 
+ 	arch.SSAMarkMoves = ssaMarkMoves
+ 	arch.SSAGenValue = ssaGenValue
+diff --git a/src/cmd/compile/internal/arm/galign.go b/src/cmd/compile/internal/arm/galign.go
+index 241edaf3a0..8469dbdd73 100644
+--- a/src/cmd/compile/internal/arm/galign.go
++++ b/src/cmd/compile/internal/arm/galign.go
+@@ -19,6 +19,7 @@ func Init(arch *gc.Arch) {
+ 	arch.ZeroRange = zerorange
+ 	arch.ZeroAuto = zeroAuto
+ 	arch.Ginsnop = ginsnop
++	arch.Ginsnopdefer = ginsnop
+ 
+ 	arch.SSAMarkMoves = func(s *gc.SSAGenState, b *ssa.Block) {}
+ 	arch.SSAGenValue = ssaGenValue
+diff --git a/src/cmd/compile/internal/arm64/galign.go b/src/cmd/compile/internal/arm64/galign.go
+index a64be8e7a6..f01fe8a571 100644
+--- a/src/cmd/compile/internal/arm64/galign.go
++++ b/src/cmd/compile/internal/arm64/galign.go
+@@ -19,6 +19,7 @@ func Init(arch *gc.Arch) {
+ 	arch.ZeroRange = zerorange
+ 	arch.ZeroAuto = zeroAuto
+ 	arch.Ginsnop = ginsnop
++	arch.Ginsnopdefer = ginsnop
+ 
+ 	arch.SSAMarkMoves = func(s *gc.SSAGenState, b *ssa.Block) {}
+ 	arch.SSAGenValue = ssaGenValue
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index 2213d8d9b8..007585ef10 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -255,9 +255,10 @@ type Arch struct {
+ 	Use387    bool // should 386 backend use 387 FP instructions instead of sse2.
+ 	SoftFloat bool
+ 
+-	PadFrame  func(int64) int64
+-	ZeroRange func(*Progs, *obj.Prog, int64, int64, *uint32) *obj.Prog
+-	Ginsnop   func(*Progs) *obj.Prog
++	PadFrame     func(int64) int64
++	ZeroRange    func(*Progs, *obj.Prog, int64, int64, *uint32) *obj.Prog
++	Ginsnop      func(*Progs) *obj.Prog
++	Ginsnopdefer func(*Progs) *obj.Prog // special ginsnop for deferreturn
+ 
+ 	// SSAMarkMoves marks any MOVXconst ops that need to avoid clobbering flags.
+ 	SSAMarkMoves func(*SSAGenState, *ssa.Block)
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 6ddc9fba7a..9d56c562d0 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -5604,7 +5604,7 @@ func (s *SSAGenState) PrepareCall(v *ssa.Value) {
+ 		// insert an actual hardware NOP that will have the right line number.
+ 		// This is different from obj.ANOP, which is a virtual no-op
+ 		// that doesn't make it into the instruction stream.
+-		thearch.Ginsnop(s.pp)
++		thearch.Ginsnopdefer(s.pp)
+ 	}
+ 
+ 	if sym, ok := v.Aux.(*obj.LSym); ok {
+diff --git a/src/cmd/compile/internal/mips/galign.go b/src/cmd/compile/internal/mips/galign.go
+index f207a17bbf..596dbd7fa0 100644
+--- a/src/cmd/compile/internal/mips/galign.go
++++ b/src/cmd/compile/internal/mips/galign.go
+@@ -22,6 +22,7 @@ func Init(arch *gc.Arch) {
+ 	arch.ZeroRange = zerorange
+ 	arch.ZeroAuto = zeroAuto
+ 	arch.Ginsnop = ginsnop
++	arch.Ginsnopdefer = ginsnop
+ 	arch.SSAMarkMoves = func(s *gc.SSAGenState, b *ssa.Block) {}
+ 	arch.SSAGenValue = ssaGenValue
+ 	arch.SSAGenBlock = ssaGenBlock
+diff --git a/src/cmd/compile/internal/mips64/galign.go b/src/cmd/compile/internal/mips64/galign.go
+index 5252719e8e..07e9f98be5 100644
+--- a/src/cmd/compile/internal/mips64/galign.go
++++ b/src/cmd/compile/internal/mips64/galign.go
+@@ -22,6 +22,7 @@ func Init(arch *gc.Arch) {
+ 	arch.ZeroRange = zerorange
+ 	arch.ZeroAuto = zeroAuto
+ 	arch.Ginsnop = ginsnop
++	arch.Ginsnopdefer = ginsnop
+ 
+ 	arch.SSAMarkMoves = func(s *gc.SSAGenState, b *ssa.Block) {}
+ 	arch.SSAGenValue = ssaGenValue
+diff --git a/src/cmd/compile/internal/ppc64/galign.go b/src/cmd/compile/internal/ppc64/galign.go
+index da971d864d..8ad3084410 100644
+--- a/src/cmd/compile/internal/ppc64/galign.go
++++ b/src/cmd/compile/internal/ppc64/galign.go
+@@ -20,7 +20,8 @@ func Init(arch *gc.Arch) {
+ 
+ 	arch.ZeroRange = zerorange
+ 	arch.ZeroAuto = zeroAuto
+-	arch.Ginsnop = ginsnop2
++	arch.Ginsnop = ginsnop
++	arch.Ginsnopdefer = ginsnop2
+ 
+ 	arch.SSAMarkMoves = ssaMarkMoves
+ 	arch.SSAGenValue = ssaGenValue
+diff --git a/src/cmd/compile/internal/s390x/galign.go b/src/cmd/compile/internal/s390x/galign.go
+index 3f624692bb..26359abe66 100644
+--- a/src/cmd/compile/internal/s390x/galign.go
++++ b/src/cmd/compile/internal/s390x/galign.go
+@@ -17,6 +17,7 @@ func Init(arch *gc.Arch) {
+ 	arch.ZeroRange = zerorange
+ 	arch.ZeroAuto = zeroAuto
+ 	arch.Ginsnop = ginsnop
++	arch.Ginsnopdefer = ginsnop
+ 
+ 	arch.SSAMarkMoves = ssaMarkMoves
+ 	arch.SSAGenValue = ssaGenValue
+diff --git a/src/cmd/compile/internal/wasm/ssa.go b/src/cmd/compile/internal/wasm/ssa.go
+index 6e6dc557b4..897d6146c5 100644
+--- a/src/cmd/compile/internal/wasm/ssa.go
++++ b/src/cmd/compile/internal/wasm/ssa.go
+@@ -20,6 +20,7 @@ func Init(arch *gc.Arch) {
+ 	arch.ZeroRange = zeroRange
+ 	arch.ZeroAuto = zeroAuto
+ 	arch.Ginsnop = ginsnop
++	arch.Ginsnopdefer = ginsnop
+ 
+ 	arch.SSAMarkMoves = ssaMarkMoves
+ 	arch.SSAGenValue = ssaGenValue
+diff --git a/src/cmd/compile/internal/x86/galign.go b/src/cmd/compile/internal/x86/galign.go
+index 56cc6c637d..7f53ee3731 100644
+--- a/src/cmd/compile/internal/x86/galign.go
++++ b/src/cmd/compile/internal/x86/galign.go
+@@ -32,6 +32,7 @@ func Init(arch *gc.Arch) {
+ 	arch.ZeroRange = zerorange
+ 	arch.ZeroAuto = zeroAuto
+ 	arch.Ginsnop = ginsnop
++	arch.Ginsnopdefer = ginsnop
+ 
+ 	arch.SSAMarkMoves = ssaMarkMoves
+ }

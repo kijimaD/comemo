@@ -41,7 +41,7 @@ Date:   Sat Jun 3 00:56:31 2023 +0000
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/devirtualize/pgo.go       |   4 +--
  src/cmd/compile/internal/inline/inl.go             |   5 +--
  .../compile/internal/test/pgo_devirtualize_test.go |  12 ++++---
@@ -50,3 +50,197 @@ Date:   Sat Jun 3 00:56:31 2023 +0000
  .../test/testdata/pgo/devirtualize/devirt_test.go  |   6 ++--
  .../test/testdata/pgo/devirtualize/mult/mult.go    |  32 +++++++++++++++++
  7 files changed, 62 insertions(+), 35 deletions(-)
+
+diff --git a/src/cmd/compile/internal/devirtualize/pgo.go b/src/cmd/compile/internal/devirtualize/pgo.go
+index 69c421ca5a..979483a46f 100644
+--- a/src/cmd/compile/internal/devirtualize/pgo.go
++++ b/src/cmd/compile/internal/devirtualize/pgo.go
+@@ -357,11 +357,11 @@ func rewriteCondCall(call *ir.CallExpr, curfn, callee *ir.Func, concretetyp *typ
+ 		elseBlock.Append(call)
+ 	} else {
+ 		// Copy slice so edits in one location don't affect another.
+-		thenRet := append([]ir.Node(nil),  retvars...)
++		thenRet := append([]ir.Node(nil), retvars...)
+ 		thenAsList := ir.NewAssignListStmt(pos, ir.OAS2, thenRet, []ir.Node{concreteCall})
+ 		thenBlock.Append(typecheck.Stmt(thenAsList))
+ 
+-		elseRet := append([]ir.Node(nil),  retvars...)
++		elseRet := append([]ir.Node(nil), retvars...)
+ 		elseAsList := ir.NewAssignListStmt(pos, ir.OAS2, elseRet, []ir.Node{call})
+ 		elseBlock.Append(typecheck.Stmt(elseAsList))
+ 	}
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index c61d6d2234..4ae7fa95d2 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -414,8 +414,9 @@ func InlineImpossible(fn *ir.Func) string {
+ 		return reason
+ 	}
+ 
+-	// If fn has no body (is defined outside of Go), cannot inline it.
+-	if len(fn.Body) == 0 {
++	// If a local function has no fn.Body (is defined outside of Go), cannot inline it.
++	// Imported functions don't have fn.Body but might have inline body in fn.Inl.
++	if len(fn.Body) == 0 && !typecheck.HaveInlineBody(fn) {
+ 		reason = "no function body"
+ 		return reason
+ 	}
+diff --git a/src/cmd/compile/internal/test/pgo_devirtualize_test.go b/src/cmd/compile/internal/test/pgo_devirtualize_test.go
+index 5ddd626962..d524ddb3a2 100644
+--- a/src/cmd/compile/internal/test/pgo_devirtualize_test.go
++++ b/src/cmd/compile/internal/test/pgo_devirtualize_test.go
+@@ -57,11 +57,11 @@ go 1.19
+ 
+ 	want := []devirtualization{
+ 		{
+-			pos:    "./devirt.go:81:21",
+-			callee: "Mult.Multiply",
++			pos:    "./devirt.go:61:21",
++			callee: "mult.Mult.Multiply",
+ 		},
+ 		{
+-			pos:    "./devirt.go:81:31",
++			pos:    "./devirt.go:61:31",
+ 			callee: "Add.Add",
+ 		},
+ 	}
+@@ -115,8 +115,10 @@ func TestPGODevirtualize(t *testing.T) {
+ 
+ 	// Copy the module to a scratch location so we can add a go.mod.
+ 	dir := t.TempDir()
+-
+-	for _, file := range []string{"devirt.go", "devirt_test.go", "devirt.pprof"} {
++	if err := os.Mkdir(filepath.Join(dir, "mult"), 0755); err != nil {
++		t.Fatalf("error creating dir: %v", err)
++	}
++	for _, file := range []string{"devirt.go", "devirt_test.go", "devirt.pprof", filepath.Join("mult", "mult.go")} {
+ 		if err := copyFile(filepath.Join(dir, file), filepath.Join(srcDir, file)); err != nil {
+ 			t.Fatalf("error copying %s: %v", file, err)
+ 		}
+diff --git a/src/cmd/compile/internal/test/testdata/pgo/devirtualize/devirt.go b/src/cmd/compile/internal/test/testdata/pgo/devirtualize/devirt.go
+index 3f22093b34..390b6c350a 100644
+--- a/src/cmd/compile/internal/test/testdata/pgo/devirtualize/devirt.go
++++ b/src/cmd/compile/internal/test/testdata/pgo/devirtualize/devirt.go
+@@ -11,32 +11,12 @@
+ 
+ package devirt
+ 
+-type Multiplier interface {
+-	Multiply(a, b int) int
+-}
+-
+-type Adder interface {
+-	Add(a, b int) int
+-}
++import "example.com/pgo/devirtualize/mult"
+ 
+ var sink int
+ 
+-type Mult struct{}
+-
+-func (Mult) Multiply(a, b int) int {
+-	for i := 0; i < 1000; i++ {
+-		sink++
+-	}
+-	return a * b
+-}
+-
+-type NegMult struct{}
+-
+-func (NegMult) Multiply(a, b int) int {
+-	for i := 0; i < 1000; i++ {
+-		sink++
+-	}
+-	return -1 * a * b
++type Adder interface {
++	Add(a, b int) int
+ }
+ 
+ type Add struct{}
+@@ -60,7 +40,7 @@ func (Sub) Add(a, b int) int {
+ // Exercise calls mostly a1 and m1.
+ //
+ //go:noinline
+-func Exercise(iter int, a1, a2 Adder, m1, m2 Multiplier) {
++func Exercise(iter int, a1, a2 Adder, m1, m2 mult.Multiplier) {
+ 	for i := 0; i < iter; i++ {
+ 		a := a1
+ 		m := m1
+@@ -81,3 +61,13 @@ func Exercise(iter int, a1, a2 Adder, m1, m2 Multiplier) {
+ 		sink += m.Multiply(42, a.Add(1, 2))
+ 	}
+ }
++
++func init() {
++	// TODO: until https://golang.org/cl/497175 or similar lands,
++	// we need to create an explicit reference to callees
++	// in another package for devirtualization to work.
++	m := mult.Mult{}
++	m.Multiply(42, 0)
++	n := mult.NegMult{}
++	n.Multiply(42, 0)
++}
+diff --git a/src/cmd/compile/internal/test/testdata/pgo/devirtualize/devirt.pprof b/src/cmd/compile/internal/test/testdata/pgo/devirtualize/devirt.pprof
+index b72f7cf4b3..5fe5dd606f 100644
+Binary files a/src/cmd/compile/internal/test/testdata/pgo/devirtualize/devirt.pprof and b/src/cmd/compile/internal/test/testdata/pgo/devirtualize/devirt.pprof differ
+diff --git a/src/cmd/compile/internal/test/testdata/pgo/devirtualize/devirt_test.go b/src/cmd/compile/internal/test/testdata/pgo/devirtualize/devirt_test.go
+index 03c966f6de..f4cbbb8069 100644
+--- a/src/cmd/compile/internal/test/testdata/pgo/devirtualize/devirt_test.go
++++ b/src/cmd/compile/internal/test/testdata/pgo/devirtualize/devirt_test.go
+@@ -13,14 +13,16 @@ package devirt
+ 
+ import (
+ 	"testing"
++
++	"example.com/pgo/devirtualize/mult"
+ )
+ 
+ func BenchmarkDevirt(b *testing.B) {
+ 	var (
+ 		a1 Add
+ 		a2 Sub
+-		m1 Mult
+-		m2 NegMult
++		m1 mult.Mult
++		m2 mult.NegMult
+ 	)
+ 
+ 	Exercise(b.N, a1, a2, m1, m2)
+diff --git a/src/cmd/compile/internal/test/testdata/pgo/devirtualize/mult/mult.go b/src/cmd/compile/internal/test/testdata/pgo/devirtualize/mult/mult.go
+new file mode 100644
+index 0000000000..8a026a52f5
+--- /dev/null
++++ b/src/cmd/compile/internal/test/testdata/pgo/devirtualize/mult/mult.go
+@@ -0,0 +1,32 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// WARNING: Please avoid updating this file.
++// See the warning in ../devirt.go for more details.
++
++package mult
++
++var sink int
++
++type Multiplier interface {
++	Multiply(a, b int) int
++}
++
++type Mult struct{}
++
++func (Mult) Multiply(a, b int) int {
++	for i := 0; i < 1000; i++ {
++		sink++
++	}
++	return a * b
++}
++
++type NegMult struct{}
++
++func (NegMult) Multiply(a, b int) int {
++	for i := 0; i < 1000; i++ {
++		sink++
++	}
++	return -1 * a * b
++}

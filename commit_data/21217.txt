@@ -7,6 +7,44 @@ Date:   Mon Dec 8 18:50:50 2014 +1100
     Change-Id: I9d9b02ad745208e7297cb75c86af49b2d858b12d
     Reviewed-on: https://go-review.googlesource.com/1176
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  doc/go_faq.html | 26 --------------------------
  1 file changed, 26 deletions(-)
+
+diff --git a/doc/go_faq.html b/doc/go_faq.html
+index 7597997798..7a0a0bdb77 100644
+--- a/doc/go_faq.html
++++ b/doc/go_faq.html
+@@ -986,32 +986,6 @@ See the document
+ for more information about how to proceed.
+ </p>
+ 
+-<h3 id="Why_does_the_project_use_Mercurial_and_not_git">
+-Why does the project use Mercurial and not git?</h3>
+-
+-<p>
+-The Go project, hosted by Google Code at
+-<a href="//code.google.com/p/go">code.google.com/p/go</a>,
+-uses Mercurial as its version control system.
+-When the project launched,
+-Google Code supported only Subversion and Mercurial.
+-Mercurial was a better choice because of its plugin mechanism
+-that allowed us to create the "codereview" plugin to connect
+-the project to the excellent code review tools at
+-<a href="//codereview.appspot.com">codereview.appspot.com</a>.
+-</p>
+-
+-<p>
+-Programmers who work
+-with the Go project's source rather than release downloads sometimes
+-ask for the project to switch to git.
+-That would be possible, but it would be a lot of work and
+-would also require reimplementing the codereview plugin.
+-Given that Mercurial works today, with code review support,
+-combined with the Go project's mostly linear, non-branching use of
+-version control, a switch to git doesn't seem worthwhile.
+-</p>
+-
+ <h3 id="git_https">
+ Why does "go get" use HTTPS when cloning a repository?</h3>
+ 

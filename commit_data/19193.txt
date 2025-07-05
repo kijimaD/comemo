@@ -21,8 +21,66 @@ Date:   Wed Apr 16 23:06:37 2014 -0400
     R=khr
     CC=golang-codereviews
     https://golang.org/cl/83820043
-
+---
  misc/cgo/test/backdoor/backdoor.go |  1 +
  misc/cgo/test/backdoor/runtime.c   |  7 +++++++
  misc/cgo/test/issue7695_test.go    | 27 +++++++++++++++++++++++++++
  3 files changed, 35 insertions(+)
+
+diff --git a/misc/cgo/test/backdoor/backdoor.go b/misc/cgo/test/backdoor/backdoor.go
+index efe4f01f48..7398772bd2 100644
+--- a/misc/cgo/test/backdoor/backdoor.go
++++ b/misc/cgo/test/backdoor/backdoor.go
+@@ -5,3 +5,4 @@
+ package backdoor
+ 
+ func LockedOSThread() bool // in runtime.c
++func Issue7695(x1, x2, x3, x4, x5, x6, x7, x8 uintptr)
+diff --git a/misc/cgo/test/backdoor/runtime.c b/misc/cgo/test/backdoor/runtime.c
+index 194a9c8e4e..7e6b448724 100644
+--- a/misc/cgo/test/backdoor/runtime.c
++++ b/misc/cgo/test/backdoor/runtime.c
+@@ -23,3 +23,10 @@ void
+ 	b = runtime·lockedOSThread();
+ 	FLUSH(&b);
+ }
++
++// This is what a cgo-compiled stub declaration looks like.
++void
++·Issue7695(struct{void *y[8*sizeof(void*)];}p)
++{
++	USED(p);
++}
+diff --git a/misc/cgo/test/issue7695_test.go b/misc/cgo/test/issue7695_test.go
+new file mode 100644
+index 0000000000..4bd6f8e734
+--- /dev/null
++++ b/misc/cgo/test/issue7695_test.go
+@@ -0,0 +1,27 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Demo of deferred C function with untrue prototype
++// breaking stack copying. See golang.org/issue/7695.
++
++package cgotest
++
++import (
++	"testing"
++
++	"./backdoor"
++)
++
++func TestIssue7695(t *testing.T) {
++	defer backdoor.Issue7695(1, 0, 2, 0, 0, 3, 0, 4)
++	recurse(100)
++}
++
++func recurse(n int) {
++	var x [128]int
++	n += x[0]
++	if n > 0 {
++		recurse(n - 1)
++	}
++}

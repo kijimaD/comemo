@@ -37,9 +37,118 @@ Date:   Sun Aug 23 17:15:07 2015 +0200
     Change-Id: I3cb12d2c0c2243c1617edef1edc88f05f91d26d1
     Reviewed-on: https://go-review.googlesource.com/13853
     Reviewed-by: Nigel Tao <nigeltao@golang.org>
-
+---
  src/compress/bzip2/bit_reader.go            |   8 -----
  src/compress/bzip2/bzip2_test.go            |   4 +++
  src/compress/bzip2/huffman.go               |  44 ++++++++++++++++++----------
  src/compress/bzip2/testdata/random.data.bz2 | Bin 0 -> 16846 bytes
  4 files changed, 32 insertions(+), 24 deletions(-)
+
+diff --git a/src/compress/bzip2/bit_reader.go b/src/compress/bzip2/bit_reader.go
+index 32d1036ae1..ab1d606514 100644
+--- a/src/compress/bzip2/bit_reader.go
++++ b/src/compress/bzip2/bit_reader.go
+@@ -77,14 +77,6 @@ func (br *bitReader) ReadBit() bool {
+ 	return n != 0
+ }
+ 
+-func (br *bitReader) TryReadBit() (bit byte, ok bool) {
+-	if br.bits > 0 {
+-		br.bits--
+-		return byte(br.n>>br.bits) & 1, true
+-	}
+-	return 0, false
+-}
+-
+ func (br *bitReader) Err() error {
+ 	return br.err
+ }
+diff --git a/src/compress/bzip2/bzip2_test.go b/src/compress/bzip2/bzip2_test.go
+index 77c50dfe94..c315e70b9c 100644
+--- a/src/compress/bzip2/bzip2_test.go
++++ b/src/compress/bzip2/bzip2_test.go
+@@ -173,6 +173,7 @@ const rand3Hex = "1744b384d68c042371244e13500d4bfb98c6244e3d71a5b700224420b59c59
+ const (
+ 	digits = iota
+ 	twain
++	random
+ )
+ 
+ var testfiles = []string{
+@@ -182,6 +183,8 @@ var testfiles = []string{
+ 	digits: "testdata/e.txt.bz2",
+ 	// Twain is Project Gutenberg's edition of Mark Twain's classic English novel.
+ 	twain: "testdata/Mark.Twain-Tom.Sawyer.txt.bz2",
++	// 16KB of random data from /dev/urandom
++	random: "testdata/random.data.bz2",
+ }
+ 
+ func benchmarkDecode(b *testing.B, testfile int) {
+@@ -198,6 +201,7 @@ func benchmarkDecode(b *testing.B, testfile int) {
+ 
+ func BenchmarkDecodeDigits(b *testing.B) { benchmarkDecode(b, digits) }
+ func BenchmarkDecodeTwain(b *testing.B)  { benchmarkDecode(b, twain) }
++func BenchmarkDecodeRand(b *testing.B)   { benchmarkDecode(b, random) }
+ 
+ func TestBufferOverrun(t *testing.T) {
+ 	// Tests https://golang.org/issue/5747.
+diff --git a/src/compress/bzip2/huffman.go b/src/compress/bzip2/huffman.go
+index 75a6223d81..9d574b9bde 100644
+--- a/src/compress/bzip2/huffman.go
++++ b/src/compress/bzip2/huffman.go
+@@ -38,23 +38,35 @@ func (t *huffmanTree) Decode(br *bitReader) (v uint16) {
+ 
+ 	for {
+ 		node := &t.nodes[nodeIndex]
+-		bit, ok := br.TryReadBit()
+-		if !ok && br.ReadBit() {
+-			bit = 1
+-		}
+-		// bzip2 encodes left as a true bit.
+-		if bit != 0 {
+-			// left
+-			if node.left == invalidNodeValue {
+-				return node.leftValue
+-			}
+-			nodeIndex = node.left
++
++		var bit uint16
++		if br.bits > 0 {
++			// Get next bit - fast path.
++			br.bits--
++			bit = 0 - (uint16(br.n>>br.bits) & 1)
+ 		} else {
+-			// right
+-			if node.right == invalidNodeValue {
+-				return node.rightValue
+-			}
+-			nodeIndex = node.right
++			// Get next bit - slow path.
++			// Use ReadBits to retrieve a single bit
++			// from the underling io.ByteReader.
++			bit = 0 - uint16(br.ReadBits(1))
++		}
++		// now
++		// bit = 0xffff if the next bit was 1
++		// bit = 0x0000 if the next bit was 0
++
++		// 1 means left, 0 means right.
++		//
++		// if bit == 0xffff {
++		//     nodeIndex = node.left
++		// } else {
++		//     nodeIndex = node.right
++		// }
++		nodeIndex = (bit & node.left) | (^bit & node.right)
++
++		if nodeIndex == invalidNodeValue {
++			// We found a leaf. Use the value of bit to decide
++			// whether is a left or a right value.
++			return (bit & node.leftValue) | (^bit & node.rightValue)
+ 		}
+ 	}
+ }
+diff --git a/src/compress/bzip2/testdata/random.data.bz2 b/src/compress/bzip2/testdata/random.data.bz2
+new file mode 100644
+index 0000000000..1ef2300166
+Binary files /dev/null and b/src/compress/bzip2/testdata/random.data.bz2 differ

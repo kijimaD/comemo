@@ -16,7 +16,45 @@ Date:   Wed Jan 4 09:51:15 2012 +1100
     R=nigeltao
     CC=golang-dev
     https://golang.org/cl/5489136
-
+---
  src/pkg/html/parse.go      | 13 +++++++++++++
  src/pkg/html/parse_test.go |  2 +-
  2 files changed, 14 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/html/parse.go b/src/pkg/html/parse.go
+index b2903b302d..380df83427 100644
+--- a/src/pkg/html/parse.go
++++ b/src/pkg/html/parse.go
+@@ -749,6 +749,19 @@ func inBodyIM(p *parser) bool {
+ 					copyAttributes(body, p.tok)
+ 				}
+ 			}
++		case "frameset":
++			if !p.framesetOK || len(p.oe) < 2 || p.oe[1].Data != "body" {
++				// Ignore the token.
++				return true
++			}
++			body := p.oe[1]
++			if body.Parent != nil {
++				body.Parent.Remove(body)
++			}
++			p.oe = p.oe[:1]
++			p.addElement(p.tok.Data, p.tok.Attr)
++			p.im = inFramesetIM
++			return true
+ 		case "base", "basefont", "bgsound", "command", "link", "meta", "noframes", "script", "style", "title":
+ 			return inHeadIM(p)
+ 		case "image":
+diff --git a/src/pkg/html/parse_test.go b/src/pkg/html/parse_test.go
+index 2f6059b288..2b6a8b5083 100644
+--- a/src/pkg/html/parse_test.go
++++ b/src/pkg/html/parse_test.go
+@@ -183,7 +183,7 @@ func TestParser(t *testing.T) {
+ 		{"tests3.dat", -1},
+ 		{"tests4.dat", -1},
+ 		{"tests5.dat", -1},
+-		{"tests6.dat", 47},
++		{"tests6.dat", -1},
+ 		{"tests10.dat", 30},
+ 	}
+ 	for _, tf := range testFiles {

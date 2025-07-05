@@ -10,6 +10,22 @@ Date:   Mon Aug 18 11:19:05 2014 -0700
     R=agl
     CC=golang-codereviews
     https://golang.org/cl/130170043
-
+---
  src/pkg/internal/syscall/getrandom_linux.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/internal/syscall/getrandom_linux.go b/src/pkg/internal/syscall/getrandom_linux.go
+index 1c586ec9b7..944bab3f5d 100644
+--- a/src/pkg/internal/syscall/getrandom_linux.go
++++ b/src/pkg/internal/syscall/getrandom_linux.go
+@@ -12,8 +12,9 @@ import (
+ )
+ 
+ var randomTrap = map[string]uintptr{
+-	"amd64": 318,
+ 	"386":   355,
++	"amd64": 318,
++	"arm":   384,
+ }[runtime.GOARCH]
+ 
+ var randomUnsupported int32 // atomic

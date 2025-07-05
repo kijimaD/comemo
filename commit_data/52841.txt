@@ -15,9 +15,62 @@ Date:   Mon Jun 6 22:23:48 2022 +0700
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/typecheck/iexport.go | 1 +
  src/cmd/compile/internal/typecheck/iimport.go | 4 +++-
  test/fixedbugs/issue42284.dir/b.go            | 2 +-
  test/run.go                                   | 1 -
  4 files changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/typecheck/iexport.go b/src/cmd/compile/internal/typecheck/iexport.go
+index fa0e292ed2..43ec7b80a0 100644
+--- a/src/cmd/compile/internal/typecheck/iexport.go
++++ b/src/cmd/compile/internal/typecheck/iexport.go
+@@ -1978,6 +1978,7 @@ func (w *exportWriter) expr(n ir.Node) {
+ 		w.pos(n.Pos())
+ 		w.typ(n.Type())
+ 		w.expr(n.X)
++		w.bool(n.Implicit())
+ 
+ 	case ir.OREAL, ir.OIMAG, ir.OCAP, ir.OCLOSE, ir.OLEN, ir.ONEW, ir.OPANIC:
+ 		n := n.(*ir.UnaryExpr)
+diff --git a/src/cmd/compile/internal/typecheck/iimport.go b/src/cmd/compile/internal/typecheck/iimport.go
+index 1968af7f1c..96aaac6362 100644
+--- a/src/cmd/compile/internal/typecheck/iimport.go
++++ b/src/cmd/compile/internal/typecheck/iimport.go
+@@ -1489,7 +1489,9 @@ func (r *importReader) node() ir.Node {
+ 		return n
+ 
+ 	case ir.OCONV, ir.OCONVIFACE, ir.OCONVIDATA, ir.OCONVNOP, ir.OBYTES2STR, ir.ORUNES2STR, ir.OSTR2BYTES, ir.OSTR2RUNES, ir.ORUNESTR, ir.OSLICE2ARRPTR:
+-		return ir.NewConvExpr(r.pos(), op, r.typ(), r.expr())
++		n := ir.NewConvExpr(r.pos(), op, r.typ(), r.expr())
++		n.SetImplicit(r.bool())
++		return n
+ 
+ 	case ir.OCOPY, ir.OCOMPLEX, ir.OREAL, ir.OIMAG, ir.OAPPEND, ir.OCAP, ir.OCLOSE, ir.ODELETE, ir.OLEN, ir.OMAKE, ir.ONEW, ir.OPANIC, ir.ORECOVER, ir.OPRINT, ir.OPRINTN, ir.OUNSAFEADD, ir.OUNSAFESLICE:
+ 		pos := r.pos()
+diff --git a/test/fixedbugs/issue42284.dir/b.go b/test/fixedbugs/issue42284.dir/b.go
+index 652aa32122..8cd93b8db4 100644
+--- a/test/fixedbugs/issue42284.dir/b.go
++++ b/test/fixedbugs/issue42284.dir/b.go
+@@ -7,7 +7,7 @@ package b
+ import "./a"
+ 
+ func g() {
+-	h := a.E() // ERROR "inlining call to a.E" "a.I\(a.T\(0\)\) does not escape"
++	h := a.E() // ERROR "inlining call to a.E" "T\(0\) does not escape"
+ 	h.M()      // ERROR "devirtualizing h.M to a.T"
+ 
+ 	// BAD: T(0) could be stack allocated.
+diff --git a/test/run.go b/test/run.go
+index cb1622ccc9..8ef11020da 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -1998,7 +1998,6 @@ var unifiedFailures = setOf(
+ 	"inline.go",    // unified IR reports function literal diagnostics on different lines than -d=inlfuncswithclosures
+ 	"linkname3.go", // unified IR is missing some linkname errors
+ 
+-	"fixedbugs/issue42284.go",  // prints "T(0) does not escape", but test expects "a.I(a.T(0)) does not escape"
+ 	"fixedbugs/issue7921.go",   // prints "… escapes to heap", but test expects "string(…) escapes to heap"
+ 	"typeparam/issue47631.go",  // unified IR can handle local type declarations
+ 	"fixedbugs/issue42058a.go", // unified IR doesn't report channel element too large

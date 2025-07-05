@@ -10,6 +10,20 @@ Date:   Fri Oct 11 16:39:40 2013 -0700
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/14608044
-
+---
  doc/effective_go.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/effective_go.html b/doc/effective_go.html
+index 9d002c5043..30c015aea1 100644
+--- a/doc/effective_go.html
++++ b/doc/effective_go.html
+@@ -2953,7 +2953,7 @@ func handle(r *Request) {
+ }
+ 
+ func init() {
+-    for i := 0; i < MaxOutstanding; i++ {
++    for i := 0; i &lt; MaxOutstanding; i++ {
+         sem &lt;- 1
+     }
+ }

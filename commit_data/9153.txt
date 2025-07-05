@@ -8,8 +8,111 @@ Date:   Thu Jul 21 10:27:11 2011 +1000
     R=golang-dev, dsymonds, r
     CC=golang-dev
     https://golang.org/cl/4798042
-
+---
  src/pkg/gob/codec_test.go | 49 ++++++++++++++++++++++++++++-------------------
  src/pkg/gob/doc.go        |  5 +++++
  src/pkg/gob/encode.go     |  4 +++-
  3 files changed, 37 insertions(+), 21 deletions(-)
+
+diff --git a/src/pkg/gob/codec_test.go b/src/pkg/gob/codec_test.go
+index 03fec261a1..a5fb91cda7 100644
+--- a/src/pkg/gob/codec_test.go
++++ b/src/pkg/gob/codec_test.go
+@@ -573,30 +573,32 @@ func TestEndToEnd(t *testing.T) {
+ 	s1 := "string1"
+ 	s2 := "string2"
+ 	type T1 struct {
+-		A, B, C int
+-		M       map[string]*float64
+-		N       *[3]float64
+-		Strs    *[2]string
+-		Int64s  *[]int64
+-		RI      complex64
+-		S       string
+-		Y       []byte
+-		T       *T2
++		A, B, C  int
++		M        map[string]*float64
++		EmptyMap map[string]int // to check that we receive a non-nil map.
++		N        *[3]float64
++		Strs     *[2]string
++		Int64s   *[]int64
++		RI       complex64
++		S        string
++		Y        []byte
++		T        *T2
+ 	}
+ 	pi := 3.14159
+ 	e := 2.71828
+ 	t1 := &T1{
+-		A:      17,
+-		B:      18,
+-		C:      -5,
+-		M:      map[string]*float64{"pi": &pi, "e": &e},
+-		N:      &[3]float64{1.5, 2.5, 3.5},
+-		Strs:   &[2]string{s1, s2},
+-		Int64s: &[]int64{77, 89, 123412342134},
+-		RI:     17 - 23i,
+-		S:      "Now is the time",
+-		Y:      []byte("hello, sailor"),
+-		T:      &T2{"this is T2"},
++		A:        17,
++		B:        18,
++		C:        -5,
++		M:        map[string]*float64{"pi": &pi, "e": &e},
++		EmptyMap: make(map[string]int),
++		N:        &[3]float64{1.5, 2.5, 3.5},
++		Strs:     &[2]string{s1, s2},
++		Int64s:   &[]int64{77, 89, 123412342134},
++		RI:       17 - 23i,
++		S:        "Now is the time",
++		Y:        []byte("hello, sailor"),
++		T:        &T2{"this is T2"},
+ 	}
+ 	b := new(bytes.Buffer)
+ 	err := NewEncoder(b).Encode(t1)
+@@ -611,6 +613,13 @@ func TestEndToEnd(t *testing.T) {
+ 	if !reflect.DeepEqual(t1, &_t1) {
+ 		t.Errorf("encode expected %v got %v", *t1, _t1)
+ 	}
++	// Be absolutely sure the received map is non-nil.
++	if t1.EmptyMap == nil {
++		t.Errorf("nil map sent")
++	}
++	if _t1.EmptyMap == nil {
++		t.Errorf("nil map received")
++	}
+ }
+ 
+ func TestOverflow(t *testing.T) {
+diff --git a/src/pkg/gob/doc.go b/src/pkg/gob/doc.go
+index aaf429c432..35d882afb7 100644
+--- a/src/pkg/gob/doc.go
++++ b/src/pkg/gob/doc.go
+@@ -113,6 +113,11 @@ uninterpreted bytes of the value.
+ All other slices and arrays are sent as an unsigned count followed by that many
+ elements using the standard gob encoding for their type, recursively.
+ 
++Maps are sent as an unsigned count followed by that man key, element
++pairs. Empty but non-nil maps are sent, so if the sender has allocated
++a map, the receiver will allocate a map even no elements are
++transmitted.
++
+ Structs are sent as a sequence of (field number, field value) pairs.  The field
+ value is sent using the standard gob encoding for its type, recursively.  If a
+ field has the zero value for its type, it is omitted from the transmission.  The
+diff --git a/src/pkg/gob/encode.go b/src/pkg/gob/encode.go
+index 78455981eb..c4c8219cf3 100644
+--- a/src/pkg/gob/encode.go
++++ b/src/pkg/gob/encode.go
+@@ -557,7 +557,9 @@ func (enc *Encoder) encOpFor(rt reflect.Type, inProgress map[reflect.Type]*encOp
+ 				// the iteration.
+ 				v := reflect.ValueOf(unsafe.Unreflect(t, unsafe.Pointer(p)))
+ 				mv := reflect.Indirect(v)
+-				if !state.sendZero && mv.Len() == 0 {
++				// We send zero-length (but non-nil) maps because the
++				// receiver might want to use the map.  (Maps don't use append.)
++				if !state.sendZero && mv.IsNil() {
+ 					return
+ 				}
+ 				state.update(i)

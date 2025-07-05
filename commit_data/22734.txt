@@ -12,7 +12,7 @@ Date:   Tue Mar 17 16:28:30 2015 +1300
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/internal/obj/arm/asm5.go |   2 +-
  src/cmd/internal/obj/arm/obj5.go |   2 -
  src/cmd/internal/obj/data.go     |   6 --
@@ -20,3 +20,352 @@ Date:   Tue Mar 17 16:28:30 2015 +1300
  src/cmd/internal/obj/sym.go      |   8 ---
  src/cmd/internal/obj/x86/obj6.go |   2 -
  6 files changed, 30 insertions(+), 119 deletions(-)
+
+diff --git a/src/cmd/internal/obj/arm/asm5.go b/src/cmd/internal/obj/arm/asm5.go
+index 527474f1f9..a677dc459c 100644
+--- a/src/cmd/internal/obj/arm/asm5.go
++++ b/src/cmd/internal/obj/arm/asm5.go
+@@ -1524,7 +1524,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
+ 
+ 	case 0: /* pseudo ops */
+ 		if false { /*debug['G']*/
+-			fmt.Printf("%x: %s: arm %d\n", uint32(p.Pc), p.From.Sym.Name, p.From.Sym.Fnptr)
++			fmt.Printf("%x: %s: arm\n", uint32(p.Pc), p.From.Sym.Name)
+ 		}
+ 
+ 	case 1: /* op R,[R],R */
+diff --git a/src/cmd/internal/obj/arm/obj5.go b/src/cmd/internal/obj/arm/obj5.go
+index 793a2b65db..65d68476de 100644
+--- a/src/cmd/internal/obj/arm/obj5.go
++++ b/src/cmd/internal/obj/arm/obj5.go
+@@ -115,7 +115,6 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
+ 			if s.Type == 0 {
+ 				s.Type = obj.SRODATA
+ 				obj.Adduint32(ctxt, s, i32)
+-				s.Reachable = 0
+ 			}
+ 
+ 			p.From.Type = obj.TYPE_MEM
+@@ -132,7 +131,6 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
+ 			if s.Type == 0 {
+ 				s.Type = obj.SRODATA
+ 				obj.Adduint64(ctxt, s, i64)
+-				s.Reachable = 0
+ 			}
+ 
+ 			p.From.Type = obj.TYPE_MEM
+diff --git a/src/cmd/internal/obj/data.go b/src/cmd/internal/obj/data.go
+index ab3e2096d0..2037af4398 100644
+--- a/src/cmd/internal/obj/data.go
++++ b/src/cmd/internal/obj/data.go
+@@ -121,7 +121,6 @@ func Setuintxx(ctxt *Link, s *LSym, off int64, v uint64, wid int64) int64 {
+ 	if s.Type == 0 {
+ 		s.Type = SDATA
+ 	}
+-	s.Reachable = 1
+ 	if s.Size < off+wid {
+ 		s.Size = off + wid
+ 		Symgrow(ctxt, s, s.Size)
+@@ -183,7 +182,6 @@ func addaddrplus(ctxt *Link, s *LSym, t *LSym, add int64) int64 {
+ 	if s.Type == 0 {
+ 		s.Type = SDATA
+ 	}
+-	s.Reachable = 1
+ 	i := s.Size
+ 	s.Size += int64(ctxt.Arch.Ptrsize)
+ 	Symgrow(ctxt, s, s.Size)
+@@ -200,7 +198,6 @@ func addpcrelplus(ctxt *Link, s *LSym, t *LSym, add int64) int64 {
+ 	if s.Type == 0 {
+ 		s.Type = SDATA
+ 	}
+-	s.Reachable = 1
+ 	i := s.Size
+ 	s.Size += 4
+ 	Symgrow(ctxt, s, s.Size)
+@@ -221,7 +218,6 @@ func setaddrplus(ctxt *Link, s *LSym, off int64, t *LSym, add int64) int64 {
+ 	if s.Type == 0 {
+ 		s.Type = SDATA
+ 	}
+-	s.Reachable = 1
+ 	if off+int64(ctxt.Arch.Ptrsize) > s.Size {
+ 		s.Size = off + int64(ctxt.Arch.Ptrsize)
+ 		Symgrow(ctxt, s, s.Size)
+@@ -244,7 +240,6 @@ func addsize(ctxt *Link, s *LSym, t *LSym) int64 {
+ 	if s.Type == 0 {
+ 		s.Type = SDATA
+ 	}
+-	s.Reachable = 1
+ 	i := s.Size
+ 	s.Size += int64(ctxt.Arch.Ptrsize)
+ 	Symgrow(ctxt, s, s.Size)
+@@ -260,7 +255,6 @@ func addaddrplus4(ctxt *Link, s *LSym, t *LSym, add int64) int64 {
+ 	if s.Type == 0 {
+ 		s.Type = SDATA
+ 	}
+-	s.Reachable = 1
+ 	i := s.Size
+ 	s.Size += 4
+ 	Symgrow(ctxt, s, s.Size)
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index 92fd7c40f7..2a1df516c3 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -271,52 +271,27 @@ const (
+ )
+ 
+ type LSym struct {
+-	Name        string
+-	Extname     string
+-	Type        int16
+-	Version     int16
+-	Dupok       uint8
+-	Cfunc       uint8
+-	External    uint8
+-	Nosplit     uint8
+-	Reachable   uint8
+-	Cgoexport   uint8
+-	Special     uint8
+-	Stkcheck    uint8
+-	Hide        uint8
+-	Leaf        uint8
+-	Fnptr       uint8
+-	Localentry  uint8
+-	Seenglobl   uint8
+-	Onlist      uint8
+-	Printed     uint8
+-	Symid       int16
+-	Dynid       int32
+-	Plt         int32
+-	Got         int32
+-	Align       int32
+-	Elfsym      int32
+-	Args        int32
+-	Locals      int32
+-	Value       int64
+-	Size        int64
+-	Allsym      *LSym
+-	Next        *LSym
+-	Sub         *LSym
+-	Outer       *LSym
+-	Gotype      *LSym
+-	Reachparent *LSym
+-	Queue       *LSym
+-	File        string
+-	Dynimplib   string
+-	Dynimpvers  string
+-	Sect        *struct{}
+-	Autom       *Auto
+-	Text        *Prog
+-	Etext       *Prog
+-	Pcln        *Pcln
+-	P           []byte
+-	R           []Reloc
++	Name      string
++	Type      int16
++	Version   int16
++	Dupok     uint8
++	Cfunc     uint8
++	Nosplit   uint8
++	Leaf      uint8
++	Seenglobl uint8
++	Onlist    uint8
++	Args      int32
++	Locals    int32
++	Value     int64
++	Size      int64
++	Next      *LSym
++	Gotype    *LSym
++	Autom     *Auto
++	Text      *Prog
++	Etext     *Prog
++	Pcln      *Pcln
++	P         []byte
++	R         []Reloc
+ }
+ 
+ type Pcln struct {
+@@ -374,15 +349,13 @@ const (
+ )
+ 
+ type Reloc struct {
+-	Off     int32
+-	Siz     uint8
+-	Done    uint8
+-	Type    int32
+-	Variant int32
+-	Add     int64
+-	Xadd    int64
+-	Sym     *LSym
+-	Xsym    *LSym
++	Off  int32
++	Siz  uint8
++	Type int32
++	Add  int64
++	Xadd int64
++	Sym  *LSym
++	Xsym *LSym
+ }
+ 
+ // Reloc.type
+@@ -408,17 +381,6 @@ const (
+ 	R_POWER_TOC
+ )
+ 
+-// Reloc.variant
+-const (
+-	RV_NONE = iota
+-	RV_POWER_LO
+-	RV_POWER_HI
+-	RV_POWER_HA
+-	RV_POWER_DS
+-	RV_CHECK_OVERFLOW = 1 << 8
+-	RV_TYPE_MASK      = RV_CHECK_OVERFLOW - 1
+-)
+-
+ type Auto struct {
+ 	Asym    *LSym
+ 	Link    *Auto
+@@ -438,7 +400,7 @@ type Pcdata struct {
+ }
+ 
+ // Pcdata iterator.
+-//	for(pciterinit(ctxt, &it, &pcd); !it.done; pciternext(&it)) { it.value holds in [it.pc, it.nextpc) }
++//      for(pciterinit(ctxt, &it, &pcd); !it.done; pciternext(&it)) { it.value holds in [it.pc, it.nextpc) }
+ type Pciter struct {
+ 	d       Pcdata
+ 	p       []byte
+@@ -459,24 +421,15 @@ const (
+ // Link holds the context for writing object code from a compiler
+ // to be linker input or for reading that input into the linker.
+ type Link struct {
+-	Thechar            int32
+-	Thestring          string
+ 	Goarm              int32
+ 	Headtype           int
+ 	Arch               *LinkArch
+-	Ignore             func(string) int32
+ 	Debugasm           int32
+-	Debugline          int32
+-	Debughist          int32
+-	Debugread          int32
+ 	Debugvlog          int32
+-	Debugstack         int32
+ 	Debugzerostack     int32
+ 	Debugdivmod        int32
+-	Debugfloat         int32
+ 	Debugpcln          int32
+ 	Flag_shared        int32
+-	Iself              int32
+ 	Bso                *Biobuf
+ 	Pathname           string
+ 	Windows            int32
+@@ -485,8 +438,6 @@ type Link struct {
+ 	Goroot_final       string
+ 	Enforce_data_order int32
+ 	Hash               map[SymVer]*LSym
+-	Allsym             *LSym
+-	Nsymbol            int32
+ 	LineHist           LineHist
+ 	Imports            []string
+ 	Plist              *Plist
+@@ -513,20 +464,13 @@ type Link struct {
+ 	Autosize           int32
+ 	Armsize            int32
+ 	Pc                 int64
+-	Libdir             []string
+-	Library            []Library
+ 	Tlsoffset          int
+ 	Diag               func(string, ...interface{})
+ 	Mode               int
+-	Curauto            *Auto
+-	Curhist            *Auto
+ 	Cursym             *LSym
+ 	Version            int
+ 	Textp              *LSym
+ 	Etextp             *LSym
+-	Histdepth          int32
+-	Nhistfile          int32
+-	Filesyms           *LSym
+ }
+ 
+ type SymVer struct {
+@@ -534,13 +478,6 @@ type SymVer struct {
+ 	Version int
+ }
+ 
+-type Library struct {
+-	Objref string
+-	Srcref string
+-	File   string
+-	Pkg    string
+-}
+-
+ // LinkArch is the definition of a single architecture.
+ type LinkArch struct {
+ 	ByteOrder  binary.ByteOrder
+@@ -572,14 +509,6 @@ const (
+ 	Hwindows
+ )
+ 
+-const (
+-	LinkAuto = 0 + iota
+-	LinkInternal
+-	LinkExternal
+-)
+-
+-var linkbasepointer int
+-
+ type Plist struct {
+ 	Name    *LSym
+ 	Firstpc *Prog
+diff --git a/src/cmd/internal/obj/sym.go b/src/cmd/internal/obj/sym.go
+index 3568a5c859..cd5c179459 100644
+--- a/src/cmd/internal/obj/sym.go
++++ b/src/cmd/internal/obj/sym.go
+@@ -225,18 +225,11 @@ func linknewsym(ctxt *Link, symb string, v int) *LSym {
+ 	s := new(LSym)
+ 	*s = LSym{}
+ 
+-	s.Dynid = -1
+-	s.Plt = -1
+-	s.Got = -1
+ 	s.Name = symb
+ 	s.Type = 0
+ 	s.Version = int16(v)
+ 	s.Value = 0
+ 	s.Size = 0
+-	ctxt.Nsymbol++
+-
+-	s.Allsym = ctxt.Allsym
+-	ctxt.Allsym = s
+ 
+ 	return s
+ }
+@@ -248,7 +241,6 @@ func _lookup(ctxt *Link, symb string, v int, creat int) *LSym {
+ 	}
+ 
+ 	s = linknewsym(ctxt, symb, v)
+-	s.Extname = s.Name
+ 	ctxt.Hash[SymVer{symb, v}] = s
+ 
+ 	return s
+diff --git a/src/cmd/internal/obj/x86/obj6.go b/src/cmd/internal/obj/x86/obj6.go
+index 3d9a4beacd..05a966a772 100644
+--- a/src/cmd/internal/obj/x86/obj6.go
++++ b/src/cmd/internal/obj/x86/obj6.go
+@@ -246,7 +246,6 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
+ 			if s.Type == 0 {
+ 				s.Type = obj.SRODATA
+ 				obj.Adduint32(ctxt, s, i32)
+-				s.Reachable = 0
+ 			}
+ 
+ 			p.From.Type = obj.TYPE_MEM
+@@ -290,7 +289,6 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
+ 			if s.Type == 0 {
+ 				s.Type = obj.SRODATA
+ 				obj.Adduint64(ctxt, s, i64)
+-				s.Reachable = 0
+ 			}
+ 
+ 			p.From.Type = obj.TYPE_MEM

@@ -20,7 +20,7 @@ Date:   Mon Sep 8 00:06:45 2014 -0400
     R=r
     CC=golang-codereviews
     https://golang.org/cl/134570043
-
+---
  .hgignore                           |  12 +--
  doc/articles/go_command.html        |   2 +-
  doc/articles/race_detector.html     |  24 ++---
@@ -101,3 +101,1998 @@ Date:   Mon Sep 8 00:06:45 2014 -0400
  test/bench/garbage/parser.go        |   2 +-
  test/stress/parsego.go              |   2 +-
  79 files changed, 309 insertions(+), 321 deletions(-)
+
+diff --git a/.hgignore b/.hgignore
+index 72d82910d9..c89b2d9ad0 100644
+--- a/.hgignore
++++ b/.hgignore
+@@ -42,12 +42,12 @@ src/cmd/gc/mkbuiltin1
+ src/cmd/gc/opnames.h
+ src/cmd/gc/y.output
+ src/cmd/go/zdefaultcc.go
+-src/pkg/go/doc/headscan
+-src/pkg/runtime/goc2c
+-src/pkg/runtime/mkversion
+-src/pkg/runtime/z*
+-src/pkg/unicode/maketables
+-src/pkg/*.*/
++src/go/doc/headscan
++src/runtime/goc2c
++src/runtime/mkversion
++src/runtime/z*
++src/unicode/maketables
++src/*.*/
+ test/pass.out
+ test/run.out
+ test/times.out
+diff --git a/doc/articles/go_command.html b/doc/articles/go_command.html
+index fddca41e23..246b8c956d 100644
+--- a/doc/articles/go_command.html
++++ b/doc/articles/go_command.html
+@@ -99,7 +99,7 @@ deduce where to obtain the source code.</p>
+ in a known way from the import path.  Specifically, the first choice
+ is <code>$GOPATH/src/&lt;import-path&gt;</code>.  If <code>$GOPATH</code> is
+ unset, the go command will fall back to storing source code alongside the
+-standard Go packages, in <code>$GOROOT/src/pkg/&lt;import-path&gt;</code>.
++standard Go packages, in <code>$GOROOT/src/&lt;import-path&gt;</code>.
+ If <code>$GOPATH</code> is set to a list of paths, the go command tries
+ <code>&lt;dir&gt;/src/&lt;import-path&gt;</code> for each of the directories in
+ that list.</p>
+diff --git a/doc/articles/race_detector.html b/doc/articles/race_detector.html
+index 32ad61de87..6defd98f96 100644
+--- a/doc/articles/race_detector.html
++++ b/doc/articles/race_detector.html
+@@ -57,35 +57,35 @@ Here is an example:
+ WARNING: DATA RACE
+ Read by goroutine 185:
+   net.(*pollServer).AddFD()
+-      src/pkg/net/fd_unix.go:89 +0x398
++      src/net/fd_unix.go:89 +0x398
+   net.(*pollServer).WaitWrite()
+-      src/pkg/net/fd_unix.go:247 +0x45
++      src/net/fd_unix.go:247 +0x45
+   net.(*netFD).Write()
+-      src/pkg/net/fd_unix.go:540 +0x4d4
++      src/net/fd_unix.go:540 +0x4d4
+   net.(*conn).Write()
+-      src/pkg/net/net.go:129 +0x101
++      src/net/net.go:129 +0x101
+   net.func·060()
+-      src/pkg/net/timeout_test.go:603 +0xaf
++      src/net/timeout_test.go:603 +0xaf
+ 
+ Previous write by goroutine 184:
+   net.setWriteDeadline()
+-      src/pkg/net/sockopt_posix.go:135 +0xdf
++      src/net/sockopt_posix.go:135 +0xdf
+   net.setDeadline()
+-      src/pkg/net/sockopt_posix.go:144 +0x9c
++      src/net/sockopt_posix.go:144 +0x9c
+   net.(*conn).SetDeadline()
+-      src/pkg/net/net.go:161 +0xe3
++      src/net/net.go:161 +0xe3
+   net.func·061()
+-      src/pkg/net/timeout_test.go:616 +0x3ed
++      src/net/timeout_test.go:616 +0x3ed
+ 
+ Goroutine 185 (running) created at:
+   net.func·061()
+-      src/pkg/net/timeout_test.go:609 +0x288
++      src/net/timeout_test.go:609 +0x288
+ 
+ Goroutine 184 (running) created at:
+   net.TestProlongTimeout()
+-      src/pkg/net/timeout_test.go:618 +0x298
++      src/net/timeout_test.go:618 +0x298
+   testing.tRunner()
+-      src/pkg/testing/testing.go:301 +0xe8
++      src/testing/testing.go:301 +0xe8
+ </pre>
+ 
+ <h2 id="Options">Options</h2>
+diff --git a/doc/contribute.html b/doc/contribute.html
+index 849c1e4763..90c3f10a1d 100644
+--- a/doc/contribute.html
++++ b/doc/contribute.html
+@@ -234,9 +234,9 @@ Description:
+ 	&lt;enter description here&gt;
+ 
+ Files:
+-	src/pkg/math/sin.go
+-	src/pkg/math/tan.go
+-	src/pkg/regexp/regexp.go
++	src/math/sin.go
++	src/math/tan.go
++	src/regexp/regexp.go
+ </pre>
+ 
+ <p>
+@@ -287,8 +287,8 @@ Description:
+ 	Fixes issue 159.
+ 
+ Files:
+-	src/pkg/math/sin.go
+-	src/pkg/math/tan.go
++	src/math/sin.go
++	src/math/tan.go
+ </pre>
+ 
+ <p>
+@@ -457,11 +457,11 @@ adding changesets
+ adding manifests
+ adding file changes
+ added 1 changeset with 2 changes to 2 files
+-getting src/pkg/flag/flag.go
++getting src/flag/flag.go
+ couldn't find merge tool hgmerge
+-merging src/pkg/flag/flag_test.go
++merging src/flag/flag_test.go
+ warning: conflicts during merge.
+-<i>merging src/pkg/flag/flag_test.go failed!</i>
++<i>merging src/flag/flag_test.go failed!</i>
+ 1 file updated, 0 files merged, 0 files removed, 1 file unresolved
+ use 'hg resolve' to retry unresolved file merges
+ $
+diff --git a/doc/debugging_with_gdb.html b/doc/debugging_with_gdb.html
+index afaedf74ca..8368164195 100644
+--- a/doc/debugging_with_gdb.html
++++ b/doc/debugging_with_gdb.html
+@@ -120,7 +120,7 @@ For example:
+ 
+ <p>
+ If you'd like to see how this works, or want to extend it, take a look at <a
+-href="/src/pkg/runtime/runtime-gdb.py">src/pkg/runtime/runtime-gdb.py</a> in
++href="/src/runtime/runtime-gdb.py">src/runtime/runtime-gdb.py</a> in
+ the Go source distribution. It depends on some special magic types
+ (<code>hash&lt;T,U&gt;</code>) and variables (<code>runtime.m</code> and
+ <code>runtime.g</code>) that the linker
+@@ -153,7 +153,7 @@ the form <code>pkg.(*MyType).Meth</code>.
+ <p>
+ In this tutorial we will inspect the binary of the
+ <a href="/pkg/regexp/">regexp</a> package's unit tests. To build the binary,
+-change to <code>$GOROOT/src/pkg/regexp</code> and run <code>go test -c</code>.
++change to <code>$GOROOT/src/regexp</code> and run <code>go test -c</code>.
+ This should produce an executable file named <code>regexp.test</code>.
+ </p>
+ 
+@@ -172,7 +172,7 @@ License GPLv  3+: GNU GPL version 3 or later &lt;http://gnu.org/licenses/gpl.htm
+ Type "show copying" and "show warranty" for licensing/warranty details.
+ This GDB was configured as "x86_64-linux".
+ 
+-Reading symbols from  /home/user/go/src/pkg/regexp/regexp.test...
++Reading symbols from  /home/user/go/src/regexp/regexp.test...
+ done.
+ Loading Go Runtime support.
+ (gdb) 
+@@ -180,7 +180,7 @@ Loading Go Runtime support.
+ 
+ <p>
+ The message <code>"Loading Go Runtime support"</code> means that GDB loaded the
+-extension from <code>$GOROOT/src/pkg/runtime/runtime-gdb.py</code>.
++extension from <code>$GOROOT/src/runtime/runtime-gdb.py</code>.
+ </p>
+ 
+ <p>
+@@ -199,7 +199,7 @@ it by hand by telling gdb (assuming you have the go sources in
+ </p>
+ 
+ <pre>
+-(gdb) <b>source ~/go/src/pkg/runtime/runtime-gdb.py</b>
++(gdb) <b>source ~/go/src/runtime/runtime-gdb.py</b>
+ Loading Go Runtime support.
+ </pre>
+ 
+@@ -259,7 +259,7 @@ Set a breakpoint at the <code>TestFind</code> function:
+ 
+ <pre>
+ (gdb) <b>b 'regexp.TestFind'</b>
+-Breakpoint 1 at 0x424908: file /home/user/go/src/pkg/regexp/find_test.go, line 148.
++Breakpoint 1 at 0x424908: file /home/user/go/src/regexp/find_test.go, line 148.
+ </pre>
+ 
+ <p>
+@@ -268,9 +268,9 @@ Run the program:
+ 
+ <pre>
+ (gdb) <b>run</b>
+-Starting program: /home/user/go/src/pkg/regexp/regexp.test
++Starting program: /home/user/go/src/regexp/regexp.test
+ 
+-Breakpoint 1, regexp.TestFind (t=0xf8404a89c0) at /home/user/go/src/pkg/regexp/find_test.go:148
++Breakpoint 1, regexp.TestFind (t=0xf8404a89c0) at /home/user/go/src/regexp/find_test.go:148
+ 148	func TestFind(t *testing.T) {
+ </pre>
+ 
+@@ -297,9 +297,9 @@ Look at the stack trace for where we’ve paused the program:
+ 
+ <pre>
+ (gdb) <b>bt</b>  <i># backtrace</i>
+-#0  regexp.TestFind (t=0xf8404a89c0) at /home/user/go/src/pkg/regexp/find_test.go:148
+-#1  0x000000000042f60b in testing.tRunner (t=0xf8404a89c0, test=0x573720) at /home/user/go/src/pkg/testing/testing.go:156
+-#2  0x000000000040df64 in runtime.initdone () at /home/user/go/src/pkg/runtime/proc.c:242
++#0  regexp.TestFind (t=0xf8404a89c0) at /home/user/go/src/regexp/find_test.go:148
++#1  0x000000000042f60b in testing.tRunner (t=0xf8404a89c0, test=0x573720) at /home/user/go/src/testing/testing.go:156
++#2  0x000000000040df64 in runtime.initdone () at /home/user/go/src/runtime/proc.c:242
+ #3  0x000000f8404a89c0 in ?? ()
+ #4  0x0000000000573720 in ?? ()
+ #5  0x0000000000000000 in ?? ()
+@@ -311,18 +311,18 @@ The other goroutine, number 1, is stuck in <code>runtime.gosched</code>, blocked
+ 
+ <pre>
+ (gdb) <b>goroutine 1 bt</b>
+-#0  0x000000000040facb in runtime.gosched () at /home/user/go/src/pkg/runtime/proc.c:873
++#0  0x000000000040facb in runtime.gosched () at /home/user/go/src/runtime/proc.c:873
+ #1  0x00000000004031c9 in runtime.chanrecv (c=void, ep=void, selected=void, received=void)
+- at  /home/user/go/src/pkg/runtime/chan.c:342
+-#2  0x0000000000403299 in runtime.chanrecv1 (t=void, c=void) at/home/user/go/src/pkg/runtime/chan.c:423
++ at  /home/user/go/src/runtime/chan.c:342
++#2  0x0000000000403299 in runtime.chanrecv1 (t=void, c=void) at/home/user/go/src/runtime/chan.c:423
+ #3  0x000000000043075b in testing.RunTests (matchString={void (struct string, struct string, bool *, error *)}
+- 0x7ffff7f9ef60, tests=  []testing.InternalTest = {...}) at /home/user/go/src/pkg/testing/testing.go:201
++ 0x7ffff7f9ef60, tests=  []testing.InternalTest = {...}) at /home/user/go/src/testing/testing.go:201
+ #4  0x00000000004302b1 in testing.Main (matchString={void (struct string, struct string, bool *, error *)} 
+  0x7ffff7f9ef80, tests= []testing.InternalTest = {...}, benchmarks= []testing.InternalBenchmark = {...})
+-at /home/user/go/src/pkg/testing/testing.go:168
+-#5  0x0000000000400dc1 in main.main () at /home/user/go/src/pkg/regexp/_testmain.go:98
+-#6  0x00000000004022e7 in runtime.mainstart () at /home/user/go/src/pkg/runtime/amd64/asm.s:78
+-#7  0x000000000040ea6f in runtime.initdone () at /home/user/go/src/pkg/runtime/proc.c:243
++at /home/user/go/src/testing/testing.go:168
++#5  0x0000000000400dc1 in main.main () at /home/user/go/src/regexp/_testmain.go:98
++#6  0x00000000004022e7 in runtime.mainstart () at /home/user/go/src/runtime/amd64/asm.s:78
++#7  0x000000000040ea6f in runtime.initdone () at /home/user/go/src/runtime/proc.c:243
+ #8  0x0000000000000000 in ?? ()
+ </pre>
+ 
+@@ -333,7 +333,7 @@ The stack frame shows we’re currently executing the <code>regexp.TestFind</cod
+ <pre>
+ (gdb) <b>info frame</b>
+ Stack level 0, frame at 0x7ffff7f9ff88:
+- rip = 0x425530 in regexp.TestFind (/home/user/go/src/pkg/regexp/find_test.go:148); 
++ rip = 0x425530 in regexp.TestFind (/home/user/go/src/regexp/find_test.go:148); 
+     saved rip 0x430233
+  called by frame at 0x7ffff7f9ffa8
+  source language minimal.
+@@ -410,7 +410,7 @@ We can step into the <code>String</code>function call with <code>"s"</code>:
+ 
+ <pre>
+ (gdb) <b>s</b>
+-regexp.(*Regexp).String (re=0xf84068d070, noname=void) at /home/user/go/src/pkg/regexp/regexp.go:97
++regexp.(*Regexp).String (re=0xf84068d070, noname=void) at /home/user/go/src/regexp/regexp.go:97
+ 97      func (re *Regexp) String() string {
+ </pre>
+ 
+@@ -421,12 +421,12 @@ Get a stack trace to see where we are:
+ <pre>
+ (gdb) <b>bt</b>
+ #0  regexp.(*Regexp).String (re=0xf84068d070, noname=void)
+-    at /home/user/go/src/pkg/regexp/regexp.go:97
++    at /home/user/go/src/regexp/regexp.go:97
+ #1  0x0000000000425615 in regexp.TestFind (t=0xf840688b60)
+-    at /home/user/go/src/pkg/regexp/find_test.go:151
++    at /home/user/go/src/regexp/find_test.go:151
+ #2  0x0000000000430233 in testing.tRunner (t=0xf840688b60, test=0x5747b8)
+-    at /home/user/go/src/pkg/testing/testing.go:156
+-#3  0x000000000040ea6f in runtime.initdone () at /home/user/go/src/pkg/runtime/proc.c:243
++    at /home/user/go/src/testing/testing.go:156
++#3  0x000000000040ea6f in runtime.initdone () at /home/user/go/src/runtime/proc.c:243
+ ....
+ </pre>
+ 
+diff --git a/doc/effective_go.html b/doc/effective_go.html
+index c1e310796b..4dd1a3e017 100644
+--- a/doc/effective_go.html
++++ b/doc/effective_go.html
+@@ -37,7 +37,7 @@ should read first.
+ <h3 id="examples">Examples</h3>
+ 
+ <p>
+-The <a href="/src/pkg/">Go package sources</a>
++The <a href="/src/">Go package sources</a>
+ are intended to serve not
+ only as the core library but also as examples of how to
+ use the language.
+@@ -344,7 +344,7 @@ determines just which package is being used.
+ <p>
+ Another convention is that the package name is the base name of
+ its source directory;
+-the package in <code>src/pkg/encoding/base64</code>
++the package in <code>src/encoding/base64</code>
+ is imported as <code>"encoding/base64"</code> but has name <code>base64</code>,
+ not <code>encoding_base64</code> and not <code>encodingBase64</code>.
+ </p>
+diff --git a/doc/gccgo_contribute.html b/doc/gccgo_contribute.html
+index 9dd6ecb852..db7d1ab0eb 100644
+--- a/doc/gccgo_contribute.html
++++ b/doc/gccgo_contribute.html
+@@ -73,7 +73,7 @@ script <code>libgo/merge.sh</code>.  Accordingly, most library changes
+ should be made in the main Go repository.  The files outside
+ of <code>libgo/go</code> are gccgo-specific; that said, some of the
+ files in <code>libgo/runtime</code> are based on files
+-in <code>src/pkg/runtime</code> in the main Go repository.
++in <code>src/runtime</code> in the main Go repository.
+ </p>
+ 
+ <h2>Testing</h2>
+diff --git a/doc/go_faq.html b/doc/go_faq.html
+index f2082ef5b2..4e90d3907e 100644
+--- a/doc/go_faq.html
++++ b/doc/go_faq.html
+@@ -971,7 +971,7 @@ It is a handy reference for people doing code reviews for Go projects.
+ How do I submit patches to the Go libraries?</h3>
+ 
+ <p>
+-The library sources are in <code>go/src/pkg</code>.
++The library sources are in <code>go/src</code>.
+ If you want to make a significant change, please discuss on the mailing list before embarking.
+ </p>
+ 
+@@ -1571,7 +1571,7 @@ table-driven, iterating over a list of inputs and outputs defined
+ in a data structure (Go has excellent support for data structure literals).
+ The work to write a good test and good error messages will then be amortized over many
+ test cases. The standard Go library is full of illustrative examples, such as in
+-<a href="/src/pkg/fmt/fmt_test.go">the formatting tests for the <code>fmt</code> package</a>.
++<a href="/src/fmt/fmt_test.go">the formatting tests for the <code>fmt</code> package</a>.
+ </p>
+ 
+ 
+diff --git a/misc/android/go_android_exec.go b/misc/android/go_android_exec.go
+index 065b624376..e32a805a8c 100644
+--- a/misc/android/go_android_exec.go
++++ b/misc/android/go_android_exec.go
+@@ -38,7 +38,7 @@ func main() {
+ 
+ 	// Determine thepackage by examining the current working
+ 	// directory, which will look something like
+-	// "$GOROOT/src/pkg/mime/multipart". We extract everything
++	// "$GOROOT/src/mime/multipart". We extract everything
+ 	// after the $GOROOT to run on the same relative directory
+ 	// on the target device.
+ 	//
+diff --git a/misc/makerelease/makerelease.go b/misc/makerelease/makerelease.go
+index 369ab5cb0b..3094856dd4 100644
+--- a/misc/makerelease/makerelease.go
++++ b/misc/makerelease/makerelease.go
+@@ -74,8 +74,8 @@ var preBuildCleanFiles = []string{
+ 	"misc/dashboard/godashboard",
+ 	"src/cmd/cov",
+ 	"src/cmd/prof",
+-	"src/pkg/exp",
+-	"src/pkg/old",
++	"src/exp",
++	"src/old",
+ }
+ 
+ var cleanFiles = []string{
+diff --git a/src/androidtest.bash b/src/androidtest.bash
+index 43a93a141b..2acfbd815a 100755
+--- a/src/androidtest.bash
++++ b/src/androidtest.bash
+@@ -43,8 +43,7 @@ GOOS=$GOHOSTOS GOARCH=$GOHOSTARCH go build \
+ export ANDROID_PRODUCT_OUT=/tmp/androidtest-$$
+ FAKE_GOROOT=$ANDROID_PRODUCT_OUT/data/local/tmp/goroot
+ mkdir -p $FAKE_GOROOT/src
+-ln -s $GOROOT/src/cmd $FAKE_GOROOT/src/cmd
+-ln -s $GOROOT/src/pkg $FAKE_GOROOT/src/pkg
++ln -s $GOROOT/src $FAKE_GOROOT/src
+ ln -s $GOROOT/test $FAKE_GOROOT/test
+ ln -s $GOROOT/lib $FAKE_GOROOT/lib
+ echo '# Syncing test files to android device'
+diff --git a/src/cmd/5a/a.y b/src/cmd/5a/a.y
+index 56d0c563db..ad647606ef 100644
+--- a/src/cmd/5a/a.y
++++ b/src/cmd/5a/a.y
+@@ -33,7 +33,7 @@
+ #include <stdio.h>	/* if we don't, bison will, and a.h re-#defines getc */
+ #include <libc.h>
+ #include "a.h"
+-#include "../../pkg/runtime/funcdata.h"
++#include "../../runtime/funcdata.h"
+ %}
+ %union
+ {
+diff --git a/src/cmd/5a/y.tab.c b/src/cmd/5a/y.tab.c
+index 0bc8c34e10..a6251b8352 100644
+--- a/src/cmd/5a/y.tab.c
++++ b/src/cmd/5a/y.tab.c
+@@ -69,7 +69,7 @@
+ #include <stdio.h>	/* if we don't, bison will, and a.h re-#defines getc */
+ #include <libc.h>
+ #include "a.h"
+-#include "../../pkg/runtime/funcdata.h"
++#include "../../runtime/funcdata.h"
+ 
+ /* Line 371 of yacc.c  */
+ #line 76 "y.tab.c"
+diff --git a/src/cmd/5c/cgen.c b/src/cmd/5c/cgen.c
+index 5ea8eea073..9be10bf452 100644
+--- a/src/cmd/5c/cgen.c
++++ b/src/cmd/5c/cgen.c
+@@ -29,7 +29,7 @@
+ // THE SOFTWARE.
+ 
+ #include "gc.h"
+-#include "../../pkg/runtime/funcdata.h"
++#include "../../runtime/funcdata.h"
+ 
+ void
+ _cgen(Node *n, Node *nn, int inrel)
+diff --git a/src/cmd/5g/cgen.c b/src/cmd/5g/cgen.c
+index 5fae7a564c..c535cfbefb 100644
+--- a/src/cmd/5g/cgen.c
++++ b/src/cmd/5g/cgen.c
+@@ -1522,7 +1522,7 @@ sgen(Node *n, Node *res, int64 w)
+ 		f = sysfunc("duffcopy");
+ 		p = gins(ADUFFCOPY, N, f);
+ 		afunclit(&p->to, f);
+-		// 8 and 128 = magic constants: see ../../pkg/runtime/asm_arm.s
++		// 8 and 128 = magic constants: see ../../runtime/asm_arm.s
+ 		p->to.offset = 8*(128-c);
+ 
+ 		regfree(&tmp);
+diff --git a/src/cmd/5g/ggen.c b/src/cmd/5g/ggen.c
+index cc951df5db..6174e760c4 100644
+--- a/src/cmd/5g/ggen.c
++++ b/src/cmd/5g/ggen.c
+@@ -910,7 +910,7 @@ clearfat(Node *nl)
+ 		f = sysfunc("duffzero");
+ 		p = gins(ADUFFZERO, N, f);
+ 		afunclit(&p->to, f);
+-		// 4 and 128 = magic constants: see ../../pkg/runtime/asm_arm.s
++		// 4 and 128 = magic constants: see ../../runtime/asm_arm.s
+ 		p->to.offset = 4*(128-q);
+ 	} else
+ 	while(q > 0) {
+diff --git a/src/cmd/5g/gsubr.c b/src/cmd/5g/gsubr.c
+index 5a70fcddaf..ebd2c70a05 100644
+--- a/src/cmd/5g/gsubr.c
++++ b/src/cmd/5g/gsubr.c
+@@ -31,11 +31,11 @@
+ #include <u.h>
+ #include <libc.h>
+ #include "gg.h"
+-#include "../../pkg/runtime/funcdata.h"
++#include "../../runtime/funcdata.h"
+ 
+ // TODO(rsc): Can make this bigger if we move
+ // the text segment up higher in 5l for all GOOS.
+-// At the same time, can raise StackBig in ../../pkg/runtime/stack.h.
++// At the same time, can raise StackBig in ../../runtime/stack.h.
+ long unmappedzero = 4096;
+ 
+ void
+diff --git a/src/cmd/6a/a.y b/src/cmd/6a/a.y
+index 6fd4910673..1089d4061c 100644
+--- a/src/cmd/6a/a.y
++++ b/src/cmd/6a/a.y
+@@ -33,7 +33,7 @@
+ #include <stdio.h>	/* if we don't, bison will, and a.h re-#defines getc */
+ #include <libc.h>
+ #include "a.h"
+-#include "../../pkg/runtime/funcdata.h"
++#include "../../runtime/funcdata.h"
+ %}
+ %union	{
+ 	Sym	*sym;
+diff --git a/src/cmd/6a/y.tab.c b/src/cmd/6a/y.tab.c
+index a4f0f74cca..b69fd95b53 100644
+--- a/src/cmd/6a/y.tab.c
++++ b/src/cmd/6a/y.tab.c
+@@ -150,7 +150,7 @@
+ #include <stdio.h>	/* if we don't, bison will, and a.h re-#defines getc */
+ #include <libc.h>
+ #include "a.h"
+-#include "../../pkg/runtime/funcdata.h"
++#include "../../runtime/funcdata.h"
+ 
+ 
+ /* Enabling traces.  */
+diff --git a/src/cmd/6c/cgen.c b/src/cmd/6c/cgen.c
+index b66c6add3e..bb09ec05d3 100644
+--- a/src/cmd/6c/cgen.c
++++ b/src/cmd/6c/cgen.c
+@@ -29,7 +29,7 @@
+ // THE SOFTWARE.
+ 
+ #include "gc.h"
+-#include "../../pkg/runtime/funcdata.h"
++#include "../../runtime/funcdata.h"
+ 
+ /* ,x/^(print|prtree)\(/i/\/\/ */
+ int castup(Type*, Type*);
+diff --git a/src/cmd/6c/sgen.c b/src/cmd/6c/sgen.c
+index d99510185e..fceb332b25 100644
+--- a/src/cmd/6c/sgen.c
++++ b/src/cmd/6c/sgen.c
+@@ -29,7 +29,7 @@
+ // THE SOFTWARE.
+ 
+ #include "gc.h"
+-#include "../../pkg/runtime/funcdata.h"
++#include "../../runtime/funcdata.h"
+ 
+ Prog*
+ gtext(Sym *s, int32 stkoff)
+diff --git a/src/cmd/6g/cgen.c b/src/cmd/6g/cgen.c
+index 592e81542c..d13c98dad9 100644
+--- a/src/cmd/6g/cgen.c
++++ b/src/cmd/6g/cgen.c
+@@ -1451,7 +1451,7 @@ sgen(Node *n, Node *ns, int64 w)
+ 			p = gins(ADUFFCOPY, N, N);
+ 			p->to.type = D_ADDR;
+ 			p->to.sym = linksym(pkglookup("duffcopy", runtimepkg));
+-			// 14 and 128 = magic constants: see ../../pkg/runtime/asm_amd64.s
++			// 14 and 128 = magic constants: see ../../runtime/asm_amd64.s
+ 			p->to.offset = 14*(128-q);
+ 		} else
+ 		while(q > 0) {
+diff --git a/src/cmd/6g/ggen.c b/src/cmd/6g/ggen.c
+index 9665d831b3..5a9b8418c4 100644
+--- a/src/cmd/6g/ggen.c
++++ b/src/cmd/6g/ggen.c
+@@ -1135,7 +1135,7 @@ clearfat(Node *nl)
+ 		p = gins(ADUFFZERO, N, N);
+ 		p->to.type = D_ADDR;
+ 		p->to.sym = linksym(pkglookup("duffzero", runtimepkg));
+-		// 2 and 128 = magic constants: see ../../pkg/runtime/asm_amd64.s
++		// 2 and 128 = magic constants: see ../../runtime/asm_amd64.s
+ 		p->to.offset = 2*(128-q);
+ 	} else
+ 	while(q > 0) {
+diff --git a/src/cmd/6g/gsubr.c b/src/cmd/6g/gsubr.c
+index a451d7d624..e1ed3b3b86 100644
+--- a/src/cmd/6g/gsubr.c
++++ b/src/cmd/6g/gsubr.c
+@@ -31,11 +31,11 @@
+ #include <u.h>
+ #include <libc.h>
+ #include "gg.h"
+-#include "../../pkg/runtime/funcdata.h"
++#include "../../runtime/funcdata.h"
+ 
+ // TODO(rsc): Can make this bigger if we move
+ // the text segment up higher in 6l for all GOOS.
+-// At the same time, can raise StackBig in ../../pkg/runtime/stack.h.
++// At the same time, can raise StackBig in ../../runtime/stack.h.
+ vlong unmappedzero = 4096;
+ 
+ void
+diff --git a/src/cmd/8a/a.y b/src/cmd/8a/a.y
+index d7ff623da2..6bcf1313bf 100644
+--- a/src/cmd/8a/a.y
++++ b/src/cmd/8a/a.y
+@@ -33,7 +33,7 @@
+ #include <stdio.h>	/* if we don't, bison will, and a.h re-#defines getc */
+ #include <libc.h>
+ #include "a.h"
+-#include "../../pkg/runtime/funcdata.h"
++#include "../../runtime/funcdata.h"
+ %}
+ %union	{
+ 	Sym	*sym;
+diff --git a/src/cmd/8a/y.tab.c b/src/cmd/8a/y.tab.c
+index f48c9fe1f8..85279c21f9 100644
+--- a/src/cmd/8a/y.tab.c
++++ b/src/cmd/8a/y.tab.c
+@@ -146,7 +146,7 @@
+ #include <stdio.h>	/* if we don't, bison will, and a.h re-#defines getc */
+ #include <libc.h>
+ #include "a.h"
+-#include "../../pkg/runtime/funcdata.h"
++#include "../../runtime/funcdata.h"
+ 
+ 
+ /* Enabling traces.  */
+diff --git a/src/cmd/8c/cgen.c b/src/cmd/8c/cgen.c
+index 8ac8e36009..6f0f7c97fe 100644
+--- a/src/cmd/8c/cgen.c
++++ b/src/cmd/8c/cgen.c
+@@ -29,7 +29,7 @@
+ // THE SOFTWARE.
+ 
+ #include "gc.h"
+-#include "../../pkg/runtime/funcdata.h"
++#include "../../runtime/funcdata.h"
+ 
+ /* ,x/^(print|prtree)\(/i/\/\/ */
+ 
+diff --git a/src/cmd/8g/cgen.c b/src/cmd/8g/cgen.c
+index f3093bc26e..2735fb6a56 100644
+--- a/src/cmd/8g/cgen.c
++++ b/src/cmd/8g/cgen.c
+@@ -1326,7 +1326,7 @@ sgen(Node *n, Node *res, int64 w)
+ 			p = gins(ADUFFCOPY, N, N);
+ 			p->to.type = D_ADDR;
+ 			p->to.sym = linksym(pkglookup("duffcopy", runtimepkg));
+-			// 10 and 128 = magic constants: see ../../pkg/runtime/asm_386.s
++			// 10 and 128 = magic constants: see ../../runtime/asm_386.s
+ 			p->to.offset = 10*(128-q);
+ 		} else
+ 		while(q > 0) {
+diff --git a/src/cmd/8g/ggen.c b/src/cmd/8g/ggen.c
+index 5e31404806..6038731f7b 100644
+--- a/src/cmd/8g/ggen.c
++++ b/src/cmd/8g/ggen.c
+@@ -184,7 +184,7 @@ clearfat(Node *nl)
+ 		p = gins(ADUFFZERO, N, N);
+ 		p->to.type = D_ADDR;
+ 		p->to.sym = linksym(pkglookup("duffzero", runtimepkg));
+-		// 1 and 128 = magic constants: see ../../pkg/runtime/asm_386.s
++		// 1 and 128 = magic constants: see ../../runtime/asm_386.s
+ 		p->to.offset = 1*(128-q);
+ 	} else
+ 	while(q > 0) {
+diff --git a/src/cmd/8g/gsubr.c b/src/cmd/8g/gsubr.c
+index 9ee418cb78..9f923cc9aa 100644
+--- a/src/cmd/8g/gsubr.c
++++ b/src/cmd/8g/gsubr.c
+@@ -31,11 +31,11 @@
+ #include <u.h>
+ #include <libc.h>
+ #include "gg.h"
+-#include "../../pkg/runtime/funcdata.h"
++#include "../../runtime/funcdata.h"
+ 
+ // TODO(rsc): Can make this bigger if we move
+ // the text segment up higher in 8l for all GOOS.
+-// At the same time, can raise StackBig in ../../pkg/runtime/stack.h.
++// At the same time, can raise StackBig in ../../runtime/stack.h.
+ uint32 unmappedzero = 4096;
+ 
+ #define	CASE(a,b)	(((a)<<16)|((b)<<0))
+diff --git a/src/cmd/api/goapi.go b/src/cmd/api/goapi.go
+index 7e8f858483..fb0e984f72 100644
+--- a/src/cmd/api/goapi.go
++++ b/src/cmd/api/goapi.go
+@@ -143,7 +143,7 @@ func main() {
+ 
+ 	var featureCtx = make(map[string]map[string]bool) // feature -> context name -> true
+ 	for _, context := range contexts {
+-		w := NewWalker(context, filepath.Join(build.Default.GOROOT, "src/pkg"))
++		w := NewWalker(context, filepath.Join(build.Default.GOROOT, "src"))
+ 
+ 		for _, name := range pkgNames {
+ 			// - Package "unsafe" contains special signatures requiring
+diff --git a/src/cmd/api/goapi_test.go b/src/cmd/api/goapi_test.go
+index cb68769c8f..f4fb7d319a 100644
+--- a/src/cmd/api/goapi_test.go
++++ b/src/cmd/api/goapi_test.go
+@@ -38,7 +38,7 @@ func TestGolden(t *testing.T) {
+ 			continue
+ 		}
+ 
+-		goldenFile := filepath.Join("testdata", "src", "pkg", fi.Name(), "golden.txt")
++		goldenFile := filepath.Join("testdata", "src", fi.Name(), "golden.txt")
+ 		w := NewWalker(nil, "testdata/src/pkg")
+ 		w.export(w.Import(fi.Name()))
+ 
+@@ -176,7 +176,7 @@ func BenchmarkAll(b *testing.B) {
+ 
+ 	for i := 0; i < b.N; i++ {
+ 		for _, context := range contexts {
+-			w := NewWalker(context, filepath.Join(build.Default.GOROOT, "src/pkg"))
++			w := NewWalker(context, filepath.Join(build.Default.GOROOT, "src"))
+ 			for _, name := range pkgNames {
+ 				if name != "unsafe" && !strings.HasPrefix(name, "cmd/") {
+ 					w.export(w.Import(name))
+diff --git a/src/cmd/cc/pgen.c b/src/cmd/cc/pgen.c
+index 99128d4005..4265b1b5ee 100644
+--- a/src/cmd/cc/pgen.c
++++ b/src/cmd/cc/pgen.c
+@@ -29,7 +29,7 @@
+ // THE SOFTWARE.
+ 
+ #include "gc.h"
+-#include "../../pkg/runtime/funcdata.h"
++#include "../../runtime/funcdata.h"
+ 
+ enum { BitsPerPointer = 2 };
+ 
+diff --git a/src/cmd/cgo/ast.go b/src/cmd/cgo/ast.go
+index 7757efa1bc..6c5a160866 100644
+--- a/src/cmd/cgo/ast.go
++++ b/src/cmd/cgo/ast.go
+@@ -272,7 +272,7 @@ func (f *File) walk(x interface{}, context string, visit func(*File, interface{}
+ 
+ 	case nil:
+ 
+-	// These are ordered and grouped to match ../../pkg/go/ast/ast.go
++	// These are ordered and grouped to match ../../go/ast/ast.go
+ 	case *ast.Field:
+ 		if len(n.Names) == 0 && context == "field" {
+ 			f.walk(&n.Type, "embed-type", visit)
+diff --git a/src/cmd/dist/build.c b/src/cmd/dist/build.c
+index 1c18c5932d..e4dc9ba56c 100644
+--- a/src/cmd/dist/build.c
++++ b/src/cmd/dist/build.c
+@@ -366,8 +366,8 @@ static char *oldtool[] = {
+ // not be in release branches.
+ static char *unreleased[] = {
+ 	"src/cmd/link",
+-	"src/pkg/debug/goobj",
+-	"src/pkg/old",
++	"src/debug/goobj",
++	"src/old",
+ };
+ 
+ // setup sets up the tree for the initial build.
+@@ -590,7 +590,7 @@ static struct {
+ 		"$GOROOT/pkg/obj/$GOHOSTOS_$GOHOSTARCH/libbio.a",
+ 		"$GOROOT/pkg/obj/$GOHOSTOS_$GOHOSTARCH/lib9.a",
+ 	}},
+-	{"pkg/runtime", {
++	{"runtime", {
+ 		"zaexperiment.h", // must sort above zasm
+ 		"zasm_$GOOS_$GOARCH.h",
+ 		"zsys_$GOOS_$GOARCH.s",
+@@ -706,7 +706,7 @@ install(char *dir)
+ 	}
+ 
+ 	islib = hasprefix(dir, "lib") || streq(dir, "cmd/cc") || streq(dir, "cmd/gc");
+-	ispkg = hasprefix(dir, "pkg");
++	ispkg = !islib && !hasprefix(dir, "cmd/");
+ 	isgo = ispkg || streq(dir, "cmd/go") || streq(dir, "cmd/cgo");
+ 
+ 	exe = "";
+@@ -732,11 +732,11 @@ install(char *dir)
+ 		// Go library (package).
+ 		ispackcmd = 1;
+ 		vadd(&link, "pack"); // program name - unused here, but all the other cases record one
+-		p = bprintf(&b, "%s/pkg/%s_%s/%s", goroot, goos, goarch, dir+4);
++		p = bprintf(&b, "%s/pkg/%s_%s/%s", goroot, goos, goarch, dir);
+ 		*xstrrchr(p, '/') = '\0';
+ 		xmkdirall(p);
+ 		targ = link.len;
+-		vadd(&link, bpathf(&b, "%s/pkg/%s_%s/%s.a", goroot, goos, goarch, dir+4));
++		vadd(&link, bpathf(&b, "%s/pkg/%s_%s/%s.a", goroot, goos, goarch, dir));
+ 	} else if(streq(dir, "cmd/go") || streq(dir, "cmd/cgo")) {
+ 		// Go command.
+ 		vadd(&link, bpathf(&b, "%s/%sl", tooldir, gochar));
+@@ -883,7 +883,7 @@ install(char *dir)
+ 		goto out;
+ 
+ 	// For package runtime, copy some files into the work space.
+-	if(streq(dir, "pkg/runtime")) {
++	if(streq(dir, "runtime")) {
+ 		copyfile(bpathf(&b, "%s/arch_GOARCH.h", workdir),
+ 			bpathf(&b1, "%s/arch_%s.h", bstr(&path), goarch), 0);
+ 		copyfile(bpathf(&b, "%s/defs_GOOS_GOARCH.h", workdir),
+@@ -911,7 +911,7 @@ install(char *dir)
+ 					errprintf("generate %s\n", p);
+ 				gentab[j].gen(bstr(&path), p);
+ 				// Do not add generated file to clean list.
+-				// In pkg/runtime, we want to be able to
++				// In runtime, we want to be able to
+ 				// build the package with the go tool,
+ 				// and it assumes these generated files already
+ 				// exist (it does not know how to build them).
+@@ -929,7 +929,7 @@ install(char *dir)
+ 	// One more copy for package runtime.
+ 	// The last batch was required for the generators.
+ 	// This one is generated.
+-	if(streq(dir, "pkg/runtime")) {
++	if(streq(dir, "runtime")) {
+ 		copyfile(bpathf(&b, "%s/zasm_GOOS_GOARCH.h", workdir),
+ 			bpathf(&b1, "%s/zasm_%s_%s.h", bstr(&path), goos, goarch), 0);
+ 	}
+@@ -1074,7 +1074,7 @@ install(char *dir)
+ 		else
+ 			vadd(&compile, "main");
+ 
+-		if(streq(dir, "pkg/runtime"))
++		if(streq(dir, "runtime"))
+ 			vadd(&compile, "-+");
+ 
+ 		vcopy(&compile, go.p, go.len);
+@@ -1103,11 +1103,11 @@ install(char *dir)
+ nobuild:
+ 	// In package runtime, we install runtime.h and cgocall.h too,
+ 	// for use by cgo compilation.
+-	if(streq(dir, "pkg/runtime")) {
++	if(streq(dir, "runtime")) {
+ 		copyfile(bpathf(&b, "%s/pkg/%s_%s/cgocall.h", goroot, goos, goarch),
+-			bpathf(&b1, "%s/src/pkg/runtime/cgocall.h", goroot), 0);
++			bpathf(&b1, "%s/src/runtime/cgocall.h", goroot), 0);
+ 		copyfile(bpathf(&b, "%s/pkg/%s_%s/runtime.h", goroot, goos, goarch),
+-			bpathf(&b1, "%s/src/pkg/runtime/runtime.h", goroot), 0);
++			bpathf(&b1, "%s/src/runtime/runtime.h", goroot), 0);
+ 	}
+ 
+ 
+@@ -1304,47 +1304,47 @@ static char *buildorder[] = {
+ 	// back when there were build scripts.  Will have to
+ 	// be maintained by hand, but shouldn't change very
+ 	// often.
+-	"pkg/runtime",
+-	"pkg/errors",
+-	"pkg/sync/atomic",
+-	"pkg/sync",
+-	"pkg/io",
+-	"pkg/unicode",
+-	"pkg/unicode/utf8",
+-	"pkg/unicode/utf16",
+-	"pkg/bytes",
+-	"pkg/math",
+-	"pkg/strings",
+-	"pkg/strconv",
+-	"pkg/bufio",
+-	"pkg/sort",
+-	"pkg/container/heap",
+-	"pkg/encoding/base64",
+-	"pkg/syscall",
+-	"pkg/time",
+-	"pkg/os",
+-	"pkg/reflect",
+-	"pkg/fmt",
+-	"pkg/encoding",
+-	"pkg/encoding/json",
+-	"pkg/flag",
+-	"pkg/path/filepath",
+-	"pkg/path",
+-	"pkg/io/ioutil",
+-	"pkg/log",
+-	"pkg/regexp/syntax",
+-	"pkg/regexp",
+-	"pkg/go/token",
+-	"pkg/go/scanner",
+-	"pkg/go/ast",
+-	"pkg/go/parser",
+-	"pkg/os/exec",
+-	"pkg/os/signal",
+-	"pkg/net/url",
+-	"pkg/text/template/parse",
+-	"pkg/text/template",
+-	"pkg/go/doc",
+-	"pkg/go/build",
++	"runtime",
++	"errors",
++	"sync/atomic",
++	"sync",
++	"io",
++	"unicode",
++	"unicode/utf8",
++	"unicode/utf16",
++	"bytes",
++	"math",
++	"strings",
++	"strconv",
++	"bufio",
++	"sort",
++	"container/heap",
++	"encoding/base64",
++	"syscall",
++	"time",
++	"os",
++	"reflect",
++	"fmt",
++	"encoding",
++	"encoding/json",
++	"flag",
++	"path/filepath",
++	"path",
++	"io/ioutil",
++	"log",
++	"regexp/syntax",
++	"regexp",
++	"go/token",
++	"go/scanner",
++	"go/ast",
++	"go/parser",
++	"os/exec",
++	"os/signal",
++	"net/url",
++	"text/template/parse",
++	"text/template",
++	"go/doc",
++	"go/build",
+ 	"cmd/go",
+ };
+ 
+@@ -1352,6 +1352,7 @@ static char *buildorder[] = {
+ // It is bigger than the buildorder because we clean all the
+ // compilers but build only the $GOARCH ones.
+ static char *cleantab[] = {
++	// Commands and C libraries.
+ 	"cmd/5a",
+ 	"cmd/5c",
+ 	"cmd/5g",
+@@ -1370,46 +1371,48 @@ static char *cleantab[] = {
+ 	"lib9",
+ 	"libbio",
+ 	"liblink",
+-	"pkg/bufio",
+-	"pkg/bytes",
+-	"pkg/container/heap",
+-	"pkg/encoding",
+-	"pkg/encoding/base64",
+-	"pkg/encoding/json",
+-	"pkg/errors",
+-	"pkg/flag",
+-	"pkg/fmt",
+-	"pkg/go/ast",
+-	"pkg/go/build",
+-	"pkg/go/doc",
+-	"pkg/go/parser",
+-	"pkg/go/scanner",
+-	"pkg/go/token",
+-	"pkg/io",
+-	"pkg/io/ioutil",
+-	"pkg/log",
+-	"pkg/math",
+-	"pkg/net/url",
+-	"pkg/os",
+-	"pkg/os/exec",
+-	"pkg/path",
+-	"pkg/path/filepath",
+-	"pkg/reflect",
+-	"pkg/regexp",
+-	"pkg/regexp/syntax",
+-	"pkg/runtime",
+-	"pkg/sort",
+-	"pkg/strconv",
+-	"pkg/strings",
+-	"pkg/sync",
+-	"pkg/sync/atomic",
+-	"pkg/syscall",
+-	"pkg/text/template",
+-	"pkg/text/template/parse",
+-	"pkg/time",
+-	"pkg/unicode",
+-	"pkg/unicode/utf16",
+-	"pkg/unicode/utf8",
++
++	// Go packages.
++	"bufio",
++	"bytes",
++	"container/heap",
++	"encoding",
++	"encoding/base64",
++	"encoding/json",
++	"errors",
++	"flag",
++	"fmt",
++	"go/ast",
++	"go/build",
++	"go/doc",
++	"go/parser",
++	"go/scanner",
++	"go/token",
++	"io",
++	"io/ioutil",
++	"log",
++	"math",
++	"net/url",
++	"os",
++	"os/exec",
++	"path",
++	"path/filepath",
++	"reflect",
++	"regexp",
++	"regexp/syntax",
++	"runtime",
++	"sort",
++	"strconv",
++	"strings",
++	"sync",
++	"sync/atomic",
++	"syscall",
++	"text/template",
++	"text/template/parse",
++	"time",
++	"unicode",
++	"unicode/utf16",
++	"unicode/utf8",
+ };
+ 
+ static void
+@@ -1438,9 +1441,9 @@ clean(void)
+ 			xremove(bpathf(&b, "%s/%s", bstr(&path), cleantab[i]+4));
+ 	}
+ 
+-	// remove src/pkg/runtime/z* unconditionally
++	// remove src/runtime/z* unconditionally
+ 	vreset(&dir);
+-	bpathf(&path, "%s/src/pkg/runtime", goroot);
++	bpathf(&path, "%s/src/runtime", goroot);
+ 	xreaddir(&dir, bstr(&path));
+ 	for(j=0; j<dir.len; j++) {
+ 		if(hasprefix(dir.p[j], "z"))
+@@ -1577,6 +1580,15 @@ cmdbootstrap(int argc, char **argv)
+ 	if(argc > 0)
+ 		usage();
+ 
++	if(isdir(bpathf(&b, "%s/src/pkg", goroot))) {
++		fatal("\n\n"
++			"The Go package sources have moved to $GOROOT/src.\n"
++			"*** %s still exists. ***\n"
++			"It probably contains stale files that may confuse the build.\n"
++			"Please (check what's there and) remove it and try again.\n"
++			"See http://golang.org/s/go14nopkg\n", bpathf(&b, "%s/src/pkg", goroot));
++	}
++	
+ 	if(rebuildall)
+ 		clean();
+ 	goversion = findgoversion();
+@@ -1607,9 +1619,9 @@ cmdbootstrap(int argc, char **argv)
+ 	xsetenv("GOARCH", goarch);
+ 	xsetenv("GOOS", goos);
+ 
+-	// Build pkg/runtime for actual goos/goarch too.
++	// Build runtime for actual goos/goarch too.
+ 	if(!streq(goos, gohostos) || !streq(goarch, gohostarch))
+-		install("pkg/runtime");
++		install("runtime");
+ 
+ 	bfree(&b);
+ }
+diff --git a/src/cmd/dist/buildruntime.c b/src/cmd/dist/buildruntime.c
+index 246bd2710d..6e87029e7c 100644
+--- a/src/cmd/dist/buildruntime.c
++++ b/src/cmd/dist/buildruntime.c
+@@ -5,7 +5,7 @@
+ #include "a.h"
+ 
+ /*
+- * Helpers for building pkg/runtime.
++ * Helpers for building runtime.
+  */
+ 
+ // mkzversion writes zversion.go:
+diff --git a/src/cmd/dist/windows.c b/src/cmd/dist/windows.c
+index 1102adff5e..ff1a273512 100644
+--- a/src/cmd/dist/windows.c
++++ b/src/cmd/dist/windows.c
+@@ -929,7 +929,7 @@ xsamefile(char *f1, char *f2)
+ 		return 1;
+ 	
+ 	torune(&ru, f1);
+-	// refer to ../../pkg/os/stat_windows.go:/sameFile
++	// refer to ../../os/stat_windows.go:/sameFile
+ 	fd1 = CreateFileW(ru, 0, 0, NULL, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, 0);
+ 	xfree(ru);
+ 	if(fd1 == INVALID_HANDLE_VALUE)
+diff --git a/src/cmd/fix/fix.go b/src/cmd/fix/fix.go
+index a100be794e..a07bbac790 100644
+--- a/src/cmd/fix/fix.go
++++ b/src/cmd/fix/fix.go
+@@ -101,7 +101,7 @@ func walkBeforeAfter(x interface{}, before, after func(interface{})) {
+ 	case *[]ast.Stmt:
+ 		walkBeforeAfter(*n, before, after)
+ 
+-	// These are ordered and grouped to match ../../pkg/go/ast/ast.go
++	// These are ordered and grouped to match ../../go/ast/ast.go
+ 	case *ast.Field:
+ 		walkBeforeAfter(&n.Names, before, after)
+ 		walkBeforeAfter(&n.Type, before, after)
+diff --git a/src/cmd/gc/md5.c b/src/cmd/gc/md5.c
+index fa6606719f..46cb6b712d 100644
+--- a/src/cmd/gc/md5.c
++++ b/src/cmd/gc/md5.c
+@@ -3,7 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // 64-bit MD5 (does full MD5 but returns 64 bits only).
+-// Translation of ../../pkg/crypto/md5/md5*.go.
++// Translation of ../../crypto/md5/md5*.go.
+ 
+ #include <u.h>
+ #include <libc.h>
+diff --git a/src/cmd/gc/pgen.c b/src/cmd/gc/pgen.c
+index cabba6824e..ec50ada5b6 100644
+--- a/src/cmd/gc/pgen.c
++++ b/src/cmd/gc/pgen.c
+@@ -11,7 +11,7 @@
+ #include	"md5.h"
+ #include	"gg.h"
+ #include	"opt.h"
+-#include	"../../pkg/runtime/funcdata.h"
++#include	"../../runtime/funcdata.h"
+ 
+ static void allocauto(Prog* p);
+ 
+@@ -233,7 +233,7 @@ compile(Node *fn)
+ 		ptxt->TEXTFLAG |= NOSPLIT;
+ 
+ 	// Clumsy but important.
+-	// See test/recover.go for test cases and src/pkg/reflect/value.go
++	// See test/recover.go for test cases and src/reflect/value.go
+ 	// for the actual functions being considered.
+ 	if(myimportpath != nil && strcmp(myimportpath, "reflect") == 0) {
+ 		if(strcmp(curfn->nname->sym->name, "callReflect") == 0 || strcmp(curfn->nname->sym->name, "callMethod") == 0)
+diff --git a/src/cmd/gc/plive.c b/src/cmd/gc/plive.c
+index 0ad700e82f..d2f384b2dd 100644
+--- a/src/cmd/gc/plive.c
++++ b/src/cmd/gc/plive.c
+@@ -18,8 +18,8 @@
+ #include "gg.h"
+ #include "opt.h"
+ #include "../ld/textflag.h"
+-#include "../../pkg/runtime/funcdata.h"
+-#include "../../pkg/runtime/mgc0.h"
++#include "../../runtime/funcdata.h"
++#include "../../runtime/mgc0.h"
+ 
+ enum {
+ 	UNVISITED = 0,
+diff --git a/src/cmd/gc/reflect.c b/src/cmd/gc/reflect.c
+index f227054caf..31e449e760 100644
+--- a/src/cmd/gc/reflect.c
++++ b/src/cmd/gc/reflect.c
+@@ -6,8 +6,8 @@
+ #include <libc.h>
+ #include "go.h"
+ #include "../ld/textflag.h"
+-#include "../../pkg/runtime/mgc0.h"
+-#include "../../pkg/runtime/typekind.h"
++#include "../../runtime/mgc0.h"
++#include "../../runtime/typekind.h"
+ 
+ /*
+  * runtime interface and reflection data structures
+@@ -109,7 +109,7 @@ lsort(Sig *l, int(*f)(Sig*, Sig*))
+ // the given map type.  This type is not visible to users -
+ // we include only enough information to generate a correct GC
+ // program for it.
+-// Make sure this stays in sync with ../../pkg/runtime/hashmap.c!
++// Make sure this stays in sync with ../../runtime/hashmap.c!
+ enum {
+ 	BUCKETSIZE = 8,
+ 	MAXKEYSIZE = 128,
+@@ -192,7 +192,7 @@ mapbucket(Type *t)
+ // the given map type.  This type is not visible to users -
+ // we include only enough information to generate a correct GC
+ // program for it.
+-// Make sure this stays in sync with ../../pkg/runtime/hashmap.go!
++// Make sure this stays in sync with ../../runtime/hashmap.go!
+ static Type*
+ hmap(Type *t)
+ {
+@@ -261,7 +261,7 @@ hiter(Type *t)
+ 	//    bptr *Bucket
+ 	//    other [4]uintptr
+ 	// }
+-	// must match ../../pkg/runtime/hashmap.c:hash_iter.
++	// must match ../../runtime/hashmap.c:hash_iter.
+ 	field[0] = typ(TFIELD);
+ 	field[0]->type = ptrto(t->down);
+ 	field[0]->sym = mal(sizeof(Sym));
+@@ -550,7 +550,7 @@ dgopkgpath(Sym *s, int ot, Pkg *pkg)
+ 
+ /*
+  * uncommonType
+- * ../../pkg/runtime/type.go:/uncommonType
++ * ../../runtime/type.go:/uncommonType
+  */
+ static int
+ dextratype(Sym *sym, int off, Type *t, int ptroff)
+@@ -594,7 +594,7 @@ dextratype(Sym *sym, int off, Type *t, int ptroff)
+ 	// methods
+ 	for(a=m; a; a=a->link) {
+ 		// method
+-		// ../../pkg/runtime/type.go:/method
++		// ../../runtime/type.go:/method
+ 		ot = dgostringptr(s, ot, a->name);
+ 		ot = dgopkgpath(s, ot, a->pkg);
+ 		ot = dsymptr(s, ot, dtypesym(a->mtype), 0);
+@@ -710,7 +710,7 @@ haspointers(Type *t)
+ 
+ /*
+  * commonType
+- * ../../pkg/runtime/type.go:/commonType
++ * ../../runtime/type.go:/commonType
+  */
+ static int
+ dcommontype(Sym *s, int ot, Type *t)
+@@ -992,7 +992,7 @@ ok:
+ 
+ 	case TARRAY:
+ 		if(t->bound >= 0) {
+-			// ../../pkg/runtime/type.go:/ArrayType
++			// ../../runtime/type.go:/ArrayType
+ 			s1 = dtypesym(t->type);
+ 			t2 = typ(TARRAY);
+ 			t2->type = t->type;
+@@ -1004,7 +1004,7 @@ ok:
+ 			ot = dsymptr(s, ot, s2, 0);
+ 			ot = duintptr(s, ot, t->bound);
+ 		} else {
+-			// ../../pkg/runtime/type.go:/SliceType
++			// ../../runtime/type.go:/SliceType
+ 			s1 = dtypesym(t->type);
+ 			ot = dcommontype(s, ot, t);
+ 			xt = ot - 3*widthptr;
+@@ -1013,7 +1013,7 @@ ok:
+ 		break;
+ 
+ 	case TCHAN:
+-		// ../../pkg/runtime/type.go:/ChanType
++		// ../../runtime/type.go:/ChanType
+ 		s1 = dtypesym(t->type);
+ 		ot = dcommontype(s, ot, t);
+ 		xt = ot - 3*widthptr;
+@@ -1063,14 +1063,14 @@ ok:
+ 			n++;
+ 		}
+ 
+-		// ../../pkg/runtime/type.go:/InterfaceType
++		// ../../runtime/type.go:/InterfaceType
+ 		ot = dcommontype(s, ot, t);
+ 		xt = ot - 3*widthptr;
+ 		ot = dsymptr(s, ot, s, ot+widthptr+2*widthint);
+ 		ot = duintxx(s, ot, n, widthint);
+ 		ot = duintxx(s, ot, n, widthint);
+ 		for(a=m; a; a=a->link) {
+-			// ../../pkg/runtime/type.go:/imethod
++			// ../../runtime/type.go:/imethod
+ 			ot = dgostringptr(s, ot, a->name);
+ 			ot = dgopkgpath(s, ot, a->pkg);
+ 			ot = dsymptr(s, ot, dtypesym(a->type), 0);
+@@ -1078,7 +1078,7 @@ ok:
+ 		break;
+ 
+ 	case TMAP:
+-		// ../../pkg/runtime/type.go:/MapType
++		// ../../runtime/type.go:/MapType
+ 		s1 = dtypesym(t->down);
+ 		s2 = dtypesym(t->type);
+ 		s3 = dtypesym(mapbucket(t));
+@@ -1109,11 +1109,11 @@ ok:
+ 	case TPTR32:
+ 	case TPTR64:
+ 		if(t->type->etype == TANY) {
+-			// ../../pkg/runtime/type.go:/UnsafePointerType
++			// ../../runtime/type.go:/UnsafePointerType
+ 			ot = dcommontype(s, ot, t);
+ 			break;
+ 		}
+-		// ../../pkg/runtime/type.go:/PtrType
++		// ../../runtime/type.go:/PtrType
+ 		s1 = dtypesym(t->type);
+ 		ot = dcommontype(s, ot, t);
+ 		xt = ot - 3*widthptr;
+@@ -1121,7 +1121,7 @@ ok:
+ 		break;
+ 
+ 	case TSTRUCT:
+-		// ../../pkg/runtime/type.go:/StructType
++		// ../../runtime/type.go:/StructType
+ 		// for security, only the exported fields.
+ 		n = 0;
+ 		for(t1=t->type; t1!=T; t1=t1->down) {
+@@ -1134,7 +1134,7 @@ ok:
+ 		ot = duintxx(s, ot, n, widthint);
+ 		ot = duintxx(s, ot, n, widthint);
+ 		for(t1=t->type; t1!=T; t1=t1->down) {
+-			// ../../pkg/runtime/type.go:/structField
++			// ../../runtime/type.go:/structField
+ 			if(t1->sym && !t1->embedded) {
+ 				ot = dgostringptr(s, ot, t1->sym->name);
+ 				if(exportname(t1->sym->name))
+@@ -1260,7 +1260,7 @@ dalgsym(Type *t)
+ 	dsymptr(eqfunc, 0, eq, 0);
+ 	ggloblsym(eqfunc, widthptr, DUPOK|RODATA);
+ 
+-	// ../../pkg/runtime/alg.go:/typeAlg
++	// ../../runtime/alg.go:/typeAlg
+ 	ot = 0;
+ 	ot = dsymptr(s, ot, hashfunc, 0);
+ 	ot = dsymptr(s, ot, eqfunc, 0);
+diff --git a/src/cmd/gc/select.c b/src/cmd/gc/select.c
+index ed23e4318b..965ad277fa 100644
+--- a/src/cmd/gc/select.c
++++ b/src/cmd/gc/select.c
+@@ -325,7 +325,7 @@ out:
+ 	lineno = lno;
+ }
+ 
+-// Keep in sync with src/pkg/runtime/chan.h.
++// Keep in sync with src/runtime/chan.h.
+ static Type*
+ selecttype(int32 size)
+ {
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index d62d55e773..93600c688b 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -3641,7 +3641,7 @@ ngotype(Node *n)
+  * users if we escape that as little as possible.
+  *
+  * If you edit this, edit ../ld/lib.c:/^pathtoprefix too.
+- * If you edit this, edit ../../pkg/debug/goobj/read.go:/importPathToPrefix too.
++ * If you edit this, edit ../../debug/goobj/read.go:/importPathToPrefix too.
+  */
+ static char*
+ pathtoprefix(char *s)
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 0de37b87fb..5f24db2b0b 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -688,7 +688,7 @@ walkexpr(Node **np, NodeList **init)
+ 		walkexpr(&r->right, init);
+ 		t = r->left->type;
+ 		p = nil;
+-		if(t->type->width <= 128) { // Check ../../pkg/runtime/hashmap.c:MAXVALUESIZE before changing.
++		if(t->type->width <= 128) { // Check ../../runtime/hashmap.c:MAXVALUESIZE before changing.
+ 			switch(simsimtype(t->down)) {
+ 			case TINT32:
+ 			case TUINT32:
+@@ -1083,7 +1083,7 @@ walkexpr(Node **np, NodeList **init)
+ 
+ 		t = n->left->type;
+ 		p = nil;
+-		if(t->type->width <= 128) {  // Check ../../pkg/runtime/hashmap.c:MAXVALUESIZE before changing.
++		if(t->type->width <= 128) {  // Check ../../runtime/hashmap.c:MAXVALUESIZE before changing.
+ 			switch(simsimtype(t->down)) {
+ 			case TINT32:
+ 			case TUINT32:
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index fd92ca2783..45b5bc3233 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -433,12 +433,11 @@ const (
+ )
+ 
+ var (
+-	goroot       = filepath.Clean(runtime.GOROOT())
+-	gobin        = os.Getenv("GOBIN")
+-	gorootBin    = filepath.Join(goroot, "bin")
+-	gorootSrcPkg = filepath.Join(goroot, "src/pkg")
+-	gorootPkg    = filepath.Join(goroot, "pkg")
+-	gorootSrc    = filepath.Join(goroot, "src")
++	goroot    = filepath.Clean(runtime.GOROOT())
++	gobin     = os.Getenv("GOBIN")
++	gorootBin = filepath.Join(goroot, "bin")
++	gorootPkg = filepath.Join(goroot, "pkg")
++	gorootSrc = filepath.Join(goroot, "src")
+ )
+ 
+ func (b *builder) init() {
+@@ -1255,7 +1254,7 @@ func (b *builder) showcmd(dir string, format string, args ...interface{}) {
+ // the source directory for the package that has failed to build.
+ // showOutput rewrites mentions of dir with a relative path to dir
+ // when the relative path is shorter.  This is usually more pleasant.
+-// For example, if fmt doesn't compile and we are in src/pkg/html,
++// For example, if fmt doesn't compile and we are in src/html,
+ // the output is
+ //
+ //	$ go build
+@@ -1267,7 +1266,7 @@ func (b *builder) showcmd(dir string, format string, args ...interface{}) {
+ //
+ //	$ go build
+ //	# fmt
+-//	/usr/gopher/go/src/pkg/fmt/print.go:1090: undefined: asdf
++//	/usr/gopher/go/src/fmt/print.go:1090: undefined: asdf
+ //	$
+ //
+ // showOutput also replaces references to the work directory with $WORK.
+diff --git a/src/cmd/go/main.go b/src/cmd/go/main.go
+index eb69606def..9691f39c76 100644
+--- a/src/cmd/go/main.go
++++ b/src/cmd/go/main.go
+@@ -537,7 +537,7 @@ func matchPackages(pattern string) []string {
+ 	})
+ 
+ 	for _, src := range buildContext.SrcDirs() {
+-		if pattern == "std" && src != gorootSrcPkg {
++		if pattern == "std" && src != gorootSrc {
+ 			continue
+ 		}
+ 		src = filepath.Clean(src) + string(filepath.Separator)
+@@ -619,7 +619,7 @@ func matchPackagesInFS(pattern string) []string {
+ 			// The initial case is not Cleaned, though, so we do this explicitly.
+ 			//
+ 			// This converts a path like "./io/" to "io". Without this step, running
+-			// "cd $GOROOT/src/pkg; go list ./io/..." would incorrectly skip the io
++			// "cd $GOROOT/src; go list ./io/..." would incorrectly skip the io
+ 			// package, because prepending the prefix "./" to the unclean path would
+ 			// result in "././io", and match("././io") returns false.
+ 			path = filepath.Clean(path)
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index 1af33f037a..63875aed5a 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -218,7 +218,7 @@ func dirToImportPath(dir string) string {
+ }
+ 
+ func makeImportValid(r rune) rune {
+-	// Should match Go spec, compilers, and ../../pkg/go/parser/parser.go:/isValidImport.
++	// Should match Go spec, compilers, and ../../go/parser/parser.go:/isValidImport.
+ 	const illegalChars = `!"#$%&'()*,:;<=>?[\]^{|}` + "`\uFFFD"
+ 	if !unicode.IsGraphic(r) || unicode.IsSpace(r) || strings.ContainsRune(illegalChars, r) {
+ 		return '_'
+@@ -783,24 +783,13 @@ func loadPackage(arg string, stk *importStack) *Package {
+ 			arg = sub
+ 		}
+ 	}
+-	if strings.HasPrefix(arg, "cmd/") {
++	if strings.HasPrefix(arg, "cmd/") && !strings.Contains(arg[4:], "/") {
+ 		if p := cmdCache[arg]; p != nil {
+ 			return p
+ 		}
+ 		stk.push(arg)
+ 		defer stk.pop()
+ 
+-		if strings.Contains(arg[4:], "/") {
+-			p := &Package{
+-				Error: &PackageError{
+-					ImportStack: stk.copy(),
+-					Err:         fmt.Sprintf("invalid import path: cmd/... is reserved for Go commands"),
+-					hard:        true,
+-				},
+-			}
+-			return p
+-		}
+-
+ 		bp, err := buildContext.ImportDir(filepath.Join(gorootSrc, arg), 0)
+ 		bp.ImportPath = arg
+ 		bp.Goroot = true
+diff --git a/src/cmd/go/test.bash b/src/cmd/go/test.bash
+index 24640e2723..13886e158b 100755
+--- a/src/cmd/go/test.bash
++++ b/src/cmd/go/test.bash
+@@ -430,7 +430,7 @@ fi
+ # Test that without GOPATH set, go get should fail
+ TEST without GOPATH, go get fails
+ d=$(mktemp -d -t testgoXXX)
+-mkdir -p $d/src/pkg
++mkdir -p $d/src
+ if GOPATH= GOROOT=$d ./testgo get -d code.google.com/p/go.codereview/cmd/hgpatch ; then 
+ 	echo 'go get code.google.com/p/go.codereview/cmd/hgpatch should not succeed with $GOPATH unset'
+ 	ok=false
+@@ -440,7 +440,7 @@ rm -rf $d
+ # Test that with GOPATH=$GOROOT, go get should fail
+ TEST with GOPATH=GOROOT, go get fails
+ d=$(mktemp -d -t testgoXXX)
+-mkdir -p $d/src/pkg
++mkdir -p $d/src
+ if GOPATH=$d GOROOT=$d ./testgo get -d code.google.com/p/go.codereview/cmd/hgpatch ; then
+         echo 'go get code.google.com/p/go.codereview/cmd/hgpatch should not succeed with GOPATH=$GOROOT'
+         ok=false
+@@ -595,7 +595,7 @@ export GOPATH=$(pwd)/testdata/shadow/root1:$(pwd)/testdata/shadow/root2
+ 
+ # The math in root1 is not "math" because the standard math is.
+ cdir=$(./testgo list -f '({{.ImportPath}}) ({{.ConflictDir}})' ./testdata/shadow/root1/src/math)
+-if [ "$cdir" != "(_$(pwd)/testdata/shadow/root1/src/math) ($GOROOT/src/pkg/math)" ]; then
++if [ "$cdir" != "(_$(pwd)/testdata/shadow/root1/src/math) ($GOROOT/src/math)" ]; then
+ 	echo shadowed math is not shadowed: "$cdir"
+ 	ok=false
+ fi
+diff --git a/src/cmd/gofmt/doc.go b/src/cmd/gofmt/doc.go
+index 8f73ef5b9d..3fc0439548 100644
+--- a/src/cmd/gofmt/doc.go
++++ b/src/cmd/gofmt/doc.go
+@@ -67,7 +67,7 @@ To remove the parentheses:
+ 
+ To convert the package tree from explicit slice upper bounds to implicit ones:
+ 
+-	gofmt -r 'α[β:len(α)] -> α[β:]' -w $GOROOT/src/pkg
++	gofmt -r 'α[β:len(α)] -> α[β:]' -w $GOROOT/src
+ 
+ The simplify command
+ 
+diff --git a/src/cmd/ld/data.c b/src/cmd/ld/data.c
+index 098403a743..71624c3304 100644
+--- a/src/cmd/ld/data.c
++++ b/src/cmd/ld/data.c
+@@ -35,7 +35,7 @@
+ #include	"../ld/elf.h"
+ #include	"../ld/macho.h"
+ #include	"../ld/pe.h"
+-#include	"../../pkg/runtime/mgc0.h"
++#include	"../../runtime/mgc0.h"
+ 
+ void	dynreloc(void);
+ 
+diff --git a/src/cmd/ld/decodesym.c b/src/cmd/ld/decodesym.c
+index b5fe47ce9f..c530669425 100644
+--- a/src/cmd/ld/decodesym.c
++++ b/src/cmd/ld/decodesym.c
+@@ -4,10 +4,10 @@
+ 
+ #include	"l.h"
+ #include	"lib.h"
+-#include	"../../pkg/runtime/typekind.h"
++#include	"../../runtime/typekind.h"
+ 
+ // Decoding the type.* symbols.	 This has to be in sync with
+-// ../../pkg/runtime/type.go, or more specificaly, with what
++// ../../runtime/type.go, or more specificaly, with what
+ // ../gc/reflect.c stuffs in these.
+ 
+ static Reloc*
+diff --git a/src/cmd/ld/dwarf.c b/src/cmd/ld/dwarf.c
+index 3f93f58184..4efb0ed537 100644
+--- a/src/cmd/ld/dwarf.c
++++ b/src/cmd/ld/dwarf.c
+@@ -19,7 +19,7 @@
+ #include	"../ld/elf.h"
+ #include	"../ld/macho.h"
+ #include	"../ld/pe.h"
+-#include	"../../pkg/runtime/typekind.h"
++#include	"../../runtime/typekind.h"
+ 
+ /*
+  * Offsets and sizes of the debug_* sections in the cout file.
+diff --git a/src/cmd/ld/lib.c b/src/cmd/ld/lib.c
+index 51e10bb99d..651705a2e6 100644
+--- a/src/cmd/ld/lib.c
++++ b/src/cmd/ld/lib.c
+@@ -33,8 +33,8 @@
+ #include	"lib.h"
+ #include	"../ld/elf.h"
+ #include	"../ld/dwarf.h"
+-#include	"../../pkg/runtime/stack.h"
+-#include	"../../pkg/runtime/funcdata.h"
++#include	"../../runtime/stack.h"
++#include	"../../runtime/funcdata.h"
+ 
+ #include	<ar.h>
+ #if !(defined(_WIN32) || defined(PLAN9))
+@@ -899,7 +899,7 @@ unmal(void *v, uint32 n)
+  * escaping are %, ., and ", but we escape all control characters too.
+  *
+  * If you edit this, edit ../gc/subr.c:/^pathtoprefix too.
+- * If you edit this, edit ../../pkg/debug/goobj/read.go:/importPathToPrefix too.
++ * If you edit this, edit ../../debug/goobj/read.go:/importPathToPrefix too.
+  */
+ static char*
+ pathtoprefix(char *s)
+diff --git a/src/cmd/ld/pcln.c b/src/cmd/ld/pcln.c
+index 3cd9e65dad..69671c0fc9 100644
+--- a/src/cmd/ld/pcln.c
++++ b/src/cmd/ld/pcln.c
+@@ -4,7 +4,7 @@
+ 
+ #include	"l.h"
+ #include	"lib.h"
+-#include	"../../pkg/runtime/funcdata.h"
++#include	"../../runtime/funcdata.h"
+ 
+ static void
+ addvarint(Pcdata *d, uint32 val)
+diff --git a/src/cmd/nm/nm_test.go b/src/cmd/nm/nm_test.go
+index f447e8e491..cb555d8273 100644
+--- a/src/cmd/nm/nm_test.go
++++ b/src/cmd/nm/nm_test.go
+@@ -83,7 +83,7 @@ func TestNM(t *testing.T) {
+ 		"plan9obj/testdata/386-plan9-exec",
+ 	}
+ 	for _, f := range testfiles {
+-		exepath := filepath.Join(runtime.GOROOT(), "src", "pkg", "debug", f)
++		exepath := filepath.Join(runtime.GOROOT(), "src", "debug", f)
+ 		cmd := exec.Command(testnmpath, exepath)
+ 		out, err := cmd.CombinedOutput()
+ 		if err != nil {
+diff --git a/src/liblink/asm5.c b/src/liblink/asm5.c
+index 65c4ca199a..96df9f7919 100644
+--- a/src/liblink/asm5.c
++++ b/src/liblink/asm5.c
+@@ -35,7 +35,7 @@
+ #include <bio.h>
+ #include <link.h>
+ #include "../cmd/5l/5.out.h"
+-#include "../pkg/runtime/stack.h"
++#include "../runtime/stack.h"
+ 
+ typedef	struct	Optab	Optab;
+ typedef	struct	Oprang	Oprang;
+diff --git a/src/liblink/asm6.c b/src/liblink/asm6.c
+index 999507650d..428eb9442b 100644
+--- a/src/liblink/asm6.c
++++ b/src/liblink/asm6.c
+@@ -35,7 +35,7 @@
+ #include <bio.h>
+ #include <link.h>
+ #include "../cmd/6l/6.out.h"
+-#include "../pkg/runtime/stack.h"
++#include "../runtime/stack.h"
+ 
+ enum
+ {
+diff --git a/src/liblink/asm8.c b/src/liblink/asm8.c
+index 6035017b2c..b6627d5fd7 100644
+--- a/src/liblink/asm8.c
++++ b/src/liblink/asm8.c
+@@ -35,7 +35,7 @@
+ #include <bio.h>
+ #include <link.h>
+ #include "../cmd/8l/8.out.h"
+-#include "../pkg/runtime/stack.h"
++#include "../runtime/stack.h"
+ 
+ enum
+ {
+diff --git a/src/liblink/obj5.c b/src/liblink/obj5.c
+index 0b6b8deb5f..6630a59231 100644
+--- a/src/liblink/obj5.c
++++ b/src/liblink/obj5.c
+@@ -33,7 +33,7 @@
+ #include <bio.h>
+ #include <link.h>
+ #include "../cmd/5l/5.out.h"
+-#include "../pkg/runtime/stack.h"
++#include "../runtime/stack.h"
+ 
+ static Prog zprg = {
+ 	.as = AGOK,
+diff --git a/src/liblink/obj6.c b/src/liblink/obj6.c
+index 3c62470be9..6a7ff48b0a 100644
+--- a/src/liblink/obj6.c
++++ b/src/liblink/obj6.c
+@@ -33,7 +33,7 @@
+ #include <bio.h>
+ #include <link.h>
+ #include "../cmd/6l/6.out.h"
+-#include "../pkg/runtime/stack.h"
++#include "../runtime/stack.h"
+ 
+ static Prog zprg = {
+ 	.back = 2,
+diff --git a/src/liblink/obj8.c b/src/liblink/obj8.c
+index fa1e1ca243..03f12462e8 100644
+--- a/src/liblink/obj8.c
++++ b/src/liblink/obj8.c
+@@ -33,7 +33,7 @@
+ #include <bio.h>
+ #include <link.h>
+ #include "../cmd/8l/8.out.h"
+-#include "../pkg/runtime/stack.h"
++#include "../runtime/stack.h"
+ 
+ static Prog zprg = {
+ 	.back = 2,
+diff --git a/src/liblink/sym.c b/src/liblink/sym.c
+index ec07957f47..bd85518467 100644
+--- a/src/liblink/sym.c
++++ b/src/liblink/sym.c
+@@ -163,7 +163,7 @@ linknew(LinkArch *arch)
+ 	case Hdarwin:
+ 		/*
+ 		 * OS X system constants - offset from 0(GS) to our TLS.
+-		 * Explained in ../../pkg/runtime/cgo/gcc_darwin_*.c.
++		 * Explained in ../../runtime/cgo/gcc_darwin_*.c.
+ 		 */
+ 		switch(ctxt->arch->thechar) {
+ 		default:
+diff --git a/src/make.bash b/src/make.bash
+index d7b63ff093..fbc6f5d89d 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -106,7 +106,7 @@ if [ "$(uname -s)" == "GNU/kFreeBSD" ]; then
+ fi
+ 
+ # Clean old generated file that will cause problems in the build.
+-rm -f ./pkg/runtime/runtime_defs.go
++rm -f ./runtime/runtime_defs.go
+ 
+ # Finally!  Run the build.
+ 
+diff --git a/src/make.rc b/src/make.rc
+index ab152c0db1..7a62d6af00 100755
+--- a/src/make.rc
++++ b/src/make.rc
+@@ -40,7 +40,7 @@ if(! test -f run.rc){
+ ../include/plan9/mklibc.rc > ../include/plan9/libc_plan9.h
+ 
+ # Clean old generated file that will cause problems in the build.
+-rm -f ./pkg/runtime/runtime_defs.go
++rm -f ./runtime/runtime_defs.go
+ 
+ # Determine the host compiler toolchain.
+ eval `{grep '^(CC|LD|O)=' /$objtype/mkfile}
+diff --git a/src/pkg/go/build/build.go b/src/pkg/go/build/build.go
+index 1a133041e8..69cb4b2f6b 100644
+--- a/src/pkg/go/build/build.go
++++ b/src/pkg/go/build/build.go
+@@ -207,9 +207,7 @@ func (ctxt *Context) gopath() []string {
+ 		if p == "" || p == ctxt.GOROOT {
+ 			// Empty paths are uninteresting.
+ 			// If the path is the GOROOT, ignore it.
+-			// People sometimes set GOPATH=$GOROOT, which is useless
+-			// but would cause us to find packages with import paths
+-			// like "pkg/math".
++			// People sometimes set GOPATH=$GOROOT.
+ 			// Do not get confused by this common mistake.
+ 			continue
+ 		}
+@@ -239,7 +237,7 @@ func (ctxt *Context) gopath() []string {
+ func (ctxt *Context) SrcDirs() []string {
+ 	var all []string
+ 	if ctxt.GOROOT != "" {
+-		dir := ctxt.joinPath(ctxt.GOROOT, "src", "pkg")
++		dir := ctxt.joinPath(ctxt.GOROOT, "src")
+ 		if ctxt.isDir(dir) {
+ 			all = append(all, dir)
+ 		}
+@@ -479,7 +477,7 @@ func (ctxt *Context) Import(path string, srcDir string, mode ImportMode) (*Packa
+ 		}
+ 		// Determine canonical import path, if any.
+ 		if ctxt.GOROOT != "" {
+-			root := ctxt.joinPath(ctxt.GOROOT, "src", "pkg")
++			root := ctxt.joinPath(ctxt.GOROOT, "src")
+ 			if sub, ok := ctxt.hasSubdir(root, p.Dir); ok {
+ 				p.Goroot = true
+ 				p.ImportPath = sub
+@@ -495,7 +493,7 @@ func (ctxt *Context) Import(path string, srcDir string, mode ImportMode) (*Packa
+ 				// but check that using it wouldn't find something
+ 				// else first.
+ 				if ctxt.GOROOT != "" {
+-					if dir := ctxt.joinPath(ctxt.GOROOT, "src", "pkg", sub); ctxt.isDir(dir) {
++					if dir := ctxt.joinPath(ctxt.GOROOT, "src", sub); ctxt.isDir(dir) {
+ 						p.ConflictDir = dir
+ 						goto Found
+ 					}
+@@ -529,12 +527,7 @@ func (ctxt *Context) Import(path string, srcDir string, mode ImportMode) (*Packa
+ 
+ 		// Determine directory from import path.
+ 		if ctxt.GOROOT != "" {
+-			var dir string
+-			if strings.HasPrefix(path, "cmd/") {
+-				dir = ctxt.joinPath(ctxt.GOROOT, "src", path)
+-			} else {
+-				dir = ctxt.joinPath(ctxt.GOROOT, "src", "pkg", path)
+-			}
++			dir := ctxt.joinPath(ctxt.GOROOT, "src", path)
+ 			isDir := ctxt.isDir(dir)
+ 			binaryOnly = !isDir && mode&AllowBinary != 0 && pkga != "" && ctxt.isFile(ctxt.joinPath(ctxt.GOROOT, pkga))
+ 			if isDir || binaryOnly {
+@@ -580,11 +573,7 @@ func (ctxt *Context) Import(path string, srcDir string, mode ImportMode) (*Packa
+ 
+ Found:
+ 	if p.Root != "" {
+-		if p.Goroot {
+-			p.SrcRoot = ctxt.joinPath(p.Root, "src", "pkg")
+-		} else {
+-			p.SrcRoot = ctxt.joinPath(p.Root, "src")
+-		}
++		p.SrcRoot = ctxt.joinPath(p.Root, "src")
+ 		p.PkgRoot = ctxt.joinPath(p.Root, "pkg")
+ 		p.BinDir = ctxt.joinPath(p.Root, "bin")
+ 		if pkga != "" {
+diff --git a/src/pkg/math/sqrt.go b/src/pkg/math/sqrt.go
+index 1bd4437f15..fdc869992e 100644
+--- a/src/pkg/math/sqrt.go
++++ b/src/pkg/math/sqrt.go
+@@ -80,7 +80,7 @@ package math
+ //
+ //
+ // Notes:  Rounding mode detection omitted.  The constants "mask", "shift",
+-// and "bias" are found in src/pkg/math/bits.go
++// and "bias" are found in src/math/bits.go
+ 
+ // Sqrt returns the square root of x.
+ //
+diff --git a/src/pkg/net/http/httptest/server.go b/src/pkg/net/http/httptest/server.go
+index 7f265552f5..789e7bf41e 100644
+--- a/src/pkg/net/http/httptest/server.go
++++ b/src/pkg/net/http/httptest/server.go
+@@ -203,7 +203,7 @@ func (h *waitGroupHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+ // localhostCert is a PEM-encoded TLS cert with SAN IPs
+ // "127.0.0.1" and "[::1]", expiring at the last second of 2049 (the end
+ // of ASN.1 time).
+-// generated from src/pkg/crypto/tls:
++// generated from src/crypto/tls:
+ // go run generate_cert.go  --rsa-bits 512 --host 127.0.0.1,::1,example.com --ca --start-date "Jan 1 00:00:00 1970" --duration=1000000h
+ var localhostCert = []byte(`-----BEGIN CERTIFICATE-----
+ MIIBdzCCASOgAwIBAgIBADALBgkqhkiG9w0BAQUwEjEQMA4GA1UEChMHQWNtZSBD
+diff --git a/src/pkg/net/smtp/smtp_test.go b/src/pkg/net/smtp/smtp_test.go
+index 3fba1ea5ae..5c659e8a09 100644
+--- a/src/pkg/net/smtp/smtp_test.go
++++ b/src/pkg/net/smtp/smtp_test.go
+@@ -669,7 +669,7 @@ func sendMail(hostPort string) error {
+ // localhostCert is a PEM-encoded TLS cert with SAN IPs
+ // "127.0.0.1" and "[::1]", expiring at the last second of 2049 (the end
+ // of ASN.1 time).
+-// generated from src/pkg/crypto/tls:
++// generated from src/crypto/tls:
+ // go run generate_cert.go  --rsa-bits 512 --host 127.0.0.1,::1,example.com --ca --start-date "Jan 1 00:00:00 1970" --duration=1000000h
+ var localhostCert = []byte(`-----BEGIN CERTIFICATE-----
+ MIIBdzCCASOgAwIBAgIBADALBgkqhkiG9w0BAQUwEjEQMA4GA1UEChMHQWNtZSBD
+diff --git a/src/pkg/reflect/type.go b/src/pkg/reflect/type.go
+index 47aecd0023..6817cd74d7 100644
+--- a/src/pkg/reflect/type.go
++++ b/src/pkg/reflect/type.go
+@@ -1563,7 +1563,7 @@ const (
+ 	bitsPointer = 2
+ )
+ 
+-// Make sure these routines stay in sync with ../../pkg/runtime/hashmap.go!
++// Make sure these routines stay in sync with ../../runtime/hashmap.go!
+ // These types exist only for GC, so we only fill out GC relevant info.
+ // Currently, that's just size and the GC program.  We also fill in string
+ // for possible debugging use.
+diff --git a/src/pkg/reflect/value.go b/src/pkg/reflect/value.go
+index adaafab9c9..368116a507 100644
+--- a/src/pkg/reflect/value.go
++++ b/src/pkg/reflect/value.go
+@@ -2679,7 +2679,7 @@ func cvtI2I(v Value, typ Type) Value {
+ 	return cvtT2I(v.Elem(), typ)
+ }
+ 
+-// implemented in ../pkg/runtime
++// implemented in ../runtime
+ func chancap(ch unsafe.Pointer) int
+ func chanclose(ch unsafe.Pointer)
+ func chanlen(ch unsafe.Pointer) int
+diff --git a/src/pkg/runtime/Makefile b/src/pkg/runtime/Makefile
+index 5827ce134c..55087def04 100644
+--- a/src/pkg/runtime/Makefile
++++ b/src/pkg/runtime/Makefile
+@@ -2,4 +2,4 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../Make.dist
++include ../Make.dist
+diff --git a/src/pkg/runtime/debug/stack_test.go b/src/pkg/runtime/debug/stack_test.go
+index bbd662618f..28691ee4d5 100644
+--- a/src/pkg/runtime/debug/stack_test.go
++++ b/src/pkg/runtime/debug/stack_test.go
+@@ -22,15 +22,15 @@ func (t T) method() []byte {
+ 	The traceback should look something like this, modulo line numbers and hex constants.
+ 	Don't worry much about the base levels, but check the ones in our own package.
+ 
+-		/Users/r/go/src/pkg/runtime/debug/stack_test.go:15 (0x13878)
++		/Users/r/go/src/runtime/debug/stack_test.go:15 (0x13878)
+ 			(*T).ptrmethod: return Stack()
+-		/Users/r/go/src/pkg/runtime/debug/stack_test.go:18 (0x138dd)
++		/Users/r/go/src/runtime/debug/stack_test.go:18 (0x138dd)
+ 			T.method: return t.ptrmethod()
+-		/Users/r/go/src/pkg/runtime/debug/stack_test.go:23 (0x13920)
++		/Users/r/go/src/runtime/debug/stack_test.go:23 (0x13920)
+ 			TestStack: b := T(0).method()
+-		/Users/r/go/src/pkg/testing/testing.go:132 (0x14a7a)
++		/Users/r/go/src/testing/testing.go:132 (0x14a7a)
+ 			tRunner: test.F(t)
+-		/Users/r/go/src/pkg/runtime/proc.c:145 (0xc970)
++		/Users/r/go/src/runtime/proc.c:145 (0xc970)
+ 			???: runtime·unlock(&runtime·sched);
+ */
+ func TestStack(t *testing.T) {
+@@ -49,10 +49,10 @@ func TestStack(t *testing.T) {
+ 			n++
+ 		}
+ 	}
+-	frame("src/pkg/runtime/debug/stack_test.go", "\t(*T).ptrmethod: return Stack()")
+-	frame("src/pkg/runtime/debug/stack_test.go", "\tT.method: return t.ptrmethod()")
+-	frame("src/pkg/runtime/debug/stack_test.go", "\tTestStack: b := T(0).method()")
+-	frame("src/pkg/testing/testing.go", "")
++	frame("src/runtime/debug/stack_test.go", "\t(*T).ptrmethod: return Stack()")
++	frame("src/runtime/debug/stack_test.go", "\tT.method: return t.ptrmethod()")
++	frame("src/runtime/debug/stack_test.go", "\tTestStack: b := T(0).method()")
++	frame("src/testing/testing.go", "")
+ }
+ 
+ func check(t *testing.T, line, has string) {
+diff --git a/src/pkg/runtime/pprof/pprof_test.go b/src/pkg/runtime/pprof/pprof_test.go
+index df271273ce..54f93f8610 100644
+--- a/src/pkg/runtime/pprof/pprof_test.go
++++ b/src/pkg/runtime/pprof/pprof_test.go
+@@ -310,45 +310,45 @@ func TestBlockProfile(t *testing.T) {
+ 	tests := [...]TestCase{
+ 		{"chan recv", blockChanRecv, `
+ [0-9]+ [0-9]+ @ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+
+-#	0x[0-9,a-f]+	runtime\.chanrecv1\+0x[0-9,a-f]+	.*/src/pkg/runtime/chan.go:[0-9]+
+-#	0x[0-9,a-f]+	runtime/pprof_test\.blockChanRecv\+0x[0-9,a-f]+	.*/src/pkg/runtime/pprof/pprof_test.go:[0-9]+
+-#	0x[0-9,a-f]+	runtime/pprof_test\.TestBlockProfile\+0x[0-9,a-f]+	.*/src/pkg/runtime/pprof/pprof_test.go:[0-9]+
++#	0x[0-9,a-f]+	runtime\.chanrecv1\+0x[0-9,a-f]+	.*/src/runtime/chan.go:[0-9]+
++#	0x[0-9,a-f]+	runtime/pprof_test\.blockChanRecv\+0x[0-9,a-f]+	.*/src/runtime/pprof/pprof_test.go:[0-9]+
++#	0x[0-9,a-f]+	runtime/pprof_test\.TestBlockProfile\+0x[0-9,a-f]+	.*/src/runtime/pprof/pprof_test.go:[0-9]+
+ `},
+ 		{"chan send", blockChanSend, `
+ [0-9]+ [0-9]+ @ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+
+-#	0x[0-9,a-f]+	runtime\.chansend1\+0x[0-9,a-f]+	.*/src/pkg/runtime/chan.go:[0-9]+
+-#	0x[0-9,a-f]+	runtime/pprof_test\.blockChanSend\+0x[0-9,a-f]+	.*/src/pkg/runtime/pprof/pprof_test.go:[0-9]+
+-#	0x[0-9,a-f]+	runtime/pprof_test\.TestBlockProfile\+0x[0-9,a-f]+	.*/src/pkg/runtime/pprof/pprof_test.go:[0-9]+
++#	0x[0-9,a-f]+	runtime\.chansend1\+0x[0-9,a-f]+	.*/src/runtime/chan.go:[0-9]+
++#	0x[0-9,a-f]+	runtime/pprof_test\.blockChanSend\+0x[0-9,a-f]+	.*/src/runtime/pprof/pprof_test.go:[0-9]+
++#	0x[0-9,a-f]+	runtime/pprof_test\.TestBlockProfile\+0x[0-9,a-f]+	.*/src/runtime/pprof/pprof_test.go:[0-9]+
+ `},
+ 		{"chan close", blockChanClose, `
+ [0-9]+ [0-9]+ @ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+
+-#	0x[0-9,a-f]+	runtime\.chanrecv1\+0x[0-9,a-f]+	.*/src/pkg/runtime/chan.go:[0-9]+
+-#	0x[0-9,a-f]+	runtime/pprof_test\.blockChanClose\+0x[0-9,a-f]+	.*/src/pkg/runtime/pprof/pprof_test.go:[0-9]+
+-#	0x[0-9,a-f]+	runtime/pprof_test\.TestBlockProfile\+0x[0-9,a-f]+	.*/src/pkg/runtime/pprof/pprof_test.go:[0-9]+
++#	0x[0-9,a-f]+	runtime\.chanrecv1\+0x[0-9,a-f]+	.*/src/runtime/chan.go:[0-9]+
++#	0x[0-9,a-f]+	runtime/pprof_test\.blockChanClose\+0x[0-9,a-f]+	.*/src/runtime/pprof/pprof_test.go:[0-9]+
++#	0x[0-9,a-f]+	runtime/pprof_test\.TestBlockProfile\+0x[0-9,a-f]+	.*/src/runtime/pprof/pprof_test.go:[0-9]+
+ `},
+ 		{"select recv async", blockSelectRecvAsync, `
+ [0-9]+ [0-9]+ @ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+
+-#	0x[0-9,a-f]+	runtime\.selectgo\+0x[0-9,a-f]+	.*/src/pkg/runtime/select.go:[0-9]+
+-#	0x[0-9,a-f]+	runtime/pprof_test\.blockSelectRecvAsync\+0x[0-9,a-f]+	.*/src/pkg/runtime/pprof/pprof_test.go:[0-9]+
+-#	0x[0-9,a-f]+	runtime/pprof_test\.TestBlockProfile\+0x[0-9,a-f]+	.*/src/pkg/runtime/pprof/pprof_test.go:[0-9]+
++#	0x[0-9,a-f]+	runtime\.selectgo\+0x[0-9,a-f]+	.*/src/runtime/select.go:[0-9]+
++#	0x[0-9,a-f]+	runtime/pprof_test\.blockSelectRecvAsync\+0x[0-9,a-f]+	.*/src/runtime/pprof/pprof_test.go:[0-9]+
++#	0x[0-9,a-f]+	runtime/pprof_test\.TestBlockProfile\+0x[0-9,a-f]+	.*/src/runtime/pprof/pprof_test.go:[0-9]+
+ `},
+ 		{"select send sync", blockSelectSendSync, `
+ [0-9]+ [0-9]+ @ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+
+-#	0x[0-9,a-f]+	runtime\.selectgo\+0x[0-9,a-f]+	.*/src/pkg/runtime/select.go:[0-9]+
+-#	0x[0-9,a-f]+	runtime/pprof_test\.blockSelectSendSync\+0x[0-9,a-f]+	.*/src/pkg/runtime/pprof/pprof_test.go:[0-9]+
+-#	0x[0-9,a-f]+	runtime/pprof_test\.TestBlockProfile\+0x[0-9,a-f]+	.*/src/pkg/runtime/pprof/pprof_test.go:[0-9]+
++#	0x[0-9,a-f]+	runtime\.selectgo\+0x[0-9,a-f]+	.*/src/runtime/select.go:[0-9]+
++#	0x[0-9,a-f]+	runtime/pprof_test\.blockSelectSendSync\+0x[0-9,a-f]+	.*/src/runtime/pprof/pprof_test.go:[0-9]+
++#	0x[0-9,a-f]+	runtime/pprof_test\.TestBlockProfile\+0x[0-9,a-f]+	.*/src/runtime/pprof/pprof_test.go:[0-9]+
+ `},
+ 		{"mutex", blockMutex, `
+ [0-9]+ [0-9]+ @ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+
+-#	0x[0-9,a-f]+	sync\.\(\*Mutex\)\.Lock\+0x[0-9,a-f]+	.*/src/pkg/sync/mutex\.go:[0-9]+
+-#	0x[0-9,a-f]+	runtime/pprof_test\.blockMutex\+0x[0-9,a-f]+	.*/src/pkg/runtime/pprof/pprof_test.go:[0-9]+
+-#	0x[0-9,a-f]+	runtime/pprof_test\.TestBlockProfile\+0x[0-9,a-f]+	.*/src/pkg/runtime/pprof/pprof_test.go:[0-9]+
++#	0x[0-9,a-f]+	sync\.\(\*Mutex\)\.Lock\+0x[0-9,a-f]+	.*/src/sync/mutex\.go:[0-9]+
++#	0x[0-9,a-f]+	runtime/pprof_test\.blockMutex\+0x[0-9,a-f]+	.*/src/runtime/pprof/pprof_test.go:[0-9]+
++#	0x[0-9,a-f]+	runtime/pprof_test\.TestBlockProfile\+0x[0-9,a-f]+	.*/src/runtime/pprof/pprof_test.go:[0-9]+
+ `},
+ 		{"cond", blockCond, `
+ [0-9]+ [0-9]+ @ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+
+-#	0x[0-9,a-f]+	sync\.\(\*Cond\)\.Wait\+0x[0-9,a-f]+	.*/src/pkg/sync/cond\.go:[0-9]+
+-#	0x[0-9,a-f]+	runtime/pprof_test\.blockCond\+0x[0-9,a-f]+	.*/src/pkg/runtime/pprof/pprof_test.go:[0-9]+
+-#	0x[0-9,a-f]+	runtime/pprof_test\.TestBlockProfile\+0x[0-9,a-f]+	.*/src/pkg/runtime/pprof/pprof_test.go:[0-9]+
++#	0x[0-9,a-f]+	sync\.\(\*Cond\)\.Wait\+0x[0-9,a-f]+	.*/src/sync/cond\.go:[0-9]+
++#	0x[0-9,a-f]+	runtime/pprof_test\.blockCond\+0x[0-9,a-f]+	.*/src/runtime/pprof/pprof_test.go:[0-9]+
++#	0x[0-9,a-f]+	runtime/pprof_test\.TestBlockProfile\+0x[0-9,a-f]+	.*/src/runtime/pprof/pprof_test.go:[0-9]+
+ `},
+ 	}
+ 
+diff --git a/src/pkg/runtime/race/race.go b/src/pkg/runtime/race/race.go
+index 3c297e84b2..31deedd73d 100644
+--- a/src/pkg/runtime/race/race.go
++++ b/src/pkg/runtime/race/race.go
+@@ -9,7 +9,7 @@ package race
+ // This file merely ensures that we link in runtime/cgo in race build,
+ // this is turn ensures that runtime uses pthread_create to create threads.
+ // The prebuilt race runtime lives in race_GOOS_GOARCH.syso.
+-// Calls to the runtime are done directly from src/pkg/runtime/race.c.
++// Calls to the runtime are done directly from src/runtime/race.c.
+ 
+ // void __race_unused_func(void);
+ import "C"
+diff --git a/src/pkg/runtime/runtime_test.go b/src/pkg/runtime/runtime_test.go
+index 5e24e2570c..cffc9f7d35 100644
+--- a/src/pkg/runtime/runtime_test.go
++++ b/src/pkg/runtime/runtime_test.go
+@@ -106,7 +106,7 @@ func TestRuntimeGogoBytes(t *testing.T) {
+ 	}
+ 	defer os.RemoveAll(dir)
+ 
+-	out, err := exec.Command("go", "build", "-o", dir+"/hello", "../../../test/helloworld.go").CombinedOutput()
++	out, err := exec.Command("go", "build", "-o", dir+"/hello", "../../test/helloworld.go").CombinedOutput()
+ 	if err != nil {
+ 		t.Fatalf("building hello world: %v\n%s", err, out)
+ 	}
+diff --git a/src/pkg/sync/atomic/race.s b/src/pkg/sync/atomic/race.s
+index 4dadc9ed7e..bdce7668bc 100644
+--- a/src/pkg/sync/atomic/race.s
++++ b/src/pkg/sync/atomic/race.s
+@@ -5,4 +5,4 @@
+ // +build race
+ 
+ // This file is here only to allow external functions.
+-// The operations are implemented in src/pkg/runtime/race_amd64.s
++// The operations are implemented in src/runtime/race_amd64.s
+diff --git a/test/bench/garbage/parser.go b/test/bench/garbage/parser.go
+index d85110b63d..a685507c5e 100644
+--- a/test/bench/garbage/parser.go
++++ b/test/bench/garbage/parser.go
+@@ -85,7 +85,7 @@ func main() {
+ 	var t0 time.Time
+ 	var numGC uint32
+ 	var pauseTotalNs uint64
+-	pkgroot := runtime.GOROOT() + "/src/pkg/"
++	pkgroot := runtime.GOROOT() + "/src/"
+ 	for pass := 0; pass < 2; pass++ {
+ 		// Once the heap is grown to full size, reset counters.
+ 		// This hides the start-up pauses, which are much smaller
+diff --git a/test/stress/parsego.go b/test/stress/parsego.go
+index a781f19937..a5856dd80a 100644
+--- a/test/stress/parsego.go
++++ b/test/stress/parsego.go
+@@ -64,7 +64,7 @@ func parseDir(dirpath string) map[string]*ast.Package {
+ }
+ 
+ func stressParseGo() {
+-	pkgroot := runtime.GOROOT() + "/src/pkg/"
++	pkgroot := runtime.GOROOT() + "/src/"
+ 	for {
+ 		m := make(map[string]map[string]*ast.Package)
+ 		for _, pkg := range packages {

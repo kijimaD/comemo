@@ -7,6 +7,19 @@ Date:   Fri Nov 18 12:41:25 2011 -0500
     R=r
     CC=golang-dev
     https://golang.org/cl/5413049
-
+---
  CONTRIBUTORS | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index fb1672978d..7869fa297b 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -138,6 +138,7 @@ Joe Poirier <jdpoirier@gmail.com>
+ Joel Sing <jsing@google.com>
+ Johan Euphrosine <proppy@google.com>
+ John Asmuth <jasmuth@gmail.com>
++John Beisley <huin@google.com>
+ John DeNero <denero@google.com>
+ Jonathan Allie <jonallie@google.com>
+ Jonathan Mark <jhmark@xenops.com> <jhmark000@gmail.com>

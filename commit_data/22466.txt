@@ -11,7 +11,7 @@ Date:   Mon Mar 9 00:31:13 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/7627
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/5g/peep.go                 |  4 ++--
  src/cmd/9l/asm.go                  |  2 +-
  src/cmd/internal/gc/bv.go          |  8 ++++----
@@ -27,3 +27,297 @@ Date:   Mon Mar 9 00:31:13 2015 -0400
  src/cmd/internal/obj/ppc64/obj9.go |  2 +-
  src/cmd/internal/obj/x86/obj6.go   |  2 +-
  14 files changed, 30 insertions(+), 27 deletions(-)
+
+diff --git a/src/cmd/5g/peep.go b/src/cmd/5g/peep.go
+index 4fd2225334..70109ac571 100644
+--- a/src/cmd/5g/peep.go
++++ b/src/cmd/5g/peep.go
+@@ -788,7 +788,7 @@ func shiftprop(r *gc.Flow) bool {
+ func findpre(r *gc.Flow, v *obj.Addr) *gc.Flow {
+ 	var r1 *gc.Flow
+ 
+-	for r1 = gc.Uniqp(r); r1 != nil; (func() { r = r1; r1 = gc.Uniqp(r) })() {
++	for r1 = gc.Uniqp(r); r1 != nil; r, r1 = r1, gc.Uniqp(r1) {
+ 		if gc.Uniqs(r1) != r {
+ 			return nil
+ 		}
+@@ -814,7 +814,7 @@ func findinc(r *gc.Flow, r2 *gc.Flow, v *obj.Addr) *gc.Flow {
+ 	var r1 *gc.Flow
+ 	var p *obj.Prog
+ 
+-	for r1 = gc.Uniqs(r); r1 != nil && r1 != r2; (func() { r = r1; r1 = gc.Uniqs(r) })() {
++	for r1 = gc.Uniqs(r); r1 != nil && r1 != r2; r, r1 = r1, gc.Uniqs(r1) {
+ 		if gc.Uniqp(r1) != r {
+ 			return nil
+ 		}
+diff --git a/src/cmd/9l/asm.go b/src/cmd/9l/asm.go
+index 2b6cdad208..a32b39c8e3 100644
+--- a/src/cmd/9l/asm.go
++++ b/src/cmd/9l/asm.go
+@@ -115,7 +115,7 @@ func gentext() {
+ 	// us to save and restore the TOC pointer.
+ 	pprevtextp = &ld.Ctxt.Textp
+ 
+-	for s = *pprevtextp; s != nil; (func() { pprevtextp = &s.Next; s = *pprevtextp })() {
++	for s = *pprevtextp; s != nil; pprevtextp, s = &s.Next, s.Next {
+ 		for i = range s.R {
+ 			r = &s.R[i]
+ 			if r.Type != 256+ld.R_PPC64_REL24 || r.Sym.Type != ld.SDYNIMPORT {
+diff --git a/src/cmd/internal/gc/bv.go b/src/cmd/internal/gc/bv.go
+index 07b17bb937..9ee23af10b 100644
+--- a/src/cmd/internal/gc/bv.go
++++ b/src/cmd/internal/gc/bv.go
+@@ -66,7 +66,7 @@ func bvandnot(dst Bvec, src1 Bvec, src2 Bvec) {
+ 	}
+ 	i = 0
+ 	w = 0
+-	for ; i < dst.n; (func() { i += WORDBITS; w++ })() {
++	for ; i < dst.n; i, w = i+WORDBITS, w+1 {
+ 		dst.b[w] = src1.b[w] &^ src2.b[w]
+ 	}
+ }
+@@ -157,7 +157,7 @@ func bvnot(bv Bvec) {
+ 
+ 	i = 0
+ 	w = 0
+-	for ; i < bv.n; (func() { i += WORDBITS; w++ })() {
++	for ; i < bv.n; i, w = i+WORDBITS, w+1 {
+ 		bv.b[w] = ^bv.b[w]
+ 	}
+ }
+@@ -172,7 +172,7 @@ func bvor(dst Bvec, src1 Bvec, src2 Bvec) {
+ 	}
+ 	i = 0
+ 	w = 0
+-	for ; i < dst.n; (func() { i += WORDBITS; w++ })() {
++	for ; i < dst.n; i, w = i+WORDBITS, w+1 {
+ 		dst.b[w] = src1.b[w] | src2.b[w]
+ 	}
+ }
+@@ -187,7 +187,7 @@ func bvand(dst Bvec, src1 Bvec, src2 Bvec) {
+ 	}
+ 	i = 0
+ 	w = 0
+-	for ; i < dst.n; (func() { i += WORDBITS; w++ })() {
++	for ; i < dst.n; i, w = i+WORDBITS, w+1 {
+ 		dst.b[w] = src1.b[w] & src2.b[w]
+ 	}
+ }
+diff --git a/src/cmd/internal/gc/esc.go b/src/cmd/internal/gc/esc.go
+index 3560cd3688..d7a88697c2 100644
+--- a/src/cmd/internal/gc/esc.go
++++ b/src/cmd/internal/gc/esc.go
+@@ -576,7 +576,7 @@ func esc(e *EscState, n *Node, up *Node) {
+ 		if count(n.List) == count(n.Rlist) {
+ 			ll = n.List
+ 			lr = n.Rlist
+-			for ; ll != nil; (func() { ll = ll.Next; lr = lr.Next })() {
++			for ; ll != nil; ll, lr = ll.Next, lr.Next {
+ 				escassign(e, ll.N, lr.N)
+ 			}
+ 		}
+@@ -615,7 +615,7 @@ func esc(e *EscState, n *Node, up *Node) {
+ 	case OAS2FUNC: // x,y = f()
+ 		lr = n.Rlist.N.Escretval
+ 
+-		for ll = n.List; lr != nil && ll != nil; (func() { lr = lr.Next; ll = ll.Next })() {
++		for ll = n.List; lr != nil && ll != nil; lr, ll = lr.Next, ll.Next {
+ 			escassign(e, ll.N, lr.N)
+ 		}
+ 		if lr != nil || ll != nil {
+@@ -973,7 +973,7 @@ func escassignfromtag(e *EscState, note *string, dsts *NodeList, src *Node) int
+ 	}
+ 
+ 	em0 := em
+-	for em >>= EscReturnBits; em != 0 && dsts != nil; (func() { em >>= 1; dsts = dsts.Next })() {
++	for em >>= EscReturnBits; em != 0 && dsts != nil; em, dsts = em>>1, dsts.Next {
+ 		if em&1 != 0 {
+ 			escassign(e, dsts.N, src)
+ 		}
+@@ -1043,7 +1043,7 @@ func esccall(e *EscState, n *Node, up *Node) {
+ 		}
+ 
+ 		var src *Node
+-		for lr = fn.Ntype.List; ll != nil && lr != nil; (func() { ll = ll.Next; lr = lr.Next })() {
++		for lr = fn.Ntype.List; ll != nil && lr != nil; ll, lr = ll.Next, lr.Next {
+ 			src = ll.N
+ 			if lr.N.Isddd && !n.Isddd {
+ 				// Introduce ODDDARG node to represent ... allocation.
+diff --git a/src/cmd/internal/gc/reflect.go b/src/cmd/internal/gc/reflect.go
+index 60d6ea510f..7b7eb6399e 100644
+--- a/src/cmd/internal/gc/reflect.go
++++ b/src/cmd/internal/gc/reflect.go
+@@ -1077,14 +1077,17 @@ ok:
+ 		ot = duintxx(s, ot, uint64(t.Outtuple), Widthint)
+ 
+ 		// slice data
+-		for t1 = getthisx(t).Type; t1 != nil; (func() { t1 = t1.Down; n++ })() {
++		for t1 = getthisx(t).Type; t1 != nil; t1 = t1.Down {
+ 			ot = dsymptr(s, ot, dtypesym(t1.Type), 0)
++			n++
+ 		}
+-		for t1 = getinargx(t).Type; t1 != nil; (func() { t1 = t1.Down; n++ })() {
++		for t1 = getinargx(t).Type; t1 != nil; t1 = t1.Down {
+ 			ot = dsymptr(s, ot, dtypesym(t1.Type), 0)
++			n++
+ 		}
+-		for t1 = getoutargx(t).Type; t1 != nil; (func() { t1 = t1.Down; n++ })() {
++		for t1 = getoutargx(t).Type; t1 != nil; t1 = t1.Down {
+ 			ot = dsymptr(s, ot, dtypesym(t1.Type), 0)
++			n++
+ 		}
+ 
+ 	case TINTER:
+@@ -1480,7 +1483,7 @@ func proggenarray(g *ProgGen, len int64) {
+ 
+ 	proggendataflush(g)
+ 	proggenemit(g, obj.InsArray)
+-	for i = 0; i < int32(Widthptr); (func() { i++; len >>= 8 })() {
++	for i = 0; i < int32(Widthptr); i, len = i+1, len>>8 {
+ 		proggenemit(g, uint8(len))
+ 	}
+ }
+diff --git a/src/cmd/internal/gc/subr.go b/src/cmd/internal/gc/subr.go
+index ec4958a2f4..7786a68a4b 100644
+--- a/src/cmd/internal/gc/subr.go
++++ b/src/cmd/internal/gc/subr.go
+@@ -1009,7 +1009,7 @@ func eqtype1(t1 *Type, t2 *Type, assumed_equal *TypePairList) bool {
+ 		TSTRUCT:
+ 		t1 = t1.Type
+ 		t2 = t2.Type
+-		for ; t1 != nil && t2 != nil; (func() { t1 = t1.Down; t2 = t2.Down })() {
++		for ; t1 != nil && t2 != nil; t1, t2 = t1.Down, t2.Down {
+ 			if t1.Etype != TFIELD || t2.Etype != TFIELD {
+ 				Fatal("struct/interface missing field: %v %v", Tconv(t1, 0), Tconv(t2, 0))
+ 			}
+@@ -1027,7 +1027,7 @@ func eqtype1(t1 *Type, t2 *Type, assumed_equal *TypePairList) bool {
+ 	case TFUNC:
+ 		t1 = t1.Type
+ 		t2 = t2.Type
+-		for ; t1 != nil && t2 != nil; (func() { t1 = t1.Down; t2 = t2.Down })() {
++		for ; t1 != nil && t2 != nil; t1, t2 = t1.Down, t2.Down {
+ 			var ta *Type
+ 			var tb *Type
+ 
+@@ -1038,7 +1038,7 @@ func eqtype1(t1 *Type, t2 *Type, assumed_equal *TypePairList) bool {
+ 			// Loop over fields in structs, ignoring argument names.
+ 			ta = t1.Type
+ 			tb = t2.Type
+-			for ; ta != nil && tb != nil; (func() { ta = ta.Down; tb = tb.Down })() {
++			for ; ta != nil && tb != nil; ta, tb = ta.Down, tb.Down {
+ 				if ta.Etype != TFIELD || tb.Etype != TFIELD {
+ 					Fatal("func struct missing field: %v %v", Tconv(ta, 0), Tconv(tb, 0))
+ 				}
+diff --git a/src/cmd/internal/gc/typecheck.go b/src/cmd/internal/gc/typecheck.go
+index e6acdd1141..df164e6484 100644
+--- a/src/cmd/internal/gc/typecheck.go
++++ b/src/cmd/internal/gc/typecheck.go
+@@ -3422,7 +3422,7 @@ func typecheckas2(n *Node) {
+ 		// easy
+ 		ll = n.List
+ 		lr = n.Rlist
+-		for ; ll != nil; (func() { ll = ll.Next; lr = lr.Next })() {
++		for ; ll != nil; ll, lr = ll.Next, lr.Next {
+ 			if ll.N.Type != nil && lr.N.Type != nil {
+ 				lr.N = assignconv(lr.N, ll.N.Type, "assignment")
+ 			}
+diff --git a/src/cmd/internal/gc/walk.go b/src/cmd/internal/gc/walk.go
+index 5fe8314047..d1298eba2b 100644
+--- a/src/cmd/internal/gc/walk.go
++++ b/src/cmd/internal/gc/walk.go
+@@ -83,7 +83,7 @@ func walkstmtlist(l *NodeList) {
+ }
+ 
+ func samelist(a *NodeList, b *NodeList) bool {
+-	for ; a != nil && b != nil; (func() { a = a.Next; b = b.Next })() {
++	for ; a != nil && b != nil; a, b = a.Next, b.Next {
+ 		if a.N != b.N {
+ 			return false
+ 		}
+@@ -1651,7 +1651,7 @@ func ascompatee(op int, nl *NodeList, nr *NodeList, init **NodeList) *NodeList {
+ 	var nn *NodeList
+ 	ll = nl
+ 	lr = nr
+-	for ; ll != nil && lr != nil; (func() { ll = ll.Next; lr = lr.Next })() {
++	for ; ll != nil && lr != nil; ll, lr = ll.Next, lr.Next {
+ 		// Do not generate 'x = x' during return. See issue 4014.
+ 		if op == ORETURN && ll.N == lr.N {
+ 			continue
+diff --git a/src/cmd/internal/ld/data.go b/src/cmd/internal/ld/data.go
+index e1f79e8207..75ccfae94b 100644
+--- a/src/cmd/internal/ld/data.go
++++ b/src/cmd/internal/ld/data.go
+@@ -1032,7 +1032,7 @@ func proggenarray(g *ProgGen, length int64) {
+ 
+ 	proggendataflush(g)
+ 	proggenemit(g, obj.InsArray)
+-	for i = 0; i < int32(Thearch.Ptrsize); (func() { i++; length >>= 8 })() {
++	for i = 0; i < int32(Thearch.Ptrsize); i, length = i+1, length>>8 {
+ 		proggenemit(g, uint8(length))
+ 	}
+ }
+diff --git a/src/cmd/internal/ld/elf.go b/src/cmd/internal/ld/elf.go
+index ab79cf322e..b90cf126cc 100644
+--- a/src/cmd/internal/ld/elf.go
++++ b/src/cmd/internal/ld/elf.go
+@@ -1146,7 +1146,7 @@ func addbuildinfo(val string) {
+ 		}
+ 
+ 		b = 0
+-		for j = 0; j < 2; (func() { j++; val = val[1:] })() {
++		for j = 0; j < 2; j, val = j+1, val[1:] {
+ 			b *= 16
+ 			if val[0] >= '0' && val[0] <= '9' {
+ 				b += int(val[0]) - '0'
+diff --git a/src/cmd/internal/obj/arm/asm5.go b/src/cmd/internal/obj/arm/asm5.go
+index b801bd7e41..96074c70f5 100644
+--- a/src/cmd/internal/obj/arm/asm5.go
++++ b/src/cmd/internal/obj/arm/asm5.go
+@@ -595,7 +595,7 @@ func span5(ctxt *obj.Link, cursym *obj.LSym) {
+ 	var i int
+ 	var m int
+ 	var o *Optab
+-	for ; p != nil || ctxt.Blitrl != nil; (func() { op = p; p = p.Link })() {
++	for ; p != nil || ctxt.Blitrl != nil; op, p = p, p.Link {
+ 		if p == nil {
+ 			if checkpool(ctxt, op, 0) {
+ 				p = op
+diff --git a/src/cmd/internal/obj/arm/obj5.go b/src/cmd/internal/obj/arm/obj5.go
+index 7c28add64a..1f59c621c5 100644
+--- a/src/cmd/internal/obj/arm/obj5.go
++++ b/src/cmd/internal/obj/arm/obj5.go
+@@ -935,7 +935,7 @@ loop:
+ 	if p.Mark&FOLL != 0 {
+ 		i = 0
+ 		q = p
+-		for ; i < 4; (func() { i++; q = q.Link })() {
++		for ; i < 4; i, q = i+1, q.Link {
+ 			if q == *last || q == nil {
+ 				break
+ 			}
+diff --git a/src/cmd/internal/obj/ppc64/obj9.go b/src/cmd/internal/obj/ppc64/obj9.go
+index 027fffa57a..f47d81d77e 100644
+--- a/src/cmd/internal/obj/ppc64/obj9.go
++++ b/src/cmd/internal/obj/ppc64/obj9.go
+@@ -855,7 +855,7 @@ loop:
+ 	if p.Mark&FOLL != 0 {
+ 		i = 0
+ 		q = p
+-		for ; i < 4; (func() { i++; q = q.Link })() {
++		for ; i < 4; i, q = i+1, q.Link {
+ 			if q == *last || (q.Mark&NOSCHED != 0) {
+ 				break
+ 			}
+diff --git a/src/cmd/internal/obj/x86/obj6.go b/src/cmd/internal/obj/x86/obj6.go
+index 2e47d9ad2c..cf226d8672 100644
+--- a/src/cmd/internal/obj/x86/obj6.go
++++ b/src/cmd/internal/obj/x86/obj6.go
+@@ -1017,7 +1017,7 @@ loop:
+ 		 */
+ 		i = 0
+ 		q = p
+-		for ; i < 4; (func() { i++; q = q.Link })() {
++		for ; i < 4; i, q = i+1, q.Link {
+ 			if q == nil {
+ 				break
+ 			}

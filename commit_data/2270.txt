@@ -8,6 +8,26 @@ Date:   Thu May 21 11:52:20 2009 -0700
     DELTA=3  (0 added, 1 deleted, 2 changed)
     OCL=29151
     CL=29176
-
+---
  src/lib/hash/crc32/crc32.go | 5 ++---
  1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/src/lib/hash/crc32/crc32.go b/src/lib/hash/crc32/crc32.go
+index 7fc3966aea..22a0f68f6c 100644
+--- a/src/lib/hash/crc32/crc32.go
++++ b/src/lib/hash/crc32/crc32.go
+@@ -81,12 +81,11 @@ func (d *digest) Reset() {
+ }
+ 
+ func update(crc uint32, tab *Table, p []byte) uint32 {
+-	crc ^= 0xFFFFFFFF;
++	crc = ^crc;
+ 	for i := 0; i < len(p); i++ {
+ 		crc = tab[byte(crc) ^ p[i]] ^ (crc >> 8);
+ 	}
+-	crc ^= 0xFFFFFFFF;
+-	return crc;
++	return ^crc;
+ }
+ 
+ func (d *digest) Write(p []byte) (n int, err os.Error) {

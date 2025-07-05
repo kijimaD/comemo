@@ -9,6 +9,20 @@ Date:   Thu Dec 8 22:43:31 2011 -0500
     R=ken2
     CC=golang-dev
     https://golang.org/cl/5472046
-
+---
  src/cmd/gc/fmt.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/fmt.c b/src/cmd/gc/fmt.c
+index 35acb5b84b..9733095019 100644
+--- a/src/cmd/gc/fmt.c
++++ b/src/cmd/gc/fmt.c
+@@ -363,7 +363,7 @@ Vconv(Fmt *fp)
+ 		return fmtprint(fp, "%B", v->u.xval);
+ 	case CTRUNE:
+ 		x = mpgetfix(v->u.xval);
+-		if(' ' <= x && x < 0x80)
++		if(' ' <= x && x < 0x80 && x != '\\' && x != '\'')
+ 			return fmtprint(fp, "'%c'", (int)x);
+ 		if(0 <= x && x < (1<<16))
+ 			return fmtprint(fp, "'\\u%04ux'", (int)x);

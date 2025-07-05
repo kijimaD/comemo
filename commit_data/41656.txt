@@ -7,6 +7,26 @@ Date:   Thu Oct 17 16:54:06 2019 -0400
     Change-Id: Ia571b8aa791578a77ed5c2b8eaf45c9684eea1c3
     Reviewed-on: https://go-review.googlesource.com/c/go/+/201820
     Reviewed-by: Andrew Bonventre <andybons@golang.org>
-
+---
  doc/devel/release.html | 8 ++++++++
  1 file changed, 8 insertions(+)
+
+diff --git a/doc/devel/release.html b/doc/devel/release.html
+index 92078f223b..0ac3b86334 100644
+--- a/doc/devel/release.html
++++ b/doc/devel/release.html
+@@ -46,6 +46,14 @@ See the <a href="https://github.com/golang/go/issues?q=milestone%3AGo1.13.2">Go
+ 1.13.2 milestone</a> on our issue tracker for details.
+ </p>
+ 
++<p>
++go1.13.3 (released 2019/10/17) includes fixes to the go command,
++the toolchain, the runtime, <code>syscall</code>, <code>net</code>,
++<code>net/http</code>, and <code>crypto/ecdsa</code> packages.
++See the <a href="https://github.com/golang/go/issues?q=milestone%3AGo1.13.3">Go
++1.13.3 milestone</a> on our issue tracker for details.
++</p>
++
+ <h2 id="go1.12">go1.12 (released 2019/02/25)</h2>
+ 
+ <p>

@@ -33,9 +33,512 @@ Date:   Thu Nov 17 14:41:18 2022 -0500
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
     Run-TryBot: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/internal/ld/ar.go       |  37 +++++++
  src/cmd/link/internal/ld/data.go     |  78 +++++++++++++--
  src/cmd/link/internal/ld/lib.go      |   7 ++
  src/cmd/link/internal/loadpe/ldpe.go | 187 +++++++++++++++++++++++++++--------
  4 files changed, 263 insertions(+), 46 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/ar.go b/src/cmd/link/internal/ld/ar.go
+index 518d5ad431..73c1cd3a2c 100644
+--- a/src/cmd/link/internal/ld/ar.go
++++ b/src/cmd/link/internal/ld/ar.go
+@@ -32,6 +32,7 @@ package ld
+ 
+ import (
+ 	"cmd/internal/bio"
++	"cmd/link/internal/loader"
+ 	"cmd/link/internal/sym"
+ 	"encoding/binary"
+ 	"fmt"
+@@ -61,6 +62,39 @@ type ArHdr struct {
+ 	fmag string
+ }
+ 
++// pruneUndefsForWindows trims the list "undefs" of currently
++// outstanding unresolved symbols to remove references to DLL import
++// symbols (e.g. "__imp_XXX"). In older versions of the linker, we
++// would just immediately forward references from the import sym
++// (__imp_XXX) to the DLL sym (XXX), but with newer compilers this
++// strategy falls down in certain cases. We instead now do this
++// forwarding later on as a post-processing step, and meaning that
++// during the middle part of host object loading we can see a lot of
++// unresolved (SXREF) import symbols. We do not, however, want to
++// trigger the inclusion of an object from a host archive if the
++// reference is going to be eventually forwarded to the corresponding
++// SDYNIMPORT symbol, so here we strip out such refs from the undefs
++// list.
++func pruneUndefsForWindows(ldr *loader.Loader, undefs, froms []loader.Sym) ([]loader.Sym, []loader.Sym) {
++	var newundefs []loader.Sym
++	var newfroms []loader.Sym
++	for _, s := range undefs {
++		sname := ldr.SymName(s)
++		if strings.HasPrefix(sname, "__imp_") {
++			dname := sname[len("__imp_"):]
++			ds := ldr.Lookup(dname, 0)
++			if ds != 0 && ldr.SymType(ds) == sym.SDYNIMPORT {
++				// Don't try to pull things out of a host archive to
++				// satisfy this symbol.
++				continue
++			}
++		}
++		newundefs = append(newundefs, s)
++		newfroms = append(newfroms, s)
++	}
++	return newundefs, newfroms
++}
++
+ // hostArchive reads an archive file holding host objects and links in
+ // required objects. The general format is the same as a Go archive
+ // file, but it has an armap listing symbols and the objects that
+@@ -111,6 +145,9 @@ func hostArchive(ctxt *Link, name string) {
+ 		var load []uint64
+ 		returnAllUndefs := -1
+ 		undefs, froms := ctxt.loader.UndefinedRelocTargets(returnAllUndefs)
++		if buildcfg.GOOS == "windows" {
++			undefs, froms = pruneUndefsForWindows(ctxt.loader, undefs, froms)
++		}
+ 		for k, symIdx := range undefs {
+ 			sname := ctxt.loader.SymName(symIdx)
+ 			if off := armap[sname]; off != 0 && !loaded[off] {
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index daf96f0c4f..faae153bab 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -37,6 +37,7 @@ import (
+ 	"cmd/internal/objabi"
+ 	"cmd/internal/sys"
+ 	"cmd/link/internal/loader"
++	"cmd/link/internal/loadpe"
+ 	"cmd/link/internal/sym"
+ 	"compress/zlib"
+ 	"debug/elf"
+@@ -747,7 +748,38 @@ func (ctxt *Link) makeRelocSymState() *relocSymState {
+ 	}
+ }
+ 
+-func windynrelocsym(ctxt *Link, rel *loader.SymbolBuilder, s loader.Sym) {
++// windynrelocsym examines a text symbol 's' and looks for relocations
++// from it that correspond to references to symbols defined in DLLs,
++// then fixes up those relocations as needed. A reference to a symbol
++// XYZ from some DLL will fall into one of two categories: an indirect
++// ref via "__imp_XYZ", or a direct ref to "XYZ". Here's an example of
++// an indirect ref (this is an excerpt from objdump -ldr):
++//
++//	     1c1: 48 89 c6                     	movq	%rax, %rsi
++//	     1c4: ff 15 00 00 00 00            	callq	*(%rip)
++//			00000000000001c6:  IMAGE_REL_AMD64_REL32	__imp__errno
++//
++// In the assembly above, the code loads up the value of __imp_errno
++// and then does an indirect call to that value.
++//
++// Here is what a direct reference might look like:
++//
++//	     137: e9 20 06 00 00               	jmp	0x75c <pow+0x75c>
++//	     13c: e8 00 00 00 00               	callq	0x141 <pow+0x141>
++//			000000000000013d:  IMAGE_REL_AMD64_REL32	_errno
++//
++// The assembly below dispenses with the import symbol and just makes
++// a direct call to _errno.
++//
++// The code below handles indirect refs by redirecting the target of
++// the relocation from "__imp_XYZ" to "XYZ" (since the latter symbol
++// is what the Windows loader is expected to resolve). For direct refs
++// the call is redirected to a stub, where the stub first loads the
++// symbol and then direct an indirect call to that value.
++//
++// Note that for a given symbol (as above) it is perfectly legal to
++// have both direct and indirect references.
++func windynrelocsym(ctxt *Link, rel *loader.SymbolBuilder, s loader.Sym) error {
+ 	var su *loader.SymbolBuilder
+ 	relocs := ctxt.loader.Relocs(s)
+ 	for ri := 0; ri < relocs.Count(); ri++ {
+@@ -763,13 +795,43 @@ func windynrelocsym(ctxt *Link, rel *loader.SymbolBuilder, s loader.Sym) {
+ 			if r.Weak() {
+ 				continue
+ 			}
+-			ctxt.Errorf(s, "dynamic relocation to unreachable symbol %s",
++			return fmt.Errorf("dynamic relocation to unreachable symbol %s",
+ 				ctxt.loader.SymName(targ))
+ 		}
++		tgot := ctxt.loader.SymGot(targ)
++		if tgot == loadpe.RedirectToDynImportGotToken {
++
++			// Consistency check: name should be __imp_X
++			sname := ctxt.loader.SymName(targ)
++			if !strings.HasPrefix(sname, "__imp_") {
++				return fmt.Errorf("internal error in windynrelocsym: redirect GOT token applied to non-import symbol %s", sname)
++			}
++
++			// Locate underlying symbol (which originally had type
++			// SDYNIMPORT but has since been retyped to SWINDOWS).
++			ds, err := loadpe.LookupBaseFromImport(targ, ctxt.loader, ctxt.Arch)
++			if err != nil {
++				return err
++			}
++			dstyp := ctxt.loader.SymType(ds)
++			if dstyp != sym.SWINDOWS {
++				return fmt.Errorf("internal error in windynrelocsym: underlying sym for %q has wrong type %s", sname, dstyp.String())
++			}
++
++			// Redirect relocation to the dynimport.
++			r.SetSym(ds)
++			continue
++		}
+ 
+ 		tplt := ctxt.loader.SymPlt(targ)
+-		tgot := ctxt.loader.SymGot(targ)
+-		if tplt == -2 && tgot != -2 { // make dynimport JMP table for PE object files.
++		if tplt == loadpe.CreateImportStubPltToken {
++
++			// Consistency check: don't want to see both PLT and GOT tokens.
++			if tgot != -1 {
++				return fmt.Errorf("internal error in windynrelocsym: invalid GOT setting %d for reloc to %s", tgot, ctxt.loader.SymName(targ))
++			}
++
++			// make dynimport JMP table for PE object files.
+ 			tplt := int32(rel.Size())
+ 			ctxt.loader.SetPlt(targ, tplt)
+ 
+@@ -782,8 +844,7 @@ func windynrelocsym(ctxt *Link, rel *loader.SymbolBuilder, s loader.Sym) {
+ 			// jmp *addr
+ 			switch ctxt.Arch.Family {
+ 			default:
+-				ctxt.Errorf(s, "unsupported arch %v", ctxt.Arch.Family)
+-				return
++				return fmt.Errorf("internal error in windynrelocsym: unsupported arch %v", ctxt.Arch.Family)
+ 			case sys.I386:
+ 				rel.AddUint8(0xff)
+ 				rel.AddUint8(0x25)
+@@ -805,6 +866,7 @@ func windynrelocsym(ctxt *Link, rel *loader.SymbolBuilder, s loader.Sym) {
+ 			r.SetAdd(int64(tplt))
+ 		}
+ 	}
++	return nil
+ }
+ 
+ // windynrelocsyms generates jump table to C library functions that will be
+@@ -818,7 +880,9 @@ func (ctxt *Link) windynrelocsyms() {
+ 	rel.SetType(sym.STEXT)
+ 
+ 	for _, s := range ctxt.Textp {
+-		windynrelocsym(ctxt, rel, s)
++		if err := windynrelocsym(ctxt, rel, s); err != nil {
++			ctxt.Errorf(s, "%v", err)
++		}
+ 	}
+ 
+ 	ctxt.Textp = append(ctxt.Textp, rel.Sym())
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index c6410b7c39..d225a8a163 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -711,6 +711,13 @@ func loadWindowsHostArchives(ctxt *Link) {
+ 			ctxt.loader.SetAttrSpecial(sb.Sym(), true)
+ 		}
+ 	}
++
++	// Fix up references to DLL import symbols now that we're done
++	// pulling in new objects.
++	if err := loadpe.PostProcessImports(); err != nil {
++		Errorf(nil, "%v", err)
++	}
++
+ 	// TODO: maybe do something similar to peimporteddlls to collect
+ 	// all lib names and try link them all to final exe just like
+ 	// libmingwex.a and libmingw32.a:
+diff --git a/src/cmd/link/internal/loadpe/ldpe.go b/src/cmd/link/internal/loadpe/ldpe.go
+index bc66252cfa..0d33823e4e 100644
+--- a/src/cmd/link/internal/loadpe/ldpe.go
++++ b/src/cmd/link/internal/loadpe/ldpe.go
+@@ -135,6 +135,19 @@ const (
+ 	IMAGE_REL_ARM64_REL32            = 0x0011
+ )
+ 
++const (
++	// When stored into the PLT value for a symbol, this token tells
++	// windynrelocsym to redirect direct references to this symbol to a stub
++	// that loads from the corresponding import symbol and then does
++	// a jump to the loaded value.
++	CreateImportStubPltToken = -2
++
++	// When stored into the GOT value for a import symbol __imp_X this
++	// token tells windynrelocsym to redirect references to the
++	// underlying DYNIMPORT symbol X.
++	RedirectToDynImportGotToken = -2
++)
++
+ // TODO(brainman): maybe just add ReadAt method to bio.Reader instead of creating peBiobuf
+ 
+ // peBiobuf makes bio.Reader look like io.ReaderAt.
+@@ -162,15 +175,43 @@ func makeUpdater(l *loader.Loader, bld *loader.SymbolBuilder, s loader.Sym) *loa
+ 	return bld
+ }
+ 
++// peImportSymsState tracks the set of DLL import symbols we've seen
++// while reading host objects. We create a singleton instance of this
++// type, which will persist across multiple host objects.
++type peImportSymsState struct {
++
++	// Text and non-text sections read in by the host object loader.
++	secSyms []loader.Sym
++
++	// SDYNIMPORT symbols encountered along the way
++	dynimports map[loader.Sym]struct{}
++
++	// Loader and arch, for use in postprocessing.
++	l    *loader.Loader
++	arch *sys.Arch
++}
++
++var importSymsState *peImportSymsState
++
++func createImportSymsState(l *loader.Loader, arch *sys.Arch) {
++	if importSymsState != nil {
++		return
++	}
++	importSymsState = &peImportSymsState{
++		dynimports: make(map[loader.Sym]struct{}),
++		l:          l,
++		arch:       arch,
++	}
++}
++
+ // peLoaderState holds various bits of useful state information needed
+-// while loading a PE object file.
++// while loading a single PE object file.
+ type peLoaderState struct {
+ 	l               *loader.Loader
+ 	arch            *sys.Arch
+ 	f               *pe.File
+ 	pn              string
+ 	sectsyms        map[*pe.Section]loader.Sym
+-	defWithImp      map[string]struct{}
+ 	comdats         map[uint16]int64 // key is section index, val is size
+ 	sectdata        map[*pe.Section][]byte
+ 	localSymVersion int
+@@ -182,7 +223,8 @@ type peLoaderState struct {
+ var comdatDefinitions = make(map[string]int64)
+ 
+ // Load loads the PE file pn from input.
+-// Symbols are written into syms, and a slice of the text symbols is returned.
++// Symbols from the object file are created via the loader 'l', and
++// and a slice of the text symbols is returned.
+ // If an .rsrc section or set of .rsrc$xx sections is found, its symbols are
+ // returned as rsrc.
+ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Reader, pkg string, length int64, pn string) (textp []loader.Sym, rsrc []loader.Sym, err error) {
+@@ -194,6 +236,7 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
+ 		localSymVersion: localSymVersion,
+ 		pn:              pn,
+ 	}
++	createImportSymsState(state.l, state.arch)
+ 
+ 	// Some input files are archives containing multiple of
+ 	// object files, and pe.NewFile seeks to the start of
+@@ -259,9 +302,7 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
+ 		}
+ 	}
+ 
+-	// Make a prepass over the symbols to detect situations where
+-	// we have both a defined symbol X and an import symbol __imp_X
+-	// (needed by readpesym()).
++	// Make a prepass over the symbols to collect info about COMDAT symbols.
+ 	if err := state.preprocessSymbols(); err != nil {
+ 		return nil, nil, err
+ 	}
+@@ -438,10 +479,6 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
+ 		}
+ 
+ 		if pesym.SectionNumber == 0 { // extern
+-			if l.SymType(s) == sym.SDYNIMPORT {
+-				bld = makeUpdater(l, bld, s)
+-				bld.SetPlt(-2) // flag for dynimport in PE object files.
+-			}
+ 			if l.SymType(s) == sym.SXREF && pesym.Value > 0 { // global data
+ 				bld = makeUpdater(l, bld, s)
+ 				bld.SetType(sym.SNOPTRDATA)
+@@ -511,6 +548,7 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
+ 			continue
+ 		}
+ 		l.SortSub(s)
++		importSymsState.secSyms = append(importSymsState.secSyms, s)
+ 		if l.SymType(s) == sym.STEXT {
+ 			for ; s != 0; s = l.SubSym(s) {
+ 				if l.AttrOnList(s) {
+@@ -525,6 +563,84 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
+ 	return textp, rsrc, nil
+ }
+ 
++// PostProcessImports works to resolve inconsistencies with DLL import
++// symbols; it is needed when building with more "modern" C compilers
++// with internal linkage.
++//
++// Background: DLL import symbols are data (SNOPTRDATA) symbols whose
++// name is of the form "__imp_XXX", which contain a pointer/reference
++// to symbol XXX. It's possible to have import symbols for both data
++// symbols ("__imp__fmode") and text symbols ("__imp_CreateEventA").
++// In some case import symbols are just references to some external
++// thing, and in other cases we see actual definitions of import
++// symbols when reading host objects.
++//
++// Previous versions of the linker would in most cases immediately
++// "forward" import symbol references, e.g. treat a references to
++// "__imp_XXX" a references to "XXX", however this doesn't work well
++// with more modern compilers, where you can sometimes see import
++// symbols that are defs (as opposed to external refs).
++//
++// The main actions taken below are to search for references to
++// SDYNIMPORT symbols in host object text/data sections and flag the
++// symbols for later fixup. When we see a reference to an import
++// symbol __imp_XYZ where XYZ corresponds to some SDYNIMPORT symbol,
++// we flag the symbol (via GOT setting) so that it can be redirected
++// to XYZ later in windynrelocsym. When we see a direct reference to
++// an SDYNIMPORT symbol XYZ, we also flag the symbol (via PLT setting)
++// to indicated that the reference will need to be redirected to a
++// stub.
++func PostProcessImports() error {
++	ldr := importSymsState.l
++	arch := importSymsState.arch
++	keeprelocneeded := make(map[loader.Sym]loader.Sym)
++	for _, s := range importSymsState.secSyms {
++		isText := ldr.SymType(s) == sym.STEXT
++		relocs := ldr.Relocs(s)
++		for i := 0; i < relocs.Count(); i++ {
++			r := relocs.At(i)
++			rs := r.Sym()
++			if ldr.SymType(rs) == sym.SDYNIMPORT {
++				// Tag the symbol for later stub generation.
++				ldr.SetPlt(rs, CreateImportStubPltToken)
++				continue
++			}
++			isym, err := LookupBaseFromImport(rs, ldr, arch)
++			if err != nil {
++				return err
++			}
++			if isym == 0 {
++				continue
++			}
++			if ldr.SymType(isym) != sym.SDYNIMPORT {
++				continue
++			}
++			// For non-text symbols, forward the reference from __imp_X to
++			// X immediately.
++			if !isText {
++				r.SetSym(isym)
++				continue
++			}
++			// Flag this imp symbol to be processed later in windynrelocsym.
++			ldr.SetGot(rs, RedirectToDynImportGotToken)
++			// Consistency check: should be no PLT token here.
++			splt := ldr.SymPlt(rs)
++			if splt != -1 {
++				return fmt.Errorf("internal error: import symbol %q has invalid PLT setting %d", ldr.SymName(rs), splt)
++			}
++			// Flag for dummy relocation.
++			keeprelocneeded[rs] = isym
++		}
++	}
++	for k, v := range keeprelocneeded {
++		sb := ldr.MakeSymbolUpdater(k)
++		r, _ := sb.AddRel(objabi.R_KEEP)
++		r.SetSym(v)
++	}
++	importSymsState = nil
++	return nil
++}
++
+ func issect(s *pe.COFFSymbol) bool {
+ 	return s.StorageClass == IMAGE_SYM_CLASS_STATIC && s.Type == 0 && s.Name[0] == '.'
+ }
+@@ -539,25 +655,13 @@ func (state *peLoaderState) readpesym(pesym *pe.COFFSymbol) (*loader.SymbolBuild
+ 		name = state.l.SymName(state.sectsyms[state.f.Sections[pesym.SectionNumber-1]])
+ 	} else {
+ 		name = symname
+-		if strings.HasPrefix(symname, "__imp_") {
+-			orig := symname[len("__imp_"):]
+-			if _, ok := state.defWithImp[orig]; ok {
+-				// Don't rename __imp_XXX to XXX, since if we do this
+-				// we'll wind up with a duplicate definition. One
+-				// example is "__acrt_iob_func"; see commit b295099
+-				// from git://git.code.sf.net/p/mingw-w64/mingw-w64
+-				// for details.
+-			} else {
+-				name = strings.TrimPrefix(name, "__imp_") // __imp_Name => Name
+-			}
+-		}
+ 		// A note on the "_main" exclusion below: the main routine
+ 		// defined by the Go runtime is named "_main", not "main", so
+ 		// when reading references to _main from a host object we want
+ 		// to avoid rewriting "_main" to "main" in this specific
+ 		// instance. See #issuecomment-1143698749 on #35006 for more
+ 		// details on this problem.
+-		if state.arch.Family == sys.I386 && name[0] == '_' && name != "_main" {
++		if state.arch.Family == sys.I386 && name[0] == '_' && name != "_main" && !strings.HasPrefix(name, "__imp_") {
+ 			name = name[1:] // _Name => Name
+ 		}
+ 	}
+@@ -592,10 +696,6 @@ func (state *peLoaderState) readpesym(pesym *pe.COFFSymbol) (*loader.SymbolBuild
+ 		bld = makeUpdater(state.l, bld, s)
+ 		bld.SetType(sym.SXREF)
+ 	}
+-	if strings.HasPrefix(symname, "__imp_") {
+-		bld = makeUpdater(state.l, bld, s)
+-		bld.SetGot(-2) // flag for __imp_
+-	}
+ 
+ 	return bld, s, nil
+ }
+@@ -618,8 +718,6 @@ func (state *peLoaderState) preprocessSymbols() error {
+ 	}
+ 
+ 	// Examine symbol defs.
+-	imp := make(map[string]struct{})
+-	def := make(map[string]struct{})
+ 	for i, numaux := 0, 0; i < len(state.f.COFFSymbols); i += numaux + 1 {
+ 		pesym := &state.f.COFFSymbols[i]
+ 		numaux = int(pesym.NumberOfAuxSymbols)
+@@ -630,10 +728,6 @@ func (state *peLoaderState) preprocessSymbols() error {
+ 		if err != nil {
+ 			return err
+ 		}
+-		def[symname] = struct{}{}
+-		if strings.HasPrefix(symname, "__imp_") {
+-			imp[strings.TrimPrefix(symname, "__imp_")] = struct{}{}
+-		}
+ 		if _, isc := state.comdats[uint16(pesym.SectionNumber-1)]; !isc {
+ 			continue
+ 		}
+@@ -658,11 +752,26 @@ func (state *peLoaderState) preprocessSymbols() error {
+ 			return fmt.Errorf("internal error: unsupported COMDAT selection strategy found in path=%s sec=%d strategy=%d idx=%d, please file a bug", state.pn, auxsymp.SecNum, auxsymp.Selection, i)
+ 		}
+ 	}
+-	state.defWithImp = make(map[string]struct{})
+-	for n := range imp {
+-		if _, ok := def[n]; ok {
+-			state.defWithImp[n] = struct{}{}
+-		}
+-	}
+ 	return nil
+ }
++
++// LookupBaseFromImport examines the symbol "s" to see if it
++// corresponds to an import symbol (name of the form "__imp_XYZ") and
++// if so, it looks up the underlying target of the import symbol and
++// returns it. An error is returned if the symbol is of the form
++// "__imp_XYZ" but no XYZ can be found.
++func LookupBaseFromImport(s loader.Sym, ldr *loader.Loader, arch *sys.Arch) (loader.Sym, error) {
++	sname := ldr.SymName(s)
++	if !strings.HasPrefix(sname, "__imp_") {
++		return 0, nil
++	}
++	basename := sname[len("__imp_"):]
++	if arch.Family == sys.I386 && basename[0] == '_' {
++		basename = basename[1:] // _Name => Name
++	}
++	isym := ldr.Lookup(basename, 0)
++	if isym == 0 {
++		return 0, fmt.Errorf("internal error: import symbol %q with no underlying sym", sname)
++	}
++	return isym, nil
++}

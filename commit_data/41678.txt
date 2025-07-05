@@ -13,8 +13,70 @@ Date:   Sun Oct 20 11:34:23 2019 +0000
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/cgo/doc.go                        | 2 +-
  src/cmd/go/internal/work/security.go      | 3 +++
  src/cmd/go/internal/work/security_test.go | 2 ++
  3 files changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/cgo/doc.go b/src/cmd/cgo/doc.go
+index f227d7f850..5c9c8674c2 100644
+--- a/src/cmd/cgo/doc.go
++++ b/src/cmd/cgo/doc.go
+@@ -55,7 +55,7 @@ For example:
+ 
+ The default pkg-config tool may be changed by setting the PKG_CONFIG environment variable.
+ 
+-For security reasons, only a limited set of flags are allowed, notably -D, -I, and -l.
++For security reasons, only a limited set of flags are allowed, notably -D, -U, -I, and -l.
+ To allow additional flags, set CGO_CFLAGS_ALLOW to a regular expression
+ matching the new flags. To disallow flags that would otherwise be allowed,
+ set CGO_CFLAGS_DISALLOW to a regular expression matching arguments
+diff --git a/src/cmd/go/internal/work/security.go b/src/cmd/go/internal/work/security.go
+index 3a5deae451..d02630155b 100644
+--- a/src/cmd/go/internal/work/security.go
++++ b/src/cmd/go/internal/work/security.go
+@@ -43,6 +43,7 @@ var re = lazyregexp.New
+ 
+ var validCompilerFlags = []*lazyregexp.Regexp{
+ 	re(`-D([A-Za-z_].*)`),
++	re(`-U([A-Za-z_]*)`),
+ 	re(`-F([^@\-].*)`),
+ 	re(`-I([^@\-].*)`),
+ 	re(`-O`),
+@@ -51,6 +52,7 @@ var validCompilerFlags = []*lazyregexp.Regexp{
+ 	re(`-W([^@,]+)`), // -Wall but not -Wa,-foo.
+ 	re(`-Wa,-mbig-obj`),
+ 	re(`-Wp,-D([A-Za-z_].*)`),
++	re(`-Wp, -U([A-Za-z_]*)`),
+ 	re(`-ansi`),
+ 	re(`-f(no-)?asynchronous-unwind-tables`),
+ 	re(`-f(no-)?blocks`),
+@@ -127,6 +129,7 @@ var validCompilerFlags = []*lazyregexp.Regexp{
+ var validCompilerFlagsWithNextArg = []string{
+ 	"-arch",
+ 	"-D",
++	"-U",
+ 	"-I",
+ 	"-framework",
+ 	"-isysroot",
+diff --git a/src/cmd/go/internal/work/security_test.go b/src/cmd/go/internal/work/security_test.go
+index 8bf164bf08..3a02db1d04 100644
+--- a/src/cmd/go/internal/work/security_test.go
++++ b/src/cmd/go/internal/work/security_test.go
+@@ -12,6 +12,7 @@ import (
+ var goodCompilerFlags = [][]string{
+ 	{"-DFOO"},
+ 	{"-Dfoo=bar"},
++	{"-Ufoo"},
+ 	{"-F/Qt"},
+ 	{"-I/"},
+ 	{"-I/etc/passwd"},
+@@ -67,6 +68,7 @@ var goodCompilerFlags = [][]string{
+ var badCompilerFlags = [][]string{
+ 	{"-D@X"},
+ 	{"-D-X"},
++	{"-Ufoo=bar"},
+ 	{"-F@dir"},
+ 	{"-F-dir"},
+ 	{"-I@dir"},

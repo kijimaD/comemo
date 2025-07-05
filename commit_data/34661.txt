@@ -13,7 +13,57 @@ Date:   Sun Nov 5 16:25:00 2017 -0500
     Reviewed-on: https://go-review.googlesource.com/76016
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/cmd/go/go_test.go               |  3 +++
  src/cmd/go/internal/work/buildid.go | 24 +++++++++++++-----------
  2 files changed, 16 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 6c87ce83f8..a264daa710 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -4728,6 +4728,9 @@ func TestBuildCache(t *testing.T) {
+ 	tg.run("build", "-x", "complex/w")
+ 	tg.grepStderrNot(`[\\/]compile|gccgo`, "ran compiler incorrectly")
+ 
++	tg.run("build", "-a", "-x", "complex/w")
++	tg.grepStderr(`[\\/]compile|gccgo`, "did not run compiler with -a")
++
+ 	// complex is a non-trivial main package.
+ 	// the link step should not be cached.
+ 	tg.run("build", "-o", os.DevNull, "-x", "complex")
+diff --git a/src/cmd/go/internal/work/buildid.go b/src/cmd/go/internal/work/buildid.go
+index 35ef1df885..b9e1bab0a3 100644
+--- a/src/cmd/go/internal/work/buildid.go
++++ b/src/cmd/go/internal/work/buildid.go
+@@ -355,17 +355,19 @@ func (b *Builder) useCache(a *Action, p *load.Package, actionHash cache.ActionID
+ 	// We treat hits in this cache as being "stale" for the purposes of go list
+ 	// (in effect, "stale" means whether p.Target is up-to-date),
+ 	// but we're still happy to use results from the build artifact cache.
+-	if c := cache.Default(); c != nil {
+-		outputID, size, err := c.Get(actionHash)
+-		if err == nil {
+-			file := c.OutputFile(outputID)
+-			info, err1 := os.Stat(file)
+-			buildID, err2 := buildid.ReadFile(file)
+-			if err1 == nil && err2 == nil && info.Size() == size {
+-				a.built = file
+-				a.Target = "DO NOT USE - using cache"
+-				a.buildID = buildID
+-				return true
++	if !cfg.BuildA {
++		if c := cache.Default(); c != nil {
++			outputID, size, err := c.Get(actionHash)
++			if err == nil {
++				file := c.OutputFile(outputID)
++				info, err1 := os.Stat(file)
++				buildID, err2 := buildid.ReadFile(file)
++				if err1 == nil && err2 == nil && info.Size() == size {
++					a.built = file
++					a.Target = "DO NOT USE - using cache"
++					a.buildID = buildID
++					return true
++				}
+ 			}
+ 		}
+ 	}

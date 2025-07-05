@@ -8,7 +8,41 @@ Date:   Thu Oct 30 15:25:26 2008 -0700
     R=ken
     OCL=18178
     CL=18178
-
+---
  src/cmd/gc/go.y   | 3 ++-
  src/cmd/gc/subr.c | 4 +++-
  2 files changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index c49c47f21e..cc5a101524 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -1892,10 +1892,11 @@ hidden_dcl:
+ 	}
+ 
+ hidden_structdcl:
+-	sym1 hidden_type
++	sym1 hidden_type oliteral
+ 	{
+ 		$$ = nod(ODCLFIELD, newname($1), N);
+ 		$$->type = $2;
++		$$->val = $3;
+ 	}
+ |	'?' hidden_type
+ 	{
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index d774a8d834..24e894d897 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -2192,8 +2192,10 @@ cleanidlist(Node *na)
+ 	if(last->type == T)
+ 		fatal("cleanidlist: no type");
+ 
+-	for(n=na; n->op == OLIST; n=n->right)
++	for(n=na; n->op == OLIST; n=n->right) {
+ 		n->left->type = last->type;
++		n->left->val = last->val;
++	}
+ 	return na;
+ }
+ 

@@ -7,7 +7,7 @@ Date:   Wed Jun 6 18:38:56 2012 -0400
     R=golang-dev
     CC=golang-dev
     https://golang.org/cl/6280045
-
+---
  src/pkg/net/dial_test.go      |  2 +-
  src/pkg/net/ipraw_test.go     |  2 ++
  src/pkg/net/ipsock_plan9.go   | 19 +++++++++++++++++++
@@ -19,3 +19,285 @@ Date:   Wed Jun 6 18:38:56 2012 -0400
  src/pkg/net/udpsock_posix.go  |  7 +------
  src/pkg/net/unicast_test.go   |  2 ++
  10 files changed, 48 insertions(+), 42 deletions(-)
+
+diff --git a/src/pkg/net/dial_test.go b/src/pkg/net/dial_test.go
+index f64cc6c955..09ff5e739a 100644
+--- a/src/pkg/net/dial_test.go
++++ b/src/pkg/net/dial_test.go
+@@ -130,7 +130,7 @@ func TestSelfConnect(t *testing.T) {
+ 		n = 1000
+ 	}
+ 	switch runtime.GOOS {
+-	case "darwin", "freebsd", "netbsd", "openbsd", "windows":
++	case "darwin", "freebsd", "netbsd", "openbsd", "plan9", "windows":
+ 		// Non-Linux systems take a long time to figure
+ 		// out that there is nothing listening on localhost.
+ 		n = 100
+diff --git a/src/pkg/net/ipraw_test.go b/src/pkg/net/ipraw_test.go
+index 6136202727..0a28827e33 100644
+--- a/src/pkg/net/ipraw_test.go
++++ b/src/pkg/net/ipraw_test.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build !plan9
++
+ package net
+ 
+ import (
+diff --git a/src/pkg/net/ipsock_plan9.go b/src/pkg/net/ipsock_plan9.go
+index eab0bf3e89..1199e48678 100644
+--- a/src/pkg/net/ipsock_plan9.go
++++ b/src/pkg/net/ipsock_plan9.go
+@@ -14,6 +14,9 @@ import (
+ 	"time"
+ )
+ 
++// /sys/include/ape/sys/socket.h:/SOMAXCONN
++var listenerBacklog = 5
++
+ // probeIPv6Stack returns two boolean values.  If the first boolean value is
+ // true, kernel supports basic IPv6 functionality.  If the second
+ // boolean value is true, kernel supports IPv6 IPv4-mapping.
+@@ -48,6 +51,7 @@ func readPlan9Addr(proto, filename string) (addr Addr, err error) {
+ 	if err != nil {
+ 		return
+ 	}
++	defer f.Close()
+ 	n, err := f.Read(buf[:])
+ 	if err != nil {
+ 		return
+@@ -192,6 +196,7 @@ func startPlan9(net string, addr Addr) (ctl *os.File, dest, proto, name string,
+ 	var buf [16]byte
+ 	n, err := f.Read(buf[:])
+ 	if err != nil {
++		f.Close()
+ 		return
+ 	}
+ 	return f, dest, proto, string(buf[:n]), nil
+@@ -204,14 +209,17 @@ func dialPlan9(net string, laddr, raddr Addr) (c *plan9Conn, err error) {
+ 	}
+ 	_, err = f.WriteString("connect " + dest)
+ 	if err != nil {
++		f.Close()
+ 		return
+ 	}
+ 	laddr, err = readPlan9Addr(proto, "/net/"+proto+"/"+name+"/local")
+ 	if err != nil {
++		f.Close()
+ 		return
+ 	}
+ 	raddr, err = readPlan9Addr(proto, "/net/"+proto+"/"+name+"/remote")
+ 	if err != nil {
++		f.Close()
+ 		return
+ 	}
+ 	return newPlan9Conn(proto, name, f, laddr, raddr), nil
+@@ -230,10 +238,12 @@ func listenPlan9(net string, laddr Addr) (l *plan9Listener, err error) {
+ 	}
+ 	_, err = f.WriteString("announce " + dest)
+ 	if err != nil {
++		f.Close()
+ 		return
+ 	}
+ 	laddr, err = readPlan9Addr(proto, "/net/"+proto+"/"+name+"/local")
+ 	if err != nil {
++		f.Close()
+ 		return
+ 	}
+ 	l = new(plan9Listener)
+@@ -257,15 +267,18 @@ func (l *plan9Listener) acceptPlan9() (c *plan9Conn, err error) {
+ 	var buf [16]byte
+ 	n, err := f.Read(buf[:])
+ 	if err != nil {
++		f.Close()
+ 		return
+ 	}
+ 	name := string(buf[:n])
+ 	laddr, err := readPlan9Addr(l.proto, l.dir+"/local")
+ 	if err != nil {
++		f.Close()
+ 		return
+ 	}
+ 	raddr, err := readPlan9Addr(l.proto, l.dir+"/remote")
+ 	if err != nil {
++		f.Close()
+ 		return
+ 	}
+ 	return newPlan9Conn(l.proto, name, f, laddr, raddr), nil
+@@ -287,3 +300,9 @@ func (l *plan9Listener) Close() error {
+ }
+ 
+ func (l *plan9Listener) Addr() Addr { return l.laddr }
++
++// SetDeadline sets the deadline associated with the listener.
++// A zero time value disables the deadline.
++func (l *plan9Listener) SetDeadline(t time.Time) error {
++	return syscall.EPLAN9
++}
+diff --git a/src/pkg/net/multicast_test.go b/src/pkg/net/multicast_test.go
+index 67261b1ee7..2c61dca549 100644
+--- a/src/pkg/net/multicast_test.go
++++ b/src/pkg/net/multicast_test.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build !plan9
++
+ package net
+ 
+ import (
+diff --git a/src/pkg/net/net_test.go b/src/pkg/net/net_test.go
+index 8a299245da..623a788f9a 100644
+--- a/src/pkg/net/net_test.go
++++ b/src/pkg/net/net_test.go
+@@ -143,6 +143,11 @@ func TestTCPListenClose(t *testing.T) {
+ }
+ 
+ func TestUDPListenClose(t *testing.T) {
++	switch runtime.GOOS {
++	case "plan9":
++		t.Logf("skipping test on %q", runtime.GOOS)
++		return
++	}
+ 	ln, err := ListenPacket("udp", "127.0.0.1:0")
+ 	if err != nil {
+ 		t.Fatalf("Listen failed: %v", err)
+diff --git a/src/pkg/net/tcpsock_plan9.go b/src/pkg/net/tcpsock_plan9.go
+index 35f56966ea..b225ca25dc 100644
+--- a/src/pkg/net/tcpsock_plan9.go
++++ b/src/pkg/net/tcpsock_plan9.go
+@@ -6,10 +6,7 @@
+ 
+ package net
+ 
+-import (
+-	"syscall"
+-	"time"
+-)
++import "syscall"
+ 
+ // TCPConn is an implementation of the Conn interface
+ // for TCP network connections.
+@@ -17,21 +14,6 @@ type TCPConn struct {
+ 	plan9Conn
+ }
+ 
+-// SetDeadline implements the Conn SetDeadline method.
+-func (c *TCPConn) SetDeadline(t time.Time) error {
+-	return syscall.EPLAN9
+-}
+-
+-// SetReadDeadline implements the Conn SetReadDeadline method.
+-func (c *TCPConn) SetReadDeadline(t time.Time) error {
+-	return syscall.EPLAN9
+-}
+-
+-// SetWriteDeadline implements the Conn SetWriteDeadline method.
+-func (c *TCPConn) SetWriteDeadline(t time.Time) error {
+-	return syscall.EPLAN9
+-}
+-
+ // CloseRead shuts down the reading side of the TCP connection.
+ // Most callers should just use Close.
+ func (c *TCPConn) CloseRead() error {
+@@ -76,6 +58,17 @@ type TCPListener struct {
+ 	plan9Listener
+ }
+ 
++func (l *TCPListener) Close() error {
++	if l == nil || l.ctl == nil {
++		return syscall.EINVAL
++	}
++	if _, err := l.ctl.WriteString("hangup"); err != nil {
++		l.ctl.Close()
++		return err
++	}
++	return l.ctl.Close()
++}
++
+ // ListenTCP announces on the TCP address laddr and returns a TCP listener.
+ // Net must be "tcp", "tcp4", or "tcp6".
+ // If laddr has a port of 0, it means to listen on some available port.
+diff --git a/src/pkg/net/udpsock.go b/src/pkg/net/udpsock.go
+index b3520cf09f..62b27d95e9 100644
+--- a/src/pkg/net/udpsock.go
++++ b/src/pkg/net/udpsock.go
+@@ -6,6 +6,10 @@
+ 
+ package net
+ 
++import "errors"
++
++var ErrWriteToConnected = errors.New("use of WriteTo with pre-connected UDP")
++
+ // UDPAddr represents the address of a UDP end point.
+ type UDPAddr struct {
+ 	IP   IP
+diff --git a/src/pkg/net/udpsock_plan9.go b/src/pkg/net/udpsock_plan9.go
+index 4f298a42f8..5ac0b4d263 100644
+--- a/src/pkg/net/udpsock_plan9.go
++++ b/src/pkg/net/udpsock_plan9.go
+@@ -10,7 +10,6 @@ import (
+ 	"errors"
+ 	"os"
+ 	"syscall"
+-	"time"
+ )
+ 
+ // UDPConn is the implementation of the Conn and PacketConn
+@@ -19,21 +18,6 @@ type UDPConn struct {
+ 	plan9Conn
+ }
+ 
+-// SetDeadline implements the Conn SetDeadline method.
+-func (c *UDPConn) SetDeadline(t time.Time) error {
+-	return syscall.EPLAN9
+-}
+-
+-// SetReadDeadline implements the Conn SetReadDeadline method.
+-func (c *UDPConn) SetReadDeadline(t time.Time) error {
+-	return syscall.EPLAN9
+-}
+-
+-// SetWriteDeadline implements the Conn SetWriteDeadline method.
+-func (c *UDPConn) SetWriteDeadline(t time.Time) error {
+-	return syscall.EPLAN9
+-}
+-
+ // UDP-specific methods.
+ 
+ // ReadFromUDP reads a UDP packet from c, copying the payload into b.
+diff --git a/src/pkg/net/udpsock_posix.go b/src/pkg/net/udpsock_posix.go
+index f29d570e1c..10e1e1cf2b 100644
+--- a/src/pkg/net/udpsock_posix.go
++++ b/src/pkg/net/udpsock_posix.go
+@@ -8,12 +8,7 @@
+ 
+ package net
+ 
+-import (
+-	"errors"
+-	"syscall"
+-)
+-
+-var ErrWriteToConnected = errors.New("use of WriteTo with pre-connected UDP")
++import "syscall"
+ 
+ func sockaddrToUDP(sa syscall.Sockaddr) Addr {
+ 	switch sa := sa.(type) {
+diff --git a/src/pkg/net/unicast_test.go b/src/pkg/net/unicast_test.go
+index 326e36195e..b2ac5dd458 100644
+--- a/src/pkg/net/unicast_test.go
++++ b/src/pkg/net/unicast_test.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build !plan9
++
+ package net
+ 
+ import (

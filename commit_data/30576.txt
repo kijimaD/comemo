@@ -15,6 +15,27 @@ Date:   Sun Nov 13 12:59:07 2016 -0800
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/vet/all/main.go | 9 ---------
  1 file changed, 9 deletions(-)
+
+diff --git a/src/cmd/vet/all/main.go b/src/cmd/vet/all/main.go
+index bcf97777da..f4ee8fe15a 100644
+--- a/src/cmd/vet/all/main.go
++++ b/src/cmd/vet/all/main.go
+@@ -265,15 +265,6 @@ NextLine:
+ 			}
+ 		}
+ 
+-		// Temporarily ignore unrecognized printf verbs from cmd.
+-		// The compiler now has several fancy verbs (CL 28339)
+-		// used with types implementing fmt.Formatters,
+-		// and I believe gri has plans to add many more.
+-		// TODO: remove when issue 17057 is fixed.
+-		if strings.HasPrefix(file, "cmd/") && strings.HasPrefix(msg, "unrecognized printf verb") {
+-			continue
+-		}
+-
+ 		key := file + ": " + msg
+ 		if w[key] == 0 {
+ 			// Vet error with no match in the whitelist. Print it.

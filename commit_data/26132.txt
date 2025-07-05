@@ -9,6 +9,20 @@ Date:   Thu Dec 17 13:25:02 2015 -0800
     Change-Id: I05bcb4efcb865192a1ef6756e9dccef83505934c
     Reviewed-on: https://go-review.googlesource.com/17990
     Reviewed-by: Chris Broadfoot <cbro@golang.org>
-
+---
  doc/conduct.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/conduct.html b/doc/conduct.html
+index 73b68f087e..ce824a165b 100644
+--- a/doc/conduct.html
++++ b/doc/conduct.html
+@@ -159,7 +159,7 @@ values”.
+ If you conduct yourself in a way that is explicitly forbidden by the CoC,
+ you will be warned and asked to stop.
+ If you do not stop, you will be removed from our community spaces temporarily.
+-Repeated, wilful breaches of the CoC will result in a permanent ban.
++Repeated, willful breaches of the CoC will result in a permanent ban.
+ </p>
+ 
+ <p>

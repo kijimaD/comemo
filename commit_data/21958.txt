@@ -9,7 +9,185 @@ Date:   Fri Feb 13 16:30:21 2015 -0800
     Change-Id: I30020f39be9183b37275e10a4fd1e1a3b4c48c89
     Reviewed-on: https://go-review.googlesource.com/4880
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/math/big/float.go      | 40 ++++++++++++++++++++--------------------
  src/math/big/float_test.go | 37 ++++++++++++++++++++++++++++++++-----
  2 files changed, 52 insertions(+), 25 deletions(-)
+
+diff --git a/src/math/big/float.go b/src/math/big/float.go
+index 971a9e5c56..dd6700137b 100644
+--- a/src/math/big/float.go
++++ b/src/math/big/float.go
+@@ -147,6 +147,7 @@ func (mode RoundingMode) String() string {
+ // cannot be represented in prec bits without loss of precision.
+ func (z *Float) SetPrec(prec uint) *Float {
+ 	old := z.prec
++	z.acc = Exact
+ 	z.prec = prec
+ 	if prec < old {
+ 		z.round(0)
+@@ -154,9 +155,10 @@ func (z *Float) SetPrec(prec uint) *Float {
+ 	return z
+ }
+ 
+-// SetMode sets z's rounding mode to mode and returns z.
++// SetMode sets z's rounding mode to mode and returns an exact z.
+ // z remains unchanged otherwise.
+ func (z *Float) SetMode(mode RoundingMode) *Float {
++	z.acc = Exact
+ 	z.mode = mode
+ 	return z
+ }
+@@ -436,16 +438,6 @@ func (z *Float) round(sbit uint) {
+ 	return
+ }
+ 
+-// Round sets z to the value of x rounded according to mode to prec bits and returns z.
+-// TODO(gri) rethink this signature.
+-func (z *Float) Round(x *Float, prec uint, mode RoundingMode) *Float {
+-	z.Copy(x)
+-	z.prec = prec
+-	z.mode = mode
+-	z.round(0)
+-	return z
+-}
+-
+ // nlz returns the number of leading zero bits in x.
+ func nlz(x Word) uint {
+ 	return _W - uint(bitLen(x))
+@@ -465,15 +457,12 @@ func nlz64(x uint64) uint {
+ 	panic("unreachable")
+ }
+ 
+-// SetUint64 sets z to the (possibly rounded) value of x and returns z.
+-// If z's precision is 0, it is changed to 64 (and rounding will have
+-// no effect).
+-func (z *Float) SetUint64(x uint64) *Float {
++func (z *Float) setBits64(neg bool, x uint64) *Float {
+ 	if z.prec == 0 {
+ 		z.prec = 64
+ 	}
+ 	z.acc = Exact
+-	z.neg = false
++	z.neg = neg
+ 	if x == 0 {
+ 		z.mant = z.mant[:0]
+ 		z.exp = 0
+@@ -489,6 +478,13 @@ func (z *Float) SetUint64(x uint64) *Float {
+ 	return z
+ }
+ 
++// SetUint64 sets z to the (possibly rounded) value of x and returns z.
++// If z's precision is 0, it is changed to 64 (and rounding will have
++// no effect).
++func (z *Float) SetUint64(x uint64) *Float {
++	return z.setBits64(false, x)
++}
++
+ // SetInt64 sets z to the (possibly rounded) value of x and returns z.
+ // If z's precision is 0, it is changed to 64 (and rounding will have
+ // no effect).
+@@ -497,9 +493,9 @@ func (z *Float) SetInt64(x int64) *Float {
+ 	if u < 0 {
+ 		u = -u
+ 	}
+-	z.SetUint64(uint64(u))
+-	z.neg = x < 0
+-	return z
++	// We cannot simply call z.SetUint64(uint64(u)) and change
++	// the sign afterwards because the sign affects rounding.
++	return z.setBits64(x < 0, uint64(u))
+ }
+ 
+ // SetFloat64 sets z to the (possibly rounded) value of x and returns z.
+@@ -599,6 +595,7 @@ func (z *Float) SetRat(x *Rat) *Float {
+ // mode; and z's accuracy reports the result error relative to the
+ // exact (not rounded) result.
+ func (z *Float) Set(x *Float) *Float {
++	// TODO(gri) what about z.acc? should it be always Exact?
+ 	if z != x {
+ 		if z.prec == 0 {
+ 			z.prec = x.prec
+@@ -617,6 +614,7 @@ func (z *Float) Set(x *Float) *Float {
+ // Copy sets z to x, with the same precision and rounding mode as x,
+ // and returns z.
+ func (z *Float) Copy(x *Float) *Float {
++	// TODO(gri) what about z.acc? should it be always Exact?
+ 	if z != x {
+ 		z.acc = Exact
+ 		z.neg = x.neg
+@@ -761,7 +759,9 @@ func (x *Float) Float64() (float64, Accuracy) {
+ 		return 0, Exact
+ 	}
+ 	// x != 0
+-	r := new(Float).Round(x, 53, ToNearestEven)
++	var r Float
++	r.prec = 53
++	r.Set(x)
+ 	var s uint64
+ 	if r.neg {
+ 		s = 1 << 63
+diff --git a/src/math/big/float_test.go b/src/math/big/float_test.go
+index db4b52b4e0..8ed7f0a4ad 100644
+--- a/src/math/big/float_test.go
++++ b/src/math/big/float_test.go
+@@ -263,18 +263,46 @@ func testFloatRound(t *testing.T, x, r int64, prec uint, mode RoundingMode) {
+ 	}
+ 
+ 	// round
+-	f := new(Float).SetInt64(x)
+-	f.Round(f, prec, mode)
++	f := new(Float).SetMode(mode).SetInt64(x).SetPrec(prec)
+ 
+ 	// check result
+ 	r1 := f.int64()
+ 	p1 := f.Prec()
+ 	a1 := f.Acc()
+ 	if r1 != r || p1 != prec || a1 != a {
+-		t.Errorf("Round(%s, %d, %s): got %s (%d bits, %s); want %s (%d bits, %s)",
++		t.Errorf("round %s (%d bits, %s) incorrect: got %s (%d bits, %s); want %s (%d bits, %s)",
+ 			toBinary(x), prec, mode,
+ 			toBinary(r1), p1, a1,
+ 			toBinary(r), prec, a)
++		return
++	}
++
++	// g and f should be the same
++	// (rounding by SetPrec after SetInt64 using default precision
++	// should be the same as rounding by SetInt64 after setting the
++	// precision)
++	g := new(Float).SetMode(mode).SetPrec(prec).SetInt64(x)
++	if !feq(g, f) {
++		t.Errorf("round %s (%d bits, %s) not symmetric: got %s and %s; want %s",
++			toBinary(x), prec, mode,
++			toBinary(g.int64()),
++			toBinary(r1),
++			toBinary(r),
++		)
++		return
++	}
++
++	// h and f should be the same
++	// (repeated rounding should be idempotent)
++	h := new(Float).SetMode(mode).SetPrec(prec).Set(f)
++	if !feq(h, f) {
++		t.Errorf("round %s (%d bits, %s) not idempotent: got %s and %s; want %s",
++			toBinary(x), prec, mode,
++			toBinary(h.int64()),
++			toBinary(r1),
++			toBinary(r),
++		)
++		return
+ 	}
+ }
+ 
+@@ -383,8 +411,7 @@ func TestFloatRound24(t *testing.T) {
+ 	const x0 = 1<<26 - 0x10 // 11...110000 (26 bits)
+ 	for d := 0; d <= 0x10; d++ {
+ 		x := float64(x0 + d)
+-		f := new(Float).SetFloat64(x)
+-		f.Round(f, 24, ToNearestEven)
++		f := new(Float).SetPrec(24).SetFloat64(x)
+ 		got, _ := f.Float64()
+ 		want := float64(float32(x))
+ 		if got != want {

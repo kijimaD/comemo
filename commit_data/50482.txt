@@ -15,10 +15,386 @@ Date:   Wed Oct 27 12:06:46 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/types2/api.go         |   2 +-
  src/cmd/compile/internal/types2/conversions.go |   4 +-
  src/go/types/conversions.go                    |  86 ++++++++++++---
  src/go/types/operand.go                        |   6 +-
  src/go/types/testdata/examples/conversions.go2 | 144 +++++++++++++++++++++++++
  5 files changed, 218 insertions(+), 24 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/api.go b/src/cmd/compile/internal/types2/api.go
+index f13fa95b62..83c4b02abf 100644
+--- a/src/cmd/compile/internal/types2/api.go
++++ b/src/cmd/compile/internal/types2/api.go
+@@ -438,7 +438,7 @@ func AssignableTo(V, T Type) bool {
+ // ConvertibleTo reports whether a value of type V is convertible to a value of type T.
+ func ConvertibleTo(V, T Type) bool {
+ 	x := operand{mode: value, typ: V}
+-	return x.convertibleTo(nil, T, nil) // check not needed for non-constant x; if check == nil, cause can be nil
++	return x.convertibleTo(nil, T, nil) // check not needed for non-constant x
+ }
+ 
+ // Implements reports whether type V implements interface T.
+diff --git a/src/cmd/compile/internal/types2/conversions.go b/src/cmd/compile/internal/types2/conversions.go
+index a456f89f7e..bc33b3a44b 100644
+--- a/src/cmd/compile/internal/types2/conversions.go
++++ b/src/cmd/compile/internal/types2/conversions.go
+@@ -178,12 +178,12 @@ func convertibleToImpl(check *Checker, V, T Type, cause *string) bool {
+ 		return true
+ 	}
+ 
+-	// "V an integer or a slice of bytes or runes and T is a string type"
++	// "V is an integer or a slice of bytes or runes and T is a string type"
+ 	if (isInteger(V) || isBytesOrRunes(Vu)) && isString(T) {
+ 		return true
+ 	}
+ 
+-	// "V a string and T is a slice of bytes or runes"
++	// "V is a string and T is a slice of bytes or runes"
+ 	if isString(V) && isBytesOrRunes(Tu) {
+ 		return true
+ 	}
+diff --git a/src/go/types/conversions.go b/src/go/types/conversions.go
+index a1fcdd4fd8..fe62adbf10 100644
+--- a/src/go/types/conversions.go
++++ b/src/go/types/conversions.go
+@@ -17,7 +17,7 @@ func (check *Checker) conversion(x *operand, T Type) {
+ 	constArg := x.mode == constant_
+ 
+ 	var ok bool
+-	var reason string
++	var cause string
+ 	switch {
+ 	case constArg && isConstType(T):
+ 		// constant conversion
+@@ -32,15 +32,16 @@ func (check *Checker) conversion(x *operand, T Type) {
+ 			x.val = constant.MakeString(string(codepoint))
+ 			ok = true
+ 		}
+-	case x.convertibleTo(check, T, &reason):
++	case x.convertibleTo(check, T, &cause):
+ 		// non-constant conversion
+ 		x.mode = value
+ 		ok = true
+ 	}
+ 
+ 	if !ok {
+-		if reason != "" {
+-			check.errorf(x, _InvalidConversion, "cannot convert %s to %s (%s)", x, T, reason)
++		// TODO(rfindley): use types2-style error reporting here.
++		if cause != "" {
++			check.errorf(x, _InvalidConversion, "cannot convert %s to %s (%s)", x, T, cause)
+ 		} else {
+ 			check.errorf(x, _InvalidConversion, "cannot convert %s to %s", x, T)
+ 		}
+@@ -81,24 +82,75 @@ func (check *Checker) conversion(x *operand, T Type) {
+ // is tricky because we'd have to run updateExprType on the argument first.
+ // (Issue #21982.)
+ 
+-// convertibleTo reports whether T(x) is valid.
++// convertibleTo reports whether T(x) is valid. In the failure case, *cause
++// may be set to the cause for the failure.
+ // The check parameter may be nil if convertibleTo is invoked through an
+ // exported API call, i.e., when all methods have been type-checked.
+-func (x *operand) convertibleTo(check *Checker, T Type, reason *string) bool {
++func (x *operand) convertibleTo(check *Checker, T Type, cause *string) bool {
+ 	// "x is assignable to T"
+-	if ok, _ := x.assignableTo(check, T, nil); ok {
++	if ok, _ := x.assignableTo(check, T, cause); ok {
+ 		return true
+ 	}
+ 
+-	// "x's type and T have identical underlying types if tags are ignored"
+-	V := x.typ
++	errorf := func(format string, args ...interface{}) {
++		if check != nil && cause != nil {
++			msg := check.sprintf(format, args...)
++			if *cause != "" {
++				msg += "\n\t" + *cause
++			}
++			*cause = msg
++		}
++	}
++
++	// TODO(gri) consider passing under(x.typ), under(T) into convertibleToImpl (optimization)
++	Vp, _ := under(x.typ).(*TypeParam)
++	Tp, _ := under(T).(*TypeParam)
++
++	// generic cases
++	// (generic operands cannot be constants, so we can ignore x.val)
++	switch {
++	case Vp != nil && Tp != nil:
++		return Vp.is(func(V *term) bool {
++			return Tp.is(func(T *term) bool {
++				if !convertibleToImpl(check, V.typ, T.typ, cause) {
++					errorf("cannot convert %s (in %s) to %s (in %s)", V.typ, Vp, T.typ, Tp)
++					return false
++				}
++				return true
++			})
++		})
++	case Vp != nil:
++		return Vp.is(func(V *term) bool {
++			if !convertibleToImpl(check, V.typ, T, cause) {
++				errorf("cannot convert %s (in %s) to %s", V.typ, Vp, T)
++				return false
++			}
++			return true
++		})
++	case Tp != nil:
++		return Tp.is(func(T *term) bool {
++			if !convertibleToImpl(check, x.typ, T.typ, cause) {
++				errorf("cannot convert %s to %s (in %s)", x.typ, T.typ, Tp)
++				return false
++			}
++			return true
++		})
++	}
++
++	// non-generic case
++	return convertibleToImpl(check, x.typ, T, cause)
++}
++
++// convertibleToImpl should only be called by convertibleTo
++func convertibleToImpl(check *Checker, V, T Type, cause *string) bool {
++	// "V and T have identical underlying types if tags are ignored"
+ 	Vu := under(V)
+ 	Tu := under(T)
+ 	if IdenticalIgnoreTags(Vu, Tu) {
+ 		return true
+ 	}
+ 
+-	// "x's type and T are unnamed pointer types and their pointer base types
++	// "V and T are unnamed pointer types and their pointer base types
+ 	// have identical underlying types if tags are ignored"
+ 	if V, ok := V.(*Pointer); ok {
+ 		if T, ok := T.(*Pointer); ok {
+@@ -108,22 +160,22 @@ func (x *operand) convertibleTo(check *Checker, T Type, reason *string) bool {
+ 		}
+ 	}
+ 
+-	// "x's type and T are both integer or floating point types"
++	// "V and T are both integer or floating point types"
+ 	if isIntegerOrFloat(V) && isIntegerOrFloat(T) {
+ 		return true
+ 	}
+ 
+-	// "x's type and T are both complex types"
++	// "V and T are both complex types"
+ 	if isComplex(V) && isComplex(T) {
+ 		return true
+ 	}
+ 
+-	// "x is an integer or a slice of bytes or runes and T is a string type"
++	// "V is an integer or a slice of bytes or runes and T is a string type"
+ 	if (isInteger(V) || isBytesOrRunes(Vu)) && isString(T) {
+ 		return true
+ 	}
+ 
+-	// "x is a string and T is a slice of bytes or runes"
++	// "V is a string and T is a slice of bytes or runes"
+ 	if isString(V) && isBytesOrRunes(Tu) {
+ 		return true
+ 	}
+@@ -138,7 +190,7 @@ func (x *operand) convertibleTo(check *Checker, T Type, reason *string) bool {
+ 		return true
+ 	}
+ 
+-	// "x is a slice, T is a pointer-to-array type,
++	// "V is a slice, T is a pointer-to-array type,
+ 	// and the slice and array types have identical element types."
+ 	if s := asSlice(V); s != nil {
+ 		if p := asPointer(T); p != nil {
+@@ -147,8 +199,8 @@ func (x *operand) convertibleTo(check *Checker, T Type, reason *string) bool {
+ 					if check == nil || check.allowVersion(check.pkg, 1, 17) {
+ 						return true
+ 					}
+-					if reason != nil {
+-						*reason = "conversion of slices to array pointers requires go1.17 or later"
++					if cause != nil {
++						*cause = "conversion of slices to array pointers requires go1.17 or later"
+ 					}
+ 				}
+ 			}
+diff --git a/src/go/types/operand.go b/src/go/types/operand.go
+index a54802defc..855dac66aa 100644
+--- a/src/go/types/operand.go
++++ b/src/go/types/operand.go
+@@ -159,17 +159,14 @@ func operandString(x *operand, qf Qualifier) string {
+ 	if hasType {
+ 		if x.typ != Typ[Invalid] {
+ 			var intro string
+-			var tpar *TypeParam
+ 			if isGeneric(x.typ) {
+ 				intro = " of parameterized type "
+-			} else if tpar = asTypeParam(x.typ); tpar != nil {
+-				intro = " of type parameter "
+ 			} else {
+ 				intro = " of type "
+ 			}
+ 			buf.WriteString(intro)
+ 			WriteType(&buf, x.typ, qf)
+-			if tpar != nil {
++			if tpar := asTypeParam(x.typ); tpar != nil {
+ 				buf.WriteString(" constrained by ")
+ 				WriteType(&buf, tpar.bound, qf) // do not compute interface type sets here
+ 			}
+@@ -284,6 +281,7 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) (bool, er
+ 	if Ti, ok := Tu.(*Interface); ok {
+ 		if m, wrongType := check.missingMethod(V, Ti, true); m != nil /* Implements(V, Ti) */ {
+ 			if reason != nil {
++				// TODO(gri) the error messages here should follow the style in Checker.typeAssertion (factor!)
+ 				if wrongType != nil {
+ 					if Identical(m.typ, wrongType.typ) {
+ 						*reason = fmt.Sprintf("missing method %s (%s has pointer receiver)", m.name, m.name)
+diff --git a/src/go/types/testdata/examples/conversions.go2 b/src/go/types/testdata/examples/conversions.go2
+new file mode 100644
+index 0000000000..eb988ffed1
+--- /dev/null
++++ b/src/go/types/testdata/examples/conversions.go2
+@@ -0,0 +1,144 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package conversions
++
++import "unsafe"
++
++// "x is assignable to T"
++// - tested via assignability tests
++
++// "x's type and T have identical underlying types if tags are ignored"
++
++func _[X ~int, T ~int](x X) T { return T(x) }
++func _[X struct{f int "foo"}, T struct{f int "bar"}](x X) T { return T(x) }
++
++type Foo struct{f int "foo"}
++type Bar struct{f int "bar"}
++type Far struct{f float64 }
++
++func _[X Foo, T Bar](x X) T { return T(x) }
++func _[X Foo|Bar, T Bar](x X) T { return T(x) }
++func _[X Foo, T Foo|Bar](x X) T { return T(x) }
++func _[X Foo, T Far](x X) T { return T(x /* ERROR cannot convert x \(variable of type X constrained by Foo\) to T.*cannot convert Foo \(in X\) to Far \(in T\) */ ) }
++
++// "x's type and T are unnamed pointer types and their pointer base types
++// have identical underlying types if tags are ignored"
++
++func _[X ~*Foo, T ~*Bar](x X) T { return T(x) }
++func _[X ~*Foo|~*Bar, T ~*Bar](x X) T { return T(x) }
++func _[X ~*Foo, T ~*Foo|~*Bar](x X) T { return T(x) }
++func _[X ~*Foo, T ~*Far](x X) T { return T(x /* ERROR cannot convert x \(variable of type X constrained by ~\*Foo\) to T.*cannot convert \*Foo \(in X\) to \*Far \(in T\) */ ) }
++
++// Verify that the defined types in constraints are considered for the rule above.
++
++type (
++	B int
++	C int
++	X0 *B
++	T0 *C
++)
++
++func _(x X0) T0 { return T0(x /* ERROR cannot convert */ ) } // non-generic reference
++func _[X X0, T T0](x X) T { return T(x /* ERROR cannot convert */ ) }
++func _[T T0](x X0) T { return T(x /* ERROR cannot convert */ ) }
++func _[X X0](x X) T0 { return T0(x /* ERROR cannot convert */ ) }
++
++// "x's type and T are both integer or floating point types"
++
++func _[X Integer, T Integer](x X) T { return T(x) }
++func _[X Unsigned, T Integer](x X) T { return T(x) }
++func _[X Float, T Integer](x X) T { return T(x) }
++
++func _[X Integer, T Unsigned](x X) T { return T(x) }
++func _[X Unsigned, T Unsigned](x X) T { return T(x) }
++func _[X Float, T Unsigned](x X) T { return T(x) }
++
++func _[X Integer, T Float](x X) T { return T(x) }
++func _[X Unsigned, T Float](x X) T { return T(x) }
++func _[X Float, T Float](x X) T { return T(x) }
++
++func _[X, T Integer|Unsigned|Float](x X) T { return T(x) }
++func _[X, T Integer|~string](x X) T { return T(x /* ERROR cannot convert x \(variable of type X constrained by Integer\|~string\) to T.*cannot convert string \(in X\) to int \(in T\) */ ) }
++
++// "x's type and T are both complex types"
++
++func _[X, T Complex](x X) T { return T(x) }
++func _[X, T Float|Complex](x X) T { return T(x /* ERROR cannot convert x \(variable of type X constrained by Float\|Complex\) to T.*cannot convert float32 \(in X\) to complex64 \(in T\) */ ) }
++
++// "x is an integer or a slice of bytes or runes and T is a string type"
++
++type myInt int
++type myString string
++
++func _[T ~string](x int) T { return T(x) }
++func _[T ~string](x myInt) T { return T(x) }
++func _[X Integer](x X) string { return string(x) }
++func _[X Integer](x X) myString { return myString(x) }
++func _[X Integer](x X) *string { return (*string)(x /* ERROR cannot convert x \(variable of type X constrained by Integer\) to \*string.*cannot convert int \(in X\) to \*string */ ) }
++
++func _[T ~string](x []byte) T { return T(x) }
++func _[T ~string](x []rune) T { return T(x) }
++func _[X ~[]byte, T ~string](x X) T { return T(x) }
++func _[X ~[]rune, T ~string](x X) T { return T(x) }
++func _[X Integer|~[]byte|~[]rune, T ~string](x X) T { return T(x) }
++func _[X Integer|~[]byte|~[]rune, T ~*string](x X) T { return T(x /* ERROR cannot convert x \(variable of type X constrained by Integer\|~\[\]byte\|~\[\]rune\) to T.*cannot convert int \(in X\) to \*string \(in T\) */ ) }
++
++// "x is a string and T is a slice of bytes or runes"
++
++func _[T ~[]byte](x string) T { return T(x) }
++func _[T ~[]rune](x string) T { return T(x) }
++func _[T ~[]rune](x *string) T { return T(x /* ERROR cannot convert x \(variable of type \*string\) to T.*cannot convert \*string to \[\]rune \(in T\) */ ) }
++
++func _[X ~string, T ~[]byte](x X) T { return T(x) }
++func _[X ~string, T ~[]rune](x X) T { return T(x) }
++func _[X ~string, T ~[]byte|~[]rune](x X) T { return T(x) }
++func _[X ~*string, T ~[]byte|~[]rune](x X) T { return T(x /* ERROR cannot convert x \(variable of type X constrained by ~\*string\) to T.*cannot convert \*string \(in X\) to \[\]byte \(in T\) */ ) }
++
++// package unsafe:
++// "any pointer or value of underlying type uintptr can be converted into a unsafe.Pointer"
++
++type myUintptr uintptr
++
++func _[X ~uintptr](x X) unsafe.Pointer { return unsafe.Pointer(x) }
++func _[T unsafe.Pointer](x myUintptr) T { return T(x) }
++func _[T unsafe.Pointer](x int64) T { return T(x /* ERROR cannot convert x \(variable of type int64\) to T.*cannot convert int64 to unsafe\.Pointer \(in T\) */ ) }
++
++// "and vice versa"
++
++func _[T ~uintptr](x unsafe.Pointer) T { return T(x) }
++func _[X unsafe.Pointer](x X) uintptr { return uintptr(x) }
++func _[X unsafe.Pointer](x X) myUintptr { return myUintptr(x) }
++func _[X unsafe.Pointer](x X) int64 { return int64(x /* ERROR cannot convert x \(variable of type X constrained by unsafe\.Pointer\) to int64.*cannot convert unsafe\.Pointer \(in X\) to int64 */ ) }
++
++// "x is a slice, T is a pointer-to-array type,
++// and the slice and array types have identical element types."
++
++func _[X ~[]E, T ~*[10]E, E any](x X) T { return T(x) }
++func _[X ~[]E, T ~[10]E, E any](x X) T { return T(x /* ERROR cannot convert x \(variable of type X constrained by ~\[\]E\) to T.*cannot convert \[\]E \(in X\) to \[10\]E \(in T\) */ ) }
++
++// ----------------------------------------------------------------------------
++// The following declarations can be replaced by the exported types of the
++// constraints package once all builders support importing interfaces with
++// type constraints.
++
++type Signed interface {
++	~int | ~int8 | ~int16 | ~int32 | ~int64
++}
++
++type Unsigned interface {
++	~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr
++}
++
++type Integer interface {
++	Signed | Unsigned
++}
++
++type Float interface {
++	~float32 | ~float64
++}
++
++type Complex interface {
++	~complex64 | ~complex128
++}

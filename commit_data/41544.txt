@@ -11,6 +11,32 @@ Date:   Wed Oct 9 15:53:03 2019 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/internal/goobj/readnew.go | 7 ++++++-
  1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/internal/goobj/readnew.go b/src/cmd/internal/goobj/readnew.go
+index 442784de3a..b4b84692d5 100644
+--- a/src/cmd/internal/goobj/readnew.go
++++ b/src/cmd/internal/goobj/readnew.go
+@@ -8,6 +8,7 @@ import (
+ 	"cmd/internal/goobj2"
+ 	"cmd/internal/objabi"
+ 	"fmt"
++	"strings"
+ )
+ 
+ // Read object file in new format. For now we still fill
+@@ -67,7 +68,11 @@ func (r *objReader) readNew() {
+ 		if osym.Name == "" {
+ 			continue // not a real symbol
+ 		}
+-		symID := SymID{Name: osym.Name, Version: abiToVer(osym.ABI)}
++		// In a symbol name in an object file, "". denotes the
++		// prefix for the package in which the object file has been found.
++		// Expand it.
++		name := strings.ReplaceAll(osym.Name, `"".`, r.pkgprefix)
++		symID := SymID{Name: name, Version: abiToVer(osym.ABI)}
+ 		r.p.SymRefs = append(r.p.SymRefs, symID)
+ 
+ 		if i >= ndef {

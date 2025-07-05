@@ -22,9 +22,98 @@ Date:   Tue Mar 28 07:12:57 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/order.go  | 10 +++++++++-
  src/cmd/compile/internal/gc/subr.go   |  7 ++-----
  src/cmd/compile/internal/gc/syntax.go | 12 +++++++++++-
  src/cmd/compile/internal/gc/walk.go   |  1 +
  4 files changed, 23 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/order.go b/src/cmd/compile/internal/gc/order.go
+index 940cf1b4fb..c4c7a9d765 100644
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@ -314,6 +314,14 @@ func orderstmtinplace(n *Node) *Node {
+ 
+ // Orderinit moves n's init list to order->out.
+ func orderinit(n *Node, order *Order) {
++	if n.mayBeShared() {
++		// For concurrency safety, don't mutate potentially shared nodes.
++		// First, ensure that no work is required here.
++		if n.Ninit.Len() > 0 {
++			Fatalf("orderinit shared node with ninit")
++		}
++		return
++	}
+ 	orderstmtlist(n.Ninit, order)
+ 	n.Ninit.Set(nil)
+ }
+@@ -1107,7 +1115,7 @@ func orderexpr(n *Node, order *Order, lhs *Node) *Node {
+ 		var s []*Node
+ 
+ 		cleantempnopop(mark, order, &s)
+-		n.Right.Ninit.Prepend(s...)
++		n.Right = addinit(n.Right, s)
+ 		n.Right = orderexprinplace(n.Right, order)
+ 
+ 	case OCALLFUNC,
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 9bdecec5ce..b358db2d0d 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -2043,11 +2043,8 @@ func addinit(n *Node, init []*Node) *Node {
+ 	if len(init) == 0 {
+ 		return n
+ 	}
+-
+-	switch n.Op {
+-	// There may be multiple refs to this node;
+-	// introduce OCONVNOP to hold init list.
+-	case ONAME, OLITERAL:
++	if n.mayBeShared() {
++		// Introduce OCONVNOP to hold init list.
+ 		n = nod(OCONVNOP, n, nil)
+ 		n.Type = n.Left.Type
+ 		n.Typecheck = 1
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index 3bc3baee8a..c009c0ce65 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -14,7 +14,7 @@ import (
+ // A Node is a single node in the syntax tree.
+ // Actually the syntax tree is a syntax DAG, because there is only one
+ // node with Op=ONAME for a given instance of a variable x.
+-// The same is true for Op=OTYPE and Op=OLITERAL.
++// The same is true for Op=OTYPE and Op=OLITERAL. See Node.mayBeShared.
+ type Node struct {
+ 	// Tree structure.
+ 	// Generic recursive walks should follow these fields.
+@@ -179,6 +179,16 @@ func (n *Node) SetIota(x int64) {
+ 	n.Xoffset = x
+ }
+ 
++// mayBeShared reports whether n may occur in multiple places in the AST.
++// Extra care must be taken when mutating such a node.
++func (n *Node) mayBeShared() bool {
++	switch n.Op {
++	case ONAME, OLITERAL, OTYPE:
++		return true
++	}
++	return false
++}
++
+ // Name holds Node fields used only by named nodes (ONAME, OTYPE, OPACK, OLABEL, some OLITERAL).
+ type Name struct {
+ 	Pack      *Node  // real package for import . names
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 2fb14caba1..214844f55b 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -500,6 +500,7 @@ opswitch:
+ 
+ 	case OTYPE, ONAME, OLITERAL:
+ 		// TODO(mdempsky): Just return n; see discussion on CL 38655.
++		// Perhaps refactor to use Node.mayBeShared for these instead.
+ 
+ 	case ONOT, OMINUS, OPLUS, OCOM, OREAL, OIMAG, ODOTMETH, ODOTINTER,
+ 		OIND, OSPTR, OITAB, OIDATA, OADDR:

@@ -13,8 +13,85 @@ Date:   Tue Dec 1 11:58:41 2015 -0800
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/go.go     | 17 ++++++++---------
  src/cmd/compile/internal/gc/lex.go    |  1 -
  src/cmd/compile/internal/gc/parser.go |  8 ++++----
  3 files changed, 12 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index 3146caed2f..8053aaffe9 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -386,15 +386,14 @@ type Sig struct {
+ }
+ 
+ type Io struct {
+-	infile     string
+-	bin        *obj.Biobuf
+-	cp         string // used for content when bin==nil
+-	last       int
+-	peekc      int
+-	peekc1     int // second peekc for ...
+-	nlsemi     bool
+-	eofnl      bool
+-	importsafe bool
++	infile string
++	bin    *obj.Biobuf
++	cp     string // used for content when bin==nil
++	last   int
++	peekc  int
++	peekc1 int // second peekc for ...
++	nlsemi bool
++	eofnl  bool
+ }
+ 
+ type Dlist struct {
+diff --git a/src/cmd/compile/internal/gc/lex.go b/src/cmd/compile/internal/gc/lex.go
+index b9c27357bb..f1112e5af8 100644
+--- a/src/cmd/compile/internal/gc/lex.go
++++ b/src/cmd/compile/internal/gc/lex.go
+@@ -884,7 +884,6 @@ func cannedimports(file string, cp string) {
+ 	curio.infile = file
+ 	curio.cp = cp
+ 	curio.nlsemi = false
+-	curio.importsafe = false
+ 
+ 	typecheckok = true
+ 	incannedimport = 1
+diff --git a/src/cmd/compile/internal/gc/parser.go b/src/cmd/compile/internal/gc/parser.go
+index 054cf73656..2e4be63a34 100644
+--- a/src/cmd/compile/internal/gc/parser.go
++++ b/src/cmd/compile/internal/gc/parser.go
+@@ -71,7 +71,6 @@ func (p *parser) loadsys() {
+ 	} else {
+ 		cannedimports("runtime.Builtin", runtimeimport)
+ 	}
+-	curio.importsafe = true
+ 
+ 	p.import_package()
+ 	p.import_there()
+@@ -467,9 +466,10 @@ func (p *parser) import_package() {
+ 		p.import_error()
+ 	}
+ 
++	importsafe := false
+ 	if p.tok == LNAME {
+ 		if p.sym_.Name == "safe" {
+-			curio.importsafe = true
++			importsafe = true
+ 		}
+ 		p.next()
+ 	}
+@@ -484,9 +484,9 @@ func (p *parser) import_package() {
+ 	if incannedimport == 0 {
+ 		importpkg.Direct = true
+ 	}
+-	importpkg.Safe = curio.importsafe
++	importpkg.Safe = importsafe
+ 
+-	if safemode != 0 && !curio.importsafe {
++	if safemode != 0 && !importsafe {
+ 		Yyerror("cannot import unsafe package %q", importpkg.Path)
+ 	}
+ }

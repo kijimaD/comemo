@@ -14,7 +14,7 @@ Date:   Fri Sep 25 09:39:08 2009 -0700
     DELTA=1957  (34 added, 1868 deleted, 55 changed)
     OCL=34969
     CL=35008
-
+---
  src/pkg/debug/gosym/symtab.go |   4 +-
  usr/austin/ogle/cmd.go        |  16 +-
  usr/austin/ogle/frame.go      |  12 +-
@@ -30,3 +30,2402 @@ Date:   Fri Sep 25 09:39:08 2009 -0700
  usr/austin/sym/pclinetest.s   |  89 -----
  usr/austin/sym/sym_test.go    | 207 ------------
  14 files changed, 87 insertions(+), 1946 deletions(-)
+
+diff --git a/src/pkg/debug/gosym/symtab.go b/src/pkg/debug/gosym/symtab.go
+index ece74f19d5..b531db6e06 100644
+--- a/src/pkg/debug/gosym/symtab.go
++++ b/src/pkg/debug/gosym/symtab.go
+@@ -2,7 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-
+ // Package gosym implements access to the Go symbol
+ // and line number tables embedded in Go binaries generated
+ // by the gc compilers.
+@@ -31,6 +30,8 @@ type Sym struct {
+ 	Type byte;
+ 	Name string;
+ 	GoType uint64;
++	// If this symbol if a function symbol, the corresponding Func
++	Func *Func;
+ }
+ 
+ // Static returns whether this symbol is static (not visible outside its file).
+@@ -287,6 +288,7 @@ func NewTable(symtab []byte, pcln *LineTable) (*Table, os.Error) {
+ 			n := len(t.Funcs);
+ 			t.Funcs = t.Funcs[0:n+1];
+ 			fn := &t.Funcs[n];
++			sym.Func = fn;
+ 			fn.Params = make([]*Sym, 0, np);
+ 			fn.Locals = make([]*Sym, 0, na);
+ 			fn.Sym = sym;
+diff --git a/usr/austin/ogle/cmd.go b/usr/austin/ogle/cmd.go
+index 150b5a5a3e..09767e72f9 100644
+--- a/usr/austin/ogle/cmd.go
++++ b/usr/austin/ogle/cmd.go
+@@ -6,6 +6,7 @@ package ogle
+ 
+ import (
+ 	"bufio";
++	"debug/elf";
+ 	"debug/proc";
+ 	"eval";
+ 	"fmt";
+@@ -14,7 +15,6 @@ import (
+ 	"os";
+ 	"strconv";
+ 	"strings";
+-	"sym";
+ )
+ 
+ var world *eval.World;
+@@ -177,7 +177,7 @@ func cmdLoad(args []byte) os.Error {
+ 		return err;
+ 	}
+ 	defer f.Close();
+-	elf, err := sym.NewElf(f);
++	elf, err := elf.NewFile(f);
+ 	if err != nil {
+ 		tproc.Detach();
+ 		return err;
+@@ -366,13 +366,9 @@ func fnBpSet(t *eval.Thread, args []eval.Value, res []eval.Value) {
+ 		t.Abort(NoCurrentGoroutine{});
+ 	}
+ 	name := args[0].(eval.StringValue).Get(t);
+-	s := curProc.syms.SymFromName(name);
+-	if s == nil {
+-		t.Abort(UsageError("symbol " + name + " not defined"));
++	fn := curProc.syms.LookupFunc(name);
++	if fn == nil {
++		t.Abort(UsageError("no such function " + name));
+ 	}
+-	fn, ok := s.(*sym.TextSym);
+-	if !ok {
+-		t.Abort(UsageError("symbol " + name + " is not a function"));
+-	}
+-	curProc.OnBreakpoint(proc.Word(fn.Entry())).AddHandler(EventStop);
++	curProc.OnBreakpoint(proc.Word(fn.Entry)).AddHandler(EventStop);
+ }
+diff --git a/usr/austin/ogle/frame.go b/usr/austin/ogle/frame.go
+index 8e9dc3e106..bf2b391349 100644
+--- a/usr/austin/ogle/frame.go
++++ b/usr/austin/ogle/frame.go
+@@ -5,10 +5,10 @@
+ package ogle
+ 
+ import (
++	"debug/gosym";
+ 	"debug/proc";
+ 	"fmt";
+ 	"os";
+-	"sym";
+ )
+ 
+ // A Frame represents a single frame on a remote call stack.
+@@ -20,7 +20,7 @@ type Frame struct {
+ 	// The runtime.Stktop of the active stack segment
+ 	stk remoteStruct;
+ 	// The function this stack frame is in
+-	fn *sym.TextSym;
++	fn *gosym.Func;
+ 	// The path and line of the CALL or current instruction.  Note
+ 	// that this differs slightly from the meaning of Frame.pc.
+ 	path string;
+@@ -100,7 +100,7 @@ func prepareFrame(a aborter, pc, sp proc.Word, stk remoteStruct, inner *Frame) *
+ 	// Get function
+ 	var path string;
+ 	var line int;
+-	var fn *sym.TextSym;
++	var fn *gosym.Func;
+ 
+ 	for i := 0; i < 100; i++ {
+ 		// Traverse segmented stack breaks
+@@ -121,7 +121,7 @@ func prepareFrame(a aborter, pc, sp proc.Word, stk remoteStruct, inner *Frame) *
+ 		}
+ 
+ 		// Look up function
+-		path, line, fn = p.syms.LineFromPC(uint64(callpc));
++		path, line, fn = p.syms.PCToLine(uint64(callpc));
+ 		if fn != nil {
+ 			break;
+ 		}
+@@ -154,7 +154,7 @@ func prepareFrame(a aborter, pc, sp proc.Word, stk remoteStruct, inner *Frame) *
+ 	//
+ 	// TODO(austin) What if we're in the call to morestack in the
+ 	// prologue?  Then top == false.
+-	if top && pc == proc.Word(fn.Entry()) {
++	if top && pc == proc.Word(fn.Entry) {
+ 		// We're in the function prologue, before SP
+ 		// has been adjusted for the frame.
+ 		fp -= proc.Word(fn.FrameSize - p.PtrSize());
+@@ -208,7 +208,7 @@ func (f *Frame) Inner() *Frame {
+ func (f *Frame) String() string {
+ 	res := f.fn.Name;
+ 	if f.pc > proc.Word(f.fn.Value) {
+-		res += fmt.Sprintf("+%#x", f.pc - proc.Word(f.fn.Entry()));
++		res += fmt.Sprintf("+%#x", f.pc - proc.Word(f.fn.Entry));
+ 	}
+ 	return res + fmt.Sprintf(" %s:%d", f.path, f.line);
+ }
+diff --git a/usr/austin/ogle/process.go b/usr/austin/ogle/process.go
+index ffd4eb6723..0a3e9b2916 100644
+--- a/usr/austin/ogle/process.go
++++ b/usr/austin/ogle/process.go
+@@ -5,13 +5,14 @@
+ package ogle
+ 
+ import (
++	"debug/elf";
++	"debug/gosym";
+ 	"debug/proc";
+ 	"eval";
+ 	"fmt";
+ 	"log";
+ 	"os";
+ 	"reflect";
+-	"sym";
+ )
+ 
+ // A FormatError indicates a failure to process information in or
+@@ -25,10 +26,10 @@ func (e FormatError) String() string {
+ 
+ // An UnknownArchitecture occurs when trying to load an object file
+ // that indicates an architecture not supported by the debugger.
+-type UnknownArchitecture sym.ElfMachine
++type UnknownArchitecture elf.Machine
+ 
+ func (e UnknownArchitecture) String() string {
+-	return "unknown architecture: " + sym.ElfMachine(e).String();
++	return "unknown architecture: " + elf.Machine(e).String();
+ }
+ 
+ // A ProcessNotStopped error occurs when attempting to read or write
+@@ -65,7 +66,7 @@ type Process struct {
+ 	proc proc.Process;
+ 
+ 	// The symbol table of this process
+-	syms *sym.GoSymTable;
++	syms *gosym.Table;
+ 
+ 	// A possibly-stopped OS thread, or nil
+ 	threadCache proc.Thread;
+@@ -81,7 +82,7 @@ type Process struct {
+ 
+ 	// Globals from the sys package (or from no package)
+ 	sys struct {
+-		lessstack, goexit, newproc, deferproc, newprocreadylocked *sym.TextSym;
++		lessstack, goexit, newproc, deferproc, newprocreadylocked *gosym.Func;
+ 		allg remotePtr;
+ 		g0 remoteStruct;
+ 	};
+@@ -109,7 +110,7 @@ type Process struct {
+ 
+ // NewProcess constructs a new remote process around a traced
+ // process, an architecture, and a symbol table.
+-func NewProcess(tproc proc.Process, arch Arch, syms *sym.GoSymTable) (*Process, os.Error) {
++func NewProcess(tproc proc.Process, arch Arch, syms *gosym.Table) (*Process, os.Error) {
+ 	p := &Process{
+ 		Arch: arch,
+ 		proc: tproc,
+@@ -151,8 +152,8 @@ func NewProcess(tproc proc.Process, arch Arch, syms *sym.GoSymTable) (*Process,
+ 	}
+ 
+ 	// Create internal breakpoints to catch new and exited goroutines
+-	p.OnBreakpoint(proc.Word(p.sys.newprocreadylocked.Entry())).(*breakpointHook).addHandler(readylockedBP, true);
+-	p.OnBreakpoint(proc.Word(p.sys.goexit.Entry())).(*breakpointHook).addHandler(goexitBP, true);
++	p.OnBreakpoint(proc.Word(p.sys.newprocreadylocked.Entry)).(*breakpointHook).addHandler(readylockedBP, true);
++	p.OnBreakpoint(proc.Word(p.sys.goexit.Entry)).(*breakpointHook).addHandler(goexitBP, true);
+ 
+ 	// Select current frames
+ 	for _, g := range p.goroutines {
+@@ -164,10 +165,36 @@ func NewProcess(tproc proc.Process, arch Arch, syms *sym.GoSymTable) (*Process,
+ 	return p, nil;
+ }
+ 
++func elfGoSyms(f *elf.File) (*gosym.Table, os.Error) {
++	text := f.Section(".text");
++	symtab := f.Section(".gosymtab");
++	pclntab := f.Section(".gopclntab");
++	if text == nil || symtab == nil || pclntab == nil {
++		return nil, nil;
++	}
++
++	symdat, err := symtab.Data();
++	if err != nil {
++		return nil, err;
++	}
++	pclndat, err := pclntab.Data();
++	if err != nil {
++		return nil, err;
++	}
++
++	pcln := gosym.NewLineTable(pclndat, text.Addr);
++	tab, err := gosym.NewTable(symdat, pcln);
++	if err != nil {
++		return nil, err;
++	}
++
++	return tab, nil;
++}
++
+ // NewProcessElf constructs a new remote process around a traced
+ // process and the process' ELF object.
+-func NewProcessElf(tproc proc.Process, elf *sym.Elf) (*Process, os.Error) {
+-	syms, err := sym.ElfGoSyms(elf);
++func NewProcessElf(tproc proc.Process, f *elf.File) (*Process, os.Error) {
++	syms, err := elfGoSyms(f);
+ 	if err != nil {
+ 		return nil, err;
+ 	}
+@@ -175,11 +202,11 @@ func NewProcessElf(tproc proc.Process, elf *sym.Elf) (*Process, os.Error) {
+ 		return nil, FormatError("Failed to find symbol table");
+ 	}
+ 	var arch Arch;
+-	switch elf.Machine {
+-	case sym.ElfX86_64:
++	switch f.Machine {
++	case elf.EM_X86_64:
+ 		arch = Amd64;
+ 	default:
+-		return nil, UnknownArchitecture(elf.Machine);
++		return nil, UnknownArchitecture(f.Machine);
+ 	}
+ 	return NewProcess(tproc, arch, syms);
+ }
+@@ -204,7 +231,7 @@ func (p *Process) bootstrap() {
+ 	p.runtime.Gobuf = newManualType(eval.TypeOfNative(rt1Gobuf{}), p.Arch);
+ 	p.runtime.G = newManualType(eval.TypeOfNative(rt1G{}), p.Arch);
+ 
+-	// Get addresses of type·*runtime.XType for discrimination.
++	// Get addresses of type.*runtime.XType for discrimination.
+ 	rtv := reflect.Indirect(reflect.NewValue(&p.runtime)).(*reflect.StructValue);
+ 	rtvt := rtv.Type().(*reflect.StructType);
+ 	for i := 0; i < rtv.NumField(); i++ {
+@@ -212,11 +239,11 @@ func (p *Process) bootstrap() {
+ 		if n[0] != 'P' || n[1] < 'A' || n[1] > 'Z' {
+ 			continue;
+ 		}
+-		sym := p.syms.SymFromName("type·*runtime." + n[1:len(n)]);
++		sym := p.syms.LookupSym("type.*runtime." + n[1:len(n)]);
+ 		if sym == nil {
+ 			continue;
+ 		}
+-		rtv.Field(i).(*reflect.Uint64Value).Set(sym.Common().Value);
++		rtv.Field(i).(*reflect.Uint64Value).Set(sym.Value);
+ 	}
+ 
+ 	// Get runtime field indexes
+@@ -226,22 +253,16 @@ func (p *Process) bootstrap() {
+ 	p.runtime.runtimeGStatus = rt1GStatus;
+ 
+ 	// Get globals
+-	globalFn := func(name string) *sym.TextSym {
+-		if sym, ok := p.syms.SymFromName(name).(*sym.TextSym); ok {
+-			return sym;
+-		}
+-		return nil;
+-	};
+-	p.sys.lessstack = globalFn("sys·lessstack");
+-	p.sys.goexit = globalFn("goexit");
+-	p.sys.newproc = globalFn("sys·newproc");
+-	p.sys.deferproc = globalFn("sys·deferproc");
+-	p.sys.newprocreadylocked = globalFn("newprocreadylocked");
+-	if allg := p.syms.SymFromName("allg"); allg != nil {
+-		p.sys.allg = remotePtr{remote{proc.Word(allg.Common().Value), p}, p.runtime.G};
+-	}
+-	if g0 := p.syms.SymFromName("g0"); g0 != nil {
+-		p.sys.g0 = p.runtime.G.mk(remote{proc.Word(g0.Common().Value), p}).(remoteStruct);
++	p.sys.lessstack = p.syms.LookupFunc("sys.lessstack");
++	p.sys.goexit = p.syms.LookupFunc("goexit");
++	p.sys.newproc = p.syms.LookupFunc("sys.newproc");
++	p.sys.deferproc = p.syms.LookupFunc("sys.deferproc");
++	p.sys.newprocreadylocked = p.syms.LookupFunc("newprocreadylocked");
++	if allg := p.syms.LookupSym("allg"); allg != nil {
++		p.sys.allg = remotePtr{remote{proc.Word(allg.Value), p}, p.runtime.G};
++	}
++	if g0 := p.syms.LookupSym("g0"); g0 != nil {
++		p.sys.g0 = p.runtime.G.mk(remote{proc.Word(g0.Value), p}).(remoteStruct);
+ 	}
+ }
+ 
+diff --git a/usr/austin/ogle/rtype.go b/usr/austin/ogle/rtype.go
+index ee7b7fe759..26040f6b8c 100644
+--- a/usr/austin/ogle/rtype.go
++++ b/usr/austin/ogle/rtype.go
+@@ -145,10 +145,10 @@ func parseRemoteType(a aborter, rs remoteStruct) *remoteType {
+ 	}
+ 
+ 	if debugParseRemoteType {
+-		sym := p.syms.SymFromAddr(uint64(addr));
++		sym := p.syms.SymByAddr(uint64(addr));
+ 		name := "<unknown>";
+ 		if sym != nil {
+-			name = sym.Common().Name;
++			name = sym.Name;
+ 		}
+ 		log.Stderrf("%sParsing type at %#x (%s)", prtIndent, addr, name);
+ 		prtIndent += " ";
+@@ -285,10 +285,10 @@ func parseRemoteType(a aborter, rs remoteStruct) *remoteType {
+ 		mk = mkUintptr;
+ 
+ 	default:
+-		sym := p.syms.SymFromAddr(uint64(itype));
++		sym := p.syms.SymByAddr(uint64(itype));
+ 		name := "<unknown symbol>";
+ 		if sym != nil {
+-			name = sym.Common().Name;
++			name = sym.Name;
+ 		}
+ 		err := fmt.Sprintf("runtime type at %#x has unexpected type %#x (%s)", addr, itype, name);
+ 		a.Abort(FormatError(err));
+diff --git a/usr/austin/ogle/vars.go b/usr/austin/ogle/vars.go
+index 6c1bd5f6f9..ddfdb0fd82 100644
+--- a/usr/austin/ogle/vars.go
++++ b/usr/austin/ogle/vars.go
+@@ -5,11 +5,11 @@
+ package ogle
+ 
+ import (
++	"debug/gosym";
+ 	"debug/proc";
+ 	"eval";
+ 	"log";
+ 	"os";
+-	"sym";
+ )
+ 
+ /*
+@@ -19,7 +19,7 @@ import (
+ // A NotOnStack error occurs when attempting to access a variable in a
+ // remote frame where that remote frame is not on the current stack.
+ type NotOnStack struct {
+-	Fn *sym.TextSym;
++	Fn *gosym.Func;
+ 	Goroutine *Goroutine;
+ }
+ 
+@@ -34,7 +34,7 @@ func (e NotOnStack) String() string {
+ // that function.
+ type remoteFramePtr struct {
+ 	p *Process;
+-	fn *sym.TextSym;
++	fn *gosym.Func;
+ 	rt *remoteType;
+ }
+ 
+@@ -121,14 +121,13 @@ func (p *Process) populateWorld(w *eval.World) os.Error {
+ 	packages := make(map[string] map[string] def);
+ 
+ 	for _, s := range p.syms.Syms {
+-		sc := s.Common();
+-		if sc.ReceiverName() != "" {
++		if s.ReceiverName() != "" {
+ 			// TODO(austin)
+ 			continue;
+ 		}
+ 
+ 		// Package
+-		pkgName := sc.PackageName();
++		pkgName := s.PackageName();
+ 		switch pkgName {
+ 		case "", "type", "extratype", "string", "go":
+ 			// "go" is really "go.string"
+@@ -141,30 +140,30 @@ func (p *Process) populateWorld(w *eval.World) os.Error {
+ 		}
+ 
+ 		// Symbol name
+-		name := sc.BaseName();
++		name := s.BaseName();
+ 		if _, ok := pkg[name]; ok {
+-			log.Stderrf("Multiple definitions of symbol %s", sc.Name);
++			log.Stderrf("Multiple definitions of symbol %s", s.Name);
+ 			continue;
+ 		}
+ 
+ 		// Symbol type
+-		rt, err := p.typeOfSym(sc);
++		rt, err := p.typeOfSym(&s);
+ 		if err != nil {
+ 			return err;
+ 		}
+ 
+ 		// Definition
+-		switch sc.Type {
++		switch s.Type {
+ 		case 'D', 'd', 'B', 'b':
+ 			// Global variable
+ 			if rt == nil {
+ 				continue;
+ 			}
+-			pkg[name] = def{rt.Type, rt.mk(remote{proc.Word(sc.Value), p})};
++			pkg[name] = def{rt.Type, rt.mk(remote{proc.Word(s.Value), p})};
+ 
+ 		case 'T', 't', 'L', 'l':
+ 			// Function
+-			s := s.(*sym.TextSym);
++			s := s.Func;
+ 			// TODO(austin): Ideally, this would *also* be
+ 			// callable.  How does that interact with type
+ 			// conversion syntax?
+@@ -203,7 +202,7 @@ func (p *Process) populateWorld(w *eval.World) os.Error {
+ 
+ // typeOfSym returns the type associated with a symbol.  If the symbol
+ // has no type, returns nil.
+-func (p *Process) typeOfSym(s *sym.CommonSym) (*remoteType, os.Error) {
++func (p *Process) typeOfSym(s *gosym.Sym) (*remoteType, os.Error) {
+ 	if s.GoType == 0 {
+ 		return nil, nil;
+ 	}
+@@ -221,7 +220,7 @@ func (p *Process) typeOfSym(s *sym.CommonSym) (*remoteType, os.Error) {
+ // makeFrameType constructs a struct type for the frame of a function.
+ // The offsets in this struct type are such that the struct can be
+ // instantiated at this function's frame pointer.
+-func (p *Process) makeFrameType(s *sym.TextSym) (*remoteType, os.Error) {
++func (p *Process) makeFrameType(s *gosym.Func) (*remoteType, os.Error) {
+ 	n := len(s.Params) + len(s.Locals);
+ 	fields := make([]eval.StructField, n);
+ 	layout := make([]remoteStructField, n);
+@@ -235,7 +234,7 @@ func (p *Process) makeFrameType(s *sym.TextSym) (*remoteType, os.Error) {
+ 	// things like "i", where there's an obvious right answer.
+ 
+ 	for _, param := range s.Params {
+-		rt, err := p.typeOfSym(param.Common());
++		rt, err := p.typeOfSym(param);
+ 		if err != nil {
+ 			return nil, err;
+ 		}
+@@ -254,7 +253,7 @@ func (p *Process) makeFrameType(s *sym.TextSym) (*remoteType, os.Error) {
+ 	}
+ 
+ 	for _, local := range s.Locals {
+-		rt, err := p.typeOfSym(local.Common());
++		rt, err := p.typeOfSym(local);
+ 		if err != nil {
+ 			return nil, err;
+ 		}
+diff --git a/usr/austin/sym/Makefile b/usr/austin/sym/Makefile
+deleted file mode 100644
+index 8a0daef0c3..0000000000
+--- a/usr/austin/sym/Makefile
++++ /dev/null
+@@ -1,14 +0,0 @@
+-# Copyright 2009 The Go Authors.  All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include $(GOROOT)/src/Make.$(GOARCH)
+-
+-TARG=sym
+-GOFILES=\
+-	binary.go\
+-	elf.go\
+-	elffmt.go\
+-	gosymtab.go\
+-
+-include $(GOROOT)/src/Make.pkg
+diff --git a/usr/austin/sym/binary.go b/usr/austin/sym/binary.go
+deleted file mode 100644
+index be395f2094..0000000000
+--- a/usr/austin/sym/binary.go
++++ /dev/null
+@@ -1,194 +0,0 @@
+-// Copyright 2009 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package sym
+-
+-import (
+-	"bufio";
+-	"io";
+-	"log";
+-	"os";
+-	"reflect";
+-)
+-
+-type byteOrder interface {
+-	Uint16(b []byte) uint16;
+-	Uint32(b []byte) uint32;
+-	Uint64(b []byte) uint64;
+-	String() string;
+-}
+-
+-type olsb struct {}
+-
+-func (olsb) Uint16(b []byte) uint16 {
+-	return uint16(b[0]) | uint16(b[1]) << 8;
+-}
+-
+-func (olsb) Uint32(b []byte) uint32 {
+-	return uint32(b[0]) | uint32(b[1]) << 8 | uint32(b[2]) << 16 | uint32(b[3]) << 24;
+-}
+-
+-func (olsb) Uint64(b []byte) uint64 {
+-	return uint64(b[0]) | uint64(b[1]) << 8 | uint64(b[2]) << 16 | uint64(b[3]) << 24 | uint64(b[4]) << 32 | uint64(b[5]) << 40 | uint64(b[6]) << 48 | uint64(b[7]) << 56;
+-}
+-
+-func (olsb) String() string {
+-	return "LSB";
+-}
+-
+-type omsb struct {}
+-
+-func (omsb) Uint16(b []byte) uint16 {
+-	return uint16(b[1]) | uint16(b[0]) << 8;
+-}
+-
+-func (omsb) Uint32(b []byte) uint32 {
+-	return uint32(b[3]) | uint32(b[2]) << 8 | uint32(b[1]) << 16 | uint32(b[0]) << 24;
+-}
+-
+-func (omsb) Uint64(b []byte) uint64 {
+-	return uint64(b[7]) | uint64(b[6]) << 8 | uint64(b[5]) << 16 | uint64(b[4]) << 24 | uint64(b[3]) << 32 | uint64(b[2]) << 40 | uint64(b[1]) << 48 | uint64(b[0]) << 56;
+-}
+-
+-func (omsb) String() string {
+-	return "MSB";
+-}
+-
+-var (
+-	lsb = olsb{};
+-	msb = omsb{};
+-)
+-
+-// A binaryReader decodes binary data from another reader.  On an
+-// error, the Read methods simply return 0 and record the error, to
+-// make it more convenient to decode long sequences of binary data.
+-// The caller should use the Error method when convenient to check
+-// for errors.
+-type binaryReader struct {
+-	*bufio.Reader;
+-	err os.Error;
+-	order byteOrder;
+-}
+-
+-// newBinaryReader creates a new binary data reader backed by the
+-// given reader and using the given byte order for decoding.
+-func newBinaryReader(r io.Reader, o byteOrder) *binaryReader {
+-	return &binaryReader{bufio.NewReader(r), nil, o};
+-}
+-
+-// Error returns the recorded error, or nil if no error has occurred.
+-func (r *binaryReader) Error() os.Error {
+-	return r.err;
+-}
+-
+-func (r *binaryReader) ReadUint8() uint8 {
+-	var buf [1]byte;
+-	_, err := io.ReadFull(r.Reader, &buf);
+-	if r.err == nil && err != nil {
+-		r.err = err;
+-	}
+-	return buf[0];
+-}
+-
+-func (r *binaryReader) ReadUint16() uint16 {
+-	var buf [2]byte;
+-	_, err := io.ReadFull(r.Reader, &buf);
+-	if r.err == nil && err != nil {
+-		r.err = err;
+-	}
+-	return r.order.Uint16(&buf);
+-}
+-
+-func (r *binaryReader) ReadUint32() uint32 {
+-	var buf [4]byte;
+-	_, err := io.ReadFull(r.Reader, &buf);
+-	if r.err == nil && err != nil {
+-		r.err = err;
+-	}
+-	return r.order.Uint32(&buf);
+-}
+-
+-func (r *binaryReader) ReadUint64() uint64 {
+-	var buf [8]byte;
+-	_, err := io.ReadFull(r.Reader, &buf);
+-	if r.err == nil && err != nil {
+-		r.err = err;
+-	}
+-	return r.order.Uint64(&buf);
+-}
+-
+-func (r *binaryReader) ReadInt8() int8 {
+-	return int8(r.ReadUint8());
+-}
+-
+-func (r *binaryReader) ReadInt16() int16 {
+-	return int16(r.ReadUint16());
+-}
+-
+-func (r *binaryReader) ReadInt32() int32 {
+-	return int32(r.ReadUint32());
+-}
+-
+-func (r *binaryReader) ReadInt64() int64 {
+-	return int64(r.ReadUint64());
+-}
+-
+-// ReadCString reads a NUL-terminated string.
+-func (r *binaryReader) ReadCString() string {
+-	str, err := r.Reader.ReadString('\x00');
+-	if r.err == nil && err != nil {
+-		r.err = err;
+-	}
+-	n := len(str);
+-	if n > 0 {
+-		str = str[0:n-1];
+-	}
+-	return str;
+-}
+-
+-// ReadValue reads a value according to its reflected type.  This can
+-// read any of the types for which there is a regular Read method,
+-// plus structs and arrays.  It assumes structs contain no padding.
+-func (r *binaryReader) ReadValue(v reflect.Value) {
+-	switch v := v.(type) {
+-	case *reflect.ArrayValue:
+-		l := v.Len();
+-		for i := 0; i < l; i++ {
+-			r.ReadValue(v.Elem(i));
+-		}
+-	case *reflect.StructValue:
+-		l := v.NumField();
+-		for i := 0; i < l; i++ {
+-			r.ReadValue(v.Field(i));
+-		}
+-
+-	case *reflect.Uint8Value:
+-		v.Set(r.ReadUint8());
+-	case *reflect.Uint16Value:
+-		v.Set(r.ReadUint16());
+-	case *reflect.Uint32Value:
+-		v.Set(r.ReadUint32());
+-	case *reflect.Uint64Value:
+-		v.Set(r.ReadUint64());
+-	case *reflect.Int8Value:
+-		v.Set(r.ReadInt8());
+-	case *reflect.Int16Value:
+-		v.Set(r.ReadInt16());
+-	case *reflect.Int32Value:
+-		v.Set(r.ReadInt32());
+-	case *reflect.Int64Value:
+-		v.Set(r.ReadInt64());
+-	case *reflect.StringValue:
+-		v.Set(r.ReadCString());
+-
+-	default:
+-		log.Crashf("Value of unexpected type %T", v);
+-	}
+-}
+-
+-// ReadAny is a convenience wrapper for ReadValue.  It can be passed a
+-// pointer any type that can be decoded by ReadValue.
+-func (r *binaryReader) ReadAny(out interface {}) {
+-	r.ReadValue(reflect.Indirect(reflect.NewValue(out)));
+-}
+diff --git a/usr/austin/sym/elf.go b/usr/austin/sym/elf.go
+deleted file mode 100644
+index c18de9810e..0000000000
+--- a/usr/austin/sym/elf.go
++++ /dev/null
+@@ -1,242 +0,0 @@
+-// Copyright 2009 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package sym
+-
+-import (
+-	"fmt";
+-	"io";
+-	"os";
+-)
+-
+-/*
+- * Internal ELF representation
+- */
+-
+-// Elf represents a decoded ELF binary.
+-type Elf struct {
+-	class int;
+-	data byteOrder;
+-	Type ElfType;
+-	Machine ElfMachine;
+-	Sections []*Section;
+-}
+-
+-// Section represents a single section in an ELF binary.
+-type Section struct {
+-	r io.ReadSeeker;
+-	Name string;
+-	offset int64;
+-	Size uint64;
+-	Addr uint64;
+-}
+-
+-/*
+- * ELF reader
+- */
+-
+-type FormatError struct {
+-	off int64;
+-	msg string;
+-	val interface{};
+-}
+-
+-func (e *FormatError) String() string {
+-	msg := e.msg;
+-	if e.val != nil {
+-		msg += fmt.Sprintf(" '%v' ", e.val);
+-	}
+-	msg += fmt.Sprintf("in record at byte %#x", e.off);
+-	return msg;
+-}
+-
+-// NewElf reads and decodes an ELF binary.  The ELF binary is expected
+-// to start where the reader is currently positioned.
+-func NewElf(r io.ReadSeeker) (*Elf, os.Error) {
+-	// Read ELF identifier
+-	var ident [eiNIdent]uint8;
+-	off, err := r.Seek(0, 0);
+-	if err != nil {
+-		return nil, err;
+-	}
+-	start := off;
+-	_, err = io.ReadFull(r, &ident);
+-	if err != nil {
+-		if err == os.EOF {
+-			err = io.ErrUnexpectedEOF;
+-		}
+-		return nil, err;
+-	}
+-
+-	// Decode identifier
+-	if ident[eiMag0] != '\x7f' || ident[eiMag1] != 'E' || ident[eiMag2] != 'L' || ident[eiMag3] != 'F' {
+-		return nil, &FormatError{off, "bad magic number", string(ident[eiMag0:eiMag3])};
+-	}
+-	e := &Elf{};
+-
+-	switch ident[eiClass] {
+-	case elfClass32:
+-		e.class = 32;
+-	case elfClass64:
+-		e.class = 64;
+-	default:
+-		return nil, &FormatError{off, "unknown ELF class", ident[eiClass]};
+-	}
+-
+-	switch ident[eiData] {
+-	case elfData2LSB:
+-		e.data = lsb;
+-	case elfData2MSB:
+-		e.data = msb;
+-	default:
+-		return nil, &FormatError{off, "unknown ELF data encoding", ident[eiData]};
+-	}
+-
+-	if ident[eiVersion] != evCurrent {
+-		return nil, &FormatError{off, "unknown ELF version", ident[eiVersion]};
+-	}
+-
+-	// TODO(austin) Do something with ABI?
+-
+-	// Read ELF file header
+-	var shoff int64;
+-	var shentsize, shnum, shstrndx int;
+-
+-	br := newBinaryReader(r, e.data);
+-	switch e.class {
+-	case 32:
+-		return nil, &FormatError{off, "ELF32 not implemented", nil};
+-	case 64:
+-		hdr := &elf64Ehdr{};
+-		br.ReadAny(hdr);
+-		if err := br.Error(); err != nil {
+-			return nil, err;
+-		}
+-
+-		if hdr.Type > etCore && hdr.Type < etLoOS {
+-			return nil, &FormatError{off, "unknown ELF file type", hdr.Type};
+-		}
+-		e.Type = ElfType(hdr.Type);
+-		e.Machine = ElfMachine(hdr.Machine);
+-		if hdr.Version != evCurrent {
+-			return nil, &FormatError{off, "unknown second ELF version", hdr.Version};
+-		}
+-
+-		shoff = int64(hdr.Shoff);
+-		shentsize = int(hdr.Shentsize);
+-		shnum = int(hdr.Shnum);
+-		shstrndx = int(hdr.Shstrndx);
+-	}
+-
+-	// Read section headers
+-	e.Sections = make([]*Section, shnum);
+-	secNames := make([]uint32, shnum);
+-	for i := 0; i < shnum; i++ {
+-		off, err = r.Seek(start + shoff + int64(i*shentsize), 0);
+-		if err != nil {
+-			return nil, err;
+-		}
+-
+-		br = newBinaryReader(r, e.data);
+-		switch e.class {
+-		case 32:
+-			panic("not reached");
+-		case 64:
+-			shdr := &elf64Shdr{};
+-			br.ReadAny(shdr);
+-			if err := br.Error(); err != nil {
+-				return nil, err;
+-			}
+-
+-			s := &Section{
+-				r: r,
+-				offset: start + int64(shdr.Off),
+-				Size: shdr.Size,
+-				Addr: uint64(shdr.Addr),
+-			};
+-			secNames[i] = shdr.Name;
+-			e.Sections[i] = s;
+-		}
+-	}
+-
+-	// Resolve section names
+-	off, err = r.Seek(start + e.Sections[shstrndx].offset, 0);
+-	if err != nil {
+-		return nil, err;
+-	}
+-	blob := make([]byte, e.Sections[shstrndx].Size);
+-	_, err = io.ReadFull(r, blob);
+-
+-	for i, s := range e.Sections {
+-		var ok bool;
+-		s.Name, ok = getString(blob, int(secNames[i]));
+-		if !ok {
+-			return nil, &FormatError{start + shoff + int64(i*shentsize), "bad section name", secNames[i]};
+-		}
+-	}
+-
+-	return e, nil;
+-}
+-
+-// getString extracts a string from an ELF string table.
+-func getString(section []byte, index int) (string, bool) {
+-	if index < 0 || index >= len(section) {
+-		return "", false;
+-	}
+-
+-	for end := index; end < len(section); end++ {
+-		if section[end] == 0 {
+-			return string(section[index:end]), true;
+-		}
+-	}
+-	return "", false;
+-}
+-
+-// Section returns a section with the given name, or nil if no such
+-// section exists.
+-func (e *Elf) Section(name string) *Section {
+-	for _, s := range e.Sections {
+-		if s.Name == name {
+-			return s;
+-		}
+-	}
+-	return nil;
+-}
+-
+-/*
+- * Sections
+- */
+-
+-type subReader struct {
+-	r io.Reader;
+-	rem uint64;
+-}
+-
+-func (r *subReader) Read(b []byte) (ret int, err os.Error) {
+-	if r.rem == 0 {
+-		return 0, os.EOF;
+-	}
+-	if uint64(len(b)) > r.rem {
+-		b = b[0:r.rem];
+-	}
+-	ret, err = r.r.Read(b);
+-	r.rem -= uint64(ret);
+-	if err == os.EOF {
+-		err = io.ErrUnexpectedEOF;
+-	}
+-	return ret, err;
+-}
+-
+-// Open returns a reader backed by the data in this section.
+-// The original ELF file must still be open for this to work.
+-// The returned reader assumes there will be no seeks on the
+-// underlying file or any other opened section between the Open call
+-// and the last call to Read.
+-func (s *Section) Open() (io.Reader, os.Error) {
+-	_, err := s.r.Seek(s.offset, 0);
+-	if err != nil {
+-		return nil, err;
+-	}
+-	return &subReader{s.r, s.Size}, nil;
+-}
+diff --git a/usr/austin/sym/elffmt.go b/usr/austin/sym/elffmt.go
+deleted file mode 100644
+index dcfb8eaca8..0000000000
+--- a/usr/austin/sym/elffmt.go
++++ /dev/null
+@@ -1,389 +0,0 @@
+-// Copyright 2009 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package sym
+-
+-import "fmt";
+-
+-/*
+- * ELF64 file format
+- */
+-
+-type elf64Addr uint64
+-type elf64Off uint64
+-
+-type elf64Ehdr struct {
+-//	Ident [elfIdentLen]uint8;	// ELF identification
+-	Type uint16;			// Object file type
+-	Machine uint16;			// Machine type
+-	Version uint32;			// Object file version
+-	Entry elf64Addr;		// Entry point address
+-	Phoff elf64Off;			// Program header offset
+-	Shoff elf64Off;			// Section header offset
+-	Flags uint32;			// Processor-specific flags
+-	Ehsize uint16;			// ELF header size
+-	Phentsize uint16;		// Size of program header entry
+-	Phnum uint16;			// Number of program header entries
+-	Shentsize uint16;		// Size of section header entry
+-	Shnum uint16;			// Number of section header entries
+-	Shstrndx uint16;		// Section name string table indexes
+-}
+-
+-const (
+-	// Ident indexes
+-	eiMag0 = 0;			// File identification
+-	eiMag1 = 1;
+-	eiMag2 = 2;
+-	eiMag3 = 3;
+-	eiClass = 4;			// File class
+-	eiData = 5;			// Data encoding
+-	eiVersion = 6;			// File version
+-	eiOsABI = 7;			// OS/ABI identification
+-	eiABIVersion = 8;		// ABI version
+-	eiPad = 9;			// Start of padding bytes
+-	eiNIdent = 16;			// Size of ident
+-
+-	// Classes
+-	elfClass32 = 1;			// 32-bit objects
+-	elfClass64 = 2;			// 64-bit objects
+-
+-	// Endians
+-	elfData2LSB = 1;		// Little-endian
+-	elfData2MSB = 2;		// Big-endian
+-
+-	// Types
+-	etNone = 0;			// No file type
+-	etRel = 1;			// Relocatable object file
+-	etExec = 2;			// Executable file
+-	etDyn = 3;			// Shared object file
+-	etCore = 4;			// Core file
+-	etLoOS = 0xFE00;		// Environment-specific use
+-	etHiOS = 0xFEFF;
+-	etLoProc = 0xFF00;		// Processor-specific use
+-	etHiProc = 0xFFFF;
+-
+-	evCurrent = 1;			// Current version of format
+-)
+-
+-type elf64Shdr struct {
+-	Name uint32;			// Section name
+-	Type uint32;			// Section type
+-	Flags uint64;			// Section attributes
+-	Addr elf64Addr;			// Virtual address in memory
+-	Off elf64Off;			// Offset in file
+-	Size uint64;			// Size of section
+-	Link uint32;			// Link to other section
+-	Info uint32;			// Miscellaneous information
+-	Addralign uint64;		// Address alignment boundary
+-	Entsize uint64;			// Size of entries, if section has table
+-}
+-
+-const (
+-	// Section indices
+-	shnUndef = 0;			// Used to mark an undefined or meaningless section reference
+-	shnLoProc = 0xFF00;		// Processor-specific use
+-	shnHiProc = 0xFF1F;
+-	shnLoOS = 0xFF20;		// Environment-specific use
+-	shnHiOS = 0xFF3F;
+-	shnAbs = 0xFFF1;		// Indicates that the coresponding reference is an absolute value
+-	shnCommon = 0xFFF2;		// Indicates a symbol that has been declared as a common block
+-
+-	// Section header types
+-	shtNull = 0;			// Unused section header
+-	shtProgBits = 1;		// Information defined by the program
+-	shtSymTab = 2;			// Linker symbol table
+-	shtStrTab = 3;			// String table
+-	shtRela = 4;			// "Rela" type relocation entries
+-	shtHash = 5;			// Symbol hash table
+-	shtDynamic = 6;			// Dynamic linking tables
+-	shtNote = 7;			// Note information
+-	shtNoBits = 8;			// Uninitialized space; does not occupy any space in the file
+-	shtRel = 9;			// "Rel" type relocation entries
+-	shtShlib = 10;			// Reserved
+-	shtDynSym = 11;			// A dynamic loader symbol table
+-	shtLoOS = 0x60000000;		// Environment-specific use
+-	shtHiOS = 0x6FFFFFFF;
+-	shtLoProc = 0x70000000;		// Processor-specific use
+-	shtHiProc = 0x7FFFFFFF;
+-
+-	// Section header flags
+-	shfWrite = 0x1;			// Writable data
+-	shfAlloc = 0x2;			// Allocated in memory image of program
+-	shfExecInstr = 0x4;		// Executable instructions
+-	shfMaskOS = 0x0F000000;		// Environment-specific use
+-	shfMaskProc = 0xF0000000;	// Processor-specific use
+-)
+-
+-type elf64Phdr struct {
+-	Type uint32;			// Type of segment
+-	Flags uint32;			// Segment attributes
+-	Off elf64Off;			// Offset in file
+-	Vaddr elf64Addr;		// Virtual address in memory
+-	Paddr elf64Addr;		// Reserved
+-	Filesz uint64;			// Size of segment in file
+-	Memsz uint64;			// Size of segment in memory
+-	Align uint64;			// Alignment of segment
+-}
+-
+-const (
+-	ptNull = 0;			// Unused entry
+-	ptLoad = 1;			// Loadable segment
+-	ptDynamic = 2;			// Dynamic linking tables
+-	ptInterp = 3;			// Program interpreter path name
+-	ptNote = 4;			// Note sections
+-	ptPhdr = 6;			// Program header table
+-
+-	// Program header flags
+-	pfX = 0x1;			// Execute permission
+-	pfW = 0x2;			// Write permission
+-	pfR = 0x4;			// Read permission
+-	pfMaskOS = 0x00FF0000;		// Reserved for environment-specific use
+-	pfMaskProc = 0xFF000000;	// Reserved for processor-specific use
+-)
+-
+-/*
+- * Exported constants
+- */
+-
+-type ElfType int
+-
+-const (
+-	ElfNone ElfType = etNone;
+-	ElfRel          = etRel;
+-	ElfExec         = etExec;
+-	ElfDyn          = etDyn;
+-	ElfCore         = etCore;
+-)
+-
+-type ElfMachine int
+-
+-const (
+-	ElfM32	       ElfMachine = 1;
+-	ElfSPARC       ElfMachine = 2;
+-	Elf386	       ElfMachine = 3;
+-	Elf68K	       ElfMachine = 4;
+-	Elf88K	       ElfMachine = 5;
+-	Elf860	       ElfMachine = 7;
+-	ElfMIPS	       ElfMachine = 8;
+-	ElfS370	       ElfMachine = 9;
+-	ElfMIPS_RS3_LE ElfMachine = 10;
+-	ElfPARISC      ElfMachine = 15;
+-	ElfVPP500      ElfMachine = 17;
+-	ElfSPARC32PLUS ElfMachine = 18;
+-	Elf960	       ElfMachine = 19;
+-	ElfPPC	       ElfMachine = 20;
+-	ElfPPC64       ElfMachine = 21;
+-	ElfS390	       ElfMachine = 22;
+-	ElfV800	       ElfMachine = 36;
+-	ElfFR20	       ElfMachine = 37;
+-	ElfRH32	       ElfMachine = 38;
+-	ElfRCE	       ElfMachine = 39;
+-	ElfARM	       ElfMachine = 40;
+-	ElfFAKE_ALPHA  ElfMachine = 41;
+-	ElfSH	       ElfMachine = 42;
+-	ElfSPARCV9     ElfMachine = 43;
+-	ElfTRICORE     ElfMachine = 44;
+-	ElfARC	       ElfMachine = 45;
+-	ElfH8_300      ElfMachine = 46;
+-	ElfH8_300H     ElfMachine = 47;
+-	ElfH8S	       ElfMachine = 48;
+-	ElfH8_500      ElfMachine = 49;
+-	ElfIA_64       ElfMachine = 50;
+-	ElfMIPS_X      ElfMachine = 51;
+-	ElfCOLDFIRE    ElfMachine = 52;
+-	Elf68HC12      ElfMachine = 53;
+-	ElfMMA	       ElfMachine = 54;
+-	ElfPCP	       ElfMachine = 55;
+-	ElfNCPU	       ElfMachine = 56;
+-	ElfNDR1	       ElfMachine = 57;
+-	ElfSTARCORE    ElfMachine = 58;
+-	ElfME16	       ElfMachine = 59;
+-	ElfST100       ElfMachine = 60;
+-	ElfTINYJ       ElfMachine = 61;
+-	ElfX86_64      ElfMachine = 62;
+-	ElfPDSP	       ElfMachine = 63;
+-	ElfFX66	       ElfMachine = 66;
+-	ElfST9PLUS     ElfMachine = 67;
+-	ElfST7	       ElfMachine = 68;
+-	Elf68HC16      ElfMachine = 69;
+-	Elf68HC11      ElfMachine = 70;
+-	Elf68HC08      ElfMachine = 71;
+-	Elf68HC05      ElfMachine = 72;
+-	ElfSVX	       ElfMachine = 73;
+-	ElfST19	       ElfMachine = 74;
+-	ElfVAX	       ElfMachine = 75;
+-	ElfCRIS	       ElfMachine = 76;
+-	ElfJAVELIN     ElfMachine = 77;
+-	ElfFIREPATH    ElfMachine = 78;
+-	ElfZSP	       ElfMachine = 79;
+-	ElfMMIX	       ElfMachine = 80;
+-	ElfHUANY       ElfMachine = 81;
+-	ElfPRISM       ElfMachine = 82;
+-	ElfAVR	       ElfMachine = 83;
+-	ElfFR30	       ElfMachine = 84;
+-	ElfD10V	       ElfMachine = 85;
+-	ElfD30V	       ElfMachine = 86;
+-	ElfV850	       ElfMachine = 87;
+-	ElfM32R	       ElfMachine = 88;
+-	ElfMN10300     ElfMachine = 89;
+-	ElfMN10200     ElfMachine = 90;
+-	ElfPJ	       ElfMachine = 91;
+-	ElfOPENRISC    ElfMachine = 92;
+-	ElfARC_A5      ElfMachine = 93;
+-	ElfXTENSA      ElfMachine = 94;
+-)
+-
+-func (m ElfMachine) String() string {
+-	switch m {
+-	case ElfMachine(0):
+-		return "No machine";
+-	case ElfM32:
+-		return "AT&T WE 32100";
+-	case ElfSPARC:
+-		return "SUN SPARC";
+-	case Elf386:
+-		return "Intel 80386";
+-	case Elf68K:
+-		return "Motorola m68k family";
+-	case Elf88K:
+-		return "Motorola m88k family";
+-	case Elf860:
+-		return "Intel 80860";
+-	case ElfMIPS:
+-		return "MIPS R3000 big-endian";
+-	case ElfS370:
+-		return "IBM System/370";
+-	case ElfMIPS_RS3_LE:
+-		return "MIPS R3000 little-endian";
+-	case ElfPARISC:
+-		return "HPPA";
+-	case ElfVPP500:
+-		return "Fujitsu VPP500";
+-	case ElfSPARC32PLUS:
+-		return "Sun's \"v8plus\"";
+-	case Elf960:
+-		return "Intel 80960";
+-	case ElfPPC:
+-		return "PowerPC";
+-	case ElfPPC64:
+-		return "PowerPC 64-bit";
+-	case ElfS390:
+-		return "IBM S390";
+-	case ElfV800:
+-		return "NEC V800 series";
+-	case ElfFR20:
+-		return "Fujitsu FR20";
+-	case ElfRH32:
+-		return "TRW RH-32";
+-	case ElfRCE:
+-		return "Motorola RCE";
+-	case ElfARM:
+-		return "ARM";
+-	case ElfFAKE_ALPHA:
+-		return "Digital Alpha";
+-	case ElfSH:
+-		return "Hitachi SH";
+-	case ElfSPARCV9:
+-		return "SPARC v9 64-bit";
+-	case ElfTRICORE:
+-		return "Siemens Tricore";
+-	case ElfARC:
+-		return "Argonaut RISC Core";
+-	case ElfH8_300:
+-		return "Hitachi H8/300";
+-	case ElfH8_300H:
+-		return "Hitachi H8/300H";
+-	case ElfH8S:
+-		return "Hitachi H8S";
+-	case ElfH8_500:
+-		return "Hitachi H8/500";
+-	case ElfIA_64:
+-		return "Intel Merced";
+-	case ElfMIPS_X:
+-		return "Stanford MIPS-X";
+-	case ElfCOLDFIRE:
+-		return "Motorola Coldfire";
+-	case Elf68HC12:
+-		return "Motorola M68HC12";
+-	case ElfMMA:
+-		return "Fujitsu MMA Multimedia Accelerato";
+-	case ElfPCP:
+-		return "Siemens PCP";
+-	case ElfNCPU:
+-		return "Sony nCPU embeeded RISC";
+-	case ElfNDR1:
+-		return "Denso NDR1 microprocessor";
+-	case ElfSTARCORE:
+-		return "Motorola Start*Core processor";
+-	case ElfME16:
+-		return "Toyota ME16 processor";
+-	case ElfST100:
+-		return "STMicroelectronic ST100 processor";
+-	case ElfTINYJ:
+-		return "Advanced Logic Corp. Tinyj emb.fa";
+-	case ElfX86_64:
+-		return "AMD x86-64 architecture";
+-	case ElfPDSP:
+-		return "Sony DSP Processor";
+-	case ElfFX66:
+-		return "Siemens FX66 microcontroller";
+-	case ElfST9PLUS:
+-		return "STMicroelectronics ST9+ 8/16 mc";
+-	case ElfST7:
+-		return "STmicroelectronics ST7 8 bit mc";
+-	case Elf68HC16:
+-		return "Motorola MC68HC16 microcontroller";
+-	case Elf68HC11:
+-		return "Motorola MC68HC11 microcontroller";
+-	case Elf68HC08:
+-		return "Motorola MC68HC08 microcontroller";
+-	case Elf68HC05:
+-		return "Motorola MC68HC05 microcontroller";
+-	case ElfSVX:
+-		return "Silicon Graphics SVx";
+-	case ElfST19:
+-		return "STMicroelectronics ST19 8 bit mc";
+-	case ElfVAX:
+-		return "Digital VAX";
+-	case ElfCRIS:
+-		return "Axis Communications 32-bit embedded processor";
+-	case ElfJAVELIN:
+-		return "Infineon Technologies 32-bit embedded processor";
+-	case ElfFIREPATH:
+-		return "Element 14 64-bit DSP Processor";
+-	case ElfZSP:
+-		return "LSI Logic 16-bit DSP Processor";
+-	case ElfMMIX:
+-		return "Donald Knuth's educational 64-bit processor";
+-	case ElfHUANY:
+-		return "Harvard University machine-independent object files";
+-	case ElfPRISM:
+-		return "SiTera Prism";
+-	case ElfAVR:
+-		return "Atmel AVR 8-bit microcontroller";
+-	case ElfFR30:
+-		return "Fujitsu FR30";
+-	case ElfD10V:
+-		return "Mitsubishi D10V";
+-	case ElfD30V:
+-		return "Mitsubishi D30V";
+-	case ElfV850:
+-		return "NEC v850";
+-	case ElfM32R:
+-		return "Mitsubishi M32R";
+-	case ElfMN10300:
+-		return "Matsushita MN10300";
+-	case ElfMN10200:
+-		return "Matsushita MN10200";
+-	case ElfPJ:
+-		return "picoJava";
+-	case ElfOPENRISC:
+-		return "OpenRISC 32-bit embedded processor";
+-	case ElfARC_A5:
+-		return "ARC Cores Tangent-A5";
+-	case ElfXTENSA:
+-		return "Tensilica Xtensa Architecture";
+-	}
+-	return fmt.Sprintf("<unknown %#x>", m);
+-}
+diff --git a/usr/austin/sym/gosymtab.go b/usr/austin/sym/gosymtab.go
+deleted file mode 100644
+index 687745ff39..0000000000
+--- a/usr/austin/sym/gosymtab.go
++++ /dev/null
+@@ -1,735 +0,0 @@
+-// Copyright 2009 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package sym
+-
+-// The Go symbol table and line number table formats are based on
+-// the Plan9 a.out format, which is documented here:
+-//   http://plan9.bell-labs.com/magic/man2html/6/a.out
+-// The best reference for the differences between the Plan9 format and
+-// the Go format is the runtime source, particularly:
+-//   src/pkg/runtime/symtab.c
+-
+-import (
+-	"io";
+-	"os";
+-	"sort";
+-	"strconv";
+-	"strings";
+-)
+-
+-/*
+- * Symbols
+- */
+-
+-type GoSym interface {
+-	Common() *CommonSym;
+-}
+-
+-// CommonSym represents information that all symbols have in common.
+-// The meaning of the symbol value differs between symbol types.
+-type CommonSym struct {
+-	Value uint64;
+-	Type byte;
+-	Name string;
+-	GoType uint64;
+-}
+-
+-func (c *CommonSym) Common() *CommonSym {
+-	return c;
+-}
+-
+-// Static returns whether this symbol is static (not visible outside its file).
+-func (c *CommonSym) Static() bool {
+-	switch c.Type {
+-	case 't', 'l', 'd', 'b':
+-		return true;
+-	}
+-	return false;
+-}
+-
+-// PackageName returns the package part of the symbol name, or empty
+-// string if there is none.
+-func (c *CommonSym) PackageName() string {
+-	if i := strings.Index(c.Name, "·"); i != -1 {
+-		return c.Name[0:i];
+-	}
+-	return "";
+-}
+-
+-// ReceiverName returns the receiver type name of this symbol, or
+-// empty string if there is none.
+-func (c *CommonSym) ReceiverName() string {
+-	l := strings.Index(c.Name, "·");
+-	r := strings.LastIndex(c.Name, "·");
+-	if l == -1 || r == -1 || l == r {
+-		return "";
+-	}
+-	return c.Name[l+len("·"):r];
+-}
+-
+-// BaseName returns the symbol name without the package or receiver name.
+-func (c *CommonSym) BaseName() string {
+-	if i := strings.LastIndex(c.Name, "·"); i != -1 {
+-		return c.Name[i+len("·"):len(c.Name)];
+-	}
+-	return c.Name;
+-}
+-
+-// TextSym represents a function symbol.  In addition to the common
+-// symbol fields, it has a frame size, parameters, and local variables.
+-type TextSym struct {
+-	CommonSym;
+-	obj *object;
+-	lt *lineTable;
+-	// The value of the next text sym, or the end of the text segment.
+-	End uint64;
+-	// Ths size of this function's frame.
+-	FrameSize int;
+-	// The value of each parameter symbol is its positive offset
+-	// from the stack base pointer.  This includes out parameters,
+-	// even if they are unnamed.
+-	Params []*ParamSym;
+-	// The value of each local symbol is its negative offset from
+-	// the stack base pointer.
+-	Locals []*LocalSym;
+-}
+-
+-func (s *TextSym) Entry() uint64 {
+-	return s.Value;
+-}
+-
+-type LeafSym struct {
+-	CommonSym;
+-}
+-
+-type DataSym struct {
+-	CommonSym;
+-}
+-
+-type BSSSym struct {
+-	CommonSym;
+-}
+-
+-type FrameSym struct {
+-	CommonSym;
+-}
+-
+-type LocalSym struct {
+-	CommonSym;
+-}
+-
+-type ParamSym struct {
+-	CommonSym;
+-}
+-
+-type PathSym struct {
+-	CommonSym;
+-}
+-
+-/*
+- * Symbol tables
+- */
+-
+-type object struct {
+-	paths []*PathSym;
+-	funcs []*TextSym;
+-}
+-
+-type lineTable struct {
+-	blob []byte;
+-	pc uint64;
+-	line int;
+-}
+-
+-// GoSymTable represents a Go symbol table.  It stores all of the
+-// symbols decoded from the program and provides methods to translate
+-// between symbols, names, and addresses.
+-type GoSymTable struct {
+-	textEnd uint64;
+-	Syms []GoSym;
+-	funcs []*TextSym;
+-	files map[string] *object;
+-}
+-
+-func growGoSyms(s *[]GoSym) (*GoSym) {
+-	n := len(*s);
+-	if n == cap(*s) {
+-		n := make([]GoSym, n, n * 2);
+-		for i := range *s {
+-			n[i] = (*s)[i];
+-		}
+-		*s = n;
+-	}
+-	*s = (*s)[0:n+1];
+-	return &(*s)[n];
+-}
+-
+-func (t *GoSymTable) readGoSymTab(r io.Reader) os.Error {
+-	t.Syms = make([]GoSym, 0, 16);
+-	filenames := make(map[uint32] string);
+-
+-	br := newBinaryReader(r, msb);
+-	off := int64(0);
+-	for {
+-		// Read symbol
+-		value := br.ReadUint32();
+-		if br.Error() == os.EOF {
+-			break;
+-		}
+-		typ := br.ReadUint8();
+-		if br.Error() == nil && typ & 0x80 == 0 {
+-			return &FormatError{off, "bad symbol type code", typ};
+-		}
+-		typ &^= 0x80;
+-		name := br.ReadCString();
+-		extraOff := int64(0);
+-		if typ == 'z' || typ == 'Z' {
+-			if name != "" {
+-				return &FormatError{off, "path symbol has non-empty name", name};
+-			}
+-			// Decode path entry
+-			for i := 0; ; i++ {
+-				eltIdx := uint32(br.ReadUint16());
+-				extraOff += 2;
+-				if eltIdx == 0 {
+-					break;
+-				}
+-				elt, ok := filenames[eltIdx];
+-				if !ok {
+-					return &FormatError{off, "bad filename code", eltIdx};
+-				}
+-				if name != "" && name[len(name)-1] != '/' {
+-					name += "/";
+-				}
+-				name += elt;
+-			}
+-		}
+-		gotype := br.ReadUint32();
+-		if err := br.Error(); err != nil {
+-			if err == os.EOF {
+-				err = io.ErrUnexpectedEOF;
+-			}
+-			return err;
+-		}
+-
+-		off += 4 + 1 + int64(len(name)) + 1 + extraOff + 4;
+-
+-		// Handle file name components
+-		if typ == 'f' {
+-			filenames[value] = name;
+-		}
+-
+-		// Create the GoSym
+-		sym := growGoSyms(&t.Syms);
+-
+-		switch typ {
+-		case 'T', 't':
+-			*sym = &TextSym{};
+-		case 'L', 'l':
+-			*sym = &LeafSym{};
+-		case 'D', 'd':
+-			*sym = &DataSym{};
+-		case 'B', 'b':
+-			*sym = &BSSSym{};
+-		case 'm':
+-			*sym = &FrameSym{};
+-		case 'a':
+-			*sym = &LocalSym{};
+-		case 'p':
+-			*sym = &ParamSym{};
+-		case 'z', 'Z':
+-			*sym = &PathSym{};
+-		default:
+-			*sym = &CommonSym{};
+-		}
+-
+-		common := sym.Common();
+-		common.Value = uint64(value);
+-		common.Type = typ;
+-		common.Name = name;
+-		common.GoType = uint64(gotype);
+-	}
+-
+-	return nil;
+-}
+-
+-// byValue is a []*TextSym sorter.
+-type byValue []*TextSym
+-
+-func (s byValue) Len() int {
+-	return len(s);
+-}
+-
+-func (s byValue) Less(i, j int) bool {
+-	return s[i].Value < s[j].Value;
+-}
+-
+-func (s byValue) Swap(i, j int) {
+-	t := s[i];
+-	s[i] = s[j];
+-	s[j] = t;
+-}
+-
+-func (t *GoSymTable) processTextSyms() {
+-	// Count text symbols and attach frame sizes, parameters, and
+-	// locals to them.  Also, find object file boundaries.
+-	count := 0;
+-	var obj *object;
+-	var objCount int;
+-	var prevTextSym *TextSym;
+-	for i := 0; i < len(t.Syms); i++ {
+-		switch sym := t.Syms[i].(type) {
+-		case *PathSym:
+-			// Finish the current object
+-			if obj != nil {
+-				obj.funcs = make([]*TextSym, 0, objCount);
+-			}
+-
+-			// Count path symbols
+-			end := i+1;
+-			for ; end < len(t.Syms); end++ {
+-				_, ok := t.Syms[end].(*PathSym);
+-				if !ok {
+-					break;
+-				}
+-			}
+-
+-			// Copy path symbols
+-			obj = &object{make([]*PathSym, end - i), nil};
+-			for j, s := range t.Syms[i:end] {
+-				obj.paths[j] = s.(*PathSym);
+-			}
+-
+-			// Record file names
+-			depth := 0;
+-			for _, s := range obj.paths {
+-				if s.Name == "" {
+-					depth--;
+-				} else {
+-					if depth == 0 {
+-						t.files[s.Name] = obj;
+-					}
+-					depth++;
+-				}
+-			}
+-
+-			objCount = 0;
+-			i = end-1;
+-
+-		case *TextSym:
+-			if sym.Name == "etext" {
+-				continue;
+-			}
+-
+-			if prevTextSym != nil {
+-				prevTextSym.End = sym.Value;
+-			}
+-			prevTextSym = sym;
+-
+-			// Count parameter and local syms
+-			var np, nl int;
+-			end := i+1;
+-		countloop:
+-			for ; end < len(t.Syms); end++ {
+-				switch _ := t.Syms[end].(type) {
+-				// TODO(austin) Use type switch list
+-				case *TextSym:
+-					break countloop;
+-				case *PathSym:
+-					break countloop;
+-				case *ParamSym:
+-					np++;
+-				case *LocalSym:
+-					nl++;
+-				}
+-			}
+-
+-			// Fill in the function symbol
+-			var ip, ia int;
+-			sym.obj = obj;
+-			sym.Params = make([]*ParamSym, np);
+-			sym.Locals = make([]*LocalSym, nl);
+-			for _, s := range t.Syms[i:end] {
+-				switch s := s.(type) {
+-				case *FrameSym:
+-					sym.FrameSize = int(s.Value);
+-				case *ParamSym:
+-					sym.Params[ip] = s;
+-					ip++;
+-				case *LocalSym:
+-					sym.Locals[ia] = s;
+-					ia++;
+-				}
+-			}
+-
+-			count++;
+-			objCount++;
+-			i = end-1;
+-		}
+-	}
+-
+-	if obj != nil {
+-		obj.funcs = make([]*TextSym, 0, objCount);
+-	}
+-	if prevTextSym != nil {
+-		prevTextSym.End = t.textEnd;
+-	}
+-
+-	// Extract text symbols into function array and individual
+-	// object function arrys.
+-	t.funcs = make([]*TextSym, 0, count);
+-	for _, sym := range t.Syms {
+-		sym, ok := sym.(*TextSym);
+-		if !ok || sym.Name == "etext" {
+-			continue;
+-		}
+-
+-		t.funcs = t.funcs[0:len(t.funcs)+1];
+-		t.funcs[len(t.funcs)-1] = sym;
+-		sym.obj.funcs = sym.obj.funcs[0:len(sym.obj.funcs)+1];
+-		sym.obj.funcs[len(sym.obj.funcs)-1] = sym;
+-	}
+-
+-	// Sort text symbols
+-	sort.Sort(byValue(t.funcs));
+-}
+-
+-func (t *GoSymTable) sliceLineTable(lt *lineTable) {
+-	for _, fn := range t.funcs {
+-		fn.lt = lt.slice(fn.Entry());
+-		lt = fn.lt;;
+-	}
+-}
+-
+-// SymFromPC looks up a text symbol given a program counter within
+-// some function.  Returns nil if no function contains this PC.
+-func (t *GoSymTable) SymFromPC(pc uint64) *TextSym {
+-	syms := t.funcs;
+-	if pc > t.textEnd {
+-		return nil;
+-	}
+-
+-	if len(syms) == 0 || pc < syms[0].Value {
+-		return nil;
+-	}
+-	if pc >= syms[len(syms)-1].Value {
+-		return syms[len(syms)-1];
+-	}
+-
+-	l := 0;
+-	n := len(syms);
+-	for n > 0 {
+-		m := n/2;
+-		s := syms[l+m];
+-		switch {
+-		case s.Value <= pc && pc < syms[l+m+1].Value:
+-			return s;
+-		case pc < s.Value:
+-			n = m;
+-		default:
+-			l += m+1;
+-			n -= m+1;
+-		}
+-	}
+-	panic("not reached, pc=", pc);
+-}
+-
+-// LineFromPC looks up line number information for a program counter.
+-// Returns a file path, a line number within that file, and the
+-// TextSym at pc.
+-func (t *GoSymTable) LineFromPC(pc uint64) (string, int, *TextSym) {
+-	sym := t.SymFromPC(pc);
+-	if sym == nil {
+-		return "", 0, nil;
+-	}
+-
+-	aline := sym.lt.alineFromPC(pc);
+-
+-	path, line := sym.obj.lineFromAline(aline);
+-
+-	return path, line, sym;
+-}
+-
+-// PCFromLine looks up the first program counter on the given line in
+-// the named file.  Returns UnknownPathError or UnknownLineError if
+-// there is an error looking up this line.
+-func (t *GoSymTable) PCFromLine(file string, line int) (uint64, *TextSym, os.Error) {
+-	obj, ok := t.files[file];
+-	if !ok {
+-		return 0, nil, UnknownFileError(file);
+-	}
+-
+-	aline, err := obj.alineFromLine(file, line);
+-	if err != nil {
+-		return 0, nil, err;
+-	}
+-
+-	for _, f := range obj.funcs {
+-		pc := f.lt.pcFromAline(aline, f.End);
+-		if pc != 0 {
+-			return pc, f, nil;
+-		}
+-	}
+-	return 0, nil, &UnknownLineError{file, line};
+-}
+-
+-// SymFromName looks up a symbol by name.  The name must refer to a
+-// global text, data, or BSS symbol.
+-func (t *GoSymTable) SymFromName(name string) GoSym {
+-	// TODO(austin) Maybe make a map
+-	for _, v := range t.Syms {
+-		c := v.Common();
+-		switch c.Type {
+-		case 'T', 't', 'L', 'l', 'D', 'd', 'B', 'b':
+-			if c.Name == name {
+-				return v;
+-			}
+-		}
+-	}
+-	return nil;
+-}
+-
+-// SymFromAddr looks up a symbol by address.  The symbol will be a
+-// text, data, or BSS symbol.  addr must be the exact address of the
+-// symbol, unlike for SymFromPC.
+-func (t *GoSymTable) SymFromAddr(addr uint64) GoSym {
+-	// TODO(austin) Maybe make a map
+-	for _, v := range t.Syms {
+-		c := v.Common();
+-		switch c.Type {
+-		case 'T', 't', 'L', 'l', 'D', 'd', 'B', 'b':
+-			if c.Value == addr {
+-				return v;
+-			}
+-		}
+-	}
+-	return nil;
+-}
+-
+-/*
+- * Object files
+- */
+-
+-func (o *object) lineFromAline(aline int) (string, int) {
+-	type stackEnt struct {
+-		path string;
+-		start int;
+-		offset int;
+-		prev *stackEnt;
+-	};
+-
+-	noPath := &stackEnt{"", 0, 0, nil};
+-	tos := noPath;
+-
+-	// TODO(austin) I have no idea how 'Z' symbols work, except
+-	// that they pop the stack.
+-pathloop:
+-	for _, s := range o.paths {
+-		val := int(s.Value);
+-		switch {
+-		case val > aline:
+-			break pathloop;
+-
+-		case val == 1:
+-			// Start a new stack
+-			tos = &stackEnt{s.Name, val, 0, noPath};
+-
+-		case s.Name == "":
+-			// Pop
+-			if tos == noPath {
+-				return "<malformed symbol table>", 0;
+-			}
+-			tos.prev.offset += val - tos.start;
+-			tos = tos.prev;
+-
+-		default:
+-			// Push
+-			tos = &stackEnt{s.Name, val, 0, tos};
+-		}
+-	}
+-
+-	if tos == noPath {
+-		return "", 0;
+-	}
+-	return tos.path, aline - tos.start - tos.offset + 1;
+-}
+-
+-func (o *object) alineFromLine(path string, line int) (int, os.Error) {
+-	if line < 1 {
+-		return 0, &UnknownLineError{path, line};
+-	}
+-
+-	for i, s := range o.paths {
+-		// Find this path
+-		if s.Name != path {
+-			continue;
+-		}
+-
+-		// Find this line at this stack level
+-		depth := 0;
+-		var incstart int;
+-		line += int(s.Value);
+-	pathloop:
+-		for _, s := range o.paths[i:len(o.paths)] {
+-			val := int(s.Value);
+-			switch {
+-			case depth == 1 && val >= line:
+-				return line - 1, nil;
+-
+-			case s.Name == "":
+-				depth--;
+-				if depth == 0 {
+-					break pathloop;
+-				} else if depth == 1 {
+-					line += val - incstart;
+-				}
+-
+-			default:
+-				if depth == 1 {
+-					incstart = val;
+-				}
+-				depth++;
+-			}
+-		}
+-		return 0, &UnknownLineError{path, line};
+-	}
+-	return 0, UnknownFileError(path);
+-}
+-
+-/*
+- * Line tables
+- */
+-
+-const quantum = 1;
+-
+-func (lt *lineTable) parse(targetPC uint64, targetLine int) ([]byte, uint64, int) {
+-	// The PC/line table can be thought of as a sequence of
+-	//  <pc update>* <line update>
+-	// batches.  Each update batch results in a (pc, line) pair,
+-	// where line applies to every PC from pc up to but not
+-	// including the pc of the next pair.
+-	//
+-	// Here we process each update individually, which simplifies
+-	// the code, but makes the corner cases more confusing.
+-
+-	b, pc, line := lt.blob, lt.pc, lt.line;
+-	for pc <= targetPC && line != targetLine && len(b) != 0 {
+-		code := b[0];
+-		b = b[1:len(b)];
+-		switch {
+-		case code == 0:
+-			if len(b) < 4 {
+-				b = b[0:0];
+-				break;
+-			}
+-			val := msb.Uint32(b);
+-			b = b[4:len(b)];
+-			line += int(val);
+-		case code <= 64:
+-			line += int(code);
+-		case code <= 128:
+-			line -= int(code - 64);
+-		default:
+-			pc += quantum*uint64(code - 128);
+-			continue;
+-		}
+-		pc += quantum;
+-	}
+-	return b, pc, line;
+-}
+-
+-func (lt *lineTable) slice(pc uint64) *lineTable {
+-	blob, pc, line := lt.parse(pc, -1);
+-	return &lineTable{blob, pc, line};
+-}
+-
+-func (lt *lineTable) alineFromPC(targetPC uint64) int {
+-	_, _, aline := lt.parse(targetPC, -1);
+-	return aline;
+-}
+-
+-func (lt *lineTable) pcFromAline(aline int, maxPC uint64) uint64 {
+-	_, pc, line := lt.parse(maxPC, aline);
+-	if line != aline {
+-		// Never found aline
+-		return 0;
+-	}
+-	// Subtract quantum from PC to account for post-line increment
+-	return pc - quantum;
+-}
+-
+-/*
+- * Errors
+- */
+-
+-// UnknownFileError represents a failure to find the specific file in
+-// the symbol table.
+-type UnknownFileError string
+-
+-func (e UnknownFileError) String() string {
+-	// TODO(austin) string conversion required because of 6g bug
+-	return "unknown file " + string(e);
+-}
+-
+-// UnknownLineError represents a failure to map a line to a program
+-// counter, either because the line is beyond the bounds of the file
+-// or because there is no code on the given line.
+-type UnknownLineError struct {
+-	File string;
+-	Line int;
+-}
+-
+-func (e *UnknownLineError) String() string {
+-	return "no code on line " + e.File + ":" + strconv.Itoa(e.Line);
+-}
+-
+-/*
+- * ELF
+- */
+-
+-func ElfGoSyms(elf *Elf) (*GoSymTable, os.Error) {
+-	text := elf.Section(".text");
+-	if text == nil {
+-		return nil, nil;
+-	}
+-
+-	tab := &GoSymTable{
+-		textEnd: text.Addr + text.Size,
+-		files: make(map[string] *object),
+-	};
+-
+-	// Symbol table
+-	sec := elf.Section(".gosymtab");
+-	if sec == nil {
+-		return nil, nil;
+-	}
+-	sr, err := sec.Open();
+-	if err != nil {
+-		return nil, err;
+-	}
+-	err = tab.readGoSymTab(sr);
+-	if err != nil {
+-		return nil, err;
+-	}
+-
+-	// Line table
+-	sec = elf.Section(".gopclntab");
+-	if sec == nil {
+-		return nil, nil;
+-	}
+-	sr, err = sec.Open();
+-	if err != nil {
+-		return nil, err;
+-	}
+-	blob, err := io.ReadAll(sr);
+-	if err != nil {
+-		return nil, err;
+-	}
+-	lt := &lineTable{blob, text.Addr, 0};
+-
+-	tab.processTextSyms();
+-	tab.sliceLineTable(lt);
+-	return tab, nil;
+-}
+diff --git a/usr/austin/sym/pclinetest.h b/usr/austin/sym/pclinetest.h
+deleted file mode 100644
+index a6c40e76cd..0000000000
+--- a/usr/austin/sym/pclinetest.h
++++ /dev/null
+@@ -1,7 +0,0 @@
+-// Empty include file to generate z symbols
+-
+-
+-
+-
+-
+-// EOF
+diff --git a/usr/austin/sym/pclinetest.s b/usr/austin/sym/pclinetest.s
+deleted file mode 100644
+index 5a410c8b84..0000000000
+--- a/usr/austin/sym/pclinetest.s
++++ /dev/null
+@@ -1,89 +0,0 @@
+-TEXT linefrompc(SB),7,$0	// Each byte stores its line delta
+-BYTE $2;
+-BYTE $1;
+-BYTE $1; BYTE $0;
+-BYTE $1; BYTE $0; BYTE $0;
+-BYTE $1; BYTE $0; BYTE $0; BYTE $0; BYTE $0;
+-BYTE $1; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0;
+-BYTE $1; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0;
+-BYTE $1; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0;
+-BYTE $1; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0;
+-BYTE $1; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0;
+-BYTE $1; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0;
+-BYTE $1; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0;
+-BYTE $1; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0;
+-BYTE $1; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0;
+-BYTE $1;
+-BYTE $1;
+-BYTE $1; BYTE $0;
+-BYTE $1; BYTE $0; BYTE $0;
+-BYTE $1; BYTE $0; BYTE $0; BYTE $0; BYTE $0;
+-BYTE $1; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0;
+-BYTE $1; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0;
+-BYTE $1; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0;
+-BYTE $1; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0;
+-#include "pclinetest.h"
+-BYTE $2;
+-#include "pclinetest.h"
+-BYTE $2;
+-
+-TEXT pcfromline(SB),7,$0	// Each record stores its line delta, then n, then n more bytes
+-BYTE $31; BYTE $0;
+-BYTE $1; BYTE $1; BYTE $0;
+-BYTE $1; BYTE $0;
+-
+-BYTE $2; BYTE $4; BYTE $0; BYTE $0; BYTE $0; BYTE $0;
+-
+-
+-#include "pclinetest.h"
+-BYTE $4; BYTE $0;
+-
+-
+-BYTE $3; BYTE $3; BYTE $0; BYTE $0; BYTE $0;
+-#include "pclinetest.h"
+-
+-
+-BYTE $4; BYTE $3; BYTE $0; BYTE $0; BYTE $0;
+-
+-TEXT main(SB),7,$0
+-	// Prevent GC of our test symbols
+-	CALL linefrompc(SB)
+-	CALL pcfromline(SB)
+-
+-// Keep the linker happy
+-TEXT sys·morestack(SB),7,$0
+-	RET
+-
+-TEXT sys·morestack00(SB),7,$0
+-	RET
+-
+-TEXT sys·morestack10(SB),7,$0
+-	RET
+-
+-TEXT sys·morestack01(SB),7,$0
+-	RET
+-
+-TEXT sys·morestack11(SB),7,$0
+-	RET
+-
+-TEXT sys·morestack8(SB),7,$0
+-	RET
+-
+-TEXT sys·morestack16(SB),7,$0
+-	RET
+-
+-TEXT sys·morestack24(SB),7,$0
+-	RET
+-
+-TEXT sys·morestack32(SB),7,$0
+-	RET
+-
+-TEXT sys·morestack40(SB),7,$0
+-	RET
+-
+-TEXT sys·morestack48(SB),7,$0
+-	RET
+-
+-TEXT sys·morestack8(SB),7,$0
+-	RET
+-
+diff --git a/usr/austin/sym/sym_test.go b/usr/austin/sym/sym_test.go
+deleted file mode 100644
+index 50ac25ec96..0000000000
+--- a/usr/austin/sym/sym_test.go
++++ /dev/null
+@@ -1,207 +0,0 @@
+-// Copyright 2009 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package sym
+-
+-import (
+-	"exec";
+-	"io";
+-	"os";
+-	"testing";
+-	"syscall";
+-)
+-
+-var goarch = os.Getenv("O")
+-// No ELF binaries on OS X
+-var darwin = syscall.OS == "darwin";
+-
+-func TestLineFromAline(t *testing.T) {
+-	if darwin {
+-		return;
+-	}
+-
+-	// Use myself for this test
+-	f, err := os.Open(goarch + ".out", os.O_RDONLY, 0);
+-	if err != nil {
+-		t.Fatalf("failed to open %s.out: %s", goarch, err);
+-	}
+-
+-	elf, err := NewElf(f);
+-	if err != nil {
+-		t.Fatalf("failed to read ELF: %s", err);
+-	}
+-
+-	syms, err := ElfGoSyms(elf);
+-	if err != nil {
+-		t.Fatalf("failed to load syms: %s", err);
+-	}
+-
+-	// Find the sym package
+-	pkg := syms.SymFromName("sym·ElfGoSyms").(*TextSym).obj;
+-
+-	// Walk every absolute line and ensure that we hit every
+-	// source line monotonically
+-	lastline := make(map[string] int);
+-	final := -1;
+-	for i := 0; i < 10000; i++ {
+-		path, line := pkg.lineFromAline(i);
+-		// Check for end of object
+-		if path == "" {
+-			if final == -1 {
+-				final = i - 1;
+-			}
+-			continue;
+-		} else if final != -1 {
+-			t.Fatalf("reached end of package at absolute line %d, but absolute line %d mapped to %s:%d", final, i, path, line);
+-		}
+-		// It's okay to see files multiple times (e.g., sys.a)
+-		if line == 1 {
+-			lastline[path] = 1;
+-			continue;
+-		}
+-		// Check that the is the next line in path
+-		ll, ok := lastline[path];
+-		if !ok {
+-			t.Errorf("file %s starts on line %d", path, line);
+-		} else if line != ll + 1 {
+-			t.Errorf("expected next line of file %s to be %d, got %d", path, ll + 1, line);
+-		}
+-		lastline[path] = line;
+-	}
+-	if final == -1 {
+-		t.Errorf("never reached end of object");
+-	}
+-}
+-
+-func TestLineAline(t *testing.T) {
+-	if darwin {
+-		return;
+-	}
+-
+-	// Use myself for this test
+-	f, err := os.Open(goarch + ".out", os.O_RDONLY, 0);
+-	if err != nil {
+-		t.Fatalf("failed to open %s.out: %s", goarch, err);
+-	}
+-
+-	elf, err := NewElf(f);
+-	if err != nil {
+-		t.Fatalf("failed to read ELF: %s", err);
+-	}
+-
+-	syms, err := ElfGoSyms(elf);
+-	if err != nil {
+-		t.Fatalf("failed to load syms: %s", err);
+-	}
+-
+-	for _, o := range syms.files {
+-		// A source file can appear multiple times in a
+-		// object.  alineFromLine will always return alines in
+-		// the first file, so track which lines we've seen.
+-		found := make(map[string] int);
+-		for i := 0; i < 1000; i++ {
+-			path, line := o.lineFromAline(i);
+-			if path == "" {
+-				break;
+-			}
+-
+-			// cgo files are full of 'Z' symbols, which we don't handle
+-			if len(path) > 4 && path[len(path)-4:len(path)] == ".cgo" {
+-				continue;
+-			}
+-
+-			if minline, ok := found[path]; path != "" && ok {
+-				if minline >= line {
+-					// We've already covered this file
+-					continue;
+-				}
+-			}
+-			found[path] = line;
+-
+-			a, err := o.alineFromLine(path, line);
+-			if err != nil {
+-				t.Errorf("absolute line %d in object %s maps to %s:%d, but mapping that back gives error %s", i, o.paths[0].Name, path, line, err);
+-			} else if a != i {
+-				t.Errorf("absolute line %d in object %s maps to %s:%d, which maps back to absolute line %d\n", i, o.paths[0].Name, path, line, a);
+-			}
+-		}
+-	}
+-}
+-
+-// gotest: if [ "`uname`" != "Darwin" ]; then
+-// gotest:    mkdir -p _test && $AS pclinetest.s && $LD -E main -l -o _test/pclinetest pclinetest.$O
+-// gotest: fi
+-func TestPCLine(t *testing.T) {
+-	if darwin {
+-		return;
+-	}
+-
+-	f, err := os.Open("_test/pclinetest", os.O_RDONLY, 0);
+-	if err != nil {
+-		t.Fatalf("failed to open pclinetest.6: %s", err);
+-	}
+-	defer f.Close();
+-
+-	elf, err := NewElf(f);
+-	if err != nil {
+-		t.Fatalf("failed to read ELF: %s", err);
+-	}
+-
+-	syms, err := ElfGoSyms(elf);
+-	if err != nil {
+-		t.Fatalf("failed to load syms: %s", err);
+-	}
+-
+-	textSec := elf.Section(".text");
+-	sf, err := textSec.Open();
+-	if err != nil {
+-		t.Fatalf("failed to open .text section: %s", err);
+-	}
+-	text, err := io.ReadAll(sf);
+-	if err != nil {
+-		t.Fatalf("failed to read .text section: %s", err);
+-	}
+-
+-	// Test LineFromPC
+-	sym := syms.SymFromName("linefrompc").(*TextSym);
+-	wantLine := 0;
+-	for pc := sym.Value; pc < sym.End; pc++ {
+-		file, line, fn := syms.LineFromPC(pc);
+-		wantLine += int(text[pc-textSec.Addr]);
+-		if fn == nil {
+-			t.Errorf("failed to get line of PC %#x", pc);
+-		} else if len(file) < 12 || file[len(file)-12:len(file)] != "pclinetest.s" || line != wantLine || fn != sym {
+-			t.Errorf("expected %s:%d (%s) at PC %#x, got %s:%d (%s)", "pclinetest.s", wantLine, sym.Name, pc, file, line, fn.Name);
+-		}
+-	}
+-
+-	// Test PCFromLine
+-	sym = syms.SymFromName("pcfromline").(*TextSym);
+-	lookupline := -1;
+-	wantLine = 0;
+-	for pc := sym.Value; pc < sym.End; pc += 2 + uint64(text[pc+1-textSec.Addr]) {
+-		file, line, fn := syms.LineFromPC(pc);
+-		wantLine += int(text[pc-textSec.Addr]);
+-		if line != wantLine {
+-			t.Errorf("expected line %d at PC %#x in pcfromline, got %d", wantLine, pc, line);
+-			continue;
+-		}
+-		if lookupline == -1 {
+-			lookupline = line;
+-		}
+-		for ; lookupline <= line; lookupline++ {
+-			pc2, fn2, err := syms.PCFromLine(file, lookupline);
+-			if lookupline != line {
+-				// Should be nothing on this line
+-				if err == nil {
+-					t.Errorf("expected no PC at line %d, got %#x (%s)", lookupline, pc2, fn2.Name);
+-				}
+-			} else if err != nil {
+-				t.Errorf("failed to get PC of line %d: %s", lookupline, err);
+-			} else if pc != pc2 {
+-				t.Errorf("expected PC %#x (%s) at line %d, got PC %#x (%s)", pc, fn.Name, line, pc2, fn2.Name);
+-			}
+-		}
+-	}
+-}

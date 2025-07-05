@@ -20,7 +20,80 @@ Date:   Sun Feb 16 16:18:04 2020 -0500
     Change-Id: I95ab3875a84b357dbaa65a4ed339a19282257ce0
     Reviewed-on: https://go-review.googlesource.com/c/go/+/219717
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/link/internal/ld/pcln.go | 22 ++++++++++++++++++++++
  src/runtime/symtab.go            | 10 +++++++++-
  2 files changed, 31 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/ld/pcln.go b/src/cmd/link/internal/ld/pcln.go
+index db44c0292e..3e8135c959 100644
+--- a/src/cmd/link/internal/ld/pcln.go
++++ b/src/cmd/link/internal/ld/pcln.go
+@@ -138,6 +138,7 @@ func (ctxt *Link) pclntab() {
+ 
+ 	// Gather some basic stats and info.
+ 	var nfunc int32
++	prevSect := ctxt.Textp[0].Sect
+ 	for _, s := range ctxt.Textp {
+ 		if !emitPcln(ctxt, s) {
+ 			continue
+@@ -146,6 +147,14 @@ func (ctxt *Link) pclntab() {
+ 		if pclntabFirstFunc == nil {
+ 			pclntabFirstFunc = s
+ 		}
++		if s.Sect != prevSect {
++			// With multiple text sections, the external linker may insert functions
++			// between the sections, which are not known by Go. This leaves holes in
++			// the PC range covered by the func table. We need to generate an entry
++			// to mark the hole.
++			nfunc++
++			prevSect = s.Sect
++		}
+ 	}
+ 
+ 	pclntabNfunc = nfunc
+@@ -181,10 +190,23 @@ func (ctxt *Link) pclntab() {
+ 	}
+ 
+ 	nfunc = 0 // repurpose nfunc as a running index
++	prevFunc := ctxt.Textp[0]
+ 	for _, s := range ctxt.Textp {
+ 		if !emitPcln(ctxt, s) {
+ 			continue
+ 		}
++
++		if s.Sect != prevFunc.Sect {
++			// With multiple text sections, there may be a hole here in the address
++			// space (see the comment above). We use an invalid funcoff value to
++			// mark the hole.
++			// See also runtime/symtab.go:findfunc
++			ftab.SetAddrPlus(ctxt.Arch, 8+int64(ctxt.Arch.PtrSize)+int64(nfunc)*2*int64(ctxt.Arch.PtrSize), prevFunc, prevFunc.Size)
++			ftab.SetUint(ctxt.Arch, 8+int64(ctxt.Arch.PtrSize)+int64(nfunc)*2*int64(ctxt.Arch.PtrSize)+int64(ctxt.Arch.PtrSize), ^uint64(0))
++			nfunc++
++		}
++		prevFunc = s
++
+ 		pcln := s.FuncInfo
+ 		if pcln == nil {
+ 			pcln = &pclntabZpcln
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index ddcf231929..a6e08d7214 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -614,7 +614,15 @@ func findfunc(pc uintptr) funcInfo {
+ 			idx++
+ 		}
+ 	}
+-	return funcInfo{(*_func)(unsafe.Pointer(&datap.pclntable[datap.ftab[idx].funcoff])), datap}
++	funcoff := datap.ftab[idx].funcoff
++	if funcoff == ^uintptr(0) {
++		// With multiple text sections, there may be functions inserted by the external
++		// linker that are not known by Go. This means there may be holes in the PC
++		// range covered by the func table. The invalid funcoff value indicates a hole.
++		// See also cmd/link/internal/ld/pcln.go:pclntab
++		return funcInfo{}
++	}
++	return funcInfo{(*_func)(unsafe.Pointer(&datap.pclntable[funcoff])), datap}
+ }
+ 
+ type pcvalueCache struct {

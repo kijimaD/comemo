@@ -23,8 +23,291 @@ Date:   Wed Feb 17 18:20:24 2016 -0800
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Tom Bergan <tombergan@google.com>
     Reviewed-by: Adam Langley <agl@golang.org>
-
+---
  src/crypto/tls/common.go    |   6 +++
  src/crypto/tls/conn.go      |  83 ++++++++++++++++++++++++++--
  src/crypto/tls/conn_test.go | 128 ++++++++++++++++++++++++++++++++++++++++++++
  3 files changed, 213 insertions(+), 4 deletions(-)
+
+diff --git a/src/crypto/tls/common.go b/src/crypto/tls/common.go
+index c68ebfe188..28971ce078 100644
+--- a/src/crypto/tls/common.go
++++ b/src/crypto/tls/common.go
+@@ -349,6 +349,12 @@ type Config struct {
+ 	// be used.
+ 	CurvePreferences []CurveID
+ 
++	// DynamicRecordSizingDisabled disables adaptive sizing of TLS records.
++	// When true, the largest possible TLS record size is always used. When
++	// false, the size of TLS records may be adjusted in an attempt to
++	// improve latency.
++	DynamicRecordSizingDisabled bool
++
+ 	serverInitOnce sync.Once // guards calling (*Config).serverInit
+ 
+ 	// mutex protects sessionTicketKeys
+diff --git a/src/crypto/tls/conn.go b/src/crypto/tls/conn.go
+index 42445b94d7..e0dab08ddc 100644
+--- a/src/crypto/tls/conn.go
++++ b/src/crypto/tls/conn.go
+@@ -57,6 +57,10 @@ type Conn struct {
+ 	input    *block       // application data waiting to be read
+ 	hand     bytes.Buffer // handshake data waiting to be read
+ 
++	// bytesSent counts the number of bytes of application data that have
++	// been sent.
++	bytesSent int64
++
+ 	// activeCall is an atomic int32; the low bit is whether Close has
+ 	// been called. the rest of the bits are the number of goroutines
+ 	// in Conn.Write.
+@@ -712,6 +716,76 @@ func (c *Conn) sendAlert(err alert) error {
+ 	return c.sendAlertLocked(err)
+ }
+ 
++const (
++	// tcpMSSEstimate is a conservative estimate of the TCP maximum segment
++	// size (MSS). A constant is used, rather than querying the kernel for
++	// the actual MSS, to avoid complexity. The value here is the IPv6
++	// minimum MTU (1280 bytes) minus the overhead of an IPv6 header (40
++	// bytes) and a TCP header with timestamps (32 bytes).
++	tcpMSSEstimate = 1208
++
++	// recordSizeBoostThreshold is the number of bytes of application data
++	// sent after which the TLS record size will be increased to the
++	// maximum.
++	recordSizeBoostThreshold = 1 * 1024 * 1024
++)
++
++// maxPayloadSizeForWrite returns the maximum TLS payload size to use for the
++// next application data record. There is the following trade-off:
++//
++//   - For latency-sensitive applications, such as web browsing, each TLS
++//     record should fit in one TCP segment.
++//   - For throughput-sensitive applications, such as large file transfers,
++//     larger TLS records better amortize framing and encryption overheads.
++//
++// A simple heuristic that works well in practice is to use small records for
++// the first 1MB of data, then use larger records for subsequent data, and
++// reset back to smaller records after the connection becomes idle. See "High
++// Performance Web Networking", Chapter 4, or:
++// https://www.igvita.com/2013/10/24/optimizing-tls-record-size-and-buffering-latency/
++//
++// In the interests of simplicity and determinism, this code does not attempt
++// to reset the record size once the connection is idle, however.
++//
++// c.out.Mutex <= L.
++func (c *Conn) maxPayloadSizeForWrite(typ recordType, explicitIVLen int) int {
++	if c.config.DynamicRecordSizingDisabled || typ != recordTypeApplicationData {
++		return maxPlaintext
++	}
++
++	if c.bytesSent >= recordSizeBoostThreshold {
++		return maxPlaintext
++	}
++
++	// Subtract TLS overheads to get the maximum payload size.
++	macSize := 0
++	if c.out.mac != nil {
++		macSize = c.out.mac.Size()
++	}
++
++	payloadBytes := tcpMSSEstimate - recordHeaderLen - explicitIVLen
++	if c.out.cipher != nil {
++		switch ciph := c.out.cipher.(type) {
++		case cipher.Stream:
++			payloadBytes -= macSize
++		case cipher.AEAD:
++			payloadBytes -= ciph.Overhead()
++		case cbcMode:
++			blockSize := ciph.BlockSize()
++			// The payload must fit in a multiple of blockSize, with
++			// room for at least one padding byte.
++			payloadBytes = (payloadBytes & ^(blockSize - 1)) - 1
++			// The MAC is appended before padding so affects the
++			// payload size directly.
++			payloadBytes -= macSize
++		default:
++			panic("unknown cipher type")
++		}
++	}
++
++	return payloadBytes
++}
++
+ // writeRecord writes a TLS record with the given type and payload
+ // to the connection and updates the record layer state.
+ // c.out.Mutex <= L.
+@@ -721,10 +795,6 @@ func (c *Conn) writeRecord(typ recordType, data []byte) (int, error) {
+ 
+ 	var n int
+ 	for len(data) > 0 {
+-		m := len(data)
+-		if m > maxPlaintext {
+-			m = maxPlaintext
+-		}
+ 		explicitIVLen := 0
+ 		explicitIVIsSeq := false
+ 
+@@ -747,6 +817,10 @@ func (c *Conn) writeRecord(typ recordType, data []byte) (int, error) {
+ 				explicitIVIsSeq = true
+ 			}
+ 		}
++		m := len(data)
++		if maxPayload := c.maxPayloadSizeForWrite(typ, explicitIVLen); m > maxPayload {
++			m = maxPayload
++		}
+ 		b.resize(recordHeaderLen + explicitIVLen + m)
+ 		b.data[0] = byte(typ)
+ 		vers := c.vers
+@@ -774,6 +848,7 @@ func (c *Conn) writeRecord(typ recordType, data []byte) (int, error) {
+ 		if _, err := c.conn.Write(b.data); err != nil {
+ 			return n, err
+ 		}
++		c.bytesSent += int64(m)
+ 		n += m
+ 		data = data[m:]
+ 	}
+diff --git a/src/crypto/tls/conn_test.go b/src/crypto/tls/conn_test.go
+index ec802cad70..8334d90839 100644
+--- a/src/crypto/tls/conn_test.go
++++ b/src/crypto/tls/conn_test.go
+@@ -5,6 +5,9 @@
+ package tls
+ 
+ import (
++	"bytes"
++	"io"
++	"net"
+ 	"testing"
+ )
+ 
+@@ -116,3 +119,128 @@ func TestCertificateSelection(t *testing.T) {
+ 		t.Errorf("foo.bar.baz.example.com returned certificate %d, not 0", n)
+ 	}
+ }
++
++// Run with multiple crypto configs to test the logic for computing TLS record overheads.
++func runDynamicRecordSizingTest(t *testing.T, config *Config) {
++	clientConn, serverConn := net.Pipe()
++
++	serverConfig := *config
++	serverConfig.DynamicRecordSizingDisabled = false
++	tlsConn := Server(serverConn, &serverConfig)
++
++	recordSizesChan := make(chan []int, 1)
++	go func() {
++		// This goroutine performs a TLS handshake over clientConn and
++		// then reads TLS records until EOF. It writes a slice that
++		// contains all the record sizes to recordSizesChan.
++		defer close(recordSizesChan)
++		defer clientConn.Close()
++
++		tlsConn := Client(clientConn, config)
++		if err := tlsConn.Handshake(); err != nil {
++			t.Errorf("Error from client handshake: %s", err)
++			return
++		}
++
++		var recordHeader [recordHeaderLen]byte
++		var record []byte
++		var recordSizes []int
++
++		for {
++			n, err := clientConn.Read(recordHeader[:])
++			if err == io.EOF {
++				break
++			}
++			if err != nil || n != len(recordHeader) {
++				t.Errorf("Error from client read: %s", err)
++				return
++			}
++
++			length := int(recordHeader[3])<<8 | int(recordHeader[4])
++			if len(record) < length {
++				record = make([]byte, length)
++			}
++
++			n, err = clientConn.Read(record[:length])
++			if err != nil || n != length {
++				t.Errorf("Error from client read: %s", err)
++				return
++			}
++
++			// The last record will be a close_notify alert, which
++			// we don't wish to record.
++			if recordType(recordHeader[0]) == recordTypeApplicationData {
++				recordSizes = append(recordSizes, recordHeaderLen+length)
++			}
++		}
++
++		recordSizesChan <- recordSizes
++	}()
++
++	if err := tlsConn.Handshake(); err != nil {
++		t.Fatalf("Error from server handshake: %s", err)
++	}
++
++	// The server writes these plaintexts in order.
++	plaintext := bytes.Join([][]byte{
++		bytes.Repeat([]byte("x"), recordSizeBoostThreshold),
++		bytes.Repeat([]byte("y"), maxPlaintext*2),
++		bytes.Repeat([]byte("z"), maxPlaintext),
++	}, nil)
++
++	if _, err := tlsConn.Write(plaintext); err != nil {
++		t.Fatalf("Error from server write: %s", err)
++	}
++	if err := tlsConn.Close(); err != nil {
++		t.Fatalf("Error from server close: %s", err)
++	}
++
++	recordSizes := <-recordSizesChan
++	if recordSizes == nil {
++		t.Fatalf("Client encountered an error")
++	}
++
++	// Drop the size of last record, which is likely to be truncated.
++	recordSizes = recordSizes[:len(recordSizes)-1]
++
++	// recordSizes should contain a series of records smaller than
++	// tcpMSSEstimate followed by some larger than maxPlaintext.
++	seenLargeRecord := false
++	for i, size := range recordSizes {
++		if !seenLargeRecord {
++			if size > tcpMSSEstimate {
++				if i < 100 {
++					t.Fatalf("Record #%d has size %d, which is too large too soon", i, size)
++				}
++				if size <= maxPlaintext {
++					t.Fatalf("Record #%d has odd size %d", i, size)
++				}
++				seenLargeRecord = true
++			}
++		} else if size <= maxPlaintext {
++			t.Fatalf("Record #%d has size %d but should be full sized", i, size)
++		}
++	}
++
++	if !seenLargeRecord {
++		t.Fatalf("No large records observed")
++	}
++}
++
++func TestDynamicRecordSizingWithStreamCipher(t *testing.T) {
++	config := *testConfig
++	config.CipherSuites = []uint16{TLS_RSA_WITH_RC4_128_SHA}
++	runDynamicRecordSizingTest(t, &config)
++}
++
++func TestDynamicRecordSizingWithCBC(t *testing.T) {
++	config := *testConfig
++	config.CipherSuites = []uint16{TLS_RSA_WITH_AES_256_CBC_SHA}
++	runDynamicRecordSizingTest(t, &config)
++}
++
++func TestDynamicRecordSizingWithAEAD(t *testing.T) {
++	config := *testConfig
++	config.CipherSuites = []uint16{TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256}
++	runDynamicRecordSizingTest(t, &config)
++}

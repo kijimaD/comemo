@@ -14,6 +14,28 @@ Date:   Wed Jul 12 21:31:30 2017 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/syscall/exec_linux_test.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/syscall/exec_linux_test.go b/src/syscall/exec_linux_test.go
+index 854060b38f..f5e97bec1f 100644
+--- a/src/syscall/exec_linux_test.go
++++ b/src/syscall/exec_linux_test.go
+@@ -9,6 +9,7 @@ package syscall_test
+ import (
+ 	"flag"
+ 	"fmt"
++	"internal/testenv"
+ 	"io"
+ 	"io/ioutil"
+ 	"os"
+@@ -349,7 +350,7 @@ func TestUnshareMountNameSpaceChroot(t *testing.T) {
+ 	// Since we are doing a chroot, we need the binary there,
+ 	// and it must be statically linked.
+ 	x := filepath.Join(d, "syscall.test")
+-	cmd := exec.Command("go", "test", "-c", "-o", x, "syscall")
++	cmd := exec.Command(testenv.GoToolPath(t), "test", "-c", "-o", x, "syscall")
+ 	cmd.Env = append(os.Environ(), "CGO_ENABLED=0")
+ 	if o, err := cmd.CombinedOutput(); err != nil {
+ 		t.Fatalf("Build of syscall in chroot failed, output %v, err %v", o, err)

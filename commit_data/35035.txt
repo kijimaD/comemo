@@ -11,6 +11,26 @@ Date:   Wed Dec 6 16:24:10 2017 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/signal_unix.go | 8 ++++++++
  1 file changed, 8 insertions(+)
+
+diff --git a/src/runtime/signal_unix.go b/src/runtime/signal_unix.go
+index 2cd3d71800..ac191f302f 100644
+--- a/src/runtime/signal_unix.go
++++ b/src/runtime/signal_unix.go
+@@ -432,6 +432,14 @@ func dieFromSignal(sig uint32) {
+ 	osyield()
+ 	osyield()
+ 
++	// On Darwin we may still fail to die, because raise sends the
++	// signal to the whole process rather than just the current thread,
++	// and osyield just sleeps briefly rather than letting all other
++	// threads run. See issue 20315. Sleep longer.
++	if GOOS == "darwin" {
++		usleep(100)
++	}
++
+ 	// If we are still somehow running, just exit with the wrong status.
+ 	exit(2)
+ }

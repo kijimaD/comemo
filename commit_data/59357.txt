@@ -14,7 +14,7 @@ Date:   Wed Feb 21 02:30:42 2024 +0800
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Damien Neil <dneil@google.com>
-
+---
  doc/next/6-stdlib/99-minor/syscall/65817.md        |   1 +
  src/internal/syscall/windows/types_windows.go      |  12 +++
  src/internal/syscall/windows/version_windows.go    |  24 +++++
@@ -32,3 +32,872 @@ Date:   Wed Feb 21 02:30:42 2024 +0800
  src/net/tcpsockopt_windows.go                      |  52 ++++++++--
  src/syscall/syscall_windows.go                     |   7 +-
  16 files changed, 311 insertions(+), 275 deletions(-)
+
+diff --git a/doc/next/6-stdlib/99-minor/syscall/65817.md b/doc/next/6-stdlib/99-minor/syscall/65817.md
+new file mode 100644
+index 0000000000..0bbbc58549
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/syscall/65817.md
+@@ -0,0 +1 @@
++The [`GetsockoptInt`](/syscall#GetsockoptInt) function is now supported on Windows.
+diff --git a/src/internal/syscall/windows/types_windows.go b/src/internal/syscall/windows/types_windows.go
+new file mode 100644
+index 0000000000..126e07b883
+--- /dev/null
++++ b/src/internal/syscall/windows/types_windows.go
+@@ -0,0 +1,12 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package windows
++
++// Socket related.
++const (
++	TCP_KEEPIDLE  = 0x03
++	TCP_KEEPCNT   = 0x10
++	TCP_KEEPINTVL = 0x11
++)
+diff --git a/src/internal/syscall/windows/version_windows.go b/src/internal/syscall/windows/version_windows.go
+new file mode 100644
+index 0000000000..c0861ec509
+--- /dev/null
++++ b/src/internal/syscall/windows/version_windows.go
+@@ -0,0 +1,24 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package windows
++
++import "sync"
++
++// Version retrieves the major, minor, and build version numbers
++// of the current Windows OS from the RtlGetNtVersionNumbers API
++// and parse the results properly.
++func Version() (major, minor, build uint32) {
++	rtlGetNtVersionNumbers(&major, &minor, &build)
++	build &= 0x7fff
++	return
++}
++
++// SupportFullTCPKeepAlive indicates whether the current Windows version
++// supports the full TCP keep-alive configurations, the minimal requirement
++// is Windows 10, version 1709.
++var SupportFullTCPKeepAlive = sync.OnceValue(func() bool {
++	major, _, build := Version()
++	return major >= 10 && build >= 16299
++})
+diff --git a/src/net/tcpconn_keepalive_conf_darwin_test.go b/src/net/tcpconn_keepalive_conf_darwin_test.go
+new file mode 100644
+index 0000000000..675d63ecbd
+--- /dev/null
++++ b/src/net/tcpconn_keepalive_conf_darwin_test.go
+@@ -0,0 +1,22 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build darwin
++
++package net
++
++import (
++	"syscall"
++	"testing"
++)
++
++const (
++	syscall_TCP_KEEPIDLE  = syscall.TCP_KEEPALIVE
++	syscall_TCP_KEEPCNT   = sysTCP_KEEPCNT
++	syscall_TCP_KEEPINTVL = sysTCP_KEEPINTVL
++)
++
++type fdType = int
++
++func maybeSkipKeepAliveTest(_ *testing.T) {}
+diff --git a/src/net/tcpconn_keepalive_conf_posix_test.go b/src/net/tcpconn_keepalive_conf_posix_test.go
+new file mode 100644
+index 0000000000..5b57504926
+--- /dev/null
++++ b/src/net/tcpconn_keepalive_conf_posix_test.go
+@@ -0,0 +1,102 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build aix || darwin || dragonfly || freebsd || linux || netbsd || windows
++
++package net
++
++import "time"
++
++var testConfigs = []KeepAliveConfig{
++	{
++		Enable:   true,
++		Idle:     5 * time.Second,
++		Interval: 3 * time.Second,
++		Count:    10,
++	},
++	{
++		Enable:   true,
++		Idle:     0,
++		Interval: 0,
++		Count:    0,
++	},
++	{
++		Enable:   true,
++		Idle:     -1,
++		Interval: -1,
++		Count:    -1,
++	},
++	{
++		Enable:   true,
++		Idle:     -1,
++		Interval: 3 * time.Second,
++		Count:    10,
++	},
++	{
++		Enable:   true,
++		Idle:     5 * time.Second,
++		Interval: -1,
++		Count:    10,
++	},
++	{
++		Enable:   true,
++		Idle:     5 * time.Second,
++		Interval: 3 * time.Second,
++		Count:    -1,
++	},
++	{
++		Enable:   true,
++		Idle:     -1,
++		Interval: -1,
++		Count:    10,
++	},
++	{
++		Enable:   true,
++		Idle:     -1,
++		Interval: 3 * time.Second,
++		Count:    -1,
++	},
++	{
++		Enable:   true,
++		Idle:     5 * time.Second,
++		Interval: -1,
++		Count:    -1,
++	},
++	{
++		Enable:   true,
++		Idle:     0,
++		Interval: 3 * time.Second,
++		Count:    10,
++	},
++	{
++		Enable:   true,
++		Idle:     5 * time.Second,
++		Interval: 0,
++		Count:    10,
++	},
++	{
++		Enable:   true,
++		Idle:     5 * time.Second,
++		Interval: 3 * time.Second,
++		Count:    0,
++	},
++	{
++		Enable:   true,
++		Idle:     0,
++		Interval: 0,
++		Count:    10,
++	},
++	{
++		Enable:   true,
++		Idle:     0,
++		Interval: 3 * time.Second,
++		Count:    0,
++	},
++	{
++		Enable:   true,
++		Idle:     5 * time.Second,
++		Interval: 0,
++		Count:    0,
++	},
++}
+diff --git a/src/net/tcpconn_keepalive_conf_unix_test.go b/src/net/tcpconn_keepalive_conf_unix_test.go
+index 7c397083f9..5ec5c847de 100644
+--- a/src/net/tcpconn_keepalive_conf_unix_test.go
++++ b/src/net/tcpconn_keepalive_conf_unix_test.go
+@@ -2,101 +2,28 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build aix || freebsd || linux || netbsd || darwin || dragonfly
++//go:build aix || dragonfly || freebsd || linux || netbsd || solaris
+ 
+ package net
+ 
+-import "time"
++import (
++	"runtime"
++	"syscall"
++	"testing"
++)
+ 
+-var testConfigs = []KeepAliveConfig{
+-	{
+-		Enable:   true,
+-		Idle:     5 * time.Second,
+-		Interval: 3 * time.Second,
+-		Count:    10,
+-	},
+-	{
+-		Enable:   true,
+-		Idle:     0,
+-		Interval: 0,
+-		Count:    0,
+-	},
+-	{
+-		Enable:   true,
+-		Idle:     -1,
+-		Interval: -1,
+-		Count:    -1,
+-	},
+-	{
+-		Enable:   true,
+-		Idle:     -1,
+-		Interval: 3 * time.Second,
+-		Count:    10,
+-	},
+-	{
+-		Enable:   true,
+-		Idle:     5 * time.Second,
+-		Interval: -1,
+-		Count:    10,
+-	},
+-	{
+-		Enable:   true,
+-		Idle:     5 * time.Second,
+-		Interval: 3 * time.Second,
+-		Count:    -1,
+-	},
+-	{
+-		Enable:   true,
+-		Idle:     -1,
+-		Interval: -1,
+-		Count:    10,
+-	},
+-	{
+-		Enable:   true,
+-		Idle:     -1,
+-		Interval: 3 * time.Second,
+-		Count:    -1,
+-	},
+-	{
+-		Enable:   true,
+-		Idle:     5 * time.Second,
+-		Interval: -1,
+-		Count:    -1,
+-	},
+-	{
+-		Enable:   true,
+-		Idle:     0,
+-		Interval: 3 * time.Second,
+-		Count:    10,
+-	},
+-	{
+-		Enable:   true,
+-		Idle:     5 * time.Second,
+-		Interval: 0,
+-		Count:    10,
+-	},
+-	{
+-		Enable:   true,
+-		Idle:     5 * time.Second,
+-		Interval: 3 * time.Second,
+-		Count:    0,
+-	},
+-	{
+-		Enable:   true,
+-		Idle:     0,
+-		Interval: 0,
+-		Count:    10,
+-	},
+-	{
+-		Enable:   true,
+-		Idle:     0,
+-		Interval: 3 * time.Second,
+-		Count:    0,
+-	},
+-	{
+-		Enable:   true,
+-		Idle:     5 * time.Second,
+-		Interval: 0,
+-		Count:    0,
+-	},
++const (
++	syscall_TCP_KEEPIDLE  = syscall.TCP_KEEPIDLE
++	syscall_TCP_KEEPCNT   = syscall.TCP_KEEPCNT
++	syscall_TCP_KEEPINTVL = syscall.TCP_KEEPINTVL
++)
++
++type fdType = int
++
++func maybeSkipKeepAliveTest(t *testing.T) {
++	// TODO(panjf2000): stop skipping this test on Solaris
++	//  when https://go.dev/issue/64251 is fixed.
++	if runtime.GOOS == "solaris" {
++		t.Skip("skipping on solaris for now")
++	}
+ }
+diff --git a/src/net/tcpconn_keepalive_conf_windows_test.go b/src/net/tcpconn_keepalive_conf_windows_test.go
+new file mode 100644
+index 0000000000..72ebdc8567
+--- /dev/null
++++ b/src/net/tcpconn_keepalive_conf_windows_test.go
+@@ -0,0 +1,31 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build windows
++
++package net
++
++import (
++	"internal/syscall/windows"
++	"syscall"
++	"testing"
++)
++
++const (
++	syscall_TCP_KEEPIDLE  = windows.TCP_KEEPIDLE
++	syscall_TCP_KEEPCNT   = windows.TCP_KEEPCNT
++	syscall_TCP_KEEPINTVL = windows.TCP_KEEPINTVL
++)
++
++type fdType = syscall.Handle
++
++func maybeSkipKeepAliveTest(t *testing.T) {
++	// TODO(panjf2000): Unlike Unix-like OS's, old Windows (prior to Windows 10, version 1709)
++	// 	doesn't provide any ways to retrieve the current TCP keep-alive settings, therefore
++	// 	we're not able to run the test suite similar to Unix-like OS's on Windows.
++	//  Try to find another proper approach to test the keep-alive settings on old Windows.
++	if !windows.SupportFullTCPKeepAlive() {
++		t.Skip("skipping on windows")
++	}
++}
+diff --git a/src/net/tcpconn_keepalive_darwin_test.go b/src/net/tcpconn_keepalive_posix_test.go
+similarity index 83%
+rename from src/net/tcpconn_keepalive_darwin_test.go
+rename to src/net/tcpconn_keepalive_posix_test.go
+index 147e08cff1..f897e226bf 100644
+--- a/src/net/tcpconn_keepalive_darwin_test.go
++++ b/src/net/tcpconn_keepalive_posix_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build darwin
++//go:build aix || darwin || dragonfly || freebsd || linux || netbsd || windows
+ 
+ package net
+ 
+@@ -12,20 +12,20 @@ import (
+ 	"time"
+ )
+ 
+-func getCurrentKeepAliveSettings(fd int) (cfg KeepAliveConfig, err error) {
++func getCurrentKeepAliveSettings(fd fdType) (cfg KeepAliveConfig, err error) {
+ 	tcpKeepAlive, err := syscall.GetsockoptInt(fd, syscall.SOL_SOCKET, syscall.SO_KEEPALIVE)
+ 	if err != nil {
+ 		return
+ 	}
+-	tcpKeepAliveIdle, err := syscall.GetsockoptInt(fd, syscall.IPPROTO_TCP, syscall.TCP_KEEPALIVE)
++	tcpKeepAliveIdle, err := syscall.GetsockoptInt(fd, syscall.IPPROTO_TCP, syscall_TCP_KEEPIDLE)
+ 	if err != nil {
+ 		return
+ 	}
+-	tcpKeepAliveInterval, err := syscall.GetsockoptInt(fd, syscall.IPPROTO_TCP, sysTCP_KEEPINTVL)
++	tcpKeepAliveInterval, err := syscall.GetsockoptInt(fd, syscall.IPPROTO_TCP, syscall_TCP_KEEPINTVL)
+ 	if err != nil {
+ 		return
+ 	}
+-	tcpKeepAliveCount, err := syscall.GetsockoptInt(fd, syscall.IPPROTO_TCP, sysTCP_KEEPCNT)
++	tcpKeepAliveCount, err := syscall.GetsockoptInt(fd, syscall.IPPROTO_TCP, syscall_TCP_KEEPCNT)
+ 	if err != nil {
+ 		return
+ 	}
+@@ -38,7 +38,7 @@ func getCurrentKeepAliveSettings(fd int) (cfg KeepAliveConfig, err error) {
+ 	return
+ }
+ 
+-func verifyKeepAliveSettings(t *testing.T, fd int, oldCfg, cfg KeepAliveConfig) {
++func verifyKeepAliveSettings(t *testing.T, fd fdType, oldCfg, cfg KeepAliveConfig) {
+ 	if cfg.Idle == 0 {
+ 		cfg.Idle = defaultTCPKeepAliveIdle
+ 	}
+@@ -66,7 +66,7 @@ func verifyKeepAliveSettings(t *testing.T, fd int, oldCfg, cfg KeepAliveConfig)
+ 		t.Fatalf("SO_KEEPALIVE: got %t; want %t", tcpKeepAlive != 0, cfg.Enable)
+ 	}
+ 
+-	tcpKeepAliveIdle, err := syscall.GetsockoptInt(fd, syscall.IPPROTO_TCP, syscall.TCP_KEEPALIVE)
++	tcpKeepAliveIdle, err := syscall.GetsockoptInt(fd, syscall.IPPROTO_TCP, syscall_TCP_KEEPIDLE)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -74,7 +74,7 @@ func verifyKeepAliveSettings(t *testing.T, fd int, oldCfg, cfg KeepAliveConfig)
+ 		t.Fatalf("TCP_KEEPIDLE: got %ds; want %v", tcpKeepAliveIdle, cfg.Idle)
+ 	}
+ 
+-	tcpKeepAliveInterval, err := syscall.GetsockoptInt(fd, syscall.IPPROTO_TCP, sysTCP_KEEPINTVL)
++	tcpKeepAliveInterval, err := syscall.GetsockoptInt(fd, syscall.IPPROTO_TCP, syscall_TCP_KEEPINTVL)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -82,7 +82,7 @@ func verifyKeepAliveSettings(t *testing.T, fd int, oldCfg, cfg KeepAliveConfig)
+ 		t.Fatalf("TCP_KEEPINTVL: got %ds; want %v", tcpKeepAliveInterval, cfg.Interval)
+ 	}
+ 
+-	tcpKeepAliveCount, err := syscall.GetsockoptInt(fd, syscall.IPPROTO_TCP, sysTCP_KEEPCNT)
++	tcpKeepAliveCount, err := syscall.GetsockoptInt(fd, syscall.IPPROTO_TCP, syscall_TCP_KEEPCNT)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+diff --git a/src/net/tcpconn_keepalive_solaris_test.go b/src/net/tcpconn_keepalive_solaris_test.go
+index c6456c47a9..bd9dca7c5b 100644
+--- a/src/net/tcpconn_keepalive_solaris_test.go
++++ b/src/net/tcpconn_keepalive_solaris_test.go
+@@ -33,7 +33,7 @@ var testConfigs = []KeepAliveConfig{
+ 	},
+ }
+ 
+-func getCurrentKeepAliveSettings(fd int) (cfg KeepAliveConfig, err error) {
++func getCurrentKeepAliveSettings(fd fdType) (cfg KeepAliveConfig, err error) {
+ 	tcpKeepAlive, err := syscall.GetsockoptInt(fd, syscall.SOL_SOCKET, syscall.SO_KEEPALIVE)
+ 	if err != nil {
+ 		return
+@@ -51,7 +51,7 @@ func getCurrentKeepAliveSettings(fd int) (cfg KeepAliveConfig, err error) {
+ 	return
+ }
+ 
+-func verifyKeepAliveSettings(t *testing.T, fd int, oldCfg, cfg KeepAliveConfig) {
++func verifyKeepAliveSettings(t *testing.T, fd fdType, oldCfg, cfg KeepAliveConfig) {
+ 	if cfg.Idle == 0 {
+ 		cfg.Idle = defaultTCPKeepAliveIdle
+ 	}
+diff --git a/src/net/tcpconn_keepalive_test.go b/src/net/tcpconn_keepalive_test.go
+index f858d995f0..8eb6f2ea4e 100644
+--- a/src/net/tcpconn_keepalive_test.go
++++ b/src/net/tcpconn_keepalive_test.go
+@@ -2,21 +2,14 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build aix || freebsd || linux || netbsd || dragonfly || darwin || solaris || windows
++//go:build aix || darwin || dragonfly || freebsd || linux || netbsd || solaris || windows
+ 
+ package net
+ 
+-import (
+-	"runtime"
+-	"testing"
+-)
++import "testing"
+ 
+-func TestTCPConnDialerKeepAliveConfig(t *testing.T) {
+-	// TODO(panjf2000): stop skipping this test on Solaris
+-	//  when https://go.dev/issue/64251 is fixed.
+-	if runtime.GOOS == "solaris" {
+-		t.Skip("skipping on solaris for now")
+-	}
++func TestTCPConnKeepAliveConfigDialer(t *testing.T) {
++	maybeSkipKeepAliveTest(t)
+ 
+ 	t.Cleanup(func() {
+ 		testPreHookSetKeepAlive = func(*netFD) {}
+@@ -26,7 +19,7 @@ func TestTCPConnDialerKeepAliveConfig(t *testing.T) {
+ 		oldCfg  KeepAliveConfig
+ 	)
+ 	testPreHookSetKeepAlive = func(nfd *netFD) {
+-		oldCfg, errHook = getCurrentKeepAliveSettings(int(nfd.pfd.Sysfd))
++		oldCfg, errHook = getCurrentKeepAliveSettings(fdType(nfd.pfd.Sysfd))
+ 	}
+ 
+ 	handler := func(ls *localServer, ln Listener) {
+@@ -66,19 +59,15 @@ func TestTCPConnDialerKeepAliveConfig(t *testing.T) {
+ 			t.Fatal(err)
+ 		}
+ 		if err := sc.Control(func(fd uintptr) {
+-			verifyKeepAliveSettings(t, int(fd), oldCfg, cfg)
++			verifyKeepAliveSettings(t, fdType(fd), oldCfg, cfg)
+ 		}); err != nil {
+ 			t.Fatal(err)
+ 		}
+ 	}
+ }
+ 
+-func TestTCPConnListenerKeepAliveConfig(t *testing.T) {
+-	// TODO(panjf2000): stop skipping this test on Solaris
+-	//  when https://go.dev/issue/64251 is fixed.
+-	if runtime.GOOS == "solaris" {
+-		t.Skip("skipping on solaris for now")
+-	}
++func TestTCPConnKeepAliveConfigListener(t *testing.T) {
++	maybeSkipKeepAliveTest(t)
+ 
+ 	t.Cleanup(func() {
+ 		testPreHookSetKeepAlive = func(*netFD) {}
+@@ -88,7 +77,7 @@ func TestTCPConnListenerKeepAliveConfig(t *testing.T) {
+ 		oldCfg  KeepAliveConfig
+ 	)
+ 	testPreHookSetKeepAlive = func(nfd *netFD) {
+-		oldCfg, errHook = getCurrentKeepAliveSettings(int(nfd.pfd.Sysfd))
++		oldCfg, errHook = getCurrentKeepAliveSettings(fdType(nfd.pfd.Sysfd))
+ 	}
+ 
+ 	ch := make(chan Conn, 1)
+@@ -125,19 +114,15 @@ func TestTCPConnListenerKeepAliveConfig(t *testing.T) {
+ 			t.Fatal(err)
+ 		}
+ 		if err := sc.Control(func(fd uintptr) {
+-			verifyKeepAliveSettings(t, int(fd), oldCfg, cfg)
++			verifyKeepAliveSettings(t, fdType(fd), oldCfg, cfg)
+ 		}); err != nil {
+ 			t.Fatal(err)
+ 		}
+ 	}
+ }
+ 
+-func TestTCPConnSetKeepAliveConfig(t *testing.T) {
+-	// TODO(panjf2000): stop skipping this test on Solaris
+-	//  when https://go.dev/issue/64251 is fixed.
+-	if runtime.GOOS == "solaris" {
+-		t.Skip("skipping on solaris for now")
+-	}
++func TestTCPConnKeepAliveConfig(t *testing.T) {
++	maybeSkipKeepAliveTest(t)
+ 
+ 	handler := func(ls *localServer, ln Listener) {
+ 		for {
+@@ -174,7 +159,7 @@ func TestTCPConnSetKeepAliveConfig(t *testing.T) {
+ 			oldCfg  KeepAliveConfig
+ 		)
+ 		if err := sc.Control(func(fd uintptr) {
+-			oldCfg, errHook = getCurrentKeepAliveSettings(int(fd))
++			oldCfg, errHook = getCurrentKeepAliveSettings(fdType(fd))
+ 		}); err != nil {
+ 			t.Fatal(err)
+ 		}
+@@ -187,7 +172,7 @@ func TestTCPConnSetKeepAliveConfig(t *testing.T) {
+ 		}
+ 
+ 		if err := sc.Control(func(fd uintptr) {
+-			verifyKeepAliveSettings(t, int(fd), oldCfg, cfg)
++			verifyKeepAliveSettings(t, fdType(fd), oldCfg, cfg)
+ 		}); err != nil {
+ 			t.Fatal(err)
+ 		}
+diff --git a/src/net/tcpconn_keepalive_unix_test.go b/src/net/tcpconn_keepalive_unix_test.go
+deleted file mode 100644
+index 74555c9c5b..0000000000
+--- a/src/net/tcpconn_keepalive_unix_test.go
++++ /dev/null
+@@ -1,92 +0,0 @@
+-// Copyright 2023 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build aix || dragonfly || freebsd || linux || netbsd
+-
+-package net
+-
+-import (
+-	"syscall"
+-	"testing"
+-	"time"
+-)
+-
+-func getCurrentKeepAliveSettings(fd int) (cfg KeepAliveConfig, err error) {
+-	tcpKeepAlive, err := syscall.GetsockoptInt(fd, syscall.SOL_SOCKET, syscall.SO_KEEPALIVE)
+-	if err != nil {
+-		return
+-	}
+-	tcpKeepAliveIdle, err := syscall.GetsockoptInt(fd, syscall.IPPROTO_TCP, syscall.TCP_KEEPIDLE)
+-	if err != nil {
+-		return
+-	}
+-	tcpKeepAliveInterval, err := syscall.GetsockoptInt(fd, syscall.IPPROTO_TCP, syscall.TCP_KEEPINTVL)
+-	if err != nil {
+-		return
+-	}
+-	tcpKeepAliveCount, err := syscall.GetsockoptInt(fd, syscall.IPPROTO_TCP, syscall.TCP_KEEPCNT)
+-	if err != nil {
+-		return
+-	}
+-	cfg = KeepAliveConfig{
+-		Enable:   tcpKeepAlive != 0,
+-		Idle:     time.Duration(tcpKeepAliveIdle) * time.Second,
+-		Interval: time.Duration(tcpKeepAliveInterval) * time.Second,
+-		Count:    tcpKeepAliveCount,
+-	}
+-	return
+-}
+-
+-func verifyKeepAliveSettings(t *testing.T, fd int, oldCfg, cfg KeepAliveConfig) {
+-	if cfg.Idle == 0 {
+-		cfg.Idle = defaultTCPKeepAliveIdle
+-	}
+-	if cfg.Interval == 0 {
+-		cfg.Interval = defaultTCPKeepAliveInterval
+-	}
+-	if cfg.Count == 0 {
+-		cfg.Count = defaultTCPKeepAliveCount
+-	}
+-	if cfg.Idle == -1 {
+-		cfg.Idle = oldCfg.Idle
+-	}
+-	if cfg.Interval == -1 {
+-		cfg.Interval = oldCfg.Interval
+-	}
+-	if cfg.Count == -1 {
+-		cfg.Count = oldCfg.Count
+-	}
+-
+-	tcpKeepAlive, err := syscall.GetsockoptInt(fd, syscall.SOL_SOCKET, syscall.SO_KEEPALIVE)
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	if (tcpKeepAlive != 0) != cfg.Enable {
+-		t.Fatalf("SO_KEEPALIVE: got %t; want %t", tcpKeepAlive != 0, cfg.Enable)
+-	}
+-
+-	tcpKeepAliveIdle, err := syscall.GetsockoptInt(fd, syscall.IPPROTO_TCP, syscall.TCP_KEEPIDLE)
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	if time.Duration(tcpKeepAliveIdle)*time.Second != cfg.Idle {
+-		t.Fatalf("TCP_KEEPIDLE: got %ds; want %v", tcpKeepAliveIdle, cfg.Idle)
+-	}
+-
+-	tcpKeepAliveInterval, err := syscall.GetsockoptInt(fd, syscall.IPPROTO_TCP, syscall.TCP_KEEPINTVL)
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	if time.Duration(tcpKeepAliveInterval)*time.Second != cfg.Interval {
+-		t.Fatalf("TCP_KEEPINTVL: got %ds; want %v", tcpKeepAliveInterval, cfg.Interval)
+-	}
+-
+-	tcpKeepAliveCount, err := syscall.GetsockoptInt(fd, syscall.IPPROTO_TCP, syscall.TCP_KEEPCNT)
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	if tcpKeepAliveCount != cfg.Count {
+-		t.Fatalf("TCP_KEEPCNT: got %d; want %d", tcpKeepAliveCount, cfg.Count)
+-	}
+-}
+diff --git a/src/net/tcpconn_keepalive_windows_test.go b/src/net/tcpconn_keepalive_windows_test.go
+deleted file mode 100644
+index c3d6366c62..0000000000
+--- a/src/net/tcpconn_keepalive_windows_test.go
++++ /dev/null
+@@ -1,33 +0,0 @@
+-// Copyright 2023 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build windows
+-
+-package net
+-
+-import (
+-	"testing"
+-	"time"
+-)
+-
+-var testConfigs = []KeepAliveConfig{
+-	{
+-		Enable:   true,
+-		Idle:     2 * time.Second,
+-		Interval: time.Second,
+-		Count:    -1,
+-	},
+-}
+-
+-func getCurrentKeepAliveSettings(_ int) (cfg KeepAliveConfig, err error) {
+-	// TODO(panjf2000): same as verifyKeepAliveSettings.
+-	return
+-}
+-
+-func verifyKeepAliveSettings(_ *testing.T, _ int, _, _ KeepAliveConfig) {
+-	// TODO(panjf2000): Unlike Unix-like OS's, Windows doesn't provide
+-	// 	any ways to retrieve the current TCP keep-alive settings, therefore
+-	// 	we're not able to run the test suite similar to Unix-like OS's on Windows.
+-	//  Try to find another proper approach to test the keep-alive settings on Windows.
+-}
+diff --git a/src/net/tcpsock.go b/src/net/tcpsock.go
+index 5ffdbb0359..68329fdc9a 100644
+--- a/src/net/tcpsock.go
++++ b/src/net/tcpsock.go
+@@ -118,12 +118,14 @@ type TCPConn struct {
+ // If the Idle, Interval, or Count fields are zero, a default value is chosen.
+ // If a field is negative, the corresponding socket-level option will be left unchanged.
+ //
+-// Note that Windows doesn't support setting the KeepAliveIdle and KeepAliveInterval separately.
+-// It's recommended to set both Idle and Interval to non-negative values on Windows if you
+-// intend to customize the TCP keep-alive settings.
+-// By contrast, if only one of Idle and Interval is set to a non-negative value, the other will
+-// be set to the system default value, and ultimately, set both Idle and Interval to negative
+-// values if you want to leave them unchanged.
++// Note that prior to Windows 10 version 1709, neither setting Idle and Interval
++// separately nor changing Count (which is usually 10) is supported.
++// Therefore, it's recommended to set both Idle and Interval to non-negative values
++// in conjunction with a -1 for Count on those old Windows if you intend to customize
++// the TCP keep-alive settings.
++// By contrast, if only one of Idle and Interval is set to a non-negative value,
++// the other will be set to the system default value, and ultimately,
++// set both Idle and Interval to negative values if you want to leave them unchanged.
+ type KeepAliveConfig struct {
+ 	// If Enable is true, keep-alive probes are enabled.
+ 	Enable bool
+@@ -236,8 +238,8 @@ func (c *TCPConn) SetKeepAlive(keepalive bool) error {
+ 	return nil
+ }
+ 
+-// SetKeepAlivePeriod sets the idle duration the connection
+-// needs to remain idle before TCP starts sending keepalive probes.
++// SetKeepAlivePeriod sets the duration the connection needs to
++// remain idle before TCP starts sending keepalive probes.
+ //
+ // Note that calling this method on Windows will reset the KeepAliveInterval
+ // to the default system value, which is normally 1 second.
+diff --git a/src/net/tcpsock_windows.go b/src/net/tcpsock_windows.go
+index 8ec71ab3ad..2a4429579b 100644
+--- a/src/net/tcpsock_windows.go
++++ b/src/net/tcpsock_windows.go
+@@ -4,7 +4,10 @@
+ 
+ package net
+ 
+-import "syscall"
++import (
++	"internal/syscall/windows"
++	"syscall"
++)
+ 
+ // SetKeepAliveConfig configures keep-alive messages sent by the operating system.
+ func (c *TCPConn) SetKeepAliveConfig(config KeepAliveConfig) error {
+@@ -15,7 +18,14 @@ func (c *TCPConn) SetKeepAliveConfig(config KeepAliveConfig) error {
+ 	if err := setKeepAlive(c.fd, config.Enable); err != nil {
+ 		return &OpError{Op: "set", Net: c.fd.net, Source: c.fd.laddr, Addr: c.fd.raddr, Err: err}
+ 	}
+-	if err := setKeepAliveIdleAndInterval(c.fd, config.Idle, config.Interval); err != nil {
++	if windows.SupportFullTCPKeepAlive() {
++		if err := setKeepAliveIdle(c.fd, config.Idle); err != nil {
++			return &OpError{Op: "set", Net: c.fd.net, Source: c.fd.laddr, Addr: c.fd.raddr, Err: err}
++		}
++		if err := setKeepAliveInterval(c.fd, config.Interval); err != nil {
++			return &OpError{Op: "set", Net: c.fd.net, Source: c.fd.laddr, Addr: c.fd.raddr, Err: err}
++		}
++	} else if err := setKeepAliveIdleAndInterval(c.fd, config.Idle, config.Interval); err != nil {
+ 		return &OpError{Op: "set", Net: c.fd.net, Source: c.fd.laddr, Addr: c.fd.raddr, Err: err}
+ 	}
+ 	if err := setKeepAliveCount(c.fd, config.Count); err != nil {
+diff --git a/src/net/tcpsockopt_windows.go b/src/net/tcpsockopt_windows.go
+index 274fc4d9c4..d15e0a7c28 100644
+--- a/src/net/tcpsockopt_windows.go
++++ b/src/net/tcpsockopt_windows.go
+@@ -5,6 +5,7 @@
+ package net
+ 
+ import (
++	"internal/syscall/windows"
+ 	"os"
+ 	"runtime"
+ 	"syscall"
+@@ -20,22 +21,61 @@ const (
+ )
+ 
+ func setKeepAliveIdle(fd *netFD, d time.Duration) error {
+-	return setKeepAliveIdleAndInterval(fd, d, -1)
++	if !windows.SupportFullTCPKeepAlive() {
++		return setKeepAliveIdleAndInterval(fd, d, -1)
++	}
++
++	if d == 0 {
++		d = defaultTCPKeepAliveIdle
++	} else if d < 0 {
++		return nil
++	}
++	// The kernel expects seconds so round to next highest second.
++	secs := int(roundDurationUp(d, time.Second))
++	err := fd.pfd.SetsockoptInt(syscall.IPPROTO_TCP, windows.TCP_KEEPIDLE, secs)
++	runtime.KeepAlive(fd)
++	return os.NewSyscallError("setsockopt", err)
+ }
+ 
+ func setKeepAliveInterval(fd *netFD, d time.Duration) error {
+-	return setKeepAliveIdleAndInterval(fd, -1, d)
++	if !windows.SupportFullTCPKeepAlive() {
++		return setKeepAliveIdleAndInterval(fd, -1, d)
++	}
++
++	if d == 0 {
++		d = defaultTCPKeepAliveInterval
++	} else if d < 0 {
++		return nil
++	}
++	// The kernel expects seconds so round to next highest second.
++	secs := int(roundDurationUp(d, time.Second))
++	err := fd.pfd.SetsockoptInt(syscall.IPPROTO_TCP, windows.TCP_KEEPINTVL, secs)
++	runtime.KeepAlive(fd)
++	return os.NewSyscallError("setsockopt", err)
+ }
+ 
+-func setKeepAliveCount(_ *netFD, n int) error {
+-	if n < 0 {
++func setKeepAliveCount(fd *netFD, n int) error {
++	if n == 0 {
++		n = defaultTCPKeepAliveCount
++	} else if n < 0 {
+ 		return nil
+ 	}
+ 
+-	// This value is not capable to be changed on Windows.
+-	return syscall.WSAENOPROTOOPT
++	// This value is not capable to be changed on old versions of Windows.
++	if !windows.SupportFullTCPKeepAlive() {
++		return syscall.WSAENOPROTOOPT
++	}
++	// It is illegal to set TCP_KEEPCNT to a value greater than 255.
++	if n > 255 {
++		return syscall.EINVAL
++	}
++
++	err := fd.pfd.SetsockoptInt(syscall.IPPROTO_TCP, windows.TCP_KEEPCNT, n)
++	runtime.KeepAlive(fd)
++	return os.NewSyscallError("setsockopt", err)
+ }
+ 
++// setKeepAliveIdleAndInterval serves for kernels prior to Windows 10, version 1709.
+ func setKeepAliveIdleAndInterval(fd *netFD, idle, interval time.Duration) error {
+ 	// WSAIoctl with SIO_KEEPALIVE_VALS control code requires all fields in
+ 	// `tcp_keepalive` struct to be provided.
+diff --git a/src/syscall/syscall_windows.go b/src/syscall/syscall_windows.go
+index c51ce04b84..bfd0d50fa7 100644
+--- a/src/syscall/syscall_windows.go
++++ b/src/syscall/syscall_windows.go
+@@ -1163,7 +1163,12 @@ type IPv6Mreq struct {
+ 	Interface uint32
+ }
+ 
+-func GetsockoptInt(fd Handle, level, opt int) (int, error) { return -1, EWINDOWS }
++func GetsockoptInt(fd Handle, level, opt int) (int, error) {
++	optval := int32(0)
++	optlen := int32(unsafe.Sizeof(optval))
++	err := Getsockopt(fd, int32(level), int32(opt), (*byte)(unsafe.Pointer(&optval)), &optlen)
++	return int(optval), err
++}
+ 
+ func SetsockoptLinger(fd Handle, level, opt int, l *Linger) (err error) {
+ 	sys := sysLinger{Onoff: uint16(l.Onoff), Linger: uint16(l.Linger)}

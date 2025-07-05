@@ -8,6 +8,29 @@ Date:   Thu Mar 14 19:04:47 2013 +0400
     R=golang-dev, bradfitz, rsc
     CC=golang-dev
     https://golang.org/cl/7470050
-
+---
  src/cmd/dist/build.c | 11 ++++++++++-
  1 file changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/dist/build.c b/src/cmd/dist/build.c
+index 2da2a90f1f..9793702ffd 100644
+--- a/src/cmd/dist/build.c
++++ b/src/cmd/dist/build.c
+@@ -1046,7 +1046,16 @@ out:
+ static bool
+ matchfield(char *f)
+ {
+-	return streq(f, goos) || streq(f, goarch) || streq(f, "cmd_go_bootstrap") || streq(f, "go1.1");
++	char *p;
++	bool res;
++
++	p = xstrrchr(f, ',');
++	if(p == nil)
++		return streq(f, goos) || streq(f, goarch) || streq(f, "cmd_go_bootstrap") || streq(f, "go1.1");
++	*p = 0;
++	res = matchfield(f) && matchfield(p+1);
++	*p = ',';
++	return res;
+ }
+ 
+ // shouldbuild reports whether we should build this file.

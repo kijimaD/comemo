@@ -13,7 +13,7 @@ Date:   Thu Mar 31 14:54:46 2016 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/cgen.go      | 30 +++++++++++++++---------------
  src/cmd/compile/internal/gc/const.go     |  4 ++--
  src/cmd/compile/internal/gc/gsubr.go     |  2 +-
@@ -23,3 +23,411 @@ Date:   Thu Mar 31 14:54:46 2016 -0700
  src/cmd/compile/internal/gc/typecheck.go | 10 +++++-----
  src/cmd/compile/internal/gc/walk.go      | 30 +++++++++++++++---------------
  8 files changed, 46 insertions(+), 46 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/cgen.go b/src/cmd/compile/internal/gc/cgen.go
+index b7d9d2c88b..22cd87b294 100644
+--- a/src/cmd/compile/internal/gc/cgen.go
++++ b/src/cmd/compile/internal/gc/cgen.go
+@@ -1032,7 +1032,7 @@ func Agenr(n *Node, a *Node, res *Node) {
+ 				if Isconst(nl, CTSTR) {
+ 					Fatalf("constant string constant index")
+ 				}
+-				v := uint64(nr.Val().U.(*Mpint).Int64())
++				v := uint64(nr.Int())
+ 				var n2 Node
+ 				if nl.Type.IsSlice() || nl.Type.IsString() {
+ 					if Debug['B'] == 0 && !n.Bounded {
+@@ -1184,7 +1184,7 @@ func Agenr(n *Node, a *Node, res *Node) {
+ 				if Isconst(nl, CTSTR) {
+ 					Fatalf("constant string constant index") // front end should handle
+ 				}
+-				v := uint64(nr.Val().U.(*Mpint).Int64())
++				v := uint64(nr.Int())
+ 				if nl.Type.IsSlice() || nl.Type.IsString() {
+ 					if Debug['B'] == 0 && !n.Bounded {
+ 						nlen := n3
+@@ -1374,7 +1374,7 @@ func Agenr(n *Node, a *Node, res *Node) {
+ 			if Isconst(nl, CTSTR) {
+ 				Fatalf("constant string constant index") // front end should handle
+ 			}
+-			v := uint64(nr.Val().U.(*Mpint).Int64())
++			v := uint64(nr.Int())
+ 			if nl.Type.IsSlice() || nl.Type.IsString() {
+ 				if Debug['B'] == 0 && !n.Bounded {
+ 					p1 := Thearch.Ginscmp(OGT, Types[Simtype[TUINT]], &nlen, Nodintconst(int64(v)), +1)
+@@ -1708,7 +1708,7 @@ func Igen(n *Node, a *Node, res *Node) {
+ 				// Compute &a[i] as &a + i*width.
+ 				a.Type = n.Type
+ 
+-				a.Xoffset += n.Right.Val().U.(*Mpint).Int64() * n.Type.Width
++				a.Xoffset += n.Right.Int() * n.Type.Width
+ 				Fixlargeoffset(a)
+ 				return
+ 			}
+@@ -2214,7 +2214,7 @@ func stkof(n *Node) int64 {
+ 			return off
+ 		}
+ 		if Isconst(n.Right, CTINT) {
+-			return off + t.Elem().Width*n.Right.Val().U.(*Mpint).Int64()
++			return off + t.Elem().Width*n.Right.Int()
+ 		}
+ 		return +1000 // on stack but not sure exactly where
+ 
+@@ -2645,7 +2645,7 @@ func cgen_div(op Op, nl *Node, nr *Node, res *Node) {
+ 	case TUINT64:
+ 		var m Magic
+ 		m.W = w
+-		m.Ud = uint64(nr.Val().U.(*Mpint).Int64())
++		m.Ud = uint64(nr.Int())
+ 		Umagic(&m)
+ 		if m.Bad != 0 {
+ 			break
+@@ -2683,7 +2683,7 @@ func cgen_div(op Op, nl *Node, nr *Node, res *Node) {
+ 	case TINT64:
+ 		var m Magic
+ 		m.W = w
+-		m.Sd = nr.Val().U.(*Mpint).Int64()
++		m.Sd = nr.Int()
+ 		Smagic(&m)
+ 		if m.Bad != 0 {
+ 			break
+@@ -3243,7 +3243,7 @@ func cgen_slice(n, res *Node, wb bool) {
+ 				Fatalf("missed slice out of bounds check")
+ 			}
+ 			var tmp Node
+-			Nodconst(&tmp, indexRegType, n1.Val().U.(*Mpint).Int64())
++			Nodconst(&tmp, indexRegType, n1.Int())
+ 			n1 = &tmp
+ 		}
+ 		p := Thearch.Ginscmp(OGT, indexRegType, n1, n2, -1)
+@@ -3327,9 +3327,9 @@ func cgen_slice(n, res *Node, wb bool) {
+ 			switch j.Op {
+ 			case OLITERAL:
+ 				if Isconst(&i, CTINT) {
+-					Nodconst(&j, indexRegType, j.Val().U.(*Mpint).Int64()-i.Val().U.(*Mpint).Int64())
++					Nodconst(&j, indexRegType, j.Int()-i.Int())
+ 					if Debug_slice > 0 {
+-						Warn("slice: result len == %d", j.Val().U.(*Mpint).Int64())
++						Warn("slice: result len == %d", j.Int())
+ 					}
+ 					break
+ 				}
+@@ -3344,7 +3344,7 @@ func cgen_slice(n, res *Node, wb bool) {
+ 				fallthrough
+ 			case OREGISTER:
+ 				if i.Op == OLITERAL {
+-					v := i.Val().U.(*Mpint).Int64()
++					v := i.Int()
+ 					if v != 0 {
+ 						ginscon(Thearch.Optoas(OSUB, indexRegType), v, &j)
+ 					}
+@@ -3387,9 +3387,9 @@ func cgen_slice(n, res *Node, wb bool) {
+ 			switch k.Op {
+ 			case OLITERAL:
+ 				if Isconst(&i, CTINT) {
+-					Nodconst(&k, indexRegType, k.Val().U.(*Mpint).Int64()-i.Val().U.(*Mpint).Int64())
++					Nodconst(&k, indexRegType, k.Int()-i.Int())
+ 					if Debug_slice > 0 {
+-						Warn("slice: result cap == %d", k.Val().U.(*Mpint).Int64())
++						Warn("slice: result cap == %d", k.Int())
+ 					}
+ 					break
+ 				}
+@@ -3410,7 +3410,7 @@ func cgen_slice(n, res *Node, wb bool) {
+ 						Warn("slice: result cap == 0")
+ 					}
+ 				} else if i.Op == OLITERAL {
+-					v := i.Val().U.(*Mpint).Int64()
++					v := i.Int()
+ 					if v != 0 {
+ 						ginscon(Thearch.Optoas(OSUB, indexRegType), v, &k)
+ 					}
+@@ -3503,7 +3503,7 @@ func cgen_slice(n, res *Node, wb bool) {
+ 				w = res.Type.Elem().Width // res is []T, elem size is T.width
+ 			}
+ 			if Isconst(&i, CTINT) {
+-				ginscon(Thearch.Optoas(OADD, xbase.Type), i.Val().U.(*Mpint).Int64()*w, &xbase)
++				ginscon(Thearch.Optoas(OADD, xbase.Type), i.Int()*w, &xbase)
+ 			} else if Thearch.AddIndex != nil && Thearch.AddIndex(&i, w, &xbase) {
+ 				// done by back end
+ 			} else if w == 1 {
+diff --git a/src/cmd/compile/internal/gc/const.go b/src/cmd/compile/internal/gc/const.go
+index 49c2a8f41c..a9ca129fd9 100644
+--- a/src/cmd/compile/internal/gc/const.go
++++ b/src/cmd/compile/internal/gc/const.go
+@@ -1455,7 +1455,7 @@ func nonnegconst(n *Node) int {
+ 			if n.Val().U.(*Mpint).Cmp(Minintval[TUINT32]) < 0 || n.Val().U.(*Mpint).Cmp(Maxintval[TINT32]) > 0 {
+ 				break
+ 			}
+-			return int(n.Val().U.(*Mpint).Int64())
++			return int(n.Int())
+ 		}
+ 	}
+ 
+@@ -1510,7 +1510,7 @@ func (n *Node) Convconst(con *Node, t *Type) {
+ 			Fatalf("convconst ctype=%d %v", n.Val().Ctype(), Tconv(t, FmtLong))
+ 
+ 		case CTINT, CTRUNE:
+-			i = n.Val().U.(*Mpint).Int64()
++			i = n.Int()
+ 
+ 		case CTBOOL:
+ 			i = int64(obj.Bool2int(n.Val().U.(bool)))
+diff --git a/src/cmd/compile/internal/gc/gsubr.go b/src/cmd/compile/internal/gc/gsubr.go
+index 38e32c6f93..b5e1388e57 100644
+--- a/src/cmd/compile/internal/gc/gsubr.go
++++ b/src/cmd/compile/internal/gc/gsubr.go
+@@ -438,7 +438,7 @@ func Naddr(a *obj.Addr, n *Node) {
+ 		case CTINT, CTRUNE:
+ 			a.Sym = nil
+ 			a.Type = obj.TYPE_CONST
+-			a.Offset = n.Val().U.(*Mpint).Int64()
++			a.Offset = n.Int()
+ 
+ 		case CTSTR:
+ 			datagostring(n.Val().U.(string), a)
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index 7a4e68f15f..4622877382 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -433,7 +433,7 @@ func staticassign(l *Node, r *Node, out *[]*Node) bool {
+ 		initplan(r)
+ 		if r.Type.IsSlice() {
+ 			// Init slice.
+-			bound := r.Right.Val().U.(*Mpint).Int64()
++			bound := r.Right.Int()
+ 			ta := typArray(r.Type.Elem(), bound)
+ 			a := staticname(ta, 1)
+ 			inittemps[r] = a
+@@ -690,7 +690,7 @@ func arraylit(ctxt int, pass int, n *Node, var_ *Node, init *Nodes) {
+ func slicelit(ctxt int, n *Node, var_ *Node, init *Nodes) {
+ 	// make an array type
+ 	t := n.Type.Copy()
+-	t.Bound = n.Right.Val().U.(*Mpint).Int64()
++	t.Bound = n.Right.Int()
+ 	t.Width = 0
+ 	t.Sym = nil
+ 	t.Haspointers = 0
+@@ -1175,7 +1175,7 @@ func oaslit(n *Node, init *Nodes) bool {
+ 
+ func getlit(lit *Node) int {
+ 	if Smallintconst(lit) {
+-		return int(lit.Val().U.(*Mpint).Int64())
++		return int(lit.Int())
+ 	}
+ 	return -1
+ }
+@@ -1238,7 +1238,7 @@ func initplan(n *Node) {
+ 			if a.Op != OKEY || !Smallintconst(a.Left) {
+ 				Fatalf("initplan arraylit")
+ 			}
+-			addvalue(p, n.Type.Elem().Width*a.Left.Val().U.(*Mpint).Int64(), a.Right)
++			addvalue(p, n.Type.Elem().Width*a.Left.Int(), a.Right)
+ 		}
+ 
+ 	case OSTRUCTLIT:
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 45e58d5440..193ee07903 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -717,7 +717,7 @@ func (s *state) stmt(n *Node) {
+ 			} else {
+ 				j = rhs.Right.Right
+ 			}
+-			if i != nil && (i.Op == OLITERAL && i.Val().Ctype() == CTINT && i.Val().U.(*Mpint).Int64() == 0) {
++			if i != nil && (i.Op == OLITERAL && i.Val().Ctype() == CTINT && i.Int() == 0) {
+ 				// [0:...] is the same as [:...]
+ 				i = nil
+ 			}
+@@ -1423,7 +1423,7 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 	case OLITERAL:
+ 		switch n.Val().Ctype() {
+ 		case CTINT:
+-			i := n.Val().U.(*Mpint).Int64()
++			i := n.Int()
+ 			switch n.Type.Size() {
+ 			case 1:
+ 				return s.constInt8(n.Type, int8(i))
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index a643da8f41..3e224c483a 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -484,7 +484,7 @@ func aindex(b *Node, t *Type) *Type {
+ 
+ 		case CTINT, CTRUNE:
+ 			hasbound = true
+-			bound = b.Val().U.(*Mpint).Int64()
++			bound = b.Int()
+ 			if bound < 0 {
+ 				Yyerror("array bound must be non negative")
+ 			}
+@@ -2054,7 +2054,7 @@ func powtwo(n *Node) int {
+ 		return -1
+ 	}
+ 
+-	v := uint64(n.Val().U.(*Mpint).Int64())
++	v := uint64(n.Int())
+ 	b := uint64(1)
+ 	for i := 0; i < 64; i++ {
+ 		if b == v {
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index b61d16b021..93c1136a9e 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -1008,7 +1008,7 @@ OpSwitch:
+ 			}
+ 
+ 			if !n.Bounded && Isconst(n.Right, CTINT) {
+-				x := n.Right.Val().U.(*Mpint).Int64()
++				x := n.Right.Int()
+ 				if x < 0 {
+ 					Yyerror("invalid %s index %v (index must be non-negative)", why, n.Right)
+ 				} else if t.IsArray() && x >= t.NumElem() {
+@@ -2212,13 +2212,13 @@ func checksliceindex(l *Node, r *Node, tp *Type) bool {
+ 	}
+ 
+ 	if r.Op == OLITERAL {
+-		if r.Val().U.(*Mpint).Int64() < 0 {
++		if r.Int() < 0 {
+ 			Yyerror("invalid slice index %v (index must be non-negative)", r)
+ 			return false
+-		} else if tp != nil && tp.NumElem() > 0 && r.Val().U.(*Mpint).Int64() > tp.NumElem() {
++		} else if tp != nil && tp.NumElem() > 0 && r.Int() > tp.NumElem() {
+ 			Yyerror("invalid slice index %v (out of bounds for %d-element array)", r, tp.NumElem())
+ 			return false
+-		} else if Isconst(l, CTSTR) && r.Val().U.(*Mpint).Int64() > int64(len(l.Val().U.(string))) {
++		} else if Isconst(l, CTSTR) && r.Int() > int64(len(l.Val().U.(string))) {
+ 			Yyerror("invalid slice index %v (out of bounds for %d-byte string)", r, len(l.Val().U.(string)))
+ 			return false
+ 		} else if r.Val().U.(*Mpint).Cmp(Maxintval[TINT]) > 0 {
+@@ -2834,7 +2834,7 @@ func indexdup(n *Node, hash map[int64]*Node) {
+ 		Fatalf("indexdup: not OLITERAL")
+ 	}
+ 
+-	v := n.Val().U.(*Mpint).Int64()
++	v := n.Int()
+ 	if hash[v] != nil {
+ 		Yyerror("duplicate index in array literal: %d", v)
+ 		return
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 3758aa0173..9f241ff10c 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -365,7 +365,7 @@ func isSmallMakeSlice(n *Node) bool {
+ 	}
+ 	t := n.Type
+ 
+-	return Smallintconst(l) && Smallintconst(r) && (t.Elem().Width == 0 || r.Val().U.(*Mpint).Int64() < (1<<16)/t.Elem().Width)
++	return Smallintconst(l) && Smallintconst(r) && (t.Elem().Width == 0 || r.Int() < (1<<16)/t.Elem().Width)
+ }
+ 
+ // walk the whole tree of the body of an
+@@ -1177,7 +1177,7 @@ opswitch:
+ 					// replace "abc"[1] with 'b'.
+ 					// delayed until now because "abc"[1] is not
+ 					// an ideal constant.
+-					v := n.Right.Val().U.(*Mpint).Int64()
++					v := n.Right.Int()
+ 
+ 					Nodconst(n, n.Type, int64(n.Left.Val().U.(string)[v]))
+ 					n.Typecheck = 1
+@@ -3299,9 +3299,9 @@ func walkrotate(n *Node) *Node {
+ 	w := int(l.Type.Width * 8)
+ 
+ 	if Smallintconst(l.Right) && Smallintconst(r.Right) {
+-		sl := int(l.Right.Val().U.(*Mpint).Int64())
++		sl := int(l.Right.Int())
+ 		if sl >= 0 {
+-			sr := int(r.Right.Val().U.(*Mpint).Int64())
++			sr := int(r.Right.Int())
+ 			if sr >= 0 && sl+sr == w {
+ 				// Rewrite left shift half to left rotate.
+ 				if l.Op == OLSH {
+@@ -3312,7 +3312,7 @@ func walkrotate(n *Node) *Node {
+ 				n.Op = OLROT
+ 
+ 				// Remove rotate 0 and rotate w.
+-				s := int(n.Right.Val().U.(*Mpint).Int64())
++				s := int(n.Right.Int())
+ 
+ 				if s == 0 || s == w {
+ 					n = n.Left
+@@ -3352,7 +3352,7 @@ func walkmul(n *Node, init *Nodes) *Node {
+ 	// x*0 is 0 (and side effects of x).
+ 	var pow int
+ 	var w int
+-	if nr.Val().U.(*Mpint).Int64() == 0 {
++	if nr.Int() == 0 {
+ 		cheapexpr(nl, init)
+ 		Nodconst(n, n.Type, 0)
+ 		goto ret
+@@ -3444,10 +3444,10 @@ func walkdiv(n *Node, init *Nodes) *Node {
+ 		m.W = w
+ 
+ 		if nl.Type.IsSigned() {
+-			m.Sd = nr.Val().U.(*Mpint).Int64()
++			m.Sd = nr.Int()
+ 			Smagic(&m)
+ 		} else {
+-			m.Ud = uint64(nr.Val().U.(*Mpint).Int64())
++			m.Ud = uint64(nr.Int())
+ 			Umagic(&m)
+ 		}
+ 
+@@ -3639,7 +3639,7 @@ func walkdiv(n *Node, init *Nodes) *Node {
+ 			// n = nl & (nr-1)
+ 			n.Op = OAND
+ 
+-			Nodconst(&nc, nl.Type, nr.Val().U.(*Mpint).Int64()-1)
++			Nodconst(&nc, nl.Type, nr.Int()-1)
+ 		} else {
+ 			// n = nl >> pow
+ 			n.Op = ORSH
+@@ -3669,7 +3669,7 @@ func bounded(n *Node, max int64) bool {
+ 	bits := int32(8 * n.Type.Width)
+ 
+ 	if Smallintconst(n) {
+-		v := n.Val().U.(*Mpint).Int64()
++		v := n.Int()
+ 		return 0 <= v && v < max
+ 	}
+ 
+@@ -3677,9 +3677,9 @@ func bounded(n *Node, max int64) bool {
+ 	case OAND:
+ 		v := int64(-1)
+ 		if Smallintconst(n.Left) {
+-			v = n.Left.Val().U.(*Mpint).Int64()
++			v = n.Left.Int()
+ 		} else if Smallintconst(n.Right) {
+-			v = n.Right.Val().U.(*Mpint).Int64()
++			v = n.Right.Int()
+ 		}
+ 
+ 		if 0 <= v && v < max {
+@@ -3688,7 +3688,7 @@ func bounded(n *Node, max int64) bool {
+ 
+ 	case OMOD:
+ 		if !sign && Smallintconst(n.Right) {
+-			v := n.Right.Val().U.(*Mpint).Int64()
++			v := n.Right.Int()
+ 			if 0 <= v && v <= max {
+ 				return true
+ 			}
+@@ -3696,7 +3696,7 @@ func bounded(n *Node, max int64) bool {
+ 
+ 	case ODIV:
+ 		if !sign && Smallintconst(n.Right) {
+-			v := n.Right.Val().U.(*Mpint).Int64()
++			v := n.Right.Int()
+ 			for bits > 0 && v >= 2 {
+ 				bits--
+ 				v >>= 1
+@@ -3705,7 +3705,7 @@ func bounded(n *Node, max int64) bool {
+ 
+ 	case ORSH:
+ 		if !sign && Smallintconst(n.Right) {
+-			v := n.Right.Val().U.(*Mpint).Int64()
++			v := n.Right.Int()
+ 			if v > int64(bits) {
+ 				return true
+ 			}

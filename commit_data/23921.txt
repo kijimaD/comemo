@@ -10,6 +10,30 @@ Date:   Mon Jun 22 08:31:38 2015 -0500
     Reviewed-on: https://go-review.googlesource.com/11304
     Reviewed-by: Andrew Gerrand <adg@golang.org>
     Run-TryBot: Andrew Gerrand <adg@golang.org>
-
+---
  src/net/http/transport.go | 12 ------------
  1 file changed, 12 deletions(-)
+
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index 5de5d944af..70797ddfe7 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -858,18 +858,6 @@ func (pc *persistConn) cancelRequest() {
+ 	pc.closeLocked()
+ }
+ 
+-var remoteSideClosedFunc func(error) bool // or nil to use default
+-
+-func remoteSideClosed(err error) bool {
+-	if err == io.EOF {
+-		return true
+-	}
+-	if remoteSideClosedFunc != nil {
+-		return remoteSideClosedFunc(err)
+-	}
+-	return false
+-}
+-
+ func (pc *persistConn) readLoop() {
+ 	// eofc is used to block http.Handler goroutines reading from Response.Body
+ 	// at EOF until this goroutines has (potentially) added the connection

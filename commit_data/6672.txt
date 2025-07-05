@@ -7,6 +7,29 @@ Date:   Sun Oct 31 15:08:45 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/2814041
-
+---
  src/pkg/gob/doc.go | 11 ++++++-----
  1 file changed, 6 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/gob/doc.go b/src/pkg/gob/doc.go
+index 60909fa0c0..81e3029ac2 100644
+--- a/src/pkg/gob/doc.go
++++ b/src/pkg/gob/doc.go
+@@ -130,11 +130,12 @@ Interface types are not checked for compatibility; all interface types are
+ treated, for transmission, as members of a single "interface" type, analogous to
+ int or []byte - in effect they're all treated as interface{}.  Interface values
+ are transmitted as a string identifying the concrete type being sent (a name
+-that must be pre-defined by calling Register()), followed by the usual encoding
+-of concrete (dynamic) value stored in the interface value.  (A nil interface
+-value is identified by the empty string and transmits no value.) Upon receipt,
+-the decoder verifies that the unpacked concrete item satisfies the interface of
+-the receiving variable.
++that must be pre-defined by calling Register), followed by a byte count of the
++length of the following data (so the value can be skipped if it cannot be
++stored), followed by the usual encoding of concrete (dynamic) value stored in
++the interface value.  (A nil interface value is identified by the empty string
++and transmits a zero-length value.) Upon receipt, the decoder verifies that the
++unpacked concrete item satisfies the interface of the receiving variable.
+ 
+ The representation of types is described below.  When a type is defined on a given
+ connection between an Encoder and Decoder, it is assigned a signed integer type

@@ -15,6 +15,25 @@ Date:   Mon Mar 20 14:39:05 2023 -0700
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/go/internal/load/pkg.go | 7 +------
  1 file changed, 1 insertion(+), 6 deletions(-)
+
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 07a53ff350..e8201efe9c 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -2627,12 +2627,7 @@ func externalLinkingForced(p *Package) bool {
+ 	}
+ 
+ 	// Some targets must use external linking even inside GOROOT.
+-	switch cfg.BuildContext.GOOS {
+-	case "android":
+-		if cfg.BuildContext.GOARCH != "arm64" {
+-			return true
+-		}
+-	case "ios":
++	if platform.MustLinkExternal(cfg.BuildContext.GOOS, cfg.BuildContext.GOARCH, false) {
+ 		return true
+ 	}
+ 

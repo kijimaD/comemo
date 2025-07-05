@@ -11,7 +11,7 @@ Date:   Wed Aug 8 20:02:19 2012 -0700
     R=rsc, dsymonds
     CC=golang-dev
     https://golang.org/cl/6459056
-
+---
  src/pkg/text/template/doc.go              |  1 +
  src/pkg/text/template/exec.go             | 28 ++++++++++++++++++++++------
  src/pkg/text/template/exec_test.go        | 15 +++++++++++++--
@@ -22,3 +22,320 @@ Date:   Wed Aug 8 20:02:19 2012 -0700
  src/pkg/text/template/parse/parse.go      |  4 +++-
  src/pkg/text/template/parse/parse_test.go |  4 ++--
  9 files changed, 78 insertions(+), 12 deletions(-)
+
+diff --git a/src/pkg/text/template/doc.go b/src/pkg/text/template/doc.go
+index 4a1682d97a..3e4c66a276 100644
+--- a/src/pkg/text/template/doc.go
++++ b/src/pkg/text/template/doc.go
+@@ -100,6 +100,7 @@ An argument is a simple value, denoted by one of the following.
+ 	- A boolean, string, character, integer, floating-point, imaginary
+ 	  or complex constant in Go syntax. These behave like Go's untyped
+ 	  constants, although raw strings may not span newlines.
++	- The keyword nil, representing an untyped Go nil.
+ 	- The character '.' (period):
+ 		.
+ 	  The result is the value of dot.
+diff --git a/src/pkg/text/template/exec.go b/src/pkg/text/template/exec.go
+index 5fad5ccecb..a041351448 100644
+--- a/src/pkg/text/template/exec.go
++++ b/src/pkg/text/template/exec.go
+@@ -327,6 +327,8 @@ func (s *state) evalCommand(dot reflect.Value, cmd *parse.CommandNode, final ref
+ 		return reflect.ValueOf(word.True)
+ 	case *parse.DotNode:
+ 		return dot
++	case *parse.NilNode:
++		s.errorf("nil is not a command")
+ 	case *parse.NumberNode:
+ 		return s.idealConstant(word)
+ 	case *parse.StringNode:
+@@ -507,17 +509,23 @@ func (s *state) evalCall(dot, fun reflect.Value, name string, args []parse.Node,
+ 	return result[0]
+ }
+ 
++// canBeNil reports whether an untyped nil can be assigned to the type. See reflect.Zero.
++func canBeNil(typ reflect.Type) bool {
++	switch typ.Kind() {
++	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Ptr, reflect.Slice:
++		return true
++	}
++	return false
++}
++
+ // validateType guarantees that the value is valid and assignable to the type.
+ func (s *state) validateType(value reflect.Value, typ reflect.Type) reflect.Value {
+ 	if !value.IsValid() {
+-		switch typ.Kind() {
+-		case reflect.Interface, reflect.Ptr, reflect.Chan, reflect.Map, reflect.Slice, reflect.Func:
++		if canBeNil(typ) {
+ 			// An untyped nil interface{}. Accept as a proper nil value.
+-			// TODO: Can we delete the other types in this list? Should we?
+-			value = reflect.Zero(typ)
+-		default:
+-			s.errorf("invalid value; expected %s", typ)
++			return reflect.Zero(typ)
+ 		}
++		s.errorf("invalid value; expected %s", typ)
+ 	}
+ 	if !value.Type().AssignableTo(typ) {
+ 		if value.Kind() == reflect.Interface && !value.IsNil() {
+@@ -547,6 +555,11 @@ func (s *state) evalArg(dot reflect.Value, typ reflect.Type, n parse.Node) refle
+ 	switch arg := n.(type) {
+ 	case *parse.DotNode:
+ 		return s.validateType(dot, typ)
++	case *parse.NilNode:
++		if canBeNil(typ) {
++			return reflect.Zero(typ)
++		}
++		s.errorf("cannot assign nil to %s", typ)
+ 	case *parse.FieldNode:
+ 		return s.validateType(s.evalFieldNode(dot, arg, []parse.Node{n}, zero), typ)
+ 	case *parse.VariableNode:
+@@ -644,6 +657,9 @@ func (s *state) evalEmptyInterface(dot reflect.Value, n parse.Node) reflect.Valu
+ 		return s.evalFieldNode(dot, n, nil, zero)
+ 	case *parse.IdentifierNode:
+ 		return s.evalFunction(dot, n.Ident, nil, zero)
++	case *parse.NilNode:
++		// NilNode is handled in evalArg, the only place that calls here.
++		s.errorf("evalEmptyInterface: nil (can't happen)")
+ 	case *parse.NumberNode:
+ 		return s.idealConstant(n)
+ 	case *parse.StringNode:
+diff --git a/src/pkg/text/template/exec_test.go b/src/pkg/text/template/exec_test.go
+index 4efe2d1b38..95e0592df8 100644
+--- a/src/pkg/text/template/exec_test.go
++++ b/src/pkg/text/template/exec_test.go
+@@ -63,6 +63,7 @@ type T struct {
+ 	BinaryFunc      func(string, string) string
+ 	VariadicFunc    func(...string) string
+ 	VariadicFuncInt func(int, ...string) string
++	NilOKFunc       func(*int) bool
+ 	// Template to test evaluation of templates.
+ 	Tmpl *Template
+ 	// Unexported field; cannot be accessed by template.
+@@ -127,6 +128,7 @@ var tVal = &T{
+ 	BinaryFunc:        func(a, b string) string { return fmt.Sprintf("[%s=%s]", a, b) },
+ 	VariadicFunc:      func(s ...string) string { return fmt.Sprint("<", strings.Join(s, "+"), ">") },
+ 	VariadicFuncInt:   func(a int, s ...string) string { return fmt.Sprint(a, "=<", strings.Join(s, "+"), ">") },
++	NilOKFunc:         func(s *int) bool { return s == nil },
+ 	Tmpl:              Must(New("x").Parse("test template")), // "x" is the value of .X
+ }
+ 
+@@ -222,6 +224,7 @@ var execTests = []execTest{
+ 	// Trivial cases.
+ 	{"empty", "", "", nil, true},
+ 	{"text", "some text", "some text", nil, true},
++	{"nil action", "{{nil}}", "", nil, false},
+ 
+ 	// Ideal constants.
+ 	{"ideal int", "{{typeOf 3}}", "int", 0, true},
+@@ -230,6 +233,7 @@ var execTests = []execTest{
+ 	{"ideal complex", "{{typeOf 1i}}", "complex128", 0, true},
+ 	{"ideal int", "{{typeOf " + bigInt + "}}", "int", 0, true},
+ 	{"ideal too big", "{{typeOf " + bigUint + "}}", "", 0, false},
++	{"ideal nil without type", "{{nil}}", "", 0, false},
+ 
+ 	// Fields of structs.
+ 	{".X", "-{{.X}}-", "-x-", tVal, true},
+@@ -295,7 +299,8 @@ var execTests = []execTest{
+ 	{".Method2(3, .X)", "-{{.Method2 3 .X}}-", "-Method2: 3 x-", tVal, true},
+ 	{".Method2(.U16, `str`)", "-{{.Method2 .U16 `str`}}-", "-Method2: 16 str-", tVal, true},
+ 	{".Method2(.U16, $x)", "{{if $x := .X}}-{{.Method2 .U16 $x}}{{end}}-", "-Method2: 16 x-", tVal, true},
+-	{".Method3(nil)", "-{{.Method3 .MXI.unset}}-", "-Method3: <nil>-", tVal, true},
++	{".Method3(nil constant)", "-{{.Method3 nil}}-", "-Method3: <nil>-", tVal, true},
++	{".Method3(nil value)", "-{{.Method3 .MXI.unset}}-", "-Method3: <nil>-", tVal, true},
+ 	{"method on var", "{{if $x := .}}-{{$x.Method2 .U16 $x.X}}{{end}}-", "-Method2: 16 x-", tVal, true},
+ 	{"method on chained var",
+ 		"{{range .MSIone}}{{if $.U.TrueFalse $.True}}{{$.U.TrueFalse $.True}}{{else}}WRONG{{end}}{{end}}",
+@@ -306,6 +311,8 @@ var execTests = []execTest{
+ 	{"chained method on variable",
+ 		"{{with $x := .}}{{with .SI}}{{$.GetU.TrueFalse $.True}}{{end}}{{end}}",
+ 		"true", tVal, true},
++	{".NilOKFunc not nil", "{{call .NilOKFunc .PI}}", "false", tVal, true},
++	{".NilOKFunc nil", "{{call .NilOKFunc nil}}", "true", tVal, true},
+ 
+ 	// Function call builtin.
+ 	{".BinaryFunc", "{{call .BinaryFunc `1` `2`}}", "[1=2]", tVal, true},
+@@ -324,6 +331,7 @@ var execTests = []execTest{
+ 	{".VariadicFuncBad0", "{{call .VariadicFunc 3}}", "", tVal, false},
+ 	{".VariadicFuncIntBad0", "{{call .VariadicFuncInt}}", "", tVal, false},
+ 	{".VariadicFuncIntBad`", "{{call .VariadicFuncInt `x`}}", "", tVal, false},
++	{".VariadicFuncNilBad", "{{call .VariadicFunc nil}}", "", tVal, false},
+ 
+ 	// Pipelines.
+ 	{"pipeline", "-{{.Method0 | .Method2 .U16}}-", "-Method2: 16 M0-", tVal, true},
+@@ -332,6 +340,7 @@ var execTests = []execTest{
+ 	// If.
+ 	{"if true", "{{if true}}TRUE{{end}}", "TRUE", tVal, true},
+ 	{"if false", "{{if false}}TRUE{{else}}FALSE{{end}}", "FALSE", tVal, true},
++	{"if nil", "{{if nil}}TRUE{{end}}", "", tVal, false},
+ 	{"if 1", "{{if 1}}NON-ZERO{{else}}ZERO{{end}}", "NON-ZERO", tVal, true},
+ 	{"if 0", "{{if 0}}NON-ZERO{{else}}ZERO{{end}}", "ZERO", tVal, true},
+ 	{"if 1.5", "{{if 1.5}}NON-ZERO{{else}}ZERO{{end}}", "NON-ZERO", tVal, true},
+@@ -351,7 +360,8 @@ var execTests = []execTest{
+ 
+ 	// Print etc.
+ 	{"print", `{{print "hello, print"}}`, "hello, print", tVal, true},
+-	{"print", `{{print 1 2 3}}`, "1 2 3", tVal, true},
++	{"print 123", `{{print 1 2 3}}`, "1 2 3", tVal, true},
++	{"print nil", `{{print nil}}`, "<nil>", tVal, true},
+ 	{"println", `{{println 1 2 3}}`, "1 2 3\n", tVal, true},
+ 	{"printf int", `{{printf "%04x" 127}}`, "007f", tVal, true},
+ 	{"printf float", `{{printf "%g" 3.5}}`, "3.5", tVal, true},
+@@ -391,6 +401,7 @@ var execTests = []execTest{
+ 	{"map[one]", "{{index .MSI `one`}}", "1", tVal, true},
+ 	{"map[two]", "{{index .MSI `two`}}", "2", tVal, true},
+ 	{"map[NO]", "{{index .MSI `XXX`}}", "0", tVal, true},
++	{"map[nil]", "{{index .MSI nil}}", "0", tVal, true},
+ 	{"map[WRONG]", "{{index .MSI 10}}", "", tVal, false},
+ 	{"double index", "{{index .SMSI 1 `eleven`}}", "11", tVal, true},
+ 
+diff --git a/src/pkg/text/template/funcs.go b/src/pkg/text/template/funcs.go
+index e6fa0fb5f2..d3ecb51e37 100644
+--- a/src/pkg/text/template/funcs.go
++++ b/src/pkg/text/template/funcs.go
+@@ -122,6 +122,9 @@ func index(item interface{}, indices ...interface{}) (interface{}, error) {
+ 			}
+ 			v = v.Index(int(x))
+ 		case reflect.Map:
++			if !index.IsValid() {
++				index = reflect.Zero(v.Type().Key())
++			}
+ 			if !index.Type().AssignableTo(v.Type().Key()) {
+ 				return nil, fmt.Errorf("%s is not index type for %s", index.Type(), v.Type())
+ 			}
+@@ -187,10 +190,13 @@ func call(fn interface{}, args ...interface{}) (interface{}, error) {
+ 		} else {
+ 			argType = dddType
+ 		}
++		if !value.IsValid() && canBeNil(argType) {
++			value = reflect.Zero(argType)
++		}
+ 		if !value.Type().AssignableTo(argType) {
+ 			return nil, fmt.Errorf("arg %d has type %s; should be %s", i, value.Type(), argType)
+ 		}
+-		argv[i] = reflect.ValueOf(arg)
++		argv[i] = value
+ 	}
+ 	result := v.Call(argv)
+ 	if len(result) == 2 {
+diff --git a/src/pkg/text/template/parse/lex.go b/src/pkg/text/template/parse/lex.go
+index 1334b3033b..443fb86423 100644
+--- a/src/pkg/text/template/parse/lex.go
++++ b/src/pkg/text/template/parse/lex.go
+@@ -60,6 +60,7 @@ const (
+ 	itemElse     // else keyword
+ 	itemEnd      // end keyword
+ 	itemIf       // if keyword
++	itemNil      // the untyped nil constant, easiest to treat as a keyword
+ 	itemRange    // range keyword
+ 	itemTemplate // template keyword
+ 	itemWith     // with keyword
+@@ -89,6 +90,7 @@ var itemName = map[itemType]string{
+ 	itemElse:     "else",
+ 	itemIf:       "if",
+ 	itemEnd:      "end",
++	itemNil:      "nil",
+ 	itemRange:    "range",
+ 	itemTemplate: "template",
+ 	itemWith:     "with",
+@@ -109,6 +111,7 @@ var key = map[string]itemType{
+ 	"end":      itemEnd,
+ 	"if":       itemIf,
+ 	"range":    itemRange,
++	"nil":      itemNil,
+ 	"template": itemTemplate,
+ 	"with":     itemWith,
+ }
+diff --git a/src/pkg/text/template/parse/lex_test.go b/src/pkg/text/template/parse/lex_test.go
+index 26d242b41f..842e92db21 100644
+--- a/src/pkg/text/template/parse/lex_test.go
++++ b/src/pkg/text/template/parse/lex_test.go
+@@ -85,6 +85,12 @@ var lexTests = []lexTest{
+ 		tRight,
+ 		tEOF,
+ 	}},
++	{"nil", "{{nil}}", []item{
++		tLeft,
++		{itemNil, 0, "nil"},
++		tRight,
++		tEOF,
++	}},
+ 	{"dots", "{{.x . .2 .x.y}}", []item{
+ 		tLeft,
+ 		{itemField, 0, ".x"},
+diff --git a/src/pkg/text/template/parse/node.go b/src/pkg/text/template/parse/node.go
+index db645624c5..8a779ce1a9 100644
+--- a/src/pkg/text/template/parse/node.go
++++ b/src/pkg/text/template/parse/node.go
+@@ -44,6 +44,7 @@ const (
+ 	NodeIdentifier                 // An identifier; always a function name.
+ 	NodeIf                         // An if action.
+ 	NodeList                       // A list of Nodes.
++	NodeNil                        // An untyped nil constant.
+ 	NodeNumber                     // A numerical constant.
+ 	NodePipe                       // A pipeline of commands.
+ 	NodeRange                      // A range action.
+@@ -288,6 +289,26 @@ func (d *DotNode) Copy() Node {
+ 	return newDot()
+ }
+ 
++// NilNode holds the special identifier 'nil' representing an untyped nil constant.
++// It is represented by a nil pointer.
++type NilNode bool
++
++func newNil() *NilNode {
++	return nil
++}
++
++func (d *NilNode) Type() NodeType {
++	return NodeNil
++}
++
++func (d *NilNode) String() string {
++	return "nil"
++}
++
++func (d *NilNode) Copy() Node {
++	return newNil()
++}
++
+ // FieldNode holds a field (identifier starting with '.').
+ // The names may be chained ('.x.y').
+ // The period is dropped from each ident.
+diff --git a/src/pkg/text/template/parse/parse.go b/src/pkg/text/template/parse/parse.go
+index 7970b5fcc6..7ddb6fff1e 100644
+--- a/src/pkg/text/template/parse/parse.go
++++ b/src/pkg/text/template/parse/parse.go
+@@ -355,7 +355,7 @@ func (t *Tree) pipeline(context string) (pipe *PipeNode) {
+ 			}
+ 			return
+ 		case itemBool, itemCharConstant, itemComplex, itemDot, itemField, itemIdentifier,
+-			itemVariable, itemNumber, itemRawString, itemString:
++			itemNumber, itemNil, itemRawString, itemString, itemVariable:
+ 			t.backup()
+ 			pipe.append(t.command())
+ 		default:
+@@ -470,6 +470,8 @@ Loop:
+ 			cmd.append(NewIdentifier(token.val))
+ 		case itemDot:
+ 			cmd.append(newDot())
++		case itemNil:
++			cmd.append(newNil())
+ 		case itemVariable:
+ 			cmd.append(t.useVar(token.val))
+ 		case itemField:
+diff --git a/src/pkg/text/template/parse/parse_test.go b/src/pkg/text/template/parse/parse_test.go
+index b2e788238d..d7bfc78c05 100644
+--- a/src/pkg/text/template/parse/parse_test.go
++++ b/src/pkg/text/template/parse/parse_test.go
+@@ -205,8 +205,8 @@ var parseTests = []parseTest{
+ 		`{{range $x := .SI}}{{.}}{{end}}`},
+ 	{"range 2 vars", "{{range $x, $y := .SI}}{{.}}{{end}}", noError,
+ 		`{{range $x, $y := .SI}}{{.}}{{end}}`},
+-	{"constants", "{{range .SI 1 -3.2i true false 'a'}}{{end}}", noError,
+-		`{{range .SI 1 -3.2i true false 'a'}}{{end}}`},
++	{"constants", "{{range .SI 1 -3.2i true false 'a' nil}}{{end}}", noError,
++		`{{range .SI 1 -3.2i true false 'a' nil}}{{end}}`},
+ 	{"template", "{{template `x`}}", noError,
+ 		`{{template "x"}}`},
+ 	{"template with arg", "{{template `x` .Y}}", noError,

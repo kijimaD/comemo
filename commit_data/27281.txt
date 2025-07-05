@@ -7,6 +7,21 @@ Date:   Fri Mar 18 17:16:56 2016 +0100
     Change-Id: I6eb91ea73ef887b025e5a8de1dd55f30618e1aa6
     Reviewed-on: https://go-review.googlesource.com/20857
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/sync/runtime_sema_test.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/sync/runtime_sema_test.go b/src/sync/runtime_sema_test.go
+index 5b7dd3df3f..a2382f4655 100644
+--- a/src/sync/runtime_sema_test.go
++++ b/src/sync/runtime_sema_test.go
+@@ -25,6 +25,9 @@ func BenchmarkSemaUncontended(b *testing.B) {
+ }
+ 
+ func benchmarkSema(b *testing.B, block, work bool) {
++	if b.N == 0 {
++		return
++	}
+ 	sem := uint32(0)
+ 	if block {
+ 		done := make(chan bool)

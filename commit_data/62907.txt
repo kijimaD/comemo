@@ -16,9 +16,158 @@ Date:   Sun Feb 2 22:26:07 2025 +1100
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Carlos Amedee <carlos@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/cmd/asm/internal/asm/testdata/riscv64.s        | 40 ++++++++++++++++++++++
  src/cmd/asm/internal/asm/testdata/riscv64error.s   | 15 ++++++++
  .../asm/internal/asm/testdata/riscv64validation.s  | 16 +++++++++
  src/cmd/internal/obj/riscv/obj.go                  | 28 ++++++++++++++-
  4 files changed, 98 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/riscv64.s b/src/cmd/asm/internal/asm/testdata/riscv64.s
+index f833ab62ad..687f98d072 100644
+--- a/src/cmd/asm/internal/asm/testdata/riscv64.s
++++ b/src/cmd/asm/internal/asm/testdata/riscv64.s
+@@ -1161,6 +1161,46 @@ start:
+ 	VFNCVTRODFFW	V2, V3				// d7912a4a
+ 	VFNCVTRODFFW	V2, V0, V3			// d7912a48
+ 
++	// 31.14.1: Vector Single-Width Integer Reduction Instructions
++	VREDSUMVS	V1, V2, V3			// d7a12002
++	VREDSUMVS	V1, V2, V0, V3			// d7a12000
++	VREDMAXUVS	V1, V2, V3			// d7a1201a
++	VREDMAXUVS	V1, V2, V0, V3			// d7a12018
++	VREDMAXVS	V1, V2, V3			// d7a1201e
++	VREDMAXVS	V1, V2, V0, V3			// d7a1201c
++	VREDMINUVS	V1, V2, V3			// d7a12012
++	VREDMINUVS	V1, V2, V0, V3			// d7a12010
++	VREDMINVS	V1, V2, V3			// d7a12016
++	VREDMINVS	V1, V2, V0, V3			// d7a12014
++	VREDANDVS	V1, V2, V3			// d7a12006
++	VREDANDVS	V1, V2, V0, V3			// d7a12004
++	VREDORVS	V1, V2, V3			// d7a1200a
++	VREDORVS	V1, V2, V0, V3			// d7a12008
++	VREDXORVS	V1, V2, V3			// d7a1200e
++	VREDXORVS	V1, V2, V0, V3			// d7a1200c
++
++	// 31.14.2: Vector Widening Integer Reduction Instructions
++	VWREDSUMUVS	V1, V2, V3			// d78120c2
++	VWREDSUMUVS	V1, V2, V0, V3			// d78120c0
++	VWREDSUMVS	V1, V2, V3			// d78120c6
++	VWREDSUMVS	V1, V2, V0, V3			// d78120c4
++
++	// 31.14.3: Vector Single-Width Floating-Point Reduction Instructions
++	VFREDOSUMVS	V1, V2, V3			// d791200e
++	VFREDOSUMVS	V1, V2, V0, V3			// d791200c
++	VFREDUSUMVS	V1, V2, V3			// d7912006
++	VFREDUSUMVS	V1, V2, V0, V3			// d7912004
++	VFREDMAXVS	V1, V2, V3			// d791201e
++	VFREDMAXVS	V1, V2, V0, V3			// d791201c
++	VFREDMINVS	V1, V2, V3			// d7912016
++	VFREDMINVS	V1, V2, V0, V3			// d7912014
++
++	// 31.14.4: Vector Widening Floating-Point Reduction Instructions
++	VFWREDOSUMVS	V1, V2, V3			// d79120ce
++	VFWREDOSUMVS	V1, V2, V0, V3			// d79120cc
++	VFWREDUSUMVS	V1, V2, V3			// d79120c6
++	VFWREDUSUMVS	V1, V2, V0, V3			// d79120c4
++
+ 	//
+ 	// Privileged ISA
+ 	//
+diff --git a/src/cmd/asm/internal/asm/testdata/riscv64error.s b/src/cmd/asm/internal/asm/testdata/riscv64error.s
+index 3aeeadf848..3a4bb1c761 100644
+--- a/src/cmd/asm/internal/asm/testdata/riscv64error.s
++++ b/src/cmd/asm/internal/asm/testdata/riscv64error.s
+@@ -347,5 +347,20 @@ TEXT errors(SB),$0
+ 	VFNCVTFXW	V2, V4, V3			// ERROR "invalid vector mask register"
+ 	VFNCVTFFW	V2, V4, V3			// ERROR "invalid vector mask register"
+ 	VFNCVTRODFFW	V2, V4, V3			// ERROR "invalid vector mask register"
++	VREDSUMVS	V1, V2, V4, V3			// ERROR "invalid vector mask register"
++	VREDMAXUVS	V1, V2, V4, V3			// ERROR "invalid vector mask register"
++	VREDMAXVS	V1, V2, V4, V3			// ERROR "invalid vector mask register"
++	VREDMINUVS	V1, V2, V4, V3			// ERROR "invalid vector mask register"
++	VREDMINVS	V1, V2, V4, V3			// ERROR "invalid vector mask register"
++	VREDANDVS	V1, V2, V4, V3			// ERROR "invalid vector mask register"
++	VREDORVS	V1, V2, V4, V3			// ERROR "invalid vector mask register"
++	VREDXORVS	V1, V2, V4, V3			// ERROR "invalid vector mask register"
++	VWREDSUMUVS	V1, V2, V4, V3			// ERROR "invalid vector mask register"
++	VWREDSUMVS	V1, V2, V4, V3			// ERROR "invalid vector mask register"
++	VFREDOSUMVS	V1, V2, V4, V3			// ERROR "invalid vector mask register"
++	VFREDUSUMVS	V1, V2, V4, V3			// ERROR "invalid vector mask register"
++	VFREDMAXVS	V1, V2, V4, V3			// ERROR "invalid vector mask register"
++	VFREDMINVS	V1, V2, V4, V3			// ERROR "invalid vector mask register"
++	VFWREDOSUMVS	V1, V2, V4, V3			// ERROR "invalid vector mask register"
+ 
+ 	RET
+diff --git a/src/cmd/asm/internal/asm/testdata/riscv64validation.s b/src/cmd/asm/internal/asm/testdata/riscv64validation.s
+index 2c509a1e91..adb10823d7 100644
+--- a/src/cmd/asm/internal/asm/testdata/riscv64validation.s
++++ b/src/cmd/asm/internal/asm/testdata/riscv64validation.s
+@@ -364,5 +364,21 @@ TEXT validation(SB),$0
+ 	VFNCVTFXW	X10, V3				// ERROR "expected vector register in vs2 position"
+ 	VFNCVTFFW	X10, V3				// ERROR "expected vector register in vs2 position"
+ 	VFNCVTRODFFW	X10, V3				// ERROR "expected vector register in vs2 position"
++	VREDSUMVS	X10, V2, V3			// ERROR "expected vector register in vs1 position"
++	VREDMAXUVS	X10, V2, V3			// ERROR "expected vector register in vs1 position"
++	VREDMAXVS	X10, V2, V3			// ERROR "expected vector register in vs1 position"
++	VREDMINUVS	X10, V2, V3			// ERROR "expected vector register in vs1 position"
++	VREDMINVS	X10, V2, V3			// ERROR "expected vector register in vs1 position"
++	VREDANDVS	X10, V2, V3			// ERROR "expected vector register in vs1 position"
++	VREDORVS	X10, V2, V3			// ERROR "expected vector register in vs1 position"
++	VREDXORVS	X10, V2, V3			// ERROR "expected vector register in vs1 position"
++	VWREDSUMUVS	X10, V2, V3			// ERROR "expected vector register in vs1 position"
++	VWREDSUMVS	X10, V2, V3			// ERROR "expected vector register in vs1 position"
++	VFREDOSUMVS	X10, V2, V3			// ERROR "expected vector register in vs1 position"
++	VFREDUSUMVS	X10, V2, V3			// ERROR "expected vector register in vs1 position"
++	VFREDMAXVS	X10, V2, V3			// ERROR "expected vector register in vs1 position"
++	VFREDMINVS	X10, V2, V3			// ERROR "expected vector register in vs1 position"
++	VFWREDOSUMVS	X10, V2, V3			// ERROR "expected vector register in vs1 position"
++	VFWREDUSUMVS	X10, V2, V3			// ERROR "expected vector register in vs1 position"
+ 
+ 	RET
+diff --git a/src/cmd/internal/obj/riscv/obj.go b/src/cmd/internal/obj/riscv/obj.go
+index 5563af9129..83ce7e21df 100644
+--- a/src/cmd/internal/obj/riscv/obj.go
++++ b/src/cmd/internal/obj/riscv/obj.go
+@@ -2585,6 +2585,30 @@ var instructions = [ALAST & obj.AMask]instructionData{
+ 	AVFNCVTFFW & obj.AMask:     {enc: rVVEncoding},
+ 	AVFNCVTRODFFW & obj.AMask:  {enc: rVVEncoding},
+ 
++	// 31.14.1: Vector Single-Width Integer Reduction Instructions
++	AVREDSUMVS & obj.AMask:  {enc: rVVVEncoding},
++	AVREDMAXUVS & obj.AMask: {enc: rVVVEncoding},
++	AVREDMAXVS & obj.AMask:  {enc: rVVVEncoding},
++	AVREDMINUVS & obj.AMask: {enc: rVVVEncoding},
++	AVREDMINVS & obj.AMask:  {enc: rVVVEncoding},
++	AVREDANDVS & obj.AMask:  {enc: rVVVEncoding},
++	AVREDORVS & obj.AMask:   {enc: rVVVEncoding},
++	AVREDXORVS & obj.AMask:  {enc: rVVVEncoding},
++
++	// 31.14.2: Vector Widening Integer Reduction Instructions
++	AVWREDSUMUVS & obj.AMask: {enc: rVVVEncoding},
++	AVWREDSUMVS & obj.AMask:  {enc: rVVVEncoding},
++
++	// 31.14.3: Vector Single-Width Floating-Point Reduction Instructions
++	AVFREDOSUMVS & obj.AMask: {enc: rVVVEncoding},
++	AVFREDUSUMVS & obj.AMask: {enc: rVVVEncoding},
++	AVFREDMAXVS & obj.AMask:  {enc: rVVVEncoding},
++	AVFREDMINVS & obj.AMask:  {enc: rVVVEncoding},
++
++	// 31.14.4: Vector Widening Floating-Point Reduction Instructions
++	AVFWREDOSUMVS & obj.AMask: {enc: rVVVEncoding},
++	AVFWREDUSUMVS & obj.AMask: {enc: rVVVEncoding},
++
+ 	//
+ 	// Privileged ISA
+ 	//
+@@ -3578,7 +3602,9 @@ func instructionsForProg(p *obj.Prog) []*instruction {
+ 		AVFMULVV, AVFMULVF, AVFDIVVV, AVFDIVVF, AVFRDIVVF, AVFWMULVV, AVFWMULVF,
+ 		AVFMINVV, AVFMINVF, AVFMAXVV, AVFMAXVF,
+ 		AVFSGNJVV, AVFSGNJVF, AVFSGNJNVV, AVFSGNJNVF, AVFSGNJXVV, AVFSGNJXVF,
+-		AVMFEQVV, AVMFEQVF, AVMFNEVV, AVMFNEVF, AVMFLTVV, AVMFLTVF, AVMFLEVV, AVMFLEVF, AVMFGTVF, AVMFGEVF:
++		AVMFEQVV, AVMFEQVF, AVMFNEVV, AVMFNEVF, AVMFLTVV, AVMFLTVF, AVMFLEVV, AVMFLEVF, AVMFGTVF, AVMFGEVF,
++		AVREDSUMVS, AVREDMAXUVS, AVREDMAXVS, AVREDMINUVS, AVREDMINVS, AVREDANDVS, AVREDORVS, AVREDXORVS,
++		AVWREDSUMUVS, AVWREDSUMVS, AVFREDOSUMVS, AVFREDUSUMVS, AVFREDMAXVS, AVFREDMINVS, AVFWREDOSUMVS, AVFWREDUSUMVS:
+ 		// Set mask bit
+ 		switch {
+ 		case ins.rs3 == obj.REG_NONE:

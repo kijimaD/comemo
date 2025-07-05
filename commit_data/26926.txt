@@ -10,10 +10,110 @@ Date:   Wed Mar 2 22:38:42 2016 -0500
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/link/internal/ld/dwarf.go   |  2 +-
  src/cmd/link/internal/ld/go.go      |  2 +-
  src/cmd/link/internal/ld/lib.go     |  3 +--
  src/cmd/link/internal/ld/link.go    |  5 ++---
  src/cmd/link/internal/ld/objfile.go | 15 +++++++--------
  5 files changed, 12 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/dwarf.go b/src/cmd/link/internal/ld/dwarf.go
+index 3378456ae7..829d8dabf2 100644
+--- a/src/cmd/link/internal/ld/dwarf.go
++++ b/src/cmd/link/internal/ld/dwarf.go
+@@ -1589,7 +1589,7 @@ func writelines() {
+ 			dt, da int
+ 			offs   int64
+ 		)
+-		for a := s.Autom; a != nil; a = a.Link {
++		for _, a := range s.Autom {
+ 			switch a.Name {
+ 			case obj.A_AUTO:
+ 				dt = DW_ABRV_AUTO
+diff --git a/src/cmd/link/internal/ld/go.go b/src/cmd/link/internal/ld/go.go
+index cba803c8bb..3ee7b292e3 100644
+--- a/src/cmd/link/internal/ld/go.go
++++ b/src/cmd/link/internal/ld/go.go
+@@ -394,7 +394,7 @@ func markflood() {
+ 			if Debug['v'] > 1 {
+ 				fmt.Fprintf(&Bso, "marktext %s\n", s.Name)
+ 			}
+-			for a := s.Autom; a != nil; a = a.Link {
++			for _, a := range s.Autom {
+ 				mark1(a.Gotype, s)
+ 			}
+ 		}
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index c5d736aaed..9bc51f241c 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -1964,7 +1964,6 @@ func genasmsym(put func(*LSym, string, int, int64, int64, int, *LSym)) {
+ 		}
+ 	}
+ 
+-	var a *Auto
+ 	var off int32
+ 	for s := Ctxt.Textp; s != nil; s = s.Next {
+ 		put(s, s.Name, 'T', s.Value, s.Size, int(s.Version), s.Gotype)
+@@ -1972,7 +1971,7 @@ func genasmsym(put func(*LSym, string, int, int64, int64, int, *LSym)) {
+ 		// NOTE(ality): acid can't produce a stack trace without .frame symbols
+ 		put(nil, ".frame", 'm', int64(s.Locals)+int64(Thearch.Ptrsize), 0, 0, nil)
+ 
+-		for a = s.Autom; a != nil; a = a.Link {
++		for _, a := range s.Autom {
+ 			// Emit a or p according to actual offset, even if label is wrong.
+ 			// This avoids negative offsets, which cannot be encoded.
+ 			if a.Name != obj.A_AUTO && a.Name != obj.A_PARAM {
+diff --git a/src/cmd/link/internal/ld/link.go b/src/cmd/link/internal/ld/link.go
+index e07b71d780..3173d87446 100644
+--- a/src/cmd/link/internal/ld/link.go
++++ b/src/cmd/link/internal/ld/link.go
+@@ -67,7 +67,7 @@ type LSym struct {
+ 	Dynimplib   string
+ 	Dynimpvers  string
+ 	Sect        *Section
+-	Autom       *Auto
++	Autom       []Auto
+ 	Pcln        *Pcln
+ 	P           []byte
+ 	R           []Reloc
+@@ -145,10 +145,9 @@ type Reloc struct {
+ 
+ type Auto struct {
+ 	Asym    *LSym
+-	Link    *Auto
++	Gotype  *LSym
+ 	Aoffset int32
+ 	Name    int16
+-	Gotype  *LSym
+ }
+ 
+ type Shlib struct {
+diff --git a/src/cmd/link/internal/ld/objfile.go b/src/cmd/link/internal/ld/objfile.go
+index d53cb34162..29f629efdc 100644
+--- a/src/cmd/link/internal/ld/objfile.go
++++ b/src/cmd/link/internal/ld/objfile.go
+@@ -266,15 +266,14 @@ overwrite:
+ 		}
+ 		rdint(f) // v&1 is Leaf, currently unused
+ 		n := rdint(f)
+-		var a *Auto
++		s.Autom = make([]Auto, n)
+ 		for i := 0; i < n; i++ {
+-			a = new(Auto)
+-			a.Asym = rdsym(ctxt, f, pkg)
+-			a.Aoffset = rdint32(f)
+-			a.Name = rdint16(f)
+-			a.Gotype = rdsym(ctxt, f, pkg)
+-			a.Link = s.Autom
+-			s.Autom = a
++			s.Autom[i] = Auto{
++				Asym:    rdsym(ctxt, f, pkg),
++				Aoffset: rdint32(f),
++				Name:    rdint16(f),
++				Gotype:  rdsym(ctxt, f, pkg),
++			}
+ 		}
+ 
+ 		s.Pcln = new(Pcln)

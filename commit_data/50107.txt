@@ -21,9 +21,220 @@ Date:   Thu Sep 30 13:26:19 2021 -0400
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
     Reviewed-by: Alexander Rakoczy <alex@golang.org>
-
+---
  api/go1.1.txt        | 31 +++++++++++++++++--
  api/go1.17.txt       | 87 ++++++++++++++++++++++++++++++++++++++++++++++++++--
  api/go1.9.txt        | 29 +++++++++++++++++-
  src/cmd/api/goapi.go |  5 +++
  4 files changed, 146 insertions(+), 6 deletions(-)
+
+diff --git a/api/go1.1.txt b/api/go1.1.txt
+index 81d095704a..bb00b3b02c 100644
+--- a/api/go1.1.txt
++++ b/api/go1.1.txt
+@@ -2603,7 +2603,34 @@ pkg runtime/debug, type GCStats struct, Pause []time.Duration
+ pkg runtime/debug, type GCStats struct, PauseQuantiles []time.Duration
+ pkg runtime/debug, type GCStats struct, PauseTotal time.Duration
+ pkg sort, func Reverse(Interface) Interface
+-pkg strconv, const IntSize = 64
++pkg strconv (darwin-amd64), const IntSize = 64
++pkg strconv (darwin-amd64-cgo), const IntSize = 64
++pkg strconv (freebsd-386), const IntSize = 32
++pkg strconv (freebsd-386-cgo), const IntSize = 32
++pkg strconv (freebsd-amd64), const IntSize = 64
++pkg strconv (freebsd-amd64-cgo), const IntSize = 64
++pkg strconv (freebsd-arm), const IntSize = 32
++pkg strconv (freebsd-arm-cgo), const IntSize = 32
++pkg strconv (linux-386), const IntSize = 32
++pkg strconv (linux-386-cgo), const IntSize = 32
++pkg strconv (linux-amd64), const IntSize = 64
++pkg strconv (linux-amd64-cgo), const IntSize = 64
++pkg strconv (linux-arm), const IntSize = 32
++pkg strconv (linux-arm-cgo), const IntSize = 32
++pkg strconv (netbsd-386), const IntSize = 32
++pkg strconv (netbsd-386-cgo), const IntSize = 32
++pkg strconv (netbsd-amd64), const IntSize = 64
++pkg strconv (netbsd-amd64-cgo), const IntSize = 64
++pkg strconv (netbsd-arm), const IntSize = 32
++pkg strconv (netbsd-arm-cgo), const IntSize = 32
++pkg strconv (netbsd-arm64), const IntSize = 64
++pkg strconv (netbsd-arm64-cgo), const IntSize = 64
++pkg strconv (openbsd-386), const IntSize = 32
++pkg strconv (openbsd-386-cgo), const IntSize = 32
++pkg strconv (openbsd-amd64), const IntSize = 64
++pkg strconv (openbsd-amd64-cgo), const IntSize = 64
++pkg strconv (windows-386), const IntSize = 32
++pkg strconv (windows-amd64), const IntSize = 64
+ pkg strings, func TrimPrefix(string, string) string
+ pkg strings, func TrimSuffix(string, string) string
+ pkg strings, method (*Reader) WriteTo(io.Writer) (int64, error)
+@@ -49366,7 +49393,7 @@ pkg syscall (windows-386), const IP_MULTICAST_TTL = 10
+ pkg syscall (windows-386), const IP_TOS = 3
+ pkg syscall (windows-386), const IP_TTL = 4
+ pkg syscall (windows-386), const ImplementsGetwd = true
+-pkg syscall (windows-386), const InvalidHandle = 18446744073709551615
++pkg syscall (windows-386), const InvalidHandle = 4294967295
+ pkg syscall (windows-386), const KEY_ALL_ACCESS = 983103
+ pkg syscall (windows-386), const KEY_CREATE_LINK = 32
+ pkg syscall (windows-386), const KEY_CREATE_SUB_KEY = 4
+diff --git a/api/go1.17.txt b/api/go1.17.txt
+index 48505381f1..ca2cd162f8 100644
+--- a/api/go1.17.txt
++++ b/api/go1.17.txt
+@@ -63,12 +63,93 @@ pkg image/draw, type RGBA64Image interface, RGBA64At(int, int) color.RGBA64
+ pkg image/draw, type RGBA64Image interface, Set(int, int, color.Color)
+ pkg image/draw, type RGBA64Image interface, SetRGBA64(int, int, color.RGBA64)
+ pkg io/fs, func FileInfoToDirEntry(FileInfo) DirEntry
++pkg math (darwin-amd64), const MaxInt = 9223372036854775807
++pkg math (darwin-amd64), const MaxUint = 18446744073709551615
++pkg math (darwin-amd64), const MinInt = -9223372036854775808
++pkg math (darwin-amd64-cgo), const MaxInt = 9223372036854775807
++pkg math (darwin-amd64-cgo), const MaxUint = 18446744073709551615
++pkg math (darwin-amd64-cgo), const MinInt = -9223372036854775808
++pkg math (freebsd-386), const MaxInt = 2147483647
++pkg math (freebsd-386), const MaxUint = 4294967295
++pkg math (freebsd-386), const MinInt = -2147483648
++pkg math (freebsd-386-cgo), const MaxInt = 2147483647
++pkg math (freebsd-386-cgo), const MaxUint = 4294967295
++pkg math (freebsd-386-cgo), const MinInt = -2147483648
++pkg math (freebsd-amd64), const MaxInt = 9223372036854775807
++pkg math (freebsd-amd64), const MaxUint = 18446744073709551615
++pkg math (freebsd-amd64), const MinInt = -9223372036854775808
++pkg math (freebsd-amd64-cgo), const MaxInt = 9223372036854775807
++pkg math (freebsd-amd64-cgo), const MaxUint = 18446744073709551615
++pkg math (freebsd-amd64-cgo), const MinInt = -9223372036854775808
++pkg math (freebsd-arm), const MaxInt = 2147483647
++pkg math (freebsd-arm), const MaxUint = 4294967295
++pkg math (freebsd-arm), const MinInt = -2147483648
++pkg math (freebsd-arm-cgo), const MaxInt = 2147483647
++pkg math (freebsd-arm-cgo), const MaxUint = 4294967295
++pkg math (freebsd-arm-cgo), const MinInt = -2147483648
++pkg math (linux-386), const MaxInt = 2147483647
++pkg math (linux-386), const MaxUint = 4294967295
++pkg math (linux-386), const MinInt = -2147483648
++pkg math (linux-386-cgo), const MaxInt = 2147483647
++pkg math (linux-386-cgo), const MaxUint = 4294967295
++pkg math (linux-386-cgo), const MinInt = -2147483648
++pkg math (linux-amd64), const MaxInt = 9223372036854775807
++pkg math (linux-amd64), const MaxUint = 18446744073709551615
++pkg math (linux-amd64), const MinInt = -9223372036854775808
++pkg math (linux-amd64-cgo), const MaxInt = 9223372036854775807
++pkg math (linux-amd64-cgo), const MaxUint = 18446744073709551615
++pkg math (linux-amd64-cgo), const MinInt = -9223372036854775808
++pkg math (linux-arm), const MaxInt = 2147483647
++pkg math (linux-arm), const MaxUint = 4294967295
++pkg math (linux-arm), const MinInt = -2147483648
++pkg math (linux-arm-cgo), const MaxInt = 2147483647
++pkg math (linux-arm-cgo), const MaxUint = 4294967295
++pkg math (linux-arm-cgo), const MinInt = -2147483648
++pkg math (netbsd-386), const MaxInt = 2147483647
++pkg math (netbsd-386), const MaxUint = 4294967295
++pkg math (netbsd-386), const MinInt = -2147483648
++pkg math (netbsd-386-cgo), const MaxInt = 2147483647
++pkg math (netbsd-386-cgo), const MaxUint = 4294967295
++pkg math (netbsd-386-cgo), const MinInt = -2147483648
++pkg math (netbsd-amd64), const MaxInt = 9223372036854775807
++pkg math (netbsd-amd64), const MaxUint = 18446744073709551615
++pkg math (netbsd-amd64), const MinInt = -9223372036854775808
++pkg math (netbsd-amd64-cgo), const MaxInt = 9223372036854775807
++pkg math (netbsd-amd64-cgo), const MaxUint = 18446744073709551615
++pkg math (netbsd-amd64-cgo), const MinInt = -9223372036854775808
++pkg math (netbsd-arm), const MaxInt = 2147483647
++pkg math (netbsd-arm), const MaxUint = 4294967295
++pkg math (netbsd-arm), const MinInt = -2147483648
++pkg math (netbsd-arm-cgo), const MaxInt = 2147483647
++pkg math (netbsd-arm-cgo), const MaxUint = 4294967295
++pkg math (netbsd-arm-cgo), const MinInt = -2147483648
++pkg math (netbsd-arm64), const MaxInt = 9223372036854775807
++pkg math (netbsd-arm64), const MaxUint = 18446744073709551615
++pkg math (netbsd-arm64), const MinInt = -9223372036854775808
++pkg math (netbsd-arm64-cgo), const MaxInt = 9223372036854775807
++pkg math (netbsd-arm64-cgo), const MaxUint = 18446744073709551615
++pkg math (netbsd-arm64-cgo), const MinInt = -9223372036854775808
++pkg math (openbsd-386), const MaxInt = 2147483647
++pkg math (openbsd-386), const MaxUint = 4294967295
++pkg math (openbsd-386), const MinInt = -2147483648
++pkg math (openbsd-386-cgo), const MaxInt = 2147483647
++pkg math (openbsd-386-cgo), const MaxUint = 4294967295
++pkg math (openbsd-386-cgo), const MinInt = -2147483648
++pkg math (openbsd-amd64), const MaxInt = 9223372036854775807
++pkg math (openbsd-amd64), const MaxUint = 18446744073709551615
++pkg math (openbsd-amd64), const MinInt = -9223372036854775808
++pkg math (openbsd-amd64-cgo), const MaxInt = 9223372036854775807
++pkg math (openbsd-amd64-cgo), const MaxUint = 18446744073709551615
++pkg math (openbsd-amd64-cgo), const MinInt = -9223372036854775808
++pkg math (windows-386), const MaxInt = 2147483647
++pkg math (windows-386), const MaxUint = 4294967295
++pkg math (windows-386), const MinInt = -2147483648
++pkg math (windows-amd64), const MaxInt = 9223372036854775807
++pkg math (windows-amd64), const MaxUint = 18446744073709551615
++pkg math (windows-amd64), const MinInt = -9223372036854775808
+ pkg math, const MaxFloat64 = 1.79769e+308  // 179769313486231570814527423731704356798070567525844996598917476803157260780028538760589558632766878171540458953514382464234321326889464182768467546703537516986049910576551282076245490090389328944075868508455133942304583236903222948165808559332123348274797826204144723168738177180919299881250404026184124858368
+-pkg math, const MaxInt = 9223372036854775807
+ pkg math, const MaxInt ideal-int
+-pkg math, const MaxUint = 18446744073709551615
+ pkg math, const MaxUint ideal-int
+-pkg math, const MinInt = -9223372036854775808
+ pkg math, const MinInt ideal-int
+ pkg math, const SmallestNonzeroFloat32 = 1.4013e-45  // 1/713623846352979940529142984724747568191373312
+ pkg math, const SmallestNonzeroFloat64 = 4.94066e-324  // 1/202402253307310618352495346718917307049556649764142118356901358027430339567995346891960383701437124495187077864316811911389808737385793476867013399940738509921517424276566361364466907742093216341239767678472745068562007483424692698618103355649159556340810056512358769552333414615230502532186327508646006263307707741093494784
+diff --git a/api/go1.9.txt b/api/go1.9.txt
+index c23a17ea1a..87fae57920 100644
+--- a/api/go1.9.txt
++++ b/api/go1.9.txt
+@@ -49,7 +49,34 @@ pkg image/png, type EncoderBufferPool interface, Put(*EncoderBuffer)
+ pkg math/big, method (*Int) IsInt64() bool
+ pkg math/big, method (*Int) IsUint64() bool
+ pkg math/big, type Word uint
+-pkg math/bits, const UintSize = 64
++pkg math/bits (darwin-amd64), const UintSize = 64
++pkg math/bits (darwin-amd64-cgo), const UintSize = 64
++pkg math/bits (freebsd-386), const UintSize = 32
++pkg math/bits (freebsd-386-cgo), const UintSize = 32
++pkg math/bits (freebsd-amd64), const UintSize = 64
++pkg math/bits (freebsd-amd64-cgo), const UintSize = 64
++pkg math/bits (freebsd-arm), const UintSize = 32
++pkg math/bits (freebsd-arm-cgo), const UintSize = 32
++pkg math/bits (linux-386), const UintSize = 32
++pkg math/bits (linux-386-cgo), const UintSize = 32
++pkg math/bits (linux-amd64), const UintSize = 64
++pkg math/bits (linux-amd64-cgo), const UintSize = 64
++pkg math/bits (linux-arm), const UintSize = 32
++pkg math/bits (linux-arm-cgo), const UintSize = 32
++pkg math/bits (netbsd-386), const UintSize = 32
++pkg math/bits (netbsd-386-cgo), const UintSize = 32
++pkg math/bits (netbsd-amd64), const UintSize = 64
++pkg math/bits (netbsd-amd64-cgo), const UintSize = 64
++pkg math/bits (netbsd-arm), const UintSize = 32
++pkg math/bits (netbsd-arm-cgo), const UintSize = 32
++pkg math/bits (netbsd-arm64), const UintSize = 64
++pkg math/bits (netbsd-arm64-cgo), const UintSize = 64
++pkg math/bits (openbsd-386), const UintSize = 32
++pkg math/bits (openbsd-386-cgo), const UintSize = 32
++pkg math/bits (openbsd-amd64), const UintSize = 64
++pkg math/bits (openbsd-amd64-cgo), const UintSize = 64
++pkg math/bits (windows-386), const UintSize = 32
++pkg math/bits (windows-amd64), const UintSize = 64
+ pkg math/bits, const UintSize ideal-int
+ pkg math/bits, func LeadingZeros(uint) int
+ pkg math/bits, func LeadingZeros16(uint16) int
+diff --git a/src/cmd/api/goapi.go b/src/cmd/api/goapi.go
+index b07a238d67..43c761a657 100644
+--- a/src/cmd/api/goapi.go
++++ b/src/cmd/api/goapi.go
+@@ -653,10 +653,15 @@ func (w *Walker) ImportFrom(fromPath, fromDir string, mode types.ImportMode) (*t
+ 	}
+ 
+ 	// Type-check package files.
++	var sizes types.Sizes
++	if w.context != nil {
++		sizes = types.SizesFor(w.context.Compiler, w.context.GOARCH)
++	}
+ 	conf := types.Config{
+ 		IgnoreFuncBodies: true,
+ 		FakeImportC:      true,
+ 		Importer:         w,
++		Sizes:            sizes,
+ 	}
+ 	pkg, err = conf.Check(name, fset, files, nil)
+ 	if err != nil {

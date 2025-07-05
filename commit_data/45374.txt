@@ -19,7 +19,7 @@ Date:   Mon Oct 19 11:31:10 2020 +0200
     Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/alg.go     |  8 +--
  src/cmd/compile/internal/gc/closure.go |  2 +-
  src/cmd/compile/internal/gc/esc.go     | 16 +++---
@@ -38,3 +38,1009 @@ Date:   Mon Oct 19 11:31:10 2020 +0200
  src/cmd/compile/internal/gc/syntax.go  |  4 +-
  src/cmd/compile/internal/gc/walk.go    | 18 +++----
  17 files changed, 149 insertions(+), 134 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/alg.go b/src/cmd/compile/internal/gc/alg.go
+index 6302b88f59..2ab69c2c56 100644
+--- a/src/cmd/compile/internal/gc/alg.go
++++ b/src/cmd/compile/internal/gc/alg.go
+@@ -282,7 +282,7 @@ func genhash(t *types.Type) *obj.LSym {
+ 	}
+ 
+ 	sym := typesymprefix(".hash", t)
+-	if Debug['r'] != 0 {
++	if Debug.r != 0 {
+ 		fmt.Printf("genhash %v %v %v\n", closure, sym, t)
+ 	}
+ 
+@@ -374,7 +374,7 @@ func genhash(t *types.Type) *obj.LSym {
+ 	r.List.Append(nh)
+ 	fn.Nbody.Append(r)
+ 
+-	if Debug['r'] != 0 {
++	if Debug.r != 0 {
+ 		dumplist("genhash body", fn.Nbody)
+ 	}
+ 
+@@ -509,7 +509,7 @@ func geneq(t *types.Type) *obj.LSym {
+ 		return closure
+ 	}
+ 	sym := typesymprefix(".eq", t)
+-	if Debug['r'] != 0 {
++	if Debug.r != 0 {
+ 		fmt.Printf("geneq %v\n", t)
+ 	}
+ 
+@@ -732,7 +732,7 @@ func geneq(t *types.Type) *obj.LSym {
+ 		fn.Nbody.Append(ret)
+ 	}
+ 
+-	if Debug['r'] != 0 {
++	if Debug.r != 0 {
+ 		dumplist("geneq body", fn.Nbody)
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/closure.go b/src/cmd/compile/internal/gc/closure.go
+index 5d1012111f..902d2e34a3 100644
+--- a/src/cmd/compile/internal/gc/closure.go
++++ b/src/cmd/compile/internal/gc/closure.go
+@@ -198,7 +198,7 @@ func capturevars(xfunc *Node) {
+ 			outer = nod(OADDR, outer, nil)
+ 		}
+ 
+-		if Debug['m'] > 1 {
++		if Debug.m > 1 {
+ 			var name *types.Sym
+ 			if v.Name.Curfn != nil && v.Name.Curfn.Func.Nname != nil {
+ 				name = v.Name.Curfn.Func.Nname.Sym
+diff --git a/src/cmd/compile/internal/gc/esc.go b/src/cmd/compile/internal/gc/esc.go
+index c11066a62f..6f328ab5ea 100644
+--- a/src/cmd/compile/internal/gc/esc.go
++++ b/src/cmd/compile/internal/gc/esc.go
+@@ -282,7 +282,7 @@ func addrescapes(n *Node) {
+ 
+ // moveToHeap records the parameter or local variable n as moved to the heap.
+ func moveToHeap(n *Node) {
+-	if Debug['r'] != 0 {
++	if Debug.r != 0 {
+ 		Dump("MOVE", n)
+ 	}
+ 	if compiling_runtime {
+@@ -359,7 +359,7 @@ func moveToHeap(n *Node) {
+ 	n.Xoffset = 0
+ 	n.Name.Param.Heapaddr = heapaddr
+ 	n.Esc = EscHeap
+-	if Debug['m'] != 0 {
++	if Debug.m != 0 {
+ 		Warnl(n.Pos, "moved to heap: %v", n)
+ 	}
+ }
+@@ -389,7 +389,7 @@ func (e *Escape) paramTag(fn *Node, narg int, f *types.Field) string {
+ 		// but we are reusing the ability to annotate an individual function
+ 		// argument and pass those annotations along to importing code.
+ 		if f.Type.IsUintptr() {
+-			if Debug['m'] != 0 {
++			if Debug.m != 0 {
+ 				Warnl(f.Pos, "assuming %v is unsafe uintptr", name())
+ 			}
+ 			return unsafeUintptrTag
+@@ -404,11 +404,11 @@ func (e *Escape) paramTag(fn *Node, narg int, f *types.Field) string {
+ 		// External functions are assumed unsafe, unless
+ 		// //go:noescape is given before the declaration.
+ 		if fn.Func.Pragma&Noescape != 0 {
+-			if Debug['m'] != 0 && f.Sym != nil {
++			if Debug.m != 0 && f.Sym != nil {
+ 				Warnl(f.Pos, "%v does not escape", name())
+ 			}
+ 		} else {
+-			if Debug['m'] != 0 && f.Sym != nil {
++			if Debug.m != 0 && f.Sym != nil {
+ 				Warnl(f.Pos, "leaking param: %v", name())
+ 			}
+ 			esc.AddHeap(0)
+@@ -419,14 +419,14 @@ func (e *Escape) paramTag(fn *Node, narg int, f *types.Field) string {
+ 
+ 	if fn.Func.Pragma&UintptrEscapes != 0 {
+ 		if f.Type.IsUintptr() {
+-			if Debug['m'] != 0 {
++			if Debug.m != 0 {
+ 				Warnl(f.Pos, "marking %v as escaping uintptr", name())
+ 			}
+ 			return uintptrEscapesTag
+ 		}
+ 		if f.IsDDD() && f.Type.Elem().IsUintptr() {
+ 			// final argument is ...uintptr.
+-			if Debug['m'] != 0 {
++			if Debug.m != 0 {
+ 				Warnl(f.Pos, "marking %v as escaping ...uintptr", name())
+ 			}
+ 			return uintptrEscapesTag
+@@ -448,7 +448,7 @@ func (e *Escape) paramTag(fn *Node, narg int, f *types.Field) string {
+ 	esc := loc.paramEsc
+ 	esc.Optimize()
+ 
+-	if Debug['m'] != 0 && !loc.escapes {
++	if Debug.m != 0 && !loc.escapes {
+ 		if esc.Empty() {
+ 			Warnl(f.Pos, "%v does not escape", name())
+ 		}
+diff --git a/src/cmd/compile/internal/gc/escape.go b/src/cmd/compile/internal/gc/escape.go
+index 93965d4fac..618bdf78e2 100644
+--- a/src/cmd/compile/internal/gc/escape.go
++++ b/src/cmd/compile/internal/gc/escape.go
+@@ -170,7 +170,7 @@ func (e *Escape) initFunc(fn *Node) {
+ 		Fatalf("unexpected node: %v", fn)
+ 	}
+ 	fn.Esc = EscFuncPlanned
+-	if Debug['m'] > 3 {
++	if Debug.m > 3 {
+ 		Dump("escAnalyze", fn)
+ 	}
+ 
+@@ -247,7 +247,7 @@ func (e *Escape) stmt(n *Node) {
+ 		lineno = lno
+ 	}()
+ 
+-	if Debug['m'] > 2 {
++	if Debug.m > 2 {
+ 		fmt.Printf("%v:[%d] %v stmt: %v\n", linestr(lineno), e.loopDepth, funcSym(e.curfn), n)
+ 	}
+ 
+@@ -275,11 +275,11 @@ func (e *Escape) stmt(n *Node) {
+ 	case OLABEL:
+ 		switch asNode(n.Sym.Label) {
+ 		case &nonlooping:
+-			if Debug['m'] > 2 {
++			if Debug.m > 2 {
+ 				fmt.Printf("%v:%v non-looping label\n", linestr(lineno), n)
+ 			}
+ 		case &looping:
+-			if Debug['m'] > 2 {
++			if Debug.m > 2 {
+ 				fmt.Printf("%v: %v looping label\n", linestr(lineno), n)
+ 			}
+ 			e.loopDepth++
+@@ -717,7 +717,7 @@ func (e *Escape) addrs(l Nodes) []EscHole {
+ func (e *Escape) assign(dst, src *Node, why string, where *Node) {
+ 	// Filter out some no-op assignments for escape analysis.
+ 	ignore := dst != nil && src != nil && isSelfAssign(dst, src)
+-	if ignore && Debug['m'] != 0 {
++	if ignore && Debug.m != 0 {
+ 		Warnl(where.Pos, "%v ignoring self-assignment in %S", funcSym(e.curfn), where)
+ 	}
+ 
+@@ -931,7 +931,7 @@ func (k EscHole) note(where *Node, why string) EscHole {
+ 	if where == nil || why == "" {
+ 		Fatalf("note: missing where/why")
+ 	}
+-	if Debug['m'] >= 2 || logopt.Enabled() {
++	if Debug.m >= 2 || logopt.Enabled() {
+ 		k.notes = &EscNote{
+ 			next:  k.notes,
+ 			where: where,
+@@ -1077,9 +1077,9 @@ func (e *Escape) flow(k EscHole, src *EscLocation) {
+ 		return
+ 	}
+ 	if dst.escapes && k.derefs < 0 { // dst = &src
+-		if Debug['m'] >= 2 || logopt.Enabled() {
++		if Debug.m >= 2 || logopt.Enabled() {
+ 			pos := linestr(src.n.Pos)
+-			if Debug['m'] >= 2 {
++			if Debug.m >= 2 {
+ 				fmt.Printf("%s: %v escapes to heap:\n", pos, src.n)
+ 			}
+ 			explanation := e.explainFlow(pos, dst, src, k.derefs, k.notes, []*logopt.LoggedOpt{})
+@@ -1179,8 +1179,8 @@ func (e *Escape) walkOne(root *EscLocation, walkgen uint32, enqueue func(*EscLoc
+ 			// that value flow for tagging the function
+ 			// later.
+ 			if l.isName(PPARAM) {
+-				if (logopt.Enabled() || Debug['m'] >= 2) && !l.escapes {
+-					if Debug['m'] >= 2 {
++				if (logopt.Enabled() || Debug.m >= 2) && !l.escapes {
++					if Debug.m >= 2 {
+ 						fmt.Printf("%s: parameter %v leaks to %s with derefs=%d:\n", linestr(l.n.Pos), l.n, e.explainLoc(root), base)
+ 					}
+ 					explanation := e.explainPath(root, l)
+@@ -1196,8 +1196,8 @@ func (e *Escape) walkOne(root *EscLocation, walkgen uint32, enqueue func(*EscLoc
+ 			// outlives it, then l needs to be heap
+ 			// allocated.
+ 			if addressOf && !l.escapes {
+-				if logopt.Enabled() || Debug['m'] >= 2 {
+-					if Debug['m'] >= 2 {
++				if logopt.Enabled() || Debug.m >= 2 {
++					if Debug.m >= 2 {
+ 						fmt.Printf("%s: %v escapes to heap:\n", linestr(l.n.Pos), l.n)
+ 					}
+ 					explanation := e.explainPath(root, l)
+@@ -1235,7 +1235,7 @@ func (e *Escape) explainPath(root, src *EscLocation) []*logopt.LoggedOpt {
+ 	for {
+ 		// Prevent infinite loop.
+ 		if visited[src] {
+-			if Debug['m'] >= 2 {
++			if Debug.m >= 2 {
+ 				fmt.Printf("%s:   warning: truncated explanation due to assignment cycle; see golang.org/issue/35518\n", pos)
+ 			}
+ 			break
+@@ -1263,7 +1263,7 @@ func (e *Escape) explainFlow(pos string, dst, srcloc *EscLocation, derefs int, n
+ 	if derefs >= 0 {
+ 		ops = strings.Repeat("*", derefs)
+ 	}
+-	print := Debug['m'] >= 2
++	print := Debug.m >= 2
+ 
+ 	flow := fmt.Sprintf("   flow: %s = %s%v:", e.explainLoc(dst), ops, e.explainLoc(srcloc))
+ 	if print {
+@@ -1417,7 +1417,7 @@ func (e *Escape) finish(fns []*Node) {
+ 
+ 		if loc.escapes {
+ 			if n.Op != ONAME {
+-				if Debug['m'] != 0 {
++				if Debug.m != 0 {
+ 					Warnl(n.Pos, "%S escapes to heap", n)
+ 				}
+ 				if logopt.Enabled() {
+@@ -1427,7 +1427,7 @@ func (e *Escape) finish(fns []*Node) {
+ 			n.Esc = EscHeap
+ 			addrescapes(n)
+ 		} else {
+-			if Debug['m'] != 0 && n.Op != ONAME {
++			if Debug.m != 0 && n.Op != ONAME {
+ 				Warnl(n.Pos, "%S does not escape", n)
+ 			}
+ 			n.Esc = EscNone
+diff --git a/src/cmd/compile/internal/gc/export.go b/src/cmd/compile/internal/gc/export.go
+index 839c2c2c75..c6917e0f81 100644
+--- a/src/cmd/compile/internal/gc/export.go
++++ b/src/cmd/compile/internal/gc/export.go
+@@ -31,7 +31,7 @@ func exportsym(n *Node) {
+ 	}
+ 	n.Sym.SetOnExportList(true)
+ 
+-	if Debug['E'] != 0 {
++	if Debug.E != 0 {
+ 		fmt.Printf("export symbol %v\n", n.Sym)
+ 	}
+ 
+@@ -150,7 +150,7 @@ func importconst(ipkg *types.Pkg, pos src.XPos, s *types.Sym, t *types.Type, val
+ 
+ 	n.SetVal(val)
+ 
+-	if Debug['E'] != 0 {
++	if Debug.E != 0 {
+ 		fmt.Printf("import const %v %L = %v\n", s, t, val)
+ 	}
+ }
+@@ -166,7 +166,7 @@ func importfunc(ipkg *types.Pkg, pos src.XPos, s *types.Sym, t *types.Type) {
+ 	n.Func = new(Func)
+ 	t.SetNname(asTypesNode(n))
+ 
+-	if Debug['E'] != 0 {
++	if Debug.E != 0 {
+ 		fmt.Printf("import func %v%S\n", s, t)
+ 	}
+ }
+@@ -179,7 +179,7 @@ func importvar(ipkg *types.Pkg, pos src.XPos, s *types.Sym, t *types.Type) {
+ 		return
+ 	}
+ 
+-	if Debug['E'] != 0 {
++	if Debug.E != 0 {
+ 		fmt.Printf("import var %v %L\n", s, t)
+ 	}
+ }
+@@ -192,7 +192,7 @@ func importalias(ipkg *types.Pkg, pos src.XPos, s *types.Sym, t *types.Type) {
+ 		return
+ 	}
+ 
+-	if Debug['E'] != 0 {
++	if Debug.E != 0 {
+ 		fmt.Printf("import type %v = %L\n", s, t)
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index ee2add3733..da6b6d6e72 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -116,7 +116,15 @@ var decldepth int32
+ 
+ var nolocalimports bool
+ 
+-var Debug [256]int
++// gc debug flags
++type DebugFlags struct {
++	P, B, C, E,
++	K, L, N, S,
++	W, e, h, j,
++	l, m, r, w int
++}
++
++var Debug DebugFlags
+ 
+ var debugstr string
+ 
+diff --git a/src/cmd/compile/internal/gc/gsubr.go b/src/cmd/compile/internal/gc/gsubr.go
+index 14c217ff3b..ce5182f203 100644
+--- a/src/cmd/compile/internal/gc/gsubr.go
++++ b/src/cmd/compile/internal/gc/gsubr.go
+@@ -153,7 +153,7 @@ func (pp *Progs) Prog(as obj.As) *obj.Prog {
+ 	pp.clearp(pp.next)
+ 	p.Link = pp.next
+ 
+-	if !pp.pos.IsKnown() && Debug['K'] != 0 {
++	if !pp.pos.IsKnown() && Debug.K != 0 {
+ 		Warn("prog: unknown position (line 0)")
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/iimport.go b/src/cmd/compile/internal/gc/iimport.go
+index 107e96cc6a..7f2b05f288 100644
+--- a/src/cmd/compile/internal/gc/iimport.go
++++ b/src/cmd/compile/internal/gc/iimport.go
+@@ -742,8 +742,8 @@ func (r *importReader) doInline(n *Node) {
+ 
+ 	importlist = append(importlist, n)
+ 
+-	if Debug['E'] > 0 && Debug['m'] > 2 {
+-		if Debug['m'] > 3 {
++	if Debug.E > 0 && Debug.m > 2 {
++		if Debug.m > 3 {
+ 			fmt.Printf("inl body for %v %#v: %+v\n", n, n.Type, asNodes(n.Func.Inl.Body))
+ 		} else {
+ 			fmt.Printf("inl body for %v %#v: %v\n", n, n.Type, asNodes(n.Func.Inl.Body))
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index 55a14d378e..a2fb00e132 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -7,7 +7,7 @@
+ // saves a copy of the body. Then inlcalls walks each function body to
+ // expand calls to inlinable functions.
+ //
+-// The debug['l'] flag controls the aggressiveness. Note that main() swaps level 0 and 1,
++// The Debug.l flag controls the aggressiveness. Note that main() swaps level 0 and 1,
+ // making 1 the default and -l disable. Additional levels (beyond -l) may be buggy and
+ // are not supported.
+ //      0: disabled
+@@ -21,7 +21,7 @@
+ // The -d typcheckinl flag enables early typechecking of all imported bodies,
+ // which is useful to flush out bugs.
+ //
+-// The debug['m'] flag enables diagnostic output.  a single -m is useful for verifying
++// The Debug.m flag enables diagnostic output.  a single -m is useful for verifying
+ // which calls get inlined or not, more is for debugging, and may go away at any point.
+ 
+ package gc
+@@ -85,7 +85,7 @@ func typecheckinl(fn *Node) {
+ 		return // typecheckinl on local function
+ 	}
+ 
+-	if Debug['m'] > 2 || Debug_export != 0 {
++	if Debug.m > 2 || Debug_export != 0 {
+ 		fmt.Printf("typecheck import [%v] %L { %#v }\n", fn.Sym, fn, asNodes(fn.Func.Inl.Body))
+ 	}
+ 
+@@ -116,10 +116,10 @@ func caninl(fn *Node) {
+ 	}
+ 
+ 	var reason string // reason, if any, that the function was not inlined
+-	if Debug['m'] > 1 || logopt.Enabled() {
++	if Debug.m > 1 || logopt.Enabled() {
+ 		defer func() {
+ 			if reason != "" {
+-				if Debug['m'] > 1 {
++				if Debug.m > 1 {
+ 					fmt.Printf("%v: cannot inline %v: %s\n", fn.Line(), fn.Func.Nname, reason)
+ 				}
+ 				if logopt.Enabled() {
+@@ -187,7 +187,7 @@ func caninl(fn *Node) {
+ 	defer n.Func.SetInlinabilityChecked(true)
+ 
+ 	cc := int32(inlineExtraCallCost)
+-	if Debug['l'] == 4 {
++	if Debug.l == 4 {
+ 		cc = 1 // this appears to yield better performance than 0.
+ 	}
+ 
+@@ -224,9 +224,9 @@ func caninl(fn *Node) {
+ 	// this is so export can find the body of a method
+ 	fn.Type.FuncType().Nname = asTypesNode(n)
+ 
+-	if Debug['m'] > 1 {
++	if Debug.m > 1 {
+ 		fmt.Printf("%v: can inline %#v with cost %d as: %#v { %#v }\n", fn.Line(), n, inlineMaxBudget-visitor.budget, fn.Type, asNodes(n.Func.Inl.Body))
+-	} else if Debug['m'] != 0 {
++	} else if Debug.m != 0 {
+ 		fmt.Printf("%v: can inline %v\n", fn.Line(), n)
+ 	}
+ 	if logopt.Enabled() {
+@@ -425,7 +425,7 @@ func (v *hairyVisitor) visit(n *Node) bool {
+ 	v.budget--
+ 
+ 	// When debugging, don't stop early, to get full cost of inlining this function
+-	if v.budget < 0 && Debug['m'] < 2 && !logopt.Enabled() {
++	if v.budget < 0 && Debug.m < 2 && !logopt.Enabled() {
+ 		return true
+ 	}
+ 
+@@ -670,7 +670,7 @@ func inlnode(n *Node, maxCost int32, inlMap map[*Node]bool) *Node {
+ 
+ 	switch n.Op {
+ 	case OCALLFUNC:
+-		if Debug['m'] > 3 {
++		if Debug.m > 3 {
+ 			fmt.Printf("%v:call to func %+v\n", n.Line(), n.Left)
+ 		}
+ 		if isIntrinsicCall(n) {
+@@ -681,7 +681,7 @@ func inlnode(n *Node, maxCost int32, inlMap map[*Node]bool) *Node {
+ 		}
+ 
+ 	case OCALLMETH:
+-		if Debug['m'] > 3 {
++		if Debug.m > 3 {
+ 			fmt.Printf("%v:call to meth %L\n", n.Line(), n.Left.Right)
+ 		}
+ 
+@@ -911,7 +911,7 @@ func mkinlcall(n, fn *Node, maxCost int32, inlMap map[*Node]bool) *Node {
+ 	}
+ 
+ 	if inlMap[fn] {
+-		if Debug['m'] > 1 {
++		if Debug.m > 1 {
+ 			fmt.Printf("%v: cannot inline %v into %v: repeated recursive cycle\n", n.Line(), fn, Curfn.funcname())
+ 		}
+ 		return n
+@@ -925,12 +925,12 @@ func mkinlcall(n, fn *Node, maxCost int32, inlMap map[*Node]bool) *Node {
+ 	}
+ 
+ 	// We have a function node, and it has an inlineable body.
+-	if Debug['m'] > 1 {
++	if Debug.m > 1 {
+ 		fmt.Printf("%v: inlining call to %v %#v { %#v }\n", n.Line(), fn.Sym, fn.Type, asNodes(fn.Func.Inl.Body))
+-	} else if Debug['m'] != 0 {
++	} else if Debug.m != 0 {
+ 		fmt.Printf("%v: inlining call to %v\n", n.Line(), fn)
+ 	}
+-	if Debug['m'] > 2 {
++	if Debug.m > 2 {
+ 		fmt.Printf("%v: Before inlining: %+v\n", n.Line(), n)
+ 	}
+ 
+@@ -1174,7 +1174,7 @@ func mkinlcall(n, fn *Node, maxCost int32, inlMap map[*Node]bool) *Node {
+ 		}
+ 	}
+ 
+-	if Debug['m'] > 2 {
++	if Debug.m > 2 {
+ 		fmt.Printf("%v: After inlining %+v\n\n", call.Line(), call)
+ 	}
+ 
+@@ -1185,7 +1185,7 @@ func mkinlcall(n, fn *Node, maxCost int32, inlMap map[*Node]bool) *Node {
+ // PAUTO's in the calling functions, and link them off of the
+ // PPARAM's, PAUTOS and PPARAMOUTs of the called function.
+ func inlvar(var_ *Node) *Node {
+-	if Debug['m'] > 3 {
++	if Debug.m > 3 {
+ 		fmt.Printf("inlvar %+v\n", var_)
+ 	}
+ 
+@@ -1264,13 +1264,13 @@ func (subst *inlsubst) node(n *Node) *Node {
+ 	switch n.Op {
+ 	case ONAME:
+ 		if inlvar := subst.inlvars[n]; inlvar != nil { // These will be set during inlnode
+-			if Debug['m'] > 2 {
++			if Debug.m > 2 {
+ 				fmt.Printf("substituting name %+v  ->  %+v\n", n, inlvar)
+ 			}
+ 			return inlvar
+ 		}
+ 
+-		if Debug['m'] > 2 {
++		if Debug.m > 2 {
+ 			fmt.Printf("not substituting name %+v\n", n)
+ 		}
+ 		return n
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 2fffe625cd..949755a0e2 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -211,18 +211,27 @@ func Main(archInit func(*Arch)) {
+ 
+ 	flag.BoolVar(&compiling_runtime, "+", false, "compiling runtime")
+ 	flag.BoolVar(&compiling_std, "std", false, "compiling standard library")
+-	objabi.Flagcount("%", "debug non-static initializers", &Debug['%'])
+-	objabi.Flagcount("B", "disable bounds checking", &Debug['B'])
+-	objabi.Flagcount("C", "disable printing of columns in error messages", &Debug['C']) // TODO(gri) remove eventually
+ 	flag.StringVar(&localimport, "D", "", "set relative `path` for local imports")
+-	objabi.Flagcount("E", "debug symbol export", &Debug['E'])
++
++	objabi.Flagcount("%", "debug non-static initializers", &Debug.P)
++	objabi.Flagcount("B", "disable bounds checking", &Debug.B)
++	objabi.Flagcount("C", "disable printing of columns in error messages", &Debug.C)
++	objabi.Flagcount("E", "debug symbol export", &Debug.E)
++	objabi.Flagcount("K", "debug missing line numbers", &Debug.K)
++	objabi.Flagcount("L", "show full file names in error messages", &Debug.L)
++	objabi.Flagcount("N", "disable optimizations", &Debug.N)
++	objabi.Flagcount("S", "print assembly listing", &Debug.S)
++	objabi.Flagcount("W", "debug parse tree after type checking", &Debug.W)
++	objabi.Flagcount("e", "no limit on number of errors reported", &Debug.e)
++	objabi.Flagcount("h", "halt on error", &Debug.h)
++	objabi.Flagcount("j", "debug runtime-initialized variables", &Debug.j)
++	objabi.Flagcount("l", "disable inlining", &Debug.l)
++	objabi.Flagcount("m", "print optimization decisions", &Debug.m)
++	objabi.Flagcount("r", "debug generated wrappers", &Debug.r)
++	objabi.Flagcount("w", "debug type checking", &Debug.w)
++
+ 	objabi.Flagfn1("I", "add `directory` to import search path", addidir)
+-	objabi.Flagcount("K", "debug missing line numbers", &Debug['K'])
+-	objabi.Flagcount("L", "show full file names in error messages", &Debug['L'])
+-	objabi.Flagcount("N", "disable optimizations", &Debug['N'])
+-	objabi.Flagcount("S", "print assembly listing", &Debug['S'])
+ 	objabi.AddVersionFlag() // -V
+-	objabi.Flagcount("W", "debug parse tree after type checking", &Debug['W'])
+ 	flag.StringVar(&asmhdr, "asmhdr", "", "write assembly header to `file`")
+ 	flag.StringVar(&buildid, "buildid", "", "record `id` as the build id in the export metadata")
+ 	flag.IntVar(&nBackendWorkers, "c", 1, "concurrency during compilation, 1 means no concurrency")
+@@ -231,17 +240,12 @@ func Main(archInit func(*Arch)) {
+ 	flag.BoolVar(&flagDWARF, "dwarf", !Wasm, "generate DWARF symbols")
+ 	flag.BoolVar(&Ctxt.Flag_locationlists, "dwarflocationlists", true, "add location lists to DWARF in optimized mode")
+ 	flag.IntVar(&genDwarfInline, "gendwarfinl", 2, "generate DWARF inline info records")
+-	objabi.Flagcount("e", "no limit on number of errors reported", &Debug['e'])
+-	objabi.Flagcount("h", "halt on error", &Debug['h'])
+ 	objabi.Flagfn1("importmap", "add `definition` of the form source=actual to import map", addImportMap)
+ 	objabi.Flagfn1("importcfg", "read import configuration from `file`", readImportCfg)
+ 	flag.StringVar(&flag_installsuffix, "installsuffix", "", "set pkg directory `suffix`")
+-	objabi.Flagcount("j", "debug runtime-initialized variables", &Debug['j'])
+-	objabi.Flagcount("l", "disable inlining", &Debug['l'])
+ 	flag.StringVar(&flag_lang, "lang", "", "release to compile for")
+ 	flag.StringVar(&linkobj, "linkobj", "", "write linker-specific object to `file`")
+ 	objabi.Flagcount("live", "debug liveness analysis", &debuglive)
+-	objabi.Flagcount("m", "print optimization decisions", &Debug['m'])
+ 	if sys.MSanSupported(objabi.GOOS, objabi.GOARCH) {
+ 		flag.BoolVar(&flag_msan, "msan", false, "build code compatible with C/C++ memory sanitizer")
+ 	}
+@@ -249,7 +253,6 @@ func Main(archInit func(*Arch)) {
+ 	flag.StringVar(&outfile, "o", "", "write output to `file`")
+ 	flag.StringVar(&myimportpath, "p", "", "set expected package import `path`")
+ 	flag.BoolVar(&writearchive, "pack", false, "write to file.a instead of file.o")
+-	objabi.Flagcount("r", "debug generated wrappers", &Debug['r'])
+ 	if sys.RaceDetectorSupported(objabi.GOOS, objabi.GOARCH) {
+ 		flag.BoolVar(&flag_race, "race", false, "enable race detector")
+ 	}
+@@ -259,7 +262,6 @@ func Main(archInit func(*Arch)) {
+ 	}
+ 	flag.StringVar(&pathPrefix, "trimpath", "", "remove `prefix` from recorded source file paths")
+ 	flag.BoolVar(&Debug_vlog, "v", false, "increase debug verbosity")
+-	objabi.Flagcount("w", "debug type checking", &Debug['w'])
+ 	flag.BoolVar(&use_writebarrier, "wb", true, "enable write barrier")
+ 	var flag_shared bool
+ 	var flag_dynlink bool
+@@ -325,9 +327,9 @@ func Main(archInit func(*Arch)) {
+ 
+ 	Ctxt.Flag_shared = flag_dynlink || flag_shared
+ 	Ctxt.Flag_dynlink = flag_dynlink
+-	Ctxt.Flag_optimize = Debug['N'] == 0
++	Ctxt.Flag_optimize = Debug.N == 0
+ 
+-	Ctxt.Debugasm = Debug['S']
++	Ctxt.Debugasm = Debug.S
+ 	Ctxt.Debugvlog = Debug_vlog
+ 	if flagDWARF {
+ 		Ctxt.DebugInfo = debuginfo
+@@ -399,7 +401,7 @@ func Main(archInit func(*Arch)) {
+ 		instrumenting = true
+ 	}
+ 
+-	if compiling_runtime && Debug['N'] != 0 {
++	if compiling_runtime && Debug.N != 0 {
+ 		log.Fatal("cannot disable optimizations while compiling runtime")
+ 	}
+ 	if nBackendWorkers < 1 {
+@@ -504,11 +506,11 @@ func Main(archInit func(*Arch)) {
+ 	}
+ 
+ 	// enable inlining.  for now:
+-	//	default: inlining on.  (debug['l'] == 1)
+-	//	-l: inlining off  (debug['l'] == 0)
+-	//	-l=2, -l=3: inlining on again, with extra debugging (debug['l'] > 1)
+-	if Debug['l'] <= 1 {
+-		Debug['l'] = 1 - Debug['l']
++	//	default: inlining on.  (Debug.l == 1)
++	//	-l: inlining off  (Debug.l == 0)
++	//	-l=2, -l=3: inlining on again, with extra debugging (Debug.l > 1)
++	if Debug.l <= 1 {
++		Debug.l = 1 - Debug.l
+ 	}
+ 
+ 	if jsonLogOpt != "" { // parse version,destination from json logging optimization.
+@@ -666,7 +668,7 @@ func Main(archInit func(*Arch)) {
+ 	// Phase 5: Inlining
+ 	timings.Start("fe", "inlining")
+ 	if Debug_typecheckinl != 0 {
+-		// Typecheck imported function bodies if debug['l'] > 1,
++		// Typecheck imported function bodies if Debug.l > 1,
+ 		// otherwise lazily when used or re-exported.
+ 		for _, n := range importlist {
+ 			if n.Func.Inl != nil {
+@@ -680,7 +682,7 @@ func Main(archInit func(*Arch)) {
+ 		}
+ 	}
+ 
+-	if Debug['l'] != 0 {
++	if Debug.l != 0 {
+ 		// Find functions that can be inlined and clone them before walk expands them.
+ 		visitBottomUp(xtop, func(list []*Node, recursive bool) {
+ 			numfns := numNonClosures(list)
+@@ -691,7 +693,7 @@ func Main(archInit func(*Arch)) {
+ 					// across more than one function.
+ 					caninl(n)
+ 				} else {
+-					if Debug['m'] > 1 {
++					if Debug.m > 1 {
+ 						fmt.Printf("%v: cannot inline %v: recursive\n", n.Line(), n.Func.Nname)
+ 					}
+ 				}
+@@ -1408,29 +1410,34 @@ func IsAlias(sym *types.Sym) bool {
+ 	return sym.Def != nil && asNode(sym.Def).Sym != sym
+ }
+ 
+-// By default, assume any debug flags are incompatible with concurrent compilation.
+-// A few are safe and potentially in common use for normal compiles, though; mark them as such here.
+-var concurrentFlagOK = [256]bool{
+-	'B': true, // disabled bounds checking
+-	'C': true, // disable printing of columns in error messages
+-	'e': true, // no limit on errors; errors all come from non-concurrent code
+-	'I': true, // add `directory` to import search path
+-	'N': true, // disable optimizations
+-	'l': true, // disable inlining
+-	'w': true, // all printing happens before compilation
+-	'W': true, // all printing happens before compilation
+-	'S': true, // printing disassembly happens at the end (but see concurrentBackendAllowed below)
++// By default, assume any debug flags are incompatible with concurrent
++// compilation. A few are safe and potentially in common use for
++// normal compiles, though; return true for those.
++func concurrentFlagOk() bool {
++	// Report whether any debug flag that would prevent concurrent
++	// compilation is set, by zeroing out the allowed ones and then
++	// checking if the resulting struct is zero.
++	d := Debug
++	d.B = 0 // disable bounds checking
++	d.C = 0 // disable printing of columns in error messages
++	d.e = 0 // no limit on errors; errors all come from non-concurrent code
++	d.N = 0 // disable optimizations
++	d.l = 0 // disable inlining
++	d.w = 0 // all printing happens before compilation
++	d.W = 0 // all printing happens before compilation
++	d.S = 0 // printing disassembly happens at the end (but see concurrentBackendAllowed below)
++
++	return d == DebugFlags{}
+ }
+ 
+ func concurrentBackendAllowed() bool {
+-	for i, x := range &Debug {
+-		if x != 0 && !concurrentFlagOK[i] {
+-			return false
+-		}
++	if !concurrentFlagOk() {
++		return false
+ 	}
+-	// Debug['S'] by itself is ok, because all printing occurs
++
++	// Debug.S by itself is ok, because all printing occurs
+ 	// while writing the object file, and that is non-concurrent.
+-	// Adding Debug_vlog, however, causes Debug['S'] to also print
++	// Adding Debug_vlog, however, causes Debug.S to also print
+ 	// while flushing the plist, which happens concurrently.
+ 	if Debug_vlog || debugstr != "" || debuglive > 0 {
+ 		return false
+diff --git a/src/cmd/compile/internal/gc/order.go b/src/cmd/compile/internal/gc/order.go
+index e562ab7556..f7fe3ed360 100644
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@ -50,7 +50,7 @@ type Order struct {
+ // Order rewrites fn.Nbody to apply the ordering constraints
+ // described in the comment at the top of the file.
+ func order(fn *Node) {
+-	if Debug['W'] > 1 {
++	if Debug.W > 1 {
+ 		s := fmt.Sprintf("\nbefore order %v", fn.Func.Nname.Sym)
+ 		dumplist(s, fn.Nbody)
+ 	}
+@@ -328,7 +328,7 @@ func orderMakeSliceCopy(s []*Node) {
+ 		return
+ 	}
+ 
+-	if Debug['N'] != 0 || instrumenting {
++	if Debug.N != 0 || instrumenting {
+ 		return
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/range.go b/src/cmd/compile/internal/gc/range.go
+index 6d22964dcd..1b4d765d42 100644
+--- a/src/cmd/compile/internal/gc/range.go
++++ b/src/cmd/compile/internal/gc/range.go
+@@ -466,7 +466,7 @@ func walkrange(n *Node) *Node {
+ //
+ // where == for keys of map m is reflexive.
+ func isMapClear(n *Node) bool {
+-	if Debug['N'] != 0 || instrumenting {
++	if Debug.N != 0 || instrumenting {
+ 		return false
+ 	}
+ 
+@@ -533,7 +533,7 @@ func mapClear(m *Node) *Node {
+ //
+ // Parameters are as in walkrange: "for v1, v2 = range a".
+ func arrayClear(n, v1, v2, a *Node) bool {
+-	if Debug['N'] != 0 || instrumenting {
++	if Debug.N != 0 || instrumenting {
+ 		return false
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index fda33534b6..9c4dcd739c 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -39,7 +39,7 @@ func (s *InitSchedule) append(n *Node) {
+ // staticInit adds an initialization statement n to the schedule.
+ func (s *InitSchedule) staticInit(n *Node) {
+ 	if !s.tryStaticInit(n) {
+-		if Debug['%'] != 0 {
++		if Debug.P != 0 {
+ 			Dump("nonstatic", n)
+ 		}
+ 		s.append(n)
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index e1455d2c3f..65beb84911 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -59,7 +59,7 @@ func initssaconfig() {
+ 	_ = types.NewPtr(types.Types[TINT64])                             // *int64
+ 	_ = types.NewPtr(types.Errortype)                                 // *error
+ 	types.NewPtrCacheEnabled = false
+-	ssaConfig = ssa.NewConfig(thearch.LinkArch.Name, *types_, Ctxt, Debug['N'] == 0)
++	ssaConfig = ssa.NewConfig(thearch.LinkArch.Name, *types_, Ctxt, Debug.N == 0)
+ 	ssaConfig.SoftFloat = thearch.SoftFloat
+ 	ssaConfig.Race = flag_race
+ 	ssaCaches = make([]ssa.Cache, nBackendWorkers)
+@@ -357,7 +357,7 @@ func buildssa(fn *Node, worker int) *ssa.Func {
+ 	s.fwdVars = map[*Node]*ssa.Value{}
+ 	s.startmem = s.entryNewValue0(ssa.OpInitMem, types.TypeMem)
+ 
+-	s.hasOpenDefers = Debug['N'] == 0 && s.hasdefer && !s.curfn.Func.OpenCodedDeferDisallowed()
++	s.hasOpenDefers = Debug.N == 0 && s.hasdefer && !s.curfn.Func.OpenCodedDeferDisallowed()
+ 	switch {
+ 	case s.hasOpenDefers && (Ctxt.Flag_shared || Ctxt.Flag_dynlink) && thearch.LinkArch.Name == "386":
+ 		// Don't support open-coded defers for 386 ONLY when using shared
+@@ -741,7 +741,7 @@ func (s *state) pushLine(line src.XPos) {
+ 		// the frontend may emit node with line number missing,
+ 		// use the parent line number in this case.
+ 		line = s.peekPos()
+-		if Debug['K'] != 0 {
++		if Debug.K != 0 {
+ 			Warn("buildssa: unknown position (line 0)")
+ 		}
+ 	} else {
+@@ -1214,7 +1214,7 @@ func (s *state) stmt(n *Node) {
+ 				// Check whether we're writing the result of an append back to the same slice.
+ 				// If so, we handle it specially to avoid write barriers on the fast
+ 				// (non-growth) path.
+-				if !samesafeexpr(n.Left, rhs.List.First()) || Debug['N'] != 0 {
++				if !samesafeexpr(n.Left, rhs.List.First()) || Debug.N != 0 {
+ 					break
+ 				}
+ 				// If the slice can be SSA'd, it'll be on the stack,
+@@ -4849,7 +4849,7 @@ func (s *state) addr(n *Node) *ssa.Value {
+ // canSSA reports whether n is SSA-able.
+ // n must be an ONAME (or an ODOT sequence with an ONAME base).
+ func (s *state) canSSA(n *Node) bool {
+-	if Debug['N'] != 0 {
++	if Debug.N != 0 {
+ 		return false
+ 	}
+ 	for n.Op == ODOT || (n.Op == OINDEX && n.Left.Type.IsArray()) {
+@@ -4960,7 +4960,7 @@ func (s *state) nilCheck(ptr *ssa.Value) {
+ func (s *state) boundsCheck(idx, len *ssa.Value, kind ssa.BoundsKind, bounded bool) *ssa.Value {
+ 	idx = s.extendIndex(idx, len, kind, bounded)
+ 
+-	if bounded || Debug['B'] != 0 {
++	if bounded || Debug.B != 0 {
+ 		// If bounded or bounds checking is flag-disabled, then no check necessary,
+ 		// just return the extended index.
+ 		//
+@@ -6310,7 +6310,7 @@ func genssa(f *ssa.Func, pp *Progs) {
+ 		}
+ 		// Emit control flow instructions for block
+ 		var next *ssa.Block
+-		if i < len(f.Blocks)-1 && Debug['N'] == 0 {
++		if i < len(f.Blocks)-1 && Debug.N == 0 {
+ 			// If -N, leave next==nil so every block with successors
+ 			// ends in a JMP (except call blocks - plive doesn't like
+ 			// select{send,recv} followed by a JMP call).  Helps keep
+@@ -6618,7 +6618,7 @@ func (s *state) extendIndex(idx, len *ssa.Value, kind ssa.BoundsKind, bounded bo
+ 		} else {
+ 			lo = s.newValue1(ssa.OpInt64Lo, types.Types[TUINT], idx)
+ 		}
+-		if bounded || Debug['B'] != 0 {
++		if bounded || Debug.B != 0 {
+ 			return lo
+ 		}
+ 		bNext := s.f.NewBlock(ssa.BlockPlain)
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index b6e6f3a6da..eccd6f8a74 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -96,7 +96,7 @@ func flusherrors() {
+ }
+ 
+ func hcrash() {
+-	if Debug['h'] != 0 {
++	if Debug.h != 0 {
+ 		flusherrors()
+ 		if outfile != "" {
+ 			os.Remove(outfile)
+@@ -107,7 +107,7 @@ func hcrash() {
+ }
+ 
+ func linestr(pos src.XPos) string {
+-	return Ctxt.OutermostPos(pos).Format(Debug['C'] == 0, Debug['L'] == 1)
++	return Ctxt.OutermostPos(pos).Format(Debug.C == 0, Debug.L == 1)
+ }
+ 
+ // lasterror keeps track of the most recently issued error.
+@@ -153,7 +153,7 @@ func yyerrorl(pos src.XPos, format string, args ...interface{}) {
+ 
+ 	hcrash()
+ 	nerrors++
+-	if nsavederrors+nerrors >= 10 && Debug['e'] == 0 {
++	if nsavederrors+nerrors >= 10 && Debug.e == 0 {
+ 		flusherrors()
+ 		fmt.Printf("%v: too many errors\n", linestr(pos))
+ 		errorexit()
+@@ -175,7 +175,7 @@ func Warn(fmt_ string, args ...interface{}) {
+ 
+ func Warnl(line src.XPos, fmt_ string, args ...interface{}) {
+ 	adderr(line, fmt_, args...)
+-	if Debug['m'] != 0 {
++	if Debug.m != 0 {
+ 		flusherrors()
+ 	}
+ }
+@@ -222,7 +222,7 @@ func hasUniquePos(n *Node) bool {
+ 	}
+ 
+ 	if !n.Pos.IsKnown() {
+-		if Debug['K'] != 0 {
++		if Debug.K != 0 {
+ 			Warn("setlineno: unknown position (line 0)")
+ 		}
+ 		return false
+@@ -1506,7 +1506,7 @@ func structargs(tl *types.Type, mustname bool) []*Node {
+ //	method - M func (t T)(), a TFIELD type struct
+ //	newnam - the eventual mangled name of this function
+ func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym) {
+-	if false && Debug['r'] != 0 {
++	if false && Debug.r != 0 {
+ 		fmt.Printf("genwrapper rcvrtype=%v method=%v newnam=%v\n", rcvr, method, newnam)
+ 	}
+ 
+@@ -1579,7 +1579,7 @@ func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym) {
+ 		fn.Nbody.Append(call)
+ 	}
+ 
+-	if false && Debug['r'] != 0 {
++	if false && Debug.r != 0 {
+ 		dumplist("genwrapper body", fn.Nbody)
+ 	}
+ 
+@@ -1720,7 +1720,7 @@ func implements(t, iface *types.Type, m, samename **types.Field, ptr *int) bool
+ 		// the method does not exist for value types.
+ 		rcvr := tm.Type.Recv().Type
+ 		if rcvr.IsPtr() && !t0.IsPtr() && !followptr && !isifacemethod(tm.Type) {
+-			if false && Debug['r'] != 0 {
++			if false && Debug.r != 0 {
+ 				yyerror("interface pointer mismatch")
+ 			}
+ 
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index a2ab0fa661..e3b4963977 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -247,7 +247,7 @@ func (n *Node) Val() Val {
+ // SetVal sets the Val for the node, which must not have been used with SetOpt.
+ func (n *Node) SetVal(v Val) {
+ 	if n.HasOpt() {
+-		Debug['h'] = 1
++		Debug.h = 1
+ 		Dump("have Opt", n)
+ 		Fatalf("have Opt")
+ 	}
+@@ -270,7 +270,7 @@ func (n *Node) SetOpt(x interface{}) {
+ 		return
+ 	}
+ 	if n.HasVal() {
+-		Debug['h'] = 1
++		Debug.h = 1
+ 		Dump("have Val", n)
+ 		Fatalf("have Val")
+ 	}
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 9df288ea65..6ce3eda44b 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -21,7 +21,7 @@ const zeroValSize = 1024 // must match value of runtime/map.go:maxZero
+ func walk(fn *Node) {
+ 	Curfn = fn
+ 
+-	if Debug['W'] != 0 {
++	if Debug.W != 0 {
+ 		s := fmt.Sprintf("\nbefore walk %v", Curfn.Func.Nname.Sym)
+ 		dumplist(s, Curfn.Nbody)
+ 	}
+@@ -63,14 +63,14 @@ func walk(fn *Node) {
+ 		return
+ 	}
+ 	walkstmtlist(Curfn.Nbody.Slice())
+-	if Debug['W'] != 0 {
++	if Debug.W != 0 {
+ 		s := fmt.Sprintf("after walk %v", Curfn.Func.Nname.Sym)
+ 		dumplist(s, Curfn.Nbody)
+ 	}
+ 
+ 	zeroResults()
+ 	heapmoves()
+-	if Debug['W'] != 0 && Curfn.Func.Enter.Len() > 0 {
++	if Debug.W != 0 && Curfn.Func.Enter.Len() > 0 {
+ 		s := fmt.Sprintf("enter %v", Curfn.Func.Nname.Sym)
+ 		dumplist(s, Curfn.Func.Enter)
+ 	}
+@@ -436,7 +436,7 @@ func walkexpr(n *Node, init *Nodes) *Node {
+ 
+ 	lno := setlineno(n)
+ 
+-	if Debug['w'] > 1 {
++	if Debug.w > 1 {
+ 		Dump("before walk expr", n)
+ 	}
+ 
+@@ -1049,7 +1049,7 @@ opswitch:
+ 		}
+ 		if t.IsArray() {
+ 			n.SetBounded(bounded(r, t.NumElem()))
+-			if Debug['m'] != 0 && n.Bounded() && !Isconst(n.Right, CTINT) {
++			if Debug.m != 0 && n.Bounded() && !Isconst(n.Right, CTINT) {
+ 				Warn("index bounds check elided")
+ 			}
+ 			if smallintconst(n.Right) && !n.Bounded() {
+@@ -1057,7 +1057,7 @@ opswitch:
+ 			}
+ 		} else if Isconst(n.Left, CTSTR) {
+ 			n.SetBounded(bounded(r, int64(len(n.Left.StringVal()))))
+-			if Debug['m'] != 0 && n.Bounded() && !Isconst(n.Right, CTINT) {
++			if Debug.m != 0 && n.Bounded() && !Isconst(n.Right, CTINT) {
+ 				Warn("index bounds check elided")
+ 			}
+ 			if smallintconst(n.Right) && !n.Bounded() {
+@@ -1599,7 +1599,7 @@ opswitch:
+ 
+ 	updateHasCall(n)
+ 
+-	if Debug['w'] != 0 && n != nil {
++	if Debug.w != 0 && n != nil {
+ 		Dump("after walk expr", n)
+ 	}
+ 
+@@ -2819,7 +2819,7 @@ func appendslice(n *Node, init *Nodes) *Node {
+ // isAppendOfMake reports whether n is of the form append(x , make([]T, y)...).
+ // isAppendOfMake assumes n has already been typechecked.
+ func isAppendOfMake(n *Node) bool {
+-	if Debug['N'] != 0 || instrumenting {
++	if Debug.N != 0 || instrumenting {
+ 		return false
+ 	}
+ 
+@@ -3976,7 +3976,7 @@ func canMergeLoads() bool {
+ // isRuneCount reports whether n is of the form len([]rune(string)).
+ // These are optimized into a call to runtime.countrunes.
+ func isRuneCount(n *Node) bool {
+-	return Debug['N'] == 0 && !instrumenting && n.Op == OLEN && n.Left.Op == OSTR2RUNES
++	return Debug.N == 0 && !instrumenting && n.Op == OLEN && n.Left.Op == OSTR2RUNES
+ }
+ 
+ func walkCheckPtrAlignment(n *Node, init *Nodes, count *Node) *Node {

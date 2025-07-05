@@ -13,7 +13,7 @@ Date:   Thu Feb 1 00:39:30 2024 +1100
     Reviewed-by: Carlos Amedee <carlos@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Meng Zhuo <mengzhuo1203@gmail.com>
-
+---
  src/cmd/compile/internal/riscv64/ssa.go         |  4 +-
  src/cmd/compile/internal/ssa/_gen/RISCV64.rules | 10 +++
  src/cmd/compile/internal/ssa/_gen/RISCV64Ops.go |  6 ++
@@ -22,3 +22,336 @@ Date:   Thu Feb 1 00:39:30 2024 +1100
  src/cmd/compile/internal/ssa/rewriteRISCV64.go  | 81 +++++++++++++++++++++++
  src/cmd/compile/internal/ssagen/ssa.go          | 19 ++++++
  7 files changed, 212 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/riscv64/ssa.go b/src/cmd/compile/internal/riscv64/ssa.go
+index 3c57bc93bc..10fea07e60 100644
+--- a/src/cmd/compile/internal/riscv64/ssa.go
++++ b/src/cmd/compile/internal/riscv64/ssa.go
+@@ -288,8 +288,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		ssa.OpRISCV64FADDS, ssa.OpRISCV64FSUBS, ssa.OpRISCV64FMULS, ssa.OpRISCV64FDIVS,
+ 		ssa.OpRISCV64FEQS, ssa.OpRISCV64FNES, ssa.OpRISCV64FLTS, ssa.OpRISCV64FLES,
+ 		ssa.OpRISCV64FADDD, ssa.OpRISCV64FSUBD, ssa.OpRISCV64FMULD, ssa.OpRISCV64FDIVD,
+-		ssa.OpRISCV64FEQD, ssa.OpRISCV64FNED, ssa.OpRISCV64FLTD, ssa.OpRISCV64FLED,
+-		ssa.OpRISCV64FSGNJD:
++		ssa.OpRISCV64FEQD, ssa.OpRISCV64FNED, ssa.OpRISCV64FLTD, ssa.OpRISCV64FLED, ssa.OpRISCV64FSGNJD,
++		ssa.OpRISCV64MIN, ssa.OpRISCV64MAX, ssa.OpRISCV64MINU, ssa.OpRISCV64MAXU:
+ 		r := v.Reg()
+ 		r1 := v.Args[0].Reg()
+ 		r2 := v.Args[1].Reg()
+diff --git a/src/cmd/compile/internal/ssa/_gen/RISCV64.rules b/src/cmd/compile/internal/ssa/_gen/RISCV64.rules
+index c2df433315..7d8fb79e17 100644
+--- a/src/cmd/compile/internal/ssa/_gen/RISCV64.rules
++++ b/src/cmd/compile/internal/ssa/_gen/RISCV64.rules
+@@ -834,3 +834,13 @@
+ (F(MADD|NMADD|MSUB|NMSUB)S x y neg:(FNEGS z)) && neg.Uses == 1 => (F(MSUB|NMSUB|MADD|NMADD)S x y z)
+ (F(MADD|NMADD|MSUB|NMSUB)D neg:(FNEGD x) y z) && neg.Uses == 1 => (F(NMSUB|MSUB|NMADD|MADD)D x y z)
+ (F(MADD|NMADD|MSUB|NMSUB)D x y neg:(FNEGD z)) && neg.Uses == 1 => (F(MSUB|NMSUB|MADD|NMADD)D x y z)
++
++//
++// Optimisations for rva22u64 and above.
++//
++
++// Integer minimum and maximum.
++(Min64  x y) && buildcfg.GORISCV64 >= 22 => (MIN  x y)
++(Max64  x y) && buildcfg.GORISCV64 >= 22 => (MAX  x y)
++(Min64u x y) && buildcfg.GORISCV64 >= 22 => (MINU x y)
++(Max64u x y) && buildcfg.GORISCV64 >= 22 => (MAXU x y)
+diff --git a/src/cmd/compile/internal/ssa/_gen/RISCV64Ops.go b/src/cmd/compile/internal/ssa/_gen/RISCV64Ops.go
+index 13fa91864b..7323cb119c 100644
+--- a/src/cmd/compile/internal/ssa/_gen/RISCV64Ops.go
++++ b/src/cmd/compile/internal/ssa/_gen/RISCV64Ops.go
+@@ -235,6 +235,12 @@ func init() {
+ 		{name: "XOR", argLength: 2, reg: gp21, asm: "XOR", commutative: true}, // arg0 ^ arg1
+ 		{name: "XORI", argLength: 1, reg: gp11, asm: "XORI", aux: "Int64"},    // arg0 ^ auxint
+ 
++		// Minimum and maximum
++		{name: "MIN", argLength: 2, reg: gp21, asm: "MIN", commutative: true},   // min(arg0,arg1), signed
++		{name: "MAX", argLength: 2, reg: gp21, asm: "MAX", commutative: true},   // max(arg0,arg1), signed
++		{name: "MINU", argLength: 2, reg: gp21, asm: "MINU", commutative: true}, // min(arg0,arg1), unsigned
++		{name: "MAXU", argLength: 2, reg: gp21, asm: "MAXU", commutative: true}, // max(arg0,arg1), unsigned
++
+ 		// Generate boolean values
+ 		{name: "SEQZ", argLength: 1, reg: gp11, asm: "SEQZ"},                 // arg0 == 0, result is 0 or 1
+ 		{name: "SNEZ", argLength: 1, reg: gp11, asm: "SNEZ"},                 // arg0 != 0, result is 0 or 1
+diff --git a/src/cmd/compile/internal/ssa/_gen/genericOps.go b/src/cmd/compile/internal/ssa/_gen/genericOps.go
+index 47d82924e6..c3043f58d0 100644
+--- a/src/cmd/compile/internal/ssa/_gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/_gen/genericOps.go
+@@ -285,6 +285,12 @@ var genericOps = []opData{
+ 	{name: "Abs", argLength: 1},      // absolute value arg0
+ 	{name: "Copysign", argLength: 2}, // copy sign from arg0 to arg1
+ 
++	// Integer min/max implementation, if hardware is available.
++	{name: "Min64", argLength: 2},  // min(arg0,arg1), signed
++	{name: "Max64", argLength: 2},  // max(arg0,arg1), signed
++	{name: "Min64u", argLength: 2}, // min(arg0,arg1), unsigned
++	{name: "Max64u", argLength: 2}, // max(arg0,arg1), unsigned
++
+ 	// Float min/max implementation, if hardware is available.
+ 	{name: "Min64F", argLength: 2}, // min(arg0,arg1)
+ 	{name: "Min32F", argLength: 2}, // min(arg0,arg1)
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index ef39c6894f..a1dafe37cf 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -2433,6 +2433,10 @@ const (
+ 	OpRISCV64RORW
+ 	OpRISCV64XOR
+ 	OpRISCV64XORI
++	OpRISCV64MIN
++	OpRISCV64MAX
++	OpRISCV64MINU
++	OpRISCV64MAXU
+ 	OpRISCV64SEQZ
+ 	OpRISCV64SNEZ
+ 	OpRISCV64SLT
+@@ -3074,6 +3078,10 @@ const (
+ 	OpRoundToEven
+ 	OpAbs
+ 	OpCopysign
++	OpMin64
++	OpMax64
++	OpMin64u
++	OpMax64u
+ 	OpMin64F
+ 	OpMin32F
+ 	OpMax64F
+@@ -32783,6 +32791,66 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:        "MIN",
++		argLen:      2,
++		commutative: true,
++		asm:         riscv.AMIN,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
++				{1, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
++			},
++			outputs: []outputInfo{
++				{0, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
++			},
++		},
++	},
++	{
++		name:        "MAX",
++		argLen:      2,
++		commutative: true,
++		asm:         riscv.AMAX,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
++				{1, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
++			},
++			outputs: []outputInfo{
++				{0, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
++			},
++		},
++	},
++	{
++		name:        "MINU",
++		argLen:      2,
++		commutative: true,
++		asm:         riscv.AMINU,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
++				{1, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
++			},
++			outputs: []outputInfo{
++				{0, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
++			},
++		},
++	},
++	{
++		name:        "MAXU",
++		argLen:      2,
++		commutative: true,
++		asm:         riscv.AMAXU,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
++				{1, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
++			},
++			outputs: []outputInfo{
++				{0, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
++			},
++		},
++	},
+ 	{
+ 		name:   "SEQZ",
+ 		argLen: 1,
+@@ -40032,6 +40100,26 @@ var opcodeTable = [...]opInfo{
+ 		argLen:  2,
+ 		generic: true,
+ 	},
++	{
++		name:    "Min64",
++		argLen:  2,
++		generic: true,
++	},
++	{
++		name:    "Max64",
++		argLen:  2,
++		generic: true,
++	},
++	{
++		name:    "Min64u",
++		argLen:  2,
++		generic: true,
++	},
++	{
++		name:    "Max64u",
++		argLen:  2,
++		generic: true,
++	},
+ 	{
+ 		name:    "Min64F",
+ 		argLen:  2,
+diff --git a/src/cmd/compile/internal/ssa/rewriteRISCV64.go b/src/cmd/compile/internal/ssa/rewriteRISCV64.go
+index f033b25bdd..0ad9078258 100644
+--- a/src/cmd/compile/internal/ssa/rewriteRISCV64.go
++++ b/src/cmd/compile/internal/ssa/rewriteRISCV64.go
+@@ -2,6 +2,7 @@
+ 
+ package ssa
+ 
++import "internal/buildcfg"
+ import "math"
+ import "cmd/compile/internal/types"
+ 
+@@ -329,15 +330,23 @@ func rewriteValueRISCV64(v *Value) bool {
+ 	case OpMax32F:
+ 		v.Op = OpRISCV64LoweredFMAXS
+ 		return true
++	case OpMax64:
++		return rewriteValueRISCV64_OpMax64(v)
+ 	case OpMax64F:
+ 		v.Op = OpRISCV64LoweredFMAXD
+ 		return true
++	case OpMax64u:
++		return rewriteValueRISCV64_OpMax64u(v)
+ 	case OpMin32F:
+ 		v.Op = OpRISCV64LoweredFMINS
+ 		return true
++	case OpMin64:
++		return rewriteValueRISCV64_OpMin64(v)
+ 	case OpMin64F:
+ 		v.Op = OpRISCV64LoweredFMIND
+ 		return true
++	case OpMin64u:
++		return rewriteValueRISCV64_OpMin64u(v)
+ 	case OpMod16:
+ 		return rewriteValueRISCV64_OpMod16(v)
+ 	case OpMod16u:
+@@ -2396,6 +2405,78 @@ func rewriteValueRISCV64_OpLsh8x8(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueRISCV64_OpMax64(v *Value) bool {
++	v_1 := v.Args[1]
++	v_0 := v.Args[0]
++	// match: (Max64 x y)
++	// cond: buildcfg.GORISCV64 >= 22
++	// result: (MAX x y)
++	for {
++		x := v_0
++		y := v_1
++		if !(buildcfg.GORISCV64 >= 22) {
++			break
++		}
++		v.reset(OpRISCV64MAX)
++		v.AddArg2(x, y)
++		return true
++	}
++	return false
++}
++func rewriteValueRISCV64_OpMax64u(v *Value) bool {
++	v_1 := v.Args[1]
++	v_0 := v.Args[0]
++	// match: (Max64u x y)
++	// cond: buildcfg.GORISCV64 >= 22
++	// result: (MAXU x y)
++	for {
++		x := v_0
++		y := v_1
++		if !(buildcfg.GORISCV64 >= 22) {
++			break
++		}
++		v.reset(OpRISCV64MAXU)
++		v.AddArg2(x, y)
++		return true
++	}
++	return false
++}
++func rewriteValueRISCV64_OpMin64(v *Value) bool {
++	v_1 := v.Args[1]
++	v_0 := v.Args[0]
++	// match: (Min64 x y)
++	// cond: buildcfg.GORISCV64 >= 22
++	// result: (MIN x y)
++	for {
++		x := v_0
++		y := v_1
++		if !(buildcfg.GORISCV64 >= 22) {
++			break
++		}
++		v.reset(OpRISCV64MIN)
++		v.AddArg2(x, y)
++		return true
++	}
++	return false
++}
++func rewriteValueRISCV64_OpMin64u(v *Value) bool {
++	v_1 := v.Args[1]
++	v_0 := v.Args[0]
++	// match: (Min64u x y)
++	// cond: buildcfg.GORISCV64 >= 22
++	// result: (MINU x y)
++	for {
++		x := v_0
++		y := v_1
++		if !(buildcfg.GORISCV64 >= 22) {
++			break
++		}
++		v.reset(OpRISCV64MINU)
++		v.AddArg2(x, y)
++		return true
++	}
++	return false
++}
+ func rewriteValueRISCV64_OpMod16(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 14e75f74f3..dd16169103 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -3785,6 +3785,25 @@ func (s *state) minMax(n *ir.CallExpr) *ssa.Value {
+ 		})
+ 	}
+ 
++	if typ.IsInteger() {
++		if Arch.LinkArch.Family == sys.RISCV64 && buildcfg.GORISCV64 >= 22 && typ.Size() == 8 {
++			var op ssa.Op
++			switch {
++			case typ.IsSigned() && n.Op() == ir.OMIN:
++				op = ssa.OpMin64
++			case typ.IsSigned() && n.Op() == ir.OMAX:
++				op = ssa.OpMax64
++			case typ.IsUnsigned() && n.Op() == ir.OMIN:
++				op = ssa.OpMin64u
++			case typ.IsUnsigned() && n.Op() == ir.OMAX:
++				op = ssa.OpMax64u
++			}
++			return fold(func(x, a *ssa.Value) *ssa.Value {
++				return s.newValue2(op, typ, x, a)
++			})
++		}
++	}
++
+ 	lt := s.ssaOp(ir.OLT, typ)
+ 
+ 	return fold(func(x, a *ssa.Value) *ssa.Value {

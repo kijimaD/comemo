@@ -6,10 +6,351 @@ Date:   Mon Oct 26 16:34:36 2009 -0700
     
     R=rsc
     http://go/go-review/1015012
-
+---
  src/pkg/Make.deps                |  11 +--
  src/pkg/Makefile                 |   1 +
  src/pkg/encoding/hex/Makefile    |  11 +++
  src/pkg/encoding/hex/hex.go      | 108 ++++++++++++++++++++++++++++
  src/pkg/encoding/hex/hex_test.go | 147 +++++++++++++++++++++++++++++++++++++++
  5 files changed, 273 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/Make.deps b/src/pkg/Make.deps
+index 4ccc210eef..b0191defcb 100644
+--- a/src/pkg/Make.deps
++++ b/src/pkg/Make.deps
+@@ -5,8 +5,8 @@ bignum.install: fmt.install
+ bufio.install: io.install os.install strconv.install utf8.install
+ bytes.install: os.install unicode.install utf8.install
+ compress/flate.install: bufio.install bytes.install io.install math.install os.install sort.install strconv.install
+-compress/gzip.install: bufio.install compress/flate.install hash.install hash/crc32.install io.install os.install
+-compress/zlib.install: bufio.install compress/flate.install hash.install hash/adler32.install io.install os.install
++compress/gzip.install: bufio.install compress/flate.install hash/crc32.install hash.install io.install os.install
++compress/zlib.install: bufio.install compress/flate.install hash/adler32.install hash.install io.install os.install
+ container/heap.install: sort.install
+ container/list.install:
+ container/ring.install:
+@@ -26,16 +26,17 @@ ebnf.install: container/vector.install go/scanner.install go/token.install os.in
+ encoding/ascii85.install: bytes.install io.install os.install strconv.install
+ encoding/base64.install: bytes.install io.install os.install strconv.install
+ encoding/binary.install: io.install math.install os.install reflect.install
++encoding/hex.install: os.install strconv.install strings.install
+ encoding/git85.install: bytes.install io.install os.install strconv.install
+ encoding/pem.install: bytes.install encoding/base64.install strings.install
+ exec.install: os.install strings.install
+ exp/datafmt.install: bytes.install container/vector.install fmt.install go/scanner.install go/token.install io.install os.install reflect.install runtime.install strconv.install strings.install
+-exp/eval.install: bignum.install fmt.install go/ast.install go/parser.install go/scanner.install go/token.install log.install os.install reflect.install runtime.install strconv.install strings.install
++exp/eval.install: bignum.install fmt.install go/ast.install go/parser.install go/scanner.install go/token.install log.install os.install reflect.install runtime.install sort.install strconv.install strings.install
+ exp/iterable.install: container/vector.install
+ expvar.install: bytes.install fmt.install http.install log.install strconv.install sync.install
+ flag.install: fmt.install os.install strconv.install
+ fmt.install: io.install os.install reflect.install strconv.install utf8.install
+-go/ast.install: go/token.install unicode.install utf8.install
++go/ast.install: fmt.install go/token.install unicode.install utf8.install
+ go/doc.install: container/vector.install go/ast.install go/token.install io.install regexp.install sort.install strings.install template.install
+ go/parser.install: bytes.install container/vector.install fmt.install go/ast.install go/scanner.install go/token.install io.install os.install path.install strings.install
+ go/printer.install: bytes.install container/vector.install fmt.install go/ast.install go/token.install io.install os.install reflect.install runtime.install strings.install tabwriter.install
+@@ -47,7 +48,7 @@ hash/adler32.install: hash.install os.install
+ hash/crc32.install: hash.install os.install
+ http.install: bufio.install bytes.install container/vector.install fmt.install io.install log.install net.install os.install path.install strconv.install strings.install utf8.install
+ image.install:
+-image/png.install: bufio.install compress/zlib.install hash.install hash/crc32.install image.install io.install os.install strconv.install
++image/png.install: bufio.install compress/zlib.install hash/crc32.install hash.install image.install io.install os.install strconv.install
+ io.install: bytes.install os.install sort.install strings.install sync.install
+ json.install: bytes.install container/vector.install fmt.install math.install reflect.install strconv.install strings.install utf8.install
+ log.install: fmt.install io.install os.install runtime.install time.install
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index 4f74bb4f42..cc0ebe69a4 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -41,6 +41,7 @@ DIRS=\
+ 	encoding/base64\
+ 	encoding/binary\
+ 	encoding/git85\
++	encoding/hex\
+ 	encoding/pem\
+ 	exec\
+ 	exp/datafmt\
+diff --git a/src/pkg/encoding/hex/Makefile b/src/pkg/encoding/hex/Makefile
+new file mode 100644
+index 0000000000..bcfed2d45a
+--- /dev/null
++++ b/src/pkg/encoding/hex/Makefile
+@@ -0,0 +1,11 @@
++# Copyright 2009 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++include $(GOROOT)/src/Make.$(GOARCH)
++
++TARG=encoding/hex
++GOFILES=\
++	hex.go\
++
++include $(GOROOT)/src/Make.pkg
+diff --git a/src/pkg/encoding/hex/hex.go b/src/pkg/encoding/hex/hex.go
+new file mode 100644
+index 0000000000..32ec42e245
+--- /dev/null
++++ b/src/pkg/encoding/hex/hex.go
+@@ -0,0 +1,108 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This package implements hexadecimal encoding and decoding.
++package hex
++
++import (
++	"os";
++	"strconv";
++	"strings";
++)
++
++const hextable = "0123456789abcdef"
++
++// EncodedLen returns the length of an encoding of n source bytes.
++func EncodedLen(n int) int {
++	return n*2;
++}
++
++// Encode encodes src into EncodedLen(len(src))
++// bytes of dst.  As a convenience, it returns the number
++// of bytes written to dst, but this value is always EncodedLen(len(src)).
++// Encode implements hexadecimal encoding.
++func Encode(src, dst []byte) int {
++	for i, v := range src {
++		dst[i*2] = hextable[v>>4];
++		dst[i*2 + 1] = hextable[v&0x0f];
++	}
++
++	return len(src)*2;
++}
++
++// OddLengthInputError results from decoding an odd length slice.
++type OddLengthInputError struct{}
++
++func (OddLengthInputError) String() string {
++	return "odd length hex string";
++}
++
++// InvalidHexCharError results from finding an invalid character in a hex string.
++type InvalidHexCharError byte
++
++func (e InvalidHexCharError) String() string {
++	return "invalid hex char: " + strconv.Itoa(int(e));
++}
++
++
++func DecodedLen(x int) int {
++	return x/2;
++}
++
++// Decode decodes src into DecodedLen(len(src)) bytes, returning the actual
++// number of bytes written to dst.
++//
++// If Decode encounters invalid input, it returns an OddLengthInputError or an
++// InvalidHexCharError.
++func Decode(src, dst []byte) (int, os.Error) {
++	if len(src)%2 == 1 {
++		return 0, OddLengthInputError{};
++	}
++
++	for i := 0; i < len(src)/2; i++ {
++		a, ok := fromHexChar(src[i*2]);
++		if !ok {
++			return 0, InvalidHexCharError(src[i*2]);
++		}
++		b, ok := fromHexChar(src[i*2 + 1]);
++		if !ok {
++			return 0, InvalidHexCharError(src[i*2 + 1]);
++		}
++		dst[i] = (a<<4)|b;
++	}
++
++	return len(src)/2, nil;
++}
++
++// fromHexChar converts a hex character into its value and a success flag.
++func fromHexChar(c byte) (byte, bool) {
++	switch {
++	case 0 <= c && c <= '9':
++		return c-'0', true;
++	case 'a' <= c && c <= 'f':
++		return c-'a'+10, true;
++	case 'A' <= c && c <= 'F':
++		return c-'A'+10, true;
++	}
++
++	return 0, false;
++}
++
++// EncodeToString returns the hexadecimal encoding of src.
++func EncodeToString(src []byte) string {
++	dst := make([]byte, EncodedLen(len(src)));
++	Encode(src, dst);
++	return string(dst);
++}
++
++// DecodeString returns the bytes represented by the hexadecimal string s.
++func DecodeString(s string) ([]byte, os.Error) {
++	src := strings.Bytes(s);
++	dst := make([]byte, DecodedLen(len(src)));
++	_, err := Decode(src, dst);
++	if err != nil {
++		return nil, err;
++	}
++	return dst, nil;
++}
+diff --git a/src/pkg/encoding/hex/hex_test.go b/src/pkg/encoding/hex/hex_test.go
+new file mode 100644
+index 0000000000..8d976f6836
+--- /dev/null
++++ b/src/pkg/encoding/hex/hex_test.go
+@@ -0,0 +1,147 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package hex
++
++import (
++	"bytes";
++	"testing";
++)
++
++type encodeTest struct {
++	in, out []byte;
++}
++
++var encodeTests = []encodeTest{
++	encodeTest{[]byte{}, []byte{}},
++	encodeTest{[]byte{0x01}, []byte{'0', '1'}},
++	encodeTest{[]byte{0xff}, []byte{'f', 'f'}},
++	encodeTest{[]byte{0xff, 00}, []byte{'f', 'f', '0', '0'}},
++	encodeTest{[]byte{0}, []byte{'0', '0'}},
++	encodeTest{[]byte{1}, []byte{'0', '1'}},
++	encodeTest{[]byte{2}, []byte{'0', '2'}},
++	encodeTest{[]byte{3}, []byte{'0', '3'}},
++	encodeTest{[]byte{4}, []byte{'0', '4'}},
++	encodeTest{[]byte{5}, []byte{'0', '5'}},
++	encodeTest{[]byte{6}, []byte{'0', '6'}},
++	encodeTest{[]byte{7}, []byte{'0', '7'}},
++	encodeTest{[]byte{8}, []byte{'0', '8'}},
++	encodeTest{[]byte{9}, []byte{'0', '9'}},
++	encodeTest{[]byte{10}, []byte{'0', 'a'}},
++	encodeTest{[]byte{11}, []byte{'0', 'b'}},
++	encodeTest{[]byte{12}, []byte{'0', 'c'}},
++	encodeTest{[]byte{13}, []byte{'0', 'd'}},
++	encodeTest{[]byte{14}, []byte{'0', 'e'}},
++	encodeTest{[]byte{15}, []byte{'0', 'f'}},
++}
++
++func TestEncode(t *testing.T) {
++	for i, test := range encodeTests {
++		dst := make([]byte, EncodedLen(len(test.in)));
++		n := Encode(test.in, dst);
++		if n != len(dst) {
++			t.Errorf("#%d: bad return value: got: %d want: %d", i, n, len(dst));
++		}
++		if bytes.Compare(dst, test.out) != 0 {
++			t.Errorf("#%d: got: %#v want: %#v", i, dst, test.out);
++		}
++	}
++}
++
++type decodeTest struct {
++	in, out		[]byte;
++	ok	bool;
++}
++
++var decodeTests = []decodeTest{
++	decodeTest{[]byte{}, []byte{}, true},
++	decodeTest{[]byte{'0'}, []byte{}, false},
++	decodeTest{[]byte{'0', 'g'}, []byte{}, false},
++	decodeTest{[]byte{'0', '0'}, []byte{0}, true},
++	decodeTest{[]byte{'0', '1'}, []byte{1}, true},
++	decodeTest{[]byte{'0', '2'}, []byte{2}, true},
++	decodeTest{[]byte{'0', '3'}, []byte{3}, true},
++	decodeTest{[]byte{'0', '4'}, []byte{4}, true},
++	decodeTest{[]byte{'0', '5'}, []byte{5}, true},
++	decodeTest{[]byte{'0', '6'}, []byte{6}, true},
++	decodeTest{[]byte{'0', '7'}, []byte{7}, true},
++	decodeTest{[]byte{'0', '8'}, []byte{8}, true},
++	decodeTest{[]byte{'0', '9'}, []byte{9}, true},
++	decodeTest{[]byte{'0', 'a'}, []byte{10}, true},
++	decodeTest{[]byte{'0', 'b'}, []byte{11}, true},
++	decodeTest{[]byte{'0', 'c'}, []byte{12}, true},
++	decodeTest{[]byte{'0', 'd'}, []byte{13}, true},
++	decodeTest{[]byte{'0', 'e'}, []byte{14}, true},
++	decodeTest{[]byte{'0', 'f'}, []byte{15}, true},
++	decodeTest{[]byte{'0', 'A'}, []byte{10}, true},
++	decodeTest{[]byte{'0', 'B'}, []byte{11}, true},
++	decodeTest{[]byte{'0', 'C'}, []byte{12}, true},
++	decodeTest{[]byte{'0', 'D'}, []byte{13}, true},
++	decodeTest{[]byte{'0', 'E'}, []byte{14}, true},
++	decodeTest{[]byte{'0', 'F'}, []byte{15}, true},
++}
++
++func TestDecode(t *testing.T) {
++	for i, test := range decodeTests {
++		dst := make([]byte, DecodedLen(len(test.in)));
++		n, err := Decode(test.in, dst);
++		if err == nil && n != len(dst) {
++			t.Errorf("#%d: bad return value: got:%d want:%d", i, n, len(dst));
++		}
++		if test.ok != (err == nil) {
++			t.Errorf("#%d: unexpected err value: %s", i, err);
++		}
++		if err == nil && bytes.Compare(dst, test.out) != 0 {
++			t.Errorf("#%d: got: %#v want: %#v", i, dst, test.out);
++		}
++	}
++}
++
++type encodeStringTest struct {
++	in	[]byte;
++	out	string;
++}
++
++var encodeStringTests = []encodeStringTest{
++	encodeStringTest{[]byte{}, ""},
++	encodeStringTest{[]byte{0}, "00"},
++	encodeStringTest{[]byte{0, 1}, "0001"},
++	encodeStringTest{[]byte{0, 1, 255}, "0001ff"},
++}
++
++func TestEncodeToString(t *testing.T) {
++	for i, test := range encodeStringTests {
++		s := EncodeToString(test.in);
++		if s != test.out {
++			t.Errorf("#%d got:%s want:%s", i, s, test.out);
++		}
++	}
++}
++
++type decodeStringTest struct {
++	in		string;
++	out		[]byte;
++	ok	bool;
++}
++
++var decodeStringTests = []decodeStringTest{
++	decodeStringTest{"", []byte{}, true},
++	decodeStringTest{"0", []byte{}, false},
++	decodeStringTest{"00", []byte{0}, true},
++	decodeStringTest{"0g", []byte{}, false},
++	decodeStringTest{"00ff00", []byte{0, 255, 0}, true},
++	decodeStringTest{"0000ff", []byte{0, 0, 255}, true},
++}
++
++func TestDecodeString(t *testing.T) {
++	for i, test := range decodeStringTests {
++		dst, err := DecodeString(test.in);
++		if test.ok != (err == nil) {
++			t.Errorf("#%d: unexpected err value: %s", i, err);
++		}
++		if err == nil && bytes.Compare(dst, test.out) != 0 {
++			t.Errorf("#%d: got: %#v want: #%v", i, dst, test.out);
++		}
++	}
++}

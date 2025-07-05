@@ -20,8 +20,86 @@ Date:   Thu Jan 6 14:10:45 2022 -0800
     Reviewed-by: Dan Scales <danscales@google.com>
     Reviewed-by: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/types2/decl.go | 11 +++++++++++
  src/go/types/decl.go                    | 13 +++++++++++++
  test/typeparam/issue50481.go            | 21 +++++++++++++++++++++
  3 files changed, 45 insertions(+)
+
+diff --git a/src/cmd/compile/internal/types2/decl.go b/src/cmd/compile/internal/types2/decl.go
+index d61d2a8b0d..69388f78be 100644
+--- a/src/cmd/compile/internal/types2/decl.go
++++ b/src/cmd/compile/internal/types2/decl.go
+@@ -632,8 +632,19 @@ func (check *Checker) collectTypeParams(dst **TypeParamList, list []*syntax.Fiel
+ 	// Declare type parameters up-front.
+ 	// The scope of type parameters starts at the beginning of the type parameter
+ 	// list (so we can have mutually recursive parameterized type bounds).
++	nblanks := 0
+ 	for i, f := range list {
+ 		tparams[i] = check.declareTypeParam(f.Name)
++		// Issue #50481: For now, disallow multiple blank type parameters because
++		// it causes problems with export data. Report an error unless we are in
++		// testing mode ("assert" is defined).
++		// We expect to lift this restriction for Go 1.19.
++		if f.Name.Value == "_" {
++			nblanks++
++			if nblanks == 2 && Universe.Lookup("assert") == nil {
++				check.softErrorf(f, "cannot have multiple blank type parameters (temporary restriction, see issue #50481)")
++			}
++		}
+ 	}
+ 
+ 	// Set the type parameters before collecting the type constraints because
+diff --git a/src/go/types/decl.go b/src/go/types/decl.go
+index 02af0d5f3e..bbd3f04b7e 100644
+--- a/src/go/types/decl.go
++++ b/src/go/types/decl.go
+@@ -684,8 +684,21 @@ func (check *Checker) collectTypeParams(dst **TypeParamList, list *ast.FieldList
+ 	// Declare type parameters up-front, with empty interface as type bound.
+ 	// The scope of type parameters starts at the beginning of the type parameter
+ 	// list (so we can have mutually recursive parameterized interfaces).
++	nblanks := 0
+ 	for _, f := range list.List {
+ 		tparams = check.declareTypeParams(tparams, f.Names)
++		// Issue #50481: For now, disallow multiple blank type parameters because
++		// it causes problems with export data. Report an error unless we are in
++		// testing mode ("assert" is defined).
++		// We expect to lift this restriction for Go 1.19.
++		for _, name := range f.Names {
++			if name.Name == "_" {
++				nblanks++
++				if nblanks == 2 && Universe.Lookup("assert") == nil {
++					check.softErrorf(name, _InvalidBlank, "cannot have multiple blank type parameters (temporary restriction, see issue #50481)")
++				}
++			}
++		}
+ 	}
+ 
+ 	// Set the type parameters before collecting the type constraints because
+diff --git a/test/typeparam/issue50481.go b/test/typeparam/issue50481.go
+new file mode 100644
+index 0000000000..22d61ee29b
+--- /dev/null
++++ b/test/typeparam/issue50481.go
+@@ -0,0 +1,21 @@
++// errorcheck
++
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type _[_ any] struct{}
++type _[_, _ any] struct{}             // ERROR "cannot have multiple blank type parameters"
++type _[_, _, _ any] struct{}          // ERROR "cannot have multiple blank type parameters"
++type _[a, _, b, _, c, _ any] struct{} // ERROR "cannot have multiple blank type parameters"
++
++func _[_ any]()                {}
++func _[_, _ any]()             {} // ERROR "cannot have multiple blank type parameters"
++func _[_, _, _ any]()          {} // ERROR "cannot have multiple blank type parameters"
++func _[a, _, b, _, c, _ any]() {} // ERROR "cannot have multiple blank type parameters"
++
++type S[P1, P2 any] struct{}
++
++func (_ S[_, _]) m() {} // this is ok

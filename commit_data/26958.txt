@@ -16,7 +16,7 @@ Date:   Fri Mar 4 13:16:48 2016 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/alg.go      |  4 +-
  src/cmd/compile/internal/gc/bexport.go  |  4 +-
  src/cmd/compile/internal/gc/export.go   | 22 ++++-----
@@ -29,3 +29,447 @@ Date:   Fri Mar 4 13:16:48 2016 -0800
  src/cmd/compile/internal/gc/syntax.go   |  2 +-
  src/cmd/compile/internal/gc/walk.go     |  8 ++--
  11 files changed, 54 insertions(+), 90 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/alg.go b/src/cmd/compile/internal/gc/alg.go
+index 6f11b968f9..4510404469 100644
+--- a/src/cmd/compile/internal/gc/alg.go
++++ b/src/cmd/compile/internal/gc/alg.go
+@@ -296,7 +296,7 @@ func genhash(sym *Sym, t *Type) {
+ 	fn.Nbody.Append(r)
+ 
+ 	if Debug['r'] != 0 {
+-		dumpslice("genhash body", fn.Nbody.Slice())
++		dumplist("genhash body", fn.Nbody)
+ 	}
+ 
+ 	funcbody(fn)
+@@ -504,7 +504,7 @@ func geneq(sym *Sym, t *Type) {
+ 	}
+ 
+ 	if Debug['r'] != 0 {
+-		dumpslice("geneq body", fn.Nbody.Slice())
++		dumplist("geneq body", fn.Nbody)
+ 	}
+ 
+ 	funcbody(fn)
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index 6dd8204e58..4cbcadb961 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -333,7 +333,7 @@ func Export(out *obj.Biobuf, trace bool) int {
+ 	}
+ 	for _, f := range p.inlined {
+ 		if p.trace {
+-			p.tracef("{ %s }\n", Hconvslice(f.Inl.Slice(), obj.FmtSharp))
++			p.tracef("{ %s }\n", Hconv(f.Inl, obj.FmtSharp))
+ 		}
+ 		p.nodeList(f.Inl)
+ 		if p.trace {
+@@ -813,7 +813,7 @@ func (p *exporter) nodeList(list nodesOrNodeList) {
+ 	}
+ 	p.int(it.Len())
+ 	if p.trace {
+-		if it.Len() == 0 {
++		if it.Len() <= 1 {
+ 			p.tracef("] {}")
+ 		} else {
+ 			p.tracef("] {>")
+diff --git a/src/cmd/compile/internal/gc/export.go b/src/cmd/compile/internal/gc/export.go
+index 237fa4f0b5..abd37d47e2 100644
+--- a/src/cmd/compile/internal/gc/export.go
++++ b/src/cmd/compile/internal/gc/export.go
+@@ -106,15 +106,9 @@ func dumppkg(p *Pkg) {
+ }
+ 
+ // Look for anything we need for the inline body
+-func reexportdeplist(ll *NodeList) {
+-	for ; ll != nil; ll = ll.Next {
+-		reexportdep(ll.N)
+-	}
+-}
+-
+-func reexportdepslice(ll []*Node) {
+-	for _, n := range ll {
+-		reexportdep(n)
++func reexportdeplist(ll nodesOrNodeList) {
++	for it := nodeSeqIterate(ll); !it.Done(); it.Next() {
++		reexportdep(it.N())
+ 	}
+ }
+ 
+@@ -223,7 +217,7 @@ func reexportdep(n *Node) {
+ 	reexportdeplist(n.List)
+ 	reexportdeplist(n.Rlist)
+ 	reexportdeplist(n.Ninit)
+-	reexportdepslice(n.Nbody.Slice())
++	reexportdeplist(n.Nbody)
+ }
+ 
+ func dumpexportconst(s *Sym) {
+@@ -263,9 +257,9 @@ func dumpexportvar(s *Sym) {
+ 			}
+ 
+ 			// NOTE: The space after %#S here is necessary for ld's export data parser.
+-			exportf("\tfunc %v %v { %v }\n", Sconv(s, obj.FmtSharp), Tconv(t, obj.FmtShort|obj.FmtSharp), Hconvslice(n.Func.Inl.Slice(), obj.FmtSharp|obj.FmtBody))
++			exportf("\tfunc %v %v { %v }\n", Sconv(s, obj.FmtSharp), Tconv(t, obj.FmtShort|obj.FmtSharp), Hconv(n.Func.Inl, obj.FmtSharp|obj.FmtBody))
+ 
+-			reexportdepslice(n.Func.Inl.Slice())
++			reexportdeplist(n.Func.Inl)
+ 		} else {
+ 			exportf("\tfunc %v %v\n", Sconv(s, obj.FmtSharp), Tconv(t, obj.FmtShort|obj.FmtSharp))
+ 		}
+@@ -320,8 +314,8 @@ func dumpexporttype(t *Type) {
+ 			if Debug['l'] < 2 {
+ 				typecheckinl(f.Type.Nname)
+ 			}
+-			exportf("\tfunc (%v) %v %v { %v }\n", Tconv(getthisx(f.Type).Type, obj.FmtSharp), Sconv(f.Sym, obj.FmtShort|obj.FmtByte|obj.FmtSharp), Tconv(f.Type, obj.FmtShort|obj.FmtSharp), Hconvslice(f.Type.Nname.Func.Inl.Slice(), obj.FmtSharp))
+-			reexportdepslice(f.Type.Nname.Func.Inl.Slice())
++			exportf("\tfunc (%v) %v %v { %v }\n", Tconv(getthisx(f.Type).Type, obj.FmtSharp), Sconv(f.Sym, obj.FmtShort|obj.FmtByte|obj.FmtSharp), Tconv(f.Type, obj.FmtShort|obj.FmtSharp), Hconv(f.Type.Nname.Func.Inl, obj.FmtSharp))
++			reexportdeplist(f.Type.Nname.Func.Inl)
+ 		} else {
+ 			exportf("\tfunc (%v) %v %v\n", Tconv(getthisx(f.Type).Type, obj.FmtSharp), Sconv(f.Sym, obj.FmtShort|obj.FmtByte|obj.FmtSharp), Tconv(f.Type, obj.FmtShort|obj.FmtSharp))
+ 		}
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index cf9ffc1fd1..ef27195148 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -800,10 +800,10 @@ func stmtfmt(n *Node) string {
+ 	// block starting with the init statements.
+ 
+ 	// if we can just say "for" n->ninit; ... then do so
+-	simpleinit := n.Ninit != nil && n.Ninit.Next == nil && n.Ninit.N.Ninit == nil && stmtwithinit(n.Op)
++	simpleinit := nodeSeqLen(n.Ninit) == 1 && nodeSeqLen(nodeSeqFirst(n.Ninit).Ninit) == 0 && stmtwithinit(n.Op)
+ 
+ 	// otherwise, print the inits as separate statements
+-	complexinit := n.Ninit != nil && !simpleinit && (fmtmode != FErr)
++	complexinit := nodeSeqLen(n.Ninit) != 0 && !simpleinit && (fmtmode != FErr)
+ 
+ 	// but if it was for if/for/switch, put in an extra surrounding block to limit the scope
+ 	extrablock := complexinit && stmtwithinit(n.Op)
+@@ -889,7 +889,7 @@ func stmtfmt(n *Node) string {
+ 		} else {
+ 			f += fmt.Sprintf("if %v { %v }", n.Left, n.Nbody)
+ 		}
+-		if n.Rlist != nil {
++		if nodeSeqLen(n.Rlist) != 0 {
+ 			f += fmt.Sprintf(" else { %v }", n.Rlist)
+ 		}
+ 
+@@ -901,7 +901,7 @@ func stmtfmt(n *Node) string {
+ 
+ 		f += "for"
+ 		if simpleinit {
+-			f += fmt.Sprintf(" %v;", n.Ninit.N)
++			f += fmt.Sprintf(" %v;", nodeSeqFirst(n.Ninit))
+ 		} else if n.Right != nil {
+ 			f += " ;"
+ 		}
+@@ -924,7 +924,7 @@ func stmtfmt(n *Node) string {
+ 			break
+ 		}
+ 
+-		if n.List == nil {
++		if nodeSeqLen(n.List) == 0 {
+ 			f += fmt.Sprintf("for range %v { %v }", n.Right, n.Nbody)
+ 			break
+ 		}
+@@ -939,7 +939,7 @@ func stmtfmt(n *Node) string {
+ 
+ 		f += Oconv(int(n.Op), obj.FmtSharp)
+ 		if simpleinit {
+-			f += fmt.Sprintf(" %v;", n.Ninit.N)
++			f += fmt.Sprintf(" %v;", nodeSeqFirst(n.Ninit))
+ 		}
+ 		if n.Left != nil {
+ 			f += Nconv(n.Left, 0)
+@@ -948,7 +948,7 @@ func stmtfmt(n *Node) string {
+ 		f += fmt.Sprintf(" { %v }", n.List)
+ 
+ 	case OCASE, OXCASE:
+-		if n.List != nil {
++		if nodeSeqLen(n.List) != 0 {
+ 			f += fmt.Sprintf("case %v: %v", Hconv(n.List, obj.FmtComma), n.Nbody)
+ 		} else {
+ 			f += fmt.Sprintf("default: %v", n.Nbody)
+@@ -1257,10 +1257,10 @@ func exprfmt(n *Node, prec int) string {
+ 			} else {
+ 				f += fmt.Sprintf("(%v{", n.Type)
+ 			}
+-			for l := n.List; l != nil; l = l.Next {
+-				f += fmt.Sprintf(" %v:%v", Sconv(l.N.Left.Sym, obj.FmtShort|obj.FmtByte), l.N.Right)
++			for it := nodeSeqIterate(n.List); !it.Done(); it.Next() {
++				f += fmt.Sprintf(" %v:%v", Sconv(it.N().Left.Sym, obj.FmtShort|obj.FmtByte), it.N().Right)
+ 
+-				if l.Next != nil {
++				if it.Len() > 1 {
+ 					f += ","
+ 				} else {
+ 					f += " "
+@@ -1391,7 +1391,7 @@ func exprfmt(n *Node, prec int) string {
+ 		return f
+ 
+ 	case OMAKEMAP, OMAKECHAN, OMAKESLICE:
+-		if n.List != nil { // pre-typecheck
++		if nodeSeqLen(n.List) != 0 { // pre-typecheck
+ 			return fmt.Sprintf("make(%v, %v)", n.Type, Hconv(n.List, obj.FmtComma))
+ 		}
+ 		if n.Right != nil {
+@@ -1449,11 +1449,13 @@ func exprfmt(n *Node, prec int) string {
+ 
+ 	case OADDSTR:
+ 		var f string
+-		for l := n.List; l != nil; l = l.Next {
+-			if l != n.List {
++		i := 0
++		for it := nodeSeqIterate(n.List); !it.Done(); it.Next() {
++			if i != 0 {
+ 				f += " + "
+ 			}
+-			f += exprfmt(l.N, nprec)
++			f += exprfmt(it.N(), nprec)
++			i++
+ 		}
+ 
+ 		return f
+@@ -1521,7 +1523,7 @@ func nodedump(n *Node, flag int) string {
+ 			return buf.String()
+ 		}
+ 
+-		if n.Ninit != nil {
++		if nodeSeqLen(n.Ninit) != 0 {
+ 			fmt.Fprintf(&buf, "%v-init%v", Oconv(int(n.Op), 0), n.Ninit)
+ 			indent(&buf)
+ 		}
+@@ -1574,12 +1576,12 @@ func nodedump(n *Node, flag int) string {
+ 		if n.Right != nil {
+ 			buf.WriteString(Nconv(n.Right, 0))
+ 		}
+-		if n.List != nil {
++		if nodeSeqLen(n.List) != 0 {
+ 			indent(&buf)
+ 			fmt.Fprintf(&buf, "%v-list%v", Oconv(int(n.Op), 0), n.List)
+ 		}
+ 
+-		if n.Rlist != nil {
++		if nodeSeqLen(n.Rlist) != 0 {
+ 			indent(&buf)
+ 			fmt.Fprintf(&buf, "%v-rlist%v", Oconv(int(n.Op), 0), n.Rlist)
+ 		}
+@@ -1701,13 +1703,13 @@ func (l *NodeList) String() string {
+ }
+ 
+ func (n Nodes) String() string {
+-	return Hconvslice(n.Slice(), 0)
++	return Hconv(n, 0)
+ }
+ 
+ // Fmt '%H': NodeList.
+ // Flags: all those of %N plus ',': separate with comma's instead of semicolons.
+-func Hconv(l *NodeList, flag int) string {
+-	if l == nil && fmtmode == FDbg {
++func Hconv(l nodesOrNodeList, flag int) string {
++	if nodeSeqLen(l) == 0 && fmtmode == FDbg {
+ 		return "<nil>"
+ 	}
+ 
+@@ -1721,9 +1723,9 @@ func Hconv(l *NodeList, flag int) string {
+ 	}
+ 
+ 	var buf bytes.Buffer
+-	for ; l != nil; l = l.Next {
+-		buf.WriteString(Nconv(l.N, 0))
+-		if l.Next != nil {
++	for it := nodeSeqIterate(l); !it.Done(); it.Next() {
++		buf.WriteString(Nconv(it.N(), 0))
++		if it.Len() > 1 {
+ 			buf.WriteString(sep)
+ 		}
+ 	}
+@@ -1734,42 +1736,10 @@ func Hconv(l *NodeList, flag int) string {
+ 	return buf.String()
+ }
+ 
+-func Hconvslice(l []*Node, flag int) string {
+-	if len(l) == 0 && fmtmode == FDbg {
+-		return "<nil>"
+-	}
+-
+-	sf := flag
+-	sm, sb := setfmode(&flag)
+-	sep := "; "
+-	if fmtmode == FDbg {
+-		sep = "\n"
+-	} else if flag&obj.FmtComma != 0 {
+-		sep = ", "
+-	}
+-
+-	var buf bytes.Buffer
+-	for i, n := range l {
+-		buf.WriteString(Nconv(n, 0))
+-		if i+1 < len(l) {
+-			buf.WriteString(sep)
+-		}
+-	}
+-
+-	flag = sf
+-	fmtbody = sb
+-	fmtmode = sm
+-	return buf.String()
+-}
+-
+-func dumplist(s string, l *NodeList) {
++func dumplist(s string, l nodesOrNodeList) {
+ 	fmt.Printf("%s%v\n", s, Hconv(l, obj.FmtSign))
+ }
+ 
+-func dumpslice(s string, l []*Node) {
+-	fmt.Printf("%s%v\n", s, Hconvslice(l, obj.FmtSign))
+-}
+-
+ func Dump(s string, n *Node) {
+ 	fmt.Printf("%s [%p]%v\n", s, n, Nconv(n, obj.FmtSign))
+ }
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index 9852a41a5c..dd4369bc15 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -79,7 +79,7 @@ func typecheckinl(fn *Node) {
+ 	}
+ 
+ 	if Debug['m'] > 2 {
+-		fmt.Printf("typecheck import [%v] %v { %v }\n", fn.Sym, Nconv(fn, obj.FmtLong), Hconvslice(fn.Func.Inl.Slice(), obj.FmtSharp))
++		fmt.Printf("typecheck import [%v] %v { %v }\n", fn.Sym, Nconv(fn, obj.FmtLong), Hconv(fn.Func.Inl, obj.FmtSharp))
+ 	}
+ 
+ 	save_safemode := safemode
+@@ -161,7 +161,7 @@ func caninl(fn *Node) {
+ 	fn.Type.Nname = fn.Func.Nname
+ 
+ 	if Debug['m'] > 1 {
+-		fmt.Printf("%v: can inline %v as: %v { %v }\n", fn.Line(), Nconv(fn.Func.Nname, obj.FmtSharp), Tconv(fn.Type, obj.FmtSharp), Hconvslice(fn.Func.Nname.Func.Inl.Slice(), obj.FmtSharp))
++		fmt.Printf("%v: can inline %v as: %v { %v }\n", fn.Line(), Nconv(fn.Func.Nname, obj.FmtSharp), Tconv(fn.Type, obj.FmtSharp), Hconv(fn.Func.Nname.Func.Inl, obj.FmtSharp))
+ 	} else if Debug['m'] != 0 {
+ 		fmt.Printf("%v: can inline %v\n", fn.Line(), fn.Func.Nname)
+ 	}
+@@ -543,7 +543,7 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
+ 
+ 	// Bingo, we have a function node, and it has an inlineable body
+ 	if Debug['m'] > 1 {
+-		fmt.Printf("%v: inlining call to %v %v { %v }\n", n.Line(), fn.Sym, Tconv(fn.Type, obj.FmtSharp), Hconvslice(fn.Func.Inl.Slice(), obj.FmtSharp))
++		fmt.Printf("%v: inlining call to %v %v { %v }\n", n.Line(), fn.Sym, Tconv(fn.Type, obj.FmtSharp), Hconv(fn.Func.Inl, obj.FmtSharp))
+ 	} else if Debug['m'] != 0 {
+ 		fmt.Printf("%v: inlining call to %v\n", n.Line(), fn)
+ 	}
+diff --git a/src/cmd/compile/internal/gc/order.go b/src/cmd/compile/internal/gc/order.go
+index b03040fbc3..1b99ec8327 100644
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@ -50,7 +50,7 @@ type Order struct {
+ func order(fn *Node) {
+ 	if Debug['W'] > 1 {
+ 		s := fmt.Sprintf("\nbefore order %v", fn.Func.Nname.Sym)
+-		dumpslice(s, fn.Nbody.Slice())
++		dumplist(s, fn.Nbody)
+ 	}
+ 
+ 	orderblockNodes(&fn.Nbody)
+diff --git a/src/cmd/compile/internal/gc/racewalk.go b/src/cmd/compile/internal/gc/racewalk.go
+index 376928f756..b32124c990 100644
+--- a/src/cmd/compile/internal/gc/racewalk.go
++++ b/src/cmd/compile/internal/gc/racewalk.go
+@@ -78,11 +78,11 @@ func instrument(fn *Node) {
+ 
+ 	if Debug['W'] != 0 {
+ 		s := fmt.Sprintf("after instrument %v", fn.Func.Nname.Sym)
+-		dumpslice(s, fn.Nbody.Slice())
++		dumplist(s, fn.Nbody)
+ 		s = fmt.Sprintf("enter %v", fn.Func.Nname.Sym)
+-		dumpslice(s, fn.Func.Enter.Slice())
++		dumplist(s, fn.Func.Enter)
+ 		s = fmt.Sprintf("exit %v", fn.Func.Nname.Sym)
+-		dumpslice(s, fn.Func.Exit.Slice())
++		dumplist(s, fn.Func.Exit)
+ 	}
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 615ec6e6eb..2c7cb101e0 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -89,9 +89,9 @@ func buildssa(fn *Node) *ssa.Func {
+ 	printssa := name == os.Getenv("GOSSAFUNC")
+ 	if printssa {
+ 		fmt.Println("generating SSA for", name)
+-		dumpslice("buildssa-enter", fn.Func.Enter.Slice())
+-		dumpslice("buildssa-body", fn.Nbody.Slice())
+-		dumpslice("buildssa-exit", fn.Func.Exit.Slice())
++		dumplist("buildssa-enter", fn.Func.Enter)
++		dumplist("buildssa-body", fn.Nbody)
++		dumplist("buildssa-exit", fn.Func.Exit)
+ 	}
+ 
+ 	var s state
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 3dc93933e8..9807c7dfe7 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -2185,7 +2185,7 @@ func genwrapper(rcvr *Type, method *Type, newnam *Sym, iface int) {
+ 	}
+ 
+ 	if false && Debug['r'] != 0 {
+-		dumpslice("genwrapper body", fn.Nbody.Slice())
++		dumplist("genwrapper body", fn.Nbody)
+ 	}
+ 
+ 	funcbody(fn)
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index 37c8210831..2ad8c80984 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -578,7 +578,7 @@ func (ni *nodesIterator) P() **Node {
+ }
+ 
+ func (ni *nodesIterator) Len() int {
+-	return len(ni.n.Slice())
++	return len(ni.n.Slice()[ni.i:])
+ }
+ 
+ func (ni *nodesIterator) Seq() nodesOrNodeList {
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 94b20b15a5..9b5449bb6f 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -22,7 +22,7 @@ func walk(fn *Node) {
+ 
+ 	if Debug['W'] != 0 {
+ 		s := fmt.Sprintf("\nbefore %v", Curfn.Func.Nname.Sym)
+-		dumpslice(s, Curfn.Nbody.Slice())
++		dumplist(s, Curfn.Nbody)
+ 	}
+ 
+ 	lno := lineno
+@@ -67,13 +67,13 @@ func walk(fn *Node) {
+ 	walkstmtlist(Curfn.Nbody)
+ 	if Debug['W'] != 0 {
+ 		s := fmt.Sprintf("after walk %v", Curfn.Func.Nname.Sym)
+-		dumpslice(s, Curfn.Nbody.Slice())
++		dumplist(s, Curfn.Nbody)
+ 	}
+ 
+ 	heapmoves()
+ 	if Debug['W'] != 0 && len(Curfn.Func.Enter.Slice()) > 0 {
+ 		s := fmt.Sprintf("enter %v", Curfn.Func.Nname.Sym)
+-		dumpslice(s, Curfn.Func.Enter.Slice())
++		dumplist(s, Curfn.Func.Enter)
+ 	}
+ }
+ 
+@@ -2963,7 +2963,7 @@ func walkappend(n *Node, init nodesOrNodeListPtr, dst *Node) *Node {
+ 		nx = Nod(OINDEX, ns, nn) // s[n] ...
+ 		nx.Bounded = true
+ 		l = append(l, Nod(OAS, nx, it.N())) // s[n] = arg
+-		if it.Len() != 0 {
++		if it.Len() > 1 {
+ 			l = append(l, Nod(OAS, nn, Nod(OADD, nn, Nodintconst(1)))) // n = n + 1
+ 		}
+ 	}

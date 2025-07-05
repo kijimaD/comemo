@@ -7,7 +7,40 @@ Date:   Wed Dec 21 08:20:25 2011 -0500
     R=golang-dev
     CC=golang-dev
     https://golang.org/cl/5500061
-
+---
  src/pkg/os/signal/signal.go      | 4 +++-
  src/pkg/os/signal/signal_test.go | 2 +-
  2 files changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/os/signal/signal.go b/src/pkg/os/signal/signal.go
+index bbf9d17289..bce4530e7b 100644
+--- a/src/pkg/os/signal/signal.go
++++ b/src/pkg/os/signal/signal.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin freebsd linux netbsd openbsd windows
++// +build darwin freebsd linux netbsd openbsd
+ 
+ // Package signal implements operating system-independent signal handling.
+ package signal
+@@ -33,3 +33,5 @@ func init() {
+ 	Incoming = ch
+ 	go process(ch)
+ }
++
++// BUG(rsc): This package is unavailable on Plan 9 and Windows.
+diff --git a/src/pkg/os/signal/signal_test.go b/src/pkg/os/signal/signal_test.go
+index 8445a78460..4568aa9518 100644
+--- a/src/pkg/os/signal/signal_test.go
++++ b/src/pkg/os/signal/signal_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin freebsd linux netbsd openbsd windows
++// +build darwin freebsd linux netbsd openbsd
+ 
+ package signal
+ 

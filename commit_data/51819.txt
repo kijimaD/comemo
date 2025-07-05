@@ -16,7 +16,7 @@ Date:   Tue Mar 15 22:44:31 2022 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/ir/mini.go             |  5 +--
  src/cmd/compile/internal/ir/name.go             |  7 ---
  src/cmd/compile/internal/noder/expr.go          |  1 -
@@ -26,3 +26,190 @@ Date:   Tue Mar 15 22:44:31 2022 -0700
  src/cmd/compile/internal/typecheck/stmt.go      |  1 -
  src/cmd/compile/internal/typecheck/typecheck.go | 60 -------------------------
  8 files changed, 9 insertions(+), 75 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/mini.go b/src/cmd/compile/internal/ir/mini.go
+index cfd5dcfb96..cb05dfae26 100644
+--- a/src/cmd/compile/internal/ir/mini.go
++++ b/src/cmd/compile/internal/ir/mini.go
+@@ -55,9 +55,8 @@ func (n *miniNode) Esc() uint16       { return n.esc }
+ func (n *miniNode) SetEsc(x uint16)   { n.esc = x }
+ 
+ const (
+-	miniWalkdefShift   = 0 // TODO(mdempsky): Move to Name.flags.
+-	miniTypecheckShift = 2
+-	miniWalked         = 1 << 5 // to prevent/catch re-walking
++	miniTypecheckShift = 0
++	miniWalked         = 1 << 2 // to prevent/catch re-walking
+ )
+ 
+ func (n *miniNode) Typecheck() uint8 { return n.bits.get2(miniTypecheckShift) }
+diff --git a/src/cmd/compile/internal/ir/name.go b/src/cmd/compile/internal/ir/name.go
+index ee28ca8332..183aa6db7c 100644
+--- a/src/cmd/compile/internal/ir/name.go
++++ b/src/cmd/compile/internal/ir/name.go
+@@ -215,13 +215,6 @@ func (n *Name) SetOffset(x int64) {
+ }
+ func (n *Name) FrameOffset() int64     { return n.Offset_ }
+ func (n *Name) SetFrameOffset(x int64) { n.Offset_ = x }
+-func (n *Name) Walkdef() uint8         { return n.bits.get2(miniWalkdefShift) }
+-func (n *Name) SetWalkdef(x uint8) {
+-	if x > 3 {
+-		panic(fmt.Sprintf("cannot SetWalkdef %d", x))
+-	}
+-	n.bits.set2(miniWalkdefShift, x)
+-}
+ 
+ func (n *Name) Linksym() *obj.LSym               { return n.sym.Linksym() }
+ func (n *Name) LinksymABI(abi obj.ABI) *obj.LSym { return n.sym.LinksymABI(abi) }
+diff --git a/src/cmd/compile/internal/noder/expr.go b/src/cmd/compile/internal/noder/expr.go
+index 4b5ae706c1..566abda963 100644
+--- a/src/cmd/compile/internal/noder/expr.go
++++ b/src/cmd/compile/internal/noder/expr.go
+@@ -439,7 +439,6 @@ func (g *irgen) funcLit(typ2 types2.Type, expr *syntax.FuncLit) ir.Node {
+ 	for _, cv := range fn.ClosureVars {
+ 		cv.SetType(cv.Canonical().Type())
+ 		cv.SetTypecheck(1)
+-		cv.SetWalkdef(1)
+ 	}
+ 
+ 	if g.topFuncIsGeneric {
+diff --git a/src/cmd/compile/internal/noder/object.go b/src/cmd/compile/internal/noder/object.go
+index 37a995b519..e8dbaac161 100644
+--- a/src/cmd/compile/internal/noder/object.go
++++ b/src/cmd/compile/internal/noder/object.go
+@@ -171,7 +171,6 @@ func (g *irgen) objFinish(name *ir.Name, class ir.Class, typ *types.Type) {
+ 	}
+ 
+ 	name.SetTypecheck(1)
+-	name.SetWalkdef(1)
+ 
+ 	if ir.IsBlank(name) {
+ 		return
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index dd3bb1523e..62875ba073 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -155,7 +155,6 @@ func setType(n ir.Node, typ *types.Type) {
+ 	n.SetTypecheck(1)
+ 
+ 	if name, ok := n.(*ir.Name); ok {
+-		name.SetWalkdef(1)
+ 		name.Ntype = ir.TypeNode(name.Type())
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/typecheck/func.go b/src/cmd/compile/internal/typecheck/func.go
+index 5c1a2341b6..7ab41e63fe 100644
+--- a/src/cmd/compile/internal/typecheck/func.go
++++ b/src/cmd/compile/internal/typecheck/func.go
+@@ -295,7 +295,13 @@ func tcFunc(n *ir.Func) {
+ 		defer tracePrint("tcFunc", n)(nil)
+ 	}
+ 
+-	n.Nname = AssignExpr(n.Nname).(*ir.Name)
++	if name := n.Nname; name.Typecheck() == 0 {
++		if name.Ntype != nil {
++			name.Ntype = typecheckNtype(name.Ntype)
++			name.SetType(name.Ntype.Type())
++		}
++		name.SetTypecheck(1)
++	}
+ }
+ 
+ // tcCall typechecks an OCALL node.
+diff --git a/src/cmd/compile/internal/typecheck/stmt.go b/src/cmd/compile/internal/typecheck/stmt.go
+index b2fba315e7..930d7ce627 100644
+--- a/src/cmd/compile/internal/typecheck/stmt.go
++++ b/src/cmd/compile/internal/typecheck/stmt.go
+@@ -648,7 +648,6 @@ func tcSwitchType(n *ir.SwitchStmt) {
+ 			} else {
+ 				// Clause variable is broken; prevent typechecking.
+ 				nvar.SetTypecheck(1)
+-				nvar.SetWalkdef(1)
+ 			}
+ 			ncase.Var = nvar
+ 		}
+diff --git a/src/cmd/compile/internal/typecheck/typecheck.go b/src/cmd/compile/internal/typecheck/typecheck.go
+index 9c084934c3..d94a262a7f 100644
+--- a/src/cmd/compile/internal/typecheck/typecheck.go
++++ b/src/cmd/compile/internal/typecheck/typecheck.go
+@@ -127,8 +127,6 @@ const (
+ // marks variables that escape the local frame.
+ // rewrites n.Op to be more specific in some cases.
+ 
+-var typecheckdefstack []*ir.Name
+-
+ // Resolve resolves an ONONAME node to a definition, if any. If n is not an ONONAME node,
+ // Resolve returns n unchanged. If n is an ONONAME node and not in the same package,
+ // then n.Sym() is resolved using import data. Otherwise, Resolve returns
+@@ -458,10 +456,6 @@ func indexlit(n ir.Node) ir.Node {
+ 
+ // typecheck1 should ONLY be called from typecheck.
+ func typecheck1(n ir.Node, top int) ir.Node {
+-	if n, ok := n.(*ir.Name); ok {
+-		typecheckdef(n)
+-	}
+-
+ 	switch n.Op() {
+ 	default:
+ 		ir.Dump("typecheck", n)
+@@ -1686,60 +1680,6 @@ func stringtoruneslit(n *ir.ConvExpr) ir.Node {
+ 	return Expr(nn)
+ }
+ 
+-func typecheckdef(n *ir.Name) {
+-	if base.EnableTrace && base.Flag.LowerT {
+-		defer tracePrint("typecheckdef", n)(nil)
+-	}
+-
+-	if n.Walkdef() == 1 {
+-		return
+-	}
+-
+-	if n.Type() != nil { // builtin
+-		// Mark as Walkdef so that if n.SetType(nil) is called later, we
+-		// won't try walking again.
+-		if got := n.Walkdef(); got != 0 {
+-			base.Fatalf("unexpected walkdef: %v", got)
+-		}
+-		n.SetWalkdef(1)
+-		return
+-	}
+-
+-	lno := ir.SetPos(n)
+-	if n.Walkdef() == 2 {
+-		base.Fatalf("typecheckdef loop")
+-	}
+-
+-	n.SetWalkdef(2)
+-
+-	switch n.Op() {
+-	default:
+-		base.Fatalf("typecheckdef %v", n.Op())
+-
+-	case ir.ONAME:
+-		if n.BuiltinOp != 0 { // like OPRINTN
+-			base.Assertf(n.Ntype == nil, "unexpected Ntype: %+v", n)
+-			break
+-		}
+-
+-		base.Assertf(n.Class == ir.PFUNC, "expected PFUNC: %+v", n)
+-
+-		if n.Ntype != nil {
+-			n.Ntype = typecheckNtype(n.Ntype)
+-			n.SetType(n.Ntype.Type())
+-		}
+-
+-		if n.Type() != nil {
+-			break
+-		}
+-
+-		base.Fatalf("missing type: %v", n)
+-	}
+-
+-	base.Pos = lno
+-	n.SetWalkdef(1)
+-}
+-
+ func checkmake(t *types.Type, arg string, np *ir.Node) bool {
+ 	n := *np
+ 	if !n.Type().IsInteger() && n.Type().Kind() != types.TIDEAL {

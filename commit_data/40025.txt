@@ -14,6 +14,47 @@ Date:   Wed Apr 10 16:29:57 2019 +0200
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/syscall_aix.go | 20 ++++++++++++--------
  1 file changed, 12 insertions(+), 8 deletions(-)
+
+diff --git a/src/runtime/syscall_aix.go b/src/runtime/syscall_aix.go
+index 7f2bcbe9d9..1ed1dfa0bb 100644
+--- a/src/runtime/syscall_aix.go
++++ b/src/runtime/syscall_aix.go
+@@ -69,11 +69,13 @@ func syscall_RawSyscall(trap, a1, a2, a3 uintptr) (r1, r2, err uintptr) {
+ }
+ 
+ //go:nosplit
++//go:cgo_unsafe_args
+ func syscall_syscall6(fn, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr) {
+-	c := getg().m.libcall
+-	c.fn = uintptr(unsafe.Pointer(fn))
+-	c.n = nargs
+-	c.args = uintptr(noescape(unsafe.Pointer(&a1)))
++	c := libcall{
++		fn:   fn,
++		n:    nargs,
++		args: uintptr(unsafe.Pointer(&a1)),
++	}
+ 
+ 	entersyscallblock()
+ 	asmcgocall(unsafe.Pointer(&asmsyscall6), unsafe.Pointer(&c))
+@@ -82,11 +84,13 @@ func syscall_syscall6(fn, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err ui
+ }
+ 
+ //go:nosplit
++//go:cgo_unsafe_args
+ func syscall_rawSyscall6(fn, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr) {
+-	c := getg().m.libcall
+-	c.fn = uintptr(unsafe.Pointer(fn))
+-	c.n = nargs
+-	c.args = uintptr(noescape(unsafe.Pointer(&a1)))
++	c := libcall{
++		fn:   fn,
++		n:    nargs,
++		args: uintptr(unsafe.Pointer(&a1)),
++	}
+ 
+ 	asmcgocall(unsafe.Pointer(&asmsyscall6), unsafe.Pointer(&c))
+ 

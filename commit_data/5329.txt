@@ -7,8 +7,198 @@ Date:   Wed Apr 21 16:27:31 2010 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/971041
-
+---
  src/pkg/xml/read.go      | 47 +++++++++++++++++++++++++++++++++++++++++------
  src/pkg/xml/read_test.go | 18 +++++++++++-------
  src/pkg/xml/xml.go       | 14 ++++++++++++++
  3 files changed, 66 insertions(+), 13 deletions(-)
+
+diff --git a/src/pkg/xml/read.go b/src/pkg/xml/read.go
+index 45db7daa36..9204660b37 100644
+--- a/src/pkg/xml/read.go
++++ b/src/pkg/xml/read.go
+@@ -76,6 +76,10 @@ import (
+ //
+ // Unmarshal maps an XML element to a struct using the following rules:
+ //
++//   * If the struct has a field of type []byte or string with tag "innerxml",
++//      Unmarshal accumulates the raw XML nested inside the element
++//      in that field.  The rest of the rules still apply.
++//
+ //   * If the struct has a field named XMLName of type xml.Name,
+ //      Unmarshal records the element name in that field.
+ //
+@@ -198,12 +202,15 @@ func (p *Parser) unmarshal(val reflect.Value, start *StartElement) os.Error {
+ 	}
+ 
+ 	var (
+-		data        []byte
+-		saveData    reflect.Value
+-		comment     []byte
+-		saveComment reflect.Value
+-		sv          *reflect.StructValue
+-		styp        *reflect.StructType
++		data         []byte
++		saveData     reflect.Value
++		comment      []byte
++		saveComment  reflect.Value
++		saveXML      reflect.Value
++		saveXMLIndex int
++		saveXMLData  []byte
++		sv           *reflect.StructValue
++		styp         *reflect.StructType
+ 	)
+ 	switch v := val.(type) {
+ 	default:
+@@ -316,6 +323,17 @@ func (p *Parser) unmarshal(val reflect.Value, start *StartElement) os.Error {
+ 				if saveData == nil {
+ 					saveData = sv.FieldByIndex(f.Index)
+ 				}
++
++			case "innerxml":
++				if saveXML == nil {
++					saveXML = sv.FieldByIndex(f.Index)
++					if p.saved == nil {
++						saveXMLIndex = 0
++						p.saved = new(bytes.Buffer)
++					} else {
++						saveXMLIndex = p.savedOffset()
++					}
++				}
+ 			}
+ 		}
+ 	}
+@@ -324,6 +342,10 @@ func (p *Parser) unmarshal(val reflect.Value, start *StartElement) os.Error {
+ 	// Process sub-elements along the way.
+ Loop:
+ 	for {
++		var savedOffset int
++		if saveXML != nil {
++			savedOffset = p.savedOffset()
++		}
+ 		tok, err := p.Token()
+ 		if err != nil {
+ 			return err
+@@ -361,6 +383,12 @@ Loop:
+ 			}
+ 
+ 		case EndElement:
++			if saveXML != nil {
++				saveXMLData = p.saved.Bytes()[saveXMLIndex:savedOffset]
++				if saveXMLIndex == 0 {
++					p.saved = nil
++				}
++			}
+ 			break Loop
+ 
+ 		case CharData:
+@@ -491,6 +519,13 @@ Loop:
+ 		t.Set(reflect.NewValue(comment).(*reflect.SliceValue))
+ 	}
+ 
++	switch t := saveXML.(type) {
++	case *reflect.StringValue:
++		t.Set(string(saveXMLData))
++	case *reflect.SliceValue:
++		t.Set(reflect.NewValue(saveXMLData).(*reflect.SliceValue))
++	}
++
+ 	return nil
+ }
+ 
+diff --git a/src/pkg/xml/read_test.go b/src/pkg/xml/read_test.go
+index 3b8d572ec9..68bb010f2f 100644
+--- a/src/pkg/xml/read_test.go
++++ b/src/pkg/xml/read_test.go
+@@ -17,7 +17,7 @@ func TestUnmarshalFeed(t *testing.T) {
+ 		t.Fatalf("Unmarshal: %s", err)
+ 	}
+ 	if !reflect.DeepEqual(f, rssFeed) {
+-		t.Fatalf("have %#v\nwant %#v\n\n%#v", f)
++		t.Fatalf("have %#v\nwant %#v", f, rssFeed)
+ 	}
+ }
+ 
+@@ -102,9 +102,10 @@ type Link struct {
+ }
+ 
+ type Person struct {
+-	Name  string
+-	URI   string
+-	Email string
++	Name     string
++	URI      string
++	Email    string
++	InnerXML string "innerxml"
+ }
+ 
+ type Text struct {
+@@ -124,7 +125,8 @@ var rssFeed = Feed{
+ 	Id:      "http://codereview.appspot.com/",
+ 	Updated: "2009-10-04T01:35:58+00:00",
+ 	Author: Person{
+-		Name: "rietveld",
++		Name:     "rietveld",
++		InnerXML: "<name>rietveld</name>",
+ 	},
+ 	Entry: []Entry{
+ 		Entry{
+@@ -134,7 +136,8 @@ var rssFeed = Feed{
+ 			},
+ 			Updated: "2009-10-04T01:35:58+00:00",
+ 			Author: Person{
+-				Name: "email-address-removed",
++				Name:     "email-address-removed",
++				InnerXML: "<name>email-address-removed</name>",
+ 			},
+ 			Id: "urn:md5:134d9179c41f806be79b3a5f7877d19a",
+ 			Summary: Text{
+@@ -180,7 +183,8 @@ the top of feeds.py marked NOTE(rsc).
+ 			},
+ 			Updated: "2009-10-03T23:02:17+00:00",
+ 			Author: Person{
+-				Name: "email-address-removed",
++				Name:     "email-address-removed",
++				InnerXML: "<name>email-address-removed</name>",
+ 			},
+ 			Id: "urn:md5:0a2a4f19bb815101f0ba2904aed7c35a",
+ 			Summary: Text{
+diff --git a/src/pkg/xml/xml.go b/src/pkg/xml/xml.go
+index 3737fbec91..410b0f77ca 100644
+--- a/src/pkg/xml/xml.go
++++ b/src/pkg/xml/xml.go
+@@ -165,6 +165,7 @@ type Parser struct {
+ 
+ 	r         io.ReadByter
+ 	buf       bytes.Buffer
++	saved     *bytes.Buffer
+ 	stk       *stack
+ 	free      *stack
+ 	needClose bool
+@@ -698,6 +699,9 @@ func (p *Parser) getc() (b byte, ok bool) {
+ 		if p.err != nil {
+ 			return 0, false
+ 		}
++		if p.saved != nil {
++			p.saved.WriteByte(b)
++		}
+ 	}
+ 	if b == '\n' {
+ 		p.line++
+@@ -705,6 +709,16 @@ func (p *Parser) getc() (b byte, ok bool) {
+ 	return b, true
+ }
+ 
++// Return saved offset.
++// If we did ungetc (nextByte >= 0), have to back up one.
++func (p *Parser) savedOffset() int {
++	n := p.saved.Len()
++	if p.nextByte >= 0 {
++		n--
++	}
++	return n
++}
++
+ // Must read a single byte.
+ // If there is no byte to read,
+ // set p.err to SyntaxError("unexpected EOF")

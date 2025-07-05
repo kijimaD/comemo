@@ -9,6 +9,24 @@ Date:   Wed Oct 2 22:09:54 2013 -0400
     R=golang-dev, iant, mikioh.mikioh
     CC=golang-dev
     https://golang.org/cl/13280049
-
+---
  src/pkg/net/dnsclient_unix.go | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/pkg/net/dnsclient_unix.go b/src/pkg/net/dnsclient_unix.go
+index f42e9d321f..16cf420dcd 100644
+--- a/src/pkg/net/dnsclient_unix.go
++++ b/src/pkg/net/dnsclient_unix.go
+@@ -211,6 +211,12 @@ func lookup(name string, qtype uint16) (cname string, addrs []dnsRR, err error)
+ 	if err == nil {
+ 		return
+ 	}
++	if e, ok := err.(*DNSError); ok {
++		// Show original name passed to lookup, not suffixed one.
++		// In general we might have tried many suffixes; showing
++		// just one is misleading. See also golang.org/issue/6324.
++		e.Name = name
++	}
+ 	return
+ }
+ 

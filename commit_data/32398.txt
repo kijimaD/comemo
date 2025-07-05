@@ -9,6 +9,45 @@ Date:   Fri Apr 21 19:44:24 2017 -0500
     Run-TryBot: Todd Neal <todd@tneal.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ssa/rewrite.go | 16 ----------------
  1 file changed, 16 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index 8359ce668c..8045ae4951 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -6,12 +6,10 @@ package ssa
+ 
+ import (
+ 	"cmd/internal/obj"
+-	"crypto/sha1"
+ 	"fmt"
+ 	"math"
+ 	"os"
+ 	"path/filepath"
+-	"strings"
+ )
+ 
+ func applyRewrite(f *Func, rb blockRewriter, rv valueRewriter) {
+@@ -572,20 +570,6 @@ func min(x, y int64) int64 {
+ 	return y
+ }
+ 
+-func experiment(f *Func) bool {
+-	hstr := ""
+-	for _, b := range sha1.Sum([]byte(f.Name)) {
+-		hstr += fmt.Sprintf("%08b", b)
+-	}
+-	r := strings.HasSuffix(hstr, "00011")
+-	_ = r
+-	r = f.Name == "(*fmt).fmt_integer"
+-	if r {
+-		fmt.Printf("             enabled for %s\n", f.Name)
+-	}
+-	return r
+-}
+-
+ func isConstZero(v *Value) bool {
+ 	switch v.Op {
+ 	case OpConstNil:

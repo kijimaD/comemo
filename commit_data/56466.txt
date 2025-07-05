@@ -13,8 +13,54 @@ Date:   Wed May 10 12:47:06 2023 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  api/next/41198.txt           | 1 +
  src/net/http/request.go      | 5 +++++
  src/net/http/request_test.go | 7 +++++++
  3 files changed, 13 insertions(+)
+
+diff --git a/api/next/41198.txt b/api/next/41198.txt
+index 6f83b18d42..31996e6d2a 100644
+--- a/api/next/41198.txt
++++ b/api/next/41198.txt
+@@ -1 +1,2 @@
+ pkg errors, var ErrUnsupported error #41198
++pkg net/http, method (*ProtocolError) Is(error) bool #41198
+diff --git a/src/net/http/request.go b/src/net/http/request.go
+index a45c9e3d18..4e9190493c 100644
+--- a/src/net/http/request.go
++++ b/src/net/http/request.go
+@@ -48,6 +48,11 @@ type ProtocolError struct {
+ 
+ func (pe *ProtocolError) Error() string { return pe.ErrorString }
+ 
++// Is lets http.ErrNotSupported match errors.ErrUnsupported.
++func (pe *ProtocolError) Is(err error) bool {
++	return pe == ErrNotSupported && err == errors.ErrUnsupported
++}
++
+ var (
+ 	// ErrNotSupported indicates that a feature is not supported.
+ 	//
+diff --git a/src/net/http/request_test.go b/src/net/http/request_test.go
+index 76c8790f16..78b968f23c 100644
+--- a/src/net/http/request_test.go
++++ b/src/net/http/request_test.go
+@@ -10,6 +10,7 @@ import (
+ 	"context"
+ 	"crypto/rand"
+ 	"encoding/base64"
++	"errors"
+ 	"fmt"
+ 	"io"
+ 	"math"
+@@ -1388,3 +1389,9 @@ func runFileAndServerBenchmarks(b *testing.B, mode testMode, f *os.File, n int64
+ 		b.SetBytes(n)
+ 	}
+ }
++
++func TestErrNotSupported(t *testing.T) {
++	if !errors.Is(ErrNotSupported, errors.ErrUnsupported) {
++		t.Error("errors.Is(ErrNotSupported, errors.ErrUnsupported) failed")
++	}
++}

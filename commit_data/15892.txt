@@ -10,7 +10,34 @@ Date:   Sat Mar 23 02:15:52 2013 +1100
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/7942043
-
+---
  src/pkg/runtime/mem_netbsd.c  | 2 +-
  src/pkg/runtime/mem_openbsd.c | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/runtime/mem_netbsd.c b/src/pkg/runtime/mem_netbsd.c
+index 63a57b94a3..e5bdac0ef6 100644
+--- a/src/pkg/runtime/mem_netbsd.c
++++ b/src/pkg/runtime/mem_netbsd.c
+@@ -50,7 +50,7 @@ runtime·SysReserve(void *v, uintptr n)
+ 		return v;
+ 
+ 	p = runtime·mmap(v, n, PROT_NONE, MAP_ANON|MAP_PRIVATE, -1, 0);
+-	if(p == (void*)ENOMEM)
++	if(p < (void*)4096)
+ 		return nil;
+ 	return p;
+ }
+diff --git a/src/pkg/runtime/mem_openbsd.c b/src/pkg/runtime/mem_openbsd.c
+index 63a57b94a3..e5bdac0ef6 100644
+--- a/src/pkg/runtime/mem_openbsd.c
++++ b/src/pkg/runtime/mem_openbsd.c
+@@ -50,7 +50,7 @@ runtime·SysReserve(void *v, uintptr n)
+ 		return v;
+ 
+ 	p = runtime·mmap(v, n, PROT_NONE, MAP_ANON|MAP_PRIVATE, -1, 0);
+-	if(p == (void*)ENOMEM)
++	if(p < (void*)4096)
+ 		return nil;
+ 	return p;
+ }

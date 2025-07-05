@@ -21,9 +21,112 @@ Date:   Thu Oct 29 16:06:19 2020 -0400
     Reviewed-by: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Michael Matloob <matloob@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  .../go/testdata/mod/example.net_pkgremoved_v0.1.0.txt    | 16 ----------------
  .../go/testdata/mod/example.net_pkgremoved_v0.2.0.txt    | 15 ---------------
  .../go/testdata/mod/example.net_pkgremoved_v0.2.1.txt    | 15 ---------------
  src/cmd/go/testdata/script/mod_get_patchmod.txt          | 16 +++++++++++++++-
  4 files changed, 15 insertions(+), 47 deletions(-)
+
+diff --git a/src/cmd/go/testdata/mod/example.net_pkgremoved_v0.1.0.txt b/src/cmd/go/testdata/mod/example.net_pkgremoved_v0.1.0.txt
+deleted file mode 100644
+index f5e76b00c9..0000000000
+--- a/src/cmd/go/testdata/mod/example.net_pkgremoved_v0.1.0.txt
++++ /dev/null
+@@ -1,16 +0,0 @@
+-Written by hand.
+-Test module with a root package added in v0.1.0 and removed in v0.2.0.
+-
+--- .mod --
+-module example.net/pkgremoved
+-
+-go 1.16
+--- .info --
+-{"Version": "v0.1.0"}
+--- go.mod --
+-module example.net/pkgremoved
+-
+-go 1.16
+--- pkgremoved.go --
+-// Package pkgremoved exists in v0.1.0.
+-package pkgremoved
+diff --git a/src/cmd/go/testdata/mod/example.net_pkgremoved_v0.2.0.txt b/src/cmd/go/testdata/mod/example.net_pkgremoved_v0.2.0.txt
+deleted file mode 100644
+index f1fc9fb61f..0000000000
+--- a/src/cmd/go/testdata/mod/example.net_pkgremoved_v0.2.0.txt
++++ /dev/null
+@@ -1,15 +0,0 @@
+-Written by hand.
+-Test module with a root package added in v0.1.0 and removed in v0.2.0.
+-
+--- .mod --
+-module example.net/pkgremoved
+-
+-go 1.16
+--- .info --
+-{"Version": "v0.2.0"}
+--- go.mod --
+-module example.net/pkgremoved
+-
+-go 1.16
+--- README.txt --
+-Package pkgremove was removed in v0.2.0.
+diff --git a/src/cmd/go/testdata/mod/example.net_pkgremoved_v0.2.1.txt b/src/cmd/go/testdata/mod/example.net_pkgremoved_v0.2.1.txt
+deleted file mode 100644
+index 0e961853d5..0000000000
+--- a/src/cmd/go/testdata/mod/example.net_pkgremoved_v0.2.1.txt
++++ /dev/null
+@@ -1,15 +0,0 @@
+-Written by hand.
+-Test module with a root package added in v0.1.0 and removed in v0.2.0.
+-
+--- .mod --
+-module example.net/pkgremoved
+-
+-go 1.16
+--- .info --
+-{"Version": "v0.2.1"}
+--- go.mod --
+-module example.net/pkgremoved
+-
+-go 1.16
+--- README.txt --
+-Package pkgremove was removed in v0.2.0.
+diff --git a/src/cmd/go/testdata/script/mod_get_patchmod.txt b/src/cmd/go/testdata/script/mod_get_patchmod.txt
+index 45d680d021..0f4e2e1647 100644
+--- a/src/cmd/go/testdata/script/mod_get_patchmod.txt
++++ b/src/cmd/go/testdata/script/mod_get_patchmod.txt
+@@ -17,7 +17,7 @@ stdout '^example.net/pkgremoved'
+ 
+ ! go get -d example.net/pkgremoved@patch example.net/other@v0.1.0
+ 
+-stderr '^go get example.net/pkgremoved@patch: module example.net/pkgremoved@latest found \(v0.2.1\), but does not contain package example.net/pkgremoved$'
++stderr '^go get example.net/pkgremoved@patch: module example.net/pkgremoved@latest found \(v0.2.1, replaced by ./pr2\), but does not contain package example.net/pkgremoved$'
+ 
+ 
+ -- go.mod --
+@@ -27,6 +27,10 @@ go 1.16
+ 
+ replace (
+ 	example.net/other v0.1.0 => ./other
++  example.net/pkgremoved v0.1.0 => ./pr1
++  example.net/pkgremoved v0.1.1 => ./pr1
++  example.net/pkgremoved v0.2.0 => ./pr2
++  example.net/pkgremoved v0.2.1 => ./pr2
+ )
+ -- other/go.mod --
+ module example.net/other
+@@ -36,3 +40,13 @@ go 1.16
+ require example.net/pkgremoved v0.2.0
+ -- other/other.go --
+ package other
++-- pr1/go.mod --
++module example.net/pkgremoved
++
++go 1.16
++-- pr1/pkgremoved.go --
++package pkgremoved
++-- pr2/go.mod --
++module example.net/pkgremoved
++-- pr2/README.txt --
++Package pkgremoved was removed in v0.2.0.

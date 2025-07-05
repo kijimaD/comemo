@@ -7,6 +7,21 @@ Date:   Mon Feb 11 10:15:56 2013 +1100
     R=golang-dev, nigeltao
     CC=golang-dev
     https://golang.org/cl/7304069
-
+---
  src/cmd/8l/asm.c | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/cmd/8l/asm.c b/src/cmd/8l/asm.c
+index 76ebdb9135..a00174c368 100644
+--- a/src/cmd/8l/asm.c
++++ b/src/cmd/8l/asm.c
+@@ -104,6 +104,9 @@ lookuprel(void)
+ void
+ adddynrela(Sym *rela, Sym *s, Reloc *r)
+ {
++	USED(rela);
++	USED(s);
++	USED(r);
+ 	sysfatal("adddynrela not implemented");
+ }
+ 

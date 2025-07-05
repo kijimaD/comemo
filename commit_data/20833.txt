@@ -8,6 +8,19 @@ Date:   Thu Oct 16 13:55:32 2014 -0700
     R=r
     CC=golang-codereviews
     https://golang.org/cl/159920044
-
+---
  CONTRIBUTORS | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index a24178b528..d4686215c3 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -160,6 +160,7 @@ Corey Thomasson <cthom.lists@gmail.com>
+ Cosmos Nicolaou <cnicolaou@google.com>
+ Cristian Staretu <unclejacksons@gmail.com>
+ Damian Gryski <dgryski@gmail.com>
++Damien Neil <dneil@google.com>
+ Dan Callahan <dan.callahan@gmail.com>
+ Dan Peterson <dpiddy@gmail.com>
+ Dan Sinclair <dan.sinclair@gmail.com>

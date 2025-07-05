@@ -22,8 +22,146 @@ Date:   Mon Oct 5 13:18:20 2020 -0700
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
     Trust: Emmanuel Odeke <emm.odeke@gmail.com>
     Trust: Roland Shoemaker <roland@golang.org>
-
+---
  doc/go1.16.html              |  7 ++++
  src/crypto/x509/x509.go      | 12 ++++++-
  src/crypto/x509/x509_test.go | 76 ++++++++++++++++++++++++++++++++++++++++++++
  3 files changed, 94 insertions(+), 1 deletion(-)
+
+diff --git a/doc/go1.16.html b/doc/go1.16.html
+index 509956fbf2..2eb6166185 100644
+--- a/doc/go1.16.html
++++ b/doc/go1.16.html
+@@ -201,6 +201,13 @@ Do not send CLs removing the interior tags from such phrases.
+   contain strings with characters within the ASCII range.
+ </p>
+ 
++<p><!-- CL 259697 -->
++  <a href="/pkg/crypto/x509/#CreateCertificate">CreateCertificate</a> now
++  verifies the generated certificate's signature using the signer's
++  public key. If the signature is invalid, an error is returned, instead
++  of a malformed certificate.
++</p>
++
+ <h3 id="net"><a href="/pkg/net/">net</a></h3>
+ 
+ <p><!-- CL 250357 -->
+diff --git a/src/crypto/x509/x509.go b/src/crypto/x509/x509.go
+index 58c4aa360f..bcef54ddb4 100644
+--- a/src/crypto/x509/x509.go
++++ b/src/crypto/x509/x509.go
+@@ -2145,12 +2145,22 @@ func CreateCertificate(rand io.Reader, template, parent *Certificate, pub, priv
+ 		return
+ 	}
+ 
+-	return asn1.Marshal(certificate{
++	signedCert, err := asn1.Marshal(certificate{
+ 		nil,
+ 		c,
+ 		signatureAlgorithm,
+ 		asn1.BitString{Bytes: signature, BitLength: len(signature) * 8},
+ 	})
++	if err != nil {
++		return nil, err
++	}
++
++	// Check the signature to ensure the crypto.Signer behaved correctly.
++	if err := checkSignature(getSignatureAlgorithmFromAI(signatureAlgorithm), c.Raw, signature, key.Public()); err != nil {
++		return nil, fmt.Errorf("x509: signature over certificate returned by signer is invalid: %w", err)
++	}
++
++	return signedCert, nil
+ }
+ 
+ // pemCRLPrefix is the magic string that indicates that we have a PEM encoded
+diff --git a/src/crypto/x509/x509_test.go b/src/crypto/x509/x509_test.go
+index 2d9ace4a16..5a39e61b3c 100644
+--- a/src/crypto/x509/x509_test.go
++++ b/src/crypto/x509/x509_test.go
+@@ -22,6 +22,7 @@ import (
+ 	"encoding/pem"
+ 	"fmt"
+ 	"internal/testenv"
++	"io"
+ 	"math/big"
+ 	"net"
+ 	"net/url"
+@@ -2820,3 +2821,78 @@ func TestIA5SANEnforcement(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func BenchmarkCreateCertificate(b *testing.B) {
++	template := &Certificate{
++		SerialNumber: big.NewInt(10),
++		DNSNames:     []string{"example.com"},
++	}
++	tests := []struct {
++		name string
++		gen  func() crypto.Signer
++	}{
++		{
++			name: "RSA 2048",
++			gen: func() crypto.Signer {
++				k, err := rsa.GenerateKey(rand.Reader, 2048)
++				if err != nil {
++					b.Fatalf("failed to generate test key: %s", err)
++				}
++				return k
++			},
++		},
++		{
++			name: "ECDSA P256",
++			gen: func() crypto.Signer {
++				k, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
++				if err != nil {
++					b.Fatalf("failed to generate test key: %s", err)
++				}
++				return k
++			},
++		},
++	}
++
++	for _, tc := range tests {
++		k := tc.gen()
++		b.ResetTimer()
++		b.Run(tc.name, func(b *testing.B) {
++			for i := 0; i < b.N; i++ {
++				_, err := CreateCertificate(rand.Reader, template, template, k.Public(), k)
++				if err != nil {
++					b.Fatalf("failed to create certificate: %s", err)
++				}
++			}
++		})
++	}
++}
++
++type brokenSigner struct {
++	pub crypto.PublicKey
++}
++
++func (bs *brokenSigner) Public() crypto.PublicKey {
++	return bs.pub
++}
++
++func (bs *brokenSigner) Sign(_ io.Reader, _ []byte, _ crypto.SignerOpts) ([]byte, error) {
++	return []byte{1, 2, 3}, nil
++}
++
++func TestCreateCertificateBrokenSigner(t *testing.T) {
++	template := &Certificate{
++		SerialNumber: big.NewInt(10),
++		DNSNames:     []string{"example.com"},
++	}
++	k, err := rsa.GenerateKey(rand.Reader, 1024)
++	if err != nil {
++		t.Fatalf("failed to generate test key: %s", err)
++	}
++	expectedErr := "x509: signature over certificate returned by signer is invalid: crypto/rsa: verification error"
++	_, err = CreateCertificate(rand.Reader, template, template, k.Public(), &brokenSigner{k.Public()})
++	if err == nil {
++		t.Fatal("expected CreateCertificate to fail with a broken signer")
++	} else if err.Error() != expectedErr {
++		t.Fatalf("CreateCertificate returned an unexpected error: got %q, want %q", err, expectedErr)
++	}
++}

@@ -8,7 +8,40 @@ Date:   Thu Jul 28 16:46:32 2011 -0700
     R=gri
     CC=golang-dev
     https://golang.org/cl/4815070
-
+---
  src/cmd/goinstall/make.go | 4 ++--
  src/pkg/rpc/debug.go      | 2 +-
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/goinstall/make.go b/src/cmd/goinstall/make.go
+index 9c1c7c4d79..25f79d60df 100644
+--- a/src/cmd/goinstall/make.go
++++ b/src/cmd/goinstall/make.go
+@@ -138,7 +138,7 @@ type makedata struct {
+ 	Imports   []string // gc/ld import paths
+ }
+ 
+-var makefileTemplate = template.New("Makefile").MustParse(`
++var makefileTemplate = template.Must(template.New("Makefile").Parse(`
+ include $(GOROOT)/src/Make.inc
+ 
+ TARG={{.Targ}}
+@@ -172,4 +172,4 @@ GCIMPORTS={{range .Imports}}-I "{{.}}" {{end}}
+ LDIMPORTS={{range .Imports}}-L "{{.}}" {{end}}
+ 
+ include $(GOROOT)/src/Make.{{.Type}}
+-`)
++`))
+diff --git a/src/pkg/rpc/debug.go b/src/pkg/rpc/debug.go
+index e0602e676f..ae76a4586a 100644
+--- a/src/pkg/rpc/debug.go
++++ b/src/pkg/rpc/debug.go
+@@ -36,7 +36,7 @@ const debugText = `<html>
+ 	</body>
+ 	</html>`
+ 
+-var debug = template.New("RPC debug").MustParse(debugText)
++var debug = template.Must(template.New("RPC debug").Parse(debugText))
+ 
+ type debugMethod struct {
+ 	Type *methodType

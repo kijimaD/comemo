@@ -35,7 +35,7 @@ Date:   Thu Sep 9 16:34:02 2021 -0400
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/compile.go            |  59 ++++--
  src/cmd/compile/internal/ssa/debug_lines_test.go   | 213 +++++++++++++++++++++
  src/cmd/compile/internal/ssa/func.go               |   2 +-
@@ -45,3 +45,572 @@ Date:   Thu Sep 9 16:34:02 2021 -0400
  src/cmd/compile/internal/ssagen/ssa.go             |  55 +++++-
  src/cmd/internal/obj/util.go                       |   5 +
  8 files changed, 360 insertions(+), 23 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/compile.go b/src/cmd/compile/internal/ssa/compile.go
+index cd8eba405d..f87ea5b893 100644
+--- a/src/cmd/compile/internal/ssa/compile.go
++++ b/src/cmd/compile/internal/ssa/compile.go
+@@ -10,9 +10,11 @@ import (
+ 	"fmt"
+ 	"hash/crc32"
+ 	"internal/buildcfg"
++	"io"
+ 	"log"
+ 	"math/rand"
+ 	"os"
++	"path/filepath"
+ 	"regexp"
+ 	"runtime"
+ 	"sort"
+@@ -59,7 +61,7 @@ func Compile(f *Func) {
+ 		printFunc(f)
+ 	}
+ 	f.HTMLWriter.WritePhase("start", "start")
+-	if BuildDump != "" && BuildDump == f.Name {
++	if BuildDump[f.Name] {
+ 		f.dumpFile("build")
+ 	}
+ 	if checkEnabled {
+@@ -163,25 +165,37 @@ func Compile(f *Func) {
+ 	phaseName = ""
+ }
+ 
+-// dumpFile creates a file from the phase name and function name
+-// Dumping is done to files to avoid buffering huge strings before
+-// output.
+-func (f *Func) dumpFile(phaseName string) {
++// DumpFileForPhase creates a file from the function name and phase name,
++// warning and returning nil if this is not possible.
++func (f *Func) DumpFileForPhase(phaseName string) io.WriteCloser {
+ 	f.dumpFileSeq++
+ 	fname := fmt.Sprintf("%s_%02d__%s.dump", f.Name, int(f.dumpFileSeq), phaseName)
+ 	fname = strings.Replace(fname, " ", "_", -1)
+ 	fname = strings.Replace(fname, "/", "_", -1)
+ 	fname = strings.Replace(fname, ":", "_", -1)
+ 
++	if ssaDir := os.Getenv("GOSSADIR"); ssaDir != "" {
++		fname = filepath.Join(ssaDir, fname)
++	}
++
+ 	fi, err := os.Create(fname)
+ 	if err != nil {
+ 		f.Warnl(src.NoXPos, "Unable to create after-phase dump file %s", fname)
+-		return
++		return nil
+ 	}
++	return fi
++}
+ 
+-	p := stringFuncPrinter{w: fi}
+-	fprintFunc(p, f)
+-	fi.Close()
++// dumpFile creates a file from the phase name and function name
++// Dumping is done to files to avoid buffering huge strings before
++// output.
++func (f *Func) dumpFile(phaseName string) {
++	fi := f.DumpFileForPhase(phaseName)
++	if fi != nil {
++		p := stringFuncPrinter{w: fi}
++		fprintFunc(p, f)
++		fi.Close()
++	}
+ }
+ 
+ type pass struct {
+@@ -224,7 +238,9 @@ var IntrinsicsDisable bool
+ var BuildDebug int
+ var BuildTest int
+ var BuildStats int
+-var BuildDump string // name of function to dump after initial build of ssa
++var BuildDump map[string]bool = make(map[string]bool) // names of functions to dump after initial build of ssa
++
++var GenssaDump map[string]bool = make(map[string]bool) // names of functions to dump after ssa has been converted to asm
+ 
+ // PhaseOption sets the specified flag in the specified ssa phase,
+ // returning empty string if this was successful or a string explaining
+@@ -248,7 +264,7 @@ func PhaseOption(phase, flag string, val int, valString string) string {
+ 	switch phase {
+ 	case "", "help":
+ 		lastcr := 0
+-		phasenames := "    check, all, build, intrinsics"
++		phasenames := "    check, all, build, intrinsics, genssa"
+ 		for _, p := range passes {
+ 			pn := strings.Replace(p.name, " ", "_", -1)
+ 			if len(pn)+len(phasenames)-lastcr > 70 {
+@@ -278,6 +294,7 @@ where:
+ 
+ Phase "all" supports flags "time", "mem", and "dump".
+ Phase "intrinsics" supports flags "on", "off", and "debug".
++Phase "genssa" (assembly generation) supports the flag "dump".
+ 
+ If the "dump" flag is specified, the output is written on a file named
+ <phase>__<function_name>_<seq>.dump; otherwise it is directed to stdout.
+@@ -339,10 +356,11 @@ commas. For example:
+ 		case "dump":
+ 			alldump = val != 0
+ 			if alldump {
+-				BuildDump = valString
++				BuildDump[valString] = true
++				GenssaDump[valString] = true
+ 			}
+ 		default:
+-			return fmt.Sprintf("Did not find a flag matching %s in -d=ssa/%s debug option", flag, phase)
++			return fmt.Sprintf("Did not find a flag matching %s in -d=ssa/%s debug option (expected ssa/all/{time,mem,dump=function_name})", flag, phase)
+ 		}
+ 	}
+ 
+@@ -355,7 +373,7 @@ commas. For example:
+ 		case "debug":
+ 			IntrinsicsDebug = val
+ 		default:
+-			return fmt.Sprintf("Did not find a flag matching %s in -d=ssa/%s debug option", flag, phase)
++			return fmt.Sprintf("Did not find a flag matching %s in -d=ssa/%s debug option (expected ssa/intrinsics/{on,off,debug})", flag, phase)
+ 		}
+ 		return ""
+ 	}
+@@ -368,9 +386,18 @@ commas. For example:
+ 		case "stats":
+ 			BuildStats = val
+ 		case "dump":
+-			BuildDump = valString
++			BuildDump[valString] = true
++		default:
++			return fmt.Sprintf("Did not find a flag matching %s in -d=ssa/%s debug option (expected ssa/build/{debug,test,stats,dump=function_name})", flag, phase)
++		}
++		return ""
++	}
++	if phase == "genssa" {
++		switch flag {
++		case "dump":
++			GenssaDump[valString] = true
+ 		default:
+-			return fmt.Sprintf("Did not find a flag matching %s in -d=ssa/%s debug option", flag, phase)
++			return fmt.Sprintf("Did not find a flag matching %s in -d=ssa/%s debug option (expected ssa/genssa/dump=function_name)", flag, phase)
+ 		}
+ 		return ""
+ 	}
+diff --git a/src/cmd/compile/internal/ssa/debug_lines_test.go b/src/cmd/compile/internal/ssa/debug_lines_test.go
+new file mode 100644
+index 0000000000..c5a0fe449c
+--- /dev/null
++++ b/src/cmd/compile/internal/ssa/debug_lines_test.go
+@@ -0,0 +1,213 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ssa_test
++
++import (
++	"bufio"
++	"bytes"
++	"flag"
++	"runtime"
++	"sort"
++
++	// "flag"
++	"fmt"
++	"internal/testenv"
++	"io/ioutil"
++	"os"
++	"os/exec"
++	"path/filepath"
++	"reflect"
++	"regexp"
++	"strconv"
++	"testing"
++)
++
++// Matches lines in genssa output that are marked "isstmt", and the parenthesized plus-prefixed line number is a submatch
++var asmLine *regexp.Regexp = regexp.MustCompile(`^\s[vb][0-9]+\s+[0-9]+\s\(\+([0-9]+)\)`)
++
++// this matches e.g.                            `   v123456789   000007   (+9876654310) MOVUPS	X15, ""..autotmp_2-32(SP)`
++
++// Matches lines in genssa output that describe an inlined file (on a Unix filesystem).  Note it expects an unadventurous choice of basename.
++var inlineLine *regexp.Regexp = regexp.MustCompile(`^#\s/.*/[-a-zA-Z0-9_]+\.go:([0-9]+)`)
++
++// this matches e.g.                                 #  /pa/inline-dumpxxxx.go:6
++
++var testGoArchFlag = flag.String("arch", "", "run test for specified architecture")
++
++func testGoArch() string {
++	if *testGoArchFlag == "" {
++		return runtime.GOARCH
++	}
++	return *testGoArchFlag
++}
++
++func TestDebugLines(t *testing.T) {
++	if runtime.GOOS == "windows" {
++		t.Skip("Windows lacks $HOME which complicates workaround for 'missing $GOPATH'") // $HOME needed to work around #43938
++	}
++	// This test is potentially fragile, the goal is that debugging should step properly through "sayhi"
++	// If the blocks are reordered in a way that changes the statement order but execution flows correctly,
++	// then rearrange the expected numbers.  Register abi and not-register-abi also have different sequences,
++	// at least for now.
++
++	switch testGoArch() {
++	case "arm64", "amd64": // register ABI
++		testDebugLines(t, "sayhi.go", "sayhi", []int{8, 9, 10, 11})
++
++	case "arm", "386": // probably not register ABI for a while
++		testDebugLines(t, "sayhi.go", "sayhi", []int{9, 10, 11})
++
++	default: // expect ppc64le and riscv will pick up register ABI soonish, not sure about others
++		t.Skip("skipped for many architectures, also changes w/ register ABI")
++	}
++}
++
++func TestInlineLines(t *testing.T) {
++	if runtime.GOOS == "windows" {
++		t.Skip("Windows lacks $HOME which complicates workaround for 'missing $GOPATH'") // $HOME needed to work around #43938
++	}
++	if runtime.GOARCH != "amd64" && *testGoArchFlag == "" {
++		// As of september 2021, works for everything except mips64, but still potentially fragile
++		t.Skip("only runs for amd64 unless -arch explicitly supplied")
++	}
++
++	want := [][]int{{3}, {4, 10}, {4, 10, 16}, {4, 10}, {4, 11, 16}, {4, 11}, {4}, {5, 10}, {5, 10, 16}, {5, 10}, {5, 11, 16}, {5, 11}, {5}}
++	testInlineStack(t, "inline-dump.go", "f", want)
++}
++
++func compileAndDump(t *testing.T, file, function, moreGCFlags string) []byte {
++	testenv.MustHaveGoBuild(t)
++
++	tmpdir, err := ioutil.TempDir("", "debug_lines_test")
++	if err != nil {
++		panic(fmt.Sprintf("Problem creating TempDir, error %v", err))
++	}
++	if testing.Verbose() {
++		fmt.Printf("Preserving temporary directory %s\n", tmpdir)
++	} else {
++		defer os.RemoveAll(tmpdir)
++	}
++
++	source, err := filepath.Abs(filepath.Join("testdata", file))
++	if err != nil {
++		panic(fmt.Sprintf("Could not get abspath of testdata directory and file, %v", err))
++	}
++
++	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", "foo.o", "-gcflags=-d=ssa/genssa/dump="+function+" "+moreGCFlags, source)
++	cmd.Dir = tmpdir
++	cmd.Env = replaceEnv(cmd.Env, "GOSSADIR", tmpdir)
++	cmd.Env = replaceEnv(cmd.Env, "HOME", os.Getenv("HOME")) // workaround for #43938
++	testGoos := "linux"                                      // default to linux
++	if testGoArch() == "wasm" {
++		testGoos = "js"
++	}
++	cmd.Env = replaceEnv(cmd.Env, "GOOS", testGoos)
++	cmd.Env = replaceEnv(cmd.Env, "GOARCH", testGoArch())
++
++	if testing.Verbose() {
++		fmt.Printf("About to run %s\n", asCommandLine("", cmd))
++	}
++
++	var stdout, stderr bytes.Buffer
++	cmd.Stdout = &stdout
++	cmd.Stderr = &stderr
++
++	if err := cmd.Run(); err != nil {
++		t.Fatalf("error running cmd %s: %v\nstdout:\n%sstderr:\n%s\n", asCommandLine("", cmd), err, stdout.String(), stderr.String())
++	}
++
++	if s := stderr.String(); s != "" {
++		t.Fatalf("Wanted empty stderr, instead got:\n%s\n", s)
++	}
++
++	dumpFile := filepath.Join(tmpdir, function+"_01__genssa.dump")
++	dumpBytes, err := os.ReadFile(dumpFile)
++	if err != nil {
++		t.Fatalf("Could not read dump file %s, err=%v", dumpFile, err)
++	}
++	return dumpBytes
++}
++
++func sortInlineStacks(x [][]int) {
++	sort.Slice(x, func(i, j int) bool {
++		if len(x[i]) != len(x[j]) {
++			return len(x[i]) < len(x[j])
++		}
++		for k := range x[i] {
++			if x[i][k] != x[j][k] {
++				return x[i][k] < x[j][k]
++			}
++		}
++		return false
++	})
++}
++
++// testInlineStack ensures that inlining is described properly in the comments in the dump file
++func testInlineStack(t *testing.T, file, function string, wantStacks [][]int) {
++	// this is an inlining reporting test, not an optimization test.  -N makes it less fragile
++	dumpBytes := compileAndDump(t, file, function, "-N")
++	dump := bufio.NewScanner(bytes.NewReader(dumpBytes))
++	dumpLineNum := 0
++	var gotStmts []int
++	var gotStacks [][]int
++	for dump.Scan() {
++		line := dump.Text()
++		dumpLineNum++
++		matches := inlineLine.FindStringSubmatch(line)
++		if len(matches) == 2 {
++			stmt, err := strconv.ParseInt(matches[1], 10, 32)
++			if err != nil {
++				t.Fatalf("Expected to parse a line number but saw %s instead on dump line #%d, error %v", matches[1], dumpLineNum, err)
++			}
++			if testing.Verbose() {
++				fmt.Printf("Saw stmt# %d for submatch '%s' on dump line #%d = '%s'\n", stmt, matches[1], dumpLineNum, line)
++			}
++			gotStmts = append(gotStmts, int(stmt))
++		} else if len(gotStmts) > 0 {
++			gotStacks = append(gotStacks, gotStmts)
++			gotStmts = nil
++		}
++	}
++	if len(gotStmts) > 0 {
++		gotStacks = append(gotStacks, gotStmts)
++		gotStmts = nil
++	}
++	sortInlineStacks(gotStacks)
++	sortInlineStacks(wantStacks)
++	if !reflect.DeepEqual(wantStacks, gotStacks) {
++		t.Errorf("wanted inlines %+v but got %+v", wantStacks, gotStacks)
++	}
++
++}
++
++// testDebugLines compiles testdata/<file> with flags -N -l and -d=ssa/genssa/dump=<function>
++// then verifies that the statement-marked lines in that file are the same as those in wantStmts
++// These files must all be short because this is super-fragile.
++// "go build" is run in a temporary directory that is normally deleted, unless -test.v
++func testDebugLines(t *testing.T, file, function string, wantStmts []int) {
++	dumpBytes := compileAndDump(t, file, function, "-N -l")
++	dump := bufio.NewScanner(bytes.NewReader(dumpBytes))
++	var gotStmts []int
++	dumpLineNum := 0
++	for dump.Scan() {
++		line := dump.Text()
++		dumpLineNum++
++		matches := asmLine.FindStringSubmatch(line)
++		if len(matches) == 2 {
++			stmt, err := strconv.ParseInt(matches[1], 10, 32)
++			if err != nil {
++				t.Fatalf("Expected to parse a line number but saw %s instead on dump line #%d, error %v", matches[1], dumpLineNum, err)
++			}
++			if testing.Verbose() {
++				fmt.Printf("Saw stmt# %d for submatch '%s' on dump line #%d = '%s'\n", stmt, matches[1], dumpLineNum, line)
++			}
++			gotStmts = append(gotStmts, int(stmt))
++		}
++	}
++	if !reflect.DeepEqual(wantStmts, gotStmts) {
++		t.Errorf("wanted stmts %v but got %v", wantStmts, gotStmts)
++	}
++
++}
+diff --git a/src/cmd/compile/internal/ssa/func.go b/src/cmd/compile/internal/ssa/func.go
+index fac876c23e..7728a395e0 100644
+--- a/src/cmd/compile/internal/ssa/func.go
++++ b/src/cmd/compile/internal/ssa/func.go
+@@ -43,7 +43,7 @@ type Func struct {
+ 	logfiles       map[string]writeSyncer
+ 	HTMLWriter     *HTMLWriter    // html writer, for debugging
+ 	DebugTest      bool           // default true unless $GOSSAHASH != ""; as a debugging aid, make new code conditional on this and use GOSSAHASH to binary search for failing cases
+-	PrintOrHtmlSSA bool           // true if GOSSAFUNC matches, true even if fe.Log() (spew phase results to stdout) is false.
++	PrintOrHtmlSSA bool           // true if GOSSAFUNC matches, true even if fe.Log() (spew phase results to stdout) is false.  There's an odd dependence on this in debug.go for method logf.
+ 	ruleMatches    map[string]int // number of times countRule was called during compilation for any given string
+ 	ABI0           *abi.ABIConfig // A copy, for no-sync access
+ 	ABI1           *abi.ABIConfig // A copy, for no-sync access
+diff --git a/src/cmd/compile/internal/ssa/print.go b/src/cmd/compile/internal/ssa/print.go
+index 81c64a7692..96cd2c7c90 100644
+--- a/src/cmd/compile/internal/ssa/print.go
++++ b/src/cmd/compile/internal/ssa/print.go
+@@ -6,6 +6,7 @@ package ssa
+ 
+ import (
+ 	"bytes"
++	"cmd/internal/src"
+ 	"crypto/sha256"
+ 	"fmt"
+ 	"io"
+@@ -83,13 +84,26 @@ func (p stringFuncPrinter) endBlock(b *Block, reachable bool) {
+ 	fmt.Fprintln(p.w, "    "+b.LongString())
+ }
+ 
++func StmtString(p src.XPos) string {
++	linenumber := "(?) "
++	if p.IsKnown() {
++		pfx := ""
++		if p.IsStmt() == src.PosIsStmt {
++			pfx = "+"
++		}
++		if p.IsStmt() == src.PosNotStmt {
++			pfx = "-"
++		}
++		linenumber = fmt.Sprintf("(%s%d) ", pfx, p.Line())
++	}
++	return linenumber
++}
++
+ func (p stringFuncPrinter) value(v *Value, live bool) {
+ 	if !p.printDead && !live {
+ 		return
+ 	}
+-	fmt.Fprint(p.w, "    ")
+-	//fmt.Fprint(p.w, v.Block.Func.fe.Pos(v.Pos))
+-	//fmt.Fprint(p.w, ": ")
++	fmt.Fprintf(p.w, "    %s", StmtString(v.Pos))
+ 	fmt.Fprint(p.w, v.LongString())
+ 	if !live {
+ 		fmt.Fprint(p.w, " DEAD")
+diff --git a/src/cmd/compile/internal/ssa/testdata/inline-dump.go b/src/cmd/compile/internal/ssa/testdata/inline-dump.go
+new file mode 100644
+index 0000000000..97893b6f21
+--- /dev/null
++++ b/src/cmd/compile/internal/ssa/testdata/inline-dump.go
+@@ -0,0 +1,17 @@
++package foo
++
++func f(m, n int) int {
++	a := g(n)
++	b := g(m)
++	return a + b
++}
++
++func g(x int) int {
++	y := h(x + 1)
++	z := h(x - 1)
++	return y + z
++}
++
++func h(x int) int {
++	return x * x
++}
+diff --git a/src/cmd/compile/internal/ssa/testdata/sayhi.go b/src/cmd/compile/internal/ssa/testdata/sayhi.go
+new file mode 100644
+index 0000000000..680e1eb3a1
+--- /dev/null
++++ b/src/cmd/compile/internal/ssa/testdata/sayhi.go
+@@ -0,0 +1,12 @@
++package foo
++
++import (
++	"fmt"
++	"sync"
++)
++
++func sayhi(n int, wg *sync.WaitGroup) {
++	fmt.Println("hi", n)
++	fmt.Println("hi", n)
++	wg.Done()
++}
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 08f36ce7be..82d232f940 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -6703,7 +6703,8 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
+ 	var progToValue map[*obj.Prog]*ssa.Value
+ 	var progToBlock map[*obj.Prog]*ssa.Block
+ 	var valueToProgAfter []*obj.Prog // The first Prog following computation of a value v; v is visible at this point.
+-	if f.PrintOrHtmlSSA {
++	gatherPrintInfo := f.PrintOrHtmlSSA || ssa.GenssaDump[f.Name]
++	if gatherPrintInfo {
+ 		progToValue = make(map[*obj.Prog]*ssa.Value, f.NumValues())
+ 		progToBlock = make(map[*obj.Prog]*ssa.Block, f.NumBlocks())
+ 		f.Logf("genssa %s\n", f.Name)
+@@ -6814,7 +6815,7 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
+ 				valueToProgAfter[v.ID] = s.pp.Next
+ 			}
+ 
+-			if f.PrintOrHtmlSSA {
++			if gatherPrintInfo {
+ 				for ; x != s.pp.Next; x = x.Link {
+ 					progToValue[x] = v
+ 				}
+@@ -6844,7 +6845,7 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
+ 		x := s.pp.Next
+ 		s.SetPos(b.Pos)
+ 		Arch.SSAGenBlock(&s, b, next)
+-		if f.PrintOrHtmlSSA {
++		if gatherPrintInfo {
+ 			for ; x != s.pp.Next; x = x.Link {
+ 				progToBlock[x] = b
+ 			}
+@@ -7023,6 +7024,54 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
+ 		buf.WriteString("</code>")
+ 		f.HTMLWriter.WriteColumn("genssa", "genssa", "ssa-prog", buf.String())
+ 	}
++	if ssa.GenssaDump[f.Name] {
++		fi := f.DumpFileForPhase("genssa")
++		if fi != nil {
++
++			// inliningDiffers if any filename changes or if any line number except the innermost (index 0) changes.
++			inliningDiffers := func(a, b []src.Pos) bool {
++				if len(a) != len(b) {
++					return true
++				}
++				for i := range a {
++					if a[i].Filename() != b[i].Filename() {
++						return true
++					}
++					if i > 0 && a[i].Line() != b[i].Line() {
++						return true
++					}
++				}
++				return false
++			}
++
++			var allPosOld []src.Pos
++			var allPos []src.Pos
++
++			for p := pp.Text; p != nil; p = p.Link {
++				if p.Pos.IsKnown() {
++					allPos = p.AllPos(allPos)
++					if inliningDiffers(allPos, allPosOld) {
++						for i := len(allPos) - 1; i >= 0; i-- {
++							pos := allPos[i]
++							fmt.Fprintf(fi, "# %s:%d\n", pos.Filename(), pos.Line())
++						}
++						allPos, allPosOld = allPosOld, allPos // swap, not copy, so that they do not share slice storage.
++					}
++				}
++
++				var s string
++				if v, ok := progToValue[p]; ok {
++					s = v.String()
++				} else if b, ok := progToBlock[p]; ok {
++					s = b.String()
++				} else {
++					s = "   " // most value and branch strings are 2-3 characters long
++				}
++				fmt.Fprintf(fi, " %-6s\t%.5d %s\t%s\n", s, p.Pc, ssa.StmtString(p.Pos), p.InstructionString())
++			}
++			fi.Close()
++		}
++	}
+ 
+ 	defframe(&s, e, f)
+ 
+diff --git a/src/cmd/internal/obj/util.go b/src/cmd/internal/obj/util.go
+index e8441a6969..0c9dde7965 100644
+--- a/src/cmd/internal/obj/util.go
++++ b/src/cmd/internal/obj/util.go
+@@ -7,6 +7,7 @@ package obj
+ import (
+ 	"bytes"
+ 	"cmd/internal/objabi"
++	"cmd/internal/src"
+ 	"fmt"
+ 	"internal/buildcfg"
+ 	"io"
+@@ -47,6 +48,10 @@ func (p *Prog) InnermostFilename() string {
+ 	return pos.Filename()
+ }
+ 
++func (p *Prog) AllPos(result []src.Pos) []src.Pos {
++	return p.Ctxt.AllPos(p.Pos, result)
++}
++
+ var armCondCode = []string{
+ 	".EQ",
+ 	".NE",

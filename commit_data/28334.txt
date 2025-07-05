@@ -9,6 +9,20 @@ Date:   Mon May 16 13:13:25 2016 -0700
     Change-Id: I0ab7791f7db499cef6bc52292d3d93ff4da7caff
     Reviewed-on: https://go-review.googlesource.com/23151
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/cmd.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/cmd.html b/doc/cmd.html
+index 5d20d3887a..992f176014 100644
+--- a/doc/cmd.html
++++ b/doc/cmd.html
+@@ -89,7 +89,7 @@ gofmt</a> command with more general options.</td>
+ </tr>
+ 
+ <tr>
+-<td><a href="//godoc.org/golang.org/x/tools/cmd/vet/">vet</a></td>
++<td><a href="/cmd/vet/">vet</a></td>
+ <td>&nbsp;&nbsp;&nbsp;&nbsp;</td>
+ <td>Vet examines Go source code and reports suspicious constructs, such as Printf
+ calls whose arguments do not align with the format string.</td>

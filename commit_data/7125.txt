@@ -12,6 +12,22 @@ Date:   Fri Jan 14 10:52:08 2011 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4026041
-
+---
  src/cmd/cgo/out.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index c3f9ae60b1..c766166775 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -34,7 +34,9 @@ func (p *Package) writeDefs() {
+ 
+ 	// Write C main file for using gcc to resolve imports.
+ 	fmt.Fprintf(fm, "int main() { return 0; }\n")
+-	fmt.Fprintf(fm, "int crosscall2;\n\n")
++	fmt.Fprintf(fm, "void crosscall2(void(*fn)(void*, int), void *a, int c) { }\n")
++	fmt.Fprintf(fm, "void _cgo_allocate(void *a, int c) { }\n")
++	fmt.Fprintf(fm, "void _cgo_panic(void *a, int c) { }\n")
+ 
+ 	// Write second Go output: definitions of _C_xxx.
+ 	// In a separate file so that the import of "unsafe" does not

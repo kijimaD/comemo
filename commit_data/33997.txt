@@ -34,7 +34,73 @@ Date:   Sun Sep 24 11:16:52 2017 +0100
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/cmd/go/go_test.go             | 10 ++++++++++
  src/cmd/go/internal/work/build.go | 22 +++++++++++-----------
  2 files changed, 21 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 2145ffb275..08b3cd0e6a 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -3820,6 +3820,7 @@ func TestGoEnv(t *testing.T) {
+ 	tg := testgo(t)
+ 	tg.parallel()
+ 	defer tg.cleanup()
++	tg.setenv("GOOS", "freebsd") // to avoid invalid pair errors
+ 	tg.setenv("GOARCH", "arm")
+ 	tg.run("env", "GOARCH")
+ 	tg.grepStdout("^arm$", "GOARCH not honored")
+@@ -4589,3 +4590,12 @@ func TestParallelNumber(t *testing.T) {
+ 		})
+ 	}
+ }
++
++func TestWrongGOOSErrorBeforeLoadError(t *testing.T) {
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
++	tg.setenv("GOOS", "windwos")
++	tg.runFail("build", "exclude")
++	tg.grepStderr("unsupported GOOS/GOARCH pair", "GOOS=windwos go build exclude did not report 'unsupported GOOS/GOARCH pair'")
++}
+diff --git a/src/cmd/go/internal/work/build.go b/src/cmd/go/internal/work/build.go
+index 62ae7ef2bf..031c92e7f9 100644
+--- a/src/cmd/go/internal/work/build.go
++++ b/src/cmd/go/internal/work/build.go
+@@ -733,6 +733,17 @@ func (b *Builder) Init() {
+ 			base.AtExit(func() { os.RemoveAll(workdir) })
+ 		}
+ 	}
++
++	if _, ok := cfg.OSArchSupportsCgo[cfg.Goos+"/"+cfg.Goarch]; !ok && cfg.BuildContext.Compiler == "gc" {
++		fmt.Fprintf(os.Stderr, "cmd/go: unsupported GOOS/GOARCH pair %s/%s\n", cfg.Goos, cfg.Goarch)
++		os.Exit(2)
++	}
++	for _, tag := range cfg.BuildContext.BuildTags {
++		if strings.Contains(tag, ",") {
++			fmt.Fprintf(os.Stderr, "cmd/go: -tags space-separated list contains comma\n")
++			os.Exit(2)
++		}
++	}
+ }
+ 
+ // readpkglist returns the list of packages that were built into the shared library
+@@ -1104,17 +1115,6 @@ func allArchiveActions(root *Action) []*Action {
+ 
+ // do runs the action graph rooted at root.
+ func (b *Builder) Do(root *Action) {
+-	if _, ok := cfg.OSArchSupportsCgo[cfg.Goos+"/"+cfg.Goarch]; !ok && cfg.BuildContext.Compiler == "gc" {
+-		fmt.Fprintf(os.Stderr, "cmd/go: unsupported GOOS/GOARCH pair %s/%s\n", cfg.Goos, cfg.Goarch)
+-		os.Exit(2)
+-	}
+-	for _, tag := range cfg.BuildContext.BuildTags {
+-		if strings.Contains(tag, ",") {
+-			fmt.Fprintf(os.Stderr, "cmd/go: -tags space-separated list contains comma\n")
+-			os.Exit(2)
+-		}
+-	}
+-
+ 	// Build list of all actions, assigning depth-first post-order priority.
+ 	// The original implementation here was a true queue
+ 	// (using a channel) but it had the effect of getting

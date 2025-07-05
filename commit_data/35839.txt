@@ -23,7 +23,7 @@ Date:   Fri Mar 9 23:09:46 2018 +0300
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Giovanni Bajo <rasky@develer.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/amd64/ssa.go        |  9 +--------
  src/cmd/compile/internal/ssa/gen/386Ops.go   |  2 +-
  src/cmd/compile/internal/ssa/gen/AMD64Ops.go |  4 ++--
@@ -31,3 +31,153 @@ Date:   Fri Mar 9 23:09:46 2018 +0300
  src/cmd/compile/internal/x86/ssa.go          |  9 +--------
  test/codegen/arithmetic.go                   | 12 ++++++------
  6 files changed, 14 insertions(+), 31 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/ssa.go b/src/cmd/compile/internal/amd64/ssa.go
+index 5becdd018e..fedc525463 100644
+--- a/src/cmd/compile/internal/amd64/ssa.go
++++ b/src/cmd/compile/internal/amd64/ssa.go
+@@ -487,19 +487,12 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 
+ 	case ssa.OpAMD64MULQconst, ssa.OpAMD64MULLconst:
+ 		r := v.Reg()
+-		if r != v.Args[0].Reg() {
+-			v.Fatalf("input[0] and output not in same register %s", v.LongString())
+-		}
+ 		p := s.Prog(v.Op.Asm())
+ 		p.From.Type = obj.TYPE_CONST
+ 		p.From.Offset = v.AuxInt
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = r
+-		// TODO: Teach doasm to compile the three-address multiply imul $c, r1, r2
+-		// then we don't need to use resultInArg0 for these ops.
+-		//p.From3 = new(obj.Addr)
+-		//p.From3.Type = obj.TYPE_REG
+-		//p.From3.Reg = v.Args[0].Reg()
++		p.SetFrom3(obj.Addr{Type: obj.TYPE_REG, Reg: v.Args[0].Reg()})
+ 
+ 	case ssa.OpAMD64SUBQconst, ssa.OpAMD64SUBLconst,
+ 		ssa.OpAMD64ANDQconst, ssa.OpAMD64ANDLconst,
+diff --git a/src/cmd/compile/internal/ssa/gen/386Ops.go b/src/cmd/compile/internal/ssa/gen/386Ops.go
+index fe88b456f1..d1f8bc9788 100644
+--- a/src/cmd/compile/internal/ssa/gen/386Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/386Ops.go
+@@ -191,7 +191,7 @@ func init() {
+ 		{name: "SBBLconst", argLength: 2, reg: gp1carry1, asm: "SBBL", aux: "Int32", resultInArg0: true, clobberFlags: true}, // arg0-auxint-borrow(arg1), where arg1 is flags
+ 
+ 		{name: "MULL", argLength: 2, reg: gp21, asm: "IMULL", commutative: true, resultInArg0: true, clobberFlags: true}, // arg0 * arg1
+-		{name: "MULLconst", argLength: 1, reg: gp11, asm: "IMULL", aux: "Int32", resultInArg0: true, clobberFlags: true}, // arg0 * auxint
++		{name: "MULLconst", argLength: 1, reg: gp11, asm: "IMUL3L", aux: "Int32", clobberFlags: true},                    // arg0 * auxint
+ 
+ 		{name: "HMULL", argLength: 2, reg: gp21hmul, commutative: true, asm: "IMULL", clobberFlags: true}, // (arg0 * arg1) >> width
+ 		{name: "HMULLU", argLength: 2, reg: gp21hmul, commutative: true, asm: "MULL", clobberFlags: true}, // (arg0 * arg1) >> width
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+index 9577890f9a..ecc9027e51 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+@@ -205,8 +205,8 @@ func init() {
+ 
+ 		{name: "MULQ", argLength: 2, reg: gp21, asm: "IMULQ", commutative: true, resultInArg0: true, clobberFlags: true}, // arg0 * arg1
+ 		{name: "MULL", argLength: 2, reg: gp21, asm: "IMULL", commutative: true, resultInArg0: true, clobberFlags: true}, // arg0 * arg1
+-		{name: "MULQconst", argLength: 1, reg: gp11, asm: "IMULQ", aux: "Int32", resultInArg0: true, clobberFlags: true}, // arg0 * auxint
+-		{name: "MULLconst", argLength: 1, reg: gp11, asm: "IMULL", aux: "Int32", resultInArg0: true, clobberFlags: true}, // arg0 * auxint
++		{name: "MULQconst", argLength: 1, reg: gp11, asm: "IMUL3Q", aux: "Int32", clobberFlags: true},                    // arg0 * auxint
++		{name: "MULLconst", argLength: 1, reg: gp11, asm: "IMUL3L", aux: "Int32", clobberFlags: true},                    // arg0 * auxint
+ 
+ 		{name: "HMULQ", argLength: 2, reg: gp21hmul, commutative: true, asm: "IMULQ", clobberFlags: true}, // (arg0 * arg1) >> width
+ 		{name: "HMULL", argLength: 2, reg: gp21hmul, commutative: true, asm: "IMULL", clobberFlags: true}, // (arg0 * arg1) >> width
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 2d73208623..48ee76a391 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -2680,9 +2680,8 @@ var opcodeTable = [...]opInfo{
+ 		name:         "MULLconst",
+ 		auxType:      auxInt32,
+ 		argLen:       1,
+-		resultInArg0: true,
+ 		clobberFlags: true,
+-		asm:          x86.AIMULL,
++		asm:          x86.AIMUL3L,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 239}, // AX CX DX BX BP SI DI
+@@ -5216,9 +5215,8 @@ var opcodeTable = [...]opInfo{
+ 		name:         "MULQconst",
+ 		auxType:      auxInt32,
+ 		argLen:       1,
+-		resultInArg0: true,
+ 		clobberFlags: true,
+-		asm:          x86.AIMULQ,
++		asm:          x86.AIMUL3Q,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+@@ -5232,9 +5230,8 @@ var opcodeTable = [...]opInfo{
+ 		name:         "MULLconst",
+ 		auxType:      auxInt32,
+ 		argLen:       1,
+-		resultInArg0: true,
+ 		clobberFlags: true,
+-		asm:          x86.AIMULL,
++		asm:          x86.AIMUL3L,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+diff --git a/src/cmd/compile/internal/x86/ssa.go b/src/cmd/compile/internal/x86/ssa.go
+index 17ce803e65..5f456a146d 100644
+--- a/src/cmd/compile/internal/x86/ssa.go
++++ b/src/cmd/compile/internal/x86/ssa.go
+@@ -335,19 +335,12 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 
+ 	case ssa.Op386MULLconst:
+ 		r := v.Reg()
+-		if r != v.Args[0].Reg() {
+-			v.Fatalf("input[0] and output not in same register %s", v.LongString())
+-		}
+ 		p := s.Prog(v.Op.Asm())
+ 		p.From.Type = obj.TYPE_CONST
+ 		p.From.Offset = v.AuxInt
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = r
+-		// TODO: Teach doasm to compile the three-address multiply imul $c, r1, r2
+-		// then we don't need to use resultInArg0 for these ops.
+-		//p.From3 = new(obj.Addr)
+-		//p.From3.Type = obj.TYPE_REG
+-		//p.From3.Reg = v.Args[0].Reg()
++		p.SetFrom3(obj.Addr{Type: obj.TYPE_REG, Reg: v.Args[0].Reg()})
+ 
+ 	case ssa.Op386SUBLconst,
+ 		ssa.Op386ADCLconst,
+diff --git a/test/codegen/arithmetic.go b/test/codegen/arithmetic.go
+index eecb101395..1294cfffd9 100644
+--- a/test/codegen/arithmetic.go
++++ b/test/codegen/arithmetic.go
+@@ -30,14 +30,14 @@ func Pow2Muls(n1, n2 int) (int, int) {
+ // ------------------ //
+ 
+ func MergeMuls1(n int) int {
+-	// amd64:"IMULQ\t[$]46"
+-	// 386:"IMULL\t[$]46"
++	// amd64:"IMUL3Q\t[$]46"
++	// 386:"IMUL3L\t[$]46"
+ 	return 15*n + 31*n // 46n
+ }
+ 
+ func MergeMuls2(n int) int {
+-	// amd64:"IMULQ\t[$]23","ADDQ\t[$]29"
+-	// 386:"IMULL\t[$]23","ADDL\t[$]29"
++	// amd64:"IMUL3Q\t[$]23","ADDQ\t[$]29"
++	// 386:"IMUL3L\t[$]23","ADDL\t[$]29"
+ 	return 5*n + 7*(n+1) + 11*(n+2) // 23n + 29
+ }
+ 
+@@ -48,8 +48,8 @@ func MergeMuls3(a, n int) int {
+ }
+ 
+ func MergeMuls4(n int) int {
+-	// amd64:"IMULQ\t[$]14"
+-	// 386:"IMULL\t[$]14"
++	// amd64:"IMUL3Q\t[$]14"
++	// 386:"IMUL3L\t[$]14"
+ 	return 23*n - 9*n // 14n
+ }
+ 

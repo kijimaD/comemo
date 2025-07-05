@@ -12,6 +12,25 @@ Date:   Mon Jan 18 21:23:33 2016 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/build.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 6a8edaf6d2..e127524ceb 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -2568,11 +2568,11 @@ func (tools gccgoToolchain) asm(b *builder, p *Package, obj, ofile, sfile string
+ 	sfile = mkAbs(p.Dir, sfile)
+ 	defs := []string{"-D", "GOOS_" + goos, "-D", "GOARCH_" + goarch}
+ 	if pkgpath := gccgoCleanPkgpath(p); pkgpath != "" {
+-		defs = append(defs, `-D`, `GOPKGPATH="`+pkgpath+`"`)
++		defs = append(defs, `-D`, `GOPKGPATH=`+pkgpath)
+ 	}
+ 	defs = tools.maybePIC(defs)
+ 	defs = append(defs, b.gccArchArgs()...)
+-	return b.run(p.Dir, p.ImportPath, nil, tools.compiler(), "-I", obj, "-o", ofile, defs, sfile)
++	return b.run(p.Dir, p.ImportPath, nil, tools.compiler(), "-xassembler-with-cpp", "-I", obj, "-c", "-o", ofile, defs, sfile)
+ }
+ 
+ func (gccgoToolchain) pkgpath(basedir string, p *Package) string {

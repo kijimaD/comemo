@@ -11,6 +11,20 @@ Date:   Mon Jan 9 11:48:53 2012 -0500
     R=golang-dev, lvd, rsc
     CC=golang-dev
     https://golang.org/cl/5504108
-
+---
  src/cmd/gc/fmt.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/fmt.c b/src/cmd/gc/fmt.c
+index f3be53c8fb..3013d0d329 100644
+--- a/src/cmd/gc/fmt.c
++++ b/src/cmd/gc/fmt.c
+@@ -1450,7 +1450,7 @@ Tconv(Fmt *fp)
+ 	if(t == T)
+ 		return fmtstrcpy(fp, "<T>");
+ 
+-	if(t->trecur > 4)
++	if(t->trecur > 4 || fp->nfmt > 1000)
+ 		return fmtstrcpy(fp, "<...>");
+ 
+ 	t->trecur++;

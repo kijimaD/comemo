@@ -21,7 +21,7 @@ Date:   Wed Sep 8 10:51:06 2021 -0400
     Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/cmd/go.mod                                     |  2 +-
  src/cmd/go.sum                                     |  4 +-
  .../pprof/internal/binutils/addr2liner_llvm.go     |  2 +-
@@ -33,3 +33,422 @@ Date:   Wed Sep 8 10:51:06 2021 -0400
  .../google/pprof/internal/report/source.go         |  9 +-
  src/cmd/vendor/modules.txt                         |  2 +-
  10 files changed, 134 insertions(+), 102 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index c7b3b02c3b..05a118d812 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -3,7 +3,7 @@ module cmd
+ go 1.18
+ 
+ require (
+-	github.com/google/pprof v0.0.0-20210506205249-923b5ab0fc1a
++	github.com/google/pprof v0.0.0-20210827144239-02619b876842
+ 	github.com/ianlancetaylor/demangle v0.0.0-20200824232613-28f6c0f3b639 // indirect
+ 	golang.org/x/arch v0.0.0-20210901143047-ebb09ed340f1
+ 	golang.org/x/crypto v0.0.0-20210817164053-32db794688a5 // indirect
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index 987c236b02..eebb44c053 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -1,8 +1,8 @@
+ github.com/chzyer/logex v1.1.10/go.mod h1:+Ywpsq7O8HXn0nuIou7OrIPyXbp3wmkHB+jjWRnGsAI=
+ github.com/chzyer/readline v0.0.0-20180603132655-2972be24d48e/go.mod h1:nSuG5e5PlCu98SY8svDHJxuZscDgtXS6KTTbou5AhLI=
+ github.com/chzyer/test v0.0.0-20180213035817-a1ea475d72b1/go.mod h1:Q3SI9o4m/ZMnBNeIyt5eFwwo7qiLfzFZmjNmxjkiQlU=
+-github.com/google/pprof v0.0.0-20210506205249-923b5ab0fc1a h1:jmAp/2PZAScNd62lTD3Mcb0Ey9FvIIJtLohPhtxZJ+Q=
+-github.com/google/pprof v0.0.0-20210506205249-923b5ab0fc1a/go.mod h1:kpwsk12EmLew5upagYY7GY0pfYCcupk39gWOCRROcvE=
++github.com/google/pprof v0.0.0-20210827144239-02619b876842 h1:JCrt5MIE1fHQtdy1825HwJ45oVQaqHE6lgssRhjcg/o=
++github.com/google/pprof v0.0.0-20210827144239-02619b876842/go.mod h1:kpwsk12EmLew5upagYY7GY0pfYCcupk39gWOCRROcvE=
+ github.com/ianlancetaylor/demangle v0.0.0-20200824232613-28f6c0f3b639 h1:mV02weKRL81bEnm8A0HT1/CAelMQDBuQIfLw8n+d6xI=
+ github.com/ianlancetaylor/demangle v0.0.0-20200824232613-28f6c0f3b639/go.mod h1:aSSvb/t6k1mPoxDqO4vJh6VOCGPwU4O0C2/Eqndh1Sc=
+ golang.org/x/arch v0.0.0-20210901143047-ebb09ed340f1 h1:MwxAfiDvuwX8Nnnc6iRDhzyMyyc2tz5tYyCP/pZcPCg=
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/binutils/addr2liner_llvm.go b/src/cmd/vendor/github.com/google/pprof/internal/binutils/addr2liner_llvm.go
+index 24c48e649b..844c7a475d 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/binutils/addr2liner_llvm.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/binutils/addr2liner_llvm.go
+@@ -76,7 +76,7 @@ func newLLVMSymbolizer(cmd, file string, base uint64, isData bool) (*llvmSymboli
+ 	}
+ 
+ 	j := &llvmSymbolizerJob{
+-		cmd:     exec.Command(cmd, "-inlining", "-demangle=false"),
++		cmd:     exec.Command(cmd, "--inlining", "-demangle=false"),
+ 		symType: "CODE",
+ 	}
+ 	if isData {
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/binutils/binutils.go b/src/cmd/vendor/github.com/google/pprof/internal/binutils/binutils.go
+index 5ed8a1f9f1..e920eeb2fa 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/binutils/binutils.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/binutils/binutils.go
+@@ -525,6 +525,47 @@ type elfMapping struct {
+ 	stextOffset *uint64
+ }
+ 
++// findProgramHeader returns the program segment that matches the current
++// mapping and the given address, or an error if it cannot find a unique program
++// header.
++func (m *elfMapping) findProgramHeader(ef *elf.File, addr uint64) (*elf.ProgHeader, error) {
++	// For user space executables, we try to find the actual program segment that
++	// is associated with the given mapping. Skip this search if limit <= start.
++	// We cannot use just a check on the start address of the mapping to tell if
++	// it's a kernel / .ko module mapping, because with quipper address remapping
++	// enabled, the address would be in the lower half of the address space.
++
++	if m.stextOffset != nil || m.start >= m.limit || m.limit >= (uint64(1)<<63) {
++		// For the kernel, find the program segment that includes the .text section.
++		return elfexec.FindTextProgHeader(ef), nil
++	}
++
++	// Fetch all the loadable segments.
++	var phdrs []elf.ProgHeader
++	for i := range ef.Progs {
++		if ef.Progs[i].Type == elf.PT_LOAD {
++			phdrs = append(phdrs, ef.Progs[i].ProgHeader)
++		}
++	}
++	// Some ELF files don't contain any loadable program segments, e.g. .ko
++	// kernel modules. It's not an error to have no header in such cases.
++	if len(phdrs) == 0 {
++		return nil, nil
++	}
++	// Get all program headers associated with the mapping.
++	headers := elfexec.ProgramHeadersForMapping(phdrs, m.offset, m.limit-m.start)
++	if len(headers) == 0 {
++		return nil, errors.New("no program header matches mapping info")
++	}
++	if len(headers) == 1 {
++		return headers[0], nil
++	}
++
++	// Use the file offset corresponding to the address to symbolize, to narrow
++	// down the header.
++	return elfexec.HeaderForFileOffset(headers, addr-m.start+m.offset)
++}
++
+ // file implements the binutils.ObjFile interface.
+ type file struct {
+ 	b       *binrep
+@@ -555,27 +596,9 @@ func (f *file) computeBase(addr uint64) error {
+ 	}
+ 	defer ef.Close()
+ 
+-	var ph *elf.ProgHeader
+-	// For user space executables, find the actual program segment that is
+-	// associated with the given mapping. Skip this search if limit <= start.
+-	// We cannot use just a check on the start address of the mapping to tell if
+-	// it's a kernel / .ko module mapping, because with quipper address remapping
+-	// enabled, the address would be in the lower half of the address space.
+-	if f.m.stextOffset == nil && f.m.start < f.m.limit && f.m.limit < (uint64(1)<<63) {
+-		// Get all program headers associated with the mapping.
+-		headers, hasLoadables := elfexec.ProgramHeadersForMapping(ef, f.m.offset, f.m.limit-f.m.start)
+-
+-		// Some ELF files don't contain any loadable program segments, e.g. .ko
+-		// kernel modules. It's not an error to have no header in such cases.
+-		if hasLoadables {
+-			ph, err = matchUniqueHeader(headers, addr-f.m.start+f.m.offset)
+-			if err != nil {
+-				return fmt.Errorf("failed to find program header for file %q, ELF mapping %#v, address %x: %v", f.name, *f.m, addr, err)
+-			}
+-		}
+-	} else {
+-		// For the kernel, find the program segment that includes the .text section.
+-		ph = elfexec.FindTextProgHeader(ef)
++	ph, err := f.m.findProgramHeader(ef, addr)
++	if err != nil {
++		return fmt.Errorf("failed to find program header for file %q, ELF mapping %#v, address %x: %v", f.name, *f.m, addr, err)
+ 	}
+ 
+ 	base, err := elfexec.GetBase(&ef.FileHeader, ph, f.m.stextOffset, f.m.start, f.m.limit, f.m.offset)
+@@ -587,38 +610,6 @@ func (f *file) computeBase(addr uint64) error {
+ 	return nil
+ }
+ 
+-// matchUniqueHeader attempts to identify a unique header from the given list,
+-// using the given file offset to disambiguate between multiple segments. It
+-// returns an error if the header list is empty or if it cannot identify a
+-// unique header.
+-func matchUniqueHeader(headers []*elf.ProgHeader, fileOffset uint64) (*elf.ProgHeader, error) {
+-	if len(headers) == 0 {
+-		return nil, errors.New("no program header matches mapping info")
+-	}
+-	if len(headers) == 1 {
+-		// Don't use the file offset if we already have a single header.
+-		return headers[0], nil
+-	}
+-	// We have multiple input segments. Attempt to identify a unique one
+-	// based on the given file offset.
+-	var ph *elf.ProgHeader
+-	for _, h := range headers {
+-		if fileOffset >= h.Off && fileOffset < h.Off+h.Memsz {
+-			if ph != nil {
+-				// Assuming no other bugs, this can only happen if we have two or
+-				// more small program segments that fit on the same page, and a
+-				// segment other than the last one includes uninitialized data.
+-				return nil, fmt.Errorf("found second program header (%#v) that matches file offset %x, first program header is %#v. Does first program segment contain uninitialized data?", *h, fileOffset, *ph)
+-			}
+-			ph = h
+-		}
+-	}
+-	if ph == nil {
+-		return nil, fmt.Errorf("no program header matches file offset %x", fileOffset)
+-	}
+-	return ph, nil
+-}
+-
+ func (f *file) Name() string {
+ 	return f.name
+ }
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/webhtml.go b/src/cmd/vendor/github.com/google/pprof/internal/driver/webhtml.go
+index b8e8b50b94..b9c73271b8 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/webhtml.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/webhtml.go
+@@ -132,6 +132,10 @@ a {
+   align-items: center;
+   justify-content: center;
+ }
++.menu-name a {
++  text-decoration: none;
++  color: #212121;
++}
+ .submenu {
+   display: none;
+   z-index: 1;
+@@ -370,6 +374,12 @@ table tr td {
+     </div>
+   </div>
+ 
++  <div id="download" class="menu-item">
++    <div class="menu-name">
++      <a href="./download">Download</a>
++    </div>
++  </div>
++
+   <div>
+     <input id="search" type="text" placeholder="Search regexp" autocomplete="off" autocapitalize="none" size=40>
+   </div>
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/webui.go b/src/cmd/vendor/github.com/google/pprof/internal/driver/webui.go
+index 52dc68809c..0f3e8bf93c 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/webui.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/webui.go
+@@ -127,6 +127,11 @@ func serveWebInterface(hostport string, p *profile.Profile, o *plugin.Options, d
+ 			"/flamegraph":   http.HandlerFunc(ui.flamegraph),
+ 			"/saveconfig":   http.HandlerFunc(ui.saveConfig),
+ 			"/deleteconfig": http.HandlerFunc(ui.deleteConfig),
++			"/download": http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
++				w.Header().Set("Content-Type", "application/vnd.google.protobuf+gzip")
++				w.Header().Set("Content-Disposition", "attachment;filename=profile.pb.gz")
++				p.Write(w)
++			}),
+ 		},
+ 	}
+ 
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/elfexec/elfexec.go b/src/cmd/vendor/github.com/google/pprof/internal/elfexec/elfexec.go
+index 2638b2db2d..4f11645185 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/elfexec/elfexec.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/elfexec/elfexec.go
+@@ -284,10 +284,16 @@ func FindTextProgHeader(f *elf.File) *elf.ProgHeader {
+ 	return nil
+ }
+ 
+-// ProgramHeadersForMapping returns the loadable program segment headers that
+-// are fully contained in the runtime mapping with file offset pgoff and memory
+-// size memsz, and if the binary includes any loadable segments.
+-func ProgramHeadersForMapping(f *elf.File, pgoff, memsz uint64) ([]*elf.ProgHeader, bool) {
++// ProgramHeadersForMapping returns the program segment headers that overlap
++// the runtime mapping with file offset mapOff and memory size mapSz. We skip
++// over segments zero file size because their file offset values are unreliable.
++// Even if overlapping, a segment is not selected if its aligned file offset is
++// greater than the mapping file offset, or if the mapping includes the last
++// page of the segment, but not the full segment and the mapping includes
++// additional pages after the segment end.
++// The function returns a slice of pointers to the headers in the input
++// slice, which are valid only while phdrs is not modified or discarded.
++func ProgramHeadersForMapping(phdrs []elf.ProgHeader, mapOff, mapSz uint64) []*elf.ProgHeader {
+ 	const (
+ 		// pageSize defines the virtual memory page size used by the loader. This
+ 		// value is dependent on the memory management unit of the CPU. The page
+@@ -298,57 +304,61 @@ func ProgramHeadersForMapping(f *elf.File, pgoff, memsz uint64) ([]*elf.ProgHead
+ 		// specified in the ELF file header.
+ 		pageSize       = 4096
+ 		pageOffsetMask = pageSize - 1
+-		pageMask       = ^uint64(pageOffsetMask)
+ 	)
++	mapLimit := mapOff + mapSz
+ 	var headers []*elf.ProgHeader
+-	hasLoadables := false
+-	for _, p := range f.Progs {
+-		// The segment must be fully included in the mapping.
+-		if p.Type == elf.PT_LOAD && pgoff <= p.Off && p.Off+p.Memsz <= pgoff+memsz {
+-			alignedOffset := uint64(0)
++	for i := range phdrs {
++		p := &phdrs[i]
++		// Skip over segments with zero file size. Their file offsets can have
++		// arbitrary values, see b/195427553.
++		if p.Filesz == 0 {
++			continue
++		}
++		segLimit := p.Off + p.Memsz
++		// The segment must overlap the mapping.
++		if p.Type == elf.PT_LOAD && mapOff < segLimit && p.Off < mapLimit {
++			// If the mapping offset is strictly less than the page aligned segment
++			// offset, then this mapping comes from a different segment, fixes
++			// b/179920361.
++			alignedSegOffset := uint64(0)
+ 			if p.Off > (p.Vaddr & pageOffsetMask) {
+-				alignedOffset = p.Off - (p.Vaddr & pageOffsetMask)
++				alignedSegOffset = p.Off - (p.Vaddr & pageOffsetMask)
+ 			}
+-			if alignedOffset <= pgoff {
+-				headers = append(headers, &p.ProgHeader)
++			if mapOff < alignedSegOffset {
++				continue
+ 			}
++			// If the mapping starts in the middle of the segment, it covers less than
++			// one page of the segment, and it extends at least one page past the
++			// segment, then this mapping comes from a different segment.
++			if mapOff > p.Off && (segLimit < mapOff+pageSize) && (mapLimit >= segLimit+pageSize) {
++				continue
++			}
++			headers = append(headers, p)
+ 		}
+-		if p.Type == elf.PT_LOAD {
+-			hasLoadables = true
+-		}
+-	}
+-	if len(headers) < 2 {
+-		return headers, hasLoadables
+-	}
+-
+-	// If we have more than one matching segments, try a strict check on the
+-	// segment memory size. We use a heuristic to compute the minimum mapping size
+-	// required for a segment, assuming mappings are page aligned.
+-	// The memory size based heuristic makes sense only if the mapping size is a
+-	// multiple of page size.
+-	if memsz%pageSize != 0 {
+-		return headers, hasLoadables
+ 	}
++	return headers
++}
+ 
+-	// Return all found headers if we cannot narrow the selection to a single
+-	// program segment.
++// HeaderForFileOffset attempts to identify a unique program header that
++// includes the given file offset. It returns an error if it cannot identify a
++// unique header.
++func HeaderForFileOffset(headers []*elf.ProgHeader, fileOffset uint64) (*elf.ProgHeader, error) {
+ 	var ph *elf.ProgHeader
+ 	for _, h := range headers {
+-		wantSize := (h.Vaddr+h.Memsz+pageSize-1)&pageMask - (h.Vaddr & pageMask)
+-		if wantSize != memsz {
+-			continue
+-		}
+-		if ph != nil {
+-			// Found a second program header matching, so return all previously
+-			// identified headers.
+-			return headers, hasLoadables
++		if fileOffset >= h.Off && fileOffset < h.Off+h.Memsz {
++			if ph != nil {
++				// Assuming no other bugs, this can only happen if we have two or
++				// more small program segments that fit on the same page, and a
++				// segment other than the last one includes uninitialized data, or
++				// if the debug binary used for symbolization is stripped of some
++				// sections, so segment file sizes are smaller than memory sizes.
++				return nil, fmt.Errorf("found second program header (%#v) that matches file offset %x, first program header is %#v. Is this a stripped binary, or does the first program segment contain uninitialized data?", *h, fileOffset, *ph)
++			}
++			ph = h
+ 		}
+-		ph = h
+ 	}
+ 	if ph == nil {
+-		// No matching header for the strict check. Return all previously identified
+-		// headers.
+-		return headers, hasLoadables
++		return nil, fmt.Errorf("no program header matches file offset %x", fileOffset)
+ 	}
+-	return []*elf.ProgHeader{ph}, hasLoadables
++	return ph, nil
+ }
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/report/report.go b/src/cmd/vendor/github.com/google/pprof/internal/report/report.go
+index 4a86554880..e2fb00314c 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/report/report.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/report/report.go
+@@ -432,6 +432,10 @@ func PrintAssembly(w io.Writer, rpt *Report, obj plugin.ObjTool, maxFuncs int) e
+ 		}
+ 	}
+ 
++	if len(syms) == 0 {
++		return fmt.Errorf("no matches found for regexp: %s", o.Symbol)
++	}
++
+ 	// Correlate the symbols from the binary with the profile samples.
+ 	for _, s := range syms {
+ 		sns := symNodes[s]
+@@ -1054,6 +1058,7 @@ func printTree(w io.Writer, rpt *Report) error {
+ 	var flatSum int64
+ 
+ 	rx := rpt.options.Symbol
++	matched := 0
+ 	for _, n := range g.Nodes {
+ 		name, flat, cum := n.Info.PrintableName(), n.FlatValue(), n.CumValue()
+ 
+@@ -1061,6 +1066,7 @@ func printTree(w io.Writer, rpt *Report) error {
+ 		if rx != nil && !rx.MatchString(name) {
+ 			continue
+ 		}
++		matched++
+ 
+ 		fmt.Fprintln(w, separator)
+ 		// Print incoming edges.
+@@ -1098,6 +1104,9 @@ func printTree(w io.Writer, rpt *Report) error {
+ 	if len(g.Nodes) > 0 {
+ 		fmt.Fprintln(w, separator)
+ 	}
++	if rx != nil && matched == 0 {
++		return fmt.Errorf("no matches found for regexp: %s", rx)
++	}
+ 	return nil
+ }
+ 
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/report/source.go b/src/cmd/vendor/github.com/google/pprof/internal/report/source.go
+index 54245e5f9e..33d04c591d 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/report/source.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/report/source.go
+@@ -58,6 +58,10 @@ func printSource(w io.Writer, rpt *Report) error {
+ 	}
+ 	functions.Sort(graph.NameOrder)
+ 
++	if len(functionNodes) == 0 {
++		return fmt.Errorf("no matches found for regexp: %s", o.Symbol)
++	}
++
+ 	sourcePath := o.SourcePath
+ 	if sourcePath == "" {
+ 		wd, err := os.Getwd()
+@@ -206,6 +210,9 @@ func PrintWebList(w io.Writer, rpt *Report, obj plugin.ObjTool, maxFiles int) er
+ 		sourcePath = wd
+ 	}
+ 	sp := newSourcePrinter(rpt, obj, sourcePath)
++	if len(sp.interest) == 0 {
++		return fmt.Errorf("no matches found for regexp: %s", rpt.options.Symbol)
++	}
+ 	sp.print(w, maxFiles, rpt)
+ 	sp.close()
+ 	return nil
+@@ -299,7 +306,7 @@ func newSourcePrinter(rpt *Report, obj plugin.ObjTool, sourcePath string) *sourc
+ 				continue
+ 			}
+ 
+-			// Seach in inlined stack for a match.
++			// Search in inlined stack for a match.
+ 			matchFile := (loc.Mapping != nil && sp.sym.MatchString(loc.Mapping.File))
+ 			for j, line := range loc.Line {
+ 				if (j == 0 && matchFile) || matches(line) {
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index 8a6497b5f2..966ba1358e 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -1,4 +1,4 @@
+-# github.com/google/pprof v0.0.0-20210506205249-923b5ab0fc1a
++# github.com/google/pprof v0.0.0-20210827144239-02619b876842
+ ## explicit; go 1.14
+ github.com/google/pprof/driver
+ github.com/google/pprof/internal/binutils

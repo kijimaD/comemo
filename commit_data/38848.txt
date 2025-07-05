@@ -19,6 +19,19 @@ Date:   Sat Dec 1 16:28:27 2018 +0000
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/inl_test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/compile/internal/gc/inl_test.go b/src/cmd/compile/internal/gc/inl_test.go
+index ba74981e9a..58d13f2dcf 100644
+--- a/src/cmd/compile/internal/gc/inl_test.go
++++ b/src/cmd/compile/internal/gc/inl_test.go
+@@ -104,6 +104,7 @@ func TestIntendedInlining(t *testing.T) {
+ 			"(*Buffer).Bytes",
+ 			"(*Buffer).Cap",
+ 			"(*Buffer).Len",
++			"(*Buffer).Grow",
+ 			"(*Buffer).Next",
+ 			"(*Buffer).Read",
+ 			"(*Buffer).ReadByte",

@@ -16,7 +16,56 @@ Date:   Mon May 14 13:50:56 2018 +0200
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Auto-Submit: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/encoding/binary/binary.go      |  2 +-
  src/encoding/binary/binary_test.go | 24 ++++++++++++++++++++++++
  2 files changed, 25 insertions(+), 1 deletion(-)
+
+diff --git a/src/encoding/binary/binary.go b/src/encoding/binary/binary.go
+index cb2ad1a7f8..158e3e9d7f 100644
+--- a/src/encoding/binary/binary.go
++++ b/src/encoding/binary/binary.go
+@@ -451,7 +451,7 @@ func Write(w io.Writer, order ByteOrder, data any) error {
+ 	v := reflect.Indirect(reflect.ValueOf(data))
+ 	size := dataSize(v)
+ 	if size < 0 {
+-		return errors.New("binary.Write: invalid type " + reflect.TypeOf(data).String())
++		return errors.New("binary.Write: some values are not fixed-sized in type " + reflect.TypeOf(data).String())
+ 	}
+ 	buf := make([]byte, size)
+ 	e := &encoder{order: order, buf: buf}
+diff --git a/src/encoding/binary/binary_test.go b/src/encoding/binary/binary_test.go
+index 341cd86766..4e1fb59f03 100644
+--- a/src/encoding/binary/binary_test.go
++++ b/src/encoding/binary/binary_test.go
+@@ -540,6 +540,30 @@ func testReadInvalidDestination(t *testing.T, order ByteOrder) {
+ 	}
+ }
+ 
++func TestNoFixedSize(t *testing.T) {
++	type Person struct {
++		Age    int
++		Weight float64
++		Height float64
++	}
++
++	person := Person{
++		Age:    27,
++		Weight: 67.3,
++		Height: 177.8,
++	}
++
++	buf := new(bytes.Buffer)
++	err := Write(buf, LittleEndian, &person)
++	if err == nil {
++		t.Fatal("binary.Write: unexpected success as size of type *binary.Person is not fixed")
++	}
++	errs := "binary.Write: some values are not fixed-sized in type *binary.Person"
++	if err.Error() != errs {
++		t.Fatalf("got %q, want %q", err, errs)
++	}
++}
++
+ type byteSliceReader struct {
+ 	remain []byte
+ }

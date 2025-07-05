@@ -8,9 +8,134 @@ Date:   Tue Oct 18 23:50:48 2016 +0200
     Reviewed-on: https://go-review.googlesource.com/31482
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/debug/elf/file.go                              |  42 ++++++++++++++++++++-
  src/debug/elf/file_test.go                         |  38 +++++++++++++++++++
  .../testdata/go-relocation-test-gcc492-mipsle.obj  | Bin 0 -> 2864 bytes
  .../testdata/go-relocation-test-gcc540-mips.obj    | Bin 0 -> 3064 bytes
  4 files changed, 79 insertions(+), 1 deletion(-)
+
+diff --git a/src/debug/elf/file.go b/src/debug/elf/file.go
+index c1cbfa6225..0c547669a9 100644
+--- a/src/debug/elf/file.go
++++ b/src/debug/elf/file.go
+@@ -579,7 +579,7 @@ func (f *File) Section(name string) *Section {
+ }
+ 
+ // applyRelocations applies relocations to dst. rels is a relocations section
+-// in RELA format.
++// in REL or RELA format.
+ func (f *File) applyRelocations(dst []byte, rels []byte) error {
+ 	switch {
+ 	case f.Class == ELFCLASS64 && f.Machine == EM_X86_64:
+@@ -594,6 +594,8 @@ func (f *File) applyRelocations(dst []byte, rels []byte) error {
+ 		return f.applyRelocationsPPC(dst, rels)
+ 	case f.Class == ELFCLASS64 && f.Machine == EM_PPC64:
+ 		return f.applyRelocationsPPC64(dst, rels)
++	case f.Class == ELFCLASS32 && f.Machine == EM_MIPS:
++		return f.applyRelocationsMIPS(dst, rels)
+ 	case f.Class == ELFCLASS64 && f.Machine == EM_MIPS:
+ 		return f.applyRelocationsMIPS64(dst, rels)
+ 	case f.Class == ELFCLASS64 && f.Machine == EM_S390:
+@@ -863,6 +865,44 @@ func (f *File) applyRelocationsPPC64(dst []byte, rels []byte) error {
+ 	return nil
+ }
+ 
++func (f *File) applyRelocationsMIPS(dst []byte, rels []byte) error {
++	// 8 is the size of Rel32.
++	if len(rels)%8 != 0 {
++		return errors.New("length of relocation section is not a multiple of 8")
++	}
++
++	symbols, _, err := f.getSymbols(SHT_SYMTAB)
++	if err != nil {
++		return err
++	}
++
++	b := bytes.NewReader(rels)
++	var rel Rel32
++
++	for b.Len() > 0 {
++		binary.Read(b, f.ByteOrder, &rel)
++		symNo := rel.Info >> 8
++		t := R_MIPS(rel.Info & 0xff)
++
++		if symNo == 0 || symNo > uint32(len(symbols)) {
++			continue
++		}
++		sym := &symbols[symNo-1]
++
++		switch t {
++		case R_MIPS_32:
++			if rel.Off+4 >= uint32(len(dst)) {
++				continue
++			}
++			val := f.ByteOrder.Uint32(dst[rel.Off : rel.Off+4])
++			val += uint32(sym.Value)
++			f.ByteOrder.PutUint32(dst[rel.Off:rel.Off+4], val)
++		}
++	}
++
++	return nil
++}
++
+ func (f *File) applyRelocationsMIPS64(dst []byte, rels []byte) error {
+ 	// 24 is the size of Rela64.
+ 	if len(rels)%24 != 0 {
+diff --git a/src/debug/elf/file_test.go b/src/debug/elf/file_test.go
+index f1e28a0671..58bdf277d3 100644
+--- a/src/debug/elf/file_test.go
++++ b/src/debug/elf/file_test.go
+@@ -510,6 +510,44 @@ var relocationTests = []relocationTest{
+ 			}},
+ 		},
+ 	},
++	{
++		"testdata/go-relocation-test-gcc492-mipsle.obj",
++		[]relocationTestEntry{
++			{0, &dwarf.Entry{
++				Offset:   0xb,
++				Tag:      dwarf.TagCompileUnit,
++				Children: true,
++				Field: []dwarf.Field{
++					{Attr: dwarf.AttrProducer, Val: "GNU C 4.9.2 -mel -march=mips2 -mtune=mips32 -mllsc -mno-shared -mabi=32 -g", Class: dwarf.ClassString},
++					{Attr: dwarf.AttrLanguage, Val: int64(1), Class: dwarf.ClassConstant},
++					{Attr: dwarf.AttrName, Val: "hello.c", Class: dwarf.ClassString},
++					{Attr: dwarf.AttrCompDir, Val: "/tmp", Class: dwarf.ClassString},
++					{Attr: dwarf.AttrLowpc, Val: uint64(0x0), Class: dwarf.ClassAddress},
++					{Attr: dwarf.AttrHighpc, Val: int64(0x58), Class: dwarf.ClassConstant},
++					{Attr: dwarf.AttrStmtList, Val: int64(0), Class: dwarf.ClassLinePtr},
++				},
++			}},
++		},
++	},
++	{
++		"testdata/go-relocation-test-gcc540-mips.obj",
++		[]relocationTestEntry{
++			{0, &dwarf.Entry{
++				Offset:   0xb,
++				Tag:      dwarf.TagCompileUnit,
++				Children: true,
++				Field: []dwarf.Field{
++					{Attr: dwarf.AttrProducer, Val: "GNU C11 5.4.0 20160609 -meb -mips32 -mtune=mips32r2 -mfpxx -mllsc -mno-shared -mabi=32 -g -gdwarf-2", Class: dwarf.ClassString},
++					{Attr: dwarf.AttrLanguage, Val: int64(12), Class: dwarf.ClassConstant},
++					{Attr: dwarf.AttrName, Val: "hello.c", Class: dwarf.ClassString},
++					{Attr: dwarf.AttrCompDir, Val: "/tmp", Class: dwarf.ClassString},
++					{Attr: dwarf.AttrLowpc, Val: uint64(0x0), Class: dwarf.ClassAddress},
++					{Attr: dwarf.AttrHighpc, Val: uint64(0x5c), Class: dwarf.ClassAddress},
++					{Attr: dwarf.AttrStmtList, Val: int64(0), Class: dwarf.ClassLinePtr},
++				},
++			}},
++		},
++	},
+ 	{
+ 		"testdata/go-relocation-test-gcc493-mips64le.obj",
+ 		[]relocationTestEntry{
+diff --git a/src/debug/elf/testdata/go-relocation-test-gcc492-mipsle.obj b/src/debug/elf/testdata/go-relocation-test-gcc492-mipsle.obj
+new file mode 100644
+index 0000000000..a5fbcfbbdd
+Binary files /dev/null and b/src/debug/elf/testdata/go-relocation-test-gcc492-mipsle.obj differ
+diff --git a/src/debug/elf/testdata/go-relocation-test-gcc540-mips.obj b/src/debug/elf/testdata/go-relocation-test-gcc540-mips.obj
+new file mode 100644
+index 0000000000..270c777596
+Binary files /dev/null and b/src/debug/elf/testdata/go-relocation-test-gcc540-mips.obj differ

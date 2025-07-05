@@ -17,6 +17,20 @@ Date:   Wed Sep 8 14:14:53 2021 +0000
     Run-TryBot: Michael Munday <mike.munday@lowrisc.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  test/codegen/issue48054.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/test/codegen/issue48054.go b/test/codegen/issue48054.go
+index 6ef37e9452..1f3a041044 100644
+--- a/test/codegen/issue48054.go
++++ b/test/codegen/issue48054.go
+@@ -4,7 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package main
++package codegen
+ 
+ func a(n string) bool {
+ 	// arm64:"CBZ"

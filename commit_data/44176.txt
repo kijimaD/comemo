@@ -20,7 +20,64 @@ Date:   Wed May 20 17:54:55 2020 -0400
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/internal/modfetch/proxy.go        | 10 +++++++---
  src/cmd/go/testdata/script/mod_gonoproxy.txt | 10 ++++++++--
  2 files changed, 15 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/go/internal/modfetch/proxy.go b/src/cmd/go/internal/modfetch/proxy.go
+index 0ca43d4c4a..3971598733 100644
+--- a/src/cmd/go/internal/modfetch/proxy.go
++++ b/src/cmd/go/internal/modfetch/proxy.go
+@@ -196,8 +196,12 @@ func TryProxies(f func(proxy string) error) error {
+ 
+ 	// We try to report the most helpful error to the user. "direct" and "noproxy"
+ 	// errors are best, followed by proxy errors other than ErrNotExist, followed
+-	// by ErrNotExist. Note that errProxyOff, errNoproxy, and errUseProxy are
+-	// equivalent to ErrNotExist.
++	// by ErrNotExist.
++	//
++	// Note that errProxyOff, errNoproxy, and errUseProxy are equivalent to
++	// ErrNotExist. errUseProxy should only be returned if "noproxy" is the only
++	// proxy. errNoproxy should never be returned, since there should always be a
++	// more useful error from "noproxy" first.
+ 	const (
+ 		notExistRank = iota
+ 		proxyRank
+@@ -212,7 +216,7 @@ func TryProxies(f func(proxy string) error) error {
+ 		}
+ 		isNotExistErr := errors.Is(err, os.ErrNotExist)
+ 
+-		if proxy.url == "direct" || proxy.url == "noproxy" {
++		if proxy.url == "direct" || (proxy.url == "noproxy" && err != errUseProxy) {
+ 			bestErr = err
+ 			bestErrRank = directRank
+ 		} else if bestErrRank <= proxyRank && !isNotExistErr {
+diff --git a/src/cmd/go/testdata/script/mod_gonoproxy.txt b/src/cmd/go/testdata/script/mod_gonoproxy.txt
+index 2bd94cdee0..d7848c7d26 100644
+--- a/src/cmd/go/testdata/script/mod_gonoproxy.txt
++++ b/src/cmd/go/testdata/script/mod_gonoproxy.txt
+@@ -10,7 +10,7 @@ env GOSUMDB=$sumdb' '$proxy/sumdb-wrong
+ ! go get rsc.io/quote
+ stderr 'SECURITY ERROR'
+ 
+-# but GONOSUMDB bypasses sumdb, for rsc.io/quote, rsc.io/sampler, golang.org/x/text
++# GONOSUMDB bypasses sumdb, for rsc.io/quote, rsc.io/sampler, golang.org/x/text
+ env GONOSUMDB='*/quote,*/*mple*,golang.org/x'
+ go get rsc.io/quote
+ rm go.sum
+@@ -18,7 +18,13 @@ env GOPRIVATE='*/quote,*/*mple*,golang.org/x'
+ env GONOPROXY=none # that is, proxy all despite GOPRIVATE
+ go get rsc.io/quote
+ 
+-# and GONOPROXY bypasses proxy
++# When GOPROXY=off, fetching modules not matched by GONOPROXY fails.
++env GONOPROXY=*/fortune
++env GOPROXY=off
++! go get golang.org/x/text
++stderr '^go get golang.org/x/text: module lookup disabled by GOPROXY=off$'
++
++# GONOPROXY bypasses proxy
+ [!net] skip
+ [!exec:git] skip
+ env GOPRIVATE=none

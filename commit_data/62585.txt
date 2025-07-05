@@ -28,8 +28,67 @@ Date:   Mon Feb 24 00:37:45 2025 +1100
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Mark Ryan <markdryan@rivosinc.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/ssa/_gen/RISCV64.rules |  1 +
  src/cmd/compile/internal/ssa/rewriteRISCV64.go  | 22 ++++++++++++++++++++++
  test/codegen/arithmetic.go                      |  2 +-
  3 files changed, 24 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/_gen/RISCV64.rules b/src/cmd/compile/internal/ssa/_gen/RISCV64.rules
+index 6319746dc7..5c9ce19773 100644
+--- a/src/cmd/compile/internal/ssa/_gen/RISCV64.rules
++++ b/src/cmd/compile/internal/ssa/_gen/RISCV64.rules
+@@ -732,6 +732,7 @@
+ 
+ // Double negation.
+ (NEG (NEG x)) => x
++(NEG <t> s:(ADDI [val] (NEG x))) && s.Uses == 1 && is32Bit(-val) => (ADDI [-val] x)
+ 
+ // Addition of zero or two constants.
+ (ADDI [0] x) => x
+diff --git a/src/cmd/compile/internal/ssa/rewriteRISCV64.go b/src/cmd/compile/internal/ssa/rewriteRISCV64.go
+index 165c9799f9..eb0480e080 100644
+--- a/src/cmd/compile/internal/ssa/rewriteRISCV64.go
++++ b/src/cmd/compile/internal/ssa/rewriteRISCV64.go
+@@ -6105,6 +6105,28 @@ func rewriteValueRISCV64_OpRISCV64NEG(v *Value) bool {
+ 		v.copyOf(x)
+ 		return true
+ 	}
++	// match: (NEG <t> s:(ADDI [val] (NEG x)))
++	// cond: s.Uses == 1 && is32Bit(-val)
++	// result: (ADDI [-val] x)
++	for {
++		s := v_0
++		if s.Op != OpRISCV64ADDI {
++			break
++		}
++		val := auxIntToInt64(s.AuxInt)
++		s_0 := s.Args[0]
++		if s_0.Op != OpRISCV64NEG {
++			break
++		}
++		x := s_0.Args[0]
++		if !(s.Uses == 1 && is32Bit(-val)) {
++			break
++		}
++		v.reset(OpRISCV64ADDI)
++		v.AuxInt = int64ToAuxInt(-val)
++		v.AddArg(x)
++		return true
++	}
+ 	// match: (NEG (MOVDconst [x]))
+ 	// result: (MOVDconst [-x])
+ 	for {
+diff --git a/test/codegen/arithmetic.go b/test/codegen/arithmetic.go
+index beeb5357c4..07fd0c961f 100644
+--- a/test/codegen/arithmetic.go
++++ b/test/codegen/arithmetic.go
+@@ -92,7 +92,7 @@ func SubFromConst(a int) int {
+ 
+ func SubFromConstNeg(a int) int {
+ 	// ppc64x: `ADD\t[$]40,\sR[0-9]+,\sR`
+-	// riscv64: "NEG","ADDI\t\\$-40","NEG"
++	// riscv64: "ADDI\t\\$40",-"NEG"
+ 	c := 40 - (-a)
+ 	return c
+ }

@@ -7,6 +7,20 @@ Date:   Fri Feb 10 09:14:00 2012 +1100
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5650048
-
+---
  src/cmd/dist/windows.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/dist/windows.c b/src/cmd/dist/windows.c
+index fade7bc026..74e7d81230 100644
+--- a/src/cmd/dist/windows.c
++++ b/src/cmd/dist/windows.c
+@@ -735,7 +735,7 @@ xrealloc(void *p, int n)
+ 		return xmalloc(n);
+ 	if(HEAP == INVALID_HANDLE_VALUE)
+ 		HEAP = GetProcessHeap();
+-	p = HeapReAlloc(HEAP, HEAP_GENERATE_EXCEPTIONS, p, n);
++	p = HeapReAlloc(HEAP, 0, p, n);
+ 	if(p == nil)
+ 		fatal("out of memory reallocating %d", n);
+ 	return p;

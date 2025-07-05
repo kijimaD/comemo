@@ -14,6 +14,22 @@ Date:   Sun Jan 29 16:42:17 2023 +0800
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/encoding/binary/binary.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/encoding/binary/binary.go b/src/encoding/binary/binary.go
+index 0681511fbb..cb2ad1a7f8 100644
+--- a/src/encoding/binary/binary.go
++++ b/src/encoding/binary/binary.go
+@@ -210,6 +210,10 @@ func (bigEndian) String() string { return "BigEndian" }
+ 
+ func (bigEndian) GoString() string { return "binary.BigEndian" }
+ 
++func (nativeEndian) String() string { return "NativeEndian" }
++
++func (nativeEndian) GoString() string { return "binary.NativeEndian" }
++
+ // Read reads structured binary data from r into data.
+ // Data must be a pointer to a fixed-size value or a slice
+ // of fixed-size values.

@@ -8,7 +8,186 @@ Date:   Fri Aug 13 17:26:32 2010 +1000
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1973043
-
+---
  src/pkg/fmt/fmt_test.go | 45 ++++++++++++++++++++++++++
  src/pkg/fmt/print.go    | 84 ++++++++++++++++++++++---------------------------
  2 files changed, 83 insertions(+), 46 deletions(-)
+
+diff --git a/src/pkg/fmt/fmt_test.go b/src/pkg/fmt/fmt_test.go
+index 7a4ad7d00b..6bb3e388eb 100644
+--- a/src/pkg/fmt/fmt_test.go
++++ b/src/pkg/fmt/fmt_test.go
+@@ -78,6 +78,23 @@ type C struct {
+ 	B
+ }
+ 
++type F int
++
++func (f F) Format(s State, c int) {
++	Fprintf(s, "<%c=F(%d)>", c, int(f))
++}
++
++type G int
++
++func (g G) GoString() string {
++	return Sprintf("GoString(%d)", int(g))
++}
++
++type S struct {
++	f F // a struct field that Formats
++	g G // a struct field that GoStrings
++}
++
+ var b byte
+ 
+ var fmttests = []fmtTest{
+@@ -322,6 +339,15 @@ var fmttests = []fmtTest{
+ 	fmtTest{"%v", renamedComplex64(3 + 4i), "(3+4i)"},
+ 	fmtTest{"%v", renamedComplex128(4 - 3i), "(4-3i)"},
+ 
++	// Formatter
++	fmtTest{"%x", F(1), "<x=F(1)>"},
++	fmtTest{"%x", G(2), "2"},
++	fmtTest{"%+v", S{F(4), G(5)}, "{f:<v=F(4)> g:5}"},
++
++	// GoStringer
++	fmtTest{"%#v", G(6), "GoString(6)"},
++	fmtTest{"%#v", S{F(7), G(8)}, "fmt_test.S{f:<v=F(7)>, g:GoString(8)}"},
++
+ 	// %T
+ 	fmtTest{"%T", (4 - 3i), "complex"},
+ 	fmtTest{"%T", renamedComplex128(4 - 3i), "fmt_test.renamedComplex128"},
+@@ -546,3 +572,22 @@ func TestBlankln(t *testing.T) {
+ 		t.Errorf("got %q expected %q", got, expect)
+ 	}
+ }
++
++
++// Check Formatter with Sprint, Sprintln, Sprintf
++func TestFormatterPrintln(t *testing.T) {
++	f := F(1)
++	expect := "<v=F(1)>\n"
++	s := Sprint(f, "\n")
++	if s != expect {
++		t.Errorf("Sprint wrong with Formatter: expected %q got %q\n", expect, s)
++	}
++	s = Sprintln(f)
++	if s != expect {
++		t.Errorf("Sprintln wrong with Formatter: expected %q got %q\n", expect, s)
++	}
++	s = Sprintf("%v\n", f)
++	if s != expect {
++		t.Errorf("Sprintf wrong with Formatter: expected %q got %q\n", expect, s)
++	}
++}
+diff --git a/src/pkg/fmt/print.go b/src/pkg/fmt/print.go
+index d1ceb7c35f..302c02f59f 100644
+--- a/src/pkg/fmt/print.go
++++ b/src/pkg/fmt/print.go
+@@ -493,18 +493,44 @@ var (
+ )
+ 
+ func (p *pp) printField(field interface{}, verb int, plus, goSyntax bool, depth int) (wasString bool) {
+-	if field != nil {
+-		switch {
+-		default:
+-			if stringer, ok := field.(Stringer); ok {
+-				p.printField(stringer.String(), verb, plus, goSyntax, depth)
+-				return false // this value is not a string
+-			}
+-		case goSyntax:
+-			if stringer, ok := field.(GoStringer); ok {
+-				p.printField(stringer.GoString(), verb, plus, goSyntax, depth)
+-				return false // this value is not a string
+-			}
++	if field == nil {
++		if verb == 'T' || verb == 'v' {
++			p.buf.Write(nilAngleBytes)
++		} else {
++			p.badVerb(verb, field)
++		}
++		return false
++	}
++
++	// Special processing considerations.
++	// %T (the value's type) is special; we always do it first.
++	if verb == 'T' {
++		p.printField(reflect.Typeof(field).String(), 's', false, false, 0)
++		return false
++	}
++	// Is it a Formatter?
++	if formatter, ok := field.(Formatter); ok {
++		formatter.Format(p, verb)
++		return false // this value is not a string
++
++	}
++	// Must not touch flags before Formatter looks at them.
++	if plus {
++		p.fmt.plus = false
++	}
++	// If we're doing Go syntax and the field knows how to supply it, take care of it now.
++	if goSyntax {
++		p.fmt.sharp = false
++		if stringer, ok := field.(GoStringer); ok {
++			// Print the result of GoString unadorned.
++			p.fmtString(stringer.GoString(), 's', false, field)
++			return false // this value is not a string
++		}
++	} else {
++		// Is it a Stringer?
++		if stringer, ok := field.(Stringer); ok {
++			p.printField(stringer.String(), verb, plus, false, depth)
++			return false // this value is not a string
+ 		}
+ 	}
+ 
+@@ -580,15 +606,6 @@ func (p *pp) printField(field interface{}, verb int, plus, goSyntax bool, depth
+ 		return verb == 's'
+ 	}
+ 
+-	if field == nil {
+-		if verb == 'v' {
+-			p.buf.Write(nilAngleBytes)
+-		} else {
+-			p.badVerb(verb, field)
+-		}
+-		return false
+-	}
+-
+ 	value := reflect.NewValue(field)
+ 	// Need to use reflection
+ 	// Special case for reflection values that know how to print with %p.
+@@ -802,33 +819,8 @@ func (p *pp) doPrintf(format string, a []interface{}) {
+ 		field := a[fieldnum]
+ 		fieldnum++
+ 
+-		// %T is special; we always do it here.
+-		if c == 'T' {
+-			// the value's type
+-			if field == nil {
+-				p.buf.Write(nilAngleBytes)
+-				break
+-			}
+-			p.printField(reflect.Typeof(field).String(), 's', false, false, 0)
+-			continue
+-		}
+-
+-		// Try Formatter (except for %T).
+-		if field != nil {
+-			if formatter, ok := field.(Formatter); ok {
+-				formatter.Format(p, c)
+-				continue
+-			}
+-		}
+-
+ 		goSyntax := c == 'v' && p.fmt.sharp
+-		if goSyntax {
+-			p.fmt.sharp = false
+-		}
+ 		plus := c == 'v' && p.fmt.plus
+-		if plus {
+-			p.fmt.plus = false
+-		}
+ 		p.printField(field, c, plus, goSyntax, 0)
+ 	}
+ 

@@ -13,9 +13,206 @@ Date:   Fri Mar 4 14:18:52 2011 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4235051
-
+---
  src/pkg/gob/decode.go         |  2 +-
  src/pkg/gob/encode.go         |  2 +-
  src/pkg/gob/gobencdec_test.go | 18 +++++++--------
  src/pkg/gob/type.go           | 54 ++++++++++++++++++++++++++++++++-----------
  4 files changed, 52 insertions(+), 24 deletions(-)
+
+diff --git a/src/pkg/gob/decode.go b/src/pkg/gob/decode.go
+index 37f49312a8..34689a8ef2 100644
+--- a/src/pkg/gob/decode.go
++++ b/src/pkg/gob/decode.go
+@@ -738,7 +738,7 @@ func (dec *Decoder) decodeGobDecoder(state *decoderState, v reflect.Value, index
+ 		error(err)
+ 	}
+ 	// We know it's a GobDecoder, so just call the method directly.
+-	err = v.Interface().(_GobDecoder)._GobDecode(b)
++	err = v.Interface().(GobDecoder).GobDecode(b)
+ 	if err != nil {
+ 		error(err)
+ 	}
+diff --git a/src/pkg/gob/encode.go b/src/pkg/gob/encode.go
+index d69e734ff9..773b348423 100644
+--- a/src/pkg/gob/encode.go
++++ b/src/pkg/gob/encode.go
+@@ -449,7 +449,7 @@ func (enc *Encoder) encodeInterface(b *bytes.Buffer, iv *reflect.InterfaceValue)
+ func (enc *Encoder) encodeGobEncoder(b *bytes.Buffer, v reflect.Value, index int) {
+ 	// TODO: should we catch panics from the called method?
+ 	// We know it's a GobEncoder, so just call the method directly.
+-	data, err := v.Interface().(_GobEncoder)._GobEncode()
++	data, err := v.Interface().(GobEncoder).GobEncode()
+ 	if err != nil {
+ 		error(err)
+ 	}
+diff --git a/src/pkg/gob/gobencdec_test.go b/src/pkg/gob/gobencdec_test.go
+index dbe7d3fe31..82ca68170e 100644
+--- a/src/pkg/gob/gobencdec_test.go
++++ b/src/pkg/gob/gobencdec_test.go
+@@ -30,7 +30,7 @@ type ValueGobber string // encodes with a value, decodes with a pointer.
+ 
+ // The relevant methods
+ 
+-func (g *ByteStruct) _GobEncode() ([]byte, os.Error) {
++func (g *ByteStruct) GobEncode() ([]byte, os.Error) {
+ 	b := make([]byte, 3)
+ 	b[0] = g.a
+ 	b[1] = g.a + 1
+@@ -38,7 +38,7 @@ func (g *ByteStruct) _GobEncode() ([]byte, os.Error) {
+ 	return b, nil
+ }
+ 
+-func (g *ByteStruct) _GobDecode(data []byte) os.Error {
++func (g *ByteStruct) GobDecode(data []byte) os.Error {
+ 	if g == nil {
+ 		return os.ErrorString("NIL RECEIVER")
+ 	}
+@@ -55,11 +55,11 @@ func (g *ByteStruct) _GobDecode(data []byte) os.Error {
+ 	return nil
+ }
+ 
+-func (g *StringStruct) _GobEncode() ([]byte, os.Error) {
++func (g *StringStruct) GobEncode() ([]byte, os.Error) {
+ 	return []byte(g.s), nil
+ }
+ 
+-func (g *StringStruct) _GobDecode(data []byte) os.Error {
++func (g *StringStruct) GobDecode(data []byte) os.Error {
+ 	// Expect N sequential-valued bytes.
+ 	if len(data) == 0 {
+ 		return os.EOF
+@@ -74,20 +74,20 @@ func (g *StringStruct) _GobDecode(data []byte) os.Error {
+ 	return nil
+ }
+ 
+-func (g *Gobber) _GobEncode() ([]byte, os.Error) {
++func (g *Gobber) GobEncode() ([]byte, os.Error) {
+ 	return []byte(fmt.Sprintf("VALUE=%d", *g)), nil
+ }
+ 
+-func (g *Gobber) _GobDecode(data []byte) os.Error {
++func (g *Gobber) GobDecode(data []byte) os.Error {
+ 	_, err := fmt.Sscanf(string(data), "VALUE=%d", (*int)(g))
+ 	return err
+ }
+ 
+-func (v ValueGobber) _GobEncode() ([]byte, os.Error) {
++func (v ValueGobber) GobEncode() ([]byte, os.Error) {
+ 	return []byte(fmt.Sprintf("VALUE=%s", v)), nil
+ }
+ 
+-func (v *ValueGobber) _GobDecode(data []byte) os.Error {
++func (v *ValueGobber) GobDecode(data []byte) os.Error {
+ 	_, err := fmt.Sscanf(string(data), "VALUE=%s", (*string)(v))
+ 	return err
+ }
+@@ -232,7 +232,7 @@ func TestGobEncoderFieldTypeError(t *testing.T) {
+ 	x := &GobTest2{}
+ 	err = dec.Decode(x)
+ 	if err == nil {
+-		t.Fatal("expected decode error for mistmatched fields (encoder to non-decoder)")
++		t.Fatal("expected decode error for mismatched fields (encoder to non-decoder)")
+ 	}
+ 	if strings.Index(err.String(), "type") < 0 {
+ 		t.Fatal("expected type error; got", err)
+diff --git a/src/pkg/gob/type.go b/src/pkg/gob/type.go
+index 05d5f122e9..39744c90b4 100644
+--- a/src/pkg/gob/type.go
++++ b/src/pkg/gob/type.go
+@@ -18,8 +18,8 @@ type userTypeInfo struct {
+ 	user         reflect.Type // the type the user handed us
+ 	base         reflect.Type // the base type after all indirections
+ 	indir        int          // number of indirections to reach the base type
+-	isGobEncoder bool         // does the type implement _GobEncoder?
+-	isGobDecoder bool         // does the type implement _GobDecoder?
++	isGobEncoder bool         // does the type implement GobEncoder?
++	isGobDecoder bool         // does the type implement GobDecoder?
+ 	encIndir     int8         // number of indirections to reach the receiver type; may be negative
+ 	decIndir     int8         // number of indirections to reach the receiver type; may be negative
+ }
+@@ -86,8 +86,8 @@ func validUserType(rt reflect.Type) (ut *userTypeInfo, err os.Error) {
+ }
+ 
+ const (
+-	gobEncodeMethodName = "_GobEncode"
+-	gobDecodeMethodName = "_GobDecode"
++	gobEncodeMethodName = "GobEncode"
++	gobDecodeMethodName = "GobDecode"
+ )
+ 
+ // implementsGobEncoder reports whether the type implements the interface. It also
+@@ -104,7 +104,7 @@ func implementsGobEncoder(rt reflect.Type) (implements bool, indir int8) {
+ 	// dereferencing to the base type until we find an implementation.
+ 	for {
+ 		if rt.NumMethod() > 0 { // avoid allocations etc. unless there's some chance
+-			if _, ok := reflect.MakeZero(rt).Interface().(_GobEncoder); ok {
++			if _, ok := reflect.MakeZero(rt).Interface().(GobEncoder); ok {
+ 				return true, indir
+ 			}
+ 		}
+@@ -132,7 +132,7 @@ func implementsGobDecoder(rt reflect.Type) (implements bool, indir int8) {
+ 	// dereferencing to the base type until we find an implementation.
+ 	for {
+ 		if rt.NumMethod() > 0 { // avoid allocations etc. unless there's some chance
+-			if _, ok := reflect.MakeZero(rt).Interface().(_GobDecoder); ok {
++			if _, ok := reflect.MakeZero(rt).Interface().(GobDecoder); ok {
+ 				return true, indir
+ 			}
+ 		}
+@@ -306,7 +306,7 @@ func (a *arrayType) safeString(seen map[typeId]bool) string {
+ 
+ func (a *arrayType) string() string { return a.safeString(make(map[typeId]bool)) }
+ 
+-// GobEncoder type (something that implements the _GobEncoder interface)
++// GobEncoder type (something that implements the GobEncoder interface)
+ type gobEncoderType struct {
+ 	CommonType
+ }
+@@ -695,12 +695,40 @@ func mustGetTypeInfo(rt reflect.Type) *typeInfo {
+ 	return t
+ }
+ 
+-type _GobEncoder interface {
+-	_GobEncode() ([]byte, os.Error)
+-} // use _ prefix until we get it working properly
+-type _GobDecoder interface {
+-	_GobDecode([]byte) os.Error
+-} // use _ prefix until we get it working properly
++// GobEncoder is the interface describing data that provides its own
++// representation for encoding values for transmission to a GobDecoder.
++// A type that implements GobEncoder and GobDecoder has complete
++// control over the representation of its data and may therefore
++// contain things such as private fields, channels, and functions,
++// which are not usually transmissable in gob streams.
++//
++// Note: Since gobs can be stored permanently, It is good design
++// to guarantee the encoding used by a GobEncoder is stable as the
++// software evolves.  For instance, it might make sense for GobEncode
++// to include a version number in the encoding.
++// 
++// Note: At the moment, the type implementing GobEncoder must
++// be exactly the type passed to Encode.  For example, if *T implements
++// GobEncoder, the data item must be of type *T, not T or **T.
++type GobEncoder interface {
++	// GobEncode returns a byte slice representing the encoding of the
++	// receiver for transmission to a GobDecoder, usually of the same
++	// concrete type.
++	GobEncode() ([]byte, os.Error)
++}
++
++// GobDecoder is the interface describing data that provides its own
++// routine for decoding transmitted values sent by a GobEncoder.
++//
++// Note: At the moment, the type implementing GobDecoder must
++// be exactly the type passed to Decode.  For example, if *T implements
++// GobDecoder, the data item must be of type *T, not T or **T.
++type GobDecoder interface {
++	// GobDecode overwrites the receiver, which must be a pointer,
++	// with the value represented by the byte slice, which was written
++	// by GobEncode, usually for the same concrete type.
++	GobDecode([]byte) os.Error
++}
+ 
+ var (
+ 	nameToConcreteType = make(map[string]reflect.Type)

@@ -10,7 +10,42 @@ Date:   Thu Jan 12 10:42:39 2012 -0800
     R=golang-dev, rsc, r
     CC=golang-dev
     https://golang.org/cl/5539043
-
+---
  misc/dashboard/app/build/notify.go | 3 ++-
  misc/dashboard/app/build/test.go   | 2 +-
  2 files changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/misc/dashboard/app/build/notify.go b/misc/dashboard/app/build/notify.go
+index 09975b2908..826132be2a 100644
+--- a/misc/dashboard/app/build/notify.go
++++ b/misc/dashboard/app/build/notify.go
+@@ -19,6 +19,7 @@ import (
+ const (
+ 	mailFrom   = "builder@golang.org" // use this for sending any mail
+ 	failMailTo = "golang-dev@googlegroups.com"
++	domain     = "build.golang.org"
+ )
+ 
+ // notifyOnFailure checks whether the supplied Commit or the subsequent
+@@ -127,7 +128,7 @@ func sendFailMail(c appengine.Context, com *Commit, builder string) {
+ 	var body bytes.Buffer
+ 	err := sendFailMailTmpl.Execute(&body, map[string]interface{}{
+ 		"Builder": builder, "Commit": com, "Result": r, "Log": l,
+-		"Hostname": appengine.DefaultVersionHostname(c),
++		"Hostname": domain,
+ 	})
+ 	if err != nil {
+ 		c.Errorf("rendering mail template: %v", err)
+diff --git a/misc/dashboard/app/build/test.go b/misc/dashboard/app/build/test.go
+index 35fdea45c2..a923969bc0 100644
+--- a/misc/dashboard/app/build/test.go
++++ b/misc/dashboard/app/build/test.go
+@@ -146,7 +146,7 @@ func testHandler(w http.ResponseWriter, r *http.Request) {
+ 			body = new(bytes.Buffer)
+ 			json.NewEncoder(body).Encode(t.req)
+ 		}
+-		url := "http://" + appengine.DefaultVersionHostname(c) + t.path
++		url := "http://" + domain + t.path
+ 		if t.vals != nil {
+ 			url += "?" + t.vals.Encode()
+ 		}

@@ -9,6 +9,20 @@ Date:   Fri Jul 10 06:20:51 2015 -0700
     Change-Id: Ie363facf13f5e62f1af4a8bdc42a18fb36e16ebf
     Reviewed-on: https://go-review.googlesource.com/12022
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/debug.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/debug.go b/src/runtime/debug.go
+index 9aec3b03e0..b7e7971104 100644
+--- a/src/runtime/debug.go
++++ b/src/runtime/debug.go
+@@ -31,7 +31,7 @@ func GOMAXPROCS(n int) int {
+ 	return ret
+ }
+ 
+-// NumCPU returns the number of logical CPUs on the local machine.
++// NumCPU returns the number of logical CPUs usable by the current process.
+ func NumCPU() int {
+ 	return int(ncpu)
+ }

@@ -11,6 +11,22 @@ Date:   Tue Apr 24 23:40:08 2018 +0900
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/noder.go | 4 +---
  1 file changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index ecd039ae78..ec1654b83f 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -609,9 +609,7 @@ func (p *noder) expr(expr syntax.Expr) *Node {
+ 				x = unparen(x) // TODO(mdempsky): Needed?
+ 				if x.Op == OCOMPLIT {
+ 					// Special case for &T{...}: turn into (*T){...}.
+-					// TODO(mdempsky): Switch back to p.nod after we
+-					// get rid of gcCompat.
+-					x.Right = nod(OIND, x.Right, nil)
++					x.Right = p.nod(expr, OIND, x.Right, nil)
+ 					x.Right.SetImplicit(true)
+ 					return x
+ 				}

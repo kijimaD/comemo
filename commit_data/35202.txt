@@ -10,9 +10,64 @@ Date:   Tue Jan 9 10:28:29 2018 -0800
     Reviewed-on: https://go-review.googlesource.com/86977
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/go/internal/gccgoimporter/importer_test.go        |   1 +
  src/go/internal/gccgoimporter/parser.go               |   8 ++++++++
  src/go/internal/gccgoimporter/testdata/escapeinfo.go  |  13 +++++++++++++
  src/go/internal/gccgoimporter/testdata/escapeinfo.gox | Bin 0 -> 824 bytes
  4 files changed, 22 insertions(+)
+
+diff --git a/src/go/internal/gccgoimporter/importer_test.go b/src/go/internal/gccgoimporter/importer_test.go
+index 26f5d9f5b7..01ab47a445 100644
+--- a/src/go/internal/gccgoimporter/importer_test.go
++++ b/src/go/internal/gccgoimporter/importer_test.go
+@@ -102,6 +102,7 @@ var importerTests = [...]importerTest{
+ 	{pkgpath: "unicode", name: "MaxRune", want: "const MaxRune untyped rune", wantval: "1114111"},
+ 	{pkgpath: "imports", wantinits: []string{"imports..import", "fmt..import", "math..import"}},
+ 	{pkgpath: "alias", name: "IntAlias2", want: "type IntAlias2 = Int"},
++	{pkgpath: "escapeinfo", name: "NewT", want: "func NewT(data []byte) *T"},
+ }
+ 
+ func TestGoxImporter(t *testing.T) {
+diff --git a/src/go/internal/gccgoimporter/parser.go b/src/go/internal/gccgoimporter/parser.go
+index 8a1ad5ff07..4b3d899efd 100644
+--- a/src/go/internal/gccgoimporter/parser.go
++++ b/src/go/internal/gccgoimporter/parser.go
+@@ -226,6 +226,14 @@ func (p *parser) parseField(pkg *types.Package) (field *types.Var, tag string) {
+ // Param = Name ["..."] Type .
+ func (p *parser) parseParam(pkg *types.Package) (param *types.Var, isVariadic bool) {
+ 	name := p.parseName()
++	if p.tok == '<' && p.scanner.Peek() == 'e' {
++		// EscInfo = "<esc:" int ">" . (optional and ignored)
++		p.next()
++		p.expectKeyword("esc")
++		p.expect(':')
++		p.expect(scanner.Int)
++		p.expect('>')
++	}
+ 	if p.tok == '.' {
+ 		p.next()
+ 		p.expect('.')
+diff --git a/src/go/internal/gccgoimporter/testdata/escapeinfo.go b/src/go/internal/gccgoimporter/testdata/escapeinfo.go
+new file mode 100644
+index 0000000000..103ad95494
+--- /dev/null
++++ b/src/go/internal/gccgoimporter/testdata/escapeinfo.go
+@@ -0,0 +1,13 @@
++// Test case for escape info in export data. To compile and extract .gox file:
++// gccgo -fgo-optimize-allocs -c escapeinfo.go
++// objcopy -j .go_export escapeinfo.o escapeinfo.gox
++
++package escapeinfo
++
++type T struct{ data []byte }
++
++func NewT(data []byte) *T {
++	return &T{data}
++}
++
++func (*T) Read(p []byte) {}
+diff --git a/src/go/internal/gccgoimporter/testdata/escapeinfo.gox b/src/go/internal/gccgoimporter/testdata/escapeinfo.gox
+new file mode 100644
+index 0000000000..1db81562c1
+Binary files /dev/null and b/src/go/internal/gccgoimporter/testdata/escapeinfo.gox differ

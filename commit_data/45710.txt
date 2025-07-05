@@ -13,6 +13,22 @@ Date:   Tue Nov 10 03:42:18 2020 +1100
     Reviewed-on: https://go-review.googlesource.com/c/go/+/268438
     Trust: Joel Sing <joel@sing.id.au>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/runtime/crash_unix_test.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/runtime/crash_unix_test.go b/src/runtime/crash_unix_test.go
+index fc87f37408..6c42cb9a3d 100644
+--- a/src/runtime/crash_unix_test.go
++++ b/src/runtime/crash_unix_test.go
+@@ -70,6 +70,10 @@ func TestCrashDumpsAllThreads(t *testing.T) {
+ 		t.Skipf("skipping; not supported on %v", runtime.GOOS)
+ 	}
+ 
++	if runtime.GOOS == "openbsd" && runtime.GOARCH == "mips64" {
++		t.Skipf("skipping; test fails on %s/%s - see issue #42464", runtime.GOOS, runtime.GOARCH)
++	}
++
+ 	if runtime.Sigisblocked(int(syscall.SIGQUIT)) {
+ 		t.Skip("skipping; SIGQUIT is blocked, see golang.org/issue/19196")
+ 	}

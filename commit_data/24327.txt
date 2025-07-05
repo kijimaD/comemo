@@ -23,7 +23,69 @@ Date:   Wed Jul 15 20:09:24 2015 +0000
     Reviewed-on: https://go-review.googlesource.com/12252
     Reviewed-by: Andrew Gerrand <adg@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/encoding/xml/marshal.go      |  4 ++++
  src/encoding/xml/marshal_test.go | 31 +++++++++++++++++++++++++++++++
  2 files changed, 35 insertions(+)
+
+diff --git a/src/encoding/xml/marshal.go b/src/encoding/xml/marshal.go
+index 5a49cc3528..3c3b6aca58 100644
+--- a/src/encoding/xml/marshal.go
++++ b/src/encoding/xml/marshal.go
+@@ -199,6 +199,7 @@ var (
+ // elements (including the StartElement itself) will use the declared
+ // prefix when encoding names with matching namespace URIs.
+ func (enc *Encoder) EncodeToken(t Token) error {
++
+ 	p := &enc.p
+ 	switch t := t.(type) {
+ 	case StartElement:
+@@ -245,6 +246,9 @@ func (enc *Encoder) EncodeToken(t Token) error {
+ 		p.WriteString("<!")
+ 		p.Write(t)
+ 		p.WriteString(">")
++	default:
++		return fmt.Errorf("xml: EncodeToken of invalid token type")
++
+ 	}
+ 	return p.cachedWriteError()
+ }
+diff --git a/src/encoding/xml/marshal_test.go b/src/encoding/xml/marshal_test.go
+index 78fe841d76..5dc78e748b 100644
+--- a/src/encoding/xml/marshal_test.go
++++ b/src/encoding/xml/marshal_test.go
+@@ -1906,3 +1906,34 @@ func TestIsValidDirective(t *testing.T) {
+ 		}
+ 	}
+ }
++
++// Issue 11719. EncodeToken used to silently eat tokens with an invalid type.
++func TestSimpleUseOfEncodeToken(t *testing.T) {
++	var buf bytes.Buffer
++	enc := NewEncoder(&buf)
++	if err := enc.EncodeToken(&StartElement{Name: Name{"", "object1"}}); err == nil {
++		t.Errorf("enc.EncodeToken: pointer type should be rejected")
++	}
++	if err := enc.EncodeToken(&EndElement{Name: Name{"", "object1"}}); err == nil {
++		t.Errorf("enc.EncodeToken: pointer type should be rejected")
++	}
++	if err := enc.EncodeToken(StartElement{Name: Name{"", "object2"}}); err != nil {
++		t.Errorf("enc.EncodeToken: StartElement %s", err)
++	}
++	if err := enc.EncodeToken(EndElement{Name: Name{"", "object2"}}); err != nil {
++		t.Errorf("enc.EncodeToken: EndElement %s", err)
++	}
++	if err := enc.EncodeToken(Universe{}); err == nil {
++		t.Errorf("enc.EncodeToken: invalid type not caught")
++	}
++	if err := enc.Flush(); err != nil {
++		t.Errorf("enc.Flush: %s", err)
++	}
++	if buf.Len() == 0 {
++		t.Errorf("enc.EncodeToken: empty buffer")
++	}
++	want := "<object2></object2>"
++	if buf.String() != want {
++		t.Errorf("enc.EncodeToken: expected %q; got %q", want, buf.String())
++	}
++}

@@ -8,6 +8,35 @@ Date:   Sat Nov 20 13:29:02 2021 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/365914
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go_spec.html | 10 +++++++++-
  1 file changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 176e1a755d..186600f015 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1876,7 +1876,9 @@ by a value of type <code>T</code>.
+ 
+ <p>
+ A <a href="#Constants">constant</a> <code>x</code> is <i>representable</i>
+-by a value of type <code>T</code> if one of the following conditions applies:
++by a value of type <code>T</code>,
++where <code>T</code> is not a <a href="#Type_parameters">type parameter</a>,
++if one of the following conditions applies:
+ </p>
+ 
+ <ul>
+@@ -1899,6 +1901,12 @@ are representable by values of <code>T</code>'s component type (<code>float32</c
+ </li>
+ </ul>
+ 
++<p>
++If <code>T</code> is a type parameter with <a href="#Structure_of_interfaces">specific types</a>,
++<code>x</code> is representable by a value of type <code>T</code> if <code>x</code> is representable
++by a value of each specific type of <code>T</code>.
++</p>
++
+ <pre>
+ x                   T           x is representable by a value of T because
+ 

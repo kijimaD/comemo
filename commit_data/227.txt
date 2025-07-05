@@ -6,9 +6,225 @@ Date:   Wed Jun 25 15:22:27 2008 -0700
     fix integer.ToString to return the proper, not-nul-terminated value
     
     SVN=124654
-
+---
  test/bugs/bug054.go  | 21 +++++++++++++++++++--
  test/golden.out      | 30 +++++++++++++++++++++++++++---
  test/integer.go      |  4 ++--
  test/test_integer.go | 52 ++++++++++++++++++++++++++--------------------------
  4 files changed, 74 insertions(+), 33 deletions(-)
+
+diff --git a/test/bugs/bug054.go b/test/bugs/bug054.go
+index bfd09ec63e..8179cf0f41 100644
+--- a/test/bugs/bug054.go
++++ b/test/bugs/bug054.go
+@@ -22,6 +22,23 @@ type TStruct struct {
+ 	fields *Vector;
+ }
+ 
+-func (s *TStruct) field() {
+-	t := s.fields.At(0);
++func (s *TStruct) field(i int) *TStruct {
++	// works if we say
++	//	t := s.fields.At(i);
++	//	return t;
++	return s.fields.At(i);
++}
++
++func main() {
++	v := new(Vector);
++	v.elem = new([10]Element);
++	t := new(TStruct);
++	t.name = "hi";
++	v.elem[0] = t;
++	s := new(TStruct);
++	s.name = "foo";
++	s.fields = v;
++	if s.field(0).name != "hi" {
++		panic "bad name"
++	}
+ }
+diff --git a/test/golden.out b/test/golden.out
+index b0bf90a74a..0533f86bc1 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -13,6 +13,19 @@
+ BUG: known to succeed incorrectly
+ 
+ =========== ./hashmap.go
++fncalls
++.   MOD u(101) l(234) <uint32>UINT32
++.   .   CALLINTER u(100) l(234) <uint32>UINT32
++.   .   .   DOTINTER u(1) l(234) 101({},{}){}
++.   .   .   .   NAME-key G253 a(1) g(253) l(231) *<KeyType>I{}
++.   .   .   .   NAME-Hash G0 a(1) l(182)
++.   .   CALLMETH u(100) l(234) <uint32>UINT32
++.   .   .   DOTMETH u(1) l(234) 101({},{}){}
++.   .   .   .   NAME-HashMap_capacity G0 a(1) l(208) 101({},{}){}
++.   .   .   AS u(1) l(234)
++.   .   .   .   INDREG a(1) l(234) m G252 *<HashMap>{}
++.   .   .   .   NAME-m G252 a(1) g(252) l(231) *<HashMap>{}
++hashmap.go:71: fatal error: cgen: both sides functions
+ 
+ =========== ./helloworld.go
+ hello, world
+@@ -32,7 +45,7 @@ hello, world
+ =========== ./nil.go
+ 
+ =========== ./sieve.go
+-sieve.go:8: fatal error: walktype: switch 1 unknown op SEND l(151)
++sieve.go:8: fatal error: walktype: switch 1 unknown op SEND l(171)
+ BUG: known to fail incorrectly
+ 
+ =========== ./string_lit.go
+@@ -157,7 +170,7 @@ bugs/bug025.go:7: fatal error: dumpexportvar: oname nil: Foo
+ BUG: known to fail incorrectly or at least with a bad message
+ 
+ =========== bugs/bug026.go
+-traceback: main_sigs_I: not defined
++traceback: main·sigs_I: not defined
+ BUG: known to fail incorrectly
+ 
+ =========== bugs/bug027.go
+@@ -256,7 +269,18 @@ bugs/bug053.go:6: syntax error
+ BUG: len should not be a keyword
+ 
+ =========== bugs/bug054.go
+-bugs/bug054.go:22: fatal error: cgen_aret
++xxx
++.   CALL u(100) l(188) <Element>I{}
++.   .   NAME-Vector_At G0 a(1) l(175) 111({},{}){}
++.   .   AS u(1) l(188)
++.   .   .   INDREG a(1) l(188) v G0 *<Vector>{}
++.   .   .   DOTPTR u(1) l(188) *<Vector>{}
++.   .   .   .   NAME-s G224 a(1) g(224) l(184) *<TStruct>{}
++.   .   .   .   NAME-fields G0 a(1) l(181)
++.   .   AS u(1) l(188)
++.   .   .   INDREG a(1) l(188) i G225 <int32>INT32
++.   .   .   NAME-i G225 a(1) g(225) l(184) <int32>INT32
++bugs/bug054.go:25: fatal error: agen_inter i2s
+ BUG: known to fail incorrectly
+ 
+ =========== bugs/bug055.go
+diff --git a/test/integer.go b/test/integer.go
+index 42c80162e5..f7e3c25368 100755
+--- a/test/integer.go
++++ b/test/integer.go
+@@ -439,7 +439,7 @@ func tostring(x Value) string {
+     s[i] = '-';
+     i++;
+   }
+-  s[i] = 0;
++  length := i;
+   ASSERT(0 < i && i < n);
+   
+   // reverse in place
+@@ -451,7 +451,7 @@ func tostring(x Value) string {
+     i--;
+   }
+ 
+-  return string(s);
++  return string(s)[0:length];
+ }
+ 
+ 
+diff --git a/test/test_integer.go b/test/test_integer.go
+index 504299ba58..be93f33ef0 100644
+--- a/test/test_integer.go
++++ b/test/test_integer.go
+@@ -22,9 +22,9 @@ var (
+ )
+ 
+ 
+-func CHECK(p bool) {
++func CHECK(msg string, p bool) {
+   if !p {
+-    panic "CHECK failed\n";
++    panic "CHECK failed: ", msg, "\n";
+   }
+ }
+ 
+@@ -43,16 +43,16 @@ func Init() {
+   a_c = Integer.FromString("93326215443944152681699238856266700490715968264381621468592963895217599993229915608941463976156518286253697920827223758251185210916864000000000000000000000991");
+ }
+ 
++func N991() string { return "991" }
+ 
+ func TestConv() {
+   print "TestConv\n";
+-  CHECK(a.eql(Integer.FromInt(991)));
+-  CHECK(b.eql(Integer.Fact(20)));
+-  CHECK(c.eql(Integer.Fact(100)));
+-  
+-  CHECK(a.ToString() == sa);
+-  CHECK(b.ToString() == sb);
+-  CHECK(c.ToString() == sc);
++  CHECK("TC1", a.eql(Integer.FromInt(991)));
++  CHECK("TC2", b.eql(Integer.Fact(20)));
++  CHECK("TC3", c.eql(Integer.Fact(100)));
++  CHECK("TC4", a.ToString() == sa);
++  CHECK("TC5", b.ToString() == sb);
++  CHECK("TC6", c.ToString() == sc);
+   
+   // also tested much via TestFact
+ }
+@@ -60,18 +60,18 @@ func TestConv() {
+ 
+ func TestAdd() {
+   print "TestAdd\n";
+-  CHECK(z.add(z).eql(z));
+-  CHECK(a.add(z).eql(a));
+-  CHECK(z.add(a).eql(a));
++  CHECK("TA1", z.add(z).eql(z));
++  CHECK("TA2", a.add(z).eql(a));
++  CHECK("TA3", z.add(a).eql(a));
+ 
+-  CHECK(c.add(z).eql(c));
+-  CHECK(z.add(c).eql(c));
++  CHECK("TA4", c.add(z).eql(c));
++  CHECK("TA5", z.add(c).eql(c));
+ 
+-  CHECK(m.add(p).eql(z));
++  CHECK("TA6", m.add(p).eql(z));
+   
+-  CHECK(a.add(a).eql(a_a));
+-  CHECK(a.add(b).eql(a_b));
+-  CHECK(a.add(c).eql(a_c));
++  CHECK("TA7", a.add(a).eql(a_a));
++  CHECK("TA8", a.add(b).eql(a_b));
++  CHECK("TA9", a.add(c).eql(a_c));
+   
+   // needs more
+ }
+@@ -79,16 +79,16 @@ func TestAdd() {
+ 
+ func TestSub() {
+   print "TestSub\n";
+-  CHECK(z.sub(z).eql(z));
+-  CHECK(a.sub(z).eql(a));
+-  CHECK(z.sub(a).eql(a.neg()));
++  CHECK("TS1", z.sub(z).eql(z));
++  CHECK("TS2", a.sub(z).eql(a));
++  CHECK("TS3", z.sub(a).eql(a.neg()));
+ 
+-  CHECK(c.sub(z).eql(c));
+-  CHECK(z.sub(c).eql(c.neg()));
++  CHECK("TS4", c.sub(z).eql(c));
++  CHECK("TS5", z.sub(c).eql(c.neg()));
+   
+-  CHECK(p.sub(m).eql(p.add(p)));
++  CHECK("TS6", p.sub(m).eql(p.add(p)));
+ 
+-  CHECK(a.sub(a).eql(z));
++  CHECK("TS7", a.sub(a).eql(z));
+   
+   // needs more
+ }
+@@ -116,7 +116,7 @@ func TestFact() {
+   print "TestFact\n";
+   for n := 990; n < 1010; n++ {
+     f := Integer.Fact(n);
+-    CHECK(Integer.FromString(f.ToString()).eql(f));
++    CHECK("TF", Integer.FromString(f.ToString()).eql(f));
+   }
+ }
+ 

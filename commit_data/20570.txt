@@ -25,7 +25,62 @@ Date:   Thu Sep 18 17:27:26 2014 -0700
     R=golang-codereviews, alex.brainman
     CC=golang-codereviews
     https://golang.org/cl/141690043
-
+---
  src/cmd/ld/lib.c           |  4 ++++
  src/lib9/tempdir_windows.c | 19 +++++++++++--------
  2 files changed, 15 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/ld/lib.c b/src/cmd/ld/lib.c
+index 651705a2e6..36f0f99de2 100644
+--- a/src/cmd/ld/lib.c
++++ b/src/cmd/ld/lib.c
+@@ -144,6 +144,10 @@ libinit(void)
+ void
+ errorexit(void)
+ {
++	if(cout >= 0) {
++		// For rmtemp run at atexit time on Windows.
++		close(cout);
++	}
+ 	if(nerrors) {
+ 		if(cout >= 0)
+ 			mayberemoveoutfile();
+diff --git a/src/lib9/tempdir_windows.c b/src/lib9/tempdir_windows.c
+index 1a530059ae..4c3df7cf11 100644
+--- a/src/lib9/tempdir_windows.c
++++ b/src/lib9/tempdir_windows.c
+@@ -70,7 +70,7 @@ removeall(char *p)
+ {
+ 	WinRune *r, *r1;
+ 	DWORD attr;
+-	char *q, *elem;
++	char *q, *qt, *elem;
+ 	HANDLE h;
+ 	WIN32_FIND_DATAW data;
+ 	
+@@ -91,15 +91,18 @@ removeall(char *p)
+ 	do{
+ 		q = toutf(data.cFileName);
+ 		elem = strrchr(q, '\\');
+-		if(elem != nil) {
++		if(elem != nil)
+ 			elem++;
+-			if(strcmp(elem, ".") == 0 || strcmp(elem, "..") == 0) {
+-				free(q);
+-				continue;
+-			}
++		else
++			elem = q;
++		if(strcmp(elem, ".") == 0 || strcmp(elem, "..") == 0) {
++			free(q);
++			continue;
+ 		}
+-		removeall(q);
+-		free(q);		
++		qt = smprint("%s\\%s", p, q);
++		free(q);
++		removeall(qt);
++		free(qt);
+ 	}while(FindNextFileW(h, &data));
+ 	FindClose(h);
+ 

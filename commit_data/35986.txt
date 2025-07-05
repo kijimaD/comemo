@@ -79,6 +79,20 @@ Date:   Mon Mar 26 12:38:29 2018 +0200
     Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/deadcode.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/deadcode.go b/src/cmd/compile/internal/ssa/deadcode.go
+index 4e22c965fe..47690f879e 100644
+--- a/src/cmd/compile/internal/ssa/deadcode.go
++++ b/src/cmd/compile/internal/ssa/deadcode.go
+@@ -54,7 +54,7 @@ func liveValues(f *Func, reachable []bool) []bool {
+ 	}
+ 
+ 	// Find all live values
+-	var q []*Value // stack-like worklist of unscanned values
++	q := make([]*Value, 0, 64) // stack-like worklist of unscanned values
+ 
+ 	// Starting set: all control values of reachable blocks are live.
+ 	// Calls are live (because callee can observe the memory state).

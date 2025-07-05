@@ -16,6 +16,19 @@ Date:   Wed Sep 14 19:50:00 2022 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
     Run-TryBot: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/link/internal/ld/lib.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index ca343ab2f9..15748c0fbb 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -1424,7 +1424,6 @@ func (ctxt *Link) hostlink() {
+ 		if ctxt.HeadType == objabi.Hdarwin {
+ 			if machoPlatform == PLATFORM_MACOS && ctxt.IsAMD64() {
+ 				argv = append(argv, "-Wl,-no_pie")
+-				argv = append(argv, "-Wl,-pagezero_size,4000000")
+ 			}
+ 		}
+ 		if *flagRace && ctxt.HeadType == objabi.Hwindows {

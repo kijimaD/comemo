@@ -19,6 +19,20 @@ Date:   Thu Nov 14 16:00:22 2024 +0000
     Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/make.rc | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/make.rc b/src/make.rc
+index cfb9fa0aeb..b3beb75660 100755
+--- a/src/make.rc
++++ b/src/make.rc
+@@ -51,7 +51,7 @@ fn bootstrapenv {
+ bootgo = 1.22.6
+ GOROOT = `{cd .. && pwd}
+ goroot_bootstrap_set = 'true'
+-if(! ~ $#GOROOT_BOOTSTRAP 1){
++if(~ $"GOROOT_BOOTSTRAP ''){
+ 	goroot_bootstrap_set = 'false'
+ 	GOROOT_BOOTSTRAP = $home/go1.4
+ 	for(d in sdk/go$bootgo go$bootgo)

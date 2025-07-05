@@ -6,7 +6,33 @@ Date:   Fri Nov 20 00:31:03 2009 -0800
     
     R=r
     https://golang.org/cl/157103
-
+---
  src/Make.pkg        | 2 +-
  src/cmd/cgo/main.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/Make.pkg b/src/Make.pkg
+index d763951d1d..29d028d541 100644
+--- a/src/Make.pkg
++++ b/src/Make.pkg
+@@ -88,7 +88,7 @@ dir:
+ #	x.cgo4.c - C implementations compiled with gcc to create dynamic library
+ #
+ %.cgo1.go %.cgo2.go %.cgo3.c %.cgo4.c: %.go
+-	cgo $(CGO_CFLAGS) $*.go
++	CGOPKGPATH=$(dir) cgo $(CGO_CFLAGS) $*.go
+ 
+ # The rules above added x.cgo1.go and x.cgo2.go to $(GOFILES),
+ # added x.cgo3.$O to $OFILES, and added the installed copy of
+diff --git a/src/cmd/cgo/main.go b/src/cmd/cgo/main.go
+index fa88e9de58..8202b8e2bc 100644
+--- a/src/cmd/cgo/main.go
++++ b/src/cmd/cgo/main.go
+@@ -101,6 +101,6 @@ func main() {
+ 		os.Exit(2)
+ 	}
+ 
+-	p.PackagePath = p.Package;
++	p.PackagePath = os.Getenv("CGOPKGPATH") + "/" + p.Package;
+ 	p.writeOutput(input);
+ }

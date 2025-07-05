@@ -8,6 +8,30 @@ Date:   Sun Aug 10 14:35:02 2008 -0700
     DELTA=11  (10 added, 1 deleted, 0 changed)
     OCL=14047
     CL=14047
-
+---
  src/cmd/6g/cgen.c | 11 ++++++++++-
  1 file changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/6g/cgen.c b/src/cmd/6g/cgen.c
+index 7b054dfb3f..bbd904d499 100644
+--- a/src/cmd/6g/cgen.c
++++ b/src/cmd/6g/cgen.c
+@@ -101,8 +101,17 @@ cgen(Node *n, Node *res)
+ 		goto ret;
+ 
+ 	// unary
+-	case OMINUS:
+ 	case OCOM:
++		a = optoas(OXOR, nl->type);
++		regalloc(&n1, nl->type, N);
++		cgen(nl, &n1);
++		nodconst(&n2, nl->type, -1);
++		gins(a, &n2, &n1);
++		gmove(&n1, res);
++		regfree(&n1);
++		goto ret;
++
++	case OMINUS:
+ 		a = optoas(n->op, nl->type);
+ 		goto uop;
+ 

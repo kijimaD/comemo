@@ -18,7 +18,50 @@ Date:   Mon Nov 5 15:51:11 2018 -0800
     Change-Id: If6f9656a95262e6575b01c4a003094d41551564b
     Reviewed-on: https://go-review.googlesource.com/c/147597
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/go/types/resolver.go    | 18 ++++++++++++++++++
  src/go/types/stdlib_test.go |  1 -
  2 files changed, 18 insertions(+), 1 deletion(-)
+
+diff --git a/src/go/types/resolver.go b/src/go/types/resolver.go
+index f6c3b601b2..41741e5882 100644
+--- a/src/go/types/resolver.go
++++ b/src/go/types/resolver.go
+@@ -570,7 +570,25 @@ func (check *Checker) packageObjects() {
+ 		}
+ 	}
+ 
++	// We process non-alias declarations first, in order to avoid situations where
++	// the type of an alias declaration is needed before it is available. In general
++	// this is still not enough, as it is possible to create sufficiently convoluted
++	// recursive type definitions that will cause a type alias to be needed before it
++	// is available (see issue #25838 for examples).
++	// As an aside, the cmd/compiler suffers from the same problem (#25838).
++	var aliasList []*TypeName
++	// phase 1
+ 	for _, obj := range objList {
++		// If we have a type alias, collect it for the 2nd phase.
++		if tname, _ := obj.(*TypeName); tname != nil && check.objMap[tname].alias {
++			aliasList = append(aliasList, tname)
++			continue
++		}
++
++		check.objDecl(obj, nil)
++	}
++	// phase 2
++	for _, obj := range aliasList {
+ 		check.objDecl(obj, nil)
+ 	}
+ 
+diff --git a/src/go/types/stdlib_test.go b/src/go/types/stdlib_test.go
+index a4ff1ab9a8..84908fd190 100644
+--- a/src/go/types/stdlib_test.go
++++ b/src/go/types/stdlib_test.go
+@@ -180,7 +180,6 @@ func TestStdFixed(t *testing.T) {
+ 		"issue22200b.go", // go/types does not have constraints on stack size
+ 		"issue25507.go",  // go/types does not have constraints on stack size
+ 		"issue20780.go",  // go/types does not have constraints on stack size
+-		"issue27232.go",  // go/types has a bug with alias type (issue #28576)
+ 	)
+ }
+ 

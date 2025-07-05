@@ -17,6 +17,23 @@ Date:   Wed Jun 24 13:29:05 2015 -0700
     Change-Id: I679197f780c7a3d3eb7d05e91c86a4cdc3b70131
     Reviewed-on: https://go-review.googlesource.com/11440
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 1218a23488..569b985052 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -649,7 +649,10 @@ func (s *state) boundsCheck(idx, len *ssa.Value) {
+ // variable returns the value of a variable at the current location.
+ func (s *state) variable(name string, t ssa.Type) *ssa.Value {
+ 	if s.curBlock == nil {
+-		s.Fatal("nil curblock!")
++		// Unimplemented instead of Fatal because fixedbugs/bug303.go
++		// demonstrates a case in which this appears to happen legitimately.
++		// TODO: decide on the correct behavior here.
++		s.Unimplemented("nil curblock adding variable %v (%v)", name, t)
+ 	}
+ 	v := s.vars[name]
+ 	if v == nil {

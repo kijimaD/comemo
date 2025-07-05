@@ -14,6 +14,47 @@ Date:   Wed Mar 23 01:25:45 2022 +0700
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/types/type.go | 15 ---------------
  1 file changed, 15 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types/type.go b/src/cmd/compile/internal/types/type.go
+index 5c5ed8a500..e3bfc24108 100644
+--- a/src/cmd/compile/internal/types/type.go
++++ b/src/cmd/compile/internal/types/type.go
+@@ -1853,9 +1853,6 @@ func NewInterface(pkg *Pkg, methods []*Field, implicit bool) *Type {
+ 			break
+ 		}
+ 	}
+-	if anyBroke(methods) {
+-		base.Fatalf("type contain broken method: %v", methods)
+-	}
+ 	t.extra.(*Interface).pkg = pkg
+ 	t.extra.(*Interface).implicit = implicit
+ 	return t
+@@ -1994,9 +1991,6 @@ func NewSignature(pkg *Pkg, recv *Field, tparams, params, results []*Field) *Typ
+ func NewStruct(pkg *Pkg, fields []*Field) *Type {
+ 	t := newType(TSTRUCT)
+ 	t.SetFields(fields)
+-	if anyBroke(fields) {
+-		base.Fatalf("struct contains broken field: %v", fields)
+-	}
+ 	t.extra.(*Struct).pkg = pkg
+ 	if fieldsHasTParam(fields) {
+ 		t.SetHasTParam(true)
+@@ -2007,15 +2001,6 @@ func NewStruct(pkg *Pkg, fields []*Field) *Type {
+ 	return t
+ }
+ 
+-func anyBroke(fields []*Field) bool {
+-	for _, f := range fields {
+-		if f.Broke() {
+-			return true
+-		}
+-	}
+-	return false
+-}
+-
+ var (
+ 	IsInt     [NTYPE]bool
+ 	IsFloat   [NTYPE]bool

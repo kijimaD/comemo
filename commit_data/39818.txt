@@ -26,7 +26,74 @@ Date:   Fri Mar 22 14:18:22 2019 -0400
     Change-Id: I21f73b9d5cc5ad41e7ff535675d07ca00051ecd7
     Reviewed-on: https://go-review.googlesource.com/c/go/+/168937
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/testing/benchmark.go      |  9 +++++++--
  src/testing/benchmark_test.go | 27 +++++++++++++++++++++++++++
  2 files changed, 34 insertions(+), 2 deletions(-)
+
+diff --git a/src/testing/benchmark.go b/src/testing/benchmark.go
+index 407e371c66..6dcfcb02c7 100644
+--- a/src/testing/benchmark.go
++++ b/src/testing/benchmark.go
+@@ -406,9 +406,14 @@ func (r BenchmarkResult) String() string {
+ 	buf := new(strings.Builder)
+ 	fmt.Fprintf(buf, "%8d", r.N)
+ 
+-	if ns := r.NsPerOp(); ns != 0 {
++	// Get ns/op as a float.
++	ns, ok := r.Extra["ns/op"]
++	if !ok {
++		ns = float64(r.T.Nanoseconds()) / float64(r.N)
++	}
++	if ns != 0 {
+ 		buf.WriteByte('\t')
+-		prettyPrint(buf, float64(ns), "ns/op")
++		prettyPrint(buf, ns, "ns/op")
+ 	}
+ 
+ 	if mbs := r.mbPerSec(); mbs != 0 {
+diff --git a/src/testing/benchmark_test.go b/src/testing/benchmark_test.go
+index 7d28fb632a..a872d6798b 100644
+--- a/src/testing/benchmark_test.go
++++ b/src/testing/benchmark_test.go
+@@ -12,6 +12,7 @@ import (
+ 	"sync/atomic"
+ 	"testing"
+ 	"text/template"
++	"time"
+ )
+ 
+ var prettyPrintTests = []struct {
+@@ -40,6 +41,32 @@ func TestPrettyPrint(t *testing.T) {
+ 	}
+ }
+ 
++func TestResultString(t *testing.T) {
++	// Test fractional ns/op handling
++	r := testing.BenchmarkResult{
++		N: 100,
++		T: 240 * time.Nanosecond,
++	}
++	if r.NsPerOp() != 2 {
++		t.Errorf("NsPerOp: expected 2, actual %v", r.NsPerOp())
++	}
++	if want, got := "     100\t         2.40 ns/op", r.String(); want != got {
++		t.Errorf("String: expected %q, actual %q", want, got)
++	}
++
++	// Test sub-1 ns/op (issue #31005)
++	r.T = 40 * time.Nanosecond
++	if want, got := "     100\t         0.400 ns/op", r.String(); want != got {
++		t.Errorf("String: expected %q, actual %q", want, got)
++	}
++
++	// Test 0 ns/op
++	r.T = 0
++	if want, got := "     100", r.String(); want != got {
++		t.Errorf("String: expected %q, actual %q", want, got)
++	}
++}
++
+ func TestRunParallel(t *testing.T) {
+ 	testing.Benchmark(func(b *testing.B) {
+ 		procs := uint32(0)

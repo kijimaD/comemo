@@ -19,7 +19,39 @@ Date:   Fri Oct 21 13:14:57 2016 +0200
     Reviewed-by: Rob Pike <r@golang.org>
     Run-TryBot: Rob Pike <r@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/text/template/exec.go      | 3 +++
  src/text/template/exec_test.go | 6 ++++++
  2 files changed, 9 insertions(+)
+
+diff --git a/src/text/template/exec.go b/src/text/template/exec.go
+index 49f15faacd..ea964dc2bc 100644
+--- a/src/text/template/exec.go
++++ b/src/text/template/exec.go
+@@ -541,6 +541,9 @@ func (s *state) evalFunction(dot reflect.Value, node *parse.IdentifierNode, cmd
+ // value of the pipeline, if any.
+ func (s *state) evalField(dot reflect.Value, fieldName string, node parse.Node, args []parse.Node, final, receiver reflect.Value) reflect.Value {
+ 	if !receiver.IsValid() {
++		if s.tmpl.option.missingKey == mapError { // Treat invalid value as missing map key.
++			s.errorf("nil data; no entry for key %q", fieldName)
++		}
+ 		return zero
+ 	}
+ 	typ := receiver.Type()
+diff --git a/src/text/template/exec_test.go b/src/text/template/exec_test.go
+index 7d4af3bcba..5892b27391 100644
+--- a/src/text/template/exec_test.go
++++ b/src/text/template/exec_test.go
+@@ -1142,6 +1142,12 @@ func TestMissingMapKey(t *testing.T) {
+ 	if err == nil {
+ 		t.Errorf("expected error; got none")
+ 	}
++	// same Option, but now a nil interface: ask for an error
++	err = tmpl.Execute(&b, nil)
++	t.Log(err)
++	if err == nil {
++		t.Errorf("expected error for nil-interface; got none")
++	}
+ }
+ 
+ // Test that the error message for multiline unterminated string

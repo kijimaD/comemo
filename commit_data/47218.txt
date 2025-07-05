@@ -11,10 +11,329 @@ Date:   Tue Feb 23 20:00:31 2021 -0500
     Trust: David Chase <drchase@google.com>
     Run-TryBot: David Chase <drchase@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/abi/abiutils.go     | 59 +++++++++++++++---
  src/cmd/compile/internal/ssa/expand_calls.go | 26 +++++---
  src/cmd/compile/internal/ssagen/ssa.go       | 27 ++++++---
  test/abi/named_results.go                    | 91 ++++++++++++++++++++++++++++
  test/abi/named_results.out                   | 13 ++++
  5 files changed, 190 insertions(+), 26 deletions(-)
+
+diff --git a/src/cmd/compile/internal/abi/abiutils.go b/src/cmd/compile/internal/abi/abiutils.go
+index ffa709965c..3c07be62e0 100644
+--- a/src/cmd/compile/internal/abi/abiutils.go
++++ b/src/cmd/compile/internal/abi/abiutils.go
+@@ -118,12 +118,22 @@ func RegisterTypes(apa []ABIParamAssignment) []*types.Type {
+ 		if len(pa.Registers) == 0 {
+ 			continue
+ 		}
+-		rts = appendParamRegs(rts, pa.Type)
++		rts = appendParamTypes(rts, pa.Type)
+ 	}
+ 	return rts
+ }
+ 
+-func appendParamRegs(rts []*types.Type, t *types.Type) []*types.Type {
++func (pa *ABIParamAssignment) RegisterTypesAndOffsets() ([]*types.Type, []int64) {
++	l := len(pa.Registers)
++	if l == 0 {
++		return nil, nil
++	}
++	typs := make([]*types.Type, 0, l)
++	offs := make([]int64, 0, l)
++	return appendParamTypes(typs, pa.Type), appendParamOffsets(offs, 0, pa.Type)
++}
++
++func appendParamTypes(rts []*types.Type, t *types.Type) []*types.Type {
+ 	if t.IsScalar() || t.IsPtrShaped() {
+ 		if t.IsComplex() {
+ 			c := types.FloatForComplex(t)
+@@ -146,25 +156,60 @@ func appendParamRegs(rts []*types.Type, t *types.Type) []*types.Type {
+ 		switch typ {
+ 		case types.TARRAY:
+ 			for i := int64(0); i < t.Size(); i++ { // 0 gets no registers, plus future-proofing.
+-				rts = appendParamRegs(rts, t.Elem())
++				rts = appendParamTypes(rts, t.Elem())
+ 			}
+ 		case types.TSTRUCT:
+ 			for _, f := range t.FieldSlice() {
+ 				if f.Type.Size() > 0 { // embedded zero-width types receive no registers
+-					rts = appendParamRegs(rts, f.Type)
++					rts = appendParamTypes(rts, f.Type)
+ 				}
+ 			}
+ 		case types.TSLICE:
+-			return appendParamRegs(rts, synthSlice)
++			return appendParamTypes(rts, synthSlice)
+ 		case types.TSTRING:
+-			return appendParamRegs(rts, synthString)
++			return appendParamTypes(rts, synthString)
+ 		case types.TINTER:
+-			return appendParamRegs(rts, synthIface)
++			return appendParamTypes(rts, synthIface)
+ 		}
+ 	}
+ 	return rts
+ }
+ 
++// appendParamOffsets appends the offset(s) of type t, starting from "at",
++// to input offsets, and returns the longer slice.
++func appendParamOffsets(offsets []int64, at int64, t *types.Type) []int64 {
++	at = align(at, t)
++	if t.IsScalar() || t.IsPtrShaped() {
++		if t.IsComplex() || int(t.Width) > types.RegSize { // complex and *int64 on 32-bit
++			s := t.Width / 2
++			return append(offsets, at, at+s)
++		} else {
++			return append(offsets, at)
++		}
++	} else {
++		typ := t.Kind()
++		switch typ {
++		case types.TARRAY:
++			for i := int64(0); i < t.NumElem(); i++ {
++				offsets = appendParamOffsets(offsets, at, t.Elem())
++			}
++			return offsets
++		case types.TSTRUCT:
++			for _, f := range t.FieldSlice() {
++				offsets = appendParamOffsets(offsets, at, f.Type)
++				at += f.Type.Width
++			}
++		case types.TSLICE:
++			return appendParamOffsets(offsets, at, synthSlice)
++		case types.TSTRING:
++			return appendParamOffsets(offsets, at, synthString)
++		case types.TINTER:
++			return appendParamOffsets(offsets, at, synthIface)
++		}
++	}
++	return offsets
++}
++
+ // SpillOffset returns the offset *within the spill area* for the parameter that "a" describes.
+ // Registers will be spilled here; if a memory home is needed (for a pointer method e.g.)
+ // then that will be the address.
+diff --git a/src/cmd/compile/internal/ssa/expand_calls.go b/src/cmd/compile/internal/ssa/expand_calls.go
+index 6e14a90e79..fd8ae30caf 100644
+--- a/src/cmd/compile/internal/ssa/expand_calls.go
++++ b/src/cmd/compile/internal/ssa/expand_calls.go
+@@ -657,7 +657,7 @@ func (x *expandState) storeArgOrLoad(pos src.XPos, b *Block, source, mem *Value,
+ 	case OpCopy:
+ 		return x.storeArgOrLoad(pos, b, source.Args[0], mem, t, offset, loadRegOffset, storeRc)
+ 
+-	case OpLoad:
++	case OpLoad, OpDereference:
+ 		ret := x.decomposeArgOrLoad(pos, b, source, mem, t, offset, loadRegOffset, storeRc, storeOneLoad, storeTwoLoad)
+ 		if ret != nil {
+ 			return ret
+@@ -820,6 +820,9 @@ func (x *expandState) storeArgOrLoad(pos src.XPos, b *Block, source, mem *Value,
+ 	}
+ 
+ 	s := mem
++	if source.Op == OpDereference {
++		source.Op = OpLoad // For purposes of parameter passing expansion, a Dereference is a Load.
++	}
+ 	if storeRc.hasRegs() {
+ 		storeRc.addArg(source)
+ 	} else {
+@@ -846,14 +849,11 @@ func (x *expandState) rewriteArgs(v *Value, firstArg int) (*Value, []*Value) {
+ 		auxI := int64(i)
+ 		aRegs := aux.RegsOfArg(auxI)
+ 		aType := aux.TypeOfArg(auxI)
+-		if a.Op == OpDereference {
++		if len(aRegs) == 0 && a.Op == OpDereference {
+ 			aOffset := aux.OffsetOfArg(auxI)
+ 			if a.MemoryArg() != m0 {
+ 				x.f.Fatalf("Op...LECall and OpDereference have mismatched mem, %s and %s", v.LongString(), a.LongString())
+ 			}
+-			if len(aRegs) > 0 {
+-				x.f.Fatalf("Not implemented yet, not-SSA-type %v passed in registers", aType)
+-			}
+ 			// "Dereference" of addressed (probably not-SSA-eligible) value becomes Move
+ 			// TODO(register args) this will be more complicated with registers in the picture.
+ 			mem = x.rewriteDereference(v.Block, x.sp, a, mem, aOffset, aux.SizeOfArg(auxI), aType, pos)
+@@ -969,10 +969,7 @@ func expandCalls(f *Func) {
+ 				auxOffset := int64(0)
+ 				auxSize := aux.SizeOfResult(i)
+ 				aRegs := aux.RegsOfResult(int64(j))
+-				if a.Op == OpDereference {
+-					if len(aRegs) > 0 {
+-						x.f.Fatalf("Not implemented yet, not-SSA-type %v returned in register", auxType)
+-					}
++				if len(aRegs) == 0 && a.Op == OpDereference {
+ 					// Avoid a self-move, and if one is detected try to remove the already-inserted VarDef for the assignment that won't happen.
+ 					if dAddr, dMem := a.Args[0], a.Args[1]; dAddr.Op == OpLocalAddr && dAddr.Args[0].Op == OpSP &&
+ 						dAddr.Args[1] == dMem && dAddr.Aux == aux.results[i].Name {
+@@ -1392,3 +1389,14 @@ func (x *expandState) newArgToMemOrRegs(baseArg, toReplace *Value, offset int64,
+ 		}
+ 	}
+ }
++
++// argOpAndRegisterFor converts an abi register index into an ssa Op and corresponding
++// arg register index.
++// TODO could call this in at least two places earlier in this file.
++func ArgOpAndRegisterFor(r abi.RegIndex, abiConfig *abi.ABIConfig) (Op, int64) {
++	i := abiConfig.FloatIndexFor(r)
++	if i >= 0 { // float PR
++		return OpArgFloatReg, i
++	}
++	return OpArgIntReg, int64(r)
++}
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 9ee855343f..2a281860af 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -555,19 +555,26 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
+ 				}
+ 				s.vars[n] = v
+ 				s.addNamedValue(n, v) // This helps with debugging information, not needed for compilation itself.
+-			} else if !s.canSSAName(n) { // I.e., the address was taken.  The type may or may not be okay.
+-				// If the value will arrive in registers,
+-				// AND if it can be SSA'd (if it cannot, panic for now),
+-				// THEN
+-				// (1) receive it as an OpArg (but do not store its name in the var table)
+-				// (2) store it to its spill location, which is its address as well.
++			} else { // address was taken AND/OR too large for SSA
+ 				paramAssignment := ssa.ParamAssignmentForArgName(s.f, n)
+ 				if len(paramAssignment.Registers) > 0 {
+-					if !TypeOK(n.Type()) { // TODO register args -- if v is not an SSA-able type, must decompose, here.
+-						panic(fmt.Errorf("Arg in registers is too big to be SSA'd, need to implement decomposition, type=%v, n=%v", n.Type(), n))
++					if TypeOK(n.Type()) { // SSA-able type, so address was taken -- receive value in OpArg, DO NOT bind to var, store immediately to memory.
++						v := s.newValue0A(ssa.OpArg, n.Type(), n)
++						s.store(n.Type(), s.decladdrs[n], v)
++					} else { // Too big for SSA.
++						// Brute force, and early, do a bunch of stores from registers
++						// TODO fix the nasty storeArgOrLoad recursion in ssa/expand_calls.go so this Just Works with store of a big Arg.
++						typs, offs := paramAssignment.RegisterTypesAndOffsets()
++						for i, t := range typs {
++							o := offs[i]
++							r := paramAssignment.Registers[i]
++							op, reg := ssa.ArgOpAndRegisterFor(r, s.f.ABISelf)
++							v := s.newValue0I(op, t, reg)
++							v.Aux = &ssa.AuxNameOffset{Name: n, Offset: o}
++							p := s.newValue1I(ssa.OpOffPtr, types.NewPtr(n.Type()), o, s.decladdrs[n])
++							s.store(t, p, v)
++						}
+ 					}
+-					v := s.newValue0A(ssa.OpArg, n.Type(), n)
+-					s.store(n.Type(), s.decladdrs[n], v)
+ 				}
+ 			}
+ 		}
+diff --git a/test/abi/named_results.go b/test/abi/named_results.go
+new file mode 100644
+index 0000000000..eaaadb184f
+--- /dev/null
++++ b/test/abi/named_results.go
+@@ -0,0 +1,91 @@
++// run
++
++//go:build !wasm
++// +build !wasm
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"fmt"
++)
++
++var sink *string
++
++var y int
++
++//go:registerparams
++//go:noinline
++func F(a, b, c *int) (x int) {
++	x = *a
++	G(&x)
++	x += *b
++	G(&x)
++	x += *c
++	G(&x)
++	return
++}
++
++//go:registerparams
++//go:noinline
++func G(x *int) {
++	y += *x
++	fmt.Println("y = ", y)
++}
++
++//go:registerparams
++//go:noinline
++func X() {
++	*sink += " !!!!!!!!!!!!!!!"
++}
++
++//go:registerparams
++//go:noinline
++func H(s, t string) (result string) { // result leaks to heap
++	result = "Aloha! " + s + " " + t
++	sink = &result
++	r := ""
++	if len(s) <= len(t) {
++		r = "OKAY! "
++		X()
++	}
++	return r + result
++}
++
++//go:registerparams
++//go:noinline
++func K(s, t string) (result string) { // result spills
++	result = "Aloha! " + s + " " + t
++	r := ""
++	if len(s) <= len(t) {
++		r = "OKAY! "
++		X()
++	}
++	return r + result
++}
++
++func main() {
++	a, b, c := 1, 4, 16
++	x := F(&a, &b, &c)
++	fmt.Printf("x = %d\n", x)
++
++	y := H("Hello", "World!")
++	fmt.Println("len(y) =", len(y))
++	fmt.Println("y =", y)
++	z := H("Hello", "Pal!")
++	fmt.Println("len(z) =", len(z))
++	fmt.Println("z =", z)
++
++	fmt.Println()
++
++	y = K("Hello", "World!")
++	fmt.Println("len(y) =", len(y))
++	fmt.Println("y =", y)
++	z = K("Hello", "Pal!")
++	fmt.Println("len(z) =", len(z))
++	fmt.Println("z =", z)
++
++}
+diff --git a/test/abi/named_results.out b/test/abi/named_results.out
+new file mode 100644
+index 0000000000..02f12e806d
+--- /dev/null
++++ b/test/abi/named_results.out
+@@ -0,0 +1,13 @@
++y =  1
++y =  6
++y =  27
++x = 21
++len(y) = 41
++y = OKAY! Aloha! Hello World! !!!!!!!!!!!!!!!
++len(z) = 17
++z = Aloha! Hello Pal!
++
++len(y) = 25
++y = OKAY! Aloha! Hello World!
++len(z) = 17
++z = Aloha! Hello Pal!

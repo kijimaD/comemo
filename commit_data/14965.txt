@@ -18,7 +18,75 @@ Date:   Wed Jan 23 11:37:06 2013 +1100
     R=bradfitz, rsc
     CC=golang-dev
     https://golang.org/cl/7135051
-
+---
  src/pkg/net/url/url.go      |  8 +++++---
  src/pkg/net/url/url_test.go | 13 +++++++++++--
  2 files changed, 16 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/net/url/url.go b/src/pkg/net/url/url.go
+index 71758fe49e..22425b3368 100644
+--- a/src/pkg/net/url/url.go
++++ b/src/pkg/net/url/url.go
+@@ -386,7 +386,7 @@ func parse(rawurl string, viaRequest bool) (url *URL, err error) {
+ 		}
+ 	}
+ 
+-	if (url.Scheme != "" || !viaRequest) && strings.HasPrefix(rest, "//") && !strings.HasPrefix(rest, "///") {
++	if (url.Scheme != "" || !viaRequest && !strings.HasPrefix(rest, "///")) && strings.HasPrefix(rest, "//") {
+ 		var authority string
+ 		authority, rest = split(rest[2:], '/', false)
+ 		url.User, url.Host, err = parseAuthority(authority)
+@@ -442,12 +442,14 @@ func (u *URL) String() string {
+ 	if u.Opaque != "" {
+ 		result += u.Opaque
+ 	} else {
+-		if u.Host != "" || u.User != nil {
++		if u.Scheme != "" || u.Host != "" || u.User != nil {
+ 			result += "//"
+ 			if u := u.User; u != nil {
+ 				result += u.String() + "@"
+ 			}
+-			result += u.Host
++			if h := u.Host; h != "" {
++				result += u.Host
++			}
+ 		}
+ 		result += escape(u.Path, encodePath)
+ 	}
+diff --git a/src/pkg/net/url/url_test.go b/src/pkg/net/url/url_test.go
+index 4d3545dadb..9eddf730e0 100644
+--- a/src/pkg/net/url/url_test.go
++++ b/src/pkg/net/url/url_test.go
+@@ -122,14 +122,14 @@ var urltests = []URLTest{
+ 		},
+ 		"http:%2f%2fwww.google.com/?q=go+language",
+ 	},
+-	// non-authority
++	// non-authority with path
+ 	{
+ 		"mailto:/webmaster@golang.org",
+ 		&URL{
+ 			Scheme: "mailto",
+ 			Path:   "/webmaster@golang.org",
+ 		},
+-		"",
++		"mailto:///webmaster@golang.org", // unfortunate compromise
+ 	},
+ 	// non-authority
+ 	{
+@@ -242,6 +242,15 @@ var urltests = []URLTest{
+ 		},
+ 		"http://www.google.com/?q=go+language#foo&bar",
+ 	},
++	{
++		"file:///home/adg/rabbits",
++		&URL{
++			Scheme: "file",
++			Host:   "",
++			Path:   "/home/adg/rabbits",
++		},
++		"file:///home/adg/rabbits",
++	},
+ }
+ 
+ // more useful string for debugging than fmt's struct printer

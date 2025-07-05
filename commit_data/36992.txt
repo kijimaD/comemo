@@ -23,7 +23,77 @@ Date:   Fri Jun 8 11:48:18 2018 -0600
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/math/big/float.go      |  8 ++++++--
  src/math/big/float_test.go | 25 +++++++++++++++++++++++++
  2 files changed, 31 insertions(+), 2 deletions(-)
+
+diff --git a/src/math/big/float.go b/src/math/big/float.go
+index 6f0025ec57..55b93c8915 100644
+--- a/src/math/big/float.go
++++ b/src/math/big/float.go
+@@ -1429,8 +1429,6 @@ func (x *Float) ucmp(y *Float) int {
+ // z's accuracy reports the result error relative to the exact (not rounded)
+ // result. Add panics with ErrNaN if x and y are infinities with opposite
+ // signs. The value of z is undefined in that case.
+-//
+-// BUG(gri) When rounding ToNegativeInf, the sign of Float values rounded to 0 is incorrect.
+ func (z *Float) Add(x, y *Float) *Float {
+ 	if debugFloat {
+ 		x.validate()
+@@ -1466,6 +1464,9 @@ func (z *Float) Add(x, y *Float) *Float {
+ 				z.usub(y, x)
+ 			}
+ 		}
++		if z.form == zero && z.mode == ToNegativeInf && z.acc == Exact {
++			z.neg = true
++		}
+ 		return z
+ 	}
+ 
+@@ -1530,6 +1531,9 @@ func (z *Float) Sub(x, y *Float) *Float {
+ 				z.usub(y, x)
+ 			}
+ 		}
++		if z.form == zero && z.mode == ToNegativeInf && z.acc == Exact {
++			z.neg = true
++		}
+ 		return z
+ 	}
+ 
+diff --git a/src/math/big/float_test.go b/src/math/big/float_test.go
+index 2029409656..7d6bf034df 100644
+--- a/src/math/big/float_test.go
++++ b/src/math/big/float_test.go
+@@ -1258,6 +1258,31 @@ func TestFloatAdd(t *testing.T) {
+ 	}
+ }
+ 
++// TestFloatAddRoundZero tests Float.Add/Sub rounding when the result is exactly zero.
++// x + (-x) or x - x for non-zero x should be +0 in all cases except when
++// the rounding mode is ToNegativeInf in which case it should be -0.
++func TestFloatAddRoundZero(t *testing.T) {
++	for _, mode := range [...]RoundingMode{ToNearestEven, ToNearestAway, ToZero, AwayFromZero, ToPositiveInf, ToNegativeInf} {
++		x := NewFloat(5.0)
++		y := new(Float).Neg(x)
++		want := NewFloat(0.0)
++		if mode == ToNegativeInf {
++			want.Neg(want)
++		}
++		got := new(Float).SetMode(mode)
++		got.Add(x, y)
++		if got.Cmp(want) != 0 || got.neg != (mode == ToNegativeInf) {
++			t.Errorf("%s:\n\t     %v\n\t+    %v\n\t=    %v\n\twant %v",
++				mode, x, y, got, want)
++		}
++		got.Sub(x, x)
++		if got.Cmp(want) != 0 || got.neg != (mode == ToNegativeInf) {
++			t.Errorf("%v:\n\t     %v\n\t-    %v\n\t=    %v\n\twant %v",
++				mode, x, x, got, want)
++		}
++	}
++}
++
+ // TestFloatAdd32 tests that Float.Add/Sub of numbers with
+ // 24bit mantissa behaves like float32 addition/subtraction
+ // (excluding denormal numbers).

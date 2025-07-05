@@ -13,6 +13,46 @@ Date:   Tue Dec 4 12:05:11 2018 +1100
     Change-Id: I3dc8ddd08031f34115396429eff512827264826f
     Reviewed-on: https://go-review.googlesource.com/c/152357
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/signal_windows.go | 21 ++++++++++++++++++---
  1 file changed, 18 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/signal_windows.go b/src/runtime/signal_windows.go
+index e6a75a160f..3fc1ec5886 100644
+--- a/src/runtime/signal_windows.go
++++ b/src/runtime/signal_windows.go
+@@ -38,6 +38,23 @@ func initExceptionHandler() {
+ 	}
+ }
+ 
++// isAbort returns true, if context r describes exception raised
++// by calling runtime.abort function.
++//
++//go:nosplit
++func isAbort(r *context) bool {
++	switch GOARCH {
++	case "386", "amd64":
++		// In the case of an abort, the exception IP is one byte after
++		// the INT3 (this differs from UNIX OSes).
++		return isAbortPC(r.ip() - 1)
++	case "arm":
++		return isAbortPC(r.ip())
++	default:
++		return false
++	}
++}
++
+ // isgoexception reports whether this exception should be translated
+ // into a Go panic.
+ //
+@@ -53,9 +70,7 @@ func isgoexception(info *exceptionrecord, r *context) bool {
+ 		return false
+ 	}
+ 
+-	// In the case of an abort, the exception IP is one byte after
+-	// the INT3 (this differs from UNIX OSes).
+-	if isAbortPC(r.ip() - 1) {
++	if isAbort(r) {
+ 		// Never turn abort into a panic.
+ 		return false
+ 	}

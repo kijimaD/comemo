@@ -13,7 +13,36 @@ Date:   Fri Feb 9 12:47:33 2018 -0500
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/compile/internal/ssa/config.go | 3 ---
  src/runtime/vlop_arm.s                 | 3 +++
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/config.go b/src/cmd/compile/internal/ssa/config.go
+index 13e5c50da1..b4fee75b74 100644
+--- a/src/cmd/compile/internal/ssa/config.go
++++ b/src/cmd/compile/internal/ssa/config.go
+@@ -291,9 +291,6 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize bool) *Config
+ 	if c.nacl {
+ 		c.noDuffDevice = true // Don't use Duff's device on NaCl
+ 
+-		// runtime call clobber R12 on nacl
+-		opcodeTable[OpARMCALLudiv].reg.clobbers |= 1 << 12 // R12
+-
+ 		// Returns clobber BP on nacl/386, so the write
+ 		// barrier does.
+ 		opcodeTable[Op386LoweredWB].reg.clobbers |= 1 << 5 // BP
+diff --git a/src/runtime/vlop_arm.s b/src/runtime/vlop_arm.s
+index e7e8ed2e05..52143b86e7 100644
+--- a/src/runtime/vlop_arm.s
++++ b/src/runtime/vlop_arm.s
+@@ -102,6 +102,9 @@ TEXT runtime·_sfloatpanic(SB),NOSPLIT|NOFRAME,$0
+ #define Ra	R11
+ 
+ // Be careful: Ra == R11 will be used by the linker for synthesized instructions.
++// Note: this function does not have a frame. If it ever needs a frame,
++// the RET instruction will clobber R12 on nacl, and the compiler's register
++// allocator needs to know.
+ TEXT runtime·udiv(SB),NOSPLIT|NOFRAME,$0
+ 	MOVBU	runtime·hardDiv(SB), Ra
+ 	CMP	$0, Ra

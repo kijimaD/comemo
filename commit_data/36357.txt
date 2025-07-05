@@ -11,8 +11,85 @@ Date:   Mon Apr 23 20:20:43 2018 +0300
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/crypto/sha1/sha1.go     | 14 +++++++-------
  src/crypto/sha256/sha256.go | 10 +++++-----
  src/crypto/sha512/sha512.go | 12 ++++++------
  3 files changed, 18 insertions(+), 18 deletions(-)
+
+diff --git a/src/crypto/sha1/sha1.go b/src/crypto/sha1/sha1.go
+index ae4896fc32..db70b7d09a 100644
+--- a/src/crypto/sha1/sha1.go
++++ b/src/crypto/sha1/sha1.go
+@@ -150,10 +150,10 @@ func (d *digest) Write(p []byte) (nn int, err error) {
+ 	return
+ }
+ 
+-func (d0 *digest) Sum(in []byte) []byte {
+-	// Make a copy of d0 so that caller can keep writing and summing.
+-	d := *d0
+-	hash := d.checkSum()
++func (d *digest) Sum(in []byte) []byte {
++	// Make a copy of d so that caller can keep writing and summing.
++	d0 := *d
++	hash := d0.checkSum()
+ 	return append(in, hash[:]...)
+ }
+ 
+@@ -189,9 +189,9 @@ func (d *digest) checkSum() [Size]byte {
+ }
+ 
+ // ConstantTimeSum computes the same result of Sum() but in constant time
+-func (d0 *digest) ConstantTimeSum(in []byte) []byte {
+-	d := *d0
+-	hash := d.constSum()
++func (d *digest) ConstantTimeSum(in []byte) []byte {
++	d0 := *d
++	hash := d0.constSum()
+ 	return append(in, hash[:]...)
+ }
+ 
+diff --git a/src/crypto/sha256/sha256.go b/src/crypto/sha256/sha256.go
+index 0916399337..1389de2727 100644
+--- a/src/crypto/sha256/sha256.go
++++ b/src/crypto/sha256/sha256.go
+@@ -223,11 +223,11 @@ func (d *digest) Write(p []byte) (nn int, err error) {
+ 	return
+ }
+ 
+-func (d0 *digest) Sum(in []byte) []byte {
+-	// Make a copy of d0 so that caller can keep writing and summing.
+-	d := *d0
+-	hash := d.checkSum()
+-	if d.is224 {
++func (d *digest) Sum(in []byte) []byte {
++	// Make a copy of d so that caller can keep writing and summing.
++	d0 := *d
++	hash := d0.checkSum()
++	if d0.is224 {
+ 		return append(in, hash[:Size224]...)
+ 	}
+ 	return append(in, hash[:]...)
+diff --git a/src/crypto/sha512/sha512.go b/src/crypto/sha512/sha512.go
+index 9f2e60b573..24fde7dce7 100644
+--- a/src/crypto/sha512/sha512.go
++++ b/src/crypto/sha512/sha512.go
+@@ -286,12 +286,12 @@ func (d *digest) Write(p []byte) (nn int, err error) {
+ 	return
+ }
+ 
+-func (d0 *digest) Sum(in []byte) []byte {
+-	// Make a copy of d0 so that caller can keep writing and summing.
+-	d := new(digest)
+-	*d = *d0
+-	hash := d.checkSum()
+-	switch d.function {
++func (d *digest) Sum(in []byte) []byte {
++	// Make a copy of d so that caller can keep writing and summing.
++	d0 := new(digest)
++	*d0 = *d
++	hash := d0.checkSum()
++	switch d0.function {
+ 	case crypto.SHA384:
+ 		return append(in, hash[:Size384]...)
+ 	case crypto.SHA512_224:

@@ -14,7 +14,52 @@ Date:   Thu Aug 24 13:16:48 2023 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Bryan Mills <bcmills@google.com>
     Run-TryBot: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/internal/testdir/testdir_test.go | 20 ++++++++++++--------
  test/fixedbugs/issue10607.go             |  2 ++
  2 files changed, 14 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/internal/testdir/testdir_test.go b/src/cmd/internal/testdir/testdir_test.go
+index bd7785900c..92c8f4c093 100644
+--- a/src/cmd/internal/testdir/testdir_test.go
++++ b/src/cmd/internal/testdir/testdir_test.go
+@@ -477,16 +477,20 @@ func (t test) run() error {
+ 	}
+ 	src := string(srcBytes)
+ 
+-	// Execution recipe stops at first blank line.
+-	action, _, ok := strings.Cut(src, "\n\n")
+-	if !ok {
+-		t.Fatalf("double newline ending execution recipe not found in GOROOT/test/%s", t.goFileName())
++	// Execution recipe is contained in a comment in
++	// the first non-empty line that is not a build constraint.
++	var action string
++	for actionSrc := src; action == "" && actionSrc != ""; {
++		var line string
++		line, actionSrc, _ = strings.Cut(actionSrc, "\n")
++		if constraint.IsGoBuild(line) || constraint.IsPlusBuild(line) {
++			continue
++		}
++		action = strings.TrimSpace(strings.TrimPrefix(line, "//"))
+ 	}
+-	if firstLine, rest, ok := strings.Cut(action, "\n"); ok && strings.Contains(firstLine, "+build") {
+-		// skip first line
+-		action = rest
++	if action == "" {
++		t.Fatalf("execution recipe not found in GOROOT/test/%s", t.goFileName())
+ 	}
+-	action = strings.TrimPrefix(action, "//")
+ 
+ 	// Check for build constraints only up to the actual code.
+ 	header, _, ok := strings.Cut(src, "\npackage")
+diff --git a/test/fixedbugs/issue10607.go b/test/fixedbugs/issue10607.go
+index 759be715b7..a2f9f3040b 100644
+--- a/test/fixedbugs/issue10607.go
++++ b/test/fixedbugs/issue10607.go
+@@ -1,4 +1,6 @@
++//go:build linux && !ppc64 && gc && cgo
+ // +build linux,!ppc64,gc,cgo
++
+ // run
+ 
+ // Copyright 2015 The Go Authors. All rights reserved.

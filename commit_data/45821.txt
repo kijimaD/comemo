@@ -17,7 +17,7 @@ Date:   Fri Oct 30 17:11:36 2020 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/fsys/fsys.go                   |  16 +-
  .../go/internal/lockedfile/lockedfile_filelock.go  |   3 +-
  src/cmd/go/internal/lockedfile/lockedfile_plan9.go |   6 +-
@@ -27,3 +27,453 @@ Date:   Fri Oct 30 17:11:36 2020 -0400
  src/cmd/go/internal/search/search.go               |   2 +-
  src/cmd/go/testdata/script/mod_overlay.txt         | 248 +++++++++++++++++++++
  8 files changed, 277 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/go/internal/fsys/fsys.go b/src/cmd/go/internal/fsys/fsys.go
+index e3a0e44f82..0264786e5b 100644
+--- a/src/cmd/go/internal/fsys/fsys.go
++++ b/src/cmd/go/internal/fsys/fsys.go
+@@ -327,12 +327,22 @@ func OverlayPath(path string) (string, bool) {
+ 
+ // Open opens the file at or overlaid on the given path.
+ func Open(path string) (*os.File, error) {
++	return OpenFile(path, os.O_RDONLY, 0)
++}
++
++// OpenFile opens the file at or overlaid on the given path with the flag and perm.
++func OpenFile(path string, flag int, perm os.FileMode) (*os.File, error) {
+ 	cpath := canonicalize(path)
+ 	if node, ok := overlay[cpath]; ok {
++		// Opening a file in the overlay.
+ 		if node.isDir() {
+-			return nil, &fs.PathError{Op: "Open", Path: path, Err: errors.New("fsys.Open doesn't support opening directories yet")}
++			return nil, &fs.PathError{Op: "OpenFile", Path: path, Err: errors.New("fsys.OpenFile doesn't support opening directories yet")}
++		}
++		// We can't open overlaid paths for write.
++		if perm != os.FileMode(os.O_RDONLY) {
++			return nil, &fs.PathError{Op: "OpenFile", Path: path, Err: errors.New("overlaid files can't be opened for write")}
+ 		}
+-		return os.Open(node.actualFilePath)
++		return os.OpenFile(node.actualFilePath, flag, perm)
+ 	}
+ 	if parent, ok := parentIsOverlayFile(filepath.Dir(cpath)); ok {
+ 		// The file is deleted explicitly in the Replace map,
+@@ -344,7 +354,7 @@ func Open(path string) (*os.File, error) {
+ 			Err:  fmt.Errorf("file %s does not exist: parent directory %s is replaced by a file in overlay", path, parent),
+ 		}
+ 	}
+-	return os.Open(cpath)
++	return os.OpenFile(cpath, flag, perm)
+ }
+ 
+ // IsDirWithGoFiles reports whether dir is a directory containing Go files
+diff --git a/src/cmd/go/internal/lockedfile/lockedfile_filelock.go b/src/cmd/go/internal/lockedfile/lockedfile_filelock.go
+index 10e1240efd..efc66461ed 100644
+--- a/src/cmd/go/internal/lockedfile/lockedfile_filelock.go
++++ b/src/cmd/go/internal/lockedfile/lockedfile_filelock.go
+@@ -10,6 +10,7 @@ import (
+ 	"io/fs"
+ 	"os"
+ 
++	"cmd/go/internal/fsys"
+ 	"cmd/go/internal/lockedfile/internal/filelock"
+ )
+ 
+@@ -19,7 +20,7 @@ func openFile(name string, flag int, perm fs.FileMode) (*os.File, error) {
+ 	// calls for Linux and Windows anyway, so it's simpler to use that approach
+ 	// consistently.
+ 
+-	f, err := os.OpenFile(name, flag&^os.O_TRUNC, perm)
++	f, err := fsys.OpenFile(name, flag&^os.O_TRUNC, perm)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+diff --git a/src/cmd/go/internal/lockedfile/lockedfile_plan9.go b/src/cmd/go/internal/lockedfile/lockedfile_plan9.go
+index 51681381d7..70d6eddf2d 100644
+--- a/src/cmd/go/internal/lockedfile/lockedfile_plan9.go
++++ b/src/cmd/go/internal/lockedfile/lockedfile_plan9.go
+@@ -12,6 +12,8 @@ import (
+ 	"os"
+ 	"strings"
+ 	"time"
++
++	"cmd/go/internal/fsys"
+ )
+ 
+ // Opening an exclusive-use file returns an error.
+@@ -56,7 +58,7 @@ func openFile(name string, flag int, perm fs.FileMode) (*os.File, error) {
+ 	// If the file was unpacked or created by some other program, it might not
+ 	// have the ModeExclusive bit set. Set it before we call OpenFile, so that we
+ 	// can be confident that a successful OpenFile implies exclusive use.
+-	if fi, err := os.Stat(name); err == nil {
++	if fi, err := fsys.Stat(name); err == nil {
+ 		if fi.Mode()&fs.ModeExclusive == 0 {
+ 			if err := os.Chmod(name, fi.Mode()|fs.ModeExclusive); err != nil {
+ 				return nil, err
+@@ -69,7 +71,7 @@ func openFile(name string, flag int, perm fs.FileMode) (*os.File, error) {
+ 	nextSleep := 1 * time.Millisecond
+ 	const maxSleep = 500 * time.Millisecond
+ 	for {
+-		f, err := os.OpenFile(name, flag, perm|fs.ModeExclusive)
++		f, err := fsys.OpenFile(name, flag, perm|fs.ModeExclusive)
+ 		if err == nil {
+ 			return f, nil
+ 		}
+diff --git a/src/cmd/go/internal/modcmd/vendor.go b/src/cmd/go/internal/modcmd/vendor.go
+index 4e73960e80..38c473d36b 100644
+--- a/src/cmd/go/internal/modcmd/vendor.go
++++ b/src/cmd/go/internal/modcmd/vendor.go
+@@ -18,6 +18,7 @@ import (
+ 
+ 	"cmd/go/internal/base"
+ 	"cmd/go/internal/cfg"
++	"cmd/go/internal/fsys"
+ 	"cmd/go/internal/imports"
+ 	"cmd/go/internal/modload"
+ 
+@@ -259,7 +260,7 @@ func matchPotentialSourceFile(dir string, info fs.FileInfo) bool {
+ 		return false
+ 	}
+ 	if strings.HasSuffix(info.Name(), ".go") {
+-		f, err := os.Open(filepath.Join(dir, info.Name()))
++		f, err := fsys.Open(filepath.Join(dir, info.Name()))
+ 		if err != nil {
+ 			base.Fatalf("go mod vendor: %v", err)
+ 		}
+diff --git a/src/cmd/go/internal/modload/import.go b/src/cmd/go/internal/modload/import.go
+index eb0a366f92..ce5671728e 100644
+--- a/src/cmd/go/internal/modload/import.go
++++ b/src/cmd/go/internal/modload/import.go
+@@ -477,7 +477,7 @@ func dirInModule(path, mpath, mdir string, isLocal bool) (dir string, haveGoFile
+ 	if isLocal {
+ 		for d := dir; d != mdir && len(d) > len(mdir); {
+ 			haveGoMod := haveGoModCache.Do(d, func() interface{} {
+-				fi, err := os.Stat(filepath.Join(d, "go.mod"))
++				fi, err := fsys.Stat(filepath.Join(d, "go.mod"))
+ 				return err == nil && !fi.IsDir()
+ 			}).(bool)
+ 
+@@ -531,7 +531,7 @@ func fetch(ctx context.Context, mod module.Version, needSum bool) (dir string, i
+ 			// dirInModule does not report errors for missing modules,
+ 			// so if we don't report the error now, later failures will be
+ 			// very mysterious.
+-			if _, err := os.Stat(dir); err != nil {
++			if _, err := fsys.Stat(dir); err != nil {
+ 				if os.IsNotExist(err) {
+ 					// Semantically the module version itself “exists” — we just don't
+ 					// have its source code. Remove the equivalence to os.ErrNotExist,
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index 8fe71a2448..b9345acbce 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -206,7 +206,7 @@ func Init() {
+ 		base.Fatalf("missing $GOPATH")
+ 	}
+ 	gopath = list[0]
+-	if _, err := os.Stat(filepath.Join(gopath, "go.mod")); err == nil {
++	if _, err := fsys.Stat(filepath.Join(gopath, "go.mod")); err == nil {
+ 		base.Fatalf("$GOPATH/go.mod exists but should not")
+ 	}
+ 
+@@ -407,7 +407,7 @@ func CreateModFile(ctx context.Context, modPath string) {
+ 	modRoot = base.Cwd
+ 	Init()
+ 	modFilePath := ModFilePath()
+-	if _, err := os.Stat(modFilePath); err == nil {
++	if _, err := fsys.Stat(modFilePath); err == nil {
+ 		base.Fatalf("go: %s already exists", modFilePath)
+ 	}
+ 
+@@ -605,7 +605,7 @@ func setDefaultBuildMod() {
+ 		return
+ 	}
+ 
+-	if fi, err := os.Stat(filepath.Join(modRoot, "vendor")); err == nil && fi.IsDir() {
++	if fi, err := fsys.Stat(filepath.Join(modRoot, "vendor")); err == nil && fi.IsDir() {
+ 		modGo := "unspecified"
+ 		if index.goVersionV != "" {
+ 			if semver.Compare(index.goVersionV, "v1.14") >= 0 {
+@@ -685,7 +685,7 @@ func findModuleRoot(dir string) (root string) {
+ 
+ 	// Look for enclosing go.mod.
+ 	for {
+-		if fi, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil && !fi.IsDir() {
++		if fi, err := fsys.Stat(filepath.Join(dir, "go.mod")); err == nil && !fi.IsDir() {
+ 			return dir
+ 		}
+ 		d := filepath.Dir(dir)
+@@ -709,7 +709,7 @@ func findAltConfig(dir string) (root, name string) {
+ 	}
+ 	for {
+ 		for _, name := range altConfigs {
+-			if fi, err := os.Stat(filepath.Join(dir, name)); err == nil && !fi.IsDir() {
++			if fi, err := fsys.Stat(filepath.Join(dir, name)); err == nil && !fi.IsDir() {
+ 				return dir, name
+ 			}
+ 		}
+diff --git a/src/cmd/go/internal/search/search.go b/src/cmd/go/internal/search/search.go
+index 57cbb282a8..18738cf59e 100644
+--- a/src/cmd/go/internal/search/search.go
++++ b/src/cmd/go/internal/search/search.go
+@@ -295,7 +295,7 @@ func (m *Match) MatchDirs() {
+ 
+ 		if !top && cfg.ModulesEnabled {
+ 			// Ignore other modules found in subdirectories.
+-			if fi, err := os.Stat(filepath.Join(path, "go.mod")); err == nil && !fi.IsDir() {
++			if fi, err := fsys.Stat(filepath.Join(path, "go.mod")); err == nil && !fi.IsDir() {
+ 				return filepath.SkipDir
+ 			}
+ 		}
+diff --git a/src/cmd/go/testdata/script/mod_overlay.txt b/src/cmd/go/testdata/script/mod_overlay.txt
+new file mode 100644
+index 0000000000..35bb30248b
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_overlay.txt
+@@ -0,0 +1,248 @@
++# Test overlays that affect go.mod files
++
++# The go.mod file can exist only in the overlay.
++cd $WORK/gopath/src/no-go-mod
++go list -overlay overlay.json .
++stdout example.com/simple
++
++# Check content of overlaid go.mod is used.
++cd $WORK/gopath/src/overlay-go-mod
++go list -overlay overlay.json .
++stdout use.this/module/name
++
++# Check content of overlaid go.mod in a replacement module is used.
++# The go.mod in the replacement module is missing a requirement
++# that the overlay has, so it will fail to list without the overlay.
++cd $WORK/gopath/src/overlay-replaced-go-mod
++! go list -deps .
++go list -deps -overlay overlay.json .
++
++# Overlaid go.mod is not rewritten by 'go get'.
++cd $WORK/gopath/src/get-doesnt-add-dep
++cp $WORK/overlay/get_doesnt_add_dep_go_mod $WORK/want_go_mod
++! go get -d -overlay overlay.json .
++stderr 'overlaid files can''t be opened for write'
++cmp $WORK/overlay/get_doesnt_add_dep_go_mod $WORK/want_go_mod
++
++# Content of overlaid go.sum is used.
++# The go.sum in the module directory has garbage values for its
++# hashes, but the overlaid file has the correct values. If
++# the correct go.sum is used with the overlay, 'go get .' should
++# not report a security error.
++cd $WORK/gopath/src/overlay-sum-used
++! go get -d .
++stderr 'SECURITY ERROR'
++go get -d -overlay overlay.json .
++# Overlaid go.sum is not rewritten.
++# Copy an incomplete file to the overlay file, and expect an error
++# attempting to update the file
++cp incomplete-sum-file $WORK/overlay/overlay-sum-used-correct-sums
++! go get -d -overlay overlay.json .
++stderr 'overlaid files can''t be opened for write'
++cmp incomplete-sum-file $WORK/overlay/overlay-sum-used-correct-sums
++
++# -overlay works with -modfile.
++# There's an empty go.mod file in the directory, and the file alternate.mod is
++# overlaid to the true go.mod file, so the -modfile flag and the overlay
++# mechanism need to work together to determine the name of the module.
++cd $WORK/gopath/src/overlay-and-dash-modfile
++go list -modfile=alternate.mod -overlay overlay.json .
++stdout 'found.the/module'
++# Even with -modfile, overlaid files can't be opened for write.
++! go get -modfile=alternate.mod -overlay overlay.json -d rsc.io/quote
++stderr 'overlaid files can''t be opened for write'
++
++# Carving out a module by adding an overlaid go.mod file
++cd $WORK/gopath/src/carve
++go list ./... # without an overlay, hasmod is carved out and nomod isn't
++stdout carve/nomod
++! stdout carve/hasmod
++go list -overlay overlay_carve_module.json ./... # The overlay carves out nomod, leaving nothing
++! stdout .
++stderr 'matched no packages'
++go list -overlay overlay_uncarve_module.json ./... # The overlay uncarves out hasmod
++stdout carve/nomod
++stdout carve/hasmod
++
++# Carving out a module by adding an overlaid go.mod file and using
++# -modfile to write to that file.
++cd $WORK/gopath/src/carve2/nomod
++go list -overlay overlay.json all
++! stdout ^carve2$
++stdout ^carve2/nomod$
++# Editing go.mod file fails because overlay is read only
++! go get -overlay overlay.json -d rsc.io/quote
++stderr 'overlaid files can''t be opened for write'
++! grep rsc.io/quote $WORK/overlay/carve2-nomod-go.mod
++# Editing go.mod file succeeds because we use -modfile to redirect to same file
++go get -overlay overlay.json -modfile $WORK/overlay/carve2-nomod-go.mod -d rsc.io/quote
++grep rsc.io/quote $WORK/overlay/carve2-nomod-go.mod
++
++-- no-go-mod/file.go --
++package simple
++-- no-go-mod/overlay.json --
++{
++	"Replace": {
++		"go.mod": "../../../overlay/simple_go_mod"
++	}
++}
++-- $WORK/overlay/simple_go_mod --
++module example.com/simple
++-- overlay-go-mod/file.go --
++package name
++-- overlay-go-mod/go.mod --
++module dont.use/this/module/name
++-- overlay-go-mod/overlay.json --
++{
++	"Replace": {
++		"go.mod": "../../../overlay/use_this_go_mod"
++	}
++}
++-- $WORK/overlay/use_this_go_mod --
++module use.this/module/name
++-- overlay-replaced-go-mod/go.mod --
++module m
++
++go 1.15
++
++require replaced/mod v1.0.0
++replace replaced/mod v1.0.0 => ../replaced-mod
++replace dep/mod v1.0.0 => ../dep-mod
++-- overlay-replaced-go-mod/source.go --
++package m
++
++import "replaced/mod/foo"
++
++func main() {
++	foo.f()
++}
++-- overlay-replaced-go-mod/overlay.json --
++{
++	"Replace": {
++		"../replaced-mod/go.mod": "../../../overlay/replacement_module_go_mod"
++	}
++}
++-- replaced-mod/go.mod --
++module replaced/mod
++-- replaced-mod/foo/foo.go --
++package foo
++
++import "dep/mod/foo"
++
++func f() { foo.g() }
++-- dep-mod/go.mod --
++invalid
++-- dep-mod/foo/foo.go --
++package foo
++
++func g() { fmt.Println("hello") }
++-- $WORK/overlay/replacement_module_go_mod --
++module replaced/mod
++
++require dep/mod v1.0.0
++
++-- get-doesnt-add-dep/overlay.json --
++{
++	"Replace": {
++		"go.mod": "../../../overlay/get_doesnt_add_dep_go_mod"
++	}
++}
++-- get-doesnt-add-dep/p.go --
++package p
++
++import "dependency/mod"
++
++func f() { mod.G() }
++-- get-doesnt-add-dep-dependency/go.mod --
++module dependency/mod
++-- get-doesnt-add-dep-dependency/mod.go --
++package mod
++
++func G() {}
++-- $WORK/overlay/get_doesnt_add_dep_go_mod --
++module get.doesnt/add/dep
++
++replace dependency/mod v1.0.0 => ../get-doesnt-add-dep-dependency
++-- overlay-sum-used/go.mod --
++module overlay.sum/used
++
++require rsc.io/quote v1.5.0
++-- overlay-sum-used/p.go --
++package p
++
++import "rsc.io/quote"
++
++func f() string {
++	return quote.Hello()
++}
++-- overlay-sum-used/incomplete-sum-file --
++golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c h1:pvCbr/wm8HzDD3fVywevekufpn6tCGPY3spdHeZJEsw=
++rsc.io/quote v1.5.0 h1:6fJa6E+wGadANKkUMlZ0DhXFpoKlslOQDCo259XtdIE=
++rsc.io/sampler v1.3.0 h1:HLGR/BgEtI3r0uymSP/nl2uPLsUnNJX8toRyhfpBTII=
++-- overlay-sum-used/overlay.json --
++{
++	"Replace": {
++		"go.sum": "../../../overlay/overlay-sum-used-correct-sums"
++	}
++}
++-- overlay-sum-used/go.sum --
++golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c h1:garbage+hash
++golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c/go.mod h1:garbage+hash
++rsc.io/quote v1.5.0 h1:garbage+hash
++rsc.io/quote v1.5.0/go.mod h1:garbage+hash
++rsc.io/sampler v1.3.0 h1:garbage+hash
++rsc.io/sampler v1.3.0/go.mod h1:garbage+hash
++-- $WORK/overlay/overlay-sum-used-correct-sums --
++golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c h1:pvCbr/wm8HzDD3fVywevekufpn6tCGPY3spdHeZJEsw=
++golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
++rsc.io/quote v1.5.0 h1:6fJa6E+wGadANKkUMlZ0DhXFpoKlslOQDCo259XtdIE=
++rsc.io/quote v1.5.0/go.mod h1:LzX7hefJvL54yjefDEDHNONDjII0t9xZLPXsUe+TKr0=
++rsc.io/sampler v1.3.0 h1:HLGR/BgEtI3r0uymSP/nl2uPLsUnNJX8toRyhfpBTII=
++rsc.io/sampler v1.3.0/go.mod h1:T1hPZKmBbMNahiBKFy5HrXp6adAjACjK9JXDnKaTXpA=
++-- overlay-and-dash-modfile/p.go --
++package module
++-- overlay-and-dash-modfile/go.mod --
++-- overlay-and-dash-modfile/overlay.json --
++{
++	"Replace": {
++		"alternate.mod": "../../../overlay/overlay-and-dash-modfile-alternate-mod"
++	}
++}
++-- $WORK/overlay/overlay-and-dash-modfile-alternate-mod --
++module found.the/module
++-- carve/go.mod --
++module carve
++-- carve/overlay_carve_module.json --
++{
++	"Replace": {
++		"nomod/go.mod": "../../../overlay/carve-nomod-go-mod"
++	}
++}
++-- carve/overlay_uncarve_module.json --
++{
++	"Replace": {
++		"hasmod/go.mod": ""
++	}
++}
++-- carve/hasmod/a.go --
++package hasmod
++-- carve/hasmod/go.mod --
++module carve/hasmod
++-- carve/nomod/b.go --
++package nomod
++-- $WORK/overlay/carve-nomod-go-mod --
++module carve/nomod
++-- carve2/go.mod --
++module carve2
++-- carve2/p.go --
++package p
++-- carve2/nomod/overlay.json --
++{
++	"Replace": {
++		"go.mod": "../../../../overlay/carve2-nomod-go.mod"
++	}
++}
++-- carve2/nomod/b.go --
++package nomod
++-- $WORK/overlay/carve2-nomod-go.mod --
++module carve2/nomod

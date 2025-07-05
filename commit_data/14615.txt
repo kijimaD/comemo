@@ -9,7 +9,73 @@ Date:   Tue Dec 11 13:29:13 2012 -0500
     R=bradfitz, rsc
     CC=golang-dev
     https://golang.org/cl/6923049
-
+---
  src/pkg/encoding/csv/writer.go      |  7 +++++++
  src/pkg/encoding/csv/writer_test.go | 28 ++++++++++++++++++++++++++++
  2 files changed, 35 insertions(+)
+
+diff --git a/src/pkg/encoding/csv/writer.go b/src/pkg/encoding/csv/writer.go
+index 17e485083e..221542456b 100644
+--- a/src/pkg/encoding/csv/writer.go
++++ b/src/pkg/encoding/csv/writer.go
+@@ -92,10 +92,17 @@ func (w *Writer) Write(record []string) (err error) {
+ }
+ 
+ // Flush writes any buffered data to the underlying io.Writer.
++// To check if an error occured during the Flush, call Error.
+ func (w *Writer) Flush() {
+ 	w.w.Flush()
+ }
+ 
++// Error reports any error that has occurred during a previous Write or Flush.
++func (w *Writer) Error() error {
++	_, err := w.w.Write(nil)
++	return err
++}
++
+ // WriteAll writes multiple CSV records to w using Write and then calls Flush.
+ func (w *Writer) WriteAll(records [][]string) (err error) {
+ 	for _, record := range records {
+diff --git a/src/pkg/encoding/csv/writer_test.go b/src/pkg/encoding/csv/writer_test.go
+index 578959007f..03ca6b093c 100644
+--- a/src/pkg/encoding/csv/writer_test.go
++++ b/src/pkg/encoding/csv/writer_test.go
+@@ -6,6 +6,7 @@ package csv
+ 
+ import (
+ 	"bytes"
++	"errors"
+ 	"testing"
+ )
+ 
+@@ -42,3 +43,30 @@ func TestWrite(t *testing.T) {
+ 		}
+ 	}
+ }
++
++type errorWriter struct{}
++
++func (e errorWriter) Write(b []byte) (int, error) {
++	return 0, errors.New("Test")
++}
++
++func TestError(t *testing.T) {
++	b := &bytes.Buffer{}
++	f := NewWriter(b)
++	f.Write([]string{"abc"})
++	f.Flush()
++	err := f.Error()
++
++	if err != nil {
++		t.Errorf("Unexpected error: %s\n", err)
++	}
++
++	f = NewWriter(errorWriter{})
++	f.Write([]string{"abc"})
++	f.Flush()
++	err = f.Error()
++
++	if err == nil {
++		t.Error("Error should not be nil")
++	}
++}

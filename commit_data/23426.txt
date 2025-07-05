@@ -7,7 +7,7 @@ Date:   Thu May 14 09:25:24 2015 +0900
     Change-Id: I0c2e1a4a8261887a696e585dda46e72d691191e0
     Reviewed-on: https://go-review.googlesource.com/10070
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/dnsclient_unix_test.go |  6 +++---
  src/net/dnsname_test.go        |  2 +-
  src/net/interface_test.go      | 12 ++++++------
@@ -15,3 +15,172 @@ Date:   Thu May 14 09:25:24 2015 +0900
  src/net/main_test.go           |  2 +-
  src/net/tcp_test.go            |  4 ++--
  6 files changed, 16 insertions(+), 16 deletions(-)
+
+diff --git a/src/net/dnsclient_unix_test.go b/src/net/dnsclient_unix_test.go
+index 1b88e7762b..4ea24b6014 100644
+--- a/src/net/dnsclient_unix_test.go
++++ b/src/net/dnsclient_unix_test.go
+@@ -227,7 +227,7 @@ func TestReloadResolvConfChange(t *testing.T) {
+ }
+ 
+ func BenchmarkGoLookupIP(b *testing.B) {
+-	testHookUninstaller.Do(func() { uninstallTestHooks() })
++	testHookUninstaller.Do(uninstallTestHooks)
+ 
+ 	for i := 0; i < b.N; i++ {
+ 		goLookupIP("www.example.com")
+@@ -235,7 +235,7 @@ func BenchmarkGoLookupIP(b *testing.B) {
+ }
+ 
+ func BenchmarkGoLookupIPNoSuchHost(b *testing.B) {
+-	testHookUninstaller.Do(func() { uninstallTestHooks() })
++	testHookUninstaller.Do(uninstallTestHooks)
+ 
+ 	for i := 0; i < b.N; i++ {
+ 		goLookupIP("some.nonexistent")
+@@ -243,7 +243,7 @@ func BenchmarkGoLookupIPNoSuchHost(b *testing.B) {
+ }
+ 
+ func BenchmarkGoLookupIPWithBrokenNameServer(b *testing.B) {
+-	testHookUninstaller.Do(func() { uninstallTestHooks() })
++	testHookUninstaller.Do(uninstallTestHooks)
+ 
+ 	onceLoadConfig.Do(loadDefaultConfig)
+ 
+diff --git a/src/net/dnsname_test.go b/src/net/dnsname_test.go
+index cc660c9d42..be07dc6a16 100644
+--- a/src/net/dnsname_test.go
++++ b/src/net/dnsname_test.go
+@@ -68,7 +68,7 @@ func TestDNSName(t *testing.T) {
+ }
+ 
+ func BenchmarkDNSName(b *testing.B) {
+-	testHookUninstaller.Do(func() { uninstallTestHooks() })
++	testHookUninstaller.Do(uninstallTestHooks)
+ 
+ 	benchmarks := append(dnsNameTests, []dnsNameTest{
+ 		{strings.Repeat("a", 63), true},
+diff --git a/src/net/interface_test.go b/src/net/interface_test.go
+index 0e5c2e3ddf..567d18de44 100644
+--- a/src/net/interface_test.go
++++ b/src/net/interface_test.go
+@@ -229,7 +229,7 @@ func testMulticastAddrs(t *testing.T, ifmat []Addr) (nmaf4, nmaf6 int) {
+ }
+ 
+ func BenchmarkInterfaces(b *testing.B) {
+-	testHookUninstaller.Do(func() { uninstallTestHooks() })
++	testHookUninstaller.Do(uninstallTestHooks)
+ 
+ 	for i := 0; i < b.N; i++ {
+ 		if _, err := Interfaces(); err != nil {
+@@ -239,7 +239,7 @@ func BenchmarkInterfaces(b *testing.B) {
+ }
+ 
+ func BenchmarkInterfaceByIndex(b *testing.B) {
+-	testHookUninstaller.Do(func() { uninstallTestHooks() })
++	testHookUninstaller.Do(uninstallTestHooks)
+ 
+ 	ifi := loopbackInterface()
+ 	if ifi == nil {
+@@ -253,7 +253,7 @@ func BenchmarkInterfaceByIndex(b *testing.B) {
+ }
+ 
+ func BenchmarkInterfaceByName(b *testing.B) {
+-	testHookUninstaller.Do(func() { uninstallTestHooks() })
++	testHookUninstaller.Do(uninstallTestHooks)
+ 
+ 	ifi := loopbackInterface()
+ 	if ifi == nil {
+@@ -267,7 +267,7 @@ func BenchmarkInterfaceByName(b *testing.B) {
+ }
+ 
+ func BenchmarkInterfaceAddrs(b *testing.B) {
+-	testHookUninstaller.Do(func() { uninstallTestHooks() })
++	testHookUninstaller.Do(uninstallTestHooks)
+ 
+ 	for i := 0; i < b.N; i++ {
+ 		if _, err := InterfaceAddrs(); err != nil {
+@@ -277,7 +277,7 @@ func BenchmarkInterfaceAddrs(b *testing.B) {
+ }
+ 
+ func BenchmarkInterfacesAndAddrs(b *testing.B) {
+-	testHookUninstaller.Do(func() { uninstallTestHooks() })
++	testHookUninstaller.Do(uninstallTestHooks)
+ 
+ 	ifi := loopbackInterface()
+ 	if ifi == nil {
+@@ -291,7 +291,7 @@ func BenchmarkInterfacesAndAddrs(b *testing.B) {
+ }
+ 
+ func BenchmarkInterfacesAndMulticastAddrs(b *testing.B) {
+-	testHookUninstaller.Do(func() { uninstallTestHooks() })
++	testHookUninstaller.Do(uninstallTestHooks)
+ 
+ 	ifi := loopbackInterface()
+ 	if ifi == nil {
+diff --git a/src/net/ip_test.go b/src/net/ip_test.go
+index 24f67cac97..b1939cd08f 100644
+--- a/src/net/ip_test.go
++++ b/src/net/ip_test.go
+@@ -53,7 +53,7 @@ func TestParseIP(t *testing.T) {
+ }
+ 
+ func BenchmarkParseIP(b *testing.B) {
+-	testHookUninstaller.Do(func() { uninstallTestHooks() })
++	testHookUninstaller.Do(uninstallTestHooks)
+ 
+ 	for i := 0; i < b.N; i++ {
+ 		for _, tt := range parseIPTests {
+@@ -110,7 +110,7 @@ func TestIPString(t *testing.T) {
+ }
+ 
+ func BenchmarkIPString(b *testing.B) {
+-	testHookUninstaller.Do(func() { uninstallTestHooks() })
++	testHookUninstaller.Do(uninstallTestHooks)
+ 
+ 	for i := 0; i < b.N; i++ {
+ 		for _, tt := range ipStringTests {
+@@ -162,7 +162,7 @@ func TestIPMaskString(t *testing.T) {
+ }
+ 
+ func BenchmarkIPMaskString(b *testing.B) {
+-	testHookUninstaller.Do(func() { uninstallTestHooks() })
++	testHookUninstaller.Do(uninstallTestHooks)
+ 
+ 	for i := 0; i < b.N; i++ {
+ 		for _, tt := range ipMaskStringTests {
+diff --git a/src/net/main_test.go b/src/net/main_test.go
+index 4288e2add2..5e2f3da0e6 100644
+--- a/src/net/main_test.go
++++ b/src/net/main_test.go
+@@ -43,7 +43,7 @@ func TestMain(m *testing.M) {
+ 
+ 	st := m.Run()
+ 
+-	testHookUninstaller.Do(func() { uninstallTestHooks() })
++	testHookUninstaller.Do(uninstallTestHooks)
+ 	if !testing.Short() {
+ 		printLeakedGoroutines()
+ 		printLeakedSockets()
+diff --git a/src/net/tcp_test.go b/src/net/tcp_test.go
+index 6229df2869..64117449bd 100644
+--- a/src/net/tcp_test.go
++++ b/src/net/tcp_test.go
+@@ -58,7 +58,7 @@ func BenchmarkTCP6PersistentTimeout(b *testing.B) {
+ }
+ 
+ func benchmarkTCP(b *testing.B, persistent, timeout bool, laddr string) {
+-	testHookUninstaller.Do(func() { uninstallTestHooks() })
++	testHookUninstaller.Do(uninstallTestHooks)
+ 
+ 	const msgLen = 512
+ 	conns := b.N
+@@ -168,7 +168,7 @@ func BenchmarkTCP6ConcurrentReadWrite(b *testing.B) {
+ }
+ 
+ func benchmarkTCPConcurrentReadWrite(b *testing.B, laddr string) {
+-	testHookUninstaller.Do(func() { uninstallTestHooks() })
++	testHookUninstaller.Do(uninstallTestHooks)
+ 
+ 	// The benchmark creates GOMAXPROCS client/server pairs.
+ 	// Each pair creates 4 goroutines: client reader/writer and server reader/writer.

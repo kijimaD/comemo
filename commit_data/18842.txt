@@ -10,6 +10,20 @@ Date:   Wed Mar 12 11:02:42 2014 -0400
     R=adonovan
     CC=golang-codereviews
     https://golang.org/cl/66120043
-
+---
  misc/emacs/go-mode.el | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/misc/emacs/go-mode.el b/misc/emacs/go-mode.el
+index e19dcdcde8..c55d83ac6a 100644
+--- a/misc/emacs/go-mode.el
++++ b/misc/emacs/go-mode.el
+@@ -269,7 +269,7 @@ For mode=set, all covered lines will have this weight."
+    (if go-fontify-function-calls
+        `((,(concat "\\(" go-identifier-regexp "\\)[[:space:]]*(") 1 font-lock-function-name-face) ;; function call/method name
+          (,(concat "[^[:word:][:multibyte:]](\\(" go-identifier-regexp "\\))[[:space:]]*(") 1 font-lock-function-name-face)) ;; bracketed function call
+-     `((,go-func-meth-regexp 1 font-lock-function-name-face))) ;; method name
++     `((,go-func-meth-regexp 2 font-lock-function-name-face))) ;; method name
+ 
+    `(
+      (,(concat (go--regexp-enclose-in-symbol "type") "[[:space:]]+\\([^[:space:]]+\\)") 1 font-lock-type-face) ;; types

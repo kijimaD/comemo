@@ -23,6 +23,31 @@ Date:   Fri Jul 28 18:06:03 2017 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/malloc.go | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index 8850659748..0ebd2c0ab2 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -416,7 +416,10 @@ func (h *mheap) sysAlloc(n uintptr) unsafe.Pointer {
+ 			var reserved bool
+ 			p := uintptr(sysReserve(unsafe.Pointer(h.arena_end), p_size, &reserved))
+ 			if p == 0 {
+-				return nil
++				// TODO: Try smaller reservation
++				// growths in case we're in a crowded
++				// 32-bit address space.
++				goto reservationFailed
+ 			}
+ 			// p can be just about anywhere in the address
+ 			// space, including before arena_end.
+@@ -476,6 +479,7 @@ func (h *mheap) sysAlloc(n uintptr) unsafe.Pointer {
+ 		return unsafe.Pointer(p)
+ 	}
+ 
++reservationFailed:
+ 	// If using 64-bit, our reservation is all we have.
+ 	if sys.PtrSize != 4 {
+ 		return nil

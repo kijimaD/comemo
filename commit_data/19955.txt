@@ -14,7 +14,44 @@ Date:   Thu Aug 7 12:33:19 2014 -0400
     R=r
     CC=golang-codereviews
     https://golang.org/cl/117630043
-
+---
  src/pkg/go/build/build.go      |  7 ++++++-
  src/pkg/go/build/build_test.go | 10 ++++++++++
  2 files changed, 16 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/go/build/build.go b/src/pkg/go/build/build.go
+index 09730d6351..6db0275032 100644
+--- a/src/pkg/go/build/build.go
++++ b/src/pkg/go/build/build.go
+@@ -521,7 +521,12 @@ func (ctxt *Context) Import(path string, srcDir string, mode ImportMode) (*Packa
+ 
+ 		// Determine directory from import path.
+ 		if ctxt.GOROOT != "" {
+-			dir := ctxt.joinPath(ctxt.GOROOT, "src", "pkg", path)
++			var dir string
++			if strings.HasPrefix(path, "cmd/") {
++				dir = ctxt.joinPath(ctxt.GOROOT, "src", path)
++			} else {
++				dir = ctxt.joinPath(ctxt.GOROOT, "src", "pkg", path)
++			}
+ 			isDir := ctxt.isDir(dir)
+ 			binaryOnly = !isDir && mode&AllowBinary != 0 && pkga != "" && ctxt.isFile(ctxt.joinPath(ctxt.GOROOT, pkga))
+ 			if isDir || binaryOnly {
+diff --git a/src/pkg/go/build/build_test.go b/src/pkg/go/build/build_test.go
+index f0d243cd53..0040101134 100644
+--- a/src/pkg/go/build/build_test.go
++++ b/src/pkg/go/build/build_test.go
+@@ -193,3 +193,13 @@ func TestMatchFile(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestImportCmd(t *testing.T) {
++	p, err := Import("cmd/internal/objfile", "", 0)
++	if err != nil {
++		t.Fatal(err)
++	}
++	if !strings.HasSuffix(filepath.ToSlash(p.Dir), "src/cmd/internal/objfile") {
++		t.Fatalf("Import cmd/internal/objfile returned Dir=%q, want %q", filepath.ToSlash(p.Dir), ".../src/cmd/internal/objfile")
++	}
++}

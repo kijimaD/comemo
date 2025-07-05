@@ -13,6 +13,11 @@ Date:   Mon Jan 29 22:57:54 2018 +0100
     Run-TryBot: Martin Möhrmann <moehrmann@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/runtime/{append_test.go => slice_test.go} | 0
  1 file changed, 0 insertions(+), 0 deletions(-)
+
+diff --git a/src/runtime/append_test.go b/src/runtime/slice_test.go
+similarity index 100%
+rename from src/runtime/append_test.go
+rename to src/runtime/slice_test.go

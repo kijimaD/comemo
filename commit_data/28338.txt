@@ -14,7 +14,76 @@ Date:   Tue Dec 15 14:42:28 2015 -0800
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/io/multi.go      |  7 +++++++
  src/io/multi_test.go | 32 ++++++++++++++++++++++++++++++++
  2 files changed, 39 insertions(+)
+
+diff --git a/src/io/multi.go b/src/io/multi.go
+index c23c12b151..ed05cac9e7 100644
+--- a/src/io/multi.go
++++ b/src/io/multi.go
+@@ -10,6 +10,13 @@ type multiReader struct {
+ 
+ func (mr *multiReader) Read(p []byte) (n int, err error) {
+ 	for len(mr.readers) > 0 {
++		// Optimization to flatten nested multiReaders (Issue 13558)
++		if len(mr.readers) == 1 {
++			if r, ok := mr.readers[0].(*multiReader); ok {
++				mr.readers = r.readers
++				continue
++			}
++		}
+ 		n, err = mr.readers[0].Read(p)
+ 		if n > 0 || err != EOF {
+ 			if err == EOF {
+diff --git a/src/io/multi_test.go b/src/io/multi_test.go
+index 787ea34130..2dce36955e 100644
+--- a/src/io/multi_test.go
++++ b/src/io/multi_test.go
+@@ -7,9 +7,11 @@ package io_test
+ import (
+ 	"bytes"
+ 	"crypto/sha1"
++	"errors"
+ 	"fmt"
+ 	. "io"
+ 	"io/ioutil"
++	"runtime"
+ 	"strings"
+ 	"testing"
+ )
+@@ -164,3 +166,33 @@ func TestMultiWriterCopy(t *testing.T) {
+ 		t.Errorf("buf.String() = %q, want %q", buf.String(), "hello world")
+ 	}
+ }
++
++// readerFunc is an io.Reader implemented by the underlying func.
++type readerFunc func(p []byte) (int, error)
++
++func (f readerFunc) Read(p []byte) (int, error) {
++	return f(p)
++}
++
++// Test that MultiReader properly flattens chained multiReaders when Read is called
++func TestMultiReaderFlatten(t *testing.T) {
++	pc := make([]uintptr, 1000) // 1000 should fit the full stack
++	var myDepth = runtime.Callers(0, pc)
++	var readDepth int // will contain the depth from which fakeReader.Read was called
++	var r Reader = MultiReader(readerFunc(func(p []byte) (int, error) {
++		readDepth = runtime.Callers(1, pc)
++		return 0, errors.New("irrelevant")
++	}))
++
++	// chain a bunch of multiReaders
++	for i := 0; i < 100; i++ {
++		r = MultiReader(r)
++	}
++
++	r.Read(nil) // don't care about errors, just want to check the call-depth for Read
++
++	if readDepth != myDepth+2 { // 2 should be multiReader.Read and fakeReader.Read
++		t.Errorf("multiReader did not flatten chained multiReaders: expected readDepth %d, got %d",
++			myDepth+2, readDepth)
++	}
++}

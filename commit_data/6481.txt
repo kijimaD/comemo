@@ -16,7 +16,76 @@ Date:   Mon Oct 11 13:45:26 2010 +1100
     R=r, rog, rsc, sameer1, PeterGo, iant, nigeltao_gnome
     CC=golang-dev
     https://golang.org/cl/2321043
-
+---
  src/pkg/time/sleep.go      | 30 +++++++++++++++++++++++++-----
  src/pkg/time/sleep_test.go | 12 ++++++++++++
  2 files changed, 37 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/time/sleep.go b/src/pkg/time/sleep.go
+index 5de5374cea..702ced1304 100644
+--- a/src/pkg/time/sleep.go
++++ b/src/pkg/time/sleep.go
+@@ -9,18 +9,38 @@ import (
+ 	"syscall"
+ )
+ 
+-// Sleep pauses the current goroutine for at least ns nanoseconds. Higher resolution
+-// sleeping may be provided by syscall.Nanosleep on some operating systems.
++// Sleep pauses the current goroutine for at least ns nanoseconds.
++// Higher resolution sleeping may be provided by syscall.Nanosleep 
++// on some operating systems.
+ func Sleep(ns int64) os.Error {
+-	// TODO(cw): use monotonic-time once it's available
++	_, err := sleep(Nanoseconds(), ns)
++	return err
++}
++
++// After waits at least ns nanoseconds before sending the current time
++// on the returned channel.
++func After(ns int64) <-chan int64 {
+ 	t := Nanoseconds()
++	ch := make(chan int64, 1)
++	go func() {
++		t, _ = sleep(t, ns)
++		ch <- t
++	}()
++	return ch
++}
++
++// sleep takes the current time and a duration,
++// pauses for at least ns nanoseconds, and
++// returns the current time and an error.
++func sleep(t, ns int64) (int64, os.Error) {
++	// TODO(cw): use monotonic-time once it's available
+ 	end := t + ns
+ 	for t < end {
+ 		errno := syscall.Sleep(end - t)
+ 		if errno != 0 && errno != syscall.EINTR {
+-			return os.NewSyscallError("sleep", errno)
++			return 0, os.NewSyscallError("sleep", errno)
+ 		}
+ 		t = Nanoseconds()
+ 	}
+-	return nil
++	return t, nil
+ }
+diff --git a/src/pkg/time/sleep_test.go b/src/pkg/time/sleep_test.go
+index 7ec6c49439..4934a38691 100644
+--- a/src/pkg/time/sleep_test.go
++++ b/src/pkg/time/sleep_test.go
+@@ -24,3 +24,15 @@ func TestSleep(t *testing.T) {
+ 		t.Fatalf("Sleep(%d) slept for only %d ns", delay, duration)
+ 	}
+ }
++
++func TestAfter(t *testing.T) {
++	const delay = int64(100e6)
++	start := Nanoseconds()
++	end := <-After(delay)
++	if duration := Nanoseconds() - start; duration < delay {
++		t.Fatalf("After(%d) slept for only %d ns", delay, duration)
++	}
++	if min := start + delay; end < min {
++		t.Fatalf("After(%d) expect >= %d, got %d", delay, min, end)
++	}
++}

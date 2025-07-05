@@ -11,7 +11,67 @@ Date:   Mon Aug 20 21:04:15 2018 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Andrew Bonventre <andybons@golang.org>
-
+---
  src/net/http/client.go      | 16 ++++++++++++++++
  src/net/http/client_test.go | 24 ++++++++++++++++++++++++
  2 files changed, 40 insertions(+)
+
+diff --git a/src/net/http/client.go b/src/net/http/client.go
+index 8f69a298e3..a15b3ba276 100644
+--- a/src/net/http/client.go
++++ b/src/net/http/client.go
+@@ -833,6 +833,22 @@ func (c *Client) Head(url string) (resp *Response, err error) {
+ 	return c.Do(req)
+ }
+ 
++// CloseIdleConnections closes any connections on its Transport which
++// were previously connected from previous requests but are now
++// sitting idle in a "keep-alive" state. It does not interrupt any
++// connections currently in use.
++//
++// If the Client's Transport does not have a CloseIdleConnections method
++// then this method does nothing.
++func (c *Client) CloseIdleConnections() {
++	type closeIdler interface {
++		CloseIdleConnections()
++	}
++	if tr, ok := c.transport().(closeIdler); ok {
++		tr.CloseIdleConnections()
++	}
++}
++
+ // cancelTimerBody is an io.ReadCloser that wraps rc with two features:
+ // 1) on Read error or close, the stop func is called.
+ // 2) On Read failure, if reqDidTimeout is true, the error is wrapped and
+diff --git a/src/net/http/client_test.go b/src/net/http/client_test.go
+index bfc793e638..12764d3bf1 100644
+--- a/src/net/http/client_test.go
++++ b/src/net/http/client_test.go
+@@ -1888,3 +1888,27 @@ func TestTransportBodyReadError(t *testing.T) {
+ 		t.Errorf("close calls = %d; want 1", closeCalls)
+ 	}
+ }
++
++type roundTripperWithoutCloseIdle struct{}
++
++func (roundTripperWithoutCloseIdle) RoundTrip(*Request) (*Response, error) { panic("unused") }
++
++type roundTripperWithCloseIdle func() // underlying func is CloseIdleConnections func
++
++func (roundTripperWithCloseIdle) RoundTrip(*Request) (*Response, error) { panic("unused") }
++func (f roundTripperWithCloseIdle) CloseIdleConnections()               { f() }
++
++func TestClientCloseIdleConnections(t *testing.T) {
++	c := &Client{Transport: roundTripperWithoutCloseIdle{}}
++	c.CloseIdleConnections() // verify we don't crash at least
++
++	closed := false
++	var tr RoundTripper = roundTripperWithCloseIdle(func() {
++		closed = true
++	})
++	c = &Client{Transport: tr}
++	c.CloseIdleConnections()
++	if !closed {
++		t.Error("not closed")
++	}
++}

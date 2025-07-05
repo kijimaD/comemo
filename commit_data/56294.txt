@@ -14,7 +14,95 @@ Date:   Fri Apr 21 14:12:07 2023 +0200
     Run-TryBot: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
     Reviewed-by: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/runtime/metrics/description.go |  6 ++++--
  src/runtime/metrics/doc.go         | 17 ++++++++++-------
  2 files changed, 14 insertions(+), 9 deletions(-)
+
+diff --git a/src/runtime/metrics/description.go b/src/runtime/metrics/description.go
+index 0168ee912c..ad69d424c2 100644
+--- a/src/runtime/metrics/description.go
++++ b/src/runtime/metrics/description.go
+@@ -196,6 +196,7 @@ var allDesc = []Description{
+ 	{
+ 		Name: "/gc/heap/allocs-by-size:bytes",
+ 		Description: "Distribution of heap allocations by approximate size. " +
++			"Bucket counts increase monotonically. " +
+ 			"Note that this does not include tiny objects as defined by " +
+ 			"/gc/heap/tiny/allocs:objects, only tiny blocks.",
+ 		Kind:       KindFloat64Histogram,
+@@ -218,6 +219,7 @@ var allDesc = []Description{
+ 	{
+ 		Name: "/gc/heap/frees-by-size:bytes",
+ 		Description: "Distribution of freed heap allocations by approximate size. " +
++			"Bucket counts increase monotonically. " +
+ 			"Note that this does not include tiny objects as defined by " +
+ 			"/gc/heap/tiny/allocs:objects, only tiny blocks.",
+ 		Kind:       KindFloat64Histogram,
+@@ -269,7 +271,7 @@ var allDesc = []Description{
+ 	},
+ 	{
+ 		Name:        "/gc/pauses:seconds",
+-		Description: "Distribution individual GC-related stop-the-world pause latencies.",
++		Description: "Distribution of individual GC-related stop-the-world pause latencies. Bucket counts increase monotonically.",
+ 		Kind:        KindFloat64Histogram,
+ 		Cumulative:  true,
+ 	},
+@@ -365,7 +367,7 @@ var allDesc = []Description{
+ 	},
+ 	{
+ 		Name:        "/sched/latencies:seconds",
+-		Description: "Distribution of the time goroutines have spent in the scheduler in a runnable state before actually running.",
++		Description: "Distribution of the time goroutines have spent in the scheduler in a runnable state before actually running. Bucket counts increase monotonically.",
+ 		Kind:        KindFloat64Histogram,
+ 		Cumulative:  true,
+ 	},
+diff --git a/src/runtime/metrics/doc.go b/src/runtime/metrics/doc.go
+index ce6e944d8c..34d2c09de6 100644
+--- a/src/runtime/metrics/doc.go
++++ b/src/runtime/metrics/doc.go
+@@ -149,8 +149,9 @@ Below is the full list of supported metrics, ordered lexicographically.
+ 
+ 	/gc/heap/allocs-by-size:bytes
+ 		Distribution of heap allocations by approximate size.
+-		Note that this does not include tiny objects as defined by
+-		/gc/heap/tiny/allocs:objects, only tiny blocks.
++		Bucket counts increase monotonically. Note that this does not
++		include tiny objects as defined by /gc/heap/tiny/allocs:objects,
++		only tiny blocks.
+ 
+ 	/gc/heap/allocs:bytes
+ 		Cumulative sum of memory allocated to the heap by the
+@@ -163,8 +164,9 @@ Below is the full list of supported metrics, ordered lexicographically.
+ 
+ 	/gc/heap/frees-by-size:bytes
+ 		Distribution of freed heap allocations by approximate size.
+-		Note that this does not include tiny objects as defined by
+-		/gc/heap/tiny/allocs:objects, only tiny blocks.
++		Bucket counts increase monotonically. Note that this does not
++		include tiny objects as defined by /gc/heap/tiny/allocs:objects,
++		only tiny blocks.
+ 
+ 	/gc/heap/frees:bytes
+ 		Cumulative sum of heap memory freed by the garbage collector.
+@@ -197,8 +199,8 @@ Below is the full list of supported metrics, ordered lexicographically.
+ 		1, so a value of 0 indicates that it was never enabled.
+ 
+ 	/gc/pauses:seconds
+-		Distribution individual GC-related stop-the-world pause
+-		latencies.
++		Distribution of individual GC-related stop-the-world pause
++		latencies. Bucket counts increase monotonically.
+ 
+ 	/gc/stack/starting-size:bytes
+ 		The stack size of new goroutines.
+@@ -331,7 +333,8 @@ Below is the full list of supported metrics, ordered lexicographically.
+ 
+ 	/sched/latencies:seconds
+ 		Distribution of the time goroutines have spent in the scheduler
+-		in a runnable state before actually running.
++		in a runnable state before actually running. Bucket counts
++		increase monotonically.
+ 
+ 	/sync/mutex/wait/total:seconds
+ 		Approximate cumulative time goroutines have spent blocked

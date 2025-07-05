@@ -17,7 +17,7 @@ Date:   Fri Mar 15 01:11:03 2013 -0400
     R=golang-dev, devon.odell, r, daniel.morsing, ality
     CC=golang-dev
     https://golang.org/cl/7666044
-
+---
  src/pkg/runtime/extern.go           | 52 ++++++++++++++++++++++++++++++++++---
  src/pkg/runtime/os_plan9.c          |  7 +++++
  src/pkg/runtime/os_plan9_386.c      |  7 ++++-
@@ -49,3 +49,718 @@ Date:   Fri Mar 15 01:11:03 2013 -0400
  src/pkg/runtime/sys_openbsd_386.s   |  5 ++--
  src/pkg/runtime/sys_openbsd_amd64.s |  4 +--
  30 files changed, 193 insertions(+), 56 deletions(-)
+
+diff --git a/src/pkg/runtime/extern.go b/src/pkg/runtime/extern.go
+index fbaffd1d56..20f2342530 100644
+--- a/src/pkg/runtime/extern.go
++++ b/src/pkg/runtime/extern.go
+@@ -3,10 +3,54 @@
+ // license that can be found in the LICENSE file.
+ 
+ /*
+-	Package runtime contains operations that interact with Go's runtime system,
+-	such as functions to control goroutines. It also includes the low-level type information
+-	used by the reflect package; see reflect's documentation for the programmable
+-	interface to the run-time type system.
++Package runtime contains operations that interact with Go's runtime system,
++such as functions to control goroutines. It also includes the low-level type information
++used by the reflect package; see reflect's documentation for the programmable
++interface to the run-time type system.
++
++Environment Variables
++
++The following environment variables ($name or %name%, depending on the host
++operating system) control the run-time behavior of Go programs. The meanings
++and use may change from release to release.
++
++The GOGC variable sets the initial garbage collection target percentage.
++A collection is triggered when the ratio of freshly allocated data to live data
++remaining after the previous collection reaches this percentage. The default
++is GOGC=100. Setting GOGC=off disables the garbage collector entirely.
++The runtime/debug package's SetGCPercent function allows changing this
++percentage at run time. See http://golang.org/pkg/runtime/debug/#SetGCPercent.
++
++The GOGCTRACE variable controls debug output from the garbage collector.
++Setting GOGCTRACE=1 causes the garbage collector to emit a single line to standard
++error at each collection, summarizing the amount of memory collected and the
++length of the pause. Setting GOGCTRACE=2 emits the same summary but also
++repeats each collection.
++
++The GOMAXPROCS variable limits the number of operating system threads that
++can execute user-level Go code simultaneously. There is no limit to the number of threads
++that can be blocked in system calls on behalf of Go code; those do not count against
++the GOMAXPROCS limit. This package's GOMAXPROCS function queries and changes
++the limit.
++
++The GOTRACEBACK variable controls the amount of output generated when a Go
++program fails due to an unrecovered panic or an unexpected runtime condition.
++By default, a failure prints a stack trace for every extant goroutine, eliding functions
++internal to the run-time system, and then exits with exit code 2.
++If GOTRACEBACK=0, the per-goroutine stack traces are omitted entirely.
++If GOTRACEBACK=1, the default behavior is used.
++If GOTRACEBACK=2, the per-goroutine stack traces include run-time functions.
++If GOTRACEBACK=crash, the per-goroutine stack traces include run-time functions,
++and if possible the program crashes in an operating-specific manner instead of
++exiting. For example, on Unix systems, the program raises SIGABRT to trigger a
++core dump.
++
++The GOARCH, GOOS, GOPATH, and GOROOT environment variables complete
++the set of Go environment variables. They influence the building of Go programs
++(see http://golang.org/cmd/go and http://golang.org/pkg/go/build).
++GOARCH, GOOS, and GOROOT are recorded at compile time and made available by
++constants or functions in this package, but they do not influence the execution
++of the run-time system.
+ */
+ package runtime
+ 
+diff --git a/src/pkg/runtime/os_plan9.c b/src/pkg/runtime/os_plan9.c
+index 338da8f216..c7ed59fc93 100644
+--- a/src/pkg/runtime/os_plan9.c
++++ b/src/pkg/runtime/os_plan9.c
+@@ -91,6 +91,13 @@ runtime·osinit(void)
+ 	runtime·notify(runtime·sigtramp);
+ }
+ 
++void
++runtime·crash(void)
++{
++	runtime·notify(nil);
++	*(int32*)0 = 0;
++}
++
+ void
+ runtime·get_random_data(byte **rnd, int32 *rnd_len)
+ {
+diff --git a/src/pkg/runtime/os_plan9_386.c b/src/pkg/runtime/os_plan9_386.c
+index 3d8b43a5da..3396e44e72 100644
+--- a/src/pkg/runtime/os_plan9_386.c
++++ b/src/pkg/runtime/os_plan9_386.c
+@@ -28,6 +28,7 @@ runtime·dumpregs(Ureg *u)
+ int32
+ runtime·sighandler(void *v, int8 *s, G *gp)
+ {
++	bool crash;
+ 	Ureg *ureg;
+ 	uintptr *sp;
+ 	SigTab *sig, *nsig;
+@@ -93,11 +94,15 @@ Throw:
+ 	runtime·printf("PC=%X\n", ureg->pc);
+ 	runtime·printf("\n");
+ 
+-	if(runtime·gotraceback()) {
++	if(runtime·gotraceback(&crash)) {
+ 		runtime·traceback((void*)ureg->pc, (void*)ureg->sp, 0, gp);
+ 		runtime·tracebackothers(gp);
+ 		runtime·dumpregs(ureg);
+ 	}
++	
++	if(crash)
++		runtime·crash();
++
+ 	runtime·goexitsall("");
+ 	runtime·exits(s);
+ 
+diff --git a/src/pkg/runtime/os_plan9_amd64.c b/src/pkg/runtime/os_plan9_amd64.c
+index acdf65d00c..cf0a82b6bc 100644
+--- a/src/pkg/runtime/os_plan9_amd64.c
++++ b/src/pkg/runtime/os_plan9_amd64.c
+@@ -36,6 +36,7 @@ runtime·dumpregs(Ureg *u)
+ int32
+ runtime·sighandler(void *v, int8 *s, G *gp)
+ {
++	bool crash;
+ 	Ureg *ureg;
+ 	uintptr *sp;
+ 	SigTab *sig, *nsig;
+@@ -101,11 +102,15 @@ Throw:
+ 	runtime·printf("PC=%X\n", ureg->ip);
+ 	runtime·printf("\n");
+ 
+-	if(runtime·gotraceback()) {
++	if(runtime·gotraceback(&crash)) {
+ 		runtime·traceback((void*)ureg->ip, (void*)ureg->sp, 0, gp);
+ 		runtime·tracebackothers(gp);
+ 		runtime·dumpregs(ureg);
+ 	}
++	
++	if(crash)
++		runtime·crash();
++
+ 	runtime·goexitsall("");
+ 	runtime·exits(s);
+ 
+diff --git a/src/pkg/runtime/os_windows.c b/src/pkg/runtime/os_windows.c
+index c80a38a374..b28affe31b 100644
+--- a/src/pkg/runtime/os_windows.c
++++ b/src/pkg/runtime/os_windows.c
+@@ -455,3 +455,16 @@ int32 runtime·badcallbacklen = sizeof runtime·badcallbackmsg - 1;
+ 
+ int8 runtime·badsignalmsg[] = "runtime: signal received on thread not created by Go.\n";
+ int32 runtime·badsignallen = sizeof runtime·badsignalmsg - 1;
++
++void
++runtime·crash(void)
++{
++	// TODO: This routine should do whatever is needed
++	// to make the Windows program abort/crash as it
++	// would if Go was not intercepting signals.
++	// On Unix the routine would remove the custom signal
++	// handler and then raise a signal (like SIGABRT).
++	// Something like that should happen here.
++	// It's okay to leave this empty for now: if crash returns
++	// the ordinary exit-after-panic happens.
++}
+diff --git a/src/pkg/runtime/os_windows_386.c b/src/pkg/runtime/os_windows_386.c
+index fc75eb3af0..20fbea13de 100644
+--- a/src/pkg/runtime/os_windows_386.c
++++ b/src/pkg/runtime/os_windows_386.c
+@@ -27,6 +27,7 @@ runtime·dumpregs(Context *r)
+ uint32
+ runtime·sighandler(ExceptionRecord *info, Context *r, G *gp)
+ {
++	bool crash;
+ 	uintptr *sp;
+ 
+ 	switch(info->ExceptionCode) {
+@@ -74,11 +75,15 @@ runtime·sighandler(ExceptionRecord *info, Context *r, G *gp)
+ 	}
+ 	runtime·printf("\n");
+ 
+-	if(runtime·gotraceback()){
++	if(runtime·gotraceback(&crash)){
+ 		runtime·traceback((void*)r->Eip, (void*)r->Esp, 0, gp);
+ 		runtime·tracebackothers(gp);
+ 		runtime·dumpregs(r);
+ 	}
++	
++	if(crash)
++		runtime·crash();
++
+ 
+ 	runtime·exit(2);
+ 	return 0;
+diff --git a/src/pkg/runtime/os_windows_amd64.c b/src/pkg/runtime/os_windows_amd64.c
+index 7ed33465e3..881c73c93c 100644
+--- a/src/pkg/runtime/os_windows_amd64.c
++++ b/src/pkg/runtime/os_windows_amd64.c
+@@ -35,6 +35,7 @@ runtime·dumpregs(Context *r)
+ uint32
+ runtime·sighandler(ExceptionRecord *info, Context *r, G *gp)
+ {
++	bool crash;
+ 	uintptr *sp;
+ 
+ 	switch(info->ExceptionCode) {
+@@ -81,11 +82,14 @@ runtime·sighandler(ExceptionRecord *info, Context *r, G *gp)
+ 	}
+ 	runtime·printf("\n");
+ 
+-	if(runtime·gotraceback()){
++	if(runtime·gotraceback(&crash)){
+ 		runtime·traceback((void*)r->Rip, (void*)r->Rsp, 0, gp);
+ 		runtime·tracebackothers(gp);
+ 		runtime·dumpregs(r);
+ 	}
++	
++	if(crash)
++		runtime·crash();
+ 
+ 	runtime·exit(2);
+ 	return 0;
+diff --git a/src/pkg/runtime/panic.c b/src/pkg/runtime/panic.c
+index fbcf6a572d..d0cf3ad6f9 100644
+--- a/src/pkg/runtime/panic.c
++++ b/src/pkg/runtime/panic.c
+@@ -402,12 +402,13 @@ void
+ runtime·dopanic(int32 unused)
+ {
+ 	static bool didothers;
++	bool crash;
+ 
+ 	if(g->sig != 0)
+ 		runtime·printf("[signal %x code=%p addr=%p pc=%p]\n",
+ 			g->sig, g->sigcode0, g->sigcode1, g->sigpc);
+ 
+-	if(runtime·gotraceback()){
++	if(runtime·gotraceback(&crash)){
+ 		if(g != m->g0) {
+ 			runtime·printf("\n");
+ 			runtime·goroutineheader(g);
+@@ -428,6 +429,9 @@ runtime·dopanic(int32 unused)
+ 		runtime·lock(&deadlock);
+ 		runtime·lock(&deadlock);
+ 	}
++	
++	if(crash)
++		runtime·crash();
+ 
+ 	runtime·exit(2);
+ }
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 313ac653b4..a6ef83ba73 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -232,7 +232,7 @@ runtime·tracebackothers(G *me)
+ 	G *gp;
+ 	int32 traceback;
+ 
+-	traceback = runtime·gotraceback();
++	traceback = runtime·gotraceback(nil);
+ 	for(gp = runtime·allg; gp != nil; gp = gp->alllink) {
+ 		if(gp == me || gp->status == Gdead)
+ 			continue;
+diff --git a/src/pkg/runtime/runtime.c b/src/pkg/runtime/runtime.c
+index 3ff4d7fa7e..ef39a2d55f 100644
+--- a/src/pkg/runtime/runtime.c
++++ b/src/pkg/runtime/runtime.c
+@@ -17,14 +17,27 @@ enum {
+  */
+ void	runtime·sigpanic(void);
+ 
++// The GOTRACEBACK environment variable controls the
++// behavior of a Go program that is crashing and exiting.
++//	GOTRACEBACK=0   suppress all tracebacks
++//	GOTRACEBACK=1   default behavior - show tracebacks but exclude runtime frames
++//	GOTRACEBACK=2   show tracebacks including runtime frames
++//	GOTRACEBACK=crash   show tracebacks including runtime frames, then crash (core dump etc)
+ int32
+-runtime·gotraceback(void)
++runtime·gotraceback(bool *crash)
+ {
+ 	byte *p;
+ 
++	if(crash != nil)
++		*crash = false;
+ 	p = runtime·getenv("GOTRACEBACK");
+ 	if(p == nil || p[0] == '\0')
+ 		return 1;	// default is on
++	if(runtime·strcmp(p, (byte*)"crash") == 0) {
++		if(crash != nil)
++			*crash = true;
++		return 2;	// extra information
++	}
+ 	return runtime·atoi(p);
+ }
+ 
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index e0da57bb0a..9828a9c558 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -699,7 +699,7 @@ String	runtime·gostringw(uint16*);
+ void	runtime·initsig(void);
+ void	runtime·sigenable(uint32 sig);
+ void	runtime·sigdisable(uint32 sig);
+-int32	runtime·gotraceback(void);
++int32	runtime·gotraceback(bool *crash);
+ void	runtime·goroutineheader(G*);
+ void	runtime·traceback(uint8 *pc, uint8 *sp, uint8 *lr, G* gp);
+ void	runtime·tracebackothers(G*);
+@@ -793,6 +793,7 @@ G*	runtime·netpoll(bool);
+ void	runtime·netpollinit(void);
+ int32	runtime·netpollopen(int32, PollDesc*);
+ void	runtime·netpollready(G**, PollDesc*, int32);
++void	runtime·crash(void);
+ 
+ #pragma	varargck	argpos	runtime·printf	1
+ #pragma	varargck	type	"d"	int32
+diff --git a/src/pkg/runtime/signal_386.c b/src/pkg/runtime/signal_386.c
+index 1377de1400..c409aee507 100644
+--- a/src/pkg/runtime/signal_386.c
++++ b/src/pkg/runtime/signal_386.c
+@@ -36,6 +36,7 @@ runtime·sighandler(int32 sig, Siginfo *info, void *ctxt, G *gp)
+ {
+ 	uintptr *sp;
+ 	SigTab *t;
++	bool crash;
+ 
+ 	if(sig == SIGPROF) {
+ 		if(gp != m->g0 && gp != m->gsignal)
+@@ -109,11 +110,14 @@ Throw:
+ 	}	
+ 	runtime·printf("\n");
+ 
+-	if(runtime·gotraceback()){
++	if(runtime·gotraceback(&crash)){
+ 		runtime·traceback((void*)SIG_EIP(info, ctxt), (void*)SIG_ESP(info, ctxt), 0, gp);
+ 		runtime·tracebackothers(gp);
+ 		runtime·dumpregs(info, ctxt);
+ 	}
++	
++	if(crash)
++		runtime·crash();
+ 
+ 	runtime·exit(2);
+ }
+diff --git a/src/pkg/runtime/signal_amd64.c b/src/pkg/runtime/signal_amd64.c
+index 04ba038663..157e0ee46d 100644
+--- a/src/pkg/runtime/signal_amd64.c
++++ b/src/pkg/runtime/signal_amd64.c
+@@ -44,6 +44,7 @@ runtime·sighandler(int32 sig, Siginfo *info, void *ctxt, G *gp)
+ {
+ 	uintptr *sp;
+ 	SigTab *t;
++	bool crash;
+ 
+ 	if(sig == SIGPROF) {
+ 		if(gp != m->g0 && gp != m->gsignal)
+@@ -119,11 +120,14 @@ Throw:
+ 	}
+ 	runtime·printf("\n");
+ 
+-	if(runtime·gotraceback()){
++	if(runtime·gotraceback(&crash)){
+ 		runtime·traceback((void*)SIG_RIP(info, ctxt), (void*)SIG_RSP(info, ctxt), 0, gp);
+ 		runtime·tracebackothers(gp);
+ 		runtime·dumpregs(info, ctxt);
+ 	}
++	
++	if(crash)
++		runtime·crash();
+ 
+ 	runtime·exit(2);
+ }
+diff --git a/src/pkg/runtime/signal_arm.c b/src/pkg/runtime/signal_arm.c
+index 0763cd6dd0..a7f373bd5e 100644
+--- a/src/pkg/runtime/signal_arm.c
++++ b/src/pkg/runtime/signal_arm.c
+@@ -43,6 +43,7 @@ void
+ runtime·sighandler(int32 sig, Siginfo *info, void *ctxt, G *gp)
+ {
+ 	SigTab *t;
++	bool crash;
+ 
+ 	if(sig == SIGPROF) {
+ 		if(gp != m->g0 && gp != m->gsignal)
+@@ -109,12 +110,15 @@ Throw:
+ 	}
+ 	runtime·printf("\n");
+ 
+-	if(runtime·gotraceback()){
++	if(runtime·gotraceback(&crash)){
+ 		runtime·traceback((void*)SIG_PC(info, ctxt), (void*)SIG_SP(info, ctxt), (void*)SIG_LR(info, ctxt), gp);
+ 		runtime·tracebackothers(gp);
+ 		runtime·printf("\n");
+ 		runtime·dumpregs(info, ctxt);
+ 	}
++	
++	if(crash)
++		runtime·crash();
+ 
+ 	runtime·exit(2);
+ }
+diff --git a/src/pkg/runtime/signal_unix.c b/src/pkg/runtime/signal_unix.c
+index 5d0bcbd2d5..54e461f995 100644
+--- a/src/pkg/runtime/signal_unix.c
++++ b/src/pkg/runtime/signal_unix.c
+@@ -98,5 +98,23 @@ void
+ os·sigpipe(void)
+ {
+ 	runtime·setsig(SIGPIPE, SIG_DFL, false);
+-	runtime·raisesigpipe();
++	runtime·raise(SIGPIPE);
++}
++
++void
++runtime·crash(void)
++{
++#ifdef GOOS_darwin
++	// OS X core dumps are linear dumps of the mapped memory,
++	// from the first virtual byte to the last, with zeros in the gaps.
++	// Because of the way we arrange the address space on 64-bit systems,
++	// this means the OS X core file will be >128 GB and even on a zippy
++	// workstation can take OS X well over an hour to write (uninterruptible).
++	// Save users from making that mistake.
++	if(sizeof(void*) == 8)
++		return;
++#endif
++
++	runtime·setsig(SIGABRT, SIG_DFL, false);
++	runtime·raise(SIGABRT);
+ }
+diff --git a/src/pkg/runtime/signal_unix.h b/src/pkg/runtime/signal_unix.h
+index a4acff4b20..2d84a01864 100644
+--- a/src/pkg/runtime/signal_unix.h
++++ b/src/pkg/runtime/signal_unix.h
+@@ -10,4 +10,5 @@ void	runtime·setsig(int32, GoSighandler*, bool);
+ GoSighandler* runtime·getsig(int32);
+ 
+ void	runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp);
+-void	runtime·raisesigpipe(void);
++void	runtime·raise(int32);
++
+diff --git a/src/pkg/runtime/symtab.c b/src/pkg/runtime/symtab.c
+index d7221c4767..578406247e 100644
+--- a/src/pkg/runtime/symtab.c
++++ b/src/pkg/runtime/symtab.c
+@@ -670,6 +670,6 @@ runtime·showframe(Func *f, bool current)
+ 	if(current && m->throwing > 0)
+ 		return 1;
+ 	if(traceback < 0)
+-		traceback = runtime·gotraceback();
++		traceback = runtime·gotraceback(nil);
+ 	return traceback > 1 || f != nil && contains(f->name, ".") && !hasprefix(f->name, "runtime.");
+ }
+diff --git a/src/pkg/runtime/sys_darwin_386.s b/src/pkg/runtime/sys_darwin_386.s
+index 99cd8e7611..59bb9d80d8 100644
+--- a/src/pkg/runtime/sys_darwin_386.s
++++ b/src/pkg/runtime/sys_darwin_386.s
+@@ -44,13 +44,14 @@ TEXT runtime·write(SB),7,$0
+ 	INT	$0x80
+ 	RET
+ 
+-TEXT runtime·raisesigpipe(SB),7,$8
+-	get_tls(CX)
+-	MOVL	m(CX), DX
+-	MOVL	m_procid(DX), DX
+-	MOVL	DX, 0(SP)	// thread_port
+-	MOVL	$13, 4(SP)	// signal: SIGPIPE
+-	MOVL	$328, AX	// __pthread_kill
++TEXT runtime·raise(SB),7,$16
++	MOVL	$20, AX // getpid
++	INT	$0x80
++	MOVL	AX, 4(SP)	// pid
++	MOVL	sig+0(FP), AX
++	MOVL	AX, 8(SP)	// signal
++	MOVL	$1, 12(SP)	// posix
++	MOVL	$37, AX // kill
+ 	INT	$0x80
+ 	RET
+ 
+diff --git a/src/pkg/runtime/sys_darwin_amd64.s b/src/pkg/runtime/sys_darwin_amd64.s
+index c8a45439d1..b324a04240 100644
+--- a/src/pkg/runtime/sys_darwin_amd64.s
++++ b/src/pkg/runtime/sys_darwin_amd64.s
+@@ -60,12 +60,13 @@ TEXT runtime·write(SB),7,$0
+ 	SYSCALL
+ 	RET
+ 
+-TEXT runtime·raisesigpipe(SB),7,$24
+-	get_tls(CX)
+-	MOVQ	m(CX), DX
+-	MOVL	$13, DI	// arg 1 SIGPIPE
+-	MOVQ	m_procid(DX), SI	// arg 2 thread_port
+-	MOVL	$(0x2000000+328), AX	// syscall entry __pthread_kill
++TEXT runtime·raise(SB),7,$24
++	MOVL	$(0x2000000+20), AX // getpid
++	SYSCALL
++	MOVQ	AX, DI	// arg 1 - pid
++	MOVL	sig+0(FP), SI	// arg 2 - signal
++	MOVL	$1, DX	// arg 3 - posix
++	MOVL	$(0x2000000+37), AX // kill
+ 	SYSCALL
+ 	RET
+ 
+diff --git a/src/pkg/runtime/sys_freebsd_386.s b/src/pkg/runtime/sys_freebsd_386.s
+index 34af307816..d960663cb4 100644
+--- a/src/pkg/runtime/sys_freebsd_386.s
++++ b/src/pkg/runtime/sys_freebsd_386.s
+@@ -81,16 +81,17 @@ TEXT runtime·getrlimit(SB),7,$-4
+ 	INT	$0x80
+ 	RET
+ 
+-TEXT runtime·raisesigpipe(SB),7,$12
++TEXT runtime·raise(SB),7,$16
+ 	// thr_self(&8(SP))
+ 	LEAL	8(SP), AX
+-	MOVL	AX, 0(SP)
++	MOVL	AX, 4(SP)
+ 	MOVL	$432, AX
+ 	INT	$0x80
+ 	// thr_kill(self, SIGPIPE)
+ 	MOVL	8(SP), AX
+-	MOVL	AX, 0(SP)
+-	MOVL	$13, 4(SP)
++	MOVL	AX, 4(SP)
++	MOVL	sig+0(FP), AX
++	MOVL	AX, 8(SP)
+ 	MOVL	$433, AX
+ 	INT	$0x80
+ 	RET
+diff --git a/src/pkg/runtime/sys_freebsd_amd64.s b/src/pkg/runtime/sys_freebsd_amd64.s
+index 3738f16073..cfa33d4fbd 100644
+--- a/src/pkg/runtime/sys_freebsd_amd64.s
++++ b/src/pkg/runtime/sys_freebsd_amd64.s
+@@ -95,14 +95,14 @@ TEXT runtime·getrlimit(SB),7,$-8
+ 	SYSCALL
+ 	RET
+ 
+-TEXT runtime·raisesigpipe(SB),7,$16
++TEXT runtime·raise(SB),7,$16
+ 	// thr_self(&8(SP))
+ 	LEAQ	8(SP), DI	// arg 1 &8(SP)
+ 	MOVL	$432, AX
+ 	SYSCALL
+ 	// thr_kill(self, SIGPIPE)
+ 	MOVQ	8(SP), DI	// arg 1 id
+-	MOVQ	$13, SI	// arg 2 SIGPIPE
++	MOVL	sig+0(FP), SI	// arg 2
+ 	MOVL	$433, AX
+ 	SYSCALL
+ 	RET
+diff --git a/src/pkg/runtime/sys_freebsd_arm.s b/src/pkg/runtime/sys_freebsd_arm.s
+index 2c744f2321..5531936ffd 100644
+--- a/src/pkg/runtime/sys_freebsd_arm.s
++++ b/src/pkg/runtime/sys_freebsd_arm.s
+@@ -87,13 +87,13 @@ TEXT runtime·getrlimit(SB),7,$-8
+ 	SWI $194
+ 	RET
+ 
+-TEXT runtime·raisesigpipe(SB),7,$8
++TEXT runtime·raise(SB),7,$8
+ 	// thr_self(&4(R13))
+ 	MOVW $4(R13), R0 // arg 1 &4(R13)
+ 	SWI $432
+ 	// thr_kill(self, SIGPIPE)
+ 	MOVW 4(R13), R0	// arg 1 id
+-	MOVW $13, R1	// arg 2 SIGPIPE
++	MOVW sig+0(FP), R1	// arg 2 - signal
+ 	SWI $433
+ 	RET
+ 
+diff --git a/src/pkg/runtime/sys_linux_386.s b/src/pkg/runtime/sys_linux_386.s
+index 19dfbf3847..76ebe3dcf7 100644
+--- a/src/pkg/runtime/sys_linux_386.s
++++ b/src/pkg/runtime/sys_linux_386.s
+@@ -77,11 +77,11 @@ TEXT runtime·usleep(SB),7,$8
+ 	CALL	*runtime·_vdso(SB)
+ 	RET
+ 
+-TEXT runtime·raisesigpipe(SB),7,$12
++TEXT runtime·raise(SB),7,$12
+ 	MOVL	$224, AX	// syscall - gettid
+ 	CALL	*runtime·_vdso(SB)
+-	MOVL	AX, 0(SP)	// arg 1 tid
+-	MOVL	$13, 4(SP)	// arg 2 SIGPIPE
++	MOVL	AX, BX	// arg 1 tid
++	MOVL	sig+0(FP), CX	// arg 2 signal
+ 	MOVL	$238, AX	// syscall - tkill
+ 	CALL	*runtime·_vdso(SB)
+ 	RET
+diff --git a/src/pkg/runtime/sys_linux_amd64.s b/src/pkg/runtime/sys_linux_amd64.s
+index f1591b8e7a..2d802abb61 100644
+--- a/src/pkg/runtime/sys_linux_amd64.s
++++ b/src/pkg/runtime/sys_linux_amd64.s
+@@ -75,11 +75,11 @@ TEXT runtime·usleep(SB),7,$16
+ 	SYSCALL
+ 	RET
+ 
+-TEXT runtime·raisesigpipe(SB),7,$12
++TEXT runtime·raise(SB),7,$12
+ 	MOVL	$186, AX	// syscall - gettid
+ 	SYSCALL
+ 	MOVL	AX, DI	// arg 1 tid
+-	MOVL	$13, SI	// arg 2 SIGPIPE
++	MOVL	sig+0(FP), SI	// arg 2
+ 	MOVL	$200, AX	// syscall - tkill
+ 	SYSCALL
+ 	RET
+diff --git a/src/pkg/runtime/sys_linux_arm.s b/src/pkg/runtime/sys_linux_arm.s
+index 8bae2933f7..e3994bccaa 100644
+--- a/src/pkg/runtime/sys_linux_arm.s
++++ b/src/pkg/runtime/sys_linux_arm.s
+@@ -92,11 +92,11 @@ TEXT runtime·exit1(SB),7,$-4
+ 	MOVW	$1003, R1
+ 	MOVW	R0, (R1)	// fail hard
+ 
+-TEXT	runtime·raisesigpipe(SB),7,$-4
++TEXT	runtime·raise(SB),7,$-4
+ 	MOVW	$SYS_gettid, R7
+ 	SWI	$0
+ 	// arg 1 tid already in R0 from gettid
+-	MOVW	$13, R1	// arg 2 SIGPIPE
++	MOVW	sig+0(FP), R1	// arg 2 - signal
+ 	MOVW	$SYS_tkill, R7
+ 	SWI	$0
+ 	RET
+diff --git a/src/pkg/runtime/sys_netbsd_386.s b/src/pkg/runtime/sys_netbsd_386.s
+index 475f875421..61686e7de4 100644
+--- a/src/pkg/runtime/sys_netbsd_386.s
++++ b/src/pkg/runtime/sys_netbsd_386.s
+@@ -61,12 +61,13 @@ TEXT runtime·usleep(SB),7,$24
+ 	INT	$0x80
+ 	RET
+ 
+-TEXT runtime·raisesigpipe(SB),7,$12
++TEXT runtime·raise(SB),7,$12
+ 	MOVL	$311, AX		// sys__lwp_self
+ 	INT	$0x80
+ 	MOVL	$0, 0(SP)
+ 	MOVL	AX, 4(SP)		// arg 1 - target
+-	MOVL	$13, 8(SP)		// arg 2 - signo == SIGPIPE
++	MOVL	sig+0(FP), AX
++	MOVL	AX, 8(SP)		// arg 2 - signo
+ 	MOVL	$318, AX		// sys__lwp_kill
+ 	INT	$0x80
+ 	RET
+diff --git a/src/pkg/runtime/sys_netbsd_amd64.s b/src/pkg/runtime/sys_netbsd_amd64.s
+index 958b97e601..43399a5eee 100644
+--- a/src/pkg/runtime/sys_netbsd_amd64.s
++++ b/src/pkg/runtime/sys_netbsd_amd64.s
+@@ -125,11 +125,11 @@ TEXT runtime·usleep(SB),7,$16
+ 	SYSCALL
+ 	RET
+ 
+-TEXT runtime·raisesigpipe(SB),7,$16
++TEXT runtime·raise(SB),7,$16
+ 	MOVL	$311, AX		// sys__lwp_self
+ 	SYSCALL
+ 	MOVQ	AX, DI			// arg 1 - target
+-	MOVQ	$13, SI			// arg 2 - signo == SIGPIPE
++	MOVL	sig+0(FP), SI		// arg 2 - signo
+ 	MOVL	$318, AX		// sys__lwp_kill
+ 	SYSCALL
+ 	RET
+diff --git a/src/pkg/runtime/sys_netbsd_arm.s b/src/pkg/runtime/sys_netbsd_arm.s
+index 4a119c5dee..fc64b1096d 100644
+--- a/src/pkg/runtime/sys_netbsd_arm.s
++++ b/src/pkg/runtime/sys_netbsd_arm.s
+@@ -88,9 +88,9 @@ TEXT runtime·usleep(SB),7,$16
+ 	SWI $0xa001ae	// sys_nanosleep
+ 	RET
+ 
+-TEXT runtime·raisesigpipe(SB),7,$16
++TEXT runtime·raise(SB),7,$16
+ 	SWI $0xa00137	// sys__lwp_self, the returned R0 is arg 1
+-	MOVW $13, R1	// arg 2 - signo == SIGPIPE
++	MOVW	sig+0(FP), R1	// arg 2 - signal
+ 	SWI $0xa0013e	// sys__lwp_kill
+ 	RET
+ 
+diff --git a/src/pkg/runtime/sys_openbsd_386.s b/src/pkg/runtime/sys_openbsd_386.s
+index ab2f68037a..a96e354ab7 100644
+--- a/src/pkg/runtime/sys_openbsd_386.s
++++ b/src/pkg/runtime/sys_openbsd_386.s
+@@ -62,12 +62,13 @@ TEXT runtime·usleep(SB),7,$20
+ 	INT	$0x80
+ 	RET
+ 
+-TEXT runtime·raisesigpipe(SB),7,$12
++TEXT runtime·raise(SB),7,$12
+ 	MOVL	$299, AX		// sys_getthrid
+ 	INT	$0x80
+ 	MOVL	$0, 0(SP)
+ 	MOVL	AX, 4(SP)		// arg 1 - pid
+-	MOVL	$13, 8(SP)		// arg 2 - signum == SIGPIPE
++	MOVL	sig+0(FP), AX
++	MOVL	AX, 8(SP)		// arg 2 - signum
+ 	MOVL	$37, AX			// sys_kill
+ 	INT	$0x80
+ 	RET
+diff --git a/src/pkg/runtime/sys_openbsd_amd64.s b/src/pkg/runtime/sys_openbsd_amd64.s
+index 585fe47c2b..4d038a89e1 100644
+--- a/src/pkg/runtime/sys_openbsd_amd64.s
++++ b/src/pkg/runtime/sys_openbsd_amd64.s
+@@ -133,11 +133,11 @@ TEXT runtime·usleep(SB),7,$16
+ 	SYSCALL
+ 	RET
+ 
+-TEXT runtime·raisesigpipe(SB),7,$16
++TEXT runtime·raise(SB),7,$16
+ 	MOVL	$299, AX		// sys_getthrid
+ 	SYSCALL
+ 	MOVQ	AX, DI			// arg 1 - pid
+-	MOVQ	$13, SI			// arg 2 - signum == SIGPIPE
++	MOVL	sig+0(FP), SI			// arg 2 - signum
+ 	MOVL	$37, AX			// sys_kill
+ 	SYSCALL
+ 	RET

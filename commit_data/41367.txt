@@ -11,6 +11,21 @@ Date:   Thu Sep 26 19:04:00 2019 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/dist/buildtool.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/cmd/dist/buildtool.go b/src/cmd/dist/buildtool.go
+index f293891511..f27ea17230 100644
+--- a/src/cmd/dist/buildtool.go
++++ b/src/cmd/dist/buildtool.go
+@@ -250,6 +250,9 @@ func isUnneededSSARewriteFile(srcFile string) (archCaps string, unneeded bool) {
+ 	archCaps = fileArch
+ 	fileArch = strings.ToLower(fileArch)
+ 	fileArch = strings.TrimSuffix(fileArch, "splitload")
++	if fileArch == os.Getenv("GOHOSTARCH") {
++		return "", false
++	}
+ 	if fileArch == strings.TrimSuffix(runtime.GOARCH, "le") {
+ 		return "", false
+ 	}

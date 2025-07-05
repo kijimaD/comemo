@@ -7,6 +7,20 @@ Date:   Mon Jun 29 15:43:42 2015 +1000
     Change-Id: Id2cfa63d4c749503f729097654d7cbd2b252f192
     Reviewed-on: https://go-review.googlesource.com/11660
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  doc/go_faq.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go_faq.html b/doc/go_faq.html
+index c3824e6937..d5ee805703 100644
+--- a/doc/go_faq.html
++++ b/doc/go_faq.html
+@@ -1321,7 +1321,7 @@ The number of CPUs available simultaneously to executing goroutines is
+ controlled by the <code>GOMAXPROCS</code> shell environment variable.
+ In earlier releases of Go, the default value was 1, but as of Go 1.5 the default
+ value is the number of cores available.
+-Therefore programs compiled afer 1.5 should demonstrate parallel execution
++Therefore programs compiled after 1.5 should demonstrate parallel execution
+ of multiple goroutines.
+ To change the behavior, set the environment variable or use the similarly-named
+ <a href="/pkg/runtime/#GOMAXPROCS">function</a>

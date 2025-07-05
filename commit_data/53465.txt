@@ -22,7 +22,7 @@ Date:   Fri Aug 5 13:34:29 2022 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Alan Donovan <adonovan@google.com>
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
-
+---
  api/next/53021.txt                         |   1 +
  src/crypto/cipher/cbc.go                   |  11 +--
  src/crypto/cipher/cfb.go                   |   7 +-
@@ -45,3 +45,771 @@ Date:   Fri Aug 5 13:34:29 2022 -0400
  src/crypto/{cipher => subtle}/xor_ppc64x.s |   6 +-
  src/crypto/subtle/xor_test.go              | 106 +++++++++++++++++++++++++++++
  21 files changed, 255 insertions(+), 272 deletions(-)
+
+diff --git a/api/next/53021.txt b/api/next/53021.txt
+new file mode 100644
+index 0000000000..3adb9b1198
+--- /dev/null
++++ b/api/next/53021.txt
+@@ -0,0 +1 @@
++pkg crypto/subtle, func XORBytes([]uint8, []uint8, []uint8) int #53021
+diff --git a/src/crypto/cipher/cbc.go b/src/crypto/cipher/cbc.go
+index 1ce165e791..fe774c116e 100644
+--- a/src/crypto/cipher/cbc.go
++++ b/src/crypto/cipher/cbc.go
+@@ -11,7 +11,10 @@
+ 
+ package cipher
+ 
+-import "crypto/internal/alias"
++import (
++	"crypto/internal/alias"
++	"crypto/subtle"
++)
+ 
+ type cbc struct {
+ 	b         Block
+@@ -80,7 +83,7 @@ func (x *cbcEncrypter) CryptBlocks(dst, src []byte) {
+ 
+ 	for len(src) > 0 {
+ 		// Write the xor to dst, then encrypt in place.
+-		xorBytes(dst[:x.blockSize], src[:x.blockSize], iv)
++		subtle.XORBytes(dst[:x.blockSize], src[:x.blockSize], iv)
+ 		x.b.Encrypt(dst[:x.blockSize], dst[:x.blockSize])
+ 
+ 		// Move to the next block with this block as the next iv.
+@@ -162,7 +165,7 @@ func (x *cbcDecrypter) CryptBlocks(dst, src []byte) {
+ 	// Loop over all but the first block.
+ 	for start > 0 {
+ 		x.b.Decrypt(dst[start:end], src[start:end])
+-		xorBytes(dst[start:end], dst[start:end], src[prev:start])
++		subtle.XORBytes(dst[start:end], dst[start:end], src[prev:start])
+ 
+ 		end = start
+ 		start = prev
+@@ -171,7 +174,7 @@ func (x *cbcDecrypter) CryptBlocks(dst, src []byte) {
+ 
+ 	// The first block is special because it uses the saved iv.
+ 	x.b.Decrypt(dst[start:end], src[start:end])
+-	xorBytes(dst[start:end], dst[start:end], x.iv)
++	subtle.XORBytes(dst[start:end], dst[start:end], x.iv)
+ 
+ 	// Set the new iv to the first block we copied earlier.
+ 	x.iv, x.tmp = x.tmp, x.iv
+diff --git a/src/crypto/cipher/cfb.go b/src/crypto/cipher/cfb.go
+index 33615b01d5..aae3575da1 100644
+--- a/src/crypto/cipher/cfb.go
++++ b/src/crypto/cipher/cfb.go
+@@ -6,7 +6,10 @@
+ 
+ package cipher
+ 
+-import "crypto/internal/alias"
++import (
++	"crypto/internal/alias"
++	"crypto/subtle"
++)
+ 
+ type cfb struct {
+ 	b       Block
+@@ -37,7 +40,7 @@ func (x *cfb) XORKeyStream(dst, src []byte) {
+ 			// able to match CTR/OFB performance.
+ 			copy(x.next[x.outUsed:], src)
+ 		}
+-		n := xorBytes(dst, src, x.out[x.outUsed:])
++		n := subtle.XORBytes(dst, src, x.out[x.outUsed:])
+ 		if !x.decrypt {
+ 			copy(x.next[x.outUsed:], dst)
+ 		}
+diff --git a/src/crypto/cipher/ctr.go b/src/crypto/cipher/ctr.go
+index 3b8e32a9a4..2b434ef832 100644
+--- a/src/crypto/cipher/ctr.go
++++ b/src/crypto/cipher/ctr.go
+@@ -12,7 +12,10 @@
+ 
+ package cipher
+ 
+-import "crypto/internal/alias"
++import (
++	"crypto/internal/alias"
++	"crypto/subtle"
++)
+ 
+ type ctr struct {
+ 	b       Block
+@@ -83,7 +86,7 @@ func (x *ctr) XORKeyStream(dst, src []byte) {
+ 		if x.outUsed >= len(x.out)-x.b.BlockSize() {
+ 			x.refill()
+ 		}
+-		n := xorBytes(dst, src, x.out[x.outUsed:])
++		n := subtle.XORBytes(dst, src, x.out[x.outUsed:])
+ 		dst = dst[n:]
+ 		src = src[n:]
+ 		x.outUsed += n
+diff --git a/src/crypto/cipher/export_test.go b/src/crypto/cipher/export_test.go
+index beb9bf5d23..5ecd67b28b 100644
+--- a/src/crypto/cipher/export_test.go
++++ b/src/crypto/cipher/export_test.go
+@@ -5,6 +5,5 @@
+ package cipher
+ 
+ // Export internal functions for testing.
+-var XorBytes = xorBytes
+ var NewCBCGenericEncrypter = newCBCGenericEncrypter
+ var NewCBCGenericDecrypter = newCBCGenericDecrypter
+diff --git a/src/crypto/cipher/gcm.go b/src/crypto/cipher/gcm.go
+index a23ebb1d90..477d26a0e0 100644
+--- a/src/crypto/cipher/gcm.go
++++ b/src/crypto/cipher/gcm.go
+@@ -373,7 +373,7 @@ func (g *gcm) counterCrypt(out, in []byte, counter *[gcmBlockSize]byte) {
+ 		g.cipher.Encrypt(mask[:], counter[:])
+ 		gcmInc32(counter)
+ 
+-		xorWords(out, in, mask[:])
++		subtle.XORBytes(out, in, mask[:])
+ 		out = out[gcmBlockSize:]
+ 		in = in[gcmBlockSize:]
+ 	}
+@@ -381,7 +381,7 @@ func (g *gcm) counterCrypt(out, in []byte, counter *[gcmBlockSize]byte) {
+ 	if len(in) > 0 {
+ 		g.cipher.Encrypt(mask[:], counter[:])
+ 		gcmInc32(counter)
+-		xorBytes(out, in, mask[:])
++		subtle.XORBytes(out, in, mask[:])
+ 	}
+ }
+ 
+@@ -423,5 +423,5 @@ func (g *gcm) auth(out, ciphertext, additionalData []byte, tagMask *[gcmTagSize]
+ 	binary.BigEndian.PutUint64(out, y.low)
+ 	binary.BigEndian.PutUint64(out[8:], y.high)
+ 
+-	xorWords(out, out, tagMask[:])
++	subtle.XORBytes(out, out, tagMask[:])
+ }
+diff --git a/src/crypto/cipher/ofb.go b/src/crypto/cipher/ofb.go
+index 64e34a9676..1195fdd45a 100644
+--- a/src/crypto/cipher/ofb.go
++++ b/src/crypto/cipher/ofb.go
+@@ -6,7 +6,10 @@
+ 
+ package cipher
+ 
+-import "crypto/internal/alias"
++import (
++	"crypto/internal/alias"
++	"crypto/subtle"
++)
+ 
+ type ofb struct {
+ 	b       Block
+@@ -66,7 +69,7 @@ func (x *ofb) XORKeyStream(dst, src []byte) {
+ 		if x.outUsed >= len(x.out)-x.b.BlockSize() {
+ 			x.refill()
+ 		}
+-		n := xorBytes(dst, src, x.out[x.outUsed:])
++		n := subtle.XORBytes(dst, src, x.out[x.outUsed:])
+ 		dst = dst[n:]
+ 		src = src[n:]
+ 		x.outUsed += n
+diff --git a/src/crypto/cipher/xor_amd64.go b/src/crypto/cipher/xor_amd64.go
+deleted file mode 100644
+index a595acc017..0000000000
+--- a/src/crypto/cipher/xor_amd64.go
++++ /dev/null
+@@ -1,27 +0,0 @@
+-// Copyright 2018 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package cipher
+-
+-// xorBytes xors the bytes in a and b. The destination should have enough
+-// space, otherwise xorBytes will panic. Returns the number of bytes xor'd.
+-func xorBytes(dst, a, b []byte) int {
+-	n := len(a)
+-	if len(b) < n {
+-		n = len(b)
+-	}
+-	if n == 0 {
+-		return 0
+-	}
+-	_ = dst[n-1]
+-	xorBytesSSE2(&dst[0], &a[0], &b[0], n) // amd64 must have SSE2
+-	return n
+-}
+-
+-func xorWords(dst, a, b []byte) {
+-	xorBytes(dst, a, b)
+-}
+-
+-//go:noescape
+-func xorBytesSSE2(dst, a, b *byte, n int)
+diff --git a/src/crypto/cipher/xor_arm64.go b/src/crypto/cipher/xor_arm64.go
+deleted file mode 100644
+index 35a785a8a1..0000000000
+--- a/src/crypto/cipher/xor_arm64.go
++++ /dev/null
+@@ -1,29 +0,0 @@
+-// Copyright 2020 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package cipher
+-
+-// xorBytes xors the bytes in a and b. The destination should have enough
+-// space, otherwise xorBytes will panic. Returns the number of bytes xor'd.
+-func xorBytes(dst, a, b []byte) int {
+-	n := len(a)
+-	if len(b) < n {
+-		n = len(b)
+-	}
+-	if n == 0 {
+-		return 0
+-	}
+-	// make sure dst has enough space
+-	_ = dst[n-1]
+-
+-	xorBytesARM64(&dst[0], &a[0], &b[0], n)
+-	return n
+-}
+-
+-func xorWords(dst, a, b []byte) {
+-	xorBytes(dst, a, b)
+-}
+-
+-//go:noescape
+-func xorBytesARM64(dst, a, b *byte, n int)
+diff --git a/src/crypto/cipher/xor_generic.go b/src/crypto/cipher/xor_generic.go
+deleted file mode 100644
+index 43517a8e20..0000000000
+--- a/src/crypto/cipher/xor_generic.go
++++ /dev/null
+@@ -1,91 +0,0 @@
+-// Copyright 2013 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build !amd64 && !ppc64 && !ppc64le && !arm64
+-
+-package cipher
+-
+-import (
+-	"runtime"
+-	"unsafe"
+-)
+-
+-// xorBytes xors the bytes in a and b. The destination should have enough
+-// space, otherwise xorBytes will panic. Returns the number of bytes xor'd.
+-func xorBytes(dst, a, b []byte) int {
+-	n := len(a)
+-	if len(b) < n {
+-		n = len(b)
+-	}
+-	if n == 0 {
+-		return 0
+-	}
+-
+-	switch {
+-	case supportsUnaligned:
+-		fastXORBytes(dst, a, b, n)
+-	default:
+-		// TODO(hanwen): if (dst, a, b) have common alignment
+-		// we could still try fastXORBytes. It is not clear
+-		// how often this happens, and it's only worth it if
+-		// the block encryption itself is hardware
+-		// accelerated.
+-		safeXORBytes(dst, a, b, n)
+-	}
+-	return n
+-}
+-
+-const wordSize = int(unsafe.Sizeof(uintptr(0)))
+-const supportsUnaligned = runtime.GOARCH == "386" || runtime.GOARCH == "ppc64" || runtime.GOARCH == "ppc64le" || runtime.GOARCH == "s390x"
+-
+-// fastXORBytes xors in bulk. It only works on architectures that
+-// support unaligned read/writes.
+-// n needs to be smaller or equal than the length of a and b.
+-func fastXORBytes(dst, a, b []byte, n int) {
+-	// Assert dst has enough space
+-	_ = dst[n-1]
+-
+-	w := n / wordSize
+-	if w > 0 {
+-		dw := *(*[]uintptr)(unsafe.Pointer(&dst))
+-		aw := *(*[]uintptr)(unsafe.Pointer(&a))
+-		bw := *(*[]uintptr)(unsafe.Pointer(&b))
+-		for i := 0; i < w; i++ {
+-			dw[i] = aw[i] ^ bw[i]
+-		}
+-	}
+-
+-	for i := (n - n%wordSize); i < n; i++ {
+-		dst[i] = a[i] ^ b[i]
+-	}
+-}
+-
+-// n needs to be smaller or equal than the length of a and b.
+-func safeXORBytes(dst, a, b []byte, n int) {
+-	for i := 0; i < n; i++ {
+-		dst[i] = a[i] ^ b[i]
+-	}
+-}
+-
+-// fastXORWords XORs multiples of 4 or 8 bytes (depending on architecture.)
+-// The arguments are assumed to be of equal length.
+-func fastXORWords(dst, a, b []byte) {
+-	dw := *(*[]uintptr)(unsafe.Pointer(&dst))
+-	aw := *(*[]uintptr)(unsafe.Pointer(&a))
+-	bw := *(*[]uintptr)(unsafe.Pointer(&b))
+-	n := len(b) / wordSize
+-	for i := 0; i < n; i++ {
+-		dw[i] = aw[i] ^ bw[i]
+-	}
+-}
+-
+-// fastXORWords XORs multiples of 4 or 8 bytes (depending on architecture.)
+-// The slice arguments a and b are assumed to be of equal length.
+-func xorWords(dst, a, b []byte) {
+-	if supportsUnaligned {
+-		fastXORWords(dst, a, b)
+-	} else {
+-		safeXORBytes(dst, a, b, len(b))
+-	}
+-}
+diff --git a/src/crypto/cipher/xor_ppc64x.go b/src/crypto/cipher/xor_ppc64x.go
+deleted file mode 100644
+index f81eec531d..0000000000
+--- a/src/crypto/cipher/xor_ppc64x.go
++++ /dev/null
+@@ -1,29 +0,0 @@
+-// Copyright 2018 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build ppc64 || ppc64le
+-
+-package cipher
+-
+-// xorBytes xors the bytes in a and b. The destination should have enough
+-// space, otherwise xorBytes will panic. Returns the number of bytes xor'd.
+-func xorBytes(dst, a, b []byte) int {
+-	n := len(a)
+-	if len(b) < n {
+-		n = len(b)
+-	}
+-	if n == 0 {
+-		return 0
+-	}
+-	_ = dst[n-1]
+-	xorBytesVSX(&dst[0], &a[0], &b[0], n)
+-	return n
+-}
+-
+-func xorWords(dst, a, b []byte) {
+-	xorBytes(dst, a, b)
+-}
+-
+-//go:noescape
+-func xorBytesVSX(dst, a, b *byte, n int)
+diff --git a/src/crypto/cipher/xor_test.go b/src/crypto/cipher/xor_test.go
+deleted file mode 100644
+index 4f829e9461..0000000000
+--- a/src/crypto/cipher/xor_test.go
++++ /dev/null
+@@ -1,75 +0,0 @@
+-// Copyright 2013 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package cipher_test
+-
+-import (
+-	"bytes"
+-	"crypto/cipher"
+-	"crypto/rand"
+-	"fmt"
+-	"io"
+-	"testing"
+-)
+-
+-func TestXOR(t *testing.T) {
+-	for j := 1; j <= 1024; j++ {
+-		if testing.Short() && j > 16 {
+-			break
+-		}
+-		for alignP := 0; alignP < 2; alignP++ {
+-			for alignQ := 0; alignQ < 2; alignQ++ {
+-				for alignD := 0; alignD < 2; alignD++ {
+-					p := make([]byte, j)[alignP:]
+-					q := make([]byte, j)[alignQ:]
+-					d1 := make([]byte, j+alignD)[alignD:]
+-					d2 := make([]byte, j+alignD)[alignD:]
+-					if _, err := io.ReadFull(rand.Reader, p); err != nil {
+-						t.Fatal(err)
+-					}
+-					if _, err := io.ReadFull(rand.Reader, q); err != nil {
+-						t.Fatal(err)
+-					}
+-					cipher.XorBytes(d1, p, q)
+-					n := min(p, q)
+-					for i := 0; i < n; i++ {
+-						d2[i] = p[i] ^ q[i]
+-					}
+-					if !bytes.Equal(d1, d2) {
+-						t.Logf("p: %#v", p)
+-						t.Logf("q: %#v", q)
+-						t.Logf("expect: %#v", d2)
+-						t.Logf("result: %#v", d1)
+-						t.Fatal("not equal")
+-					}
+-				}
+-			}
+-		}
+-	}
+-}
+-
+-func min(a, b []byte) int {
+-	n := len(a)
+-	if len(b) < n {
+-		n = len(b)
+-	}
+-	return n
+-}
+-
+-func BenchmarkXORBytes(b *testing.B) {
+-	dst := make([]byte, 1<<15)
+-	data0 := make([]byte, 1<<15)
+-	data1 := make([]byte, 1<<15)
+-	sizes := []int64{1 << 3, 1 << 7, 1 << 11, 1 << 15}
+-	for _, size := range sizes {
+-		b.Run(fmt.Sprintf("%dBytes", size), func(b *testing.B) {
+-			s0 := data0[:size]
+-			s1 := data1[:size]
+-			b.SetBytes(int64(size))
+-			for i := 0; i < b.N; i++ {
+-				cipher.XorBytes(dst, s0, s1)
+-			}
+-		})
+-	}
+-}
+diff --git a/src/crypto/subtle/xor.go b/src/crypto/subtle/xor.go
+new file mode 100644
+index 0000000000..a8805ac61d
+--- /dev/null
++++ b/src/crypto/subtle/xor.go
+@@ -0,0 +1,24 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package subtle
++
++// XORBytes sets dst[i] = x[i] ^ y[i] for all i < n = min(len(x), len(y)),
++// returning n, the number of bytes written to dst.
++// If dst does not have length at least n,
++// XORBytes panics without writing anything to dst.
++func XORBytes(dst, x, y []byte) int {
++	n := len(x)
++	if len(y) < n {
++		n = len(y)
++	}
++	if n == 0 {
++		return 0
++	}
++	if n > len(dst) {
++		panic("subtle.XORBytes: dst too short")
++	}
++	xorBytes(&dst[0], &x[0], &y[0], n) // arch-specific
++	return n
++}
+diff --git a/src/crypto/subtle/xor_amd64.go b/src/crypto/subtle/xor_amd64.go
+new file mode 100644
+index 0000000000..3bb2f08b7c
+--- /dev/null
++++ b/src/crypto/subtle/xor_amd64.go
+@@ -0,0 +1,10 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !purego
++
++package subtle
++
++//go:noescape
++func xorBytes(dst, a, b *byte, n int)
+diff --git a/src/crypto/cipher/xor_amd64.s b/src/crypto/subtle/xor_amd64.s
+similarity index 93%
+rename from src/crypto/cipher/xor_amd64.s
+rename to src/crypto/subtle/xor_amd64.s
+index 780d37a06e..8b04b58702 100644
+--- a/src/crypto/cipher/xor_amd64.s
++++ b/src/crypto/subtle/xor_amd64.s
+@@ -2,10 +2,12 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build !purego
++
+ #include "textflag.h"
+ 
+-// func xorBytesSSE2(dst, a, b *byte, n int)
+-TEXT ·xorBytesSSE2(SB), NOSPLIT, $0
++// func xorBytes(dst, a, b *byte, n int)
++TEXT ·xorBytes(SB), NOSPLIT, $0
+ 	MOVQ  dst+0(FP), BX
+ 	MOVQ  a+8(FP), SI
+ 	MOVQ  b+16(FP), CX
+diff --git a/src/crypto/subtle/xor_arm64.go b/src/crypto/subtle/xor_arm64.go
+new file mode 100644
+index 0000000000..65bab4c657
+--- /dev/null
++++ b/src/crypto/subtle/xor_arm64.go
+@@ -0,0 +1,10 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !purego
++
++package subtle
++
++//go:noescape
++func xorBytes(dst, a, b *byte, n int)
+diff --git a/src/crypto/cipher/xor_arm64.s b/src/crypto/subtle/xor_arm64.s
+similarity index 93%
+rename from src/crypto/cipher/xor_arm64.s
+rename to src/crypto/subtle/xor_arm64.s
+index 669852d7eb..76321645d7 100644
+--- a/src/crypto/cipher/xor_arm64.s
++++ b/src/crypto/subtle/xor_arm64.s
+@@ -2,10 +2,12 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build !purego
++
+ #include "textflag.h"
+ 
+-// func xorBytesARM64(dst, a, b *byte, n int)
+-TEXT ·xorBytesARM64(SB), NOSPLIT|NOFRAME, $0
++// func xorBytes(dst, a, b *byte, n int)
++TEXT ·xorBytes(SB), NOSPLIT|NOFRAME, $0
+ 	MOVD	dst+0(FP), R0
+ 	MOVD	a+8(FP), R1
+ 	MOVD	b+16(FP), R2
+diff --git a/src/crypto/subtle/xor_generic.go b/src/crypto/subtle/xor_generic.go
+new file mode 100644
+index 0000000000..482fcf9b4b
+--- /dev/null
++++ b/src/crypto/subtle/xor_generic.go
+@@ -0,0 +1,58 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build (!amd64 && !arm64 && !ppc64 && !ppc64le) || purego
++
++package subtle
++
++import (
++	"runtime"
++	"unsafe"
++)
++
++const wordSize = unsafe.Sizeof(uintptr(0))
++
++const supportsUnaligned = runtime.GOARCH == "386" ||
++	runtime.GOARCH == "amd64" ||
++	runtime.GOARCH == "ppc64" ||
++	runtime.GOARCH == "ppc64le" ||
++	runtime.GOARCH == "s390x"
++
++func xorBytes(dstb, xb, yb *byte, n int) {
++	// xorBytes assembly is written using pointers and n. Back to slices.
++	dst := unsafe.Slice(dstb, n)
++	x := unsafe.Slice(xb, n)
++	y := unsafe.Slice(yb, n)
++
++	if supportsUnaligned || aligned(dstb, xb, yb) {
++		xorLoop(words(dst), words(x), words(y))
++		if uintptr(n)%wordSize == 0 {
++			return
++		}
++		done := n &^ int(wordSize-1)
++		dst = dst[done:]
++		x = x[done:]
++		y = y[done:]
++	}
++	xorLoop(dst, x, y)
++}
++
++// aligned reports whether dst, x, and y are all word-aligned pointers.
++func aligned(dst, x, y *byte) bool {
++	return (uintptr(unsafe.Pointer(dst))|uintptr(unsafe.Pointer(x))|uintptr(unsafe.Pointer(y)))&(wordSize-1) == 0
++}
++
++// words returns a []uintptr pointing at the same data as x,
++// with any trailing partial word removed.
++func words(x []byte) []uintptr {
++	return unsafe.Slice((*uintptr)(unsafe.Pointer(&x[0])), uintptr(len(x))/wordSize)
++}
++
++func xorLoop[T byte | uintptr](dst, x, y []T) {
++	x = x[:len(dst)] // remove bounds check in loop
++	y = y[:len(dst)] // remove bounds check in loop
++	for i := range dst {
++		dst[i] = x[i] ^ y[i]
++	}
++}
+diff --git a/src/crypto/subtle/xor_ppc64x.go b/src/crypto/subtle/xor_ppc64x.go
+new file mode 100644
+index 0000000000..760463c7e5
+--- /dev/null
++++ b/src/crypto/subtle/xor_ppc64x.go
+@@ -0,0 +1,10 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build (ppc64 || ppc64le) && !purego
++
++package subtle
++
++//go:noescape
++func xorBytes(dst, a, b *byte, n int)
+diff --git a/src/crypto/cipher/xor_ppc64x.s b/src/crypto/subtle/xor_ppc64x.s
+similarity index 94%
+rename from src/crypto/cipher/xor_ppc64x.s
+rename to src/crypto/subtle/xor_ppc64x.s
+index a2ec95c0be..72bb80d246 100644
+--- a/src/crypto/cipher/xor_ppc64x.s
++++ b/src/crypto/subtle/xor_ppc64x.s
+@@ -2,12 +2,12 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build ppc64 || ppc64le
++//go:build (ppc64 || ppc64le) && !purego
+ 
+ #include "textflag.h"
+ 
+-// func xorBytesVSX(dst, a, b *byte, n int)
+-TEXT ·xorBytesVSX(SB), NOSPLIT, $0
++// func xorBytes(dst, a, b *byte, n int)
++TEXT ·xorBytes(SB), NOSPLIT, $0
+ 	MOVD	dst+0(FP), R3	// R3 = dst
+ 	MOVD	a+8(FP), R4	// R4 = a
+ 	MOVD	b+16(FP), R5	// R5 = b
+diff --git a/src/crypto/subtle/xor_test.go b/src/crypto/subtle/xor_test.go
+new file mode 100644
+index 0000000000..7d89b83f40
+--- /dev/null
++++ b/src/crypto/subtle/xor_test.go
+@@ -0,0 +1,106 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package subtle_test
++
++import (
++	"bytes"
++	"crypto/rand"
++	. "crypto/subtle"
++	"fmt"
++	"io"
++	"testing"
++)
++
++func TestXORBytes(t *testing.T) {
++	for n := 1; n <= 1024; n++ {
++		if n > 16 && testing.Short() {
++			n += n >> 3
++		}
++		for alignP := 0; alignP < 8; alignP++ {
++			for alignQ := 0; alignQ < 8; alignQ++ {
++				for alignD := 0; alignD < 8; alignD++ {
++					p := make([]byte, alignP+n, alignP+n+10)[alignP:]
++					q := make([]byte, alignQ+n, alignQ+n+10)[alignQ:]
++					if n&1 != 0 {
++						p = p[:n]
++					} else {
++						q = q[:n]
++					}
++					if _, err := io.ReadFull(rand.Reader, p); err != nil {
++						t.Fatal(err)
++					}
++					if _, err := io.ReadFull(rand.Reader, q); err != nil {
++						t.Fatal(err)
++					}
++
++					d := make([]byte, alignD+n, alignD+n+10)
++					for i := range d {
++						d[i] = 0xdd
++					}
++					want := make([]byte, len(d), cap(d))
++					copy(want[:cap(want)], d[:cap(d)])
++					for i := 0; i < n; i++ {
++						want[alignD+i] = p[i] ^ q[i]
++					}
++
++					if XORBytes(d[alignD:], p, q); !bytes.Equal(d, want) {
++						t.Fatalf("n=%d alignP=%d alignQ=%d alignD=%d:\n\tp = %x\n\tq = %x\n\td = %x\n\twant %x\n", n, alignP, alignQ, alignD, p, q, d, want)
++					}
++				}
++			}
++		}
++	}
++}
++
++func TestXorBytesPanic(t *testing.T) {
++	mustPanic(t, "subtle.XORBytes: dst too short", func() {
++		XORBytes(nil, make([]byte, 1), make([]byte, 1))
++	})
++	mustPanic(t, "subtle.XORBytes: dst too short", func() {
++		XORBytes(make([]byte, 1), make([]byte, 2), make([]byte, 3))
++	})
++}
++
++func min(a, b []byte) int {
++	n := len(a)
++	if len(b) < n {
++		n = len(b)
++	}
++	return n
++}
++
++func BenchmarkXORBytes(b *testing.B) {
++	dst := make([]byte, 1<<15)
++	data0 := make([]byte, 1<<15)
++	data1 := make([]byte, 1<<15)
++	sizes := []int64{1 << 3, 1 << 7, 1 << 11, 1 << 15}
++	for _, size := range sizes {
++		b.Run(fmt.Sprintf("%dBytes", size), func(b *testing.B) {
++			s0 := data0[:size]
++			s1 := data1[:size]
++			b.SetBytes(int64(size))
++			for i := 0; i < b.N; i++ {
++				XORBytes(dst, s0, s1)
++			}
++		})
++	}
++}
++
++func mustPanic(t *testing.T, expected string, f func()) {
++	t.Helper()
++	defer func() {
++		switch msg := recover().(type) {
++		case nil:
++			t.Errorf("expected panic(%q), but did not panic", expected)
++		case string:
++			if msg != expected {
++				t.Errorf("expected panic(%q), but got panic(%q)", expected, msg)
++			}
++		default:
++			t.Errorf("expected panic(%q), but got panic(%T%v)", expected, msg, msg)
++		}
++	}()
++	f()
++}

@@ -8,6 +8,63 @@ Date:   Mon Jul 22 20:47:39 2013 +0400
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/11679043
-
+---
  src/pkg/runtime/chan.c | 27 ++++++++++++++++++---------
  1 file changed, 18 insertions(+), 9 deletions(-)
+
+diff --git a/src/pkg/runtime/chan.c b/src/pkg/runtime/chan.c
+index 6aa9bd40e1..c750faba49 100644
+--- a/src/pkg/runtime/chan.c
++++ b/src/pkg/runtime/chan.c
+@@ -1214,10 +1214,27 @@ reflect·rselect(Slice cases, intgo chosen, uintptr word, bool recvOK)
+ 	FLUSH(&recvOK);
+ }
+ 
++static void closechan(Hchan *c, void *pc);
++
+ // closechan(sel *byte);
+ #pragma textflag 7
+ void
+ runtime·closechan(Hchan *c)
++{
++	closechan(c, runtime·getcallerpc(&c));
++}
++
++// For reflect
++//	func chanclose(c chan)
++#pragma textflag 7
++void
++reflect·chanclose(Hchan *c)
++{
++	closechan(c, runtime·getcallerpc(&c));
++}
++
++static void
++closechan(Hchan *c, void *pc)
+ {
+ 	SudoG *sg;
+ 	G* gp;
+@@ -1235,7 +1252,7 @@ runtime·closechan(Hchan *c)
+ 	}
+ 
+ 	if(raceenabled) {
+-		runtime·racewritepc(c, runtime·getcallerpc(&c), runtime·closechan);
++		runtime·racewritepc(c, pc, runtime·closechan);
+ 		runtime·racerelease(c);
+ 	}
+ 
+@@ -1264,14 +1281,6 @@ runtime·closechan(Hchan *c)
+ 	runtime·unlock(c);
+ }
+ 
+-// For reflect
+-//	func chanclose(c chan)
+-void
+-reflect·chanclose(Hchan *c)
+-{
+-	runtime·closechan(c);
+-}
+-
+ // For reflect
+ //	func chanlen(c chan) (len int)
+ void

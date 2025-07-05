@@ -17,7 +17,135 @@ Date:   Sat May 4 07:20:48 2024 +0000
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/runtime/chanbarrier_test.go | 14 +++++++++-----
  src/runtime/hash_test.go        | 10 ++++++++++
  2 files changed, 19 insertions(+), 5 deletions(-)
+
+diff --git a/src/runtime/chanbarrier_test.go b/src/runtime/chanbarrier_test.go
+index d4795748bf..a85984d2d7 100644
+--- a/src/runtime/chanbarrier_test.go
++++ b/src/runtime/chanbarrier_test.go
+@@ -45,16 +45,17 @@ func doRequest(useSelect bool) (*response, error) {
+ }
+ 
+ func TestChanSendSelectBarrier(t *testing.T) {
++	t.Parallel()
+ 	testChanSendBarrier(true)
+ }
+ 
+ func TestChanSendBarrier(t *testing.T) {
++	t.Parallel()
+ 	testChanSendBarrier(false)
+ }
+ 
+ func testChanSendBarrier(useSelect bool) {
+ 	var wg sync.WaitGroup
+-	var globalMu sync.Mutex
+ 	outer := 100
+ 	inner := 100000
+ 	if testing.Short() || runtime.GOARCH == "wasm" {
+@@ -72,12 +73,15 @@ func testChanSendBarrier(useSelect bool) {
+ 				if !ok {
+ 					panic(1)
+ 				}
+-				garbage = make([]byte, 1<<10)
++				garbage = makeByte()
+ 			}
+-			globalMu.Lock()
+-			global = garbage
+-			globalMu.Unlock()
++			_ = garbage
+ 		}()
+ 	}
+ 	wg.Wait()
+ }
++
++//go:noinline
++func makeByte() []byte {
++	return make([]byte, 1<<10)
++}
+diff --git a/src/runtime/hash_test.go b/src/runtime/hash_test.go
+index 36207e7ed0..24c04b260e 100644
+--- a/src/runtime/hash_test.go
++++ b/src/runtime/hash_test.go
+@@ -143,6 +143,7 @@ func TestSmhasherSmallKeys(t *testing.T) {
+ 	if race.Enabled {
+ 		t.Skip("Too long for race mode")
+ 	}
++	testenv.ParallelOn64Bit(t)
+ 	h := newHashSet()
+ 	var b [3]byte
+ 	for i := 0; i < 256; i++ {
+@@ -164,6 +165,7 @@ func TestSmhasherSmallKeys(t *testing.T) {
+ 
+ // Different length strings of all zeros have distinct hashes.
+ func TestSmhasherZeros(t *testing.T) {
++	t.Parallel()
+ 	N := 256 * 1024
+ 	if testing.Short() {
+ 		N = 1024
+@@ -187,6 +189,7 @@ func TestSmhasherTwoNonzero(t *testing.T) {
+ 	if race.Enabled {
+ 		t.Skip("Too long for race mode")
+ 	}
++	testenv.ParallelOn64Bit(t)
+ 	h := newHashSet()
+ 	for n := 2; n <= 16; n++ {
+ 		twoNonZero(h, n)
+@@ -232,6 +235,7 @@ func TestSmhasherCyclic(t *testing.T) {
+ 	if race.Enabled {
+ 		t.Skip("Too long for race mode")
+ 	}
++	t.Parallel()
+ 	r := rand.New(rand.NewSource(1234))
+ 	const REPEAT = 8
+ 	const N = 1000000
+@@ -261,6 +265,7 @@ func TestSmhasherSparse(t *testing.T) {
+ 	if testing.Short() {
+ 		t.Skip("Skipping in short mode")
+ 	}
++	t.Parallel()
+ 	h := newHashSet()
+ 	sparse(t, h, 32, 6)
+ 	sparse(t, h, 40, 6)
+@@ -302,6 +307,7 @@ func TestSmhasherPermutation(t *testing.T) {
+ 	if race.Enabled {
+ 		t.Skip("Too long for race mode")
+ 	}
++	testenv.ParallelOn64Bit(t)
+ 	h := newHashSet()
+ 	permutation(t, h, []uint32{0, 1, 2, 3, 4, 5, 6, 7}, 8)
+ 	permutation(t, h, []uint32{0, 1 << 29, 2 << 29, 3 << 29, 4 << 29, 5 << 29, 6 << 29, 7 << 29}, 8)
+@@ -475,6 +481,7 @@ func TestSmhasherAvalanche(t *testing.T) {
+ 	if race.Enabled {
+ 		t.Skip("Too long for race mode")
+ 	}
++	t.Parallel()
+ 	avalancheTest1(t, &BytesKey{make([]byte, 2)})
+ 	avalancheTest1(t, &BytesKey{make([]byte, 4)})
+ 	avalancheTest1(t, &BytesKey{make([]byte, 8)})
+@@ -545,6 +552,7 @@ func TestSmhasherWindowed(t *testing.T) {
+ 	if race.Enabled {
+ 		t.Skip("Too long for race mode")
+ 	}
++	t.Parallel()
+ 	h := newHashSet()
+ 	t.Logf("32 bit keys")
+ 	windowed(t, h, &Int32Key{})
+@@ -588,6 +596,7 @@ func TestSmhasherText(t *testing.T) {
+ 	if testing.Short() {
+ 		t.Skip("Skipping in short mode")
+ 	}
++	t.Parallel()
+ 	h := newHashSet()
+ 	text(t, h, "Foo", "Bar")
+ 	text(t, h, "FooBar", "")
+@@ -798,6 +807,7 @@ func TestCollisions(t *testing.T) {
+ 	if testing.Short() {
+ 		t.Skip("Skipping in short mode")
+ 	}
++	t.Parallel()
+ 	for i := 0; i < 16; i++ {
+ 		for j := 0; j < 16; j++ {
+ 			if j == i {

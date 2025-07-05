@@ -10,7 +10,7 @@ Date:   Mon Oct 25 16:19:11 2021 -0400
     Run-TryBot: Michael Matloob <matloob@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/alldocs.go                              |  10 ++
  src/cmd/go/internal/modload/buildlist.go           |  13 +--
  src/cmd/go/internal/modload/init.go                |  12 ++-
@@ -21,3 +21,628 @@ Date:   Mon Oct 25 16:19:11 2021 -0400
  .../script/work_sync_irrelevant_dependency.txt     | 119 +++++++++++++++++++++
  .../script/work_sync_relevant_dependency.txt       | 106 ++++++++++++++++++
  9 files changed, 490 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index d8ebc8d61d..81d2f7021d 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -1382,6 +1382,7 @@
+ //
+ // 	edit        edit go.work from tools or scripts
+ // 	init        initialize workspace file
++// 	sync        sync workspace build list to modules
+ //
+ // Use "go help work <command>" for more information about a command.
+ //
+@@ -1473,6 +1474,15 @@
+ // more information.
+ //
+ //
++// Sync workspace build list to modules
++//
++// Usage:
++//
++// 	go work sync [moddirs]
++//
++// go work sync
++//
++//
+ // Compile and run Go program
+ //
+ // Usage:
+diff --git a/src/cmd/go/internal/modload/buildlist.go b/src/cmd/go/internal/modload/buildlist.go
+index 0cb4a88fcb..f4c1311af5 100644
+--- a/src/cmd/go/internal/modload/buildlist.go
++++ b/src/cmd/go/internal/modload/buildlist.go
+@@ -614,12 +614,13 @@ func updateRoots(ctx context.Context, direct map[string]bool, rs *Requirements,
+ 
+ func updateWorkspaceRoots(ctx context.Context, rs *Requirements, add []module.Version) (*Requirements, error) {
+ 	if len(add) != 0 {
+-		// add should be empty in workspace mode because a non-empty add slice means
+-		// that there are missing roots in the current pruning mode or that the
+-		// pruning mode is being changed. But the pruning mode should always be
+-		// 'workspace' in workspace mode and the set of roots in workspace mode is
+-		// always complete because it's the set of workspace modules, which can't
+-		// be edited by loading.
++		// add should be empty in workspace mode because workspace mode implies
++		// -mod=readonly, which in turn implies no new requirements. The code path
++		// that would result in add being non-empty returns an error before it
++		// reaches this point: The set of modules to add comes from
++		// resolveMissingImports, which in turn resolves each package by calling
++		// queryImport. But queryImport explicitly checks for -mod=readonly, and
++		// return an error.
+ 		panic("add is not empty")
+ 	}
+ 	return rs, nil
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index 512c9ebfbd..a6e49c6c71 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -73,6 +73,16 @@ var (
+ 	gopath   string
+ )
+ 
++// EnterModule resets MainModules and requirements to refer to just this one module.
++func EnterModule(ctx context.Context, enterModroot string) {
++	MainModules = nil // reset MainModules
++	requirements = nil
++	workFilePath = "" // Force module mode
++
++	modRoots = []string{enterModroot}
++	LoadModFile(ctx)
++}
++
+ // Variable set in InitWorkfile
+ var (
+ 	// Set to the path to the go.work file, or "" if workspace mode is disabled.
+@@ -1040,7 +1050,7 @@ func setDefaultBuildMod() {
+ 	// to modload functions instead of relying on an implicit setting
+ 	// based on command name.
+ 	switch cfg.CmdName {
+-	case "get", "mod download", "mod init", "mod tidy":
++	case "get", "mod download", "mod init", "mod tidy", "work sync":
+ 		// These commands are intended to update go.mod and go.sum.
+ 		cfg.BuildMod = "mod"
+ 		return
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index 83fcafead3..27bbfb7832 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -231,6 +231,9 @@ type PackageOpts struct {
+ 	// SilenceUnmatchedWarnings suppresses the warnings normally emitted for
+ 	// patterns that did not match any packages.
+ 	SilenceUnmatchedWarnings bool
++
++	// Resolve the query against this module.
++	MainModule module.Version
+ }
+ 
+ // LoadPackages identifies the set of packages matching the given patterns and
+@@ -256,7 +259,11 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
+ 			case m.IsLocal():
+ 				// Evaluate list of file system directories on first iteration.
+ 				if m.Dirs == nil {
+-					matchLocalDirs(ctx, m, rs)
++					matchModRoots := modRoots
++					if opts.MainModule != (module.Version{}) {
++						matchModRoots = []string{MainModules.ModRoot(opts.MainModule)}
++					}
++					matchLocalDirs(ctx, matchModRoots, m, rs)
+ 				}
+ 
+ 				// Make a copy of the directory list and translate to import paths.
+@@ -309,7 +316,11 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
+ 					// The initial roots are the packages in the main module.
+ 					// loadFromRoots will expand that to "all".
+ 					m.Errs = m.Errs[:0]
+-					matchPackages(ctx, m, opts.Tags, omitStd, MainModules.Versions())
++					matchModules := MainModules.Versions()
++					if opts.MainModule != (module.Version{}) {
++						matchModules = []module.Version{opts.MainModule}
++					}
++					matchPackages(ctx, m, opts.Tags, omitStd, matchModules)
+ 				} else {
+ 					// Starting with the packages in the main module,
+ 					// enumerate the full list of "all".
+@@ -441,7 +452,7 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
+ 
+ // matchLocalDirs is like m.MatchDirs, but tries to avoid scanning directories
+ // outside of the standard library and active modules.
+-func matchLocalDirs(ctx context.Context, m *search.Match, rs *Requirements) {
++func matchLocalDirs(ctx context.Context, modRoots []string, m *search.Match, rs *Requirements) {
+ 	if !m.IsLocal() {
+ 		panic(fmt.Sprintf("internal error: resolveLocalDirs on non-local pattern %s", m.Pattern()))
+ 	}
+@@ -460,8 +471,8 @@ func matchLocalDirs(ctx context.Context, m *search.Match, rs *Requirements) {
+ 
+ 		modRoot := findModuleRoot(absDir)
+ 		found := false
+-		for _, mod := range MainModules.Versions() {
+-			if MainModules.ModRoot(mod) == modRoot {
++		for _, mainModuleRoot := range modRoots {
++			if mainModuleRoot == modRoot {
+ 				found = true
+ 				break
+ 			}
+diff --git a/src/cmd/go/internal/workcmd/sync.go b/src/cmd/go/internal/workcmd/sync.go
+new file mode 100644
+index 0000000000..2723013bf8
+--- /dev/null
++++ b/src/cmd/go/internal/workcmd/sync.go
+@@ -0,0 +1,101 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// go work sync
++
++package workcmd
++
++import (
++	"cmd/go/internal/base"
++	"cmd/go/internal/imports"
++	"cmd/go/internal/modload"
++	"context"
++
++	"golang.org/x/mod/module"
++)
++
++var _ = modload.TODOWorkspaces("Add more documentation below. Though this is" +
++	"enough for those trying workspaces out, there should be more through" +
++	"documentation if the proposal is accepted and released.")
++
++var cmdSync = &base.Command{
++	UsageLine: "go work sync [moddirs]",
++	Short:     "sync workspace build list to modules",
++	Long:      `go work sync`,
++	Run:       runSync,
++}
++
++func init() {
++	base.AddModCommonFlags(&cmdSync.Flag)
++	base.AddWorkfileFlag(&cmdSync.Flag)
++}
++
++func runSync(ctx context.Context, cmd *base.Command, args []string) {
++	modload.InitWorkfile()
++
++	modload.ForceUseModules = true
++
++	workGraph := modload.LoadModGraph(ctx, "")
++	_ = workGraph
++	mustSelectFor := map[module.Version][]module.Version{}
++
++	mms := modload.MainModules
++
++	opts := modload.PackageOpts{
++		Tags:                     imports.AnyTags(),
++		VendorModulesInGOROOTSrc: true,
++		ResolveMissingImports:    false,
++		LoadTests:                true,
++		AllowErrors:              true,
++		SilencePackageErrors:     true,
++		SilenceUnmatchedWarnings: true,
++	}
++	for _, m := range mms.Versions() {
++		opts.MainModule = m
++		_, pkgs := modload.LoadPackages(ctx, opts, "all")
++		opts.MainModule = module.Version{} // reset
++
++		var (
++			mustSelect   []module.Version
++			inMustSelect = map[module.Version]bool{}
++		)
++		for _, pkg := range pkgs {
++			if r := modload.PackageModule(pkg); r.Version != "" && !inMustSelect[r] {
++				// r has a known version, so force that version.
++				mustSelect = append(mustSelect, r)
++				inMustSelect[r] = true
++			}
++		}
++		module.Sort(mustSelect) // ensure determinism
++		mustSelectFor[m] = mustSelect
++	}
++
++	for _, m := range mms.Versions() {
++		// Use EnterModule to reset the global state in modload to be in
++		// single-module mode using the modroot of m.
++		modload.EnterModule(ctx, mms.ModRoot(m))
++
++		// Edit the build list in the same way that 'go get' would if we
++		// requested the relevant module versions explicitly.
++		changed, err := modload.EditBuildList(ctx, nil, mustSelectFor[m])
++		if err != nil {
++			base.Errorf("go: %v", err)
++		}
++		if !changed {
++			continue
++		}
++
++		modload.LoadPackages(ctx, modload.PackageOpts{
++			Tags:                     imports.AnyTags(),
++			VendorModulesInGOROOTSrc: true,
++			ResolveMissingImports:    false,
++			LoadTests:                true,
++			AllowErrors:              true,
++			SilencePackageErrors:     true,
++			Tidy:                     true,
++			SilenceUnmatchedWarnings: true,
++		}, "all")
++		modload.WriteGoMod(ctx)
++	}
++}
+diff --git a/src/cmd/go/internal/workcmd/work.go b/src/cmd/go/internal/workcmd/work.go
+index 2e7f68b675..dc1164fb77 100644
+--- a/src/cmd/go/internal/workcmd/work.go
++++ b/src/cmd/go/internal/workcmd/work.go
+@@ -24,5 +24,6 @@ which workspaces are a part.
+ 	Commands: []*base.Command{
+ 		cmdEdit,
+ 		cmdInit,
++		cmdSync,
+ 	},
+ }
+diff --git a/src/cmd/go/testdata/script/work_sync.txt b/src/cmd/go/testdata/script/work_sync.txt
+new file mode 100644
+index 0000000000..16ad8c8cfa
+--- /dev/null
++++ b/src/cmd/go/testdata/script/work_sync.txt
+@@ -0,0 +1,119 @@
++go work sync
++cmp a/go.mod a/want_go.mod
++cmp b/go.mod b/want_go.mod
++
++-- go.work --
++go 1.18
++
++directory (
++	./a
++	./b
++)
++
++-- a/go.mod --
++go 1.18
++
++module example.com/a
++
++require (
++	example.com/p v1.0.0
++	example.com/q v1.1.0
++	example.com/r v1.0.0
++)
++
++replace (
++	example.com/p => ../p
++	example.com/q => ../q
++	example.com/r => ../r
++)
++-- a/want_go.mod --
++go 1.18
++
++module example.com/a
++
++require (
++	example.com/p v1.1.0
++	example.com/q v1.1.0
++)
++
++replace (
++	example.com/p => ../p
++	example.com/q => ../q
++	example.com/r => ../r
++)
++-- a/a.go --
++package a
++
++import (
++	"example.com/p"
++	"example.com/q"
++)
++
++func Foo() {
++	p.P()
++	q.Q()
++}
++-- b/go.mod --
++go 1.18
++
++module example.com/b
++
++require (
++	example.com/p v1.1.0
++	example.com/q v1.0.0
++)
++
++replace (
++	example.com/p => ../p
++	example.com/q => ../q
++)
++-- b/want_go.mod --
++go 1.18
++
++module example.com/b
++
++require (
++	example.com/p v1.1.0
++	example.com/q v1.1.0
++)
++
++replace (
++	example.com/p => ../p
++	example.com/q => ../q
++)
++-- b/b.go --
++package b
++
++import (
++	"example.com/p"
++	"example.com/q"
++)
++
++func Foo() {
++	p.P()
++	q.Q()
++}
++-- p/go.mod --
++go 1.18
++
++module example.com/p
++-- p/p.go --
++package p
++
++func P() {}
++-- q/go.mod --
++go 1.18
++
++module example.com/q
++-- q/q.go --
++package q
++
++func Q() {}
++-- r/go.mod --
++go 1.18
++
++module example.com/r
++-- r/q.go --
++package r
++
++func R() {}
+\ No newline at end of file
+diff --git a/src/cmd/go/testdata/script/work_sync_irrelevant_dependency.txt b/src/cmd/go/testdata/script/work_sync_irrelevant_dependency.txt
+new file mode 100644
+index 0000000000..bbb8579b4f
+--- /dev/null
++++ b/src/cmd/go/testdata/script/work_sync_irrelevant_dependency.txt
+@@ -0,0 +1,119 @@
++# Test of go work sync in a workspace in which some dependency needed by `a`
++# appears at a lower version in the build list of `b`, but is not needed at all
++# by `b` (so it should not be upgraded within b).
++#
++# a -> p 1.1
++# b -> q 1.0 -(through a test dependency)-> p 1.0
++go work sync
++cmp a/go.mod a/want_go.mod
++cmp b/go.mod b/want_go.mod
++
++-- go.work --
++go 1.18
++
++directory (
++	./a
++	./b
++)
++
++-- a/go.mod --
++go 1.18
++
++module example.com/a
++
++require (
++	example.com/p v1.1.0
++)
++
++replace (
++	example.com/p => ../p
++)
++-- a/want_go.mod --
++go 1.18
++
++module example.com/a
++
++require (
++	example.com/p v1.1.0
++)
++
++replace (
++	example.com/p => ../p
++)
++-- a/a.go --
++package a
++
++import (
++	"example.com/p"
++)
++
++func Foo() {
++	p.P()
++}
++-- b/go.mod --
++go 1.18
++
++module example.com/b
++
++require (
++	example.com/q v1.0.0
++)
++
++replace (
++	example.com/q => ../q
++)
++-- b/want_go.mod --
++go 1.18
++
++module example.com/b
++
++require (
++	example.com/q v1.0.0
++)
++
++replace (
++	example.com/q => ../q
++)
++-- b/b.go --
++package b
++
++import (
++	"example.com/q"
++)
++
++func Foo() {
++	q.Q()
++}
++-- p/go.mod --
++go 1.18
++
++module example.com/p
++-- p/p.go --
++package p
++
++func P() {}
++-- q/go.mod --
++go 1.18
++
++module example.com/q
++
++require (
++	example.com/p v1.0.0
++)
++
++replace (
++	example.com/p => ../p
++)
++-- q/q.go --
++package q
++
++func Q() {
++}
++-- q/q_test.go --
++package q
++
++import example.com/p
++
++func TestQ(t *testing.T) {
++	p.P()
++}
+\ No newline at end of file
+diff --git a/src/cmd/go/testdata/script/work_sync_relevant_dependency.txt b/src/cmd/go/testdata/script/work_sync_relevant_dependency.txt
+new file mode 100644
+index 0000000000..e95ac26707
+--- /dev/null
++++ b/src/cmd/go/testdata/script/work_sync_relevant_dependency.txt
+@@ -0,0 +1,106 @@
++# Test of go work sync in a workspace in which some dependency in the build
++# list of 'b' (but not otherwise needed by `b`, so not seen when lazy loading
++# occurs) actually is relevant to `a`.
++#
++# a -> p 1.0
++# b -> q 1.1 -> p 1.1
++go work sync
++cmp a/go.mod a/want_go.mod
++cmp b/go.mod b/want_go.mod
++
++-- go.work --
++go 1.18
++
++directory (
++	./a
++	./b
++)
++
++-- a/go.mod --
++go 1.18
++
++module example.com/a
++
++require (
++	example.com/p v1.0.0
++)
++
++replace (
++	example.com/p => ../p
++)
++-- a/want_go.mod --
++go 1.18
++
++module example.com/a
++
++require example.com/p v1.1.0
++
++replace example.com/p => ../p
++-- a/a.go --
++package a
++
++import (
++	"example.com/p"
++)
++
++func Foo() {
++	p.P()
++}
++-- b/go.mod --
++go 1.18
++
++module example.com/b
++
++require (
++	example.com/q v1.1.0
++)
++
++replace (
++	example.com/q => ../q
++)
++-- b/want_go.mod --
++go 1.18
++
++module example.com/b
++
++require (
++	example.com/q v1.1.0
++)
++
++replace (
++	example.com/q => ../q
++)
++-- b/b.go --
++package b
++
++import (
++	"example.com/q"
++)
++
++func Foo() {
++	q.Q()
++}
++-- p/go.mod --
++go 1.18
++
++module example.com/p
++-- p/p.go --
++package p
++
++func P() {}
++-- q/go.mod --
++go 1.18
++
++module example.com/q
++
++require example.com/p v1.1.0
++
++replace example.com/p => ../p
++-- q/q.go --
++package q
++
++import example.com/p
++
++func Q() {
++	p.P()
++}

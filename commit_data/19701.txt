@@ -8,6 +8,24 @@ Date:   Wed Jul 9 14:12:30 2014 -0400
     R=golang-codereviews, minux, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/104650043
-
+---
  src/pkg/os/file_unix.go | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/os/file_unix.go b/src/pkg/os/file_unix.go
+index 76168339d2..23d5f65360 100644
+--- a/src/pkg/os/file_unix.go
++++ b/src/pkg/os/file_unix.go
+@@ -308,7 +308,11 @@ func basename(name string) string {
+ func TempDir() string {
+ 	dir := Getenv("TMPDIR")
+ 	if dir == "" {
+-		dir = "/tmp"
++		if runtime.GOOS == "android" {
++			dir = "/data/local/tmp"
++		} else {
++			dir = "/tmp"
++		}
+ 	}
+ 	return dir
+ }

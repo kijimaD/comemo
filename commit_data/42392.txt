@@ -9,8 +9,85 @@ Date:   Tue Dec 10 10:34:34 2019 +0000
     GitHub-Pull-Request: golang/go#36054
     Reviewed-on: https://go-review.googlesource.com/c/go/+/210497
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/testing/benchmark.go | 10 +++++-----
  src/testing/example.go   |  4 ++--
  src/testing/testing.go   |  8 ++++----
  3 files changed, 11 insertions(+), 11 deletions(-)
+
+diff --git a/src/testing/benchmark.go b/src/testing/benchmark.go
+index e954fc6ccb..04127727c1 100644
+--- a/src/testing/benchmark.go
++++ b/src/testing/benchmark.go
+@@ -69,8 +69,8 @@ var benchmarkLock sync.Mutex
+ // Used for every benchmark for measuring memory.
+ var memStats runtime.MemStats
+ 
+-// An internal type but exported because it is cross-package; part of the implementation
+-// of the "go test" command.
++// InternalBenchmark is an internal type but exported because it is cross-package;
++// it is part of the implementation of the "go test" command.
+ type InternalBenchmark struct {
+ 	Name string
+ 	F    func(b *B)
+@@ -342,7 +342,7 @@ func (b *B) ReportMetric(n float64, unit string) {
+ 	b.extra[unit] = n
+ }
+ 
+-// The results of a benchmark run.
++// BenchmarkResult contains the results of a benchmark run.
+ type BenchmarkResult struct {
+ 	N         int           // The number of iterations.
+ 	T         time.Duration // The total time taken.
+@@ -488,8 +488,8 @@ type benchContext struct {
+ 	extLen int // Maximum extension length.
+ }
+ 
+-// An internal function but exported because it is cross-package; part of the implementation
+-// of the "go test" command.
++// RunBenchmarks is an internal function but exported because it is cross-package;
++// it is part of the implementation of the "go test" command.
+ func RunBenchmarks(matchString func(pat, str string) (bool, error), benchmarks []InternalBenchmark) {
+ 	runBenchmarks("", matchString, benchmarks)
+ }
+diff --git a/src/testing/example.go b/src/testing/example.go
+index c122121289..adc91d5faf 100644
+--- a/src/testing/example.go
++++ b/src/testing/example.go
+@@ -19,8 +19,8 @@ type InternalExample struct {
+ 	Unordered bool
+ }
+ 
+-// An internal function but exported because it is cross-package; part of the implementation
+-// of the "go test" command.
++// RunExamples is an internal function but exported because it is cross-package;
++// it is part of the implementation of the "go test" command.
+ func RunExamples(matchString func(pat, str string) (bool, error), examples []InternalExample) (ok bool) {
+ 	_, ok = runExamples(matchString, examples)
+ 	return ok
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index 5f13e60f4f..15ff1dd81d 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -863,8 +863,8 @@ func (t *T) Parallel() {
+ 	t.raceErrors += -race.Errors()
+ }
+ 
+-// An internal type but exported because it is cross-package; part of the implementation
+-// of the "go test" command.
++// InternalTest is an internal type but exported because it is cross-package;
++// it is part of the implementation of the "go test" command.
+ type InternalTest struct {
+ 	Name string
+ 	F    func(*T)
+@@ -1214,8 +1214,8 @@ func listTests(matchString func(pat, str string) (bool, error), tests []Internal
+ 	}
+ }
+ 
+-// An internal function but exported because it is cross-package; part of the implementation
+-// of the "go test" command.
++// RunTests is an internal function but exported because it is cross-package;
++// it is part of the implementation of the "go test" command.
+ func RunTests(matchString func(pat, str string) (bool, error), tests []InternalTest) (ok bool) {
+ 	ran, ok := runTests(matchString, tests)
+ 	if !ran && !haveExamples {

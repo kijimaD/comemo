@@ -14,9 +14,263 @@ Date:   Fri Dec 9 11:14:26 2016 -0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/syntax/pos.go          |   7 +-
  src/cmd/compile/internal/syntax/pos_test.go     |  12 +--
  src/cmd/compile/internal/syntax/scanner_test.go | 123 ++++++++++++------------
  src/cmd/compile/internal/syntax/source.go       |  11 ++-
  4 files changed, 81 insertions(+), 72 deletions(-)
+
+diff --git a/src/cmd/compile/internal/syntax/pos.go b/src/cmd/compile/internal/syntax/pos.go
+index 6601df9ec7..01a03ff30c 100644
+--- a/src/cmd/compile/internal/syntax/pos.go
++++ b/src/cmd/compile/internal/syntax/pos.go
+@@ -60,7 +60,8 @@ func (p Pos) String() string {
+ // posString formats a (filename, line, col) tuple as a printable position.
+ func posString(filename string, line, col uint) string {
+ 	s := filename + ":" + strconv.FormatUint(uint64(line), 10)
+-	if col != 0 {
++	// col == colMax is interpreted as unknown column value
++	if col < colMax {
+ 		s += ":" + strconv.FormatUint(uint64(col), 10)
+ 	}
+ 	return s
+@@ -147,8 +148,8 @@ func makeLico(line, col uint) lico {
+ 		line = lineMax
+ 	}
+ 	if col > colMax {
+-		// cannot represent column, use 0 to indicate unknown column
+-		col = 0
++		// cannot represent column, use max. column so we have some information
++		col = colMax
+ 	}
+ 	return lico(line<<colBits | col)
+ }
+diff --git a/src/cmd/compile/internal/syntax/pos_test.go b/src/cmd/compile/internal/syntax/pos_test.go
+index ff29e7b0a3..c9ecd3de68 100644
+--- a/src/cmd/compile/internal/syntax/pos_test.go
++++ b/src/cmd/compile/internal/syntax/pos_test.go
+@@ -28,11 +28,11 @@ func TestPos(t *testing.T) {
+ 		relFilename string
+ 		relLine     uint
+ 	}{
+-		{Pos{}, ":0", "", 0, 0, "", 0},
++		{Pos{}, ":0:0", "", 0, 0, "", 0},
+ 		{MakePos(nil, 2, 3), ":2:3", "", 2, 3, "", 2},
+ 		{MakePos(f0, 2, 3), ":2:3", "", 2, 3, "", 2},
+ 		{MakePos(f1, 1, 1), "f1:1:1", "f1", 1, 1, "f1", 1},
+-		{MakePos(f2, 7, 10), "f2:16:10[:0]", "", 7, 10, "f2", 16},
++		{MakePos(f2, 7, 10), "f2:16:10[:0:0]", "", 7, 10, "f2", 16},
+ 		{MakePos(f3, 12, 7), "f3:101:7[f1:10:1]", "f1", 12, 7, "f3", 101},
+ 		{MakePos(f4, 25, 1), "f4:114:1[f3:99:1[f1:10:1]]", "f3", 25, 1, "f4", 114}, // doesn't occur in Go code
+ 	} {
+@@ -68,15 +68,15 @@ func TestLico(t *testing.T) {
+ 		string    string
+ 		line, col uint
+ 	}{
+-		{0, ":0", 0, 0},
+-		{makeLico(0, 0), ":0", 0, 0},
++		{0, ":0:0", 0, 0},
++		{makeLico(0, 0), ":0:0", 0, 0},
+ 		{makeLico(0, 1), ":0:1", 0, 1},
+-		{makeLico(1, 0), ":1", 1, 0},
++		{makeLico(1, 0), ":1:0", 1, 0},
+ 		{makeLico(1, 1), ":1:1", 1, 1},
+ 		{makeLico(2, 3), ":2:3", 2, 3},
+ 		{makeLico(lineMax, 1), fmt.Sprintf(":%d:1", lineMax), lineMax, 1},
+ 		{makeLico(lineMax+1, 1), fmt.Sprintf(":%d:1", lineMax), lineMax, 1}, // line too large, stick with max. line
+-		{makeLico(1, colMax), fmt.Sprintf(":1:%d", colMax), 1, colMax},
++		{makeLico(1, colMax), ":1", 1, colMax},
+ 		{makeLico(1, colMax+1), ":1", 1, 0}, // column too large
+ 		{makeLico(lineMax+1, colMax+1), fmt.Sprintf(":%d", lineMax), lineMax, 0},
+ 	} {
+diff --git a/src/cmd/compile/internal/syntax/scanner_test.go b/src/cmd/compile/internal/syntax/scanner_test.go
+index 5532780399..c0943e7bce 100644
+--- a/src/cmd/compile/internal/syntax/scanner_test.go
++++ b/src/cmd/compile/internal/syntax/scanner_test.go
+@@ -263,71 +263,76 @@ func TestScanErrors(t *testing.T) {
+ 		// token.
+ 
+ 		// rune-level errors
+-		{"fo\x00o", "invalid NUL character", 1, 3},
+-		{"foo\n\ufeff bar", "invalid BOM in the middle of the file", 2, 1},
+-		{"foo\n\n\xff    ", "invalid UTF-8 encoding", 3, 1},
++		{"fo\x00o", "invalid NUL character", 1, 2},
++		{"foo\n\ufeff bar", "invalid BOM in the middle of the file", 2, 0},
++		{"foo\n\n\xff    ", "invalid UTF-8 encoding", 3, 0},
+ 
+ 		// token-level errors
+-		{"x + ~y", "bitwise complement operator is ^", 1, 5},
+-		{"foo$bar = 0", "invalid character U+0024 '$'", 1, 4},
+-		{"const x = 0xyz", "malformed hex constant", 1, 13},
+-		{"0123456789", "malformed octal constant", 1, 11},
+-		{"0123456789. /* foobar", "comment not terminated", 1, 13},   // valid float constant
+-		{"0123456789e0 /*\nfoobar", "comment not terminated", 1, 14}, // valid float constant
+-		{"var a, b = 08, 07\n", "malformed octal constant", 1, 14},
+-		{"(x + 1.0e+x)", "malformed floating-point constant exponent", 1, 11},
+-
+-		{`''`, "empty character literal or unescaped ' in character literal", 1, 2},
+-		{"'\n", "newline in character literal", 1, 2},
+-		{`'\`, "missing '", 1, 3},
+-		{`'\'`, "missing '", 1, 4},
+-		{`'\x`, "missing '", 1, 4},
+-		{`'\x'`, "non-hex character in escape sequence: '", 1, 4},
+-		{`'\y'`, "unknown escape sequence", 1, 3},
+-		{`'\x0'`, "non-hex character in escape sequence: '", 1, 5},
+-		{`'\00'`, "non-octal character in escape sequence: '", 1, 5},
+-		{`'\377' /*`, "comment not terminated", 1, 8}, // valid octal escape
+-		{`'\378`, "non-octal character in escape sequence: 8", 1, 5},
+-		{`'\400'`, "octal escape value > 255: 256", 1, 6},
+-		{`'xx`, "missing '", 1, 3},
+-
+-		{"\"\n", "newline in string", 1, 2},
+-		{`"`, "string not terminated", 1, 1},
+-		{`"foo`, "string not terminated", 1, 1},
+-		{"`", "string not terminated", 1, 1},
+-		{"`foo", "string not terminated", 1, 1},
+-		{"/*/", "comment not terminated", 1, 1},
+-		{"/*\n\nfoo", "comment not terminated", 1, 1},
+-		{"/*\n\nfoo", "comment not terminated", 1, 1},
+-		{`"\`, "string not terminated", 1, 1},
+-		{`"\"`, "string not terminated", 1, 1},
+-		{`"\x`, "string not terminated", 1, 1},
+-		{`"\x"`, "non-hex character in escape sequence: \"", 1, 4},
+-		{`"\y"`, "unknown escape sequence", 1, 3},
+-		{`"\x0"`, "non-hex character in escape sequence: \"", 1, 5},
+-		{`"\00"`, "non-octal character in escape sequence: \"", 1, 5},
+-		{`"\377" /*`, "comment not terminated", 1, 8}, // valid octal escape
+-		{`"\378"`, "non-octal character in escape sequence: 8", 1, 5},
+-		{`"\400"`, "octal escape value > 255: 256", 1, 6},
+-
+-		{`s := "foo\z"`, "unknown escape sequence", 1, 11},
+-		{`s := "foo\z00\nbar"`, "unknown escape sequence", 1, 11},
+-		{`"\x`, "string not terminated", 1, 1},
+-		{`"\x"`, "non-hex character in escape sequence: \"", 1, 4},
+-		{`var s string = "\x"`, "non-hex character in escape sequence: \"", 1, 19},
+-		{`return "\Uffffffff"`, "escape sequence is invalid Unicode code point", 1, 19},
++		{"\u00BD" /* ½ */, "invalid identifier character U+00BD '½'", 1, 0},
++		{"\U0001d736\U0001d737\U0001d738_½" /* 𝜶𝜷𝜸_½ */, "invalid identifier character U+00BD '½'", 1, 13 /* byte offset */},
++		{"\U0001d7d8" /* 𝟘 */, "identifier cannot begin with digit U+1D7D8 '𝟘'", 1, 0},
++		{"foo\U0001d7d8_½" /* foo𝟘_½ */, "invalid identifier character U+00BD '½'", 1, 8 /* byte offset */},
++
++		{"x + ~y", "bitwise complement operator is ^", 1, 4},
++		{"foo$bar = 0", "invalid character U+0024 '$'", 1, 3},
++		{"const x = 0xyz", "malformed hex constant", 1, 12},
++		{"0123456789", "malformed octal constant", 1, 10},
++		{"0123456789. /* foobar", "comment not terminated", 1, 12},   // valid float constant
++		{"0123456789e0 /*\nfoobar", "comment not terminated", 1, 13}, // valid float constant
++		{"var a, b = 08, 07\n", "malformed octal constant", 1, 13},
++		{"(x + 1.0e+x)", "malformed floating-point constant exponent", 1, 10},
++
++		{`''`, "empty character literal or unescaped ' in character literal", 1, 1},
++		{"'\n", "newline in character literal", 1, 1},
++		{`'\`, "missing '", 1, 2},
++		{`'\'`, "missing '", 1, 3},
++		{`'\x`, "missing '", 1, 3},
++		{`'\x'`, "non-hex character in escape sequence: '", 1, 3},
++		{`'\y'`, "unknown escape sequence", 1, 2},
++		{`'\x0'`, "non-hex character in escape sequence: '", 1, 4},
++		{`'\00'`, "non-octal character in escape sequence: '", 1, 4},
++		{`'\377' /*`, "comment not terminated", 1, 7}, // valid octal escape
++		{`'\378`, "non-octal character in escape sequence: 8", 1, 4},
++		{`'\400'`, "octal escape value > 255: 256", 1, 5},
++		{`'xx`, "missing '", 1, 2},
++
++		{"\"\n", "newline in string", 1, 1},
++		{`"`, "string not terminated", 1, 0},
++		{`"foo`, "string not terminated", 1, 0},
++		{"`", "string not terminated", 1, 0},
++		{"`foo", "string not terminated", 1, 0},
++		{"/*/", "comment not terminated", 1, 0},
++		{"/*\n\nfoo", "comment not terminated", 1, 0},
++		{"/*\n\nfoo", "comment not terminated", 1, 0},
++		{`"\`, "string not terminated", 1, 0},
++		{`"\"`, "string not terminated", 1, 0},
++		{`"\x`, "string not terminated", 1, 0},
++		{`"\x"`, "non-hex character in escape sequence: \"", 1, 3},
++		{`"\y"`, "unknown escape sequence", 1, 2},
++		{`"\x0"`, "non-hex character in escape sequence: \"", 1, 4},
++		{`"\00"`, "non-octal character in escape sequence: \"", 1, 4},
++		{`"\377" /*`, "comment not terminated", 1, 7}, // valid octal escape
++		{`"\378"`, "non-octal character in escape sequence: 8", 1, 4},
++		{`"\400"`, "octal escape value > 255: 256", 1, 5},
++
++		{`s := "foo\z"`, "unknown escape sequence", 1, 10},
++		{`s := "foo\z00\nbar"`, "unknown escape sequence", 1, 10},
++		{`"\x`, "string not terminated", 1, 0},
++		{`"\x"`, "non-hex character in escape sequence: \"", 1, 3},
++		{`var s string = "\x"`, "non-hex character in escape sequence: \"", 1, 18},
++		{`return "\Uffffffff"`, "escape sequence is invalid Unicode code point", 1, 18},
+ 
+ 		// TODO(gri) move these test cases into an appropriate parser test
+-		// {`//line :`, "invalid line number: ", 1, 9},
+-		// {`//line :x`, "invalid line number: x", 1, 9},
+-		// {`//line foo :`, "invalid line number: ", 1, 13},
+-		// {`//line foo:123abc`, "invalid line number: 123abc", 1, 12},
+-		// {`/**///line foo:x`, "invalid line number: x", 1, 16},
+-		// {`//line foo:0`, "invalid line number: 0", 1, 12},
+-		// {fmt.Sprintf(`//line foo:%d`, lineMax+1), fmt.Sprintf("invalid line number: %d", lineMax+1), 1, 12},
++		// {`//line :`, "invalid line number: ", 1, 8},
++		// {`//line :x`, "invalid line number: x", 1, 8},
++		// {`//line foo :`, "invalid line number: ", 1, 12},
++		// {`//line foo:123abc`, "invalid line number: 123abc", 1, 11},
++		// {`/**///line foo:x`, "invalid line number: x", 1, 15},
++		// {`//line foo:0`, "invalid line number: 0", 1, 11},
++		// {fmt.Sprintf(`//line foo:%d`, lineMax+1), fmt.Sprintf("invalid line number: %d", lineMax+1), 1, 11},
+ 
+ 		// former problem cases
+-		{"package p\n\n\xef", "invalid UTF-8 encoding", 3, 1},
++		{"package p\n\n\xef", "invalid UTF-8 encoding", 3, 0},
+ 	} {
+ 		var s scanner
+ 		nerrors := 0
+diff --git a/src/cmd/compile/internal/syntax/source.go b/src/cmd/compile/internal/syntax/source.go
+index 037742d73c..4ce35a3615 100644
+--- a/src/cmd/compile/internal/syntax/source.go
++++ b/src/cmd/compile/internal/syntax/source.go
+@@ -32,7 +32,7 @@ type source struct {
+ 	offs        int   // source offset of buf
+ 	r0, r, w    int   // previous/current read and write buf positions, excluding sentinel
+ 	line0, line uint  // previous/current line
+-	col0, col   uint  // previous/current column
++	col0, col   uint  // previous/current column (byte offsets from line start)
+ 	ioerr       error // pending io error
+ 
+ 	// literal buffer
+@@ -50,7 +50,7 @@ func (s *source) init(src io.Reader, errh func(line, pos uint, msg string)) {
+ 	s.offs = 0
+ 	s.r0, s.r, s.w = 0, 0, 0
+ 	s.line0, s.line = 1, 1
+-	s.col0, s.col = 1, 1
++	s.col0, s.col = 0, 0
+ 	s.ioerr = nil
+ 
+ 	s.lit = s.lit[:0]
+@@ -102,6 +102,9 @@ redo:
+ 	// (invariant: s.buf[s.w] == utf8.RuneSelf)
+ 	if b := s.buf[s.r]; b < utf8.RuneSelf {
+ 		s.r++
++		// TODO(gri) Optimization: Instead of adjusting s.col for each character,
++		// remember the line offset instead and then compute the offset as needed
++		// (which is less often).
+ 		s.col++
+ 		if b == 0 {
+ 			s.error("invalid NUL character")
+@@ -109,7 +112,7 @@ redo:
+ 		}
+ 		if b == '\n' {
+ 			s.line++
+-			s.col = 1
++			s.col = 0
+ 		}
+ 		return rune(b)
+ 	}
+@@ -125,7 +128,7 @@ redo:
+ 	// uncommon case: not ASCII
+ 	r, w := utf8.DecodeRune(s.buf[s.r:s.w])
+ 	s.r += w
+-	s.col++
++	s.col += uint(w)
+ 
+ 	if r == utf8.RuneError && w == 1 {
+ 		s.error("invalid UTF-8 encoding")

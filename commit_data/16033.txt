@@ -9,6 +9,19 @@ Date:   Mon Apr 1 22:36:41 2013 +1100
     R=golang-dev, dave, minux.ma
     CC=golang-dev
     https://golang.org/cl/8136043
-
+---
  src/pkg/testing/testing.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/pkg/testing/testing.go b/src/pkg/testing/testing.go
+index 86cd46c291..d0c759e292 100644
+--- a/src/pkg/testing/testing.go
++++ b/src/pkg/testing/testing.go
+@@ -337,6 +337,7 @@ func tRunner(t *T, test *InternalTest) {
+ 		t.duration = time.Now().Sub(t.start)
+ 		// If the test panicked, print any test output before dying.
+ 		if err := recover(); err != nil {
++			t.Fail()
+ 			t.report()
+ 			panic(err)
+ 		}

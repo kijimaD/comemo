@@ -17,10 +17,2284 @@ Date:   Fri May 13 15:22:56 2016 -0400
     Change-Id: I6bee4d5b0051e51d5de97e8a1938c4b87a36cbf8
     Reviewed-on: https://go-review.googlesource.com/23096
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/arm/ssa.go        |   74 +-
  src/cmd/compile/internal/ssa/gen/ARM.rules |   73 ++
  src/cmd/compile/internal/ssa/gen/ARMOps.go |   24 +-
  src/cmd/compile/internal/ssa/opGen.go      |  141 +++
  src/cmd/compile/internal/ssa/rewriteARM.go | 1607 +++++++++++++++++++++++-----
  5 files changed, 1639 insertions(+), 280 deletions(-)
+
+diff --git a/src/cmd/compile/internal/arm/ssa.go b/src/cmd/compile/internal/arm/ssa.go
+index 1edcbdb38b..dab66f530c 100644
+--- a/src/cmd/compile/internal/arm/ssa.go
++++ b/src/cmd/compile/internal/arm/ssa.go
+@@ -93,7 +93,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		ssa.OpARMAND,
+ 		ssa.OpARMOR,
+ 		ssa.OpARMXOR,
+-		ssa.OpARMBIC:
++		ssa.OpARMBIC,
++		ssa.OpARMMUL:
+ 		r := gc.SSARegNum(v)
+ 		r1 := gc.SSARegNum(v.Args[0])
+ 		r2 := gc.SSARegNum(v.Args[1])
+@@ -103,6 +104,59 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.Reg = r1
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = r
++	case ssa.OpARMSLL,
++		ssa.OpARMSRL:
++		// ARM shift instructions uses only the low-order byte of the shift amount
++		// generate conditional instructions to deal with large shifts
++		// CMP	$32, Rarg1
++		// SLL	Rarg1, Rarg0, Rdst
++		// MOVW.HS	$0, Rdst
++		r := gc.SSARegNum(v)
++		r1 := gc.SSARegNum(v.Args[0])
++		r2 := gc.SSARegNum(v.Args[1])
++		p := gc.Prog(arm.ACMP)
++		p.From.Type = obj.TYPE_CONST
++		p.From.Offset = 32
++		p.Reg = r2
++		p = gc.Prog(v.Op.Asm())
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = r2
++		p.Reg = r1
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = r
++		p = gc.Prog(arm.AMOVW)
++		p.Scond = arm.C_SCOND_HS
++		p.From.Type = obj.TYPE_CONST
++		p.From.Offset = 0
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = r
++	case ssa.OpARMSRA:
++		// ARM shift instructions uses only the low-order byte of the shift amount
++		// generate conditional instructions to deal with large shifts
++		// CMP	$32, Rarg1
++		// SRA.HS	$31, Rarg0, Rdst // shift 31 bits to get the sign bit
++		// SRA.LO	Rarg1, Rarg0, Rdst
++		r := gc.SSARegNum(v)
++		r1 := gc.SSARegNum(v.Args[0])
++		r2 := gc.SSARegNum(v.Args[1])
++		p := gc.Prog(arm.ACMP)
++		p.From.Type = obj.TYPE_CONST
++		p.From.Offset = 32
++		p.Reg = r2
++		p = gc.Prog(arm.ASRA)
++		p.Scond = arm.C_SCOND_HS
++		p.From.Type = obj.TYPE_CONST
++		p.From.Offset = 31
++		p.Reg = r1
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = r
++		p = gc.Prog(arm.ASRA)
++		p.Scond = arm.C_SCOND_LO
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = r2
++		p.Reg = r1
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = r
+ 	case ssa.OpARMADDconst:
+ 		if v.Aux != nil {
+ 			switch v.Aux.(type) {
+@@ -138,13 +192,26 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		ssa.OpARMANDconst,
+ 		ssa.OpARMORconst,
+ 		ssa.OpARMXORconst,
+-		ssa.OpARMBICconst:
++		ssa.OpARMBICconst,
++		ssa.OpARMSLLconst,
++		ssa.OpARMSRLconst,
++		ssa.OpARMSRAconst:
+ 		p := gc.Prog(v.Op.Asm())
+ 		p.From.Type = obj.TYPE_CONST
+ 		p.From.Offset = v.AuxInt
+ 		p.Reg = gc.SSARegNum(v.Args[0])
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = gc.SSARegNum(v)
++	case ssa.OpARMHMUL,
++		ssa.OpARMHMULU:
++		// 32-bit high multiplication
++		p := gc.Prog(v.Op.Asm())
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = gc.SSARegNum(v.Args[0])
++		p.Reg = gc.SSARegNum(v.Args[1])
++		p.To.Type = obj.TYPE_REGREG
++		p.To.Reg = gc.SSARegNum(v)
++		p.To.Offset = arm.REGTMP // throw away low 32-bit into tmp register
+ 	case ssa.OpARMMOVWconst:
+ 		p := gc.Prog(v.Op.Asm())
+ 		p.From.Type = obj.TYPE_CONST
+@@ -328,6 +395,9 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
+ 			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[0].Block()})
+ 		}
+ 
++	case ssa.BlockExit:
++		gc.Prog(obj.AUNDEF) // tell plive.go that we never reach here
++
+ 	case ssa.BlockRet:
+ 		gc.Prog(obj.ARET)
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM.rules b/src/cmd/compile/internal/ssa/gen/ARM.rules
+index 13508f7cc7..6805a30026 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM.rules
+@@ -12,6 +12,17 @@
+ (Sub16 x y) -> (SUB x y)
+ (Sub8 x y) -> (SUB x y)
+ 
++(Mul32 x y) -> (MUL x y)
++(Mul16 x y) -> (MUL x y)
++(Mul8 x y) -> (MUL x y)
++
++(Hmul32 x y) -> (HMUL x y)
++(Hmul32u x y) -> (HMULU x y)
++(Hmul16 x y) -> (SRAconst (MUL <config.fe.TypeInt32()> (SignExt16to32 x) (SignExt16to32 y)) [16])
++(Hmul16u x y) -> (SRLconst (MUL <config.fe.TypeUInt32()> (ZeroExt16to32 x) (ZeroExt16to32 y)) [16])
++(Hmul8 x y) -> (SRAconst (MUL <config.fe.TypeInt16()> (SignExt8to32 x) (SignExt8to32 y)) [8])
++(Hmul8u x y) -> (SRLconst (MUL <config.fe.TypeUInt16()> (ZeroExt8to32 x) (ZeroExt8to32 y)) [8])
++
+ (And32 x y) -> (AND x y)
+ (And16 x y) -> (AND x y)
+ (And8 x y) -> (AND x y)
+@@ -40,6 +51,68 @@
+ (NeqB x y) -> (XOR x y)
+ (Not x) -> (XORconst [1] x)
+ 
++// shifts
++(Lsh32x32 x y) -> (SLL x y)
++(Lsh32x16 x y) -> (SLL x y)
++(Lsh32x8  x y) -> (SLL x y)
++
++(Lsh16x32 x y) -> (SLL x y)
++(Lsh16x16 x y) -> (SLL x y)
++(Lsh16x8  x y) -> (SLL x y)
++
++(Lsh8x32 x y) -> (SLL x y)
++(Lsh8x16 x y) -> (SLL x y)
++(Lsh8x8  x y) -> (SLL x y)
++
++(Rsh32Ux32 x y) -> (SRL x y)
++(Rsh32Ux16 x y) -> (SRL x y)
++(Rsh32Ux8  x y) -> (SRL x y)
++
++(Rsh16Ux32 x y) -> (SRL (ZeroExt16to32 x) y)
++(Rsh16Ux16 x y) -> (SRL (ZeroExt16to32 x) y)
++(Rsh16Ux8  x y) -> (SRL (ZeroExt16to32 x) y)
++
++(Rsh8Ux32 x y) -> (SRL (ZeroExt8to32 x) y)
++(Rsh8Ux16 x y) -> (SRL (ZeroExt8to32 x) y)
++(Rsh8Ux8  x y) -> (SRL (ZeroExt8to32 x) y)
++
++(Rsh32x32 x y) -> (SRA x y)
++(Rsh32x16 x y) -> (SRA x y)
++(Rsh32x8  x y) -> (SRA x y)
++
++(Rsh16x32 x y) -> (SRA (SignExt16to32 x) y)
++(Rsh16x16 x y) -> (SRA (SignExt16to32 x) y)
++(Rsh16x8  x y) -> (SRA (SignExt16to32 x) y)
++
++(Rsh8x32 x y) -> (SRA (SignExt8to32 x) y)
++(Rsh8x16 x y) -> (SRA (SignExt8to32 x) y)
++(Rsh8x8  x y) -> (SRA (SignExt8to32 x) y)
++
++// constant shifts
++// generic opt rewrites all constant shifts to shift by Const64
++(Lsh32x64 x (Const64 [c])) && uint64(c) < 32 -> (SLLconst x [c])
++(Rsh32x64 x (Const64 [c])) && uint64(c) < 32 -> (SRAconst x [c])
++(Rsh32Ux64 x (Const64 [c])) && uint64(c) < 32 -> (SRLconst x [c])
++(Lsh16x64 x (Const64 [c])) && uint64(c) < 16 -> (SLLconst x [c])
++(Rsh16x64 <t> x (Const64 [c])) && uint64(c) < 16 -> (SRAconst (SLLconst <t> x [16]) [c+16])
++(Rsh16Ux64 <t> x (Const64 [c])) && uint64(c) < 16 -> (SRLconst (SLLconst <t> x [16]) [c+16])
++(Lsh8x64 x (Const64 [c])) && uint64(c) < 8 -> (SLLconst x [c])
++(Rsh8x64 <t> x (Const64 [c])) && uint64(c) < 8 -> (SRAconst (SLLconst <t> x [24]) [c+24])
++(Rsh8Ux64 <t> x (Const64 [c])) && uint64(c) < 8 -> (SRLconst (SLLconst <t> x [24]) [c+24])
++
++// large constant shifts
++(Lsh32x64 _ (Const64 [c])) && uint64(c) >= 32 -> (Const32 [0])
++(Rsh32Ux64 _ (Const64 [c])) && uint64(c) >= 32 -> (Const32 [0])
++(Lsh16x64 _ (Const64 [c])) && uint64(c) >= 16 -> (Const16 [0])
++(Rsh16Ux64 _ (Const64 [c])) && uint64(c) >= 16 -> (Const16 [0])
++(Lsh8x64 _ (Const64 [c])) && uint64(c) >= 8 -> (Const8 [0])
++(Rsh8Ux64 _ (Const64 [c])) && uint64(c) >= 8 -> (Const8 [0])
++
++// large constant signed right shift, we leave the sign bit
++(Rsh32x64 x (Const64 [c])) && uint64(c) >= 32 -> (SRAconst x [31])
++(Rsh16x64 <t> x (Const64 [c])) && uint64(c) >= 16 -> (SRAconst (SLLconst <t> x [16]) [31])
++(Rsh8x64 <t> x (Const64 [c])) && uint64(c) >= 8 -> (SRAconst (SLLconst <t> x [24]) [31])
++
+ (Const8 [val]) -> (MOVWconst [val])
+ (Const16 [val]) -> (MOVWconst [val])
+ (Const32 [val]) -> (MOVWconst [val])
+diff --git a/src/cmd/compile/internal/ssa/gen/ARMOps.go b/src/cmd/compile/internal/ssa/gen/ARMOps.go
+index db36958f32..3605496698 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARMOps.go
++++ b/src/cmd/compile/internal/ssa/gen/ARMOps.go
+@@ -82,6 +82,7 @@ func init() {
+ 		gp11sb    = regInfo{inputs: []regMask{gpspsb}, outputs: []regMask{gp}}
+ 		gp1flags  = regInfo{inputs: []regMask{gp}, outputs: []regMask{flags}}
+ 		gp21      = regInfo{inputs: []regMask{gp, gp}, outputs: []regMask{gp}}
++		gp21cf    = regInfo{inputs: []regMask{gp, gp}, outputs: []regMask{gp}, clobbers: flags} // cf: clobbers flags
+ 		gp2flags  = regInfo{inputs: []regMask{gp, gp}, outputs: []regMask{flags}}
+ 		gpload    = regInfo{inputs: []regMask{gpspsb}, outputs: []regMask{gp}}
+ 		gpstore   = regInfo{inputs: []regMask{gpspsb, gp}, outputs: []regMask{}}
+@@ -89,12 +90,15 @@ func init() {
+ 	)
+ 	ops := []opData{
+ 		// binary ops
+-		{name: "ADD", argLength: 2, reg: gp21, asm: "ADD", commutative: true},    // arg0 + arg1
+-		{name: "ADDconst", argLength: 1, reg: gp11sb, asm: "ADD", aux: "SymOff"}, // arg0 + auxInt + aux.(*gc.Sym)
+-		{name: "SUB", argLength: 2, reg: gp21, asm: "SUB"},                       // arg0 - arg1
+-		{name: "SUBconst", argLength: 1, reg: gp11, asm: "SUB", aux: "Int32"},    // arg0 - auxInt
+-		{name: "RSB", argLength: 2, reg: gp21, asm: "RSB"},                       // arg1 - arg0
+-		{name: "RSBconst", argLength: 1, reg: gp11, asm: "RSB", aux: "Int32"},    // auxInt - arg0
++		{name: "ADD", argLength: 2, reg: gp21, asm: "ADD", commutative: true},     // arg0 + arg1
++		{name: "ADDconst", argLength: 1, reg: gp11sb, asm: "ADD", aux: "SymOff"},  // arg0 + auxInt + aux.(*gc.Sym)
++		{name: "SUB", argLength: 2, reg: gp21, asm: "SUB"},                        // arg0 - arg1
++		{name: "SUBconst", argLength: 1, reg: gp11, asm: "SUB", aux: "Int32"},     // arg0 - auxInt
++		{name: "RSB", argLength: 2, reg: gp21, asm: "RSB"},                        // arg1 - arg0
++		{name: "RSBconst", argLength: 1, reg: gp11, asm: "RSB", aux: "Int32"},     // auxInt - arg0
++		{name: "MUL", argLength: 2, reg: gp21, asm: "MUL", commutative: true},     // arg0 * arg1
++		{name: "HMUL", argLength: 2, reg: gp21, asm: "MULL", commutative: true},   // (arg0 * arg1) >> 32, signed
++		{name: "HMULU", argLength: 2, reg: gp21, asm: "MULLU", commutative: true}, // (arg0 * arg1) >> 32, unsigned
+ 
+ 		{name: "AND", argLength: 2, reg: gp21, asm: "AND", commutative: true}, // arg0 & arg1
+ 		{name: "ANDconst", argLength: 1, reg: gp11, asm: "AND", aux: "Int32"}, // arg0 & auxInt
+@@ -108,6 +112,14 @@ func init() {
+ 		// unary ops
+ 		{name: "MVN", argLength: 1, reg: gp11, asm: "MVN"}, // ^arg0
+ 
++		// shifts
++		{name: "SLL", argLength: 2, reg: gp21cf, asm: "SLL"},                  // arg0 << arg1, results 0 for large shift
++		{name: "SLLconst", argLength: 1, reg: gp11, asm: "SLL", aux: "Int32"}, // arg0 << auxInt
++		{name: "SRL", argLength: 2, reg: gp21cf, asm: "SRL"},                  // arg0 >> arg1, unsigned, results 0 for large shift
++		{name: "SRLconst", argLength: 1, reg: gp11, asm: "SRL", aux: "Int32"}, // arg0 >> auxInt, unsigned
++		{name: "SRA", argLength: 2, reg: gp21cf, asm: "SRA"},                  // arg0 >> arg1, signed, results 0/-1 for large shift
++		{name: "SRAconst", argLength: 1, reg: gp11, asm: "SRA", aux: "Int32"}, // arg0 >> auxInt, signed
++
+ 		{name: "CMP", argLength: 2, reg: gp2flags, asm: "CMP", typ: "Flags"},                    // arg0 compare to arg1
+ 		{name: "CMPconst", argLength: 1, reg: gp1flags, asm: "CMP", aux: "Int32", typ: "Flags"}, // arg0 compare to auxInt
+ 		{name: "CMN", argLength: 2, reg: gp2flags, asm: "CMN", typ: "Flags"},                    // arg0 compare to -arg1
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 830f2769dc..5f109a7a65 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -329,6 +329,9 @@ const (
+ 	OpARMSUBconst
+ 	OpARMRSB
+ 	OpARMRSBconst
++	OpARMMUL
++	OpARMHMUL
++	OpARMHMULU
+ 	OpARMAND
+ 	OpARMANDconst
+ 	OpARMOR
+@@ -338,6 +341,12 @@ const (
+ 	OpARMBIC
+ 	OpARMBICconst
+ 	OpARMMVN
++	OpARMSLL
++	OpARMSLLconst
++	OpARMSRL
++	OpARMSRLconst
++	OpARMSRA
++	OpARMSRAconst
+ 	OpARMCMP
+ 	OpARMCMPconst
+ 	OpARMCMN
+@@ -3926,6 +3935,51 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:        "MUL",
++		argLen:      2,
++		commutative: true,
++		asm:         arm.AMUL,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
++				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
++			},
++			outputs: []regMask{
++				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
++			},
++		},
++	},
++	{
++		name:        "HMUL",
++		argLen:      2,
++		commutative: true,
++		asm:         arm.AMULL,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
++				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
++			},
++			outputs: []regMask{
++				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
++			},
++		},
++	},
++	{
++		name:        "HMULU",
++		argLen:      2,
++		commutative: true,
++		asm:         arm.AMULLU,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
++				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
++			},
++			outputs: []regMask{
++				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
++			},
++		},
++	},
+ 	{
+ 		name:        "AND",
+ 		argLen:      2,
+@@ -4054,6 +4108,93 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:   "SLL",
++		argLen: 2,
++		asm:    arm.ASLL,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
++				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
++			},
++			clobbers: 65536, // FLAGS
++			outputs: []regMask{
++				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
++			},
++		},
++	},
++	{
++		name:    "SLLconst",
++		auxType: auxInt32,
++		argLen:  1,
++		asm:     arm.ASLL,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
++			},
++			outputs: []regMask{
++				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
++			},
++		},
++	},
++	{
++		name:   "SRL",
++		argLen: 2,
++		asm:    arm.ASRL,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
++				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
++			},
++			clobbers: 65536, // FLAGS
++			outputs: []regMask{
++				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
++			},
++		},
++	},
++	{
++		name:    "SRLconst",
++		auxType: auxInt32,
++		argLen:  1,
++		asm:     arm.ASRL,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
++			},
++			outputs: []regMask{
++				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
++			},
++		},
++	},
++	{
++		name:   "SRA",
++		argLen: 2,
++		asm:    arm.ASRA,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
++				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
++			},
++			clobbers: 65536, // FLAGS
++			outputs: []regMask{
++				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
++			},
++		},
++	},
++	{
++		name:    "SRAconst",
++		auxType: auxInt32,
++		argLen:  1,
++		asm:     arm.ASRA,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
++			},
++			outputs: []regMask{
++				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
++			},
++		},
++	},
+ 	{
+ 		name:   "CMP",
+ 		argLen: 2,
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM.go b/src/cmd/compile/internal/ssa/rewriteARM.go
+index 2ae076d089..bd9ffb83d1 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM.go
+@@ -84,6 +84,18 @@ func rewriteValueARM(v *Value, config *Config) bool {
+ 		return rewriteValueARM_OpGreater8(v, config)
+ 	case OpGreater8U:
+ 		return rewriteValueARM_OpGreater8U(v, config)
++	case OpHmul16:
++		return rewriteValueARM_OpHmul16(v, config)
++	case OpHmul16u:
++		return rewriteValueARM_OpHmul16u(v, config)
++	case OpHmul32:
++		return rewriteValueARM_OpHmul32(v, config)
++	case OpHmul32u:
++		return rewriteValueARM_OpHmul32u(v, config)
++	case OpHmul8:
++		return rewriteValueARM_OpHmul8(v, config)
++	case OpHmul8u:
++		return rewriteValueARM_OpHmul8u(v, config)
+ 	case OpInterCall:
+ 		return rewriteValueARM_OpInterCall(v, config)
+ 	case OpIsInBounds:
+@@ -118,6 +130,30 @@ func rewriteValueARM(v *Value, config *Config) bool {
+ 		return rewriteValueARM_OpLess8U(v, config)
+ 	case OpLoad:
+ 		return rewriteValueARM_OpLoad(v, config)
++	case OpLsh16x16:
++		return rewriteValueARM_OpLsh16x16(v, config)
++	case OpLsh16x32:
++		return rewriteValueARM_OpLsh16x32(v, config)
++	case OpLsh16x64:
++		return rewriteValueARM_OpLsh16x64(v, config)
++	case OpLsh16x8:
++		return rewriteValueARM_OpLsh16x8(v, config)
++	case OpLsh32x16:
++		return rewriteValueARM_OpLsh32x16(v, config)
++	case OpLsh32x32:
++		return rewriteValueARM_OpLsh32x32(v, config)
++	case OpLsh32x64:
++		return rewriteValueARM_OpLsh32x64(v, config)
++	case OpLsh32x8:
++		return rewriteValueARM_OpLsh32x8(v, config)
++	case OpLsh8x16:
++		return rewriteValueARM_OpLsh8x16(v, config)
++	case OpLsh8x32:
++		return rewriteValueARM_OpLsh8x32(v, config)
++	case OpLsh8x64:
++		return rewriteValueARM_OpLsh8x64(v, config)
++	case OpLsh8x8:
++		return rewriteValueARM_OpLsh8x8(v, config)
+ 	case OpARMMOVBUload:
+ 		return rewriteValueARM_OpARMMOVBUload(v, config)
+ 	case OpARMMOVBload:
+@@ -134,6 +170,12 @@ func rewriteValueARM(v *Value, config *Config) bool {
+ 		return rewriteValueARM_OpARMMOVWload(v, config)
+ 	case OpARMMOVWstore:
+ 		return rewriteValueARM_OpARMMOVWstore(v, config)
++	case OpMul16:
++		return rewriteValueARM_OpMul16(v, config)
++	case OpMul32:
++		return rewriteValueARM_OpMul32(v, config)
++	case OpMul8:
++		return rewriteValueARM_OpMul8(v, config)
+ 	case OpNeg16:
+ 		return rewriteValueARM_OpNeg16(v, config)
+ 	case OpNeg32:
+@@ -164,6 +206,54 @@ func rewriteValueARM(v *Value, config *Config) bool {
+ 		return rewriteValueARM_OpOr8(v, config)
+ 	case OpOrB:
+ 		return rewriteValueARM_OpOrB(v, config)
++	case OpRsh16Ux16:
++		return rewriteValueARM_OpRsh16Ux16(v, config)
++	case OpRsh16Ux32:
++		return rewriteValueARM_OpRsh16Ux32(v, config)
++	case OpRsh16Ux64:
++		return rewriteValueARM_OpRsh16Ux64(v, config)
++	case OpRsh16Ux8:
++		return rewriteValueARM_OpRsh16Ux8(v, config)
++	case OpRsh16x16:
++		return rewriteValueARM_OpRsh16x16(v, config)
++	case OpRsh16x32:
++		return rewriteValueARM_OpRsh16x32(v, config)
++	case OpRsh16x64:
++		return rewriteValueARM_OpRsh16x64(v, config)
++	case OpRsh16x8:
++		return rewriteValueARM_OpRsh16x8(v, config)
++	case OpRsh32Ux16:
++		return rewriteValueARM_OpRsh32Ux16(v, config)
++	case OpRsh32Ux32:
++		return rewriteValueARM_OpRsh32Ux32(v, config)
++	case OpRsh32Ux64:
++		return rewriteValueARM_OpRsh32Ux64(v, config)
++	case OpRsh32Ux8:
++		return rewriteValueARM_OpRsh32Ux8(v, config)
++	case OpRsh32x16:
++		return rewriteValueARM_OpRsh32x16(v, config)
++	case OpRsh32x32:
++		return rewriteValueARM_OpRsh32x32(v, config)
++	case OpRsh32x64:
++		return rewriteValueARM_OpRsh32x64(v, config)
++	case OpRsh32x8:
++		return rewriteValueARM_OpRsh32x8(v, config)
++	case OpRsh8Ux16:
++		return rewriteValueARM_OpRsh8Ux16(v, config)
++	case OpRsh8Ux32:
++		return rewriteValueARM_OpRsh8Ux32(v, config)
++	case OpRsh8Ux64:
++		return rewriteValueARM_OpRsh8Ux64(v, config)
++	case OpRsh8Ux8:
++		return rewriteValueARM_OpRsh8Ux8(v, config)
++	case OpRsh8x16:
++		return rewriteValueARM_OpRsh8x16(v, config)
++	case OpRsh8x32:
++		return rewriteValueARM_OpRsh8x32(v, config)
++	case OpRsh8x64:
++		return rewriteValueARM_OpRsh8x64(v, config)
++	case OpRsh8x8:
++		return rewriteValueARM_OpRsh8x8(v, config)
+ 	case OpSignExt16to32:
+ 		return rewriteValueARM_OpSignExt16to32(v, config)
+ 	case OpSignExt8to16:
+@@ -855,6 +945,124 @@ func rewriteValueARM_OpGreater8U(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueARM_OpHmul16(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Hmul16 x y)
++	// cond:
++	// result: (SRAconst (MUL <config.fe.TypeInt32()> (SignExt16to32 x) (SignExt16to32 y)) [16])
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpARMSRAconst)
++		v0 := b.NewValue0(v.Line, OpARMMUL, config.fe.TypeInt32())
++		v1 := b.NewValue0(v.Line, OpSignExt16to32, config.fe.TypeInt32())
++		v1.AddArg(x)
++		v0.AddArg(v1)
++		v2 := b.NewValue0(v.Line, OpSignExt16to32, config.fe.TypeInt32())
++		v2.AddArg(y)
++		v0.AddArg(v2)
++		v.AddArg(v0)
++		v.AuxInt = 16
++		return true
++	}
++}
++func rewriteValueARM_OpHmul16u(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Hmul16u x y)
++	// cond:
++	// result: (SRLconst (MUL <config.fe.TypeUInt32()> (ZeroExt16to32 x) (ZeroExt16to32 y)) [16])
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpARMSRLconst)
++		v0 := b.NewValue0(v.Line, OpARMMUL, config.fe.TypeUInt32())
++		v1 := b.NewValue0(v.Line, OpZeroExt16to32, config.fe.TypeUInt32())
++		v1.AddArg(x)
++		v0.AddArg(v1)
++		v2 := b.NewValue0(v.Line, OpZeroExt16to32, config.fe.TypeUInt32())
++		v2.AddArg(y)
++		v0.AddArg(v2)
++		v.AddArg(v0)
++		v.AuxInt = 16
++		return true
++	}
++}
++func rewriteValueARM_OpHmul32(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Hmul32 x y)
++	// cond:
++	// result: (HMUL x y)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpARMHMUL)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
++func rewriteValueARM_OpHmul32u(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Hmul32u x y)
++	// cond:
++	// result: (HMULU x y)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpARMHMULU)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
++func rewriteValueARM_OpHmul8(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Hmul8 x y)
++	// cond:
++	// result: (SRAconst (MUL <config.fe.TypeInt16()> (SignExt8to32 x) (SignExt8to32 y)) [8])
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpARMSRAconst)
++		v0 := b.NewValue0(v.Line, OpARMMUL, config.fe.TypeInt16())
++		v1 := b.NewValue0(v.Line, OpSignExt8to32, config.fe.TypeInt32())
++		v1.AddArg(x)
++		v0.AddArg(v1)
++		v2 := b.NewValue0(v.Line, OpSignExt8to32, config.fe.TypeInt32())
++		v2.AddArg(y)
++		v0.AddArg(v2)
++		v.AddArg(v0)
++		v.AuxInt = 8
++		return true
++	}
++}
++func rewriteValueARM_OpHmul8u(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Hmul8u x y)
++	// cond:
++	// result: (SRLconst (MUL <config.fe.TypeUInt16()> (ZeroExt8to32 x) (ZeroExt8to32 y)) [8])
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpARMSRLconst)
++		v0 := b.NewValue0(v.Line, OpARMMUL, config.fe.TypeUInt16())
++		v1 := b.NewValue0(v.Line, OpZeroExt8to32, config.fe.TypeUInt32())
++		v1.AddArg(x)
++		v0.AddArg(v1)
++		v2 := b.NewValue0(v.Line, OpZeroExt8to32, config.fe.TypeUInt32())
++		v2.AddArg(y)
++		v0.AddArg(v2)
++		v.AddArg(v0)
++		v.AuxInt = 8
++		return true
++	}
++}
+ func rewriteValueARM_OpInterCall(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -1253,192 +1461,266 @@ func rewriteValueARM_OpLoad(v *Value, config *Config) bool {
+ 	}
+ 	return false
+ }
+-func rewriteValueARM_OpARMMOVBUload(v *Value, config *Config) bool {
++func rewriteValueARM_OpLsh16x16(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+-	// match: (MOVBUload [off1] {sym1} (ADDconst [off2] {sym2} ptr) mem)
+-	// cond: canMergeSym(sym1,sym2)
+-	// result: (MOVBUload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
++	// match: (Lsh16x16 x y)
++	// cond:
++	// result: (SLL x y)
+ 	for {
+-		off1 := v.AuxInt
+-		sym1 := v.Aux
+-		v_0 := v.Args[0]
+-		if v_0.Op != OpARMADDconst {
+-			break
+-		}
+-		off2 := v_0.AuxInt
+-		sym2 := v_0.Aux
+-		ptr := v_0.Args[0]
+-		mem := v.Args[1]
+-		if !(canMergeSym(sym1, sym2)) {
+-			break
+-		}
+-		v.reset(OpARMMOVBUload)
+-		v.AuxInt = off1 + off2
+-		v.Aux = mergeSym(sym1, sym2)
+-		v.AddArg(ptr)
+-		v.AddArg(mem)
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpARMSLL)
++		v.AddArg(x)
++		v.AddArg(y)
+ 		return true
+ 	}
+-	return false
+ }
+-func rewriteValueARM_OpARMMOVBload(v *Value, config *Config) bool {
++func rewriteValueARM_OpLsh16x32(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+-	// match: (MOVBload [off1] {sym1} (ADDconst [off2] {sym2} ptr) mem)
+-	// cond: canMergeSym(sym1,sym2)
+-	// result: (MOVBload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
++	// match: (Lsh16x32 x y)
++	// cond:
++	// result: (SLL x y)
+ 	for {
+-		off1 := v.AuxInt
+-		sym1 := v.Aux
+-		v_0 := v.Args[0]
+-		if v_0.Op != OpARMADDconst {
+-			break
+-		}
+-		off2 := v_0.AuxInt
+-		sym2 := v_0.Aux
+-		ptr := v_0.Args[0]
+-		mem := v.Args[1]
+-		if !(canMergeSym(sym1, sym2)) {
+-			break
+-		}
+-		v.reset(OpARMMOVBload)
+-		v.AuxInt = off1 + off2
+-		v.Aux = mergeSym(sym1, sym2)
+-		v.AddArg(ptr)
+-		v.AddArg(mem)
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpARMSLL)
++		v.AddArg(x)
++		v.AddArg(y)
+ 		return true
+ 	}
+-	return false
+ }
+-func rewriteValueARM_OpARMMOVBstore(v *Value, config *Config) bool {
++func rewriteValueARM_OpLsh16x64(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+-	// match: (MOVBstore [off1] {sym1} (ADDconst [off2] {sym2} ptr) val mem)
+-	// cond: canMergeSym(sym1,sym2)
+-	// result: (MOVBstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
++	// match: (Lsh16x64 x (Const64 [c]))
++	// cond: uint64(c) < 16
++	// result: (SLLconst x [c])
+ 	for {
+-		off1 := v.AuxInt
+-		sym1 := v.Aux
+-		v_0 := v.Args[0]
+-		if v_0.Op != OpARMADDconst {
++		x := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst64 {
+ 			break
+ 		}
+-		off2 := v_0.AuxInt
+-		sym2 := v_0.Aux
+-		ptr := v_0.Args[0]
+-		val := v.Args[1]
+-		mem := v.Args[2]
+-		if !(canMergeSym(sym1, sym2)) {
++		c := v_1.AuxInt
++		if !(uint64(c) < 16) {
+ 			break
+ 		}
+-		v.reset(OpARMMOVBstore)
+-		v.AuxInt = off1 + off2
+-		v.Aux = mergeSym(sym1, sym2)
+-		v.AddArg(ptr)
+-		v.AddArg(val)
+-		v.AddArg(mem)
++		v.reset(OpARMSLLconst)
++		v.AddArg(x)
++		v.AuxInt = c
+ 		return true
+ 	}
+-	return false
+-}
+-func rewriteValueARM_OpARMMOVHUload(v *Value, config *Config) bool {
+-	b := v.Block
+-	_ = b
+-	// match: (MOVHUload [off1] {sym1} (ADDconst [off2] {sym2} ptr) mem)
+-	// cond: canMergeSym(sym1,sym2)
+-	// result: (MOVHUload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
++	// match: (Lsh16x64 _ (Const64 [c]))
++	// cond: uint64(c) >= 16
++	// result: (Const16 [0])
+ 	for {
+-		off1 := v.AuxInt
+-		sym1 := v.Aux
+-		v_0 := v.Args[0]
+-		if v_0.Op != OpARMADDconst {
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst64 {
+ 			break
+ 		}
+-		off2 := v_0.AuxInt
+-		sym2 := v_0.Aux
+-		ptr := v_0.Args[0]
+-		mem := v.Args[1]
+-		if !(canMergeSym(sym1, sym2)) {
++		c := v_1.AuxInt
++		if !(uint64(c) >= 16) {
+ 			break
+ 		}
+-		v.reset(OpARMMOVHUload)
+-		v.AuxInt = off1 + off2
+-		v.Aux = mergeSym(sym1, sym2)
+-		v.AddArg(ptr)
+-		v.AddArg(mem)
++		v.reset(OpConst16)
++		v.AuxInt = 0
+ 		return true
+ 	}
+ 	return false
+ }
+-func rewriteValueARM_OpARMMOVHload(v *Value, config *Config) bool {
++func rewriteValueARM_OpLsh16x8(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+-	// match: (MOVHload [off1] {sym1} (ADDconst [off2] {sym2} ptr) mem)
+-	// cond: canMergeSym(sym1,sym2)
+-	// result: (MOVHload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
++	// match: (Lsh16x8  x y)
++	// cond:
++	// result: (SLL x y)
+ 	for {
+-		off1 := v.AuxInt
+-		sym1 := v.Aux
+-		v_0 := v.Args[0]
+-		if v_0.Op != OpARMADDconst {
+-			break
+-		}
+-		off2 := v_0.AuxInt
+-		sym2 := v_0.Aux
+-		ptr := v_0.Args[0]
+-		mem := v.Args[1]
+-		if !(canMergeSym(sym1, sym2)) {
+-			break
+-		}
+-		v.reset(OpARMMOVHload)
+-		v.AuxInt = off1 + off2
+-		v.Aux = mergeSym(sym1, sym2)
+-		v.AddArg(ptr)
+-		v.AddArg(mem)
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpARMSLL)
++		v.AddArg(x)
++		v.AddArg(y)
+ 		return true
+ 	}
+-	return false
+ }
+-func rewriteValueARM_OpARMMOVHstore(v *Value, config *Config) bool {
++func rewriteValueARM_OpLsh32x16(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+-	// match: (MOVHstore [off1] {sym1} (ADDconst [off2] {sym2} ptr) val mem)
+-	// cond: canMergeSym(sym1,sym2)
+-	// result: (MOVHstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
++	// match: (Lsh32x16 x y)
++	// cond:
++	// result: (SLL x y)
+ 	for {
+-		off1 := v.AuxInt
+-		sym1 := v.Aux
+-		v_0 := v.Args[0]
+-		if v_0.Op != OpARMADDconst {
+-			break
+-		}
+-		off2 := v_0.AuxInt
+-		sym2 := v_0.Aux
+-		ptr := v_0.Args[0]
+-		val := v.Args[1]
+-		mem := v.Args[2]
+-		if !(canMergeSym(sym1, sym2)) {
+-			break
+-		}
+-		v.reset(OpARMMOVHstore)
+-		v.AuxInt = off1 + off2
+-		v.Aux = mergeSym(sym1, sym2)
+-		v.AddArg(ptr)
+-		v.AddArg(val)
+-		v.AddArg(mem)
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpARMSLL)
++		v.AddArg(x)
++		v.AddArg(y)
+ 		return true
+ 	}
+-	return false
+ }
+-func rewriteValueARM_OpARMMOVWload(v *Value, config *Config) bool {
++func rewriteValueARM_OpLsh32x32(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+-	// match: (MOVWload [off1] {sym1} (ADDconst [off2] {sym2} ptr) mem)
+-	// cond: canMergeSym(sym1,sym2)
+-	// result: (MOVWload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
++	// match: (Lsh32x32 x y)
++	// cond:
++	// result: (SLL x y)
+ 	for {
+-		off1 := v.AuxInt
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpARMSLL)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
++func rewriteValueARM_OpLsh32x64(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Lsh32x64 x (Const64 [c]))
++	// cond: uint64(c) < 32
++	// result: (SLLconst x [c])
++	for {
++		x := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst64 {
++			break
++		}
++		c := v_1.AuxInt
++		if !(uint64(c) < 32) {
++			break
++		}
++		v.reset(OpARMSLLconst)
++		v.AddArg(x)
++		v.AuxInt = c
++		return true
++	}
++	// match: (Lsh32x64 _ (Const64 [c]))
++	// cond: uint64(c) >= 32
++	// result: (Const32 [0])
++	for {
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst64 {
++			break
++		}
++		c := v_1.AuxInt
++		if !(uint64(c) >= 32) {
++			break
++		}
++		v.reset(OpConst32)
++		v.AuxInt = 0
++		return true
++	}
++	return false
++}
++func rewriteValueARM_OpLsh32x8(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Lsh32x8  x y)
++	// cond:
++	// result: (SLL x y)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpARMSLL)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
++func rewriteValueARM_OpLsh8x16(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Lsh8x16 x y)
++	// cond:
++	// result: (SLL x y)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpARMSLL)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
++func rewriteValueARM_OpLsh8x32(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Lsh8x32 x y)
++	// cond:
++	// result: (SLL x y)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpARMSLL)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
++func rewriteValueARM_OpLsh8x64(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Lsh8x64 x (Const64 [c]))
++	// cond: uint64(c) < 8
++	// result: (SLLconst x [c])
++	for {
++		x := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst64 {
++			break
++		}
++		c := v_1.AuxInt
++		if !(uint64(c) < 8) {
++			break
++		}
++		v.reset(OpARMSLLconst)
++		v.AddArg(x)
++		v.AuxInt = c
++		return true
++	}
++	// match: (Lsh8x64 _ (Const64 [c]))
++	// cond: uint64(c) >= 8
++	// result: (Const8 [0])
++	for {
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst64 {
++			break
++		}
++		c := v_1.AuxInt
++		if !(uint64(c) >= 8) {
++			break
++		}
++		v.reset(OpConst8)
++		v.AuxInt = 0
++		return true
++	}
++	return false
++}
++func rewriteValueARM_OpLsh8x8(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Lsh8x8  x y)
++	// cond:
++	// result: (SLL x y)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpARMSLL)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
++func rewriteValueARM_OpARMMOVBUload(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (MOVBUload [off1] {sym1} (ADDconst [off2] {sym2} ptr) mem)
++	// cond: canMergeSym(sym1,sym2)
++	// result: (MOVBUload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
++	for {
++		off1 := v.AuxInt
+ 		sym1 := v.Aux
+ 		v_0 := v.Args[0]
+ 		if v_0.Op != OpARMADDconst {
+@@ -1451,7 +1733,125 @@ func rewriteValueARM_OpARMMOVWload(v *Value, config *Config) bool {
+ 		if !(canMergeSym(sym1, sym2)) {
+ 			break
+ 		}
+-		v.reset(OpARMMOVWload)
++		v.reset(OpARMMOVBUload)
++		v.AuxInt = off1 + off2
++		v.Aux = mergeSym(sym1, sym2)
++		v.AddArg(ptr)
++		v.AddArg(mem)
++		return true
++	}
++	return false
++}
++func rewriteValueARM_OpARMMOVBload(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (MOVBload [off1] {sym1} (ADDconst [off2] {sym2} ptr) mem)
++	// cond: canMergeSym(sym1,sym2)
++	// result: (MOVBload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
++	for {
++		off1 := v.AuxInt
++		sym1 := v.Aux
++		v_0 := v.Args[0]
++		if v_0.Op != OpARMADDconst {
++			break
++		}
++		off2 := v_0.AuxInt
++		sym2 := v_0.Aux
++		ptr := v_0.Args[0]
++		mem := v.Args[1]
++		if !(canMergeSym(sym1, sym2)) {
++			break
++		}
++		v.reset(OpARMMOVBload)
++		v.AuxInt = off1 + off2
++		v.Aux = mergeSym(sym1, sym2)
++		v.AddArg(ptr)
++		v.AddArg(mem)
++		return true
++	}
++	return false
++}
++func rewriteValueARM_OpARMMOVBstore(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (MOVBstore [off1] {sym1} (ADDconst [off2] {sym2} ptr) val mem)
++	// cond: canMergeSym(sym1,sym2)
++	// result: (MOVBstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
++	for {
++		off1 := v.AuxInt
++		sym1 := v.Aux
++		v_0 := v.Args[0]
++		if v_0.Op != OpARMADDconst {
++			break
++		}
++		off2 := v_0.AuxInt
++		sym2 := v_0.Aux
++		ptr := v_0.Args[0]
++		val := v.Args[1]
++		mem := v.Args[2]
++		if !(canMergeSym(sym1, sym2)) {
++			break
++		}
++		v.reset(OpARMMOVBstore)
++		v.AuxInt = off1 + off2
++		v.Aux = mergeSym(sym1, sym2)
++		v.AddArg(ptr)
++		v.AddArg(val)
++		v.AddArg(mem)
++		return true
++	}
++	return false
++}
++func rewriteValueARM_OpARMMOVHUload(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (MOVHUload [off1] {sym1} (ADDconst [off2] {sym2} ptr) mem)
++	// cond: canMergeSym(sym1,sym2)
++	// result: (MOVHUload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
++	for {
++		off1 := v.AuxInt
++		sym1 := v.Aux
++		v_0 := v.Args[0]
++		if v_0.Op != OpARMADDconst {
++			break
++		}
++		off2 := v_0.AuxInt
++		sym2 := v_0.Aux
++		ptr := v_0.Args[0]
++		mem := v.Args[1]
++		if !(canMergeSym(sym1, sym2)) {
++			break
++		}
++		v.reset(OpARMMOVHUload)
++		v.AuxInt = off1 + off2
++		v.Aux = mergeSym(sym1, sym2)
++		v.AddArg(ptr)
++		v.AddArg(mem)
++		return true
++	}
++	return false
++}
++func rewriteValueARM_OpARMMOVHload(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (MOVHload [off1] {sym1} (ADDconst [off2] {sym2} ptr) mem)
++	// cond: canMergeSym(sym1,sym2)
++	// result: (MOVHload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
++	for {
++		off1 := v.AuxInt
++		sym1 := v.Aux
++		v_0 := v.Args[0]
++		if v_0.Op != OpARMADDconst {
++			break
++		}
++		off2 := v_0.AuxInt
++		sym2 := v_0.Aux
++		ptr := v_0.Args[0]
++		mem := v.Args[1]
++		if !(canMergeSym(sym1, sym2)) {
++			break
++		}
++		v.reset(OpARMMOVHload)
+ 		v.AuxInt = off1 + off2
+ 		v.Aux = mergeSym(sym1, sym2)
+ 		v.AddArg(ptr)
+@@ -1460,272 +1860,935 @@ func rewriteValueARM_OpARMMOVWload(v *Value, config *Config) bool {
+ 	}
+ 	return false
+ }
+-func rewriteValueARM_OpARMMOVWstore(v *Value, config *Config) bool {
++func rewriteValueARM_OpARMMOVHstore(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (MOVHstore [off1] {sym1} (ADDconst [off2] {sym2} ptr) val mem)
++	// cond: canMergeSym(sym1,sym2)
++	// result: (MOVHstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
++	for {
++		off1 := v.AuxInt
++		sym1 := v.Aux
++		v_0 := v.Args[0]
++		if v_0.Op != OpARMADDconst {
++			break
++		}
++		off2 := v_0.AuxInt
++		sym2 := v_0.Aux
++		ptr := v_0.Args[0]
++		val := v.Args[1]
++		mem := v.Args[2]
++		if !(canMergeSym(sym1, sym2)) {
++			break
++		}
++		v.reset(OpARMMOVHstore)
++		v.AuxInt = off1 + off2
++		v.Aux = mergeSym(sym1, sym2)
++		v.AddArg(ptr)
++		v.AddArg(val)
++		v.AddArg(mem)
++		return true
++	}
++	return false
++}
++func rewriteValueARM_OpARMMOVWload(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (MOVWload [off1] {sym1} (ADDconst [off2] {sym2} ptr) mem)
++	// cond: canMergeSym(sym1,sym2)
++	// result: (MOVWload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
++	for {
++		off1 := v.AuxInt
++		sym1 := v.Aux
++		v_0 := v.Args[0]
++		if v_0.Op != OpARMADDconst {
++			break
++		}
++		off2 := v_0.AuxInt
++		sym2 := v_0.Aux
++		ptr := v_0.Args[0]
++		mem := v.Args[1]
++		if !(canMergeSym(sym1, sym2)) {
++			break
++		}
++		v.reset(OpARMMOVWload)
++		v.AuxInt = off1 + off2
++		v.Aux = mergeSym(sym1, sym2)
++		v.AddArg(ptr)
++		v.AddArg(mem)
++		return true
++	}
++	return false
++}
++func rewriteValueARM_OpARMMOVWstore(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (MOVWstore [off1] {sym1} (ADDconst [off2] {sym2} ptr) val mem)
++	// cond: canMergeSym(sym1,sym2)
++	// result: (MOVWstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
++	for {
++		off1 := v.AuxInt
++		sym1 := v.Aux
++		v_0 := v.Args[0]
++		if v_0.Op != OpARMADDconst {
++			break
++		}
++		off2 := v_0.AuxInt
++		sym2 := v_0.Aux
++		ptr := v_0.Args[0]
++		val := v.Args[1]
++		mem := v.Args[2]
++		if !(canMergeSym(sym1, sym2)) {
++			break
++		}
++		v.reset(OpARMMOVWstore)
++		v.AuxInt = off1 + off2
++		v.Aux = mergeSym(sym1, sym2)
++		v.AddArg(ptr)
++		v.AddArg(val)
++		v.AddArg(mem)
++		return true
++	}
++	return false
++}
++func rewriteValueARM_OpMul16(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Mul16 x y)
++	// cond:
++	// result: (MUL x y)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpARMMUL)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
++func rewriteValueARM_OpMul32(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Mul32 x y)
++	// cond:
++	// result: (MUL x y)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpARMMUL)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
++func rewriteValueARM_OpMul8(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Mul8 x y)
++	// cond:
++	// result: (MUL x y)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpARMMUL)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
++func rewriteValueARM_OpNeg16(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Neg16 x)
++	// cond:
++	// result: (RSBconst [0] x)
++	for {
++		x := v.Args[0]
++		v.reset(OpARMRSBconst)
++		v.AuxInt = 0
++		v.AddArg(x)
++		return true
++	}
++}
++func rewriteValueARM_OpNeg32(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Neg32 x)
++	// cond:
++	// result: (RSBconst [0] x)
++	for {
++		x := v.Args[0]
++		v.reset(OpARMRSBconst)
++		v.AuxInt = 0
++		v.AddArg(x)
++		return true
++	}
++}
++func rewriteValueARM_OpNeg8(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Neg8 x)
++	// cond:
++	// result: (RSBconst [0] x)
++	for {
++		x := v.Args[0]
++		v.reset(OpARMRSBconst)
++		v.AuxInt = 0
++		v.AddArg(x)
++		return true
++	}
++}
++func rewriteValueARM_OpNeq16(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Neq16 x y)
++	// cond:
++	// result: (NotEqual (CMP (ZeroExt16to32 x) (ZeroExt16to32 y)))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpARMNotEqual)
++		v0 := b.NewValue0(v.Line, OpARMCMP, TypeFlags)
++		v1 := b.NewValue0(v.Line, OpZeroExt16to32, config.fe.TypeUInt32())
++		v1.AddArg(x)
++		v0.AddArg(v1)
++		v2 := b.NewValue0(v.Line, OpZeroExt16to32, config.fe.TypeUInt32())
++		v2.AddArg(y)
++		v0.AddArg(v2)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValueARM_OpNeq32(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Neq32 x y)
++	// cond:
++	// result: (NotEqual (CMP x y))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpARMNotEqual)
++		v0 := b.NewValue0(v.Line, OpARMCMP, TypeFlags)
++		v0.AddArg(x)
++		v0.AddArg(y)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValueARM_OpNeq8(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Neq8 x y)
++	// cond:
++	// result: (NotEqual (CMP (ZeroExt8to32 x) (ZeroExt8to32 y)))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpARMNotEqual)
++		v0 := b.NewValue0(v.Line, OpARMCMP, TypeFlags)
++		v1 := b.NewValue0(v.Line, OpZeroExt8to32, config.fe.TypeUInt32())
++		v1.AddArg(x)
++		v0.AddArg(v1)
++		v2 := b.NewValue0(v.Line, OpZeroExt8to32, config.fe.TypeUInt32())
++		v2.AddArg(y)
++		v0.AddArg(v2)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValueARM_OpNeqB(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (NeqB x y)
++	// cond:
++	// result: (XOR x y)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpARMXOR)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
++func rewriteValueARM_OpNeqPtr(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (NeqPtr x y)
++	// cond:
++	// result: (NotEqual (CMP x y))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpARMNotEqual)
++		v0 := b.NewValue0(v.Line, OpARMCMP, TypeFlags)
++		v0.AddArg(x)
++		v0.AddArg(y)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValueARM_OpNilCheck(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (NilCheck ptr mem)
++	// cond:
++	// result: (LoweredNilCheck ptr mem)
++	for {
++		ptr := v.Args[0]
++		mem := v.Args[1]
++		v.reset(OpARMLoweredNilCheck)
++		v.AddArg(ptr)
++		v.AddArg(mem)
++		return true
++	}
++}
++func rewriteValueARM_OpNot(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Not x)
++	// cond:
++	// result: (XORconst [1] x)
++	for {
++		x := v.Args[0]
++		v.reset(OpARMXORconst)
++		v.AuxInt = 1
++		v.AddArg(x)
++		return true
++	}
++}
++func rewriteValueARM_OpOffPtr(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (OffPtr [off] ptr)
++	// cond:
++	// result: (ADD (MOVWconst <config.Frontend().TypeInt32()> [off]) ptr)
++	for {
++		off := v.AuxInt
++		ptr := v.Args[0]
++		v.reset(OpARMADD)
++		v0 := b.NewValue0(v.Line, OpARMMOVWconst, config.Frontend().TypeInt32())
++		v0.AuxInt = off
++		v.AddArg(v0)
++		v.AddArg(ptr)
++		return true
++	}
++}
++func rewriteValueARM_OpOr16(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Or16 x y)
++	// cond:
++	// result: (OR x y)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpARMOR)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
++func rewriteValueARM_OpOr32(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Or32 x y)
++	// cond:
++	// result: (OR x y)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpARMOR)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
++func rewriteValueARM_OpOr8(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Or8 x y)
++	// cond:
++	// result: (OR x y)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpARMOR)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
++func rewriteValueARM_OpOrB(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (OrB x y)
++	// cond:
++	// result: (OR x y)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpARMOR)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
++func rewriteValueARM_OpRsh16Ux16(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Rsh16Ux16 x y)
++	// cond:
++	// result: (SRL (ZeroExt16to32 x) y)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpARMSRL)
++		v0 := b.NewValue0(v.Line, OpZeroExt16to32, config.fe.TypeUInt32())
++		v0.AddArg(x)
++		v.AddArg(v0)
++		v.AddArg(y)
++		return true
++	}
++}
++func rewriteValueARM_OpRsh16Ux32(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Rsh16Ux32 x y)
++	// cond:
++	// result: (SRL (ZeroExt16to32 x) y)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpARMSRL)
++		v0 := b.NewValue0(v.Line, OpZeroExt16to32, config.fe.TypeUInt32())
++		v0.AddArg(x)
++		v.AddArg(v0)
++		v.AddArg(y)
++		return true
++	}
++}
++func rewriteValueARM_OpRsh16Ux64(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Rsh16Ux64 <t> x (Const64 [c]))
++	// cond: uint64(c) < 16
++	// result: (SRLconst (SLLconst <t> x [16]) [c+16])
++	for {
++		t := v.Type
++		x := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst64 {
++			break
++		}
++		c := v_1.AuxInt
++		if !(uint64(c) < 16) {
++			break
++		}
++		v.reset(OpARMSRLconst)
++		v0 := b.NewValue0(v.Line, OpARMSLLconst, t)
++		v0.AddArg(x)
++		v0.AuxInt = 16
++		v.AddArg(v0)
++		v.AuxInt = c + 16
++		return true
++	}
++	// match: (Rsh16Ux64 _ (Const64 [c]))
++	// cond: uint64(c) >= 16
++	// result: (Const16 [0])
++	for {
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst64 {
++			break
++		}
++		c := v_1.AuxInt
++		if !(uint64(c) >= 16) {
++			break
++		}
++		v.reset(OpConst16)
++		v.AuxInt = 0
++		return true
++	}
++	return false
++}
++func rewriteValueARM_OpRsh16Ux8(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Rsh16Ux8  x y)
++	// cond:
++	// result: (SRL (ZeroExt16to32 x) y)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpARMSRL)
++		v0 := b.NewValue0(v.Line, OpZeroExt16to32, config.fe.TypeUInt32())
++		v0.AddArg(x)
++		v.AddArg(v0)
++		v.AddArg(y)
++		return true
++	}
++}
++func rewriteValueARM_OpRsh16x16(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Rsh16x16 x y)
++	// cond:
++	// result: (SRA (SignExt16to32 x) y)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpARMSRA)
++		v0 := b.NewValue0(v.Line, OpSignExt16to32, config.fe.TypeInt32())
++		v0.AddArg(x)
++		v.AddArg(v0)
++		v.AddArg(y)
++		return true
++	}
++}
++func rewriteValueARM_OpRsh16x32(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Rsh16x32 x y)
++	// cond:
++	// result: (SRA (SignExt16to32 x) y)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpARMSRA)
++		v0 := b.NewValue0(v.Line, OpSignExt16to32, config.fe.TypeInt32())
++		v0.AddArg(x)
++		v.AddArg(v0)
++		v.AddArg(y)
++		return true
++	}
++}
++func rewriteValueARM_OpRsh16x64(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Rsh16x64 <t> x (Const64 [c]))
++	// cond: uint64(c) < 16
++	// result: (SRAconst (SLLconst <t> x [16]) [c+16])
++	for {
++		t := v.Type
++		x := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst64 {
++			break
++		}
++		c := v_1.AuxInt
++		if !(uint64(c) < 16) {
++			break
++		}
++		v.reset(OpARMSRAconst)
++		v0 := b.NewValue0(v.Line, OpARMSLLconst, t)
++		v0.AddArg(x)
++		v0.AuxInt = 16
++		v.AddArg(v0)
++		v.AuxInt = c + 16
++		return true
++	}
++	// match: (Rsh16x64 <t> x (Const64 [c]))
++	// cond: uint64(c) >= 16
++	// result: (SRAconst (SLLconst <t> x [16]) [31])
++	for {
++		t := v.Type
++		x := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst64 {
++			break
++		}
++		c := v_1.AuxInt
++		if !(uint64(c) >= 16) {
++			break
++		}
++		v.reset(OpARMSRAconst)
++		v0 := b.NewValue0(v.Line, OpARMSLLconst, t)
++		v0.AddArg(x)
++		v0.AuxInt = 16
++		v.AddArg(v0)
++		v.AuxInt = 31
++		return true
++	}
++	return false
++}
++func rewriteValueARM_OpRsh16x8(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+-	// match: (MOVWstore [off1] {sym1} (ADDconst [off2] {sym2} ptr) val mem)
+-	// cond: canMergeSym(sym1,sym2)
+-	// result: (MOVWstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
++	// match: (Rsh16x8  x y)
++	// cond:
++	// result: (SRA (SignExt16to32 x) y)
+ 	for {
+-		off1 := v.AuxInt
+-		sym1 := v.Aux
+-		v_0 := v.Args[0]
+-		if v_0.Op != OpARMADDconst {
+-			break
+-		}
+-		off2 := v_0.AuxInt
+-		sym2 := v_0.Aux
+-		ptr := v_0.Args[0]
+-		val := v.Args[1]
+-		mem := v.Args[2]
+-		if !(canMergeSym(sym1, sym2)) {
+-			break
+-		}
+-		v.reset(OpARMMOVWstore)
+-		v.AuxInt = off1 + off2
+-		v.Aux = mergeSym(sym1, sym2)
+-		v.AddArg(ptr)
+-		v.AddArg(val)
+-		v.AddArg(mem)
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpARMSRA)
++		v0 := b.NewValue0(v.Line, OpSignExt16to32, config.fe.TypeInt32())
++		v0.AddArg(x)
++		v.AddArg(v0)
++		v.AddArg(y)
+ 		return true
+ 	}
+-	return false
+ }
+-func rewriteValueARM_OpNeg16(v *Value, config *Config) bool {
++func rewriteValueARM_OpRsh32Ux16(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+-	// match: (Neg16 x)
++	// match: (Rsh32Ux16 x y)
+ 	// cond:
+-	// result: (RSBconst [0] x)
++	// result: (SRL x y)
+ 	for {
+ 		x := v.Args[0]
+-		v.reset(OpARMRSBconst)
+-		v.AuxInt = 0
++		y := v.Args[1]
++		v.reset(OpARMSRL)
+ 		v.AddArg(x)
++		v.AddArg(y)
+ 		return true
+ 	}
+ }
+-func rewriteValueARM_OpNeg32(v *Value, config *Config) bool {
++func rewriteValueARM_OpRsh32Ux32(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+-	// match: (Neg32 x)
++	// match: (Rsh32Ux32 x y)
+ 	// cond:
+-	// result: (RSBconst [0] x)
++	// result: (SRL x y)
+ 	for {
+ 		x := v.Args[0]
+-		v.reset(OpARMRSBconst)
+-		v.AuxInt = 0
++		y := v.Args[1]
++		v.reset(OpARMSRL)
+ 		v.AddArg(x)
++		v.AddArg(y)
+ 		return true
+ 	}
+ }
+-func rewriteValueARM_OpNeg8(v *Value, config *Config) bool {
++func rewriteValueARM_OpRsh32Ux64(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+-	// match: (Neg8 x)
+-	// cond:
+-	// result: (RSBconst [0] x)
++	// match: (Rsh32Ux64 x (Const64 [c]))
++	// cond: uint64(c) < 32
++	// result: (SRLconst x [c])
+ 	for {
+ 		x := v.Args[0]
+-		v.reset(OpARMRSBconst)
+-		v.AuxInt = 0
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst64 {
++			break
++		}
++		c := v_1.AuxInt
++		if !(uint64(c) < 32) {
++			break
++		}
++		v.reset(OpARMSRLconst)
+ 		v.AddArg(x)
++		v.AuxInt = c
+ 		return true
+ 	}
++	// match: (Rsh32Ux64 _ (Const64 [c]))
++	// cond: uint64(c) >= 32
++	// result: (Const32 [0])
++	for {
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst64 {
++			break
++		}
++		c := v_1.AuxInt
++		if !(uint64(c) >= 32) {
++			break
++		}
++		v.reset(OpConst32)
++		v.AuxInt = 0
++		return true
++	}
++	return false
+ }
+-func rewriteValueARM_OpNeq16(v *Value, config *Config) bool {
++func rewriteValueARM_OpRsh32Ux8(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+-	// match: (Neq16 x y)
++	// match: (Rsh32Ux8  x y)
+ 	// cond:
+-	// result: (NotEqual (CMP (ZeroExt16to32 x) (ZeroExt16to32 y)))
++	// result: (SRL x y)
+ 	for {
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		v.reset(OpARMNotEqual)
+-		v0 := b.NewValue0(v.Line, OpARMCMP, TypeFlags)
+-		v1 := b.NewValue0(v.Line, OpZeroExt16to32, config.fe.TypeUInt32())
+-		v1.AddArg(x)
+-		v0.AddArg(v1)
+-		v2 := b.NewValue0(v.Line, OpZeroExt16to32, config.fe.TypeUInt32())
+-		v2.AddArg(y)
+-		v0.AddArg(v2)
+-		v.AddArg(v0)
++		v.reset(OpARMSRL)
++		v.AddArg(x)
++		v.AddArg(y)
+ 		return true
+ 	}
+ }
+-func rewriteValueARM_OpNeq32(v *Value, config *Config) bool {
++func rewriteValueARM_OpRsh32x16(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+-	// match: (Neq32 x y)
++	// match: (Rsh32x16 x y)
+ 	// cond:
+-	// result: (NotEqual (CMP x y))
++	// result: (SRA x y)
+ 	for {
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		v.reset(OpARMNotEqual)
+-		v0 := b.NewValue0(v.Line, OpARMCMP, TypeFlags)
+-		v0.AddArg(x)
+-		v0.AddArg(y)
+-		v.AddArg(v0)
++		v.reset(OpARMSRA)
++		v.AddArg(x)
++		v.AddArg(y)
+ 		return true
+ 	}
+ }
+-func rewriteValueARM_OpNeq8(v *Value, config *Config) bool {
++func rewriteValueARM_OpRsh32x32(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+-	// match: (Neq8 x y)
++	// match: (Rsh32x32 x y)
+ 	// cond:
+-	// result: (NotEqual (CMP (ZeroExt8to32 x) (ZeroExt8to32 y)))
++	// result: (SRA x y)
+ 	for {
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		v.reset(OpARMNotEqual)
+-		v0 := b.NewValue0(v.Line, OpARMCMP, TypeFlags)
+-		v1 := b.NewValue0(v.Line, OpZeroExt8to32, config.fe.TypeUInt32())
+-		v1.AddArg(x)
+-		v0.AddArg(v1)
+-		v2 := b.NewValue0(v.Line, OpZeroExt8to32, config.fe.TypeUInt32())
+-		v2.AddArg(y)
+-		v0.AddArg(v2)
+-		v.AddArg(v0)
++		v.reset(OpARMSRA)
++		v.AddArg(x)
++		v.AddArg(y)
+ 		return true
+ 	}
+ }
+-func rewriteValueARM_OpNeqB(v *Value, config *Config) bool {
++func rewriteValueARM_OpRsh32x64(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+-	// match: (NeqB x y)
++	// match: (Rsh32x64 x (Const64 [c]))
++	// cond: uint64(c) < 32
++	// result: (SRAconst x [c])
++	for {
++		x := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst64 {
++			break
++		}
++		c := v_1.AuxInt
++		if !(uint64(c) < 32) {
++			break
++		}
++		v.reset(OpARMSRAconst)
++		v.AddArg(x)
++		v.AuxInt = c
++		return true
++	}
++	// match: (Rsh32x64 x (Const64 [c]))
++	// cond: uint64(c) >= 32
++	// result: (SRAconst x [31])
++	for {
++		x := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst64 {
++			break
++		}
++		c := v_1.AuxInt
++		if !(uint64(c) >= 32) {
++			break
++		}
++		v.reset(OpARMSRAconst)
++		v.AddArg(x)
++		v.AuxInt = 31
++		return true
++	}
++	return false
++}
++func rewriteValueARM_OpRsh32x8(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Rsh32x8  x y)
+ 	// cond:
+-	// result: (XOR x y)
++	// result: (SRA x y)
+ 	for {
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		v.reset(OpARMXOR)
++		v.reset(OpARMSRA)
+ 		v.AddArg(x)
+ 		v.AddArg(y)
+ 		return true
+ 	}
+ }
+-func rewriteValueARM_OpNeqPtr(v *Value, config *Config) bool {
++func rewriteValueARM_OpRsh8Ux16(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+-	// match: (NeqPtr x y)
++	// match: (Rsh8Ux16 x y)
+ 	// cond:
+-	// result: (NotEqual (CMP x y))
++	// result: (SRL (ZeroExt8to32 x) y)
+ 	for {
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		v.reset(OpARMNotEqual)
+-		v0 := b.NewValue0(v.Line, OpARMCMP, TypeFlags)
++		v.reset(OpARMSRL)
++		v0 := b.NewValue0(v.Line, OpZeroExt8to32, config.fe.TypeUInt32())
+ 		v0.AddArg(x)
+-		v0.AddArg(y)
+ 		v.AddArg(v0)
++		v.AddArg(y)
+ 		return true
+ 	}
+ }
+-func rewriteValueARM_OpNilCheck(v *Value, config *Config) bool {
++func rewriteValueARM_OpRsh8Ux32(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+-	// match: (NilCheck ptr mem)
++	// match: (Rsh8Ux32 x y)
+ 	// cond:
+-	// result: (LoweredNilCheck ptr mem)
++	// result: (SRL (ZeroExt8to32 x) y)
+ 	for {
+-		ptr := v.Args[0]
+-		mem := v.Args[1]
+-		v.reset(OpARMLoweredNilCheck)
+-		v.AddArg(ptr)
+-		v.AddArg(mem)
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpARMSRL)
++		v0 := b.NewValue0(v.Line, OpZeroExt8to32, config.fe.TypeUInt32())
++		v0.AddArg(x)
++		v.AddArg(v0)
++		v.AddArg(y)
+ 		return true
+ 	}
+ }
+-func rewriteValueARM_OpNot(v *Value, config *Config) bool {
++func rewriteValueARM_OpRsh8Ux64(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+-	// match: (Not x)
+-	// cond:
+-	// result: (XORconst [1] x)
++	// match: (Rsh8Ux64 <t> x (Const64 [c]))
++	// cond: uint64(c) < 8
++	// result: (SRLconst (SLLconst <t> x [24]) [c+24])
+ 	for {
++		t := v.Type
+ 		x := v.Args[0]
+-		v.reset(OpARMXORconst)
+-		v.AuxInt = 1
+-		v.AddArg(x)
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst64 {
++			break
++		}
++		c := v_1.AuxInt
++		if !(uint64(c) < 8) {
++			break
++		}
++		v.reset(OpARMSRLconst)
++		v0 := b.NewValue0(v.Line, OpARMSLLconst, t)
++		v0.AddArg(x)
++		v0.AuxInt = 24
++		v.AddArg(v0)
++		v.AuxInt = c + 24
++		return true
++	}
++	// match: (Rsh8Ux64 _ (Const64 [c]))
++	// cond: uint64(c) >= 8
++	// result: (Const8 [0])
++	for {
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst64 {
++			break
++		}
++		c := v_1.AuxInt
++		if !(uint64(c) >= 8) {
++			break
++		}
++		v.reset(OpConst8)
++		v.AuxInt = 0
+ 		return true
+ 	}
++	return false
+ }
+-func rewriteValueARM_OpOffPtr(v *Value, config *Config) bool {
++func rewriteValueARM_OpRsh8Ux8(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+-	// match: (OffPtr [off] ptr)
++	// match: (Rsh8Ux8  x y)
+ 	// cond:
+-	// result: (ADD (MOVWconst <config.Frontend().TypeInt32()> [off]) ptr)
++	// result: (SRL (ZeroExt8to32 x) y)
+ 	for {
+-		off := v.AuxInt
+-		ptr := v.Args[0]
+-		v.reset(OpARMADD)
+-		v0 := b.NewValue0(v.Line, OpARMMOVWconst, config.Frontend().TypeInt32())
+-		v0.AuxInt = off
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpARMSRL)
++		v0 := b.NewValue0(v.Line, OpZeroExt8to32, config.fe.TypeUInt32())
++		v0.AddArg(x)
+ 		v.AddArg(v0)
+-		v.AddArg(ptr)
++		v.AddArg(y)
+ 		return true
+ 	}
+ }
+-func rewriteValueARM_OpOr16(v *Value, config *Config) bool {
++func rewriteValueARM_OpRsh8x16(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+-	// match: (Or16 x y)
++	// match: (Rsh8x16 x y)
+ 	// cond:
+-	// result: (OR x y)
++	// result: (SRA (SignExt8to32 x) y)
+ 	for {
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		v.reset(OpARMOR)
+-		v.AddArg(x)
++		v.reset(OpARMSRA)
++		v0 := b.NewValue0(v.Line, OpSignExt8to32, config.fe.TypeInt32())
++		v0.AddArg(x)
++		v.AddArg(v0)
+ 		v.AddArg(y)
+ 		return true
+ 	}
+ }
+-func rewriteValueARM_OpOr32(v *Value, config *Config) bool {
++func rewriteValueARM_OpRsh8x32(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+-	// match: (Or32 x y)
++	// match: (Rsh8x32 x y)
+ 	// cond:
+-	// result: (OR x y)
++	// result: (SRA (SignExt8to32 x) y)
+ 	for {
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		v.reset(OpARMOR)
+-		v.AddArg(x)
++		v.reset(OpARMSRA)
++		v0 := b.NewValue0(v.Line, OpSignExt8to32, config.fe.TypeInt32())
++		v0.AddArg(x)
++		v.AddArg(v0)
+ 		v.AddArg(y)
+ 		return true
+ 	}
+ }
+-func rewriteValueARM_OpOr8(v *Value, config *Config) bool {
++func rewriteValueARM_OpRsh8x64(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+-	// match: (Or8 x y)
+-	// cond:
+-	// result: (OR x y)
++	// match: (Rsh8x64 <t> x (Const64 [c]))
++	// cond: uint64(c) < 8
++	// result: (SRAconst (SLLconst <t> x [24]) [c+24])
+ 	for {
++		t := v.Type
+ 		x := v.Args[0]
+-		y := v.Args[1]
+-		v.reset(OpARMOR)
+-		v.AddArg(x)
+-		v.AddArg(y)
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst64 {
++			break
++		}
++		c := v_1.AuxInt
++		if !(uint64(c) < 8) {
++			break
++		}
++		v.reset(OpARMSRAconst)
++		v0 := b.NewValue0(v.Line, OpARMSLLconst, t)
++		v0.AddArg(x)
++		v0.AuxInt = 24
++		v.AddArg(v0)
++		v.AuxInt = c + 24
++		return true
++	}
++	// match: (Rsh8x64 <t> x (Const64 [c]))
++	// cond: uint64(c) >= 8
++	// result: (SRAconst (SLLconst <t> x [24]) [31])
++	for {
++		t := v.Type
++		x := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst64 {
++			break
++		}
++		c := v_1.AuxInt
++		if !(uint64(c) >= 8) {
++			break
++		}
++		v.reset(OpARMSRAconst)
++		v0 := b.NewValue0(v.Line, OpARMSLLconst, t)
++		v0.AddArg(x)
++		v0.AuxInt = 24
++		v.AddArg(v0)
++		v.AuxInt = 31
+ 		return true
+ 	}
++	return false
+ }
+-func rewriteValueARM_OpOrB(v *Value, config *Config) bool {
++func rewriteValueARM_OpRsh8x8(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+-	// match: (OrB x y)
++	// match: (Rsh8x8  x y)
+ 	// cond:
+-	// result: (OR x y)
++	// result: (SRA (SignExt8to32 x) y)
+ 	for {
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		v.reset(OpARMOR)
+-		v.AddArg(x)
++		v.reset(OpARMSRA)
++		v0 := b.NewValue0(v.Line, OpSignExt8to32, config.fe.TypeInt32())
++		v0.AddArg(x)
++		v.AddArg(v0)
+ 		v.AddArg(y)
+ 		return true
+ 	}

@@ -17,8 +17,292 @@ Date:   Tue Dec 23 20:29:13 2014 +0100
     Change-Id: I5f58aa58e74bbe4ec91b2e9b8c81921338053b00
     Reviewed-on: https://go-review.googlesource.com/2101
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/go/build/deps_test.go   |   2 +-
  src/internal/mime/header.go | 122 ++++++++++++++++++++++++++++++++++++++++++++
  src/net/mail/message.go     | 103 ++-----------------------------------
  3 files changed, 126 insertions(+), 101 deletions(-)
+
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 98201a5d96..d186a17e0e 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -252,7 +252,7 @@ var pkgDeps = map[string][]string{
+ 
+ 	// Uses of networking.
+ 	"log/syslog":    {"L4", "OS", "net"},
+-	"net/mail":      {"L4", "NET", "OS"},
++	"net/mail":      {"L4", "NET", "OS", "internal/mime"},
+ 	"net/textproto": {"L4", "OS", "net"},
+ 
+ 	// Core crypto.
+diff --git a/src/internal/mime/header.go b/src/internal/mime/header.go
+new file mode 100644
+index 0000000000..9bc3e5e576
+--- /dev/null
++++ b/src/internal/mime/header.go
+@@ -0,0 +1,122 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package mime
++
++import (
++	"bytes"
++	"encoding/base64"
++	"errors"
++	"fmt"
++	"io"
++	"io/ioutil"
++	"strconv"
++	"strings"
++	"unicode"
++)
++
++// EncodeWord encodes a string into an RFC 2047 encoded-word.
++func EncodeWord(s string) string {
++	// UTF-8 "Q" encoding
++	b := bytes.NewBufferString("=?utf-8?q?")
++	for i := 0; i < len(s); i++ {
++		switch c := s[i]; {
++		case c == ' ':
++			b.WriteByte('_')
++		case isVchar(c) && c != '=' && c != '?' && c != '_':
++			b.WriteByte(c)
++		default:
++			fmt.Fprintf(b, "=%02X", c)
++		}
++	}
++	b.WriteString("?=")
++	return b.String()
++}
++
++// DecodeWord decodes an RFC 2047 encoded-word.
++func DecodeWord(s string) (string, error) {
++	fields := strings.Split(s, "?")
++	if len(fields) != 5 || fields[0] != "=" || fields[4] != "=" {
++		return "", errors.New("address not RFC 2047 encoded")
++	}
++	charset, enc := strings.ToLower(fields[1]), strings.ToLower(fields[2])
++	if charset != "us-ascii" && charset != "iso-8859-1" && charset != "utf-8" {
++		return "", fmt.Errorf("charset not supported: %q", charset)
++	}
++
++	in := bytes.NewBufferString(fields[3])
++	var r io.Reader
++	switch enc {
++	case "b":
++		r = base64.NewDecoder(base64.StdEncoding, in)
++	case "q":
++		r = qDecoder{r: in}
++	default:
++		return "", fmt.Errorf("RFC 2047 encoding not supported: %q", enc)
++	}
++
++	dec, err := ioutil.ReadAll(r)
++	if err != nil {
++		return "", err
++	}
++
++	switch charset {
++	case "us-ascii":
++		b := new(bytes.Buffer)
++		for _, c := range dec {
++			if c >= 0x80 {
++				b.WriteRune(unicode.ReplacementChar)
++			} else {
++				b.WriteRune(rune(c))
++			}
++		}
++		return b.String(), nil
++	case "iso-8859-1":
++		b := new(bytes.Buffer)
++		for _, c := range dec {
++			b.WriteRune(rune(c))
++		}
++		return b.String(), nil
++	case "utf-8":
++		return string(dec), nil
++	}
++	panic("unreachable")
++}
++
++type qDecoder struct {
++	r       io.Reader
++	scratch [2]byte
++}
++
++func (qd qDecoder) Read(p []byte) (n int, err error) {
++	// This method writes at most one byte into p.
++	if len(p) == 0 {
++		return 0, nil
++	}
++	if _, err := qd.r.Read(qd.scratch[:1]); err != nil {
++		return 0, err
++	}
++	switch c := qd.scratch[0]; {
++	case c == '=':
++		if _, err := io.ReadFull(qd.r, qd.scratch[:2]); err != nil {
++			return 0, err
++		}
++		x, err := strconv.ParseInt(string(qd.scratch[:2]), 16, 64)
++		if err != nil {
++			return 0, fmt.Errorf("mime: invalid RFC 2047 encoding: %q", qd.scratch[:2])
++		}
++		p[0] = byte(x)
++	case c == '_':
++		p[0] = ' '
++	default:
++		p[0] = c
++	}
++	return 1, nil
++}
++
++// isVchar returns true if c is an RFC 5322 VCHAR character.
++func isVchar(c byte) bool {
++	// Visible (printing) characters.
++	return '!' <= c && c <= '~'
++}
+diff --git a/src/net/mail/message.go b/src/net/mail/message.go
+index 19aa888d87..71fe74b9ca 100644
+--- a/src/net/mail/message.go
++++ b/src/net/mail/message.go
+@@ -18,17 +18,14 @@ package mail
+ import (
+ 	"bufio"
+ 	"bytes"
+-	"encoding/base64"
+ 	"errors"
+ 	"fmt"
++	"internal/mime"
+ 	"io"
+-	"io/ioutil"
+ 	"log"
+ 	"net/textproto"
+-	"strconv"
+ 	"strings"
+ 	"time"
+-	"unicode"
+ )
+ 
+ var debug = debugT(false)
+@@ -180,21 +177,7 @@ func (a *Address) String() string {
+ 		return b.String()
+ 	}
+ 
+-	// UTF-8 "Q" encoding
+-	b := bytes.NewBufferString("=?utf-8?q?")
+-	for i := 0; i < len(a.Name); i++ {
+-		switch c := a.Name[i]; {
+-		case c == ' ':
+-			b.WriteByte('_')
+-		case isVchar(c) && c != '=' && c != '?' && c != '_':
+-			b.WriteByte(c)
+-		default:
+-			fmt.Fprintf(b, "=%02X", c)
+-		}
+-	}
+-	b.WriteString("?= ")
+-	b.WriteString(s)
+-	return b.String()
++	return mime.EncodeWord(a.Name) + " " + s
+ }
+ 
+ type addrParser []byte
+@@ -352,7 +335,7 @@ func (p *addrParser) consumePhrase() (phrase string, err error) {
+ 
+ 		// RFC 2047 encoded-word starts with =?, ends with ?=, and has two other ?s.
+ 		if err == nil && strings.HasPrefix(word, "=?") && strings.HasSuffix(word, "?=") && strings.Count(word, "?") == 4 {
+-			word, err = decodeRFC2047Word(word)
++			word, err = mime.DecodeWord(word)
+ 		}
+ 
+ 		if err != nil {
+@@ -440,86 +423,6 @@ func (p *addrParser) len() int {
+ 	return len(*p)
+ }
+ 
+-func decodeRFC2047Word(s string) (string, error) {
+-	fields := strings.Split(s, "?")
+-	if len(fields) != 5 || fields[0] != "=" || fields[4] != "=" {
+-		return "", errors.New("address not RFC 2047 encoded")
+-	}
+-	charset, enc := strings.ToLower(fields[1]), strings.ToLower(fields[2])
+-	if charset != "us-ascii" && charset != "iso-8859-1" && charset != "utf-8" {
+-		return "", fmt.Errorf("charset not supported: %q", charset)
+-	}
+-
+-	in := bytes.NewBufferString(fields[3])
+-	var r io.Reader
+-	switch enc {
+-	case "b":
+-		r = base64.NewDecoder(base64.StdEncoding, in)
+-	case "q":
+-		r = qDecoder{r: in}
+-	default:
+-		return "", fmt.Errorf("RFC 2047 encoding not supported: %q", enc)
+-	}
+-
+-	dec, err := ioutil.ReadAll(r)
+-	if err != nil {
+-		return "", err
+-	}
+-
+-	switch charset {
+-	case "us-ascii":
+-		b := new(bytes.Buffer)
+-		for _, c := range dec {
+-			if c >= 0x80 {
+-				b.WriteRune(unicode.ReplacementChar)
+-			} else {
+-				b.WriteRune(rune(c))
+-			}
+-		}
+-		return b.String(), nil
+-	case "iso-8859-1":
+-		b := new(bytes.Buffer)
+-		for _, c := range dec {
+-			b.WriteRune(rune(c))
+-		}
+-		return b.String(), nil
+-	case "utf-8":
+-		return string(dec), nil
+-	}
+-	panic("unreachable")
+-}
+-
+-type qDecoder struct {
+-	r       io.Reader
+-	scratch [2]byte
+-}
+-
+-func (qd qDecoder) Read(p []byte) (n int, err error) {
+-	// This method writes at most one byte into p.
+-	if len(p) == 0 {
+-		return 0, nil
+-	}
+-	if _, err := qd.r.Read(qd.scratch[:1]); err != nil {
+-		return 0, err
+-	}
+-	switch c := qd.scratch[0]; {
+-	case c == '=':
+-		if _, err := io.ReadFull(qd.r, qd.scratch[:2]); err != nil {
+-			return 0, err
+-		}
+-		x, err := strconv.ParseInt(string(qd.scratch[:2]), 16, 64)
+-		if err != nil {
+-			return 0, fmt.Errorf("mail: invalid RFC 2047 encoding: %q", qd.scratch[:2])
+-		}
+-		p[0] = byte(x)
+-	case c == '_':
+-		p[0] = ' '
+-	default:
+-		p[0] = c
+-	}
+-	return 1, nil
+-}
+-
+ var atextChars = []byte("ABCDEFGHIJKLMNOPQRSTUVWXYZ" +
+ 	"abcdefghijklmnopqrstuvwxyz" +
+ 	"0123456789" +

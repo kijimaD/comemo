@@ -13,8 +13,67 @@ Date:   Thu Aug 30 10:23:54 2018 +0200
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/dist/build.go   | 2 ++
  src/cmd/vet/all/main.go | 6 +++---
  src/go/types/sizes.go   | 3 ++-
  3 files changed, 7 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index d4f9dc4fbb..b27d3aac4d 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -69,6 +69,7 @@ var okgoarch = []string{
+ 	"ppc64le",
+ 	"riscv64",
+ 	"s390x",
++	"sparc64",
+ 	"wasm",
+ }
+ 
+@@ -1407,6 +1408,7 @@ var cgoEnabled = map[string]bool{
+ 	"linux/mips64le":  true,
+ 	"linux/riscv64":   true,
+ 	"linux/s390x":     true,
++	"linux/sparc64":   true,
+ 	"android/386":     true,
+ 	"android/amd64":   true,
+ 	"android/arm":     true,
+diff --git a/src/cmd/vet/all/main.go b/src/cmd/vet/all/main.go
+index e7fe4edc2a..24dfafd7bf 100644
+--- a/src/cmd/vet/all/main.go
++++ b/src/cmd/vet/all/main.go
+@@ -192,9 +192,9 @@ func vetPlatforms(pp []platform) {
+ }
+ 
+ func (p platform) vet() {
+-	if p.os == "linux" && p.arch == "riscv64" {
+-		// TODO(tklauser): enable as soon as the riscv64 port has fully landed
+-		fmt.Println("skipping linux/riscv64")
++	if p.os == "linux" && (p.arch == "riscv64" || p.arch == "sparc64") {
++		// TODO(tklauser): enable as soon as these ports have fully landed
++		fmt.Printf("skipping %s/%s\n", p.os, p.arch)
+ 		return
+ 	}
+ 
+diff --git a/src/go/types/sizes.go b/src/go/types/sizes.go
+index 7b5410167f..f890c30377 100644
+--- a/src/go/types/sizes.go
++++ b/src/go/types/sizes.go
+@@ -169,6 +169,7 @@ var gcArchSizes = map[string]*StdSizes{
+ 	"ppc64le":  {8, 8},
+ 	"riscv64":  {8, 8},
+ 	"s390x":    {8, 8},
++	"sparc64":  {8, 8},
+ 	"wasm":     {8, 8},
+ 	// When adding more architectures here,
+ 	// update the doc string of SizesFor below.
+@@ -179,7 +180,7 @@ var gcArchSizes = map[string]*StdSizes{
+ //
+ // Supported architectures for compiler "gc":
+ // "386", "arm", "arm64", "amd64", "amd64p32", "mips", "mipsle",
+-// "mips64", "mips64le", "ppc64", "ppc64le", "riscv64", "s390x", "wasm".
++// "mips64", "mips64le", "ppc64", "ppc64le", "riscv64", "s390x", "sparc64", "wasm".
+ func SizesFor(compiler, arch string) Sizes {
+ 	if compiler != "gc" {
+ 		return nil

@@ -7,7 +7,34 @@ Date:   Fri May 4 08:55:11 2018 +0000
     Change-Id: I11793daafdb69156b1dafaa80fe501fcaeeff202
     Reviewed-on: https://go-review.googlesource.com/111435
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/make.bash | 2 +-
  src/race.bash | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/make.bash b/src/make.bash
+index 93a5c43d11..4ea5a9a8b5 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -41,7 +41,7 @@
+ # This is used by cgo.  Default is CC.
+ #
+ # CXX_FOR_TARGET: Command line to run to compile C++ code for GOARCH.
+-# This is used by cgo. Default is CXX, or, if that is not set, 
++# This is used by cgo. Default is CXX, or, if that is not set,
+ # "g++" or "clang++".
+ #
+ # FC: Command line to run to compile Fortran code for GOARCH.
+diff --git a/src/race.bash b/src/race.bash
+index adf2297c2f..cafd834777 100755
+--- a/src/race.bash
++++ b/src/race.bash
+@@ -18,7 +18,7 @@ case $(uname) in
+ 	# why Apple? why?
+ 	if sysctl machdep.cpu.extfeatures | grep -qv EM64T; then
+ 		usage
+-	fi 
++	fi
+ 	;;
+ "Linux")
+ 	if [ $(uname -m) != "x86_64" ]; then

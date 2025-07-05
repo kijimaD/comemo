@@ -8,6 +8,28 @@ Date:   Fri Feb 27 22:56:12 2015 -0500
     Reviewed-on: https://go-review.googlesource.com/6336
     Reviewed-by: Rob Pike <r@golang.org>
     Reviewed-by: Dave Cheney <dave@cheney.net>
-
+---
  src/cmd/dist/buildtool.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/cmd/dist/buildtool.go b/src/cmd/dist/buildtool.go
+index 45a2d0c82f..1b4f429730 100644
+--- a/src/cmd/dist/buildtool.go
++++ b/src/cmd/dist/buildtool.go
+@@ -38,11 +38,16 @@ var bootstrapDirs = []string{
+ 	"asm/internal/lex",
+ 	"internal/asm",
+ 	"internal/gc",
++	"internal/ld",
+ 	"internal/obj",
+ 	"internal/obj/arm",
+ 	"internal/obj/i386",
+ 	"internal/obj/ppc64",
+ 	"internal/obj/x86",
++	"new5l",
++	"new6l",
++	"new8l",
++	"new9l",
+ }
+ 
+ func bootstrapBuildTools() {

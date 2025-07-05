@@ -8,6 +8,19 @@ Date:   Sat Dec 20 16:30:44 2008 -0800
     R=ken
     OCL=21688
     CL=21688
-
+---
  src/cmd/gc/walk.c | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index f249334834..58d24bca0b 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -2671,6 +2671,7 @@ arrayop(Node *n, int top)
+ 		r = nod(OCALL, on, r);
+ 
+ 		walktype(r, top);
++		r->type = t;	// if t had a name, going through newarray lost it
+ 		break;
+ 
+ 	case OSLICE:

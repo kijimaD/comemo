@@ -8,6 +8,20 @@ Date:   Fri Apr 2 17:36:54 2021 +0900
     Reviewed-on: https://go-review.googlesource.com/c/go/+/306810
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/testing/testing.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index 056a8d2879..851b118df4 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -876,7 +876,7 @@ func (c *common) Helper() {
+ 	}
+ }
+ 
+-// Cleanup registers a function to be called when the test and all its
++// Cleanup registers a function to be called when the test (or subtest) and all its
+ // subtests complete. Cleanup functions will be called in last added,
+ // first called order.
+ func (c *common) Cleanup(f func()) {

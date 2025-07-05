@@ -12,7 +12,111 @@ Date:   Thu Apr 5 12:20:12 2018 +0200
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/sendfile_solaris.go                       | 63 -----------------------
  src/net/{sendfile_bsd.go => sendfile_unix_alt.go} |  6 +--
  2 files changed, 3 insertions(+), 66 deletions(-)
+
+diff --git a/src/net/sendfile_solaris.go b/src/net/sendfile_solaris.go
+deleted file mode 100644
+index 63ca9d47b8..0000000000
+--- a/src/net/sendfile_solaris.go
++++ /dev/null
+@@ -1,63 +0,0 @@
+-// Copyright 2015 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package net
+-
+-import (
+-	"internal/poll"
+-	"io"
+-	"os"
+-)
+-
+-// sendFile copies the contents of r to c using the sendfile
+-// system call to minimize copies.
+-//
+-// if handled == true, sendFile returns the number of bytes copied and any
+-// non-EOF error.
+-//
+-// if handled == false, sendFile performed no work.
+-func sendFile(c *netFD, r io.Reader) (written int64, err error, handled bool) {
+-	// Solaris uses 0 as the "until EOF" value. If you pass in more bytes than the
+-	// file contains, it will loop back to the beginning ad nauseam until it's sent
+-	// exactly the number of bytes told to. As such, we need to know exactly how many
+-	// bytes to send.
+-	var remain int64 = 0
+-
+-	lr, ok := r.(*io.LimitedReader)
+-	if ok {
+-		remain, r = lr.N, lr.R
+-		if remain <= 0 {
+-			return 0, nil, true
+-		}
+-	}
+-	f, ok := r.(*os.File)
+-	if !ok {
+-		return 0, nil, false
+-	}
+-
+-	if remain == 0 {
+-		fi, err := f.Stat()
+-		if err != nil {
+-			return 0, err, false
+-		}
+-
+-		remain = fi.Size()
+-	}
+-
+-	// The other quirk with Solaris's sendfile implementation is that it doesn't
+-	// use the current position of the file -- if you pass it offset 0, it starts
+-	// from offset 0. There's no way to tell it "start from current position", so
+-	// we have to manage that explicitly.
+-	pos, err := f.Seek(0, io.SeekCurrent)
+-	if err != nil {
+-		return 0, err, false
+-	}
+-
+-	written, err = poll.SendFile(&c.pfd, int(f.Fd()), pos, remain)
+-
+-	if lr != nil {
+-		lr.N = remain - written
+-	}
+-	return written, wrapSyscallError("sendfile", err), written > 0
+-}
+diff --git a/src/net/sendfile_bsd.go b/src/net/sendfile_unix_alt.go
+similarity index 90%
+rename from src/net/sendfile_bsd.go
+rename to src/net/sendfile_unix_alt.go
+index 7a2b48c6cf..97aeebbed2 100644
+--- a/src/net/sendfile_bsd.go
++++ b/src/net/sendfile_unix_alt.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build dragonfly freebsd
++// +build dragonfly freebsd solaris
+ 
+ package net
+ 
+@@ -20,7 +20,7 @@ import (
+ //
+ // if handled == false, sendFile performed no work.
+ func sendFile(c *netFD, r io.Reader) (written int64, err error, handled bool) {
+-	// FreeBSD and DragonFly use 0 as the "until EOF" value.
++	// FreeBSD, DragonFly and Solaris use 0 as the "until EOF" value.
+ 	// If you pass in more bytes than the file contains, it will
+ 	// loop back to the beginning ad nauseam until it's sent
+ 	// exactly the number of bytes told to. As such, we need to
+@@ -48,7 +48,7 @@ func sendFile(c *netFD, r io.Reader) (written int64, err error, handled bool) {
+ 		remain = fi.Size()
+ 	}
+ 
+-	// The other quirk with FreeBSD/DragonFly's sendfile
++	// The other quirk with FreeBSD/DragonFly/Solaris's sendfile
+ 	// implementation is that it doesn't use the current position
+ 	// of the file -- if you pass it offset 0, it starts from
+ 	// offset 0. There's no way to tell it "start from current

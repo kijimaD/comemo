@@ -7,7 +7,7 @@ Date:   Tue Feb 1 12:49:56 2011 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4080049
-
+---
  src/cmd/5l/asm.c  |  4 +++-
  src/cmd/5l/doc.go |  2 ++
  src/cmd/5l/l.h    |  1 +
@@ -21,3 +21,221 @@ Date:   Tue Feb 1 12:49:56 2011 -0800
  src/cmd/8l/l.h    |  1 +
  src/cmd/8l/obj.c  |  5 ++++-
  12 files changed, 44 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/5l/asm.c b/src/cmd/5l/asm.c
+index 9767e83036..34565629f6 100644
+--- a/src/cmd/5l/asm.c
++++ b/src/cmd/5l/asm.c
+@@ -448,7 +448,9 @@ asmb(void)
+ 			sh->type = SHT_PROGBITS;
+ 			sh->flags = SHF_ALLOC;
+ 			sh->addralign = 1;
+-			elfinterp(sh, startva, linuxdynld);
++			if(interpreter == nil)
++				interpreter = linuxdynld;
++			elfinterp(sh, startva, interpreter);
+ 
+ 			ph = newElfPhdr();
+ 			ph->type = PT_INTERP;
+diff --git a/src/cmd/5l/doc.go b/src/cmd/5l/doc.go
+index 72b5c33925..d266b92331 100644
+--- a/src/cmd/5l/doc.go
++++ b/src/cmd/5l/doc.go
+@@ -23,6 +23,8 @@ Options new in this version:
+ -F
+ 	Force use of software floating point.
+ 	Also implied by setting GOARM=5 in the environment.
++-I interpreter
++	Set the ELF dynamic linker to use.
+ -L dir1 -L dir2
+ 	Search for libraries (package files) in dir1, dir2, etc.
+ 	The default is the single location $GOROOT/pkg/$GOOS_arm.
+diff --git a/src/cmd/5l/l.h b/src/cmd/5l/l.h
+index ceffac86d6..c310284169 100644
+--- a/src/cmd/5l/l.h
++++ b/src/cmd/5l/l.h
+@@ -332,6 +332,7 @@ EXTERN	Oprang	thumboprange[ALAST];
+ EXTERN	char*	outfile;
+ EXTERN	int32	pc;
+ EXTERN	uchar	repop[ALAST];
++EXTERN	char*	interpreter;
+ EXTERN	char*	rpath;
+ EXTERN	uint32	stroffset;
+ EXTERN	int32	symsize;
+diff --git a/src/cmd/5l/obj.c b/src/cmd/5l/obj.c
+index b3e20fbd81..5b778d7772 100644
+--- a/src/cmd/5l/obj.c
++++ b/src/cmd/5l/obj.c
+@@ -61,7 +61,7 @@ linkername[] =
+ void
+ usage(void)
+ {
+-	fprint(2, "usage: 5l [-E entry] [-H head] [-L dir] [-T text] [-D data] [-R rnd] [-r path] [-o out] main.5\n");
++	fprint(2, "usage: 5l [-E entry] [-H head] [-I interpreter] [-L dir] [-T text] [-D data] [-R rnd] [-r path] [-o out] main.5\n");
+ 	errorexit();
+ }
+ 
+@@ -100,6 +100,9 @@ main(int argc, char *argv[])
+ 	case 'E':
+ 		INITENTRY = EARGF(usage());
+ 		break;
++	case 'I':
++		interpreter = EARGF(usage());
++		break;
+ 	case 'L':
+ 		Lflag(EARGF(usage()));
+ 		break;
+diff --git a/src/cmd/6l/asm.c b/src/cmd/6l/asm.c
+index f82fef543f..d6ffa4ff9d 100644
+--- a/src/cmd/6l/asm.c
++++ b/src/cmd/6l/asm.c
+@@ -915,14 +915,17 @@ asmb(void)
+ 			sh->type = SHT_PROGBITS;
+ 			sh->flags = SHF_ALLOC;
+ 			sh->addralign = 1;
+-			switch(HEADTYPE) {
+-			case 7:
+-				elfinterp(sh, startva, linuxdynld);
+-				break;
+-			case 9:
+-				elfinterp(sh, startva, freebsddynld);
+-				break;
++			if(interpreter == nil) {
++				switch(HEADTYPE) {
++				case 7:
++					interpreter = linuxdynld;
++					break;
++				case 9:
++					interpreter = freebsddynld;
++					break;
++				}
+ 			}
++			elfinterp(sh, startva, interpreter);
+ 
+ 			ph = newElfPhdr();
+ 			ph->type = PT_INTERP;
+diff --git a/src/cmd/6l/doc.go b/src/cmd/6l/doc.go
+index 501317f36b..97fa2cc5a2 100644
+--- a/src/cmd/6l/doc.go
++++ b/src/cmd/6l/doc.go
+@@ -32,6 +32,8 @@ Options new in this version:
+ 	Write Apple Mach-O binaries (default when $GOOS is darwin)
+ -H7
+ 	Write Linux ELF binaries (default when $GOOS is linux)
++-I interpreter
++	Set the ELF dynamic linker to use.
+ -L dir1 -L dir2
+ 	Search for libraries (package files) in dir1, dir2, etc.
+ 	The default is the single location $GOROOT/pkg/$GOOS_amd64.
+diff --git a/src/cmd/6l/l.h b/src/cmd/6l/l.h
+index 01896d3599..7f22493e0c 100644
+--- a/src/cmd/6l/l.h
++++ b/src/cmd/6l/l.h
+@@ -352,6 +352,7 @@ EXTERN	int	nerrors;
+ EXTERN	char*	noname;
+ EXTERN	char*	outfile;
+ EXTERN	vlong	pc;
++EXTERN	char*	interpreter;
+ EXTERN	char*	rpath;
+ EXTERN	int32	spsize;
+ EXTERN	Sym*	symlist;
+diff --git a/src/cmd/6l/obj.c b/src/cmd/6l/obj.c
+index eae76e5d86..f9e2578427 100644
+--- a/src/cmd/6l/obj.c
++++ b/src/cmd/6l/obj.c
+@@ -58,7 +58,7 @@ char*	paramspace	= "FP";
+ void
+ usage(void)
+ {
+-	fprint(2, "usage: 6l [-options] [-E entry] [-H head] [-L dir] [-T text] [-R rnd] [-r path] [-o out] main.6\n");
++	fprint(2, "usage: 6l [-options] [-E entry] [-H head] [-I interpreter] [-L dir] [-T text] [-R rnd] [-r path] [-o out] main.6\n");
+ 	exits("usage");
+ }
+ 
+@@ -96,6 +96,9 @@ main(int argc, char *argv[])
+ 	case 'H':
+ 		HEADTYPE = atolwhex(EARGF(usage()));
+ 		break;
++	case 'I':
++		interpreter = EARGF(usage());
++		break;
+ 	case 'L':
+ 		Lflag(EARGF(usage()));
+ 		break;
+diff --git a/src/cmd/8l/asm.c b/src/cmd/8l/asm.c
+index 0c698990c3..6e83d8deaa 100644
+--- a/src/cmd/8l/asm.c
++++ b/src/cmd/8l/asm.c
+@@ -936,14 +936,17 @@ asmb(void)
+ 			sh->type = SHT_PROGBITS;
+ 			sh->flags = SHF_ALLOC;
+ 			sh->addralign = 1;
+-			switch(HEADTYPE) {
+-			case 7:
+-				elfinterp(sh, startva, linuxdynld);
+-				break;
+-			case 9:
+-				elfinterp(sh, startva, freebsddynld);
+-				break;
++			if(interpreter == nil) {
++				switch(HEADTYPE) {
++				case 7:
++					interpreter = linuxdynld;
++					break;
++				case 9:
++					interpreter = freebsddynld;
++					break;
++				}
+ 			}
++			elfinterp(sh, startva, interpreter);
+ 
+ 			ph = newElfPhdr();
+ 			ph->type = PT_INTERP;
+diff --git a/src/cmd/8l/doc.go b/src/cmd/8l/doc.go
+index 0bf6f151fe..ef5ebc31db 100644
+--- a/src/cmd/8l/doc.go
++++ b/src/cmd/8l/doc.go
+@@ -29,6 +29,8 @@ Options new in this version:
+ 	Write Apple Mach-O binaries (default when $GOOS is darwin)
+ -H7
+ 	Write Linux ELF binaries (default when $GOOS is linux)
++-I interpreter
++	Set the ELF dynamic linker to use.
+ -L dir1 -L dir2
+ 	Search for libraries (package files) in dir1, dir2, etc.
+ 	The default is the single location $GOROOT/pkg/$GOOS_386.
+diff --git a/src/cmd/8l/l.h b/src/cmd/8l/l.h
+index d85453bc31..e0746fc758 100644
+--- a/src/cmd/8l/l.h
++++ b/src/cmd/8l/l.h
+@@ -315,6 +315,7 @@ EXTERN	int	maxop;
+ EXTERN	int	nerrors;
+ EXTERN	char*	noname;
+ EXTERN	int32	pc;
++EXTERN	char*	interpreter;
+ EXTERN	char*	rpath;
+ EXTERN	int32	spsize;
+ EXTERN	Sym*	symlist;
+diff --git a/src/cmd/8l/obj.c b/src/cmd/8l/obj.c
+index 18b2112fe1..fefb6d8b0d 100644
+--- a/src/cmd/8l/obj.c
++++ b/src/cmd/8l/obj.c
+@@ -64,7 +64,7 @@ char	*thestring 	= "386";
+ void
+ usage(void)
+ {
+-	fprint(2, "usage: 8l [-options] [-E entry] [-H head] [-L dir] [-T text] [-R rnd] [-r path] [-o out] main.8\n");
++	fprint(2, "usage: 8l [-options] [-E entry] [-H head] [-I interpreter] [-L dir] [-T text] [-R rnd] [-r path] [-o out] main.8\n");
+ 	exits("usage");
+ }
+ 
+@@ -102,6 +102,9 @@ main(int argc, char *argv[])
+ 	case 'H':
+ 		HEADTYPE = atolwhex(EARGF(usage()));
+ 		break;
++	case 'I':
++		interpreter = EARGF(usage());
++		break;
+ 	case 'L':
+ 		Lflag(EARGF(usage()));
+ 		break;

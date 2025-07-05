@@ -17,9 +17,152 @@ Date:   Sat Dec 22 10:00:36 2012 -0500
     R=rsc
     CC=golang-dev, n13m3y3r
     https://golang.org/cl/6938068
-
+---
  src/pkg/encoding/xml/marshal.go      |  4 +--
  src/pkg/encoding/xml/marshal_test.go | 61 +++++++++++++++++++++++++++++++-----
  src/pkg/encoding/xml/read.go         |  2 +-
  src/pkg/encoding/xml/typeinfo.go     |  3 ++
  4 files changed, 59 insertions(+), 11 deletions(-)
+
+diff --git a/src/pkg/encoding/xml/marshal.go b/src/pkg/encoding/xml/marshal.go
+index 17134c5eb4..8b2f4173f3 100644
+--- a/src/pkg/encoding/xml/marshal.go
++++ b/src/pkg/encoding/xml/marshal.go
+@@ -273,7 +273,7 @@ func (p *printer) marshalStruct(tinfo *typeInfo, val reflect.Value) error {
+ 	s := parentStack{printer: p}
+ 	for i := range tinfo.fields {
+ 		finfo := &tinfo.fields[i]
+-		if finfo.flags&(fAttr|fAny) != 0 {
++		if finfo.flags&(fAttr) != 0 {
+ 			continue
+ 		}
+ 		vf := finfo.value(val)
+@@ -340,7 +340,7 @@ func (p *printer) marshalStruct(tinfo *typeInfo, val reflect.Value) error {
+ 				continue
+ 			}
+ 
+-		case fElement:
++		case fElement, fElement | fAny:
+ 			s.trim(finfo.parents)
+ 			if len(finfo.parents) > len(s.stack) {
+ 				if vf.Kind() != reflect.Ptr && vf.Kind() != reflect.Interface || !vf.IsNil() {
+diff --git a/src/pkg/encoding/xml/marshal_test.go b/src/pkg/encoding/xml/marshal_test.go
+index 668fea6f85..2ce7721abd 100644
+--- a/src/pkg/encoding/xml/marshal_test.go
++++ b/src/pkg/encoding/xml/marshal_test.go
+@@ -188,6 +188,18 @@ type AnyTest struct {
+ 	AnyField AnyHolder `xml:",any"`
+ }
+ 
++type AnyOmitTest struct {
++	XMLName  struct{}   `xml:"a"`
++	Nested   string     `xml:"nested>value"`
++	AnyField *AnyHolder `xml:",any,omitempty"`
++}
++
++type AnySliceTest struct {
++	XMLName  struct{}    `xml:"a"`
++	Nested   string      `xml:"nested>value"`
++	AnyField []AnyHolder `xml:",any"`
++}
++
+ type AnyHolder struct {
+ 	XMLName Name
+ 	XML     string `xml:",innerxml"`
+@@ -652,12 +664,43 @@ var marshalTests = []struct {
+ 				XML:     "<sub>unknown</sub>",
+ 			},
+ 		},
+-		UnmarshalOnly: true,
+ 	},
+ 	{
+-		Value:       &AnyTest{Nested: "known", AnyField: AnyHolder{XML: "<unknown/>"}},
+-		ExpectXML:   `<a><nested><value>known</value></nested></a>`,
+-		MarshalOnly: true,
++		Value: &AnyTest{Nested: "known",
++			AnyField: AnyHolder{
++				XML:     "<unknown/>",
++				XMLName: Name{Local: "AnyField"},
++			},
++		},
++		ExpectXML: `<a><nested><value>known</value></nested><AnyField><unknown/></AnyField></a>`,
++	},
++	{
++		ExpectXML: `<a><nested><value>b</value></nested></a>`,
++		Value: &AnyOmitTest{
++			Nested: "b",
++		},
++	},
++	{
++		ExpectXML: `<a><nested><value>b</value></nested><c><d>e</d></c><g xmlns="f"><h>i</h></g></a>`,
++		Value: &AnySliceTest{
++			Nested: "b",
++			AnyField: []AnyHolder{
++				{
++					XMLName: Name{Local: "c"},
++					XML:     "<d>e</d>",
++				},
++				{
++					XMLName: Name{Space: "f", Local: "g"},
++					XML:     "<h>i</h>",
++				},
++			},
++		},
++	},
++	{
++		ExpectXML: `<a><nested><value>b</value></nested></a>`,
++		Value: &AnySliceTest{
++			Nested: "b",
++		},
+ 	},
+ 
+ 	// Test recursive types.
+@@ -690,15 +733,17 @@ var marshalTests = []struct {
+ 
+ 	// Test escaping.
+ 	{
+-		ExpectXML: `<a><nested><value>dquote: &#34;; squote: &#39;; ampersand: &amp;; less: &lt;; greater: &gt;;</value></nested></a>`,
++		ExpectXML: `<a><nested><value>dquote: &#34;; squote: &#39;; ampersand: &amp;; less: &lt;; greater: &gt;;</value></nested><empty></empty></a>`,
+ 		Value: &AnyTest{
+-			Nested: `dquote: "; squote: '; ampersand: &; less: <; greater: >;`,
++			Nested:   `dquote: "; squote: '; ampersand: &; less: <; greater: >;`,
++			AnyField: AnyHolder{XMLName: Name{Local: "empty"}},
+ 		},
+ 	},
+ 	{
+-		ExpectXML: `<a><nested><value>newline: &#xA;; cr: &#xD;; tab: &#x9;;</value></nested></a>`,
++		ExpectXML: `<a><nested><value>newline: &#xA;; cr: &#xD;; tab: &#x9;;</value></nested><AnyField></AnyField></a>`,
+ 		Value: &AnyTest{
+-			Nested: "newline: \n; cr: \r; tab: \t;",
++			Nested:   "newline: \n; cr: \r; tab: \t;",
++			AnyField: AnyHolder{XMLName: Name{Local: "AnyField"}},
+ 		},
+ 	},
+ 	{
+diff --git a/src/pkg/encoding/xml/read.go b/src/pkg/encoding/xml/read.go
+index 0e6761d66a..7a06a29b95 100644
+--- a/src/pkg/encoding/xml/read.go
++++ b/src/pkg/encoding/xml/read.go
+@@ -279,7 +279,7 @@ func (p *Decoder) unmarshal(val reflect.Value, start *StartElement) error {
+ 					saveComment = finfo.value(sv)
+ 				}
+ 
+-			case fAny:
++			case fAny, fAny | fElement:
+ 				if !saveAny.IsValid() {
+ 					saveAny = finfo.value(sv)
+ 				}
+diff --git a/src/pkg/encoding/xml/typeinfo.go b/src/pkg/encoding/xml/typeinfo.go
+index 970d170193..bbeb28d87e 100644
+--- a/src/pkg/encoding/xml/typeinfo.go
++++ b/src/pkg/encoding/xml/typeinfo.go
+@@ -154,6 +154,9 @@ func structFieldInfo(typ reflect.Type, f *reflect.StructField) (*fieldInfo, erro
+ 			// This will also catch multiple modes in a single field.
+ 			valid = false
+ 		}
++		if finfo.flags&fMode == fAny {
++			finfo.flags |= fElement
++		}
+ 		if finfo.flags&fOmitEmpty != 0 && finfo.flags&(fElement|fAttr) == 0 {
+ 			valid = false
+ 		}

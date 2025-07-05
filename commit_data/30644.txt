@@ -15,7 +15,71 @@ Date:   Mon Nov 14 17:05:46 2016 -0800
     Reviewed-by: David Chase <drchase@google.com>
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ssa/cse.go |  5 ++++-
  test/fixedbugs/issue17918.go        | 41 +++++++++++++++++++++++++++++++++++++
  2 files changed, 45 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/cse.go b/src/cmd/compile/internal/ssa/cse.go
+index 9410433325..4e07c89b88 100644
+--- a/src/cmd/compile/internal/ssa/cse.go
++++ b/src/cmd/compile/internal/ssa/cse.go
+@@ -188,7 +188,10 @@ func cse(f *Func) {
+ 	for _, b := range f.Blocks {
+ 	out:
+ 		for _, v := range b.Values {
+-			if rewrite[v.ID] != nil {
++			// New values are created when selectors are copied to
++			// a new block. We can safely ignore those new values,
++			// since they have already been copied (issue 17918).
++			if int(v.ID) >= len(rewrite) || rewrite[v.ID] != nil {
+ 				continue
+ 			}
+ 			if v.Op != OpSelect0 && v.Op != OpSelect1 {
+diff --git a/test/fixedbugs/issue17918.go b/test/fixedbugs/issue17918.go
+new file mode 100644
+index 0000000000..88ede6f7b7
+--- /dev/null
++++ b/test/fixedbugs/issue17918.go
+@@ -0,0 +1,41 @@
++// compile
++
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 17918: slice out-of-bounds in ssa/cse
++
++package dead
++
++import (
++	"fmt"
++	"time"
++)
++
++var (
++	units = []struct {
++		divisor time.Duration
++		unit    rune
++	}{
++		{1000000, 's'},
++		{60, 'm'},
++		{60, 'h'},
++		{24, 'd'},
++		{7, 'w'},
++	}
++)
++
++func foobar(d time.Duration) string {
++	d /= time.Microsecond
++	unit := 'u'
++
++	for _, f := range units {
++		if d%f.divisor != 0 {
++			break
++		}
++		d /= f.divisor
++		unit = f.unit
++	}
++	return fmt.Sprintf("%d%c", d, unit)
++}

@@ -18,7 +18,65 @@ Date:   Wed Sep 7 08:59:00 2016 +0200
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/bytes/buffer.go      | 15 ++++++++-------
  src/bytes/buffer_test.go | 13 +++++++++++++
  2 files changed, 21 insertions(+), 7 deletions(-)
+
+diff --git a/src/bytes/buffer.go b/src/bytes/buffer.go
+index 9154a1b954..fa4a51c17f 100644
+--- a/src/bytes/buffer.go
++++ b/src/bytes/buffer.go
+@@ -15,11 +15,10 @@ import (
+ // A Buffer is a variable-sized buffer of bytes with Read and Write methods.
+ // The zero value for Buffer is an empty buffer ready to use.
+ type Buffer struct {
+-	buf       []byte            // contents are the bytes buf[off : len(buf)]
+-	off       int               // read at &buf[off], write at &buf[len(buf)]
+-	runeBytes [utf8.UTFMax]byte // avoid allocation of slice on each call to WriteRune
+-	bootstrap [64]byte          // memory to hold first slice; helps small buffers avoid allocation.
+-	lastRead  readOp            // last read operation, so that Unread* can work correctly.
++	buf       []byte   // contents are the bytes buf[off : len(buf)]
++	off       int      // read at &buf[off], write at &buf[len(buf)]
++	bootstrap [64]byte // memory to hold first slice; helps small buffers avoid allocation.
++	lastRead  readOp   // last read operation, so that Unread* can work correctly.
+ }
+ 
+ // The readOp constants describe the last action performed on
+@@ -246,8 +245,10 @@ func (b *Buffer) WriteRune(r rune) (n int, err error) {
+ 		b.WriteByte(byte(r))
+ 		return 1, nil
+ 	}
+-	n = utf8.EncodeRune(b.runeBytes[0:], r)
+-	b.Write(b.runeBytes[0:n])
++	b.lastRead = opInvalid
++	m := b.grow(utf8.UTFMax)
++	n = utf8.EncodeRune(b.buf[m:m+utf8.UTFMax], r)
++	b.buf = b.buf[:m+n]
+ 	return n, nil
+ }
+ 
+diff --git a/src/bytes/buffer_test.go b/src/bytes/buffer_test.go
+index 7de17ae47e..b1b85f979a 100644
+--- a/src/bytes/buffer_test.go
++++ b/src/bytes/buffer_test.go
+@@ -514,6 +514,19 @@ func TestBufferGrowth(t *testing.T) {
+ 	}
+ }
+ 
++func BenchmarkWriteRune(b *testing.B) {
++	const n = 4 << 10
++	const r = '☺'
++	b.SetBytes(int64(n * utf8.RuneLen(r)))
++	buf := NewBuffer(make([]byte, n*utf8.UTFMax))
++	for i := 0; i < b.N; i++ {
++		buf.Reset()
++		for i := 0; i < n; i++ {
++			buf.WriteRune(r)
++		}
++	}
++}
++
+ // From Issue 5154.
+ func BenchmarkBufferNotEmptyWriteRead(b *testing.B) {
+ 	buf := make([]byte, 1024)

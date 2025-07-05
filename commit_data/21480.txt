@@ -10,7 +10,47 @@ Date:   Wed Jan 7 16:30:24 2015 -0800
     Change-Id: Id1bec58c6ec1f932df0ce0ee84ff253655bb73ff
     Reviewed-on: https://go-review.googlesource.com/2501
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/cgo/gcc.go    | 14 --------------
  src/go/build/build.go |  3 ---
  2 files changed, 17 deletions(-)
+
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 2316ff0e20..864fda0258 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -154,20 +154,6 @@ func splitQuoted(s string) (r []string, err error) {
+ 	return args, err
+ }
+ 
+-var safeBytes = []byte(`+-.,/0123456789:=ABCDEFGHIJKLMNOPQRSTUVWXYZ\_abcdefghijklmnopqrstuvwxyz`)
+-
+-func safeName(s string) bool {
+-	if s == "" {
+-		return false
+-	}
+-	for i := 0; i < len(s); i++ {
+-		if c := s[i]; c < 0x80 && bytes.IndexByte(safeBytes, c) < 0 {
+-			return false
+-		}
+-	}
+-	return true
+-}
+-
+ // Translate rewrites f.AST, the original Go input, to remove
+ // references to the imported package C, replacing them with
+ // references to the equivalent Go types, functions, and variables.
+diff --git a/src/go/build/build.go b/src/go/build/build.go
+index 62935ee0cf..6e95e486fe 100644
+--- a/src/go/build/build.go
++++ b/src/go/build/build.go
+@@ -1073,9 +1073,6 @@ func (ctxt *Context) shouldBuild(content []byte, allTags map[string]bool) bool {
+ // saveCgo saves the information from the #cgo lines in the import "C" comment.
+ // These lines set CFLAGS, CPPFLAGS, CXXFLAGS and LDFLAGS and pkg-config directives
+ // that affect the way cgo's C code is built.
+-//
+-// TODO(rsc): This duplicates code in cgo.
+-// Once the dust settles, remove this code from cgo.
+ func (ctxt *Context) saveCgo(filename string, di *Package, cg *ast.CommentGroup) error {
+ 	text := cg.Text()
+ 	for _, line := range strings.Split(text, "\n") {

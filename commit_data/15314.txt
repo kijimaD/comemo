@@ -25,7 +25,7 @@ Date:   Tue Feb 19 11:19:58 2013 -0800
     R=adg, rsc, dave, bradfitz
     CC=golang-dev
     https://golang.org/cl/7333046
-
+---
  lib/godoc/package.html        |   2 +-
  lib/godoc/package.txt         |   2 +-
  misc/dashboard/builder/doc.go |   2 +-
@@ -63,3 +63,1025 @@ Date:   Tue Feb 19 11:19:58 2013 -0800
  src/pkg/exp/ebnflint/doc.go   |   2 +-
  src/pkg/exp/gotype/doc.go     |   2 +-
  36 files changed, 193 insertions(+), 237 deletions(-)
+
+diff --git a/lib/godoc/package.html b/lib/godoc/package.html
+index cff91fa226..85c737ec3a 100644
+--- a/lib/godoc/package.html
++++ b/lib/godoc/package.html
+@@ -10,7 +10,7 @@
+ 	correspond to Go identifiers).
+ -->
+ {{with .PDoc}}
+-	{{if $.IsPkg}}
++	{{if not $.IsMain}}
+ 		<div id="short-nav">
+ 			<dl>
+ 			<dd><code>import "{{html .ImportPath}}"</code></dd>
+diff --git a/lib/godoc/package.txt b/lib/godoc/package.txt
+index 12964b0010..16678d5f01 100644
+--- a/lib/godoc/package.txt
++++ b/lib/godoc/package.txt
+@@ -2,7 +2,7 @@
+ 
+ ---------------------------------------
+ 
+-*/}}{{with .PDoc}}{{if $.IsPkg}}PACKAGE
++*/}}{{with .PDoc}}{{if not $.IsMain}}PACKAGE
+ 
+ package {{.Name}}
+     import "{{.ImportPath}}"
+diff --git a/misc/dashboard/builder/doc.go b/misc/dashboard/builder/doc.go
+index 707f8e68fd..5192861704 100644
+--- a/misc/dashboard/builder/doc.go
++++ b/misc/dashboard/builder/doc.go
+@@ -55,4 +55,4 @@ If the Google Code credentials are not provided the archival step
+ will be skipped.
+ 
+ */
+-package documentation
++package main
+diff --git a/misc/goplay/doc.go b/misc/goplay/doc.go
+index e4e8862912..61e74a000d 100644
+--- a/misc/goplay/doc.go
++++ b/misc/goplay/doc.go
+@@ -20,4 +20,4 @@
+ // security mechanisms. Do not deploy it in untrusted environments.
+ // By default, goplay listens only on localhost. This can be overridden with
+ // the -http parameter. Do so at your own risk.
+-package documentation
++package main
+diff --git a/src/cmd/5a/doc.go b/src/cmd/5a/doc.go
+index 62d6ee9cd4..29725db04e 100644
+--- a/src/cmd/5a/doc.go
++++ b/src/cmd/5a/doc.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build ignore
++
+ /*
+ 
+ 5a is a version of the Plan 9 assembler.  The original is documented at
+@@ -11,4 +13,4 @@
+ Its target architecture is the ARM, referred to by these tools as arm.
+ 
+ */
+-package documentation
++package main
+diff --git a/src/cmd/5c/doc.go b/src/cmd/5c/doc.go
+index 0fc0278294..7291d45f4d 100644
+--- a/src/cmd/5c/doc.go
++++ b/src/cmd/5c/doc.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build ignore
++
+ /*
+ 
+ 5c is a version of the Plan 9 C compiler.  The original is documented at
+@@ -11,4 +13,4 @@
+ Its target architecture is the ARM, referred to by these tools as arm.
+ 
+ */
+-package documentation
++package main
+diff --git a/src/cmd/5g/doc.go b/src/cmd/5g/doc.go
+index 5a4a772fb4..aebdcab712 100644
+--- a/src/cmd/5g/doc.go
++++ b/src/cmd/5g/doc.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build ignore
++
+ /*
+ 
+ 5g is the version of the gc compiler for the ARM.
+@@ -10,4 +12,4 @@ The $GOARCH for these tools is arm.
+ It reads .go files and outputs .5 files. The flags are documented in ../gc/doc.go.
+ 
+ */
+-package documentation
++package main
+diff --git a/src/cmd/5l/doc.go b/src/cmd/5l/doc.go
+index 969f502a7b..a054a228b8 100644
+--- a/src/cmd/5l/doc.go
++++ b/src/cmd/5l/doc.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build ignore
++
+ /*
+ 
+ 5l is the linker for the ARM.
+@@ -10,4 +12,4 @@ The $GOARCH for these tools is arm.
+ The flags are documented in ../ld/doc.go.
+ 
+ */
+-package documentation
++package main
+diff --git a/src/cmd/6a/doc.go b/src/cmd/6a/doc.go
+index f8370a05f3..a5f3f87f09 100644
+--- a/src/cmd/6a/doc.go
++++ b/src/cmd/6a/doc.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build ignore
++
+ /*
+ 
+ 6a is a version of the Plan 9 assembler.  The original is documented at
+@@ -11,4 +13,4 @@
+ Its target architecture is the x86-64, referred to by these tools as amd64.
+ 
+ */
+-package documentation
++package main
+diff --git a/src/cmd/6c/doc.go b/src/cmd/6c/doc.go
+index 7f6fb77f16..e0a22e78ba 100644
+--- a/src/cmd/6c/doc.go
++++ b/src/cmd/6c/doc.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build ignore
++
+ /*
+ 
+ 6c is a version of the Plan 9 C compiler.  The original is documented at
+@@ -11,4 +13,4 @@
+ Its target architecture is the x86-64, referred to by these tools as amd64.
+ 
+ */
+-package documentation
++package main
+diff --git a/src/cmd/6g/doc.go b/src/cmd/6g/doc.go
+index 64f1d2ba90..07b2818da4 100644
+--- a/src/cmd/6g/doc.go
++++ b/src/cmd/6g/doc.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build ignore
++
+ /*
+ 
+ 6g is the version of the gc compiler for the x86-64.
+@@ -10,4 +12,4 @@ The $GOARCH for these tools is amd64.
+ It reads .go files and outputs .6 files. The flags are documented in ../gc/doc.go.
+ 
+ */
+-package documentation
++package main
+diff --git a/src/cmd/6l/doc.go b/src/cmd/6l/doc.go
+index 4d94b209bc..6287dd9bec 100644
+--- a/src/cmd/6l/doc.go
++++ b/src/cmd/6l/doc.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build ignore
++
+ /*
+ 
+ 6l is the linker for the x86-64.
+@@ -10,4 +12,4 @@ The $GOARCH for these tools is amd64.
+ The flags are documented in ../ld/doc.go.
+ 
+ */
+-package documentation
++package main
+diff --git a/src/cmd/8a/doc.go b/src/cmd/8a/doc.go
+index 59f286e199..737c56f133 100644
+--- a/src/cmd/8a/doc.go
++++ b/src/cmd/8a/doc.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build ignore
++
+ /*
+ 
+ 8a is a version of the Plan 9 assembler.  The original is documented at
+@@ -11,4 +13,4 @@
+ Its target architecture is the x86, referred to by these tools for historical reasons as 386.
+ 
+ */
+-package documentation
++package main
+diff --git a/src/cmd/8c/doc.go b/src/cmd/8c/doc.go
+index 5d94c4b0d9..0d07db14da 100644
+--- a/src/cmd/8c/doc.go
++++ b/src/cmd/8c/doc.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build ignore
++
+ /*
+ 
+ 8c is a version of the Plan 9 C compiler.  The original is documented at
+@@ -11,4 +13,4 @@
+ Its target architecture is the x86, referred to by these tools for historical reasons as 386.
+ 
+ */
+-package documentation
++package main
+diff --git a/src/cmd/8g/doc.go b/src/cmd/8g/doc.go
+index 6d678eac8b..9e46dcad8f 100644
+--- a/src/cmd/8g/doc.go
++++ b/src/cmd/8g/doc.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build ignore
++
+ /*
+ 
+ 8g is the version of the gc compiler for the x86.
+@@ -10,4 +12,4 @@ The $GOARCH for these tools is 386.
+ It reads .go files and outputs .8 files. The flags are documented in ../gc/doc.go.
+ 
+ */
+-package documentation
++package main
+diff --git a/src/cmd/8l/doc.go b/src/cmd/8l/doc.go
+index 12301d4f2e..ff06bc3761 100644
+--- a/src/cmd/8l/doc.go
++++ b/src/cmd/8l/doc.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build ignore
++
+ /*
+ 
+ 8l is the linker for the 32-bit x86.
+@@ -10,4 +12,4 @@ The $GOARCH for these tools is 386.
+ The flags are documented in ../ld/doc.go.
+ 
+ */
+-package documentation
++package main
+diff --git a/src/cmd/cc/doc.go b/src/cmd/cc/doc.go
+index 51aa8b1923..10901b4413 100644
+--- a/src/cmd/cc/doc.go
++++ b/src/cmd/cc/doc.go
+@@ -2,10 +2,12 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build ignore
++
+ /*
+ 
+ This directory contains the portable section of the Plan 9 C compilers.
+ See ../6c, ../8c, and ../5c for more information.
+ 
+ */
+-package documentation
++package main
+diff --git a/src/cmd/cgo/doc.go b/src/cmd/cgo/doc.go
+index 2618832101..4504b25646 100644
+--- a/src/cmd/cgo/doc.go
++++ b/src/cmd/cgo/doc.go
+@@ -133,4 +133,4 @@ Cgo does not yet work with gccgo.
+ See "C? Go? Cgo!" for an introduction to using cgo:
+ http://golang.org/doc/articles/c_go_cgo.html
+ */
+-package documentation
++package main
+diff --git a/src/cmd/cov/doc.go b/src/cmd/cov/doc.go
+index a5fc0036d2..ab5d1220ad 100644
+--- a/src/cmd/cov/doc.go
++++ b/src/cmd/cov/doc.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build ignore
++
+ /*
+ 
+ Cov is a rudimentary code coverage tool.
+@@ -31,4 +33,4 @@ The options are:
+ The program is the same for all architectures: 386, amd64, and arm.
+ 
+ */
+-package documentation
++package main
+diff --git a/src/cmd/fix/doc.go b/src/cmd/fix/doc.go
+index a92e0fc06f..5de3e08c59 100644
+--- a/src/cmd/fix/doc.go
++++ b/src/cmd/fix/doc.go
+@@ -33,4 +33,4 @@ Fix does not make backup copies of the files that it edits.
+ Instead, use a version control system's ``diff'' functionality to inspect
+ the changes that fix makes before committing them.
+ */
+-package documentation
++package main
+diff --git a/src/cmd/gc/doc.go b/src/cmd/gc/doc.go
+index c2eff88f6e..791967708c 100644
+--- a/src/cmd/gc/doc.go
++++ b/src/cmd/gc/doc.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build ignore
++
+ /*
+ 
+ Gc is the generic label for the family of Go compilers
+@@ -86,4 +88,4 @@ in Go) does not allow any of the pointers passed as arguments to escape into the
+ heap or into the values returned from the function. This information can be used as
+ during the compiler's escape analysis of Go code calling the function.
+ */
+-package documentation
++package main
+diff --git a/src/cmd/go/doc.go b/src/cmd/go/doc.go
+index 101ecf1c2d..0297b76022 100644
+--- a/src/cmd/go/doc.go
++++ b/src/cmd/go/doc.go
+@@ -812,6 +812,6 @@ See the documentation of the testing package for more information.
+ 
+ 
+ */
+-package documentation
++package main
+ 
+ // NOTE: cmdDoc is in fmt.go.
+diff --git a/src/cmd/go/main.go b/src/cmd/go/main.go
+index 9abe5913b0..a7841d2655 100644
+--- a/src/cmd/go/main.go
++++ b/src/cmd/go/main.go
+@@ -200,7 +200,7 @@ var documentationTemplate = `// Copyright 2011 The Go Authors.  All rights reser
+ 
+ 
+ {{end}}*/
+-package documentation
++package main
+ 
+ // NOTE: cmdDoc is in fmt.go.
+ `
+diff --git a/src/cmd/godoc/dirtrees.go b/src/cmd/godoc/dirtrees.go
+index 08dbfc2e8b..fda7adce52 100644
+--- a/src/cmd/godoc/dirtrees.go
++++ b/src/cmd/godoc/dirtrees.go
+@@ -74,7 +74,7 @@ func (b *treeBuilder) newDirTree(fset *token.FileSet, path, name string, depth i
+ 	// determine number of subdirectories and if there are package files
+ 	ndirs := 0
+ 	hasPkgFiles := false
+-	var synopses [4]string // prioritized package documentation (0 == highest priority)
++	var synopses [3]string // prioritized package documentation (0 == highest priority)
+ 	for _, d := range list {
+ 		switch {
+ 		case isPkgDir(d):
+@@ -95,12 +95,10 @@ func (b *treeBuilder) newDirTree(fset *token.FileSet, path, name string, depth i
+ 						switch file.Name.Name {
+ 						case name:
+ 							i = 0 // normal case: directory name matches package name
+-						case fakePkgName:
+-							i = 1 // synopses for commands
+ 						case "main":
+-							i = 2 // directory contains a main package
++							i = 1 // directory contains a main package
+ 						default:
+-							i = 3 // none of the above
++							i = 2 // none of the above
+ 						}
+ 						if 0 <= i && i < len(synopses) && synopses[i] == "" {
+ 							synopses[i] = doc.Synopsis(file.Doc.Text())
+diff --git a/src/cmd/godoc/doc.go b/src/cmd/godoc/doc.go
+index 956ec0ba42..ddb6d26872 100644
+--- a/src/cmd/godoc/doc.go
++++ b/src/cmd/godoc/doc.go
+@@ -127,4 +127,4 @@ See "Godoc: documenting Go code" for how to write good comments for godoc:
+ http://golang.org/doc/articles/godoc_documenting_go_code.html
+ 
+ */
+-package documentation
++package main
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index 887480911a..5a29033b49 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -86,8 +86,8 @@ var (
+ 
+ func initHandlers() {
+ 	fileServer = http.FileServer(&httpFS{fs})
+-	cmdHandler = docServer{"/cmd/", "/src/cmd", false}
+-	pkgHandler = docServer{"/pkg/", "/src/pkg", true}
++	cmdHandler = docServer{"/cmd/", "/src/cmd"}
++	pkgHandler = docServer{"/pkg/", "/src/pkg"}
+ }
+ 
+ func registerPublicHandlers(mux *http.ServeMux) {
+@@ -794,10 +794,6 @@ func serveSearchDesc(w http.ResponseWriter, r *http.Request) {
+ // ----------------------------------------------------------------------------
+ // Packages
+ 
+-// Fake package file and name for commands. Contains the command documentation.
+-const fakePkgFile = "doc.go"
+-const fakePkgName = "documentation"
+-
+ // Fake relative package path for built-ins. Documentation for all globals
+ // (not just exported ones) will be shown for packages in this directory.
+ const builtinPkgPath = "builtin"
+@@ -854,16 +850,20 @@ func remoteSearchURL(query string, html bool) string {
+ }
+ 
+ type PageInfo struct {
+-	Dirname  string         // directory containing the package
+-	FSet     *token.FileSet // corresponding file set
+-	PAst     *ast.File      // nil if no single AST with package exports
+-	PDoc     *doc.Package   // nil if no single package documentation
++	Dirname string // directory containing the package
++	Err     error  // error or nil
++
++	// package info
++	FSet     *token.FileSet // nil if no package documentation
++	PDoc     *doc.Package   // nil if no package documentation
+ 	Examples []*doc.Example // nil if no example code
+-	Dirs     *DirList       // nil if no directory information
+-	DirTime  time.Time      // directory time stamp
+-	DirFlat  bool           // if set, show directory in a flat (non-indented) manner
+-	IsPkg    bool           // false if this is not documenting a real package
+-	Err      error          // I/O error or nil
++	PAst     *ast.File      // nil if no AST with package exports
++	IsMain   bool           // true for package main
++
++	// directory info
++	Dirs    *DirList  // nil if no directory information
++	DirTime time.Time // directory time stamp
++	DirFlat bool      // if set, show directory in a flat (non-indented) manner
+ }
+ 
+ func (info *PageInfo) IsEmpty() bool {
+@@ -873,7 +873,6 @@ func (info *PageInfo) IsEmpty() bool {
+ type docServer struct {
+ 	pattern string // url pattern; e.g. "/pkg/"
+ 	fsRoot  string // file system root to which the pattern is mapped
+-	isPkg   bool   // true if this handler serves real package documentation (as opposed to command documentation)
+ }
+ 
+ // fsReadDir implements ReadDir for the go/build package.
+@@ -890,15 +889,6 @@ func fsOpenFile(name string) (r io.ReadCloser, err error) {
+ 	return ioutil.NopCloser(bytes.NewReader(data)), nil
+ }
+ 
+-func inList(name string, list []string) bool {
+-	for _, l := range list {
+-		if name == l {
+-			return true
+-		}
+-	}
+-	return false
+-}
+-
+ // packageExports is a local implementation of ast.PackageExports
+ // which correctly updates each package file's comment list.
+ // (The ast.PackageExports signature is frozen, hence the local
+@@ -912,9 +902,9 @@ func packageExports(fset *token.FileSet, pkg *ast.Package) {
+ 	}
+ }
+ 
+-// declNames returns the names declared by decl.
+-// Method names are returned in the form Receiver_Method.
+-func declNames(decl ast.Decl) (names []string) {
++// addNames adds the names declared by decl to the names set.
++// Method names are added in the form ReceiverTypeName_Method.
++func addNames(names map[string]bool, decl ast.Decl) {
+ 	switch d := decl.(type) {
+ 	case *ast.FuncDecl:
+ 		name := d.Name.Name
+@@ -928,64 +918,52 @@ func declNames(decl ast.Decl) (names []string) {
+ 			}
+ 			name = typeName + "_" + name
+ 		}
+-		names = []string{name}
++		names[name] = true
+ 	case *ast.GenDecl:
+ 		for _, spec := range d.Specs {
+ 			switch s := spec.(type) {
+ 			case *ast.TypeSpec:
+-				names = append(names, s.Name.Name)
++				names[s.Name.Name] = true
+ 			case *ast.ValueSpec:
+ 				for _, id := range s.Names {
+-					names = append(names, id.Name)
++					names[id.Name] = true
+ 				}
+ 			}
+ 		}
+ 	}
+-	return
+ }
+ 
+-// globalNames finds all top-level declarations in pkgs and returns a map
+-// with the identifier names as keys.
+-func globalNames(pkgs map[string]*ast.Package) map[string]bool {
++// globalNames returns a set of the names declared by all package-level
++// declarations. Method names are returned in the form Receiver_Method.
++func globalNames(pkg *ast.Package) map[string]bool {
+ 	names := make(map[string]bool)
+-	for _, pkg := range pkgs {
+-		for _, file := range pkg.Files {
+-			for _, decl := range file.Decls {
+-				for _, name := range declNames(decl) {
+-					names[name] = true
+-				}
+-			}
++	for _, file := range pkg.Files {
++		for _, decl := range file.Decls {
++			addNames(names, decl)
+ 		}
+ 	}
+ 	return names
+ }
+ 
+-// parseExamples gets examples for packages in pkgs from *_test.go files in dir.
+-func parseExamples(fset *token.FileSet, pkgs map[string]*ast.Package, dir string) ([]*doc.Example, error) {
+-	var examples []*doc.Example
+-	filter := func(d os.FileInfo) bool {
+-		return isGoFile(d) && strings.HasSuffix(d.Name(), "_test.go")
+-	}
+-	testpkgs, err := parseDir(fset, dir, filter)
+-	if err != nil {
+-		return nil, err
++// collectExamples collects examples for pkg from testfiles.
++func collectExamples(pkg *ast.Package, testfiles map[string]*ast.File) []*doc.Example {
++	var files []*ast.File
++	for _, f := range testfiles {
++		files = append(files, f)
+ 	}
+-	globals := globalNames(pkgs)
+-	for _, testpkg := range testpkgs {
+-		var files []*ast.File
+-		for _, f := range testpkg.Files {
+-			files = append(files, f)
+-		}
+-		for _, e := range doc.Examples(files...) {
+-			name := stripExampleSuffix(e.Name)
+-			if name == "" || globals[name] {
+-				examples = append(examples, e)
+-			} else {
+-				log.Printf("skipping example Example%s: refers to unknown function or type", e.Name)
+-			}
++
++	var examples []*doc.Example
++	globals := globalNames(pkg)
++	for _, e := range doc.Examples(files...) {
++		name := stripExampleSuffix(e.Name)
++		if name == "" || globals[name] {
++			examples = append(examples, e)
++		} else {
++			log.Printf("skipping example Example%s: refers to unknown function or type", e.Name)
+ 		}
+ 	}
+-	return examples, nil
++
++	return examples
+ }
+ 
+ // getPageInfo returns the PageInfo for a package directory abspath. If the
+@@ -993,83 +971,56 @@ func parseExamples(fset *token.FileSet, pkgs map[string]*ast.Package, dir string
+ // computed (PageInfo.PAst), otherwise package documentation (PageInfo.Doc)
+ // is extracted from the AST. If there is no corresponding package in the
+ // directory, PageInfo.PAst and PageInfo.PDoc are nil. If there are no sub-
+-// directories, PageInfo.Dirs is nil. If a directory read error occurred,
+-// PageInfo.Err is set to the respective error but the error is not logged.
++// directories, PageInfo.Dirs is nil. If an error occurred, PageInfo.Err is
++// set to the respective error but the error is not logged.
+ //
+-func (h *docServer) getPageInfo(abspath, relpath string, mode PageInfoMode) PageInfo {
+-	var pkgFiles []string
++func (h *docServer) getPageInfo(abspath, relpath string, mode PageInfoMode) (info PageInfo) {
++	info.Dirname = abspath
+ 
+-	// Restrict to the package files
+-	// that would be used when building the package on this
+-	// system.  This makes sure that if there are separate
+-	// implementations for, say, Windows vs Unix, we don't
++	// Restrict to the package files that would be used when building
++	// the package on this system.  This makes sure that if there are
++	// separate implementations for, say, Windows vs Unix, we don't
+ 	// jumble them all together.
+ 	// Note: Uses current binary's GOOS/GOARCH.
+-	// To use different pair, such as if we allowed the user
+-	// to choose, set ctxt.GOOS and ctxt.GOARCH before
+-	// calling ctxt.ScanDir.
++	// To use different pair, such as if we allowed the user to choose,
++	// set ctxt.GOOS and ctxt.GOARCH before calling ctxt.ImportDir.
+ 	ctxt := build.Default
+ 	ctxt.IsAbsPath = pathpkg.IsAbs
+ 	ctxt.ReadDir = fsReadDir
+ 	ctxt.OpenFile = fsOpenFile
+-	if dir, err := ctxt.ImportDir(abspath, 0); err == nil {
+-		pkgFiles = append(dir.GoFiles, dir.CgoFiles...)
+-	}
+-
+-	// filter function to select the desired .go files
+-	filter := func(d os.FileInfo) bool {
+-		// Only Go files.
+-		if !isPkgFile(d) {
+-			return false
+-		}
+-		// If we are looking at cmd documentation, only accept
+-		// the special fakePkgFile containing the documentation.
+-		if !h.isPkg {
+-			return d.Name() == fakePkgFile
+-		}
+-		// Also restrict file list to pkgFiles.
+-		return pkgFiles == nil || inList(d.Name(), pkgFiles)
+-	}
+-
+-	// get package ASTs
+-	fset := token.NewFileSet()
+-	pkgs, err := parseDir(fset, abspath, filter)
+-	if err != nil {
+-		return PageInfo{Dirname: abspath, Err: err}
++	pkginfo, err := ctxt.ImportDir(abspath, 0)
++	// continue if there are no Go source files; we still want the directory info
++	if _, nogo := err.(*build.NoGoError); err != nil && !nogo {
++		info.Err = err
++		return
+ 	}
+ 
+-	// select package
+-	var pkg *ast.Package // selected package
+-	if len(pkgs) == 1 {
+-		// Exactly one package - select it.
+-		for _, p := range pkgs {
+-			pkg = p
+-		}
+-
+-	} else if len(pkgs) > 1 {
+-		// More than one package - report an error.
+-		var buf bytes.Buffer
+-		for _, p := range pkgs {
+-			if buf.Len() > 0 {
+-				fmt.Fprintf(&buf, ", ")
+-			}
+-			fmt.Fprintf(&buf, p.Name)
+-		}
+-		return PageInfo{
+-			Dirname: abspath,
+-			Err:     fmt.Errorf("%s contains more than one package: %s", abspath, buf.Bytes()),
++	// collect package files
++	pkgname := pkginfo.Name
++	pkgfiles := append(pkginfo.GoFiles, pkginfo.CgoFiles...)
++	if len(pkgfiles) == 0 {
++		// Commands written in C have no .go files in the build.
++		// Instead, documentation may be found in an ignored file.
++		// The file may be ignored via an explicit +build ignore
++		// constraint (recommended), or by defining the package
++		// documentation (historic).
++		pkgname = "main" // assume package main since pkginfo.Name == ""
++		pkgfiles = pkginfo.IgnoredGoFiles
++	}
++
++	// get package information, if any
++	if len(pkgfiles) > 0 {
++		// build package AST
++		fset := token.NewFileSet()
++		files, err := parseFiles(fset, abspath, pkgfiles)
++		if err != nil {
++			info.Err = err
++			return
+ 		}
+-	}
++		pkg := &ast.Package{Name: pkgname, Files: files}
+ 
+-	examples, err := parseExamples(fset, pkgs, abspath)
+-	if err != nil {
+-		log.Println("parsing examples:", err)
+-	}
+-
+-	// compute package documentation
+-	var past *ast.File
+-	var pdoc *doc.Package
+-	if pkg != nil {
++		// extract package documentation
++		info.FSet = fset
+ 		if mode&showSource == 0 {
+ 			// show extracted documentation
+ 			var m doc.Mode
+@@ -1079,7 +1030,15 @@ func (h *docServer) getPageInfo(abspath, relpath string, mode PageInfoMode) Page
+ 			if mode&allMethods != 0 {
+ 				m |= doc.AllMethods
+ 			}
+-			pdoc = doc.New(pkg, pathpkg.Clean(relpath), m) // no trailing '/' in importpath
++			info.PDoc = doc.New(pkg, pathpkg.Clean(relpath), m) // no trailing '/' in importpath
++
++			// collect examples
++			testfiles := append(pkginfo.TestGoFiles, pkginfo.XTestGoFiles...)
++			files, err = parseFiles(fset, abspath, testfiles)
++			if err != nil {
++				log.Println("parsing examples:", err)
++			}
++			info.Examples = collectExamples(pkg, files)
+ 		} else {
+ 			// show source code
+ 			// TODO(gri) Consider eliminating export filtering in this mode,
+@@ -1087,11 +1046,12 @@ func (h *docServer) getPageInfo(abspath, relpath string, mode PageInfoMode) Page
+ 			if mode&noFiltering == 0 {
+ 				packageExports(fset, pkg)
+ 			}
+-			past = ast.MergePackageFiles(pkg, 0)
++			info.PAst = ast.MergePackageFiles(pkg, 0)
+ 		}
++		info.IsMain = pkgname == "main"
+ 	}
+ 
+-	// get directory information
++	// get directory information, if any
+ 	var dir *Directory
+ 	var timestamp time.Time
+ 	if tree, ts := fsTree.get(); tree != nil && tree.(*Directory) != nil {
+@@ -1109,19 +1069,11 @@ func (h *docServer) getPageInfo(abspath, relpath string, mode PageInfoMode) Page
+ 		dir = newDirectory(abspath, 1)
+ 		timestamp = time.Now()
+ 	}
++	info.Dirs = dir.listing(true)
++	info.DirTime = timestamp
++	info.DirFlat = mode&flatDir != 0
+ 
+-	return PageInfo{
+-		Dirname:  abspath,
+-		FSet:     fset,
+-		PAst:     past,
+-		PDoc:     pdoc,
+-		Examples: examples,
+-		Dirs:     dir.listing(true),
+-		DirTime:  timestamp,
+-		DirFlat:  mode&flatDir != 0,
+-		IsPkg:    h.isPkg,
+-		Err:      nil,
+-	}
++	return
+ }
+ 
+ func (h *docServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+@@ -1151,26 +1103,25 @@ func (h *docServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+ 	switch {
+ 	case info.PAst != nil:
+ 		tabtitle = info.PAst.Name.Name
+-		title = "Package " + tabtitle
+ 	case info.PDoc != nil:
+-		if info.PDoc.Name == fakePkgName {
+-			// assume that the directory name is the command name
+-			_, tabtitle = pathpkg.Split(relpath)
+-		} else {
+-			tabtitle = info.PDoc.Name
+-		}
+-		if info.IsPkg {
+-			title = "Package " + tabtitle
+-		} else {
+-			title = "Command " + tabtitle
+-		}
++		tabtitle = info.PDoc.Name
+ 	default:
+ 		tabtitle = info.Dirname
+-		title = "Directory " + tabtitle
++		title = "Directory "
+ 		if *showTimestamps {
+ 			subtitle = "Last update: " + info.DirTime.String()
+ 		}
+ 	}
++	if title == "" {
++		if info.IsMain {
++			// assume that the directory name is the command name
++			_, tabtitle = pathpkg.Split(relpath)
++			title = "Command "
++		} else {
++			title = "Package "
++		}
++	}
++	title += tabtitle
+ 
+ 	// special cases for top-level package/command directories
+ 	switch tabtitle {
+diff --git a/src/cmd/godoc/parser.go b/src/cmd/godoc/parser.go
+index c6b7c2dc8f..42a5d2d982 100644
+--- a/src/cmd/godoc/parser.go
++++ b/src/cmd/godoc/parser.go
+@@ -2,10 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// This file contains support functions for parsing .go files.
+-// Similar functionality is found in package go/parser but the
+-// functions here operate using godoc's file system fs instead
+-// of calling the OS's file operations directly.
++// This file contains support functions for parsing .go files
++// accessed via godoc's file system fs.
+ 
+ package main
+ 
+@@ -13,7 +11,6 @@ import (
+ 	"go/ast"
+ 	"go/parser"
+ 	"go/token"
+-	"os"
+ 	pathpkg "path"
+ )
+ 
+@@ -25,44 +22,16 @@ func parseFile(fset *token.FileSet, filename string, mode parser.Mode) (*ast.Fil
+ 	return parser.ParseFile(fset, filename, src, mode)
+ }
+ 
+-func parseFiles(fset *token.FileSet, filenames []string) (pkgs map[string]*ast.Package, first error) {
+-	pkgs = make(map[string]*ast.Package)
+-	for _, filename := range filenames {
+-		file, err := parseFile(fset, filename, parser.ParseComments)
++func parseFiles(fset *token.FileSet, abspath string, localnames []string) (map[string]*ast.File, error) {
++	files := make(map[string]*ast.File)
++	for _, f := range localnames {
++		absname := pathpkg.Join(abspath, f)
++		file, err := parseFile(fset, absname, parser.ParseComments)
+ 		if err != nil {
+-			if first == nil {
+-				first = err
+-			}
+-			continue
+-		}
+-
+-		name := file.Name.Name
+-		pkg, found := pkgs[name]
+-		if !found {
+-			// TODO(gri) Use NewPackage here; reconsider ParseFiles API.
+-			pkg = &ast.Package{Name: name, Files: make(map[string]*ast.File)}
+-			pkgs[name] = pkg
+-		}
+-		pkg.Files[filename] = file
+-	}
+-	return
+-}
+-
+-func parseDir(fset *token.FileSet, path string, filter func(os.FileInfo) bool) (map[string]*ast.Package, error) {
+-	list, err := fs.ReadDir(path)
+-	if err != nil {
+-		return nil, err
+-	}
+-
+-	filenames := make([]string, len(list))
+-	i := 0
+-	for _, d := range list {
+-		if filter == nil || filter(d) {
+-			filenames[i] = pathpkg.Join(path, d.Name())
+-			i++
++			return nil, err
+ 		}
++		files[absname] = file
+ 	}
+-	filenames = filenames[0:i]
+ 
+-	return parseFiles(fset, filenames)
++	return files, nil
+ }
+diff --git a/src/cmd/gofmt/doc.go b/src/cmd/gofmt/doc.go
+index 65842a3b15..fffc7f06ea 100644
+--- a/src/cmd/gofmt/doc.go
++++ b/src/cmd/gofmt/doc.go
+@@ -72,6 +72,6 @@ To convert the package tree from explicit slice upper bounds to implicit ones:
+ 
+ 	gofmt -r 'α[β:len(α)] -> α[β:]' -w $GOROOT/src/pkg
+ */
+-package documentation
++package main
+ 
+ // BUG(rsc): The implementation of -r is a bit slow.
+diff --git a/src/cmd/ld/doc.go b/src/cmd/ld/doc.go
+index 108f1c6502..bad4e540f2 100644
+--- a/src/cmd/ld/doc.go
++++ b/src/cmd/ld/doc.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build ignore
++
+ /*
+ 
+ Ld is the portable code for a modified version of the Plan 9 linker.  The original is documented at
+@@ -70,4 +72,4 @@ Options new in this version:
+ 		calls, not false positives caused by dead temporaries stored in
+ 		the current function call.
+ */
+-package documentation
++package main
+diff --git a/src/cmd/nm/doc.go b/src/cmd/nm/doc.go
+index 004567cad2..480c1c3dde 100644
+--- a/src/cmd/nm/doc.go
++++ b/src/cmd/nm/doc.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build ignore
++
+ /*
+ 
+ Nm is a version of the Plan 9 nm command.  The original is documented at
+@@ -18,4 +20,4 @@ Usage:
+ 	go tool nm [-aghnsTu] file
+ 
+ */
+-package documentation
++package main
+diff --git a/src/cmd/pack/doc.go b/src/cmd/pack/doc.go
+index 8b17f3ca22..67b7897318 100644
+--- a/src/cmd/pack/doc.go
++++ b/src/cmd/pack/doc.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build ignore
++
+ /*
+ 
+ Pack is a variant of the Plan 9 ar tool.  The original is documented at
+@@ -24,4 +26,4 @@ The new option 'P' causes pack to remove the given prefix
+ from file names in the line number information in object files
+ that are already stored in or added to the archive.
+ */
+-package documentation
++package main
+diff --git a/src/cmd/prof/doc.go b/src/cmd/prof/doc.go
+index 0072f9ad5d..2640167d3f 100644
+--- a/src/cmd/prof/doc.go
++++ b/src/cmd/prof/doc.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build ignore
++
+ /*
+ 
+ Prof is a rudimentary real-time profiler.
+@@ -44,4 +46,4 @@ every 100ms until the program completes.
+ It is installed as go tool prof and is architecture-independent.
+ 
+ */
+-package documentation
++package main
+diff --git a/src/cmd/vet/doc.go b/src/cmd/vet/doc.go
+index 265575ab6e..f164eaca2a 100644
+--- a/src/cmd/vet/doc.go
++++ b/src/cmd/vet/doc.go
+@@ -67,4 +67,4 @@ The other flags are:
+ 			-printfuncs=Warn:1,Warnf:1
+ 
+ */
+-package documentation
++package main
+diff --git a/src/cmd/yacc/doc.go b/src/cmd/yacc/doc.go
+index 4a2c2a3148..792c104e3d 100644
+--- a/src/cmd/yacc/doc.go
++++ b/src/cmd/yacc/doc.go
+@@ -48,4 +48,4 @@ referenced by yacc's generated code.  Setting it to distinct values
+ allows multiple grammars to be placed in a single package.
+ 
+ */
+-package documentation
++package main
+diff --git a/src/pkg/exp/ebnflint/doc.go b/src/pkg/exp/ebnflint/doc.go
+index 4bb22a4cb8..796a59fb65 100644
+--- a/src/pkg/exp/ebnflint/doc.go
++++ b/src/pkg/exp/ebnflint/doc.go
+@@ -19,4 +19,4 @@ The --start flag specifies the name of the start production for
+ the grammar; it defaults to "Start".
+ 
+ */
+-package documentation
++package main
+diff --git a/src/pkg/exp/gotype/doc.go b/src/pkg/exp/gotype/doc.go
+index 1168086771..4d980f80dc 100644
+--- a/src/pkg/exp/gotype/doc.go
++++ b/src/pkg/exp/gotype/doc.go
+@@ -58,6 +58,6 @@ To verify the output of a pipe:
+ 	echo "package foo" | gotype
+ 
+ */
+-package documentation
++package main
+ 
+ // BUG(gri): At the moment, only single-file scope analysis is performed.

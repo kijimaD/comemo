@@ -17,9 +17,193 @@ Date:   Tue Feb 20 16:17:06 2024 +0800
     Run-TryBot: Andy Pan <panjf2000@gmail.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/net/tcpconn_keepalive_dragonfly_test.go | 92 -----------------------------
  src/net/tcpconn_keepalive_unix_test.go      |  2 +-
  src/net/tcpsockopt_dragonfly.go             | 53 -----------------
  src/net/tcpsockopt_unix.go                  |  2 +-
  4 files changed, 2 insertions(+), 147 deletions(-)
+
+diff --git a/src/net/tcpconn_keepalive_dragonfly_test.go b/src/net/tcpconn_keepalive_dragonfly_test.go
+deleted file mode 100644
+index 61b073b350..0000000000
+--- a/src/net/tcpconn_keepalive_dragonfly_test.go
++++ /dev/null
+@@ -1,92 +0,0 @@
+-// Copyright 2023 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build dragonfly
+-
+-package net
+-
+-import (
+-	"syscall"
+-	"testing"
+-	"time"
+-)
+-
+-func getCurrentKeepAliveSettings(fd int) (cfg KeepAliveConfig, err error) {
+-	tcpKeepAlive, err := syscall.GetsockoptInt(fd, syscall.SOL_SOCKET, syscall.SO_KEEPALIVE)
+-	if err != nil {
+-		return
+-	}
+-	tcpKeepAliveIdle, err := syscall.GetsockoptInt(fd, syscall.IPPROTO_TCP, syscall.TCP_KEEPIDLE)
+-	if err != nil {
+-		return
+-	}
+-	tcpKeepAliveInterval, err := syscall.GetsockoptInt(fd, syscall.IPPROTO_TCP, syscall.TCP_KEEPINTVL)
+-	if err != nil {
+-		return
+-	}
+-	tcpKeepAliveCount, err := syscall.GetsockoptInt(fd, syscall.IPPROTO_TCP, syscall.TCP_KEEPCNT)
+-	if err != nil {
+-		return
+-	}
+-	cfg = KeepAliveConfig{
+-		Enable:   tcpKeepAlive != 0,
+-		Idle:     time.Duration(tcpKeepAliveIdle) * time.Millisecond,
+-		Interval: time.Duration(tcpKeepAliveInterval) * time.Millisecond,
+-		Count:    tcpKeepAliveCount,
+-	}
+-	return
+-}
+-
+-func verifyKeepAliveSettings(t *testing.T, fd int, oldCfg, cfg KeepAliveConfig) {
+-	if cfg.Idle == 0 {
+-		cfg.Idle = defaultTCPKeepAliveIdle
+-	}
+-	if cfg.Interval == 0 {
+-		cfg.Interval = defaultTCPKeepAliveInterval
+-	}
+-	if cfg.Count == 0 {
+-		cfg.Count = defaultTCPKeepAliveCount
+-	}
+-	if cfg.Idle == -1 {
+-		cfg.Idle = oldCfg.Idle
+-	}
+-	if cfg.Interval == -1 {
+-		cfg.Interval = oldCfg.Interval
+-	}
+-	if cfg.Count == -1 {
+-		cfg.Count = oldCfg.Count
+-	}
+-
+-	tcpKeepAlive, err := syscall.GetsockoptInt(fd, syscall.SOL_SOCKET, syscall.SO_KEEPALIVE)
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	if (tcpKeepAlive != 0) != cfg.Enable {
+-		t.Fatalf("SO_KEEPALIVE: got %t; want %t", tcpKeepAlive != 0, cfg.Enable)
+-	}
+-
+-	tcpKeepAliveIdle, err := syscall.GetsockoptInt(fd, syscall.IPPROTO_TCP, syscall.TCP_KEEPIDLE)
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	if time.Duration(tcpKeepAliveIdle)*time.Millisecond != cfg.Idle {
+-		t.Fatalf("TCP_KEEPIDLE: got %dms; want %v", tcpKeepAliveIdle, cfg.Idle)
+-	}
+-
+-	tcpKeepAliveInterval, err := syscall.GetsockoptInt(fd, syscall.IPPROTO_TCP, syscall.TCP_KEEPINTVL)
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	if time.Duration(tcpKeepAliveInterval)*time.Millisecond != cfg.Interval {
+-		t.Fatalf("TCP_KEEPINTVL: got %dms; want %v", tcpKeepAliveInterval, cfg.Interval)
+-	}
+-
+-	tcpKeepAliveCount, err := syscall.GetsockoptInt(fd, syscall.IPPROTO_TCP, syscall.TCP_KEEPCNT)
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	if tcpKeepAliveCount != cfg.Count {
+-		t.Fatalf("TCP_KEEPCNT: got %d; want %d", tcpKeepAliveCount, cfg.Count)
+-	}
+-}
+diff --git a/src/net/tcpconn_keepalive_unix_test.go b/src/net/tcpconn_keepalive_unix_test.go
+index 8f74b6edaa..74555c9c5b 100644
+--- a/src/net/tcpconn_keepalive_unix_test.go
++++ b/src/net/tcpconn_keepalive_unix_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build aix || freebsd || linux || netbsd
++//go:build aix || dragonfly || freebsd || linux || netbsd
+ 
+ package net
+ 
+diff --git a/src/net/tcpsockopt_dragonfly.go b/src/net/tcpsockopt_dragonfly.go
+deleted file mode 100644
+index 612baaea31..0000000000
+--- a/src/net/tcpsockopt_dragonfly.go
++++ /dev/null
+@@ -1,53 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package net
+-
+-import (
+-	"runtime"
+-	"syscall"
+-	"time"
+-)
+-
+-func setKeepAliveIdle(fd *netFD, d time.Duration) error {
+-	if d == 0 {
+-		d = defaultTCPKeepAliveIdle
+-	} else if d < 0 {
+-		return nil
+-	}
+-
+-	// The kernel expects milliseconds so round to next highest
+-	// millisecond.
+-	msecs := int(roundDurationUp(d, time.Millisecond))
+-	err := fd.pfd.SetsockoptInt(syscall.IPPROTO_TCP, syscall.TCP_KEEPIDLE, msecs)
+-	runtime.KeepAlive(fd)
+-	return wrapSyscallError("setsockopt", err)
+-}
+-
+-func setKeepAliveInterval(fd *netFD, d time.Duration) error {
+-	if d == 0 {
+-		d = defaultTCPKeepAliveInterval
+-	} else if d < 0 {
+-		return nil
+-	}
+-
+-	// The kernel expects milliseconds so round to next highest
+-	// millisecond.
+-	msecs := int(roundDurationUp(d, time.Millisecond))
+-	err := fd.pfd.SetsockoptInt(syscall.IPPROTO_TCP, syscall.TCP_KEEPINTVL, msecs)
+-	runtime.KeepAlive(fd)
+-	return wrapSyscallError("setsockopt", err)
+-}
+-
+-func setKeepAliveCount(fd *netFD, n int) error {
+-	if n == 0 {
+-		n = defaultTCPKeepAliveCount
+-	} else if n < 0 {
+-		return nil
+-	}
+-
+-	err := fd.pfd.SetsockoptInt(syscall.IPPROTO_TCP, syscall.TCP_KEEPCNT, n)
+-	runtime.KeepAlive(fd)
+-	return wrapSyscallError("setsockopt", err)
+-}
+diff --git a/src/net/tcpsockopt_unix.go b/src/net/tcpsockopt_unix.go
+index eb01663c52..f3526e4962 100644
+--- a/src/net/tcpsockopt_unix.go
++++ b/src/net/tcpsockopt_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build aix || freebsd || linux || netbsd
++//go:build aix || dragonfly || freebsd || linux || netbsd
+ 
+ package net
+ 

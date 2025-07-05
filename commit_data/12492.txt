@@ -8,7 +8,49 @@ Date:   Thu Mar 8 08:53:08 2012 +1100
     R=golang-dev, iant, rsc, r
     CC=golang-dev
     https://golang.org/cl/5758069
-
+---
  src/pkg/encoding/gob/decode.go         |  3 +++
  src/pkg/encoding/gob/gobencdec_test.go | 19 +++++++++++++++++++
  2 files changed, 22 insertions(+)
+
+diff --git a/src/pkg/encoding/gob/decode.go b/src/pkg/encoding/gob/decode.go
+index 0708a83c99..e32a178aba 100644
+--- a/src/pkg/encoding/gob/decode.go
++++ b/src/pkg/encoding/gob/decode.go
+@@ -707,6 +707,9 @@ func (dec *Decoder) decodeInterface(ityp reflect.Type, state *decoderState, p ui
+ 	if name == "" {
+ 		// Copy the representation of the nil interface value to the target.
+ 		// This is horribly unsafe and special.
++		if indir > 0 {
++			p = allocate(ityp, p, 1) // All but the last level has been allocated by dec.Indirect
++		}
+ 		*(*[2]uintptr)(unsafe.Pointer(p)) = ivalue.InterfaceData()
+ 		return
+ 	}
+diff --git a/src/pkg/encoding/gob/gobencdec_test.go b/src/pkg/encoding/gob/gobencdec_test.go
+index 83644c0331..45240d764d 100644
+--- a/src/pkg/encoding/gob/gobencdec_test.go
++++ b/src/pkg/encoding/gob/gobencdec_test.go
+@@ -573,3 +573,22 @@ func TestGobEncodeIsZero(t *testing.T) {
+ 		t.Fatalf("%v != %v", x, y)
+ 	}
+ }
++
++func TestGobEncodePtrError(t *testing.T) {
++	var err error
++	b := new(bytes.Buffer)
++	enc := NewEncoder(b)
++	err = enc.Encode(&err)
++	if err != nil {
++		t.Fatal("encode:", err)
++	}
++	dec := NewDecoder(b)
++	err2 := fmt.Errorf("foo")
++	err = dec.Decode(&err2)
++	if err != nil {
++		t.Fatal("decode:", err)
++	}
++	if err2 != nil {
++		t.Fatalf("expected nil, got %v", err2)
++	}
++}

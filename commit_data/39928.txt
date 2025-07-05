@@ -18,6 +18,20 @@ Date:   Tue Apr 2 23:58:43 2019 +0200
     Run-TryBot: Elias Naur <mail@eliasnaur.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/cgo/gcc_android.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/cgo/gcc_android.c b/src/runtime/cgo/gcc_android.c
+index a626cd0681..5075023282 100644
+--- a/src/runtime/cgo/gcc_android.c
++++ b/src/runtime/cgo/gcc_android.c
+@@ -50,7 +50,7 @@ inittls(void **tlsg, void **tlsbase)
+ 	void *handle, *get_ver;
+ 
+ 	// Check for Android Q where we can use the free TLS_SLOT_APP slot.
+-	handle = dlopen(NULL, RTLD_LAZY);
++	handle = dlopen("libc.so", RTLD_LAZY);
+ 	if (handle == NULL) {
+ 		fatalf("inittls: failed to dlopen main program");
+ 		return;

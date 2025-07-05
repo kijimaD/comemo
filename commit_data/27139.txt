@@ -17,9 +17,878 @@ Date:   Mon Mar 7 18:36:16 2016 +0100
     Reviewed-by: Keith Randall <khr@golang.org>
     Run-TryBot: Alexandru Moșoi <alexandru@mosoi.ro>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/generic.rules |   9 +
  src/cmd/compile/internal/ssa/prove.go          | 402 +++++++++++++++----------
  src/cmd/compile/internal/ssa/rewritegeneric.go | 115 +++++++
  test/prove.go                                  |  80 ++++-
  4 files changed, 440 insertions(+), 166 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index 542c50254a..f9799d6633 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -77,14 +77,19 @@
+ (Rsh8x64   (Const8  [0]) _) -> (Const8  [0])
+ (Rsh8Ux64  (Const8  [0]) _) -> (Const8  [0])
+ 
++(IsInBounds x x) -> (ConstBool [0])
+ (IsInBounds (And32 (Const32 [c]) _) (Const32 [d])) && inBounds32(c, d) -> (ConstBool [1])
+ (IsInBounds (And64 (Const64 [c]) _) (Const64 [d])) && inBounds64(c, d) -> (ConstBool [1])
+ (IsInBounds (Const32 [c]) (Const32 [d])) -> (ConstBool [b2i(inBounds32(c,d))])
+ (IsInBounds (Const64 [c]) (Const64 [d])) -> (ConstBool [b2i(inBounds64(c,d))])
++(IsSliceInBounds x x) -> (ConstBool [1])
+ (IsSliceInBounds (And32 (Const32 [c]) _) (Const32 [d])) && sliceInBounds32(c, d) -> (ConstBool [1])
+ (IsSliceInBounds (And64 (Const64 [c]) _) (Const64 [d])) && sliceInBounds64(c, d) -> (ConstBool [1])
++(IsSliceInBounds (Const32 [0]) _) -> (ConstBool [1])
++(IsSliceInBounds (Const64 [0]) _) -> (ConstBool [1])
+ (IsSliceInBounds (Const32 [c]) (Const32 [d])) -> (ConstBool [b2i(sliceInBounds32(c,d))])
+ (IsSliceInBounds (Const64 [c]) (Const64 [d])) -> (ConstBool [b2i(sliceInBounds64(c,d))])
++(IsSliceInBounds (SliceLen x) (SliceCap x)) -> (ConstBool [1])
+ 
+ (Eq64 x x) -> (ConstBool [1])
+ (Eq32 x x) -> (ConstBool [1])
+@@ -547,6 +552,10 @@
+ (SlicePtr (SliceMake (Const64 <t> [c]) _ _)) -> (Const64 <t> [c])
+ (SliceLen (SliceMake _ (Const64 <t> [c]) _)) -> (Const64 <t> [c])
+ (SliceCap (SliceMake _ _ (Const64 <t> [c]))) -> (Const64 <t> [c])
++(SlicePtr (SliceMake (SlicePtr x) _ _)) -> (SlicePtr x)
++(SliceLen (SliceMake _ (SliceLen x) _)) -> (SliceLen x)
++(SliceCap (SliceMake _ _ (SliceCap x))) -> (SliceCap x)
++
+ (ConstSlice) && config.PtrSize == 4 ->
+   (SliceMake
+     (ConstNil <config.fe.TypeBytePtr()>)
+diff --git a/src/cmd/compile/internal/ssa/prove.go b/src/cmd/compile/internal/ssa/prove.go
+index a915e0b5a7..1c58826468 100644
+--- a/src/cmd/compile/internal/ssa/prove.go
++++ b/src/cmd/compile/internal/ssa/prove.go
+@@ -4,40 +4,161 @@
+ 
+ package ssa
+ 
+-// rangeMask represents the possible relations between a pair of variables.
+-type rangeMask uint
++type branch int
+ 
+ const (
+-	lt rangeMask = 1 << iota
++	unknown = iota
++	positive
++	negative
++)
++
++// relation represents the set of possible relations between
++// pairs of variables (v, w). Without a priori knowledge the
++// mask is lt | eq | gt meaning v can be less than, equal to or
++// greater than w. When the execution path branches on the condition
++// `v op w` the set of relations is updated to exclude any
++// relation not possible due to `v op w` being true (or false).
++//
++// E.g.
++//
++// r := relation(...)
++//
++// if v < w {
++//   newR := r & lt
++// }
++// if v >= w {
++//   newR := r & (eq|gt)
++// }
++// if v != w {
++//   newR := r & (lt|gt)
++// }
++type relation uint
++
++const (
++	lt relation = 1 << iota
+ 	eq
+ 	gt
+ )
+ 
+-// typeMask represents the universe of a variable pair in which
+-// a set of relations is known.
+-// For example, information learned for unsigned pairs cannot
+-// be transfered to signed pairs because the same bit representation
+-// can mean something else.
+-type typeMask uint
++// domain represents the domain of a variable pair in which a set
++// of relations is known.  For example, relations learned for unsigned
++// pairs cannot be transfered to signed pairs because the same bit
++// representation can mean something else.
++type domain uint
+ 
+ const (
+-	signed typeMask = 1 << iota
++	signed domain = 1 << iota
+ 	unsigned
+ 	pointer
++	boolean
+ )
+ 
+-type typeRange struct {
+-	t typeMask
+-	r rangeMask
++type pair struct {
++	v, w *Value // a pair of values, ordered by ID.
++	// v can be nil, to mean the zero value.
++	// for booleans the zero value (v == nil) is false.
++	d domain
++}
++
++// fact is a pair plus a relation for that pair.
++type fact struct {
++	p pair
++	r relation
++}
++
++// factsTable keeps track of relations between pairs of values.
++type factsTable struct {
++	facts map[pair]relation // current known set of relation
++	stack []fact            // previous sets of relations
+ }
+ 
+-type control struct {
+-	tm     typeMask
+-	a0, a1 ID
++// checkpointFact is an invalid value used for checkpointing
++// and restoring factsTable.
++var checkpointFact = fact{}
++
++func newFactsTable() *factsTable {
++	ft := &factsTable{}
++	ft.facts = make(map[pair]relation)
++	ft.stack = make([]fact, 4)
++	return ft
++}
++
++// get returns the known possible relations between v and w.
++// If v and w are not in the map it returns lt|eq|gt, i.e. any order.
++func (ft *factsTable) get(v, w *Value, d domain) relation {
++	reversed := false
++	if lessByID(w, v) {
++		v, w = w, v
++		reversed = true
++	}
++
++	p := pair{v, w, d}
++	r, ok := ft.facts[p]
++	if !ok {
++		if p.v == p.w {
++			r = eq
++		} else {
++			r = lt | eq | gt
++		}
++	}
++
++	if reversed {
++		return reverseBits[r]
++	}
++	return r
++}
++
++// update updates the set of relations between v and w in domain d
++// restricting it to r.
++func (ft *factsTable) update(v, w *Value, d domain, r relation) {
++	if lessByID(w, v) {
++		v, w = w, v
++		r = reverseBits[r]
++	}
++
++	p := pair{v, w, d}
++	oldR := ft.get(v, w, d)
++	ft.stack = append(ft.stack, fact{p, oldR})
++	ft.facts[p] = oldR & r
++}
++
++// checkpoint saves the current state of known relations.
++// Called when descending on a branch.
++func (ft *factsTable) checkpoint() {
++	ft.stack = append(ft.stack, checkpointFact)
++}
++
++// restore restores known relation to the state just
++// before the previous checkpoint.
++// Called when backing up on a branch.
++func (ft *factsTable) restore() {
++	for {
++		old := ft.stack[len(ft.stack)-1]
++		ft.stack = ft.stack[:len(ft.stack)-1]
++		if old == checkpointFact {
++			break
++		}
++		if old.r == lt|eq|gt {
++			delete(ft.facts, old.p)
++		} else {
++			ft.facts[old.p] = old.r
++		}
++	}
++}
++
++func lessByID(v, w *Value) bool {
++	if v == nil && w == nil {
++		// Should not happen, but just in case.
++		return false
++	}
++	if v == nil {
++		return true
++	}
++	return w != nil && v.ID < w.ID
+ }
+ 
+ var (
+-	reverseBits = [...]rangeMask{0, 4, 2, 6, 1, 5, 3, 7}
++	reverseBits = [...]relation{0, 4, 2, 6, 1, 5, 3, 7}
+ 
+ 	// maps what we learn when the positive branch is taken.
+ 	// For example:
+@@ -45,7 +166,10 @@ var (
+ 	//	v1 = (OpLess8 v2 v3).
+ 	// If v1 branch is taken than we learn that the rangeMaks
+ 	// can be at most lt.
+-	typeRangeTable = map[Op]typeRange{
++	domainRelationTable = map[Op]struct {
++		d domain
++		r relation
++	}{
+ 		OpEq8:   {signed | unsigned, eq},
+ 		OpEq16:  {signed | unsigned, eq},
+ 		OpEq32:  {signed | unsigned, eq},
+@@ -104,7 +228,7 @@ var (
+ 
+ // prove removes redundant BlockIf controls that can be inferred in a straight line.
+ //
+-// By far, the most common redundant control are generated by bounds checking.
++// By far, the most common redundant pair are generated by bounds checking.
+ // For example for the code:
+ //
+ //    a[i] = 4
+@@ -136,9 +260,8 @@ func prove(f *Func) {
+ 	)
+ 	// work maintains the DFS stack.
+ 	type bp struct {
+-		block *Block      // current handled block
+-		state walkState   // what's to do
+-		saved []typeRange // save previous map entries modified by node
++		block *Block    // current handled block
++		state walkState // what's to do
+ 	}
+ 	work := make([]bp, 0, 256)
+ 	work = append(work, bp{
+@@ -146,31 +269,32 @@ func prove(f *Func) {
+ 		state: descend,
+ 	})
+ 
+-	// mask keep tracks of restrictions for each pair of values in
+-	// the dominators for the current node.
+-	// Invariant: a0.ID <= a1.ID
+-	// For example {unsigned, a0, a1} -> eq|gt means that from
+-	// predecessors we know that a0 must be greater or equal to
+-	// a1.
+-	mask := make(map[control]rangeMask)
++	ft := newFactsTable()
+ 
+ 	// DFS on the dominator tree.
+ 	for len(work) > 0 {
+ 		node := work[len(work)-1]
+ 		work = work[:len(work)-1]
++		parent := idom[node.block.ID]
++		branch := getBranch(sdom, parent, node.block)
+ 
+ 		switch node.state {
+ 		case descend:
+-			parent := idom[node.block.ID]
+-			tr := getRestrict(sdom, parent, node.block)
+-			saved := updateRestrictions(mask, parent, tr)
++			if branch != unknown {
++				ft.checkpoint()
++				c := parent.Control
++				updateRestrictions(ft, boolean, nil, c, lt|gt, branch)
++				if tr, has := domainRelationTable[parent.Control.Op]; has {
++					// When we branched from parent we learned a new set of
++					// restrictions. Update the factsTable accordingly.
++					updateRestrictions(ft, tr.d, c.Args[0], c.Args[1], tr.r, branch)
++				}
++			}
+ 
+ 			work = append(work, bp{
+ 				block: node.block,
+ 				state: simplify,
+-				saved: saved,
+ 			})
+-
+ 			for s := sdom.Child(node.block); s != nil; s = sdom.Sibling(s) {
+ 				work = append(work, bp{
+ 					block: s,
+@@ -179,21 +303,28 @@ func prove(f *Func) {
+ 			}
+ 
+ 		case simplify:
+-			simplifyBlock(mask, node.block)
+-			restoreRestrictions(mask, idom[node.block.ID], node.saved)
++			succ := simplifyBlock(ft, node.block)
++			if succ != unknown {
++				b := node.block
++				b.Kind = BlockFirst
++				b.Control = nil
++				if succ == negative {
++					b.Succs[0], b.Succs[1] = b.Succs[1], b.Succs[0]
++				}
++			}
++
++			if branch != unknown {
++				ft.restore()
++			}
+ 		}
+ 	}
+ }
+ 
+-// getRestrict returns the range restrictions added by p
+-// when reaching b. p is the immediate dominator or b.
+-func getRestrict(sdom sparseTree, p *Block, b *Block) typeRange {
++// getBranch returns the range restrictions added by p
++// when reaching b. p is the immediate dominator of b.
++func getBranch(sdom sparseTree, p *Block, b *Block) branch {
+ 	if p == nil || p.Kind != BlockIf {
+-		return typeRange{}
+-	}
+-	tr, has := typeRangeTable[p.Control.Op]
+-	if !has {
+-		return typeRange{}
++		return unknown
+ 	}
+ 	// If p and p.Succs[0] are dominators it means that every path
+ 	// from entry to b passes through p and p.Succs[0]. We care that
+@@ -202,150 +333,119 @@ func getRestrict(sdom sparseTree, p *Block, b *Block) typeRange {
+ 	// there is no path from entry that can reach b through p.Succs[1].
+ 	// TODO: how about p->yes->b->yes, i.e. a loop in yes.
+ 	if sdom.isAncestorEq(p.Succs[0], b) && len(p.Succs[0].Preds) == 1 {
+-		return tr
+-	} else if sdom.isAncestorEq(p.Succs[1], b) && len(p.Succs[1].Preds) == 1 {
+-		tr.r = (lt | eq | gt) ^ tr.r
+-		return tr
++		return positive
+ 	}
+-	return typeRange{}
+-}
+-
+-// updateRestrictions updates restrictions from the previous block (p) based on tr.
+-// normally tr was calculated with getRestrict.
+-func updateRestrictions(mask map[control]rangeMask, p *Block, tr typeRange) []typeRange {
+-	if tr.t == 0 {
+-		return nil
+-	}
+-
+-	// p modifies the restrictions for (a0, a1).
+-	// save and return the previous state.
+-	a0 := p.Control.Args[0]
+-	a1 := p.Control.Args[1]
+-	if a0.ID > a1.ID {
+-		tr.r = reverseBits[tr.r]
+-		a0, a1 = a1, a0
+-	}
+-
+-	saved := make([]typeRange, 0, 2)
+-	for t := typeMask(1); t <= tr.t; t <<= 1 {
+-		if t&tr.t == 0 {
+-			continue
+-		}
+-
+-		i := control{t, a0.ID, a1.ID}
+-		oldRange, ok := mask[i]
+-		if !ok {
+-			if a1 != a0 {
+-				oldRange = lt | eq | gt
+-			} else { // sometimes happens after cse
+-				oldRange = eq
+-			}
+-		}
+-		// if i was not already in the map we save the full range
+-		// so that when we restore it we properly keep track of it.
+-		saved = append(saved, typeRange{t, oldRange})
+-		// mask[i] contains the possible relations between a0 and a1.
+-		// When we branched from parent we learned that the possible
+-		// relations cannot be more than tr.r. We compute the new set of
+-		// relations as the intersection betwee the old and the new set.
+-		mask[i] = oldRange & tr.r
++	if sdom.isAncestorEq(p.Succs[1], b) && len(p.Succs[1].Preds) == 1 {
++		return negative
+ 	}
+-	return saved
++	return unknown
+ }
+ 
+-func restoreRestrictions(mask map[control]rangeMask, p *Block, saved []typeRange) {
+-	if p == nil || p.Kind != BlockIf || len(saved) == 0 {
++// updateRestrictions updates restrictions from the immediate
++// dominating block (p) using r. r is adjusted according to the branch taken.
++func updateRestrictions(ft *factsTable, t domain, v, w *Value, r relation, branch branch) {
++	if t == 0 || branch == unknown {
++		// Trivial case: nothing to do, or branch unknown.
++		// Shoult not happen, but just in case.
+ 		return
+ 	}
+-
+-	a0 := p.Control.Args[0].ID
+-	a1 := p.Control.Args[1].ID
+-	if a0 > a1 {
+-		a0, a1 = a1, a0
++	if branch == negative {
++		// Negative branch taken, complement the relations.
++		r = (lt | eq | gt) ^ r
+ 	}
+-
+-	for _, tr := range saved {
+-		i := control{tr.t, a0, a1}
+-		if tr.r != lt|eq|gt {
+-			mask[i] = tr.r
+-		} else {
+-			delete(mask, i)
++	for i := domain(1); i <= t; i <<= 1 {
++		if t&i != 0 {
++			ft.update(v, w, i, r)
+ 		}
+ 	}
+ }
+ 
+-// simplifyBlock simplifies block known the restrictions in mask.
+-func simplifyBlock(mask map[control]rangeMask, b *Block) {
++// simplifyBlock simplifies block known the restrictions in ft.
++// Returns which branch must always be taken.
++func simplifyBlock(ft *factsTable, b *Block) branch {
+ 	if b.Kind != BlockIf {
+-		return
++		return unknown
+ 	}
+ 
+-	tr, has := typeRangeTable[b.Control.Op]
+-	if !has {
+-		return
++	// First, checks if the condition itself is redundant.
++	m := ft.get(nil, b.Control, boolean)
++	if m == lt|gt {
++		if b.Func.pass.debug > 0 {
++			b.Func.Config.Warnl(int(b.Line), "Proved boolean %s", b.Control.Op)
++		}
++		return positive
++	}
++	if m == eq {
++		if b.Func.pass.debug > 0 {
++			b.Func.Config.Warnl(int(b.Line), "Disproved boolean %s", b.Control.Op)
++		}
++		return negative
+ 	}
+ 
+-	succ := -1
+-	a0 := b.Control.Args[0].ID
+-	a1 := b.Control.Args[1].ID
+-	if a0 > a1 {
+-		tr.r = reverseBits[tr.r]
+-		a0, a1 = a1, a0
++	// Next look check equalities.
++	c := b.Control
++	tr, has := domainRelationTable[c.Op]
++	if !has {
++		return unknown
+ 	}
+ 
+-	for t := typeMask(1); t <= tr.t; t <<= 1 {
+-		if t&tr.t == 0 {
++	a0, a1 := c.Args[0], c.Args[1]
++	for d := domain(1); d <= tr.d; d <<= 1 {
++		if d&tr.d == 0 {
+ 			continue
+ 		}
+ 
+ 		// tr.r represents in which case the positive branch is taken.
+-		// m.r represents which cases are possible because of previous relations.
+-		// If the set of possible relations m.r is included in the set of relations
++		// m represents which cases are possible because of previous relations.
++		// If the set of possible relations m is included in the set of relations
+ 		// need to take the positive branch (or negative) then that branch will
+ 		// always be taken.
+-		// For shortcut, if m.r == 0 then this block is dead code.
+-		i := control{t, a0, a1}
+-		m := mask[i]
++		// For shortcut, if m == 0 then this block is dead code.
++		m := ft.get(a0, a1, d)
+ 		if m != 0 && tr.r&m == m {
+ 			if b.Func.pass.debug > 0 {
+-				b.Func.Config.Warnl(int(b.Line), "Proved %s", b.Control.Op)
++				b.Func.Config.Warnl(int(b.Line), "Proved %s", c.Op)
+ 			}
+-			b.Logf("proved positive branch of %s, block %s in %s\n", b.Control, b, b.Func.Name)
+-			succ = 0
+-			break
++			return positive
+ 		}
+ 		if m != 0 && ((lt|eq|gt)^tr.r)&m == m {
+ 			if b.Func.pass.debug > 0 {
+-				b.Func.Config.Warnl(int(b.Line), "Disproved %s", b.Control.Op)
++				b.Func.Config.Warnl(int(b.Line), "Disproved %s", c.Op)
+ 			}
+-			b.Logf("proved negative branch of %s, block %s in %s\n", b.Control, b, b.Func.Name)
+-			succ = 1
+-			break
++			return negative
+ 		}
+ 	}
+ 
+-	if succ == -1 {
+-		// HACK: If the first argument of IsInBounds or IsSliceInBounds
+-		// is a constant and we already know that constant is smaller (or equal)
+-		// to the upper bound than this is proven. Most useful in cases such as:
+-		// if len(a) <= 1 { return }
+-		// do something with a[1]
+-		c := b.Control
+-		if (c.Op == OpIsInBounds || c.Op == OpIsSliceInBounds) &&
+-			c.Args[0].Op == OpConst64 && c.Args[0].AuxInt >= 0 {
+-			m := mask[control{signed, a0, a1}]
+-			if m != 0 && tr.r&m == m {
+-				if b.Func.pass.debug > 0 {
+-					b.Func.Config.Warnl(int(b.Line), "Proved constant %s", c.Op)
+-				}
+-				succ = 0
++	// HACK: If the first argument of IsInBounds or IsSliceInBounds
++	// is a constant and we already know that constant is smaller (or equal)
++	// to the upper bound than this is proven. Most useful in cases such as:
++	// if len(a) <= 1 { return }
++	// do something with a[1]
++	if (c.Op == OpIsInBounds || c.Op == OpIsSliceInBounds) && isNonNegative(c.Args[0]) {
++		m := ft.get(a0, a1, signed)
++		if m != 0 && tr.r&m == m {
++			if b.Func.pass.debug > 0 {
++				b.Func.Config.Warnl(int(b.Line), "Proved non-negative bounds %s", c.Op)
+ 			}
++			return positive
+ 		}
+ 	}
+ 
+-	if succ != -1 {
+-		b.Kind = BlockFirst
+-		b.Control = nil
+-		b.Succs[0], b.Succs[1] = b.Succs[succ], b.Succs[1-succ]
++	return unknown
++}
++
++// isNonNegative returns true is v is known to be greater or equal to zero.
++func isNonNegative(v *Value) bool {
++	switch v.Op {
++	case OpConst64:
++		return v.AuxInt >= 0
++
++	case OpStringLen, OpSliceLen, OpSliceCap,
++		OpZeroExt8to64, OpZeroExt16to64, OpZeroExt32to64:
++		return true
++
++	case OpRsh64x64:
++		return isNonNegative(v.Args[0])
+ 	}
++	return false
+ }
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index 331c93d1cf..bf1930063e 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -2487,6 +2487,18 @@ func rewriteValuegeneric_OpITab(v *Value, config *Config) bool {
+ func rewriteValuegeneric_OpIsInBounds(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
++	// match: (IsInBounds x x)
++	// cond:
++	// result: (ConstBool [0])
++	for {
++		x := v.Args[0]
++		if v.Args[1] != x {
++			break
++		}
++		v.reset(OpConstBool)
++		v.AuxInt = 0
++		return true
++	}
+ 	// match: (IsInBounds (And32 (Const32 [c]) _) (Const32 [d]))
+ 	// cond: inBounds32(c, d)
+ 	// result: (ConstBool [1])
+@@ -2568,6 +2580,18 @@ func rewriteValuegeneric_OpIsInBounds(v *Value, config *Config) bool {
+ func rewriteValuegeneric_OpIsSliceInBounds(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
++	// match: (IsSliceInBounds x x)
++	// cond:
++	// result: (ConstBool [1])
++	for {
++		x := v.Args[0]
++		if v.Args[1] != x {
++			break
++		}
++		v.reset(OpConstBool)
++		v.AuxInt = 1
++		return true
++	}
+ 	// match: (IsSliceInBounds (And32 (Const32 [c]) _) (Const32 [d]))
+ 	// cond: sliceInBounds32(c, d)
+ 	// result: (ConstBool [1])
+@@ -2612,6 +2636,34 @@ func rewriteValuegeneric_OpIsSliceInBounds(v *Value, config *Config) bool {
+ 		v.AuxInt = 1
+ 		return true
+ 	}
++	// match: (IsSliceInBounds (Const32 [0]) _)
++	// cond:
++	// result: (ConstBool [1])
++	for {
++		if v.Args[0].Op != OpConst32 {
++			break
++		}
++		if v.Args[0].AuxInt != 0 {
++			break
++		}
++		v.reset(OpConstBool)
++		v.AuxInt = 1
++		return true
++	}
++	// match: (IsSliceInBounds (Const64 [0]) _)
++	// cond:
++	// result: (ConstBool [1])
++	for {
++		if v.Args[0].Op != OpConst64 {
++			break
++		}
++		if v.Args[0].AuxInt != 0 {
++			break
++		}
++		v.reset(OpConstBool)
++		v.AuxInt = 1
++		return true
++	}
+ 	// match: (IsSliceInBounds (Const32 [c]) (Const32 [d]))
+ 	// cond:
+ 	// result: (ConstBool [b2i(sliceInBounds32(c,d))])
+@@ -2644,6 +2696,24 @@ func rewriteValuegeneric_OpIsSliceInBounds(v *Value, config *Config) bool {
+ 		v.AuxInt = b2i(sliceInBounds64(c, d))
+ 		return true
+ 	}
++	// match: (IsSliceInBounds (SliceLen x) (SliceCap x))
++	// cond:
++	// result: (ConstBool [1])
++	for {
++		if v.Args[0].Op != OpSliceLen {
++			break
++		}
++		x := v.Args[0].Args[0]
++		if v.Args[1].Op != OpSliceCap {
++			break
++		}
++		if v.Args[1].Args[0] != x {
++			break
++		}
++		v.reset(OpConstBool)
++		v.AuxInt = 1
++		return true
++	}
+ 	return false
+ }
+ func rewriteValuegeneric_OpLeq16(v *Value, config *Config) bool {
+@@ -6709,6 +6779,21 @@ func rewriteValuegeneric_OpSliceCap(v *Value, config *Config) bool {
+ 		v.AuxInt = c
+ 		return true
+ 	}
++	// match: (SliceCap (SliceMake _ _ (SliceCap x)))
++	// cond:
++	// result: (SliceCap x)
++	for {
++		if v.Args[0].Op != OpSliceMake {
++			break
++		}
++		if v.Args[0].Args[2].Op != OpSliceCap {
++			break
++		}
++		x := v.Args[0].Args[2].Args[0]
++		v.reset(OpSliceCap)
++		v.AddArg(x)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValuegeneric_OpSliceLen(v *Value, config *Config) bool {
+@@ -6731,6 +6816,21 @@ func rewriteValuegeneric_OpSliceLen(v *Value, config *Config) bool {
+ 		v.AuxInt = c
+ 		return true
+ 	}
++	// match: (SliceLen (SliceMake _ (SliceLen x) _))
++	// cond:
++	// result: (SliceLen x)
++	for {
++		if v.Args[0].Op != OpSliceMake {
++			break
++		}
++		if v.Args[0].Args[1].Op != OpSliceLen {
++			break
++		}
++		x := v.Args[0].Args[1].Args[0]
++		v.reset(OpSliceLen)
++		v.AddArg(x)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValuegeneric_OpSlicePtr(v *Value, config *Config) bool {
+@@ -6753,6 +6853,21 @@ func rewriteValuegeneric_OpSlicePtr(v *Value, config *Config) bool {
+ 		v.AuxInt = c
+ 		return true
+ 	}
++	// match: (SlicePtr (SliceMake (SlicePtr x) _ _))
++	// cond:
++	// result: (SlicePtr x)
++	for {
++		if v.Args[0].Op != OpSliceMake {
++			break
++		}
++		if v.Args[0].Args[0].Op != OpSlicePtr {
++			break
++		}
++		x := v.Args[0].Args[0].Args[0]
++		v.reset(OpSlicePtr)
++		v.AddArg(x)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValuegeneric_OpStore(v *Value, config *Config) bool {
+diff --git a/test/prove.go b/test/prove.go
+index 0f5b8ce87f..e5e5b544cf 100644
+--- a/test/prove.go
++++ b/test/prove.go
+@@ -5,11 +5,11 @@ package main
+ 
+ func f0(a []int) int {
+ 	a[0] = 1
+-	a[0] = 1 // ERROR "Proved IsInBounds$"
++	a[0] = 1 // ERROR "Proved boolean IsInBounds$"
+ 	a[6] = 1
+-	a[6] = 1 // ERROR "Proved IsInBounds$"
++	a[6] = 1 // ERROR "Proved boolean IsInBounds$"
+ 	a[5] = 1
+-	a[5] = 1 // ERROR "Proved IsInBounds$"
++	a[5] = 1 // ERROR "Proved boolean IsInBounds$"
+ 	return 13
+ }
+ 
+@@ -18,18 +18,18 @@ func f1(a []int) int {
+ 		return 18
+ 	}
+ 	a[0] = 1
+-	a[0] = 1 // ERROR "Proved IsInBounds$"
++	a[0] = 1 // ERROR "Proved boolean IsInBounds$"
+ 	a[6] = 1
+-	a[6] = 1 // ERROR "Proved IsInBounds$"
+-	a[5] = 1 // ERROR "Proved constant IsInBounds$"
+-	a[5] = 1 // ERROR "Proved IsInBounds$"
++	a[6] = 1 // ERROR "Proved boolean IsInBounds$"
++	a[5] = 1 // ERROR "Proved non-negative bounds IsInBounds$"
++	a[5] = 1 // ERROR "Proved boolean IsInBounds$"
+ 	return 26
+ }
+ 
+ func f2(a []int) int {
+ 	for i := range a {
+ 		a[i] = i
+-		a[i] = i // ERROR "Proved IsInBounds$"
++		a[i] = i // ERROR "Proved boolean IsInBounds$"
+ 	}
+ 	return 34
+ }
+@@ -49,13 +49,13 @@ func f4a(a, b, c int) int {
+ 		if a > b { // ERROR "Disproved Greater64$"
+ 			return 50
+ 		}
+-		if a < b { // ERROR "Proved Less64$"
++		if a < b { // ERROR "Proved boolean Less64$"
+ 			return 53
+ 		}
+-		if a == b { // ERROR "Disproved Eq64$"
++		if a == b { // ERROR "Disproved boolean Eq64$"
+ 			return 56
+ 		}
+-		if a > b {
++		if a > b { // ERROR "Disproved boolean Greater64$"
+ 			return 59
+ 		}
+ 		return 61
+@@ -92,8 +92,8 @@ func f4c(a, b, c int) int {
+ func f4d(a, b, c int) int {
+ 	if a < b {
+ 		if a < c {
+-			if a < b { // ERROR "Proved Less64$"
+-				if a < c { // ERROR "Proved Less64$"
++			if a < b { // ERROR "Proved boolean Less64$"
++				if a < c { // ERROR "Proved boolean Less64$"
+ 					return 87
+ 				}
+ 				return 89
+@@ -183,8 +183,8 @@ func f6e(a uint8) int {
+ func f7(a []int, b int) int {
+ 	if b < len(a) {
+ 		a[b] = 3
+-		if b < len(a) { // ERROR "Proved Less64$"
+-			a[b] = 5 // ERROR "Proved IsInBounds$"
++		if b < len(a) { // ERROR "Proved boolean Less64$"
++			a[b] = 5 // ERROR "Proved boolean IsInBounds$"
+ 		}
+ 	}
+ 	return 161
+@@ -203,5 +203,55 @@ func f8(a, b uint) int {
+ 	return 174
+ }
+ 
++func f9(a, b bool) int {
++	if a {
++		return 1
++	}
++	if a || b { // ERROR "Disproved boolean Arg$"
++		return 2
++	}
++	return 3
++}
++
++func f10(a string) int {
++	n := len(a)
++	if a[:n>>1] == "aaa" {
++		return 0
++	}
++	return 1
++}
++
++func f11a(a []int, i int) {
++	useInt(a[i])
++	useInt(a[i]) // ERROR "Proved boolean IsInBounds$"
++}
++
++func f11b(a []int, i int) {
++	useSlice(a[i:])
++	useSlice(a[i:]) // ERROR "Proved boolean IsSliceInBounds$"
++}
++
++func f11c(a []int, i int) {
++	useSlice(a[:i])
++	useSlice(a[:i]) // ERROR "Proved boolean IsSliceInBounds$"
++}
++
++func f11d(a []int, i int) {
++	useInt(a[2*i+7])
++	useInt(a[2*i+7])
++}
++
++func f12(a []int, b int) {
++	useSlice(a[:b])
++}
++
++//go:noinline
++func useInt(a int) {
++}
++
++//go:noinline
++func useSlice(a []int) {
++}
++
+ func main() {
+ }

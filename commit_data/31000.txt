@@ -36,7 +36,7 @@ Date:   Thu Dec 15 17:17:01 2016 -0800
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/asm/internal/asm/parse.go            |  4 +-
  src/cmd/compile/internal/gc/alg.go           |  9 ++--
  src/cmd/compile/internal/gc/bexport.go       |  5 +-
@@ -80,3 +80,1456 @@ Date:   Thu Dec 15 17:17:01 2016 -0800
  src/cmd/internal/src/xpos.go                 | 75 ++++++++++++++++++++++++++++
  src/cmd/internal/src/xpos_test.go            | 67 +++++++++++++++++++++++++
  42 files changed, 313 insertions(+), 163 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/parse.go b/src/cmd/asm/internal/asm/parse.go
+index 4b971e7119..4e23e7743c 100644
+--- a/src/cmd/asm/internal/asm/parse.go
++++ b/src/cmd/asm/internal/asm/parse.go
+@@ -85,8 +85,8 @@ func (p *Parser) errorf(format string, args ...interface{}) {
+ 	}
+ }
+ 
+-func (p *Parser) pos() src.Pos {
+-	return src.MakePos(p.lex.Base(), uint(p.lineNum), 0)
++func (p *Parser) pos() src.XPos {
++	return p.ctxt.PosTable.XPos(src.MakePos(p.lex.Base(), uint(p.lineNum), 0))
+ }
+ 
+ func (p *Parser) Parse() (*obj.Prog, bool) {
+diff --git a/src/cmd/compile/internal/gc/alg.go b/src/cmd/compile/internal/gc/alg.go
+index 3c71cea33a..09216fdd83 100644
+--- a/src/cmd/compile/internal/gc/alg.go
++++ b/src/cmd/compile/internal/gc/alg.go
+@@ -4,10 +4,7 @@
+ 
+ package gc
+ 
+-import (
+-	"cmd/internal/src"
+-	"fmt"
+-)
++import "fmt"
+ 
+ // AlgKind describes the kind of algorithms used for comparing and
+ // hashing a Type.
+@@ -189,7 +186,7 @@ func genhash(sym *Sym, t *Type) {
+ 		fmt.Printf("genhash %v %v\n", sym, t)
+ 	}
+ 
+-	lineno = src.MakePos(nil, 1, 0) // less confusing than end of input
++	lineno = MakePos(nil, 1, 0) // less confusing than end of input
+ 	dclcontext = PEXTERN
+ 	markdcl()
+ 
+@@ -365,7 +362,7 @@ func geneq(sym *Sym, t *Type) {
+ 		fmt.Printf("geneq %v %v\n", sym, t)
+ 	}
+ 
+-	lineno = src.MakePos(nil, 1, 0) // less confusing than end of input
++	lineno = MakePos(nil, 1, 0) // less confusing than end of input
+ 	dclcontext = PEXTERN
+ 	markdcl()
+ 
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index dbf2d6e166..ab86c3a523 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -591,8 +591,9 @@ func (p *exporter) pos(n *Node) {
+ 
+ func fileLine(n *Node) (file string, line int) {
+ 	if n != nil {
+-		file = n.Pos.AbsFilename()
+-		line = int(n.Pos.Line())
++		pos := Ctxt.PosTable.Pos(n.Pos)
++		file = pos.AbsFilename()
++		line = int(pos.Line())
+ 	}
+ 	return
+ }
+diff --git a/src/cmd/compile/internal/gc/const.go b/src/cmd/compile/internal/gc/const.go
+index 0575b0f789..a2146ebef1 100644
+--- a/src/cmd/compile/internal/gc/const.go
++++ b/src/cmd/compile/internal/gc/const.go
+@@ -679,7 +679,7 @@ func evconst(n *Node) {
+ 
+ 	nr := n.Right
+ 	var rv Val
+-	var lno src.Pos
++	var lno src.XPos
+ 	var wr EType
+ 	var v Val
+ 	var norig *Node
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index 51a4924ffc..8af78c156a 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -288,7 +288,7 @@ func variter(vl []*Node, t *Node, el []*Node) []*Node {
+ // declare constants from grammar
+ // new_name_list [[type] = expr_list]
+ func constiter(vl []*Node, t *Node, cl []*Node) []*Node {
+-	var lno src.Pos // default is to leave line number alone in listtreecopy
++	var lno src.XPos // default is to leave line number alone in listtreecopy
+ 	if len(cl) == 0 {
+ 		if t != nil {
+ 			yyerror("const declaration cannot have type without expression")
+@@ -1345,7 +1345,7 @@ type nowritebarrierrecChecker struct {
+ type nowritebarrierrecCall struct {
+ 	target *Node
+ 	depth  int
+-	lineno src.Pos
++	lineno src.XPos
+ }
+ 
+ func checknowritebarrierrec() {
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index f54d058ebb..3d4b511109 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -43,10 +43,10 @@ type Sym struct {
+ 
+ 	// saved and restored by dcopy
+ 	Pkg        *Pkg
+-	Name       string  // object name
+-	Def        *Node   // definition: ONAME OTYPE OPACK or OLITERAL
+-	Block      int32   // blocknumber to catch redeclaration
+-	Lastlineno src.Pos // last declaration for diagnostic
++	Name       string   // object name
++	Def        *Node    // definition: ONAME OTYPE OPACK or OLITERAL
++	Block      int32    // blocknumber to catch redeclaration
++	Lastlineno src.XPos // last declaration for diagnostic
+ 
+ 	Label   *Node // corresponding label (ephemeral)
+ 	Origpkg *Pkg  // original package for . import
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index b5f1cbd310..9912cf5aa0 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -1017,13 +1017,13 @@ func (subst *inlsubst) node(n *Node) *Node {
+ }
+ 
+ // Plaster over linenumbers
+-func setlnolist(ll Nodes, lno src.Pos) {
++func setlnolist(ll Nodes, lno src.XPos) {
+ 	for _, n := range ll.Slice() {
+ 		setlno(n, lno)
+ 	}
+ }
+ 
+-func setlno(n *Node, lno src.Pos) {
++func setlno(n *Node, lno src.XPos) {
+ 	if n == nil {
+ 		return
+ 	}
+diff --git a/src/cmd/compile/internal/gc/lex.go b/src/cmd/compile/internal/gc/lex.go
+index f92387036b..5ff55d7c83 100644
+--- a/src/cmd/compile/internal/gc/lex.go
++++ b/src/cmd/compile/internal/gc/lex.go
+@@ -14,7 +14,11 @@ import (
+ 
+ // lineno is the source position at the start of the most recently lexed token.
+ // TODO(gri) rename and eventually remove
+-var lineno src.Pos
++var lineno src.XPos
++
++func MakePos(base *src.PosBase, line, col uint) src.XPos {
++	return Ctxt.PosTable.XPos(src.MakePos(base, line, col))
++}
+ 
+ func isSpace(c rune) bool {
+ 	return c == ' ' || c == '\t' || c == '\n' || c == '\r'
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index aa917c735b..a155958769 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -871,7 +871,7 @@ func importfile(f *Val, indent []byte) {
+ 	}
+ }
+ 
+-func pkgnotused(lineno src.Pos, path string, name string) {
++func pkgnotused(lineno src.XPos, path string, name string) {
+ 	// If the package was imported with a name other than the final
+ 	// import path element, show it explicitly in the error message.
+ 	// Note that this handles both renamed imports and imports of
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index 7376814b43..d7e3023102 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -69,7 +69,7 @@ func (p *noder) file(file *syntax.File) {
+ 	// for fninit and set lineno to NoPos here.
+ 	// TODO(gri) fix this once we switched permanently to the new
+ 	// position information.
+-	lineno = src.MakePos(file.Pos().Base(), uint(file.Lines), 0)
++	lineno = MakePos(file.Pos().Base(), uint(file.Lines), 0)
+ }
+ 
+ func (p *noder) decls(decls []syntax.Decl) (l []*Node) {
+@@ -249,7 +249,7 @@ func (p *noder) funcDecl(fun *syntax.FuncDecl) *Node {
+ 		yyerror("can only use //go:noescape with external func implementations")
+ 	}
+ 	f.Func.Pragma = pragma
+-	lineno = src.MakePos(fun.Pos().Base(), fun.EndLine, 0)
++	lineno = MakePos(fun.Pos().Base(), fun.EndLine, 0)
+ 	f.Func.Endlineno = lineno
+ 
+ 	funcbody(f)
+@@ -375,14 +375,14 @@ func (p *noder) expr(expr syntax.Expr) *Node {
+ 			l[i] = p.wrapname(expr.ElemList[i], e)
+ 		}
+ 		n.List.Set(l)
+-		lineno = src.MakePos(expr.Pos().Base(), expr.EndLine, 0)
++		lineno = MakePos(expr.Pos().Base(), expr.EndLine, 0)
+ 		return n
+ 	case *syntax.KeyValueExpr:
+ 		return p.nod(expr, OKEY, p.expr(expr.Key), p.wrapname(expr.Value, p.expr(expr.Value)))
+ 	case *syntax.FuncLit:
+ 		closurehdr(p.typeExpr(expr.Type))
+ 		body := p.stmts(expr.Body)
+-		lineno = src.MakePos(expr.Pos().Base(), expr.EndLine, 0)
++		lineno = MakePos(expr.Pos().Base(), expr.EndLine, 0)
+ 		return p.setlineno(expr, closurebody(body))
+ 	case *syntax.ParenExpr:
+ 		return p.nod(expr, OPAREN, p.expr(expr.X), nil)
+@@ -1009,7 +1009,7 @@ func (p *noder) setlineno(src_ syntax.Node, dst *Node) *Node {
+ 		// TODO(mdempsky): Shouldn't happen. Fix package syntax.
+ 		return dst
+ 	}
+-	dst.Pos = pos
++	dst.Pos = Ctxt.PosTable.XPos(pos)
+ 	return dst
+ }
+ 
+@@ -1022,12 +1022,12 @@ func (p *noder) lineno(n syntax.Node) {
+ 		// TODO(mdempsky): Shouldn't happen. Fix package syntax.
+ 		return
+ 	}
+-	lineno = pos
++	lineno = Ctxt.PosTable.XPos(pos)
+ }
+ 
+ func (p *noder) error(err error) {
+ 	e := err.(syntax.Error)
+-	yyerrorl(e.Pos, "%s", e.Msg)
++	yyerrorl(Ctxt.PosTable.XPos(e.Pos), "%s", e.Msg)
+ }
+ 
+ func (p *noder) pragma(pos src.Pos, text string) syntax.Pragma {
+diff --git a/src/cmd/compile/internal/gc/order.go b/src/cmd/compile/internal/gc/order.go
+index 7edb1eaa9d..616945685c 100644
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@ -511,7 +511,7 @@ func orderstmt(n *Node, order *Order) {
+ 
+ 		n.Left = orderexpr(n.Left, order, nil)
+ 		n.Left = ordersafeexpr(n.Left, order)
+-		tmp1 := treecopy(n.Left, src.NoPos)
++		tmp1 := treecopy(n.Left, src.NoXPos)
+ 		if tmp1.Op == OINDEXMAP {
+ 			tmp1.Etype = 0 // now an rvalue not an lvalue
+ 		}
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index d76d7d845e..8d17536269 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -312,7 +312,7 @@ func compile(fn *Node) {
+ 		assertI2I2 = Sysfunc("assertI2I2")
+ 	}
+ 
+-	defer func(lno src.Pos) {
++	defer func(lno src.XPos) {
+ 		lineno = lno
+ 	}(setlineno(fn))
+ 
+diff --git a/src/cmd/compile/internal/gc/phi.go b/src/cmd/compile/internal/gc/phi.go
+index 330d6b4526..540e144c38 100644
+--- a/src/cmd/compile/internal/gc/phi.go
++++ b/src/cmd/compile/internal/gc/phi.go
+@@ -500,7 +500,7 @@ loop:
+ }
+ 
+ // lookupVarOutgoing finds the variable's value at the end of block b.
+-func (s *simplePhiState) lookupVarOutgoing(b *ssa.Block, t ssa.Type, var_ *Node, line src.Pos) *ssa.Value {
++func (s *simplePhiState) lookupVarOutgoing(b *ssa.Block, t ssa.Type, var_ *Node, line src.XPos) *ssa.Value {
+ 	for {
+ 		if v := s.defvars[b.ID][var_]; v != nil {
+ 			return v
+diff --git a/src/cmd/compile/internal/gc/racewalk.go b/src/cmd/compile/internal/gc/racewalk.go
+index 088fa78e1d..671ed1eed7 100644
+--- a/src/cmd/compile/internal/gc/racewalk.go
++++ b/src/cmd/compile/internal/gc/racewalk.go
+@@ -496,7 +496,7 @@ func callinstr(np **Node, init *Nodes, wr int, skip int) bool {
+ 			*np = n
+ 		}
+ 
+-		n = treecopy(n, src.NoPos)
++		n = treecopy(n, src.NoXPos)
+ 		makeaddable(n)
+ 		var f *Node
+ 		if flag_msan {
+diff --git a/src/cmd/compile/internal/gc/sizeof_test.go b/src/cmd/compile/internal/gc/sizeof_test.go
+index d8964fd1d0..b2239c3526 100644
+--- a/src/cmd/compile/internal/gc/sizeof_test.go
++++ b/src/cmd/compile/internal/gc/sizeof_test.go
+@@ -22,14 +22,14 @@ func TestSizeof(t *testing.T) {
+ 		_32bit uintptr     // size on 32bit platforms
+ 		_64bit uintptr     // size on 64bit platforms
+ 	}{
+-		{Func{}, 100, 184},
++		{Func{}, 100, 168},
+ 		{Name{}, 44, 72},
+ 		{Param{}, 24, 48},
+-		{Node{}, 96, 160},
+-		{Sym{}, 64, 128},
+-		{Type{}, 64, 112},
++		{Node{}, 96, 152},
++		{Sym{}, 64, 120},
++		{Type{}, 64, 104},
+ 		{MapType{}, 20, 40},
+-		{ForwardType{}, 20, 40},
++		{ForwardType{}, 20, 32},
+ 		{FuncType{}, 28, 48},
+ 		{StructType{}, 12, 24},
+ 		{InterType{}, 4, 8},
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 4cdc869606..ef60ad7acc 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -229,7 +229,7 @@ type state struct {
+ 	sb       *ssa.Value
+ 
+ 	// line number stack. The current line number is top of stack
+-	line []src.Pos
++	line []src.XPos
+ 
+ 	// list of panic calls by function name and line number.
+ 	// Used to deduplicate panic calls.
+@@ -243,12 +243,12 @@ type state struct {
+ 
+ 	cgoUnsafeArgs bool
+ 	noWB          bool
+-	WBPos         src.Pos // line number of first write barrier. 0=no write barriers
++	WBPos         src.XPos // line number of first write barrier. 0=no write barriers
+ }
+ 
+ type funcLine struct {
+ 	f    *Node
+-	line src.Pos
++	line src.XPos
+ }
+ 
+ type ssaLabel struct {
+@@ -282,7 +282,7 @@ func (s *state) label(sym *Sym) *ssaLabel {
+ func (s *state) Logf(msg string, args ...interface{})   { s.config.Logf(msg, args...) }
+ func (s *state) Log() bool                              { return s.config.Log() }
+ func (s *state) Fatalf(msg string, args ...interface{}) { s.config.Fatalf(s.peekPos(), msg, args...) }
+-func (s *state) Warnl(pos src.Pos, msg string, args ...interface{}) {
++func (s *state) Warnl(pos src.XPos, msg string, args ...interface{}) {
+ 	s.config.Warnl(pos, msg, args...)
+ }
+ func (s *state) Debug_checknil() bool { return s.config.Debug_checknil() }
+@@ -331,7 +331,7 @@ func (s *state) endBlock() *ssa.Block {
+ }
+ 
+ // pushLine pushes a line number on the line number stack.
+-func (s *state) pushLine(line src.Pos) {
++func (s *state) pushLine(line src.XPos) {
+ 	if !line.IsKnown() {
+ 		// the frontend may emit node with line number missing,
+ 		// use the parent line number in this case.
+@@ -349,7 +349,7 @@ func (s *state) popLine() {
+ }
+ 
+ // peekPos peeks the top of the line number stack.
+-func (s *state) peekPos() src.Pos {
++func (s *state) peekPos() src.XPos {
+ 	return s.line[len(s.line)-1]
+ }
+ 
+@@ -2361,7 +2361,7 @@ const (
+ // If deref is true, rightIsVolatile reports whether right points to volatile (clobbered by a call) storage.
+ // Include a write barrier if wb is true.
+ // skip indicates assignments (at the top level) that can be avoided.
+-func (s *state) assign(left *Node, right *ssa.Value, wb, deref bool, line src.Pos, skip skipMask, rightIsVolatile bool) {
++func (s *state) assign(left *Node, right *ssa.Value, wb, deref bool, line src.XPos, skip skipMask, rightIsVolatile bool) {
+ 	if left.Op == ONAME && isblank(left) {
+ 		return
+ 	}
+@@ -3260,7 +3260,7 @@ func canSSAType(t *Type) bool {
+ }
+ 
+ // exprPtr evaluates n to a pointer and nil-checks it.
+-func (s *state) exprPtr(n *Node, bounded bool, lineno src.Pos) *ssa.Value {
++func (s *state) exprPtr(n *Node, bounded bool, lineno src.XPos) *ssa.Value {
+ 	p := s.expr(n)
+ 	if bounded || n.NonNil {
+ 		if s.f.Config.Debug_checknil() && lineno.Line() > 1 {
+@@ -3408,7 +3408,7 @@ func (s *state) rtcall(fn *Node, returns bool, results []*Type, args ...*ssa.Val
+ // insertWBmove inserts the assignment *left = *right including a write barrier.
+ // t is the type being assigned.
+ // If right == nil, then we're zeroing *left.
+-func (s *state) insertWBmove(t *Type, left, right *ssa.Value, line src.Pos, rightIsVolatile bool) {
++func (s *state) insertWBmove(t *Type, left, right *ssa.Value, line src.XPos, rightIsVolatile bool) {
+ 	// if writeBarrier.enabled {
+ 	//   typedmemmove(&t, left, right)
+ 	// } else {
+@@ -3456,7 +3456,7 @@ func (s *state) insertWBmove(t *Type, left, right *ssa.Value, line src.Pos, righ
+ 
+ // insertWBstore inserts the assignment *left = right including a write barrier.
+ // t is the type being assigned.
+-func (s *state) insertWBstore(t *Type, left, right *ssa.Value, line src.Pos, skip skipMask) {
++func (s *state) insertWBstore(t *Type, left, right *ssa.Value, line src.XPos, skip skipMask) {
+ 	// store scalar fields
+ 	// if writeBarrier.enabled {
+ 	//   writebarrierptr for pointer fields
+@@ -4381,7 +4381,7 @@ func (s *SSAGenState) Pc() *obj.Prog {
+ }
+ 
+ // SetPos sets the current source position.
+-func (s *SSAGenState) SetPos(pos src.Pos) {
++func (s *SSAGenState) SetPos(pos src.XPos) {
+ 	lineno = pos
+ }
+ 
+@@ -4961,7 +4961,7 @@ func (e *ssaExport) CanSSA(t ssa.Type) bool {
+ 	return canSSAType(t.(*Type))
+ }
+ 
+-func (e *ssaExport) Line(pos src.Pos) string {
++func (e *ssaExport) Line(pos src.XPos) string {
+ 	return linestr(pos)
+ }
+ 
+@@ -4977,14 +4977,14 @@ func (e *ssaExport) Log() bool {
+ }
+ 
+ // Fatal reports a compiler error and exits.
+-func (e *ssaExport) Fatalf(pos src.Pos, msg string, args ...interface{}) {
++func (e *ssaExport) Fatalf(pos src.XPos, msg string, args ...interface{}) {
+ 	lineno = pos
+ 	Fatalf(msg, args...)
+ }
+ 
+ // Warnl reports a "warning", which is usually flag-triggered
+ // logging output for the benefit of tests.
+-func (e *ssaExport) Warnl(pos src.Pos, fmt_ string, args ...interface{}) {
++func (e *ssaExport) Warnl(pos src.XPos, fmt_ string, args ...interface{}) {
+ 	Warnl(pos, fmt_, args...)
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 44a1ab479b..fdad116994 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -21,7 +21,7 @@ import (
+ )
+ 
+ type Error struct {
+-	pos src.Pos
++	pos src.XPos
+ 	msg string
+ }
+ 
+@@ -45,7 +45,7 @@ func adderrorname(n *Node) {
+ 	}
+ }
+ 
+-func adderr(pos src.Pos, format string, args ...interface{}) {
++func adderr(pos src.XPos, format string, args ...interface{}) {
+ 	errors = append(errors, Error{
+ 		pos: pos,
+ 		msg: fmt.Sprintf("%v: %s\n", linestr(pos), fmt.Sprintf(format, args...)),
+@@ -86,25 +86,27 @@ func hcrash() {
+ 	}
+ }
+ 
+-func linestr(pos src.Pos) string {
+-	return pos.String()
++func linestr(pos src.XPos) string {
++	return Ctxt.PosTable.Pos(pos).String()
+ }
+ 
+ // lasterror keeps track of the most recently issued error.
+ // It is used to avoid multiple error messages on the same
+ // line.
+ var lasterror struct {
+-	syntax src.Pos // source position of last syntax error
+-	other  src.Pos // source position of last non-syntax error
+-	msg    string  // error message of last non-syntax error
++	syntax src.XPos // source position of last syntax error
++	other  src.XPos // source position of last non-syntax error
++	msg    string   // error message of last non-syntax error
+ }
+ 
+ // sameline reports whether two positions a, b are on the same line.
+-func sameline(a, b src.Pos) bool {
+-	return a.Filename() == b.Filename() && a.Line() == b.Line()
++func sameline(a, b src.XPos) bool {
++	p := Ctxt.PosTable.Pos(a)
++	q := Ctxt.PosTable.Pos(b)
++	return p.Base() == q.Base() && p.Line() == q.Line()
+ }
+ 
+-func yyerrorl(pos src.Pos, format string, args ...interface{}) {
++func yyerrorl(pos src.XPos, format string, args ...interface{}) {
+ 	msg := fmt.Sprintf(format, args...)
+ 
+ 	if strings.HasPrefix(msg, "syntax error") {
+@@ -148,7 +150,7 @@ func Warn(fmt_ string, args ...interface{}) {
+ 	hcrash()
+ }
+ 
+-func Warnl(line src.Pos, fmt_ string, args ...interface{}) {
++func Warnl(line src.XPos, fmt_ string, args ...interface{}) {
+ 	adderr(line, fmt_, args...)
+ 	if Debug['m'] != 0 {
+ 		flusherrors()
+@@ -186,7 +188,7 @@ func linehistpragma(file string) {
+ 	Ctxt.AddImport(file)
+ }
+ 
+-func setlineno(n *Node) src.Pos {
++func setlineno(n *Node) src.XPos {
+ 	lno := lineno
+ 	if n != nil {
+ 		switch n.Op {
+@@ -461,7 +463,7 @@ func nodbool(b bool) *Node {
+ // Copies of iota ONONAME nodes are assigned the current
+ // value of iota_. If pos.IsKnown(), it sets the source
+ // position of newly allocated nodes to pos.
+-func treecopy(n *Node, pos src.Pos) *Node {
++func treecopy(n *Node, pos src.XPos) *Node {
+ 	if n == nil {
+ 		return nil
+ 	}
+@@ -1697,7 +1699,7 @@ func genwrapper(rcvr *Type, method *Field, newnam *Sym, iface int) {
+ 		fmt.Printf("genwrapper rcvrtype=%v method=%v newnam=%v\n", rcvr, method, newnam)
+ 	}
+ 
+-	lineno = src.MakePos(src.NewFileBase("<autogenerated>", "<autogenerated>"), 1, 0)
++	lineno = MakePos(src.NewFileBase("<autogenerated>", "<autogenerated>"), 1, 0)
+ 
+ 	dclcontext = PEXTERN
+ 	markdcl()
+@@ -1968,7 +1970,7 @@ func Simsimtype(t *Type) EType {
+ 	return et
+ }
+ 
+-func listtreecopy(l []*Node, pos src.Pos) []*Node {
++func listtreecopy(l []*Node, pos src.XPos) []*Node {
+ 	var out []*Node
+ 	for _, n := range l {
+ 		out = append(out, treecopy(n, pos))
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index faeb6e9027..8be9f21df2 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -44,7 +44,7 @@ type Node struct {
+ 	// Possibly still more uses. If you find any, document them.
+ 	Xoffset int64
+ 
+-	Pos src.Pos
++	Pos src.XPos
+ 
+ 	Esc uint16 // EscXXX
+ 
+@@ -310,8 +310,8 @@ type Func struct {
+ 
+ 	Label int32 // largest auto-generated label in this function
+ 
+-	Endlineno src.Pos
+-	WBPos     src.Pos // position of first write barrier
++	Endlineno src.XPos
++	WBPos     src.XPos // position of first write barrier
+ 
+ 	Pragma          Pragma // go:xxx function annotations
+ 	Dupok           bool   // duplicate definitions ok
+diff --git a/src/cmd/compile/internal/gc/type.go b/src/cmd/compile/internal/gc/type.go
+index 2f5717a0a5..6143d95f57 100644
+--- a/src/cmd/compile/internal/gc/type.go
++++ b/src/cmd/compile/internal/gc/type.go
+@@ -150,9 +150,9 @@ type Type struct {
+ 	sliceOf *Type
+ 	ptrTo   *Type
+ 
+-	Sym    *Sym    // symbol containing name, for named types
+-	Vargen int32   // unique name for OTYPE/ONAME
+-	Pos    src.Pos // position at which this type was declared, implicitly or explicitly
++	Sym    *Sym     // symbol containing name, for named types
++	Vargen int32    // unique name for OTYPE/ONAME
++	Pos    src.XPos // position at which this type was declared, implicitly or explicitly
+ 
+ 	Etype      EType // kind of type
+ 	Noalg      bool  // suppress hash and eq algorithm generation
+@@ -182,8 +182,8 @@ func (t *Type) MapType() *MapType {
+ 
+ // ForwardType contains Type fields specific to forward types.
+ type ForwardType struct {
+-	Copyto      []*Node // where to copy the eventual value to
+-	Embedlineno src.Pos // first use of this type as an embedded type
++	Copyto      []*Node  // where to copy the eventual value to
++	Embedlineno src.XPos // first use of this type as an embedded type
+ }
+ 
+ // ForwardType returns t's extra forward-type-specific fields.
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index bbbfb3e6c7..70d9da4b2d 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -3500,7 +3500,7 @@ func domethod(n *Node) {
+ 
+ type mapqueueval struct {
+ 	n   *Node
+-	lno src.Pos
++	lno src.XPos
+ }
+ 
+ // tracks the line numbers at which forward types are first used as map keys
+diff --git a/src/cmd/compile/internal/ssa/block.go b/src/cmd/compile/internal/ssa/block.go
+index 0e82873e52..c8e04237b9 100644
+--- a/src/cmd/compile/internal/ssa/block.go
++++ b/src/cmd/compile/internal/ssa/block.go
+@@ -16,7 +16,7 @@ type Block struct {
+ 	ID ID
+ 
+ 	// Source position for block's control operation
+-	Pos src.Pos
++	Pos src.XPos
+ 
+ 	// The kind of block this is.
+ 	Kind BlockKind
+diff --git a/src/cmd/compile/internal/ssa/compile.go b/src/cmd/compile/internal/ssa/compile.go
+index bbc994d384..02d7467334 100644
+--- a/src/cmd/compile/internal/ssa/compile.go
++++ b/src/cmd/compile/internal/ssa/compile.go
+@@ -129,7 +129,7 @@ func (f *Func) dumpFile(phaseName string) {
+ 
+ 	fi, err := os.Create(fname)
+ 	if err != nil {
+-		f.Config.Warnl(src.NoPos, "Unable to create after-phase dump file %s", fname)
++		f.Config.Warnl(src.NoXPos, "Unable to create after-phase dump file %s", fname)
+ 		return
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/ssa/config.go b/src/cmd/compile/internal/ssa/config.go
+index 577e0ff681..1cde6c8530 100644
+--- a/src/cmd/compile/internal/ssa/config.go
++++ b/src/cmd/compile/internal/ssa/config.go
+@@ -89,10 +89,10 @@ type Logger interface {
+ 	Log() bool
+ 
+ 	// Fatal reports a compiler error and exits.
+-	Fatalf(pos src.Pos, msg string, args ...interface{})
++	Fatalf(pos src.XPos, msg string, args ...interface{})
+ 
+ 	// Warnl writes compiler messages in the form expected by "errorcheck" tests
+-	Warnl(pos src.Pos, fmt_ string, args ...interface{})
++	Warnl(pos src.XPos, fmt_ string, args ...interface{})
+ 
+ 	// Fowards the Debug flags from gc
+ 	Debug_checknil() bool
+@@ -121,7 +121,7 @@ type Frontend interface {
+ 	SplitInt64(LocalSlot) (LocalSlot, LocalSlot) // returns (hi, lo)
+ 
+ 	// Line returns a string describing the given position.
+-	Line(src.Pos) string
++	Line(src.XPos) string
+ 
+ 	// AllocFrame assigns frame offsets to all live auto variables.
+ 	AllocFrame(f *Func)
+@@ -270,7 +270,7 @@ func NewConfig(arch string, fe Frontend, ctxt *obj.Link, optimize bool) *Config
+ 		c.hasGReg = true
+ 		c.noDuffDevice = true
+ 	default:
+-		fe.Fatalf(src.NoPos, "arch %s not implemented", arch)
++		fe.Fatalf(src.NoXPos, "arch %s not implemented", arch)
+ 	}
+ 	c.ctxt = ctxt
+ 	c.optimize = optimize
+@@ -310,7 +310,7 @@ func NewConfig(arch string, fe Frontend, ctxt *obj.Link, optimize bool) *Config
+ 	if ev != "" {
+ 		v, err := strconv.ParseInt(ev, 10, 64)
+ 		if err != nil {
+-			fe.Fatalf(src.NoPos, "Environment variable GO_SSA_PHI_LOC_CUTOFF (value '%s') did not parse as a number", ev)
++			fe.Fatalf(src.NoXPos, "Environment variable GO_SSA_PHI_LOC_CUTOFF (value '%s') did not parse as a number", ev)
+ 		}
+ 		c.sparsePhiCutoff = uint64(v) // convert -1 to maxint, for never use sparse
+ 	}
+@@ -332,19 +332,19 @@ func (c *Config) Ctxt() *obj.Link         { return c.ctxt }
+ func (c *Config) NewFunc() *Func {
+ 	// TODO(khr): should this function take name, type, etc. as arguments?
+ 	if c.curFunc != nil {
+-		c.Fatalf(src.NoPos, "NewFunc called without previous Free")
++		c.Fatalf(src.NoXPos, "NewFunc called without previous Free")
+ 	}
+ 	f := &Func{Config: c, NamedValues: map[LocalSlot][]*Value{}}
+ 	c.curFunc = f
+ 	return f
+ }
+ 
+-func (c *Config) Logf(msg string, args ...interface{})                { c.fe.Logf(msg, args...) }
+-func (c *Config) Log() bool                                           { return c.fe.Log() }
+-func (c *Config) Fatalf(pos src.Pos, msg string, args ...interface{}) { c.fe.Fatalf(pos, msg, args...) }
+-func (c *Config) Warnl(pos src.Pos, msg string, args ...interface{})  { c.fe.Warnl(pos, msg, args...) }
+-func (c *Config) Debug_checknil() bool                                { return c.fe.Debug_checknil() }
+-func (c *Config) Debug_wb() bool                                      { return c.fe.Debug_wb() }
++func (c *Config) Logf(msg string, args ...interface{})                 { c.fe.Logf(msg, args...) }
++func (c *Config) Log() bool                                            { return c.fe.Log() }
++func (c *Config) Fatalf(pos src.XPos, msg string, args ...interface{}) { c.fe.Fatalf(pos, msg, args...) }
++func (c *Config) Warnl(pos src.XPos, msg string, args ...interface{})  { c.fe.Warnl(pos, msg, args...) }
++func (c *Config) Debug_checknil() bool                                 { return c.fe.Debug_checknil() }
++func (c *Config) Debug_wb() bool                                       { return c.fe.Debug_wb() }
+ 
+ func (c *Config) logDebugHashMatch(evname, name string) {
+ 	file := c.logfiles[evname]
+@@ -355,7 +355,7 @@ func (c *Config) logDebugHashMatch(evname, name string) {
+ 			var ok error
+ 			file, ok = os.Create(tmpfile)
+ 			if ok != nil {
+-				c.Fatalf(src.NoPos, "Could not open hash-testing logfile %s", tmpfile)
++				c.Fatalf(src.NoXPos, "Could not open hash-testing logfile %s", tmpfile)
+ 			}
+ 		}
+ 		c.logfiles[evname] = file
+diff --git a/src/cmd/compile/internal/ssa/deadstore.go b/src/cmd/compile/internal/ssa/deadstore.go
+index 68bfb53c2f..774fb51fc2 100644
+--- a/src/cmd/compile/internal/ssa/deadstore.go
++++ b/src/cmd/compile/internal/ssa/deadstore.go
+@@ -113,7 +113,7 @@ func dse(f *Func) {
+ 				if sz > 0x7fffffff { // work around sparseMap's int32 value type
+ 					sz = 0x7fffffff
+ 				}
+-				shadowed.set(v.Args[0].ID, int32(sz), src.NoPos)
++				shadowed.set(v.Args[0].ID, int32(sz), src.NoXPos)
+ 			}
+ 		}
+ 		// walk to previous store
+diff --git a/src/cmd/compile/internal/ssa/export_test.go b/src/cmd/compile/internal/ssa/export_test.go
+index fdb70ae3ed..11b7658f78 100644
+--- a/src/cmd/compile/internal/ssa/export_test.go
++++ b/src/cmd/compile/internal/ssa/export_test.go
+@@ -63,7 +63,7 @@ func (d DummyFrontend) SplitStruct(s LocalSlot, i int) LocalSlot {
+ func (d DummyFrontend) SplitArray(s LocalSlot) LocalSlot {
+ 	return LocalSlot{s.N, s.Type.ElemType(), s.Off}
+ }
+-func (DummyFrontend) Line(_ src.Pos) string {
++func (DummyFrontend) Line(_ src.XPos) string {
+ 	return "unknown.go:0"
+ }
+ func (DummyFrontend) AllocFrame(f *Func) {
+@@ -75,10 +75,10 @@ func (DummyFrontend) Syslook(s string) interface{} {
+ func (d DummyFrontend) Logf(msg string, args ...interface{}) { d.t.Logf(msg, args...) }
+ func (d DummyFrontend) Log() bool                            { return true }
+ 
+-func (d DummyFrontend) Fatalf(_ src.Pos, msg string, args ...interface{}) { d.t.Fatalf(msg, args...) }
+-func (d DummyFrontend) Warnl(_ src.Pos, msg string, args ...interface{})  { d.t.Logf(msg, args...) }
+-func (d DummyFrontend) Debug_checknil() bool                              { return false }
+-func (d DummyFrontend) Debug_wb() bool                                    { return false }
++func (d DummyFrontend) Fatalf(_ src.XPos, msg string, args ...interface{}) { d.t.Fatalf(msg, args...) }
++func (d DummyFrontend) Warnl(_ src.XPos, msg string, args ...interface{})  { d.t.Logf(msg, args...) }
++func (d DummyFrontend) Debug_checknil() bool                               { return false }
++func (d DummyFrontend) Debug_wb() bool                                     { return false }
+ 
+ func (d DummyFrontend) TypeBool() Type    { return TypeBool }
+ func (d DummyFrontend) TypeInt8() Type    { return TypeInt8 }
+diff --git a/src/cmd/compile/internal/ssa/func.go b/src/cmd/compile/internal/ssa/func.go
+index 0acffc546e..e92ae32991 100644
+--- a/src/cmd/compile/internal/ssa/func.go
++++ b/src/cmd/compile/internal/ssa/func.go
+@@ -80,7 +80,7 @@ func (f *Func) retSparseSet(ss *sparseSet) {
+ }
+ 
+ // newValue allocates a new Value with the given fields and places it at the end of b.Values.
+-func (f *Func) newValue(op Op, t Type, b *Block, pos src.Pos) *Value {
++func (f *Func) newValue(op Op, t Type, b *Block, pos src.XPos) *Value {
+ 	var v *Value
+ 	if f.freeValues != nil {
+ 		v = f.freeValues
+@@ -187,7 +187,7 @@ func (f *Func) freeBlock(b *Block) {
+ }
+ 
+ // NewValue0 returns a new value in the block with no arguments and zero aux values.
+-func (b *Block) NewValue0(pos src.Pos, op Op, t Type) *Value {
++func (b *Block) NewValue0(pos src.XPos, op Op, t Type) *Value {
+ 	v := b.Func.newValue(op, t, b, pos)
+ 	v.AuxInt = 0
+ 	v.Args = v.argstorage[:0]
+@@ -195,7 +195,7 @@ func (b *Block) NewValue0(pos src.Pos, op Op, t Type) *Value {
+ }
+ 
+ // NewValue returns a new value in the block with no arguments and an auxint value.
+-func (b *Block) NewValue0I(pos src.Pos, op Op, t Type, auxint int64) *Value {
++func (b *Block) NewValue0I(pos src.XPos, op Op, t Type, auxint int64) *Value {
+ 	v := b.Func.newValue(op, t, b, pos)
+ 	v.AuxInt = auxint
+ 	v.Args = v.argstorage[:0]
+@@ -203,7 +203,7 @@ func (b *Block) NewValue0I(pos src.Pos, op Op, t Type, auxint int64) *Value {
+ }
+ 
+ // NewValue returns a new value in the block with no arguments and an aux value.
+-func (b *Block) NewValue0A(pos src.Pos, op Op, t Type, aux interface{}) *Value {
++func (b *Block) NewValue0A(pos src.XPos, op Op, t Type, aux interface{}) *Value {
+ 	if _, ok := aux.(int64); ok {
+ 		// Disallow int64 aux values. They should be in the auxint field instead.
+ 		// Maybe we want to allow this at some point, but for now we disallow it
+@@ -218,7 +218,7 @@ func (b *Block) NewValue0A(pos src.Pos, op Op, t Type, aux interface{}) *Value {
+ }
+ 
+ // NewValue returns a new value in the block with no arguments and both an auxint and aux values.
+-func (b *Block) NewValue0IA(pos src.Pos, op Op, t Type, auxint int64, aux interface{}) *Value {
++func (b *Block) NewValue0IA(pos src.XPos, op Op, t Type, auxint int64, aux interface{}) *Value {
+ 	v := b.Func.newValue(op, t, b, pos)
+ 	v.AuxInt = auxint
+ 	v.Aux = aux
+@@ -227,7 +227,7 @@ func (b *Block) NewValue0IA(pos src.Pos, op Op, t Type, auxint int64, aux interf
+ }
+ 
+ // NewValue1 returns a new value in the block with one argument and zero aux values.
+-func (b *Block) NewValue1(pos src.Pos, op Op, t Type, arg *Value) *Value {
++func (b *Block) NewValue1(pos src.XPos, op Op, t Type, arg *Value) *Value {
+ 	v := b.Func.newValue(op, t, b, pos)
+ 	v.AuxInt = 0
+ 	v.Args = v.argstorage[:1]
+@@ -237,7 +237,7 @@ func (b *Block) NewValue1(pos src.Pos, op Op, t Type, arg *Value) *Value {
+ }
+ 
+ // NewValue1I returns a new value in the block with one argument and an auxint value.
+-func (b *Block) NewValue1I(pos src.Pos, op Op, t Type, auxint int64, arg *Value) *Value {
++func (b *Block) NewValue1I(pos src.XPos, op Op, t Type, auxint int64, arg *Value) *Value {
+ 	v := b.Func.newValue(op, t, b, pos)
+ 	v.AuxInt = auxint
+ 	v.Args = v.argstorage[:1]
+@@ -247,7 +247,7 @@ func (b *Block) NewValue1I(pos src.Pos, op Op, t Type, auxint int64, arg *Value)
+ }
+ 
+ // NewValue1A returns a new value in the block with one argument and an aux value.
+-func (b *Block) NewValue1A(pos src.Pos, op Op, t Type, aux interface{}, arg *Value) *Value {
++func (b *Block) NewValue1A(pos src.XPos, op Op, t Type, aux interface{}, arg *Value) *Value {
+ 	v := b.Func.newValue(op, t, b, pos)
+ 	v.AuxInt = 0
+ 	v.Aux = aux
+@@ -258,7 +258,7 @@ func (b *Block) NewValue1A(pos src.Pos, op Op, t Type, aux interface{}, arg *Val
+ }
+ 
+ // NewValue1IA returns a new value in the block with one argument and both an auxint and aux values.
+-func (b *Block) NewValue1IA(pos src.Pos, op Op, t Type, auxint int64, aux interface{}, arg *Value) *Value {
++func (b *Block) NewValue1IA(pos src.XPos, op Op, t Type, auxint int64, aux interface{}, arg *Value) *Value {
+ 	v := b.Func.newValue(op, t, b, pos)
+ 	v.AuxInt = auxint
+ 	v.Aux = aux
+@@ -269,7 +269,7 @@ func (b *Block) NewValue1IA(pos src.Pos, op Op, t Type, auxint int64, aux interf
+ }
+ 
+ // NewValue2 returns a new value in the block with two arguments and zero aux values.
+-func (b *Block) NewValue2(pos src.Pos, op Op, t Type, arg0, arg1 *Value) *Value {
++func (b *Block) NewValue2(pos src.XPos, op Op, t Type, arg0, arg1 *Value) *Value {
+ 	v := b.Func.newValue(op, t, b, pos)
+ 	v.AuxInt = 0
+ 	v.Args = v.argstorage[:2]
+@@ -281,7 +281,7 @@ func (b *Block) NewValue2(pos src.Pos, op Op, t Type, arg0, arg1 *Value) *Value
+ }
+ 
+ // NewValue2I returns a new value in the block with two arguments and an auxint value.
+-func (b *Block) NewValue2I(pos src.Pos, op Op, t Type, auxint int64, arg0, arg1 *Value) *Value {
++func (b *Block) NewValue2I(pos src.XPos, op Op, t Type, auxint int64, arg0, arg1 *Value) *Value {
+ 	v := b.Func.newValue(op, t, b, pos)
+ 	v.AuxInt = auxint
+ 	v.Args = v.argstorage[:2]
+@@ -293,7 +293,7 @@ func (b *Block) NewValue2I(pos src.Pos, op Op, t Type, auxint int64, arg0, arg1
+ }
+ 
+ // NewValue3 returns a new value in the block with three arguments and zero aux values.
+-func (b *Block) NewValue3(pos src.Pos, op Op, t Type, arg0, arg1, arg2 *Value) *Value {
++func (b *Block) NewValue3(pos src.XPos, op Op, t Type, arg0, arg1, arg2 *Value) *Value {
+ 	v := b.Func.newValue(op, t, b, pos)
+ 	v.AuxInt = 0
+ 	v.Args = v.argstorage[:3]
+@@ -307,7 +307,7 @@ func (b *Block) NewValue3(pos src.Pos, op Op, t Type, arg0, arg1, arg2 *Value) *
+ }
+ 
+ // NewValue3I returns a new value in the block with three arguments and an auxint value.
+-func (b *Block) NewValue3I(pos src.Pos, op Op, t Type, auxint int64, arg0, arg1, arg2 *Value) *Value {
++func (b *Block) NewValue3I(pos src.XPos, op Op, t Type, auxint int64, arg0, arg1, arg2 *Value) *Value {
+ 	v := b.Func.newValue(op, t, b, pos)
+ 	v.AuxInt = auxint
+ 	v.Args = v.argstorage[:3]
+@@ -321,7 +321,7 @@ func (b *Block) NewValue3I(pos src.Pos, op Op, t Type, auxint int64, arg0, arg1,
+ }
+ 
+ // NewValue4 returns a new value in the block with four arguments and zero aux values.
+-func (b *Block) NewValue4(pos src.Pos, op Op, t Type, arg0, arg1, arg2, arg3 *Value) *Value {
++func (b *Block) NewValue4(pos src.XPos, op Op, t Type, arg0, arg1, arg2, arg3 *Value) *Value {
+ 	v := b.Func.newValue(op, t, b, pos)
+ 	v.AuxInt = 0
+ 	v.Args = []*Value{arg0, arg1, arg2, arg3}
+@@ -333,7 +333,7 @@ func (b *Block) NewValue4(pos src.Pos, op Op, t Type, arg0, arg1, arg2, arg3 *Va
+ }
+ 
+ // constVal returns a constant value for c.
+-func (f *Func) constVal(pos src.Pos, op Op, t Type, c int64, setAux bool) *Value {
++func (f *Func) constVal(pos src.XPos, op Op, t Type, c int64, setAux bool) *Value {
+ 	if f.constants == nil {
+ 		f.constants = make(map[int64][]*Value)
+ 	}
+@@ -368,42 +368,42 @@ const (
+ )
+ 
+ // ConstInt returns an int constant representing its argument.
+-func (f *Func) ConstBool(pos src.Pos, t Type, c bool) *Value {
++func (f *Func) ConstBool(pos src.XPos, t Type, c bool) *Value {
+ 	i := int64(0)
+ 	if c {
+ 		i = 1
+ 	}
+ 	return f.constVal(pos, OpConstBool, t, i, true)
+ }
+-func (f *Func) ConstInt8(pos src.Pos, t Type, c int8) *Value {
++func (f *Func) ConstInt8(pos src.XPos, t Type, c int8) *Value {
+ 	return f.constVal(pos, OpConst8, t, int64(c), true)
+ }
+-func (f *Func) ConstInt16(pos src.Pos, t Type, c int16) *Value {
++func (f *Func) ConstInt16(pos src.XPos, t Type, c int16) *Value {
+ 	return f.constVal(pos, OpConst16, t, int64(c), true)
+ }
+-func (f *Func) ConstInt32(pos src.Pos, t Type, c int32) *Value {
++func (f *Func) ConstInt32(pos src.XPos, t Type, c int32) *Value {
+ 	return f.constVal(pos, OpConst32, t, int64(c), true)
+ }
+-func (f *Func) ConstInt64(pos src.Pos, t Type, c int64) *Value {
++func (f *Func) ConstInt64(pos src.XPos, t Type, c int64) *Value {
+ 	return f.constVal(pos, OpConst64, t, c, true)
+ }
+-func (f *Func) ConstFloat32(pos src.Pos, t Type, c float64) *Value {
++func (f *Func) ConstFloat32(pos src.XPos, t Type, c float64) *Value {
+ 	return f.constVal(pos, OpConst32F, t, int64(math.Float64bits(float64(float32(c)))), true)
+ }
+-func (f *Func) ConstFloat64(pos src.Pos, t Type, c float64) *Value {
++func (f *Func) ConstFloat64(pos src.XPos, t Type, c float64) *Value {
+ 	return f.constVal(pos, OpConst64F, t, int64(math.Float64bits(c)), true)
+ }
+ 
+-func (f *Func) ConstSlice(pos src.Pos, t Type) *Value {
++func (f *Func) ConstSlice(pos src.XPos, t Type) *Value {
+ 	return f.constVal(pos, OpConstSlice, t, constSliceMagic, false)
+ }
+-func (f *Func) ConstInterface(pos src.Pos, t Type) *Value {
++func (f *Func) ConstInterface(pos src.XPos, t Type) *Value {
+ 	return f.constVal(pos, OpConstInterface, t, constInterfaceMagic, false)
+ }
+-func (f *Func) ConstNil(pos src.Pos, t Type) *Value {
++func (f *Func) ConstNil(pos src.XPos, t Type) *Value {
+ 	return f.constVal(pos, OpConstNil, t, constNilMagic, false)
+ }
+-func (f *Func) ConstEmptyString(pos src.Pos, t Type) *Value {
++func (f *Func) ConstEmptyString(pos src.XPos, t Type) *Value {
+ 	v := f.constVal(pos, OpConstString, t, constEmptyStringMagic, false)
+ 	v.Aux = ""
+ 	return v
+diff --git a/src/cmd/compile/internal/ssa/func_test.go b/src/cmd/compile/internal/ssa/func_test.go
+index 2609551f04..580f67717a 100644
+--- a/src/cmd/compile/internal/ssa/func_test.go
++++ b/src/cmd/compile/internal/ssa/func_test.go
+@@ -155,7 +155,7 @@ func Fun(c *Config, entry string, blocs ...bloc) fun {
+ 		blocks[bloc.name] = b
+ 		for _, valu := range bloc.valus {
+ 			// args are filled in the second pass.
+-			values[valu.name] = b.NewValue0IA(src.NoPos, valu.op, valu.t, valu.auxint, valu.aux)
++			values[valu.name] = b.NewValue0IA(src.NoXPos, valu.op, valu.t, valu.auxint, valu.aux)
+ 		}
+ 	}
+ 	// Connect the blocks together and specify control values.
+@@ -429,12 +429,12 @@ func TestConstCache(t *testing.T) {
+ 		Bloc("entry",
+ 			Valu("mem", OpInitMem, TypeMem, 0, nil),
+ 			Exit("mem")))
+-	v1 := f.f.ConstBool(src.NoPos, TypeBool, false)
+-	v2 := f.f.ConstBool(src.NoPos, TypeBool, true)
++	v1 := f.f.ConstBool(src.NoXPos, TypeBool, false)
++	v2 := f.f.ConstBool(src.NoXPos, TypeBool, true)
+ 	f.f.freeValue(v1)
+ 	f.f.freeValue(v2)
+-	v3 := f.f.ConstBool(src.NoPos, TypeBool, false)
+-	v4 := f.f.ConstBool(src.NoPos, TypeBool, true)
++	v3 := f.f.ConstBool(src.NoXPos, TypeBool, false)
++	v4 := f.f.ConstBool(src.NoXPos, TypeBool, true)
+ 	if v3.AuxInt != 0 {
+ 		t.Errorf("expected %s to have auxint of 0\n", v3.LongString())
+ 	}
+diff --git a/src/cmd/compile/internal/ssa/html.go b/src/cmd/compile/internal/ssa/html.go
+index b9a1f29aa4..085094e3ad 100644
+--- a/src/cmd/compile/internal/ssa/html.go
++++ b/src/cmd/compile/internal/ssa/html.go
+@@ -21,7 +21,7 @@ type HTMLWriter struct {
+ func NewHTMLWriter(path string, logger Logger, funcname string) *HTMLWriter {
+ 	out, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+ 	if err != nil {
+-		logger.Fatalf(src.NoPos, "%v", err)
++		logger.Fatalf(src.NoXPos, "%v", err)
+ 	}
+ 	html := HTMLWriter{File: out, Logger: logger}
+ 	html.start(funcname)
+@@ -329,13 +329,13 @@ func (w *HTMLWriter) WriteColumn(title string, html string) {
+ 
+ func (w *HTMLWriter) Printf(msg string, v ...interface{}) {
+ 	if _, err := fmt.Fprintf(w.File, msg, v...); err != nil {
+-		w.Fatalf(src.NoPos, "%v", err)
++		w.Fatalf(src.NoXPos, "%v", err)
+ 	}
+ }
+ 
+ func (w *HTMLWriter) WriteString(s string) {
+ 	if _, err := w.File.WriteString(s); err != nil {
+-		w.Fatalf(src.NoPos, "%v", err)
++		w.Fatalf(src.NoXPos, "%v", err)
+ 	}
+ }
+ 
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index 27b5624d66..bb25debdd6 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -181,9 +181,9 @@ func pickReg(r regMask) register {
+ }
+ 
+ type use struct {
+-	dist int32   // distance from start of the block to a use of a value
+-	pos  src.Pos // source position of the use
+-	next *use    // linked list of uses of a value in nondecreasing dist order
++	dist int32    // distance from start of the block to a use of a value
++	pos  src.XPos // source position of the use
++	next *use     // linked list of uses of a value in nondecreasing dist order
+ }
+ 
+ type valState struct {
+@@ -288,8 +288,8 @@ type endReg struct {
+ 
+ type startReg struct {
+ 	r   register
+-	vid ID      // pre-regalloc value needed in this register
+-	pos src.Pos // source position of use of this register
++	vid ID       // pre-regalloc value needed in this register
++	pos src.XPos // source position of use of this register
+ }
+ 
+ // freeReg frees up register r. Any current user of r is kicked out.
+@@ -411,7 +411,7 @@ func (s *regAllocState) allocReg(mask regMask, v *Value) register {
+ // allocated register is marked nospill so the assignment cannot be
+ // undone until the caller allows it by clearing nospill. Returns a
+ // *Value which is either v or a copy of v allocated to the chosen register.
+-func (s *regAllocState) allocValToReg(v *Value, mask regMask, nospill bool, pos src.Pos) *Value {
++func (s *regAllocState) allocValToReg(v *Value, mask regMask, nospill bool, pos src.XPos) *Value {
+ 	vi := &s.values[v.ID]
+ 
+ 	// Check if v is already in a requested register.
+@@ -555,7 +555,7 @@ func (s *regAllocState) init(f *Func) {
+ 		case "s390x":
+ 			// nothing to do, R10 & R11 already reserved
+ 		default:
+-			s.f.Config.fe.Fatalf(src.NoPos, "arch %s not implemented", s.f.Config.arch)
++			s.f.Config.fe.Fatalf(src.NoXPos, "arch %s not implemented", s.f.Config.arch)
+ 		}
+ 	}
+ 	if s.f.Config.nacl {
+@@ -618,7 +618,7 @@ func (s *regAllocState) init(f *Func) {
+ 
+ // Adds a use record for id at distance dist from the start of the block.
+ // All calls to addUse must happen with nonincreasing dist.
+-func (s *regAllocState) addUse(id ID, dist int32, pos src.Pos) {
++func (s *regAllocState) addUse(id ID, dist int32, pos src.XPos) {
+ 	r := s.freeUseRecords
+ 	if r != nil {
+ 		s.freeUseRecords = r.next
+@@ -1879,17 +1879,17 @@ type edgeState struct {
+ }
+ 
+ type contentRecord struct {
+-	vid   ID      // pre-regalloc value
+-	c     *Value  // cached value
+-	final bool    // this is a satisfied destination
+-	pos   src.Pos // source position of use of the value
++	vid   ID       // pre-regalloc value
++	c     *Value   // cached value
++	final bool     // this is a satisfied destination
++	pos   src.XPos // source position of use of the value
+ }
+ 
+ type dstRecord struct {
+ 	loc    Location // register or stack slot
+ 	vid    ID       // pre-regalloc value it should contain
+ 	splice **Value  // place to store reference to the generating instruction
+-	pos    src.Pos  // source position of use of this location
++	pos    src.XPos // source position of use of this location
+ }
+ 
+ // setup initializes the edge state for shuffling.
+@@ -1912,13 +1912,13 @@ func (e *edgeState) setup(idx int, srcReg []endReg, dstReg []startReg, stacklive
+ 
+ 	// Live registers can be sources.
+ 	for _, x := range srcReg {
+-		e.set(&e.s.registers[x.r], x.v.ID, x.c, false, src.NoPos) // don't care the position of the source
++		e.set(&e.s.registers[x.r], x.v.ID, x.c, false, src.NoXPos) // don't care the position of the source
+ 	}
+ 	// So can all of the spill locations.
+ 	for _, spillID := range stacklive {
+ 		v := e.s.orig[spillID]
+ 		spill := e.s.values[v.ID].spill
+-		e.set(e.s.f.getHome(spillID), v.ID, spill, false, src.NoPos) // don't care the position of the source
++		e.set(e.s.f.getHome(spillID), v.ID, spill, false, src.NoXPos) // don't care the position of the source
+ 	}
+ 
+ 	// Figure out all the destinations we need.
+@@ -2018,7 +2018,7 @@ func (e *edgeState) process() {
+ 
+ // processDest generates code to put value vid into location loc. Returns true
+ // if progress was made.
+-func (e *edgeState) processDest(loc Location, vid ID, splice **Value, pos src.Pos) bool {
++func (e *edgeState) processDest(loc Location, vid ID, splice **Value, pos src.XPos) bool {
+ 	occupant := e.contents[loc]
+ 	if occupant.vid == vid {
+ 		// Value is already in the correct place.
+@@ -2140,7 +2140,7 @@ func (e *edgeState) processDest(loc Location, vid ID, splice **Value, pos src.Po
+ }
+ 
+ // set changes the contents of location loc to hold the given value and its cached representative.
+-func (e *edgeState) set(loc Location, vid ID, c *Value, final bool, pos src.Pos) {
++func (e *edgeState) set(loc Location, vid ID, c *Value, final bool, pos src.XPos) {
+ 	e.s.f.setHome(c, loc)
+ 	e.erase(loc)
+ 	e.contents[loc] = contentRecord{vid, c, final, pos}
+@@ -2291,9 +2291,9 @@ func (v *Value) rematerializeable() bool {
+ }
+ 
+ type liveInfo struct {
+-	ID   ID      // ID of value
+-	dist int32   // # of instructions before next use
+-	pos  src.Pos // source position of next use
++	ID   ID       // ID of value
++	dist int32    // # of instructions before next use
++	pos  src.XPos // source position of next use
+ }
+ 
+ // dblock contains information about desired & avoid registers at the end of a block.
+diff --git a/src/cmd/compile/internal/ssa/sizeof_test.go b/src/cmd/compile/internal/ssa/sizeof_test.go
+index 7792318e20..d49c70a97b 100644
+--- a/src/cmd/compile/internal/ssa/sizeof_test.go
++++ b/src/cmd/compile/internal/ssa/sizeof_test.go
+@@ -22,8 +22,8 @@ func TestSizeof(t *testing.T) {
+ 		_32bit uintptr     // size on 32bit platforms
+ 		_64bit uintptr     // size on 64bit platforms
+ 	}{
+-		{Value{}, 72, 128},
+-		{Block{}, 152, 304},
++		{Value{}, 72, 120},
++		{Block{}, 152, 288},
+ 	}
+ 
+ 	for _, tt := range tests {
+diff --git a/src/cmd/compile/internal/ssa/sparsemap.go b/src/cmd/compile/internal/ssa/sparsemap.go
+index 9fb0a7d83d..973ab3d434 100644
+--- a/src/cmd/compile/internal/ssa/sparsemap.go
++++ b/src/cmd/compile/internal/ssa/sparsemap.go
+@@ -12,7 +12,7 @@ import "cmd/internal/src"
+ type sparseEntry struct {
+ 	key ID
+ 	val int32
+-	aux src.Pos
++	aux src.XPos
+ }
+ 
+ type sparseMap struct {
+@@ -45,7 +45,7 @@ func (s *sparseMap) get(k ID) int32 {
+ 	return -1
+ }
+ 
+-func (s *sparseMap) set(k ID, v int32, a src.Pos) {
++func (s *sparseMap) set(k ID, v int32, a src.XPos) {
+ 	i := s.sparse[k]
+ 	if i < int32(len(s.dense)) && s.dense[i].key == k {
+ 		s.dense[i].val = v
+@@ -66,7 +66,7 @@ func (s *sparseMap) setBit(k ID, v uint) {
+ 		s.dense[i].val |= 1 << v
+ 		return
+ 	}
+-	s.dense = append(s.dense, sparseEntry{k, 1 << v, src.NoPos})
++	s.dense = append(s.dense, sparseEntry{k, 1 << v, src.NoXPos})
+ 	s.sparse[k] = int32(len(s.dense)) - 1
+ }
+ 
+diff --git a/src/cmd/compile/internal/ssa/stackalloc.go b/src/cmd/compile/internal/ssa/stackalloc.go
+index f39d7f47e4..cdc40e5a35 100644
+--- a/src/cmd/compile/internal/ssa/stackalloc.go
++++ b/src/cmd/compile/internal/ssa/stackalloc.go
+@@ -40,7 +40,7 @@ func newStackAllocState(f *Func) *stackAllocState {
+ 		return new(stackAllocState)
+ 	}
+ 	if s.f != nil {
+-		f.Config.Fatalf(src.NoPos, "newStackAllocState called without previous free")
++		f.Config.Fatalf(src.NoXPos, "newStackAllocState called without previous free")
+ 	}
+ 	return s
+ }
+diff --git a/src/cmd/compile/internal/ssa/value.go b/src/cmd/compile/internal/ssa/value.go
+index aeb8e8c769..b9b35b1d98 100644
+--- a/src/cmd/compile/internal/ssa/value.go
++++ b/src/cmd/compile/internal/ssa/value.go
+@@ -38,7 +38,7 @@ type Value struct {
+ 	Block *Block
+ 
+ 	// Source position
+-	Pos src.Pos
++	Pos src.XPos
+ 
+ 	// Use count. Each appearance in Value.Args and Block.Control counts once.
+ 	Uses int32
+diff --git a/src/cmd/compile/internal/ssa/writebarrier.go b/src/cmd/compile/internal/ssa/writebarrier.go
+index ca477c2917..fcca293402 100644
+--- a/src/cmd/compile/internal/ssa/writebarrier.go
++++ b/src/cmd/compile/internal/ssa/writebarrier.go
+@@ -240,7 +240,7 @@ func writebarrier(f *Func) {
+ 
+ // wbcall emits write barrier runtime call in b, returns memory.
+ // if valIsVolatile, it moves val into temp space before making the call.
+-func wbcall(pos src.Pos, b *Block, fn interface{}, typ interface{}, ptr, val, mem, sp, sb *Value, valIsVolatile bool) *Value {
++func wbcall(pos src.XPos, b *Block, fn interface{}, typ interface{}, ptr, val, mem, sp, sb *Value, valIsVolatile bool) *Value {
+ 	config := b.Func.Config
+ 
+ 	var tmp GCNode
+diff --git a/src/cmd/internal/obj/line.go b/src/cmd/internal/obj/line.go
+index d1df3900cf..9e1f8ca665 100644
+--- a/src/cmd/internal/obj/line.go
++++ b/src/cmd/internal/obj/line.go
+@@ -301,7 +301,8 @@ func linkgetline(ctxt *Link, lineno int32) (f *LSym, l int32) {
+ }
+ 
+ // This is modified copy of linkgetline to work from src.Pos.
+-func linkgetlineFromPos(ctxt *Link, pos src.Pos) (f *LSym, l int32) {
++func linkgetlineFromPos(ctxt *Link, xpos src.XPos) (f *LSym, l int32) {
++	pos := ctxt.PosTable.Pos(xpos)
+ 	filename := pos.AbsFilename()
+ 	if !pos.IsKnown() || filename == "" {
+ 		return Linklookup(ctxt, "??", HistVersion), 0
+diff --git a/src/cmd/internal/obj/line_test.go b/src/cmd/internal/obj/line_test.go
+index d3a6727676..0f9585ed71 100644
+--- a/src/cmd/internal/obj/line_test.go
++++ b/src/cmd/internal/obj/line_test.go
+@@ -30,7 +30,7 @@ func TestLinkgetlineFromPos(t *testing.T) {
+ 	}
+ 
+ 	for _, test := range tests {
+-		f, l := linkgetlineFromPos(ctxt, test.pos)
++		f, l := linkgetlineFromPos(ctxt, ctxt.PosTable.XPos(test.pos))
+ 		got := fmt.Sprintf("%s:%d", f.Name, l)
+ 		if got != test.want {
+ 			t.Errorf("linkgetline(%v) = %q, want %q", test.pos, got, test.want)
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index 6d519f048e..b32e02daa1 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -239,7 +239,7 @@ type Prog struct {
+ 	Forwd  *Prog       // for x86 back end
+ 	Rel    *Prog       // for x86, arm back ends
+ 	Pc     int64       // for back ends or assembler: virtual or actual program counter, depending on phase
+-	Pos    src.Pos     // source position of this instruction
++	Pos    src.XPos    // source position of this instruction
+ 	Spadj  int32       // effect of instruction on stack pointer (increment or decrement amount)
+ 	As     As          // assembler opcode
+ 	Reg    int16       // 2nd source operand
+@@ -727,6 +727,7 @@ type Link struct {
+ 	Bso           *bufio.Writer
+ 	Pathname      string
+ 	Hash          map[SymVer]*LSym
++	PosTable      src.PosTable
+ 	Imports       []string
+ 	Plists        []*Plist
+ 	Sym_div       *LSym
+diff --git a/src/cmd/internal/obj/sizeof_test.go b/src/cmd/internal/obj/sizeof_test.go
+index 9cebfabd1c..8051715989 100644
+--- a/src/cmd/internal/obj/sizeof_test.go
++++ b/src/cmd/internal/obj/sizeof_test.go
+@@ -24,7 +24,7 @@ func TestSizeof(t *testing.T) {
+ 	}{
+ 		{Addr{}, 40, 64},
+ 		{LSym{}, 76, 128},
+-		{Prog{}, 148, 240},
++		{Prog{}, 148, 232},
+ 	}
+ 
+ 	for _, tt := range tests {
+diff --git a/src/cmd/internal/obj/util.go b/src/cmd/internal/obj/util.go
+index 2dbbef3bfa..ec6899e67f 100644
+--- a/src/cmd/internal/obj/util.go
++++ b/src/cmd/internal/obj/util.go
+@@ -59,7 +59,7 @@ func Getgoextlinkenabled() string {
+ }
+ 
+ func (p *Prog) Line() string {
+-	return p.Pos.String()
++	return p.Ctxt.PosTable.Pos(p.Pos).String()
+ }
+ 
+ var armCondCode = []string{
+diff --git a/src/cmd/internal/src/pos.go b/src/cmd/internal/src/pos.go
+index 7c94c8de76..ad124990e8 100644
+--- a/src/cmd/internal/src/pos.go
++++ b/src/cmd/internal/src/pos.go
+@@ -37,6 +37,8 @@ func MakePos(base *PosBase, line, col uint) Pos {
+ }
+ 
+ // IsKnown reports whether the position p is known.
++// A position is known if it either has a non-nil
++// position base, or a non-zero line number.
+ func (p Pos) IsKnown() bool {
+ 	return p.base != nil || p.Line() != 0
+ }
+diff --git a/src/cmd/internal/src/xpos.go b/src/cmd/internal/src/xpos.go
+new file mode 100644
+index 0000000000..db0670768c
+--- /dev/null
++++ b/src/cmd/internal/src/xpos.go
+@@ -0,0 +1,75 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This file implements the compressed encoding of source
++// positions using a lookup table.
++
++package src
++
++// XPos is a more compact representation of Pos.
++type XPos struct {
++	index int32
++	lico
++}
++
++// NoXPos is a valid unknown position.
++var NoXPos XPos
++
++// IsKnown reports whether the position p is known.
++// XPos.IsKnown() matches Pos.IsKnown() for corresponding
++// positions.
++func (p XPos) IsKnown() bool {
++	return p.index != 0 || p.Line() != 0
++}
++
++// Before reports whether the position p comes before q in the source.
++// For positions with different bases, ordering is by base index.
++func (p XPos) Before(q XPos) bool {
++	n, m := p.index, q.index
++	return n < m || n == m && p.lico < q.lico
++}
++
++// After reports whether the position p comes after q in the source.
++// For positions with different bases, ordering is by base index.
++func (p XPos) After(q XPos) bool {
++	n, m := p.index, q.index
++	return n > m || n == m && p.lico > q.lico
++}
++
++// A PosTable tracks Pos -> XPos conversions and vice versa.
++// Its zero value is a ready-to-use PosTable.
++type PosTable struct {
++	baseList []*PosBase
++	indexMap map[*PosBase]int
++}
++
++// XPos returns the corresponding XPos for the given pos,
++// adding pos to t if necessary.
++func (t *PosTable) XPos(pos Pos) XPos {
++	m := t.indexMap
++	if m == nil {
++		// Create new list and map and populate with nil
++		// base so that NoPos always gets index 0.
++		t.baseList = append(t.baseList, nil)
++		m = map[*PosBase]int{nil: 0}
++		t.indexMap = m
++	}
++	i, ok := m[pos.base]
++	if !ok {
++		i = len(t.baseList)
++		t.baseList = append(t.baseList, pos.base)
++		t.indexMap[pos.base] = i
++	}
++	return XPos{int32(i), pos.lico}
++}
++
++// Pos returns the corresponding Pos for the given p.
++// If p cannot be translated via t, the function panics.
++func (t *PosTable) Pos(p XPos) Pos {
++	var base *PosBase
++	if p.index != 0 {
++		base = t.baseList[p.index]
++	}
++	return Pos{base, p.lico}
++}
+diff --git a/src/cmd/internal/src/xpos_test.go b/src/cmd/internal/src/xpos_test.go
+new file mode 100644
+index 0000000000..274bd761cd
+--- /dev/null
++++ b/src/cmd/internal/src/xpos_test.go
+@@ -0,0 +1,67 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package src
++
++import (
++	"testing"
++	"unsafe"
++)
++
++func TestNoXPos(t *testing.T) {
++	var tab PosTable
++	if tab.Pos(NoXPos) != NoPos {
++		t.Errorf("failed to translate NoXPos to Pos using zero PosTable")
++	}
++}
++
++func TestConversion(t *testing.T) {
++	b1 := NewFileBase("b1", "b1")
++	b2 := NewFileBase("b2", "b2")
++	b3 := NewLinePragmaBase(MakePos(b1, 10, 0), "b3", 123)
++
++	var tab PosTable
++	for _, want := range []Pos{
++		NoPos,
++		MakePos(nil, 0, 0), // same table entry as NoPos
++		MakePos(b1, 0, 0),
++		MakePos(nil, 10, 20), // same table entry as NoPos
++		MakePos(b2, 10, 20),
++		MakePos(b3, 10, 20),
++		MakePos(b3, 123, 0), // same table entry as MakePos(b3, 10, 20)
++	} {
++		xpos := tab.XPos(want)
++		got := tab.Pos(xpos)
++		if got != want {
++			t.Errorf("got %v; want %v", got, want)
++		}
++	}
++
++	if len(tab.baseList) != len(tab.indexMap) {
++		t.Errorf("table length discrepancy: %d != %d", len(tab.baseList), len(tab.indexMap))
++	}
++
++	const wantLen = 4
++	if len(tab.baseList) != wantLen {
++		t.Errorf("got table length %d; want %d", len(tab.baseList), wantLen)
++	}
++
++	if got := tab.XPos(NoPos); got != NoXPos {
++		t.Errorf("XPos(NoPos): got %v; want %v", got, NoXPos)
++	}
++
++	if tab.baseList[0] != nil || tab.indexMap[nil] != 0 {
++		t.Errorf("nil base not at index 0")
++	}
++}
++
++func TestSize(t *testing.T) {
++	var p XPos
++	if unsafe.Alignof(p) != 4 {
++		t.Errorf("alignment = %s; want 4", unsafe.Alignof(p))
++	}
++	if unsafe.Sizeof(p) != 8 {
++		t.Errorf("size = %s; want 8", unsafe.Sizeof(p))
++	}
++}

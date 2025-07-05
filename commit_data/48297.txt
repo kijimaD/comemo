@@ -12,7 +12,46 @@ Date:   Wed May 5 21:32:04 2021 -0400
     Run-TryBot: Filippo Valsorda <filippo@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-
+---
  src/crypto/ed25519/ed25519_test.go                            | 3 +++
  src/crypto/ed25519/internal/edwards25519/edwards25519_test.go | 5 +++++
  2 files changed, 8 insertions(+)
+
+diff --git a/src/crypto/ed25519/ed25519_test.go b/src/crypto/ed25519/ed25519_test.go
+index ba9970e23e..8a973b36ea 100644
+--- a/src/crypto/ed25519/ed25519_test.go
++++ b/src/crypto/ed25519/ed25519_test.go
+@@ -186,6 +186,9 @@ func TestMalleability(t *testing.T) {
+ }
+ 
+ func TestAllocations(t *testing.T) {
++	if strings.HasSuffix(os.Getenv("GO_BUILDER_NAME"), "-noopt") {
++		t.Skip("skipping allocations test without relevant optimizations")
++	}
+ 	if allocs := testing.AllocsPerRun(100, func() {
+ 		seed := make([]byte, SeedSize)
+ 		message := []byte("Hello, world!")
+diff --git a/src/crypto/ed25519/internal/edwards25519/edwards25519_test.go b/src/crypto/ed25519/internal/edwards25519/edwards25519_test.go
+index ac7c78c086..8031256525 100644
+--- a/src/crypto/ed25519/internal/edwards25519/edwards25519_test.go
++++ b/src/crypto/ed25519/internal/edwards25519/edwards25519_test.go
+@@ -7,7 +7,9 @@ package edwards25519
+ import (
+ 	"crypto/ed25519/internal/edwards25519/field"
+ 	"encoding/hex"
++	"os"
+ 	"reflect"
++	"strings"
+ 	"testing"
+ )
+ 
+@@ -279,6 +281,9 @@ func TestNonCanonicalPoints(t *testing.T) {
+ var testAllocationsSink byte
+ 
+ func TestAllocations(t *testing.T) {
++	if strings.HasSuffix(os.Getenv("GO_BUILDER_NAME"), "-noopt") {
++		t.Skip("skipping allocations test without relevant optimizations")
++	}
+ 	if allocs := testing.AllocsPerRun(100, func() {
+ 		p := NewIdentityPoint()
+ 		p.Add(p, NewGeneratorPoint())

@@ -7,7 +7,45 @@ Date:   Thu Nov 1 13:54:09 2012 -0700
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/6821067
-
+---
  misc/cgo/test/backdoor/runtime.c       |  2 ++
  misc/cgo/test/backdoor/runtime_gccgo.c | 18 ++++++++++++++++++
  2 files changed, 20 insertions(+)
+
+diff --git a/misc/cgo/test/backdoor/runtime.c b/misc/cgo/test/backdoor/runtime.c
+index 54e6a1ef8b..194a9c8e4e 100644
+--- a/misc/cgo/test/backdoor/runtime.c
++++ b/misc/cgo/test/backdoor/runtime.c
+@@ -6,6 +6,8 @@
+ // Must be in a non-cgo-using package so that
+ // the go command compiles this file with 6c, not gcc.
+ 
++// +build gc
++
+ typedef char bool;
+ 
+ bool runtime·lockedOSThread(void);
+diff --git a/misc/cgo/test/backdoor/runtime_gccgo.c b/misc/cgo/test/backdoor/runtime_gccgo.c
+new file mode 100644
+index 0000000000..218b2c3ebc
+--- /dev/null
++++ b/misc/cgo/test/backdoor/runtime_gccgo.c
+@@ -0,0 +1,18 @@
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Expose some runtime functions for testing.
++// This is the gccgo version of runtime.c.
++
++// +build gccgo
++
++_Bool runtime_lockedOSThread(void);
++
++_Bool LockedOSThread(void) asm(GOPKGPATH ".LockedOSThread");
++
++_Bool
++LockedOSThread(void)
++{
++	return runtime_lockedOSThread();
++}

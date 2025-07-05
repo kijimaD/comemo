@@ -9,6 +9,41 @@ Date:   Tue Aug 28 09:55:43 2018 -0400
     Change-Id: I8db5ca0f0c690bf532d3d33b8ed7d2633ad1702b
     Reviewed-on: https://go-review.googlesource.com/131855
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/os/exec/exec_test.go | 9 +++++++++
  1 file changed, 9 insertions(+)
+
+diff --git a/src/os/exec/exec_test.go b/src/os/exec/exec_test.go
+index f0bba11c5a..558345ff63 100644
+--- a/src/os/exec/exec_test.go
++++ b/src/os/exec/exec_test.go
+@@ -173,6 +173,9 @@ func TestExitCode(t *testing.T) {
+ 	cmd := helperCommand(t, "exit", "42")
+ 	cmd.Run()
+ 	want := 42
++	if runtime.GOOS == "plan9" {
++		want = 1
++	}
+ 	got := cmd.ProcessState.ExitCode()
+ 	if want != got {
+ 		t.Errorf("ExitCode got %d, want %d", got, want)
+@@ -181,6 +184,9 @@ func TestExitCode(t *testing.T) {
+ 	cmd = helperCommand(t, "/no-exist-executable")
+ 	cmd.Run()
+ 	want = 2
++	if runtime.GOOS == "plan9" {
++		want = 1
++	}
+ 	got = cmd.ProcessState.ExitCode()
+ 	if want != got {
+ 		t.Errorf("ExitCode got %d, want %d", got, want)
+@@ -189,6 +195,9 @@ func TestExitCode(t *testing.T) {
+ 	cmd = helperCommand(t, "exit", "255")
+ 	cmd.Run()
+ 	want = 255
++	if runtime.GOOS == "plan9" {
++		want = 1
++	}
+ 	got = cmd.ProcessState.ExitCode()
+ 	if want != got {
+ 		t.Errorf("ExitCode got %d, want %d", got, want)

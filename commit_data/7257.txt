@@ -10,7 +10,179 @@ Date:   Wed Jan 26 21:49:10 2011 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4041045
-
+---
  src/pkg/go/token/position.go      | 38 +++++++++++++++++++++++++------
  src/pkg/go/token/position_test.go | 47 ++++++++++++++++++++++++++++++++-------
  2 files changed, 70 insertions(+), 15 deletions(-)
+
+diff --git a/src/pkg/go/token/position.go b/src/pkg/go/token/position.go
+index 0044a0ed77..809e53f0aa 100644
+--- a/src/pkg/go/token/position.go
++++ b/src/pkg/go/token/position.go
+@@ -153,7 +153,7 @@ type lineInfo struct {
+ 
+ // AddLineInfo adds alternative file and line number information for
+ // a given file offset. The offset must be larger than the offset for
+-// the previously added alternative line info and not larger than the
++// the previously added alternative line info and smaller than the
+ // file size; otherwise the information is ignored.
+ //
+ // AddLineInfo is typically used to register alternative position
+@@ -161,7 +161,7 @@ type lineInfo struct {
+ //
+ func (f *File) AddLineInfo(offset int, filename string, line int) {
+ 	f.set.mutex.Lock()
+-	if i := len(f.infos); i == 0 || f.infos[i-1].offset < offset && offset <= f.size {
++	if i := len(f.infos); i == 0 || f.infos[i-1].offset < offset && offset < f.size {
+ 		f.infos = append(f.infos, lineInfo{offset, filename, line})
+ 	}
+ 	f.set.mutex.Unlock()
+@@ -212,27 +212,30 @@ func (f *File) LineCount() int {
+ 
+ // AddLine adds the line offset for a new line.
+ // The line offset must be larger than the offset for the previous line
+-// and not larger than the file size; otherwise the line offset is ignored.
++// and smaller than the file size; otherwise the line offset is ignored.
+ //
+ func (f *File) AddLine(offset int) {
+ 	f.set.mutex.Lock()
+-	if i := len(f.lines); (i == 0 || f.lines[i-1] < offset) && offset <= f.size {
++	if i := len(f.lines); (i == 0 || f.lines[i-1] < offset) && offset < f.size {
+ 		f.lines = append(f.lines, offset)
+ 	}
+ 	f.set.mutex.Unlock()
+ }
+ 
+ 
+-// SetLines sets all line offsets for a file and returns true if successful.
++// SetLines sets the line offsets for a file and returns true if successful.
++// The line offsets are the offsets of the first character of each line;
++// for instance for the content "ab\nc\n" the line offsets are {0, 3}.
++// An empty file has an empty line offset table.
+ // Each line offset must be larger than the offset for the previous line
+-// and not larger than the file size; otherwise the SetLines fails and returns
++// and smaller than the file size; otherwise SetLines fails and returns
+ // false.
+ //
+ func (f *File) SetLines(lines []int) bool {
+ 	// verify validity of lines table
+ 	size := f.size
+ 	for i, offset := range lines {
+-		if i > 0 && offset <= lines[i-1] || size < offset {
++		if i > 0 && offset <= lines[i-1] || size <= offset {
+ 			return false
+ 		}
+ 	}
+@@ -245,6 +248,27 @@ func (f *File) SetLines(lines []int) bool {
+ }
+ 
+ 
++// SetLinesForContent sets the line offsets for the given file content.
++func (f *File) SetLinesForContent(content []byte) {
++	var lines []int
++	line := 0
++	for offset, b := range content {
++		if line >= 0 {
++			lines = append(lines, line)
++		}
++		line = -1
++		if b == '\n' {
++			line = offset + 1
++		}
++	}
++
++	// set lines table
++	f.set.mutex.Lock()
++	f.lines = lines
++	f.set.mutex.Unlock()
++}
++
++
+ // Pos returns the Pos value for the given file offset;
+ // the offset must be <= f.Size().
+ // f.Pos(f.Offset(p)) == p.
+diff --git a/src/pkg/go/token/position_test.go b/src/pkg/go/token/position_test.go
+index 1cffcc3c27..979c9b1e8e 100644
+--- a/src/pkg/go/token/position_test.go
++++ b/src/pkg/go/token/position_test.go
+@@ -39,14 +39,18 @@ func TestNoPos(t *testing.T) {
+ 
+ var tests = []struct {
+ 	filename string
++	source   []byte // may be nil
+ 	size     int
+ 	lines    []int
+ }{
+-	{"a", 0, []int{}},
+-	{"b", 5, []int{0}},
+-	{"c", 10, []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}},
+-	{"d", 100, []int{0, 5, 10, 20, 30, 70, 71, 72, 80, 85, 90, 99}},
+-	{"e", 777, []int{0, 80, 100, 120, 130, 180, 267, 455, 500, 567, 620}},
++	{"a", []byte{}, 0, []int{}},
++	{"b", []byte("01234"), 5, []int{0}},
++	{"c", []byte("\n\n\n\n\n\n\n\n\n"), 9, []int{0, 1, 2, 3, 4, 5, 6, 7, 8}},
++	{"d", nil, 100, []int{0, 5, 10, 20, 30, 70, 71, 72, 80, 85, 90, 99}},
++	{"e", nil, 777, []int{0, 80, 100, 120, 130, 180, 267, 455, 500, 567, 620}},
++	{"f", []byte("package p\n\nimport \"fmt\""), 23, []int{0, 10, 11}},
++	{"g", []byte("package p\n\nimport \"fmt\"\n"), 24, []int{0, 10, 11}},
++	{"h", []byte("package p\n\nimport \"fmt\"\n "), 25, []int{0, 10, 11, 24}},
+ }
+ 
+ 
+@@ -77,10 +81,26 @@ func verifyPositions(t *testing.T, fset *FileSet, f *File, lines []int) {
+ }
+ 
+ 
++func makeTestSource(size int, lines []int) []byte {
++	src := make([]byte, size)
++	for _, offs := range lines {
++		if offs > 0 {
++			src[offs-1] = '\n'
++		}
++	}
++	return src
++}
++
++
+ func TestPositions(t *testing.T) {
+ 	const delta = 7 // a non-zero base offset increment
+ 	fset := NewFileSet()
+ 	for _, test := range tests {
++		// verify consistency of test case
++		if test.source != nil && len(test.source) != test.size {
++			t.Errorf("%s: inconsistent test case: expected file size %d; got %d", test.filename, test.size, len(test.source))
++		}
++
+ 		// add file and verify name and size
+ 		f := fset.AddFile(test.filename, fset.Base()+delta, test.size)
+ 		if f.Name() != test.filename {
+@@ -107,15 +127,26 @@ func TestPositions(t *testing.T) {
+ 			verifyPositions(t, fset, f, test.lines[0:i+1])
+ 		}
+ 
+-		// add lines at once and verify all positions
+-		ok := f.SetLines(test.lines)
+-		if !ok {
++		// add lines with SetLines and verify all positions
++		if ok := f.SetLines(test.lines); !ok {
+ 			t.Errorf("%s: SetLines failed", f.Name())
+ 		}
+ 		if f.LineCount() != len(test.lines) {
+ 			t.Errorf("%s, SetLines: expected line count %d; got %d", f.Name(), len(test.lines), f.LineCount())
+ 		}
+ 		verifyPositions(t, fset, f, test.lines)
++
++		// add lines with SetLinesForContent and verify all positions
++		src := test.source
++		if src == nil {
++			// no test source available - create one from scratch
++			src = makeTestSource(test.size, test.lines)
++		}
++		f.SetLinesForContent(src)
++		if f.LineCount() != len(test.lines) {
++			t.Errorf("%s, SetLinesForContent: expected line count %d; got %d", f.Name(), len(test.lines), f.LineCount())
++		}
++		verifyPositions(t, fset, f, test.lines)
+ 	}
+ }
+ 

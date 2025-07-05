@@ -9,6 +9,21 @@ Date:   Fri May 30 15:44:11 2025 -0400
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Mark Freeman <mark@golang.org>
     Reviewed-by: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/noder/doc.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/cmd/compile/internal/noder/doc.go b/src/cmd/compile/internal/noder/doc.go
+index cc403c835a..a5d5533168 100644
+--- a/src/cmd/compile/internal/noder/doc.go
++++ b/src/cmd/compile/internal/noder/doc.go
+@@ -49,6 +49,9 @@ outside the string section access string values by reference.
+ 
+     SectionString = { String } .
+ 
++Note that despite being an element, a string does not begin with a
++reference table.
++
+ ## Meta Section
+ The meta section provides fundamental information for a package. It
+ contains exactly two elements — a public root and a private root.

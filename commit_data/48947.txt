@@ -15,8 +15,266 @@ Date:   Sat Jun 26 18:18:16 2021 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Dan Scales <danscales@google.com>
-
+---
  src/cmd/compile/internal/noder/stencil.go       | 55 ++++++++++++-------------
  src/cmd/compile/internal/reflectdata/reflect.go | 22 +++-------
  src/cmd/compile/internal/typecheck/subr.go      | 51 ++++++++++++++++-------
  3 files changed, 68 insertions(+), 60 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/stencil.go b/src/cmd/compile/internal/noder/stencil.go
+index 60d56c206f..49781ddc07 100644
+--- a/src/cmd/compile/internal/noder/stencil.go
++++ b/src/cmd/compile/internal/noder/stencil.go
+@@ -18,7 +18,6 @@ import (
+ 	"cmd/internal/src"
+ 	"fmt"
+ 	"go/constant"
+-	"strings"
+ )
+ 
+ func assert(p bool) {
+@@ -519,7 +518,7 @@ func (g *irgen) getInstantiation(nameNode *ir.Name, targs []*types.Type, isMeth
+ 			ir.Dump(fmt.Sprintf("\nstenciled %v", st), st)
+ 		}
+ 	}
+-	return st, g.getDictionary(sym.Name, nameNode, targs)
++	return st, g.getDictionaryValue(nameNode, targs, isMeth)
+ }
+ 
+ // Struct containing info needed for doing the substitution as we create the
+@@ -1017,31 +1016,21 @@ func deref(t *types.Type) *types.Type {
+ 	return t
+ }
+ 
+-// getDictionary returns the dictionary for the named instantiated function, which
+-// is instantiated from generic function or method gf, with the type arguments targs.
+-func (g *irgen) getDictionary(name string, gf *ir.Name, targs []*types.Type) ir.Node {
++// getDictionarySym returns the dictionary for the named generic function gf, which
++// is instantiated with the type arguments targs.
++func (g *irgen) getDictionarySym(gf *ir.Name, targs []*types.Type, isMeth bool) *types.Sym {
+ 	if len(targs) == 0 {
+-		base.Fatalf("%s should have type arguments", name)
+-	}
+-
+-	// The dictionary for this instantiation is named after the function
+-	// and concrete types it is instantiated with.
+-	// TODO: decouple this naming from the instantiation naming. The instantiation
+-	// naming will be based on GC shapes, this naming must be fully stenciled.
+-	if !strings.HasPrefix(name, ".inst.") {
+-		base.Fatalf("%s should start in .inst.", name)
++		base.Fatalf("%s should have type arguments", gf.Sym().Name)
+ 	}
+ 
+ 	info := g.getGfInfo(gf)
+ 
+-	name = ".dict." + name[6:]
+-
+ 	// Get a symbol representing the dictionary.
+-	sym := typecheck.Lookup(name)
++	sym := typecheck.MakeDictName(gf.Sym(), targs, isMeth)
+ 
+ 	// Initialize the dictionary, if we haven't yet already.
+ 	if lsym := sym.Linksym(); len(lsym.P) == 0 {
+-		infoPrint("Creating dictionary %v\n", name)
++		infoPrint("Creating dictionary %v\n", sym.Name)
+ 		off := 0
+ 		// Emit an entry for each targ (concrete type or gcshape).
+ 		for _, t := range targs {
+@@ -1061,8 +1050,8 @@ func (g *irgen) getDictionary(name string, gf *ir.Name, targs []*types.Type) ir.
+ 			off = objw.SymPtr(lsym, off, s, 0)
+ 		}
+ 		// Emit an entry for each subdictionary (after substituting targs)
+-		// TODO: actually emit symbol for the subdictionary entry
+ 		for _, n := range info.subDictCalls {
++			var sym *types.Sym
+ 			if n.Op() == ir.OCALL {
+ 				call := n.(*ir.CallExpr)
+ 				if call.X.Op() == ir.OXDOT {
+@@ -1071,8 +1060,7 @@ func (g *irgen) getDictionary(name string, gf *ir.Name, targs []*types.Type) ir.
+ 					for i, t := range subtargs {
+ 						s2targs[i] = subst.Typ(t)
+ 					}
+-					sym := typecheck.MakeInstName(ir.MethodSym(call.X.(*ir.SelectorExpr).X.Type(), call.X.(*ir.SelectorExpr).Sel), s2targs, true)
+-					infoPrint(" - Subdict .dict.%v\n", sym.Name[6:])
++					sym = typecheck.MakeDictName(ir.MethodSym(call.X.(*ir.SelectorExpr).X.Type(), call.X.(*ir.SelectorExpr).Sel), s2targs, true)
+ 				} else {
+ 					inst := n.(*ir.CallExpr).X.(*ir.InstExpr)
+ 					var nameNode *ir.Name
+@@ -1087,11 +1075,10 @@ func (g *irgen) getDictionary(name string, gf *ir.Name, targs []*types.Type) ir.
+ 					for i, t := range subtargs {
+ 						subtargs[i] = subst.Typ(t)
+ 					}
+-					sym := typecheck.MakeInstName(nameNode.Sym(), subtargs, isMeth)
++					sym = g.getDictionarySym(nameNode, subtargs, isMeth)
+ 					// TODO: This can actually be a static
+ 					// main dictionary, if all of the subtargs
+ 					// are concrete types (!HasTParam)
+-					infoPrint(" - Subdict .dict.%v\n", sym.Name[6:])
+ 				}
+ 			} else if n.Op() == ir.OFUNCINST {
+ 				inst := n.(*ir.InstExpr)
+@@ -1100,11 +1087,10 @@ func (g *irgen) getDictionary(name string, gf *ir.Name, targs []*types.Type) ir.
+ 				for i, t := range subtargs {
+ 					subtargs[i] = subst.Typ(t)
+ 				}
+-				sym := typecheck.MakeInstName(nameNode.Sym(), subtargs, false)
++				sym = g.getDictionarySym(nameNode, subtargs, false)
+ 				// TODO: This can actually be a static
+ 				// main dictionary, if all of the subtargs
+ 				// are concrete types (!HasTParam)
+-				infoPrint(" - Subdict .dict.%v\n", sym.Name[6:])
+ 			} else if n.Op() == ir.OXDOT {
+ 				selExpr := n.(*ir.SelectorExpr)
+ 				subtargs := selExpr.X.Type().RParams()
+@@ -1112,13 +1098,26 @@ func (g *irgen) getDictionary(name string, gf *ir.Name, targs []*types.Type) ir.
+ 				for i, t := range subtargs {
+ 					s2targs[i] = subst.Typ(t)
+ 				}
+-				sym := typecheck.MakeInstName(ir.MethodSym(selExpr.X.Type(), selExpr.Sel), s2targs, true)
+-				infoPrint(" - Subdict .dict.%v\n", sym.Name[6:])
++				sym = typecheck.MakeDictName(ir.MethodSym(selExpr.X.Type(), selExpr.Sel), s2targs, true)
++			}
++			// TODO: handle closure cases that need sub-dictionaries, get rid of conditional
++			if sym != nil {
++				// TODO: uncomment once we're sure all the
++				// subdictionaries are created correctly.
++				// Methods above aren't yet generating dictionaries recursively yet.
++				//off = objw.SymPtr(lsym, off, sym.Linksym(), 0)
++				infoPrint(" - Subdict %v\n", sym.Name)
+ 			}
+-			// TODO: handle closure cases that need sub-dictionaries
+ 		}
+ 		objw.Global(lsym, int32(off), obj.DUPOK|obj.RODATA)
++
++		// Add any new, fully instantiated types seen during the substitution to g.instTypeList.
++		g.instTypeList = append(g.instTypeList, subst.InstTypeList...)
+ 	}
++	return sym
++}
++func (g *irgen) getDictionaryValue(gf *ir.Name, targs []*types.Type, isMeth bool) ir.Node {
++	sym := g.getDictionarySym(gf, targs, isMeth)
+ 
+ 	// Make a node referencing the dictionary symbol.
+ 	n := typecheck.NewName(sym)
+diff --git a/src/cmd/compile/internal/reflectdata/reflect.go b/src/cmd/compile/internal/reflectdata/reflect.go
+index 351aaab399..27522ca85e 100644
+--- a/src/cmd/compile/internal/reflectdata/reflect.go
++++ b/src/cmd/compile/internal/reflectdata/reflect.go
+@@ -1869,7 +1869,7 @@ func methodWrapper(rcvr *types.Type, method *types.Field, forItab bool) *obj.LSy
+ 			} else if !baseOrig.IsPtr() && method.Type.Recv().Type.IsPtr() {
+ 				baseOrig = types.NewPtr(baseOrig)
+ 			}
+-			args = append(args, getDictionary(".inst."+ir.MethodSym(baseOrig, method.Sym).Name, targs)) // TODO: remove .inst.
++			args = append(args, getDictionary(ir.MethodSym(baseOrig, method.Sym), targs))
+ 			if indirect {
+ 				args = append(args, ir.NewStarExpr(base.Pos, dot.X))
+ 			} else if methodrcvr.IsPtr() && methodrcvr.Elem() == dot.X.Type() {
+@@ -1971,28 +1971,16 @@ func MarkUsedIfaceMethod(n *ir.CallExpr) {
+ 
+ // getDictionary returns the dictionary for the given named generic function
+ // or method, with the given type arguments.
+-// TODO: pass a reference to the generic function instead? We might need
+-// that to look up protodictionaries.
+-func getDictionary(name string, targs []*types.Type) ir.Node {
++func getDictionary(gf *types.Sym, targs []*types.Type) ir.Node {
+ 	if len(targs) == 0 {
+-		base.Fatalf("%s should have type arguments", name)
++		base.Fatalf("%s should have type arguments", gf.Name)
+ 	}
+ 
+-	// The dictionary for this instantiation is named after the function
+-	// and concrete types it is instantiated with.
+-	// TODO: decouple this naming from the instantiation naming. The instantiation
+-	// naming will be based on GC shapes, this naming must be fully stenciled.
+-	if !strings.HasPrefix(name, ".inst.") {
+-		base.Fatalf("%s should start in .inst.", name)
+-	}
+-	name = ".dict." + name[6:]
+-
+-	// Get a symbol representing the dictionary.
+-	sym := typecheck.Lookup(name)
++	sym := typecheck.MakeDictName(gf, targs, true)
+ 
+ 	// Initialize the dictionary, if we haven't yet already.
+ 	if lsym := sym.Linksym(); len(lsym.P) == 0 {
+-		base.Fatalf("Dictionary should have alredy been generated: %v", sym)
++		base.Fatalf("Dictionary should have already been generated: %s.%s", sym.Pkg.Path, sym.Name)
+ 	}
+ 
+ 	// Make a node referencing the dictionary symbol.
+diff --git a/src/cmd/compile/internal/typecheck/subr.go b/src/cmd/compile/internal/typecheck/subr.go
+index fb6d660db5..db1faaf6f7 100644
+--- a/src/cmd/compile/internal/typecheck/subr.go
++++ b/src/cmd/compile/internal/typecheck/subr.go
+@@ -888,19 +888,10 @@ func TypesOf(x []ir.Node) []*types.Type {
+ 	return r
+ }
+ 
+-// MakeInstName makes the unique name for a stenciled generic function or method,
+-// based on the name of the function fnsym and the targs. It replaces any
+-// existing bracket type list in the name. makeInstName asserts that fnsym has
+-// brackets in its name if and only if hasBrackets is true.
+-//
+-// Names of declared generic functions have no brackets originally, so hasBrackets
+-// should be false. Names of generic methods already have brackets, since the new
+-// type parameter is specified in the generic type of the receiver (e.g. func
+-// (func (v *value[T]).set(...) { ... } has the original name (*value[T]).set.
+-//
+-// The standard naming is something like: 'genFn[int,bool]' for functions and
+-// '(*genType[int,bool]).methodName' for methods
+-func MakeInstName(fnsym *types.Sym, targs []*types.Type, hasBrackets bool) *types.Sym {
++// makeGenericName returns the name of the generic function instantiated
++// with the given types.
++// name is the name of the generic function or method.
++func makeGenericName(name string, targs []*types.Type, hasBrackets bool) string {
+ 	b := bytes.NewBufferString("")
+ 
+ 	// Determine if the type args are concrete types or new typeparams.
+@@ -922,7 +913,6 @@ func MakeInstName(fnsym *types.Sym, targs []*types.Type, hasBrackets bool) *type
+ 		b.WriteString(".inst.")
+ 	}
+ 
+-	name := fnsym.Name
+ 	i := strings.Index(name, "[")
+ 	assert(hasBrackets == (i >= 0))
+ 	if i >= 0 {
+@@ -952,7 +942,38 @@ func MakeInstName(fnsym *types.Sym, targs []*types.Type, hasBrackets bool) *type
+ 	if strings.HasPrefix(b.String(), ".inst..inst.") {
+ 		panic(fmt.Sprintf("multiple .inst. prefix in %s", b.String()))
+ 	}
+-	return fnsym.Pkg.Lookup(b.String())
++	return b.String()
++}
++
++// MakeInstName makes the unique name for a stenciled generic function or method,
++// based on the name of the function fnsym and the targs. It replaces any
++// existing bracket type list in the name. makeInstName asserts that fnsym has
++// brackets in its name if and only if hasBrackets is true.
++//
++// Names of declared generic functions have no brackets originally, so hasBrackets
++// should be false. Names of generic methods already have brackets, since the new
++// type parameter is specified in the generic type of the receiver (e.g. func
++// (func (v *value[T]).set(...) { ... } has the original name (*value[T]).set.
++//
++// The standard naming is something like: 'genFn[int,bool]' for functions and
++// '(*genType[int,bool]).methodName' for methods
++func MakeInstName(gf *types.Sym, targs []*types.Type, hasBrackets bool) *types.Sym {
++	return gf.Pkg.Lookup(makeGenericName(gf.Name, targs, hasBrackets))
++}
++
++func MakeDictName(gf *types.Sym, targs []*types.Type, hasBrackets bool) *types.Sym {
++	for _, targ := range targs {
++		if targ.HasTParam() {
++			fmt.Printf("FUNCTION %s\n", gf.Name)
++			for _, targ := range targs {
++				fmt.Printf("  PARAM %+v\n", targ)
++			}
++			panic("dictionary should always have concrete type args")
++		}
++	}
++	name := makeGenericName(gf.Name, targs, hasBrackets)
++	name = ".dict." + name[6:]
++	return gf.Pkg.Lookup(name)
+ }
+ 
+ func assert(p bool) {

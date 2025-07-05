@@ -18,6 +18,31 @@ Date:   Tue Jan 16 16:17:54 2018 -0800
     Change-Id: Ib76957d86b88e3e63646fbe4abf03a3b9d045139
     Reviewed-on: https://go-review.googlesource.com/87900
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/go/parser/parser.go | 11 ++++++-----
  1 file changed, 6 insertions(+), 5 deletions(-)
+
+diff --git a/src/go/parser/parser.go b/src/go/parser/parser.go
+index 6f2955fd50..7671d2a4bb 100644
+--- a/src/go/parser/parser.go
++++ b/src/go/parser/parser.go
+@@ -375,13 +375,14 @@ func (p *parser) errorExpected(pos token.Pos, msg string) {
+ 	if pos == p.pos {
+ 		// the error happened at the current position;
+ 		// make the error message more specific
+-		if p.tok == token.SEMICOLON && p.lit == "\n" {
++		switch {
++		case p.tok == token.SEMICOLON && p.lit == "\n":
+ 			msg += ", found newline"
+-		} else {
++		case p.tok.IsLiteral():
++			// print 123 rather than 'INT', etc.
++			msg += ", found " + p.lit
++		default:
+ 			msg += ", found '" + p.tok.String() + "'"
+-			if p.tok.IsLiteral() {
+-				msg += " " + p.lit
+-			}
+ 		}
+ 	}
+ 	p.error(pos, msg)

@@ -24,7 +24,51 @@ Date:   Mon Aug 28 02:33:06 2023 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Auto-Submit: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ir/expr.go | 13 +++++++++++++
  test/fixedbugs/issue62313.go        | 13 +++++++++++++
  2 files changed, 26 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ir/expr.go b/src/cmd/compile/internal/ir/expr.go
+index 9ade6f6a6e..37a30edca2 100644
+--- a/src/cmd/compile/internal/ir/expr.go
++++ b/src/cmd/compile/internal/ir/expr.go
+@@ -92,6 +92,19 @@ func NewAddrExpr(pos src.XPos, x Node) *AddrExpr {
+ 		n.op = OADDR
+ 		if r, ok := OuterValue(x).(*Name); ok && r.Op() == ONAME {
+ 			r.SetAddrtaken(true)
++
++			// If r is a closure variable, we need to mark its canonical
++			// variable as addrtaken too, so that closure conversion
++			// captures it by reference.
++			//
++			// Exception: if we've already marked the variable as
++			// capture-by-value, then that means this variable isn't
++			// logically modified, and we must be taking its address to pass
++			// to a runtime function that won't mutate it. In that case, we
++			// only need to make sure our own copy is addressable.
++			if r.IsClosureVar() && !r.Byval() {
++				r.Canonical().SetAddrtaken(true)
++			}
+ 		}
+ 	}
+ 
+diff --git a/test/fixedbugs/issue62313.go b/test/fixedbugs/issue62313.go
+new file mode 100644
+index 0000000000..139f1ebdf3
+--- /dev/null
++++ b/test/fixedbugs/issue62313.go
+@@ -0,0 +1,13 @@
++// compile
++
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func f() {
++	var err error = nil
++	defer func() { _ = &err }()
++	err.Error()
++}

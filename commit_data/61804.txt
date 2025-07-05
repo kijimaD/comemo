@@ -26,6 +26,30 @@ Date:   Tue Nov 26 09:10:22 2024 +0100
     Auto-Submit: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
     Reviewed-by: Nick Ripley <nick.ripley@datadoghq.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/cmd/trace/gstate.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/cmd/trace/gstate.go b/src/cmd/trace/gstate.go
+index ea501ef57d..c883166e06 100644
+--- a/src/cmd/trace/gstate.go
++++ b/src/cmd/trace/gstate.go
+@@ -257,6 +257,10 @@ func (gs *gState[R]) stop(ts trace.Time, stack trace.Stack, ctx *traceContext) {
+ 	if gs.lastStopStack != trace.NoStack {
+ 		stk = ctx.Stack(viewerFrames(gs.lastStopStack))
+ 	}
++	var endStk int
++	if stack != trace.NoStack {
++		endStk = ctx.Stack(viewerFrames(stack))
++	}
+ 	// Check invariants.
+ 	if gs.startRunningTime == 0 {
+ 		panic("silently broken trace or generator invariant (startRunningTime != 0) not held")
+@@ -270,6 +274,7 @@ func (gs *gState[R]) stop(ts trace.Time, stack trace.Stack, ctx *traceContext) {
+ 		Dur:      ts.Sub(gs.startRunningTime),
+ 		Resource: uint64(gs.executing),
+ 		Stack:    stk,
++		EndStack: endStk,
+ 	})
+ 
+ 	// Flush completed ranges.

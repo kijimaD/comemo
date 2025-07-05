@@ -17,6 +17,57 @@ Date:   Thu May 18 14:11:17 2017 -0700
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  test/fixedbugs/bug398.go | 25 +++++++++++++++++++++----
  1 file changed, 21 insertions(+), 4 deletions(-)
+
+diff --git a/test/fixedbugs/bug398.go b/test/fixedbugs/bug398.go
+index 81bf33c37a..a1583bd774 100644
+--- a/test/fixedbugs/bug398.go
++++ b/test/fixedbugs/bug398.go
+@@ -5,16 +5,36 @@
+ // license that can be found in the LICENSE file.
+ 
+ // Used to crash compiler in interface type equality check.
++// (This test used to have problems - see #15596.)
+ 
+ package p
+ 
++// exported interfaces
++
++type I1 interface {
++      F() interface{I1}
++}
++
++type I2 interface {
++      F() interface{I2}
++}
++
++var V1 I1
++var V2 I2
++
++func F() bool {
++       return V1 == V2
++}
++
++// non-exported interfaces
++
+ type i1 interface {
+       F() interface{i1}
+ }
+ 
+ type i2 interface {
+       F() interface{i2}
+-}       
++}
+ 
+ var v1 i1
+ var v2 i2
+@@ -22,6 +42,3 @@ var v2 i2
+ func f() bool {
+        return v1 == v2
+ }
+-
+-// TODO(gri) Change test to use exported interfaces.
+-// See issue #15596 for details.
+\ No newline at end of file

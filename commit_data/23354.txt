@@ -19,7 +19,46 @@ Date:   Wed May 6 22:14:32 2015 +0000
     Change-Id: I3eb820982675231dbfa970f197abc5ef335ce86b
     Reviewed-on: https://go-review.googlesource.com/9801
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/html/template/escape.go      |  6 +++---
  src/html/template/escape_test.go | 10 ++++++++++
  2 files changed, 13 insertions(+), 3 deletions(-)
+
+diff --git a/src/html/template/escape.go b/src/html/template/escape.go
+index ee01fb12ab..a9529446dd 100644
+--- a/src/html/template/escape.go
++++ b/src/html/template/escape.go
+@@ -297,9 +297,9 @@ var redundantFuncs = map[string]map[string]bool{
+ // unless it is redundant with the last command.
+ func appendCmd(cmds []*parse.CommandNode, cmd *parse.CommandNode) []*parse.CommandNode {
+ 	if n := len(cmds); n != 0 {
+-		last, ok := cmds[n-1].Args[0].(*parse.IdentifierNode)
+-		next, _ := cmd.Args[0].(*parse.IdentifierNode)
+-		if ok && redundantFuncs[last.Ident][next.Ident] {
++		last, okLast := cmds[n-1].Args[0].(*parse.IdentifierNode)
++		next, okNext := cmd.Args[0].(*parse.IdentifierNode)
++		if okLast && okNext && redundantFuncs[last.Ident][next.Ident] {
+ 			return cmds
+ 		}
+ 	}
+diff --git a/src/html/template/escape_test.go b/src/html/template/escape_test.go
+index 9c9502a617..6729ebf4a7 100644
+--- a/src/html/template/escape_test.go
++++ b/src/html/template/escape_test.go
+@@ -1547,6 +1547,16 @@ func TestEnsurePipelineContains(t *testing.T) {
+ 			"($).X | urlquery | html | print",
+ 			[]string{"urlquery", "html"},
+ 		},
++		{
++			"{{.X | print 2 | .f 3}}",
++			".X | print 2 | .f 3 | urlquery | html",
++			[]string{"urlquery", "html"},
++		},
++		{
++			"{{.X | html | print 2 | .f 3}}",
++			".X | urlquery | html | print 2 | .f 3",
++			[]string{"urlquery", "html"},
++		},
+ 	}
+ 	for i, test := range tests {
+ 		tmpl := template.Must(template.New("test").Parse(test.input))

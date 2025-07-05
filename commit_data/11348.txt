@@ -9,7 +9,103 @@ Date:   Mon Jan 23 16:35:25 2012 -0500
     R=gri
     CC=golang-dev
     https://golang.org/cl/5575045
-
+---
  src/pkg/exp/ebnflint/ebnflint.go      | 41 +++++++++++++++++++++++------------
  src/pkg/exp/ebnflint/ebnflint_test.go | 16 ++++++++++++++
  2 files changed, 43 insertions(+), 14 deletions(-)
+
+diff --git a/src/pkg/exp/ebnflint/ebnflint.go b/src/pkg/exp/ebnflint/ebnflint.go
+index 6d6f516c90..2cb5aa6ed6 100644
+--- a/src/pkg/exp/ebnflint/ebnflint.go
++++ b/src/pkg/exp/ebnflint/ebnflint.go
+@@ -11,6 +11,7 @@ import (
+ 	"fmt"
+ 	"go/scanner"
+ 	"go/token"
++	"io"
+ 	"io/ioutil"
+ 	"os"
+ 	"path/filepath"
+@@ -76,34 +77,46 @@ func main() {
+ 	flag.Parse()
+ 
+ 	var (
+-		filename string
+-		src      []byte
+-		err      error
++		name string
++		r    io.Reader
+ 	)
+ 	switch flag.NArg() {
+ 	case 0:
+-		filename = "<stdin>"
+-		src, err = ioutil.ReadAll(os.Stdin)
++		name, r = "<stdin>", os.Stdin
+ 	case 1:
+-		filename = flag.Arg(0)
+-		src, err = ioutil.ReadFile(filename)
++		name = flag.Arg(0)
+ 	default:
+ 		usage()
+ 	}
+-	if err != nil {
++
++	if err := verify(name, *start, r); err != nil {
+ 		report(err)
+ 	}
++}
+ 
+-	if filepath.Ext(filename) == ".html" || bytes.Index(src, open) >= 0 {
+-		src = extractEBNF(src)
++func verify(name, start string, r io.Reader) error {
++	if r == nil {
++		f, err := os.Open(name)
++		if err != nil {
++			return err
++		}
++		defer f.Close()
++		r = f
+ 	}
+ 
+-	grammar, err := ebnf.Parse(filename, bytes.NewBuffer(src))
++	src, err := ioutil.ReadAll(r)
+ 	if err != nil {
+-		report(err)
++		return err
+ 	}
+ 
+-	if err = ebnf.Verify(grammar, *start); err != nil {
+-		report(err)
++	if filepath.Ext(name) == ".html" || bytes.Index(src, open) >= 0 {
++		src = extractEBNF(src)
++	}
++
++	grammar, err := ebnf.Parse(name, bytes.NewBuffer(src))
++	if err != nil {
++		return err
+ 	}
++
++	return ebnf.Verify(grammar, start)
+ }
+diff --git a/src/pkg/exp/ebnflint/ebnflint_test.go b/src/pkg/exp/ebnflint/ebnflint_test.go
+new file mode 100644
+index 0000000000..875dbc19ac
+--- /dev/null
++++ b/src/pkg/exp/ebnflint/ebnflint_test.go
+@@ -0,0 +1,16 @@
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"runtime"
++	"testing"
++)
++
++func TestSpec(t *testing.T) {
++	if err := verify(runtime.GOROOT()+"/doc/go_spec.html", "SourceFile", nil); err != nil {
++		t.Fatal(err)
++	}
++}

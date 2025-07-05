@@ -14,6 +14,20 @@ Date:   Fri Nov 27 11:00:29 2020 +0700
     Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/ssa/numberlines.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/numberlines.go b/src/cmd/compile/internal/ssa/numberlines.go
+index 2a9c8e4f32..54a158ff87 100644
+--- a/src/cmd/compile/internal/ssa/numberlines.go
++++ b/src/cmd/compile/internal/ssa/numberlines.go
+@@ -16,7 +16,7 @@ func isPoorStatementOp(op Op) bool {
+ 	// so that a debugger-user sees the stop before the panic, and can examine the value.
+ 	case OpAddr, OpLocalAddr, OpOffPtr, OpStructSelect, OpPhi, OpITab, OpIData,
+ 		OpIMake, OpStringMake, OpSliceMake, OpStructMake0, OpStructMake1, OpStructMake2, OpStructMake3, OpStructMake4,
+-		OpConstBool, OpConst8, OpConst16, OpConst32, OpConst64, OpConst32F, OpConst64F:
++		OpConstBool, OpConst8, OpConst16, OpConst32, OpConst64, OpConst32F, OpConst64F, OpSB, OpSP:
+ 		return true
+ 	}
+ 	return false

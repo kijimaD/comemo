@@ -14,7 +14,7 @@ Date:   Tue Sep 2 15:12:53 2014 -0400
     R=golang-codereviews, remyoudompheng, dave, r
     CC=dvyukov, golang-codereviews, iant, khr
     https://golang.org/cl/134200044
-
+---
  src/cmd/api/goapi.go                 |  31 ++-
  src/pkg/runtime/extern.go            |  24 +-
  src/pkg/runtime/heapdump.c           |   4 +-
@@ -30,3 +30,1754 @@ Date:   Tue Sep 2 15:12:53 2014 -0400
  src/pkg/runtime/traceback_windows.go |  64 +++++
  src/pkg/runtime/traceback_x86.c      | 436 ------------------------------
  14 files changed, 668 insertions(+), 838 deletions(-)
+
+diff --git a/src/cmd/api/goapi.go b/src/cmd/api/goapi.go
+index 99d41c9d69..715e9f6ad8 100644
+--- a/src/cmd/api/goapi.go
++++ b/src/cmd/api/goapi.go
+@@ -379,13 +379,30 @@ func (w *Walker) parseFile(dir, file string) (*ast.File, error) {
+ 	if w.context != nil && file == fmt.Sprintf("zruntime_defs_%s_%s.go", w.context.GOOS, w.context.GOARCH) {
+ 		// Just enough to keep the api checker happy.
+ 		src := "package runtime; type (" +
+-			" maptype struct{}; _type struct{}; alg struct{};" +
+-			" mspan struct{}; m struct{}; mutex struct{}; slicetype struct{};" +
+-			" iface struct{}; eface struct{}; interfacetype struct{}; itab struct{};" +
+-			" mcache struct{}; sudog struct{}; g struct{};" +
+-			" hchan struct{}; chantype struct{}; waitq struct{};" +
+-			" note struct{}; wincallbackcontext struct{};" +
+-			" gobuf struct{}; funcval struct{}; _func struct{};" +
++			" _func struct{};" +
++			" _type struct{};" +
++			" alg struct{};" +
++			" chantype struct{};" +
++			" context struct{};" + // windows
++			" eface struct{};" +
++			" funcval struct{};" +
++			" g struct{};" +
++			" gobuf struct{};" +
++			" hchan struct{};" +
++			" iface struct{};" +
++			" interfacetype struct{};" +
++			" itab struct{};" +
++			" m struct{};" +
++			" maptype struct{};" +
++			" mcache struct{};" +
++			" mspan struct{};" +
++			" mutex struct{};" +
++			" note struct{};" +
++			" slicetype struct{};" +
++			" stkframe struct{};" +
++			" sudog struct{};" +
++			" waitq struct{};" +
++			" wincallbackcontext struct{};" +
+ 			"); " +
+ 			"const ( cb_max = 2000 )"
+ 		f, err = parser.ParseFile(fset, filename, src, 0)
+diff --git a/src/pkg/runtime/extern.go b/src/pkg/runtime/extern.go
+index f276a3839d..d75d2b4e54 100644
+--- a/src/pkg/runtime/extern.go
++++ b/src/pkg/runtime/extern.go
+@@ -86,11 +86,9 @@ import "unsafe"
+ // If all other goroutines exit, the program crashes.
+ func Goexit()
+ 
+-// We assume that all architectures turn faults and the like
+-// into apparent calls to runtime.sigpanic.  If we see a "call"
+-// to runtime.sigpanic, we do not back up the PC to find the
+-// line number of the CALL instruction, because there is no CALL.
+-var sigpanic byte
++// sigpanic is the C function sigpanic.
++// That is, unsafe.Pointer(&sigpanic) is the C function pointer for sigpanic.
++var sigpanic struct{}
+ 
+ // Caller reports file and line number information about function invocations on
+ // the calling goroutine's stack.  The argument skip is the number of stack frames
+@@ -103,7 +101,7 @@ func Caller(skip int) (pc uintptr, file string, line int, ok bool) {
+ 	// and what it called, so that we can see if it
+ 	// "called" sigpanic.
+ 	var rpc [2]uintptr
+-	if callers(int32(1+skip-1), &rpc[0], 2) < 2 {
++	if callers(1+skip-1, &rpc[0], 2) < 2 {
+ 		return
+ 	}
+ 	f := findfunc(rpc[1])
+@@ -117,6 +115,9 @@ func Caller(skip int) (pc uintptr, file string, line int, ok bool) {
+ 	pc = rpc[1]
+ 	xpc := pc
+ 	g := findfunc(rpc[0])
++	// All architectures turn faults into apparent calls to sigpanic.
++	// If we see a call to sigpanic, we do not back up the PC to find
++	// the line number of the call instruction, because there is no call.
+ 	if xpc > f.entry && (g == nil || g.entry != uintptr(unsafe.Pointer(&sigpanic))) {
+ 		xpc--
+ 	}
+@@ -142,18 +143,9 @@ func Callers(skip int, pc []uintptr) int {
+ 	if len(pc) == 0 {
+ 		return 0
+ 	}
+-	return int(callers(int32(skip), &pc[0], int32(len(pc))))
++	return callers(skip, &pc[0], len(pc))
+ }
+ 
+-//go:noescape
+-func callers(int32, *uintptr, int32) int32
+-
+-//go:noescape
+-func gcallers(*g, int32, *uintptr, int32) int32
+-
+-//go:noescape
+-func gentraceback(uintptr, uintptr, uintptr, *g, int32, *uintptr, int32, unsafe.Pointer, unsafe.Pointer, bool) int32
+-
+ func getgoroot() string
+ 
+ // GOROOT returns the root of the Go tree.
+diff --git a/src/pkg/runtime/heapdump.c b/src/pkg/runtime/heapdump.c
+index 3d0a23049d..63ffe68066 100644
+--- a/src/pkg/runtime/heapdump.c
++++ b/src/pkg/runtime/heapdump.c
+@@ -380,6 +380,7 @@ dumpgoroutine(G *gp)
+ 	ChildInfo child;
+ 	Defer *d;
+ 	Panic *p;
++	bool (*fn)(Stkframe*, void*);
+ 
+ 	if(gp->syscallstack != (uintptr)nil) {
+ 		sp = gp->syscallsp;
+@@ -413,7 +414,8 @@ dumpgoroutine(G *gp)
+ 	child.depth = 0;
+ 	if(!ScanStackByFrames)
+ 		runtime·throw("need frame info to dump stacks");
+-	runtime·gentraceback(pc, sp, lr, gp, 0, nil, 0x7fffffff, dumpframe, &child, false);
++	fn = dumpframe;
++	runtime·gentraceback(pc, sp, lr, gp, 0, nil, 0x7fffffff, &fn, &child, false);
+ 
+ 	// dump defer & panic records
+ 	for(d = gp->defer; d != nil; d = d->link) {
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index 4d75ed5a2e..3e22acc524 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -685,6 +685,7 @@ scanstack(G *gp)
+ 	int32 n;
+ 	Stktop *stk;
+ 	uintptr sp, guard;
++	bool (*fn)(Stkframe*, void*);
+ 
+ 	switch(runtime·readgstatus(gp)) {
+ 	default:
+@@ -726,7 +727,8 @@ scanstack(G *gp)
+ 		USED(sp);
+ 		USED(stk);
+ 		USED(guard);
+-		runtime·gentraceback(~(uintptr)0, ~(uintptr)0, 0, gp, 0, nil, 0x7fffffff, scanframe, nil, false);
++		fn = scanframe;
++		runtime·gentraceback(~(uintptr)0, ~(uintptr)0, 0, gp, 0, nil, 0x7fffffff, &fn, nil, false);
+ 	} else {
+ 		n = 0;
+ 		while(stk) {
+@@ -1779,6 +1781,7 @@ runtime·getgcmask(byte *p, Type *t, byte **mask, uintptr *len)
+ 	Stkframe frame;
+ 	uintptr i, n, off;
+ 	byte *base, bits, shift, *b;
++	bool (*cb)(Stkframe*, void*);
+ 
+ 	*mask = nil;
+ 	*len = 0;
+@@ -1823,7 +1826,8 @@ runtime·getgcmask(byte *p, Type *t, byte **mask, uintptr *len)
+ 	// stack
+ 	frame.fn = nil;
+ 	frame.sp = (uintptr)p;
+-	runtime·gentraceback((uintptr)runtime·getcallerpc(&p), (uintptr)runtime·getcallersp(&p), 0, g, 0, nil, 1000, getgcmaskcb, &frame, false);
++	cb = getgcmaskcb;
++	runtime·gentraceback((uintptr)runtime·getcallerpc(&p), (uintptr)runtime·getcallersp(&p), 0, g, 0, nil, 1000, &cb, &frame, false);
+ 	if(frame.fn != nil) {
+ 		Func *f;
+ 		StackMap *stackmap;
+diff --git a/src/pkg/runtime/mprof.go b/src/pkg/runtime/mprof.go
+index 1734fd8470..b421c4f98f 100644
+--- a/src/pkg/runtime/mprof.go
++++ b/src/pkg/runtime/mprof.go
+@@ -234,7 +234,7 @@ func mProf_GC() {
+ // Called by malloc to record a profiled block.
+ func mProf_Malloc(p unsafe.Pointer, size uintptr) {
+ 	var stk [maxStack]uintptr
+-	nstk := callers(1, &stk[0], int32(len(stk)))
++	nstk := callers(1, &stk[0], len(stk))
+ 	lock(&proflock)
+ 	b := stkbucket(memProfile, size, stk[:nstk], true)
+ 	mp := b.mp()
+@@ -304,9 +304,9 @@ func blockevent(cycles int64, skip int) {
+ 	var nstk int
+ 	var stk [maxStack]uintptr
+ 	if gp.m.curg == nil || gp.m.curg == gp {
+-		nstk = int(callers(int32(skip), &stk[0], int32(len(stk))))
++		nstk = callers(skip, &stk[0], len(stk))
+ 	} else {
+-		nstk = int(gcallers(gp.m.curg, int32(skip), &stk[0], int32(len(stk))))
++		nstk = gcallers(gp.m.curg, skip, &stk[0], len(stk))
+ 	}
+ 	lock(&proflock)
+ 	b := stkbucket(blockProfile, 0, stk[:nstk], true)
+@@ -557,8 +557,8 @@ func GoroutineProfile(p []StackRecord) (n int, ok bool) {
+ }
+ 
+ func saveg(pc, sp uintptr, gp *g, r *StackRecord) {
+-	n := gentraceback(pc, sp, 0, gp, 0, &r.Stack0[0], int32(len(r.Stack0)), nil, nil, false)
+-	if int(n) < len(r.Stack0) {
++	n := gentraceback(pc, sp, 0, gp, 0, &r.Stack0[0], len(r.Stack0), nil, nil, false)
++	if n < len(r.Stack0) {
+ 		r.Stack0[n] = 0
+ 	}
+ }
+diff --git a/src/pkg/runtime/os_windows_386.go b/src/pkg/runtime/os_windows_386.go
+new file mode 100644
+index 0000000000..86a1906c0c
+--- /dev/null
++++ b/src/pkg/runtime/os_windows_386.go
+@@ -0,0 +1,11 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++// contextPC returns the EIP (program counter) register from the context.
++func contextPC(r *context) uintptr { return uintptr(r.eip) }
++
++// contextSP returns the ESP (stack pointer) register from the context.
++func contextSP(r *context) uintptr { return uintptr(r.esp) }
+diff --git a/src/pkg/runtime/os_windows_amd64.go b/src/pkg/runtime/os_windows_amd64.go
+new file mode 100644
+index 0000000000..3f4d4d07cb
+--- /dev/null
++++ b/src/pkg/runtime/os_windows_amd64.go
+@@ -0,0 +1,11 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++// contextPC returns the RIP (program counter) register from the context.
++func contextPC(r *context) uintptr { return uintptr(r.rip) }
++
++// contextSP returns the RSP (stack pointer) register from the context.
++func contextSP(r *context) uintptr { return uintptr(r.rsp) }
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 25303512b2..f1b3ee83f3 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -666,7 +666,7 @@ struct Stkframe
+ 	uintptr	arglen;	// number of bytes at argp
+ };
+ 
+-int32	runtime·gentraceback(uintptr, uintptr, uintptr, G*, int32, uintptr*, int32, bool(*)(Stkframe*, void*), void*, bool);
++intgo	runtime·gentraceback(uintptr, uintptr, uintptr, G*, intgo, uintptr*, intgo, bool(**)(Stkframe*, void*), void*, bool);
+ void	runtime·traceback(uintptr pc, uintptr sp, uintptr lr, G* gp);
+ void	runtime·tracebackothers(G*);
+ bool	runtime·haszeroargs(uintptr pc);
+@@ -854,8 +854,8 @@ void	runtime·exitsyscall(void);
+ void	runtime·entersyscallblock_m(void);
+ G*	runtime·newproc1(FuncVal*, byte*, int32, int32, void*);
+ bool	runtime·sigsend(int32 sig);
+-int32	runtime·callers(int32, uintptr*, int32);
+-int32	runtime·gcallers(G*, int32, uintptr*, int32);
++intgo	runtime·callers(intgo, uintptr*, intgo);
++intgo	runtime·gcallers(G*, intgo, uintptr*, intgo);
+ int64	runtime·nanotime(void);	// monotonic time
+ int64	runtime·unixnanotime(void); // real time, can skip
+ void	runtime·dopanic(int32);
+@@ -868,7 +868,7 @@ void	runtime·setcpuprofilerate(int32);
+ void	runtime·usleep(uint32);
+ int64	runtime·cputicks(void);
+ int64	runtime·tickspersecond(void);
+-void	runtime·blockevent(int64, int32);
++void	runtime·blockevent(int64, intgo);
+ G*	runtime·netpoll(bool);
+ void	runtime·netpollinit(void);
+ int32	runtime·netpollopen(uintptr, PollDesc*);
+diff --git a/src/pkg/runtime/stack.c b/src/pkg/runtime/stack.c
+index e589d8d443..1f51e667f2 100644
+--- a/src/pkg/runtime/stack.c
++++ b/src/pkg/runtime/stack.c
+@@ -477,6 +477,7 @@ copyabletopsegment(G *gp)
+ 	Func *f;
+ 	FuncVal *fn;
+ 	StackMap *stackmap;
++	bool (*cb)(Stkframe*, void*);
+ 
+ 	if(gp->stackbase == 0)
+ 		runtime·throw("stackbase == 0");
+@@ -486,7 +487,8 @@ copyabletopsegment(G *gp)
+ 
+ 	// Check that each frame is copyable.  As a side effect,
+ 	// count the frames.
+-	runtime·gentraceback(~(uintptr)0, ~(uintptr)0, 0, gp, 0, nil, 0x7fffffff, checkframecopy, &cinfo, false);
++	cb = checkframecopy;
++	runtime·gentraceback(~(uintptr)0, ~(uintptr)0, 0, gp, 0, nil, 0x7fffffff, &cb, &cinfo, false);
+ 	if(StackDebug >= 1 && cinfo.frames != -1)
+ 		runtime·printf("copystack: %d copyable frames\n", cinfo.frames);
+ 
+@@ -680,8 +682,10 @@ adjustframe(Stkframe *frame, void *arg)
+ 	// adjust inargs and outargs
+ 	if(frame->arglen != 0) {
+ 		stackmap = runtime·funcdata(f, FUNCDATA_ArgsPointerMaps);
+-		if(stackmap == nil)
++		if(stackmap == nil) {
++			runtime·printf("size %d\n", (int32)frame->arglen);
+ 			runtime·throw("no arg info");
++		}
+ 		bv = runtime·stackmapdata(stackmap, pcdata);
+ 		if(StackDebug >= 3)
+ 			runtime·printf("      args\n");
+@@ -773,6 +777,7 @@ copystack(G *gp, uintptr nframes, uintptr newsize)
+ 	AdjustInfo adjinfo;
+ 	Stktop *oldtop, *newtop;
+ 	uint32 oldstatus;
++	bool (*cb)(Stkframe*, void*);
+ 
+ 	if(gp->syscallstack != 0)
+ 		runtime·throw("can't handle stack copy in syscall yet");
+@@ -797,7 +802,8 @@ copystack(G *gp, uintptr nframes, uintptr newsize)
+ 	adjinfo.oldstk = oldstk;
+ 	adjinfo.oldbase = oldbase;
+ 	adjinfo.delta = newbase - oldbase;
+-	runtime·gentraceback(~(uintptr)0, ~(uintptr)0, 0, gp, 0, nil, nframes, adjustframe, &adjinfo, false);
++	cb = adjustframe;
++	runtime·gentraceback(~(uintptr)0, ~(uintptr)0, 0, gp, 0, nil, nframes, &cb, &adjinfo, false);
+ 	
+ 	// adjust other miscellaneous things that have pointers into stacks.
+ 	adjustctxt(gp, &adjinfo);
+diff --git a/src/pkg/runtime/stubs.go b/src/pkg/runtime/stubs.go
+index e057eb0659..3106a1530e 100644
+--- a/src/pkg/runtime/stubs.go
++++ b/src/pkg/runtime/stubs.go
+@@ -12,6 +12,7 @@ import "unsafe"
+ // each function.
+ 
+ const ptrSize = 4 << (^uintptr(0) >> 63) // unsafe.Sizeof(uintptr(0)) but an ideal const
++const regSize = 4 << (^uintreg(0) >> 63) // unsafe.Sizeof(uintreg(0)) but an ideal const
+ 
+ //go:noescape
+ func racereadpc(addr unsafe.Pointer, callpc, pc uintptr)
+@@ -141,7 +142,6 @@ func entersyscallblock()
+ func exitsyscall()
+ 
+ func goroutineheader(gp *g)
+-func traceback(pc, sp, lr uintptr, gp *g)
+ func tracebackothers(gp *g)
+ 
+ func cgocallback(fn, frame unsafe.Pointer, framesize uintptr)
+@@ -246,3 +246,21 @@ func asmcgocall(fn, arg unsafe.Pointer)
+ 
+ //go:noescape
+ func open(name *byte, mode, perm int32) int32
++
++//go:noescape
++func gotraceback(*bool) int32
++
++func funcname(*_func) *byte
++
++func gofuncname(f *_func) string {
++	return gostringnocopy(funcname(f))
++}
++
++const _NoArgs = ^uintptr(0)
++
++var newproc, deferproc, lessstack struct{} // C/assembly functions
++
++func funcspdelta(*_func, uintptr) int32 // symtab.c
++func funcarglen(*_func, uintptr) int32  // symtab.c
++const _ArgsSizeUnknown = -0x80000000    // funcdata.h
++func topofstack(*_func) bool            // proc.c
+diff --git a/src/pkg/runtime/traceback.go b/src/pkg/runtime/traceback.go
+new file mode 100644
+index 0000000000..c6a6c056c1
+--- /dev/null
++++ b/src/pkg/runtime/traceback.go
+@@ -0,0 +1,504 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++import "unsafe"
++
++// The code in this file implements stack trace walking for all architectures.
++// The most important fact about a given architecture is whether it uses a link register.
++// On systems with link registers, the prologue for a non-leaf function stores the
++// incoming value of LR at the bottom of the newly allocated stack frame.
++// On systems without link registers, the architecture pushes a return PC during
++// the call instruction, so the return PC ends up above the stack frame.
++// In this file, the return PC is always called LR, no matter how it was found.
++//
++// To date, the opposite of a link register architecture is an x86 architecture.
++// This code may need to change if some other kind of non-link-register
++// architecture comes along.
++//
++// The other important fact is the size of a pointer: on 32-bit systems the LR
++// takes up only 4 bytes on the stack, while on 64-bit systems it takes up 8 bytes.
++// Typically this is ptrSize.
++//
++// As an exception, amd64p32 has ptrSize == 4 but the CALL instruction still
++// stores an 8-byte return PC onto the stack. To accommodate this, we use regSize
++// as the size of the architecture-pushed return PC.
++//
++// usesLR is defined below. ptrSize and regSize are defined in stubs.go.
++
++const usesLR = GOARCH != "amd64" && GOARCH != "amd64p32" && GOARCH != "386"
++
++// jmpdeferPC is the PC at the beginning of the jmpdefer assembly function.
++// The traceback needs to recognize it on link register architectures.
++var jmpdeferPC uintptr
++
++func init() {
++	f := jmpdefer
++	jmpdeferPC = **(**uintptr)(unsafe.Pointer(&f))
++}
++
++// System-specific hook. See traceback_windows.go
++var systraceback func(*_func, *stkframe, *g, bool, func(*stkframe, unsafe.Pointer) bool, unsafe.Pointer) (changed, aborted bool)
++
++// Generic traceback.  Handles runtime stack prints (pcbuf == nil),
++// the runtime.Callers function (pcbuf != nil), as well as the garbage
++// collector (callback != nil).  A little clunky to merge these, but avoids
++// duplicating the code and all its subtlety.
++func gentraceback(pc0 uintptr, sp0 uintptr, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max int, callback func(*stkframe, unsafe.Pointer) bool, v unsafe.Pointer, printall bool) int {
++	g := getg()
++	gotraceback := gotraceback(nil)
++	if pc0 == ^uintptr(0) && sp0 == ^uintptr(0) { // Signal to fetch saved values from gp.
++		if gp.syscallstack != 0 {
++			pc0 = gp.syscallpc
++			sp0 = gp.syscallsp
++			if usesLR {
++				lr0 = 0
++			}
++		} else {
++			pc0 = gp.sched.pc
++			sp0 = gp.sched.sp
++			if usesLR {
++				lr0 = gp.sched.lr
++			}
++		}
++	}
++
++	nprint := 0
++	var frame stkframe
++	frame.pc = pc0
++	frame.sp = sp0
++	if usesLR {
++		frame.lr = lr0
++	}
++	waspanic := false
++	wasnewproc := false
++	printing := pcbuf == nil && callback == nil
++	panic := gp._panic
++	_defer := gp._defer
++
++	for _defer != nil && uintptr(_defer.argp) == _NoArgs {
++		_defer = _defer.link
++	}
++	for panic != nil && panic._defer == nil {
++		panic = panic.link
++	}
++
++	// If the PC is zero, it's likely a nil function call.
++	// Start in the caller's frame.
++	if frame.pc == 0 {
++		if usesLR {
++			frame.pc = *(*uintptr)(unsafe.Pointer(frame.sp))
++			frame.lr = 0
++		} else {
++			frame.pc = uintptr(*(*uintreg)(unsafe.Pointer(frame.sp)))
++			frame.sp += regSize
++		}
++	}
++
++	f := findfunc(frame.pc)
++	if f == nil {
++		if callback != nil {
++			print("runtime: unknown pc ", hex(frame.pc), "\n")
++			gothrow("unknown pc")
++		}
++		return 0
++	}
++	frame.fn = f
++
++	n := 0
++	stk := (*stktop)(unsafe.Pointer(gp.stackbase))
++	for n < max {
++		// Typically:
++		//	pc is the PC of the running function.
++		//	sp is the stack pointer at that program counter.
++		//	fp is the frame pointer (caller's stack pointer) at that program counter, or nil if unknown.
++		//	stk is the stack containing sp.
++		//	The caller's program counter is lr, unless lr is zero, in which case it is *(uintptr*)sp.
++		if frame.pc == uintptr(unsafe.Pointer(&lessstack)) {
++			// Hit top of stack segment.  Unwind to next segment.
++			frame.pc = stk.gobuf.pc
++			frame.sp = stk.gobuf.sp
++			frame.lr = 0
++			frame.fp = 0
++			if printing && showframe(nil, gp) {
++				print("----- stack segment boundary -----\n")
++			}
++			stk = (*stktop)(unsafe.Pointer(stk.stackbase))
++			f = findfunc(frame.pc)
++			if f == nil {
++				print("runtime: unknown pc ", hex(frame.pc), " after stack split\n")
++				if callback != nil {
++					gothrow("unknown pc")
++				}
++			}
++			frame.fn = f
++			continue
++		}
++		f = frame.fn
++
++		// Hook for handling Windows exception handlers. See traceback_windows.go.
++		if systraceback != nil {
++			changed, aborted := systraceback(f, (*stkframe)(noescape(unsafe.Pointer(&frame))), gp, printing, callback, v)
++			if aborted {
++				return n
++			}
++			if changed {
++				continue
++			}
++		}
++
++		// Found an actual function.
++		// Derive frame pointer and link register.
++		if frame.fp == 0 {
++			frame.fp = frame.sp + uintptr(funcspdelta(f, frame.pc))
++			if !usesLR {
++				// On x86, call instruction pushes return PC before entering new function.
++				frame.fp += regSize
++			}
++		}
++		var flr *_func
++		if topofstack(f) {
++			frame.lr = 0
++			flr = nil
++		} else if usesLR && f.entry == jmpdeferPC {
++			// jmpdefer modifies SP/LR/PC non-atomically.
++			// If a profiling interrupt arrives during jmpdefer,
++			// the stack unwind may see a mismatched register set
++			// and get confused. Stop if we see PC within jmpdefer
++			// to avoid that confusion.
++			// See golang.org/issue/8153.
++			if callback != nil {
++				gothrow("traceback_arm: found jmpdefer when tracing with callback")
++			}
++			frame.lr = 0
++		} else {
++			if usesLR {
++				if n == 0 && frame.sp < frame.fp || frame.lr == 0 {
++					frame.lr = *(*uintptr)(unsafe.Pointer(frame.sp))
++				}
++			} else {
++				if frame.lr == 0 {
++					frame.lr = uintptr(*(*uintreg)(unsafe.Pointer(frame.fp - regSize)))
++				}
++			}
++			flr = findfunc(frame.lr)
++			if flr == nil {
++				// This happens if you get a profiling interrupt at just the wrong time.
++				// In that context it is okay to stop early.
++				// But if callback is set, we're doing a garbage collection and must
++				// get everything, so crash loudly.
++				if callback != nil {
++					print("runtime: unexpected return pc for ", gofuncname(f), " called from ", hex(frame.lr), "\n")
++					gothrow("unknown caller pc")
++				}
++			}
++		}
++
++		frame.varp = frame.fp
++		if !usesLR {
++			// On x86, call instruction pushes return PC before entering new function.
++			frame.varp -= regSize
++		}
++
++		// Derive size of arguments.
++		// Most functions have a fixed-size argument block,
++		// so we can use metadata about the function f.
++		// Not all, though: there are some variadic functions
++		// in package runtime and reflect, and for those we use call-specific
++		// metadata recorded by f's caller.
++		if callback != nil || printing {
++			frame.argp = frame.fp
++			if usesLR {
++				frame.argp += ptrSize
++			}
++			if f.args != _ArgsSizeUnknown {
++				frame.arglen = uintptr(f.args)
++			} else if flr == nil {
++				frame.arglen = 0
++			} else if frame.lr == uintptr(unsafe.Pointer(&lessstack)) {
++				frame.arglen = uintptr(stk.argsize)
++			} else {
++				i := funcarglen(flr, frame.lr)
++				if i >= 0 {
++					frame.arglen = uintptr(i)
++				} else {
++					var tmp string
++					if flr != nil {
++						tmp = gofuncname(flr)
++					} else {
++						tmp = "?"
++					}
++					print("runtime: unknown argument frame size for ", gofuncname(f), " called from ", hex(frame.lr), " [", tmp, "]\n")
++					if callback != nil {
++						gothrow("invalid stack")
++					}
++					frame.arglen = 0
++				}
++			}
++		}
++
++		// Determine function SP where deferproc would find its arguments.
++		var sparg uintptr
++		if usesLR {
++			// On link register architectures, that's the standard bottom-of-stack plus 1 word
++			// for the saved LR. If the previous frame was a direct call to newproc/deferproc,
++			// however, the SP is three words lower than normal.
++			// If the function has no frame at all - perhaps it just started, or perhaps
++			// it is a leaf with no local variables - then we cannot possibly find its
++			// SP in a defer, and we might confuse its SP for its caller's SP, so
++			// leave sparg=0 in that case.
++			if frame.fp != frame.sp {
++				sparg = frame.sp + regSize
++				if wasnewproc {
++					sparg += 3 * regSize
++				}
++			}
++		} else {
++			// On x86 that's the standard bottom-of-stack, so SP exactly.
++			// If the previous frame was a direct call to newproc/deferproc, however,
++			// the SP is two words lower than normal.
++			sparg = frame.sp
++			if wasnewproc {
++				sparg += 2 * ptrSize
++			}
++		}
++
++		// Determine frame's 'continuation PC', where it can continue.
++		// Normally this is the return address on the stack, but if sigpanic
++		// is immediately below this function on the stack, then the frame
++		// stopped executing due to a trap, and frame.pc is probably not
++		// a safe point for looking up liveness information. In this panicking case,
++		// the function either doesn't return at all (if it has no defers or if the
++		// defers do not recover) or it returns from one of the calls to
++		// deferproc a second time (if the corresponding deferred func recovers).
++		// It suffices to assume that the most recent deferproc is the one that
++		// returns; everything live at earlier deferprocs is still live at that one.
++		frame.continpc = frame.pc
++		if waspanic {
++			if panic != nil && panic._defer.argp == sparg {
++				frame.continpc = panic._defer.pc
++			} else if _defer != nil && _defer.argp == sparg {
++				frame.continpc = _defer.pc
++			} else {
++				frame.continpc = 0
++			}
++		}
++
++		// Unwind our local panic & defer stacks past this frame.
++		for panic != nil && (panic._defer == nil || panic._defer.argp == sparg || panic._defer.argp == _NoArgs) {
++			panic = panic.link
++		}
++		for _defer != nil && (_defer.argp == sparg || _defer.argp == _NoArgs) {
++			_defer = _defer.link
++		}
++
++		if skip > 0 {
++			skip--
++			goto skipped
++		}
++
++		if pcbuf != nil {
++			(*[1 << 20]uintptr)(unsafe.Pointer(pcbuf))[n] = frame.pc
++		}
++		if callback != nil {
++			if !callback((*stkframe)(noescape(unsafe.Pointer(&frame))), v) {
++				return n
++			}
++		}
++		if printing {
++			if printall || showframe(f, gp) {
++				// Print during crash.
++				//	main(0x1, 0x2, 0x3)
++				//		/home/rsc/go/src/runtime/x.go:23 +0xf
++				//
++				tracepc := frame.pc // back up to CALL instruction for funcline.
++				if n > 0 && frame.pc > f.entry && !waspanic {
++					tracepc--
++				}
++				print(gofuncname(f), "(")
++				argp := (*[100]uintptr)(unsafe.Pointer(frame.argp))
++				for i := uintptr(0); i < frame.arglen/ptrSize; i++ {
++					if i >= 10 {
++						print(", ...")
++						break
++					}
++					if i != 0 {
++						print(", ")
++					}
++					print(hex(argp[i]))
++				}
++				print(")\n")
++				var file string
++				line := funcline(f, tracepc, &file)
++				print("\t", file, ":", line)
++				if frame.pc > f.entry {
++					print(" +", hex(frame.pc-f.entry))
++				}
++				if g.m.throwing > 0 && gp == g.m.curg || gotraceback >= 2 {
++					print(" fp=", hex(frame.fp), " sp=", hex(frame.sp))
++				}
++				print("\n")
++				nprint++
++			}
++		}
++		n++
++
++	skipped:
++		waspanic = f.entry == uintptr(unsafe.Pointer(&sigpanic))
++		wasnewproc = f.entry == uintptr(unsafe.Pointer(&newproc)) || f.entry == uintptr(unsafe.Pointer(&deferproc))
++
++		// Do not unwind past the bottom of the stack.
++		if flr == nil {
++			break
++		}
++
++		// Unwind to next frame.
++		frame.fn = flr
++		frame.pc = frame.lr
++		frame.lr = 0
++		frame.sp = frame.fp
++		frame.fp = 0
++
++		// On link register architectures, sighandler saves the LR on stack
++		// before faking a call to sigpanic.
++		if usesLR && waspanic {
++			x := *(*uintptr)(unsafe.Pointer(frame.sp))
++			frame.sp += ptrSize
++			f = findfunc(frame.pc)
++			frame.fn = f
++			if f == nil {
++				frame.pc = x
++			} else if f.frame == 0 {
++				frame.lr = x
++			}
++		}
++	}
++
++	if pcbuf == nil && callback == nil {
++		n = nprint
++	}
++
++	// If callback != nil, we're being called to gather stack information during
++	// garbage collection or stack growth. In that context, require that we used
++	// up the entire defer stack. If not, then there is a bug somewhere and the
++	// garbage collection or stack growth may not have seen the correct picture
++	// of the stack. Crash now instead of silently executing the garbage collection
++	// or stack copy incorrectly and setting up for a mysterious crash later.
++	//
++	// Note that panic != nil is okay here: there can be leftover panics,
++	// because the defers on the panic stack do not nest in frame order as
++	// they do on the defer stack. If you have:
++	//
++	//	frame 1 defers d1
++	//	frame 2 defers d2
++	//	frame 3 defers d3
++	//	frame 4 panics
++	//	frame 4's panic starts running defers
++	//	frame 5, running d3, defers d4
++	//	frame 5 panics
++	//	frame 5's panic starts running defers
++	//	frame 6, running d4, garbage collects
++	//	frame 6, running d2, garbage collects
++	//
++	// During the execution of d4, the panic stack is d4 -> d3, which
++	// is nested properly, and we'll treat frame 3 as resumable, because we
++	// can find d3. (And in fact frame 3 is resumable. If d4 recovers
++	// and frame 5 continues running, d3, d3 can recover and we'll
++	// resume execution in (returning from) frame 3.)
++	//
++	// During the execution of d2, however, the panic stack is d2 -> d3,
++	// which is inverted. The scan will match d2 to frame 2 but having
++	// d2 on the stack until then means it will not match d3 to frame 3.
++	// This is okay: if we're running d2, then all the defers after d2 have
++	// completed and their corresponding frames are dead. Not finding d3
++	// for frame 3 means we'll set frame 3's continpc == 0, which is correct
++	// (frame 3 is dead). At the end of the walk the panic stack can thus
++	// contain defers (d3 in this case) for dead frames. The inversion here
++	// always indicates a dead frame, and the effect of the inversion on the
++	// scan is to hide those dead frames, so the scan is still okay:
++	// what's left on the panic stack are exactly (and only) the dead frames.
++	//
++	// We require callback != nil here because only when callback != nil
++	// do we know that gentraceback is being called in a "must be correct"
++	// context as opposed to a "best effort" context. The tracebacks with
++	// callbacks only happen when everything is stopped nicely.
++	// At other times, such as when gathering a stack for a profiling signal
++	// or when printing a traceback during a crash, everything may not be
++	// stopped nicely, and the stack walk may not be able to complete.
++	// It's okay in those situations not to use up the entire defer stack:
++	// incomplete information then is still better than nothing.
++	if callback != nil && n < max && _defer != nil {
++		if _defer != nil {
++			print("runtime: g", gp.goid, ": leftover defer argp=", hex(_defer.argp), " pc=", hex(_defer.pc), "\n")
++		}
++		if panic != nil {
++			print("runtime: g", gp.goid, ": leftover panic argp=", hex(panic._defer.argp), " pc=", hex(panic._defer.pc), "\n")
++		}
++		for _defer = gp._defer; _defer != nil; _defer = _defer.link {
++			print("\tdefer ", _defer, " argp=", hex(_defer.argp), " pc=", hex(_defer.pc), "\n")
++		}
++		for panic = gp._panic; panic != nil; panic = panic.link {
++			print("\tpanic ", panic, " defer ", panic._defer)
++			if panic._defer != nil {
++				print(" argp=", hex(panic._defer.argp), " pc=", hex(panic._defer.pc))
++			}
++			print("\n")
++		}
++		gothrow("traceback has leftover defers or panics")
++	}
++
++	return n
++}
++
++func showframe(*_func, *g) bool
++
++func printcreatedby(gp *g) {
++	// Show what created goroutine, except main goroutine (goid 1).
++	pc := gp.gopc
++	f := findfunc(pc)
++	if f != nil && showframe(f, gp) && gp.goid != 1 {
++		print("created by ", gofuncname(f), "\n")
++		tracepc := pc // back up to CALL instruction for funcline.
++		if pc > f.entry {
++			tracepc -= _PCQuantum
++		}
++		var file string
++		line := funcline(f, tracepc, &file)
++		print("\t", file, ":", line)
++		if pc > f.entry {
++			print(" +", hex(pc-f.entry))
++		}
++		print("\n")
++	}
++}
++
++func traceback(pc uintptr, sp uintptr, lr uintptr, gp *g) {
++	var n int
++	if readgstatus(gp)&^_Gscan == _Gsyscall {
++		// Override signal registers if blocked in system call.
++		pc = gp.syscallpc
++		sp = gp.syscallsp
++	}
++	// Print traceback. By default, omits runtime frames.
++	// If that means we print nothing at all, repeat forcing all frames printed.
++	n = gentraceback(pc, sp, 0, gp, 0, nil, _TracebackMaxFrames, nil, nil, false)
++	if n == 0 {
++		n = gentraceback(pc, sp, 0, gp, 0, nil, _TracebackMaxFrames, nil, nil, true)
++	}
++	if n == _TracebackMaxFrames {
++		print("...additional frames elided...\n")
++	}
++	printcreatedby(gp)
++}
++
++func callers(skip int, pcbuf *uintptr, m int) int {
++	sp := getcallersp(unsafe.Pointer(&skip))
++	pc := uintptr(getcallerpc(unsafe.Pointer(&skip)))
++	return gentraceback(pc, sp, 0, getg(), skip, pcbuf, m, nil, nil, false)
++}
++
++func gcallers(gp *g, skip int, pcbuf *uintptr, m int) int {
++	return gentraceback(^uintptr(0), ^uintptr(0), 0, gp, skip, pcbuf, m, nil, nil, false)
++}
+diff --git a/src/pkg/runtime/traceback_arm.c b/src/pkg/runtime/traceback_arm.c
+deleted file mode 100644
+index 18ca89150f..0000000000
+--- a/src/pkg/runtime/traceback_arm.c
++++ /dev/null
+@@ -1,363 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "runtime.h"
+-#include "arch_GOARCH.h"
+-#include "malloc.h"
+-#include "funcdata.h"
+-
+-void runtime·sigpanic(void);
+-void runtime·newproc(void);
+-void runtime·deferproc(void);
+-
+-int32
+-runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip, uintptr *pcbuf, int32 max, bool (*callback)(Stkframe*, void*), void *v, bool printall)
+-{
+-	int32 i, n, nprint, line, gotraceback;
+-	uintptr x, tracepc, sparg;
+-	bool waspanic, wasnewproc, printing;
+-	Func *f, *flr;
+-	Stkframe frame;
+-	Stktop *stk;
+-	String file;
+-	Panic *panic;
+-	Defer *defer;
+-
+-	gotraceback = runtime·gotraceback(nil);
+-
+-	if(pc0 == ~(uintptr)0 && sp0 == ~(uintptr)0) { // Signal to fetch saved values from gp.
+-		if(gp->syscallstack != (uintptr)nil) {
+-			pc0 = gp->syscallpc;
+-			sp0 = gp->syscallsp;
+-			lr0 = 0;
+-		} else {
+-			pc0 = gp->sched.pc;
+-			sp0 = gp->sched.sp;
+-			lr0 = gp->sched.lr;
+-		}
+-	}
+-
+-	nprint = 0;
+-	runtime·memclr((byte*)&frame, sizeof frame);
+-	frame.pc = pc0;
+-	frame.lr = lr0;
+-	frame.sp = sp0;
+-	waspanic = false;
+-	wasnewproc = false;
+-	printing = pcbuf==nil && callback==nil;
+-
+-	panic = gp->panic;
+-	defer = gp->defer;
+-
+-	while(defer != nil && defer->argp == NoArgs)
+-		defer = defer->link;	
+-	while(panic != nil && panic->defer == nil)
+-		panic = panic->link;
+-
+-	// If the PC is zero, it's likely a nil function call.
+-	// Start in the caller's frame.
+-	if(frame.pc == 0) {
+-		frame.pc = frame.lr;
+-		frame.lr = 0;
+-	}
+-	
+-	f = runtime·findfunc(frame.pc);
+-	if(f == nil) {
+-		if(callback != nil) {
+-			runtime·printf("runtime: unknown pc %p\n", frame.pc);
+-			runtime·throw("unknown pc");
+-		}
+-		return 0;
+-	}
+-	frame.fn = f;
+-
+-	n = 0;
+-	stk = (Stktop*)gp->stackbase;
+-	while(n < max) {
+-		// Typically:
+-		//	pc is the PC of the running function.
+-		//	sp is the stack pointer at that program counter.
+-		//	fp is the frame pointer (caller's stack pointer) at that program counter, or nil if unknown.
+-		//	stk is the stack containing sp.
+-		//	The caller's program counter is lr, unless lr is zero, in which case it is *(uintptr*)sp.
+-		
+-		if(frame.pc == (uintptr)runtime·lessstack) {
+-			// Hit top of stack segment.  Unwind to next segment.
+-			frame.pc = stk->gobuf.pc;
+-			frame.sp = stk->gobuf.sp;
+-			frame.lr = 0;
+-			frame.fp = 0;
+-			if(printing && runtime·showframe(nil, gp))
+-				runtime·printf("----- stack segment boundary -----\n");
+-			stk = (Stktop*)stk->stackbase;
+-			
+-			f = runtime·findfunc(frame.pc);
+-			if(f == nil) {
+-				runtime·printf("runtime: unknown pc %p after stack split\n", frame.pc);
+-				if(callback != nil)
+-					runtime·throw("unknown pc");
+-			}
+-			frame.fn = f;
+-			continue;
+-		}
+-		f = frame.fn;
+-		
+-		// Found an actual function.
+-		// Derive frame pointer and link register.
+-		if(frame.fp == 0)
+-			frame.fp = frame.sp + runtime·funcspdelta(f, frame.pc);
+-		if(runtime·topofstack(f)) {
+-			frame.lr = 0;
+-			flr = nil;
+-		} else if(f->entry == (uintptr)runtime·jmpdefer) {
+-			// jmpdefer modifies SP/LR/PC non-atomically.
+-			// If a profiling interrupt arrives during jmpdefer,
+-			// the stack unwind may see a mismatched register set
+-			// and get confused. Stop if we see PC within jmpdefer
+-			// to avoid that confusion.
+-			// See golang.org/issue/8153.
+-			// This check can be deleted if jmpdefer is changed
+-			// to restore all three atomically using pop.
+-			if(callback != nil)
+-				runtime·throw("traceback_arm: found jmpdefer when tracing with callback");
+-			frame.lr = 0;
+-			flr = nil;
+-		} else {
+-			if((n == 0 && frame.sp < frame.fp) || frame.lr == 0)
+-				frame.lr = *(uintptr*)frame.sp;
+-			flr = runtime·findfunc(frame.lr);
+-			if(flr == nil) {
+-				// This happens if you get a profiling interrupt at just the wrong time.
+-				// In that context it is okay to stop early.
+-				// But if callback is set, we're doing a garbage collection and must
+-				// get everything, so crash loudly.
+-				if(callback != nil) {
+-					runtime·printf("runtime: unexpected return pc for %s called from %p\n", runtime·funcname(f), frame.lr);
+-					runtime·throw("unknown caller pc");
+-				}
+-			}
+-		}
+-
+-		frame.varp = frame.fp;
+-
+-		// Derive size of arguments.
+-		// Most functions have a fixed-size argument block,
+-		// so we can use metadata about the function f.
+-		// Not all, though: there are some variadic functions
+-		// in package runtime and reflect, and for those we use call-specific
+-		// metadata recorded by f's caller.
+-		if(callback != nil || printing) {
+-			frame.argp = frame.fp + sizeof(uintptr);
+-			if(f->args != ArgsSizeUnknown)
+-				frame.arglen = f->args;
+-			else if(flr == nil)
+-				frame.arglen = 0;
+-			else if(frame.lr == (uintptr)runtime·lessstack)
+-				frame.arglen = stk->argsize;
+-			else if((i = runtime·funcarglen(flr, frame.lr)) >= 0)
+-				frame.arglen = i;
+-			else {
+-				runtime·printf("runtime: unknown argument frame size for %s called from %p [%s]\n",
+-					runtime·funcname(f), frame.lr, flr ? runtime·funcname(flr) : "?");
+-				if(callback != nil)
+-					runtime·throw("invalid stack");
+-				frame.arglen = 0;
+-			}
+-		}
+-
+-		// Determine function SP where deferproc would find its arguments.
+-		// On ARM that's just the standard bottom-of-stack plus 1 word for
+-		// the saved LR. If the previous frame was a direct call to newproc/deferproc,
+-		// however, the SP is three words lower than normal.
+-		// If the function has no frame at all - perhaps it just started, or perhaps
+-		// it is a leaf with no local variables - then we cannot possibly find its
+-		// SP in a defer, and we might confuse its SP for its caller's SP, so
+-		// set sparg=0 in that case.
+-		sparg = 0;
+-		if(frame.fp != frame.sp) {
+-			sparg = frame.sp + sizeof(uintreg);
+-			if(wasnewproc)
+-				sparg += 3*sizeof(uintreg);
+-		}
+-
+-		// Determine frame's 'continuation PC', where it can continue.
+-		// Normally this is the return address on the stack, but if sigpanic
+-		// is immediately below this function on the stack, then the frame
+-		// stopped executing due to a trap, and frame.pc is probably not
+-		// a safe point for looking up liveness information. In this panicking case,
+-		// the function either doesn't return at all (if it has no defers or if the
+-		// defers do not recover) or it returns from one of the calls to 
+-		// deferproc a second time (if the corresponding deferred func recovers).
+-		// It suffices to assume that the most recent deferproc is the one that
+-		// returns; everything live at earlier deferprocs is still live at that one.
+-		frame.continpc = frame.pc;
+-		if(waspanic) {
+-			if(panic != nil && panic->defer->argp == sparg)
+-				frame.continpc = (uintptr)panic->defer->pc;
+-			else if(defer != nil && defer->argp == sparg)
+-				frame.continpc = (uintptr)defer->pc;
+-			else
+-				frame.continpc = 0;
+-		}
+-
+-		// Unwind our local panic & defer stacks past this frame.
+-		while(panic != nil && (panic->defer == nil || panic->defer->argp == sparg || panic->defer->argp == NoArgs))
+-			panic = panic->link;
+-		while(defer != nil && (defer->argp == sparg || defer->argp == NoArgs))
+-			defer = defer->link;	
+-
+-		if(skip > 0) {
+-			skip--;
+-			goto skipped;
+-		}
+-
+-		if(pcbuf != nil)
+-			pcbuf[n] = frame.pc;
+-		if(callback != nil) {
+-			if(!callback(&frame, v))
+-				return n;
+-		}
+-		if(printing) {
+-			if(printall || runtime·showframe(f, gp)) {
+-				// Print during crash.
+-				//	main(0x1, 0x2, 0x3)
+-				//		/home/rsc/go/src/runtime/x.go:23 +0xf
+-				tracepc = frame.pc;	// back up to CALL instruction for funcline.
+-				if(n > 0 && frame.pc > f->entry && !waspanic)
+-					tracepc -= sizeof(uintptr);
+-				runtime·printf("%s(", runtime·funcname(f));
+-				for(i = 0; i < frame.arglen/sizeof(uintptr); i++) {
+-					if(i >= 10) {
+-						runtime·prints(", ...");
+-						break;
+-					}
+-					if(i != 0)
+-						runtime·prints(", ");
+-					runtime·printhex(((uintptr*)frame.argp)[i]);
+-				}
+-				runtime·prints(")\n");
+-				line = runtime·funcline(f, tracepc, &file);
+-				runtime·printf("\t%S:%d", file, line);
+-				if(frame.pc > f->entry)
+-					runtime·printf(" +%p", (uintptr)(frame.pc - f->entry));
+-				if(g->m->throwing > 0 && gp == g->m->curg || gotraceback >= 2)
+-					runtime·printf(" fp=%p sp=%p", frame.fp, frame.sp);
+-				runtime·printf("\n");
+-				nprint++;
+-			}
+-		}
+-		n++;
+-		
+-	skipped:
+-		waspanic = f->entry == (uintptr)runtime·sigpanic;
+-		wasnewproc = f->entry == (uintptr)runtime·newproc || f->entry == (uintptr)runtime·deferproc;
+-
+-		// Do not unwind past the bottom of the stack.
+-		if(flr == nil)
+-			break;
+-
+-		// Unwind to next frame.
+-		frame.pc = frame.lr;
+-		frame.fn = flr;
+-		frame.lr = 0;
+-		frame.sp = frame.fp;
+-		frame.fp = 0;
+-	
+-		// sighandler saves the lr on stack before faking a call to sigpanic
+-		if(waspanic) {
+-			x = *(uintptr*)frame.sp;
+-			frame.sp += 4;
+-			frame.fn = f = runtime·findfunc(frame.pc);
+-			if(f == nil)
+-				frame.pc = x;
+-			else if(f->frame == 0)
+-				frame.lr = x;
+-		}
+-	}
+-	
+-	if(pcbuf == nil && callback == nil)
+-		n = nprint;
+-
+-	// For rationale, see long comment in traceback_x86.c.
+-	if(callback != nil && n < max && defer != nil) {
+-		if(defer != nil)
+-			runtime·printf("runtime: g%D: leftover defer argp=%p pc=%p\n", gp->goid, defer->argp, defer->pc);
+-		if(panic != nil)
+-			runtime·printf("runtime: g%D: leftover panic argp=%p pc=%p\n", gp->goid, panic->defer->argp, panic->defer->pc);
+-		for(defer = gp->defer; defer != nil; defer = defer->link)
+-			runtime·printf("\tdefer %p argp=%p pc=%p\n", defer, defer->argp, defer->pc);
+-		for(panic = gp->panic; panic != nil; panic = panic->link) {
+-			runtime·printf("\tpanic %p defer %p", panic, panic->defer);
+-			if(panic->defer != nil)
+-				runtime·printf(" argp=%p pc=%p", panic->defer->argp, panic->defer->pc);
+-			runtime·printf("\n");
+-		}
+-		runtime·throw("traceback has leftover defers or panics");
+-	}
+-
+-	return n;		
+-}
+-
+-void
+-runtime·printcreatedby(G *gp)
+-{
+-	int32 line;
+-	uintptr pc, tracepc;
+-	Func *f;
+-	String file;
+-
+-	// Show what created goroutine, except main goroutine (goid 1).
+-	if((pc = gp->gopc) != 0 && (f = runtime·findfunc(pc)) != nil &&
+-		runtime·showframe(f, gp) && gp->goid != 1) {
+-		runtime·printf("created by %s\n", runtime·funcname(f));
+-		tracepc = pc;	// back up to CALL instruction for funcline.
+-		if(pc > f->entry)
+-			tracepc -= PCQuantum;
+-		line = runtime·funcline(f, tracepc, &file);
+-		runtime·printf("\t%S:%d", file, line);
+-		if(pc > f->entry)
+-			runtime·printf(" +%p", (uintptr)(pc - f->entry));
+-		runtime·printf("\n");
+-	}
+-}
+-
+-void
+-runtime·traceback(uintptr pc, uintptr sp, uintptr lr, G *gp)
+-{
+-	int32 n;
+-
+-	if((runtime·readgstatus(gp)&~Gscan) == Gsyscall){
+-		// Override signal registers if blocked in system call.
+-		pc = gp->syscallpc;
+-		sp = gp->syscallsp;
+-		lr = 0;
+-	}
+-
+-	// Print traceback. By default, omits runtime frames.
+-	// If that means we print nothing at all, repeat forcing all frames printed.
+-	n = runtime·gentraceback(pc, sp, lr, gp, 0, nil, TracebackMaxFrames, nil, nil, false);
+-	if(n == 0)
+-		runtime·gentraceback(pc, sp, lr, gp, 0, nil, TracebackMaxFrames, nil, nil, true);
+-	if(n == TracebackMaxFrames)
+-		runtime·printf("...additional frames elided...\n");
+-	runtime·printcreatedby(gp);
+-}
+-
+-// func caller(n int) (pc uintptr, file string, line int, ok bool)
+-int32
+-runtime·callers(int32 skip, uintptr *pcbuf, int32 m)
+-{
+-	uintptr pc, sp;
+-	
+-	sp = runtime·getcallersp(&skip);
+-	pc = (uintptr)runtime·getcallerpc(&skip);
+-
+-	return runtime·gentraceback(pc, sp, 0, g, skip, pcbuf, m, nil, nil, false);
+-}
+-
+-int32
+-runtime·gcallers(G *gp, int32 skip, uintptr *pcbuf, int32 m)
+-{
+-	return runtime·gentraceback(~(uintptr)0, ~(uintptr)0, 0, gp, skip, pcbuf, m, nil, nil, false);
+-}
+diff --git a/src/pkg/runtime/traceback_windows.go b/src/pkg/runtime/traceback_windows.go
+new file mode 100644
+index 0000000000..206f93c46e
+--- /dev/null
++++ b/src/pkg/runtime/traceback_windows.go
+@@ -0,0 +1,64 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++import "unsafe"
++
++// sigtrampPC is the PC at the beginning of the jmpdefer assembly function.
++// The traceback needs to recognize it on link register architectures.
++var sigtrampPC uintptr
++
++var sigtramp struct{} // assembly function
++
++func init() {
++	f := sigtramp
++	sigtrampPC = **(**uintptr)(unsafe.Pointer(&f))
++	systraceback = traceback_windows
++}
++
++func traceback_windows(f *_func, frame *stkframe, gp *g, printing bool, callback func(*stkframe, unsafe.Pointer) bool, v unsafe.Pointer) (changed, aborted bool) {
++	// The main traceback thinks it has found a function. Check this.
++
++	// Windows exception handlers run on the actual g stack (there is room
++	// dedicated to this below the usual "bottom of stack"), not on a separate
++	// stack. As a result, we have to be able to unwind past the exception
++	// handler when called to unwind during stack growth inside the handler.
++	// Recognize the frame at the call to sighandler in sigtramp and unwind
++	// using the context argument passed to the call. This is awful.
++	if f != nil && f.entry == sigtrampPC && frame.pc > f.entry {
++		var r *context
++		// Invoke callback so that stack copier sees an uncopyable frame.
++		if callback != nil {
++			frame.continpc = frame.pc
++			frame.argp = 0
++			frame.arglen = 0
++			if !callback(frame, v) {
++				aborted = true
++				return
++			}
++		}
++		r = (*context)(unsafe.Pointer(frame.sp + ptrSize))
++		frame.pc = contextPC(r)
++		frame.sp = contextSP(r)
++		frame.lr = 0
++		frame.fp = 0
++		frame.fn = nil
++		if printing && showframe(nil, gp) {
++			print("----- exception handler -----\n")
++		}
++		f = findfunc(frame.pc)
++		if f == nil {
++			print("runtime: unknown pc ", hex(frame.pc), " after exception handler\n")
++			if callback != nil {
++				gothrow("unknown pc")
++			}
++		}
++		frame.fn = f
++		changed = true
++		return
++	}
++
++	return
++}
+diff --git a/src/pkg/runtime/traceback_x86.c b/src/pkg/runtime/traceback_x86.c
+deleted file mode 100644
+index 169407ac81..0000000000
+--- a/src/pkg/runtime/traceback_x86.c
++++ /dev/null
+@@ -1,436 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build amd64 amd64p32 386
+-
+-#include "runtime.h"
+-#include "arch_GOARCH.h"
+-#include "malloc.h"
+-#include "funcdata.h"
+-#ifdef GOOS_windows
+-#include "defs_GOOS_GOARCH.h"
+-#endif
+-
+-void runtime·sigpanic(void);
+-void runtime·newproc(void);
+-void runtime·deferproc(void);
+-
+-#ifdef GOOS_windows
+-void runtime·sigtramp(void);
+-#endif
+-
+-// This code is also used for the 386 tracebacks.
+-// Use uintptr for an appropriate word-sized integer.
+-
+-// Generic traceback.  Handles runtime stack prints (pcbuf == nil),
+-// the runtime.Callers function (pcbuf != nil), as well as the garbage
+-// collector (callback != nil).  A little clunky to merge these, but avoids
+-// duplicating the code and all its subtlety.
+-int32
+-runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip, uintptr *pcbuf, int32 max, bool (*callback)(Stkframe*, void*), void *v, bool printall)
+-{
+-	int32 i, n, nprint, line, gotraceback;
+-	uintptr tracepc, sparg;
+-	bool waspanic, wasnewproc, printing;
+-	Func *f, *flr;
+-	Stkframe frame;
+-	Stktop *stk;
+-	String file;
+-	Panic *panic;
+-	Defer *defer;
+-
+-	USED(lr0);
+-	
+-	gotraceback = runtime·gotraceback(nil);
+-	
+-	if(pc0 == ~(uintptr)0 && sp0 == ~(uintptr)0) { // Signal to fetch saved values from gp.
+-		if(gp->syscallstack != (uintptr)nil) {
+-			pc0 = gp->syscallpc;
+-			sp0 = gp->syscallsp;
+-		} else {
+-			pc0 = gp->sched.pc;
+-			sp0 = gp->sched.sp;
+-		}
+-	}
+-
+-	nprint = 0;
+-	runtime·memclr((byte*)&frame, sizeof frame);
+-	frame.pc = pc0;
+-	frame.sp = sp0;
+-	waspanic = false;
+-	wasnewproc = false;
+-	printing = pcbuf==nil && callback==nil;
+-	panic = gp->panic;
+-	defer = gp->defer;
+-
+-	while(defer != nil && defer->argp == NoArgs)
+-		defer = defer->link;	
+-	while(panic != nil && panic->defer == nil)
+-		panic = panic->link;
+-
+-	// If the PC is zero, it's likely a nil function call.
+-	// Start in the caller's frame.
+-	if(frame.pc == 0) {
+-		frame.pc = *(uintptr*)frame.sp;
+-		frame.sp += sizeof(uintreg);
+-	}
+-	
+-	f = runtime·findfunc(frame.pc);
+-	if(f == nil) {
+-		if(callback != nil) {
+-			runtime·printf("runtime: unknown pc %p\n", frame.pc);
+-			runtime·throw("unknown pc");
+-		}
+-		return 0;
+-	}
+-	frame.fn = f;
+-
+-	n = 0;
+-	stk = (Stktop*)gp->stackbase;
+-	while(n < max) {
+-		// Typically:
+-		//	pc is the PC of the running function.
+-		//	sp is the stack pointer at that program counter.
+-		//	fp is the frame pointer (caller's stack pointer) at that program counter, or nil if unknown.
+-		//	stk is the stack containing sp.
+-		//	The caller's program counter is lr, unless lr is zero, in which case it is *(uintptr*)sp.
+-	
+-		if(frame.pc == (uintptr)runtime·lessstack) {
+-			// Hit top of stack segment.  Unwind to next segment.
+-			frame.pc = stk->gobuf.pc;
+-			frame.sp = stk->gobuf.sp;
+-			frame.lr = 0;
+-			frame.fp = 0;
+-			frame.fn = nil;
+-			if(printing && runtime·showframe(nil, gp))
+-				runtime·printf("----- stack segment boundary -----\n");
+-			stk = (Stktop*)stk->stackbase;
+-
+-			f = runtime·findfunc(frame.pc);
+-			if(f == nil) {
+-				runtime·printf("runtime: unknown pc %p after stack split\n", frame.pc);
+-				if(callback != nil)
+-					runtime·throw("unknown pc");
+-			}
+-			frame.fn = f;
+-			continue;
+-		}
+-		
+-		f = frame.fn;
+-
+-#ifdef GOOS_windows
+-		// Windows exception handlers run on the actual g stack (there is room
+-		// dedicated to this below the usual "bottom of stack"), not on a separate
+-		// stack. As a result, we have to be able to unwind past the exception
+-		// handler when called to unwind during stack growth inside the handler.
+-		// Recognize the frame at the call to sighandler in sigtramp and unwind
+-		// using the context argument passed to the call. This is awful.
+-		if(f != nil && f->entry == (uintptr)runtime·sigtramp && frame.pc > f->entry) {
+-			Context *r;
+-			
+-			// Invoke callback so that stack copier sees an uncopyable frame.
+-			if(callback != nil) {
+-				frame.continpc = frame.pc;
+-				frame.argp = 0;
+-				frame.arglen = 0;
+-				if(!callback(&frame, v))
+-					return n;
+-			}
+-			r = (Context*)((uintptr*)frame.sp)[1];
+-#ifdef GOARCH_amd64
+-			frame.pc = r->Rip;
+-			frame.sp = r->Rsp;
+-#else
+-			frame.pc = r->Eip;
+-			frame.sp = r->Esp;
+-#endif
+-			frame.lr = 0;
+-			frame.fp = 0;
+-			frame.fn = nil;
+-			if(printing && runtime·showframe(nil, gp))
+-				runtime·printf("----- exception handler -----\n");
+-			f = runtime·findfunc(frame.pc);
+-			if(f == nil) {
+-				runtime·printf("runtime: unknown pc %p after exception handler\n", frame.pc);
+-				if(callback != nil)
+-					runtime·throw("unknown pc");
+-			}
+-			frame.fn = f;
+-			continue;
+-		}
+-#endif
+-
+-		// Found an actual function.
+-		// Derive frame pointer and link register.
+-		if(frame.fp == 0) {
+-			frame.fp = frame.sp + runtime·funcspdelta(f, frame.pc);
+-			frame.fp += sizeof(uintreg); // caller PC
+-		}
+-		if(runtime·topofstack(f)) {
+-			frame.lr = 0;
+-			flr = nil;
+-		} else {
+-			if(frame.lr == 0)
+-				frame.lr = ((uintreg*)frame.fp)[-1];
+-			flr = runtime·findfunc(frame.lr);
+-			if(flr == nil) {
+-				runtime·printf("runtime: unexpected return pc for %s called from %p\n", runtime·funcname(f), frame.lr);
+-				if(callback != nil)
+-					runtime·throw("unknown caller pc");
+-			}
+-		}
+-		
+-		frame.varp = frame.fp - sizeof(uintreg);
+-
+-		// Derive size of arguments.
+-		// Most functions have a fixed-size argument block,
+-		// so we can use metadata about the function f.
+-		// Not all, though: there are some variadic functions
+-		// in package runtime and reflect, and for those we use call-specific
+-		// metadata recorded by f's caller.
+-		if(callback != nil || printing) {
+-			frame.argp = frame.fp;
+-			if(f->args != ArgsSizeUnknown)
+-				frame.arglen = f->args;
+-			else if(flr == nil)
+-				frame.arglen = 0;
+-			else if(frame.lr == (uintptr)runtime·lessstack)
+-				frame.arglen = stk->argsize;
+-			else if((i = runtime·funcarglen(flr, frame.lr)) >= 0)
+-				frame.arglen = i;
+-			else {
+-				runtime·printf("runtime: unknown argument frame size for %s called from %p [%s]\n",
+-					runtime·funcname(f), frame.lr, flr ? runtime·funcname(flr) : "?");
+-				if(callback != nil)
+-					runtime·throw("invalid stack");
+-				frame.arglen = 0;
+-			}
+-		}
+-		
+-		// Determine function SP where deferproc would find its arguments.
+-		// On x86 that's just the standard bottom-of-stack, so SP exactly.
+-		// If the previous frame was a direct call to newproc/deferproc, however,
+-		// the SP is two words lower than normal.
+-		sparg = frame.sp;
+-		if(wasnewproc)
+-			sparg += 2*sizeof(uintptr);
+-
+-		// Determine frame's 'continuation PC', where it can continue.
+-		// Normally this is the return address on the stack, but if sigpanic
+-		// is immediately below this function on the stack, then the frame
+-		// stopped executing due to a trap, and frame.pc is probably not
+-		// a safe point for looking up liveness information. In this panicking case,
+-		// the function either doesn't return at all (if it has no defers or if the
+-		// defers do not recover) or it returns from one of the calls to 
+-		// deferproc a second time (if the corresponding deferred func recovers).
+-		// It suffices to assume that the most recent deferproc is the one that
+-		// returns; everything live at earlier deferprocs is still live at that one.
+-		frame.continpc = frame.pc;
+-		if(waspanic) {
+-			if(panic != nil && panic->defer->argp == sparg)
+-				frame.continpc = panic->defer->pc;
+-			else if(defer != nil && defer->argp == sparg)
+-				frame.continpc = defer->pc;
+-			else
+-				frame.continpc = 0;
+-		}
+-
+-		// Unwind our local panic & defer stacks past this frame.
+-		while(panic != nil && (panic->defer == nil || panic->defer->argp == sparg || panic->defer->argp == NoArgs))
+-			panic = panic->link;
+-		while(defer != nil && (defer->argp == sparg || defer->argp == NoArgs))
+-			defer = defer->link;	
+-
+-		if(skip > 0) {
+-			skip--;
+-			goto skipped;
+-		}
+-
+-		if(pcbuf != nil)
+-			pcbuf[n] = frame.pc;
+-		if(callback != nil) {
+-			if(!callback(&frame, v))
+-				return n;
+-		}
+-		if(printing) {
+-			if(printall || runtime·showframe(f, gp)) {
+-				// Print during crash.
+-				//	main(0x1, 0x2, 0x3)
+-				//		/home/rsc/go/src/runtime/x.go:23 +0xf
+-				//		
+-				tracepc = frame.pc;	// back up to CALL instruction for funcline.
+-				if(n > 0 && frame.pc > f->entry && !waspanic)
+-					tracepc--;
+-				runtime·printf("%s(", runtime·funcname(f));
+-				for(i = 0; i < frame.arglen/sizeof(uintptr); i++) {
+-					if(i >= 10) {
+-						runtime·prints(", ...");
+-						break;
+-					}
+-					if(i != 0)
+-						runtime·prints(", ");
+-					runtime·printhex(((uintptr*)frame.argp)[i]);
+-				}
+-				runtime·prints(")\n");
+-				line = runtime·funcline(f, tracepc, &file);
+-				runtime·printf("\t%S:%d", file, line);
+-				if(frame.pc > f->entry)
+-					runtime·printf(" +%p", (uintptr)(frame.pc - f->entry));
+-				if(g->m->throwing > 0 && gp == g->m->curg || gotraceback >= 2)
+-					runtime·printf(" fp=%p sp=%p", frame.fp, frame.sp);
+-				runtime·printf("\n");
+-				nprint++;
+-			}
+-		}
+-		n++;
+-	
+-	skipped:
+-		waspanic = f->entry == (uintptr)runtime·sigpanic;
+-		wasnewproc = f->entry == (uintptr)runtime·newproc || f->entry == (uintptr)runtime·deferproc;
+-
+-		// Do not unwind past the bottom of the stack.
+-		if(flr == nil)
+-			break;
+-
+-		// Unwind to next frame.
+-		frame.fn = flr;
+-		frame.pc = frame.lr;
+-		frame.lr = 0;
+-		frame.sp = frame.fp;
+-		frame.fp = 0;
+-	}
+-	
+-	if(pcbuf == nil && callback == nil)
+-		n = nprint;
+-
+-	// If callback != nil, we're being called to gather stack information during
+-	// garbage collection or stack growth. In that context, require that we used
+-	// up the entire defer stack. If not, then there is a bug somewhere and the
+-	// garbage collection or stack growth may not have seen the correct picture
+-	// of the stack. Crash now instead of silently executing the garbage collection
+-	// or stack copy incorrectly and setting up for a mysterious crash later.
+-	//
+-	// Note that panic != nil is okay here: there can be leftover panics,
+-	// because the defers on the panic stack do not nest in frame order as
+-	// they do on the defer stack. If you have:
+-	//
+-	//	frame 1 defers d1
+-	//	frame 2 defers d2
+-	//	frame 3 defers d3
+-	//	frame 4 panics
+-	//	frame 4's panic starts running defers
+-	//	frame 5, running d3, defers d4
+-	//	frame 5 panics
+-	//	frame 5's panic starts running defers
+-	//	frame 6, running d4, garbage collects
+-	//	frame 6, running d2, garbage collects
+-	//
+-	// During the execution of d4, the panic stack is d4 -> d3, which
+-	// is nested properly, and we'll treat frame 3 as resumable, because we
+-	// can find d3. (And in fact frame 3 is resumable. If d4 recovers
+-	// and frame 5 continues running, d3, d3 can recover and we'll
+-	// resume execution in (returning from) frame 3.)
+-	//
+-	// During the execution of d2, however, the panic stack is d2 -> d3,
+-	// which is inverted. The scan will match d2 to frame 2 but having
+-	// d2 on the stack until then means it will not match d3 to frame 3.
+-	// This is okay: if we're running d2, then all the defers after d2 have
+-	// completed and their corresponding frames are dead. Not finding d3
+-	// for frame 3 means we'll set frame 3's continpc == 0, which is correct
+-	// (frame 3 is dead). At the end of the walk the panic stack can thus
+-	// contain defers (d3 in this case) for dead frames. The inversion here
+-	// always indicates a dead frame, and the effect of the inversion on the
+-	// scan is to hide those dead frames, so the scan is still okay:
+-	// what's left on the panic stack are exactly (and only) the dead frames.
+-	//
+-	// We require callback != nil here because only when callback != nil
+-	// do we know that gentraceback is being called in a "must be correct"
+-	// context as opposed to a "best effort" context. The tracebacks with
+-	// callbacks only happen when everything is stopped nicely.
+-	// At other times, such as when gathering a stack for a profiling signal
+-	// or when printing a traceback during a crash, everything may not be
+-	// stopped nicely, and the stack walk may not be able to complete.
+-	// It's okay in those situations not to use up the entire defer stack:
+-	// incomplete information then is still better than nothing.
+-	if(callback != nil && n < max && defer != nil) {
+-		if(defer != nil)
+-			runtime·printf("runtime: g%D: leftover defer argp=%p pc=%p\n", gp->goid, defer->argp, defer->pc);
+-		if(panic != nil)
+-			runtime·printf("runtime: g%D: leftover panic argp=%p pc=%p\n", gp->goid, panic->defer->argp, panic->defer->pc);
+-		for(defer = gp->defer; defer != nil; defer = defer->link)
+-			runtime·printf("\tdefer %p argp=%p pc=%p\n", defer, defer->argp, defer->pc);
+-		for(panic = gp->panic; panic != nil; panic = panic->link) {
+-			runtime·printf("\tpanic %p defer %p", panic, panic->defer);
+-			if(panic->defer != nil)
+-				runtime·printf(" argp=%p pc=%p", panic->defer->argp, panic->defer->pc);
+-			runtime·printf("\n");
+-		}
+-		runtime·throw("traceback has leftover defers or panics");
+-	}
+-
+-	return n;
+-}
+-
+-void
+-runtime·printcreatedby(G *gp)
+-{
+-	int32 line;
+-	uintptr pc, tracepc;
+-	Func *f;
+-	String file;
+-
+-	// Show what created goroutine, except main goroutine (goid 1).
+-	if((pc = gp->gopc) != 0 && (f = runtime·findfunc(pc)) != nil &&
+-		runtime·showframe(f, gp) && gp->goid != 1) {
+-		runtime·printf("created by %s\n", runtime·funcname(f));
+-		tracepc = pc;	// back up to CALL instruction for funcline.
+-		if(pc > f->entry)
+-			tracepc -= PCQuantum;
+-		line = runtime·funcline(f, tracepc, &file);
+-		runtime·printf("\t%S:%d", file, line);
+-		if(pc > f->entry)
+-			runtime·printf(" +%p", (uintptr)(pc - f->entry));
+-		runtime·printf("\n");
+-	}
+-}
+-
+-void
+-runtime·traceback(uintptr pc, uintptr sp, uintptr lr, G *gp)
+-{
+-	int32 n;
+-
+-	USED(lr);
+-
+-	if((runtime·readgstatus(gp)&~Gscan) == Gsyscall){
+-		// Override signal registers if blocked in system call.
+-		pc = gp->syscallpc;
+-		sp = gp->syscallsp;
+-	}
+-	
+-	// Print traceback. By default, omits runtime frames.
+-	// If that means we print nothing at all, repeat forcing all frames printed.
+-	n = runtime·gentraceback(pc, sp, 0, gp, 0, nil, TracebackMaxFrames, nil, nil, false);
+-	if(n == 0)
+-		n = runtime·gentraceback(pc, sp, 0, gp, 0, nil, TracebackMaxFrames, nil, nil, true);
+-	if(n == TracebackMaxFrames)
+-		runtime·printf("...additional frames elided...\n");
+-	runtime·printcreatedby(gp);
+-}
+-
+-int32
+-runtime·callers(int32 skip, uintptr *pcbuf, int32 m)
+-{
+-	uintptr pc, sp;
+-
+-	sp = runtime·getcallersp(&skip);
+-	pc = (uintptr)runtime·getcallerpc(&skip);
+-
+-	return runtime·gentraceback(pc, sp, 0, g, skip, pcbuf, m, nil, nil, false);
+-}
+-
+-int32
+-runtime·gcallers(G *gp, int32 skip, uintptr *pcbuf, int32 m)
+-{
+-	return runtime·gentraceback(~(uintptr)0, ~(uintptr)0, 0, gp, skip, pcbuf, m, nil, nil, false);
+-}

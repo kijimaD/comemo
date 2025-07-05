@@ -9,6 +9,20 @@ Date:   Wed Feb 22 22:23:35 2017 +0000
     Change-Id: Ia6332941b229c83d6fd082af49f31003a66b90db
     Reviewed-on: https://go-review.googlesource.com/37388
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  doc/go1.8.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go1.8.html b/doc/go1.8.html
+index cf4c66953c..611f5ee25e 100644
+--- a/doc/go1.8.html
++++ b/doc/go1.8.html
+@@ -1304,7 +1304,7 @@ crypto/x509: return error for missing SerialNumber (CL 27238)
+         request must have the new
+         <a href="/pkg/net/http/#Request"><code>Request.GetBody</code></a>
+         field defined.
+-        <a href="pkg/net/http/#NewRequest"><code>NewRequest</code></a>
++        <a href="/pkg/net/http/#NewRequest"><code>NewRequest</code></a>
+         sets <code>Request.GetBody</code> automatically for common
+         body types.
+       </li>

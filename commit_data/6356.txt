@@ -7,10 +7,146 @@ Date:   Thu Sep 23 14:20:13 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/2246046
-
+---
  src/pkg/go/printer/nodes.go                    |  8 ++++++++
  src/pkg/go/printer/printer.go                  | 14 +++++++++-----
  src/pkg/go/printer/testdata/expressions.golden | 11 +++++++++++
  src/pkg/go/printer/testdata/expressions.input  | 11 +++++++++++
  src/pkg/go/printer/testdata/expressions.raw    | 11 +++++++++++
  5 files changed, 50 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/go/printer/nodes.go b/src/pkg/go/printer/nodes.go
+index 2451116fdb..4650df6448 100644
+--- a/src/pkg/go/printer/nodes.go
++++ b/src/pkg/go/printer/nodes.go
+@@ -848,6 +848,14 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int, ctxt exprContext, multi
+ 		p.print(x.Lparen, token.LPAREN)
+ 		p.exprList(x.Lparen, x.Args, depth, commaSep|commaTerm, multiLine, x.Rparen)
+ 		if x.Ellipsis.IsValid() {
++			if p.lastTok == token.INT {
++				// w/o a blank, the previous int will become a float
++				// (this could be solved more generally in the print
++				// function but it appears that this is the only
++				// place in the grammar where a token starting with
++				// a do may legally extend the previous token)
++				p.print(blank)
++			}
+ 			p.print(x.Ellipsis, token.ELLIPSIS)
+ 		}
+ 		p.print(x.Rparen, token.RPAREN)
+diff --git a/src/pkg/go/printer/printer.go b/src/pkg/go/printer/printer.go
+index 5ee2491958..bb87b9f58c 100644
+--- a/src/pkg/go/printer/printer.go
++++ b/src/pkg/go/printer/printer.go
+@@ -65,10 +65,11 @@ type printer struct {
+ 	errors chan os.Error
+ 
+ 	// Current state
+-	nesting int  // nesting level (0: top-level (package scope), >0: functions/decls.)
+-	written int  // number of bytes written
+-	indent  int  // current indentation
+-	escape  bool // true if in escape sequence
++	nesting int         // nesting level (0: top-level (package scope), >0: functions/decls.)
++	written int         // number of bytes written
++	indent  int         // current indentation
++	escape  bool        // true if in escape sequence
++	lastTok token.Token // the last token printed (token.ILLEGAL if it's whitespace)
+ 
+ 	// Buffered whitespace
+ 	buffer []whiteSpace
+@@ -762,6 +763,7 @@ func (p *printer) print(args ...interface{}) {
+ 		var data []byte
+ 		var tag HTMLTag
+ 		var tok token.Token
++
+ 		switch x := f.(type) {
+ 		case whiteSpace:
+ 			if x == ignore {
+@@ -798,7 +800,7 @@ func (p *printer) print(args ...interface{}) {
+ 			// bytes since they do not appear in legal UTF-8 sequences)
+ 			// TODO(gri): do this more efficiently.
+ 			data = []byte("\xff" + string(data) + "\xff")
+-			tok = token.INT // representing all literal tokens
++			tok = x.Kind
+ 		case token.Token:
+ 			if p.Styler != nil {
+ 				data, tag = p.Styler.Token(x)
+@@ -810,10 +812,12 @@ func (p *printer) print(args ...interface{}) {
+ 			if x.IsValid() {
+ 				next = x // accurate position of next item
+ 			}
++			tok = p.lastTok
+ 		default:
+ 			fmt.Fprintf(os.Stderr, "print: unsupported argument type %T\n", f)
+ 			panic("go/printer type")
+ 		}
++		p.lastTok = tok
+ 		p.pos = next
+ 
+ 		if data != nil {
+diff --git a/src/pkg/go/printer/testdata/expressions.golden b/src/pkg/go/printer/testdata/expressions.golden
+index d8cd90efed..c828dbe675 100644
+--- a/src/pkg/go/printer/testdata/expressions.golden
++++ b/src/pkg/go/printer/testdata/expressions.golden
+@@ -173,6 +173,17 @@ func f(x int, args ...int) {
+ 	f(0, args...)
+ 	f(1, args)
+ 	f(2, args[0])
++
++	// make sure syntactically legal code remains syntactically legal
++	f(3, 42 ...)	// a blank must remain between 42 and ...
++	f(4, 42....)
++	f(5, 42....)
++	f(6, 42.0...)
++	f(7, 42.0...)
++	f(8, .42...)
++	f(9, .42...)
++	f(10, 42e0...)
++	f(11, 42e0...)
+ }
+ 
+ 
+diff --git a/src/pkg/go/printer/testdata/expressions.input b/src/pkg/go/printer/testdata/expressions.input
+index 7dac6fd74a..06e17a6662 100644
+--- a/src/pkg/go/printer/testdata/expressions.input
++++ b/src/pkg/go/printer/testdata/expressions.input
+@@ -173,6 +173,17 @@ func f(x int, args ...int) {
+ 	f(0, args...)
+ 	f(1, args)
+ 	f(2, args[0])
++
++	// make sure syntactically legal code remains syntactically legal
++	f(3, 42 ...) // a blank must remain between 42 and ...
++	f(4, 42. ...)
++	f(5, 42....)
++	f(6, 42.0 ...)
++	f(7, 42.0...)
++	f(8, .42 ...)
++	f(9, .42...)
++	f(10, 42e0 ...)
++	f(11, 42e0...)
+ }
+ 
+ 
+diff --git a/src/pkg/go/printer/testdata/expressions.raw b/src/pkg/go/printer/testdata/expressions.raw
+index 6b3f579def..56ec39b968 100644
+--- a/src/pkg/go/printer/testdata/expressions.raw
++++ b/src/pkg/go/printer/testdata/expressions.raw
+@@ -173,6 +173,17 @@ func f(x int, args ...int) {
+ 	f(0, args...)
+ 	f(1, args)
+ 	f(2, args[0])
++
++	// make sure syntactically legal code remains syntactically legal
++	f(3, 42 ...)	// a blank must remain between 42 and ...
++	f(4, 42....)
++	f(5, 42....)
++	f(6, 42.0...)
++	f(7, 42.0...)
++	f(8, .42...)
++	f(9, .42...)
++	f(10, 42e0...)
++	f(11, 42e0...)
+ }
+ 
+ 

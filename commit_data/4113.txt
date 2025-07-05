@@ -6,7 +6,34 @@ Date:   Tue Nov 17 22:00:30 2009 -0800
     
     R=r
     https://golang.org/cl/156059
-
+---
  src/pkg/runtime/darwin/386/sys.s | 2 +-
  src/pkg/runtime/proc.c           | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/runtime/darwin/386/sys.s b/src/pkg/runtime/darwin/386/sys.s
+index 66253c99d3..445f530028 100644
+--- a/src/pkg/runtime/darwin/386/sys.s
++++ b/src/pkg/runtime/darwin/386/sys.s
+@@ -287,7 +287,7 @@ TEXT setldt(SB),7,$32
+ 	ORL	$0x40, CX		// 32-bit operand size
+ 	MOVB	CX, 6(AX)
+ 
+-	MOVL	$0xF2, 5(AX)	// r/w data descriptor, dpl=3, present
++	MOVB	$0xF2, 5(AX)	// r/w data descriptor, dpl=3, present
+ 
+ 	// call i386_set_ldt(entry, desc, 1)
+ 	MOVL	$0xffffffff, 0(SP)	// auto-allocate entry and return in AX
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 35e2ad77ea..e6e811c5c3 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -413,7 +413,7 @@ matchmg(void)
+ {
+ 	G *g;
+ 
+-	if(m->mallocing)
++	if(m->mallocing || m->gcing)
+ 		return;
+ 	while(sched.mcpu < sched.mcpumax && (g = gget()) != nil){
+ 		M *m;

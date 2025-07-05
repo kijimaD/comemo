@@ -8,10 +8,162 @@ Date:   Mon Dec 15 13:44:27 2008 -0800
     R=r
     OCL=21204
     CL=21204
-
+---
  src/cmd/gc/go.h              |  1 +
  src/cmd/gc/go.y              | 10 +++++-----
  src/lib/json/generic.go      |  4 ++--
  src/lib/json/generic_test.go |  2 +-
  test/ken/range.go            | 12 ++++++------
  5 files changed, 15 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 858afc1c15..a85d6f7604 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -197,6 +197,7 @@ struct	Node
+ 	uchar	method;		// OCALLMETH name
+ 	uchar	iota;		// OLITERAL made from iota
+ 	uchar	embedded;	// ODCLFIELD embedded type
++	uchar	colas;		// OAS resulting from :=
+ 
+ 	// most nodes
+ 	Node*	left;
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index 6bab8402f6..429d2f32b5 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -419,6 +419,7 @@ simple_stmt:
+ 		$$ = rev($1);
+ 		$$ = colas($$, $3);
+ 		$$ = nod(OAS, $$, $3);
++		$$->colas = 1;
+ 		addtotop($$);
+ 	}
+ |	LPRINT '(' oexpr_list ')'
+@@ -554,9 +555,6 @@ compound_stmt:
+ 		popdcl();
+ 	}
+ 
+-ocolas:
+-|	LCOLAS
+-
+ orange_stmt:
+ 	osimple_stmt
+ |	exprsym3_list_r '=' LRANGE expr
+@@ -570,12 +568,12 @@ orange_stmt:
+ 		$$ = nod(ORANGE, $$, $6);
+ 		$$->etype = 0;
+ 	}
+-|	exprsym3_list_r ocolas LRANGE expr
++|	exprsym3_list_r LCOLAS LRANGE expr
+ 	{
+ 		$$ = nod(ORANGE, $1, $4);
+ 		$$->etype = 1;
+ 	}
+-|	exprsym3 ':' exprsym3 ocolas LRANGE expr
++|	exprsym3 ':' exprsym3 LCOLAS LRANGE expr
+ 	{
+ 		$$ = nod(OLIST, $1, $3);
+ 		$$ = nod(ORANGE, $$, $6);
+@@ -592,6 +590,8 @@ for_header:
+ 			break;
+ 		}
+ 		// init ; test ; incr
++		if($5 != N && $5->colas != 0)
++			yyerror("cannot declare in the for-increment");
+ 		$$ = nod(OFOR, N, N);
+ 		$$->ninit = $1;
+ 		$$->ntest = $3;
+diff --git a/src/lib/json/generic.go b/src/lib/json/generic.go
+index 9324b64793..abdcd9546c 100644
+--- a/src/lib/json/generic.go
++++ b/src/lib/json/generic.go
+@@ -114,7 +114,7 @@ func (j *Map) Get(s string) Json {
+ func (j *Map) String() string {
+ 	s := "{";
+ 	first := true;
+-	for k,v range j.m {
++	for k,v := range j.m {
+ 		if first {
+ 			first = false;
+ 		} else {
+@@ -188,7 +188,7 @@ export func Equal(a, b Json) bool {
+ 		if len(m) != len(b.(*Map).m) {
+ 			return false;
+ 		}
+-		for k,v range m {
++		for k,v := range m {
+ 			if !Equal(v, b.Get(k)) {
+ 				return false;
+ 			}
+diff --git a/src/lib/json/generic_test.go b/src/lib/json/generic_test.go
+index a061af0321..0851c1c4a0 100644
+--- a/src/lib/json/generic_test.go
++++ b/src/lib/json/generic_test.go
+@@ -64,7 +64,7 @@ export func TestJsonMap(t *testing.T) {
+ 	if mapv == nil {
+ 		t.Fatalf("StringToJson(%#q) => nil, %v, %v", mapstr, ok, errtok);
+ 	}
+-	for k,v range values {
++	for k,v := range values {
+ 		if v1 := mapv.Get(k); !Equal(v1, v) {
+ 			t.Errorf("MapTest: Walk(%#q) => %v, want %v", k, v1, v);
+ 		}
+diff --git a/test/ken/range.go b/test/ken/range.go
+index c8a646dd30..fc866672c0 100644
+--- a/test/ken/range.go
++++ b/test/ken/range.go
+@@ -40,7 +40,7 @@ main()
+ 	 * key only
+ 	 */
+ 	i = 0;
+-	for k range a {
++	for k := range a {
+ 		v := a[k];
+ 		if v != f(k) {
+ 			panicln("key array range", k, v, a[k]);
+@@ -52,7 +52,7 @@ main()
+ 	}
+ 
+ 	i = 0;
+-	for k range p {
++	for k := range p {
+ 		v := p[k];
+ 		if v != f(k) {
+ 			panicln("key pointer range", k, v, p[k]);
+@@ -64,7 +64,7 @@ main()
+ 	}
+ 
+ 	i = 0;
+-	for k range m {
++	for k := range m {
+ 		v := m[k];
+ 		if v != f(k) {
+ 			panicln("key map range", k, v, m[k]);
+@@ -79,7 +79,7 @@ main()
+ 	 * key:value
+ 	 */
+ 	i = 0;
+-	for k:v range a {
++	for k:v := range a {
+ 		if v != f(k) {
+ 			panicln("key:value array range", k, v, a[k]);
+ 		}
+@@ -90,7 +90,7 @@ main()
+ 	}
+ 
+ 	i = 0;
+-	for k:v range p {
++	for k:v := range p {
+ 		if v != f(k) {
+ 			panicln("key:value pointer range", k, v, p[k]);
+ 		}
+@@ -101,7 +101,7 @@ main()
+ 	}
+ 
+ 	i = 0;
+-	for k:v range m {
++	for k:v := range m {
+ 		if v != f(k) {
+ 			panicln("key:value map range", k, v, m[k]);
+ 		}

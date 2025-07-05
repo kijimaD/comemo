@@ -9,6 +9,20 @@ Date:   Mon Sep 14 00:18:22 2015 +0000
     Change-Id: Ib68cb20108ad35c3dd96e606649c4c8f9c0f085c
     Reviewed-on: https://go-review.googlesource.com/14571
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/database/sql/sql.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/database/sql/sql.go b/src/database/sql/sql.go
+index 0120ae8abe..8a2d781330 100644
+--- a/src/database/sql/sql.go
++++ b/src/database/sql/sql.go
+@@ -441,7 +441,7 @@ func (db *DB) removeDepLocked(x finalCloser, dep interface{}) func() error {
+ 	}
+ }
+ 
+-// This is the size of the connectionOpener request chan (dn.openerCh).
++// This is the size of the connectionOpener request chan (DB.openerCh).
+ // This value should be larger than the maximum typical value
+ // used for db.maxOpen. If maxOpen is significantly larger than
+ // connectionRequestQueueSize then it is possible for ALL calls into the *DB

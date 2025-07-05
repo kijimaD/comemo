@@ -11,7 +11,57 @@ Date:   Fri Nov 2 16:38:11 2018 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/script_test.go         | 12 ++++++++++++
  src/cmd/go/testdata/script/README |  1 +
  2 files changed, 13 insertions(+)
+
+diff --git a/src/cmd/go/script_test.go b/src/cmd/go/script_test.go
+index bad0d48f37..31ddf02fb0 100644
+--- a/src/cmd/go/script_test.go
++++ b/src/cmd/go/script_test.go
+@@ -11,6 +11,7 @@ import (
+ 	"bytes"
+ 	"context"
+ 	"fmt"
++	"go/build"
+ 	"internal/testenv"
+ 	"io/ioutil"
+ 	"os"
+@@ -104,6 +105,7 @@ func (ts *testScript) setup() {
+ 		"GOROOT=" + testGOROOT,
+ 		tempEnvName() + "=" + filepath.Join(ts.workdir, "tmp"),
+ 		"devnull=" + os.DevNull,
++		"goversion=" + goVersion(ts),
+ 		":=" + string(os.PathListSeparator),
+ 	}
+ 
+@@ -130,6 +132,16 @@ func (ts *testScript) setup() {
+ 	}
+ }
+ 
++// goVersion returns the current Go version.
++func goVersion(ts *testScript) string {
++	tags := build.Default.ReleaseTags
++	version := tags[len(tags)-1]
++	if !regexp.MustCompile(`^go([1-9][0-9]*)\.(0|[1-9][0-9]*)$`).MatchString(version) {
++		ts.fatalf("invalid go version %q", version)
++	}
++	return version[2:]
++}
++
+ var execCache par.Cache
+ 
+ // run runs the test script.
+diff --git a/src/cmd/go/testdata/script/README b/src/cmd/go/testdata/script/README
+index 73858103fd..22124b9fb8 100644
+--- a/src/cmd/go/testdata/script/README
++++ b/src/cmd/go/testdata/script/README
+@@ -36,6 +36,7 @@ Scripts also have access to these other environment variables:
+ 	PATH=<actual PATH>
+ 	TMPDIR=$WORK/tmp
+ 	devnull=<value of os.DevNull>
++	goversion=<current Go version; for example, 1.12>
+ 
+ The environment variable $exe (lowercase) is an empty string on most systems, ".exe" on Windows.
+ 

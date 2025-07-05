@@ -13,7 +13,42 @@ Date:   Thu Jan 7 15:36:54 2016 -0500
     Change-Id: If179676cd49f9a471a9441fec2f5220c85eb0799
     Reviewed-on: https://go-review.googlesource.com/18386
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/time/format.go      | 2 +-
  src/time/format_test.go | 6 +++---
  2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/time/format.go b/src/time/format.go
+index fc2136a3f6..e616feb048 100644
+--- a/src/time/format.go
++++ b/src/time/format.go
+@@ -1002,7 +1002,7 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
+ 
+ 	// Validate the day of the month.
+ 	if day > daysIn(Month(month), year) {
+-		return Time{}, &ParseError{alayout, avalue, "", value, ": day of month out of range"}
++		return Time{}, &ParseError{alayout, avalue, "", value, ": day out of range"}
+ 	}
+ 
+ 	if z != nil {
+diff --git a/src/time/format_test.go b/src/time/format_test.go
+index b6ea9afe75..af950a7c25 100644
+--- a/src/time/format_test.go
++++ b/src/time/format_test.go
+@@ -233,13 +233,13 @@ func TestParseDayOutOfRange(t *testing.T) {
+ 		case test.ok && err == nil:
+ 			// OK
+ 		case !test.ok && err != nil:
+-			if !strings.Contains(err.Error(), "day of month out of range") {
+-				t.Errorf("%q: expected 'day of month' error, got %v", test.date, err)
++			if !strings.Contains(err.Error(), "day out of range") {
++				t.Errorf("%q: expected 'day' error, got %v", test.date, err)
+ 			}
+ 		case test.ok && err != nil:
+ 			t.Errorf("%q: unexpected error: %v", test.date, err)
+ 		case !test.ok && err == nil:
+-			t.Errorf("%q: expected 'day of month' error, got none", test.date)
++			t.Errorf("%q: expected 'day' error, got none", test.date)
+ 		}
+ 	}
+ }

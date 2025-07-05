@@ -7,6 +7,20 @@ Date:   Tue Jan 6 15:30:07 2009 -0800
     R=rsc
     OCL=22170
     CL=22170
-
+---
  src/lib/utf8_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/lib/utf8_test.go b/src/lib/utf8_test.go
+index a0fe345bdf..aebd335658 100644
+--- a/src/lib/utf8_test.go
++++ b/src/lib/utf8_test.go
+@@ -45,7 +45,7 @@ var utf8map = []Utf8Map {
+ }
+ 
+ func Bytes(s string) []byte {
+-	b := new([]byte, len(s)+1);
++	b := make([]byte, len(s)+1);
+ 	if !syscall.StringToBytes(b, s) {
+ 		panic("StringToBytes failed");
+ 	}

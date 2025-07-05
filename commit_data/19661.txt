@@ -27,6 +27,38 @@ Date:   Thu Jul 3 09:41:19 2014 +1000
     R=golang-codereviews, dave, dsymonds, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/108240044
-
+---
  src/pkg/archive/tar/reader.go | 13 ++++++++-----
  1 file changed, 8 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/archive/tar/reader.go b/src/pkg/archive/tar/reader.go
+index 920a9b08f9..a27559d0f0 100644
+--- a/src/pkg/archive/tar/reader.go
++++ b/src/pkg/archive/tar/reader.go
+@@ -29,10 +29,11 @@ const maxNanoSecondIntSize = 9
+ // The Next method advances to the next file in the archive (including the first),
+ // and then it can be treated as an io.Reader to access the file's data.
+ type Reader struct {
+-	r    io.Reader
+-	err  error
+-	pad  int64          // amount of padding (ignored) after current file entry
+-	curr numBytesReader // reader for current file entry
++	r       io.Reader
++	err     error
++	pad     int64           // amount of padding (ignored) after current file entry
++	curr    numBytesReader  // reader for current file entry
++	hdrBuff [blockSize]byte // buffer to use in readHeader
+ }
+ 
+ // A numBytesReader is an io.Reader with a numBytes method, returning the number
+@@ -426,7 +427,9 @@ func (tr *Reader) verifyChecksum(header []byte) bool {
+ }
+ 
+ func (tr *Reader) readHeader() *Header {
+-	header := make([]byte, blockSize)
++	header := tr.hdrBuff[:]
++	copy(header, zeroBlock)
++
+ 	if _, tr.err = io.ReadFull(tr.r, header); tr.err != nil {
+ 		return nil
+ 	}

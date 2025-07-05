@@ -7,6 +7,20 @@ Date:   Thu Jan 8 14:31:11 2009 -0800
     R=ken
     OCL=22327
     CL=22327
-
+---
  src/cmd/gc/walk.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index c62126ef5e..e0eb648175 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -1847,7 +1847,7 @@ ascompatte(int op, Type **nl, Node **nr, int fp)
+ 	peekr = saver;
+ 	if(l != T && r != N
+ 	&& structnext(&peekl) != T
+-	&& listnext(&peekr) == N)
++	&& listnext(&peekr) == N
+ 	&& eqtype(r->type, *nl, 0))
+ 		return convas(nod(OAS, nodarg(*nl, fp), r));
+ 

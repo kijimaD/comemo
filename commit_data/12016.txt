@@ -9,9 +9,151 @@ Date:   Fri Feb 17 12:00:12 2012 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5672081
-
+---
  src/cmd/dist/build.c               |  2 ++
  src/cmd/go/test.go                 |  3 ++-
  src/cmd/godoc/godoc.go             |  8 ++++----
  src/pkg/go/{ast => doc}/example.go | 17 +++++++++--------
  4 files changed, 17 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/dist/build.c b/src/cmd/dist/build.c
+index 6cb33ab10f..260a9df6c4 100644
+--- a/src/cmd/dist/build.c
++++ b/src/cmd/dist/build.c
+@@ -1126,6 +1126,7 @@ static char *buildorder[] = {
+ 	"pkg/net/url",
+ 	"pkg/text/template/parse",
+ 	"pkg/text/template",
++	"pkg/go/doc",
+ 	"cmd/go",
+ };
+ 
+@@ -1165,6 +1166,7 @@ static char *cleantab[] = {
+ 	"pkg/fmt",
+ 	"pkg/go/ast",
+ 	"pkg/go/build",
++	"pkg/go/doc",
+ 	"pkg/go/parser",
+ 	"pkg/go/scanner",
+ 	"pkg/go/token",
+diff --git a/src/cmd/go/test.go b/src/cmd/go/test.go
+index 902f583542..5482accf77 100644
+--- a/src/cmd/go/test.go
++++ b/src/cmd/go/test.go
+@@ -9,6 +9,7 @@ import (
+ 	"fmt"
+ 	"go/ast"
+ 	"go/build"
++	"go/doc"
+ 	"go/parser"
+ 	"go/token"
+ 	"os"
+@@ -719,7 +720,7 @@ func (t *testFuncs) load(filename, pkg string, seen *bool) error {
+ 			*seen = true
+ 		}
+ 	}
+-	for _, e := range ast.Examples(f) {
++	for _, e := range doc.Examples(f) {
+ 		if e.Output == "" {
+ 			// Don't run examples with no output.
+ 			continue
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index 45f1f8e2bd..6dfaf149f9 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -501,7 +501,7 @@ func startsWithUppercase(s string) bool {
+ 
+ var exampleOutputRx = regexp.MustCompile(`(?i)//[[:space:]]*output:`)
+ 
+-func example_htmlFunc(funcName string, examples []*ast.Example, fset *token.FileSet) string {
++func example_htmlFunc(funcName string, examples []*doc.Example, fset *token.FileSet) string {
+ 	var buf bytes.Buffer
+ 	for _, eg := range examples {
+ 		name := eg.Name
+@@ -979,7 +979,7 @@ type PageInfo struct {
+ 	FSet     *token.FileSet // corresponding file set
+ 	PAst     *ast.File      // nil if no single AST with package exports
+ 	PDoc     *doc.Package   // nil if no single package documentation
+-	Examples []*ast.Example // nil if no example code
++	Examples []*doc.Example // nil if no example code
+ 	Dirs     *DirList       // nil if no directory information
+ 	DirTime  time.Time      // directory time stamp
+ 	DirFlat  bool           // if set, show directory in a flat (non-indented) manner
+@@ -1128,7 +1128,7 @@ func (h *httpHandler) getPageInfo(abspath, relpath, pkgname string, mode PageInf
+ 	}
+ 
+ 	// get examples from *_test.go files
+-	var examples []*ast.Example
++	var examples []*doc.Example
+ 	filter = func(d os.FileInfo) bool {
+ 		return isGoFile(d) && strings.HasSuffix(d.Name(), "_test.go")
+ 	}
+@@ -1140,7 +1140,7 @@ func (h *httpHandler) getPageInfo(abspath, relpath, pkgname string, mode PageInf
+ 			for _, f := range testpkg.Files {
+ 				files = append(files, f)
+ 			}
+-			examples = append(examples, ast.Examples(files...)...)
++			examples = append(examples, doc.Examples(files...)...)
+ 		}
+ 	}
+ 
+diff --git a/src/pkg/go/ast/example.go b/src/pkg/go/doc/example.go
+similarity index 89%
+rename from src/pkg/go/ast/example.go
+rename to src/pkg/go/doc/example.go
+index dec496b6f4..a7e0e250a2 100644
+--- a/src/pkg/go/ast/example.go
++++ b/src/pkg/go/doc/example.go
+@@ -4,9 +4,10 @@
+ 
+ // Extract example functions from file ASTs.
+ 
+-package ast
++package doc
+ 
+ import (
++	"go/ast"
+ 	"go/token"
+ 	"regexp"
+ 	"sort"
+@@ -18,23 +19,23 @@ import (
+ type Example struct {
+ 	Name     string // name of the item being exemplified
+ 	Doc      string // example function doc string
+-	Code     Node
+-	Comments []*CommentGroup
++	Code     ast.Node
++	Comments []*ast.CommentGroup
+ 	Output   string // expected output
+ }
+ 
+-func Examples(files ...*File) []*Example {
++func Examples(files ...*ast.File) []*Example {
+ 	var list []*Example
+ 	for _, file := range files {
+ 		hasTests := false // file contains tests or benchmarks
+ 		numDecl := 0      // number of non-import declarations in the file
+ 		var flist []*Example
+ 		for _, decl := range file.Decls {
+-			if g, ok := decl.(*GenDecl); ok && g.Tok != token.IMPORT {
++			if g, ok := decl.(*ast.GenDecl); ok && g.Tok != token.IMPORT {
+ 				numDecl++
+ 				continue
+ 			}
+-			f, ok := decl.(*FuncDecl)
++			f, ok := decl.(*ast.FuncDecl)
+ 			if !ok {
+ 				continue
+ 			}
+@@ -73,9 +74,9 @@ func Examples(files ...*File) []*Example {
+ 
+ var outputPrefix = regexp.MustCompile(`(?i)^[[:space:]]*output:`)
+ 
+-func exampleOutput(fun *FuncDecl, comments []*CommentGroup) string {
++func exampleOutput(fun *ast.FuncDecl, comments []*ast.CommentGroup) string {
+ 	// find the last comment in the function
+-	var last *CommentGroup
++	var last *ast.CommentGroup
+ 	for _, cg := range comments {
+ 		if cg.Pos() < fun.Pos() {
+ 			continue

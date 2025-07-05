@@ -14,6 +14,25 @@ Date:   Tue Nov 12 14:14:19 2024 -0800
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/go/types/typexpr.go | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/src/go/types/typexpr.go b/src/go/types/typexpr.go
+index c83f53ba61..0b88f31d73 100644
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@ -334,6 +334,13 @@ func (check *Checker) typInternal(e0 ast.Expr, def *TypeName) (T Type) {
+ 		typ.base = Typ[Invalid] // avoid nil base in invalid recursive type declaration
+ 		setDefType(def, typ)
+ 		typ.base = check.varType(e.X)
++		// If typ.base is invalid, it's unlikely that *base is particularly
++		// useful - even a valid dereferenciation will lead to an invalid
++		// type again, and in some cases we get unexpected follow-on errors
++		// (e.g., go.dev/issue/49005). Return an invalid type instead.
++		if !isValid(typ.base) {
++			return Typ[Invalid]
++		}
+ 		return typ
+ 
+ 	case *ast.FuncType:

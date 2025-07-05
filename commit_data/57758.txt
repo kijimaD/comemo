@@ -19,7 +19,7 @@ Date:   Sat Aug 26 19:06:33 2023 -0700
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Auto-Submit: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/asm/internal/asm/endtoend_test.go  | 12 +++---
  src/cmd/asm/internal/asm/expr_test.go      |  4 +-
  src/cmd/asm/internal/asm/line_test.go      |  2 +-
@@ -37,3 +37,511 @@ Date:   Sat Aug 26 19:06:33 2023 -0700
  src/cmd/internal/obj/dwarf.go              | 17 ++++++---
  src/cmd/internal/obj/plist.go              |  6 +--
  16 files changed, 85 insertions(+), 91 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/endtoend_test.go b/src/cmd/asm/internal/asm/endtoend_test.go
+index 694312170a..a2de63685c 100644
+--- a/src/cmd/asm/internal/asm/endtoend_test.go
++++ b/src/cmd/asm/internal/asm/endtoend_test.go
+@@ -29,8 +29,8 @@ func testEndToEnd(t *testing.T, goarch, file string) {
+ 	input := filepath.Join("testdata", file+".s")
+ 	architecture, ctxt := setArch(goarch)
+ 	architecture.Init(ctxt)
+-	lexer := lex.NewLexer(input, false)
+-	parser := NewParser(ctxt, architecture, lexer, false)
++	lexer := lex.NewLexer(input)
++	parser := NewParser(ctxt, architecture, lexer)
+ 	pList := new(obj.Plist)
+ 	var ok bool
+ 	testOut = new(strings.Builder) // The assembler writes test output to this buffer.
+@@ -191,7 +191,7 @@ Diff:
+ 		t.Errorf(format, args...)
+ 		ok = false
+ 	}
+-	obj.Flushplist(ctxt, pList, nil, "")
++	obj.Flushplist(ctxt, pList, nil)
+ 
+ 	for p := top; p != nil; p = p.Link {
+ 		if p.As == obj.ATEXT {
+@@ -278,8 +278,8 @@ func testErrors(t *testing.T, goarch, file string, flags ...string) {
+ 	input := filepath.Join("testdata", file+".s")
+ 	architecture, ctxt := setArch(goarch)
+ 	architecture.Init(ctxt)
+-	lexer := lex.NewLexer(input, false)
+-	parser := NewParser(ctxt, architecture, lexer, false)
++	lexer := lex.NewLexer(input)
++	parser := NewParser(ctxt, architecture, lexer)
+ 	pList := new(obj.Plist)
+ 	var ok bool
+ 	ctxt.Bso = bufio.NewWriter(os.Stdout)
+@@ -305,7 +305,7 @@ func testErrors(t *testing.T, goarch, file string, flags ...string) {
+ 		}
+ 	}
+ 	pList.Firstpc, ok = parser.Parse()
+-	obj.Flushplist(ctxt, pList, nil, "")
++	obj.Flushplist(ctxt, pList, nil)
+ 	if ok && !failed {
+ 		t.Errorf("asm: %s had no errors", file)
+ 	}
+diff --git a/src/cmd/asm/internal/asm/expr_test.go b/src/cmd/asm/internal/asm/expr_test.go
+index e9c92df1f3..1251594349 100644
+--- a/src/cmd/asm/internal/asm/expr_test.go
++++ b/src/cmd/asm/internal/asm/expr_test.go
+@@ -57,7 +57,7 @@ var exprTests = []exprTest{
+ }
+ 
+ func TestExpr(t *testing.T) {
+-	p := NewParser(nil, nil, nil, false) // Expression evaluation uses none of these fields of the parser.
++	p := NewParser(nil, nil, nil) // Expression evaluation uses none of these fields of the parser.
+ 	for i, test := range exprTests {
+ 		p.start(lex.Tokenize(test.input))
+ 		result := int64(p.expr())
+@@ -113,7 +113,7 @@ func TestBadExpr(t *testing.T) {
+ }
+ 
+ func runBadTest(i int, test badExprTest, t *testing.T) (err error) {
+-	p := NewParser(nil, nil, nil, false) // Expression evaluation uses none of these fields of the parser.
++	p := NewParser(nil, nil, nil) // Expression evaluation uses none of these fields of the parser.
+ 	p.start(lex.Tokenize(test.input))
+ 	return tryParse(t, func() {
+ 		p.expr()
+diff --git a/src/cmd/asm/internal/asm/line_test.go b/src/cmd/asm/internal/asm/line_test.go
+index da857ced3a..01b058bd95 100644
+--- a/src/cmd/asm/internal/asm/line_test.go
++++ b/src/cmd/asm/internal/asm/line_test.go
+@@ -39,7 +39,7 @@ func testBadInstParser(t *testing.T, goarch string, tests []badInstTest) {
+ 	for i, test := range tests {
+ 		arch, ctxt := setArch(goarch)
+ 		tokenizer := lex.NewTokenizer("", strings.NewReader(test.input+"\n"), nil)
+-		parser := NewParser(ctxt, arch, tokenizer, false)
++		parser := NewParser(ctxt, arch, tokenizer)
+ 
+ 		err := tryParse(t, func() {
+ 			parser.Parse()
+diff --git a/src/cmd/asm/internal/asm/operand_test.go b/src/cmd/asm/internal/asm/operand_test.go
+index c7e251f50f..fca2234165 100644
+--- a/src/cmd/asm/internal/asm/operand_test.go
++++ b/src/cmd/asm/internal/asm/operand_test.go
+@@ -28,7 +28,7 @@ func setArch(goarch string) (*arch.Arch, *obj.Link) {
+ 
+ func newParser(goarch string) *Parser {
+ 	architecture, ctxt := setArch(goarch)
+-	return NewParser(ctxt, architecture, nil, false)
++	return NewParser(ctxt, architecture, nil)
+ }
+ 
+ // tryParse executes parse func in panicOnError=true context.
+@@ -76,7 +76,7 @@ func testOperandParser(t *testing.T, parser *Parser, tests []operandTest) {
+ 		addr := obj.Addr{}
+ 		parser.operand(&addr)
+ 		var result string
+-		if parser.compilingRuntime {
++		if parser.allowABI {
+ 			result = obj.DconvWithABIDetail(&emptyProg, &addr)
+ 		} else {
+ 			result = obj.Dconv(&emptyProg, &addr)
+@@ -91,7 +91,7 @@ func TestAMD64OperandParser(t *testing.T) {
+ 	parser := newParser("amd64")
+ 	testOperandParser(t, parser, amd64OperandTests)
+ 	testBadOperandParser(t, parser, amd64BadOperandTests)
+-	parser.compilingRuntime = true
++	parser.allowABI = true
+ 	testOperandParser(t, parser, amd64RuntimeOperandTests)
+ 	testBadOperandParser(t, parser, amd64BadOperandRuntimeTests)
+ }
+diff --git a/src/cmd/asm/internal/asm/parse.go b/src/cmd/asm/internal/asm/parse.go
+index c504e7eeab..8c6642d810 100644
+--- a/src/cmd/asm/internal/asm/parse.go
++++ b/src/cmd/asm/internal/asm/parse.go
+@@ -21,31 +21,32 @@ import (
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/arm64"
+ 	"cmd/internal/obj/x86"
++	"cmd/internal/objabi"
+ 	"cmd/internal/src"
+ 	"cmd/internal/sys"
+ )
+ 
+ type Parser struct {
+-	lex              lex.TokenReader
+-	lineNum          int   // Line number in source file.
+-	errorLine        int   // Line number of last error.
+-	errorCount       int   // Number of errors.
+-	sawCode          bool  // saw code in this file (as opposed to comments and blank lines)
+-	pc               int64 // virtual PC; count of Progs; doesn't advance for GLOBL or DATA.
+-	input            []lex.Token
+-	inputPos         int
+-	pendingLabels    []string // Labels to attach to next instruction.
+-	labels           map[string]*obj.Prog
+-	toPatch          []Patch
+-	addr             []obj.Addr
+-	arch             *arch.Arch
+-	ctxt             *obj.Link
+-	firstProg        *obj.Prog
+-	lastProg         *obj.Prog
+-	dataAddr         map[string]int64 // Most recent address for DATA for this symbol.
+-	isJump           bool             // Instruction being assembled is a jump.
+-	compilingRuntime bool
+-	errorWriter      io.Writer
++	lex           lex.TokenReader
++	lineNum       int   // Line number in source file.
++	errorLine     int   // Line number of last error.
++	errorCount    int   // Number of errors.
++	sawCode       bool  // saw code in this file (as opposed to comments and blank lines)
++	pc            int64 // virtual PC; count of Progs; doesn't advance for GLOBL or DATA.
++	input         []lex.Token
++	inputPos      int
++	pendingLabels []string // Labels to attach to next instruction.
++	labels        map[string]*obj.Prog
++	toPatch       []Patch
++	addr          []obj.Addr
++	arch          *arch.Arch
++	ctxt          *obj.Link
++	firstProg     *obj.Prog
++	lastProg      *obj.Prog
++	dataAddr      map[string]int64 // Most recent address for DATA for this symbol.
++	isJump        bool             // Instruction being assembled is a jump.
++	allowABI      bool             // Whether ABI selectors are allowed.
++	errorWriter   io.Writer
+ }
+ 
+ type Patch struct {
+@@ -53,15 +54,15 @@ type Patch struct {
+ 	label string
+ }
+ 
+-func NewParser(ctxt *obj.Link, ar *arch.Arch, lexer lex.TokenReader, compilingRuntime bool) *Parser {
++func NewParser(ctxt *obj.Link, ar *arch.Arch, lexer lex.TokenReader) *Parser {
+ 	return &Parser{
+-		ctxt:             ctxt,
+-		arch:             ar,
+-		lex:              lexer,
+-		labels:           make(map[string]*obj.Prog),
+-		dataAddr:         make(map[string]int64),
+-		errorWriter:      os.Stderr,
+-		compilingRuntime: compilingRuntime,
++		ctxt:        ctxt,
++		arch:        ar,
++		lex:         lexer,
++		labels:      make(map[string]*obj.Prog),
++		dataAddr:    make(map[string]int64),
++		errorWriter: os.Stderr,
++		allowABI:    ctxt != nil && objabi.LookupPkgSpecial(ctxt.Pkgpath).AllowAsmABI,
+ 	}
+ }
+ 
+@@ -864,7 +865,7 @@ func (p *Parser) symRefAttrs(name string, issueError bool) (bool, obj.ABI) {
+ 		isStatic = true
+ 	} else if tok == scanner.Ident {
+ 		abistr := p.get(scanner.Ident).String()
+-		if !p.compilingRuntime {
++		if !p.allowABI {
+ 			if issueError {
+ 				p.errorf("ABI selector only permitted when compiling runtime, reference was to %q", name)
+ 			}
+diff --git a/src/cmd/asm/internal/asm/pseudo_test.go b/src/cmd/asm/internal/asm/pseudo_test.go
+index 5e6fcf8dfe..b9be6a7b2d 100644
+--- a/src/cmd/asm/internal/asm/pseudo_test.go
++++ b/src/cmd/asm/internal/asm/pseudo_test.go
+@@ -64,16 +64,16 @@ func TestErroneous(t *testing.T) {
+ 	}
+ 
+ 	testcats := []struct {
+-		compilingRuntime bool
+-		tests            []errtest
++		allowABI bool
++		tests    []errtest
+ 	}{
+ 		{
+-			compilingRuntime: false,
+-			tests:            nonRuntimeTests,
++			allowABI: false,
++			tests:    nonRuntimeTests,
+ 		},
+ 		{
+-			compilingRuntime: true,
+-			tests:            runtimeTests,
++			allowABI: true,
++			tests:    runtimeTests,
+ 		},
+ 	}
+ 
+@@ -85,7 +85,7 @@ func TestErroneous(t *testing.T) {
+ 
+ 	for _, cat := range testcats {
+ 		for _, test := range cat.tests {
+-			parser.compilingRuntime = cat.compilingRuntime
++			parser.allowABI = cat.allowABI
+ 			parser.errorCount = 0
+ 			parser.lineNum++
+ 			if !parser.pseudo(test.pseudo, tokenize(test.operands)) {
+diff --git a/src/cmd/asm/internal/lex/input.go b/src/cmd/asm/internal/lex/input.go
+index 3034377793..da4ebe6d6e 100644
+--- a/src/cmd/asm/internal/lex/input.go
++++ b/src/cmd/asm/internal/lex/input.go
+@@ -6,7 +6,6 @@ package lex
+ 
+ import (
+ 	"fmt"
+-	"internal/buildcfg"
+ 	"os"
+ 	"path/filepath"
+ 	"strconv"
+@@ -34,33 +33,18 @@ type Input struct {
+ }
+ 
+ // NewInput returns an Input from the given path.
+-func NewInput(name string, compilingRuntime bool) *Input {
++func NewInput(name string) *Input {
+ 	return &Input{
+ 		// include directories: look in source dir, then -I directories.
+ 		includes:        append([]string{filepath.Dir(name)}, flags.I...),
+ 		beginningOfLine: true,
+-		macros:          predefine(flags.D, compilingRuntime),
++		macros:          predefine(flags.D),
+ 	}
+ }
+ 
+ // predefine installs the macros set by the -D flag on the command line.
+-func predefine(defines flags.MultiFlag, compilingRuntime bool) map[string]*Macro {
++func predefine(defines flags.MultiFlag) map[string]*Macro {
+ 	macros := make(map[string]*Macro)
+-
+-	// Set macros for GOEXPERIMENTs so we can easily switch
+-	// runtime assembly code based on them.
+-	if compilingRuntime {
+-		for _, exp := range buildcfg.Experiment.Enabled() {
+-			// Define macro.
+-			name := "GOEXPERIMENT_" + exp
+-			macros[name] = &Macro{
+-				name:   name,
+-				args:   nil,
+-				tokens: Tokenize("1"),
+-			}
+-		}
+-	}
+-
+ 	for _, name := range defines {
+ 		value := "1"
+ 		i := strings.IndexRune(name, '=')
+diff --git a/src/cmd/asm/internal/lex/lex.go b/src/cmd/asm/internal/lex/lex.go
+index 15a3c67d85..7cd41a55a9 100644
+--- a/src/cmd/asm/internal/lex/lex.go
++++ b/src/cmd/asm/internal/lex/lex.go
+@@ -60,8 +60,8 @@ func (t ScanToken) String() string {
+ }
+ 
+ // NewLexer returns a lexer for the named file and the given link context.
+-func NewLexer(name string, compilingRuntime bool) TokenReader {
+-	input := NewInput(name, compilingRuntime)
++func NewLexer(name string) TokenReader {
++	input := NewInput(name)
+ 	fd, err := os.Open(name)
+ 	if err != nil {
+ 		log.Fatalf("%s\n", err)
+diff --git a/src/cmd/asm/internal/lex/lex_test.go b/src/cmd/asm/internal/lex/lex_test.go
+index a1c4974f64..e8dcf4b22f 100644
+--- a/src/cmd/asm/internal/lex/lex_test.go
++++ b/src/cmd/asm/internal/lex/lex_test.go
+@@ -258,7 +258,7 @@ var lexTests = []lexTest{
+ 
+ func TestLex(t *testing.T) {
+ 	for _, test := range lexTests {
+-		input := NewInput(test.name, false)
++		input := NewInput(test.name)
+ 		input.Push(NewTokenizer(test.name, strings.NewReader(test.input), nil))
+ 		result := drain(input)
+ 		if result != test.output {
+@@ -328,7 +328,7 @@ var badLexTests = []badLexTest{
+ 
+ func TestBadLex(t *testing.T) {
+ 	for _, test := range badLexTests {
+-		input := NewInput(test.error, false)
++		input := NewInput(test.error)
+ 		input.Push(NewTokenizer(test.error, strings.NewReader(test.input), nil))
+ 		err := firstError(input)
+ 		if err == nil {
+diff --git a/src/cmd/asm/main.go b/src/cmd/asm/main.go
+index 84e9388cef..ba69195056 100644
+--- a/src/cmd/asm/main.go
++++ b/src/cmd/asm/main.go
+@@ -35,8 +35,6 @@ func main() {
+ 	if architecture == nil {
+ 		log.Fatalf("unrecognized architecture %s", GOARCH)
+ 	}
+-	compilingRuntime := objabi.LookupPkgSpecial(*flags.Importpath).AllowAsmABI
+-
+ 	ctxt := obj.Linknew(architecture.LinkArch)
+ 	ctxt.Debugasm = flags.PrintOut
+ 	ctxt.Debugvlog = flags.DebugV
+@@ -77,12 +75,19 @@ func main() {
+ 		fmt.Fprintf(buf, "!\n")
+ 	}
+ 
++	// Set macros for GOEXPERIMENTs so we can easily switch
++	// runtime assembly code based on them.
++	if objabi.LookupPkgSpecial(ctxt.Pkgpath).AllowAsmABI {
++		for _, exp := range buildcfg.Experiment.Enabled() {
++			flags.D = append(flags.D, "GOEXPERIMENT_"+exp)
++		}
++	}
++
+ 	var ok, diag bool
+ 	var failedFile string
+ 	for _, f := range flag.Args() {
+-		lexer := lex.NewLexer(f, compilingRuntime)
+-		parser := asm.NewParser(ctxt, architecture, lexer,
+-			compilingRuntime)
++		lexer := lex.NewLexer(f)
++		parser := asm.NewParser(ctxt, architecture, lexer)
+ 		ctxt.DiagFunc = func(format string, args ...interface{}) {
+ 			diag = true
+ 			log.Printf(format, args...)
+@@ -94,7 +99,7 @@ func main() {
+ 			pList.Firstpc, ok = parser.Parse()
+ 			// reports errors to parser.Errorf
+ 			if ok {
+-				obj.Flushplist(ctxt, pList, nil, *flags.Importpath)
++				obj.Flushplist(ctxt, pList, nil)
+ 			}
+ 		}
+ 		if !ok {
+diff --git a/src/cmd/compile/internal/dwarfgen/dwinl.go b/src/cmd/compile/internal/dwarfgen/dwinl.go
+index 99e1ce9a81..08544fef6f 100644
+--- a/src/cmd/compile/internal/dwarfgen/dwinl.go
++++ b/src/cmd/compile/internal/dwarfgen/dwinl.go
+@@ -217,7 +217,7 @@ func AbstractFunc(fn *obj.LSym) {
+ 	if base.Debug.DwarfInl != 0 {
+ 		base.Ctxt.Logf("DwarfAbstractFunc(%v)\n", fn.Name)
+ 	}
+-	base.Ctxt.DwarfAbstractFunc(ifn, fn, base.Ctxt.Pkgpath)
++	base.Ctxt.DwarfAbstractFunc(ifn, fn)
+ }
+ 
+ // Undo any versioning performed when a name was written
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index 249eeb221d..2a55043d5a 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -158,7 +158,7 @@ func dumpGlobal(n *ir.Name) {
+ 	if n.CoverageCounter() || n.CoverageAuxVar() || n.Linksym().Static() {
+ 		return
+ 	}
+-	base.Ctxt.DwarfGlobal(base.Ctxt.Pkgpath, types.TypeSymName(n.Type()), n.Linksym())
++	base.Ctxt.DwarfGlobal(types.TypeSymName(n.Type()), n.Linksym())
+ }
+ 
+ func dumpGlobalConst(n *ir.Name) {
+@@ -186,7 +186,7 @@ func dumpGlobalConst(n *ir.Name) {
+ 		// that type so the linker knows about it. See issue 51245.
+ 		_ = reflectdata.TypeLinksym(t)
+ 	}
+-	base.Ctxt.DwarfIntConst(base.Ctxt.Pkgpath, n.Sym().Name, types.TypeSymName(t), ir.IntVal(t, v))
++	base.Ctxt.DwarfIntConst(n.Sym().Name, types.TypeSymName(t), ir.IntVal(t, v))
+ }
+ 
+ // addGCLocals adds gcargs, gclocals, gcregs, and stack object symbols to Ctxt.Data.
+diff --git a/src/cmd/compile/internal/objw/prog.go b/src/cmd/compile/internal/objw/prog.go
+index 8ab603432f..84fb996723 100644
+--- a/src/cmd/compile/internal/objw/prog.go
++++ b/src/cmd/compile/internal/objw/prog.go
+@@ -109,7 +109,7 @@ func (pp *Progs) NewProg() *obj.Prog {
+ // Flush converts from pp to machine code.
+ func (pp *Progs) Flush() {
+ 	plist := &obj.Plist{Firstpc: pp.Text, Curfn: pp.CurFunc}
+-	obj.Flushplist(base.Ctxt, plist, pp.NewProg, base.Ctxt.Pkgpath)
++	obj.Flushplist(base.Ctxt, plist, pp.NewProg)
+ }
+ 
+ // Free clears pp and any associated resources.
+diff --git a/src/cmd/internal/dwarf/dwarf.go b/src/cmd/internal/dwarf/dwarf.go
+index d4a4e33652..90dff02b68 100644
+--- a/src/cmd/internal/dwarf/dwarf.go
++++ b/src/cmd/internal/dwarf/dwarf.go
+@@ -1233,7 +1233,6 @@ func putPrunedScopes(ctxt Context, s *FnState, fnabbrev int) error {
+ // DIE (as a space-saving measure, so that name/type etc doesn't have
+ // to be repeated for each inlined copy).
+ func PutAbstractFunc(ctxt Context, s *FnState) error {
+-
+ 	if logDwarf {
+ 		ctxt.Logf("PutAbstractFunc(%v)\n", s.Absfn)
+ 	}
+diff --git a/src/cmd/internal/obj/dwarf.go b/src/cmd/internal/obj/dwarf.go
+index f1330c9258..f5578f341f 100644
+--- a/src/cmd/internal/obj/dwarf.go
++++ b/src/cmd/internal/obj/dwarf.go
+@@ -345,7 +345,12 @@ func (ctxt *Link) fileSymbol(fn *LSym) *LSym {
+ // populateDWARF fills in the DWARF Debugging Information Entries for
+ // TEXT symbol 's'. The various DWARF symbols must already have been
+ // initialized in InitTextSym.
+-func (ctxt *Link) populateDWARF(curfn interface{}, s *LSym, myimportpath string) {
++func (ctxt *Link) populateDWARF(curfn interface{}, s *LSym) {
++	myimportpath := ctxt.Pkgpath
++	if myimportpath == "" {
++		return
++	}
++
+ 	info, loc, ranges, absfunc, lines := ctxt.dwarfSym(s)
+ 	if info.Size != 0 {
+ 		ctxt.Diag("makeFuncDebugEntry double process %v", s)
+@@ -394,7 +399,8 @@ func (ctxt *Link) populateDWARF(curfn interface{}, s *LSym, myimportpath string)
+ 
+ // DwarfIntConst creates a link symbol for an integer constant with the
+ // given name, type and value.
+-func (ctxt *Link) DwarfIntConst(myimportpath, name, typename string, val int64) {
++func (ctxt *Link) DwarfIntConst(name, typename string, val int64) {
++	myimportpath := ctxt.Pkgpath
+ 	if myimportpath == "" {
+ 		return
+ 	}
+@@ -407,7 +413,8 @@ func (ctxt *Link) DwarfIntConst(myimportpath, name, typename string, val int64)
+ 
+ // DwarfGlobal creates a link symbol containing a DWARF entry for
+ // a global variable.
+-func (ctxt *Link) DwarfGlobal(myimportpath, typename string, varSym *LSym) {
++func (ctxt *Link) DwarfGlobal(typename string, varSym *LSym) {
++	myimportpath := ctxt.Pkgpath
+ 	if myimportpath == "" || varSym.Local() {
+ 		return
+ 	}
+@@ -421,7 +428,7 @@ func (ctxt *Link) DwarfGlobal(myimportpath, typename string, varSym *LSym) {
+ 	dwarf.PutGlobal(dwCtxt{ctxt}, dieSym, typeSym, varSym, varname)
+ }
+ 
+-func (ctxt *Link) DwarfAbstractFunc(curfn interface{}, s *LSym, myimportpath string) {
++func (ctxt *Link) DwarfAbstractFunc(curfn interface{}, s *LSym) {
+ 	absfn := ctxt.DwFixups.AbsFuncDwarfSym(s)
+ 	if absfn.Size != 0 {
+ 		ctxt.Diag("internal error: DwarfAbstractFunc double process %v", s)
+@@ -434,7 +441,7 @@ func (ctxt *Link) DwarfAbstractFunc(curfn interface{}, s *LSym, myimportpath str
+ 	dwctxt := dwCtxt{ctxt}
+ 	fnstate := dwarf.FnState{
+ 		Name:          s.Name,
+-		Importpath:    myimportpath,
++		Importpath:    ctxt.Pkgpath,
+ 		Info:          absfn,
+ 		Absfn:         absfn,
+ 		StartLine:     startLine,
+diff --git a/src/cmd/internal/obj/plist.go b/src/cmd/internal/obj/plist.go
+index 921dfee2a3..9cdf0800f0 100644
+--- a/src/cmd/internal/obj/plist.go
++++ b/src/cmd/internal/obj/plist.go
+@@ -21,7 +21,7 @@ type Plist struct {
+ // It is used to provide access to cached/bulk-allocated Progs to the assemblers.
+ type ProgAlloc func() *Prog
+ 
+-func Flushplist(ctxt *Link, plist *Plist, newprog ProgAlloc, myimportpath string) {
++func Flushplist(ctxt *Link, plist *Plist, newprog ProgAlloc) {
+ 	// Build list of symbols, and assign instructions to lists.
+ 	var curtext *LSym
+ 	var etext *Prog
+@@ -155,9 +155,7 @@ func Flushplist(ctxt *Link, plist *Plist, newprog ProgAlloc, myimportpath string
+ 			continue
+ 		}
+ 		linkpcln(ctxt, s)
+-		if myimportpath != "" {
+-			ctxt.populateDWARF(plist.Curfn, s, myimportpath)
+-		}
++		ctxt.populateDWARF(plist.Curfn, s)
+ 		if ctxt.Headtype == objabi.Hwindows && ctxt.Arch.SEH != nil {
+ 			s.Func().sehUnwindInfoSym = ctxt.Arch.SEH(ctxt, s)
+ 		}

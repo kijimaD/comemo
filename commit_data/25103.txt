@@ -14,7 +14,64 @@ Date:   Thu Sep 24 16:01:50 2015 +0200
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/link/internal/ld/macho.go |  4 ++--
  src/cmd/link/internal/ld/pe.go    | 20 +++++---------------
  2 files changed, 7 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/macho.go b/src/cmd/link/internal/ld/macho.go
+index ccc84915c0..c02b83f3fc 100644
+--- a/src/cmd/link/internal/ld/macho.go
++++ b/src/cmd/link/internal/ld/macho.go
+@@ -625,10 +625,10 @@ func (x machoscmp) Less(i, j int) bool {
+ 	k1 := symkind(s1)
+ 	k2 := symkind(s2)
+ 	if k1 != k2 {
+-		return k1-k2 < 0
++		return k1 < k2
+ 	}
+ 
+-	return stringsCompare(s1.Extname, s2.Extname) < 0
++	return s1.Extname < s2.Extname
+ }
+ 
+ func machogenasmsym(put func(*LSym, string, int, int64, int64, int, *LSym)) {
+diff --git a/src/cmd/link/internal/ld/pe.go b/src/cmd/link/internal/ld/pe.go
+index 4a7d710856..16ce7bd016 100644
+--- a/src/cmd/link/internal/ld/pe.go
++++ b/src/cmd/link/internal/ld/pe.go
+@@ -684,21 +684,11 @@ func addimports(datsect *IMAGE_SECTION_HEADER) {
+ 	Cseek(endoff)
+ }
+ 
+-type pescmp []*LSym
++type byExtname []*LSym
+ 
+-func (x pescmp) Len() int {
+-	return len(x)
+-}
+-
+-func (x pescmp) Swap(i, j int) {
+-	x[i], x[j] = x[j], x[i]
+-}
+-
+-func (x pescmp) Less(i, j int) bool {
+-	s1 := x[i]
+-	s2 := x[j]
+-	return stringsCompare(s1.Extname, s2.Extname) < 0
+-}
++func (s byExtname) Len() int           { return len(s) }
++func (s byExtname) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
++func (s byExtname) Less(i, j int) bool { return s[i].Extname < s[j].Extname }
+ 
+ func initdynexport() {
+ 	nexport = 0
+@@ -715,7 +705,7 @@ func initdynexport() {
+ 		nexport++
+ 	}
+ 
+-	sort.Sort(pescmp(dexport[:nexport]))
++	sort.Sort(byExtname(dexport[:nexport]))
+ }
+ 
+ func addexports() {

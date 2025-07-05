@@ -14,7 +14,92 @@ Date:   Tue May 18 17:37:54 2021 -0700
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/syntax/parser.go          | 12 ++++++
  .../compile/internal/syntax/testdata/interface.go2 | 46 +++++++++++++++++++++-
  2 files changed, 57 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/syntax/parser.go b/src/cmd/compile/internal/syntax/parser.go
+index e7b8840b33..0e711a0113 100644
+--- a/src/cmd/compile/internal/syntax/parser.go
++++ b/src/cmd/compile/internal/syntax/parser.go
+@@ -1443,6 +1443,18 @@ func (p *parser) interfaceType() *InterfaceType {
+ 				}
+ 				return false
+ 			}
++
++		default:
++			if p.mode&AllowGenerics != 0 {
++				pos := p.pos()
++				if t := p.typeOrNil(); t != nil {
++					f := new(Field)
++					f.pos = pos
++					f.Type = t
++					typ.MethodList = append(typ.MethodList, p.embeddedElem(f))
++					return false
++				}
++			}
+ 		}
+ 
+ 		if p.mode&AllowGenerics != 0 {
+diff --git a/src/cmd/compile/internal/syntax/testdata/interface.go2 b/src/cmd/compile/internal/syntax/testdata/interface.go2
+index a817327a43..b399d75148 100644
+--- a/src/cmd/compile/internal/syntax/testdata/interface.go2
++++ b/src/cmd/compile/internal/syntax/testdata/interface.go2
+@@ -25,7 +25,6 @@ type _ interface {
+ 	~int | ~string
+ }
+ 
+-
+ type _ interface {
+ 	m()
+ 	~int
+@@ -34,3 +33,48 @@ type _ interface {
+ 	~int | ~string
+ 	type bool, int, float64
+ }
++
++type _ interface {
++	int
++	[]byte
++	[10]int
++	struct{}
++	*int
++	func()
++	interface{}
++	map[string]int
++	chan T
++	chan<- T
++	<-chan T
++	T[int]
++}
++
++type _ interface {
++	int | string
++	[]byte | string
++	[10]int | string
++	struct{} | string
++	*int | string
++	func() | string
++	interface{} | string
++	map[string]int | string
++	chan T | string
++	chan<- T | string
++	<-chan T | string
++	T[int] | string
++}
++
++type _ interface {
++	~int | string
++	~[]byte | string
++	~[10]int | string
++	~struct{} | string
++	~*int | string
++	~func() | string
++	~interface{} | string
++	~map[string]int | string
++	~chan T | string
++	~chan<- T | string
++	~<-chan T | string
++	~T[int] | string
++}

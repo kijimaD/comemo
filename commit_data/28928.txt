@@ -16,10 +16,93 @@ Date:   Wed Jul 13 10:35:35 2016 -0600
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/dnsconfig_unix.go                   |  6 ++++--
  src/net/dnsconfig_unix_test.go              | 30 +++++++++++++++++++++++++++++
  src/net/testdata/invalid-ndots-resolv.conf  |  1 +
  src/net/testdata/large-ndots-resolv.conf    |  1 +
  src/net/testdata/negative-ndots-resolv.conf |  1 +
  5 files changed, 37 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/dnsconfig_unix.go b/src/net/dnsconfig_unix.go
+index b885813722..683ae71812 100644
+--- a/src/net/dnsconfig_unix.go
++++ b/src/net/dnsconfig_unix.go
+@@ -92,8 +92,10 @@ func dnsReadConfig(filename string) *dnsConfig {
+ 				switch {
+ 				case hasPrefix(s, "ndots:"):
+ 					n, _, _ := dtoi(s[6:])
+-					if n < 1 {
+-						n = 1
++					if n < 0 {
++						n = 0
++					} else if n > 15 {
++						n = 15
+ 					}
+ 					conf.ndots = n
+ 				case hasPrefix(s, "timeout:"):
+diff --git a/src/net/dnsconfig_unix_test.go b/src/net/dnsconfig_unix_test.go
+index 9fd6dbf982..89695c3099 100644
+--- a/src/net/dnsconfig_unix_test.go
++++ b/src/net/dnsconfig_unix_test.go
+@@ -60,6 +60,36 @@ var dnsReadConfigTests = []struct {
+ 			search:   []string{"domain.local."},
+ 		},
+ 	},
++	{
++		name: "testdata/invalid-ndots-resolv.conf",
++		want: &dnsConfig{
++			servers:  defaultNS,
++			ndots:    0,
++			timeout:  5 * time.Second,
++			attempts: 2,
++			search:   []string{"domain.local."},
++		},
++	},
++	{
++		name: "testdata/large-ndots-resolv.conf",
++		want: &dnsConfig{
++			servers:  defaultNS,
++			ndots:    15,
++			timeout:  5 * time.Second,
++			attempts: 2,
++			search:   []string{"domain.local."},
++		},
++	},
++	{
++		name: "testdata/negative-ndots-resolv.conf",
++		want: &dnsConfig{
++			servers:  defaultNS,
++			ndots:    0,
++			timeout:  5 * time.Second,
++			attempts: 2,
++			search:   []string{"domain.local."},
++		},
++	},
+ 	{
+ 		name: "testdata/openbsd-resolv.conf",
+ 		want: &dnsConfig{
+diff --git a/src/net/testdata/invalid-ndots-resolv.conf b/src/net/testdata/invalid-ndots-resolv.conf
+new file mode 100644
+index 0000000000..084c1643de
+--- /dev/null
++++ b/src/net/testdata/invalid-ndots-resolv.conf
+@@ -0,0 +1 @@
++options ndots:invalid
+\ No newline at end of file
+diff --git a/src/net/testdata/large-ndots-resolv.conf b/src/net/testdata/large-ndots-resolv.conf
+new file mode 100644
+index 0000000000..72968eee91
+--- /dev/null
++++ b/src/net/testdata/large-ndots-resolv.conf
+@@ -0,0 +1 @@
++options ndots:16
+\ No newline at end of file
+diff --git a/src/net/testdata/negative-ndots-resolv.conf b/src/net/testdata/negative-ndots-resolv.conf
+new file mode 100644
+index 0000000000..c11e0cc403
+--- /dev/null
++++ b/src/net/testdata/negative-ndots-resolv.conf
+@@ -0,0 +1 @@
++options ndots:-1
+\ No newline at end of file

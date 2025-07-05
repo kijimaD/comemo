@@ -7,6 +7,30 @@ Date:   Tue Dec 4 11:30:46 2012 -0800
     R=gri
     CC=golang-dev
     https://golang.org/cl/6868059
-
+---
  test/fixedbugs/issue4283.go | 17 +++++++++++++++++
  1 file changed, 17 insertions(+)
+
+diff --git a/test/fixedbugs/issue4283.go b/test/fixedbugs/issue4283.go
+new file mode 100644
+index 0000000000..128c87231a
+--- /dev/null
++++ b/test/fixedbugs/issue4283.go
+@@ -0,0 +1,17 @@
++// errorcheck
++
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 4283: nil == nil can't be done as the type is unknown.
++
++package p
++
++func F1() bool {
++	return nil == nil	// ERROR "invalid"
++}
++
++func F2() bool {
++	return nil != nil	// ERROR "invalid"
++}

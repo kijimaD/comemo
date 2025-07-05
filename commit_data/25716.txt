@@ -11,8 +11,70 @@ Date:   Mon Nov 16 11:43:22 2015 -0400
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/dnsclient.go      |  2 +-
  src/net/dnsclient_test.go | 23 +++++++++++++++++++++++
  src/net/dnsclient_unix.go |  6 +++++-
  3 files changed, 29 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/dnsclient.go b/src/net/dnsclient.go
+index a2f5986603..b44c06dce4 100644
+--- a/src/net/dnsclient.go
++++ b/src/net/dnsclient.go
+@@ -40,7 +40,7 @@ func reverseaddr(addr string) (arpa string, err error) {
+ func answer(name, server string, dns *dnsMsg, qtype uint16) (cname string, addrs []dnsRR, err error) {
+ 	addrs = make([]dnsRR, 0, len(dns.answer))
+ 
+-	if dns.rcode == dnsRcodeNameError && dns.recursion_available {
++	if dns.rcode == dnsRcodeNameError {
+ 		return "", nil, &DNSError{Err: errNoSuchHost.Error(), Name: name, Server: server}
+ 	}
+ 	if dns.rcode != dnsRcodeSuccess {
+diff --git a/src/net/dnsclient_test.go b/src/net/dnsclient_test.go
+index 42b536c3f3..7308fb03fa 100644
+--- a/src/net/dnsclient_test.go
++++ b/src/net/dnsclient_test.go
+@@ -92,3 +92,26 @@ func TestIssue8434(t *testing.T) {
+ 		t.Fatalf("IsTemporary = false for err = %#v; want IsTemporary == true", err)
+ 	}
+ }
++
++// Issue 12778: verify that NXDOMAIN without RA bit errors as
++// "no such host" and not "server misbehaving"
++func TestIssue12778(t *testing.T) {
++	msg := &dnsMsg{
++		dnsMsgHdr: dnsMsgHdr{
++			rcode:               dnsRcodeNameError,
++			recursion_available: false,
++		},
++	}
++
++	_, _, err := answer("golang.org", "foo:53", msg, uint16(dnsTypeSRV))
++	if err == nil {
++		t.Fatal("expected an error")
++	}
++	de, ok := err.(*DNSError)
++	if !ok {
++		t.Fatalf("err = %#v; wanted a *net.DNSError", err)
++	}
++	if de.Err != errNoSuchHost.Error() {
++		t.Fatalf("Err = %#v; wanted %q", de.Err, errNoSuchHost.Error())
++	}
++}
+diff --git a/src/net/dnsclient_unix.go b/src/net/dnsclient_unix.go
+index 94282ee79e..ffea828c32 100644
+--- a/src/net/dnsclient_unix.go
++++ b/src/net/dnsclient_unix.go
+@@ -182,7 +182,11 @@ func tryOneName(cfg *dnsConfig, name string, qtype uint16) (string, []dnsRR, err
+ 				continue
+ 			}
+ 			cname, rrs, err := answer(name, server, msg, qtype)
+-			if err == nil || msg.rcode == dnsRcodeSuccess || msg.rcode == dnsRcodeNameError && msg.recursion_available {
++			// If answer errored for rcodes dnsRcodeSuccess or dnsRcodeNameError,
++			// it means the response in msg was not useful and trying another
++			// server probably won't help. Return now in those cases.
++			// TODO: indicate this in a more obvious way, such as a field on DNSError?
++			if err == nil || msg.rcode == dnsRcodeSuccess || msg.rcode == dnsRcodeNameError {
+ 				return cname, rrs, err
+ 			}
+ 			lastErr = err

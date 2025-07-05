@@ -28,8 +28,204 @@ Date:   Mon Apr 5 16:00:07 2021 -0700
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Patrik Nyblom <pnyb@google.com>
     Trust: Alex Brainman <alex.brainman@gmail.com>
-
+---
  src/runtime/os_windows.go     |  4 +++
  src/runtime/panic.go          | 11 +++++++
  src/runtime/signal_windows.go | 74 ++++++++++++++++++++++++++++++-------------
  3 files changed, 67 insertions(+), 22 deletions(-)
+
+diff --git a/src/runtime/os_windows.go b/src/runtime/os_windows.go
+index 648239fb36..0e17e75e3e 100644
+--- a/src/runtime/os_windows.go
++++ b/src/runtime/os_windows.go
+@@ -40,6 +40,7 @@ const (
+ //go:cgo_import_dynamic runtime._LoadLibraryW LoadLibraryW%1 "kernel32.dll"
+ //go:cgo_import_dynamic runtime._LoadLibraryA LoadLibraryA%1 "kernel32.dll"
+ //go:cgo_import_dynamic runtime._PostQueuedCompletionStatus PostQueuedCompletionStatus%4 "kernel32.dll"
++//go:cgo_import_dynamic runtime._RaiseException RaiseException%4 "kernel32.dll"
+ //go:cgo_import_dynamic runtime._ResumeThread ResumeThread%1 "kernel32.dll"
+ //go:cgo_import_dynamic runtime._SetConsoleCtrlHandler SetConsoleCtrlHandler%2 "kernel32.dll"
+ //go:cgo_import_dynamic runtime._SetErrorMode SetErrorMode%1 "kernel32.dll"
+@@ -93,6 +94,7 @@ var (
+ 	_PostQueuedCompletionStatus,
+ 	_QueryPerformanceCounter,
+ 	_QueryPerformanceFrequency,
++	_RaiseException,
+ 	_ResumeThread,
+ 	_SetConsoleCtrlHandler,
+ 	_SetErrorMode,
+@@ -120,6 +122,7 @@ var (
+ 	_AddVectoredContinueHandler,
+ 	_LoadLibraryExA,
+ 	_LoadLibraryExW,
++	_WerSetFlags,
+ 	_ stdFunction
+ 
+ 	// Use RtlGenRandom to generate cryptographically random data.
+@@ -254,6 +257,7 @@ func loadOptionalSyscalls() {
+ 	_AddVectoredContinueHandler = windowsFindfunc(k32, []byte("AddVectoredContinueHandler\000"))
+ 	_LoadLibraryExA = windowsFindfunc(k32, []byte("LoadLibraryExA\000"))
+ 	_LoadLibraryExW = windowsFindfunc(k32, []byte("LoadLibraryExW\000"))
++	_WerSetFlags = windowsFindfunc(k32, []byte("WerSetFlags\000"))
+ 	useLoadLibraryEx = (_LoadLibraryExW != nil && _LoadLibraryExA != nil && _AddDllDirectory != nil)
+ 
+ 	var advapi32dll = []byte("advapi32.dll\000")
+diff --git a/src/runtime/panic.go b/src/runtime/panic.go
+index c4f3f41ff5..58135cf8ce 100644
+--- a/src/runtime/panic.go
++++ b/src/runtime/panic.go
+@@ -975,6 +975,11 @@ var runningPanicDefers uint32
+ // panicking is incremented and decremented atomically.
+ var panicking uint32
+ 
++// tracebackprinted is zero before gopanic() prints the traceback. After
++// traceback is printed, it sets to 1 so that the subsequent exception handler
++// won't print the traceback again.
++var tracebackprinted uint32
++
+ // paniclk is held while printing the panic information and stack trace,
+ // so that two concurrent panics don't overlap their output.
+ var paniclk mutex
+@@ -1018,6 +1023,9 @@ func fatalthrow() {
+ 		startpanic_m()
+ 
+ 		if dopanic_m(gp, pc, sp) {
++			// At this point, traceback has already been printed.
++			// Set tracebackprinted to 1 to avoid printing traceback again
++			tracebackprinted = 1
+ 			// crash uses a decent amount of nosplit stack and we're already
+ 			// low on stack in throw, so crash on the system stack (unlike
+ 			// fatalpanic).
+@@ -1059,6 +1067,9 @@ func fatalpanic(msgs *_panic) {
+ 	})
+ 
+ 	if docrash {
++		// At this point, traceback has already been printed.
++		// Set tracebackprinted to 1 to avoid printing traceback again
++		tracebackprinted = 1
+ 		// By crashing outside the above systemstack call, debuggers
+ 		// will not be confused when generating a backtrace.
+ 		// Function crash is marked nosplit to avoid stack growth.
+diff --git a/src/runtime/signal_windows.go b/src/runtime/signal_windows.go
+index 16c36d07f1..ca4a9ea451 100644
+--- a/src/runtime/signal_windows.go
++++ b/src/runtime/signal_windows.go
+@@ -22,6 +22,30 @@ func disableWER() {
+ 	stdcall1(_SetErrorMode, uintptr(errormode)|SEM_FAILCRITICALERRORS|SEM_NOGPFAULTERRORBOX|SEM_NOOPENFILEERRORBOX)
+ }
+ 
++// enableWERNoUI re-enables Windows error reporting without fault reporting UI.
++// It returns false on older Windows versions (XP and earlier) where WerSetFlags() is not supported.
++//
++// This is marked nosplit since it is used during crash.
++//
++//go:nosplit
++func enableWERNoUI() bool {
++	if _WerSetFlags == nil {
++		return false
++	}
++
++	// Disable Fault reporting UI
++	const (
++		WER_FAULT_REPORTING_NO_UI = 0x0020
++	)
++	if stdcall1(_WerSetFlags, WER_FAULT_REPORTING_NO_UI) != 0 {
++		return false
++	}
++
++	// re-enable Windows Error Reporting
++	stdcall1(_SetErrorMode, 0)
++	return true
++}
++
+ // in sys_windows_386.s and sys_windows_amd64.s
+ func exceptiontramp()
+ func firstcontinuetramp()
+@@ -108,6 +132,7 @@ func exceptionhandler(info *exceptionrecord, r *context, gp *g) int32 {
+ 		// Don't go through any more of the Windows handler chain.
+ 		// Crash now.
+ 		winthrow(info, r, gp)
++		exit(2)
+ 	}
+ 
+ 	// After this point, it is safe to grow the stack.
+@@ -196,6 +221,15 @@ func lastcontinuehandler(info *exceptionrecord, r *context, gp *g) int32 {
+ 	}
+ 
+ 	winthrow(info, r, gp)
++
++	_, _, docrash := gotraceback()
++	if docrash {
++		// trigger crash dump creation
++		if enableWERNoUI() {
++			return _EXCEPTION_CONTINUE_SEARCH
++		}
++	}
++	exit(2)
+ 	return 0 // not reached
+ }
+ 
+@@ -203,11 +237,6 @@ func lastcontinuehandler(info *exceptionrecord, r *context, gp *g) int32 {
+ func winthrow(info *exceptionrecord, r *context, gp *g) {
+ 	_g_ := getg()
+ 
+-	if panicking != 0 { // traceback already printed
+-		exit(2)
+-	}
+-	panicking = 1
+-
+ 	// In case we're handling a g0 stack overflow, blow away the
+ 	// g0 stack bounds so we have room to print the traceback. If
+ 	// this somehow overflows the stack, the OS will trap it.
+@@ -229,18 +258,16 @@ func winthrow(info *exceptionrecord, r *context, gp *g) {
+ 	_g_.m.throwing = 1
+ 	_g_.m.caughtsig.set(gp)
+ 
+-	level, _, docrash := gotraceback()
++	level, _, _ := gotraceback()
+ 	if level > 0 {
+-		tracebacktrap(r.ip(), r.sp(), r.lr(), gp)
+-		tracebackothers(gp)
++		// only print traceback when it hasn't been printed
++		if tracebackprinted == 0 {
++			tracebacktrap(r.ip(), r.sp(), r.lr(), gp)
++			tracebackothers(gp)
++			tracebackprinted = 1
++		}
+ 		dumpregs(r)
+ 	}
+-
+-	if docrash {
+-		crash()
+-	}
+-
+-	exit(2)
+ }
+ 
+ func sigpanic() {
+@@ -312,14 +339,17 @@ func signame(sig uint32) string {
+ 
+ //go:nosplit
+ func crash() {
+-	// TODO: This routine should do whatever is needed
+-	// to make the Windows program abort/crash as it
+-	// would if Go was not intercepting signals.
+-	// On Unix the routine would remove the custom signal
+-	// handler and then raise a signal (like SIGABRT).
+-	// Something like that should happen here.
+-	// It's okay to leave this empty for now: if crash returns
+-	// the ordinary exit-after-panic happens.
++	// When GOTRACEBACK==crash, raise the same exception
++	// from kernel32.dll, so that Windows gets a chance
++	// to handle the exception by creating a crash dump.
++
++	// Get the Exception code that caused the crash
++	gp := getg()
++	exceptionCode := gp.sig
++
++	// RaiseException() here will not be handled in exceptionhandler()
++	// because it comes from kernel32.dll
++	stdcall4(_RaiseException, uintptr(unsafe.Pointer(&exceptionCode)), 0, 0, 0)
+ }
+ 
+ // gsignalStack is unused on Windows.

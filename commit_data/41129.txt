@@ -9,6 +9,43 @@ Date:   Fri Sep 6 03:27:12 2019 +1000
     Change-Id: I7ecf5239d6bc49408a2f155d0f5398ee716fd443
     Reviewed-on: https://go-review.googlesource.com/c/go/+/193678
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/internal/sys/arch.go | 11 +++++++++++
  1 file changed, 11 insertions(+)
+
+diff --git a/src/cmd/internal/sys/arch.go b/src/cmd/internal/sys/arch.go
+index 487c9260e8..2e07482c1a 100644
+--- a/src/cmd/internal/sys/arch.go
++++ b/src/cmd/internal/sys/arch.go
+@@ -20,6 +20,7 @@ const (
+ 	MIPS
+ 	MIPS64
+ 	PPC64
++	RISCV64
+ 	S390X
+ 	Wasm
+ )
+@@ -152,6 +153,15 @@ var ArchPPC64LE = &Arch{
+ 	MinLC:     4,
+ }
+ 
++var ArchRISCV64 = &Arch{
++	Name:      "riscv64",
++	Family:    RISCV64,
++	ByteOrder: binary.LittleEndian,
++	PtrSize:   8,
++	RegSize:   8,
++	MinLC:     4,
++}
++
+ var ArchS390X = &Arch{
+ 	Name:      "s390x",
+ 	Family:    S390X,
+@@ -182,6 +192,7 @@ var Archs = [...]*Arch{
+ 	ArchMIPS64LE,
+ 	ArchPPC64,
+ 	ArchPPC64LE,
++	ArchRISCV64,
+ 	ArchS390X,
+ 	ArchWasm,
+ }

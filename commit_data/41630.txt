@@ -14,7 +14,63 @@ Date:   Wed Oct 16 14:32:03 2019 -0400
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/module/module.go      |  7 +++++--
  src/cmd/go/internal/module/module_test.go | 23 +++++++++++++++++++++++
  2 files changed, 28 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/internal/module/module.go b/src/cmd/go/internal/module/module.go
+index 5ef9fdc132..8d24c693f3 100644
+--- a/src/cmd/go/internal/module/module.go
++++ b/src/cmd/go/internal/module/module.go
+@@ -503,14 +503,17 @@ func splitGopkgIn(path string) (prefix, pathMajor string, ok bool) {
+ // MatchPathMajor reports whether the semantic version v
+ // matches the path major version pathMajor.
+ //
+-// MatchPathMajor returns true if and only if CheckPathMajor returns non-nil.
++// MatchPathMajor returns true if and only if CheckPathMajor returns nil.
+ func MatchPathMajor(v, pathMajor string) bool {
+-	return CheckPathMajor(v, pathMajor) != nil
++	return CheckPathMajor(v, pathMajor) == nil
+ }
+ 
+ // CheckPathMajor returns a non-nil error if the semantic version v
+ // does not match the path major version pathMajor.
+ func CheckPathMajor(v, pathMajor string) error {
++	// TODO(jayconrod): return errors or panic for invalid inputs. This function
++	// (and others) was covered by integration tests for cmd/go, and surrounding
++	// code protected against invalid inputs like non-canonical versions.
+ 	if strings.HasPrefix(pathMajor, ".v") && strings.HasSuffix(pathMajor, "-unstable") {
+ 		pathMajor = strings.TrimSuffix(pathMajor, "-unstable")
+ 	}
+diff --git a/src/cmd/go/internal/module/module_test.go b/src/cmd/go/internal/module/module_test.go
+index 8f385afe2e..e61fa9f525 100644
+--- a/src/cmd/go/internal/module/module_test.go
++++ b/src/cmd/go/internal/module/module_test.go
+@@ -318,3 +318,26 @@ func TestUnescapePath(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestMatchPathMajor(t *testing.T) {
++	for _, test := range []struct {
++		v, pathMajor string
++		want         bool
++	}{
++		{"v0.0.0", "", true},
++		{"v0.0.0", "/v2", false},
++		{"v0.0.0", ".v0", true},
++		{"v0.0.0-20190510104115-cbcb75029529", ".v1", true},
++		{"v1.0.0", "/v2", false},
++		{"v1.0.0", ".v1", true},
++		{"v1.0.0", ".v1-unstable", true},
++		{"v2.0.0+incompatible", "", true},
++		{"v2.0.0", "", false},
++		{"v2.0.0", "/v2", true},
++		{"v2.0.0", ".v2", true},
++	} {
++		if got := MatchPathMajor(test.v, test.pathMajor); got != test.want {
++			t.Errorf("MatchPathMajor(%q, %q) = %v, want %v", test.v, test.pathMajor, got, test.want)
++		}
++	}
++}

@@ -24,7 +24,7 @@ Date:   Mon Nov 21 16:58:55 2016 -0500
     Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/compile/internal/gc/obj.go     |  6 ++++++
  src/cmd/compile/internal/gc/reflect.go | 13 ++++++++++---
  src/cmd/internal/obj/data.go           | 16 ++++++++++++++++
@@ -34,3 +34,176 @@ Date:   Mon Nov 21 16:58:55 2016 -0500
  src/cmd/link/internal/ld/lib.go        |  2 +-
  src/reflect/type.go                    |  1 +
  8 files changed, 54 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index a5a2e707f6..08ed5604da 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -354,6 +354,12 @@ func dsymptrOffLSym(s *obj.LSym, off int, x *obj.LSym, xoff int) int {
+ 	return off
+ }
+ 
++func dsymptrWeakOffLSym(s *obj.LSym, off int, x *obj.LSym) int {
++	s.WriteWeakOff(Ctxt, int64(off), x, 0)
++	off += 4
++	return off
++}
++
+ func gdata(nam *Node, nr *Node, wid int) {
+ 	if nam.Op != ONAME {
+ 		Fatalf("gdata nam op %v", nam.Op)
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index ed1733ee23..4f9d92ed8a 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -834,9 +834,13 @@ func dcommontype(s *Sym, ot int, t *Type) int {
+ 		algsym = dalgsym(t)
+ 	}
+ 
++	sptrWeak := true
+ 	var sptr *Sym
+-	tptr := ptrto(t)
+-	if !t.IsPtr() && (t.Sym != nil || methods(tptr) != nil) {
++	if !t.IsPtr() || t.ptrTo != nil {
++		tptr := ptrto(t)
++		if t.Sym != nil || methods(tptr) != nil {
++			sptrWeak = false
++		}
+ 		sptr = dtypesym(tptr)
+ 	}
+ 
+@@ -923,10 +927,13 @@ func dcommontype(s *Sym, ot int, t *Type) int {
+ 
+ 	nsym := dname(p, "", nil, exported)
+ 	ot = dsymptrOffLSym(Linksym(s), ot, nsym, 0) // str
++	// ptrToThis
+ 	if sptr == nil {
+ 		ot = duint32(s, ot, 0)
++	} else if sptrWeak {
++		ot = dsymptrWeakOffLSym(Linksym(s), ot, Linksym(sptr))
+ 	} else {
+-		ot = dsymptrOffLSym(Linksym(s), ot, Linksym(sptr), 0) // ptrToThis
++		ot = dsymptrOffLSym(Linksym(s), ot, Linksym(sptr), 0)
+ 	}
+ 
+ 	return ot
+diff --git a/src/cmd/internal/obj/data.go b/src/cmd/internal/obj/data.go
+index 0ccb053fdc..d5565f24dc 100644
+--- a/src/cmd/internal/obj/data.go
++++ b/src/cmd/internal/obj/data.go
+@@ -145,6 +145,22 @@ func (s *LSym) WriteOff(ctxt *Link, off int64, rsym *LSym, roff int64) {
+ 	r.Add = roff
+ }
+ 
++// WriteWeakOff writes a weak 4 byte offset to rsym+roff into s at offset off.
++// After linking the 4 bytes stored at s+off will be
++// rsym+roff-(start of section that s is in).
++func (s *LSym) WriteWeakOff(ctxt *Link, off int64, rsym *LSym, roff int64) {
++	s.prepwrite(ctxt, off, 4)
++	r := Addrel(s)
++	r.Off = int32(off)
++	if int64(r.Off) != off {
++		ctxt.Diag("WriteOff: off overflow %d in %s", off, s.Name)
++	}
++	r.Siz = 4
++	r.Sym = rsym
++	r.Type = R_WEAKADDROFF
++	r.Add = roff
++}
++
+ // WriteString writes a string of size siz into s at offset off.
+ func (s *LSym) WriteString(ctxt *Link, off int64, siz int, str string) {
+ 	if siz < len(str) {
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index f2874bafbc..2ab2aec926 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -538,6 +538,11 @@ const (
+ 	// R_ADDROFF resolves to a 32-bit offset from the beginning of the section
+ 	// holding the data being relocated to the referenced symbol.
+ 	R_ADDROFF
++	// R_WEAKADDROFF resolves just like R_ADDROFF but is a weak relocation.
++	// A weak relocation does not make the symbol it refers to reachable,
++	// and is only honored by the linker if the symbol is in some other way
++	// reachable.
++	R_WEAKADDROFF
+ 	R_SIZE
+ 	R_CALL
+ 	R_CALLARM
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index de043305d0..eaf6aa2080 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -413,7 +413,7 @@ func relocsym(ctxt *Link, s *Symbol) {
+ 				Errorf(s, "unhandled relocation for %s (type %d rtype %d)", r.Sym.Name, r.Sym.Type, r.Type)
+ 			}
+ 		}
+-		if r.Sym != nil && r.Sym.Type != obj.STLSBSS && !r.Sym.Attr.Reachable() {
++		if r.Sym != nil && r.Sym.Type != obj.STLSBSS && r.Type != obj.R_WEAKADDROFF && !r.Sym.Attr.Reachable() {
+ 			Errorf(s, "unreachable sym in relocation: %s", r.Sym.Name)
+ 		}
+ 
+@@ -588,6 +588,11 @@ func relocsym(ctxt *Link, s *Symbol) {
+ 			}
+ 			o = Symaddr(r.Sym) + r.Add - int64(r.Sym.Sect.Vaddr)
+ 
++		case obj.R_WEAKADDROFF:
++			if !r.Sym.Attr.Reachable() {
++				continue
++			}
++			fallthrough
+ 		case obj.R_ADDROFF:
+ 			// The method offset tables using this relocation expect the offset to be relative
+ 			// to the start of the first text section, even if there are multiple.
+@@ -748,6 +753,9 @@ func dynrelocsym(ctxt *Link, s *Symbol) {
+ 				continue
+ 			}
+ 			if !targ.Attr.Reachable() {
++				if r.Type == obj.R_WEAKADDROFF {
++					continue
++				}
+ 				Errorf(s, "dynamic relocation to unreachable symbol %s", targ.Name)
+ 			}
+ 			if r.Sym.Plt == -2 && r.Sym.Got != -2 { // make dynimport JMP table for PE object files.
+diff --git a/src/cmd/link/internal/ld/deadcode.go b/src/cmd/link/internal/ld/deadcode.go
+index c0c0c6bcf4..ae516818f5 100644
+--- a/src/cmd/link/internal/ld/deadcode.go
++++ b/src/cmd/link/internal/ld/deadcode.go
+@@ -308,6 +308,12 @@ func (d *deadcodepass) flood() {
+ 			if r.Sym == nil {
+ 				continue
+ 			}
++			if r.Type == obj.R_WEAKADDROFF {
++				// An R_WEAKADDROFF relocation is not reason
++				// enough to mark the pointed-to symbol as
++				// reachable.
++				continue
++			}
+ 			if r.Type != obj.R_METHODOFF {
+ 				d.mark(r.Sym, s)
+ 				continue
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index e4c34750c7..fb321905e1 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -2033,7 +2033,7 @@ func undefsym(ctxt *Link, s *Symbol) {
+ 		if r.Sym.Type == obj.Sxxx || r.Sym.Type == obj.SXREF {
+ 			Errorf(s, "undefined: %q", r.Sym.Name)
+ 		}
+-		if !r.Sym.Attr.Reachable() {
++		if !r.Sym.Attr.Reachable() && r.Type != obj.R_WEAKADDROFF {
+ 			Errorf(s, "relocation target %q", r.Sym.Name)
+ 		}
+ 	}
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index 28276a5ac0..4985ba8165 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -2674,6 +2674,7 @@ func StructOf(fields []StructField) Type {
+ 	typ.size = size
+ 	typ.align = typalign
+ 	typ.fieldAlign = typalign
++	typ.ptrToThis = 0
+ 	if len(methods) > 0 {
+ 		typ.tflag |= tflagUncommon
+ 	}

@@ -8,7 +8,43 @@ Date:   Wed Aug 12 14:54:15 2009 -0700
     DELTA=9  (4 added, 4 deleted, 1 changed)
     OCL=33115
     CL=33115
-
+---
  test/bugs/bug187.go | 6 +++++-
  test/golden.out     | 4 ----
  2 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/test/bugs/bug187.go b/test/bugs/bug187.go
+index 8e7e14a872..dafe6eaca7 100644
+--- a/test/bugs/bug187.go
++++ b/test/bugs/bug187.go
+@@ -6,13 +6,17 @@
+ 
+ package main
+ 
++import "os"
++
+ func main() {
+ 	// This bug doesn't arise with [...]int, or []interface{} or [3]interface{}.
+ 	a := [...]interface{} { 1, 2, 3 };
+ 	n := 0;
++	bug := false;
+ 	for _, v := range a {
+ 		if v.(int) != n {
+-			panicln("BUG:", n, v.(int));
++			println("BUG:", n, v.(int));
++			os.Exit(0);
+ 		}
+ 		n++;
+ 	}
+diff --git a/test/golden.out b/test/golden.out
+index 16c16bbe5a..c3a38b3130 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -156,7 +156,3 @@ BUG: errchk: command succeeded unexpectedly
+ 
+ =========== bugs/bug187.go
+ BUG: 0 1
+-SIGSEGV: segmentation violation
+-Faulting address: 0x40a1f0
+-PC=0x40a1f0
+-

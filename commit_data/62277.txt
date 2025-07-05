@@ -11,7 +11,7 @@ Date:   Fri Feb 14 16:13:44 2025 -0800
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/cmd/compile/internal/arm64/ssa.go         |  2 +-
  src/cmd/compile/internal/ssa/_gen/ARM64Ops.go |  3 ++-
  src/cmd/compile/internal/ssa/opGen.go         | 18 ++++++++++++++++++
@@ -19,3 +19,124 @@ Date:   Fri Feb 14 16:13:44 2025 -0800
  test/codegen/memcombine.go                    |  4 ++++
  test/fixedbugs/issue71759.go                  | 20 ++++++++++++++++++++
  6 files changed, 49 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/arm64/ssa.go b/src/cmd/compile/internal/arm64/ssa.go
+index 7bf8051bef..0f5c5a17bd 100644
+--- a/src/cmd/compile/internal/arm64/ssa.go
++++ b/src/cmd/compile/internal/arm64/ssa.go
+@@ -516,7 +516,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		ssagen.AddAux(&p.From, v)
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg()
+-	case ssa.OpARM64LDP, ssa.OpARM64LDPW, ssa.OpARM64FLDPD, ssa.OpARM64FLDPS:
++	case ssa.OpARM64LDP, ssa.OpARM64LDPW, ssa.OpARM64LDPSW, ssa.OpARM64FLDPD, ssa.OpARM64FLDPS:
+ 		p := s.Prog(v.Op.Asm())
+ 		p.From.Type = obj.TYPE_MEM
+ 		p.From.Reg = v.Args[0].Reg()
+diff --git a/src/cmd/compile/internal/ssa/_gen/ARM64Ops.go b/src/cmd/compile/internal/ssa/_gen/ARM64Ops.go
+index 4c4e610dba..53e6dbec3f 100644
+--- a/src/cmd/compile/internal/ssa/_gen/ARM64Ops.go
++++ b/src/cmd/compile/internal/ssa/_gen/ARM64Ops.go
+@@ -388,7 +388,8 @@ func init() {
+ 		// arg1=mem
+ 		// Returns the tuple <x,y>.
+ 		{name: "LDP", argLength: 2, reg: gpload2, aux: "SymOff", asm: "LDP", typ: "(UInt64,UInt64)", faultOnNilArg0: true, symEffect: "Read"},       // T=int64 (gp reg destination)
+-		{name: "LDPW", argLength: 2, reg: gpload2, aux: "SymOff", asm: "LDPW", typ: "(UInt32,UInt32)", faultOnNilArg0: true, symEffect: "Read"},     // T=int32 (gp reg destination) ??? extension
++		{name: "LDPW", argLength: 2, reg: gpload2, aux: "SymOff", asm: "LDPW", typ: "(UInt32,UInt32)", faultOnNilArg0: true, symEffect: "Read"},     // T=int32 (gp reg destination) unsigned extension
++		{name: "LDPSW", argLength: 2, reg: gpload2, aux: "SymOff", asm: "LDPSW", typ: "(Int32,Int32)", faultOnNilArg0: true, symEffect: "Read"},     // T=int32 (gp reg destination) signed extension
+ 		{name: "FLDPD", argLength: 2, reg: fpload2, aux: "SymOff", asm: "FLDPD", typ: "(Float64,Float64)", faultOnNilArg0: true, symEffect: "Read"}, // T=float64 (fp reg destination)
+ 		{name: "FLDPS", argLength: 2, reg: fpload2, aux: "SymOff", asm: "FLDPS", typ: "(Float32,Float32)", faultOnNilArg0: true, symEffect: "Read"}, // T=float32 (fp reg destination)
+ 
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 19a748eb08..718f4c9382 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -1607,6 +1607,7 @@ const (
+ 	OpARM64FMOVDload
+ 	OpARM64LDP
+ 	OpARM64LDPW
++	OpARM64LDPSW
+ 	OpARM64FLDPD
+ 	OpARM64FLDPS
+ 	OpARM64MOVDloadidx
+@@ -21664,6 +21665,23 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:           "LDPSW",
++		auxType:        auxSymOff,
++		argLen:         2,
++		faultOnNilArg0: true,
++		symEffect:      SymRead,
++		asm:            arm64.ALDPSW,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 9223372038733561855}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30 SP SB
++			},
++			outputs: []outputInfo{
++				{0, 805044223}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
++				{1, 805044223}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
++			},
++		},
++	},
+ 	{
+ 		name:           "FLDPD",
+ 		auxType:        auxSymOff,
+diff --git a/src/cmd/compile/internal/ssa/pair.go b/src/cmd/compile/internal/ssa/pair.go
+index 5af9b0cb1b..8e022df036 100644
+--- a/src/cmd/compile/internal/ssa/pair.go
++++ b/src/cmd/compile/internal/ssa/pair.go
+@@ -32,7 +32,10 @@ type pairableLoadInfo struct {
+ // They must also take an offset in Aux/AuxInt.
+ var pairableLoads = map[Op]pairableLoadInfo{
+ 	OpARM64MOVDload:  {8, OpARM64LDP},
+-	OpARM64MOVWload:  {4, OpARM64LDPW},
++	OpARM64MOVWUload: {4, OpARM64LDPW},
++	OpARM64MOVWload:  {4, OpARM64LDPSW},
++	// TODO: conceivably we could pair a signed and unsigned load
++	// if we knew the upper bits of one of them weren't being used.
+ 	OpARM64FMOVDload: {8, OpARM64FLDPD},
+ 	OpARM64FMOVSload: {4, OpARM64FLDPS},
+ }
+diff --git a/test/codegen/memcombine.go b/test/codegen/memcombine.go
+index 9345391b61..c5744bf8d7 100644
+--- a/test/codegen/memcombine.go
++++ b/test/codegen/memcombine.go
+@@ -982,6 +982,10 @@ func dwloadI64(p *struct{ a, b int64 }) int64 {
+ 	return p.a + p.b
+ }
+ func dwloadI32(p *struct{ a, b int32 }) int32 {
++	// arm64:"LDPSW\t"
++	return p.a + p.b
++}
++func dwloadU32(p *struct{ a, b uint32 }) uint32 {
+ 	// arm64:"LDPW\t"
+ 	return p.a + p.b
+ }
+diff --git a/test/fixedbugs/issue71759.go b/test/fixedbugs/issue71759.go
+new file mode 100644
+index 0000000000..8134ff041b
+--- /dev/null
++++ b/test/fixedbugs/issue71759.go
+@@ -0,0 +1,20 @@
++// run
++
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++//go:noinline
++func f(p *[2]int32) (int64, int64) {
++	return int64(p[0]), int64(p[1])
++}
++
++func main() {
++	p := [2]int32{-1, -1}
++	x, y := f(&p)
++	if x != -1 || y != -1 {
++		println(x, y)
++	}
++}

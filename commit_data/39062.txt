@@ -9,6 +9,20 @@ Date:   Wed Dec 19 17:49:11 2018 -0800
     Change-Id: Ic340c3171bb7d91d8cb9553967c2b51e7d9daba8
     Reviewed-on: https://go-review.googlesource.com/c/155177
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/os/file.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/os/file.go b/src/os/file.go
+index 9b7863e9b6..228777c677 100644
+--- a/src/os/file.go
++++ b/src/os/file.go
+@@ -73,7 +73,7 @@ const (
+ 	O_CREATE int = syscall.O_CREAT  // create a new file if none exists.
+ 	O_EXCL   int = syscall.O_EXCL   // used with O_CREATE, file must not exist.
+ 	O_SYNC   int = syscall.O_SYNC   // open for synchronous I/O.
+-	O_TRUNC  int = syscall.O_TRUNC  // if possible, truncate file when opened.
++	O_TRUNC  int = syscall.O_TRUNC  // truncate regular writable file when opened.
+ )
+ 
+ // Seek whence values.

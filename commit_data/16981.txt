@@ -7,7 +7,34 @@ Date:   Thu Aug 1 18:26:21 2013 +0400
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/12249043
-
+---
  src/pkg/runtime/traceback_arm.c | 2 --
  src/pkg/runtime/traceback_x86.c | 2 --
  2 files changed, 4 deletions(-)
+
+diff --git a/src/pkg/runtime/traceback_arm.c b/src/pkg/runtime/traceback_arm.c
+index 4b9692c076..0c80ec64b5 100644
+--- a/src/pkg/runtime/traceback_arm.c
++++ b/src/pkg/runtime/traceback_arm.c
+@@ -9,8 +9,6 @@
+ 
+ void runtime·sigpanic(void);
+ 
+-static String unknown = { (uint8*)"?", 1 };
+-
+ int32
+ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip, uintptr *pcbuf, int32 max, void (*callback)(Stkframe*, void*), void *v, bool printall)
+ {
+diff --git a/src/pkg/runtime/traceback_x86.c b/src/pkg/runtime/traceback_x86.c
+index c5197a6e10..df52051ad2 100644
+--- a/src/pkg/runtime/traceback_x86.c
++++ b/src/pkg/runtime/traceback_x86.c
+@@ -17,8 +17,6 @@ void runtime·sigpanic(void);
+ // This code is also used for the 386 tracebacks.
+ // Use uintptr for an appropriate word-sized integer.
+ 
+-static String unknown = { (uint8*)"?", 1 };
+-
+ // Generic traceback.  Handles runtime stack prints (pcbuf == nil),
+ // the runtime.Callers function (pcbuf != nil), as well as the garbage
+ // collector (callback != nil).  A little clunky to merge these, but avoids

@@ -6,8 +6,48 @@ Date:   Mon Nov 30 12:03:10 2009 -0800
     
     R=r, rsc
     https://golang.org/cl/161058
-
+---
  src/pkg/encoding/ascii85/ascii85.go | 2 +-
  src/pkg/encoding/base64/base64.go   | 2 +-
  src/pkg/encoding/git85/git.go       | 2 +-
  3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/encoding/ascii85/ascii85.go b/src/pkg/encoding/ascii85/ascii85.go
+index 85f688b2f6..ac446baf82 100644
+--- a/src/pkg/encoding/ascii85/ascii85.go
++++ b/src/pkg/encoding/ascii85/ascii85.go
+@@ -169,7 +169,7 @@ func (e *encoder) Close() os.Error {
+ type CorruptInputError int64
+ 
+ func (e CorruptInputError) String() string {
+-	return "illegal ascii85 data at input byte" + strconv.Itoa64(int64(e))
++	return "illegal ascii85 data at input byte " + strconv.Itoa64(int64(e))
+ }
+ 
+ // Decode decodes src into dst, returning both the number
+diff --git a/src/pkg/encoding/base64/base64.go b/src/pkg/encoding/base64/base64.go
+index ddb0e71177..e7b7f4da40 100644
+--- a/src/pkg/encoding/base64/base64.go
++++ b/src/pkg/encoding/base64/base64.go
+@@ -197,7 +197,7 @@ func (enc *Encoding) EncodedLen(n int) int	{ return (n + 2) / 3 * 4 }
+ type CorruptInputError int64
+ 
+ func (e CorruptInputError) String() string {
+-	return "illegal base64 data at input byte" + strconv.Itoa64(int64(e))
++	return "illegal base64 data at input byte " + strconv.Itoa64(int64(e))
+ }
+ 
+ // decode is like Decode but returns an additional 'end' value, which
+diff --git a/src/pkg/encoding/git85/git.go b/src/pkg/encoding/git85/git.go
+index 71130a883b..1e52997929 100644
+--- a/src/pkg/encoding/git85/git.go
++++ b/src/pkg/encoding/git85/git.go
+@@ -16,7 +16,7 @@ import (
+ type CorruptInputError int64
+ 
+ func (e CorruptInputError) String() string {
+-	return "illegal git85 data at input byte" + strconv.Itoa64(int64(e))
++	return "illegal git85 data at input byte " + strconv.Itoa64(int64(e))
+ }
+ 
+ const encode = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz!#$%&()*+-;<=>?@^_`{|}~"

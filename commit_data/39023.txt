@@ -17,6 +17,20 @@ Date:   Tue Dec 11 18:26:42 2018 +0000
     Reviewed-on: https://go-review.googlesource.com/c/153677
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/mem_windows.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/mem_windows.go b/src/runtime/mem_windows.go
+index 690f55eb5c..fc52ec59a0 100644
+--- a/src/runtime/mem_windows.go
++++ b/src/runtime/mem_windows.go
+@@ -61,7 +61,7 @@ func sysUnused(v unsafe.Pointer, n uintptr) {
+ 
+ func sysUsed(v unsafe.Pointer, n uintptr) {
+ 	r := stdcall4(_VirtualAlloc, uintptr(v), n, _MEM_COMMIT, _PAGE_READWRITE)
+-	if r == uintptr(v) {
++	if r != 0 {
+ 		return
+ 	}
+ 

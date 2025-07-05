@@ -19,7 +19,7 @@ Date:   Mon Apr 20 11:53:20 2015 +1200
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/internal/goobj/read.go                |  68 +++++++++++++-------------
  src/cmd/link/load.go                          |  20 +++-----
  src/cmd/link/pclntab.go                       |   3 +-
@@ -32,3 +32,259 @@ Date:   Mon Apr 20 11:53:20 2015 +1200
  src/cmd/link/testdata/link.hello.darwin.amd64 |  37 +++++++-------
  src/cmd/link/testdata/pclntab.6               | Bin 3809 -> 3804 bytes
  11 files changed, 63 insertions(+), 67 deletions(-)
+
+diff --git a/src/cmd/internal/goobj/read.go b/src/cmd/internal/goobj/read.go
+index 79a83e59a6..1b0c9646bc 100644
+--- a/src/cmd/internal/goobj/read.go
++++ b/src/cmd/internal/goobj/read.go
+@@ -12,6 +12,7 @@ package goobj
+ import (
+ 	"bufio"
+ 	"bytes"
++	"cmd/internal/obj"
+ 	"errors"
+ 	"fmt"
+ 	"io"
+@@ -31,45 +32,46 @@ const (
+ 	_ SymKind = iota
+ 
+ 	// readonly, executable
+-	STEXT
+-	SELFRXSECT
++	STEXT      SymKind = obj.STEXT
++	SELFRXSECT SymKind = obj.SELFRXSECT
+ 
+ 	// readonly, non-executable
+-	STYPE
+-	SSTRING
+-	SGOSTRING
+-	SGOFUNC
+-	SRODATA
+-	SFUNCTAB
+-	STYPELINK
+-	SSYMTAB // TODO: move to unmapped section
+-	SPCLNTAB
+-	SELFROSECT
++	STYPE      SymKind = obj.STYPE
++	SSTRING    SymKind = obj.SSTRING
++	SGOSTRING  SymKind = obj.SGOSTRING
++	SGOFUNC    SymKind = obj.SGOFUNC
++	SRODATA    SymKind = obj.SRODATA
++	SFUNCTAB   SymKind = obj.SFUNCTAB
++	STYPELINK  SymKind = obj.STYPELINK
++	SSYMTAB    SymKind = obj.SSYMTAB // TODO: move to unmapped section
++	SPCLNTAB   SymKind = obj.SPCLNTAB
++	SELFROSECT SymKind = obj.SELFROSECT
+ 
+ 	// writable, non-executable
+-	SMACHOPLT
+-	SELFSECT
+-	SMACHO // Mach-O __nl_symbol_ptr
+-	SMACHOGOT
+-	SNOPTRDATA
+-	SINITARR
+-	SDATA
+-	SWINDOWS
+-	SBSS
+-	SNOPTRBSS
+-	STLSBSS
++	SMACHOPLT  SymKind = obj.SMACHOPLT
++	SELFSECT   SymKind = obj.SELFSECT
++	SMACHO     SymKind = obj.SMACHO // Mach-O __nl_symbol_ptr
++	SMACHOGOT  SymKind = obj.SMACHOGOT
++	SWINDOWS   SymKind = obj.SWINDOWS
++	SELFGOT    SymKind = obj.SELFGOT
++	SNOPTRDATA SymKind = obj.SNOPTRDATA
++	SINITARR   SymKind = obj.SINITARR
++	SDATA      SymKind = obj.SDATA
++	SBSS       SymKind = obj.SBSS
++	SNOPTRBSS  SymKind = obj.SNOPTRBSS
++	STLSBSS    SymKind = obj.STLSBSS
+ 
+ 	// not mapped
+-	SXREF
+-	SMACHOSYMSTR
+-	SMACHOSYMTAB
+-	SMACHOINDIRECTPLT
+-	SMACHOINDIRECTGOT
+-	SFILE
+-	SFILEPATH
+-	SCONST
+-	SDYNIMPORT
+-	SHOSTOBJ
++	SXREF             SymKind = obj.SXREF
++	SMACHOSYMSTR      SymKind = obj.SMACHOSYMSTR
++	SMACHOSYMTAB      SymKind = obj.SMACHOSYMTAB
++	SMACHOINDIRECTPLT SymKind = obj.SMACHOINDIRECTPLT
++	SMACHOINDIRECTGOT SymKind = obj.SMACHOINDIRECTGOT
++	SFILE             SymKind = obj.SFILE
++	SFILEPATH         SymKind = obj.SFILEPATH
++	SCONST            SymKind = obj.SCONST
++	SDYNIMPORT        SymKind = obj.SDYNIMPORT
++	SHOSTOBJ          SymKind = obj.SHOSTOBJ
+ )
+ 
+ var symKindStrings = []string{
+diff --git a/src/cmd/link/load.go b/src/cmd/link/load.go
+index ca0c24c978..50602b82a1 100644
+--- a/src/cmd/link/load.go
++++ b/src/cmd/link/load.go
+@@ -6,7 +6,10 @@
+ 
+ package main
+ 
+-import "os"
++import (
++	"cmd/internal/obj"
++	"os"
++)
+ 
+ // load allocates segment images, populates them with data
+ // read from package files, and applies relocations to the data.
+@@ -73,17 +76,6 @@ func (p *Prog) loadPackage(pkg *Package) {
+ 	}
+ }
+ 
+-// TODO(rsc): Define full enumeration for relocation types.
+-const (
+-	R_ADDR    = 1
+-	R_SIZE    = 2
+-	R_CALL    = 3
+-	R_CALLARM = 4
+-	R_CALLIND = 5
+-	R_CONST   = 6
+-	R_PCREL   = 7
+-)
+-
+ // relocateSym applies relocations to sym's data.
+ func (p *Prog) relocateSym(sym *Sym, data []byte) {
+ 	for i := range sym.Reloc {
+@@ -97,9 +89,9 @@ func (p *Prog) relocateSym(sym *Sym, data []byte) {
+ 		switch r.Type {
+ 		default:
+ 			p.errorf("%v: unknown relocation type %d", sym, r.Type)
+-		case R_ADDR, R_CALLIND:
++		case obj.R_ADDR, obj.R_CALLIND:
+ 			// ok
+-		case R_PCREL, R_CALL:
++		case obj.R_PCREL, obj.R_CALL:
+ 			val -= sym.Addr + Addr(r.Offset+r.Size)
+ 		}
+ 		frag := data[r.Offset : r.Offset+r.Size]
+diff --git a/src/cmd/link/pclntab.go b/src/cmd/link/pclntab.go
+index 2d131781f2..7f8bf52a9b 100644
+--- a/src/cmd/link/pclntab.go
++++ b/src/cmd/link/pclntab.go
+@@ -8,6 +8,7 @@ package main
+ 
+ import (
+ 	"cmd/internal/goobj"
++	"cmd/internal/obj"
+ 	"encoding/binary"
+ 	"os"
+ 	"sort"
+@@ -371,7 +372,7 @@ func (b *SymBuffer) Addr(off int, sym goobj.SymID, symoff int64) int {
+ 		Size:   b.ptrsize,
+ 		Sym:    sym,
+ 		Add:    int(symoff),
+-		Type:   R_ADDR,
++		Type:   obj.R_ADDR,
+ 	})
+ 	return off + b.ptrsize
+ }
+diff --git a/src/cmd/link/testdata/Makefile b/src/cmd/link/testdata/Makefile
+index e9651a03f6..83e8a05195 100644
+--- a/src/cmd/link/testdata/Makefile
++++ b/src/cmd/link/testdata/Makefile
+@@ -9,7 +9,7 @@ ALL=\
+ all: $(ALL)
+ 
+ %.6: %.s
+-	GOARCH=amd64 GOOS=darwin go tool 6a -trimpath=$(shell pwd) $*.s
++	GOARCH=amd64 GOOS=darwin go tool asm -I $(shell go env GOROOT)/pkg/include -trimpath=$(shell pwd) $*.s
+ 
+ pclntab.s: genpcln.go
+ 	go run genpcln.go >pclntab.s
+diff --git a/src/cmd/link/testdata/autosection.6 b/src/cmd/link/testdata/autosection.6
+index 386f422cf3..34aa5d3dbb 100644
+Binary files a/src/cmd/link/testdata/autosection.6 and b/src/cmd/link/testdata/autosection.6 differ
+diff --git a/src/cmd/link/testdata/autoweak.6 b/src/cmd/link/testdata/autoweak.6
+index 5d74d4e2b5..a86b841171 100644
+Binary files a/src/cmd/link/testdata/autoweak.6 and b/src/cmd/link/testdata/autoweak.6 differ
+diff --git a/src/cmd/link/testdata/dead.6 b/src/cmd/link/testdata/dead.6
+index 9540adc1af..5e9b09c03e 100644
+Binary files a/src/cmd/link/testdata/dead.6 and b/src/cmd/link/testdata/dead.6 differ
+diff --git a/src/cmd/link/testdata/hello.6 b/src/cmd/link/testdata/hello.6
+index 67983f1a9f..890cbbd016 100644
+Binary files a/src/cmd/link/testdata/hello.6 and b/src/cmd/link/testdata/hello.6 differ
+diff --git a/src/cmd/link/testdata/layout.6 b/src/cmd/link/testdata/layout.6
+index db24ef3e55..748c836255 100644
+Binary files a/src/cmd/link/testdata/layout.6 and b/src/cmd/link/testdata/layout.6 differ
+diff --git a/src/cmd/link/testdata/link.hello.darwin.amd64 b/src/cmd/link/testdata/link.hello.darwin.amd64
+index 0bd475dd81..4c62eb19b4 100644
+--- a/src/cmd/link/testdata/link.hello.darwin.amd64
++++ b/src/cmd/link/testdata/link.hello.darwin.amd64
+@@ -6,23 +6,23 @@
+ *
+ 00000060  00 00 00 00 00 00 00 00  19 00 00 00 38 01 00 00  |............8...|
+ 00000070  5f 5f 54 45 58 54 00 00  00 00 00 00 00 00 00 00  |__TEXT..........|
+-00000080  00 10 00 00 00 00 00 00  b0 10 00 00 00 00 00 00  |................|
+-00000090  00 00 00 00 00 00 00 00  b0 10 00 00 00 00 00 00  |................|
++00000080  00 10 00 00 00 00 00 00  c0 10 00 00 00 00 00 00  |................|
++00000090  00 00 00 00 00 00 00 00  c0 10 00 00 00 00 00 00  |................|
+ 000000a0  07 00 00 00 05 00 00 00  03 00 00 00 00 00 00 00  |................|
+ 000000b0  5f 5f 74 65 78 74 00 00  00 00 00 00 00 00 00 00  |__text..........|
+ 000000c0  5f 5f 54 45 58 54 00 00  00 00 00 00 00 00 00 00  |__TEXT..........|
+-000000d0  00 20 00 00 00 00 00 00  20 00 00 00 00 00 00 00  |. ...... .......|
++000000d0  00 20 00 00 00 00 00 00  30 00 00 00 00 00 00 00  |. ......0.......|
+ 000000e0  00 10 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+ 000000f0  00 04 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+ 00000100  5f 5f 72 6f 64 61 74 61  00 00 00 00 00 00 00 00  |__rodata........|
+ 00000110  5f 5f 54 45 58 54 00 00  00 00 00 00 00 00 00 00  |__TEXT..........|
+-00000120  20 20 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |  ..............|
+-00000130  20 10 00 00 00 00 00 00  00 00 00 00 00 00 00 00  | ...............|
++00000120  30 20 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |0 ..............|
++00000130  30 10 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |0...............|
+ *
+ 00000150  5f 5f 66 75 6e 63 74 61  62 00 00 00 00 00 00 00  |__functab.......|
+ 00000160  5f 5f 54 45 58 54 00 00  00 00 00 00 00 00 00 00  |__TEXT..........|
+-00000170  20 20 00 00 00 00 00 00  90 00 00 00 00 00 00 00  |  ..............|
+-00000180  20 10 00 00 00 00 00 00  00 00 00 00 00 00 00 00  | ...............|
++00000170  30 20 00 00 00 00 00 00  90 00 00 00 00 00 00 00  |0 ..............|
++00000180  30 10 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |0...............|
+ *
+ 000001a0  19 00 00 00 98 00 00 00  5f 5f 44 41 54 41 00 00  |........__DATA..|
+ 000001b0  00 00 00 00 00 00 00 00  00 30 00 00 00 00 00 00  |.........0......|
+@@ -38,17 +38,18 @@
+ *
+ 000002c0  00 00 00 00 00 00 00 00  00 20 00 00 00 00 00 00  |......... ......|
+ *
+-00001000  bf 01 00 00 00 be 00 30  00 00 ba 0c 00 00 00 b8  |.......0........|
+-00001010  04 00 00 02 0f 05 31 ff  b8 01 00 00 02 0f 05 c3  |......1.........|
+-00001020  fb ff ff ff 00 00 01 08  01 00 00 00 00 00 00 00  |................|
+-00001030  00 20 00 00 00 00 00 00  30 00 00 00 00 00 00 00  |. ......0.......|
+-00001040  20 20 00 00 00 00 00 00  80 00 00 00 00 00 00 00  |  ..............|
+-00001050  00 20 00 00 00 00 00 00  58 00 00 00 00 00 00 80  |. ......X.......|
+-00001060  08 00 00 00 60 00 00 00  63 00 00 00 66 00 00 00  |....`...c...f...|
+-00001070  00 00 00 00 00 00 00 00  5f 72 74 30 5f 67 6f 00  |........_rt0_go.|
+-00001080  02 20 00 04 20 00 06 05  02 05 02 05 02 05 02 02  |. .. ...........|
+-00001090  02 02 02 05 02 02 02 01  00 00 00 00 00 00 00 00  |................|
+-000010a0  02 00 00 00 88 00 00 00  68 65 6c 6c 6f 2e 73 00  |........hello.s.|
++00001000  bf 01 00 00 00 8d 35 f5  0f 00 00 ba 0c 00 00 00  |......5.........|
++00001010  b8 04 00 00 02 0f 05 31  ff b8 01 00 00 02 0f 05  |.......1........|
++00001020  c3 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
++00001030  fb ff ff ff 00 00 01 08  01 00 00 00 00 00 00 00  |................|
++00001040  00 20 00 00 00 00 00 00  30 00 00 00 00 00 00 00  |. ......0.......|
++00001050  30 20 00 00 00 00 00 00  80 00 00 00 00 00 00 00  |0 ..............|
++00001060  00 20 00 00 00 00 00 00  58 00 00 00 00 00 00 80  |. ......X.......|
++00001070  08 00 00 00 60 00 00 00  63 00 00 00 66 00 00 00  |....`...c...f...|
++00001080  00 00 00 00 00 00 00 00  5f 72 74 30 5f 67 6f 00  |........_rt0_go.|
++00001090  02 30 00 04 30 00 06 05  02 06 02 05 02 05 02 02  |.0..0...........|
++000010a0  02 02 02 05 02 02 02 10  00 00 00 00 00 00 00 00  |................|
++000010b0  02 00 00 00 88 00 00 00  68 65 6c 6c 6f 2e 73 00  |........hello.s.|
+ *
+ 00002000  68 65 6c 6c 6f 20 77 6f  72 6c 64 0a              |hello world.|
+ 0000200c
+diff --git a/src/cmd/link/testdata/pclntab.6 b/src/cmd/link/testdata/pclntab.6
+index 9e7f9afdb0..8156698265 100644
+Binary files a/src/cmd/link/testdata/pclntab.6 and b/src/cmd/link/testdata/pclntab.6 differ

@@ -11,7 +11,34 @@ Date:   Wed Oct 28 08:10:46 2015 +0100
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/encoding/asn1/asn1_test.go  | 2 +-
  src/html/template/clone_test.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/encoding/asn1/asn1_test.go b/src/encoding/asn1/asn1_test.go
+index 3be4de9c8e..fbae7d9f08 100644
+--- a/src/encoding/asn1/asn1_test.go
++++ b/src/encoding/asn1/asn1_test.go
+@@ -948,7 +948,7 @@ func TestMarshalNilValue(t *testing.T) {
+ 	}
+ 	for i, test := range nilValueTestData {
+ 		if _, err := Marshal(test); err == nil {
+-			t.Fatal("#%d: successfully marshaled nil value", i)
++			t.Fatalf("#%d: successfully marshaled nil value", i)
+ 		}
+ 	}
+ }
+diff --git a/src/html/template/clone_test.go b/src/html/template/clone_test.go
+index a0f1d6a048..d7c62fa399 100644
+--- a/src/html/template/clone_test.go
++++ b/src/html/template/clone_test.go
+@@ -81,7 +81,7 @@ func TestClone(t *testing.T) {
+ 	// Clone t0 as t4. Redefining the "lhs" template should not fail.
+ 	t4 := Must(t0.Clone())
+ 	if _, err := t4.Parse(`{{define "lhs"}} OK {{end}}`); err != nil {
+-		t.Error(`redefine "lhs": got err %v want non-nil`, err)
++		t.Errorf(`redefine "lhs": got err %v want nil`, err)
+ 	}
+ 	// Cloning t1 should fail as it has been executed.
+ 	if _, err := t1.Clone(); err == nil {

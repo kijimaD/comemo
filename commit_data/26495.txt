@@ -9,6 +9,43 @@ Date:   Wed Jan 27 16:21:33 2016 -0500
     Change-Id: Icd9463b1a77b139c7ebc2d8732482d704ea332d0
     Reviewed-on: https://go-review.googlesource.com/19002
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/proc_test.go | 23 +++++++++++++++++++----
  1 file changed, 19 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/proc_test.go b/src/runtime/proc_test.go
+index 34d90a1c9b..9e5960bd2a 100644
+--- a/src/runtime/proc_test.go
++++ b/src/runtime/proc_test.go
+@@ -345,12 +345,27 @@ func TestNumGoroutine(t *testing.T) {
+ 	}
+ 
+ 	buf := make([]byte, 1<<20)
+-	buf = buf[:runtime.Stack(buf, true)]
+ 
+-	n := runtime.NumGoroutine()
++	// Try up to 10 times for a match before giving up.
++	// This is a fundamentally racy check but it's important
++	// to notice if NumGoroutine and Stack are _always_ out of sync.
++	for i := 0; ; i++ {
++		// Give goroutines about to exit a chance to exit.
++		// The NumGoroutine and Stack below need to see
++		// the same state of the world, so anything we can do
++		// to keep it quiet is good.
++		runtime.Gosched()
++
++		n := runtime.NumGoroutine()
++		buf = buf[:runtime.Stack(buf, true)]
+ 
+-	if nstk := strings.Count(string(buf), "goroutine "); n != nstk {
+-		t.Fatalf("NumGoroutine=%d, but found %d goroutines in stack dump: %s", n, nstk, buf)
++		nstk := strings.Count(string(buf), "goroutine ")
++		if n == nstk {
++			break
++		}
++		if i >= 10 {
++			t.Fatalf("NumGoroutine=%d, but found %d goroutines in stack dump: %s", n, nstk, buf)
++		}
+ 	}
+ }
+ 

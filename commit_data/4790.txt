@@ -7,8 +7,54 @@ Date:   Thu Feb 4 13:09:09 2010 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/198071
-
+---
  src/pkg/debug/proc/proc_mingw.go       | 17 +++++++++++++++++
  src/pkg/debug/proc/regs_mingw_386.go   |  5 +++++
  src/pkg/debug/proc/regs_mingw_amd64.go |  5 +++++
  3 files changed, 27 insertions(+)
+
+diff --git a/src/pkg/debug/proc/proc_mingw.go b/src/pkg/debug/proc/proc_mingw.go
+new file mode 100644
+index 0000000000..c3e07688ba
+--- /dev/null
++++ b/src/pkg/debug/proc/proc_mingw.go
+@@ -0,0 +1,17 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package proc
++
++import "os"
++
++// Process tracing is not supported on MinGW yet.
++
++func Attach(pid int) (Process, os.Error) {
++	return nil, os.NewError("debug/proc not implemented on MinGW")
++}
++
++func ForkExec(argv0 string, argv []string, envv []string, dir string, fd []*os.File) (Process, os.Error) {
++	return Attach(0)
++}
+diff --git a/src/pkg/debug/proc/regs_mingw_386.go b/src/pkg/debug/proc/regs_mingw_386.go
+new file mode 100644
+index 0000000000..60c9ac719e
+--- /dev/null
++++ b/src/pkg/debug/proc/regs_mingw_386.go
+@@ -0,0 +1,5 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package proc
+diff --git a/src/pkg/debug/proc/regs_mingw_amd64.go b/src/pkg/debug/proc/regs_mingw_amd64.go
+new file mode 100644
+index 0000000000..60c9ac719e
+--- /dev/null
++++ b/src/pkg/debug/proc/regs_mingw_amd64.go
+@@ -0,0 +1,5 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package proc

@@ -9,7 +9,98 @@ Date:   Mon Dec 17 22:29:43 2012 +0100
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/6932045
-
+---
  src/cmd/6g/cgen.c           |  6 ++++
  test/fixedbugs/issue4518.go | 67 +++++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 73 insertions(+)
+
+diff --git a/src/cmd/6g/cgen.c b/src/cmd/6g/cgen.c
+index aa94787592..eff81e2a7e 100644
+--- a/src/cmd/6g/cgen.c
++++ b/src/cmd/6g/cgen.c
+@@ -1632,6 +1632,12 @@ componentgen(Node *nr, Node *nl)
+ 	case TSTRUCT:
+ 		loffset = nodl.xoffset;
+ 		roffset = nodr.xoffset;
++		// funarg structs may not begin at offset zero.
++		if(nl->type->etype == TSTRUCT && nl->type->funarg && nl->type->type)
++			loffset -= nl->type->type->width;
++		if(nr != N && nr->type->etype == TSTRUCT && nr->type->funarg && nr->type->type)
++			roffset -= nr->type->type->width;
++
+ 		for(t=nl->type->type; t; t=t->down) {
+ 			nodl.xoffset = loffset + t->width;
+ 			nodl.type = t->type;
+diff --git a/test/fixedbugs/issue4518.go b/test/fixedbugs/issue4518.go
+new file mode 100644
+index 0000000000..e64b069bb9
+--- /dev/null
++++ b/test/fixedbugs/issue4518.go
+@@ -0,0 +1,67 @@
++// run
++
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 4518. In some circumstances "return F(...)"
++// where F has multiple returns is miscompiled by 6g due to
++// bold assumptions in componentgen.
++
++package main
++
++func DontInline() {}
++
++func F(e interface{}) (int, int) {
++	DontInline()
++	return 3, 7
++}
++
++func G() (int, int) {
++	DontInline()
++	return 3, 7
++}
++
++func bogus1(d interface{}) (int, int) {
++	switch {
++	default:
++		return F(d)
++	}
++	return 0, 0
++}
++
++func bogus2() (int, int) {
++	switch {
++	default:
++		return F(3)
++	}
++	return 0, 0
++}
++
++func bogus3(d interface{}) (int, int) {
++	switch {
++	default:
++		return G()
++	}
++	return 0, 0
++}
++
++func bogus4() (int, int) {
++	switch {
++	default:
++		return G()
++	}
++	return 0, 0
++}
++
++func check(a, b int) {
++	if a != 3 || b != 7 {
++		println(a, b)
++		panic("a != 3 || b != 7")
++	}
++}
++
++func main() {
++	check(bogus1(42))
++	check(bogus2())
++}

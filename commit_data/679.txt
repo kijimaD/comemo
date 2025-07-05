@@ -8,7 +8,41 @@ Date:   Thu Sep 18 23:16:22 2008 -0700
     R=r
     OCL=15517
     CL=15517
-
+---
  doc/go_spec.txt     |  2 ++
  test/bugs/bug103.go | 14 ++++++++++++++
  2 files changed, 16 insertions(+)
+
+diff --git a/doc/go_spec.txt b/doc/go_spec.txt
+index c82919272f..9561e924a6 100644
+--- a/doc/go_spec.txt
++++ b/doc/go_spec.txt
+@@ -52,6 +52,8 @@ Open issues according to gri:
+ [ ] iant suggests to use abstract/precise int for len(), cap() - good idea
+     (issue: what happens in len() + const - what is the type?)
+ [ ] Do composite literals create a new literal each time (gri thinks yes)
++[ ] should binary <- be at lowest precedence level? when is a send/receive non-blocking?
++[ ] consider syntactic notation for composite literals to make them parseable w/o type information
+ -->
+ 
+ Contents
+diff --git a/test/bugs/bug103.go b/test/bugs/bug103.go
+new file mode 100644
+index 0000000000..c350a53bb0
+--- /dev/null
++++ b/test/bugs/bug103.go
+@@ -0,0 +1,14 @@
++// errchk $G $D/$F.go
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func f() /* no return type */ {}
++
++func main() {
++	x := f();  // should not compile
++}
++

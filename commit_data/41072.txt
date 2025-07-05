@@ -16,6 +16,22 @@ Date:   Sun Jul 21 16:01:46 2019 -0400
     Run-TryBot: Andrew Bonventre <andybons@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-
+---
  src/mime/type.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/mime/type.go b/src/mime/type.go
+index ad763133e6..aa05077e22 100644
+--- a/src/mime/type.go
++++ b/src/mime/type.go
+@@ -63,8 +63,8 @@ var builtinTypesLower = map[string]string{
+ 	".html": "text/html; charset=utf-8",
+ 	".jpeg": "image/jpeg",
+ 	".jpg":  "image/jpeg",
+-	".js":   "application/javascript",
+-	".mjs":  "application/javascript",
++	".js":   "text/javascript; charset=utf-8",
++	".mjs":  "text/javascript; charset=utf-8",
+ 	".pdf":  "application/pdf",
+ 	".png":  "image/png",
+ 	".svg":  "image/svg+xml",

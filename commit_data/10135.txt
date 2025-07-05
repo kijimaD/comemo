@@ -13,6 +13,39 @@ Date:   Thu Oct 27 19:38:32 2011 -0700
     R=bradfitz
     CC=golang-dev
     https://golang.org/cl/5305068
-
+---
  src/pkg/crypto/openpgp/error/error.go | 12 ++++++------
  1 file changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/crypto/openpgp/error/error.go b/src/pkg/crypto/openpgp/error/error.go
+index 3759ce1612..9cc21f1f8f 100644
+--- a/src/pkg/crypto/openpgp/error/error.go
++++ b/src/pkg/crypto/openpgp/error/error.go
+@@ -41,21 +41,21 @@ func (b SignatureError) String() string {
+ 	return "OpenPGP signature invalid: " + string(b)
+ }
+ 
+-type keyIncorrect int
++type keyIncorrectError int
+ 
+-func (ki keyIncorrect) String() string {
++func (ki keyIncorrectError) String() string {
+ 	return "the given key was incorrect"
+ }
+ 
+-var KeyIncorrectError = keyIncorrect(0)
++var KeyIncorrectError = keyIncorrectError(0)
+ 
+-type unknownIssuer int
++type unknownIssuerError int
+ 
+-func (unknownIssuer) String() string {
++func (unknownIssuerError) String() string {
+ 	return "signature make by unknown entity"
+ }
+ 
+-var UnknownIssuerError = unknownIssuer(0)
++var UnknownIssuerError = unknownIssuerError(0)
+ 
+ type UnknownPacketTypeError uint8
+ 

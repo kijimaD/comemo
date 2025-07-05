@@ -15,7 +15,7 @@ Date:   Sun Mar 4 12:16:18 2018 +0100
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  misc/wasm/wasm_exec.js                      |   5 +
  src/internal/poll/fd_poll_nacljs.go         |   5 +-
  src/internal/poll/fd_posix.go               |   2 +-
@@ -56,3 +56,1652 @@ Date:   Sun Mar 4 12:16:18 2018 +0100
  src/syscall/syscall_js.go                   | 308 +++++++++++++++++
  src/syscall/tables_nacljs.go                | 131 +++++++-
  39 files changed, 1175 insertions(+), 32 deletions(-)
+
+diff --git a/misc/wasm/wasm_exec.js b/misc/wasm/wasm_exec.js
+index 142080bf55..e579ecf677 100755
+--- a/misc/wasm/wasm_exec.js
++++ b/misc/wasm/wasm_exec.js
+@@ -143,6 +143,11 @@
+ 						mem().setInt32(sp + 16, (msec % 1000) * 1000000, true);
+ 					},
+ 
++					// func getRandomData(r []byte)
++					"runtime.getRandomData": (sp) => {
++						crypto.getRandomValues(loadSlice(sp + 8));
++					},
++
+ 					// func boolVal(value bool) Value
+ 					"syscall/js.boolVal": (sp) => {
+ 						storeValue(sp + 16, mem().getUint8(sp + 8) !== 0);
+diff --git a/src/internal/poll/fd_poll_nacljs.go b/src/internal/poll/fd_poll_nacljs.go
+index 2701199ce7..832dddb4aa 100644
+--- a/src/internal/poll/fd_poll_nacljs.go
++++ b/src/internal/poll/fd_poll_nacljs.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build nacl
++// +build nacl js,wasm
+ 
+ package poll
+ 
+@@ -42,6 +42,9 @@ func (pd *pollDesc) wait(mode int, isFile bool) error {
+ 	if pd.closing {
+ 		return errClosing(isFile)
+ 	}
++	if isFile { // TODO(neelance): wasm: Use callbacks from JS to block until the read/write finished.
++		return nil
++	}
+ 	return ErrTimeout
+ }
+ 
+diff --git a/src/internal/poll/fd_posix.go b/src/internal/poll/fd_posix.go
+index e0e634cdb2..f178a6fa0a 100644
+--- a/src/internal/poll/fd_posix.go
++++ b/src/internal/poll/fd_posix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux nacl netbsd openbsd solaris windows
++// +build darwin dragonfly freebsd js,wasm linux nacl netbsd openbsd solaris windows
+ 
+ package poll
+ 
+diff --git a/src/internal/poll/fd_unix.go b/src/internal/poll/fd_unix.go
+index 36376ef6cb..5a196e7efe 100644
+--- a/src/internal/poll/fd_unix.go
++++ b/src/internal/poll/fd_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux nacl netbsd openbsd solaris
++// +build darwin dragonfly freebsd js,wasm linux nacl netbsd openbsd solaris
+ 
+ package poll
+ 
+diff --git a/src/internal/poll/sys_cloexec.go b/src/internal/poll/sys_cloexec.go
+index 3a25b13bb5..7bafa0d81a 100644
+--- a/src/internal/poll/sys_cloexec.go
++++ b/src/internal/poll/sys_cloexec.go
+@@ -5,7 +5,7 @@
+ // This file implements sysSocket and accept for platforms that do not
+ // provide a fast path for setting SetNonblock and CloseOnExec.
+ 
+-// +build darwin nacl solaris
++// +build darwin js,wasm nacl solaris
+ 
+ package poll
+ 
+diff --git a/src/internal/syscall/unix/nonblocking_js.go b/src/internal/syscall/unix/nonblocking_js.go
+new file mode 100644
+index 0000000000..ff67c75e81
+--- /dev/null
++++ b/src/internal/syscall/unix/nonblocking_js.go
+@@ -0,0 +1,9 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package unix
++
++func IsNonblock(fd int) (nonblocking bool, err error) {
++	return false, nil
++}
+diff --git a/src/os/dir_unix.go b/src/os/dir_unix.go
+index 3424688e8c..09c3d2eb61 100644
+--- a/src/os/dir_unix.go
++++ b/src/os/dir_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux nacl netbsd openbsd solaris
++// +build darwin dragonfly freebsd js,wasm linux nacl netbsd openbsd solaris
+ 
+ package os
+ 
+diff --git a/src/os/error_posix.go b/src/os/error_posix.go
+index 2049e448e8..3c81b41706 100644
+--- a/src/os/error_posix.go
++++ b/src/os/error_posix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux nacl netbsd openbsd solaris windows
++// +build darwin dragonfly freebsd js,wasm linux nacl netbsd openbsd solaris windows
+ 
+ package os
+ 
+diff --git a/src/os/error_unix.go b/src/os/error_unix.go
+index be1440cacb..a9d798b391 100644
+--- a/src/os/error_unix.go
++++ b/src/os/error_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux nacl netbsd openbsd solaris
++// +build darwin dragonfly freebsd js,wasm linux nacl netbsd openbsd solaris
+ 
+ package os
+ 
+diff --git a/src/os/error_unix_test.go b/src/os/error_unix_test.go
+index 76fe015b22..8db98676d1 100644
+--- a/src/os/error_unix_test.go
++++ b/src/os/error_unix_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux nacl netbsd openbsd solaris
++// +build darwin dragonfly freebsd js,wasm linux nacl netbsd openbsd solaris
+ 
+ package os_test
+ 
+diff --git a/src/os/exec/lp_js.go b/src/os/exec/lp_js.go
+new file mode 100644
+index 0000000000..6750fb99b0
+--- /dev/null
++++ b/src/os/exec/lp_js.go
+@@ -0,0 +1,23 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build js,wasm
++
++package exec
++
++import (
++	"errors"
++)
++
++// ErrNotFound is the error resulting if a path search failed to find an executable file.
++var ErrNotFound = errors.New("executable file not found in $PATH")
++
++// LookPath searches for an executable named file in the
++// directories named by the PATH environment variable.
++// If file contains a slash, it is tried directly and the PATH is not consulted.
++// The result may be an absolute path or a path relative to the current directory.
++func LookPath(file string) (string, error) {
++	// Wasm can not execute processes, so act as if there are no executables at all.
++	return "", &Error{file, ErrNotFound}
++}
+diff --git a/src/os/exec_posix.go b/src/os/exec_posix.go
+index fb220c8a5a..ec5cf33236 100644
+--- a/src/os/exec_posix.go
++++ b/src/os/exec_posix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux nacl netbsd openbsd solaris windows
++// +build darwin dragonfly freebsd js,wasm linux nacl netbsd openbsd solaris windows
+ 
+ package os
+ 
+diff --git a/src/os/exec_unix.go b/src/os/exec_unix.go
+index c4999db57f..b07543e550 100644
+--- a/src/os/exec_unix.go
++++ b/src/os/exec_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux nacl netbsd openbsd solaris
++// +build darwin dragonfly freebsd js,wasm linux nacl netbsd openbsd solaris
+ 
+ package os
+ 
+diff --git a/src/os/executable_procfs.go b/src/os/executable_procfs.go
+index b5fae59046..5bb63b9bdc 100644
+--- a/src/os/executable_procfs.go
++++ b/src/os/executable_procfs.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build linux netbsd dragonfly nacl
++// +build linux netbsd dragonfly nacl js,wasm
+ 
+ package os
+ 
+diff --git a/src/os/file_posix.go b/src/os/file_posix.go
+index b8835a70b8..7cfafc8fde 100644
+--- a/src/os/file_posix.go
++++ b/src/os/file_posix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux nacl netbsd openbsd solaris windows
++// +build darwin dragonfly freebsd js,wasm linux nacl netbsd openbsd solaris windows
+ 
+ package os
+ 
+diff --git a/src/os/file_unix.go b/src/os/file_unix.go
+index ed7e8cb31c..164d0c5977 100644
+--- a/src/os/file_unix.go
++++ b/src/os/file_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux nacl netbsd openbsd solaris
++// +build darwin dragonfly freebsd js,wasm linux nacl netbsd openbsd solaris
+ 
+ package os
+ 
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index 9d13fe05ac..894105a886 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -1390,7 +1390,7 @@ func TestSeek(t *testing.T) {
+ 
+ func TestSeekError(t *testing.T) {
+ 	switch runtime.GOOS {
+-	case "plan9", "nacl":
++	case "js", "nacl", "plan9":
+ 		t.Skipf("skipping test on %v", runtime.GOOS)
+ 	}
+ 
+@@ -2252,6 +2252,8 @@ func TestPipeThreads(t *testing.T) {
+ 		t.Skip("skipping on Windows; issue 19098")
+ 	case "plan9":
+ 		t.Skip("skipping on Plan 9; does not support runtime poller")
++	case "js":
++		t.Skip("skipping on js; no support for os.Pipe")
+ 	}
+ 
+ 	threads := 100
+diff --git a/src/os/path_unix.go b/src/os/path_unix.go
+index 9117ad0ef6..b2e0bca0df 100644
+--- a/src/os/path_unix.go
++++ b/src/os/path_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux nacl netbsd openbsd solaris
++// +build darwin dragonfly freebsd js,wasm linux nacl netbsd openbsd solaris
+ 
+ package os
+ 
+diff --git a/src/os/pipe_bsd.go b/src/os/pipe_bsd.go
+index 5260ceea94..9735988f32 100644
+--- a/src/os/pipe_bsd.go
++++ b/src/os/pipe_bsd.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly nacl solaris
++// +build darwin dragonfly js,wasm nacl solaris
+ 
+ package os
+ 
+diff --git a/src/os/pipe_test.go b/src/os/pipe_test.go
+index aad6c27f1b..929e9bec53 100644
+--- a/src/os/pipe_test.go
++++ b/src/os/pipe_test.go
+@@ -3,7 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // Test broken pipes on Unix systems.
+-// +build !windows,!plan9,!nacl
++// +build !windows,!plan9,!nacl,!js
+ 
+ package os_test
+ 
+diff --git a/src/os/signal/signal_unix.go b/src/os/signal/signal_unix.go
+index 0987c1730a..28fbb54995 100644
+--- a/src/os/signal/signal_unix.go
++++ b/src/os/signal/signal_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux nacl netbsd openbsd solaris windows
++// +build darwin dragonfly freebsd js,wasm linux nacl netbsd openbsd solaris windows
+ 
+ package signal
+ 
+diff --git a/src/os/stat_nacl.go b/src/os/stat_nacljs.go
+similarity index 98%
+rename from src/os/stat_nacl.go
+rename to src/os/stat_nacljs.go
+index 0c53f2faa4..f14add8674 100644
+--- a/src/os/stat_nacl.go
++++ b/src/os/stat_nacljs.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build js,wasm nacl
++
+ package os
+ 
+ import (
+diff --git a/src/os/stat_unix.go b/src/os/stat_unix.go
+index b58417150c..856b49929f 100644
+--- a/src/os/stat_unix.go
++++ b/src/os/stat_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux nacl netbsd openbsd solaris
++// +build darwin dragonfly freebsd js,wasm linux nacl netbsd openbsd solaris
+ 
+ package os
+ 
+diff --git a/src/os/sys_bsd.go b/src/os/sys_bsd.go
+index 78705c286d..d820be2ab6 100644
+--- a/src/os/sys_bsd.go
++++ b/src/os/sys_bsd.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd nacl netbsd openbsd
++// +build darwin dragonfly freebsd js,wasm nacl netbsd openbsd
+ 
+ package os
+ 
+diff --git a/src/os/sys_js.go b/src/os/sys_js.go
+new file mode 100644
+index 0000000000..e860654f81
+--- /dev/null
++++ b/src/os/sys_js.go
+@@ -0,0 +1,11 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build js,wasm
++
++package os
++
++// supportsCloseOnExec reports whether the platform supports the
++// O_CLOEXEC flag.
++const supportsCloseOnExec = false
+diff --git a/src/os/timeout_test.go b/src/os/timeout_test.go
+index 6105f9b1a1..1886accb55 100644
+--- a/src/os/timeout_test.go
++++ b/src/os/timeout_test.go
+@@ -3,6 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // +build !nacl
++// +build !js
+ // +build !plan9
+ // +build !windows
+ 
+diff --git a/src/os/user/lookup_unix.go b/src/os/user/lookup_unix.go
+index 05f39be40b..c4e9ba1e81 100644
+--- a/src/os/user/lookup_unix.go
++++ b/src/os/user/lookup_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd !android,linux nacl netbsd openbsd solaris
++// +build darwin dragonfly freebsd js,wasm !android,linux nacl netbsd openbsd solaris
+ // +build !cgo osusergo
+ 
+ package user
+diff --git a/src/os/wait_unimp.go b/src/os/wait_unimp.go
+index b71e93f104..3d8210f5bd 100644
+--- a/src/os/wait_unimp.go
++++ b/src/os/wait_unimp.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly nacl netbsd openbsd solaris
++// +build darwin dragonfly js,wasm nacl netbsd openbsd solaris
+ 
+ package os
+ 
+diff --git a/src/path/filepath/path_unix.go b/src/path/filepath/path_unix.go
+index d77ff24cdc..349dea7b53 100644
+--- a/src/path/filepath/path_unix.go
++++ b/src/path/filepath/path_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux nacl netbsd openbsd solaris
++// +build darwin dragonfly freebsd js,wasm linux nacl netbsd openbsd solaris
+ 
+ package filepath
+ 
+diff --git a/src/runtime/debug/heapdump_test.go b/src/runtime/debug/heapdump_test.go
+index 7d5b950895..c986efcb32 100644
+--- a/src/runtime/debug/heapdump_test.go
++++ b/src/runtime/debug/heapdump_test.go
+@@ -13,8 +13,8 @@ import (
+ )
+ 
+ func TestWriteHeapDumpNonempty(t *testing.T) {
+-	if runtime.GOOS == "nacl" {
+-		t.Skip("WriteHeapDump is not available on NaCl.")
++	if runtime.GOOS == "nacl" || runtime.GOOS == "js" {
++		t.Skipf("WriteHeapDump is not available on %s.", runtime.GOOS)
+ 	}
+ 	f, err := ioutil.TempFile("", "heapdumptest")
+ 	if err != nil {
+@@ -42,8 +42,8 @@ func objfin(x *Obj) {
+ }
+ 
+ func TestWriteHeapDumpFinalizers(t *testing.T) {
+-	if runtime.GOOS == "nacl" {
+-		t.Skip("WriteHeapDump is not available on NaCl.")
++	if runtime.GOOS == "nacl" || runtime.GOOS == "js" {
++		t.Skipf("WriteHeapDump is not available on %s.", runtime.GOOS)
+ 	}
+ 	f, err := ioutil.TempFile("", "heapdumptest")
+ 	if err != nil {
+diff --git a/src/runtime/os_js.go b/src/runtime/os_js.go
+new file mode 100644
+index 0000000000..ad6db18b74
+--- /dev/null
++++ b/src/runtime/os_js.go
+@@ -0,0 +1,145 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build js,wasm
++
++package runtime
++
++import (
++	"unsafe"
++)
++
++func exit(code int32)
++
++func write(fd uintptr, p unsafe.Pointer, n int32) int32 {
++	if fd > 2 {
++		throw("runtime.write to fd > 2 is unsupported")
++	}
++	wasmWrite(fd, p, n)
++	return n
++}
++
++// Stubs so tests can link correctly. These should never be called.
++func open(name *byte, mode, perm int32) int32        { panic("not implemented") }
++func closefd(fd int32) int32                         { panic("not implemented") }
++func read(fd int32, p unsafe.Pointer, n int32) int32 { panic("not implemented") }
++
++//go:noescape
++func wasmWrite(fd uintptr, p unsafe.Pointer, n int32)
++
++func usleep(usec uint32)
++
++func exitThread(wait *uint32)
++
++type mOS struct{}
++
++func osyield()
++
++const _SIGSEGV = 0xb
++
++func sigpanic() {
++	g := getg()
++	if !canpanic(g) {
++		throw("unexpected signal during runtime execution")
++	}
++
++	// js only invokes the exception handler for memory faults.
++	g.sig = _SIGSEGV
++	panicmem()
++}
++
++type sigset struct{}
++
++// Called to initialize a new m (including the bootstrap m).
++// Called on the parent thread (main thread in case of bootstrap), can allocate memory.
++func mpreinit(mp *m) {
++	mp.gsignal = malg(32 * 1024)
++	mp.gsignal.m = mp
++}
++
++//go:nosplit
++func msigsave(mp *m) {
++}
++
++//go:nosplit
++func msigrestore(sigmask sigset) {
++}
++
++//go:nosplit
++//go:nowritebarrierrec
++func clearSignalHandlers() {
++}
++
++//go:nosplit
++func sigblock() {
++}
++
++// Called to initialize a new m (including the bootstrap m).
++// Called on the new thread, cannot allocate memory.
++func minit() {
++}
++
++// Called from dropm to undo the effect of an minit.
++func unminit() {
++}
++
++func osinit() {
++	ncpu = 1
++	getg().m.procid = 2
++	physPageSize = 64 * 1024
++}
++
++// wasm has no signals
++const _NSIG = 0
++
++func signame(sig uint32) string {
++	return ""
++}
++
++func crash() {
++	*(*int32)(nil) = 0
++}
++
++func getRandomData(r []byte)
++
++func goenvs() {
++	goenvs_unix()
++}
++
++func initsig(preinit bool) {
++}
++
++// May run with m.p==nil, so write barriers are not allowed.
++//go:nowritebarrier
++func newosproc(mp *m) {
++	panic("newosproc: not implemented")
++}
++
++func setProcessCPUProfiler(hz int32) {}
++func setThreadCPUProfiler(hz int32)  {}
++func sigdisable(uint32)              {}
++func sigenable(uint32)               {}
++func sigignore(uint32)               {}
++
++//go:linkname os_sigpipe os.sigpipe
++func os_sigpipe() {
++	throw("too many writes on closed pipe")
++}
++
++//go:nosplit
++func cputicks() int64 {
++	// Currently cputicks() is used in blocking profiler and to seed runtime·fastrand().
++	// runtime·nanotime() is a poor approximation of CPU ticks that is enough for the profiler.
++	// TODO: need more entropy to better seed fastrand.
++	return nanotime()
++}
++
++//go:linkname syscall_now syscall.now
++func syscall_now() (sec int64, nsec int32) {
++	sec, nsec, _ = time_now()
++	return
++}
++
++// gsignalStack is unused on js.
++type gsignalStack struct{}
+diff --git a/src/runtime/sys_wasm.s b/src/runtime/sys_wasm.s
+index c9815821a6..9a67ceec63 100644
+--- a/src/runtime/sys_wasm.s
++++ b/src/runtime/sys_wasm.s
+@@ -193,3 +193,7 @@ TEXT ·nanotime(SB), NOSPLIT, $0
+ TEXT ·walltime(SB), NOSPLIT, $0
+ 	CallImport
+ 	RET
++
++TEXT ·getRandomData(SB), NOSPLIT, $0
++	CallImport
++	RET
+diff --git a/src/runtime/trace/trace_test.go b/src/runtime/trace/trace_test.go
+index f289bd6f85..fc81abc30f 100644
+--- a/src/runtime/trace/trace_test.go
++++ b/src/runtime/trace/trace_test.go
+@@ -180,6 +180,9 @@ func testBrokenTimestamps(t *testing.T, data []byte) {
+ }
+ 
+ func TestTraceStress(t *testing.T) {
++	if runtime.GOOS == "js" {
++		t.Skip("no os.Pipe on js")
++	}
+ 	if IsEnabled() {
+ 		t.Skip("skipping because -test.trace is set")
+ 	}
+@@ -322,6 +325,9 @@ func TestTraceStress(t *testing.T) {
+ // Do a bunch of various stuff (timers, GC, network, etc) in a separate goroutine.
+ // And concurrently with all that start/stop trace 3 times.
+ func TestTraceStressStartStop(t *testing.T) {
++	if runtime.GOOS == "js" {
++		t.Skip("no os.Pipe on js")
++	}
+ 	if IsEnabled() {
+ 		t.Skip("skipping because -test.trace is set")
+ 	}
+diff --git a/src/syscall/dirent.go b/src/syscall/dirent.go
+index 4db2d4355b..26cbbbce2a 100644
+--- a/src/syscall/dirent.go
++++ b/src/syscall/dirent.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux nacl netbsd openbsd solaris
++// +build darwin dragonfly freebsd js,wasm linux nacl netbsd openbsd solaris
+ 
+ package syscall
+ 
+diff --git a/src/syscall/endian_little.go b/src/syscall/endian_little.go
+index bd6f06e426..013d878b8d 100644
+--- a/src/syscall/endian_little.go
++++ b/src/syscall/endian_little.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ //
+-// +build 386 amd64 amd64p32 arm arm64 ppc64le mips64le mipsle
++// +build 386 amd64 amd64p32 arm arm64 ppc64le mips64le mipsle wasm
+ 
+ package syscall
+ 
+diff --git a/src/syscall/env_unix.go b/src/syscall/env_unix.go
+index 5bf3336ce5..1ebc0b17f2 100644
+--- a/src/syscall/env_unix.go
++++ b/src/syscall/env_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux nacl netbsd openbsd solaris
++// +build darwin dragonfly freebsd js,wasm linux nacl netbsd openbsd solaris
+ 
+ // Unix environment variables.
+ 
+diff --git a/src/syscall/fs_js.go b/src/syscall/fs_js.go
+new file mode 100644
+index 0000000000..141d46803c
+--- /dev/null
++++ b/src/syscall/fs_js.go
+@@ -0,0 +1,497 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build js,wasm
++
++package syscall
++
++import (
++	"io"
++	"sync"
++	"syscall/js"
++)
++
++// Provided by package runtime.
++func now() (sec int64, nsec int32)
++
++var jsProcess = js.Global.Get("process")
++var jsFS = js.Global.Get("fs")
++var constants = jsFS.Get("constants")
++
++var (
++	nodeWRONLY   = constants.Get("O_WRONLY").Int()
++	nodeRDWR     = constants.Get("O_RDWR").Int()
++	nodeCREATE   = constants.Get("O_CREAT").Int()
++	nodeTRUNC    = constants.Get("O_TRUNC").Int()
++	nodeAPPEND   = constants.Get("O_APPEND").Int()
++	nodeEXCL     = constants.Get("O_EXCL").Int()
++	nodeNONBLOCK = constants.Get("O_NONBLOCK").Int()
++	nodeSYNC     = constants.Get("O_SYNC").Int()
++)
++
++type jsFile struct {
++	path    string
++	entries []string
++	pos     int64
++	seeked  bool
++}
++
++var filesMu sync.Mutex
++var files = map[int]*jsFile{
++	0: &jsFile{},
++	1: &jsFile{},
++	2: &jsFile{},
++}
++
++func fdToFile(fd int) (*jsFile, error) {
++	filesMu.Lock()
++	f, ok := files[fd]
++	filesMu.Unlock()
++	if !ok {
++		return nil, EBADF
++	}
++	return f, nil
++}
++
++func Open(path string, openmode int, perm uint32) (int, error) {
++	if err := checkPath(path); err != nil {
++		return 0, err
++	}
++
++	flags := 0
++	if openmode&O_WRONLY != 0 {
++		flags |= nodeWRONLY
++	}
++	if openmode&O_RDWR != 0 {
++		flags |= nodeRDWR
++	}
++	if openmode&O_CREATE != 0 {
++		flags |= nodeCREATE
++	}
++	if openmode&O_TRUNC != 0 {
++		flags |= nodeTRUNC
++	}
++	if openmode&O_APPEND != 0 {
++		flags |= nodeAPPEND
++	}
++	if openmode&O_EXCL != 0 {
++		flags |= nodeEXCL
++	}
++	if openmode&O_NONBLOCK != 0 {
++		flags |= nodeNONBLOCK
++	}
++	if openmode&O_SYNC != 0 {
++		flags |= nodeSYNC
++	}
++
++	jsFD, err := fsCall("openSync", path, flags, perm)
++	if err != nil {
++		return 0, err
++	}
++	fd := jsFD.Int()
++
++	var entries []string
++	if stat, err := fsCall("fstatSync", fd); err == nil && stat.Call("isDirectory").Bool() {
++		dir, err := fsCall("readdirSync", path)
++		if err != nil {
++			return 0, err
++		}
++		entries = make([]string, dir.Length())
++		for i := range entries {
++			entries[i] = dir.Index(i).String()
++		}
++	}
++
++	f := &jsFile{
++		path:    path,
++		entries: entries,
++	}
++	filesMu.Lock()
++	files[fd] = f
++	filesMu.Unlock()
++	return fd, nil
++}
++
++func Close(fd int) error {
++	filesMu.Lock()
++	delete(files, fd)
++	filesMu.Unlock()
++	_, err := fsCall("closeSync", fd)
++	return err
++}
++
++func CloseOnExec(fd int) {
++	// nothing to do - no exec
++}
++
++func Mkdir(path string, perm uint32) error {
++	if err := checkPath(path); err != nil {
++		return err
++	}
++	_, err := fsCall("mkdirSync", path, perm)
++	return err
++}
++
++func ReadDirent(fd int, buf []byte) (int, error) {
++	f, err := fdToFile(fd)
++	if err != nil {
++		return 0, err
++	}
++	if f.entries == nil {
++		return 0, EINVAL
++	}
++
++	n := 0
++	for len(f.entries) > 0 {
++		entry := f.entries[0]
++		l := 2 + len(entry)
++		if l > len(buf) {
++			break
++		}
++		buf[0] = byte(l)
++		buf[1] = byte(l >> 8)
++		copy(buf[2:], entry)
++		buf = buf[l:]
++		n += l
++		f.entries = f.entries[1:]
++	}
++
++	return n, nil
++}
++
++func setStat(st *Stat_t, jsSt js.Value) {
++	st.Dev = int64(jsSt.Get("dev").Int())
++	st.Ino = uint64(jsSt.Get("ino").Int())
++	st.Mode = uint32(jsSt.Get("mode").Int())
++	st.Nlink = uint32(jsSt.Get("nlink").Int())
++	st.Uid = uint32(jsSt.Get("uid").Int())
++	st.Gid = uint32(jsSt.Get("gid").Int())
++	st.Rdev = int64(jsSt.Get("rdev").Int())
++	st.Size = int64(jsSt.Get("size").Int())
++	st.Blksize = int32(jsSt.Get("blksize").Int())
++	st.Blocks = int32(jsSt.Get("blocks").Int())
++	atime := int64(jsSt.Get("atimeMs").Int())
++	st.Atime = atime / 1000
++	st.AtimeNsec = (atime % 1000) * 1000000
++	mtime := int64(jsSt.Get("mtimeMs").Int())
++	st.Mtime = mtime / 1000
++	st.MtimeNsec = (mtime % 1000) * 1000000
++	ctime := int64(jsSt.Get("ctimeMs").Int())
++	st.Ctime = ctime / 1000
++	st.CtimeNsec = (ctime % 1000) * 1000000
++}
++
++func Stat(path string, st *Stat_t) error {
++	if err := checkPath(path); err != nil {
++		return err
++	}
++	jsSt, err := fsCall("statSync", path)
++	if err != nil {
++		return err
++	}
++	setStat(st, jsSt)
++	return nil
++}
++
++func Lstat(path string, st *Stat_t) error {
++	if err := checkPath(path); err != nil {
++		return err
++	}
++	jsSt, err := fsCall("lstatSync", path)
++	if err != nil {
++		return err
++	}
++	setStat(st, jsSt)
++	return nil
++}
++
++func Fstat(fd int, st *Stat_t) error {
++	jsSt, err := fsCall("fstatSync", fd)
++	if err != nil {
++		return err
++	}
++	setStat(st, jsSt)
++	return nil
++}
++
++func Unlink(path string) error {
++	if err := checkPath(path); err != nil {
++		return err
++	}
++	_, err := fsCall("unlinkSync", path)
++	return err
++}
++
++func Rmdir(path string) error {
++	if err := checkPath(path); err != nil {
++		return err
++	}
++	_, err := fsCall("rmdirSync", path)
++	return err
++}
++
++func Chmod(path string, mode uint32) error {
++	if err := checkPath(path); err != nil {
++		return err
++	}
++	_, err := fsCall("chmodSync", path, mode)
++	return err
++}
++
++func Fchmod(fd int, mode uint32) error {
++	_, err := fsCall("fchmodSync", fd, mode)
++	return err
++}
++
++func Chown(path string, uid, gid int) error {
++	if err := checkPath(path); err != nil {
++		return err
++	}
++	return ENOSYS
++}
++
++func Fchown(fd int, uid, gid int) error {
++	return ENOSYS
++}
++
++func Lchown(path string, uid, gid int) error {
++	if err := checkPath(path); err != nil {
++		return err
++	}
++	return ENOSYS
++}
++
++func UtimesNano(path string, ts []Timespec) error {
++	if err := checkPath(path); err != nil {
++		return err
++	}
++	if len(ts) != 2 {
++		return EINVAL
++	}
++	atime := ts[0].Sec
++	mtime := ts[1].Sec
++	_, err := fsCall("utimesSync", path, atime, mtime)
++	return err
++}
++
++func Rename(from, to string) error {
++	if err := checkPath(from); err != nil {
++		return err
++	}
++	if err := checkPath(to); err != nil {
++		return err
++	}
++	_, err := fsCall("renameSync", from, to)
++	return err
++}
++
++func Truncate(path string, length int64) error {
++	if err := checkPath(path); err != nil {
++		return err
++	}
++	_, err := fsCall("truncateSync", path, length)
++	return err
++}
++
++func Ftruncate(fd int, length int64) error {
++	_, err := fsCall("ftruncateSync", fd, length)
++	return err
++}
++
++func Getcwd(buf []byte) (n int, err error) {
++	defer recoverErr(&err)
++	cwd := jsProcess.Call("cwd").String()
++	n = copy(buf, cwd)
++	return n, nil
++}
++
++func Chdir(path string) (err error) {
++	if err := checkPath(path); err != nil {
++		return err
++	}
++	defer recoverErr(&err)
++	jsProcess.Call("chdir", path)
++	return
++}
++
++func Fchdir(fd int) error {
++	f, err := fdToFile(fd)
++	if err != nil {
++		return err
++	}
++	return Chdir(f.path)
++}
++
++func Readlink(path string, buf []byte) (n int, err error) {
++	if err := checkPath(path); err != nil {
++		return 0, err
++	}
++	dst, err := fsCall("readlinkSync", path)
++	if err != nil {
++		return 0, err
++	}
++	n = copy(buf, dst.String())
++	return n, nil
++}
++
++func Link(path, link string) error {
++	if err := checkPath(path); err != nil {
++		return err
++	}
++	if err := checkPath(link); err != nil {
++		return err
++	}
++	_, err := fsCall("linkSync", path, link)
++	return err
++}
++
++func Symlink(path, link string) error {
++	if err := checkPath(path); err != nil {
++		return err
++	}
++	if err := checkPath(link); err != nil {
++		return err
++	}
++	_, err := fsCall("symlinkSync", path, link)
++	return err
++}
++
++func Fsync(fd int) error {
++	_, err := fsCall("fsyncSync", fd)
++	return err
++}
++
++func Read(fd int, b []byte) (int, error) {
++	f, err := fdToFile(fd)
++	if err != nil {
++		return 0, err
++	}
++
++	if f.seeked {
++		n, err := Pread(fd, b, f.pos)
++		f.pos += int64(n)
++		return n, err
++	}
++
++	n, err := fsCall("readSync", fd, b, 0, len(b))
++	if err != nil {
++		return 0, err
++	}
++	n2 := n.Int()
++	f.pos += int64(n2)
++	return n2, err
++}
++
++func Write(fd int, b []byte) (int, error) {
++	f, err := fdToFile(fd)
++	if err != nil {
++		return 0, err
++	}
++
++	if f.seeked {
++		n, err := Pwrite(fd, b, f.pos)
++		f.pos += int64(n)
++		return n, err
++	}
++
++	n, err := fsCall("writeSync", fd, b, 0, len(b))
++	if err != nil {
++		return 0, err
++	}
++	n2 := n.Int()
++	f.pos += int64(n2)
++	return n2, err
++}
++
++func Pread(fd int, b []byte, offset int64) (int, error) {
++	n, err := fsCall("readSync", fd, b, 0, len(b), offset)
++	if err != nil {
++		return 0, err
++	}
++	return n.Int(), nil
++}
++
++func Pwrite(fd int, b []byte, offset int64) (int, error) {
++	n, err := fsCall("writeSync", fd, b, 0, len(b), offset)
++	if err != nil {
++		return 0, err
++	}
++	return n.Int(), nil
++}
++
++func Seek(fd int, offset int64, whence int) (int64, error) {
++	f, err := fdToFile(fd)
++	if err != nil {
++		return 0, err
++	}
++
++	var newPos int64
++	switch whence {
++	case io.SeekStart:
++		newPos = offset
++	case io.SeekCurrent:
++		newPos = f.pos + offset
++	case io.SeekEnd:
++		var st Stat_t
++		if err := Fstat(fd, &st); err != nil {
++			return 0, err
++		}
++		newPos = st.Size + offset
++	default:
++		return 0, errnoErr(EINVAL)
++	}
++
++	if newPos < 0 {
++		return 0, errnoErr(EINVAL)
++	}
++
++	f.seeked = true
++	f.pos = newPos
++	return newPos, nil
++}
++
++func Dup(fd int) (int, error) {
++	return 0, ENOSYS
++}
++
++func Dup2(fd, newfd int) error {
++	return ENOSYS
++}
++
++func Pipe(fd []int) error {
++	return ENOSYS
++}
++
++func fsCall(name string, args ...interface{}) (res js.Value, err error) {
++	defer recoverErr(&err)
++	res = jsFS.Call(name, args...)
++	return
++}
++
++// checkPath checks that the path is not empty and that it contains no null characters.
++func checkPath(path string) error {
++	if path == "" {
++		return EINVAL
++	}
++	for i := 0; i < len(path); i++ {
++		if path[i] == '\x00' {
++			return EINVAL
++		}
++	}
++	return nil
++}
++
++func recoverErr(errPtr *error) {
++	if err := recover(); err != nil {
++		jsErr, ok := err.(js.Error)
++		if !ok {
++			panic(err)
++		}
++		errno, ok := errnoByCode[jsErr.Get("code").String()]
++		if !ok {
++			panic(err)
++		}
++		*errPtr = errnoErr(Errno(errno))
++	}
++}
+diff --git a/src/syscall/syscall_js.go b/src/syscall/syscall_js.go
+new file mode 100644
+index 0000000000..356d925462
+--- /dev/null
++++ b/src/syscall/syscall_js.go
+@@ -0,0 +1,308 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build js,wasm
++
++package syscall
++
++import (
++	"sync"
++	"unsafe"
++)
++
++const direntSize = 8 + 8 + 2 + 256
++
++type Dirent struct {
++	Reclen uint16
++	Name   [256]byte
++}
++
++func direntIno(buf []byte) (uint64, bool) {
++	return 1, true
++}
++
++func direntReclen(buf []byte) (uint64, bool) {
++	return readInt(buf, unsafe.Offsetof(Dirent{}.Reclen), unsafe.Sizeof(Dirent{}.Reclen))
++}
++
++func direntNamlen(buf []byte) (uint64, bool) {
++	reclen, ok := direntReclen(buf)
++	if !ok {
++		return 0, false
++	}
++	return reclen - uint64(unsafe.Offsetof(Dirent{}.Name)), true
++}
++
++const PathMax = 256
++
++// An Errno is an unsigned number describing an error condition.
++// It implements the error interface. The zero Errno is by convention
++// a non-error, so code to convert from Errno to error should use:
++//	err = nil
++//	if errno != 0 {
++//		err = errno
++//	}
++type Errno uintptr
++
++func (e Errno) Error() string {
++	if 0 <= int(e) && int(e) < len(errorstr) {
++		s := errorstr[e]
++		if s != "" {
++			return s
++		}
++	}
++	return "errno " + itoa(int(e))
++}
++
++func (e Errno) Temporary() bool {
++	return e == EINTR || e == EMFILE || e.Timeout()
++}
++
++func (e Errno) Timeout() bool {
++	return e == EAGAIN || e == EWOULDBLOCK || e == ETIMEDOUT
++}
++
++// A Signal is a number describing a process signal.
++// It implements the os.Signal interface.
++type Signal int
++
++const (
++	_ Signal = iota
++	SIGCHLD
++	SIGINT
++	SIGKILL
++	SIGTRAP
++	SIGQUIT
++)
++
++func (s Signal) Signal() {}
++
++func (s Signal) String() string {
++	if 0 <= s && int(s) < len(signals) {
++		str := signals[s]
++		if str != "" {
++			return str
++		}
++	}
++	return "signal " + itoa(int(s))
++}
++
++var signals = [...]string{}
++
++// File system
++
++const (
++	Stdin  = 0
++	Stdout = 1
++	Stderr = 2
++)
++
++const (
++	O_RDONLY = 0
++	O_WRONLY = 1
++	O_RDWR   = 2
++
++	O_CREAT    = 0100
++	O_CREATE   = O_CREAT
++	O_TRUNC    = 01000
++	O_APPEND   = 02000
++	O_EXCL     = 0200
++	O_NONBLOCK = 04000
++	O_SYNC     = 010000
++
++	O_CLOEXEC = 0
++)
++
++const (
++	F_DUPFD   = 0
++	F_GETFD   = 1
++	F_SETFD   = 2
++	F_GETFL   = 3
++	F_SETFL   = 4
++	F_GETOWN  = 5
++	F_SETOWN  = 6
++	F_GETLK   = 7
++	F_SETLK   = 8
++	F_SETLKW  = 9
++	F_RGETLK  = 10
++	F_RSETLK  = 11
++	F_CNVT    = 12
++	F_RSETLKW = 13
++
++	F_RDLCK   = 1
++	F_WRLCK   = 2
++	F_UNLCK   = 3
++	F_UNLKSYS = 4
++)
++
++const (
++	S_IFMT        = 0000370000
++	S_IFSHM_SYSV  = 0000300000
++	S_IFSEMA      = 0000270000
++	S_IFCOND      = 0000260000
++	S_IFMUTEX     = 0000250000
++	S_IFSHM       = 0000240000
++	S_IFBOUNDSOCK = 0000230000
++	S_IFSOCKADDR  = 0000220000
++	S_IFDSOCK     = 0000210000
++
++	S_IFSOCK = 0000140000
++	S_IFLNK  = 0000120000
++	S_IFREG  = 0000100000
++	S_IFBLK  = 0000060000
++	S_IFDIR  = 0000040000
++	S_IFCHR  = 0000020000
++	S_IFIFO  = 0000010000
++
++	S_UNSUP = 0000370000
++
++	S_ISUID = 0004000
++	S_ISGID = 0002000
++	S_ISVTX = 0001000
++
++	S_IREAD  = 0400
++	S_IWRITE = 0200
++	S_IEXEC  = 0100
++
++	S_IRWXU = 0700
++	S_IRUSR = 0400
++	S_IWUSR = 0200
++	S_IXUSR = 0100
++
++	S_IRWXG = 070
++	S_IRGRP = 040
++	S_IWGRP = 020
++	S_IXGRP = 010
++
++	S_IRWXO = 07
++	S_IROTH = 04
++	S_IWOTH = 02
++	S_IXOTH = 01
++)
++
++type Stat_t struct {
++	Dev       int64
++	Ino       uint64
++	Mode      uint32
++	Nlink     uint32
++	Uid       uint32
++	Gid       uint32
++	Rdev      int64
++	Size      int64
++	Blksize   int32
++	Blocks    int32
++	Atime     int64
++	AtimeNsec int64
++	Mtime     int64
++	MtimeNsec int64
++	Ctime     int64
++	CtimeNsec int64
++}
++
++// Processes
++// Not supported - just enough for package os.
++
++var ForkLock sync.RWMutex
++
++type WaitStatus uint32
++
++func (w WaitStatus) Exited() bool       { return false }
++func (w WaitStatus) ExitStatus() int    { return 0 }
++func (w WaitStatus) Signaled() bool     { return false }
++func (w WaitStatus) Signal() Signal     { return 0 }
++func (w WaitStatus) CoreDump() bool     { return false }
++func (w WaitStatus) Stopped() bool      { return false }
++func (w WaitStatus) Continued() bool    { return false }
++func (w WaitStatus) StopSignal() Signal { return 0 }
++func (w WaitStatus) TrapCause() int     { return 0 }
++
++// XXX made up
++type Rusage struct {
++	Utime Timeval
++	Stime Timeval
++}
++
++// XXX made up
++type ProcAttr struct {
++	Dir   string
++	Env   []string
++	Files []uintptr
++	Sys   *SysProcAttr
++}
++
++type SysProcAttr struct {
++}
++
++func Syscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno) {
++	return 0, 0, ENOSYS
++}
++
++func Syscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno) {
++	return 0, 0, ENOSYS
++}
++
++func RawSyscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno) {
++	return 0, 0, ENOSYS
++}
++
++func RawSyscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno) {
++	return 0, 0, ENOSYS
++}
++
++func Sysctl(key string) (string, error) {
++	if key == "kern.hostname" {
++		return "js", nil
++	}
++	return "", ENOSYS
++}
++
++const ImplementsGetwd = true
++
++func Getwd() (wd string, err error) {
++	var buf [PathMax]byte
++	n, err := Getcwd(buf[0:])
++	if err != nil {
++		return "", err
++	}
++	return string(buf[:n]), nil
++}
++
++func Getegid() int                      { return 1 }
++func Geteuid() int                      { return 1 }
++func Getgid() int                       { return 1 }
++func Getgroups() ([]int, error)         { return []int{1}, nil }
++func Getppid() int                      { return 2 }
++func Getpid() int                       { return 3 }
++func Gettimeofday(tv *Timeval) error    { return ENOSYS }
++func Getuid() int                       { return 1 }
++func Kill(pid int, signum Signal) error { return ENOSYS }
++func Sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) {
++	return 0, ENOSYS
++}
++func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid int, handle uintptr, err error) {
++	return 0, 0, ENOSYS
++}
++func Wait4(pid int, wstatus *WaitStatus, options int, rusage *Rusage) (wpid int, err error) {
++	return 0, ENOSYS
++}
++
++type Iovec struct{} // dummy
++
++type Timespec struct {
++	Sec  int64
++	Nsec int64
++}
++
++type Timeval struct {
++	Sec  int64
++	Usec int64
++}
++
++func setTimespec(sec, nsec int64) Timespec {
++	return Timespec{Sec: sec, Nsec: nsec}
++}
++
++func setTimeval(sec, usec int64) Timeval {
++	return Timeval{Sec: sec, Usec: usec}
++}
+diff --git a/src/syscall/tables_nacljs.go b/src/syscall/tables_nacljs.go
+index e5c51c9c89..1c265f25c7 100644
+--- a/src/syscall/tables_nacljs.go
++++ b/src/syscall/tables_nacljs.go
+@@ -2,10 +2,12 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build nacl
++// +build nacl js,wasm
+ 
+ package syscall
+ 
++import "runtime"
++
+ // TODO: generate with runtime/mknacl.sh, allow override with IRT.
+ const (
+ 	sys_null                 = 1
+@@ -254,7 +256,7 @@ var errorstr = [...]string{
+ 	EMLINK:          "Too many links",
+ 	EPIPE:           "Broken pipe",
+ 	ENAMETOOLONG:    "File name too long",
+-	ENOSYS:          "not implemented on Native Client",
++	ENOSYS:          "not implemented on " + runtime.GOOS,
+ 	EDQUOT:          "Quota exceeded",
+ 	EDOM:            "Math arg out of domain of func",
+ 	ERANGE:          "Math result not representable",
+@@ -361,3 +363,128 @@ func errnoErr(e Errno) error {
+ 	}
+ 	return e
+ }
++
++var errnoByCode = map[string]Errno{
++	"EPERM":           EPERM,
++	"ENOENT":          ENOENT,
++	"ESRCH":           ESRCH,
++	"EINTR":           EINTR,
++	"EIO":             EIO,
++	"ENXIO":           ENXIO,
++	"E2BIG":           E2BIG,
++	"ENOEXEC":         ENOEXEC,
++	"EBADF":           EBADF,
++	"ECHILD":          ECHILD,
++	"EAGAIN":          EAGAIN,
++	"ENOMEM":          ENOMEM,
++	"EACCES":          EACCES,
++	"EFAULT":          EFAULT,
++	"EBUSY":           EBUSY,
++	"EEXIST":          EEXIST,
++	"EXDEV":           EXDEV,
++	"ENODEV":          ENODEV,
++	"ENOTDIR":         ENOTDIR,
++	"EISDIR":          EISDIR,
++	"EINVAL":          EINVAL,
++	"ENFILE":          ENFILE,
++	"EMFILE":          EMFILE,
++	"ENOTTY":          ENOTTY,
++	"EFBIG":           EFBIG,
++	"ENOSPC":          ENOSPC,
++	"ESPIPE":          ESPIPE,
++	"EROFS":           EROFS,
++	"EMLINK":          EMLINK,
++	"EPIPE":           EPIPE,
++	"ENAMETOOLONG":    ENAMETOOLONG,
++	"ENOSYS":          ENOSYS,
++	"EDQUOT":          EDQUOT,
++	"EDOM":            EDOM,
++	"ERANGE":          ERANGE,
++	"EDEADLK":         EDEADLK,
++	"ENOLCK":          ENOLCK,
++	"ENOTEMPTY":       ENOTEMPTY,
++	"ELOOP":           ELOOP,
++	"ENOMSG":          ENOMSG,
++	"EIDRM":           EIDRM,
++	"ECHRNG":          ECHRNG,
++	"EL2NSYNC":        EL2NSYNC,
++	"EL3HLT":          EL3HLT,
++	"EL3RST":          EL3RST,
++	"ELNRNG":          ELNRNG,
++	"EUNATCH":         EUNATCH,
++	"ENOCSI":          ENOCSI,
++	"EL2HLT":          EL2HLT,
++	"EBADE":           EBADE,
++	"EBADR":           EBADR,
++	"EXFULL":          EXFULL,
++	"ENOANO":          ENOANO,
++	"EBADRQC":         EBADRQC,
++	"EBADSLT":         EBADSLT,
++	"EDEADLOCK":       EDEADLOCK,
++	"EBFONT":          EBFONT,
++	"ENOSTR":          ENOSTR,
++	"ENODATA":         ENODATA,
++	"ETIME":           ETIME,
++	"ENOSR":           ENOSR,
++	"ENONET":          ENONET,
++	"ENOPKG":          ENOPKG,
++	"EREMOTE":         EREMOTE,
++	"ENOLINK":         ENOLINK,
++	"EADV":            EADV,
++	"ESRMNT":          ESRMNT,
++	"ECOMM":           ECOMM,
++	"EPROTO":          EPROTO,
++	"EMULTIHOP":       EMULTIHOP,
++	"EDOTDOT":         EDOTDOT,
++	"EBADMSG":         EBADMSG,
++	"EOVERFLOW":       EOVERFLOW,
++	"ENOTUNIQ":        ENOTUNIQ,
++	"EBADFD":          EBADFD,
++	"EREMCHG":         EREMCHG,
++	"ELIBACC":         ELIBACC,
++	"ELIBBAD":         ELIBBAD,
++	"ELIBSCN":         ELIBSCN,
++	"ELIBMAX":         ELIBMAX,
++	"ELIBEXEC":        ELIBEXEC,
++	"EILSEQ":          EILSEQ,
++	"EUSERS":          EUSERS,
++	"ENOTSOCK":        ENOTSOCK,
++	"EDESTADDRREQ":    EDESTADDRREQ,
++	"EMSGSIZE":        EMSGSIZE,
++	"EPROTOTYPE":      EPROTOTYPE,
++	"ENOPROTOOPT":     ENOPROTOOPT,
++	"EPROTONOSUPPORT": EPROTONOSUPPORT,
++	"ESOCKTNOSUPPORT": ESOCKTNOSUPPORT,
++	"EOPNOTSUPP":      EOPNOTSUPP,
++	"EPFNOSUPPORT":    EPFNOSUPPORT,
++	"EAFNOSUPPORT":    EAFNOSUPPORT,
++	"EADDRINUSE":      EADDRINUSE,
++	"EADDRNOTAVAIL":   EADDRNOTAVAIL,
++	"ENETDOWN":        ENETDOWN,
++	"ENETUNREACH":     ENETUNREACH,
++	"ENETRESET":       ENETRESET,
++	"ECONNABORTED":    ECONNABORTED,
++	"ECONNRESET":      ECONNRESET,
++	"ENOBUFS":         ENOBUFS,
++	"EISCONN":         EISCONN,
++	"ENOTCONN":        ENOTCONN,
++	"ESHUTDOWN":       ESHUTDOWN,
++	"ETOOMANYREFS":    ETOOMANYREFS,
++	"ETIMEDOUT":       ETIMEDOUT,
++	"ECONNREFUSED":    ECONNREFUSED,
++	"EHOSTDOWN":       EHOSTDOWN,
++	"EHOSTUNREACH":    EHOSTUNREACH,
++	"EALREADY":        EALREADY,
++	"EINPROGRESS":     EINPROGRESS,
++	"ESTALE":          ESTALE,
++	"ENOTSUP":         ENOTSUP,
++	"ENOMEDIUM":       ENOMEDIUM,
++	"ECANCELED":       ECANCELED,
++	"ELBIN":           ELBIN,
++	"EFTYPE":          EFTYPE,
++	"ENMFILE":         ENMFILE,
++	"EPROCLIM":        EPROCLIM,
++	"ENOSHARE":        ENOSHARE,
++	"ECASECLASH":      ECASECLASH,
++	"EWOULDBLOCK":     EWOULDBLOCK,
++}

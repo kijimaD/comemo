@@ -22,7 +22,46 @@ Date:   Tue Mar 29 19:38:00 2022 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/396654
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/compile/internal/syntax/parser.go | 14 --------------
  test/fixedbugs/bug121.go                  |  2 +-
  2 files changed, 1 insertion(+), 15 deletions(-)
+
+diff --git a/src/cmd/compile/internal/syntax/parser.go b/src/cmd/compile/internal/syntax/parser.go
+index 2c53a40b2f..805bf13aff 100644
+--- a/src/cmd/compile/internal/syntax/parser.go
++++ b/src/cmd/compile/internal/syntax/parser.go
+@@ -1725,20 +1725,6 @@ func (p *parser) methodDecl() *Field {
+ 	f.pos = p.pos()
+ 	name := p.name()
+ 
+-	// accept potential name list but complain
+-	// TODO(gri) We probably don't need this special check anymore.
+-	//           Nobody writes this kind of code. It's from ancient
+-	//           Go beginnings.
+-	hasNameList := false
+-	for p.got(_Comma) {
+-		p.name()
+-		hasNameList = true
+-	}
+-	if hasNameList {
+-		p.syntaxError("name list not allowed in interface type")
+-		// already progressed, no need to advance
+-	}
+-
+ 	const context = "interface method"
+ 
+ 	switch p.tok {
+diff --git a/test/fixedbugs/bug121.go b/test/fixedbugs/bug121.go
+index 22c7181752..471c27eb82 100644
+--- a/test/fixedbugs/bug121.go
++++ b/test/fixedbugs/bug121.go
+@@ -9,7 +9,7 @@ package main
+ type T func()
+ 
+ type I interface {
+-	f, g ();	// ERROR "name list not allowed"
++	f, g ();  // ERROR "unexpected comma"
+ }
+ 
+ type J interface {

@@ -9,8 +9,128 @@ Date:   Tue Mar 20 14:38:07 2012 +1100
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/5843066
-
+---
  src/pkg/html/template/clone_test.go | 26 +++++++++++++++++++++++
  src/pkg/html/template/escape.go     | 42 +++++++++++++++++++++++++++++++++++++
  src/pkg/html/template/template.go   | 14 +++++++++++++
  3 files changed, 82 insertions(+)
+
+diff --git a/src/pkg/html/template/clone_test.go b/src/pkg/html/template/clone_test.go
+index 5907ff2c3e..2663cddc24 100644
+--- a/src/pkg/html/template/clone_test.go
++++ b/src/pkg/html/template/clone_test.go
+@@ -114,6 +114,32 @@ func TestClone(t *testing.T) {
+ 	}
+ }
+ 
++func TestTemplates(t *testing.T) {
++	names := []string{"t0", "a", "lhs", "rhs"}
++	// Some template definitions borrowed from TestClone.
++	const tmpl = `
++		{{define "a"}}{{template "lhs"}}{{.}}{{template "rhs"}}{{end}}
++		{{define "lhs"}} <a href=" {{end}}
++		{{define "rhs"}} "></a> {{end}}`
++	t0 := Must(New("t0").Parse(tmpl))
++	templates := t0.Templates()
++	if len(templates) != len(names) {
++		t.Errorf("expected %d templates; got %d", len(names), len(templates))
++	}
++	for _, name := range names {
++		found := false
++		for _, tmpl := range templates {
++			if name == tmpl.text.Name() {
++				found = true
++				break
++			}
++		}
++		if !found {
++			t.Error("could not find template", name)
++		}
++	}
++}
++
+ // This used to crash; http://golang.org/issue/3281
+ func TestCloneCrash(t *testing.T) {
+ 	t1 := New("all")
+diff --git a/src/pkg/html/template/escape.go b/src/pkg/html/template/escape.go
+index a058e20d7b..5f0e28e8c1 100644
+--- a/src/pkg/html/template/escape.go
++++ b/src/pkg/html/template/escape.go
+@@ -8,6 +8,7 @@ import (
+ 	"bytes"
+ 	"fmt"
+ 	"html"
++	"io"
+ 	"text/template"
+ 	"text/template/parse"
+ )
+@@ -751,3 +752,44 @@ func (e *escaper) template(name string) *template.Template {
+ 	}
+ 	return t
+ }
++
++// Forwarding functions so that clients need only import this package
++// to reach the general escaping functions of text/template.
++
++// HTMLEscape writes to w the escaped HTML equivalent of the plain text data b.
++func HTMLEscape(w io.Writer, b []byte) {
++	template.HTMLEscape(w, b)
++}
++
++// HTMLEscapeString returns the escaped HTML equivalent of the plain text data s.
++func HTMLEscapeString(s string) string {
++	return template.HTMLEscapeString(s)
++}
++
++// HTMLEscaper returns the escaped HTML equivalent of the textual
++// representation of its arguments.
++func HTMLEscaper(args ...interface{}) string {
++	return template.HTMLEscaper(args...)
++}
++
++// JSEscape writes to w the escaped JavaScript equivalent of the plain text data b.
++func JSEscape(w io.Writer, b []byte) {
++	template.JSEscape(w, b)
++}
++
++// JSEscapeString returns the escaped JavaScript equivalent of the plain text data s.
++func JSEscapeString(s string) string {
++	return template.JSEscapeString(s)
++}
++
++// JSEscaper returns the escaped JavaScript equivalent of the textual
++// representation of its arguments.
++func JSEscaper(args ...interface{}) string {
++	return template.JSEscaper(args...)
++}
++
++// URLQueryEscaper returns the escaped value of the textual representation of
++// its arguments in a form suitable for embedding in a URL query.
++func URLQueryEscaper(args ...interface{}) string {
++	return template.URLQueryEscaper(args...)
++}
+diff --git a/src/pkg/html/template/template.go b/src/pkg/html/template/template.go
+index 24c6c5276e..edac7335cf 100644
+--- a/src/pkg/html/template/template.go
++++ b/src/pkg/html/template/template.go
+@@ -31,6 +31,20 @@ type nameSpace struct {
+ 	set map[string]*Template
+ }
+ 
++// Templates returns a slice of the templates associated with t, including t
++// itself.
++func (t *Template) Templates() []*Template {
++	ns := t.nameSpace
++	ns.mu.Lock()
++	defer ns.mu.Unlock()
++	// Return a slice so we don't expose the map.
++	m := make([]*Template, 0, len(ns.set))
++	for _, v := range ns.set {
++		m = append(m, v)
++	}
++	return m
++}
++
+ // Execute applies a parsed template to the specified data object,
+ // writing the output to wr.
+ func (t *Template) Execute(wr io.Writer, data interface{}) (err error) {

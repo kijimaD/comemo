@@ -15,8 +15,56 @@ Date:   Tue Dec 16 13:52:09 2014 -0500
     Reviewed-on: https://go-review.googlesource.com/2007
     Reviewed-by: Minux Ma <minux@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/9g/gsubr.c | 11 +++++++++--
  src/cmd/9g/reg.c   |  2 +-
  src/cmd/9l/9.out.h |  1 +
  3 files changed, 11 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/9g/gsubr.c b/src/cmd/9g/gsubr.c
+index e5cd5ed4bf..8abbde4531 100644
+--- a/src/cmd/9g/gsubr.c
++++ b/src/cmd/9g/gsubr.c
+@@ -262,8 +262,15 @@ afunclit(Addr *a, Node *n)
+ static	int	resvd[] =
+ {
+ 	REGZERO,
+-	REGSP,	// reserved for SP, XXX: not reserved in 9c.
+-	30,	// for g
++	REGSP,	// reserved for SP
++	// We need to preserve the C ABI TLS pointer because sigtramp
++	// may happen during C code and needs to access the g.  C
++	// clobbers REGG, so if Go were to clobber REGTLS, sigtramp
++	// won't know which convention to use.  By preserving REGTLS,
++	// we can just retrieve g from TLS when we aren't sure.
++	REGTLS,
++	// TODO(austin): Consolidate REGTLS and REGG?
++	REGG,
+ 	REGTMP,	// REGTMP
+ 	FREGCVI+NREG,
+ 	FREGZERO+NREG,
+diff --git a/src/cmd/9g/reg.c b/src/cmd/9g/reg.c
+index 2d8dbc4f1a..6d40127ecc 100644
+--- a/src/cmd/9g/reg.c
++++ b/src/cmd/9g/reg.c
+@@ -185,7 +185,7 @@ regopt(Prog *firstp)
+ 	}
+ 
+ 	// Exclude registers with fixed functions
+-	regbits = (1<<D_R0)|RtoB(REGSP)|RtoB(REGG);
++	regbits = (1<<D_R0)|RtoB(REGSP)|RtoB(REGG)|RtoB(REGTLS);
+ 	// Also exclude floating point registers with fixed constants
+ 	regbits |= FtoB(D_F0+27)|FtoB(D_F0+28)|FtoB(D_F0+29)|FtoB(D_F0+30)|FtoB(D_F0+31);
+ 	externs = zbits;
+diff --git a/src/cmd/9l/9.out.h b/src/cmd/9l/9.out.h
+index e7601f0279..520ee9a81a 100644
+--- a/src/cmd/9l/9.out.h
++++ b/src/cmd/9l/9.out.h
+@@ -48,6 +48,7 @@ enum
+ 	REGRT2		= 4,	/* reserved for runtime, duffcopy */
+ 	REGMIN		= 7,	/* register variables allocated from here to REGMAX */
+ 	REGENV		= 11,	/* environment for closures */
++	REGTLS		= 13,	/* C ABI TLS base pointer */
+ 	REGMAX		= 27,
+ 	REGEXT		= 30,	/* external registers allocated from here down */
+ 	REGG		= 30,	/* G */

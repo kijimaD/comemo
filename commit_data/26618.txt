@@ -16,6 +16,34 @@ Date:   Thu Feb 18 13:35:49 2016 -0800
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/link/internal/ld/sym.go | 9 ---------
  1 file changed, 9 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/sym.go b/src/cmd/link/internal/ld/sym.go
+index 731f3ede94..6122b85298 100644
+--- a/src/cmd/link/internal/ld/sym.go
++++ b/src/cmd/link/internal/ld/sym.go
+@@ -34,8 +34,6 @@ package ld
+ import (
+ 	"cmd/internal/obj"
+ 	"log"
+-	"os"
+-	"path/filepath"
+ 	"strconv"
+ )
+ 
+@@ -70,13 +68,6 @@ func linknew(arch *LinkArch) *Link {
+ 		log.Fatalf("invalid goarch %s (want %s)", p, arch.Name)
+ 	}
+ 
+-	var buf string
+-	buf, _ = os.Getwd()
+-	if buf == "" {
+-		buf = "/???"
+-	}
+-	buf = filepath.ToSlash(buf)
+-
+ 	ctxt.Headtype = headtype(obj.Getgoos())
+ 	if ctxt.Headtype < 0 {
+ 		log.Fatalf("unknown goos %s", obj.Getgoos())

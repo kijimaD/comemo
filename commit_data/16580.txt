@@ -9,6 +9,20 @@ Date:   Mon Jun 17 15:41:17 2013 +0400
     R=golang-dev, daniel.morsing, r
     CC=golang-dev
     https://golang.org/cl/10317045
-
+---
  src/pkg/runtime/stack_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/stack_test.go b/src/pkg/runtime/stack_test.go
+index da0181a66e..00c2d0e061 100644
+--- a/src/pkg/runtime/stack_test.go
++++ b/src/pkg/runtime/stack_test.go
+@@ -49,7 +49,7 @@ func TestStackSplit(t *testing.T) {
+ 		sp, guard := f()
+ 		bottom := guard - StackGuard
+ 		if sp < bottom+StackLimit {
+-			fun := FuncForPC(*(*uintptr)(unsafe.Pointer(&f)))
++			fun := FuncForPC(**(**uintptr)(unsafe.Pointer(&f)))
+ 			t.Errorf("after %s: sp=%#x < limit=%#x (guard=%#x, bottom=%#x)",
+ 				fun.Name(), sp, bottom+StackLimit, guard, bottom)
+ 		}

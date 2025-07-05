@@ -9,6 +9,23 @@ Date:   Sat Apr 11 19:37:29 2015 -0400
     Change-Id: Ibaba67980db6e05aa71568199b2dac2fcaa86fd6
     Reviewed-on: https://go-review.googlesource.com/8824
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/cmd/objdump/objdump_test.go | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/objdump/objdump_test.go b/src/cmd/objdump/objdump_test.go
+index 1846272b7d..a7a33a4daa 100644
+--- a/src/cmd/objdump/objdump_test.go
++++ b/src/cmd/objdump/objdump_test.go
+@@ -19,8 +19,9 @@ func buildObjdump(t *testing.T) (tmp, exe string) {
+ 	case "android", "nacl":
+ 		t.Skipf("skipping on %s", runtime.GOOS)
+ 	case "darwin":
+-		if runtime.GOARCH == "arm" {
+-			t.Skipf("skipping on %s/%s", runtime.GOOS, runtime.GOARCH)
++		switch runtime.GOARCH {
++		case "arm", "arm64":
++			t.Skipf("skipping on %s/%s, cannot fork", runtime.GOOS, runtime.GOARCH)
+ 		}
+ 	}
+ 

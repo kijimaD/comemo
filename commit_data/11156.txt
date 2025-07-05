@@ -9,6 +9,27 @@ Date:   Fri Jan 13 13:38:36 2012 -0800
     R=golang-dev, rsc, gri
     CC=golang-dev
     https://golang.org/cl/5528098
-
+---
  doc/go_spec.html | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 0f095da814..90be6d587b 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1,5 +1,5 @@
+ <!-- title The Go Programming Language Specification -->
+-<!-- subtitle Version of January 9, 2012 -->
++<!-- subtitle Version of January 13, 2012 -->
+ 
+ <!--
+ TODO
+@@ -4240,7 +4240,7 @@ effects in that evaluation will occur for all the communications
+ in the "select" statement.
+ </p>
+ <p>
+-If multiple cases can proceed, a pseudo-random fair choice is made to decide
++If multiple cases can proceed, a uniform pseudo-random choice is made to decide
+ which single communication will execute.
+ <p>
+ The receive case may declare one or two new variables using a

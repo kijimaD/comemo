@@ -7,6 +7,19 @@ Date:   Mon Mar 30 23:15:51 2015 +0200
     Change-Id: I0110b01fe4c64851ac2cfb5a92c31ce156831bc8
     Reviewed-on: https://go-review.googlesource.com/8265
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/go/build/build.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/go/build/build.go b/src/go/build/build.go
+index 902ab38e0b..fecfc5e83d 100644
+--- a/src/go/build/build.go
++++ b/src/go/build/build.go
+@@ -275,6 +275,7 @@ var cgoEnabled = map[string]bool{
+ 	"netbsd/arm":      true,
+ 	"openbsd/386":     true,
+ 	"openbsd/amd64":   true,
++	"solaris/amd64":   true,
+ 	"windows/386":     true,
+ 	"windows/amd64":   true,
+ }

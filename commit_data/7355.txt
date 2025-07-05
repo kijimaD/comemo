@@ -16,6 +16,28 @@ Date:   Thu Feb 3 10:53:31 2011 -0800
     R=r, rsc, iant, ken2
     CC=golang-dev
     https://golang.org/cl/3926044
-
+---
  doc/go_spec.html | 9 +++++----
  1 file changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index a861f0cbf6..047710b6cf 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1349,11 +1349,12 @@ by a value of type <code>T</code>.
+ </ul>
+ 
+ <p>
+-If <code>T</code> is a struct type, either all fields of <code>T</code>
+-must be <a href="#Exported_identifiers">exported</a>, or the assignment must be in
+-the same package in which <code>T</code> is declared.
++If <code>T</code> is a struct type with non-<a href="#Exported_identifiers">exported</a>
++fields, the assignment must be in the same package in which <code>T</code> is declared,
++or <code>x</code> must be the receiver of a method call.
+ In other words, a struct value can be assigned to a struct variable only if
+-every field of the struct may be legally assigned individually by the program.
++every field of the struct may be legally assigned individually by the program,
++or if the assignment is initializing the receiver of a method of the struct type.
+ </p>
+ 
+ <p>

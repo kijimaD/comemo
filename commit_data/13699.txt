@@ -7,6 +7,34 @@ Date:   Wed Aug 29 06:54:00 2012 +0900
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/6499043
-
+---
  src/pkg/net/sockopt.go | 16 ----------------
  1 file changed, 16 deletions(-)
+
+diff --git a/src/pkg/net/sockopt.go b/src/pkg/net/sockopt.go
+index 0cd19266fe..b139c42765 100644
+--- a/src/pkg/net/sockopt.go
++++ b/src/pkg/net/sockopt.go
+@@ -144,22 +144,6 @@ func setDeadline(fd *netFD, t time.Time) error {
+ 	return setWriteDeadline(fd, t)
+ }
+ 
+-func setReuseAddr(fd *netFD, reuse bool) error {
+-	if err := fd.incref(false); err != nil {
+-		return err
+-	}
+-	defer fd.decref()
+-	return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(fd.sysfd, syscall.SOL_SOCKET, syscall.SO_REUSEADDR, boolint(reuse)))
+-}
+-
+-func setDontRoute(fd *netFD, dontroute bool) error {
+-	if err := fd.incref(false); err != nil {
+-		return err
+-	}
+-	defer fd.decref()
+-	return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(fd.sysfd, syscall.SOL_SOCKET, syscall.SO_DONTROUTE, boolint(dontroute)))
+-}
+-
+ func setKeepAlive(fd *netFD, keepalive bool) error {
+ 	if err := fd.incref(false); err != nil {
+ 		return err

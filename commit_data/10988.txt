@@ -7,6 +7,20 @@ Date:   Thu Dec 22 15:52:56 2011 -0800
     R=r
     CC=golang-dev
     https://golang.org/cl/5489112
-
+---
  misc/dashboard/builder/package.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/misc/dashboard/builder/package.go b/misc/dashboard/builder/package.go
+index d3754a33b7..aba50795fa 100644
+--- a/misc/dashboard/builder/package.go
++++ b/misc/dashboard/builder/package.go
+@@ -98,7 +98,7 @@ func packageComment(pkg, pkgpath string) (info string, err error) {
+ 		if name == "main" {
+ 			continue
+ 		}
+-		pdoc := doc.NewPackageDoc(pkgs[name], pkg)
++		pdoc := doc.NewPackageDoc(pkgs[name], pkg, false)
+ 		if pdoc.Doc == "" {
+ 			continue
+ 		}

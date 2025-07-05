@@ -22,8 +22,251 @@ Date:   Fri Feb 17 15:02:49 2017 -0800
     Change-Id: I79ea1e9e6fc65f95794a91f860a911efed3aa8a1
     Reviewed-on: https://go-review.googlesource.com/37219
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/math/bits/bits.go      | 96 ++++++++++++++++++++++++++++++++++++++--------
  src/math/bits/bits_impl.go | 11 ------
  src/math/bits/bits_test.go | 80 ++++++++++++++++++++++++++++++++++++++
  3 files changed, 161 insertions(+), 26 deletions(-)
+
+diff --git a/src/math/bits/bits.go b/src/math/bits/bits.go
+index 7a1ffdf304..cec8afcdee 100644
+--- a/src/math/bits/bits.go
++++ b/src/math/bits/bits.go
+@@ -101,36 +101,102 @@ func OnesCount64(x uint64) int {
+ // --- RotateLeft ---
+ 
+ // RotateLeft returns the value of x rotated left by k bits; k must not be negative.
+-func RotateLeft(x uint, k int) uint { return uint(rot(uint64(x), UintSize, pos(k)%UintSize)) }
++func RotateLeft(x uint, k int) uint {
++	if UintSize == 32 {
++		return uint(RotateLeft32(uint32(x), k))
++	}
++	return uint(RotateLeft64(uint64(x), k))
++}
+ 
+ // RotateLeft8 returns the value of x rotated left by k bits; k must not be negative.
+-func RotateLeft8(x uint8, k int) uint8 { return uint8(rot(uint64(x), 8, pos(k)%8)) }
++func RotateLeft8(x uint8, k int) uint8 {
++	if k < 0 {
++		panic("negative rotation count")
++	}
++	const n = 8
++	s := uint(k) & (n - 1)
++	return x<<s | x>>(n-s)
++}
+ 
+ // RotateLeft16 returns the value of x rotated left by k bits; k must not be negative.
+-func RotateLeft16(x uint16, k int) uint16 { return uint16(rot(uint64(x), 16, pos(k)%16)) }
++func RotateLeft16(x uint16, k int) uint16 {
++	if k < 0 {
++		panic("negative rotation count")
++	}
++	const n = 16
++	s := uint(k) & (n - 1)
++	return x<<s | x>>(n-s)
++}
+ 
+ // RotateLeft32 returns the value of x rotated left by k bits; k must not be negative.
+-func RotateLeft32(x uint32, k int) uint32 { return uint32(rot(uint64(x), 32, pos(k)%32)) }
++func RotateLeft32(x uint32, k int) uint32 {
++	if k < 0 {
++		panic("negative rotation count")
++	}
++	const n = 32
++	s := uint(k) & (n - 1)
++	return x<<s | x>>(n-s)
++}
+ 
+ // RotateLeft64 returns the value of x rotated left by k bits; k must not be negative.
+-func RotateLeft64(x uint64, k int) uint64 { return uint64(rot(uint64(x), 64, pos(k)%64)) }
++func RotateLeft64(x uint64, k int) uint64 {
++	if k < 0 {
++		panic("negative rotation count")
++	}
++	const n = 64
++	s := uint(k) & (n - 1)
++	return x<<s | x>>(n-s)
++}
+ 
+ // --- RotateRight ---
+ 
+-// RotateRight returns the value of x rotated right by k bits; k must not be negative.
+-func RotateRight(x uint, k int) uint { return uint(rot(uint64(x), UintSize, UintSize-pos(k)%UintSize)) }
++// RotateRight returns the value of x rotated left by k bits; k must not be negative.
++func RotateRight(x uint, k int) uint {
++	if UintSize == 32 {
++		return uint(RotateRight32(uint32(x), k))
++	}
++	return uint(RotateRight64(uint64(x), k))
++}
+ 
+-// RotateRight8 returns the value of x rotated right by k bits; k must not be negative.
+-func RotateRight8(x uint8, k int) uint8 { return uint8(rot(uint64(x), 8, 8-pos(k)%8)) }
++// RotateRight8 returns the value of x rotated left by k bits; k must not be negative.
++func RotateRight8(x uint8, k int) uint8 {
++	if k < 0 {
++		panic("negative rotation count")
++	}
++	const n = 8
++	s := uint(k) & (n - 1)
++	return x<<(n-s) | x>>s
++}
+ 
+-// RotateRight16 returns the value of x rotated right by k bits; k must not be negative.
+-func RotateRight16(x uint16, k int) uint16 { return uint16(rot(uint64(x), 16, 16-pos(k)%16)) }
++// RotateRight16 returns the value of x rotated left by k bits; k must not be negative.
++func RotateRight16(x uint16, k int) uint16 {
++	if k < 0 {
++		panic("negative rotation count")
++	}
++	const n = 16
++	s := uint(k) & (n - 1)
++	return x<<(n-s) | x>>s
++}
+ 
+-// RotateRight32 returns the value of x rotated right by k bits; k must not be negative.
+-func RotateRight32(x uint32, k int) uint32 { return uint32(rot(uint64(x), 32, 32-pos(k)%32)) }
++// RotateRight32 returns the value of x rotated left by k bits; k must not be negative.
++func RotateRight32(x uint32, k int) uint32 {
++	if k < 0 {
++		panic("negative rotation count")
++	}
++	const n = 32
++	s := uint(k) & (n - 1)
++	return x<<(n-s) | x>>s
++}
+ 
+-// RotateRight64 returns the value of x rotated right by k bits; k must not be negative.
+-func RotateRight64(x uint64, k int) uint64 { return uint64(rot(uint64(x), 64, 64-pos(k)%64)) }
++// RotateRight64 returns the value of x rotated left by k bits; k must not be negative.
++func RotateRight64(x uint64, k int) uint64 {
++	if k < 0 {
++		panic("negative rotation count")
++	}
++	const n = 64
++	s := uint(k) & (n - 1)
++	return x<<(n-s) | x>>s
++}
+ 
+ // --- Reverse ---
+ 
+diff --git a/src/math/bits/bits_impl.go b/src/math/bits/bits_impl.go
+index c7834106c8..e7c1a8a5dc 100644
+--- a/src/math/bits/bits_impl.go
++++ b/src/math/bits/bits_impl.go
+@@ -74,17 +74,6 @@ func ntz64(x uint64) int {
+ 	return int(deBruijn64tab[(x&-x)*deBruijn64>>(64-6)])
+ }
+ 
+-func pos(k int) uint {
+-	if k < 0 {
+-		panic("negative rotation count")
+-	}
+-	return uint(k)
+-}
+-
+-func rot(x uint64, size, k uint) uint64 {
+-	return x<<k | x>>(size-k)&(1<<k-1)
+-}
+-
+ func blen(x uint64) (i int) {
+ 	for ; x >= 1<<(16-1); x >>= 16 {
+ 		i += 16
+diff --git a/src/math/bits/bits_test.go b/src/math/bits/bits_test.go
+index b268b0a004..20b0b63fff 100644
+--- a/src/math/bits/bits_test.go
++++ b/src/math/bits/bits_test.go
+@@ -289,6 +289,46 @@ func TestRotateLeft(t *testing.T) {
+ 	}
+ }
+ 
++func BenchmarkRotateLeft(b *testing.B) {
++	var s uint
++	for i := 0; i < b.N; i++ {
++		s += RotateLeft(uint(Input), i)
++	}
++	Unused = int(s)
++}
++
++func BenchmarkRotateLeft8(b *testing.B) {
++	var s uint8
++	for i := 0; i < b.N; i++ {
++		s += RotateLeft8(uint8(Input), i)
++	}
++	Unused = int(s)
++}
++
++func BenchmarkRotateLeft16(b *testing.B) {
++	var s uint16
++	for i := 0; i < b.N; i++ {
++		s += RotateLeft16(uint16(Input), i)
++	}
++	Unused = int(s)
++}
++
++func BenchmarkRotateLeft32(b *testing.B) {
++	var s uint32
++	for i := 0; i < b.N; i++ {
++		s += RotateLeft32(uint32(Input), i)
++	}
++	Unused = int(s)
++}
++
++func BenchmarkRotateLeft64(b *testing.B) {
++	var s uint64
++	for i := 0; i < b.N; i++ {
++		s += RotateLeft64(uint64(Input), i)
++	}
++	Unused = int(s)
++}
++
+ func TestRotateRight(t *testing.T) {
+ 	var m uint64 = deBruijn64
+ 
+@@ -339,6 +379,46 @@ func TestRotateRight(t *testing.T) {
+ 	}
+ }
+ 
++func BenchmarkRotateRight(b *testing.B) {
++	var s uint
++	for i := 0; i < b.N; i++ {
++		s += RotateRight(uint(Input), i)
++	}
++	Unused = int(s)
++}
++
++func BenchmarkRotateRight8(b *testing.B) {
++	var s uint8
++	for i := 0; i < b.N; i++ {
++		s += RotateRight8(uint8(Input), i)
++	}
++	Unused = int(s)
++}
++
++func BenchmarkRotateRight16(b *testing.B) {
++	var s uint16
++	for i := 0; i < b.N; i++ {
++		s += RotateRight16(uint16(Input), i)
++	}
++	Unused = int(s)
++}
++
++func BenchmarkRotateRight32(b *testing.B) {
++	var s uint32
++	for i := 0; i < b.N; i++ {
++		s += RotateRight32(uint32(Input), i)
++	}
++	Unused = int(s)
++}
++
++func BenchmarkRotateRight64(b *testing.B) {
++	var s uint64
++	for i := 0; i < b.N; i++ {
++		s += RotateRight64(uint64(Input), i)
++	}
++	Unused = int(s)
++}
++
+ func TestReverse(t *testing.T) {
+ 	// test each bit
+ 	for i := uint(0); i < 64; i++ {

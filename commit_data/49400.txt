@@ -18,7 +18,68 @@ Date:   Thu Jun 3 16:57:54 2021 +0200
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/runtime/os_netbsd.go | 11 +++++++++++
  src/runtime/proc.go      |  6 +++++-
  2 files changed, 16 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/os_netbsd.go b/src/runtime/os_netbsd.go
+index 2c20ee2173..0b95fa7a6e 100644
+--- a/src/runtime/os_netbsd.go
++++ b/src/runtime/os_netbsd.go
+@@ -101,6 +101,9 @@ var sigset_all = sigset{[4]uint32{^uint32(0), ^uint32(0), ^uint32(0), ^uint32(0)
+ 
+ // From NetBSD's <sys/sysctl.h>
+ const (
++	_CTL_KERN   = 1
++	_KERN_OSREV = 3
++
+ 	_CTL_HW        = 6
+ 	_HW_NCPU       = 3
+ 	_HW_PAGESIZE   = 7
+@@ -138,6 +141,13 @@ func getPageSize() uintptr {
+ 	return 0
+ }
+ 
++func getOSRev() int {
++	if osrev, ok := sysctlInt([]uint32{_CTL_KERN, _KERN_OSREV}); ok {
++		return int(osrev)
++	}
++	return 0
++}
++
+ //go:nosplit
+ func semacreate(mp *m) {
+ }
+@@ -252,6 +262,7 @@ func osinit() {
+ 	if physPageSize == 0 {
+ 		physPageSize = getPageSize()
+ 	}
++	needSysmonWorkaround = getOSRev() < 902000000 // NetBSD 9.2
+ }
+ 
+ var urandom_dev = []byte("/dev/urandom\x00")
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index cde1a11583..c2e43ef5c3 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -5229,6 +5229,10 @@ func checkdead() {
+ // This is a variable for testing purposes. It normally doesn't change.
+ var forcegcperiod int64 = 2 * 60 * 1e9
+ 
++// needSysmonWorkaround is true if the workaround for
++// golang.org/issue/42515 is needed on NetBSD.
++var needSysmonWorkaround bool = false
++
+ // Always runs without a P, so write barriers are not allowed.
+ //
+ //go:nowritebarrierrec
+@@ -5337,7 +5341,7 @@ func sysmon() {
+ 			}
+ 		}
+ 		mDoFixup()
+-		if GOOS == "netbsd" {
++		if GOOS == "netbsd" && needSysmonWorkaround {
+ 			// netpoll is responsible for waiting for timer
+ 			// expiration, so we typically don't have to worry
+ 			// about starting an M to service timers. (Note that

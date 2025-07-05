@@ -25,7 +25,43 @@ Date:   Tue Jul 12 01:25:14 2011 -0400
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/4673054
-
+---
  src/pkg/runtime/proc.c    | 5 +++--
  src/pkg/runtime/runtime.h | 1 -
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 814a68e2ec..76356c11bc 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -56,6 +56,7 @@ struct Sched {
+ 	Lock;
+ 
+ 	G *gfree;	// available gs (status == Gdead)
++	int32 goidgen;
+ 
+ 	G *ghead;	// gs waiting to run
+ 	G *gtail;
+@@ -907,8 +908,8 @@ runtime·newproc1(byte *fn, byte *argp, int32 narg, int32 nret, void *callerpc)
+ 	newg->gopc = (uintptr)callerpc;
+ 
+ 	runtime·sched.gcount++;
+-	runtime·goidgen++;
+-	newg->goid = runtime·goidgen;
++	runtime·sched.goidgen++;
++	newg->goid = runtime·sched.goidgen;
+ 
+ 	newprocreadylocked(newg);
+ 	schedunlock();
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 48cd482dd9..83ea0f9ce2 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -369,7 +369,6 @@ extern	Alg	runtime·algarray[Amax];
+ extern	String	runtime·emptystring;
+ G*	runtime·allg;
+ M*	runtime·allm;
+-int32	runtime·goidgen;
+ extern	int32	runtime·gomaxprocs;
+ extern	uint32	runtime·panicking;
+ extern	int32	runtime·gcwaiting;		// gc is waiting to run

@@ -10,6 +10,37 @@ Date:   Fri Jul 12 04:35:53 2013 +0800
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/11009043
-
+---
  src/cmd/cgo/out.go | 5 ++---
  1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index be05c85a2d..20f5afd5c7 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -47,7 +47,7 @@ func (p *Package) writeDefs() {
+ 	} else {
+ 		// If we're not importing runtime/cgo, we *are* runtime/cgo,
+ 		// which provides crosscall2.  We just need a prototype.
+-		fmt.Fprintf(fm, "void crosscall2(void(*fn)(void*, int), void *a, int c);")
++		fmt.Fprintf(fm, "void crosscall2(void(*fn)(void*, int), void *a, int c);\n")
+ 	}
+ 	fmt.Fprintf(fm, "void _cgo_allocate(void *a, int c) { }\n")
+ 	fmt.Fprintf(fm, "void _cgo_panic(void *a, int c) { }\n")
+@@ -282,7 +282,7 @@ func (p *Package) structType(n *Name) (string, int64) {
+ 		off += pad
+ 	}
+ 	if n.AddError {
+-		fmt.Fprint(&buf, "\t\tvoid *e[2]; /* error */\n")
++		fmt.Fprint(&buf, "\t\tint e[2*sizeof(void *)/sizeof(int)]; /* error */\n")
+ 		off += 2 * p.PtrSize
+ 	}
+ 	if off == 0 {
+@@ -478,7 +478,6 @@ func (p *Package) writeOutputFunc(fgcc *os.File, n *Name) {
+ 	fmt.Fprintf(fgcc, "_cgo%s%s(void *v)\n", cPrefix, n.Mangle)
+ 	fmt.Fprintf(fgcc, "{\n")
+ 	if n.AddError {
+-		fmt.Fprintf(fgcc, "\tint e;\n") // assuming 32 bit (see comment above structType)
+ 		fmt.Fprintf(fgcc, "\terrno = 0;\n")
+ 	}
+ 	// We're trying to write a gcc struct that matches 6c/8c/5c's layout.

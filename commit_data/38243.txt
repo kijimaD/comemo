@@ -9,6 +9,20 @@ Date:   Fri Oct 12 21:43:48 2018 +0000
     GitHub-Pull-Request: golang/go#27983
     Reviewed-on: https://go-review.googlesource.com/c/141645
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/editors.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/editors.html b/doc/editors.html
+index 6f787864c6..4ff35a58fc 100644
+--- a/doc/editors.html
++++ b/doc/editors.html
+@@ -28,7 +28,7 @@ or as a plugin for IntelliJ IDEA Ultimate</li>
+ </ul>
+ 
+ <p>
+-Note that these are only a few top solutions; a more comphensive
++Note that these are only a few top solutions; a more comprehensive
+ community-maintained list of
+ <a href="https://github.com/golang/go/wiki/IDEsAndTextEditorPlugins">IDEs and text editor plugins</a>
+ is available at the Wiki.

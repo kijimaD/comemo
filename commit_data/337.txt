@@ -5,9 +5,156 @@ Date:   Sat Jul 12 11:30:53 2008 -0700
     preserve AX across stack jump so C routines return correct value when triggering morestack.
     
     SVN=126935
-
+---
  src/runtime/rt0_amd64.s | 19 +++++++++++++++++++
  src/runtime/rt2_amd64.c |  6 ++----
  src/runtime/runtime.c   | 20 ++++++++++----------
  src/runtime/runtime.h   |  3 +++
  4 files changed, 34 insertions(+), 14 deletions(-)
+
+diff --git a/src/runtime/rt0_amd64.s b/src/runtime/rt0_amd64.s
+index d6dba02864..71b1fd8f30 100644
+--- a/src/runtime/rt0_amd64.s
++++ b/src/runtime/rt0_amd64.s
+@@ -72,6 +72,25 @@ TEXT gosave(SB), 7, $0
+ 	MOVL	$0, AX			// return 0
+ 	RET
+ 
++/*
++ * support for morestack
++ */
++
++// return point when leaving new stack.  save AX, jmp to oldstack to switch back
++TEXT retfromnewstack(SB), 7, $0
++	MOVQ	AX, 16(R14)	// save AX in m->cret
++	MOVQ	$oldstack(SB), AX
++	JMP	AX
++
++// gogo, returning 2nd arg instead of 1
++TEXT gogoret(SB), 7, $0
++	MOVQ	16(SP), AX			// return 2nd arg
++	MOVQ	8(SP), BX		// gobuf
++	MOVQ	0(BX), SP		// restore SP
++	MOVQ	8(BX), BX
++	MOVQ	BX, 0(SP)		// put PC on the stack
++	RET
++
+ TEXT setspgoto(SB), 7, $0
+ 	MOVQ	8(SP), AX		// SP
+ 	MOVQ	16(SP), BX		// fn to call
+diff --git a/src/runtime/rt2_amd64.c b/src/runtime/rt2_amd64.c
+index dac1c4684a..a5f5d109a9 100644
+--- a/src/runtime/rt2_amd64.c
++++ b/src/runtime/rt2_amd64.c
+@@ -8,8 +8,6 @@ extern int32	debug;
+ 
+ static int8 spmark[] = "\xa7\xf1\xd9\x2a\x82\xc8\xd8\xfe";
+ 
+-extern void morestack2();
+-
+ void
+ traceback(uint8 *pc, uint8 *sp, void* r15)
+ {
+@@ -29,8 +27,8 @@ traceback(uint8 *pc, uint8 *sp, void* r15)
+ 	name = "panic";
+ 	for(;;){
+ 		callpc = pc;
+-		if((uint8*)morestack2 == pc) {
+-			// call site is morestack2(); pop to earlier stack block to get true caller
++		if((uint8*)retfromnewstack == pc) {
++			// call site is retfromnewstack(); pop to earlier stack block to get true caller
+ 			stktop = (Stktop*)g.stackbase;
+ 			g.stackbase = stktop->oldbase;
+ 			g.stackguard = stktop->oldguard;
+diff --git a/src/runtime/runtime.c b/src/runtime/runtime.c
+index 743e085e7a..f8dfa954cc 100644
+--- a/src/runtime/runtime.c
++++ b/src/runtime/runtime.c
+@@ -698,15 +698,15 @@ sys·gosched(void)
+ //	CALL	sys·morestack(SB)
+ //
+ 
+-int32 debug = 0;
+-
+ void
+-morestack2(void)
++oldstack(void)
+ {
+ 	Stktop *top;
+ 	uint32 siz2;
+ 	byte *sp;
+-if(debug) prints("morestack2\n");
++if(debug) prints("oldstack m->cret = ");
++if(debug) sys·printpointer((void*)m->cret);
++if(debug) prints("\n");
+ 
+ 	top = (Stktop*)m->curg->stackbase;
+ 
+@@ -723,16 +723,16 @@ if(debug) prints("morestack2\n");
+ 
+ 	m->morestack.SP = top->oldsp+8;
+ 	m->morestack.PC = (byte*)(*(uint64*)(top->oldsp+8));
+-if(debug) prints("morestack2 sp=");
++if(debug) prints("oldstack sp=");
+ if(debug) sys·printpointer(m->morestack.SP);
+ if(debug) prints(" pc=");
+ if(debug) sys·printpointer(m->morestack.PC);
+ if(debug) prints("\n");
+-	gogo(&m->morestack);
++	gogoret(&m->morestack, m->cret);
+ }
+ 
+ void
+-morestack1(void)
++newstack(void)
+ {
+ 	int32 siz1, siz2;
+ 	Stktop *top;
+@@ -742,7 +742,7 @@ morestack1(void)
+ 	siz1 = m->morearg & 0xffffffffLL;
+ 	siz2 = (m->morearg>>32) & 0xffffLL;
+ 
+-if(debug) prints("morestack1 siz1=");
++if(debug) prints("newstack siz1=");
+ if(debug) sys·printint(siz1);
+ if(debug) prints(" siz2=");
+ if(debug) sys·printint(siz2);
+@@ -778,7 +778,7 @@ if(debug) prints("\n");
+ if(debug) prints("fn=");
+ if(debug) sys·printpointer(fn);
+ if(debug) prints("\n");
+-	setspgoto(sp, fn, morestack2);
++	setspgoto(sp, fn, retfromnewstack);
+ 
+ 	*(int32*)345 = 123;
+ }
+@@ -793,7 +793,7 @@ sys·morestack(uint64 u)
+ 
+ 	g = m->g0;
+ 	m->moresp = (byte*)(&u-1);
+-	setspgoto(m->sched.SP, morestack1, nil);
++	setspgoto(m->sched.SP, newstack, nil);
+ 
+ 	*(int32*)234 = 123;
+ }
+diff --git a/src/runtime/runtime.h b/src/runtime/runtime.h
+index f7d31a1dd8..3a2e3bde9e 100644
+--- a/src/runtime/runtime.h
++++ b/src/runtime/runtime.h
+@@ -82,6 +82,7 @@ struct	M
+ {
+ 	G*	g0;		// g0 w interrupt stack - must not move
+ 	uint64	morearg;	// arg to morestack - must not move
++	uint64	cret;	// return value from C - must not move
+ 	G*	curg;		// current running goroutine
+ 	Gobuf	sched;
+ 	Gobuf	morestack;
+@@ -148,6 +149,8 @@ extern int32	debug;
+  */
+ int32	gogo(Gobuf*);
+ int32	gosave(Gobuf*);
++int32	gogoret(Gobuf*, uint64);
++void	retfromnewstack(void);
+ void	setspgoto(byte*, void(*)(void), void(*)(void));
+ void	FLUSH(void*);
+ void*	getu(void);

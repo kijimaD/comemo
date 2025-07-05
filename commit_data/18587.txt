@@ -10,6 +10,21 @@ Date:   Thu Feb 20 15:42:08 2014 -0500
     TBR=ken2
     CC=golang-codereviews
     https://golang.org/cl/66600044
-
+---
  src/cmd/gc/subr.c | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index f71165d456..a32590e003 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -1239,6 +1239,9 @@ assignop(Type *src, Type *dst, char **why)
+ 		if(why != nil) {
+ 			if(isptrto(src, TINTER))
+ 				*why = smprint(":\n\t%T is pointer to interface, not interface", src);
++			else if(have && have->sym == missing->sym && have->nointerface)
++				*why = smprint(":\n\t%T does not implement %T (%S method is marked 'nointerface')",
++					src, dst, missing->sym);
+ 			else if(have && have->sym == missing->sym)
+ 				*why = smprint(":\n\t%T does not implement %T (wrong type for %S method)\n"
+ 					"\t\thave %S%hhT\n\t\twant %S%hhT", src, dst, missing->sym,

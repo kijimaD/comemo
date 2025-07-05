@@ -7,6 +7,19 @@ Date:   Tue Sep 15 09:12:31 2015 -0700
     Change-Id: I7de85034d499a9f859ab37d56463073f5cb29b35
     Reviewed-on: https://go-review.googlesource.com/14592
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  doc/go1.6.txt | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/doc/go1.6.txt b/doc/go1.6.txt
+index b4b04e24f7..1a24fbe0a7 100644
+--- a/doc/go1.6.txt
++++ b/doc/go1.6.txt
+@@ -12,4 +12,5 @@ fmt: allow any integer type as an argument to the * operator (https://golang.org
+ strconv: QuoteToGraphic (https://golang.org/cl/14184/)
+ text/template: ExecError (https://golang.org/cl/13957/)
+ text/template: trimming spaces (https://golang.org/cl/14391/)
+-time: allow one and two-digit days of the month during Parse (https://golang.org/cl/14123/)
+\ No newline at end of file
++text/template: Funcs check names (https://golang.org/cl/14562/)
++time: allow one and two-digit days of the month during Parse (https://golang.org/cl/14123/)

@@ -9,7 +9,7 @@ Date:   Tue Dec 13 18:02:49 2011 -0500
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/5484070
-
+---
  src/clean.bash                     |  2 +-
  test/{ => bench}/garbage/Makefile  |  2 +-
  test/{ => bench}/garbage/parser.go |  0
@@ -18,3 +18,175 @@ Date:   Tue Dec 13 18:02:49 2011 -0500
  test/{ => bench}/garbage/tree.go   |  0
  test/bench/shootout/timing.sh      |  2 +-
  7 files changed, 8 insertions(+), 20 deletions(-)
+
+diff --git a/src/clean.bash b/src/clean.bash
+index 3c6a3972d8..98e1b944af 100755
+--- a/src/clean.bash
++++ b/src/clean.bash
+@@ -24,7 +24,7 @@ for i in lib9 libbio libmach cmd pkg \
+ 	../misc/cgo/life ../misc/cgo/test \
+ 	../misc/dashboard/builder ../misc/goplay\
+ 	../doc/codelab/wiki\
+-	../test/bench/shootout ../test/garbage
++	../test/bench/shootout ../test/bench/garbage
+ do
+ 	# Do not use gomake here. It may not be available.
+ 	$MAKE -C "$GOROOT/src/$i" clean
+diff --git a/test/garbage/Makefile b/test/bench/garbage/Makefile
+similarity index 93%
+rename from test/garbage/Makefile
+rename to test/bench/garbage/Makefile
+index acf98a7dc4..916add7795 100644
+--- a/test/garbage/Makefile
++++ b/test/bench/garbage/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../src/Make.inc
++include ../../../src/Make.inc
+ 
+ ALL=\
+ 	parser\
+diff --git a/test/garbage/parser.go b/test/bench/garbage/parser.go
+similarity index 100%
+rename from test/garbage/parser.go
+rename to test/bench/garbage/parser.go
+diff --git a/test/garbage/peano.go b/test/bench/garbage/peano.go
+similarity index 99%
+rename from test/garbage/peano.go
+rename to test/bench/garbage/peano.go
+index b4d3185612..231359688b 100644
+--- a/test/garbage/peano.go
++++ b/test/bench/garbage/peano.go
+@@ -12,31 +12,25 @@ import (
+ 	"time"
+ )
+ 
+-
+ type Number struct {
+ 	next *Number
+ }
+ 
+-
+ // -------------------------------------
+ // Peano primitives
+ 
+ func zero() *Number { return nil }
+ 
+-
+ func is_zero(x *Number) bool { return x == nil }
+ 
+-
+ func add1(x *Number) *Number {
+ 	e := new(Number)
+ 	e.next = x
+ 	return e
+ }
+ 
+-
+ func sub1(x *Number) *Number { return x.next }
+ 
+-
+ func add(x, y *Number) *Number {
+ 	if is_zero(y) {
+ 		return x
+@@ -45,7 +39,6 @@ func add(x, y *Number) *Number {
+ 	return add(add1(x), sub1(y))
+ }
+ 
+-
+ func mul(x, y *Number) *Number {
+ 	if is_zero(x) || is_zero(y) {
+ 		return zero()
+@@ -54,7 +47,6 @@ func mul(x, y *Number) *Number {
+ 	return add(mul(x, sub1(y)), x)
+ }
+ 
+-
+ func fact(n *Number) *Number {
+ 	if is_zero(n) {
+ 		return add1(zero())
+@@ -63,7 +55,6 @@ func fact(n *Number) *Number {
+ 	return mul(fact(sub1(n)), n)
+ }
+ 
+-
+ // -------------------------------------
+ // Helpers to generate/count Peano integers
+ 
+@@ -75,7 +66,6 @@ func gen(n int) *Number {
+ 	return zero()
+ }
+ 
+-
+ func count(x *Number) int {
+ 	if is_zero(x) {
+ 		return 0
+@@ -84,7 +74,6 @@ func count(x *Number) int {
+ 	return count(sub1(x)) + 1
+ }
+ 
+-
+ func check(x *Number, expected int) {
+ 	var c = count(x)
+ 	if c != expected {
+@@ -92,7 +81,6 @@ func check(x *Number, expected int) {
+ 	}
+ }
+ 
+-
+ // -------------------------------------
+ // Test basic functionality
+ 
+@@ -117,7 +105,6 @@ func verify() {
+ 	check(fact(gen(5)), 120)
+ }
+ 
+-
+ // -------------------------------------
+ // Factorial
+ 
+diff --git a/test/garbage/stats.go b/test/bench/garbage/stats.go
+similarity index 87%
+rename from test/garbage/stats.go
+rename to test/bench/garbage/stats.go
+index 474e6ad4ab..aa9db1dbc3 100644
+--- a/test/garbage/stats.go
++++ b/test/bench/garbage/stats.go
+@@ -22,13 +22,14 @@ func gcstats(name string, n int, t int64) {
+ 	}
+ 	t1, t2, t3, t4, t5 := tukey5(st.PauseNs[0:nn])
+ 	fmt.Printf("garbage.%sPause5: %d %d %d %d %d\n", name, t1, t2, t3, t4, t5)
+-	
+-//	fmt.Printf("garbage.%sScan: %v\n", name, st.ScanDist)
++
++	//	fmt.Printf("garbage.%sScan: %v\n", name, st.ScanDist)
+ }
+ 
+ type T []uint64
+-func (t T) Len() int { return len(t) }
+-func (t T) Swap(i, j int) { t[i], t[j] = t[j], t[i] }
++
++func (t T) Len() int           { return len(t) }
++func (t T) Swap(i, j int)      { t[i], t[j] = t[j], t[i] }
+ func (t T) Less(i, j int) bool { return t[i] < t[j] }
+ 
+ func tukey5(raw []uint64) (lo, q1, q2, q3, hi uint64) {
+diff --git a/test/garbage/tree.go b/test/bench/garbage/tree.go
+similarity index 100%
+rename from test/garbage/tree.go
+rename to test/bench/garbage/tree.go
+diff --git a/test/bench/shootout/timing.sh b/test/bench/shootout/timing.sh
+index 473c9b312f..3e190e15c8 100755
+--- a/test/bench/shootout/timing.sh
++++ b/test/bench/shootout/timing.sh
+@@ -5,7 +5,7 @@
+ 
+ set -e
+ 
+-eval $(gomake --no-print-directory -f ../../src/Make.inc go-env)
++eval $(gomake --no-print-directory -f ../../../src/Make.inc go-env)
+ PATH=.:$PATH
+ 
+ havegccgo=false

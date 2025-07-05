@@ -17,7 +17,89 @@ Date:   Sat Dec 26 21:33:17 2020 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/walk/assign.go  | 49 --------------------------------
  src/cmd/compile/internal/walk/complit.go |  3 +-
  2 files changed, 2 insertions(+), 50 deletions(-)
+
+diff --git a/src/cmd/compile/internal/walk/assign.go b/src/cmd/compile/internal/walk/assign.go
+index 99541c58d9..c01079d236 100644
+--- a/src/cmd/compile/internal/walk/assign.go
++++ b/src/cmd/compile/internal/walk/assign.go
+@@ -495,55 +495,6 @@ func readsMemory(n ir.Node) bool {
+ 	return true
+ }
+ 
+-// refersToCommonName reports whether any name
+-// appears in common between l and r.
+-// This is called from sinit.go.
+-func refersToCommonName(l ir.Node, r ir.Node) bool {
+-	if l == nil || r == nil {
+-		return false
+-	}
+-
+-	// This could be written elegantly as a Find nested inside a Find:
+-	//
+-	//	found := ir.Find(l, func(l ir.Node) interface{} {
+-	//		if l.Op() == ir.ONAME {
+-	//			return ir.Find(r, func(r ir.Node) interface{} {
+-	//				if r.Op() == ir.ONAME && l.Name() == r.Name() {
+-	//					return r
+-	//				}
+-	//				return nil
+-	//			})
+-	//		}
+-	//		return nil
+-	//	})
+-	//	return found != nil
+-	//
+-	// But that would allocate a new closure for the inner Find
+-	// for each name found on the left side.
+-	// It may not matter at all, but the below way of writing it
+-	// only allocates two closures, not O(|L|) closures.
+-
+-	var doL, doR func(ir.Node) error
+-	var targetL *ir.Name
+-	doR = func(r ir.Node) error {
+-		if r.Op() == ir.ONAME && r.Name() == targetL {
+-			return stop
+-		}
+-		return ir.DoChildren(r, doR)
+-	}
+-	doL = func(l ir.Node) error {
+-		if l.Op() == ir.ONAME {
+-			l := l.(*ir.Name)
+-			targetL = l.Name()
+-			if doR(r) == stop {
+-				return stop
+-			}
+-		}
+-		return ir.DoChildren(l, doL)
+-	}
+-	return doL(l) == stop
+-}
+-
+ // expand append(l1, l2...) to
+ //   init {
+ //     s := l1
+diff --git a/src/cmd/compile/internal/walk/complit.go b/src/cmd/compile/internal/walk/complit.go
+index b53fe2e935..8c4f9583ef 100644
+--- a/src/cmd/compile/internal/walk/complit.go
++++ b/src/cmd/compile/internal/walk/complit.go
+@@ -629,6 +629,7 @@ func oaslit(n *ir.AssignStmt, init *ir.Nodes) bool {
+ 		// not a special composite literal assignment
+ 		return false
+ 	}
++	x := n.X.(*ir.Name)
+ 	if !types.Identical(n.X.Type(), n.Y.Type()) {
+ 		// not a special composite literal assignment
+ 		return false
+@@ -640,7 +641,7 @@ func oaslit(n *ir.AssignStmt, init *ir.Nodes) bool {
+ 		return false
+ 
+ 	case ir.OSTRUCTLIT, ir.OARRAYLIT, ir.OSLICELIT, ir.OMAPLIT:
+-		if refersToCommonName(n.X, n.Y) {
++		if ir.Any(n.Y, func(y ir.Node) bool { return ir.Uses(y, x) }) {
+ 			// not a special composite literal assignment
+ 			return false
+ 		}

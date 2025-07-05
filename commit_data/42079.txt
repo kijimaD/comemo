@@ -12,6 +12,27 @@ Date:   Fri Nov 8 08:38:52 2019 -0500
     Change-Id: Idc03171c0109b5c8d4913e0af2078c1115666897
     Reviewed-on: https://go-review.googlesource.com/c/go/+/206098
     Reviewed-by: Carlos Amedee <carlos@golang.org>
-
+---
  src/runtime/proc_test.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/runtime/proc_test.go b/src/runtime/proc_test.go
+index acee7a1819..48b865e8a5 100644
+--- a/src/runtime/proc_test.go
++++ b/src/runtime/proc_test.go
+@@ -6,6 +6,7 @@ package runtime_test
+ 
+ import (
+ 	"fmt"
++	"internal/testenv"
+ 	"math"
+ 	"net"
+ 	"runtime"
+@@ -422,6 +423,7 @@ func TestPingPongHog(t *testing.T) {
+ 	if testing.Short() {
+ 		t.Skip("skipping in -short mode")
+ 	}
++	testenv.SkipFlaky(t, 35271)
+ 
+ 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(1))
+ 	done := make(chan bool)

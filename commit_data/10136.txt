@@ -9,6 +9,20 @@ Date:   Thu Oct 27 19:38:57 2011 -0700
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/5303082
-
+---
  src/pkg/encoding/binary/binary_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/encoding/binary/binary_test.go b/src/pkg/encoding/binary/binary_test.go
+index b266996f63..73def50ee9 100644
+--- a/src/pkg/encoding/binary/binary_test.go
++++ b/src/pkg/encoding/binary/binary_test.go
+@@ -99,7 +99,7 @@ var little = []byte{
+ var src = []byte{1, 2, 3, 4, 5, 6, 7, 8}
+ var res = []int32{0x01020304, 0x05060708}
+ 
+-func checkResult(t *testing.T, dir string, order, err os.Error, have, want interface{}) {
++func checkResult(t *testing.T, dir string, order ByteOrder, err os.Error, have, want interface{}) {
+ 	if err != nil {
+ 		t.Errorf("%v %v: %v", dir, order, err)
+ 		return

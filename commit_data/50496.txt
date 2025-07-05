@@ -28,10 +28,222 @@ Date:   Wed Oct 27 16:31:18 2021 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Katie Hockman <katie@golang.org>
-
+---
  src/cmd/go/alldocs.go                              | 11 ++--
  src/cmd/go/internal/test/test.go                   | 45 +++++++++++++++--
  .../testdata/mod/example.com_fuzzfail_v0.1.0.txt   | 20 ++++++++
  .../testdata/mod/example.com_fuzzfail_v0.2.0.txt   | 23 +++++++++
  src/cmd/go/testdata/script/test_fuzz_modcache.txt  | 58 ++++++++++++++++++++++
  5 files changed, 147 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 537f800944..1b9b22a812 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -2785,11 +2785,12 @@
+ //
+ // 	-fuzz regexp
+ // 	    Run the fuzz target matching the regular expression. When specified,
+-// 	    the command line argument must match exactly one package, and regexp
+-// 	    must match exactly one fuzz target within that package. After tests,
+-// 	    benchmarks, seed corpora of other fuzz targets, and examples have
+-// 	    completed, the matching target will be fuzzed. See the Fuzzing section
+-// 	    of the testing package documentation for details.
++// 	    the command line argument must match exactly one package within the
++// 	    main module, and regexp must match exactly one fuzz target within
++// 	    that package. After tests, benchmarks, seed corpora of other fuzz
++// 	    targets, and examples have completed, the matching target will be
++// 	    fuzzed. See the Fuzzing section of the testing package documentation
++// 	    for details.
+ //
+ // 	-fuzztime t
+ // 	    Run enough iterations of the fuzz test to take t, specified as a
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index 0806d29f21..c435cc3fb2 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -36,6 +36,8 @@ import (
+ 	"cmd/go/internal/work"
+ 	"cmd/internal/sys"
+ 	"cmd/internal/test2json"
++
++	"golang.org/x/mod/module"
+ )
+ 
+ // Break init loop.
+@@ -248,11 +250,12 @@ control the execution of any test:
+ 
+ 	-fuzz regexp
+ 	    Run the fuzz target matching the regular expression. When specified,
+-	    the command line argument must match exactly one package, and regexp
+-	    must match exactly one fuzz target within that package. After tests,
+-	    benchmarks, seed corpora of other fuzz targets, and examples have
+-	    completed, the matching target will be fuzzed. See the Fuzzing section
+-	    of the testing package documentation for details.
++	    the command line argument must match exactly one package within the
++	    main module, and regexp must match exactly one fuzz target within
++	    that package. After tests, benchmarks, seed corpora of other fuzz
++	    targets, and examples have completed, the matching target will be
++	    fuzzed. See the Fuzzing section of the testing package documentation
++	    for details.
+ 
+ 	-fuzztime t
+ 	    Run enough iterations of the fuzz test to take t, specified as a
+@@ -659,6 +662,38 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
+ 		if len(pkgs) != 1 {
+ 			base.Fatalf("cannot use -fuzz flag with multiple packages")
+ 		}
++
++		// Reject the '-fuzz' flag if the package is outside the main module.
++		// Otherwise, if fuzzing identifies a failure it could corrupt checksums in
++		// the module cache (or permanently alter the behavior of std tests for all
++		// users) by writing the failing input to the package's testdata directory.
++		// (See https://golang.org/issue/48495 and test_fuzz_modcache.txt.)
++		mainMods := modload.MainModules
++		if m := pkgs[0].Module; m != nil && m.Path != "" {
++			if !mainMods.Contains(m.Path) {
++				base.Fatalf("cannot use -fuzz flag on package outside the main module")
++			}
++		} else if pkgs[0].Standard && modload.Enabled() {
++			// Because packages in 'std' and 'cmd' are part of the standard library,
++			// they are only treated as part of a module in 'go mod' subcommands and
++			// 'go get'. However, we still don't want to accidentally corrupt their
++			// testdata during fuzzing, nor do we want to fail with surprising errors
++			// if GOROOT isn't writable (as is often the case for Go toolchains
++			// installed through package managers).
++			//
++			// If the user is requesting to fuzz a standard-library package, ensure
++			// that they are in the same module as that package (just like when
++			// fuzzing any other package).
++			if strings.HasPrefix(pkgs[0].ImportPath, "cmd/") {
++				if !mainMods.Contains("cmd") || !mainMods.InGorootSrc(module.Version{Path: "cmd"}) {
++					base.Fatalf("cannot use -fuzz flag on package outside the main module")
++				}
++			} else {
++				if !mainMods.Contains("std") || !mainMods.InGorootSrc(module.Version{Path: "std"}) {
++					base.Fatalf("cannot use -fuzz flag on package outside the main module")
++				}
++			}
++		}
+ 	}
+ 	if testProfile() != "" && len(pkgs) != 1 {
+ 		base.Fatalf("cannot use %s flag with multiple packages", testProfile())
+diff --git a/src/cmd/go/testdata/mod/example.com_fuzzfail_v0.1.0.txt b/src/cmd/go/testdata/mod/example.com_fuzzfail_v0.1.0.txt
+new file mode 100644
+index 0000000000..af005ffb41
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/example.com_fuzzfail_v0.1.0.txt
+@@ -0,0 +1,20 @@
++-- .mod --
++module example.com/fuzzfail
++
++go 1.18
++-- .info --
++{"Version":"v0.1.0"}
++-- go.mod --
++module example.com/fuzzfail
++
++go 1.18
++-- fuzzfail_test.go --
++package fuzzfail
++
++import "testing"
++
++func FuzzFail(f *testing.F) {
++	f.Fuzz(func(t *testing.T, b []byte) {
++		t.Fatalf("oops: %q", b)
++	})
++}
+diff --git a/src/cmd/go/testdata/mod/example.com_fuzzfail_v0.2.0.txt b/src/cmd/go/testdata/mod/example.com_fuzzfail_v0.2.0.txt
+new file mode 100644
+index 0000000000..ea599aa611
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/example.com_fuzzfail_v0.2.0.txt
+@@ -0,0 +1,23 @@
++-- .mod --
++module example.com/fuzzfail
++
++go 1.18
++-- .info --
++{"Version":"v0.2.0"}
++-- go.mod --
++module example.com/fuzzfail
++
++go 1.18
++-- fuzzfail_test.go --
++package fuzzfail
++
++import "testing"
++
++func FuzzFail(f *testing.F) {
++	f.Fuzz(func(t *testing.T, b []byte) {
++		t.Fatalf("oops: %q", b)
++	})
++}
++-- testdata/fuzz/FuzzFail/bbb0c2d22aa1a24617301566dc7486f8b625d38024603ba62757c1124013b49a --
++go test fuzz v1
++[]byte("\x05")
+diff --git a/src/cmd/go/testdata/script/test_fuzz_modcache.txt b/src/cmd/go/testdata/script/test_fuzz_modcache.txt
+new file mode 100644
+index 0000000000..c0f18ea3c0
+--- /dev/null
++++ b/src/cmd/go/testdata/script/test_fuzz_modcache.txt
+@@ -0,0 +1,58 @@
++# This test demonstrates the fuzz corpus behavior for packages outside of the main module.
++# (See https://golang.org/issue/48495.)
++
++[short] skip
++
++# Set -modcacherw so that the test behaves the same regardless of whether the
++# module cache is writable. (For example, on some platforms it can always be
++# written if the user is running as root.) At one point, a failing fuzz test
++# in a writable module cache would corrupt module checksums in the cache.
++env GOFLAGS=-modcacherw
++
++
++# When the upstream module has no test corpus, running 'go test' should succeed,
++# but 'go test -fuzz=.' should error out before running the test.
++# (It should NOT corrupt the module cache by writing out new fuzz inputs,
++# even if the cache is writable.)
++
++go get -t example.com/fuzzfail@v0.1.0
++go test example.com/fuzzfail
++
++! go test -fuzz=. example.com/fuzzfail
++! stdout .
++stderr '^cannot use -fuzz flag on package outside the main module$'
++
++go mod verify
++
++
++# If the module does include a test corpus, 'go test' (without '-fuzz') should
++# load that corpus and run the fuzz tests against it, but 'go test -fuzz=.'
++# should continue to be rejected.
++
++go get -t example.com/fuzzfail@v0.2.0
++
++! go test example.com/fuzzfail
++stdout '^\s*fuzzfail_test\.go:7: oops:'
++
++! go test -fuzz=. example.com/fuzzfail
++! stdout .
++stderr '^cannot use -fuzz flag on package outside the main module$'
++
++go mod verify
++
++
++# Packages in 'std' cannot be fuzzed when the corresponding GOROOT module is not
++# the main module — either the failures would not be recorded or the behavior of
++# the 'std' tests would change globally.
++
++! go test -fuzz . encoding/json
++stderr '^cannot use -fuzz flag on package outside the main module$'
++
++! go test -fuzz . cmd/buildid
++stderr '^cannot use -fuzz flag on package outside the main module$'
++
++
++-- go.mod --
++module example.com/m
++
++go 1.18

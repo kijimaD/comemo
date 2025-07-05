@@ -9,7 +9,7 @@ Date:   Mon Nov 9 21:09:34 2009 -0800
     
     R=rsc, r
     http://go/go-review/1024040
-
+---
  misc/cgo/gmp/gmp.go                |   2 +-
  src/cmd/cgo/gcc.go                 |  10 ++--
  src/cmd/cgo/out.go                 |  20 +++----
@@ -44,3 +44,2583 @@ Date:   Mon Nov 9 21:09:34 2009 -0800
  src/pkg/bytes/bytes.go             |  24 ++++-----
  src/pkg/bytes/bytes_test.go        |   4 +-
  33 files changed, 364 insertions(+), 364 deletions(-)
+
+diff --git a/misc/cgo/gmp/gmp.go b/misc/cgo/gmp/gmp.go
+index 5a21c53841..e199543c7f 100644
+--- a/misc/cgo/gmp/gmp.go
++++ b/misc/cgo/gmp/gmp.go
+@@ -138,7 +138,7 @@ func (z *Int) doinit() {
+ 
+ // Bytes returns z's representation as a big-endian byte array.
+ func (z *Int) Bytes() []byte {
+-	b := make([]byte, (z.Len() + 7)/8);
++	b := make([]byte, (z.Len()+7)/8);
+ 	n := C.size_t(len(b));
+ 	C.mpz_export(unsafe.Pointer(&b[0]), &n, 1, 1, 1, 0, &z.i[0]);
+ 	return b[0:n];
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index f5c33e82c5..6e9ba13b76 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -198,7 +198,7 @@ func (p *Prog) gccDebug(stdin []byte) (*dwarf.Data, string) {
+ 		machine,
+ 		"-Wall",	// many warnings
+ 		"-Werror",	// warnings are errors
+-		"-o"+tmp,	// write object to tmp
++		"-o" + tmp,	// write object to tmp
+ 		"-gdwarf-2",	// generate DWARF v2 debugging symbols
+ 		"-c",	// do not link
+ 		"-xc",	// input language is C
+@@ -515,7 +515,7 @@ func (c *typeConv) Type(dtype dwarf.Type) *Type {
+ 				s = ss
+ 			}
+ 			s = strings.Join(strings.Split(s, " ", 0), "");	// strip spaces
+-			name := c.Ident("_C_"+s);
++			name := c.Ident("_C_" + s);
+ 			c.typedef[name.Value] = t.Go;
+ 			t.Go = name;
+ 		}
+@@ -609,11 +609,11 @@ func (c *typeConv) pad(fld []*ast.Field, size int64) []*ast.Field {
+ // Struct conversion
+ func (c *typeConv) Struct(dt *dwarf.StructType) (expr *ast.StructType, csyntax string, align int64) {
+ 	csyntax = "struct { ";
+-	fld := make([]*ast.Field, 0, 2*len(dt.Field) + 1);	// enough for padding around every field
++	fld := make([]*ast.Field, 0, 2*len(dt.Field)+1);	// enough for padding around every field
+ 	off := int64(0);
+ 	for _, f := range dt.Field {
+ 		if f.ByteOffset > off {
+-			fld = c.pad(fld, f.ByteOffset - off);
++			fld = c.pad(fld, f.ByteOffset-off);
+ 			off = f.ByteOffset;
+ 		}
+ 		t := c.Type(f.Type);
+@@ -627,7 +627,7 @@ func (c *typeConv) Struct(dt *dwarf.StructType) (expr *ast.StructType, csyntax s
+ 		}
+ 	}
+ 	if off < dt.ByteSize {
+-		fld = c.pad(fld, dt.ByteSize - off);
++		fld = c.pad(fld, dt.ByteSize-off);
+ 		off = dt.ByteSize;
+ 	}
+ 	if off != dt.ByteSize {
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index 2a62233b7a..297ffe40a7 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -13,7 +13,7 @@ import (
+ )
+ 
+ func creat(name string) *os.File {
+-	f, err := os.Open(name, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0666);
++	f, err := os.Open(name, os.O_WRONLY|os.O_CREAT|os.O_TRUNC, 0666);
+ 	if err != nil {
+ 		fatal("%s", err)
+ 	}
+@@ -72,7 +72,7 @@ func (p *Prog) writeOutput(srcfile string) {
+ 	for name, def := range p.Funcdef {
+ 		// Go func declaration.
+ 		d := &ast.FuncDecl{
+-			Name: &ast.Ident{Value: "_C_"+name},
++			Name: &ast.Ident{Value: "_C_" + name},
+ 			Type: def.Go,
+ 		};
+ 		printer.Fprint(fgo2, d);
+@@ -92,8 +92,8 @@ func (p *Prog) writeOutput(srcfile string) {
+ 		off := int64(0);
+ 		npad := 0;
+ 		for i, t := range def.Params {
+-			if off % t.Align != 0 {
+-				pad := t.Align - off % t.Align;
++			if off%t.Align != 0 {
++				pad := t.Align - off%t.Align;
+ 				structType += fmt.Sprintf("\t\tchar __pad%d[%d];\n", npad, pad);
+ 				off += pad;
+ 				npad++;
+@@ -101,15 +101,15 @@ func (p *Prog) writeOutput(srcfile string) {
+ 			structType += fmt.Sprintf("\t\t%s p%d;\n", t.C, i);
+ 			off += t.Size;
+ 		}
+-		if off % p.PtrSize != 0 {
+-			pad := p.PtrSize - off % p.PtrSize;
++		if off%p.PtrSize != 0 {
++			pad := p.PtrSize - off%p.PtrSize;
+ 			structType += fmt.Sprintf("\t\tchar __pad%d[%d];\n", npad, pad);
+ 			off += pad;
+ 			npad++;
+ 		}
+ 		if t := def.Result; t != nil {
+-			if off % t.Align != 0 {
+-				pad := t.Align - off % t.Align;
++			if off%t.Align != 0 {
++				pad := t.Align - off%t.Align;
+ 				structType += fmt.Sprintf("\t\tchar __pad%d[%d];\n", npad, pad);
+ 				off += pad;
+ 				npad++;
+@@ -117,8 +117,8 @@ func (p *Prog) writeOutput(srcfile string) {
+ 			structType += fmt.Sprintf("\t\t%s r;\n", t.C);
+ 			off += t.Size;
+ 		}
+-		if off % p.PtrSize != 0 {
+-			pad := p.PtrSize - off % p.PtrSize;
++		if off%p.PtrSize != 0 {
++			pad := p.PtrSize - off%p.PtrSize;
+ 			structType += fmt.Sprintf("\t\tchar __pad%d[%d];\n", npad, pad);
+ 			off += pad;
+ 			npad++;
+diff --git a/src/cmd/ebnflint/ebnflint.go b/src/cmd/ebnflint/ebnflint.go
+index e013dd0300..394e473a84 100644
+--- a/src/cmd/ebnflint/ebnflint.go
++++ b/src/cmd/ebnflint/ebnflint.go
+@@ -56,7 +56,7 @@ func extractEBNF(src []byte) []byte {
+ 		// j = end of EBNF text (or end of source)
+ 		j := bytes.Index(src[i:len(src)], close);	// close marker
+ 		if j < 0 {
+-			j = len(src)-i
++			j = len(src) - i
+ 		}
+ 		j += i;
+ 
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index 10c280e296..de52356734 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -142,7 +142,7 @@ func firstSentence(s string) string {
+ 	j := -1;	// index+1 of first period that is followed by white space
+ 	prev := 'A';
+ 	for k, ch := range s {
+-		k1 := k+1;
++		k1 := k + 1;
+ 		if ch == '.' {
+ 			if i < 0 {
+ 				i = k1	// first period
+@@ -208,7 +208,7 @@ func newDirTree(path, name string, depth, maxDepth int) *Directory {
+ 			if text == "" {
+ 				// no package documentation yet; take the first found
+ 				file, err := parser.ParseFile(pathutil.Join(path, d.Name), nil,
+-					parser.ParseComments | parser.PackageClauseOnly);
++					parser.ParseComments|parser.PackageClauseOnly);
+ 				if err == nil &&
+ 					// Also accept fakePkgName, so we get synopses for commmands.
+ 					// Note: This may lead to incorrect results if there is a
+@@ -338,7 +338,7 @@ func (root *Directory) listing(skipRoot bool) *DirList {
+ 
+ 	// determine number of entries n and maximum height
+ 	n := 0;
+-	minDepth := 1<<30;	// infinity
++	minDepth := 1 << 30;	// infinity
+ 	maxDepth := 0;
+ 	for d := range root.iter(skipRoot) {
+ 		n++;
+@@ -349,7 +349,7 @@ func (root *Directory) listing(skipRoot bool) *DirList {
+ 			maxDepth = d.Depth
+ 		}
+ 	}
+-	maxHeight := maxDepth-minDepth+1;
++	maxHeight := maxDepth - minDepth + 1;
+ 
+ 	if n == 0 {
+ 		return nil
+@@ -445,7 +445,7 @@ func parse(path string, mode uint) (*ast.File, *parseErrors) {
+ 			for i, r := range errors {
+ 				// Should always be true, but check for robustness.
+ 				if 0 <= r.Pos.Offset && r.Pos.Offset <= len(src) {
+-					errs[i].src = src[offs : r.Pos.Offset];
++					errs[i].src = src[offs:r.Pos.Offset];
+ 					offs = r.Pos.Offset;
+ 				}
+ 				errs[i].line = r.Pos.Line;
+@@ -669,7 +669,7 @@ func paddingFmt(w io.Writer, x interface{}, format string) {
+ // Template formatter for "time" format.
+ func timeFmt(w io.Writer, x interface{}, format string) {
+ 	// note: os.Dir.Mtime_ns is in uint64 in ns!
+-	template.HTMLEscape(w, strings.Bytes(time.SecondsToLocalTime(int64(x.(uint64) / 1e9)).String()))
++	template.HTMLEscape(w, strings.Bytes(time.SecondsToLocalTime(int64(x.(uint64)/1e9)).String()))
+ }
+ 
+ 
+@@ -738,7 +738,7 @@ func servePage(c *http.Conn, title, query string, content []byte) {
+ 	_, ts := fsTree.get();
+ 	d := Data{
+ 		Title: title,
+-		Timestamp: uint64(ts)*1e9,	// timestamp in ns
++		Timestamp: uint64(ts) * 1e9,	// timestamp in ns
+ 		Query: query,
+ 		Content: content,
+ 	};
+@@ -801,7 +801,7 @@ func serveParseErrors(c *http.Conn, errors *parseErrors) {
+ 	if err := parseerrorHTML.Execute(errors, &buf); err != nil {
+ 		log.Stderrf("parseerrorHTML.Execute: %s", err)
+ 	}
+-	servePage(c, "Parse errors in source file " + errors.filename, "", buf.Bytes());
++	servePage(c, "Parse errors in source file "+errors.filename, "", buf.Bytes());
+ }
+ 
+ 
+@@ -817,7 +817,7 @@ func serveGoSource(c *http.Conn, r *http.Request, path string, styler printer.St
+ 	writeNode(&buf, prog, true, styler);
+ 	fmt.Fprintln(&buf, "</pre>");
+ 
+-	servePage(c, "Source file " + r.URL.Path, "", buf.Bytes());
++	servePage(c, "Source file "+r.URL.Path, "", buf.Bytes());
+ }
+ 
+ 
+@@ -887,7 +887,7 @@ func serveTextFile(c *http.Conn, r *http.Request, path string) {
+ 	template.HTMLEscape(&buf, src);
+ 	fmt.Fprintln(&buf, "</pre>");
+ 
+-	servePage(c, "Text file " + path, "", buf.Bytes());
++	servePage(c, "Text file "+path, "", buf.Bytes());
+ }
+ 
+ 
+@@ -907,7 +907,7 @@ func serveDirectory(c *http.Conn, r *http.Request, path string) {
+ 		log.Stderrf("dirlistHTML.Execute: %s", err)
+ 	}
+ 
+-	servePage(c, "Directory " + path, "", buf.Bytes());
++	servePage(c, "Directory "+path, "", buf.Bytes());
+ }
+ 
+ 
+@@ -1150,11 +1150,11 @@ func indexer() {
+ 			stop := time.Nanoseconds();
+ 			searchIndex.set(index);
+ 			if *verbose {
+-				secs := float64((stop-start)/1e6)/1e3;
++				secs := float64((stop-start)/1e6) / 1e3;
+ 				nwords, nspots := index.Size();
+ 				log.Stderrf("index updated (%gs, %d unique words, %d spots)", secs, nwords, nspots);
+ 			}
+ 		}
+-		time.Sleep(1*60e9);	// try once a minute
++		time.Sleep(1 * 60e9);	// try once a minute
+ 	}
+ }
+diff --git a/src/cmd/godoc/index.go b/src/cmd/godoc/index.go
+index 02ce545b1d..9ee9e77b4a 100644
+--- a/src/cmd/godoc/index.go
++++ b/src/cmd/godoc/index.go
+@@ -127,7 +127,7 @@ func init() {
+ // makeSpotInfo makes a SpotInfo.
+ func makeSpotInfo(kind SpotKind, lori int, isIndex bool) SpotInfo {
+ 	// encode lori: bits [4..32)
+-	x := SpotInfo(lori)<<4;
++	x := SpotInfo(lori) << 4;
+ 	if int(x>>4) != lori {
+ 		// lori value doesn't fit - since snippet indices are
+ 		// most certainly always smaller then 1<<28, this can
+@@ -135,7 +135,7 @@ func makeSpotInfo(kind SpotKind, lori int, isIndex bool) SpotInfo {
+ 		x = 0
+ 	}
+ 	// encode kind: bits [1..4)
+-	x |= SpotInfo(kind)<<1;
++	x |= SpotInfo(kind) << 1;
+ 	// encode isIndex: bit 0
+ 	if isIndex {
+ 		x |= 1
+@@ -144,8 +144,8 @@ func makeSpotInfo(kind SpotKind, lori int, isIndex bool) SpotInfo {
+ }
+ 
+ 
+-func (x SpotInfo) Kind() SpotKind	{ return SpotKind(x>>1&7) }
+-func (x SpotInfo) Lori() int		{ return int(x>>4) }
++func (x SpotInfo) Kind() SpotKind	{ return SpotKind(x >> 1 & 7) }
++func (x SpotInfo) Lori() int		{ return int(x >> 4) }
+ func (x SpotInfo) IsIndex() bool	{ return x&1 != 0 }
+ 
+ 
+@@ -255,7 +255,7 @@ func newFileRun(h0 *RunList, i, j int) interface{} {
+ 
+ 	// reduce the list of Spots into a list of KindRuns
+ 	var h1 RunList;
+-	h1.Vector.Init(j-i);
++	h1.Vector.Init(j - i);
+ 	k := 0;
+ 	for ; i < j; i++ {
+ 		h1.Set(k, h0.At(i).(Spot).Info);
+diff --git a/src/cmd/godoc/main.go b/src/cmd/godoc/main.go
+index ee4f196507..a59bd80289 100644
+--- a/src/cmd/godoc/main.go
++++ b/src/cmd/godoc/main.go
+@@ -117,7 +117,7 @@ func dosync(c *http.Conn, r *http.Request) {
+ 		syncDelay.set(*syncMin)	//  revert to regular sync schedule
+ 	default:
+ 		// sync failed because of an error - back off exponentially, but try at least once a day
+-		syncDelay.backoff(24*60)
++		syncDelay.backoff(24 * 60)
+ 	}
+ }
+ 
+@@ -194,7 +194,7 @@ func main() {
+ 					if *verbose {
+ 						log.Stderrf("next sync in %dmin", delay.(int))
+ 					}
+-					time.Sleep(int64(delay.(int))*60e9);
++					time.Sleep(int64(delay.(int)) * 60e9);
+ 				}
+ 			}();
+ 		}
+diff --git a/src/cmd/godoc/spec.go b/src/cmd/godoc/spec.go
+index a863a16cd3..15ce2fb9e6 100644
+--- a/src/cmd/godoc/spec.go
++++ b/src/cmd/godoc/spec.go
+@@ -32,7 +32,7 @@ type ebnfParser struct {
+ 
+ 
+ func (p *ebnfParser) flush() {
+-	p.out.Write(p.src[p.prev : p.pos.Offset]);
++	p.out.Write(p.src[p.prev:p.pos.Offset]);
+ 	p.prev = p.pos.Offset;
+ }
+ 
+@@ -60,7 +60,7 @@ func (p *ebnfParser) errorExpected(pos token.Position, msg string) {
+ 		// make the error message more specific
+ 		msg += ", found '" + p.tok.String() + "'";
+ 		if p.tok.IsLiteral() {
+-			msg += " "+string(p.lit)
++			msg += " " + string(p.lit)
+ 		}
+ 	}
+ 	p.Error(pos, msg);
+@@ -70,7 +70,7 @@ func (p *ebnfParser) errorExpected(pos token.Position, msg string) {
+ func (p *ebnfParser) expect(tok token.Token) token.Position {
+ 	pos := p.pos;
+ 	if p.tok != tok {
+-		p.errorExpected(pos, "'" + tok.String() + "'")
++		p.errorExpected(pos, "'"+tok.String()+"'")
+ 	}
+ 	p.next();	// make progress in any case
+ 	return pos;
+@@ -178,14 +178,14 @@ func linkify(out io.Writer, src []byte) {
+ 		// i: beginning of EBNF text (or end of source)
+ 		i := bytes.Index(src, openTag);
+ 		if i < 0 {
+-			i = n-len(openTag)
++			i = n - len(openTag)
+ 		}
+ 		i += len(openTag);
+ 
+ 		// j: end of EBNF text (or end of source)
+ 		j := bytes.Index(src[i:n], closeTag);	// close marker
+ 		if j < 0 {
+-			j = n-i
++			j = n - i
+ 		}
+ 		j += i;
+ 
+diff --git a/src/cmd/goyacc/goyacc.go b/src/cmd/goyacc/goyacc.go
+index 983052cf23..11c7553edd 100644
+--- a/src/cmd/goyacc/goyacc.go
++++ b/src/cmd/goyacc/goyacc.go
+@@ -99,7 +99,7 @@ const (
+ 
+ // flags for a rule having an action, and being reduced
+ const (
+-	ACTFLAG	= 1<<(iota+2);
++	ACTFLAG	= 1 << (iota + 2);
+ 	REDFLAG;
+ )
+ 
+@@ -108,7 +108,7 @@ const YYFLAG = -1000
+ 
+ // parse tokens
+ const (
+-	IDENTIFIER	= PRIVATE+iota;
++	IDENTIFIER	= PRIVATE + iota;
+ 	MARK;
+ 	TERM;
+ 	LEFT;
+@@ -131,18 +131,18 @@ const OK = 1
+ const NOMORE = -1000
+ 
+ // macros for getting associativity and precedence levels
+-func ASSOC(i int) int	{ return i&3 }
++func ASSOC(i int) int	{ return i & 3 }
+ 
+-func PLEVEL(i int) int	{ return (i>>4)&077 }
++func PLEVEL(i int) int	{ return (i >> 4) & 077 }
+ 
+-func TYPE(i int) int	{ return (i>>10)&077 }
++func TYPE(i int) int	{ return (i >> 10) & 077 }
+ 
+ // macros for setting associativity and precedence levels
+-func SETASC(i, j int) int	{ return i|j }
++func SETASC(i, j int) int	{ return i | j }
+ 
+-func SETPLEV(i, j int) int	{ return i|(j<<4) }
++func SETPLEV(i, j int) int	{ return i | (j << 4) }
+ 
+-func SETTYPE(i, j int) int	{ return i|(j<<10) }
++func SETTYPE(i, j int) int	{ return i | (j << 10) }
+ 
+ // I/O descriptors
+ var finput *bufio.Reader	// input file
+@@ -318,7 +318,7 @@ func main() {
+ 
+ 	setup();	// initialize and read productions
+ 
+-	tbitset = (ntokens+32)/32;
++	tbitset = (ntokens + 32) / 32;
+ 	cpres();	// make table of which productions yield a given nonterminal
+ 	cempty();	// make a table of which nonterminals can match the empty string
+ 	cpfir();	// make a table of firsts of nonterminals
+@@ -430,7 +430,7 @@ outer:
+ 
+ 		case LEFT, BINARY, RIGHT, TERM:
+ 			// nonzero means new prec. and assoc.
+-			lev := t-TERM;
++			lev := t - TERM;
+ 			if lev != 0 {
+ 				i++
+ 			}
+@@ -699,7 +699,7 @@ outer:
+ func moreprod() {
+ 	n := len(prdptr);
+ 	if nprod >= n {
+-		nn := n+PRODINC;
++		nn := n + PRODINC;
+ 		aprod := make([][]int, nn);
+ 		alevprd := make([]int, nn);
+ 		arlines := make([]int, nn);
+@@ -732,13 +732,13 @@ func defin(nt int, s string) int {
+ 			nontrst = anontrst;
+ 		}
+ 		nontrst[nnonter] = Symb{s, 0};
+-		return NTBASE+nnonter;
++		return NTBASE + nnonter;
+ 	}
+ 
+ 	// must be a token
+ 	ntokens++;
+ 	if ntokens >= len(tokset) {
+-		nn := ntokens+SYMINC;
++		nn := ntokens + SYMINC;
+ 		atokset := make([]Symb, nn);
+ 		atoklev := make([]int, nn);
+ 
+@@ -791,9 +791,9 @@ func defin(nt int, s string) int {
+ 				case c >= '0' && c <= '9':
+ 					c -= '0'
+ 				case c >= 'a' && c <= 'f':
+-					c -= 'a'-10
++					c -= 'a' - 10
+ 				case c >= 'A' && c <= 'F':
+-					c -= 'A'-10
++					c -= 'A' - 10
+ 				default:
+ 					error("illegal \\unnnn construction")
+ 				}
+@@ -928,7 +928,7 @@ func gettok() int {
+ 			if tokname == resrv[c].name {
+ 				if tokflag {
+ 					fmt.Printf(">>> %%%v %v %v\n", tokname,
+-						resrv[c].value - PRIVATE, lineno)
++						resrv[c].value-PRIVATE, lineno)
+ 				}
+ 				return resrv[c].value;
+ 			}
+@@ -936,7 +936,7 @@ func gettok() int {
+ 		error("invalid escape, or illegal reserved word: %v", tokname);
+ 
+ 	case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
+-		numbval = c-'0';
++		numbval = c - '0';
+ 		for {
+ 			c = getrune(finput);
+ 			if !isdigit(c) {
+@@ -1027,7 +1027,7 @@ func chfind(t int, s string) int {
+ 	}
+ 	for i := 0; i <= nnonter; i++ {
+ 		if s == nontrst[i].name {
+-			return NTBASE+i
++			return NTBASE + i
+ 		}
+ 	}
+ 
+@@ -1302,7 +1302,7 @@ loop:
+ 					c = getrune(finput);
+ 				}
+ 				ungetrune(finput, c);
+-				j = j*s;
++				j = j * s;
+ 				if j >= max {
+ 					error("Illegal use of $%v", j)
+ 				}
+@@ -1485,7 +1485,7 @@ func cpres() {
+ 	fatfl = 0;	// make undefined symbols nonfatal
+ 	for i := 0; i <= nnonter; i++ {
+ 		n := 0;
+-		c := i+NTBASE;
++		c := i + NTBASE;
+ 		for j := 0; j < nprod; j++ {
+ 			if prdptr[j][0] == c {
+ 				curres[n] = prdptr[j][1:len(prdptr[j])];
+@@ -1545,7 +1545,7 @@ more:
+ 			if pempty[prd[0]-NTBASE] != 0 {
+ 				continue
+ 			}
+-			np = len(prd)-1;
++			np = len(prd) - 1;
+ 			for p = 1; p < np; p++ {
+ 				if prd[p] >= NTBASE && pempty[prd[p]-NTBASE] == WHOKNOWS {
+ 					break
+@@ -1592,7 +1592,7 @@ again:
+ 			if pempty[prd[0]-NTBASE] != WHOKNOWS {
+ 				continue
+ 			}
+-			np = len(prd)-1;
++			np = len(prd) - 1;
+ 			for p = 1; p < np; p++ {
+ 				if prd[p] < NTBASE || pempty[prd[p]-NTBASE] != EMPTY {
+ 					continue next
+@@ -1636,7 +1636,7 @@ func cpfir() {
+ 		// initially fill the sets
+ 		for s = 0; s < n; s++ {
+ 			prd = curres[s];
+-			np = len(prd)-1;
++			np = len(prd) - 1;
+ 			for p = 0; p < np; p++ {
+ 				ch = prd[p];
+ 				if ch < NTBASE {
+@@ -1659,9 +1659,9 @@ func cpfir() {
+ 			n = len(curres);
+ 			for s = 0; s < n; s++ {
+ 				prd = curres[s];
+-				np = len(prd)-1;
++				np = len(prd) - 1;
+ 				for p = 0; p < np; p++ {
+-					ch = prd[p]-NTBASE;
++					ch = prd[p] - NTBASE;
+ 					if ch < 0 {
+ 						break
+ 					}
+@@ -1743,7 +1743,7 @@ func stagen() {
+ 
+ 				// do a goto on c
+ 				putitem(wsets[p].pitem, wsets[p].ws);
+-				for q := p+1; q < cwp; q++ {
++				for q := p + 1; q < cwp; q++ {
+ 					// this item contributes to the goto
+ 					if c == wsets[q].pitem.first {
+ 						putitem(wsets[q].pitem, wsets[q].ws);
+@@ -1928,7 +1928,7 @@ func state(c int) int {
+ 
+ 	// sort the items
+ 	var k, l int;
+-	for k = p1+1; k < p2; k++ {	// make k the biggest
++	for k = p1 + 1; k < p2; k++ {	// make k the biggest
+ 		for l = k; l > p1; l-- {
+ 			if statemem[l].pitem.prodno < statemem[l-1].pitem.prodno ||
+ 				statemem[l].pitem.prodno == statemem[l-1].pitem.prodno &&
+@@ -1942,7 +1942,7 @@ func state(c int) int {
+ 		}
+ 	}
+ 
+-	size1 := p2-p1;	// size of state
++	size1 := p2 - p1;	// size of state
+ 
+ 	var i int;
+ 	if c >= NTBASE {
+@@ -1956,7 +1956,7 @@ look:
+ 		// get ith state
+ 		q1 := pstate[i];
+ 		q2 := pstate[i+1];
+-		size2 := q2-q1;
++		size2 := q2 - q1;
+ 		if size1 != size2 {
+ 			continue
+ 		}
+@@ -2004,7 +2004,7 @@ look:
+ 	}
+ 	tystate[nstate] = MUSTDO;
+ 	nstate++;
+-	return nstate-1;
++	return nstate - 1;
+ }
+ 
+ func putitem(p Pitem, set Lkset) {
+@@ -2041,7 +2041,7 @@ func writem(pp Pitem) string {
+ 	var i int;
+ 
+ 	p := pp.prod;
+-	q := chcopy(nontrst[prdptr[pp.prodno][0]-NTBASE].name)+": ";
++	q := chcopy(nontrst[prdptr[pp.prodno][0]-NTBASE].name) + ": ";
+ 	npi := pp.off;
+ 
+ 	pi := aryeq(p, prdptr[pp.prodno]);
+@@ -2094,7 +2094,7 @@ func apack(p []int, n int) int {
+ 	p = p[pp : n+1];
+ 
+ 	// now, find a place for the elements from p to q, inclusive
+-	r := len(amem)-len(p);
++	r := len(amem) - len(p);
+ 
+ nextk:
+ 	for rr := 0; rr <= r; rr++ {
+@@ -2131,7 +2131,7 @@ nextk:
+ 				fmt.Fprintf(foutput, "\n");
+ 			}
+ 		}
+-		return off+rr;
++		return off + rr;
+ 	}
+ 	error("no space in action table");
+ 	return 0;
+@@ -2366,7 +2366,7 @@ func wrstate(i int) {
+ 	}
+ 	if tystate[i] == MUSTLOOKAHEAD {
+ 		// print out empty productions in closure
+-		for u = pstate[i+1]-pstate[i]; u < cwp; u++ {
++		for u = pstate[i+1] - pstate[i]; u < cwp; u++ {
+ 			if wsets[u].pitem.first < 0 {
+ 				fmt.Fprintf(foutput, "\t%v\n", writem(wsets[u].pitem))
+ 			}
+@@ -2447,14 +2447,14 @@ func go2out() {
+ 		}
+ 
+ 		// best is now the default entry
+-		zzgobest += times-1;
++		zzgobest += times - 1;
+ 		n := 0;
+ 		for j := 0; j < nstate; j++ {
+ 			if tystate[j] != 0 && tystate[j] != best {
+ 				n++
+ 			}
+ 		}
+-		goent := make([]int, 2*n + 1);
++		goent := make([]int, 2*n+1);
+ 		n = 0;
+ 		for j := 0; j < nstate; j++ {
+ 			if tystate[j] != 0 && tystate[j] != best {
+@@ -2491,10 +2491,10 @@ func go2gen(c int) {
+ 		work = 0;
+ 		for i = 0; i < nprod; i++ {
+ 			// cc is a nonterminal with a goto on c
+-			cc = prdptr[i][1]-NTBASE;
++			cc = prdptr[i][1] - NTBASE;
+ 			if cc >= 0 && temp1[cc] != 0 {
+ 				// thus, the left side of production i does too
+-				cc = prdptr[i][0]-NTBASE;
++				cc = prdptr[i][0] - NTBASE;
+ 				if temp1[cc] == 0 {
+ 					work = 1;
+ 					temp1[cc] = 1;
+@@ -2541,7 +2541,7 @@ func hideprod() {
+ 	nred := 0;
+ 	levprd[0] = 0;
+ 	for i := 1; i < nprod; i++ {
+-		if (levprd[i]&REDFLAG) == 0 {
++		if (levprd[i] & REDFLAG) == 0 {
+ 			if foutput != nil {
+ 				fmt.Fprintf(foutput, "Rule not reduced: %v\n",
+ 					writem(Pitem{prdptr[i], 0, 0, i}))
+@@ -2549,7 +2549,7 @@ func hideprod() {
+ 			fmt.Printf("rule %v never reduced\n", writem(Pitem{prdptr[i], 0, 0, i}));
+ 			nred++;
+ 		}
+-		levprd[i] = prdptr[i][0]-NTBASE;
++		levprd[i] = prdptr[i][0] - NTBASE;
+ 	}
+ 	if nred != 0 {
+ 		fmt.Printf("%v rules never reduced\n", nred)
+@@ -2600,7 +2600,7 @@ func callopt() {
+ 
+ 		// minimum entry index is always 0
+ 		v = yypgo[i];
+-		q = len(v)-1;
++		q = len(v) - 1;
+ 		for p = 0; p < q; p += 2 {
+ 			ggreed[i] += 2;
+ 			if v[p] > j {
+@@ -2681,7 +2681,7 @@ func gin(i int) {
+ 	ggreed[i] = 0;
+ 
+ 	q := yypgo[i];
+-	nq := len(q)-1;
++	nq := len(q) - 1;
+ 
+ 	// now, find amem place for it
+ nextgp:
+@@ -2690,7 +2690,7 @@ nextgp:
+ 			continue
+ 		}
+ 		for r := 0; r < nq; r += 2 {
+-			s = p+q[r]+1;
++			s = p + q[r] + 1;
+ 			if s > maxa {
+ 				maxa = s;
+ 				if maxa >= ACTSIZE {
+@@ -2708,7 +2708,7 @@ nextgp:
+ 			maxa = p
+ 		}
+ 		for r := 0; r < nq; r += 2 {
+-			s = p+q[r]+1;
++			s = p + q[r] + 1;
+ 			amem[s] = q[r+1];
+ 		}
+ 		pgo[i] = p;
+@@ -2734,7 +2734,7 @@ nextn:
+ 	for n := -maxoff; n < ACTSIZE; n++ {
+ 		flag := 0;
+ 		for r := 0; r < nq; r += 2 {
+-			s = q[r]+n;
++			s = q[r] + n;
+ 			if s < 0 || s > ACTSIZE {
+ 				continue nextn
+ 			}
+@@ -2771,7 +2771,7 @@ nextn:
+ 		}
+ 
+ 		for r := 0; r < nq; r += 2 {
+-			s = q[r]+n;
++			s = q[r] + n;
+ 			if s > maxa {
+ 				maxa = s
+ 			}
+@@ -2813,7 +2813,7 @@ func others() {
+ 	//yyr2 is the number of rules for each production
+ 	//
+ 	for i = 1; i < nprod; i++ {
+-		temp1[i] = len(prdptr[i])-2
++		temp1[i] = len(prdptr[i]) - 2
+ 	}
+ 	arout("YYR2", temp1, nprod);
+ 
+@@ -2928,7 +2928,7 @@ func summary() {
+ 		fmt.Fprintf(foutput, "%v shift/reduce, %v reduce/reduce conflicts reported\n", zzsrconf, zzrrconf);
+ 		fmt.Fprintf(foutput, "%v working sets used\n", len(wsets));
+ 		fmt.Fprintf(foutput, "memory: parser %v/%v\n", memp, ACTSIZE);
+-		fmt.Fprintf(foutput, "%v extra closures\n", zzclose - 2*nstate);
++		fmt.Fprintf(foutput, "%v extra closures\n", zzclose-2*nstate);
+ 		fmt.Fprintf(foutput, "%v shift entries, %v exceptions\n", zzacent, zzexcp);
+ 		fmt.Fprintf(foutput, "%v goto entries\n", zzgoent);
+ 		fmt.Fprintf(foutput, "%v entries saved by goto default\n", zzgobest);
+@@ -2976,11 +2976,11 @@ func chcopy(q string) string {
+ 	j := 0;
+ 	for i = 0; i < len(q); i++ {
+ 		if q[i] == '"' {
+-			s += q[j:i]+"\\";
++			s += q[j:i] + "\\";
+ 			j = i;
+ 		}
+ 	}
+-	return s+q[j:i];
++	return s + q[j:i];
+ }
+ 
+ func usage() {
+@@ -2988,9 +2988,9 @@ func usage() {
+ 	exit(1);
+ }
+ 
+-func bitset(set Lkset, bit int) int	{ return set[bit>>5]&(1<<uint(bit&31)) }
++func bitset(set Lkset, bit int) int	{ return set[bit>>5] & (1 << uint(bit&31)) }
+ 
+-func setbit(set Lkset, bit int)	{ set[bit>>5] |= (1<<uint(bit&31)) }
++func setbit(set Lkset, bit int)	{ set[bit>>5] |= (1 << uint(bit & 31)) }
+ 
+ func mkset() Lkset	{ return make([]int, tbitset) }
+ 
+@@ -3002,7 +3002,7 @@ func setunion(a, b []int) int {
+ 	sub := 0;
+ 	for i := 0; i < tbitset; i++ {
+ 		x := a[i];
+-		y := x|b[i];
++		y := x | b[i];
+ 		a[i] = y;
+ 		if y != x {
+ 			sub = 1
+@@ -3110,7 +3110,7 @@ func open(s string) *bufio.Reader {
+ }
+ 
+ func create(s string, m int) *bufio.Writer {
+-	fo, err := os.Open(s, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, m);
++	fo, err := os.Open(s, os.O_WRONLY|os.O_CREAT|os.O_TRUNC, m);
+ 	if err != nil {
+ 		error("error opening %v: %v", s, err)
+ 	}
+diff --git a/src/cmd/hgpatch/main.go b/src/cmd/hgpatch/main.go
+index 53dbfa1f5b..96b5ef4961 100644
+--- a/src/cmd/hgpatch/main.go
++++ b/src/cmd/hgpatch/main.go
+@@ -152,7 +152,7 @@ func main() {
+ 			changed[o.Dst] = 1;
+ 		}
+ 		if o.Mode != 0 {
+-			chk(os.Chmod(o.Dst, o.Mode & 0755));
++			chk(os.Chmod(o.Dst, o.Mode&0755));
+ 			undoRevert(o.Dst);
+ 			changed[o.Dst] = 1;
+ 		}
+@@ -211,7 +211,7 @@ func mkdirAll(path string, perm int) os.Error {
+ 	}
+ 
+ 	if j > 0 {
+-		err = mkdirAll(path[0 : j-1], perm);
++		err = mkdirAll(path[0:j-1], perm);
+ 		if err != nil {
+ 			return err
+ 		}
+diff --git a/src/pkg/archive/tar/common.go b/src/pkg/archive/tar/common.go
+index 74ab0177e1..adf8e3cd3c 100644
+--- a/src/pkg/archive/tar/common.go
++++ b/src/pkg/archive/tar/common.go
+@@ -55,8 +55,8 @@ func checksum(header []byte) (unsigned int64, signed int64) {
+ 	for i := 0; i < len(header); i++ {
+ 		if i == 148 {
+ 			// The chksum field (header[148:156]) is special: it should be treated as space bytes.
+-			unsigned += ' '*8;
+-			signed += ' '*8;
++			unsigned += ' ' * 8;
++			signed += ' ' * 8;
+ 			i += 7;
+ 			continue;
+ 		}
+diff --git a/src/pkg/archive/tar/reader.go b/src/pkg/archive/tar/reader.go
+index a10b913283..654b5b03d9 100644
+--- a/src/pkg/archive/tar/reader.go
++++ b/src/pkg/archive/tar/reader.go
+@@ -119,11 +119,11 @@ func (tr *Reader) readHeader() *Header {
+ 	}
+ 
+ 	// Two blocks of zero bytes marks the end of the archive.
+-	if bytes.Equal(header, zeroBlock[0 : blockSize]) {
++	if bytes.Equal(header, zeroBlock[0:blockSize]) {
+ 		if _, tr.err = io.ReadFull(tr.r, header); tr.err != nil {
+ 			return nil
+ 		}
+-		if !bytes.Equal(header, zeroBlock[0 : blockSize]) {
++		if !bytes.Equal(header, zeroBlock[0:blockSize]) {
+ 			tr.err = HeaderError
+ 		}
+ 		return nil;
+@@ -206,7 +206,7 @@ func (tr *Reader) readHeader() *Header {
+ // until Next is called to advance to the next entry.
+ func (tr *Reader) Read(b []uint8) (n int, err os.Error) {
+ 	if int64(len(b)) > tr.nb {
+-		b = b[0 : tr.nb]
++		b = b[0:tr.nb]
+ 	}
+ 	n, err = tr.r.Read(b);
+ 	tr.nb -= int64(n);
+diff --git a/src/pkg/archive/tar/writer.go b/src/pkg/archive/tar/writer.go
+index 16443fcc6b..3410aa86b1 100644
+--- a/src/pkg/archive/tar/writer.go
++++ b/src/pkg/archive/tar/writer.go
+@@ -85,7 +85,7 @@ func (tw *Writer) octal(b []byte, x int64) {
+ 	s := strconv.Itob64(x, 8);
+ 	// leading zeros, but leave room for a NUL.
+ 	for len(s)+1 < len(b) {
+-		s = "0"+s
++		s = "0" + s
+ 	}
+ 	tw.cString(b, s);
+ }
+@@ -100,7 +100,7 @@ func (tw *Writer) numeric(b []byte, x int64) {
+ 	}
+ 	// Too big: use binary (big-endian).
+ 	tw.usedBinary = true;
+-	for i := len(b)-1; x > 0 && i >= 0; i-- {
++	for i := len(b) - 1; x > 0 && i >= 0; i-- {
+ 		b[i] = byte(x);
+ 		x >>= 8;
+ 	}
+@@ -167,7 +167,7 @@ func (tw *Writer) WriteHeader(hdr *Header) os.Error {
+ func (tw *Writer) Write(b []uint8) (n int, err os.Error) {
+ 	overwrite := false;
+ 	if int64(len(b)) > tw.nb {
+-		b = b[0 : tw.nb];
++		b = b[0:tw.nb];
+ 		overwrite = true;
+ 	}
+ 	n, err = tw.w.Write(b);
+diff --git a/src/pkg/archive/tar/writer_test.go b/src/pkg/archive/tar/writer_test.go
+index 5edeaba078..6e2b78a578 100644
+--- a/src/pkg/archive/tar/writer_test.go
++++ b/src/pkg/archive/tar/writer_test.go
+@@ -68,7 +68,7 @@ var writerTests = []*writerTest{
+ 					Mode: 0640,
+ 					Uid: 73025,
+ 					Gid: 5000,
+-					Size: 16<<30,
++					Size: 16 << 30,
+ 					Mtime: 1254699560,
+ 					Typeflag: '0',
+ 					Uname: "dsymonds",
+diff --git a/src/pkg/asn1/asn1.go b/src/pkg/asn1/asn1.go
+index b787bd8249..bc045e31f9 100644
+--- a/src/pkg/asn1/asn1.go
++++ b/src/pkg/asn1/asn1.go
+@@ -106,9 +106,9 @@ func (b BitString) At(i int) int {
+ 	if i < 0 || i >= b.BitLength {
+ 		return 0
+ 	}
+-	x := i/8;
+-	y := 7-uint(i%8);
+-	return int(b.Bytes[x] >> y)&1;
++	x := i / 8;
++	y := 7 - uint(i%8);
++	return int(b.Bytes[x]>>y) & 1;
+ }
+ 
+ // parseBitString parses an ASN.1 bit string from the given byte array and returns it.
+@@ -148,8 +148,8 @@ func parseObjectIdentifier(bytes []byte) (s []int, err os.Error) {
+ 	s = make([]int, len(bytes)+1);
+ 
+ 	// The first byte is 40*value1 + value2:
+-	s[0] = int(bytes[0])/40;
+-	s[1] = int(bytes[0])%40;
++	s[0] = int(bytes[0]) / 40;
++	s[1] = int(bytes[0]) % 40;
+ 	i := 2;
+ 	for offset := 1; offset < len(bytes); i++ {
+ 		var v int;
+@@ -174,7 +174,7 @@ func parseBase128Int(bytes []byte, initOffset int) (ret, offset int, err os.Erro
+ 		}
+ 		ret <<= 7;
+ 		b := bytes[offset];
+-		ret |= int(b&0x7f);
++		ret |= int(b & 0x7f);
+ 		offset++;
+ 		if b&0x80 == 0 {
+ 			return
+@@ -225,9 +225,9 @@ func parseUTCTime(bytes []byte) (ret time.Time, err os.Error) {
+ 	// RFC 5280, section 5.1.2.4 says that years 2050 or later use another date
+ 	// scheme.
+ 	if year > 50 {
+-		ret.Year = 1900+int64(year)
++		ret.Year = 1900 + int64(year)
+ 	} else {
+-		ret.Year = 2000+int64(year)
++		ret.Year = 2000 + int64(year)
+ 	}
+ 	ret.Month, ok2 = twoDigits(bytes[2:4], 12);
+ 	ret.Day, ok3 = twoDigits(bytes[4:6], 31);
+@@ -270,7 +270,7 @@ func parseUTCTime(bytes []byte) (ret time.Time, err os.Error) {
+ 		if bytes[0] == '-' {
+ 			sign = -1
+ 		}
+-		ret.ZoneOffset = sign*(60*(hours*60 + minutes));
++		ret.ZoneOffset = sign * (60 * (hours*60 + minutes));
+ 	default:
+ 		goto Error
+ 	}
+@@ -374,9 +374,9 @@ func parseTagAndLength(bytes []byte, initOffset int) (ret tagAndLength, offset i
+ 	offset = initOffset;
+ 	b := bytes[offset];
+ 	offset++;
+-	ret.class = int(b>>6);
++	ret.class = int(b >> 6);
+ 	ret.isCompound = b&0x20 == 0x20;
+-	ret.tag = int(b&0x1f);
++	ret.tag = int(b & 0x1f);
+ 
+ 	// If the bottom five bits are set, then the tag number is actually base 128
+ 	// encoded afterwards
+@@ -394,10 +394,10 @@ func parseTagAndLength(bytes []byte, initOffset int) (ret tagAndLength, offset i
+ 	offset++;
+ 	if b&0x80 == 0 {
+ 		// The length is encoded in the bottom 7 bits.
+-		ret.length = int(b&0x7f)
++		ret.length = int(b & 0x7f)
+ 	} else {
+ 		// Bottom 7 bits give the number of length bytes to follow.
+-		numBytes := int(b&0x7f);
++		numBytes := int(b & 0x7f);
+ 		// We risk overflowing a signed 32-bit number if we accept more than 3 bytes.
+ 		if numBytes > 3 {
+ 			err = StructuralError{"length too large"};
+@@ -600,7 +600,7 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
+ 			err = SyntaxError{"data truncated"};
+ 			return;
+ 		}
+-		result := RawValue{t.class, t.tag, t.isCompound, bytes[offset : offset + t.length]};
++		result := RawValue{t.class, t.tag, t.isCompound, bytes[offset : offset+t.length]};
+ 		offset += t.length;
+ 		v.(*reflect.StructValue).Set(reflect.NewValue(result).(*reflect.StructValue));
+ 		return;
+@@ -620,7 +620,7 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
+ 		}
+ 		var result interface{}
+ 		if !t.isCompound && t.class == classUniversal {
+-			innerBytes := bytes[offset : offset + t.length];
++			innerBytes := bytes[offset : offset+t.length];
+ 			switch t.tag {
+ 			case tagPrintableString:
+ 				result, err = parsePrintableString(innerBytes)
+@@ -708,7 +708,7 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
+ 		err = SyntaxError{"data truncated"};
+ 		return;
+ 	}
+-	innerBytes := bytes[offset : offset + t.length];
++	innerBytes := bytes[offset : offset+t.length];
+ 
+ 	// We deal with the structures defined in this package first.
+ 	switch fieldType {
+diff --git a/src/pkg/big/arith.go b/src/pkg/big/arith.go
+index dfef4f6e37..8fb717e577 100644
+--- a/src/pkg/big/arith.go
++++ b/src/pkg/big/arith.go
+@@ -14,12 +14,12 @@ type Word uintptr
+ 
+ const (
+ 	_S	= uintptr(unsafe.Sizeof(Word(0)));	// TODO(gri) should Sizeof return a uintptr?
+-	_W	= _S*8;
+-	_B	= 1<<_W;
+-	_M	= _B-1;
+-	_W2	= _W/2;
+-	_B2	= 1<<_W2;
+-	_M2	= _B2-1;
++	_W	= _S * 8;
++	_B	= 1 << _W;
++	_M	= _B - 1;
++	_W2	= _W / 2;
++	_B2	= 1 << _W2;
++	_M2	= _B2 - 1;
+ )
+ 
+ 
+@@ -30,8 +30,8 @@ const (
+ 
+ // z1<<_W + z0 = x+y+c, with c == 0 or 1
+ func addWW_g(x, y, c Word) (z1, z0 Word) {
+-	yc := y+c;
+-	z0 = x+yc;
++	yc := y + c;
++	z0 = x + yc;
+ 	if z0 < x || yc < y {
+ 		z1 = 1
+ 	}
+@@ -41,8 +41,8 @@ func addWW_g(x, y, c Word) (z1, z0 Word) {
+ 
+ // z1<<_W + z0 = x-y-c, with c == 0 or 1
+ func subWW_g(x, y, c Word) (z1, z0 Word) {
+-	yc := y+c;
+-	z0 = x-yc;
++	yc := y + c;
++	z0 = x - yc;
+ 	if z0 > x || yc < y {
+ 		z1 = 1
+ 	}
+@@ -64,7 +64,7 @@ func mulWW_g(x, y Word) (z1, z0 Word) {
+ 		// y < _B2 because y <= x
+ 		// sub-digits of x and y are (0, x) and (0, y)
+ 		// z = z[0] = x*y
+-		z0 = x*y;
++		z0 = x * y;
+ 		return;
+ 	}
+ 
+@@ -75,13 +75,13 @@ func mulWW_g(x, y Word) (z1, z0 Word) {
+ 		x1, x0 := x>>_W2, x&_M2;
+ 
+ 		// x*y = t2*_B2*_B2 + t1*_B2 + t0
+-		t0 := x0*y;
+-		t1 := x1*y;
++		t0 := x0 * y;
++		t1 := x1 * y;
+ 
+ 		// compute result digits but avoid overflow
+ 		// z = z[1]*_B + z[0] = x*y
+ 		z0 = t1<<_W2 + t0;
+-		z1 = (t1 + t0>>_W2)>>_W2;
++		z1 = (t1 + t0>>_W2) >> _W2;
+ 		return;
+ 	}
+ 
+@@ -93,12 +93,12 @@ func mulWW_g(x, y Word) (z1, z0 Word) {
+ 	y1, y0 := y>>_W2, y&_M2;
+ 
+ 	// x*y = t2*_B2*_B2 + t1*_B2 + t0
+-	t0 := x0*y0;
++	t0 := x0 * y0;
+ 	// t1 := x1*y0 + x0*y1;
+ 	var c Word;
+-	t1 := x1*y0;
++	t1 := x1 * y0;
+ 	t1a := t1;
+-	t1 += x0*y1;
++	t1 += x0 * y1;
+ 	if t1 < t1a {
+ 		c++
+ 	}
+@@ -117,7 +117,7 @@ func mulWW_g(x, y Word) (z1, z0 Word) {
+ 		c3++
+ 	}
+ 	z1 >>= _W2;
+-	z1 += c3*_B2;
++	z1 += c3 * _B2;
+ 	z1 += t2;
+ 	return;
+ }
+@@ -147,7 +147,7 @@ func mulAddWWW_g(x, y, c Word) (z1, z0 Word) {
+ 	var c2 Word;	// extra carry
+ 	t1 := x1*y0 + c1;
+ 	t1a := t1;
+-	t1 += x0*y1;
++	t1 += x0 * y1;
+ 	if t1 < t1a {	// If the number got smaller then we overflowed.
+ 		c2++
+ 	}
+@@ -178,7 +178,7 @@ func mulAddWWW_g(x, y, c Word) (z1, z0 Word) {
+ func divStep(x1, x0, y Word) (q, r Word) {
+ 	d1, d0 := y>>_W2, y&_M2;
+ 	q1, r1 := x1/d1, x1%d1;
+-	m := q1*d0;
++	m := q1 * d0;
+ 	r1 = r1*_B2 | x0>>_W2;
+ 	if r1 < m {
+ 		q1--;
+@@ -190,9 +190,9 @@ func divStep(x1, x0, y Word) (q, r Word) {
+ 	}
+ 	r1 -= m;
+ 
+-	r0 := r1%d1;
+-	q0 := r1/d1;
+-	m = q0*d0;
++	r0 := r1 % d1;
++	q0 := r1 / d1;
++	m = q0 * d0;
+ 	r0 = r0*_B2 | x0&_M2;
+ 	if r0 < m {
+ 		q0--;
+@@ -235,7 +235,7 @@ func divWW_g(x1, x0, y Word) (q, r Word) {
+ 	if y > x1 {
+ 		if z != 0 {
+ 			y <<= z;
+-			x1 = (x1<<z)|(x0>>(uint(_W)-z));
++			x1 = (x1 << z) | (x0 >> (uint(_W) - z));
+ 			x0 <<= z;
+ 		}
+ 		q0, x0 = divStep(x1, x0, y);
+@@ -245,10 +245,10 @@ func divWW_g(x1, x0, y Word) (q, r Word) {
+ 			x1 -= y;
+ 			q1 = 1;
+ 		} else {
+-			z1 := uint(_W)-z;
++			z1 := uint(_W) - z;
+ 			y <<= z;
+-			x2 := x1>>z1;
+-			x1 = (x1<<z)|(x0>>z1);
++			x2 := x1 >> z1;
++			x1 = (x1 << z) | (x0 >> z1);
+ 			x0 <<= z;
+ 			q1, x1 = divStep(x2, x1, y);
+ 		}
+@@ -256,7 +256,7 @@ func divWW_g(x1, x0, y Word) (q, r Word) {
+ 		q0, x0 = divStep(x1, x0, y);
+ 	}
+ 
+-	r = x0>>z;
++	r = x0 >> z;
+ 
+ 	if q1 != 0 {
+ 		panic("div out of range")
+@@ -381,7 +381,7 @@ func addMulVVW_g(z, x *Word, y Word, n int) (c Word) {
+ func divWVW_s(z *Word, xn Word, x *Word, y Word, n int) (r Word)
+ func divWVW_g(z *Word, xn Word, x *Word, y Word, n int) (r Word) {
+ 	r = xn;
+-	for i := n-1; i >= 0; i-- {
++	for i := n - 1; i >= 0; i-- {
+ 		*z.at(i), r = divWW_g(r, *x.at(i), y)
+ 	}
+ 	return;
+diff --git a/src/pkg/big/arith_test.go b/src/pkg/big/arith_test.go
+index 205d51c0b1..41b91626a7 100644
+--- a/src/pkg/big/arith_test.go
++++ b/src/pkg/big/arith_test.go
+@@ -22,7 +22,7 @@ var sumWW = []argWW{
+ 	argWW{_M, 1, 0, 1, 0},
+ 	argWW{_M, 0, 1, 1, 0},
+ 	argWW{_M, 1, 1, 1, 1},
+-	argWW{_M, _M, 0, 1, _M-1},
++	argWW{_M, _M, 0, 1, _M - 1},
+ 	argWW{_M, _M, 1, 1, _M},
+ }
+ 
+@@ -72,9 +72,9 @@ var sumVV = []argVV{
+ 	argVV{[]Word{1}, []Word{1}, []Word{0}, 0},
+ 	argVV{[]Word{0}, []Word{_M}, []Word{1}, 1},
+ 	argVV{[]Word{80235}, []Word{12345}, []Word{67890}, 0},
+-	argVV{[]Word{_M-1}, []Word{_M}, []Word{_M}, 1},
++	argVV{[]Word{_M - 1}, []Word{_M}, []Word{_M}, 1},
+ 	argVV{[]Word{0, 0, 0, 0}, []Word{_M, _M, _M, _M}, []Word{1, 0, 0, 0}, 1},
+-	argVV{[]Word{0, 0, 0, _M}, []Word{_M, _M, _M, _M-1}, []Word{1, 0, 0, 0}, 0},
++	argVV{[]Word{0, 0, 0, _M}, []Word{_M, _M, _M, _M - 1}, []Word{1, 0, 0, 0}, 0},
+ 	argVV{[]Word{0, 0, 0, 0}, []Word{_M, 0, _M, 0}, []Word{1, _M, 0, _M}, 1},
+ }
+ 
+@@ -142,9 +142,9 @@ var prodVW = []argVW{
+ 	argVW{[]Word{0, 0, 0, 22793}, []Word{0, 0, 0, 991}, 23, 0},
+ 	argVW{[]Word{0, 0, 0, 0}, []Word{7893475, 7395495, 798547395, 68943}, 0, 0},
+ 	argVW{[]Word{0, 0, 0, 0}, []Word{0, 0, 0, 0}, 894375984, 0},
+-	argVW{[]Word{_M<<1&_M}, []Word{_M}, 1<<1, _M>>(_W-1)},
+-	argVW{[]Word{_M<<7&_M}, []Word{_M}, 1<<7, _M>>(_W-7)},
+-	argVW{[]Word{_M<<7&_M, _M, _M, _M}, []Word{_M, _M, _M, _M}, 1<<7, _M>>(_W-7)},
++	argVW{[]Word{_M << 1 & _M}, []Word{_M}, 1 << 1, _M >> (_W - 1)},
++	argVW{[]Word{_M << 7 & _M}, []Word{_M}, 1 << 7, _M >> (_W - 7)},
++	argVW{[]Word{_M << 7 & _M, _M, _M, _M}, []Word{_M, _M, _M, _M}, 1 << 7, _M >> (_W - 7)},
+ }
+ 
+ 
+@@ -202,12 +202,12 @@ var prodVWW = []argVWW{
+ 	argVWW{[]Word{991, 0, 0, 0}, []Word{7893475, 7395495, 798547395, 68943}, 0, 991, 0},
+ 	argVWW{[]Word{0, 0, 0, 0}, []Word{0, 0, 0, 0}, 894375984, 0, 0},
+ 	argVWW{[]Word{991, 0, 0, 0}, []Word{0, 0, 0, 0}, 894375984, 991, 0},
+-	argVWW{[]Word{_M<<1&_M}, []Word{_M}, 1<<1, 0, _M>>(_W-1)},
+-	argVWW{[]Word{_M<<1&_M + 1}, []Word{_M}, 1<<1, 1, _M>>(_W-1)},
+-	argVWW{[]Word{_M<<7&_M}, []Word{_M}, 1<<7, 0, _M>>(_W-7)},
+-	argVWW{[]Word{_M<<7&_M + 1<<6}, []Word{_M}, 1<<7, 1<<6, _M>>(_W-7)},
+-	argVWW{[]Word{_M<<7&_M, _M, _M, _M}, []Word{_M, _M, _M, _M}, 1<<7, 0, _M>>(_W-7)},
+-	argVWW{[]Word{_M<<7&_M + 1<<6, _M, _M, _M}, []Word{_M, _M, _M, _M}, 1<<7, 1<<6, _M>>(_W-7)},
++	argVWW{[]Word{_M << 1 & _M}, []Word{_M}, 1 << 1, 0, _M >> (_W - 1)},
++	argVWW{[]Word{_M<<1&_M + 1}, []Word{_M}, 1 << 1, 1, _M >> (_W - 1)},
++	argVWW{[]Word{_M << 7 & _M}, []Word{_M}, 1 << 7, 0, _M >> (_W - 7)},
++	argVWW{[]Word{_M<<7&_M + 1<<6}, []Word{_M}, 1 << 7, 1 << 6, _M >> (_W - 7)},
++	argVWW{[]Word{_M << 7 & _M, _M, _M, _M}, []Word{_M, _M, _M, _M}, 1 << 7, 0, _M >> (_W - 7)},
++	argVWW{[]Word{_M<<7&_M + 1<<6, _M, _M, _M}, []Word{_M, _M, _M, _M}, 1 << 7, 1 << 6, _M >> (_W - 7)},
+ }
+ 
+ 
+@@ -277,7 +277,7 @@ type mulWWTest struct {
+ 
+ 
+ var mulWWTests = []mulWWTest{
+-	mulWWTest{_M, _M, _M-1, 1},
++	mulWWTest{_M, _M, _M - 1, 1},
+ 	// 32 bit only: mulWWTest{0xc47dfa8c, 50911, 0x98a4, 0x998587f4},
+ }
+ 
+@@ -302,7 +302,7 @@ var mulAddWWWTests = []mulAddWWWTest{
+ 	// TODO(agl): These will only work on 64-bit platforms.
+ 	// mulAddWWWTest{15064310297182388543, 0xe7df04d2d35d5d80, 13537600649892366549, 13644450054494335067, 10832252001440893781},
+ 	// mulAddWWWTest{15064310297182388543, 0xdab2f18048baa68d, 13644450054494335067, 12869334219691522700, 14233854684711418382},
+-	mulAddWWWTest{_M, _M, 0, _M-1, 1},
++	mulAddWWWTest{_M, _M, 0, _M - 1, 1},
+ 	mulAddWWWTest{_M, _M, _M, _M, 0},
+ }
+ 
+diff --git a/src/pkg/big/int.go b/src/pkg/big/int.go
+index a92875bbdd..0a41022065 100644
+--- a/src/pkg/big/int.go
++++ b/src/pkg/big/int.go
+@@ -285,7 +285,7 @@ func (z *Int) Bytes() []byte {
+ 
+ 	for i, w := range z.abs {
+ 		wordBytes := b[(len(z.abs)-i-1)*s : (len(z.abs)-i)*s];
+-		for j := s-1; j >= 0; j-- {
++		for j := s - 1; j >= 0; j-- {
+ 			wordBytes[j] = byte(w);
+ 			w >>= 8;
+ 		}
+@@ -327,13 +327,13 @@ func (z *Int) Exp(x, y, m *Int) *Int {
+ 	shift := leadingZeros(v) + 1;
+ 	v <<= shift;
+ 
+-	const mask = 1<<(_W-1);
++	const mask = 1 << (_W - 1);
+ 
+ 	// We walk through the bits of the exponent one by one. Each time we see
+ 	// a bit, we square, thus doubling the power. If the bit is a one, we
+ 	// also multiply by x, thus adding one to the power.
+ 
+-	w := int(_W)-int(shift);
++	w := int(_W) - int(shift);
+ 	for j := 0; j < w; j++ {
+ 		z.Mul(z, z);
+ 
+@@ -348,7 +348,7 @@ func (z *Int) Exp(x, y, m *Int) *Int {
+ 		v <<= 1;
+ 	}
+ 
+-	for i := len(y.abs)-2; i >= 0; i-- {
++	for i := len(y.abs) - 2; i >= 0; i-- {
+ 		v = y.abs[i];
+ 
+ 		for j := 0; j < int(_W); j++ {
+@@ -366,7 +366,7 @@ func (z *Int) Exp(x, y, m *Int) *Int {
+ 		}
+ 	}
+ 
+-	z.neg = x.neg && y.abs[0] & 1 == 1;
++	z.neg = x.neg && y.abs[0]&1 == 1;
+ 	return z;
+ }
+ 
+diff --git a/src/pkg/big/int_test.go b/src/pkg/big/int_test.go
+index e5795232a5..ec8adb91f8 100644
+--- a/src/pkg/big/int_test.go
++++ b/src/pkg/big/int_test.go
+@@ -208,11 +208,11 @@ func checkSetBytes(b []byte) bool {
+ 	hex2 := hex.EncodeToString(b);
+ 
+ 	for len(hex1) < len(hex2) {
+-		hex1 = "0"+hex1
++		hex1 = "0" + hex1
+ 	}
+ 
+ 	for len(hex1) > len(hex2) {
+-		hex2 = "0"+hex2
++		hex2 = "0" + hex2
+ 	}
+ 
+ 	return hex1 == hex2;
+@@ -304,8 +304,8 @@ func TestDivStepD6(t *testing.T) {
+ 	// See Knuth, Volume 2, section 4.3.1, exercise 21. This code exercises
+ 	// a code path which only triggers 1 in 10^{-19} cases.
+ 
+-	u := &Int{false, []Word{0, 0, 1 + 1<<(_W-1), _M^(1<<(_W-1))}};
+-	v := &Int{false, []Word{5, 2 + 1<<(_W-1), 1<<(_W-1)}};
++	u := &Int{false, []Word{0, 0, 1 + 1<<(_W-1), _M ^ (1 << (_W - 1))}};
++	v := &Int{false, []Word{5, 2 + 1<<(_W-1), 1 << (_W - 1)}};
+ 
+ 	q, r := new(Int).Div(u, v);
+ 	const expectedQ64 = "18446744073709551613";
+diff --git a/src/pkg/big/nat.go b/src/pkg/big/nat.go
+index 4816273153..a795cd6267 100644
+--- a/src/pkg/big/nat.go
++++ b/src/pkg/big/nat.go
+@@ -84,7 +84,7 @@ func newN(z []Word, x uint64) []Word {
+ 	// split x into n words
+ 	z = makeN(z, n, false);
+ 	for i := 0; i < n; i++ {
+-		z[i] = Word(x&_M);
++		z[i] = Word(x & _M);
+ 		x >>= _W;
+ 	}
+ 
+@@ -174,7 +174,7 @@ func cmpNN(x, y []Word) (r int) {
+ 		return;
+ 	}
+ 
+-	i := m-1;
++	i := m - 1;
+ 	for i > 0 && x[i] == y[i] {
+ 		i--
+ 	}
+@@ -264,7 +264,7 @@ func divNW(z, x []Word, y Word) (q []Word, r Word) {
+ //    len(uIn) >= 1 + len(vIn)
+ func divNN(z, z2, uIn, v []Word) (q, r []Word) {
+ 	n := len(v);
+-	m := len(uIn)-len(v);
++	m := len(uIn) - len(v);
+ 
+ 	u := makeN(z2, len(uIn)+1, false);
+ 	qhatv := make([]Word, len(v)+1);
+@@ -274,7 +274,7 @@ func divNN(z, z2, uIn, v []Word) (q, r []Word) {
+ 	shift := leadingZeroBits(v[n-1]);
+ 	shiftLeft(v, v, shift);
+ 	shiftLeft(u, uIn, shift);
+-	u[len(uIn)] = uIn[len(uIn)-1]>>(uint(_W)-uint(shift));
++	u[len(uIn)] = uIn[len(uIn)-1] >> (uint(_W) - uint(shift));
+ 
+ 	// D2.
+ 	for j := m; j >= 0; j-- {
+@@ -325,7 +325,7 @@ func log2(x Word) int {
+ 	for ; x > 0; x >>= 1 {
+ 		n++
+ 	}
+-	return n-1;
++	return n - 1;
+ }
+ 
+ 
+@@ -345,11 +345,11 @@ func hexValue(ch byte) int {
+ 	var d byte;
+ 	switch {
+ 	case '0' <= ch && ch <= '9':
+-		d = ch-'0'
++		d = ch - '0'
+ 	case 'a' <= ch && ch <= 'f':
+-		d = ch-'a'+10
++		d = ch - 'a' + 10
+ 	case 'A' <= ch && ch <= 'F':
+-		d = ch-'A'+10
++		d = ch - 'A' + 10
+ 	default:
+ 		return -1
+ 	}
+@@ -438,13 +438,13 @@ func stringN(x []Word, base int) string {
+ func leadingZeroBits(x Word) int {
+ 	c := 0;
+ 	if x < 1<<(_W/2) {
+-		x <<= _W/2;
+-		c = int(_W/2);
++		x <<= _W / 2;
++		c = int(_W / 2);
+ 	}
+ 
+ 	for i := 0; x != 0; i++ {
+ 		if x&(1<<(_W-1)) != 0 {
+-			return i+c
++			return i + c
+ 		}
+ 		x <<= 1;
+ 	}
+@@ -458,12 +458,12 @@ func shiftLeft(dst, src []Word, n int) {
+ 		return
+ 	}
+ 
+-	ñ := uint(_W)-uint(n);
+-	for i := len(src)-1; i >= 1; i-- {
+-		dst[i] = src[i]<<uint(n);
+-		dst[i] |= src[i-1]>>ñ;
++	ñ := uint(_W) - uint(n);
++	for i := len(src) - 1; i >= 1; i-- {
++		dst[i] = src[i] << uint(n);
++		dst[i] |= src[i-1] >> ñ;
+ 	}
+-	dst[0] = src[0]<<uint(n);
++	dst[0] = src[0] << uint(n);
+ }
+ 
+ 
+@@ -472,12 +472,12 @@ func shiftRight(dst, src []Word, n int) {
+ 		return
+ 	}
+ 
+-	ñ := uint(_W)-uint(n);
++	ñ := uint(_W) - uint(n);
+ 	for i := 0; i < len(src)-1; i++ {
+-		dst[i] = src[i]>>uint(n);
+-		dst[i] |= src[i+1]<<ñ;
++		dst[i] = src[i] >> uint(n);
++		dst[i] |= src[i+1] << ñ;
+ 	}
+-	dst[len(src)-1] = src[len(src)-1]>>uint(n);
++	dst[len(src)-1] = src[len(src)-1] >> uint(n);
+ }
+ 
+ 
+diff --git a/src/pkg/big/nat_test.go b/src/pkg/big/nat_test.go
+index 1c8c293217..dbd015a61f 100644
+--- a/src/pkg/big/nat_test.go
++++ b/src/pkg/big/nat_test.go
+@@ -32,9 +32,9 @@ var prodNN = []argNN{
+ 	argNN{nil, nil, nil},
+ 	argNN{nil, []Word{991}, nil},
+ 	argNN{[]Word{991}, []Word{991}, []Word{1}},
+-	argNN{[]Word{991*991}, []Word{991}, []Word{991}},
+-	argNN{[]Word{0, 0, 991*991}, []Word{0, 991}, []Word{0, 991}},
+-	argNN{[]Word{1*991, 2*991, 3*991, 4*991}, []Word{1, 2, 3, 4}, []Word{991}},
++	argNN{[]Word{991 * 991}, []Word{991}, []Word{991}},
++	argNN{[]Word{0, 0, 991 * 991}, []Word{0, 991}, []Word{0, 991}},
++	argNN{[]Word{1 * 991, 2 * 991, 3 * 991, 4 * 991}, []Word{1, 2, 3, 4}, []Word{991}},
+ 	argNN{[]Word{4, 11, 20, 30, 20, 11, 4}, []Word{1, 2, 3, 4}, []Word{4, 3, 2, 1}},
+ }
+ 
+@@ -119,7 +119,7 @@ func TestStringN(t *testing.T) {
+ 
+ 
+ func TestLeadingZeroBits(t *testing.T) {
+-	var x Word = 1<<(_W-1);
++	var x Word = 1 << (_W - 1);
+ 	for i := 0; i <= int(_W); i++ {
+ 		if leadingZeroBits(x) != i {
+ 			t.Errorf("failed at %x: got %d want %d", x, leadingZeroBits(x), i)
+@@ -142,8 +142,8 @@ var leftShiftTests = []shiftTest{
+ 	shiftTest{[]Word{0}, 0, []Word{0}},
+ 	shiftTest{[]Word{1}, 0, []Word{1}},
+ 	shiftTest{[]Word{1}, 1, []Word{2}},
+-	shiftTest{[]Word{1<<(_W-1)}, 1, []Word{0}},
+-	shiftTest{[]Word{1<<(_W-1), 0}, 1, []Word{0, 1}},
++	shiftTest{[]Word{1 << (_W - 1)}, 1, []Word{0}},
++	shiftTest{[]Word{1 << (_W - 1), 0}, 1, []Word{0, 1}},
+ }
+ 
+ 
+@@ -168,8 +168,8 @@ var rightShiftTests = []shiftTest{
+ 	shiftTest{[]Word{1}, 0, []Word{1}},
+ 	shiftTest{[]Word{1}, 1, []Word{0}},
+ 	shiftTest{[]Word{2}, 1, []Word{1}},
+-	shiftTest{[]Word{0, 1}, 1, []Word{1<<(_W-1), 0}},
+-	shiftTest{[]Word{2, 1, 1}, 1, []Word{1<<(_W-1) + 1, 1<<(_W-1), 0}},
++	shiftTest{[]Word{0, 1}, 1, []Word{1 << (_W - 1), 0}},
++	shiftTest{[]Word{2, 1, 1}, 1, []Word{1<<(_W-1) + 1, 1 << (_W - 1), 0}},
+ }
+ 
+ 
+diff --git a/src/pkg/bignum/arith.go b/src/pkg/bignum/arith.go
+index 068416729b..243e34b9cd 100644
+--- a/src/pkg/bignum/arith.go
++++ b/src/pkg/bignum/arith.go
+@@ -18,10 +18,10 @@ func Mul128(x, y uint64) (z1, z0 uint64) {
+ 	// and return the product as 2 words.
+ 
+ 	const (
+-		W	= uint(unsafe.Sizeof(x))*8;
+-		W2	= W/2;
+-		B2	= 1<<W2;
+-		M2	= B2-1;
++		W	= uint(unsafe.Sizeof(x)) * 8;
++		W2	= W / 2;
++		B2	= 1 << W2;
++		M2	= B2 - 1;
+ 	)
+ 
+ 	if x < y {
+@@ -32,7 +32,7 @@ func Mul128(x, y uint64) (z1, z0 uint64) {
+ 		// y < B2 because y <= x
+ 		// sub-digits of x and y are (0, x) and (0, y)
+ 		// z = z[0] = x*y
+-		z0 = x*y;
++		z0 = x * y;
+ 		return;
+ 	}
+ 
+@@ -43,13 +43,13 @@ func Mul128(x, y uint64) (z1, z0 uint64) {
+ 		x1, x0 := x>>W2, x&M2;
+ 
+ 		// x*y = t2*B2*B2 + t1*B2 + t0
+-		t0 := x0*y;
+-		t1 := x1*y;
++		t0 := x0 * y;
++		t1 := x1 * y;
+ 
+ 		// compute result digits but avoid overflow
+ 		// z = z[1]*B + z[0] = x*y
+ 		z0 = t1<<W2 + t0;
+-		z1 = (t1 + t0>>W2)>>W2;
++		z1 = (t1 + t0>>W2) >> W2;
+ 		return;
+ 	}
+ 
+@@ -61,14 +61,14 @@ func Mul128(x, y uint64) (z1, z0 uint64) {
+ 	y1, y0 := y>>W2, y&M2;
+ 
+ 	// x*y = t2*B2*B2 + t1*B2 + t0
+-	t0 := x0*y0;
++	t0 := x0 * y0;
+ 	t1 := x1*y0 + x0*y1;
+-	t2 := x1*y1;
++	t2 := x1 * y1;
+ 
+ 	// compute result digits but avoid overflow
+ 	// z = z[1]*B + z[0] = x*y
+ 	z0 = t1<<W2 + t0;
+-	z1 = t2 + (t1 + t0>>W2)>>W2;
++	z1 = t2 + (t1+t0>>W2)>>W2;
+ 	return;
+ }
+ 
+@@ -80,10 +80,10 @@ func MulAdd128(x, y, c uint64) (z1, z0 uint64) {
+ 	// and return the product as 2 words.
+ 
+ 	const (
+-		W	= uint(unsafe.Sizeof(x))*8;
+-		W2	= W/2;
+-		B2	= 1<<W2;
+-		M2	= B2-1;
++		W	= uint(unsafe.Sizeof(x)) * 8;
++		W2	= W / 2;
++		B2	= 1 << W2;
++		M2	= B2 - 1;
+ 	)
+ 
+ 	// TODO(gri) Should implement special cases for faster execution.
+@@ -99,12 +99,12 @@ func MulAdd128(x, y, c uint64) (z1, z0 uint64) {
+ 	// x*y + c = t2*B2*B2 + t1*B2 + t0
+ 	t0 := x0*y0 + c0;
+ 	t1 := x1*y0 + x0*y1 + c1;
+-	t2 := x1*y1;
++	t2 := x1 * y1;
+ 
+ 	// compute result digits but avoid overflow
+ 	// z = z[1]*B + z[0] = x*y
+ 	z0 = t1<<W2 + t0;
+-	z1 = t2 + (t1 + t0>>W2)>>W2;
++	z1 = t2 + (t1+t0>>W2)>>W2;
+ 	return;
+ }
+ 
+diff --git a/src/pkg/bignum/bignum.go b/src/pkg/bignum/bignum.go
+index bb7fb68f05..a85e1d2b9c 100755
+--- a/src/pkg/bignum/bignum.go
++++ b/src/pkg/bignum/bignum.go
+@@ -64,17 +64,17 @@ type (
+ const (
+ 	logW	= 64;		// word width
+ 	logH	= 4;		// bits for a hex digit (= small number)
+-	logB	= logW-logH;	// largest bit-width available
++	logB	= logW - logH;	// largest bit-width available
+ 
+ 	// half-digits
+-	_W2	= logB/2;	// width
+-	_B2	= 1<<_W2;	// base
+-	_M2	= _B2-1;	// mask
++	_W2	= logB / 2;	// width
++	_B2	= 1 << _W2;	// base
++	_M2	= _B2 - 1;	// mask
+ 
+ 	// full digits
+-	_W	= _W2*2;	// width
+-	_B	= 1<<_W;	// base
+-	_M	= _B-1;		// mask
++	_W	= _W2 * 2;	// width
++	_B	= 1 << _W;	// base
++	_M	= _B - 1;	// mask
+ )
+ 
+ 
+@@ -136,7 +136,7 @@ func Nat(x uint64) Natural {
+ 	// split x into digits
+ 	z := make(Natural, n);
+ 	for i := 0; i < n; i++ {
+-		z[i] = digit(x&_M);
++		z[i] = digit(x & _M);
+ 		x >>= _W;
+ 	}
+ 
+@@ -162,7 +162,7 @@ func (x Natural) Value() uint64 {
+ 	z := uint64(0);
+ 	s := uint(0);
+ 	for i := 0; i < n && s < 64; i++ {
+-		z += uint64(x[i])<<s;
++		z += uint64(x[i]) << s;
+ 		s += _W;
+ 	}
+ 
+@@ -236,12 +236,12 @@ func Nadd(zp *Natural, x, y Natural) {
+ 	c := digit(0);
+ 	i := 0;
+ 	for i < m {
+-		t := c+x[i]+y[i];
++		t := c + x[i] + y[i];
+ 		c, z[i] = t>>_W, t&_M;
+ 		i++;
+ 	}
+ 	for i < n {
+-		t := c+x[i];
++		t := c + x[i];
+ 		c, z[i] = t>>_W, t&_M;
+ 		i++;
+ 	}
+@@ -277,12 +277,12 @@ func Nsub(zp *Natural, x, y Natural) {
+ 	c := digit(0);
+ 	i := 0;
+ 	for i < m {
+-		t := c+x[i]-y[i];
++		t := c + x[i] - y[i];
+ 		c, z[i] = digit(int64(t)>>_W), t&_M;	// requires arithmetic shift!
+ 		i++;
+ 	}
+ 	for i < n {
+-		t := c+x[i];
++		t := c + x[i];
+ 		c, z[i] = digit(int64(t)>>_W), t&_M;	// requires arithmetic shift!
+ 		i++;
+ 	}
+@@ -307,7 +307,7 @@ func (x Natural) Sub(y Natural) Natural {
+ //
+ func muladd11(x, y, c digit) (digit, digit) {
+ 	z1, z0 := MulAdd128(uint64(x), uint64(y), uint64(c));
+-	return digit(z1<<(64-logB) | z0>>logB), digit(z0&_M);
++	return digit(z1<<(64-logB) | z0>>logB), digit(z0 & _M);
+ }
+ 
+ 
+@@ -429,15 +429,15 @@ func (x Natural) Mul(y Natural) Natural {
+ 
+ func unpack(x Natural) []digit2 {
+ 	n := len(x);
+-	z := make([]digit2, n*2 + 1);	// add space for extra digit (used by DivMod)
++	z := make([]digit2, n*2+1);	// add space for extra digit (used by DivMod)
+ 	for i := 0; i < n; i++ {
+ 		t := x[i];
+-		z[i*2] = digit2(t&_M2);
+-		z[i*2 + 1] = digit2(t>>_W2&_M2);
++		z[i*2] = digit2(t & _M2);
++		z[i*2+1] = digit2(t >> _W2 & _M2);
+ 	}
+ 
+ 	// normalize result
+-	k := 2*n;
++	k := 2 * n;
+ 	for k > 0 && z[k-1] == 0 {
+ 		k--
+ 	}
+@@ -446,7 +446,7 @@ func unpack(x Natural) []digit2 {
+ 
+ 
+ func pack(x []digit2) Natural {
+-	n := (len(x)+1)/2;
++	n := (len(x) + 1) / 2;
+ 	z := make(Natural, n);
+ 	if len(x)&1 == 1 {
+ 		// handle odd len(x)
+@@ -454,7 +454,7 @@ func pack(x []digit2) Natural {
+ 		z[n] = digit(x[n*2]);
+ 	}
+ 	for i := 0; i < n; i++ {
+-		z[i] = digit(x[i*2 + 1])<<_W2 | digit(x[i*2])
++		z[i] = digit(x[i*2+1])<<_W2 | digit(x[i*2])
+ 	}
+ 	return normalize(z);
+ }
+@@ -474,7 +474,7 @@ func mul21(z, x []digit2, y digit2) digit2 {
+ func div21(z, x []digit2, y digit2) digit2 {
+ 	c := digit(0);
+ 	d := digit(y);
+-	for i := len(x)-1; i >= 0; i-- {
++	for i := len(x) - 1; i >= 0; i-- {
+ 		t := c<<_W2 + digit(x[i]);
+ 		c, z[i] = t%d, digit2(t/d);
+ 	}
+@@ -515,7 +515,7 @@ func divmod(x, y []digit2) ([]digit2, []digit2) {
+ 	if m == 1 {
+ 		// division by single digit
+ 		// result is shifted left by 1 in place!
+-		x[0] = div21(x[1 : n+1], x[0:n], y[0])
++		x[0] = div21(x[1:n+1], x[0:n], y[0])
+ 
+ 	} else if m > n {
+ 		// y > x => quotient = 0, remainder = x
+@@ -530,7 +530,7 @@ func divmod(x, y []digit2) ([]digit2, []digit2) {
+ 		// TODO Instead of multiplying, it would be sufficient to
+ 		//      shift y such that the normalization condition is
+ 		//      satisfied (as done in Hacker's Delight).
+-		f := _B2/(digit(y[m-1])+1);
++		f := _B2 / (digit(y[m-1]) + 1);
+ 		if f != 1 {
+ 			mul21(x, x, digit2(f));
+ 			mul21(y, y, digit2(f));
+@@ -538,19 +538,19 @@ func divmod(x, y []digit2) ([]digit2, []digit2) {
+ 		assert(_B2/2 <= y[m-1] && y[m-1] < _B2);	// incorrect scaling
+ 
+ 		y1, y2 := digit(y[m-1]), digit(y[m-2]);
+-		for i := n-m; i >= 0; i-- {
+-			k := i+m;
++		for i := n - m; i >= 0; i-- {
++			k := i + m;
+ 
+ 			// compute trial digit (Knuth)
+ 			var q digit;
+ 			{
+ 				x0, x1, x2 := digit(x[k]), digit(x[k-1]), digit(x[k-2]);
+ 				if x0 != y1 {
+-					q = (x0<<_W2 + x1)/y1
++					q = (x0<<_W2 + x1) / y1
+ 				} else {
+-					q = _B2-1
++					q = _B2 - 1
+ 				}
+-				for y2*q > (x0<<_W2 + x1 - y1*q)<<_W2 + x2 {
++				for y2*q > (x0<<_W2+x1-y1*q)<<_W2+x2 {
+ 					q--
+ 				}
+ 			}
+@@ -567,7 +567,7 @@ func divmod(x, y []digit2) ([]digit2, []digit2) {
+ 				// add y
+ 				c := digit(0);
+ 				for j := 0; j < m; j++ {
+-					t := c+digit(x[i+j])+digit(y[j]);
++					t := c + digit(x[i+j]) + digit(y[j]);
+ 					c, x[i+j] = t>>_W2, digit2(t&_M2);
+ 				}
+ 				assert(c+digit(x[k]) == 0);
+@@ -623,7 +623,7 @@ func shl(z, x Natural, s uint) digit {
+ 	n := len(x);
+ 	c := digit(0);
+ 	for i := 0; i < n; i++ {
+-		c, z[i] = x[i]>>(_W-s), x[i]<<s&_M | c
++		c, z[i] = x[i]>>(_W-s), x[i]<<s&_M|c
+ 	}
+ 	return c;
+ }
+@@ -636,7 +636,7 @@ func (x Natural) Shl(s uint) Natural {
+ 	m := n + s/_W;
+ 	z := make(Natural, m+1);
+ 
+-	z[m] = shl(z[m-n : m], x, s%_W);
++	z[m] = shl(z[m-n:m], x, s%_W);
+ 
+ 	return normalize(z);
+ }
+@@ -646,8 +646,8 @@ func shr(z, x Natural, s uint) digit {
+ 	assert(s <= _W);
+ 	n := len(x);
+ 	c := digit(0);
+-	for i := n-1; i >= 0; i-- {
+-		c, z[i] = x[i]<<(_W-s)&_M, x[i]>>s | c
++	for i := n - 1; i >= 0; i-- {
++		c, z[i] = x[i]<<(_W-s)&_M, x[i]>>s|c
+ 	}
+ 	return c;
+ }
+@@ -663,7 +663,7 @@ func (x Natural) Shr(s uint) Natural {
+ 	}
+ 	z := make(Natural, m);
+ 
+-	shr(z, x[n-m : n], s%_W);
++	shr(z, x[n-m:n], s%_W);
+ 
+ 	return normalize(z);
+ }
+@@ -680,7 +680,7 @@ func (x Natural) And(y Natural) Natural {
+ 
+ 	z := make(Natural, m);
+ 	for i := 0; i < m; i++ {
+-		z[i] = x[i]&y[i]
++		z[i] = x[i] & y[i]
+ 	}
+ 	// upper bits are 0
+ 
+@@ -706,7 +706,7 @@ func (x Natural) AndNot(y Natural) Natural {
+ 
+ 	z := make(Natural, n);
+ 	for i := 0; i < m; i++ {
+-		z[i] = x[i]&^y[i]
++		z[i] = x[i] &^ y[i]
+ 	}
+ 	copy(z[m:n], x[m:n]);
+ 
+@@ -725,7 +725,7 @@ func (x Natural) Or(y Natural) Natural {
+ 
+ 	z := make(Natural, n);
+ 	for i := 0; i < m; i++ {
+-		z[i] = x[i]|y[i]
++		z[i] = x[i] | y[i]
+ 	}
+ 	copy(z[m:n], x[m:n]);
+ 
+@@ -744,7 +744,7 @@ func (x Natural) Xor(y Natural) Natural {
+ 
+ 	z := make(Natural, n);
+ 	for i := 0; i < m; i++ {
+-		z[i] = x[i]^y[i]
++		z[i] = x[i] ^ y[i]
+ 	}
+ 	copy(z[m:n], x[m:n]);
+ 
+@@ -763,10 +763,10 @@ func (x Natural) Cmp(y Natural) int {
+ 	m := len(y);
+ 
+ 	if n != m || n == 0 {
+-		return n-m
++		return n - m
+ 	}
+ 
+-	i := n-1;
++	i := n - 1;
+ 	for i > 0 && x[i] == y[i] {
+ 		i--
+ 	}
+@@ -794,7 +794,7 @@ func log2(x uint64) uint {
+ 		x >>= 1;
+ 		n++;
+ 	}
+-	return n-1;
++	return n - 1;
+ }
+ 
+ 
+@@ -818,7 +818,7 @@ func divmod1(x Natural, d digit) (Natural, digit) {
+ 	assert(0 < d && isSmall(d-1));
+ 
+ 	c := digit(0);
+-	for i := len(x)-1; i >= 0; i-- {
++	for i := len(x) - 1; i >= 0; i-- {
+ 		t := c<<_W + x[i];
+ 		c, x[i] = t%d, t/d;
+ 	}
+@@ -836,7 +836,7 @@ func (x Natural) ToString(base uint) string {
+ 
+ 	// allocate buffer for conversion
+ 	assert(2 <= base && base <= 16);
+-	n := (x.Log2() + 1)/log2(uint64(base)) + 1;	// +1: round up
++	n := (x.Log2()+1)/log2(uint64(base)) + 1;	// +1: round up
+ 	s := make([]byte, n);
+ 
+ 	// don't destroy x
+@@ -882,14 +882,14 @@ func (x Natural) Format(h fmt.State, c int)	{ fmt.Fprintf(h, "%s", x.ToString(fm
+ 
+ 
+ func hexvalue(ch byte) uint {
+-	d := uint(1<<logH);
++	d := uint(1 << logH);
+ 	switch {
+ 	case '0' <= ch && ch <= '9':
+-		d = uint(ch-'0')
++		d = uint(ch - '0')
+ 	case 'a' <= ch && ch <= 'f':
+-		d = uint(ch-'a')+10
++		d = uint(ch-'a') + 10
+ 	case 'A' <= ch && ch <= 'F':
+-		d = uint(ch-'A')+10
++		d = uint(ch-'A') + 10
+ 	}
+ 	return d;
+ }
+@@ -940,7 +940,7 @@ func NatFromString(s string, base uint) (Natural, uint, int) {
+ func pop1(x digit) uint {
+ 	n := uint(0);
+ 	for x != 0 {
+-		x &= x-1;
++		x &= x - 1;
+ 		n++;
+ 	}
+ 	return n;
+@@ -951,7 +951,7 @@ func pop1(x digit) uint {
+ //
+ func (x Natural) Pop() uint {
+ 	n := uint(0);
+-	for i := len(x)-1; i >= 0; i-- {
++	for i := len(x) - 1; i >= 0; i-- {
+ 		n += pop1(x[i])
+ 	}
+ 	return n;
+@@ -986,7 +986,7 @@ func MulRange(a, b uint) Natural {
+ 	case a+1 == b:
+ 		return Nat(uint64(a)).Mul(Nat(uint64(b)))
+ 	}
+-	m := (a+b)>>1;
++	m := (a + b) >> 1;
+ 	assert(a <= m && m < b);
+ 	return MulRange(a, m).Mul(MulRange(m+1, b));
+ }
+diff --git a/src/pkg/bignum/bignum_test.go b/src/pkg/bignum/bignum_test.go
+index b62fbf4859..35539b879c 100644
+--- a/src/pkg/bignum/bignum_test.go
++++ b/src/pkg/bignum/bignum_test.go
+@@ -138,9 +138,9 @@ func TestNatConv(t *testing.T) {
+ 	var slen int;
+ 	nat_eq(10, natFromString("0", 0, nil), nat_zero);
+ 	nat_eq(11, natFromString("123", 0, nil), Nat(123));
+-	nat_eq(12, natFromString("077", 0, nil), Nat(7*8 + 7));
+-	nat_eq(13, natFromString("0x1f", 0, nil), Nat(1*16 + 15));
+-	nat_eq(14, natFromString("0x1fg", 0, &slen), Nat(1*16 + 15));
++	nat_eq(12, natFromString("077", 0, nil), Nat(7*8+7));
++	nat_eq(13, natFromString("0x1f", 0, nil), Nat(1*16+15));
++	nat_eq(14, natFromString("0x1fg", 0, &slen), Nat(1*16+15));
+ 	test(4, slen == 4);
+ 
+ 	test_msg = "NatConvF";
+@@ -194,14 +194,14 @@ func TestIntConv(t *testing.T) {
+ 	int_eq(1, intFromString("-0", 0, nil), int_zero);
+ 	int_eq(2, intFromString("123", 0, nil), Int(123));
+ 	int_eq(3, intFromString("-123", 0, nil), Int(-123));
+-	int_eq(4, intFromString("077", 0, nil), Int(7*8 + 7));
++	int_eq(4, intFromString("077", 0, nil), Int(7*8+7));
+ 	int_eq(5, intFromString("-077", 0, nil), Int(-(7*8 + 7)));
+-	int_eq(6, intFromString("0x1f", 0, nil), Int(1*16 + 15));
++	int_eq(6, intFromString("0x1f", 0, nil), Int(1*16+15));
+ 	int_eq(7, intFromString("-0x1f", 0, &slen), Int(-(1*16 + 15)));
+ 	test(7, slen == 5);
+ 	int_eq(8, intFromString("+0x1f", 0, &slen), Int(+(1*16 + 15)));
+ 	test(8, slen == 5);
+-	int_eq(9, intFromString("0x1fg", 0, &slen), Int(1*16 + 15));
++	int_eq(9, intFromString("0x1fg", 0, &slen), Int(1*16+15));
+ 	test(9, slen == 4);
+ 	int_eq(10, intFromString("-0x1fg", 0, &slen), Int(-(1*16 + 15)));
+ 	test(10, slen == 5);
+@@ -355,10 +355,10 @@ func TestIntQuoRem(t *testing.T) {
+ 		x, y := Int(e.x).Mul(ip), Int(e.y).Mul(ip);
+ 		q, r := Int(e.q), Int(e.r).Mul(ip);
+ 		qq, rr := x.QuoRem(y);
+-		int_eq(4*i + 0, x.Quo(y), q);
+-		int_eq(4*i + 1, x.Rem(y), r);
+-		int_eq(4*i + 2, qq, q);
+-		int_eq(4*i + 3, rr, r);
++		int_eq(4*i+0, x.Quo(y), q);
++		int_eq(4*i+1, x.Rem(y), r);
++		int_eq(4*i+2, qq, q);
++		int_eq(4*i+3, rr, r);
+ 	}
+ }
+ 
+@@ -384,10 +384,10 @@ func TestIntDivMod(t *testing.T) {
+ 		x, y := Int(e.x).Mul(ip), Int(e.y).Mul(ip);
+ 		q, r := Int(e.q), Int(e.r).Mul(ip);
+ 		qq, rr := x.DivMod(y);
+-		int_eq(4*i + 0, x.Div(y), q);
+-		int_eq(4*i + 1, x.Mod(y), r);
+-		int_eq(4*i + 2, qq, q);
+-		int_eq(4*i + 3, rr, r);
++		int_eq(4*i+0, x.Div(y), q);
++		int_eq(4*i+1, x.Mod(y), r);
++		int_eq(4*i+2, qq, q);
++		int_eq(4*i+3, rr, r);
+ 	}
+ }
+ 
+@@ -427,7 +427,7 @@ func TestNatShift(t *testing.T) {
+ 	{
+ 		const m = 3;
+ 		p := b;
+-		f := Nat(1<<m);
++		f := Nat(1 << m);
+ 		for i := uint(0); i < 100; i++ {
+ 			nat_eq(i, b.Shl(i*m), p);
+ 			p = mul(p, f);
+@@ -464,7 +464,7 @@ func TestIntShift(t *testing.T) {
+ 	{
+ 		const m = 3;
+ 		p := ip;
+-		f := Int(1<<m);
++		f := Int(1 << m);
+ 		for i := uint(0); i < 100; i++ {
+ 			int_eq(i, ip.Shl(i*m), p);
+ 			p = p.Mul(f);
+@@ -481,7 +481,7 @@ func TestIntShift(t *testing.T) {
+ 	}
+ 
+ 	test_msg = "IntShift4R";
+-	int_eq(0, Int(-43).Shr(1), Int(-43 >> 1));
++	int_eq(0, Int(-43).Shr(1), Int(-43>>1));
+ 	int_eq(0, Int(-1024).Shr(100), Int(-1));
+ 	int_eq(1, ip.Neg().Shr(10), ip.Neg().Div(Int(1).Shl(10)));
+ }
+@@ -497,25 +497,25 @@ func TestNatBitOps(t *testing.T) {
+ 	by := Nat(y);
+ 
+ 	test_msg = "NatAnd";
+-	bz := Nat(x&y);
++	bz := Nat(x & y);
+ 	for i := uint(0); i < 100; i++ {
+ 		nat_eq(i, bx.Shl(i).And(by.Shl(i)), bz.Shl(i))
+ 	}
+ 
+ 	test_msg = "NatAndNot";
+-	bz = Nat(x&^y);
++	bz = Nat(x &^ y);
+ 	for i := uint(0); i < 100; i++ {
+ 		nat_eq(i, bx.Shl(i).AndNot(by.Shl(i)), bz.Shl(i))
+ 	}
+ 
+ 	test_msg = "NatOr";
+-	bz = Nat(x|y);
++	bz = Nat(x | y);
+ 	for i := uint(0); i < 100; i++ {
+ 		nat_eq(i, bx.Shl(i).Or(by.Shl(i)), bz.Shl(i))
+ 	}
+ 
+ 	test_msg = "NatXor";
+-	bz = Nat(x^y);
++	bz = Nat(x ^ y);
+ 	for i := uint(0); i < 100; i++ {
+ 		nat_eq(i, bx.Shl(i).Xor(by.Shl(i)), bz.Shl(i))
+ 	}
+@@ -536,10 +536,10 @@ func TestIntBitOps1(t *testing.T) {
+ 	};
+ 	for i := uint(0); i < uint(len(a)); i++ {
+ 		e := &a[i];
+-		int_eq(4*i + 0, Int(e.x).And(Int(e.y)), Int(e.x & e.y));
+-		int_eq(4*i + 1, Int(e.x).AndNot(Int(e.y)), Int(e.x &^ e.y));
+-		int_eq(4*i + 2, Int(e.x).Or(Int(e.y)), Int(e.x | e.y));
+-		int_eq(4*i + 3, Int(e.x).Xor(Int(e.y)), Int(e.x ^ e.y));
++		int_eq(4*i+0, Int(e.x).And(Int(e.y)), Int(e.x&e.y));
++		int_eq(4*i+1, Int(e.x).AndNot(Int(e.y)), Int(e.x&^e.y));
++		int_eq(4*i+2, Int(e.x).Or(Int(e.y)), Int(e.x|e.y));
++		int_eq(4*i+3, Int(e.x).Xor(Int(e.y)), Int(e.x^e.y));
+ 	}
+ }
+ 
+@@ -571,8 +571,8 @@ func TestIntBitOps2(t *testing.T) {
+ 		for y := int64(-5); y < 15; y++ {
+ 			by := Int(y);
+ 			for i := uint(50); i < 70; i++ {	// shift across 64bit boundary
+-				int_eq(2*i + 0, bx.Shl(i).AndNot(by.Shl(i)), Int(x&^y).Shl(i));
+-				int_eq(2*i + 1, bx.Shl(i).And(by.Shl(i).Not()), Int(x&^y).Shl(i));
++				int_eq(2*i+0, bx.Shl(i).AndNot(by.Shl(i)), Int(x&^y).Shl(i));
++				int_eq(2*i+1, bx.Shl(i).And(by.Shl(i).Not()), Int(x&^y).Shl(i));
+ 			}
+ 		}
+ 	}
+diff --git a/src/pkg/bignum/integer.go b/src/pkg/bignum/integer.go
+index 618c6d3d20..10cc3344f7 100644
+--- a/src/pkg/bignum/integer.go
++++ b/src/pkg/bignum/integer.go
+@@ -516,5 +516,5 @@ func IntFromString(s string, base uint) (*Integer, uint, int) {
+ 
+ 	mant, base, slen := NatFromString(s[i0:len(s)], base);
+ 
+-	return MakeInt(i0 > 0 && s[0] == '-', mant), base, i0+slen;
++	return MakeInt(i0 > 0 && s[0] == '-', mant), base, i0 + slen;
+ }
+diff --git a/src/pkg/bignum/nrdiv_test.go b/src/pkg/bignum/nrdiv_test.go
+index 752ab79037..724eecec3d 100644
+--- a/src/pkg/bignum/nrdiv_test.go
++++ b/src/pkg/bignum/nrdiv_test.go
+@@ -95,13 +95,13 @@ func nrDivEst(x0, y0 Natural) Natural {
+ 	// Determine a scale factor f = 2^e such that
+ 	// 0.5 <= y/f == y*(2^-e) < 1.0
+ 	// and scale y accordingly.
+-	e := int(y.m.Log2())+1;
++	e := int(y.m.Log2()) + 1;
+ 	y.e -= e;
+ 
+ 	// t1
+ 	var c = 2.9142;
+ 	const n = 14;
+-	t1 := fpNat{Nat(uint64(c*(1<<n))), -n};
++	t1 := fpNat{Nat(uint64(c * (1 << n))), -n};
+ 
+ 	// Compute initial value r0 for the reciprocal of y/f.
+ 	// r0 = t1 - 2*y
+@@ -129,7 +129,7 @@ func nrDivEst(x0, y0 Natural) Natural {
+ 		// reduce mantissa size
+ 		// TODO: Find smaller bound as it will reduce
+ 		//       computation time massively.
+-		d := int(r.m.Log2() + 1)-maxLen;
++		d := int(r.m.Log2()+1) - maxLen;
+ 		if d > 0 {
+ 			r = fpNat{r.m.Shr(uint(d)), r.e + d}
+ 		}
+diff --git a/src/pkg/bignum/rational.go b/src/pkg/bignum/rational.go
+index e65efc138a..267ed3c30f 100644
+--- a/src/pkg/bignum/rational.go
++++ b/src/pkg/bignum/rational.go
+@@ -185,7 +185,7 @@ func RatFromString(s string, base uint) (*Rational, uint, int) {
+ 	}
+ 
+ 	// read exponent, if any
+-	rlen := alen+blen;
++	rlen := alen + blen;
+ 	if rlen < len(s) {
+ 		ch := s[rlen];
+ 		if ch == 'e' || ch == 'E' {
+diff --git a/src/pkg/bufio/bufio.go b/src/pkg/bufio/bufio.go
+index ef36c7aec8..86e3f25680 100644
+--- a/src/pkg/bufio/bufio.go
++++ b/src/pkg/bufio/bufio.go
+@@ -89,7 +89,7 @@ func NewReader(rd io.Reader) *Reader {
+ func (b *Reader) fill() {
+ 	// Slide existing data to beginning.
+ 	if b.w > b.r {
+-		copySlice(b.buf[0 : b.w - b.r], b.buf[b.r : b.w]);
++		copySlice(b.buf[0:b.w-b.r], b.buf[b.r:b.w]);
+ 		b.w -= b.r;
+ 	} else {
+ 		b.w = 0
+@@ -97,7 +97,7 @@ func (b *Reader) fill() {
+ 	b.r = 0;
+ 
+ 	// Read new data.
+-	n, e := b.rd.Read(b.buf[b.w : len(b.buf)]);
++	n, e := b.rd.Read(b.buf[b.w:len(b.buf)]);
+ 	b.w += n;
+ 	if e != nil {
+ 		b.err = e
+@@ -131,13 +131,13 @@ func (b *Reader) Read(p []byte) (nn int, err os.Error) {
+ 			b.fill();
+ 			continue;
+ 		}
+-		if n > b.w - b.r {
++		if n > b.w-b.r {
+ 			n = b.w - b.r
+ 		}
+-		copySlice(p[0:n], b.buf[b.r : b.r + n]);
++		copySlice(p[0:n], b.buf[b.r:b.r+n]);
+ 		p = p[n:len(p)];
+ 		b.r += n;
+-		b.lastbyte = int(b.buf[b.r - 1]);
++		b.lastbyte = int(b.buf[b.r-1]);
+ 		nn += n;
+ 	}
+ 	return nn, nil;
+@@ -178,7 +178,7 @@ func (b *Reader) UnreadByte() os.Error {
+ // ReadRune reads a single UTF-8 encoded Unicode character and returns the
+ // rune and its size in bytes.
+ func (b *Reader) ReadRune() (rune int, size int, err os.Error) {
+-	for b.r + utf8.UTFMax > b.w && !utf8.FullRune(b.buf[b.r : b.w]) && b.err == nil {
++	for b.r+utf8.UTFMax > b.w && !utf8.FullRune(b.buf[b.r:b.w]) && b.err == nil {
+ 		b.fill()
+ 	}
+ 	if b.r == b.w {
+@@ -186,10 +186,10 @@ func (b *Reader) ReadRune() (rune int, size int, err os.Error) {
+ 	}
+ 	rune, size = int(b.buf[b.r]), 1;
+ 	if rune >= 0x80 {
+-		rune, size = utf8.DecodeRune(b.buf[b.r : b.w])
++		rune, size = utf8.DecodeRune(b.buf[b.r:b.w])
+ 	}
+ 	b.r += size;
+-	b.lastbyte = int(b.buf[b.r - 1]);
++	b.lastbyte = int(b.buf[b.r-1]);
+ 	return rune, size, nil;
+ }
+ 
+@@ -219,16 +219,16 @@ func (b *Reader) Buffered() int	{ return b.w - b.r }
+ // ReadSlice returns err != nil if and only if line does not end in delim.
+ func (b *Reader) ReadSlice(delim byte) (line []byte, err os.Error) {
+ 	// Look in buffer.
+-	if i := findByte(b.buf[b.r : b.w], delim); i >= 0 {
+-		line1 := b.buf[b.r : b.r + i + 1];
+-		b.r += i+1;
++	if i := findByte(b.buf[b.r:b.w], delim); i >= 0 {
++		line1 := b.buf[b.r : b.r+i+1];
++		b.r += i + 1;
+ 		return line1, nil;
+ 	}
+ 
+ 	// Read more into buffer, until buffer fills or we find delim.
+ 	for {
+ 		if b.err != nil {
+-			line := b.buf[b.r : b.w];
++			line := b.buf[b.r:b.w];
+ 			b.r = b.w;
+ 			return line, b.err;
+ 		}
+@@ -237,9 +237,9 @@ func (b *Reader) ReadSlice(delim byte) (line []byte, err os.Error) {
+ 		b.fill();
+ 
+ 		// Search new part of buffer
+-		if i := findByte(b.buf[n : b.w], delim); i >= 0 {
++		if i := findByte(b.buf[n:b.w], delim); i >= 0 {
+ 			line := b.buf[0 : n+i+1];
+-			b.r = n+i+1;
++			b.r = n + i + 1;
+ 			return line, nil;
+ 		}
+ 
+@@ -317,10 +317,10 @@ func (b *Reader) ReadBytes(delim byte) (line []byte, err os.Error) {
+ 	buf := make([]byte, n);
+ 	n = 0;
+ 	for i := 0; i < nfull; i++ {
+-		copySlice(buf[n : n+len(full[i])], full[i]);
++		copySlice(buf[n:n+len(full[i])], full[i]);
+ 		n += len(full[i]);
+ 	}
+-	copySlice(buf[n : n+len(frag)], frag);
++	copySlice(buf[n:n+len(frag)], frag);
+ 	return buf, err;
+ }
+ 
+@@ -379,13 +379,13 @@ func (b *Writer) Flush() os.Error {
+ 	if b.err != nil {
+ 		return b.err
+ 	}
+-	n, e := b.wr.Write(b.buf[0 : b.n]);
++	n, e := b.wr.Write(b.buf[0:b.n]);
+ 	if n < b.n && e == nil {
+ 		e = io.ErrShortWrite
+ 	}
+ 	if e != nil {
+ 		if n > 0 && n < b.n {
+-			copySlice(b.buf[0 : b.n - n], b.buf[n : b.n])
++			copySlice(b.buf[0:b.n-n], b.buf[n:b.n])
+ 		}
+ 		b.n -= n;
+ 		b.err = e;
+@@ -432,7 +432,7 @@ func (b *Writer) Write(p []byte) (nn int, err os.Error) {
+ 		if n > len(p) {
+ 			n = len(p)
+ 		}
+-		copySlice(b.buf[b.n : b.n + n], p[0:n]);
++		copySlice(b.buf[b.n:b.n+n], p[0:n]);
+ 		b.n += n;
+ 		nn += n;
+ 		p = p[n:len(p)];
+diff --git a/src/pkg/bufio/bufio_test.go b/src/pkg/bufio/bufio_test.go
+index cc24dbfe0c..bdd4800b4e 100644
+--- a/src/pkg/bufio/bufio_test.go
++++ b/src/pkg/bufio/bufio_test.go
+@@ -31,7 +31,7 @@ func (r13 *rot13Reader) Read(p []byte) (int, os.Error) {
+ 		return n, e
+ 	}
+ 	for i := 0; i < n; i++ {
+-		c := p[i]|0x20;	// lowercase byte
++		c := p[i] | 0x20;	// lowercase byte
+ 		if 'a' <= c && c <= 'm' {
+ 			p[i] += 13
+ 		} else if 'n' <= c && c <= 'z' {
+@@ -142,7 +142,7 @@ func TestReader(t *testing.T) {
+ 	str := "";
+ 	all := "";
+ 	for i := 0; i < len(texts)-1; i++ {
+-		texts[i] = str+"\n";
++		texts[i] = str + "\n";
+ 		all += texts[i];
+ 		str += string(i%26 + 'a');
+ 	}
+diff --git a/src/pkg/bytes/buffer.go b/src/pkg/bytes/buffer.go
+index eed8f6b681..76d67e777d 100644
+--- a/src/pkg/bytes/buffer.go
++++ b/src/pkg/bytes/buffer.go
+@@ -37,7 +37,7 @@ type Buffer struct {
+ 
+ // Bytes returns the contents of the unread portion of the buffer;
+ // len(b.Bytes()) == b.Len().
+-func (b *Buffer) Bytes() []byte	{ return b.buf[b.off : len(b.buf)] }
++func (b *Buffer) Bytes() []byte	{ return b.buf[b.off:len(b.buf)] }
+ 
+ // String returns the contents of the unread portion of the buffer
+ // as a string.  If the Buffer is a nil pointer, it returns "<nil>".
+@@ -46,7 +46,7 @@ func (b *Buffer) String() string {
+ 		// Special case, useful in debugging.
+ 		return "<nil>"
+ 	}
+-	return string(b.buf[b.off : len(b.buf)]);
++	return string(b.buf[b.off:len(b.buf)]);
+ }
+ 
+ // Len returns the number of bytes of the unread portion of the buffer;
+@@ -60,7 +60,7 @@ func (b *Buffer) Truncate(n int) {
+ 		// Reuse buffer space.
+ 		b.off = 0
+ 	}
+-	b.buf = b.buf[0 : b.off + n];
++	b.buf = b.buf[0 : b.off+n];
+ }
+ 
+ // Reset resets the buffer so it has no content.
+@@ -78,15 +78,15 @@ func (b *Buffer) Write(p []byte) (n int, err os.Error) {
+ 		buf := b.buf;
+ 		if m+n > cap(b.buf) {
+ 			// not enough space anywhere
+-			buf = make([]byte, 2*cap(b.buf) + n)
++			buf = make([]byte, 2*cap(b.buf)+n)
+ 		}
+-		copyBytes(buf, 0, b.buf[b.off : b.off + m]);
++		copyBytes(buf, 0, b.buf[b.off:b.off+m]);
+ 		b.buf = buf;
+ 		b.off = 0;
+ 	}
+ 
+-	b.buf = b.buf[0 : b.off + m + n];
+-	copyBytes(b.buf, b.off + m, p);
++	b.buf = b.buf[0 : b.off+m+n];
++	copyBytes(b.buf, b.off+m, p);
+ 	return n, nil;
+ }
+ 
+@@ -101,15 +101,15 @@ func (b *Buffer) WriteString(s string) (n int, err os.Error) {
+ 		buf := b.buf;
+ 		if m+n > cap(b.buf) {
+ 			// not enough space anywhere
+-			buf = make([]byte, 2*cap(b.buf) + n)
++			buf = make([]byte, 2*cap(b.buf)+n)
+ 		}
+-		copyBytes(buf, 0, b.buf[b.off : b.off + m]);
++		copyBytes(buf, 0, b.buf[b.off:b.off+m]);
+ 		b.buf = buf;
+ 		b.off = 0;
+ 	}
+ 
+-	b.buf = b.buf[0 : b.off + m + n];
+-	copyString(b.buf, b.off + m, s);
++	b.buf = b.buf[0 : b.off+m+n];
++	copyString(b.buf, b.off+m, s);
+ 	return n, nil;
+ }
+ 
+@@ -142,7 +142,7 @@ func (b *Buffer) Read(p []byte) (n int, err os.Error) {
+ 		n = m
+ 	}
+ 
+-	copyBytes(p, 0, b.buf[b.off : b.off + n]);
++	copyBytes(p, 0, b.buf[b.off:b.off+n]);
+ 	b.off += n;
+ 	return n, err;
+ }
+diff --git a/src/pkg/bytes/buffer_test.go b/src/pkg/bytes/buffer_test.go
+index f566183be7..e11eb5b1cc 100644
+--- a/src/pkg/bytes/buffer_test.go
++++ b/src/pkg/bytes/buffer_test.go
+@@ -19,7 +19,7 @@ var bytes []byte	// test data; same as data but as a slice.
+ func init() {
+ 	bytes = make([]byte, N);
+ 	for i := 0; i < N; i++ {
+-		bytes[i] = 'a'+byte(i%26)
++		bytes[i] = 'a' + byte(i%26)
+ 	}
+ 	data = string(bytes);
+ }
+@@ -50,17 +50,17 @@ func check(t *testing.T, testname string, buf *Buffer, s string) {
+ // The initial contents of buf corresponds to the string s;
+ // the result is the final contents of buf returned as a string.
+ func fillString(t *testing.T, testname string, buf *Buffer, s string, n int, fus string) string {
+-	check(t, testname + " (fill 1)", buf, s);
++	check(t, testname+" (fill 1)", buf, s);
+ 	for ; n > 0; n-- {
+ 		m, err := buf.WriteString(fus);
+ 		if m != len(fus) {
+-			t.Errorf(testname + " (fill 2): m == %d, expected %d\n", m, len(fus))
++			t.Errorf(testname+" (fill 2): m == %d, expected %d\n", m, len(fus))
+ 		}
+ 		if err != nil {
+-			t.Errorf(testname + " (fill 3): err should always be nil, found err == %s\n", err)
++			t.Errorf(testname+" (fill 3): err should always be nil, found err == %s\n", err)
+ 		}
+ 		s += fus;
+-		check(t, testname + " (fill 4)", buf, s);
++		check(t, testname+" (fill 4)", buf, s);
+ 	}
+ 	return s;
+ }
+@@ -70,17 +70,17 @@ func fillString(t *testing.T, testname string, buf *Buffer, s string, n int, fus
+ // The initial contents of buf corresponds to the string s;
+ // the result is the final contents of buf returned as a string.
+ func fillBytes(t *testing.T, testname string, buf *Buffer, s string, n int, fub []byte) string {
+-	check(t, testname + " (fill 1)", buf, s);
++	check(t, testname+" (fill 1)", buf, s);
+ 	for ; n > 0; n-- {
+ 		m, err := buf.Write(fub);
+ 		if m != len(fub) {
+-			t.Errorf(testname + " (fill 2): m == %d, expected %d\n", m, len(fub))
++			t.Errorf(testname+" (fill 2): m == %d, expected %d\n", m, len(fub))
+ 		}
+ 		if err != nil {
+-			t.Errorf(testname + " (fill 3): err should always be nil, found err == %s\n", err)
++			t.Errorf(testname+" (fill 3): err should always be nil, found err == %s\n", err)
+ 		}
+ 		s += string(fub);
+-		check(t, testname + " (fill 4)", buf, s);
++		check(t, testname+" (fill 4)", buf, s);
+ 	}
+ 	return s;
+ }
+@@ -101,7 +101,7 @@ func TestNewBufferString(t *testing.T) {
+ // Empty buf through repeated reads into fub.
+ // The initial contents of buf corresponds to the string s.
+ func empty(t *testing.T, testname string, buf *Buffer, s string, fub []byte) {
+-	check(t, testname + " (empty 1)", buf, s);
++	check(t, testname+" (empty 1)", buf, s);
+ 
+ 	for {
+ 		n, err := buf.Read(fub);
+@@ -109,13 +109,13 @@ func empty(t *testing.T, testname string, buf *Buffer, s string, fub []byte) {
+ 			break
+ 		}
+ 		if err != nil {
+-			t.Errorf(testname + " (empty 2): err should always be nil, found err == %s\n", err)
++			t.Errorf(testname+" (empty 2): err should always be nil, found err == %s\n", err)
+ 		}
+ 		s = s[n:len(s)];
+-		check(t, testname + " (empty 3)", buf, s);
++		check(t, testname+" (empty 3)", buf, s);
+ 	}
+ 
+-	check(t, testname + " (empty 4)", buf, "");
++	check(t, testname+" (empty 4)", buf, "");
+ }
+ 
+ 
+@@ -197,7 +197,7 @@ func TestLargeByteWrites(t *testing.T) {
+ func TestLargeStringReads(t *testing.T) {
+ 	var buf Buffer;
+ 	for i := 3; i < 30; i += 3 {
+-		s := fillString(t, "TestLargeReads (1)", &buf, "", 5, data[0 : len(data)/i]);
++		s := fillString(t, "TestLargeReads (1)", &buf, "", 5, data[0:len(data)/i]);
+ 		empty(t, "TestLargeReads (2)", &buf, s, make([]byte, len(data)));
+ 	}
+ 	check(t, "TestLargeStringReads (3)", &buf, "");
+@@ -207,7 +207,7 @@ func TestLargeStringReads(t *testing.T) {
+ func TestLargeByteReads(t *testing.T) {
+ 	var buf Buffer;
+ 	for i := 3; i < 30; i += 3 {
+-		s := fillBytes(t, "TestLargeReads (1)", &buf, "", 5, bytes[0 : len(bytes)/i]);
++		s := fillBytes(t, "TestLargeReads (1)", &buf, "", 5, bytes[0:len(bytes)/i]);
+ 		empty(t, "TestLargeReads (2)", &buf, s, make([]byte, len(data)));
+ 	}
+ 	check(t, "TestLargeByteReads (3)", &buf, "");
+diff --git a/src/pkg/bytes/bytes.go b/src/pkg/bytes/bytes.go
+index db964f6dae..c0a861f7ff 100644
+--- a/src/pkg/bytes/bytes.go
++++ b/src/pkg/bytes/bytes.go
+@@ -89,9 +89,9 @@ func Count(s, sep []byte) int {
+ 	c := sep[0];
+ 	n := 0;
+ 	for i := 0; i+len(sep) <= len(s); i++ {
+-		if s[i] == c && (len(sep) == 1 || Equal(s[i : i+len(sep)], sep)) {
++		if s[i] == c && (len(sep) == 1 || Equal(s[i:i+len(sep)], sep)) {
+ 			n++;
+-			i += len(sep)-1;
++			i += len(sep) - 1;
+ 		}
+ 	}
+ 	return n;
+@@ -105,7 +105,7 @@ func Index(s, sep []byte) int {
+ 	}
+ 	c := sep[0];
+ 	for i := 0; i+n <= len(s); i++ {
+-		if s[i] == c && (n == 1 || Equal(s[i : i+n], sep)) {
++		if s[i] == c && (n == 1 || Equal(s[i:i+n], sep)) {
+ 			return i
+ 		}
+ 	}
+@@ -119,8 +119,8 @@ func LastIndex(s, sep []byte) int {
+ 		return len(s)
+ 	}
+ 	c := sep[0];
+-	for i := len(s)-n; i >= 0; i-- {
+-		if s[i] == c && (n == 1 || Equal(s[i : i+n], sep)) {
++	for i := len(s) - n; i >= 0; i-- {
++		if s[i] == c && (n == 1 || Equal(s[i:i+n], sep)) {
+ 			return i
+ 		}
+ 	}
+@@ -141,11 +141,11 @@ func genSplit(s, sep []byte, sepSave, n int) [][]byte {
+ 	a := make([][]byte, n);
+ 	na := 0;
+ 	for i := 0; i+len(sep) <= len(s) && na+1 < n; i++ {
+-		if s[i] == c && (len(sep) == 1 || Equal(s[i : i+len(sep)], sep)) {
++		if s[i] == c && (len(sep) == 1 || Equal(s[i:i+len(sep)], sep)) {
+ 			a[na] = s[start : i+sepSave];
+ 			na++;
+-			start = i+len(sep);
+-			i += len(sep)-1;
++			start = i + len(sep);
++			i += len(sep) - 1;
+ 		}
+ 	}
+ 	a[na] = s[start:len(s)];
+@@ -174,7 +174,7 @@ func Join(a [][]byte, sep []byte) []byte {
+ 	if len(a) == 1 {
+ 		return a[0]
+ 	}
+-	n := len(sep)*(len(a)-1);
++	n := len(sep) * (len(a) - 1);
+ 	for i := 0; i < len(a); i++ {
+ 		n += len(a[i])
+ 	}
+@@ -205,7 +205,7 @@ func HasPrefix(s, prefix []byte) bool {
+ 
+ // HasSuffix tests whether the byte array s ends with suffix.
+ func HasSuffix(s, suffix []byte) bool {
+-	return len(s) >= len(suffix) && Equal(s[len(s)-len(suffix) : len(s)], suffix)
++	return len(s) >= len(suffix) && Equal(s[len(s)-len(suffix):len(s)], suffix)
+ }
+ 
+ // Map returns a copy of the byte array s with all its characters modified
+@@ -226,7 +226,7 @@ func Map(mapping func(rune int) int, s []byte) []byte {
+ 			rune, wid = utf8.DecodeRune(s[i:len(s)])
+ 		}
+ 		rune = mapping(rune);
+-		if nbytes + utf8.RuneLen(rune) > maxbytes {
++		if nbytes+utf8.RuneLen(rune) > maxbytes {
+ 			// Grow the buffer.
+ 			maxbytes = maxbytes*2 + utf8.UTFMax;
+ 			nb := make([]byte, maxbytes);
+@@ -307,7 +307,7 @@ func Add(s, t []byte) []byte {
+ 		Copy(news, s);
+ 		s = news;
+ 	}
+-	Copy(s[lens : lens+lent], t);
++	Copy(s[lens:lens+lent], t);
+ 	return s;
+ }
+ 
+diff --git a/src/pkg/bytes/bytes_test.go b/src/pkg/bytes/bytes_test.go
+index 47e5964d1a..20d6b25f7c 100644
+--- a/src/pkg/bytes/bytes_test.go
++++ b/src/pkg/bytes/bytes_test.go
+@@ -229,7 +229,7 @@ const space = "\t\v\r\f\n\u0085\u00a0\u2000\u3000"
+ var trimSpaceTests = []StringTest{
+ 	StringTest{"", ""},
+ 	StringTest{"abc", "abc"},
+-	StringTest{space+"abc"+space, "abc"},
++	StringTest{space + "abc" + space, "abc"},
+ 	StringTest{" ", ""},
+ 	StringTest{" \t\r\n \t\t\r\r\n\n ", ""},
+ 	StringTest{" \t\r\n x\t\t\r\r\n\n ", "x"},
+@@ -312,7 +312,7 @@ func TestAdd(t *testing.T) {
+ 			b[i] = test.s[i]
+ 		}
+ 		b = Add(b, strings.Bytes(test.t));
+-		if string(b) != test.s + test.t {
++		if string(b) != test.s+test.t {
+ 			t.Errorf("Add(%q,%q) = %q", test.s, test.t, string(b))
+ 		}
+ 	}

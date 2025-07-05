@@ -20,8 +20,141 @@ Date:   Tue Jun 30 11:28:29 2015 -0400
     Change-Id: I437c51a33b85439a31c307caf1436118508ea196
     Reviewed-on: https://go-review.googlesource.com/11760
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/readrequest_test.go | 22 ++++++++--------------
  src/net/url/url.go               | 10 ++++++++--
  src/net/url/url_test.go          |  8 ++------
  3 files changed, 18 insertions(+), 22 deletions(-)
+
+diff --git a/src/net/http/readrequest_test.go b/src/net/http/readrequest_test.go
+index 492d6d2aed..bda22c88ee 100644
+--- a/src/net/http/readrequest_test.go
++++ b/src/net/http/readrequest_test.go
+@@ -45,10 +45,9 @@ var reqTests = []reqTest{
+ 		&Request{
+ 			Method: "GET",
+ 			URL: &url.URL{
+-				Scheme:  "http",
+-				Host:    "www.techcrunch.com",
+-				Path:    "/",
+-				RawPath: "/",
++				Scheme: "http",
++				Host:   "www.techcrunch.com",
++				Path:   "/",
+ 			},
+ 			Proto:      "HTTP/1.1",
+ 			ProtoMajor: 1,
+@@ -83,8 +82,7 @@ var reqTests = []reqTest{
+ 		&Request{
+ 			Method: "GET",
+ 			URL: &url.URL{
+-				Path:    "/",
+-				RawPath: "/",
++				Path: "/",
+ 			},
+ 			Proto:         "HTTP/1.1",
+ 			ProtoMajor:    1,
+@@ -110,8 +108,7 @@ var reqTests = []reqTest{
+ 		&Request{
+ 			Method: "GET",
+ 			URL: &url.URL{
+-				Path:    "//user@host/is/actually/a/path/",
+-				RawPath: "//user@host/is/actually/a/path/",
++				Path: "//user@host/is/actually/a/path/",
+ 			},
+ 			Proto:         "HTTP/1.1",
+ 			ProtoMajor:    1,
+@@ -161,8 +158,7 @@ var reqTests = []reqTest{
+ 		&Request{
+ 			Method: "POST",
+ 			URL: &url.URL{
+-				Path:    "/",
+-				RawPath: "/",
++				Path: "/",
+ 			},
+ 			TransferEncoding: []string{"chunked"},
+ 			Proto:            "HTTP/1.1",
+@@ -236,8 +232,7 @@ var reqTests = []reqTest{
+ 		&Request{
+ 			Method: "CONNECT",
+ 			URL: &url.URL{
+-				Path:    "/_goRPC_",
+-				RawPath: "/_goRPC_",
++				Path: "/_goRPC_",
+ 			},
+ 			Proto:         "HTTP/1.1",
+ 			ProtoMajor:    1,
+@@ -308,8 +303,7 @@ var reqTests = []reqTest{
+ 		&Request{
+ 			Method: "GET",
+ 			URL: &url.URL{
+-				Path:    "/",
+-				RawPath: "/",
++				Path: "/",
+ 			},
+ 			Header: Header{
+ 				// This wasn't removed from Go 1.0 to
+diff --git a/src/net/url/url.go b/src/net/url/url.go
+index 2dc5e30365..abcd23bb76 100644
+--- a/src/net/url/url.go
++++ b/src/net/url/url.go
+@@ -426,10 +426,16 @@ func parse(rawurl string, viaRequest bool) (url *URL, err error) {
+ 			goto Error
+ 		}
+ 	}
+-	url.RawPath = rest
+ 	if url.Path, err = unescape(rest, encodePath); err != nil {
+ 		goto Error
+ 	}
++	// RawPath is a hint as to the encoding of Path to use
++	// in url.EncodedPath. If that method already gets the
++	// right answer without RawPath, leave it empty.
++	// This will help make sure that people don't rely on it in general.
++	if url.EscapedPath() != rest && validEncodedPath(rest) {
++		url.RawPath = rest
++	}
+ 	return url, nil
+ 
+ Error:
+@@ -544,7 +550,7 @@ func (u *URL) EscapedPath() string {
+ }
+ 
+ // validEncodedPath reports whether s is a valid encoded path.
+-// It must contain any bytes that require escaping during path encoding.
++// It must not contain any bytes that require escaping during path encoding.
+ func validEncodedPath(s string) bool {
+ 	for i := 0; i < len(s); i++ {
+ 		if s[i] != '%' && shouldEscape(s[i], encodePath) {
+diff --git a/src/net/url/url_test.go b/src/net/url/url_test.go
+index a85014690d..dbdba67834 100644
+--- a/src/net/url/url_test.go
++++ b/src/net/url/url_test.go
+@@ -99,7 +99,6 @@ var urltests = []URLTest{
+ 			Scheme:   "http",
+ 			Host:     "www.google.com",
+ 			Path:     "/a b",
+-			RawPath:  "/a%20b",
+ 			RawQuery: "q=c+d",
+ 		},
+ 		"",
+@@ -394,8 +393,8 @@ func ufmt(u *URL) string {
+ 			pass = p
+ 		}
+ 	}
+-	return fmt.Sprintf("opaque=%q, scheme=%q, user=%#v, pass=%#v, host=%q, path=%q, rawq=%q, frag=%q",
+-		u.Opaque, u.Scheme, user, pass, u.Host, u.Path, u.RawQuery, u.Fragment)
++	return fmt.Sprintf("opaque=%q, scheme=%q, user=%#v, pass=%#v, host=%q, path=%q, rawpath=%q, rawq=%q, frag=%q",
++		u.Opaque, u.Scheme, user, pass, u.Host, u.Path, u.RawPath, u.RawQuery, u.Fragment)
+ }
+ 
+ func DoTest(t *testing.T, parse func(string) (*URL, error), name string, tests []URLTest) {
+@@ -405,9 +404,6 @@ func DoTest(t *testing.T, parse func(string) (*URL, error), name string, tests [
+ 			t.Errorf("%s(%q) returned error %s", name, tt.in, err)
+ 			continue
+ 		}
+-		if tt.out.RawPath == "" {
+-			tt.out.RawPath = tt.out.Path
+-		}
+ 		if !reflect.DeepEqual(u, tt.out) {
+ 			t.Errorf("%s(%q):\n\thave %v\n\twant %v\n",
+ 				name, tt.in, ufmt(u), ufmt(tt.out))

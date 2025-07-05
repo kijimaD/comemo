@@ -17,8 +17,75 @@ Date:   Wed May 29 17:16:57 2013 -0700
     R=golang-dev, khr, khr
     CC=golang-dev
     https://golang.org/cl/9666047
-
+---
  src/cmd/gc/pgen.c        | 22 ++++++++--------------
  src/cmd/ld/lib.c         |  6 +++++-
  src/pkg/runtime/symtab.c |  4 ++--
  3 files changed, 15 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/gc/pgen.c b/src/cmd/gc/pgen.c
+index 7fcbf19b1e..4d3859d02d 100644
+--- a/src/cmd/gc/pgen.c
++++ b/src/cmd/gc/pgen.c
+@@ -296,21 +296,15 @@ pointermap(Node *fn)
+ 		walktype(inargtype, bv);
+ 	if(outargtype != nil)
+ 		walktype(outargtype, bv);
+-	if(bvisempty(bv)) {
+-		prog = gins(ANPTRS, N, N);
++	prog = gins(ANPTRS, N, N);
++	prog->to.type = D_CONST;
++	prog->to.offset = bv->n;
++	for(i = 0; i < bv->n; i += 32) {
++		prog = gins(APTRS, N, N);
++		prog->from.type = D_CONST;
++		prog->from.offset = i / 32;
+ 		prog->to.type = D_CONST;
+-		prog->to.offset = 0;
+-	} else {
+-		prog = gins(ANPTRS, N, N);
+-		prog->to.type = D_CONST;
+-		prog->to.offset = bv->n;
+-		for(i = 0; i < bv->n; i += 32) {
+-			prog = gins(APTRS, N, N);
+-			prog->from.type = D_CONST;
+-			prog->from.offset = i / 32;
+-			prog->to.type = D_CONST;
+-			prog->to.offset = bv->b[i / 32];
+-		}
++		prog->to.offset = bv->b[i / 32];
+ 	}
+ 	free(bv);
+ }
+diff --git a/src/cmd/ld/lib.c b/src/cmd/ld/lib.c
+index 42448fe09f..88c9f6a607 100644
+--- a/src/cmd/ld/lib.c
++++ b/src/cmd/ld/lib.c
+@@ -1914,7 +1914,11 @@ genasmsym(void (*put)(Sym*, char*, int, vlong, vlong, int, Sym*))
+ 		/* frame, locals, args, auto, param and pointers after */
+ 		put(nil, ".frame", 'm', (uint32)s->text->to.offset+PtrSize, 0, 0, 0);
+ 		put(nil, ".locals", 'm', s->locals, 0, 0, 0);
+-		if(s->text->textflag & NOSPLIT)
++		if((s->text->textflag & NOSPLIT) && (s->args == 0) && (s->nptrs < 0))
++			// This might be a vararg function and have no
++			// predetermined argument size.  This check is
++			// approximate and will also match 0 argument
++			// nosplit functions compiled by 6c.
+ 			put(nil, ".args", 'm', ArgsSizeUnknown, 0, 0, 0);
+ 		else
+ 			put(nil, ".args", 'm', s->args, 0, 0, 0);
+diff --git a/src/pkg/runtime/symtab.c b/src/pkg/runtime/symtab.c
+index be06d578d4..ffcb8826e6 100644
+--- a/src/pkg/runtime/symtab.c
++++ b/src/pkg/runtime/symtab.c
+@@ -234,8 +234,8 @@ dofunc(Sym *sym)
+ 			func[nfunc-1].args = sym->value;
+ 		else if(runtime·strcmp(sym->name, (byte*)".nptrs") == 0) {
+ 			// TODO(cshapiro): use a dense representation for gc information
+-			if(sym->value > func[nfunc-1].args/sizeof(uintptr)) {
+-				runtime·printf("more pointer map entries than argument words\n");
++			if(sym->value != func[nfunc-1].args/sizeof(uintptr)) {
++				runtime·printf("pointer map size and argument size disagree\n");
+ 				runtime·throw("mangled symbol table");
+ 			}
+ 			cap = ROUND(sym->value, 32) / 32;

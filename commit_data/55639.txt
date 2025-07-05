@@ -19,6 +19,22 @@ Date:   Mon Feb 27 15:52:52 2023 -0800
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/debug/macho/file.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/debug/macho/file.go b/src/debug/macho/file.go
+index 3e339c32c6..7cba3398fb 100644
+--- a/src/debug/macho/file.go
++++ b/src/debug/macho/file.go
+@@ -361,8 +361,8 @@ func NewFile(r io.ReaderAt) (*File, error) {
+ 					"number of undefined symbols after index in dynamic symbol table command is greater than symbol table length (%d > %d)",
+ 					hdr.Iundefsym+hdr.Nundefsym, len(f.Symtab.Syms)), nil}
+ 			}
+-			dat := make([]byte, hdr.Nindirectsyms*4)
+-			if _, err := r.ReadAt(dat, int64(hdr.Indirectsymoff)); err != nil {
++			dat, err := saferio.ReadDataAt(r, uint64(hdr.Nindirectsyms)*4, int64(hdr.Indirectsymoff))
++			if err != nil {
+ 				return nil, err
+ 			}
+ 			x := make([]uint32, hdr.Nindirectsyms)

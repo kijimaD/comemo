@@ -10,6 +10,30 @@ Date:   Mon Jan 28 19:21:25 2013 -0500
     TBR=bradfitz
     CC=golang-dev
     https://golang.org/cl/7237047
-
+---
  src/pkg/exp/ssa/func.go | 12 ++++++++++++
  1 file changed, 12 insertions(+)
+
+diff --git a/src/pkg/exp/ssa/func.go b/src/pkg/exp/ssa/func.go
+index d0c5440516..3751839b28 100644
+--- a/src/pkg/exp/ssa/func.go
++++ b/src/pkg/exp/ssa/func.go
+@@ -10,6 +10,18 @@ import (
+ 	"os"
+ )
+ 
++// Mode bits for additional diagnostics and checking.
++// TODO(adonovan): move these to builder.go once submitted.
++type BuilderMode uint
++
++const (
++	LogPackages          BuilderMode = 1 << iota // Dump package inventory to stderr
++	LogFunctions                                 // Dump function SSA code to stderr
++	LogSource                                    // Show source locations as SSA builder progresses
++	SanityCheckFunctions                         // Perform sanity checking of function bodies
++	UseGCImporter                                // Ignore SourceLoader; use gc-compiled object code for all imports
++)
++
+ // addEdge adds a control-flow graph edge from from to to.
+ func addEdge(from, to *BasicBlock) {
+ 	from.Succs = append(from.Succs, to)

@@ -18,9 +18,89 @@ Date:   Mon Dec 5 10:24:30 2016 -0800
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/crypto/tls/handshake_client.go        |  2 +-
  src/crypto/tls/handshake_messages.go      | 11 ++++++++++-
  src/crypto/tls/handshake_messages_test.go |  4 ++++
  src/crypto/tls/handshake_server_test.go   |  4 ++++
  4 files changed, 19 insertions(+), 2 deletions(-)
+
+diff --git a/src/crypto/tls/handshake_client.go b/src/crypto/tls/handshake_client.go
+index 6eda18dbfc..a4ca5d34fb 100644
+--- a/src/crypto/tls/handshake_client.go
++++ b/src/crypto/tls/handshake_client.go
+@@ -815,7 +815,7 @@ func hostnameInSNI(name string) string {
+ 	if net.ParseIP(host) != nil {
+ 		return ""
+ 	}
+-	if len(name) > 0 && name[len(name)-1] == '.' {
++	for len(name) > 0 && name[len(name)-1] == '.' {
+ 		name = name[:len(name)-1]
+ 	}
+ 	return name
+diff --git a/src/crypto/tls/handshake_messages.go b/src/crypto/tls/handshake_messages.go
+index 694bd918d8..0c7581f3e3 100644
+--- a/src/crypto/tls/handshake_messages.go
++++ b/src/crypto/tls/handshake_messages.go
+@@ -4,7 +4,10 @@
+ 
+ package tls
+ 
+-import "bytes"
++import (
++	"bytes"
++	"strings"
++)
+ 
+ type clientHelloMsg struct {
+ 	raw                          []byte
+@@ -393,6 +396,12 @@ func (m *clientHelloMsg) unmarshal(data []byte) bool {
+ 				}
+ 				if nameType == 0 {
+ 					m.serverName = string(d[:nameLen])
++					// An SNI value may not include a
++					// trailing dot. See
++					// https://tools.ietf.org/html/rfc6066#section-3.
++					if strings.HasSuffix(m.serverName, ".") {
++						return false
++					}
+ 					break
+ 				}
+ 				d = d[nameLen:]
+diff --git a/src/crypto/tls/handshake_messages_test.go b/src/crypto/tls/handshake_messages_test.go
+index f1154d4d01..7add97c32c 100644
+--- a/src/crypto/tls/handshake_messages_test.go
++++ b/src/crypto/tls/handshake_messages_test.go
+@@ -8,6 +8,7 @@ import (
+ 	"bytes"
+ 	"math/rand"
+ 	"reflect"
++	"strings"
+ 	"testing"
+ 	"testing/quick"
+ )
+@@ -123,6 +124,9 @@ func (*clientHelloMsg) Generate(rand *rand.Rand, size int) reflect.Value {
+ 	}
+ 	if rand.Intn(10) > 5 {
+ 		m.serverName = randomString(rand.Intn(255), rand)
++		for strings.HasSuffix(m.serverName, ".") {
++			m.serverName = m.serverName[:len(m.serverName)-1]
++		}
+ 	}
+ 	m.ocspStapling = rand.Intn(10) > 5
+ 	m.supportedPoints = randomBytes(rand.Intn(5)+1, rand)
+diff --git a/src/crypto/tls/handshake_server_test.go b/src/crypto/tls/handshake_server_test.go
+index bcd3d43ea3..63845c170d 100644
+--- a/src/crypto/tls/handshake_server_test.go
++++ b/src/crypto/tls/handshake_server_test.go
+@@ -137,6 +137,10 @@ func TestNoRC4ByDefault(t *testing.T) {
+ 	testClientHelloFailure(t, serverConfig, clientHello, "no cipher suite supported by both client and server")
+ }
+ 
++func TestRejectSNIWithTrailingDot(t *testing.T) {
++	testClientHelloFailure(t, testConfig, &clientHelloMsg{vers: VersionTLS12, serverName: "foo.com."}, "unexpected message")
++}
++
+ func TestDontSelectECDSAWithRSAKey(t *testing.T) {
+ 	// Test that, even when both sides support an ECDSA cipher suite, it
+ 	// won't be selected if the server's private key doesn't support it.

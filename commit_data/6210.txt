@@ -7,7 +7,54 @@ Date:   Thu Sep 9 01:42:43 2010 -0400
     R=rsc, imkrasin, r
     CC=golang-dev
     https://golang.org/cl/1969042
-
+---
  src/pkg/path/path.go      |  6 ++++++
  src/pkg/path/path_test.go | 24 ++++++++++++++++++++++++
  2 files changed, 30 insertions(+)
+
+diff --git a/src/pkg/path/path.go b/src/pkg/path/path.go
+index 8ed6a28d58..79b3000930 100644
+--- a/src/pkg/path/path.go
++++ b/src/pkg/path/path.go
+@@ -208,3 +208,9 @@ func Base(name string) string {
+ 	}
+ 	return name
+ }
++
++// IsAbs returns true if the path is absolute.
++func IsAbs(path string) bool {
++	// TODO: Add Windows support
++	return strings.HasPrefix(path, "/")
++}
+diff --git a/src/pkg/path/path_test.go b/src/pkg/path/path_test.go
+index 6915b48bbb..513dcd967c 100644
+--- a/src/pkg/path/path_test.go
++++ b/src/pkg/path/path_test.go
+@@ -307,3 +307,27 @@ func TestBase(t *testing.T) {
+ 		}
+ 	}
+ }
++
++type IsAbsTest struct {
++	path  string
++	isAbs bool
++}
++
++var isAbsTests = []IsAbsTest{
++	IsAbsTest{"", false},
++	IsAbsTest{"/", true},
++	IsAbsTest{"/usr/bin/gcc", true},
++	IsAbsTest{"..", false},
++	IsAbsTest{"/a/../bb", true},
++	IsAbsTest{".", false},
++	IsAbsTest{"./", false},
++	IsAbsTest{"lala", false},
++}
++
++func TestIsAbs(t *testing.T) {
++	for _, test := range isAbsTests {
++		if r := IsAbs(test.path); r != test.isAbs {
++			t.Errorf("IsAbs(%q) = %v, want %v", test.path, r, test.isAbs)
++		}
++	}
++}

@@ -9,6 +9,29 @@ Date:   Wed May 25 12:21:10 2011 -0700
     R=rsc
     CC=golang-dev, lars.pensjo
     https://golang.org/cl/4559046
-
+---
  src/pkg/net/fd_linux.go | 11 +++++++++++
  1 file changed, 11 insertions(+)
+
+diff --git a/src/pkg/net/fd_linux.go b/src/pkg/net/fd_linux.go
+index dcf65c014d..70fc344b2a 100644
+--- a/src/pkg/net/fd_linux.go
++++ b/src/pkg/net/fd_linux.go
+@@ -117,6 +117,17 @@ func (p *pollster) DelFD(fd int, mode int) {
+ 	} else {
+ 		p.StopWaiting(fd, writeFlags)
+ 	}
++
++	// Discard any queued up events.
++	i := 0
++	for i < len(p.waitEvents) {
++		if fd == int(p.waitEvents[i].Fd) {
++			copy(p.waitEvents[i:], p.waitEvents[i+1:])
++			p.waitEvents = p.waitEvents[:len(p.waitEvents)-1]
++		} else {
++			i++
++		}
++	}
+ }
+ 
+ func (p *pollster) WaitFD(s *pollServer, nsec int64) (fd int, mode int, err os.Error) {

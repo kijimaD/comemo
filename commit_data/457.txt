@@ -8,7 +8,7 @@ Date:   Thu Jul 31 10:47:10 2008 -0700
     R=r
     OCL=13688
     CL=13688
-
+---
  usr/gri/gosrc/base.go     |  9 +++++++--
  usr/gri/gosrc/decls.go    |  2 +-
  usr/gri/gosrc/export.go   | 17 ++++++++++++-----
@@ -19,3 +19,226 @@ Date:   Thu Jul 31 10:47:10 2008 -0700
  usr/gri/gosrc/universe.go | 14 ++++++++------
  usr/gri/gosrc/verifier.go |  2 ++
  9 files changed, 52 insertions(+), 18 deletions(-)
+
+diff --git a/usr/gri/gosrc/base.go b/usr/gri/gosrc/base.go
+index 44ea1cd542..0fb95a75e5 100755
+--- a/usr/gri/gosrc/base.go
++++ b/usr/gri/gosrc/base.go
+@@ -6,9 +6,14 @@
+ 
+ package base
+ 
++type Foo int
++
++type Bar *float;
++
+ type Node struct {
+   left, right *Node;
+-  val bool
++  val bool;
++  f Foo
+ }
+ 
+-export Node
++export Foo, Bar, Node
+diff --git a/usr/gri/gosrc/decls.go b/usr/gri/gosrc/decls.go
+index 37b261e3bd..5570d0a0e7 100755
+--- a/usr/gri/gosrc/decls.go
++++ b/usr/gri/gosrc/decls.go
+@@ -6,7 +6,7 @@
+ 
+ package decls
+ 
+-import "base"
++//import "base"
+ import base "base"
+ import base2 "base"
+ 
+diff --git a/usr/gri/gosrc/export.go b/usr/gri/gosrc/export.go
+index 441e68a611..9d480fc50c 100755
+--- a/usr/gri/gosrc/export.go
++++ b/usr/gri/gosrc/export.go
+@@ -23,7 +23,7 @@ type Exporter struct {
+ 
+ func (E *Exporter) WriteType(typ *Globals.Type);
+ func (E *Exporter) WriteObject(obj *Globals.Object);
+-func (E *Exporter) WritePackage(pkg *Globals.Package);
++func (E *Exporter) WritePackage(pno int);
+ 
+ 
+ func (E *Exporter) WriteByte(x byte) {
+@@ -132,7 +132,7 @@ func (E *Exporter) WriteObject(obj *Globals.Object) {
+ 		E.WriteObjectTag(obj.kind);
+ 		E.WriteString(obj.ident);
+ 		E.WriteType(obj.typ);
+-		E.WritePackage(E.comp.pkgs[obj.pnolev]);
++		E.WritePackage(obj.pnolev);
+ 
+ 		switch obj.kind {
+ 		case Object.CONST:
+@@ -173,12 +173,15 @@ func (E *Exporter) WriteType(typ *Globals.Type) {
+ 			panic "typ.obj.type() != typ";  // primary type
+ 		}
+ 		E.WriteString(typ.obj.ident);
+-		E.WritePackage(E.comp.pkgs[typ.obj.pnolev]);
++		E.WritePackage(typ.obj.pnolev);
+ 	} else {
+ 		E.WriteString("");
+ 	}
+ 
+ 	switch typ.form {
++	case Type.ALIAS:
++		E.WriteType(typ.elt);
++
+ 	case Type.ARRAY:
+ 		E.WriteInt(typ.len_);
+ 		E.WriteType(typ.elt);
+@@ -207,7 +210,11 @@ func (E *Exporter) WriteType(typ *Globals.Type) {
+ }
+ 
+ 
+-func (E *Exporter) WritePackage(pkg *Globals.Package) {
++func (E *Exporter) WritePackage(pno int) {
++	if pno < 0 {
++		pno = 0;
++	}
++	pkg := E.comp.pkgs[pno];
+ 	if pkg.ref >= 0 {
+ 		E.WritePackageTag(pkg.ref);  // package already exported
+ 		return;
+@@ -251,7 +258,7 @@ func (E *Exporter) Export(comp* Globals.Compilation, file_name string) {
+ 	E.type_ref = Universe.types.len_;
+ 	
+ 	pkg := comp.pkgs[0];
+-	E.WritePackage(pkg);
++	E.WritePackage(0);
+ 	E.WriteScope(pkg.scope);
+ 	
+ 	if E.debug {
+diff --git a/usr/gri/gosrc/import.go b/usr/gri/gosrc/import.go
+index 66c6e2f91b..79ffec1022 100755
+--- a/usr/gri/gosrc/import.go
++++ b/usr/gri/gosrc/import.go
+@@ -200,7 +200,9 @@ func (I *Importer) ReadType() *Globals.Type {
+ 	I.type_ref++;
+ 
+ 	switch (typ.form) {
+-	default: fallthrough;
++	case Type.ALIAS:
++		typ.elt = I.ReadType();
++
+ 	case Type.ARRAY:
+ 		typ.len_ = I.ReadInt();
+ 		typ.elt = I.ReadType();
+diff --git a/usr/gri/gosrc/parser.go b/usr/gri/gosrc/parser.go
+index 45b529dd51..726b812457 100644
+--- a/usr/gri/gosrc/parser.go
++++ b/usr/gri/gosrc/parser.go
+@@ -1633,9 +1633,21 @@ func (P *Parser) ParseTypeSpec(exported bool) {
+ 		P.Declare(obj);
+ 	}
+ 	
+-	typ := P.TryType();  // nil if we have an explicit forward declaration
++	// If the next token is an identifier and we have a legal program,
++	// it must be a typename. In that case this declaration introduces
++	// an alias type.
++	make_alias := P.tok == Scanner.IDENT;
++	
++	// If we have an explicit forward declaration, TryType will not
++	// find a type and return nil.
++	typ := P.TryType();
+ 
+ 	if typ != nil {
++		if make_alias {
++			alias := Globals.NewType(Type.ALIAS);
++			alias.elt = typ;
++			typ = alias;
++		}
+ 		obj.typ = typ;
+ 		if typ.obj == nil {
+ 			typ.obj = obj;  // primary type object
+diff --git a/usr/gri/gosrc/printer.go b/usr/gri/gosrc/printer.go
+index d2dafd4ecf..4fc5d1f538 100755
+--- a/usr/gri/gosrc/printer.go
++++ b/usr/gri/gosrc/printer.go
+@@ -199,6 +199,9 @@ func (P *Printer) PrintTypeStruct(typ *Globals.Type) {
+ 		}
+ 		P.PrintType(typ);
+ 
++	case Type.ALIAS:
++		P.PrintType(typ.elt);
++
+ 	case Type.ARRAY:
+ 		print "[]";
+ 		P.PrintType(typ.elt);
+diff --git a/usr/gri/gosrc/type.go b/usr/gri/gosrc/type.go
+index ea0877990e..ff7ddcbf28 100644
+--- a/usr/gri/gosrc/type.go
++++ b/usr/gri/gosrc/type.go
+@@ -8,7 +8,7 @@ export
+ 	UNDEF, BAD, NIL,
+ 	BOOL, UINT, INT, FLOAT, STRING,
+ 	ANY,
+-	ARRAY, STRUCT, INTERFACE, MAP, CHANNEL, FUNCTION, POINTER, REFERENCE
++	ALIAS, ARRAY, STRUCT, INTERFACE, MAP, CHANNEL, FUNCTION, POINTER, REFERENCE
+ 
+ const /* form */ (
+ 	// internal types
+@@ -18,7 +18,7 @@ const /* form */ (
+ 	// 'any' type
+ 	ANY;
+ 	// composite types
+-	ARRAY; STRUCT; INTERFACE; MAP; CHANNEL; FUNCTION; POINTER; REFERENCE;
++	ALIAS; ARRAY; STRUCT; INTERFACE; MAP; CHANNEL; FUNCTION; POINTER; REFERENCE;
+ )
+ 
+ 
+@@ -48,6 +48,7 @@ func FormStr(form int) string {
+ 	case FLOAT: return "FLOAT";
+ 	case STRING: return "STRING";
+ 	case ANY: return "ANY";
++	case ALIAS: return "ALIAS";
+ 	case ARRAY: return "ARRAY";
+ 	case STRUCT: return "STRUCT";
+ 	case INTERFACE: return "INTERFACE";
+diff --git a/usr/gri/gosrc/universe.go b/usr/gri/gosrc/universe.go
+index f0c7c396af..76f403d066 100755
+--- a/usr/gri/gosrc/universe.go
++++ b/usr/gri/gosrc/universe.go
+@@ -79,15 +79,17 @@ func DeclObj(kind int, ident string, typ *Globals.Type) *Globals.Object {
+ }
+ 
+ 
+-func DeclAlias(ident string, typ *Globals.Type) *Globals.Type {
+-	return DeclObj(Object.TYPE, ident, typ).typ;
+-}
+-
+-
+ func DeclType(form int, ident string, size int) *Globals.Type {
+   typ := Globals.NewType(form);
+   typ.size = size;
+-  return DeclAlias(ident, typ);
++  return DeclObj(Object.TYPE, ident, typ).typ;
++}
++
++
++func DeclAlias(ident string, typ *Globals.Type) *Globals.Type {
++	alias := Globals.NewType(Type.ALIAS);
++	alias.elt = typ;
++	return DeclObj(Object.TYPE, ident, alias).typ;
+ }
+ 
+ 
+diff --git a/usr/gri/gosrc/verifier.go b/usr/gri/gosrc/verifier.go
+index 3ec700b25e..08fedc2694 100644
+--- a/usr/gri/gosrc/verifier.go
++++ b/usr/gri/gosrc/verifier.go
+@@ -50,6 +50,8 @@ func VerifyType(typ *Globals.Type) {
+ 		break;
+ 	case Type.ANY:
+ 		break;
++	case Type.ALIAS:
++		break;
+ 	case Type.ARRAY:
+ 		break;
+ 	case Type.STRUCT:

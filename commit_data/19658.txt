@@ -24,7 +24,7 @@ Date:   Wed Jul 2 15:41:29 2014 -0400
     R=minux, dave, iant
     CC=golang-codereviews
     https://golang.org/cl/106860045
-
+---
  include/bio.h              |    8 +
  include/link.h             |    4 +-
  src/cmd/5g/galign.c        |    8 +-
@@ -67,3 +67,4156 @@ Date:   Wed Jul 2 15:41:29 2014 -0400
  src/pkg/runtime/funcdata.h |   11 +
  src/pkg/runtime/stack.h    |    6 +
  41 files changed, 1805 insertions(+), 1676 deletions(-)
+
+diff --git a/include/bio.h b/include/bio.h
+index f61409b8a3..982b881f16 100644
+--- a/include/bio.h
++++ b/include/bio.h
+@@ -129,6 +129,14 @@ int	Bungetc(Biobuf*);
+ int	Bungetrune(Biobuf*);
+ long	Bwrite(Biobuf*, void*, long);
+ int	Bvprint(Biobuf*, char*, va_list);
++/*c2go
++int	BGETC(Biobuf*);
++int	BGETLE2(Biobuf*);
++int	BGETLE4(Biobuf*);
++int	BPUTC(Biobuf*, int);
++int	BPUTLE2(Biobuf*, int);
++int	BPUTLE4(Biobuf*, int);
++*/
+ 
+ #if defined(__cplusplus)
+ }
+diff --git a/include/link.h b/include/link.h
+index b4a46a9821..e7bc76c02a 100644
+--- a/include/link.h
++++ b/include/link.h
+@@ -112,6 +112,8 @@ struct	Prog
+ 
+ 	char	width;	/* fake for DATA */
+ 	char	mode;	/* 16, 32, or 64 in 6l, 8l; internal use in 5g, 6g, 8g */
++	
++	/*c2go uchar TEXTFLAG; */
+ };
+ 
+ // prevent incompatible type signatures between liblink and 8l on Plan 9
+@@ -167,7 +169,7 @@ struct	LSym
+ 
+ 	// SDATA, SBSS
+ 	uchar*	p;
+-	int32	np;
++	int	np;
+ 	int32	maxp;
+ 	Reloc*	r;
+ 	int32	nr;
+diff --git a/src/cmd/5g/galign.c b/src/cmd/5g/galign.c
+index a62102ef84..b4c45da690 100644
+--- a/src/cmd/5g/galign.c
++++ b/src/cmd/5g/galign.c
+@@ -23,10 +23,10 @@ vlong MAXWIDTH = (1LL<<32) - 1;
+  */
+ Typedef	typedefs[] =
+ {
+-	"int",		TINT,		TINT32,
+-	"uint",		TUINT,		TUINT32,
+-	"uintptr",	TUINTPTR,	TUINT32,
+-	0
++	{"int",		TINT,		TINT32},
++	{"uint",		TUINT,		TUINT32},
++	{"uintptr",	TUINTPTR,	TUINT32},
++	{0}
+ };
+ 
+ void
+diff --git a/src/cmd/5g/gg.h b/src/cmd/5g/gg.h
+index 413e93c24a..62f73c8659 100644
+--- a/src/cmd/5g/gg.h
++++ b/src/cmd/5g/gg.h
+@@ -11,10 +11,13 @@
+ 
+ #define TEXTFLAG reg
+ 
+-#define REGALLOC_R0 0
+-#define REGALLOC_RMAX REGEXT
+-#define REGALLOC_F0 NREG
+-#define REGALLOC_FMAX (REGALLOC_F0 + FREGEXT)
++enum
++{
++	REGALLOC_R0 = 0,
++	REGALLOC_RMAX = REGEXT,
++	REGALLOC_F0 = NREG,
++	REGALLOC_FMAX = REGALLOC_F0 + FREGEXT,
++};
+ 
+ EXTERN	int32	dynloc;
+ EXTERN	uchar	reg[REGALLOC_FMAX+1];
+diff --git a/src/cmd/5g/gsubr.c b/src/cmd/5g/gsubr.c
+index f66c87b5a4..b94da96c12 100644
+--- a/src/cmd/5g/gsubr.c
++++ b/src/cmd/5g/gsubr.c
+@@ -636,6 +636,7 @@ splitclean(void)
+ }
+ 
+ #define	CASE(a,b)	(((a)<<16)|((b)<<0))
++/*c2go int CASE(int, int); */
+ 
+ void
+ gmove(Node *f, Node *t)
+diff --git a/src/cmd/5g/opt.h b/src/cmd/5g/opt.h
+index e3e3f78ed2..1946c1d33c 100644
+--- a/src/cmd/5g/opt.h
++++ b/src/cmd/5g/opt.h
+@@ -49,6 +49,24 @@
+ typedef	struct	Reg	Reg;
+ typedef	struct	Rgn	Rgn;
+ 
++/*c2go
++extern Node *Z;
++enum
++{
++	D_HI = D_NONE,
++	D_LO = D_NONE,
++	CLOAD = 5,
++	CREF = 5,
++	CINF = 1000,
++	LOOP = 3,
++};
++
++uint32 BLOAD(Reg*);
++uint32 BSTORE(Reg*);
++uint32 LOAD(Reg*);
++uint32 STORE(Reg*);
++*/
++
+ // A Reg is a wrapper around a single Prog (one instruction) that holds
+ // register optimization information while the optimizer runs.
+ // r->prog is the instruction.
+@@ -71,8 +89,10 @@ struct	Reg
+ 	int32	regu;		// register used bitmap
+ };
+ #define	R	((Reg*)0)
++/*c2go extern Reg *R; */
+ 
+ #define	NRGN	600
++/*c2go enum { NRGN = 600 }; */
+ struct	Rgn
+ {
+ 	Reg*	enter;
+diff --git a/src/cmd/5g/peep.c b/src/cmd/5g/peep.c
+index 4aa6452061..fe67f3a04c 100644
+--- a/src/cmd/5g/peep.c
++++ b/src/cmd/5g/peep.c
+@@ -564,6 +564,8 @@ gotit:
+  * ..
+  */
+ #define FAIL(msg) { if(debug['P']) print("\t%s; FAILURE\n", msg); return 0; }
++/*c2go void FAIL(char*); */
++
+ int
+ shiftprop(Flow *r)
+ {
+diff --git a/src/cmd/5g/reg.c b/src/cmd/5g/reg.c
+index 4762df5062..a82ad310a3 100644
+--- a/src/cmd/5g/reg.c
++++ b/src/cmd/5g/reg.c
+@@ -36,6 +36,11 @@
+ 
+ #define	NREGVAR	32
+ #define	REGBITS	((uint32)0xffffffff)
++/*c2go enum {
++	NREGVAR = 32,
++	REGBITS = 0xffffffff,
++};
++*/
+ 
+ 	void	addsplits(void);
+ static	Reg*	firstr;
+diff --git a/src/cmd/5l/5.out.h b/src/cmd/5l/5.out.h
+index 9e8aceecb5..edcef1279c 100644
+--- a/src/cmd/5l/5.out.h
++++ b/src/cmd/5l/5.out.h
+@@ -28,34 +28,43 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
+-#define	NSNAME		8
+-#define	NSYM		50
+-#define	NREG		16
++enum
++{
++	NSNAME = 8,
++	NSYM = 50,
++	NREG = 16,
++};
+ #include "../ld/textflag.h"
+ 
+-#define	REGRET		0
+ /* -1 disables use of REGARG */
+ #define	REGARG		-1
+-/* compiler allocates R1 up as temps */
+-/* compiler allocates register variables R3 up */
+-#define	REGEXT		10
+-/* these two registers are declared in runtime.h */
+-#define REGG        (REGEXT-0)
+-#define REGM        (REGEXT-1)
+-/* compiler allocates external registers R10 down */
+-#define	REGTMP		11
+-#define	REGSP		13
+-#define	REGLINK		14
+-#define	REGPC		15
+-
+-#define	NFREG		16
+-#define	FREGRET		0
+-#define	FREGEXT		7
+-#define	FREGTMP		15
++/*c2go enum { REGARG = -1 }; */
++
++enum
++{
++	REGRET = 0,
++	/* compiler allocates R1 up as temps */
++	/* compiler allocates register variables R3 up */
++	/* compiler allocates external registers R10 down */
++	REGEXT = 10,
++	/* these two registers are declared in runtime.h */
++	REGG = REGEXT-0,
++	REGM = REGEXT-1,
++
++	REGTMP = 11,
++	REGSP = 13,
++	REGLINK = 14,
++	REGPC = 15,
++	
++	NFREG = 16,
++	FREGRET = 0,
++	FREGEXT = 7,
++	FREGTMP = 15,
++};
+ /* compiler allocates register variables F0 up */
+ /* compiler allocates external registers F7 down */
+ 
+-enum	as
++enum
+ {
+ 	AXXX,
+ 
+@@ -209,35 +218,38 @@ enum	as
+ };
+ 
+ /* scond byte */
+-#define	C_SCOND	((1<<4)-1)
+-#define	C_SBIT	(1<<4)
+-#define	C_PBIT	(1<<5)
+-#define	C_WBIT	(1<<6)
+-#define	C_FBIT	(1<<7)	/* psr flags-only */
+-#define	C_UBIT	(1<<7)	/* up bit, unsigned bit */
+-
+-#define C_SCOND_EQ	0
+-#define C_SCOND_NE	1
+-#define C_SCOND_HS	2
+-#define C_SCOND_LO	3
+-#define C_SCOND_MI	4
+-#define C_SCOND_PL	5
+-#define C_SCOND_VS	6
+-#define C_SCOND_VC	7
+-#define C_SCOND_HI	8
+-#define C_SCOND_LS	9
+-#define C_SCOND_GE	10
+-#define C_SCOND_LT	11
+-#define C_SCOND_GT	12
+-#define C_SCOND_LE	13
+-#define C_SCOND_NONE	14
+-#define C_SCOND_NV	15
+-
+-/* D_SHIFT type */
+-#define SHIFT_LL		0<<5
+-#define SHIFT_LR		1<<5
+-#define SHIFT_AR		2<<5
+-#define SHIFT_RR		3<<5
++enum
++{
++	C_SCOND = (1<<4)-1,
++	C_SBIT = 1<<4,
++	C_PBIT = 1<<5,
++	C_WBIT = 1<<6,
++	C_FBIT = 1<<7,	/* psr flags-only */
++	C_UBIT = 1<<7,	/* up bit, unsigned bit */
++
++	C_SCOND_EQ = 0,
++	C_SCOND_NE = 1,
++	C_SCOND_HS = 2,
++	C_SCOND_LO = 3,
++	C_SCOND_MI = 4,
++	C_SCOND_PL = 5,
++	C_SCOND_VS = 6,
++	C_SCOND_VC = 7,
++	C_SCOND_HI = 8,
++	C_SCOND_LS = 9,
++	C_SCOND_GE = 10,
++	C_SCOND_LT = 11,
++	C_SCOND_GT = 12,
++	C_SCOND_LE = 13,
++	C_SCOND_NONE = 14,
++	C_SCOND_NV = 15,
++
++	/* D_SHIFT type */
++	SHIFT_LL = 0<<5,
++	SHIFT_LR = 1<<5,
++	SHIFT_AR = 2<<5,
++	SHIFT_RR = 3<<5,
++};
+ 
+ enum
+ {
+@@ -279,3 +291,4 @@ enum
+  * this is the ranlib header
+  */
+ #define	SYMDEF	"__.GOSYMDEF"
++/*c2go extern char SYMDEF[]; */
+diff --git a/src/cmd/6g/galign.c b/src/cmd/6g/galign.c
+index 1d32c5a61e..5670e6fac8 100644
+--- a/src/cmd/6g/galign.c
++++ b/src/cmd/6g/galign.c
+@@ -30,10 +30,10 @@ int	cmpptr = ACMPQ;
+  */
+ Typedef	typedefs[] =
+ {
+-	"int",		TINT,		TINT64,
+-	"uint",		TUINT,		TUINT64,
+-	"uintptr",	TUINTPTR,	TUINT64,
+-	0
++	{"int",		TINT,		TINT64},
++	{"uint",		TUINT,		TUINT64},
++	{"uintptr",	TUINTPTR,	TUINT64},
++	{0}
+ };
+ 
+ void
+diff --git a/src/cmd/6g/gsubr.c b/src/cmd/6g/gsubr.c
+index e4d00bf419..d1b1d9beef 100644
+--- a/src/cmd/6g/gsubr.c
++++ b/src/cmd/6g/gsubr.c
+@@ -584,6 +584,7 @@ ginscon(int as, vlong c, Node *n2)
+ }
+ 
+ #define	CASE(a,b)	(((a)<<16)|((b)<<0))
++/*c2go int CASE(int, int); */
+ 
+ /*
+  * Is this node a memory operand?
+diff --git a/src/cmd/6g/opt.h b/src/cmd/6g/opt.h
+index bf356af0c6..dbd039d89f 100644
+--- a/src/cmd/6g/opt.h
++++ b/src/cmd/6g/opt.h
+@@ -49,6 +49,24 @@
+ typedef	struct	Reg	Reg;
+ typedef	struct	Rgn	Rgn;
+ 
++/*c2go
++extern Node *Z;
++enum
++{
++	D_HI = D_NONE,
++	D_LO = D_NONE,
++	CLOAD = 5,
++	CREF = 5,
++	CINF = 1000,
++	LOOP = 3,
++};
++
++uint32 BLOAD(Reg*);
++uint32 BSTORE(Reg*);
++uint32 LOAD(Reg*);
++uint32 STORE(Reg*);
++*/
++
+ // A Reg is a wrapper around a single Prog (one instruction) that holds
+ // register optimization information while the optimizer runs.
+ // r->prog is the instruction.
+@@ -71,8 +89,10 @@ struct	Reg
+ 	int32	regu;		// register used bitmap
+ };
+ #define	R	((Reg*)0)
++/*c2go extern Reg *R; */
+ 
+ #define	NRGN	600
++/*c2go enum { NRGN = 600 }; */
+ struct	Rgn
+ {
+ 	Reg*	enter;
+diff --git a/src/cmd/6g/reg.c b/src/cmd/6g/reg.c
+index f3b1e55de8..02945fb401 100644
+--- a/src/cmd/6g/reg.c
++++ b/src/cmd/6g/reg.c
+@@ -35,6 +35,11 @@
+ 
+ #define	NREGVAR	32	/* 16 general + 16 floating */
+ #define	REGBITS	((uint32)0xffffffff)
++/*c2go enum {
++	NREGVAR = 32,
++	REGBITS = 0xffffffff,
++};
++*/
+ 
+ static	Reg*	firstr;
+ static	int	first	= 1;
+diff --git a/src/cmd/6l/6.out.h b/src/cmd/6l/6.out.h
+index 1e2a1488f2..af72784e84 100644
+--- a/src/cmd/6l/6.out.h
++++ b/src/cmd/6l/6.out.h
+@@ -36,7 +36,7 @@
+  *	amd64
+  */
+ 
+-enum	as
++enum
+ {
+ 	AXXX,
+ 	AAAA,
+diff --git a/src/cmd/8g/galign.c b/src/cmd/8g/galign.c
+index fbd2e9ad35..a0eb349375 100644
+--- a/src/cmd/8g/galign.c
++++ b/src/cmd/8g/galign.c
+@@ -23,10 +23,10 @@ vlong MAXWIDTH = (1LL<<32) - 1;
+  */
+ Typedef	typedefs[] =
+ {
+-	"int",		TINT,		TINT32,
+-	"uint",		TUINT,		TUINT32,
+-	"uintptr",	TUINTPTR,	TUINT32,
+-	0
++	{"int",		TINT,		TINT32},
++	{"uint",		TUINT,		TUINT32},
++	{"uintptr",	TUINTPTR,	TUINT32},
++	{0}
+ };
+ 
+ void
+diff --git a/src/cmd/8g/gsubr.c b/src/cmd/8g/gsubr.c
+index 2f3cb28c83..a131874c61 100644
+--- a/src/cmd/8g/gsubr.c
++++ b/src/cmd/8g/gsubr.c
+@@ -39,6 +39,7 @@
+ uint32 unmappedzero = 4096;
+ 
+ #define	CASE(a,b)	(((a)<<16)|((b)<<0))
++/*c2go int CASE(int, int);*/
+ 
+ void
+ clearp(Prog *p)
+@@ -697,6 +698,7 @@ optoas(int op, Type *t)
+ }
+ 
+ #define FCASE(a, b, c)  (((a)<<16)|((b)<<8)|(c))
++/*c2go int FCASE(int, int, int); */
+ int
+ foptoas(int op, Type *t, int flg)
+ {
+diff --git a/src/cmd/8g/opt.h b/src/cmd/8g/opt.h
+index 77a69e13ab..09f58c40ae 100644
+--- a/src/cmd/8g/opt.h
++++ b/src/cmd/8g/opt.h
+@@ -49,6 +49,24 @@
+ typedef	struct	Reg	Reg;
+ typedef	struct	Rgn	Rgn;
+ 
++/*c2go
++extern Node *Z;
++enum
++{
++	D_HI = D_NONE,
++	D_LO = D_NONE,
++	CLOAD = 5,
++	CREF = 5,
++	CINF = 1000,
++	LOOP = 3,
++};
++
++uint32 BLOAD(Reg*);
++uint32 BSTORE(Reg*);
++uint32 LOAD(Reg*);
++uint32 STORE(Reg*);
++*/
++
+ // A Reg is a wrapper around a single Prog (one instruction) that holds
+ // register optimization information while the optimizer runs.
+ // r->prog is the instruction.
+@@ -84,8 +102,10 @@ struct	Reg
+ 	Prog*	prog;   	// actual instruction
+ };
+ #define	R	((Reg*)0)
++/*c2go extern Reg *R; */
+ 
+ #define	NRGN	600
++/*c2go enum { NRGN = 600 }; */
+ struct	Rgn
+ {
+ 	Reg*	enter;
+diff --git a/src/cmd/8g/peep.c b/src/cmd/8g/peep.c
+index a4e516dd34..d88987f954 100644
+--- a/src/cmd/8g/peep.c
++++ b/src/cmd/8g/peep.c
+@@ -33,7 +33,9 @@
+ #include "gg.h"
+ #include "opt.h"
+ 
+-#define	REGEXT	0
++enum {
++	REGEXT = 0,
++};
+ 
+ static void	conprop(Flow *r);
+ static void	elimshortmov(Graph*);
+diff --git a/src/cmd/8g/reg.c b/src/cmd/8g/reg.c
+index fd610f87a6..a69d124db8 100644
+--- a/src/cmd/8g/reg.c
++++ b/src/cmd/8g/reg.c
+@@ -35,6 +35,11 @@
+ 
+ #define	NREGVAR	16	/* 8 integer + 8 floating */
+ #define	REGBITS	((uint32)0xffff)
++/*c2go enum {
++	NREGVAR = 16,
++	REGBITS = (1<<NREGVAR) - 1,
++};
++*/
+ 
+ static	Reg*	firstr;
+ static	int	first	= 1;
+diff --git a/src/cmd/8l/8.out.h b/src/cmd/8l/8.out.h
+index 8e642d3903..ed54f6744a 100644
+--- a/src/cmd/8l/8.out.h
++++ b/src/cmd/8l/8.out.h
+@@ -32,7 +32,7 @@
+ #define	NSNAME	8
+ #include "../ld/textflag.h"
+ 
+-enum	as
++enum
+ {
+ 	AXXX,
+ 	AAAA,
+diff --git a/src/cmd/dist/buildgc.c b/src/cmd/dist/buildgc.c
+index 1f0625daa0..3bb0a9da10 100644
+--- a/src/cmd/dist/buildgc.c
++++ b/src/cmd/dist/buildgc.c
+@@ -82,7 +82,16 @@ mkanames(char *dir, char *file)
+ 	bprintf(&b, "%s/../cmd/%cl/%c.out.h", dir, ch, ch);
+ 	readfile(&in, bstr(&b));
+ 	splitlines(&lines, bstr(&in));
+-	bprintf(&out, "char*	anames%c[] = {\n", ch);
++	
++	// Include link.h so that the extern declaration there is
++	// checked against the non-extern declaration we are generating.
++	bwritestr(&out, bprintf(&b, "#include <u.h>\n"));
++	bwritestr(&out, bprintf(&b, "#include <libc.h>\n"));
++	bwritestr(&out, bprintf(&b, "#include <bio.h>\n"));
++	bwritestr(&out, bprintf(&b, "#include <link.h>\n"));
++	bwritestr(&out, bprintf(&b, "\n"));
++
++	bwritestr(&out, bprintf(&b, "char*	anames%c[] = {\n", ch));
+ 	for(i=0; i<lines.len; i++) {
+ 		if(hasprefix(lines.p[i], "\tA")) {
+ 			p = xstrstr(lines.p[i], ",");
+diff --git a/src/cmd/gc/bisonerrors b/src/cmd/gc/bisonerrors
+index 1f97fc8cec..fa74c67c3b 100755
+--- a/src/cmd/gc/bisonerrors
++++ b/src/cmd/gc/bisonerrors
+@@ -22,6 +22,7 @@ BEGIN{
+ 	bison = 1
+ 	grammar = 0
+ 	states = 0
++	open = 0
+ }
+ 
+ # In Grammar section of y.output,
+@@ -130,11 +131,26 @@ $1 == "%" {
+ 			continue
+ 
+ 		# No shift or reduce applied - found the error.
+-		printf("\t%s, %s,\n", state, tok);
++		printf("\t{%s, %s,\n", state, tok);
++		open = 1;
+ 		break
+ 	}
+ 	next
+ }
+ 
+ # Print other lines verbatim.
++open && /,$/ {
++	s = $0;
++	sub(",", "},", s)
++	print s
++	open = 0
++	next
++}
++
++open && /"$/ {
++	print $0 "}"
++	open = 0
++	next
++}
++
+ {print}
+diff --git a/src/cmd/gc/const.c b/src/cmd/gc/const.c
+index 143c1730d2..c01784a81b 100644
+--- a/src/cmd/gc/const.c
++++ b/src/cmd/gc/const.c
+@@ -6,6 +6,7 @@
+ #include	<libc.h>
+ #include	"go.h"
+ #define	TUP(x,y)	(((x)<<16)|(y))
++/*c2go int TUP(int, int); */
+ 
+ static	Val	tocplx(Val);
+ static	Val	toflt(Val);
+diff --git a/src/cmd/gc/esc.c b/src/cmd/gc/esc.c
+index 78624d7cbf..7ba1a4540a 100644
+--- a/src/cmd/gc/esc.c
++++ b/src/cmd/gc/esc.c
+@@ -1110,6 +1110,7 @@ escflood(EscState *e, Node *dst)
+ // pass all the tests we have written so far, which we assume matches
+ // the level of complexity we want the escape analysis code to handle.
+ #define MinLevel (-2)
++/*c2go enum { MinLevel = -2 };*/
+ 
+ static void
+ escwalk(EscState *e, int level, Node *dst, Node *src)
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index c90cbef890..6ac578142b 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -139,6 +139,8 @@ yy_isalnum(int c)
+ #define isalnum use_yy_isalnum_instead_of_isalnum
+ 
+ #define	DBG	if(!debug['x']){}else print
++/*c2go void DBG(char*, ...); */
++
+ enum
+ {
+ 	EOF		= -1,
+@@ -516,24 +518,18 @@ saveerrors(void)
+ 	nerrors = 0;
+ }
+ 
+-/*
+- *	macro to portably read/write archive header.
+- *	'cmd' is read/write/Bread/Bwrite, etc.
+- */
+-#define	HEADER_IO(cmd, f, h)	cmd(f, h.name, sizeof(h.name)) != sizeof(h.name)\
+-				|| cmd(f, h.date, sizeof(h.date)) != sizeof(h.date)\
+-				|| cmd(f, h.uid, sizeof(h.uid)) != sizeof(h.uid)\
+-				|| cmd(f, h.gid, sizeof(h.gid)) != sizeof(h.gid)\
+-				|| cmd(f, h.mode, sizeof(h.mode)) != sizeof(h.mode)\
+-				|| cmd(f, h.size, sizeof(h.size)) != sizeof(h.size)\
+-				|| cmd(f, h.fmag, sizeof(h.fmag)) != sizeof(h.fmag)
+-
+ static int
+ arsize(Biobuf *b, char *name)
+ {
+ 	struct ar_hdr a;
+ 
+-	if (HEADER_IO(Bread, b, a))
++	if(Bread(b, a.name, sizeof(a.name)) != sizeof(a.name) ||
++	   Bread(b, a.date, sizeof(a.date)) != sizeof(a.date) ||
++	   Bread(b, a.uid, sizeof(a.uid)) != sizeof(a.uid) ||
++	   Bread(b, a.gid, sizeof(a.gid)) != sizeof(a.gid) ||
++	   Bread(b, a.mode, sizeof(a.mode)) != sizeof(a.mode) ||
++	   Bread(b, a.size, sizeof(a.size)) != sizeof(a.size) ||
++	   Bread(b, a.fmag, sizeof(a.fmag)) != sizeof(a.fmag))
+ 		return -1;
+ 
+ 	if(strncmp(a.name, name, strlen(name)) != 0)
+@@ -1858,74 +1854,74 @@ static	struct
+ /*	name		lexical		etype		op
+  */
+ /* basic types */
+-	"int8",		LNAME,		TINT8,		OXXX,
+-	"int16",	LNAME,		TINT16,		OXXX,
+-	"int32",	LNAME,		TINT32,		OXXX,
+-	"int64",	LNAME,		TINT64,		OXXX,
+-
+-	"uint8",	LNAME,		TUINT8,		OXXX,
+-	"uint16",	LNAME,		TUINT16,	OXXX,
+-	"uint32",	LNAME,		TUINT32,	OXXX,
+-	"uint64",	LNAME,		TUINT64,	OXXX,
+-
+-	"float32",	LNAME,		TFLOAT32,	OXXX,
+-	"float64",	LNAME,		TFLOAT64,	OXXX,
+-
+-	"complex64",	LNAME,		TCOMPLEX64,	OXXX,
+-	"complex128",	LNAME,		TCOMPLEX128,	OXXX,
+-
+-	"bool",		LNAME,		TBOOL,		OXXX,
+-	"string",	LNAME,		TSTRING,	OXXX,
+-
+-	"any",		LNAME,		TANY,		OXXX,
+-
+-	"break",	LBREAK,		Txxx,		OXXX,
+-	"case",		LCASE,		Txxx,		OXXX,
+-	"chan",		LCHAN,		Txxx,		OXXX,
+-	"const",	LCONST,		Txxx,		OXXX,
+-	"continue",	LCONTINUE,	Txxx,		OXXX,
+-	"default",	LDEFAULT,	Txxx,		OXXX,
+-	"else",		LELSE,		Txxx,		OXXX,
+-	"defer",	LDEFER,		Txxx,		OXXX,
+-	"fallthrough",	LFALL,		Txxx,		OXXX,
+-	"for",		LFOR,		Txxx,		OXXX,
+-	"func",		LFUNC,		Txxx,		OXXX,
+-	"go",		LGO,		Txxx,		OXXX,
+-	"goto",		LGOTO,		Txxx,		OXXX,
+-	"if",		LIF,		Txxx,		OXXX,
+-	"import",	LIMPORT,	Txxx,		OXXX,
+-	"interface",	LINTERFACE,	Txxx,		OXXX,
+-	"map",		LMAP,		Txxx,		OXXX,
+-	"package",	LPACKAGE,	Txxx,		OXXX,
+-	"range",	LRANGE,		Txxx,		OXXX,
+-	"return",	LRETURN,	Txxx,		OXXX,
+-	"select",	LSELECT,	Txxx,		OXXX,
+-	"struct",	LSTRUCT,	Txxx,		OXXX,
+-	"switch",	LSWITCH,	Txxx,		OXXX,
+-	"type",		LTYPE,		Txxx,		OXXX,
+-	"var",		LVAR,		Txxx,		OXXX,
+-
+-	"append",	LNAME,		Txxx,		OAPPEND,
+-	"cap",		LNAME,		Txxx,		OCAP,
+-	"close",	LNAME,		Txxx,		OCLOSE,
+-	"complex",	LNAME,		Txxx,		OCOMPLEX,
+-	"copy",		LNAME,		Txxx,		OCOPY,
+-	"delete",	LNAME,		Txxx,		ODELETE,
+-	"imag",		LNAME,		Txxx,		OIMAG,
+-	"len",		LNAME,		Txxx,		OLEN,
+-	"make",		LNAME,		Txxx,		OMAKE,
+-	"new",		LNAME,		Txxx,		ONEW,
+-	"panic",	LNAME,		Txxx,		OPANIC,
+-	"print",	LNAME,		Txxx,		OPRINT,
+-	"println",	LNAME,		Txxx,		OPRINTN,
+-	"real",		LNAME,		Txxx,		OREAL,
+-	"recover",	LNAME,		Txxx,		ORECOVER,
+-
+-	"notwithstanding",		LIGNORE,	Txxx,		OXXX,
+-	"thetruthofthematter",		LIGNORE,	Txxx,		OXXX,
+-	"despiteallobjections",		LIGNORE,	Txxx,		OXXX,
+-	"whereas",			LIGNORE,	Txxx,		OXXX,
+-	"insofaras",			LIGNORE,	Txxx,		OXXX,
++	{"int8",		LNAME,		TINT8,		OXXX},
++	{"int16",	LNAME,		TINT16,		OXXX},
++	{"int32",	LNAME,		TINT32,		OXXX},
++	{"int64",	LNAME,		TINT64,		OXXX},
++
++	{"uint8",	LNAME,		TUINT8,		OXXX},
++	{"uint16",	LNAME,		TUINT16,	OXXX},
++	{"uint32",	LNAME,		TUINT32,	OXXX},
++	{"uint64",	LNAME,		TUINT64,	OXXX},
++
++	{"float32",	LNAME,		TFLOAT32,	OXXX},
++	{"float64",	LNAME,		TFLOAT64,	OXXX},
++
++	{"complex64",	LNAME,		TCOMPLEX64,	OXXX},
++	{"complex128",	LNAME,		TCOMPLEX128,	OXXX},
++
++	{"bool",		LNAME,		TBOOL,		OXXX},
++	{"string",	LNAME,		TSTRING,	OXXX},
++
++	{"any",		LNAME,		TANY,		OXXX},
++
++	{"break",	LBREAK,		Txxx,		OXXX},
++	{"case",		LCASE,		Txxx,		OXXX},
++	{"chan",		LCHAN,		Txxx,		OXXX},
++	{"const",	LCONST,		Txxx,		OXXX},
++	{"continue",	LCONTINUE,	Txxx,		OXXX},
++	{"default",	LDEFAULT,	Txxx,		OXXX},
++	{"else",		LELSE,		Txxx,		OXXX},
++	{"defer",	LDEFER,		Txxx,		OXXX},
++	{"fallthrough",	LFALL,		Txxx,		OXXX},
++	{"for",		LFOR,		Txxx,		OXXX},
++	{"func",		LFUNC,		Txxx,		OXXX},
++	{"go",		LGO,		Txxx,		OXXX},
++	{"goto",		LGOTO,		Txxx,		OXXX},
++	{"if",		LIF,		Txxx,		OXXX},
++	{"import",	LIMPORT,	Txxx,		OXXX},
++	{"interface",	LINTERFACE,	Txxx,		OXXX},
++	{"map",		LMAP,		Txxx,		OXXX},
++	{"package",	LPACKAGE,	Txxx,		OXXX},
++	{"range",	LRANGE,		Txxx,		OXXX},
++	{"return",	LRETURN,	Txxx,		OXXX},
++	{"select",	LSELECT,	Txxx,		OXXX},
++	{"struct",	LSTRUCT,	Txxx,		OXXX},
++	{"switch",	LSWITCH,	Txxx,		OXXX},
++	{"type",		LTYPE,		Txxx,		OXXX},
++	{"var",		LVAR,		Txxx,		OXXX},
++
++	{"append",	LNAME,		Txxx,		OAPPEND},
++	{"cap",		LNAME,		Txxx,		OCAP},
++	{"close",	LNAME,		Txxx,		OCLOSE},
++	{"complex",	LNAME,		Txxx,		OCOMPLEX},
++	{"copy",		LNAME,		Txxx,		OCOPY},
++	{"delete",	LNAME,		Txxx,		ODELETE},
++	{"imag",		LNAME,		Txxx,		OIMAG},
++	{"len",		LNAME,		Txxx,		OLEN},
++	{"make",		LNAME,		Txxx,		OMAKE},
++	{"new",		LNAME,		Txxx,		ONEW},
++	{"panic",	LNAME,		Txxx,		OPANIC},
++	{"print",	LNAME,		Txxx,		OPRINT},
++	{"println",	LNAME,		Txxx,		OPRINTN},
++	{"real",		LNAME,		Txxx,		OREAL},
++	{"recover",	LNAME,		Txxx,		ORECOVER},
++
++	{"notwithstanding",		LIGNORE,	Txxx,		OXXX},
++	{"thetruthofthematter",		LIGNORE,	Txxx,		OXXX},
++	{"despiteallobjections",		LIGNORE,	Txxx,		OXXX},
++	{"whereas",			LIGNORE,	Txxx,		OXXX},
++	{"insofaras",			LIGNORE,	Txxx,		OXXX},
+ };
+ 
+ static void
+@@ -2175,50 +2171,50 @@ struct
+ 	char*	name;
+ } lexn[] =
+ {
+-	LANDAND,	"ANDAND",
+-	LANDNOT,	"ANDNOT",
+-	LASOP,		"ASOP",
+-	LBREAK,		"BREAK",
+-	LCASE,		"CASE",
+-	LCHAN,		"CHAN",
+-	LCOLAS,		"COLAS",
+-	LCOMM,		"<-",
+-	LCONST,		"CONST",
+-	LCONTINUE,	"CONTINUE",
+-	LDDD,		"...",
+-	LDEC,		"DEC",
+-	LDEFAULT,	"DEFAULT",
+-	LDEFER,		"DEFER",
+-	LELSE,		"ELSE",
+-	LEQ,		"EQ",
+-	LFALL,		"FALL",
+-	LFOR,		"FOR",
+-	LFUNC,		"FUNC",
+-	LGE,		"GE",
+-	LGO,		"GO",
+-	LGOTO,		"GOTO",
+-	LGT,		"GT",
+-	LIF,		"IF",
+-	LIMPORT,	"IMPORT",
+-	LINC,		"INC",
+-	LINTERFACE,	"INTERFACE",
+-	LLE,		"LE",
+-	LLITERAL,	"LITERAL",
+-	LLSH,		"LSH",
+-	LLT,		"LT",
+-	LMAP,		"MAP",
+-	LNAME,		"NAME",
+-	LNE,		"NE",
+-	LOROR,		"OROR",
+-	LPACKAGE,	"PACKAGE",
+-	LRANGE,		"RANGE",
+-	LRETURN,	"RETURN",
+-	LRSH,		"RSH",
+-	LSELECT,	"SELECT",
+-	LSTRUCT,	"STRUCT",
+-	LSWITCH,	"SWITCH",
+-	LTYPE,		"TYPE",
+-	LVAR,		"VAR",
++	{LANDAND,	"ANDAND"},
++	{LANDNOT,	"ANDNOT"},
++	{LASOP,		"ASOP"},
++	{LBREAK,		"BREAK"},
++	{LCASE,		"CASE"},
++	{LCHAN,		"CHAN"},
++	{LCOLAS,		"COLAS"},
++	{LCOMM,		"<-"},
++	{LCONST,		"CONST"},
++	{LCONTINUE,	"CONTINUE"},
++	{LDDD,		"..."},
++	{LDEC,		"DEC"},
++	{LDEFAULT,	"DEFAULT"},
++	{LDEFER,		"DEFER"},
++	{LELSE,		"ELSE"},
++	{LEQ,		"EQ"},
++	{LFALL,		"FALL"},
++	{LFOR,		"FOR"},
++	{LFUNC,		"FUNC"},
++	{LGE,		"GE"},
++	{LGO,		"GO"},
++	{LGOTO,		"GOTO"},
++	{LGT,		"GT"},
++	{LIF,		"IF"},
++	{LIMPORT,	"IMPORT"},
++	{LINC,		"INC"},
++	{LINTERFACE,	"INTERFACE"},
++	{LLE,		"LE"},
++	{LLITERAL,	"LITERAL"},
++	{LLSH,		"LSH"},
++	{LLT,		"LT"},
++	{LMAP,		"MAP"},
++	{LNAME,		"NAME"},
++	{LNE,		"NE"},
++	{LOROR,		"OROR"},
++	{LPACKAGE,	"PACKAGE"},
++	{LRANGE,		"RANGE"},
++	{LRETURN,	"RETURN"},
++	{LRSH,		"RSH"},
++	{LSELECT,	"SELECT"},
++	{LSTRUCT,	"STRUCT"},
++	{LSWITCH,	"SWITCH"},
++	{LTYPE,		"TYPE"},
++	{LVAR,		"VAR"},
+ };
+ 
+ char*
+@@ -2240,56 +2236,56 @@ struct
+ 	char *want;
+ } yytfix[] =
+ {
+-	"$end",	"EOF",
+-	"LLITERAL",	"literal",
+-	"LASOP",	"op=",
+-	"LBREAK",	"break",
+-	"LCASE",	"case",
+-	"LCHAN",	"chan",
+-	"LCOLAS",	":=",
+-	"LCONST",	"const",
+-	"LCONTINUE",	"continue",
+-	"LDDD",	"...",
+-	"LDEFAULT",	"default",
+-	"LDEFER",	"defer",
+-	"LELSE",	"else",
+-	"LFALL",	"fallthrough",
+-	"LFOR",	"for",
+-	"LFUNC",	"func",
+-	"LGO",	"go",
+-	"LGOTO",	"goto",
+-	"LIF",	"if",
+-	"LIMPORT",	"import",
+-	"LINTERFACE",	"interface",
+-	"LMAP",	"map",
+-	"LNAME",	"name",
+-	"LPACKAGE",	"package",
+-	"LRANGE",	"range",
+-	"LRETURN",	"return",
+-	"LSELECT",	"select",
+-	"LSTRUCT",	"struct",
+-	"LSWITCH",	"switch",
+-	"LTYPE",	"type",
+-	"LVAR",	"var",
+-	"LANDAND",	"&&",
+-	"LANDNOT",	"&^",
+-	"LBODY",	"{",
+-	"LCOMM",	"<-",
+-	"LDEC",	"--",
+-	"LINC",	"++",
+-	"LEQ",	"==",
+-	"LGE",	">=",
+-	"LGT",	">",
+-	"LLE",	"<=",
+-	"LLT",	"<",
+-	"LLSH",	"<<",
+-	"LRSH",	">>",
+-	"LOROR",	"||",
+-	"LNE",	"!=",
++	{"$end",	"EOF"},
++	{"LLITERAL",	"literal"},
++	{"LASOP",	"op="},
++	{"LBREAK",	"break"},
++	{"LCASE",	"case"},
++	{"LCHAN",	"chan"},
++	{"LCOLAS",	":="},
++	{"LCONST",	"const"},
++	{"LCONTINUE",	"continue"},
++	{"LDDD",	"..."},
++	{"LDEFAULT",	"default"},
++	{"LDEFER",	"defer"},
++	{"LELSE",	"else"},
++	{"LFALL",	"fallthrough"},
++	{"LFOR",	"for"},
++	{"LFUNC",	"func"},
++	{"LGO",	"go"},
++	{"LGOTO",	"goto"},
++	{"LIF",	"if"},
++	{"LIMPORT",	"import"},
++	{"LINTERFACE",	"interface"},
++	{"LMAP",	"map"},
++	{"LNAME",	"name"},
++	{"LPACKAGE",	"package"},
++	{"LRANGE",	"range"},
++	{"LRETURN",	"return"},
++	{"LSELECT",	"select"},
++	{"LSTRUCT",	"struct"},
++	{"LSWITCH",	"switch"},
++	{"LTYPE",	"type"},
++	{"LVAR",	"var"},
++	{"LANDAND",	"&&"},
++	{"LANDNOT",	"&^"},
++	{"LBODY",	"{"},
++	{"LCOMM",	"<-"},
++	{"LDEC",	"--"},
++	{"LINC",	"++"},
++	{"LEQ",	"=="},
++	{"LGE",	">="},
++	{"LGT",	">"},
++	{"LLE",	"<="},
++	{"LLT",	"<"},
++	{"LLSH",	"<<"},
++	{"LRSH",	">>"},
++	{"LOROR",	"||"},
++	{"LNE",	"!="},
+ 	
+ 	// spell out to avoid confusion with punctuation in error messages
+-	"';'",	"semicolon or newline",
+-	"','",	"comma",
++	{"';'",	"semicolon or newline"},
++	{"','",	"comma"},
+ };
+ 
+ static void
+diff --git a/src/cmd/gc/md5.c b/src/cmd/gc/md5.c
+index 0051ac964e..fa6606719f 100644
+--- a/src/cmd/gc/md5.c
++++ b/src/cmd/gc/md5.c
+@@ -20,7 +20,15 @@ enum {
+ #define _Init1 0xEFCDAB89
+ #define _Init2 0x98BADCFE
+ #define _Init3 0x10325476
+-
++/*c2go
++enum {
++	_Init0 = 0x67452301,
++	_Init1 = 0xEFCDAB89,
++	_Init2 = 0x98BADCFE,
++	_Init3 = 0x10325476
++};
++*/
++	
+ void
+ md5reset(MD5 *d)
+ {
+diff --git a/src/cmd/gc/plive.c b/src/cmd/gc/plive.c
+index eb89017338..4c07d6bc51 100644
+--- a/src/cmd/gc/plive.c
++++ b/src/cmd/gc/plive.c
+@@ -657,8 +657,8 @@ static void
+ progeffects(Prog *prog, Array *vars, Bvec *uevar, Bvec *varkill, Bvec *avarinit)
+ {
+ 	ProgInfo info;
+-	Adr *from;
+-	Adr *to;
++	Addr *from;
++	Addr *to;
+ 	Node *node;
+ 	int32 i;
+ 	int32 pos;
+@@ -1663,6 +1663,13 @@ livenessepilogue(Liveness *lv)
+ // FNV-1 hash function constants.
+ #define H0 2166136261UL
+ #define Hp 16777619UL
++/*c2go
++enum
++{
++	H0 = 2166136261,
++	Hp = 16777619,
++};
++*/
+ 
+ static uint32
+ hashbitmap(uint32 h, Bvec *bv)
+diff --git a/src/cmd/gc/popt.c b/src/cmd/gc/popt.c
+index ea88b94dbe..c8d60c5add 100644
+--- a/src/cmd/gc/popt.c
++++ b/src/cmd/gc/popt.c
+@@ -98,6 +98,10 @@ chasejmp(Prog *p, int *jmploop)
+  */
+ #define alive ((void*)0)
+ #define dead ((void*)1)
++/*c2go
++extern void *alive;
++extern void *dead;
++*/
+ 
+ /* mark all code reachable from firstp as alive */
+ static void
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 72a9ac20c7..ac006f5bc7 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -3445,7 +3445,7 @@ smagic(Magic *m)
+ 		mask = 0xffffffffLL;
+ 		break;
+ 	case 64:
+-		mask = 0xffffffffffffffffLL;
++		mask = 0xffffffffffffffffULL;
+ 		break;
+ 	}
+ 	two31 = mask ^ (mask>>1);
+@@ -3543,7 +3543,7 @@ umagic(Magic *m)
+ 		mask = 0xffffffffLL;
+ 		break;
+ 	case 64:
+-		mask = 0xffffffffffffffffLL;
++		mask = 0xffffffffffffffffULL;
+ 		break;
+ 	}
+ 	two31 = mask ^ (mask>>1);
+diff --git a/src/cmd/gc/swt.c b/src/cmd/gc/swt.c
+index ce0190507f..e1d8af8786 100644
+--- a/src/cmd/gc/swt.c
++++ b/src/cmd/gc/swt.c
+@@ -34,6 +34,7 @@ struct	Case
+ 	Case*	link;		// linked list to link
+ };
+ #define	C	((Case*)nil)
++/*c2go Case *C; */
+ 
+ void
+ dumpcase(Case *c0)
+diff --git a/src/cmd/gc/yerr.h b/src/cmd/gc/yerr.h
+index 1526d82310..fa3e9f27cc 100644
+--- a/src/cmd/gc/yerr.h
++++ b/src/cmd/gc/yerr.h
+@@ -14,66 +14,66 @@ static struct {
+ 	// is converted by bisonerrors into the yystate and yychar caused
+ 	// by that token list.
+ 
+-	222, ',',
+-	"unexpected comma during import block",
++	{222, ',',
++	"unexpected comma during import block"},
+ 
+-	32, ';',
+-	"missing import path; require quoted string",
++	{32, ';',
++	"missing import path; require quoted string"},
+ 
+-	378, ';',
+-	"missing { after if clause",
++	{378, ';',
++	"missing { after if clause"},
+ 
+-	399, ';',
+-	"missing { after switch clause",
++	{399, ';',
++	"missing { after switch clause"},
+ 
+-	238, ';',
+-	"missing { after for clause",
++	{238, ';',
++	"missing { after for clause"},
+ 
+-	476, LBODY,
+-	"missing { after for clause",
++	{476, LBODY,
++	"missing { after for clause"},
+ 
+-	22, '{',
+-	"unexpected semicolon or newline before {",
++	{22, '{',
++	"unexpected semicolon or newline before {"},
+ 
+-	145, ';',
+-	"unexpected semicolon or newline in type declaration",
++	{145, ';',
++	"unexpected semicolon or newline in type declaration"},
+ 
+-	37, '}',
+-	"unexpected } in channel type",
++	{37, '}',
++	"unexpected } in channel type"},
+ 	
+-	37, ')',
+-	"unexpected ) in channel type",
++	{37, ')',
++	"unexpected ) in channel type"},
+ 	
+-	37, ',',
+-	"unexpected comma in channel type",
++	{37, ',',
++	"unexpected comma in channel type"},
+ 
+-	439, LELSE,
+-	"unexpected semicolon or newline before else",
++	{439, LELSE,
++	"unexpected semicolon or newline before else"},
+ 
+-	258, ',',
+-	"name list not allowed in interface type",
++	{258, ',',
++	"name list not allowed in interface type"},
+ 
+-	238, LVAR,
+-	"var declaration not allowed in for initializer",
++	{238, LVAR,
++	"var declaration not allowed in for initializer"},
+ 
+-	65, '{',
+-	"unexpected { at end of statement",
++	{65, '{',
++	"unexpected { at end of statement"},
+ 
+-	377, '{',
+-	"unexpected { at end of statement",
++	{377, '{',
++	"unexpected { at end of statement"},
+ 	
+-	126, ';',
+-	"argument to go/defer must be function call",
++	{126, ';',
++	"argument to go/defer must be function call"},
+ 	
+-	426, ';',
+-	"need trailing comma before newline in composite literal",
++	{426, ';',
++	"need trailing comma before newline in composite literal"},
+ 	
+-	437, ';',
+-	"need trailing comma before newline in composite literal",
++	{437, ';',
++	"need trailing comma before newline in composite literal"},
+ 	
+-	113, LNAME,
+-	"nested func not allowed",
++	{113, LNAME,
++	"nested func not allowed"},
+ 
+-	645, ';',
+-	"else must be followed by if or statement block"
++	{645, ';',
++	"else must be followed by if or statement block"}
+ };
+diff --git a/src/cmd/ld/textflag.h b/src/cmd/ld/textflag.h
+index 2a76e76c29..0ee8b5f1ce 100644
+--- a/src/cmd/ld/textflag.h
++++ b/src/cmd/ld/textflag.h
+@@ -21,3 +21,16 @@
+ #define WRAPPER 32
+ // This function uses its incoming context register.
+ #define NEEDCTXT 64
++
++/*c2go
++enum
++{
++	NOPROF = 1,
++	DUPOK = 2,
++	NOSPLIT = 4,
++	RODATA = 8,
++	NOPTR = 16,
++	WRAPPER = 32,
++	NEEDCTXT = 64,
++};
++*/
+diff --git a/src/liblink/asm5.c b/src/liblink/asm5.c
+index 2d084801f1..56dc6ebb38 100644
+--- a/src/liblink/asm5.c
++++ b/src/liblink/asm5.c
+@@ -43,7 +43,7 @@ typedef	uchar	Opcross[32][2][32];
+ 
+ struct	Optab
+ {
+-	char	as;
++	uchar	as;
+ 	uchar	a1;
+ 	char	a2;
+ 	uchar	a3;
+@@ -2038,64 +2038,6 @@ if(0 /*debug['G']*/) print("%ux: %s: arm %d\n", (uint32)(p->pc), p->from.sym->na
+ 	out[4] = o5;
+ 	out[5] = o6;
+ 	return;
+-
+-#ifdef NOTDEF
+-	v = p->pc;
+-	switch(o->size) {
+-	default:
+-		if(debug['a'])
+-			Bprint(&bso, " %.8ux:\t\t%P\n", v, p);
+-		break;
+-	case 4:
+-		if(debug['a'])
+-			Bprint(&bso, " %.8ux: %.8ux\t%P\n", v, o1, p);
+-		lputl(o1);
+-		break;
+-	case 8:
+-		if(debug['a'])
+-			Bprint(&bso, " %.8ux: %.8ux %.8ux%P\n", v, o1, o2, p);
+-		lputl(o1);
+-		lputl(o2);
+-		break;
+-	case 12:
+-		if(debug['a'])
+-			Bprint(&bso, " %.8ux: %.8ux %.8ux %.8ux%P\n", v, o1, o2, o3, p);
+-		lputl(o1);
+-		lputl(o2);
+-		lputl(o3);
+-		break;
+-	case 16:
+-		if(debug['a'])
+-			Bprint(&bso, " %.8ux: %.8ux %.8ux %.8ux %.8ux%P\n",
+-				v, o1, o2, o3, o4, p);
+-		lputl(o1);
+-		lputl(o2);
+-		lputl(o3);
+-		lputl(o4);
+-		break;
+-	case 20:
+-		if(debug['a'])
+-			Bprint(&bso, " %.8ux: %.8ux %.8ux %.8ux %.8ux %.8ux%P\n",
+-				v, o1, o2, o3, o4, o5, p);
+-		lputl(o1);
+-		lputl(o2);
+-		lputl(o3);
+-		lputl(o4);
+-		lputl(o5);
+-		break;
+-	case 24:
+-		if(debug['a'])
+-			Bprint(&bso, " %.8ux: %.8ux %.8ux %.8ux %.8ux %.8ux %.8ux%P\n",
+-				v, o1, o2, o3, o4, o5, o6, p);
+-		lputl(o1);
+-		lputl(o2);
+-		lputl(o3);
+-		lputl(o4);
+-		lputl(o5);
+-		lputl(o6);
+-		break;
+-	}
+-#endif
+ }
+ 
+ static int32
+diff --git a/src/liblink/asm6.c b/src/liblink/asm6.c
+index 751c972154..b0d44e119e 100644
+--- a/src/liblink/asm6.c
++++ b/src/liblink/asm6.c
+@@ -821,717 +821,717 @@ static uchar	yaes2[] =
+  * encoded addressing mode for the Yml arg), and then a single immediate byte.
+  * Zilo_m is the same but a long (32-bit) immediate.
+  */
+-Optab optab[] =
++static Optab optab[] =
+ /*	as, ytab, andproto, opcode */
+ {
+ 	{ AXXX },
+-	{ AAAA,		ynone,	P32, 0x37 },
+-	{ AAAD,		ynone,	P32, 0xd5,0x0a },
+-	{ AAAM,		ynone,	P32, 0xd4,0x0a },
+-	{ AAAS,		ynone,	P32, 0x3f },
+-	{ AADCB,	yxorb,	Pb, 0x14,0x80,(02),0x10,0x10 },
+-	{ AADCL,	yxorl,	Px, 0x83,(02),0x15,0x81,(02),0x11,0x13 },
+-	{ AADCQ,	yxorl,	Pw, 0x83,(02),0x15,0x81,(02),0x11,0x13 },
+-	{ AADCW,	yxorl,	Pe, 0x83,(02),0x15,0x81,(02),0x11,0x13 },
+-	{ AADDB,	yxorb,	Pb, 0x04,0x80,(00),0x00,0x02 },
+-	{ AADDL,	yaddl,	Px, 0x83,(00),0x05,0x81,(00),0x01,0x03 },
+-	{ AADDPD,	yxm,	Pq, 0x58 },
+-	{ AADDPS,	yxm,	Pm, 0x58 },
+-	{ AADDQ,	yaddl,	Pw, 0x83,(00),0x05,0x81,(00),0x01,0x03 },
+-	{ AADDSD,	yxm,	Pf2, 0x58 },
+-	{ AADDSS,	yxm,	Pf3, 0x58 },
+-	{ AADDW,	yaddl,	Pe, 0x83,(00),0x05,0x81,(00),0x01,0x03 },
++	{ AAAA,		ynone,	P32, {0x37} },
++	{ AAAD,		ynone,	P32, {0xd5,0x0a} },
++	{ AAAM,		ynone,	P32, {0xd4,0x0a} },
++	{ AAAS,		ynone,	P32, {0x3f} },
++	{ AADCB,	yxorb,	Pb, {0x14,0x80,(02),0x10,0x10} },
++	{ AADCL,	yxorl,	Px, {0x83,(02),0x15,0x81,(02),0x11,0x13} },
++	{ AADCQ,	yxorl,	Pw, {0x83,(02),0x15,0x81,(02),0x11,0x13} },
++	{ AADCW,	yxorl,	Pe, {0x83,(02),0x15,0x81,(02),0x11,0x13} },
++	{ AADDB,	yxorb,	Pb, {0x04,0x80,(00),0x00,0x02} },
++	{ AADDL,	yaddl,	Px, {0x83,(00),0x05,0x81,(00),0x01,0x03} },
++	{ AADDPD,	yxm,	Pq, {0x58} },
++	{ AADDPS,	yxm,	Pm, {0x58} },
++	{ AADDQ,	yaddl,	Pw, {0x83,(00),0x05,0x81,(00),0x01,0x03} },
++	{ AADDSD,	yxm,	Pf2, {0x58} },
++	{ AADDSS,	yxm,	Pf3, {0x58} },
++	{ AADDW,	yaddl,	Pe, {0x83,(00),0x05,0x81,(00),0x01,0x03} },
+ 	{ AADJSP },
+-	{ AANDB,	yxorb,	Pb, 0x24,0x80,(04),0x20,0x22 },
+-	{ AANDL,	yxorl,	Px, 0x83,(04),0x25,0x81,(04),0x21,0x23 },
+-	{ AANDNPD,	yxm,	Pq, 0x55 },
+-	{ AANDNPS,	yxm,	Pm, 0x55 },
+-	{ AANDPD,	yxm,	Pq, 0x54 },
+-	{ AANDPS,	yxm,	Pq, 0x54 },
+-	{ AANDQ,	yxorl,	Pw, 0x83,(04),0x25,0x81,(04),0x21,0x23 },
+-	{ AANDW,	yxorl,	Pe, 0x83,(04),0x25,0x81,(04),0x21,0x23 },
+-	{ AARPL,	yrl_ml,	P32, 0x63 },
+-	{ ABOUNDL,	yrl_m,	P32, 0x62 },
+-	{ ABOUNDW,	yrl_m,	Pe, 0x62 },
+-	{ ABSFL,	yml_rl,	Pm, 0xbc },
+-	{ ABSFQ,	yml_rl,	Pw, 0x0f,0xbc },
+-	{ ABSFW,	yml_rl,	Pq, 0xbc },
+-	{ ABSRL,	yml_rl,	Pm, 0xbd },
+-	{ ABSRQ,	yml_rl,	Pw, 0x0f,0xbd },
+-	{ ABSRW,	yml_rl,	Pq, 0xbd },
+-	{ ABSWAPL,	ybswap,	Px, 0x0f,0xc8 },
+-	{ ABSWAPQ,	ybswap,	Pw, 0x0f,0xc8 },
+-	{ ABTCL,	ybtl,	Pm, 0xba,(07),0xbb },
+-	{ ABTCQ,	ybtl,	Pw, 0x0f,0xba,(07),0x0f,0xbb },
+-	{ ABTCW,	ybtl,	Pq, 0xba,(07),0xbb },
+-	{ ABTL,		ybtl,	Pm, 0xba,(04),0xa3 },
+-	{ ABTQ,		ybtl,	Pw, 0x0f,0xba,(04),0x0f,0xa3},
+-	{ ABTRL,	ybtl,	Pm, 0xba,(06),0xb3 },
+-	{ ABTRQ,	ybtl,	Pw, 0x0f,0xba,(06),0x0f,0xb3 },
+-	{ ABTRW,	ybtl,	Pq, 0xba,(06),0xb3 },
+-	{ ABTSL,	ybtl,	Pm, 0xba,(05),0xab  },
+-	{ ABTSQ,	ybtl,	Pw, 0x0f,0xba,(05),0x0f,0xab },
+-	{ ABTSW,	ybtl,	Pq, 0xba,(05),0xab  },
+-	{ ABTW,		ybtl,	Pq, 0xba,(04),0xa3 },
+-	{ ABYTE,	ybyte,	Px, 1 },
+-	{ ACALL,	ycall,	Px, 0xff,(02),0xe8 },
+-	{ ACDQ,		ynone,	Px, 0x99 },
+-	{ ACLC,		ynone,	Px, 0xf8 },
+-	{ ACLD,		ynone,	Px, 0xfc },
+-	{ ACLI,		ynone,	Px, 0xfa },
+-	{ ACLTS,	ynone,	Pm, 0x06 },
+-	{ ACMC,		ynone,	Px, 0xf5 },
+-	{ ACMOVLCC,	yml_rl,	Pm, 0x43 },
+-	{ ACMOVLCS,	yml_rl,	Pm, 0x42 },
+-	{ ACMOVLEQ,	yml_rl,	Pm, 0x44 },
+-	{ ACMOVLGE,	yml_rl,	Pm, 0x4d },
+-	{ ACMOVLGT,	yml_rl,	Pm, 0x4f },
+-	{ ACMOVLHI,	yml_rl,	Pm, 0x47 },
+-	{ ACMOVLLE,	yml_rl,	Pm, 0x4e },
+-	{ ACMOVLLS,	yml_rl,	Pm, 0x46 },
+-	{ ACMOVLLT,	yml_rl,	Pm, 0x4c },
+-	{ ACMOVLMI,	yml_rl,	Pm, 0x48 },
+-	{ ACMOVLNE,	yml_rl,	Pm, 0x45 },
+-	{ ACMOVLOC,	yml_rl,	Pm, 0x41 },
+-	{ ACMOVLOS,	yml_rl,	Pm, 0x40 },
+-	{ ACMOVLPC,	yml_rl,	Pm, 0x4b },
+-	{ ACMOVLPL,	yml_rl,	Pm, 0x49 },
+-	{ ACMOVLPS,	yml_rl,	Pm, 0x4a },
+-	{ ACMOVQCC,	yml_rl,	Pw, 0x0f,0x43 },
+-	{ ACMOVQCS,	yml_rl,	Pw, 0x0f,0x42 },
+-	{ ACMOVQEQ,	yml_rl,	Pw, 0x0f,0x44 },
+-	{ ACMOVQGE,	yml_rl,	Pw, 0x0f,0x4d },
+-	{ ACMOVQGT,	yml_rl,	Pw, 0x0f,0x4f },
+-	{ ACMOVQHI,	yml_rl,	Pw, 0x0f,0x47 },
+-	{ ACMOVQLE,	yml_rl,	Pw, 0x0f,0x4e },
+-	{ ACMOVQLS,	yml_rl,	Pw, 0x0f,0x46 },
+-	{ ACMOVQLT,	yml_rl,	Pw, 0x0f,0x4c },
+-	{ ACMOVQMI,	yml_rl,	Pw, 0x0f,0x48 },
+-	{ ACMOVQNE,	yml_rl,	Pw, 0x0f,0x45 },
+-	{ ACMOVQOC,	yml_rl,	Pw, 0x0f,0x41 },
+-	{ ACMOVQOS,	yml_rl,	Pw, 0x0f,0x40 },
+-	{ ACMOVQPC,	yml_rl,	Pw, 0x0f,0x4b },
+-	{ ACMOVQPL,	yml_rl,	Pw, 0x0f,0x49 },
+-	{ ACMOVQPS,	yml_rl,	Pw, 0x0f,0x4a },
+-	{ ACMOVWCC,	yml_rl,	Pq, 0x43 },
+-	{ ACMOVWCS,	yml_rl,	Pq, 0x42 },
+-	{ ACMOVWEQ,	yml_rl,	Pq, 0x44 },
+-	{ ACMOVWGE,	yml_rl,	Pq, 0x4d },
+-	{ ACMOVWGT,	yml_rl,	Pq, 0x4f },
+-	{ ACMOVWHI,	yml_rl,	Pq, 0x47 },
+-	{ ACMOVWLE,	yml_rl,	Pq, 0x4e },
+-	{ ACMOVWLS,	yml_rl,	Pq, 0x46 },
+-	{ ACMOVWLT,	yml_rl,	Pq, 0x4c },
+-	{ ACMOVWMI,	yml_rl,	Pq, 0x48 },
+-	{ ACMOVWNE,	yml_rl,	Pq, 0x45 },
+-	{ ACMOVWOC,	yml_rl,	Pq, 0x41 },
+-	{ ACMOVWOS,	yml_rl,	Pq, 0x40 },
+-	{ ACMOVWPC,	yml_rl,	Pq, 0x4b },
+-	{ ACMOVWPL,	yml_rl,	Pq, 0x49 },
+-	{ ACMOVWPS,	yml_rl,	Pq, 0x4a },
+-	{ ACMPB,	ycmpb,	Pb, 0x3c,0x80,(07),0x38,0x3a },
+-	{ ACMPL,	ycmpl,	Px, 0x83,(07),0x3d,0x81,(07),0x39,0x3b },
+-	{ ACMPPD,	yxcmpi,	Px, Pe,0xc2 },
+-	{ ACMPPS,	yxcmpi,	Pm, 0xc2,0 },
+-	{ ACMPQ,	ycmpl,	Pw, 0x83,(07),0x3d,0x81,(07),0x39,0x3b },
+-	{ ACMPSB,	ynone,	Pb, 0xa6 },
+-	{ ACMPSD,	yxcmpi,	Px, Pf2,0xc2 },
+-	{ ACMPSL,	ynone,	Px, 0xa7 },
+-	{ ACMPSQ,	ynone,	Pw, 0xa7 },
+-	{ ACMPSS,	yxcmpi,	Px, Pf3,0xc2 },
+-	{ ACMPSW,	ynone,	Pe, 0xa7 },
+-	{ ACMPW,	ycmpl,	Pe, 0x83,(07),0x3d,0x81,(07),0x39,0x3b },
+-	{ ACOMISD,	yxcmp,	Pe, 0x2f },
+-	{ ACOMISS,	yxcmp,	Pm, 0x2f },
+-	{ ACPUID,	ynone,	Pm, 0xa2 },
+-	{ ACVTPL2PD,	yxcvm2,	Px, Pf3,0xe6,Pe,0x2a },
+-	{ ACVTPL2PS,	yxcvm2,	Pm, 0x5b,0,0x2a,0, },
+-	{ ACVTPD2PL,	yxcvm1,	Px, Pf2,0xe6,Pe,0x2d },
+-	{ ACVTPD2PS,	yxm,	Pe, 0x5a },
+-	{ ACVTPS2PL,	yxcvm1, Px, Pe,0x5b,Pm,0x2d },
+-	{ ACVTPS2PD,	yxm,	Pm, 0x5a },
+-	{ API2FW,	ymfp,	Px, 0x0c },
+-	{ ACVTSD2SL,	yxcvfl, Pf2, 0x2d },
+-	{ ACVTSD2SQ,	yxcvfq, Pw, Pf2,0x2d },
+-	{ ACVTSD2SS,	yxm,	Pf2, 0x5a },
+-	{ ACVTSL2SD,	yxcvlf, Pf2, 0x2a },
+-	{ ACVTSQ2SD,	yxcvqf, Pw, Pf2,0x2a },
+-	{ ACVTSL2SS,	yxcvlf, Pf3, 0x2a },
+-	{ ACVTSQ2SS,	yxcvqf, Pw, Pf3,0x2a },
+-	{ ACVTSS2SD,	yxm,	Pf3, 0x5a },
+-	{ ACVTSS2SL,	yxcvfl, Pf3, 0x2d },
+-	{ ACVTSS2SQ,	yxcvfq, Pw, Pf3,0x2d },
+-	{ ACVTTPD2PL,	yxcvm1,	Px, Pe,0xe6,Pe,0x2c },
+-	{ ACVTTPS2PL,	yxcvm1,	Px, Pf3,0x5b,Pm,0x2c },
+-	{ ACVTTSD2SL,	yxcvfl, Pf2, 0x2c },
+-	{ ACVTTSD2SQ,	yxcvfq, Pw, Pf2,0x2c },
+-	{ ACVTTSS2SL,	yxcvfl,	Pf3, 0x2c },
+-	{ ACVTTSS2SQ,	yxcvfq, Pw, Pf3,0x2c },
+-	{ ACWD,		ynone,	Pe, 0x99 },
+-	{ ACQO,		ynone,	Pw, 0x99 },
+-	{ ADAA,		ynone,	P32, 0x27 },
+-	{ ADAS,		ynone,	P32, 0x2f },
++	{ AANDB,	yxorb,	Pb, {0x24,0x80,(04),0x20,0x22} },
++	{ AANDL,	yxorl,	Px, {0x83,(04),0x25,0x81,(04),0x21,0x23} },
++	{ AANDNPD,	yxm,	Pq, {0x55} },
++	{ AANDNPS,	yxm,	Pm, {0x55} },
++	{ AANDPD,	yxm,	Pq, {0x54} },
++	{ AANDPS,	yxm,	Pq, {0x54} },
++	{ AANDQ,	yxorl,	Pw, {0x83,(04),0x25,0x81,(04),0x21,0x23} },
++	{ AANDW,	yxorl,	Pe, {0x83,(04),0x25,0x81,(04),0x21,0x23} },
++	{ AARPL,	yrl_ml,	P32, {0x63} },
++	{ ABOUNDL,	yrl_m,	P32, {0x62} },
++	{ ABOUNDW,	yrl_m,	Pe, {0x62} },
++	{ ABSFL,	yml_rl,	Pm, {0xbc} },
++	{ ABSFQ,	yml_rl,	Pw, {0x0f,0xbc} },
++	{ ABSFW,	yml_rl,	Pq, {0xbc} },
++	{ ABSRL,	yml_rl,	Pm, {0xbd} },
++	{ ABSRQ,	yml_rl,	Pw, {0x0f,0xbd} },
++	{ ABSRW,	yml_rl,	Pq, {0xbd} },
++	{ ABSWAPL,	ybswap,	Px, {0x0f,0xc8} },
++	{ ABSWAPQ,	ybswap,	Pw, {0x0f,0xc8} },
++	{ ABTCL,	ybtl,	Pm, {0xba,(07),0xbb} },
++	{ ABTCQ,	ybtl,	Pw, {0x0f,0xba,(07),0x0f,0xbb} },
++	{ ABTCW,	ybtl,	Pq, {0xba,(07),0xbb} },
++	{ ABTL,		ybtl,	Pm, {0xba,(04),0xa3} },
++	{ ABTQ,		ybtl,	Pw, {0x0f,0xba,(04),0x0f,0xa3}},
++	{ ABTRL,	ybtl,	Pm, {0xba,(06),0xb3} },
++	{ ABTRQ,	ybtl,	Pw, {0x0f,0xba,(06),0x0f,0xb3} },
++	{ ABTRW,	ybtl,	Pq, {0xba,(06),0xb3} },
++	{ ABTSL,	ybtl,	Pm, {0xba,(05),0xab } },
++	{ ABTSQ,	ybtl,	Pw, {0x0f,0xba,(05),0x0f,0xab} },
++	{ ABTSW,	ybtl,	Pq, {0xba,(05),0xab } },
++	{ ABTW,		ybtl,	Pq, {0xba,(04),0xa3} },
++	{ ABYTE,	ybyte,	Px, {1} },
++	{ ACALL,	ycall,	Px, {0xff,(02),0xe8} },
++	{ ACDQ,		ynone,	Px, {0x99} },
++	{ ACLC,		ynone,	Px, {0xf8} },
++	{ ACLD,		ynone,	Px, {0xfc} },
++	{ ACLI,		ynone,	Px, {0xfa} },
++	{ ACLTS,	ynone,	Pm, {0x06} },
++	{ ACMC,		ynone,	Px, {0xf5} },
++	{ ACMOVLCC,	yml_rl,	Pm, {0x43} },
++	{ ACMOVLCS,	yml_rl,	Pm, {0x42} },
++	{ ACMOVLEQ,	yml_rl,	Pm, {0x44} },
++	{ ACMOVLGE,	yml_rl,	Pm, {0x4d} },
++	{ ACMOVLGT,	yml_rl,	Pm, {0x4f} },
++	{ ACMOVLHI,	yml_rl,	Pm, {0x47} },
++	{ ACMOVLLE,	yml_rl,	Pm, {0x4e} },
++	{ ACMOVLLS,	yml_rl,	Pm, {0x46} },
++	{ ACMOVLLT,	yml_rl,	Pm, {0x4c} },
++	{ ACMOVLMI,	yml_rl,	Pm, {0x48} },
++	{ ACMOVLNE,	yml_rl,	Pm, {0x45} },
++	{ ACMOVLOC,	yml_rl,	Pm, {0x41} },
++	{ ACMOVLOS,	yml_rl,	Pm, {0x40} },
++	{ ACMOVLPC,	yml_rl,	Pm, {0x4b} },
++	{ ACMOVLPL,	yml_rl,	Pm, {0x49} },
++	{ ACMOVLPS,	yml_rl,	Pm, {0x4a} },
++	{ ACMOVQCC,	yml_rl,	Pw, {0x0f,0x43} },
++	{ ACMOVQCS,	yml_rl,	Pw, {0x0f,0x42} },
++	{ ACMOVQEQ,	yml_rl,	Pw, {0x0f,0x44} },
++	{ ACMOVQGE,	yml_rl,	Pw, {0x0f,0x4d} },
++	{ ACMOVQGT,	yml_rl,	Pw, {0x0f,0x4f} },
++	{ ACMOVQHI,	yml_rl,	Pw, {0x0f,0x47} },
++	{ ACMOVQLE,	yml_rl,	Pw, {0x0f,0x4e} },
++	{ ACMOVQLS,	yml_rl,	Pw, {0x0f,0x46} },
++	{ ACMOVQLT,	yml_rl,	Pw, {0x0f,0x4c} },
++	{ ACMOVQMI,	yml_rl,	Pw, {0x0f,0x48} },
++	{ ACMOVQNE,	yml_rl,	Pw, {0x0f,0x45} },
++	{ ACMOVQOC,	yml_rl,	Pw, {0x0f,0x41} },
++	{ ACMOVQOS,	yml_rl,	Pw, {0x0f,0x40} },
++	{ ACMOVQPC,	yml_rl,	Pw, {0x0f,0x4b} },
++	{ ACMOVQPL,	yml_rl,	Pw, {0x0f,0x49} },
++	{ ACMOVQPS,	yml_rl,	Pw, {0x0f,0x4a} },
++	{ ACMOVWCC,	yml_rl,	Pq, {0x43} },
++	{ ACMOVWCS,	yml_rl,	Pq, {0x42} },
++	{ ACMOVWEQ,	yml_rl,	Pq, {0x44} },
++	{ ACMOVWGE,	yml_rl,	Pq, {0x4d} },
++	{ ACMOVWGT,	yml_rl,	Pq, {0x4f} },
++	{ ACMOVWHI,	yml_rl,	Pq, {0x47} },
++	{ ACMOVWLE,	yml_rl,	Pq, {0x4e} },
++	{ ACMOVWLS,	yml_rl,	Pq, {0x46} },
++	{ ACMOVWLT,	yml_rl,	Pq, {0x4c} },
++	{ ACMOVWMI,	yml_rl,	Pq, {0x48} },
++	{ ACMOVWNE,	yml_rl,	Pq, {0x45} },
++	{ ACMOVWOC,	yml_rl,	Pq, {0x41} },
++	{ ACMOVWOS,	yml_rl,	Pq, {0x40} },
++	{ ACMOVWPC,	yml_rl,	Pq, {0x4b} },
++	{ ACMOVWPL,	yml_rl,	Pq, {0x49} },
++	{ ACMOVWPS,	yml_rl,	Pq, {0x4a} },
++	{ ACMPB,	ycmpb,	Pb, {0x3c,0x80,(07),0x38,0x3a} },
++	{ ACMPL,	ycmpl,	Px, {0x83,(07),0x3d,0x81,(07),0x39,0x3b} },
++	{ ACMPPD,	yxcmpi,	Px, {Pe,0xc2} },
++	{ ACMPPS,	yxcmpi,	Pm, {0xc2,0} },
++	{ ACMPQ,	ycmpl,	Pw, {0x83,(07),0x3d,0x81,(07),0x39,0x3b} },
++	{ ACMPSB,	ynone,	Pb, {0xa6} },
++	{ ACMPSD,	yxcmpi,	Px, {Pf2,0xc2} },
++	{ ACMPSL,	ynone,	Px, {0xa7} },
++	{ ACMPSQ,	ynone,	Pw, {0xa7} },
++	{ ACMPSS,	yxcmpi,	Px, {Pf3,0xc2} },
++	{ ACMPSW,	ynone,	Pe, {0xa7} },
++	{ ACMPW,	ycmpl,	Pe, {0x83,(07),0x3d,0x81,(07),0x39,0x3b} },
++	{ ACOMISD,	yxcmp,	Pe, {0x2f} },
++	{ ACOMISS,	yxcmp,	Pm, {0x2f} },
++	{ ACPUID,	ynone,	Pm, {0xa2} },
++	{ ACVTPL2PD,	yxcvm2,	Px, {Pf3,0xe6,Pe,0x2a} },
++	{ ACVTPL2PS,	yxcvm2,	Pm, {0x5b,0,0x2a,0,} },
++	{ ACVTPD2PL,	yxcvm1,	Px, {Pf2,0xe6,Pe,0x2d} },
++	{ ACVTPD2PS,	yxm,	Pe, {0x5a} },
++	{ ACVTPS2PL,	yxcvm1, Px, {Pe,0x5b,Pm,0x2d} },
++	{ ACVTPS2PD,	yxm,	Pm, {0x5a} },
++	{ API2FW,	ymfp,	Px, {0x0c} },
++	{ ACVTSD2SL,	yxcvfl, Pf2, {0x2d} },
++	{ ACVTSD2SQ,	yxcvfq, Pw, {Pf2,0x2d} },
++	{ ACVTSD2SS,	yxm,	Pf2, {0x5a} },
++	{ ACVTSL2SD,	yxcvlf, Pf2, {0x2a} },
++	{ ACVTSQ2SD,	yxcvqf, Pw, {Pf2,0x2a} },
++	{ ACVTSL2SS,	yxcvlf, Pf3, {0x2a} },
++	{ ACVTSQ2SS,	yxcvqf, Pw, {Pf3,0x2a} },
++	{ ACVTSS2SD,	yxm,	Pf3, {0x5a} },
++	{ ACVTSS2SL,	yxcvfl, Pf3, {0x2d} },
++	{ ACVTSS2SQ,	yxcvfq, Pw, {Pf3,0x2d} },
++	{ ACVTTPD2PL,	yxcvm1,	Px, {Pe,0xe6,Pe,0x2c} },
++	{ ACVTTPS2PL,	yxcvm1,	Px, {Pf3,0x5b,Pm,0x2c} },
++	{ ACVTTSD2SL,	yxcvfl, Pf2, {0x2c} },
++	{ ACVTTSD2SQ,	yxcvfq, Pw, {Pf2,0x2c} },
++	{ ACVTTSS2SL,	yxcvfl,	Pf3, {0x2c} },
++	{ ACVTTSS2SQ,	yxcvfq, Pw, {Pf3,0x2c} },
++	{ ACWD,		ynone,	Pe, {0x99} },
++	{ ACQO,		ynone,	Pw, {0x99} },
++	{ ADAA,		ynone,	P32, {0x27} },
++	{ ADAS,		ynone,	P32, {0x2f} },
+ 	{ ADATA },
+-	{ ADECB,	yincb,	Pb, 0xfe,(01) },
+-	{ ADECL,	yincl,	Px, 0xff,(01) },
+-	{ ADECQ,	yincl,	Pw, 0xff,(01) },
+-	{ ADECW,	yincw,	Pe, 0xff,(01) },
+-	{ ADIVB,	ydivb,	Pb, 0xf6,(06) },
+-	{ ADIVL,	ydivl,	Px, 0xf7,(06) },
+-	{ ADIVPD,	yxm,	Pe, 0x5e },
+-	{ ADIVPS,	yxm,	Pm, 0x5e },
+-	{ ADIVQ,	ydivl,	Pw, 0xf7,(06) },
+-	{ ADIVSD,	yxm,	Pf2, 0x5e },
+-	{ ADIVSS,	yxm,	Pf3, 0x5e },
+-	{ ADIVW,	ydivl,	Pe, 0xf7,(06) },
+-	{ AEMMS,	ynone,	Pm, 0x77 },
++	{ ADECB,	yincb,	Pb, {0xfe,(01)} },
++	{ ADECL,	yincl,	Px, {0xff,(01)} },
++	{ ADECQ,	yincl,	Pw, {0xff,(01)} },
++	{ ADECW,	yincw,	Pe, {0xff,(01)} },
++	{ ADIVB,	ydivb,	Pb, {0xf6,(06)} },
++	{ ADIVL,	ydivl,	Px, {0xf7,(06)} },
++	{ ADIVPD,	yxm,	Pe, {0x5e} },
++	{ ADIVPS,	yxm,	Pm, {0x5e} },
++	{ ADIVQ,	ydivl,	Pw, {0xf7,(06)} },
++	{ ADIVSD,	yxm,	Pf2, {0x5e} },
++	{ ADIVSS,	yxm,	Pf3, {0x5e} },
++	{ ADIVW,	ydivl,	Pe, {0xf7,(06)} },
++	{ AEMMS,	ynone,	Pm, {0x77} },
+ 	{ AENTER },				/* botch */
+-	{ AFXRSTOR,	ysvrs,	Pm, 0xae,(01),0xae,(01) },
+-	{ AFXSAVE,	ysvrs,	Pm, 0xae,(00),0xae,(00) },
+-	{ AFXRSTOR64,	ysvrs,	Pw, 0x0f,0xae,(01),0x0f,0xae,(01) },
+-	{ AFXSAVE64,	ysvrs,	Pw, 0x0f,0xae,(00),0x0f,0xae,(00) },
++	{ AFXRSTOR,	ysvrs,	Pm, {0xae,(01),0xae,(01)} },
++	{ AFXSAVE,	ysvrs,	Pm, {0xae,(00),0xae,(00)} },
++	{ AFXRSTOR64,	ysvrs,	Pw, {0x0f,0xae,(01),0x0f,0xae,(01)} },
++	{ AFXSAVE64,	ysvrs,	Pw, {0x0f,0xae,(00),0x0f,0xae,(00)} },
+ 	{ AGLOBL },
+ 	{ AGOK },
+ 	{ AHISTORY },
+-	{ AHLT,		ynone,	Px, 0xf4 },
+-	{ AIDIVB,	ydivb,	Pb, 0xf6,(07) },
+-	{ AIDIVL,	ydivl,	Px, 0xf7,(07) },
+-	{ AIDIVQ,	ydivl,	Pw, 0xf7,(07) },
+-	{ AIDIVW,	ydivl,	Pe, 0xf7,(07) },
+-	{ AIMULB,	ydivb,	Pb, 0xf6,(05) },
+-	{ AIMULL,	yimul,	Px, 0xf7,(05),0x6b,0x69,Pm,0xaf },
+-	{ AIMULQ,	yimul,	Pw, 0xf7,(05),0x6b,0x69,Pm,0xaf },
+-	{ AIMULW,	yimul,	Pe, 0xf7,(05),0x6b,0x69,Pm,0xaf },
+-	{ AIMUL3Q,	yimul3,	Pw, 0x6b,(00) },
+-	{ AINB,		yin,	Pb, 0xe4,0xec },
+-	{ AINCB,	yincb,	Pb, 0xfe,(00) },
+-	{ AINCL,	yincl,	Px, 0xff,(00) },
+-	{ AINCQ,	yincl,	Pw, 0xff,(00) },
+-	{ AINCW,	yincw,	Pe, 0xff,(00) },
+-	{ AINL,		yin,	Px, 0xe5,0xed },
+-	{ AINSB,	ynone,	Pb, 0x6c },
+-	{ AINSL,	ynone,	Px, 0x6d },
+-	{ AINSW,	ynone,	Pe, 0x6d },
+-	{ AINT,		yint,	Px, 0xcd },
+-	{ AINTO,	ynone,	P32, 0xce },
+-	{ AINW,		yin,	Pe, 0xe5,0xed },
+-	{ AIRETL,	ynone,	Px, 0xcf },
+-	{ AIRETQ,	ynone,	Pw, 0xcf },
+-	{ AIRETW,	ynone,	Pe, 0xcf },
+-	{ AJCC,		yjcond,	Px, 0x73,0x83,(00) },
+-	{ AJCS,		yjcond,	Px, 0x72,0x82 },
+-	{ AJCXZL,	yloop,	Px, 0xe3 },
+-	{ AJCXZQ,	yloop,	Px, 0xe3 },
+-	{ AJEQ,		yjcond,	Px, 0x74,0x84 },
+-	{ AJGE,		yjcond,	Px, 0x7d,0x8d },
+-	{ AJGT,		yjcond,	Px, 0x7f,0x8f },
+-	{ AJHI,		yjcond,	Px, 0x77,0x87 },
+-	{ AJLE,		yjcond,	Px, 0x7e,0x8e },
+-	{ AJLS,		yjcond,	Px, 0x76,0x86 },
+-	{ AJLT,		yjcond,	Px, 0x7c,0x8c },
+-	{ AJMI,		yjcond,	Px, 0x78,0x88 },
+-	{ AJMP,		yjmp,	Px, 0xff,(04),0xeb,0xe9 },
+-	{ AJNE,		yjcond,	Px, 0x75,0x85 },
+-	{ AJOC,		yjcond,	Px, 0x71,0x81,(00) },
+-	{ AJOS,		yjcond,	Px, 0x70,0x80,(00) },
+-	{ AJPC,		yjcond,	Px, 0x7b,0x8b },
+-	{ AJPL,		yjcond,	Px, 0x79,0x89 },
+-	{ AJPS,		yjcond,	Px, 0x7a,0x8a },
+-	{ ALAHF,	ynone,	Px, 0x9f },
+-	{ ALARL,	yml_rl,	Pm, 0x02 },
+-	{ ALARW,	yml_rl,	Pq, 0x02 },
+-	{ ALDMXCSR,	ysvrs,	Pm, 0xae,(02),0xae,(02) },
+-	{ ALEAL,	ym_rl,	Px, 0x8d },
+-	{ ALEAQ,	ym_rl,	Pw, 0x8d },
+-	{ ALEAVEL,	ynone,	P32, 0xc9 },
+-	{ ALEAVEQ,	ynone,	Py, 0xc9 },
+-	{ ALEAVEW,	ynone,	Pe, 0xc9 },
+-	{ ALEAW,	ym_rl,	Pe, 0x8d },
+-	{ ALOCK,	ynone,	Px, 0xf0 },
+-	{ ALODSB,	ynone,	Pb, 0xac },
+-	{ ALODSL,	ynone,	Px, 0xad },
+-	{ ALODSQ,	ynone,	Pw, 0xad },
+-	{ ALODSW,	ynone,	Pe, 0xad },
+-	{ ALONG,	ybyte,	Px, 4 },
+-	{ ALOOP,	yloop,	Px, 0xe2 },
+-	{ ALOOPEQ,	yloop,	Px, 0xe1 },
+-	{ ALOOPNE,	yloop,	Px, 0xe0 },
+-	{ ALSLL,	yml_rl,	Pm, 0x03  },
+-	{ ALSLW,	yml_rl,	Pq, 0x03  },
+-	{ AMASKMOVOU,	yxr,	Pe, 0xf7 },
+-	{ AMASKMOVQ,	ymr,	Pm, 0xf7 },
+-	{ AMAXPD,	yxm,	Pe, 0x5f },
+-	{ AMAXPS,	yxm,	Pm, 0x5f },
+-	{ AMAXSD,	yxm,	Pf2, 0x5f },
+-	{ AMAXSS,	yxm,	Pf3, 0x5f },
+-	{ AMINPD,	yxm,	Pe, 0x5d },
+-	{ AMINPS,	yxm,	Pm, 0x5d },
+-	{ AMINSD,	yxm,	Pf2, 0x5d },
+-	{ AMINSS,	yxm,	Pf3, 0x5d },
+-	{ AMOVAPD,	yxmov,	Pe, 0x28,0x29 },
+-	{ AMOVAPS,	yxmov,	Pm, 0x28,0x29 },
+-	{ AMOVB,	ymovb,	Pb, 0x88,0x8a,0xb0,0xc6,(00) },
+-	{ AMOVBLSX,	ymb_rl,	Pm, 0xbe },
+-	{ AMOVBLZX,	ymb_rl,	Pm, 0xb6 },
+-	{ AMOVBQSX,	ymb_rl,	Pw, 0x0f,0xbe },
+-	{ AMOVBQZX,	ymb_rl,	Pw, 0x0f,0xb6 },
+-	{ AMOVBWSX,	ymb_rl,	Pq, 0xbe },
+-	{ AMOVBWZX,	ymb_rl,	Pq, 0xb6 },
+-	{ AMOVO,	yxmov,	Pe, 0x6f,0x7f },
+-	{ AMOVOU,	yxmov,	Pf3, 0x6f,0x7f },
+-	{ AMOVHLPS,	yxr,	Pm, 0x12 },
+-	{ AMOVHPD,	yxmov,	Pe, 0x16,0x17 },
+-	{ AMOVHPS,	yxmov,	Pm, 0x16,0x17 },
+-	{ AMOVL,	ymovl,	Px, 0x89,0x8b,0x31,0xb8,0xc7,(00),0x6e,0x7e,Pe,0x6e,Pe,0x7e,0 },
+-	{ AMOVLHPS,	yxr,	Pm, 0x16 },
+-	{ AMOVLPD,	yxmov,	Pe, 0x12,0x13 },
+-	{ AMOVLPS,	yxmov,	Pm, 0x12,0x13 },
+-	{ AMOVLQSX,	yml_rl,	Pw, 0x63 },
+-	{ AMOVLQZX,	yml_rl,	Px, 0x8b },
+-	{ AMOVMSKPD,	yxrrl,	Pq, 0x50 },
+-	{ AMOVMSKPS,	yxrrl,	Pm, 0x50 },
+-	{ AMOVNTO,	yxr_ml,	Pe, 0xe7 },
+-	{ AMOVNTPD,	yxr_ml,	Pe, 0x2b },
+-	{ AMOVNTPS,	yxr_ml,	Pm, 0x2b },
+-	{ AMOVNTQ,	ymr_ml,	Pm, 0xe7 },
+-	{ AMOVQ,	ymovq,	Pw, 0x89, 0x8b, 0x31, 0xc7,(00), 0xb8, 0xc7,(00), 0x6f, 0x7f, 0x6e, 0x7e, Pf2,0xd6, Pf3,0x7e, Pe,0xd6, Pe,0x6e, Pe,0x7e,0 },
+-	{ AMOVQOZX,	ymrxr,	Pf3, 0xd6,0x7e },
+-	{ AMOVSB,	ynone,	Pb, 0xa4 },
+-	{ AMOVSD,	yxmov,	Pf2, 0x10,0x11 },
+-	{ AMOVSL,	ynone,	Px, 0xa5 },
+-	{ AMOVSQ,	ynone,	Pw, 0xa5 },
+-	{ AMOVSS,	yxmov,	Pf3, 0x10,0x11 },
+-	{ AMOVSW,	ynone,	Pe, 0xa5 },
+-	{ AMOVUPD,	yxmov,	Pe, 0x10,0x11 },
+-	{ AMOVUPS,	yxmov,	Pm, 0x10,0x11 },
+-	{ AMOVW,	ymovw,	Pe, 0x89,0x8b,0x31,0xb8,0xc7,(00),0 },
+-	{ AMOVWLSX,	yml_rl,	Pm, 0xbf },
+-	{ AMOVWLZX,	yml_rl,	Pm, 0xb7 },
+-	{ AMOVWQSX,	yml_rl,	Pw, 0x0f,0xbf },
+-	{ AMOVWQZX,	yml_rl,	Pw, 0x0f,0xb7 },
+-	{ AMULB,	ydivb,	Pb, 0xf6,(04) },
+-	{ AMULL,	ydivl,	Px, 0xf7,(04) },
+-	{ AMULPD,	yxm,	Pe, 0x59 },
+-	{ AMULPS,	yxm,	Ym, 0x59 },
+-	{ AMULQ,	ydivl,	Pw, 0xf7,(04) },
+-	{ AMULSD,	yxm,	Pf2, 0x59 },
+-	{ AMULSS,	yxm,	Pf3, 0x59 },
+-	{ AMULW,	ydivl,	Pe, 0xf7,(04) },
++	{ AHLT,		ynone,	Px, {0xf4} },
++	{ AIDIVB,	ydivb,	Pb, {0xf6,(07)} },
++	{ AIDIVL,	ydivl,	Px, {0xf7,(07)} },
++	{ AIDIVQ,	ydivl,	Pw, {0xf7,(07)} },
++	{ AIDIVW,	ydivl,	Pe, {0xf7,(07)} },
++	{ AIMULB,	ydivb,	Pb, {0xf6,(05)} },
++	{ AIMULL,	yimul,	Px, {0xf7,(05),0x6b,0x69,Pm,0xaf} },
++	{ AIMULQ,	yimul,	Pw, {0xf7,(05),0x6b,0x69,Pm,0xaf} },
++	{ AIMULW,	yimul,	Pe, {0xf7,(05),0x6b,0x69,Pm,0xaf} },
++	{ AIMUL3Q,	yimul3,	Pw, {0x6b,(00)} },
++	{ AINB,		yin,	Pb, {0xe4,0xec} },
++	{ AINCB,	yincb,	Pb, {0xfe,(00)} },
++	{ AINCL,	yincl,	Px, {0xff,(00)} },
++	{ AINCQ,	yincl,	Pw, {0xff,(00)} },
++	{ AINCW,	yincw,	Pe, {0xff,(00)} },
++	{ AINL,		yin,	Px, {0xe5,0xed} },
++	{ AINSB,	ynone,	Pb, {0x6c} },
++	{ AINSL,	ynone,	Px, {0x6d} },
++	{ AINSW,	ynone,	Pe, {0x6d} },
++	{ AINT,		yint,	Px, {0xcd} },
++	{ AINTO,	ynone,	P32, {0xce} },
++	{ AINW,		yin,	Pe, {0xe5,0xed} },
++	{ AIRETL,	ynone,	Px, {0xcf} },
++	{ AIRETQ,	ynone,	Pw, {0xcf} },
++	{ AIRETW,	ynone,	Pe, {0xcf} },
++	{ AJCC,		yjcond,	Px, {0x73,0x83,(00)} },
++	{ AJCS,		yjcond,	Px, {0x72,0x82} },
++	{ AJCXZL,	yloop,	Px, {0xe3} },
++	{ AJCXZQ,	yloop,	Px, {0xe3} },
++	{ AJEQ,		yjcond,	Px, {0x74,0x84} },
++	{ AJGE,		yjcond,	Px, {0x7d,0x8d} },
++	{ AJGT,		yjcond,	Px, {0x7f,0x8f} },
++	{ AJHI,		yjcond,	Px, {0x77,0x87} },
++	{ AJLE,		yjcond,	Px, {0x7e,0x8e} },
++	{ AJLS,		yjcond,	Px, {0x76,0x86} },
++	{ AJLT,		yjcond,	Px, {0x7c,0x8c} },
++	{ AJMI,		yjcond,	Px, {0x78,0x88} },
++	{ AJMP,		yjmp,	Px, {0xff,(04),0xeb,0xe9} },
++	{ AJNE,		yjcond,	Px, {0x75,0x85} },
++	{ AJOC,		yjcond,	Px, {0x71,0x81,(00)} },
++	{ AJOS,		yjcond,	Px, {0x70,0x80,(00)} },
++	{ AJPC,		yjcond,	Px, {0x7b,0x8b} },
++	{ AJPL,		yjcond,	Px, {0x79,0x89} },
++	{ AJPS,		yjcond,	Px, {0x7a,0x8a} },
++	{ ALAHF,	ynone,	Px, {0x9f} },
++	{ ALARL,	yml_rl,	Pm, {0x02} },
++	{ ALARW,	yml_rl,	Pq, {0x02} },
++	{ ALDMXCSR,	ysvrs,	Pm, {0xae,(02),0xae,(02)} },
++	{ ALEAL,	ym_rl,	Px, {0x8d} },
++	{ ALEAQ,	ym_rl,	Pw, {0x8d} },
++	{ ALEAVEL,	ynone,	P32, {0xc9} },
++	{ ALEAVEQ,	ynone,	Py, {0xc9} },
++	{ ALEAVEW,	ynone,	Pe, {0xc9} },
++	{ ALEAW,	ym_rl,	Pe, {0x8d} },
++	{ ALOCK,	ynone,	Px, {0xf0} },
++	{ ALODSB,	ynone,	Pb, {0xac} },
++	{ ALODSL,	ynone,	Px, {0xad} },
++	{ ALODSQ,	ynone,	Pw, {0xad} },
++	{ ALODSW,	ynone,	Pe, {0xad} },
++	{ ALONG,	ybyte,	Px, {4} },
++	{ ALOOP,	yloop,	Px, {0xe2} },
++	{ ALOOPEQ,	yloop,	Px, {0xe1} },
++	{ ALOOPNE,	yloop,	Px, {0xe0} },
++	{ ALSLL,	yml_rl,	Pm, {0x03 } },
++	{ ALSLW,	yml_rl,	Pq, {0x03 } },
++	{ AMASKMOVOU,	yxr,	Pe, {0xf7} },
++	{ AMASKMOVQ,	ymr,	Pm, {0xf7} },
++	{ AMAXPD,	yxm,	Pe, {0x5f} },
++	{ AMAXPS,	yxm,	Pm, {0x5f} },
++	{ AMAXSD,	yxm,	Pf2, {0x5f} },
++	{ AMAXSS,	yxm,	Pf3, {0x5f} },
++	{ AMINPD,	yxm,	Pe, {0x5d} },
++	{ AMINPS,	yxm,	Pm, {0x5d} },
++	{ AMINSD,	yxm,	Pf2, {0x5d} },
++	{ AMINSS,	yxm,	Pf3, {0x5d} },
++	{ AMOVAPD,	yxmov,	Pe, {0x28,0x29} },
++	{ AMOVAPS,	yxmov,	Pm, {0x28,0x29} },
++	{ AMOVB,	ymovb,	Pb, {0x88,0x8a,0xb0,0xc6,(00)} },
++	{ AMOVBLSX,	ymb_rl,	Pm, {0xbe} },
++	{ AMOVBLZX,	ymb_rl,	Pm, {0xb6} },
++	{ AMOVBQSX,	ymb_rl,	Pw, {0x0f,0xbe} },
++	{ AMOVBQZX,	ymb_rl,	Pw, {0x0f,0xb6} },
++	{ AMOVBWSX,	ymb_rl,	Pq, {0xbe} },
++	{ AMOVBWZX,	ymb_rl,	Pq, {0xb6} },
++	{ AMOVO,	yxmov,	Pe, {0x6f,0x7f} },
++	{ AMOVOU,	yxmov,	Pf3, {0x6f,0x7f} },
++	{ AMOVHLPS,	yxr,	Pm, {0x12} },
++	{ AMOVHPD,	yxmov,	Pe, {0x16,0x17} },
++	{ AMOVHPS,	yxmov,	Pm, {0x16,0x17} },
++	{ AMOVL,	ymovl,	Px, {0x89,0x8b,0x31,0xb8,0xc7,(00),0x6e,0x7e,Pe,0x6e,Pe,0x7e,0} },
++	{ AMOVLHPS,	yxr,	Pm, {0x16} },
++	{ AMOVLPD,	yxmov,	Pe, {0x12,0x13} },
++	{ AMOVLPS,	yxmov,	Pm, {0x12,0x13} },
++	{ AMOVLQSX,	yml_rl,	Pw, {0x63} },
++	{ AMOVLQZX,	yml_rl,	Px, {0x8b} },
++	{ AMOVMSKPD,	yxrrl,	Pq, {0x50} },
++	{ AMOVMSKPS,	yxrrl,	Pm, {0x50} },
++	{ AMOVNTO,	yxr_ml,	Pe, {0xe7} },
++	{ AMOVNTPD,	yxr_ml,	Pe, {0x2b} },
++	{ AMOVNTPS,	yxr_ml,	Pm, {0x2b} },
++	{ AMOVNTQ,	ymr_ml,	Pm, {0xe7} },
++	{ AMOVQ,	ymovq,	Pw, {0x89, 0x8b, 0x31, 0xc7,(00), 0xb8, 0xc7,(00), 0x6f, 0x7f, 0x6e, 0x7e, Pf2,0xd6, Pf3,0x7e, Pe,0xd6, Pe,0x6e, Pe,0x7e,0} },
++	{ AMOVQOZX,	ymrxr,	Pf3, {0xd6,0x7e} },
++	{ AMOVSB,	ynone,	Pb, {0xa4} },
++	{ AMOVSD,	yxmov,	Pf2, {0x10,0x11} },
++	{ AMOVSL,	ynone,	Px, {0xa5} },
++	{ AMOVSQ,	ynone,	Pw, {0xa5} },
++	{ AMOVSS,	yxmov,	Pf3, {0x10,0x11} },
++	{ AMOVSW,	ynone,	Pe, {0xa5} },
++	{ AMOVUPD,	yxmov,	Pe, {0x10,0x11} },
++	{ AMOVUPS,	yxmov,	Pm, {0x10,0x11} },
++	{ AMOVW,	ymovw,	Pe, {0x89,0x8b,0x31,0xb8,0xc7,(00),0} },
++	{ AMOVWLSX,	yml_rl,	Pm, {0xbf} },
++	{ AMOVWLZX,	yml_rl,	Pm, {0xb7} },
++	{ AMOVWQSX,	yml_rl,	Pw, {0x0f,0xbf} },
++	{ AMOVWQZX,	yml_rl,	Pw, {0x0f,0xb7} },
++	{ AMULB,	ydivb,	Pb, {0xf6,(04)} },
++	{ AMULL,	ydivl,	Px, {0xf7,(04)} },
++	{ AMULPD,	yxm,	Pe, {0x59} },
++	{ AMULPS,	yxm,	Ym, {0x59} },
++	{ AMULQ,	ydivl,	Pw, {0xf7,(04)} },
++	{ AMULSD,	yxm,	Pf2, {0x59} },
++	{ AMULSS,	yxm,	Pf3, {0x59} },
++	{ AMULW,	ydivl,	Pe, {0xf7,(04)} },
+ 	{ ANAME },
+-	{ ANEGB,	yscond,	Pb, 0xf6,(03) },
+-	{ ANEGL,	yscond,	Px, 0xf7,(03) },
+-	{ ANEGQ,	yscond,	Pw, 0xf7,(03) },
+-	{ ANEGW,	yscond,	Pe, 0xf7,(03) },
+-	{ ANOP,		ynop,	Px, 0,0 },
+-	{ ANOTB,	yscond,	Pb, 0xf6,(02) },
+-	{ ANOTL,	yscond,	Px, 0xf7,(02) },
+-	{ ANOTQ,	yscond,	Pw, 0xf7,(02) },
+-	{ ANOTW,	yscond,	Pe, 0xf7,(02) },
+-	{ AORB,		yxorb,	Pb, 0x0c,0x80,(01),0x08,0x0a },
+-	{ AORL,		yxorl,	Px, 0x83,(01),0x0d,0x81,(01),0x09,0x0b },
+-	{ AORPD,	yxm,	Pq, 0x56 },
+-	{ AORPS,	yxm,	Pm, 0x56 },
+-	{ AORQ,		yxorl,	Pw, 0x83,(01),0x0d,0x81,(01),0x09,0x0b },
+-	{ AORW,		yxorl,	Pe, 0x83,(01),0x0d,0x81,(01),0x09,0x0b },
+-	{ AOUTB,	yin,	Pb, 0xe6,0xee },
+-	{ AOUTL,	yin,	Px, 0xe7,0xef },
+-	{ AOUTSB,	ynone,	Pb, 0x6e },
+-	{ AOUTSL,	ynone,	Px, 0x6f },
+-	{ AOUTSW,	ynone,	Pe, 0x6f },
+-	{ AOUTW,	yin,	Pe, 0xe7,0xef },
+-	{ APACKSSLW,	ymm,	Py, 0x6b,Pe,0x6b },
+-	{ APACKSSWB,	ymm,	Py, 0x63,Pe,0x63 },
+-	{ APACKUSWB,	ymm,	Py, 0x67,Pe,0x67 },
+-	{ APADDB,	ymm,	Py, 0xfc,Pe,0xfc },
+-	{ APADDL,	ymm,	Py, 0xfe,Pe,0xfe },
+-	{ APADDQ,	yxm,	Pe, 0xd4 },
+-	{ APADDSB,	ymm,	Py, 0xec,Pe,0xec },
+-	{ APADDSW,	ymm,	Py, 0xed,Pe,0xed },
+-	{ APADDUSB,	ymm,	Py, 0xdc,Pe,0xdc },
+-	{ APADDUSW,	ymm,	Py, 0xdd,Pe,0xdd },
+-	{ APADDW,	ymm,	Py, 0xfd,Pe,0xfd },
+-	{ APAND,	ymm,	Py, 0xdb,Pe,0xdb },
+-	{ APANDN,	ymm,	Py, 0xdf,Pe,0xdf },
+-	{ APAUSE,	ynone,	Px, 0xf3,0x90 },
+-	{ APAVGB,	ymm,	Py, 0xe0,Pe,0xe0 },
+-	{ APAVGW,	ymm,	Py, 0xe3,Pe,0xe3 },
+-	{ APCMPEQB,	ymm,	Py, 0x74,Pe,0x74 },
+-	{ APCMPEQL,	ymm,	Py, 0x76,Pe,0x76 },
+-	{ APCMPEQW,	ymm,	Py, 0x75,Pe,0x75 },
+-	{ APCMPGTB,	ymm,	Py, 0x64,Pe,0x64 },
+-	{ APCMPGTL,	ymm,	Py, 0x66,Pe,0x66 },
+-	{ APCMPGTW,	ymm,	Py, 0x65,Pe,0x65 },
+-	{ APEXTRW,	yextrw,	Pq, 0xc5,(00) },
+-	{ APF2IL,	ymfp,	Px, 0x1d },
+-	{ APF2IW,	ymfp,	Px, 0x1c },
+-	{ API2FL,	ymfp,	Px, 0x0d },
+-	{ APFACC,	ymfp,	Px, 0xae },
+-	{ APFADD,	ymfp,	Px, 0x9e },
+-	{ APFCMPEQ,	ymfp,	Px, 0xb0 },
+-	{ APFCMPGE,	ymfp,	Px, 0x90 },
+-	{ APFCMPGT,	ymfp,	Px, 0xa0 },
+-	{ APFMAX,	ymfp,	Px, 0xa4 },
+-	{ APFMIN,	ymfp,	Px, 0x94 },
+-	{ APFMUL,	ymfp,	Px, 0xb4 },
+-	{ APFNACC,	ymfp,	Px, 0x8a },
+-	{ APFPNACC,	ymfp,	Px, 0x8e },
+-	{ APFRCP,	ymfp,	Px, 0x96 },
+-	{ APFRCPIT1,	ymfp,	Px, 0xa6 },
+-	{ APFRCPI2T,	ymfp,	Px, 0xb6 },
+-	{ APFRSQIT1,	ymfp,	Px, 0xa7 },
+-	{ APFRSQRT,	ymfp,	Px, 0x97 },
+-	{ APFSUB,	ymfp,	Px, 0x9a },
+-	{ APFSUBR,	ymfp,	Px, 0xaa },
+-	{ APINSRW,	yinsrw,	Pq, 0xc4,(00) },
+-	{ APINSRD,	yinsr,	Pq, 0x3a, 0x22, (00) },
+-	{ APINSRQ,	yinsr,	Pq3, 0x3a, 0x22, (00) },
+-	{ APMADDWL,	ymm,	Py, 0xf5,Pe,0xf5 },
+-	{ APMAXSW,	yxm,	Pe, 0xee },
+-	{ APMAXUB,	yxm,	Pe, 0xde },
+-	{ APMINSW,	yxm,	Pe, 0xea },
+-	{ APMINUB,	yxm,	Pe, 0xda },
+-	{ APMOVMSKB,	ymskb,	Px, Pe,0xd7,0xd7 },
+-	{ APMULHRW,	ymfp,	Px, 0xb7 },
+-	{ APMULHUW,	ymm,	Py, 0xe4,Pe,0xe4 },
+-	{ APMULHW,	ymm,	Py, 0xe5,Pe,0xe5 },
+-	{ APMULLW,	ymm,	Py, 0xd5,Pe,0xd5 },
+-	{ APMULULQ,	ymm,	Py, 0xf4,Pe,0xf4 },
+-	{ APOPAL,	ynone,	P32, 0x61 },
+-	{ APOPAW,	ynone,	Pe, 0x61 },
+-	{ APOPFL,	ynone,	P32, 0x9d },
+-	{ APOPFQ,	ynone,	Py, 0x9d },
+-	{ APOPFW,	ynone,	Pe, 0x9d },
+-	{ APOPL,	ypopl,	P32, 0x58,0x8f,(00) },
+-	{ APOPQ,	ypopl,	Py, 0x58,0x8f,(00) },
+-	{ APOPW,	ypopl,	Pe, 0x58,0x8f,(00) },
+-	{ APOR,		ymm,	Py, 0xeb,Pe,0xeb },
+-	{ APSADBW,	yxm,	Pq, 0xf6 },
+-	{ APSHUFHW,	yxshuf,	Pf3, 0x70,(00) },
+-	{ APSHUFL,	yxshuf,	Pq, 0x70,(00) },
+-	{ APSHUFLW,	yxshuf,	Pf2, 0x70,(00) },
+-	{ APSHUFW,	ymshuf,	Pm, 0x70,(00) },
+-	{ APSHUFB,	ymshufb,Pq, 0x38, 0x00 },
+-	{ APSLLO,	ypsdq,	Pq, 0x73,(07) },
+-	{ APSLLL,	yps,	Py, 0xf2, 0x72,(06), Pe,0xf2, Pe,0x72,(06) },
+-	{ APSLLQ,	yps,	Py, 0xf3, 0x73,(06), Pe,0xf3, Pe,0x73,(06) },
+-	{ APSLLW,	yps,	Py, 0xf1, 0x71,(06), Pe,0xf1, Pe,0x71,(06) },
+-	{ APSRAL,	yps,	Py, 0xe2, 0x72,(04), Pe,0xe2, Pe,0x72,(04) },
+-	{ APSRAW,	yps,	Py, 0xe1, 0x71,(04), Pe,0xe1, Pe,0x71,(04) },
+-	{ APSRLO,	ypsdq,	Pq, 0x73,(03) },
+-	{ APSRLL,	yps,	Py, 0xd2, 0x72,(02), Pe,0xd2, Pe,0x72,(02) },
+-	{ APSRLQ,	yps,	Py, 0xd3, 0x73,(02), Pe,0xd3, Pe,0x73,(02) },
+-	{ APSRLW,	yps,	Py, 0xd1, 0x71,(02), Pe,0xe1, Pe,0x71,(02) },
+-	{ APSUBB,	yxm,	Pe, 0xf8 },
+-	{ APSUBL,	yxm,	Pe, 0xfa },
+-	{ APSUBQ,	yxm,	Pe, 0xfb },
+-	{ APSUBSB,	yxm,	Pe, 0xe8 },
+-	{ APSUBSW,	yxm,	Pe, 0xe9 },
+-	{ APSUBUSB,	yxm,	Pe, 0xd8 },
+-	{ APSUBUSW,	yxm,	Pe, 0xd9 },
+-	{ APSUBW,	yxm,	Pe, 0xf9 },
+-	{ APSWAPL,	ymfp,	Px, 0xbb },
+-	{ APUNPCKHBW,	ymm,	Py, 0x68,Pe,0x68 },
+-	{ APUNPCKHLQ,	ymm,	Py, 0x6a,Pe,0x6a },
+-	{ APUNPCKHQDQ,	yxm,	Pe, 0x6d },
+-	{ APUNPCKHWL,	ymm,	Py, 0x69,Pe,0x69 },
+-	{ APUNPCKLBW,	ymm,	Py, 0x60,Pe,0x60 },
+-	{ APUNPCKLLQ,	ymm,	Py, 0x62,Pe,0x62 },
+-	{ APUNPCKLQDQ,	yxm,	Pe, 0x6c },
+-	{ APUNPCKLWL,	ymm,	Py, 0x61,Pe,0x61 },
+-	{ APUSHAL,	ynone,	P32, 0x60 },
+-	{ APUSHAW,	ynone,	Pe, 0x60 },
+-	{ APUSHFL,	ynone,	P32, 0x9c },
+-	{ APUSHFQ,	ynone,	Py, 0x9c },
+-	{ APUSHFW,	ynone,	Pe, 0x9c },
+-	{ APUSHL,	ypushl,	P32, 0x50,0xff,(06),0x6a,0x68 },
+-	{ APUSHQ,	ypushl,	Py, 0x50,0xff,(06),0x6a,0x68 },
+-	{ APUSHW,	ypushl,	Pe, 0x50,0xff,(06),0x6a,0x68 },
+-	{ APXOR,	ymm,	Py, 0xef,Pe,0xef },
+-	{ AQUAD,	ybyte,	Px, 8 },
+-	{ ARCLB,	yshb,	Pb, 0xd0,(02),0xc0,(02),0xd2,(02) },
+-	{ ARCLL,	yshl,	Px, 0xd1,(02),0xc1,(02),0xd3,(02),0xd3,(02) },
+-	{ ARCLQ,	yshl,	Pw, 0xd1,(02),0xc1,(02),0xd3,(02),0xd3,(02) },
+-	{ ARCLW,	yshl,	Pe, 0xd1,(02),0xc1,(02),0xd3,(02),0xd3,(02) },
+-	{ ARCPPS,	yxm,	Pm, 0x53 },
+-	{ ARCPSS,	yxm,	Pf3, 0x53 },
+-	{ ARCRB,	yshb,	Pb, 0xd0,(03),0xc0,(03),0xd2,(03) },
+-	{ ARCRL,	yshl,	Px, 0xd1,(03),0xc1,(03),0xd3,(03),0xd3,(03) },
+-	{ ARCRQ,	yshl,	Pw, 0xd1,(03),0xc1,(03),0xd3,(03),0xd3,(03) },
+-	{ ARCRW,	yshl,	Pe, 0xd1,(03),0xc1,(03),0xd3,(03),0xd3,(03) },
+-	{ AREP,		ynone,	Px, 0xf3 },
+-	{ AREPN,	ynone,	Px, 0xf2 },
+-	{ ARET,		ynone,	Px, 0xc3 },
+-	{ ARETFW,	yret,	Pe, 0xcb,0xca },
+-	{ ARETFL,	yret,	Px, 0xcb,0xca },
+-	{ ARETFQ,	yret,	Pw, 0xcb,0xca },
+-	{ AROLB,	yshb,	Pb, 0xd0,(00),0xc0,(00),0xd2,(00) },
+-	{ AROLL,	yshl,	Px, 0xd1,(00),0xc1,(00),0xd3,(00),0xd3,(00) },
+-	{ AROLQ,	yshl,	Pw, 0xd1,(00),0xc1,(00),0xd3,(00),0xd3,(00) },
+-	{ AROLW,	yshl,	Pe, 0xd1,(00),0xc1,(00),0xd3,(00),0xd3,(00) },
+-	{ ARORB,	yshb,	Pb, 0xd0,(01),0xc0,(01),0xd2,(01) },
+-	{ ARORL,	yshl,	Px, 0xd1,(01),0xc1,(01),0xd3,(01),0xd3,(01) },
+-	{ ARORQ,	yshl,	Pw, 0xd1,(01),0xc1,(01),0xd3,(01),0xd3,(01) },
+-	{ ARORW,	yshl,	Pe, 0xd1,(01),0xc1,(01),0xd3,(01),0xd3,(01) },
+-	{ ARSQRTPS,	yxm,	Pm, 0x52 },
+-	{ ARSQRTSS,	yxm,	Pf3, 0x52 },
+-	{ ASAHF,	ynone,	Px, 0x86,0xe0,0x50,0x9d },	/* XCHGB AH,AL; PUSH AX; POPFL */
+-	{ ASALB,	yshb,	Pb, 0xd0,(04),0xc0,(04),0xd2,(04) },
+-	{ ASALL,	yshl,	Px, 0xd1,(04),0xc1,(04),0xd3,(04),0xd3,(04) },
+-	{ ASALQ,	yshl,	Pw, 0xd1,(04),0xc1,(04),0xd3,(04),0xd3,(04) },
+-	{ ASALW,	yshl,	Pe, 0xd1,(04),0xc1,(04),0xd3,(04),0xd3,(04) },
+-	{ ASARB,	yshb,	Pb, 0xd0,(07),0xc0,(07),0xd2,(07) },
+-	{ ASARL,	yshl,	Px, 0xd1,(07),0xc1,(07),0xd3,(07),0xd3,(07) },
+-	{ ASARQ,	yshl,	Pw, 0xd1,(07),0xc1,(07),0xd3,(07),0xd3,(07) },
+-	{ ASARW,	yshl,	Pe, 0xd1,(07),0xc1,(07),0xd3,(07),0xd3,(07) },
+-	{ ASBBB,	yxorb,	Pb, 0x1c,0x80,(03),0x18,0x1a },
+-	{ ASBBL,	yxorl,	Px, 0x83,(03),0x1d,0x81,(03),0x19,0x1b },
+-	{ ASBBQ,	yxorl,	Pw, 0x83,(03),0x1d,0x81,(03),0x19,0x1b },
+-	{ ASBBW,	yxorl,	Pe, 0x83,(03),0x1d,0x81,(03),0x19,0x1b },
+-	{ ASCASB,	ynone,	Pb, 0xae },
+-	{ ASCASL,	ynone,	Px, 0xaf },
+-	{ ASCASQ,	ynone,	Pw, 0xaf },
+-	{ ASCASW,	ynone,	Pe, 0xaf },
+-	{ ASETCC,	yscond,	Pm, 0x93,(00) },
+-	{ ASETCS,	yscond,	Pm, 0x92,(00) },
+-	{ ASETEQ,	yscond,	Pm, 0x94,(00) },
+-	{ ASETGE,	yscond,	Pm, 0x9d,(00) },
+-	{ ASETGT,	yscond,	Pm, 0x9f,(00) },
+-	{ ASETHI,	yscond,	Pm, 0x97,(00) },
+-	{ ASETLE,	yscond,	Pm, 0x9e,(00) },
+-	{ ASETLS,	yscond,	Pm, 0x96,(00) },
+-	{ ASETLT,	yscond,	Pm, 0x9c,(00) },
+-	{ ASETMI,	yscond,	Pm, 0x98,(00) },
+-	{ ASETNE,	yscond,	Pm, 0x95,(00) },
+-	{ ASETOC,	yscond,	Pm, 0x91,(00) },
+-	{ ASETOS,	yscond,	Pm, 0x90,(00) },
+-	{ ASETPC,	yscond,	Pm, 0x96,(00) },
+-	{ ASETPL,	yscond,	Pm, 0x99,(00) },
+-	{ ASETPS,	yscond,	Pm, 0x9a,(00) },
+-	{ ASHLB,	yshb,	Pb, 0xd0,(04),0xc0,(04),0xd2,(04) },
+-	{ ASHLL,	yshl,	Px, 0xd1,(04),0xc1,(04),0xd3,(04),0xd3,(04) },
+-	{ ASHLQ,	yshl,	Pw, 0xd1,(04),0xc1,(04),0xd3,(04),0xd3,(04) },
+-	{ ASHLW,	yshl,	Pe, 0xd1,(04),0xc1,(04),0xd3,(04),0xd3,(04) },
+-	{ ASHRB,	yshb,	Pb, 0xd0,(05),0xc0,(05),0xd2,(05) },
+-	{ ASHRL,	yshl,	Px, 0xd1,(05),0xc1,(05),0xd3,(05),0xd3,(05) },
+-	{ ASHRQ,	yshl,	Pw, 0xd1,(05),0xc1,(05),0xd3,(05),0xd3,(05) },
+-	{ ASHRW,	yshl,	Pe, 0xd1,(05),0xc1,(05),0xd3,(05),0xd3,(05) },
+-	{ ASHUFPD,	yxshuf,	Pq, 0xc6,(00) },
+-	{ ASHUFPS,	yxshuf,	Pm, 0xc6,(00) },
+-	{ ASQRTPD,	yxm,	Pe, 0x51 },
+-	{ ASQRTPS,	yxm,	Pm, 0x51 },
+-	{ ASQRTSD,	yxm,	Pf2, 0x51 },
+-	{ ASQRTSS,	yxm,	Pf3, 0x51 },
+-	{ ASTC,		ynone,	Px, 0xf9 },
+-	{ ASTD,		ynone,	Px, 0xfd },
+-	{ ASTI,		ynone,	Px, 0xfb },
+-	{ ASTMXCSR,	ysvrs,	Pm, 0xae,(03),0xae,(03) },
+-	{ ASTOSB,	ynone,	Pb, 0xaa },
+-	{ ASTOSL,	ynone,	Px, 0xab },
+-	{ ASTOSQ,	ynone,	Pw, 0xab },
+-	{ ASTOSW,	ynone,	Pe, 0xab },
+-	{ ASUBB,	yxorb,	Pb, 0x2c,0x80,(05),0x28,0x2a },
+-	{ ASUBL,	yaddl,	Px, 0x83,(05),0x2d,0x81,(05),0x29,0x2b },
+-	{ ASUBPD,	yxm,	Pe, 0x5c },
+-	{ ASUBPS,	yxm,	Pm, 0x5c },
+-	{ ASUBQ,	yaddl,	Pw, 0x83,(05),0x2d,0x81,(05),0x29,0x2b },
+-	{ ASUBSD,	yxm,	Pf2, 0x5c },
+-	{ ASUBSS,	yxm,	Pf3, 0x5c },
+-	{ ASUBW,	yaddl,	Pe, 0x83,(05),0x2d,0x81,(05),0x29,0x2b },
+-	{ ASWAPGS,	ynone,	Pm, 0x01,0xf8 },
+-	{ ASYSCALL,	ynone,	Px, 0x0f,0x05 },	/* fast syscall */
+-	{ ATESTB,	ytestb,	Pb, 0xa8,0xf6,(00),0x84,0x84 },
+-	{ ATESTL,	ytestl,	Px, 0xa9,0xf7,(00),0x85,0x85 },
+-	{ ATESTQ,	ytestl,	Pw, 0xa9,0xf7,(00),0x85,0x85 },
+-	{ ATESTW,	ytestl,	Pe, 0xa9,0xf7,(00),0x85,0x85 },
++	{ ANEGB,	yscond,	Pb, {0xf6,(03)} },
++	{ ANEGL,	yscond,	Px, {0xf7,(03)} },
++	{ ANEGQ,	yscond,	Pw, {0xf7,(03)} },
++	{ ANEGW,	yscond,	Pe, {0xf7,(03)} },
++	{ ANOP,		ynop,	Px, {0,0} },
++	{ ANOTB,	yscond,	Pb, {0xf6,(02)} },
++	{ ANOTL,	yscond,	Px, {0xf7,(02)} },
++	{ ANOTQ,	yscond,	Pw, {0xf7,(02)} },
++	{ ANOTW,	yscond,	Pe, {0xf7,(02)} },
++	{ AORB,		yxorb,	Pb, {0x0c,0x80,(01),0x08,0x0a} },
++	{ AORL,		yxorl,	Px, {0x83,(01),0x0d,0x81,(01),0x09,0x0b} },
++	{ AORPD,	yxm,	Pq, {0x56} },
++	{ AORPS,	yxm,	Pm, {0x56} },
++	{ AORQ,		yxorl,	Pw, {0x83,(01),0x0d,0x81,(01),0x09,0x0b} },
++	{ AORW,		yxorl,	Pe, {0x83,(01),0x0d,0x81,(01),0x09,0x0b} },
++	{ AOUTB,	yin,	Pb, {0xe6,0xee} },
++	{ AOUTL,	yin,	Px, {0xe7,0xef} },
++	{ AOUTSB,	ynone,	Pb, {0x6e} },
++	{ AOUTSL,	ynone,	Px, {0x6f} },
++	{ AOUTSW,	ynone,	Pe, {0x6f} },
++	{ AOUTW,	yin,	Pe, {0xe7,0xef} },
++	{ APACKSSLW,	ymm,	Py, {0x6b,Pe,0x6b} },
++	{ APACKSSWB,	ymm,	Py, {0x63,Pe,0x63} },
++	{ APACKUSWB,	ymm,	Py, {0x67,Pe,0x67} },
++	{ APADDB,	ymm,	Py, {0xfc,Pe,0xfc} },
++	{ APADDL,	ymm,	Py, {0xfe,Pe,0xfe} },
++	{ APADDQ,	yxm,	Pe, {0xd4} },
++	{ APADDSB,	ymm,	Py, {0xec,Pe,0xec} },
++	{ APADDSW,	ymm,	Py, {0xed,Pe,0xed} },
++	{ APADDUSB,	ymm,	Py, {0xdc,Pe,0xdc} },
++	{ APADDUSW,	ymm,	Py, {0xdd,Pe,0xdd} },
++	{ APADDW,	ymm,	Py, {0xfd,Pe,0xfd} },
++	{ APAND,	ymm,	Py, {0xdb,Pe,0xdb} },
++	{ APANDN,	ymm,	Py, {0xdf,Pe,0xdf} },
++	{ APAUSE,	ynone,	Px, {0xf3,0x90} },
++	{ APAVGB,	ymm,	Py, {0xe0,Pe,0xe0} },
++	{ APAVGW,	ymm,	Py, {0xe3,Pe,0xe3} },
++	{ APCMPEQB,	ymm,	Py, {0x74,Pe,0x74} },
++	{ APCMPEQL,	ymm,	Py, {0x76,Pe,0x76} },
++	{ APCMPEQW,	ymm,	Py, {0x75,Pe,0x75} },
++	{ APCMPGTB,	ymm,	Py, {0x64,Pe,0x64} },
++	{ APCMPGTL,	ymm,	Py, {0x66,Pe,0x66} },
++	{ APCMPGTW,	ymm,	Py, {0x65,Pe,0x65} },
++	{ APEXTRW,	yextrw,	Pq, {0xc5,(00)} },
++	{ APF2IL,	ymfp,	Px, {0x1d} },
++	{ APF2IW,	ymfp,	Px, {0x1c} },
++	{ API2FL,	ymfp,	Px, {0x0d} },
++	{ APFACC,	ymfp,	Px, {0xae} },
++	{ APFADD,	ymfp,	Px, {0x9e} },
++	{ APFCMPEQ,	ymfp,	Px, {0xb0} },
++	{ APFCMPGE,	ymfp,	Px, {0x90} },
++	{ APFCMPGT,	ymfp,	Px, {0xa0} },
++	{ APFMAX,	ymfp,	Px, {0xa4} },
++	{ APFMIN,	ymfp,	Px, {0x94} },
++	{ APFMUL,	ymfp,	Px, {0xb4} },
++	{ APFNACC,	ymfp,	Px, {0x8a} },
++	{ APFPNACC,	ymfp,	Px, {0x8e} },
++	{ APFRCP,	ymfp,	Px, {0x96} },
++	{ APFRCPIT1,	ymfp,	Px, {0xa6} },
++	{ APFRCPI2T,	ymfp,	Px, {0xb6} },
++	{ APFRSQIT1,	ymfp,	Px, {0xa7} },
++	{ APFRSQRT,	ymfp,	Px, {0x97} },
++	{ APFSUB,	ymfp,	Px, {0x9a} },
++	{ APFSUBR,	ymfp,	Px, {0xaa} },
++	{ APINSRW,	yinsrw,	Pq, {0xc4,(00)} },
++	{ APINSRD,	yinsr,	Pq, {0x3a, 0x22, (00)} },
++	{ APINSRQ,	yinsr,	Pq3, {0x3a, 0x22, (00)} },
++	{ APMADDWL,	ymm,	Py, {0xf5,Pe,0xf5} },
++	{ APMAXSW,	yxm,	Pe, {0xee} },
++	{ APMAXUB,	yxm,	Pe, {0xde} },
++	{ APMINSW,	yxm,	Pe, {0xea} },
++	{ APMINUB,	yxm,	Pe, {0xda} },
++	{ APMOVMSKB,	ymskb,	Px, {Pe,0xd7,0xd7} },
++	{ APMULHRW,	ymfp,	Px, {0xb7} },
++	{ APMULHUW,	ymm,	Py, {0xe4,Pe,0xe4} },
++	{ APMULHW,	ymm,	Py, {0xe5,Pe,0xe5} },
++	{ APMULLW,	ymm,	Py, {0xd5,Pe,0xd5} },
++	{ APMULULQ,	ymm,	Py, {0xf4,Pe,0xf4} },
++	{ APOPAL,	ynone,	P32, {0x61} },
++	{ APOPAW,	ynone,	Pe, {0x61} },
++	{ APOPFL,	ynone,	P32, {0x9d} },
++	{ APOPFQ,	ynone,	Py, {0x9d} },
++	{ APOPFW,	ynone,	Pe, {0x9d} },
++	{ APOPL,	ypopl,	P32, {0x58,0x8f,(00)} },
++	{ APOPQ,	ypopl,	Py, {0x58,0x8f,(00)} },
++	{ APOPW,	ypopl,	Pe, {0x58,0x8f,(00)} },
++	{ APOR,		ymm,	Py, {0xeb,Pe,0xeb} },
++	{ APSADBW,	yxm,	Pq, {0xf6} },
++	{ APSHUFHW,	yxshuf,	Pf3, {0x70,(00)} },
++	{ APSHUFL,	yxshuf,	Pq, {0x70,(00)} },
++	{ APSHUFLW,	yxshuf,	Pf2, {0x70,(00)} },
++	{ APSHUFW,	ymshuf,	Pm, {0x70,(00)} },
++	{ APSHUFB,	ymshufb,Pq, {0x38, 0x00} },
++	{ APSLLO,	ypsdq,	Pq, {0x73,(07)} },
++	{ APSLLL,	yps,	Py, {0xf2, 0x72,(06), Pe,0xf2, Pe,0x72,(06)} },
++	{ APSLLQ,	yps,	Py, {0xf3, 0x73,(06), Pe,0xf3, Pe,0x73,(06)} },
++	{ APSLLW,	yps,	Py, {0xf1, 0x71,(06), Pe,0xf1, Pe,0x71,(06)} },
++	{ APSRAL,	yps,	Py, {0xe2, 0x72,(04), Pe,0xe2, Pe,0x72,(04)} },
++	{ APSRAW,	yps,	Py, {0xe1, 0x71,(04), Pe,0xe1, Pe,0x71,(04)} },
++	{ APSRLO,	ypsdq,	Pq, {0x73,(03)} },
++	{ APSRLL,	yps,	Py, {0xd2, 0x72,(02), Pe,0xd2, Pe,0x72,(02)} },
++	{ APSRLQ,	yps,	Py, {0xd3, 0x73,(02), Pe,0xd3, Pe,0x73,(02)} },
++	{ APSRLW,	yps,	Py, {0xd1, 0x71,(02), Pe,0xe1, Pe,0x71,(02)} },
++	{ APSUBB,	yxm,	Pe, {0xf8} },
++	{ APSUBL,	yxm,	Pe, {0xfa} },
++	{ APSUBQ,	yxm,	Pe, {0xfb} },
++	{ APSUBSB,	yxm,	Pe, {0xe8} },
++	{ APSUBSW,	yxm,	Pe, {0xe9} },
++	{ APSUBUSB,	yxm,	Pe, {0xd8} },
++	{ APSUBUSW,	yxm,	Pe, {0xd9} },
++	{ APSUBW,	yxm,	Pe, {0xf9} },
++	{ APSWAPL,	ymfp,	Px, {0xbb} },
++	{ APUNPCKHBW,	ymm,	Py, {0x68,Pe,0x68} },
++	{ APUNPCKHLQ,	ymm,	Py, {0x6a,Pe,0x6a} },
++	{ APUNPCKHQDQ,	yxm,	Pe, {0x6d} },
++	{ APUNPCKHWL,	ymm,	Py, {0x69,Pe,0x69} },
++	{ APUNPCKLBW,	ymm,	Py, {0x60,Pe,0x60} },
++	{ APUNPCKLLQ,	ymm,	Py, {0x62,Pe,0x62} },
++	{ APUNPCKLQDQ,	yxm,	Pe, {0x6c} },
++	{ APUNPCKLWL,	ymm,	Py, {0x61,Pe,0x61} },
++	{ APUSHAL,	ynone,	P32, {0x60} },
++	{ APUSHAW,	ynone,	Pe, {0x60} },
++	{ APUSHFL,	ynone,	P32, {0x9c} },
++	{ APUSHFQ,	ynone,	Py, {0x9c} },
++	{ APUSHFW,	ynone,	Pe, {0x9c} },
++	{ APUSHL,	ypushl,	P32, {0x50,0xff,(06),0x6a,0x68} },
++	{ APUSHQ,	ypushl,	Py, {0x50,0xff,(06),0x6a,0x68} },
++	{ APUSHW,	ypushl,	Pe, {0x50,0xff,(06),0x6a,0x68} },
++	{ APXOR,	ymm,	Py, {0xef,Pe,0xef} },
++	{ AQUAD,	ybyte,	Px, {8} },
++	{ ARCLB,	yshb,	Pb, {0xd0,(02),0xc0,(02),0xd2,(02)} },
++	{ ARCLL,	yshl,	Px, {0xd1,(02),0xc1,(02),0xd3,(02),0xd3,(02)} },
++	{ ARCLQ,	yshl,	Pw, {0xd1,(02),0xc1,(02),0xd3,(02),0xd3,(02)} },
++	{ ARCLW,	yshl,	Pe, {0xd1,(02),0xc1,(02),0xd3,(02),0xd3,(02)} },
++	{ ARCPPS,	yxm,	Pm, {0x53} },
++	{ ARCPSS,	yxm,	Pf3, {0x53} },
++	{ ARCRB,	yshb,	Pb, {0xd0,(03),0xc0,(03),0xd2,(03)} },
++	{ ARCRL,	yshl,	Px, {0xd1,(03),0xc1,(03),0xd3,(03),0xd3,(03)} },
++	{ ARCRQ,	yshl,	Pw, {0xd1,(03),0xc1,(03),0xd3,(03),0xd3,(03)} },
++	{ ARCRW,	yshl,	Pe, {0xd1,(03),0xc1,(03),0xd3,(03),0xd3,(03)} },
++	{ AREP,		ynone,	Px, {0xf3} },
++	{ AREPN,	ynone,	Px, {0xf2} },
++	{ ARET,		ynone,	Px, {0xc3} },
++	{ ARETFW,	yret,	Pe, {0xcb,0xca} },
++	{ ARETFL,	yret,	Px, {0xcb,0xca} },
++	{ ARETFQ,	yret,	Pw, {0xcb,0xca} },
++	{ AROLB,	yshb,	Pb, {0xd0,(00),0xc0,(00),0xd2,(00)} },
++	{ AROLL,	yshl,	Px, {0xd1,(00),0xc1,(00),0xd3,(00),0xd3,(00)} },
++	{ AROLQ,	yshl,	Pw, {0xd1,(00),0xc1,(00),0xd3,(00),0xd3,(00)} },
++	{ AROLW,	yshl,	Pe, {0xd1,(00),0xc1,(00),0xd3,(00),0xd3,(00)} },
++	{ ARORB,	yshb,	Pb, {0xd0,(01),0xc0,(01),0xd2,(01)} },
++	{ ARORL,	yshl,	Px, {0xd1,(01),0xc1,(01),0xd3,(01),0xd3,(01)} },
++	{ ARORQ,	yshl,	Pw, {0xd1,(01),0xc1,(01),0xd3,(01),0xd3,(01)} },
++	{ ARORW,	yshl,	Pe, {0xd1,(01),0xc1,(01),0xd3,(01),0xd3,(01)} },
++	{ ARSQRTPS,	yxm,	Pm, {0x52} },
++	{ ARSQRTSS,	yxm,	Pf3, {0x52} },
++	{ ASAHF,	ynone,	Px, {0x86,0xe0,0x50,0x9d} },	/* XCHGB AH,AL; PUSH AX; POPFL */
++	{ ASALB,	yshb,	Pb, {0xd0,(04),0xc0,(04),0xd2,(04)} },
++	{ ASALL,	yshl,	Px, {0xd1,(04),0xc1,(04),0xd3,(04),0xd3,(04)} },
++	{ ASALQ,	yshl,	Pw, {0xd1,(04),0xc1,(04),0xd3,(04),0xd3,(04)} },
++	{ ASALW,	yshl,	Pe, {0xd1,(04),0xc1,(04),0xd3,(04),0xd3,(04)} },
++	{ ASARB,	yshb,	Pb, {0xd0,(07),0xc0,(07),0xd2,(07)} },
++	{ ASARL,	yshl,	Px, {0xd1,(07),0xc1,(07),0xd3,(07),0xd3,(07)} },
++	{ ASARQ,	yshl,	Pw, {0xd1,(07),0xc1,(07),0xd3,(07),0xd3,(07)} },
++	{ ASARW,	yshl,	Pe, {0xd1,(07),0xc1,(07),0xd3,(07),0xd3,(07)} },
++	{ ASBBB,	yxorb,	Pb, {0x1c,0x80,(03),0x18,0x1a} },
++	{ ASBBL,	yxorl,	Px, {0x83,(03),0x1d,0x81,(03),0x19,0x1b} },
++	{ ASBBQ,	yxorl,	Pw, {0x83,(03),0x1d,0x81,(03),0x19,0x1b} },
++	{ ASBBW,	yxorl,	Pe, {0x83,(03),0x1d,0x81,(03),0x19,0x1b} },
++	{ ASCASB,	ynone,	Pb, {0xae} },
++	{ ASCASL,	ynone,	Px, {0xaf} },
++	{ ASCASQ,	ynone,	Pw, {0xaf} },
++	{ ASCASW,	ynone,	Pe, {0xaf} },
++	{ ASETCC,	yscond,	Pm, {0x93,(00)} },
++	{ ASETCS,	yscond,	Pm, {0x92,(00)} },
++	{ ASETEQ,	yscond,	Pm, {0x94,(00)} },
++	{ ASETGE,	yscond,	Pm, {0x9d,(00)} },
++	{ ASETGT,	yscond,	Pm, {0x9f,(00)} },
++	{ ASETHI,	yscond,	Pm, {0x97,(00)} },
++	{ ASETLE,	yscond,	Pm, {0x9e,(00)} },
++	{ ASETLS,	yscond,	Pm, {0x96,(00)} },
++	{ ASETLT,	yscond,	Pm, {0x9c,(00)} },
++	{ ASETMI,	yscond,	Pm, {0x98,(00)} },
++	{ ASETNE,	yscond,	Pm, {0x95,(00)} },
++	{ ASETOC,	yscond,	Pm, {0x91,(00)} },
++	{ ASETOS,	yscond,	Pm, {0x90,(00)} },
++	{ ASETPC,	yscond,	Pm, {0x96,(00)} },
++	{ ASETPL,	yscond,	Pm, {0x99,(00)} },
++	{ ASETPS,	yscond,	Pm, {0x9a,(00)} },
++	{ ASHLB,	yshb,	Pb, {0xd0,(04),0xc0,(04),0xd2,(04)} },
++	{ ASHLL,	yshl,	Px, {0xd1,(04),0xc1,(04),0xd3,(04),0xd3,(04)} },
++	{ ASHLQ,	yshl,	Pw, {0xd1,(04),0xc1,(04),0xd3,(04),0xd3,(04)} },
++	{ ASHLW,	yshl,	Pe, {0xd1,(04),0xc1,(04),0xd3,(04),0xd3,(04)} },
++	{ ASHRB,	yshb,	Pb, {0xd0,(05),0xc0,(05),0xd2,(05)} },
++	{ ASHRL,	yshl,	Px, {0xd1,(05),0xc1,(05),0xd3,(05),0xd3,(05)} },
++	{ ASHRQ,	yshl,	Pw, {0xd1,(05),0xc1,(05),0xd3,(05),0xd3,(05)} },
++	{ ASHRW,	yshl,	Pe, {0xd1,(05),0xc1,(05),0xd3,(05),0xd3,(05)} },
++	{ ASHUFPD,	yxshuf,	Pq, {0xc6,(00)} },
++	{ ASHUFPS,	yxshuf,	Pm, {0xc6,(00)} },
++	{ ASQRTPD,	yxm,	Pe, {0x51} },
++	{ ASQRTPS,	yxm,	Pm, {0x51} },
++	{ ASQRTSD,	yxm,	Pf2, {0x51} },
++	{ ASQRTSS,	yxm,	Pf3, {0x51} },
++	{ ASTC,		ynone,	Px, {0xf9} },
++	{ ASTD,		ynone,	Px, {0xfd} },
++	{ ASTI,		ynone,	Px, {0xfb} },
++	{ ASTMXCSR,	ysvrs,	Pm, {0xae,(03),0xae,(03)} },
++	{ ASTOSB,	ynone,	Pb, {0xaa} },
++	{ ASTOSL,	ynone,	Px, {0xab} },
++	{ ASTOSQ,	ynone,	Pw, {0xab} },
++	{ ASTOSW,	ynone,	Pe, {0xab} },
++	{ ASUBB,	yxorb,	Pb, {0x2c,0x80,(05),0x28,0x2a} },
++	{ ASUBL,	yaddl,	Px, {0x83,(05),0x2d,0x81,(05),0x29,0x2b} },
++	{ ASUBPD,	yxm,	Pe, {0x5c} },
++	{ ASUBPS,	yxm,	Pm, {0x5c} },
++	{ ASUBQ,	yaddl,	Pw, {0x83,(05),0x2d,0x81,(05),0x29,0x2b} },
++	{ ASUBSD,	yxm,	Pf2, {0x5c} },
++	{ ASUBSS,	yxm,	Pf3, {0x5c} },
++	{ ASUBW,	yaddl,	Pe, {0x83,(05),0x2d,0x81,(05),0x29,0x2b} },
++	{ ASWAPGS,	ynone,	Pm, {0x01,0xf8} },
++	{ ASYSCALL,	ynone,	Px, {0x0f,0x05} },	/* fast syscall */
++	{ ATESTB,	ytestb,	Pb, {0xa8,0xf6,(00),0x84,0x84} },
++	{ ATESTL,	ytestl,	Px, {0xa9,0xf7,(00),0x85,0x85} },
++	{ ATESTQ,	ytestl,	Pw, {0xa9,0xf7,(00),0x85,0x85} },
++	{ ATESTW,	ytestl,	Pe, {0xa9,0xf7,(00),0x85,0x85} },
+ 	{ ATEXT,	ytext,	Px },
+-	{ AUCOMISD,	yxcmp,	Pe, 0x2e },
+-	{ AUCOMISS,	yxcmp,	Pm, 0x2e },
+-	{ AUNPCKHPD,	yxm,	Pe, 0x15 },
+-	{ AUNPCKHPS,	yxm,	Pm, 0x15 },
+-	{ AUNPCKLPD,	yxm,	Pe, 0x14 },
+-	{ AUNPCKLPS,	yxm,	Pm, 0x14 },
+-	{ AVERR,	ydivl,	Pm, 0x00,(04) },
+-	{ AVERW,	ydivl,	Pm, 0x00,(05) },
+-	{ AWAIT,	ynone,	Px, 0x9b },
+-	{ AWORD,	ybyte,	Px, 2 },
+-	{ AXCHGB,	yml_mb,	Pb, 0x86,0x86 },
+-	{ AXCHGL,	yxchg,	Px, 0x90,0x90,0x87,0x87 },
+-	{ AXCHGQ,	yxchg,	Pw, 0x90,0x90,0x87,0x87 },
+-	{ AXCHGW,	yxchg,	Pe, 0x90,0x90,0x87,0x87 },
+-	{ AXLAT,	ynone,	Px, 0xd7 },
+-	{ AXORB,	yxorb,	Pb, 0x34,0x80,(06),0x30,0x32 },
+-	{ AXORL,	yxorl,	Px, 0x83,(06),0x35,0x81,(06),0x31,0x33 },
+-	{ AXORPD,	yxm,	Pe, 0x57 },
+-	{ AXORPS,	yxm,	Pm, 0x57 },
+-	{ AXORQ,	yxorl,	Pw, 0x83,(06),0x35,0x81,(06),0x31,0x33 },
+-	{ AXORW,	yxorl,	Pe, 0x83,(06),0x35,0x81,(06),0x31,0x33 },
+-
+-	{ AFMOVB,	yfmvx,	Px, 0xdf,(04) },
+-	{ AFMOVBP,	yfmvp,	Px, 0xdf,(06) },
+-	{ AFMOVD,	yfmvd,	Px, 0xdd,(00),0xdd,(02),0xd9,(00),0xdd,(02) },
+-	{ AFMOVDP,	yfmvdp,	Px, 0xdd,(03),0xdd,(03) },
+-	{ AFMOVF,	yfmvf,	Px, 0xd9,(00),0xd9,(02) },
+-	{ AFMOVFP,	yfmvp,	Px, 0xd9,(03) },
+-	{ AFMOVL,	yfmvf,	Px, 0xdb,(00),0xdb,(02) },
+-	{ AFMOVLP,	yfmvp,	Px, 0xdb,(03) },
+-	{ AFMOVV,	yfmvx,	Px, 0xdf,(05) },
+-	{ AFMOVVP,	yfmvp,	Px, 0xdf,(07) },
+-	{ AFMOVW,	yfmvf,	Px, 0xdf,(00),0xdf,(02) },
+-	{ AFMOVWP,	yfmvp,	Px, 0xdf,(03) },
+-	{ AFMOVX,	yfmvx,	Px, 0xdb,(05) },
+-	{ AFMOVXP,	yfmvp,	Px, 0xdb,(07) },
++	{ AUCOMISD,	yxcmp,	Pe, {0x2e} },
++	{ AUCOMISS,	yxcmp,	Pm, {0x2e} },
++	{ AUNPCKHPD,	yxm,	Pe, {0x15} },
++	{ AUNPCKHPS,	yxm,	Pm, {0x15} },
++	{ AUNPCKLPD,	yxm,	Pe, {0x14} },
++	{ AUNPCKLPS,	yxm,	Pm, {0x14} },
++	{ AVERR,	ydivl,	Pm, {0x00,(04)} },
++	{ AVERW,	ydivl,	Pm, {0x00,(05)} },
++	{ AWAIT,	ynone,	Px, {0x9b} },
++	{ AWORD,	ybyte,	Px, {2} },
++	{ AXCHGB,	yml_mb,	Pb, {0x86,0x86} },
++	{ AXCHGL,	yxchg,	Px, {0x90,0x90,0x87,0x87} },
++	{ AXCHGQ,	yxchg,	Pw, {0x90,0x90,0x87,0x87} },
++	{ AXCHGW,	yxchg,	Pe, {0x90,0x90,0x87,0x87} },
++	{ AXLAT,	ynone,	Px, {0xd7} },
++	{ AXORB,	yxorb,	Pb, {0x34,0x80,(06),0x30,0x32} },
++	{ AXORL,	yxorl,	Px, {0x83,(06),0x35,0x81,(06),0x31,0x33} },
++	{ AXORPD,	yxm,	Pe, {0x57} },
++	{ AXORPS,	yxm,	Pm, {0x57} },
++	{ AXORQ,	yxorl,	Pw, {0x83,(06),0x35,0x81,(06),0x31,0x33} },
++	{ AXORW,	yxorl,	Pe, {0x83,(06),0x35,0x81,(06),0x31,0x33} },
++
++	{ AFMOVB,	yfmvx,	Px, {0xdf,(04)} },
++	{ AFMOVBP,	yfmvp,	Px, {0xdf,(06)} },
++	{ AFMOVD,	yfmvd,	Px, {0xdd,(00),0xdd,(02),0xd9,(00),0xdd,(02)} },
++	{ AFMOVDP,	yfmvdp,	Px, {0xdd,(03),0xdd,(03)} },
++	{ AFMOVF,	yfmvf,	Px, {0xd9,(00),0xd9,(02)} },
++	{ AFMOVFP,	yfmvp,	Px, {0xd9,(03)} },
++	{ AFMOVL,	yfmvf,	Px, {0xdb,(00),0xdb,(02)} },
++	{ AFMOVLP,	yfmvp,	Px, {0xdb,(03)} },
++	{ AFMOVV,	yfmvx,	Px, {0xdf,(05)} },
++	{ AFMOVVP,	yfmvp,	Px, {0xdf,(07)} },
++	{ AFMOVW,	yfmvf,	Px, {0xdf,(00),0xdf,(02)} },
++	{ AFMOVWP,	yfmvp,	Px, {0xdf,(03)} },
++	{ AFMOVX,	yfmvx,	Px, {0xdb,(05)} },
++	{ AFMOVXP,	yfmvp,	Px, {0xdb,(07)} },
+ 
+ 	{ AFCOMB },
+ 	{ AFCOMBP },
+-	{ AFCOMD,	yfadd,	Px, 0xdc,(02),0xd8,(02),0xdc,(02) },	/* botch */
+-	{ AFCOMDP,	yfadd,	Px, 0xdc,(03),0xd8,(03),0xdc,(03) },	/* botch */
+-	{ AFCOMDPP,	ycompp,	Px, 0xde,(03) },
+-	{ AFCOMF,	yfmvx,	Px, 0xd8,(02) },
+-	{ AFCOMFP,	yfmvx,	Px, 0xd8,(03) },
+-	{ AFCOML,	yfmvx,	Px, 0xda,(02) },
+-	{ AFCOMLP,	yfmvx,	Px, 0xda,(03) },
+-	{ AFCOMW,	yfmvx,	Px, 0xde,(02) },
+-	{ AFCOMWP,	yfmvx,	Px, 0xde,(03) },
+-
+-	{ AFUCOM,	ycompp,	Px, 0xdd,(04) },
+-	{ AFUCOMP,	ycompp, Px, 0xdd,(05) },
+-	{ AFUCOMPP,	ycompp,	Px, 0xda,(13) },
+-
+-	{ AFADDDP,	yfaddp,	Px, 0xde,(00) },
+-	{ AFADDW,	yfmvx,	Px, 0xde,(00) },
+-	{ AFADDL,	yfmvx,	Px, 0xda,(00) },
+-	{ AFADDF,	yfmvx,	Px, 0xd8,(00) },
+-	{ AFADDD,	yfadd,	Px, 0xdc,(00),0xd8,(00),0xdc,(00) },
+-
+-	{ AFMULDP,	yfaddp,	Px, 0xde,(01) },
+-	{ AFMULW,	yfmvx,	Px, 0xde,(01) },
+-	{ AFMULL,	yfmvx,	Px, 0xda,(01) },
+-	{ AFMULF,	yfmvx,	Px, 0xd8,(01) },
+-	{ AFMULD,	yfadd,	Px, 0xdc,(01),0xd8,(01),0xdc,(01) },
+-
+-	{ AFSUBDP,	yfaddp,	Px, 0xde,(05) },
+-	{ AFSUBW,	yfmvx,	Px, 0xde,(04) },
+-	{ AFSUBL,	yfmvx,	Px, 0xda,(04) },
+-	{ AFSUBF,	yfmvx,	Px, 0xd8,(04) },
+-	{ AFSUBD,	yfadd,	Px, 0xdc,(04),0xd8,(04),0xdc,(05) },
+-
+-	{ AFSUBRDP,	yfaddp,	Px, 0xde,(04) },
+-	{ AFSUBRW,	yfmvx,	Px, 0xde,(05) },
+-	{ AFSUBRL,	yfmvx,	Px, 0xda,(05) },
+-	{ AFSUBRF,	yfmvx,	Px, 0xd8,(05) },
+-	{ AFSUBRD,	yfadd,	Px, 0xdc,(05),0xd8,(05),0xdc,(04) },
+-
+-	{ AFDIVDP,	yfaddp,	Px, 0xde,(07) },
+-	{ AFDIVW,	yfmvx,	Px, 0xde,(06) },
+-	{ AFDIVL,	yfmvx,	Px, 0xda,(06) },
+-	{ AFDIVF,	yfmvx,	Px, 0xd8,(06) },
+-	{ AFDIVD,	yfadd,	Px, 0xdc,(06),0xd8,(06),0xdc,(07) },
+-
+-	{ AFDIVRDP,	yfaddp,	Px, 0xde,(06) },
+-	{ AFDIVRW,	yfmvx,	Px, 0xde,(07) },
+-	{ AFDIVRL,	yfmvx,	Px, 0xda,(07) },
+-	{ AFDIVRF,	yfmvx,	Px, 0xd8,(07) },
+-	{ AFDIVRD,	yfadd,	Px, 0xdc,(07),0xd8,(07),0xdc,(06) },
+-
+-	{ AFXCHD,	yfxch,	Px, 0xd9,(01),0xd9,(01) },
++	{ AFCOMD,	yfadd,	Px, {0xdc,(02),0xd8,(02),0xdc,(02)} },	/* botch */
++	{ AFCOMDP,	yfadd,	Px, {0xdc,(03),0xd8,(03),0xdc,(03)} },	/* botch */
++	{ AFCOMDPP,	ycompp,	Px, {0xde,(03)} },
++	{ AFCOMF,	yfmvx,	Px, {0xd8,(02)} },
++	{ AFCOMFP,	yfmvx,	Px, {0xd8,(03)} },
++	{ AFCOML,	yfmvx,	Px, {0xda,(02)} },
++	{ AFCOMLP,	yfmvx,	Px, {0xda,(03)} },
++	{ AFCOMW,	yfmvx,	Px, {0xde,(02)} },
++	{ AFCOMWP,	yfmvx,	Px, {0xde,(03)} },
++
++	{ AFUCOM,	ycompp,	Px, {0xdd,(04)} },
++	{ AFUCOMP,	ycompp, Px, {0xdd,(05)} },
++	{ AFUCOMPP,	ycompp,	Px, {0xda,(13)} },
++
++	{ AFADDDP,	yfaddp,	Px, {0xde,(00)} },
++	{ AFADDW,	yfmvx,	Px, {0xde,(00)} },
++	{ AFADDL,	yfmvx,	Px, {0xda,(00)} },
++	{ AFADDF,	yfmvx,	Px, {0xd8,(00)} },
++	{ AFADDD,	yfadd,	Px, {0xdc,(00),0xd8,(00),0xdc,(00)} },
++
++	{ AFMULDP,	yfaddp,	Px, {0xde,(01)} },
++	{ AFMULW,	yfmvx,	Px, {0xde,(01)} },
++	{ AFMULL,	yfmvx,	Px, {0xda,(01)} },
++	{ AFMULF,	yfmvx,	Px, {0xd8,(01)} },
++	{ AFMULD,	yfadd,	Px, {0xdc,(01),0xd8,(01),0xdc,(01)} },
++
++	{ AFSUBDP,	yfaddp,	Px, {0xde,(05)} },
++	{ AFSUBW,	yfmvx,	Px, {0xde,(04)} },
++	{ AFSUBL,	yfmvx,	Px, {0xda,(04)} },
++	{ AFSUBF,	yfmvx,	Px, {0xd8,(04)} },
++	{ AFSUBD,	yfadd,	Px, {0xdc,(04),0xd8,(04),0xdc,(05)} },
++
++	{ AFSUBRDP,	yfaddp,	Px, {0xde,(04)} },
++	{ AFSUBRW,	yfmvx,	Px, {0xde,(05)} },
++	{ AFSUBRL,	yfmvx,	Px, {0xda,(05)} },
++	{ AFSUBRF,	yfmvx,	Px, {0xd8,(05)} },
++	{ AFSUBRD,	yfadd,	Px, {0xdc,(05),0xd8,(05),0xdc,(04)} },
++
++	{ AFDIVDP,	yfaddp,	Px, {0xde,(07)} },
++	{ AFDIVW,	yfmvx,	Px, {0xde,(06)} },
++	{ AFDIVL,	yfmvx,	Px, {0xda,(06)} },
++	{ AFDIVF,	yfmvx,	Px, {0xd8,(06)} },
++	{ AFDIVD,	yfadd,	Px, {0xdc,(06),0xd8,(06),0xdc,(07)} },
++
++	{ AFDIVRDP,	yfaddp,	Px, {0xde,(06)} },
++	{ AFDIVRW,	yfmvx,	Px, {0xde,(07)} },
++	{ AFDIVRL,	yfmvx,	Px, {0xda,(07)} },
++	{ AFDIVRF,	yfmvx,	Px, {0xd8,(07)} },
++	{ AFDIVRD,	yfadd,	Px, {0xdc,(07),0xd8,(07),0xdc,(06)} },
++
++	{ AFXCHD,	yfxch,	Px, {0xd9,(01),0xd9,(01)} },
+ 	{ AFFREE },
+-	{ AFLDCW,	ystcw,	Px, 0xd9,(05),0xd9,(05) },
+-	{ AFLDENV,	ystcw,	Px, 0xd9,(04),0xd9,(04) },
+-	{ AFRSTOR,	ysvrs,	Px, 0xdd,(04),0xdd,(04) },
+-	{ AFSAVE,	ysvrs,	Px, 0xdd,(06),0xdd,(06) },
+-	{ AFSTCW,	ystcw,	Px, 0xd9,(07),0xd9,(07) },
+-	{ AFSTENV,	ystcw,	Px, 0xd9,(06),0xd9,(06) },
+-	{ AFSTSW,	ystsw,	Px, 0xdd,(07),0xdf,0xe0 },
+-	{ AF2XM1,	ynone,	Px, 0xd9, 0xf0 },
+-	{ AFABS,	ynone,	Px, 0xd9, 0xe1 },
+-	{ AFCHS,	ynone,	Px, 0xd9, 0xe0 },
+-	{ AFCLEX,	ynone,	Px, 0xdb, 0xe2 },
+-	{ AFCOS,	ynone,	Px, 0xd9, 0xff },
+-	{ AFDECSTP,	ynone,	Px, 0xd9, 0xf6 },
+-	{ AFINCSTP,	ynone,	Px, 0xd9, 0xf7 },
+-	{ AFINIT,	ynone,	Px, 0xdb, 0xe3 },
+-	{ AFLD1,	ynone,	Px, 0xd9, 0xe8 },
+-	{ AFLDL2E,	ynone,	Px, 0xd9, 0xea },
+-	{ AFLDL2T,	ynone,	Px, 0xd9, 0xe9 },
+-	{ AFLDLG2,	ynone,	Px, 0xd9, 0xec },
+-	{ AFLDLN2,	ynone,	Px, 0xd9, 0xed },
+-	{ AFLDPI,	ynone,	Px, 0xd9, 0xeb },
+-	{ AFLDZ,	ynone,	Px, 0xd9, 0xee },
+-	{ AFNOP,	ynone,	Px, 0xd9, 0xd0 },
+-	{ AFPATAN,	ynone,	Px, 0xd9, 0xf3 },
+-	{ AFPREM,	ynone,	Px, 0xd9, 0xf8 },
+-	{ AFPREM1,	ynone,	Px, 0xd9, 0xf5 },
+-	{ AFPTAN,	ynone,	Px, 0xd9, 0xf2 },
+-	{ AFRNDINT,	ynone,	Px, 0xd9, 0xfc },
+-	{ AFSCALE,	ynone,	Px, 0xd9, 0xfd },
+-	{ AFSIN,	ynone,	Px, 0xd9, 0xfe },
+-	{ AFSINCOS,	ynone,	Px, 0xd9, 0xfb },
+-	{ AFSQRT,	ynone,	Px, 0xd9, 0xfa },
+-	{ AFTST,	ynone,	Px, 0xd9, 0xe4 },
+-	{ AFXAM,	ynone,	Px, 0xd9, 0xe5 },
+-	{ AFXTRACT,	ynone,	Px, 0xd9, 0xf4 },
+-	{ AFYL2X,	ynone,	Px, 0xd9, 0xf1 },
+-	{ AFYL2XP1,	ynone,	Px, 0xd9, 0xf9 },
+-
+-	{ ACMPXCHGB,	yrb_mb,	Pb, 0x0f,0xb0 },
+-	{ ACMPXCHGL,	yrl_ml,	Px, 0x0f,0xb1 },
+-	{ ACMPXCHGW,	yrl_ml,	Pe, 0x0f,0xb1 },
+-	{ ACMPXCHGQ,	yrl_ml,	Pw, 0x0f,0xb1 },
+-	{ ACMPXCHG8B,	yscond,	Pm, 0xc7,(01) },
+-	{ AINVD,	ynone,	Pm, 0x08 },
+-	{ AINVLPG,	ymbs,	Pm, 0x01,(07) },
+-	{ ALFENCE,	ynone,	Pm, 0xae,0xe8 },
+-	{ AMFENCE,	ynone,	Pm, 0xae,0xf0 },
+-	{ AMOVNTIL,	yrl_ml,	Pm, 0xc3 },
+-	{ AMOVNTIQ,	yrl_ml, Pw, 0x0f,0xc3 },
+-	{ ARDMSR,	ynone,	Pm, 0x32 },
+-	{ ARDPMC,	ynone,	Pm, 0x33 },
+-	{ ARDTSC,	ynone,	Pm, 0x31 },
+-	{ ARSM,		ynone,	Pm, 0xaa },
+-	{ ASFENCE,	ynone,	Pm, 0xae,0xf8 },
+-	{ ASYSRET,	ynone,	Pm, 0x07 },
+-	{ AWBINVD,	ynone,	Pm, 0x09 },
+-	{ AWRMSR,	ynone,	Pm, 0x30 },
+-
+-	{ AXADDB,	yrb_mb,	Pb, 0x0f,0xc0 },
+-	{ AXADDL,	yrl_ml,	Px, 0x0f,0xc1 },
+-	{ AXADDQ,	yrl_ml,	Pw, 0x0f,0xc1 },
+-	{ AXADDW,	yrl_ml,	Pe, 0x0f,0xc1 },
+-
+-	{ ACRC32B,       ycrc32l,Px, 0xf2,0x0f,0x38,0xf0,0 },
+-	{ ACRC32Q,       ycrc32l,Pw, 0xf2,0x0f,0x38,0xf1,0 },
++	{ AFLDCW,	ystcw,	Px, {0xd9,(05),0xd9,(05)} },
++	{ AFLDENV,	ystcw,	Px, {0xd9,(04),0xd9,(04)} },
++	{ AFRSTOR,	ysvrs,	Px, {0xdd,(04),0xdd,(04)} },
++	{ AFSAVE,	ysvrs,	Px, {0xdd,(06),0xdd,(06)} },
++	{ AFSTCW,	ystcw,	Px, {0xd9,(07),0xd9,(07)} },
++	{ AFSTENV,	ystcw,	Px, {0xd9,(06),0xd9,(06)} },
++	{ AFSTSW,	ystsw,	Px, {0xdd,(07),0xdf,0xe0} },
++	{ AF2XM1,	ynone,	Px, {0xd9, 0xf0} },
++	{ AFABS,	ynone,	Px, {0xd9, 0xe1} },
++	{ AFCHS,	ynone,	Px, {0xd9, 0xe0} },
++	{ AFCLEX,	ynone,	Px, {0xdb, 0xe2} },
++	{ AFCOS,	ynone,	Px, {0xd9, 0xff} },
++	{ AFDECSTP,	ynone,	Px, {0xd9, 0xf6} },
++	{ AFINCSTP,	ynone,	Px, {0xd9, 0xf7} },
++	{ AFINIT,	ynone,	Px, {0xdb, 0xe3} },
++	{ AFLD1,	ynone,	Px, {0xd9, 0xe8} },
++	{ AFLDL2E,	ynone,	Px, {0xd9, 0xea} },
++	{ AFLDL2T,	ynone,	Px, {0xd9, 0xe9} },
++	{ AFLDLG2,	ynone,	Px, {0xd9, 0xec} },
++	{ AFLDLN2,	ynone,	Px, {0xd9, 0xed} },
++	{ AFLDPI,	ynone,	Px, {0xd9, 0xeb} },
++	{ AFLDZ,	ynone,	Px, {0xd9, 0xee} },
++	{ AFNOP,	ynone,	Px, {0xd9, 0xd0} },
++	{ AFPATAN,	ynone,	Px, {0xd9, 0xf3} },
++	{ AFPREM,	ynone,	Px, {0xd9, 0xf8} },
++	{ AFPREM1,	ynone,	Px, {0xd9, 0xf5} },
++	{ AFPTAN,	ynone,	Px, {0xd9, 0xf2} },
++	{ AFRNDINT,	ynone,	Px, {0xd9, 0xfc} },
++	{ AFSCALE,	ynone,	Px, {0xd9, 0xfd} },
++	{ AFSIN,	ynone,	Px, {0xd9, 0xfe} },
++	{ AFSINCOS,	ynone,	Px, {0xd9, 0xfb} },
++	{ AFSQRT,	ynone,	Px, {0xd9, 0xfa} },
++	{ AFTST,	ynone,	Px, {0xd9, 0xe4} },
++	{ AFXAM,	ynone,	Px, {0xd9, 0xe5} },
++	{ AFXTRACT,	ynone,	Px, {0xd9, 0xf4} },
++	{ AFYL2X,	ynone,	Px, {0xd9, 0xf1} },
++	{ AFYL2XP1,	ynone,	Px, {0xd9, 0xf9} },
++
++	{ ACMPXCHGB,	yrb_mb,	Pb, {0x0f,0xb0} },
++	{ ACMPXCHGL,	yrl_ml,	Px, {0x0f,0xb1} },
++	{ ACMPXCHGW,	yrl_ml,	Pe, {0x0f,0xb1} },
++	{ ACMPXCHGQ,	yrl_ml,	Pw, {0x0f,0xb1} },
++	{ ACMPXCHG8B,	yscond,	Pm, {0xc7,(01)} },
++	{ AINVD,	ynone,	Pm, {0x08} },
++	{ AINVLPG,	ymbs,	Pm, {0x01,(07)} },
++	{ ALFENCE,	ynone,	Pm, {0xae,0xe8} },
++	{ AMFENCE,	ynone,	Pm, {0xae,0xf0} },
++	{ AMOVNTIL,	yrl_ml,	Pm, {0xc3} },
++	{ AMOVNTIQ,	yrl_ml, Pw, {0x0f,0xc3} },
++	{ ARDMSR,	ynone,	Pm, {0x32} },
++	{ ARDPMC,	ynone,	Pm, {0x33} },
++	{ ARDTSC,	ynone,	Pm, {0x31} },
++	{ ARSM,		ynone,	Pm, {0xaa} },
++	{ ASFENCE,	ynone,	Pm, {0xae,0xf8} },
++	{ ASYSRET,	ynone,	Pm, {0x07} },
++	{ AWBINVD,	ynone,	Pm, {0x09} },
++	{ AWRMSR,	ynone,	Pm, {0x30} },
++
++	{ AXADDB,	yrb_mb,	Pb, {0x0f,0xc0} },
++	{ AXADDL,	yrl_ml,	Px, {0x0f,0xc1} },
++	{ AXADDQ,	yrl_ml,	Pw, {0x0f,0xc1} },
++	{ AXADDW,	yrl_ml,	Pe, {0x0f,0xc1} },
++
++	{ ACRC32B,       ycrc32l,Px, {0xf2,0x0f,0x38,0xf0,0} },
++	{ ACRC32Q,       ycrc32l,Pw, {0xf2,0x0f,0x38,0xf1,0} },
+ 	
+-	{ APREFETCHT0,	yprefetch,	Pm,	0x18,(01) },
+-	{ APREFETCHT1,	yprefetch,	Pm,	0x18,(02) },
+-	{ APREFETCHT2,	yprefetch,	Pm,	0x18,(03) },
+-	{ APREFETCHNTA,	yprefetch,	Pm,	0x18,(00) },
++	{ APREFETCHT0,	yprefetch,	Pm,	{0x18,(01)} },
++	{ APREFETCHT1,	yprefetch,	Pm,	{0x18,(02)} },
++	{ APREFETCHT2,	yprefetch,	Pm,	{0x18,(03)} },
++	{ APREFETCHNTA,	yprefetch,	Pm,	{0x18,(00)} },
+ 	
+-	{ AMOVQL,	yrl_ml,	Px, 0x89 },
++	{ AMOVQL,	yrl_ml,	Px, {0x89} },
+ 
+-	{ AUNDEF,		ynone,	Px, 0x0f, 0x0b },
++	{ AUNDEF,		ynone,	Px, {0x0f, 0x0b} },
+ 
+-	{ AAESENC,	yaes,	Pq, 0x38,0xdc,(0) },
+-	{ AAESENCLAST,	yaes,	Pq, 0x38,0xdd,(0) },
+-	{ AAESDEC,	yaes,	Pq, 0x38,0xde,(0) },
+-	{ AAESDECLAST,	yaes,	Pq, 0x38,0xdf,(0) },
+-	{ AAESIMC,	yaes,	Pq, 0x38,0xdb,(0) },
+-	{ AAESKEYGENASSIST,	yaes2,	Pq, 0x3a,0xdf,(0) },
++	{ AAESENC,	yaes,	Pq, {0x38,0xdc,(0)} },
++	{ AAESENCLAST,	yaes,	Pq, {0x38,0xdd,(0)} },
++	{ AAESDEC,	yaes,	Pq, {0x38,0xde,(0)} },
++	{ AAESDECLAST,	yaes,	Pq, {0x38,0xdf,(0)} },
++	{ AAESIMC,	yaes,	Pq, {0x38,0xdb,(0)} },
++	{ AAESKEYGENASSIST,	yaes2,	Pq, {0x3a,0xdf,(0)} },
+ 
+-	{ APSHUFD,	yaes2,	Pq,	0x70,(0) },
+-	{ APCLMULQDQ,	yxshuf,	Pq, 0x3a,0x44,0 },
++	{ APSHUFD,	yaes2,	Pq,	{0x70,(0)} },
++	{ APCLMULQDQ,	yxshuf,	Pq, {0x3a,0x44,0} },
+ 
+-	{ AUSEFIELD,	ynop,	Px, 0,0 },
++	{ AUSEFIELD,	ynop,	Px, {0,0} },
+ 	{ ATYPE },
+-	{ AFUNCDATA,	yfuncdata,	Px, 0,0 },
+-	{ APCDATA,	ypcdata,	Px, 0,0 },
++	{ AFUNCDATA,	yfuncdata,	Px, {0,0} },
++	{ APCDATA,	ypcdata,	Px, {0,0} },
+ 	{ ACHECKNIL },
+ 	{ AVARDEF },
+ 	{ AVARKILL },
+-	{ ADUFFCOPY,	yduff,	Px, 0xe8 },
+-	{ ADUFFZERO,	yduff,	Px, 0xe8 },
++	{ ADUFFCOPY,	yduff,	Px, {0xe8} },
++	{ ADUFFZERO,	yduff,	Px, {0xe8} },
+ 
+ 	{ AEND },
+-	0
++	{0}
+ };
+ 
+ static Optab*	opindex[ALAST+1];
+@@ -2492,139 +2492,141 @@ bytereg(Addr *a, char *t)
+ 	}
+ }
+ 
+-#define	E	0xff
++enum {
++	E = 0xff,
++};
+ static Movtab	ymovtab[] =
+ {
+ /* push */
+-	{APUSHL,	Ycs,	Ynone,	0,	0x0e,E,0,0},
+-	{APUSHL,	Yss,	Ynone,	0,	0x16,E,0,0},
+-	{APUSHL,	Yds,	Ynone,	0,	0x1e,E,0,0},
+-	{APUSHL,	Yes,	Ynone,	0,	0x06,E,0,0},
+-	{APUSHL,	Yfs,	Ynone,	0,	0x0f,0xa0,E,0},
+-	{APUSHL,	Ygs,	Ynone,	0,	0x0f,0xa8,E,0},
+-	{APUSHQ,	Yfs,	Ynone,	0,	0x0f,0xa0,E,0},
+-	{APUSHQ,	Ygs,	Ynone,	0,	0x0f,0xa8,E,0},
+-
+-	{APUSHW,	Ycs,	Ynone,	0,	Pe,0x0e,E,0},
+-	{APUSHW,	Yss,	Ynone,	0,	Pe,0x16,E,0},
+-	{APUSHW,	Yds,	Ynone,	0,	Pe,0x1e,E,0},
+-	{APUSHW,	Yes,	Ynone,	0,	Pe,0x06,E,0},
+-	{APUSHW,	Yfs,	Ynone,	0,	Pe,0x0f,0xa0,E},
+-	{APUSHW,	Ygs,	Ynone,	0,	Pe,0x0f,0xa8,E},
++	{APUSHL,	Ycs,	Ynone,	0,	{0x0e,E,0,0}},
++	{APUSHL,	Yss,	Ynone,	0,	{0x16,E,0,0}},
++	{APUSHL,	Yds,	Ynone,	0,	{0x1e,E,0,0}},
++	{APUSHL,	Yes,	Ynone,	0,	{0x06,E,0,0}},
++	{APUSHL,	Yfs,	Ynone,	0,	{0x0f,0xa0,E,0}},
++	{APUSHL,	Ygs,	Ynone,	0,	{0x0f,0xa8,E,0}},
++	{APUSHQ,	Yfs,	Ynone,	0,	{0x0f,0xa0,E,0}},
++	{APUSHQ,	Ygs,	Ynone,	0,	{0x0f,0xa8,E,0}},
++
++	{APUSHW,	Ycs,	Ynone,	0,	{Pe,0x0e,E,0}},
++	{APUSHW,	Yss,	Ynone,	0,	{Pe,0x16,E,0}},
++	{APUSHW,	Yds,	Ynone,	0,	{Pe,0x1e,E,0}},
++	{APUSHW,	Yes,	Ynone,	0,	{Pe,0x06,E,0}},
++	{APUSHW,	Yfs,	Ynone,	0,	{Pe,0x0f,0xa0,E}},
++	{APUSHW,	Ygs,	Ynone,	0,	{Pe,0x0f,0xa8,E}},
+ 
+ /* pop */
+-	{APOPL,	Ynone,	Yds,	0,	0x1f,E,0,0},
+-	{APOPL,	Ynone,	Yes,	0,	0x07,E,0,0},
+-	{APOPL,	Ynone,	Yss,	0,	0x17,E,0,0},
+-	{APOPL,	Ynone,	Yfs,	0,	0x0f,0xa1,E,0},
+-	{APOPL,	Ynone,	Ygs,	0,	0x0f,0xa9,E,0},
+-	{APOPQ,	Ynone,	Yfs,	0,	0x0f,0xa1,E,0},
+-	{APOPQ,	Ynone,	Ygs,	0,	0x0f,0xa9,E,0},
+-
+-	{APOPW,	Ynone,	Yds,	0,	Pe,0x1f,E,0},
+-	{APOPW,	Ynone,	Yes,	0,	Pe,0x07,E,0},
+-	{APOPW,	Ynone,	Yss,	0,	Pe,0x17,E,0},
+-	{APOPW,	Ynone,	Yfs,	0,	Pe,0x0f,0xa1,E},
+-	{APOPW,	Ynone,	Ygs,	0,	Pe,0x0f,0xa9,E},
++	{APOPL,	Ynone,	Yds,	0,	{0x1f,E,0,0}},
++	{APOPL,	Ynone,	Yes,	0,	{0x07,E,0,0}},
++	{APOPL,	Ynone,	Yss,	0,	{0x17,E,0,0}},
++	{APOPL,	Ynone,	Yfs,	0,	{0x0f,0xa1,E,0}},
++	{APOPL,	Ynone,	Ygs,	0,	{0x0f,0xa9,E,0}},
++	{APOPQ,	Ynone,	Yfs,	0,	{0x0f,0xa1,E,0}},
++	{APOPQ,	Ynone,	Ygs,	0,	{0x0f,0xa9,E,0}},
++
++	{APOPW,	Ynone,	Yds,	0,	{Pe,0x1f,E,0}},
++	{APOPW,	Ynone,	Yes,	0,	{Pe,0x07,E,0}},
++	{APOPW,	Ynone,	Yss,	0,	{Pe,0x17,E,0}},
++	{APOPW,	Ynone,	Yfs,	0,	{Pe,0x0f,0xa1,E}},
++	{APOPW,	Ynone,	Ygs,	0,	{Pe,0x0f,0xa9,E}},
+ 
+ /* mov seg */
+-	{AMOVW,	Yes,	Yml,	1,	0x8c,0,0,0},
+-	{AMOVW,	Ycs,	Yml,	1,	0x8c,1,0,0},
+-	{AMOVW,	Yss,	Yml,	1,	0x8c,2,0,0},
+-	{AMOVW,	Yds,	Yml,	1,	0x8c,3,0,0},
+-	{AMOVW,	Yfs,	Yml,	1,	0x8c,4,0,0},
+-	{AMOVW,	Ygs,	Yml,	1,	0x8c,5,0,0},
+-
+-	{AMOVW,	Yml,	Yes,	2,	0x8e,0,0,0},
+-	{AMOVW,	Yml,	Ycs,	2,	0x8e,1,0,0},
+-	{AMOVW,	Yml,	Yss,	2,	0x8e,2,0,0},
+-	{AMOVW,	Yml,	Yds,	2,	0x8e,3,0,0},
+-	{AMOVW,	Yml,	Yfs,	2,	0x8e,4,0,0},
+-	{AMOVW,	Yml,	Ygs,	2,	0x8e,5,0,0},
++	{AMOVW,	Yes,	Yml,	1,	{0x8c,0,0,0}},
++	{AMOVW,	Ycs,	Yml,	1,	{0x8c,1,0,0}},
++	{AMOVW,	Yss,	Yml,	1,	{0x8c,2,0,0}},
++	{AMOVW,	Yds,	Yml,	1,	{0x8c,3,0,0}},
++	{AMOVW,	Yfs,	Yml,	1,	{0x8c,4,0,0}},
++	{AMOVW,	Ygs,	Yml,	1,	{0x8c,5,0,0}},
++
++	{AMOVW,	Yml,	Yes,	2,	{0x8e,0,0,0}},
++	{AMOVW,	Yml,	Ycs,	2,	{0x8e,1,0,0}},
++	{AMOVW,	Yml,	Yss,	2,	{0x8e,2,0,0}},
++	{AMOVW,	Yml,	Yds,	2,	{0x8e,3,0,0}},
++	{AMOVW,	Yml,	Yfs,	2,	{0x8e,4,0,0}},
++	{AMOVW,	Yml,	Ygs,	2,	{0x8e,5,0,0}},
+ 
+ /* mov cr */
+-	{AMOVL,	Ycr0,	Yml,	3,	0x0f,0x20,0,0},
+-	{AMOVL,	Ycr2,	Yml,	3,	0x0f,0x20,2,0},
+-	{AMOVL,	Ycr3,	Yml,	3,	0x0f,0x20,3,0},
+-	{AMOVL,	Ycr4,	Yml,	3,	0x0f,0x20,4,0},
+-	{AMOVL,	Ycr8,	Yml,	3,	0x0f,0x20,8,0},
+-	{AMOVQ,	Ycr0,	Yml,	3,	0x0f,0x20,0,0},
+-	{AMOVQ,	Ycr2,	Yml,	3,	0x0f,0x20,2,0},
+-	{AMOVQ,	Ycr3,	Yml,	3,	0x0f,0x20,3,0},
+-	{AMOVQ,	Ycr4,	Yml,	3,	0x0f,0x20,4,0},
+-	{AMOVQ,	Ycr8,	Yml,	3,	0x0f,0x20,8,0},
+-
+-	{AMOVL,	Yml,	Ycr0,	4,	0x0f,0x22,0,0},
+-	{AMOVL,	Yml,	Ycr2,	4,	0x0f,0x22,2,0},
+-	{AMOVL,	Yml,	Ycr3,	4,	0x0f,0x22,3,0},
+-	{AMOVL,	Yml,	Ycr4,	4,	0x0f,0x22,4,0},
+-	{AMOVL,	Yml,	Ycr8,	4,	0x0f,0x22,8,0},
+-	{AMOVQ,	Yml,	Ycr0,	4,	0x0f,0x22,0,0},
+-	{AMOVQ,	Yml,	Ycr2,	4,	0x0f,0x22,2,0},
+-	{AMOVQ,	Yml,	Ycr3,	4,	0x0f,0x22,3,0},
+-	{AMOVQ,	Yml,	Ycr4,	4,	0x0f,0x22,4,0},
+-	{AMOVQ,	Yml,	Ycr8,	4,	0x0f,0x22,8,0},
++	{AMOVL,	Ycr0,	Yml,	3,	{0x0f,0x20,0,0}},
++	{AMOVL,	Ycr2,	Yml,	3,	{0x0f,0x20,2,0}},
++	{AMOVL,	Ycr3,	Yml,	3,	{0x0f,0x20,3,0}},
++	{AMOVL,	Ycr4,	Yml,	3,	{0x0f,0x20,4,0}},
++	{AMOVL,	Ycr8,	Yml,	3,	{0x0f,0x20,8,0}},
++	{AMOVQ,	Ycr0,	Yml,	3,	{0x0f,0x20,0,0}},
++	{AMOVQ,	Ycr2,	Yml,	3,	{0x0f,0x20,2,0}},
++	{AMOVQ,	Ycr3,	Yml,	3,	{0x0f,0x20,3,0}},
++	{AMOVQ,	Ycr4,	Yml,	3,	{0x0f,0x20,4,0}},
++	{AMOVQ,	Ycr8,	Yml,	3,	{0x0f,0x20,8,0}},
++
++	{AMOVL,	Yml,	Ycr0,	4,	{0x0f,0x22,0,0}},
++	{AMOVL,	Yml,	Ycr2,	4,	{0x0f,0x22,2,0}},
++	{AMOVL,	Yml,	Ycr3,	4,	{0x0f,0x22,3,0}},
++	{AMOVL,	Yml,	Ycr4,	4,	{0x0f,0x22,4,0}},
++	{AMOVL,	Yml,	Ycr8,	4,	{0x0f,0x22,8,0}},
++	{AMOVQ,	Yml,	Ycr0,	4,	{0x0f,0x22,0,0}},
++	{AMOVQ,	Yml,	Ycr2,	4,	{0x0f,0x22,2,0}},
++	{AMOVQ,	Yml,	Ycr3,	4,	{0x0f,0x22,3,0}},
++	{AMOVQ,	Yml,	Ycr4,	4,	{0x0f,0x22,4,0}},
++	{AMOVQ,	Yml,	Ycr8,	4,	{0x0f,0x22,8,0}},
+ 
+ /* mov dr */
+-	{AMOVL,	Ydr0,	Yml,	3,	0x0f,0x21,0,0},
+-	{AMOVL,	Ydr6,	Yml,	3,	0x0f,0x21,6,0},
+-	{AMOVL,	Ydr7,	Yml,	3,	0x0f,0x21,7,0},
+-	{AMOVQ,	Ydr0,	Yml,	3,	0x0f,0x21,0,0},
+-	{AMOVQ,	Ydr6,	Yml,	3,	0x0f,0x21,6,0},
+-	{AMOVQ,	Ydr7,	Yml,	3,	0x0f,0x21,7,0},
+-
+-	{AMOVL,	Yml,	Ydr0,	4,	0x0f,0x23,0,0},
+-	{AMOVL,	Yml,	Ydr6,	4,	0x0f,0x23,6,0},
+-	{AMOVL,	Yml,	Ydr7,	4,	0x0f,0x23,7,0},
+-	{AMOVQ,	Yml,	Ydr0,	4,	0x0f,0x23,0,0},
+-	{AMOVQ,	Yml,	Ydr6,	4,	0x0f,0x23,6,0},
+-	{AMOVQ,	Yml,	Ydr7,	4,	0x0f,0x23,7,0},
++	{AMOVL,	Ydr0,	Yml,	3,	{0x0f,0x21,0,0}},
++	{AMOVL,	Ydr6,	Yml,	3,	{0x0f,0x21,6,0}},
++	{AMOVL,	Ydr7,	Yml,	3,	{0x0f,0x21,7,0}},
++	{AMOVQ,	Ydr0,	Yml,	3,	{0x0f,0x21,0,0}},
++	{AMOVQ,	Ydr6,	Yml,	3,	{0x0f,0x21,6,0}},
++	{AMOVQ,	Ydr7,	Yml,	3,	{0x0f,0x21,7,0}},
++
++	{AMOVL,	Yml,	Ydr0,	4,	{0x0f,0x23,0,0}},
++	{AMOVL,	Yml,	Ydr6,	4,	{0x0f,0x23,6,0}},
++	{AMOVL,	Yml,	Ydr7,	4,	{0x0f,0x23,7,0}},
++	{AMOVQ,	Yml,	Ydr0,	4,	{0x0f,0x23,0,0}},
++	{AMOVQ,	Yml,	Ydr6,	4,	{0x0f,0x23,6,0}},
++	{AMOVQ,	Yml,	Ydr7,	4,	{0x0f,0x23,7,0}},
+ 
+ /* mov tr */
+-	{AMOVL,	Ytr6,	Yml,	3,	0x0f,0x24,6,0},
+-	{AMOVL,	Ytr7,	Yml,	3,	0x0f,0x24,7,0},
++	{AMOVL,	Ytr6,	Yml,	3,	{0x0f,0x24,6,0}},
++	{AMOVL,	Ytr7,	Yml,	3,	{0x0f,0x24,7,0}},
+ 
+-	{AMOVL,	Yml,	Ytr6,	4,	0x0f,0x26,6,E},
+-	{AMOVL,	Yml,	Ytr7,	4,	0x0f,0x26,7,E},
++	{AMOVL,	Yml,	Ytr6,	4,	{0x0f,0x26,6,E}},
++	{AMOVL,	Yml,	Ytr7,	4,	{0x0f,0x26,7,E}},
+ 
+ /* lgdt, sgdt, lidt, sidt */
+-	{AMOVL,	Ym,	Ygdtr,	4,	0x0f,0x01,2,0},
+-	{AMOVL,	Ygdtr,	Ym,	3,	0x0f,0x01,0,0},
+-	{AMOVL,	Ym,	Yidtr,	4,	0x0f,0x01,3,0},
+-	{AMOVL,	Yidtr,	Ym,	3,	0x0f,0x01,1,0},
+-	{AMOVQ,	Ym,	Ygdtr,	4,	0x0f,0x01,2,0},
+-	{AMOVQ,	Ygdtr,	Ym,	3,	0x0f,0x01,0,0},
+-	{AMOVQ,	Ym,	Yidtr,	4,	0x0f,0x01,3,0},
+-	{AMOVQ,	Yidtr,	Ym,	3,	0x0f,0x01,1,0},
++	{AMOVL,	Ym,	Ygdtr,	4,	{0x0f,0x01,2,0}},
++	{AMOVL,	Ygdtr,	Ym,	3,	{0x0f,0x01,0,0}},
++	{AMOVL,	Ym,	Yidtr,	4,	{0x0f,0x01,3,0}},
++	{AMOVL,	Yidtr,	Ym,	3,	{0x0f,0x01,1,0}},
++	{AMOVQ,	Ym,	Ygdtr,	4,	{0x0f,0x01,2,0}},
++	{AMOVQ,	Ygdtr,	Ym,	3,	{0x0f,0x01,0,0}},
++	{AMOVQ,	Ym,	Yidtr,	4,	{0x0f,0x01,3,0}},
++	{AMOVQ,	Yidtr,	Ym,	3,	{0x0f,0x01,1,0}},
+ 
+ /* lldt, sldt */
+-	{AMOVW,	Yml,	Yldtr,	4,	0x0f,0x00,2,0},
+-	{AMOVW,	Yldtr,	Yml,	3,	0x0f,0x00,0,0},
++	{AMOVW,	Yml,	Yldtr,	4,	{0x0f,0x00,2,0}},
++	{AMOVW,	Yldtr,	Yml,	3,	{0x0f,0x00,0,0}},
+ 
+ /* lmsw, smsw */
+-	{AMOVW,	Yml,	Ymsw,	4,	0x0f,0x01,6,0},
+-	{AMOVW,	Ymsw,	Yml,	3,	0x0f,0x01,4,0},
++	{AMOVW,	Yml,	Ymsw,	4,	{0x0f,0x01,6,0}},
++	{AMOVW,	Ymsw,	Yml,	3,	{0x0f,0x01,4,0}},
+ 
+ /* ltr, str */
+-	{AMOVW,	Yml,	Ytask,	4,	0x0f,0x00,3,0},
+-	{AMOVW,	Ytask,	Yml,	3,	0x0f,0x00,1,0},
++	{AMOVW,	Yml,	Ytask,	4,	{0x0f,0x00,3,0}},
++	{AMOVW,	Ytask,	Yml,	3,	{0x0f,0x00,1,0}},
+ 
+ /* load full pointer */
+-	{AMOVL,	Yml,	Ycol,	5,	0,0,0,0},
+-	{AMOVW,	Yml,	Ycol,	5,	Pe,0,0,0},
++	{AMOVL,	Yml,	Ycol,	5,	{0,0,0,0}},
++	{AMOVW,	Yml,	Ycol,	5,	{Pe,0,0,0}},
+ 
+ /* double shift */
+-	{ASHLL,	Ycol,	Yml,	6,	0xa4,0xa5,0,0},
+-	{ASHRL,	Ycol,	Yml,	6,	0xac,0xad,0,0},
+-	{ASHLQ,	Ycol,	Yml,	6,	Pw,0xa4,0xa5,0},
+-	{ASHRQ,	Ycol,	Yml,	6,	Pw,0xac,0xad,0},
+-	{ASHLW,	Ycol,	Yml,	6,	Pe,0xa4,0xa5,0},
+-	{ASHRW,	Ycol,	Yml,	6,	Pe,0xac,0xad,0},
++	{ASHLL,	Ycol,	Yml,	6,	{0xa4,0xa5,0,0}},
++	{ASHRL,	Ycol,	Yml,	6,	{0xac,0xad,0,0}},
++	{ASHLQ,	Ycol,	Yml,	6,	{Pw,0xa4,0xa5,0}},
++	{ASHRQ,	Ycol,	Yml,	6,	{Pw,0xac,0xad,0}},
++	{ASHLW,	Ycol,	Yml,	6,	{Pe,0xa4,0xa5,0}},
++	{ASHRW,	Ycol,	Yml,	6,	{Pe,0xac,0xad,0}},
+ 
+ /* load TLS base */
+-	{AMOVQ,	Ytls,	Yrl,	7,	0,0,0,0},
++	{AMOVQ,	Ytls,	Yrl,	7,	{0,0,0,0}},
+ 
+-	0
++	{0}
+ };
+ 
+ static int
+diff --git a/src/liblink/asm8.c b/src/liblink/asm8.c
+index 62ef41e18a..3414e5c5ca 100644
+--- a/src/liblink/asm8.c
++++ b/src/liblink/asm8.c
+@@ -617,548 +617,548 @@ static Optab optab[] =
+ /*	as, ytab, andproto, opcode */
+ {
+ 	{ AXXX },
+-	{ AAAA,		ynone,	Px, 0x37 },
+-	{ AAAD,		ynone,	Px, 0xd5,0x0a },
+-	{ AAAM,		ynone,	Px, 0xd4,0x0a },
+-	{ AAAS,		ynone,	Px, 0x3f },
+-	{ AADCB,	yxorb,	Pb, 0x14,0x80,(02),0x10,0x10 },
+-	{ AADCL,	yxorl,	Px, 0x83,(02),0x15,0x81,(02),0x11,0x13 },
+-	{ AADCW,	yxorl,	Pe, 0x83,(02),0x15,0x81,(02),0x11,0x13 },
+-	{ AADDB,	yxorb,	Px, 0x04,0x80,(00),0x00,0x02 },
+-	{ AADDL,	yaddl,	Px, 0x83,(00),0x05,0x81,(00),0x01,0x03 },
+-	{ AADDW,	yaddl,	Pe, 0x83,(00),0x05,0x81,(00),0x01,0x03 },
++	{ AAAA,		ynone,	Px, {0x37} },
++	{ AAAD,		ynone,	Px, {0xd5,0x0a} },
++	{ AAAM,		ynone,	Px, {0xd4,0x0a} },
++	{ AAAS,		ynone,	Px, {0x3f} },
++	{ AADCB,	yxorb,	Pb, {0x14,0x80,(02),0x10,0x10} },
++	{ AADCL,	yxorl,	Px, {0x83,(02),0x15,0x81,(02),0x11,0x13} },
++	{ AADCW,	yxorl,	Pe, {0x83,(02),0x15,0x81,(02),0x11,0x13} },
++	{ AADDB,	yxorb,	Px, {0x04,0x80,(00),0x00,0x02} },
++	{ AADDL,	yaddl,	Px, {0x83,(00),0x05,0x81,(00),0x01,0x03} },
++	{ AADDW,	yaddl,	Pe, {0x83,(00),0x05,0x81,(00),0x01,0x03} },
+ 	{ AADJSP },
+-	{ AANDB,	yxorb,	Pb, 0x24,0x80,(04),0x20,0x22 },
+-	{ AANDL,	yxorl,	Px, 0x83,(04),0x25,0x81,(04),0x21,0x23 },
+-	{ AANDW,	yxorl,	Pe, 0x83,(04),0x25,0x81,(04),0x21,0x23 },
+-	{ AARPL,	yrl_ml,	Px, 0x63 },
+-	{ ABOUNDL,	yrl_m,	Px, 0x62 },
+-	{ ABOUNDW,	yrl_m,	Pe, 0x62 },
+-	{ ABSFL,	yml_rl,	Pm, 0xbc },
+-	{ ABSFW,	yml_rl,	Pq, 0xbc },
+-	{ ABSRL,	yml_rl,	Pm, 0xbd },
+-	{ ABSRW,	yml_rl,	Pq, 0xbd },
+-	{ ABTL,		yml_rl,	Pm, 0xa3 },
+-	{ ABTW,		yml_rl,	Pq, 0xa3 },
+-	{ ABTCL,	yml_rl,	Pm, 0xbb },
+-	{ ABTCW,	yml_rl,	Pq, 0xbb },
+-	{ ABTRL,	yml_rl,	Pm, 0xb3 },
+-	{ ABTRW,	yml_rl,	Pq, 0xb3 },
+-	{ ABTSL,	yml_rl,	Pm, 0xab },
+-	{ ABTSW,	yml_rl,	Pq, 0xab },
+-	{ ABYTE,	ybyte,	Px, 1 },
+-	{ ACALL,	ycall,	Px, 0xff,(02),0xff,(0x15),0xe8 },
+-	{ ACLC,		ynone,	Px, 0xf8 },
+-	{ ACLD,		ynone,	Px, 0xfc },
+-	{ ACLI,		ynone,	Px, 0xfa },
+-	{ ACLTS,	ynone,	Pm, 0x06 },
+-	{ ACMC,		ynone,	Px, 0xf5 },
+-	{ ACMPB,	ycmpb,	Pb, 0x3c,0x80,(07),0x38,0x3a },
+-	{ ACMPL,	ycmpl,	Px, 0x83,(07),0x3d,0x81,(07),0x39,0x3b },
+-	{ ACMPW,	ycmpl,	Pe, 0x83,(07),0x3d,0x81,(07),0x39,0x3b },
+-	{ ACMPSB,	ynone,	Pb, 0xa6 },
+-	{ ACMPSL,	ynone,	Px, 0xa7 },
+-	{ ACMPSW,	ynone,	Pe, 0xa7 },
+-	{ ADAA,		ynone,	Px, 0x27 },
+-	{ ADAS,		ynone,	Px, 0x2f },
++	{ AANDB,	yxorb,	Pb, {0x24,0x80,(04),0x20,0x22} },
++	{ AANDL,	yxorl,	Px, {0x83,(04),0x25,0x81,(04),0x21,0x23} },
++	{ AANDW,	yxorl,	Pe, {0x83,(04),0x25,0x81,(04),0x21,0x23} },
++	{ AARPL,	yrl_ml,	Px, {0x63} },
++	{ ABOUNDL,	yrl_m,	Px, {0x62} },
++	{ ABOUNDW,	yrl_m,	Pe, {0x62} },
++	{ ABSFL,	yml_rl,	Pm, {0xbc} },
++	{ ABSFW,	yml_rl,	Pq, {0xbc} },
++	{ ABSRL,	yml_rl,	Pm, {0xbd} },
++	{ ABSRW,	yml_rl,	Pq, {0xbd} },
++	{ ABTL,		yml_rl,	Pm, {0xa3} },
++	{ ABTW,		yml_rl,	Pq, {0xa3} },
++	{ ABTCL,	yml_rl,	Pm, {0xbb} },
++	{ ABTCW,	yml_rl,	Pq, {0xbb} },
++	{ ABTRL,	yml_rl,	Pm, {0xb3} },
++	{ ABTRW,	yml_rl,	Pq, {0xb3} },
++	{ ABTSL,	yml_rl,	Pm, {0xab} },
++	{ ABTSW,	yml_rl,	Pq, {0xab} },
++	{ ABYTE,	ybyte,	Px, {1} },
++	{ ACALL,	ycall,	Px, {0xff,(02),0xff,(0x15),0xe8} },
++	{ ACLC,		ynone,	Px, {0xf8} },
++	{ ACLD,		ynone,	Px, {0xfc} },
++	{ ACLI,		ynone,	Px, {0xfa} },
++	{ ACLTS,	ynone,	Pm, {0x06} },
++	{ ACMC,		ynone,	Px, {0xf5} },
++	{ ACMPB,	ycmpb,	Pb, {0x3c,0x80,(07),0x38,0x3a} },
++	{ ACMPL,	ycmpl,	Px, {0x83,(07),0x3d,0x81,(07),0x39,0x3b} },
++	{ ACMPW,	ycmpl,	Pe, {0x83,(07),0x3d,0x81,(07),0x39,0x3b} },
++	{ ACMPSB,	ynone,	Pb, {0xa6} },
++	{ ACMPSL,	ynone,	Px, {0xa7} },
++	{ ACMPSW,	ynone,	Pe, {0xa7} },
++	{ ADAA,		ynone,	Px, {0x27} },
++	{ ADAS,		ynone,	Px, {0x2f} },
+ 	{ ADATA },
+-	{ ADECB,	yincb,	Pb, 0xfe,(01) },
+-	{ ADECL,	yincl,	Px, 0x48,0xff,(01) },
+-	{ ADECW,	yincl,	Pe, 0x48,0xff,(01) },
+-	{ ADIVB,	ydivb,	Pb, 0xf6,(06) },
+-	{ ADIVL,	ydivl,	Px, 0xf7,(06) },
+-	{ ADIVW,	ydivl,	Pe, 0xf7,(06) },
++	{ ADECB,	yincb,	Pb, {0xfe,(01)} },
++	{ ADECL,	yincl,	Px, {0x48,0xff,(01)} },
++	{ ADECW,	yincl,	Pe, {0x48,0xff,(01)} },
++	{ ADIVB,	ydivb,	Pb, {0xf6,(06)} },
++	{ ADIVL,	ydivl,	Px, {0xf7,(06)} },
++	{ ADIVW,	ydivl,	Pe, {0xf7,(06)} },
+ 	{ AENTER },				/* botch */
+ 	{ AGLOBL },
+ 	{ AGOK },
+ 	{ AHISTORY },
+-	{ AHLT,		ynone,	Px, 0xf4 },
+-	{ AIDIVB,	ydivb,	Pb, 0xf6,(07) },
+-	{ AIDIVL,	ydivl,	Px, 0xf7,(07) },
+-	{ AIDIVW,	ydivl,	Pe, 0xf7,(07) },
+-	{ AIMULB,	ydivb,	Pb, 0xf6,(05) },
+-	{ AIMULL,	yimul,	Px, 0xf7,(05),0x6b,0x69 },
+-	{ AIMULW,	yimul,	Pe, 0xf7,(05),0x6b,0x69 },
+-	{ AINB,		yin,	Pb, 0xe4,0xec },
+-	{ AINL,		yin,	Px, 0xe5,0xed },
+-	{ AINW,		yin,	Pe, 0xe5,0xed },
+-	{ AINCB,	yincb,	Pb, 0xfe,(00) },
+-	{ AINCL,	yincl,	Px, 0x40,0xff,(00) },
+-	{ AINCW,	yincl,	Pe, 0x40,0xff,(00) },
+-	{ AINSB,	ynone,	Pb, 0x6c },
+-	{ AINSL,	ynone,	Px, 0x6d },
+-	{ AINSW,	ynone,	Pe, 0x6d },
+-	{ AINT,		yint,	Px, 0xcd },
+-	{ AINTO,	ynone,	Px, 0xce },
+-	{ AIRETL,	ynone,	Px, 0xcf },
+-	{ AIRETW,	ynone,	Pe, 0xcf },
+-	{ AJCC,		yjcond,	Px, 0x73,0x83,(00) },
+-	{ AJCS,		yjcond,	Px, 0x72,0x82 },
+-	{ AJCXZL,	yloop,	Px, 0xe3 },
+-	{ AJCXZW,	yloop,	Px, 0xe3 },
+-	{ AJEQ,		yjcond,	Px, 0x74,0x84 },
+-	{ AJGE,		yjcond,	Px, 0x7d,0x8d },
+-	{ AJGT,		yjcond,	Px, 0x7f,0x8f },
+-	{ AJHI,		yjcond,	Px, 0x77,0x87 },
+-	{ AJLE,		yjcond,	Px, 0x7e,0x8e },
+-	{ AJLS,		yjcond,	Px, 0x76,0x86 },
+-	{ AJLT,		yjcond,	Px, 0x7c,0x8c },
+-	{ AJMI,		yjcond,	Px, 0x78,0x88 },
+-	{ AJMP,		yjmp,	Px, 0xff,(04),0xeb,0xe9 },
+-	{ AJNE,		yjcond,	Px, 0x75,0x85 },
+-	{ AJOC,		yjcond,	Px, 0x71,0x81,(00) },
+-	{ AJOS,		yjcond,	Px, 0x70,0x80,(00) },
+-	{ AJPC,		yjcond,	Px, 0x7b,0x8b },
+-	{ AJPL,		yjcond,	Px, 0x79,0x89 },
+-	{ AJPS,		yjcond,	Px, 0x7a,0x8a },
+-	{ ALAHF,	ynone,	Px, 0x9f },
+-	{ ALARL,	yml_rl,	Pm, 0x02 },
+-	{ ALARW,	yml_rl,	Pq, 0x02 },
+-	{ ALEAL,	ym_rl,	Px, 0x8d },
+-	{ ALEAW,	ym_rl,	Pe, 0x8d },
+-	{ ALEAVEL,	ynone,	Px, 0xc9 },
+-	{ ALEAVEW,	ynone,	Pe, 0xc9 },
+-	{ ALOCK,	ynone,	Px, 0xf0 },
+-	{ ALODSB,	ynone,	Pb, 0xac },
+-	{ ALODSL,	ynone,	Px, 0xad },
+-	{ ALODSW,	ynone,	Pe, 0xad },
+-	{ ALONG,	ybyte,	Px, 4 },
+-	{ ALOOP,	yloop,	Px, 0xe2 },
+-	{ ALOOPEQ,	yloop,	Px, 0xe1 },
+-	{ ALOOPNE,	yloop,	Px, 0xe0 },
+-	{ ALSLL,	yml_rl,	Pm, 0x03  },
+-	{ ALSLW,	yml_rl,	Pq, 0x03  },
+-	{ AMOVB,	ymovb,	Pb, 0x88,0x8a,0xb0,0xc6,(00) },
+-	{ AMOVL,	ymovl,	Px, 0x89,0x8b,0x31,0x83,(04),0xb8,0xc7,(00),Pe,0x6e,Pe,0x7e,0 },
+-	{ AMOVW,	ymovw,	Pe, 0x89,0x8b,0x31,0x83,(04),0xb8,0xc7,(00),0 },
+-	{ AMOVQ,	ymovq,	Pf3, 0x7e },
+-	{ AMOVBLSX,	ymb_rl,	Pm, 0xbe },
+-	{ AMOVBLZX,	ymb_rl,	Pm, 0xb6 },
+-	{ AMOVBWSX,	ymb_rl,	Pq, 0xbe },
+-	{ AMOVBWZX,	ymb_rl,	Pq, 0xb6 },
+-	{ AMOVWLSX,	yml_rl,	Pm, 0xbf },
+-	{ AMOVWLZX,	yml_rl,	Pm, 0xb7 },
+-	{ AMOVSB,	ynone,	Pb, 0xa4 },
+-	{ AMOVSL,	ynone,	Px, 0xa5 },
+-	{ AMOVSW,	ynone,	Pe, 0xa5 },
+-	{ AMULB,	ydivb,	Pb, 0xf6,(04) },
+-	{ AMULL,	ydivl,	Px, 0xf7,(04) },
+-	{ AMULW,	ydivl,	Pe, 0xf7,(04) },
++	{ AHLT,		ynone,	Px, {0xf4} },
++	{ AIDIVB,	ydivb,	Pb, {0xf6,(07)} },
++	{ AIDIVL,	ydivl,	Px, {0xf7,(07)} },
++	{ AIDIVW,	ydivl,	Pe, {0xf7,(07)} },
++	{ AIMULB,	ydivb,	Pb, {0xf6,(05)} },
++	{ AIMULL,	yimul,	Px, {0xf7,(05),0x6b,0x69} },
++	{ AIMULW,	yimul,	Pe, {0xf7,(05),0x6b,0x69} },
++	{ AINB,		yin,	Pb, {0xe4,0xec} },
++	{ AINL,		yin,	Px, {0xe5,0xed} },
++	{ AINW,		yin,	Pe, {0xe5,0xed} },
++	{ AINCB,	yincb,	Pb, {0xfe,(00)} },
++	{ AINCL,	yincl,	Px, {0x40,0xff,(00)} },
++	{ AINCW,	yincl,	Pe, {0x40,0xff,(00)} },
++	{ AINSB,	ynone,	Pb, {0x6c} },
++	{ AINSL,	ynone,	Px, {0x6d} },
++	{ AINSW,	ynone,	Pe, {0x6d} },
++	{ AINT,		yint,	Px, {0xcd} },
++	{ AINTO,	ynone,	Px, {0xce} },
++	{ AIRETL,	ynone,	Px, {0xcf} },
++	{ AIRETW,	ynone,	Pe, {0xcf} },
++	{ AJCC,		yjcond,	Px, {0x73,0x83,(00)} },
++	{ AJCS,		yjcond,	Px, {0x72,0x82} },
++	{ AJCXZL,	yloop,	Px, {0xe3} },
++	{ AJCXZW,	yloop,	Px, {0xe3} },
++	{ AJEQ,		yjcond,	Px, {0x74,0x84} },
++	{ AJGE,		yjcond,	Px, {0x7d,0x8d} },
++	{ AJGT,		yjcond,	Px, {0x7f,0x8f} },
++	{ AJHI,		yjcond,	Px, {0x77,0x87} },
++	{ AJLE,		yjcond,	Px, {0x7e,0x8e} },
++	{ AJLS,		yjcond,	Px, {0x76,0x86} },
++	{ AJLT,		yjcond,	Px, {0x7c,0x8c} },
++	{ AJMI,		yjcond,	Px, {0x78,0x88} },
++	{ AJMP,		yjmp,	Px, {0xff,(04),0xeb,0xe9} },
++	{ AJNE,		yjcond,	Px, {0x75,0x85} },
++	{ AJOC,		yjcond,	Px, {0x71,0x81,(00)} },
++	{ AJOS,		yjcond,	Px, {0x70,0x80,(00)} },
++	{ AJPC,		yjcond,	Px, {0x7b,0x8b} },
++	{ AJPL,		yjcond,	Px, {0x79,0x89} },
++	{ AJPS,		yjcond,	Px, {0x7a,0x8a} },
++	{ ALAHF,	ynone,	Px, {0x9f} },
++	{ ALARL,	yml_rl,	Pm, {0x02} },
++	{ ALARW,	yml_rl,	Pq, {0x02} },
++	{ ALEAL,	ym_rl,	Px, {0x8d} },
++	{ ALEAW,	ym_rl,	Pe, {0x8d} },
++	{ ALEAVEL,	ynone,	Px, {0xc9} },
++	{ ALEAVEW,	ynone,	Pe, {0xc9} },
++	{ ALOCK,	ynone,	Px, {0xf0} },
++	{ ALODSB,	ynone,	Pb, {0xac} },
++	{ ALODSL,	ynone,	Px, {0xad} },
++	{ ALODSW,	ynone,	Pe, {0xad} },
++	{ ALONG,	ybyte,	Px, {4} },
++	{ ALOOP,	yloop,	Px, {0xe2} },
++	{ ALOOPEQ,	yloop,	Px, {0xe1} },
++	{ ALOOPNE,	yloop,	Px, {0xe0} },
++	{ ALSLL,	yml_rl,	Pm, {0x03 } },
++	{ ALSLW,	yml_rl,	Pq, {0x03 } },
++	{ AMOVB,	ymovb,	Pb, {0x88,0x8a,0xb0,0xc6,(00)} },
++	{ AMOVL,	ymovl,	Px, {0x89,0x8b,0x31,0x83,(04),0xb8,0xc7,(00),Pe,0x6e,Pe,0x7e,0} },
++	{ AMOVW,	ymovw,	Pe, {0x89,0x8b,0x31,0x83,(04),0xb8,0xc7,(00),0} },
++	{ AMOVQ,	ymovq,	Pf3, {0x7e} },
++	{ AMOVBLSX,	ymb_rl,	Pm, {0xbe} },
++	{ AMOVBLZX,	ymb_rl,	Pm, {0xb6} },
++	{ AMOVBWSX,	ymb_rl,	Pq, {0xbe} },
++	{ AMOVBWZX,	ymb_rl,	Pq, {0xb6} },
++	{ AMOVWLSX,	yml_rl,	Pm, {0xbf} },
++	{ AMOVWLZX,	yml_rl,	Pm, {0xb7} },
++	{ AMOVSB,	ynone,	Pb, {0xa4} },
++	{ AMOVSL,	ynone,	Px, {0xa5} },
++	{ AMOVSW,	ynone,	Pe, {0xa5} },
++	{ AMULB,	ydivb,	Pb, {0xf6,(04)} },
++	{ AMULL,	ydivl,	Px, {0xf7,(04)} },
++	{ AMULW,	ydivl,	Pe, {0xf7,(04)} },
+ 	{ ANAME },
+-	{ ANEGB,	yscond,	Px, 0xf6,(03) },
+-	{ ANEGL,	yscond,	Px, 0xf7,(03) },
+-	{ ANEGW,	yscond,	Pe, 0xf7,(03) },
+-	{ ANOP,		ynop,	Px,0,0 },
+-	{ ANOTB,	yscond,	Px, 0xf6,(02) },
+-	{ ANOTL,	yscond,	Px, 0xf7,(02) },
+-	{ ANOTW,	yscond,	Pe, 0xf7,(02) },
+-	{ AORB,		yxorb,	Pb, 0x0c,0x80,(01),0x08,0x0a },
+-	{ AORL,		yxorl,	Px, 0x83,(01),0x0d,0x81,(01),0x09,0x0b },
+-	{ AORW,		yxorl,	Pe, 0x83,(01),0x0d,0x81,(01),0x09,0x0b },
+-	{ AOUTB,	yin,	Pb, 0xe6,0xee },
+-	{ AOUTL,	yin,	Px, 0xe7,0xef },
+-	{ AOUTW,	yin,	Pe, 0xe7,0xef },
+-	{ AOUTSB,	ynone,	Pb, 0x6e },
+-	{ AOUTSL,	ynone,	Px, 0x6f },
+-	{ AOUTSW,	ynone,	Pe, 0x6f },
+-	{ APAUSE,	ynone,	Px, 0xf3,0x90 },
+-	{ APOPAL,	ynone,	Px, 0x61 },
+-	{ APOPAW,	ynone,	Pe, 0x61 },
+-	{ APOPFL,	ynone,	Px, 0x9d },
+-	{ APOPFW,	ynone,	Pe, 0x9d },
+-	{ APOPL,	ypopl,	Px, 0x58,0x8f,(00) },
+-	{ APOPW,	ypopl,	Pe, 0x58,0x8f,(00) },
+-	{ APUSHAL,	ynone,	Px, 0x60 },
+-	{ APUSHAW,	ynone,	Pe, 0x60 },
+-	{ APUSHFL,	ynone,	Px, 0x9c },
+-	{ APUSHFW,	ynone,	Pe, 0x9c },
+-	{ APUSHL,	ypushl,	Px, 0x50,0xff,(06),0x6a,0x68 },
+-	{ APUSHW,	ypushl,	Pe, 0x50,0xff,(06),0x6a,0x68 },
+-	{ ARCLB,	yshb,	Pb, 0xd0,(02),0xc0,(02),0xd2,(02) },
+-	{ ARCLL,	yshl,	Px, 0xd1,(02),0xc1,(02),0xd3,(02),0xd3,(02) },
+-	{ ARCLW,	yshl,	Pe, 0xd1,(02),0xc1,(02),0xd3,(02),0xd3,(02) },
+-	{ ARCRB,	yshb,	Pb, 0xd0,(03),0xc0,(03),0xd2,(03) },
+-	{ ARCRL,	yshl,	Px, 0xd1,(03),0xc1,(03),0xd3,(03),0xd3,(03) },
+-	{ ARCRW,	yshl,	Pe, 0xd1,(03),0xc1,(03),0xd3,(03),0xd3,(03) },
+-	{ AREP,		ynone,	Px, 0xf3 },
+-	{ AREPN,	ynone,	Px, 0xf2 },
+-	{ ARET,		ynone,	Px, 0xc3 },
+-	{ AROLB,	yshb,	Pb, 0xd0,(00),0xc0,(00),0xd2,(00) },
+-	{ AROLL,	yshl,	Px, 0xd1,(00),0xc1,(00),0xd3,(00),0xd3,(00) },
+-	{ AROLW,	yshl,	Pe, 0xd1,(00),0xc1,(00),0xd3,(00),0xd3,(00) },
+-	{ ARORB,	yshb,	Pb, 0xd0,(01),0xc0,(01),0xd2,(01) },
+-	{ ARORL,	yshl,	Px, 0xd1,(01),0xc1,(01),0xd3,(01),0xd3,(01) },
+-	{ ARORW,	yshl,	Pe, 0xd1,(01),0xc1,(01),0xd3,(01),0xd3,(01) },
+-	{ ASAHF,	ynone,	Px, 0x9e },
+-	{ ASALB,	yshb,	Pb, 0xd0,(04),0xc0,(04),0xd2,(04) },
+-	{ ASALL,	yshl,	Px, 0xd1,(04),0xc1,(04),0xd3,(04),0xd3,(04) },
+-	{ ASALW,	yshl,	Pe, 0xd1,(04),0xc1,(04),0xd3,(04),0xd3,(04) },
+-	{ ASARB,	yshb,	Pb, 0xd0,(07),0xc0,(07),0xd2,(07) },
+-	{ ASARL,	yshl,	Px, 0xd1,(07),0xc1,(07),0xd3,(07),0xd3,(07) },
+-	{ ASARW,	yshl,	Pe, 0xd1,(07),0xc1,(07),0xd3,(07),0xd3,(07) },
+-	{ ASBBB,	yxorb,	Pb, 0x1c,0x80,(03),0x18,0x1a },
+-	{ ASBBL,	yxorl,	Px, 0x83,(03),0x1d,0x81,(03),0x19,0x1b },
+-	{ ASBBW,	yxorl,	Pe, 0x83,(03),0x1d,0x81,(03),0x19,0x1b },
+-	{ ASCASB,	ynone,	Pb, 0xae },
+-	{ ASCASL,	ynone,	Px, 0xaf },
+-	{ ASCASW,	ynone,	Pe, 0xaf },
+-	{ ASETCC,	yscond,	Pm, 0x93,(00) },
+-	{ ASETCS,	yscond,	Pm, 0x92,(00) },
+-	{ ASETEQ,	yscond,	Pm, 0x94,(00) },
+-	{ ASETGE,	yscond,	Pm, 0x9d,(00) },
+-	{ ASETGT,	yscond,	Pm, 0x9f,(00) },
+-	{ ASETHI,	yscond,	Pm, 0x97,(00) },
+-	{ ASETLE,	yscond,	Pm, 0x9e,(00) },
+-	{ ASETLS,	yscond,	Pm, 0x96,(00) },
+-	{ ASETLT,	yscond,	Pm, 0x9c,(00) },
+-	{ ASETMI,	yscond,	Pm, 0x98,(00) },
+-	{ ASETNE,	yscond,	Pm, 0x95,(00) },
+-	{ ASETOC,	yscond,	Pm, 0x91,(00) },
+-	{ ASETOS,	yscond,	Pm, 0x90,(00) },
+-	{ ASETPC,	yscond,	Pm, 0x96,(00) },
+-	{ ASETPL,	yscond,	Pm, 0x99,(00) },
+-	{ ASETPS,	yscond,	Pm, 0x9a,(00) },
+-	{ ACDQ,		ynone,	Px, 0x99 },
+-	{ ACWD,		ynone,	Pe, 0x99 },
+-	{ ASHLB,	yshb,	Pb, 0xd0,(04),0xc0,(04),0xd2,(04) },
+-	{ ASHLL,	yshl,	Px, 0xd1,(04),0xc1,(04),0xd3,(04),0xd3,(04) },
+-	{ ASHLW,	yshl,	Pe, 0xd1,(04),0xc1,(04),0xd3,(04),0xd3,(04) },
+-	{ ASHRB,	yshb,	Pb, 0xd0,(05),0xc0,(05),0xd2,(05) },
+-	{ ASHRL,	yshl,	Px, 0xd1,(05),0xc1,(05),0xd3,(05),0xd3,(05) },
+-	{ ASHRW,	yshl,	Pe, 0xd1,(05),0xc1,(05),0xd3,(05),0xd3,(05) },
+-	{ ASTC,		ynone,	Px, 0xf9 },
+-	{ ASTD,		ynone,	Px, 0xfd },
+-	{ ASTI,		ynone,	Px, 0xfb },
+-	{ ASTOSB,	ynone,	Pb, 0xaa },
+-	{ ASTOSL,	ynone,	Px, 0xab },
+-	{ ASTOSW,	ynone,	Pe, 0xab },
+-	{ ASUBB,	yxorb,	Pb, 0x2c,0x80,(05),0x28,0x2a },
+-	{ ASUBL,	yaddl,	Px, 0x83,(05),0x2d,0x81,(05),0x29,0x2b },
+-	{ ASUBW,	yaddl,	Pe, 0x83,(05),0x2d,0x81,(05),0x29,0x2b },
+-	{ ASYSCALL,	ynone,	Px, 0xcd,100 },
+-	{ ATESTB,	ytestb,	Pb, 0xa8,0xf6,(00),0x84,0x84 },
+-	{ ATESTL,	ytestl,	Px, 0xa9,0xf7,(00),0x85,0x85 },
+-	{ ATESTW,	ytestl,	Pe, 0xa9,0xf7,(00),0x85,0x85 },
++	{ ANEGB,	yscond,	Px, {0xf6,(03)} },
++	{ ANEGL,	yscond,	Px, {0xf7,(03)} },
++	{ ANEGW,	yscond,	Pe, {0xf7,(03)} },
++	{ ANOP,		ynop,	Px, {0,0} },
++	{ ANOTB,	yscond,	Px, {0xf6,(02)} },
++	{ ANOTL,	yscond,	Px, {0xf7,(02)} },
++	{ ANOTW,	yscond,	Pe, {0xf7,(02)} },
++	{ AORB,		yxorb,	Pb, {0x0c,0x80,(01),0x08,0x0a} },
++	{ AORL,		yxorl,	Px, {0x83,(01),0x0d,0x81,(01),0x09,0x0b} },
++	{ AORW,		yxorl,	Pe, {0x83,(01),0x0d,0x81,(01),0x09,0x0b} },
++	{ AOUTB,	yin,	Pb, {0xe6,0xee} },
++	{ AOUTL,	yin,	Px, {0xe7,0xef} },
++	{ AOUTW,	yin,	Pe, {0xe7,0xef} },
++	{ AOUTSB,	ynone,	Pb, {0x6e} },
++	{ AOUTSL,	ynone,	Px, {0x6f} },
++	{ AOUTSW,	ynone,	Pe, {0x6f} },
++	{ APAUSE,	ynone,	Px, {0xf3,0x90} },
++	{ APOPAL,	ynone,	Px, {0x61} },
++	{ APOPAW,	ynone,	Pe, {0x61} },
++	{ APOPFL,	ynone,	Px, {0x9d} },
++	{ APOPFW,	ynone,	Pe, {0x9d} },
++	{ APOPL,	ypopl,	Px, {0x58,0x8f,(00)} },
++	{ APOPW,	ypopl,	Pe, {0x58,0x8f,(00)} },
++	{ APUSHAL,	ynone,	Px, {0x60} },
++	{ APUSHAW,	ynone,	Pe, {0x60} },
++	{ APUSHFL,	ynone,	Px, {0x9c} },
++	{ APUSHFW,	ynone,	Pe, {0x9c} },
++	{ APUSHL,	ypushl,	Px, {0x50,0xff,(06),0x6a,0x68} },
++	{ APUSHW,	ypushl,	Pe, {0x50,0xff,(06),0x6a,0x68} },
++	{ ARCLB,	yshb,	Pb, {0xd0,(02),0xc0,(02),0xd2,(02)} },
++	{ ARCLL,	yshl,	Px, {0xd1,(02),0xc1,(02),0xd3,(02),0xd3,(02)} },
++	{ ARCLW,	yshl,	Pe, {0xd1,(02),0xc1,(02),0xd3,(02),0xd3,(02)} },
++	{ ARCRB,	yshb,	Pb, {0xd0,(03),0xc0,(03),0xd2,(03)} },
++	{ ARCRL,	yshl,	Px, {0xd1,(03),0xc1,(03),0xd3,(03),0xd3,(03)} },
++	{ ARCRW,	yshl,	Pe, {0xd1,(03),0xc1,(03),0xd3,(03),0xd3,(03)} },
++	{ AREP,		ynone,	Px, {0xf3} },
++	{ AREPN,	ynone,	Px, {0xf2} },
++	{ ARET,		ynone,	Px, {0xc3} },
++	{ AROLB,	yshb,	Pb, {0xd0,(00),0xc0,(00),0xd2,(00)} },
++	{ AROLL,	yshl,	Px, {0xd1,(00),0xc1,(00),0xd3,(00),0xd3,(00)} },
++	{ AROLW,	yshl,	Pe, {0xd1,(00),0xc1,(00),0xd3,(00),0xd3,(00)} },
++	{ ARORB,	yshb,	Pb, {0xd0,(01),0xc0,(01),0xd2,(01)} },
++	{ ARORL,	yshl,	Px, {0xd1,(01),0xc1,(01),0xd3,(01),0xd3,(01)} },
++	{ ARORW,	yshl,	Pe, {0xd1,(01),0xc1,(01),0xd3,(01),0xd3,(01)} },
++	{ ASAHF,	ynone,	Px, {0x9e} },
++	{ ASALB,	yshb,	Pb, {0xd0,(04),0xc0,(04),0xd2,(04)} },
++	{ ASALL,	yshl,	Px, {0xd1,(04),0xc1,(04),0xd3,(04),0xd3,(04)} },
++	{ ASALW,	yshl,	Pe, {0xd1,(04),0xc1,(04),0xd3,(04),0xd3,(04)} },
++	{ ASARB,	yshb,	Pb, {0xd0,(07),0xc0,(07),0xd2,(07)} },
++	{ ASARL,	yshl,	Px, {0xd1,(07),0xc1,(07),0xd3,(07),0xd3,(07)} },
++	{ ASARW,	yshl,	Pe, {0xd1,(07),0xc1,(07),0xd3,(07),0xd3,(07)} },
++	{ ASBBB,	yxorb,	Pb, {0x1c,0x80,(03),0x18,0x1a} },
++	{ ASBBL,	yxorl,	Px, {0x83,(03),0x1d,0x81,(03),0x19,0x1b} },
++	{ ASBBW,	yxorl,	Pe, {0x83,(03),0x1d,0x81,(03),0x19,0x1b} },
++	{ ASCASB,	ynone,	Pb, {0xae} },
++	{ ASCASL,	ynone,	Px, {0xaf} },
++	{ ASCASW,	ynone,	Pe, {0xaf} },
++	{ ASETCC,	yscond,	Pm, {0x93,(00)} },
++	{ ASETCS,	yscond,	Pm, {0x92,(00)} },
++	{ ASETEQ,	yscond,	Pm, {0x94,(00)} },
++	{ ASETGE,	yscond,	Pm, {0x9d,(00)} },
++	{ ASETGT,	yscond,	Pm, {0x9f,(00)} },
++	{ ASETHI,	yscond,	Pm, {0x97,(00)} },
++	{ ASETLE,	yscond,	Pm, {0x9e,(00)} },
++	{ ASETLS,	yscond,	Pm, {0x96,(00)} },
++	{ ASETLT,	yscond,	Pm, {0x9c,(00)} },
++	{ ASETMI,	yscond,	Pm, {0x98,(00)} },
++	{ ASETNE,	yscond,	Pm, {0x95,(00)} },
++	{ ASETOC,	yscond,	Pm, {0x91,(00)} },
++	{ ASETOS,	yscond,	Pm, {0x90,(00)} },
++	{ ASETPC,	yscond,	Pm, {0x96,(00)} },
++	{ ASETPL,	yscond,	Pm, {0x99,(00)} },
++	{ ASETPS,	yscond,	Pm, {0x9a,(00)} },
++	{ ACDQ,		ynone,	Px, {0x99} },
++	{ ACWD,		ynone,	Pe, {0x99} },
++	{ ASHLB,	yshb,	Pb, {0xd0,(04),0xc0,(04),0xd2,(04)} },
++	{ ASHLL,	yshl,	Px, {0xd1,(04),0xc1,(04),0xd3,(04),0xd3,(04)} },
++	{ ASHLW,	yshl,	Pe, {0xd1,(04),0xc1,(04),0xd3,(04),0xd3,(04)} },
++	{ ASHRB,	yshb,	Pb, {0xd0,(05),0xc0,(05),0xd2,(05)} },
++	{ ASHRL,	yshl,	Px, {0xd1,(05),0xc1,(05),0xd3,(05),0xd3,(05)} },
++	{ ASHRW,	yshl,	Pe, {0xd1,(05),0xc1,(05),0xd3,(05),0xd3,(05)} },
++	{ ASTC,		ynone,	Px, {0xf9} },
++	{ ASTD,		ynone,	Px, {0xfd} },
++	{ ASTI,		ynone,	Px, {0xfb} },
++	{ ASTOSB,	ynone,	Pb, {0xaa} },
++	{ ASTOSL,	ynone,	Px, {0xab} },
++	{ ASTOSW,	ynone,	Pe, {0xab} },
++	{ ASUBB,	yxorb,	Pb, {0x2c,0x80,(05),0x28,0x2a} },
++	{ ASUBL,	yaddl,	Px, {0x83,(05),0x2d,0x81,(05),0x29,0x2b} },
++	{ ASUBW,	yaddl,	Pe, {0x83,(05),0x2d,0x81,(05),0x29,0x2b} },
++	{ ASYSCALL,	ynone,	Px, {0xcd,100} },
++	{ ATESTB,	ytestb,	Pb, {0xa8,0xf6,(00),0x84,0x84} },
++	{ ATESTL,	ytestl,	Px, {0xa9,0xf7,(00),0x85,0x85} },
++	{ ATESTW,	ytestl,	Pe, {0xa9,0xf7,(00),0x85,0x85} },
+ 	{ ATEXT,	ytext,	Px },
+-	{ AVERR,	ydivl,	Pm, 0x00,(04) },
+-	{ AVERW,	ydivl,	Pm, 0x00,(05) },
+-	{ AWAIT,	ynone,	Px, 0x9b },
+-	{ AWORD,	ybyte,	Px, 2 },
+-	{ AXCHGB,	yml_mb,	Pb, 0x86,0x86 },
+-	{ AXCHGL,	yxchg,	Px, 0x90,0x90,0x87,0x87 },
+-	{ AXCHGW,	yxchg,	Pe, 0x90,0x90,0x87,0x87 },
+-	{ AXLAT,	ynone,	Px, 0xd7 },
+-	{ AXORB,	yxorb,	Pb, 0x34,0x80,(06),0x30,0x32 },
+-	{ AXORL,	yxorl,	Px, 0x83,(06),0x35,0x81,(06),0x31,0x33 },
+-	{ AXORW,	yxorl,	Pe, 0x83,(06),0x35,0x81,(06),0x31,0x33 },
+-
+-	{ AFMOVB,	yfmvx,	Px, 0xdf,(04) },
+-	{ AFMOVBP,	yfmvp,	Px, 0xdf,(06) },
+-	{ AFMOVD,	yfmvd,	Px, 0xdd,(00),0xdd,(02),0xd9,(00),0xdd,(02) },
+-	{ AFMOVDP,	yfmvdp,	Px, 0xdd,(03),0xdd,(03) },
+-	{ AFMOVF,	yfmvf,	Px, 0xd9,(00),0xd9,(02) },
+-	{ AFMOVFP,	yfmvp,	Px, 0xd9,(03) },
+-	{ AFMOVL,	yfmvf,	Px, 0xdb,(00),0xdb,(02) },
+-	{ AFMOVLP,	yfmvp,	Px, 0xdb,(03) },
+-	{ AFMOVV,	yfmvx,	Px, 0xdf,(05) },
+-	{ AFMOVVP,	yfmvp,	Px, 0xdf,(07) },
+-	{ AFMOVW,	yfmvf,	Px, 0xdf,(00),0xdf,(02) },
+-	{ AFMOVWP,	yfmvp,	Px, 0xdf,(03) },
+-	{ AFMOVX,	yfmvx,	Px, 0xdb,(05) },
+-	{ AFMOVXP,	yfmvp,	Px, 0xdb,(07) },
++	{ AVERR,	ydivl,	Pm, {0x00,(04)} },
++	{ AVERW,	ydivl,	Pm, {0x00,(05)} },
++	{ AWAIT,	ynone,	Px, {0x9b} },
++	{ AWORD,	ybyte,	Px, {2} },
++	{ AXCHGB,	yml_mb,	Pb, {0x86,0x86} },
++	{ AXCHGL,	yxchg,	Px, {0x90,0x90,0x87,0x87} },
++	{ AXCHGW,	yxchg,	Pe, {0x90,0x90,0x87,0x87} },
++	{ AXLAT,	ynone,	Px, {0xd7} },
++	{ AXORB,	yxorb,	Pb, {0x34,0x80,(06),0x30,0x32} },
++	{ AXORL,	yxorl,	Px, {0x83,(06),0x35,0x81,(06),0x31,0x33} },
++	{ AXORW,	yxorl,	Pe, {0x83,(06),0x35,0x81,(06),0x31,0x33} },
++
++	{ AFMOVB,	yfmvx,	Px, {0xdf,(04)} },
++	{ AFMOVBP,	yfmvp,	Px, {0xdf,(06)} },
++	{ AFMOVD,	yfmvd,	Px, {0xdd,(00),0xdd,(02),0xd9,(00),0xdd,(02)} },
++	{ AFMOVDP,	yfmvdp,	Px, {0xdd,(03),0xdd,(03)} },
++	{ AFMOVF,	yfmvf,	Px, {0xd9,(00),0xd9,(02)} },
++	{ AFMOVFP,	yfmvp,	Px, {0xd9,(03)} },
++	{ AFMOVL,	yfmvf,	Px, {0xdb,(00),0xdb,(02)} },
++	{ AFMOVLP,	yfmvp,	Px, {0xdb,(03)} },
++	{ AFMOVV,	yfmvx,	Px, {0xdf,(05)} },
++	{ AFMOVVP,	yfmvp,	Px, {0xdf,(07)} },
++	{ AFMOVW,	yfmvf,	Px, {0xdf,(00),0xdf,(02)} },
++	{ AFMOVWP,	yfmvp,	Px, {0xdf,(03)} },
++	{ AFMOVX,	yfmvx,	Px, {0xdb,(05)} },
++	{ AFMOVXP,	yfmvp,	Px, {0xdb,(07)} },
+ 
+ 	{ AFCOMB },
+ 	{ AFCOMBP },
+-	{ AFCOMD,	yfadd,	Px, 0xdc,(02),0xd8,(02),0xdc,(02) },	/* botch */
+-	{ AFCOMDP,	yfadd,	Px, 0xdc,(03),0xd8,(03),0xdc,(03) },	/* botch */
+-	{ AFCOMDPP,	ycompp,	Px, 0xde,(03) },
+-	{ AFCOMF,	yfmvx,	Px, 0xd8,(02) },
+-	{ AFCOMFP,	yfmvx,	Px, 0xd8,(03) },
+-	{ AFCOMI,	yfmvx,	Px, 0xdb,(06) },
+-	{ AFCOMIP,	yfmvx,	Px, 0xdf,(06) },
+-	{ AFCOML,	yfmvx,	Px, 0xda,(02) },
+-	{ AFCOMLP,	yfmvx,	Px, 0xda,(03) },
+-	{ AFCOMW,	yfmvx,	Px, 0xde,(02) },
+-	{ AFCOMWP,	yfmvx,	Px, 0xde,(03) },
+-
+-	{ AFUCOM,	ycompp,	Px, 0xdd,(04) },
+-	{ AFUCOMI,	ycompp,	Px, 0xdb,(05) },
+-	{ AFUCOMIP,	ycompp,	Px, 0xdf,(05) },
+-	{ AFUCOMP,	ycompp,	Px, 0xdd,(05) },
+-	{ AFUCOMPP,	ycompp,	Px, 0xda,(13) },
+-
+-	{ AFADDDP,	yfaddp,	Px, 0xde,(00) },
+-	{ AFADDW,	yfmvx,	Px, 0xde,(00) },
+-	{ AFADDL,	yfmvx,	Px, 0xda,(00) },
+-	{ AFADDF,	yfmvx,	Px, 0xd8,(00) },
+-	{ AFADDD,	yfadd,	Px, 0xdc,(00),0xd8,(00),0xdc,(00) },
+-
+-	{ AFMULDP,	yfaddp,	Px, 0xde,(01) },
+-	{ AFMULW,	yfmvx,	Px, 0xde,(01) },
+-	{ AFMULL,	yfmvx,	Px, 0xda,(01) },
+-	{ AFMULF,	yfmvx,	Px, 0xd8,(01) },
+-	{ AFMULD,	yfadd,	Px, 0xdc,(01),0xd8,(01),0xdc,(01) },
+-
+-	{ AFSUBDP,	yfaddp,	Px, 0xde,(05) },
+-	{ AFSUBW,	yfmvx,	Px, 0xde,(04) },
+-	{ AFSUBL,	yfmvx,	Px, 0xda,(04) },
+-	{ AFSUBF,	yfmvx,	Px, 0xd8,(04) },
+-	{ AFSUBD,	yfadd,	Px, 0xdc,(04),0xd8,(04),0xdc,(05) },
+-
+-	{ AFSUBRDP,	yfaddp,	Px, 0xde,(04) },
+-	{ AFSUBRW,	yfmvx,	Px, 0xde,(05) },
+-	{ AFSUBRL,	yfmvx,	Px, 0xda,(05) },
+-	{ AFSUBRF,	yfmvx,	Px, 0xd8,(05) },
+-	{ AFSUBRD,	yfadd,	Px, 0xdc,(05),0xd8,(05),0xdc,(04) },
+-
+-	{ AFDIVDP,	yfaddp,	Px, 0xde,(07) },
+-	{ AFDIVW,	yfmvx,	Px, 0xde,(06) },
+-	{ AFDIVL,	yfmvx,	Px, 0xda,(06) },
+-	{ AFDIVF,	yfmvx,	Px, 0xd8,(06) },
+-	{ AFDIVD,	yfadd,	Px, 0xdc,(06),0xd8,(06),0xdc,(07) },
+-
+-	{ AFDIVRDP,	yfaddp,	Px, 0xde,(06) },
+-	{ AFDIVRW,	yfmvx,	Px, 0xde,(07) },
+-	{ AFDIVRL,	yfmvx,	Px, 0xda,(07) },
+-	{ AFDIVRF,	yfmvx,	Px, 0xd8,(07) },
+-	{ AFDIVRD,	yfadd,	Px, 0xdc,(07),0xd8,(07),0xdc,(06) },
+-
+-	{ AFXCHD,	yfxch,	Px, 0xd9,(01),0xd9,(01) },
++	{ AFCOMD,	yfadd,	Px, {0xdc,(02),0xd8,(02),0xdc,(02)} },	/* botch */
++	{ AFCOMDP,	yfadd,	Px, {0xdc,(03),0xd8,(03),0xdc,(03)} },	/* botch */
++	{ AFCOMDPP,	ycompp,	Px, {0xde,(03)} },
++	{ AFCOMF,	yfmvx,	Px, {0xd8,(02)} },
++	{ AFCOMFP,	yfmvx,	Px, {0xd8,(03)} },
++	{ AFCOMI,	yfmvx,	Px, {0xdb,(06)} },
++	{ AFCOMIP,	yfmvx,	Px, {0xdf,(06)} },
++	{ AFCOML,	yfmvx,	Px, {0xda,(02)} },
++	{ AFCOMLP,	yfmvx,	Px, {0xda,(03)} },
++	{ AFCOMW,	yfmvx,	Px, {0xde,(02)} },
++	{ AFCOMWP,	yfmvx,	Px, {0xde,(03)} },
++
++	{ AFUCOM,	ycompp,	Px, {0xdd,(04)} },
++	{ AFUCOMI,	ycompp,	Px, {0xdb,(05)} },
++	{ AFUCOMIP,	ycompp,	Px, {0xdf,(05)} },
++	{ AFUCOMP,	ycompp,	Px, {0xdd,(05)} },
++	{ AFUCOMPP,	ycompp,	Px, {0xda,(13)} },
++
++	{ AFADDDP,	yfaddp,	Px, {0xde,(00)} },
++	{ AFADDW,	yfmvx,	Px, {0xde,(00)} },
++	{ AFADDL,	yfmvx,	Px, {0xda,(00)} },
++	{ AFADDF,	yfmvx,	Px, {0xd8,(00)} },
++	{ AFADDD,	yfadd,	Px, {0xdc,(00),0xd8,(00),0xdc,(00)} },
++
++	{ AFMULDP,	yfaddp,	Px, {0xde,(01)} },
++	{ AFMULW,	yfmvx,	Px, {0xde,(01)} },
++	{ AFMULL,	yfmvx,	Px, {0xda,(01)} },
++	{ AFMULF,	yfmvx,	Px, {0xd8,(01)} },
++	{ AFMULD,	yfadd,	Px, {0xdc,(01),0xd8,(01),0xdc,(01)} },
++
++	{ AFSUBDP,	yfaddp,	Px, {0xde,(05)} },
++	{ AFSUBW,	yfmvx,	Px, {0xde,(04)} },
++	{ AFSUBL,	yfmvx,	Px, {0xda,(04)} },
++	{ AFSUBF,	yfmvx,	Px, {0xd8,(04)} },
++	{ AFSUBD,	yfadd,	Px, {0xdc,(04),0xd8,(04),0xdc,(05)} },
++
++	{ AFSUBRDP,	yfaddp,	Px, {0xde,(04)} },
++	{ AFSUBRW,	yfmvx,	Px, {0xde,(05)} },
++	{ AFSUBRL,	yfmvx,	Px, {0xda,(05)} },
++	{ AFSUBRF,	yfmvx,	Px, {0xd8,(05)} },
++	{ AFSUBRD,	yfadd,	Px, {0xdc,(05),0xd8,(05),0xdc,(04)} },
++
++	{ AFDIVDP,	yfaddp,	Px, {0xde,(07)} },
++	{ AFDIVW,	yfmvx,	Px, {0xde,(06)} },
++	{ AFDIVL,	yfmvx,	Px, {0xda,(06)} },
++	{ AFDIVF,	yfmvx,	Px, {0xd8,(06)} },
++	{ AFDIVD,	yfadd,	Px, {0xdc,(06),0xd8,(06),0xdc,(07)} },
++
++	{ AFDIVRDP,	yfaddp,	Px, {0xde,(06)} },
++	{ AFDIVRW,	yfmvx,	Px, {0xde,(07)} },
++	{ AFDIVRL,	yfmvx,	Px, {0xda,(07)} },
++	{ AFDIVRF,	yfmvx,	Px, {0xd8,(07)} },
++	{ AFDIVRD,	yfadd,	Px, {0xdc,(07),0xd8,(07),0xdc,(06)} },
++
++	{ AFXCHD,	yfxch,	Px, {0xd9,(01),0xd9,(01)} },
+ 	{ AFFREE },
+-	{ AFLDCW,	ystcw,	Px, 0xd9,(05),0xd9,(05) },
+-	{ AFLDENV,	ystcw,	Px, 0xd9,(04),0xd9,(04) },
+-	{ AFRSTOR,	ysvrs,	Px, 0xdd,(04),0xdd,(04) },
+-	{ AFSAVE,	ysvrs,	Px, 0xdd,(06),0xdd,(06) },
+-	{ AFSTCW,	ystcw,	Px, 0xd9,(07),0xd9,(07) },
+-	{ AFSTENV,	ystcw,	Px, 0xd9,(06),0xd9,(06) },
+-	{ AFSTSW,	ystsw,	Px, 0xdd,(07),0xdf,0xe0 },
+-	{ AF2XM1,	ynone,	Px, 0xd9, 0xf0 },
+-	{ AFABS,	ynone,	Px, 0xd9, 0xe1 },
+-	{ AFCHS,	ynone,	Px, 0xd9, 0xe0 },
+-	{ AFCLEX,	ynone,	Px, 0xdb, 0xe2 },
+-	{ AFCOS,	ynone,	Px, 0xd9, 0xff },
+-	{ AFDECSTP,	ynone,	Px, 0xd9, 0xf6 },
+-	{ AFINCSTP,	ynone,	Px, 0xd9, 0xf7 },
+-	{ AFINIT,	ynone,	Px, 0xdb, 0xe3 },
+-	{ AFLD1,	ynone,	Px, 0xd9, 0xe8 },
+-	{ AFLDL2E,	ynone,	Px, 0xd9, 0xea },
+-	{ AFLDL2T,	ynone,	Px, 0xd9, 0xe9 },
+-	{ AFLDLG2,	ynone,	Px, 0xd9, 0xec },
+-	{ AFLDLN2,	ynone,	Px, 0xd9, 0xed },
+-	{ AFLDPI,	ynone,	Px, 0xd9, 0xeb },
+-	{ AFLDZ,	ynone,	Px, 0xd9, 0xee },
+-	{ AFNOP,	ynone,	Px, 0xd9, 0xd0 },
+-	{ AFPATAN,	ynone,	Px, 0xd9, 0xf3 },
+-	{ AFPREM,	ynone,	Px, 0xd9, 0xf8 },
+-	{ AFPREM1,	ynone,	Px, 0xd9, 0xf5 },
+-	{ AFPTAN,	ynone,	Px, 0xd9, 0xf2 },
+-	{ AFRNDINT,	ynone,	Px, 0xd9, 0xfc },
+-	{ AFSCALE,	ynone,	Px, 0xd9, 0xfd },
+-	{ AFSIN,	ynone,	Px, 0xd9, 0xfe },
+-	{ AFSINCOS,	ynone,	Px, 0xd9, 0xfb },
+-	{ AFSQRT,	ynone,	Px, 0xd9, 0xfa },
+-	{ AFTST,	ynone,	Px, 0xd9, 0xe4 },
+-	{ AFXAM,	ynone,	Px, 0xd9, 0xe5 },
+-	{ AFXTRACT,	ynone,	Px, 0xd9, 0xf4 },
+-	{ AFYL2X,	ynone,	Px, 0xd9, 0xf1 },
+-	{ AFYL2XP1,	ynone,	Px, 0xd9, 0xf9 },
++	{ AFLDCW,	ystcw,	Px, {0xd9,(05),0xd9,(05)} },
++	{ AFLDENV,	ystcw,	Px, {0xd9,(04),0xd9,(04)} },
++	{ AFRSTOR,	ysvrs,	Px, {0xdd,(04),0xdd,(04)} },
++	{ AFSAVE,	ysvrs,	Px, {0xdd,(06),0xdd,(06)} },
++	{ AFSTCW,	ystcw,	Px, {0xd9,(07),0xd9,(07)} },
++	{ AFSTENV,	ystcw,	Px, {0xd9,(06),0xd9,(06)} },
++	{ AFSTSW,	ystsw,	Px, {0xdd,(07),0xdf,0xe0} },
++	{ AF2XM1,	ynone,	Px, {0xd9, 0xf0} },
++	{ AFABS,	ynone,	Px, {0xd9, 0xe1} },
++	{ AFCHS,	ynone,	Px, {0xd9, 0xe0} },
++	{ AFCLEX,	ynone,	Px, {0xdb, 0xe2} },
++	{ AFCOS,	ynone,	Px, {0xd9, 0xff} },
++	{ AFDECSTP,	ynone,	Px, {0xd9, 0xf6} },
++	{ AFINCSTP,	ynone,	Px, {0xd9, 0xf7} },
++	{ AFINIT,	ynone,	Px, {0xdb, 0xe3} },
++	{ AFLD1,	ynone,	Px, {0xd9, 0xe8} },
++	{ AFLDL2E,	ynone,	Px, {0xd9, 0xea} },
++	{ AFLDL2T,	ynone,	Px, {0xd9, 0xe9} },
++	{ AFLDLG2,	ynone,	Px, {0xd9, 0xec} },
++	{ AFLDLN2,	ynone,	Px, {0xd9, 0xed} },
++	{ AFLDPI,	ynone,	Px, {0xd9, 0xeb} },
++	{ AFLDZ,	ynone,	Px, {0xd9, 0xee} },
++	{ AFNOP,	ynone,	Px, {0xd9, 0xd0} },
++	{ AFPATAN,	ynone,	Px, {0xd9, 0xf3} },
++	{ AFPREM,	ynone,	Px, {0xd9, 0xf8} },
++	{ AFPREM1,	ynone,	Px, {0xd9, 0xf5} },
++	{ AFPTAN,	ynone,	Px, {0xd9, 0xf2} },
++	{ AFRNDINT,	ynone,	Px, {0xd9, 0xfc} },
++	{ AFSCALE,	ynone,	Px, {0xd9, 0xfd} },
++	{ AFSIN,	ynone,	Px, {0xd9, 0xfe} },
++	{ AFSINCOS,	ynone,	Px, {0xd9, 0xfb} },
++	{ AFSQRT,	ynone,	Px, {0xd9, 0xfa} },
++	{ AFTST,	ynone,	Px, {0xd9, 0xe4} },
++	{ AFXAM,	ynone,	Px, {0xd9, 0xe5} },
++	{ AFXTRACT,	ynone,	Px, {0xd9, 0xf4} },
++	{ AFYL2X,	ynone,	Px, {0xd9, 0xf1} },
++	{ AFYL2XP1,	ynone,	Px, {0xd9, 0xf9} },
+ 	{ AEND },
+ 	{ ADYNT_ },
+ 	{ AINIT_ },
+ 	{ ASIGNAME },
+-	{ ACMPXCHGB,	yrb_mb,	Pm, 0xb0 },
+-	{ ACMPXCHGL,	yrl_ml,	Pm, 0xb1 },
+-	{ ACMPXCHGW,	yrl_ml,	Pm, 0xb1 },
+-	{ ACMPXCHG8B,	yscond,	Pm, 0xc7,(01) },
+-
+-	{ ACPUID,	ynone,	Pm, 0xa2 },
+-	{ ARDTSC,	ynone,	Pm, 0x31 },
+-
+-	{ AXADDB,	yrb_mb,	Pb, 0x0f,0xc0 },
+-	{ AXADDL,	yrl_ml,	Pm, 0xc1 },
+-	{ AXADDW,	yrl_ml,	Pe, 0x0f,0xc1 },
+-
+-	{ ACMOVLCC,	yml_rl,	Pm, 0x43 },
+-	{ ACMOVLCS,	yml_rl,	Pm, 0x42 },
+-	{ ACMOVLEQ,	yml_rl,	Pm, 0x44 },
+-	{ ACMOVLGE,	yml_rl,	Pm, 0x4d },
+-	{ ACMOVLGT,	yml_rl,	Pm, 0x4f },
+-	{ ACMOVLHI,	yml_rl,	Pm, 0x47 },
+-	{ ACMOVLLE,	yml_rl,	Pm, 0x4e },
+-	{ ACMOVLLS,	yml_rl,	Pm, 0x46 },
+-	{ ACMOVLLT,	yml_rl,	Pm, 0x4c },
+-	{ ACMOVLMI,	yml_rl,	Pm, 0x48 },
+-	{ ACMOVLNE,	yml_rl,	Pm, 0x45 },
+-	{ ACMOVLOC,	yml_rl,	Pm, 0x41 },
+-	{ ACMOVLOS,	yml_rl,	Pm, 0x40 },
+-	{ ACMOVLPC,	yml_rl,	Pm, 0x4b },
+-	{ ACMOVLPL,	yml_rl,	Pm, 0x49 },
+-	{ ACMOVLPS,	yml_rl,	Pm, 0x4a },
+-	{ ACMOVWCC,	yml_rl,	Pq, 0x43 },
+-	{ ACMOVWCS,	yml_rl,	Pq, 0x42 },
+-	{ ACMOVWEQ,	yml_rl,	Pq, 0x44 },
+-	{ ACMOVWGE,	yml_rl,	Pq, 0x4d },
+-	{ ACMOVWGT,	yml_rl,	Pq, 0x4f },
+-	{ ACMOVWHI,	yml_rl,	Pq, 0x47 },
+-	{ ACMOVWLE,	yml_rl,	Pq, 0x4e },
+-	{ ACMOVWLS,	yml_rl,	Pq, 0x46 },
+-	{ ACMOVWLT,	yml_rl,	Pq, 0x4c },
+-	{ ACMOVWMI,	yml_rl,	Pq, 0x48 },
+-	{ ACMOVWNE,	yml_rl,	Pq, 0x45 },
+-	{ ACMOVWOC,	yml_rl,	Pq, 0x41 },
+-	{ ACMOVWOS,	yml_rl,	Pq, 0x40 },
+-	{ ACMOVWPC,	yml_rl,	Pq, 0x4b },
+-	{ ACMOVWPL,	yml_rl,	Pq, 0x49 },
+-	{ ACMOVWPS,	yml_rl,	Pq, 0x4a },
+-
+-	{ AFCMOVCC,	yfcmv,	Px, 0xdb,(00) },
+-	{ AFCMOVCS,	yfcmv,	Px, 0xda,(00) },
+-	{ AFCMOVEQ,	yfcmv,	Px, 0xda,(01) },
+-	{ AFCMOVHI,	yfcmv,	Px, 0xdb,(02) },
+-	{ AFCMOVLS,	yfcmv,	Px, 0xda,(02) },
+-	{ AFCMOVNE,	yfcmv,	Px, 0xdb,(01) },
+-	{ AFCMOVNU,	yfcmv,	Px, 0xdb,(03) },
+-	{ AFCMOVUN,	yfcmv,	Px, 0xda,(03) },
+-
+-	{ ALFENCE, ynone, Pm, 0xae,0xe8 },
+-	{ AMFENCE, ynone, Pm, 0xae,0xf0 },
+-	{ ASFENCE, ynone, Pm, 0xae,0xf8 },
+-
+-	{ AEMMS, ynone, Pm, 0x77 },
+-
+-	{ APREFETCHT0,	yprefetch,	Pm,	0x18,(01) },
+-	{ APREFETCHT1,	yprefetch,	Pm,	0x18,(02) },
+-	{ APREFETCHT2,	yprefetch,	Pm,	0x18,(03) },
+-	{ APREFETCHNTA,	yprefetch,	Pm,	0x18,(00) },
+-
+-	{ ABSWAPL,	ybswap,	Pm,	0xc8 },
++	{ ACMPXCHGB,	yrb_mb,	Pm, {0xb0} },
++	{ ACMPXCHGL,	yrl_ml,	Pm, {0xb1} },
++	{ ACMPXCHGW,	yrl_ml,	Pm, {0xb1} },
++	{ ACMPXCHG8B,	yscond,	Pm, {0xc7,(01)} },
++
++	{ ACPUID,	ynone,	Pm, {0xa2} },
++	{ ARDTSC,	ynone,	Pm, {0x31} },
++
++	{ AXADDB,	yrb_mb,	Pb, {0x0f,0xc0} },
++	{ AXADDL,	yrl_ml,	Pm, {0xc1} },
++	{ AXADDW,	yrl_ml,	Pe, {0x0f,0xc1} },
++
++	{ ACMOVLCC,	yml_rl,	Pm, {0x43} },
++	{ ACMOVLCS,	yml_rl,	Pm, {0x42} },
++	{ ACMOVLEQ,	yml_rl,	Pm, {0x44} },
++	{ ACMOVLGE,	yml_rl,	Pm, {0x4d} },
++	{ ACMOVLGT,	yml_rl,	Pm, {0x4f} },
++	{ ACMOVLHI,	yml_rl,	Pm, {0x47} },
++	{ ACMOVLLE,	yml_rl,	Pm, {0x4e} },
++	{ ACMOVLLS,	yml_rl,	Pm, {0x46} },
++	{ ACMOVLLT,	yml_rl,	Pm, {0x4c} },
++	{ ACMOVLMI,	yml_rl,	Pm, {0x48} },
++	{ ACMOVLNE,	yml_rl,	Pm, {0x45} },
++	{ ACMOVLOC,	yml_rl,	Pm, {0x41} },
++	{ ACMOVLOS,	yml_rl,	Pm, {0x40} },
++	{ ACMOVLPC,	yml_rl,	Pm, {0x4b} },
++	{ ACMOVLPL,	yml_rl,	Pm, {0x49} },
++	{ ACMOVLPS,	yml_rl,	Pm, {0x4a} },
++	{ ACMOVWCC,	yml_rl,	Pq, {0x43} },
++	{ ACMOVWCS,	yml_rl,	Pq, {0x42} },
++	{ ACMOVWEQ,	yml_rl,	Pq, {0x44} },
++	{ ACMOVWGE,	yml_rl,	Pq, {0x4d} },
++	{ ACMOVWGT,	yml_rl,	Pq, {0x4f} },
++	{ ACMOVWHI,	yml_rl,	Pq, {0x47} },
++	{ ACMOVWLE,	yml_rl,	Pq, {0x4e} },
++	{ ACMOVWLS,	yml_rl,	Pq, {0x46} },
++	{ ACMOVWLT,	yml_rl,	Pq, {0x4c} },
++	{ ACMOVWMI,	yml_rl,	Pq, {0x48} },
++	{ ACMOVWNE,	yml_rl,	Pq, {0x45} },
++	{ ACMOVWOC,	yml_rl,	Pq, {0x41} },
++	{ ACMOVWOS,	yml_rl,	Pq, {0x40} },
++	{ ACMOVWPC,	yml_rl,	Pq, {0x4b} },
++	{ ACMOVWPL,	yml_rl,	Pq, {0x49} },
++	{ ACMOVWPS,	yml_rl,	Pq, {0x4a} },
++
++	{ AFCMOVCC,	yfcmv,	Px, {0xdb,(00)} },
++	{ AFCMOVCS,	yfcmv,	Px, {0xda,(00)} },
++	{ AFCMOVEQ,	yfcmv,	Px, {0xda,(01)} },
++	{ AFCMOVHI,	yfcmv,	Px, {0xdb,(02)} },
++	{ AFCMOVLS,	yfcmv,	Px, {0xda,(02)} },
++	{ AFCMOVNE,	yfcmv,	Px, {0xdb,(01)} },
++	{ AFCMOVNU,	yfcmv,	Px, {0xdb,(03)} },
++	{ AFCMOVUN,	yfcmv,	Px, {0xda,(03)} },
++
++	{ ALFENCE, ynone, Pm, {0xae,0xe8} },
++	{ AMFENCE, ynone, Pm, {0xae,0xf0} },
++	{ ASFENCE, ynone, Pm, {0xae,0xf8} },
++
++	{ AEMMS, ynone, Pm, {0x77} },
++
++	{ APREFETCHT0,	yprefetch,	Pm,	{0x18,(01)} },
++	{ APREFETCHT1,	yprefetch,	Pm,	{0x18,(02)} },
++	{ APREFETCHT2,	yprefetch,	Pm,	{0x18,(03)} },
++	{ APREFETCHNTA,	yprefetch,	Pm,	{0x18,(00)} },
++
++	{ ABSWAPL,	ybswap,	Pm,	{0xc8} },
+ 	
+-	{ AUNDEF,		ynone,	Px,	0x0f, 0x0b },
+-
+-	{ AADDPD,	yxm,	Pq, 0x58 },
+-	{ AADDPS,	yxm,	Pm, 0x58 },
+-	{ AADDSD,	yxm,	Pf2, 0x58 },
+-	{ AADDSS,	yxm,	Pf3, 0x58 },
+-	{ AANDNPD,	yxm,	Pq, 0x55 },
+-	{ AANDNPS,	yxm,	Pm, 0x55 },
+-	{ AANDPD,	yxm,	Pq, 0x54 },
+-	{ AANDPS,	yxm,	Pq, 0x54 },
+-	{ ACMPPD,	yxcmpi,	Px, Pe,0xc2 },
+-	{ ACMPPS,	yxcmpi,	Pm, 0xc2,0 },
+-	{ ACMPSD,	yxcmpi,	Px, Pf2,0xc2 },
+-	{ ACMPSS,	yxcmpi,	Px, Pf3,0xc2 },
+-	{ ACOMISD,	yxcmp,	Pe, 0x2f },
+-	{ ACOMISS,	yxcmp,	Pm, 0x2f },
+-	{ ACVTPL2PD,	yxcvm2,	Px, Pf3,0xe6,Pe,0x2a },
+-	{ ACVTPL2PS,	yxcvm2,	Pm, 0x5b,0,0x2a,0, },
+-	{ ACVTPD2PL,	yxcvm1,	Px, Pf2,0xe6,Pe,0x2d },
+-	{ ACVTPD2PS,	yxm,	Pe, 0x5a },
+-	{ ACVTPS2PL,	yxcvm1, Px, Pe,0x5b,Pm,0x2d },
+-	{ ACVTPS2PD,	yxm,	Pm, 0x5a },
+-	{ ACVTSD2SL,	yxcvfl, Pf2, 0x2d },
+- 	{ ACVTSD2SS,	yxm,	Pf2, 0x5a },
+-	{ ACVTSL2SD,	yxcvlf, Pf2, 0x2a },
+-	{ ACVTSL2SS,	yxcvlf, Pf3, 0x2a },
+-	{ ACVTSS2SD,	yxm,	Pf3, 0x5a },
+-	{ ACVTSS2SL,	yxcvfl, Pf3, 0x2d },
+-	{ ACVTTPD2PL,	yxcvm1,	Px, Pe,0xe6,Pe,0x2c },
+-	{ ACVTTPS2PL,	yxcvm1,	Px, Pf3,0x5b,Pm,0x2c },
+-	{ ACVTTSD2SL,	yxcvfl, Pf2, 0x2c },
+-	{ ACVTTSS2SL,	yxcvfl,	Pf3, 0x2c },
+-	{ ADIVPD,	yxm,	Pe, 0x5e },
+-	{ ADIVPS,	yxm,	Pm, 0x5e },
+-	{ ADIVSD,	yxm,	Pf2, 0x5e },
+-	{ ADIVSS,	yxm,	Pf3, 0x5e },
+-	{ AMASKMOVOU,	yxr,	Pe, 0xf7 },
+-	{ AMAXPD,	yxm,	Pe, 0x5f },
+-	{ AMAXPS,	yxm,	Pm, 0x5f },
+-	{ AMAXSD,	yxm,	Pf2, 0x5f },
+-	{ AMAXSS,	yxm,	Pf3, 0x5f },
+-	{ AMINPD,	yxm,	Pe, 0x5d },
+-	{ AMINPS,	yxm,	Pm, 0x5d },
+-	{ AMINSD,	yxm,	Pf2, 0x5d },
+-	{ AMINSS,	yxm,	Pf3, 0x5d },
+-	{ AMOVAPD,	yxmov,	Pe, 0x28,0x29 },
+-	{ AMOVAPS,	yxmov,	Pm, 0x28,0x29 },
+-	{ AMOVO,	yxmov,	Pe, 0x6f,0x7f },
+-	{ AMOVOU,	yxmov,	Pf3, 0x6f,0x7f },
+-	{ AMOVHLPS,	yxr,	Pm, 0x12 },
+-	{ AMOVHPD,	yxmov,	Pe, 0x16,0x17 },
+-	{ AMOVHPS,	yxmov,	Pm, 0x16,0x17 },
+-	{ AMOVLHPS,	yxr,	Pm, 0x16 },
+-	{ AMOVLPD,	yxmov,	Pe, 0x12,0x13 },
+-	{ AMOVLPS,	yxmov,	Pm, 0x12,0x13 },
+-	{ AMOVMSKPD,	yxrrl,	Pq, 0x50 },
+-	{ AMOVMSKPS,	yxrrl,	Pm, 0x50 },
+-	{ AMOVNTO,	yxr_ml,	Pe, 0xe7 },
+-	{ AMOVNTPD,	yxr_ml,	Pe, 0x2b },
+-	{ AMOVNTPS,	yxr_ml,	Pm, 0x2b },
+-	{ AMOVSD,	yxmov,	Pf2, 0x10,0x11 },
+-	{ AMOVSS,	yxmov,	Pf3, 0x10,0x11 },
+-	{ AMOVUPD,	yxmov,	Pe, 0x10,0x11 },
+-	{ AMOVUPS,	yxmov,	Pm, 0x10,0x11 },
+-	{ AMULPD,	yxm,	Pe, 0x59 },
+-	{ AMULPS,	yxm,	Ym, 0x59 },
+-	{ AMULSD,	yxm,	Pf2, 0x59 },
+-	{ AMULSS,	yxm,	Pf3, 0x59 },
+-	{ AORPD,	yxm,	Pq, 0x56 },
+-	{ AORPS,	yxm,	Pm, 0x56 },
+-	{ APADDQ,	yxm,	Pe, 0xd4 },
+-	{ APAND,	yxm,	Pe, 0xdb },
+-	{ APCMPEQB,	yxmq,	Pe ,0x74 },
+-	{ APMAXSW,	yxm,	Pe, 0xee },
+-	{ APMAXUB,	yxm,	Pe, 0xde },
+-	{ APMINSW,	yxm,	Pe, 0xea },
+-	{ APMINUB,	yxm,	Pe, 0xda },
+-	{ APMOVMSKB,	ymskb,	Px, Pe,0xd7,0xd7 },
+-	{ APSADBW,	yxm,	Pq, 0xf6 },
+-	{ APSUBB,	yxm,	Pe, 0xf8 },
+-	{ APSUBL,	yxm,	Pe, 0xfa },
+-	{ APSUBQ,	yxm,	Pe, 0xfb },
+-	{ APSUBSB,	yxm,	Pe, 0xe8 },
+-	{ APSUBSW,	yxm,	Pe, 0xe9 },
+-	{ APSUBUSB,	yxm,	Pe, 0xd8 },
+-	{ APSUBUSW,	yxm,	Pe, 0xd9 },
+-	{ APSUBW,	yxm,	Pe, 0xf9 },
+-	{ APUNPCKHQDQ,	yxm,	Pe, 0x6d },
+-	{ APUNPCKLQDQ,	yxm,	Pe, 0x6c },
+-	{ APXOR,	yxm,	Pe, 0xef },
+-	{ ARCPPS,	yxm,	Pm, 0x53 },
+-	{ ARCPSS,	yxm,	Pf3, 0x53 },
+-	{ ARSQRTPS,	yxm,	Pm, 0x52 },
+-	{ ARSQRTSS,	yxm,	Pf3, 0x52 },
+-	{ ASQRTPD,	yxm,	Pe, 0x51 },
+-	{ ASQRTPS,	yxm,	Pm, 0x51 },
+-	{ ASQRTSD,	yxm,	Pf2, 0x51 },
+-	{ ASQRTSS,	yxm,	Pf3, 0x51 },
+-	{ ASUBPD,	yxm,	Pe, 0x5c },
+-	{ ASUBPS,	yxm,	Pm, 0x5c },
+-	{ ASUBSD,	yxm,	Pf2, 0x5c },
+-	{ ASUBSS,	yxm,	Pf3, 0x5c },
+-	{ AUCOMISD,	yxcmp,	Pe, 0x2e },
+-	{ AUCOMISS,	yxcmp,	Pm, 0x2e },
+-	{ AUNPCKHPD,	yxm,	Pe, 0x15 },
+-	{ AUNPCKHPS,	yxm,	Pm, 0x15 },
+-	{ AUNPCKLPD,	yxm,	Pe, 0x14 },
+-	{ AUNPCKLPS,	yxm,	Pm, 0x14 },
+-	{ AXORPD,	yxm,	Pe, 0x57 },
+-	{ AXORPS,	yxm,	Pm, 0x57 },
+-
+-	{ AAESENC,	yaes,	Pq, 0x38,0xdc,(0) },
+-	{ APINSRD,	yinsrd,	Pq, 0x3a, 0x22, (00) },
+-	{ APSHUFB,	ymshufb,Pq, 0x38, 0x00 },
+-
+-	{ AUSEFIELD,	ynop,	Px, 0,0 },
++	{ AUNDEF,		ynone,	Px,	{0x0f, 0x0b} },
++
++	{ AADDPD,	yxm,	Pq, {0x58} },
++	{ AADDPS,	yxm,	Pm, {0x58} },
++	{ AADDSD,	yxm,	Pf2, {0x58} },
++	{ AADDSS,	yxm,	Pf3, {0x58} },
++	{ AANDNPD,	yxm,	Pq, {0x55} },
++	{ AANDNPS,	yxm,	Pm, {0x55} },
++	{ AANDPD,	yxm,	Pq, {0x54} },
++	{ AANDPS,	yxm,	Pq, {0x54} },
++	{ ACMPPD,	yxcmpi,	Px, {Pe,0xc2} },
++	{ ACMPPS,	yxcmpi,	Pm, {0xc2,0} },
++	{ ACMPSD,	yxcmpi,	Px, {Pf2,0xc2} },
++	{ ACMPSS,	yxcmpi,	Px, {Pf3,0xc2} },
++	{ ACOMISD,	yxcmp,	Pe, {0x2f} },
++	{ ACOMISS,	yxcmp,	Pm, {0x2f} },
++	{ ACVTPL2PD,	yxcvm2,	Px, {Pf3,0xe6,Pe,0x2a} },
++	{ ACVTPL2PS,	yxcvm2,	Pm, {0x5b,0,0x2a,0,} },
++	{ ACVTPD2PL,	yxcvm1,	Px, {Pf2,0xe6,Pe,0x2d} },
++	{ ACVTPD2PS,	yxm,	Pe, {0x5a} },
++	{ ACVTPS2PL,	yxcvm1, Px, {Pe,0x5b,Pm,0x2d} },
++	{ ACVTPS2PD,	yxm,	Pm, {0x5a} },
++	{ ACVTSD2SL,	yxcvfl, Pf2, {0x2d} },
++ 	{ ACVTSD2SS,	yxm,	Pf2, {0x5a} },
++	{ ACVTSL2SD,	yxcvlf, Pf2, {0x2a} },
++	{ ACVTSL2SS,	yxcvlf, Pf3, {0x2a} },
++	{ ACVTSS2SD,	yxm,	Pf3, {0x5a} },
++	{ ACVTSS2SL,	yxcvfl, Pf3, {0x2d} },
++	{ ACVTTPD2PL,	yxcvm1,	Px, {Pe,0xe6,Pe,0x2c} },
++	{ ACVTTPS2PL,	yxcvm1,	Px, {Pf3,0x5b,Pm,0x2c} },
++	{ ACVTTSD2SL,	yxcvfl, Pf2, {0x2c} },
++	{ ACVTTSS2SL,	yxcvfl,	Pf3, {0x2c} },
++	{ ADIVPD,	yxm,	Pe, {0x5e} },
++	{ ADIVPS,	yxm,	Pm, {0x5e} },
++	{ ADIVSD,	yxm,	Pf2, {0x5e} },
++	{ ADIVSS,	yxm,	Pf3, {0x5e} },
++	{ AMASKMOVOU,	yxr,	Pe, {0xf7} },
++	{ AMAXPD,	yxm,	Pe, {0x5f} },
++	{ AMAXPS,	yxm,	Pm, {0x5f} },
++	{ AMAXSD,	yxm,	Pf2, {0x5f} },
++	{ AMAXSS,	yxm,	Pf3, {0x5f} },
++	{ AMINPD,	yxm,	Pe, {0x5d} },
++	{ AMINPS,	yxm,	Pm, {0x5d} },
++	{ AMINSD,	yxm,	Pf2, {0x5d} },
++	{ AMINSS,	yxm,	Pf3, {0x5d} },
++	{ AMOVAPD,	yxmov,	Pe, {0x28,0x29} },
++	{ AMOVAPS,	yxmov,	Pm, {0x28,0x29} },
++	{ AMOVO,	yxmov,	Pe, {0x6f,0x7f} },
++	{ AMOVOU,	yxmov,	Pf3, {0x6f,0x7f} },
++	{ AMOVHLPS,	yxr,	Pm, {0x12} },
++	{ AMOVHPD,	yxmov,	Pe, {0x16,0x17} },
++	{ AMOVHPS,	yxmov,	Pm, {0x16,0x17} },
++	{ AMOVLHPS,	yxr,	Pm, {0x16} },
++	{ AMOVLPD,	yxmov,	Pe, {0x12,0x13} },
++	{ AMOVLPS,	yxmov,	Pm, {0x12,0x13} },
++	{ AMOVMSKPD,	yxrrl,	Pq, {0x50} },
++	{ AMOVMSKPS,	yxrrl,	Pm, {0x50} },
++	{ AMOVNTO,	yxr_ml,	Pe, {0xe7} },
++	{ AMOVNTPD,	yxr_ml,	Pe, {0x2b} },
++	{ AMOVNTPS,	yxr_ml,	Pm, {0x2b} },
++	{ AMOVSD,	yxmov,	Pf2, {0x10,0x11} },
++	{ AMOVSS,	yxmov,	Pf3, {0x10,0x11} },
++	{ AMOVUPD,	yxmov,	Pe, {0x10,0x11} },
++	{ AMOVUPS,	yxmov,	Pm, {0x10,0x11} },
++	{ AMULPD,	yxm,	Pe, {0x59} },
++	{ AMULPS,	yxm,	Ym, {0x59} },
++	{ AMULSD,	yxm,	Pf2, {0x59} },
++	{ AMULSS,	yxm,	Pf3, {0x59} },
++	{ AORPD,	yxm,	Pq, {0x56} },
++	{ AORPS,	yxm,	Pm, {0x56} },
++	{ APADDQ,	yxm,	Pe, {0xd4} },
++	{ APAND,	yxm,	Pe, {0xdb} },
++	{ APCMPEQB,	yxmq,	Pe, {0x74} },
++	{ APMAXSW,	yxm,	Pe, {0xee} },
++	{ APMAXUB,	yxm,	Pe, {0xde} },
++	{ APMINSW,	yxm,	Pe, {0xea} },
++	{ APMINUB,	yxm,	Pe, {0xda} },
++	{ APMOVMSKB,	ymskb,	Px, {Pe,0xd7,0xd7} },
++	{ APSADBW,	yxm,	Pq, {0xf6} },
++	{ APSUBB,	yxm,	Pe, {0xf8} },
++	{ APSUBL,	yxm,	Pe, {0xfa} },
++	{ APSUBQ,	yxm,	Pe, {0xfb} },
++	{ APSUBSB,	yxm,	Pe, {0xe8} },
++	{ APSUBSW,	yxm,	Pe, {0xe9} },
++	{ APSUBUSB,	yxm,	Pe, {0xd8} },
++	{ APSUBUSW,	yxm,	Pe, {0xd9} },
++	{ APSUBW,	yxm,	Pe, {0xf9} },
++	{ APUNPCKHQDQ,	yxm,	Pe, {0x6d} },
++	{ APUNPCKLQDQ,	yxm,	Pe, {0x6c} },
++	{ APXOR,	yxm,	Pe, {0xef} },
++	{ ARCPPS,	yxm,	Pm, {0x53} },
++	{ ARCPSS,	yxm,	Pf3, {0x53} },
++	{ ARSQRTPS,	yxm,	Pm, {0x52} },
++	{ ARSQRTSS,	yxm,	Pf3, {0x52} },
++	{ ASQRTPD,	yxm,	Pe, {0x51} },
++	{ ASQRTPS,	yxm,	Pm, {0x51} },
++	{ ASQRTSD,	yxm,	Pf2, {0x51} },
++	{ ASQRTSS,	yxm,	Pf3, {0x51} },
++	{ ASUBPD,	yxm,	Pe, {0x5c} },
++	{ ASUBPS,	yxm,	Pm, {0x5c} },
++	{ ASUBSD,	yxm,	Pf2, {0x5c} },
++	{ ASUBSS,	yxm,	Pf3, {0x5c} },
++	{ AUCOMISD,	yxcmp,	Pe, {0x2e} },
++	{ AUCOMISS,	yxcmp,	Pm, {0x2e} },
++	{ AUNPCKHPD,	yxm,	Pe, {0x15} },
++	{ AUNPCKHPS,	yxm,	Pm, {0x15} },
++	{ AUNPCKLPD,	yxm,	Pe, {0x14} },
++	{ AUNPCKLPS,	yxm,	Pm, {0x14} },
++	{ AXORPD,	yxm,	Pe, {0x57} },
++	{ AXORPS,	yxm,	Pm, {0x57} },
++
++	{ AAESENC,	yaes,	Pq, {0x38,0xdc,(0)} },
++	{ APINSRD,	yinsrd,	Pq, {0x3a, 0x22, (00)} },
++	{ APSHUFB,	ymshufb,Pq, {0x38, 0x00} },
++
++	{ AUSEFIELD,	ynop,	Px, {0,0} },
+ 	{ ATYPE },
+-	{ AFUNCDATA,	yfuncdata,	Px, 0,0 },
+-	{ APCDATA,	ypcdata,	Px, 0,0 },
++	{ AFUNCDATA,	yfuncdata,	Px, {0,0} },
++	{ APCDATA,	ypcdata,	Px, {0,0} },
+ 	{ ACHECKNIL },
+ 	{ AVARDEF },
+ 	{ AVARKILL },
+-	{ ADUFFCOPY,	yduff,	Px, 0xe8 },
+-	{ ADUFFZERO,	yduff,	Px, 0xe8 },
++	{ ADUFFCOPY,	yduff,	Px, {0xe8} },
++	{ ADUFFZERO,	yduff,	Px, {0xe8} },
+ 
+-	0
++	{0}
+ };
+ 
+ static int32	vaddr(Link*, Addr*, Reloc*);
+diff --git a/src/liblink/ld.c b/src/liblink/ld.c
+index 9ea0e9a732..a2fdce56bd 100644
+--- a/src/liblink/ld.c
++++ b/src/liblink/ld.c
+@@ -161,7 +161,10 @@ uchar	inuxi2[2];
+ uchar	inuxi4[4];
+ uchar	inuxi8[8];
+ 
+-#define	LOG	5
++enum
++{
++	LOG = 5,
++};
+ void
+ mkfwd(LSym *sym)
+ {
+diff --git a/src/liblink/obj6.c b/src/liblink/obj6.c
+index a8538c9ecf..6879e97bec 100644
+--- a/src/liblink/obj6.c
++++ b/src/liblink/obj6.c
+@@ -958,7 +958,7 @@ xfol(Link *ctxt, Prog *p, Prog **last)
+ {
+ 	Prog *q;
+ 	int i;
+-	enum as a;
++	int a;
+ 
+ loop:
+ 	if(p == nil)
+diff --git a/src/liblink/obj8.c b/src/liblink/obj8.c
+index 6f96ebae95..2fc48d364e 100644
+--- a/src/liblink/obj8.c
++++ b/src/liblink/obj8.c
+@@ -697,7 +697,7 @@ xfol(Link *ctxt, Prog *p, Prog **last)
+ {
+ 	Prog *q;
+ 	int i;
+-	enum as a;
++	int a;
+ 
+ loop:
+ 	if(p == nil)
+diff --git a/src/liblink/sym.c b/src/liblink/sym.c
+index c8da39ded1..44c6f6bd19 100644
+--- a/src/liblink/sym.c
++++ b/src/liblink/sym.c
+@@ -44,20 +44,20 @@ static struct {
+ 	char *name;
+ 	int val;
+ } headers[] = {
+-	"darwin",	Hdarwin,
+-	"dragonfly",	Hdragonfly,
+-	"elf",		Helf,
+-	"freebsd",	Hfreebsd,
+-	"linux",	Hlinux,
+-	"android",	Hlinux,
+-	"nacl",		Hnacl,
+-	"netbsd",	Hnetbsd,
+-	"openbsd",	Hopenbsd,
+-	"plan9",	Hplan9,
+-	"solaris",	Hsolaris,
+-	"windows",	Hwindows,
+-	"windowsgui",	Hwindows,
+-	0, 0
++	{"android",	Hlinux},
++	{"darwin",	Hdarwin},
++	{"dragonfly",	Hdragonfly},
++	{"elf",		Helf},
++	{"freebsd",	Hfreebsd},
++	{"linux",	Hlinux},
++	{"nacl",		Hnacl},
++	{"netbsd",	Hnetbsd},
++	{"openbsd",	Hopenbsd},
++	{"plan9",	Hplan9},
++	{"solaris",	Hsolaris},
++	{"windows",	Hwindows},
++	{"windowsgui",	Hwindows},
++	{0, 0},
+ };
+ 
+ int
+diff --git a/src/pkg/runtime/funcdata.h b/src/pkg/runtime/funcdata.h
+index e20b6ae254..1f624b529b 100644
+--- a/src/pkg/runtime/funcdata.h
++++ b/src/pkg/runtime/funcdata.h
+@@ -22,3 +22,14 @@
+ // assembly code without an explicit specification).
+ // This value is generated by the compiler, assembler, or linker.
+ #define ArgsSizeUnknown 0x80000000
++
++/*c2go
++enum {
++	PCDATA_ArgSize = 0,
++	PCDATA_StackMapIndex = 1,
++	FUNCDATA_ArgsPointerMaps = 2,
++	FUNCDATA_LocalsPointerMaps = 3,
++	FUNCDATA_DeadValueMaps = 4,
++	ArgsSizeUnknown = 0x80000000,
++};
++*/
+diff --git a/src/pkg/runtime/stack.h b/src/pkg/runtime/stack.h
+index 18ab30b69b..ee5fd351d5 100644
+--- a/src/pkg/runtime/stack.h
++++ b/src/pkg/runtime/stack.h
+@@ -111,3 +111,9 @@ enum {
+ // Must be greater than any real sp.
+ // 0xfffffade in hex.
+ #define StackPreempt ((uint64)-1314)
++/*c2go
++enum
++{
++	StackPreempt = -1314,
++};
++*/

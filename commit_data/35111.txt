@@ -21,9 +21,522 @@ Date:   Wed Dec 13 14:45:50 2017 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/vet/main.go           |   8 +--
  src/cmd/vet/print.go          | 164 +++++++++++++++++++++++++++++++-----------
  src/cmd/vet/testdata/print.go |  99 ++++++++++++-------------
  src/cmd/vet/vet_test.go       |  24 +++++++
  4 files changed, 195 insertions(+), 100 deletions(-)
+
+diff --git a/src/cmd/vet/main.go b/src/cmd/vet/main.go
+index a10c798850..807e800959 100644
+--- a/src/cmd/vet/main.go
++++ b/src/cmd/vet/main.go
+@@ -34,9 +34,8 @@ var (
+ 	tags    = flag.String("tags", "", "space-separated list of build tags to apply when parsing")
+ 	tagList = []string{} // exploded version of tags flag; set in main
+ 
++	vcfg          vetConfig
+ 	mustTypecheck bool
+-
+-	succeedOnTypecheckFailure bool // during go test, we ignore potential bugs in go/types
+ )
+ 
+ var exitCode = 0
+@@ -289,6 +288,7 @@ func prefixDirectory(directory string, names []string) {
+ type vetConfig struct {
+ 	Compiler    string
+ 	Dir         string
++	ImportPath  string
+ 	GoFiles     []string
+ 	ImportMap   map[string]string
+ 	PackageFile map[string]string
+@@ -336,11 +336,9 @@ func doPackageCfg(cfgFile string) {
+ 	if err != nil {
+ 		errorf("%v", err)
+ 	}
+-	var vcfg vetConfig
+ 	if err := json.Unmarshal(js, &vcfg); err != nil {
+ 		errorf("parsing vet config %s: %v", cfgFile, err)
+ 	}
+-	succeedOnTypecheckFailure = vcfg.SucceedOnTypecheckFailure
+ 	stdImporter = &vcfg
+ 	inittypes()
+ 	mustTypecheck = true
+@@ -432,7 +430,7 @@ func doPackage(names []string, basePkg *Package) *Package {
+ 	// Type check the package.
+ 	errs := pkg.check(fs, astFiles)
+ 	if errs != nil {
+-		if succeedOnTypecheckFailure {
++		if vcfg.SucceedOnTypecheckFailure {
+ 			os.Exit(0)
+ 		}
+ 		if *verbose || mustTypecheck {
+diff --git a/src/cmd/vet/print.go b/src/cmd/vet/print.go
+index beb78030ef..456fbcc044 100644
+--- a/src/cmd/vet/print.go
++++ b/src/cmd/vet/print.go
+@@ -44,41 +44,73 @@ func initPrintFlags() {
+ 			name = name[:colon]
+ 		}
+ 
+-		name = strings.ToLower(name)
+-		if name[len(name)-1] == 'f' {
+-			isFormattedPrint[name] = true
+-		} else {
+-			isPrint[name] = true
+-		}
++		isPrint[strings.ToLower(name)] = true
+ 	}
+ }
+ 
+-// isFormattedPrint records the formatted-print functions. Names are
+-// lower-cased so the lookup is case insensitive.
+-var isFormattedPrint = map[string]bool{
+-	"errorf":  true,
+-	"fatalf":  true,
+-	"fprintf": true,
+-	"logf":    true,
+-	"panicf":  true,
+-	"printf":  true,
+-	"sprintf": true,
+-}
+-
+-// isPrint records the unformatted-print functions. Names are lower-cased
+-// so the lookup is case insensitive.
++// TODO(rsc): Incorporate user-defined printf wrappers again.
++// The general plan is to allow vet of one package P to output
++// additional information to supply to later vets of packages
++// importing P. Then vet of P can record a list of printf wrappers
++// and the later vet using P.Printf will find it in the list and check it.
++// That's not ready for Go 1.10.
++// When that does happen, uncomment the user-defined printf
++// wrapper tests in testdata/print.go.
++
++// isPrint records the print functions.
++// If a key ends in 'f' then it is assumed to be a formatted print.
+ var isPrint = map[string]bool{
+-	"error":    true,
+-	"fatal":    true,
+-	"fprint":   true,
+-	"fprintln": true,
+-	"log":      true,
+-	"panic":    true,
+-	"panicln":  true,
+-	"print":    true,
+-	"println":  true,
+-	"sprint":   true,
+-	"sprintln": true,
++	"fmt.Errorf":         true,
++	"fmt.Fprint":         true,
++	"fmt.Fprintf":        true,
++	"fmt.Fprintln":       true,
++	"fmt.Print":          true,
++	"fmt.Printf":         true,
++	"fmt.Println":        true,
++	"fmt.Sprint":         true,
++	"fmt.Sprintf":        true,
++	"fmt.Sprintln":       true,
++	"log.Fatal":          true,
++	"log.Fatalf":         true,
++	"log.Fatalln":        true,
++	"log.Logger.Fatal":   true,
++	"log.Logger.Fatalf":  true,
++	"log.Logger.Fatalln": true,
++	"log.Logger.Panic":   true,
++	"log.Logger.Panicf":  true,
++	"log.Logger.Panicln": true,
++	"log.Logger.Printf":  true,
++	"log.Logger.Println": true,
++	"log.Panic":          true,
++	"log.Panicf":         true,
++	"log.Panicln":        true,
++	"log.Print":          true,
++	"log.Printf":         true,
++	"log.Println":        true,
++	"testing.B.Error":    true,
++	"testing.B.Errorf":   true,
++	"testing.B.Fatal":    true,
++	"testing.B.Fatalf":   true,
++	"testing.B.Log":      true,
++	"testing.B.Logf":     true,
++	"testing.B.Skip":     true,
++	"testing.B.Skipf":    true,
++	"testing.T.Error":    true,
++	"testing.T.Errorf":   true,
++	"testing.T.Fatal":    true,
++	"testing.T.Fatalf":   true,
++	"testing.T.Log":      true,
++	"testing.T.Logf":     true,
++	"testing.T.Skip":     true,
++	"testing.T.Skipf":    true,
++	"testing.TB.Error":   true,
++	"testing.TB.Errorf":  true,
++	"testing.TB.Fatal":   true,
++	"testing.TB.Fatalf":  true,
++	"testing.TB.Log":     true,
++	"testing.TB.Logf":    true,
++	"testing.TB.Skip":    true,
++	"testing.TB.Skipf":   true,
+ }
+ 
+ // formatString returns the format string argument and its index within
+@@ -148,6 +180,11 @@ func stringConstantArg(f *File, call *ast.CallExpr, idx int) (string, bool) {
+ 
+ // checkCall triggers the print-specific checks if the call invokes a print function.
+ func checkFmtPrintfCall(f *File, node ast.Node) {
++	if f.pkg.typesPkg == nil {
++		// This check now requires type information.
++		return
++	}
++
+ 	if d, ok := node.(*ast.FuncDecl); ok && isStringer(f, d) {
+ 		// Remember we saw this.
+ 		if f.stringers == nil {
+@@ -165,24 +202,67 @@ func checkFmtPrintfCall(f *File, node ast.Node) {
+ 	if !ok {
+ 		return
+ 	}
+-	var Name string
++
++	// Construct name like pkg.Printf or pkg.Type.Printf for lookup.
++	var name string
+ 	switch x := call.Fun.(type) {
+ 	case *ast.Ident:
+-		Name = x.Name
++		if fn, ok := f.pkg.uses[x].(*types.Func); ok {
++			var pkg string
++			if fn.Pkg() == nil || fn.Pkg() == f.pkg.typesPkg {
++				pkg = vcfg.ImportPath
++			} else {
++				pkg = fn.Pkg().Path()
++			}
++			name = pkg + "." + x.Name
++			break
++		}
++
+ 	case *ast.SelectorExpr:
+-		Name = x.Sel.Name
+-	default:
++		// Check for "fmt.Printf".
++		if id, ok := x.X.(*ast.Ident); ok {
++			if pkgName, ok := f.pkg.uses[id].(*types.PkgName); ok {
++				name = pkgName.Imported().Path() + "." + x.Sel.Name
++				break
++			}
++		}
++
++		// Check for t.Logf where t is a *testing.T.
++		if sel := f.pkg.selectors[x]; sel != nil {
++			recv := sel.Recv()
++			if p, ok := recv.(*types.Pointer); ok {
++				recv = p.Elem()
++			}
++			if named, ok := recv.(*types.Named); ok {
++				obj := named.Obj()
++				var pkg string
++				if obj.Pkg() == nil || obj.Pkg() == f.pkg.typesPkg {
++					pkg = vcfg.ImportPath
++				} else {
++					pkg = obj.Pkg().Path()
++				}
++				name = pkg + "." + obj.Name() + "." + x.Sel.Name
++				break
++			}
++		}
++	}
++	if name == "" {
+ 		return
+ 	}
+ 
+-	name := strings.ToLower(Name)
+-	if _, ok := isFormattedPrint[name]; ok {
+-		f.checkPrintf(call, Name)
+-		return
++	shortName := name[strings.LastIndex(name, ".")+1:]
++
++	_, ok = isPrint[name]
++	if !ok {
++		// Next look up just "printf", for use with -printfuncs.
++		_, ok = isPrint[strings.ToLower(shortName)]
+ 	}
+-	if _, ok := isPrint[name]; ok {
+-		f.checkPrint(call, Name)
+-		return
++	if ok {
++		if strings.HasSuffix(name, "f") {
++			f.checkPrintf(call, shortName)
++		} else {
++			f.checkPrint(call, shortName)
++		}
+ 	}
+ }
+ 
+diff --git a/src/cmd/vet/testdata/print.go b/src/cmd/vet/testdata/print.go
+index abb926abf7..55ab84fae7 100644
+--- a/src/cmd/vet/testdata/print.go
++++ b/src/cmd/vet/testdata/print.go
+@@ -4,17 +4,22 @@
+ 
+ // This file contains tests for the printf checker.
+ 
++// TODO(rsc): The user-defined wrapper tests are commented out
++// because they produced too many false positives when vet was
++// enabled during go test. See the TODO in ../print.go for a plan
++// to fix that; when it's fixed, uncomment the user-defined wrapper tests.
++
+ package testdata
+ 
+ import (
+ 	"fmt"
+-	"io"
++	. "fmt"
+ 	"math"
+ 	"os"
++	"testing"
+ 	"unsafe" // just for test case printing unsafe.Pointer
+-
+ 	// For testing printf-like functions from external package.
+-	"github.com/foobar/externalprintf"
++	// "github.com/foobar/externalprintf"
+ )
+ 
+ func UnsafePointerPrintfTest() {
+@@ -134,7 +139,7 @@ func PrintfTests() {
+ 	fmt.Printf("%t", stringerarrayv)            // ERROR "Printf format %t has arg stringerarrayv of wrong type testdata.stringerarray"
+ 	fmt.Printf("%t", notstringerarrayv)         // ERROR "Printf format %t has arg notstringerarrayv of wrong type testdata.notstringerarray"
+ 	fmt.Printf("%q", notstringerarrayv)         // ERROR "Printf format %q has arg notstringerarrayv of wrong type testdata.notstringerarray"
+-	fmt.Printf("%d", Formatter(true))           // ERROR "Printf format %d has arg Formatter\(true\) of wrong type testdata.Formatter"
++	fmt.Printf("%d", BoolFormatter(true))       // ERROR "Printf format %d has arg BoolFormatter\(true\) of wrong type testdata.BoolFormatter"
+ 	fmt.Printf("%z", FormatterVal(true))        // correct (the type is responsible for formatting)
+ 	fmt.Printf("%d", FormatterVal(true))        // correct (the type is responsible for formatting)
+ 	fmt.Printf("%s", nonemptyinterface)         // correct (the type is responsible for formatting)
+@@ -156,9 +161,9 @@ func PrintfTests() {
+ 	fmt.Printf("%*% x", 0.22)                   // ERROR "Printf format %\*% uses non-int 0.22 as argument of \*"
+ 	fmt.Printf("%q %q", multi()...)             // ok
+ 	fmt.Printf("%#q", `blah`)                   // ok
+-	printf("now is the time", "buddy")          // ERROR "printf call has arguments but no formatting directives"
+-	Printf("now is the time", "buddy")          // ERROR "Printf call has arguments but no formatting directives"
+-	Printf("hi")                                // ok
++	// printf("now is the time", "buddy")          // no error "printf call has arguments but no formatting directives"
++	Printf("now is the time", "buddy") // ERROR "Printf call has arguments but no formatting directives"
++	Printf("hi")                       // ok
+ 	const format = "%s %s\n"
+ 	Printf(format, "hi", "there")
+ 	Printf(format, "hi")              // ERROR "Printf format %s reads arg #2, but call has only 1 arg$"
+@@ -196,14 +201,10 @@ func PrintfTests() {
+ 	fmt.Println(e.Error()) // ok
+ 	// Something that looks like an error interface but isn't, such as the (*T).Error method
+ 	// in the testing package.
+-	var et1 errorTest1
+-	fmt.Println(et1.Error())        // ok
+-	fmt.Println(et1.Error("hi"))    // ok
+-	fmt.Println(et1.Error("%d", 3)) // ERROR "Error call has possible formatting directive %d"
+-	var et2 errorTest2
+-	et2.Error()        // ok
+-	et2.Error("hi")    // ok, not an error method.
+-	et2.Error("%d", 3) // ERROR "Error call has possible formatting directive %d"
++	var et1 *testing.T
++	et1.Error()        // ok
++	et1.Error("hi")    // ok
++	et1.Error("%d", 3) // ERROR "Error call has possible formatting directive %d"
+ 	var et3 errorTest3
+ 	et3.Error() // ok, not an error method.
+ 	var et4 errorTest4
+@@ -227,30 +228,30 @@ func PrintfTests() {
+ 	Printf("%p %x", recursiveSliceV, recursiveSliceV)
+ 	Printf("%p %x", recursiveMapV, recursiveMapV)
+ 	// Special handling for Log.
+-	math.Log(3)  // OK
+-	Log(3)       // OK
+-	Log("%d", 3) // ERROR "Log call has possible formatting directive %d"
+-	Logf("%d", 3)
+-	Logf("%d", "hi") // ERROR "Logf format %d has arg \x22hi\x22 of wrong type string"
++	math.Log(3) // OK
++	var t *testing.T
++	t.Log("%d", 3) // ERROR "Log call has possible formatting directive %d"
++	t.Logf("%d", 3)
++	t.Logf("%d", "hi") // ERROR "Logf format %d has arg \x22hi\x22 of wrong type string"
+ 
+-	Errorf(1, "%d", 3)    // OK
+-	Errorf(1, "%d", "hi") // ERROR "Errorf format %d has arg \x22hi\x22 of wrong type string"
++	// Errorf(1, "%d", 3)    // OK
++	// Errorf(1, "%d", "hi") // no error "Errorf format %d has arg \x22hi\x22 of wrong type string"
+ 
+ 	// Multiple string arguments before variadic args
+-	errorf("WARNING", "foobar")            // OK
+-	errorf("INFO", "s=%s, n=%d", "foo", 1) // OK
+-	errorf("ERROR", "%d")                  // ERROR "errorf format %d reads arg #1, but call has only 0 args"
++	// errorf("WARNING", "foobar")            // OK
++	// errorf("INFO", "s=%s, n=%d", "foo", 1) // OK
++	// errorf("ERROR", "%d")                  // no error "errorf format %d reads arg #1, but call has only 0 args"
+ 
+ 	// Printf from external package
+-	externalprintf.Printf("%d", 42) // OK
+-	externalprintf.Printf("foobar") // OK
+-	level := 123
+-	externalprintf.Logf(level, "%d", 42)                        // OK
+-	externalprintf.Errorf(level, level, "foo %q bar", "foobar") // OK
+-	externalprintf.Logf(level, "%d")                            // ERROR "Logf format %d reads arg #1, but call has only 0 args"
+-	var formatStr = "%s %s"
+-	externalprintf.Sprintf(formatStr, "a", "b")     // OK
+-	externalprintf.Logf(level, formatStr, "a", "b") // OK
++	// externalprintf.Printf("%d", 42) // OK
++	// externalprintf.Printf("foobar") // OK
++	// level := 123
++	// externalprintf.Logf(level, "%d", 42)                        // OK
++	// externalprintf.Errorf(level, level, "foo %q bar", "foobar") // OK
++	// externalprintf.Logf(level, "%d")                            // no error "Logf format %d reads arg #1, but call has only 0 args"
++	// var formatStr = "%s %s"
++	// externalprintf.Sprintf(formatStr, "a", "b")     // OK
++	// externalprintf.Logf(level, formatStr, "a", "b") // OK
+ 
+ 	// user-defined Println-like functions
+ 	ss := &someStruct{}
+@@ -258,10 +259,10 @@ func PrintfTests() {
+ 	ss.Error(someFunction, someFunction) // OK
+ 	ss.Println()                         // OK
+ 	ss.Println(1.234, "foo")             // OK
+-	ss.Println(1, someFunction)          // ERROR "Println arg someFunction is a func value, not called"
++	ss.Println(1, someFunction)          // no error "Println arg someFunction is a func value, not called"
+ 	ss.log(someFunction)                 // OK
+ 	ss.log(someFunction, "bar", 1.33)    // OK
+-	ss.log(someFunction, someFunction)   // ERROR "log arg someFunction is a func value, not called"
++	ss.log(someFunction, someFunction)   // no error "log arg someFunction is a func value, not called"
+ 
+ 	// indexed arguments
+ 	Printf("%d %[3]d %d %[2]d x", 1, 2, 3, 4)             // OK
+@@ -280,7 +281,7 @@ func PrintfTests() {
+ 
+ }
+ 
+-func someString() string
++func someString() string { return "X" }
+ 
+ type someStruct struct{}
+ 
+@@ -305,6 +306,7 @@ func (ss *someStruct) log(f func(), args ...interface{}) {}
+ // A function we use as a function value; it has no other purpose.
+ func someFunction() {}
+ 
++/*
+ // Printf is used by the test so we must declare it.
+ func Printf(format string, args ...interface{}) {
+ 	panic("don't call - testing only")
+@@ -324,12 +326,14 @@ func Logf(format string, args ...interface{}) {
+ func Log(args ...interface{}) {
+ 	panic("don't call - testing only")
+ }
++*/
+ 
+ // printf is used by the test so we must declare it.
+ func printf(format string, args ...interface{}) {
+ 	panic("don't call - testing only")
+ }
+ 
++/*
+ // Errorf is used by the test for a case in which the first parameter
+ // is not a format string.
+ func Errorf(i int, format string, args ...interface{}) {
+@@ -341,6 +345,7 @@ func Errorf(i int, format string, args ...interface{}) {
+ func errorf(level, format string, args ...interface{}) {
+ 	panic("don't call - testing only")
+ }
++*/
+ 
+ // multi is used by the test.
+ func multi() []interface{} {
+@@ -438,9 +443,9 @@ func (p *recursivePtrStringer) String() string {
+ 	return fmt.Sprintln(p) // ERROR "Sprintln arg p causes recursive call to String method"
+ }
+ 
+-type Formatter bool
++type BoolFormatter bool
+ 
+-func (*Formatter) Format(fmt.State, rune) {
++func (*BoolFormatter) Format(fmt.State, rune) {
+ }
+ 
+ // Formatter with value receiver
+@@ -464,27 +469,15 @@ type RecursiveStruct struct {
+ var recursiveStructV = &RecursiveStruct{}
+ 
+ type RecursiveStruct1 struct {
+-	next *Recursive2Struct
++	next *RecursiveStruct2
+ }
+ 
+ type RecursiveStruct2 struct {
+-	next *Recursive1Struct
++	next *RecursiveStruct1
+ }
+ 
+ var recursiveStruct1V = &RecursiveStruct1{}
+ 
+-// Fix for issue 7149: Missing return type on String method caused fault.
+-func (int) String() {
+-	return ""
+-}
+-
+-func (s *unknownStruct) Fprintln(w io.Writer, s string) {}
+-
+-func UnknownStructFprintln() {
+-	s := unknownStruct{}
+-	s.Fprintln(os.Stdout, "hello, world!") // OK
+-}
+-
+ // Issue 17798: unexported stringer cannot be formatted.
+ type unexportedStringer struct {
+ 	t stringer
+diff --git a/src/cmd/vet/vet_test.go b/src/cmd/vet/vet_test.go
+index 8db8ff4d20..f654d4679e 100644
+--- a/src/cmd/vet/vet_test.go
++++ b/src/cmd/vet/vet_test.go
+@@ -12,6 +12,7 @@ import (
+ 	"os/exec"
+ 	"path/filepath"
+ 	"runtime"
++	"strings"
+ 	"sync"
+ 	"testing"
+ )
+@@ -105,9 +106,17 @@ func TestVet(t *testing.T) {
+ 	}
+ 	batch := make([][]string, wide)
+ 	for i, file := range gos {
++		// TODO: Remove print.go exception once we require type checking for everything,
++		// and then delete TestVetPrint.
++		if strings.HasSuffix(file, "print.go") {
++			continue
++		}
+ 		batch[i%wide] = append(batch[i%wide], file)
+ 	}
+ 	for i, files := range batch {
++		if len(files) == 0 {
++			continue
++		}
+ 		files := files
+ 		t.Run(fmt.Sprint(i), func(t *testing.T) {
+ 			t.Parallel()
+@@ -117,6 +126,21 @@ func TestVet(t *testing.T) {
+ 	}
+ }
+ 
++func TestVetPrint(t *testing.T) {
++	Build(t)
++	errchk := filepath.Join(runtime.GOROOT(), "test", "errchk")
++	cmd := exec.Command(
++		errchk,
++		"go", "vet", "-vettool=./"+binary,
++		"-printf",
++		"-printfuncs=Warn:1,Warnf:1",
++		"testdata/print.go",
++	)
++	if !run(cmd, t) {
++		t.Fatal("vet command failed")
++	}
++}
++
+ func TestVetAsm(t *testing.T) {
+ 	Build(t)
+ 

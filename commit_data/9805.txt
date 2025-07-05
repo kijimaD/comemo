@@ -9,7 +9,7 @@ Date:   Mon Sep 26 19:35:21 2011 -0400
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5139048
-
+---
  test/chan/doubleselect.go    |  1 -
  test/chan/nonblock.go        |  1 -
  test/{cmp1.go => cmp.go}     | 40 ++++++++++++++++++++++++++++++++++++++++
@@ -25,3 +25,399 @@ Date:   Mon Sep 26 19:35:21 2011 -0400
  test/interface/returntype.go | 15 ++++++++++++++-
  test/nilptr.go               |  4 ++++
  14 files changed, 106 insertions(+), 101 deletions(-)
+
+diff --git a/test/chan/doubleselect.go b/test/chan/doubleselect.go
+index 3c7412ed6a..f8d50c90c0 100644
+--- a/test/chan/doubleselect.go
++++ b/test/chan/doubleselect.go
+@@ -82,5 +82,4 @@ func main() {
+ 	// However, the result of the bug linked to at the top is that we'll
+ 	// end up panicking with: "throw: bad g->status in ready".
+ 	recver(cmux)
+-	print("PASS\n")
+ }
+diff --git a/test/chan/nonblock.go b/test/chan/nonblock.go
+index 33afb32916..9addf12e99 100644
+--- a/test/chan/nonblock.go
++++ b/test/chan/nonblock.go
+@@ -279,5 +279,4 @@ func main() {
+ 			<-sync
+ 		}
+ 	}
+-	print("PASS\n")
+ }
+diff --git a/test/cmp1.go b/test/cmp.go
+similarity index 82%
+rename from test/cmp1.go
+rename to test/cmp.go
+index 698544c582..570487db6a 100644
+--- a/test/cmp1.go
++++ b/test/cmp.go
+@@ -127,4 +127,44 @@ func main() {
+ 		istrue(z == x)
+ 		isfalse(z == y)
+ 	}
++	
++	shouldPanic(p1)
++	shouldPanic(p2)
++	shouldPanic(p3)
++	shouldPanic(p4)
++}
++
++func p1() {
++	var a []int
++	var ia interface{} = a
++	use(ia == ia)
++}
++
++func p2() {
++	var b []int
++	var ib interface{} = b
++	use(ib == ib)
++}
++
++func p3() {
++	var a []int
++	var ia interface{} = a
++	var m = make(map[interface{}] int)
++	m[ia] = 1
++}
++
++func p4() {
++	var b []int
++	var ib interface{} = b
++	var m = make(map[interface{}] int)
++	m[ib] = 1
++}
++
++func shouldPanic(f func()) {
++	defer func() {
++		if recover() == nil {
++			panic("function should panic")
++		}
++	}()
++	f()
+ }
+diff --git a/test/cmp2.go b/test/cmp2.go
+deleted file mode 100644
+index f6f124f2e8..0000000000
+--- a/test/cmp2.go
++++ /dev/null
+@@ -1,15 +0,0 @@
+-// $G $D/$F.go && $L $F.$A && ! ./$A.out
+-
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-func use(bool) { }
+-
+-func main() {
+-	var a []int
+-	var ia interface{} = a
+-	use(ia == ia)
+-}
+diff --git a/test/cmp3.go b/test/cmp3.go
+deleted file mode 100644
+index dd90bfb03e..0000000000
+--- a/test/cmp3.go
++++ /dev/null
+@@ -1,15 +0,0 @@
+-// $G $D/$F.go && $L $F.$A && ! ./$A.out
+-
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-func use(bool) { }
+-
+-func main() {
+-	var b []int
+-	var ib interface{} = b
+-	use(ib == ib)
+-}
+diff --git a/test/cmp4.go b/test/cmp4.go
+deleted file mode 100644
+index 3f9b2c0b8b..0000000000
+--- a/test/cmp4.go
++++ /dev/null
+@@ -1,14 +0,0 @@
+-// $G $D/$F.go && $L $F.$A && ! ./$A.out
+-
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-func main() {
+-	var a []int
+-	var ia interface{} = a
+-	var m = make(map[interface{}] int)
+-	m[ia] = 1
+-}
+diff --git a/test/cmp5.go b/test/cmp5.go
+deleted file mode 100644
+index 3a7d733f02..0000000000
+--- a/test/cmp5.go
++++ /dev/null
+@@ -1,14 +0,0 @@
+-// $G $D/$F.go && $L $F.$A && ! ./$A.out
+-
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-func main() {
+-	var b []int
+-	var ib interface{} = b
+-	var m = make(map[interface{}] int)
+-	m[ib] = 1
+-}
+diff --git a/test/fixedbugs/bug093.go b/test/fixedbugs/bug093.go
+index f80eee01fa..52d92c7e3d 100644
+--- a/test/fixedbugs/bug093.go
++++ b/test/fixedbugs/bug093.go
+@@ -10,7 +10,6 @@ type S struct {
+ }
+ 
+ func (p *S) M() {
+-	print("M\n");
+ }
+ 
+ type I interface {
+diff --git a/test/fixedbugs/bug113.go b/test/fixedbugs/bug113.go
+index 4fd322d531..4ca07dc65a 100644
+--- a/test/fixedbugs/bug113.go
++++ b/test/fixedbugs/bug113.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && (! ./$A.out || echo BUG: should not succeed)
++// $G $D/$F.go && $L $F.$A && ./$A.out
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+@@ -21,8 +21,24 @@ func main() {
+ 	if foo2(v2) != 1 {
+ 		panic(2)
+ 	}
++	
++	shouldPanic(p1)
++}
++
++func p1() {
++	var i I
++	i = 1
+ 	var v3 = i.(int32) // This type conversion should fail at runtime.
+ 	if foo2(v3) != 1 {
+ 		panic(3)
+ 	}
+ }
++
++func shouldPanic(f func()) {
++	defer func() {
++		if recover() == nil {
++			panic("function should panic")
++		}
++	}()
++	f()
++}
+diff --git a/test/fixedbugs/bug148.go b/test/fixedbugs/bug148.go
+index daedff1053..251020c96f 100644
+--- a/test/fixedbugs/bug148.go
++++ b/test/fixedbugs/bug148.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ! ./$A.out || echo BUG: should crash
++// $G $D/$F.go && $L $F.$A && ./$A.out
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+@@ -8,6 +8,8 @@ package main
+ 
+ type T struct {a, b int};
+ 
++func println(x, y int) { }
++
+ func f(x interface{}) interface{} {
+ 	type T struct {a, b int};
+ 
+@@ -24,16 +26,29 @@ func main() {
+ 	inner_T := f(nil);
+ 	f(inner_T);
+ 
++	shouldPanic(p1)
++}
++
++func p1() {
+ 	outer_T := T{5, 7};
+ 	f(outer_T);
+ }
+ 
++func shouldPanic(f func()) {
++	defer func() {
++		if recover() == nil {
++			panic("function should panic")
++		}
++	}()
++	f()
++}
++
+ /*
+ This prints:
+ 
+ 2 3
+ 5 7
+ 
+-but it should crash: The type assertion on line 14 should fail
++but it should crash: The type assertion on line 18 should fail
+ for the 2nd call to f with outer_T.
+ */
+diff --git a/test/golden.out b/test/golden.out
+index 27c932f65c..f2e7f5ce30 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -1,18 +1,6 @@
+ 
+ == ./
+ 
+-=========== ./cmp2.go
+-panic: runtime error: comparing uncomparable type []int
+-
+-=========== ./cmp3.go
+-panic: runtime error: comparing uncomparable type []int
+-
+-=========== ./cmp4.go
+-panic: runtime error: hash of unhashable type []int
+-
+-=========== ./cmp5.go
+-panic: runtime error: hash of unhashable type []int
+-
+ =========== ./deferprint.go
+ printing: 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20
+ 42 true false true +1.500000e+000 world 0x0 [0/0]0x0 0x0 0x0 255
+@@ -97,20 +85,8 @@ abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz
+ 
+ == chan/
+ 
+-=========== chan/doubleselect.go
+-PASS
+-
+-=========== chan/nonblock.go
+-PASS
+-
+ == interface/
+ 
+-=========== interface/fail.go
+-panic: interface conversion: *main.S is not main.I: missing method Foo
+-
+-=========== interface/returntype.go
+-panic: interface conversion: *main.S is not main.I2: missing method Name
+-
+ == syntax/
+ 
+ == dwarf/
+@@ -139,16 +115,6 @@ inner loop top i 0
+ do break
+ broke
+ 
+-=========== fixedbugs/bug093.go
+-M
+-
+-=========== fixedbugs/bug113.go
+-panic: interface conversion: interface is int, not int32
+-
+-=========== fixedbugs/bug148.go
+-2 3
+-panic: interface conversion: interface is main.T, not main.T
+-
+ =========== fixedbugs/bug328.go
+ 0x0
+ 
+diff --git a/test/interface/fail.go b/test/interface/fail.go
+index 3e741d3f91..0c20bcf756 100644
+--- a/test/interface/fail.go
++++ b/test/interface/fail.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ! ./$A.out
++// $G $D/$F.go && $L $F.$A && ./$A.out
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+@@ -13,6 +13,10 @@ type I interface {
+ }
+ 
+ func main() {
++	shouldPanic(p1)
++}
++
++func p1() {
+ 	var s *S
+ 	var i I
+ 	var e interface {}
+@@ -21,6 +25,14 @@ func main() {
+ 	_ = i
+ }
+ 
+-// hide S down here to avoid static warning
+ type S struct {
+ }
++
++func shouldPanic(f func()) {
++	defer func() {
++		if recover() == nil {
++			panic("function should panic")
++		}
++	}()
++	f()
++}
+diff --git a/test/interface/returntype.go b/test/interface/returntype.go
+index c526b3b0ec..5cf0836178 100644
+--- a/test/interface/returntype.go
++++ b/test/interface/returntype.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && (! ./$A.out || echo BUG: should not succeed)
++// $G $D/$F.go && $L $F.$A && ./$A.out
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+@@ -18,8 +18,21 @@ type I1 interface { Name() int8 }
+ type I2 interface { Name() int64 }
+ 
+ func main() {
++	shouldPanic(p1)
++}
++
++func p1() {
+ 	var i1 I1
+ 	var s *S
+ 	i1 = s
+ 	print(i1.(I2).Name())
+ }
++
++func shouldPanic(f func()) {
++	defer func() {
++		if recover() == nil {
++			panic("function should panic")
++		}
++	}()
++	f()
++}
+diff --git a/test/nilptr.go b/test/nilptr.go
+index 41d8f23528..6cf2192047 100644
+--- a/test/nilptr.go
++++ b/test/nilptr.go
+@@ -1,5 +1,9 @@
+ // $G $D/$F.go && $L $F.$A && ./$A.out
+ 
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package main
+ 
+ import "unsafe"

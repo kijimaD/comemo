@@ -23,7 +23,44 @@ Date:   Fri May 5 13:57:22 2017 -0700
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/go/types/package.go  | 6 +-----
  src/go/types/resolver.go | 6 ++++++
  2 files changed, 7 insertions(+), 5 deletions(-)
+
+diff --git a/src/go/types/package.go b/src/go/types/package.go
+index 9828909dfa..cd202a0ed9 100644
+--- a/src/go/types/package.go
++++ b/src/go/types/package.go
+@@ -19,13 +19,9 @@ type Package struct {
+ 	fake     bool // scope lookup errors are silently dropped if package is fake (internal use only)
+ }
+ 
+-// NewPackage returns a new Package for the given package path and name;
+-// the name must not be the blank identifier.
++// NewPackage returns a new Package for the given package path and name.
+ // The package is not complete and contains no explicit imports.
+ func NewPackage(path, name string) *Package {
+-	if name == "_" {
+-		panic("invalid package name _")
+-	}
+ 	scope := NewScope(Universe, token.NoPos, token.NoPos, fmt.Sprintf("package %q", path))
+ 	return &Package{path: path, name: name, scope: scope}
+ }
+diff --git a/src/go/types/resolver.go b/src/go/types/resolver.go
+index 04389916f9..05603b3442 100644
+--- a/src/go/types/resolver.go
++++ b/src/go/types/resolver.go
+@@ -157,6 +157,12 @@ func (check *Checker) importPackage(pos token.Pos, path, dir string) *Package {
+ 				err = fmt.Errorf("Config.Importer.Import(%s) returned nil but no error", path)
+ 			}
+ 		}
++		// make sure we have a valid package name
++		// (errors here can only happen through manipulation of packages after creation)
++		if err == nil && imp != nil && (imp.name == "_" || imp.name == "") {
++			err = fmt.Errorf("invalid package name: %q", imp.name)
++			imp = nil // create fake package below
++		}
+ 		if err != nil {
+ 			check.errorf(pos, "could not import %s (%s)", path, err)
+ 			if imp == nil {

@@ -15,9 +15,89 @@ Date:   Thu Dec 19 13:00:28 2019 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/212100
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/alldocs.go                       | 5 ++++-
  src/cmd/go/internal/list/list.go            | 5 ++++-
  src/cmd/go/internal/modload/build.go        | 2 +-
  src/cmd/go/testdata/script/modfile_flag.txt | 9 +++++++++
  4 files changed, 18 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 54e7a8b5b3..f91a04fb4c 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -907,7 +907,7 @@
+ //         Main      bool         // is this the main module?
+ //         Indirect  bool         // is this module only an indirect dependency of main module?
+ //         Dir       string       // directory holding files for this module, if any
+-//         GoMod     string       // path to go.mod file for this module, if any
++//         GoMod     string       // path to go.mod file used when loading this module, if any
+ //         GoVersion string       // go version used in module
+ //         Error     *ModuleError // error loading module
+ //     }
+@@ -916,6 +916,9 @@
+ //         Err string // the error itself
+ //     }
+ //
++// The file GoMod refers to may be outside the module directory if the
++// module is in the module cache or if the -modfile flag is used.
++//
+ // The default output is to print the module path and then
+ // information about the version and replacement if any.
+ // For example, 'go list -m all' might print:
+diff --git a/src/cmd/go/internal/list/list.go b/src/cmd/go/internal/list/list.go
+index b393c67ddb..4502289646 100644
+--- a/src/cmd/go/internal/list/list.go
++++ b/src/cmd/go/internal/list/list.go
+@@ -211,7 +211,7 @@ applied to a Go struct, but now a Module struct:
+         Main      bool         // is this the main module?
+         Indirect  bool         // is this module only an indirect dependency of main module?
+         Dir       string       // directory holding files for this module, if any
+-        GoMod     string       // path to go.mod file for this module, if any
++        GoMod     string       // path to go.mod file used when loading this module, if any
+         GoVersion string       // go version used in module
+         Error     *ModuleError // error loading module
+     }
+@@ -220,6 +220,9 @@ applied to a Go struct, but now a Module struct:
+         Err string // the error itself
+     }
+ 
++The file GoMod refers to may be outside the module directory if the
++module is in the module cache or if the -modfile flag is used.
++
+ The default output is to print the module path and then
+ information about the version and replacement if any.
+ For example, 'go list -m all' might print:
+diff --git a/src/cmd/go/internal/modload/build.go b/src/cmd/go/internal/modload/build.go
+index 5a281a9304..6fa47d7400 100644
+--- a/src/cmd/go/internal/modload/build.go
++++ b/src/cmd/go/internal/modload/build.go
+@@ -112,7 +112,7 @@ func moduleInfo(m module.Version, fromBuildList bool) *modinfo.ModulePublic {
+ 		}
+ 		if HasModRoot() {
+ 			info.Dir = ModRoot()
+-			info.GoMod = filepath.Join(info.Dir, "go.mod")
++			info.GoMod = ModFilePath()
+ 			if modFile.Go != nil {
+ 				info.GoVersion = modFile.Go.Version
+ 			}
+diff --git a/src/cmd/go/testdata/script/modfile_flag.txt b/src/cmd/go/testdata/script/modfile_flag.txt
+index 1409be9599..f05bf03fbf 100644
+--- a/src/cmd/go/testdata/script/modfile_flag.txt
++++ b/src/cmd/go/testdata/script/modfile_flag.txt
+@@ -11,6 +11,15 @@ cp go.sum go.sum.orig
+ go mod init example.com/m
+ grep example.com/m go.alt.mod
+ 
++# 'go env GOMOD' should print the path to the real file.
++# 'go env' does not recognize the '-modfile' flag.
++go env GOMOD
++stdout '^\$WORK[/\\]gopath[/\\]src[/\\]go.mod$'
++
++# 'go list -m' should print the effective go.mod file as GoMod though.
++go list -m -f '{{.GoMod}}'
++stdout '^go.alt.mod$'
++
+ # go mod edit should operate on the alternate file
+ go mod edit -require rsc.io/quote@v1.5.2
+ grep rsc.io/quote go.alt.mod

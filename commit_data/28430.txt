@@ -13,6 +13,36 @@ Date:   Wed May 25 00:12:22 2016 +0600
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  doc/contribute.html | 9 ++++++---
  1 file changed, 6 insertions(+), 3 deletions(-)
+
+diff --git a/doc/contribute.html b/doc/contribute.html
+index 1cd6f37d34..bcf7b25c51 100644
+--- a/doc/contribute.html
++++ b/doc/contribute.html
+@@ -353,10 +353,13 @@ with a thorough description of your change.
+ The first line of the change description is conventionally a one-line
+ summary of the change, prefixed by the primary affected package,
+ and is used as the subject for code review mail.
+-The rest of the
+-description elaborates and should provide context for the
++It should complete the sentence "This change modifies Go to _____."
++The rest of the description elaborates and should provide context for the
+ change and explain what it does.
++Write in complete sentences with correct punctuation, just like
++for your comments in Go.
+ If there is a helpful reference, mention it here.
++If you've fixed an issue, reference it by number with a # before it.
+ </p>
+ 
+ <p>
+@@ -364,7 +367,7 @@ After editing, the template might now read:
+ </p>
+ 
+ <pre>
+-math: improved Sin, Cos and Tan precision for very large arguments
++math: improve Sin, Cos and Tan precision for very large arguments
+ 
+ The existing implementation has poor numerical properties for
+ large arguments, so use the McGillicutty algorithm to improve

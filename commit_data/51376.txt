@@ -14,6 +14,26 @@ Date:   Tue Jan 18 19:14:25 2022 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  doc/go1.18.html | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/doc/go1.18.html b/doc/go1.18.html
+index 133bfe0ef2..a43b65d0a2 100644
+--- a/doc/go1.18.html
++++ b/doc/go1.18.html
+@@ -253,10 +253,10 @@ Do not send CLs removing the interior tags from such phrases.
+   including build and tool tags (set with <code>-tags</code>), compiler,
+   assembler, and linker flags (like <code>-gcflags</code>), whether cgo was
+   enabled, and if it was, the values of the cgo environment variables
+-  (like <code>CGO_CFLAGS</code>). This information may be omitted using the
+-  flag <code>-buildinfo=false</code>. Both VCS and build information may be
+-  read together with module information using <code>go</code>
+-  <code>version</code> <code>-m</code> <code>file</code> or
++  (like <code>CGO_CFLAGS</code>).
++  Both VCS and build information may be read together with module
++  information using
++  <code>go</code> <code>version</code> <code>-m</code> <code>file</code> or
+   <code>runtime/debug.ReadBuildInfo</code> (for the currently running binary)
+   or the new <a href="#debug/buildinfo"><code>debug/buildinfo</code></a>
+   package.

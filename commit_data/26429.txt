@@ -7,6 +7,20 @@ Date:   Sat Jan 23 13:28:14 2016 +0900
     Change-Id: I2609660b10a16ec2a256fc9c8e046ba4ae67963f
     Reviewed-on: https://go-review.googlesource.com/18880
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/lookup_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/lookup_test.go b/src/net/lookup_test.go
+index de4c4bd729..439496ac81 100644
+--- a/src/net/lookup_test.go
++++ b/src/net/lookup_test.go
+@@ -466,7 +466,7 @@ func TestLookupDotsWithRemoteSource(t *testing.T) {
+ 	if testing.Short() && testenv.Builder() == "" || !*testExternal {
+ 		t.Skip("avoid external network")
+ 	}
+-	if !supportsIPv4 || *testIPv4 {
++	if !supportsIPv4 || !*testIPv4 {
+ 		t.Skip("IPv4 is required")
+ 	}
+ 

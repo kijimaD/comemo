@@ -17,6 +17,42 @@ Date:   Mon Apr 3 15:18:30 2017 +0100
     Reviewed-on: https://go-review.googlesource.com/39236
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/parser/example_test.go | 19 ++++++++++++++-----
  1 file changed, 14 insertions(+), 5 deletions(-)
+
+diff --git a/src/go/parser/example_test.go b/src/go/parser/example_test.go
+index 3c58e63a99..c2f7f293bc 100644
+--- a/src/go/parser/example_test.go
++++ b/src/go/parser/example_test.go
+@@ -13,9 +13,19 @@ import (
+ func ExampleParseFile() {
+ 	fset := token.NewFileSet() // positions are relative to fset
+ 
+-	// Parse the file containing this very example
+-	// but stop after processing the imports.
+-	f, err := parser.ParseFile(fset, "example_test.go", nil, parser.ImportsOnly)
++	src := `package foo
++
++import (
++	"fmt"
++	"time"
++)
++
++func bar() {
++	fmt.Println(time.Now())
++}`
++
++	// Parse src but stop after processing the imports.
++	f, err := parser.ParseFile(fset, "", src, parser.ImportsOnly)
+ 	if err != nil {
+ 		fmt.Println(err)
+ 		return
+@@ -29,6 +39,5 @@ func ExampleParseFile() {
+ 	// output:
+ 	//
+ 	// "fmt"
+-	// "go/parser"
+-	// "go/token"
++	// "time"
+ }

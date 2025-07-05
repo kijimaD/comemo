@@ -10,7 +10,92 @@ Date:   Tue Mar 4 09:00:45 2014 -0800
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/69870050
-
+---
  src/pkg/path/filepath/match.go      |  2 +-
  src/pkg/path/filepath/match_test.go | 54 ++++++++++++++++++++++++++++++++++++-
  2 files changed, 54 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/path/filepath/match.go b/src/pkg/path/filepath/match.go
+index 3d84145d7f..a9bcc103c5 100644
+--- a/src/pkg/path/filepath/match.go
++++ b/src/pkg/path/filepath/match.go
+@@ -230,7 +230,7 @@ func getEsc(chunk string) (r rune, nchunk string, err error) {
+ //
+ func Glob(pattern string) (matches []string, err error) {
+ 	if !hasMeta(pattern) {
+-		if _, err = os.Stat(pattern); err != nil {
++		if _, err = os.Lstat(pattern); err != nil {
+ 			return nil, nil
+ 		}
+ 		return []string{pattern}, nil
+diff --git a/src/pkg/path/filepath/match_test.go b/src/pkg/path/filepath/match_test.go
+index 13108ce1ef..daec81532d 100644
+--- a/src/pkg/path/filepath/match_test.go
++++ b/src/pkg/path/filepath/match_test.go
+@@ -2,9 +2,12 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package filepath
++package filepath_test
+ 
+ import (
++	"io/ioutil"
++	"os"
++	. "path/filepath"
+ 	"runtime"
+ 	"strings"
+ 	"testing"
+@@ -153,3 +156,52 @@ func TestGlobError(t *testing.T) {
+ 		t.Error("expected error for bad pattern; got none")
+ 	}
+ }
++
++var globSymlinkTests = []struct {
++	path, dest string
++	brokenLink bool
++}{
++	{"test1", "link1", false},
++	{"test2", "link2", true},
++}
++
++func TestGlobSymlink(t *testing.T) {
++	switch runtime.GOOS {
++	case "windows", "plan9":
++		// The tests below are Unix specific so we skip plan9, which does not
++		// support symlinks, and windows.
++		t.Skipf("skipping test on %v", runtime.GOOS)
++	}
++	tmpDir, err := ioutil.TempDir("", "globsymlink")
++	if err != nil {
++		t.Fatal("creating temp dir:", err)
++	}
++	defer os.RemoveAll(tmpDir)
++
++	for _, tt := range globSymlinkTests {
++		path := Join(tmpDir, tt.path)
++		dest := Join(tmpDir, tt.dest)
++		f, err := os.Create(path)
++		if err != nil {
++			t.Fatal(err)
++		}
++		if err := f.Close(); err != nil {
++			t.Fatal(err)
++		}
++		err = os.Symlink(path, dest)
++		if err != nil {
++			t.Fatal(err)
++		}
++		if tt.brokenLink {
++			// Break the symlink.
++			os.Remove(path)
++		}
++		matches, err := Glob(dest)
++		if err != nil {
++			t.Errorf("GlobSymlink error for %q: %s", dest, err)
++		}
++		if !contains(matches, dest) {
++			t.Errorf("Glob(%#q) = %#v want %v", dest, matches, dest)
++		}
++	}
++}

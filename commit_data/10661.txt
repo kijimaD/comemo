@@ -10,7 +10,50 @@ Date:   Wed Dec 7 23:38:32 2011 -0500
     R=ken2
     CC=golang-dev
     https://golang.org/cl/5462044
-
+---
  src/cmd/gc/go.y  | 6 +++---
  src/cmd/gc/lex.c | 2 +-
  2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index 1b00235083..075117102b 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -31,13 +31,13 @@ static void fixlbrace(int);
+ 	Type*		type;
+ 	Sym*		sym;
+ 	struct	Val	val;
+-	int		lint;
++	int		i;
+ }
+ 
+ // |sed 's/.*	//' |9 fmt -l1 |sort |9 fmt -l50 | sed 's/^/%xxx		/'
+ 
+ %token	<val>	LLITERAL
+-%token	<lint>	LASOP
++%token	<i>	LASOP
+ %token	<sym>	LBREAK LCASE LCHAN LCOLAS LCONST LCONTINUE LDDD
+ %token	<sym>	LDEFAULT LDEFER LELSE LFALL LFOR LFUNC LGO LGOTO
+ %token	<sym>	LIF LIMPORT LINTERFACE LMAP LNAME
+@@ -47,7 +47,7 @@ static void fixlbrace(int);
+ %token		LANDAND LANDNOT LBODY LCOMM LDEC LEQ LGE LGT
+ %token		LIGNORE LINC LLE LLSH LLT LNE LOROR LRSH
+ 
+-%type	<lint>	lbrace import_here
++%type	<i>	lbrace import_here
+ %type	<sym>	sym packname
+ %type	<val>	oliteral
+ 
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index cf7bbae9ed..3dbd6dda1a 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -1098,7 +1098,7 @@ lx:
+ 	return c;
+ 
+ asop:
+-	yylval.lint = c;	// rathole to hold which asop
++	yylval.i = c;	// rathole to hold which asop
+ 	DBG("lex: TOKEN ASOP %c\n", c);
+ 	return LASOP;
+ 

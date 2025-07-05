@@ -7,6 +7,49 @@ Date:   Mon Nov 17 12:55:22 2008 -0800
     R=r
     OCL=19382
     CL=19382
-
+---
  src/cmd/6g/gen.c | 10 +++++++++-
  1 file changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/6g/gen.c b/src/cmd/6g/gen.c
+index 9f5e8a83d5..c5159f9d75 100644
+--- a/src/cmd/6g/gen.c
++++ b/src/cmd/6g/gen.c
+@@ -6,6 +6,7 @@
+ #undef	EXTERN
+ #define	EXTERN
+ #include "gg.h"
++//#include "opt.h"
+ 
+ enum
+ {
+@@ -92,6 +93,11 @@ if(throwreturn == N) {
+ 	gclean();
+ 	checklabels();
+ 
++//	if(debug['N']) {
++//		regopt(ptxt);
++//		debug['N'] = 0;
++//	}
++
+ 	if(curfn->type->outtuple != 0) {
+ 		gins(ACALL, N, throwreturn);
+ 	}
+@@ -432,7 +438,7 @@ casecmp(Case *c1, Case *c2)
+ 
+ 	w = whatis(c1->scase);
+ 	if(w != whatis(c2->scase))
+-		fatal("casecmp");
++		fatal("casecmp1");
+ 
+ 	switch(w) {
+ 	case Wlitfloat:
+@@ -445,6 +451,8 @@ casecmp(Case *c1, Case *c2)
+ //	case Wlitnil:
+ 	}
+ 
++	fatal("casecmp2");
++	return 0;
+ }
+ 
+ void

@@ -12,8 +12,78 @@ Date:   Fri Jul 12 17:37:10 2013 -0400
     R=golang-dev, crawshaw
     CC=golang-dev
     https://golang.org/cl/11211045
-
+---
  doc/go1.2.txt                        |  1 +
  src/pkg/encoding/json/decode_test.go | 11 +++--------
  src/pkg/encoding/json/encode.go      | 16 +++++++++++++---
  3 files changed, 17 insertions(+), 11 deletions(-)
+
+diff --git a/doc/go1.2.txt b/doc/go1.2.txt
+index a4f946c083..079b4f762b 100644
+--- a/doc/go1.2.txt
++++ b/doc/go1.2.txt
+@@ -17,6 +17,7 @@ crypto/sha1: Sum function to simplify hashing (CL 10571043).
+ crypto/sha256: Sum256 and Sum224 functions to simplify hashing (CL 10629043).
+ crypto/sha512: Sum512 and Sum384 functions to simplify hashing (CL 10630043).
+ crypto/tls: add support for TLS 1.1. (CL 7872043).
++encoding/json: accept but correct invalid UTF-8 in Marshal (CL 11211045).
+ flag: add Getter interface (CL 10472043).
+ fmt: indexed access to arguments in Printf etc. (CL 9680043).
+ go/build: support including C++ code with cgo (CL 8248043).
+diff --git a/src/pkg/encoding/json/decode_test.go b/src/pkg/encoding/json/decode_test.go
+index 1191d6cee5..dfc688cdc4 100644
+--- a/src/pkg/encoding/json/decode_test.go
++++ b/src/pkg/encoding/json/decode_test.go
+@@ -393,15 +393,10 @@ func TestMarshal(t *testing.T) {
+ 
+ func TestMarshalBadUTF8(t *testing.T) {
+ 	s := "hello\xffworld"
++	const enc = `"hello\ufffdworld"`
+ 	b, err := Marshal(s)
+-	if err == nil {
+-		t.Fatal("Marshal bad UTF8: no error")
+-	}
+-	if len(b) != 0 {
+-		t.Fatal("Marshal returned data")
+-	}
+-	if _, ok := err.(*InvalidUTF8Error); !ok {
+-		t.Fatalf("Marshal did not return InvalidUTF8Error: %T %v", err, err)
++	if string(b) != enc || err != nil {
++		t.Errorf("Marshal(%q) = %#q, %v, want %#q, nil", s, b, err, enc)
+ 	}
+ }
+ 
+diff --git a/src/pkg/encoding/json/encode.go b/src/pkg/encoding/json/encode.go
+index 55df9b5768..7cc9398c97 100644
+--- a/src/pkg/encoding/json/encode.go
++++ b/src/pkg/encoding/json/encode.go
+@@ -209,8 +209,12 @@ func (e *UnsupportedValueError) Error() string {
+ 	return "json: unsupported value: " + e.Str
+ }
+ 
+-// An InvalidUTF8Error is returned by Marshal when attempting
+-// to encode a string value with invalid UTF-8 sequences.
++// Before Go 1.2, an InvalidUTF8Error was returned by Marshal when
++// attempting to encode a string value with invalid UTF-8 sequences.
++// As of Go 1.2, Marshal instead coerces the string to valid UTF-8 by
++// replacing invalid bytes with the Unicode replacement rune U+FFFD.
++// This error is no longer generated but is kept for backwards compatibility
++// with programs that might mention it.
+ type InvalidUTF8Error struct {
+ 	S string // the whole string value that caused the error
+ }
+@@ -555,7 +559,13 @@ func (e *encodeState) string(s string) (int, error) {
+ 		}
+ 		c, size := utf8.DecodeRuneInString(s[i:])
+ 		if c == utf8.RuneError && size == 1 {
+-			e.error(&InvalidUTF8Error{s})
++			if start < i {
++				e.WriteString(s[start:i])
++			}
++			e.WriteString(`\ufffd`)
++			i += size
++			start = i
++			continue
+ 		}
+ 		// U+2028 is LINE SEPARATOR.
+ 		// U+2029 is PARAGRAPH SEPARATOR.

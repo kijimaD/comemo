@@ -7,6 +7,59 @@ Date:   Tue Jun 15 09:07:47 2010 +1000
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1701041
-
+---
  src/pkg/html/testdata/webkit/webkit01.dat | 44 +++++++++++++++++++++++++++++++
  1 file changed, 44 insertions(+)
+
+diff --git a/src/pkg/html/testdata/webkit/webkit01.dat b/src/pkg/html/testdata/webkit/webkit01.dat
+index 5adf1bb216..544da9e8a2 100644
+--- a/src/pkg/html/testdata/webkit/webkit01.dat
++++ b/src/pkg/html/testdata/webkit/webkit01.dat
+@@ -165,3 +165,47 @@ console.log("FOO<span>BAR</span>BAZ");
+ | <html>
+ |   <head>
+ |   <body>
++
++#data
++<div FOO ><img><img></div>
++#errors
++#document
++| <html>
++|   <head>
++|   <body>
++|     <div>
++|       foo=""
++|       <img>
++|       <img>
++
++#data
++<p>Test</p<p>Test2</p>
++#errors
++#document
++| <html>
++|   <head>
++|   <body>
++|     <p>
++|       "Test"
++|       "Test2"
++
++#data
++<rdar://problem/6869687>
++#errors
++#document
++| <html>
++|   <head>
++|   <body>
++|     <rdar:>
++|       6869687=""
++|       problem=""
++
++#data
++<A>test< /A>
++#errors
++#document
++| <html>
++|   <head>
++|   <body>
++|     <a>
++|       "test< /A>"

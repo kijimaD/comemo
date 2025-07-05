@@ -49,6 +49,20 @@ Date:   Wed Jan 27 10:33:35 2021 -0500
     Run-TryBot: Katie Hockman <katie@golang.org>
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
     Trust: Katie Hockman <katie@golang.org>
-
+---
  src/math/big/nat.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/math/big/nat.go b/src/math/big/nat.go
+index 068176e1c1..bbd6c8850b 100644
+--- a/src/math/big/nat.go
++++ b/src/math/big/nat.go
+@@ -881,7 +881,7 @@ func (z nat) divRecursiveStep(u, v nat, depth int, tmp *nat, temps []*nat) {
+ 		// then floor(u1/v1) >= floor(u/v)
+ 		//
+ 		// Moreover, the difference is at most 2 if len(v1) >= len(u/v)
+-		// We choose s = B-1 since len(v)-B >= B+1 >= len(u/v)
++		// We choose s = B-1 since len(v)-s >= B+1 >= len(u/v)
+ 		s := (B - 1)
+ 		// Except for the first step, the top bits are always
+ 		// a division remainder, so the quotient length is <= n.

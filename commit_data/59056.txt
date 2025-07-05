@@ -9,8 +9,45 @@ Date:   Tue Dec 12 21:25:14 2023 -0800
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/compile/internal/rttype/rttype.go | 3 +++
  src/cmd/link/internal/ld/decodesym.go     | 2 +-
  src/internal/abi/compiletype.go           | 3 +++
  3 files changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/rttype/rttype.go b/src/cmd/compile/internal/rttype/rttype.go
+index b53ed8001f..b90e23dc5b 100644
+--- a/src/cmd/compile/internal/rttype/rttype.go
++++ b/src/cmd/compile/internal/rttype/rttype.go
+@@ -85,6 +85,9 @@ func Init() {
+ 	if got, want := int64(abi.TFlagOff(ptrSize)), Type.OffsetOf("TFlag"); got != want {
+ 		base.Fatalf("abi.TFlagOff() == %d, want %d", got, want)
+ 	}
++	if got, want := int64(abi.ITabTypeOff(ptrSize)), ITab.OffsetOf("Type"); got != want {
++		base.Fatalf("abi.ITabTypeOff() == %d, want %d", got, want)
++	}
+ }
+ 
+ // fromReflect translates from a host type to the equivalent target type.
+diff --git a/src/cmd/link/internal/ld/decodesym.go b/src/cmd/link/internal/ld/decodesym.go
+index b66f227549..aa40496492 100644
+--- a/src/cmd/link/internal/ld/decodesym.go
++++ b/src/cmd/link/internal/ld/decodesym.go
+@@ -304,5 +304,5 @@ func decodetypeGcprogShlib(ctxt *Link, data []byte) uint64 {
+ // decodeItabType returns the itab.Type field from an itab.
+ func decodeItabType(ldr *loader.Loader, arch *sys.Arch, symIdx loader.Sym) loader.Sym {
+ 	relocs := ldr.Relocs(symIdx)
+-	return decodeRelocSym(ldr, symIdx, &relocs, int32(arch.PtrSize))
++	return decodeRelocSym(ldr, symIdx, &relocs, int32(abi.ITabTypeOff(arch.PtrSize)))
+ }
+diff --git a/src/internal/abi/compiletype.go b/src/internal/abi/compiletype.go
+index 6f1a2d672c..f00a69c7cd 100644
+--- a/src/internal/abi/compiletype.go
++++ b/src/internal/abi/compiletype.go
+@@ -23,3 +23,6 @@ func UncommonSize() uint64 { return 4 + 2 + 2 + 4 + 4 }
+ 
+ // TFlagOff returns the offset of Type.TFlag for a compilation target with a given ptrSize
+ func TFlagOff(ptrSize int) int { return 2*ptrSize + 4 }
++
++// ITabTypeOff returns the offset of ITab.Type for a compilation target with a given ptrSize
++func ITabTypeOff(ptrSize int) int { return ptrSize }

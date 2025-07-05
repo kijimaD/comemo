@@ -8,9 +8,104 @@ Date:   Wed May 22 00:32:03 2013 +0800
     R=golang-dev, dave
     CC=golang-dev
     https://golang.org/cl/9416047
-
+---
  misc/cgo/testso/cgoso.go  | 10 +++++++++-
  misc/cgo/testso/test.bash | 18 +++++++++++++++---
  src/cmd/go/build.go       | 20 +++++++++++++++-----
  src/run.bash              |  1 -
  4 files changed, 39 insertions(+), 10 deletions(-)
+
+diff --git a/misc/cgo/testso/cgoso.go b/misc/cgo/testso/cgoso.go
+index 216cb1f05f..0f800afb17 100644
+--- a/misc/cgo/testso/cgoso.go
++++ b/misc/cgo/testso/cgoso.go
+@@ -5,7 +5,15 @@
+ package cgosotest
+ 
+ /*
+-#cgo LDFLAGS: -L. -lcgosotest
++// intentionally write the same LDFLAGS differently
++// to test correct handling of LDFLAGS.
++#cgo linux LDFLAGS: -L. -lcgosotest
++#cgo freebsd LDFLAGS: -L. -l cgosotest
++#cgo openbsd LDFLAGS: -L. -l cgosotest
++#cgo netbsd LDFLAGS: -L. libcgosotest.so
++#cgo darwin LDFLAGS: -L. libcgosotest.dylib
++#cgo windows LDFLAGS: -L. libcgosotest.dll
++
+ void init(void);
+ void sofunc(void);
+ */
+diff --git a/misc/cgo/testso/test.bash b/misc/cgo/testso/test.bash
+index 5f113d2162..f9fad126eb 100755
+--- a/misc/cgo/testso/test.bash
++++ b/misc/cgo/testso/test.bash
+@@ -4,7 +4,19 @@
+ # license that can be found in the LICENSE file.
+ 
+ set -e
+-$(go env CC) $(go env GOGCCFLAGS) -shared -o libcgosotest.so cgoso_c.c
++
++args=
++dyld_envvar=LD_LIBRARY_PATH
++ext=so
++if [ "$(uname)" == "Darwin" ]; then
++	args="-undefined suppress -flat_namespace"
++	dyld_envvar=DYLD_LIBRARY_PATH
++	ext=dylib
++fi
++
++dylib=libcgosotest.$ext
++$(go env CC) $(go env GOGCCFLAGS) -shared $args -o $dylib cgoso_c.c
+ go build main.go
+-LD_LIBRARY_PATH=. ./main
+-rm -f libcgosotest.so main
++
++eval "$dyld_envvar"=. ./main
++rm -rf $dylib main *.dSYM
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 025b258bf5..e1caf09f83 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -1855,14 +1855,24 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, gccfiles []string) (outGo,
+ 	var linkobj []string
+ 
+ 	var bareLDFLAGS []string
+-	// filter out -lsomelib, and -framework X if on Darwin
++	// filter out -lsomelib, -l somelib, *.{so,dll,dylib}, and (on Darwin) -framework X
+ 	for i := 0; i < len(cgoLDFLAGS); i++ {
+ 		f := cgoLDFLAGS[i]
+-		if !strings.HasPrefix(f, "-l") {
+-			if goos == "darwin" && f == "-framework" { // skip the -framework X
+-				i += 1
+-				continue
++		switch {
++		// skip "-lc" or "-l somelib"
++		case strings.HasPrefix(f, "-l"):
++			if f == "-l" {
++				i++
+ 			}
++		// skip "-framework X" on Darwin
++		case goos == "darwin" && f == "-framework":
++			i++
++		// skip "*.{dylib,so,dll}"
++		case strings.HasSuffix(f, ".dylib"),
++			strings.HasSuffix(f, ".so"),
++			strings.HasSuffix(f, ".dll"):
++			continue
++		default:
+ 			bareLDFLAGS = append(bareLDFLAGS, f)
+ 		}
+ 	}
+diff --git a/src/run.bash b/src/run.bash
+index 305ff7f417..03570ab328 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -104,7 +104,6 @@ esac
+ 
+ [ "$CGO_ENABLED" != 1 ] ||
+ [ "$GOHOSTOS" == windows ] ||
+-[ "$GOHOSTOS" == darwin ] ||
+ (xcd ../misc/cgo/testso
+ ./test.bash
+ ) || exit $?

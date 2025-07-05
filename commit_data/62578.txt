@@ -14,6 +14,20 @@ Date:   Thu Mar 13 11:57:51 2025 +0000
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/time/format.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/time/format.go b/src/time/format.go
+index da1bac5ac3..87e990d48a 100644
+--- a/src/time/format.go
++++ b/src/time/format.go
+@@ -891,7 +891,7 @@ func quote(s string) string {
+ 			if c == '"' || c == '\\' {
+ 				buf = append(buf, '\\')
+ 			}
+-			buf = append(buf, string(c)...)
++			buf = append(buf, byte(c))
+ 		}
+ 	}
+ 	buf = append(buf, '"')

@@ -9,7 +9,43 @@ Date:   Sat Nov 7 23:42:58 2009 -0800
     
     R=r, rsc
     http://go/go-review/1024019
-
+---
  doc/gccgo_contribute.html | 7 ++-----
  doc/gccgo_install.html    | 6 +++---
  2 files changed, 5 insertions(+), 8 deletions(-)
+
+diff --git a/doc/gccgo_contribute.html b/doc/gccgo_contribute.html
+index 5b6dba0032..844f676d80 100644
+--- a/doc/gccgo_contribute.html
++++ b/doc/gccgo_contribute.html
+@@ -14,11 +14,8 @@ gccgo</a>.
+ <h2>Legal Prerequisites</h2>
+ 
+ <p>
+-The <code>gccgo</code> frontend is part of the GCC compiler, and it
+-follows the <a href="http://gcc.gnu.org/contribute.html">GCC
+-contribution rules</a>.  In particular, for substantial
+-patches&mdash;more than 10 lines&mdash;you must have a copyright
+-assignment with the Free Software Foundation.
++You must follow the <a href="contribute.html#copyright">Go copyright
++rules.</a>
+ </p>
+ 
+ <h2>Code</h2>
+diff --git a/doc/gccgo_install.html b/doc/gccgo_install.html
+index b9ca4c6230..27d93e8bc7 100644
+--- a/doc/gccgo_install.html
++++ b/doc/gccgo_install.html
+@@ -3,9 +3,9 @@
+ <p>
+ This document explains how to use <code>gccgo</code>, a compiler for
+ the Go language.  The <code>gccgo</code> compiler is a new frontend
+-for <code>gcc</code>, the widely used GNU compiler.
+-Like <code>gcc</code> itself, <code>gccgo</code> is free software
+-distributed under
++for <code>gcc</code>, the widely used GNU compiler.  Although the
++frontend itself is under a BSD-style license, <code>gccgo</code> is
++normally used as part of <code>gcc</code> and is then covered by
+ the <a href="http://www.gnu.org/licenses/gpl.html">GNU General Public
+ License</a>.
+ </p>

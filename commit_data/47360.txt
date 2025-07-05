@@ -11,6 +11,20 @@ Date:   Sat Mar 13 18:00:30 2021 +0000
     Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
     Reviewed-by: Rob Pike <r@golang.org>
     Trust: Rob Pike <r@golang.org>
-
+---
  src/fmt/format.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/fmt/format.go b/src/fmt/format.go
+index 4d12f82f7d..bd00e5a5e0 100644
+--- a/src/fmt/format.go
++++ b/src/fmt/format.go
+@@ -320,7 +320,7 @@ func (f *fmt) fmtInteger(u uint64, base int, isSigned bool, verb rune, digits st
+ 	f.zero = oldZero
+ }
+ 
+-// truncate truncates the string s to the specified precision, if present.
++// truncateString truncates the string s to the specified precision, if present.
+ func (f *fmt) truncateString(s string) string {
+ 	if f.precPresent {
+ 		n := f.prec

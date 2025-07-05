@@ -9,7 +9,71 @@ Date:   Tue Apr 30 11:52:15 2013 -0700
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/9055043
-
+---
  src/pkg/syscall/exec_bsd.go   |  9 ++++++++-
  src/pkg/syscall/exec_plan9.go | 10 ++++++++--
  2 files changed, 16 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/syscall/exec_bsd.go b/src/pkg/syscall/exec_bsd.go
+index bc644d97a4..5d3d57813e 100644
+--- a/src/pkg/syscall/exec_bsd.go
++++ b/src/pkg/syscall/exec_bsd.go
+@@ -39,10 +39,18 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
+ 		i      int
+ 	)
+ 
++	// guard against side effects of shuffling fds below.
++	// Make sure that nextfd is beyond any currently open files so
++	// that we can't run the risk of overwriting any of them.
+ 	fd := make([]int, len(attr.Files))
++	nextfd = len(attr.Files)
+ 	for i, ufd := range attr.Files {
++		if nextfd < int(ufd) {
++			nextfd = int(ufd)
++		}
+ 		fd[i] = int(ufd)
+ 	}
++	nextfd++
+ 
+ 	darwin := runtime.GOOS == "darwin"
+ 
+@@ -131,7 +139,6 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
+ 
+ 	// Pass 1: look for fd[i] < i and move those up above len(fd)
+ 	// so that pass 2 won't stomp on an fd it needs later.
+-	nextfd = int(len(fd))
+ 	if pipe < nextfd {
+ 		_, _, err1 = RawSyscall(SYS_DUP2, uintptr(pipe), uintptr(nextfd), 0)
+ 		if err1 != 0 {
+diff --git a/src/pkg/syscall/exec_plan9.go b/src/pkg/syscall/exec_plan9.go
+index ebd57f3e3a..99ad2f1588 100644
+--- a/src/pkg/syscall/exec_plan9.go
++++ b/src/pkg/syscall/exec_plan9.go
+@@ -183,11 +183,18 @@ func forkAndExecInChild(argv0 *byte, argv []*byte, envv []envItem, dir *byte, at
+ 		errbuf   [ERRMAX]byte
+ 	)
+ 
+-	// guard against side effects of shuffling fds below.
++	// Guard against side effects of shuffling fds below.
++	// Make sure that nextfd is beyond any currently open files so
++	// that we can't run the risk of overwriting any of them.
+ 	fd := make([]int, len(attr.Files))
++	nextfd = len(attr.Files)
+ 	for i, ufd := range attr.Files {
++		if nextfd < int(ufd) {
++			nextfd = int(ufd)
++		}
+ 		fd[i] = int(ufd)
+ 	}
++	nextfd++
+ 
+ 	if envv != nil {
+ 		clearenv = RFCENVG
+@@ -251,7 +258,6 @@ func forkAndExecInChild(argv0 *byte, argv []*byte, envv []envItem, dir *byte, at
+ 
+ 	// Pass 1: look for fd[i] < i and move those up above len(fd)
+ 	// so that pass 2 won't stomp on an fd it needs later.
+-	nextfd = int(len(fd))
+ 	if pipe < nextfd {
+ 		r1, _, _ = RawSyscall(SYS_DUP, uintptr(pipe), uintptr(nextfd), 0)
+ 		if int32(r1) == -1 {

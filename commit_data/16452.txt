@@ -16,8 +16,57 @@ Date:   Fri May 31 13:34:57 2013 -0700
     R=golang-dev, r, daniel.morsing, minux.ma
     CC=golang-dev
     https://golang.org/cl/9874043
-
+---
  src/cmd/5g/gobj.c | 5 +++--
  src/cmd/6g/gobj.c | 5 +++--
  src/cmd/8g/gobj.c | 5 +++--
  3 files changed, 9 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/5g/gobj.c b/src/cmd/5g/gobj.c
+index 9c5fb2a962..3bdb3268a4 100644
+--- a/src/cmd/5g/gobj.c
++++ b/src/cmd/5g/gobj.c
+@@ -548,8 +548,9 @@ out:
+ 	p->from.name = D_EXTERN;
+ 	p->from.sym = newnam;
+ 	p->to.type = D_CONST2;
+-	p->reg = 7;
+-	p->to.offset2 = 0;
++	p->to.offset = 0;  // stack size
++	p->to.offset2 = rnd(method->type->argwid, widthptr);  // argument size
++	p->reg = 7;  // textflag
+ 	p->to.reg = NREG;
+ //print("1. %P\n", p);
+ 
+diff --git a/src/cmd/6g/gobj.c b/src/cmd/6g/gobj.c
+index cdbbd5d9db..c7e87f1c81 100644
+--- a/src/cmd/6g/gobj.c
++++ b/src/cmd/6g/gobj.c
+@@ -528,8 +528,9 @@ out:
+ 	p->from.type = D_EXTERN;
+ 	p->from.sym = newnam;
+ 	p->to.type = D_CONST;
+-	p->to.offset = 0;
+-	p->from.scale = 7;
++	p->to.offset = 0; // stack size
++	p->to.offset |= rnd(method->type->argwid, widthptr) << 32;  // argument size
++	p->from.scale = 7;  // textflag
+ //print("1. %P\n", p);
+ 
+ 	mov = AMOVQ;
+diff --git a/src/cmd/8g/gobj.c b/src/cmd/8g/gobj.c
+index 39717d5b1a..f695468cdf 100644
+--- a/src/cmd/8g/gobj.c
++++ b/src/cmd/8g/gobj.c
+@@ -534,8 +534,9 @@ out:
+ 	p->from.type = D_EXTERN;
+ 	p->from.sym = newnam;
+ 	p->to.type = D_CONST;
+-	p->to.offset = 0;
+-	p->from.scale = 7;
++	p->to.offset = 0;  // stack skize
++	p->to.offset2 = rnd(method->type->argwid, widthptr);  // argument size
++	p->from.scale = 7;  // textflag
+ //print("1. %P\n", p);
+ 
+ 	mov = AMOVL;

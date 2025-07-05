@@ -16,6 +16,44 @@ Date:   Tue Jan 12 21:24:49 2016 -0800
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/build.go | 13 +++++++++++--
  1 file changed, 11 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index ee20a89d86..825fdac5b8 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -999,13 +999,22 @@ func (b *builder) action1(mode buildMode, depMode buildMode, p *Package, looksha
+ 
+ 		// Install header for cgo in c-archive and c-shared modes.
+ 		if p.usesCgo() && (buildBuildmode == "c-archive" || buildBuildmode == "c-shared") {
++			hdrTarget := a.target[:len(a.target)-len(filepath.Ext(a.target))] + ".h"
++			if buildContext.Compiler == "gccgo" {
++				// For the header file, remove the "lib"
++				// added by go/build, so we generate pkg.h
++				// rather than libpkg.h.
++				dir, file := filepath.Split(hdrTarget)
++				file = strings.TrimPrefix(file, "lib")
++				hdrTarget = filepath.Join(dir, file)
++			}
+ 			ah := &action{
+ 				p:      a.p,
+ 				deps:   []*action{a.deps[0]},
+ 				f:      (*builder).installHeader,
+ 				pkgdir: a.pkgdir,
+ 				objdir: a.objdir,
+-				target: a.target[:len(a.target)-len(filepath.Ext(a.target))] + ".h",
++				target: hdrTarget,
+ 			}
+ 			a.deps = append(a.deps, ah)
+ 		}
+@@ -2722,7 +2731,7 @@ func (tools gccgoToolchain) ld(b *builder, root *action, out string, allactions
+ 		out = out + ".o"
+ 
+ 	case "c-shared":
+-		ldflags = append(ldflags, "-shared", "-nostdlib", "-Wl,--whole-archive", "-lgolibbegin", "-Wl,--no-whole-archive", "-lgo", "-lgcc_s", "-lgcc")
++		ldflags = append(ldflags, "-shared", "-nostdlib", "-Wl,--whole-archive", "-lgolibbegin", "-Wl,--no-whole-archive", "-lgo", "-lgcc_s", "-lgcc", "-lc", "-lgcc")
+ 
+ 	default:
+ 		fatalf("-buildmode=%s not supported for gccgo", ldBuildmode)

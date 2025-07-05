@@ -16,9 +16,84 @@ Date:   Wed Oct 14 08:14:44 2020 -0400
     Trust: Than McIntosh <thanm@google.com>
     Reviewed-by: Austin Clements <austin@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/go.mod                                                 |  2 +-
  src/cmd/go.sum                                                 |  4 ++--
  .../golang.org/x/tools/go/analysis/passes/asmdecl/asmdecl.go   | 10 ++++++++++
  src/cmd/vendor/modules.txt                                     |  2 +-
  4 files changed, 14 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index 47165c2d66..04b5c2ee53 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -9,5 +9,5 @@ require (
+ 	golang.org/x/crypto v0.0.0-20200820211705-5c72a883971a
+ 	golang.org/x/mod v0.3.1-0.20200828183125-ce943fd02449
+ 	golang.org/x/sys v0.0.0-20200923182605-d9f96fdee20d // indirect
+-	golang.org/x/tools v0.0.0-20201013174405-d88ec18c69c7
++	golang.org/x/tools v0.0.0-20201014170642-d1624618ad65
+ )
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index 1cf0ab778b..10ea050279 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -30,8 +30,8 @@ golang.org/x/sys v0.0.0-20200923182605-d9f96fdee20d h1:L/IKR6COd7ubZrs2oTnTi73Ih
+ golang.org/x/sys v0.0.0-20200923182605-d9f96fdee20d/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+ golang.org/x/text v0.3.0/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
+ golang.org/x/tools v0.0.0-20191119224855-298f0cb1881e/go.mod h1:b+2E5dAYhXwXZwtnZ6UAqBI28+e2cm9otk0dWdXHAEo=
+-golang.org/x/tools v0.0.0-20201013174405-d88ec18c69c7 h1:z+ozLsKwDztt1oIueYsv07oF+mXNYIiwU0PQVXwmhlo=
+-golang.org/x/tools v0.0.0-20201013174405-d88ec18c69c7/go.mod h1:z6u4i615ZeAfBE4XtMziQW1fSVJXACjjbWkB/mvPzlU=
++golang.org/x/tools v0.0.0-20201014170642-d1624618ad65 h1:q80OtYaeeySe8Kqg0vjXehHwj5fUTqe3xOvnbi5w3Gg=
++golang.org/x/tools v0.0.0-20201014170642-d1624618ad65/go.mod h1:z6u4i615ZeAfBE4XtMziQW1fSVJXACjjbWkB/mvPzlU=
+ golang.org/x/xerrors v0.0.0-20190717185122-a985d3407aa7/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
+ golang.org/x/xerrors v0.0.0-20191011141410-1b5146add898/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
+ golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 h1:go1bK/D/BFZV2I8cIQd1NKEZ+0owSTG1fDTci4IqFcE=
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/asmdecl/asmdecl.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/asmdecl/asmdecl.go
+index e6bfe71539..d63855befd 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/asmdecl/asmdecl.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/asmdecl/asmdecl.go
+@@ -137,6 +137,7 @@ var (
+ 	asmSP        = re(`[^+\-0-9](([0-9]+)\(([A-Z0-9]+)\))`)
+ 	asmOpcode    = re(`^\s*(?:[A-Z0-9a-z_]+:)?\s*([A-Z]+)\s*([^,]*)(?:,\s*(.*))?`)
+ 	ppc64Suff    = re(`([BHWD])(ZU|Z|U|BR)?$`)
++	abiSuff      = re(`^(.+)<ABI.+>$`)
+ )
+ 
+ func run(pass *analysis.Pass) (interface{}, error) {
+@@ -200,6 +201,13 @@ Files:
+ 			}
+ 			retLine = nil
+ 		}
++		trimABI := func(fnName string) string {
++			m := abiSuff.FindStringSubmatch(fnName)
++			if m != nil {
++				return m[1]
++			}
++			return fnName
++		}
+ 		for lineno, line := range lines {
+ 			lineno++
+ 
+@@ -268,6 +276,8 @@ Files:
+ 						continue
+ 					}
+ 				}
++				// Trim off optional ABI selector.
++				fnName := trimABI(fnName)
+ 				flag := m[3]
+ 				fn = knownFunc[fnName][arch]
+ 				if fn != nil {
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index e37cab806a..165b834522 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -45,7 +45,7 @@ golang.org/x/mod/zip
+ golang.org/x/sys/internal/unsafeheader
+ golang.org/x/sys/unix
+ golang.org/x/sys/windows
+-# golang.org/x/tools v0.0.0-20201013174405-d88ec18c69c7
++# golang.org/x/tools v0.0.0-20201014170642-d1624618ad65
+ ## explicit
+ golang.org/x/tools/go/analysis
+ golang.org/x/tools/go/analysis/internal/analysisflags

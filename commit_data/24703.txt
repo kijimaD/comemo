@@ -85,10 +85,202 @@ Date:   Sun Aug 23 20:29:43 2015 -0700
     Change-Id: I43474fe6d6ec22a9f57239090136f6e97eebfdf2
     Reviewed-on: https://go-review.googlesource.com/13848
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go        | 14 +++++++-------
  src/cmd/compile/internal/gc/type.go       |  4 ++++
  src/cmd/compile/internal/ssa/lower.go     |  6 +++++-
  src/cmd/compile/internal/ssa/type.go      | 32 ++++++++++++++++---------------
  src/cmd/compile/internal/ssa/type_test.go | 31 +++++++++++++++---------------
  5 files changed, 49 insertions(+), 38 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index a7349a8f1f..0f0610e139 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -100,7 +100,7 @@ func buildssa(fn *Node) (ssafn *ssa.Func, usessa bool) {
+ 			if n.Class&PHEAP != 0 {
+ 				str = ",heap"
+ 			}
+-			s.Unimplementedf("local variable %v with class %s%s unimplemented", n, classnames[n.Class&^PHEAP], str)
++			s.Unimplementedf("local variable with class %s%s unimplemented", classnames[n.Class&^PHEAP], str)
+ 		}
+ 	}
+ 	// nodfp is a special argument which is the function's FP.
+@@ -936,7 +936,7 @@ func (s *state) ssaOp(op uint8, t *Type) ssa.Op {
+ 	etype := s.concreteEtype(t)
+ 	x, ok := opToSSA[opAndType{op, etype}]
+ 	if !ok {
+-		s.Unimplementedf("unhandled binary op %s etype=%s", opnames[op], Econv(int(etype), 0))
++		s.Unimplementedf("unhandled binary op %s %s", opnames[op], Econv(int(etype), 0))
+ 	}
+ 	return x
+ }
+@@ -1110,7 +1110,7 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 		to := n.Type
+ 		from := n.Left.Type
+ 		if to.Etype == TFUNC {
+-			s.Unimplementedf("CONVNOP closure %v -> %v", n.Type, n.Left.Type)
++			s.Unimplementedf("CONVNOP closure")
+ 			return nil
+ 		}
+ 
+@@ -1217,7 +1217,7 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 			}
+ 			return s.newValue1(op, n.Type, x)
+ 		}
+-		s.Unimplementedf("unhandled OCONV %s -> %s", n.Left.Type, n.Type)
++		s.Unimplementedf("unhandled OCONV %s -> %s", Econv(int(n.Left.Type.Etype), 0), Econv(int(n.Type.Etype), 0))
+ 		return nil
+ 
+ 	// binary ops
+@@ -1546,7 +1546,7 @@ func (s *state) addr(n *Node) *ssa.Value {
+ 		case PAUTO | PHEAP:
+ 			return s.expr(n.Name.Heapaddr)
+ 		default:
+-			s.Unimplementedf("variable address of %v not implemented", n)
++			s.Unimplementedf("variable address class %v not implemented", n.Class)
+ 			return nil
+ 		}
+ 	case OINDREG:
+@@ -1590,7 +1590,7 @@ func (s *state) addr(n *Node) *ssa.Value {
+ 		s.nilCheck(p)
+ 		return s.newValue2(ssa.OpAddPtr, p.Type, p, s.constIntPtr(Types[TUINTPTR], n.Xoffset))
+ 	default:
+-		s.Unimplementedf("addr: bad op %v", Oconv(int(n.Op), 0))
++		s.Unimplementedf("unhandled addr %v", Oconv(int(n.Op), 0))
+ 		return nil
+ 	}
+ }
+@@ -1814,7 +1814,7 @@ func (s *state) lookupVarIncoming(b *ssa.Block, t ssa.Type, name *Node) *ssa.Val
+ 		addr := s.decladdrs[name]
+ 		if addr == nil {
+ 			// TODO: closure args reach here.
+-			s.Unimplementedf("variable %s not found", name)
++			s.Unimplementedf("unhandled closure arg")
+ 		}
+ 		if _, ok := addr.Aux.(*ssa.ArgSymbol); !ok {
+ 			s.Fatalf("variable live at start of function %s is not an argument %s", b.Func.Name, name)
+diff --git a/src/cmd/compile/internal/gc/type.go b/src/cmd/compile/internal/gc/type.go
+index 697152bebd..e2d8925839 100644
+--- a/src/cmd/compile/internal/gc/type.go
++++ b/src/cmd/compile/internal/gc/type.go
+@@ -23,6 +23,10 @@ func (t *Type) Alignment() int64 {
+ 	return int64(t.Align)
+ }
+ 
++func (t *Type) SimpleString() string {
++	return Econv(int(t.Etype), 0)
++}
++
+ func (t *Type) Equal(u ssa.Type) bool {
+ 	x, ok := u.(*Type)
+ 	if !ok {
+diff --git a/src/cmd/compile/internal/ssa/lower.go b/src/cmd/compile/internal/ssa/lower.go
+index 56ee062b92..3dac264fac 100644
+--- a/src/cmd/compile/internal/ssa/lower.go
++++ b/src/cmd/compile/internal/ssa/lower.go
+@@ -24,7 +24,11 @@ func checkLower(f *Func) {
+ 			case OpSP, OpSB, OpArg, OpCopy, OpPhi:
+ 				continue // ok not to lower
+ 			}
+-			f.Unimplementedf("%s not lowered", v.LongString())
++			s := "not lowered: " + v.Op.String() + " " + v.Type.SimpleString()
++			for _, a := range v.Args {
++				s += " " + a.Type.SimpleString()
++			}
++			f.Unimplementedf("%s", s)
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/ssa/type.go b/src/cmd/compile/internal/ssa/type.go
+index c6cc889420..15dbddd1fc 100644
+--- a/src/cmd/compile/internal/ssa/type.go
++++ b/src/cmd/compile/internal/ssa/type.go
+@@ -28,6 +28,7 @@ type Type interface {
+ 	PtrTo() Type // given T, return *T
+ 
+ 	String() string
++	SimpleString() string // a coarser generic description of T, e.g. T's underlying type
+ 	Equal(Type) bool
+ }
+ 
+@@ -38,21 +39,22 @@ type CompilerType struct {
+ 	Flags  bool
+ }
+ 
+-func (t *CompilerType) Size() int64       { return 0 }
+-func (t *CompilerType) Alignment() int64  { return 0 }
+-func (t *CompilerType) IsBoolean() bool   { return false }
+-func (t *CompilerType) IsInteger() bool   { return false }
+-func (t *CompilerType) IsSigned() bool    { return false }
+-func (t *CompilerType) IsFloat() bool     { return false }
+-func (t *CompilerType) IsPtr() bool       { return false }
+-func (t *CompilerType) IsString() bool    { return false }
+-func (t *CompilerType) IsSlice() bool     { return false }
+-func (t *CompilerType) IsInterface() bool { return false }
+-func (t *CompilerType) IsMemory() bool    { return t.Memory }
+-func (t *CompilerType) IsFlags() bool     { return t.Flags }
+-func (t *CompilerType) String() string    { return t.Name }
+-func (t *CompilerType) Elem() Type        { panic("not implemented") }
+-func (t *CompilerType) PtrTo() Type       { panic("not implemented") }
++func (t *CompilerType) Size() int64          { return 0 }
++func (t *CompilerType) Alignment() int64     { return 0 }
++func (t *CompilerType) IsBoolean() bool      { return false }
++func (t *CompilerType) IsInteger() bool      { return false }
++func (t *CompilerType) IsSigned() bool       { return false }
++func (t *CompilerType) IsFloat() bool        { return false }
++func (t *CompilerType) IsPtr() bool          { return false }
++func (t *CompilerType) IsString() bool       { return false }
++func (t *CompilerType) IsSlice() bool        { return false }
++func (t *CompilerType) IsInterface() bool    { return false }
++func (t *CompilerType) IsMemory() bool       { return t.Memory }
++func (t *CompilerType) IsFlags() bool        { return t.Flags }
++func (t *CompilerType) String() string       { return t.Name }
++func (t *CompilerType) SimpleString() string { return t.Name }
++func (t *CompilerType) Elem() Type           { panic("not implemented") }
++func (t *CompilerType) PtrTo() Type          { panic("not implemented") }
+ 
+ func (t *CompilerType) Equal(u Type) bool {
+ 	x, ok := u.(*CompilerType)
+diff --git a/src/cmd/compile/internal/ssa/type_test.go b/src/cmd/compile/internal/ssa/type_test.go
+index 3dfa5f7c0b..5f0413c397 100644
+--- a/src/cmd/compile/internal/ssa/type_test.go
++++ b/src/cmd/compile/internal/ssa/type_test.go
+@@ -21,21 +21,22 @@ type TypeImpl struct {
+ 	Name string
+ }
+ 
+-func (t *TypeImpl) Size() int64       { return t.Size_ }
+-func (t *TypeImpl) Alignment() int64  { return t.Align }
+-func (t *TypeImpl) IsBoolean() bool   { return t.Boolean }
+-func (t *TypeImpl) IsInteger() bool   { return t.Integer }
+-func (t *TypeImpl) IsSigned() bool    { return t.Signed }
+-func (t *TypeImpl) IsFloat() bool     { return t.Float }
+-func (t *TypeImpl) IsPtr() bool       { return t.Ptr }
+-func (t *TypeImpl) IsString() bool    { return t.string }
+-func (t *TypeImpl) IsSlice() bool     { return t.slice }
+-func (t *TypeImpl) IsInterface() bool { return t.inter }
+-func (t *TypeImpl) IsMemory() bool    { return false }
+-func (t *TypeImpl) IsFlags() bool     { return false }
+-func (t *TypeImpl) String() string    { return t.Name }
+-func (t *TypeImpl) Elem() Type        { return t.Elem_ }
+-func (t *TypeImpl) PtrTo() Type       { panic("not implemented") }
++func (t *TypeImpl) Size() int64          { return t.Size_ }
++func (t *TypeImpl) Alignment() int64     { return t.Align }
++func (t *TypeImpl) IsBoolean() bool      { return t.Boolean }
++func (t *TypeImpl) IsInteger() bool      { return t.Integer }
++func (t *TypeImpl) IsSigned() bool       { return t.Signed }
++func (t *TypeImpl) IsFloat() bool        { return t.Float }
++func (t *TypeImpl) IsPtr() bool          { return t.Ptr }
++func (t *TypeImpl) IsString() bool       { return t.string }
++func (t *TypeImpl) IsSlice() bool        { return t.slice }
++func (t *TypeImpl) IsInterface() bool    { return t.inter }
++func (t *TypeImpl) IsMemory() bool       { return false }
++func (t *TypeImpl) IsFlags() bool        { return false }
++func (t *TypeImpl) String() string       { return t.Name }
++func (t *TypeImpl) SimpleString() string { return t.Name }
++func (t *TypeImpl) Elem() Type           { return t.Elem_ }
++func (t *TypeImpl) PtrTo() Type          { panic("not implemented") }
+ 
+ func (t *TypeImpl) Equal(u Type) bool {
+ 	x, ok := u.(*TypeImpl)

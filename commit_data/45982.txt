@@ -10,7 +10,40 @@ Date:   Tue Dec 1 16:07:00 2020 -0800
     Reviewed-by: Robert Findley <rfindley@google.com>
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/types2/typexpr.go | 6 +++++-
  test/typeparam/tparam1.go                  | 4 ++--
  2 files changed, 7 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/typexpr.go b/src/cmd/compile/internal/types2/typexpr.go
+index 0c27e5e04b..2d568b7e87 100644
+--- a/src/cmd/compile/internal/types2/typexpr.go
++++ b/src/cmd/compile/internal/types2/typexpr.go
+@@ -32,7 +32,11 @@ func (check *Checker) ident(x *operand, e *syntax.Name, def *Named, wantType boo
+ 		if e.Value == "_" {
+ 			check.errorf(e, "cannot use _ as value or type")
+ 		} else {
+-			check.errorf(e, "undeclared name: %s", e.Value)
++			if check.conf.CompilerErrorMessages {
++				check.errorf(e, "undefined: %s", e.Value)
++			} else {
++				check.errorf(e, "undeclared name: %s", e.Value)
++			}
+ 		}
+ 		return
+ 	}
+diff --git a/test/typeparam/tparam1.go b/test/typeparam/tparam1.go
+index 5d6dcb6a62..7043933326 100644
+--- a/test/typeparam/tparam1.go
++++ b/test/typeparam/tparam1.go
+@@ -10,8 +10,8 @@ package tparam1
+ 
+ // The predeclared identifier "any" is only visible as a constraint
+ // in a type parameter list.
+-var _ any // ERROR "undeclared"
+-func _(_ any) // ERROR "undeclared"
++var _ any // ERROR "undefined"
++func _(_ any) // ERROR "undefined"
+ type _[_ any /* ok here */ ] struct{}
+ 
+ const N = 10

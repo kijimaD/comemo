@@ -10,7 +10,59 @@ Date:   Tue Sep 30 11:49:15 2014 -0700
     R=rsc
     CC=golang-codereviews
     https://golang.org/cl/153770043
-
+---
  src/encoding/asn1/asn1.go      | 12 ++++++++----
  src/encoding/asn1/asn1_test.go |  5 +++++
  2 files changed, 13 insertions(+), 4 deletions(-)
+
+diff --git a/src/encoding/asn1/asn1.go b/src/encoding/asn1/asn1.go
+index b06aec3e40..3aeb3dcc4b 100644
+--- a/src/encoding/asn1/asn1.go
++++ b/src/encoding/asn1/asn1.go
+@@ -640,15 +640,19 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
+ 	// when it sees a string, so if we see a different string type on the
+ 	// wire, we change the universal type to match.
+ 	if universalTag == tagPrintableString {
+-		switch t.tag {
+-		case tagIA5String, tagGeneralString, tagT61String, tagUTF8String:
+-			universalTag = t.tag
++		if params.tag == nil {
++			switch t.tag {
++			case tagIA5String, tagGeneralString, tagT61String, tagUTF8String:
++				universalTag = t.tag
++			}
++		} else if params.stringType != 0 {
++			universalTag = params.stringType
+ 		}
+ 	}
+ 
+ 	// Special case for time: UTCTime and GeneralizedTime both map to the
+ 	// Go type time.Time.
+-	if universalTag == tagUTCTime && t.tag == tagGeneralizedTime {
++	if universalTag == tagUTCTime && params.tag == nil && t.tag == tagGeneralizedTime {
+ 		universalTag = tagGeneralizedTime
+ 	}
+ 
+diff --git a/src/encoding/asn1/asn1_test.go b/src/encoding/asn1/asn1_test.go
+index b553f78e0a..b94d59d369 100644
+--- a/src/encoding/asn1/asn1_test.go
++++ b/src/encoding/asn1/asn1_test.go
+@@ -392,6 +392,10 @@ type TestContextSpecificTags2 struct {
+ 	B int
+ }
+ 
++type TestContextSpecificTags3 struct {
++	S string `asn1:"tag:1,utf8"`
++}
++
+ type TestElementsAfterString struct {
+ 	S    string
+ 	A, B int
+@@ -420,6 +424,7 @@ var unmarshalTestData = []struct {
+ 	{[]byte{0x04, 0x04, 1, 2, 3, 4}, &RawValue{0, 4, false, []byte{1, 2, 3, 4}, []byte{4, 4, 1, 2, 3, 4}}},
+ 	{[]byte{0x30, 0x03, 0x81, 0x01, 0x01}, &TestContextSpecificTags{1}},
+ 	{[]byte{0x30, 0x08, 0xa1, 0x03, 0x02, 0x01, 0x01, 0x02, 0x01, 0x02}, &TestContextSpecificTags2{1, 2}},
++	{[]byte{0x30, 0x03, 0x81, 0x01, '@'}, &TestContextSpecificTags3{"@"}},
+ 	{[]byte{0x01, 0x01, 0x00}, newBool(false)},
+ 	{[]byte{0x01, 0x01, 0xff}, newBool(true)},
+ 	{[]byte{0x30, 0x0b, 0x13, 0x03, 0x66, 0x6f, 0x6f, 0x02, 0x01, 0x22, 0x02, 0x01, 0x33}, &TestElementsAfterString{"foo", 0x22, 0x33}},

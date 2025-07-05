@@ -12,7 +12,51 @@ Date:   Fri Jan 30 17:10:10 2009 -0800
     DELTA=7  (5 added, 2 deleted, 0 changed)
     OCL=23991
     CL=23994
-
+---
  src/cmd/6l/obj.c  | 3 +++
  src/cmd/6l/span.c | 4 ++--
  2 files changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/6l/obj.c b/src/cmd/6l/obj.c
+index 076809aa2f..a23e030f59 100644
+--- a/src/cmd/6l/obj.c
++++ b/src/cmd/6l/obj.c
+@@ -757,6 +757,7 @@ addhist(int32 line, int type)
+ 	u->link = curhist;
+ 	curhist = u;
+ 
++	s->name[0] = 0;
+ 	j = 1;
+ 	for(i=0; i<histfrogp; i++) {
+ 		k = histfrog[i]->value;
+@@ -764,6 +765,8 @@ addhist(int32 line, int type)
+ 		s->name[j+1] = k;
+ 		j += 2;
+ 	}
++	s->name[j] = 0;
++	s->name[j+1] = 0;
+ }
+ 
+ void
+diff --git a/src/cmd/6l/span.c b/src/cmd/6l/span.c
+index 8ac0543a88..fea4979e42 100644
+--- a/src/cmd/6l/span.c
++++ b/src/cmd/6l/span.c
+@@ -240,8 +240,6 @@ asmsym(void)
+ 
+ 	for(p=textp; p!=P; p=p->pcond) {
+ 		s = p->from.sym;
+-		if(s->type != STEXT)
+-			continue;
+ 
+ 		/* filenames first */
+ 		for(a=p->to.autom; a; a=a->link)
+@@ -251,6 +249,8 @@ asmsym(void)
+ 			if(a->type == D_FILE1)
+ 				putsymb(a->asym->name, 'Z', a->aoffset, 0, nil);
+ 
++		if(s->type != STEXT)
++			continue;
+ 		putsymb(s->name, 'T', s->value, s->version, gotypefor(s->name));
+ 
+ 		/* frame, auto and param after */

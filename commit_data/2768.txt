@@ -8,6 +8,20 @@ Date:   Tue Jul 21 14:06:14 2009 -0700
     DELTA=1  (0 added, 0 deleted, 1 changed)
     OCL=31916
     CL=31937
-
+---
  src/pkg/reflect/all_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/reflect/all_test.go b/src/pkg/reflect/all_test.go
+index 83bc6a92f1..89e429ec2e 100644
+--- a/src/pkg/reflect/all_test.go
++++ b/src/pkg/reflect/all_test.go
+@@ -226,7 +226,7 @@ func TestAll(t *testing.T) {	// TODO(r): wrap up better
+ 		t.Errorf("FieldByName says absent field is present");
+ 	}
+ 
+-	typ = Typeof(([32]int32)(nil));
++	typ = Typeof([32]int32{});
+ 	testType(t, 7, typ, "[32]int32");
+ 	testType(t, 8, typ.(*ArrayType).Elem(), "int32");
+ 

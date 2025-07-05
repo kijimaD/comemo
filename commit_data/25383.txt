@@ -11,7 +11,54 @@ Date:   Fri Oct 23 14:08:50 2015 -0700
     Reviewed-on: https://go-review.googlesource.com/16281
     Run-TryBot: Keith Randall <khr@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/ssa/gen/generic.rules |  3 +++
  src/cmd/compile/internal/ssa/rewritegeneric.go | 24 ++++++++++++++++++++++++
  2 files changed, 27 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index 42eec3dd75..4dd7ac586a 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -185,3 +185,6 @@
+ (If (Not cond) yes no) -> (If cond no yes)
+ (If (ConstBool [c]) yes no) && c == 1 -> (First nil yes no)
+ (If (ConstBool [c]) yes no) && c == 0 -> (First nil no yes)
++
++// Get rid of Convert ops for pointer arithmetic on unsafe.Pointer.
++(Convert (Add64 (Convert ptr) off)) -> (Add64 ptr off)
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index 7f9c855948..91427e2f2a 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -354,6 +354,30 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
+ 		goto end2eb756398dd4c6b6d126012a26284c89
+ 	end2eb756398dd4c6b6d126012a26284c89:
+ 		;
++	case OpConvert:
++		// match: (Convert (Add64 (Convert ptr) off))
++		// cond:
++		// result: (Add64 ptr off)
++		{
++			if v.Args[0].Op != OpAdd64 {
++				goto end913a7ecf456c00ffbee36c2dbbf0e1af
++			}
++			if v.Args[0].Args[0].Op != OpConvert {
++				goto end913a7ecf456c00ffbee36c2dbbf0e1af
++			}
++			ptr := v.Args[0].Args[0].Args[0]
++			off := v.Args[0].Args[1]
++			v.Op = OpAdd64
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AddArg(ptr)
++			v.AddArg(off)
++			return true
++		}
++		goto end913a7ecf456c00ffbee36c2dbbf0e1af
++	end913a7ecf456c00ffbee36c2dbbf0e1af:
++		;
+ 	case OpEq16:
+ 		// match: (Eq16 x x)
+ 		// cond:

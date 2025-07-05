@@ -23,7 +23,7 @@ Date:   Mon Aug 5 19:49:02 2013 -0400
     R=golang-dev, bradfitz, r
     CC=golang-dev
     https://golang.org/cl/12429045
-
+---
  src/pkg/runtime/cpuprof.c           |  2 +-
  src/pkg/runtime/lock_futex.c        | 13 ------
  src/pkg/runtime/lock_sema.c         | 13 ------
@@ -40,3 +40,490 @@ Date:   Mon Aug 5 19:49:02 2013 -0400
  src/pkg/runtime/runtime.h           | 10 -----
  src/pkg/runtime/signal_unix.c       |  2 -
  15 files changed, 68 insertions(+), 136 deletions(-)
+
+diff --git a/src/pkg/runtime/cpuprof.c b/src/pkg/runtime/cpuprof.c
+index ef3077339a..8117c9732a 100644
+--- a/src/pkg/runtime/cpuprof.c
++++ b/src/pkg/runtime/cpuprof.c
+@@ -331,7 +331,7 @@ getprofile(Profile *p)
+ 
+ 	if(p->wholding) {
+ 		// Release previous log to signal handling side.
+-		// Loop because we are racing against setprofile(off).
++		// Loop because we are racing against SetCPUProfileRate(0).
+ 		for(;;) {
+ 			n = p->handoff;
+ 			if(n == 0) {
+diff --git a/src/pkg/runtime/lock_futex.c b/src/pkg/runtime/lock_futex.c
+index bb40b92559..42f37348a5 100644
+--- a/src/pkg/runtime/lock_futex.c
++++ b/src/pkg/runtime/lock_futex.c
+@@ -83,11 +83,7 @@ runtime·lock(Lock *l)
+ 		if(v == MUTEX_UNLOCKED)
+ 			return;
+ 		wait = MUTEX_SLEEPING;
+-		if(m->profilehz > 0)
+-			runtime·setprof(false);
+ 		runtime·futexsleep((uint32*)&l->key, MUTEX_SLEEPING, -1);
+-		if(m->profilehz > 0)
+-			runtime·setprof(true);
+ 	}
+ }
+ 
+@@ -133,12 +129,8 @@ runtime·notesleep(Note *n)
+ {
+ 	if(g != m->g0)
+ 		runtime·throw("notesleep not on g0");
+-	if(m->profilehz > 0)
+-		runtime·setprof(false);
+ 	while(runtime·atomicload((uint32*)&n->key) == 0)
+ 		runtime·futexsleep((uint32*)&n->key, 0, -1);
+-	if(m->profilehz > 0)
+-		runtime·setprof(true);
+ }
+ 
+ #pragma textflag 7
+@@ -179,16 +171,11 @@ runtime·notetsleep(Note *n, int64 ns)
+ 	if(g != m->g0 && !m->gcing)
+ 		runtime·throw("notetsleep not on g0");
+ 
+-	if(m->profilehz > 0)
+-		runtime·setprof(false);
+ 	res = notetsleep(n, ns, 0, 0);
+-	if(m->profilehz > 0)
+-		runtime·setprof(true);
+ 	return res;
+ }
+ 
+ // same as runtime·notetsleep, but called on user g (not g0)
+-// does not need to call runtime·setprof, because entersyscallblock does it
+ // calls only nosplit functions between entersyscallblock/exitsyscall
+ bool
+ runtime·notetsleepg(Note *n, int64 ns)
+diff --git a/src/pkg/runtime/lock_sema.c b/src/pkg/runtime/lock_sema.c
+index ea7af1f91a..e365db12bd 100644
+--- a/src/pkg/runtime/lock_sema.c
++++ b/src/pkg/runtime/lock_sema.c
+@@ -81,11 +81,7 @@ unlocked:
+ 			}
+ 			if(v&LOCKED) {
+ 				// Queued.  Wait.
+-				if(m->profilehz > 0)
+-					runtime·setprof(false);
+ 				runtime·semasleep(-1);
+-				if(m->profilehz > 0)
+-					runtime·setprof(true);
+ 				i = 0;
+ 			}
+ 		}
+@@ -164,11 +160,7 @@ runtime·notesleep(Note *n)
+ 		return;
+ 	}
+ 	// Queued.  Sleep.
+-	if(m->profilehz > 0)
+-		runtime·setprof(false);
+ 	runtime·semasleep(-1);
+-	if(m->profilehz > 0)
+-		runtime·setprof(true);
+ }
+ 
+ #pragma textflag 7
+@@ -240,16 +232,11 @@ runtime·notetsleep(Note *n, int64 ns)
+ 	if(m->waitsema == 0)
+ 		m->waitsema = runtime·semacreate();
+ 
+-	if(m->profilehz > 0)
+-		runtime·setprof(false);
+ 	res = notetsleep(n, ns, 0, nil);
+-	if(m->profilehz > 0)
+-		runtime·setprof(true);
+ 	return res;
+ }
+ 
+ // same as runtime·notetsleep, but called on user g (not g0)
+-// does not need to call runtime·setprof, because entersyscallblock does it
+ // calls only nosplit functions between entersyscallblock/exitsyscall
+ bool
+ runtime·notetsleepg(Note *n, int64 ns)
+diff --git a/src/pkg/runtime/os_darwin.c b/src/pkg/runtime/os_darwin.c
+index db44e74cfb..1a0b68dbf9 100644
+--- a/src/pkg/runtime/os_darwin.c
++++ b/src/pkg/runtime/os_darwin.c
+@@ -12,7 +12,6 @@ extern SigTab runtime·sigtab[];
+ 
+ static Sigset sigset_none;
+ static Sigset sigset_all = ~(Sigset)0;
+-static Sigset sigset_prof = 1<<(SIGPROF-1);
+ 
+ static void
+ unimplemented(int8 *name)
+@@ -129,7 +128,6 @@ runtime·minit(void)
+ 	runtime·signalstack((byte*)m->gsignal->stackguard - StackGuard, 32*1024);
+ 
+ 	runtime·sigprocmask(SIG_SETMASK, &sigset_none, nil);
+-	runtime·setprof(m->profilehz > 0);
+ }
+ 
+ // Called from dropm to undo the effect of an minit.
+@@ -481,37 +479,6 @@ runtime·memlimit(void)
+ 	return 0;
+ }
+ 
+-// NOTE(rsc): On OS X, when the CPU profiling timer expires, the SIGPROF
+-// signal is not guaranteed to be sent to the thread that was executing to
+-// cause it to expire.  It can and often does go to a sleeping thread, which is
+-// not interesting for our profile.  This is filed Apple Bug Report #9177434,
+-// copied to http://code.google.com/p/go/source/detail?r=35b716c94225.
+-// To work around this bug, we disable receipt of the profiling signal on
+-// a thread while in blocking system calls.  This forces the kernel to deliver
+-// the profiling signal to an executing thread.
+-//
+-// The workaround fails on OS X machines using a 64-bit Snow Leopard kernel.
+-// In that configuration, the kernel appears to want to deliver SIGPROF to the
+-// sleeping threads regardless of signal mask and, worse, does not deliver
+-// the signal until the thread wakes up on its own.
+-//
+-// If necessary, we can switch to using ITIMER_REAL for OS X and handle
+-// the kernel-generated SIGALRM by generating our own SIGALRMs to deliver
+-// to all the running threads.  SIGALRM does not appear to be affected by
+-// the 64-bit Snow Leopard bug.  However, as of this writing Mountain Lion
+-// is in preview, making Snow Leopard two versions old, so it is unclear how
+-// much effort we need to spend on one buggy kernel.
+-
+-// Control whether profiling signal can be delivered to this thread.
+-void
+-runtime·setprof(bool on)
+-{
+-	if(on)
+-		runtime·sigprocmask(SIG_UNBLOCK, &sigset_prof, nil);
+-	else
+-		runtime·sigprocmask(SIG_BLOCK, &sigset_prof, nil);
+-}
+-
+ void
+ runtime·setsig(int32 i, GoSighandler *fn, bool restart)
+ {
+diff --git a/src/pkg/runtime/os_freebsd.c b/src/pkg/runtime/os_freebsd.c
+index 386b4002c2..a246c8794e 100644
+--- a/src/pkg/runtime/os_freebsd.c
++++ b/src/pkg/runtime/os_freebsd.c
+@@ -233,12 +233,6 @@ runtime·memlimit(void)
+ 	return rl.rlim_cur - used;
+ }
+ 
+-void
+-runtime·setprof(bool on)
+-{
+-	USED(on);
+-}
+-
+ extern void runtime·sigtramp(void);
+ 
+ typedef struct sigaction {
+diff --git a/src/pkg/runtime/os_linux.c b/src/pkg/runtime/os_linux.c
+index d940c9765b..6b93b2f2df 100644
+--- a/src/pkg/runtime/os_linux.c
++++ b/src/pkg/runtime/os_linux.c
+@@ -274,12 +274,6 @@ runtime·memlimit(void)
+ 	return rl.rlim_cur - used;
+ }
+ 
+-void
+-runtime·setprof(bool on)
+-{
+-	USED(on);
+-}
+-
+ #ifdef GOARCH_386
+ #define sa_handler k_sa_handler
+ #endif
+diff --git a/src/pkg/runtime/os_netbsd.c b/src/pkg/runtime/os_netbsd.c
+index 95c1070d1b..684a94956b 100644
+--- a/src/pkg/runtime/os_netbsd.c
++++ b/src/pkg/runtime/os_netbsd.c
+@@ -271,12 +271,6 @@ runtime·memlimit(void)
+ 	return 0;
+ }
+ 
+-void
+-runtime·setprof(bool on)
+-{
+-	USED(on);
+-}
+-
+ extern void runtime·sigtramp(void);
+ 
+ typedef struct sigaction {
+diff --git a/src/pkg/runtime/os_openbsd.c b/src/pkg/runtime/os_openbsd.c
+index bbb33a7f48..eee8127dc6 100644
+--- a/src/pkg/runtime/os_openbsd.c
++++ b/src/pkg/runtime/os_openbsd.c
+@@ -248,12 +248,6 @@ runtime·memlimit(void)
+ 	return 0;
+ }
+ 
+-void
+-runtime·setprof(bool on)
+-{
+-	USED(on);
+-}
+-
+ extern void runtime·sigtramp(void);
+ 
+ typedef struct sigaction {
+diff --git a/src/pkg/runtime/os_plan9.c b/src/pkg/runtime/os_plan9.c
+index d97e5bc339..e8e116f488 100644
+--- a/src/pkg/runtime/os_plan9.c
++++ b/src/pkg/runtime/os_plan9.c
+@@ -322,12 +322,6 @@ runtime·memlimit(void)
+ 	return 0;
+ }
+ 
+-void
+-runtime·setprof(bool on)
+-{
+-	USED(on);
+-}
+-
+ #pragma dataflag 16 // no pointers
+ static int8 badsignal[] = "runtime: signal received on thread not created by Go.\n";
+ 
+diff --git a/src/pkg/runtime/os_windows.c b/src/pkg/runtime/os_windows.c
+index ffd7e997e3..0c3b4d961e 100644
+--- a/src/pkg/runtime/os_windows.c
++++ b/src/pkg/runtime/os_windows.c
+@@ -474,12 +474,6 @@ runtime·memlimit(void)
+ 	return 0;
+ }
+ 
+-void
+-runtime·setprof(bool on)
+-{
+-	USED(on);
+-}
+-
+ #pragma dataflag 16 // no pointers
+ int8 runtime·badsignalmsg[] = "runtime: signal received on thread not created by Go.\n";
+ int32 runtime·badsignallen = sizeof runtime·badsignalmsg - 1;
+diff --git a/src/pkg/runtime/pprof/pprof.go b/src/pkg/runtime/pprof/pprof.go
+index 32c1098b99..5c1f3d460d 100644
+--- a/src/pkg/runtime/pprof/pprof.go
++++ b/src/pkg/runtime/pprof/pprof.go
+@@ -20,8 +20,7 @@ import (
+ 	"text/tabwriter"
+ )
+ 
+-// BUG(rsc): A bug in the OS X Snow Leopard 64-bit kernel prevents
+-// CPU profiling from giving accurate results on that system.
++// BUG(rsc): Profiles are incomplete and inaccuate on OS X. See http://golang.org/issue/6047 for details.
+ 
+ // A Profile is a collection of stack traces showing the call sequences
+ // that led to instances of a particular event, such as allocation.
+diff --git a/src/pkg/runtime/pprof/pprof_test.go b/src/pkg/runtime/pprof/pprof_test.go
+index 94d19f741c..995c2fe68d 100644
+--- a/src/pkg/runtime/pprof/pprof_test.go
++++ b/src/pkg/runtime/pprof/pprof_test.go
+@@ -19,6 +19,38 @@ import (
+ )
+ 
+ func TestCPUProfile(t *testing.T) {
++	buf := make([]byte, 100000)
++	testCPUProfile(t, []string{"crc32.ChecksumIEEE"}, func() {
++		// This loop takes about a quarter second on a 2 GHz laptop.
++		// We only need to get one 100 Hz clock tick, so we've got
++		// a 25x safety buffer.
++		for i := 0; i < 1000; i++ {
++			crc32.ChecksumIEEE(buf)
++		}
++	})
++}
++
++func TestCPUProfileMultithreaded(t *testing.T) {
++	buf := make([]byte, 100000)
++	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(2))
++	testCPUProfile(t, []string{"crc32.ChecksumIEEE", "crc32.Update"}, func() {
++		c := make(chan int)
++		go func() {
++			for i := 0; i < 2000; i++ {
++				crc32.Update(0, crc32.IEEETable, buf)
++			}
++			c <- 1
++		}()
++		// This loop takes about a quarter second on a 2 GHz laptop.
++		// We only need to get one 100 Hz clock tick, so we've got
++		// a 25x safety buffer.
++		for i := 0; i < 2000; i++ {
++			crc32.ChecksumIEEE(buf)
++		}
++	})
++}
++
++func testCPUProfile(t *testing.T, need []string, f func()) {
+ 	switch runtime.GOOS {
+ 	case "darwin":
+ 		out, err := exec.Command("uname", "-a").CombinedOutput()
+@@ -27,26 +59,16 @@ func TestCPUProfile(t *testing.T) {
+ 		}
+ 		vers := string(out)
+ 		t.Logf("uname -a: %v", vers)
+-		// Lion uses "Darwin Kernel Version 11".
+-		if strings.Contains(vers, "Darwin Kernel Version 10") && strings.Contains(vers, "RELEASE_X86_64") {
+-			t.Skip("skipping test on known-broken kernel (64-bit Leopard / Snow Leopard)")
+-		}
+ 	case "plan9":
+ 		// unimplemented
+ 		return
+ 	}
+ 
+-	buf := make([]byte, 100000)
+ 	var prof bytes.Buffer
+ 	if err := StartCPUProfile(&prof); err != nil {
+ 		t.Fatal(err)
+ 	}
+-	// This loop takes about a quarter second on a 2 GHz laptop.
+-	// We only need to get one 100 Hz clock tick, so we've got
+-	// a 25x safety buffer.
+-	for i := 0; i < 1000; i++ {
+-		crc32.ChecksumIEEE(buf)
+-	}
++	f()
+ 	StopCPUProfile()
+ 
+ 	// Convert []byte to []uintptr.
+@@ -56,6 +78,10 @@ func TestCPUProfile(t *testing.T) {
+ 	val = val[:l]
+ 
+ 	if l < 13 {
++		if runtime.GOOS == "darwin" {
++			t.Logf("ignoring failure on OS X; see golang.org/issue/6047")
++			return
++		}
+ 		t.Fatalf("profile too short: %#x", val)
+ 	}
+ 
+@@ -69,7 +95,7 @@ func TestCPUProfile(t *testing.T) {
+ 	}
+ 
+ 	// Check that profile is well formed and contains ChecksumIEEE.
+-	found := false
++	have := make([]uintptr, len(need))
+ 	for len(val) > 0 {
+ 		if len(val) < 2 || val[0] < 1 || val[1] < 1 || uintptr(len(val)) < 2+val[1] {
+ 			t.Fatalf("malformed profile.  leftover: %#x", val)
+@@ -79,14 +105,38 @@ func TestCPUProfile(t *testing.T) {
+ 			if f == nil {
+ 				continue
+ 			}
+-			if strings.Contains(f.Name(), "ChecksumIEEE") {
+-				found = true
++			for i, name := range need {
++				if strings.Contains(f.Name(), name) {
++					have[i] += val[0]
++				}
+ 			}
+ 		}
+ 		val = val[2+val[1]:]
+ 	}
+ 
+-	if !found {
+-		t.Fatal("did not find ChecksumIEEE in the profile")
++	var total uintptr
++	for i, name := range need {
++		total += have[i]
++		t.Logf("%s: %d\n", name, have[i])
++	}
++	ok := true
++	if total == 0 {
++		t.Logf("no CPU profile samples collected")
++		ok = false
++	}
++	min := total / uintptr(len(have)) / 2
++	for i, name := range need {
++		if have[i] < min {
++			t.Logf("%s has %d samples out of %d, want at least %d, ideally %d", name, have[i], total, min, total/uintptr(len(have)))
++			ok = false
++		}
++	}
++
++	if !ok {
++		if runtime.GOOS == "darwin" {
++			t.Logf("ignoring failure on OS X; see golang.org/issue/6047")
++			return
++		}
++		t.FailNow()
+ 	}
+ }
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index b0aa428e99..a8b98b73db 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -1384,9 +1384,6 @@ void
+ 	// but can have inconsistent g->sched, do not let GC observe it.
+ 	m->locks++;
+ 
+-	if(m->profilehz > 0)
+-		runtime·setprof(false);
+-
+ 	// Leave SP around for gc and traceback.
+ 	save(runtime·getcallerpc(&dummy), runtime·getcallersp(&dummy));
+ 
+@@ -1439,9 +1436,6 @@ void
+ 
+ 	m->locks++;  // see comment in entersyscall
+ 
+-	if(m->profilehz > 0)
+-		runtime·setprof(false);
+-
+ 	// Leave SP around for gc and traceback.
+ 	save(runtime·getcallerpc(&dummy), runtime·getcallersp(&dummy));
+ 	g->gcsp = g->sched.sp;
+@@ -1477,10 +1471,6 @@ runtime·exitsyscall(void)
+ {
+ 	m->locks++;  // see comment in entersyscall
+ 
+-	// Check whether the profiler needs to be turned on.
+-	if(m->profilehz > 0)
+-		runtime·setprof(true);
+-
+ 	if(g->isbackground)  // do not consider blocked scavenger for deadlock detection
+ 		inclocked(-1);
+ 
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index cc38953135..c4beab1b5d 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -1043,16 +1043,6 @@ void	runtime·ifaceE2I(InterfaceType*, Eface, Iface*);
+ 
+ uintptr	runtime·memlimit(void);
+ 
+-// If appropriate, ask the operating system to control whether this
+-// thread should receive profiling signals.  This is only necessary on OS X.
+-// An operating system should not deliver a profiling signal to a
+-// thread that is not actually executing (what good is that?), but that's
+-// what OS X prefers to do.  When profiling is turned on, we mask
+-// away the profiling signal when threads go to sleep, so that OS X
+-// is forced to deliver the signal to a thread that's actually running.
+-// This is a no-op on other systems.
+-void	runtime·setprof(bool);
+-
+ // float.c
+ extern float64 runtime·nan;
+ extern float64 runtime·posinf;
+diff --git a/src/pkg/runtime/signal_unix.c b/src/pkg/runtime/signal_unix.c
+index 54e461f995..8bc7b8401b 100644
+--- a/src/pkg/runtime/signal_unix.c
++++ b/src/pkg/runtime/signal_unix.c
+@@ -83,13 +83,11 @@ runtime·resetcpuprofiler(int32 hz)
+ 	runtime·memclr((byte*)&it, sizeof it);
+ 	if(hz == 0) {
+ 		runtime·setitimer(ITIMER_PROF, &it, nil);
+-		runtime·setprof(false);
+ 	} else {
+ 		it.it_interval.tv_sec = 0;
+ 		it.it_interval.tv_usec = 1000000 / hz;
+ 		it.it_value = it.it_interval;
+ 		runtime·setitimer(ITIMER_PROF, &it, nil);
+-		runtime·setprof(true);
+ 	}
+ 	m->profilehz = hz;
+ }

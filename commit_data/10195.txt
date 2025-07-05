@@ -10,8 +10,108 @@ Date:   Tue Nov 1 22:19:40 2011 -0400
     R=adg
     CC=golang-dev
     https://golang.org/cl/5336045
-
+---
  src/pkg/os/dir_plan9.go   |  3 ++-
  src/pkg/os/env_plan9.go   |  7 +++++--
  src/pkg/os/error_plan9.go | 33 ++++++++++++++++++---------------
  3 files changed, 25 insertions(+), 18 deletions(-)
+
+diff --git a/src/pkg/os/dir_plan9.go b/src/pkg/os/dir_plan9.go
+index 05a6e0d832..abf98768d4 100644
+--- a/src/pkg/os/dir_plan9.go
++++ b/src/pkg/os/dir_plan9.go
+@@ -5,6 +5,7 @@
+ package os
+ 
+ import (
++	"errors"
+ 	"io"
+ 	"syscall"
+ )
+@@ -293,7 +294,7 @@ func pbit64(b []byte, x uint64) []byte {
+ // pstring appends a Go string s to a 9P message b.
+ func pstring(b []byte, s string) []byte {
+ 	if len(s) >= 1<<16 {
+-		panic(NewError("string too long"))
++		panic(errors.New("string too long"))
+ 	}
+ 	b = pbit16(b, uint16(len(s)))
+ 	b = append(b, s...)
+diff --git a/src/pkg/os/env_plan9.go b/src/pkg/os/env_plan9.go
+index 52212f2eb5..762734a54c 100644
+--- a/src/pkg/os/env_plan9.go
++++ b/src/pkg/os/env_plan9.go
+@@ -6,10 +6,13 @@
+ 
+ package os
+ 
+-import "syscall"
++import (
++	"error"
++	"syscall"
++)
+ 
+ // ENOENV is the error indicating that an environment variable does not exist.
+-var ENOENV = NewError("no such environment variable")
++var ENOENV = errors.New("no such environment variable")
+ 
+ // Getenverror retrieves the value of the environment variable named by the key.
+ // It returns the value and an error, if any.
+diff --git a/src/pkg/os/error_plan9.go b/src/pkg/os/error_plan9.go
+index 0fcbc50096..1e5114dc07 100644
+--- a/src/pkg/os/error_plan9.go
++++ b/src/pkg/os/error_plan9.go
+@@ -4,7 +4,10 @@
+ 
+ package os
+ 
+-import syscall "syscall"
++import (
++	"errors"
++	"syscall"
++)
+ 
+ // SyscallError records an error from a specific system call.
+ type SyscallError struct {
+@@ -29,15 +32,15 @@ func NewSyscallError(syscall string, err syscall.Error) error {
+ }
+ 
+ var (
+-	Eshortstat = NewError("stat buffer too small")
+-	Ebadstat   = NewError("malformed stat buffer")
+-	Ebadfd     = NewError("fd out of range or not open")
+-	Ebadarg    = NewError("bad arg in system call")
+-	Enotdir    = NewError("not a directory")
+-	Enonexist  = NewError("file does not exist")
+-	Eexist     = NewError("file already exists")
+-	Eio        = NewError("i/o error")
+-	Eperm      = NewError("permission denied")
++	Eshortstat = errors.New("stat buffer too small")
++	Ebadstat   = errors.New("malformed stat buffer")
++	Ebadfd     = errors.New("fd out of range or not open")
++	Ebadarg    = errors.New("bad arg in system call")
++	Enotdir    = errors.New("not a directory")
++	Enonexist  = errors.New("file does not exist")
++	Eexist     = errors.New("file already exists")
++	Eio        = errors.New("i/o error")
++	Eperm      = errors.New("permission denied")
+ 
+ 	EINVAL  = Ebadarg
+ 	ENOTDIR = Enotdir
+@@ -48,11 +51,11 @@ var (
+ 	EPERM   = Eperm
+ 	EISDIR  = syscall.EISDIR
+ 
+-	EBADF        = NewError("bad file descriptor")
+-	ENAMETOOLONG = NewError("file name too long")
+-	ERANGE       = NewError("math result not representable")
+-	EPIPE        = NewError("Broken Pipe")
+-	EPLAN9       = NewError("not supported by plan 9")
++	EBADF        = errors.New("bad file descriptor")
++	ENAMETOOLONG = errors.New("file name too long")
++	ERANGE       = errors.New("math result not representable")
++	EPIPE        = errors.New("Broken Pipe")
++	EPLAN9       = errors.New("not supported by plan 9")
+ )
+ 
+ func iserror(err syscall.Error) bool {

@@ -7,6 +7,19 @@ Date:   Tue Apr 28 13:56:44 2015 -0700
     Change-Id: If50fd2dd4005d0ce39081c6b8302707403c139f9
     Reviewed-on: https://go-review.googlesource.com/9432
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  doc/go1.5.txt | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/doc/go1.5.txt b/doc/go1.5.txt
+index b6499d9754..a590a32653 100644
+--- a/doc/go1.5.txt
++++ b/doc/go1.5.txt
+@@ -12,6 +12,7 @@ New Ports:
+ darwin/arm, a.k.a iOS. (https://golang.org/cl/2118, 2119, 3273, 2121, 2122, ..., 2127)
+ darwin/arm64
+ linux/arm64 (cgo is supported, but only with external linking)
++The port to Snow Leopard (OS X 10.6) is no longer actively maintained.
+ 
+ Runtime:
+ goroutine scheduling order changed; never guaranteed by language, but can break tests that implicitly assume a specific execution order

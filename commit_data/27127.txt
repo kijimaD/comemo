@@ -9,6 +9,24 @@ Date:   Thu Mar 10 15:49:30 2016 -0800
     Change-Id: Ieb95ee3494f592fb5fc74aa4b803479671816927
     Reviewed-on: https://go-review.googlesource.com/20551
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/crypto/tls/cipher_suites.go | 6 ++++--
  1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/crypto/tls/cipher_suites.go b/src/crypto/tls/cipher_suites.go
+index 224ed1bc86..d4d75cbff8 100644
+--- a/src/crypto/tls/cipher_suites.go
++++ b/src/crypto/tls/cipher_suites.go
+@@ -261,8 +261,10 @@ func mutualCipherSuite(have []uint16, want uint16) *cipherSuite {
+ 	return nil
+ }
+ 
+-// A list of the possible cipher suite ids. Taken from
+-// http://www.iana.org/assignments/tls-parameters/tls-parameters.xml
++// A list of cipher suite IDs that are, or have been, implemented by this
++// package.
++//
++// Taken from http://www.iana.org/assignments/tls-parameters/tls-parameters.xml
+ const (
+ 	TLS_RSA_WITH_RC4_128_SHA                uint16 = 0x0005
+ 	TLS_RSA_WITH_3DES_EDE_CBC_SHA           uint16 = 0x000a

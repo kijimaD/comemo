@@ -9,6 +9,21 @@ Date:   Mon Sep 25 08:41:31 2023 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Alan Donovan <adonovan@google.com>
     Run-TryBot: Jonathan Amsterdam <jba@google.com>
-
+---
  src/log/slog/logger.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/log/slog/logger.go b/src/log/slog/logger.go
+index 4d21ee7990..10aa6a2b31 100644
+--- a/src/log/slog/logger.go
++++ b/src/log/slog/logger.go
+@@ -53,7 +53,8 @@ func init() {
+ // Default returns the default [Logger].
+ func Default() *Logger { return defaultLogger.Load() }
+ 
+-// SetDefault makes l the default [Logger].
++// SetDefault makes l the default [Logger], which is used by
++// the top-level functions [Info], [Debug] and so on.
+ // After this call, output from the log package's default Logger
+ // (as with [log.Print], etc.) will be logged using l's Handler,
+ // at a level controlled by [SetLogLoggerLevel].

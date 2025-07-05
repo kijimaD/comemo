@@ -11,7 +11,50 @@ Date:   Thu Sep 29 21:14:11 2022 +0800
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/compress/flate/huffman_bit_writer.go | 3 ---
  src/compress/flate/huffman_code.go       | 3 ---
  2 files changed, 6 deletions(-)
+
+diff --git a/src/compress/flate/huffman_bit_writer.go b/src/compress/flate/huffman_bit_writer.go
+index 6a4e48e9ee..005637557e 100644
+--- a/src/compress/flate/huffman_bit_writer.go
++++ b/src/compress/flate/huffman_bit_writer.go
+@@ -387,15 +387,12 @@ func (w *huffmanBitWriter) writeDynamicHeader(numLiterals int, numOffsets int, n
+ 		case 16:
+ 			w.writeBits(int32(w.codegen[i]), 2)
+ 			i++
+-			break
+ 		case 17:
+ 			w.writeBits(int32(w.codegen[i]), 3)
+ 			i++
+-			break
+ 		case 18:
+ 			w.writeBits(int32(w.codegen[i]), 7)
+ 			i++
+-			break
+ 		}
+ 	}
+ }
+diff --git a/src/compress/flate/huffman_code.go b/src/compress/flate/huffman_code.go
+index a3fe80b442..6b1aaea2b2 100644
+--- a/src/compress/flate/huffman_code.go
++++ b/src/compress/flate/huffman_code.go
+@@ -73,17 +73,14 @@ func generateFixedLiteralEncoding() *huffmanEncoder {
+ 			// size 8, 000110000  .. 10111111
+ 			bits = ch + 48
+ 			size = 8
+-			break
+ 		case ch < 256:
+ 			// size 9, 110010000 .. 111111111
+ 			bits = ch + 400 - 144
+ 			size = 9
+-			break
+ 		case ch < 280:
+ 			// size 7, 0000000 .. 0010111
+ 			bits = ch - 256
+ 			size = 7
+-			break
+ 		default:
+ 			// size 8, 11000000 .. 11000111
+ 			bits = ch + 192 - 280

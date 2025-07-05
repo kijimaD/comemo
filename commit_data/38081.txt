@@ -26,7 +26,50 @@ Date:   Wed Aug 15 16:19:21 2018 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/extern.go |  3 +--
  src/runtime/mgc.go    | 17 -----------------
  2 files changed, 1 insertion(+), 19 deletions(-)
+
+diff --git a/src/runtime/extern.go b/src/runtime/extern.go
+index 1773c8fe7e..3be1eca09c 100644
+--- a/src/runtime/extern.go
++++ b/src/runtime/extern.go
+@@ -61,8 +61,7 @@ It is a comma-separated list of name=val pairs setting these named variables:
+ 
+ 	gctrace: setting gctrace=1 causes the garbage collector to emit a single line to standard
+ 	error at each collection, summarizing the amount of memory collected and the
+-	length of the pause. Setting gctrace=2 emits the same summary but also
+-	repeats each collection. The format of this line is subject to change.
++	length of the pause. The format of this line is subject to change.
+ 	Currently, it is:
+ 		gc # @#s #%: #+#+# ms clock, #+#/#/#+# ms cpu, #->#-># MB, # MB goal, # P
+ 	where the fields are as follows:
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index c95b5ed37f..f975011191 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -1558,23 +1558,6 @@ func gcMarkTermination(nextTriggerRatio float64) {
+ 		// marking is complete so we can turn the write barrier off
+ 		setGCPhase(_GCoff)
+ 		gcSweep(work.mode)
+-
+-		if debug.gctrace > 1 {
+-			startTime = nanotime()
+-			// The g stacks have been scanned so
+-			// they have gcscanvalid==true and gcworkdone==true.
+-			// Reset these so that all stacks will be rescanned.
+-			gcResetMarkState()
+-			finishsweep_m()
+-
+-			// Still in STW but gcphase is _GCoff, reset to _GCmarktermination
+-			// At this point all objects will be found during the gcMark which
+-			// does a complete STW mark and object scan.
+-			setGCPhase(_GCmarktermination)
+-			gcMark(startTime)
+-			setGCPhase(_GCoff) // marking is done, turn off wb.
+-			gcSweep(work.mode)
+-		}
+ 	})
+ 
+ 	_g_.m.traceback = 0

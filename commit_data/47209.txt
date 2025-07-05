@@ -16,9 +16,151 @@ Date:   Fri Feb 19 18:00:48 2021 -0500
     Trust: David Chase <drchase@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
-
+---
  src/cmd/compile/internal/liveness/plive.go | 16 ++++++
  src/cmd/compile/internal/ssa/value.go      | 12 +++--
  test/abi/uglyfib.go                        | 79 ++++++++++++++++++++++++++++++
  test/abi/uglyfib.out                       |  1 +
  4 files changed, 104 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/liveness/plive.go b/src/cmd/compile/internal/liveness/plive.go
+index 53ae797fce..48a26cf66a 100644
+--- a/src/cmd/compile/internal/liveness/plive.go
++++ b/src/cmd/compile/internal/liveness/plive.go
+@@ -297,6 +297,22 @@ func affectedVar(v *ssa.Value) (*ir.Name, ssa.SymEffect) {
+ 		n, _ := ssa.AutoVar(v)
+ 		return n, ssa.SymWrite
+ 
++	case ssa.OpArgIntReg:
++		// This forces the spill slot for the register to be live at function entry.
++		// one of the following holds for a function F with pointer-valued register arg X:
++		//  0. No GC (so an uninitialized spill slot is okay)
++		//  1. GC at entry of F.  GC is precise, but the spills around morestack initialize X's spill slot
++		//  2. Stack growth at entry of F.  Same as GC.
++		//  3. GC occurs within F itself.  This has to be from preemption, and thus GC is conservative.
++		//     a. X is in a register -- then X is seen, and the spill slot is also scanned conservatively.
++		//     b. X is spilled -- the spill slot is initialized, and scanned conservatively
++		//     c. X is not live -- the spill slot is scanned conservatively, and it may contain X from an earlier spill.
++		//  4. GC within G, transitively called from F
++		//    a. X is live at call site, therefore is spilled, to its spill slot (which is live because of subsequent LoadReg).
++		//    b. X is not live at call site -- but neither is its spill slot.
++		n, _ := ssa.AutoVar(v)
++		return n, ssa.SymRead
++
+ 	case ssa.OpVarLive:
+ 		return v.Aux.(*ir.Name), ssa.SymRead
+ 	case ssa.OpVarDef, ssa.OpVarKill:
+diff --git a/src/cmd/compile/internal/ssa/value.go b/src/cmd/compile/internal/ssa/value.go
+index 127e4ce641..c20fc87e90 100644
+--- a/src/cmd/compile/internal/ssa/value.go
++++ b/src/cmd/compile/internal/ssa/value.go
+@@ -517,9 +517,13 @@ func (*Value) CanBeAnSSAAux() {}
+ // AutoVar returns a *Name and int64 representing the auto variable and offset within it
+ // where v should be spilled.
+ func AutoVar(v *Value) (*ir.Name, int64) {
+-	loc := v.Block.Func.RegAlloc[v.ID].(LocalSlot)
+-	if v.Type.Size() > loc.Type.Size() {
+-		v.Fatalf("spill/restore type %s doesn't fit in slot type %s", v.Type, loc.Type)
++	if loc, ok := v.Block.Func.RegAlloc[v.ID].(LocalSlot); ok {
++		if v.Type.Size() > loc.Type.Size() {
++			v.Fatalf("spill/restore type %s doesn't fit in slot type %s", v.Type, loc.Type)
++		}
++		return loc.N, loc.Off
+ 	}
+-	return loc.N, loc.Off
++	// Assume it is a register, return its spill slot, which needs to be live
++	nameOff := v.Aux.(*AuxNameOffset)
++	return nameOff.Name, nameOff.Offset
+ }
+diff --git a/test/abi/uglyfib.go b/test/abi/uglyfib.go
+new file mode 100644
+index 0000000000..bde3548bee
+--- /dev/null
++++ b/test/abi/uglyfib.go
+@@ -0,0 +1,79 @@
++// run
++
++//go:build !wasm
++// +build !wasm
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "fmt"
++
++// This test is designed to provoke a stack growth
++// in a way that very likely leaves junk in the
++// parameter save area if they aren't saved or spilled
++// there, as appropriate.
++
++//go:registerparams
++//go:noinline
++func f(x int, xm1, xm2, p *int) {
++	var y = [2]int{x - 4, 0}
++	if x < 2 {
++		*p += x
++		return
++	}
++	x -= 3
++	g(*xm1, xm2, &x, p)   // xm1 is no longer live.
++	h(*xm2, &x, &y[0], p) // xm2 is no longer live, but was spilled.
++}
++
++//go:registerparams
++//go:noinline
++func g(x int, xm1, xm2, p *int) {
++	var y = [3]int{x - 4, 0, 0}
++	if x < 2 {
++		*p += x
++		return
++	}
++	x -= 3
++	k(*xm2, &x, &y[0], p)
++	h(*xm1, xm2, &x, p)
++}
++
++//go:registerparams
++//go:noinline
++func h(x int, xm1, xm2, p *int) {
++	var y = [4]int{x - 4, 0, 0, 0}
++	if x < 2 {
++		*p += x
++		return
++	}
++	x -= 3
++	k(*xm1, xm2, &x, p)
++	f(*xm2, &x, &y[0], p)
++}
++
++//go:registerparams
++//go:noinline
++func k(x int, xm1, xm2, p *int) {
++	var y = [5]int{x - 4, 0, 0, 0, 0}
++	if x < 2 {
++		*p += x
++		return
++	}
++	x -= 3
++	f(*xm2, &x, &y[0], p)
++	g(*xm1, xm2, &x, p)
++}
++
++func main() {
++	x := 40
++	var y int
++	xm1 := x - 1
++	xm2 := x - 2
++	f(x, &xm1, &xm2, &y)
++
++	fmt.Printf("Fib(%d)=%d\n", x, y)
++}
+diff --git a/test/abi/uglyfib.out b/test/abi/uglyfib.out
+new file mode 100644
+index 0000000000..d892270e20
+--- /dev/null
++++ b/test/abi/uglyfib.out
+@@ -0,0 +1 @@
++Fib(40)=102334155

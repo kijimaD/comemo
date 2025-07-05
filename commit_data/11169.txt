@@ -9,7 +9,57 @@ Date:   Sat Jan 14 17:00:14 2012 +0100
     R=golang-dev, lvd
     CC=golang-dev, remy
     https://golang.org/cl/5543058
-
+---
  src/cmd/gc/swt.c         |  2 +-
  test/fixedbugs/bug393.go | 30 ++++++++++++++++++++++++++++++
  2 files changed, 31 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/swt.c b/src/cmd/gc/swt.c
+index 8b1b93c7da..6c0a9ac832 100644
+--- a/src/cmd/gc/swt.c
++++ b/src/cmd/gc/swt.c
+@@ -540,7 +540,7 @@ loop:
+ 	}
+ 
+ 	// deal with the variables one-at-a-time
+-	if(c0->type != Texprconst) {
++	if(!okforcmp[t->etype] || c0->type != Texprconst) {
+ 		a = exprbsw(c0, 1, arg);
+ 		cas = list(cas, a);
+ 		c0 = c0->link;
+diff --git a/test/fixedbugs/bug393.go b/test/fixedbugs/bug393.go
+new file mode 100644
+index 0000000000..e21b9c4a41
+--- /dev/null
++++ b/test/fixedbugs/bug393.go
+@@ -0,0 +1,30 @@
++// $G $D/$F.go || echo BUG: bug393
++
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// issue 2672
++// was trying binary search with an interface type
++
++package main
++
++func f(x interface{}) int {
++	switch x {
++	case 1:
++		return 1
++	case 2:
++		return 2
++	case 3:
++		return 3
++	case 4:
++		return 4
++	case "5":
++		return 5
++	case "6":
++		return 6
++	default:
++		return 7
++	}
++	panic("switch")
++}

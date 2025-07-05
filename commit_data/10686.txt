@@ -7,6 +7,20 @@ Date:   Fri Dec 9 08:28:17 2011 -0500
     R=lvd
     CC=golang-dev
     https://golang.org/cl/5480049
-
+---
  src/cmd/gc/lex.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 27878c4623..4fcf28fe55 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -1745,7 +1745,7 @@ lexinit(void)
+ 			s1 = pkglookup(syms[i].name, builtinpkg);
+ 			s1->lexical = LNAME;
+ 			s1->def = nod(ONAME, N, N);
+-			s1->def->sym = s;
++			s1->def->sym = s1;
+ 			s1->def->etype = etype;
+ 			s1->def->builtin = 1;
+ 		}

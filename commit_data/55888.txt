@@ -89,8 +89,75 @@ Date:   Tue Mar 21 18:23:44 2023 +0800
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Heschi Kreinick <heschi@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/asm/internal/asm/testdata/loong64.s     |  5 +++--
  src/cmd/asm/internal/asm/testdata/loong64enc1.s |  6 ++++--
  src/cmd/internal/obj/loong64/asm.go             | 20 +++++---------------
  3 files changed, 12 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/loong64.s b/src/cmd/asm/internal/asm/testdata/loong64.s
+index 133cf48db4..51b195b4b0 100644
+--- a/src/cmd/asm/internal/asm/testdata/loong64.s
++++ b/src/cmd/asm/internal/asm/testdata/loong64.s
+@@ -6,6 +6,7 @@
+ // TODO: cover more instruction
+ 
+ TEXT foo(SB),DUPOK|NOSPLIT,$0
+-	JAL	1(PC)	//CALL 1(PC)	//000c0054
++	JAL	1(PC)	//CALL 1(PC)	//00040054
+ 	JAL	(R4)	//CALL (R4)	//8100004c
+-	JAL	foo(SB)	//CALL foo(SB)	//00100054
++	// relocation in play so the assembled offset should be 0
++	JAL	foo(SB)	//CALL foo(SB)	//00000054
+diff --git a/src/cmd/asm/internal/asm/testdata/loong64enc1.s b/src/cmd/asm/internal/asm/testdata/loong64enc1.s
+index 4f3cb2b2ee..f5a80d5d17 100644
+--- a/src/cmd/asm/internal/asm/testdata/loong64enc1.s
++++ b/src/cmd/asm/internal/asm/testdata/loong64enc1.s
+@@ -13,9 +13,11 @@ lable2:
+ 	BFPF	1(PC)			// 00040048
+ 	BFPF	lable2	// BFPF 4 	// 1ffcff4b
+ 
+-	JMP	foo(SB)			// 00100050
++	// relocation in play so the assembled offset should be 0
++	JMP	foo(SB)			// 00000050
++
+ 	JMP	(R4)			// 8000004c
+-	JMP	1(PC)			// 00040058
++	JMP	1(PC)			// 00040050
+ 	MOVW	$65536, R4		// 04020014
+ 	MOVW	$4096, R4		// 24000014
+ 	MOVV	$65536, R4		// 04020014
+diff --git a/src/cmd/internal/obj/loong64/asm.go b/src/cmd/internal/obj/loong64/asm.go
+index 086cad4aa4..4e1c36e11b 100644
+--- a/src/cmd/internal/obj/loong64/asm.go
++++ b/src/cmd/internal/obj/loong64/asm.go
+@@ -1243,24 +1243,14 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 
+ 	case 11: // jmp lbra
+ 		v := int32(0)
+-		if c.aclass(&p.To) == C_SBRA && p.To.Sym == nil && p.As == AJMP {
+-			// use PC-relative branch for short branches
+-			// BEQ	R0, R0, sbra
+-			if p.To.Target() != nil {
+-				v = int32(p.To.Target().Pc-p.Pc) >> 2
+-			}
+-			if (v<<16)>>16 == v {
+-				o1 = OP_16IRR(c.opirr(ABEQ), uint32(v), uint32(REGZERO), uint32(REGZERO))
+-				break
+-			}
+-		}
+-		if p.To.Target() == nil {
+-			v = int32(p.Pc) >> 2
+-		} else {
+-			v = int32(p.To.Target().Pc) >> 2
++		if p.To.Target() != nil {
++			v = int32(p.To.Target().Pc-p.Pc) >> 2
+ 		}
+ 		o1 = OP_B_BL(c.opirr(p.As), uint32(v))
+ 		if p.To.Sym == nil {
++			if p.As == AJMP {
++				break
++			}
+ 			p.To.Sym = c.cursym.Func().Text.From.Sym
+ 			p.To.Offset = p.To.Target().Pc
+ 		}

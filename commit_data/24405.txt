@@ -10,7 +10,93 @@ Date:   Mon Jul 27 21:33:53 2015 -0400
     Change-Id: If01a2644863f9e5625dd2f95f9d344bda772e12c
     Reviewed-on: https://go-review.googlesource.com/12726
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/encoding/json/stream.go      |  5 ++++-
  src/encoding/json/stream_test.go | 44 ++++++++++++++++++++++++++++++++++++++++
  2 files changed, 48 insertions(+), 1 deletion(-)
+
+diff --git a/src/encoding/json/stream.go b/src/encoding/json/stream.go
+index 53e9b0fa9a..3e8fe40268 100644
+--- a/src/encoding/json/stream.go
++++ b/src/encoding/json/stream.go
+@@ -437,6 +437,7 @@ func (dec *Decoder) More() bool {
+ }
+ 
+ func (dec *Decoder) peek() (byte, error) {
++	var err error
+ 	for {
+ 		for i := dec.scanp; i < len(dec.buf); i++ {
+ 			c := dec.buf[i]
+@@ -446,9 +447,11 @@ func (dec *Decoder) peek() (byte, error) {
+ 			dec.scanp = i
+ 			return c, nil
+ 		}
+-		if err := dec.refill(); err != nil {
++		// buffer has been scanned, now report any error
++		if err != nil {
+ 			return 0, err
+ 		}
++		err = dec.refill()
+ 	}
+ }
+ 
+diff --git a/src/encoding/json/stream_test.go b/src/encoding/json/stream_test.go
+index 3aff035fef..1e9d3d0dce 100644
+--- a/src/encoding/json/stream_test.go
++++ b/src/encoding/json/stream_test.go
+@@ -8,7 +8,10 @@ import (
+ 	"bytes"
+ 	"io"
+ 	"io/ioutil"
++	"log"
+ 	"net"
++	"net/http"
++	"net/http/httptest"
+ 	"reflect"
+ 	"strings"
+ 	"testing"
+@@ -315,3 +318,44 @@ func TestDecodeInStream(t *testing.T) {
+ 	}
+ 
+ }
++
++const raw = `{ "foo": "bar" }`
++
++func makeHTTP() io.ReadCloser {
++	mux := http.NewServeMux()
++	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
++		w.Write([]byte(raw))
++	})
++	ts := httptest.NewServer(mux)
++	defer ts.Close()
++	res, err := http.Get(ts.URL)
++	if err != nil {
++		log.Fatalf("GET failed: %v", err)
++	}
++	return res.Body
++}
++
++func TestHttpDecoding(t *testing.T) {
++
++	foo := struct {
++		Foo string
++	}{}
++
++	rc := makeHTTP()
++	defer rc.Close()
++
++	d := NewDecoder(rc)
++	err := d.Decode(&foo)
++	if err != nil {
++		t.Errorf("Unexpected error %v", err)
++	}
++	if foo.Foo != "bar" {
++		t.Errorf("Expected \"bar\", was %v", foo.Foo)
++	}
++
++	// make sure we get the EOF the second time
++	err = d.Decode(&foo)
++	if err != io.EOF {
++		t.Errorf("Expected io.EOF, was %v", err)
++	}
++}

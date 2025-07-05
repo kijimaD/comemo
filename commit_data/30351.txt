@@ -13,10 +13,219 @@ Date:   Tue Nov 1 10:38:24 2016 -0700
     Change-Id: I58d57b17cc635d0408b370f109c719c16757fd8e
     Reviewed-on: https://go-review.googlesource.com/32534
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/go/types/api_test.go       | 68 +++++++++++++++++++++++++++++++++++++++++-
  src/go/types/call.go           |  9 +++++-
  src/go/types/decl.go           | 21 +++++++++++++
  src/go/types/testdata/alias.go | 20 +++++++++++++
  src/go/types/typexpr.go        |  9 ++----
  5 files changed, 119 insertions(+), 8 deletions(-)
+
+diff --git a/src/go/types/api_test.go b/src/go/types/api_test.go
+index 7c4fe575c8..4db9760ba5 100644
+--- a/src/go/types/api_test.go
++++ b/src/go/types/api_test.go
+@@ -12,6 +12,9 @@ import (
+ 	"go/parser"
+ 	"go/token"
+ 	"internal/testenv"
++	"os"
++	"os/exec"
++	"path/filepath"
+ 	"reflect"
+ 	"regexp"
+ 	"strings"
+@@ -1299,6 +1302,69 @@ func f(x int) { y := x; print(y) }
+ func TestAliases(t *testing.T) {
+ 	testenv.MustHaveGoBuild(t)
+ 
++	const src = `
++package b
++
++import (
++	"./testdata/alias"
++	a "./testdata/alias"
++	// "math" // TODO(gri) does not work yet - fix importer (issue #17726)
++)
++
++const (
++	c1 = alias.Pi
++	c2 => a.Pi
++)
++
++var (
++	v1 => alias.Default
++	v2 => a.Default
++	v3 = f1
++)
++
++type (
++	t1 => alias.Context
++	t2 => a.Context
++)
++
++func f1 => alias.Sin
++func f2 => a.Sin
++
++func _() {
++	assert(c1 == c2 && c1 == alias.Pi && c2 == a.Pi)
++	v1 = v2 // must be assignable
++	var _ *t1 = new(t2) // must be assignable
++	var _ t2 = alias.Default
++	f1(1) // must be callable
++	f2(1)
++	_ = alias.Sin(1)
++	_ = a.Sin(1)
++}
++`
++
++	if out := compile(t, "testdata", "alias.go"); out != "" {
++		defer os.Remove(out)
++	}
++
++	DefPredeclaredTestFuncs() // declare assert built-in for testing
++	mustTypecheck(t, "Aliases", src, nil)
++}
++
++func compile(t *testing.T, dirname, filename string) string {
++	cmd := exec.Command(testenv.GoToolPath(t), "tool", "compile", filename)
++	cmd.Dir = dirname
++	out, err := cmd.CombinedOutput()
++	if err != nil {
++		t.Logf("%s", out)
++		t.Fatalf("go tool compile %s failed: %s", filename, err)
++	}
++	// filename should end with ".go"
++	return filepath.Join(dirname, filename[:len(filename)-2]+"o")
++}
++
++func TestAliasDefUses(t *testing.T) {
++	testenv.MustHaveGoBuild(t)
++
+ 	const src = `
+ package p
+ 
+@@ -1324,7 +1390,7 @@ var _ = Implements(nil, nil)
+ 		Defs: make(map[*ast.Ident]Object),
+ 		Uses: make(map[*ast.Ident]Object),
+ 	}
+-	mustTypecheck(t, "Aliases", src, &info)
++	mustTypecheck(t, "TestAliasDefUses", src, &info)
+ 
+ 	// verify Defs
+ 	defs := map[string]string{
+diff --git a/src/go/types/call.go b/src/go/types/call.go
+index 0d1fb34bce..8e5c5371f2 100644
+--- a/src/go/types/call.go
++++ b/src/go/types/call.go
+@@ -296,6 +296,13 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
+ 				// ok to continue
+ 			}
+ 			check.recordUse(e.Sel, exp)
++			exp = original(exp)
++
++			// avoid further errors if the imported object is an alias that's broken
++			if exp == nil {
++				goto Error
++			}
++
+ 			// Simplified version of the code for *ast.Idents:
+ 			// - imported objects are always fully initialized
+ 			switch exp := exp.(type) {
+@@ -318,7 +325,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
+ 				x.typ = exp.typ
+ 				x.id = exp.id
+ 			default:
+-				check.dump("unexpected object %v (%T)", exp, exp)
++				check.dump("unexpected object %v", exp)
+ 				unreachable()
+ 			}
+ 			x.expr = e
+diff --git a/src/go/types/decl.go b/src/go/types/decl.go
+index 89c56534d2..be04f0d82e 100644
+--- a/src/go/types/decl.go
++++ b/src/go/types/decl.go
+@@ -332,6 +332,21 @@ func (check *Checker) funcDecl(obj *Func, decl *declInfo) {
+ 	}
+ }
+ 
++// original returns the original Object if obj is an Alias;
++// otherwise it returns obj. The result is never an Alias,
++// but it may be nil.
++func original(obj Object) Object {
++	// an alias stands for the original object; use that one instead
++	if alias, _ := obj.(*Alias); alias != nil {
++		obj = alias.orig
++		// aliases always refer to non-alias originals
++		if _, ok := obj.(*Alias); ok {
++			panic("original is an alias")
++		}
++	}
++	return obj
++}
++
+ func (check *Checker) aliasDecl(obj *Alias, decl *declInfo) {
+ 	assert(obj.typ == nil)
+ 
+@@ -372,6 +387,12 @@ func (check *Checker) aliasDecl(obj *Alias, decl *declInfo) {
+ 		return
+ 	}
+ 	check.recordUse(sel, orig)
++	orig = original(orig)
++
++	// avoid further errors if the imported object is an alias that's broken
++	if orig == nil {
++		return
++	}
+ 
+ 	// An alias declaration must not refer to package unsafe.
+ 	if orig.Pkg() == Unsafe {
+diff --git a/src/go/types/testdata/alias.go b/src/go/types/testdata/alias.go
+new file mode 100644
+index 0000000000..c74aeaa48e
+--- /dev/null
++++ b/src/go/types/testdata/alias.go
+@@ -0,0 +1,20 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Used by TestAliases (api_test.go).
++
++package alias
++
++import (
++	"go/build"
++	"math"
++)
++
++const Pi => math.Pi
++
++var Default => build.Default
++
++type Context => build.Context
++
++func Sin => math.Sin
+diff --git a/src/go/types/typexpr.go b/src/go/types/typexpr.go
+index 012d3a7034..d78d2fa98c 100644
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@ -46,15 +46,12 @@ func (check *Checker) ident(x *operand, e *ast.Ident, def *Named, path []*TypeNa
+ 	}
+ 
+ 	// An alias stands for the original object; use that one instead.
++	// TODO(gri) We should be able to factor out the Typ[Invalid] test.
+ 	if alias, _ := obj.(*Alias); alias != nil {
+-		if typ == Typ[Invalid] {
++		obj = original(obj)
++		if obj == nil || typ == Typ[Invalid] {
+ 			return
+ 		}
+-		obj = alias.orig
+-		// Aliases always refer to non-alias originals.
+-		if _, ok := obj.(*Alias); ok {
+-			panic("original is an alias")
+-		}
+ 		assert(typ == obj.Type())
+ 	}
+ 

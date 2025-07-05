@@ -7,7 +7,60 @@ Date:   Mon Mar 5 13:51:44 2012 -0500
     R=lvd, gri
     CC=golang-dev
     https://golang.org/cl/5731061
-
+---
  src/cmd/gc/inl.c |  2 ++
  test/escape4.go  | 20 +++++++++++++-------
  2 files changed, 15 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/gc/inl.c b/src/cmd/gc/inl.c
+index 96080cbfaf..efce56057d 100644
+--- a/src/cmd/gc/inl.c
++++ b/src/cmd/gc/inl.c
+@@ -182,6 +182,8 @@ ishairy(Node *n, int *budget)
+ 	case OCALLFUNC:
+ 	case OCALLINTER:
+ 	case OCALLMETH:
++	case OPANIC:
++	case ORECOVER:
+ 		if(debug['l'] < 4)
+ 			return 1;
+ 		break;
+diff --git a/test/escape4.go b/test/escape4.go
+index ab3aee2244..8875708963 100644
+--- a/test/escape4.go
++++ b/test/escape4.go
+@@ -11,8 +11,8 @@ package foo
+ 
+ var p *int
+ 
+-func alloc(x int) *int {  // ERROR "can inline alloc" "moved to heap: x"
+-	return &x  // ERROR "&x escapes to heap"
++func alloc(x int) *int { // ERROR "can inline alloc" "moved to heap: x"
++	return &x // ERROR "&x escapes to heap"
+ }
+ 
+ var f func()
+@@ -22,12 +22,18 @@ func f1() {
+ 
+ 	// Escape analysis used to miss inlined code in closures.
+ 
+-	func() {  // ERROR "func literal does not escape"
+-		p = alloc(3)  // ERROR "inlining call to alloc" "&x escapes to heap" "moved to heap: x"
++	func() { // ERROR "func literal does not escape"
++		p = alloc(3) // ERROR "inlining call to alloc" "&x escapes to heap" "moved to heap: x"
+ 	}()
+-	
+-	f = func() {  // ERROR "func literal escapes to heap"
+-		p = alloc(3)  // ERROR "inlining call to alloc" "&x escapes to heap" "moved to heap: x"
++
++	f = func() { // ERROR "func literal escapes to heap"
++		p = alloc(3) // ERROR "inlining call to alloc" "&x escapes to heap" "moved to heap: x"
+ 	}
+ 	f()
+ }
++
++func f2() {} // ERROR "can inline f2"
++
++// No inline for panic, recover.
++func f3() { panic(1) }
++func f4() { recover() }

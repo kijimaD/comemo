@@ -16,7 +16,112 @@ Date:   Wed Apr 21 19:12:38 2021 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/internal/ld/macho.go | 28 ++++++++++++----------------
  src/cmd/link/link_test.go         | 18 +++++++++---------
  2 files changed, 21 insertions(+), 25 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/macho.go b/src/cmd/link/internal/ld/macho.go
+index 1c88c05dd4..85269b30d0 100644
+--- a/src/cmd/link/internal/ld/macho.go
++++ b/src/cmd/link/internal/ld/macho.go
+@@ -472,24 +472,20 @@ func (ctxt *Link) domacho() {
+ 		if buildcfg.GOOS == "ios" {
+ 			machoPlatform = PLATFORM_IOS
+ 		}
+-		switch ctxt.Arch.Family {
+-		default:
+-			if ctxt.LinkMode == LinkInternal {
+-				// For lldb, must say LC_VERSION_MIN_MACOSX or else
+-				// it won't know that this Mach-O binary is from OS X
+-				// (could be iOS or WatchOS instead).
+-				// Go on iOS uses linkmode=external, and linkmode=external
+-				// adds this itself. So we only need this code for linkmode=internal
+-				// and we can assume OS X.
+-				//
+-				// See golang.org/issues/12941.
+-				//
++		if ctxt.LinkMode == LinkInternal && machoPlatform == PLATFORM_MACOS {
++			var version uint32
++			switch ctxt.Arch.Family {
++			case sys.AMD64:
+ 				// The version must be at least 10.9; see golang.org/issues/30488.
+-				ml := newMachoLoad(ctxt.Arch, LC_VERSION_MIN_MACOSX, 2)
+-				ml.data[0] = 10<<16 | 9<<8 | 0<<0 // OS X version 10.9.0
+-				ml.data[1] = 10<<16 | 9<<8 | 0<<0 // SDK 10.9.0
++				version = 10<<16 | 9<<8 | 0<<0 // 10.9.0
++			case sys.ARM64:
++				version = 11<<16 | 0<<8 | 0<<0 // 11.0.0
+ 			}
+-		case sys.ARM64:
++			ml := newMachoLoad(ctxt.Arch, LC_BUILD_VERSION, 4)
++			ml.data[0] = uint32(machoPlatform)
++			ml.data[1] = version // OS version
++			ml.data[2] = version // SDK version
++			ml.data[3] = 0       // ntools
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/link/link_test.go b/src/cmd/link/link_test.go
+index 9369e550f4..985aed49e2 100644
+--- a/src/cmd/link/link_test.go
++++ b/src/cmd/link/link_test.go
+@@ -333,12 +333,12 @@ func TestXFlag(t *testing.T) {
+ 	}
+ }
+ 
+-var testMacOSVersionSrc = `
++var testMachOBuildVersionSrc = `
+ package main
+ func main() { }
+ `
+ 
+-func TestMacOSVersion(t *testing.T) {
++func TestMachOBuildVersion(t *testing.T) {
+ 	testenv.MustHaveGoBuild(t)
+ 
+ 	t.Parallel()
+@@ -346,7 +346,7 @@ func TestMacOSVersion(t *testing.T) {
+ 	tmpdir := t.TempDir()
+ 
+ 	src := filepath.Join(tmpdir, "main.go")
+-	err := ioutil.WriteFile(src, []byte(testMacOSVersionSrc), 0666)
++	err := ioutil.WriteFile(src, []byte(testMachOBuildVersionSrc), 0666)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -371,28 +371,28 @@ func TestMacOSVersion(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 	found := false
+-	const LC_VERSION_MIN_MACOSX = 0x24
++	const LC_BUILD_VERSION = 0x32
+ 	checkMin := func(ver uint32) {
+ 		major, minor := (ver>>16)&0xff, (ver>>8)&0xff
+ 		if major != 10 || minor < 9 {
+-			t.Errorf("LC_VERSION_MIN_MACOSX version %d.%d < 10.9", major, minor)
++			t.Errorf("LC_BUILD_VERSION version %d.%d < 10.9", major, minor)
+ 		}
+ 	}
+ 	for _, cmd := range exem.Loads {
+ 		raw := cmd.Raw()
+ 		type_ := exem.ByteOrder.Uint32(raw)
+-		if type_ != LC_VERSION_MIN_MACOSX {
++		if type_ != LC_BUILD_VERSION {
+ 			continue
+ 		}
+-		osVer := exem.ByteOrder.Uint32(raw[8:])
++		osVer := exem.ByteOrder.Uint32(raw[12:])
+ 		checkMin(osVer)
+-		sdkVer := exem.ByteOrder.Uint32(raw[12:])
++		sdkVer := exem.ByteOrder.Uint32(raw[16:])
+ 		checkMin(sdkVer)
+ 		found = true
+ 		break
+ 	}
+ 	if !found {
+-		t.Errorf("no LC_VERSION_MIN_MACOSX load command found")
++		t.Errorf("no LC_BUILD_VERSION load command found")
+ 	}
+ }
+ 

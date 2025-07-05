@@ -12,6 +12,24 @@ Date:   Mon Sep 5 14:56:27 2022 +0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/ir/mknode.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/mknode.go b/src/cmd/compile/internal/ir/mknode.go
+index be529a7e5c..d815195721 100644
+--- a/src/cmd/compile/internal/ir/mknode.go
++++ b/src/cmd/compile/internal/ir/mknode.go
+@@ -254,9 +254,9 @@ func processType(t *ast.TypeSpec) {
+ 		}
+ 	}
+ 	// Process fields.
+-	var copyBody bytes.Buffer
+-	var doChildrenBody bytes.Buffer
+-	var editChildrenBody bytes.Buffer
++	var copyBody strings.Builder
++	var doChildrenBody strings.Builder
++	var editChildrenBody strings.Builder
+ 	for _, f := range fields {
+ 		if f.Tag != nil {
+ 			tag := f.Tag.Value[1 : len(f.Tag.Value)-1]

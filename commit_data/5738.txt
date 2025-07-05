@@ -9,6 +9,20 @@ Date:   Wed Jun 30 18:57:27 2010 +1000
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1687045
-
+---
  src/pkg/http/client_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/http/client_test.go b/src/pkg/http/client_test.go
+index a916b12e24..013653a829 100644
+--- a/src/pkg/http/client_test.go
++++ b/src/pkg/http/client_test.go
+@@ -32,7 +32,7 @@ func TestClient(t *testing.T) {
+ func TestClientHead(t *testing.T) {
+ 	r, err := Head("http://www.google.com/robots.txt")
+ 	if err != nil {
+-		t.Error(err)
++		t.Fatal(err)
+ 	}
+ 	if _, ok := r.Header["Last-Modified"]; !ok {
+ 		t.Error("Last-Modified header not found.")

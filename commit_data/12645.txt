@@ -9,7 +9,7 @@ Date:   Thu Mar 15 17:44:47 2012 +1100
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5835043
-
+---
  doc/play/fib.go        |  17 +++++++
  doc/play/hello.go      |   7 +++
  doc/play/peano.go      |  88 +++++++++++++++++++++++++++++++++++++
@@ -22,3 +22,649 @@ Date:   Thu Mar 15 17:44:47 2012 +1100
  doc/style.css          |  12 ++---
  src/cmd/godoc/godoc.go |   3 +-
  11 files changed, 475 insertions(+), 43 deletions(-)
+
+diff --git a/doc/play/fib.go b/doc/play/fib.go
+new file mode 100644
+index 0000000000..42da9ce82e
+--- /dev/null
++++ b/doc/play/fib.go
+@@ -0,0 +1,17 @@
++package main
++
++// fib returns a function that returns
++// successive Fibonacci numbers.
++func fib() func() int {
++	a, b := 0, 1
++	return func() int {
++		a, b = b, a+b
++		return a
++	}
++}
++
++func main() {
++	f := fib()
++	// Function calls are evaluated left-to-right.
++	println(f(), f(), f(), f(), f())
++}
+diff --git a/doc/play/hello.go b/doc/play/hello.go
+new file mode 100644
+index 0000000000..078ddff8f4
+--- /dev/null
++++ b/doc/play/hello.go
+@@ -0,0 +1,7 @@
++package main
++
++import "fmt"
++
++func main() {
++	fmt.Println("Hello, 世界")
++}
+diff --git a/doc/play/peano.go b/doc/play/peano.go
+new file mode 100644
+index 0000000000..c1ee5ad45d
+--- /dev/null
++++ b/doc/play/peano.go
+@@ -0,0 +1,88 @@
++// Peano integers are represented by a linked
++// list whose nodes contain no data
++// (the nodes are the data).
++// http://en.wikipedia.org/wiki/Peano_axioms
++
++// This program demonstrates the power of Go's
++// segmented stacks when doing massively
++// recursive computations.
++
++package main
++
++import "fmt"
++
++// Number is a pointer to a Number
++type Number *Number
++
++// The arithmetic value of a Number is the
++// count of the nodes comprising the list.
++// (See the count function below.)
++
++// -------------------------------------
++// Peano primitives
++
++func zero() *Number {
++	return nil
++}
++
++func isZero(x *Number) bool {
++	return x == nil
++}
++
++func add1(x *Number) *Number {
++	e := new(Number)
++	*e = x
++	return e
++}
++
++func sub1(x *Number) *Number {
++	return *x
++}
++
++func add(x, y *Number) *Number {
++	if isZero(y) {
++		return x
++	}
++	return add(add1(x), sub1(y))
++}
++
++func mul(x, y *Number) *Number {
++	if isZero(x) || isZero(y) {
++		return zero()
++	}
++	return add(mul(x, sub1(y)), x)
++}
++
++func fact(n *Number) *Number {
++	if isZero(n) {
++		return add1(zero())
++	}
++	return mul(fact(sub1(n)), n)
++}
++
++// -------------------------------------
++// Helpers to generate/count Peano integers
++
++func gen(n int) *Number {
++	if n > 0 {
++		return add1(gen(n - 1))
++	}
++	return zero()
++}
++
++func count(x *Number) int {
++	if isZero(x) {
++		return 0
++	}
++	return count(sub1(x)) + 1
++}
++
++// -------------------------------------
++// Print i! for i in [0,9]
++
++func main() {
++	for i := 0; i <= 9; i++ {
++		f := count(fact(gen(i)))
++		fmt.Println(i, "! =", f)
++	}
++}
+diff --git a/doc/play/pi.go b/doc/play/pi.go
+new file mode 100644
+index 0000000000..f2f5dca748
+--- /dev/null
++++ b/doc/play/pi.go
+@@ -0,0 +1,34 @@
++// Concurrent computation of pi.
++// See http://goo.gl/ZuTZM.
++//
++// This demonstrates Go's ability to handle
++// large numbers of concurrent processes.
++// It is an unreasonable way to calculate pi.
++package main
++
++import (
++	"fmt"
++	"math"
++)
++
++func main() {
++	fmt.Println(pi(5000))
++}
++
++// pi launches n goroutines to compute an
++// approximation of pi.
++func pi(n int) float64 {
++	ch := make(chan float64)
++	for k := 0; k <= n; k++ {
++		go term(ch, float64(k))
++	}
++	f := 0.0
++	for k := 0; k <= n; k++ {
++		f += <-ch
++	}
++	return f
++}
++
++func term(ch chan float64, k float64) {
++	ch <- 4 * math.Pow(-1, k) / (2*k + 1)
++}
+diff --git a/doc/play/playground.js b/doc/play/playground.js
+index e060e203c4..69dc451fc1 100644
+--- a/doc/play/playground.js
++++ b/doc/play/playground.js
+@@ -12,6 +12,7 @@
+ // 	preCompile - callback to mutate request data before compiling
+ // 	postCompile - callback to read response data after compiling
+ //      simple - use plain textarea instead of CodeMirror.
++//      toysEl - select element with a list of toys.
+ function playground(opts) {
+ 	var simple = opts['simple'];
+ 	var code = $(opts['codeEl']);
+@@ -109,6 +110,16 @@ function playground(opts) {
+ 		}
+ 		return $(opts['codeEl']).val();
+ 	}
++	function setBody(text) {
++		if (editor) {
++			editor.setValue(text);
++			return;
++		}
++		$(opts['codeEl']).val(text);
++	}
++	function origin(href) {
++		return (""+href).split("/").slice(0, 3).join("/");
++	}
+ 
+ 	var seq = 0;
+ 	function run() {
+@@ -164,43 +175,53 @@ function playground(opts) {
+ 	}
+ 	$(opts['runEl']).click(run);
+ 
+-	if (opts['shareEl'] == null || (opts['shareURLEl'] == null && opts['shareRedirect'] == null)) {
+-		return editor;
+-	}
+-
+-	function origin(href) {
+-		return (""+href).split("/").slice(0, 3).join("/");
++	if (opts['shareEl'] != null && (opts['shareURLEl'] != null || opts['shareRedirect'] != null)) {
++		var shareURL;
++		if (opts['shareURLEl']) {
++			shareURL = $(opts['shareURLEl']).hide();
++		}
++		var sharing = false;
++		$(opts['shareEl']).click(function() {
++			if (sharing) return;
++			sharing = true;
++			$.ajax("/share", {
++				processData: false,
++				data: body(),
++				type: "POST",
++				complete: function(xhr) {
++					sharing = false;
++					if (xhr.status != 200) {
++						alert("Server error; try again.");
++						return;
++					}
++					if (opts['shareRedirect']) {
++						window.location = opts['shareRedirect'] + xhr.responseText;
++					}
++					if (shareURL) {
++						var url = origin(window.location) + "/p/" + xhr.responseText;
++						shareURL.show().val(url).focus().select();
++					}
++				}
++			});
++		});
+ 	}
+ 
+-	var shareURL;
+-	if (opts['shareURLEl']) {
+-		shareURL = $(opts['shareURLEl']).hide();
+-	}
+-	var sharing = false;
+-	$(opts['shareEl']).click(function() {
+-		if (sharing) return;
+-		sharing = true;
+-		$.ajax("/share", {
+-			processData: false,
+-			data: body(),
+-			type: "POST",
+-			complete: function(xhr) {
+-				sharing = false;
+-				if (xhr.status != 200) {
+-					alert("Server error; try again.");
+-					return;
+-				}
+-				if (opts['shareRedirect']) {
+-					window.location = opts['shareRedirect'] + xhr.responseText;
+-				}
+-				if (shareURL) {
+-					var url = origin(window.location) + "/p/" +
+-						xhr.responseText;
+-					shareURL.show().val(url).focus().select();
++	if (opts['toysEl'] != null) {
++		$(opts['toysEl']).bind('change', function() {
++			var toy = $(this).val();
++			$.ajax("/doc/play/"+toy, {
++				processData: false,
++				type: "GET",
++				complete: function(xhr) {
++					if (xhr.status != 200) {
++						alert("Server error; try again.")
++						return;
++					}
++					setBody(xhr.responseText);
+ 				}
+-			}
++			});
+ 		});
+-	});
++	}
+ 
+ 	return editor;
+ }
+diff --git a/doc/play/sieve.go b/doc/play/sieve.go
+new file mode 100644
+index 0000000000..585507ac44
+--- /dev/null
++++ b/doc/play/sieve.go
+@@ -0,0 +1,34 @@
++// A concurrent prime sieve
++
++package main
++
++// Send the sequence 2, 3, 4, ... to channel 'ch'.
++func Generate(ch chan<- int) {
++	for i := 2; ; i++ {
++		ch <- i // Send 'i' to channel 'ch'.
++	}
++}
++
++// Copy the values from channel 'in' to channel 'out',
++// removing those divisible by 'prime'.
++func Filter(in <-chan int, out chan<- int, prime int) {
++	for {
++		i := <-in // Receive value from 'in'.
++		if i%prime != 0 {
++			out <- i // Send 'i' to 'out'.
++		}
++	}
++}
++
++// The prime sieve: Daisy-chain Filter processes.
++func main() {
++	ch := make(chan int) // Create a new channel.
++	go Generate(ch)      // Launch Generate goroutine.
++	for i := 0; i < 10; i++ {
++		prime := <-ch
++		print(prime, "\n")
++		ch1 := make(chan int)
++		go Filter(ch, ch1, prime)
++		ch = ch1
++	}
++}
+diff --git a/doc/play/solitaire.go b/doc/play/solitaire.go
+new file mode 100644
+index 0000000000..546bc10206
+--- /dev/null
++++ b/doc/play/solitaire.go
+@@ -0,0 +1,117 @@
++// This program solves the (English) peg
++// solitaire board game.
++// http://en.wikipedia.org/wiki/Peg_solitaire
++
++package main
++
++import "fmt"
++
++const N = 11 + 1 // length of a row (+1 for \n)
++
++// The board must be surrounded by 2 illegal
++// fields in each direction so that move()
++// doesn't need to check the board boundaries.
++// Periods represent illegal fields,
++// ● are pegs, and ○ are holes.
++
++var board = []int(
++	`...........
++...........
++....●●●....
++....●●●....
++..●●●●●●●..
++..●●●○●●●..
++..●●●●●●●..
++....●●●....
++....●●●....
++...........
++...........
++`)
++
++// center is the position of the center hole if 
++// there is a single one; otherwise it is -1.
++var center int
++
++func init() {
++	n := 0
++	for pos, field := range board {
++		if field == '○' {
++			center = pos
++			n++
++		}
++	}
++	if n != 1 {
++		center = -1 // no single hole
++	}
++}
++
++var moves int // number of times move is called
++
++// move tests if there is a peg at position pos that 
++// can jump over another peg in direction dir. If the
++// move is valid, it is executed and move returns true.
++// Otherwise, move returns false.
++func move(pos, dir int) bool {
++	moves++
++	if board[pos] == '●' && board[pos+dir] == '●' && board[pos+2*dir] == '○' {
++		board[pos] = '○'
++		board[pos+dir] = '○'
++		board[pos+2*dir] = '●'
++		return true
++	}
++	return false
++}
++
++// unmove reverts a previously executed valid move.
++func unmove(pos, dir int) {
++	board[pos] = '●'
++	board[pos+dir] = '●'
++	board[pos+2*dir] = '○'
++}
++
++// solve tries to find a sequence of moves such that 
++// there is only one peg left at the end; if center is 
++// >= 0, that last peg must be in the center position.
++// If a solution is found, solve prints the board after
++// each move in a backward fashion (i.e., the last 
++// board position is printed first, all the way back to
++// the starting board position).
++func solve() bool {
++	var last, n int
++	for pos, field := range board {
++		// try each board position
++		if field == '●' {
++			// found a peg
++			for _, dir := range [...]int{-1, -N, +1, +N} {
++				// try each direction
++				if move(pos, dir) {
++					// a valid move was found and executed,
++					// see if this new board has a solution
++					if solve() {
++						unmove(pos, dir)
++						println(string(board))
++						return true
++					}
++					unmove(pos, dir)
++				}
++			}
++			last = pos
++			n++
++		}
++	}
++	// tried each possible move
++	if n == 1 && (center < 0 || last == center) {
++		// there's only one peg left
++		println(string(board))
++		return true
++	}
++	// no solution found for this board
++	return false
++}
++
++func main() {
++	if !solve() {
++		fmt.Println("no solution found")
++	}
++	fmt.Println(moves, "moves tried")
++}
+diff --git a/doc/play/tree.go b/doc/play/tree.go
+new file mode 100644
+index 0000000000..5bcbf05a88
+--- /dev/null
++++ b/doc/play/tree.go
+@@ -0,0 +1,100 @@
++// Go's concurrency primitives make it easy to
++// express concurrent concepts, such as
++// this binary tree comparison.
++//
++// Trees may be of different shapes, 
++// but have the same contents. For example:
++//
++//        4               6
++//      2   6          4     7
++//     1 3 5 7       2   5
++//                  1 3
++//
++// This program compares a pair of trees by
++// walking each in its own goroutine,
++// sending their contents through a channel
++// to a third goroutine that compares them.
++
++package main
++
++import (
++	"fmt"
++	"math/rand"
++)
++
++// A Tree is a binary tree with integer values.
++type Tree struct {
++	Left  *Tree
++	Value int
++	Right *Tree
++}
++
++// Walk traverses a tree depth-first, 
++// sending each Value on a channel.
++func Walk(t *Tree, ch chan int) {
++	if t == nil {
++		return
++	}
++	Walk(t.Left, ch)
++	ch <- t.Value
++	Walk(t.Right, ch)
++}
++
++// Walker launches Walk in a new goroutine,
++// and returns a read-only channel of values.
++func Walker(t *Tree) <-chan int {
++	ch := make(chan int)
++	go func() {
++		Walk(t, ch)
++		close(ch)
++	}()
++	return ch
++}
++
++// Compare reads values from two Walkers
++// that run simultaneously, and returns true
++// if t1 and t2 have the same contents.
++func Compare(t1, t2 *Tree) bool {
++	c1, c2 := Walker(t1), Walker(t2)
++	for {
++		v1, ok1 := <-c1
++		v2, ok2 := <-c2
++		if !ok1 || !ok2 {
++			return ok1 == ok2
++		}
++		if v1 != v2 {
++			break
++		}
++	}
++	return false
++}
++
++// New returns a new, random binary tree
++// holding the values 1k, 2k, ..., nk.
++func New(n, k int) *Tree {
++	var t *Tree
++	for _, v := range rand.Perm(n) {
++		t = insert(t, (1+v)*k)
++	}
++	return t
++}
++
++func insert(t *Tree, v int) *Tree {
++	if t == nil {
++		return &Tree{nil, v, nil}
++	}
++	if v < t.Value {
++		t.Left = insert(t.Left, v)
++		return t
++	}
++	t.Right = insert(t.Right, v)
++	return t
++}
++
++func main() {
++	t1 := New(100, 1)
++	fmt.Println(Compare(t1, New(100, 1)), "Same Contents")
++	fmt.Println(Compare(t1, New(99, 1)), "Differing Sizes")
++	fmt.Println(Compare(t1, New(100, 2)), "Differing Values")
++	fmt.Println(Compare(t1, New(101, 2)), "Dissimilar")
++}
+diff --git a/doc/root.html b/doc/root.html
+index b2d0b60e16..3b92229cbe 100644
+--- a/doc/root.html
++++ b/doc/root.html
+@@ -24,8 +24,20 @@ Hello, 世界
+ </pre>
+ </div>
+ <div class="buttons">
+-<a class="run" href="#">Run</a>
+-<a class="share" href="#">Share</a>
++<a class="run" href="#" title="Run this code [shift-enter]">Run</a>
++<a class="share" href="#" title="Share this code">Share</a>
++<a class="tour" href="http://tour.golang.org/" title="Learn Go from your browser">Tour</a>
++</div>
++<div class="toys">
++<select>
++	<option value="hello.go">Hello, World!</option>
++	<option value="fib.go">Fibonacci Closure</option>
++	<option value="peano.go">Peano Integers</option>
++	<option value="pi.go">Concurrent pi</option>
++	<option value="sieve.go">Concurrent Prime Sieve</option>
++	<option value="solitaire.go">Peg Solitaire Solver</option>
++	<option value="tree.go">Tree Comparison</option>
++</select>
+ </div>
+ </div>
+ 
+@@ -117,7 +129,8 @@ function init() {
+ 		"outputEl":      "#learn .output",
+ 		"runEl":         "#learn .run",
+ 		"shareEl":       "#learn .share",
+-		"shareRedirect": "http://play.golang.org/p/"
++		"shareRedirect": "http://play.golang.org/p/",
++		"toysEl":        "#learn .toys select"
+ 	});
+ }
+ 
+diff --git a/doc/style.css b/doc/style.css
+index fc6c34c8df..53f5e18cd1 100644
+--- a/doc/style.css
++++ b/doc/style.css
+@@ -322,21 +322,21 @@ div#learn .output {
+ 	border: 1px solid #375EAB;
+ }
+ div#learn .buttons {
++	float: right;
+ 	padding: 20px 0 10px 0;
+ 	text-align: right;
+ }
+ div#learn .buttons a {
+ 	height: 16px;
+ 	margin-left: 5px;
+-
+ 	padding: 10px;
+ }
+-div#learn .buttons .tour {
+-	float: right;
++div#learn .toys {
++	margin-top: 8px;
+ }
+-div#learn .buttons .tour a {
+-	margin-right: 0;
+-	font-weight: bold;
++div#learn .toys select {
++	border: 1px solid #375EAB;
++	margin: 0;
+ }
+ 
+ div#blog,
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index 5faba2b181..f9a50516cf 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -67,7 +67,7 @@ var (
+ 	// search index
+ 	indexEnabled = flag.Bool("index", false, "enable search index")
+ 	indexFiles   = flag.String("index_files", "", "glob pattern specifying index files;"+
+-		"if not empty, the index is read from these files in sorted order")
++			"if not empty, the index is read from these files in sorted order")
+ 	maxResults    = flag.Int("maxresults", 10000, "maximum number of full text search results shown")
+ 	indexThrottle = flag.Float64("index_throttle", 0.75, "index throttle value; 0.0 = no time allocated, 1.0 = full throttle")
+ 
+@@ -102,6 +102,7 @@ func registerPublicHandlers(mux *http.ServeMux) {
+ 	mux.Handle(cmdHandler.pattern, &cmdHandler)
+ 	mux.Handle(pkgHandler.pattern, &pkgHandler)
+ 	mux.HandleFunc("/doc/codewalk/", codewalk)
++	mux.Handle("/doc/play/", fileServer)
+ 	mux.HandleFunc("/search", search)
+ 	mux.Handle("/robots.txt", fileServer)
+ 	mux.HandleFunc("/opensearch.xml", serveSearchDesc)

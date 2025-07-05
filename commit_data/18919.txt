@@ -13,7 +13,34 @@ Date:   Fri Mar 21 19:26:47 2014 +0100
     R=golang-codereviews, iant
     CC=golang-codereviews
     https://golang.org/cl/76580046
-
+---
  src/cmd/ld/macho.c  | 2 +-
  src/cmd/ld/symtab.c | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/ld/macho.c b/src/cmd/ld/macho.c
+index 0f9b0d2d2d..61306bb7ca 100644
+--- a/src/cmd/ld/macho.c
++++ b/src/cmd/ld/macho.c
+@@ -592,7 +592,7 @@ machosymtab(void)
+ 		} else {
+ 			p = s->extname;
+ 			while (*p++ != '\0') {
+-				if(*p == '\xc2' && *(p+1) == '\xb7') {
++				if((uchar)*p == 0xc2 && (uchar)*(p+1) == 0xb7) {
+ 					adduint8(ctxt, symstr, '.');
+ 					p++;
+ 				} else {
+diff --git a/src/cmd/ld/symtab.c b/src/cmd/ld/symtab.c
+index 22e5bb5d95..c87d0f089c 100644
+--- a/src/cmd/ld/symtab.c
++++ b/src/cmd/ld/symtab.c
+@@ -60,7 +60,7 @@ putelfstr(char *s)
+ 	if(p != nil) {
+ 		p = q = elfstrdat+off;
+ 		while (*q != '\0') {
+-			if(*q == '\xc2' && *(q+1) == '\xb7') {
++			if((uchar)*q == 0xc2 && (uchar)*(q+1) == 0xb7) {
+ 				q += 2;
+ 				*p++ = '.';
+ 				elfstrsize--;

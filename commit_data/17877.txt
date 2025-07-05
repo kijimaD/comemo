@@ -7,6 +7,20 @@ Date:   Tue Nov 12 10:03:13 2013 -0800
     R=adonovan
     CC=golang-dev
     https://golang.org/cl/25360043
-
+---
  CONTRIBUTORS | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index e888acf544..a837ab5808 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -402,7 +402,7 @@ Raif S. Naffah <go@naffah-raif.name>
+ Raph Levien <raph@google.com>
+ Rémy Oudompheng <oudomphe@phare.normalesup.org> <remyoudompheng@gmail.com>
+ Richard Eric Gavaletz <gavaletz@gmail.com>
+-Richard Musiol <mail@richard-musiol.de>
++Richard Musiol <mail@richard-musiol.de> <neelance@gmail.com>
+ Rick Arnold <rickarnoldjr@gmail.com>
+ Risto Jaakko Saarelma <rsaarelm@gmail.com>
+ Rob Pike <r@golang.org>

@@ -7,10 +7,84 @@ Date:   Mon Sep 5 08:11:51 2011 -0400
     R=fullung, golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/4986041
-
+---
  src/pkg/syscall/netlink_linux.go      | 8 ++++----
  src/pkg/syscall/types_linux.c         | 2 +-
  src/pkg/syscall/ztypes_linux_386.go   | 2 +-
  src/pkg/syscall/ztypes_linux_amd64.go | 2 +-
  src/pkg/syscall/ztypes_linux_arm.go   | 2 +-
  5 files changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/src/pkg/syscall/netlink_linux.go b/src/pkg/syscall/netlink_linux.go
+index be80d268fb..62d9e15e29 100644
+--- a/src/pkg/syscall/netlink_linux.go
++++ b/src/pkg/syscall/netlink_linux.go
+@@ -195,12 +195,12 @@ func ParseNetlinkRouteAttr(msg *NetlinkMessage) ([]NetlinkRouteAttr, int) {
+ 	)
+ 
+ 	switch msg.Header.Type {
+-	case RTM_NEWLINK:
++	case RTM_NEWLINK, RTM_DELLINK:
+ 		buf = msg.Data[SizeofIfInfomsg:]
+-	case RTM_NEWADDR:
++	case RTM_NEWADDR, RTM_DELADDR:
+ 		buf = msg.Data[SizeofIfAddrmsg:]
+-	case RTM_NEWROUTE:
+-		buf = msg.Data[SizeofRtmsg:]
++	case RTM_NEWROUTE, RTM_DELROUTE:
++		buf = msg.Data[SizeofRtMsg:]
+ 	default:
+ 		return nil, EINVAL
+ 	}
+diff --git a/src/pkg/syscall/types_linux.c b/src/pkg/syscall/types_linux.c
+index abb2a91a7f..68d64a3a3b 100644
+--- a/src/pkg/syscall/types_linux.c
++++ b/src/pkg/syscall/types_linux.c
+@@ -212,7 +212,7 @@ enum {
+ 	$SizeofRtAttr = sizeof(struct rtattr),
+ 	$SizeofIfInfomsg = sizeof(struct ifinfomsg),
+ 	$SizeofIfAddrmsg = sizeof(struct ifaddrmsg),
+-	$SizeofRtmsg = sizeof(struct rtmsg),
++	$SizeofRtMsg = sizeof(struct rtmsg),
+ 	$SizeofRtNexthop = sizeof(struct rtnexthop),
+ };
+ 
+diff --git a/src/pkg/syscall/ztypes_linux_386.go b/src/pkg/syscall/ztypes_linux_386.go
+index 252fbff74a..0335eb5ee2 100644
+--- a/src/pkg/syscall/ztypes_linux_386.go
++++ b/src/pkg/syscall/ztypes_linux_386.go
+@@ -98,7 +98,7 @@ const (
+ 	SizeofRtAttr            = 0x4
+ 	SizeofIfInfomsg         = 0x10
+ 	SizeofIfAddrmsg         = 0x8
+-	SizeofRtmsg             = 0xc
++	SizeofRtMsg             = 0xc
+ 	SizeofRtNexthop         = 0x8
+ 	SizeofSockFilter        = 0x8
+ 	SizeofSockFprog         = 0x8
+diff --git a/src/pkg/syscall/ztypes_linux_amd64.go b/src/pkg/syscall/ztypes_linux_amd64.go
+index 520ba963ab..c97b7f6fa9 100644
+--- a/src/pkg/syscall/ztypes_linux_amd64.go
++++ b/src/pkg/syscall/ztypes_linux_amd64.go
+@@ -98,7 +98,7 @@ const (
+ 	SizeofRtAttr            = 0x4
+ 	SizeofIfInfomsg         = 0x10
+ 	SizeofIfAddrmsg         = 0x8
+-	SizeofRtmsg             = 0xc
++	SizeofRtMsg             = 0xc
+ 	SizeofRtNexthop         = 0x8
+ 	SizeofSockFilter        = 0x8
+ 	SizeofSockFprog         = 0x10
+diff --git a/src/pkg/syscall/ztypes_linux_arm.go b/src/pkg/syscall/ztypes_linux_arm.go
+index 2421df081b..3d4aded9ca 100644
+--- a/src/pkg/syscall/ztypes_linux_arm.go
++++ b/src/pkg/syscall/ztypes_linux_arm.go
+@@ -103,7 +103,7 @@ const (
+ 	SizeofRtAttr            = 0x4
+ 	SizeofIfInfomsg         = 0x10
+ 	SizeofIfAddrmsg         = 0x8
+-	SizeofRtmsg             = 0xc
++	SizeofRtMsg             = 0xc
+ 	SizeofRtNexthop         = 0x8
+ 	SizeofSockFilter        = 0x8
+ 	SizeofSockFprog         = 0x8

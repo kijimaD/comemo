@@ -19,8 +19,232 @@ Date:   Fri Oct 6 12:46:22 2017 -0700
     Reviewed-on: https://go-review.googlesource.com/70983
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/crypto/x509/verify.go      |  8 ++--
  src/crypto/x509/verify_test.go | 96 ++++++++++++++++++++++++++++++++++++++++++
  src/crypto/x509/x509_test.go   | 68 ------------------------------
  3 files changed, 100 insertions(+), 72 deletions(-)
+
+diff --git a/src/crypto/x509/verify.go b/src/crypto/x509/verify.go
+index 2b4f39d62e..1193a266a9 100644
+--- a/src/crypto/x509/verify.go
++++ b/src/crypto/x509/verify.go
+@@ -191,6 +191,10 @@ func matchNameConstraint(domain, constraint string) bool {
+ 
+ // isValid performs validity checks on the c.
+ func (c *Certificate) isValid(certType int, currentChain []*Certificate, opts *VerifyOptions) error {
++	if len(c.UnhandledCriticalExtensions) > 0 {
++		return UnhandledCriticalExtension{}
++	}
++
+ 	if len(currentChain) > 0 {
+ 		child := currentChain[len(currentChain)-1]
+ 		if !bytes.Equal(child.RawIssuer, c.RawSubject) {
+@@ -285,10 +289,6 @@ func (c *Certificate) Verify(opts VerifyOptions) (chains [][]*Certificate, err e
+ 		return c.systemVerify(&opts)
+ 	}
+ 
+-	if len(c.UnhandledCriticalExtensions) > 0 {
+-		return nil, UnhandledCriticalExtension{}
+-	}
+-
+ 	if opts.Roots == nil {
+ 		opts.Roots = systemRootsPool()
+ 		if opts.Roots == nil {
+diff --git a/src/crypto/x509/verify_test.go b/src/crypto/x509/verify_test.go
+index 335c477d0d..41e295d3e5 100644
+--- a/src/crypto/x509/verify_test.go
++++ b/src/crypto/x509/verify_test.go
+@@ -296,6 +296,30 @@ var verifyTests = []verifyTest{
+ 
+ 		errorCallback: expectNameConstraintsError,
+ 	},
++	{
++		// Test that unknown critical extensions in a leaf cause a
++		// verify error.
++		leaf:          criticalExtLeafWithExt,
++		dnsName:       "example.com",
++		intermediates: []string{criticalExtIntermediate},
++		roots:         []string{criticalExtRoot},
++		currentTime:   1486684488,
++		systemSkip:    true,
++
++		errorCallback: expectUnhandledCriticalExtension,
++	},
++	{
++		// Test that unknown critical extensions in an intermediate
++		// cause a verify error.
++		leaf:          criticalExtLeaf,
++		dnsName:       "example.com",
++		intermediates: []string{criticalExtIntermediateWithExt},
++		roots:         []string{criticalExtRoot},
++		currentTime:   1486684488,
++		systemSkip:    true,
++
++		errorCallback: expectUnhandledCriticalExtension,
++	},
+ }
+ 
+ func expectHostnameError(t *testing.T, i int, err error) (ok bool) {
+@@ -379,6 +403,14 @@ func expectNotAuthorizedError(t *testing.T, i int, err error) (ok bool) {
+ 	return true
+ }
+ 
++func expectUnhandledCriticalExtension(t *testing.T, i int, err error) (ok bool) {
++	if _, ok := err.(UnhandledCriticalExtension); !ok {
++		t.Errorf("#%d: error was not an UnhandledCriticalExtension: %s", i, err)
++		return false
++	}
++	return true
++}
++
+ func certificateFromPEM(pemBytes string) (*Certificate, error) {
+ 	block, _ := pem.Decode([]byte(pemBytes))
+ 	if block == nil {
+@@ -1596,3 +1628,67 @@ w67CoNRb81dy+4Q1lGpA8ORoLWh5fIq2t2eNGc4qB8vlTIKiESzAwu7u3sRfuWQi
+ 4R+gnfLd37FWflMHwztFbVTuNtPOljCX0LN7KcuoXYlr05RhQrmoN7fQHsrZMNLs
+ 8FVjHdKKu+uPstwd04Uy4BR/H2y1yerN9j/L6ZkMl98iiA==
+ -----END CERTIFICATE-----`
++
++const criticalExtRoot = `-----BEGIN CERTIFICATE-----
++MIIBqzCCAVGgAwIBAgIJAJ+mI/85cXApMAoGCCqGSM49BAMCMB0xDDAKBgNVBAoT
++A09yZzENMAsGA1UEAxMEUm9vdDAeFw0xNTAxMDEwMDAwMDBaFw0yNTAxMDEwMDAw
++MDBaMB0xDDAKBgNVBAoTA09yZzENMAsGA1UEAxMEUm9vdDBZMBMGByqGSM49AgEG
++CCqGSM49AwEHA0IABJGp9joiG2QSQA+1FczEDAsWo84rFiP3GTL+n+ugcS6TyNib
++gzMsdbJgVi+a33y0SzLZxB+YvU3/4KTk8yKLC+2jejB4MA4GA1UdDwEB/wQEAwIC
++BDAdBgNVHSUEFjAUBggrBgEFBQcDAQYIKwYBBQUHAwIwDwYDVR0TAQH/BAUwAwEB
++/zAZBgNVHQ4EEgQQQDfXAftAL7gcflQEJ4xZATAbBgNVHSMEFDASgBBAN9cB+0Av
++uBx+VAQnjFkBMAoGCCqGSM49BAMCA0gAMEUCIFeSV00fABFceWR52K+CfIgOHotY
++FizzGiLB47hGwjMuAiEA8e0um2Kr8FPQ4wmFKaTRKHMaZizCGl3m+RG5QsE1KWo=
++-----END CERTIFICATE-----`
++
++const criticalExtIntermediate = `-----BEGIN CERTIFICATE-----
++MIIBszCCAVmgAwIBAgIJAL2kcGZKpzVqMAoGCCqGSM49BAMCMB0xDDAKBgNVBAoT
++A09yZzENMAsGA1UEAxMEUm9vdDAeFw0xNTAxMDEwMDAwMDBaFw0yNTAxMDEwMDAw
++MDBaMCUxDDAKBgNVBAoTA09yZzEVMBMGA1UEAxMMSW50ZXJtZWRpYXRlMFkwEwYH
++KoZIzj0CAQYIKoZIzj0DAQcDQgAESqVq92iPEq01cL4o99WiXDc5GZjpjNlzMS1n
++rk8oHcVDp4tQRRQG3F4A6dF1rn/L923ha3b0fhDLlAvXZB+7EKN6MHgwDgYDVR0P
++AQH/BAQDAgIEMB0GA1UdJQQWMBQGCCsGAQUFBwMBBggrBgEFBQcDAjAPBgNVHRMB
++Af8EBTADAQH/MBkGA1UdDgQSBBCMGmiotXbbXVd7H40UsgajMBsGA1UdIwQUMBKA
++EEA31wH7QC+4HH5UBCeMWQEwCgYIKoZIzj0EAwIDSAAwRQIhAOhhNRb6KV7h3wbE
++cdap8bojzvUcPD78fbsQPCNw1jPxAiBOeAJhlTwpKn9KHpeJphYSzydj9NqcS26Y
++xXbdbm27KQ==
++-----END CERTIFICATE-----`
++
++const criticalExtLeafWithExt = `-----BEGIN CERTIFICATE-----
++MIIBxTCCAWugAwIBAgIJAJZAUtw5ccb1MAoGCCqGSM49BAMCMCUxDDAKBgNVBAoT
++A09yZzEVMBMGA1UEAxMMSW50ZXJtZWRpYXRlMB4XDTE1MDEwMTAwMDAwMFoXDTI1
++MDEwMTAwMDAwMFowJDEMMAoGA1UEChMDT3JnMRQwEgYDVQQDEwtleGFtcGxlLmNv
++bTBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABF3ABa2+B6gUyg6ayCaRQWYY/+No
++6PceLqEavZNUeVNuz7bS74Toy8I7R3bGMkMgbKpLSPlPTroAATvebTXoBaijgYQw
++gYEwDgYDVR0PAQH/BAQDAgWgMB0GA1UdJQQWMBQGCCsGAQUFBwMBBggrBgEFBQcD
++AjAMBgNVHRMBAf8EAjAAMBkGA1UdDgQSBBBRNtBL2vq8nCV3qVp7ycxMMBsGA1Ud
++IwQUMBKAEIwaaKi1dttdV3sfjRSyBqMwCgYDUQMEAQH/BAAwCgYIKoZIzj0EAwID
++SAAwRQIgVjy8GBgZFiagexEuDLqtGjIRJQtBcf7lYgf6XFPH1h4CIQCT6nHhGo6E
++I+crEm4P5q72AnA/Iy0m24l7OvLuXObAmg==
++-----END CERTIFICATE-----`
++
++const criticalExtIntermediateWithExt = `-----BEGIN CERTIFICATE-----
++MIIB2TCCAX6gAwIBAgIIQD3NrSZtcUUwCgYIKoZIzj0EAwIwHTEMMAoGA1UEChMD
++T3JnMQ0wCwYDVQQDEwRSb290MB4XDTE1MDEwMTAwMDAwMFoXDTI1MDEwMTAwMDAw
++MFowPTEMMAoGA1UEChMDT3JnMS0wKwYDVQQDEyRJbnRlcm1lZGlhdGUgd2l0aCBD
++cml0aWNhbCBFeHRlbnNpb24wWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAAQtnmzH
++mcRm10bdDBnJE7xQEJ25cLCL5okuEphRR0Zneo6+nQZikoh+UBbtt5GV3Dms7LeP
++oF5HOplYDCd8wi/wo4GHMIGEMA4GA1UdDwEB/wQEAwICBDAdBgNVHSUEFjAUBggr
++BgEFBQcDAQYIKwYBBQUHAwIwDwYDVR0TAQH/BAUwAwEB/zAZBgNVHQ4EEgQQKxdv
++UuQZ6sO3XvBsxgNZ3zAbBgNVHSMEFDASgBBAN9cB+0AvuBx+VAQnjFkBMAoGA1ED
++BAEB/wQAMAoGCCqGSM49BAMCA0kAMEYCIQCQzTPd6XKex+OAPsKT/1DsoMsg8vcG
++c2qZ4Q0apT/kvgIhAKu2TnNQMIUdcO0BYQIl+Uhxc78dc9h4lO+YJB47pHGx
++-----END CERTIFICATE-----`
++
++const criticalExtLeaf = `-----BEGIN CERTIFICATE-----
++MIIBzzCCAXWgAwIBAgIJANoWFIlhCI9MMAoGCCqGSM49BAMCMD0xDDAKBgNVBAoT
++A09yZzEtMCsGA1UEAxMkSW50ZXJtZWRpYXRlIHdpdGggQ3JpdGljYWwgRXh0ZW5z
++aW9uMB4XDTE1MDEwMTAwMDAwMFoXDTI1MDEwMTAwMDAwMFowJDEMMAoGA1UEChMD
++T3JnMRQwEgYDVQQDEwtleGFtcGxlLmNvbTBZMBMGByqGSM49AgEGCCqGSM49AwEH
++A0IABG1Lfh8A0Ho2UvZN5H0+ONil9c8jwtC0y0xIZftyQE+Fwr9XwqG3rV2g4M1h
++GnJa9lV9MPHg8+b85Hixm0ZSw7SjdzB1MA4GA1UdDwEB/wQEAwIFoDAdBgNVHSUE
++FjAUBggrBgEFBQcDAQYIKwYBBQUHAwIwDAYDVR0TAQH/BAIwADAZBgNVHQ4EEgQQ
++UNhY4JhezH9gQYqvDMWrWDAbBgNVHSMEFDASgBArF29S5Bnqw7de8GzGA1nfMAoG
++CCqGSM49BAMCA0gAMEUCIQClA3d4tdrDu9Eb5ZBpgyC+fU1xTZB0dKQHz6M5fPZA
++2AIgN96lM+CPGicwhN24uQI6flOsO3H0TJ5lNzBYLtnQtlc=
++-----END CERTIFICATE-----`
+diff --git a/src/crypto/x509/x509_test.go b/src/crypto/x509/x509_test.go
+index 2d1acf93bf..b800191db3 100644
+--- a/src/crypto/x509/x509_test.go
++++ b/src/crypto/x509/x509_test.go
+@@ -523,74 +523,6 @@ func TestCreateSelfSignedCertificate(t *testing.T) {
+ 	}
+ }
+ 
+-func TestUnknownCriticalExtension(t *testing.T) {
+-	priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+-	if err != nil {
+-		t.Fatalf("Failed to generate ECDSA key: %s", err)
+-	}
+-
+-	oids := []asn1.ObjectIdentifier{
+-		// This OID is in the PKIX arc, but unknown.
+-		{2, 5, 29, 999999},
+-		// This is a nonsense, unassigned OID.
+-		{1, 2, 3, 4},
+-	}
+-
+-	for _, oid := range oids {
+-		template := Certificate{
+-			SerialNumber: big.NewInt(1),
+-			Subject: pkix.Name{
+-				CommonName: "foo",
+-			},
+-			NotBefore: time.Unix(1000, 0),
+-			NotAfter:  time.Now().AddDate(1, 0, 0),
+-
+-			BasicConstraintsValid: true,
+-			IsCA: true,
+-
+-			KeyUsage:    KeyUsageCertSign,
+-			ExtKeyUsage: []ExtKeyUsage{ExtKeyUsageServerAuth},
+-
+-			ExtraExtensions: []pkix.Extension{
+-				{
+-					Id:       oid,
+-					Critical: true,
+-					Value:    nil,
+-				},
+-			},
+-		}
+-
+-		derBytes, err := CreateCertificate(rand.Reader, &template, &template, &priv.PublicKey, priv)
+-		if err != nil {
+-			t.Fatalf("failed to create certificate: %s", err)
+-		}
+-
+-		cert, err := ParseCertificate(derBytes)
+-		if err != nil {
+-			t.Fatalf("Certificate with unknown critical extension was not parsed: %s", err)
+-		}
+-
+-		roots := NewCertPool()
+-		roots.AddCert(cert)
+-
+-		// Setting Roots ensures that Verify won't delegate to the OS
+-		// library and thus the correct error should always be
+-		// returned.
+-		_, err = cert.Verify(VerifyOptions{Roots: roots})
+-		if err == nil {
+-			t.Fatal("Certificate with unknown critical extension was verified without error")
+-		}
+-		if _, ok := err.(UnhandledCriticalExtension); !ok {
+-			t.Fatalf("Error was %#v, but wanted one of type UnhandledCriticalExtension", err)
+-		}
+-
+-		cert.UnhandledCriticalExtensions = nil
+-		if _, err = cert.Verify(VerifyOptions{Roots: roots}); err != nil {
+-			t.Errorf("Certificate failed to verify after unhandled critical extensions were cleared: %s", err)
+-		}
+-	}
+-}
+-
+ // Self-signed certificate using ECDSA with SHA1 & secp256r1
+ var ecdsaSHA1CertPem = `
+ -----BEGIN CERTIFICATE-----

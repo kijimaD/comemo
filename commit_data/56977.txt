@@ -10,6 +10,25 @@ Date:   Mon Jun 5 13:52:19 2023 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/500958
     TryBot-Bypass: Russ Cox <rsc@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  doc/go1.21.html | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go1.21.html b/doc/go1.21.html
+index c6af33ac6d..f7ffc19117 100644
+--- a/doc/go1.21.html
++++ b/doc/go1.21.html
+@@ -145,10 +145,11 @@ Do not send CLs removing the interior tags from such phrases.
+ 
+ <!-- https://go.dev/issue/57969 -->
+ <p>
+-  <!-- TODO(rsc): add GOEXPERIMENT=loopvar -->
++  Go 1.21 includes a preview of a language change we are considering for a future version of Go:
++  making for loop variables per-iteration instead of per-loop, to avoid accidental sharing bugs.
++  For details about how to try that language change, see <a href="https://go.dev/wiki/LoopvarExperiment">the LoopvarExperiment wiki page</a>.
+ </p>
+ 
+-
+ <p>
+   TODO: complete this section
+ </p>

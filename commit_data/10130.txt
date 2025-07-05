@@ -22,7 +22,71 @@ Date:   Fri Oct 28 09:06:30 2011 +1100
     R=nigeltao
     CC=golang-dev
     https://golang.org/cl/5311066
-
+---
  src/pkg/html/parse.go      | 18 ++++++++++++++++--
  src/pkg/html/parse_test.go |  2 +-
  2 files changed, 17 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/html/parse.go b/src/pkg/html/parse.go
+index 276f0b7fbf..fdd6f75aab 100644
+--- a/src/pkg/html/parse.go
++++ b/src/pkg/html/parse.go
+@@ -7,6 +7,7 @@ package html
+ import (
+ 	"io"
+ 	"os"
++	"strings"
+ )
+ 
+ // A parser implements the HTML5 parsing algorithm:
+@@ -430,6 +431,8 @@ func beforeHeadIM(p *parser) (insertionMode, bool) {
+ 	return inHeadIM, !implied
+ }
+ 
++const whitespace = " \t\r\n\f"
++
+ // Section 11.2.5.4.4.
+ func inHeadIM(p *parser) (insertionMode, bool) {
+ 	var (
+@@ -437,7 +440,18 @@ func inHeadIM(p *parser) (insertionMode, bool) {
+ 		implied bool
+ 	)
+ 	switch p.tok.Type {
+-	case ErrorToken, TextToken:
++	case ErrorToken:
++		implied = true
++	case TextToken:
++		s := strings.TrimLeft(p.tok.Data, whitespace)
++		if len(s) < len(p.tok.Data) {
++			// Add the initial whitespace to the current node.
++			p.addText(p.tok.Data[:len(p.tok.Data)-len(s)])
++			if s == "" {
++				return inHeadIM, true
++			}
++			p.tok.Data = s
++		}
+ 		implied = true
+ 	case StartTagToken:
+ 		switch p.tok.Data {
+@@ -469,7 +483,7 @@ func inHeadIM(p *parser) (insertionMode, bool) {
+ 		}
+ 		return afterHeadIM, !implied
+ 	}
+-	return inHeadIM, !implied
++	return inHeadIM, true
+ }
+ 
+ // Section 11.2.5.4.6.
+diff --git a/src/pkg/html/parse_test.go b/src/pkg/html/parse_test.go
+index 86f1298d5e..ae4ecd6658 100644
+--- a/src/pkg/html/parse_test.go
++++ b/src/pkg/html/parse_test.go
+@@ -132,7 +132,7 @@ func TestParser(t *testing.T) {
+ 		rc := make(chan io.Reader)
+ 		go readDat(filename, rc)
+ 		// TODO(nigeltao): Process all test cases, not just a subset.
+-		for i := 0; i < 50; i++ {
++		for i := 0; i < 55; i++ {
+ 			// Parse the #data section.
+ 			b, err := ioutil.ReadAll(<-rc)
+ 			if err != nil {

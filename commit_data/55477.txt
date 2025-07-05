@@ -17,7 +17,68 @@ Date:   Thu Feb 9 09:08:44 2023 -0500
     Reviewed-by: Joel Sing <joel@sing.id.au>
     Reviewed-by: David Chase <drchase@google.com>
     Run-TryBot: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/internal/mips/obj.go   | 8 ++++++++
  src/cmd/link/internal/mips64/obj.go | 8 ++++++++
  2 files changed, 16 insertions(+)
+
+diff --git a/src/cmd/link/internal/mips/obj.go b/src/cmd/link/internal/mips/obj.go
+index 0139d541df..1caddac6be 100644
+--- a/src/cmd/link/internal/mips/obj.go
++++ b/src/cmd/link/internal/mips/obj.go
+@@ -34,6 +34,7 @@ import (
+ 	"cmd/internal/objabi"
+ 	"cmd/internal/sys"
+ 	"cmd/link/internal/ld"
++	"cmd/link/internal/loader"
+ 	"internal/buildcfg"
+ )
+ 
+@@ -52,6 +53,7 @@ func Init() (*sys.Arch, ld.Arch) {
+ 		Dwarfregsp: DWARFREGSP,
+ 		Dwarfreglr: DWARFREGLR,
+ 
++		Adddynrel:        adddynrel,
+ 		Archinit:         archinit,
+ 		Archreloc:        archreloc,
+ 		Archrelocvariant: archrelocvariant,
+@@ -97,3 +99,9 @@ func archinit(ctxt *ld.Link) {
+ 		}
+ 	}
+ }
++
++func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loader.Sym, r loader.Reloc, rIdx int) bool {
++	ld.Exitf("adddynrel currently unimplemented for MIPS")
++	return false
++
++}
+diff --git a/src/cmd/link/internal/mips64/obj.go b/src/cmd/link/internal/mips64/obj.go
+index 59afb25095..a06e6f7981 100644
+--- a/src/cmd/link/internal/mips64/obj.go
++++ b/src/cmd/link/internal/mips64/obj.go
+@@ -34,6 +34,7 @@ import (
+ 	"cmd/internal/objabi"
+ 	"cmd/internal/sys"
+ 	"cmd/link/internal/ld"
++	"cmd/link/internal/loader"
+ 	"internal/buildcfg"
+ )
+ 
+@@ -51,6 +52,7 @@ func Init() (*sys.Arch, ld.Arch) {
+ 		Minalign:         minAlign,
+ 		Dwarfregsp:       dwarfRegSP,
+ 		Dwarfreglr:       dwarfRegLR,
++		Adddynrel:        adddynrel,
+ 		Archinit:         archinit,
+ 		Archreloc:        archreloc,
+ 		Archrelocvariant: archrelocvariant,
+@@ -107,3 +109,9 @@ func archinit(ctxt *ld.Link) {
+ 		}
+ 	}
+ }
++
++func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loader.Sym, r loader.Reloc, rIdx int) bool {
++	ld.Exitf("adddynrel currently unimplemented for MIPS64")
++	return false
++
++}

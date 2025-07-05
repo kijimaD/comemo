@@ -16,6 +16,20 @@ Date:   Mon Aug 27 15:57:32 2018 +0000
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/modfetch/fetch.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/modfetch/fetch.go b/src/cmd/go/internal/modfetch/fetch.go
+index 2e26bac434..8485932b42 100644
+--- a/src/cmd/go/internal/modfetch/fetch.go
++++ b/src/cmd/go/internal/modfetch/fetch.go
+@@ -123,7 +123,7 @@ func downloadZip(mod module.Version, target string) error {
+ 	for _, f := range z.File {
+ 		if !strings.HasPrefix(f.Name, prefix) {
+ 			z.Close()
+-			return fmt.Errorf("zip for %s has unexpected file %s", prefix[:len(prefix)-1], f.Name)
++			return fmt.Errorf("zip for %s has unexpected file %s", prefix, f.Name)
+ 		}
+ 	}
+ 	z.Close()

@@ -16,6 +16,25 @@ Date:   Mon Mar 13 14:30:44 2017 +1100
     Run-TryBot: Dave Cheney <dave@cheney.net>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/export.go | 4 +---
  1 file changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/export.go b/src/cmd/compile/internal/gc/export.go
+index f39dd2bee7..b42c1aa601 100644
+--- a/src/cmd/compile/internal/gc/export.go
++++ b/src/cmd/compile/internal/gc/export.go
+@@ -15,12 +15,10 @@ import (
+ 
+ var (
+ 	Debug_export int // if set, print debugging information about export data
+-	exportsize   int
+ )
+ 
+ func exportf(format string, args ...interface{}) {
+-	n, _ := fmt.Fprintf(bout, format, args...)
+-	exportsize += n
++	fmt.Fprintf(bout, format, args...)
+ 	if Debug_export != 0 {
+ 		fmt.Printf(format, args...)
+ 	}

@@ -11,6 +11,30 @@ Date:   Tue Dec 17 12:17:56 2013 +1100
     R=golang-dev, dave, iant
     CC=golang-dev
     https://golang.org/cl/43080043
-
+---
  src/cmd/go/test.bash | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/test.bash b/src/cmd/go/test.bash
+index f71d678182..6c6cb9ed78 100755
+--- a/src/cmd/go/test.bash
++++ b/src/cmd/go/test.bash
+@@ -36,8 +36,9 @@ stop() {
+ ok=true
+ allok=true
+ 
+-unset GOPATH
+ unset GOBIN
++unset GOPATH
++unset GOROOT
+ 
+ TEST 'file:line in error messages'
+ # Test that error messages have file:line information at beginning of
+@@ -258,6 +259,7 @@ if [ ! -x $d/gobin/godoc ]; then
+ fi
+ 
+ TEST godoc installs into GOROOT
++GOROOT=$(./testgo env GOROOT)
+ rm -f $GOROOT/bin/godoc
+ ./testgo install code.google.com/p/go.tools/cmd/godoc
+ if [ ! -x $GOROOT/bin/godoc ]; then

@@ -17,7 +17,79 @@ Date:   Fri Nov 9 14:19:07 2012 +0800
     R=golang-dev, bradfitz, iant, iant
     CC=golang-dev
     https://golang.org/cl/6814103
-
+---
  src/pkg/runtime/sys_linux_amd64.s  | 26 ++++++++++++++++----------
  src/pkg/runtime/vdso_linux_amd64.c |  4 +++-
  2 files changed, 19 insertions(+), 11 deletions(-)
+
+diff --git a/src/pkg/runtime/sys_linux_amd64.s b/src/pkg/runtime/sys_linux_amd64.s
+index ca78ffa6f6..cb6f4a8ca0 100644
+--- a/src/pkg/runtime/sys_linux_amd64.s
++++ b/src/pkg/runtime/sys_linux_amd64.s
+@@ -102,31 +102,37 @@ TEXT runtime·mincore(SB),7,$0-24
+ 
+ // func now() (sec int64, nsec int32)
+ TEXT time·now(SB), 7, $32
++	MOVQ	runtime·__vdso_clock_gettime_sym(SB), AX
++	CMPQ	AX, $0
++	JEQ	fallback_gtod
++	MOVL	$0, DI // CLOCK_REALTIME
++	LEAQ	8(SP), SI
++	CALL	AX
++	MOVQ	8(SP), AX	// sec
++	MOVQ	16(SP), DX	// nsec
++	MOVQ	AX, sec+0(FP)
++	MOVL	DX, nsec+8(FP)
++	RET
++fallback_gtod:
+ 	LEAQ	8(SP), DI
+ 	MOVQ	$0, SI
+ 	MOVQ	runtime·__vdso_gettimeofday_sym(SB), AX
+ 	CALL	AX
+ 	MOVQ	8(SP), AX	// sec
+ 	MOVL	16(SP), DX	// usec
+-
+-	// sec is in AX, usec in DX
+-	MOVQ	AX, sec+0(FP)
+ 	IMULQ	$1000, DX
++	MOVQ	AX, sec+0(FP)
+ 	MOVL	DX, nsec+8(FP)
+ 	RET
+ 
+ TEXT runtime·nanotime(SB), 7, $32
+-	LEAQ	8(SP), DI
+-	MOVQ	$0, SI
+-	MOVQ	$0xffffffffff600000, AX
+-	CALL	AX
+-	MOVQ	8(SP), AX	// sec
+-	MOVL	16(SP), DX	// usec
++	CALL	time·now(SB)
++	MOVQ	0(SP), AX	// sec
++	MOVL	8(SP), DX	// nsec
+ 
+ 	// sec is in AX, usec in DX
+ 	// return nsec in AX
+ 	IMULQ	$1000000000, AX
+-	IMULQ	$1000, DX
+ 	ADDQ	DX, AX
+ 	RET
+ 
+diff --git a/src/pkg/runtime/vdso_linux_amd64.c b/src/pkg/runtime/vdso_linux_amd64.c
+index 923bab0c2b..b125c8b051 100644
+--- a/src/pkg/runtime/vdso_linux_amd64.c
++++ b/src/pkg/runtime/vdso_linux_amd64.c
+@@ -161,11 +161,13 @@ static version_key linux26 = { (byte*)"LINUX_2.6", 0x3ae75f6 };
+ // initialize with vsyscall fallbacks
+ void* runtime·__vdso_time_sym = (void*)0xffffffffff600400ULL;
+ void* runtime·__vdso_gettimeofday_sym = (void*)0xffffffffff600000ULL;
++void* runtime·__vdso_clock_gettime_sym = (void*)0;
+ 
+-#define SYM_KEYS_COUNT 2
++#define SYM_KEYS_COUNT 3
+ static symbol_key sym_keys[] = {
+ 	{ (byte*)"__vdso_time", &runtime·__vdso_time_sym },
+ 	{ (byte*)"__vdso_gettimeofday", &runtime·__vdso_gettimeofday_sym },
++	{ (byte*)"__vdso_clock_gettime", &runtime·__vdso_clock_gettime_sym },
+ };
+ 
+ static void vdso_init_from_sysinfo_ehdr(struct vdso_info *vdso_info, Elf64_Ehdr* hdr) {

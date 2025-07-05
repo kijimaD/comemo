@@ -18,8 +18,84 @@ Date:   Wed Nov 20 19:27:40 2024 +0000
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/runtime/netpoll_kqueue.go       |  7 ++++---
  src/runtime/netpoll_kqueue_event.go | 13 +++++--------
  src/runtime/netpoll_kqueue_pipe.go  |  6 +++++-
  3 files changed, 14 insertions(+), 12 deletions(-)
+
+diff --git a/src/runtime/netpoll_kqueue.go b/src/runtime/netpoll_kqueue.go
+index ca7898205e..db4dddc2fe 100644
+--- a/src/runtime/netpoll_kqueue.go
++++ b/src/runtime/netpoll_kqueue.go
+@@ -129,10 +129,11 @@ retry:
+ 		ev := &events[i]
+ 
+ 		if isWakeup(ev) {
+-			if delay != 0 {
++			isBlocking := delay != 0
++			processWakeupEvent(kq, isBlocking)
++			if isBlocking {
+ 				// netpollBreak could be picked up by a nonblocking poll.
+-				// Only call drainWakeupEvent and reset the netpollWakeSig if blocking.
+-				drainWakeupEvent(kq)
++				// Only reset the netpollWakeSig if blocking.
+ 				netpollWakeSig.Store(0)
+ 			}
+ 			continue
+diff --git a/src/runtime/netpoll_kqueue_event.go b/src/runtime/netpoll_kqueue_event.go
+index d5f783e607..852a00a5d8 100644
+--- a/src/runtime/netpoll_kqueue_event.go
++++ b/src/runtime/netpoll_kqueue_event.go
+@@ -16,7 +16,7 @@ func addWakeupEvent(kq int32) {
+ 	ev := keventt{
+ 		ident:  kqIdent,
+ 		filter: _EVFILT_USER,
+-		flags:  _EV_ADD,
++		flags:  _EV_ADD | _EV_CLEAR,
+ 	}
+ 	for {
+ 		n := kevent(kq, &ev, 1, nil, 0, nil)
+@@ -38,7 +38,6 @@ func wakeNetpoll(kq int32) {
+ 	ev := keventt{
+ 		ident:  kqIdent,
+ 		filter: _EVFILT_USER,
+-		flags:  _EV_ENABLE,
+ 		fflags: _NOTE_TRIGGER,
+ 	}
+ 	for {
+@@ -66,13 +65,11 @@ func isWakeup(ev *keventt) bool {
+ 	return false
+ }
+ 
+-func drainWakeupEvent(kq int32) {
+-	ev := keventt{
+-		ident:  kqIdent,
+-		filter: _EVFILT_USER,
+-		flags:  _EV_DISABLE,
++func processWakeupEvent(kq int32, isBlocking bool) {
++	if !isBlocking {
++		// Got a wrong thread, relay
++		wakeNetpoll(kq)
+ 	}
+-	kevent(kq, &ev, 1, nil, 0, nil)
+ }
+ 
+ func netpollIsPollDescriptor(fd uintptr) bool {
+diff --git a/src/runtime/netpoll_kqueue_pipe.go b/src/runtime/netpoll_kqueue_pipe.go
+index 98f73e84d2..cf1e2afa83 100644
+--- a/src/runtime/netpoll_kqueue_pipe.go
++++ b/src/runtime/netpoll_kqueue_pipe.go
+@@ -63,7 +63,11 @@ func isWakeup(ev *keventt) bool {
+ 	return false
+ }
+ 
+-func drainWakeupEvent(_ int32) {
++func processWakeupEvent(_ int32, isBlocking bool) {
++	// Only drain if blocking.
++	if !isBlocking {
++		return
++	}
+ 	var buf [16]byte
+ 	read(int32(netpollBreakRd), noescape(unsafe.Pointer(&buf[0])), int32(len(buf)))
+ }

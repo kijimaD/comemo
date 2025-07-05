@@ -29,7 +29,64 @@ Date:   Tue Dec 19 15:45:50 2017 -0800
     Change-Id: I574fa84568b5158bca4b4ccd4ef5abb616fbf896
     Reviewed-on: https://go-review.googlesource.com/84898
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/go/types/eval.go      |  9 ++++-----
  src/go/types/eval_test.go | 13 +++++++++++++
  2 files changed, 17 insertions(+), 5 deletions(-)
+
+diff --git a/src/go/types/eval.go b/src/go/types/eval.go
+index 831d771d80..8d4db48a9f 100644
+--- a/src/go/types/eval.go
++++ b/src/go/types/eval.go
+@@ -16,9 +16,6 @@ import (
+ // complete position information relative to the provided file
+ // set.
+ //
+-// If the expression contains function literals, their bodies
+-// are ignored (i.e., the bodies are not type-checked).
+-//
+ // If pkg == nil, the Universe scope is used and the provided
+ // position pos is ignored. If pkg != nil, and pos is invalid,
+ // the package scope is used. Otherwise, pos must belong to the
+@@ -34,7 +31,7 @@ import (
+ // level untyped constants will return an untyped type rather then the
+ // respective context-specific type.
+ //
+-func Eval(fset *token.FileSet, pkg *Package, pos token.Pos, expr string) (TypeAndValue, error) {
++func Eval(fset *token.FileSet, pkg *Package, pos token.Pos, expr string) (_ TypeAndValue, err error) {
+ 	// determine scope
+ 	var scope *Scope
+ 	if pkg == nil {
+@@ -79,5 +76,7 @@ func Eval(fset *token.FileSet, pkg *Package, pos token.Pos, expr string) (TypeAn
+ 	// evaluate node
+ 	var x operand
+ 	check.rawExpr(&x, node, nil)
+-	return TypeAndValue{x.mode, x.typ, x.val}, err
++	check.processDelayed(0) // incl. all functions
++
++	return TypeAndValue{x.mode, x.typ, x.val}, nil
+ }
+diff --git a/src/go/types/eval_test.go b/src/go/types/eval_test.go
+index 603211257d..d3b3fec66f 100644
+--- a/src/go/types/eval_test.go
++++ b/src/go/types/eval_test.go
+@@ -149,6 +149,19 @@ func TestEvalPos(t *testing.T) {
+ 		package p
+ 		/* T => , p.T */
+ 		`,
++		`
++		package p
++		import "io"
++		type R = io.Reader
++		func _() {
++			/* interface{R}.Read => , func(interface{io.Reader}, p []byte) (n int, err error) */
++			_ = func() {
++				/* interface{io.Writer}.Write => , func(interface{io.Writer}, p []byte) (n int, err error) */
++				type io interface {} // must not shadow io in line above
++			}
++			type R interface {} // must not shadow R in first line of this function body
++		}
++		`,
+ 	}
+ 
+ 	fset := token.NewFileSet()

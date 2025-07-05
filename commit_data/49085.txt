@@ -13,10 +13,223 @@ Date:   Fri Jul 16 12:45:35 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Robert Findley <rfindley@google.com>
-
+---
  src/go/types/decl.go                           | 64 ++++++++++++++------------
  src/go/types/methodset_test.go                 |  5 +-
  src/go/types/testdata/examples/types.go2       | 50 ++++++++++++--------
  src/go/types/testdata/fixedbugs/issue45639.go2 | 12 +++++
  src/go/types/unify.go                          | 15 ++++--
  5 files changed, 90 insertions(+), 56 deletions(-)
+
+diff --git a/src/go/types/decl.go b/src/go/types/decl.go
+index f0e7c5d5ad..921530595a 100644
+--- a/src/go/types/decl.go
++++ b/src/go/types/decl.go
+@@ -680,48 +680,52 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *ast.TypeSpec, def *Named) {
+ 		alias = false
+ 	}
+ 
++	// alias declaration
+ 	if alias {
+-		// type alias declaration
+ 		if !check.allowVersion(check.pkg, 1, 9) {
+ 			check.errorf(atPos(tdecl.Assign), _BadDecl, "type aliases requires go1.9 or later")
+ 		}
+ 
+ 		obj.typ = Typ[Invalid]
+ 		obj.typ = check.anyType(tdecl.Type)
++		return
++	}
+ 
+-	} else {
+-		// defined type declaration
+-
+-		named := check.newNamed(obj, nil, nil, nil, nil)
+-		def.setUnderlying(named)
++	// type definition or generic type declaration
++	named := check.newNamed(obj, nil, nil, nil, nil)
++	def.setUnderlying(named)
+ 
+-		if tparams := typeparams.Get(tdecl); tparams != nil {
+-			check.openScope(tdecl, "type parameters")
+-			defer check.closeScope()
+-			named.tparams = check.collectTypeParams(tparams)
+-		}
++	if tparams := typeparams.Get(tdecl); tparams != nil {
++		check.openScope(tdecl, "type parameters")
++		defer check.closeScope()
++		named.tparams = check.collectTypeParams(tparams)
++	}
+ 
+-		// determine underlying type of named
+-		named.fromRHS = check.definedType(tdecl.Type, named)
++	// determine underlying type of named
++	named.fromRHS = check.definedType(tdecl.Type, named)
+ 
+-		// The underlying type of named may be itself a named type that is
+-		// incomplete:
+-		//
+-		//	type (
+-		//		A B
+-		//		B *C
+-		//		C A
+-		//	)
+-		//
+-		// The type of C is the (named) type of A which is incomplete,
+-		// and which has as its underlying type the named type B.
+-		// Determine the (final, unnamed) underlying type by resolving
+-		// any forward chain.
+-		// TODO(gri) Investigate if we can just use named.fromRHS here
+-		//           and rely on lazy computation of the underlying type.
+-		named.underlying = under(named)
++	// The underlying type of named may be itself a named type that is
++	// incomplete:
++	//
++	//	type (
++	//		A B
++	//		B *C
++	//		C A
++	//	)
++	//
++	// The type of C is the (named) type of A which is incomplete,
++	// and which has as its underlying type the named type B.
++	// Determine the (final, unnamed) underlying type by resolving
++	// any forward chain.
++	// TODO(gri) Investigate if we can just use named.fromRHS here
++	//           and rely on lazy computation of the underlying type.
++	named.underlying = under(named)
++
++	// If the RHS is a type parameter, it must be from this type declaration.
++	if tpar, _ := named.underlying.(*TypeParam); tpar != nil && tparamIndex(named.tparams, tpar) < 0 {
++		check.errorf(tdecl.Type, _Todo, "cannot use function type parameter %s as RHS in type declaration", tpar)
++		named.underlying = Typ[Invalid]
+ 	}
+-
+ }
+ 
+ func (check *Checker) collectTypeParams(list *ast.FieldList) []*TypeName {
+diff --git a/src/go/types/methodset_test.go b/src/go/types/methodset_test.go
+index 566356ad6d..5b29b2f0fe 100644
+--- a/src/go/types/methodset_test.go
++++ b/src/go/types/methodset_test.go
+@@ -50,8 +50,9 @@ func TestNewMethodSet(t *testing.T) {
+ 		"type C interface{ f() }; func g[T C]() { var a T; _ = a }":         {{"f", []int{0}, true}},
+ 		"type C interface{ f() }; func g[T C]() { var a struct{T}; _ = a }": {{"f", []int{0, 0}, true}},
+ 
+-		// Issue #45639.
+-		"type C interface{ f() }; func g[T C]() { type Y T; var a Y; _ = a }": {},
++		// Issue #45639: We don't allow this anymore. Keep this code in case we
++		//               decide to revisit this decision.
++		// "type C interface{ f() }; func g[T C]() { type Y T; var a Y; _ = a }": {},
+ 	}
+ 
+ 	check := func(src string, methods []method, generic bool) {
+diff --git a/src/go/types/testdata/examples/types.go2 b/src/go/types/testdata/examples/types.go2
+index 8cdd7f2fd2..a7544f79ea 100644
+--- a/src/go/types/testdata/examples/types.go2
++++ b/src/go/types/testdata/examples/types.go2
+@@ -161,30 +161,40 @@ type _ struct {
+ 	* /* ERROR List redeclared */ List[int]
+ }
+ 
++// Issue #45639: We don't allow this anymore. Keep this code
++//               in case we decide to revisit this decision.
++//
+ // It's possible to declare local types whose underlying types
+ // are type parameters. As with ordinary type definitions, the
+ // types underlying properties are "inherited" but the methods
+ // are not.
+-func _[T interface{ m(); ~int }]() {
+-	type L T
+-	var x L
+-
+-	// m is not defined on L (it is not "inherited" from
+-	// its underlying type).
+-	x.m /* ERROR x.m undefined */ ()
+-
+-	// But the properties of T, such that as that it supports
+-	// the operations of the types given by its type bound,
+-	// are also the properties of L.
+-	x++
+-	_ = x - x
+-
+-	// On the other hand, if we define a local alias for T,
+-	// that alias stands for T as expected.
+-	type A = T
+-	var y A
+-	y.m()
+-	_ = y < 0
++//func _[T interface{ m(); ~int }]() {
++//	type L T
++//	var x L
++//
++//	// m is not defined on L (it is not "inherited" from
++//	// its underlying type).
++//	x.m /* ERROR x.m undefined */ ()
++//
++//	// But the properties of T, such that as that it supports
++//	// the operations of the types given by its type bound,
++//	// are also the properties of L.
++//	x++
++//	_ = x - x
++//
++//	// On the other hand, if we define a local alias for T,
++//	// that alias stands for T as expected.
++//	type A = T
++//	var y A
++//	y.m()
++//	_ = y < 0
++//}
++
++// It is not permitted to declare a local type whose underlying
++// type is a type parameters not declared by that type declaration.
++func _[T any]() {
++	type _ T         // ERROR cannot use function type parameter T as RHS in type declaration
++	type _ [_ any] T // ERROR cannot use function type parameter T as RHS in type declaration
+ }
+ 
+ // As a special case, an explicit type argument may be omitted
+diff --git a/src/go/types/testdata/fixedbugs/issue45639.go2 b/src/go/types/testdata/fixedbugs/issue45639.go2
+new file mode 100644
+index 0000000000..441fb4cb34
+--- /dev/null
++++ b/src/go/types/testdata/fixedbugs/issue45639.go2
+@@ -0,0 +1,12 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package P
++
++// It is not permitted to declare a local type whose underlying
++// type is a type parameters not declared by that type declaration.
++func _[T any]() {
++	type _ T         // ERROR cannot use function type parameter T as RHS in type declaration
++	type _ [_ any] T // ERROR cannot use function type parameter T as RHS in type declaration
++}
+diff --git a/src/go/types/unify.go b/src/go/types/unify.go
+index 762000db32..84c8ae718f 100644
+--- a/src/go/types/unify.go
++++ b/src/go/types/unify.go
+@@ -147,10 +147,17 @@ func (u *unifier) join(i, j int) bool {
+ // If typ is a type parameter of d, index returns the type parameter index.
+ // Otherwise, the result is < 0.
+ func (d *tparamsList) index(typ Type) int {
+-	if t, ok := typ.(*TypeParam); ok {
+-		if i := t.index; i < len(d.tparams) && d.tparams[i].typ == t {
+-			return i
+-		}
++	if tpar, ok := typ.(*TypeParam); ok {
++		return tparamIndex(d.tparams, tpar)
++	}
++	return -1
++}
++
++// If tpar is a type parameter in list, tparamIndex returns the type parameter index.
++// Otherwise, the result is < 0. tpar must not be nil.
++func tparamIndex(list []*TypeName, tpar *TypeParam) int {
++	if i := tpar.index; i < len(list) && list[i].typ == tpar {
++		return i
+ 	}
+ 	return -1
+ }

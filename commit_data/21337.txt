@@ -17,8 +17,102 @@ Date:   Tue Dec 16 15:59:05 2014 -0500
     Change-Id: I0e514604bf31f21683598ebd3e020b66acf767ef
     Reviewed-on: https://go-review.googlesource.com/1720
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/5l/asm.c | 20 ++------------------
  src/cmd/6l/asm.c | 20 ++------------------
  src/cmd/8l/asm.c | 20 ++------------------
  3 files changed, 6 insertions(+), 54 deletions(-)
+
+diff --git a/src/cmd/5l/asm.c b/src/cmd/5l/asm.c
+index 017d3f4357..c95e43bcc0 100644
+--- a/src/cmd/5l/asm.c
++++ b/src/cmd/5l/asm.c
+@@ -510,24 +510,8 @@ adddynsym(Link *ctxt, LSym *s)
+ 		/* shndx */
+ 		if(s->type == SDYNIMPORT)
+ 			adduint16(ctxt, d, SHN_UNDEF);
+-		else {
+-			switch(s->type) {
+-			default:
+-			case STEXT:
+-				t = 11;
+-				break;
+-			case SRODATA:
+-				t = 12;
+-				break;
+-			case SDATA:
+-				t = 13;
+-				break;
+-			case SBSS:
+-				t = 14;
+-				break;
+-			}
+-			adduint16(ctxt, d, t);
+-		}
++		else
++			adduint16(ctxt, d, 1);
+ 	} else {
+ 		diag("adddynsym: unsupported binary format");
+ 	}
+diff --git a/src/cmd/6l/asm.c b/src/cmd/6l/asm.c
+index 41c9cc84c6..20be4d6dbc 100644
+--- a/src/cmd/6l/asm.c
++++ b/src/cmd/6l/asm.c
+@@ -548,24 +548,8 @@ adddynsym(Link *ctxt, LSym *s)
+ 		/* section where symbol is defined */
+ 		if(s->type == SDYNIMPORT)
+ 			adduint16(ctxt, d, SHN_UNDEF);
+-		else {
+-			switch(s->type) {
+-			default:
+-			case STEXT:
+-				t = 11;
+-				break;
+-			case SRODATA:
+-				t = 12;
+-				break;
+-			case SDATA:
+-				t = 13;
+-				break;
+-			case SBSS:
+-				t = 14;
+-				break;
+-			}
+-			adduint16(ctxt, d, t);
+-		}
++		else
++			adduint16(ctxt, d, 1);
+ 	
+ 		/* value */
+ 		if(s->type == SDYNIMPORT)
+diff --git a/src/cmd/8l/asm.c b/src/cmd/8l/asm.c
+index 8b91c0971a..ff4911b88a 100644
+--- a/src/cmd/8l/asm.c
++++ b/src/cmd/8l/asm.c
+@@ -516,24 +516,8 @@ adddynsym(Link *ctxt, LSym *s)
+ 		/* shndx */
+ 		if(s->type == SDYNIMPORT)
+ 			adduint16(ctxt, d, SHN_UNDEF);
+-		else {
+-			switch(s->type) {
+-			default:
+-			case STEXT:
+-				t = 11;
+-				break;
+-			case SRODATA:
+-				t = 12;
+-				break;
+-			case SDATA:
+-				t = 13;
+-				break;
+-			case SBSS:
+-				t = 14;
+-				break;
+-			}
+-			adduint16(ctxt, d, t);
+-		}
++		else
++			adduint16(ctxt, d, 1);
+ 	} else if(HEADTYPE == Hdarwin) {
+ 		diag("adddynsym: missed symbol %s (%s)", s->name, s->extname);
+ 	} else if(HEADTYPE == Hwindows) {

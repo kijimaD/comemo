@@ -12,7 +12,46 @@ Date:   Tue Nov 2 18:29:27 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/infer.go                          | 7 ++++---
  src/go/types/testdata/fixedbugs/issue45985.go2 | 2 +-
  2 files changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/src/go/types/infer.go b/src/go/types/infer.go
+index 61f7eaf91e..41326a1be8 100644
+--- a/src/go/types/infer.go
++++ b/src/go/types/infer.go
+@@ -373,7 +373,6 @@ func (check *Checker) inferB(tparams []*TypeParam, targs []Type) (types []Type,
+ 
+ 	// If a constraint has a structural type, unify the corresponding type parameter with it.
+ 	for _, tpar := range tparams {
+-		typ := tpar
+ 		sbound := structure(tpar)
+ 		if sbound != nil {
+ 			// If the structural type is the underlying type of a single
+@@ -381,8 +380,10 @@ func (check *Checker) inferB(tparams []*TypeParam, targs []Type) (types []Type,
+ 			if named, _ := tpar.singleType().(*Named); named != nil {
+ 				sbound = named
+ 			}
+-			if !u.unify(typ, sbound) {
+-				check.errorf(tpar.obj, _Todo, "%s does not match %s", tpar.obj, sbound)
++			if !u.unify(tpar, sbound) {
++				// TODO(gri) improve error message by providing the type arguments
++				//           which we know already
++				check.errorf(tpar.obj, _Todo, "%s does not match %s", tpar, sbound)
+ 				return nil, 0
+ 			}
+ 		}
+diff --git a/src/go/types/testdata/fixedbugs/issue45985.go2 b/src/go/types/testdata/fixedbugs/issue45985.go2
+index 07395911cd..637e2cad5e 100644
+--- a/src/go/types/testdata/fixedbugs/issue45985.go2
++++ b/src/go/types/testdata/fixedbugs/issue45985.go2
+@@ -5,7 +5,7 @@
+ package issue45985
+ 
+ // TODO(rFindley): this error should be on app[int] below.
+-func app[S /* ERROR "type S S does not match" */ interface{ ~[]T }, T any](s S, e T) S {
++func app[S /* ERROR "S does not match" */ interface{ ~[]T }, T any](s S, e T) S {
+     return append(s, e)
+ }
+ 

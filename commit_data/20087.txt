@@ -8,6 +8,23 @@ Date:   Thu Aug 14 14:34:37 2014 -0400
     R=minux
     CC=golang-codereviews
     https://golang.org/cl/129210043
-
+---
  src/cmd/9g/cgen.c | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/9g/cgen.c b/src/cmd/9g/cgen.c
+index 6bb44f547c..86a56975ad 100644
+--- a/src/cmd/9g/cgen.c
++++ b/src/cmd/9g/cgen.c
+@@ -1267,9 +1267,9 @@ bgen(Node *n, int true, int likely, Prog *to)
+ 		l = &n1;
+ 		r = &n2;
+ 		gins(optoas(OCMP, nr->type), l, r);
+-		if(isfloat[nr->type->etype] && (n->op == OLE || n->op == OGE)) {
++		if(isfloat[nr->type->etype] && (a == OLE || a == OGE)) {
+ 			// To get NaN right, must rewrite x <= y into separate x < y or x = y.
+-			switch(n->op) {
++			switch(a) {
+ 			case OLE:
+ 				a = OLT;
+ 				break;

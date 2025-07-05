@@ -8,7 +8,7 @@ Date:   Wed Mar 9 20:54:59 2016 -0800
     Reviewed-on: https://go-review.googlesource.com/20499
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/compile/internal/gc/align.go     |  4 ++--
  src/cmd/compile/internal/gc/bexport.go   |  2 +-
  src/cmd/compile/internal/gc/dcl.go       | 12 ++++++------
@@ -25,3 +25,409 @@ Date:   Wed Mar 9 20:54:59 2016 -0800
  src/cmd/compile/internal/gc/typecheck.go |  8 ++++----
  src/cmd/compile/internal/gc/walk.go      |  4 ++--
  15 files changed, 42 insertions(+), 43 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/align.go b/src/cmd/compile/internal/gc/align.go
+index 35c824b959..3be095076f 100644
+--- a/src/cmd/compile/internal/gc/align.go
++++ b/src/cmd/compile/internal/gc/align.go
+@@ -295,7 +295,7 @@ func dowidth(t *Type) {
+ 	case TFUNCARGS:
+ 		t1 := t.Type
+ 
+-		w = widstruct(t.Type, t1.Recv(), 0, 0)
++		w = widstruct(t.Type, t1.Recvs(), 0, 0)
+ 		w = widstruct(t.Type, t1.Params(), w, Widthreg)
+ 		w = widstruct(t.Type, t1.Results(), w, Widthreg)
+ 		t1.Argwid = w
+@@ -618,7 +618,7 @@ func typeinit() {
+ func Argsize(t *Type) int {
+ 	var w int64
+ 
+-	for _, p := range recvParamsResults {
++	for _, p := range recvsParamsResults {
+ 		for f, it := IterFields(p(t)); f != nil; f = it.Next() {
+ 			if x := f.Width + f.Type.Width; x > w {
+ 				w = x
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index c349c39a44..b867000405 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -477,7 +477,7 @@ func (p *exporter) typ(t *Type) {
+ 
+ 		for _, m := range methods {
+ 			p.string(m.Sym.Name)
+-			p.paramList(m.Type.Recv())
++			p.paramList(m.Type.Recvs())
+ 			p.paramList(m.Type.Params())
+ 			p.paramList(m.Type.Results())
+ 			p.inlinedBody(m.Type.Nname)
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index ba2b01d2b9..28bddce6a1 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -661,7 +661,7 @@ func funcargs2(t *Type) {
+ 	}
+ 
+ 	if t.Thistuple != 0 {
+-		for ft, it := IterFields(t.Recv()); ft != nil; ft = it.Next() {
++		for ft, it := IterFields(t.Recvs()); ft != nil; ft = it.Next() {
+ 			if ft.Nname == nil || ft.Nname.Sym == nil {
+ 				continue
+ 			}
+@@ -1134,7 +1134,7 @@ func fakethis() *Node {
+ // Those methods have an anonymous *struct{} as the receiver.
+ // (See fakethis above.)
+ func isifacemethod(f *Type) bool {
+-	rcvr := f.Recv0()
++	rcvr := f.Recv()
+ 	if rcvr.Sym != nil {
+ 		return false
+ 	}
+@@ -1165,16 +1165,16 @@ func functype0(t *Type, this *Node, in, out []*Node) {
+ 	if this != nil {
+ 		rcvr = []*Node{this}
+ 	}
+-	*t.RecvP() = tofunargs(rcvr)
++	*t.RecvsP() = tofunargs(rcvr)
+ 	*t.ResultsP() = tofunargs(out)
+ 	*t.ParamsP() = tofunargs(in)
+ 
+ 	uniqgen++
+-	checkdupfields(t.Recv().Type, "argument")
++	checkdupfields(t.Recvs().Type, "argument")
+ 	checkdupfields(t.Results().Type, "argument")
+ 	checkdupfields(t.Params().Type, "argument")
+ 
+-	if t.Recv().Broke || t.Results().Broke || t.Params().Broke {
++	if t.Recvs().Broke || t.Results().Broke || t.Params().Broke {
+ 		t.Broke = true
+ 	}
+ 
+@@ -1306,7 +1306,7 @@ func addmethod(sf *Sym, t *Type, local bool, nointerface bool) {
+ 	}
+ 
+ 	// get parent type sym
+-	pa := t.Recv0() // ptr to this structure
++	pa := t.Recv() // ptr to this structure
+ 	if pa == nil {
+ 		Yyerror("missing receiver")
+ 		return
+diff --git a/src/cmd/compile/internal/gc/esc.go b/src/cmd/compile/internal/gc/esc.go
+index 47de597575..35bdd4803a 100644
+--- a/src/cmd/compile/internal/gc/esc.go
++++ b/src/cmd/compile/internal/gc/esc.go
+@@ -1384,7 +1384,7 @@ func esccall(e *EscState, n *Node, up *Node) {
+ 		initEscretval(e, n, fntype)
+ 		// If there is a receiver, it also leaks to heap.
+ 		if n.Op != OCALLFUNC {
+-			t := fntype.Recv0()
++			t := fntype.Recv()
+ 			src := n.Left.Left
+ 			if haspointers(t.Type) {
+ 				escassign(e, &e.theSink, src)
+@@ -1468,7 +1468,7 @@ func esccall(e *EscState, n *Node, up *Node) {
+ 
+ 	// Receiver.
+ 	if n.Op != OCALLFUNC {
+-		t := fntype.Recv0()
++		t := fntype.Recv()
+ 		src := n.Left.Left
+ 		if haspointers(t.Type) {
+ 			escassignfromtag(e, t.Note, nE.Escretval, src)
+diff --git a/src/cmd/compile/internal/gc/export.go b/src/cmd/compile/internal/gc/export.go
+index 700f353ae2..7c96817d43 100644
+--- a/src/cmd/compile/internal/gc/export.go
++++ b/src/cmd/compile/internal/gc/export.go
+@@ -314,10 +314,10 @@ func dumpexporttype(t *Type) {
+ 			if Debug['l'] < 2 {
+ 				typecheckinl(f.Type.Nname)
+ 			}
+-			exportf("\tfunc (%v) %v %v { %v }\n", Tconv(f.Type.Recv0(), obj.FmtSharp), Sconv(f.Sym, obj.FmtShort|obj.FmtByte|obj.FmtSharp), Tconv(f.Type, obj.FmtShort|obj.FmtSharp), Hconv(f.Type.Nname.Func.Inl, obj.FmtSharp))
++			exportf("\tfunc (%v) %v %v { %v }\n", Tconv(f.Type.Recv(), obj.FmtSharp), Sconv(f.Sym, obj.FmtShort|obj.FmtByte|obj.FmtSharp), Tconv(f.Type, obj.FmtShort|obj.FmtSharp), Hconv(f.Type.Nname.Func.Inl, obj.FmtSharp))
+ 			reexportdeplist(f.Type.Nname.Func.Inl)
+ 		} else {
+-			exportf("\tfunc (%v) %v %v\n", Tconv(f.Type.Recv0(), obj.FmtSharp), Sconv(f.Sym, obj.FmtShort|obj.FmtByte|obj.FmtSharp), Tconv(f.Type, obj.FmtShort|obj.FmtSharp))
++			exportf("\tfunc (%v) %v %v\n", Tconv(f.Type.Recv(), obj.FmtSharp), Sconv(f.Sym, obj.FmtShort|obj.FmtByte|obj.FmtSharp), Tconv(f.Type, obj.FmtShort|obj.FmtSharp))
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index 7883e02909..bc81ccf78c 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -615,7 +615,7 @@ func typefmt(t *Type, flag int) string {
+ 		} else {
+ 			if t.Thistuple != 0 {
+ 				buf.WriteString("method")
+-				buf.WriteString(Tconv(t.Recv(), 0))
++				buf.WriteString(Tconv(t.Recvs(), 0))
+ 				buf.WriteString(" ")
+ 			}
+ 			buf.WriteString("func")
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index e2377468b6..1ee4ffe85d 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -48,7 +48,7 @@ var inlretvars *NodeList // temp out variables
+ func fnpkg(fn *Node) *Pkg {
+ 	if fn.Type.Thistuple != 0 {
+ 		// method
+-		rcvr := fn.Type.Recv0().Type
++		rcvr := fn.Type.Recv().Type
+ 
+ 		if Isptr[rcvr.Etype] {
+ 			rcvr = rcvr.Type
+@@ -614,7 +614,7 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
+ 	var as *Node
+ 	if fn.Type.Thistuple != 0 && n.Left.Op == ODOTMETH {
+ 		// method call with a receiver.
+-		t := fn.Type.Recv0()
++		t := fn.Type.Recv()
+ 
+ 		if t != nil && t.Nname != nil && !isblank(t.Nname) && t.Nname.Name.Inlvar == nil {
+ 			Fatalf("missing inlvar for %v\n", t.Nname)
+@@ -683,7 +683,7 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
+ 		}
+ 
+ 		// append receiver inlvar to LHS.
+-		t := fn.Type.Recv0()
++		t := fn.Type.Recv()
+ 
+ 		if t != nil && t.Nname != nil && !isblank(t.Nname) && t.Nname.Name.Inlvar == nil {
+ 			Fatalf("missing inlvar for %v\n", t.Nname)
+diff --git a/src/cmd/compile/internal/gc/lex.go b/src/cmd/compile/internal/gc/lex.go
+index 9a6e11005b..715fa5e137 100644
+--- a/src/cmd/compile/internal/gc/lex.go
++++ b/src/cmd/compile/internal/gc/lex.go
+@@ -2193,7 +2193,7 @@ func lexinit1() {
+ 	out.Type.Type = Types[TSTRING]
+ 	out.Funarg = true
+ 	f := typ(TFUNC)
+-	*f.RecvP() = rcvr
++	*f.RecvsP() = rcvr
+ 	*f.ResultsP() = out
+ 	*f.ParamsP() = in
+ 	f.Thistuple = 1
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index 607d068c28..359d97518c 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -155,7 +155,7 @@ func emitptrargsmap() {
+ 	var xoffset int64
+ 	if Curfn.Type.Thistuple > 0 {
+ 		xoffset = 0
+-		onebitwalktype1(Curfn.Type.Recv(), &xoffset, bv)
++		onebitwalktype1(Curfn.Type.Recvs(), &xoffset, bv)
+ 	}
+ 
+ 	if Curfn.Type.Intuple > 0 {
+diff --git a/src/cmd/compile/internal/gc/plive.go b/src/cmd/compile/internal/gc/plive.go
+index 34bd2a60aa..52729613fc 100644
+--- a/src/cmd/compile/internal/gc/plive.go
++++ b/src/cmd/compile/internal/gc/plive.go
+@@ -1003,7 +1003,7 @@ func onebitlivepointermap(lv *Liveness, liveout Bvec, vars []*Node, args Bvec, l
+ 	// If the receiver or arguments are unnamed, they will be omitted
+ 	// from the list above. Preserve those values - even though they are unused -
+ 	// in order to keep their addresses live for use in stack traces.
+-	thisargtype := lv.fn.Type.Recv()
++	thisargtype := lv.fn.Type.Recvs()
+ 
+ 	if thisargtype != nil {
+ 		xoffset = 0
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index 34e7c77f23..f2ad9e7efc 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -306,7 +306,7 @@ func methods(t *Type) []*Sig {
+ 		if f.Type.Etype != TFUNC || f.Type.Thistuple == 0 {
+ 			Fatalf("non-method on %v method %v %v\n", mt, f.Sym, f)
+ 		}
+-		if f.Type.Recv0() == nil {
++		if f.Type.Recv() == nil {
+ 			Fatalf("receiver with no type on %v method %v %v\n", mt, f.Sym, f)
+ 		}
+ 		if f.Nointerface {
+@@ -322,7 +322,7 @@ func methods(t *Type) []*Sig {
+ 		// if pointer receiver but non-pointer t and
+ 		// this is not an embedded pointer inside a struct,
+ 		// method does not apply.
+-		this := f.Type.Recv0().Type
++		this := f.Type.Recv().Type
+ 
+ 		if Isptr[this.Etype] && this.Type == t {
+ 			continue
+@@ -1061,7 +1061,7 @@ ok:
+ 		ot = dextratype(s, ot, t, 0)
+ 
+ 	case TFUNC:
+-		for t1, it := IterFields(t.Recv()); t1 != nil; t1 = it.Next() {
++		for t1, it := IterFields(t.Recvs()); t1 != nil; t1 = it.Next() {
+ 			dtypesym(t1.Type)
+ 		}
+ 		isddd := false
+@@ -1089,7 +1089,7 @@ ok:
+ 		ot = dextratype(s, ot, t, dataAdd)
+ 
+ 		// Array of rtype pointers follows funcType.
+-		for t1, it := IterFields(t.Recv()); t1 != nil; t1 = it.Next() {
++		for t1, it := IterFields(t.Recvs()); t1 != nil; t1 = it.Next() {
+ 			ot = dsymptr(s, ot, dtypesym(t1.Type), 0)
+ 		}
+ 		for t1, it := IterFields(t.Params()); t1 != nil; t1 = it.Next() {
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 892e2ae141..ec98c356f3 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -758,7 +758,7 @@ func eqtype1(t1, t2 *Type, assumedEqual map[typePair]struct{}) bool {
+ 
+ 		// Loop over structs: receiver, in, out.
+ 	case TFUNC:
+-		for _, f := range recvParamsResults {
++		for _, f := range recvsParamsResults {
+ 			// Loop over fields in structs, ignoring argument names.
+ 			ta, ia := IterFields(f(t1))
+ 			tb, ib := IterFields(f(t2))
+@@ -1131,7 +1131,7 @@ func substAny(tp **Type, types *[]*Type) {
+ 			continue
+ 
+ 		case TFUNC:
+-			substAny(t.RecvP(), types)
++			substAny(t.RecvsP(), types)
+ 			substAny(t.ParamsP(), types)
+ 			substAny(t.ResultsP(), types)
+ 
+@@ -1210,7 +1210,7 @@ func deep(t *Type) *Type {
+ 
+ 	case TFUNC:
+ 		nt = t.Copy()
+-		*nt.RecvP() = deep(t.Recv())
++		*nt.RecvsP() = deep(t.Recvs())
+ 		*nt.ResultsP() = deep(t.Results())
+ 		*nt.ParamsP() = deep(t.Params())
+ 
+@@ -1959,7 +1959,7 @@ func genwrapper(rcvr *Type, method *Type, newnam *Sym, iface int) {
+ 		isddd = n.Left.Isddd
+ 	}
+ 
+-	methodrcvr := method.Type.Recv0().Type
++	methodrcvr := method.Type.Recv().Type
+ 
+ 	// generate nil pointer check for better error
+ 	if Isptr[rcvr.Etype] && rcvr.Type == methodrcvr {
+@@ -2148,7 +2148,7 @@ func implements(t *Type, iface *Type, m **Type, samename **Type, ptr *int) bool
+ 
+ 		// if pointer receiver in method,
+ 		// the method does not exist for value types.
+-		rcvr = tm.Type.Recv0().Type
++		rcvr = tm.Type.Recv().Type
+ 
+ 		if Isptr[rcvr.Etype] && !Isptr[t0.Etype] && !followptr && !isifacemethod(tm.Type) {
+ 			if false && Debug['r'] != 0 {
+diff --git a/src/cmd/compile/internal/gc/type.go b/src/cmd/compile/internal/gc/type.go
+index 5c7e993d67..54745453e3 100644
+--- a/src/cmd/compile/internal/gc/type.go
++++ b/src/cmd/compile/internal/gc/type.go
+@@ -224,7 +224,7 @@ func (t *Type) wantEtype(et EType) {
+ 	}
+ }
+ 
+-func (t *Type) RecvP() **Type {
++func (t *Type) RecvsP() **Type {
+ 	t.wantEtype(TFUNC)
+ 	return &t.Type
+ }
+@@ -239,18 +239,17 @@ func (t *Type) ResultsP() **Type {
+ 	return &t.Type.Down
+ }
+ 
+-func (t *Type) Recv() *Type    { return *t.RecvP() }
++func (t *Type) Recvs() *Type   { return *t.RecvsP() }
+ func (t *Type) Params() *Type  { return *t.ParamsP() }
+ func (t *Type) Results() *Type { return *t.ResultsP() }
+ 
+-// TODO(mdempsky): Rename Recv to Recvs, so Recv0 can become just Recv.
+-func (t *Type) Recv0() *Type { return t.Recv().Field(0) }
++func (t *Type) Recv() *Type { return t.Recvs().Field(0) }
+ 
+-// recvParamsResults stores the accessor functions for a function Type's
++// recvsParamsResults stores the accessor functions for a function Type's
+ // receiver, parameters, and result parameters, in that order.
+ // It can be used to iterate over all of a function's parameter lists.
+-var recvParamsResults = [3]func(*Type) *Type{
+-	(*Type).Recv, (*Type).Params, (*Type).Results,
++var recvsParamsResults = [3]func(*Type) *Type{
++	(*Type).Recvs, (*Type).Params, (*Type).Results,
+ }
+ 
+ // Field returns the i'th field/method of struct/interface type t.
+@@ -463,7 +462,7 @@ func (t *Type) cmp(x *Type) ssa.Cmp {
+ 		return ssa.CMPeq
+ 
+ 	case TFUNC:
+-		for _, f := range recvParamsResults {
++		for _, f := range recvsParamsResults {
+ 			// Loop over fields in structs, ignoring argument names.
+ 			ta, ia := IterFields(f(t))
+ 			tb, ib := IterFields(f(x))
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index ca71e9f23f..22fd9e4d2b 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -1311,7 +1311,7 @@ OpSwitch:
+ 			// information further down the call chain to know if we
+ 			// were testing a method receiver for unexported fields.
+ 			// It isn't necessary, so just do a sanity check.
+-			tp := t.Recv0().Type
++			tp := t.Recv().Type
+ 
+ 			if l.Left == nil || !Eqtype(l.Left.Type, tp) {
+ 				Fatalf("method receiver")
+@@ -2430,7 +2430,7 @@ func looktypedot(n *Node, t *Type, dostrcmp int) bool {
+ 	}
+ 
+ 	// disallow T.m if m requires *T receiver
+-	if Isptr[f2.Type.Recv0().Type.Etype] && !Isptr[t.Etype] && f2.Embedded != 2 && !isifacemethod(f2.Type) {
++	if Isptr[f2.Type.Recv().Type.Etype] && !Isptr[t.Etype] && f2.Embedded != 2 && !isifacemethod(f2.Type) {
+ 		Yyerror("invalid method expression %v (needs pointer receiver: (*%v).%v)", n, t, Sconv(f2.Sym, obj.FmtShort))
+ 		return false
+ 	}
+@@ -2513,7 +2513,7 @@ func lookdot(n *Node, t *Type, dostrcmp int) *Type {
+ 		}
+ 		tt := n.Left.Type
+ 		dowidth(tt)
+-		rcvr := f2.Type.Recv0().Type
++		rcvr := f2.Type.Recv().Type
+ 		if !Eqtype(rcvr, tt) {
+ 			if rcvr.Etype == Tptr && Eqtype(rcvr.Type, tt) {
+ 				checklvalue(n.Left, "call pointer method on")
+@@ -3436,7 +3436,7 @@ func typecheckfunc(n *Node) {
+ 	}
+ 	n.Type = t
+ 	t.Nname = n.Func.Nname
+-	rcvr := t.Recv0()
++	rcvr := t.Recv()
+ 	if rcvr != nil && n.Func.Shortname != nil {
+ 		addmethod(n.Func.Shortname.Sym, t, true, n.Func.Nname.Nointerface)
+ 	}
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 12a9b80d7b..30c1ecc040 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -695,7 +695,7 @@ opswitch:
+ 		}
+ 		walkexpr(&n.Left, init)
+ 		walkexprlist(n.List.Slice(), init)
+-		ll := ascompatte(n.Op, n, false, t.Recv(), []*Node{n.Left.Left}, 0, init)
++		ll := ascompatte(n.Op, n, false, t.Recvs(), []*Node{n.Left.Left}, 0, init)
+ 		lr := ascompatte(n.Op, n, n.Isddd, t.Params(), n.List.Slice(), 0, init)
+ 		ll = append(ll, lr...)
+ 		n.Left.Left = nil
+@@ -2623,7 +2623,7 @@ func returnsfromheap(params *Type) []*Node {
+ func heapmoves() {
+ 	lno := lineno
+ 	lineno = Curfn.Lineno
+-	nn := paramstoheap(Curfn.Type.Recv(), false)
++	nn := paramstoheap(Curfn.Type.Recvs(), false)
+ 	nn = append(nn, paramstoheap(Curfn.Type.Params(), false)...)
+ 	nn = append(nn, paramstoheap(Curfn.Type.Results(), true)...)
+ 	Curfn.Func.Enter.Append(nn...)

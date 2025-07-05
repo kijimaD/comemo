@@ -14,7 +14,312 @@ Date:   Mon Jan 26 16:08:51 2015 -0800
     Change-Id: I9d273b344d4786f1fed18862198b23285c358a39
     Reviewed-on: https://go-review.googlesource.com/3321
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/math/big/float.go      | 131 +++++++++++++++++++++++----------------------
  src/math/big/float_test.go |  47 ++++++----------
  2 files changed, 81 insertions(+), 97 deletions(-)
+
+diff --git a/src/math/big/float.go b/src/math/big/float.go
+index ed3fadbe06..24fdacbe88 100644
+--- a/src/math/big/float.go
++++ b/src/math/big/float.go
+@@ -14,6 +14,7 @@
+ package big
+ 
+ import (
++	"bytes"
+ 	"fmt"
+ 	"io"
+ 	"math"
+@@ -472,12 +473,16 @@ func (z *Float) Set(x *Float) *Float {
+ }
+ 
+ func high64(x nat) uint64 {
+-	if len(x) == 0 {
++	i := len(x) - 1
++	if i < 0 {
+ 		return 0
+ 	}
+-	v := uint64(x[len(x)-1])
+-	if _W == 32 && len(x) > 1 {
+-		v = v<<32 | uint64(x[len(x)-2])
++	v := uint64(x[i])
++	if _W == 32 {
++		v <<= 32
++		if i > 0 {
++			v |= uint64(x[i-1])
++		}
+ 	}
+ 	return v
+ }
+@@ -575,40 +580,27 @@ func (z *Float) uadd(x, y *Float) {
+ 	// Point Addition With Exact Rounding (as in the MPFR Library)"
+ 	// http://www.vinc17.net/research/papers/rnc6.pdf
+ 
+-	// order x, y by magnitude
+-	ex := int(x.exp) - len(x.mant)*_W
+-	ey := int(y.exp) - len(y.mant)*_W
+-	if ex < ey {
+-		// + is commutative => ok to swap operands
+-		x, y = y, x
+-		ex, ey = ey, ex
+-	}
+-	// ex >= ey
+-	d := uint(ex - ey)
+-
+-	// compute adjusted xmant
+-	var n0 uint // nlz(z) before addition
+-	xadj := x.mant
+-	if d > 0 {
+-		xadj = z.mant.shl(x.mant, d) // 1st shift
+-		n0 = _W - d%_W
+-	}
+-	z.exp = x.exp
++	ex := int64(x.exp) - int64(len(x.mant))*_W
++	ey := int64(y.exp) - int64(len(y.mant))*_W
+ 
+-	// add numbers
+-	z.mant = z.mant.add(xadj, y.mant)
+-
+-	// normalize mantissa
+-	n1 := fnorm(z.mant) // 2nd shift (often)
+-
+-	// adjust exponent if the result got longer (by at most 1 bit)
+-	if n1 != n0 {
+-		if debugFloat && (n1+1)%_W != n0 {
+-			panic(fmt.Sprintf("carry is %d bits, expected at most 1 bit", n0-n1))
+-		}
+-		z.exp++
++	var e int64
++	switch {
++	case ex < ey:
++		t := z.mant.shl(y.mant, uint(ey-ex))
++		z.mant = t.add(x.mant, t)
++		e = ex
++	default:
++		// ex == ey
++		z.mant = z.mant.add(x.mant, y.mant)
++		e = ex
++	case ex > ey:
++		t := z.mant.shl(x.mant, uint(ex-ey))
++		z.mant = t.add(t, y.mant)
++		e = ey
+ 	}
++	// len(z.mant) > 0
+ 
++	z.setExp(e + int64(len(z.mant))*_W - int64(fnorm(z.mant)))
+ 	z.round(0)
+ }
+ 
+@@ -619,39 +611,40 @@ func (z *Float) usub(x, y *Float) {
+ 		panic("usub called with 0 argument")
+ 	}
+ 
+-	// Note: Like uadd, this implementation is often doing
+-	// too much work and could be optimized by separating
+-	// the various special cases.
+-
+-	// determine magnitude difference
+-	ex := int(x.exp) - len(x.mant)*_W
+-	ey := int(y.exp) - len(y.mant)*_W
+-
+-	if ex < ey {
++	if x.exp < y.exp {
+ 		panic("underflow")
+ 	}
+-	// ex >= ey
+-	d := uint(ex - ey)
+ 
+-	// compute adjusted x.mant
+-	var n uint // nlz(z) after adjustment
+-	xadj := x.mant
+-	if d > 0 {
+-		xadj = z.mant.shl(x.mant, d)
+-		n = _W - d%_W
+-	}
+-	e := int64(x.exp) + int64(n)
++	// This code is symmetric to uadd.
+ 
+-	// subtract numbers
+-	z.mant = z.mant.sub(xadj, y.mant)
++	ex := int64(x.exp) - int64(len(x.mant))*_W
++	ey := int64(y.exp) - int64(len(y.mant))*_W
+ 
+-	if len(z.mant) != 0 {
+-		e -= int64(len(xadj)-len(z.mant)) * _W
++	var e int64
++	switch {
++	case ex < ey:
++		t := z.mant.shl(y.mant, uint(ey-ex))
++		z.mant = t.sub(x.mant, t)
++		e = ex
++	default:
++		// ex == ey
++		z.mant = z.mant.sub(x.mant, y.mant)
++		e = ex
++	case ex > ey:
++		t := z.mant.shl(x.mant, uint(ex-ey))
++		z.mant = t.sub(t, y.mant)
++		e = ey
++	}
+ 
+-		// normalize mantissa
+-		z.setExp(e - int64(fnorm(z.mant)))
++	// operands may have cancelled each other out
++	if len(z.mant) == 0 {
++		z.acc = Exact
++		z.setExp(0)
++		return
+ 	}
++	// len(z.mant) > 0
+ 
++	z.setExp(e + int64(len(z.mant))*_W - int64(fnorm(z.mant)))
+ 	z.round(0)
+ }
+ 
+@@ -973,14 +966,22 @@ func (x *Float) String() string {
+ 	return x.PString() // TODO(gri) fix this
+ }
+ 
+-// PString returns x as a string in the format ["-"] "0x" mantissa "p" exponent,
+-// with a hexadecimal mantissa and a signed decimal exponent.
++// PString returns x as a string in the format ["-"] "0." mantissa "p" exponent
++// with a hexadecimal mantissa and a decimal exponent, or ["-"] "0" if x is zero.
+ func (x *Float) PString() string {
+-	prefix := "0."
++	// TODO(gri) handle Inf
++	var buf bytes.Buffer
+ 	if x.neg {
+-		prefix = "-0."
++		buf.WriteByte('-')
++	}
++	buf.WriteByte('0')
++	if len(x.mant) > 0 {
++		// non-zero value
++		buf.WriteByte('.')
++		buf.WriteString(strings.TrimRight(x.mant.string(lowercaseDigits[:16]), "0"))
++		fmt.Fprintf(&buf, "p%d", x.exp)
+ 	}
+-	return prefix + x.mant.string(lowercaseDigits[:16]) + fmt.Sprintf("p%d", x.exp)
++	return buf.String()
+ }
+ 
+ // SetString sets z to the value of s and returns z and a boolean indicating
+diff --git a/src/math/big/float_test.go b/src/math/big/float_test.go
+index 261c4d0c1a..5c46e72c6f 100644
+--- a/src/math/big/float_test.go
++++ b/src/math/big/float_test.go
+@@ -79,11 +79,6 @@ func testFloatRound(t *testing.T, x, r int64, prec uint, mode RoundingMode) {
+ 
+ // TestFloatRound tests basic rounding.
+ func TestFloatRound(t *testing.T) {
+-	// TODO(gri) fix test for 32bit platforms
+-	if _W == 32 {
+-		return
+-	}
+-
+ 	var tests = []struct {
+ 		prec                        uint
+ 		x, zero, neven, naway, away string // input, results rounded to prec bits
+@@ -293,11 +288,6 @@ var bitsList = [...][]int{
+ // respective floating-point addition/subtraction for a variety of precisions
+ // and rounding modes.
+ func TestFloatAdd(t *testing.T) {
+-	// TODO(gri) fix test for 32bit platforms
+-	if _W == 32 {
+-		return
+-	}
+-
+ 	for _, xbits := range bitsList {
+ 		for _, ybits := range bitsList {
+ 			// exact values
+@@ -308,7 +298,6 @@ func TestFloatAdd(t *testing.T) {
+ 
+ 			for i, mode := range [...]RoundingMode{ToZero, ToNearestEven, AwayFromZero} {
+ 				for _, prec := range precList {
+-					// +
+ 					got := NewFloat(0, prec, mode)
+ 					got.Add(x, y)
+ 					want := roundBits(zbits, prec, mode)
+@@ -318,12 +307,11 @@ func TestFloatAdd(t *testing.T) {
+ 						return
+ 					}
+ 
+-					// -
+ 					got.Sub(z, x)
+ 					want = roundBits(ybits, prec, mode)
+ 					if got.Cmp(want) != 0 {
+-						t.Errorf("i = %d, prec = %d, %s:\n\t     %s\n\t-    %s\n\t=    %s\n\twant %s",
+-							i, prec, mode, x, y, got, want)
++						t.Errorf("i = %d, prec = %d, %s:\n\t     %s %v\n\t-    %s %v\n\t=    %s\n\twant %s",
++							i, prec, mode, z, zbits, x, xbits, got, want)
+ 					}
+ 				}
+ 			}
+@@ -389,14 +377,14 @@ func TestFloatAdd64(t *testing.T) {
+ 			got, acc := z.Float64()
+ 			want := x0 + y0
+ 			if got != want || acc != Exact {
+-				t.Errorf("d = %d: %g + %g = %g; want %g exactly", d, x0, y0, got, acc, want)
++				t.Errorf("d = %d: %g + %g = %g (%s); want %g exactly", d, x0, y0, got, acc, want)
+ 			}
+ 
+ 			z.Sub(z, y)
+ 			got, acc = z.Float64()
+ 			want -= y0
+ 			if got != want || acc != Exact {
+-				t.Errorf("d = %d: %g - %g = %g; want %g exactly", d, x0+y0, y0, got, acc, want)
++				t.Errorf("d = %d: %g - %g = %g (%s); want %g exactly", d, x0+y0, y0, got, acc, want)
+ 			}
+ 		}
+ 	}
+@@ -677,29 +665,24 @@ func fromBits(bits ...int) *Float {
+ }
+ 
+ func TestFromBits(t *testing.T) {
+-	// TODO(gri) fix test for 32bit platforms
+-	if _W == 32 {
+-		return
+-	}
+-
+ 	var tests = []struct {
+ 		bits []int
+ 		want string
+ 	}{
+ 		// all different bit numbers
+-		{nil, "0.0p0"},
+-		{[]int{0}, "0.8000000000000000p1"},
+-		{[]int{1}, "0.8000000000000000p2"},
+-		{[]int{-1}, "0.8000000000000000p0"},
+-		{[]int{63}, "0.8000000000000000p64"},
++		{nil, "0"},
++		{[]int{0}, "0.8p1"},
++		{[]int{1}, "0.8p2"},
++		{[]int{-1}, "0.8p0"},
++		{[]int{63}, "0.8p64"},
+ 		{[]int{33, -30}, "0.8000000000000001p34"},
+ 		{[]int{255, 0}, "0.8000000000000000000000000000000000000000000000000000000000000001p256"},
+ 
+ 		// multiple equal bit numbers
+-		{[]int{0, 0}, "0.8000000000000000p2"},
+-		{[]int{0, 0, 0, 0}, "0.8000000000000000p3"},
+-		{[]int{0, 1, 0}, "0.8000000000000000p3"},
+-		{append([]int{2, 1, 0} /* 7 */, []int{3, 1} /* 10 */ ...), "0.8800000000000000p5" /* 17 */},
++		{[]int{0, 0}, "0.8p2"},
++		{[]int{0, 0, 0, 0}, "0.8p3"},
++		{[]int{0, 1, 0}, "0.8p3"},
++		{append([]int{2, 1, 0} /* 7 */, []int{3, 1} /* 10 */ ...), "0.88p5" /* 17 */},
+ 	}
+ 
+ 	for _, test := range tests {
+@@ -779,8 +762,8 @@ func TestFloatPString(t *testing.T) {
+ 		x    Float
+ 		want string
+ 	}{
+-		{Float{}, "0.0p0"},
+-		{Float{neg: true}, "-0.0p0"},
++		{Float{}, "0"},
++		{Float{neg: true}, "-0"},
+ 		{Float{mant: nat{0x87654321}}, "0.87654321p0"},
+ 		{Float{mant: nat{0x87654321}, exp: -10}, "0.87654321p-10"},
+ 	}

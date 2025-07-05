@@ -29,7 +29,57 @@ Date:   Tue Nov 2 18:30:08 2021 -0400
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/internal/arm64/asm.go |  2 +-
  src/cmd/link/link_test.go          | 18 ++++++++++++++++++
  2 files changed, 19 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/arm64/asm.go b/src/cmd/link/internal/arm64/asm.go
+index f56c9c1222..abae0f87bc 100644
+--- a/src/cmd/link/internal/arm64/asm.go
++++ b/src/cmd/link/internal/arm64/asm.go
+@@ -602,7 +602,7 @@ func pereloc1(arch *sys.Arch, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym,
+ 	rs := r.Xsym
+ 	rt := r.Type
+ 
+-	if r.Xadd != signext21(r.Xadd) {
++	if rt == objabi.R_ADDRARM64 && r.Xadd != signext21(r.Xadd) {
+ 		// If the relocation target would overflow the addend, then target
+ 		// a linker-manufactured label symbol with a smaller addend instead.
+ 		label := ldr.Lookup(offsetLabelName(ldr, rs, r.Xadd/peRelocLimit*peRelocLimit), ldr.SymVersion(rs))
+diff --git a/src/cmd/link/link_test.go b/src/cmd/link/link_test.go
+index 2b0b2dc4a1..ad7658bb25 100644
+--- a/src/cmd/link/link_test.go
++++ b/src/cmd/link/link_test.go
+@@ -997,13 +997,31 @@ package main
+ 
+ var x = [1<<25]byte{1<<23: 23, 1<<24: 24}
+ 
++var addr = [...]*byte{
++	&x[1<<23-1],
++	&x[1<<23],
++	&x[1<<23+1],
++	&x[1<<24-1],
++	&x[1<<24],
++	&x[1<<24+1],
++}
++
+ func main() {
++	// check relocations in instructions
+ 	check(x[1<<23-1], 0)
+ 	check(x[1<<23], 23)
+ 	check(x[1<<23+1], 0)
+ 	check(x[1<<24-1], 0)
+ 	check(x[1<<24], 24)
+ 	check(x[1<<24+1], 0)
++
++	// check absolute address relocations in data
++	check(*addr[0], 0)
++	check(*addr[1], 23)
++	check(*addr[2], 0)
++	check(*addr[3], 0)
++	check(*addr[4], 24)
++	check(*addr[5], 0)
+ }
+ 
+ func check(x, y byte) {

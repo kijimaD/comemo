@@ -7,8 +7,160 @@ Date:   Thu Nov 16 15:41:44 2017 -0500
     Change-Id: I11d83c8841f3de4ed4d9d014dec65d6f20464b11
     Reviewed-on: https://go-review.googlesource.com/78396
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/cmd/go/internal/load/icfg.go  | 75 +++++++++++++++++++++++++++++++++++++++
  src/cmd/go/internal/load/pkg.go   | 26 ++++++++++----
  src/cmd/go/internal/work/build.go |  1 +
  3 files changed, 95 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/go/internal/load/icfg.go b/src/cmd/go/internal/load/icfg.go
+new file mode 100644
+index 0000000000..0b346df077
+--- /dev/null
++++ b/src/cmd/go/internal/load/icfg.go
+@@ -0,0 +1,75 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package load
++
++import (
++	"bytes"
++	"encoding/json"
++	"errors"
++	"io/ioutil"
++)
++
++// DebugDeprecatedImportcfg is installed as the undocumented -debug-deprecated-importcfg build flag.
++// It is useful for debugging subtle problems in the go command logic but not something
++// we want users to depend on. The hope is that the "deprecated" will make that clear.
++// We intend to remove this flag in Go 1.11.
++var DebugDeprecatedImportcfg debugDeprecatedImportcfgFlag
++
++type debugDeprecatedImportcfgFlag struct {
++	enabled bool
++	pkgs    map[string]*debugDeprecatedImportcfgPkg
++}
++
++type debugDeprecatedImportcfgPkg struct {
++	Dir    string
++	Import map[string]string
++}
++
++var (
++	debugDeprecatedImportcfgMagic = []byte("# debug-deprecated-importcfg\n")
++	errImportcfgSyntax            = errors.New("malformed syntax")
++)
++
++func (f *debugDeprecatedImportcfgFlag) String() string { return "" }
++
++func (f *debugDeprecatedImportcfgFlag) Set(x string) error {
++	if x == "" {
++		*f = debugDeprecatedImportcfgFlag{}
++		return nil
++	}
++	data, err := ioutil.ReadFile(x)
++	if err != nil {
++		return err
++	}
++
++	if !bytes.HasPrefix(data, debugDeprecatedImportcfgMagic) {
++		return errImportcfgSyntax
++	}
++	data = data[len(debugDeprecatedImportcfgMagic):]
++
++	f.pkgs = nil
++	if err := json.Unmarshal(data, &f.pkgs); err != nil {
++		return errImportcfgSyntax
++	}
++	f.enabled = true
++	return nil
++}
++
++func (f *debugDeprecatedImportcfgFlag) lookup(parent *Package, path string) (dir, newPath string) {
++	if parent == nil {
++		if p1 := f.pkgs[path]; p1 != nil {
++			return p1.Dir, path
++		}
++		return "", ""
++	}
++	if p1 := f.pkgs[parent.ImportPath]; p1 != nil {
++		if newPath := p1.Import[path]; newPath != "" {
++			if p2 := f.pkgs[newPath]; p2 != nil {
++				return p2.Dir, newPath
++			}
++		}
++	}
++	return "", ""
++}
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 15ef95312b..2b3d7fd0e1 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -383,8 +383,14 @@ func LoadImport(path, srcDir string, parent *Package, stk *ImportStack, importPo
+ 	importPath := path
+ 	origPath := path
+ 	isLocal := build.IsLocalImport(path)
++	var debugDeprecatedImportcfgDir string
+ 	if isLocal {
+ 		importPath = dirToImportPath(filepath.Join(srcDir, path))
++	} else if DebugDeprecatedImportcfg.enabled {
++		if d, i := DebugDeprecatedImportcfg.lookup(parent, path); d != "" {
++			debugDeprecatedImportcfgDir = d
++			importPath = i
++		}
+ 	} else if mode&UseVendor != 0 {
+ 		// We do our own vendor resolution, because we want to
+ 		// find out the key to use in packageCache without the
+@@ -406,17 +412,23 @@ func LoadImport(path, srcDir string, parent *Package, stk *ImportStack, importPo
+ 		// Load package.
+ 		// Import always returns bp != nil, even if an error occurs,
+ 		// in order to return partial information.
+-		buildMode := build.ImportComment
+-		if mode&UseVendor == 0 || path != origPath {
+-			// Not vendoring, or we already found the vendored path.
+-			buildMode |= build.IgnoreVendor
++		var bp *build.Package
++		var err error
++		if debugDeprecatedImportcfgDir != "" {
++			bp, err = cfg.BuildContext.ImportDir(debugDeprecatedImportcfgDir, 0)
++		} else {
++			buildMode := build.ImportComment
++			if mode&UseVendor == 0 || path != origPath {
++				// Not vendoring, or we already found the vendored path.
++				buildMode |= build.IgnoreVendor
++			}
++			bp, err = cfg.BuildContext.Import(path, srcDir, buildMode)
+ 		}
+-		bp, err := cfg.BuildContext.Import(path, srcDir, buildMode)
+ 		bp.ImportPath = importPath
+ 		if cfg.GOBIN != "" {
+ 			bp.BinDir = cfg.GOBIN
+ 		}
+-		if err == nil && !isLocal && bp.ImportComment != "" && bp.ImportComment != path &&
++		if debugDeprecatedImportcfgDir == "" && err == nil && !isLocal && bp.ImportComment != "" && bp.ImportComment != path &&
+ 			!strings.Contains(path, "/vendor/") && !strings.HasPrefix(path, "vendor/") {
+ 			err = fmt.Errorf("code in directory %s expects import %q", bp.Dir, bp.ImportComment)
+ 		}
+@@ -425,7 +437,7 @@ func LoadImport(path, srcDir string, parent *Package, stk *ImportStack, importPo
+ 			p = setErrorPos(p, importPos)
+ 		}
+ 
+-		if origPath != cleanImport(origPath) {
++		if debugDeprecatedImportcfgDir == "" && origPath != cleanImport(origPath) {
+ 			p.Error = &PackageError{
+ 				ImportStack: stk.Copy(),
+ 				Err:         fmt.Sprintf("non-canonical import path: %q should be %q", origPath, pathpkg.Clean(origPath)),
+diff --git a/src/cmd/go/internal/work/build.go b/src/cmd/go/internal/work/build.go
+index fdd6ff6a6f..6ae2ca35cf 100644
+--- a/src/cmd/go/internal/work/build.go
++++ b/src/cmd/go/internal/work/build.go
+@@ -229,6 +229,7 @@ func AddBuildFlags(cmd *base.Command) {
+ 
+ 	// Undocumented, unstable debugging flags.
+ 	cmd.Flag.StringVar(&cfg.DebugActiongraph, "debug-actiongraph", "", "")
++	cmd.Flag.Var(&load.DebugDeprecatedImportcfg, "debug-deprecated-importcfg", "")
+ }
+ 
+ // fileExtSplit expects a filename and returns the name

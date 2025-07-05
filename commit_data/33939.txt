@@ -9,6 +9,20 @@ Date:   Sun Sep 3 18:18:51 2017 +0900
     Change-Id: I9f0b6bc009eae86cbbdb56562ee4eb8d5eef653e
     Reviewed-on: https://go-review.googlesource.com/61230
     Reviewed-by: Tom Bergan <tombergan@google.com>
-
+---
  src/net/http/server.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index 2d6547b4aa..ffbba81c60 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -179,7 +179,7 @@ type Hijacker interface {
+ 	// The returned bufio.Reader may contain unprocessed buffered
+ 	// data from the client.
+ 	//
+-	// After a call to Hijack, the original Request.Body should
++	// After a call to Hijack, the original Request.Body must
+ 	// not be used.
+ 	Hijack() (net.Conn, *bufio.ReadWriter, error)
+ }

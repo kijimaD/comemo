@@ -9,6 +9,23 @@ Date:   Tue Oct 18 11:01:54 2016 -0400
     Change-Id: I41ec8123f2d3fbe063fd3b09a9366e69722793e5
     Reviewed-on: https://go-review.googlesource.com/31355
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/reflect/deepequal.go | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/reflect/deepequal.go b/src/reflect/deepequal.go
+index 9770358ae7..d339768854 100644
+--- a/src/reflect/deepequal.go
++++ b/src/reflect/deepequal.go
+@@ -142,8 +142,9 @@ func deepValueEqual(v1, v2 Value, visited map[visit]bool, depth int) bool {
+ //
+ // Interface values are deeply equal if they hold deeply equal concrete values.
+ //
+-// Map values are deeply equal if they are the same map object
+-// or if they have the same length and their corresponding keys
++// Map values are deeply equal when all of the following are true:
++// they are both nil or both non-nil, they have the same length,
++// and either they are the same map object or their corresponding keys
+ // (matched using Go equality) map to deeply equal values.
+ //
+ // Pointer values are deeply equal if they are equal using Go's == operator

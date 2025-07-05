@@ -27,7 +27,7 @@ Date:   Wed Apr 15 13:56:09 2020 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Michael Matloob <matloob@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/alldocs.go                              |   8 +-
  src/cmd/go/internal/modinfo/info.go                |  17 ++-
  src/cmd/go/internal/modload/help.go                |   8 +-
@@ -44,3 +44,636 @@ Date:   Wed Apr 15 13:56:09 2020 -0400
  src/cmd/go/testdata/script/mod_retract.txt         |  40 ++++++
  src/cmd/go/testdata/script/mod_sumdb_golang.txt    |  12 +-
  15 files changed, 340 insertions(+), 47 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 68bad3cff1..f50529c4f2 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -1894,15 +1894,17 @@
+ // 	require new/thing/v2 v2.3.4
+ // 	exclude old/thing v1.2.3
+ // 	replace bad/thing v1.4.5 => good/thing v1.4.5
++// 	retract v1.5.6
+ //
+ // The verbs are
+ // 	module, to define the module path;
+ // 	go, to set the expected language version;
+ // 	require, to require a particular module at a given version or later;
+-// 	exclude, to exclude a particular module version from use; and
+-// 	replace, to replace a module version with a different module version.
++// 	exclude, to exclude a particular module version from use;
++// 	replace, to replace a module version with a different module version; and
++// 	retract, to indicate a previously released version should not be used.
+ // Exclude and replace apply only in the main module's go.mod and are ignored
+-// in dependencies.  See https://research.swtch.com/vgo-mvs for details.
++// in dependencies.  See https://golang.org/ref/mod for details.
+ //
+ // The leading verb can be factored out of adjacent lines to create a block,
+ // like in Go imports:
+diff --git a/src/cmd/go/internal/modinfo/info.go b/src/cmd/go/internal/modinfo/info.go
+index 07248d1a61..897be56397 100644
+--- a/src/cmd/go/internal/modinfo/info.go
++++ b/src/cmd/go/internal/modinfo/info.go
+@@ -21,6 +21,7 @@ type ModulePublic struct {
+ 	Dir       string        `json:",omitempty"` // directory holding local copy of files, if any
+ 	GoMod     string        `json:",omitempty"` // path to go.mod file describing module, if any
+ 	GoVersion string        `json:",omitempty"` // go version used in module
++	Retracted []string      `json:",omitempty"` // retraction information, if any (with -retracted or -u)
+ 	Error     *ModuleError  `json:",omitempty"` // error loading module
+ }
+ 
+@@ -30,18 +31,26 @@ type ModuleError struct {
+ 
+ func (m *ModulePublic) String() string {
+ 	s := m.Path
++	versionString := func(mm *ModulePublic) string {
++		v := mm.Version
++		if len(mm.Retracted) == 0 {
++			return v
++		}
++		return v + " (retracted)"
++	}
++
+ 	if m.Version != "" {
+-		s += " " + m.Version
++		s += " " + versionString(m)
+ 		if m.Update != nil {
+-			s += " [" + m.Update.Version + "]"
++			s += " [" + versionString(m.Update) + "]"
+ 		}
+ 	}
+ 	if m.Replace != nil {
+ 		s += " => " + m.Replace.Path
+ 		if m.Replace.Version != "" {
+-			s += " " + m.Replace.Version
++			s += " " + versionString(m.Replace)
+ 			if m.Replace.Update != nil {
+-				s += " [" + m.Replace.Update.Version + "]"
++				s += " [" + versionString(m.Replace.Update) + "]"
+ 			}
+ 		}
+ 	}
+diff --git a/src/cmd/go/internal/modload/help.go b/src/cmd/go/internal/modload/help.go
+index d80206b194..37f23d967f 100644
+--- a/src/cmd/go/internal/modload/help.go
++++ b/src/cmd/go/internal/modload/help.go
+@@ -432,15 +432,17 @@ verb followed by arguments. For example:
+ 	require new/thing/v2 v2.3.4
+ 	exclude old/thing v1.2.3
+ 	replace bad/thing v1.4.5 => good/thing v1.4.5
++	retract v1.5.6
+ 
+ The verbs are
+ 	module, to define the module path;
+ 	go, to set the expected language version;
+ 	require, to require a particular module at a given version or later;
+-	exclude, to exclude a particular module version from use; and
+-	replace, to replace a module version with a different module version.
++	exclude, to exclude a particular module version from use;
++	replace, to replace a module version with a different module version; and
++	retract, to indicate a previously released version should not be used.
+ Exclude and replace apply only in the main module's go.mod and are ignored
+-in dependencies.  See https://research.swtch.com/vgo-mvs for details.
++in dependencies.  See https://golang.org/ref/mod for details.
+ 
+ The leading verb can be factored out of adjacent lines to create a block,
+ like in Go imports:
+diff --git a/src/cmd/go/internal/modload/list.go b/src/cmd/go/internal/modload/list.go
+index 2f549540a6..a3461eea26 100644
+--- a/src/cmd/go/internal/modload/list.go
++++ b/src/cmd/go/internal/modload/list.go
+@@ -85,7 +85,8 @@ func listModules(ctx context.Context, args []string, listVersions bool) []*modin
+ 
+ 			allowed := CheckAllowed
+ 			if IsRevisionQuery(vers) {
+-				// Allow excluded versions if the user asked for a specific revision.
++				// Allow excluded and retracted versions if the user asked for a
++				// specific revision.
+ 				allowed = nil
+ 			}
+ 			info, err := Query(ctx, path, vers, current, allowed)
+diff --git a/src/cmd/go/internal/modload/modfile.go b/src/cmd/go/internal/modload/modfile.go
+index aed1f0a36b..0b135c5fb5 100644
+--- a/src/cmd/go/internal/modload/modfile.go
++++ b/src/cmd/go/internal/modload/modfile.go
+@@ -9,13 +9,16 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"path/filepath"
++	"strings"
+ 	"sync"
++	"unicode"
+ 
+ 	"cmd/go/internal/base"
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/lockedfile"
+ 	"cmd/go/internal/modfetch"
+ 	"cmd/go/internal/par"
++	"cmd/go/internal/trace"
+ 
+ 	"golang.org/x/mod/modfile"
+ 	"golang.org/x/mod/module"
+@@ -44,10 +47,16 @@ type requireMeta struct {
+ }
+ 
+ // CheckAllowed returns an error equivalent to ErrDisallowed if m is excluded by
+-// the main module's go.mod. Most version queries use this to filter out
+-// versions that should not be used.
++// the main module's go.mod or retracted by its author. Most version queries use
++// this to filter out versions that should not be used.
+ func CheckAllowed(ctx context.Context, m module.Version) error {
+-	return CheckExclusions(ctx, m)
++	if err := CheckExclusions(ctx, m); err != nil {
++		return err
++	}
++	if err := checkRetractions(ctx, m); err != nil {
++		return err
++	}
++	return nil
+ }
+ 
+ // ErrDisallowed is returned by version predicates passed to Query and similar
+@@ -70,6 +79,120 @@ type excludedError struct{}
+ func (e *excludedError) Error() string     { return "excluded by go.mod" }
+ func (e *excludedError) Is(err error) bool { return err == ErrDisallowed }
+ 
++// checkRetractions returns an error if module m has been retracted by
++// its author.
++func checkRetractions(ctx context.Context, m module.Version) error {
++	if m.Version == "" {
++		// Main module, standard library, or file replacement module.
++		// Cannot be retracted.
++		return nil
++	}
++
++	// Look up retraction information from the latest available version of
++	// the module. Cache retraction information so we don't parse the go.mod
++	// file repeatedly.
++	type entry struct {
++		retract []retraction
++		err     error
++	}
++	path := m.Path
++	e := retractCache.Do(path, func() (v interface{}) {
++		ctx, span := trace.StartSpan(ctx, "checkRetractions "+path)
++		defer span.Done()
++
++		if repl := Replacement(module.Version{Path: m.Path}); repl.Path != "" {
++			// All versions of the module were replaced with a local directory.
++			// Don't load retractions.
++			return &entry{nil, nil}
++		}
++
++		// Find the latest version of the module.
++		// Ignore exclusions from the main module's go.mod.
++		// We may need to account for the current version: for example,
++		// v2.0.0+incompatible is not "latest" if v1.0.0 is current.
++		rev, err := Query(ctx, path, "latest", findCurrentVersion(path), nil)
++		if err != nil {
++			return &entry{err: err}
++		}
++
++		// Load go.mod for that version.
++		// If the version is replaced, we'll load retractions from the replacement.
++		// If there's an error loading the go.mod, we'll return it here.
++		// These errors should generally be ignored by callers of checkRetractions,
++		// since they happen frequently when we're offline. These errors are not
++		// equivalent to ErrDisallowed, so they may be distinguished from
++		// retraction errors.
++		summary, err := goModSummary(module.Version{Path: path, Version: rev.Version})
++		if err != nil {
++			return &entry{err: err}
++		}
++		return &entry{retract: summary.retract}
++	}).(*entry)
++
++	if e.err != nil {
++		return fmt.Errorf("loading module retractions: %v", e.err)
++	}
++
++	var rationale []string
++	isRetracted := false
++	for _, r := range e.retract {
++		if semver.Compare(r.Low, m.Version) <= 0 && semver.Compare(m.Version, r.High) <= 0 {
++			isRetracted = true
++			if r.Rationale != "" {
++				rationale = append(rationale, r.Rationale)
++			}
++		}
++	}
++	if isRetracted {
++		return &retractedError{rationale: rationale}
++	}
++	return nil
++}
++
++var retractCache par.Cache
++
++type retractedError struct {
++	rationale []string
++}
++
++func (e *retractedError) Error() string {
++	msg := "retracted by module author"
++	if len(e.rationale) > 0 {
++		// This is meant to be a short error printed on a terminal, so just
++		// print the first rationale.
++		msg += ": " + ShortRetractionRationale(e.rationale[0])
++	}
++	return msg
++}
++
++func (e *retractedError) Is(err error) bool {
++	return err == ErrDisallowed
++}
++
++// ShortRetractionRationale returns a retraction rationale string that is safe
++// to print in a terminal. It returns hard-coded strings if the rationale
++// is empty, too long, or contains non-printable characters.
++func ShortRetractionRationale(rationale string) string {
++	const maxRationaleBytes = 500
++	if i := strings.Index(rationale, "\n"); i >= 0 {
++		rationale = rationale[:i]
++	}
++	rationale = strings.TrimSpace(rationale)
++	if rationale == "" {
++		return "retracted by module author"
++	}
++	if len(rationale) > maxRationaleBytes {
++		return "(rationale omitted: too long)"
++	}
++	for _, r := range rationale {
++		if !unicode.IsGraphic(r) && !unicode.IsSpace(r) {
++			return "(rationale omitted: contains non-printable characters)"
++		}
++	}
++	// NOTE: the go.mod parser rejects invalid UTF-8, so we don't check that here.
++	return rationale
++}
++
+ // Replacement returns the replacement for mod, if any, from go.mod.
+ // If there is no replacement for mod, Replacement returns
+ // a module.Version with Path == "".
+@@ -210,6 +333,14 @@ type modFileSummary struct {
+ 	module     module.Version
+ 	goVersionV string // GoVersion with "v" prefix
+ 	require    []module.Version
++	retract    []retraction
++}
++
++// A retraction consists of a retracted version interval and rationale.
++// retraction is like modfile.Retract, but it doesn't point to the syntax tree.
++type retraction struct {
++	modfile.VersionInterval
++	Rationale string
+ }
+ 
+ // goModSummary returns a summary of the go.mod file for module m,
+@@ -363,6 +494,15 @@ func rawGoModSummary(m module.Version) (*modFileSummary, error) {
+ 			summary.require = append(summary.require, req.Mod)
+ 		}
+ 	}
++	if len(f.Retract) > 0 {
++		summary.retract = make([]retraction, 0, len(f.Retract))
++		for _, ret := range f.Retract {
++			summary.retract = append(summary.retract, retraction{
++				VersionInterval: ret.VersionInterval,
++				Rationale:       ret.Rationale,
++			})
++		}
++	}
+ 
+ 	return summary, nil
+ }
+diff --git a/src/cmd/go/testdata/mod/example.com_retract_self_prev_v1.0.0-bad.txt b/src/cmd/go/testdata/mod/example.com_retract_self_prev_v1.0.0-bad.txt
+new file mode 100644
+index 0000000000..095063d69b
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/example.com_retract_self_prev_v1.0.0-bad.txt
+@@ -0,0 +1,14 @@
++See example.com_retract_self_prev_v1.9.0.txt.
++
++This version is retracted.
++
++-- .mod --
++module example.com/retract/self/prev
++
++go 1.15
++
++-- .info --
++{"Version":"v1.0.0-bad"}
++
++-- p.go --
++package p
+diff --git a/src/cmd/go/testdata/mod/example.com_retract_self_prev_v1.1.0.txt b/src/cmd/go/testdata/mod/example.com_retract_self_prev_v1.1.0.txt
+new file mode 100644
+index 0000000000..27c3a39065
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/example.com_retract_self_prev_v1.1.0.txt
+@@ -0,0 +1,14 @@
++See example.com_retract_self_pref_v1.9.0.txt.
++
++This version is the latest (only) non-retracted version.
++
++-- .mod --
++module example.com/retract/self/prev
++
++go 1.15
++
++-- .info --
++{"Version":"v1.1.0"}
++
++-- p.go --
++package p
+diff --git a/src/cmd/go/testdata/mod/example.com_retract_self_prev_v1.9.0.txt b/src/cmd/go/testdata/mod/example.com_retract_self_prev_v1.9.0.txt
+new file mode 100644
+index 0000000000..03d6168f0d
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/example.com_retract_self_prev_v1.9.0.txt
+@@ -0,0 +1,18 @@
++Module example.com/retract/self/prev is a module that retracts its own
++latest version, as well as an earlier version.
++
++A previous unretracted release version, v1.1.0, is still available.
++
++-- .mod --
++module example.com/retract/self/prev
++
++go 1.15
++
++retract v1.0.0-bad // bad
++retract v1.9.0 // self
++
++-- .info --
++{"Version":"v1.9.0"}
++
++-- p.go --
++package p
+diff --git a/src/cmd/go/testdata/mod/example.com_retract_v1.0.0-bad.txt b/src/cmd/go/testdata/mod/example.com_retract_v1.0.0-bad.txt
+new file mode 100644
+index 0000000000..2f996cfc36
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/example.com_retract_v1.0.0-bad.txt
+@@ -0,0 +1,10 @@
++-- .mod --
++module example.com/retract
++
++go 1.15
++
++-- .info --
++{"Version":"v1.0.0-bad"}
++
++-- retract.go --
++package retract
+diff --git a/src/cmd/go/testdata/mod/example.com_retract_v1.0.0-good.txt b/src/cmd/go/testdata/mod/example.com_retract_v1.0.0-good.txt
+new file mode 100644
+index 0000000000..78152bba4f
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/example.com_retract_v1.0.0-good.txt
+@@ -0,0 +1,10 @@
++-- .mod --
++module example.com/retract
++
++go 1.15
++
++-- .info --
++{"Version":"v1.0.0-good"}
++
++-- retract.go --
++package retract
+diff --git a/src/cmd/go/testdata/mod/example.com_retract_v1.0.0-unused.txt b/src/cmd/go/testdata/mod/example.com_retract_v1.0.0-unused.txt
+new file mode 100644
+index 0000000000..3bc9e35b7c
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/example.com_retract_v1.0.0-unused.txt
+@@ -0,0 +1,10 @@
++-- .mod --
++module example.com/retract
++
++go 1.15
++
++-- .info --
++{"Version":"v1.0.0-unused"}
++
++-- retract.go --
++package retract
+diff --git a/src/cmd/go/testdata/mod/example.com_retract_v1.1.0.txt b/src/cmd/go/testdata/mod/example.com_retract_v1.1.0.txt
+new file mode 100644
+index 0000000000..18d6d832e2
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/example.com_retract_v1.1.0.txt
+@@ -0,0 +1,13 @@
++-- .mod --
++module example.com/retract
++
++go 1.15
++
++retract v1.0.0-bad // bad
++retract v1.0.0-unused // bad
++
++-- .info --
++{"Version":"v1.1.0"}
++
++-- retract.go --
++package retract
+diff --git a/src/cmd/go/testdata/script/mod_download.txt b/src/cmd/go/testdata/script/mod_download.txt
+index bb5c4627db..5acb83266b 100644
+--- a/src/cmd/go/testdata/script/mod_download.txt
++++ b/src/cmd/go/testdata/script/mod_download.txt
+@@ -1,13 +1,15 @@
+ env GO111MODULE=on
+ 
+-# download with version should print nothing
++# download with version should print nothing.
++# It should not load retractions from the .mod file from the latest version.
+ go mod download rsc.io/quote@v1.5.0
+ ! stdout .
+ ! stderr .
+-
+ exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.0.info
+ exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.0.mod
+ exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.0.zip
++! exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.info
++! exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.mod
+ 
+ # download of an invalid path should report the error
+ [short] skip
+@@ -31,53 +33,59 @@ stdout '^\t"GoModSum": "h1:LzX7hefJvL54yjefDEDHNONDjII0t9xZLPXsUe\+TKr0="'
+ go list -m all
+ ! stdout rsc.io
+ 
+-# add to go.mod so we can test non-query downloads
+-go mod edit -require rsc.io/quote@v1.5.2
+-! exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.info
+-! exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.mod
++# download query should have downloaded go.mod for the highest release version
++# in order to find retractions when resolving the query '@<=v1.5.0'.
++exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.info
++exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.mod
+ ! exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.zip
+ 
++# add to go.mod so we can test non-query downloads
++go mod edit -require rsc.io/quote@v1.5.3-pre1
++! exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.3-pre1.info
++! exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.3-pre1.mod
++! exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.3-pre1.zip
++
+ # module loading will page in the info and mod files
+ go list -m all
+-exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.info
+-exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.mod
+-! exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.zip
++exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.3-pre1.info
++exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.3-pre1.mod
++! exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.3-pre1.zip
+ 
+ # download will fetch and unpack the zip file
+ go mod download
+-exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.info
+-exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.mod
+-exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.zip
+-exists $GOPATH/pkg/mod/rsc.io/quote@v1.5.2
++exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.3-pre1.info
++exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.3-pre1.mod
++exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.3-pre1.zip
++exists $GOPATH/pkg/mod/rsc.io/quote@v1.5.3-pre1
+ 
+ # download repopulates deleted files and directories independently.
+-rm $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.info
++rm $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.3-pre1.info
+ go mod download
+-exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.info
+-rm $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.mod
++exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.3-pre1.info
++rm $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.3-pre1.mod
+ go mod download
+-exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.mod
+-rm $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.zip
++exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.3-pre1.mod
++rm $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.3-pre1.zip
+ go mod download
+-exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.zip
+-rm -r $GOPATH/pkg/mod/rsc.io/quote@v1.5.2
++exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.3-pre1.zip
++rm -r $GOPATH/pkg/mod/rsc.io/quote@v1.5.3-pre1
+ go mod download
+-exists $GOPATH/pkg/mod/rsc.io/quote@v1.5.2
++exists $GOPATH/pkg/mod/rsc.io/quote@v1.5.3-pre1
+ 
+ # download reports the locations of downloaded files
+ go mod download -json
+ stdout '^\t"Path": "rsc.io/quote"'
+-stdout '^\t"Version": "v1.5.2"'
+-stdout '^\t"Info": ".*(\\\\|/)pkg(\\\\|/)mod(\\\\|/)cache(\\\\|/)download(\\\\|/)rsc.io(\\\\|/)quote(\\\\|/)@v(\\\\|/)v1.5.2.info"'
+-stdout '^\t"GoMod": ".*(\\\\|/)pkg(\\\\|/)mod(\\\\|/)cache(\\\\|/)download(\\\\|/)rsc.io(\\\\|/)quote(\\\\|/)@v(\\\\|/)v1.5.2.mod"'
+-stdout '^\t"Zip": ".*(\\\\|/)pkg(\\\\|/)mod(\\\\|/)cache(\\\\|/)download(\\\\|/)rsc.io(\\\\|/)quote(\\\\|/)@v(\\\\|/)v1.5.2.zip"'
+-stdout '^\t"Dir": ".*(\\\\|/)pkg(\\\\|/)mod(\\\\|/)rsc.io(\\\\|/)quote@v1.5.2"'
++stdout '^\t"Version": "v1.5.3-pre1"'
++stdout '^\t"Info": ".*(\\\\|/)pkg(\\\\|/)mod(\\\\|/)cache(\\\\|/)download(\\\\|/)rsc.io(\\\\|/)quote(\\\\|/)@v(\\\\|/)v1.5.3-pre1.info"'
++stdout '^\t"GoMod": ".*(\\\\|/)pkg(\\\\|/)mod(\\\\|/)cache(\\\\|/)download(\\\\|/)rsc.io(\\\\|/)quote(\\\\|/)@v(\\\\|/)v1.5.3-pre1.mod"'
++stdout '^\t"Zip": ".*(\\\\|/)pkg(\\\\|/)mod(\\\\|/)cache(\\\\|/)download(\\\\|/)rsc.io(\\\\|/)quote(\\\\|/)@v(\\\\|/)v1.5.3-pre1.zip"'
++stdout '^\t"Dir": ".*(\\\\|/)pkg(\\\\|/)mod(\\\\|/)rsc.io(\\\\|/)quote@v1.5.3-pre1"'
+ 
+ # download will follow replacements
+-go mod edit -require rsc.io/quote@v1.5.1 -replace rsc.io/quote@v1.5.1=rsc.io/quote@v1.5.3-pre1
++go mod edit -require rsc.io/quote@v1.5.1 -replace rsc.io/quote@v1.5.1=rsc.io/quote@v1.5.2
+ go mod download
+ ! exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.1.zip
+-exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.3-pre1.zip
++exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.zip
+ 
+ # download will not follow replacements for explicit module queries
+ go mod download -json rsc.io/quote@v1.5.1
+diff --git a/src/cmd/go/testdata/script/mod_retract.txt b/src/cmd/go/testdata/script/mod_retract.txt
+new file mode 100644
+index 0000000000..5d21902043
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_retract.txt
+@@ -0,0 +1,40 @@
++cp go.mod go.mod.orig
++
++# 'go list pkg' does not report an error when a retracted version is used.
++go list -e -f '{{if .Error}}{{.Error}}{{end}}' ./use
++! stdout .
++cmp go.mod go.mod.orig
++
++# Nor does 'go build'.
++[!short] go build ./use
++[!short] ! stderr .
++[!short] cmp go.mod go.mod.orig
++
++# Neither 'go list' nor 'go build' should download go.mod from the version
++# that would list retractions.
++exists $GOPATH/pkg/mod/cache/download/example.com/retract/@v/v1.0.0-bad.mod
++! exists $GOPATH/pkg/mod/cache/download/example.com/retract/@v/v1.1.0.mod
++
++# Importing a package from a module with a retracted latest version will
++# select the latest non-retracted version.
++go list ./use_self_prev
++go list -m example.com/retract/self/prev
++stdout '^example.com/retract/self/prev v1.1.0$'
++exists $GOPATH/pkg/mod/cache/download/example.com/retract/self/prev/@v/v1.9.0.mod
++
++-- go.mod --
++module example.com/use
++
++go 1.15
++
++require example.com/retract v1.0.0-bad
++
++-- use/use.go --
++package use
++
++import _ "example.com/retract"
++
++-- use_self_prev/use.go --
++package use_self_prev
++
++import _ "example.com/retract/self/prev"
+diff --git a/src/cmd/go/testdata/script/mod_sumdb_golang.txt b/src/cmd/go/testdata/script/mod_sumdb_golang.txt
+index 40a07fc7e9..d9fb63acb0 100644
+--- a/src/cmd/go/testdata/script/mod_sumdb_golang.txt
++++ b/src/cmd/go/testdata/script/mod_sumdb_golang.txt
+@@ -9,7 +9,7 @@ env GOPROXY=https://proxy.golang.org
+ go env GOSUMDB
+ stdout '^sum.golang.org$'
+ 
+-# download direct from github
++# Download direct from github.
+ [!net] skip
+ [!exec:git] skip
+ env GOSUMDB=sum.golang.org
+@@ -17,11 +17,13 @@ env GOPROXY=direct
+ go get -d rsc.io/quote@v1.5.2
+ cp go.sum saved.sum
+ 
+-# download from proxy.golang.org with go.sum entry already
++# Download from proxy.golang.org with go.sum entry already.
++# Use 'go list' instead of 'go get' since the latter may download extra go.mod
++# files not listed in go.sum.
+ go clean -modcache
+ env GOSUMDB=
+ env GOPROXY=
+-go get -x -d rsc.io/quote@v1.5.2
++go list -x -deps rsc.io/quote
+ ! stderr github
+ stderr proxy.golang.org/rsc.io/quote
+ ! stderr sum.golang.org/tile
+@@ -32,7 +34,7 @@ cmp go.sum saved.sum
+ # Should use the checksum database to validate new go.sum lines,
+ # but not need to fetch any new data from the proxy.
+ rm go.sum
+-go get -x -d rsc.io/quote@v1.5.2
++go list -x rsc.io/quote
+ ! stderr github
+ ! stderr proxy.golang.org/rsc.io/quote
+ stderr sum.golang.org/tile
+@@ -43,7 +45,7 @@ cmp go.sum saved.sum
+ env TESTGOPROXY404=1
+ go clean -modcache
+ rm go.sum
+-go get -x -d rsc.io/quote@v1.5.2
++go list -x rsc.io/quote
+ stderr 'proxy.golang.org.*404 testing'
+ stderr github.com/rsc
+ cmp go.sum saved.sum

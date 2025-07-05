@@ -33,8 +33,83 @@ Date:   Wed Aug 27 22:53:28 2014 -0400
     TBR=iant
     CC=golang-codereviews
     https://golang.org/cl/135050043
-
+---
  src/cmd/5l/asm.c | 4 ++--
  src/cmd/6l/asm.c | 8 ++++----
  src/cmd/8l/asm.c | 8 ++++----
  3 files changed, 10 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/5l/asm.c b/src/cmd/5l/asm.c
+index 02b4c78f11..9c1c04e2d4 100644
+--- a/src/cmd/5l/asm.c
++++ b/src/cmd/5l/asm.c
+@@ -599,10 +599,10 @@ asmb(void)
+ 			if(iself)
+ 				goto ElfSym;
+ 		case Hplan9:
+-			symo = HEADR+segtext.len+segdata.filelen;
++			symo = segdata.fileoff+segdata.filelen;
+ 			break;
+ 		ElfSym:
+-			symo = rnd(HEADR+segtext.filelen, INITRND)+rnd(HEADR+segrodata.filelen, INITRND)+segdata.filelen;
++			symo = segdata.fileoff+segdata.filelen;
+ 			symo = rnd(symo, INITRND);
+ 			break;
+ 		}
+diff --git a/src/cmd/6l/asm.c b/src/cmd/6l/asm.c
+index c7f6c65d00..18b5aa3119 100644
+--- a/src/cmd/6l/asm.c
++++ b/src/cmd/6l/asm.c
+@@ -698,10 +698,10 @@ asmb(void)
+ 		case Hplan9:
+ 		case Helf:
+ 			debug['s'] = 1;
+-			symo = HEADR+segtext.len+segdata.filelen;
++			symo = segdata.fileoff+segdata.filelen;
+ 			break;
+ 		case Hdarwin:
+-			symo = rnd(HEADR+segtext.len, INITRND)+rnd(segdata.filelen, INITRND)+machlink;
++			symo = segdata.fileoff+rnd(segdata.filelen, INITRND)+machlink;
+ 			break;
+ 		case Hlinux:
+ 		case Hfreebsd:
+@@ -710,11 +710,11 @@ asmb(void)
+ 		case Hdragonfly:
+ 		case Hsolaris:
+ 		case Hnacl:
+-			symo = rnd(HEADR+segtext.len, INITRND)+rnd(segrodata.len, INITRND)+segdata.filelen;
++			symo = segdata.fileoff+segdata.filelen;
+ 			symo = rnd(symo, INITRND);
+ 			break;
+ 		case Hwindows:
+-			symo = rnd(HEADR+segtext.filelen, PEFILEALIGN)+segdata.filelen;
++			symo = segdata.fileoff+segdata.filelen;
+ 			symo = rnd(symo, PEFILEALIGN);
+ 			break;
+ 		}
+diff --git a/src/cmd/8l/asm.c b/src/cmd/8l/asm.c
+index 114a3eb5d7..c135dce709 100644
+--- a/src/cmd/8l/asm.c
++++ b/src/cmd/8l/asm.c
+@@ -619,17 +619,17 @@ asmb(void)
+ 			if(iself)
+ 				goto Elfsym;
+ 		case Hplan9:
+-			symo = HEADR+segtext.filelen+segdata.filelen;
++			symo = segdata.fileoff+segdata.filelen;
+ 			break;
+ 		case Hdarwin:
+-			symo = rnd(HEADR+segtext.filelen, INITRND)+rnd(segdata.filelen, INITRND)+machlink;
++			symo = segdata.fileoff+rnd(segdata.filelen, INITRND)+machlink;
+ 			break;
+ 		Elfsym:
+-			symo = rnd(HEADR+segtext.filelen, INITRND)+rnd(HEADR+segrodata.filelen, INITRND)+segdata.filelen;
++			symo = segdata.fileoff+segdata.filelen;
+ 			symo = rnd(symo, INITRND);
+ 			break;
+ 		case Hwindows:
+-			symo = rnd(HEADR+segtext.filelen, PEFILEALIGN)+segdata.filelen;
++			symo = segdata.fileoff+segdata.filelen;
+ 			symo = rnd(symo, PEFILEALIGN);
+ 			break;
+ 		}

@@ -11,7 +11,177 @@ Date:   Tue Mar 20 10:42:06 2018 +0100
     Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Giovanni Bajo <rasky@develer.com>
-
+---
  src/cmd/compile/internal/gc/asm_test.go | 76 +--------------------------------
  test/codegen/comparisons.go             | 69 ++++++++++++++++++++++++++++++
  2 files changed, 70 insertions(+), 75 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/asm_test.go b/src/cmd/compile/internal/gc/asm_test.go
+index c2b73ea196..f8ba22dddb 100644
+--- a/src/cmd/compile/internal/gc/asm_test.go
++++ b/src/cmd/compile/internal/gc/asm_test.go
+@@ -224,7 +224,7 @@ var allAsmTests = []*asmTests{
+ 	{
+ 		arch:    "amd64",
+ 		os:      "linux",
+-		imports: []string{"unsafe", "runtime"},
++		imports: []string{"runtime"},
+ 		tests:   linuxAMD64Tests,
+ 	},
+ 	{
+@@ -338,80 +338,6 @@ var linuxAMD64Tests = []*asmTest{
+ 		}`,
+ 		pos: []string{"\tADDQ\t[A-Z]"},
+ 	},
+-	// Check that compare to constant string uses 2/4/8 byte compares
+-	{
+-		fn: `
+-		func f65(a string) bool {
+-		    return a == "xx"
+-		}`,
+-		pos: []string{"\tCMPW\t\\(.*\\), [$]"},
+-	},
+-	{
+-		fn: `
+-		func f66(a string) bool {
+-		    return a == "xxxx"
+-		}`,
+-		pos: []string{"\tCMPL\t\\(.*\\), [$]"},
+-	},
+-	{
+-		fn: `
+-		func f67(a string) bool {
+-		    return a == "xxxxxxxx"
+-		}`,
+-		pos: []string{"\tCMPQ\t[A-Z]"},
+-	},
+-	// Check that array compare uses 2/4/8 byte compares
+-	{
+-		fn: `
+-		func f68(a,b [2]byte) bool {
+-		    return a == b
+-		}`,
+-		pos: []string{"\tCMPW\t\"\"[.+_a-z0-9]+\\(SP\\), [A-Z]"},
+-	},
+-	{
+-		fn: `
+-		func f69(a,b [3]uint16) bool {
+-		    return a == b
+-		}`,
+-		pos: []string{
+-			"\tCMPL\t\"\"[.+_a-z0-9]+\\(SP\\), [A-Z]",
+-			"\tCMPW\t\"\"[.+_a-z0-9]+\\(SP\\), [A-Z]",
+-		},
+-	},
+-	{
+-		fn: `
+-		func $(a,b [3]int16) bool {
+-		    return a == b
+-		}`,
+-		pos: []string{
+-			"\tCMPL\t\"\"[.+_a-z0-9]+\\(SP\\), [A-Z]",
+-			"\tCMPW\t\"\"[.+_a-z0-9]+\\(SP\\), [A-Z]",
+-		},
+-	},
+-	{
+-		fn: `
+-		func $(a,b [12]int8) bool {
+-		    return a == b
+-		}`,
+-		pos: []string{
+-			"\tCMPQ\t\"\"[.+_a-z0-9]+\\(SP\\), [A-Z]",
+-			"\tCMPL\t\"\"[.+_a-z0-9]+\\(SP\\), [A-Z]",
+-		},
+-	},
+-	{
+-		fn: `
+-		func f70(a,b [15]byte) bool {
+-		    return a == b
+-		}`,
+-		pos: []string{"\tCMPQ\t\"\"[.+_a-z0-9]+\\(SP\\), [A-Z]"},
+-	},
+-	{
+-		fn: `
+-		func f71(a,b unsafe.Pointer) bool { // This was a TODO in mapaccess1_faststr
+-		    return *((*[4]byte)(a)) != *((*[4]byte)(b))
+-		}`,
+-		pos: []string{"\tCMPL\t\\(.*\\), [A-Z]"},
+-	},
+ 	{
+ 		// make sure assembly output has matching offset and base register.
+ 		fn: `
+diff --git a/test/codegen/comparisons.go b/test/codegen/comparisons.go
+new file mode 100644
+index 0000000000..40a1714519
+--- /dev/null
++++ b/test/codegen/comparisons.go
+@@ -0,0 +1,69 @@
++// asmcheck
++
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package codegen
++
++import "unsafe"
++
++// This file contains code generation tests related to the comparison
++// operators.
++
++// -------------- //
++//    Equality    //
++// -------------- //
++
++// Check that compare to constant string use 2/4/8 byte compares
++
++func CompareString1(s string) bool {
++	// amd64:`CMPW\t\(.*\), [$]`
++	return s == "xx"
++}
++
++func CompareString2(s string) bool {
++	// amd64:`CMPL\t\(.*\), [$]`
++	return s == "xxxx"
++}
++
++func CompareString3(s string) bool {
++	// amd64:`CMPQ\t\(.*\), [A-Z]`
++	return s == "xxxxxxxx"
++}
++
++// Check that arrays compare use 2/4/8 byte compares
++
++func CompareArray1(a, b [2]byte) bool {
++	// amd64:`CMPW\t""[.+_a-z0-9]+\(SP\), [A-Z]`
++	return a == b
++}
++
++func CompareArray2(a, b [3]uint16) bool {
++	// amd64:`CMPL\t""[.+_a-z0-9]+\(SP\), [A-Z]`
++	// amd64:`CMPW\t""[.+_a-z0-9]+\(SP\), [A-Z]`
++	return a == b
++}
++
++func CompareArray3(a, b [3]int16) bool {
++	// amd64:`CMPL\t""[.+_a-z0-9]+\(SP\), [A-Z]`
++	// amd64:`CMPW\t""[.+_a-z0-9]+\(SP\), [A-Z]`
++	return a == b
++}
++
++func CompareArray4(a, b [12]int8) bool {
++	// amd64:`CMPQ\t""[.+_a-z0-9]+\(SP\), [A-Z]`
++	// amd64:`CMPL\t""[.+_a-z0-9]+\(SP\), [A-Z]`
++	return a == b
++}
++
++func CompareArray5(a, b [15]byte) bool {
++	// amd64:`CMPQ\t""[.+_a-z0-9]+\(SP\), [A-Z]`
++	return a == b
++}
++
++// This was a TODO in mapaccess1_faststr
++func CompareArray6(a, b unsafe.Pointer) bool {
++	// amd64:`CMPL\t\(.*\), [A-Z]`
++	return *((*[4]byte)(a)) != *((*[4]byte)(b))
++}

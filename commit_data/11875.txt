@@ -60,7 +60,51 @@ Date:   Tue Feb 14 14:53:30 2012 +1100
     R=rsc, dsymonds
     CC=golang-dev
     https://golang.org/cl/5658048
-
+---
  src/pkg/runtime/debug/stack_test.go |  2 +-
  src/pkg/testing/testing.go          | 10 ++++------
  2 files changed, 5 insertions(+), 7 deletions(-)
+
+diff --git a/src/pkg/runtime/debug/stack_test.go b/src/pkg/runtime/debug/stack_test.go
+index f1a307579c..cf4bd0238e 100644
+--- a/src/pkg/runtime/debug/stack_test.go
++++ b/src/pkg/runtime/debug/stack_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package debug_test
++package debug
+ 
+ import (
+ 	. "runtime/debug"
+diff --git a/src/pkg/testing/testing.go b/src/pkg/testing/testing.go
+index b60d5c1b0d..bbacf8ba50 100644
+--- a/src/pkg/testing/testing.go
++++ b/src/pkg/testing/testing.go
+@@ -71,7 +71,6 @@ import (
+ 	"fmt"
+ 	"os"
+ 	"runtime"
+-	"runtime/debug"
+ 	"runtime/pprof"
+ 	"strconv"
+ 	"strings"
+@@ -248,13 +247,12 @@ func tRunner(t *T, test *InternalTest) {
+ 	// a call to runtime.Goexit, record the duration and send
+ 	// a signal saying that the test is done.
+ 	defer func() {
+-		// Log and recover from panic instead of aborting binary.
++		t.duration = time.Now().Sub(t.start)
++		// If the test panicked, print any test output before dying.
+ 		if err := recover(); err != nil {
+-			t.failed = true
+-			t.Logf("%s\n%s", err, debug.Stack())
++			t.report()
++			panic(err)
+ 		}
+-
+-		t.duration = time.Now().Sub(t.start)
+ 		t.signal <- t
+ 	}()
+ 

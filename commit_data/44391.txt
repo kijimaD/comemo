@@ -9,6 +9,20 @@ Date:   Wed Jun 24 14:29:20 2020 -0400
     Run-TryBot: Filippo Valsorda <filippo@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Katie Hockman <katie@golang.org>
-
+---
  src/crypto/tls/tls.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/crypto/tls/tls.go b/src/crypto/tls/tls.go
+index 36d98d39eb..1c5173e281 100644
+--- a/src/crypto/tls/tls.go
++++ b/src/crypto/tls/tls.go
+@@ -235,7 +235,7 @@ func (d *Dialer) netDialer() *net.Dialer {
+ 	return new(net.Dialer)
+ }
+ 
+-// Dial connects to the given network address and initiates a TLS
++// DialContext connects to the given network address and initiates a TLS
+ // handshake, returning the resulting TLS connection.
+ //
+ // The provided Context must be non-nil. If the context expires before

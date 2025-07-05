@@ -11,7 +11,34 @@ Date:   Tue Oct 20 17:23:24 2015 -0400
     Change-Id: Id0c404e9feb963f39a111fc317c9787692516ae1
     Reviewed-on: https://go-review.googlesource.com/16116
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/path/filepath/match_test.go | 2 +-
  src/path/filepath/path_test.go  | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/path/filepath/match_test.go b/src/path/filepath/match_test.go
+index 20ec5aa2a1..0edbfc70c4 100644
+--- a/src/path/filepath/match_test.go
++++ b/src/path/filepath/match_test.go
+@@ -167,7 +167,7 @@ var globSymlinkTests = []struct {
+ 
+ func TestGlobSymlink(t *testing.T) {
+ 	switch runtime.GOOS {
+-	case "nacl", "plan9":
++	case "android", "nacl", "plan9":
+ 		t.Skipf("skipping on %s", runtime.GOOS)
+ 	case "windows":
+ 		if !supportsSymlinks {
+diff --git a/src/path/filepath/path_test.go b/src/path/filepath/path_test.go
+index 153a39829d..1a5993e96e 100644
+--- a/src/path/filepath/path_test.go
++++ b/src/path/filepath/path_test.go
+@@ -764,7 +764,7 @@ func simpleJoin(dir, path string) string {
+ 
+ func TestEvalSymlinks(t *testing.T) {
+ 	switch runtime.GOOS {
+-	case "nacl", "plan9":
++	case "android", "nacl", "plan9":
+ 		t.Skipf("skipping on %s", runtime.GOOS)
+ 	}
+ 

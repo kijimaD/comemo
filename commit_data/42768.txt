@@ -13,8 +13,147 @@ Date:   Thu Jan 9 14:28:26 2020 -0500
     Change-Id: I72bbba0a20a8731a89e1b4f4c9ac13b21c080cd4
     Reviewed-on: https://go-review.googlesource.com/c/go/+/214119
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/go_test.go                        | 38 ---------------
  src/cmd/go/testdata/script/test_json.txt     | 70 ++++++++++++++++++++++++++++
  src/cmd/go/testdata/src/skipper/skip_test.go |  7 ---
  3 files changed, 70 insertions(+), 45 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index b94441f66b..f19fcf90a0 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -3986,44 +3986,6 @@ func TestInstallDeps(t *testing.T) {
+ 	tg.mustExist(p1)
+ }
+ 
+-func TestGoTestJSON(t *testing.T) {
+-	skipIfGccgo(t, "gccgo does not have standard packages")
+-	tooSlow(t)
+-
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.parallel()
+-	tg.makeTempdir()
+-	tg.setenv("GOCACHE", tg.tempdir)
+-	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
+-
+-	// It would be nice to test that the output is interlaced
+-	// but it seems to be impossible to do that in a short test
+-	// that isn't also flaky. Just check that we get JSON output.
+-	tg.run("test", "-json", "-short", "-v", "errors", "empty/pkg", "skipper")
+-	tg.grepStdout(`"Package":"errors"`, "did not see JSON output")
+-	tg.grepStdout(`"Action":"run"`, "did not see JSON output")
+-
+-	tg.grepStdout(`"Action":"output","Package":"empty/pkg","Output":".*no test files`, "did not see no test files print")
+-	tg.grepStdout(`"Action":"skip","Package":"empty/pkg"`, "did not see skip")
+-
+-	tg.grepStdout(`"Action":"output","Package":"skipper","Test":"Test","Output":"--- SKIP:`, "did not see SKIP output")
+-	tg.grepStdout(`"Action":"skip","Package":"skipper","Test":"Test"`, "did not see skip result for Test")
+-
+-	tg.run("test", "-json", "-short", "-v", "errors")
+-	tg.grepStdout(`"Action":"output","Package":"errors","Output":".*\(cached\)`, "did not see no cached output")
+-
+-	tg.run("test", "-json", "-bench=NONE", "-short", "-v", "errors")
+-	tg.grepStdout(`"Package":"errors"`, "did not see JSON output")
+-	tg.grepStdout(`"Action":"run"`, "did not see JSON output")
+-
+-	tg.run("test", "-o", tg.path("errors.test.exe"), "-c", "errors")
+-	tg.run("tool", "test2json", "-p", "errors", tg.path("errors.test.exe"), "-test.v", "-test.short")
+-	tg.grepStdout(`"Package":"errors"`, "did not see JSON output")
+-	tg.grepStdout(`"Action":"run"`, "did not see JSON output")
+-	tg.grepStdout(`\{"Action":"pass","Package":"errors"\}`, "did not see final pass")
+-}
+-
+ // Issue 22986.
+ func TestImportPath(t *testing.T) {
+ 	tooSlow(t)
+diff --git a/src/cmd/go/testdata/script/test_json.txt b/src/cmd/go/testdata/script/test_json.txt
+new file mode 100644
+index 0000000000..1bd530514c
+--- /dev/null
++++ b/src/cmd/go/testdata/script/test_json.txt
+@@ -0,0 +1,70 @@
++[gccgo] skip # gccgo does not have standard packages
++[short] skip
++
++env GOCACHE=$WORK/tmp
++
++# Run go test -json on errors empty/pkg and skipper
++# It would be nice to test that the output is interlaced
++# but it seems to be impossible to do that in a short test
++# that isn't also flaky. Just check that we get JSON output.
++go test -json -short -v errors empty/pkg skipper
++
++# Check errors for run action
++stdout '"Package":"errors"'
++stdout '"Action":"run","Package":"errors"'
++
++# Check empty/pkg for output and skip actions
++stdout '"Action":"output","Package":"empty/pkg","Output":".*no test files'
++stdout '"Action":"skip","Package":"empty/pkg"'
++
++# Check skipper for output and skip actions
++stdout '"Action":"output","Package":"skipper","Test":"Test","Output":"--- SKIP:'
++stdout '"Action":"skip","Package":"skipper","Test":"Test"'
++
++# Run go test -json on errors and check it's cached
++go test -json -short -v errors
++stdout '"Action":"output","Package":"errors","Output":".*\(cached\)'
++
++go test -json -bench=NONE -short -v errors
++stdout '"Package":"errors"'
++stdout '"Action":"run"'
++
++# Test running test2json
++go test -o $WORK/tmp/errors.test$GOEXE -c errors
++go tool test2json -p errors $WORK/tmp/errors.test$GOEXE -test.v -test.short
++stdout '"Package":"errors"'
++stdout '"Action":"run"'
++stdout '\{"Action":"pass","Package":"errors"\}'
++
++-- skipper/skip_test.go --
++package skipper
++
++import "testing"
++
++func Test(t *testing.T) {
++	t.Skip("skipping")
++}
++-- empty/pkg/pkg.go --
++package p
++-- empty/pkgtest/pkg.go --
++package p
++-- empty/pkgtest/test_test.go --
++package p
++-- empty/pkgtestxtest/pkg.go --
++package p
++-- empty/pkgtestxtest/test_test.go --
++package p
++-- empty/pkgtestxtest/xtest_test.go --
++package p_test
++-- empty/pkgxtest/pkg.go --
++package p
++-- empty/pkgxtest/xtest_test.go --
++package p_test
++-- empty/test/test_test.go --
++package p
++-- empty/testxtest/test_test.go --
++package p
++-- empty/testxtest/xtest_test.go --
++package p_test
++-- empty/xtest/xtest_test.go --
++package p_test
+diff --git a/src/cmd/go/testdata/src/skipper/skip_test.go b/src/cmd/go/testdata/src/skipper/skip_test.go
+deleted file mode 100644
+index 58e6dc505b..0000000000
+--- a/src/cmd/go/testdata/src/skipper/skip_test.go
++++ /dev/null
+@@ -1,7 +0,0 @@
+-package skipper
+-
+-import "testing"
+-
+-func Test(t *testing.T) {
+-	t.Skip("skipping")
+-}

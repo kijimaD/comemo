@@ -9,7 +9,7 @@ Date:   Tue Aug 3 00:26:02 2010 -0700
     R=ken2
     CC=golang-dev
     https://golang.org/cl/1848056
-
+---
  src/cmd/5g/cgen.c         |   7 --
  src/cmd/5g/ggen.c         |  27 ++++++
  src/cmd/5g/gsubr.c        |  13 ---
@@ -28,3 +28,959 @@ Date:   Tue Aug 3 00:26:02 2010 -0700
  test/index.go             | 224 ++++++++++++++++++++++++++++++++++++++++++++++
  test/recover2.go          |   4 +-
  17 files changed, 447 insertions(+), 112 deletions(-)
+
+diff --git a/src/cmd/5g/cgen.c b/src/cmd/5g/cgen.c
+index c3042b1822..b0c9b88da4 100644
+--- a/src/cmd/5g/cgen.c
++++ b/src/cmd/5g/cgen.c
+@@ -605,13 +605,6 @@ agen(Node *n, Node *res)
+ 				n1.type = types[tptr];
+ 				n1.xoffset = Array_array;
+ 				gmove(&n1, &n3);
+-			} else
+-			if(!debug['B'] && !n->etype) {
+-				if(v < 0)
+-					yyerror("out of bounds on array");
+-				else
+-				if(v >= nl->type->bound)
+-					yyerror("out of bounds on array");
+ 			}
+ 
+ 			nodconst(&n2, types[tptr], v*w);
+diff --git a/src/cmd/5g/ggen.c b/src/cmd/5g/ggen.c
+index 2776ac7681..0d87895240 100644
+--- a/src/cmd/5g/ggen.c
++++ b/src/cmd/5g/ggen.c
+@@ -682,6 +682,29 @@ regcmp(const void *va, const void *vb)
+ 
+ static	Prog*	throwpc;
+ 
++// We're only going to bother inlining if we can
++// convert all the arguments to 32 bits safely.  Can we?
++static int
++fix64(NodeList *nn, int n)
++{
++	NodeList *l;
++	Node *r;
++	int i;
++	
++	l = nn;
++	for(i=0; i<n; i++) {
++		r = l->n->right;
++		if(is64(r->type) && !smallintconst(r)) {
++			if(r->op == OCONV)
++				r = r->left;
++			if(is64(r->type))
++				return 0;
++		}
++		l = l->next;
++	}
++	return 1;
++}
++
+ void
+ getargs(NodeList *nn, Node *reg, int n)
+ {
+@@ -813,6 +836,8 @@ cgen_inline(Node *n, Node *res)
+ slicearray:
+ 	if(!sleasy(res))
+ 		goto no;
++	if(!fix64(n->list, 5))
++		goto no;
+ 	getargs(n->list, nodes, 5);
+ 
+ 	// if(hb[3] > nel[1]) goto throw
+@@ -904,6 +929,8 @@ slicearray:
+ 	return 1;
+ 
+ sliceslice:
++	if(!fix64(n->list, narg))
++		goto no;
+ 	ntemp.op = OXXX;
+ 	if(!sleasy(n->list->n->right)) {
+ 		Node *n0;
+diff --git a/src/cmd/5g/gsubr.c b/src/cmd/5g/gsubr.c
+index 741dbe5956..70ebad6edd 100644
+--- a/src/cmd/5g/gsubr.c
++++ b/src/cmd/5g/gsubr.c
+@@ -1841,19 +1841,6 @@ oindex_const:
+ 		n1.type = types[tptr];
+ 		n1.xoffset = Array_array;
+ 		gmove(&n1, reg);
+-
+-	} else
+-	if(!debug['B']) {
+-		if(v < 0) {
+-			yyerror("out of bounds on array");
+-		} else
+-		if(o & OPtrto) {
+-			if(v >= l->type->type->bound)
+-				yyerror("out of bounds on array");
+-		} else
+-		if(v >= l->type->bound) {
+-			yyerror("out of bounds on array");
+-		}
+ 	}
+ 
+ 	n2 = *reg;
+diff --git a/src/cmd/6g/cgen.c b/src/cmd/6g/cgen.c
+index aacc0d06f0..1fee247659 100644
+--- a/src/cmd/6g/cgen.c
++++ b/src/cmd/6g/cgen.c
+@@ -418,7 +418,7 @@ void
+ agen(Node *n, Node *res)
+ {
+ 	Node *nl, *nr;
+-	Node n1, n2, n3, tmp, n4;
++	Node n1, n2, n3, tmp, n4, n5;
+ 	Prog *p1;
+ 	uint32 w;
+ 	uint64 v;
+@@ -518,13 +518,12 @@ agen(Node *n, Node *res)
+ 		if(isconst(nr, CTINT)) {
+ 			v = mpgetfix(nr->val.u.xval);
+ 			if(isslice(nl->type)) {
+-
+ 				if(!debug['B'] && !n->etype) {
+ 					n1 = n3;
+ 					n1.op = OINDREG;
+ 					n1.type = types[tptr];
+ 					n1.xoffset = Array_nel;
+-					nodconst(&n2, types[TUINT64], v);
++					nodconst(&n2, types[TUINT32], v);
+ 					gins(optoas(OCMP, types[TUINT32]), &n1, &n2);
+ 					p1 = gbranch(optoas(OGT, types[TUINT32]), T);
+ 					ginscall(panicindex, 0);
+@@ -536,13 +535,6 @@ agen(Node *n, Node *res)
+ 				n1.type = types[tptr];
+ 				n1.xoffset = Array_array;
+ 				gmove(&n1, &n3);
+-			} else
+-			if(!debug['B'] && !n->etype) {
+-				if(v < 0)
+-					yyerror("out of bounds on array");
+-				else
+-				if(v >= nl->type->bound)
+-					yyerror("out of bounds on array");
+ 			}
+ 
+ 			nodconst(&n2, types[tptr], v*w);
+@@ -564,15 +556,28 @@ agen(Node *n, Node *res)
+ 
+ 		if(!debug['B'] && !n->etype) {
+ 			// check bounds
++			n5.op = OXXX;
++			t = types[TUINT32];
+ 			if(isslice(nl->type)) {
+ 				n1 = n3;
+ 				n1.op = OINDREG;
+-				n1.type = types[tptr];
++				n1.type = types[TUINT32];
+ 				n1.xoffset = Array_nel;
+-			} else
+-				nodconst(&n1, types[TUINT64], nl->type->bound);
+-			gins(optoas(OCMP, types[TUINT32]), &n2, &n1);
+-			p1 = gbranch(optoas(OLT, types[TUINT32]), T);
++				if(is64(nr->type)) {
++					t = types[TUINT64];
++					regalloc(&n5, t, N);
++					gmove(&n1, &n5);
++					n1 = n5;
++				}
++			} else {
++				if(is64(nr->type))
++					t = types[TUINT64];
++				nodconst(&n1, t, nl->type->bound);
++			}
++			gins(optoas(OCMP, t), &n2, &n1);
++			p1 = gbranch(optoas(OLT, t), T);
++			if(n5.op != OXXX)
++				regfree(&n5);
+ 			ginscall(panicindex, 0);
+ 			patch(p1, pc);
+ 		}
+diff --git a/src/cmd/6g/ggen.c b/src/cmd/6g/ggen.c
+index c7a4a642e6..46ca326745 100644
+--- a/src/cmd/6g/ggen.c
++++ b/src/cmd/6g/ggen.c
+@@ -1115,44 +1115,62 @@ getargs(NodeList *nn, Node *reg, int n)
+ void
+ cmpandthrow(Node *nl, Node *nr)
+ {
+-	vlong cl, cr;
++	vlong cl;
+ 	Prog *p1;
+ 	int op;
+ 	Node *c;
++	Type *t;
++	Node n1;
++	
++	if(nl->op == OCONV && is64(nl->type))
++		nl = nl->left;
++	if(nr->op == OCONV && is64(nr->type))
++		nr = nr->left;
+ 
+ 	op = OLE;
+ 	if(smallintconst(nl)) {
+ 		cl = mpgetfix(nl->val.u.xval);
+ 		if(cl == 0)
+ 			return;
+-		if(smallintconst(nr)) {
+-			cr = mpgetfix(nr->val.u.xval);
+-			if(cl > cr) {
+-				if(throwpc == nil) {
+-					throwpc = pc;
+-					ginscall(panicslice, 0);
+-				} else
+-					patch(gbranch(AJMP, T), throwpc);
+-			}
++		if(smallintconst(nr))
+ 			return;
+-		}
+-
+ 		// put the constant on the right
+ 		op = brrev(op);
+ 		c = nl;
+ 		nl = nr;
+ 		nr = c;
+ 	}
+-
+-	gins(optoas(OCMP, types[TUINT32]), nl, nr);
++	if(is64(nr->type) && smallintconst(nr))
++		nr->type = types[TUINT32];
++
++	n1.op = OXXX;
++	t = types[TUINT32];
++	if(is64(nl->type) || is64(nr->type)) {
++		// two 64-bit is just a 64-bit compare,
++		// but one 32 and one 64 needs to copy
++		// the 32 into a register to get the full comparison.
++		t = types[TUINT64];
++		if(!is64(nl->type) && nl->op != OLITERAL) {
++			regalloc(&n1, t, nl);
++			gmove(nl, &n1);
++			nl = &n1;
++		} else if(!is64(nr->type) && nr->op != OLITERAL) {
++			regalloc(&n1, t, nr);
++			gmove(nr, &n1);
++			nr = &n1;
++		}
++	}
++	gins(optoas(OCMP, t), nl, nr);
++	if(n1.op != OXXX)
++		regfree(&n1);
+ 	if(throwpc == nil) {
+-		p1 = gbranch(optoas(op, types[TUINT32]), T);
++		p1 = gbranch(optoas(op, t), T);
+ 		throwpc = pc;
+ 		ginscall(panicslice, 0);
+ 		patch(p1, pc);
+ 	} else {
+ 		op = brcom(op);
+-		p1 = gbranch(optoas(op, types[TUINT32]), T);
++		p1 = gbranch(optoas(op, t), T);
+ 		patch(p1, throwpc);
+ 	}
+ }
+@@ -1312,6 +1330,7 @@ sliceslice:
+ 		// if(lb[1] > old.nel[0]) goto throw;
+ 		n2 = nodes[0];
+ 		n2.xoffset += Array_nel;
++		n2.type = types[TUINT32];
+ 		cmpandthrow(&nodes[1], &n2);
+ 
+ 		// ret.nel = old.nel[0]-lb[1];
+@@ -1331,6 +1350,7 @@ sliceslice:
+ 		// if(hb[2] > old.cap[0]) goto throw;
+ 		n2 = nodes[0];
+ 		n2.xoffset += Array_cap;
++		n2.type = types[TUINT32];
+ 		cmpandthrow(&nodes[2], &n2);
+ 
+ 		// if(lb[1] > hb[2]) goto throw;
+diff --git a/src/cmd/6g/gsubr.c b/src/cmd/6g/gsubr.c
+index 52ff6fdea2..51c9cac654 100644
+--- a/src/cmd/6g/gsubr.c
++++ b/src/cmd/6g/gsubr.c
+@@ -1716,7 +1716,7 @@ sudoaddable(int as, Node *n, Addr *a)
+ 	int o, i, w;
+ 	int oary[10];
+ 	int64 v;
+-	Node n1, n2, n3, *nn, *l, *r;
++	Node n1, n2, n3, n4, *nn, *l, *r;
+ 	Node *reg, *reg1;
+ 	Prog *p1;
+ 	Type *t;
+@@ -1836,9 +1836,6 @@ oindex:
+ 		break;
+ 	}
+ 
+-//	if(sudoaddable(as, l, a))
+-//		goto oindex_sudo;
+-
+ 	cleani += 2;
+ 	reg = &clean[cleani-1];
+ 	reg1 = &clean[cleani-2];
+@@ -1879,16 +1876,29 @@ oindex:
+ 
+ 	// check bounds
+ 	if(!debug['B'] && !n->etype) {
++		// check bounds
++		n4.op = OXXX;
++		t = types[TUINT32];
+ 		if(o & ODynam) {
+ 			n2 = *reg;
+ 			n2.op = OINDREG;
+-			n2.type = types[tptr];
++			n2.type = types[TUINT32];
+ 			n2.xoffset = Array_nel;
++			if(is64(r->type)) {
++				t = types[TUINT64];
++				regalloc(&n4, t, N);
++				gmove(&n2, &n4);
++				n2 = n4;
++			}
+ 		} else {
++			if(is64(r->type))
++				t = types[TUINT64];
+ 			nodconst(&n2, types[TUINT64], l->type->bound);
+ 		}
+-		gins(optoas(OCMP, types[TUINT32]), reg1, &n2);
+-		p1 = gbranch(optoas(OLT, types[TUINT32]), T);
++		gins(optoas(OCMP, t), reg1, &n2);
++		p1 = gbranch(optoas(OLT, t), T);
++		if(n4.op != OXXX)
++			regfree(&n4);
+ 		ginscall(panicindex, 0);
+ 		patch(p1, pc);
+ 	}
+@@ -1915,15 +1925,6 @@ oindex_const:
+ 	// can multiply by width statically
+ 
+ 	v = mpgetfix(r->val.u.xval);
+-	if(!debug['B'] && (o & ODynam) == 0) {
+-		// array indexed by a constant bounds check
+-		if(v < 0) {
+-			yyerror("out of bounds on array");
+-		} else
+-		if(v >= l->type->bound) {
+-			yyerror("out of bounds on array");
+-		}
+-	}
+ 
+ 	if(sudoaddable(as, l, a))
+ 		goto oindex_const_sudo;
+diff --git a/src/cmd/8g/cgen.c b/src/cmd/8g/cgen.c
+index 8fbdc6ee72..519907aa6d 100644
+--- a/src/cmd/8g/cgen.c
++++ b/src/cmd/8g/cgen.c
+@@ -591,13 +591,6 @@ agen(Node *n, Node *res)
+ 				n1.type = types[tptr];
+ 				n1.xoffset = Array_array;
+ 				gmove(&n1, &n3);
+-			} else
+-			if(!debug['B'] && !n->etype) {
+-				if(v < 0)
+-					yyerror("out of bounds on array");
+-				else
+-				if(v >= nl->type->bound)
+-					yyerror("out of bounds on array");
+ 			}
+ 
+ 			nodconst(&n2, types[tptr], v*w);
+diff --git a/src/cmd/8g/ggen.c b/src/cmd/8g/ggen.c
+index 7fbbdd3441..983c17f44f 100644
+--- a/src/cmd/8g/ggen.c
++++ b/src/cmd/8g/ggen.c
+@@ -789,25 +789,58 @@ regcmp(const void *va, const void *vb)
+ 
+ static	Prog*	throwpc;
+ 
++// We're only going to bother inlining if we can
++// convert all the arguments to 32 bits safely.  Can we?
++static int
++fix64(NodeList *nn, int n)
++{
++	NodeList *l;
++	Node *r;
++	int i;
++	
++	l = nn;
++	for(i=0; i<n; i++) {
++		r = l->n->right;
++		if(is64(r->type) && !smallintconst(r)) {
++			if(r->op == OCONV)
++				r = r->left;
++			if(is64(r->type))
++				return 0;
++		}
++		l = l->next;
++	}
++	return 1;
++}
++
+ void
+ getargs(NodeList *nn, Node *reg, int n)
+ {
+ 	NodeList *l;
++	Node *r;
+ 	int i;
+ 
+ 	throwpc = nil;
+ 
+ 	l = nn;
+ 	for(i=0; i<n; i++) {
+-		if(!smallintconst(l->n->right) && !isslice(l->n->right->type)) {
++		r = l->n->right;
++		if(is64(r->type)) {
++			if(r->op == OCONV)
++				r = r->left;
++			else if(smallintconst(r))
++				r->type = types[TUINT32];
++			if(is64(r->type))
++				fatal("getargs");
++		}
++		if(!smallintconst(r) && !isslice(r->type)) {
+ 			if(i < 3)	// AX CX DX
+-				nodreg(reg+i, l->n->right->type, D_AX+i);
++				nodreg(reg+i, r->type, D_AX+i);
+ 			else
+ 				reg[i].op = OXXX;
+-			regalloc(reg+i, l->n->right->type, reg+i);
+-			cgen(l->n->right, reg+i);
++			regalloc(reg+i, r->type, reg+i);
++			cgen(r, reg+i);
+ 		} else
+-			reg[i] = *l->n->right;
++			reg[i] = *r;
+ 		if(reg[i].local != 0)
+ 			yyerror("local used");
+ 		reg[i].local = l->n->left->xoffset;
+@@ -908,6 +941,8 @@ cgen_inline(Node *n, Node *res)
+ slicearray:
+ 	if(!sleasy(res))
+ 		goto no;
++	if(!fix64(n->list, 5))
++		goto no;
+ 	getargs(n->list, nodes, 5);
+ 
+ 	// if(hb[3] > nel[1]) goto throw
+@@ -990,6 +1025,8 @@ slicearray:
+ 	return 1;
+ 
+ sliceslice:
++	if(!fix64(n->list, narg))
++		goto no;
+ 	ntemp.op = OXXX;
+ 	if(!sleasy(n->list->n->right)) {
+ 		Node *n0;
+diff --git a/src/cmd/gc/builtin.c.boot b/src/cmd/gc/builtin.c.boot
+index 3e2d988725..ce86e12e5f 100644
+--- a/src/cmd/gc/builtin.c.boot
++++ b/src/cmd/gc/builtin.c.boot
+@@ -75,9 +75,9 @@ char *runtimeimport =
+ 	"func \"\".selectdefault (sel *uint8) bool\n"
+ 	"func \"\".selectgo (sel *uint8)\n"
+ 	"func \"\".makeslice (typ *uint8, nel int64, cap int64) []any\n"
+-	"func \"\".sliceslice1 (old []any, lb int, width int) []any\n"
+-	"func \"\".sliceslice (old []any, lb int, hb int, width int) []any\n"
+-	"func \"\".slicearray (old *any, nel int, lb int, hb int, width int) []any\n"
++	"func \"\".sliceslice1 (old []any, lb uint64, width uint64) []any\n"
++	"func \"\".sliceslice (old []any, lb uint64, hb uint64, width uint64) []any\n"
++	"func \"\".slicearray (old *any, nel uint64, lb uint64, hb uint64, width uint64) []any\n"
+ 	"func \"\".closure ()\n"
+ 	"func \"\".int64div (? int64, ? int64) int64\n"
+ 	"func \"\".uint64div (? uint64, ? uint64) uint64\n"
+diff --git a/src/cmd/gc/const.c b/src/cmd/gc/const.c
+index 479e7dd6b7..a3405e078c 100644
+--- a/src/cmd/gc/const.c
++++ b/src/cmd/gc/const.c
+@@ -1092,6 +1092,12 @@ smallintconst(Node *n)
+ 	case TBOOL:
+ 	case TPTR32:
+ 		return 1;
++	case TINT64:
++	case TUINT64:
++		if(mpcmpfixfix(n->val.u.xval, minintval[TINT32]) < 0
++		|| mpcmpfixfix(n->val.u.xval, maxintval[TINT32]) > 0)
++			break;
++		return 1;
+ 	}
+ 	return 0;
+ }
+diff --git a/src/cmd/gc/mparith2.c b/src/cmd/gc/mparith2.c
+index 67375adb17..4032550056 100644
+--- a/src/cmd/gc/mparith2.c
++++ b/src/cmd/gc/mparith2.c
+@@ -536,7 +536,7 @@ mpgetfix(Mpint *a)
+ 	vlong v;
+ 
+ 	if(a->ovf) {
+-		yyerror("ovf in mpgetfix");
++		yyerror("constant overflow");
+ 		return 0;
+ 	}
+ 
+diff --git a/src/cmd/gc/runtime.go b/src/cmd/gc/runtime.go
+index 5783faafda..253134476e 100644
+--- a/src/cmd/gc/runtime.go
++++ b/src/cmd/gc/runtime.go
+@@ -99,9 +99,9 @@ func selectdefault(sel *byte) (selected bool)
+ func selectgo(sel *byte)
+ 
+ func makeslice(typ *byte, nel int64, cap int64) (ary []any)
+-func sliceslice1(old []any, lb int, width int) (ary []any)
+-func sliceslice(old []any, lb int, hb int, width int) (ary []any)
+-func slicearray(old *any, nel int, lb int, hb int, width int) (ary []any)
++func sliceslice1(old []any, lb uint64, width uint64) (ary []any)
++func sliceslice(old []any, lb uint64, hb uint64, width uint64) (ary []any)
++func slicearray(old *any, nel uint64, lb uint64, hb uint64, width uint64) (ary []any)
+ 
+ func closure() // has args, but compiler fills in
+ 
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index b1991333ca..1910aa6f90 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -561,7 +561,7 @@ reswitch:
+ 			goto error;
+ 
+ 		case TARRAY:
+-			defaultlit(&n->right, types[TUINT]);
++			defaultlit(&n->right, T);
+ 			if(n->right->type != T && !isint[n->right->type->etype])
+ 				yyerror("non-integer array index %#N", n->right);
+ 			n->type = t->type;
+@@ -635,8 +635,8 @@ reswitch:
+ 		typecheck(&n->right->left, Erv);
+ 		typecheck(&n->right->right, Erv);
+ 		defaultlit(&n->left, T);
+-		defaultlit(&n->right->left, types[TUINT]);
+-		defaultlit(&n->right->right, types[TUINT]);
++		defaultlit(&n->right->left, T);
++		defaultlit(&n->right->right, T);
+ 		if(isfixedarray(n->left->type)) {
+ 			// Insert explicit & before fixed array
+ 			// so that back end knows to move to heap.
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index b21b7b3e8b..775bcec9c6 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -565,6 +565,7 @@ walkexpr(Node **np, NodeList **init)
+ 	NodeList *ll, *lr, *lpost;
+ 	Type *t;
+ 	int et;
++	int64 v, v1, v2, len;
+ 	int32 lno;
+ 	Node *n, *fn;
+ 	char buf[100], *p;
+@@ -1023,6 +1024,18 @@ walkexpr(Node **np, NodeList **init)
+ 		if((1<<(8*n->right->type->width)) <= n->left->type->bound)
+ 			n->etype = 1;
+ 
++		// check for static out of bounds
++		if(isconst(n->right, CTINT) && !n->etype) {
++			v = mpgetfix(n->right->val.u.xval);
++			len = 1LL<<60;
++			t = n->left->type;
++			if(t != T && isptr[t->etype])
++				t = t->type;
++			if(isfixedarray(t))
++				len = t->bound;
++			if(v < 0 || v >= (1LL<<31) || v >= len)
++				yyerror("index out of bounds");
++		}
+ 		goto ret;
+ 
+ 	case OINDEXMAP:
+@@ -1039,15 +1052,48 @@ walkexpr(Node **np, NodeList **init)
+ 		goto ret;
+ 
+ 	case OSLICE:
++	case OSLICEARR:
+ 		walkexpr(&n->left, init);
+ 		n->left = safeexpr(n->left, init);
+ 		walkexpr(&n->right->left, init);
+ 		n->right->left = safeexpr(n->right->left, init);
+ 		walkexpr(&n->right->right, init);
+ 		n->right->right = safeexpr(n->right->right, init);
++
++		len = 1LL<<60;
++		t = n->left->type;
++		if(t != T && isptr[t->etype])
++			t = t->type;
++		if(isfixedarray(t))
++			len = t->bound;
++
++		// check for static out of bounds
++		// NOTE: v > len not v >= len.
++		v1 = -1;
++		v2 = -1;
++		if(isconst(n->right->left, CTINT)) {
++			v1 = mpgetfix(n->right->left->val.u.xval);
++			if(v1 < 0 || v1 >= (1LL<<31) || v1 > len) {
++				yyerror("slice index out of bounds");
++				v1 = -1;
++			}
++		}
++		if(isconst(n->right->right, CTINT)) {
++			v2 = mpgetfix(n->right->right->val.u.xval);
++			if(v2 < 0 || v2 >= (1LL<<31) || v2 > len) {
++				yyerror("slice index out of bounds");
++				v2 = -1;
++			}
++		}
++		if(v1 >= 0 && v2 >= 0 && v1 > v2)
++			yyerror("inverted slice range");
++		
++		if(n->op == OSLICEARR)
++			goto slicearray;
++
+ 		// dynamic slice
+-		// sliceslice(old []any, lb int, hb int, width int) (ary []any)
+-		// sliceslice1(old []any, lb int, width int) (ary []any)
++		// sliceslice(old []any, lb uint64, hb uint64, width uint64) (ary []any)
++		// sliceslice1(old []any, lb uint64, width uint64) (ary []any)
+ 		t = n->type;
+ 		if(n->right->right != N) {
+ 			fn = syslook("sliceslice", 1);
+@@ -1055,8 +1101,8 @@ walkexpr(Node **np, NodeList **init)
+ 			argtype(fn, t->type);			// any-2
+ 			n = mkcall1(fn, t, init,
+ 				n->left,
+-				conv(n->right->left, types[TINT]),
+-				conv(n->right->right, types[TINT]),
++				conv(n->right->left, types[TUINT64]),
++				conv(n->right->right, types[TUINT64]),
+ 				nodintconst(t->type->width));
+ 		} else {
+ 			fn = syslook("sliceslice1", 1);
+@@ -1064,20 +1110,14 @@ walkexpr(Node **np, NodeList **init)
+ 			argtype(fn, t->type);			// any-2
+ 			n = mkcall1(fn, t, init,
+ 				n->left,
+-				conv(n->right->left, types[TINT]),
++				conv(n->right->left, types[TUINT64]),
+ 				nodintconst(t->type->width));
+ 		}
+ 		goto ret;
+ 
+-	case OSLICEARR:
+-		walkexpr(&n->left, init);
+-		n->left = safeexpr(n->left, init);
+-		walkexpr(&n->right->left, init);
+-		n->right->left = safeexpr(n->right->left, init);
+-		walkexpr(&n->right->right, init);
+-		n->right->right = safeexpr(n->right->right, init);
++	slicearray:
+ 		// static slice
+-		// slicearray(old *any, nel int, lb int, hb int, width int) (ary []any)
++		// slicearray(old *any, uint64 nel, lb uint64, hb uint64, width uint64) (ary []any)
+ 		t = n->type;
+ 		fn = syslook("slicearray", 1);
+ 		argtype(fn, n->left->type);	// any-1
+@@ -1085,16 +1125,16 @@ walkexpr(Node **np, NodeList **init)
+ 		if(n->right->right == N)
+ 			r = nodintconst(n->left->type->bound);
+ 		else
+-			r = conv(n->right->right, types[TINT]);
++			r = conv(n->right->right, types[TUINT64]);
+ 		n = mkcall1(fn, t, init,
+ 			nod(OADDR, n->left, N), nodintconst(n->left->type->bound),
+-			conv(n->right->left, types[TINT]),
++			conv(n->right->left, types[TUINT64]),
+ 			r,
+ 			nodintconst(t->type->width));
+ 		goto ret;
+ 
+ 	case OCONVSLICE:
+-		// slicearray(old *any, nel int, lb int, hb int, width int) (ary []any)
++		// slicearray(old *any, uint64 nel, lb uint64, hb uint64, width uint64) (ary []any)
+ 		fn = syslook("slicearray", 1);
+ 		argtype(fn, n->left->type->type);		// any-1
+ 		argtype(fn, n->type->type);			// any-2
+diff --git a/src/pkg/runtime/slice.c b/src/pkg/runtime/slice.c
+index 4162b8daa2..67e44e93c0 100644
+--- a/src/pkg/runtime/slice.c
++++ b/src/pkg/runtime/slice.c
+@@ -39,9 +39,9 @@ void
+ 	}
+ }
+ 
+-// sliceslice(old []any, lb int, hb int, width int) (ary []any);
++// sliceslice(old []any, lb uint64, hb uint64, width uint64) (ary []any);
+ void
+-·sliceslice(Slice old, uint32 lb, uint32 hb, uint32 width, Slice ret)
++·sliceslice(Slice old, uint64 lb, uint64 hb, uint64 width, Slice ret)
+ {
+ 	if(hb > old.cap || lb > hb) {
+ 		if(debug) {
+@@ -86,9 +86,9 @@ void
+ 	}
+ }
+ 
+-// sliceslice1(old []any, lb int, width int) (ary []any);
++// sliceslice1(old []any, lb uint64, width uint64) (ary []any);
+ void
+-·sliceslice1(Slice old, uint32 lb, uint32 width, Slice ret)
++·sliceslice1(Slice old, uint64 lb, uint64 width, Slice ret)
+ {
+ 	if(lb > old.len) {
+ 		if(debug) {
+@@ -129,9 +129,9 @@ void
+ 	}
+ }
+ 
+-// slicearray(old *any, nel int, lb int, hb int, width int) (ary []any);
++// slicearray(old *any, nel uint64, lb uint64, hb uint64, width uint64) (ary []any);
+ void
+-·slicearray(byte* old, uint32 nel, uint32 lb, uint32 hb, uint32 width, Slice ret)
++·slicearray(byte* old, uint64 nel, uint64 lb, uint64 hb, uint64 width, Slice ret)
+ {
+ 	if(nel > 0 && old == nil) {
+ 		// crash if old == nil.
+diff --git a/test/index.go b/test/index.go
+new file mode 100644
+index 0000000000..a91294cffb
+--- /dev/null
++++ b/test/index.go
+@@ -0,0 +1,224 @@
++// $G $D/$F.go && $L $F.$A &&
++// ./$A.out -pass 0 >tmp.go && $G tmp.go && $L -o tmp1.$A tmp.$A && ./tmp1.$A &&
++// ./$A.out -pass 1 >tmp.go && errchk $G -e tmp.go &&
++// ./$A.out -pass 2 >tmp.go && errchk $G -e tmp.go
++// rm -f tmp.go
++
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Generate test of index and slice bounds checks.
++
++package main
++
++import (
++	"bufio"
++	"flag"
++	"fmt"
++	"os"
++)
++
++const prolog = `
++
++package main
++
++import (
++	"runtime"
++)
++
++type quad struct { x, y, z, w int }
++
++const (
++	cj = 11
++	ci int = 12
++	ci32 int32 = 13
++	ci64 int64 = 14
++	ci64big int64 = 1<<31
++	ci64bigger int64 = 1<<32
++	chuge = 1<<100
++
++	cnj = -2
++	cni int = -3
++	cni32 int32 = -4
++	cni64 int64 = -5
++	cni64big int64 = -1<<31
++	cni64bigger int64 = -1<<32
++	cnhuge = -1<<100
++)
++
++var j int = 20
++var i int = 21
++var i32 int32 = 22
++var i64 int64 = 23
++var i64big int64 = 1<<31
++var i64bigger int64 = 1<<32
++var huge uint64 = 1<<64 - 1
++
++var nj int = -10
++var ni int = -11
++var ni32 int32 = -12
++var ni64 int64 = -13
++var ni64big int64 = -1<<31
++var ni64bigger int64 = -1<<32
++var nhuge int64 = -1<<63
++
++var si []int = make([]int, 10)
++var ai [10]int
++var pai *[10]int = &ai
++
++var sq []quad = make([]quad, 10)
++var aq [10]quad
++var paq *[10]quad = &aq
++
++type T struct {
++	si []int
++	ai [10]int
++	pai *[10]int
++	sq []quad
++	aq [10]quad
++	paq *[10]quad
++}
++
++var t = T{si, ai, pai, sq, aq, paq}
++
++var pt = &T{si, ai, pai, sq, aq, paq}
++
++// test that f panics
++func test(f func(), s string) {
++	defer func() {
++		if err := recover(); err == nil {
++			_, file, line, _ := runtime.Caller(2)
++			bug()
++			print(file, ":", line, ": ", s, " did not panic\n")
++		}
++	}()
++	f()
++}
++
++var X interface{}
++func use(y interface{}) {
++	X = y
++}
++
++var didBug = false
++
++func bug() {
++	if !didBug {
++		didBug = true
++		println("BUG")
++	}
++}
++
++func main() {
++`
++
++// Passes:
++//	0 - dynamic checks
++//	1 - static checks of invalid constants (cannot assign to types)
++//	2 - static checks of array bounds
++var pass = flag.Int("pass", 0, "which test (0,1,2)")
++
++func testExpr(b *bufio.Writer, expr string) {
++	if *pass == 0 {
++		fmt.Fprintf(b, "\ttest(func(){use(%s)}, %q)\n", expr, expr)
++	} else {
++		fmt.Fprintf(b, "\tuse(%s)  // ERROR \"index|overflow\"\n", expr)
++	}
++}
++
++func main() {
++	b := bufio.NewWriter(os.Stdout)
++
++	flag.Parse()
++	
++	if *pass == 0 {
++		fmt.Fprint(b, "// $G $D/$F.go && $L $F.$A && ./$A.out\n\n")
++	} else {
++		fmt.Fprint(b, "// errchk $G -e $D/$F.go\n\n")
++	}
++	fmt.Fprint(b, prolog)
++	
++	var choices = [][]string{
++		// Direct value, fetch from struct, fetch from struct pointer.
++		// The last two cases get us to oindex_const_sudo in gsubr.c.
++		[]string{"", "t.", "pt."},
++		
++		// Array, pointer to array, slice.
++		[]string{"a", "pa", "s"},
++
++		// Element is int, element is quad (struct).
++		// This controls whether we end up in gsubr.c (i) or cgen.c (q).
++		[]string{"i", "q"},
++
++		// Variable or constant.
++		[]string{"", "c"},
++
++		// Positive or negative.
++		[]string{"", "n"},
++
++		// Size of index.
++		[]string{"j", "i", "i32", "i64", "i64big", "i64bigger", "huge"},
++	}
++	
++	forall(choices, func(x []string) {
++		p, a, e, c, n, i := x[0], x[1], x[2], x[3], x[4], x[5]
++
++		// Pass: dynamic=0, static=1, 2.
++		// Which cases should be caught statically?
++		// Only constants, obviously.
++		// Beyond that, must be one of these:
++		//	indexing into array or pointer to array
++		//	negative constant
++		//	large constant
++		thisPass := 0
++		if c == "c" && (a == "a" || a == "pa" || n == "n" || i == "i64big" || i == "i64bigger" || i == "huge") {
++			if i == "huge" {
++				// Due to a detail of 6g's internals,
++				// the huge constant errors happen in an
++				// earlier pass than the others and inhibits
++				// the next pass from running.
++				// So run it as a separate check.
++				thisPass = 1
++			} else {
++				thisPass = 2
++			}
++		}
++
++		// Only print the test case if it is appropriate for this pass.
++		if thisPass == *pass {
++			pae := p+a+e
++			cni := c+n+i
++			
++			// Index operation
++			testExpr(b, pae + "[" + cni + "]")
++			
++			// Slice operation.
++			// Low index 0 is a special case in ggen.c
++			// so test both 0 and 1.
++			testExpr(b, pae + "[0:" + cni + "]")
++			testExpr(b, pae + "[1:" + cni + "]")
++			testExpr(b, pae + "[" + cni + ":]")
++			testExpr(b, pae + "[" + cni + ":" + cni + "]")
++		}
++	})
++
++	fmt.Fprintln(b, "}")
++	b.Flush()
++}
++
++func forall(choices [][]string, f func([]string)) {
++	x := make([]string, len(choices))
++	
++	var recurse func(d int)
++	recurse = func(d int) {
++		if d >= len(choices) {
++			f(x)
++			return
++		}
++		for _, x[d] = range choices[d] {
++			recurse(d+1)
++		}
++	}
++	recurse(0)
++}
+diff --git a/test/recover2.go b/test/recover2.go
+index 496909f352..c95af8f62f 100644
+--- a/test/recover2.go
++++ b/test/recover2.go
+@@ -52,7 +52,9 @@ func test2() {
+ 
+ func test3() {
+ 	defer mustRecover("slice")
+-	println(x[11:9])
++	var lo = 11
++	var hi = 9
++	println(x[lo:hi])
+ }
+ 
+ func test4() {

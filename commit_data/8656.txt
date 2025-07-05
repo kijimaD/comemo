@@ -15,10 +15,147 @@ Date:   Tue Jun 7 21:50:10 2011 -0700
     R=iant, dave, n13m3y3r, rsc
     CC=golang-dev
     https://golang.org/cl/4438091
-
+---
  src/pkg/runtime/linux/386/sys.s   |  8 ++++++++
  src/pkg/runtime/linux/amd64/sys.s |  8 ++++++++
  src/pkg/runtime/linux/arm/sys.s   |  9 +++++++++
  src/pkg/runtime/linux/mem.c       | 34 +++++++++++++++++++++++++++++-----
  src/pkg/runtime/runtime.h         |  1 +
  5 files changed, 55 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/runtime/linux/386/sys.s b/src/pkg/runtime/linux/386/sys.s
+index 868a0d901a..e8b4233242 100644
+--- a/src/pkg/runtime/linux/386/sys.s
++++ b/src/pkg/runtime/linux/386/sys.s
+@@ -47,6 +47,14 @@ TEXT runtime·setitimer(SB),7,$0-24
+ 	INT	$0x80
+ 	RET
+ 
++TEXT runtime·mincore(SB),7,$0-24
++	MOVL	$218, AX			// syscall - mincore
++	MOVL	4(SP), BX
++	MOVL	8(SP), CX
++	MOVL	12(SP), DX
++	INT	$0x80
++	RET
++
+ TEXT runtime·gettime(SB), 7, $32
+ 	MOVL	$78, AX			// syscall - gettimeofday
+ 	LEAL	8(SP), BX
+diff --git a/src/pkg/runtime/linux/amd64/sys.s b/src/pkg/runtime/linux/amd64/sys.s
+index eadd300058..66fdab2083 100644
+--- a/src/pkg/runtime/linux/amd64/sys.s
++++ b/src/pkg/runtime/linux/amd64/sys.s
+@@ -53,6 +53,14 @@ TEXT runtime·setitimer(SB),7,$0-24
+ 	SYSCALL
+ 	RET
+ 
++TEXT runtime·mincore(SB),7,$0-24
++	MOVQ	8(SP), DI
++	MOVQ	16(SP), SI
++	MOVQ	24(SP), DX
++	MOVL	$27, AX			// syscall entry
++	SYSCALL
++	RET
++
+ TEXT runtime·gettime(SB), 7, $32
+ 	LEAQ	8(SP), DI
+ 	MOVQ	$0, SI
+diff --git a/src/pkg/runtime/linux/arm/sys.s b/src/pkg/runtime/linux/arm/sys.s
+index 2b5365bd86..ab53498222 100644
+--- a/src/pkg/runtime/linux/arm/sys.s
++++ b/src/pkg/runtime/linux/arm/sys.s
+@@ -26,6 +26,7 @@
+ #define SYS_exit_group (SYS_BASE + 248)
+ #define SYS_munmap (SYS_BASE + 91)
+ #define SYS_setitimer (SYS_BASE + 104)
++#define SYS_mincore (SYS_BASE + 219)
+ #define SYS_gettid (SYS_BASE + 224)
+ #define SYS_tkill (SYS_BASE + 238)
+ 
+@@ -91,6 +92,14 @@ TEXT runtime·setitimer(SB),7,$0
+ 	SWI	$0
+ 	RET
+ 
++TEXT runtime·mincore(SB),7,$0
++	MOVW	0(FP), R0
++	MOVW	4(FP), R1
++	MOVW	8(FP), R2
++	MOVW	$SYS_mincore, R7
++	SWI	$0
++	RET
++
+ TEXT runtime·gettime(SB),7,$32
+ 	/* dummy version - return 0,0 */
+ 	MOVW	$0, R1
+diff --git a/src/pkg/runtime/linux/mem.c b/src/pkg/runtime/linux/mem.c
+index 02f798732f..38ca7e4a0f 100644
+--- a/src/pkg/runtime/linux/mem.c
++++ b/src/pkg/runtime/linux/mem.c
+@@ -3,6 +3,30 @@
+ #include "os.h"
+ #include "malloc.h"
+ 
++enum
++{
++	ENOMEM = 12,
++};
++
++static int32
++addrspace_free(void *v, uintptr n)
++{
++	uintptr page_size = 4096;
++	uintptr off;
++	int8 one_byte;
++
++	for(off = 0; off < n; off += page_size) {
++		int32 errval = runtime·mincore((int8 *)v + off, page_size, (void *)&one_byte);
++		// errval is 0 if success, or -(error_code) if error.
++		if (errval == 0 || errval != -ENOMEM)
++			return 0;
++	}
++	USED(v);
++	USED(n);
++	return 1;
++}
++
++
+ void*
+ runtime·SysAlloc(uintptr n)
+ {
+@@ -54,11 +78,6 @@ runtime·SysReserve(void *v, uintptr n)
+ 	return p;
+ }
+ 
+-enum
+-{
+-	ENOMEM = 12,
+-};
+-
+ void
+ runtime·SysMap(void *v, uintptr n)
+ {
+@@ -69,6 +88,11 @@ runtime·SysMap(void *v, uintptr n)
+ 	// On 64-bit, we don't actually have v reserved, so tread carefully.
+ 	if(sizeof(void*) == 8) {
+ 		p = runtime·mmap(v, n, PROT_READ|PROT_WRITE|PROT_EXEC, MAP_ANON|MAP_PRIVATE, -1, 0);
++		if(p != v && addrspace_free(v, n)) {
++			// On some systems, mmap ignores v without
++			// MAP_FIXED, so retry if the address space is free.
++			p = runtime·mmap(v, n, PROT_READ|PROT_WRITE|PROT_EXEC, MAP_ANON|MAP_FIXED|MAP_PRIVATE, -1, 0);
++		}
+ 		if(p == (void*)ENOMEM)
+ 			runtime·throw("runtime: out of memory");
+ 		if(p != v) {
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 2b2b34a3ce..f3ccff1bcd 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -413,6 +413,7 @@ int32	runtime·gotraceback(void);
+ void	runtime·traceback(uint8 *pc, uint8 *sp, uint8 *lr, G* gp);
+ void	runtime·tracebackothers(G*);
+ int32	runtime·write(int32, void*, int32);
++int32	runtime·mincore(void*, uintptr, byte*);
+ bool	runtime·cas(uint32*, uint32, uint32);
+ bool	runtime·casp(void**, void*, void*);
+ uint32	runtime·xadd(uint32 volatile*, int32);

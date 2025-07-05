@@ -9,6 +9,20 @@ Date:   Mon Jul 20 16:14:48 2009 -0700
     DELTA=1  (0 added, 0 deleted, 1 changed)
     OCL=31879
     CL=31886
-
+---
  src/pkg/go/token/token.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/go/token/token.go b/src/pkg/go/token/token.go
+index 3197b6637c..f165d1978e 100644
+--- a/src/pkg/go/token/token.go
++++ b/src/pkg/go/token/token.go
+@@ -154,7 +154,7 @@ var tokens = map [Token] string {
+ 
+ 	ADD_ASSIGN : "+=",
+ 	SUB_ASSIGN : "-=",
+-	MUL_ASSIGN : "+=",
++	MUL_ASSIGN : "*=",
+ 	QUO_ASSIGN : "/=",
+ 	REM_ASSIGN : "%=",
+ 

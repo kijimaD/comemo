@@ -21,6 +21,21 @@ Date:   Wed Apr 26 09:27:15 2017 +0200
     Run-TryBot: David du Colombier <0intro@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/tcpsock_plan9.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/net/tcpsock_plan9.go b/src/net/tcpsock_plan9.go
+index d2860607f8..e37f0657c0 100644
+--- a/src/net/tcpsock_plan9.go
++++ b/src/net/tcpsock_plan9.go
+@@ -48,6 +48,9 @@ func (ln *TCPListener) accept() (*TCPConn, error) {
+ }
+ 
+ func (ln *TCPListener) close() error {
++	if err := ln.fd.pfd.Close(); err != nil {
++		return err
++	}
+ 	if _, err := ln.fd.ctl.WriteString("hangup"); err != nil {
+ 		ln.fd.ctl.Close()
+ 		return err

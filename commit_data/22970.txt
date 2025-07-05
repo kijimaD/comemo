@@ -10,7 +10,7 @@ Date:   Wed Apr 15 15:00:42 2015 -0400
     Change-Id: I592b287c5f5186975ee09a9b28d8efe3b57134e7
     Reviewed-on: https://go-review.googlesource.com/8956
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/cgo/test/callback.go        | 19 --------------
  misc/cgo/test/callback_c_gc.c    | 55 ----------------------------------------
  misc/cgo/test/callback_c_gccgo.c | 49 -----------------------------------
@@ -21,3 +21,320 @@ Date:   Wed Apr 15 15:00:42 2015 -0400
  src/runtime/mgc.go               |  9 -------
  src/runtime/runtime2.go          |  8 ------
  9 files changed, 200 deletions(-)
+
+diff --git a/misc/cgo/test/callback.go b/misc/cgo/test/callback.go
+index 8c8ccbe34a..fc2023fc3e 100644
+--- a/misc/cgo/test/callback.go
++++ b/misc/cgo/test/callback.go
+@@ -9,7 +9,6 @@ void callback(void *f);
+ void callGoFoo(void);
+ void callGoStackCheck(void);
+ void callPanic(void);
+-void callCgoAllocate(void);
+ int callGoReturnVal(void);
+ int returnAfterGrow(void);
+ int returnAfterGrowFromGo(void);
+@@ -17,7 +16,6 @@ int returnAfterGrowFromGo(void);
+ import "C"
+ 
+ import (
+-	"os"
+ 	"path"
+ 	"runtime"
+ 	"strings"
+@@ -211,23 +209,6 @@ func testPanicFromC(t *testing.T) {
+ 	C.callPanic()
+ }
+ 
+-func testAllocateFromC(t *testing.T) {
+-	if strings.Contains(os.Getenv("GODEBUG"), "wbshadow=") {
+-		// This test is writing pointers to Go heap objects from C.
+-		// As such, those writes have no write barriers, and
+-		// wbshadow=2 mode correctly discovers that and crashes.
+-		// Disable test if any wbshadow mode is enabled.
+-		// TODO(rsc): I am not sure whether the test is fundamentally
+-		// incompatible with concurrent collection and should be
+-		// turned off or rewritten entirely. The test is attempting to
+-		// mimic some SWIG behavior, so it is important to work
+-		// through what we expect before trying SWIG and C++
+-		// with the concurrent collector.
+-		t.Skip("test is incompatible with wbshadow=")
+-	}
+-	C.callCgoAllocate() // crashes or exits on failure
+-}
+-
+ // Test that C code can return a value if it calls a Go function that
+ // causes a stack copy.
+ func testReturnAfterGrow(t *testing.T) {
+diff --git a/misc/cgo/test/callback_c_gc.c b/misc/cgo/test/callback_c_gc.c
+index 28a62c6dbc..c6ea3c58ba 100644
+--- a/misc/cgo/test/callback_c_gc.c
++++ b/misc/cgo/test/callback_c_gc.c
+@@ -23,58 +23,3 @@ callPanic(void)
+ 	crosscall2(_cgo_panic, &a, sizeof a);
+ 	*(int*)1 = 1;
+ }
+-
+-/* Test calling cgo_allocate from C. This is what SWIG does. */
+-
+-typedef struct List List;
+-struct List
+-{
+-	List *next;
+-	int x;
+-};
+-
+-void
+-callCgoAllocate(void)
+-{
+-	int i;
+-	struct { size_t n; void *ret; } a;
+-	List *l, *head, **tail;
+-
+-	// Make sure this doesn't crash.
+-	// And make sure it returns non-nil.
+-	a.n = 0;
+-	a.ret = 0;
+-	crosscall2(_cgo_allocate, &a, sizeof a);
+-	if(a.ret == 0) {
+-		fprintf(stderr, "callCgoAllocate: alloc 0 returned nil\n");
+-		exit(2);
+-	}
+-	
+-	head = 0;
+-	tail = &head;
+-	for(i=0; i<100; i++) {
+-		a.n = sizeof *l;
+-		crosscall2(_cgo_allocate, &a, sizeof a);
+-		l = a.ret;
+-		l->x = i;
+-		l->next = 0;
+-		*tail = l;
+-		tail = &l->next;
+-	}
+-	
+-	gc();
+-	
+-	l = head;
+-	for(i=0; i<100; i++) {
+-		if(l->x != i) {
+-			fprintf(stderr, "callCgoAllocate: lost memory\n");
+-			exit(2);
+-		}
+-		l = l->next;
+-	}
+-	if(l != 0) {
+-		fprintf(stderr, "callCgoAllocate: lost memory\n");
+-		exit(2);
+-	}
+-}
+-
+diff --git a/misc/cgo/test/callback_c_gccgo.c b/misc/cgo/test/callback_c_gccgo.c
+index d367b7b68b..ff5dbbb2d9 100644
+--- a/misc/cgo/test/callback_c_gccgo.c
++++ b/misc/cgo/test/callback_c_gccgo.c
+@@ -19,52 +19,3 @@ callPanic(void)
+ {
+ 	_cgo_panic("panic from C");
+ }
+-
+-/* Test calling cgo_allocate from C. This is what SWIG does. */
+-
+-typedef struct List List;
+-struct List
+-{
+-	List *next;
+-	int x;
+-};
+-
+-void
+-callCgoAllocate(void)
+-{
+-	int i;
+-	List *l, *head, **tail;
+-	
+-	// Make sure this doesn't crash.
+-	// And make sure it returns non-nil.
+-	if(_cgo_allocate(0) == 0) {
+-		fprintf(stderr, "callCgoAllocate: alloc 0 returned nil\n");
+-		exit(2);
+-	}
+-
+-	head = 0;
+-	tail = &head;
+-	for(i=0; i<100; i++) {
+-		l = _cgo_allocate(sizeof *l);
+-		l->x = i;
+-		l->next = 0;
+-		*tail = l;
+-		tail = &l->next;
+-	}
+-	
+-	gc();
+-	
+-	l = head;
+-	for(i=0; i<100; i++) {
+-		if(l->x != i) {
+-			fprintf(stderr, "callCgoAllocate: lost memory\n");
+-			exit(2);
+-		}
+-		l = l->next;
+-	}
+-	if(l != 0) {
+-		fprintf(stderr, "callCgoAllocate: lost memory\n");
+-		exit(2);
+-	}
+-}
+-
+diff --git a/misc/cgo/test/cgo_test.go b/misc/cgo/test/cgo_test.go
+index 76576d7a13..0fea40f959 100644
+--- a/misc/cgo/test/cgo_test.go
++++ b/misc/cgo/test/cgo_test.go
+@@ -23,7 +23,6 @@ func TestCallbackPanic(t *testing.T)         { testCallbackPanic(t) }
+ func TestCallbackPanicLoop(t *testing.T)     { testCallbackPanicLoop(t) }
+ func TestCallbackPanicLocked(t *testing.T)   { testCallbackPanicLocked(t) }
+ func TestPanicFromC(t *testing.T)            { testPanicFromC(t) }
+-func TestAllocateFromC(t *testing.T)         { testAllocateFromC(t) }
+ func TestZeroArgCallback(t *testing.T)       { testZeroArgCallback(t) }
+ func TestBlocking(t *testing.T)              { testBlocking(t) }
+ func Test1328(t *testing.T)                  { test1328(t) }
+diff --git a/src/runtime/cgo/callbacks.go b/src/runtime/cgo/callbacks.go
+index cbaf064bd8..1682341596 100644
+--- a/src/runtime/cgo/callbacks.go
++++ b/src/runtime/cgo/callbacks.go
+@@ -22,32 +22,6 @@ func _runtime_cgocallback(unsafe.Pointer, unsafe.Pointer, uintptr)
+ //go:cgo_export_static crosscall2
+ //go:cgo_export_dynamic crosscall2
+ 
+-// Allocate memory.  This allocates the requested number of bytes in
+-// memory controlled by the Go runtime.  The allocated memory will be
+-// zeroed.  You are responsible for ensuring that the Go garbage
+-// collector can see a pointer to the allocated memory for as long as
+-// it is valid, e.g., by storing a pointer in a local variable in your
+-// C function, or in memory allocated by the Go runtime.  If the only
+-// pointers are in a C global variable or in memory allocated via
+-// malloc, then the Go garbage collector may collect the memory.
+-
+-// Call like this in code compiled with gcc:
+-//   struct { size_t len; void *ret; } a;
+-//   a.len = /* number of bytes to allocate */;
+-//   crosscall2(_cgo_allocate, &a, sizeof a);
+-//   /* Here a.ret is a pointer to the allocated memory.  */
+-
+-//go:linkname _runtime_cgo_allocate_internal runtime._cgo_allocate_internal
+-var _runtime_cgo_allocate_internal byte
+-
+-//go:linkname _cgo_allocate _cgo_allocate
+-//go:cgo_export_static _cgo_allocate
+-//go:cgo_export_dynamic _cgo_allocate
+-//go:nosplit
+-func _cgo_allocate(a unsafe.Pointer, n int32) {
+-	_runtime_cgocallback(unsafe.Pointer(&_runtime_cgo_allocate_internal), a, uintptr(n))
+-}
+-
+ // Panic.  The argument is converted into a Go string.
+ 
+ // Call like this in code compiled with gcc:
+diff --git a/src/runtime/cgocall.go b/src/runtime/cgocall.go
+index d4d0cf47c3..c01d616ca7 100644
+--- a/src/runtime/cgocall.go
++++ b/src/runtime/cgocall.go
+@@ -132,12 +132,6 @@ func cgocall_errno(fn, arg unsafe.Pointer) int32 {
+ //go:nosplit
+ func endcgo(mp *m) {
+ 	mp.ncgo--
+-	if mp.ncgo == 0 {
+-		// We are going back to Go and are not in a recursive
+-		// call.  Let the GC collect any memory allocated via
+-		// _cgo_allocate that is no longer referenced.
+-		mp.cgomal = nil
+-	}
+ 
+ 	if raceenabled {
+ 		raceacquire(unsafe.Pointer(&racecgosync))
+diff --git a/src/runtime/cgocallback.go b/src/runtime/cgocallback.go
+index 20ce87d4ca..f93acaba03 100644
+--- a/src/runtime/cgocallback.go
++++ b/src/runtime/cgocallback.go
+@@ -4,35 +4,8 @@
+ 
+ package runtime
+ 
+-import "unsafe"
+-
+ // These functions are called from C code via cgo/callbacks.go.
+ 
+-// Allocate memory.  This allocates the requested number of bytes in
+-// memory controlled by the Go runtime.  The allocated memory will be
+-// zeroed.  You are responsible for ensuring that the Go garbage
+-// collector can see a pointer to the allocated memory for as long as
+-// it is valid, e.g., by storing a pointer in a local variable in your
+-// C function, or in memory allocated by the Go runtime.  If the only
+-// pointers are in a C global variable or in memory allocated via
+-// malloc, then the Go garbage collector may collect the memory.
+-//
+-// TODO(rsc,iant): This memory is untyped.
+-// Either we need to add types or we need to stop using it.
+-
+-func _cgo_allocate_internal(len uintptr) unsafe.Pointer {
+-	if len == 0 {
+-		len = 1
+-	}
+-	ret := unsafe.Pointer(&make([]unsafe.Pointer, (len+ptrSize-1)/ptrSize)[0])
+-	c := new(cgomal)
+-	c.alloc = ret
+-	gp := getg()
+-	c.next = gp.m.cgomal
+-	gp.m.cgomal = c
+-	return ret
+-}
+-
+ // Panic.
+ 
+ func _cgo_panic_internal(p *byte) {
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index bf916f841d..126b95a475 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -127,15 +127,6 @@ const (
+ 	_RootCount       = 5
+ )
+ 
+-//go:linkname weak_cgo_allocate go.weak.runtime._cgo_allocate_internal
+-var weak_cgo_allocate byte
+-
+-// Is _cgo_allocate linked into the binary?
+-//go:nowritebarrier
+-func have_cgo_allocate() bool {
+-	return &weak_cgo_allocate != nil
+-}
+-
+ // heapminimum is the minimum number of bytes in the heap.
+ // This cleans up the corner case of where we have a very small live set but a lot
+ // of allocations and collecting every GOGC * live set is expensive.
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index cdbaebcc09..609c7cf6f6 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -283,7 +283,6 @@ type m struct {
+ 	fastrand      uint32
+ 	ncgocall      uint64 // number of cgo calls in total
+ 	ncgo          int32  // number of cgo calls currently in progress
+-	cgomal        *cgomal
+ 	park          note
+ 	alllink       *m // on allm
+ 	schedlink     *m
+@@ -485,13 +484,6 @@ type lfnode struct {
+ 	pushcnt uintptr
+ }
+ 
+-// Track memory allocated by code not written in Go during a cgo call,
+-// so that the garbage collector can see them.
+-type cgomal struct {
+-	next  *cgomal
+-	alloc unsafe.Pointer
+-}
+-
+ // Indicates to write barrier and sychronization task to preform.
+ const (
+ 	_GCoff             = iota // GC not running, write barrier disabled

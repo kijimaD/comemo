@@ -11,6 +11,20 @@ Date:   Tue Oct 23 15:55:57 2018 +0200
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/interface_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/interface_test.go b/src/net/interface_test.go
+index 5d183c5638..c6b514abce 100644
+--- a/src/net/interface_test.go
++++ b/src/net/interface_test.go
+@@ -278,7 +278,7 @@ func checkUnicastStats(ifStats *ifStats, uniStats *routeStats) error {
+ 
+ func checkMulticastStats(ifStats *ifStats, uniStats, multiStats *routeStats) error {
+ 	switch runtime.GOOS {
+-	case "dragonfly", "nacl", "netbsd", "openbsd", "plan9", "solaris":
++	case "aix", "dragonfly", "nacl", "netbsd", "openbsd", "plan9", "solaris":
+ 	default:
+ 		// Test the existence of connected multicast route
+ 		// clones for IPv4. Unlike IPv6, IPv4 multicast

@@ -14,7 +14,7 @@ Date:   Wed Sep 26 21:10:21 2018 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/fix/main.go                               |  2 +-
  src/cmd/fix/typecheck.go                          |  4 ++--
  src/cmd/go/go_test.go                             | 10 +++++-----
@@ -72,3 +72,1066 @@ Date:   Wed Sep 26 21:10:21 2018 +0000
  src/testing/sub_test.go                           |  4 ++--
  src/text/template/exec.go                         |  2 +-
  56 files changed, 104 insertions(+), 104 deletions(-)
+
+diff --git a/src/cmd/fix/main.go b/src/cmd/fix/main.go
+index f06abae171..f54a5e0d96 100644
+--- a/src/cmd/fix/main.go
++++ b/src/cmd/fix/main.go
+@@ -52,7 +52,7 @@ func usage() {
+ 			fmt.Fprintf(os.Stderr, "\n%s\n", f.name)
+ 		}
+ 		desc := strings.TrimSpace(f.desc)
+-		desc = strings.Replace(desc, "\n", "\n\t", -1)
++		desc = strings.ReplaceAll(desc, "\n", "\n\t")
+ 		fmt.Fprintf(os.Stderr, "\t%s\n", desc)
+ 	}
+ 	os.Exit(2)
+diff --git a/src/cmd/fix/typecheck.go b/src/cmd/fix/typecheck.go
+index eafb626c74..66e0cdcec0 100644
+--- a/src/cmd/fix/typecheck.go
++++ b/src/cmd/fix/typecheck.go
+@@ -193,12 +193,12 @@ func typecheck(cfg *TypeConfig, f *ast.File) (typeof map[interface{}]string, ass
+ 					var params, results []string
+ 					for _, p := range fn.Type.Params.List {
+ 						t := gofmt(p.Type)
+-						t = strings.Replace(t, "_Ctype_", "C.", -1)
++						t = strings.ReplaceAll(t, "_Ctype_", "C.")
+ 						params = append(params, t)
+ 					}
+ 					for _, r := range fn.Type.Results.List {
+ 						t := gofmt(r.Type)
+-						t = strings.Replace(t, "_Ctype_", "C.", -1)
++						t = strings.ReplaceAll(t, "_Ctype_", "C.")
+ 						results = append(results, t)
+ 					}
+ 					cfg.External["C."+fn.Name.Name[7:]] = joinFunc(params, results)
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 962b52fd3d..139ee73ae0 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -1090,7 +1090,7 @@ func testMove(t *testing.T, vcs, url, base, config string) {
+ 		path := tg.path(filepath.Join("src", config))
+ 		data, err := ioutil.ReadFile(path)
+ 		tg.must(err)
+-		data = bytes.Replace(data, []byte(base), []byte(base+"XXX"), -1)
++		data = bytes.ReplaceAll(data, []byte(base), []byte(base+"XXX"))
+ 		tg.must(ioutil.WriteFile(path, data, 0644))
+ 	}
+ 	if vcs == "git" {
+@@ -2360,14 +2360,14 @@ func TestShadowingLogic(t *testing.T) {
+ 
+ 	// The math in root1 is not "math" because the standard math is.
+ 	tg.run("list", "-f", "({{.ImportPath}}) ({{.ConflictDir}})", "./testdata/shadow/root1/src/math")
+-	pwdForwardSlash := strings.Replace(pwd, string(os.PathSeparator), "/", -1)
++	pwdForwardSlash := strings.ReplaceAll(pwd, string(os.PathSeparator), "/")
+ 	if !strings.HasPrefix(pwdForwardSlash, "/") {
+ 		pwdForwardSlash = "/" + pwdForwardSlash
+ 	}
+ 	// The output will have makeImportValid applies, but we only
+ 	// bother to deal with characters we might reasonably see.
+ 	for _, r := range " :" {
+-		pwdForwardSlash = strings.Replace(pwdForwardSlash, string(r), "_", -1)
++		pwdForwardSlash = strings.ReplaceAll(pwdForwardSlash, string(r), "_")
+ 	}
+ 	want := "(_" + pwdForwardSlash + "/testdata/shadow/root1/src/math) (" + filepath.Join(runtime.GOROOT(), "src", "math") + ")"
+ 	if strings.TrimSpace(tg.getStdout()) != want {
+@@ -2557,7 +2557,7 @@ func TestCoverageErrorLine(t *testing.T) {
+ 
+ 	// It's OK that stderr2 drops the character position in the error,
+ 	// because of the //line directive (see golang.org/issue/22662).
+-	stderr = strings.Replace(stderr, "p.go:4:2:", "p.go:4:", -1)
++	stderr = strings.ReplaceAll(stderr, "p.go:4:2:", "p.go:4:")
+ 	if stderr != stderr2 {
+ 		t.Logf("test -cover changed error messages:\nbefore:\n%s\n\nafter:\n%s", stderr, stderr2)
+ 		t.Skip("golang.org/issue/22660")
+@@ -6171,7 +6171,7 @@ func TestCDAndGOPATHAreDifferent(t *testing.T) {
+ 
+ 	testCDAndGOPATHAreDifferent(tg, cd, gopath)
+ 	if runtime.GOOS == "windows" {
+-		testCDAndGOPATHAreDifferent(tg, cd, strings.Replace(gopath, `\`, `/`, -1))
++		testCDAndGOPATHAreDifferent(tg, cd, strings.ReplaceAll(gopath, `\`, `/`))
+ 		testCDAndGOPATHAreDifferent(tg, cd, strings.ToUpper(gopath))
+ 		testCDAndGOPATHAreDifferent(tg, cd, strings.ToLower(gopath))
+ 	}
+diff --git a/src/cmd/go/internal/envcmd/env.go b/src/cmd/go/internal/envcmd/env.go
+index afadbade38..85a42e0519 100644
+--- a/src/cmd/go/internal/envcmd/env.go
++++ b/src/cmd/go/internal/envcmd/env.go
+@@ -203,7 +203,7 @@ func runEnv(cmd *base.Command, args []string) {
+ 				fmt.Printf("%s=\"%s\"\n", e.Name, e.Value)
+ 			case "plan9":
+ 				if strings.IndexByte(e.Value, '\x00') < 0 {
+-					fmt.Printf("%s='%s'\n", e.Name, strings.Replace(e.Value, "'", "''", -1))
++					fmt.Printf("%s='%s'\n", e.Name, strings.ReplaceAll(e.Value, "'", "''"))
+ 				} else {
+ 					v := strings.Split(e.Value, "\x00")
+ 					fmt.Printf("%s=(", e.Name)
+diff --git a/src/cmd/go/internal/get/vcs.go b/src/cmd/go/internal/get/vcs.go
+index 0f7b623ec3..173934b84e 100644
+--- a/src/cmd/go/internal/get/vcs.go
++++ b/src/cmd/go/internal/get/vcs.go
+@@ -964,7 +964,7 @@ func matchGoImport(imports []metaImport, importPath string) (metaImport, error)
+ // expand rewrites s to replace {k} with match[k] for each key k in match.
+ func expand(match map[string]string, s string) string {
+ 	for k, v := range match {
+-		s = strings.Replace(s, "{"+k+"}", v, -1)
++		s = strings.ReplaceAll(s, "{"+k+"}", v)
+ 	}
+ 	return s
+ }
+diff --git a/src/cmd/go/internal/modconv/convert_test.go b/src/cmd/go/internal/modconv/convert_test.go
+index ad27abb8ef..4d55d73f21 100644
+--- a/src/cmd/go/internal/modconv/convert_test.go
++++ b/src/cmd/go/internal/modconv/convert_test.go
+@@ -146,7 +146,7 @@ func TestConvertLegacyConfig(t *testing.T) {
+ 	}
+ 
+ 	for _, tt := range tests {
+-		t.Run(strings.Replace(tt.path, "/", "_", -1)+"_"+tt.vers, func(t *testing.T) {
++		t.Run(strings.ReplaceAll(tt.path, "/", "_")+"_"+tt.vers, func(t *testing.T) {
+ 			f, err := modfile.Parse("golden", []byte(tt.gomod), nil)
+ 			if err != nil {
+ 				t.Fatal(err)
+diff --git a/src/cmd/go/internal/modfetch/codehost/codehost.go b/src/cmd/go/internal/modfetch/codehost/codehost.go
+index 4103ddc717..4205cd26bd 100644
+--- a/src/cmd/go/internal/modfetch/codehost/codehost.go
++++ b/src/cmd/go/internal/modfetch/codehost/codehost.go
+@@ -185,7 +185,7 @@ func (e *RunError) Error() string {
+ 	text := e.Cmd + ": " + e.Err.Error()
+ 	stderr := bytes.TrimRight(e.Stderr, "\n")
+ 	if len(stderr) > 0 {
+-		text += ":\n\t" + strings.Replace(string(stderr), "\n", "\n\t", -1)
++		text += ":\n\t" + strings.ReplaceAll(string(stderr), "\n", "\n\t")
+ 	}
+ 	return text
+ }
+diff --git a/src/cmd/go/internal/modfetch/coderepo_test.go b/src/cmd/go/internal/modfetch/coderepo_test.go
+index 79b82786cb..0b62b9ee76 100644
+--- a/src/cmd/go/internal/modfetch/coderepo_test.go
++++ b/src/cmd/go/internal/modfetch/coderepo_test.go
+@@ -423,7 +423,7 @@ func TestCodeRepo(t *testing.T) {
+ 				}
+ 			}
+ 		}
+-		t.Run(strings.Replace(tt.path, "/", "_", -1)+"/"+tt.rev, f)
++		t.Run(strings.ReplaceAll(tt.path, "/", "_")+"/"+tt.rev, f)
+ 		if strings.HasPrefix(tt.path, vgotest1git) {
+ 			for _, alt := range altVgotests {
+ 				// Note: Communicating with f through tt; should be cleaned up.
+@@ -442,7 +442,7 @@ func TestCodeRepo(t *testing.T) {
+ 				tt.rev = remap(tt.rev, m)
+ 				tt.gomoderr = remap(tt.gomoderr, m)
+ 				tt.ziperr = remap(tt.ziperr, m)
+-				t.Run(strings.Replace(tt.path, "/", "_", -1)+"/"+tt.rev, f)
++				t.Run(strings.ReplaceAll(tt.path, "/", "_")+"/"+tt.rev, f)
+ 				tt = old
+ 			}
+ 		}
+@@ -473,9 +473,9 @@ func remap(name string, m map[string]string) string {
+ 		}
+ 	}
+ 	for k, v := range m {
+-		name = strings.Replace(name, k, v, -1)
++		name = strings.ReplaceAll(name, k, v)
+ 		if codehost.AllHex(k) {
+-			name = strings.Replace(name, k[:12], v[:12], -1)
++			name = strings.ReplaceAll(name, k[:12], v[:12])
+ 		}
+ 	}
+ 	return name
+@@ -522,7 +522,7 @@ func TestCodeRepoVersions(t *testing.T) {
+ 	}
+ 	defer os.RemoveAll(tmpdir)
+ 	for _, tt := range codeRepoVersionsTests {
+-		t.Run(strings.Replace(tt.path, "/", "_", -1), func(t *testing.T) {
++		t.Run(strings.ReplaceAll(tt.path, "/", "_"), func(t *testing.T) {
+ 			repo, err := Lookup(tt.path)
+ 			if err != nil {
+ 				t.Fatalf("Lookup(%q): %v", tt.path, err)
+@@ -570,7 +570,7 @@ func TestLatest(t *testing.T) {
+ 	}
+ 	defer os.RemoveAll(tmpdir)
+ 	for _, tt := range latestTests {
+-		name := strings.Replace(tt.path, "/", "_", -1)
++		name := strings.ReplaceAll(tt.path, "/", "_")
+ 		t.Run(name, func(t *testing.T) {
+ 			repo, err := Lookup(tt.path)
+ 			if err != nil {
+diff --git a/src/cmd/go/internal/modfetch/proxy.go b/src/cmd/go/internal/modfetch/proxy.go
+index 5f856b80d2..7c78502f31 100644
+--- a/src/cmd/go/internal/modfetch/proxy.go
++++ b/src/cmd/go/internal/modfetch/proxy.go
+@@ -248,5 +248,5 @@ func (p *proxyRepo) Zip(version string, tmpdir string) (tmpfile string, err erro
+ // That is, it escapes things like ? and # (which really shouldn't appear anyway).
+ // It does not escape / to %2F: our REST API is designed so that / can be left as is.
+ func pathEscape(s string) string {
+-	return strings.Replace(url.PathEscape(s), "%2F", "/", -1)
++	return strings.ReplaceAll(url.PathEscape(s), "%2F", "/")
+ }
+diff --git a/src/cmd/go/internal/modload/import_test.go b/src/cmd/go/internal/modload/import_test.go
+index 3f4ddab436..9422a3d960 100644
+--- a/src/cmd/go/internal/modload/import_test.go
++++ b/src/cmd/go/internal/modload/import_test.go
+@@ -45,7 +45,7 @@ func TestImport(t *testing.T) {
+ 	testenv.MustHaveExternalNetwork(t)
+ 
+ 	for _, tt := range importTests {
+-		t.Run(strings.Replace(tt.path, "/", "_", -1), func(t *testing.T) {
++		t.Run(strings.ReplaceAll(tt.path, "/", "_"), func(t *testing.T) {
+ 			// Note that there is no build list, so Import should always fail.
+ 			m, dir, err := Import(tt.path)
+ 			if err == nil {
+diff --git a/src/cmd/go/internal/modload/query_test.go b/src/cmd/go/internal/modload/query_test.go
+index 7f3ffabef7..9b07383217 100644
+--- a/src/cmd/go/internal/modload/query_test.go
++++ b/src/cmd/go/internal/modload/query_test.go
+@@ -132,7 +132,7 @@ func TestQuery(t *testing.T) {
+ 			ok, _ := path.Match(allow, m.Version)
+ 			return ok
+ 		}
+-		t.Run(strings.Replace(tt.path, "/", "_", -1)+"/"+tt.query+"/"+allow, func(t *testing.T) {
++		t.Run(strings.ReplaceAll(tt.path, "/", "_")+"/"+tt.query+"/"+allow, func(t *testing.T) {
+ 			info, err := Query(tt.path, tt.query, allowed)
+ 			if tt.err != "" {
+ 				if err != nil && err.Error() == tt.err {
+diff --git a/src/cmd/go/internal/search/search.go b/src/cmd/go/internal/search/search.go
+index 60ae73696b..0ca60e7349 100644
+--- a/src/cmd/go/internal/search/search.go
++++ b/src/cmd/go/internal/search/search.go
+@@ -275,7 +275,7 @@ func MatchPattern(pattern string) func(name string) bool {
+ 	case strings.HasSuffix(re, `/\.\.\.`):
+ 		re = strings.TrimSuffix(re, `/\.\.\.`) + `(/\.\.\.)?`
+ 	}
+-	re = strings.Replace(re, `\.\.\.`, `[^`+vendorChar+`]*`, -1)
++	re = strings.ReplaceAll(re, `\.\.\.`, `[^`+vendorChar+`]*`)
+ 
+ 	reg := regexp.MustCompile(`^` + re + `$`)
+ 
+@@ -353,7 +353,7 @@ func CleanPatterns(patterns []string) []string {
+ 		// as a courtesy to Windows developers, rewrite \ to /
+ 		// in command-line arguments. Handles .\... and so on.
+ 		if filepath.Separator == '\\' {
+-			a = strings.Replace(a, `\`, `/`, -1)
++			a = strings.ReplaceAll(a, `\`, `/`)
+ 		}
+ 
+ 		// Put argument in canonical form, but preserve leading ./.
+diff --git a/src/cmd/go/internal/work/build.go b/src/cmd/go/internal/work/build.go
+index dd482b677d..145b87513a 100644
+--- a/src/cmd/go/internal/work/build.go
++++ b/src/cmd/go/internal/work/build.go
+@@ -398,10 +398,10 @@ func libname(args []string, pkgs []*load.Package) (string, error) {
+ 					arg = bp.ImportPath
+ 				}
+ 			}
+-			appendName(strings.Replace(arg, "/", "-", -1))
++			appendName(strings.ReplaceAll(arg, "/", "-"))
+ 		} else {
+ 			for _, pkg := range pkgs {
+-				appendName(strings.Replace(pkg.ImportPath, "/", "-", -1))
++				appendName(strings.ReplaceAll(pkg.ImportPath, "/", "-"))
+ 			}
+ 		}
+ 	} else if haveNonMeta { // have both meta package and a non-meta one
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 01414a3d57..158f5f3b17 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -1705,14 +1705,14 @@ func (b *Builder) fmtcmd(dir string, format string, args ...interface{}) string
+ 		if dir[len(dir)-1] == filepath.Separator {
+ 			dot += string(filepath.Separator)
+ 		}
+-		cmd = strings.Replace(" "+cmd, " "+dir, dot, -1)[1:]
++		cmd = strings.ReplaceAll(" "+cmd, " "+dir, dot)[1:]
+ 		if b.scriptDir != dir {
+ 			b.scriptDir = dir
+ 			cmd = "cd " + dir + "\n" + cmd
+ 		}
+ 	}
+ 	if b.WorkDir != "" {
+-		cmd = strings.Replace(cmd, b.WorkDir, "$WORK", -1)
++		cmd = strings.ReplaceAll(cmd, b.WorkDir, "$WORK")
+ 	}
+ 	return cmd
+ }
+@@ -1754,10 +1754,10 @@ func (b *Builder) showOutput(a *Action, dir, desc, out string) {
+ 	prefix := "# " + desc
+ 	suffix := "\n" + out
+ 	if reldir := base.ShortPath(dir); reldir != dir {
+-		suffix = strings.Replace(suffix, " "+dir, " "+reldir, -1)
+-		suffix = strings.Replace(suffix, "\n"+dir, "\n"+reldir, -1)
++		suffix = strings.ReplaceAll(suffix, " "+dir, " "+reldir)
++		suffix = strings.ReplaceAll(suffix, "\n"+dir, "\n"+reldir)
+ 	}
+-	suffix = strings.Replace(suffix, " "+b.WorkDir, " $WORK", -1)
++	suffix = strings.ReplaceAll(suffix, " "+b.WorkDir, " $WORK")
+ 
+ 	if a != nil && a.output != nil {
+ 		a.output = append(a.output, prefix...)
+diff --git a/src/cmd/go/proxy_test.go b/src/cmd/go/proxy_test.go
+index 212e5aa08f..97fc4b0e80 100644
+--- a/src/cmd/go/proxy_test.go
++++ b/src/cmd/go/proxy_test.go
+@@ -78,7 +78,7 @@ func readModList() {
+ 		if i < 0 {
+ 			continue
+ 		}
+-		encPath := strings.Replace(name[:i], "_", "/", -1)
++		encPath := strings.ReplaceAll(name[:i], "_", "/")
+ 		path, err := module.DecodePath(encPath)
+ 		if err != nil {
+ 			fmt.Fprintf(os.Stderr, "go proxy_test: %v\n", err)
+@@ -256,7 +256,7 @@ func readArchive(path, vers string) *txtar.Archive {
+ 		return nil
+ 	}
+ 
+-	prefix := strings.Replace(enc, "/", "_", -1)
++	prefix := strings.ReplaceAll(enc, "/", "_")
+ 	name := filepath.Join(cmdGoDir, "testdata/mod", prefix+"_"+encVers+".txt")
+ 	a := archiveCache.Do(name, func() interface{} {
+ 		a, err := txtar.ParseFile(name)
+diff --git a/src/cmd/go/script_test.go b/src/cmd/go/script_test.go
+index 7c083a87b9..31c6ede2a5 100644
+--- a/src/cmd/go/script_test.go
++++ b/src/cmd/go/script_test.go
+@@ -329,7 +329,7 @@ func (ts *testScript) cmdAddcrlf(neg bool, args []string) {
+ 		file = ts.mkabs(file)
+ 		data, err := ioutil.ReadFile(file)
+ 		ts.check(err)
+-		ts.check(ioutil.WriteFile(file, bytes.Replace(data, []byte("\n"), []byte("\r\n"), -1), 0666))
++		ts.check(ioutil.WriteFile(file, bytes.ReplaceAll(data, []byte("\n"), []byte("\r\n")), 0666))
+ 	}
+ }
+ 
+@@ -630,7 +630,7 @@ func scriptMatch(ts *testScript, neg bool, args []string, text, name string) {
+ 	}
+ 
+ 	// Matching against workdir would be misleading.
+-	text = strings.Replace(text, ts.workdir, "$WORK", -1)
++	text = strings.ReplaceAll(text, ts.workdir, "$WORK")
+ 
+ 	if neg {
+ 		if re.MatchString(text) {
+@@ -691,7 +691,7 @@ func (ts *testScript) cmdSymlink(neg bool, args []string) {
+ 
+ // abbrev abbreviates the actual work directory in the string s to the literal string "$WORK".
+ func (ts *testScript) abbrev(s string) string {
+-	s = strings.Replace(s, ts.workdir, "$WORK", -1)
++	s = strings.ReplaceAll(s, ts.workdir, "$WORK")
+ 	if *testWork {
+ 		// Expose actual $WORK value in environment dump on first line of work script,
+ 		// so that the user can find out what directory -testwork left behind.
+@@ -885,17 +885,17 @@ var diffTests = []struct {
+ func TestDiff(t *testing.T) {
+ 	for _, tt := range diffTests {
+ 		// Turn spaces into \n.
+-		text1 := strings.Replace(tt.text1, " ", "\n", -1)
++		text1 := strings.ReplaceAll(tt.text1, " ", "\n")
+ 		if text1 != "" {
+ 			text1 += "\n"
+ 		}
+-		text2 := strings.Replace(tt.text2, " ", "\n", -1)
++		text2 := strings.ReplaceAll(tt.text2, " ", "\n")
+ 		if text2 != "" {
+ 			text2 += "\n"
+ 		}
+ 		out := diff(text1, text2)
+ 		// Cut final \n, cut spaces, turn remaining \n into spaces.
+-		out = strings.Replace(strings.Replace(strings.TrimSuffix(out, "\n"), " ", "", -1), "\n", " ", -1)
++		out = strings.ReplaceAll(strings.ReplaceAll(strings.TrimSuffix(out, "\n"), " ", ""), "\n", " ")
+ 		if out != tt.diff {
+ 			t.Errorf("diff(%q, %q) = %q, want %q", text1, text2, out, tt.diff)
+ 		}
+diff --git a/src/cmd/go/testdata/addmod.go b/src/cmd/go/testdata/addmod.go
+index 19850af0f3..8bb6056a54 100644
+--- a/src/cmd/go/testdata/addmod.go
++++ b/src/cmd/go/testdata/addmod.go
+@@ -142,7 +142,7 @@ func main() {
+ 		}
+ 
+ 		data := txtar.Format(a)
+-		target := filepath.Join("mod", strings.Replace(path, "/", "_", -1)+"_"+vers+".txt")
++		target := filepath.Join("mod", strings.ReplaceAll(path, "/", "_")+"_"+vers+".txt")
+ 		if err := ioutil.WriteFile(target, data, 0666); err != nil {
+ 			log.Printf("%s: %v", arg, err)
+ 			exitCode = 1
+diff --git a/src/cmd/go/vendor_test.go b/src/cmd/go/vendor_test.go
+index 22aa643b00..c302d7e9b5 100644
+--- a/src/cmd/go/vendor_test.go
++++ b/src/cmd/go/vendor_test.go
+@@ -37,7 +37,7 @@ func TestVendorImports(t *testing.T) {
+ 		vend/x/vendor/p/p [notfound]
+ 		vend/x/vendor/r []
+ 	`
+-	want = strings.Replace(want+"\t", "\n\t\t", "\n", -1)
++	want = strings.ReplaceAll(want+"\t", "\n\t\t", "\n")
+ 	want = strings.TrimPrefix(want, "\n")
+ 
+ 	have := tg.stdout.String()
+diff --git a/src/cmd/gofmt/gofmt_test.go b/src/cmd/gofmt/gofmt_test.go
+index 16b653b646..3008365cd2 100644
+--- a/src/cmd/gofmt/gofmt_test.go
++++ b/src/cmd/gofmt/gofmt_test.go
+@@ -200,7 +200,7 @@ func TestDiff(t *testing.T) {
+ 	}
+ 
+ 	if runtime.GOOS == "windows" {
+-		b = bytes.Replace(b, []byte{'\r', '\n'}, []byte{'\n'}, -1)
++		b = bytes.ReplaceAll(b, []byte{'\r', '\n'}, []byte{'\n'})
+ 	}
+ 
+ 	bs := bytes.SplitN(b, []byte{'\n'}, 3)
+diff --git a/src/cmd/internal/goobj/read.go b/src/cmd/internal/goobj/read.go
+index e39180cad6..2d618eefa5 100644
+--- a/src/cmd/internal/goobj/read.go
++++ b/src/cmd/internal/goobj/read.go
+@@ -293,7 +293,7 @@ func (r *objReader) readRef() {
+ 	// In a symbol name in an object file, "". denotes the
+ 	// prefix for the package in which the object file has been found.
+ 	// Expand it.
+-	name = strings.Replace(name, `"".`, r.pkgprefix, -1)
++	name = strings.ReplaceAll(name, `"".`, r.pkgprefix)
+ 
+ 	// An individual object file only records version 0 (extern) or 1 (static).
+ 	// To make static symbols unique across all files being read, we
+diff --git a/src/cmd/trace/trace.go b/src/cmd/trace/trace.go
+index 676b9ffa5a..07fc4333eb 100644
+--- a/src/cmd/trace/trace.go
++++ b/src/cmd/trace/trace.go
+@@ -38,7 +38,7 @@ func httpTrace(w http.ResponseWriter, r *http.Request) {
+ 		http.Error(w, err.Error(), http.StatusInternalServerError)
+ 		return
+ 	}
+-	html := strings.Replace(templTrace, "{{PARAMS}}", r.Form.Encode(), -1)
++	html := strings.ReplaceAll(templTrace, "{{PARAMS}}", r.Form.Encode())
+ 	w.Write([]byte(html))
+ 
+ }
+diff --git a/src/cmd/vet/main.go b/src/cmd/vet/main.go
+index 646adf4d76..6e885121c8 100644
+--- a/src/cmd/vet/main.go
++++ b/src/cmd/vet/main.go
+@@ -273,7 +273,7 @@ func main() {
+ 	// Accept space-separated tags because that matches
+ 	// the go command's other subcommands.
+ 	// Accept commas because go tool vet traditionally has.
+-	tagList = strings.Fields(strings.Replace(*tags, ",", " ", -1))
++	tagList = strings.Fields(strings.ReplaceAll(*tags, ",", " "))
+ 
+ 	initPrintFlags()
+ 	initUnusedFlags()
+diff --git a/src/cmd/vet/vet_test.go b/src/cmd/vet/vet_test.go
+index 90665d77bc..df84d6cc98 100644
+--- a/src/cmd/vet/vet_test.go
++++ b/src/cmd/vet/vet_test.go
+@@ -243,7 +243,7 @@ func errorCheck(outStr string, wantAuto bool, fullshort ...string) (err error) {
+ 	for i := range out {
+ 		for j := 0; j < len(fullshort); j += 2 {
+ 			full, short := fullshort[j], fullshort[j+1]
+-			out[i] = strings.Replace(out[i], full, short, -1)
++			out[i] = strings.ReplaceAll(out[i], full, short)
+ 		}
+ 	}
+ 
+diff --git a/src/crypto/rsa/pss_test.go b/src/crypto/rsa/pss_test.go
+index cae24e58c6..dfa8d8bb5a 100644
+--- a/src/crypto/rsa/pss_test.go
++++ b/src/crypto/rsa/pss_test.go
+@@ -103,7 +103,7 @@ func TestPSSGolden(t *testing.T) {
+ 			switch {
+ 			case len(line) == 0:
+ 				if len(partialValue) > 0 {
+-					values <- strings.Replace(partialValue, " ", "", -1)
++					values <- strings.ReplaceAll(partialValue, " ", "")
+ 					partialValue = ""
+ 					lastWasValue = true
+ 				}
+diff --git a/src/crypto/x509/root_darwin_arm_gen.go b/src/crypto/x509/root_darwin_arm_gen.go
+index b5580d6f02..bc44124a78 100644
+--- a/src/crypto/x509/root_darwin_arm_gen.go
++++ b/src/crypto/x509/root_darwin_arm_gen.go
+@@ -154,9 +154,9 @@ func fetchCertIDs() ([]certID, error) {
+ 		values := regexp.MustCompile("(?s)<td>(.*?)</td>").FindAllStringSubmatch(row, -1)
+ 		name := values[cols["Certificate name"]][1]
+ 		fingerprint := values[cols["Fingerprint (SHA-256)"]][1]
+-		fingerprint = strings.Replace(fingerprint, "<br>", "", -1)
+-		fingerprint = strings.Replace(fingerprint, "\n", "", -1)
+-		fingerprint = strings.Replace(fingerprint, " ", "", -1)
++		fingerprint = strings.ReplaceAll(fingerprint, "<br>", "")
++		fingerprint = strings.ReplaceAll(fingerprint, "\n", "")
++		fingerprint = strings.ReplaceAll(fingerprint, " ", "")
+ 		fingerprint = strings.ToLower(fingerprint)
+ 
+ 		ids = append(ids, certID{
+diff --git a/src/encoding/base32/base32_test.go b/src/encoding/base32/base32_test.go
+index c5506ed4de..b74054ba40 100644
+--- a/src/encoding/base32/base32_test.go
++++ b/src/encoding/base32/base32_test.go
+@@ -425,7 +425,7 @@ IZJAOZSWY2LUEBSXG43FEBRWS3DMOVWSAZDPNRXXEZJAMV2SAZTVM5UWC5BANZ2WY3DBBJYGC4TJMF
+ NZ2CYIDTOVXHIIDJNYFGG5LMOBQSA4LVNEQG6ZTGNFRWSYJAMRSXGZLSOVXHIIDNN5WGY2LUEBQW42
+ LNEBUWIIDFON2CA3DBMJXXE5LNFY==
+ ====`
+-	encodedShort := strings.Replace(encoded, "\n", "", -1)
++	encodedShort := strings.ReplaceAll(encoded, "\n", "")
+ 
+ 	dec := NewDecoder(StdEncoding, strings.NewReader(encoded))
+ 	res1, err := ioutil.ReadAll(dec)
+@@ -465,7 +465,7 @@ func TestWithCustomPadding(t *testing.T) {
+ 	for _, testcase := range pairs {
+ 		defaultPadding := StdEncoding.EncodeToString([]byte(testcase.decoded))
+ 		customPadding := StdEncoding.WithPadding('@').EncodeToString([]byte(testcase.decoded))
+-		expected := strings.Replace(defaultPadding, "=", "@", -1)
++		expected := strings.ReplaceAll(defaultPadding, "=", "@")
+ 
+ 		if expected != customPadding {
+ 			t.Errorf("Expected custom %s, got %s", expected, customPadding)
+@@ -675,7 +675,7 @@ func TestWithoutPaddingClose(t *testing.T) {
+ 
+ 			expected := testpair.encoded
+ 			if encoding.padChar == NoPadding {
+-				expected = strings.Replace(expected, "=", "", -1)
++				expected = strings.ReplaceAll(expected, "=", "")
+ 			}
+ 
+ 			res := buf.String()
+@@ -697,7 +697,7 @@ func TestDecodeReadAll(t *testing.T) {
+ 		for encIndex, encoding := range encodings {
+ 			encoded := pair.encoded
+ 			if encoding.padChar == NoPadding {
+-				encoded = strings.Replace(encoded, "=", "", -1)
++				encoded = strings.ReplaceAll(encoded, "=", "")
+ 			}
+ 
+ 			decReader, err := ioutil.ReadAll(NewDecoder(encoding, strings.NewReader(encoded)))
+@@ -723,7 +723,7 @@ func TestDecodeSmallBuffer(t *testing.T) {
+ 			for encIndex, encoding := range encodings {
+ 				encoded := pair.encoded
+ 				if encoding.padChar == NoPadding {
+-					encoded = strings.Replace(encoded, "=", "", -1)
++					encoded = strings.ReplaceAll(encoded, "=", "")
+ 				}
+ 
+ 				decoder := NewDecoder(encoding, strings.NewReader(encoded))
+diff --git a/src/encoding/base64/base64_test.go b/src/encoding/base64/base64_test.go
+index f019654f5b..f7f312ca39 100644
+--- a/src/encoding/base64/base64_test.go
++++ b/src/encoding/base64/base64_test.go
+@@ -53,8 +53,8 @@ func stdRef(ref string) string {
+ 
+ // Convert a reference string to URL-encoding
+ func urlRef(ref string) string {
+-	ref = strings.Replace(ref, "+", "-", -1)
+-	ref = strings.Replace(ref, "/", "_", -1)
++	ref = strings.ReplaceAll(ref, "+", "-")
++	ref = strings.ReplaceAll(ref, "/", "_")
+ 	return ref
+ }
+ 
+@@ -72,7 +72,7 @@ func rawURLRef(ref string) string {
+ var funnyEncoding = NewEncoding(encodeStd).WithPadding(rune('@'))
+ 
+ func funnyRef(ref string) string {
+-	return strings.Replace(ref, "=", "@", -1)
++	return strings.ReplaceAll(ref, "=", "@")
+ }
+ 
+ type encodingTest struct {
+@@ -418,7 +418,7 @@ j+mSARB/17pKVXYWHXjsj7yIex0PadzXMO1zT5KHoNA3HT8ietoGhgjsfA+CSnvvqh/jJtqsrwOv
+ 2b6NGNzXfTYexzJ+nU7/ALkf4P8Awv6P9KvTQQ4AgyDqCF85Pho3CTB7eHwXoH+LT65uZbX9X+o2
+ bqbPb06551Y4
+ `
+-	encodedShort := strings.Replace(encoded, "\n", "", -1)
++	encodedShort := strings.ReplaceAll(encoded, "\n", "")
+ 
+ 	dec := NewDecoder(StdEncoding, strings.NewReader(encoded))
+ 	res1, err := ioutil.ReadAll(dec)
+diff --git a/src/flag/flag.go b/src/flag/flag.go
+index 2cd7829c1a..ae84e1f775 100644
+--- a/src/flag/flag.go
++++ b/src/flag/flag.go
+@@ -472,7 +472,7 @@ func (f *FlagSet) PrintDefaults() {
+ 			// for both 4- and 8-space tab stops.
+ 			s += "\n    \t"
+ 		}
+-		s += strings.Replace(usage, "\n", "\n    \t", -1)
++		s += strings.ReplaceAll(usage, "\n", "\n    \t")
+ 
+ 		if !isZeroValue(flag, flag.DefValue) {
+ 			if _, ok := flag.Value.(*stringValue); ok {
+diff --git a/src/go/constant/value_test.go b/src/go/constant/value_test.go
+index e6fca76e18..68b87eaa55 100644
+--- a/src/go/constant/value_test.go
++++ b/src/go/constant/value_test.go
+@@ -296,7 +296,7 @@ func val(lit string) Value {
+ 	switch first, last := lit[0], lit[len(lit)-1]; {
+ 	case first == '"' || first == '`':
+ 		tok = token.STRING
+-		lit = strings.Replace(lit, "_", " ", -1)
++		lit = strings.ReplaceAll(lit, "_", " ")
+ 	case first == '\'':
+ 		tok = token.CHAR
+ 	case last == 'i':
+diff --git a/src/go/doc/doc_test.go b/src/go/doc/doc_test.go
+index 902a79f63f..0b2d2b63cc 100644
+--- a/src/go/doc/doc_test.go
++++ b/src/go/doc/doc_test.go
+@@ -40,7 +40,7 @@ func readTemplate(filename string) *template.Template {
+ func nodeFmt(node interface{}, fset *token.FileSet) string {
+ 	var buf bytes.Buffer
+ 	printer.Fprint(&buf, fset, node)
+-	return strings.Replace(strings.TrimSpace(buf.String()), "\n", "\n\t", -1)
++	return strings.ReplaceAll(strings.TrimSpace(buf.String()), "\n", "\n\t")
+ }
+ 
+ func synopsisFmt(s string) string {
+@@ -53,7 +53,7 @@ func synopsisFmt(s string) string {
+ 		}
+ 		s = strings.TrimSpace(s) + " ..."
+ 	}
+-	return "// " + strings.Replace(s, "\n", " ", -1)
++	return "// " + strings.ReplaceAll(s, "\n", " ")
+ }
+ 
+ func indentFmt(indent, s string) string {
+@@ -62,7 +62,7 @@ func indentFmt(indent, s string) string {
+ 		end = "\n"
+ 		s = s[:len(s)-1]
+ 	}
+-	return indent + strings.Replace(s, "\n", "\n"+indent, -1) + end
++	return indent + strings.ReplaceAll(s, "\n", "\n"+indent) + end
+ }
+ 
+ func isGoFile(fi os.FileInfo) bool {
+diff --git a/src/go/printer/example_test.go b/src/go/printer/example_test.go
+index e570040ba1..30816931a8 100644
+--- a/src/go/printer/example_test.go
++++ b/src/go/printer/example_test.go
+@@ -48,7 +48,7 @@ func ExampleFprint() {
+ 	// and trim leading and trailing white space.
+ 	s := buf.String()
+ 	s = s[1 : len(s)-1]
+-	s = strings.TrimSpace(strings.Replace(s, "\n\t", "\n", -1))
++	s = strings.TrimSpace(strings.ReplaceAll(s, "\n\t", "\n"))
+ 
+ 	// Print the cleaned-up body text to stdout.
+ 	fmt.Println(s)
+@@ -61,7 +61,7 @@ func ExampleFprint() {
+ 	//
+ 	// s := buf.String()
+ 	// s = s[1 : len(s)-1]
+-	// s = strings.TrimSpace(strings.Replace(s, "\n\t", "\n", -1))
++	// s = strings.TrimSpace(strings.ReplaceAll(s, "\n\t", "\n"))
+ 	//
+ 	// fmt.Println(s)
+ }
+diff --git a/src/html/template/js.go b/src/html/template/js.go
+index 33a18b4186..2291f47c33 100644
+--- a/src/html/template/js.go
++++ b/src/html/template/js.go
+@@ -172,7 +172,7 @@ func jsValEscaper(args ...interface{}) string {
+ 		// turning into
+ 		//     x//* error marshaling y:
+ 		//          second line of error message */null
+-		return fmt.Sprintf(" /* %s */null ", strings.Replace(err.Error(), "*/", "* /", -1))
++		return fmt.Sprintf(" /* %s */null ", strings.ReplaceAll(err.Error(), "*/", "* /"))
+ 	}
+ 
+ 	// TODO: maybe post-process output to prevent it from containing
+diff --git a/src/html/template/url.go b/src/html/template/url.go
+index f0516300de..8a4f727e50 100644
+--- a/src/html/template/url.go
++++ b/src/html/template/url.go
+@@ -156,7 +156,7 @@ func srcsetFilterAndEscaper(args ...interface{}) string {
+ 			s = b.String()
+ 		}
+ 		// Additionally, commas separate one source from another.
+-		return strings.Replace(s, ",", "%2c", -1)
++		return strings.ReplaceAll(s, ",", "%2c")
+ 	}
+ 
+ 	var b bytes.Buffer
+diff --git a/src/mime/multipart/formdata_test.go b/src/mime/multipart/formdata_test.go
+index 2d6a830cb6..105a82c417 100644
+--- a/src/mime/multipart/formdata_test.go
++++ b/src/mime/multipart/formdata_test.go
+@@ -13,7 +13,7 @@ import (
+ )
+ 
+ func TestReadForm(t *testing.T) {
+-	b := strings.NewReader(strings.Replace(message, "\n", "\r\n", -1))
++	b := strings.NewReader(strings.ReplaceAll(message, "\n", "\r\n"))
+ 	r := NewReader(b, boundary)
+ 	f, err := r.ReadForm(25)
+ 	if err != nil {
+@@ -39,7 +39,7 @@ func TestReadForm(t *testing.T) {
+ }
+ 
+ func TestReadFormWithNamelessFile(t *testing.T) {
+-	b := strings.NewReader(strings.Replace(messageWithFileWithoutName, "\n", "\r\n", -1))
++	b := strings.NewReader(strings.ReplaceAll(messageWithFileWithoutName, "\n", "\r\n"))
+ 	r := NewReader(b, boundary)
+ 	f, err := r.ReadForm(25)
+ 	if err != nil {
+@@ -54,7 +54,7 @@ func TestReadFormWithNamelessFile(t *testing.T) {
+ 
+ func TestReadFormWithTextContentType(t *testing.T) {
+ 	// From https://github.com/golang/go/issues/24041
+-	b := strings.NewReader(strings.Replace(messageWithTextContentType, "\n", "\r\n", -1))
++	b := strings.NewReader(strings.ReplaceAll(messageWithTextContentType, "\n", "\r\n"))
+ 	r := NewReader(b, boundary)
+ 	f, err := r.ReadForm(25)
+ 	if err != nil {
+@@ -184,7 +184,7 @@ Content-Disposition: form-data; name="largetext"
+ --MyBoundary--
+ `
+ 
+-	testBody := strings.Replace(message, "\n", "\r\n", -1)
++	testBody := strings.ReplaceAll(message, "\n", "\r\n")
+ 	testCases := []struct {
+ 		name      string
+ 		maxMemory int64
+diff --git a/src/mime/multipart/multipart_test.go b/src/mime/multipart/multipart_test.go
+index abe1cc8e77..7bf606765c 100644
+--- a/src/mime/multipart/multipart_test.go
++++ b/src/mime/multipart/multipart_test.go
+@@ -105,7 +105,7 @@ never read data
+ 
+ useless trailer
+ `
+-	testBody = strings.Replace(testBody, "\n", sep, -1)
++	testBody = strings.ReplaceAll(testBody, "\n", sep)
+ 	return strings.Replace(testBody, "[longline]", longLine, 1)
+ }
+ 
+@@ -151,7 +151,7 @@ func testMultipart(t *testing.T, r io.Reader, onlyNewlines bool) {
+ 
+ 	adjustNewlines := func(s string) string {
+ 		if onlyNewlines {
+-			return strings.Replace(s, "\r\n", "\n", -1)
++			return strings.ReplaceAll(s, "\r\n", "\n")
+ 		}
+ 		return s
+ 	}
+@@ -299,7 +299,7 @@ foo-bar: baz
+ 
+ Oh no, premature EOF!
+ `
+-	body := strings.Replace(testBody, "\n", "\r\n", -1)
++	body := strings.ReplaceAll(testBody, "\n", "\r\n")
+ 	bodyReader := strings.NewReader(body)
+ 	r := NewReader(bodyReader, "MyBoundary")
+ 
+diff --git a/src/net/http/cgi/child.go b/src/net/http/cgi/child.go
+index da12ac3498..10325c2eb5 100644
+--- a/src/net/http/cgi/child.go
++++ b/src/net/http/cgi/child.go
+@@ -86,7 +86,7 @@ func RequestFromMap(params map[string]string) (*http.Request, error) {
+ 		if !strings.HasPrefix(k, "HTTP_") || k == "HTTP_HOST" {
+ 			continue
+ 		}
+-		r.Header.Add(strings.Replace(k[5:], "_", "-", -1), v)
++		r.Header.Add(strings.ReplaceAll(k[5:], "_", "-"), v)
+ 	}
+ 
+ 	// TODO: cookies.  parsing them isn't exported, though.
+diff --git a/src/net/http/httputil/dump_test.go b/src/net/http/httputil/dump_test.go
+index 5703a7fb86..63312dd885 100644
+--- a/src/net/http/httputil/dump_test.go
++++ b/src/net/http/httputil/dump_test.go
+@@ -370,7 +370,7 @@ func TestDumpResponse(t *testing.T) {
+ 		}
+ 		got := string(gotb)
+ 		got = strings.TrimSpace(got)
+-		got = strings.Replace(got, "\r", "", -1)
++		got = strings.ReplaceAll(got, "\r", "")
+ 
+ 		if got != tt.want {
+ 			t.Errorf("%d.\nDumpResponse got:\n%s\n\nWant:\n%s\n", i, got, tt.want)
+diff --git a/src/net/http/readrequest_test.go b/src/net/http/readrequest_test.go
+index 18eed345a8..517a8189e1 100644
+--- a/src/net/http/readrequest_test.go
++++ b/src/net/http/readrequest_test.go
+@@ -438,7 +438,7 @@ func TestReadRequest(t *testing.T) {
+ // reqBytes treats req as a request (with \n delimiters) and returns it with \r\n delimiters,
+ // ending in \r\n\r\n
+ func reqBytes(req string) []byte {
+-	return []byte(strings.Replace(strings.TrimSpace(req), "\n", "\r\n", -1) + "\r\n\r\n")
++	return []byte(strings.ReplaceAll(strings.TrimSpace(req), "\n", "\r\n") + "\r\n\r\n")
+ }
+ 
+ var badRequestTests = []struct {
+diff --git a/src/net/http/request_test.go b/src/net/http/request_test.go
+index 7a83ae5b1c..e8005571df 100644
+--- a/src/net/http/request_test.go
++++ b/src/net/http/request_test.go
+@@ -878,7 +878,7 @@ func testMissingFile(t *testing.T, req *Request) {
+ }
+ 
+ func newTestMultipartRequest(t *testing.T) *Request {
+-	b := strings.NewReader(strings.Replace(message, "\n", "\r\n", -1))
++	b := strings.NewReader(strings.ReplaceAll(message, "\n", "\r\n"))
+ 	req, err := NewRequest("POST", "/", b)
+ 	if err != nil {
+ 		t.Fatal("NewRequest:", err)
+@@ -970,8 +970,8 @@ Content-Disposition: form-data; name="textb"
+ `
+ 
+ func benchmarkReadRequest(b *testing.B, request string) {
+-	request = request + "\n"                             // final \n
+-	request = strings.Replace(request, "\n", "\r\n", -1) // expand \n to \r\n
++	request = request + "\n"                            // final \n
++	request = strings.ReplaceAll(request, "\n", "\r\n") // expand \n to \r\n
+ 	b.SetBytes(int64(len(request)))
+ 	r := bufio.NewReader(&infiniteReader{buf: []byte(request)})
+ 	b.ReportAllocs()
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index 8dae95678d..b12fcf4f9e 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -130,7 +130,7 @@ func (c *testConn) Close() error {
+ // reqBytes treats req as a request (with \n delimiters) and returns it with \r\n delimiters,
+ // ending in \r\n\r\n
+ func reqBytes(req string) []byte {
+-	return []byte(strings.Replace(strings.TrimSpace(req), "\n", "\r\n", -1) + "\r\n\r\n")
++	return []byte(strings.ReplaceAll(strings.TrimSpace(req), "\n", "\r\n") + "\r\n\r\n")
+ }
+ 
+ type handlerTest struct {
+diff --git a/src/net/lookup_windows_test.go b/src/net/lookup_windows_test.go
+index cebb2d0558..d3748f28c3 100644
+--- a/src/net/lookup_windows_test.go
++++ b/src/net/lookup_windows_test.go
+@@ -150,7 +150,7 @@ func nslookup(qtype, name string) (string, error) {
+ 	if err := cmd.Run(); err != nil {
+ 		return "", err
+ 	}
+-	r := strings.Replace(out.String(), "\r\n", "\n", -1)
++	r := strings.ReplaceAll(out.String(), "\r\n", "\n")
+ 	// nslookup stderr output contains also debug information such as
+ 	// "Non-authoritative answer" and it doesn't return the correct errcode
+ 	if strings.Contains(err.String(), "can't find") {
+diff --git a/src/net/mail/message_test.go b/src/net/mail/message_test.go
+index b19da52c42..14ac9192a4 100644
+--- a/src/net/mail/message_test.go
++++ b/src/net/mail/message_test.go
+@@ -668,9 +668,9 @@ func TestAddressParser(t *testing.T) {
+ 
+ 			switch charset {
+ 			case "iso-8859-15":
+-				in = bytes.Replace(in, []byte("\xf6"), []byte("ö"), -1)
++				in = bytes.ReplaceAll(in, []byte("\xf6"), []byte("ö"))
+ 			case "windows-1252":
+-				in = bytes.Replace(in, []byte("\xe9"), []byte("é"), -1)
++				in = bytes.ReplaceAll(in, []byte("\xe9"), []byte("é"))
+ 			}
+ 
+ 			return bytes.NewReader(in), nil
+diff --git a/src/net/net_windows_test.go b/src/net/net_windows_test.go
+index 8dfd312980..8aa719f433 100644
+--- a/src/net/net_windows_test.go
++++ b/src/net/net_windows_test.go
+@@ -571,7 +571,7 @@ func TestInterfaceHardwareAddrWithGetmac(t *testing.T) {
+ 			// skip these
+ 			return
+ 		}
+-		addr = strings.Replace(addr, "-", ":", -1)
++		addr = strings.ReplaceAll(addr, "-", ":")
+ 		cname := getValue("Connection Name")
+ 		want[cname] = addr
+ 		group = make(map[string]string)
+diff --git a/src/net/url/example_test.go b/src/net/url/example_test.go
+index d8eb6dcd20..ad67f5328a 100644
+--- a/src/net/url/example_test.go
++++ b/src/net/url/example_test.go
+@@ -219,5 +219,5 @@ func toJSON(m interface{}) string {
+ 	if err != nil {
+ 		log.Fatal(err)
+ 	}
+-	return strings.Replace(string(js), ",", ", ", -1)
++	return strings.ReplaceAll(string(js), ",", ", ")
+ }
+diff --git a/src/net/url/url_test.go b/src/net/url/url_test.go
+index 5d3f91248f..7c4ada245a 100644
+--- a/src/net/url/url_test.go
++++ b/src/net/url/url_test.go
+@@ -848,18 +848,18 @@ func TestUnescape(t *testing.T) {
+ 		in := tt.in
+ 		out := tt.out
+ 		if strings.Contains(tt.in, "+") {
+-			in = strings.Replace(tt.in, "+", "%20", -1)
++			in = strings.ReplaceAll(tt.in, "+", "%20")
+ 			actual, err := PathUnescape(in)
+ 			if actual != tt.out || (err != nil) != (tt.err != nil) {
+ 				t.Errorf("PathUnescape(%q) = %q, %s; want %q, %s", in, actual, err, tt.out, tt.err)
+ 			}
+ 			if tt.err == nil {
+-				s, err := QueryUnescape(strings.Replace(tt.in, "+", "XXX", -1))
++				s, err := QueryUnescape(strings.ReplaceAll(tt.in, "+", "XXX"))
+ 				if err != nil {
+ 					continue
+ 				}
+ 				in = tt.in
+-				out = strings.Replace(s, "XXX", "+", -1)
++				out = strings.ReplaceAll(s, "XXX", "+")
+ 			}
+ 		}
+ 
+diff --git a/src/os/path_windows_test.go b/src/os/path_windows_test.go
+index 00a3e63bf3..f1745ad132 100644
+--- a/src/os/path_windows_test.go
++++ b/src/os/path_windows_test.go
+@@ -38,10 +38,10 @@ func TestFixLongPath(t *testing.T) {
+ 		{`\\?\c:\long\foo.txt`, `\\?\c:\long\foo.txt`},
+ 		{`\\?\c:\long/foo.txt`, `\\?\c:\long/foo.txt`},
+ 	} {
+-		in := strings.Replace(test.in, "long", veryLong, -1)
+-		want := strings.Replace(test.want, "long", veryLong, -1)
++		in := strings.ReplaceAll(test.in, "long", veryLong)
++		want := strings.ReplaceAll(test.want, "long", veryLong)
+ 		if got := os.FixLongPath(in); got != want {
+-			got = strings.Replace(got, veryLong, "long", -1)
++			got = strings.ReplaceAll(got, veryLong, "long")
+ 			t.Errorf("fixLongPath(%q) = %q; want %q", test.in, got, test.want)
+ 		}
+ 	}
+diff --git a/src/path/filepath/path.go b/src/path/filepath/path.go
+index 1508137a33..aba1717e7d 100644
+--- a/src/path/filepath/path.go
++++ b/src/path/filepath/path.go
+@@ -166,7 +166,7 @@ func ToSlash(path string) string {
+ 	if Separator == '/' {
+ 		return path
+ 	}
+-	return strings.Replace(path, string(Separator), "/", -1)
++	return strings.ReplaceAll(path, string(Separator), "/")
+ }
+ 
+ // FromSlash returns the result of replacing each slash ('/') character
+@@ -176,7 +176,7 @@ func FromSlash(path string) string {
+ 	if Separator == '/' {
+ 		return path
+ 	}
+-	return strings.Replace(path, "/", string(Separator), -1)
++	return strings.ReplaceAll(path, "/", string(Separator))
+ }
+ 
+ // SplitList splits a list of paths joined by the OS-specific ListSeparator,
+diff --git a/src/path/filepath/path_test.go b/src/path/filepath/path_test.go
+index a221a3d4fa..e1b5ad1d40 100644
+--- a/src/path/filepath/path_test.go
++++ b/src/path/filepath/path_test.go
+@@ -1062,7 +1062,7 @@ func TestAbs(t *testing.T) {
+ 	}
+ 
+ 	for _, path := range absTests {
+-		path = strings.Replace(path, "$", root, -1)
++		path = strings.ReplaceAll(path, "$", root)
+ 		info, err := os.Stat(path)
+ 		if err != nil {
+ 			t.Errorf("%s: %s", path, err)
+diff --git a/src/path/filepath/path_windows.go b/src/path/filepath/path_windows.go
+index 519b6ebc32..6a144d9e0b 100644
+--- a/src/path/filepath/path_windows.go
++++ b/src/path/filepath/path_windows.go
+@@ -100,7 +100,7 @@ func splitList(path string) []string {
+ 
+ 	// Remove quotes.
+ 	for i, s := range list {
+-		list[i] = strings.Replace(s, `"`, ``, -1)
++		list[i] = strings.ReplaceAll(s, `"`, ``)
+ 	}
+ 
+ 	return list
+diff --git a/src/path/filepath/path_windows_test.go b/src/path/filepath/path_windows_test.go
+index e36a3c9b64..63eab18116 100644
+--- a/src/path/filepath/path_windows_test.go
++++ b/src/path/filepath/path_windows_test.go
+@@ -431,7 +431,7 @@ func TestToNorm(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 
+-	err = os.MkdirAll(strings.Replace(testPath, "{{tmp}}", ctmp, -1), 0777)
++	err = os.MkdirAll(strings.ReplaceAll(testPath, "{{tmp}}", ctmp), 0777)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+diff --git a/src/runtime/pprof/internal/profile/profile.go b/src/runtime/pprof/internal/profile/profile.go
+index 64c3e3f054..863bd403a4 100644
+--- a/src/runtime/pprof/internal/profile/profile.go
++++ b/src/runtime/pprof/internal/profile/profile.go
+@@ -200,7 +200,7 @@ var libRx = regexp.MustCompile(`([.]so$|[.]so[._][0-9]+)`)
+ // first.
+ func (p *Profile) setMain() {
+ 	for i := 0; i < len(p.Mapping); i++ {
+-		file := strings.TrimSpace(strings.Replace(p.Mapping[i].File, "(deleted)", "", -1))
++		file := strings.TrimSpace(strings.ReplaceAll(p.Mapping[i].File, "(deleted)", ""))
+ 		if len(file) == 0 {
+ 			continue
+ 		}
+diff --git a/src/runtime/pprof/pprof_test.go b/src/runtime/pprof/pprof_test.go
+index 126ba50054..593924183f 100644
+--- a/src/runtime/pprof/pprof_test.go
++++ b/src/runtime/pprof/pprof_test.go
+@@ -602,7 +602,7 @@ func TestBlockProfile(t *testing.T) {
+ 		}
+ 
+ 		for _, test := range tests {
+-			if !regexp.MustCompile(strings.Replace(test.re, "\t", "\t+", -1)).MatchString(prof) {
++			if !regexp.MustCompile(strings.ReplaceAll(test.re, "\t", "\t+")).MatchString(prof) {
+ 				t.Errorf("Bad %v entry, expect:\n%v\ngot:\n%v", test.name, test.re, prof)
+ 			}
+ 		}
+diff --git a/src/runtime/runtime-gdb_test.go b/src/runtime/runtime-gdb_test.go
+index 1ed6b39303..26f507159b 100644
+--- a/src/runtime/runtime-gdb_test.go
++++ b/src/runtime/runtime-gdb_test.go
+@@ -490,7 +490,7 @@ func TestGdbConst(t *testing.T) {
+ 	}
+ 	got, _ := exec.Command("gdb", args...).CombinedOutput()
+ 
+-	sgot := strings.Replace(string(got), "\r\n", "\n", -1)
++	sgot := strings.ReplaceAll(string(got), "\r\n", "\n")
+ 
+ 	t.Logf("output %q", sgot)
+ 
+diff --git a/src/strings/example_test.go b/src/strings/example_test.go
+index 607e4a0a70..103ef51f29 100644
+--- a/src/strings/example_test.go
++++ b/src/strings/example_test.go
+@@ -199,7 +199,7 @@ func ExampleRepeat() {
+ 
+ func ExampleReplace() {
+ 	fmt.Println(strings.Replace("oink oink oink", "k", "ky", 2))
+-	fmt.Println(strings.Replace("oink oink oink", "oink", "moo", -1))
++	fmt.Println(strings.ReplaceAll("oink oink oink", "oink", "moo"))
+ 	// Output:
+ 	// oinky oinky oink
+ 	// moo moo moo
+diff --git a/src/testing/sub_test.go b/src/testing/sub_test.go
+index 9af3909b35..29803c06e2 100644
+--- a/src/testing/sub_test.go
++++ b/src/testing/sub_test.go
+@@ -594,8 +594,8 @@ func TestBRun(t *T) {
+ 
+ func makeRegexp(s string) string {
+ 	s = regexp.QuoteMeta(s)
+-	s = strings.Replace(s, ":NNN:", `:\d\d\d:`, -1)
+-	s = strings.Replace(s, "N\\.NNs", `\d*\.\d*s`, -1)
++	s = strings.ReplaceAll(s, ":NNN:", `:\d\d\d:`)
++	s = strings.ReplaceAll(s, "N\\.NNs", `\d*\.\d*s`)
+ 	return s
+ }
+ 
+diff --git a/src/text/template/exec.go b/src/text/template/exec.go
+index 214f72d51b..1d04c2982f 100644
+--- a/src/text/template/exec.go
++++ b/src/text/template/exec.go
+@@ -102,7 +102,7 @@ func (s *state) at(node parse.Node) {
+ // doublePercent returns the string with %'s replaced by %%, if necessary,
+ // so it can be used safely inside a Printf format string.
+ func doublePercent(str string) string {
+-	return strings.Replace(str, "%", "%%", -1)
++	return strings.ReplaceAll(str, "%", "%%")
+ }
+ 
+ // TODO: It would be nice if ExecError was more broken down, but

@@ -25,6 +25,27 @@ Date:   Wed Apr 3 18:23:43 2013 -0700
     R=iant
     CC=dave, gobot, golang-dev, rsc
     https://golang.org/cl/7962045
-
+---
  src/cmd/nm/nm.c | 6 ++++--
  1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/nm/nm.c b/src/cmd/nm/nm.c
+index 6682390358..aa056b8825 100644
+--- a/src/cmd/nm/nm.c
++++ b/src/cmd/nm/nm.c
+@@ -275,11 +275,13 @@ psym(Sym *s, void* p)
+ 			return;
+ 		break;
+ 	case 'm':
++		if(!aflag || uflag || gflag)
++			return;
++		break;
+ 	case 'f':	/* we only see a 'z' when the following is true*/
+ 		if(!aflag || uflag || gflag)
+ 			return;
+-		if (strcmp(s->name, ".frame"))
+-			zenter(s);
++		zenter(s);
+ 		break;
+ 	case 'a':
+ 	case 'p':

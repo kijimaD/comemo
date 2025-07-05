@@ -24,7 +24,7 @@ Date:   Wed May 20 08:49:59 2020 +0000
     Run-TryBot: fannie zhang <Fannie.Zhang@arm.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/arm64/ssa.go              |   1 +
  src/cmd/compile/internal/ssa/gen/ARM64.rules       |  16 ++
  src/cmd/compile/internal/ssa/gen/ARM64Ops.go       |   1 +
@@ -33,3 +33,419 @@ Date:   Wed May 20 08:49:59 2020 +0000
  .../compile/internal/test/testdata/arith_test.go   |  43 ++++
  test/codegen/bitfield.go                           |  20 ++
  7 files changed, 320 insertions(+)
+
+diff --git a/src/cmd/compile/internal/arm64/ssa.go b/src/cmd/compile/internal/arm64/ssa.go
+index afd0d66d72..0c997bc4b3 100644
+--- a/src/cmd/compile/internal/arm64/ssa.go
++++ b/src/cmd/compile/internal/arm64/ssa.go
+@@ -915,6 +915,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		ssa.OpARM64FCVTDS,
+ 		ssa.OpARM64REV,
+ 		ssa.OpARM64REVW,
++		ssa.OpARM64REV16,
+ 		ssa.OpARM64REV16W,
+ 		ssa.OpARM64RBIT,
+ 		ssa.OpARM64RBITW,
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64.rules b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+index 7f9f8298de..1d2efdabe0 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+@@ -1762,9 +1762,25 @@
+ 		(CMPconst [64]  (SUB <t> (MOVDconst [32]) (ANDconst <t> [31] y))))) && cc == OpARM64LessThanU
+ 	=> (RORW x y)
+ 
++// rev16w | rev16
+ // ((x>>8) | (x<<8)) => (REV16W x), the type of x is uint16, "|" can also be "^" or "+".
+ ((ADDshiftLL|ORshiftLL|XORshiftLL) <typ.UInt16> [8] (UBFX <typ.UInt16> [armBFAuxInt(8, 8)] x) x) => (REV16W x)
+ 
++// ((x & 0xff00ff00)>>8) | ((x & 0x00ff00ff)<<8), "|" can also be "^" or "+".
++((ADDshiftLL|ORshiftLL|XORshiftLL) [8] (UBFX [armBFAuxInt(8, 24)] (ANDconst [c1] x)) (ANDconst [c2] x))
++	&& uint32(c1) == 0xff00ff00 && uint32(c2) == 0x00ff00ff
++	=> (REV16W x)
++
++// ((x & 0xff00ff00ff00ff00)>>8) | ((x & 0x00ff00ff00ff00ff)<<8), "|" can also be "^" or "+".
++((ADDshiftLL|ORshiftLL|XORshiftLL) [8] (SRLconst [8] (ANDconst [c1] x)) (ANDconst [c2] x))
++	&& (uint64(c1) == 0xff00ff00ff00ff00 && uint64(c2) == 0x00ff00ff00ff00ff)
++	=> (REV16 x)
++
++// ((x & 0xff00ff00)>>8) | ((x & 0x00ff00ff)<<8), "|" can also be "^" or "+".
++((ADDshiftLL|ORshiftLL|XORshiftLL) [8] (SRLconst [8] (ANDconst [c1] x)) (ANDconst [c2] x))
++	&& (uint64(c1) == 0xff00ff00 && uint64(c2) == 0x00ff00ff)
++	=> (REV16 (ANDconst <x.Type> [0xffffffff] x))
++
+ // Extract from reg pair
+ (ADDshiftLL [c] (SRLconst x [64-c]) x2) => (EXTRconst [64-c] x2 x)
+ ( ORshiftLL [c] (SRLconst x [64-c]) x2) => (EXTRconst [64-c] x2 x)
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64Ops.go b/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
+index 59a5ffaca4..148843cd8d 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
+@@ -239,6 +239,7 @@ func init() {
+ 		{name: "FSQRTS", argLength: 1, reg: fp11, asm: "FSQRTS"},                              // sqrt(arg0), float32
+ 		{name: "REV", argLength: 1, reg: gp11, asm: "REV"},                                    // byte reverse, 64-bit
+ 		{name: "REVW", argLength: 1, reg: gp11, asm: "REVW"},                                  // byte reverse, 32-bit
++		{name: "REV16", argLength: 1, reg: gp11, asm: "REV16"},                                // byte reverse in each 16-bit halfword, 64-bit
+ 		{name: "REV16W", argLength: 1, reg: gp11, asm: "REV16W"},                              // byte reverse in each 16-bit halfword, 32-bit
+ 		{name: "RBIT", argLength: 1, reg: gp11, asm: "RBIT"},                                  // bit reverse, 64-bit
+ 		{name: "RBITW", argLength: 1, reg: gp11, asm: "RBITW"},                                // bit reverse, 32-bit
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index db51ed95c5..3f84a09289 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -1366,6 +1366,7 @@ const (
+ 	OpARM64FSQRTS
+ 	OpARM64REV
+ 	OpARM64REVW
++	OpARM64REV16
+ 	OpARM64REV16W
+ 	OpARM64RBIT
+ 	OpARM64RBITW
+@@ -18212,6 +18213,19 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:   "REV16",
++		argLen: 1,
++		asm:    arm64.AREV16,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 805044223}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
++			},
++			outputs: []outputInfo{
++				{0, 670826495}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
++			},
++		},
++	},
+ 	{
+ 		name:   "REV16W",
+ 		argLen: 1,
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM64.go b/src/cmd/compile/internal/ssa/rewriteARM64.go
+index eb650b6a50..c961310018 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM64.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM64.go
+@@ -1772,6 +1772,81 @@ func rewriteValueARM64_OpARM64ADDshiftLL(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (ADDshiftLL [8] (UBFX [armBFAuxInt(8, 24)] (ANDconst [c1] x)) (ANDconst [c2] x))
++	// cond: uint32(c1) == 0xff00ff00 && uint32(c2) == 0x00ff00ff
++	// result: (REV16W x)
++	for {
++		if auxIntToInt64(v.AuxInt) != 8 || v_0.Op != OpARM64UBFX || auxIntToArm64BitField(v_0.AuxInt) != armBFAuxInt(8, 24) {
++			break
++		}
++		v_0_0 := v_0.Args[0]
++		if v_0_0.Op != OpARM64ANDconst {
++			break
++		}
++		c1 := auxIntToInt64(v_0_0.AuxInt)
++		x := v_0_0.Args[0]
++		if v_1.Op != OpARM64ANDconst {
++			break
++		}
++		c2 := auxIntToInt64(v_1.AuxInt)
++		if x != v_1.Args[0] || !(uint32(c1) == 0xff00ff00 && uint32(c2) == 0x00ff00ff) {
++			break
++		}
++		v.reset(OpARM64REV16W)
++		v.AddArg(x)
++		return true
++	}
++	// match: (ADDshiftLL [8] (SRLconst [8] (ANDconst [c1] x)) (ANDconst [c2] x))
++	// cond: (uint64(c1) == 0xff00ff00ff00ff00 && uint64(c2) == 0x00ff00ff00ff00ff)
++	// result: (REV16 x)
++	for {
++		if auxIntToInt64(v.AuxInt) != 8 || v_0.Op != OpARM64SRLconst || auxIntToInt64(v_0.AuxInt) != 8 {
++			break
++		}
++		v_0_0 := v_0.Args[0]
++		if v_0_0.Op != OpARM64ANDconst {
++			break
++		}
++		c1 := auxIntToInt64(v_0_0.AuxInt)
++		x := v_0_0.Args[0]
++		if v_1.Op != OpARM64ANDconst {
++			break
++		}
++		c2 := auxIntToInt64(v_1.AuxInt)
++		if x != v_1.Args[0] || !(uint64(c1) == 0xff00ff00ff00ff00 && uint64(c2) == 0x00ff00ff00ff00ff) {
++			break
++		}
++		v.reset(OpARM64REV16)
++		v.AddArg(x)
++		return true
++	}
++	// match: (ADDshiftLL [8] (SRLconst [8] (ANDconst [c1] x)) (ANDconst [c2] x))
++	// cond: (uint64(c1) == 0xff00ff00 && uint64(c2) == 0x00ff00ff)
++	// result: (REV16 (ANDconst <x.Type> [0xffffffff] x))
++	for {
++		if auxIntToInt64(v.AuxInt) != 8 || v_0.Op != OpARM64SRLconst || auxIntToInt64(v_0.AuxInt) != 8 {
++			break
++		}
++		v_0_0 := v_0.Args[0]
++		if v_0_0.Op != OpARM64ANDconst {
++			break
++		}
++		c1 := auxIntToInt64(v_0_0.AuxInt)
++		x := v_0_0.Args[0]
++		if v_1.Op != OpARM64ANDconst {
++			break
++		}
++		c2 := auxIntToInt64(v_1.AuxInt)
++		if x != v_1.Args[0] || !(uint64(c1) == 0xff00ff00 && uint64(c2) == 0x00ff00ff) {
++			break
++		}
++		v.reset(OpARM64REV16)
++		v0 := b.NewValue0(v.Pos, OpARM64ANDconst, x.Type)
++		v0.AuxInt = int64ToAuxInt(0xffffffff)
++		v0.AddArg(x)
++		v.AddArg(v0)
++		return true
++	}
+ 	// match: (ADDshiftLL [c] (SRLconst x [64-c]) x2)
+ 	// result: (EXTRconst [64-c] x2 x)
+ 	for {
+@@ -17850,6 +17925,81 @@ func rewriteValueARM64_OpARM64ORshiftLL(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (ORshiftLL [8] (UBFX [armBFAuxInt(8, 24)] (ANDconst [c1] x)) (ANDconst [c2] x))
++	// cond: uint32(c1) == 0xff00ff00 && uint32(c2) == 0x00ff00ff
++	// result: (REV16W x)
++	for {
++		if auxIntToInt64(v.AuxInt) != 8 || v_0.Op != OpARM64UBFX || auxIntToArm64BitField(v_0.AuxInt) != armBFAuxInt(8, 24) {
++			break
++		}
++		v_0_0 := v_0.Args[0]
++		if v_0_0.Op != OpARM64ANDconst {
++			break
++		}
++		c1 := auxIntToInt64(v_0_0.AuxInt)
++		x := v_0_0.Args[0]
++		if v_1.Op != OpARM64ANDconst {
++			break
++		}
++		c2 := auxIntToInt64(v_1.AuxInt)
++		if x != v_1.Args[0] || !(uint32(c1) == 0xff00ff00 && uint32(c2) == 0x00ff00ff) {
++			break
++		}
++		v.reset(OpARM64REV16W)
++		v.AddArg(x)
++		return true
++	}
++	// match: (ORshiftLL [8] (SRLconst [8] (ANDconst [c1] x)) (ANDconst [c2] x))
++	// cond: (uint64(c1) == 0xff00ff00ff00ff00 && uint64(c2) == 0x00ff00ff00ff00ff)
++	// result: (REV16 x)
++	for {
++		if auxIntToInt64(v.AuxInt) != 8 || v_0.Op != OpARM64SRLconst || auxIntToInt64(v_0.AuxInt) != 8 {
++			break
++		}
++		v_0_0 := v_0.Args[0]
++		if v_0_0.Op != OpARM64ANDconst {
++			break
++		}
++		c1 := auxIntToInt64(v_0_0.AuxInt)
++		x := v_0_0.Args[0]
++		if v_1.Op != OpARM64ANDconst {
++			break
++		}
++		c2 := auxIntToInt64(v_1.AuxInt)
++		if x != v_1.Args[0] || !(uint64(c1) == 0xff00ff00ff00ff00 && uint64(c2) == 0x00ff00ff00ff00ff) {
++			break
++		}
++		v.reset(OpARM64REV16)
++		v.AddArg(x)
++		return true
++	}
++	// match: (ORshiftLL [8] (SRLconst [8] (ANDconst [c1] x)) (ANDconst [c2] x))
++	// cond: (uint64(c1) == 0xff00ff00 && uint64(c2) == 0x00ff00ff)
++	// result: (REV16 (ANDconst <x.Type> [0xffffffff] x))
++	for {
++		if auxIntToInt64(v.AuxInt) != 8 || v_0.Op != OpARM64SRLconst || auxIntToInt64(v_0.AuxInt) != 8 {
++			break
++		}
++		v_0_0 := v_0.Args[0]
++		if v_0_0.Op != OpARM64ANDconst {
++			break
++		}
++		c1 := auxIntToInt64(v_0_0.AuxInt)
++		x := v_0_0.Args[0]
++		if v_1.Op != OpARM64ANDconst {
++			break
++		}
++		c2 := auxIntToInt64(v_1.AuxInt)
++		if x != v_1.Args[0] || !(uint64(c1) == 0xff00ff00 && uint64(c2) == 0x00ff00ff) {
++			break
++		}
++		v.reset(OpARM64REV16)
++		v0 := b.NewValue0(v.Pos, OpARM64ANDconst, x.Type)
++		v0.AuxInt = int64ToAuxInt(0xffffffff)
++		v0.AddArg(x)
++		v.AddArg(v0)
++		return true
++	}
+ 	// match: ( ORshiftLL [c] (SRLconst x [64-c]) x2)
+ 	// result: (EXTRconst [64-c] x2 x)
+ 	for {
+@@ -21723,6 +21873,81 @@ func rewriteValueARM64_OpARM64XORshiftLL(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (XORshiftLL [8] (UBFX [armBFAuxInt(8, 24)] (ANDconst [c1] x)) (ANDconst [c2] x))
++	// cond: uint32(c1) == 0xff00ff00 && uint32(c2) == 0x00ff00ff
++	// result: (REV16W x)
++	for {
++		if auxIntToInt64(v.AuxInt) != 8 || v_0.Op != OpARM64UBFX || auxIntToArm64BitField(v_0.AuxInt) != armBFAuxInt(8, 24) {
++			break
++		}
++		v_0_0 := v_0.Args[0]
++		if v_0_0.Op != OpARM64ANDconst {
++			break
++		}
++		c1 := auxIntToInt64(v_0_0.AuxInt)
++		x := v_0_0.Args[0]
++		if v_1.Op != OpARM64ANDconst {
++			break
++		}
++		c2 := auxIntToInt64(v_1.AuxInt)
++		if x != v_1.Args[0] || !(uint32(c1) == 0xff00ff00 && uint32(c2) == 0x00ff00ff) {
++			break
++		}
++		v.reset(OpARM64REV16W)
++		v.AddArg(x)
++		return true
++	}
++	// match: (XORshiftLL [8] (SRLconst [8] (ANDconst [c1] x)) (ANDconst [c2] x))
++	// cond: (uint64(c1) == 0xff00ff00ff00ff00 && uint64(c2) == 0x00ff00ff00ff00ff)
++	// result: (REV16 x)
++	for {
++		if auxIntToInt64(v.AuxInt) != 8 || v_0.Op != OpARM64SRLconst || auxIntToInt64(v_0.AuxInt) != 8 {
++			break
++		}
++		v_0_0 := v_0.Args[0]
++		if v_0_0.Op != OpARM64ANDconst {
++			break
++		}
++		c1 := auxIntToInt64(v_0_0.AuxInt)
++		x := v_0_0.Args[0]
++		if v_1.Op != OpARM64ANDconst {
++			break
++		}
++		c2 := auxIntToInt64(v_1.AuxInt)
++		if x != v_1.Args[0] || !(uint64(c1) == 0xff00ff00ff00ff00 && uint64(c2) == 0x00ff00ff00ff00ff) {
++			break
++		}
++		v.reset(OpARM64REV16)
++		v.AddArg(x)
++		return true
++	}
++	// match: (XORshiftLL [8] (SRLconst [8] (ANDconst [c1] x)) (ANDconst [c2] x))
++	// cond: (uint64(c1) == 0xff00ff00 && uint64(c2) == 0x00ff00ff)
++	// result: (REV16 (ANDconst <x.Type> [0xffffffff] x))
++	for {
++		if auxIntToInt64(v.AuxInt) != 8 || v_0.Op != OpARM64SRLconst || auxIntToInt64(v_0.AuxInt) != 8 {
++			break
++		}
++		v_0_0 := v_0.Args[0]
++		if v_0_0.Op != OpARM64ANDconst {
++			break
++		}
++		c1 := auxIntToInt64(v_0_0.AuxInt)
++		x := v_0_0.Args[0]
++		if v_1.Op != OpARM64ANDconst {
++			break
++		}
++		c2 := auxIntToInt64(v_1.AuxInt)
++		if x != v_1.Args[0] || !(uint64(c1) == 0xff00ff00 && uint64(c2) == 0x00ff00ff) {
++			break
++		}
++		v.reset(OpARM64REV16)
++		v0 := b.NewValue0(v.Pos, OpARM64ANDconst, x.Type)
++		v0.AuxInt = int64ToAuxInt(0xffffffff)
++		v0.AddArg(x)
++		v.AddArg(v0)
++		return true
++	}
+ 	// match: (XORshiftLL [c] (SRLconst x [64-c]) x2)
+ 	// result: (EXTRconst [64-c] x2 x)
+ 	for {
+diff --git a/src/cmd/compile/internal/test/testdata/arith_test.go b/src/cmd/compile/internal/test/testdata/arith_test.go
+index 158fedc28e..7d54a9181d 100644
+--- a/src/cmd/compile/internal/test/testdata/arith_test.go
++++ b/src/cmd/compile/internal/test/testdata/arith_test.go
+@@ -1452,3 +1452,46 @@ func testDivisibility(t *testing.T) {
+ 		}
+ 	}
+ }
++
++//go:noinline
++func genREV16_1(c uint64) uint64 {
++	b := ((c & 0xff00ff00ff00ff00) >> 8) | ((c & 0x00ff00ff00ff00ff) << 8)
++	return b
++}
++
++//go:noinline
++func genREV16_2(c uint64) uint64 {
++	b := ((c & 0xff00ff00) >> 8) | ((c & 0x00ff00ff) << 8)
++	return b
++}
++
++//go:noinline
++func genREV16W(c uint32) uint32 {
++	b := ((c & 0xff00ff00) >> 8) | ((c & 0x00ff00ff) << 8)
++	return b
++}
++
++func TestREV16(t *testing.T) {
++	x := uint64(0x8f7f6f5f4f3f2f1f)
++	want1 := uint64(0x7f8f5f6f3f4f1f2f)
++	want2 := uint64(0x3f4f1f2f)
++
++	got1 := genREV16_1(x)
++	if got1 != want1 {
++		t.Errorf("genREV16_1(%#x) = %#x want %#x", x, got1, want1)
++	}
++	got2 := genREV16_2(x)
++	if got2 != want2 {
++		t.Errorf("genREV16_2(%#x) = %#x want %#x", x, got2, want2)
++	}
++}
++
++func TestREV16W(t *testing.T) {
++	x := uint32(0x4f3f2f1f)
++	want := uint32(0x3f4f1f2f)
++
++	got := genREV16W(x)
++	if got != want {
++		t.Errorf("genREV16W(%#x) = %#x want %#x", x, got, want)
++	}
++}
+diff --git a/test/codegen/bitfield.go b/test/codegen/bitfield.go
+index 7abc1c2783..8acefbd027 100644
+--- a/test/codegen/bitfield.go
++++ b/test/codegen/bitfield.go
+@@ -244,3 +244,23 @@ func shift_no_cmp(x int) int {
+ 	// mips64:`SLLV\t[$]17`,-`SGT`
+ 	return x << 17
+ }
++
++func rev16(c uint64) (uint64, uint64, uint64) {
++	// arm64:`REV16`,-`AND`,-`LSR`,-`AND`,-`ORR\tR[0-9]+<<8`
++	b1 := ((c & 0xff00ff00ff00ff00) >> 8) | ((c & 0x00ff00ff00ff00ff) << 8)
++	// arm64:-`ADD\tR[0-9]+<<8`
++	b2 := ((c & 0xff00ff00ff00ff00) >> 8) + ((c & 0x00ff00ff00ff00ff) << 8)
++	// arm64:-`EOR\tR[0-9]+<<8`
++	b3 := ((c & 0xff00ff00ff00ff00) >> 8) ^ ((c & 0x00ff00ff00ff00ff) << 8)
++	return b1, b2, b3
++}
++
++func rev16w(c uint32) (uint32, uint32, uint32) {
++	// arm64:`REV16W`,-`AND`,-`UBFX`,-`AND`,-`ORR\tR[0-9]+<<8`
++	b1 := ((c & 0xff00ff00) >> 8) | ((c & 0x00ff00ff) << 8)
++	// arm64:-`ADD\tR[0-9]+<<8`
++	b2 := ((c & 0xff00ff00) >> 8) + ((c & 0x00ff00ff) << 8)
++	// arm64:-`EOR\tR[0-9]+<<8`
++	b3 := ((c & 0xff00ff00) >> 8) ^ ((c & 0x00ff00ff) << 8)
++	return b1, b2, b3
++}

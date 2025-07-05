@@ -15,7 +15,36 @@ Date:   Wed Nov 16 13:35:59 2016 +0900
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/main_test.go    | 2 ++
  src/net/tcpsock_test.go | 4 ++--
  2 files changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/main_test.go b/src/net/main_test.go
+index 7573ded93b..28a8ff66d6 100644
+--- a/src/net/main_test.go
++++ b/src/net/main_test.go
+@@ -24,6 +24,8 @@ var (
+ )
+ 
+ var (
++	testTCPBig = flag.Bool("tcpbig", false, "whether to test massive size of data per read or write call on TCP connection")
++
+ 	testDNSFlood = flag.Bool("dnsflood", false, "whether to test DNS query flooding")
+ 
+ 	// If external IPv4 connectivity exists, we can try dialing
+diff --git a/src/net/tcpsock_test.go b/src/net/tcpsock_test.go
+index 7c8610d32b..573e834911 100644
+--- a/src/net/tcpsock_test.go
++++ b/src/net/tcpsock_test.go
+@@ -670,8 +670,8 @@ func TestTCPSelfConnect(t *testing.T) {
+ // Test that >32-bit reads work on 64-bit systems.
+ // On 32-bit systems this tests that maxint reads work.
+ func TestTCPBig(t *testing.T) {
+-	if testing.Short() {
+-		t.Skip("skipping test in short mode")
++	if !*testTCPBig {
++		t.Skip("test disabled; use -tcpbig to enable")
+ 	}
+ 
+ 	for _, writev := range []bool{false, true} {

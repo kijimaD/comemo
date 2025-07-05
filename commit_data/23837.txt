@@ -7,7 +7,7 @@ Date:   Sun Jun 14 11:38:46 2015 -0700
     Change-Id: I33025a4a41fd91f6ee317d33a6eebf27fa00ab51
     Reviewed-on: https://go-review.googlesource.com/11115
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go           |  73 ++++--
  src/cmd/compile/internal/ssa/gen/AMD64.rules |  22 +-
  src/cmd/compile/internal/ssa/gen/AMD64Ops.go |  30 ++-
@@ -16,3 +16,918 @@ Date:   Sun Jun 14 11:38:46 2015 -0700
  src/cmd/compile/internal/ssa/rewriteAMD64.go | 359 +++++++++++++++++++++++++--
  src/cmd/compile/internal/ssa/stackalloc.go   |   5 +-
  7 files changed, 565 insertions(+), 63 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 2f116464d4..81a55e4065 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -373,6 +373,9 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 	case OCONVNOP:
+ 		x := s.expr(n.Left)
+ 		return s.newValue1(ssa.OpConvNop, n.Type, x)
++	case OCONV:
++		x := s.expr(n.Left)
++		return s.newValue1(ssa.OpConvert, n.Type, x)
+ 
+ 		// binary ops
+ 	case OLT:
+@@ -766,6 +769,43 @@ func genValue(v *ssa.Value) {
+ 		p.From.Index = regnum(v.Args[1])
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = regnum(v)
++	case ssa.OpAMD64ADDL:
++		p := Prog(x86.ALEAL)
++		p.From.Type = obj.TYPE_MEM
++		p.From.Reg = regnum(v.Args[0])
++		p.From.Scale = 1
++		p.From.Index = regnum(v.Args[1])
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = regnum(v)
++	case ssa.OpAMD64ADDW:
++		p := Prog(x86.ALEAW)
++		p.From.Type = obj.TYPE_MEM
++		p.From.Reg = regnum(v.Args[0])
++		p.From.Scale = 1
++		p.From.Index = regnum(v.Args[1])
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = regnum(v)
++	case ssa.OpAMD64ADDB, ssa.OpAMD64ANDQ:
++		r := regnum(v)
++		x := regnum(v.Args[0])
++		y := regnum(v.Args[1])
++		if x != r && y != r {
++			p := Prog(x86.AMOVQ)
++			p.From.Type = obj.TYPE_REG
++			p.From.Reg = x
++			p.To.Type = obj.TYPE_REG
++			p.To.Reg = r
++			x = r
++		}
++		p := Prog(v.Op.Asm())
++		p.From.Type = obj.TYPE_REG
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = r
++		if x == r {
++			p.From.Reg = y
++		} else {
++			p.From.Reg = x
++		}
+ 	case ssa.OpAMD64ADDQconst:
+ 		// TODO: use addq instead of leaq if target is in the right register.
+ 		p := Prog(x86.ALEAQ)
+@@ -866,27 +906,6 @@ func genValue(v *ssa.Value) {
+ 		p.From.Type = obj.TYPE_REG
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = r
+-	case ssa.OpAMD64ANDQ:
+-		r := regnum(v)
+-		x := regnum(v.Args[0])
+-		y := regnum(v.Args[1])
+-		if x != r && y != r {
+-			p := Prog(x86.AMOVQ)
+-			p.From.Type = obj.TYPE_REG
+-			p.From.Reg = x
+-			p.To.Type = obj.TYPE_REG
+-			p.To.Reg = r
+-			x = r
+-		}
+-		p := Prog(x86.AANDQ)
+-		p.From.Type = obj.TYPE_REG
+-		p.To.Type = obj.TYPE_REG
+-		p.To.Reg = r
+-		if x == r {
+-			p.From.Reg = y
+-		} else {
+-			p.From.Reg = x
+-		}
+ 	case ssa.OpAMD64LEAQ:
+ 		p := Prog(x86.ALEAQ)
+ 		p.From.Type = obj.TYPE_MEM
+@@ -915,7 +934,7 @@ func genValue(v *ssa.Value) {
+ 		p.From.Offset = v.AuxInt
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = x
+-	case ssa.OpAMD64MOVQload, ssa.OpAMD64MOVBload:
++	case ssa.OpAMD64MOVQload, ssa.OpAMD64MOVLload, ssa.OpAMD64MOVWload, ssa.OpAMD64MOVBload:
+ 		p := Prog(v.Op.Asm())
+ 		p.From.Type = obj.TYPE_MEM
+ 		p.From.Reg = regnum(v.Args[0])
+@@ -931,13 +950,19 @@ func genValue(v *ssa.Value) {
+ 		p.From.Index = regnum(v.Args[1])
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = regnum(v)
+-	case ssa.OpAMD64MOVQstore:
+-		p := Prog(x86.AMOVQ)
++	case ssa.OpAMD64MOVQstore, ssa.OpAMD64MOVLstore, ssa.OpAMD64MOVWstore, ssa.OpAMD64MOVBstore:
++		p := Prog(v.Op.Asm())
+ 		p.From.Type = obj.TYPE_REG
+ 		p.From.Reg = regnum(v.Args[1])
+ 		p.To.Type = obj.TYPE_MEM
+ 		p.To.Reg = regnum(v.Args[0])
+ 		p.To.Offset = v.AuxInt
++	case ssa.OpAMD64MOVLQSX, ssa.OpAMD64MOVWQSX, ssa.OpAMD64MOVBQSX:
++		p := Prog(v.Op.Asm())
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = regnum(v.Args[0])
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = regnum(v)
+ 	case ssa.OpCopy: // TODO: lower to MOVQ earlier?
+ 		if v.Type.IsMemory() {
+ 			return
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index b62c8767d1..aa4e807712 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -14,10 +14,21 @@
+ 
+ // Lowering arithmetic
+ (Add <t> x y) && (is64BitInt(t) || isPtr(t)) -> (ADDQ x y)
+-(Add <t> x y) && is32BitInt(t) -> (ADDL x y)
++(Add <t> x y) && is32BitInt(t) && !isSigned(t) -> (ADDL x y)
++(Add <t> x y) && is32BitInt(t) && isSigned(t) -> (MOVLQSX (ADDL <t> x y))
++(Add <t> x y) && is16BitInt(t) && !isSigned(t) -> (ADDW x y)
++(Add <t> x y) && is16BitInt(t) && isSigned(t) -> (MOVWQSX (ADDW <t> x y))
++(Add <t> x y) && is8BitInt(t) && !isSigned(t) -> (ADDB x y)
++(Add <t> x y) && is8BitInt(t) && isSigned(t) -> (MOVBQSX (ADDB <t> x y))
+ (Sub <t> x y) && is64BitInt(t) -> (SUBQ x y)
+ (Mul <t> x y) && is64BitInt(t) -> (MULQ x y)
+ 
++(MOVLstore ptr (MOVLQSX x) mem) -> (MOVLstore ptr x mem)
++(MOVWstore ptr (MOVWQSX x) mem) -> (MOVWstore ptr x mem)
++(MOVBstore ptr (MOVBQSX x) mem) -> (MOVBstore ptr x mem)
++
++(Convert <t> x) && t.IsInteger() && x.Type.IsInteger() -> (Copy x)
++
+ // Lowering shifts
+ // Note: unsigned shifts need to return 0 if shift amount is >= 64.
+ //   mask = shift >= 64 ? 0 : 0xffffffffffffffff
+@@ -38,9 +49,14 @@
+ 
+ (Less x y) && is64BitInt(v.Args[0].Type) && isSigned(v.Args[0].Type) -> (SETL (CMPQ <TypeFlags> x y))
+ 
+-(Load <t> ptr mem) && t.IsBoolean() -> (MOVBload ptr mem)
+ (Load <t> ptr mem) && (is64BitInt(t) || isPtr(t)) -> (MOVQload ptr mem)
++(Load <t> ptr mem) && is32BitInt(t) -> (MOVLload ptr mem)
++(Load <t> ptr mem) && is16BitInt(t) -> (MOVWload ptr mem)
++(Load <t> ptr mem) && (t.IsBoolean() || is8BitInt(t)) -> (MOVBload ptr mem)
+ (Store ptr val mem) && (is64BitInt(val.Type) || isPtr(val.Type)) -> (MOVQstore ptr val mem)
++(Store ptr val mem) && is32BitInt(val.Type) -> (MOVLstore ptr val mem)
++(Store ptr val mem) && is16BitInt(val.Type) -> (MOVWstore ptr val mem)
++(Store ptr val mem) && is8BitInt(val.Type) -> (MOVBstore ptr val mem)
+ 
+ // checks
+ (IsNonNil p) -> (SETNE (TESTQ <TypeFlags> p p))
+@@ -50,7 +66,7 @@
+ 
+ (OffPtr [off] ptr) -> (ADDQconst [off] ptr)
+ 
+-(Const <t> [val]) && is64BitInt(t) -> (MOVQconst [val])
++(Const <t> [val]) && t.IsInteger() -> (MOVQconst [val])
+ 
+ // block rewrites
+ (If (SETL cmp) yes no) -> (LT cmp yes no)
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+index d99f793179..3733ba9721 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+@@ -4,9 +4,7 @@
+ 
+ package main
+ 
+-import (
+-	"strings"
+-)
++import "strings"
+ 
+ // copied from ../../amd64/reg.go
+ var regNamesAMD64 = []string{
+@@ -127,6 +125,10 @@ func init() {
+ 
+ 		{name: "CMOVQCC", reg: cmov}, // carry clear
+ 
++		{name: "MOVLQSX", reg: gp11, asm: "MOVLQSX"}, // extend arg0 from int32 to int64
++		{name: "MOVWQSX", reg: gp11, asm: "MOVWQSX"}, // extend arg0 from int16 to int64
++		{name: "MOVBQSX", reg: gp11, asm: "MOVBQSX"}, // extend arg0 from int8 to int64
++
+ 		{name: "MOVQconst", reg: gp01},  // auxint
+ 		{name: "LEAQ", reg: gp21},       // arg0 + arg1 + auxint
+ 		{name: "LEAQ2", reg: gp21},      // arg0 + 2*arg1 + auxint
+@@ -134,14 +136,18 @@ func init() {
+ 		{name: "LEAQ8", reg: gp21},      // arg0 + 8*arg1 + auxint
+ 		{name: "LEAQglobal", reg: gp01}, // no args.  address of aux.(*gc.Sym)
+ 
+-		{name: "MOVBload", reg: gpload, asm: "MOVB"},   // load byte from arg0+auxint. arg1=mem
+-		{name: "MOVBQZXload", reg: gpload},             // ditto, extend to uint64
+-		{name: "MOVBQSXload", reg: gpload},             // ditto, extend to int64
+-		{name: "MOVQload", reg: gpload, asm: "MOVQ"},   // load 8 bytes from arg0+auxint. arg1=mem
+-		{name: "MOVQloadidx8", reg: gploadidx},         // load 8 bytes from arg0+8*arg1+auxint. arg2=mem
+-		{name: "MOVBstore", reg: gpstore, asm: "MOVB"}, // store byte in arg1 to arg0+auxint. arg2=mem
+-		{name: "MOVQstore", reg: gpstore, asm: "MOVQ"}, // store 8 bytes in arg1 to arg0+auxint. arg2=mem
+-		{name: "MOVQstoreidx8", reg: gpstoreidx},       // store 8 bytes in arg2 to arg0+8*arg1+auxint. arg3=mem
++		{name: "MOVBload", reg: gpload, asm: "MOVB"},        // load byte from arg0+auxint. arg1=mem
++		{name: "MOVBQZXload", reg: gpload},                  // ditto, extend to uint64
++		{name: "MOVBQSXload", reg: gpload},                  // ditto, extend to int64
++		{name: "MOVWload", reg: gpload, asm: "MOVW"},        // load 2 bytes from arg0+auxint. arg1=mem
++		{name: "MOVLload", reg: gpload, asm: "MOVL"},        // load 4 bytes from arg0+auxint. arg1=mem
++		{name: "MOVQload", reg: gpload, asm: "MOVQ"},        // load 8 bytes from arg0+auxint. arg1=mem
++		{name: "MOVQloadidx8", reg: gploadidx, asm: "MOVQ"}, // load 8 bytes from arg0+8*arg1+auxint. arg2=mem
++		{name: "MOVBstore", reg: gpstore, asm: "MOVB"},      // store byte in arg1 to arg0+auxint. arg2=mem
++		{name: "MOVWstore", reg: gpstore, asm: "MOVW"},      // store 2 bytes in arg1 to arg0+auxint. arg2=mem
++		{name: "MOVLstore", reg: gpstore, asm: "MOVL"},      // store 4 bytes in arg1 to arg0+auxint. arg2=mem
++		{name: "MOVQstore", reg: gpstore, asm: "MOVQ"},      // store 8 bytes in arg1 to arg0+auxint. arg2=mem
++		{name: "MOVQstoreidx8", reg: gpstoreidx},            // store 8 bytes in arg2 to arg0+8*arg1+auxint. arg3=mem
+ 
+ 		// Load/store from global. Same as the above loads, but arg0 is missing and
+ 		// aux is a GlobalOffset instead of an int64.
+@@ -155,6 +161,8 @@ func init() {
+ 		{name: "REPMOVSB", reg: regInfo{[]regMask{buildReg("DI"), buildReg("SI"), buildReg("CX")}, buildReg("DI SI CX"), nil}}, // move arg2 bytes from arg1 to arg0.  arg3=mem, returns memory
+ 
+ 		{name: "ADDL", reg: gp21, asm: "ADDL"}, // arg0+arg1
++		{name: "ADDW", reg: gp21, asm: "ADDW"}, // arg0+arg1
++		{name: "ADDB", reg: gp21, asm: "ADDB"}, // arg0+arg1
+ 
+ 		// (InvertFlags (CMPQ a b)) == (CMPQ b a)
+ 		// So if we want (SETL (CMPQ a b)) but we can't do that because a is a constant,
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index dfe611e8f4..1116be101c 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -76,6 +76,9 @@ const (
+ 	OpAMD64SETGE
+ 	OpAMD64SETB
+ 	OpAMD64CMOVQCC
++	OpAMD64MOVLQSX
++	OpAMD64MOVWQSX
++	OpAMD64MOVBQSX
+ 	OpAMD64MOVQconst
+ 	OpAMD64LEAQ
+ 	OpAMD64LEAQ2
+@@ -85,9 +88,13 @@ const (
+ 	OpAMD64MOVBload
+ 	OpAMD64MOVBQZXload
+ 	OpAMD64MOVBQSXload
++	OpAMD64MOVWload
++	OpAMD64MOVLload
+ 	OpAMD64MOVQload
+ 	OpAMD64MOVQloadidx8
+ 	OpAMD64MOVBstore
++	OpAMD64MOVWstore
++	OpAMD64MOVLstore
+ 	OpAMD64MOVQstore
+ 	OpAMD64MOVQstoreidx8
+ 	OpAMD64MOVQloadglobal
+@@ -96,6 +103,8 @@ const (
+ 	OpAMD64CALLclosure
+ 	OpAMD64REPMOVSB
+ 	OpAMD64ADDL
++	OpAMD64ADDW
++	OpAMD64ADDB
+ 	OpAMD64InvertFlags
+ 
+ 	OpAdd
+@@ -492,6 +501,45 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name: "MOVLQSX",
++		asm:  x86.AMOVLQSX,
++		reg: regInfo{
++			inputs: []regMask{
++				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
++			},
++			clobbers: 0,
++			outputs: []regMask{
++				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++		},
++	},
++	{
++		name: "MOVWQSX",
++		asm:  x86.AMOVWQSX,
++		reg: regInfo{
++			inputs: []regMask{
++				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
++			},
++			clobbers: 0,
++			outputs: []regMask{
++				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++		},
++	},
++	{
++		name: "MOVBQSX",
++		asm:  x86.AMOVBQSX,
++		reg: regInfo{
++			inputs: []regMask{
++				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
++			},
++			clobbers: 0,
++			outputs: []regMask{
++				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++		},
++	},
+ 	{
+ 		name: "MOVQconst",
+ 		reg: regInfo{
+@@ -604,6 +652,34 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name: "MOVWload",
++		asm:  x86.AMOVW,
++		reg: regInfo{
++			inputs: []regMask{
++				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
++				0,
++			},
++			clobbers: 0,
++			outputs: []regMask{
++				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++		},
++	},
++	{
++		name: "MOVLload",
++		asm:  x86.AMOVL,
++		reg: regInfo{
++			inputs: []regMask{
++				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
++				0,
++			},
++			clobbers: 0,
++			outputs: []regMask{
++				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++		},
++	},
+ 	{
+ 		name: "MOVQload",
+ 		asm:  x86.AMOVQ,
+@@ -620,6 +696,7 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name: "MOVQloadidx8",
++		asm:  x86.AMOVQ,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+ 				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
+@@ -645,6 +722,32 @@ var opcodeTable = [...]opInfo{
+ 			outputs:  []regMask{},
+ 		},
+ 	},
++	{
++		name: "MOVWstore",
++		asm:  x86.AMOVW,
++		reg: regInfo{
++			inputs: []regMask{
++				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
++				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
++				0,
++			},
++			clobbers: 0,
++			outputs:  []regMask{},
++		},
++	},
++	{
++		name: "MOVLstore",
++		asm:  x86.AMOVL,
++		reg: regInfo{
++			inputs: []regMask{
++				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
++				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
++				0,
++			},
++			clobbers: 0,
++			outputs:  []regMask{},
++		},
++	},
+ 	{
+ 		name: "MOVQstore",
+ 		asm:  x86.AMOVQ,
+@@ -733,6 +836,34 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name: "ADDW",
++		asm:  x86.AADDW,
++		reg: regInfo{
++			inputs: []regMask{
++				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
++				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
++			},
++			clobbers: 0,
++			outputs: []regMask{
++				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++		},
++	},
++	{
++		name: "ADDB",
++		asm:  x86.AADDB,
++		reg: regInfo{
++			inputs: []regMask{
++				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
++				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
++			},
++			clobbers: 0,
++			outputs: []regMask{
++				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++		},
++	},
+ 	{
+ 		name: "InvertFlags",
+ 		reg: regInfo{
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index 08ee7a9824..77aa2b07b4 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -70,6 +70,14 @@ func is32BitInt(t Type) bool {
+ 	return t.Size() == 4 && t.IsInteger()
+ }
+ 
++func is16BitInt(t Type) bool {
++	return t.Size() == 2 && t.IsInteger()
++}
++
++func is8BitInt(t Type) bool {
++	return t.Size() == 1 && t.IsInteger()
++}
++
+ func isPtr(t Type) bool {
+ 	return t.IsPtr()
+ }
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index a3ec3e7cc1..3490adadd7 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -210,14 +210,14 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 	endf031c523d7dd08e4b8e7010a94cd94c9:
+ 		;
+ 		// match: (Add <t> x y)
+-		// cond: is32BitInt(t)
++		// cond: is32BitInt(t) && !isSigned(t)
+ 		// result: (ADDL x y)
+ 		{
+ 			t := v.Type
+ 			x := v.Args[0]
+ 			y := v.Args[1]
+-			if !(is32BitInt(t)) {
+-				goto end35a02a1587264e40cf1055856ff8445a
++			if !(is32BitInt(t) && !isSigned(t)) {
++				goto endce1730b0a04d773ed8029e7eac4f3a50
+ 			}
+ 			v.Op = OpAMD64ADDL
+ 			v.AuxInt = 0
+@@ -227,8 +227,122 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 			v.AddArg(y)
+ 			return true
+ 		}
+-		goto end35a02a1587264e40cf1055856ff8445a
+-	end35a02a1587264e40cf1055856ff8445a:
++		goto endce1730b0a04d773ed8029e7eac4f3a50
++	endce1730b0a04d773ed8029e7eac4f3a50:
++		;
++		// match: (Add <t> x y)
++		// cond: is32BitInt(t) && isSigned(t)
++		// result: (MOVLQSX (ADDL <t> x y))
++		{
++			t := v.Type
++			x := v.Args[0]
++			y := v.Args[1]
++			if !(is32BitInt(t) && isSigned(t)) {
++				goto end86e07674e2e9d2e1fc5a8f5f74375513
++			}
++			v.Op = OpAMD64MOVLQSX
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v0 := v.Block.NewValue0(v.Line, OpAMD64ADDL, TypeInvalid)
++			v0.Type = t
++			v0.AddArg(x)
++			v0.AddArg(y)
++			v.AddArg(v0)
++			return true
++		}
++		goto end86e07674e2e9d2e1fc5a8f5f74375513
++	end86e07674e2e9d2e1fc5a8f5f74375513:
++		;
++		// match: (Add <t> x y)
++		// cond: is16BitInt(t) && !isSigned(t)
++		// result: (ADDW x y)
++		{
++			t := v.Type
++			x := v.Args[0]
++			y := v.Args[1]
++			if !(is16BitInt(t) && !isSigned(t)) {
++				goto end99632c2482f1963513f12a317c588800
++			}
++			v.Op = OpAMD64ADDW
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AddArg(x)
++			v.AddArg(y)
++			return true
++		}
++		goto end99632c2482f1963513f12a317c588800
++	end99632c2482f1963513f12a317c588800:
++		;
++		// match: (Add <t> x y)
++		// cond: is16BitInt(t) && isSigned(t)
++		// result: (MOVWQSX (ADDW <t> x y))
++		{
++			t := v.Type
++			x := v.Args[0]
++			y := v.Args[1]
++			if !(is16BitInt(t) && isSigned(t)) {
++				goto endd215b5658d14e7d1cb469a516aa554e9
++			}
++			v.Op = OpAMD64MOVWQSX
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v0 := v.Block.NewValue0(v.Line, OpAMD64ADDW, TypeInvalid)
++			v0.Type = t
++			v0.AddArg(x)
++			v0.AddArg(y)
++			v.AddArg(v0)
++			return true
++		}
++		goto endd215b5658d14e7d1cb469a516aa554e9
++	endd215b5658d14e7d1cb469a516aa554e9:
++		;
++		// match: (Add <t> x y)
++		// cond: is8BitInt(t) && !isSigned(t)
++		// result: (ADDB x y)
++		{
++			t := v.Type
++			x := v.Args[0]
++			y := v.Args[1]
++			if !(is8BitInt(t) && !isSigned(t)) {
++				goto end41d7f409a1e1076e9645e2e90b7220ce
++			}
++			v.Op = OpAMD64ADDB
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AddArg(x)
++			v.AddArg(y)
++			return true
++		}
++		goto end41d7f409a1e1076e9645e2e90b7220ce
++	end41d7f409a1e1076e9645e2e90b7220ce:
++		;
++		// match: (Add <t> x y)
++		// cond: is8BitInt(t) && isSigned(t)
++		// result: (MOVBQSX (ADDB <t> x y))
++		{
++			t := v.Type
++			x := v.Args[0]
++			y := v.Args[1]
++			if !(is8BitInt(t) && isSigned(t)) {
++				goto end858e823866524b81b4636f7dd7e8eefe
++			}
++			v.Op = OpAMD64MOVBQSX
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v0 := v.Block.NewValue0(v.Line, OpAMD64ADDB, TypeInvalid)
++			v0.Type = t
++			v0.AddArg(x)
++			v0.AddArg(y)
++			v.AddArg(v0)
++			return true
++		}
++		goto end858e823866524b81b4636f7dd7e8eefe
++	end858e823866524b81b4636f7dd7e8eefe:
+ 		;
+ 	case OpAMD64CMOVQCC:
+ 		// match: (CMOVQCC (CMPQconst [c] (MOVQconst [d])) _ x)
+@@ -349,13 +463,13 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 		;
+ 	case OpConst:
+ 		// match: (Const <t> [val])
+-		// cond: is64BitInt(t)
++		// cond: t.IsInteger()
+ 		// result: (MOVQconst [val])
+ 		{
+ 			t := v.Type
+ 			val := v.AuxInt
+-			if !(is64BitInt(t)) {
+-				goto end7f5c5b34093fbc6860524cb803ee51bf
++			if !(t.IsInteger()) {
++				goto end4c8bfe9df26fc5aa2bd76b211792732a
+ 			}
+ 			v.Op = OpAMD64MOVQconst
+ 			v.AuxInt = 0
+@@ -364,8 +478,28 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 			v.AuxInt = val
+ 			return true
+ 		}
+-		goto end7f5c5b34093fbc6860524cb803ee51bf
+-	end7f5c5b34093fbc6860524cb803ee51bf:
++		goto end4c8bfe9df26fc5aa2bd76b211792732a
++	end4c8bfe9df26fc5aa2bd76b211792732a:
++		;
++	case OpConvert:
++		// match: (Convert <t> x)
++		// cond: t.IsInteger() && x.Type.IsInteger()
++		// result: (Copy x)
++		{
++			t := v.Type
++			x := v.Args[0]
++			if !(t.IsInteger() && x.Type.IsInteger()) {
++				goto endcc7894224d4f6b0bcabcece5d0185912
++			}
++			v.Op = OpCopy
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AddArg(x)
++			return true
++		}
++		goto endcc7894224d4f6b0bcabcece5d0185912
++	endcc7894224d4f6b0bcabcece5d0185912:
+ 		;
+ 	case OpGlobal:
+ 		// match: (Global {sym})
+@@ -450,16 +584,16 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 		;
+ 	case OpLoad:
+ 		// match: (Load <t> ptr mem)
+-		// cond: t.IsBoolean()
+-		// result: (MOVBload ptr mem)
++		// cond: (is64BitInt(t) || isPtr(t))
++		// result: (MOVQload ptr mem)
+ 		{
+ 			t := v.Type
+ 			ptr := v.Args[0]
+ 			mem := v.Args[1]
+-			if !(t.IsBoolean()) {
+-				goto endc119e594c7f8e8ce5ff97c00b501dba0
++			if !(is64BitInt(t) || isPtr(t)) {
++				goto end7c4c53acf57ebc5f03273652ba1d5934
+ 			}
+-			v.Op = OpAMD64MOVBload
++			v.Op = OpAMD64MOVQload
+ 			v.AuxInt = 0
+ 			v.Aux = nil
+ 			v.resetArgs()
+@@ -467,20 +601,20 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 			v.AddArg(mem)
+ 			return true
+ 		}
+-		goto endc119e594c7f8e8ce5ff97c00b501dba0
+-	endc119e594c7f8e8ce5ff97c00b501dba0:
++		goto end7c4c53acf57ebc5f03273652ba1d5934
++	end7c4c53acf57ebc5f03273652ba1d5934:
+ 		;
+ 		// match: (Load <t> ptr mem)
+-		// cond: (is64BitInt(t) || isPtr(t))
+-		// result: (MOVQload ptr mem)
++		// cond: is32BitInt(t)
++		// result: (MOVLload ptr mem)
+ 		{
+ 			t := v.Type
+ 			ptr := v.Args[0]
+ 			mem := v.Args[1]
+-			if !(is64BitInt(t) || isPtr(t)) {
+-				goto end7c4c53acf57ebc5f03273652ba1d5934
++			if !(is32BitInt(t)) {
++				goto ende1cfcb15bfbcfd448ce303d0882a4057
+ 			}
+-			v.Op = OpAMD64MOVQload
++			v.Op = OpAMD64MOVLload
+ 			v.AuxInt = 0
+ 			v.Aux = nil
+ 			v.resetArgs()
+@@ -488,8 +622,50 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 			v.AddArg(mem)
+ 			return true
+ 		}
+-		goto end7c4c53acf57ebc5f03273652ba1d5934
+-	end7c4c53acf57ebc5f03273652ba1d5934:
++		goto ende1cfcb15bfbcfd448ce303d0882a4057
++	ende1cfcb15bfbcfd448ce303d0882a4057:
++		;
++		// match: (Load <t> ptr mem)
++		// cond: is16BitInt(t)
++		// result: (MOVWload ptr mem)
++		{
++			t := v.Type
++			ptr := v.Args[0]
++			mem := v.Args[1]
++			if !(is16BitInt(t)) {
++				goto end2d0a1304501ed9f4e9e2d288505a9c7c
++			}
++			v.Op = OpAMD64MOVWload
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AddArg(ptr)
++			v.AddArg(mem)
++			return true
++		}
++		goto end2d0a1304501ed9f4e9e2d288505a9c7c
++	end2d0a1304501ed9f4e9e2d288505a9c7c:
++		;
++		// match: (Load <t> ptr mem)
++		// cond: (t.IsBoolean() || is8BitInt(t))
++		// result: (MOVBload ptr mem)
++		{
++			t := v.Type
++			ptr := v.Args[0]
++			mem := v.Args[1]
++			if !(t.IsBoolean() || is8BitInt(t)) {
++				goto end8f83bf72293670e75b22d6627bd13f0b
++			}
++			v.Op = OpAMD64MOVBload
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AddArg(ptr)
++			v.AddArg(mem)
++			return true
++		}
++		goto end8f83bf72293670e75b22d6627bd13f0b
++	end8f83bf72293670e75b22d6627bd13f0b:
+ 		;
+ 	case OpLsh:
+ 		// match: (Lsh <t> x y)
+@@ -524,6 +700,52 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 		goto end5d9e2211940fbc82536685578cf37d08
+ 	end5d9e2211940fbc82536685578cf37d08:
+ 		;
++	case OpAMD64MOVBstore:
++		// match: (MOVBstore ptr (MOVBQSX x) mem)
++		// cond:
++		// result: (MOVBstore ptr x mem)
++		{
++			ptr := v.Args[0]
++			if v.Args[1].Op != OpAMD64MOVBQSX {
++				goto endc356ef104095b9217b36b594f85171c6
++			}
++			x := v.Args[1].Args[0]
++			mem := v.Args[2]
++			v.Op = OpAMD64MOVBstore
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AddArg(ptr)
++			v.AddArg(x)
++			v.AddArg(mem)
++			return true
++		}
++		goto endc356ef104095b9217b36b594f85171c6
++	endc356ef104095b9217b36b594f85171c6:
++		;
++	case OpAMD64MOVLstore:
++		// match: (MOVLstore ptr (MOVLQSX x) mem)
++		// cond:
++		// result: (MOVLstore ptr x mem)
++		{
++			ptr := v.Args[0]
++			if v.Args[1].Op != OpAMD64MOVLQSX {
++				goto endf79c699f70cb356abb52dc28f4abf46b
++			}
++			x := v.Args[1].Args[0]
++			mem := v.Args[2]
++			v.Op = OpAMD64MOVLstore
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AddArg(ptr)
++			v.AddArg(x)
++			v.AddArg(mem)
++			return true
++		}
++		goto endf79c699f70cb356abb52dc28f4abf46b
++	endf79c699f70cb356abb52dc28f4abf46b:
++		;
+ 	case OpAMD64MOVQload:
+ 		// match: (MOVQload [off1] (ADDQconst [off2] ptr) mem)
+ 		// cond:
+@@ -680,6 +902,29 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 		goto end01c970657b0fdefeab82458c15022163
+ 	end01c970657b0fdefeab82458c15022163:
+ 		;
++	case OpAMD64MOVWstore:
++		// match: (MOVWstore ptr (MOVWQSX x) mem)
++		// cond:
++		// result: (MOVWstore ptr x mem)
++		{
++			ptr := v.Args[0]
++			if v.Args[1].Op != OpAMD64MOVWQSX {
++				goto endcc13af07a951a61fcfec3299342f7e1f
++			}
++			x := v.Args[1].Args[0]
++			mem := v.Args[2]
++			v.Op = OpAMD64MOVWstore
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AddArg(ptr)
++			v.AddArg(x)
++			v.AddArg(mem)
++			return true
++		}
++		goto endcc13af07a951a61fcfec3299342f7e1f
++	endcc13af07a951a61fcfec3299342f7e1f:
++		;
+ 	case OpAMD64MULQ:
+ 		// match: (MULQ x (MOVQconst [c]))
+ 		// cond: c == int64(int32(c))
+@@ -1133,6 +1378,72 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 		goto endbaeb60123806948cd2433605820d5af1
+ 	endbaeb60123806948cd2433605820d5af1:
+ 		;
++		// match: (Store ptr val mem)
++		// cond: is32BitInt(val.Type)
++		// result: (MOVLstore ptr val mem)
++		{
++			ptr := v.Args[0]
++			val := v.Args[1]
++			mem := v.Args[2]
++			if !(is32BitInt(val.Type)) {
++				goto end582e895008657c728c141c6b95070de7
++			}
++			v.Op = OpAMD64MOVLstore
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AddArg(ptr)
++			v.AddArg(val)
++			v.AddArg(mem)
++			return true
++		}
++		goto end582e895008657c728c141c6b95070de7
++	end582e895008657c728c141c6b95070de7:
++		;
++		// match: (Store ptr val mem)
++		// cond: is16BitInt(val.Type)
++		// result: (MOVWstore ptr val mem)
++		{
++			ptr := v.Args[0]
++			val := v.Args[1]
++			mem := v.Args[2]
++			if !(is16BitInt(val.Type)) {
++				goto enda3f6a985b6ebb277665f80ad30b178df
++			}
++			v.Op = OpAMD64MOVWstore
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AddArg(ptr)
++			v.AddArg(val)
++			v.AddArg(mem)
++			return true
++		}
++		goto enda3f6a985b6ebb277665f80ad30b178df
++	enda3f6a985b6ebb277665f80ad30b178df:
++		;
++		// match: (Store ptr val mem)
++		// cond: is8BitInt(val.Type)
++		// result: (MOVBstore ptr val mem)
++		{
++			ptr := v.Args[0]
++			val := v.Args[1]
++			mem := v.Args[2]
++			if !(is8BitInt(val.Type)) {
++				goto ende2dee0bc82f631e3c6b0031bf8d224c1
++			}
++			v.Op = OpAMD64MOVBstore
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AddArg(ptr)
++			v.AddArg(val)
++			v.AddArg(mem)
++			return true
++		}
++		goto ende2dee0bc82f631e3c6b0031bf8d224c1
++	ende2dee0bc82f631e3c6b0031bf8d224c1:
++		;
+ 	case OpSub:
+ 		// match: (Sub <t> x y)
+ 		// cond: is64BitInt(t)
+diff --git a/src/cmd/compile/internal/ssa/stackalloc.go b/src/cmd/compile/internal/ssa/stackalloc.go
+index cb1688f51c..5db7316dca 100644
+--- a/src/cmd/compile/internal/ssa/stackalloc.go
++++ b/src/cmd/compile/internal/ssa/stackalloc.go
+@@ -93,7 +93,10 @@ func stackalloc(f *Func) {
+ 					// (ADDQ (FP) x) -> (LEAQ [n] (SP) x)
+ 					v.Op = OpAMD64LEAQ
+ 					v.AuxInt = n
+-				case OpAMD64LEAQ, OpAMD64MOVQload, OpAMD64MOVQstore, OpAMD64MOVBload, OpAMD64MOVQloadidx8:
++				case OpAMD64ADDQconst:
++					// TODO(matloob): Add LEAQconst op
++					v.AuxInt = addOff(v.AuxInt, n)
++				case OpAMD64LEAQ, OpAMD64MOVQload, OpAMD64MOVQstore, OpAMD64MOVLload, OpAMD64MOVLstore, OpAMD64MOVWload, OpAMD64MOVWstore, OpAMD64MOVBload, OpAMD64MOVBstore, OpAMD64MOVQloadidx8:
+ 					if v.Op == OpAMD64MOVQloadidx8 && i == 1 {
+ 						// Note: we could do it, but it is probably an error
+ 						log.Panicf("can't do FP->SP adjust on index slot of load %s", v.Op)

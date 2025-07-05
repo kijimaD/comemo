@@ -19,7 +19,48 @@ Date:   Tue Jun 25 17:28:49 2013 -0400
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/10570043
-
+---
  src/cmd/gc/esc.c |  2 +-
  test/escape2.go  | 19 +++++++++++++++++++
  2 files changed, 20 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/esc.c b/src/cmd/gc/esc.c
+index df273e3927..497645ab59 100644
+--- a/src/cmd/gc/esc.c
++++ b/src/cmd/gc/esc.c
+@@ -144,7 +144,7 @@ visitcode(Node *n, uint32 min)
+ 		fn = n->left;
+ 		if(n->op == OCALLMETH)
+ 			fn = n->left->right->sym->def;
+-		if(fn && fn->op == ONAME && fn->class == PFUNC && fn->defn && fn->defn->nbody)
++		if(fn && fn->op == ONAME && fn->class == PFUNC && fn->defn)
+ 			if((m = visit(fn->defn)) < min)
+ 				min = m;
+ 	}
+diff --git a/test/escape2.go b/test/escape2.go
+index ba88f4b3bf..5122356bf9 100644
+--- a/test/escape2.go
++++ b/test/escape2.go
+@@ -1337,3 +1337,22 @@ func foo143() {
+ 		}()
+ 	}
+ }
++
++// issue 5773
++// Check that annotations take effect regardless of whether they
++// are before or after the use in the source code.
++
++//go:noescape
++
++func foo144a(*int)
++
++func foo144() {
++	var x int
++	foo144a(&x) // ERROR "&x does not escape"
++	var y int
++	foo144b(&y) // ERROR "&y does not escape"
++}
++
++//go:noescape
++
++func foo144b(*int)

@@ -10,6 +10,24 @@ Date:   Fri Mar 14 16:44:54 2014 +0100
     R=golang-codereviews, iant
     CC=golang-codereviews
     https://golang.org/cl/76110043
-
+---
  src/cmd/go/build.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index f653b52727..182ffb2d2e 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -1625,10 +1625,10 @@ func (gcToolchain) pack(b *builder, p *Package, objDir, afile string, ofiles []s
+ 	appending := false
+ 	if _, err := os.Stat(absAfile); err == nil {
+ 		appending = true
+-		cmd = "rqP"
++		cmd = "r"
+ 	}
+ 
+-	cmdline := stringList("pack", cmd, b.work, absAfile, absOfiles)
++	cmdline := stringList("pack", cmd, absAfile, absOfiles)
+ 
+ 	if appending {
+ 		if buildN || buildX {

@@ -12,10 +12,126 @@ Date:   Thu Aug 30 07:01:10 2018 +0000
     Run-TryBot: Ben Shi <powerman1st@163.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/asm/internal/arch/arm64.go        |  2 +-
  src/cmd/asm/internal/asm/testdata/arm64.s |  4 +++-
  src/cmd/internal/obj/arm64/a.out.go       |  4 +++-
  src/cmd/internal/obj/arm64/anames.go      |  4 +++-
  src/cmd/internal/obj/arm64/asm7.go        | 14 ++++++++------
  5 files changed, 18 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/asm/internal/arch/arm64.go b/src/cmd/asm/internal/arch/arm64.go
+index 7cbc139bce..98858bd181 100644
+--- a/src/cmd/asm/internal/arch/arm64.go
++++ b/src/cmd/asm/internal/arch/arm64.go
+@@ -79,7 +79,7 @@ func IsARM64STLXR(op obj.As) bool {
+ 		arm64.ALDANDB, arm64.ALDANDH, arm64.ALDANDW, arm64.ALDANDD,
+ 		arm64.ALDEORB, arm64.ALDEORH, arm64.ALDEORW, arm64.ALDEORD,
+ 		arm64.ALDORB, arm64.ALDORH, arm64.ALDORW, arm64.ALDORD,
+-		arm64.ALDADDALD, arm64.ALDADDALW:
++		arm64.ALDADDALD, arm64.ALDADDALW, arm64.ALDADDALH, arm64.ALDADDALB:
+ 		return true
+ 	}
+ 	return false
+diff --git a/src/cmd/asm/internal/asm/testdata/arm64.s b/src/cmd/asm/internal/asm/testdata/arm64.s
+index 2d55b4b2ad..feb507db86 100644
+--- a/src/cmd/asm/internal/asm/testdata/arm64.s
++++ b/src/cmd/asm/internal/asm/testdata/arm64.s
+@@ -622,7 +622,9 @@ again:
+ 	LDORB	R5, (R6), R7                         // c7302538
+ 	LDORB	R5, (RSP), R7                        // e7332538
+ 	LDADDALD	R2, (R1), R3                 // 2300e2f8
+-	LDADDALW	R5, (R4), R6                 // 8600e5b8
++	LDADDALW	R2, (R1), R3                 // 2300e2b8
++	LDADDALH	R2, (R1), R3                 // 2300e278
++	LDADDALB	R2, (R1), R3                 // 2300e238
+ 
+ // RET
+ //
+diff --git a/src/cmd/internal/obj/arm64/a.out.go b/src/cmd/internal/obj/arm64/a.out.go
+index a32f973fa2..65647c37ae 100644
+--- a/src/cmd/internal/obj/arm64/a.out.go
++++ b/src/cmd/internal/obj/arm64/a.out.go
+@@ -594,8 +594,10 @@ const (
+ 	AHVC
+ 	AIC
+ 	AISB
+-	ALDADDALD
++	ALDADDALB
++	ALDADDALH
+ 	ALDADDALW
++	ALDADDALD
+ 	ALDADDB
+ 	ALDADDH
+ 	ALDADDW
+diff --git a/src/cmd/internal/obj/arm64/anames.go b/src/cmd/internal/obj/arm64/anames.go
+index d9783caff9..55e2b5bafb 100644
+--- a/src/cmd/internal/obj/arm64/anames.go
++++ b/src/cmd/internal/obj/arm64/anames.go
+@@ -95,8 +95,10 @@ var Anames = []string{
+ 	"HVC",
+ 	"IC",
+ 	"ISB",
+-	"LDADDALD",
++	"LDADDALB",
++	"LDADDALH",
+ 	"LDADDALW",
++	"LDADDALD",
+ 	"LDADDB",
+ 	"LDADDH",
+ 	"LDADDW",
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index 2abb8c2c77..00232ccd55 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -779,7 +779,7 @@ func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 	}
+ 
+ 	c := ctxt7{ctxt: ctxt, newprog: newprog, cursym: cursym, autosize: int32(p.To.Offset & 0xffffffff), extrasize: int32(p.To.Offset >> 32)}
+-	p.To.Offset &= 0xffffffff  // extrasize is no longer needed
++	p.To.Offset &= 0xffffffff // extrasize is no longer needed
+ 
+ 	bflag := 1
+ 	pc := int64(0)
+@@ -2023,8 +2023,10 @@ func buildop(ctxt *obj.Link) {
+ 			oprangeset(ASWPALB, t)
+ 			oprangeset(ASWPALH, t)
+ 			oprangeset(ASWPALW, t)
+-			oprangeset(ALDADDALD, t)
++			oprangeset(ALDADDALB, t)
++			oprangeset(ALDADDALH, t)
+ 			oprangeset(ALDADDALW, t)
++			oprangeset(ALDADDALD, t)
+ 			oprangeset(ALDADDB, t)
+ 			oprangeset(ALDADDH, t)
+ 			oprangeset(ALDADDW, t)
+@@ -3406,9 +3408,9 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 			o1 = 3 << 30
+ 		case ASWPW, ASWPALW, ALDADDALW, ALDADDW, ALDANDW, ALDEORW, ALDORW: // 32-bit
+ 			o1 = 2 << 30
+-		case ASWPH, ASWPALH, ALDADDH, ALDANDH, ALDEORH, ALDORH: // 16-bit
++		case ASWPH, ASWPALH, ALDADDALH, ALDADDH, ALDANDH, ALDEORH, ALDORH: // 16-bit
+ 			o1 = 1 << 30
+-		case ASWPB, ASWPALB, ALDADDB, ALDANDB, ALDEORB, ALDORB: // 8-bit
++		case ASWPB, ASWPALB, ALDADDALB, ALDADDB, ALDANDB, ALDEORB, ALDORB: // 8-bit
+ 			o1 = 0 << 30
+ 		default:
+ 			c.ctxt.Diag("illegal instruction: %v\n", p)
+@@ -3416,7 +3418,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		switch p.As {
+ 		case ASWPD, ASWPW, ASWPH, ASWPB, ASWPALD, ASWPALW, ASWPALH, ASWPALB:
+ 			o1 |= 0x20 << 10
+-		case ALDADDALD, ALDADDALW, ALDADDD, ALDADDW, ALDADDH, ALDADDB:
++		case ALDADDALD, ALDADDALW, ALDADDALH, ALDADDALB, ALDADDD, ALDADDW, ALDADDH, ALDADDB:
+ 			o1 |= 0x00 << 10
+ 		case ALDANDD, ALDANDW, ALDANDH, ALDANDB:
+ 			o1 |= 0x04 << 10
+@@ -3426,7 +3428,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 			o1 |= 0x0c << 10
+ 		}
+ 		switch p.As {
+-		case ALDADDALD, ALDADDALW, ASWPALD, ASWPALW, ASWPALH, ASWPALB:
++		case ALDADDALD, ALDADDALW, ALDADDALH, ALDADDALB, ASWPALD, ASWPALW, ASWPALH, ASWPALB:
+ 			o1 |= 3 << 22
+ 		}
+ 		o1 |= 0x1c1<<21 | uint32(rs&31)<<16 | uint32(rb&31)<<5 | uint32(rt&31)

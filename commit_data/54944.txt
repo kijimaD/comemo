@@ -27,6 +27,28 @@ Date:   Mon Nov 21 16:02:20 2022 -0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Robert Griesemer <gri@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
-
+---
  doc/go_spec.html | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 3dcab9c4a6..630012ded8 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1,6 +1,6 @@
+ <!--{
+ 	"Title": "The Go Programming Language Specification",
+-	"Subtitle": "Version of November 10, 2022",
++	"Subtitle": "Version of November 21, 2022",
+ 	"Path": "/ref/spec"
+ }-->
+ 
+@@ -3305,7 +3305,7 @@ PrimaryExpr =
+ 	PrimaryExpr Arguments .
+ 
+ Selector       = "." identifier .
+-Index          = "[" Expression "]" .
++Index          = "[" Expression [ "," ] "]" .
+ Slice          = "[" [ Expression ] ":" [ Expression ] "]" |
+                  "[" [ Expression ] ":" Expression ":" Expression "]" .
+ TypeAssertion  = "." "(" Type ")" .

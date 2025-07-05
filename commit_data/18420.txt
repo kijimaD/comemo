@@ -14,7 +14,61 @@ Date:   Fri Feb 7 10:49:10 2014 +1100
     R=golang-codereviews, gobot, dsymonds, dave
     CC=golang-codereviews
     https://golang.org/cl/55770043
-
+---
  src/pkg/net/mail/message.go      | 12 ++++++++++--
  src/pkg/net/mail/message_test.go |  8 ++++++++
  2 files changed, 18 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/net/mail/message.go b/src/pkg/net/mail/message.go
+index dc2ab44dab..4b332c1b5b 100644
+--- a/src/pkg/net/mail/message.go
++++ b/src/pkg/net/mail/message.go
+@@ -159,7 +159,9 @@ func (a *Address) String() string {
+ 	// If every character is printable ASCII, quoting is simple.
+ 	allPrintable := true
+ 	for i := 0; i < len(a.Name); i++ {
+-		if !isVchar(a.Name[i]) {
++		// isWSP here should actually be isFWS,
++		// but we don't support folding yet.
++		if !isVchar(a.Name[i]) && !isWSP(a.Name[i]) {
+ 			allPrintable = false
+ 			break
+ 		}
+@@ -167,7 +169,7 @@ func (a *Address) String() string {
+ 	if allPrintable {
+ 		b := bytes.NewBufferString(`"`)
+ 		for i := 0; i < len(a.Name); i++ {
+-			if !isQtext(a.Name[i]) {
++			if !isQtext(a.Name[i]) && !isWSP(a.Name[i]) {
+ 				b.WriteByte('\\')
+ 			}
+ 			b.WriteByte(a.Name[i])
+@@ -535,3 +537,9 @@ func isVchar(c byte) bool {
+ 	// Visible (printing) characters.
+ 	return '!' <= c && c <= '~'
+ }
++
++// isWSP returns true if c is a WSP (white space).
++// WSP is a space or horizontal tab (RFC5234 Appendix B).
++func isWSP(c byte) bool {
++	return c == ' ' || c == '\t'
++}
+diff --git a/src/pkg/net/mail/message_test.go b/src/pkg/net/mail/message_test.go
+index 3c037f3838..1bb4e8bc40 100644
+--- a/src/pkg/net/mail/message_test.go
++++ b/src/pkg/net/mail/message_test.go
+@@ -277,6 +277,14 @@ func TestAddressFormatting(t *testing.T) {
+ 			&Address{Name: "Böb", Address: "bob@example.com"},
+ 			`=?utf-8?q?B=C3=B6b?= <bob@example.com>`,
+ 		},
++		{
++			&Address{Name: "Bob Jane", Address: "bob@example.com"},
++			`"Bob Jane" <bob@example.com>`,
++		},
++		{
++			&Address{Name: "Böb Jacöb", Address: "bob@example.com"},
++			`=?utf-8?q?B=C3=B6b_Jac=C3=B6b?= <bob@example.com>`,
++		},
+ 	}
+ 	for _, test := range tests {
+ 		s := test.addr.String()

@@ -15,9 +15,254 @@ Date:   Wed Feb 19 19:45:57 2020 +0000
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/mgcmark.go     | 120 ++++-----------------------------------------
  src/runtime/mgcsweep.go    |   2 +-
  src/runtime/mgcsweepbuf.go |  38 --------------
  src/runtime/mheap.go       |   8 ++-
  4 files changed, 14 insertions(+), 154 deletions(-)
+
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 96910ff729..2b84945471 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -47,10 +47,6 @@ const (
+ 	// Must be a multiple of the pageInUse bitmap element size and
+ 	// must also evenly divide pagesPerArena.
+ 	pagesPerSpanRoot = 512
+-
+-	// go115NewMarkrootSpans is a feature flag that indicates whether
+-	// to use the new bitmap-based markrootSpans implementation.
+-	go115NewMarkrootSpans = true
+ )
+ 
+ // gcMarkRootPrepare queues root scanning jobs (stacks, globals, and
+@@ -87,24 +83,16 @@ func gcMarkRootPrepare() {
+ 	//
+ 	// We depend on addfinalizer to mark objects that get
+ 	// finalizers after root marking.
+-	if go115NewMarkrootSpans {
+-		// We're going to scan the whole heap (that was available at the time the
+-		// mark phase started, i.e. markArenas) for in-use spans which have specials.
+-		//
+-		// Break up the work into arenas, and further into chunks.
+-		//
+-		// Snapshot allArenas as markArenas. This snapshot is safe because allArenas
+-		// is append-only.
+-		mheap_.markArenas = mheap_.allArenas[:len(mheap_.allArenas):len(mheap_.allArenas)]
+-		work.nSpanRoots = len(mheap_.markArenas) * (pagesPerArena / pagesPerSpanRoot)
+-	} else {
+-		// We're only interested in scanning the in-use spans,
+-		// which will all be swept at this point. More spans
+-		// may be added to this list during concurrent GC, but
+-		// we only care about spans that were allocated before
+-		// this mark phase.
+-		work.nSpanRoots = mheap_.sweepSpans[mheap_.sweepgen/2%2].numBlocks()
+-	}
++	//
++	// We're going to scan the whole heap (that was available at the time the
++	// mark phase started, i.e. markArenas) for in-use spans which have specials.
++	//
++	// Break up the work into arenas, and further into chunks.
++	//
++	// Snapshot allArenas as markArenas. This snapshot is safe because allArenas
++	// is append-only.
++	mheap_.markArenas = mheap_.allArenas[:len(mheap_.allArenas):len(mheap_.allArenas)]
++	work.nSpanRoots = len(mheap_.markArenas) * (pagesPerArena / pagesPerSpanRoot)
+ 
+ 	// Scan stacks.
+ 	//
+@@ -316,10 +304,6 @@ func markrootFreeGStacks() {
+ //
+ //go:nowritebarrier
+ func markrootSpans(gcw *gcWork, shard int) {
+-	if !go115NewMarkrootSpans {
+-		oldMarkrootSpans(gcw, shard)
+-		return
+-	}
+ 	// Objects with finalizers have two GC-related invariants:
+ 	//
+ 	// 1) Everything reachable from the object must be marked.
+@@ -396,90 +380,6 @@ func markrootSpans(gcw *gcWork, shard int) {
+ 	}
+ }
+ 
+-// oldMarkrootSpans marks roots for one shard of work.spans.
+-//
+-// For go115NewMarkrootSpans = false.
+-//
+-//go:nowritebarrier
+-func oldMarkrootSpans(gcw *gcWork, shard int) {
+-	// Objects with finalizers have two GC-related invariants:
+-	//
+-	// 1) Everything reachable from the object must be marked.
+-	// This ensures that when we pass the object to its finalizer,
+-	// everything the finalizer can reach will be retained.
+-	//
+-	// 2) Finalizer specials (which are not in the garbage
+-	// collected heap) are roots. In practice, this means the fn
+-	// field must be scanned.
+-	//
+-	// TODO(austin): There are several ideas for making this more
+-	// efficient in issue #11485.
+-
+-	sg := mheap_.sweepgen
+-	spans := mheap_.sweepSpans[mheap_.sweepgen/2%2].block(shard)
+-	// Note that work.spans may not include spans that were
+-	// allocated between entering the scan phase and now. We may
+-	// also race with spans being added into sweepSpans when they're
+-	// just created, and as a result we may see nil pointers in the
+-	// spans slice. This is okay because any objects with finalizers
+-	// in those spans must have been allocated and given finalizers
+-	// after we entered the scan phase, so addfinalizer will have
+-	// ensured the above invariants for them.
+-	for i := 0; i < len(spans); i++ {
+-		// sweepBuf.block requires that we read pointers from the block atomically.
+-		// It also requires that we ignore nil pointers.
+-		s := (*mspan)(atomic.Loadp(unsafe.Pointer(&spans[i])))
+-
+-		// This is racing with spans being initialized, so
+-		// check the state carefully.
+-		if s == nil || s.state.get() != mSpanInUse {
+-			continue
+-		}
+-		// Check that this span was swept (it may be cached or uncached).
+-		if !useCheckmark && !(s.sweepgen == sg || s.sweepgen == sg+3) {
+-			// sweepgen was updated (+2) during non-checkmark GC pass
+-			print("sweep ", s.sweepgen, " ", sg, "\n")
+-			throw("gc: unswept span")
+-		}
+-
+-		// Speculatively check if there are any specials
+-		// without acquiring the span lock. This may race with
+-		// adding the first special to a span, but in that
+-		// case addfinalizer will observe that the GC is
+-		// active (which is globally synchronized) and ensure
+-		// the above invariants. We may also ensure the
+-		// invariants, but it's okay to scan an object twice.
+-		if s.specials == nil {
+-			continue
+-		}
+-
+-		// Lock the specials to prevent a special from being
+-		// removed from the list while we're traversing it.
+-		lock(&s.speciallock)
+-
+-		for sp := s.specials; sp != nil; sp = sp.next {
+-			if sp.kind != _KindSpecialFinalizer {
+-				continue
+-			}
+-			// don't mark finalized object, but scan it so we
+-			// retain everything it points to.
+-			spf := (*specialfinalizer)(unsafe.Pointer(sp))
+-			// A finalizer can be set for an inner byte of an object, find object beginning.
+-			p := s.base() + uintptr(spf.special.offset)/s.elemsize*s.elemsize
+-
+-			// Mark everything that can be reached from
+-			// the object (but *not* the object itself or
+-			// we'll never collect it).
+-			scanobject(p, gcw)
+-
+-			// The special itself is a root.
+-			scanblock(uintptr(unsafe.Pointer(&spf.fn)), sys.PtrSize, &oneptrmask[0], gcw, nil)
+-		}
+-
+-		unlock(&s.speciallock)
+-	}
+-}
+-
+ // gcAssistAlloc performs GC work to make gp's assist debt positive.
+ // gp must be the calling user gorountine.
+ //
+diff --git a/src/runtime/mgcsweep.go b/src/runtime/mgcsweep.go
+index 3aa3afc028..9244174403 100644
+--- a/src/runtime/mgcsweep.go
++++ b/src/runtime/mgcsweep.go
+@@ -662,7 +662,7 @@ func (s *mspan) oldSweep(preserve bool) bool {
+ 			special = *specialp
+ 		}
+ 	}
+-	if go115NewMarkrootSpans && hadSpecials && s.specials == nil {
++	if hadSpecials && s.specials == nil {
+ 		spanHasNoSpecials(s)
+ 	}
+ 
+diff --git a/src/runtime/mgcsweepbuf.go b/src/runtime/mgcsweepbuf.go
+index 1f722c3d58..5e5ca3dd2f 100644
+--- a/src/runtime/mgcsweepbuf.go
++++ b/src/runtime/mgcsweepbuf.go
+@@ -136,41 +136,3 @@ func (b *gcSweepBuf) pop() *mspan {
+ 	block.spans[bottom] = nil
+ 	return s
+ }
+-
+-// numBlocks returns the number of blocks in buffer b. numBlocks is
+-// safe to call concurrently with any other operation. Spans that have
+-// been pushed prior to the call to numBlocks are guaranteed to appear
+-// in some block in the range [0, numBlocks()), assuming there are no
+-// intervening pops. Spans that are pushed after the call may also
+-// appear in these blocks.
+-func (b *gcSweepBuf) numBlocks() int {
+-	return int(divRoundUp(uintptr(atomic.Load(&b.index)), gcSweepBlockEntries))
+-}
+-
+-// block returns the spans in the i'th block of buffer b. block is
+-// safe to call concurrently with push. The block may contain nil
+-// pointers that must be ignored, and each entry in the block must be
+-// loaded atomically.
+-func (b *gcSweepBuf) block(i int) []*mspan {
+-	// Perform bounds check before loading spine address since
+-	// push ensures the allocated length is at least spineLen.
+-	if i < 0 || uintptr(i) >= atomic.Loaduintptr(&b.spineLen) {
+-		throw("block index out of range")
+-	}
+-
+-	// Get block i.
+-	spine := atomic.Loadp(unsafe.Pointer(&b.spine))
+-	blockp := add(spine, sys.PtrSize*uintptr(i))
+-	block := (*gcSweepBlock)(atomic.Loadp(blockp))
+-
+-	// Slice the block if necessary.
+-	cursor := uintptr(atomic.Load(&b.index))
+-	top, bottom := cursor/gcSweepBlockEntries, cursor%gcSweepBlockEntries
+-	var spans []*mspan
+-	if uintptr(i) < top {
+-		spans = block.spans[:]
+-	} else {
+-		spans = block.spans[:bottom]
+-	}
+-	return spans
+-}
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index 6341375160..0807726863 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -52,7 +52,7 @@ const (
+ 	// The definition of this flag helps ensure that if there's a problem with
+ 	// the new markroot spans implementation and it gets turned off, that the new
+ 	// mcentral implementation also gets turned off so the runtime isn't broken.
+-	go115NewMCentralImpl = true && go115NewMarkrootSpans
++	go115NewMCentralImpl = true
+ )
+ 
+ // Main malloc heap.
+@@ -1705,9 +1705,7 @@ func addspecial(p unsafe.Pointer, s *special) bool {
+ 	s.offset = uint16(offset)
+ 	s.next = *t
+ 	*t = s
+-	if go115NewMarkrootSpans {
+-		spanHasSpecials(span)
+-	}
++	spanHasSpecials(span)
+ 	unlock(&span.speciallock)
+ 	releasem(mp)
+ 
+@@ -1748,7 +1746,7 @@ func removespecial(p unsafe.Pointer, kind uint8) *special {
+ 		}
+ 		t = &s.next
+ 	}
+-	if go115NewMarkrootSpans && span.specials == nil {
++	if span.specials == nil {
+ 		spanHasNoSpecials(span)
+ 	}
+ 	unlock(&span.speciallock)

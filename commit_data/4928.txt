@@ -9,6 +9,45 @@ Date:   Tue Feb 23 16:00:14 2010 +1100
     R=rsc
     CC=golang-dev
     https://golang.org/cl/217094
-
+---
  src/cmd/goyacc/goyacc.go | 22 ++++++++++++++++++++--
  1 file changed, 20 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/goyacc/goyacc.go b/src/cmd/goyacc/goyacc.go
+index 4e4819b40b..4d9a515a60 100644
+--- a/src/cmd/goyacc/goyacc.go
++++ b/src/cmd/goyacc/goyacc.go
+@@ -1352,13 +1352,31 @@ loop:
+ 			return
+ 
+ 		case '/':
++			nc := getrune(finput)
++			if nc != '/' && nc != '*' {
++				ungetrune(finput, nc)
++				break
++			}
+ 			// a comment
+ 			putrune(ftable, c)
++			putrune(ftable, nc)
+ 			c = getrune(finput)
+ 			for c != EOF {
+-				if c == '\n' {
++				switch {
++				case c == '\n':
+ 					lineno++
+-					break swt
++					if nc == '/' { // end of // comment
++						break swt
++					}
++				case c == '*' && nc == '*': // end of /* comment?
++					nnc := getrune(finput)
++					if nnc == '/' {
++						putrune(ftable, '*')
++						putrune(ftable, '/')
++						c = getrune(finput)
++						break swt
++					}
++					ungetrune(finput, nnc)
+ 				}
+ 				putrune(ftable, c)
+ 				c = getrune(finput)

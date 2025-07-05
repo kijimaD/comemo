@@ -19,7 +19,48 @@ Date:   Thu Sep 29 09:53:18 2022 -0500
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Archana Ravindar <aravind5@in.ibm.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/go/internal/work/init.go                                   | 7 +++++--
  .../testdata/script/install_msan_and_race_and_asan_require_cgo.txt | 4 ++--
  2 files changed, 7 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/internal/work/init.go b/src/cmd/go/internal/work/init.go
+index d5f7c9c4b3..d30b9683e2 100644
+--- a/src/cmd/go/internal/work/init.go
++++ b/src/cmd/go/internal/work/init.go
+@@ -423,12 +423,15 @@ func compilerRequiredAsanVersion() error {
+ 
+ 	switch compiler.name {
+ 	case "gcc":
++		if runtime.GOARCH == "ppc64le" && compiler.major < 9 {
++			return fmt.Errorf("-asan is not supported with %s compiler %d.%d\n", compiler.name, compiler.major, compiler.minor)
++		}
+ 		if compiler.major < 7 {
+-			return fmt.Errorf("-asan is not supported with C compiler %d.%d\n", compiler.major, compiler.minor)
++			return fmt.Errorf("-asan is not supported with %s compiler %d.%d\n", compiler.name, compiler.major, compiler.minor)
+ 		}
+ 	case "clang":
+ 		if compiler.major < 9 {
+-			return fmt.Errorf("-asan is not supported with C compiler %d.%d\n", compiler.major, compiler.minor)
++			return fmt.Errorf("-asan is not supported with %s compiler %d.%d\n", compiler.name, compiler.major, compiler.minor)
+ 		}
+ 	default:
+ 		return fmt.Errorf("-asan: C compiler is not gcc or clang")
+diff --git a/src/cmd/go/testdata/script/install_msan_and_race_and_asan_require_cgo.txt b/src/cmd/go/testdata/script/install_msan_and_race_and_asan_require_cgo.txt
+index d496eaa9cd..0c68e2cf1b 100644
+--- a/src/cmd/go/testdata/script/install_msan_and_race_and_asan_require_cgo.txt
++++ b/src/cmd/go/testdata/script/install_msan_and_race_and_asan_require_cgo.txt
+@@ -11,10 +11,10 @@ env CGO_ENABLED=0
+ [msan] ! stderr '-race'
+ 
+ [asan] ! go install -asan triv.go
+-[asan] stderr '(-asan: the version of $(go env CC) could not be parsed)|(-asan: C compiler is not gcc or clang)|(-asan is not supported with C compiler (\d+)\.(\d+))|(-asan requires cgo)'
++[asan] stderr '(-asan: the version of $(go env CC) could not be parsed)|(-asan: C compiler is not gcc or clang)|(-asan is not supported with [A-Za-z]+ compiler (\d+)\.(\d+))|(-asan requires cgo)'
+ [asan] ! stderr '-msan'
+ 
+ -- triv.go --
+ package main
+ 
+-func main() {}
+\ No newline at end of file
++func main() {}

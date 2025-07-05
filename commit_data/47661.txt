@@ -32,9 +32,122 @@ Date:   Thu Apr 1 17:51:18 2021 -0400
     Trust: Katie Hockman <katie@golang.org>
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Katie Hockman <katie@golang.org>
-
+---
  src/internal/fuzz/fuzz.go         |  3 +--
  src/internal/fuzz/mutator.go      | 13 ++++++-------
  src/internal/fuzz/mutator_test.go | 30 ++++++++++++++++++++++++++++++
  src/internal/fuzz/worker.go       |  6 +++++-
  4 files changed, 42 insertions(+), 10 deletions(-)
+
+diff --git a/src/internal/fuzz/fuzz.go b/src/internal/fuzz/fuzz.go
+index 9ae1eadaec..8e0425c0c4 100644
+--- a/src/internal/fuzz/fuzz.go
++++ b/src/internal/fuzz/fuzz.go
+@@ -51,7 +51,6 @@ func CoordinateFuzzing(ctx context.Context, parallel int, seed []CorpusEntry, ty
+ 		parallel = runtime.GOMAXPROCS(0)
+ 	}
+ 
+-	sharedMemSize := 100 << 20 // 100 MB
+ 	// Make sure all of the seed corpus has marshalled data.
+ 	for i := range seed {
+ 		if seed[i].Data == nil {
+@@ -85,7 +84,7 @@ func CoordinateFuzzing(ctx context.Context, parallel int, seed []CorpusEntry, ty
+ 	errC := make(chan error)
+ 
+ 	newWorker := func() (*worker, error) {
+-		mem, err := sharedMemTempFile(sharedMemSize)
++		mem, err := sharedMemTempFile(workerSharedMemSize)
+ 		if err != nil {
+ 			return nil, err
+ 		}
+diff --git a/src/internal/fuzz/mutator.go b/src/internal/fuzz/mutator.go
+index 584c21e8ae..aa72972147 100644
+--- a/src/internal/fuzz/mutator.go
++++ b/src/internal/fuzz/mutator.go
+@@ -51,8 +51,7 @@ func min(a, b int) int {
+ }
+ 
+ // mutate performs several mutations on the provided values.
+-func (m *mutator) mutate(vals []interface{}, maxBytes int) []interface{} {
+-	// TODO(jayconrod,katiehockman): use as few allocations as possible
++func (m *mutator) mutate(vals []interface{}, maxBytes int) {
+ 	// TODO(katiehockman): pull some of these functions into helper methods and
+ 	// test that each case is working as expected.
+ 	// TODO(katiehockman): perform more types of mutations.
+@@ -71,11 +70,11 @@ func (m *mutator) mutate(vals []interface{}, maxBytes int) []interface{} {
+ 		if len(v) > maxPerVal {
+ 			panic(fmt.Sprintf("cannot mutate bytes of length %d", len(v)))
+ 		}
+-		b := make([]byte, 0, maxPerVal)
+-		b = append(b, v...)
+-		m.mutateBytes(&b)
+-		vals[i] = b
+-		return vals
++		if cap(v) < maxPerVal {
++			v = append(make([]byte, 0, maxPerVal), v...)
++		}
++		m.mutateBytes(&v)
++		vals[i] = v
+ 	default:
+ 		panic(fmt.Sprintf("type not supported for mutating: %T", vals[i]))
+ 	}
+diff --git a/src/internal/fuzz/mutator_test.go b/src/internal/fuzz/mutator_test.go
+new file mode 100644
+index 0000000000..b1b5311639
+--- /dev/null
++++ b/src/internal/fuzz/mutator_test.go
+@@ -0,0 +1,30 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package fuzz
++
++import (
++	"strconv"
++	"testing"
++)
++
++func BenchmarkMutatorBytes(b *testing.B) {
++	for _, size := range []int{
++		1,
++		10,
++		100,
++		1000,
++		10000,
++		100000,
++	} {
++		size := size
++		b.Run(strconv.Itoa(size), func(b *testing.B) {
++			vals := []interface{}{make([]byte, size)}
++			m := newMutator()
++			for i := 0; i < b.N; i++ {
++				m.mutate(vals, workerSharedMemSize)
++			}
++		})
++	}
++}
+diff --git a/src/internal/fuzz/worker.go b/src/internal/fuzz/worker.go
+index 3fe5aebbf4..243a12baef 100644
+--- a/src/internal/fuzz/worker.go
++++ b/src/internal/fuzz/worker.go
+@@ -31,6 +31,10 @@ const (
+ 	// This distinguishes internal errors from uncontrolled panics and other crashes.
+ 	// Keep in sync with internal/fuzz.workerExitCode.
+ 	workerExitCode = 70
++
++	// workerSharedMemSize is the maximum size of the shared memory file used to
++	// communicate with workers. This limits the size of fuzz inputs.
++	workerSharedMemSize = 100 << 20 // 100 MB
+ )
+ 
+ // worker manages a worker process running a test binary. The worker object
+@@ -508,7 +512,7 @@ func (ws *workerServer) fuzz(ctx context.Context, args fuzzArgs) fuzzResponse {
+ 			// real heuristic once we have one.
+ 			return fuzzResponse{Interesting: true}
+ 		default:
+-			vals = ws.m.mutate(vals, cap(mem.valueRef()))
++			ws.m.mutate(vals, cap(mem.valueRef()))
+ 			writeToMem(vals, mem)
+ 			if err := ws.fuzzFn(CorpusEntry{Values: vals}); err != nil {
+ 				if minErr := ws.minimize(ctx, vals, mem); minErr != nil {

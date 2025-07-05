@@ -8,6 +8,20 @@ Date:   Tue Feb 7 13:12:25 2017 -0500
     Reviewed-on: https://go-review.googlesource.com/36533
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/pprof/pprof.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/runtime/pprof/pprof.go b/src/runtime/pprof/pprof.go
+index 8c500e6f3e..c2b4a2787e 100644
+--- a/src/runtime/pprof/pprof.go
++++ b/src/runtime/pprof/pprof.go
+@@ -185,6 +185,8 @@ func unlockProfiles() {
+ // If a profile with that name already exists, NewProfile panics.
+ // The convention is to use a 'import/path.' prefix to create
+ // separate name spaces for each package.
++// For compatibility with various tools that read pprof data,
++// profile names should not contain spaces.
+ func NewProfile(name string) *Profile {
+ 	lockProfiles()
+ 	defer unlockProfiles()

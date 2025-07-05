@@ -8,9 +8,121 @@ Date:   Mon Jan 25 17:53:43 2010 -0800
     R=ken2
     CC=golang-dev
     https://golang.org/cl/194069
-
+---
  src/cmd/5l/obj.c         | 8 ++++----
  src/cmd/6l/obj.c         | 9 ++++-----
  src/cmd/8l/obj.c         | 9 ++++-----
  test/fixedbugs/bug160.go | 2 +-
  4 files changed, 13 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/5l/obj.c b/src/cmd/5l/obj.c
+index 1ccac71bc1..274d502b84 100644
+--- a/src/cmd/5l/obj.c
++++ b/src/cmd/5l/obj.c
+@@ -80,7 +80,7 @@ linkername[] =
+ void
+ usage(void)
+ {
+-	fprint(2, "usage: 5l [-options] objects\n");
++	fprint(2, "usage: 5l [-options] main.5\n");
+ 	errorexit();
+ }
+ 
+@@ -144,7 +144,7 @@ main(int argc, char *argv[])
+ 
+ 	USED(argc);
+ 
+-	if(*argv == 0)
++	if(argc != 1)
+ 		usage();
+ 
+ 	libinit();
+@@ -258,8 +258,8 @@ main(int argc, char *argv[])
+ 	firstp = prg();
+ 	lastp = firstp;
+ 
+-	while(*argv)
+-		objfile(*argv++, "main");
++	objfile(argv[0], "main");
++
+ 	if(!debug['l'])
+ 		loadlib();
+ 
+diff --git a/src/cmd/6l/obj.c b/src/cmd/6l/obj.c
+index ca67973714..cbb20616a7 100644
+--- a/src/cmd/6l/obj.c
++++ b/src/cmd/6l/obj.c
+@@ -76,7 +76,7 @@ isobjfile(char *f)
+ void
+ usage(void)
+ {
+-	fprint(2, "usage: 6l [-options] [-E entry] [-H head] [-L dir] [-T text] [-R rnd] [-o out] files...\n");
++	fprint(2, "usage: 6l [-options] [-E entry] [-H head] [-L dir] [-T text] [-R rnd] [-o out] main.6\n");
+ 	exits("usage");
+ }
+ 
+@@ -136,8 +136,8 @@ main(int argc, char *argv[])
+ 			readundefs(ARGF(), SIMPORT);
+ 		break;
+ 	} ARGEND
+-	USED(argc);
+-	if(*argv == 0)
++
++	if(argc != 1)
+ 		usage();
+ 
+ 	libinit();
+@@ -346,8 +346,7 @@ main(int argc, char *argv[])
+ 	firstp = prg();
+ 	lastp = firstp;
+ 
+-	while(*argv)
+-		objfile(*argv++, "main");
++	objfile(argv[0], "main");
+ 
+ 	if(!debug['l'])
+ 		loadlib();
+diff --git a/src/cmd/8l/obj.c b/src/cmd/8l/obj.c
+index b83293496a..bcdc548dfc 100644
+--- a/src/cmd/8l/obj.c
++++ b/src/cmd/8l/obj.c
+@@ -81,7 +81,7 @@ isobjfile(char *f)
+ void
+ usage(void)
+ {
+-	fprint(2, "usage: 8l [-options] [-E entry] [-H head] [-L dir] [-T text] [-R rnd] [-o out] files...\n");
++	fprint(2, "usage: 8l [-options] [-E entry] [-H head] [-L dir] [-T text] [-R rnd] [-o out] main.8\n");
+ 	exits("usage");
+ }
+ 
+@@ -142,8 +142,8 @@ main(int argc, char *argv[])
+ 			readundefs(ARGF(), SIMPORT);
+ 		break;
+ 	} ARGEND
+-	USED(argc);
+-	if(*argv == 0)
++
++	if(argc != 1)
+ 		usage();
+ 
+ 	mywhatsys();	// get goos
+@@ -384,8 +384,7 @@ main(int argc, char *argv[])
+ 	firstp = prg();
+ 	lastp = firstp;
+ 
+-	while(*argv)
+-		objfile(*argv++, "main");
++	objfile(argv[0], "main");
+ 
+ 	if(!debug['l'])
+ 		loadlib();
+diff --git a/test/fixedbugs/bug160.go b/test/fixedbugs/bug160.go
+index 0ae9d4ec19..8fd53ea079 100644
+--- a/test/fixedbugs/bug160.go
++++ b/test/fixedbugs/bug160.go
+@@ -1,4 +1,4 @@
+-// $G $D/bug160.dir/x.go && $G $D/bug160.dir/y.go && $L y.$A x.$A && ./$A.out
++// $G $D/bug160.dir/x.go && $G $D/bug160.dir/y.go && $L y.$A && ./$A.out
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style

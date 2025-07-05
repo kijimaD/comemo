@@ -7,7 +7,42 @@ Date:   Fri Feb 17 16:59:33 2012 -0500
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5676084
-
+---
  doc/go1.html | 6 ++++++
  doc/go1.tmpl | 6 ++++++
  2 files changed, 12 insertions(+)
+
+diff --git a/doc/go1.html b/doc/go1.html
+index 60f71075e3..2691fc66c9 100644
+--- a/doc/go1.html
++++ b/doc/go1.html
+@@ -7,6 +7,12 @@
+ -->
+ 
+ 
++<!-- Center the tables, and disable the 1995 3D borders -->
++<style>
++table { margin-left: auto; margin-right: auto; border-style: none; }
++hr { border-style: none; border-top: 1px solid black; }
++</style>
++
+ <h2 id="introduction">Introduction to Go 1</h2>
+ 
+ <p>
+diff --git a/doc/go1.tmpl b/doc/go1.tmpl
+index c31fa7f2cf..510f2f700c 100644
+--- a/doc/go1.tmpl
++++ b/doc/go1.tmpl
+@@ -3,6 +3,12 @@
+ }-->
+ {{donotedit}}
+ 
++<!-- Center the tables, and disable the 1995-era 3D borders -->
++<style>
++table { margin-left: auto; margin-right: auto; border-style: none; }
++hr { border-style: none; border-top: 1px solid black; }
++</style>
++
+ <h2 id="introduction">Introduction to Go 1</h2>
+ 
+ <p>

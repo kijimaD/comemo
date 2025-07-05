@@ -11,6 +11,24 @@ Date:   Wed Jun 1 22:35:09 2016 -0400
     Change-Id: I50b68638303dafd70f77f8f778e6caff102d3350
     Reviewed-on: https://go-review.googlesource.com/23672
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/net/http/request.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/net/http/request.go b/src/net/http/request.go
+index e8780dea94..dc5559282d 100644
+--- a/src/net/http/request.go
++++ b/src/net/http/request.go
+@@ -275,9 +275,9 @@ type Request struct {
+ //
+ // For outgoing client requests, the context controls cancelation.
+ //
+-// For incoming server requests, the context is canceled when either
+-// the client's connection closes, or when the ServeHTTP method
+-// returns.
++// For incoming server requests, the context is canceled when the
++// ServeHTTP method returns. For its associated values, see
++// ServerContextKey and LocalAddrContextKey.
+ func (r *Request) Context() context.Context {
+ 	if r.ctx != nil {
+ 		return r.ctx

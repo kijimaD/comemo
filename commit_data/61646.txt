@@ -15,7 +15,7 @@ Date:   Sat Jul 27 13:58:25 2024 +0200
     Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  .../nistec/_asm/{p256_asm_amd64.go => p256_asm.go} | 82 +---------------------
  src/crypto/internal/nistec/p256_asm.go             | 42 +++++++----
  src/crypto/internal/nistec/p256_asm_amd64.s        | 32 +--------
@@ -23,3 +23,370 @@ Date:   Sat Jul 27 13:58:25 2024 +0200
  src/crypto/internal/nistec/p256_asm_ppc64le.s      | 44 ------------
  src/crypto/internal/nistec/p256_asm_s390x.s        | 38 ----------
  6 files changed, 32 insertions(+), 235 deletions(-)
+
+diff --git a/src/crypto/internal/nistec/_asm/p256_asm_amd64.go b/src/crypto/internal/nistec/_asm/p256_asm.go
+similarity index 97%
+rename from src/crypto/internal/nistec/_asm/p256_asm_amd64.go
+rename to src/crypto/internal/nistec/_asm/p256_asm.go
+index 4413516aac..0591b25a93 100644
+--- a/src/crypto/internal/nistec/_asm/p256_asm_amd64.go
++++ b/src/crypto/internal/nistec/_asm/p256_asm.go
+@@ -21,7 +21,7 @@ import (
+ 	. "github.com/mmcloughlin/avo/reg"
+ )
+ 
+-//go:generate go run . -out ../p256_asm_amd64.s -pkg nistec
++//go:generate go run . -out ../p256_asm_amd64.s
+ 
+ var (
+ 	res_ptr GPPhysical = RDI
+@@ -45,10 +45,6 @@ var (
+ func main() {
+ 	Package("crypto/internal/nistec")
+ 	ConstraintExpr("!purego")
+-	p256OrdLittleToBig()
+-	p256OrdBigToLittle()
+-	p256LittleToBig()
+-	p256BigToLittle()
+ 	p256MovCond()
+ 	p256NegCond()
+ 	p256Sqr()
+@@ -76,82 +72,6 @@ func main() {
+ 	removePeskyUnicodeDot(internalFunctions, "../p256_asm_amd64.s")
+ }
+ 
+-// Implements:
+-//
+-//	func p256OrdLittleToBig(res *[32]byte, in *p256OrdElement)
+-func p256OrdLittleToBig() {
+-	Implement("p256OrdLittleToBig")
+-	Attributes(NOSPLIT)
+-	// Hack to get Avo to output:
+-	// 	JMP ·p256BigToLittle(SB)
+-	Instruction(&ir.Instruction{
+-		Opcode: "JMP",
+-		Operands: []Op{
+-			LabelRef("·p256BigToLittle(SB)"),
+-		},
+-	})
+-}
+-
+-// Implements:
+-//
+-//	func p256OrdBigToLittle(res *p256OrdElement, in *[32]byte)
+-func p256OrdBigToLittle() {
+-	Implement("p256OrdBigToLittle")
+-	Attributes(NOSPLIT)
+-	// Hack to get Avo to output:
+-	// 	JMP ·p256BigToLittle(SB)
+-	Instruction(&ir.Instruction{
+-		Opcode: "JMP",
+-		Operands: []Op{
+-			LabelRef("·p256BigToLittle(SB)"),
+-		},
+-	})
+-}
+-
+-// Implements
+-//
+-//	func p256LittleToBig(res *[32]byte, in *p256Element)
+-func p256LittleToBig() {
+-	Implement("p256LittleToBig")
+-	Attributes(NOSPLIT)
+-	// Hack to get Avo to output:
+-	// 	JMP ·p256BigToLittle(SB)
+-	Instruction(&ir.Instruction{
+-		Opcode: "JMP",
+-		Operands: []Op{
+-			LabelRef("·p256BigToLittle(SB)"),
+-		},
+-	})
+-}
+-
+-// Implements:
+-//
+-//	func p256BigToLittle(res *p256Element, in *[32]byte)
+-func p256BigToLittle() {
+-	Implement("p256BigToLittle")
+-	Attributes(NOSPLIT)
+-
+-	Load(Param("res"), res_ptr)
+-	Load(Param("in"), x_ptr)
+-
+-	MOVQ(Mem{Base: x_ptr}.Offset(8*0), acc0_v1)
+-	MOVQ(Mem{Base: x_ptr}.Offset(8*1), acc1_v1)
+-	MOVQ(Mem{Base: x_ptr}.Offset(8*2), acc2_v1)
+-	MOVQ(Mem{Base: x_ptr}.Offset(8*3), acc3_v1)
+-
+-	BSWAPQ(acc0_v1)
+-	BSWAPQ(acc1_v1)
+-	BSWAPQ(acc2_v1)
+-	BSWAPQ(acc3_v1)
+-
+-	MOVQ(acc3_v1, Mem{Base: res_ptr}.Offset(8*0))
+-	MOVQ(acc2_v1, Mem{Base: res_ptr}.Offset(8*1))
+-	MOVQ(acc1_v1, Mem{Base: res_ptr}.Offset(8*2))
+-	MOVQ(acc0_v1, Mem{Base: res_ptr}.Offset(8*3))
+-
+-	RET()
+-}
+-
+ // Implements:
+ //
+ //	func p256MovCond(res, a, b *P256Point, cond int)
+diff --git a/src/crypto/internal/nistec/p256_asm.go b/src/crypto/internal/nistec/p256_asm.go
+index 5dbd7efbd5..599eee9623 100644
+--- a/src/crypto/internal/nistec/p256_asm.go
++++ b/src/crypto/internal/nistec/p256_asm.go
+@@ -178,6 +178,28 @@ func p256LessThanP(x *p256Element) int {
+ 	return int(b)
+ }
+ 
++func p256BigToLittle(l *p256Element, b *[32]byte) {
++	bytesToLimbs((*[4]uint64)(l), b)
++}
++
++func bytesToLimbs(l *[4]uint64, b *[32]byte) {
++	l[0] = byteorder.BeUint64(b[24:])
++	l[1] = byteorder.BeUint64(b[16:])
++	l[2] = byteorder.BeUint64(b[8:])
++	l[3] = byteorder.BeUint64(b[:])
++}
++
++func p256LittleToBig(b *[32]byte, l *p256Element) {
++	limbsToBytes(b, (*[4]uint64)(l))
++}
++
++func limbsToBytes(b *[32]byte, l *[4]uint64) {
++	byteorder.BePutUint64(b[24:], l[0])
++	byteorder.BePutUint64(b[16:], l[1])
++	byteorder.BePutUint64(b[8:], l[2])
++	byteorder.BePutUint64(b[:], l[3])
++}
++
+ // p256Add sets res = x + y.
+ func p256Add(res, x, y *p256Element) {
+ 	var c, b uint64
+@@ -277,18 +299,6 @@ func p256NegCond(val *p256Element, cond int)
+ //go:noescape
+ func p256MovCond(res, a, b *P256Point, cond int)
+ 
+-//go:noescape
+-func p256BigToLittle(res *p256Element, in *[32]byte)
+-
+-//go:noescape
+-func p256LittleToBig(res *[32]byte, in *p256Element)
+-
+-//go:noescape
+-func p256OrdBigToLittle(res *p256OrdElement, in *[32]byte)
+-
+-//go:noescape
+-func p256OrdLittleToBig(res *[32]byte, in *p256OrdElement)
+-
+ // p256Table is a table of the first 16 multiples of a point. Points are stored
+ // at an index offset of -1 so [8]P is at index 7, P is at 0, and [16]P is at 15.
+ // [0]P is the point at infinity and it's not stored.
+@@ -379,6 +389,14 @@ func p256OrdReduce(s *p256OrdElement) {
+ 	s[3] ^= (t3 ^ s[3]) & tMask
+ }
+ 
++func p256OrdLittleToBig(b *[32]byte, l *p256OrdElement) {
++	limbsToBytes(b, (*[4]uint64)(l))
++}
++
++func p256OrdBigToLittle(l *p256OrdElement, b *[32]byte) {
++	bytesToLimbs((*[4]uint64)(l), b)
++}
++
+ // Add sets q = p1 + p2, and returns q. The points may overlap.
+ func (q *P256Point) Add(r1, r2 *P256Point) *P256Point {
+ 	var sum, double P256Point
+diff --git a/src/crypto/internal/nistec/p256_asm_amd64.s b/src/crypto/internal/nistec/p256_asm_amd64.s
+index 501e094266..64894891e9 100644
+--- a/src/crypto/internal/nistec/p256_asm_amd64.s
++++ b/src/crypto/internal/nistec/p256_asm_amd64.s
+@@ -1,39 +1,9 @@
+-// Code generated by command: go run p256_asm_amd64.go -out ../p256_asm_amd64.s -pkg nistec. DO NOT EDIT.
++// Code generated by command: go run p256_asm.go -out ../p256_asm_amd64.s. DO NOT EDIT.
+ 
+ //go:build !purego
+ 
+ #include "textflag.h"
+ 
+-// func p256OrdLittleToBig(res *[32]byte, in *p256OrdElement)
+-TEXT ·p256OrdLittleToBig(SB), NOSPLIT, $0-16
+-	JMP ·p256BigToLittle(SB)
+-
+-// func p256OrdBigToLittle(res *p256OrdElement, in *[32]byte)
+-TEXT ·p256OrdBigToLittle(SB), NOSPLIT, $0-16
+-	JMP ·p256BigToLittle(SB)
+-
+-// func p256LittleToBig(res *[32]byte, in *p256Element)
+-TEXT ·p256LittleToBig(SB), NOSPLIT, $0-16
+-	JMP ·p256BigToLittle(SB)
+-
+-// func p256BigToLittle(res *p256Element, in *[32]byte)
+-TEXT ·p256BigToLittle(SB), NOSPLIT, $0-16
+-	MOVQ   res+0(FP), DI
+-	MOVQ   in+8(FP), SI
+-	MOVQ   (SI), R8
+-	MOVQ   8(SI), R9
+-	MOVQ   16(SI), R10
+-	MOVQ   24(SI), R11
+-	BSWAPQ R8
+-	BSWAPQ R9
+-	BSWAPQ R10
+-	BSWAPQ R11
+-	MOVQ   R11, (DI)
+-	MOVQ   R10, 8(DI)
+-	MOVQ   R9, 16(DI)
+-	MOVQ   R8, 24(DI)
+-	RET
+-
+ // func p256MovCond(res *P256Point, a *P256Point, b *P256Point, cond int)
+ // Requires: SSE2
+ TEXT ·p256MovCond(SB), NOSPLIT, $0-32
+diff --git a/src/crypto/internal/nistec/p256_asm_arm64.s b/src/crypto/internal/nistec/p256_asm_arm64.s
+index d00a54db1a..33da24508e 100644
+--- a/src/crypto/internal/nistec/p256_asm_arm64.s
++++ b/src/crypto/internal/nistec/p256_asm_arm64.s
+@@ -65,35 +65,6 @@ GLOBL p256ordK0<>(SB), 8, $8
+ GLOBL p256ord<>(SB), 8, $32
+ GLOBL p256one<>(SB), 8, $32
+ 
+-/* ---------------------------------------*/
+-// func p256OrdLittleToBig(res *[32]byte, in *p256OrdElement)
+-TEXT ·p256OrdLittleToBig(SB),NOSPLIT,$0
+-	JMP	·p256BigToLittle(SB)
+-/* ---------------------------------------*/
+-// func p256OrdBigToLittle(res *p256OrdElement, in *[32]byte)
+-TEXT ·p256OrdBigToLittle(SB),NOSPLIT,$0
+-	JMP	·p256BigToLittle(SB)
+-/* ---------------------------------------*/
+-// func p256LittleToBig(res *[32]byte, in *p256Element)
+-TEXT ·p256LittleToBig(SB),NOSPLIT,$0
+-	JMP	·p256BigToLittle(SB)
+-/* ---------------------------------------*/
+-// func p256BigToLittle(res *p256Element, in *[32]byte)
+-TEXT ·p256BigToLittle(SB),NOSPLIT,$0
+-	MOVD	res+0(FP), res_ptr
+-	MOVD	in+8(FP), a_ptr
+-
+-	LDP	0*16(a_ptr), (acc0, acc1)
+-	LDP	1*16(a_ptr), (acc2, acc3)
+-
+-	REV	acc0, acc0
+-	REV	acc1, acc1
+-	REV	acc2, acc2
+-	REV	acc3, acc3
+-
+-	STP	(acc3, acc2), 0*16(res_ptr)
+-	STP	(acc1, acc0), 1*16(res_ptr)
+-	RET
+ /* ---------------------------------------*/
+ // func p256MovCond(res, a, b *P256Point, cond int)
+ // If cond == 0 res=b, else res=a
+diff --git a/src/crypto/internal/nistec/p256_asm_ppc64le.s b/src/crypto/internal/nistec/p256_asm_ppc64le.s
+index a21e638662..7c46b268ef 100644
+--- a/src/crypto/internal/nistec/p256_asm_ppc64le.s
++++ b/src/crypto/internal/nistec/p256_asm_ppc64le.s
+@@ -362,50 +362,6 @@ loop_select:
+ #undef SEL1
+ #undef SEL2
+ 
+-// The following functions all reverse the byte order.
+-
+-//func p256BigToLittle(res *p256Element, in *[32]byte)
+-TEXT ·p256BigToLittle(SB), NOSPLIT, $0-16
+-	MOVD	res+0(FP), R3
+-	MOVD	in+8(FP), R4
+-	BR	p256InternalEndianSwap<>(SB)
+-
+-//func p256LittleToBig(res *[32]byte, in *p256Element)
+-TEXT ·p256LittleToBig(SB), NOSPLIT, $0-16
+-	MOVD	res+0(FP), R3
+-	MOVD	in+8(FP), R4
+-	BR	p256InternalEndianSwap<>(SB)
+-
+-//func p256OrdBigToLittle(res *p256OrdElement, in *[32]byte)
+-TEXT ·p256OrdBigToLittle(SB), NOSPLIT, $0-16
+-	MOVD	res+0(FP), R3
+-	MOVD	in+8(FP), R4
+-	BR	p256InternalEndianSwap<>(SB)
+-
+-//func p256OrdLittleToBig(res *[32]byte, in *p256OrdElement)
+-TEXT ·p256OrdLittleToBig(SB), NOSPLIT, $0-16
+-	MOVD	res+0(FP), R3
+-	MOVD	in+8(FP), R4
+-	BR	p256InternalEndianSwap<>(SB)
+-
+-TEXT p256InternalEndianSwap<>(SB), NOSPLIT, $0-0
+-	// Index registers needed for BR movs
+-	MOVD	$8, R9
+-	MOVD	$16, R10
+-	MOVD	$24, R14
+-
+-	MOVDBR	(R0)(R4), R5
+-	MOVDBR	(R9)(R4), R6
+-	MOVDBR	(R10)(R4), R7
+-	MOVDBR	(R14)(R4), R8
+-
+-	MOVD	R8, 0(R3)
+-	MOVD	R7, 8(R3)
+-	MOVD	R6, 16(R3)
+-	MOVD	R5, 24(R3)
+-
+-	RET
+-
+ #define P3ptr   R3
+ #define P1ptr   R4
+ #define COUNT   R5
+diff --git a/src/crypto/internal/nistec/p256_asm_s390x.s b/src/crypto/internal/nistec/p256_asm_s390x.s
+index 6ff4cb3f5f..4ca25cfc41 100644
+--- a/src/crypto/internal/nistec/p256_asm_s390x.s
++++ b/src/crypto/internal/nistec/p256_asm_s390x.s
+@@ -49,44 +49,6 @@ GLOBL p256ord<>(SB), 8, $32
+ GLOBL p256<>(SB), 8, $96
+ GLOBL p256mul<>(SB), 8, $160
+ 
+-// func p256OrdLittleToBig(res *[32]byte, in *p256OrdElement)
+-TEXT ·p256OrdLittleToBig(SB), NOSPLIT, $0
+-	JMP ·p256BigToLittle(SB)
+-
+-// func p256OrdBigToLittle(res *p256OrdElement, in *[32]byte)
+-TEXT ·p256OrdBigToLittle(SB), NOSPLIT, $0
+-	JMP ·p256BigToLittle(SB)
+-
+-// ---------------------------------------
+-// func p256LittleToBig(res *[32]byte, in *p256Element)
+-TEXT ·p256LittleToBig(SB), NOSPLIT, $0
+-	JMP ·p256BigToLittle(SB)
+-
+-// func p256BigToLittle(res *p256Element, in *[32]byte)
+-#define res_ptr   R1
+-#define in_ptr   R2
+-#define T1L   V2
+-#define T1H   V3
+-
+-TEXT ·p256BigToLittle(SB), NOSPLIT, $0
+-	MOVD res+0(FP), res_ptr
+-	MOVD in+8(FP), in_ptr
+-
+-	VL 0(in_ptr), T1H
+-	VL 16(in_ptr), T1L
+-
+-	VPDI $0x4, T1L, T1L, T1L
+-	VPDI $0x4, T1H, T1H, T1H
+-
+-	VST T1L, 0(res_ptr)
+-	VST T1H, 16(res_ptr)
+-	RET
+-
+-#undef res_ptr
+-#undef in_ptr
+-#undef T1L
+-#undef T1H
+-
+ // ---------------------------------------
+ // iff cond == 1  val <- -val
+ // func p256NegCond(val *p256Element, cond int)

@@ -20,9 +20,93 @@ Date:   Mon Aug 29 15:45:35 2022 -0700
     Reviewed-by: Robert Findley <rfindley@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/syntax/parser.go     |  2 --
  src/go/parser/parser.go                       | 20 ++------------------
  src/go/parser/short_test.go                   |  1 -
  src/go/types/testdata/fixedbugs/issue43087.go |  2 +-
  4 files changed, 3 insertions(+), 22 deletions(-)
+
+diff --git a/src/cmd/compile/internal/syntax/parser.go b/src/cmd/compile/internal/syntax/parser.go
+index 8ba72fe7cf..e2298852b8 100644
+--- a/src/cmd/compile/internal/syntax/parser.go
++++ b/src/cmd/compile/internal/syntax/parser.go
+@@ -2487,8 +2487,6 @@ func (p *parser) commClause() *CommClause {
+ 		//
+ 		// All these (and more) are recognized by simpleStmt and invalid
+ 		// syntax trees are flagged later, during type checking.
+-		// TODO(gri) eventually may want to restrict valid syntax trees
+-		// here.
+ 
+ 	case _Default:
+ 		p.next()
+diff --git a/src/go/parser/parser.go b/src/go/parser/parser.go
+index 26ba7b2892..cc3c048094 100644
+--- a/src/go/parser/parser.go
++++ b/src/go/parser/parser.go
+@@ -1867,11 +1867,7 @@ func (p *parser) parseSimpleStmt(mode int) (ast.Stmt, bool) {
+ 		} else {
+ 			y = p.parseList(true)
+ 		}
+-		as := &ast.AssignStmt{Lhs: x, TokPos: pos, Tok: tok, Rhs: y}
+-		if tok == token.DEFINE {
+-			p.checkAssignStmt(as)
+-		}
+-		return as, isRange
++		return &ast.AssignStmt{Lhs: x, TokPos: pos, Tok: tok, Rhs: y}, isRange
+ 	}
+ 
+ 	if len(x) > 1 {
+@@ -1918,14 +1914,6 @@ func (p *parser) parseSimpleStmt(mode int) (ast.Stmt, bool) {
+ 	return &ast.ExprStmt{X: x[0]}, false
+ }
+ 
+-func (p *parser) checkAssignStmt(as *ast.AssignStmt) {
+-	for _, x := range as.Lhs {
+-		if _, isIdent := x.(*ast.Ident); !isIdent {
+-			p.errorExpected(x.Pos(), "identifier on left side of :=")
+-		}
+-	}
+-}
+-
+ func (p *parser) parseCallExpr(callType string) *ast.CallExpr {
+ 	x := p.parseRhs() // could be a conversion: (some type)(x)
+ 	if t := unparen(x); t != x {
+@@ -2245,11 +2233,7 @@ func (p *parser) parseCommClause() *ast.CommClause {
+ 				pos := p.pos
+ 				p.next()
+ 				rhs := p.parseRhs()
+-				as := &ast.AssignStmt{Lhs: lhs, TokPos: pos, Tok: tok, Rhs: []ast.Expr{rhs}}
+-				if tok == token.DEFINE {
+-					p.checkAssignStmt(as)
+-				}
+-				comm = as
++				comm = &ast.AssignStmt{Lhs: lhs, TokPos: pos, Tok: tok, Rhs: []ast.Expr{rhs}}
+ 			} else {
+ 				// lhs must be single receive operation
+ 				if len(lhs) > 1 {
+diff --git a/src/go/parser/short_test.go b/src/go/parser/short_test.go
+index ea8b087bae..298579ea6c 100644
+--- a/src/go/parser/short_test.go
++++ b/src/go/parser/short_test.go
+@@ -143,7 +143,6 @@ var invalids = []string{
+ 	`package p; func f() { switch t /* ERROR "expected switch expression" */ = t.(type), t {} };`,
+ 	`package p; func f() { _ = (<-<- /* ERROR "expected 'chan'" */ chan int)(nil) };`,
+ 	`package p; func f() { _ = (<-chan<-chan<-chan<-chan<-chan<- /* ERROR "expected channel type" */ int)(nil) };`,
+-	`package p; func f() { var t []int; t /* ERROR "expected identifier on left side of :=" */ [0] := 0 };`,
+ 	`package p; func f() { if x := g(); x /* ERROR "expected boolean expression" */ = 0 {}};`,
+ 	`package p; func f() { _ = x = /* ERROR "expected '=='" */ 0 {}};`,
+ 	`package p; func f() { _ = 1 == func()int { var x bool; x = x = /* ERROR "expected '=='" */ true; return x }() };`,
+diff --git a/src/go/types/testdata/fixedbugs/issue43087.go b/src/go/types/testdata/fixedbugs/issue43087.go
+index ef37b4aa29..85d4450139 100644
+--- a/src/go/types/testdata/fixedbugs/issue43087.go
++++ b/src/go/types/testdata/fixedbugs/issue43087.go
+@@ -24,7 +24,7 @@ func _() {
+ 
+ func _() {
+ 	var a []int
+-	a /* ERROR expected identifier */ /* ERROR non-name .* on left side of := */ [0], b := 1, 2
++	a /* ERROR non-name .* on left side of := */ [0], b := 1, 2
+ 	_ = a
+ 	_ = b
+ }

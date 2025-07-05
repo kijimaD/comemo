@@ -173,3 +173,17 @@ Date:   Wed Oct 29 12:25:24 2014 -0400
  src/syscall/ztypes_linux_power64le.go              |  602 ++++
  test/nosplit.go                                    |   21 +-
  158 files changed, 39285 insertions(+), 2689 deletions(-)
+
+diff --cc src/runtime/mgc0.c
+index bcc5a2f39d,e5b6870c66..f76d7c05ca
+--- a/src/runtime/mgc0.c
++++ b/src/runtime/mgc0.c
+@@@ -2065,6 -1802,7 +2065,7 @@@ runtime·unrollgcprog_m(void
+  			prog = (byte*)typ->gc[1];
+  			unrollgcprog1(mask, prog, &pos, false, true);
+  		}
+ -		
+++
+  		// atomic way to say mask[0] = 1
+  		x = *(uintptr*)mask;
+  		((byte*)&x)[0] = 1;

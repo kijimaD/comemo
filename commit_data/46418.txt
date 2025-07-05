@@ -25,7 +25,7 @@ Date:   Mon Dec 28 17:30:04 2020 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/escape/escape.go | 45 ++++++++++++++++++-------------
  src/cmd/compile/internal/ir/expr.go       |  8 +++---
  src/cmd/compile/internal/ir/mini.go       |  2 --
@@ -34,3 +34,239 @@ Date:   Mon Dec 28 17:30:04 2020 -0800
  src/cmd/compile/internal/walk/convert.go  | 14 ++++------
  src/cmd/compile/internal/walk/walk.go     |  2 --
  7 files changed, 38 insertions(+), 39 deletions(-)
+
+diff --git a/src/cmd/compile/internal/escape/escape.go b/src/cmd/compile/internal/escape/escape.go
+index 7b4037e028..b953666ce6 100644
+--- a/src/cmd/compile/internal/escape/escape.go
++++ b/src/cmd/compile/internal/escape/escape.go
+@@ -165,12 +165,16 @@ func Fmt(n ir.Node) string {
+ 		text = fmt.Sprintf("esc(%d)", n.Esc())
+ 	}
+ 
+-	if e, ok := n.Opt().(*location); ok && e.loopDepth != 0 {
+-		if text != "" {
+-			text += " "
++	if n.Op() == ir.ONAME {
++		n := n.(*ir.Name)
++		if e, ok := n.Opt.(*location); ok && e.loopDepth != 0 {
++			if text != "" {
++				text += " "
++			}
++			text += fmt.Sprintf("ld(%d)", e.loopDepth)
+ 		}
+-		text += fmt.Sprintf("ld(%d)", e.loopDepth)
+ 	}
++
+ 	return text
+ }
+ 
+@@ -312,7 +316,7 @@ func (e *escape) stmt(n ir.Node) {
+ 		// Record loop depth at declaration.
+ 		n := n.(*ir.Decl)
+ 		if !ir.IsBlank(n.X) {
+-			e.dcl(n.X)
++			e.dcl(n.X.(*ir.Name))
+ 		}
+ 
+ 	case ir.OLABEL:
+@@ -370,7 +374,7 @@ func (e *escape) stmt(n ir.Node) {
+ 		var ks []hole
+ 		for _, cas := range n.Cases { // cases
+ 			if typesw && n.Tag.(*ir.TypeSwitchGuard).Tag != nil {
+-				cv := cas.Var
++				cv := cas.Var.(*ir.Name)
+ 				k := e.dcl(cv) // type switch variables have no ODCL.
+ 				if cv.Type().HasPointers() {
+ 					ks = append(ks, k.dotType(cv.Type(), cas, "switch case"))
+@@ -1097,7 +1101,7 @@ func (e *escape) teeHole(ks ...hole) hole {
+ 	return loc.asHole()
+ }
+ 
+-func (e *escape) dcl(n ir.Node) hole {
++func (e *escape) dcl(n *ir.Name) hole {
+ 	loc := e.oldLoc(n)
+ 	loc.loopDepth = e.loopDepth
+ 	return loc.asHole()
+@@ -1151,15 +1155,17 @@ func (e *escape) newLoc(n ir.Node, transient bool) *location {
+ 	}
+ 	e.allLocs = append(e.allLocs, loc)
+ 	if n != nil {
+-		if n.Op() == ir.ONAME && n.Name().Curfn != e.curfn {
++		if n.Op() == ir.ONAME {
+ 			n := n.(*ir.Name)
+-			base.Fatalf("curfn mismatch: %v != %v", n.Name().Curfn, e.curfn)
+-		}
++			if n.Curfn != e.curfn {
++				base.Fatalf("curfn mismatch: %v != %v", n.Name().Curfn, e.curfn)
++			}
+ 
+-		if n.Opt() != nil {
+-			base.Fatalf("%v already has a location", n)
++			if n.Opt != nil {
++				base.Fatalf("%v already has a location", n)
++			}
++			n.Opt = loc
+ 		}
+-		n.SetOpt(loc)
+ 
+ 		if why := HeapAllocReason(n); why != "" {
+ 			e.flow(e.heapHole().addr(n, why), loc)
+@@ -1168,9 +1174,9 @@ func (e *escape) newLoc(n ir.Node, transient bool) *location {
+ 	return loc
+ }
+ 
+-func (e *escape) oldLoc(n ir.Node) *location {
+-	n = canonicalNode(n)
+-	return n.Opt().(*location)
++func (e *escape) oldLoc(n *ir.Name) *location {
++	n = canonicalNode(n).(*ir.Name)
++	return n.Opt.(*location)
+ }
+ 
+ func (l *location) asHole() hole {
+@@ -1516,7 +1522,10 @@ func (e *escape) finish(fns []*ir.Func) {
+ 		if n == nil {
+ 			continue
+ 		}
+-		n.SetOpt(nil)
++		if n.Op() == ir.ONAME {
++			n := n.(*ir.Name)
++			n.Opt = nil
++		}
+ 
+ 		// Update n.Esc based on escape analysis results.
+ 
+@@ -2122,7 +2131,7 @@ func (e *escape) paramTag(fn *ir.Func, narg int, f *types.Field) string {
+ 		return esc.Encode()
+ 	}
+ 
+-	n := ir.AsNode(f.Nname)
++	n := f.Nname.(*ir.Name)
+ 	loc := e.oldLoc(n)
+ 	esc := loc.paramEsc
+ 	esc.Optimize()
+diff --git a/src/cmd/compile/internal/ir/expr.go b/src/cmd/compile/internal/ir/expr.go
+index 825d4ace78..bb32d96088 100644
+--- a/src/cmd/compile/internal/ir/expr.go
++++ b/src/cmd/compile/internal/ir/expr.go
+@@ -48,8 +48,7 @@ type Expr interface {
+ type miniExpr struct {
+ 	miniNode
+ 	typ   *types.Type
+-	init  Nodes       // TODO(rsc): Don't require every Node to have an init
+-	opt   interface{} // TODO(rsc): Don't require every Node to have an opt?
++	init  Nodes // TODO(rsc): Don't require every Node to have an init
+ 	flags bitset8
+ }
+ 
+@@ -59,14 +58,13 @@ const (
+ 	miniExprTransient
+ 	miniExprBounded
+ 	miniExprImplicit // for use by implementations; not supported by every Expr
++	miniExprCheckPtr
+ )
+ 
+ func (*miniExpr) isExpr() {}
+ 
+ func (n *miniExpr) Type() *types.Type     { return n.typ }
+ func (n *miniExpr) SetType(x *types.Type) { n.typ = x }
+-func (n *miniExpr) Opt() interface{}      { return n.opt }
+-func (n *miniExpr) SetOpt(x interface{})  { n.opt = x }
+ func (n *miniExpr) HasCall() bool         { return n.flags&miniExprHasCall != 0 }
+ func (n *miniExpr) SetHasCall(b bool)     { n.flags.set(miniExprHasCall, b) }
+ func (n *miniExpr) NonNil() bool          { return n.flags&miniExprNonNil != 0 }
+@@ -324,6 +322,8 @@ func NewConvExpr(pos src.XPos, op Op, typ *types.Type, x Node) *ConvExpr {
+ 
+ func (n *ConvExpr) Implicit() bool     { return n.flags&miniExprImplicit != 0 }
+ func (n *ConvExpr) SetImplicit(b bool) { n.flags.set(miniExprImplicit, b) }
++func (n *ConvExpr) CheckPtr() bool     { return n.flags&miniExprCheckPtr != 0 }
++func (n *ConvExpr) SetCheckPtr(b bool) { n.flags.set(miniExprCheckPtr, b) }
+ 
+ func (n *ConvExpr) SetOp(op Op) {
+ 	switch op {
+diff --git a/src/cmd/compile/internal/ir/mini.go b/src/cmd/compile/internal/ir/mini.go
+index 53a63afe9b..9270132621 100644
+--- a/src/cmd/compile/internal/ir/mini.go
++++ b/src/cmd/compile/internal/ir/mini.go
+@@ -102,5 +102,3 @@ func (n *miniNode) HasCall() bool           { return false }
+ func (n *miniNode) SetHasCall(bool)         { panic(n.no("SetHasCall")) }
+ func (n *miniNode) NonNil() bool            { return false }
+ func (n *miniNode) MarkNonNil()             { panic(n.no("MarkNonNil")) }
+-func (n *miniNode) Opt() interface{}        { return nil }
+-func (n *miniNode) SetOpt(interface{})      { panic(n.no("SetOpt")) }
+diff --git a/src/cmd/compile/internal/ir/name.go b/src/cmd/compile/internal/ir/name.go
+index cb4876b9f8..980e3f6349 100644
+--- a/src/cmd/compile/internal/ir/name.go
++++ b/src/cmd/compile/internal/ir/name.go
+@@ -42,6 +42,7 @@ type Name struct {
+ 	Func      *Func
+ 	Offset_   int64
+ 	val       constant.Value
++	Opt       interface{} // for use by escape analysis
+ 	orig      Node
+ 	Embed     *[]Embed // list of embedded files, for ONAME var
+ 
+@@ -321,8 +322,7 @@ func (n *Name) Val() constant.Value {
+ 	return n.val
+ }
+ 
+-// SetVal sets the constant.Value for the node,
+-// which must not have been used with SetOpt.
++// SetVal sets the constant.Value for the node.
+ func (n *Name) SetVal(v constant.Value) {
+ 	if n.op != OLITERAL {
+ 		panic(n.no("SetVal"))
+diff --git a/src/cmd/compile/internal/ir/node.go b/src/cmd/compile/internal/ir/node.go
+index 54a3e2ba89..0238e9de85 100644
+--- a/src/cmd/compile/internal/ir/node.go
++++ b/src/cmd/compile/internal/ir/node.go
+@@ -50,8 +50,6 @@ type Node interface {
+ 	SetEsc(x uint16)
+ 	Walkdef() uint8
+ 	SetWalkdef(x uint8)
+-	Opt() interface{}
+-	SetOpt(x interface{})
+ 	Diag() bool
+ 	SetDiag(x bool)
+ 	Typecheck() uint8
+diff --git a/src/cmd/compile/internal/walk/convert.go b/src/cmd/compile/internal/walk/convert.go
+index 99abf30668..d0cd5ff753 100644
+--- a/src/cmd/compile/internal/walk/convert.go
++++ b/src/cmd/compile/internal/walk/convert.go
+@@ -438,18 +438,14 @@ func walkCheckPtrAlignment(n *ir.ConvExpr, init *ir.Nodes, count ir.Node) ir.Nod
+ }
+ 
+ func walkCheckPtrArithmetic(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
+-	// Calling cheapexpr(n, init) below leads to a recursive call
+-	// to walkexpr, which leads us back here again. Use n.Opt to
++	// Calling cheapexpr(n, init) below leads to a recursive call to
++	// walkexpr, which leads us back here again. Use n.Checkptr to
+ 	// prevent infinite loops.
+-	if opt := n.Opt(); opt == &walkCheckPtrArithmeticMarker {
++	if n.CheckPtr() {
+ 		return n
+-	} else if opt != nil {
+-		// We use n.Opt() here because today it's not used for OCONVNOP. If that changes,
+-		// there's no guarantee that temporarily replacing it is safe, so just hard fail here.
+-		base.Fatalf("unexpected Opt: %v", opt)
+ 	}
+-	n.SetOpt(&walkCheckPtrArithmeticMarker)
+-	defer n.SetOpt(nil)
++	n.SetCheckPtr(true)
++	defer n.SetCheckPtr(false)
+ 
+ 	// TODO(mdempsky): Make stricter. We only need to exempt
+ 	// reflect.Value.Pointer and reflect.Value.UnsafeAddr.
+diff --git a/src/cmd/compile/internal/walk/walk.go b/src/cmd/compile/internal/walk/walk.go
+index c4c3debde4..bdc9a2ea6a 100644
+--- a/src/cmd/compile/internal/walk/walk.go
++++ b/src/cmd/compile/internal/walk/walk.go
+@@ -377,8 +377,6 @@ func walkAppendArgs(n *ir.CallExpr, init *ir.Nodes) {
+ 
+ var wrapCall_prgen int
+ 
+-var walkCheckPtrArithmeticMarker byte
+-
+ // appendWalkStmt typechecks and walks stmt and then appends it to init.
+ func appendWalkStmt(init *ir.Nodes, stmt ir.Node) {
+ 	op := stmt.Op()

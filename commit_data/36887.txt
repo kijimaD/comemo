@@ -13,6 +13,29 @@ Date:   Thu Jun 7 05:14:23 2018 +0000
     GitHub-Pull-Request: golang/go#25750
     Reviewed-on: https://go-review.googlesource.com/116555
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/flag/flag.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/flag/flag.go b/src/flag/flag.go
+index f613144a7e..188adb285f 100644
+--- a/src/flag/flag.go
++++ b/src/flag/flag.go
+@@ -5,7 +5,7 @@
+ /*
+ 	Package flag implements command-line flag parsing.
+ 
+-	Usage:
++	Usage
+ 
+ 	Define flags using flag.String(), Bool(), Int(), etc.
+ 
+@@ -35,7 +35,7 @@
+ 	slice flag.Args() or individually as flag.Arg(i).
+ 	The arguments are indexed from 0 through flag.NArg()-1.
+ 
+-	Command line flag syntax:
++	Command line flag syntax
+ 		-flag
+ 		-flag=x
+ 		-flag x  // non-boolean flags only

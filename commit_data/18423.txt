@@ -20,6 +20,31 @@ Date:   Fri Feb 7 10:23:02 2014 +0900
     R=iant, dave
     CC=golang-codereviews
     https://golang.org/cl/59490052
-
+---
  src/pkg/syscall/ztypes_freebsd_arm.go | 10 ++++++----
  1 file changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/syscall/ztypes_freebsd_arm.go b/src/pkg/syscall/ztypes_freebsd_arm.go
+index b1bf83b4c1..3d943f1346 100644
+--- a/src/pkg/syscall/ztypes_freebsd_arm.go
++++ b/src/pkg/syscall/ztypes_freebsd_arm.go
+@@ -19,13 +19,15 @@ type (
+ )
+ 
+ type Timespec struct {
+-	Sec  int64
+-	Nsec int32
++	Sec       int64
++	Nsec      int32
++	Pad_cgo_0 [4]byte
+ }
+ 
+ type Timeval struct {
+-	Sec  int64
+-	Usec int32
++	Sec       int64
++	Usec      int32
++	Pad_cgo_0 [4]byte
+ }
+ 
+ type Rusage struct {

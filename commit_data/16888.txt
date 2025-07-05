@@ -9,6 +9,30 @@ Date:   Sat Jul 27 13:46:40 2013 +0400
     R=golang-dev, alex.brainman
     CC=golang-dev
     https://golang.org/cl/11920044
-
+---
  src/pkg/runtime/netpoll_windows.c | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/netpoll_windows.c b/src/pkg/runtime/netpoll_windows.c
+index 52ba7e46e6..972f1c30ef 100644
+--- a/src/pkg/runtime/netpoll_windows.c
++++ b/src/pkg/runtime/netpoll_windows.c
+@@ -71,6 +71,8 @@ runtime·netpoll(bool block)
+ 
+ 	if(iocphandle == INVALID_HANDLE_VALUE)
+ 		return nil;
++	gp = nil;
++retry:
+ 	o = nil;
+ 	errno = 0;
+ 	qty = 0;
+@@ -104,7 +106,8 @@ runtime·netpoll(bool block)
+ 	}
+ 	o->errno = errno;
+ 	o->qty = qty;
+-	gp = nil;
+ 	runtime·netpollready(&gp, (void*)o->runtimeCtx, mode);
++	if(block && gp == nil)
++		goto retry;
+ 	return gp;
+ }

@@ -8,6 +8,18 @@ Date:   Wed Oct 1 13:38:00 2014 +1000
     R=golang-codereviews, crawshaw
     CC=golang-codereviews
     https://golang.org/cl/146610043
-
+---
  .hgtags | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/.hgtags b/.hgtags
+index a018693891..5a5c4aed44 100644
+--- a/.hgtags
++++ b/.hgtags
+@@ -133,4 +133,5 @@ f8b50ad4cac4d4c4ecf48324b4f512f65e82cc1c go1.3beta1
+ 9895f9e36435468d503eaa74ee217f28d5e28dd4 go1.3
+ 073fc578434bf3e1e22749b559d273c8da728ebb go1.3.1
+ 85518b1d6f8d6e16133b9ed2c9db6807522d37de go1.3.2
+-85518b1d6f8d6e16133b9ed2c9db6807522d37de release
++f44017549ff9c3cc5eef74ebe7276cd0dfc066b6 go1.3.3
++f44017549ff9c3cc5eef74ebe7276cd0dfc066b6 release

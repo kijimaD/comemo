@@ -13,7 +13,32 @@ Date:   Wed Feb 8 19:15:23 2023 +0000
     Run-TryBot: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Michael Pratt <mpratt@google.com>
-
+---
  src/internal/poll/fd_poll_runtime.go | 2 +-
  src/sync/atomic/value.go             | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/internal/poll/fd_poll_runtime.go b/src/internal/poll/fd_poll_runtime.go
+index 4d3cc78405..0a2e76d73f 100644
+--- a/src/internal/poll/fd_poll_runtime.go
++++ b/src/internal/poll/fd_poll_runtime.go
+@@ -23,7 +23,7 @@ func runtime_pollServerInit()
+ func runtime_pollOpen(fd uintptr) (uintptr, int)
+ func runtime_pollClose(ctx uintptr)
+ func runtime_pollWait(ctx uintptr, mode int) int
+-func runtime_pollWaitCanceled(ctx uintptr, mode int) int
++func runtime_pollWaitCanceled(ctx uintptr, mode int)
+ func runtime_pollReset(ctx uintptr, mode int) int
+ func runtime_pollSetDeadline(ctx uintptr, d int64, mode int)
+ func runtime_pollUnblock(ctx uintptr)
+diff --git a/src/sync/atomic/value.go b/src/sync/atomic/value.go
+index 8c491b4616..a57b08a6b8 100644
+--- a/src/sync/atomic/value.go
++++ b/src/sync/atomic/value.go
+@@ -190,5 +190,5 @@ func (v *Value) CompareAndSwap(old, new any) (swapped bool) {
+ }
+ 
+ // Disable/enable preemption, implemented in runtime.
+-func runtime_procPin()
++func runtime_procPin() int
+ func runtime_procUnpin()

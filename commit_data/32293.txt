@@ -11,7 +11,7 @@ Date:   Tue Apr 18 21:52:06 2017 +1200
     Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/link/internal/amd64/asm.go  |  4 +--
  src/cmd/link/internal/arm/asm.go    |  4 +--
  src/cmd/link/internal/arm64/asm.go  |  4 +--
@@ -28,3 +28,621 @@ Date:   Tue Apr 18 21:52:06 2017 +1200
  src/cmd/link/internal/s390x/asm.go  |  4 +--
  src/cmd/link/internal/x86/asm.go    |  4 +--
  15 files changed, 92 insertions(+), 91 deletions(-)
+
+diff --git a/src/cmd/link/internal/amd64/asm.go b/src/cmd/link/internal/amd64/asm.go
+index 4084f19092..af3d6e7b13 100644
+--- a/src/cmd/link/internal/amd64/asm.go
++++ b/src/cmd/link/internal/amd64/asm.go
+@@ -659,11 +659,11 @@ func asmb(ctxt *ld.Link) {
+ 		ld.Asmbelfsetup()
+ 	}
+ 
+-	sect := ld.Segtext.Sect
++	sect := ld.Segtext.Sections[0]
+ 	ld.Cseek(int64(sect.Vaddr - ld.Segtext.Vaddr + ld.Segtext.Fileoff))
+ 	// 0xCC is INT $3 - breakpoint instruction
+ 	ld.CodeblkPad(ctxt, int64(sect.Vaddr), int64(sect.Length), []byte{0xCC})
+-	for sect = sect.Next; sect != nil; sect = sect.Next {
++	for _, sect = range ld.Segtext.Sections[1:] {
+ 		ld.Cseek(int64(sect.Vaddr - ld.Segtext.Vaddr + ld.Segtext.Fileoff))
+ 		ld.Datblk(ctxt, int64(sect.Vaddr), int64(sect.Length))
+ 	}
+diff --git a/src/cmd/link/internal/arm/asm.go b/src/cmd/link/internal/arm/asm.go
+index ee57df11b3..53811c02fd 100644
+--- a/src/cmd/link/internal/arm/asm.go
++++ b/src/cmd/link/internal/arm/asm.go
+@@ -755,10 +755,10 @@ func asmb(ctxt *ld.Link) {
+ 		ld.Asmbelfsetup()
+ 	}
+ 
+-	sect := ld.Segtext.Sect
++	sect := ld.Segtext.Sections[0]
+ 	ld.Cseek(int64(sect.Vaddr - ld.Segtext.Vaddr + ld.Segtext.Fileoff))
+ 	ld.Codeblk(ctxt, int64(sect.Vaddr), int64(sect.Length))
+-	for sect = sect.Next; sect != nil; sect = sect.Next {
++	for _, sect = range ld.Segtext.Sections[1:] {
+ 		ld.Cseek(int64(sect.Vaddr - ld.Segtext.Vaddr + ld.Segtext.Fileoff))
+ 		ld.Datblk(ctxt, int64(sect.Vaddr), int64(sect.Length))
+ 	}
+diff --git a/src/cmd/link/internal/arm64/asm.go b/src/cmd/link/internal/arm64/asm.go
+index 118a575c2c..d7576b1686 100644
+--- a/src/cmd/link/internal/arm64/asm.go
++++ b/src/cmd/link/internal/arm64/asm.go
+@@ -400,10 +400,10 @@ func asmb(ctxt *ld.Link) {
+ 		ld.Asmbelfsetup()
+ 	}
+ 
+-	sect := ld.Segtext.Sect
++	sect := ld.Segtext.Sections[0]
+ 	ld.Cseek(int64(sect.Vaddr - ld.Segtext.Vaddr + ld.Segtext.Fileoff))
+ 	ld.Codeblk(ctxt, int64(sect.Vaddr), int64(sect.Length))
+-	for sect = sect.Next; sect != nil; sect = sect.Next {
++	for _, sect = range ld.Segtext.Sections[1:] {
+ 		ld.Cseek(int64(sect.Vaddr - ld.Segtext.Vaddr + ld.Segtext.Fileoff))
+ 		ld.Datblk(ctxt, int64(sect.Vaddr), int64(sect.Length))
+ 	}
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 099a5361ac..9198cfef31 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -605,7 +605,7 @@ func relocsym(ctxt *Link, s *Symbol) {
+ 			// to the start of the first text section, even if there are multiple.
+ 
+ 			if r.Sym.Sect.Name == ".text" {
+-				o = Symaddr(r.Sym) - int64(Segtext.Sect.Vaddr) + r.Add
++				o = Symaddr(r.Sym) - int64(Segtext.Sections[0].Vaddr) + r.Add
+ 			} else {
+ 				o = Symaddr(r.Sym) - int64(r.Sym.Sect.Vaddr) + r.Add
+ 			}
+@@ -1856,23 +1856,23 @@ func (ctxt *Link) dodata() {
+ 	/* number the sections */
+ 	n := int32(1)
+ 
+-	for sect := Segtext.Sect; sect != nil; sect = sect.Next {
++	for _, sect := range Segtext.Sections {
+ 		sect.Extnum = int16(n)
+ 		n++
+ 	}
+-	for sect := Segrodata.Sect; sect != nil; sect = sect.Next {
++	for _, sect := range Segrodata.Sections {
+ 		sect.Extnum = int16(n)
+ 		n++
+ 	}
+-	for sect := Segrelrodata.Sect; sect != nil; sect = sect.Next {
++	for _, sect := range Segrelrodata.Sections {
+ 		sect.Extnum = int16(n)
+ 		n++
+ 	}
+-	for sect := Segdata.Sect; sect != nil; sect = sect.Next {
++	for _, sect := range Segdata.Sections {
+ 		sect.Extnum = int16(n)
+ 		n++
+ 	}
+-	for sect := Segdwarf.Sect; sect != nil; sect = sect.Next {
++	for _, sect := range Segdwarf.Sections {
+ 		sect.Extnum = int16(n)
+ 		n++
+ 	}
+@@ -2024,7 +2024,7 @@ func (ctxt *Link) textaddress() {
+ 	// Assign PCs in text segment.
+ 	// Could parallelize, by assigning to text
+ 	// and then letting threads copy down, but probably not worth it.
+-	sect := Segtext.Sect
++	sect := Segtext.Sections[0]
+ 
+ 	sect.Align = int32(Funcalign)
+ 
+@@ -2132,7 +2132,7 @@ func (ctxt *Link) address() {
+ 	Segtext.Rwx = 05
+ 	Segtext.Vaddr = va
+ 	Segtext.Fileoff = uint64(HEADR)
+-	for s := Segtext.Sect; s != nil; s = s.Next {
++	for _, s := range Segtext.Sections {
+ 		va = uint64(Rnd(int64(va), int64(s.Align)))
+ 		s.Vaddr = va
+ 		va += s.Length
+@@ -2144,7 +2144,7 @@ func (ctxt *Link) address() {
+ 		va += 32 // room for the "halt sled"
+ 	}
+ 
+-	if Segrodata.Sect != nil {
++	if len(Segrodata.Sections) > 0 {
+ 		// align to page boundary so as not to mix
+ 		// rodata and executable text.
+ 		//
+@@ -2164,7 +2164,7 @@ func (ctxt *Link) address() {
+ 		Segrodata.Vaddr = va
+ 		Segrodata.Fileoff = va - Segtext.Vaddr + Segtext.Fileoff
+ 		Segrodata.Filelen = 0
+-		for s := Segrodata.Sect; s != nil; s = s.Next {
++		for _, s := range Segrodata.Sections {
+ 			va = uint64(Rnd(int64(va), int64(s.Align)))
+ 			s.Vaddr = va
+ 			va += s.Length
+@@ -2173,7 +2173,7 @@ func (ctxt *Link) address() {
+ 		Segrodata.Length = va - Segrodata.Vaddr
+ 		Segrodata.Filelen = Segrodata.Length
+ 	}
+-	if Segrelrodata.Sect != nil {
++	if len(Segrelrodata.Sections) > 0 {
+ 		// align to page boundary so as not to mix
+ 		// rodata, rel-ro data, and executable text.
+ 		va = uint64(Rnd(int64(va), int64(*FlagRound)))
+@@ -2182,7 +2182,7 @@ func (ctxt *Link) address() {
+ 		Segrelrodata.Vaddr = va
+ 		Segrelrodata.Fileoff = va - Segrodata.Vaddr + Segrodata.Fileoff
+ 		Segrelrodata.Filelen = 0
+-		for s := Segrelrodata.Sect; s != nil; s = s.Next {
++		for _, s := range Segrelrodata.Sections {
+ 			va = uint64(Rnd(int64(va), int64(s.Align)))
+ 			s.Vaddr = va
+ 			va += s.Length
+@@ -2208,13 +2208,13 @@ func (ctxt *Link) address() {
+ 	var bss *Section
+ 	var noptrbss *Section
+ 	var vlen int64
+-	for s := Segdata.Sect; s != nil; s = s.Next {
++	for i, s := range Segdata.Sections {
+ 		if Iself && s.Name == ".tbss" {
+ 			continue
+ 		}
+ 		vlen = int64(s.Length)
+-		if s.Next != nil && !(Iself && s.Next.Name == ".tbss") {
+-			vlen = int64(s.Next.Vaddr - s.Vaddr)
++		if i+1 < len(Segdata.Sections) && !(Iself && Segdata.Sections[i+1].Name == ".tbss") {
++			vlen = int64(Segdata.Sections[i+1].Vaddr - s.Vaddr)
+ 		}
+ 		s.Vaddr = va
+ 		va += uint64(vlen)
+@@ -2243,10 +2243,10 @@ func (ctxt *Link) address() {
+ 	if Headtype == obj.Hwindows {
+ 		Segdwarf.Fileoff = Segdata.Fileoff + uint64(Rnd(int64(Segdata.Filelen), int64(PEFILEALIGN)))
+ 	}
+-	for s := Segdwarf.Sect; s != nil; s = s.Next {
++	for i, s := range Segdwarf.Sections {
+ 		vlen = int64(s.Length)
+-		if s.Next != nil {
+-			vlen = int64(s.Next.Vaddr - s.Vaddr)
++		if i+1 < len(Segdwarf.Sections) {
++			vlen = int64(Segdwarf.Sections[i+1].Vaddr - s.Vaddr)
+ 		}
+ 		s.Vaddr = va
+ 		va += uint64(vlen)
+@@ -2259,7 +2259,7 @@ func (ctxt *Link) address() {
+ 	Segdwarf.Filelen = va - Segdwarf.Vaddr
+ 
+ 	var (
+-		text     = Segtext.Sect
++		text     = Segtext.Sections[0]
+ 		rodata   = ctxt.Syms.Lookup("runtime.rodata", 0).Sect
+ 		itablink = ctxt.Syms.Lookup("runtime.itablink", 0).Sect
+ 		symtab   = ctxt.Syms.Lookup("runtime.symtab", 0).Sect
+@@ -2268,8 +2268,10 @@ func (ctxt *Link) address() {
+ 	)
+ 	lasttext := text
+ 	// Could be multiple .text sections
+-	for sect := text.Next; sect != nil && sect.Name == ".text"; sect = sect.Next {
+-		lasttext = sect
++	for _, sect := range Segtext.Sections {
++		if sect.Name == ".text" {
++			lasttext = sect
++		}
+ 	}
+ 
+ 	for _, s := range datap {
+@@ -2303,10 +2305,14 @@ func (ctxt *Link) address() {
+ 	// If there are multiple text sections, create runtime.text.n for
+ 	// their section Vaddr, using n for index
+ 	n := 1
+-	for sect := Segtext.Sect.Next; sect != nil && sect.Name == ".text"; sect = sect.Next {
+-		symname := fmt.Sprintf("runtime.text.%d", n)
+-		ctxt.xdefine(symname, obj.STEXT, int64(sect.Vaddr))
+-		n++
++	for _, sect := range Segtext.Sections[1:] {
++		if sect.Name == ".text" {
++			symname := fmt.Sprintf("runtime.text.%d", n)
++			ctxt.xdefine(symname, obj.STEXT, int64(sect.Vaddr))
++			n++
++		} else {
++			break
++		}
+ 	}
+ 
+ 	ctxt.xdefine("runtime.rodata", obj.SRODATA, int64(rodata.Vaddr))
+diff --git a/src/cmd/link/internal/ld/dwarf.go b/src/cmd/link/internal/ld/dwarf.go
+index 744e2153a3..e42c8cfe56 100644
+--- a/src/cmd/link/internal/ld/dwarf.go
++++ b/src/cmd/link/internal/ld/dwarf.go
+@@ -1618,7 +1618,7 @@ func dwarfaddpeheaders(ctxt *Link) {
+ 	if *FlagW { // disable dwarf
+ 		return
+ 	}
+-	for sect := Segdwarf.Sect; sect != nil; sect = sect.Next {
++	for _, sect := range Segdwarf.Sections {
+ 		h := newPEDWARFSection(ctxt, sect.Name, int64(sect.Length))
+ 		fileoff := sect.Vaddr - Segdwarf.Vaddr + Segdwarf.Fileoff
+ 		if uint64(h.PointerToRawData) != fileoff {
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index 978c166d4d..18514b90ed 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -1831,7 +1831,7 @@ func Elfemitreloc(ctxt *Link) {
+ 		Cput(0)
+ 	}
+ 
+-	for sect := Segtext.Sect; sect != nil; sect = sect.Next {
++	for _, sect := range Segtext.Sections {
+ 		if sect.Name == ".text" {
+ 			elfrelocsect(ctxt, sect, ctxt.Textp)
+ 		} else {
+@@ -1839,16 +1839,16 @@ func Elfemitreloc(ctxt *Link) {
+ 		}
+ 	}
+ 
+-	for sect := Segrodata.Sect; sect != nil; sect = sect.Next {
++	for _, sect := range Segrodata.Sections {
+ 		elfrelocsect(ctxt, sect, datap)
+ 	}
+-	for sect := Segrelrodata.Sect; sect != nil; sect = sect.Next {
++	for _, sect := range Segrelrodata.Sections {
+ 		elfrelocsect(ctxt, sect, datap)
+ 	}
+-	for sect := Segdata.Sect; sect != nil; sect = sect.Next {
++	for _, sect := range Segdata.Sections {
+ 		elfrelocsect(ctxt, sect, datap)
+ 	}
+-	for sect := Segdwarf.Sect; sect != nil; sect = sect.Next {
++	for _, sect := range Segdwarf.Sections {
+ 		elfrelocsect(ctxt, sect, dwarfp)
+ 	}
+ }
+@@ -2167,7 +2167,7 @@ func Asmbelfsetup() {
+ 	/* This null SHdr must appear before all others */
+ 	elfshname("")
+ 
+-	for sect := Segtext.Sect; sect != nil; sect = sect.Next {
++	for _, sect := range Segtext.Sections {
+ 		// There could be multiple .text sections. Instead check the Elfsect
+ 		// field to determine if already has an ElfShdr and if not, create one.
+ 		if sect.Name == ".text" {
+@@ -2178,16 +2178,16 @@ func Asmbelfsetup() {
+ 			elfshalloc(sect)
+ 		}
+ 	}
+-	for sect := Segrodata.Sect; sect != nil; sect = sect.Next {
++	for _, sect := range Segrodata.Sections {
+ 		elfshalloc(sect)
+ 	}
+-	for sect := Segrelrodata.Sect; sect != nil; sect = sect.Next {
++	for _, sect := range Segrelrodata.Sections {
+ 		elfshalloc(sect)
+ 	}
+-	for sect := Segdata.Sect; sect != nil; sect = sect.Next {
++	for _, sect := range Segdata.Sections {
+ 		elfshalloc(sect)
+ 	}
+-	for sect := Segdwarf.Sect; sect != nil; sect = sect.Next {
++	for _, sect := range Segdwarf.Sections {
+ 		elfshalloc(sect)
+ 	}
+ }
+@@ -2216,7 +2216,7 @@ func Asmbelf(ctxt *Link, symo int64) {
+ 	elfreserve := int64(ELFRESERVE)
+ 
+ 	numtext := int64(0)
+-	for sect := Segtext.Sect; sect != nil; sect = sect.Next {
++	for _, sect := range Segtext.Sections {
+ 		if sect.Name == ".text" {
+ 			numtext++
+ 		}
+@@ -2367,10 +2367,10 @@ func Asmbelf(ctxt *Link, symo int64) {
+ 	// Additions to the reserved area must be above this line.
+ 
+ 	elfphload(&Segtext)
+-	if Segrodata.Sect != nil {
++	if len(Segrodata.Sections) > 0 {
+ 		elfphload(&Segrodata)
+ 	}
+-	if Segrelrodata.Sect != nil {
++	if len(Segrelrodata.Sections) > 0 {
+ 		elfphload(&Segrelrodata)
+ 		elfphrelro(&Segrelrodata)
+ 	}
+@@ -2523,7 +2523,7 @@ func Asmbelf(ctxt *Link, symo int64) {
+ 		 * Thread-local storage segment (really just size).
+ 		 */
+ 		tlssize := uint64(0)
+-		for sect := Segdata.Sect; sect != nil; sect = sect.Next {
++		for _, sect := range Segdata.Sections {
+ 			if sect.Name == ".tbss" {
+ 				tlssize = sect.Length
+ 			}
+@@ -2566,33 +2566,33 @@ elfobj:
+ 		elfshname(".strtab")
+ 	}
+ 
+-	for sect := Segtext.Sect; sect != nil; sect = sect.Next {
++	for _, sect := range Segtext.Sections {
+ 		elfshbits(sect)
+ 	}
+-	for sect := Segrodata.Sect; sect != nil; sect = sect.Next {
++	for _, sect := range Segrodata.Sections {
+ 		elfshbits(sect)
+ 	}
+-	for sect := Segrelrodata.Sect; sect != nil; sect = sect.Next {
++	for _, sect := range Segrelrodata.Sections {
+ 		elfshbits(sect)
+ 	}
+-	for sect := Segdata.Sect; sect != nil; sect = sect.Next {
++	for _, sect := range Segdata.Sections {
+ 		elfshbits(sect)
+ 	}
+-	for sect := Segdwarf.Sect; sect != nil; sect = sect.Next {
++	for _, sect := range Segdwarf.Sections {
+ 		elfshbits(sect)
+ 	}
+ 
+ 	if Linkmode == LinkExternal {
+-		for sect := Segtext.Sect; sect != nil; sect = sect.Next {
++		for _, sect := range Segtext.Sections {
+ 			elfshreloc(sect)
+ 		}
+-		for sect := Segrodata.Sect; sect != nil; sect = sect.Next {
++		for _, sect := range Segrodata.Sections {
+ 			elfshreloc(sect)
+ 		}
+-		for sect := Segrelrodata.Sect; sect != nil; sect = sect.Next {
++		for _, sect := range Segrelrodata.Sections {
+ 			elfshreloc(sect)
+ 		}
+-		for sect := Segdata.Sect; sect != nil; sect = sect.Next {
++		for _, sect := range Segdata.Sections {
+ 			elfshreloc(sect)
+ 		}
+ 		for _, s := range dwarfp {
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 383e16e4f2..814a403d42 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -141,12 +141,12 @@ const (
+ )
+ 
+ type Segment struct {
+-	Rwx     uint8  // permission as usual unix bits (5 = r-x etc)
+-	Vaddr   uint64 // virtual address
+-	Length  uint64 // length in memory
+-	Fileoff uint64 // file offset
+-	Filelen uint64 // length on disk
+-	Sect    *Section
++	Rwx      uint8  // permission as usual unix bits (5 = r-x etc)
++	Vaddr    uint64 // virtual address
++	Length   uint64 // length in memory
++	Fileoff  uint64 // file offset
++	Filelen  uint64 // length on disk
++	Sections []*Section
+ }
+ 
+ type Section struct {
+@@ -156,7 +156,6 @@ type Section struct {
+ 	Name    string
+ 	Vaddr   uint64
+ 	Length  uint64
+-	Next    *Section
+ 	Seg     *Segment
+ 	Elfsect *ElfShdr
+ 	Reloff  uint64
+@@ -1603,16 +1602,12 @@ func pathtoprefix(s string) string {
+ }
+ 
+ func addsection(seg *Segment, name string, rwx int) *Section {
+-	var l **Section
+-
+-	for l = &seg.Sect; *l != nil; l = &(*l).Next {
+-	}
+ 	sect := new(Section)
+ 	sect.Rwx = uint8(rwx)
+ 	sect.Name = name
+ 	sect.Seg = seg
+ 	sect.Align = int32(SysArch.PtrSize) // everything is at least pointer-aligned
+-	*l = sect
++	seg.Sections = append(seg.Sections, sect)
+ 	return sect
+ }
+ 
+@@ -1913,7 +1908,7 @@ func genasmsym(ctxt *Link, put func(*Link, *Symbol, string, SymbolType, int64, *
+ 	n := 0
+ 
+ 	// Generate base addresses for all text sections if there are multiple
+-	for sect := Segtext.Sect; sect != nil; sect = sect.Next {
++	for _, sect := range Segtext.Sections {
+ 		if n == 0 {
+ 			n++
+ 			continue
+diff --git a/src/cmd/link/internal/ld/macho.go b/src/cmd/link/internal/ld/macho.go
+index 1ab61b7d15..9234be1aef 100644
+--- a/src/cmd/link/internal/ld/macho.go
++++ b/src/cmd/link/internal/ld/macho.go
+@@ -472,7 +472,7 @@ func Asmbmacho(ctxt *Link) {
+ 		ms.prot2 = 5
+ 	}
+ 
+-	for sect := Segtext.Sect; sect != nil; sect = sect.Next {
++	for _, sect := range Segtext.Sections {
+ 		machoshbits(ctxt, ms, sect, "__TEXT")
+ 	}
+ 
+@@ -488,7 +488,7 @@ func Asmbmacho(ctxt *Link) {
+ 		ms.prot2 = 3
+ 	}
+ 
+-	for sect := Segdata.Sect; sect != nil; sect = sect.Next {
++	for _, sect := range Segdata.Sections {
+ 		machoshbits(ctxt, ms, sect, "__DATA")
+ 	}
+ 
+@@ -501,7 +501,7 @@ func Asmbmacho(ctxt *Link) {
+ 			ms.fileoffset = Segdwarf.Fileoff
+ 			ms.filesize = Segdwarf.Filelen
+ 		}
+-		for sect := Segdwarf.Sect; sect != nil; sect = sect.Next {
++		for _, sect := range Segdwarf.Sections {
+ 			machoshbits(ctxt, ms, sect, "__DWARF")
+ 		}
+ 	}
+@@ -892,14 +892,14 @@ func Machoemitreloc(ctxt *Link) {
+ 		Cput(0)
+ 	}
+ 
+-	machorelocsect(ctxt, Segtext.Sect, ctxt.Textp)
+-	for sect := Segtext.Sect.Next; sect != nil; sect = sect.Next {
++	machorelocsect(ctxt, Segtext.Sections[0], ctxt.Textp)
++	for _, sect := range Segtext.Sections[1:] {
+ 		machorelocsect(ctxt, sect, datap)
+ 	}
+-	for sect := Segdata.Sect; sect != nil; sect = sect.Next {
++	for _, sect := range Segdata.Sections {
+ 		machorelocsect(ctxt, sect, datap)
+ 	}
+-	for sect := Segdwarf.Sect; sect != nil; sect = sect.Next {
++	for _, sect := range Segdwarf.Sections {
+ 		machorelocsect(ctxt, sect, dwarfp)
+ 	}
+ }
+diff --git a/src/cmd/link/internal/ld/pe.go b/src/cmd/link/internal/ld/pe.go
+index a9d14c390f..17683efcff 100644
+--- a/src/cmd/link/internal/ld/pe.go
++++ b/src/cmd/link/internal/ld/pe.go
+@@ -887,8 +887,8 @@ func peemitreloc(ctxt *Link, text, data, ctors *IMAGE_SECTION_HEADER) {
+ 	}
+ 
+ 	peemitsectreloc(text, func() int {
+-		n := perelocsect(ctxt, Segtext.Sect, ctxt.Textp, Segtext.Vaddr)
+-		for sect := Segtext.Sect.Next; sect != nil; sect = sect.Next {
++		n := perelocsect(ctxt, Segtext.Sections[0], ctxt.Textp, Segtext.Vaddr)
++		for _, sect := range Segtext.Sections[1:] {
+ 			n += perelocsect(ctxt, sect, datap, Segtext.Vaddr)
+ 		}
+ 		return n
+@@ -896,14 +896,14 @@ func peemitreloc(ctxt *Link, text, data, ctors *IMAGE_SECTION_HEADER) {
+ 
+ 	peemitsectreloc(data, func() int {
+ 		var n int
+-		for sect := Segdata.Sect; sect != nil; sect = sect.Next {
++		for _, sect := range Segdata.Sections {
+ 			n += perelocsect(ctxt, sect, datap, Segdata.Vaddr)
+ 		}
+ 		return n
+ 	})
+ 
+ dwarfLoop:
+-	for sect := Segdwarf.Sect; sect != nil; sect = sect.Next {
++	for _, sect := range Segdwarf.Sections {
+ 		for i, name := range shNames {
+ 			if sect.Name == name {
+ 				peemitsectreloc(&sh[i], func() int {
+diff --git a/src/cmd/link/internal/ld/symtab.go b/src/cmd/link/internal/ld/symtab.go
+index 87de67bbdc..e796fe0816 100644
+--- a/src/cmd/link/internal/ld/symtab.go
++++ b/src/cmd/link/internal/ld/symtab.go
+@@ -311,7 +311,7 @@ func textsectionmap(ctxt *Link) uint32 {
+ 	t.Attr |= AttrReachable
+ 	nsections := int64(0)
+ 
+-	for sect := Segtext.Sect; sect != nil; sect = sect.Next {
++	for _, sect := range Segtext.Sections {
+ 		if sect.Name == ".text" {
+ 			nsections++
+ 		} else {
+@@ -332,8 +332,8 @@ func textsectionmap(ctxt *Link) uint32 {
+ 	// order of creation starting with 1. These symbols provide the section's
+ 	// address after relocation by the linker.
+ 
+-	textbase := Segtext.Sect.Vaddr
+-	for sect := Segtext.Sect; sect != nil; sect = sect.Next {
++	textbase := Segtext.Sections[0].Vaddr
++	for _, sect := range Segtext.Sections {
+ 		if sect.Name != ".text" {
+ 			break
+ 		}
+diff --git a/src/cmd/link/internal/mips/asm.go b/src/cmd/link/internal/mips/asm.go
+index a591b06dfa..9b43790874 100644
+--- a/src/cmd/link/internal/mips/asm.go
++++ b/src/cmd/link/internal/mips/asm.go
+@@ -185,10 +185,10 @@ func asmb(ctxt *ld.Link) {
+ 		ld.Asmbelfsetup()
+ 	}
+ 
+-	sect := ld.Segtext.Sect
++	sect := ld.Segtext.Sections[0]
+ 	ld.Cseek(int64(sect.Vaddr - ld.Segtext.Vaddr + ld.Segtext.Fileoff))
+ 	ld.Codeblk(ctxt, int64(sect.Vaddr), int64(sect.Length))
+-	for sect = sect.Next; sect != nil; sect = sect.Next {
++	for _, sect = range ld.Segtext.Sections[1:] {
+ 		ld.Cseek(int64(sect.Vaddr - ld.Segtext.Vaddr + ld.Segtext.Fileoff))
+ 		ld.Datblk(ctxt, int64(sect.Vaddr), int64(sect.Length))
+ 	}
+diff --git a/src/cmd/link/internal/mips64/asm.go b/src/cmd/link/internal/mips64/asm.go
+index 1c3216f9be..0ddb4727fe 100644
+--- a/src/cmd/link/internal/mips64/asm.go
++++ b/src/cmd/link/internal/mips64/asm.go
+@@ -192,10 +192,10 @@ func asmb(ctxt *ld.Link) {
+ 		ld.Asmbelfsetup()
+ 	}
+ 
+-	sect := ld.Segtext.Sect
++	sect := ld.Segtext.Sections[0]
+ 	ld.Cseek(int64(sect.Vaddr - ld.Segtext.Vaddr + ld.Segtext.Fileoff))
+ 	ld.Codeblk(ctxt, int64(sect.Vaddr), int64(sect.Length))
+-	for sect = sect.Next; sect != nil; sect = sect.Next {
++	for _, sect = range ld.Segtext.Sections[1:] {
+ 		ld.Cseek(int64(sect.Vaddr - ld.Segtext.Vaddr + ld.Segtext.Fileoff))
+ 		ld.Datblk(ctxt, int64(sect.Vaddr), int64(sect.Length))
+ 	}
+diff --git a/src/cmd/link/internal/ppc64/asm.go b/src/cmd/link/internal/ppc64/asm.go
+index cf2c532f9e..f13d830027 100644
+--- a/src/cmd/link/internal/ppc64/asm.go
++++ b/src/cmd/link/internal/ppc64/asm.go
+@@ -880,7 +880,7 @@ func asmb(ctxt *ld.Link) {
+ 		ld.Asmbelfsetup()
+ 	}
+ 
+-	for sect := ld.Segtext.Sect; sect != nil; sect = sect.Next {
++	for _, sect := range ld.Segtext.Sections {
+ 		ld.Cseek(int64(sect.Vaddr - ld.Segtext.Vaddr + ld.Segtext.Fileoff))
+ 		// Handle additional text sections with Codeblk
+ 		if sect.Name == ".text" {
+diff --git a/src/cmd/link/internal/s390x/asm.go b/src/cmd/link/internal/s390x/asm.go
+index a9bb26145b..2db9428d00 100644
+--- a/src/cmd/link/internal/s390x/asm.go
++++ b/src/cmd/link/internal/s390x/asm.go
+@@ -512,10 +512,10 @@ func asmb(ctxt *ld.Link) {
+ 		ld.Asmbelfsetup()
+ 	}
+ 
+-	sect := ld.Segtext.Sect
++	sect := ld.Segtext.Sections[0]
+ 	ld.Cseek(int64(sect.Vaddr - ld.Segtext.Vaddr + ld.Segtext.Fileoff))
+ 	ld.Codeblk(ctxt, int64(sect.Vaddr), int64(sect.Length))
+-	for sect = sect.Next; sect != nil; sect = sect.Next {
++	for _, sect = range ld.Segtext.Sections[1:] {
+ 		ld.Cseek(int64(sect.Vaddr - ld.Segtext.Vaddr + ld.Segtext.Fileoff))
+ 		ld.Datblk(ctxt, int64(sect.Vaddr), int64(sect.Length))
+ 	}
+diff --git a/src/cmd/link/internal/x86/asm.go b/src/cmd/link/internal/x86/asm.go
+index 1f4e08bc94..6ba00d72d5 100644
+--- a/src/cmd/link/internal/x86/asm.go
++++ b/src/cmd/link/internal/x86/asm.go
+@@ -637,11 +637,11 @@ func asmb(ctxt *ld.Link) {
+ 		ld.Asmbelfsetup()
+ 	}
+ 
+-	sect := ld.Segtext.Sect
++	sect := ld.Segtext.Sections[0]
+ 	ld.Cseek(int64(sect.Vaddr - ld.Segtext.Vaddr + ld.Segtext.Fileoff))
+ 	// 0xCC is INT $3 - breakpoint instruction
+ 	ld.CodeblkPad(ctxt, int64(sect.Vaddr), int64(sect.Length), []byte{0xCC})
+-	for sect = sect.Next; sect != nil; sect = sect.Next {
++	for _, sect = range ld.Segtext.Sections[1:] {
+ 		ld.Cseek(int64(sect.Vaddr - ld.Segtext.Vaddr + ld.Segtext.Fileoff))
+ 		ld.Datblk(ctxt, int64(sect.Vaddr), int64(sect.Length))
+ 	}

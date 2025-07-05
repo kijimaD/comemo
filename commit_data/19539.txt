@@ -8,7 +8,31 @@ Date:   Fri Jun 13 16:34:52 2014 +1000
     R=golang-codereviews, minux
     CC=golang-codereviews
     https://golang.org/cl/102340044
-
+---
  doc/go1.html     | 2 +-
  doc/install.html | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go1.html b/doc/go1.html
+index 3bbe5d3168..a664b65555 100644
+--- a/doc/go1.html
++++ b/doc/go1.html
+@@ -2035,4 +2035,4 @@ They are available for many combinations of architecture and operating system
+ Installation details are described on the
+ <a href="/doc/install">Getting Started</a> page, while
+ the distributions themselves are listed on the
+-<a href="http://code.google.com/p/go/downloads/list">downloads page</a>.
++<a href="/dl/">downloads page</a>.
+diff --git a/doc/install.html b/doc/install.html
+index 83785cbe58..7282ae9472 100644
+--- a/doc/install.html
++++ b/doc/install.html
+@@ -6,7 +6,7 @@
+ <h2 id="download">Download the Go distribution</h2>
+ 
+ <p>
+-<a href="https://code.google.com/p/go/wiki/Downloads?tm=2" id="start" class="download" target="_blank">
++<a href="/dl/" id="start" class="download" target="_blank">
+ <span class="big">Download Go</span>
+ <span class="desc">Click here to visit the downloads page</span>
+ </a>

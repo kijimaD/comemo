@@ -18,7 +18,7 @@ Date:   Wed Dec 16 12:16:17 2015 -0800
     Reviewed-by: Russ Cox <rsc@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  misc/cgo/testcarchive/main2.c              | 185 +++++++++++++++++++++++++
  misc/cgo/testcarchive/src/libgo2/libgo2.go |  45 ++++++
  misc/cgo/testcarchive/test.bash            |  27 +++-
@@ -32,3 +32,858 @@ Date:   Wed Dec 16 12:16:17 2015 -0800
  src/runtime/sys_darwin_amd64.s             |   6 +-
  src/runtime/sys_linux_arm.s                |   4 +
  12 files changed, 635 insertions(+), 21 deletions(-)
+
+diff --git a/misc/cgo/testcarchive/main2.c b/misc/cgo/testcarchive/main2.c
+new file mode 100644
+index 0000000000..39e39c41a5
+--- /dev/null
++++ b/misc/cgo/testcarchive/main2.c
+@@ -0,0 +1,185 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test installing a signal handler before the Go code starts.
++// This is a lot like misc/cgo/testcshared/main4.c.
++
++#include <setjmp.h>
++#include <signal.h>
++#include <stddef.h>
++#include <stdio.h>
++#include <stdlib.h>
++#include <string.h>
++#include <sys/types.h>
++#include <unistd.h>
++#include <sched.h>
++#include <time.h>
++
++#include "libgo2.h"
++
++static void die(const char* msg) {
++	perror(msg);
++	exit(EXIT_FAILURE);
++}
++
++static volatile sig_atomic_t sigioSeen;
++
++// Use up some stack space.
++static void recur(int i, char *p) {
++	char a[1024];
++
++	*p = '\0';
++	if (i > 0) {
++		recur(i - 1, a);
++	}
++}
++
++// Signal handler that uses up more stack space than a goroutine will have.
++static void ioHandler(int signo, siginfo_t* info, void* ctxt) {
++	char a[1024];
++
++	recur(4, a);
++	sigioSeen = 1;
++}
++
++static jmp_buf jmp;
++static char* nullPointer;
++
++// Signal handler for SIGSEGV on a C thread.
++static void segvHandler(int signo, siginfo_t* info, void* ctxt) {
++	sigset_t mask;
++	int i;
++
++	if (sigemptyset(&mask) < 0) {
++		die("sigemptyset");
++	}
++	if (sigaddset(&mask, SIGSEGV) < 0) {
++		die("sigaddset");
++	}
++	i = sigprocmask(SIG_UNBLOCK, &mask, NULL);
++	if (i != 0) {
++		fprintf(stderr, "sigprocmask: %s\n", strerror(i));
++		exit(EXIT_FAILURE);
++	}
++
++	// Don't try this at home.
++	longjmp(jmp, signo);
++
++	// We should never get here.
++	abort();
++}
++
++// Set up the signal handlers in a high priority constructor,
++// so that they are installed before the Go code starts.
++
++static void init(void) __attribute__ ((constructor (200)));
++
++static void init() {
++	struct sigaction sa;
++
++	memset(&sa, 0, sizeof sa);
++	sa.sa_sigaction = ioHandler;
++	if (sigemptyset(&sa.sa_mask) < 0) {
++		die("sigemptyset");
++	}
++	sa.sa_flags = SA_SIGINFO;
++	if (sigaction(SIGIO, &sa, NULL) < 0) {
++		die("sigaction");
++	}
++
++	sa.sa_sigaction = segvHandler;
++	if (sigaction(SIGSEGV, &sa, NULL) < 0 || sigaction(SIGBUS, &sa, NULL) < 0) {
++		die("sigaction");
++	}
++
++}
++
++int main(int argc, char** argv) {
++	int verbose;
++	sigset_t mask;
++	int i;
++
++	verbose = argc > 1;
++	setvbuf(stdout, NULL, _IONBF, 0);
++
++	// Call setsid so that we can use kill(0, SIGIO) below.
++	// Don't check the return value so that this works both from
++	// a job control shell and from a shell script.
++	setsid();
++
++	if (verbose) {
++		printf("calling RunGoroutines\n");
++	}
++
++	RunGoroutines();
++
++	// Block SIGIO in this thread to make it more likely that it
++	// will be delivered to a goroutine.
++
++	if (verbose) {
++		printf("calling pthread_sigmask\n");
++	}
++
++	if (sigemptyset(&mask) < 0) {
++		die("sigemptyset");
++	}
++	if (sigaddset(&mask, SIGIO) < 0) {
++		die("sigaddset");
++	}
++	i = pthread_sigmask(SIG_BLOCK, &mask, NULL);
++	if (i != 0) {
++		fprintf(stderr, "pthread_sigmask: %s\n", strerror(i));
++		exit(EXIT_FAILURE);
++	}
++
++	if (verbose) {
++		printf("calling kill\n");
++	}
++
++	if (kill(0, SIGIO) < 0) {
++		die("kill");
++	}
++
++	if (verbose) {
++		printf("waiting for sigioSeen\n");
++	}
++
++	// Wait until the signal has been delivered.
++	i = 0;
++	while (!sigioSeen) {
++		if (sched_yield() < 0) {
++			perror("sched_yield");
++		}
++		i++;
++		if (i > 10000) {
++			fprintf(stderr, "looping too long waiting for signal\n");
++			exit(EXIT_FAILURE);
++		}
++	}
++
++	if (verbose) {
++		printf("calling setjmp\n");
++	}
++
++	// Test that a SIGSEGV on this thread is delivered to us.
++	if (setjmp(jmp) == 0) {
++		if (verbose) {
++			printf("triggering SIGSEGV\n");
++		}
++
++		*nullPointer = '\0';
++
++		fprintf(stderr, "continued after address error\n");
++		exit(EXIT_FAILURE);
++	}
++
++	if (verbose) {
++		printf("calling TestSEGV\n");
++	}
++
++	TestSEGV();
++
++	printf("PASS\n");
++	return 0;
++}
+diff --git a/misc/cgo/testcarchive/src/libgo2/libgo2.go b/misc/cgo/testcarchive/src/libgo2/libgo2.go
+new file mode 100644
+index 0000000000..ab40b75e78
+--- /dev/null
++++ b/misc/cgo/testcarchive/src/libgo2/libgo2.go
+@@ -0,0 +1,45 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "C"
++
++import (
++	"fmt"
++	"os"
++	"runtime"
++)
++
++// RunGoroutines starts some goroutines that don't do anything.
++// The idea is to get some threads going, so that a signal will be delivered
++// to a thread started by Go.
++//export RunGoroutines
++func RunGoroutines() {
++	for i := 0; i < 4; i++ {
++		go func() {
++			runtime.LockOSThread()
++			select {}
++		}()
++	}
++}
++
++var P *byte
++
++// TestSEGV makes sure that an invalid address turns into a run-time Go panic.
++//export TestSEGV
++func TestSEGV() {
++	defer func() {
++		if recover() == nil {
++			fmt.Fprintln(os.Stderr, "no panic from segv")
++			os.Exit(1)
++		}
++	}()
++	*P = 0
++	fmt.Fprintln(os.Stderr, "continued after segv")
++	os.Exit(1)
++}
++
++func main() {
++}
+diff --git a/misc/cgo/testcarchive/test.bash b/misc/cgo/testcarchive/test.bash
+index 89b761bddb..32365a209e 100755
+--- a/misc/cgo/testcarchive/test.bash
++++ b/misc/cgo/testcarchive/test.bash
+@@ -23,11 +23,16 @@ fi
+ 
+ rm -rf libgo.a libgo.h testp pkg
+ 
++status=0
++
+ # Installing first will create the header files we want.
+ 
+ GOPATH=$(pwd) go install -buildmode=c-archive libgo
+ $(go env CC) $(go env GOGCCFLAGS) $ccargs -o testp main.c pkg/$(go env GOOS)_$(go env GOARCH)/libgo.a
+-$bin arg1 arg2
++if ! $bin arg1 arg2; then
++    echo "FAIL test1"
++    status=1
++fi
+ rm -f libgo.a libgo.h testp
+ 
+ # Test building libgo other than installing it.
+@@ -35,10 +40,26 @@ rm -f libgo.a libgo.h testp
+ 
+ GOPATH=$(pwd) go build -buildmode=c-archive src/libgo/libgo.go
+ $(go env CC) $(go env GOGCCFLAGS) $ccargs -o testp main.c libgo.a
+-$bin arg1 arg2
++if ! $bin arg1 arg2; then
++    echo "FAIL test2"
++    status=1
++fi
+ rm -f libgo.a libgo.h testp
+ 
+ GOPATH=$(pwd) go build -buildmode=c-archive -o libgo.a libgo
+ $(go env CC) $(go env GOGCCFLAGS) $ccargs -o testp main.c libgo.a
+-$bin arg1 arg2
++if ! $bin arg1 arg2; then
++    echo "FAIL test3"
++    status=1
++fi
+ rm -rf libgo.a libgo.h testp pkg
++
++GOPATH=$(pwd) go build -buildmode=c-archive -o libgo2.a libgo2
++$(go env CC) $(go env GOGCCFLAGS) $ccargs -o testp main2.c libgo2.a
++if ! $bin; then
++    echo "FAIL test4"
++    status=1
++fi
++rm -rf libgo2.a libgo2.h testp pkg
++
++exit $status
+diff --git a/misc/cgo/testcshared/main4.c b/misc/cgo/testcshared/main4.c
+new file mode 100644
+index 0000000000..803eb73bd9
+--- /dev/null
++++ b/misc/cgo/testcshared/main4.c
+@@ -0,0 +1,214 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test that a signal handler that uses up stack space does not crash
++// if the signal is delivered to a thread running a goroutine.
++// This is a lot like misc/cgo/testcarchive/main2.c.
++
++#include <setjmp.h>
++#include <signal.h>
++#include <stddef.h>
++#include <stdio.h>
++#include <stdlib.h>
++#include <string.h>
++#include <sys/types.h>
++#include <unistd.h>
++#include <sched.h>
++#include <time.h>
++#include <dlfcn.h>
++
++static void die(const char* msg) {
++	perror(msg);
++	exit(EXIT_FAILURE);
++}
++
++static volatile sig_atomic_t sigioSeen;
++
++// Use up some stack space.
++static void recur(int i, char *p) {
++	char a[1024];
++
++	*p = '\0';
++	if (i > 0) {
++		recur(i - 1, a);
++	}
++}
++
++// Signal handler that uses up more stack space than a goroutine will have.
++static void ioHandler(int signo, siginfo_t* info, void* ctxt) {
++	char a[1024];
++
++	recur(4, a);
++	sigioSeen = 1;
++}
++
++static jmp_buf jmp;
++static char* nullPointer;
++
++// Signal handler for SIGSEGV on a C thread.
++static void segvHandler(int signo, siginfo_t* info, void* ctxt) {
++	sigset_t mask;
++	int i;
++
++	if (sigemptyset(&mask) < 0) {
++		die("sigemptyset");
++	}
++	if (sigaddset(&mask, SIGSEGV) < 0) {
++		die("sigaddset");
++	}
++	i = sigprocmask(SIG_UNBLOCK, &mask, NULL);
++	if (i != 0) {
++		fprintf(stderr, "sigprocmask: %s\n", strerror(i));
++		exit(EXIT_FAILURE);
++	}
++
++	// Don't try this at home.
++	longjmp(jmp, signo);
++
++	// We should never get here.
++	abort();
++}
++
++int main(int argc, char** argv) {
++	int verbose;
++	struct sigaction sa;
++	void* handle;
++	void (*fn)(void);
++	sigset_t mask;
++	int i;
++
++	verbose = argc > 2;
++	setvbuf(stdout, NULL, _IONBF, 0);
++
++	// Call setsid so that we can use kill(0, SIGIO) below.
++	// Don't check the return value so that this works both from
++	// a job control shell and from a shell script.
++	setsid();
++
++	if (verbose) {
++		printf("calling sigaction\n");
++	}
++
++	memset(&sa, 0, sizeof sa);
++	sa.sa_sigaction = ioHandler;
++	if (sigemptyset(&sa.sa_mask) < 0) {
++		die("sigemptyset");
++	}
++	sa.sa_flags = SA_SIGINFO;
++	if (sigaction(SIGIO, &sa, NULL) < 0) {
++		die("sigaction");
++	}
++
++	sa.sa_sigaction = segvHandler;
++	if (sigaction(SIGSEGV, &sa, NULL) < 0 || sigaction(SIGBUS, &sa, NULL) < 0) {
++		die("sigaction");
++	}
++
++	if (verbose) {
++		printf("calling dlopen\n");
++	}
++
++	handle = dlopen(argv[1], RTLD_NOW | RTLD_GLOBAL);
++	if (handle == NULL) {
++		fprintf(stderr, "%s\n", dlerror());
++		exit(EXIT_FAILURE);
++	}
++
++	if (verbose) {
++		printf("calling dlsym\n");
++	}
++
++	// Start some goroutines.
++	fn = (void(*)(void))dlsym(handle, "RunGoroutines");
++	if (fn == NULL) {
++		fprintf(stderr, "%s\n", dlerror());
++		exit(EXIT_FAILURE);
++	}
++
++	if (verbose) {
++		printf("calling RunGoroutines\n");
++	}
++
++	fn();
++
++	// Block SIGIO in this thread to make it more likely that it
++	// will be delivered to a goroutine.
++
++	if (verbose) {
++		printf("calling pthread_sigmask\n");
++	}
++
++	if (sigemptyset(&mask) < 0) {
++		die("sigemptyset");
++	}
++	if (sigaddset(&mask, SIGIO) < 0) {
++		die("sigaddset");
++	}
++	i = pthread_sigmask(SIG_BLOCK, &mask, NULL);
++	if (i != 0) {
++		fprintf(stderr, "pthread_sigmask: %s\n", strerror(i));
++		exit(EXIT_FAILURE);
++	}
++
++	if (verbose) {
++		printf("calling kill\n");
++	}
++
++	if (kill(0, SIGIO) < 0) {
++		die("kill");
++	}
++
++	if (verbose) {
++		printf("waiting for sigioSeen\n");
++	}
++
++	// Wait until the signal has been delivered.
++	i = 0;
++	while (!sigioSeen) {
++		if (sched_yield() < 0) {
++			perror("sched_yield");
++		}
++		i++;
++		if (i > 10000) {
++			fprintf(stderr, "looping too long waiting for signal\n");
++			exit(EXIT_FAILURE);
++		}
++	}
++
++	if (verbose) {
++		printf("calling setjmp\n");
++	}
++
++	// Test that a SIGSEGV on this thread is delivered to us.
++	if (setjmp(jmp) == 0) {
++		if (verbose) {
++			printf("triggering SIGSEGV\n");
++		}
++
++		*nullPointer = '\0';
++
++		fprintf(stderr, "continued after address error\n");
++		exit(EXIT_FAILURE);
++	}
++
++	if (verbose) {
++		printf("calling dlsym\n");
++	}
++
++	// Make sure that a SIGSEGV in Go causes a run-time panic.
++	fn = (void (*)(void))dlsym(handle, "TestSEGV");
++	if (fn == NULL) {
++		fprintf(stderr, "%s\n", dlerror());
++		exit(EXIT_FAILURE);
++	}
++
++	if (verbose) {
++		printf("calling TestSEGV\n");
++	}
++
++	fn();
++
++	printf("PASS\n");
++	return 0;
++}
+diff --git a/misc/cgo/testcshared/src/libgo4/libgo4.go b/misc/cgo/testcshared/src/libgo4/libgo4.go
+new file mode 100644
+index 0000000000..ab40b75e78
+--- /dev/null
++++ b/misc/cgo/testcshared/src/libgo4/libgo4.go
+@@ -0,0 +1,45 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "C"
++
++import (
++	"fmt"
++	"os"
++	"runtime"
++)
++
++// RunGoroutines starts some goroutines that don't do anything.
++// The idea is to get some threads going, so that a signal will be delivered
++// to a thread started by Go.
++//export RunGoroutines
++func RunGoroutines() {
++	for i := 0; i < 4; i++ {
++		go func() {
++			runtime.LockOSThread()
++			select {}
++		}()
++	}
++}
++
++var P *byte
++
++// TestSEGV makes sure that an invalid address turns into a run-time Go panic.
++//export TestSEGV
++func TestSEGV() {
++	defer func() {
++		if recover() == nil {
++			fmt.Fprintln(os.Stderr, "no panic from segv")
++			os.Exit(1)
++		}
++	}()
++	*P = 0
++	fmt.Fprintln(os.Stderr, "continued after segv")
++	os.Exit(1)
++}
++
++func main() {
++}
+diff --git a/misc/cgo/testcshared/test.bash b/misc/cgo/testcshared/test.bash
+index a6411628a7..63ceb29cf9 100755
+--- a/misc/cgo/testcshared/test.bash
++++ b/misc/cgo/testcshared/test.bash
+@@ -28,9 +28,9 @@ fi
+ androidpath=/data/local/tmp/testcshared-$$
+ 
+ function cleanup() {
+-	rm -rf libgo.$libext libgo2.$libext libgo.h testp testp2 testp3 pkg
+-
+-	rm -rf $(go env GOROOT)/${installdir}
++	rm -f libgo.$libext libgo2.$libext libgo4.$libext libgo.h libgo4.h
++	rm -f testp testp2 testp3 testp4
++	rm -rf pkg $(go env GOROOT)/${installdir}
+ 
+ 	if [ "$goos" == "android" ]; then
+ 		adb shell rm -rf $androidpath
+@@ -93,6 +93,8 @@ if [ "$goos" == "android" ]; then
+ 	GOGCCFLAGS="${GOGCCFLAGS} -pie"
+ fi
+ 
++status=0
++
+ # test0: exported symbols in shared lib are accessible.
+ # TODO(iant): using _shared here shouldn't really be necessary.
+ $(go env CC) ${GOGCCFLAGS} -I ${installdir} -o testp main0.c libgo.$libext
+@@ -101,7 +103,7 @@ binpush testp
+ output=$(run LD_LIBRARY_PATH=. ./testp)
+ if [ "$output" != "PASS" ]; then
+ 	echo "FAIL test0 got ${output}"
+-	exit 1
++	status=1
+ fi
+ 
+ # test1: shared library can be dynamically loaded and exported symbols are accessible.
+@@ -110,7 +112,7 @@ binpush testp
+ output=$(run ./testp ./libgo.$libext)
+ if [ "$output" != "PASS" ]; then
+ 	echo "FAIL test1 got ${output}"
+-	exit 1
++	status=1
+ fi
+ 
+ # test2: tests libgo2 which does not export any functions.
+@@ -125,7 +127,7 @@ binpush testp2
+ output=$(run LD_LIBRARY_PATH=. ./testp2)
+ if [ "$output" != "PASS" ]; then
+ 	echo "FAIL test2 got ${output}"
+-	exit 1
++	status=1
+ fi
+ 
+ # test3: tests main.main is exported on android.
+@@ -135,7 +137,27 @@ if [ "$goos" == "android" ]; then
+ 	output=$(run ./testp ./libgo.so)
+ 	if [ "$output" != "PASS" ]; then
+ 		echo "FAIL test3 got ${output}"
+-		exit 1
++		status=1
+ 	fi
+ fi
+-echo "ok"
++
++# test4: tests signal handlers
++GOPATH=$(pwd) go build -buildmode=c-shared $suffix -o libgo4.$libext libgo4
++binpush libgo4.$libext
++$(go env CC) ${GOGCCFLAGS} -pthread -o testp4 main4.c -ldl
++binpush testp4
++output=$(run ./testp4 ./libgo4.$libext 2>&1)
++if test "$output" != "PASS"; then
++    echo "FAIL test4 got ${output}"
++    if test "$goos" != "android"; then
++	echo "re-running test4 in verbose mode"
++	./testp4 ./libgo4.$libext verbose
++    fi
++    status=1
++fi
++
++if test $status = 0; then
++    echo "ok"
++fi
++
++exit $status
+diff --git a/misc/cgo/testsigfwd/main.go b/misc/cgo/testsigfwd/main.go
+index 6641c9d4ee..d5fbf5022e 100644
+--- a/misc/cgo/testsigfwd/main.go
++++ b/misc/cgo/testsigfwd/main.go
+@@ -7,9 +7,14 @@ package main
+ import "fmt"
+ 
+ /*
++#cgo CFLAGS: -pthread
++#cgo LDFLAGS: -pthread
++
+ #include <signal.h>
+ #include <stdlib.h>
+ #include <stdio.h>
++#include <string.h>
++#include <pthread.h>
+ 
+ int *p;
+ static void sigsegv() {
+@@ -18,16 +23,65 @@ static void sigsegv() {
+ 	exit(2);
+ }
+ 
+-static void sighandler(int signum) {
++static void segvhandler(int signum) {
+ 	if (signum == SIGSEGV) {
+ 		exit(0);  // success
+ 	}
+ }
+ 
++static volatile sig_atomic_t sigioSeen;
++
++// Use up some stack space.
++static void recur(int i, char *p) {
++	char a[1024];
++
++	*p = '\0';
++	if (i > 0) {
++		recur(i - 1, a);
++	}
++}
++
++static void iohandler(int signum) {
++	char a[1024];
++
++	recur(4, a);
++	sigioSeen = 1;
++}
++
++static void* sigioThread(void* arg __attribute__ ((unused))) {
++	raise(SIGIO);
++}
++
++static void sigioOnThread() {
++	pthread_t tid;
++	int i;
++
++	pthread_create(&tid, NULL, sigioThread, NULL);
++	pthread_join(tid, NULL);
++
++	// Wait until the signal has been delivered.
++	i = 0;
++	while (!sigioSeen) {
++		if (sched_yield() < 0) {
++			perror("sched_yield");
++		}
++		i++;
++		if (i > 10000) {
++			fprintf(stderr, "looping too long waiting for signal\n");
++			exit(EXIT_FAILURE);
++		}
++	}
++}
++
+ static void __attribute__ ((constructor)) sigsetup(void) {
+ 	struct sigaction act;
+-	act.sa_handler = &sighandler;
+-	sigaction(SIGSEGV, &act, 0);
++
++	memset(&act, 0, sizeof act);
++	act.sa_handler = segvhandler;
++	sigaction(SIGSEGV, &act, NULL);
++
++	act.sa_handler = iohandler;
++	sigaction(SIGIO, &act, NULL);
+ }
+ */
+ import "C"
+diff --git a/src/os/signal/doc.go b/src/os/signal/doc.go
+index dca7d72660..4a6d1d5c3a 100644
+--- a/src/os/signal/doc.go
++++ b/src/os/signal/doc.go
+@@ -156,14 +156,19 @@ If the Go runtime sees an existing signal handler for the SIGCANCEL or
+ SIGSETXID signals (which are used only on GNU/Linux), it will turn on
+ the SA_ONSTACK flag and otherwise keep the signal handler.
+ 
+-For other signals listed above, the Go runtime will install a signal
++For the synchronous signals, the Go runtime will install a signal
+ handler. It will save any existing signal handler. If a synchronous
+ signal arrives while executing non-Go code, the Go runtime will invoke
+ the existing signal handler instead of the Go signal handler.
+ 
+-If a signal is delivered to a non-Go thread, it will act as described
+-above, except that if there is an existing non-Go signal handler, that
+-handler will be installed before raising the signal.
++Go code built with -buildmode=c-archive or -buildmode=c-shared will
++not install any other signal handlers. TODO: Describe Notify behavior.
++
++Go code built otherwise will install a signal handler for the
++asynchronous signals listed above, and save any existing signal
++handler. If a signal is delivered to a non-Go thread, it will act as
++described above, except that if there is an existing non-Go signal
++handler, that handler will be installed before raising the signal.
+ 
+ Windows
+ 
+diff --git a/src/runtime/signal1_unix.go b/src/runtime/signal1_unix.go
+index 405713b371..2a325bb9fc 100644
+--- a/src/runtime/signal1_unix.go
++++ b/src/runtime/signal1_unix.go
+@@ -65,6 +65,14 @@ func initsig() {
+ 			continue
+ 		}
+ 
++		// When built using c-archive or c-shared, only
++		// install signal handlers for synchronous signals.
++		// Set SA_ONSTACK for other signals if necessary.
++		if (isarchive || islibrary) && t.flags&_SigPanic == 0 {
++			setsigstack(i)
++			continue
++		}
++
+ 		t.flags |= _SigHandling
+ 		setsig(i, funcPC(sighandler), true)
+ 	}
+diff --git a/src/runtime/signal2_unix.go b/src/runtime/signal2_unix.go
+index 8b0bd42206..0633a51900 100644
+--- a/src/runtime/signal2_unix.go
++++ b/src/runtime/signal2_unix.go
+@@ -16,8 +16,6 @@ func sigfwd(fn uintptr, sig uint32, info *siginfo, ctx unsafe.Pointer)
+ // signal was forwarded.
+ //go:nosplit
+ func sigfwdgo(sig uint32, info *siginfo, ctx unsafe.Pointer) bool {
+-	g := getg()
+-	c := &sigctxt{info, ctx}
+ 	if sig >= uint32(len(sigtable)) {
+ 		return false
+ 	}
+@@ -28,13 +26,22 @@ func sigfwdgo(sig uint32, info *siginfo, ctx unsafe.Pointer) bool {
+ 	if fwdFn == _SIG_DFL {
+ 		return false
+ 	}
++
++	// If we aren't handling the signal, forward it.
++	if flags&_SigHandling == 0 {
++		sigfwd(fwdFn, sig, info, ctx)
++		return true
++	}
++
+ 	// Only forward synchronous signals.
++	c := &sigctxt{info, ctx}
+ 	if c.sigcode() == _SI_USER || flags&_SigPanic == 0 {
+ 		return false
+ 	}
+ 	// Determine if the signal occurred inside Go code.  We test that:
+ 	//   (1) we were in a goroutine (i.e., m.curg != nil), and
+ 	//   (2) we weren't in CGO (i.e., m.curg.syscallsp == 0).
++	g := getg()
+ 	if g != nil && g.m != nil && g.m.curg != nil && g.m.curg.syscallsp == 0 {
+ 		return false
+ 	}
+diff --git a/src/runtime/sys_darwin_amd64.s b/src/runtime/sys_darwin_amd64.s
+index 692dbca580..7b9cf6a3bc 100644
+--- a/src/runtime/sys_darwin_amd64.s
++++ b/src/runtime/sys_darwin_amd64.s
+@@ -214,10 +214,14 @@ TEXT runtime·sigaction(SB),NOSPLIT,$0-24
+ 
+ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
+ 	MOVQ fn+0(FP),    AX
+-	MOVQ sig+8(FP),   DI
++	MOVL sig+8(FP),   DI
+ 	MOVQ info+16(FP), SI
+ 	MOVQ ctx+24(FP),  DX
++	MOVQ SP, BP
++	SUBQ $64, SP
++	ANDQ $~15, SP     // alignment for x86_64 ABI
+ 	CALL AX
++	MOVQ BP, SP
+ 	RET
+ 
+ TEXT runtime·sigreturn(SB),NOSPLIT,$0-12
+diff --git a/src/runtime/sys_linux_arm.s b/src/runtime/sys_linux_arm.s
+index 216781ef7a..6a3b924330 100644
+--- a/src/runtime/sys_linux_arm.s
++++ b/src/runtime/sys_linux_arm.s
+@@ -339,7 +339,11 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-16
+ 	MOVW	info+8(FP), R1
+ 	MOVW	ctx+12(FP), R2
+ 	MOVW	fn+0(FP), R11
++	MOVW	R13, R4
++	SUB	$24, R13
++	BIC	$0x7, R13 // alignment for ELF ABI
+ 	BL	(R11)
++	MOVW	R4, R13
+ 	RET
+ 
+ TEXT runtime·sigtramp(SB),NOSPLIT,$12

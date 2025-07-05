@@ -12,10 +12,418 @@ Date:   Tue Aug 30 09:37:22 2011 +1000
     R=dsymonds, rsc, n13m3y3r
     CC=golang-dev
     https://golang.org/cl/4873057
-
+---
  src/cmd/goinstall/Makefile    |   6 ++
  src/cmd/goinstall/doc.go      |   7 +-
  src/cmd/goinstall/download.go | 223 ++++++++++++++++++++++++++----------------
  src/cmd/goinstall/tag_test.go |  73 ++++++++++++++
  src/pkg/Makefile              |   1 -
  5 files changed, 224 insertions(+), 86 deletions(-)
+
+diff --git a/src/cmd/goinstall/Makefile b/src/cmd/goinstall/Makefile
+index f61354f39f..b90646973b 100644
+--- a/src/cmd/goinstall/Makefile
++++ b/src/cmd/goinstall/Makefile
+@@ -11,3 +11,9 @@ GOFILES=\
+ 	make.go\
+ 
+ include ../../Make.cmd
++
++test:
++	gotest
++
++testshort:
++	gotest -test.short
+diff --git a/src/cmd/goinstall/doc.go b/src/cmd/goinstall/doc.go
+index 8260cb4d72..47c615364c 100644
+--- a/src/cmd/goinstall/doc.go
++++ b/src/cmd/goinstall/doc.go
+@@ -94,8 +94,11 @@ attempt to fetch updates.  The -u flag changes this behavior,
+ causing goinstall to update all remote packages encountered during
+ the installation.
+ 
+-When downloading or updating, goinstall first looks for a tag or branch
+-named "release".  If there is one, it uses that version of the code.
++When downloading or updating, goinstall looks for a tag with the "go." prefix
++that corresponds to the local Go version. For Go "release.r58" it looks for a
++tag named "go.r58". For "weekly.2011-06-03" it looks for "go.weekly.2011-06-03".
++If the specific "go.X" tag is not found, it chooses the closest earlier version.
++If an appropriate tag is found, goinstall uses that version of the code.
+ Otherwise it uses the default version selected by the version control
+ system, typically HEAD for git, tip for Mercurial.
+ 
+diff --git a/src/cmd/goinstall/download.go b/src/cmd/goinstall/download.go
+index 3e9927c3d6..cc873150a1 100644
+--- a/src/cmd/goinstall/download.go
++++ b/src/cmd/goinstall/download.go
+@@ -7,12 +7,15 @@
+ package main
+ 
+ import (
++	"bytes"
+ 	"exec"
+ 	"fmt"
+ 	"http"
+ 	"os"
+ 	"path/filepath"
+ 	"regexp"
++	"runtime"
++	"strconv"
+ 	"strings"
+ )
+ 
+@@ -36,22 +39,21 @@ func maybeReportToDashboard(path string) {
+ // a vcs represents a version control system
+ // like Mercurial, Git, or Subversion.
+ type vcs struct {
+-	name              string
+-	cmd               string
+-	metadir           string
+-	checkout          string
+-	clone             string
+-	update            string
+-	updateReleaseFlag string
+-	pull              string
+-	pullForceFlag     string
+-	log               string
+-	logLimitFlag      string
+-	logReleaseFlag    string
+-	check             string
+-	protocols         []string
+-	suffix            string
+-	defaultHosts      []host
++	name          string
++	cmd           string
++	metadir       string
++	checkout      string
++	clone         string
++	update        string
++	updateRevFlag string
++	pull          string
++	pullForceFlag string
++	tagList       string
++	tagListRe     *regexp.Regexp
++	check         string
++	protocols     []string
++	suffix        string
++	defaultHosts  []host
+ }
+ 
+ type host struct {
+@@ -61,20 +63,18 @@ type host struct {
+ }
+ 
+ var hg = vcs{
+-	name:              "Mercurial",
+-	cmd:               "hg",
+-	metadir:           ".hg",
+-	checkout:          "checkout",
+-	clone:             "clone",
+-	update:            "update",
+-	updateReleaseFlag: "release",
+-	pull:              "pull",
+-	log:               "log",
+-	logLimitFlag:      "-l1",
+-	logReleaseFlag:    "-rrelease",
+-	check:             "identify",
+-	protocols:         []string{"https", "http"},
+-	suffix:            ".hg",
++	name:      "Mercurial",
++	cmd:       "hg",
++	metadir:   ".hg",
++	checkout:  "checkout",
++	clone:     "clone",
++	update:    "update",
++	pull:      "pull",
++	tagList:   "tags",
++	tagListRe: regexp.MustCompile("([^ ]+)[^\n]+\n"),
++	check:     "identify",
++	protocols: []string{"https", "http"},
++	suffix:    ".hg",
+ 	defaultHosts: []host{
+ 		{regexp.MustCompile(`^([a-z0-9\-]+\.googlecode\.com/hg)(/[a-z0-9A-Z_.\-/]*)?$`), "https", ""},
+ 		{regexp.MustCompile(`^(bitbucket\.org/[a-z0-9A-Z_.\-]+/[a-z0-9A-Z_.\-]+)(/[a-z0-9A-Z_.\-/]*)?$`), "http", ""},
+@@ -82,20 +82,18 @@ var hg = vcs{
+ }
+ 
+ var git = vcs{
+-	name:              "Git",
+-	cmd:               "git",
+-	metadir:           ".git",
+-	checkout:          "checkout",
+-	clone:             "clone",
+-	update:            "pull",
+-	updateReleaseFlag: "release",
+-	pull:              "fetch",
+-	log:               "show-ref",
+-	logLimitFlag:      "",
+-	logReleaseFlag:    "release",
+-	check:             "ls-remote",
+-	protocols:         []string{"git", "https", "http"},
+-	suffix:            ".git",
++	name:      "Git",
++	cmd:       "git",
++	metadir:   ".git",
++	checkout:  "checkout",
++	clone:     "clone",
++	update:    "pull",
++	pull:      "fetch",
++	tagList:   "tag",
++	tagListRe: regexp.MustCompile("([^\n]+)\n"),
++	check:     "ls-remote",
++	protocols: []string{"git", "https", "http"},
++	suffix:    ".git",
+ 	defaultHosts: []host{
+ 		{regexp.MustCompile(`^([a-z0-9\-]+\.googlecode\.com/git)(/[a-z0-9A-Z_.\-/]*)?$`), "https", ""},
+ 		{regexp.MustCompile(`^(github\.com/[a-z0-9A-Z_.\-]+/[a-z0-9A-Z_.\-]+)(/[a-z0-9A-Z_.\-/]*)?$`), "http", ".git"},
+@@ -103,40 +101,35 @@ var git = vcs{
+ }
+ 
+ var svn = vcs{
+-	name:              "Subversion",
+-	cmd:               "svn",
+-	metadir:           ".svn",
+-	checkout:          "checkout",
+-	clone:             "checkout",
+-	update:            "update",
+-	updateReleaseFlag: "release",
+-	log:               "log",
+-	logLimitFlag:      "-l1",
+-	logReleaseFlag:    "release",
+-	check:             "info",
+-	protocols:         []string{"https", "http", "svn"},
+-	suffix:            ".svn",
++	name:      "Subversion",
++	cmd:       "svn",
++	metadir:   ".svn",
++	checkout:  "checkout",
++	clone:     "checkout",
++	update:    "update",
++	check:     "info",
++	protocols: []string{"https", "http", "svn"},
++	suffix:    ".svn",
+ 	defaultHosts: []host{
+ 		{regexp.MustCompile(`^([a-z0-9\-]+\.googlecode\.com/svn)(/[a-z0-9A-Z_.\-/]*)?$`), "https", ""},
+ 	},
+ }
+ 
+ var bzr = vcs{
+-	name:              "Bazaar",
+-	cmd:               "bzr",
+-	metadir:           ".bzr",
+-	checkout:          "update",
+-	clone:             "branch",
+-	update:            "update",
+-	updateReleaseFlag: "-rrelease",
+-	pull:              "pull",
+-	pullForceFlag:     "--overwrite",
+-	log:               "log",
+-	logLimitFlag:      "-l1",
+-	logReleaseFlag:    "-rrelease",
+-	check:             "info",
+-	protocols:         []string{"https", "http", "bzr"},
+-	suffix:            ".bzr",
++	name:          "Bazaar",
++	cmd:           "bzr",
++	metadir:       ".bzr",
++	checkout:      "update",
++	clone:         "branch",
++	update:        "update",
++	updateRevFlag: "-r",
++	pull:          "pull",
++	pullForceFlag: "--overwrite",
++	tagList:       "tags",
++	tagListRe:     regexp.MustCompile("([^ ]+)[^\n]+\n"),
++	check:         "info",
++	protocols:     []string{"https", "http", "bzr"},
++	suffix:        ".bzr",
+ 	defaultHosts: []host{
+ 		{regexp.MustCompile(`^(launchpad\.net/([a-z0-9A-Z_.\-]+(/[a-z0-9A-Z_.\-]+)?|~[a-z0-9A-Z_.\-]+/(\+junk|[a-z0-9A-Z_.\-]+)/[a-z0-9A-Z_.\-]+))(/[a-z0-9A-Z_.\-/]+)?$`), "https", ""},
+ 	},
+@@ -240,20 +233,84 @@ func download(pkg, srcDir string) (public bool, err os.Error) {
+ 	return
+ }
+ 
+-// Try to detect if a "release" tag exists.  If it does, update
+-// to the tagged version, otherwise just update the current branch.
+-// NOTE(_nil): svn will always fail because it is trying to get
+-// the revision history of a file named "release" instead of
+-// looking for a commit with a release tag
++// updateRepo gets a list of tags in the repository and
++// checks out the tag closest to the current runtime.Version.
++// If no matching tag is found, it just updates to tip.
+ func (v *vcs) updateRepo(dst string) os.Error {
+-	if err := quietRun(dst, nil, v.cmd, v.log, v.logLimitFlag, v.logReleaseFlag); err == nil {
+-		if err := run(dst, nil, v.cmd, v.checkout, v.updateReleaseFlag); err != nil {
+-			return err
+-		}
+-	} else if err := run(dst, nil, v.cmd, v.update); err != nil {
++	if v.tagList == "" || v.tagListRe == nil {
++		// TODO(adg): fix for svn
++		return run(dst, nil, v.cmd, v.update)
++	}
++
++	// Get tag list.
++	stderr := new(bytes.Buffer)
++	cmd := exec.Command(v.cmd, v.tagList)
++	cmd.Dir = dst
++	cmd.Stderr = stderr
++	b, err := cmd.Output()
++	if err != nil {
++		errorf("%s %s: %s\n", v.cmd, v.tagList, stderr)
+ 		return err
+ 	}
+-	return nil
++	var tags []string
++	for _, m := range v.tagListRe.FindAllStringSubmatch(string(b), -1) {
++		tags = append(tags, m[1])
++	}
++
++	// Only use the tag component of runtime.Version.
++	ver := strings.Split(runtime.Version(), " ")[0]
++
++	// Select tag.
++	if tag := selectTag(ver, tags); tag != "" {
++		printf("selecting revision %q\n", tag)
++		return run(dst, nil, v.cmd, v.checkout, v.updateRevFlag+tag)
++	}
++
++	// No matching tag found, make default selection.
++	printf("selecting tip\n")
++	return run(dst, nil, v.cmd, v.update)
++}
++
++// selectTag returns the closest matching tag for a given version.
++// Closest means the latest one that is not after the current release.
++// Version "release.rN" matches tags of the form "go.rN" (N being a decimal).
++// Version "weekly.YYYY-MM-DD" matches tags like "go.weekly.YYYY-MM-DD".
++func selectTag(goVersion string, tags []string) (match string) {
++	const rPrefix = "release.r"
++	if strings.HasPrefix(goVersion, rPrefix) {
++		p := "go.r"
++		v, err := strconv.Atof64(goVersion[len(rPrefix):])
++		if err != nil {
++			return ""
++		}
++		var matchf float64
++		for _, t := range tags {
++			if !strings.HasPrefix(t, p) {
++				continue
++			}
++			tf, err := strconv.Atof64(t[len(p):])
++			if err != nil {
++				continue
++			}
++			if matchf < tf && tf <= v {
++				match, matchf = t, tf
++			}
++		}
++	}
++	const wPrefix = "weekly."
++	if strings.HasPrefix(goVersion, wPrefix) {
++		p := "go.weekly."
++		v := goVersion[len(wPrefix):]
++		for _, t := range tags {
++			if !strings.HasPrefix(t, p) {
++				continue
++			}
++			if match < t && t[len(p):] <= v {
++				match = t
++			}
++		}
++	}
++	return match
+ }
+ 
+ // checkoutRepo checks out repo into dst using vcs.
+diff --git a/src/cmd/goinstall/tag_test.go b/src/cmd/goinstall/tag_test.go
+new file mode 100644
+index 0000000000..a23a7ea82f
+--- /dev/null
++++ b/src/cmd/goinstall/tag_test.go
+@@ -0,0 +1,73 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "testing"
++
++var selectTagTestTags = []string{
++	"go.r58",
++	"go.r58.1",
++	"go.r59",
++	"go.r59.1",
++	"go.r61",
++	"go.r61.1",
++	"go.weekly.2010-01-02",
++	"go.weekly.2011-10-12",
++	"go.weekly.2011-10-12.1",
++	"go.weekly.2011-10-14",
++	"go.weekly.2011-11-01",
++	// these should be ignored:
++	"release.r59",
++	"release.r59.1",
++	"release",
++	"weekly.2011-10-12",
++	"weekly.2011-10-12.1",
++	"weekly",
++	"foo",
++	"bar",
++	"go.f00",
++	"go!r60",
++	"go.1999-01-01",
++}
++
++var selectTagTests = []struct {
++	version  string
++	selected string
++}{
++	{"release.r57", ""},
++	{"release.r58.2", "go.r58.1"},
++	{"release.r59", "go.r59"},
++	{"release.r59.1", "go.r59.1"},
++	{"release.r60", "go.r59.1"},
++	{"release.r60.1", "go.r59.1"},
++	{"release.r61", "go.r61"},
++	{"release.r66", "go.r61.1"},
++	{"weekly.2010-01-01", ""},
++	{"weekly.2010-01-02", "go.weekly.2010-01-02"},
++	{"weekly.2010-01-02.1", "go.weekly.2010-01-02"},
++	{"weekly.2010-01-03", "go.weekly.2010-01-02"},
++	{"weekly.2011-10-12", "go.weekly.2011-10-12"},
++	{"weekly.2011-10-12.1", "go.weekly.2011-10-12.1"},
++	{"weekly.2011-10-13", "go.weekly.2011-10-12.1"},
++	{"weekly.2011-10-14", "go.weekly.2011-10-14"},
++	{"weekly.2011-10-14.1", "go.weekly.2011-10-14"},
++	{"weekly.2011-11-01", "go.weekly.2011-11-01"},
++	{"weekly.2014-01-01", "go.weekly.2011-11-01"},
++	{"weekly.3000-01-01", "go.weekly.2011-11-01"},
++	// faulty versions:
++	{"release.f00", ""},
++	{"weekly.1999-01-01", ""},
++	{"junk", ""},
++	{"", ""},
++}
++
++func TestSelectTag(t *testing.T) {
++	for _, c := range selectTagTests {
++		selected := selectTag(c.version, selectTagTestTags)
++		if selected != c.selected {
++			t.Errorf("selectTag(%q) = %q, want %q", c.version, selected, c.selected)
++		}
++	}
++}
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index 9bd920ea08..0b67bdacd4 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -218,7 +218,6 @@ NOTEST+=\
+ 	../cmd/cgo\
+ 	../cmd/ebnflint\
+ 	../cmd/godoc\
+-	../cmd/goinstall\
+ 	../cmd/gotest\
+ 	../cmd/goyacc\
+ 	../cmd/hgpatch\

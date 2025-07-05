@@ -15,7 +15,59 @@ Date:   Mon Oct 21 02:04:14 2019 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/sys_linux_mips64x.s |  6 +++---
  src/runtime/sys_linux_mipsx.s   | 10 +++++++++-
  2 files changed, 12 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/sys_linux_mips64x.s b/src/runtime/sys_linux_mips64x.s
+index 37e4842f08..b0cb0672fa 100644
+--- a/src/runtime/sys_linux_mips64x.s
++++ b/src/runtime/sys_linux_mips64x.s
+@@ -19,10 +19,9 @@
+ #define SYS_read		5000
+ #define SYS_write		5001
+ #define SYS_close		5003
+-#define SYS_pipe		5021
+ #define SYS_getpid		5038
+ #define SYS_kill		5060
+-#define SYS_fcntl		5080
++#define SYS_fcntl		5070
+ #define SYS_mmap		5009
+ #define SYS_munmap		5011
+ #define SYS_setitimer		5036
+@@ -115,7 +114,8 @@ TEXT runtime·read(SB),NOSPLIT|NOFRAME,$0-28
+ // func pipe() (r, w int32, errno int32)
+ TEXT runtime·pipe(SB),NOSPLIT|NOFRAME,$0-12
+ 	MOVV	$r+0(FP), R4
+-	MOVV	$SYS_pipe, R2
++	MOVV	R0, R5
++	MOVV	$SYS_pipe2, R2
+ 	SYSCALL
+ 	MOVW	R2, errno+8(FP)
+ 	RET
+diff --git a/src/runtime/sys_linux_mipsx.s b/src/runtime/sys_linux_mipsx.s
+index b1cfafb4c9..77f932f50a 100644
+--- a/src/runtime/sys_linux_mipsx.s
++++ b/src/runtime/sys_linux_mipsx.s
+@@ -112,11 +112,19 @@ TEXT runtime·read(SB),NOSPLIT,$0-16
+ 
+ // func pipe() (r, w int32, errno int32)
+ TEXT runtime·pipe(SB),NOSPLIT,$0-12
+-	MOVW	$r+0(FP), R4
+ 	MOVW	$SYS_pipe, R2
+ 	SYSCALL
++	BEQ	R7, pipeok
++	MOVW	$-1, R1
++	MOVW	R1, r+0(FP)
++	MOVW	R1, w+4(FP)
+ 	MOVW	R2, errno+8(FP)
+ 	RET
++pipeok:
++	MOVW	R2, r+0(FP)
++	MOVW	R3, w+4(FP)
++	MOVW	R0, errno+8(FP)
++	RET
+ 
+ // func pipe2(flags int32) (r, w int32, errno int32)
+ TEXT runtime·pipe2(SB),NOSPLIT,$0-16

@@ -8,6 +8,19 @@ Date:   Fri Jun 27 15:36:41 2014 +0200
     R=rsc, 0intro, aram
     CC=golang-codereviews
     https://golang.org/cl/109240044
-
+---
  src/pkg/runtime/os_plan9.c | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/pkg/runtime/os_plan9.c b/src/pkg/runtime/os_plan9.c
+index 61f315a6c6..cf3480deac 100644
+--- a/src/pkg/runtime/os_plan9.c
++++ b/src/pkg/runtime/os_plan9.c
+@@ -19,6 +19,7 @@ runtime·mpreinit(M *mp)
+ {
+ 	// Initialize stack and goroutine for note handling.
+ 	mp->gsignal = runtime·malg(32*1024);
++	mp->gsignal->m = mp;
+ 	mp->notesig = (int8*)runtime·malloc(ERRMAX*sizeof(int8));
+ 
+ 	// Initialize stack for handling strings from the

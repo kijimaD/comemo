@@ -24,7 +24,7 @@ Date:   Thu Sep 22 21:17:05 2022 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/debug/macho/fat.go          |  2 +-
  src/debug/macho/file.go         |  4 ++--
  src/debug/pe/symbol.go          |  2 +-
@@ -32,3 +32,156 @@ Date:   Thu Sep 22 21:17:05 2022 -0700
  src/internal/saferio/io.go      |  9 +++++++--
  src/internal/saferio/io_test.go |  6 +++---
  6 files changed, 32 insertions(+), 10 deletions(-)
+
+diff --git a/src/debug/macho/fat.go b/src/debug/macho/fat.go
+index 7dc03fa79a..679cefb313 100644
+--- a/src/debug/macho/fat.go
++++ b/src/debug/macho/fat.go
+@@ -86,7 +86,7 @@ func NewFatFile(r io.ReaderAt) (*FatFile, error) {
+ 
+ 	// Following the fat_header comes narch fat_arch structs that index
+ 	// Mach-O images further in the file.
+-	c := saferio.SliceCap(FatArch{}, uint64(narch))
++	c := saferio.SliceCap((*FatArch)(nil), uint64(narch))
+ 	if c < 0 {
+ 		return nil, &FormatError{offset, "too many images", nil}
+ 	}
+diff --git a/src/debug/macho/file.go b/src/debug/macho/file.go
+index 3c95803371..0c6488d349 100644
+--- a/src/debug/macho/file.go
++++ b/src/debug/macho/file.go
+@@ -253,7 +253,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	c := saferio.SliceCap([]Load{}, uint64(f.Ncmd))
++	c := saferio.SliceCap((*Load)(nil), uint64(f.Ncmd))
+ 	if c < 0 {
+ 		return nil, &FormatError{offset, "too many load commands", nil}
+ 	}
+@@ -460,7 +460,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
+ 
+ func (f *File) parseSymtab(symdat, strtab, cmddat []byte, hdr *SymtabCmd, offset int64) (*Symtab, error) {
+ 	bo := f.ByteOrder
+-	c := saferio.SliceCap([]Symbol{}, uint64(hdr.Nsyms))
++	c := saferio.SliceCap((*Symbol)(nil), uint64(hdr.Nsyms))
+ 	if c < 0 {
+ 		return nil, &FormatError{offset, "too many symbols", nil}
+ 	}
+diff --git a/src/debug/pe/symbol.go b/src/debug/pe/symbol.go
+index 0a5343f925..b1654f8726 100644
+--- a/src/debug/pe/symbol.go
++++ b/src/debug/pe/symbol.go
+@@ -59,7 +59,7 @@ func readCOFFSymbols(fh *FileHeader, r io.ReadSeeker) ([]COFFSymbol, error) {
+ 	if err != nil {
+ 		return nil, fmt.Errorf("fail to seek to symbol table: %v", err)
+ 	}
+-	c := saferio.SliceCap(COFFSymbol{}, uint64(fh.NumberOfSymbols))
++	c := saferio.SliceCap((*COFFSymbol)(nil), uint64(fh.NumberOfSymbols))
+ 	if c < 0 {
+ 		return nil, errors.New("too many symbols; file may be corrupt")
+ 	}
+diff --git a/src/encoding/gob/decode.go b/src/encoding/gob/decode.go
+index 470e357b10..480832ca4f 100644
+--- a/src/encoding/gob/decode.go
++++ b/src/encoding/gob/decode.go
+@@ -9,6 +9,7 @@ package gob
+ import (
+ 	"encoding"
+ 	"errors"
++	"internal/saferio"
+ 	"io"
+ 	"math"
+ 	"math/bits"
+@@ -514,10 +515,22 @@ func (dec *Decoder) decodeArrayHelper(state *decoderState, value reflect.Value,
+ 	}
+ 	instr := &decInstr{elemOp, 0, nil, ovfl}
+ 	isPtr := value.Type().Elem().Kind() == reflect.Pointer
++	ln := value.Len()
+ 	for i := 0; i < length; i++ {
+ 		if state.b.Len() == 0 {
+ 			errorf("decoding array or slice: length exceeds input size (%d elements)", length)
+ 		}
++		if i >= ln {
++			// This is a slice that we only partially allocated.
++			// Grow it using append, up to length.
++			value = reflect.Append(value, reflect.Zero(value.Type().Elem()))
++			cp := value.Cap()
++			if cp > length {
++				cp = length
++			}
++			value.SetLen(cp)
++			ln = cp
++		}
+ 		v := value.Index(i)
+ 		if isPtr {
+ 			v = decAlloc(v)
+@@ -618,7 +631,11 @@ func (dec *Decoder) decodeSlice(state *decoderState, value reflect.Value, elemOp
+ 		errorf("%s slice too big: %d elements of %d bytes", typ.Elem(), u, size)
+ 	}
+ 	if value.Cap() < n {
+-		value.Set(reflect.MakeSlice(typ, n, n))
++		safe := saferio.SliceCap(reflect.Zero(reflect.PtrTo(typ.Elem())).Interface(), uint64(n))
++		if safe < 0 {
++			errorf("%s slice too big: %d elements of %d bytes", typ.Elem(), u, size)
++		}
++		value.Set(reflect.MakeSlice(typ, safe, safe))
+ 	} else {
+ 		value.SetLen(n)
+ 	}
+diff --git a/src/internal/saferio/io.go b/src/internal/saferio/io.go
+index 8fb27b0be3..b10d117513 100644
+--- a/src/internal/saferio/io.go
++++ b/src/internal/saferio/io.go
+@@ -109,14 +109,19 @@ func ReadDataAt(r io.ReaderAt, n uint64, off int64) ([]byte, error) {
+ //
+ // A negative result means that the value is always too big.
+ //
+-// The element type is described by passing a value of that type.
++// The element type is described by passing a pointer to a value of that type.
+ // This would ideally use generics, but this code is built with
+ // the bootstrap compiler which need not support generics.
++// We use a pointer so that we can handle slices of interface type.
+ func SliceCap(v any, c uint64) int {
+ 	if int64(c) < 0 || c != uint64(int(c)) {
+ 		return -1
+ 	}
+-	size := reflect.TypeOf(v).Size()
++	typ := reflect.TypeOf(v)
++	if typ.Kind() != reflect.Ptr {
++		panic("SliceCap called with non-pointer type")
++	}
++	size := typ.Elem().Size()
+ 	if uintptr(c)*size > chunk {
+ 		c = uint64(chunk / size)
+ 		if c == 0 {
+diff --git a/src/internal/saferio/io_test.go b/src/internal/saferio/io_test.go
+index 1a7d3e1840..290181f2a0 100644
+--- a/src/internal/saferio/io_test.go
++++ b/src/internal/saferio/io_test.go
+@@ -105,14 +105,14 @@ func TestReadDataAt(t *testing.T) {
+ 
+ func TestSliceCap(t *testing.T) {
+ 	t.Run("small", func(t *testing.T) {
+-		c := SliceCap(0, 10)
++		c := SliceCap((*int)(nil), 10)
+ 		if c != 10 {
+ 			t.Errorf("got capacity %d, want %d", c, 10)
+ 		}
+ 	})
+ 
+ 	t.Run("large", func(t *testing.T) {
+-		c := SliceCap(byte(0), 1<<30)
++		c := SliceCap((*byte)(nil), 1<<30)
+ 		if c < 0 {
+ 			t.Error("SliceCap failed unexpectedly")
+ 		} else if c == 1<<30 {
+@@ -121,7 +121,7 @@ func TestSliceCap(t *testing.T) {
+ 	})
+ 
+ 	t.Run("maxint", func(t *testing.T) {
+-		c := SliceCap(byte(0), 1<<63)
++		c := SliceCap((*byte)(nil), 1<<63)
+ 		if c >= 0 {
+ 			t.Errorf("SliceCap returned %d, expected failure", c)
+ 		}

@@ -9,7 +9,51 @@ Date:   Fri Apr 20 14:25:42 2012 +1000
     R=golang-dev, nigeltao
     CC=golang-dev
     https://golang.org/cl/6048051
-
+---
  src/pkg/exp/html/parse.go                                    | 12 ++++++------
  .../testlogs/pending-spec-changes-plain-text-unsafe.dat.log  |  2 +-
  2 files changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/src/pkg/exp/html/parse.go b/src/pkg/exp/html/parse.go
+index 8f62348969..b5ee425747 100644
+--- a/src/pkg/exp/html/parse.go
++++ b/src/pkg/exp/html/parse.go
+@@ -616,25 +616,25 @@ func copyAttributes(dst *Node, src Token) {
+ func inBodyIM(p *parser) bool {
+ 	switch p.tok.Type {
+ 	case TextToken:
++		d := p.tok.Data
+ 		switch n := p.oe.top(); n.Data {
+ 		case "pre", "listing", "textarea":
+ 			if len(n.Child) == 0 {
+ 				// Ignore a newline at the start of a <pre> block.
+-				d := p.tok.Data
+ 				if d != "" && d[0] == '\r' {
+ 					d = d[1:]
+ 				}
+ 				if d != "" && d[0] == '\n' {
+ 					d = d[1:]
+ 				}
+-				if d == "" {
+-					return true
+-				}
+-				p.tok.Data = d
+ 			}
+ 		}
++		d = strings.Replace(d, "\x00", "", -1)
++		if d == "" {
++			return true
++		}
+ 		p.reconstructActiveFormattingElements()
+-		p.addText(p.tok.Data)
++		p.addText(d)
+ 		p.framesetOK = false
+ 	case StartTagToken:
+ 		switch p.tok.Data {
+diff --git a/src/pkg/exp/html/testlogs/pending-spec-changes-plain-text-unsafe.dat.log b/src/pkg/exp/html/testlogs/pending-spec-changes-plain-text-unsafe.dat.log
+index 7984f34e17..bbcad900aa 100644
+--- a/src/pkg/exp/html/testlogs/pending-spec-changes-plain-text-unsafe.dat.log
++++ b/src/pkg/exp/html/testlogs/pending-spec-changes-plain-text-unsafe.dat.log
+@@ -1 +1 @@
+-FAIL "<body><table>\x00filler\x00text\x00"
++PASS "<body><table>\x00filler\x00text\x00"

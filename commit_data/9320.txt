@@ -9,6 +9,28 @@ Date:   Wed Aug 10 11:09:06 2011 +1000
     R=golang-dev, alex.brainman
     CC=golang-dev
     https://golang.org/cl/4838056
-
+---
  src/cmd/ld/pe.c | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/ld/pe.c b/src/cmd/ld/pe.c
+index 2bf9aa468e..334c9959fa 100644
+--- a/src/cmd/ld/pe.c
++++ b/src/cmd/ld/pe.c
+@@ -453,13 +453,14 @@ addsymtable(void)
+ 	if(nextsymoff == 0)
+ 		return;
+ 	
+-	size  = nextsymoff + 4;
++	size  = nextsymoff + 4 + 18;
+ 	h = addpesection(".symtab", size, size);
+ 	h->Characteristics = IMAGE_SCN_MEM_READ|
+ 		IMAGE_SCN_MEM_DISCARDABLE;
+ 	chksectoff(h, cpos());
+ 	fh.PointerToSymbolTable = cpos();
+-	fh.NumberOfSymbols = 0;
++	fh.NumberOfSymbols = 1;
++	strnput("", 18); // one empty symbol
+ 	// put symbol string table
+ 	lputl(size);
+ 	for (i=0; i<nextsymoff; i++)

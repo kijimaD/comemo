@@ -11,7 +11,40 @@ Date:   Wed Jul 3 10:43:24 2013 -0700
     R=adonovan
     CC=golang-dev
     https://golang.org/cl/10917043
-
+---
  src/pkg/go/parser/parser.go     | 4 ----
  src/pkg/go/parser/short_test.go | 6 ------
  2 files changed, 10 deletions(-)
+
+diff --git a/src/pkg/go/parser/parser.go b/src/pkg/go/parser/parser.go
+index 721ab58570..ded733489b 100644
+--- a/src/pkg/go/parser/parser.go
++++ b/src/pkg/go/parser/parser.go
+@@ -1187,10 +1187,6 @@ func (p *parser) parseIndexOrSlice(x ast.Expr) ast.Expr {
+ 
+ 	if ncolons > 0 {
+ 		// slice expression
+-		if ncolons == 2 && (index[1] == nil || index[2] == nil) {
+-			// only i is optional in a[i:j:k]
+-			p.error(rbrack, "2nd and 3rd index must be present full slice expression")
+-		}
+ 		return &ast.SliceExpr{X: x, Lbrack: lbrack, Low: index[0], High: index[1], Max: index[2], Rbrack: rbrack}
+ 	}
+ 
+diff --git a/src/pkg/go/parser/short_test.go b/src/pkg/go/parser/short_test.go
+index 57bb78c533..a15b3ed35c 100644
+--- a/src/pkg/go/parser/short_test.go
++++ b/src/pkg/go/parser/short_test.go
+@@ -78,12 +78,6 @@ var invalids = []string{
+ 	`package p; func f() { var s []int; _ = s[] /* ERROR "expected operand" */ };`,
+ 	`package p; func f() { var s []int; _ = s[::: /* ERROR "expected ']'" */ ] };`,
+ 	`package p; func f() { var s []int; _ = s[i:j:k: /* ERROR "expected ']'" */ l] };`,
+-	`package p; func f() { var s []int; g(s[::] /* ERROR "index must be present" */) };`,
+-	`package p; func f() { var s []int; g(s[i::] /* ERROR "index must be present" */) };`,
+-	`package p; func f() { var s []int; g(s[i:j:] /* ERROR "index must be present" */) };`,
+-	`package p; func f() { var s []int; g(s[::k] /* ERROR "index must be present" */) };`,
+-	`package p; func f() { var s []int; g(s[:j:] /* ERROR "index must be present" */) };`,
+-	`package p; func f() { var s []int; g(s[i::k] /* ERROR "index must be present" */) };`,
+ }
+ 
+ func TestInvalid(t *testing.T) {

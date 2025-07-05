@@ -15,6 +15,29 @@ Date:   Sat Mar 9 14:11:40 2019 +0100
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/bytes/bytes.go | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/bytes/bytes.go b/src/bytes/bytes.go
+index f65bf214cc..6fcebe6593 100644
+--- a/src/bytes/bytes.go
++++ b/src/bytes/bytes.go
+@@ -499,13 +499,16 @@ func Map(mapping func(r rune) rune, s []byte) []byte {
+ // It panics if count is negative or if
+ // the result of (len(b) * count) overflows.
+ func Repeat(b []byte, count int) []byte {
++	if count == 0 {
++		return []byte{}
++	}
+ 	// Since we cannot return an error on overflow,
+ 	// we should panic if the repeat will generate
+ 	// an overflow.
+ 	// See Issue golang.org/issue/16237.
+ 	if count < 0 {
+ 		panic("bytes: negative Repeat count")
+-	} else if count > 0 && len(b)*count/count != len(b) {
++	} else if len(b)*count/count != len(b) {
+ 		panic("bytes: Repeat count causes overflow")
+ 	}
+ 

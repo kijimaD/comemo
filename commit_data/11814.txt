@@ -7,6 +7,20 @@ Date:   Sun Feb 12 15:59:21 2012 +0900
     R=golang-dev, alex.brainman
     CC=golang-dev
     https://golang.org/cl/5653066
-
+---
  src/pkg/net/sockopt_windows.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/sockopt_windows.go b/src/pkg/net/sockopt_windows.go
+index 46661e2f25..b18af67d75 100644
+--- a/src/pkg/net/sockopt_windows.go
++++ b/src/pkg/net/sockopt_windows.go
+@@ -23,7 +23,7 @@ func setDefaultSockopts(s syscall.Handle, f, t int) error {
+ 	return nil
+ }
+ 
+-func setDefaultListenerSockopts(s syscall.Handle, f, t int) error {
++func setDefaultListenerSockopts(s syscall.Handle) error {
+ 	// Windows will reuse recently-used addresses by default.
+ 	// SO_REUSEADDR should not be used here, as it allows
+ 	// a socket to forcibly bind to a port in use by another socket.

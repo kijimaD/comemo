@@ -9,6 +9,25 @@ Date:   Fri Sep 4 08:31:03 2015 +1200
     Change-Id: I4cf7edb4ea318849cab92a697952f8745eed40c4
     Reviewed-on: https://go-review.googlesource.com/14237
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/cgo_ppc64x.go | 12 ++++++++++++
  1 file changed, 12 insertions(+)
+
+diff --git a/src/runtime/cgo_ppc64x.go b/src/runtime/cgo_ppc64x.go
+new file mode 100644
+index 0000000000..cbc6c41d73
+--- /dev/null
++++ b/src/runtime/cgo_ppc64x.go
+@@ -0,0 +1,12 @@
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++// +build ppc64 ppc64le
++
++// crosscall_ppc64 calls into the runtime to set up the registers the
++// Go runtime expects and so the symbol it calls needs to be exported
++// for external linking to work.
++//go:cgo_export_static _cgo_reginit

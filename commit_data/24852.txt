@@ -14,10 +14,96 @@ Date:   Sun Aug 23 11:54:21 2015 +0000
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/amd64/galign.go | 6 +++---
  src/cmd/compile/internal/arm/galign.go   | 6 +++---
  src/cmd/compile/internal/arm64/galign.go | 6 +++---
  src/cmd/compile/internal/ppc64/galign.go | 6 +++---
  src/cmd/compile/internal/x86/galign.go   | 6 +++---
  5 files changed, 15 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/galign.go b/src/cmd/compile/internal/amd64/galign.go
+index 79bf94a075..9837ea6160 100644
+--- a/src/cmd/compile/internal/amd64/galign.go
++++ b/src/cmd/compile/internal/amd64/galign.go
+@@ -39,9 +39,9 @@ var (
+  * int, uint, and uintptr
+  */
+ var typedefs = []gc.Typedef{
+-	gc.Typedef{"int", gc.TINT, gc.TINT64},
+-	gc.Typedef{"uint", gc.TUINT, gc.TUINT64},
+-	gc.Typedef{"uintptr", gc.TUINTPTR, gc.TUINT64},
++	{"int", gc.TINT, gc.TINT64},
++	{"uint", gc.TUINT, gc.TUINT64},
++	{"uintptr", gc.TUINTPTR, gc.TUINT64},
+ }
+ 
+ func betypeinit() {
+diff --git a/src/cmd/compile/internal/arm/galign.go b/src/cmd/compile/internal/arm/galign.go
+index 60a39d3fe4..58c7f7b959 100644
+--- a/src/cmd/compile/internal/arm/galign.go
++++ b/src/cmd/compile/internal/arm/galign.go
+@@ -26,9 +26,9 @@ var MAXWIDTH int64 = (1 << 32) - 1
+  * int, uint, and uintptr
+  */
+ var typedefs = []gc.Typedef{
+-	gc.Typedef{"int", gc.TINT, gc.TINT32},
+-	gc.Typedef{"uint", gc.TUINT, gc.TUINT32},
+-	gc.Typedef{"uintptr", gc.TUINTPTR, gc.TUINT32},
++	{"int", gc.TINT, gc.TINT32},
++	{"uint", gc.TUINT, gc.TUINT32},
++	{"uintptr", gc.TUINTPTR, gc.TUINT32},
+ }
+ 
+ func betypeinit() {
+diff --git a/src/cmd/compile/internal/arm64/galign.go b/src/cmd/compile/internal/arm64/galign.go
+index 38def8f5a4..d61fd3cb95 100644
+--- a/src/cmd/compile/internal/arm64/galign.go
++++ b/src/cmd/compile/internal/arm64/galign.go
+@@ -26,9 +26,9 @@ var MAXWIDTH int64 = 1 << 50
+  * int, uint, and uintptr
+  */
+ var typedefs = []gc.Typedef{
+-	gc.Typedef{"int", gc.TINT, gc.TINT64},
+-	gc.Typedef{"uint", gc.TUINT, gc.TUINT64},
+-	gc.Typedef{"uintptr", gc.TUINTPTR, gc.TUINT64},
++	{"int", gc.TINT, gc.TINT64},
++	{"uint", gc.TUINT, gc.TUINT64},
++	{"uintptr", gc.TUINTPTR, gc.TUINT64},
+ }
+ 
+ func betypeinit() {
+diff --git a/src/cmd/compile/internal/ppc64/galign.go b/src/cmd/compile/internal/ppc64/galign.go
+index 73aef6fde9..16509da8fe 100644
+--- a/src/cmd/compile/internal/ppc64/galign.go
++++ b/src/cmd/compile/internal/ppc64/galign.go
+@@ -34,9 +34,9 @@ var MAXWIDTH int64 = 1 << 50
+  * int, uint, and uintptr
+  */
+ var typedefs = []gc.Typedef{
+-	gc.Typedef{"int", gc.TINT, gc.TINT64},
+-	gc.Typedef{"uint", gc.TUINT, gc.TUINT64},
+-	gc.Typedef{"uintptr", gc.TUINTPTR, gc.TUINT64},
++	{"int", gc.TINT, gc.TINT64},
++	{"uint", gc.TUINT, gc.TUINT64},
++	{"uintptr", gc.TUINTPTR, gc.TUINT64},
+ }
+ 
+ func betypeinit() {
+diff --git a/src/cmd/compile/internal/x86/galign.go b/src/cmd/compile/internal/x86/galign.go
+index 2b602e1bb3..2535e3e165 100644
+--- a/src/cmd/compile/internal/x86/galign.go
++++ b/src/cmd/compile/internal/x86/galign.go
+@@ -28,9 +28,9 @@ var MAXWIDTH int64 = (1 << 32) - 1
+  * int, uint, and uintptr
+  */
+ var typedefs = []gc.Typedef{
+-	gc.Typedef{"int", gc.TINT, gc.TINT32},
+-	gc.Typedef{"uint", gc.TUINT, gc.TUINT32},
+-	gc.Typedef{"uintptr", gc.TUINTPTR, gc.TUINT32},
++	{"int", gc.TINT, gc.TINT32},
++	{"uint", gc.TUINT, gc.TUINT32},
++	{"uintptr", gc.TUINTPTR, gc.TUINT32},
+ }
+ 
+ func betypeinit() {

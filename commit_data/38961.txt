@@ -15,6 +15,20 @@ Date:   Wed Dec 12 11:28:46 2018 -0800
     Reviewed-on: https://go-review.googlesource.com/c/153839
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/os_windows.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/os_windows.go b/src/runtime/os_windows.go
+index 5870a342c2..9b34589874 100644
+--- a/src/runtime/os_windows.go
++++ b/src/runtime/os_windows.go
+@@ -879,7 +879,7 @@ func profilem(mp *m, thread uintptr) {
+ 		gp = *((**g)(unsafe.Pointer(tls)))
+ 	}
+ 
+-	sigprof(r.ip(), r.sp(), 0, gp, mp)
++	sigprof(r.ip(), r.sp(), r.lr(), gp, mp)
+ }
+ 
+ func profileloop1(param uintptr) uint32 {

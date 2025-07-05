@@ -12,6 +12,22 @@ Date:   Mon Oct 14 20:30:20 2024 +0000
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Auto-Submit: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/time/sleep.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/time/sleep.go b/src/time/sleep.go
+index d128efb0f1..e9cd483be5 100644
+--- a/src/time/sleep.go
++++ b/src/time/sleep.go
+@@ -165,8 +165,8 @@ func NewTimer(d Duration) *Timer {
+ // to receive a time value corresponding to the previous timer settings;
+ // if the program has not received from t.C already and the timer is
+ // running, Reset is guaranteed to return true.
+-// Before Go 1.23, the only safe way to use Reset was to [Stop] and
+-// explicitly drain the timer first.
++// Before Go 1.23, the only safe way to use Reset was to call [Timer.Stop]
++// and explicitly drain the timer first.
+ // See the [NewTimer] documentation for more details.
+ func (t *Timer) Reset(d Duration) bool {
+ 	if !t.initTimer {

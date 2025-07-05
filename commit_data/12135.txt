@@ -7,6 +7,28 @@ Date:   Wed Feb 22 00:29:23 2012 -0500
     TBR=lvd
     CC=golang-dev
     https://golang.org/cl/5686063
-
+---
  src/cmd/gc/fmt.c | 6 +-----
  1 file changed, 1 insertion(+), 5 deletions(-)
+
+diff --git a/src/cmd/gc/fmt.c b/src/cmd/gc/fmt.c
+index 093b276f07..5672c00103 100644
+--- a/src/cmd/gc/fmt.c
++++ b/src/cmd/gc/fmt.c
+@@ -1346,15 +1346,11 @@ nodefmt(Fmt *f, Node *n)
+ 	Type *t;
+ 
+ 	t = n->type;
+-	if(n->orig == N) {
+-		n->orig = n;
+-		fatal("node with no orig %N", n);
+-	}
+ 
+ 	// we almost always want the original, except in export mode for literals
+ 	// this saves the importer some work, and avoids us having to redo some
+ 	// special casing for package unsafe
+-	if(fmtmode != FExp || n->op != OLITERAL)
++	if((fmtmode != FExp || n->op != OLITERAL) && n->orig != N)
+ 		n = n->orig;
+ 
+ 	if(f->flags&FmtLong && t != T) {

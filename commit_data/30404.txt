@@ -16,6 +16,20 @@ Date:   Wed Nov 2 23:18:54 2016 -0400
     Reviewed-on: https://go-review.googlesource.com/32641
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/go_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index e94b9a5bd8..37da67c8b7 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -1216,7 +1216,7 @@ func TestIssue11457(t *testing.T) {
+ 	tg.parallel()
+ 	tg.tempDir("src")
+ 	tg.setenv("GOPATH", tg.path("."))
+-	const importPath = "github.com/rsc/go-get-issue-11457"
++	const importPath = "rsc.io/go-get-issue-11457"
+ 	tg.run("get", "-d", "-u", importPath)
+ 	repoDir := tg.path("src/" + importPath)
+ 	tg.runGit(repoDir, "remote", "set-url", "origin", "git@github.com:rsc/go-get-issue-11457")

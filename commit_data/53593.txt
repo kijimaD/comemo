@@ -13,6 +13,33 @@ Date:   Wed Jun 15 17:50:04 2022 -0700
     Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
     Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/strings/builder.go | 15 +++------------
  1 file changed, 3 insertions(+), 12 deletions(-)
+
+diff --git a/src/strings/builder.go b/src/strings/builder.go
+index 3caddabd4e..096e9c765e 100644
+--- a/src/strings/builder.go
++++ b/src/strings/builder.go
+@@ -103,18 +103,9 @@ func (b *Builder) WriteByte(c byte) error {
+ // It returns the length of r and a nil error.
+ func (b *Builder) WriteRune(r rune) (int, error) {
+ 	b.copyCheck()
+-	// Compare as uint32 to correctly handle negative runes.
+-	if uint32(r) < utf8.RuneSelf {
+-		b.buf = append(b.buf, byte(r))
+-		return 1, nil
+-	}
+-	l := len(b.buf)
+-	if cap(b.buf)-l < utf8.UTFMax {
+-		b.grow(utf8.UTFMax)
+-	}
+-	n := utf8.EncodeRune(b.buf[l:l+utf8.UTFMax], r)
+-	b.buf = b.buf[:l+n]
+-	return n, nil
++	n := len(b.buf)
++	b.buf = utf8.AppendRune(b.buf, r)
++	return len(b.buf) - n, nil
+ }
+ 
+ // WriteString appends the contents of s to b's buffer.

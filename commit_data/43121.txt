@@ -17,6 +17,28 @@ Date:   Sat Mar 7 13:36:36 2020 -0800
     Change-Id: I9a649ea57fa3c2792998bb71331a2580e429b36a
     Reviewed-on: https://go-review.googlesource.com/c/go/+/222618
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/ssa/html.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/html.go b/src/cmd/compile/internal/ssa/html.go
+index c384817d0c..54fa54a477 100644
+--- a/src/cmd/compile/internal/ssa/html.go
++++ b/src/cmd/compile/internal/ssa/html.go
+@@ -245,6 +245,7 @@ dd.ssa-prog {
+ svg {
+     cursor: default;
+     outline: 1px solid #eee;
++    width: 100%;
+ }
+ 
+ body.darkmode {
+@@ -975,7 +976,7 @@ func (d *dotWriter) writeFuncSVG(w io.Writer, phase string, f *Func) {
+ 		fmt.Println(err)
+ 		return
+ 	}
+-	fmt.Fprint(pipe, `digraph "" { margin=0; size="4,40"; ranksep=.2; `)
++	fmt.Fprint(pipe, `digraph "" { margin=0; ranksep=.2; `)
+ 	id := strings.Replace(phase, " ", "-", -1)
+ 	fmt.Fprintf(pipe, `id="g_graph_%s";`, id)
+ 	fmt.Fprintf(pipe, `node [style=filled,fillcolor=white,fontsize=16,fontname="Menlo,Times,serif",margin="0.01,0.03"];`)

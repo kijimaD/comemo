@@ -9,7 +9,57 @@ Date:   Fri May 27 17:02:24 2011 +1000
     R=rsc, r, r, iant
     CC=golang-dev
     https://golang.org/cl/4551046
-
+---
  src/pkg/os/os_test.go              | 10 +++++++++-
  src/pkg/syscall/syscall_windows.go | 17 +++++++----------
  2 files changed, 16 insertions(+), 11 deletions(-)
+
+diff --git a/src/pkg/os/os_test.go b/src/pkg/os/os_test.go
+index b146b92cf0..9a993cd6ed 100644
+--- a/src/pkg/os/os_test.go
++++ b/src/pkg/os/os_test.go
+@@ -918,7 +918,15 @@ func TestAppend(t *testing.T) {
+ 	}
+ 	s = writeFile(t, f, O_CREATE|O_APPEND|O_RDWR, "new&append")
+ 	if s != "new&append" {
+-		t.Fatalf("writeFile: have %q want %q", s, "new&append")
++		t.Fatalf("writeFile: after append have %q want %q", s, "new&append")
++	}
++	s = writeFile(t, f, O_CREATE|O_RDWR, "old")
++	if s != "old&append" {
++		t.Fatalf("writeFile: after create have %q want %q", s, "old&append")
++	}
++	s = writeFile(t, f, O_CREATE|O_TRUNC|O_RDWR, "new")
++	if s != "new" {
++		t.Fatalf("writeFile: after truncate have %q want %q", s, "new")
+ 	}
+ }
+ 
+diff --git a/src/pkg/syscall/syscall_windows.go b/src/pkg/syscall/syscall_windows.go
+index 6ba031faf8..37e90053e0 100644
+--- a/src/pkg/syscall/syscall_windows.go
++++ b/src/pkg/syscall/syscall_windows.go
+@@ -230,16 +230,13 @@ func Open(path string, mode int, perm uint32) (fd int, errno int) {
+ 	}
+ 	var createmode uint32
+ 	switch {
+-	case mode&O_CREAT != 0:
+-		switch {
+-		case mode&O_EXCL != 0:
+-			createmode = CREATE_NEW
+-		case mode&O_APPEND != 0:
+-			createmode = OPEN_ALWAYS
+-		default:
+-			createmode = CREATE_ALWAYS
+-		}
+-	case mode&O_TRUNC != 0:
++	case mode&(O_CREAT|O_EXCL) == (O_CREAT | O_EXCL):
++		createmode = CREATE_NEW
++	case mode&(O_CREAT|O_TRUNC) == (O_CREAT | O_TRUNC):
++		createmode = CREATE_ALWAYS
++	case mode&O_CREAT == O_CREAT:
++		createmode = OPEN_ALWAYS
++	case mode&O_TRUNC == O_TRUNC:
+ 		createmode = TRUNCATE_EXISTING
+ 	default:
+ 		createmode = OPEN_EXISTING

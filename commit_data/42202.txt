@@ -15,9 +15,164 @@ Date:   Wed Nov 13 13:26:13 2019 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/206902
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/load/pkg.go              |  5 ++++
  src/cmd/go/internal/modload/build.go         | 38 +++++++++++++++++++++++-----
  src/cmd/go/internal/modload/load.go          |  6 ++---
  src/cmd/go/testdata/script/mod_empty_err.txt | 36 ++++++++++++++++++++++++++
  4 files changed, 75 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 6a6f77e367..8fc33e35fa 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -670,6 +670,11 @@ func loadPackageData(path, parentPath, parentDir, parentRoot string, parentIsStd
+ 	// we create from the full directory to the package.
+ 	// Otherwise it is the usual import path.
+ 	// For vendored imports, it is the expanded form.
++	//
++	// Note that when modules are enabled, local import paths are normally
++	// canonicalized by modload.ImportPaths before now. However, if there's an
++	// error resolving a local path, it will be returned untransformed
++	// so that 'go list -e' reports something useful.
+ 	importKey := importSpec{
+ 		path:        path,
+ 		parentPath:  parentPath,
+diff --git a/src/cmd/go/internal/modload/build.go b/src/cmd/go/internal/modload/build.go
+index 352ec73758..5a281a9304 100644
+--- a/src/cmd/go/internal/modload/build.go
++++ b/src/cmd/go/internal/modload/build.go
+@@ -45,11 +45,19 @@ func findStandardImportPath(path string) string {
+ 	return ""
+ }
+ 
++// PackageModuleInfo returns information about the module that provides
++// a given package. If modules are not enabled or if the package is in the
++// standard library or if the package was not successfully loaded with
++// ImportPaths or a similar loading function, nil is returned.
+ func PackageModuleInfo(pkgpath string) *modinfo.ModulePublic {
+ 	if isStandardImportPath(pkgpath) || !Enabled() {
+ 		return nil
+ 	}
+-	return moduleInfo(findModule(pkgpath, pkgpath), true)
++	m, ok := findModule(pkgpath)
++	if !ok {
++		return nil
++	}
++	return moduleInfo(m, true)
+ }
+ 
+ func ModuleInfo(path string) *modinfo.ModulePublic {
+@@ -199,12 +207,11 @@ func PackageBuildInfo(path string, deps []string) string {
+ 	if isStandardImportPath(path) || !Enabled() {
+ 		return ""
+ 	}
+-
+-	target := findModule(path, path)
++	target := mustFindModule(path, path)
+ 	mdeps := make(map[module.Version]bool)
+ 	for _, dep := range deps {
+ 		if !isStandardImportPath(dep) {
+-			mdeps[findModule(path, dep)] = true
++			mdeps[mustFindModule(path, dep)] = true
+ 		}
+ 	}
+ 	var mods []module.Version
+@@ -239,9 +246,12 @@ func PackageBuildInfo(path string, deps []string) string {
+ 	return buf.String()
+ }
+ 
+-// findModule returns the module containing the package at path,
+-// needed to build the package at target.
+-func findModule(target, path string) module.Version {
++// mustFindModule is like findModule, but it calls base.Fatalf if the
++// module can't be found.
++//
++// TODO(jayconrod): remove this. Callers should use findModule and return
++// errors instead of relying on base.Fatalf.
++func mustFindModule(target, path string) module.Version {
+ 	pkg, ok := loaded.pkgCache.Get(path).(*loadPkg)
+ 	if ok {
+ 		if pkg.err != nil {
+@@ -261,6 +271,20 @@ func findModule(target, path string) module.Version {
+ 	panic("unreachable")
+ }
+ 
++// findModule searches for the module that contains the package at path.
++// If the package was loaded with ImportPaths or one of the other loading
++// functions, its containing module and true are returned. Otherwise,
++// module.Version{} and false are returend.
++func findModule(path string) (module.Version, bool) {
++	if pkg, ok := loaded.pkgCache.Get(path).(*loadPkg); ok {
++		return pkg.mod, pkg.mod != module.Version{}
++	}
++	if path == "command-line-arguments" {
++		return Target, true
++	}
++	return module.Version{}, false
++}
++
+ func ModInfoProg(info string, isgccgo bool) []byte {
+ 	// Inject a variable with the debug information as runtime.modinfo,
+ 	// but compile it in package main so that it is specific to the binary.
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index ca6c260f45..2df7bd04b7 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -94,11 +94,11 @@ func ImportPathsQuiet(patterns []string, tags map[string]bool) []*search.Match {
+ 				pkgs := m.Pkgs
+ 				m.Pkgs = m.Pkgs[:0]
+ 				for _, pkg := range pkgs {
+-					dir := pkg
+-					if !filepath.IsAbs(dir) {
++					var dir string
++					if !filepath.IsAbs(pkg) {
+ 						dir = filepath.Join(base.Cwd, pkg)
+ 					} else {
+-						dir = filepath.Clean(dir)
++						dir = filepath.Clean(pkg)
+ 					}
+ 
+ 					// golang.org/issue/32917: We should resolve a relative path to a
+diff --git a/src/cmd/go/testdata/script/mod_empty_err.txt b/src/cmd/go/testdata/script/mod_empty_err.txt
+new file mode 100644
+index 0000000000..729f848156
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_empty_err.txt
+@@ -0,0 +1,36 @@
++# This test checks error messages for non-existant packages in module mode.
++# Veries golang.org/issue/35414
++env GO111MODULE=on
++cd $WORK
++
++go list -e -f {{.Error}} .
++stdout 'package \.: no Go files in \$WORK'
++
++go list -e -f {{.Error}} ./empty
++stdout 'package \./empty: no Go files in \$WORK[/\\]empty'
++
++go list -e -f {{.Error}} ./exclude
++stdout 'package \./exclude: build constraints exclude all Go files in \$WORK[/\\]exclude'
++
++go list -e -f {{.Error}} ./missing
++stdout 'package \./missing: cannot find package "." in:\s*\$WORK[/\\]missing'
++
++# use 'go build -n' because 'go list' reports no error.
++! go build -n ./testonly
++stderr 'example.com/m/testonly: no non-test Go files in \$WORK[/\\]testonly'
++
++-- $WORK/go.mod --
++module example.com/m
++
++go 1.14
++
++-- $WORK/empty/empty.txt --
++-- $WORK/exclude/exclude.go --
++// +build exclude
++
++package exclude
++-- $WORK/testonly/testonly_test.go --
++package testonly_test
++-- $WORK/excluded-stdout --
++package ./excluded: cannot find package "." in:
++	$WORK/excluded

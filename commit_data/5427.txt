@@ -7,6 +7,20 @@ Date:   Mon May 3 11:12:54 2010 -0700
     TBR=r
     CC=golang-dev
     https://golang.org/cl/1077041
-
+---
  src/all-nacl.bash | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/all-nacl.bash b/src/all-nacl.bash
+index 817b911c07..0238c2a3e1 100755
+--- a/src/all-nacl.bash
++++ b/src/all-nacl.bash
+@@ -7,7 +7,7 @@
+ 
+ export GOARCH=386
+ export GOOS=nacl
+-export GORUN="$GOROOT/misc/nacl/naclrun"
++export GORUN=${GORUN:-$GOROOT/misc/nacl/naclrun}
+ 
+ set -e
+ bash make.bash

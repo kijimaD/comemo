@@ -16,7 +16,7 @@ Date:   Fri Mar 18 13:38:52 2016 -0700
     Change-Id: Iea37a2cd8d3a75f8c96193748b66156a987bbe40
     Reviewed-on: https://go-review.googlesource.com/20818
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/big/arith_test.go |  15 --
  src/cmd/compile/internal/big/float.go      | 268 ++++++++++++++---------------
  src/cmd/compile/internal/big/float_test.go |  61 +++++--
@@ -25,3 +25,691 @@ Date:   Fri Mar 18 13:38:52 2016 -0700
  test/fixedbugs/issue14553.go               |   5 +-
  test/fixedbugs/issue14651.go               |  71 ++++++++
  7 files changed, 260 insertions(+), 193 deletions(-)
+
+diff --git a/src/cmd/compile/internal/big/arith_test.go b/src/cmd/compile/internal/big/arith_test.go
+index ea8e82d0b6..7d2f69a751 100644
+--- a/src/cmd/compile/internal/big/arith_test.go
++++ b/src/cmd/compile/internal/big/arith_test.go
+@@ -158,21 +158,6 @@ var sumVW = []argVW{
+ 	{nat{585}, nat{314}, 271, 0},
+ }
+ 
+-var prodVW = []argVW{
+-	{},
+-	{nat{0}, nat{0}, 0, 0},
+-	{nat{0}, nat{_M}, 0, 0},
+-	{nat{0}, nat{0}, _M, 0},
+-	{nat{1}, nat{1}, 1, 0},
+-	{nat{22793}, nat{991}, 23, 0},
+-	{nat{0, 0, 0, 22793}, nat{0, 0, 0, 991}, 23, 0},
+-	{nat{0, 0, 0, 0}, nat{7893475, 7395495, 798547395, 68943}, 0, 0},
+-	{nat{0, 0, 0, 0}, nat{0, 0, 0, 0}, 894375984, 0},
+-	{nat{_M << 1 & _M}, nat{_M}, 1 << 1, _M >> (_W - 1)},
+-	{nat{_M << 7 & _M}, nat{_M}, 1 << 7, _M >> (_W - 7)},
+-	{nat{_M << 7 & _M, _M, _M, _M}, nat{_M, _M, _M, _M}, 1 << 7, _M >> (_W - 7)},
+-}
+-
+ var lshVW = []argVW{
+ 	{},
+ 	{nat{0}, nat{0}, 0, 0},
+diff --git a/src/cmd/compile/internal/big/float.go b/src/cmd/compile/internal/big/float.go
+index eca85d4bb0..4b8ad388d3 100644
+--- a/src/cmd/compile/internal/big/float.go
++++ b/src/cmd/compile/internal/big/float.go
+@@ -392,15 +392,13 @@ func (z *Float) round(sbit uint) {
+ 	// m > 0 implies z.prec > 0 (checked by validate)
+ 
+ 	m := uint32(len(z.mant)) // present mantissa length in words
+-	bits := m * _W           // present mantissa bits
++	bits := m * _W           // present mantissa bits; bits > 0
+ 	if bits <= z.prec {
+ 		// mantissa fits => nothing to do
+ 		return
+ 	}
+ 	// bits > z.prec
+ 
+-	n := (z.prec + (_W - 1)) / _W // mantissa length in words for desired precision
+-
+ 	// Rounding is based on two bits: the rounding bit (rbit) and the
+ 	// sticky bit (sbit). The rbit is the bit immediately before the
+ 	// z.prec leading mantissa bits (the "0.5"). The sbit is set if any
+@@ -415,111 +413,77 @@ func (z *Float) round(sbit uint) {
+ 
+ 	// bits > z.prec: mantissa too large => round
+ 	r := uint(bits - z.prec - 1) // rounding bit position; r >= 0
+-	rbit := z.mant.bit(r)        // rounding bit
++	rbit := z.mant.bit(r) & 1    // rounding bit; be safe and ensure it's a single bit
+ 	if sbit == 0 {
++		// TODO(gri) if rbit != 0 we don't need to compute sbit for some rounding modes (optimization)
+ 		sbit = z.mant.sticky(r)
+ 	}
+-	if debugFloat && sbit&^1 != 0 {
+-		panic(fmt.Sprintf("invalid sbit %#x", sbit))
+-	}
+-
+-	// convert ToXInf rounding modes
+-	mode := z.mode
+-	switch mode {
+-	case ToNegativeInf:
+-		mode = ToZero
+-		if z.neg {
+-			mode = AwayFromZero
+-		}
+-	case ToPositiveInf:
+-		mode = AwayFromZero
+-		if z.neg {
+-			mode = ToZero
+-		}
+-	}
++	sbit &= 1 // be safe and ensure it's a single bit
+ 
+ 	// cut off extra words
++	n := (z.prec + (_W - 1)) / _W // mantissa length in words for desired precision
+ 	if m > n {
+ 		copy(z.mant, z.mant[m-n:]) // move n last words to front
+ 		z.mant = z.mant[:n]
+ 	}
+ 
+-	// determine number of trailing zero bits t
+-	t := n*_W - z.prec // 0 <= t < _W
+-	lsb := Word(1) << t
+-
+-	// make rounding decision
+-	// TODO(gri) This can be simplified (see Bits.round in bits_test.go).
+-	switch mode {
+-	case ToZero:
+-		// nothing to do
+-	case ToNearestEven, ToNearestAway:
+-		if rbit == 0 {
+-			// rounding bits == 0b0x
+-			mode = ToZero
+-		} else if sbit == 1 {
+-			// rounding bits == 0b11
+-			mode = AwayFromZero
+-		}
+-	case AwayFromZero:
+-		if rbit|sbit == 0 {
+-			mode = ToZero
+-		}
+-	default:
+-		// ToXInf modes have been converted to ToZero or AwayFromZero
+-		panic("unreachable")
+-	}
+-
+-	// round and determine accuracy
+-	switch mode {
+-	case ToZero:
+-		if rbit|sbit != 0 {
+-			z.acc = Below
++	// determine number of trailing zero bits (ntz) and compute lsb mask of mantissa's least-significant word
++	ntz := n*_W - z.prec // 0 <= ntz < _W
++	lsb := Word(1) << ntz
++
++	// round if result is inexact
++	if rbit|sbit != 0 {
++		// Make rounding decision: The result mantissa is truncated ("rounded down")
++		// by default. Decide if we need to increment, or "round up", the (unsigned)
++		// mantissa.
++		inc := false
++		switch z.mode {
++		case ToNegativeInf:
++			inc = z.neg
++		case ToZero:
++			// nothing to do
++		case ToNearestEven:
++			inc = rbit != 0 && (sbit != 0 || z.mant[0]&lsb != 0)
++		case ToNearestAway:
++			inc = rbit != 0
++		case AwayFromZero:
++			inc = true
++		case ToPositiveInf:
++			inc = !z.neg
++		default:
++			panic("unreachable")
+ 		}
+ 
+-	case ToNearestEven, ToNearestAway:
+-		if debugFloat && rbit != 1 {
+-			panic("internal error in rounding")
+-		}
+-		if mode == ToNearestEven && sbit == 0 && z.mant[0]&lsb == 0 {
+-			z.acc = Below
+-			break
+-		}
+-		// mode == ToNearestAway || sbit == 1 || z.mant[0]&lsb != 0
+-		fallthrough
+-
+-	case AwayFromZero:
+-		// add 1 to mantissa
+-		if addVW(z.mant, z.mant, lsb) != 0 {
+-			// overflow => shift mantissa right by 1 and add msb
+-			shrVU(z.mant, z.mant, 1)
+-			z.mant[n-1] |= 1 << (_W - 1)
+-			// adjust exponent
+-			if z.exp < MaxExp {
++		// A positive result (!z.neg) is Above the exact result if we increment,
++		// and it's Below if we truncate (Exact results require no rounding).
++		// For a negative result (z.neg) it is exactly the opposite.
++		z.acc = makeAcc(inc != z.neg)
++
++		if inc {
++			// add 1 to mantissa
++			if addVW(z.mant, z.mant, lsb) != 0 {
++				// mantissa overflow => adjust exponent
++				if z.exp >= MaxExp {
++					// exponent overflow
++					z.form = inf
++					return
++				}
+ 				z.exp++
+-			} else {
+-				// exponent overflow
+-				z.acc = makeAcc(!z.neg)
+-				z.form = inf
+-				return
++				// adjust mantissa: divide by 2 to compensate for exponent adjustment
++				shrVU(z.mant, z.mant, 1)
++				// set msb == carry == 1 from the mantissa overflow above
++				const msb = 1 << (_W - 1)
++				z.mant[n-1] |= msb
+ 			}
+ 		}
+-		z.acc = Above
+ 	}
+ 
+ 	// zero out trailing bits in least-significant word
+ 	z.mant[0] &^= lsb - 1
+ 
+-	// update accuracy
+-	if z.acc != Exact && z.neg {
+-		z.acc = -z.acc
+-	}
+-
+ 	if debugFloat {
+ 		z.validate()
+ 	}
+-
+-	return
+ }
+ 
+ func (z *Float) setBits64(neg bool, x uint64) *Float {
+@@ -874,21 +838,43 @@ func (x *Float) Float32() (float32, Accuracy) {
+ 			emax  = bias              //   127  largest unbiased exponent (normal)
+ 		)
+ 
+-		// Float mantissa m is 0.5 <= m < 1.0; compute exponent for float32 mantissa.
+-		e := x.exp - 1 // exponent for mantissa m with 1.0 <= m < 2.0
+-		p := mbits + 1 // precision of normal float
++		// Float mantissa m is 0.5 <= m < 1.0; compute exponent e for float32 mantissa.
++		e := x.exp - 1 // exponent for normal mantissa m with 1.0 <= m < 2.0
+ 
+-		// If the exponent is too small, we may have a denormal number
+-		// in which case we have fewer mantissa bits available: recompute
+-		// precision.
++		// Compute precision p for float32 mantissa.
++		// If the exponent is too small, we have a denormal number before
++		// rounding and fewer than p mantissa bits of precision available
++		// (the exponent remains fixed but the mantissa gets shifted right).
++		p := mbits + 1 // precision of normal float
+ 		if e < emin {
++			// recompute precision
+ 			p = mbits + 1 - emin + int(e)
+-			// Make sure we have at least 1 bit so that we don't
+-			// lose numbers rounded up to the smallest denormal.
+-			if p < 1 {
+-				p = 1
++			// If p == 0, the mantissa of x is shifted so much to the right
++			// that its msb falls immediately to the right of the float32
++			// mantissa space. In other words, if the smallest denormal is
++			// considered "1.0", for p == 0, the mantissa value m is >= 0.5.
++			// If m > 0.5, it is rounded up to 1.0; i.e., the smallest denormal.
++			// If m == 0.5, it is rounded down to even, i.e., 0.0.
++			// If p < 0, the mantissa value m is <= "0.25" which is never rounded up.
++			if p < 0 /* m <= 0.25 */ || p == 0 && x.mant.sticky(uint(len(x.mant))*_W-1) == 0 /* m == 0.5 */ {
++				// underflow to ±0
++				if x.neg {
++					var z float32
++					return -z, Above
++				}
++				return 0.0, Below
++			}
++			// otherwise, round up
++			// We handle p == 0 explicitly because it's easy and because
++			// Float.round doesn't support rounding to 0 bits of precision.
++			if p == 0 {
++				if x.neg {
++					return -math.SmallestNonzeroFloat32, Below
++				}
++				return math.SmallestNonzeroFloat32, Above
+ 			}
+ 		}
++		// p > 0
+ 
+ 		// round
+ 		var r Float
+@@ -898,12 +884,8 @@ func (x *Float) Float32() (float32, Accuracy) {
+ 
+ 		// Rounding may have caused r to overflow to ±Inf
+ 		// (rounding never causes underflows to 0).
+-		if r.form == inf {
+-			e = emax + 1 // cause overflow below
+-		}
+-
+-		// If the exponent is too large, overflow to ±Inf.
+-		if e > emax {
++		// If the exponent is too large, also overflow to ±Inf.
++		if r.form == inf || e > emax {
+ 			// overflow
+ 			if x.neg {
+ 				return float32(math.Inf(-1)), Below
+@@ -921,17 +903,10 @@ func (x *Float) Float32() (float32, Accuracy) {
+ 		// Rounding may have caused a denormal number to
+ 		// become normal. Check again.
+ 		if e < emin {
+-			// denormal number
+-			if e < dmin {
+-				// underflow to ±0
+-				if x.neg {
+-					var z float32
+-					return -z, Above
+-				}
+-				return 0.0, Below
+-			}
+-			// bexp = 0
+-			// recompute precision
++			// denormal number: recompute precision
++			// Since rounding may have at best increased precision
++			// and we have eliminated p <= 0 early, we know p > 0.
++			// bexp == 0 for denormals
+ 			p = mbits + 1 - emin + int(e)
+ 			mant = msb32(r.mant) >> uint(fbits-p)
+ 		} else {
+@@ -983,21 +958,43 @@ func (x *Float) Float64() (float64, Accuracy) {
+ 			emax  = bias              //  1023  largest unbiased exponent (normal)
+ 		)
+ 
+-		// Float mantissa m is 0.5 <= m < 1.0; compute exponent for float64 mantissa.
+-		e := x.exp - 1 // exponent for mantissa m with 1.0 <= m < 2.0
+-		p := mbits + 1 // precision of normal float
++		// Float mantissa m is 0.5 <= m < 1.0; compute exponent e for float64 mantissa.
++		e := x.exp - 1 // exponent for normal mantissa m with 1.0 <= m < 2.0
+ 
+-		// If the exponent is too small, we may have a denormal number
+-		// in which case we have fewer mantissa bits available: recompute
+-		// precision.
++		// Compute precision p for float64 mantissa.
++		// If the exponent is too small, we have a denormal number before
++		// rounding and fewer than p mantissa bits of precision available
++		// (the exponent remains fixed but the mantissa gets shifted right).
++		p := mbits + 1 // precision of normal float
+ 		if e < emin {
++			// recompute precision
+ 			p = mbits + 1 - emin + int(e)
+-			// Make sure we have at least 1 bit so that we don't
+-			// lose numbers rounded up to the smallest denormal.
+-			if p < 1 {
+-				p = 1
++			// If p == 0, the mantissa of x is shifted so much to the right
++			// that its msb falls immediately to the right of the float64
++			// mantissa space. In other words, if the smallest denormal is
++			// considered "1.0", for p == 0, the mantissa value m is >= 0.5.
++			// If m > 0.5, it is rounded up to 1.0; i.e., the smallest denormal.
++			// If m == 0.5, it is rounded down to even, i.e., 0.0.
++			// If p < 0, the mantissa value m is <= "0.25" which is never rounded up.
++			if p < 0 /* m <= 0.25 */ || p == 0 && x.mant.sticky(uint(len(x.mant))*_W-1) == 0 /* m == 0.5 */ {
++				// underflow to ±0
++				if x.neg {
++					var z float64
++					return -z, Above
++				}
++				return 0.0, Below
++			}
++			// otherwise, round up
++			// We handle p == 0 explicitly because it's easy and because
++			// Float.round doesn't support rounding to 0 bits of precision.
++			if p == 0 {
++				if x.neg {
++					return -math.SmallestNonzeroFloat64, Below
++				}
++				return math.SmallestNonzeroFloat64, Above
+ 			}
+ 		}
++		// p > 0
+ 
+ 		// round
+ 		var r Float
+@@ -1007,17 +1004,13 @@ func (x *Float) Float64() (float64, Accuracy) {
+ 
+ 		// Rounding may have caused r to overflow to ±Inf
+ 		// (rounding never causes underflows to 0).
+-		if r.form == inf {
+-			e = emax + 1 // cause overflow below
+-		}
+-
+-		// If the exponent is too large, overflow to ±Inf.
+-		if e > emax {
++		// If the exponent is too large, also overflow to ±Inf.
++		if r.form == inf || e > emax {
+ 			// overflow
+ 			if x.neg {
+-				return math.Inf(-1), Below
++				return float64(math.Inf(-1)), Below
+ 			}
+-			return math.Inf(+1), Above
++			return float64(math.Inf(+1)), Above
+ 		}
+ 		// e <= emax
+ 
+@@ -1030,17 +1023,10 @@ func (x *Float) Float64() (float64, Accuracy) {
+ 		// Rounding may have caused a denormal number to
+ 		// become normal. Check again.
+ 		if e < emin {
+-			// denormal number
+-			if e < dmin {
+-				// underflow to ±0
+-				if x.neg {
+-					var z float64
+-					return -z, Above
+-				}
+-				return 0.0, Below
+-			}
+-			// bexp = 0
+-			// recompute precision
++			// denormal number: recompute precision
++			// Since rounding may have at best increased precision
++			// and we have eliminated p <= 0 early, we know p > 0.
++			// bexp == 0 for denormals
+ 			p = mbits + 1 - emin + int(e)
+ 			mant = msb64(r.mant) >> uint(fbits-p)
+ 		} else {
+diff --git a/src/cmd/compile/internal/big/float_test.go b/src/cmd/compile/internal/big/float_test.go
+index 6fb44026de..464619b338 100644
+--- a/src/cmd/compile/internal/big/float_test.go
++++ b/src/cmd/compile/internal/big/float_test.go
+@@ -829,7 +829,7 @@ func TestFloatFloat32(t *testing.T) {
+ 	}{
+ 		{"0", 0, Exact},
+ 
+-		// underflow
++		// underflow to zero
+ 		{"1e-1000", 0, Below},
+ 		{"0x0.000002p-127", 0, Below},
+ 		{"0x.0000010p-126", 0, Below},
+@@ -843,25 +843,39 @@ func TestFloatFloat32(t *testing.T) {
+ 		{"1p-149", math.SmallestNonzeroFloat32, Exact},
+ 		{"0x.fffffep-126", math.Float32frombits(0x7fffff), Exact}, // largest denormal
+ 
+-		// special cases (see issue 14553)
+-		{"0x0.bp-149", math.Float32frombits(0x000000000), Below}, // ToNearestEven rounds down (to even)
+-		{"0x0.cp-149", math.Float32frombits(0x000000001), Above},
+-
+-		{"0x1.0p-149", math.Float32frombits(0x000000001), Exact},
++		// special denormal cases (see issues 14553, 14651)
++		{"0x0.0000001p-126", math.Float32frombits(0x00000000), Below}, // underflow to zero
++		{"0x0.0000008p-126", math.Float32frombits(0x00000000), Below}, // underflow to zero
++		{"0x0.0000010p-126", math.Float32frombits(0x00000000), Below}, // rounded down to even
++		{"0x0.0000011p-126", math.Float32frombits(0x00000001), Above}, // rounded up to smallest denormal
++		{"0x0.0000018p-126", math.Float32frombits(0x00000001), Above}, // rounded up to smallest denormal
++
++		{"0x1.0000000p-149", math.Float32frombits(0x00000001), Exact}, // smallest denormal
++		{"0x0.0000020p-126", math.Float32frombits(0x00000001), Exact}, // smallest denormal
++		{"0x0.fffffe0p-126", math.Float32frombits(0x007fffff), Exact}, // largest denormal
++		{"0x1.0000000p-126", math.Float32frombits(0x00800000), Exact}, // smallest normal
++
++		{"0x0.8p-149", math.Float32frombits(0x000000000), Below}, // rounded down to even
++		{"0x0.9p-149", math.Float32frombits(0x000000001), Above}, // rounded up to smallest denormal
++		{"0x0.ap-149", math.Float32frombits(0x000000001), Above}, // rounded up to smallest denormal
++		{"0x0.bp-149", math.Float32frombits(0x000000001), Above}, // rounded up to smallest denormal
++		{"0x0.cp-149", math.Float32frombits(0x000000001), Above}, // rounded up to smallest denormal
++
++		{"0x1.0p-149", math.Float32frombits(0x000000001), Exact}, // smallest denormal
+ 		{"0x1.7p-149", math.Float32frombits(0x000000001), Below},
+ 		{"0x1.8p-149", math.Float32frombits(0x000000002), Above},
+ 		{"0x1.9p-149", math.Float32frombits(0x000000002), Above},
+ 
+ 		{"0x2.0p-149", math.Float32frombits(0x000000002), Exact},
+-		{"0x2.8p-149", math.Float32frombits(0x000000002), Below}, // ToNearestEven rounds down (to even)
++		{"0x2.8p-149", math.Float32frombits(0x000000002), Below}, // rounded down to even
+ 		{"0x2.9p-149", math.Float32frombits(0x000000003), Above},
+ 
+ 		{"0x3.0p-149", math.Float32frombits(0x000000003), Exact},
+ 		{"0x3.7p-149", math.Float32frombits(0x000000003), Below},
+-		{"0x3.8p-149", math.Float32frombits(0x000000004), Above}, // ToNearestEven rounds up (to even)
++		{"0x3.8p-149", math.Float32frombits(0x000000004), Above}, // rounded up to even
+ 
+ 		{"0x4.0p-149", math.Float32frombits(0x000000004), Exact},
+-		{"0x4.8p-149", math.Float32frombits(0x000000004), Below}, // ToNearestEven rounds down (to even)
++		{"0x4.8p-149", math.Float32frombits(0x000000004), Below}, // rounded down to even
+ 		{"0x4.9p-149", math.Float32frombits(0x000000005), Above},
+ 
+ 		// specific case from issue 14553
+@@ -907,7 +921,7 @@ func TestFloatFloat32(t *testing.T) {
+ 			x := makeFloat(tx)
+ 			out, acc := x.Float32()
+ 			if !alike32(out, tout) || acc != tacc {
+-				t.Errorf("%s: got %g (%#x, %s); want %g (%#x, %s)", tx, out, math.Float32bits(out), acc, test.out, math.Float32bits(test.out), tacc)
++				t.Errorf("%s: got %g (%#08x, %s); want %g (%#08x, %s)", tx, out, math.Float32bits(out), acc, test.out, math.Float32bits(test.out), tacc)
+ 			}
+ 
+ 			// test that x.SetFloat64(float64(f)).Float32() == f
+@@ -929,21 +943,30 @@ func TestFloatFloat64(t *testing.T) {
+ 	}{
+ 		{"0", 0, Exact},
+ 
+-		// underflow
++		// underflow to zero
+ 		{"1e-1000", 0, Below},
+ 		{"0x0.0000000000001p-1023", 0, Below},
+ 		{"0x0.00000000000008p-1022", 0, Below},
+ 
+ 		// denormals
+ 		{"0x0.0000000000000cp-1022", math.SmallestNonzeroFloat64, Above}, // rounded up to smallest denormal
+-		{"0x0.0000000000001p-1022", math.SmallestNonzeroFloat64, Exact},  // smallest denormal
++		{"0x0.00000000000010p-1022", math.SmallestNonzeroFloat64, Exact}, // smallest denormal
+ 		{"0x.8p-1073", math.SmallestNonzeroFloat64, Exact},
+ 		{"1p-1074", math.SmallestNonzeroFloat64, Exact},
+ 		{"0x.fffffffffffffp-1022", math.Float64frombits(0x000fffffffffffff), Exact}, // largest denormal
+ 
+-		// special cases (see issue 14553)
+-		{"0x0.bp-1074", math.Float64frombits(0x00000000000000000), Below}, // ToNearestEven rounds down (to even)
+-		{"0x0.cp-1074", math.Float64frombits(0x00000000000000001), Above},
++		// special denormal cases (see issues 14553, 14651)
++		{"0x0.00000000000001p-1022", math.Float64frombits(0x00000000000000000), Below}, // underflow to zero
++		{"0x0.00000000000004p-1022", math.Float64frombits(0x00000000000000000), Below}, // underflow to zero
++		{"0x0.00000000000008p-1022", math.Float64frombits(0x00000000000000000), Below}, // rounded down to even
++		{"0x0.00000000000009p-1022", math.Float64frombits(0x00000000000000001), Above}, // rounded up to smallest denormal
++		{"0x0.0000000000000ap-1022", math.Float64frombits(0x00000000000000001), Above}, // rounded up to smallest denormal
++
++		{"0x0.8p-1074", math.Float64frombits(0x00000000000000000), Below}, // rounded down to even
++		{"0x0.9p-1074", math.Float64frombits(0x00000000000000001), Above}, // rounded up to smallest denormal
++		{"0x0.ap-1074", math.Float64frombits(0x00000000000000001), Above}, // rounded up to smallest denormal
++		{"0x0.bp-1074", math.Float64frombits(0x00000000000000001), Above}, // rounded up to smallest denormal
++		{"0x0.cp-1074", math.Float64frombits(0x00000000000000001), Above}, // rounded up to smallest denormal
+ 
+ 		{"0x1.0p-1074", math.Float64frombits(0x00000000000000001), Exact},
+ 		{"0x1.7p-1074", math.Float64frombits(0x00000000000000001), Below},
+@@ -951,15 +974,15 @@ func TestFloatFloat64(t *testing.T) {
+ 		{"0x1.9p-1074", math.Float64frombits(0x00000000000000002), Above},
+ 
+ 		{"0x2.0p-1074", math.Float64frombits(0x00000000000000002), Exact},
+-		{"0x2.8p-1074", math.Float64frombits(0x00000000000000002), Below}, // ToNearestEven rounds down (to even)
++		{"0x2.8p-1074", math.Float64frombits(0x00000000000000002), Below}, // rounded down to even
+ 		{"0x2.9p-1074", math.Float64frombits(0x00000000000000003), Above},
+ 
+ 		{"0x3.0p-1074", math.Float64frombits(0x00000000000000003), Exact},
+ 		{"0x3.7p-1074", math.Float64frombits(0x00000000000000003), Below},
+-		{"0x3.8p-1074", math.Float64frombits(0x00000000000000004), Above}, // ToNearestEven rounds up (to even)
++		{"0x3.8p-1074", math.Float64frombits(0x00000000000000004), Above}, // rounded up to even
+ 
+ 		{"0x4.0p-1074", math.Float64frombits(0x00000000000000004), Exact},
+-		{"0x4.8p-1074", math.Float64frombits(0x00000000000000004), Below}, // ToNearestEven rounds down (to even)
++		{"0x4.8p-1074", math.Float64frombits(0x00000000000000004), Below}, // rounded down to even
+ 		{"0x4.9p-1074", math.Float64frombits(0x00000000000000005), Above},
+ 
+ 		// normals
+@@ -1005,7 +1028,7 @@ func TestFloatFloat64(t *testing.T) {
+ 			x := makeFloat(tx)
+ 			out, acc := x.Float64()
+ 			if !alike64(out, tout) || acc != tacc {
+-				t.Errorf("%s: got %g (%#x, %s); want %g (%#x, %s)", tx, out, math.Float64bits(out), acc, test.out, math.Float64bits(test.out), tacc)
++				t.Errorf("%s: got %g (%#016x, %s); want %g (%#016x, %s)", tx, out, math.Float64bits(out), acc, test.out, math.Float64bits(test.out), tacc)
+ 			}
+ 
+ 			// test that x.SetFloat64(f).Float64() == f
+diff --git a/src/cmd/compile/internal/big/ftoa.go b/src/cmd/compile/internal/big/ftoa.go
+index c5cdb5eb70..624ea5e073 100644
+--- a/src/cmd/compile/internal/big/ftoa.go
++++ b/src/cmd/compile/internal/big/ftoa.go
+@@ -333,9 +333,9 @@ func (x *Float) fmtB(buf []byte) []byte {
+ 	return strconv.AppendInt(buf, e, 10)
+ }
+ 
+-// fmtP appends the string of x in the format 0x." mantissa "p" exponent
+-// with a hexadecimal mantissa and a binary exponent, or 0" if x is zero,
+-// ad returns the extended buffer.
++// fmtP appends the string of x in the format "0x." mantissa "p" exponent
++// with a hexadecimal mantissa and a binary exponent, or "0" if x is zero,
++// and returns the extended buffer.
+ // The mantissa is normalized such that 0.5 <= 0.mantissa < 1.0.
+ // The sign of x is ignored, and x must not be an Inf.
+ func (x *Float) fmtP(buf []byte) []byte {
+@@ -374,12 +374,11 @@ func min(x, y int) int {
+ }
+ 
+ // Format implements fmt.Formatter. It accepts all the regular
+-// formats for floating-point numbers ('e', 'E', 'f', 'F', 'g',
+-// 'G') as well as 'b', 'p', and 'v'. See (*Float).Text for the
+-// interpretation of 'b' and 'p'. The 'v' format is handled like
+-// 'g'.
++// formats for floating-point numbers ('b', 'e', 'E', 'f', 'F',
++// 'g', 'G') as well as 'p' and 'v'. See (*Float).Text for the
++// interpretation of 'p'. The 'v' format is handled like 'g'.
+ // Format also supports specification of the minimum precision
+-// in digits, the output field width, as well as the format verbs
++// in digits, the output field width, as well as the format flags
+ // '+' and ' ' for sign control, '0' for space or zero padding,
+ // and '-' for left or right justification. See the fmt package
+ // for details.
+diff --git a/src/cmd/compile/internal/big/intconv.go b/src/cmd/compile/internal/big/intconv.go
+index 56a75f87ae..daf674aef4 100644
+--- a/src/cmd/compile/internal/big/intconv.go
++++ b/src/cmd/compile/internal/big/intconv.go
+@@ -52,16 +52,16 @@ func writeMultiple(s fmt.State, text string, count int) {
+ 	}
+ }
+ 
+-// Format is a support routine for fmt.Formatter. It accepts
+-// the formats 'b' (binary), 'o' (octal), 'd' (decimal), 'x'
+-// (lowercase hexadecimal), and 'X' (uppercase hexadecimal).
++// Format implements fmt.Formatter. It accepts the formats
++// 'b' (binary), 'o' (octal), 'd' (decimal), 'x' (lowercase
++// hexadecimal), and 'X' (uppercase hexadecimal).
+ // Also supported are the full suite of package fmt's format
+-// verbs for integral types, including '+', '-', and ' '
+-// for sign control, '#' for leading zero in octal and for
+-// hexadecimal, a leading "0x" or "0X" for "%#x" and "%#X"
+-// respectively, specification of minimum digits precision,
+-// output field width, space or zero padding, and left or
+-// right justification.
++// flags for integral types, including '+' and ' ' for sign
++// control, '#' for leading zero in octal and for hexadecimal,
++// a leading "0x" or "0X" for "%#x" and "%#X" respectively,
++// specification of minimum digits precision, output field
++// width, space or zero padding, and '-' for left or right
++// justification.
+ //
+ func (x *Int) Format(s fmt.State, ch rune) {
+ 	// determine base
+diff --git a/test/fixedbugs/issue14553.go b/test/fixedbugs/issue14553.go
+index ab886b7f2c..d7ebb1288e 100644
+--- a/test/fixedbugs/issue14553.go
++++ b/test/fixedbugs/issue14553.go
+@@ -20,7 +20,10 @@ func main() {
+ 		bits  uint32
+ 	}{
+ 		{0e+00, 0x00000000},
+-		{1e-45, 0x00000000},
++		{1e-46, 0x00000000},
++		{0.5e-45, 0x00000000},
++		{0.8e-45, 0x00000001},
++		{1e-45, 0x00000001},
+ 		{2e-45, 0x00000001},
+ 		{3e-45, 0x00000002},
+ 		{4e-45, 0x00000003},
+diff --git a/test/fixedbugs/issue14651.go b/test/fixedbugs/issue14651.go
+new file mode 100644
+index 0000000000..4c756e502e
+--- /dev/null
++++ b/test/fixedbugs/issue14651.go
+@@ -0,0 +1,71 @@
++// run
++
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This test checks if the compiler's internal constant
++// arithmetic correctly rounds up floating-point values
++// that become the smallest denormal value.
++//
++// See also related issue 14553 and test issue14553.go.
++
++package main
++
++import (
++	"fmt"
++	"math"
++)
++
++const (
++	p149 = 1.0 / (1 << 149) // 1p-149
++	p500 = 1.0 / (1 << 500) // 1p-500
++	p1074 = p500 * p500 / (1<<74) // 1p-1074
++)
++
++const (
++	m0000p149 = 0x0 / 16.0 * p149 // = 0.0000p-149
++	m1000p149 = 0x8 / 16.0 * p149 // = 0.1000p-149
++	m1001p149 = 0x9 / 16.0 * p149 // = 0.1001p-149
++	m1011p149 = 0xb / 16.0 * p149 // = 0.1011p-149
++	m1100p149 = 0xc / 16.0 * p149 // = 0.1100p-149
++
++	m0000p1074 = 0x0 / 16.0 * p1074 // = 0.0000p-1074
++	m1000p1074 = 0x8 / 16.0 * p1074 // = 0.1000p-1074
++	m1001p1074 = 0x9 / 16.0 * p1074 // = 0.1001p-1074
++	m1011p1074 = 0xb / 16.0 * p1074 // = 0.1011p-1074
++	m1100p1074 = 0xc / 16.0 * p1074 // = 0.1100p-1074
++)
++
++func main() {
++	test32(float32(m0000p149), f32(m0000p149))
++	test32(float32(m1000p149), f32(m1000p149))
++	test32(float32(m1001p149), f32(m1001p149))
++	test32(float32(m1011p149), f32(m1011p149))
++	test32(float32(m1100p149), f32(m1100p149))
++
++	test64(float64(m0000p1074), f64(m0000p1074))
++	test64(float64(m1000p1074), f64(m1000p1074))
++	test64(float64(m1001p1074), f64(m1001p1074))
++	test64(float64(m1011p1074), f64(m1011p1074))
++	test64(float64(m1100p1074), f64(m1100p1074))
++}
++
++func f32(x float64) float32 { return float32(x) }
++func f64(x float64) float64 { return float64(x) }
++
++func test32(a, b float32) {
++	abits := math.Float32bits(a)
++	bbits := math.Float32bits(b)
++	if abits != bbits {
++		panic(fmt.Sprintf("%08x != %08x\n", abits, bbits))
++	}
++}
++
++func test64(a, b float64) {
++	abits := math.Float64bits(a)
++	bbits := math.Float64bits(b)
++	if abits != bbits {
++		panic(fmt.Sprintf("%016x != %016x\n", abits, bbits))
++	}
++}

@@ -22,7 +22,75 @@ Date:   Fri Dec 9 12:38:34 2016 -0500
     Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/cgo/testplugin/src/plugin1/plugin1.go |  5 ++++-
  src/cmd/link/internal/ld/macho.go          | 24 ++++++++++++++++++------
  2 files changed, 22 insertions(+), 7 deletions(-)
+
+diff --git a/misc/cgo/testplugin/src/plugin1/plugin1.go b/misc/cgo/testplugin/src/plugin1/plugin1.go
+index 7a62242134..edcef2c77e 100644
+--- a/misc/cgo/testplugin/src/plugin1/plugin1.go
++++ b/misc/cgo/testplugin/src/plugin1/plugin1.go
+@@ -9,7 +9,10 @@ import "C"
+ 
+ import "common"
+ 
+-func F() int { return 3 }
++func F() int {
++	_ = make([]byte, 1<<21) // trigger stack unwind, Issue #18190.
++	return 3
++}
+ 
+ func ReadCommonX() int {
+ 	return common.X
+diff --git a/src/cmd/link/internal/ld/macho.go b/src/cmd/link/internal/ld/macho.go
+index c88af64a3a..ff5fe5747b 100644
+--- a/src/cmd/link/internal/ld/macho.go
++++ b/src/cmd/link/internal/ld/macho.go
+@@ -684,6 +684,20 @@ func machosymorder(ctxt *Link) {
+ 	}
+ }
+ 
++// machoShouldExport reports whether a symbol needs to be exported.
++//
++// When dynamically linking, all non-local variables and plugin-exported
++// symbols need to be exported.
++func machoShouldExport(ctxt *Link, s *Symbol) bool {
++	if !ctxt.DynlinkingGo() || s.Attr.Local() {
++		return false
++	}
++	if Buildmode == BuildmodePlugin && strings.HasPrefix(s.Extname, *flagPluginPath) {
++		return true
++	}
++	return s.Type != obj.STEXT
++}
++
+ func machosymtab(ctxt *Link) {
+ 	symtab := ctxt.Syms.Lookup(".machosymtab", 0)
+ 	symstr := ctxt.Syms.Lookup(".machosymstr", 0)
+@@ -692,13 +706,11 @@ func machosymtab(ctxt *Link) {
+ 		s := sortsym[i]
+ 		Adduint32(ctxt, symtab, uint32(symstr.Size))
+ 
++		export := machoShouldExport(ctxt, s)
++
+ 		// In normal buildmodes, only add _ to C symbols, as
+ 		// Go symbols have dot in the name.
+-		//
+-		// When dynamically linking, prefix all non-local
+-		// symbols with _ as dlsym on darwin requires it to
+-		// resolve any symbol.
+-		if !strings.Contains(s.Extname, ".") || (ctxt.DynlinkingGo() && !s.Attr.Local()) {
++		if !strings.Contains(s.Extname, ".") || export {
+ 			Adduint8(ctxt, symstr, '_')
+ 		}
+ 
+@@ -711,7 +723,7 @@ func machosymtab(ctxt *Link) {
+ 			Adduint16(ctxt, symtab, 0)                  // desc
+ 			adduintxx(ctxt, symtab, 0, SysArch.PtrSize) // no value
+ 		} else {
+-			if s.Attr.CgoExport() || (ctxt.DynlinkingGo() && !s.Attr.Local()) {
++			if s.Attr.CgoExport() || export {
+ 				Adduint8(ctxt, symtab, 0x0f)
+ 			} else {
+ 				Adduint8(ctxt, symtab, 0x0e)

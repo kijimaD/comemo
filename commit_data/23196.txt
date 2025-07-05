@@ -7,6 +7,42 @@ Date:   Wed Apr 29 14:54:31 2015 -0700
     Change-Id: I7b15c027c15eefc2a004eb61491e828a7fbefc54
     Reviewed-on: https://go-review.googlesource.com/9513
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/doc/main.go | 13 +++++++++++--
  1 file changed, 11 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/doc/main.go b/src/cmd/doc/main.go
+index 22694287e9..b3be2a975b 100644
+--- a/src/cmd/doc/main.go
++++ b/src/cmd/doc/main.go
+@@ -89,7 +89,7 @@ func parseArgs() (*build.Package, string, string) {
+ 		usage()
+ 	case 0:
+ 		// Easy: current directory.
+-		return importDir("."), "", ""
++		return importDir(pwd()), "", ""
+ 	case 1:
+ 		// Done below.
+ 	case 2:
+@@ -156,7 +156,7 @@ func parseArgs() (*build.Package, string, string) {
+ 		log.Fatalf("no such package %s", arg[0:period])
+ 	}
+ 	// Guess it's a symbol in the current directory.
+-	return importDir("."), "", arg
++	return importDir(pwd()), "", arg
+ }
+ 
+ // importDir is just an error-catching wrapper for build.ImportDir.
+@@ -285,3 +285,12 @@ func pathFor(root, pkg string) (result string) {
+ 	filepath.Walk(root, visit)
+ 	return "" // Call to panic above sets the real value.
+ }
++
++// pwd returns the current directory.
++func pwd() string {
++	wd, err := os.Getwd()
++	if err != nil {
++		log.Fatal(err)
++	}
++	return wd
++}

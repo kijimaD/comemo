@@ -13,7 +13,42 @@ Date:   Wed Mar 30 15:47:57 2022 +0800
     Auto-Submit: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-
+---
  src/strings/example_test.go | 7 ++++++-
  src/strings/strings.go      | 4 +++-
  2 files changed, 9 insertions(+), 2 deletions(-)
+
+diff --git a/src/strings/example_test.go b/src/strings/example_test.go
+index 94aa167f90..2a59512ceb 100644
+--- a/src/strings/example_test.go
++++ b/src/strings/example_test.go
+@@ -95,7 +95,12 @@ func ExampleCut() {
+ 
+ func ExampleEqualFold() {
+ 	fmt.Println(strings.EqualFold("Go", "go"))
+-	// Output: true
++	fmt.Println(strings.EqualFold("AB", "ab")) // true because comparison uses simple case-folding
++	fmt.Println(strings.EqualFold("ß", "ss"))  // false because comparison does not use full case-folding
++	// Output:
++	// true
++	// true
++	// false
+ }
+ 
+ func ExampleFields() {
+diff --git a/src/strings/strings.go b/src/strings/strings.go
+index ed3184b59c..74e505338e 100644
+--- a/src/strings/strings.go
++++ b/src/strings/strings.go
+@@ -1041,8 +1041,10 @@ func ReplaceAll(s, old, new string) string {
+ }
+ 
+ // EqualFold reports whether s and t, interpreted as UTF-8 strings,
+-// are equal under Unicode case-folding, which is a more general
++// are equal under simple Unicode case-folding, which is a more general
+ // form of case-insensitivity.
++//
++// EqualFold(s, t) is equivalent to Tolower(s) == Tolower(t).
+ func EqualFold(s, t string) bool {
+ 	for s != "" && t != "" {
+ 		// Extract first rune from each string.

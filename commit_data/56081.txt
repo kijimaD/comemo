@@ -27,6 +27,20 @@ Date:   Tue Apr 4 16:35:06 2023 +0800
     Run-TryBot: WANG Xuerui <git@xen0n.name>
     Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/link/internal/loong64/l.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/loong64/l.go b/src/cmd/link/internal/loong64/l.go
+index e97a8686bf..a6309f1a3a 100644
+--- a/src/cmd/link/internal/loong64/l.go
++++ b/src/cmd/link/internal/loong64/l.go
+@@ -7,7 +7,7 @@ package loong64
+ const (
+ 	maxAlign  = 32 // max data alignment
+ 	minAlign  = 1  // min data alignment
+-	funcAlign = 8
++	funcAlign = 16
+ )
+ 
+ /* Used by ../../internal/ld/dwarf.go */

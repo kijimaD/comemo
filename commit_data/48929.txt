@@ -17,7 +17,54 @@ Date:   Sun Jun 27 01:31:03 2021 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/typecheck/expr.go | 2 +-
  test/inline.go                             | 6 ++++--
  2 files changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/typecheck/expr.go b/src/cmd/compile/internal/typecheck/expr.go
+index f039cbab08..7e974dfda8 100644
+--- a/src/cmd/compile/internal/typecheck/expr.go
++++ b/src/cmd/compile/internal/typecheck/expr.go
+@@ -542,7 +542,7 @@ func tcDot(n *ir.SelectorExpr, top int) ir.Node {
+ 
+ 	if (n.Op() == ir.ODOTINTER || n.Op() == ir.ODOTMETH) && top&ctxCallee == 0 {
+ 		n.SetOp(ir.OMETHVALUE)
+-		n.SetType(MethodValueWrapper(n).Type())
++		n.SetType(NewMethodType(n.Type(), nil))
+ 	}
+ 	return n
+ }
+diff --git a/test/inline.go b/test/inline.go
+index 472a941dca..2cda07b2da 100644
+--- a/test/inline.go
++++ b/test/inline.go
+@@ -1,4 +1,4 @@
+-// errorcheck -0 -m -d=inlfuncswithclosures=1
++// errorcheckwithauto -0 -m -d=inlfuncswithclosures=1
+ 
+ // Copyright 2015 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+@@ -169,6 +169,7 @@ func k() (T, int, int) { return T{}, 0, 0 } // ERROR "can inline k"
+ 
+ func _() { // ERROR "can inline _"
+ 	T.meth(k()) // ERROR "inlining call to k" "inlining call to T.meth"
++	// ERRORAUTO "inlining call to T.meth"
+ }
+ 
+ func small1() { // ERROR "can inline small1"
+@@ -232,12 +233,13 @@ Loop:
+ // Issue #18493 - make sure we can do inlining of functions with a method value
+ type T1 struct{}
+ 
+-func (a T1) meth(val int) int { // ERROR "can inline T1.meth" "inlining call to T1.meth"
++func (a T1) meth(val int) int { // ERROR "can inline T1.meth"
+ 	return val + 5
+ }
+ 
+ func getMeth(t1 T1) func(int) int { // ERROR "can inline getMeth"
+ 	return t1.meth // ERROR "t1.meth escapes to heap"
++	// ERRORAUTO "inlining call to T1.meth"
+ }
+ 
+ func ii() { // ERROR "can inline ii"

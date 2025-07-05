@@ -14,6 +14,22 @@ Date:   Wed May 11 09:37:46 2016 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/cgo/out.go | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index 5eab3a71b4..265a3bbe6f 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -1360,10 +1360,8 @@ func _cgoCheckResult(interface{})
+ `
+ 
+ const gccgoGoProlog = `
+-//extern runtime.cgoCheckPointer
+ func _cgoCheckPointer(interface{}, ...interface{}) interface{}
+ 
+-//extern runtime.cgoCheckResult
+ func _cgoCheckResult(interface{})
+ `
+ 

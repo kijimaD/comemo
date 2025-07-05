@@ -7,7 +7,70 @@ Date:   Fri Sep 25 15:11:14 2015 -0700
     Change-Id: I1180aa3d30fb8563c8e6ecefeb3296af0a88f5a6
     Reviewed-on: https://go-review.googlesource.com/14998
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/math/big/intmarsh.go | 18 ++++++++++++------
  src/math/big/ratmarsh.go |  2 ++
  2 files changed, 14 insertions(+), 6 deletions(-)
+
+diff --git a/src/math/big/intmarsh.go b/src/math/big/intmarsh.go
+index 3c1efec8de..ec1eeb4003 100644
+--- a/src/math/big/intmarsh.go
++++ b/src/math/big/intmarsh.go
+@@ -43,14 +43,16 @@ func (z *Int) GobDecode(buf []byte) error {
+ }
+ 
+ // MarshalJSON implements the json.Marshaler interface.
+-func (z *Int) MarshalJSON() ([]byte, error) {
+-	// TODO(gri): get rid of the []byte/string conversions
+-	return []byte(z.String()), nil
++func (x *Int) MarshalJSON() ([]byte, error) {
++	if x == nil {
++		return []byte("<nil>"), nil
++	}
++	return x.abs.itoa(x.neg, 10), nil
+ }
+ 
+ // UnmarshalJSON implements the json.Unmarshaler interface.
+ func (z *Int) UnmarshalJSON(text []byte) error {
+-	// TODO(gri): get rid of the []byte/string conversions
++	// TODO(gri): get rid of the []byte/string conversion
+ 	if _, ok := z.SetString(string(text), 0); !ok {
+ 		return fmt.Errorf("math/big: cannot unmarshal %q into a *big.Int", text)
+ 	}
+@@ -58,12 +60,16 @@ func (z *Int) UnmarshalJSON(text []byte) error {
+ }
+ 
+ // MarshalText implements the encoding.TextMarshaler interface.
+-func (z *Int) MarshalText() (text []byte, err error) {
+-	return []byte(z.String()), nil
++func (x *Int) MarshalText() (text []byte, err error) {
++	if x == nil {
++		return []byte("<nil>"), nil
++	}
++	return x.abs.itoa(x.neg, 10), nil
+ }
+ 
+ // UnmarshalText implements the encoding.TextUnmarshaler interface.
+ func (z *Int) UnmarshalText(text []byte) error {
++	// TODO(gri): get rid of the []byte/string conversion
+ 	if _, ok := z.SetString(string(text), 0); !ok {
+ 		return fmt.Errorf("math/big: cannot unmarshal %q into a *big.Int", text)
+ 	}
+diff --git a/src/math/big/ratmarsh.go b/src/math/big/ratmarsh.go
+index b79cbe6652..6bb9d8af60 100644
+--- a/src/math/big/ratmarsh.go
++++ b/src/math/big/ratmarsh.go
+@@ -59,11 +59,13 @@ func (z *Rat) GobDecode(buf []byte) error {
+ 
+ // MarshalText implements the encoding.TextMarshaler interface.
+ func (r *Rat) MarshalText() (text []byte, err error) {
++	// TODO(gri): get rid of the []byte/string conversion
+ 	return []byte(r.RatString()), nil
+ }
+ 
+ // UnmarshalText implements the encoding.TextUnmarshaler interface.
+ func (r *Rat) UnmarshalText(text []byte) error {
++	// TODO(gri): get rid of the []byte/string conversion
+ 	if _, ok := r.SetString(string(text)); !ok {
+ 		return fmt.Errorf("math/big: cannot unmarshal %q into a *big.Rat", text)
+ 	}

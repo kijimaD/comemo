@@ -14,8 +14,53 @@ Date:   Mon Mar 4 11:23:17 2013 -0500
     R=golang-dev, minux.ma
     CC=golang-dev
     https://golang.org/cl/7432048
-
+---
  src/cmd/cgo/main.go | 1 +
  src/cmd/cgo/out.go  | 4 ++--
  src/cmd/go/build.go | 6 +++++-
  3 files changed, 8 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/cgo/main.go b/src/cmd/cgo/main.go
+index 83104e412c..7adc795de3 100644
+--- a/src/cmd/cgo/main.go
++++ b/src/cmd/cgo/main.go
+@@ -142,6 +142,7 @@ var fset = token.NewFileSet()
+ 
+ var dynobj = flag.String("dynimport", "", "if non-empty, print dynamic import data for that file")
+ var dynout = flag.String("dynout", "", "write -dynobj output to this file")
++var dynlinker = flag.Bool("dynlinker", false, "record dynamic linker information in dynimport mode")
+ 
+ // These flags are for bootstrapping a new Go implementation,
+ // to generate Go and C headers that match the data layout and
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index cb0ab44bdc..a126cf17fb 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -163,8 +163,8 @@ func dynimport(obj string) {
+ 	}
+ 
+ 	if f, err := elf.Open(obj); err == nil {
+-		if !*importRuntimeCgo {
+-			// We are runtime/cgo, so emit the cgo_dynamic_linker line.
++		if *dynlinker {
++			// Emit the cgo_dynamic_linker line.
+ 			if sec := f.Section(".interp"); sec != nil {
+ 				if data, err := sec.Data(); err == nil && len(data) > 1 {
+ 					// skip trailing \0 in data
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index c9172cc98b..38fc43ef18 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -1879,7 +1879,11 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, gccfiles []string) (outGo,
+ 
+ 	// cgo -dynimport
+ 	importC := obj + "_cgo_import.c"
+-	if err := b.run(p.Dir, p.ImportPath, cgoExe, "-objdir", obj, "-dynimport", dynobj, "-dynout", importC); err != nil {
++	cgoflags = []string{}
++	if p.Standard && p.ImportPath == "runtime/cgo" {
++		cgoflags = append(cgoflags, "-dynlinker") // record path to dynamic linker
++	}
++	if err := b.run(p.Dir, p.ImportPath, cgoExe, "-objdir", obj, "-dynimport", dynobj, "-dynout", importC, cgoflags); err != nil {
+ 		return nil, nil, err
+ 	}
+ 

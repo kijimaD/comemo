@@ -13,6 +13,21 @@ Date:   Mon Apr 6 11:39:44 2020 -0400
     Change-Id: Ia9531c4b4a6692a0c49153517af9fdddd1f3e0bf
     Reviewed-on: https://go-review.googlesource.com/c/go/+/227341
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/link/dwarf_test.go | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/src/cmd/link/dwarf_test.go b/src/cmd/link/dwarf_test.go
+index 8a1b489300..5926f09e4a 100644
+--- a/src/cmd/link/dwarf_test.go
++++ b/src/cmd/link/dwarf_test.go
+@@ -193,9 +193,7 @@ func TestDWARFiOS(t *testing.T) {
+ 	}
+ 	cc := "CC=" + runtime.GOROOT() + "/misc/ios/clangwrap.sh"
+ 	// iOS doesn't allow unmapped segments, so iOS executables don't have DWARF.
+-	testDWARF(t, "", false, cc, "CGO_ENABLED=1", "GOOS=darwin", "GOARCH=arm", "GOARM=7")
+ 	testDWARF(t, "", false, cc, "CGO_ENABLED=1", "GOOS=darwin", "GOARCH=arm64")
+ 	// However, c-archive iOS objects have embedded DWARF.
+-	testDWARF(t, "c-archive", true, cc, "CGO_ENABLED=1", "GOOS=darwin", "GOARCH=arm", "GOARM=7")
+ 	testDWARF(t, "c-archive", true, cc, "CGO_ENABLED=1", "GOOS=darwin", "GOARCH=arm64")
+ }

@@ -7,7 +7,34 @@ Date:   Sat Jun 5 12:06:18 2010 -0700
     R=rsc, iant
     CC=golang-dev
     https://golang.org/cl/1567041
-
+---
  doc/go_tutorial.html | 2 +-
  doc/go_tutorial.txt  | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go_tutorial.html b/doc/go_tutorial.html
+index 4641e065de..40fef30693 100644
+--- a/doc/go_tutorial.html
++++ b/doc/go_tutorial.html
+@@ -221,7 +221,7 @@ are mandatory.  The same applies to the <code>if</code> and <code>switch</code>
+ Later examples will show some other ways <code>for</code> can be written.
+ <p>
+ The body of the loop builds up the string <code>s</code> by appending (using <code>+=</code>)
+-the flags and separating spaces. After the loop, if the <code>-n</code> flag is not
++the arguments and separating spaces. After the loop, if the <code>-n</code> flag is not
+ set, the program appends a newline. Finally, it writes the result.
+ <p>
+ Notice that <code>main.main</code> is a niladic function with no return type.
+diff --git a/doc/go_tutorial.txt b/doc/go_tutorial.txt
+index 21dffad4f8..76dba34efd 100644
+--- a/doc/go_tutorial.txt
++++ b/doc/go_tutorial.txt
+@@ -173,7 +173,7 @@ are mandatory.  The same applies to the "if" and "switch" statements.
+ Later examples will show some other ways "for" can be written.
+ 
+ The body of the loop builds up the string "s" by appending (using "+=")
+-the flags and separating spaces. After the loop, if the "-n" flag is not
++the arguments and separating spaces. After the loop, if the "-n" flag is not
+ set, the program appends a newline. Finally, it writes the result.
+ 
+ Notice that "main.main" is a niladic function with no return type.

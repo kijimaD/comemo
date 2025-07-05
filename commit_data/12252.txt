@@ -7,6 +7,30 @@ Date:   Tue Feb 28 16:05:12 2012 +1100
     R=golang-dev
     CC=golang-dev
     https://golang.org/cl/5702043
-
+---
  lib/godoc/package.html | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/lib/godoc/package.html b/lib/godoc/package.html
+index cdebd4fc4a..3e8af0fca0 100644
+--- a/lib/godoc/package.html
++++ b/lib/godoc/package.html
+@@ -12,6 +12,9 @@
+ 			<dl>
+ 			<dd><a href="#overview">Overview</a></dd>
+ 			<dd><a href="#index">Index</a></dd>
++			{{if $.Examples}}
++				<dd><a href="#examples">Examples</a></dd>
++			{{end}}
+ 			{{if $.Dirs}}
+ 				<dd><a href="#subdirectories">Subdirectories</a></dd>
+ 			{{end}}
+@@ -54,7 +57,7 @@
+ 		</dl>
+ 
+ 		{{if $.Examples}}
+-			<h4>Examples</h4>
++			<h4 id="examples">Examples</h4>
+ 			<dl>
+ 			{{range $.Examples}}
+ 			<dd><a class="exampleLink" href="#example_{{.Name}}">{{example_name .Name}}</a></dd>

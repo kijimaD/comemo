@@ -16,7 +16,52 @@ Date:   Fri Jul 31 12:25:06 2015 +0200
     Change-Id: Ied93eb6831915c9b1f8e727cea14168af21f8d3b
     Reviewed-on: https://go-review.googlesource.com/12905
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/net/mail/message.go      | 5 ++++-
  src/net/mail/message_test.go | 3 +++
  2 files changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/mail/message.go b/src/net/mail/message.go
+index 2d8e380cd9..8ddb313b47 100644
+--- a/src/net/mail/message.go
++++ b/src/net/mail/message.go
+@@ -419,7 +419,7 @@ Loop:
+ 			}
+ 			qsb = append(qsb, p.s[i+1])
+ 			i += 2
+-		case isQtext(c), c == ' ' || c == '\t':
++		case isQtext(c), c == ' ':
+ 			// qtext (printable US-ASCII excluding " and \), or
+ 			// FWS (almost; we're ignoring CRLF)
+ 			qsb = append(qsb, c)
+@@ -429,6 +429,9 @@ Loop:
+ 		}
+ 	}
+ 	p.s = p.s[i+1:]
++	if len(qsb) == 0 {
++		return "", errors.New("mail: empty quoted-string")
++	}
+ 	return string(qsb), nil
+ }
+ 
+diff --git a/src/net/mail/message_test.go b/src/net/mail/message_test.go
+index 1da3213f7e..ffe9af9bf6 100644
+--- a/src/net/mail/message_test.go
++++ b/src/net/mail/message_test.go
+@@ -522,6 +522,7 @@ func TestAddressParsingAndFormatting(t *testing.T) {
+ 		`<".john.doe"@example.com>`,
+ 		`<"."@example.com>`,
+ 		`<".."@example.com>`,
++		`<"0:"@0>`,
+ 	}
+ 
+ 	for _, test := range tests {
+@@ -563,6 +564,8 @@ func TestAddressParsingAndFormatting(t *testing.T) {
+ 		`<test@.>`,
+ 		`< @example.com>`,
+ 		`<""test""blah""@example.com>`,
++		`<""@0>`,
++		"<\"\t0\"@0>",
+ 	}
+ 
+ 	for _, test := range badTests {

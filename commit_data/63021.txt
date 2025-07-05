@@ -36,7 +36,53 @@ Date:   Tue May 13 17:26:06 2025 +0200
     Reviewed-by: Jake Bailey <jacob.b.bailey@gmail.com>
     Reviewed-by: Damien Neil <dneil@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/os/stat_test.go    | 15 +++++++++++++++
  src/os/stat_windows.go |  4 ++++
  2 files changed, 19 insertions(+)
+
+diff --git a/src/os/stat_test.go b/src/os/stat_test.go
+index 36da573f0c..92ecabb787 100644
+--- a/src/os/stat_test.go
++++ b/src/os/stat_test.go
+@@ -361,3 +361,18 @@ func TestClosedStat(t *testing.T) {
+ 		t.Errorf("error from Stat on closed file did not match ErrClosed: %q, type %T", err, err)
+ 	}
+ }
++
++func TestStatNotExist(t *testing.T) {
++	t.Parallel()
++	name := filepath.Join(t.TempDir(), "notfound")
++	_, err := os.Stat(name)
++	if !errors.Is(err, fs.ErrNotExist) {
++		t.Errorf("os.Stat(%q) = %v; want fs.ErrNotExist", name, err)
++	}
++
++	name = filepath.Join(t.TempDir(), "notfounddir", "notfound")
++	_, err = os.Stat(name)
++	if !errors.Is(err, fs.ErrNotExist) {
++		t.Errorf("os.Stat(%q) = %v; want fs.ErrNotExist", name, err)
++	}
++}
+diff --git a/src/os/stat_windows.go b/src/os/stat_windows.go
+index d2c2017a65..e2ed58a3a0 100644
+--- a/src/os/stat_windows.go
++++ b/src/os/stat_windows.go
+@@ -5,6 +5,7 @@
+ package os
+ 
+ import (
++	"errors"
+ 	"internal/filepathlite"
+ 	"internal/syscall/windows"
+ 	"syscall"
+@@ -34,6 +35,9 @@ func stat(funcname, name string, followSurrogates bool) (FileInfo, error) {
+ 	// See https://golang.org/issues/19922#issuecomment-300031421 for details.
+ 	var fa syscall.Win32FileAttributeData
+ 	err = syscall.GetFileAttributesEx(namep, syscall.GetFileExInfoStandard, (*byte)(unsafe.Pointer(&fa)))
++	if errors.Is(err, ErrNotExist) {
++		return nil, &PathError{Op: "GetFileAttributesEx", Path: name, Err: err}
++	}
+ 	if err == nil && fa.FileAttributes&syscall.FILE_ATTRIBUTE_REPARSE_POINT == 0 {
+ 		// Not a surrogate for another named entity, because it isn't any kind of reparse point.
+ 		// The information we got from GetFileAttributesEx is good enough for now.

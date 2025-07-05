@@ -8,6 +8,21 @@ Date:   Fri Sep 16 11:28:53 2011 +0200
     R=r, rsc, mpvl
     CC=golang-dev
     https://golang.org/cl/5014045
-
+---
  src/pkg/exp/norm/normregtest.go | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/pkg/exp/norm/normregtest.go b/src/pkg/exp/norm/normregtest.go
+index 2a0f3a65cc..b2d8b1ffd7 100644
+--- a/src/pkg/exp/norm/normregtest.go
++++ b/src/pkg/exp/norm/normregtest.go
+@@ -115,8 +115,7 @@ func (t Test) Name() string {
+ }
+ 
+ var partRe = regexp.MustCompile(`@Part(\d) # (.*)\n`) // TODO: using $ iso \n does not work
+-// TODO: the following regexp does not work: `^(?:([\dA-F ]+);){5} # (.*)\n`
+-var testRe = regexp.MustCompile(`^(?:([\dA-F ]+);)(?:([\dA-F ]+);)(?:([\dA-F ]+);)(?:([\dA-F ]+);)(?:([\dA-F ]+);) # (.*)\n`)
++var testRe = regexp.MustCompile(`^` + strings.Repeat(`([\dA-F ]+);`, 5) + ` # (.*)\n`)
+ 
+ var counter int
+ 

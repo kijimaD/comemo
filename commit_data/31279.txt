@@ -9,6 +9,20 @@ Date:   Wed Feb 8 09:40:14 2017 -0800
     Change-Id: I6a4bf0aad9cf1dbe6691ba4e4c478fcb33c44528
     Reviewed-on: https://go-review.googlesource.com/36558
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/crypto/x509/x509.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/crypto/x509/x509.go b/src/crypto/x509/x509.go
+index 1c5f937c1d..8c7f0b983a 100644
+--- a/src/crypto/x509/x509.go
++++ b/src/crypto/x509/x509.go
+@@ -2033,7 +2033,7 @@ func parseCSRExtensions(rawAttributes []asn1.RawValue) ([]pkix.Extension, error)
+ 
+ // CreateCertificateRequest creates a new certificate request based on a template.
+ // The following members of template are used: Subject, Attributes,
+-// SignatureAlgorithm, Extensions, DNSNames, EmailAddresses, and IPAddresses.
++// SignatureAlgorithm, ExtraExtensions, DNSNames, EmailAddresses, and IPAddresses.
+ // The private key is the private key of the signer.
+ //
+ // The returned slice is the certificate request in DER encoding.

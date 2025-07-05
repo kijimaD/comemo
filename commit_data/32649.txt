@@ -15,6 +15,22 @@ Date:   Wed May 10 13:50:19 2017 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/ssa/value.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/value.go b/src/cmd/compile/internal/ssa/value.go
+index ba5780fb9d..a0ba112a8d 100644
+--- a/src/cmd/compile/internal/ssa/value.go
++++ b/src/cmd/compile/internal/ssa/value.go
+@@ -224,7 +224,9 @@ func (v *Value) copyInto(b *Block) *Value {
+ 	return c
+ }
+ 
+-// copyInto makes a new value identical to v and adds it to the end of b.
++// copyIntoNoXPos makes a new value identical to v and adds it to the end of b.
++// The copied value receives no source code position to avoid confusing changes
++// in debugger information (the intended user is the register allocator).
+ func (v *Value) copyIntoNoXPos(b *Block) *Value {
+ 	c := b.NewValue0(src.NoXPos, v.Op, v.Type) // Lose the position, this causes line number churn otherwise.
+ 	c.Aux = v.Aux

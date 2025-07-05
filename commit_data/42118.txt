@@ -25,7 +25,7 @@ Date:   Fri Nov 8 16:11:29 2019 -0500
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/go/build/deps_test.go                     |  94 ++++++++---------
  src/runtime/export_test.go                    |   5 +-
  src/runtime/internal/sys/intrinsics.go        |  46 +++------
@@ -34,3 +34,583 @@ Date:   Fri Nov 8 16:11:29 2019 -0500
  src/runtime/mpagecache.go                     |   6 +-
  src/runtime/mpallocbits.go                    |  36 +++----
  7 files changed, 232 insertions(+), 106 deletions(-)
+
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index eca6c6efba..62b1698797 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -36,8 +36,7 @@ var pkgDeps = map[string][]string{
+ 	// L0 is the lowest level, core, nearly unavoidable packages.
+ 	"errors":                  {"runtime", "internal/reflectlite"},
+ 	"io":                      {"errors", "sync", "sync/atomic"},
+-	"math/bits":               {"unsafe"},
+-	"runtime":                 {"math/bits", "unsafe", "runtime/internal/atomic", "runtime/internal/sys", "runtime/internal/math", "internal/cpu", "internal/bytealg"},
++	"runtime":                 {"unsafe", "runtime/internal/atomic", "runtime/internal/sys", "runtime/internal/math", "internal/cpu", "internal/bytealg"},
+ 	"runtime/internal/sys":    {},
+ 	"runtime/internal/atomic": {"unsafe", "internal/cpu"},
+ 	"runtime/internal/math":   {"runtime/internal/sys"},
+@@ -65,6 +64,7 @@ var pkgDeps = map[string][]string{
+ 	// L1 adds simple functions and strings processing,
+ 	// but not Unicode tables.
+ 	"math":          {"internal/cpu", "unsafe", "math/bits"},
++	"math/bits":     {"unsafe"},
+ 	"math/cmplx":    {"math"},
+ 	"math/rand":     {"L0", "math"},
+ 	"strconv":       {"L0", "unicode/utf8", "math", "math/bits"},
+@@ -243,51 +243,51 @@ var pkgDeps = map[string][]string{
+ 	"go/types":                  {"L4", "GOPARSER", "container/heap", "go/constant"},
+ 
+ 	// One of a kind.
+-	"archive/tar":              {"L4", "OS", "syscall", "os/user"},
+-	"archive/zip":              {"L4", "OS", "compress/flate"},
+-	"container/heap":           {"sort"},
+-	"compress/bzip2":           {"L4"},
+-	"compress/flate":           {"L4"},
+-	"compress/gzip":            {"L4", "compress/flate"},
+-	"compress/lzw":             {"L4"},
+-	"compress/zlib":            {"L4", "compress/flate"},
+-	"context":                  {"errors", "internal/reflectlite", "sync", "sync/atomic", "time"},
+-	"database/sql":             {"L4", "container/list", "context", "database/sql/driver", "database/sql/internal"},
+-	"database/sql/driver":      {"L4", "context", "time", "database/sql/internal"},
+-	"debug/dwarf":              {"L4"},
+-	"debug/elf":                {"L4", "OS", "debug/dwarf", "compress/zlib"},
+-	"debug/gosym":              {"L4"},
+-	"debug/macho":              {"L4", "OS", "debug/dwarf", "compress/zlib"},
+-	"debug/pe":                 {"L4", "OS", "debug/dwarf", "compress/zlib"},
+-	"debug/plan9obj":           {"L4", "OS"},
+-	"encoding":                 {"L4"},
+-	"encoding/ascii85":         {"L4"},
+-	"encoding/asn1":            {"L4", "math/big"},
+-	"encoding/csv":             {"L4"},
+-	"encoding/gob":             {"L4", "OS", "encoding"},
+-	"encoding/hex":             {"L4"},
+-	"encoding/json":            {"L4", "encoding"},
+-	"encoding/pem":             {"L4"},
+-	"encoding/xml":             {"L4", "encoding"},
+-	"flag":                     {"L4", "OS"},
+-	"go/build":                 {"L4", "OS", "GOPARSER", "internal/goroot", "internal/goversion"},
+-	"html":                     {"L4"},
+-	"image/draw":               {"L4", "image/internal/imageutil"},
+-	"image/gif":                {"L4", "compress/lzw", "image/color/palette", "image/draw"},
+-	"image/internal/imageutil": {"L4"},
+-	"image/jpeg":               {"L4", "image/internal/imageutil"},
+-	"image/png":                {"L4", "compress/zlib"},
+-	"index/suffixarray":        {"L4", "regexp"},
+-	"internal/goroot":          {"L4", "OS"},
+-	"internal/singleflight":    {"sync"},
+-	"internal/trace":           {"L4", "OS", "container/heap"},
+-	"internal/xcoff":           {"L4", "OS", "debug/dwarf"},
+-	"math/big":                 {"L4"},
+-	"mime":                     {"L4", "OS", "syscall", "internal/syscall/windows/registry"},
+-	"mime/quotedprintable":     {"L4"},
+-	"net/internal/socktest":    {"L4", "OS", "syscall", "internal/syscall/windows"},
+-	"net/url":                  {"L4"},
+-	"plugin":                   {"L0", "OS", "CGO"},
++	"archive/tar":                    {"L4", "OS", "syscall", "os/user"},
++	"archive/zip":                    {"L4", "OS", "compress/flate"},
++	"container/heap":                 {"sort"},
++	"compress/bzip2":                 {"L4"},
++	"compress/flate":                 {"L4"},
++	"compress/gzip":                  {"L4", "compress/flate"},
++	"compress/lzw":                   {"L4"},
++	"compress/zlib":                  {"L4", "compress/flate"},
++	"context":                        {"errors", "internal/reflectlite", "sync", "sync/atomic", "time"},
++	"database/sql":                   {"L4", "container/list", "context", "database/sql/driver", "database/sql/internal"},
++	"database/sql/driver":            {"L4", "context", "time", "database/sql/internal"},
++	"debug/dwarf":                    {"L4"},
++	"debug/elf":                      {"L4", "OS", "debug/dwarf", "compress/zlib"},
++	"debug/gosym":                    {"L4"},
++	"debug/macho":                    {"L4", "OS", "debug/dwarf", "compress/zlib"},
++	"debug/pe":                       {"L4", "OS", "debug/dwarf", "compress/zlib"},
++	"debug/plan9obj":                 {"L4", "OS"},
++	"encoding":                       {"L4"},
++	"encoding/ascii85":               {"L4"},
++	"encoding/asn1":                  {"L4", "math/big"},
++	"encoding/csv":                   {"L4"},
++	"encoding/gob":                   {"L4", "OS", "encoding"},
++	"encoding/hex":                   {"L4"},
++	"encoding/json":                  {"L4", "encoding"},
++	"encoding/pem":                   {"L4"},
++	"encoding/xml":                   {"L4", "encoding"},
++	"flag":                           {"L4", "OS"},
++	"go/build":                       {"L4", "OS", "GOPARSER", "internal/goroot", "internal/goversion"},
++	"html":                           {"L4"},
++	"image/draw":                     {"L4", "image/internal/imageutil"},
++	"image/gif":                      {"L4", "compress/lzw", "image/color/palette", "image/draw"},
++	"image/internal/imageutil":       {"L4"},
++	"image/jpeg":                     {"L4", "image/internal/imageutil"},
++	"image/png":                      {"L4", "compress/zlib"},
++	"index/suffixarray":              {"L4", "regexp"},
++	"internal/goroot":                {"L4", "OS"},
++	"internal/singleflight":          {"sync"},
++	"internal/trace":                 {"L4", "OS", "container/heap"},
++	"internal/xcoff":                 {"L4", "OS", "debug/dwarf"},
++	"math/big":                       {"L4"},
++	"mime":                           {"L4", "OS", "syscall", "internal/syscall/windows/registry"},
++	"mime/quotedprintable":           {"L4"},
++	"net/internal/socktest":          {"L4", "OS", "syscall", "internal/syscall/windows"},
++	"net/url":                        {"L4"},
++	"plugin":                         {"L0", "OS", "CGO"},
+ 	"runtime/pprof/internal/profile": {"L4", "OS", "compress/gzip", "regexp"},
+ 	"testing/internal/testdeps":      {"L4", "internal/testlog", "runtime/pprof", "regexp"},
+ 	"text/scanner":                   {"L4", "OS"},
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index ea3f1c1776..d3ebd893cb 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -7,7 +7,6 @@
+ package runtime
+ 
+ import (
+-	"math/bits"
+ 	"runtime/internal/atomic"
+ 	"runtime/internal/sys"
+ 	"unsafe"
+@@ -360,7 +359,7 @@ func ReadMemStatsSlow() (base, slow MemStats) {
+ 			slow.HeapReleased += uint64(pg) * pageSize
+ 		}
+ 		for _, p := range allp {
+-			pg := bits.OnesCount64(p.pcache.scav)
++			pg := sys.OnesCount64(p.pcache.scav)
+ 			slow.HeapReleased += uint64(pg) * pageSize
+ 		}
+ 
+@@ -894,7 +893,7 @@ func PageCachePagesLeaked() (leaked uintptr) {
+ 		// Since we're going past len(allp) we may see nil Ps.
+ 		// Just ignore them.
+ 		if p != nil {
+-			leaked += uintptr(bits.OnesCount64(p.pcache.cache))
++			leaked += uintptr(sys.OnesCount64(p.pcache.cache))
+ 		}
+ 	}
+ 
+diff --git a/src/runtime/internal/sys/intrinsics.go b/src/runtime/internal/sys/intrinsics.go
+index ad6f0c3021..3c8898236c 100644
+--- a/src/runtime/internal/sys/intrinsics.go
++++ b/src/runtime/internal/sys/intrinsics.go
+@@ -4,13 +4,16 @@
+ 
+ // +build !386
+ 
++// TODO finish intrinsifying 386, deadcode the assembly, remove build tags, merge w/ intrinsics_common
++// TODO replace all uses of CtzXX with TrailingZerosXX; they are the same.
++
+ package sys
+ 
+ // Using techniques from http://supertech.csail.mit.edu/papers/debruijn.pdf
+ 
+-const deBruijn64 = 0x0218a392cd3d5dbf
++const deBruijn64ctz = 0x0218a392cd3d5dbf
+ 
+-var deBruijnIdx64 = [64]byte{
++var deBruijnIdx64ctz = [64]byte{
+ 	0, 1, 2, 7, 3, 13, 8, 19,
+ 	4, 25, 14, 28, 9, 34, 20, 40,
+ 	5, 17, 26, 38, 15, 46, 29, 48,
+@@ -21,9 +24,9 @@ var deBruijnIdx64 = [64]byte{
+ 	61, 22, 43, 51, 60, 42, 59, 58,
+ }
+ 
+-const deBruijn32 = 0x04653adf
++const deBruijn32ctz = 0x04653adf
+ 
+-var deBruijnIdx32 = [32]byte{
++var deBruijnIdx32ctz = [32]byte{
+ 	0, 1, 2, 6, 3, 11, 7, 16,
+ 	4, 14, 12, 21, 8, 23, 17, 26,
+ 	31, 5, 10, 15, 13, 20, 22, 25,
+@@ -33,20 +36,20 @@ var deBruijnIdx32 = [32]byte{
+ // Ctz64 counts trailing (low-order) zeroes,
+ // and if all are zero, then 64.
+ func Ctz64(x uint64) int {
+-	x &= -x                      // isolate low-order bit
+-	y := x * deBruijn64 >> 58    // extract part of deBruijn sequence
+-	i := int(deBruijnIdx64[y])   // convert to bit index
+-	z := int((x - 1) >> 57 & 64) // adjustment if zero
++	x &= -x                       // isolate low-order bit
++	y := x * deBruijn64ctz >> 58  // extract part of deBruijn sequence
++	i := int(deBruijnIdx64ctz[y]) // convert to bit index
++	z := int((x - 1) >> 57 & 64)  // adjustment if zero
+ 	return i + z
+ }
+ 
+ // Ctz32 counts trailing (low-order) zeroes,
+ // and if all are zero, then 32.
+ func Ctz32(x uint32) int {
+-	x &= -x                      // isolate low-order bit
+-	y := x * deBruijn32 >> 27    // extract part of deBruijn sequence
+-	i := int(deBruijnIdx32[y])   // convert to bit index
+-	z := int((x - 1) >> 26 & 32) // adjustment if zero
++	x &= -x                       // isolate low-order bit
++	y := x * deBruijn32ctz >> 27  // extract part of deBruijn sequence
++	i := int(deBruijnIdx32ctz[y]) // convert to bit index
++	z := int((x - 1) >> 26 & 32)  // adjustment if zero
+ 	return i + z
+ }
+ 
+@@ -55,25 +58,6 @@ func Ctz8(x uint8) int {
+ 	return int(ntz8tab[x])
+ }
+ 
+-var ntz8tab = [256]uint8{
+-	0x08, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00, 0x03, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00,
+-	0x04, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00, 0x03, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00,
+-	0x05, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00, 0x03, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00,
+-	0x04, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00, 0x03, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00,
+-	0x06, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00, 0x03, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00,
+-	0x04, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00, 0x03, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00,
+-	0x05, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00, 0x03, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00,
+-	0x04, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00, 0x03, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00,
+-	0x07, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00, 0x03, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00,
+-	0x04, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00, 0x03, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00,
+-	0x05, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00, 0x03, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00,
+-	0x04, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00, 0x03, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00,
+-	0x06, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00, 0x03, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00,
+-	0x04, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00, 0x03, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00,
+-	0x05, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00, 0x03, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00,
+-	0x04, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00, 0x03, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00,
+-}
+-
+ // Bswap64 returns its input with byte order reversed
+ // 0x0102030405060708 -> 0x0807060504030201
+ func Bswap64(x uint64) uint64 {
+diff --git a/src/runtime/internal/sys/intrinsics_common.go b/src/runtime/internal/sys/intrinsics_common.go
+new file mode 100644
+index 0000000000..818d75ecc5
+--- /dev/null
++++ b/src/runtime/internal/sys/intrinsics_common.go
+@@ -0,0 +1,143 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package sys
++
++// Copied from math/bits to avoid dependence.
++
++var len8tab = [256]uint8{
++	0x00, 0x01, 0x02, 0x02, 0x03, 0x03, 0x03, 0x03, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04,
++	0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05,
++	0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06,
++	0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06,
++	0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07,
++	0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07,
++	0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07,
++	0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07,
++	0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08,
++	0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08,
++	0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08,
++	0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08,
++	0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08,
++	0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08,
++	0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08,
++	0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08,
++}
++
++var ntz8tab = [256]uint8{
++	0x08, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00, 0x03, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00,
++	0x04, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00, 0x03, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00,
++	0x05, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00, 0x03, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00,
++	0x04, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00, 0x03, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00,
++	0x06, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00, 0x03, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00,
++	0x04, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00, 0x03, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00,
++	0x05, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00, 0x03, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00,
++	0x04, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00, 0x03, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00,
++	0x07, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00, 0x03, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00,
++	0x04, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00, 0x03, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00,
++	0x05, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00, 0x03, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00,
++	0x04, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00, 0x03, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00,
++	0x06, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00, 0x03, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00,
++	0x04, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00, 0x03, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00,
++	0x05, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00, 0x03, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00,
++	0x04, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00, 0x03, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00,
++}
++
++// len64 returns the minimum number of bits required to represent x; the result is 0 for x == 0.
++func Len64(x uint64) (n int) {
++	if x >= 1<<32 {
++		x >>= 32
++		n = 32
++	}
++	if x >= 1<<16 {
++		x >>= 16
++		n += 16
++	}
++	if x >= 1<<8 {
++		x >>= 8
++		n += 8
++	}
++	return n + int(len8tab[x])
++}
++
++// --- OnesCount ---
++
++const m0 = 0x5555555555555555 // 01010101 ...
++const m1 = 0x3333333333333333 // 00110011 ...
++const m2 = 0x0f0f0f0f0f0f0f0f // 00001111 ...
++
++// OnesCount64 returns the number of one bits ("population count") in x.
++func OnesCount64(x uint64) int {
++	// Implementation: Parallel summing of adjacent bits.
++	// See "Hacker's Delight", Chap. 5: Counting Bits.
++	// The following pattern shows the general approach:
++	//
++	//   x = x>>1&(m0&m) + x&(m0&m)
++	//   x = x>>2&(m1&m) + x&(m1&m)
++	//   x = x>>4&(m2&m) + x&(m2&m)
++	//   x = x>>8&(m3&m) + x&(m3&m)
++	//   x = x>>16&(m4&m) + x&(m4&m)
++	//   x = x>>32&(m5&m) + x&(m5&m)
++	//   return int(x)
++	//
++	// Masking (& operations) can be left away when there's no
++	// danger that a field's sum will carry over into the next
++	// field: Since the result cannot be > 64, 8 bits is enough
++	// and we can ignore the masks for the shifts by 8 and up.
++	// Per "Hacker's Delight", the first line can be simplified
++	// more, but it saves at best one instruction, so we leave
++	// it alone for clarity.
++	const m = 1<<64 - 1
++	x = x>>1&(m0&m) + x&(m0&m)
++	x = x>>2&(m1&m) + x&(m1&m)
++	x = (x>>4 + x) & (m2 & m)
++	x += x >> 8
++	x += x >> 16
++	x += x >> 32
++	return int(x) & (1<<7 - 1)
++}
++
++var deBruijn64tab = [64]byte{
++	0, 1, 56, 2, 57, 49, 28, 3, 61, 58, 42, 50, 38, 29, 17, 4,
++	62, 47, 59, 36, 45, 43, 51, 22, 53, 39, 33, 30, 24, 18, 12, 5,
++	63, 55, 48, 27, 60, 41, 37, 16, 46, 35, 44, 21, 52, 32, 23, 11,
++	54, 26, 40, 15, 34, 20, 31, 10, 25, 14, 19, 9, 13, 8, 7, 6,
++}
++
++const deBruijn64 = 0x03f79d71b4ca8b09
++
++// TrailingZeros64 returns the number of trailing zero bits in x; the result is 64 for x == 0.
++func TrailingZeros64(x uint64) int {
++	if x == 0 {
++		return 64
++	}
++	// If popcount is fast, replace code below with return popcount(^x & (x - 1)).
++	//
++	// x & -x leaves only the right-most bit set in the word. Let k be the
++	// index of that bit. Since only a single bit is set, the value is two
++	// to the power of k. Multiplying by a power of two is equivalent to
++	// left shifting, in this case by k bits. The de Bruijn (64 bit) constant
++	// is such that all six bit, consecutive substrings are distinct.
++	// Therefore, if we have a left shifted version of this constant we can
++	// find by how many bits it was shifted by looking at which six bit
++	// substring ended up at the top of the word.
++	// (Knuth, volume 4, section 7.3.1)
++	return int(deBruijn64tab[(x&-x)*deBruijn64>>(64-6)])
++}
++
++// LeadingZeros64 returns the number of leading zero bits in x; the result is 64 for x == 0.
++func LeadingZeros64(x uint64) int { return 64 - Len64(x) }
++
++// LeadingZeros8 returns the number of leading zero bits in x; the result is 8 for x == 0.
++func LeadingZeros8(x uint8) int { return 8 - Len8(x) }
++
++// TrailingZeros8 returns the number of trailing zero bits in x; the result is 8 for x == 0.
++func TrailingZeros8(x uint8) int {
++	return int(ntz8tab[x])
++}
++
++// Len8 returns the minimum number of bits required to represent x; the result is 0 for x == 0.
++func Len8(x uint8) int {
++	return int(len8tab[x])
++}
+diff --git a/src/runtime/mgcscavenge.go b/src/runtime/mgcscavenge.go
+index 86057ef541..4c2fb4403c 100644
+--- a/src/runtime/mgcscavenge.go
++++ b/src/runtime/mgcscavenge.go
+@@ -56,8 +56,8 @@
+ package runtime
+ 
+ import (
+-	"math/bits"
+ 	"runtime/internal/atomic"
++	"runtime/internal/sys"
+ 	"unsafe"
+ )
+ 
+@@ -637,12 +637,12 @@ func (m *pallocData) findScavengeCandidate(searchIdx uint, min, max uintptr) (ui
+ 
+ 	// 1s are scavenged OR non-free => 0s are unscavenged AND free
+ 	x := fillAligned(m.scavenged[i]|m.pallocBits[i], uint(min))
+-	z1 := uint(bits.LeadingZeros64(^x))
++	z1 := uint(sys.LeadingZeros64(^x))
+ 	run, end := uint(0), uint(i)*64+(64-z1)
+ 	if x<<z1 != 0 {
+ 		// After shifting out z1 bits, we still have 1s,
+ 		// so the run ends inside this word.
+-		run = uint(bits.LeadingZeros64(x << z1))
++		run = uint(sys.LeadingZeros64(x << z1))
+ 	} else {
+ 		// After shifting out z1 bits, we have no more 1s.
+ 		// This means the run extends to the bottom of the
+@@ -650,7 +650,7 @@ func (m *pallocData) findScavengeCandidate(searchIdx uint, min, max uintptr) (ui
+ 		run = 64 - z1
+ 		for j := i - 1; j >= 0; j-- {
+ 			x := fillAligned(m.scavenged[j]|m.pallocBits[j], uint(min))
+-			run += uint(bits.LeadingZeros64(x))
++			run += uint(sys.LeadingZeros64(x))
+ 			if x != 0 {
+ 				// The run stopped in this word.
+ 				break
+diff --git a/src/runtime/mpagecache.go b/src/runtime/mpagecache.go
+index 6581d40801..ec2f2d13ed 100644
+--- a/src/runtime/mpagecache.go
++++ b/src/runtime/mpagecache.go
+@@ -5,7 +5,7 @@
+ package runtime
+ 
+ import (
+-	"math/bits"
++	"runtime/internal/sys"
+ 	"unsafe"
+ )
+ 
+@@ -40,7 +40,7 @@ func (c *pageCache) alloc(npages uintptr) (uintptr, uintptr) {
+ 		return 0, 0
+ 	}
+ 	if npages == 1 {
+-		i := uintptr(bits.TrailingZeros64(c.cache))
++		i := uintptr(sys.TrailingZeros64(c.cache))
+ 		scav := (c.scav >> i) & 1
+ 		c.cache &^= 1 << i // set bit to mark in-use
+ 		c.scav &^= 1 << i  // clear bit to mark unscavenged
+@@ -61,7 +61,7 @@ func (c *pageCache) allocN(npages uintptr) (uintptr, uintptr) {
+ 		return 0, 0
+ 	}
+ 	mask := ((uint64(1) << npages) - 1) << i
+-	scav := bits.OnesCount64(c.scav & mask)
++	scav := sys.OnesCount64(c.scav & mask)
+ 	c.cache &^= mask // mark in-use bits
+ 	c.scav &^= mask  // clear scavenged bits
+ 	return c.base + uintptr(i*pageSize), uintptr(scav) * pageSize
+diff --git a/src/runtime/mpallocbits.go b/src/runtime/mpallocbits.go
+index 669a41e08f..dd13337c22 100644
+--- a/src/runtime/mpallocbits.go
++++ b/src/runtime/mpallocbits.go
+@@ -5,7 +5,7 @@
+ package runtime
+ 
+ import (
+-	"math/bits"
++	"runtime/internal/sys"
+ )
+ 
+ // pageBits is a bitmap representing one bit per page in a palloc chunk.
+@@ -102,14 +102,14 @@ func (b *pageBits) popcntRange(i, n uint) (s uint) {
+ 	_ = b[i/64]
+ 	j := i + n - 1
+ 	if i/64 == j/64 {
+-		return uint(bits.OnesCount64((b[i/64] >> (i % 64)) & ((1 << n) - 1)))
++		return uint(sys.OnesCount64((b[i/64] >> (i % 64)) & ((1 << n) - 1)))
+ 	}
+ 	_ = b[j/64]
+-	s += uint(bits.OnesCount64(b[i/64] >> (i % 64)))
++	s += uint(sys.OnesCount64(b[i/64] >> (i % 64)))
+ 	for k := i/64 + 1; k < j/64; k++ {
+-		s += uint(bits.OnesCount64(b[k]))
++		s += uint(sys.OnesCount64(b[k]))
+ 	}
+-	s += uint(bits.OnesCount64(b[j/64] & ((1 << (j%64 + 1)) - 1)))
++	s += uint(sys.OnesCount64(b[j/64] & ((1 << (j%64 + 1)) - 1)))
+ 	return
+ }
+ 
+@@ -170,7 +170,7 @@ func (b *pallocBits) summarize() pallocSum {
+ 			k := uint8(a >> j)
+ 
+ 			// Compute start.
+-			si := uint(bits.TrailingZeros8(k))
++			si := uint(sys.TrailingZeros8(k))
+ 			if start == uint(i*64+j) {
+ 				start += si
+ 			}
+@@ -187,7 +187,7 @@ func (b *pallocBits) summarize() pallocSum {
+ 			if k == 0 {
+ 				end += 8
+ 			} else {
+-				end = uint(bits.LeadingZeros8(k))
++				end = uint(sys.LeadingZeros8(k))
+ 			}
+ 		}
+ 	}
+@@ -229,7 +229,7 @@ func (b *pallocBits) find1(searchIdx uint) uint {
+ 		if x == ^uint64(0) {
+ 			continue
+ 		}
+-		return i*64 + uint(bits.TrailingZeros64(^x))
++		return i*64 + uint(sys.TrailingZeros64(^x))
+ 	}
+ 	return ^uint(0)
+ }
+@@ -254,11 +254,11 @@ func (b *pallocBits) findSmallN(npages uintptr, searchIdx uint) (uint, uint) {
+ 		}
+ 		// First see if we can pack our allocation in the trailing
+ 		// zeros plus the end of the last 64 bits.
+-		start := uint(bits.TrailingZeros64(bi))
++		start := uint(sys.TrailingZeros64(bi))
+ 		if newSearchIdx == ^uint(0) {
+ 			// The new searchIdx is going to be at these 64 bits after any
+ 			// 1s we file, so count trailing 1s.
+-			newSearchIdx = i*64 + uint(bits.TrailingZeros64(^bi))
++			newSearchIdx = i*64 + uint(sys.TrailingZeros64(^bi))
+ 		}
+ 		if end+start >= uint(npages) {
+ 			return i*64 - end, newSearchIdx
+@@ -268,7 +268,7 @@ func (b *pallocBits) findSmallN(npages uintptr, searchIdx uint) (uint, uint) {
+ 		if j < 64 {
+ 			return i*64 + j, newSearchIdx
+ 		}
+-		end = uint(bits.LeadingZeros64(bi))
++		end = uint(sys.LeadingZeros64(bi))
+ 	}
+ 	return ^uint(0), newSearchIdx
+ }
+@@ -294,20 +294,20 @@ func (b *pallocBits) findLargeN(npages uintptr, searchIdx uint) (uint, uint) {
+ 		if newSearchIdx == ^uint(0) {
+ 			// The new searchIdx is going to be at these 64 bits after any
+ 			// 1s we file, so count trailing 1s.
+-			newSearchIdx = i*64 + uint(bits.TrailingZeros64(^x))
++			newSearchIdx = i*64 + uint(sys.TrailingZeros64(^x))
+ 		}
+ 		if size == 0 {
+-			size = uint(bits.LeadingZeros64(x))
++			size = uint(sys.LeadingZeros64(x))
+ 			start = i*64 + 64 - size
+ 			continue
+ 		}
+-		s := uint(bits.TrailingZeros64(x))
++		s := uint(sys.TrailingZeros64(x))
+ 		if s+size >= uint(npages) {
+ 			size += s
+ 			return start, newSearchIdx
+ 		}
+ 		if s < 64 {
+-			size = uint(bits.LeadingZeros64(x))
++			size = uint(sys.LeadingZeros64(x))
+ 			start = i*64 + 64 - size
+ 			continue
+ 		}
+@@ -356,11 +356,11 @@ func (b *pallocBits) pages64(i uint) uint64 {
+ // size n may be found in c, then it returns an integer >= 64.
+ func findBitRange64(c uint64, n uint) uint {
+ 	i := uint(0)
+-	cont := uint(bits.TrailingZeros64(^c))
++	cont := uint(sys.TrailingZeros64(^c))
+ 	for cont < n && i < 64 {
+ 		i += cont
+-		i += uint(bits.TrailingZeros64(c >> i))
+-		cont = uint(bits.TrailingZeros64(^(c >> i)))
++		i += uint(sys.TrailingZeros64(c >> i))
++		cont = uint(sys.TrailingZeros64(^(c >> i)))
+ 	}
+ 	return i
+ }

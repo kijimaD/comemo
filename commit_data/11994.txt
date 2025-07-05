@@ -7,6 +7,20 @@ Date:   Fri Feb 17 15:31:07 2012 +1100
     R=bradfitz
     CC=golang-dev
     https://golang.org/cl/5676076
-
+---
  src/pkg/net/url/url.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/url/url.go b/src/pkg/net/url/url.go
+index cdfb16ceda..1d824c0609 100644
+--- a/src/pkg/net/url/url.go
++++ b/src/pkg/net/url/url.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Package URL parses URLs and implements query escaping.
++// Package url parses URLs and implements query escaping.
+ // See RFC 3986.
+ package url
+ 

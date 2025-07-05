@@ -17,7 +17,7 @@ Date:   Wed Oct 5 12:54:00 2022 -0400
     Reviewed-by: Michael Matloob <matloob@golang.org>
     Run-TryBot: Michael Matloob <matloob@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/modindex/build.go                   |  7 ++++++-
  src/cmd/go/internal/modindex/index_test.go              | 17 +++++++++++++++++
  src/cmd/go/internal/modindex/scan.go                    |  5 ++++-
@@ -27,3 +27,96 @@ Date:   Wed Oct 5 12:54:00 2022 -0400
  .../modindex/testdata/ignore_non_source/baz.log         |  0
  .../go/internal/modindex/testdata/ignore_non_source/c.c |  0
  8 files changed, 28 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/internal/modindex/build.go b/src/cmd/go/internal/modindex/build.go
+index 8903c156bb..e4380973e0 100644
+--- a/src/cmd/go/internal/modindex/build.go
++++ b/src/cmd/go/internal/modindex/build.go
+@@ -477,6 +477,8 @@ type fileEmbed struct {
+ 	pos     token.Position
+ }
+ 
++var errNonSource = errors.New("non source file")
++
+ // getFileInfo extracts the information needed from each go file for the module
+ // index.
+ //
+@@ -484,6 +486,9 @@ type fileEmbed struct {
+ // Imports and returns that section of the file in the FileInfo's Header field,
+ // even though it only considers text until the first non-comment
+ // for +build lines.
++//
++// getFileInfo will return errNonSource if the file is not a source or object
++// file and shouldn't even be added to IgnoredFiles.
+ func getFileInfo(dir, name string, fset *token.FileSet) (*fileInfo, error) {
+ 	if strings.HasPrefix(name, "_") ||
+ 		strings.HasPrefix(name, ".") {
+@@ -498,7 +503,7 @@ func getFileInfo(dir, name string, fset *token.FileSet) (*fileInfo, error) {
+ 
+ 	if ext != ".go" && fileListForExt(&dummyPkg, ext) == nil {
+ 		// skip
+-		return nil, nil
++		return nil, errNonSource
+ 	}
+ 
+ 	info := &fileInfo{name: filepath.Join(dir, name), fset: fset}
+diff --git a/src/cmd/go/internal/modindex/index_test.go b/src/cmd/go/internal/modindex/index_test.go
+index 2c072f909d..1c32973d39 100644
+--- a/src/cmd/go/internal/modindex/index_test.go
++++ b/src/cmd/go/internal/modindex/index_test.go
+@@ -85,3 +85,20 @@ func TestIndex(t *testing.T) {
+ 		}
+ 	})
+ }
++
++func TestImportRaw_IgnoreNonGo(t *testing.T) {
++	path := filepath.Join("testdata", "ignore_non_source")
++	p := importRaw(path, ".")
++
++	wantFiles := []string{"a.syso", "b.go", "c.c"}
++
++	var gotFiles []string
++	for i := range p.sourceFiles {
++		gotFiles = append(gotFiles, p.sourceFiles[i].name)
++	}
++
++	if !reflect.DeepEqual(gotFiles, wantFiles) {
++		t.Errorf("names of files in importRaw(testdata/ignore_non_source): got %v; want %v",
++			gotFiles, wantFiles)
++	}
++}
+diff --git a/src/cmd/go/internal/modindex/scan.go b/src/cmd/go/internal/modindex/scan.go
+index 56ba9e86c8..7207e1e523 100644
+--- a/src/cmd/go/internal/modindex/scan.go
++++ b/src/cmd/go/internal/modindex/scan.go
+@@ -210,7 +210,10 @@ func importRaw(modroot, reldir string) *rawPackage {
+ 			continue
+ 		}
+ 		info, err := getFileInfo(absdir, name, fset)
+-		if err != nil {
++		if err == errNonSource {
++			// not a source or object file. completely ignore in the index
++			continue
++		} else if err != nil {
+ 			p.sourceFiles = append(p.sourceFiles, &rawFile{name: name, error: err.Error()})
+ 			continue
+ 		} else if info == nil {
+diff --git a/src/cmd/go/internal/modindex/testdata/ignore_non_source/a.syso b/src/cmd/go/internal/modindex/testdata/ignore_non_source/a.syso
+new file mode 100644
+index 0000000000..9527d05936
+--- /dev/null
++++ b/src/cmd/go/internal/modindex/testdata/ignore_non_source/a.syso
+@@ -0,0 +1 @@
++package ignore_non_source
+diff --git a/src/cmd/go/internal/modindex/testdata/ignore_non_source/b.go b/src/cmd/go/internal/modindex/testdata/ignore_non_source/b.go
+new file mode 100644
+index 0000000000..e69de29bb2
+diff --git a/src/cmd/go/internal/modindex/testdata/ignore_non_source/bar.json b/src/cmd/go/internal/modindex/testdata/ignore_non_source/bar.json
+new file mode 100644
+index 0000000000..e69de29bb2
+diff --git a/src/cmd/go/internal/modindex/testdata/ignore_non_source/baz.log b/src/cmd/go/internal/modindex/testdata/ignore_non_source/baz.log
+new file mode 100644
+index 0000000000..e69de29bb2
+diff --git a/src/cmd/go/internal/modindex/testdata/ignore_non_source/c.c b/src/cmd/go/internal/modindex/testdata/ignore_non_source/c.c
+new file mode 100644
+index 0000000000..e69de29bb2

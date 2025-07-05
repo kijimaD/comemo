@@ -15,9 +15,222 @@ Date:   Thu Apr 28 17:39:55 2016 +0300
     Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/bytes/bytes_amd64.go     | 12 +++++++-
  src/runtime/asm_amd64.s      | 65 ++++++++++++++++++++++++++++++++++++++++++--
  src/strings/strings_amd64.go | 12 +++++++-
  src/strings/strings_test.go  | 15 ++++++++++
  4 files changed, 99 insertions(+), 5 deletions(-)
+
+diff --git a/src/bytes/bytes_amd64.go b/src/bytes/bytes_amd64.go
+index b683e6721c..198962322a 100644
+--- a/src/bytes/bytes_amd64.go
++++ b/src/bytes/bytes_amd64.go
+@@ -9,7 +9,17 @@ package bytes
+ // indexShortStr returns the index of the first instance of c in s, or -1 if c is not present in s.
+ // indexShortStr requires 2 <= len(c) <= shortStringLen
+ func indexShortStr(s, c []byte) int // ../runtime/asm_$GOARCH.s
+-const shortStringLen = 31
++func supportAVX2() bool             // ../runtime/asm_$GOARCH.s
++
++var shortStringLen int
++
++func init() {
++	if supportAVX2() {
++		shortStringLen = 63
++	} else {
++		shortStringLen = 31
++	}
++}
+ 
+ // Index returns the index of the first instance of sep in s, or -1 if sep is not present in s.
+ func Index(s, sep []byte) int {
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index c9d6b90d80..488c34a233 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -1695,6 +1695,16 @@ big_loop_avx2_exit:
+ 	JMP loop
+ 
+ 
++TEXT strings·supportAVX2(SB),NOSPLIT,$0-1
++	MOVBLZX runtime·support_avx2(SB), AX
++	MOVB AX, ret+0(FP)
++	RET
++
++TEXT bytes·supportAVX2(SB),NOSPLIT,$0-1
++	MOVBLZX runtime·support_avx2(SB), AX
++	MOVB AX, ret+0(FP)
++	RET
++
+ TEXT strings·indexShortStr(SB),NOSPLIT,$0-40
+ 	MOVQ s+0(FP), DI
+ 	// We want len in DX and AX, because PCMPESTRI implicitly consumes them
+@@ -1809,7 +1819,7 @@ loop8:
+ 	JB loop8
+ 	JMP fail
+ _9_or_more:
+-	CMPQ AX, $16
++	CMPQ AX, $15
+ 	JA   _16_or_more
+ 	LEAQ 1(DI)(DX*1), DX
+ 	SUBQ AX, DX
+@@ -1833,7 +1843,7 @@ partial_success9to15:
+ 	JMP fail
+ _16_or_more:
+ 	CMPQ AX, $16
+-	JA   _17_to_31
++	JA   _17_or_more
+ 	MOVOU (BP), X1
+ 	LEAQ -15(DI)(DX*1), DX
+ loop16:
+@@ -1846,7 +1856,9 @@ loop16:
+ 	CMPQ DI,DX
+ 	JB loop16
+ 	JMP fail
+-_17_to_31:
++_17_or_more:
++	CMPQ AX, $31
++	JA   _32_or_more
+ 	LEAQ 1(DI)(DX*1), DX
+ 	SUBQ AX, DX
+ 	MOVOU -16(BP)(AX*1), X0
+@@ -1870,9 +1882,56 @@ partial_success17to31:
+ 	ADDQ $1,DI
+ 	CMPQ DI,DX
+ 	JB loop17to31
++	JMP fail
++// We can get here only when AVX2 is enabled and cutoff for indexShortStr is set to 63
++// So no need to check cpuid
++_32_or_more:
++	CMPQ AX, $32
++	JA   _33_to_63
++	VMOVDQU (BP), Y1
++	LEAQ -31(DI)(DX*1), DX
++loop32:
++	VMOVDQU (DI), Y2
++	VPCMPEQB Y1, Y2, Y3
++	VPMOVMSKB Y3, SI
++	CMPL  SI, $0xffffffff
++	JE   success_avx2
++	ADDQ $1,DI
++	CMPQ DI,DX
++	JB loop32
++	JMP fail_avx2
++_33_to_63:
++	LEAQ 1(DI)(DX*1), DX
++	SUBQ AX, DX
++	VMOVDQU -32(BP)(AX*1), Y0
++	VMOVDQU (BP), Y1
++loop33to63:
++	VMOVDQU (DI), Y2
++	VPCMPEQB Y1, Y2, Y3
++	VPMOVMSKB Y3, SI
++	CMPL  SI, $0xffffffff
++	JE   partial_success33to63
++	ADDQ $1,DI
++	CMPQ DI,DX
++	JB loop33to63
++	JMP fail_avx2
++partial_success33to63:
++	VMOVDQU -32(AX)(DI*1), Y3
++	VPCMPEQB Y0, Y3, Y4
++	VPMOVMSKB Y4, SI
++	CMPL  SI, $0xffffffff
++	JE success_avx2
++	ADDQ $1,DI
++	CMPQ DI,DX
++	JB loop33to63
++fail_avx2:
++	VZEROUPPER
+ fail:
+ 	MOVQ $-1, (R11)
+ 	RET
++success_avx2:
++	VZEROUPPER
++	JMP success
+ sse42:
+ 	MOVL runtime·cpuid_ecx(SB), CX
+ 	ANDL $0x100000, CX
+diff --git a/src/strings/strings_amd64.go b/src/strings/strings_amd64.go
+index 434e2e9eb3..5e26ee2c97 100644
+--- a/src/strings/strings_amd64.go
++++ b/src/strings/strings_amd64.go
+@@ -9,7 +9,17 @@ package strings
+ // indexShortStr returns the index of the first instance of c in s, or -1 if c is not present in s.
+ // indexShortStr requires 2 <= len(c) <= shortStringLen
+ func indexShortStr(s, c string) int // ../runtime/asm_$GOARCH.s
+-const shortStringLen = 31
++func supportAVX2() bool             // ../runtime/asm_$GOARCH.s
++
++var shortStringLen int
++
++func init() {
++	if supportAVX2() {
++		shortStringLen = 63
++	} else {
++		shortStringLen = 31
++	}
++}
+ 
+ // Index returns the index of the first instance of sep in s, or -1 if sep is not present in s.
+ func Index(s, sep string) int {
+diff --git a/src/strings/strings_test.go b/src/strings/strings_test.go
+index 5fdf59c88d..cf7fde5bbd 100644
+--- a/src/strings/strings_test.go
++++ b/src/strings/strings_test.go
+@@ -86,32 +86,44 @@ var indexTests = []IndexTest{
+ 	{"32145678", "01234567", -1},
+ 	{"01234567", "01234567", 0},
+ 	{"x01234567", "01234567", 1},
++	{"x0123456x01234567", "01234567", 9},
+ 	{"xx01234567"[:9], "01234567", -1},
+ 	{"", "0123456789", -1},
+ 	{"3214567844", "0123456789", -1},
+ 	{"0123456789", "0123456789", 0},
+ 	{"x0123456789", "0123456789", 1},
++	{"x012345678x0123456789", "0123456789", 11},
+ 	{"xyz0123456789"[:12], "0123456789", -1},
+ 	{"x01234567x89", "0123456789", -1},
+ 	{"", "0123456789012345", -1},
+ 	{"3214567889012345", "0123456789012345", -1},
+ 	{"0123456789012345", "0123456789012345", 0},
+ 	{"x0123456789012345", "0123456789012345", 1},
++	{"x012345678901234x0123456789012345", "0123456789012345", 17},
+ 	{"", "01234567890123456789", -1},
+ 	{"32145678890123456789", "01234567890123456789", -1},
+ 	{"01234567890123456789", "01234567890123456789", 0},
+ 	{"x01234567890123456789", "01234567890123456789", 1},
++	{"x0123456789012345678x01234567890123456789", "01234567890123456789", 21},
+ 	{"xyz01234567890123456789"[:22], "01234567890123456789", -1},
+ 	{"", "0123456789012345678901234567890", -1},
+ 	{"321456788901234567890123456789012345678911", "0123456789012345678901234567890", -1},
+ 	{"0123456789012345678901234567890", "0123456789012345678901234567890", 0},
+ 	{"x0123456789012345678901234567890", "0123456789012345678901234567890", 1},
++	{"x012345678901234567890123456789x0123456789012345678901234567890", "0123456789012345678901234567890", 32},
+ 	{"xyz0123456789012345678901234567890"[:33], "0123456789012345678901234567890", -1},
+ 	{"", "01234567890123456789012345678901", -1},
+ 	{"32145678890123456789012345678901234567890211", "01234567890123456789012345678901", -1},
+ 	{"01234567890123456789012345678901", "01234567890123456789012345678901", 0},
+ 	{"x01234567890123456789012345678901", "01234567890123456789012345678901", 1},
++	{"x0123456789012345678901234567890x01234567890123456789012345678901", "01234567890123456789012345678901", 33},
+ 	{"xyz01234567890123456789012345678901"[:34], "01234567890123456789012345678901", -1},
++	{"xxxxxx012345678901234567890123456789012345678901234567890123456789012", "012345678901234567890123456789012345678901234567890123456789012", 6},
++	{"", "0123456789012345678901234567890123456789", -1},
++	{"xx012345678901234567890123456789012345678901234567890123456789012", "0123456789012345678901234567890123456789", 2},
++	{"xx012345678901234567890123456789012345678901234567890123456789012"[:41], "0123456789012345678901234567890123456789", -1},
++	{"xx012345678901234567890123456789012345678901234567890123456789012", "0123456789012345678901234567890123456xxx", -1},
++	{"xx0123456789012345678901234567890123456789012345678901234567890120123456789012345678901234567890123456xxx", "0123456789012345678901234567890123456xxx", 65},
+ }
+ 
+ var lastIndexTests = []IndexTest{
+@@ -1315,6 +1327,9 @@ func benchmarkCountHard(b *testing.B, sep string) {
+ func BenchmarkIndexHard1(b *testing.B) { benchmarkIndexHard(b, "<>") }
+ func BenchmarkIndexHard2(b *testing.B) { benchmarkIndexHard(b, "</pre>") }
+ func BenchmarkIndexHard3(b *testing.B) { benchmarkIndexHard(b, "<b>hello world</b>") }
++func BenchmarkIndexHard4(b *testing.B) {
++	benchmarkIndexHard(b, "<pre><b>hello</b><strong>world</strong></pre>")
++}
+ 
+ func BenchmarkLastIndexHard1(b *testing.B) { benchmarkLastIndexHard(b, "<>") }
+ func BenchmarkLastIndexHard2(b *testing.B) { benchmarkLastIndexHard(b, "</pre>") }

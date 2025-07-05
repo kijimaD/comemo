@@ -199,7 +199,7 @@ Date:   Wed Dec 9 18:51:12 2020 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  test/fixedbugs/bug13343.go            |   4 +-
  test/fixedbugs/issue10700.dir/test.go |  30 ++++----
  test/fixedbugs/issue10975.go          |   2 +-
@@ -226,3 +226,631 @@ Date:   Wed Dec 9 18:51:12 2020 -0800
  test/fixedbugs/issue9083.go           |   1 +
  test/fixedbugs/issue9370.go           | 140 +++++++++++++++++-----------------
  25 files changed, 159 insertions(+), 158 deletions(-)
+
+diff --git a/test/fixedbugs/bug13343.go b/test/fixedbugs/bug13343.go
+index 5dc736d443..a7febeae7e 100644
+--- a/test/fixedbugs/bug13343.go
++++ b/test/fixedbugs/bug13343.go
+@@ -7,8 +7,8 @@
+ package main
+ 
+ var (
+-	a, b = f() // ERROR "initialization loop|depends upon itself"
+-	c    = b
++	a, b = f() // ERROR "initialization loop|depends upon itself|depend upon each other"
++	c    = b   // GCCGO_ERROR "depends upon itself|depend upon each other"
+ )
+ 
+ func f() (int, int) {
+diff --git a/test/fixedbugs/issue10700.dir/test.go b/test/fixedbugs/issue10700.dir/test.go
+index 2033efc9d8..2dfc24af07 100644
+--- a/test/fixedbugs/issue10700.dir/test.go
++++ b/test/fixedbugs/issue10700.dir/test.go
+@@ -21,27 +21,27 @@ func (me *HasAMethod) Do() {
+ }
+ 
+ func InMyCode(x *Imported, y *HasAMethod, z *other.Exported) {
+-	x.Do() // ERROR "x\.Do undefined \(type \*Imported is pointer to interface, not interface\)"
+-	x.do() // ERROR "x\.do undefined \(type \*Imported is pointer to interface, not interface\)"
++	x.Do() // ERROR "x\.Do undefined \(type \*Imported is pointer to interface, not interface\)|type that is pointer to interface"
++	x.do() // ERROR "x\.do undefined \(type \*Imported is pointer to interface, not interface\)|type that is pointer to interface"
+ 	(*x).Do()
+-	x.Dont()    // ERROR "x\.Dont undefined \(type \*Imported is pointer to interface, not interface\)"
+-	(*x).Dont() // ERROR "\(\*x\)\.Dont undefined \(type Imported has no field or method Dont\)"
++	x.Dont()    // ERROR "x\.Dont undefined \(type \*Imported is pointer to interface, not interface\)|type that is pointer to interface"
++	(*x).Dont() // ERROR "\(\*x\)\.Dont undefined \(type Imported has no field or method Dont\)|reference to undefined field or method"
+ 
+ 	y.Do()
+-	y.do() // ERROR "y\.do undefined \(type \*HasAMethod has no field or method do, but does have Do\)"
++	y.do() // ERROR "y\.do undefined \(type \*HasAMethod has no field or method do, but does have Do\)|reference to undefined field or method"
+ 	(*y).Do()
+-	(*y).do()   // ERROR "\(\*y\)\.do undefined \(type HasAMethod has no field or method do, but does have Do\)"
+-	y.Dont()    // ERROR "y\.Dont undefined \(type \*HasAMethod has no field or method Dont\)"
+-	(*y).Dont() // ERROR "\(\*y\)\.Dont undefined \(type HasAMethod has no field or method Dont\)"
++	(*y).do()   // ERROR "\(\*y\)\.do undefined \(type HasAMethod has no field or method do, but does have Do\)|reference to undefined field or method"
++	y.Dont()    // ERROR "y\.Dont undefined \(type \*HasAMethod has no field or method Dont\)|reference to undefined field or method"
++	(*y).Dont() // ERROR "\(\*y\)\.Dont undefined \(type HasAMethod has no field or method Dont\)|reference to undefined field or method"
+ 
+-	z.Do() // ERROR "z\.Do undefined \(type \*other\.Exported is pointer to interface, not interface\)"
+-	z.do() // ERROR "z\.do undefined \(type \*other\.Exported is pointer to interface, not interface\)"
++	z.Do() // ERROR "z\.Do undefined \(type \*other\.Exported is pointer to interface, not interface\)|type that is pointer to interface"
++	z.do() // ERROR "z\.do undefined \(type \*other\.Exported is pointer to interface, not interface\)|type that is pointer to interface"
+ 	(*z).Do()
+-	(*z).do()     // ERROR "\(\*z\)\.do undefined \(type other.Exported has no field or method do, but does have Do\)"
+-	z.Dont()      // ERROR "z\.Dont undefined \(type \*other\.Exported is pointer to interface, not interface\)"
+-	(*z).Dont()   // ERROR "\(\*z\)\.Dont undefined \(type other\.Exported has no field or method Dont\)"
+-	z.secret()    // ERROR "z\.secret undefined \(type \*other\.Exported is pointer to interface, not interface\)"
+-	(*z).secret() // ERROR "\(\*z\)\.secret undefined \(cannot refer to unexported field or method secret\)"
++	(*z).do()     // ERROR "\(\*z\)\.do undefined \(type other.Exported has no field or method do, but does have Do\)|reference to undefined field or method"
++	z.Dont()      // ERROR "z\.Dont undefined \(type \*other\.Exported is pointer to interface, not interface\)|type that is pointer to interface"
++	(*z).Dont()   // ERROR "\(\*z\)\.Dont undefined \(type other\.Exported has no field or method Dont\)|reference to undefined field or method"
++	z.secret()    // ERROR "z\.secret undefined \(type \*other\.Exported is pointer to interface, not interface\)|type that is pointer to interface"
++	(*z).secret() // ERROR "\(\*z\)\.secret undefined \(cannot refer to unexported field or method secret\)|reference to unexported field or method"
+ 
+ }
+ 
+diff --git a/test/fixedbugs/issue10975.go b/test/fixedbugs/issue10975.go
+index b5f043f0a7..933badfd2f 100644
+--- a/test/fixedbugs/issue10975.go
++++ b/test/fixedbugs/issue10975.go
+@@ -10,7 +10,7 @@
+ package main
+ 
+ type I interface {
+-	int // ERROR "interface contains embedded non-interface int"
++	int // ERROR "interface contains embedded non-interface"
+ }
+ 
+ func New() I {
+diff --git a/test/fixedbugs/issue11326.go b/test/fixedbugs/issue11326.go
+index 82754c73fb..f3037d53c4 100644
+--- a/test/fixedbugs/issue11326.go
++++ b/test/fixedbugs/issue11326.go
+@@ -18,14 +18,14 @@ func main() {
+ 
+ 	// Any implementation must be able to handle these constants at
+ 	// compile time (even though they cannot be assigned to a float64).
+-	var _ = 1e646456992  // ERROR "1e\+646456992 overflows float64"
+-	var _ = 1e64645699   // ERROR "1e\+64645699 overflows float64"
+-	var _ = 1e6464569    // ERROR "1e\+6464569 overflows float64"
+-	var _ = 1e646456     // ERROR "1e\+646456 overflows float64"
+-	var _ = 1e64645      // ERROR "1e\+64645 overflows float64"
+-	var _ = 1e6464       // ERROR "1e\+6464 overflows float64"
+-	var _ = 1e646        // ERROR "1e\+646 overflows float64"
+-	var _ = 1e309        // ERROR "1e\+309 overflows float64"
++	var _ = 1e646456992  // ERROR "1e\+646456992 overflows float64|floating-point constant overflow"
++	var _ = 1e64645699   // ERROR "1e\+64645699 overflows float64|floating-point constant overflow"
++	var _ = 1e6464569    // ERROR "1e\+6464569 overflows float64|floating-point constant overflow"
++	var _ = 1e646456     // ERROR "1e\+646456 overflows float64|floating-point constant overflow"
++	var _ = 1e64645      // ERROR "1e\+64645 overflows float64|floating-point constant overflow"
++	var _ = 1e6464       // ERROR "1e\+6464 overflows float64|floating-point constant overflow"
++	var _ = 1e646        // ERROR "1e\+646 overflows float64|floating-point constant overflow"
++	var _ = 1e309        // ERROR "1e\+309 overflows float64|floating-point constant overflow"
+ 
+ 	var _ = 1e308
+ }
+diff --git a/test/fixedbugs/issue11361.go b/test/fixedbugs/issue11361.go
+index 1260ea89c9..63dbf05d73 100644
+--- a/test/fixedbugs/issue11361.go
++++ b/test/fixedbugs/issue11361.go
+@@ -6,6 +6,6 @@
+ 
+ package a
+ 
+-import "fmt"  // ERROR "imported and not used"
++import "fmt"  // GC_ERROR "imported and not used"
+ 
+-const n = fmt // ERROR "fmt without selector"
++const n = fmt // ERROR "fmt without selector|unexpected reference to package"
+diff --git a/test/fixedbugs/issue11371.go b/test/fixedbugs/issue11371.go
+index b2d966fac8..05b8fcfebe 100644
+--- a/test/fixedbugs/issue11371.go
++++ b/test/fixedbugs/issue11371.go
+@@ -9,9 +9,9 @@
+ 
+ package issue11371
+ 
+-const a int = 1.1        // ERROR "constant 1.1 truncated to integer"
+-const b int = 1e20       // ERROR "overflows int"
++const a int = 1.1        // ERROR "constant 1.1 truncated to integer|floating-point constant truncated to integer"
++const b int = 1e20       // ERROR "overflows int|integer constant overflow"
+ const c int = 1 + 1e-100 // ERROR "constant truncated to integer"
+ const d int = 1 - 1e-100 // ERROR "constant truncated to integer"
+ const e int = 1.00000001 // ERROR "constant truncated to integer"
+-const f int = 0.00000001 // ERROR "constant 1e-08 truncated to integer"
++const f int = 0.00000001 // ERROR "constant 1e-08 truncated to integer|floating-point constant truncated to integer"
+diff --git a/test/fixedbugs/issue11590.go b/test/fixedbugs/issue11590.go
+index 09345473fb..f2a955f96d 100644
+--- a/test/fixedbugs/issue11590.go
++++ b/test/fixedbugs/issue11590.go
+@@ -6,6 +6,6 @@
+ 
+ package p
+ 
+-var _ = int8(4) * 300         // ERROR "constant 300 overflows int8" "constant 1200 overflows int8"
+-var _ = complex64(1) * 1e200  // ERROR "constant 1e\+200 overflows complex64"
+-var _ = complex128(1) * 1e500 // ERROR "constant 1e\+500 overflows complex128"
++var _ = int8(4) * 300         // ERROR "constant 300 overflows int8" "constant 1200 overflows int8|integer constant overflow"
++var _ = complex64(1) * 1e200  // ERROR "constant 1e\+200 overflows complex64|complex real part overflow"
++var _ = complex128(1) * 1e500 // ERROR "constant 1e\+500 overflows complex128|complex real part overflow"
+diff --git a/test/fixedbugs/issue11610.go b/test/fixedbugs/issue11610.go
+index 8ca31bf394..7ebfae6709 100644
+--- a/test/fixedbugs/issue11610.go
++++ b/test/fixedbugs/issue11610.go
+@@ -9,9 +9,9 @@
+ 
+ package a
+ import""  // ERROR "import path is empty"
+-var?      // ERROR "invalid character U\+003F '\?'"
++var?      // ERROR "invalid character U\+003F '\?'|invalid character 0x3f in input file"
+ 
+-var x int // ERROR "unexpected var"
++var x int // ERROR "unexpected var|expected identifier|expected type"
+ 
+ func main() {
+ }
+diff --git a/test/fixedbugs/issue11614.go b/test/fixedbugs/issue11614.go
+index 91f134d44a..d1642a3faf 100644
+--- a/test/fixedbugs/issue11614.go
++++ b/test/fixedbugs/issue11614.go
+@@ -11,7 +11,7 @@
+ package main
+ 
+ type I interface {
+-	int // ERROR "interface contains embedded non-interface int"
++	int // ERROR "interface contains embedded non-interface"
+ }
+ 
+ func n() {
+diff --git a/test/fixedbugs/issue13248.go b/test/fixedbugs/issue13248.go
+index 524628159c..e23ba47b58 100644
+--- a/test/fixedbugs/issue13248.go
++++ b/test/fixedbugs/issue13248.go
+@@ -9,5 +9,5 @@
+ package main
+ 
+ func main() {
+-    foo(
+-} // ERROR "unexpected }"
++    foo( // GCCGO_ERROR "undefined name"
++} // ERROR "unexpected }|expected operand|missing"
+diff --git a/test/fixedbugs/issue13266.go b/test/fixedbugs/issue13266.go
+index 37c5594a24..73c9e16bcc 100644
+--- a/test/fixedbugs/issue13266.go
++++ b/test/fixedbugs/issue13266.go
+@@ -7,4 +7,4 @@
+ // Offending character % must not be interpreted as
+ // start of format verb when emitting error message.
+ 
+-package% // ERROR "unexpected %"
++package% // ERROR "unexpected %|package name must be an identifier|after package clause|expected declaration"
+diff --git a/test/fixedbugs/issue13273.go b/test/fixedbugs/issue13273.go
+index f8f679daab..2498da4d47 100644
+--- a/test/fixedbugs/issue13273.go
++++ b/test/fixedbugs/issue13273.go
+@@ -47,9 +47,9 @@ func f() {
+ 	<-(<-chan (<-chan (<-chan (<-chan int))))(nil)
+ 	<-(<-chan (<-chan (<-chan (<-chan (<-chan int)))))(nil)
+ 
+-	type _ <-<-chan int // ERROR "unexpected <-, expecting chan"
++	type _ <-<-chan int // ERROR "unexpected <-, expecting chan|expected .*chan.*"
+ 	<-<-chan int // ERROR "unexpected <-, expecting chan|expecting {" (new parser: same error as for type decl)
+ 
+-	type _ <-chan<-int // ERROR "unexpected int, expecting chan|expecting chan"
++	type _ <-chan<-int // ERROR "unexpected int, expecting chan|expected .*chan.*|expecting chan|expected .*;.* or .*}.* or newline"
+ 	<-chan<-int // ERROR "unexpected int, expecting chan|expecting {" (new parser: same error as for type decl)
+ }
+diff --git a/test/fixedbugs/issue13274.go b/test/fixedbugs/issue13274.go
+index 480f5bcc11..816bd9b8f2 100644
+--- a/test/fixedbugs/issue13274.go
++++ b/test/fixedbugs/issue13274.go
+@@ -8,4 +8,4 @@
+ 
+ package p
+ 
+-var f = func() { // ERROR "unexpected EOF"
+\ No newline at end of file
++var f = func() { // ERROR "unexpected EOF|expected .*}.*"
+\ No newline at end of file
+diff --git a/test/fixedbugs/issue13365.go b/test/fixedbugs/issue13365.go
+index 4bd103e38d..31a663eb1f 100644
+--- a/test/fixedbugs/issue13365.go
++++ b/test/fixedbugs/issue13365.go
+@@ -11,15 +11,15 @@ package main
+ var t struct{}
+ 
+ func main() {
+-	_ = []int{-1: 0}    // ERROR "index must be non\-negative integer constant"
+-	_ = [10]int{-1: 0}  // ERROR "index must be non\-negative integer constant"
+-	_ = [...]int{-1: 0} // ERROR "index must be non\-negative integer constant"
++	_ = []int{-1: 0}    // ERROR "index must be non\-negative integer constant|index expression is negative"
++	_ = [10]int{-1: 0}  // ERROR "index must be non\-negative integer constant|index expression is negative"
++	_ = [...]int{-1: 0} // ERROR "index must be non\-negative integer constant|index expression is negative"
+ 
+ 	_ = []int{100: 0}
+-	_ = [10]int{100: 0} // ERROR "array index 100 out of bounds"
++	_ = [10]int{100: 0} // ERROR "array index 100 out of bounds|out of range"
+ 	_ = [...]int{100: 0}
+ 
+-	_ = []int{t}    // ERROR "cannot use .* as type int in slice literal"
+-	_ = [10]int{t}  // ERROR "cannot use .* as type int in array literal"
+-	_ = [...]int{t} // ERROR "cannot use .* as type int in array literal"
++	_ = []int{t}    // ERROR "cannot use .* as type int in slice literal|incompatible type"
++	_ = [10]int{t}  // ERROR "cannot use .* as type int in array literal|incompatible type"
++	_ = [...]int{t} // ERROR "cannot use .* as type int in array literal|incompatible type"
+ }
+diff --git a/test/fixedbugs/issue13415.go b/test/fixedbugs/issue13415.go
+index 989a1ed50f..4c4655e547 100644
+--- a/test/fixedbugs/issue13415.go
++++ b/test/fixedbugs/issue13415.go
+@@ -11,7 +11,7 @@ package p
+ 
+ func f() {
+     select {
+-    case x, x := <-func() chan int { // ERROR "x repeated on left side of :="
++    case x, x := <-func() chan int { // ERROR "x repeated on left side of :=|redefinition|declared but not used"
+             c := make(chan int)
+             return c
+     }():
+diff --git a/test/fixedbugs/issue13471.go b/test/fixedbugs/issue13471.go
+index 0bfed42616..9bfc8c3d2c 100644
+--- a/test/fixedbugs/issue13471.go
++++ b/test/fixedbugs/issue13471.go
+@@ -9,17 +9,17 @@
+ package main
+ 
+ func main() {
+-	const _ int64 = 1e646456992 // ERROR "integer too large"
+-	const _ int32 = 1e64645699  // ERROR "integer too large"
+-	const _ int16 = 1e6464569   // ERROR "integer too large"
+-	const _ int8 = 1e646456     // ERROR "integer too large"
+-	const _ int = 1e64645       // ERROR "integer too large"
++	const _ int64 = 1e646456992 // ERROR "integer too large|floating-point constant truncated to integer"
++	const _ int32 = 1e64645699  // ERROR "integer too large|floating-point constant truncated to integer"
++	const _ int16 = 1e6464569   // ERROR "integer too large|floating-point constant truncated to integer"
++	const _ int8 = 1e646456     // ERROR "integer too large|floating-point constant truncated to integer"
++	const _ int = 1e64645       // ERROR "integer too large|floating-point constant truncated to integer"
+ 
+-	const _ uint64 = 1e646456992 // ERROR "integer too large"
+-	const _ uint32 = 1e64645699  // ERROR "integer too large"
+-	const _ uint16 = 1e6464569   // ERROR "integer too large"
+-	const _ uint8 = 1e646456     // ERROR "integer too large"
+-	const _ uint = 1e64645       // ERROR "integer too large"
++	const _ uint64 = 1e646456992 // ERROR "integer too large|floating-point constant truncated to integer"
++	const _ uint32 = 1e64645699  // ERROR "integer too large|floating-point constant truncated to integer"
++	const _ uint16 = 1e6464569   // ERROR "integer too large|floating-point constant truncated to integer"
++	const _ uint8 = 1e646456     // ERROR "integer too large|floating-point constant truncated to integer"
++	const _ uint = 1e64645       // ERROR "integer too large|floating-point constant truncated to integer"
+ 
+-	const _ rune = 1e64645 // ERROR "integer too large"
++	const _ rune = 1e64645 // ERROR "integer too large|floating-point constant truncated to integer"
+ }
+diff --git a/test/fixedbugs/issue13821b.go b/test/fixedbugs/issue13821b.go
+index be67cea6dd..df68e8d626 100644
+--- a/test/fixedbugs/issue13821b.go
++++ b/test/fixedbugs/issue13821b.go
+@@ -15,10 +15,10 @@ var b B
+ var b2 B2
+ var x1 = b && 1 < 2 // x1 has type B, not ideal bool
+ var x2 = 1 < 2 && b // x2 has type B, not ideal bool
+-var x3 = b && b2    // ERROR "mismatched types B and B2"
+-var x4 = x1 && b2   // ERROR "mismatched types B and B2"
+-var x5 = x2 && b2   // ERROR "mismatched types B and B2"
+-var x6 = b2 && x1   // ERROR "mismatched types B2 and B"
+-var x7 = b2 && x2   // ERROR "mismatched types B2 and B"
++var x3 = b && b2    // ERROR "mismatched types B and B2|incompatible types"
++var x4 = x1 && b2   // ERROR "mismatched types B and B2|incompatible types"
++var x5 = x2 && b2   // ERROR "mismatched types B and B2|incompatible types"
++var x6 = b2 && x1   // ERROR "mismatched types B2 and B|incompatible types"
++var x7 = b2 && x2   // ERROR "mismatched types B2 and B|incompatible types"
+ 
+-var x8 = b && !B2(true) // ERROR "mismatched types B and B2"
++var x8 = b && !B2(true) // ERROR "mismatched types B and B2|incompatible types"
+diff --git a/test/fixedbugs/issue14006.go b/test/fixedbugs/issue14006.go
+index 02041cc290..9cad2b4c9d 100644
+--- a/test/fixedbugs/issue14006.go
++++ b/test/fixedbugs/issue14006.go
+@@ -21,26 +21,26 @@ func f() {
+ 	var x int
+ 	switch x {
+ 	case 1:
+-		2:	// ERROR "unexpected :"
++		2:	// ERROR "unexpected :|expected .*;.* or .*}.* or newline|value computed is not used"
+ 	case 2:
+ 	}
+ 
+ 	switch x {
+ 	case 1:
+-		2: ;	// ERROR "unexpected :"
++		2: ;	// ERROR "unexpected :|expected .*;.* or .*}.* or newline|value computed is not used"
+ 	case 2:
+ 	}
+ 
+ 	var y string
+ 	switch y {
+ 	case "foo":
+-		"bar":	// ERROR "unexpected :"
++		"bar":	// ERROR "unexpected :|expected .*;.* or .*}.* or newline|value computed is not used"
+ 	case "bar":
+ 	}
+ 
+ 	switch y {
+ 	case "foo":
+-		"bar": ;	// ERROR "unexpected :"
++		"bar": ;	// ERROR "unexpected :|expected .*;.* or .*}.* or newline|value computed is not used"
+ 	case "bar":
+ 	}
+ 
+@@ -56,12 +56,12 @@ func g() {
+ 	var z bool
+ 	switch {
+ 	case z:
+-		labelname:	// ERROR "label labelname defined and not used"
++		labelname:	// ERROR "label labelname defined and not used|previous definition|defined and not used"
+ 	}
+ 
+ 	switch {
+ 	case z:
+-		labelname: ;	// ERROR "label labelname already defined at LINE-5"
++		labelname: ;	// ERROR "label labelname already defined at LINE-5|label .*labelname.* already defined"
+ 	case false:
+ 	}
+-}
+\ No newline at end of file
++}
+diff --git a/test/fixedbugs/issue14010.go b/test/fixedbugs/issue14010.go
+index 2786e107e8..0b233342be 100644
+--- a/test/fixedbugs/issue14010.go
++++ b/test/fixedbugs/issue14010.go
+@@ -10,6 +10,6 @@
+ package main
+ 
+ func main() {
+-	true = false // ERROR "cannot assign to true"
+-	byte = 0     // ERROR "not an expression"
++	true = false // ERROR "cannot assign to true|invalid left hand side"
++	byte = 0     // ERROR "not an expression|invalid left hand side|invalid use of type"
+ }
+diff --git a/test/fixedbugs/issue14321.go b/test/fixedbugs/issue14321.go
+index 058008c386..e1149c3f9d 100644
+--- a/test/fixedbugs/issue14321.go
++++ b/test/fixedbugs/issue14321.go
+@@ -27,7 +27,7 @@ type C struct {
+ 	B
+ }
+ 
+-var _ = C.F // ERROR "ambiguous selector"
+-var _ = C.G // ERROR "ambiguous selector"
+-var _ = C.H // ERROR "ambiguous selector"
+-var _ = C.I // ERROR "no method I"
++var _ = C.F // ERROR "ambiguous"
++var _ = C.G // ERROR "ambiguous"
++var _ = C.H // ERROR "ambiguous"
++var _ = C.I // ERROR "no method .*I.*"
+diff --git a/test/fixedbugs/issue8183.go b/test/fixedbugs/issue8183.go
+index 531dd4dbf8..caac667346 100644
+--- a/test/fixedbugs/issue8183.go
++++ b/test/fixedbugs/issue8183.go
+@@ -12,12 +12,12 @@ const (
+ 	ok = byte(iota + 253)
+ 	bad
+ 	barn
+-	bard // ERROR "constant 256 overflows byte"
++	bard // ERROR "constant 256 overflows byte|integer constant overflow"
+ )
+ 
+ const (
+ 	c = len([1 - iota]int{})
+ 	d
+-	e // ERROR "array bound must be non-negative"
+-	f // ERROR "array bound must be non-negative"
++	e // ERROR "array bound must be non-negative|negative array bound"
++	f // ERROR "array bound must be non-negative|negative array bound"
+ )
+diff --git a/test/fixedbugs/issue9036.go b/test/fixedbugs/issue9036.go
+index 38f06c30c8..e3d394f7f2 100644
+--- a/test/fixedbugs/issue9036.go
++++ b/test/fixedbugs/issue9036.go
+@@ -18,8 +18,8 @@ const (
+ )
+ 
+ const x4 = 0x1p10 // valid hexadecimal float
+-const x5 = 1p10   // ERROR "'p' exponent requires hexadecimal mantissa"
+-const x6 = 0P0    // ERROR "'P' exponent requires hexadecimal mantissa"
++const x5 = 1p10   // ERROR "'p' exponent requires hexadecimal mantissa|invalid prefix"
++const x6 = 0P0    // ERROR "'P' exponent requires hexadecimal mantissa|invalid prefix"
+ 
+ func main() {
+ 	fmt.Printf("%g %T\n", x1, x1)
+diff --git a/test/fixedbugs/issue9076.go b/test/fixedbugs/issue9076.go
+index 8daf12fee8..1613d5ede3 100644
+--- a/test/fixedbugs/issue9076.go
++++ b/test/fixedbugs/issue9076.go
+@@ -11,5 +11,5 @@ package main
+ import "unsafe"
+ 
+ const Hundred = 100
+-var _ int32 = 100/unsafe.Sizeof(int(0)) + 1 // GC_ERROR "100 \/ unsafe.Sizeof\(int\(0\)\) \+ 1"
+-var _ int32 = Hundred/unsafe.Sizeof(int(0)) + 1 // GC_ERROR "Hundred \/ unsafe.Sizeof\(int\(0\)\) \+ 1"
++var _ int32 = 100/unsafe.Sizeof(int(0)) + 1 // ERROR "100 \/ unsafe.Sizeof\(int\(0\)\) \+ 1|incompatible type"
++var _ int32 = Hundred/unsafe.Sizeof(int(0)) + 1 // ERROR "Hundred \/ unsafe.Sizeof\(int\(0\)\) \+ 1|incompatible type"
+diff --git a/test/fixedbugs/issue9083.go b/test/fixedbugs/issue9083.go
+index 8fbd78be7a..d4762f802e 100644
+--- a/test/fixedbugs/issue9083.go
++++ b/test/fixedbugs/issue9083.go
+@@ -19,4 +19,5 @@ func main() {
+ 	x = make(chan int) // ERROR "cannot use make\(chan int\)|incompatible"
+ 	x = make(chan int, 0) // ERROR "cannot use make\(chan int, 0\)|incompatible"
+ 	x = make(chan int, zero) // ERROR "cannot use make\(chan int, zero\)|incompatible"
++	_ = x
+ }
+diff --git a/test/fixedbugs/issue9370.go b/test/fixedbugs/issue9370.go
+index 120af35397..6cc8d5b9e5 100644
+--- a/test/fixedbugs/issue9370.go
++++ b/test/fixedbugs/issue9370.go
+@@ -33,95 +33,95 @@ var (
+ var (
+ 	_ = e == c
+ 	_ = e != c
+-	_ = e >= c // ERROR "invalid operation.*not defined"
++	_ = e >= c // ERROR "invalid operation.*not defined|invalid comparison"
+ 	_ = c == e
+ 	_ = c != e
+-	_ = c >= e // ERROR "invalid operation.*not defined"
++	_ = c >= e // ERROR "invalid operation.*not defined|invalid comparison"
+ 
+ 	_ = i == c
+ 	_ = i != c
+-	_ = i >= c // ERROR "invalid operation.*not defined"
++	_ = i >= c // ERROR "invalid operation.*not defined|invalid comparison"
+ 	_ = c == i
+ 	_ = c != i
+-	_ = c >= i // ERROR "invalid operation.*not defined"
++	_ = c >= i // ERROR "invalid operation.*not defined|invalid comparison"
+ 
+ 	_ = e == n
+ 	_ = e != n
+-	_ = e >= n // ERROR "invalid operation.*not defined"
++	_ = e >= n // ERROR "invalid operation.*not defined|invalid comparison"
+ 	_ = n == e
+ 	_ = n != e
+-	_ = n >= e // ERROR "invalid operation.*not defined"
++	_ = n >= e // ERROR "invalid operation.*not defined|invalid comparison"
+ 
+ 	// i and n are not assignable to each other
+-	_ = i == n // ERROR "invalid operation.*mismatched types"
+-	_ = i != n // ERROR "invalid operation.*mismatched types"
+-	_ = i >= n // ERROR "invalid operation.*mismatched types"
+-	_ = n == i // ERROR "invalid operation.*mismatched types"
+-	_ = n != i // ERROR "invalid operation.*mismatched types"
+-	_ = n >= i // ERROR "invalid operation.*mismatched types"
++	_ = i == n // ERROR "invalid operation.*mismatched types|incompatible types"
++	_ = i != n // ERROR "invalid operation.*mismatched types|incompatible types"
++	_ = i >= n // ERROR "invalid operation.*mismatched types|incompatible types"
++	_ = n == i // ERROR "invalid operation.*mismatched types|incompatible types"
++	_ = n != i // ERROR "invalid operation.*mismatched types|incompatible types"
++	_ = n >= i // ERROR "invalid operation.*mismatched types|incompatible types"
+ 
+ 	_ = e == 1
+ 	_ = e != 1
+-	_ = e >= 1 // ERROR "invalid operation.*not defined"
++	_ = e >= 1 // ERROR "invalid operation.*not defined|invalid comparison"
+ 	_ = 1 == e
+ 	_ = 1 != e
+-	_ = 1 >= e // ERROR "invalid operation.*not defined"
+-
+-	_ = i == 1 // ERROR "invalid operation.*mismatched types"
+-	_ = i != 1 // ERROR "invalid operation.*mismatched types"
+-	_ = i >= 1 // ERROR "invalid operation.*mismatched types"
+-	_ = 1 == i // ERROR "invalid operation.*mismatched types"
+-	_ = 1 != i // ERROR "invalid operation.*mismatched types"
+-	_ = 1 >= i // ERROR "invalid operation.*mismatched types"
+-
+-	_ = e == f // ERROR "invalid operation.*not defined"
+-	_ = e != f // ERROR "invalid operation.*not defined"
+-	_ = e >= f // ERROR "invalid operation.*not defined"
+-	_ = f == e // ERROR "invalid operation.*not defined"
+-	_ = f != e // ERROR "invalid operation.*not defined"
+-	_ = f >= e // ERROR "invalid operation.*not defined"
+-
+-	_ = i == f // ERROR "invalid operation.*mismatched types"
+-	_ = i != f // ERROR "invalid operation.*mismatched types"
+-	_ = i >= f // ERROR "invalid operation.*mismatched types"
+-	_ = f == i // ERROR "invalid operation.*mismatched types"
+-	_ = f != i // ERROR "invalid operation.*mismatched types"
+-	_ = f >= i // ERROR "invalid operation.*mismatched types"
+-
+-	_ = e == g // ERROR "invalid operation.*not defined"
+-	_ = e != g // ERROR "invalid operation.*not defined"
+-	_ = e >= g // ERROR "invalid operation.*not defined"
+-	_ = g == e // ERROR "invalid operation.*not defined"
+-	_ = g != e // ERROR "invalid operation.*not defined"
+-	_ = g >= e // ERROR "invalid operation.*not defined"
+-
+-	_ = i == g // ERROR "invalid operation.*not defined"
+-	_ = i != g // ERROR "invalid operation.*not defined"
+-	_ = i >= g // ERROR "invalid operation.*not defined"
+-	_ = g == i // ERROR "invalid operation.*not defined"
+-	_ = g != i // ERROR "invalid operation.*not defined"
+-	_ = g >= i // ERROR "invalid operation.*not defined"
+-
+-	_ = _ == e // ERROR "cannot use _ as value"
+-	_ = _ == i // ERROR "cannot use _ as value"
+-	_ = _ == c // ERROR "cannot use _ as value"
+-	_ = _ == n // ERROR "cannot use _ as value"
+-	_ = _ == f // ERROR "cannot use _ as value"
+-	_ = _ == g // ERROR "cannot use _ as value"
+-
+-	_ = e == _ // ERROR "cannot use _ as value"
+-	_ = i == _ // ERROR "cannot use _ as value"
+-	_ = c == _ // ERROR "cannot use _ as value"
+-	_ = n == _ // ERROR "cannot use _ as value"
+-	_ = f == _ // ERROR "cannot use _ as value"
+-	_ = g == _ // ERROR "cannot use _ as value"
+-
+-	_ = _ == _ // ERROR "cannot use _ as value"
+-
+-	_ = e ^ c // ERROR "invalid operation.*mismatched types"
+-	_ = c ^ e // ERROR "invalid operation.*mismatched types"
+-	_ = 1 ^ e // ERROR "invalid operation.*mismatched types"
+-	_ = e ^ 1 // ERROR "invalid operation.*mismatched types"
++	_ = 1 >= e // ERROR "invalid operation.*not defined|invalid comparison"
++
++	_ = i == 1 // ERROR "invalid operation.*mismatched types|incompatible types"
++	_ = i != 1 // ERROR "invalid operation.*mismatched types|incompatible types"
++	_ = i >= 1 // ERROR "invalid operation.*mismatched types|incompatible types"
++	_ = 1 == i // ERROR "invalid operation.*mismatched types|incompatible types"
++	_ = 1 != i // ERROR "invalid operation.*mismatched types|incompatible types"
++	_ = 1 >= i // ERROR "invalid operation.*mismatched types|incompatible types"
++
++	_ = e == f // ERROR "invalid operation.*not defined|invalid operation"
++	_ = e != f // ERROR "invalid operation.*not defined|invalid operation"
++	_ = e >= f // ERROR "invalid operation.*not defined|invalid comparison"
++	_ = f == e // ERROR "invalid operation.*not defined|invalid operation"
++	_ = f != e // ERROR "invalid operation.*not defined|invalid operation"
++	_ = f >= e // ERROR "invalid operation.*not defined|invalid comparison"
++
++	_ = i == f // ERROR "invalid operation.*mismatched types|incompatible types"
++	_ = i != f // ERROR "invalid operation.*mismatched types|incompatible types"
++	_ = i >= f // ERROR "invalid operation.*mismatched types|incompatible types"
++	_ = f == i // ERROR "invalid operation.*mismatched types|incompatible types"
++	_ = f != i // ERROR "invalid operation.*mismatched types|incompatible types"
++	_ = f >= i // ERROR "invalid operation.*mismatched types|incompatible types"
++
++	_ = e == g // ERROR "invalid operation.*not defined|invalid operation"
++	_ = e != g // ERROR "invalid operation.*not defined|invalid operation"
++	_ = e >= g // ERROR "invalid operation.*not defined|invalid comparison"
++	_ = g == e // ERROR "invalid operation.*not defined|invalid operation"
++	_ = g != e // ERROR "invalid operation.*not defined|invalid operation"
++	_ = g >= e // ERROR "invalid operation.*not defined|invalid comparison"
++
++	_ = i == g // ERROR "invalid operation.*not defined|invalid operation"
++	_ = i != g // ERROR "invalid operation.*not defined|invalid operation"
++	_ = i >= g // ERROR "invalid operation.*not defined|invalid comparison"
++	_ = g == i // ERROR "invalid operation.*not defined|invalid operation"
++	_ = g != i // ERROR "invalid operation.*not defined|invalid operation"
++	_ = g >= i // ERROR "invalid operation.*not defined|invalid comparison"
++
++	_ = _ == e // ERROR "cannot use .*_.* as value"
++	_ = _ == i // ERROR "cannot use .*_.* as value"
++	_ = _ == c // ERROR "cannot use .*_.* as value"
++	_ = _ == n // ERROR "cannot use .*_.* as value"
++	_ = _ == f // ERROR "cannot use .*_.* as value"
++	_ = _ == g // ERROR "cannot use .*_.* as value"
++
++	_ = e == _ // ERROR "cannot use .*_.* as value"
++	_ = i == _ // ERROR "cannot use .*_.* as value"
++	_ = c == _ // ERROR "cannot use .*_.* as value"
++	_ = n == _ // ERROR "cannot use .*_.* as value"
++	_ = f == _ // ERROR "cannot use .*_.* as value"
++	_ = g == _ // ERROR "cannot use .*_.* as value"
++
++	_ = _ == _ // ERROR "cannot use .*_.* as value"
++
++	_ = e ^ c // ERROR "invalid operation.*mismatched types|incompatible types"
++	_ = c ^ e // ERROR "invalid operation.*mismatched types|incompatible types"
++	_ = 1 ^ e // ERROR "invalid operation.*mismatched types|incompatible types"
++	_ = e ^ 1 // ERROR "invalid operation.*mismatched types|incompatible types"
+ 	_ = 1 ^ c
+ 	_ = c ^ 1
+ )

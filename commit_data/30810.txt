@@ -9,6 +9,35 @@ Date:   Wed Dec 7 09:54:42 2016 +0100
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/fmt/print.go | 15 +++++++--------
  1 file changed, 7 insertions(+), 8 deletions(-)
+
+diff --git a/src/fmt/print.go b/src/fmt/print.go
+index 75301a238e..a95edacc99 100644
+--- a/src/fmt/print.go
++++ b/src/fmt/print.go
+@@ -813,16 +813,15 @@ func (p *pp) printValue(value reflect.Value, verb rune, depth int) {
+ 			if f.Kind() == reflect.Slice && f.IsNil() {
+ 				p.buf.WriteString(nilParenString)
+ 				return
+-			} else {
+-				p.buf.WriteByte('{')
+-				for i := 0; i < f.Len(); i++ {
+-					if i > 0 {
+-						p.buf.WriteString(commaSpaceString)
+-					}
+-					p.printValue(f.Index(i), verb, depth+1)
++			}
++			p.buf.WriteByte('{')
++			for i := 0; i < f.Len(); i++ {
++				if i > 0 {
++					p.buf.WriteString(commaSpaceString)
+ 				}
+-				p.buf.WriteByte('}')
++				p.printValue(f.Index(i), verb, depth+1)
+ 			}
++			p.buf.WriteByte('}')
+ 		} else {
+ 			p.buf.WriteByte('[')
+ 			for i := 0; i < f.Len(); i++ {

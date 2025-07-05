@@ -8,7 +8,116 @@ Date:   Tue Jan 9 15:32:22 2018 -0500
     Reviewed-on: https://go-review.googlesource.com/87019
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/debugging_with_gdb.html | 19 +++++++++++++------
  doc/diagnostics.html        | 11 +++++++++--
  2 files changed, 22 insertions(+), 8 deletions(-)
+
+diff --git a/doc/debugging_with_gdb.html b/doc/debugging_with_gdb.html
+index 4573d49661..19d36f7d97 100644
+--- a/doc/debugging_with_gdb.html
++++ b/doc/debugging_with_gdb.html
+@@ -3,6 +3,13 @@
+ 	"Path": "/doc/gdb"
+ }-->
+ 
++<!--
++NOTE: In this document and others in this directory, the convention is to
++set fixed-width phrases with non-fixed-width spaces, as in
++<code>hello</code> <code>world</code>.
++Do not send CLs removing the interior tags from such phrases.
++-->
++
+ <i>
+ <p>
+ The following instructions apply to the standard toolchain
+@@ -57,7 +64,7 @@ use to inspect a live process or a core dump.
+ 
+ <p>
+ Pass the <code>'-w'</code> flag to the linker to omit the debug information
+-(for example, <code>go build -ldflags "-w" prog.go</code>).
++(for example, <code>go</code> <code>build</code> <code>-ldflags=-w</code> <code>prog.go</code>).
+ </p>
+ 
+ <p>
+@@ -157,7 +164,7 @@ the DWARF code.
+ 
+ <p>
+ If you're interested in what the debugging information looks like, run
+-'<code>objdump -W a.out</code>' and browse through the <code>.debug_*</code>
++<code>objdump</code> <code>-W</code> <code>a.out</code> and browse through the <code>.debug_*</code>
+ sections.
+ </p>
+ 
+@@ -180,7 +187,7 @@ the form <code>pkg.(*MyType).Meth</code>.
+ <p>
+ In this tutorial we will inspect the binary of the
+ <a href="/pkg/regexp/">regexp</a> package's unit tests. To build the binary,
+-change to <code>$GOROOT/src/regexp</code> and run <code>go test -c</code>.
++change to <code>$GOROOT/src/regexp</code> and run <code>go</code> <code>test</code> <code>-c</code>.
+ This should produce an executable file named <code>regexp.test</code>.
+ </p>
+ 
+@@ -206,7 +213,7 @@ Loading Go Runtime support.
+ </pre>
+ 
+ <p>
+-The message <code>"Loading Go Runtime support"</code> means that GDB loaded the
++The message "Loading Go Runtime support" means that GDB loaded the
+ extension from <code>$GOROOT/src/runtime/runtime-gdb.py</code>.
+ </p>
+ 
+@@ -371,7 +378,7 @@ Stack level 0, frame at 0x7ffff7f9ff88:
+ </pre>
+ 
+ <p>
+-The command <code>info locals</code> lists all variables local to the function and their values, but is a bit
++The command <code>info</code> <code>locals</code> lists all variables local to the function and their values, but is a bit
+ dangerous to use, since it will also try to print uninitialized variables. Uninitialized slices may cause gdb to try
+ to print arbitrary large arrays.
+ </p>
+@@ -404,7 +411,7 @@ $3 = struct hchan&lt;*testing.T&gt;
+ </pre>
+ 
+ <p>
+-That <code>struct hchan&lt;*testing.T&gt;</code> is the
++That <code>struct</code> <code>hchan&lt;*testing.T&gt;</code> is the
+ runtime-internal representation of a channel. It is currently empty,
+ or gdb would have pretty-printed its contents.
+ </p>
+diff --git a/doc/diagnostics.html b/doc/diagnostics.html
+index 5f82fadcbd..decd864f36 100644
+--- a/doc/diagnostics.html
++++ b/doc/diagnostics.html
+@@ -3,6 +3,13 @@
+ 	"Template": true
+ }-->
+ 
++<!--
++NOTE: In this document and others in this directory, the convention is to
++set fixed-width phrases with non-fixed-width spaces, as in
++<code>hello</code> <code>world</code>.
++Do not send CLs removing the interior tags from such phrases.
++-->
++
+ <h2 id="introduction">Introduction</h2>
+ 
+ <p>
+@@ -45,7 +52,7 @@ of code. The Go runtime provides <a href="https://golang.org/pkg/runtime/pprof/"
+ profiling data</a> in the format expected by the
+ <a href="https://github.com/google/pprof/blob/master/doc/pprof.md">pprof visualization tool</a>.
+ The profiling data can be collected during testing
+-via <code>go test</code> or endpoints made available from the <a href="/pkg/net/http/pprof/">
++via <code>go</code> <code>test</code> or endpoints made available from the <a href="/pkg/net/http/pprof/">
+ net/http/pprof</a> package. Users need to collect the profiling data and use pprof tools to filter
+ and visualize the top code paths.
+ </p>
+@@ -435,7 +442,7 @@ Use profiling tools instead first to address them.</p>
+ fine, and then it became serialized. It suggests that there might
+ be lock contention for a shared resource that creates a bottleneck.</p>
+ 
+-<p>See <a href="https://golang.org/cmd/trace/"><code>go tool trace</code></a>
++<p>See <a href="https://golang.org/cmd/trace/"><code>go</code> <code>tool</code> <code>trace</code></a>
+ to collect and analyze runtime traces.
+ </p>
+ 

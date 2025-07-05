@@ -16,6 +16,31 @@ Date:   Fri Oct 1 17:45:09 2021 -0700
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/net/interface_freebsd.go | 11 +++--------
  1 file changed, 3 insertions(+), 8 deletions(-)
+
+diff --git a/src/net/interface_freebsd.go b/src/net/interface_freebsd.go
+index 2b51fcb632..8536bd3cf6 100644
+--- a/src/net/interface_freebsd.go
++++ b/src/net/interface_freebsd.go
+@@ -11,16 +11,11 @@ import (
+ )
+ 
+ func interfaceMessages(ifindex int) ([]route.Message, error) {
+-	typ := route.RIBType(syscall.NET_RT_IFLISTL)
+-	rib, err := route.FetchRIB(syscall.AF_UNSPEC, typ, ifindex)
++	rib, err := route.FetchRIB(syscall.AF_UNSPEC, route.RIBTypeInterface, ifindex)
+ 	if err != nil {
+-		typ = route.RIBType(syscall.NET_RT_IFLIST)
+-		rib, err = route.FetchRIB(syscall.AF_UNSPEC, typ, ifindex)
+-		if err != nil {
+-			return nil, err
+-		}
++		return nil, err
+ 	}
+-	return route.ParseRIB(typ, rib)
++	return route.ParseRIB(route.RIBTypeInterface, rib)
+ }
+ 
+ // interfaceMulticastAddrTable returns addresses for a specific

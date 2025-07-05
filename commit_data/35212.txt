@@ -11,6 +11,28 @@ Date:   Wed Jan 10 17:14:20 2018 -0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/syntax/parser.go | 10 +++++++---
  1 file changed, 7 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/syntax/parser.go b/src/cmd/compile/internal/syntax/parser.go
+index ff3e769864..c8dfc967e6 100644
+--- a/src/cmd/compile/internal/syntax/parser.go
++++ b/src/cmd/compile/internal/syntax/parser.go
+@@ -1768,9 +1768,13 @@ func (p *parser) header(keyword token) (init SimpleStmt, cond Expr, post SimpleS
+ 		lit string // valid if pos.IsKnown()
+ 	}
+ 	if p.tok != _Lbrace {
+-		semi.pos = p.pos()
+-		semi.lit = p.lit
+-		p.want(_Semi)
++		if p.tok == _Semi {
++			semi.pos = p.pos()
++			semi.lit = p.lit
++			p.next()
++		} else {
++			p.want(_Semi)
++		}
+ 		if keyword == _For {
+ 			if p.tok != _Semi {
+ 				if p.tok == _Lbrace {

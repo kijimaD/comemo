@@ -13,7 +13,7 @@ Date:   Fri May 21 13:37:19 2021 -0400
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/cmd/compile/internal/test/inl_test.go |  1 -
  src/runtime/chan.go                       |  5 +++--
  src/runtime/cpuprof.go                    |  9 +++++----
@@ -54,3 +54,1071 @@ Date:   Fri May 21 13:37:19 2021 -0400
  src/runtime/time.go                       |  3 ++-
  src/runtime/type.go                       |  7 +++++--
  39 files changed, 111 insertions(+), 99 deletions(-)
+
+diff --git a/src/cmd/compile/internal/test/inl_test.go b/src/cmd/compile/internal/test/inl_test.go
+index 6f100033cf..ad4e4fee97 100644
+--- a/src/cmd/compile/internal/test/inl_test.go
++++ b/src/cmd/compile/internal/test/inl_test.go
+@@ -48,7 +48,6 @@ func TestIntendedInlining(t *testing.T) {
+ 			"fastlog2",
+ 			"fastrand",
+ 			"float64bits",
+-			"funcPC",
+ 			"getArgInfoFast",
+ 			"getm",
+ 			"getMCache",
+diff --git a/src/runtime/chan.go b/src/runtime/chan.go
+index f2a75b30f4..3cdb5dce11 100644
+--- a/src/runtime/chan.go
++++ b/src/runtime/chan.go
+@@ -18,6 +18,7 @@ package runtime
+ //  c.qcount < c.dataqsiz implies that c.sendq is empty.
+ 
+ import (
++	"internal/abi"
+ 	"runtime/internal/atomic"
+ 	"runtime/internal/math"
+ 	"unsafe"
+@@ -169,7 +170,7 @@ func chansend(c *hchan, ep unsafe.Pointer, block bool, callerpc uintptr) bool {
+ 	}
+ 
+ 	if raceenabled {
+-		racereadpc(c.raceaddr(), callerpc, funcPC(chansend))
++		racereadpc(c.raceaddr(), callerpc, abi.FuncPCABIInternal(chansend))
+ 	}
+ 
+ 	// Fast path: check for failed non-blocking operation without acquiring the lock.
+@@ -365,7 +366,7 @@ func closechan(c *hchan) {
+ 
+ 	if raceenabled {
+ 		callerpc := getcallerpc()
+-		racewritepc(c.raceaddr(), callerpc, funcPC(closechan))
++		racewritepc(c.raceaddr(), callerpc, abi.FuncPCABIInternal(closechan))
+ 		racerelease(c.raceaddr())
+ 	}
+ 
+diff --git a/src/runtime/cpuprof.go b/src/runtime/cpuprof.go
+index e5d0193b9c..c81ab710c2 100644
+--- a/src/runtime/cpuprof.go
++++ b/src/runtime/cpuprof.go
+@@ -13,6 +13,7 @@
+ package runtime
+ 
+ import (
++	"internal/abi"
+ 	"runtime/internal/atomic"
+ 	"runtime/internal/sys"
+ 	"unsafe"
+@@ -166,8 +167,8 @@ func (p *cpuProfile) addExtra() {
+ 	if p.lostExtra > 0 {
+ 		hdr := [1]uint64{p.lostExtra}
+ 		lostStk := [2]uintptr{
+-			funcPC(_LostExternalCode) + sys.PCQuantum,
+-			funcPC(_ExternalCode) + sys.PCQuantum,
++			abi.FuncPCABIInternal(_LostExternalCode) + sys.PCQuantum,
++			abi.FuncPCABIInternal(_ExternalCode) + sys.PCQuantum,
+ 		}
+ 		p.log.write(nil, 0, hdr[:], lostStk[:])
+ 		p.lostExtra = 0
+@@ -176,8 +177,8 @@ func (p *cpuProfile) addExtra() {
+ 	if p.lostAtomic > 0 {
+ 		hdr := [1]uint64{p.lostAtomic}
+ 		lostStk := [2]uintptr{
+-			funcPC(_LostSIGPROFDuringAtomic64) + sys.PCQuantum,
+-			funcPC(_System) + sys.PCQuantum,
++			abi.FuncPCABIInternal(_LostSIGPROFDuringAtomic64) + sys.PCQuantum,
++			abi.FuncPCABIInternal(_System) + sys.PCQuantum,
+ 		}
+ 		p.log.write(nil, 0, hdr[:], lostStk[:])
+ 		p.lostAtomic = 0
+diff --git a/src/runtime/export_debug_test.go b/src/runtime/export_debug_test.go
+index fe4c9045c1..9808fd5299 100644
+--- a/src/runtime/export_debug_test.go
++++ b/src/runtime/export_debug_test.go
+@@ -125,7 +125,7 @@ func (h *debugCallHandler) inject(info *siginfo, ctxt *sigctxt, gp2 *g) bool {
+ 		h.savedFP = *h.savedRegs.fpstate
+ 		h.savedRegs.fpstate = nil
+ 		// Set PC to debugCallV2.
+-		ctxt.set_rip(uint64(funcPC(debugCallV2)))
++		ctxt.set_rip(uint64(abi.FuncPCABIInternal(debugCallV2)))
+ 		// Call injected. Switch to the debugCall protocol.
+ 		testSigtrap = h.handleF
+ 	case _Grunnable:
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index a6fc1e4785..b4de497aca 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -27,8 +27,6 @@ var Exitsyscall = exitsyscall
+ var LockedOSThread = lockedOSThread
+ var Xadduintptr = atomic.Xadduintptr
+ 
+-var FuncPC = funcPC
+-
+ var Fastlog2 = fastlog2
+ 
+ var Atoi = atoi
+diff --git a/src/runtime/iface.go b/src/runtime/iface.go
+index cd5fead999..b397d1ff8d 100644
+--- a/src/runtime/iface.go
++++ b/src/runtime/iface.go
+@@ -5,6 +5,7 @@
+ package runtime
+ 
+ import (
++	"internal/abi"
+ 	"runtime/internal/atomic"
+ 	"runtime/internal/sys"
+ 	"unsafe"
+@@ -317,7 +318,7 @@ var (
+ 
+ func convT2E(t *_type, elem unsafe.Pointer) (e eface) {
+ 	if raceenabled {
+-		raceReadObjectPC(t, elem, getcallerpc(), funcPC(convT2E))
++		raceReadObjectPC(t, elem, getcallerpc(), abi.FuncPCABIInternal(convT2E))
+ 	}
+ 	if msanenabled {
+ 		msanread(elem, t.size)
+@@ -390,7 +391,7 @@ func convTslice(val []byte) (x unsafe.Pointer) {
+ 
+ func convT2Enoptr(t *_type, elem unsafe.Pointer) (e eface) {
+ 	if raceenabled {
+-		raceReadObjectPC(t, elem, getcallerpc(), funcPC(convT2Enoptr))
++		raceReadObjectPC(t, elem, getcallerpc(), abi.FuncPCABIInternal(convT2Enoptr))
+ 	}
+ 	if msanenabled {
+ 		msanread(elem, t.size)
+@@ -405,7 +406,7 @@ func convT2Enoptr(t *_type, elem unsafe.Pointer) (e eface) {
+ func convT2I(tab *itab, elem unsafe.Pointer) (i iface) {
+ 	t := tab._type
+ 	if raceenabled {
+-		raceReadObjectPC(t, elem, getcallerpc(), funcPC(convT2I))
++		raceReadObjectPC(t, elem, getcallerpc(), abi.FuncPCABIInternal(convT2I))
+ 	}
+ 	if msanenabled {
+ 		msanread(elem, t.size)
+@@ -420,7 +421,7 @@ func convT2I(tab *itab, elem unsafe.Pointer) (i iface) {
+ func convT2Inoptr(tab *itab, elem unsafe.Pointer) (i iface) {
+ 	t := tab._type
+ 	if raceenabled {
+-		raceReadObjectPC(t, elem, getcallerpc(), funcPC(convT2Inoptr))
++		raceReadObjectPC(t, elem, getcallerpc(), abi.FuncPCABIInternal(convT2Inoptr))
+ 	}
+ 	if msanenabled {
+ 		msanread(elem, t.size)
+diff --git a/src/runtime/map.go b/src/runtime/map.go
+index 111db56b01..5575040f2a 100644
+--- a/src/runtime/map.go
++++ b/src/runtime/map.go
+@@ -54,6 +54,7 @@ package runtime
+ // before the table grows. Typical tables will be somewhat less loaded.
+ 
+ import (
++	"internal/abi"
+ 	"runtime/internal/atomic"
+ 	"runtime/internal/math"
+ 	"runtime/internal/sys"
+@@ -394,7 +395,7 @@ func makeBucketArray(t *maptype, b uint8, dirtyalloc unsafe.Pointer) (buckets un
+ func mapaccess1(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer {
+ 	if raceenabled && h != nil {
+ 		callerpc := getcallerpc()
+-		pc := funcPC(mapaccess1)
++		pc := abi.FuncPCABIInternal(mapaccess1)
+ 		racereadpc(unsafe.Pointer(h), callerpc, pc)
+ 		raceReadObjectPC(t.key, key, callerpc, pc)
+ 	}
+@@ -452,7 +453,7 @@ bucketloop:
+ func mapaccess2(t *maptype, h *hmap, key unsafe.Pointer) (unsafe.Pointer, bool) {
+ 	if raceenabled && h != nil {
+ 		callerpc := getcallerpc()
+-		pc := funcPC(mapaccess2)
++		pc := abi.FuncPCABIInternal(mapaccess2)
+ 		racereadpc(unsafe.Pointer(h), callerpc, pc)
+ 		raceReadObjectPC(t.key, key, callerpc, pc)
+ 	}
+@@ -574,7 +575,7 @@ func mapassign(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer {
+ 	}
+ 	if raceenabled {
+ 		callerpc := getcallerpc()
+-		pc := funcPC(mapassign)
++		pc := abi.FuncPCABIInternal(mapassign)
+ 		racewritepc(unsafe.Pointer(h), callerpc, pc)
+ 		raceReadObjectPC(t.key, key, callerpc, pc)
+ 	}
+@@ -685,7 +686,7 @@ done:
+ func mapdelete(t *maptype, h *hmap, key unsafe.Pointer) {
+ 	if raceenabled && h != nil {
+ 		callerpc := getcallerpc()
+-		pc := funcPC(mapdelete)
++		pc := abi.FuncPCABIInternal(mapdelete)
+ 		racewritepc(unsafe.Pointer(h), callerpc, pc)
+ 		raceReadObjectPC(t.key, key, callerpc, pc)
+ 	}
+@@ -802,7 +803,7 @@ search:
+ func mapiterinit(t *maptype, h *hmap, it *hiter) {
+ 	if raceenabled && h != nil {
+ 		callerpc := getcallerpc()
+-		racereadpc(unsafe.Pointer(h), callerpc, funcPC(mapiterinit))
++		racereadpc(unsafe.Pointer(h), callerpc, abi.FuncPCABIInternal(mapiterinit))
+ 	}
+ 
+ 	if h == nil || h.count == 0 {
+@@ -852,7 +853,7 @@ func mapiternext(it *hiter) {
+ 	h := it.h
+ 	if raceenabled {
+ 		callerpc := getcallerpc()
+-		racereadpc(unsafe.Pointer(h), callerpc, funcPC(mapiternext))
++		racereadpc(unsafe.Pointer(h), callerpc, abi.FuncPCABIInternal(mapiternext))
+ 	}
+ 	if h.flags&hashWriting != 0 {
+ 		throw("concurrent map iteration and map write")
+@@ -978,7 +979,7 @@ next:
+ func mapclear(t *maptype, h *hmap) {
+ 	if raceenabled && h != nil {
+ 		callerpc := getcallerpc()
+-		pc := funcPC(mapclear)
++		pc := abi.FuncPCABIInternal(mapclear)
+ 		racewritepc(unsafe.Pointer(h), callerpc, pc)
+ 	}
+ 
+@@ -1363,7 +1364,7 @@ func reflect_maplen(h *hmap) int {
+ 	}
+ 	if raceenabled {
+ 		callerpc := getcallerpc()
+-		racereadpc(unsafe.Pointer(h), callerpc, funcPC(reflect_maplen))
++		racereadpc(unsafe.Pointer(h), callerpc, abi.FuncPCABIInternal(reflect_maplen))
+ 	}
+ 	return h.count
+ }
+@@ -1375,7 +1376,7 @@ func reflectlite_maplen(h *hmap) int {
+ 	}
+ 	if raceenabled {
+ 		callerpc := getcallerpc()
+-		racereadpc(unsafe.Pointer(h), callerpc, funcPC(reflect_maplen))
++		racereadpc(unsafe.Pointer(h), callerpc, abi.FuncPCABIInternal(reflect_maplen))
+ 	}
+ 	return h.count
+ }
+diff --git a/src/runtime/map_fast32.go b/src/runtime/map_fast32.go
+index 8d52dad217..420a01daec 100644
+--- a/src/runtime/map_fast32.go
++++ b/src/runtime/map_fast32.go
+@@ -5,6 +5,7 @@
+ package runtime
+ 
+ import (
++	"internal/abi"
+ 	"runtime/internal/sys"
+ 	"unsafe"
+ )
+@@ -12,7 +13,7 @@ import (
+ func mapaccess1_fast32(t *maptype, h *hmap, key uint32) unsafe.Pointer {
+ 	if raceenabled && h != nil {
+ 		callerpc := getcallerpc()
+-		racereadpc(unsafe.Pointer(h), callerpc, funcPC(mapaccess1_fast32))
++		racereadpc(unsafe.Pointer(h), callerpc, abi.FuncPCABIInternal(mapaccess1_fast32))
+ 	}
+ 	if h == nil || h.count == 0 {
+ 		return unsafe.Pointer(&zeroVal[0])
+@@ -52,7 +53,7 @@ func mapaccess1_fast32(t *maptype, h *hmap, key uint32) unsafe.Pointer {
+ func mapaccess2_fast32(t *maptype, h *hmap, key uint32) (unsafe.Pointer, bool) {
+ 	if raceenabled && h != nil {
+ 		callerpc := getcallerpc()
+-		racereadpc(unsafe.Pointer(h), callerpc, funcPC(mapaccess2_fast32))
++		racereadpc(unsafe.Pointer(h), callerpc, abi.FuncPCABIInternal(mapaccess2_fast32))
+ 	}
+ 	if h == nil || h.count == 0 {
+ 		return unsafe.Pointer(&zeroVal[0]), false
+@@ -95,7 +96,7 @@ func mapassign_fast32(t *maptype, h *hmap, key uint32) unsafe.Pointer {
+ 	}
+ 	if raceenabled {
+ 		callerpc := getcallerpc()
+-		racewritepc(unsafe.Pointer(h), callerpc, funcPC(mapassign_fast32))
++		racewritepc(unsafe.Pointer(h), callerpc, abi.FuncPCABIInternal(mapassign_fast32))
+ 	}
+ 	if h.flags&hashWriting != 0 {
+ 		throw("concurrent map writes")
+@@ -185,7 +186,7 @@ func mapassign_fast32ptr(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer
+ 	}
+ 	if raceenabled {
+ 		callerpc := getcallerpc()
+-		racewritepc(unsafe.Pointer(h), callerpc, funcPC(mapassign_fast32))
++		racewritepc(unsafe.Pointer(h), callerpc, abi.FuncPCABIInternal(mapassign_fast32))
+ 	}
+ 	if h.flags&hashWriting != 0 {
+ 		throw("concurrent map writes")
+@@ -272,7 +273,7 @@ done:
+ func mapdelete_fast32(t *maptype, h *hmap, key uint32) {
+ 	if raceenabled && h != nil {
+ 		callerpc := getcallerpc()
+-		racewritepc(unsafe.Pointer(h), callerpc, funcPC(mapdelete_fast32))
++		racewritepc(unsafe.Pointer(h), callerpc, abi.FuncPCABIInternal(mapdelete_fast32))
+ 	}
+ 	if h == nil || h.count == 0 {
+ 		return
+diff --git a/src/runtime/map_fast64.go b/src/runtime/map_fast64.go
+index f1368dc774..cb202113ac 100644
+--- a/src/runtime/map_fast64.go
++++ b/src/runtime/map_fast64.go
+@@ -5,6 +5,7 @@
+ package runtime
+ 
+ import (
++	"internal/abi"
+ 	"runtime/internal/sys"
+ 	"unsafe"
+ )
+@@ -12,7 +13,7 @@ import (
+ func mapaccess1_fast64(t *maptype, h *hmap, key uint64) unsafe.Pointer {
+ 	if raceenabled && h != nil {
+ 		callerpc := getcallerpc()
+-		racereadpc(unsafe.Pointer(h), callerpc, funcPC(mapaccess1_fast64))
++		racereadpc(unsafe.Pointer(h), callerpc, abi.FuncPCABIInternal(mapaccess1_fast64))
+ 	}
+ 	if h == nil || h.count == 0 {
+ 		return unsafe.Pointer(&zeroVal[0])
+@@ -52,7 +53,7 @@ func mapaccess1_fast64(t *maptype, h *hmap, key uint64) unsafe.Pointer {
+ func mapaccess2_fast64(t *maptype, h *hmap, key uint64) (unsafe.Pointer, bool) {
+ 	if raceenabled && h != nil {
+ 		callerpc := getcallerpc()
+-		racereadpc(unsafe.Pointer(h), callerpc, funcPC(mapaccess2_fast64))
++		racereadpc(unsafe.Pointer(h), callerpc, abi.FuncPCABIInternal(mapaccess2_fast64))
+ 	}
+ 	if h == nil || h.count == 0 {
+ 		return unsafe.Pointer(&zeroVal[0]), false
+@@ -95,7 +96,7 @@ func mapassign_fast64(t *maptype, h *hmap, key uint64) unsafe.Pointer {
+ 	}
+ 	if raceenabled {
+ 		callerpc := getcallerpc()
+-		racewritepc(unsafe.Pointer(h), callerpc, funcPC(mapassign_fast64))
++		racewritepc(unsafe.Pointer(h), callerpc, abi.FuncPCABIInternal(mapassign_fast64))
+ 	}
+ 	if h.flags&hashWriting != 0 {
+ 		throw("concurrent map writes")
+@@ -185,7 +186,7 @@ func mapassign_fast64ptr(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer
+ 	}
+ 	if raceenabled {
+ 		callerpc := getcallerpc()
+-		racewritepc(unsafe.Pointer(h), callerpc, funcPC(mapassign_fast64))
++		racewritepc(unsafe.Pointer(h), callerpc, abi.FuncPCABIInternal(mapassign_fast64))
+ 	}
+ 	if h.flags&hashWriting != 0 {
+ 		throw("concurrent map writes")
+@@ -272,7 +273,7 @@ done:
+ func mapdelete_fast64(t *maptype, h *hmap, key uint64) {
+ 	if raceenabled && h != nil {
+ 		callerpc := getcallerpc()
+-		racewritepc(unsafe.Pointer(h), callerpc, funcPC(mapdelete_fast64))
++		racewritepc(unsafe.Pointer(h), callerpc, abi.FuncPCABIInternal(mapdelete_fast64))
+ 	}
+ 	if h == nil || h.count == 0 {
+ 		return
+diff --git a/src/runtime/map_faststr.go b/src/runtime/map_faststr.go
+index 0673dd39c8..ed7e46b5f6 100644
+--- a/src/runtime/map_faststr.go
++++ b/src/runtime/map_faststr.go
+@@ -5,6 +5,7 @@
+ package runtime
+ 
+ import (
++	"internal/abi"
+ 	"runtime/internal/sys"
+ 	"unsafe"
+ )
+@@ -12,7 +13,7 @@ import (
+ func mapaccess1_faststr(t *maptype, h *hmap, ky string) unsafe.Pointer {
+ 	if raceenabled && h != nil {
+ 		callerpc := getcallerpc()
+-		racereadpc(unsafe.Pointer(h), callerpc, funcPC(mapaccess1_faststr))
++		racereadpc(unsafe.Pointer(h), callerpc, abi.FuncPCABIInternal(mapaccess1_faststr))
+ 	}
+ 	if h == nil || h.count == 0 {
+ 		return unsafe.Pointer(&zeroVal[0])
+@@ -107,7 +108,7 @@ dohash:
+ func mapaccess2_faststr(t *maptype, h *hmap, ky string) (unsafe.Pointer, bool) {
+ 	if raceenabled && h != nil {
+ 		callerpc := getcallerpc()
+-		racereadpc(unsafe.Pointer(h), callerpc, funcPC(mapaccess2_faststr))
++		racereadpc(unsafe.Pointer(h), callerpc, abi.FuncPCABIInternal(mapaccess2_faststr))
+ 	}
+ 	if h == nil || h.count == 0 {
+ 		return unsafe.Pointer(&zeroVal[0]), false
+@@ -205,7 +206,7 @@ func mapassign_faststr(t *maptype, h *hmap, s string) unsafe.Pointer {
+ 	}
+ 	if raceenabled {
+ 		callerpc := getcallerpc()
+-		racewritepc(unsafe.Pointer(h), callerpc, funcPC(mapassign_faststr))
++		racewritepc(unsafe.Pointer(h), callerpc, abi.FuncPCABIInternal(mapassign_faststr))
+ 	}
+ 	if h.flags&hashWriting != 0 {
+ 		throw("concurrent map writes")
+@@ -300,7 +301,7 @@ done:
+ func mapdelete_faststr(t *maptype, h *hmap, ky string) {
+ 	if raceenabled && h != nil {
+ 		callerpc := getcallerpc()
+-		racewritepc(unsafe.Pointer(h), callerpc, funcPC(mapdelete_faststr))
++		racewritepc(unsafe.Pointer(h), callerpc, abi.FuncPCABIInternal(mapdelete_faststr))
+ 	}
+ 	if h == nil || h.count == 0 {
+ 		return
+diff --git a/src/runtime/mbarrier.go b/src/runtime/mbarrier.go
+index 4994347bde..b06ee725dd 100644
+--- a/src/runtime/mbarrier.go
++++ b/src/runtime/mbarrier.go
+@@ -177,8 +177,8 @@ func typedmemmove(typ *_type, dst, src unsafe.Pointer) {
+ //go:linkname reflect_typedmemmove reflect.typedmemmove
+ func reflect_typedmemmove(typ *_type, dst, src unsafe.Pointer) {
+ 	if raceenabled {
+-		raceWriteObjectPC(typ, dst, getcallerpc(), funcPC(reflect_typedmemmove))
+-		raceReadObjectPC(typ, src, getcallerpc(), funcPC(reflect_typedmemmove))
++		raceWriteObjectPC(typ, dst, getcallerpc(), abi.FuncPCABIInternal(reflect_typedmemmove))
++		raceReadObjectPC(typ, src, getcallerpc(), abi.FuncPCABIInternal(reflect_typedmemmove))
+ 	}
+ 	if msanenabled {
+ 		msanwrite(dst, typ.size)
+@@ -254,7 +254,7 @@ func typedslicecopy(typ *_type, dstPtr unsafe.Pointer, dstLen int, srcPtr unsafe
+ 	// code and needs its own instrumentation.
+ 	if raceenabled {
+ 		callerpc := getcallerpc()
+-		pc := funcPC(slicecopy)
++		pc := abi.FuncPCABIInternal(slicecopy)
+ 		racewriterangepc(dstPtr, uintptr(n)*typ.size, callerpc, pc)
+ 		racereadrangepc(srcPtr, uintptr(n)*typ.size, callerpc, pc)
+ 	}
+diff --git a/src/runtime/mprof.go b/src/runtime/mprof.go
+index 5235b898e4..0ba415ba5a 100644
+--- a/src/runtime/mprof.go
++++ b/src/runtime/mprof.go
+@@ -8,6 +8,7 @@
+ package runtime
+ 
+ import (
++	"internal/abi"
+ 	"runtime/internal/atomic"
+ 	"unsafe"
+ )
+@@ -621,7 +622,7 @@ func record(r *MemProfileRecord, b *bucket) {
+ 	r.AllocObjects = int64(mp.active.allocs)
+ 	r.FreeObjects = int64(mp.active.frees)
+ 	if raceenabled {
+-		racewriterangepc(unsafe.Pointer(&r.Stack0[0]), unsafe.Sizeof(r.Stack0), getcallerpc(), funcPC(MemProfile))
++		racewriterangepc(unsafe.Pointer(&r.Stack0[0]), unsafe.Sizeof(r.Stack0), getcallerpc(), abi.FuncPCABIInternal(MemProfile))
+ 	}
+ 	if msanenabled {
+ 		msanwrite(unsafe.Pointer(&r.Stack0[0]), unsafe.Sizeof(r.Stack0))
+@@ -674,7 +675,7 @@ func BlockProfile(p []BlockProfileRecord) (n int, ok bool) {
+ 			}
+ 			r.Cycles = bp.cycles
+ 			if raceenabled {
+-				racewriterangepc(unsafe.Pointer(&r.Stack0[0]), unsafe.Sizeof(r.Stack0), getcallerpc(), funcPC(BlockProfile))
++				racewriterangepc(unsafe.Pointer(&r.Stack0[0]), unsafe.Sizeof(r.Stack0), getcallerpc(), abi.FuncPCABIInternal(BlockProfile))
+ 			}
+ 			if msanenabled {
+ 				msanwrite(unsafe.Pointer(&r.Stack0[0]), unsafe.Sizeof(r.Stack0))
+diff --git a/src/runtime/norace_linux_test.go b/src/runtime/norace_linux_test.go
+index 94b7c7a467..b199aa633c 100644
+--- a/src/runtime/norace_linux_test.go
++++ b/src/runtime/norace_linux_test.go
+@@ -9,6 +9,7 @@
+ package runtime_test
+ 
+ import (
++	"internal/abi"
+ 	"runtime"
+ 	"testing"
+ 	"time"
+@@ -25,7 +26,7 @@ func newOSProcCreated() {
+ // Can't be run with -race because it inserts calls into newOSProcCreated()
+ // that require a valid G/M.
+ func TestNewOSProc0(t *testing.T) {
+-	runtime.NewOSProc0(0x800000, unsafe.Pointer(runtime.FuncPC(newOSProcCreated)))
++	runtime.NewOSProc0(0x800000, unsafe.Pointer(abi.FuncPCABIInternal(newOSProcCreated)))
+ 	check := time.NewTicker(100 * time.Millisecond)
+ 	defer check.Stop()
+ 	end := time.After(5 * time.Second)
+diff --git a/src/runtime/os3_solaris.go b/src/runtime/os3_solaris.go
+index 3b1a773ee2..bfd7c7eb64 100644
+--- a/src/runtime/os3_solaris.go
++++ b/src/runtime/os3_solaris.go
+@@ -242,7 +242,7 @@ func setsig(i uint32, fn uintptr) {
+ 
+ 	sa.sa_flags = _SA_SIGINFO | _SA_ONSTACK | _SA_RESTART
+ 	sa.sa_mask = sigset_all
+-	if fn == funcPC(sighandler) {
++	if fn == abi.FuncPCABIInternal(sighandler) { // abi.FuncPCABIInternal(sighandler) matches the callers in signal_unix.go
+ 		fn = abi.FuncPCABI0(sigtramp)
+ 	}
+ 	*((*uintptr)(unsafe.Pointer(&sa._funcptr))) = fn
+diff --git a/src/runtime/os_aix.go b/src/runtime/os_aix.go
+index 4fb1c8e845..478dde2fc3 100644
+--- a/src/runtime/os_aix.go
++++ b/src/runtime/os_aix.go
+@@ -8,6 +8,7 @@
+ package runtime
+ 
+ import (
++	"internal/abi"
+ 	"unsafe"
+ )
+ 
+@@ -267,7 +268,7 @@ func setsig(i uint32, fn uintptr) {
+ 	var sa sigactiont
+ 	sa.sa_flags = _SA_SIGINFO | _SA_ONSTACK | _SA_RESTART
+ 	sa.sa_mask = sigset_all
+-	if fn == funcPC(sighandler) {
++	if fn == abi.FuncPCABIInternal(sighandler) { // abi.FuncPCABIInternal(sighandler) matches the callers in signal_unix.go
+ 		fn = uintptr(unsafe.Pointer(&sigtramp))
+ 	}
+ 	sa.sa_handler = fn
+diff --git a/src/runtime/os_darwin.go b/src/runtime/os_darwin.go
+index 00139351ab..df2c0ff4a5 100644
+--- a/src/runtime/os_darwin.go
++++ b/src/runtime/os_darwin.go
+@@ -364,7 +364,7 @@ func setsig(i uint32, fn uintptr) {
+ 	var sa usigactiont
+ 	sa.sa_flags = _SA_SIGINFO | _SA_ONSTACK | _SA_RESTART
+ 	sa.sa_mask = ^uint32(0)
+-	if fn == funcPC(sighandler) { // funcPC(sighandler) matches the callers in signal_unix.go
++	if fn == abi.FuncPCABIInternal(sighandler) { // abi.FuncPCABIInternal(sighandler) matches the callers in signal_unix.go
+ 		if iscgo {
+ 			fn = abi.FuncPCABI0(cgoSigtramp)
+ 		} else {
+diff --git a/src/runtime/os_dragonfly.go b/src/runtime/os_dragonfly.go
+index 45aeaecd89..0c81ed4d7c 100644
+--- a/src/runtime/os_dragonfly.go
++++ b/src/runtime/os_dragonfly.go
+@@ -227,7 +227,7 @@ func setsig(i uint32, fn uintptr) {
+ 	var sa sigactiont
+ 	sa.sa_flags = _SA_SIGINFO | _SA_ONSTACK | _SA_RESTART
+ 	sa.sa_mask = sigset_all
+-	if fn == funcPC(sighandler) {
++	if fn == abi.FuncPCABIInternal(sighandler) { // abi.FuncPCABIInternal(sighandler) matches the callers in signal_unix.go
+ 		fn = abi.FuncPCABI0(sigtramp)
+ 	}
+ 	sa.sa_sigaction = fn
+diff --git a/src/runtime/os_freebsd2.go b/src/runtime/os_freebsd2.go
+index 53ba23b64c..7e266dc27e 100644
+--- a/src/runtime/os_freebsd2.go
++++ b/src/runtime/os_freebsd2.go
+@@ -15,7 +15,7 @@ func setsig(i uint32, fn uintptr) {
+ 	var sa sigactiont
+ 	sa.sa_flags = _SA_SIGINFO | _SA_ONSTACK | _SA_RESTART
+ 	sa.sa_mask = sigset_all
+-	if fn == funcPC(sighandler) {
++	if fn == abi.FuncPCABIInternal(sighandler) { // abi.FuncPCABIInternal(sighandler) matches the callers in signal_unix.go
+ 		fn = abi.FuncPCABI0(sigtramp)
+ 	}
+ 	sa.sa_handler = fn
+diff --git a/src/runtime/os_freebsd_amd64.go b/src/runtime/os_freebsd_amd64.go
+index 7ae80c2506..b179383eac 100644
+--- a/src/runtime/os_freebsd_amd64.go
++++ b/src/runtime/os_freebsd_amd64.go
+@@ -14,7 +14,7 @@ func setsig(i uint32, fn uintptr) {
+ 	var sa sigactiont
+ 	sa.sa_flags = _SA_SIGINFO | _SA_ONSTACK | _SA_RESTART
+ 	sa.sa_mask = sigset_all
+-	if fn == funcPC(sighandler) {
++	if fn == abi.FuncPCABIInternal(sighandler) { // abi.FuncPCABIInternal(sighandler) matches the callers in signal_unix.go
+ 		if iscgo {
+ 			fn = abi.FuncPCABI0(cgoSigtramp)
+ 		} else {
+diff --git a/src/runtime/os_linux.go b/src/runtime/os_linux.go
+index 9203f28351..1984bf6844 100644
+--- a/src/runtime/os_linux.go
++++ b/src/runtime/os_linux.go
+@@ -432,7 +432,7 @@ func setsig(i uint32, fn uintptr) {
+ 	if GOARCH == "386" || GOARCH == "amd64" {
+ 		sa.sa_restorer = abi.FuncPCABI0(sigreturn)
+ 	}
+-	if fn == funcPC(sighandler) {
++	if fn == abi.FuncPCABIInternal(sighandler) { // abi.FuncPCABIInternal(sighandler) matches the callers in signal_unix.go
+ 		if iscgo {
+ 			fn = abi.FuncPCABI0(cgoSigtramp)
+ 		} else {
+diff --git a/src/runtime/os_netbsd.go b/src/runtime/os_netbsd.go
+index 0920d5293e..151cd17bbe 100644
+--- a/src/runtime/os_netbsd.go
++++ b/src/runtime/os_netbsd.go
+@@ -319,7 +319,7 @@ func setsig(i uint32, fn uintptr) {
+ 	var sa sigactiont
+ 	sa.sa_flags = _SA_SIGINFO | _SA_ONSTACK | _SA_RESTART
+ 	sa.sa_mask = sigset_all
+-	if fn == funcPC(sighandler) {
++	if fn == abi.FuncPCABIInternal(sighandler) { // abi.FuncPCABIInternal(sighandler) matches the callers in signal_unix.go
+ 		fn = abi.FuncPCABI0(sigtramp)
+ 	}
+ 	sa.sa_sigaction = fn
+diff --git a/src/runtime/os_openbsd.go b/src/runtime/os_openbsd.go
+index 35995e7035..54f36c6ebf 100644
+--- a/src/runtime/os_openbsd.go
++++ b/src/runtime/os_openbsd.go
+@@ -192,7 +192,7 @@ func setsig(i uint32, fn uintptr) {
+ 	var sa sigactiont
+ 	sa.sa_flags = _SA_SIGINFO | _SA_ONSTACK | _SA_RESTART
+ 	sa.sa_mask = uint32(sigset_all)
+-	if fn == funcPC(sighandler) {
++	if fn == abi.FuncPCABIInternal(sighandler) { // abi.FuncPCABIInternal(sighandler) matches the callers in signal_unix.go
+ 		fn = abi.FuncPCABI0(sigtramp)
+ 	}
+ 	sa.sa_sigaction = fn
+diff --git a/src/runtime/preempt.go b/src/runtime/preempt.go
+index d1291c9c48..d6cdf1b8f8 100644
+--- a/src/runtime/preempt.go
++++ b/src/runtime/preempt.go
+@@ -318,7 +318,7 @@ var asyncPreemptStack = ^uintptr(0)
+ func init() {
+ 	f := findfunc(abi.FuncPCABI0(asyncPreempt))
+ 	total := funcMaxSPDelta(f)
+-	f = findfunc(funcPC(asyncPreempt2))
++	f = findfunc(abi.FuncPCABIInternal(asyncPreempt2))
+ 	total += funcMaxSPDelta(f)
+ 	// Add some overhead for return PCs, etc.
+ 	asyncPreemptStack = uintptr(total) + 8*sys.PtrSize
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 6c896cb993..63eeb6c9c7 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -466,18 +466,6 @@ func releaseSudog(s *sudog) {
+ 	releasem(mp)
+ }
+ 
+-// funcPC returns the entry PC of the function f.
+-// It assumes that f is a func value. Otherwise the behavior is undefined.
+-// CAREFUL: In programs with plugins, funcPC can return different values
+-// for the same function (because there are actually multiple copies of
+-// the same function in the address space). To be safe, don't use the
+-// results of this function in any == expression. It is only safe to
+-// use the result as an address at which to start executing code.
+-//go:nosplit
+-func funcPC(f interface{}) uintptr {
+-	return *(*uintptr)(efaceOf(&f).data)
+-}
+-
+ // called from assembly
+ func badmcall(fn func(*g)) {
+ 	throw("runtime: mcall called on m->g0 stack")
+@@ -2043,7 +2031,7 @@ func oneNewExtraM() {
+ 	gp.lockedm.set(mp)
+ 	gp.goid = int64(atomic.Xadd64(&sched.goidgen, 1))
+ 	if raceenabled {
+-		gp.racectx = racegostart(funcPC(newextram) + sys.PCQuantum)
++		gp.racectx = racegostart(abi.FuncPCABIInternal(newextram) + sys.PCQuantum)
+ 	}
+ 	// put on allg for garbage collector
+ 	allgadd(gp)
+@@ -4741,16 +4729,16 @@ func sigprof(pc, sp, lr uintptr, gp *g, mp *m) {
+ 			// If all of the above has failed, account it against abstract "System" or "GC".
+ 			n = 2
+ 			if inVDSOPage(pc) {
+-				pc = funcPC(_VDSO) + sys.PCQuantum
++				pc = abi.FuncPCABIInternal(_VDSO) + sys.PCQuantum
+ 			} else if pc > firstmoduledata.etext {
+ 				// "ExternalCode" is better than "etext".
+-				pc = funcPC(_ExternalCode) + sys.PCQuantum
++				pc = abi.FuncPCABIInternal(_ExternalCode) + sys.PCQuantum
+ 			}
+ 			stk[0] = pc
+ 			if mp.preemptoff != "" {
+-				stk[1] = funcPC(_GC) + sys.PCQuantum
++				stk[1] = abi.FuncPCABIInternal(_GC) + sys.PCQuantum
+ 			} else {
+-				stk[1] = funcPC(_System) + sys.PCQuantum
++				stk[1] = abi.FuncPCABIInternal(_System) + sys.PCQuantum
+ 			}
+ 		}
+ 	}
+@@ -4794,7 +4782,7 @@ func sigprofNonGoPC(pc uintptr) {
+ 	if prof.hz != 0 {
+ 		stk := []uintptr{
+ 			pc,
+-			funcPC(_ExternalCode) + sys.PCQuantum,
++			abi.FuncPCABIInternal(_ExternalCode) + sys.PCQuantum,
+ 		}
+ 		cpuprof.addNonGo(stk)
+ 	}
+@@ -6488,7 +6476,7 @@ func doInit(t *initTask) {
+ 			after := inittrace
+ 
+ 			f := *(*func())(unsafe.Pointer(&firstFunc))
+-			pkg := funcpkgpath(findfunc(funcPC(f)))
++			pkg := funcpkgpath(findfunc(abi.FuncPCABIInternal(f)))
+ 
+ 			var sbuf [24]byte
+ 			print("init ", pkg, " @")
+diff --git a/src/runtime/select.go b/src/runtime/select.go
+index e72761bfa9..74f0c29194 100644
+--- a/src/runtime/select.go
++++ b/src/runtime/select.go
+@@ -7,6 +7,7 @@ package runtime
+ // This file contains the implementation of Go select statements.
+ 
+ import (
++	"internal/abi"
+ 	"runtime/internal/atomic"
+ 	"unsafe"
+ )
+@@ -22,8 +23,8 @@ type scase struct {
+ }
+ 
+ var (
+-	chansendpc = funcPC(chansend)
+-	chanrecvpc = funcPC(chanrecv)
++	chansendpc = abi.FuncPCABIInternal(chansend)
++	chanrecvpc = abi.FuncPCABIInternal(chanrecv)
+ )
+ 
+ func selectsetpc(pc *uintptr) {
+diff --git a/src/runtime/signal_386.go b/src/runtime/signal_386.go
+index 5824eaddb5..c77a9cc522 100644
+--- a/src/runtime/signal_386.go
++++ b/src/runtime/signal_386.go
+@@ -8,6 +8,7 @@
+ package runtime
+ 
+ import (
++	"internal/abi"
+ 	"runtime/internal/sys"
+ 	"unsafe"
+ )
+@@ -42,10 +43,10 @@ func (c *sigctxt) preparePanic(sig uint32, gp *g) {
+ 	sp := uintptr(c.esp())
+ 
+ 	if shouldPushSigpanic(gp, pc, *(*uintptr)(unsafe.Pointer(sp))) {
+-		c.pushCall(funcPC(sigpanic), pc)
++		c.pushCall(abi.FuncPCABIInternal(sigpanic), pc)
+ 	} else {
+ 		// Not safe to push the call. Just clobber the frame.
+-		c.set_eip(uint32(funcPC(sigpanic)))
++		c.set_eip(uint32(abi.FuncPCABIInternal(sigpanic)))
+ 	}
+ }
+ 
+diff --git a/src/runtime/signal_arm.go b/src/runtime/signal_arm.go
+index 4d9c6224a2..a0780788f8 100644
+--- a/src/runtime/signal_arm.go
++++ b/src/runtime/signal_arm.go
+@@ -7,7 +7,10 @@
+ 
+ package runtime
+ 
+-import "unsafe"
++import (
++	"internal/abi"
++	"unsafe"
++)
+ 
+ func dumpregs(c *sigctxt) {
+ 	print("trap    ", hex(c.trap()), "\n")
+@@ -61,7 +64,7 @@ func (c *sigctxt) preparePanic(sig uint32, gp *g) {
+ 
+ 	// In case we are panicking from external C code
+ 	c.set_r10(uint32(uintptr(unsafe.Pointer(gp))))
+-	c.set_pc(uint32(funcPC(sigpanic)))
++	c.set_pc(uint32(abi.FuncPCABIInternal(sigpanic)))
+ }
+ 
+ func (c *sigctxt) pushCall(targetPC, resumePC uintptr) {
+diff --git a/src/runtime/signal_arm64.go b/src/runtime/signal_arm64.go
+index f04750084f..9d4a8b8a99 100644
+--- a/src/runtime/signal_arm64.go
++++ b/src/runtime/signal_arm64.go
+@@ -8,6 +8,7 @@
+ package runtime
+ 
+ import (
++	"internal/abi"
+ 	"runtime/internal/sys"
+ 	"unsafe"
+ )
+@@ -77,7 +78,7 @@ func (c *sigctxt) preparePanic(sig uint32, gp *g) {
+ 
+ 	// In case we are panicking from external C code
+ 	c.set_r28(uint64(uintptr(unsafe.Pointer(gp))))
+-	c.set_pc(uint64(funcPC(sigpanic)))
++	c.set_pc(uint64(abi.FuncPCABIInternal(sigpanic)))
+ }
+ 
+ func (c *sigctxt) pushCall(targetPC, resumePC uintptr) {
+diff --git a/src/runtime/signal_linux_s390x.go b/src/runtime/signal_linux_s390x.go
+index 12d5c31593..03c58cbbb6 100644
+--- a/src/runtime/signal_linux_s390x.go
++++ b/src/runtime/signal_linux_s390x.go
+@@ -5,6 +5,7 @@
+ package runtime
+ 
+ import (
++	"internal/abi"
+ 	"runtime/internal/sys"
+ 	"unsafe"
+ )
+@@ -107,7 +108,7 @@ func (c *sigctxt) preparePanic(sig uint32, gp *g) {
+ 	// In case we are panicking from external C code
+ 	c.set_r0(0)
+ 	c.set_r13(uint64(uintptr(unsafe.Pointer(gp))))
+-	c.set_pc(uint64(funcPC(sigpanic)))
++	c.set_pc(uint64(abi.FuncPCABIInternal(sigpanic)))
+ }
+ 
+ func (c *sigctxt) pushCall(targetPC, resumePC uintptr) {
+diff --git a/src/runtime/signal_mips64x.go b/src/runtime/signal_mips64x.go
+index 1616b57027..eebcc74886 100644
+--- a/src/runtime/signal_mips64x.go
++++ b/src/runtime/signal_mips64x.go
+@@ -9,6 +9,7 @@
+ package runtime
+ 
+ import (
++	"internal/abi"
+ 	"runtime/internal/sys"
+ 	"unsafe"
+ )
+@@ -80,7 +81,7 @@ func (c *sigctxt) preparePanic(sig uint32, gp *g) {
+ 	}
+ 
+ 	// In case we are panicking from external C code
+-	sigpanicPC := uint64(funcPC(sigpanic))
++	sigpanicPC := uint64(abi.FuncPCABIInternal(sigpanic))
+ 	c.set_r28(sigpanicPC >> 32 << 32) // RSB register
+ 	c.set_r30(uint64(uintptr(unsafe.Pointer(gp))))
+ 	c.set_pc(sigpanicPC)
+diff --git a/src/runtime/signal_mipsx.go b/src/runtime/signal_mipsx.go
+index dcc7f1e9dd..5067799bd6 100644
+--- a/src/runtime/signal_mipsx.go
++++ b/src/runtime/signal_mipsx.go
+@@ -9,6 +9,7 @@
+ package runtime
+ 
+ import (
++	"internal/abi"
+ 	"runtime/internal/sys"
+ 	"unsafe"
+ )
+@@ -78,7 +79,7 @@ func (c *sigctxt) preparePanic(sig uint32, gp *g) {
+ 
+ 	// In case we are panicking from external C code
+ 	c.set_r30(uint32(uintptr(unsafe.Pointer(gp))))
+-	c.set_pc(uint32(funcPC(sigpanic)))
++	c.set_pc(uint32(abi.FuncPCABIInternal(sigpanic)))
+ }
+ 
+ func (c *sigctxt) pushCall(targetPC, resumePC uintptr) {
+diff --git a/src/runtime/signal_ppc64x.go b/src/runtime/signal_ppc64x.go
+index f2225da9a1..8a39d59957 100644
+--- a/src/runtime/signal_ppc64x.go
++++ b/src/runtime/signal_ppc64x.go
+@@ -9,6 +9,7 @@
+ package runtime
+ 
+ import (
++	"internal/abi"
+ 	"runtime/internal/sys"
+ 	"unsafe"
+ )
+@@ -83,8 +84,8 @@ func (c *sigctxt) preparePanic(sig uint32, gp *g) {
+ 	// In case we are panicking from external C code
+ 	c.set_r0(0)
+ 	c.set_r30(uint64(uintptr(unsafe.Pointer(gp))))
+-	c.set_r12(uint64(funcPC(sigpanic)))
+-	c.set_pc(uint64(funcPC(sigpanic)))
++	c.set_r12(uint64(abi.FuncPCABIInternal(sigpanic)))
++	c.set_pc(uint64(abi.FuncPCABIInternal(sigpanic)))
+ }
+ 
+ func (c *sigctxt) pushCall(targetPC, resumePC uintptr) {
+diff --git a/src/runtime/signal_riscv64.go b/src/runtime/signal_riscv64.go
+index e6b1b14130..aaaa217051 100644
+--- a/src/runtime/signal_riscv64.go
++++ b/src/runtime/signal_riscv64.go
+@@ -8,6 +8,7 @@
+ package runtime
+ 
+ import (
++	"internal/abi"
+ 	"runtime/internal/sys"
+ 	"unsafe"
+ )
+@@ -76,7 +77,7 @@ func (c *sigctxt) preparePanic(sig uint32, gp *g) {
+ 
+ 	// In case we are panicking from external C code
+ 	c.set_gp(uint64(uintptr(unsafe.Pointer(gp))))
+-	c.set_pc(uint64(funcPC(sigpanic)))
++	c.set_pc(uint64(abi.FuncPCABIInternal(sigpanic)))
+ }
+ 
+ func (c *sigctxt) pushCall(targetPC, resumePC uintptr) {
+diff --git a/src/runtime/signal_unix.go b/src/runtime/signal_unix.go
+index 6396232dd7..0b3414d457 100644
+--- a/src/runtime/signal_unix.go
++++ b/src/runtime/signal_unix.go
+@@ -144,7 +144,7 @@ func initsig(preinit bool) {
+ 		}
+ 
+ 		handlingSig[i] = 1
+-		setsig(i, funcPC(sighandler))
++		setsig(i, abi.FuncPCABIInternal(sighandler))
+ 	}
+ }
+ 
+@@ -195,7 +195,7 @@ func sigenable(sig uint32) {
+ 		<-maskUpdatedChan
+ 		if atomic.Cas(&handlingSig[sig], 0, 1) {
+ 			atomic.Storeuintptr(&fwdSig[sig], getsig(sig))
+-			setsig(sig, funcPC(sighandler))
++			setsig(sig, abi.FuncPCABIInternal(sighandler))
+ 		}
+ 	}
+ }
+@@ -272,7 +272,7 @@ func setProcessCPUProfiler(hz int32) {
+ 		// Enable the Go signal handler if not enabled.
+ 		if atomic.Cas(&handlingSig[_SIGPROF], 0, 1) {
+ 			atomic.Storeuintptr(&fwdSig[_SIGPROF], getsig(_SIGPROF))
+-			setsig(_SIGPROF, funcPC(sighandler))
++			setsig(_SIGPROF, abi.FuncPCABIInternal(sighandler))
+ 		}
+ 
+ 		var it itimerval
+@@ -844,7 +844,7 @@ func raisebadsignal(sig uint32, c *sigctxt) {
+ 	// We may receive another instance of the signal before we
+ 	// restore the Go handler, but that is not so bad: we know
+ 	// that the Go program has been ignoring the signal.
+-	setsig(sig, funcPC(sighandler))
++	setsig(sig, abi.FuncPCABIInternal(sighandler))
+ }
+ 
+ //go:nosplit
+diff --git a/src/runtime/slice.go b/src/runtime/slice.go
+index f9d4154acf..7a470f09b6 100644
+--- a/src/runtime/slice.go
++++ b/src/runtime/slice.go
+@@ -5,6 +5,7 @@
+ package runtime
+ 
+ import (
++	"internal/abi"
+ 	"runtime/internal/math"
+ 	"runtime/internal/sys"
+ 	"unsafe"
+@@ -68,7 +69,7 @@ func makeslicecopy(et *_type, tolen int, fromlen int, from unsafe.Pointer) unsaf
+ 
+ 	if raceenabled {
+ 		callerpc := getcallerpc()
+-		pc := funcPC(makeslicecopy)
++		pc := abi.FuncPCABIInternal(makeslicecopy)
+ 		racereadrangepc(from, copymem, callerpc, pc)
+ 	}
+ 	if msanenabled {
+@@ -144,7 +145,7 @@ func panicunsafeslicelen() {
+ func growslice(et *_type, old slice, cap int) slice {
+ 	if raceenabled {
+ 		callerpc := getcallerpc()
+-		racereadrangepc(old.array, uintptr(old.len*int(et.size)), callerpc, funcPC(growslice))
++		racereadrangepc(old.array, uintptr(old.len*int(et.size)), callerpc, abi.FuncPCABIInternal(growslice))
+ 	}
+ 	if msanenabled {
+ 		msanread(old.array, uintptr(old.len*int(et.size)))
+@@ -280,7 +281,7 @@ func slicecopy(toPtr unsafe.Pointer, toLen int, fromPtr unsafe.Pointer, fromLen
+ 	size := uintptr(n) * width
+ 	if raceenabled {
+ 		callerpc := getcallerpc()
+-		pc := funcPC(slicecopy)
++		pc := abi.FuncPCABIInternal(slicecopy)
+ 		racereadrangepc(fromPtr, size, callerpc, pc)
+ 		racewriterangepc(toPtr, size, callerpc, pc)
+ 	}
+diff --git a/src/runtime/stack.go b/src/runtime/stack.go
+index b21c9c9518..622de45f25 100644
+--- a/src/runtime/stack.go
++++ b/src/runtime/stack.go
+@@ -1112,7 +1112,7 @@ func gostartcallfn(gobuf *gobuf, fv *funcval) {
+ 	if fv != nil {
+ 		fn = unsafe.Pointer(fv.fn)
+ 	} else {
+-		fn = unsafe.Pointer(funcPC(nilfunc))
++		fn = unsafe.Pointer(abi.FuncPCABIInternal(nilfunc))
+ 	}
+ 	gostartcall(gobuf, fn, unsafe.Pointer(fv))
+ }
+diff --git a/src/runtime/string.go b/src/runtime/string.go
+index d6030a1dca..3c215d3754 100644
+--- a/src/runtime/string.go
++++ b/src/runtime/string.go
+@@ -5,6 +5,7 @@
+ package runtime
+ 
+ import (
++	"internal/abi"
+ 	"internal/bytealg"
+ 	"runtime/internal/sys"
+ 	"unsafe"
+@@ -88,7 +89,7 @@ func slicebytetostring(buf *tmpBuf, ptr *byte, n int) (str string) {
+ 		racereadrangepc(unsafe.Pointer(ptr),
+ 			uintptr(n),
+ 			getcallerpc(),
+-			funcPC(slicebytetostring))
++			abi.FuncPCABIInternal(slicebytetostring))
+ 	}
+ 	if msanenabled {
+ 		msanread(unsafe.Pointer(ptr), uintptr(n))
+@@ -152,7 +153,7 @@ func slicebytetostringtmp(ptr *byte, n int) (str string) {
+ 		racereadrangepc(unsafe.Pointer(ptr),
+ 			uintptr(n),
+ 			getcallerpc(),
+-			funcPC(slicebytetostringtmp))
++			abi.FuncPCABIInternal(slicebytetostringtmp))
+ 	}
+ 	if msanenabled && n > 0 {
+ 		msanread(unsafe.Pointer(ptr), uintptr(n))
+@@ -203,7 +204,7 @@ func slicerunetostring(buf *tmpBuf, a []rune) string {
+ 		racereadrangepc(unsafe.Pointer(&a[0]),
+ 			uintptr(len(a))*unsafe.Sizeof(a[0]),
+ 			getcallerpc(),
+-			funcPC(slicerunetostring))
++			abi.FuncPCABIInternal(slicerunetostring))
+ 	}
+ 	if msanenabled && len(a) > 0 {
+ 		msanread(unsafe.Pointer(&a[0]), uintptr(len(a))*unsafe.Sizeof(a[0]))
+diff --git a/src/runtime/time.go b/src/runtime/time.go
+index dee6a674e4..90e9b1139f 100644
+--- a/src/runtime/time.go
++++ b/src/runtime/time.go
+@@ -7,6 +7,7 @@
+ package runtime
+ 
+ import (
++	"internal/abi"
+ 	"runtime/internal/atomic"
+ 	"runtime/internal/sys"
+ 	"unsafe"
+@@ -856,7 +857,7 @@ func runOneTimer(pp *p, t *timer, now int64) {
+ 	if raceenabled {
+ 		ppcur := getg().m.p.ptr()
+ 		if ppcur.timerRaceCtx == 0 {
+-			ppcur.timerRaceCtx = racegostart(funcPC(runtimer) + sys.PCQuantum)
++			ppcur.timerRaceCtx = racegostart(abi.FuncPCABIInternal(runtimer) + sys.PCQuantum)
+ 		}
+ 		raceacquirectx(ppcur.timerRaceCtx, unsafe.Pointer(t))
+ 	}
+diff --git a/src/runtime/type.go b/src/runtime/type.go
+index 335fc57f4b..52e65a3bd2 100644
+--- a/src/runtime/type.go
++++ b/src/runtime/type.go
+@@ -6,7 +6,10 @@
+ 
+ package runtime
+ 
+-import "unsafe"
++import (
++	"internal/abi"
++	"unsafe"
++)
+ 
+ // tflag is documented in reflect/type.go.
+ //
+@@ -262,7 +265,7 @@ func (t *_type) textOff(off textOff) unsafe.Pointer {
+ 	if off == -1 {
+ 		// -1 is the sentinel value for unreachable code.
+ 		// See cmd/link/internal/ld/data.go:relocsym.
+-		return unsafe.Pointer(funcPC(unreachableMethod))
++		return unsafe.Pointer(abi.FuncPCABIInternal(unreachableMethod))
+ 	}
+ 	base := uintptr(unsafe.Pointer(t))
+ 	var md *moduledata

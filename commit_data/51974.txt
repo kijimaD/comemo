@@ -1277,3 +1277,47 @@ Date:   Mon Mar 28 17:40:23 2022 -0700
  test/typeparam/typeswitch4.out                     |    3 +
  test/typeparam/valimp.dir/main.go                  |    2 +-
  1269 files changed, 14919 insertions(+), 17878 deletions(-)
+
+diff --cc src/go/build/build.go
+index 4bf46a8970,df505312ce..4ec9ed57a2
+--- a/src/go/build/build.go
++++ b/src/go/build/build.go
+@@@ -1900,10 -1913,9 +1914,13 @@@ func (ctxt *Context) matchTag(name stri
+  	if ctxt.GOOS == "ios" && name == "darwin" {
+  		return true
+  	}
++ 	if name == "unix" && unixOS[ctxt.GOOS] {
++ 		return true
++ 	}
+ +	// Let applications know that the Go+BoringCrypto toolchain is in use.
+ +	if name == "boringcrypto" {
+ +		return true
+ +	}
+  
+  	// other tags
+  	for _, tag := range ctxt.BuildTags {
+diff --cc src/go/build/deps_test.go
+index 785e14cab9,5794e3d25e..ade6519b8d
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@@ -444,14 -442,13 +440,19 @@@ var depsRules = 
+  	< crypto/x509
+  	< crypto/tls;
+  
+ +	crypto/internal/boring/sig, crypto/internal/boring/fipstls
+ +	< crypto/tls/fipsonly;
+ +
+ +	crypto/internal/boring
+ +	< crypto/boring;
+ +
+  	# crypto-aware packages
+  
+ -	CRYPTO, DEBUG, go/build, go/types, text/scanner
+++	CRYPTO-BORING, DEBUG, go/build, go/types, text/scanner
++ 	< internal/pkgbits
++ 	< go/internal/gcimporter, go/internal/gccgoimporter, go/internal/srcimporter
++ 	< go/importer;
++ 
+  	NET, crypto/rand, mime/quotedprintable
+  	< mime/multipart;
+  

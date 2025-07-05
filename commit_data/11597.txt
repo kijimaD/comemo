@@ -7,6 +7,21 @@ Date:   Fri Feb 3 10:17:37 2012 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5626043
-
+---
  lib/godoc/package.html | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/lib/godoc/package.html b/lib/godoc/package.html
+index c7a01a877e..e0df513d6a 100644
+--- a/lib/godoc/package.html
++++ b/lib/godoc/package.html
+@@ -12,6 +12,9 @@
+ 			<dl>
+ 			<dd><a href="#Overview">Overview</a></dd>
+ 			<dd><a href="#Index">Index</a></dd>
++			{{if $.Dirs}}
++				<dd><a href="#Subdirectories">Subdirectories</a></dd>
++			{{end}}
+ 			</dl>
+ 		</div>
+ 		<h2 id="Overview">Overview</h2>

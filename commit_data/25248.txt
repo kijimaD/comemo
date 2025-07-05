@@ -18,6 +18,26 @@ Date:   Tue Oct 13 19:49:40 2015 -0700
     Reviewed-by: Minux Ma <minux@golang.org>
     Run-TryBot: Minux Ma <minux@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/fastlog2_test.go | 8 +++++++-
  1 file changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/fastlog2_test.go b/src/runtime/fastlog2_test.go
+index 8937365d51..14f6c90837 100644
+--- a/src/runtime/fastlog2_test.go
++++ b/src/runtime/fastlog2_test.go
+@@ -15,7 +15,13 @@ func TestFastLog2(t *testing.T) {
+ 	// implementation over the range of interest for heap sampling.
+ 	const randomBitCount = 26
+ 	var e float64
+-	for i := 1; i < 1<<randomBitCount; i++ {
++
++	inc := 1
++	if testing.Short() {
++		// Check 1K total values, down from 64M.
++		inc = 1 << 16
++	}
++	for i := 1; i < 1<<randomBitCount; i += inc {
+ 		l, fl := math.Log2(float64(i)), runtime.Fastlog2(float64(i))
+ 		d := l - fl
+ 		e += d * d

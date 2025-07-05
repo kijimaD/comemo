@@ -10,6 +10,24 @@ Date:   Tue Jul 10 10:02:02 2018 +0200
     Reviewed-on: https://go-review.googlesource.com/122898
     Reviewed-by: Айнар Гарипов <gugl.zadolbal@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/trace/trace.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/trace/trace.go b/src/runtime/trace/trace.go
+index a40f87e53c..7f9d72a846 100644
+--- a/src/runtime/trace/trace.go
++++ b/src/runtime/trace/trace.go
+@@ -82,10 +82,10 @@
+ //
+ //      ctx, task := trace.NewTask(ctx, "makeCappuccino")
+ //      trace.Log(ctx, "orderID", orderID)
+-
++//
+ //      milk := make(chan bool)
+ //      espresso := make(chan bool)
+-
++//
+ //      go func() {
+ //              trace.WithRegion(ctx, "steamMilk", steamMilk)
+ //              milk <- true

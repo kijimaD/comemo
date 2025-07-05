@@ -17,6 +17,25 @@ Date:   Fri Oct 2 22:13:14 2020 +0200
     Reviewed-on: https://go-review.googlesource.com/c/go/+/259277
     Trust: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go1.16.html | 7 +++++--
  1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go1.16.html b/doc/go1.16.html
+index 5e0fa60e2f..f7bcb9e94f 100644
+--- a/doc/go1.16.html
++++ b/doc/go1.16.html
+@@ -31,8 +31,11 @@ Do not send CLs removing the interior tags from such phrases.
+ 
+ <h2 id="ports">Ports</h2>
+ 
+-<p>
+-  TODO
++<h3 id="netbsd">NetBSD</h3>
++
++<p><!-- golang.org/issue/30824 -->
++  Go now supports the 64-bit ARM architecture on NetBSD (the
++  <code>netbsd/arm64</code> port).
+ </p>
+ 
+ <h2 id="tools">Tools</h2>

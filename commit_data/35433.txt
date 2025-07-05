@@ -15,7 +15,31 @@ Date:   Sat Feb 10 15:32:28 2018 -0500
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/naclmake.bash | 2 +-
  src/nacltest.bash | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/naclmake.bash b/src/naclmake.bash
+index 046f50aa87..74fd802f41 100755
+--- a/src/naclmake.bash
++++ b/src/naclmake.bash
+@@ -45,4 +45,4 @@ gobin=$GOROOT_BOOTSTRAP/bin
+ GOROOT=$GOROOT_BOOTSTRAP $gobin/go run ../misc/nacl/mkzip.go -p syscall -r .. ../misc/nacl/testzip.proto syscall/fstest_nacl.go
+ 
+ # Run standard build and tests.
+-GOOS=nacl GOARCH=$naclGOARCH ./make.bash
++GOOS=nacl GOARCH=$naclGOARCH ./make.bash "$@"
+diff --git a/src/nacltest.bash b/src/nacltest.bash
+index 7bbd6601ae..3e929a14a4 100755
+--- a/src/nacltest.bash
++++ b/src/nacltest.bash
+@@ -13,7 +13,7 @@
+ set -e
+ ulimit -c 0
+ 
+-. ./naclmake.bash
++. ./naclmake.bash "$@"
+ 
+ # Check GOARCH.
+ case "$naclGOARCH" in

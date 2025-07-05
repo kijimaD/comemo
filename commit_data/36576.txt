@@ -19,7 +19,7 @@ Date:   Sat Mar 31 23:14:17 2018 +0200
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  misc/wasm/wasm_exec.js                     |   8 +-
  src/internal/cpu/cpu_wasm.go               |   7 +
  src/reflect/asm_wasm.s                     |  44 +++
@@ -50,3 +50,1700 @@ Date:   Sat Mar 31 23:14:17 2018 +0200
  src/runtime/type.go                        |   2 +-
  src/runtime/unaligned1.go                  |   2 +-
  29 files changed, 1390 insertions(+), 16 deletions(-)
+
+diff --git a/misc/wasm/wasm_exec.js b/misc/wasm/wasm_exec.js
+index 372cd4195e..18bff387db 100755
+--- a/misc/wasm/wasm_exec.js
++++ b/misc/wasm/wasm_exec.js
+@@ -146,13 +146,13 @@ async function compile(source) {
+ async function run() {
+ 	let importObject = {
+ 		go: {
+-			// func wasmexit(code int32)
+-			"runtime.wasmexit": function (sp) {
++			// func wasmExit(code int32)
++			"runtime.wasmExit": function (sp) {
+ 				process.exit(mem().getInt32(sp + 8, true));
+ 			},
+ 
+-			// func wasmwrite(fd uintptr, p unsafe.Pointer, n int32)
+-			"runtime.wasmwrite": function (sp) {
++			// func wasmWrite(fd uintptr, p unsafe.Pointer, n int32)
++			"runtime.wasmWrite": function (sp) {
+ 				const fd = getInt64(sp + 8);
+ 				const p = getInt64(sp + 16);
+ 				const n = mem().getInt32(sp + 24, true);
+diff --git a/src/internal/cpu/cpu_wasm.go b/src/internal/cpu/cpu_wasm.go
+new file mode 100644
+index 0000000000..1107a7ad6f
+--- /dev/null
++++ b/src/internal/cpu/cpu_wasm.go
+@@ -0,0 +1,7 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cpu
++
++const CacheLineSize = 64
+diff --git a/src/reflect/asm_wasm.s b/src/reflect/asm_wasm.s
+new file mode 100644
+index 0000000000..0f9b5aa130
+--- /dev/null
++++ b/src/reflect/asm_wasm.s
+@@ -0,0 +1,44 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "textflag.h"
++#include "funcdata.h"
++
++// makeFuncStub is the code half of the function returned by MakeFunc.
++// See the comment on the declaration of makeFuncStub in makefunc.go
++// for more details.
++// No arg size here; runtime pulls arg map out of the func value.
++TEXT ·makeFuncStub(SB),(NOSPLIT|WRAPPER),$16
++	NO_LOCAL_POINTERS
++
++	MOVD CTXT, 0(SP)
++
++	Get SP
++	Get SP
++	I64ExtendUI32
++	I64Const $argframe+0(FP)
++	I64Add
++	I64Store $8
++
++	CALL ·callReflect(SB)
++	RET
++
++// methodValueCall is the code half of the function returned by makeMethodValue.
++// See the comment on the declaration of methodValueCall in makefunc.go
++// for more details.
++// No arg size here; runtime pulls arg map out of the func value.
++TEXT ·methodValueCall(SB),(NOSPLIT|WRAPPER),$16
++	NO_LOCAL_POINTERS
++
++	MOVD CTXT, 0(SP)
++
++	Get SP
++	Get SP
++	I64ExtendUI32
++	I64Const $argframe+0(FP)
++	I64Add
++	I64Store $8
++
++	CALL ·callMethod(SB)
++	RET
+diff --git a/src/runtime/asm_wasm.s b/src/runtime/asm_wasm.s
+new file mode 100644
+index 0000000000..67d7bf17dd
+--- /dev/null
++++ b/src/runtime/asm_wasm.s
+@@ -0,0 +1,471 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "go_asm.h"
++#include "go_tls.h"
++#include "funcdata.h"
++#include "textflag.h"
++
++TEXT runtime·rt0_go(SB), NOSPLIT, $0
++	// save m->g0 = g0
++	MOVD $runtime·g0(SB), runtime·m0+m_g0(SB)
++	// save m0 to g0->m
++	MOVD $runtime·m0(SB), runtime·g0+g_m(SB)
++	// set g to g0
++	MOVD $runtime·g0(SB), g
++	CALLNORESUME runtime·check(SB)
++	CALLNORESUME runtime·args(SB)
++	CALLNORESUME runtime·osinit(SB)
++	CALLNORESUME runtime·schedinit(SB)
++	MOVD $0, 0(SP)
++	MOVD $runtime·mainPC(SB), 8(SP)
++	CALLNORESUME runtime·newproc(SB)
++	CALL runtime·mstart(SB) // WebAssembly stack will unwind when switching to another goroutine
++	UNDEF
++
++DATA  runtime·mainPC+0(SB)/8,$runtime·main(SB)
++GLOBL runtime·mainPC(SB),RODATA,$8
++
++// func checkASM() bool
++TEXT ·checkASM(SB), NOSPLIT, $0-1
++	MOVB $1, ret+0(FP)
++	RET
++
++TEXT runtime·gogo(SB), NOSPLIT, $0-8
++	MOVD buf+0(FP), R0
++	MOVD gobuf_g(R0), g
++	MOVD gobuf_sp(R0), SP
++
++	I64Load gobuf_pc(R0)
++	I32WrapI64
++	I32Const $16
++	I32ShrU
++	Set PC_F
++
++	I64Load gobuf_pc(R0)
++	I64Const $0xFFFF
++	I64And
++	I32WrapI64
++	Set PC_B
++
++	MOVD gobuf_ret(R0), RET0
++	MOVD gobuf_ctxt(R0), CTXT
++	// clear to help garbage collector
++	MOVD $0, gobuf_sp(R0)
++	MOVD $0, gobuf_ret(R0)
++	MOVD $0, gobuf_ctxt(R0)
++
++	I32Const $1
++	Return
++
++// func mcall(fn func(*g))
++// Switch to m->g0's stack, call fn(g).
++// Fn must never return. It should gogo(&g->sched)
++// to keep running g.
++TEXT runtime·mcall(SB), NOSPLIT, $0-8
++	// CTXT = fn
++	MOVD fn+0(FP), CTXT
++	// R1 = g.m
++	MOVD g_m(g), R1
++	// R2 = g0
++	MOVD m_g0(R1), R2
++
++	// save state in g->sched
++	MOVD 0(SP), g_sched+gobuf_pc(g)     // caller's PC
++	MOVD $fn+0(FP), g_sched+gobuf_sp(g) // caller's SP
++	MOVD g, g_sched+gobuf_g(g)
++
++	// if g == g0 call badmcall
++	Get g
++	Get R2
++	I64Eq
++	If
++		JMP runtime·badmcall(SB)
++	End
++
++	// switch to g0's stack
++	I64Load (g_sched+gobuf_sp)(R2)
++	I64Const $8
++	I64Sub
++	I32WrapI64
++	Set SP
++
++	// set arg to current g
++	MOVD g, 0(SP)
++
++	// switch to g0
++	MOVD R2, g
++
++	// call fn
++	Get CTXT
++	I32WrapI64
++	I64Load $0
++	CALL
++
++	Get SP
++	I32Const $8
++	I32Add
++	Set SP
++
++	JMP runtime·badmcall2(SB)
++
++// func systemstack(fn func())
++TEXT runtime·systemstack(SB), NOSPLIT, $0-8
++	// R0 = fn
++	MOVD fn+0(FP), R0
++	// R1 = g.m
++	MOVD g_m(g), R1
++	// R2 = g0
++	MOVD m_g0(R1), R2
++
++	// if g == g0
++	Get g
++	Get R2
++	I64Eq
++	If
++		// no switch:
++		MOVD R0, CTXT
++
++		Get CTXT
++		I32WrapI64
++		I64Load $0
++		JMP
++	End
++
++	// if g != m.curg
++	Get g
++	I64Load m_curg(R1)
++	I64Ne
++	If
++		CALLNORESUME runtime·badsystemstack(SB)
++	End
++
++	// switch:
++
++	// save state in g->sched. Pretend to
++	// be systemstack_switch if the G stack is scanned.
++	MOVD $runtime·systemstack_switch(SB), g_sched+gobuf_pc(g)
++
++	MOVD SP, g_sched+gobuf_sp(g)
++	MOVD g, g_sched+gobuf_g(g)
++
++	// switch to g0
++	MOVD R2, g
++
++	// make it look like mstart called systemstack on g0, to stop traceback
++	I64Load (g_sched+gobuf_sp)(R2)
++	I64Const $8
++	I64Sub
++	Set R3
++
++	MOVD $runtime·mstart(SB), 0(R3)
++	MOVD R3, SP
++
++	// call fn
++	MOVD R0, CTXT
++
++	Get CTXT
++	I32WrapI64
++	I64Load $0
++	CALL
++
++	// switch back to g
++	MOVD g_m(g), R1
++	MOVD m_curg(R1), R2
++	MOVD R2, g
++	MOVD g_sched+gobuf_sp(R2), SP
++	MOVD $0, g_sched+gobuf_sp(R2)
++	RET
++
++TEXT runtime·systemstack_switch(SB), NOSPLIT, $0-0
++	RET
++
++TEXT runtime·return0(SB), NOSPLIT, $0-0
++	MOVD $0, RET0
++	RET
++
++TEXT runtime·jmpdefer(SB), NOSPLIT, $0-16
++	MOVD fn+0(FP), CTXT
++
++	Get CTXT
++	I64Eqz
++	If
++		CALLNORESUME runtime·sigpanic(SB)
++	End
++
++	// caller sp after CALL
++	I64Load argp+8(FP)
++	I64Const $8
++	I64Sub
++	I32WrapI64
++	Set SP
++
++	// decrease PC_B by 1 to CALL again
++	Get SP
++	I32Load16U (SP)
++	I32Const $1
++	I32Sub
++	I32Store16 $0
++
++	// but first run the deferred function
++	Get CTXT
++	I32WrapI64
++	I64Load $0
++	JMP
++
++TEXT runtime·asminit(SB), NOSPLIT, $0-0
++	// No per-thread init.
++	RET
++
++TEXT ·publicationBarrier(SB), NOSPLIT, $0-0
++	RET
++
++TEXT runtime·procyield(SB), NOSPLIT, $0-0 // FIXME
++	RET
++
++TEXT runtime·breakpoint(SB), NOSPLIT, $0-0
++	UNDEF
++
++// Called during function prolog when more stack is needed.
++//
++// The traceback routines see morestack on a g0 as being
++// the top of a stack (for example, morestack calling newstack
++// calling the scheduler calling newm calling gc), so we must
++// record an argument size. For that purpose, it has no arguments.
++TEXT runtime·morestack(SB), NOSPLIT, $0-0
++	// R1 = g.m
++	MOVD g_m(g), R1
++
++	// R2 = g0
++	MOVD m_g0(R1), R2
++
++	// Cannot grow scheduler stack (m->g0).
++	Get g
++	Get R1
++	I64Eq
++	If
++		CALLNORESUME runtime·badmorestackg0(SB)
++	End
++
++	// Cannot grow signal stack (m->gsignal).
++	Get g
++	I64Load m_gsignal(R1)
++	I64Eq
++	If
++		CALLNORESUME runtime·badmorestackgsignal(SB)
++	End
++
++	// Called from f.
++	// Set m->morebuf to f's caller.
++	MOVD 8(SP), m_morebuf+gobuf_pc(R1)
++	MOVD $16(SP), m_morebuf+gobuf_sp(R1) // f's caller's SP
++	MOVD g, m_morebuf+gobuf_g(R1)
++
++	// Set g->sched to context in f.
++	MOVD 0(SP), g_sched+gobuf_pc(g)
++	MOVD g, g_sched+gobuf_g(g)
++	MOVD $8(SP), g_sched+gobuf_sp(g) // f's SP
++	MOVD CTXT, g_sched+gobuf_ctxt(g)
++
++	// Call newstack on m->g0's stack.
++	MOVD R2, g
++	MOVD g_sched+gobuf_sp(R2), SP
++	CALL runtime·newstack(SB)
++	UNDEF // crash if newstack returns
++
++// morestack but not preserving ctxt.
++TEXT runtime·morestack_noctxt(SB),NOSPLIT,$0
++	MOVD $0, CTXT
++	JMP runtime·morestack(SB)
++
++TEXT ·asmcgocall(SB), NOSPLIT, $0-0
++	UNDEF
++
++TEXT ·cgocallback_gofunc(SB), NOSPLIT, $16-32
++	UNDEF
++
++#define DISPATCH(NAME, MAXSIZE) \
++	Get R0; \
++	I64Const $MAXSIZE; \
++	I64LeU; \
++	If; \
++		JMP NAME(SB); \
++	End
++
++TEXT reflect·call(SB), NOSPLIT, $0-0
++	JMP ·reflectcall(SB)
++
++TEXT ·reflectcall(SB), NOSPLIT, $0-32
++	I64Load f+8(FP)
++	I64Eqz
++	If
++		CALLNORESUME runtime·sigpanic(SB)
++	End
++
++	MOVW argsize+24(FP), R0
++
++	DISPATCH(runtime·call32, 32)
++	DISPATCH(runtime·call64, 64)
++	DISPATCH(runtime·call128, 128)
++	DISPATCH(runtime·call256, 256)
++	DISPATCH(runtime·call512, 512)
++	DISPATCH(runtime·call1024, 1024)
++	DISPATCH(runtime·call2048, 2048)
++	DISPATCH(runtime·call4096, 4096)
++	DISPATCH(runtime·call8192, 8192)
++	DISPATCH(runtime·call16384, 16384)
++	DISPATCH(runtime·call32768, 32768)
++	DISPATCH(runtime·call65536, 65536)
++	DISPATCH(runtime·call131072, 131072)
++	DISPATCH(runtime·call262144, 262144)
++	DISPATCH(runtime·call524288, 524288)
++	DISPATCH(runtime·call1048576, 1048576)
++	DISPATCH(runtime·call2097152, 2097152)
++	DISPATCH(runtime·call4194304, 4194304)
++	DISPATCH(runtime·call8388608, 8388608)
++	DISPATCH(runtime·call16777216, 16777216)
++	DISPATCH(runtime·call33554432, 33554432)
++	DISPATCH(runtime·call67108864, 67108864)
++	DISPATCH(runtime·call134217728, 134217728)
++	DISPATCH(runtime·call268435456, 268435456)
++	DISPATCH(runtime·call536870912, 536870912)
++	DISPATCH(runtime·call1073741824, 1073741824)
++	JMP runtime·badreflectcall(SB)
++
++#define CALLFN(NAME, MAXSIZE) \
++TEXT NAME(SB), WRAPPER, $MAXSIZE-32; \
++	NO_LOCAL_POINTERS; \
++	MOVW argsize+24(FP), R0; \
++	\
++	Get R0; \
++	I64Eqz; \
++	Not; \
++	If; \
++		Get SP; \
++		I64Load argptr+16(FP); \
++		I32WrapI64; \
++		I64Load argsize+24(FP); \
++		I64Const $3; \
++		I64ShrU; \
++		I32WrapI64; \
++		Call runtime·wasmMove(SB); \
++	End; \
++	\
++	MOVD f+8(FP), CTXT; \
++	Get CTXT; \
++	I32WrapI64; \
++	I64Load $0; \
++	CALL; \
++	\
++	I64Load32U retoffset+28(FP); \
++	Set R0; \
++	\
++	MOVD argtype+0(FP), RET0; \
++	\
++	I64Load argptr+16(FP); \
++	Get R0; \
++	I64Add; \
++	Set RET1; \
++	\
++	Get SP; \
++	I64ExtendUI32; \
++	Get R0; \
++	I64Add; \
++	Set RET2; \
++	\
++	I64Load32U argsize+24(FP); \
++	Get R0; \
++	I64Sub; \
++	Set RET3; \
++	\
++	CALL callRet<>(SB); \
++	RET
++
++// callRet copies return values back at the end of call*. This is a
++// separate function so it can allocate stack space for the arguments
++// to reflectcallmove. It does not follow the Go ABI; it expects its
++// arguments in registers.
++TEXT callRet<>(SB), NOSPLIT, $32-0
++	NO_LOCAL_POINTERS
++	MOVD RET0, 0(SP)
++	MOVD RET1, 8(SP)
++	MOVD RET2, 16(SP)
++	MOVD RET3, 24(SP)
++	CALL runtime·reflectcallmove(SB)
++	RET
++
++CALLFN(·call32, 32)
++CALLFN(·call64, 64)
++CALLFN(·call128, 128)
++CALLFN(·call256, 256)
++CALLFN(·call512, 512)
++CALLFN(·call1024, 1024)
++CALLFN(·call2048, 2048)
++CALLFN(·call4096, 4096)
++CALLFN(·call8192, 8192)
++CALLFN(·call16384, 16384)
++CALLFN(·call32768, 32768)
++CALLFN(·call65536, 65536)
++CALLFN(·call131072, 131072)
++CALLFN(·call262144, 262144)
++CALLFN(·call524288, 524288)
++CALLFN(·call1048576, 1048576)
++CALLFN(·call2097152, 2097152)
++CALLFN(·call4194304, 4194304)
++CALLFN(·call8388608, 8388608)
++CALLFN(·call16777216, 16777216)
++CALLFN(·call33554432, 33554432)
++CALLFN(·call67108864, 67108864)
++CALLFN(·call134217728, 134217728)
++CALLFN(·call268435456, 268435456)
++CALLFN(·call536870912, 536870912)
++CALLFN(·call1073741824, 1073741824)
++
++TEXT runtime·goexit(SB), NOSPLIT, $0-0
++	NOP // first PC of goexit is skipped
++	CALL runtime·goexit1(SB) // does not return
++	UNDEF
++
++TEXT runtime·cgocallback(SB), NOSPLIT, $32-32
++	UNDEF
++
++// gcWriteBarrier performs a heap pointer write and informs the GC.
++//
++// gcWriteBarrier does NOT follow the Go ABI. It has two WebAssembly parameters:
++// R0: the destination of the write (i64)
++// R1: the value being written (i64)
++TEXT runtime·gcWriteBarrier(SB), NOSPLIT, $16
++	// R3 = g.m
++	MOVD g_m(g), R3
++	// R4 = p
++	MOVD m_p(R3), R4
++	// R5 = wbBuf.next
++	MOVD p_wbBuf+wbBuf_next(R4), R5
++
++	// Record value
++	MOVD R1, 0(R5)
++	// Record *slot
++	MOVD R0, 8(R5)
++
++	// Increment wbBuf.next
++	Get R5
++	I64Const $16
++	I64Add
++	Set R5
++	MOVD R5, p_wbBuf+wbBuf_next(R4)
++
++	Get R5
++	I64Load (p_wbBuf+wbBuf_end)(R4)
++	I64Eq
++	If
++		// Flush
++		MOVD R0, 0(SP)
++		MOVD R1, 8(SP)
++		CALLNORESUME runtime·wbBufFlush(SB)
++	End
++
++	// Do the write
++	MOVD R1, (R0)
++
++	RET
+diff --git a/src/runtime/cgo/asm_wasm.s b/src/runtime/cgo/asm_wasm.s
+new file mode 100644
+index 0000000000..cb140eb7b8
+--- /dev/null
++++ b/src/runtime/cgo/asm_wasm.s
+@@ -0,0 +1,8 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "textflag.h"
++
++TEXT crosscall2(SB), NOSPLIT, $0
++	UNDEF
+diff --git a/src/runtime/cputicks.go b/src/runtime/cputicks.go
+index de97d5b6fa..7beb57ea12 100644
+--- a/src/runtime/cputicks.go
++++ b/src/runtime/cputicks.go
+@@ -8,6 +8,7 @@
+ // +build !mips64le
+ // +build !mips
+ // +build !mipsle
++// +build !wasm
+ 
+ package runtime
+ 
+diff --git a/src/runtime/debug.go b/src/runtime/debug.go
+index feacfb6026..06bf0fa831 100644
+--- a/src/runtime/debug.go
++++ b/src/runtime/debug.go
+@@ -15,6 +15,10 @@ import (
+ // The number of logical CPUs on the local machine can be queried with NumCPU.
+ // This call will go away when the scheduler improves.
+ func GOMAXPROCS(n int) int {
++	if GOARCH == "wasm" && n > 1 {
++		n = 1 // WebAssembly has no threads yet, so only one CPU is possible.
++	}
++
+ 	lock(&sched.lock)
+ 	ret := int(gomaxprocs)
+ 	unlock(&sched.lock)
+diff --git a/src/runtime/env_posix.go b/src/runtime/env_posix.go
+index 6b45a43f74..032e7122ce 100644
+--- a/src/runtime/env_posix.go
++++ b/src/runtime/env_posix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux nacl netbsd openbsd solaris windows
++// +build darwin dragonfly freebsd js,wasm linux nacl netbsd openbsd solaris windows
+ 
+ package runtime
+ 
+diff --git a/src/runtime/gcinfo_test.go b/src/runtime/gcinfo_test.go
+index 767e08d540..7dd1a5607c 100644
+--- a/src/runtime/gcinfo_test.go
++++ b/src/runtime/gcinfo_test.go
+@@ -147,7 +147,7 @@ func infoBigStruct() []byte {
+ 			typeScalar, typeScalar, typeScalar, typeScalar, // t int; y uint16; u uint64
+ 			typePointer, typeScalar, // i string
+ 		}
+-	case "arm64", "amd64", "mips64", "mips64le", "ppc64", "ppc64le", "s390x":
++	case "arm64", "amd64", "mips64", "mips64le", "ppc64", "ppc64le", "s390x", "wasm":
+ 		return []byte{
+ 			typePointer,                        // q *int
+ 			typeScalar, typeScalar, typeScalar, // w byte; e [17]byte
+diff --git a/src/runtime/hash64.go b/src/runtime/hash64.go
+index 54098d9d2a..c3f2b9b6ad 100644
+--- a/src/runtime/hash64.go
++++ b/src/runtime/hash64.go
+@@ -6,7 +6,7 @@
+ //   xxhash: https://code.google.com/p/xxhash/
+ // cityhash: https://code.google.com/p/cityhash/
+ 
+-// +build amd64 amd64p32 arm64 mips64 mips64le ppc64 ppc64le s390x
++// +build amd64 amd64p32 arm64 mips64 mips64le ppc64 ppc64le s390x wasm
+ 
+ package runtime
+ 
+diff --git a/src/runtime/internal/atomic/atomic_wasm.go b/src/runtime/internal/atomic/atomic_wasm.go
+new file mode 100644
+index 0000000000..cbf254fcb5
+--- /dev/null
++++ b/src/runtime/internal/atomic/atomic_wasm.go
+@@ -0,0 +1,180 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// TODO(neelance): implement with actual atomic operations as soon as threads are available
++// See https://github.com/WebAssembly/design/issues/1073
++
++package atomic
++
++import "unsafe"
++
++//go:nosplit
++//go:noinline
++func Load(ptr *uint32) uint32 {
++	return *ptr
++}
++
++//go:nosplit
++//go:noinline
++func Loadp(ptr unsafe.Pointer) unsafe.Pointer {
++	return *(*unsafe.Pointer)(ptr)
++}
++
++//go:nosplit
++//go:noinline
++func Load64(ptr *uint64) uint64 {
++	return *ptr
++}
++
++//go:nosplit
++//go:noinline
++func Xadd(ptr *uint32, delta int32) uint32 {
++	new := *ptr + uint32(delta)
++	*ptr = new
++	return new
++}
++
++//go:nosplit
++//go:noinline
++func Xadd64(ptr *uint64, delta int64) uint64 {
++	new := *ptr + uint64(delta)
++	*ptr = new
++	return new
++}
++
++//go:nosplit
++//go:noinline
++func Xadduintptr(ptr *uintptr, delta uintptr) uintptr {
++	new := *ptr + delta
++	*ptr = new
++	return new
++}
++
++//go:nosplit
++//go:noinline
++func Xchg(ptr *uint32, new uint32) uint32 {
++	old := *ptr
++	*ptr = new
++	return old
++}
++
++//go:nosplit
++//go:noinline
++func Xchg64(ptr *uint64, new uint64) uint64 {
++	old := *ptr
++	*ptr = new
++	return old
++}
++
++//go:nosplit
++//go:noinline
++func Xchguintptr(ptr *uintptr, new uintptr) uintptr {
++	old := *ptr
++	*ptr = new
++	return old
++}
++
++//go:nosplit
++//go:noinline
++func And8(ptr *uint8, val uint8) {
++	*ptr = *ptr & val
++}
++
++//go:nosplit
++//go:noinline
++func Or8(ptr *uint8, val uint8) {
++	*ptr = *ptr | val
++}
++
++// NOTE: Do not add atomicxor8 (XOR is not idempotent).
++
++//go:nosplit
++//go:noinline
++func Cas64(ptr *uint64, old, new uint64) bool {
++	if *ptr == old {
++		*ptr = new
++		return true
++	}
++	return false
++}
++
++//go:nosplit
++//go:noinline
++func Store(ptr *uint32, val uint32) {
++	*ptr = val
++}
++
++//go:nosplit
++//go:noinline
++func Store64(ptr *uint64, val uint64) {
++	*ptr = val
++}
++
++//go:noinline
++//go:nosplit
++func StorepNoWB(ptr unsafe.Pointer, val unsafe.Pointer) {
++	*(*uintptr)(ptr) = uintptr(val)
++}
++
++//go:nosplit
++//go:noinline
++func Cas(ptr *uint32, old, new uint32) bool {
++	if *ptr == old {
++		*ptr = new
++		return true
++	}
++	return false
++}
++
++//go:nosplit
++//go:noinline
++func Casp1(ptr *unsafe.Pointer, old, new unsafe.Pointer) bool {
++	if *ptr == old {
++		*ptr = new
++		return true
++	}
++	return false
++}
++
++//go:nosplit
++//go:noinline
++func Casuintptr(ptr *uintptr, old, new uintptr) bool {
++	if *ptr == old {
++		*ptr = new
++		return true
++	}
++	return false
++}
++
++//go:nosplit
++//go:noinline
++func Storeuintptr(ptr *uintptr, new uintptr) {
++	*ptr = new
++}
++
++//go:nosplit
++//go:noinline
++func Loaduintptr(ptr *uintptr) uintptr {
++	return *ptr
++}
++
++//go:nosplit
++//go:noinline
++func Loaduint(ptr *uint) uint {
++	return *ptr
++}
++
++//go:nosplit
++//go:noinline
++func Loadint64(ptr *int64) int64 {
++	return *ptr
++}
++
++//go:nosplit
++//go:noinline
++func Xaddint64(ptr *int64, delta int64) int64 {
++	new := *ptr + delta
++	*ptr = new
++	return new
++}
+diff --git a/src/runtime/internal/atomic/stubs.go b/src/runtime/internal/atomic/stubs.go
+index 497b98046d..62e30d1788 100644
+--- a/src/runtime/internal/atomic/stubs.go
++++ b/src/runtime/internal/atomic/stubs.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build !wasm
++
+ package atomic
+ 
+ import "unsafe"
+diff --git a/src/runtime/internal/sys/arch.go b/src/runtime/internal/sys/arch.go
+index 148e8380d0..d9debaeef7 100644
+--- a/src/runtime/internal/sys/arch.go
++++ b/src/runtime/internal/sys/arch.go
+@@ -15,4 +15,5 @@ const (
+ 	MIPS64
+ 	PPC64
+ 	S390X
++	Wasm
+ )
+diff --git a/src/runtime/internal/sys/arch_wasm.go b/src/runtime/internal/sys/arch_wasm.go
+new file mode 100644
+index 0000000000..54fcd1e92e
+--- /dev/null
++++ b/src/runtime/internal/sys/arch_wasm.go
+@@ -0,0 +1,18 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package sys
++
++const (
++	ArchFamily          = Wasm
++	BigEndian           = false
++	CacheLineSize       = 64
++	DefaultPhysPageSize = 65536
++	PCQuantum           = 1
++	Int64Align          = 8
++	HugePageSize        = 0
++	MinFrameSize        = 0
++)
++
++type Uintreg uint64
+diff --git a/src/runtime/lfstack_64bit.go b/src/runtime/lfstack_64bit.go
+index 9524d651a1..4ce7d2a098 100644
+--- a/src/runtime/lfstack_64bit.go
++++ b/src/runtime/lfstack_64bit.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build amd64 arm64 mips64 mips64le ppc64 ppc64le s390x
++// +build amd64 arm64 mips64 mips64le ppc64 ppc64le s390x wasm
+ 
+ package runtime
+ 
+diff --git a/src/runtime/lock_js.go b/src/runtime/lock_js.go
+new file mode 100644
+index 0000000000..21e53d075e
+--- /dev/null
++++ b/src/runtime/lock_js.go
+@@ -0,0 +1,75 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build js,wasm
++
++package runtime
++
++// js/wasm has no support for threads yet. There is no preemption.
++// Waiting for a mutex or timeout is implemented as a busy loop
++// while allowing other goroutines to run.
++
++const (
++	mutex_unlocked = 0
++	mutex_locked   = 1
++
++	active_spin     = 4
++	active_spin_cnt = 30
++	passive_spin    = 1
++)
++
++func lock(l *mutex) {
++	for l.key == mutex_locked {
++		Gosched()
++	}
++	l.key = mutex_locked
++}
++
++func unlock(l *mutex) {
++	if l.key == mutex_unlocked {
++		throw("unlock of unlocked lock")
++	}
++	l.key = mutex_unlocked
++}
++
++// One-time notifications.
++func noteclear(n *note) {
++	n.key = 0
++}
++
++func notewakeup(n *note) {
++	if n.key != 0 {
++		print("notewakeup - double wakeup (", n.key, ")\n")
++		throw("notewakeup - double wakeup")
++	}
++	n.key = 1
++}
++
++func notesleep(n *note) {
++	throw("notesleep not supported by js")
++}
++
++func notetsleep(n *note, ns int64) bool {
++	throw("notetsleep not supported by js")
++	return false
++}
++
++// same as runtime·notetsleep, but called on user g (not g0)
++func notetsleepg(n *note, ns int64) bool {
++	gp := getg()
++	if gp == gp.m.g0 {
++		throw("notetsleepg on g0")
++	}
++
++	deadline := nanotime() + ns
++	for {
++		if n.key != 0 {
++			return true
++		}
++		Gosched()
++		if ns >= 0 && nanotime() >= deadline {
++			return false
++		}
++	}
++}
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index 5738a96a87..e75edf05fd 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -204,7 +204,9 @@ const (
+ 	// space because doing so is cheap.
+ 	// mips32 only has access to the low 2GB of virtual memory, so
+ 	// we further limit it to 31 bits.
+-	heapAddrBits = _64bit*48 + (1-_64bit)*(32-(sys.GoarchMips+sys.GoarchMipsle))
++	//
++	// WebAssembly currently has a limit of 4GB linear memory.
++	heapAddrBits = (_64bit*(1-sys.GoarchWasm))*48 + (1-_64bit+sys.GoarchWasm)*(32-(sys.GoarchMips+sys.GoarchMipsle))
+ 
+ 	// maxAlloc is the maximum size of an allocation. On 64-bit,
+ 	// it's theoretically possible to allocate 1<<heapAddrBits bytes. On
+@@ -387,7 +389,7 @@ func mallocinit() {
+ 	_g_.m.mcache = allocmcache()
+ 
+ 	// Create initial arena growth hints.
+-	if sys.PtrSize == 8 {
++	if sys.PtrSize == 8 && GOARCH != "wasm" {
+ 		// On a 64-bit machine, we pick the following hints
+ 		// because:
+ 		//
+diff --git a/src/runtime/mem_js.go b/src/runtime/mem_js.go
+new file mode 100644
+index 0000000000..fc6092b2bb
+--- /dev/null
++++ b/src/runtime/mem_js.go
+@@ -0,0 +1,68 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build js,wasm
++
++package runtime
++
++import (
++	"runtime/internal/sys"
++	"unsafe"
++)
++
++// Don't split the stack as this function may be invoked without a valid G,
++// which prevents us from allocating more stack.
++//go:nosplit
++func sysAlloc(n uintptr, sysStat *uint64) unsafe.Pointer {
++	p := sysReserve(nil, n)
++	sysMap(p, n, sysStat)
++	return p
++}
++
++func sysUnused(v unsafe.Pointer, n uintptr) {
++}
++
++func sysUsed(v unsafe.Pointer, n uintptr) {
++}
++
++// Don't split the stack as this function may be invoked without a valid G,
++// which prevents us from allocating more stack.
++//go:nosplit
++func sysFree(v unsafe.Pointer, n uintptr, sysStat *uint64) {
++	mSysStatDec(sysStat, n)
++}
++
++func sysFault(v unsafe.Pointer, n uintptr) {
++}
++
++var reserveEnd uintptr
++
++func sysReserve(v unsafe.Pointer, n uintptr) unsafe.Pointer {
++	// TODO(neelance): maybe unify with mem_plan9.go, depending on how https://github.com/WebAssembly/design/blob/master/FutureFeatures.md#finer-grained-control-over-memory turns out
++
++	if reserveEnd < lastmoduledatap.end {
++		reserveEnd = lastmoduledatap.end
++	}
++	if uintptr(v) < reserveEnd {
++		v = unsafe.Pointer(reserveEnd)
++	}
++	reserveEnd = uintptr(v) + n
++
++	current := currentMemory()
++	needed := int32(reserveEnd/sys.DefaultPhysPageSize + 1)
++	if current < needed {
++		if growMemory(needed-current) == -1 {
++			return nil
++		}
++	}
++
++	return v
++}
++
++func currentMemory() int32
++func growMemory(pages int32) int32
++
++func sysMap(v unsafe.Pointer, n uintptr, sysStat *uint64) {
++	mSysStatInc(sysStat, n)
++}
+diff --git a/src/runtime/memclr_wasm.s b/src/runtime/memclr_wasm.s
+new file mode 100644
+index 0000000000..d011c84549
+--- /dev/null
++++ b/src/runtime/memclr_wasm.s
+@@ -0,0 +1,37 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "textflag.h"
++
++// void runtime·memclrNoHeapPointers(void*, uintptr)
++TEXT runtime·memclrNoHeapPointers(SB), NOSPLIT, $0-16
++	MOVD ptr+0(FP), R0
++	MOVD n+8(FP), R1
++
++loop:
++	Loop
++		Get R1
++		I64Eqz
++		If
++			RET
++		End
++
++		Get R0
++		I32WrapI64
++		I64Const $0
++		I64Store8 $0
++
++		Get R0
++		I64Const $1
++		I64Add
++		Set R0
++
++		Get R1
++		I64Const $1
++		I64Sub
++		Set R1
++
++		Br loop
++	End
++	UNDEF
+diff --git a/src/runtime/memmove_wasm.s b/src/runtime/memmove_wasm.s
+new file mode 100644
+index 0000000000..295272f85f
+--- /dev/null
++++ b/src/runtime/memmove_wasm.s
+@@ -0,0 +1,152 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "textflag.h"
++
++// void runtime·memmove(void*, void*, uintptr)
++TEXT runtime·memmove(SB), NOSPLIT, $0-24
++	MOVD to+0(FP), R0
++	MOVD from+8(FP), R1
++	MOVD n+16(FP), R2
++
++	Get R0
++	Get R1
++	I64LtU
++	If // forward
++exit_forward_64:
++		Block
++loop_forward_64:
++			Loop
++				Get R2
++				I64Const $8
++				I64LtU
++				BrIf exit_forward_64
++
++				MOVD 0(R1), 0(R0)
++
++				Get R0
++				I64Const $8
++				I64Add
++				Set R0
++
++				Get R1
++				I64Const $8
++				I64Add
++				Set R1
++
++				Get R2
++				I64Const $8
++				I64Sub
++				Set R2
++
++				Br loop_forward_64
++			End
++		End
++
++loop_forward_8:
++		Loop
++			Get R2
++			I64Eqz
++			If
++				RET
++			End
++
++			Get R0
++			I32WrapI64
++			I64Load8U (R1)
++			I64Store8 $0
++
++			Get R0
++			I64Const $1
++			I64Add
++			Set R0
++
++			Get R1
++			I64Const $1
++			I64Add
++			Set R1
++
++			Get R2
++			I64Const $1
++			I64Sub
++			Set R2
++
++			Br loop_forward_8
++		End
++
++	Else
++		// backward
++		Get R0
++		Get R2
++		I64Add
++		Set R0
++
++		Get R1
++		Get R2
++		I64Add
++		Set R1
++
++exit_backward_64:
++		Block
++loop_backward_64:
++			Loop
++				Get R2
++				I64Const $8
++				I64LtU
++				BrIf exit_backward_64
++
++				Get R0
++				I64Const $8
++				I64Sub
++				Set R0
++
++				Get R1
++				I64Const $8
++				I64Sub
++				Set R1
++
++				Get R2
++				I64Const $8
++				I64Sub
++				Set R2
++
++				MOVD 0(R1), 0(R0)
++
++				Br loop_backward_64
++			End
++		End
++
++loop_backward_8:
++		Loop
++			Get R2
++			I64Eqz
++			If
++				RET
++			End
++
++			Get R0
++			I64Const $1
++			I64Sub
++			Set R0
++
++			Get R1
++			I64Const $1
++			I64Sub
++			Set R1
++
++			Get R2
++			I64Const $1
++			I64Sub
++			Set R2
++
++			Get R0
++			I32WrapI64
++			I64Load8U (R1)
++			I64Store8 $0
++
++			Br loop_backward_8
++		End
++	End
++
++	UNDEF
+diff --git a/src/runtime/mmap.go b/src/runtime/mmap.go
+index 152cbcdae5..649b4ab1ec 100644
+--- a/src/runtime/mmap.go
++++ b/src/runtime/mmap.go
+@@ -8,6 +8,7 @@
+ // +build !nacl
+ // +build !linux !amd64
+ // +build !linux !arm64
++// +build !js
+ 
+ package runtime
+ 
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 1ef7c357a5..6d4da3432a 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -125,9 +125,11 @@ func main() {
+ 	// Allow newproc to start new Ms.
+ 	mainStarted = true
+ 
+-	systemstack(func() {
+-		newm(sysmon, nil)
+-	})
++	if GOARCH != "wasm" { // no threads on wasm yet, so no sysmon
++		systemstack(func() {
++			newm(sysmon, nil)
++		})
++	}
+ 
+ 	// Lock the main goroutine onto this, the main OS thread,
+ 	// during initialization. Most programs won't care, but a few
+@@ -1891,6 +1893,9 @@ func newm1(mp *m) {
+ //
+ // The calling thread must itself be in a known-good state.
+ func startTemplateThread() {
++	if GOARCH == "wasm" { // no threads on wasm yet
++		return
++	}
+ 	if !atomic.Cas(&newmHandoff.haveTemplateThread, 0, 1) {
+ 		return
+ 	}
+@@ -2699,6 +2704,11 @@ func goexit0(gp *g) {
+ 	gp.gcscanvalid = true
+ 	dropg()
+ 
++	if GOARCH == "wasm" { // no threads yet on wasm
++		gfput(_g_.m.p.ptr(), gp)
++		schedule() // never returns
++	}
++
+ 	if _g_.m.lockedInt != 0 {
+ 		print("invalid m->lockedInt = ", _g_.m.lockedInt, "\n")
+ 		throw("internal lockOSThread error")
+@@ -3497,6 +3507,9 @@ func Breakpoint() {
+ // or else the m might be different in this function than in the caller.
+ //go:nosplit
+ func dolockOSThread() {
++	if GOARCH == "wasm" {
++		return // no threads on wasm yet
++	}
+ 	_g_ := getg()
+ 	_g_.m.lockedg.set(_g_)
+ 	_g_.lockedm.set(_g_.m)
+@@ -3545,6 +3558,9 @@ func lockOSThread() {
+ // or else the m might be in different in this function than in the caller.
+ //go:nosplit
+ func dounlockOSThread() {
++	if GOARCH == "wasm" {
++		return // no threads on wasm yet
++	}
+ 	_g_ := getg()
+ 	if _g_.m.lockedInt != 0 || _g_.m.lockedExt != 0 {
+ 		return
+diff --git a/src/runtime/rt0_js_wasm.s b/src/runtime/rt0_js_wasm.s
+new file mode 100644
+index 0000000000..2a878d990c
+--- /dev/null
++++ b/src/runtime/rt0_js_wasm.s
+@@ -0,0 +1,49 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "go_asm.h"
++#include "textflag.h"
++
++// _rt0_wasm_js does NOT follow the Go ABI. It has two WebAssembly parameters:
++// R0: argc (i32)
++// R1: argv (i32)
++TEXT _rt0_wasm_js(SB),NOSPLIT,$0
++	MOVD $runtime·wasmStack+m0Stack__size(SB), SP
++
++	Get SP
++	Get R0 // argc
++	I64ExtendUI32
++	I64Store $0
++
++	Get SP
++	Get R1 // argv
++	I64ExtendUI32
++	I64Store $8
++
++	I32Const $runtime·rt0_go(SB)
++	I32Const $16
++	I32ShrU
++	Set PC_F
++
++// Call the function for the current PC_F. Repeat until SP=0 indicates program end.
++// The WebAssembly stack may unwind, e.g. when switching goroutines.
++// The Go stack on the linear memory is then used to jump to the correct functions
++// with this loop, without having to restore the full WebAssembly stack.
++loop:
++	Loop
++		Get SP
++		I32Eqz
++		If
++			Return
++		End
++
++		Get PC_F
++		CallIndirect $0
++		Drop
++
++		Br loop
++	End
++
++TEXT _rt0_wasm_js_lib(SB),NOSPLIT,$0
++	UNDEF
+diff --git a/src/runtime/stack.go b/src/runtime/stack.go
+index 00c439cca4..0813497ca7 100644
+--- a/src/runtime/stack.go
++++ b/src/runtime/stack.go
+@@ -993,7 +993,7 @@ func newstack() {
+ 		throw("missing stack in newstack")
+ 	}
+ 	sp := gp.sched.sp
+-	if sys.ArchFamily == sys.AMD64 || sys.ArchFamily == sys.I386 {
++	if sys.ArchFamily == sys.AMD64 || sys.ArchFamily == sys.I386 || sys.ArchFamily == sys.Wasm {
+ 		// The call to morestack cost a word.
+ 		sp -= sys.PtrSize
+ 	}
+diff --git a/src/runtime/stubs2.go b/src/runtime/stubs2.go
+index 5382d36c20..b25815b3ae 100644
+--- a/src/runtime/stubs2.go
++++ b/src/runtime/stubs2.go
+@@ -6,6 +6,7 @@
+ // +build !solaris
+ // +build !windows
+ // +build !nacl
++// +build !js
+ 
+ package runtime
+ 
+diff --git a/src/runtime/sys_wasm.go b/src/runtime/sys_wasm.go
+new file mode 100644
+index 0000000000..9bf710ba0e
+--- /dev/null
++++ b/src/runtime/sys_wasm.go
+@@ -0,0 +1,42 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++import (
++	"runtime/internal/sys"
++	"unsafe"
++)
++
++type m0Stack struct {
++	_ [8192 * sys.StackGuardMultiplier]byte
++}
++
++var wasmStack m0Stack
++
++func wasmMove()
++
++func wasmZero()
++
++func wasmDiv()
++
++func wasmTruncS()
++func wasmTruncU()
++
++func wasmExit(code int32)
++
++// adjust Gobuf as it if executed a call to fn with context ctxt
++// and then did an immediate gosave.
++func gostartcall(buf *gobuf, fn, ctxt unsafe.Pointer) {
++	sp := buf.sp
++	if sys.RegSize > sys.PtrSize {
++		sp -= sys.PtrSize
++		*(*uintptr)(unsafe.Pointer(sp)) = 0
++	}
++	sp -= sys.PtrSize
++	*(*uintptr)(unsafe.Pointer(sp)) = buf.pc
++	buf.sp = sp
++	buf.pc = uintptr(fn)
++	buf.ctxt = ctxt
++}
+diff --git a/src/runtime/sys_wasm.s b/src/runtime/sys_wasm.s
+new file mode 100644
+index 0000000000..c9815821a6
+--- /dev/null
++++ b/src/runtime/sys_wasm.s
+@@ -0,0 +1,195 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "textflag.h"
++
++TEXT runtime·wasmMove(SB), NOSPLIT, $0-0
++loop:
++	Loop
++		// *dst = *src
++		Get R0
++		Get R1
++		I64Load $0
++		I64Store $0
++
++		// n--
++		Get R2
++		I32Const $1
++		I32Sub
++		Set R2
++
++		// n == 0
++		Get R2
++		I32Eqz
++		If
++			Return
++		End
++
++		// dst += 8
++		Get R0
++		I32Const $8
++		I32Add
++		Set R0
++
++		// src += 8
++		Get R1
++		I32Const $8
++		I32Add
++		Set R1
++
++		Br loop
++	End
++	UNDEF
++
++TEXT runtime·wasmZero(SB), NOSPLIT, $0-0
++loop:
++	Loop
++		// *dst = 0
++		Get R0
++		I64Const $0
++		I64Store $0
++
++		// n--
++		Get R1
++		I32Const $1
++		I32Sub
++		Set R1
++
++		// n == 0
++		Get R1
++		I32Eqz
++		If
++			Return
++		End
++
++		// dst += 8
++		Get R0
++		I32Const $8
++		I32Add
++		Set R0
++
++		Br loop
++	End
++	UNDEF
++
++TEXT runtime·wasmDiv(SB), NOSPLIT, $0-0
++	Get R0
++	I64Const $-0x8000000000000000
++	I64Eq
++	If
++		Get R1
++		I64Const $-1
++		I64Eq
++		If
++			I64Const $-0x8000000000000000
++			Return
++		End
++	End
++	Get R0
++	Get R1
++	I64DivS
++	Return
++
++TEXT runtime·wasmTruncS(SB), NOSPLIT, $0-0
++	Get R0
++	Get R0
++	F64Ne // NaN
++	If
++		I64Const $0x8000000000000000
++		Return
++	End
++
++	Get R0
++	F64Const $9223372036854775807.
++	F64Gt
++	If
++		I64Const $0x8000000000000000
++		Return
++	End
++
++	Get R0
++	F64Const $-9223372036854775808.
++	F64Lt
++	If
++		I64Const $0x8000000000000000
++		Return
++	End
++
++	Get R0
++	I64TruncSF64
++	Return
++
++TEXT runtime·wasmTruncU(SB), NOSPLIT, $0-0
++	Get R0
++	Get R0
++	F64Ne // NaN
++	If
++		I64Const $0x8000000000000000
++		Return
++	End
++
++	Get R0
++	F64Const $18446744073709551615.
++	F64Gt
++	If
++		I64Const $0x8000000000000000
++		Return
++	End
++
++	Get R0
++	F64Const $0.
++	F64Lt
++	If
++		I64Const $0x8000000000000000
++		Return
++	End
++
++	Get R0
++	I64TruncUF64
++	Return
++
++TEXT runtime·exit(SB), NOSPLIT, $0-8
++	Call runtime·wasmExit(SB)
++	Drop
++	I32Const $0
++	Set SP
++	I32Const $1
++
++TEXT runtime·exitThread(SB), NOSPLIT, $0-0
++	UNDEF
++
++TEXT runtime·osyield(SB), NOSPLIT, $0-0
++	UNDEF
++
++TEXT runtime·usleep(SB), NOSPLIT, $0-0
++	RET // TODO(neelance): implement usleep
++
++TEXT runtime·currentMemory(SB), NOSPLIT, $0
++	Get SP
++	CurrentMemory
++	I32Store ret+0(FP)
++	RET
++
++TEXT runtime·growMemory(SB), NOSPLIT, $0
++	Get SP
++	I32Load pages+0(FP)
++	GrowMemory
++	I32Store ret+8(FP)
++	RET
++
++TEXT ·wasmExit(SB), NOSPLIT, $0
++	CallImport
++	RET
++
++TEXT ·wasmWrite(SB), NOSPLIT, $0
++	CallImport
++	RET
++
++TEXT ·nanotime(SB), NOSPLIT, $0
++	CallImport
++	RET
++
++TEXT ·walltime(SB), NOSPLIT, $0
++	CallImport
++	RET
+diff --git a/src/runtime/type.go b/src/runtime/type.go
+index d44a4f3883..d87d6e1507 100644
+--- a/src/runtime/type.go
++++ b/src/runtime/type.go
+@@ -285,7 +285,7 @@ func (t *_type) textOff(off textOff) unsafe.Pointer {
+ 		res = md.text + uintptr(off)
+ 	}
+ 
+-	if res > md.etext {
++	if res > md.etext && GOARCH != "wasm" { // on wasm, functions do not live in the same address space as the linear memory
+ 		println("runtime: textOff", hex(off), "out of range", hex(md.text), "-", hex(md.etext))
+ 		throw("runtime: text offset out of range")
+ 	}
+diff --git a/src/runtime/unaligned1.go b/src/runtime/unaligned1.go
+index 754d63b417..1d90bdf83e 100644
+--- a/src/runtime/unaligned1.go
++++ b/src/runtime/unaligned1.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build 386 amd64 amd64p32 arm64 ppc64 ppc64le s390x
++// +build 386 amd64 amd64p32 arm64 ppc64 ppc64le s390x wasm
+ 
+ package runtime
+ 

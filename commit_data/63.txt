@@ -5,8 +5,90 @@ Date:   Thu May 1 00:01:45 2008 -0700
     Require names for return values for functions with complex return types.
     
     SVN=117346
-
+---
  doc/go_lang.txt     | 22 +++++++++-------------
  src/lib/math/sys.go |  6 +++---
  src/lib/sys.go      |  6 +++---
  3 files changed, 15 insertions(+), 19 deletions(-)
+
+diff --git a/doc/go_lang.txt b/doc/go_lang.txt
+index da48a8bfbe..26ffbb2c03 100644
+--- a/doc/go_lang.txt
++++ b/doc/go_lang.txt
+@@ -1461,12 +1461,18 @@ explicitly list the return value or values in the return statement:
+     return 2;
+   }
+ 
+-  func complex_f1() (float, float) {
++A function may return multiple values.
++The syntax of the return clause in that case is the same as
++that of a parameter list; in particular, names must be provided for
++the elements of the return value.
++
++  func complex_f1() (re float, im float) {
+     return -7.0, -4.0;
+   }
+ 
+-The second is to provide names for the return values and assign them
+-explicitly in the function; the return statement will then provide no
++The second method to return values
++is to use those names within the function as variables
++to be assigned explicitly; the return statement will then provide no
+ values:
+ 
+   func complex_f2() (re float, im float) {
+@@ -1475,14 +1481,6 @@ values:
+     return;
+   }
+ 
+-It is legal to name the return values in the declaration even if the
+-first form of return statement is used:
+-
+-  func complex_f2() (re float, im float) {
+-    return 7.0, 4.0;
+-  }
+-
+-
+ If statements
+ ----
+ 
+@@ -1817,5 +1815,3 @@ TODO
+ - TODO: type switch?
+ - TODO: words about slices
+ - TODO: I (gri) would like to say that sizeof(int) == sizeof(pointer), always.
+-- TODO: when are two types equal? consider 
+-	func iterate(f *func(int, interface{}), arg interface{})
+diff --git a/src/lib/math/sys.go b/src/lib/math/sys.go
+index 3f7ee232ad..41356cebaa 100644
+--- a/src/lib/math/sys.go
++++ b/src/lib/math/sys.go
+@@ -4,9 +4,9 @@
+ 
+ package sys
+ 
+-func	modf(a double) (double, double);
+-func	frexp(a double) (int, double);
+-func	ldexp(double, int) double;
++func	modf(a double) (x double, y double);
++func	frexp(a double) (e int, m double);
++func	ldexp(f double, e int) double;
+ 
+ func	Inf(n int) double;
+ func	NaN() double;
+diff --git a/src/lib/sys.go b/src/lib/sys.go
+index eddfd1fad2..01c1135605 100644
+--- a/src/lib/sys.go
++++ b/src/lib/sys.go
+@@ -4,9 +4,9 @@
+ 
+ package sys
+ 
+-func	modf(a double) (double, double);
+-func	frexp(a double) (int, double);
+-func	ldexp(double, int) double;
++func	modf(a double) (x double, y double);
++func	frexp(a double) (e int, m double);
++func	ldexp(f double, e int) double;
+ 
+ func	Inf(n int) double;
+ func	NaN() double;

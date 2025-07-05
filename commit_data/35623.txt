@@ -100,7 +100,7 @@ Date:   Tue Jan 2 16:58:37 2018 -0800
     Change-Id: I19edb53dd9675af57f7122cb7dba2a6d8bdcc3da
     Reviewed-on: https://go-review.googlesource.com/94515
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/fmt_test.go                     |   4 +-
  src/cmd/compile/internal/gc/closure.go          |   2 +-
  src/cmd/compile/internal/gc/lex.go              |   2 +-
@@ -116,3 +116,1096 @@ Date:   Tue Jan 2 16:58:37 2018 -0800
  src/cmd/compile/internal/syntax/printer_test.go |   2 +-
  src/cmd/compile/internal/syntax/syntax.go       |  18 ++--
  14 files changed, 310 insertions(+), 152 deletions(-)
+
+diff --git a/src/cmd/compile/fmt_test.go b/src/cmd/compile/fmt_test.go
+index f3f66a66ae..03e6e2ee4c 100644
+--- a/src/cmd/compile/fmt_test.go
++++ b/src/cmd/compile/fmt_test.go
+@@ -650,14 +650,14 @@ var knownFormats = map[string]string{
+ 	"cmd/compile/internal/syntax.Expr %#v":            "",
+ 	"cmd/compile/internal/syntax.Node %T":             "",
+ 	"cmd/compile/internal/syntax.Operator %s":         "",
++	"cmd/compile/internal/syntax.Pos %s":              "",
++	"cmd/compile/internal/syntax.Pos %v":              "",
+ 	"cmd/compile/internal/syntax.position %s":         "",
+ 	"cmd/compile/internal/syntax.token %q":            "",
+ 	"cmd/compile/internal/syntax.token %s":            "",
+ 	"cmd/compile/internal/types.EType %d":             "",
+ 	"cmd/compile/internal/types.EType %s":             "",
+ 	"cmd/compile/internal/types.EType %v":             "",
+-	"cmd/internal/src.Pos %s":                         "",
+-	"cmd/internal/src.Pos %v":                         "",
+ 	"error %v":                                        "",
+ 	"float64 %.2f":                                    "",
+ 	"float64 %.3f":                                    "",
+diff --git a/src/cmd/compile/internal/gc/closure.go b/src/cmd/compile/internal/gc/closure.go
+index d3af16e176..1713b5129c 100644
+--- a/src/cmd/compile/internal/gc/closure.go
++++ b/src/cmd/compile/internal/gc/closure.go
+@@ -53,7 +53,7 @@ func (p *noder) funcLit(expr *syntax.FuncLit) *Node {
+ 
+ 	body := p.stmts(expr.Body.List)
+ 
+-	lineno = Ctxt.PosTable.XPos(expr.Body.Rbrace)
++	lineno = p.makeXPos(expr.Body.Rbrace)
+ 	if len(body) == 0 {
+ 		body = []*Node{nod(OEMPTY, nil, nil)}
+ 	}
+diff --git a/src/cmd/compile/internal/gc/lex.go b/src/cmd/compile/internal/gc/lex.go
+index 9d14f53382..22f720e066 100644
+--- a/src/cmd/compile/internal/gc/lex.go
++++ b/src/cmd/compile/internal/gc/lex.go
+@@ -105,7 +105,7 @@ func pragmaValue(verb string) syntax.Pragma {
+ }
+ 
+ // pragcgo is called concurrently if files are parsed concurrently.
+-func (p *noder) pragcgo(pos src.Pos, text string) string {
++func (p *noder) pragcgo(pos syntax.Pos, text string) string {
+ 	f := pragmaFields(text)
+ 
+ 	verb := f[0][3:] // skip "go:"
+diff --git a/src/cmd/compile/internal/gc/lex_test.go b/src/cmd/compile/internal/gc/lex_test.go
+index a56f3963ba..965a84e3e8 100644
+--- a/src/cmd/compile/internal/gc/lex_test.go
++++ b/src/cmd/compile/internal/gc/lex_test.go
+@@ -5,7 +5,7 @@
+ package gc
+ 
+ import (
+-	"cmd/internal/src"
++	"cmd/compile/internal/syntax"
+ 	"testing"
+ )
+ 
+@@ -22,7 +22,6 @@ func eq(a, b []string) bool {
+ }
+ 
+ func TestPragmaFields(t *testing.T) {
+-
+ 	var tests = []struct {
+ 		in   string
+ 		want []string
+@@ -49,7 +48,6 @@ func TestPragmaFields(t *testing.T) {
+ }
+ 
+ func TestPragcgo(t *testing.T) {
+-
+ 	var tests = []struct {
+ 		in   string
+ 		want string
+@@ -73,8 +71,9 @@ func TestPragcgo(t *testing.T) {
+ 	}
+ 
+ 	var p noder
++	var nopos syntax.Pos
+ 	for _, tt := range tests {
+-		got := p.pragcgo(src.NoPos, tt.in)
++		got := p.pragcgo(nopos, tt.in)
+ 		if got != tt.want {
+ 			t.Errorf("pragcgo(%q) = %q; want %q", tt.in, got, tt.want)
+ 			continue
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index 6f32e52ec8..9418bc5c2f 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -25,30 +25,33 @@ func parseFiles(filenames []string) uint {
+ 	sem := make(chan struct{}, runtime.GOMAXPROCS(0)+10)
+ 
+ 	for _, filename := range filenames {
+-		p := &noder{err: make(chan syntax.Error)}
++		p := &noder{
++			basemap: make(map[*syntax.PosBase]*src.PosBase),
++			err:     make(chan syntax.Error),
++		}
+ 		noders = append(noders, p)
+ 
+ 		go func(filename string) {
+ 			sem <- struct{}{}
+ 			defer func() { <-sem }()
+ 			defer close(p.err)
+-			base := src.NewFileBase(filename, absFilename(filename))
++			base := syntax.NewFileBase(filename)
+ 
+ 			f, err := os.Open(filename)
+ 			if err != nil {
+-				p.error(syntax.Error{Pos: src.MakePos(base, 0, 0), Msg: err.Error()})
++				p.error(syntax.Error{Pos: syntax.MakePos(base, 0, 0), Msg: err.Error()})
+ 				return
+ 			}
+ 			defer f.Close()
+ 
+-			p.file, _ = syntax.Parse(base, f, p.error, p.pragma, fileh, syntax.CheckBranches) // errors are tracked via p.error
++			p.file, _ = syntax.Parse(base, f, p.error, p.pragma, syntax.CheckBranches) // errors are tracked via p.error
+ 		}(filename)
+ 	}
+ 
+ 	var lines uint
+ 	for _, p := range noders {
+ 		for e := range p.err {
+-			yyerrorpos(e.Pos, "%s", e.Msg)
++			p.yyerrorpos(e.Pos, "%s", e.Msg)
+ 		}
+ 
+ 		p.node()
+@@ -65,12 +68,54 @@ func parseFiles(filenames []string) uint {
+ 	return lines
+ }
+ 
+-func yyerrorpos(pos src.Pos, format string, args ...interface{}) {
+-	yyerrorl(Ctxt.PosTable.XPos(pos), format, args...)
++// makeSrcPosBase translates from a *syntax.PosBase to a *src.PosBase.
++func (p *noder) makeSrcPosBase(b0 *syntax.PosBase) *src.PosBase {
++	// fast path: most likely PosBase hasn't changed
++	if p.basecache.last == b0 {
++		return p.basecache.base
++	}
++
++	b1, ok := p.basemap[b0]
++	if !ok {
++		fn := b0.Filename()
++		if p0 := b0.Pos(); p0.IsKnown() {
++			// line directive base
++			//
++			// (A syntax.PosBase position is the position at which the PosBase's
++			// new line and column are starting. For //line directives, that is
++			// the position of the line following the directive. src.PosBases
++			// on the other hand use the position of the line directive instead.
++			// Hence the `p0.Line()-1` below.)
++			//
++			// TODO(gri) Once we implement /*line directives, we need to adjust
++			//           src.MakePos accordingly.
++			p1 := src.MakePos(p.makeSrcPosBase(p0.Base()), p0.Line()-1, p0.Col())
++			b1 = src.NewLinePragmaBase(p1, fn, fileh(fn), b0.Line())
++		} else {
++			// file base
++			b1 = src.NewFileBase(fn, absFilename(fn))
++		}
++		p.basemap[b0] = b1
++	}
++
++	// update cache
++	p.basecache.last = b0
++	p.basecache.base = b1
++
++	return b1
++}
++
++func (p *noder) makeXPos(pos syntax.Pos) (_ src.XPos) {
++	return Ctxt.PosTable.XPos(src.MakePos(p.makeSrcPosBase(pos.Base()), pos.Line(), pos.Col()))
++}
++
++func (p *noder) yyerrorpos(pos syntax.Pos, format string, args ...interface{}) {
++	yyerrorl(p.makeXPos(pos), format, args...)
+ }
+ 
+ var pathPrefix string
+ 
++// TODO(gri) Can we eliminate fileh in favor of absFilename?
+ func fileh(name string) string {
+ 	return objabi.AbsFile("", name, pathPrefix)
+ }
+@@ -81,6 +126,12 @@ func absFilename(name string) string {
+ 
+ // noder transforms package syntax's AST into a Node tree.
+ type noder struct {
++	basemap   map[*syntax.PosBase]*src.PosBase
++	basecache struct {
++		last *syntax.PosBase
++		base *src.PosBase
++	}
++
+ 	file       *syntax.File
+ 	linknames  []linkname
+ 	pragcgobuf string
+@@ -100,7 +151,7 @@ func (p *noder) funcbody(old ScopeID) {
+ 	p.scope = old
+ }
+ 
+-func (p *noder) openScope(pos src.Pos) {
++func (p *noder) openScope(pos syntax.Pos) {
+ 	types.Markdcl()
+ 
+ 	if trackScopes {
+@@ -111,7 +162,7 @@ func (p *noder) openScope(pos src.Pos) {
+ 	}
+ }
+ 
+-func (p *noder) closeScope(pos src.Pos) {
++func (p *noder) closeScope(pos syntax.Pos) {
+ 	types.Popdcl()
+ 
+ 	if trackScopes {
+@@ -121,8 +172,8 @@ func (p *noder) closeScope(pos src.Pos) {
+ 	}
+ }
+ 
+-func (p *noder) markScope(pos src.Pos) {
+-	xpos := Ctxt.PosTable.XPos(pos)
++func (p *noder) markScope(pos syntax.Pos) {
++	xpos := p.makeXPos(pos)
+ 	if i := len(Curfn.Func.Marks); i > 0 && Curfn.Func.Marks[i-1].Pos == xpos {
+ 		Curfn.Func.Marks[i-1].Scope = p.scope
+ 	} else {
+@@ -145,7 +196,7 @@ func (p *noder) closeAnotherScope() {
+ 
+ // linkname records a //go:linkname directive.
+ type linkname struct {
+-	pos    src.Pos
++	pos    syntax.Pos
+ 	local  string
+ 	remote string
+ }
+@@ -163,7 +214,7 @@ func (p *noder) node() {
+ 		if imported_unsafe {
+ 			lookup(n.local).Linkname = n.remote
+ 		} else {
+-			yyerrorpos(n.pos, "//go:linkname only allowed in Go files that import \"unsafe\"")
++			p.yyerrorpos(n.pos, "//go:linkname only allowed in Go files that import \"unsafe\"")
+ 		}
+ 	}
+ 
+@@ -403,7 +454,7 @@ func (p *noder) funcDecl(fun *syntax.FuncDecl) *Node {
+ 		}
+ 		f.Nbody.Set(body)
+ 
+-		lineno = Ctxt.PosTable.XPos(fun.Body.Rbrace)
++		lineno = p.makeXPos(fun.Body.Rbrace)
+ 		f.Func.Endlineno = lineno
+ 	} else {
+ 		if pure_go || strings.HasPrefix(f.funcname(), "init.") {
+@@ -497,7 +548,7 @@ func (p *noder) expr(expr syntax.Expr) *Node {
+ 			l[i] = p.wrapname(expr.ElemList[i], e)
+ 		}
+ 		n.List.Set(l)
+-		lineno = Ctxt.PosTable.XPos(expr.Rbrace)
++		lineno = p.makeXPos(expr.Rbrace)
+ 		return n
+ 	case *syntax.KeyValueExpr:
+ 		return p.nod(expr, OKEY, p.expr(expr.Key), p.wrapname(expr.Value, p.expr(expr.Value)))
+@@ -943,7 +994,7 @@ func (p *noder) assignList(expr syntax.Expr, defn *Node, colas bool) []*Node {
+ 
+ 		name, ok := expr.(*syntax.Name)
+ 		if !ok {
+-			yyerrorpos(expr.Pos(), "non-name %v on left side of :=", p.expr(expr))
++			p.yyerrorpos(expr.Pos(), "non-name %v on left side of :=", p.expr(expr))
+ 			newOrErr = true
+ 			continue
+ 		}
+@@ -954,7 +1005,7 @@ func (p *noder) assignList(expr syntax.Expr, defn *Node, colas bool) []*Node {
+ 		}
+ 
+ 		if seen[sym] {
+-			yyerrorpos(expr.Pos(), "%v repeated on left side of :=", sym)
++			p.yyerrorpos(expr.Pos(), "%v repeated on left side of :=", sym)
+ 			newOrErr = true
+ 			continue
+ 		}
+@@ -1057,7 +1108,7 @@ func (p *noder) switchStmt(stmt *syntax.SwitchStmt) *Node {
+ 	return n
+ }
+ 
+-func (p *noder) caseClauses(clauses []*syntax.CaseClause, tswitch *Node, rbrace src.Pos) []*Node {
++func (p *noder) caseClauses(clauses []*syntax.CaseClause, tswitch *Node, rbrace syntax.Pos) []*Node {
+ 	var nodes []*Node
+ 	for i, clause := range clauses {
+ 		p.lineno(clause)
+@@ -1113,7 +1164,7 @@ func (p *noder) selectStmt(stmt *syntax.SelectStmt) *Node {
+ 	return n
+ }
+ 
+-func (p *noder) commClauses(clauses []*syntax.CommClause, rbrace src.Pos) []*Node {
++func (p *noder) commClauses(clauses []*syntax.CommClause, rbrace syntax.Pos) []*Node {
+ 	var nodes []*Node
+ 	for i, clause := range clauses {
+ 		p.lineno(clause)
+@@ -1298,7 +1349,7 @@ func (p *noder) setlineno(src_ syntax.Node, dst *Node) *Node {
+ 		// TODO(mdempsky): Shouldn't happen. Fix package syntax.
+ 		return dst
+ 	}
+-	dst.Pos = Ctxt.PosTable.XPos(pos)
++	dst.Pos = p.makeXPos(pos)
+ 	return dst
+ }
+ 
+@@ -1311,7 +1362,7 @@ func (p *noder) lineno(n syntax.Node) {
+ 		// TODO(mdempsky): Shouldn't happen. Fix package syntax.
+ 		return
+ 	}
+-	lineno = Ctxt.PosTable.XPos(pos)
++	lineno = p.makeXPos(pos)
+ }
+ 
+ // error is called concurrently if files are parsed concurrently.
+@@ -1332,7 +1383,7 @@ var allowedStdPragmas = map[string]bool{
+ }
+ 
+ // pragma is called concurrently if files are parsed concurrently.
+-func (p *noder) pragma(pos src.Pos, text string) syntax.Pragma {
++func (p *noder) pragma(pos syntax.Pos, text string) syntax.Pragma {
+ 	switch {
+ 	case strings.HasPrefix(text, "line "):
+ 		// line directives are handled by syntax package
+@@ -1393,8 +1444,8 @@ func (p *noder) pragma(pos src.Pos, text string) syntax.Pragma {
+ // contain cgo directives, and for security reasons
+ // (primarily misuse of linker flags), other files are not.
+ // See golang.org/issue/23672.
+-func isCgoGeneratedFile(pos src.Pos) bool {
+-	return strings.HasPrefix(filepath.Base(filepath.Clean(pos.AbsFilename())), "_cgo_")
++func isCgoGeneratedFile(pos syntax.Pos) bool {
++	return strings.HasPrefix(filepath.Base(filepath.Clean(fileh(pos.Base().Filename()))), "_cgo_")
+ }
+ 
+ // safeArg reports whether arg is a "safe" command-line argument,
+diff --git a/src/cmd/compile/internal/gc/swt.go b/src/cmd/compile/internal/gc/swt.go
+index 8509795790..8d425506d3 100644
+--- a/src/cmd/compile/internal/gc/swt.go
++++ b/src/cmd/compile/internal/gc/swt.go
+@@ -568,7 +568,7 @@ Outer:
+ 		if !ok {
+ 			// First entry for this hash.
+ 			nn = append(nn, c.node)
+-			seen[c.hash] = nn[len(nn)-1 : len(nn):len(nn)]
++			seen[c.hash] = nn[len(nn)-1 : len(nn) : len(nn)]
+ 			continue
+ 		}
+ 		for _, n := range prev {
+diff --git a/src/cmd/compile/internal/syntax/branches.go b/src/cmd/compile/internal/syntax/branches.go
+index 2fd97a4a67..a03e2734d2 100644
+--- a/src/cmd/compile/internal/syntax/branches.go
++++ b/src/cmd/compile/internal/syntax/branches.go
+@@ -4,10 +4,7 @@
+ 
+ package syntax
+ 
+-import (
+-	"cmd/internal/src"
+-	"fmt"
+-)
++import "fmt"
+ 
+ // TODO(gri) consider making this part of the parser code
+ 
+@@ -62,11 +59,11 @@ type label struct {
+ 
+ type block struct {
+ 	parent *block       // immediately enclosing block, or nil
+-	start  src.Pos      // start of block
++	start  Pos          // start of block
+ 	lstmt  *LabeledStmt // labeled statement associated with this block, or nil
+ }
+ 
+-func (ls *labelScope) err(pos src.Pos, format string, args ...interface{}) {
++func (ls *labelScope) err(pos Pos, format string, args ...interface{}) {
+ 	ls.errh(Error{pos, fmt.Sprintf(format, args...)})
+ }
+ 
+@@ -132,14 +129,14 @@ type targets struct {
+ // list of unresolved (forward) gotos. parent is the immediately enclosing
+ // block (or nil), ctxt provides information about the enclosing statements,
+ // and lstmt is the labeled statement associated with this block, or nil.
+-func (ls *labelScope) blockBranches(parent *block, ctxt targets, lstmt *LabeledStmt, start src.Pos, body []Stmt) []*BranchStmt {
++func (ls *labelScope) blockBranches(parent *block, ctxt targets, lstmt *LabeledStmt, start Pos, body []Stmt) []*BranchStmt {
+ 	b := &block{parent: parent, start: start, lstmt: lstmt}
+ 
+-	var varPos src.Pos
++	var varPos Pos
+ 	var varName Expr
+ 	var fwdGotos, badGotos []*BranchStmt
+ 
+-	recordVarDecl := func(pos src.Pos, name Expr) {
++	recordVarDecl := func(pos Pos, name Expr) {
+ 		varPos = pos
+ 		varName = name
+ 		// Any existing forward goto jumping over the variable
+@@ -160,7 +157,7 @@ func (ls *labelScope) blockBranches(parent *block, ctxt targets, lstmt *LabeledS
+ 		return false
+ 	}
+ 
+-	innerBlock := func(ctxt targets, start src.Pos, body []Stmt) {
++	innerBlock := func(ctxt targets, start Pos, body []Stmt) {
+ 		// Unresolved forward gotos from the inner block
+ 		// become forward gotos for the current block.
+ 		fwdGotos = append(fwdGotos, ls.blockBranches(b, ctxt, lstmt, start, body)...)
+diff --git a/src/cmd/compile/internal/syntax/nodes.go b/src/cmd/compile/internal/syntax/nodes.go
+index d7183bd8fb..8df9fd5c4e 100644
+--- a/src/cmd/compile/internal/syntax/nodes.go
++++ b/src/cmd/compile/internal/syntax/nodes.go
+@@ -4,8 +4,6 @@
+ 
+ package syntax
+ 
+-import "cmd/internal/src"
+-
+ // ----------------------------------------------------------------------------
+ // Nodes
+ 
+@@ -18,18 +16,18 @@ type Node interface {
+ 	//    (IndexExpr, IfStmt, etc.) is the position of a token uniquely
+ 	//    associated with that production; usually the left-most one
+ 	//    ('[' for IndexExpr, 'if' for IfStmt, etc.)
+-	Pos() src.Pos
++	Pos() Pos
+ 	aNode()
+ }
+ 
+ type node struct {
+ 	// commented out for now since not yet used
+ 	// doc  *Comment // nil means no comment(s) attached
+-	pos src.Pos
++	pos Pos
+ }
+ 
+-func (n *node) Pos() src.Pos { return n.pos }
+-func (*node) aNode()         {}
++func (n *node) Pos() Pos { return n.pos }
++func (*node) aNode()     {}
+ 
+ // ----------------------------------------------------------------------------
+ // Files
+@@ -149,7 +147,7 @@ type (
+ 		Type     Expr // nil means no literal type
+ 		ElemList []Expr
+ 		NKeys    int // number of elements with keys
+-		Rbrace   src.Pos
++		Rbrace   Pos
+ 		expr
+ 	}
+ 
+@@ -328,7 +326,7 @@ type (
+ 
+ 	BlockStmt struct {
+ 		List   []Stmt
+-		Rbrace src.Pos
++		Rbrace Pos
+ 		stmt
+ 	}
+ 
+@@ -396,13 +394,13 @@ type (
+ 		Init   SimpleStmt
+ 		Tag    Expr
+ 		Body   []*CaseClause
+-		Rbrace src.Pos
++		Rbrace Pos
+ 		stmt
+ 	}
+ 
+ 	SelectStmt struct {
+ 		Body   []*CommClause
+-		Rbrace src.Pos
++		Rbrace Pos
+ 		stmt
+ 	}
+ )
+@@ -425,14 +423,14 @@ type (
+ 	CaseClause struct {
+ 		Cases Expr // nil means default clause
+ 		Body  []Stmt
+-		Colon src.Pos
++		Colon Pos
+ 		node
+ 	}
+ 
+ 	CommClause struct {
+ 		Comm  SimpleStmt // send or receive stmt; nil means default clause
+ 		Body  []Stmt
+-		Colon src.Pos
++		Colon Pos
+ 		node
+ 	}
+ )
+diff --git a/src/cmd/compile/internal/syntax/nodes_test.go b/src/cmd/compile/internal/syntax/nodes_test.go
+index 433ae30661..a39f08c1a4 100644
+--- a/src/cmd/compile/internal/syntax/nodes_test.go
++++ b/src/cmd/compile/internal/syntax/nodes_test.go
+@@ -291,7 +291,7 @@ func testPos(t *testing.T, list []test, prefix, suffix string, extract func(*Fil
+ 		}
+ 
+ 		// build syntax tree
+-		file, err := Parse(nil, strings.NewReader(src), nil, nil, nil, 0)
++		file, err := Parse(nil, strings.NewReader(src), nil, nil, 0)
+ 		if err != nil {
+ 			t.Errorf("parse error: %s: %v (%s)", src, err, test.nodetyp)
+ 			continue
+diff --git a/src/cmd/compile/internal/syntax/parser.go b/src/cmd/compile/internal/syntax/parser.go
+index 8f9775afe7..fd200f7381 100644
+--- a/src/cmd/compile/internal/syntax/parser.go
++++ b/src/cmd/compile/internal/syntax/parser.go
+@@ -5,7 +5,6 @@
+ package syntax
+ 
+ import (
+-	"cmd/internal/src"
+ 	"fmt"
+ 	"io"
+ 	"strconv"
+@@ -16,26 +15,24 @@ const debug = false
+ const trace = false
+ 
+ type parser struct {
+-	file  *src.PosBase
+-	errh  ErrorHandler
+-	fileh FilenameHandler
+-	mode  Mode
++	file *PosBase
++	errh ErrorHandler
++	mode Mode
+ 	scanner
+ 
+-	base   *src.PosBase // current position base
+-	first  error        // first error encountered
+-	errcnt int          // number of errors encountered
+-	pragma Pragma       // pragma flags
++	base   *PosBase // current position base
++	first  error    // first error encountered
++	errcnt int      // number of errors encountered
++	pragma Pragma   // pragma flags
+ 
+ 	fnest  int    // function nesting level (for error handling)
+ 	xnest  int    // expression nesting level (for complit ambiguity resolution)
+ 	indent []byte // tracing support
+ }
+ 
+-func (p *parser) init(file *src.PosBase, r io.Reader, errh ErrorHandler, pragh PragmaHandler, fileh FilenameHandler, mode Mode) {
++func (p *parser) init(file *PosBase, r io.Reader, errh ErrorHandler, pragh PragmaHandler, mode Mode) {
+ 	p.file = file
+ 	p.errh = errh
+-	p.fileh = fileh
+ 	p.mode = mode
+ 	p.scanner.init(
+ 		r,
+@@ -52,15 +49,25 @@ func (p *parser) init(file *src.PosBase, r io.Reader, errh ErrorHandler, pragh P
+ 
+ 			// otherwise it must be a comment containing a line or go: directive
+ 			text := commentText(msg)
+-			col += 2 // text starts after // or /*
+ 			if strings.HasPrefix(text, "line ") {
+-				p.updateBase(line, col+5, text[5:])
++				var pos Pos // position immediately following the comment
++				if msg[1] == '/' {
++					// line comment
++					pos = MakePos(p.file, line+1, colbase)
++				} else {
++					// regular comment
++					// (if the comment spans multiple lines it's not
++					// a valid line directive and will be discarded
++					// by updateBase)
++					pos = MakePos(p.file, line, col+uint(len(msg)))
++				}
++				p.updateBase(pos, line, col+2+5, text[5:]) // +2 to skip over // or /*
+ 				return
+ 			}
+ 
+ 			// go: directive (but be conservative and test)
+ 			if pragh != nil && strings.HasPrefix(text, "go:") {
+-				p.pragma |= pragh(p.posAt(line, col), text)
++				p.pragma |= pragh(p.posAt(line, col+2), text) // +2 to skip over // or /*
+ 			}
+ 		},
+ 		directives,
+@@ -76,9 +83,7 @@ func (p *parser) init(file *src.PosBase, r io.Reader, errh ErrorHandler, pragh P
+ 	p.indent = nil
+ }
+ 
+-const lineMax = 1<<24 - 1 // TODO(gri) this limit is defined for src.Pos - fix
+-
+-func (p *parser) updateBase(line, col uint, text string) {
++func (p *parser) updateBase(pos Pos, line, col uint, text string) {
+ 	i, n, ok := trailingDigits(text)
+ 	if i == 0 {
+ 		return // ignore (not a line directive)
+@@ -96,26 +101,25 @@ func (p *parser) updateBase(line, col uint, text string) {
+ 		//line filename:line:col
+ 		i, i2 = i2, i
+ 		n, n2 = n2, n
+-		if n2 == 0 {
++		if n2 == 0 || n2 > PosMax {
+ 			p.errorAt(p.posAt(line, col+i2), "invalid column number: "+text[i2:])
+ 			return
+ 		}
+ 		text = text[:i2-1] // lop off :col
++	} else {
++		//line filename:line
++		n2 = colbase // use start of line for column
+ 	}
+ 
+-	if n == 0 || n > lineMax {
++	if n == 0 || n > PosMax {
+ 		p.errorAt(p.posAt(line, col+i), "invalid line number: "+text[i:])
+ 		return
+ 	}
+ 
+ 	filename := text[:i-1] // lop off :line
+-	absFilename := filename
+-	if p.fileh != nil {
+-		absFilename = p.fileh(filename)
+-	}
++	// TODO(gri) handle case where filename doesn't change (see #22662)
+ 
+-	// TODO(gri) pass column n2 to NewLinePragmaBase
+-	p.base = src.NewLinePragmaBase(src.MakePos(p.file, line, col), filename, absFilename, uint(n) /*uint(n2)*/)
++	p.base = NewLineBase(pos, filename, n, n2)
+ }
+ 
+ func commentText(s string) string {
+@@ -162,12 +166,12 @@ func (p *parser) want(tok token) {
+ // Error handling
+ 
+ // posAt returns the Pos value for (line, col) and the current position base.
+-func (p *parser) posAt(line, col uint) src.Pos {
+-	return src.MakePos(p.base, line, col)
++func (p *parser) posAt(line, col uint) Pos {
++	return MakePos(p.base, line, col)
+ }
+ 
+ // error reports an error at the given position.
+-func (p *parser) errorAt(pos src.Pos, msg string) {
++func (p *parser) errorAt(pos Pos, msg string) {
+ 	err := Error{pos, msg}
+ 	if p.first == nil {
+ 		p.first = err
+@@ -180,7 +184,7 @@ func (p *parser) errorAt(pos src.Pos, msg string) {
+ }
+ 
+ // syntaxErrorAt reports a syntax error at the given position.
+-func (p *parser) syntaxErrorAt(pos src.Pos, msg string) {
++func (p *parser) syntaxErrorAt(pos Pos, msg string) {
+ 	if trace {
+ 		p.print("syntax error: " + msg)
+ 	}
+@@ -237,7 +241,7 @@ func tokstring(tok token) string {
+ }
+ 
+ // Convenience methods using the current token position.
+-func (p *parser) pos() src.Pos           { return p.posAt(p.line, p.col) }
++func (p *parser) pos() Pos               { return p.posAt(p.line, p.col) }
+ func (p *parser) syntaxError(msg string) { p.syntaxErrorAt(p.pos(), msg) }
+ 
+ // The stopset contains keywords that start a statement.
+@@ -417,7 +421,7 @@ func isEmptyFuncDecl(dcl Decl) bool {
+ // list = "(" { f sep } ")" |
+ //        "{" { f sep } "}" . // sep is optional before ")" or "}"
+ //
+-func (p *parser) list(open, sep, close token, f func() bool) src.Pos {
++func (p *parser) list(open, sep, close token, f func() bool) Pos {
+ 	p.want(open)
+ 
+ 	var done bool
+@@ -1064,7 +1068,7 @@ func (p *parser) type_() Expr {
+ 	return typ
+ }
+ 
+-func newIndirect(pos src.Pos, typ Expr) Expr {
++func newIndirect(pos Pos, typ Expr) Expr {
+ 	o := new(Operation)
+ 	o.pos = pos
+ 	o.Op = Mul
+@@ -1276,7 +1280,7 @@ func (p *parser) funcResult() []*Field {
+ 	return nil
+ }
+ 
+-func (p *parser) addField(styp *StructType, pos src.Pos, name *Name, typ Expr, tag *BasicLit) {
++func (p *parser) addField(styp *StructType, pos Pos, name *Name, typ Expr, tag *BasicLit) {
+ 	if tag != nil {
+ 		for i := len(styp.FieldList) - len(styp.TagList); i > 0; i-- {
+ 			styp.TagList = append(styp.TagList, nil)
+@@ -1694,7 +1698,7 @@ func (p *parser) newRangeClause(lhs Expr, def bool) *RangeClause {
+ 	return r
+ }
+ 
+-func (p *parser) newAssignStmt(pos src.Pos, op Operator, lhs, rhs Expr) *AssignStmt {
++func (p *parser) newAssignStmt(pos Pos, op Operator, lhs, rhs Expr) *AssignStmt {
+ 	a := new(AssignStmt)
+ 	a.pos = pos
+ 	a.Op = op
+@@ -1818,7 +1822,7 @@ func (p *parser) header(keyword token) (init SimpleStmt, cond Expr, post SimpleS
+ 
+ 	var condStmt SimpleStmt
+ 	var semi struct {
+-		pos src.Pos
++		pos Pos
+ 		lit string // valid if pos.IsKnown()
+ 	}
+ 	if p.tok != _Lbrace {
+diff --git a/src/cmd/compile/internal/syntax/parser_test.go b/src/cmd/compile/internal/syntax/parser_test.go
+index 592163bb51..cfac2e0118 100644
+--- a/src/cmd/compile/internal/syntax/parser_test.go
++++ b/src/cmd/compile/internal/syntax/parser_test.go
+@@ -6,7 +6,6 @@ package syntax
+ 
+ import (
+ 	"bytes"
+-	"cmd/internal/src"
+ 	"flag"
+ 	"fmt"
+ 	"io/ioutil"
+@@ -131,7 +130,7 @@ func verifyPrint(filename string, ast1 *File) {
+ 		panic(err)
+ 	}
+ 
+-	ast2, err := Parse(src.NewFileBase(filename, filename), &buf1, nil, nil, nil, 0)
++	ast2, err := Parse(NewFileBase(filename), &buf1, nil, nil, 0)
+ 	if err != nil {
+ 		panic(err)
+ 	}
+@@ -155,7 +154,7 @@ func verifyPrint(filename string, ast1 *File) {
+ }
+ 
+ func TestIssue17697(t *testing.T) {
+-	_, err := Parse(nil, bytes.NewReader(nil), nil, nil, nil, 0) // return with parser error, don't panic
++	_, err := Parse(nil, bytes.NewReader(nil), nil, nil, 0) // return with parser error, don't panic
+ 	if err == nil {
+ 		t.Errorf("no error reported")
+ 	}
+@@ -181,6 +180,11 @@ func TestParseFile(t *testing.T) {
+ 	}
+ }
+ 
++// Make sure (PosMax + 1) doesn't overflow when converted to default
++// type int (when passed as argument to fmt.Sprintf) on 32bit platforms
++// (see test cases below).
++var tooLarge int = PosMax + 1
++
+ func TestLineDirectives(t *testing.T) {
+ 	// valid line directives lead to a syntax error after them
+ 	const valid = "syntax error: package statement must be first"
+@@ -191,11 +195,11 @@ func TestLineDirectives(t *testing.T) {
+ 		line, col uint // 0-based
+ 	}{
+ 		// ignored //line directives
+-		{"//\n", valid, "", 2 - linebase, 0},            // no directive
+-		{"//line\n", valid, "", 2 - linebase, 0},        // missing colon
+-		{"//line foo\n", valid, "", 2 - linebase, 0},    // missing colon
+-		{"  //line foo:\n", valid, "", 2 - linebase, 0}, // not a line start
+-		{"//  line foo:\n", valid, "", 2 - linebase, 0}, // space between // and line
++		{"//\n", valid, "", 1, 0},            // no directive
++		{"//line\n", valid, "", 1, 0},        // missing colon
++		{"//line foo\n", valid, "", 1, 0},    // missing colon
++		{"  //line foo:\n", valid, "", 1, 0}, // not a line start
++		{"//  line foo:\n", valid, "", 1, 0}, // space between // and line
+ 
+ 		// invalid //line directives with one colon
+ 		{"//line :\n", "invalid line number: ", "", 0, 8},
+@@ -206,7 +210,7 @@ func TestLineDirectives(t *testing.T) {
+ 		{"//line foo:1 \n", "invalid line number: 1 ", "", 0, 11},
+ 		{"//line foo:-12\n", "invalid line number: -12", "", 0, 11},
+ 		{"//line C:foo:0\n", "invalid line number: 0", "", 0, 13},
+-		{fmt.Sprintf("//line foo:%d\n", lineMax+1), fmt.Sprintf("invalid line number: %d", lineMax+1), "", 0, 11},
++		{fmt.Sprintf("//line foo:%d\n", tooLarge), fmt.Sprintf("invalid line number: %d", tooLarge), "", 0, 11},
+ 
+ 		// invalid //line directives with two colons
+ 		{"//line ::\n", "invalid line number: ", "", 0, 9},
+@@ -217,27 +221,33 @@ func TestLineDirectives(t *testing.T) {
+ 
+ 		{"//line :123:0\n", "invalid column number: 0", "", 0, 12},
+ 		{"//line foo:123:0\n", "invalid column number: 0", "", 0, 15},
++		{fmt.Sprintf("//line foo:10:%d\n", tooLarge), fmt.Sprintf("invalid column number: %d", tooLarge), "", 0, 14},
+ 
+-		// effect of valid //line directives on positions
++		// effect of valid //line directives on lines
+ 		{"//line foo:123\n   foo", valid, "foo", 123 - linebase, 3},
+ 		{"//line  foo:123\n   foo", valid, " foo", 123 - linebase, 3},
+ 		{"//line foo:123\n//line bar:345\nfoo", valid, "bar", 345 - linebase, 0},
+ 		{"//line C:foo:123\n", valid, "C:foo", 123 - linebase, 0},
+-		{"//line " + runtime.GOROOT() + "/src/a/a.go:123\n   foo", valid, "$GOROOT/src/a/a.go", 123 - linebase, 3},
+-		{"//line :x:1\n", valid, ":x", 0, 0},
+-		{"//line foo ::1\n", valid, "foo :", 0, 0},
++		{"//line /src/a/a.go:123\n   foo", valid, "/src/a/a.go", 123 - linebase, 3},
++		{"//line :x:1\n", valid, ":x", 1 - linebase, 0},
++		{"//line foo ::1\n", valid, "foo :", 1 - linebase, 0},
+ 		{"//line foo:123abc:1\n", valid, "foo:123abc", 0, 0},
+ 		{"//line foo :123:1\n", valid, "foo ", 123 - linebase, 0},
+ 		{"//line ::123\n", valid, ":", 123 - linebase, 0},
+ 
+-		// TODO(gri) add tests to verify correct column changes, once implemented
++		// effect of valid //line directives on columns
++		{"//line :x:1:10\n", valid, ":x", 1 - linebase, 10 - colbase},
++		{"//line foo ::1:2\n", valid, "foo :", 1 - linebase, 2 - colbase},
++		{"//line foo:123abc:1:1000\n", valid, "foo:123abc", 1 - linebase, 1000 - colbase},
++		{"//line foo :123:1000\n\n", valid, "foo ", 124 - linebase, 0},
++		{"//line ::123:1234\n", valid, ":", 123 - linebase, 1234 - colbase},
+ 
+ 		// ignored /*line directives
+-		{"/**/", valid, "", 1 - linebase, 4},             // no directive
+-		{"/*line*/", valid, "", 1 - linebase, 8},         // missing colon
+-		{"/*line foo*/", valid, "", 1 - linebase, 12},    // missing colon
+-		{"  //line foo:*/", valid, "", 1 - linebase, 15}, // not a line start
+-		{"/*  line foo:*/", valid, "", 1 - linebase, 15}, // space between // and line
++		{"/**/", valid, "", 0, 4},             // no directive
++		{"/*line*/", valid, "", 0, 8},         // missing colon
++		{"/*line foo*/", valid, "", 0, 12},    // missing colon
++		{"  //line foo:*/", valid, "", 0, 15}, // not a line start
++		{"/*  line foo:*/", valid, "", 0, 15}, // space between // and line
+ 
+ 		// invalid /*line directives with one colon
+ 		{"/*line :*/", "invalid line number: ", "", 0, 8},
+@@ -247,7 +257,7 @@ func TestLineDirectives(t *testing.T) {
+ 		{"/*line foo:0*/", "invalid line number: 0", "", 0, 11},
+ 		{"/*line foo:1 */", "invalid line number: 1 ", "", 0, 11},
+ 		{"/*line C:foo:0*/", "invalid line number: 0", "", 0, 13},
+-		{fmt.Sprintf("/*line foo:%d*/", lineMax+1), fmt.Sprintf("invalid line number: %d", lineMax+1), "", 0, 11},
++		{fmt.Sprintf("/*line foo:%d*/", tooLarge), fmt.Sprintf("invalid line number: %d", tooLarge), "", 0, 11},
+ 
+ 		// invalid /*line directives with two colons
+ 		{"/*line ::*/", "invalid line number: ", "", 0, 9},
+@@ -258,31 +268,27 @@ func TestLineDirectives(t *testing.T) {
+ 
+ 		{"/*line :123:0*/", "invalid column number: 0", "", 0, 12},
+ 		{"/*line foo:123:0*/", "invalid column number: 0", "", 0, 15},
++		{fmt.Sprintf("/*line foo:10:%d*/", tooLarge), fmt.Sprintf("invalid column number: %d", tooLarge), "", 0, 14},
+ 
+-		// effect of valid /*line directives on positions
+-		// TODO(gri) remove \n after directives once line number is computed correctly
+-		{"/*line foo:123*/\n   foo", valid, "foo", 123 - linebase, 3},
++		// effect of valid /*line directives on lines
++		{"/*line foo:123*/   foo", valid, "foo", 123 - linebase, 3},
+ 		{"/*line foo:123*/\n//line bar:345\nfoo", valid, "bar", 345 - linebase, 0},
+-		{"/*line C:foo:123*/\n", valid, "C:foo", 123 - linebase, 0},
+-		{"/*line " + runtime.GOROOT() + "/src/a/a.go:123*/\n   foo", valid, "$GOROOT/src/a/a.go", 123 - linebase, 3},
+-		{"/*line :x:1*/\n", valid, ":x", 1 - linebase, 0},
+-		{"/*line foo ::1*/\n", valid, "foo :", 1 - linebase, 0},
+-		{"/*line foo:123abc:1*/\n", valid, "foo:123abc", 1 - linebase, 0},
+-		{"/*line foo :123:1*/\n", valid, "foo ", 123 - linebase, 0},
+-		{"/*line ::123*/\n", valid, ":", 123 - linebase, 0},
+-
+-		// test effect of /*line directive on (relative) position information for this line
+-		// TODO(gri) add these tests
+-
+-		// TODO(gri) add tests to verify correct column changes, once implemented
++		{"/*line C:foo:123*/", valid, "C:foo", 123 - linebase, 0},
++		{"/*line /src/a/a.go:123*/   foo", valid, "/src/a/a.go", 123 - linebase, 3},
++		{"/*line :x:1*/", valid, ":x", 1 - linebase, 0},
++		{"/*line foo ::1*/", valid, "foo :", 1 - linebase, 0},
++		{"/*line foo:123abc:1*/", valid, "foo:123abc", 1 - linebase, 0},
++		{"/*line foo :123:10*/", valid, "foo ", 123 - linebase, 10 - colbase},
++		{"/*line ::123*/", valid, ":", 123 - linebase, 0},
++
++		// effect of valid /*line directives on columns
++		{"/*line :x:1:10*/", valid, ":x", 1 - linebase, 10 - colbase},
++		{"/*line foo ::1:2*/", valid, "foo :", 1 - linebase, 2 - colbase},
++		{"/*line foo:123abc:1:1000*/", valid, "foo:123abc", 1 - linebase, 1000 - colbase},
++		{"/*line foo :123:1000*/\n", valid, "foo ", 124 - linebase, 0},
++		{"/*line ::123:1234*/", valid, ":", 123 - linebase, 1234 - colbase},
+ 	} {
+-		fileh := func(name string) string {
+-			if strings.HasPrefix(name, runtime.GOROOT()) {
+-				return "$GOROOT" + name[len(runtime.GOROOT()):]
+-			}
+-			return name
+-		}
+-		_, err := Parse(nil, strings.NewReader(test.src), nil, nil, fileh, 0)
++		_, err := Parse(nil, strings.NewReader(test.src), nil, nil, 0)
+ 		if err == nil {
+ 			t.Errorf("%s: no error reported", test.src)
+ 			continue
+@@ -295,14 +301,16 @@ func TestLineDirectives(t *testing.T) {
+ 		if msg := perr.Msg; msg != test.msg {
+ 			t.Errorf("%s: got msg = %q; want %q", test.src, msg, test.msg)
+ 		}
+-		if filename := perr.Pos.AbsFilename(); filename != test.filename {
++
++		pos := perr.Pos
++		if filename := pos.RelFilename(); filename != test.filename {
+ 			t.Errorf("%s: got filename = %q; want %q", test.src, filename, test.filename)
+ 		}
+-		if line := perr.Pos.RelLine(); line-linebase != test.line {
+-			t.Errorf("%s: got line = %d; want %d", test.src, line-linebase, test.line)
++		if line := pos.RelLine(); line != test.line+linebase {
++			t.Errorf("%s: got line = %d; want %d", test.src, line, test.line+linebase)
+ 		}
+-		if col := perr.Pos.Col(); col-colbase != test.col {
+-			t.Errorf("%s: got col = %d; want %d", test.src, col-colbase, test.col)
++		if col := pos.RelCol(); col != test.col+colbase {
++			t.Errorf("%s: got col = %d; want %d", test.src, col, test.col+colbase)
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/syntax/pos.go b/src/cmd/compile/internal/syntax/pos.go
+new file mode 100644
+index 0000000000..00e603e8d3
+--- /dev/null
++++ b/src/cmd/compile/internal/syntax/pos.go
+@@ -0,0 +1,109 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package syntax
++
++import "fmt"
++
++// PosMax is the largest line or column value that can be represented without loss.
++// Incoming values (arguments) larger than PosMax will be set to PosMax.
++const PosMax = 1 << 30
++
++// A Pos represents an absolute (line, col) source position
++// with a reference to position base for computing relative
++// (to a file, or line directive) position information.
++// Pos values are intentionally light-weight so that they
++// can be created without too much concern about space use.
++type Pos struct {
++	base      *PosBase
++	line, col uint32
++}
++
++// MakePos returns a new Pos for the given PosBase, line and column.
++func MakePos(base *PosBase, line, col uint) Pos { return Pos{base, sat32(line), sat32(col)} }
++
++// TODO(gri) IsKnown makes an assumption about linebase < 1.
++//           Maybe we should check for Base() != nil instead.
++
++func (pos Pos) IsKnown() bool  { return pos.line > 0 }
++func (pos Pos) Base() *PosBase { return pos.base }
++func (pos Pos) Line() uint     { return uint(pos.line) }
++func (pos Pos) Col() uint      { return uint(pos.col) }
++
++func (pos Pos) RelFilename() string { b := pos.Base(); return b.Filename() }
++func (pos Pos) RelLine() uint       { b := pos.Base(); return b.Line() + (pos.Line() - b.Pos().Line()) }
++func (pos Pos) RelCol() uint {
++	b := pos.Base()
++	if pos.Line() == b.Pos().Line() {
++		// pos on same line as pos base => column is relative to pos base
++		return b.Col() + (pos.Col() - b.Pos().Col())
++	}
++	return pos.Col()
++}
++
++func (pos Pos) String() string {
++	s := fmt.Sprintf("%s:%d:%d", pos.RelFilename(), pos.RelLine(), pos.RelCol())
++	if bpos := pos.Base().Pos(); bpos.IsKnown() {
++		s += fmt.Sprintf("[%s:%d:%d]", bpos.RelFilename(), pos.Line(), pos.Col())
++	}
++	return s
++}
++
++// A PosBase represents the base for relative position information:
++// At position pos, the relative position is filename:line:col.
++type PosBase struct {
++	pos       Pos
++	filename  string
++	line, col uint32
++}
++
++// NewFileBase returns a new PosBase for the given filename.
++// The PosBase position is unknown in this case.
++func NewFileBase(filename string) *PosBase {
++	return &PosBase{filename: filename}
++}
++
++// NewLineBase returns a new PosBase for a line directive "line filename:line:col"
++// relative to pos, which is the position of the character immediately following
++// the comment containing the line directive. For a directive in a line comment,
++// that position is the beginning of the next line (i.e., the newline character
++// belongs to the line comment).
++func NewLineBase(pos Pos, filename string, line, col uint) *PosBase {
++	return &PosBase{pos, filename, sat32(line), sat32(col)}
++}
++
++func (base *PosBase) Pos() (_ Pos) {
++	if base == nil {
++		return
++	}
++	return base.pos
++}
++
++func (base *PosBase) Filename() string {
++	if base == nil {
++		return ""
++	}
++	return base.filename
++}
++
++func (base *PosBase) Line() uint {
++	if base == nil {
++		return 0
++	}
++	return uint(base.line)
++}
++
++func (base *PosBase) Col() uint {
++	if base == nil {
++		return 0
++	}
++	return uint(base.col)
++}
++
++func sat32(x uint) uint32 {
++	if x > PosMax {
++		return PosMax
++	}
++	return uint32(x)
++}
+diff --git a/src/cmd/compile/internal/syntax/printer_test.go b/src/cmd/compile/internal/syntax/printer_test.go
+index 6f19846e22..bc78f01265 100644
+--- a/src/cmd/compile/internal/syntax/printer_test.go
++++ b/src/cmd/compile/internal/syntax/printer_test.go
+@@ -34,7 +34,7 @@ func TestPrintString(t *testing.T) {
+ 		"package p; type _ = int; type T1 = struct{}; type ( _ = *struct{}; T2 = float32 )",
+ 		// TODO(gri) expand
+ 	} {
+-		ast, err := Parse(nil, strings.NewReader(want), nil, nil, nil, 0)
++		ast, err := Parse(nil, strings.NewReader(want), nil, nil, 0)
+ 		if err != nil {
+ 			t.Error(err)
+ 			continue
+diff --git a/src/cmd/compile/internal/syntax/syntax.go b/src/cmd/compile/internal/syntax/syntax.go
+index 7de7d4d9fa..b8c387419f 100644
+--- a/src/cmd/compile/internal/syntax/syntax.go
++++ b/src/cmd/compile/internal/syntax/syntax.go
+@@ -5,7 +5,6 @@
+ package syntax
+ 
+ import (
+-	"cmd/internal/src"
+ 	"fmt"
+ 	"io"
+ 	"os"
+@@ -21,7 +20,7 @@ const (
+ 
+ // Error describes a syntax error. Error implements the error interface.
+ type Error struct {
+-	Pos src.Pos
++	Pos Pos
+ 	Msg string
+ }
+ 
+@@ -42,11 +41,7 @@ type Pragma uint16
+ // A PragmaHandler is used to process //go: directives as
+ // they're scanned. The returned Pragma value will be unioned into the
+ // next FuncDecl node.
+-type PragmaHandler func(pos src.Pos, text string) Pragma
+-
+-// A FilenameHandler is used to process each filename encountered
+-// in //line directives. The returned value is used as the absolute filename.
+-type FilenameHandler func(name string) string
++type PragmaHandler func(pos Pos, text string) Pragma
+ 
+ // Parse parses a single Go source file from src and returns the corresponding
+ // syntax tree. If there are errors, Parse will return the first error found,
+@@ -60,10 +55,7 @@ type FilenameHandler func(name string) string
+ //
+ // If pragh != nil, it is called with each pragma encountered.
+ //
+-// If fileh != nil, it is called to process each filename
+-// encountered in //line directives.
+-//
+-func Parse(base *src.PosBase, src io.Reader, errh ErrorHandler, pragh PragmaHandler, fileh FilenameHandler, mode Mode) (_ *File, first error) {
++func Parse(base *PosBase, src io.Reader, errh ErrorHandler, pragh PragmaHandler, mode Mode) (_ *File, first error) {
+ 	defer func() {
+ 		if p := recover(); p != nil {
+ 			if err, ok := p.(Error); ok {
+@@ -75,7 +67,7 @@ func Parse(base *src.PosBase, src io.Reader, errh ErrorHandler, pragh PragmaHand
+ 	}()
+ 
+ 	var p parser
+-	p.init(base, src, errh, pragh, fileh, mode)
++	p.init(base, src, errh, pragh, mode)
+ 	p.next()
+ 	return p.fileOrNil(), p.first
+ }
+@@ -90,5 +82,5 @@ func ParseFile(filename string, errh ErrorHandler, pragh PragmaHandler, mode Mod
+ 		return nil, err
+ 	}
+ 	defer f.Close()
+-	return Parse(src.NewFileBase(filename, filename), f, errh, pragh, nil, mode)
++	return Parse(NewFileBase(filename), f, errh, pragh, mode)
+ }

@@ -71,7 +71,7 @@ Date:   Wed Jul 18 09:31:35 2018 +0000
     Run-TryBot: Ben Shi <powerman1st@163.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/arm64/ssa.go        |   4 +
  src/cmd/compile/internal/ssa/gen/ARM64.rules |  12 ++
  src/cmd/compile/internal/ssa/gen/ARM64Ops.go |  28 +--
@@ -79,3 +79,578 @@ Date:   Wed Jul 18 09:31:35 2018 +0000
  src/cmd/compile/internal/ssa/rewriteARM64.go | 272 +++++++++++++++++++++++++++
  test/codegen/floats.go                       |  10 +
  6 files changed, 371 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/compile/internal/arm64/ssa.go b/src/cmd/compile/internal/arm64/ssa.go
+index c396ba06d1..3712a73eb5 100644
+--- a/src/cmd/compile/internal/arm64/ssa.go
++++ b/src/cmd/compile/internal/arm64/ssa.go
+@@ -369,6 +369,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		ssa.OpARM64MOVWloadidx,
+ 		ssa.OpARM64MOVWUloadidx,
+ 		ssa.OpARM64MOVDloadidx,
++		ssa.OpARM64FMOVSloadidx,
++		ssa.OpARM64FMOVDloadidx,
+ 		ssa.OpARM64MOVHloadidx2,
+ 		ssa.OpARM64MOVHUloadidx2,
+ 		ssa.OpARM64MOVWloadidx4,
+@@ -404,6 +406,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		ssa.OpARM64MOVHstoreidx,
+ 		ssa.OpARM64MOVWstoreidx,
+ 		ssa.OpARM64MOVDstoreidx,
++		ssa.OpARM64FMOVSstoreidx,
++		ssa.OpARM64FMOVDstoreidx,
+ 		ssa.OpARM64MOVHstoreidx2,
+ 		ssa.OpARM64MOVWstoreidx4,
+ 		ssa.OpARM64MOVDstoreidx8:
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64.rules b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+index 4c5f8c7502..d207806819 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+@@ -650,6 +650,8 @@
+ (MOVHload [off] {sym} (ADD ptr idx) mem) && off == 0 && sym == nil -> (MOVHloadidx ptr idx mem)
+ (MOVBUload [off] {sym} (ADD ptr idx) mem) && off == 0 && sym == nil -> (MOVBUloadidx ptr idx mem)
+ (MOVBload [off] {sym} (ADD ptr idx) mem) && off == 0 && sym == nil -> (MOVBloadidx ptr idx mem)
++(FMOVSload [off] {sym} (ADD ptr idx) mem) && off == 0 && sym == nil -> (FMOVSloadidx ptr idx mem)
++(FMOVDload [off] {sym} (ADD ptr idx) mem) && off == 0 && sym == nil -> (FMOVDloadidx ptr idx mem)
+ (MOVDloadidx ptr (MOVDconst [c]) mem) -> (MOVDload [c] ptr mem)
+ (MOVDloadidx (MOVDconst [c]) ptr mem) -> (MOVDload [c] ptr mem)
+ (MOVWUloadidx ptr (MOVDconst [c]) mem) -> (MOVWUload [c] ptr mem)
+@@ -664,6 +666,10 @@
+ (MOVBUloadidx (MOVDconst [c]) ptr mem) -> (MOVBUload [c] ptr mem)
+ (MOVBloadidx ptr (MOVDconst [c]) mem) -> (MOVBload [c] ptr mem)
+ (MOVBloadidx (MOVDconst [c]) ptr mem) -> (MOVBload [c] ptr mem)
++(FMOVSloadidx ptr (MOVDconst [c]) mem) -> (FMOVSload [c] ptr mem)
++(FMOVSloadidx (MOVDconst [c]) ptr mem) -> (FMOVSload [c] ptr mem)
++(FMOVDloadidx ptr (MOVDconst [c]) mem) -> (FMOVDload [c] ptr mem)
++(FMOVDloadidx (MOVDconst [c]) ptr mem) -> (FMOVDload [c] ptr mem)
+ 
+ // shifted register indexed load
+ (MOVDload [off] {sym} (ADDshiftLL [3] ptr idx) mem) && off == 0 && sym == nil -> (MOVDloadidx8 ptr idx mem)
+@@ -731,6 +737,8 @@
+ (MOVWstore [off] {sym} (ADD ptr idx) val mem) && off == 0 && sym == nil -> (MOVWstoreidx ptr idx val mem)
+ (MOVHstore [off] {sym} (ADD ptr idx) val mem) && off == 0 && sym == nil -> (MOVHstoreidx ptr idx val mem)
+ (MOVBstore [off] {sym} (ADD ptr idx) val mem) && off == 0 && sym == nil -> (MOVBstoreidx ptr idx val mem)
++(FMOVDstore [off] {sym} (ADD ptr idx) val mem) && off == 0 && sym == nil -> (FMOVDstoreidx ptr idx val mem)
++(FMOVSstore [off] {sym} (ADD ptr idx) val mem) && off == 0 && sym == nil -> (FMOVSstoreidx ptr idx val mem)
+ (MOVDstoreidx ptr (MOVDconst [c]) val mem) -> (MOVDstore [c] ptr val mem)
+ (MOVDstoreidx (MOVDconst [c]) idx val mem) -> (MOVDstore [c] idx val mem)
+ (MOVWstoreidx ptr (MOVDconst [c]) val mem) -> (MOVWstore [c] ptr val mem)
+@@ -739,6 +747,10 @@
+ (MOVHstoreidx (MOVDconst [c]) idx val mem) -> (MOVHstore [c] idx val mem)
+ (MOVBstoreidx ptr (MOVDconst [c]) val mem) -> (MOVBstore [c] ptr val mem)
+ (MOVBstoreidx (MOVDconst [c]) idx val mem) -> (MOVBstore [c] idx val mem)
++(FMOVDstoreidx ptr (MOVDconst [c]) val mem) -> (FMOVDstore [c] ptr val mem)
++(FMOVDstoreidx (MOVDconst [c]) idx val mem) -> (FMOVDstore [c] idx val mem)
++(FMOVSstoreidx ptr (MOVDconst [c]) val mem) -> (FMOVSstore [c] ptr val mem)
++(FMOVSstoreidx (MOVDconst [c]) idx val mem) -> (FMOVSstore [c] idx val mem)
+ 
+ // shifted register indexed store
+ (MOVDstore [off] {sym} (ADDshiftLL [3] ptr idx) val mem) && off == 0 && sym == nil -> (MOVDstoreidx8 ptr idx val mem)
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64Ops.go b/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
+index 648d5a59a6..96f2ac3ceb 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
+@@ -158,7 +158,9 @@ func init() {
+ 		fp31      = regInfo{inputs: []regMask{fp, fp, fp}, outputs: []regMask{fp}}
+ 		fp2flags  = regInfo{inputs: []regMask{fp, fp}}
+ 		fpload    = regInfo{inputs: []regMask{gpspsbg}, outputs: []regMask{fp}}
++		fp2load   = regInfo{inputs: []regMask{gpspsbg, gpg}, outputs: []regMask{fp}}
+ 		fpstore   = regInfo{inputs: []regMask{gpspsbg, fp}}
++		fpstore2  = regInfo{inputs: []regMask{gpspsbg, gpg, fp}}
+ 		readflags = regInfo{inputs: nil, outputs: []regMask{gp}}
+ 	)
+ 	ops := []opData{
+@@ -324,13 +326,15 @@ func init() {
+ 		{name: "FMOVDload", argLength: 2, reg: fpload, aux: "SymOff", asm: "FMOVD", typ: "Float64", faultOnNilArg0: true, symEffect: "Read"}, // load from arg0 + auxInt + aux.  arg1=mem.
+ 
+ 		// register indexed load
+-		{name: "MOVDloadidx", argLength: 3, reg: gp2load, asm: "MOVD", typ: "UInt64"},   // load 64-bit dword from arg0 + arg1, arg2 = mem.
+-		{name: "MOVWloadidx", argLength: 3, reg: gp2load, asm: "MOVW", typ: "Int32"},    // load 32-bit word from arg0 + arg1, sign-extended to 64-bit, arg2=mem.
+-		{name: "MOVWUloadidx", argLength: 3, reg: gp2load, asm: "MOVWU", typ: "UInt32"}, // load 32-bit word from arg0 + arg1, zero-extended to 64-bit, arg2=mem.
+-		{name: "MOVHloadidx", argLength: 3, reg: gp2load, asm: "MOVH", typ: "Int16"},    // load 16-bit word from arg0 + arg1, sign-extended to 64-bit, arg2=mem.
+-		{name: "MOVHUloadidx", argLength: 3, reg: gp2load, asm: "MOVHU", typ: "UInt16"}, // load 16-bit word from arg0 + arg1, zero-extended to 64-bit, arg2=mem.
+-		{name: "MOVBloadidx", argLength: 3, reg: gp2load, asm: "MOVB", typ: "Int8"},     // load 8-bit word from arg0 + arg1, sign-extended to 64-bit, arg2=mem.
+-		{name: "MOVBUloadidx", argLength: 3, reg: gp2load, asm: "MOVBU", typ: "UInt8"},  // load 8-bit word from arg0 + arg1, zero-extended to 64-bit, arg2=mem.
++		{name: "MOVDloadidx", argLength: 3, reg: gp2load, asm: "MOVD", typ: "UInt64"},    // load 64-bit dword from arg0 + arg1, arg2 = mem.
++		{name: "MOVWloadidx", argLength: 3, reg: gp2load, asm: "MOVW", typ: "Int32"},     // load 32-bit word from arg0 + arg1, sign-extended to 64-bit, arg2=mem.
++		{name: "MOVWUloadidx", argLength: 3, reg: gp2load, asm: "MOVWU", typ: "UInt32"},  // load 32-bit word from arg0 + arg1, zero-extended to 64-bit, arg2=mem.
++		{name: "MOVHloadidx", argLength: 3, reg: gp2load, asm: "MOVH", typ: "Int16"},     // load 16-bit word from arg0 + arg1, sign-extended to 64-bit, arg2=mem.
++		{name: "MOVHUloadidx", argLength: 3, reg: gp2load, asm: "MOVHU", typ: "UInt16"},  // load 16-bit word from arg0 + arg1, zero-extended to 64-bit, arg2=mem.
++		{name: "MOVBloadidx", argLength: 3, reg: gp2load, asm: "MOVB", typ: "Int8"},      // load 8-bit word from arg0 + arg1, sign-extended to 64-bit, arg2=mem.
++		{name: "MOVBUloadidx", argLength: 3, reg: gp2load, asm: "MOVBU", typ: "UInt8"},   // load 8-bit word from arg0 + arg1, zero-extended to 64-bit, arg2=mem.
++		{name: "FMOVSloadidx", argLength: 3, reg: fp2load, asm: "FMOVS", typ: "Float32"}, // load 32-bit float from arg0 + arg1, arg2=mem.
++		{name: "FMOVDloadidx", argLength: 3, reg: fp2load, asm: "FMOVD", typ: "Float64"}, // load 64-bit float from arg0 + arg1, arg2=mem.
+ 
+ 		// shifted register indexed load
+ 		{name: "MOVHloadidx2", argLength: 3, reg: gp2load, asm: "MOVH", typ: "Int16"},    // load 16-bit half-word from arg0 + arg1*2, sign-extended to 64-bit, arg2=mem.
+@@ -348,10 +352,12 @@ func init() {
+ 		{name: "FMOVDstore", argLength: 3, reg: fpstore, aux: "SymOff", asm: "FMOVD", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // store 8 bytes of arg1 to arg0 + auxInt + aux.  arg2=mem.
+ 
+ 		// register indexed store
+-		{name: "MOVBstoreidx", argLength: 4, reg: gpstore2, asm: "MOVB", typ: "Mem"}, // store 1 byte of arg2 to arg0 + arg1, arg3 = mem.
+-		{name: "MOVHstoreidx", argLength: 4, reg: gpstore2, asm: "MOVH", typ: "Mem"}, // store 2 bytes of arg2 to arg0 + arg1, arg3 = mem.
+-		{name: "MOVWstoreidx", argLength: 4, reg: gpstore2, asm: "MOVW", typ: "Mem"}, // store 4 bytes of arg2 to arg0 + arg1, arg3 = mem.
+-		{name: "MOVDstoreidx", argLength: 4, reg: gpstore2, asm: "MOVD", typ: "Mem"}, // store 8 bytes of arg2 to arg0 + arg1, arg3 = mem.
++		{name: "MOVBstoreidx", argLength: 4, reg: gpstore2, asm: "MOVB", typ: "Mem"},   // store 1 byte of arg2 to arg0 + arg1, arg3 = mem.
++		{name: "MOVHstoreidx", argLength: 4, reg: gpstore2, asm: "MOVH", typ: "Mem"},   // store 2 bytes of arg2 to arg0 + arg1, arg3 = mem.
++		{name: "MOVWstoreidx", argLength: 4, reg: gpstore2, asm: "MOVW", typ: "Mem"},   // store 4 bytes of arg2 to arg0 + arg1, arg3 = mem.
++		{name: "MOVDstoreidx", argLength: 4, reg: gpstore2, asm: "MOVD", typ: "Mem"},   // store 8 bytes of arg2 to arg0 + arg1, arg3 = mem.
++		{name: "FMOVSstoreidx", argLength: 4, reg: fpstore2, asm: "FMOVS", typ: "Mem"}, // store 32-bit float of arg2 to arg0 + arg1, arg3=mem.
++		{name: "FMOVDstoreidx", argLength: 4, reg: fpstore2, asm: "FMOVD", typ: "Mem"}, // store 64-bit float of arg2 to arg0 + arg1, arg3=mem.
+ 
+ 		// shifted register indexed store
+ 		{name: "MOVHstoreidx2", argLength: 4, reg: gpstore2, asm: "MOVH", typ: "Mem"}, // store 2 bytes of arg2 to arg0 + arg1*2, arg3 = mem.
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 374949c602..b960d96ec7 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -1206,6 +1206,8 @@ const (
+ 	OpARM64MOVHUloadidx
+ 	OpARM64MOVBloadidx
+ 	OpARM64MOVBUloadidx
++	OpARM64FMOVSloadidx
++	OpARM64FMOVDloadidx
+ 	OpARM64MOVHloadidx2
+ 	OpARM64MOVHUloadidx2
+ 	OpARM64MOVWloadidx4
+@@ -1222,6 +1224,8 @@ const (
+ 	OpARM64MOVHstoreidx
+ 	OpARM64MOVWstoreidx
+ 	OpARM64MOVDstoreidx
++	OpARM64FMOVSstoreidx
++	OpARM64FMOVDstoreidx
+ 	OpARM64MOVHstoreidx2
+ 	OpARM64MOVWstoreidx4
+ 	OpARM64MOVDstoreidx8
+@@ -16016,6 +16020,34 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:   "FMOVSloadidx",
++		argLen: 3,
++		asm:    arm64.AFMOVS,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 805044223},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
++				{0, 9223372038733561855}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30 SP SB
++			},
++			outputs: []outputInfo{
++				{0, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++		},
++	},
++	{
++		name:   "FMOVDloadidx",
++		argLen: 3,
++		asm:    arm64.AFMOVD,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 805044223},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
++				{0, 9223372038733561855}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30 SP SB
++			},
++			outputs: []outputInfo{
++				{0, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++		},
++	},
+ 	{
+ 		name:   "MOVHloadidx2",
+ 		argLen: 3,
+@@ -16233,6 +16265,30 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:   "FMOVSstoreidx",
++		argLen: 4,
++		asm:    arm64.AFMOVS,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 805044223},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
++				{0, 9223372038733561855}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30 SP SB
++				{2, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++		},
++	},
++	{
++		name:   "FMOVDstoreidx",
++		argLen: 4,
++		asm:    arm64.AFMOVD,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 805044223},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
++				{0, 9223372038733561855}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30 SP SB
++				{2, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++		},
++	},
+ 	{
+ 		name:   "MOVHstoreidx2",
+ 		argLen: 4,
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM64.go b/src/cmd/compile/internal/ssa/rewriteARM64.go
+index 0715a5347d..fc93273f36 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM64.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM64.go
+@@ -89,12 +89,20 @@ func rewriteValueARM64(v *Value) bool {
+ 		return rewriteValueARM64_OpARM64FMOVDgpfp_0(v)
+ 	case OpARM64FMOVDload:
+ 		return rewriteValueARM64_OpARM64FMOVDload_0(v)
++	case OpARM64FMOVDloadidx:
++		return rewriteValueARM64_OpARM64FMOVDloadidx_0(v)
+ 	case OpARM64FMOVDstore:
+ 		return rewriteValueARM64_OpARM64FMOVDstore_0(v)
++	case OpARM64FMOVDstoreidx:
++		return rewriteValueARM64_OpARM64FMOVDstoreidx_0(v)
+ 	case OpARM64FMOVSload:
+ 		return rewriteValueARM64_OpARM64FMOVSload_0(v)
++	case OpARM64FMOVSloadidx:
++		return rewriteValueARM64_OpARM64FMOVSloadidx_0(v)
+ 	case OpARM64FMOVSstore:
+ 		return rewriteValueARM64_OpARM64FMOVSstore_0(v)
++	case OpARM64FMOVSstoreidx:
++		return rewriteValueARM64_OpARM64FMOVSstoreidx_0(v)
+ 	case OpARM64FMULD:
+ 		return rewriteValueARM64_OpARM64FMULD_0(v)
+ 	case OpARM64FMULS:
+@@ -3771,6 +3779,30 @@ func rewriteValueARM64_OpARM64FMOVDload_0(v *Value) bool {
+ 		v.AddArg(mem)
+ 		return true
+ 	}
++	// match: (FMOVDload [off] {sym} (ADD ptr idx) mem)
++	// cond: off == 0 && sym == nil
++	// result: (FMOVDloadidx ptr idx mem)
++	for {
++		off := v.AuxInt
++		sym := v.Aux
++		_ = v.Args[1]
++		v_0 := v.Args[0]
++		if v_0.Op != OpARM64ADD {
++			break
++		}
++		_ = v_0.Args[1]
++		ptr := v_0.Args[0]
++		idx := v_0.Args[1]
++		mem := v.Args[1]
++		if !(off == 0 && sym == nil) {
++			break
++		}
++		v.reset(OpARM64FMOVDloadidx)
++		v.AddArg(ptr)
++		v.AddArg(idx)
++		v.AddArg(mem)
++		return true
++	}
+ 	// match: (FMOVDload [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem)
+ 	// cond: canMergeSym(sym1,sym2) && is32Bit(off1+off2) && (ptr.Op != OpSB || !config.ctxt.Flag_shared)
+ 	// result: (FMOVDload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+@@ -3798,6 +3830,45 @@ func rewriteValueARM64_OpARM64FMOVDload_0(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueARM64_OpARM64FMOVDloadidx_0(v *Value) bool {
++	// match: (FMOVDloadidx ptr (MOVDconst [c]) mem)
++	// cond:
++	// result: (FMOVDload [c] ptr mem)
++	for {
++		_ = v.Args[2]
++		ptr := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpARM64MOVDconst {
++			break
++		}
++		c := v_1.AuxInt
++		mem := v.Args[2]
++		v.reset(OpARM64FMOVDload)
++		v.AuxInt = c
++		v.AddArg(ptr)
++		v.AddArg(mem)
++		return true
++	}
++	// match: (FMOVDloadidx (MOVDconst [c]) ptr mem)
++	// cond:
++	// result: (FMOVDload [c] ptr mem)
++	for {
++		_ = v.Args[2]
++		v_0 := v.Args[0]
++		if v_0.Op != OpARM64MOVDconst {
++			break
++		}
++		c := v_0.AuxInt
++		ptr := v.Args[1]
++		mem := v.Args[2]
++		v.reset(OpARM64FMOVDload)
++		v.AuxInt = c
++		v.AddArg(ptr)
++		v.AddArg(mem)
++		return true
++	}
++	return false
++}
+ func rewriteValueARM64_OpARM64FMOVDstore_0(v *Value) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -3847,6 +3918,32 @@ func rewriteValueARM64_OpARM64FMOVDstore_0(v *Value) bool {
+ 		v.AddArg(mem)
+ 		return true
+ 	}
++	// match: (FMOVDstore [off] {sym} (ADD ptr idx) val mem)
++	// cond: off == 0 && sym == nil
++	// result: (FMOVDstoreidx ptr idx val mem)
++	for {
++		off := v.AuxInt
++		sym := v.Aux
++		_ = v.Args[2]
++		v_0 := v.Args[0]
++		if v_0.Op != OpARM64ADD {
++			break
++		}
++		_ = v_0.Args[1]
++		ptr := v_0.Args[0]
++		idx := v_0.Args[1]
++		val := v.Args[1]
++		mem := v.Args[2]
++		if !(off == 0 && sym == nil) {
++			break
++		}
++		v.reset(OpARM64FMOVDstoreidx)
++		v.AddArg(ptr)
++		v.AddArg(idx)
++		v.AddArg(val)
++		v.AddArg(mem)
++		return true
++	}
+ 	// match: (FMOVDstore [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) val mem)
+ 	// cond: canMergeSym(sym1,sym2) && is32Bit(off1+off2) && (ptr.Op != OpSB || !config.ctxt.Flag_shared)
+ 	// result: (FMOVDstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
+@@ -3876,6 +3973,49 @@ func rewriteValueARM64_OpARM64FMOVDstore_0(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueARM64_OpARM64FMOVDstoreidx_0(v *Value) bool {
++	// match: (FMOVDstoreidx ptr (MOVDconst [c]) val mem)
++	// cond:
++	// result: (FMOVDstore [c] ptr val mem)
++	for {
++		_ = v.Args[3]
++		ptr := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpARM64MOVDconst {
++			break
++		}
++		c := v_1.AuxInt
++		val := v.Args[2]
++		mem := v.Args[3]
++		v.reset(OpARM64FMOVDstore)
++		v.AuxInt = c
++		v.AddArg(ptr)
++		v.AddArg(val)
++		v.AddArg(mem)
++		return true
++	}
++	// match: (FMOVDstoreidx (MOVDconst [c]) idx val mem)
++	// cond:
++	// result: (FMOVDstore [c] idx val mem)
++	for {
++		_ = v.Args[3]
++		v_0 := v.Args[0]
++		if v_0.Op != OpARM64MOVDconst {
++			break
++		}
++		c := v_0.AuxInt
++		idx := v.Args[1]
++		val := v.Args[2]
++		mem := v.Args[3]
++		v.reset(OpARM64FMOVDstore)
++		v.AuxInt = c
++		v.AddArg(idx)
++		v.AddArg(val)
++		v.AddArg(mem)
++		return true
++	}
++	return false
++}
+ func rewriteValueARM64_OpARM64FMOVSload_0(v *Value) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -3905,6 +4045,30 @@ func rewriteValueARM64_OpARM64FMOVSload_0(v *Value) bool {
+ 		v.AddArg(mem)
+ 		return true
+ 	}
++	// match: (FMOVSload [off] {sym} (ADD ptr idx) mem)
++	// cond: off == 0 && sym == nil
++	// result: (FMOVSloadidx ptr idx mem)
++	for {
++		off := v.AuxInt
++		sym := v.Aux
++		_ = v.Args[1]
++		v_0 := v.Args[0]
++		if v_0.Op != OpARM64ADD {
++			break
++		}
++		_ = v_0.Args[1]
++		ptr := v_0.Args[0]
++		idx := v_0.Args[1]
++		mem := v.Args[1]
++		if !(off == 0 && sym == nil) {
++			break
++		}
++		v.reset(OpARM64FMOVSloadidx)
++		v.AddArg(ptr)
++		v.AddArg(idx)
++		v.AddArg(mem)
++		return true
++	}
+ 	// match: (FMOVSload [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem)
+ 	// cond: canMergeSym(sym1,sym2) && is32Bit(off1+off2) && (ptr.Op != OpSB || !config.ctxt.Flag_shared)
+ 	// result: (FMOVSload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+@@ -3932,6 +4096,45 @@ func rewriteValueARM64_OpARM64FMOVSload_0(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueARM64_OpARM64FMOVSloadidx_0(v *Value) bool {
++	// match: (FMOVSloadidx ptr (MOVDconst [c]) mem)
++	// cond:
++	// result: (FMOVSload [c] ptr mem)
++	for {
++		_ = v.Args[2]
++		ptr := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpARM64MOVDconst {
++			break
++		}
++		c := v_1.AuxInt
++		mem := v.Args[2]
++		v.reset(OpARM64FMOVSload)
++		v.AuxInt = c
++		v.AddArg(ptr)
++		v.AddArg(mem)
++		return true
++	}
++	// match: (FMOVSloadidx (MOVDconst [c]) ptr mem)
++	// cond:
++	// result: (FMOVSload [c] ptr mem)
++	for {
++		_ = v.Args[2]
++		v_0 := v.Args[0]
++		if v_0.Op != OpARM64MOVDconst {
++			break
++		}
++		c := v_0.AuxInt
++		ptr := v.Args[1]
++		mem := v.Args[2]
++		v.reset(OpARM64FMOVSload)
++		v.AuxInt = c
++		v.AddArg(ptr)
++		v.AddArg(mem)
++		return true
++	}
++	return false
++}
+ func rewriteValueARM64_OpARM64FMOVSstore_0(v *Value) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -3963,6 +4166,32 @@ func rewriteValueARM64_OpARM64FMOVSstore_0(v *Value) bool {
+ 		v.AddArg(mem)
+ 		return true
+ 	}
++	// match: (FMOVSstore [off] {sym} (ADD ptr idx) val mem)
++	// cond: off == 0 && sym == nil
++	// result: (FMOVSstoreidx ptr idx val mem)
++	for {
++		off := v.AuxInt
++		sym := v.Aux
++		_ = v.Args[2]
++		v_0 := v.Args[0]
++		if v_0.Op != OpARM64ADD {
++			break
++		}
++		_ = v_0.Args[1]
++		ptr := v_0.Args[0]
++		idx := v_0.Args[1]
++		val := v.Args[1]
++		mem := v.Args[2]
++		if !(off == 0 && sym == nil) {
++			break
++		}
++		v.reset(OpARM64FMOVSstoreidx)
++		v.AddArg(ptr)
++		v.AddArg(idx)
++		v.AddArg(val)
++		v.AddArg(mem)
++		return true
++	}
+ 	// match: (FMOVSstore [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) val mem)
+ 	// cond: canMergeSym(sym1,sym2) && is32Bit(off1+off2) && (ptr.Op != OpSB || !config.ctxt.Flag_shared)
+ 	// result: (FMOVSstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
+@@ -3992,6 +4221,49 @@ func rewriteValueARM64_OpARM64FMOVSstore_0(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueARM64_OpARM64FMOVSstoreidx_0(v *Value) bool {
++	// match: (FMOVSstoreidx ptr (MOVDconst [c]) val mem)
++	// cond:
++	// result: (FMOVSstore [c] ptr val mem)
++	for {
++		_ = v.Args[3]
++		ptr := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpARM64MOVDconst {
++			break
++		}
++		c := v_1.AuxInt
++		val := v.Args[2]
++		mem := v.Args[3]
++		v.reset(OpARM64FMOVSstore)
++		v.AuxInt = c
++		v.AddArg(ptr)
++		v.AddArg(val)
++		v.AddArg(mem)
++		return true
++	}
++	// match: (FMOVSstoreidx (MOVDconst [c]) idx val mem)
++	// cond:
++	// result: (FMOVSstore [c] idx val mem)
++	for {
++		_ = v.Args[3]
++		v_0 := v.Args[0]
++		if v_0.Op != OpARM64MOVDconst {
++			break
++		}
++		c := v_0.AuxInt
++		idx := v.Args[1]
++		val := v.Args[2]
++		mem := v.Args[3]
++		v.reset(OpARM64FMOVSstore)
++		v.AuxInt = c
++		v.AddArg(idx)
++		v.AddArg(val)
++		v.AddArg(mem)
++		return true
++	}
++	return false
++}
+ func rewriteValueARM64_OpARM64FMULD_0(v *Value) bool {
+ 	// match: (FMULD (FNEGD x) y)
+ 	// cond:
+diff --git a/test/codegen/floats.go b/test/codegen/floats.go
+index b046de8fcd..4e4f87d574 100644
+--- a/test/codegen/floats.go
++++ b/test/codegen/floats.go
+@@ -55,6 +55,16 @@ func getPi() float64 {
+ 	return math.Pi
+ }
+ 
++func indexLoad(b0 []float32, b1 float32, idx int) float32 {
++	// arm64:`FMOVS\s\(R[0-9]+\)\(R[0-9]+\),\sF[0-9]+`
++	return b0[idx] * b1
++}
++
++func indexStore(b0 []float64, b1 float64, idx int) {
++	// arm64:`FMOVD\sF[0-9]+,\s\(R[0-9]+\)\(R[0-9]+\)`
++	b0[idx] = b1
++}
++
+ // ----------- //
+ //    Fused    //
+ // ----------- //

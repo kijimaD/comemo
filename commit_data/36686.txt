@@ -28,8 +28,148 @@ Date:   Fri May 18 18:48:44 2018 +0000
     Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-
+---
  src/debug/pe/file.go      | 46 +++++++++++++++++++++++++++++++++++++++++++---
  src/debug/pe/file_test.go | 28 ++++++++++++++++++++++++++++
  src/debug/pe/pe.go        | 20 ++++++++++++++++++++
  3 files changed, 91 insertions(+), 3 deletions(-)
+
+diff --git a/src/debug/pe/file.go b/src/debug/pe/file.go
+index 87f225cb39..d1b1407f96 100644
+--- a/src/debug/pe/file.go
++++ b/src/debug/pe/file.go
+@@ -260,19 +260,59 @@ type ImportDirectory struct {
+ // It does not return weak symbols.
+ func (f *File) ImportedSymbols() ([]string, error) {
+ 	pe64 := f.Machine == IMAGE_FILE_MACHINE_AMD64
+-	ds := f.Section(".idata")
++
++	// grab the number of data directory entries
++	var dd_length uint32
++	if pe64 {
++		dd_length = f.OptionalHeader.(*OptionalHeader64).NumberOfRvaAndSizes
++	} else {
++		dd_length = f.OptionalHeader.(*OptionalHeader32).NumberOfRvaAndSizes
++	}
++
++	// check that the length of data directory entries is large 
++	// enough to include the imports directory.
++	if dd_length < IMAGE_DIRECTORY_ENTRY_IMPORT + 1 {
++		return nil, nil
++	}
++
++	// grab the import data directory entry
++	var idd DataDirectory
++	if pe64 {
++		idd = f.OptionalHeader.(*OptionalHeader64).DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT]
++	} else {
++		idd = f.OptionalHeader.(*OptionalHeader32).DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT]
++	}
++
++	// figure out which section contains the import directory table
++	var ds *Section
++	ds = nil
++	for _, s := range f.Sections {
++		if s.VirtualAddress <= idd.VirtualAddress && idd.VirtualAddress < s.VirtualAddress + s.VirtualSize {
++			ds = s
++			break
++		}
++	}
++
++	// didn't find a section, so no import libraries were found
+ 	if ds == nil {
+-		// not dynamic, so no libraries
+ 		return nil, nil
+ 	}
++
+ 	d, err := ds.Data()
+ 	if err != nil {
+ 		return nil, err
+ 	}
++
++	// seek to the virtual address specified in the import data directory
++	d = d[idd.VirtualAddress - ds.VirtualAddress:]
++
++	// start decoding the import directory
+ 	var ida []ImportDirectory
+ 	for len(d) > 0 {
+ 		var dt ImportDirectory
+ 		dt.OriginalFirstThunk = binary.LittleEndian.Uint32(d[0:4])
++		dt.TimeDateStamp = binary.LittleEndian.Uint32(d[4:8])
++		dt.ForwarderChain = binary.LittleEndian.Uint32(d[8:12])
+ 		dt.Name = binary.LittleEndian.Uint32(d[12:16])
+ 		dt.FirstThunk = binary.LittleEndian.Uint32(d[16:20])
+ 		d = d[20:]
+@@ -282,7 +322,7 @@ func (f *File) ImportedSymbols() ([]string, error) {
+ 		ida = append(ida, dt)
+ 	}
+ 	// TODO(brainman): this needs to be rewritten
+-	//  ds.Data() return contets of .idata section. Why store in variable called "names"?
++	//  ds.Data() returns contents of section containing import table. Why store in variable called "names"?
+ 	//  Why we are retrieving it second time? We already have it in "d", and it is not modified anywhere.
+ 	//  getString does not extracts a string from symbol string table (as getString doco says).
+ 	//  Why ds.Data() called again and again in the loop?
+diff --git a/src/debug/pe/file_test.go b/src/debug/pe/file_test.go
+index 8645d676b7..24cd673254 100644
+--- a/src/debug/pe/file_test.go
++++ b/src/debug/pe/file_test.go
+@@ -532,3 +532,31 @@ func TestBuildingWindowsGUI(t *testing.T) {
+ 		t.Fatalf("unexpected OptionalHeader type: have %T, but want *pe.OptionalHeader32 or *pe.OptionalHeader64", oh)
+ 	}
+ }
++
++func TestImportTableInUnknownSection(t *testing.T) {
++	if runtime.GOOS != "windows" {
++		t.Skip("skipping windows only test")
++	}
++
++	// first we need to find this font driver
++	path, err := exec.LookPath("atmfd.dll")
++	if err != nil {
++		t.Fatalf("unable to locate required file %q in search path: %s", "atmfd.dll", err)
++	}
++
++	f, err := Open(path)
++	if err != nil {
++		t.Error(err)
++	}
++	defer f.Close()
++
++	// now we can extract its imports
++	symbols, err := f.ImportedSymbols()
++	if err != nil {
++		t.Error(err)
++	}
++
++	if len(symbols) == 0 {
++		t.Fatalf("unable to locate any imported symbols within file %q.", path)
++	}
++}
+diff --git a/src/debug/pe/pe.go b/src/debug/pe/pe.go
+index 8050d59c70..9eaf33c310 100644
+--- a/src/debug/pe/pe.go
++++ b/src/debug/pe/pe.go
+@@ -108,3 +108,23 @@ const (
+ 	IMAGE_FILE_MACHINE_THUMB     = 0x1c2
+ 	IMAGE_FILE_MACHINE_WCEMIPSV2 = 0x169
+ )
++
++// IMAGE_DIRECTORY_ENTRY constants
++const (
++	IMAGE_DIRECTORY_ENTRY_EXPORT = 0
++	IMAGE_DIRECTORY_ENTRY_IMPORT = 1
++	IMAGE_DIRECTORY_ENTRY_RESOURCE = 2
++	IMAGE_DIRECTORY_ENTRY_EXCEPTION = 3
++	IMAGE_DIRECTORY_ENTRY_SECURITY = 4
++	IMAGE_DIRECTORY_ENTRY_BASERELOC = 5
++	IMAGE_DIRECTORY_ENTRY_DEBUG = 6
++	IMAGE_DIRECTORY_ENTRY_ARCHITECTURE = 7
++	IMAGE_DIRECTORY_ENTRY_GLOBALPTR = 8
++	IMAGE_DIRECTORY_ENTRY_TLS = 9
++	IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG = 10
++	IMAGE_DIRECTORY_ENTRY_BOUND_IMPORT = 11
++	IMAGE_DIRECTORY_ENTRY_IAT = 12
++	IMAGE_DIRECTORY_ENTRY_DELAY_IMPORT = 13
++	IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR = 14
++)
++

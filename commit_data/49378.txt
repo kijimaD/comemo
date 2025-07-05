@@ -16,7 +16,43 @@ Date:   Mon Aug 16 09:54:40 2021 +0000
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/time/sleep.go | 6 +-----
  src/time/tick.go  | 6 +++---
  2 files changed, 4 insertions(+), 8 deletions(-)
+
+diff --git a/src/time/sleep.go b/src/time/sleep.go
+index 4f45799414..b467d1d589 100644
+--- a/src/time/sleep.go
++++ b/src/time/sleep.go
+@@ -139,12 +139,8 @@ func (t *Timer) Reset(d Duration) bool {
+ 	return resetTimer(&t.r, w)
+ }
+ 
++// sendTime does a non-blocking send of the current time on c.
+ func sendTime(c interface{}, seq uintptr) {
+-	// Non-blocking send of time on c.
+-	// Used in NewTimer, it cannot block anyway (buffer).
+-	// Used in NewTicker, dropping sends on the floor is
+-	// the desired behavior when the reader gets behind,
+-	// because the sends are periodic.
+ 	select {
+ 	case c.(chan Time) <- Now():
+ 	default:
+diff --git a/src/time/tick.go b/src/time/tick.go
+index 81d2a43f28..f9522b0b75 100644
+--- a/src/time/tick.go
++++ b/src/time/tick.go
+@@ -14,9 +14,9 @@ type Ticker struct {
+ }
+ 
+ // NewTicker returns a new Ticker containing a channel that will send
+-// the time on the channel after each tick. The period of the ticks is
+-// specified by the duration argument. The ticker will adjust the time
+-// interval or drop ticks to make up for slow receivers.
++// the current time on the channel after each tick. The period of the
++// ticks is specified by the duration argument. The ticker will adjust
++// the time interval or drop ticks to make up for slow receivers.
+ // The duration d must be greater than zero; if not, NewTicker will
+ // panic. Stop the ticker to release associated resources.
+ func NewTicker(d Duration) *Ticker {

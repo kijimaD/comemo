@@ -24,9 +24,100 @@ Date:   Wed Jan 26 17:58:08 2022 -0800
     Run-TryBot: Dan Scales <danscales@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/typecheck/subr.go | 14 +++++++-------
  test/typeparam/issue50841.dir/a.go         | 22 ++++++++++++++++++++++
  test/typeparam/issue50841.dir/b.go         | 11 +++++++++++
  test/typeparam/issue50841.go               |  7 +++++++
  4 files changed, 47 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/typecheck/subr.go b/src/cmd/compile/internal/typecheck/subr.go
+index ac90d87f26..93812ebda5 100644
+--- a/src/cmd/compile/internal/typecheck/subr.go
++++ b/src/cmd/compile/internal/typecheck/subr.go
+@@ -1326,9 +1326,9 @@ func (ts *Tsubster) typ1(t *types.Type) *types.Type {
+ func (ts *Tsubster) tstruct(t *types.Type, force bool) *types.Type {
+ 	if t.NumFields() == 0 {
+ 		if t.HasTParam() || t.HasShape() {
+-			// For an empty struct, we need to return a new type,
+-			// since it may now be fully instantiated (HasTParam
+-			// becomes false).
++			// For an empty struct, we need to return a new type, if
++			// substituting from a generic type or shape type, since it
++			// will change HasTParam/HasShape flags.
+ 			return types.NewStruct(t.Pkg(), nil)
+ 		}
+ 		return t
+@@ -1387,10 +1387,10 @@ func (ts *Tsubster) tstruct(t *types.Type, force bool) *types.Type {
+ // tinter substitutes type params in types of the methods of an interface type.
+ func (ts *Tsubster) tinter(t *types.Type, force bool) *types.Type {
+ 	if t.Methods().Len() == 0 {
+-		if t.HasTParam() {
+-			// For an empty interface, we need to return a new type,
+-			// since it may now be fully instantiated (HasTParam
+-			// becomes false).
++		if t.HasTParam() || t.HasShape() {
++			// For an empty interface, we need to return a new type, if
++			// substituting from a generic type or shape type, since
++			// since it will change HasTParam/HasShape flags.
+ 			return types.NewInterface(t.Pkg(), nil, false)
+ 		}
+ 		return t
+diff --git a/test/typeparam/issue50841.dir/a.go b/test/typeparam/issue50841.dir/a.go
+new file mode 100644
+index 0000000000..37e0233701
+--- /dev/null
++++ b/test/typeparam/issue50841.dir/a.go
+@@ -0,0 +1,22 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++func Marshal[foobar any]() {
++	_ = NewEncoder[foobar]()
++}
++
++func NewEncoder[foobar any]() *Encoder[foobar] {
++	return nil
++}
++
++type Encoder[foobar any] struct {
++}
++
++func (e *Encoder[foobar]) EncodeToken(t Token[foobar]) {
++
++}
++
++type Token[foobar any] any
+diff --git a/test/typeparam/issue50841.dir/b.go b/test/typeparam/issue50841.dir/b.go
+new file mode 100644
+index 0000000000..f2f70225ff
+--- /dev/null
++++ b/test/typeparam/issue50841.dir/b.go
+@@ -0,0 +1,11 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package b
++
++import "a"
++
++func F() {
++	a.Marshal[int]()
++}
+diff --git a/test/typeparam/issue50841.go b/test/typeparam/issue50841.go
+new file mode 100644
+index 0000000000..060a1214cc
+--- /dev/null
++++ b/test/typeparam/issue50841.go
+@@ -0,0 +1,7 @@
++// compiledir -G=3
++
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ignored

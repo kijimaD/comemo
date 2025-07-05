@@ -10,7 +10,45 @@ Date:   Fri Aug 8 08:56:40 2014 +1000
     R=rsc
     CC=golang-codereviews
     https://golang.org/cl/123870043
-
+---
  src/cmd/go/get.go    |  4 +++-
  src/cmd/go/test.bash | 11 +++++++++++
  2 files changed, 14 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/get.go b/src/cmd/go/get.go
+index e708fcf779..a34286f540 100644
+--- a/src/cmd/go/get.go
++++ b/src/cmd/go/get.go
+@@ -151,7 +151,9 @@ func download(arg string, stk *importStack, getTestDeps bool) {
+ 	}
+ 
+ 	// Only process each package once.
+-	if downloadCache[arg] {
++	// (Unless we're fetching test dependencies for this package,
++	// in which case we want to process it again.)
++	if downloadCache[arg] && !getTestDeps {
+ 		return
+ 	}
+ 	downloadCache[arg] = true
+diff --git a/src/cmd/go/test.bash b/src/cmd/go/test.bash
+index e5ba12b1df..411ef1863f 100755
+--- a/src/cmd/go/test.bash
++++ b/src/cmd/go/test.bash
+@@ -543,6 +543,17 @@ TEST go get cover
+ unset GOPATH
+ rm -rf $d
+ 
++TEST go get -t "code.google.com/p/go-get-issue-8181/{a,b}"
++d=$(TMPDIR=/var/tmp mktemp -d -t testgoXXX)
++export GOPATH=$d
++if ./testgo get -t code.google.com/p/go-get-issue-8181/{a,b}; then
++	./testgo list ... | grep go.tools/godoc > /dev/null || ok=false
++else
++	ok=false
++fi
++unset GOPATH
++rm -rf $d
++
+ TEST shadowing logic
+ export GOPATH=$(pwd)/testdata/shadow/root1:$(pwd)/testdata/shadow/root2
+ 

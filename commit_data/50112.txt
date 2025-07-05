@@ -13,7 +13,50 @@ Date:   Mon Oct 4 12:51:06 2021 -0400
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/compile/internal/gc/obj.go     | 1 -
  src/cmd/compile/internal/ssagen/ssa.go | 5 +++++
  2 files changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index aae7d03ebe..432c003b9a 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -259,7 +259,6 @@ func addGCLocals() {
+ 		if x := fn.ArgInfo; x != nil {
+ 			objw.Global(x, int32(len(x.P)), obj.RODATA|obj.DUPOK)
+ 			x.Set(obj.AttrStatic, true)
+-			x.Set(obj.AttrContentAddressable, true)
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 1bfbe7ce65..91e585748e 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -318,6 +318,7 @@ func dvarint(x *obj.LSym, off int, v int64) int {
+ //    - Offset of the closure value to call
+ func (s *state) emitOpenDeferInfo() {
+ 	x := base.Ctxt.Lookup(s.curfn.LSym.Name + ".opendefer")
++	x.Set(obj.AttrContentAddressable, true)
+ 	s.curfn.LSym.Func().OpenCodedDeferInfo = x
+ 	off := 0
+ 	off = dvarint(x, off, -s.deferBitsTemp.FrameOffset())
+@@ -6544,6 +6545,7 @@ func emitArgInfo(e *ssafn, f *ssa.Func, pp *objw.Progs) {
+ 	}
+ 
+ 	x := EmitArgInfo(e.curfn, f.OwnAux.ABIInfo())
++	x.Set(obj.AttrContentAddressable, true)
+ 	e.curfn.LSym.Func().ArgInfo = x
+ 
+ 	// Emit a funcdata pointing at the arg info data.
+@@ -6557,6 +6559,9 @@ func emitArgInfo(e *ssafn, f *ssa.Func, pp *objw.Progs) {
+ // emit argument info (locations on stack) of f for traceback.
+ func EmitArgInfo(f *ir.Func, abiInfo *abi.ABIParamResultInfo) *obj.LSym {
+ 	x := base.Ctxt.Lookup(fmt.Sprintf("%s.arginfo%d", f.LSym.Name, f.ABI))
++	// NOTE: do not set ContentAddressable here. This may be referenced from
++	// assembly code by name (in this case f is a declaration).
++	// Instead, set it in emitArgInfo above.
+ 
+ 	PtrSize := int64(types.PtrSize)
+ 	uintptrTyp := types.Types[types.TUINTPTR]

@@ -11,7 +11,87 @@ Date:   Wed Oct 3 20:42:05 2018 -0400
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/expvar/expvar.go      | 13 ++++++++++++-
  src/expvar/expvar_test.go | 37 +++++++++++++++++++++++++++++++++++++
  2 files changed, 49 insertions(+), 1 deletion(-)
+
+diff --git a/src/expvar/expvar.go b/src/expvar/expvar.go
+index b7928aab17..976b300d63 100644
+--- a/src/expvar/expvar.go
++++ b/src/expvar/expvar.go
+@@ -137,7 +137,7 @@ func (v *Map) Init() *Map {
+ 	return v
+ }
+ 
+-// updateKeys updates the sorted list of keys in v.keys.
++// addKey updates the sorted list of keys in v.keys.
+ func (v *Map) addKey(key string) {
+ 	v.keysMu.Lock()
+ 	defer v.keysMu.Unlock()
+@@ -199,6 +199,17 @@ func (v *Map) AddFloat(key string, delta float64) {
+ 	}
+ }
+ 
++// Deletes the given key from the map.
++func (v *Map) Delete(key string) {
++	v.keysMu.Lock()
++	defer v.keysMu.Unlock()
++	i := sort.SearchStrings(v.keys, key)
++	if i < len(v.keys) && key == v.keys[i] {
++		v.keys = append(v.keys[:i], v.keys[i+1:]...)
++		v.m.Delete(key)
++	}
++}
++
+ // Do calls f for each entry in the map.
+ // The map is locked during the iteration,
+ // but existing entries may be concurrently updated.
+diff --git a/src/expvar/expvar_test.go b/src/expvar/expvar_test.go
+index 728e763896..804b56c1aa 100644
+--- a/src/expvar/expvar_test.go
++++ b/src/expvar/expvar_test.go
+@@ -183,6 +183,43 @@ func TestMapInit(t *testing.T) {
+ 	}
+ }
+ 
++func TestMapDelete(t *testing.T) {
++	RemoveAll()
++	colors := NewMap("bike-shed-colors")
++
++	colors.Add("red", 1)
++	colors.Add("red", 2)
++	colors.Add("blue", 4)
++
++	n := 0
++	colors.Do(func(KeyValue) { n++ })
++	if n != 2 {
++		t.Errorf("after two Add calls with distinct keys, Do should invoke f 2 times; got %v", n)
++	}
++
++	colors.Delete("red")
++	n = 0
++	colors.Do(func(KeyValue) { n++ })
++	if n != 1 {
++		t.Errorf("removed red, Do should invoke f 1 times; got %v", n)
++	}
++
++	colors.Delete("notfound")
++	n = 0
++	colors.Do(func(KeyValue) { n++ })
++	if n != 1 {
++		t.Errorf("attempted to remove notfound, Do should invoke f 1 times; got %v", n)
++	}
++
++	colors.Delete("blue")
++	colors.Delete("blue")
++	n = 0
++	colors.Do(func(KeyValue) { n++ })
++	if n != 0 {
++		t.Errorf("all keys removed, Do should invoke f 0 times; got %v", n)
++	}
++}
++
+ func TestMapCounter(t *testing.T) {
+ 	RemoveAll()
+ 	colors := NewMap("bike-shed-colors")

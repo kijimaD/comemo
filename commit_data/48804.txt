@@ -16,7 +16,34 @@ Date:   Thu Jun 10 15:14:01 2021 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  api/go1.17.txt   | 2 +-
  src/time/time.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/api/go1.17.txt b/api/go1.17.txt
+index f054458715..257ca271d3 100644
+--- a/api/go1.17.txt
++++ b/api/go1.17.txt
+@@ -153,7 +153,7 @@ pkg time, const Layout = "01/02 03:04:05PM '06 -0700"
+ pkg time, const Layout ideal-string
+ pkg time, func UnixMicro(int64) Time
+ pkg time, func UnixMilli(int64) Time
+-pkg time, method (*Time) IsDST() bool
++pkg time, method (Time) IsDST() bool
+ pkg time, method (Time) GoString() string
+ pkg time, method (Time) UnixMicro() int64
+ pkg time, method (Time) UnixMilli() int64
+diff --git a/src/time/time.go b/src/time/time.go
+index cd756bbf5f..1cf1e2bbf6 100644
+--- a/src/time/time.go
++++ b/src/time/time.go
+@@ -1340,7 +1340,7 @@ func UnixMicro(usec int64) Time {
+ }
+ 
+ // IsDST reports whether the time in the configured location is in Daylight Savings Time.
+-func (t *Time) IsDST() bool {
++func (t Time) IsDST() bool {
+ 	_, _, _, _, isDST := t.loc.lookup(t.Unix())
+ 	return isDST
+ }

@@ -24,9 +24,143 @@ Date:   Mon Aug 14 15:56:08 2023 -0700
     Run-TryBot: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/call.go        | 21 +++++++++------------
  src/cmd/compile/internal/types2/issues_test.go | 20 ++++++++++++++++++++
  src/go/types/call.go                           | 21 +++++++++------------
  src/go/types/issues_test.go                    | 22 ++++++++++++++++++++++
  4 files changed, 60 insertions(+), 24 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/call.go b/src/cmd/compile/internal/types2/call.go
+index af27339967..f7a8a8dfcd 100644
+--- a/src/cmd/compile/internal/types2/call.go
++++ b/src/cmd/compile/internal/types2/call.go
+@@ -610,20 +610,17 @@ func (check *Checker) arguments(call *syntax.CallExpr, sig *Signature, targs []T
+ 			return // error already reported
+ 		}
+ 
+-		// compute result signature: instantiate if needed
+-		rsig = sig
++		// update result signature: instantiate if needed
+ 		if n > 0 {
+ 			rsig = check.instantiateSignature(call.Pos(), call.Fun, sig, targs[:n], xlist)
+-		}
+-
+-		// Optimization: Only if the callee's parameter list was adjusted do we need to
+-		// compute it from the adjusted list; otherwise we can simply use the result
+-		// signature's parameter list. We only need the n type parameters and arguments
+-		// of the callee.
+-		if n > 0 && adjusted {
+-			sigParams = check.subst(call.Pos(), sigParams, makeSubstMap(tparams[:n], targs[:n]), nil, check.context()).(*Tuple)
+-		} else {
+-			sigParams = rsig.params
++			// If the callee's parameter list was adjusted we need to update (instantiate)
++			// it separately. Otherwise we can simply use the result signature's parameter
++			// list.
++			if adjusted {
++				sigParams = check.subst(call.Pos(), sigParams, makeSubstMap(tparams[:n], targs[:n]), nil, check.context()).(*Tuple)
++			} else {
++				sigParams = rsig.params
++			}
+ 		}
+ 
+ 		// compute argument signatures: instantiate if needed
+diff --git a/src/cmd/compile/internal/types2/issues_test.go b/src/cmd/compile/internal/types2/issues_test.go
+index 5e0ae213dc..9f67ad0902 100644
+--- a/src/cmd/compile/internal/types2/issues_test.go
++++ b/src/cmd/compile/internal/types2/issues_test.go
+@@ -900,3 +900,23 @@ func _cgoCheckResult(interface{})
+ 		*boolFieldAddr(cfg, "go115UsesCgo") = true
+ 	})
+ }
++
++func TestIssue61931(t *testing.T) {
++	const src = `
++package p
++
++func A(func(any), ...any) {}
++func B[T any](T)          {}
++
++func _() {
++	A(B, nil // syntax error: missing ',' before newline in argument list
++}
++`
++	f, err := syntax.Parse(syntax.NewFileBase(pkgName(src)), strings.NewReader(src), func(error) {}, nil, 0)
++	if err == nil {
++		t.Fatal("expected syntax error")
++	}
++
++	var conf Config
++	conf.Check(f.PkgName.Value, []*syntax.File{f}, nil) // must not panic
++}
+diff --git a/src/go/types/call.go b/src/go/types/call.go
+index 7258ab1237..8a3cec7309 100644
+--- a/src/go/types/call.go
++++ b/src/go/types/call.go
+@@ -612,20 +612,17 @@ func (check *Checker) arguments(call *ast.CallExpr, sig *Signature, targs []Type
+ 			return // error already reported
+ 		}
+ 
+-		// compute result signature: instantiate if needed
+-		rsig = sig
++		// update result signature: instantiate if needed
+ 		if n > 0 {
+ 			rsig = check.instantiateSignature(call.Pos(), call.Fun, sig, targs[:n], xlist)
+-		}
+-
+-		// Optimization: Only if the callee's parameter list was adjusted do we need to
+-		// compute it from the adjusted list; otherwise we can simply use the result
+-		// signature's parameter list. We only need the n type parameters and arguments
+-		// of the callee.
+-		if n > 0 && adjusted {
+-			sigParams = check.subst(call.Pos(), sigParams, makeSubstMap(tparams[:n], targs[:n]), nil, check.context()).(*Tuple)
+-		} else {
+-			sigParams = rsig.params
++			// If the callee's parameter list was adjusted we need to update (instantiate)
++			// it separately. Otherwise we can simply use the result signature's parameter
++			// list.
++			if adjusted {
++				sigParams = check.subst(call.Pos(), sigParams, makeSubstMap(tparams[:n], targs[:n]), nil, check.context()).(*Tuple)
++			} else {
++				sigParams = rsig.params
++			}
+ 		}
+ 
+ 		// compute argument signatures: instantiate if needed
+diff --git a/src/go/types/issues_test.go b/src/go/types/issues_test.go
+index 1a784aae21..64e1c20d7e 100644
+--- a/src/go/types/issues_test.go
++++ b/src/go/types/issues_test.go
+@@ -10,6 +10,7 @@ import (
+ 	"fmt"
+ 	"go/ast"
+ 	"go/importer"
++	"go/parser"
+ 	"go/token"
+ 	"internal/testenv"
+ 	"regexp"
+@@ -908,3 +909,24 @@ func _cgoCheckResult(interface{})
+ 		*boolFieldAddr(cfg, "go115UsesCgo") = true
+ 	})
+ }
++
++func TestIssue61931(t *testing.T) {
++	const src = `
++package p
++
++func A(func(any), ...any) {}
++func B[T any](T)          {}
++
++func _() {
++	A(B, nil // syntax error: missing ',' before newline in argument list
++}
++`
++	fset := token.NewFileSet()
++	f, err := parser.ParseFile(fset, pkgName(src), src, 0)
++	if err == nil {
++		t.Fatal("expected syntax error")
++	}
++
++	var conf Config
++	conf.Check(f.Name.Name, fset, []*ast.File{f}, nil) // must not panic
++}

@@ -9,7 +9,7 @@ Date:   Mon May 11 14:10:34 2009 -0700
     DELTA=136  (9 added, 7 deleted, 120 changed)
     OCL=28642
     CL=28644
-
+---
  src/lib/fmt/print.go       |   4 +-
  src/lib/go/ast/ast.go      |   2 +-
  src/lib/json/parse.go      |   2 +-
@@ -22,3 +22,552 @@ Date:   Mon May 11 14:10:34 2009 -0700
  test/stringrange.go        |   2 +-
  test/utf.go                |   2 +-
  11 files changed, 121 insertions(+), 119 deletions(-)
+
+diff --git a/src/lib/fmt/print.go b/src/lib/fmt/print.go
+index 229c264757..66174c74b9 100644
+--- a/src/lib/fmt/print.go
++++ b/src/lib/fmt/print.go
+@@ -469,7 +469,7 @@ func (p *pp) doprintf(format string, v reflect.StructValue) {
+ 	end := len(format) - 1;
+ 	fieldnum := 0;	// we process one field per non-trivial format
+ 	for i := 0; i <= end;  {
+-		c, w := utf8.DecodeRuneInString(format, i);
++		c, w := utf8.DecodeRuneInString(format[i:len(format)]);
+ 		if c != '%' || i == end {
+ 			p.add(c);
+ 			i += w;
+@@ -500,7 +500,7 @@ func (p *pp) doprintf(format string, v reflect.StructValue) {
+ 		if i < end && format[i] == '.' {
+ 			p.fmt.prec, p.fmt.prec_present, i = parsenum(format, i+1, end);
+ 		}
+-		c, w = utf8.DecodeRuneInString(format, i);
++		c, w = utf8.DecodeRuneInString(format[i:len(format)]);
+ 		i += w;
+ 		// percent is special - absorbs no operand
+ 		if c == '%' {
+diff --git a/src/lib/go/ast/ast.go b/src/lib/go/ast/ast.go
+index 6045c945ff..e6c3d850fa 100644
+--- a/src/lib/go/ast/ast.go
++++ b/src/lib/go/ast/ast.go
+@@ -426,7 +426,7 @@ func (x *ChanType) Visit(v ExprVisitor) { v.DoChanType(x); }
+ // IsExported returns whether name is an exported Go symbol
+ // (i.e., whether it begins with an uppercase letter).
+ func IsExported(name string) bool {
+-	ch, len := utf8.DecodeRuneInString(name, 0);
++	ch, len := utf8.DecodeRuneInString(name);
+ 	return unicode.IsUpper(ch);
+ }
+ 
+diff --git a/src/lib/json/parse.go b/src/lib/json/parse.go
+index 1069e1183e..e33b9dbc12 100644
+--- a/src/lib/json/parse.go
++++ b/src/lib/json/parse.go
+@@ -114,7 +114,7 @@ func Unquote(s string) (t string, ok bool) {
+ 			w++;
+ 		// Coerce to well-formed UTF-8.
+ 		default:
+-			rune, size := utf8.DecodeRuneInString(s, r);
++			rune, size := utf8.DecodeRuneInString(s[r:len(s)]);
+ 			r += size;
+ 			w += utf8.EncodeRune(rune, b[w:len(b)]);
+ 		}
+diff --git a/src/lib/reflect/type.go b/src/lib/reflect/type.go
+index 1ab2424f1a..917dc28ff3 100644
+--- a/src/lib/reflect/type.go
++++ b/src/lib/reflect/type.go
+@@ -698,7 +698,7 @@ func (p *typeParser) Next() {
+ 		return;
+ 	}
+ 	start := p.index;
+-	c, w := utf8.DecodeRuneInString(p.str, p.index);
++	c, w := utf8.DecodeRuneInString(p.str[p.index:len(p.str)]);
+ 	p.index += w;
+ 	switch {
+ 	case c == '<':
+diff --git a/src/lib/regexp/regexp.go b/src/lib/regexp/regexp.go
+index 8cbd380352..b79800dd95 100644
+--- a/src/lib/regexp/regexp.go
++++ b/src/lib/regexp/regexp.go
+@@ -263,7 +263,7 @@ func (p *parser) nextc() int {
+ 	if p.pos >= len(p.re.expr) {
+ 		p.ch = endOfFile
+ 	} else {
+-		c, w := utf8.DecodeRuneInString(p.re.expr, p.pos);
++		c, w := utf8.DecodeRuneInString(p.re.expr[p.pos:len(p.re.expr)]);
+ 		p.ch = c;
+ 		p.pos += w;
+ 	}
+@@ -653,7 +653,7 @@ func (re *Regexp) doExecute(str string, pos int) []int {
+ 		charwidth := 1;
+ 		c := endOfFile;
+ 		if pos < len(str) {
+-			c, charwidth = utf8.DecodeRuneInString(str, pos);
++			c, charwidth = utf8.DecodeRuneInString(str[pos:len(str)]);
+ 		}
+ 		for i := 0; i < len(s[in]); i++ {
+ 			st := s[in][i];
+diff --git a/src/lib/strconv/quote.go b/src/lib/strconv/quote.go
+index 4fcec9a5ea..8d7900d1d7 100644
+--- a/src/lib/strconv/quote.go
++++ b/src/lib/strconv/quote.go
+@@ -18,38 +18,38 @@ const lowerhex = "0123456789abcdef"
+ func Quote(s string) string {
+ 	// TODO(rsc): String accumulation could be more efficient.
+ 	t := `"`;
+-	for i := 0; i < len(s); i++ {
+-		switch {
+-		case s[i] == '"':
++	for ; len(s) > 0; s = s[1:len(s)] {
++		switch c := s[0]; {
++		case c == '"':
+ 			t += `\"`;
+-		case s[i] == '\\':
++		case c == '\\':
+ 			t += `\\`;
+-		case ' ' <= s[i] && s[i] <= '~':
+-			t += string(s[i]);
+-		case s[i] == '\a':
++		case ' ' <= c && c <= '~':
++			t += string(c);
++		case c == '\a':
+ 			t += `\a`;
+-		case s[i] == '\b':
++		case c == '\b':
+ 			t += `\b`;
+-		case s[i] == '\f':
++		case c == '\f':
+ 			t += `\f`;
+-		case s[i] == '\n':
++		case c == '\n':
+ 			t += `\n`;
+-		case s[i] == '\r':
++		case c == '\r':
+ 			t += `\r`;
+-		case s[i] == '\t':
++		case c == '\t':
+ 			t += `\t`;
+-		case s[i] == '\v':
++		case c == '\v':
+ 			t += `\v`;
+ 
+-		case s[i] < utf8.RuneSelf:
+-			t += `\x` + string(lowerhex[s[i]>>4]) + string(lowerhex[s[i]&0xF]);
++		case c < utf8.RuneSelf:
++			t += `\x` + string(lowerhex[c>>4]) + string(lowerhex[c&0xF]);
+ 
+-		case utf8.FullRuneInString(s, i):
+-			r, size := utf8.DecodeRuneInString(s, i);
++		case utf8.FullRuneInString(s):
++			r, size := utf8.DecodeRuneInString(s);
+ 			if r == utf8.RuneError && size == 1 {
+ 				goto EscX;
+ 			}
+-			i += size-1;  // i++ on next iteration
++			s = s[size-1:len(s)];	// next iteration will slice off 1 more
+ 			if r < 0x10000 {
+ 				t += `\u`;
+ 				for j:=uint(0); j<4; j++ {
+@@ -65,8 +65,8 @@ func Quote(s string) string {
+ 		default:
+ 		EscX:
+ 			t += `\x`;
+-			t += string(lowerhex[s[i]>>4]);
+-			t += string(lowerhex[s[i]&0xF]);
++			t += string(lowerhex[c>>4]);
++			t += string(lowerhex[c&0xF]);
+ 		}
+ 	}
+ 	t += `"`;
+@@ -97,42 +97,42 @@ func unhex(b byte) (v int, ok bool) {
+ 	return;
+ }
+ 
+-func unquoteChar(s string, i int, q byte) (t string, ii int, err os.Error) {
++func unquoteChar(s string, q byte) (t, ns string, err os.Error) {
+ 	err = os.EINVAL;  // assume error for easy return
+ 
+ 	// easy cases
+-	switch c := s[i]; {
++	switch c := s[0]; {
+ 	case c >= utf8.RuneSelf:
+-		r, size := utf8.DecodeRuneInString(s, i);
+-		return s[i:i+size], i+size, nil;
++		r, size := utf8.DecodeRuneInString(s);
++		return s[0:size], s[size:len(s)], nil;
+ 	case c == q:
+ 		return;
+ 	case c != '\\':
+-		return s[i:i+1], i+1, nil;
++		return s[0:1], s[1:len(s)], nil;
+ 	}
+ 
+ 	// hard case: c is backslash
+-	if i+1 >= len(s) {
++	if len(s) <= 1 {
+ 		return;
+ 	}
+-	c := s[i+1];
+-	i += 2;
++	c := s[1];
++	s = s[2:len(s)];
+ 
+ 	switch c {
+ 	case 'a':
+-		return "\a", i, nil;
++		return "\a", s, nil;
+ 	case 'b':
+-		return "\b", i, nil;
++		return "\b", s, nil;
+ 	case 'f':
+-		return "\f", i, nil;
++		return "\f", s, nil;
+ 	case 'n':
+-		return "\n", i, nil;
++		return "\n", s, nil;
+ 	case 'r':
+-		return "\r", i, nil;
++		return "\r", s, nil;
+ 	case 't':
+-		return "\t", i, nil;
++		return "\t", s, nil;
+ 	case 'v':
+-		return "\v", i, nil;
++		return "\v", s, nil;
+ 	case 'x', 'u', 'U':
+ 		n := 0;
+ 		switch c {
+@@ -144,43 +144,45 @@ func unquoteChar(s string, i int, q byte) (t string, ii int, err os.Error) {
+ 			n = 8;
+ 		}
+ 		v := 0;
++		if len(s) < n {
++			return;
++		}
+ 		for j := 0; j < n; j++ {
+-			if i+j >= len(s) {
+-				return;
+-			}
+-			x, ok := unhex(s[i+j]);
++			x, ok := unhex(s[j]);
+ 			if !ok {
+ 				return;
+ 			}
+ 			v = v<<4 | x;
+ 		}
++		s = s[n:len(s)];
+ 		if c == 'x' {
+-			return string([]byte{byte(v)}), i+n, nil;
++			// single-byte string, possibly not UTF-8
++			return string([]byte{byte(v)}), s, nil;
+ 		}
+ 		if v > utf8.RuneMax {
+ 			return;
+ 		}
+-		return string(v), i+n, nil;
++		return string(v), s, nil;
+ 	case '0', '1', '2', '3', '4', '5', '6', '7':
+-		v := 0;
+-		i--;
+-		for j := 0; j < 3; j++ {
+-			if i+j >= len(s) {
+-				return;
+-			}
+-			x := int(s[i+j]) - '0';
++		v := int(c) - '0';
++		if len(s) < 2 {
++			return;
++		}
++		for j := 0; j < 2; j++ {	// one digit already; two more
++			x := int(s[j]) - '0';
+ 			if x < 0 || x > 7 {
+ 				return;
+ 			}
+ 			v = (v<<3) | x;
+ 		}
++		s = s[2:len(s)];
+ 		if v > 255 {
+ 			return;
+ 		}
+-		return string(v), i+3, nil;
+-			
++		return string(v), s, nil;
++
+ 	case '\\', q:
+-		return string(c), i, nil;
++		return string(c), s, nil;
+ 	}
+ 	return;
+ }
+@@ -193,37 +195,35 @@ func unquoteChar(s string, i int, q byte) (t string, ii int, err os.Error) {
+ func Unquote(s string) (t string, err os.Error) {
+ 	err = os.EINVAL;  // assume error for easy return
+ 	n := len(s);
+-	if n < 2 || s[0] != s[n-1] {
++	if n < 2 {
+ 		return;
+ 	}
++	quote := s[0];
++	if quote != s[n-1] {
++		return;
++	}
++	s = s[1:n-1];
+ 
+-	switch s[0] {
+-	case '`':
+-		t := s[1:n-1];
+-		return t, nil;
+-
+-	case '"', '\'':
+-		// TODO(rsc): String accumulation could be more efficient.
+-		t := "";
+-		q := s[0];
+-		var c string;
+-		var err os.Error;
+-		for i := 1; i < n-1; {
+-			c, i, err = unquoteChar(s, i, q);
+-			if err != nil {
+-				return "", err;
+-			}
+-			t += c;
+-			if q == '\'' && i != n-1 {
+-				// single-quoted must be single character
+-				return;
+-			}
+-			if i > n-1 {
+-				// read too far
+-				return;
+-			}
++	if quote == '`' {
++		return s, nil;
++	}
++	if quote != '"' && quote != '\'' {
++		return;
++	}
++
++	// TODO(rsc): String accumulation could be more efficient.
++	var c, tt string;
++	var err1 os.Error;
++	for len(s) > 0 {
++		if c, s, err1 = unquoteChar(s, quote); err1 != nil {
++			err = err1;
++			return;
++		}
++		tt += c;
++		if quote == '\'' && len(s) != 0 {
++			// single-quoted must be single character
++			return;
+ 		}
+-		return t, nil
+ 	}
+-	return;
++	return tt, nil
+ }
+diff --git a/src/lib/strings/strings.go b/src/lib/strings/strings.go
+index 33adab2499..fabd9329f2 100644
+--- a/src/lib/strings/strings.go
++++ b/src/lib/strings/strings.go
+@@ -11,12 +11,13 @@ import "utf8"
+ // Invalid UTF-8 sequences become correct encodings of U+FFF8.
+ func Explode(s string) []string {
+ 	a := make([]string, utf8.RuneCountInString(s));
+-	j := 0;
+ 	var size, rune int;
+-	for i := 0; i < len(a); i++ {
+-		rune, size = utf8.DecodeRuneInString(s, j);
++	i := 0;
++	for len(s) > 0 {
++		rune, size = utf8.DecodeRuneInString(s);
++		s = s[size:len(s)];
+ 		a[i] = string(rune);
+-		j += size;
++		i++;
+ 	}
+ 	return a
+ }
+diff --git a/src/lib/utf8/utf8.go b/src/lib/utf8/utf8.go
+index 5ce59894b5..9c2ac790d0 100644
+--- a/src/lib/utf8/utf8.go
++++ b/src/lib/utf8/utf8.go
+@@ -108,11 +108,12 @@ func decodeRuneInternal(p []byte) (rune, size int, short bool) {
+ 	return RuneError, 1, false
+ }
+ 
+-func decodeRuneInStringInternal(s string, i int, n int) (rune, size int, short bool) {
++func decodeRuneInStringInternal(s string) (rune, size int, short bool) {
++	n := len(s);
+ 	if n < 1 {
+ 		return RuneError, 0, true;
+ 	}
+-	c0 := s[i];
++	c0 := s[0];
+ 
+ 	// 1-byte, 7-bit sequence?
+ 	if c0 < _Tx {
+@@ -128,7 +129,7 @@ func decodeRuneInStringInternal(s string, i int, n int) (rune, size int, short b
+ 	if n < 2 {
+ 		return RuneError, 1, true
+ 	}
+-	c1 := s[i+1];
++	c1 := s[1];
+ 	if c1 < _Tx || _T2 <= c1 {
+ 		return RuneError, 1, false
+ 	}
+@@ -146,7 +147,7 @@ func decodeRuneInStringInternal(s string, i int, n int) (rune, size int, short b
+ 	if n < 3 {
+ 		return RuneError, 1, true
+ 	}
+-	c2 := s[i+2];
++	c2 := s[2];
+ 	if c2 < _Tx || _T2 <= c2 {
+ 		return RuneError, 1, false
+ 	}
+@@ -164,7 +165,7 @@ func decodeRuneInStringInternal(s string, i int, n int) (rune, size int, short b
+ 	if n < 4 {
+ 		return RuneError, 1, true
+ 	}
+-	c3 := s[i+3];
++	c3 := s[3];
+ 	if c3 < _Tx || _T2 <= c3 {
+ 		return RuneError, 1, false
+ 	}
+@@ -190,8 +191,8 @@ func FullRune(p []byte) bool {
+ }
+ 
+ // FullRuneInString is like FullRune but its input is a string.
+-func FullRuneInString(s string, i int) bool {
+-	rune, size, short := decodeRuneInStringInternal(s, i, len(s) - i);
++func FullRuneInString(s string) bool {
++	rune, size, short := decodeRuneInStringInternal(s);
+ 	return !short
+ }
+ 
+@@ -203,9 +204,9 @@ func DecodeRune(p []byte) (rune, size int) {
+ }
+ 
+ // DecodeRuneInString is like DecodeRune but its input is a string.
+-func DecodeRuneInString(s string, i int) (rune, size int) {
++func DecodeRuneInString(s string) (rune, size int) {
+ 	var short bool;
+-	rune, size, short = decodeRuneInStringInternal(s, i, len(s) - i);
++	rune, size, short = decodeRuneInStringInternal(s);
+ 	return;
+ }
+ 
+@@ -281,7 +282,7 @@ func RuneCountInString(s string) int {
+ 		if s[i] < RuneSelf {
+ 			i++;
+ 		} else {
+-			rune, size, short := decodeRuneInStringInternal(s, i, ei - i);
++			rune, size, short := decodeRuneInStringInternal(s[i:ei]);
+ 			i += size;
+ 		}
+ 	}
+diff --git a/src/lib/utf8/utf8_test.go b/src/lib/utf8/utf8_test.go
+index 3ba5ee2b83..d6d20a135a 100644
+--- a/src/lib/utf8/utf8_test.go
++++ b/src/lib/utf8/utf8_test.go
+@@ -58,17 +58,17 @@ func TestFullRune(t *testing.T) {
+ 		if !utf8.FullRune(b) {
+ 			t.Errorf("FullRune(%q) (rune %04x) = false, want true", b, m.rune);
+ 		}
+-		s := "xx"+m.str;
+-		if !utf8.FullRuneInString(s, 2) {
+-			t.Errorf("FullRuneInString(%q, 2) (rune %04x) = false, want true", s, m.rune);
++		s := m.str;
++		if !utf8.FullRuneInString(s) {
++			t.Errorf("FullRuneInString(%q) (rune %04x) = false, want true", s, m.rune);
+ 		}
+ 		b1 := b[0:len(b)-1];
+ 		if utf8.FullRune(b1) {
+ 			t.Errorf("FullRune(%q) = true, want false", b1);
+ 		}
+-		s1 := "xxx"+string(b1);
+-		if utf8.FullRuneInString(s1, 3) {
+-			t.Errorf("FullRune(%q, 3) = true, want false", s1);
++		s1 := string(b1);
++		if utf8.FullRuneInString(s1) {
++			t.Errorf("FullRune(%q) = true, want false", s1);
+ 		}
+ 	}
+ }
+@@ -106,10 +106,10 @@ func TestDecodeRune(t *testing.T) {
+ 		if rune != m.rune || size != len(b) {
+ 			t.Errorf("DecodeRune(%q) = 0x%04x, %d want 0x%04x, %d", b, rune, size, m.rune, len(b));
+ 		}
+-		s := "xx"+m.str;
+-		rune, size = utf8.DecodeRuneInString(s, 2);
++		s := m.str;
++		rune, size = utf8.DecodeRuneInString(s);
+ 		if rune != m.rune || size != len(b) {
+-			t.Errorf("DecodeRune(%q, 2) = 0x%04x, %d want 0x%04x, %d", s, rune, size, m.rune, len(b));
++			t.Errorf("DecodeRune(%q) = 0x%04x, %d want 0x%04x, %d", s, rune, size, m.rune, len(b));
+ 		}
+ 
+ 		// there's an extra byte that bytes left behind - make sure trailing byte works
+@@ -117,10 +117,10 @@ func TestDecodeRune(t *testing.T) {
+ 		if rune != m.rune || size != len(b) {
+ 			t.Errorf("DecodeRune(%q) = 0x%04x, %d want 0x%04x, %d", b, rune, size, m.rune, len(b));
+ 		}
+-		s = "x"+m.str+"\x00";
+-		rune, size = utf8.DecodeRuneInString(s, 1);
++		s = m.str+"\x00";
++		rune, size = utf8.DecodeRuneInString(s);
+ 		if rune != m.rune || size != len(b) {
+-			t.Errorf("DecodeRuneInString(%q, 1) = 0x%04x, %d want 0x%04x, %d", s, rune, size, m.rune, len(b));
++			t.Errorf("DecodeRuneInString(%q) = 0x%04x, %d want 0x%04x, %d", s, rune, size, m.rune, len(b));
+ 		}
+ 
+ 		// make sure missing bytes fail
+@@ -132,10 +132,10 @@ func TestDecodeRune(t *testing.T) {
+ 		if rune != RuneError || size != wantsize {
+ 			t.Errorf("DecodeRune(%q) = 0x%04x, %d want 0x%04x, %d", b[0:len(b)-1], rune, size, RuneError, wantsize);
+ 		}
+-		s = "xxx"+m.str[0:len(m.str)-1];
+-		rune, size = utf8.DecodeRuneInString(s, 3);
++		s = m.str[0:len(m.str)-1];
++		rune, size = utf8.DecodeRuneInString(s);
+ 		if rune != RuneError || size != wantsize {
+-			t.Errorf("DecodeRuneInString(%q, 3) = 0x%04x, %d want 0x%04x, %d", s, rune, size, RuneError, wantsize);
++			t.Errorf("DecodeRuneInString(%q) = 0x%04x, %d want 0x%04x, %d", s, rune, size, RuneError, wantsize);
+ 		}
+ 
+ 		// make sure bad sequences fail
+@@ -148,10 +148,10 @@ func TestDecodeRune(t *testing.T) {
+ 		if rune != RuneError || size != 1 {
+ 			t.Errorf("DecodeRune(%q) = 0x%04x, %d want 0x%04x, %d", b, rune, size, RuneError, 1);
+ 		}
+-		s = "xxxx"+string(b);
++		s = string(b);
+ 		rune, size = utf8.DecodeRune(b);
+ 		if rune != RuneError || size != 1 {
+-			t.Errorf("DecodeRuneInString(%q, 4) = 0x%04x, %d want 0x%04x, %d", s, rune, size, RuneError, 1);
++			t.Errorf("DecodeRuneInString(%q) = 0x%04x, %d want 0x%04x, %d", s, rune, size, RuneError, 1);
+ 		}
+ 	}
+ }
+diff --git a/test/stringrange.go b/test/stringrange.go
+index 32ed1e5f02..6169e973b8 100644
+--- a/test/stringrange.go
++++ b/test/stringrange.go
+@@ -21,7 +21,7 @@ func main() {
+ 	ok := true;
+ 	cnum := 0;
+ 	for i, c = range s {
+-		rune, size := utf8.DecodeRuneInString(s, i);  // check it another way
++		rune, size := utf8.DecodeRuneInString(s[i:len(s)]);  // check it another way
+ 		if i != offset {
+ 			fmt.Printf("unexpected offset %d not %d\n", i, offset);
+ 			ok = false;
+diff --git a/test/utf.go b/test/utf.go
+index a93cb69dbb..59b0ffaa93 100644
+--- a/test/utf.go
++++ b/test/utf.go
+@@ -23,7 +23,7 @@ func main() {
+ 	var l = len(s);
+ 	for w, i, j := 0,0,0; i < l; i += w {
+ 		var r int;
+-		r, w = utf8.DecodeRuneInString(s, i);
++		r, w = utf8.DecodeRuneInString(s[i:len(s)]);
+ 		if w == 0 { panic("zero width in string") }
+ 		if r != chars[j] { panic("wrong value from string") }
+ 		j++;

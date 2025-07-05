@@ -17,6 +17,20 @@ Date:   Wed Oct 26 06:06:43 2022 +0000
     Run-TryBot: Keith Randall <khr@golang.org>
     Reviewed-by: Heschi Kreinick <heschi@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/compile/internal/ssagen/abi.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssagen/abi.go b/src/cmd/compile/internal/ssagen/abi.go
+index 3a767d6d1c..84d5b5951c 100644
+--- a/src/cmd/compile/internal/ssagen/abi.go
++++ b/src/cmd/compile/internal/ssagen/abi.go
+@@ -204,7 +204,7 @@ func (s *SymABIs) GenABIWrappers() {
+ 		// Double check that cgo-exported symbols don't get
+ 		// any wrappers.
+ 		if len(cgoExport) > 0 && fn.ABIRefs&^obj.ABISetOf(fn.ABI) != 0 {
+-			base.Fatalf("cgo exported function %s cannot have ABI wrappers", fn)
++			base.Fatalf("cgo exported function %v cannot have ABI wrappers", fn)
+ 		}
+ 
+ 		if !buildcfg.Experiment.RegabiWrappers {

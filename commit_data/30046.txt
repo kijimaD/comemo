@@ -14,6 +14,19 @@ Date:   Fri Oct 21 17:30:15 2016 -0400
     Run-TryBot: Quentin Smith <quentin@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/bufio/scan.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/bufio/scan.go b/src/bufio/scan.go
+index 27a0f00459..9f741c9830 100644
+--- a/src/bufio/scan.go
++++ b/src/bufio/scan.go
+@@ -199,7 +199,6 @@ func (s *Scanner) Scan() bool {
+ 			s.buf = newBuf
+ 			s.end -= s.start
+ 			s.start = 0
+-			continue
+ 		}
+ 		// Finally we can read some input. Make sure we don't get stuck with
+ 		// a misbehaving Reader. Officially we don't need to do this, but let's

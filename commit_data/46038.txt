@@ -18,7 +18,7 @@ Date:   Wed Dec 2 15:09:12 2020 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/internal/load/pkg.go                     | 17 +++++++++++++----
  src/embed/embed.go                                  |  5 ++++-
  src/embed/internal/embedtest/embed_test.go          | 21 +++++++++++++++++++++
@@ -28,3 +28,133 @@ Date:   Wed Dec 2 15:09:12 2020 -0500
  .../embedtest/testdata/.hidden/more/tip.txt         |  1 +
  .../internal/embedtest/testdata/_hidden/fortune.txt |  2 ++
  8 files changed, 45 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 30ca33b663..cbc683da2b 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -1998,6 +1998,16 @@ func (p *Package) resolveEmbed(patterns []string) (files []string, pmap map[stri
+ 						return err
+ 					}
+ 					rel := filepath.ToSlash(path[len(p.Dir)+1:])
++					name := info.Name()
++					if path != file && (isBadEmbedName(name) || name[0] == '.' || name[0] == '_') {
++						// Ignore bad names, assuming they won't go into modules.
++						// Also avoid hidden files that user may not know about.
++						// See golang.org/issue/42328.
++						if info.IsDir() {
++							return fs.SkipDir
++						}
++						return nil
++					}
+ 					if info.IsDir() {
+ 						if _, err := fsys.Stat(filepath.Join(path, "go.mod")); err == nil {
+ 							return filepath.SkipDir
+@@ -2007,10 +2017,6 @@ func (p *Package) resolveEmbed(patterns []string) (files []string, pmap map[stri
+ 					if !info.Mode().IsRegular() {
+ 						return nil
+ 					}
+-					if isBadEmbedName(info.Name()) {
+-						// Ignore bad names, assuming they won't go into modules.
+-						return nil
+-					}
+ 					count++
+ 					if have[rel] != pid {
+ 						have[rel] = pid
+@@ -2050,6 +2056,9 @@ func validEmbedPattern(pattern string) bool {
+ // as existing for embedding.
+ func isBadEmbedName(name string) bool {
+ 	switch name {
++	// Empty string should be impossible but make it bad.
++	case "":
++		return true
+ 	// Version control directories won't be present in module.
+ 	case ".bzr", ".hg", ".git", ".svn":
+ 		return true
+diff --git a/src/embed/embed.go b/src/embed/embed.go
+index b22975cc3a..29e0adf1a6 100644
+--- a/src/embed/embed.go
++++ b/src/embed/embed.go
+@@ -59,12 +59,15 @@
+ // as Go double-quoted or back-quoted string literals.
+ //
+ // If a pattern names a directory, all files in the subtree rooted at that directory are
+-// embedded (recursively), so the variable in the above example is equivalent to:
++// embedded (recursively), except that files with names beginning with ‘.’ or ‘_’
++// are excluded. So the variable in the above example is almost equivalent to:
+ //
+ //	// content is our static web server content.
+ //	//go:embed image template html/index.html
+ //	var content embed.FS
+ //
++// The difference is that ‘image/*’ embeds ‘image/.tempfile’ while ‘image’ does not.
++//
+ // The //go:embed directive can be used with both exported and unexported variables,
+ // depending on whether the package wants to make the data available to other packages.
+ // Similarly, it can be used with both global and function-local variables,
+diff --git a/src/embed/internal/embedtest/embed_test.go b/src/embed/internal/embedtest/embed_test.go
+index c82ca9fed2..b1707a4c04 100644
+--- a/src/embed/internal/embedtest/embed_test.go
++++ b/src/embed/internal/embedtest/embed_test.go
+@@ -101,3 +101,24 @@ func TestDir(t *testing.T) {
+ 	testDir(t, all, "testdata/i/j", "k/")
+ 	testDir(t, all, "testdata/i/j/k", "k8s.txt")
+ }
++
++func TestHidden(t *testing.T) {
++	//go:embed testdata
++	var dir embed.FS
++
++	//go:embed testdata/*
++	var star embed.FS
++
++	t.Logf("//go:embed testdata")
++
++	testDir(t, dir, "testdata",
++		"ascii.txt", "glass.txt", "hello.txt", "i/", "ken.txt")
++
++	t.Logf("//go:embed testdata/*")
++
++	testDir(t, star, "testdata",
++		".hidden/", "_hidden/", "ascii.txt", "glass.txt", "hello.txt", "i/", "ken.txt")
++
++	testDir(t, star, "testdata/.hidden",
++		"fortune.txt", "more/") // but not .more or _more
++}
+diff --git a/src/embed/internal/embedtest/testdata/.hidden/.more/tip.txt b/src/embed/internal/embedtest/testdata/.hidden/.more/tip.txt
+new file mode 100644
+index 0000000000..71b9c6955d
+--- /dev/null
++++ b/src/embed/internal/embedtest/testdata/.hidden/.more/tip.txt
+@@ -0,0 +1 @@
++#define struct union /* Great space saver */
+diff --git a/src/embed/internal/embedtest/testdata/.hidden/_more/tip.txt b/src/embed/internal/embedtest/testdata/.hidden/_more/tip.txt
+new file mode 100644
+index 0000000000..71b9c6955d
+--- /dev/null
++++ b/src/embed/internal/embedtest/testdata/.hidden/_more/tip.txt
+@@ -0,0 +1 @@
++#define struct union /* Great space saver */
+diff --git a/src/embed/internal/embedtest/testdata/.hidden/fortune.txt b/src/embed/internal/embedtest/testdata/.hidden/fortune.txt
+new file mode 100644
+index 0000000000..31f2013f94
+--- /dev/null
++++ b/src/embed/internal/embedtest/testdata/.hidden/fortune.txt
+@@ -0,0 +1,2 @@
++WARNING: terminal is not fully functional
++ -  (press RETURN)
+diff --git a/src/embed/internal/embedtest/testdata/.hidden/more/tip.txt b/src/embed/internal/embedtest/testdata/.hidden/more/tip.txt
+new file mode 100644
+index 0000000000..71b9c6955d
+--- /dev/null
++++ b/src/embed/internal/embedtest/testdata/.hidden/more/tip.txt
+@@ -0,0 +1 @@
++#define struct union /* Great space saver */
+diff --git a/src/embed/internal/embedtest/testdata/_hidden/fortune.txt b/src/embed/internal/embedtest/testdata/_hidden/fortune.txt
+new file mode 100644
+index 0000000000..31f2013f94
+--- /dev/null
++++ b/src/embed/internal/embedtest/testdata/_hidden/fortune.txt
+@@ -0,0 +1,2 @@
++WARNING: terminal is not fully functional
++ -  (press RETURN)

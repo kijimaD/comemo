@@ -14,7 +14,7 @@ Date:   Wed Jun 1 20:58:02 2016 +0200
     Run-TryBot: Elias Naur <elias.naur@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  misc/cgo/test/cgo_stubs_android_test.go | 13 +++++++++++++
  misc/cgo/test/issue3775.go              |  2 ++
  misc/cgo/test/issue6997_linux.c         |  2 ++
@@ -24,3 +24,171 @@ Date:   Wed Jun 1 20:58:02 2016 +0200
  misc/cgo/test/sigaltstack.go            |  2 +-
  src/cmd/dist/test.go                    | 26 +++++++++++++++-----------
  8 files changed, 40 insertions(+), 12 deletions(-)
+
+diff --git a/misc/cgo/test/cgo_stubs_android_test.go b/misc/cgo/test/cgo_stubs_android_test.go
+new file mode 100644
+index 0000000000..710e094cf7
+--- /dev/null
++++ b/misc/cgo/test/cgo_stubs_android_test.go
+@@ -0,0 +1,13 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cgotest
++
++import "testing"
++
++// Stubs for tests that fails to build on Android
++func test6997(t *testing.T)        {}
++func test3775(t *testing.T)        {}
++func test8694(t *testing.T)        {}
++func testSigaltstack(t *testing.T) {}
+diff --git a/misc/cgo/test/issue3775.go b/misc/cgo/test/issue3775.go
+index 8f81854195..5aca7602c0 100644
+--- a/misc/cgo/test/issue3775.go
++++ b/misc/cgo/test/issue3775.go
+@@ -1,3 +1,5 @@
++// +build !android
++
+ package cgotest
+ 
+ /*
+diff --git a/misc/cgo/test/issue6997_linux.c b/misc/cgo/test/issue6997_linux.c
+index 1d5fb2ac7e..de803d296e 100644
+--- a/misc/cgo/test/issue6997_linux.c
++++ b/misc/cgo/test/issue6997_linux.c
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build !android
++
+ #include <pthread.h>
+ #include <stdio.h>
+ #include <unistd.h>
+diff --git a/misc/cgo/test/issue6997_linux.go b/misc/cgo/test/issue6997_linux.go
+index aaa51dcbf8..0c98ea0794 100644
+--- a/misc/cgo/test/issue6997_linux.go
++++ b/misc/cgo/test/issue6997_linux.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build !android
++
+ // Test that pthread_cancel works as expected
+ // (NPTL uses SIGRTMIN to implement thread cancelation)
+ // See https://golang.org/issue/6997
+diff --git a/misc/cgo/test/issue7978.go b/misc/cgo/test/issue7978.go
+index 94ea0b6fa3..d5f6cc71d0 100644
+--- a/misc/cgo/test/issue7978.go
++++ b/misc/cgo/test/issue7978.go
+@@ -103,6 +103,9 @@ func test7978(t *testing.T) {
+ 	if C.HAS_SYNC_FETCH_AND_ADD == 0 {
+ 		t.Skip("clang required for __sync_fetch_and_add support on darwin/arm")
+ 	}
++	if runtime.GOOS == "android" {
++		t.Skip("GOTRACEBACK is not passed on to the exec wrapper")
++	}
+ 	if os.Getenv("GOTRACEBACK") != "2" {
+ 		t.Fatalf("GOTRACEBACK must be 2")
+ 	}
+diff --git a/misc/cgo/test/issue8694.go b/misc/cgo/test/issue8694.go
+index 00ab7d5202..89be7ea090 100644
+--- a/misc/cgo/test/issue8694.go
++++ b/misc/cgo/test/issue8694.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build !android
++
+ package cgotest
+ 
+ /*
+diff --git a/misc/cgo/test/sigaltstack.go b/misc/cgo/test/sigaltstack.go
+index b641ff6037..b16adc7d88 100644
+--- a/misc/cgo/test/sigaltstack.go
++++ b/misc/cgo/test/sigaltstack.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build !windows
++// +build !windows,!android
+ 
+ // Test that the Go runtime still works if C code changes the signal stack.
+ 
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 1a1f7d961b..33ed018245 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -432,8 +432,8 @@ func (t *tester) registerTests() {
+ 		},
+ 	})
+ 
+-	if t.cgoEnabled && t.goos != "android" && !t.iOS() {
+-		// Disabled on android and iOS. golang.org/issue/8345
++	if t.cgoEnabled && !t.iOS() {
++		// Disabled on iOS. golang.org/issue/15919
+ 		t.tests = append(t.tests, distTest{
+ 			name:    "cgo_stdio",
+ 			heading: "../misc/cgo/stdio",
+@@ -465,9 +465,9 @@ func (t *tester) registerTests() {
+ 			})
+ 		}
+ 	}
+-	if t.cgoEnabled && t.goos != "android" && !t.iOS() {
+-		// TODO(crawshaw): reenable on android and iOS
+-		// golang.org/issue/8345
++	if t.cgoEnabled && !t.iOS() {
++		// TODO(crawshaw): reenable on iOS
++		// golang.org/issue/15919
+ 		//
+ 		// These tests are not designed to run off the host.
+ 		t.tests = append(t.tests, distTest{
+@@ -729,7 +729,7 @@ func (t *tester) runHostTest(dirBanner, pkg string) error {
+ func (t *tester) cgoTest(dt *distTest) error {
+ 	env := mergeEnvLists([]string{"GOTRACEBACK=2"}, os.Environ())
+ 
+-	if t.goos == "android" || t.iOS() {
++	if t.iOS() {
+ 		cmd := t.dirCmd("misc/cgo/test", "go", "test", t.tags())
+ 		cmd.Env = env
+ 		return cmd.Run()
+@@ -738,7 +738,7 @@ func (t *tester) cgoTest(dt *distTest) error {
+ 	cmd := t.addCmd(dt, "misc/cgo/test", "go", "test", t.tags(), "-ldflags", "-linkmode=auto", t.runFlag(""))
+ 	cmd.Env = env
+ 
+-	if t.gohostos != "dragonfly" && t.gohostarch != "ppc64le" {
++	if t.gohostos != "dragonfly" && t.gohostarch != "ppc64le" && t.goos != "android" {
+ 		// linkmode=internal fails on dragonfly since errno is a TLS relocation.
+ 		// linkmode=internal fails on ppc64le because cmd/link doesn't
+ 		// handle the TOC correctly (issue 15409).
+@@ -792,8 +792,10 @@ func (t *tester) cgoTest(dt *distTest) error {
+ 			if err := cmd.Run(); err != nil {
+ 				fmt.Println("No support for static linking found (lacks libc.a?), skip cgo static linking test.")
+ 			} else {
+-				cmd = t.addCmd(dt, "misc/cgo/testtls", "go", "test", "-ldflags", `-linkmode=external -extldflags "-static -pthread"`)
+-				cmd.Env = env
++				if t.goos != "android" {
++					cmd = t.addCmd(dt, "misc/cgo/testtls", "go", "test", "-ldflags", `-linkmode=external -extldflags "-static -pthread"`)
++					cmd.Env = env
++				}
+ 
+ 				cmd = t.addCmd(dt, "misc/cgo/nocgo", "go", "test")
+ 				cmd.Env = env
+@@ -801,8 +803,10 @@ func (t *tester) cgoTest(dt *distTest) error {
+ 				cmd = t.addCmd(dt, "misc/cgo/nocgo", "go", "test", "-ldflags", `-linkmode=external`)
+ 				cmd.Env = env
+ 
+-				cmd = t.addCmd(dt, "misc/cgo/nocgo", "go", "test", "-ldflags", `-linkmode=external -extldflags "-static -pthread"`)
+-				cmd.Env = env
++				if t.goos != "android" {
++					cmd = t.addCmd(dt, "misc/cgo/nocgo", "go", "test", "-ldflags", `-linkmode=external -extldflags "-static -pthread"`)
++					cmd.Env = env
++				}
+ 			}
+ 
+ 			if pair != "freebsd-amd64" { // clang -pie fails to link misc/cgo/test

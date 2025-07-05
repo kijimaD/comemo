@@ -31,7 +31,7 @@ Date:   Fri Sep 22 15:57:46 2023 -0400
     Run-TryBot: Jonathan Amsterdam <jba@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Damien Neil <dneil@google.com>
-
+---
  src/net/http/pattern.go           | 12 ++++++
  src/net/http/pattern_test.go      |  6 +++
  src/net/http/request_test.go      | 84 +++++++++++++++++++++++++++++++--------
@@ -39,3 +39,290 @@ Date:   Fri Sep 22 15:57:46 2023 -0400
  src/net/http/routing_tree_test.go |  2 +
  src/net/http/server.go            | 12 +++---
  6 files changed, 97 insertions(+), 38 deletions(-)
+
+diff --git a/src/net/http/pattern.go b/src/net/http/pattern.go
+index 2993aeccb9..0c8644d9cd 100644
+--- a/src/net/http/pattern.go
++++ b/src/net/http/pattern.go
+@@ -9,6 +9,7 @@ package http
+ import (
+ 	"errors"
+ 	"fmt"
++	"net/url"
+ 	"strings"
+ 	"unicode"
+ )
+@@ -141,6 +142,7 @@ func parsePattern(s string) (_ *pattern, err error) {
+ 		seg, rest = rest[:i], rest[i:]
+ 		if i := strings.IndexByte(seg, '{'); i < 0 {
+ 			// Literal.
++			seg = pathUnescape(seg)
+ 			p.segments = append(p.segments, segment{s: seg})
+ 		} else {
+ 			// Wildcard.
+@@ -178,6 +180,7 @@ func parsePattern(s string) (_ *pattern, err error) {
+ 	return p, nil
+ }
+ 
++// TODO(jba): remove this; it is unused.
+ func isValidHTTPToken(s string) bool {
+ 	if s == "" {
+ 		return false
+@@ -204,6 +207,15 @@ func isValidWildcardName(s string) bool {
+ 	return true
+ }
+ 
++func pathUnescape(path string) string {
++	u, err := url.PathUnescape(path)
++	if err != nil {
++		// Invalidly escaped path; use the original
++		return path
++	}
++	return u
++}
++
+ // relationship is a relationship between two patterns, p1 and p2.
+ type relationship string
+ 
+diff --git a/src/net/http/pattern_test.go b/src/net/http/pattern_test.go
+index abda4d872d..b219648f33 100644
+--- a/src/net/http/pattern_test.go
++++ b/src/net/http/pattern_test.go
+@@ -94,6 +94,10 @@ func TestParsePattern(t *testing.T) {
+ 			"a.com/foo//",
+ 			pattern{host: "a.com", segments: []segment{lit("foo"), lit(""), multi("")}},
+ 		},
++		{
++			"/%61%62/%7b/%",
++			pattern{segments: []segment{lit("ab"), lit("{"), lit("%")}},
++		},
+ 	} {
+ 		got := mustParsePattern(t, test.in)
+ 		if !got.equal(&test.want) {
+@@ -113,6 +117,8 @@ func TestParsePatternError(t *testing.T) {
+ 		{"/{w}x", "at offset 1: bad wildcard segment"},
+ 		{"/x{w}", "at offset 1: bad wildcard segment"},
+ 		{"/{wx", "at offset 1: bad wildcard segment"},
++		{"/a/{/}/c", "at offset 3: bad wildcard segment"},
++		{"/a/{%61}/c", "at offset 3: bad wildcard name"}, // wildcard names aren't unescaped
+ 		{"/{a$}", "at offset 1: bad wildcard name"},
+ 		{"/{}", "at offset 1: empty wildcard"},
+ 		{"POST a.com/x/{}/y", "at offset 13: empty wildcard"},
+diff --git a/src/net/http/request_test.go b/src/net/http/request_test.go
+index 18034ce163..835db91a1a 100644
+--- a/src/net/http/request_test.go
++++ b/src/net/http/request_test.go
+@@ -1445,23 +1445,22 @@ func TestPathValue(t *testing.T) {
+ 				"d": "",
+ 			},
+ 		},
+-		// TODO(jba): uncomment these tests when we implement path escaping (forthcoming).
+-		// {
+-		// 	"/names/{name}/{other...}",
+-		// 	"/names/" + url.PathEscape("/john") + "/address",
+-		// 	map[string]string{
+-		// 		"name":  "/john",
+-		// 		"other": "address",
+-		// 	},
+-		// },
+-		// {
+-		// 	"/names/{name}/{other...}",
+-		// 	"/names/" + url.PathEscape("john/doe") + "/address",
+-		// 	map[string]string{
+-		// 		"name":  "john/doe",
+-		// 		"other": "address",
+-		// 	},
+-		// },
++		{
++			"/names/{name}/{other...}",
++			"/names/%2fjohn/address",
++			map[string]string{
++				"name":  "/john",
++				"other": "address",
++			},
++		},
++		{
++			"/names/{name}/{other...}",
++			"/names/john%2Fdoe/there/is%2F/more",
++			map[string]string{
++				"name":  "john/doe",
++				"other": "there/is//more",
++			},
++		},
+ 	} {
+ 		mux := NewServeMux()
+ 		mux.HandleFunc(test.pattern, func(w ResponseWriter, r *Request) {
+@@ -1555,3 +1554,54 @@ func TestStatus(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestEscapedPathsAndPatterns(t *testing.T) {
++	matches := []struct {
++		pattern string
++		paths   []string
++	}{
++		{
++			"/a", // this pattern matches a path that unescapes to "/a"
++			[]string{"/a", "/%61"},
++		},
++		{
++			"/%62", // patterns are unescaped by segment; matches paths that unescape to "/b"
++			[]string{"/b", "/%62"},
++		},
++		{
++			"/%7B/%7D", // the only way to write a pattern that matches '{' or '}'
++			[]string{"/{/}", "/%7b/}", "/{/%7d", "/%7B/%7D"},
++		},
++		{
++			"/%x", // patterns that do not unescape are left unchanged
++			[]string{"/%25x"},
++		},
++	}
++
++	mux := NewServeMux()
++	var gotPattern string
++	for _, m := range matches {
++		mux.HandleFunc(m.pattern, func(w ResponseWriter, r *Request) {
++			gotPattern = m.pattern
++		})
++	}
++
++	server := httptest.NewServer(mux)
++	defer server.Close()
++
++	for _, m := range matches {
++		for _, p := range m.paths {
++			res, err := Get(server.URL + p)
++			if err != nil {
++				t.Fatal(err)
++			}
++			if res.StatusCode != 200 {
++				t.Errorf("%s: got code %d, want 200", p, res.StatusCode)
++				continue
++			}
++			if g, w := gotPattern, m.pattern; g != w {
++				t.Errorf("%s: pattern: got %q, want %q", p, g, w)
++			}
++		}
++	}
++}
+diff --git a/src/net/http/routing_tree.go b/src/net/http/routing_tree.go
+index 46287174a5..8812ed04e2 100644
+--- a/src/net/http/routing_tree.go
++++ b/src/net/http/routing_tree.go
+@@ -19,7 +19,6 @@
+ package http
+ 
+ import (
+-	"net/url"
+ 	"strings"
+ )
+ 
+@@ -180,7 +179,7 @@ func (n *routingNode) matchPath(path string, matches []string) (*routingNode, []
+ 	// We skip this step if the segment is a trailing slash, because single wildcards
+ 	// don't match trailing slashes.
+ 	if seg != "/" {
+-		if n, m := n.emptyChild.matchPath(rest, append(matches, matchValue(seg))); n != nil {
++		if n, m := n.emptyChild.matchPath(rest, append(matches, seg)); n != nil {
+ 			return n, m
+ 		}
+ 	}
+@@ -190,25 +189,17 @@ func (n *routingNode) matchPath(path string, matches []string) (*routingNode, []
+ 		// Don't record a match for a nameless wildcard (which arises from a
+ 		// trailing slash in the pattern).
+ 		if c.pattern.lastSegment().s != "" {
+-			matches = append(matches, matchValue(path[1:])) // remove initial slash
++			matches = append(matches, pathUnescape(path[1:])) // remove initial slash
+ 		}
+ 		return c, matches
+ 	}
+ 	return nil, nil
+ }
+ 
+-func matchValue(path string) string {
+-	m, err := url.PathUnescape(path)
+-	if err != nil {
+-		// Path is not properly escaped, so use the original.
+-		return path
+-	}
+-	return m
+-}
+-
+ // firstSegment splits path into its first segment, and the rest.
+ // The path must begin with "/".
+ // If path consists of only a slash, firstSegment returns ("/", "").
++// The segment is returned unescaped, if possible.
+ func firstSegment(path string) (seg, rest string) {
+ 	if path == "/" {
+ 		return "/", ""
+@@ -216,9 +207,9 @@ func firstSegment(path string) (seg, rest string) {
+ 	path = path[1:] // drop initial slash
+ 	i := strings.IndexByte(path, '/')
+ 	if i < 0 {
+-		return path, ""
++		i = len(path)
+ 	}
+-	return path[:i], path[i:]
++	return pathUnescape(path[:i]), path[i:]
+ }
+ 
+ // matchingMethods adds to methodSet all the methods that would result in a
+diff --git a/src/net/http/routing_tree_test.go b/src/net/http/routing_tree_test.go
+index 149349f397..2aac8b6cdf 100644
+--- a/src/net/http/routing_tree_test.go
++++ b/src/net/http/routing_tree_test.go
+@@ -22,6 +22,8 @@ func TestRoutingFirstSegment(t *testing.T) {
+ 		{"/a/b/c", []string{"a", "b", "c"}},
+ 		{"/a/b/", []string{"a", "b", "/"}},
+ 		{"/", []string{"/"}},
++		{"/a/%62/c", []string{"a", "b", "c"}},
++		{"/a%2Fb%2fc", []string{"a/b/c"}},
+ 	} {
+ 		var got []string
+ 		rest := test.in
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index b9f4a6b448..ee02d776ac 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -2422,10 +2422,9 @@ func (mux *ServeMux) Handler(r *Request) (h Handler, pattern string) {
+ // after the redirect.
+ func (mux *ServeMux) findHandler(r *Request) (h Handler, patStr string, _ *pattern, matches []string) {
+ 	var n *routingNode
+-	// TODO(jba): use escaped path. This is an independent change that is also part
+-	// of proposal https://go.dev/issue/61410.
+-	path := r.URL.Path
+ 	host := r.URL.Host
++	escapedPath := r.URL.EscapedPath()
++	path := escapedPath
+ 	// CONNECT requests are not canonicalized.
+ 	if r.Method == "CONNECT" {
+ 		// If r.URL.Path is /tree and its handler is not registered,
+@@ -2451,7 +2450,7 @@ func (mux *ServeMux) findHandler(r *Request) (h Handler, patStr string, _ *patte
+ 		if u != nil {
+ 			return RedirectHandler(u.String(), StatusMovedPermanently), u.Path, nil, nil
+ 		}
+-		if path != r.URL.Path {
++		if path != escapedPath {
+ 			// Redirect to cleaned path.
+ 			patStr := ""
+ 			if n != nil {
+@@ -2478,8 +2477,7 @@ func (mux *ServeMux) findHandler(r *Request) (h Handler, patStr string, _ *patte
+ }
+ 
+ // matchOrRedirect looks up a node in the tree that matches the host, method and path.
+-// The path is known to be in canonical form, except for CONNECT methods.
+-
++//
+ // If the url argument is non-nil, handler also deals with trailing-slash
+ // redirection: when a path doesn't match exactly, the match is tried again
+ // after appending "/" to the path. If that second match succeeds, the last
+@@ -2496,7 +2494,7 @@ func (mux *ServeMux) matchOrRedirect(host, method, path string, u *url.URL) (_ *
+ 		path += "/"
+ 		n2, _ := mux.tree.match(host, method, path)
+ 		if exactMatch(n2, path) {
+-			return nil, nil, &url.URL{Path: path, RawQuery: u.RawQuery}
++			return nil, nil, &url.URL{Path: cleanPath(u.Path) + "/", RawQuery: u.RawQuery}
+ 		}
+ 	}
+ 	return n, matches, nil

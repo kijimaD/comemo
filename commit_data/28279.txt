@@ -14,6 +14,20 @@ Date:   Tue May 10 15:32:00 2016 -0700
     Change-Id: Ic19999fce8bb8640d963965cc328574efadd7855
     Reviewed-on: https://go-review.googlesource.com/23010
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-
+---
  src/runtime/testdata/testprogcgo/threadpanic_windows.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/testdata/testprogcgo/threadpanic_windows.c b/src/runtime/testdata/testprogcgo/threadpanic_windows.c
+index 6f896634a6..ba66d0f5c9 100644
+--- a/src/runtime/testdata/testprogcgo/threadpanic_windows.c
++++ b/src/runtime/testdata/testprogcgo/threadpanic_windows.c
+@@ -8,7 +8,7 @@
+ 
+ void gopanic(void);
+ 
+-static unsigned int
++static unsigned int __attribute__((__stdcall__))
+ die(void* x)
+ {
+ 	gopanic();

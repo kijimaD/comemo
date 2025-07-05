@@ -7,6 +7,20 @@ Date:   Sat Feb 2 21:09:55 2019 -0800
     Change-Id: Ib0a0d04aaaaa3c213fdb8646bd9b7dfdadae40d4
     Reviewed-on: https://go-review.googlesource.com/c/160831
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
-
+---
  src/crypto/aes/block.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/crypto/aes/block.go b/src/crypto/aes/block.go
+index 40bd0d335d..53308ae92e 100644
+--- a/src/crypto/aes/block.go
++++ b/src/crypto/aes/block.go
+@@ -31,7 +31,7 @@
+ //
+ // See FIPS 197 for specification, and see Daemen and Rijmen's Rijndael submission
+ // for implementation details.
+-//	https://www.csrc.nist.gov/publications/fips/fips197/fips-197.pdf
++//	https://csrc.nist.gov/csrc/media/publications/fips/197/final/documents/fips-197.pdf
+ //	https://csrc.nist.gov/archive/aes/rijndael/Rijndael-ammended.pdf
+ 
+ package aes

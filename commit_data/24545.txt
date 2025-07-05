@@ -12,7 +12,7 @@ Date:   Tue Aug 4 15:47:22 2015 -0700
     Change-Id: Icc84961dd4060d143602f001311aa1d8be0d7fc0
     Reviewed-on: https://go-review.googlesource.com/13144
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/gc/ssa.go             |  4 ++++
  src/cmd/compile/internal/ssa/compile.go        |  4 ++++
  src/cmd/compile/internal/ssa/gen/AMD64.rules   |  2 ++
@@ -21,3 +21,142 @@ Date:   Tue Aug 4 15:47:22 2015 -0700
  src/cmd/compile/internal/ssa/opGen.go          |  5 +++++
  src/cmd/compile/internal/ssa/rewriteAMD64.go   | 21 +++++++++++++++++++++
  7 files changed, 45 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 247eacbee4..b63b662126 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -1247,6 +1247,10 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 			return s.constInt(Types[TINT], n.Left.Type.Bound)
+ 		}
+ 
++	case OITAB:
++		a := s.expr(n.Left)
++		return s.newValue1(ssa.OpITab, n.Type, a)
++
+ 	case OCALLFUNC, OCALLMETH:
+ 		left := n.Left
+ 		static := left.Op == ONAME && left.Class == PFUNC
+diff --git a/src/cmd/compile/internal/ssa/compile.go b/src/cmd/compile/internal/ssa/compile.go
+index 001530ae80..9111254a32 100644
+--- a/src/cmd/compile/internal/ssa/compile.go
++++ b/src/cmd/compile/internal/ssa/compile.go
+@@ -68,6 +68,7 @@ var passes = [...]pass{
+ 	{"lower", lower},
+ 	{"lowered cse", cse},
+ 	{"lowered deadcode", deadcode},
++	{"checkLower", checkLower},
+ 	{"critical", critical}, // remove critical edges
+ 	{"layout", layout},     // schedule blocks
+ 	{"schedule", schedule}, // schedule values
+@@ -101,6 +102,9 @@ var passOrder = [...]constraint{
+ 	{"schedule", "regalloc"},
+ 	// stack allocation requires register allocation
+ 	{"regalloc", "stackalloc"},
++	// checkLower must run after lowering & subsequent dead code elim
++	{"lower", "checkLower"},
++	{"lowered deadcode", "checkLower"},
+ }
+ 
+ func init() {
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index dd34404b70..e7c712eb17 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -228,6 +228,8 @@
+ 
+ (Addr {sym} base) -> (LEAQ {sym} base)
+ 
++(ITab (Load ptr mem)) -> (MOVQload ptr mem)
++
+ // block rewrites
+ (If (SETL cmp) yes no) -> (LT cmp yes no)
+ (If (SETLE cmp) yes no) -> (LE cmp yes no)
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index 7536415216..657973e333 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -244,6 +244,9 @@ var genericOps = []opData{
+ 	{name: "StringPtr"},  // ptr(arg0)
+ 	{name: "StringLen"},  // len(arg0)
+ 
++	// Interfaces
++	{name: "ITab"}, // arg0=interface, returns itable field
++
+ 	// Spill&restore ops for the register allocator.  These are
+ 	// semantically identical to OpCopy; they do not take/return
+ 	// stores like regular memory ops do.  We can get away without memory
+diff --git a/src/cmd/compile/internal/ssa/lower.go b/src/cmd/compile/internal/ssa/lower.go
+index 6499dc8565..6f6b885062 100644
+--- a/src/cmd/compile/internal/ssa/lower.go
++++ b/src/cmd/compile/internal/ssa/lower.go
+@@ -8,8 +8,13 @@ package ssa
+ func lower(f *Func) {
+ 	// repeat rewrites until we find no more rewrites
+ 	applyRewrite(f, f.Config.lowerBlock, f.Config.lowerValue)
++}
+ 
+-	// Check for unlowered opcodes, fail if we find one.
++// checkLower checks for unlowered opcodes and fails if we find one.
++func checkLower(f *Func) {
++	// Needs to be a separate phase because it must run after both
++	// lowering and a subsequent dead code elimination (because lowering
++	// rules may leave dead generic ops behind).
+ 	for _, b := range f.Blocks {
+ 		for _, v := range b.Values {
+ 			if opcodeTable[v.Op].generic && v.Op != OpSP && v.Op != OpSB && v.Op != OpArg && v.Op != OpCopy && v.Op != OpPhi {
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index b0f86a9cbe..e77df40ebd 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -370,6 +370,7 @@ const (
+ 	OpStringMake
+ 	OpStringPtr
+ 	OpStringLen
++	OpITab
+ 	OpStoreReg
+ 	OpLoadReg
+ 	OpFwdRef
+@@ -2773,6 +2774,10 @@ var opcodeTable = [...]opInfo{
+ 		name:    "StringLen",
+ 		generic: true,
+ 	},
++	{
++		name:    "ITab",
++		generic: true,
++	},
+ 	{
+ 		name:    "StoreReg",
+ 		generic: true,
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 5a87169324..1e7d957f92 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -1972,6 +1972,27 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 		goto end22eaafbcfe70447f79d9b3e6cc395bbd
+ 	end22eaafbcfe70447f79d9b3e6cc395bbd:
+ 		;
++	case OpITab:
++		// match: (ITab (Load ptr mem))
++		// cond:
++		// result: (MOVQload ptr mem)
++		{
++			if v.Args[0].Op != OpLoad {
++				goto enda49fcae3630a097c78aa58189c90a97a
++			}
++			ptr := v.Args[0].Args[0]
++			mem := v.Args[0].Args[1]
++			v.Op = OpAMD64MOVQload
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AddArg(ptr)
++			v.AddArg(mem)
++			return true
++		}
++		goto enda49fcae3630a097c78aa58189c90a97a
++	enda49fcae3630a097c78aa58189c90a97a:
++		;
+ 	case OpIsInBounds:
+ 		// match: (IsInBounds idx len)
+ 		// cond:

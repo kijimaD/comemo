@@ -7,6 +7,18 @@ Date:   Thu Mar 14 13:48:19 2013 +0400
     R=golang-dev
     CC=golang-dev
     https://golang.org/cl/7812043
-
+---
  src/pkg/runtime/runtime.h | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 8858922b75..e2c35e1657 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -991,5 +991,5 @@ extern uint64 ·neginf;
+ 
+ enum
+ {
+-	UseSpanType = 0,
++	UseSpanType = 1,
+ };

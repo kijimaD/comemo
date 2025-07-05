@@ -9,8 +9,56 @@ Date:   Wed Mar 22 10:27:30 2017 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/amd64/ssa.go | 4 ++--
  src/cmd/compile/internal/gc/ssa.go    | 2 +-
  src/cmd/compile/internal/x86/ssa.go   | 4 ++--
  3 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/ssa.go b/src/cmd/compile/internal/amd64/ssa.go
+index 40be007cbe..df99e9e3e0 100644
+--- a/src/cmd/compile/internal/amd64/ssa.go
++++ b/src/cmd/compile/internal/amd64/ssa.go
+@@ -945,10 +945,10 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
+ 		p.To.Sym = b.Aux.(*obj.LSym)
+ 
+ 	case ssa.BlockAMD64EQF:
+-		gc.SSAGenFPJump(s, b, next, &eqfJumps)
++		s.FPJump(b, next, &eqfJumps)
+ 
+ 	case ssa.BlockAMD64NEF:
+-		gc.SSAGenFPJump(s, b, next, &nefJumps)
++		s.FPJump(b, next, &nefJumps)
+ 
+ 	case ssa.BlockAMD64EQ, ssa.BlockAMD64NE,
+ 		ssa.BlockAMD64LT, ssa.BlockAMD64GE,
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 5fb6f41c90..1a37f943d7 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -4438,7 +4438,7 @@ func (s *SSAGenState) oneFPJump(b *ssa.Block, jumps *FloatingEQNEJump, likely ss
+ 	}
+ }
+ 
+-func SSAGenFPJump(s *SSAGenState, b, next *ssa.Block, jumps *[2][2]FloatingEQNEJump) {
++func (s *SSAGenState) FPJump(b, next *ssa.Block, jumps *[2][2]FloatingEQNEJump) {
+ 	likely := b.Likely
+ 	switch next {
+ 	case b.Succs[0].Block():
+diff --git a/src/cmd/compile/internal/x86/ssa.go b/src/cmd/compile/internal/x86/ssa.go
+index 1dfb1ba466..906534b4cf 100644
+--- a/src/cmd/compile/internal/x86/ssa.go
++++ b/src/cmd/compile/internal/x86/ssa.go
+@@ -807,10 +807,10 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
+ 		p.To.Sym = b.Aux.(*obj.LSym)
+ 
+ 	case ssa.Block386EQF:
+-		gc.SSAGenFPJump(s, b, next, &eqfJumps)
++		s.FPJump(b, next, &eqfJumps)
+ 
+ 	case ssa.Block386NEF:
+-		gc.SSAGenFPJump(s, b, next, &nefJumps)
++		s.FPJump(b, next, &nefJumps)
+ 
+ 	case ssa.Block386EQ, ssa.Block386NE,
+ 		ssa.Block386LT, ssa.Block386GE,

@@ -12,6 +12,19 @@ Date:   Thu Aug 10 14:48:36 2017 -0300
     Reviewed-on: https://go-review.googlesource.com/54730
     Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
     Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-
+---
  src/runtime/rt0_linux_ppc64le.s | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/runtime/rt0_linux_ppc64le.s b/src/runtime/rt0_linux_ppc64le.s
+index 134858bff8..73b9ae392d 100644
+--- a/src/runtime/rt0_linux_ppc64le.s
++++ b/src/runtime/rt0_linux_ppc64le.s
+@@ -2,6 +2,7 @@
+ #include "textflag.h"
+ 
+ TEXT _rt0_ppc64le_linux(SB),NOSPLIT,$0
++	XOR R0, R0	  // Make sure R0 is zero before _main
+ 	BR _main<>(SB)
+ 
+ TEXT _rt0_ppc64le_linux_lib(SB),NOSPLIT,$-8

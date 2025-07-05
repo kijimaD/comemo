@@ -15,7 +15,7 @@ Date:   Fri Nov 14 10:45:23 2008 -0800
     DELTA=743  (732 added, 8 deleted, 3 changed)
     OCL=19226
     CL=19243
-
+---
  src/cmd/cov/Makefile       |  28 ++++
  src/cmd/cov/main.c         | 385 +++++++++++++++++++++++++++++++++++++++++++++
  src/cmd/cov/tree.c         | 246 +++++++++++++++++++++++++++++
@@ -24,3 +24,917 @@ Date:   Fri Nov 14 10:45:23 2008 -0800
  src/libmach_amd64/darwin.c |  38 ++++-
  src/libmach_amd64/sym.c    |  14 +-
  7 files changed, 747 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/cov/Makefile b/src/cmd/cov/Makefile
+new file mode 100644
+index 0000000000..dfd40383ed
+--- /dev/null
++++ b/src/cmd/cov/Makefile
+@@ -0,0 +1,28 @@
++# Copyright 2009 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++include ../../Make.conf
++
++# The directory is cov because the source is portable and general.
++# We call the binary 6cov to avoid confusion and because this binary
++# is linked only with amd64 and x86 support.
++
++TARG=6cov
++OFILES=\
++	main.$O\
++	tree.$O\
++
++HFILES=\
++	tree.h\
++
++$(TARG): $(OFILES)
++	$(LD) -o $(TARG) -L$(GOROOT)/lib $(OFILES) -lmach_amd64 -lregexp9 -lbio -l9
++
++clean:
++	rm -f $(OFILES) $(TARG)
++
++install: $(TARG)
++	cp $(TARG) $(BIN)/$(TARG)
++
++$(OFILES): $(HFILES)
+diff --git a/src/cmd/cov/main.c b/src/cmd/cov/main.c
+new file mode 100644
+index 0000000000..061f302677
+--- /dev/null
++++ b/src/cmd/cov/main.c
+@@ -0,0 +1,385 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++/*
++ * code coverage
++ */
++
++#include <u.h>
++#include <time.h>
++#include <libc.h>
++#include <bio.h>
++#include <ctype.h>
++#include <regexp9.h>
++#include "tree.h"
++
++#include <ureg_amd64.h>
++#include <mach_amd64.h>
++typedef struct Ureg Ureg;
++
++void
++usage(void)
++{
++	fprint(2, "usage: cov 6.out [-lv] [-g regexp] [args...]\n");
++	fprint(2, "-g specifies pattern of interesting functions or files\n");
++	exits("usage");
++}
++
++typedef struct Range Range;
++struct Range
++{
++	uvlong pc;
++	uvlong epc;
++};
++
++int chatty;
++int fd;
++int longnames;
++int pid;
++Map *mem;
++Map *text;
++Fhdr fhdr;
++Reprog *grep;
++char cwd[1000];
++int ncwd;
++
++Tree breakpoints;	// code ranges not run
++
++/*
++ * comparison for Range structures
++ * they are "equal" if they overlap, so
++ * that a search for [pc, pc+1) finds the
++ * Range containing pc.
++ */
++int
++rangecmp(void *va, void *vb)
++{
++	Range *a = va, *b = vb;
++	if(a->epc <= b->pc)
++		return 1;
++	if(b->epc <= a->pc)
++		return -1;
++	return 0;
++}
++
++/*
++ * remember that we ran the section of code [pc, epc).
++ */
++void
++ran(uvlong pc, uvlong epc)
++{
++	Range key;
++	Range *r;
++	uvlong oldepc;
++
++	if(chatty)
++		print("run %#llux-%#llux\n", pc, epc);
++
++	key.pc = pc;
++	key.epc = pc+1;
++	r = treeget(&breakpoints, &key);
++	if(r == nil)
++		sysfatal("unchecked breakpoint at %#lux+%d", pc, (int)(epc-pc));
++
++	// Might be that the tail of the sequence
++	// was run already, so r->epc is before the end.
++	// Adjust len.
++	if(epc > r->epc)
++		epc = r->epc;
++
++	if(r->pc == pc) {
++		r->pc = epc;
++	} else {
++		// Chop r to before pc;
++		// add new entry for after if needed.
++		// Changing r->epc does not affect r's position in the tree.
++		oldepc = r->epc;
++		r->epc = pc;
++		if(epc < oldepc) {
++			Range *n;
++			n = malloc(sizeof *n);
++			n->pc = epc;
++			n->epc = oldepc;
++			treeput(&breakpoints, n, n);
++		}
++	}
++}
++
++/*
++ * if s is in the current directory or below,
++ * return the relative path.
++ */
++char*
++shortname(char *s)
++{
++	if(!longnames && strlen(s) > ncwd && memcmp(s, cwd, ncwd) == 0 && s[ncwd] == '/')
++		return s+ncwd+1;
++	return s;
++}
++
++/*
++ * we've decided that [pc, epc) did not run.
++ * do something about it.
++ */
++void
++missing(uvlong pc, uvlong epc)
++{
++	char src1[1000];
++	char src2[1000];
++	char buf[100];
++	Symbol s;
++	char *p;
++
++	if(!findsym(pc, CTEXT, &s) || !fileline(src1, sizeof src1, pc) || !fileline(src2, sizeof src2, pc)) {
++		print("%#llux-%#llux\n", pc, epc);
++		return;
++	}
++
++	if(pc == s.value) {
++		// never entered function
++		print("%s %s never called (%#llux-%#llux)\n", shortname(src1), s.name, pc, epc);
++		return;
++	}
++	if(pc <= s.value+13) {
++		// probably stub for stack growth.
++		// check whether last instruction is call to morestack.
++		// the -5 below is the length of
++		//	CALL sys.morestack.
++		buf[0] = 0;
++		machdata->das(text, epc-5, 0, buf, sizeof buf);
++		if(strstr(buf, "morestack"))
++			return;
++	}
++
++	if(epc - pc == 5) {
++		// check for CALL sys.throwindex
++		buf[0] = 0;
++		machdata->das(text, pc, 0, buf, sizeof buf);
++		if(strstr(buf, "throwindex"))
++			return;
++	}
++
++	// show first instruction to make clear where we were.
++	machdata->das(text, pc, 0, buf, sizeof buf);
++
++	// cut filename off src2, leaving just line number.
++	p = strrchr(src2, ':');
++	if(p != nil)
++		p++;
++	else
++		p = src2;
++	print("%s,%s %s %#llux-%#llux %s\n", shortname(src1), p, s.name, pc, epc, buf);
++}
++
++/*
++ * walk the tree, calling missing for each non-empty
++ * section of missing code.
++ */
++void
++walktree(TreeNode *t)
++{
++	Range *n;
++
++	if(t == nil)
++		return;
++	walktree(t->left);
++	n = t->key;
++	if(n->pc < n->epc)
++		missing(n->pc, n->epc);
++	walktree(t->right);
++}
++
++/*
++ * set a breakpoint all over [pc, epc)
++ * and remember that we did.
++ */
++void
++breakpoint(uvlong pc, uvlong epc)
++{
++	Range *r;
++
++	r = malloc(sizeof *r);
++	r->pc = pc;
++	r->epc = epc;
++	treeput(&breakpoints, r, r);
++
++	for(; pc < epc; pc+=machdata->bpsize)
++		put1(mem, pc, machdata->bpinst, machdata->bpsize);
++}
++
++/*
++ * install breakpoints over all text symbols
++ * that match the pattern.
++ */
++void
++cover(void)
++{
++	Symbol s;
++	char *lastfn;
++	uvlong lastpc;
++	int i;
++	char buf[200];
++
++	lastfn = nil;
++	lastpc = 0;
++	for(i=0; textsym(&s, i); i++) {
++		switch(s.type) {
++		case 'T':
++		case 't':
++			if(lastpc != 0) {
++				breakpoint(lastpc, s.value);
++				lastpc = 0;
++			}
++			// Ignore second entry for a given name;
++			// that's the debugging blob.
++			if(lastfn && strcmp(s.name, lastfn) == 0)
++				break;
++			lastfn = s.name;
++			buf[0] = 0;
++			fileline(buf, sizeof buf, s.value);
++			if(grep == nil || regexec9(grep, buf, nil, 0) > 0 || regexec9(grep, s.name, nil, 0) > 0)
++				lastpc = s.value;
++		}
++	}
++}
++
++uvlong
++rgetzero(Map *map, char *reg)
++{
++	return 0;
++}
++
++/*
++ * remove the breakpoints at pc and successive instructions,
++ * up to and including the first jump or other control flow transfer.
++ */
++void
++uncover(uvlong pc)
++{
++	uchar buf[1000];
++	int n, n1, n2;
++	uvlong foll[2];
++
++	// Double-check that we stopped at a breakpoint.
++	if(get1(mem, pc, buf, machdata->bpsize) < 0)
++		sysfatal("read mem inst at %#llux: %r", pc);
++	if(memcmp(buf, machdata->bpinst, machdata->bpsize) != 0)
++		sysfatal("stopped at %#llux; not at breakpoint %d", pc, machdata->bpsize);
++
++	// Figure out how many bytes of straight-line code
++	// there are in the text starting at pc.
++	n = 0;
++	while(n < sizeof buf) {
++		n1 = machdata->instsize(text, pc+n);
++		if(n+n1 > sizeof buf)
++			break;
++		n2 = machdata->foll(text, pc+n, rgetzero, foll);
++		n += n1;
++		if(n2 != 1 || foll[0] != pc+n)
++			break;
++	}
++
++	// Record that this section of code ran.
++	ran(pc, pc+n);
++
++	// Put original instructions back.
++	if(get1(text, pc, buf, n) < 0)
++		sysfatal("get1: %r");
++	if(put1(mem, pc, buf, n) < 0)
++		sysfatal("put1: %r");
++}
++
++int
++startprocess(char **argv)
++{
++	int pid;
++
++	if((pid = fork()) < 0)
++		sysfatal("fork: %r");
++	if(pid == 0) {
++		pid = getpid();
++		if(ctlproc(pid, "hang") < 0)
++			sysfatal("ctlproc hang: %r");
++		execv(argv[0], argv);
++		sysfatal("exec %s: %r", argv[0]);
++	}
++	if(ctlproc(pid, "attached") < 0 || ctlproc(pid, "waitstop") < 0)
++		sysfatal("attach %d %s: %r", pid, argv[0]);
++	return pid;
++}
++
++int
++go(void)
++{
++	uvlong pc;
++	char buf[100];
++	int n;
++
++	for(n = 0;; n++) {
++		ctlproc(pid, "startstop");
++		if(get8(mem, offsetof(Ureg, ip), &pc) < 0) {
++			rerrstr(buf, sizeof buf);
++			if(strstr(buf, "exited") || strstr(buf, "No such process"))
++				return n;
++			sysfatal("cannot read pc: %r");
++		}
++		pc--;
++		if(put8(mem, offsetof(Ureg, ip), pc) < 0)
++			sysfatal("cannot write pc: %r");
++		uncover(pc);
++	}
++}
++
++void
++main(int argc, char **argv)
++{
++	int n;
++	char *regexp;
++
++	ARGBEGIN{
++	case 'g':
++		regexp = EARGF(usage());
++		if((grep = regcomp9(regexp)) == nil)
++			sysfatal("bad regexp %s", regexp);
++		break;
++	case 'l':
++		longnames++;
++		break;
++	case 'v':
++		chatty++;
++		break;
++	default:
++		usage();
++	}ARGEND
++
++	getwd(cwd, sizeof cwd);
++	ncwd = strlen(cwd);
++
++	if(argc < 1)
++		usage();
++	fd = open(argv[0], OREAD);
++	if(fd < 0)
++		sysfatal("open %s: %r", argv[0]);
++	if(crackhdr(fd, &fhdr) <= 0)
++		sysfatal("crackhdr: %r");
++	machbytype(fhdr.type);
++	if(syminit(fd, &fhdr) <= 0)
++		sysfatal("syminit: %r");
++	text = loadmap(nil, fd, &fhdr);
++	if(text == nil)
++		sysfatal("loadmap: %r");
++	pid = startprocess(argv);
++	mem = attachproc(pid, &fhdr);
++	if(mem == nil)
++		sysfatal("attachproc: %r");
++	breakpoints.cmp = rangecmp;
++	cover();
++	n = go();
++	walktree(breakpoints.root);
++	if(chatty)
++		print("%d breakpoints\n", n);
++	detachproc(mem);
++	exits(0);
++}
++
+diff --git a/src/cmd/cov/tree.c b/src/cmd/cov/tree.c
+new file mode 100644
+index 0000000000..116772e42f
+--- /dev/null
++++ b/src/cmd/cov/tree.c
+@@ -0,0 +1,246 @@
++// Renamed from Map to Tree to avoid conflict with libmach.
++
++/*
++Copyright (c) 2003-2007 Russ Cox, Tom Bergan, Austin Clements,
++                        Massachusetts Institute of Technology
++Portions Copyright (c) 2009 The Go Authors. All rights reserved.
++
++Permission is hereby granted, free of charge, to any person obtaining
++a copy of this software and associated documentation files (the
++"Software"), to deal in the Software without restriction, including
++without limitation the rights to use, copy, modify, merge, publish,
++distribute, sublicense, and/or sell copies of the Software, and to
++permit persons to whom the Software is furnished to do so, subject to
++the following conditions:
++
++The above copyright notice and this permission notice shall be
++included in all copies or substantial portions of the Software.
++
++THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
++EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
++MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
++NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
++LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
++OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
++WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
++*/
++
++// Mutable map structure, but still based on
++// Okasaki, Red Black Trees in a Functional Setting, JFP 1999,
++// which is a lot easier than the traditional red-black
++// and plenty fast enough for me.  (Also I could copy
++// and edit fmap.c.)
++
++#include <u.h>
++#include <libc.h>
++#include "tree.h"
++
++#define TreeNode TreeNode
++#define Tree Tree
++
++enum
++{
++	Red = 0,
++	Black = 1
++};
++
++
++// Red-black trees are binary trees with this property:
++//	1. No red node has a red parent.
++//	2. Every path from the root to a leaf contains the
++//		same number of black nodes.
++
++static TreeNode*
++rwTreeNode(TreeNode *p, int color, TreeNode *left, void *key, void *value, TreeNode *right)
++{
++	if(p == nil)
++		p = malloc(sizeof *p);
++	p->color = color;
++	p->left = left;
++	p->key = key;
++	p->value = value;
++	p->right = right;
++	return p;
++}
++
++static TreeNode*
++balance(TreeNode *m0)
++{
++	void *xk, *xv, *yk, *yv, *zk, *zv;
++	TreeNode *a, *b, *c, *d;
++	TreeNode *m1, *m2;
++	int color;
++	TreeNode *left, *right;
++	void *key, *value;
++
++	color = m0->color;
++	left = m0->left;
++	key = m0->key;
++	value = m0->value;
++	right = m0->right;
++
++	// Okasaki notation: (T is mkTreeNode, B is Black, R is Red, x, y, z are key-value.
++	//
++	// balance B (T R (T R a x b) y c) z d
++	// balance B (T R a x (T R b y c)) z d
++	// balance B a x (T R (T R b y c) z d)
++	// balance B a x (T R b y (T R c z d))
++	//
++	//     = T R (T B a x b) y (T B c z d)
++
++	if(color == Black){
++		if(left && left->color == Red){
++			if(left->left && left->left->color == Red){
++				a = left->left->left;
++				xk = left->left->key;
++				xv = left->left->value;
++				b = left->left->right;
++				yk = left->key;
++				yv = left->value;
++				c = left->right;
++				zk = key;
++				zv = value;
++				d = right;
++				m1 = left;
++				m2 = left->left;
++				goto hard;
++			}else if(left->right && left->right->color == Red){
++				a = left->left;
++				xk = left->key;
++				xv = left->value;
++				b = left->right->left;
++				yk = left->right->key;
++				yv = left->right->value;
++				c = left->right->right;
++				zk = key;
++				zv = value;
++				d = right;
++				m1 = left;
++				m2 = left->right;
++				goto hard;
++			}
++		}else if(right && right->color == Red){
++			if(right->left && right->left->color == Red){
++				a = left;
++				xk = key;
++				xv = value;
++				b = right->left->left;
++				yk = right->left->key;
++				yv = right->left->value;
++				c = right->left->right;
++				zk = right->key;
++				zv = right->value;
++				d = right->right;
++				m1 = right;
++				m2 = right->left;
++				goto hard;
++			}else if(right->right && right->right->color == Red){
++				a = left;
++				xk = key;
++				xv = value;
++				b = right->left;
++				yk = right->key;
++				yv = right->value;
++				c = right->right->left;
++				zk = right->right->key;
++				zv = right->right->value;
++				d = right->right->right;
++				m1 = right;
++				m2 = right->right;
++				goto hard;
++			}
++		}
++	}
++	return rwTreeNode(m0, color, left, key, value, right);
++
++hard:
++	return rwTreeNode(m0, Red, rwTreeNode(m1, Black, a, xk, xv, b),
++		yk, yv, rwTreeNode(m2, Black, c, zk, zv, d));
++}
++
++static TreeNode*
++ins0(TreeNode *p, void *k, void *v, TreeNode *rw)
++{
++	if(p == nil)
++		return rwTreeNode(rw, Red, nil, k, v, nil);
++	if(p->key == k){
++		if(rw)
++			return rwTreeNode(rw, p->color, p->left, k, v, p->right);
++		p->value = v;
++		return p;
++	}
++	if(p->key < k)
++		p->left = ins0(p->left, k, v, rw);
++	else
++		p->right = ins0(p->right, k, v, rw);
++	return balance(p);
++}
++
++static TreeNode*
++ins1(Tree *m, TreeNode *p, void *k, void *v, TreeNode *rw)
++{
++	int i;
++
++	if(p == nil)
++		return rwTreeNode(rw, Red, nil, k, v, nil);
++	i = m->cmp(p->key, k);
++	if(i == 0){
++		if(rw)
++			return rwTreeNode(rw, p->color, p->left, k, v, p->right);
++		p->value = v;
++		return p;
++	}
++	if(i < 0)
++		p->left = ins1(m, p->left, k, v, rw);
++	else
++		p->right = ins1(m, p->right, k, v, rw);
++	return balance(p);
++}
++
++void
++treeputelem(Tree *m, void *key, void *val, TreeNode *rw)
++{
++	if(m->cmp)
++		m->root = ins1(m, m->root, key, val, rw);
++	else
++		m->root = ins0(m->root, key, val, rw);
++}
++
++void
++treeput(Tree *m, void *key, void *val)
++{
++	treeputelem(m, key, val, nil);
++}
++
++void*
++treeget(Tree *m, void *key)
++{
++	int i;
++	TreeNode *p;
++
++	p = m->root;
++	if(m->cmp){
++		for(;;){
++			if(p == nil)
++				return nil;
++			i = m->cmp(p->key, key);
++			if(i < 0)
++				p = p->left;
++			else if(i > 0)
++				p = p->right;
++			else
++				return p->value;
++		}
++	}else{
++		for(;;){
++			if(p == nil)
++				return nil;
++			if(p->key == key)
++				return p->value;
++			if(p->key < key)
++				p = p->left;
++			else
++				p = p->right;
++		}
++	}
++}
+diff --git a/src/cmd/cov/tree.h b/src/cmd/cov/tree.h
+new file mode 100644
+index 0000000000..a716d83ada
+--- /dev/null
++++ b/src/cmd/cov/tree.h
+@@ -0,0 +1,47 @@
++// Renamed from Map to Tree to avoid conflict with libmach.
++
++/*
++Copyright (c) 2003-2007 Russ Cox, Tom Bergan, Austin Clements,
++                        Massachusetts Institute of Technology
++Portions Copyright (c) 2009 The Go Authors. All rights reserved.
++
++Permission is hereby granted, free of charge, to any person obtaining
++a copy of this software and associated documentation files (the
++"Software"), to deal in the Software without restriction, including
++without limitation the rights to use, copy, modify, merge, publish,
++distribute, sublicense, and/or sell copies of the Software, and to
++permit persons to whom the Software is furnished to do so, subject to
++the following conditions:
++
++The above copyright notice and this permission notice shall be
++included in all copies or substantial portions of the Software.
++
++THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
++EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
++MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
++NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
++LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
++OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
++WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
++*/
++
++typedef struct Tree Tree;
++typedef struct TreeNode TreeNode;
++struct Tree
++{
++        int (*cmp)(void*, void*);
++        TreeNode *root;
++};
++
++struct TreeNode
++{
++        int color;
++        TreeNode *left;
++        void *key;
++        void *value;
++        TreeNode *right;
++};
++
++void *treeget(Tree*, void*);
++void treeput(Tree*, void*, void*);
++void treeputelem(Tree*, void*, void*, TreeNode*);
+diff --git a/src/cmd/prof/Makefile b/src/cmd/prof/Makefile
+index 99d292eb42..b6d9090a89 100644
+--- a/src/cmd/prof/Makefile
++++ b/src/cmd/prof/Makefile
+@@ -4,7 +4,7 @@
+ 
+ include ../../Make.conf
+ 
+-# The directory is db because the source is portable and general.
++# The directory is prof because the source is portable and general.
+ # We call the binary 6prof to avoid confusion and because this binary
+ # is linked only with amd64 and x86 support.
+ 
+diff --git a/src/libmach_amd64/darwin.c b/src/libmach_amd64/darwin.c
+index e9e9bddc70..4b3602818b 100644
+--- a/src/libmach_amd64/darwin.c
++++ b/src/libmach_amd64/darwin.c
+@@ -31,6 +31,7 @@
+ #include <mach_amd64.h>
+ #include <ureg_amd64.h>
+ typedef struct Ureg Ureg;
++#undef waitpid	/* want Unix waitpid, not Plan 9 */
+ 
+ extern mach_port_t mach_reply_port(void);	// should be in system headers, is not
+ 
+@@ -185,6 +186,7 @@ static int nthr;
+ static pthread_mutex_t mu;
+ static pthread_cond_t cond;
+ static void* excthread(void*);
++static void* waitthread(void*);
+ static mach_port_t excport;
+ 
+ enum {
+@@ -215,9 +217,10 @@ addpid(int pid, int force)
+ 		pthread_t p;
+ 
+ 		excport = mach_reply_port();
+-		pthread_create(&p, nil, excthread, nil);
+ 		pthread_mutex_init(&mu, nil);
+ 		pthread_cond_init(&cond, nil);
++		pthread_create(&p, nil, excthread, nil);
++		pthread_create(&p, nil, waitthread, (void*)(uintptr)pid);
+ 		first = 0;
+ 	}
+ 
+@@ -483,6 +486,7 @@ machregrw(Map *map, Seg *seg, uvlong addr, void *v, uint n, int isr)
+ 	uint nn;
+ 	mach_port_t thread;
+ 	int reg;
++	char buf[100];
+ 	union {
+ 		x86_thread_state64_t regs;
+ 		uchar p[1];
+@@ -517,7 +521,11 @@ machregrw(Map *map, Seg *seg, uvlong addr, void *v, uint n, int isr)
+ 	if(me(thread_get_state(thread, x86_THREAD_STATE64, (thread_state_t)&u.regs, &nn)) < 0){
+ 		if(!isr)
+ 			thread_resume(thread);
+-		werrstr("thread_get_state: %r");
++		rerrstr(buf, sizeof buf);
++		if(strcmp(buf, "send invalid dest") == 0)
++			werrstr("process exited");
++		else
++			werrstr("thread_get_state: %r");
+ 		return -1;
+ 	}
+ 
+@@ -636,14 +644,15 @@ havet:
+ 		ncode = nelem(t->code);
+ 	memmove(t->code, code, ncode*sizeof t->code[0]);
+ 
++	// Suspend thread, so that we can look at it & restart it later.
++	if(me(thread_suspend(thread)) < 0)
++		fprint(2, "catch_exception_raise thread_suspend: %r\n");
++
+ 	// Synchronize with waitstop below.
+ 	pthread_mutex_lock(&mu);
+ 	pthread_cond_broadcast(&cond);
+ 	pthread_mutex_unlock(&mu);
+ 
+-	// Suspend thread, so that we can look at it & restart it later.
+-	if(me(thread_suspend(thread)) < 0)
+-		fprint(2, "catch_exception_raise thread_suspend: %r\n");
+ 	return KERN_SUCCESS;
+ }
+ 
+@@ -656,12 +665,29 @@ excthread(void *v)
+ 	return 0;
+ }
+ 
++// Wait for pid to exit.
++static int exited;
++static void*
++waitthread(void *v)
++{
++	int pid, status;
++
++	pid = (int)(uintptr)v;
++	waitpid(pid, &status, 0);
++	exited = 1;
++	// Synchronize with waitstop below.
++	pthread_mutex_lock(&mu);
++	pthread_cond_broadcast(&cond);
++	pthread_mutex_unlock(&mu);
++	return nil;
++}
++
+ // Wait for thread t to stop.
+ static int
+ waitstop(Thread *t)
+ {
+ 	pthread_mutex_lock(&mu);
+-	while(!threadstopped(t))
++	while(!exited && !threadstopped(t))
+ 		pthread_cond_wait(&cond, &mu);
+ 	pthread_mutex_unlock(&mu);
+ 	return 0;
+diff --git a/src/libmach_amd64/sym.c b/src/libmach_amd64/sym.c
+index b5e0ac6d87..aedd2afde1 100644
+--- a/src/libmach_amd64/sym.c
++++ b/src/libmach_amd64/sym.c
+@@ -672,7 +672,7 @@ textsym(Symbol *s, int index)
+ 	return 1;
+ }
+ 
+-/*	
++/*
+  *	Get ith file name
+  */
+ int
+@@ -894,7 +894,7 @@ file2pc(char *file, int32 line)
+ 	if(name == 0) {			/* encode the file name */
+ 		werrstr("file %s not found", file);
+ 		return ~0;
+-	} 
++	}
+ 		/* find this history stack */
+ 	for(i = 0, fp = files; i < nfiles; i++, fp++)
+ 		if (hline(fp, name, &line))
+@@ -1019,7 +1019,7 @@ hline(File *fp, short *name, int32 *line)
+ 			else if(depth++ == 1)		/* push	*/
+ 				offset -= hp->line;
+ 		} else if(--depth == 1)		/* pop */
+-			offset += hp->line;	
++			offset += hp->line;
+ 	}
+ 	*line = ln+offset;
+ 	return 1;
+@@ -1163,6 +1163,8 @@ fileelem(Sym **fp, uchar *cp, char *buf, int n)
+ 	bp = buf;
+ 	end = buf+n-1;
+ 	for(i = 1; j = (cp[i]<<8)|cp[i+1]; i+=2){
++		if(j >= fmaxi)	// TODO(rsc): should not happen, but does!
++			break;
+ 		c = fp[j]->name;
+ 		if(bp != buf && bp[-1] != '/' && bp < end)
+ 			*bp++ = '/';
+@@ -1277,7 +1279,7 @@ pc2sp(uvlong pc)
+ 			currsp += 4*u;
+ 		else if (u < 129)
+ 			currsp -= 4*(u-64);
+-		else 
++		else
+ 			currpc += mach->pcquant*(u-129);
+ 		currpc += mach->pcquant;
+ 	}
+@@ -1316,7 +1318,7 @@ pc2line(uvlong pc)
+ 			currline += u;
+ 		else if(u < 129)
+ 			currline -= (u-64);
+-		else 
++		else
+ 			currpc += mach->pcquant*(u-129);
+ 		currpc += mach->pcquant;
+ 	}
+@@ -1371,7 +1373,7 @@ line2addr(int32 line, uvlong basepc, uvlong endpc)
+ 			currline += u;
+ 		else if(u < 129)
+ 			currline -= (u-64);
+-		else 
++		else
+ 			currpc += mach->pcquant*(u-129);
+ 		currpc += mach->pcquant;
+ 	}

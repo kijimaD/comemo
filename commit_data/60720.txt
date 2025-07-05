@@ -16,6 +16,24 @@ Date:   Tue Aug 20 10:07:05 2024 -0400
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/testing/testing_test.go | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/testing/testing_test.go b/src/testing/testing_test.go
+index ff674fc3d1..1dd2039399 100644
+--- a/src/testing/testing_test.go
++++ b/src/testing/testing_test.go
+@@ -293,7 +293,11 @@ func TestChdir(t *testing.T) {
+ 	}
+ 	defer os.Chdir(oldDir)
+ 
+-	tmp := t.TempDir()
++	// The "relative" test case relies on tmp not being a symlink.
++	tmp, err := filepath.EvalSymlinks(t.TempDir())
++	if err != nil {
++		t.Fatal(err)
++	}
+ 	rel, err := filepath.Rel(oldDir, tmp)
+ 	if err != nil {
+ 		t.Fatal(err)

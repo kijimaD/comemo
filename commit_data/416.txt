@@ -7,6 +7,34 @@ Date:   Thu Jul 24 13:30:49 2008 -0700
     R=r
     OCL=13430
     CL=13430
-
+---
  test/bugs/bug076.go | 21 +++++++++++++++++++++
  1 file changed, 21 insertions(+)
+
+diff --git a/test/bugs/bug076.go b/test/bugs/bug076.go
+new file mode 100644
+index 0000000000..0828662c32
+--- /dev/null
++++ b/test/bugs/bug076.go
+@@ -0,0 +1,21 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func f() {
++exit:
++}
++
++
++func main() {
++exit:  // this should be legal (labels not properly scoped?)
++}
++
++/*
++uetli:~/Source/go/test/bugs gri$ 6g bug076.go 
++bug076.go:11: label redeclared: exit
++*/

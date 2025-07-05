@@ -14,6 +14,63 @@ Date:   Fri Dec 9 00:13:43 2016 -0500
     Run-TryBot: Minux Ma <minux@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/internal/obj/mips/obj0.go | 38 ++++++++++++++++++++++++++++++++++++++
  1 file changed, 38 insertions(+)
+
+diff --git a/src/cmd/internal/obj/mips/obj0.go b/src/cmd/internal/obj/mips/obj0.go
+index 221fd428a3..12cfb31377 100644
+--- a/src/cmd/internal/obj/mips/obj0.go
++++ b/src/cmd/internal/obj/mips/obj0.go
+@@ -32,6 +32,7 @@ package mips
+ import (
+ 	"cmd/internal/obj"
+ 	"cmd/internal/sys"
++	"encoding/binary"
+ 	"fmt"
+ 	"math"
+ )
+@@ -533,6 +534,43 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 		}
+ 	}
+ 
++	if ctxt.Mode&Mips32 != 0 {
++		// rewrite MOVD into two MOVF in 32-bit mode to avoid unaligned memory access
++		for p = cursym.Text; p != nil; p = p1 {
++			p1 = p.Link
++
++			if p.As != AMOVD {
++				continue
++			}
++			if p.From.Type != obj.TYPE_MEM && p.To.Type != obj.TYPE_MEM {
++				continue
++			}
++
++			p.As = AMOVF
++			q = ctxt.NewProg()
++			*q = *p
++			q.Link = p.Link
++			p.Link = q
++			p1 = q.Link
++
++			var regOff int16
++			if ctxt.Arch.ByteOrder == binary.BigEndian {
++				regOff = 1 // load odd register first
++			}
++			if p.From.Type == obj.TYPE_MEM {
++				reg := REG_F0 + (p.To.Reg-REG_F0)&^1
++				p.To.Reg = reg + regOff
++				q.To.Reg = reg + 1 - regOff
++				q.From.Offset += 4
++			} else if p.To.Type == obj.TYPE_MEM {
++				reg := REG_F0 + (p.From.Reg-REG_F0)&^1
++				p.From.Reg = reg + regOff
++				q.From.Reg = reg + 1 - regOff
++				q.To.Offset += 4
++			}
++		}
++	}
++
+ 	if nosched {
+ 		// if we don't do instruction scheduling, simply add
+ 		// NOP after each branch instruction.

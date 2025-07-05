@@ -9,6 +9,20 @@ Date:   Mon Aug 30 08:03:06 2010 +1000
     R=golang-dev, adg1
     CC=golang-dev
     https://golang.org/cl/2033043
-
+---
  src/pkg/rpc/server.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/rpc/server.go b/src/pkg/rpc/server.go
+index d14f6ded2c..91b88e23de 100644
+--- a/src/pkg/rpc/server.go
++++ b/src/pkg/rpc/server.go
+@@ -211,7 +211,7 @@ func (server *serverType) register(rcvr interface{}) os.Error {
+ 		method := s.typ.Method(m)
+ 		mtype := method.Type
+ 		mname := method.Name
+-		if mtype.PkgPath() != "" && !isPublic(mname) {
++		if mtype.PkgPath() != "" || !isPublic(mname) {
+ 			continue
+ 		}
+ 		// Method needs three ins: receiver, *args, *reply.

@@ -22,8 +22,396 @@ Date:   Thu Dec 22 13:04:04 2016 -0800
     Change-Id: I790dad826757233fa71396a210f966c6256b75d3
     Reviewed-on: https://go-review.googlesource.com/35100
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/cmd/compile/internal/gc/bexport.go | 52 +++++++++++++++++++++-------
  src/cmd/compile/internal/gc/bimport.go | 61 +++++++++++++++++++++++----------
  src/go/internal/gcimporter/bimport.go  | 62 ++++++++++++++++++----------------
  3 files changed, 114 insertions(+), 61 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index ffc5419708..b7529163b9 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -140,11 +140,12 @@ const debugFormat = false // default: false
+ const forceObjFileStability = true
+ 
+ // Current export format version. Increase with each format change.
+-// 3: added aliasTag and export of aliases
+-// 2: removed unused bool in ODCL export
++// 4: type name objects support type aliases, uses aliasTag
++// 3: Go1.8 encoding (same as version 2, aliasTag defined but never used)
++// 2: removed unused bool in ODCL export (compiler only)
+ // 1: header format change (more regular), export package for _ struct fields
+ // 0: Go1.7 encoding
+-const exportVersion = 3
++const exportVersion = 4
+ 
+ // exportInlined enables the export of inlined function bodies and related
+ // dependencies. The compiler should work w/o any loss of functionality with
+@@ -509,7 +510,14 @@ func (p *exporter) obj(sym *Sym) {
+ 			Fatalf("exporter: export of incomplete type %v", sym)
+ 		}
+ 
+-		p.tag(typeTag)
++		const alias = false // TODO(gri) fix this
++		if alias {
++			p.tag(aliasTag)
++			p.pos(n)
++			p.qualifiedName(sym)
++		} else {
++			p.tag(typeTag)
++		}
+ 		p.typ(t)
+ 
+ 	case ONAME:
+@@ -868,19 +876,29 @@ func (p *exporter) methodList(t *Type) {
+ 
+ func (p *exporter) method(m *Field) {
+ 	p.pos(m.Nname)
+-	p.fieldName(m)
++	p.methodName(m.Sym)
+ 	p.paramList(m.Type.Params(), false)
+ 	p.paramList(m.Type.Results(), false)
+ }
+ 
+-// fieldName is like qualifiedName but it doesn't record the package for exported names.
+ func (p *exporter) fieldName(t *Field) {
+ 	name := t.Sym.Name
+ 	if t.Embedded != 0 {
+-		name = "" // anonymous field
+-		if bname := basetypeName(t.Type); bname != "" && !exportname(bname) {
+-			// anonymous field with unexported base type name
+-			name = "?" // unexported name to force export of package
++		// anonymous field - we distinguish between 3 cases:
++		// 1) field name matches base type name and name is exported
++		// 2) field name matches base type name and name is not exported
++		// 3) field name doesn't match base type name (type name is alias)
++		bname := basetypeName(t.Type)
++		if name == bname {
++			if exportname(name) {
++				name = "" // 1) we don't need to know the name
++			} else {
++				name = "?" // 2) use unexported name to force package export
++			}
++		} else {
++			// 3) indicate alias and export name as is
++			// (this requires an extra "@" but this is a rare case)
++			p.string("@")
+ 		}
+ 	}
+ 	p.string(name)
+@@ -889,6 +907,14 @@ func (p *exporter) fieldName(t *Field) {
+ 	}
+ }
+ 
++// methodName is like qualifiedName but it doesn't record the package for exported names.
++func (p *exporter) methodName(sym *Sym) {
++	p.string(sym.Name)
++	if !exportname(sym.Name) {
++		p.pkg(sym.Pkg)
++	}
++}
++
+ func basetypeName(t *Type) string {
+ 	s := t.Sym
+ 	if s == nil && t.IsPtr() {
+@@ -1797,7 +1823,7 @@ const (
+ 	nilTag
+ 	unknownTag // not used by gc (only appears in packages with errors)
+ 
+-	// Aliases
++	// Type aliases
+ 	aliasTag
+ )
+ 
+@@ -1835,7 +1861,7 @@ var tagString = [...]string{
+ 	-nilTag:      "nil",
+ 	-unknownTag:  "unknown",
+ 
+-	// Aliases
++	// Type aliases
+ 	-aliasTag: "alias",
+ }
+ 
+@@ -1889,7 +1915,7 @@ func predeclared() []*Type {
+ 			Types[TCOMPLEX128],
+ 			Types[TSTRING],
+ 
+-			// aliases
++			// basic type aliases
+ 			bytetype,
+ 			runetype,
+ 
+diff --git a/src/cmd/compile/internal/gc/bimport.go b/src/cmd/compile/internal/gc/bimport.go
+index 1d668412a1..853c4bd2a4 100644
+--- a/src/cmd/compile/internal/gc/bimport.go
++++ b/src/cmd/compile/internal/gc/bimport.go
+@@ -86,10 +86,10 @@ func Import(in *bufio.Reader) {
+ 
+ 	// read version specific flags - extend as necessary
+ 	switch p.version {
+-	// case 4:
++	// case 5:
+ 	// 	...
+ 	//	fallthrough
+-	case 3, 2, 1:
++	case 4, 3, 2, 1:
+ 		p.debugFormat = p.rawStringln(p.rawByte()) == "debug"
+ 		p.trackAllTypes = p.bool()
+ 		p.posInfoFormat = p.bool()
+@@ -315,6 +315,12 @@ func (p *importer) obj(tag int) {
+ 		val := p.value(typ)
+ 		importconst(sym, idealType(typ), nodlit(val))
+ 
++	case aliasTag:
++		// TODO(gri) hook up type alias
++		p.pos()
++		p.qualifiedName()
++		p.typ()
++
+ 	case typeTag:
+ 		p.typ()
+ 
+@@ -354,17 +360,6 @@ func (p *importer) obj(tag int) {
+ 			}
+ 		}
+ 
+-	case aliasTag:
+-		p.pos()
+-		alias := importpkg.Lookup(p.string())
+-		orig := p.qualifiedName()
+-
+-		// Although the protocol allows the alias to precede the original,
+-		// this never happens in files produced by gc.
+-		alias.Flags |= SymAlias
+-		alias.Def = orig.Def
+-		importsym(alias, orig.Def.Op)
+-
+ 	default:
+ 		formatErrorf("unexpected object (tag = %d)", tag)
+ 	}
+@@ -594,6 +589,8 @@ func (p *importer) field() *Field {
+ 		}
+ 		sym = sym.Pkg.Lookup(s.Name)
+ 		f.Embedded = 1
++	} else if sym.Flags&SymAlias != 0 {
++		f.Embedded = 1
+ 	}
+ 
+ 	f.Sym = sym
+@@ -616,7 +613,7 @@ func (p *importer) methodList() (methods []*Field) {
+ 
+ func (p *importer) method() *Field {
+ 	p.pos()
+-	sym := p.fieldName()
++	sym := p.methodName()
+ 	params := p.paramList()
+ 	result := p.paramList()
+ 
+@@ -630,15 +627,43 @@ func (p *importer) method() *Field {
+ func (p *importer) fieldName() *Sym {
+ 	name := p.string()
+ 	if p.version == 0 && name == "_" {
+-		// version 0 didn't export a package for _ fields
++		// version 0 didn't export a package for _ field names
+ 		// but used the builtin package instead
+ 		return builtinpkg.Lookup(name)
+ 	}
+ 	pkg := localpkg
+-	if name != "" && !exportname(name) {
+-		if name == "?" {
+-			name = ""
++	var flag SymFlags
++	switch name {
++	case "":
++		// field name is exported - nothing to do
++	case "?":
++		// field name is not exported - need package
++		name = ""
++		pkg = p.pkg()
++	case "@":
++		// field name doesn't match type name (alias)
++		name = p.string()
++		flag = SymAlias
++		fallthrough
++	default:
++		if !exportname(name) {
++			pkg = p.pkg()
+ 		}
++	}
++	sym := pkg.Lookup(name)
++	sym.Flags |= flag
++	return sym
++}
++
++func (p *importer) methodName() *Sym {
++	name := p.string()
++	if p.version == 0 && name == "_" {
++		// version 0 didn't export a package for _ method names
++		// but used the builtin package instead
++		return builtinpkg.Lookup(name)
++	}
++	pkg := localpkg
++	if !exportname(name) {
+ 		pkg = p.pkg()
+ 	}
+ 	return pkg.Lookup(name)
+diff --git a/src/go/internal/gcimporter/bimport.go b/src/go/internal/gcimporter/bimport.go
+index a8f349052a..55019df39d 100644
+--- a/src/go/internal/gcimporter/bimport.go
++++ b/src/go/internal/gcimporter/bimport.go
+@@ -98,10 +98,10 @@ func BImportData(fset *token.FileSet, imports map[string]*types.Package, data []
+ 
+ 	// read version specific flags - extend as necessary
+ 	switch p.version {
+-	// case 4:
++	// case 5:
+ 	// 	...
+ 	//	fallthrough
+-	case 3, 2, 1:
++	case 4, 3, 2, 1:
+ 		p.debugFormat = p.rawStringln(p.rawByte()) == "debug"
+ 		p.trackAllTypes = p.int() != 0
+ 		p.posInfoFormat = p.int() != 0
+@@ -208,7 +208,6 @@ func (p *importer) pkg() *types.Package {
+ }
+ 
+ // objTag returns the tag value for each object kind.
+-// obj must not be a *types.Alias.
+ func objTag(obj types.Object) int {
+ 	switch obj.(type) {
+ 	case *types.Const:
+@@ -219,7 +218,6 @@ func objTag(obj types.Object) int {
+ 		return varTag
+ 	case *types.Func:
+ 		return funcTag
+-	// Aliases are not exported multiple times, thus we should not see them here.
+ 	default:
+ 		errorf("unexpected object: %v (%T)", obj, obj) // panics
+ 		panic("unreachable")
+@@ -237,14 +235,14 @@ func (p *importer) declare(obj types.Object) {
+ 	pkg := obj.Pkg()
+ 	if alt := pkg.Scope().Insert(obj); alt != nil {
+ 		// This can only trigger if we import a (non-type) object a second time.
+-		// Excluding aliases, this cannot happen because 1) we only import a package
++		// Excluding type aliases, this cannot happen because 1) we only import a package
+ 		// once; and b) we ignore compiler-specific export data which may contain
+ 		// functions whose inlined function bodies refer to other functions that
+ 		// were already imported.
+-		// However, aliases require reexporting the original object, so we need
++		// However, type aliases require reexporting the original type, so we need
+ 		// to allow it (see also the comment in cmd/compile/internal/gc/bimport.go,
+ 		// method importer.obj, switch case importing functions).
+-		// Note that the original itself cannot be an alias.
++		// TODO(gri) review/update this comment once the gc compiler handles type aliases.
+ 		if !sameObj(obj, alt) {
+ 			errorf("inconsistent import:\n\t%v\npreviously imported as:\n\t%v\n", obj, alt)
+ 		}
+@@ -260,6 +258,13 @@ func (p *importer) obj(tag int) {
+ 		val := p.value()
+ 		p.declare(types.NewConst(pos, pkg, name, typ, val))
+ 
++	case aliasTag:
++		// TODO(gri) verify type alias hookup is correct
++		pos := p.pos()
++		pkg, name := p.qualifiedName()
++		typ := p.typ(nil)
++		p.declare(types.NewTypeName(pos, pkg, name, typ))
++
+ 	case typeTag:
+ 		p.typ(nil)
+ 
+@@ -277,19 +282,6 @@ func (p *importer) obj(tag int) {
+ 		sig := types.NewSignature(nil, params, result, isddd)
+ 		p.declare(types.NewFunc(pos, pkg, name, sig))
+ 
+-	case aliasTag:
+-		pos := p.pos()
+-		name := p.string()
+-		var orig types.Object
+-		if pkg, name := p.qualifiedName(); pkg != nil {
+-			orig = pkg.Scope().Lookup(name)
+-		}
+-		// Alias-related code. Keep for now.
+-		_ = pos
+-		_ = name
+-		_ = orig
+-		// p.declare(types.NewAlias(pos, p.pkgList[0], name, orig))
+-
+ 	default:
+ 		errorf("unexpected object tag %d", tag)
+ 	}
+@@ -556,17 +548,17 @@ func (p *importer) fieldList(parent *types.Package) (fields []*types.Var, tags [
+ 		fields = make([]*types.Var, n)
+ 		tags = make([]string, n)
+ 		for i := range fields {
+-			fields[i] = p.field(parent)
+-			tags[i] = p.string()
++			fields[i], tags[i] = p.field(parent)
+ 		}
+ 	}
+ 	return
+ }
+ 
+-func (p *importer) field(parent *types.Package) *types.Var {
++func (p *importer) field(parent *types.Package) (*types.Var, string) {
+ 	pos := p.pos()
+ 	pkg, name := p.fieldName(parent)
+ 	typ := p.typ(parent)
++	tag := p.string()
+ 
+ 	anonymous := false
+ 	if name == "" {
+@@ -583,7 +575,7 @@ func (p *importer) field(parent *types.Package) *types.Var {
+ 		anonymous = true
+ 	}
+ 
+-	return types.NewField(pos, pkg, name, typ, anonymous)
++	return types.NewField(pos, pkg, name, typ, anonymous), tag
+ }
+ 
+ func (p *importer) methodList(parent *types.Package) (methods []*types.Func) {
+@@ -616,11 +608,21 @@ func (p *importer) fieldName(parent *types.Package) (*types.Package, string) {
+ 		// version 0 didn't export a package for _ fields
+ 		return pkg, name
+ 	}
+-	if name != "" && !exported(name) {
+-		if name == "?" {
+-			name = ""
+-		}
++	switch name {
++	case "":
++		// field name is exported - nothing to do
++	case "?":
++		// field name is not exported - need package
++		name = ""
+ 		pkg = p.pkg()
++	case "@":
++		// field name doesn't match type name (alias)
++		name = p.string()
++		fallthrough
++	default:
++		if !exported(name) {
++			pkg = p.pkg()
++		}
+ 	}
+ 	return pkg, name
+ }
+@@ -893,7 +895,7 @@ const (
+ 	nilTag     // only used by gc (appears in exported inlined function bodies)
+ 	unknownTag // not used by gc (only appears in packages with errors)
+ 
+-	// Aliases
++	// Type aliases
+ 	aliasTag
+ )
+ 
+@@ -917,7 +919,7 @@ var predeclared = []types.Type{
+ 	types.Typ[types.Complex128],
+ 	types.Typ[types.String],
+ 
+-	// aliases
++	// basic type aliases
+ 	types.Universe.Lookup("byte").Type(),
+ 	types.Universe.Lookup("rune").Type(),
+ 

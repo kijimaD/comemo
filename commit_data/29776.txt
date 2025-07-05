@@ -12,9 +12,130 @@ Date:   Sat Oct 8 07:24:45 2016 +0900
     Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/vendor/golang_org/x/net/lif/address.go            | 4 ++--
  src/vendor/golang_org/x/net/lif/defs_solaris.go       | 8 ++++----
  src/vendor/golang_org/x/net/lif/link.go               | 6 +++---
  src/vendor/golang_org/x/net/lif/zsys_solaris_amd64.go | 8 ++++----
  4 files changed, 13 insertions(+), 13 deletions(-)
+
+diff --git a/src/vendor/golang_org/x/net/lif/address.go b/src/vendor/golang_org/x/net/lif/address.go
+index 3b9a133919..f9b34aed03 100644
+--- a/src/vendor/golang_org/x/net/lif/address.go
++++ b/src/vendor/golang_org/x/net/lif/address.go
+@@ -56,7 +56,7 @@ func Addrs(af int, name string) ([]Addr, error) {
+ 	}
+ 	var as []Addr
+ 	for _, ll := range lls {
+-		var lifr sysLifreq
++		var lifr lifreq
+ 		for i := 0; i < len(ll.Name); i++ {
+ 			lifr.Name[i] = int8(ll.Name[i])
+ 		}
+@@ -66,7 +66,7 @@ func Addrs(af int, name string) ([]Addr, error) {
+ 			if err != nil {
+ 				continue
+ 			}
+-			sa := (*sysSockaddrStorage)(unsafe.Pointer(&lifr.Lifru[0]))
++			sa := (*sockaddrStorage)(unsafe.Pointer(&lifr.Lifru[0]))
+ 			l := int(littleEndian.Uint32(lifr.Lifru1[:4]))
+ 			if l == 0 {
+ 				continue
+diff --git a/src/vendor/golang_org/x/net/lif/defs_solaris.go b/src/vendor/golang_org/x/net/lif/defs_solaris.go
+index 79e3ed0f4f..8b84ba5e33 100644
+--- a/src/vendor/golang_org/x/net/lif/defs_solaris.go
++++ b/src/vendor/golang_org/x/net/lif/defs_solaris.go
+@@ -26,7 +26,7 @@ const (
+ 	sysSOCK_DGRAM = C.SOCK_DGRAM
+ )
+ 
+-type sysSockaddrStorage C.struct_sockaddr_storage
++type sockaddrStorage C.struct_sockaddr_storage
+ 
+ const (
+ 	sysLIFC_NOXMIT          = C.LIFC_NOXMIT
+@@ -77,11 +77,11 @@ const (
+ 
+ type sysLifnum C.struct_lifnum
+ 
+-type sysLifreq C.struct_lifreq
++type lifreq C.struct_lifreq
+ 
+-type sysLifconf C.struct_lifconf
++type lifconf C.struct_lifconf
+ 
+-type sysLifIfinfoReq C.struct_lif_ifinfo_req
++type lifIfinfoReq C.struct_lif_ifinfo_req
+ 
+ const (
+ 	sysIFT_IPV4 = C.IFT_IPV4
+diff --git a/src/vendor/golang_org/x/net/lif/link.go b/src/vendor/golang_org/x/net/lif/link.go
+index 09bf682b5e..76fa6c6875 100644
+--- a/src/vendor/golang_org/x/net/lif/link.go
++++ b/src/vendor/golang_org/x/net/lif/link.go
+@@ -25,7 +25,7 @@ type Link struct {
+ }
+ 
+ func (ll *Link) fetch(s uintptr) {
+-	var lifr sysLifreq
++	var lifr lifreq
+ 	for i := 0; i < len(ll.Name); i++ {
+ 		lifr.Name[i] = int8(ll.Name[i])
+ 	}
+@@ -71,7 +71,7 @@ func Links(af int, name string) ([]Link, error) {
+ func links(eps []endpoint, name string) ([]Link, error) {
+ 	var lls []Link
+ 	lifn := sysLifnum{Flags: sysLIFC_NOXMIT | sysLIFC_TEMPORARY | sysLIFC_ALLZONES | sysLIFC_UNDER_IPMP}
+-	lifc := sysLifconf{Flags: sysLIFC_NOXMIT | sysLIFC_TEMPORARY | sysLIFC_ALLZONES | sysLIFC_UNDER_IPMP}
++	lifc := lifconf{Flags: sysLIFC_NOXMIT | sysLIFC_TEMPORARY | sysLIFC_ALLZONES | sysLIFC_UNDER_IPMP}
+ 	for _, ep := range eps {
+ 		lifn.Family = uint16(ep.af)
+ 		ioc := int64(sysSIOCGLIFNUM)
+@@ -91,7 +91,7 @@ func links(eps []endpoint, name string) ([]Link, error) {
+ 		}
+ 		nb := make([]byte, 32) // see LIFNAMSIZ in net/if.h
+ 		for i := 0; i < int(lifn.Count); i++ {
+-			lifr := (*sysLifreq)(unsafe.Pointer(&b[i*sizeofLifreq]))
++			lifr := (*lifreq)(unsafe.Pointer(&b[i*sizeofLifreq]))
+ 			for i := 0; i < 32; i++ {
+ 				if lifr.Name[i] == 0 {
+ 					nb = nb[:i]
+diff --git a/src/vendor/golang_org/x/net/lif/zsys_solaris_amd64.go b/src/vendor/golang_org/x/net/lif/zsys_solaris_amd64.go
+index d5b044481e..94231c49c9 100644
+--- a/src/vendor/golang_org/x/net/lif/zsys_solaris_amd64.go
++++ b/src/vendor/golang_org/x/net/lif/zsys_solaris_amd64.go
+@@ -11,7 +11,7 @@ const (
+ 	sysSOCK_DGRAM = 0x1
+ )
+ 
+-type sysSockaddrStorage struct {
++type sockaddrStorage struct {
+ 	Family     uint16
+ 	X_ss_pad1  [6]int8
+ 	X_ss_align float64
+@@ -72,14 +72,14 @@ type sysLifnum struct {
+ 	Count     int32
+ }
+ 
+-type sysLifreq struct {
++type lifreq struct {
+ 	Name   [32]int8
+ 	Lifru1 [4]byte
+ 	Type   uint32
+ 	Lifru  [336]byte
+ }
+ 
+-type sysLifconf struct {
++type lifconf struct {
+ 	Family    uint16
+ 	Pad_cgo_0 [2]byte
+ 	Flags     int32
+@@ -88,7 +88,7 @@ type sysLifconf struct {
+ 	Lifcu     [8]byte
+ }
+ 
+-type sysLifIfinfoReq struct {
++type lifIfinfoReq struct {
+ 	Maxhops      uint8
+ 	Pad_cgo_0    [3]byte
+ 	Reachtime    uint32

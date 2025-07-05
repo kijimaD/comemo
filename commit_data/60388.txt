@@ -18,6 +18,45 @@ Date:   Tue Jun 11 14:42:13 2024 -0400
     Reviewed-by: David Chase <drchase@google.com>
     Auto-Submit: Roland Shoemaker <roland@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/crypto/tls/bogo_shim_test.go | 13 +++++++++++++
  1 file changed, 13 insertions(+)
+
+diff --git a/src/crypto/tls/bogo_shim_test.go b/src/crypto/tls/bogo_shim_test.go
+index 2d8100d1bb..38087d2b1c 100644
+--- a/src/crypto/tls/bogo_shim_test.go
++++ b/src/crypto/tls/bogo_shim_test.go
+@@ -75,6 +75,8 @@ var (
+ 
+ 	advertiseALPN = flag.String("advertise-alpn", "", "")
+ 	expectALPN    = flag.String("expect-alpn", "", "")
++	rejectALPN    = flag.Bool("reject-alpn", false, "")
++	declineALPN   = flag.Bool("decline-alpn", false, "")
+ 
+ 	hostName = flag.String("host-name", "", "")
+ 
+@@ -126,6 +128,14 @@ func bogoShim() {
+ 		}
+ 	}
+ 
++	if *rejectALPN {
++		cfg.NextProtos = []string{"unnegotiableprotocol"}
++	}
++
++	if *declineALPN {
++		cfg.NextProtos = []string{}
++	}
++
+ 	if *hostName != "" {
+ 		cfg.ServerName = *hostName
+ 	}
+@@ -256,6 +266,9 @@ func bogoShim() {
+ 			if *expectVersion != 0 && cs.Version != uint16(*expectVersion) {
+ 				log.Fatalf("expected ssl version %q, got %q", uint16(*expectVersion), cs.Version)
+ 			}
++			if *declineALPN && cs.NegotiatedProtocol != "" {
++				log.Fatal("unexpected ALPN protocol")
++			}
+ 			if *expectECHAccepted && !cs.ECHAccepted {
+ 				log.Fatal("expected ECH to be accepted, but connection state shows it was not")
+ 			} else if i == 0 && *onInitialExpectECHAccepted && !cs.ECHAccepted {

@@ -15,7 +15,7 @@ Date:   Thu Nov 11 11:57:43 2021 -0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/object.go    | 2 ++
  src/cmd/compile/internal/types2/signature.go | 2 +-
  src/cmd/compile/internal/types2/subst.go     | 4 ++--
@@ -23,3 +23,86 @@ Date:   Thu Nov 11 11:57:43 2021 -0800
  src/go/types/signature.go                    | 2 +-
  src/go/types/subst.go                        | 4 ++--
  6 files changed, 10 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/object.go b/src/cmd/compile/internal/types2/object.go
+index d86c166c72..da3e1a2abc 100644
+--- a/src/cmd/compile/internal/types2/object.go
++++ b/src/cmd/compile/internal/types2/object.go
+@@ -389,6 +389,8 @@ func (obj *Func) FullName() string {
+ }
+ 
+ // Scope returns the scope of the function's body block.
++// The result is nil for imported or instantiated functions and methods
++// (but there is also no mechanism to get to an instantiated function).
+ func (obj *Func) Scope() *Scope { return obj.typ.(*Signature).scope }
+ 
+ // hasPtrRecv reports whether the receiver is of the form *T for the given method obj.
+diff --git a/src/cmd/compile/internal/types2/signature.go b/src/cmd/compile/internal/types2/signature.go
+index 4541435587..b0b8ad49d9 100644
+--- a/src/cmd/compile/internal/types2/signature.go
++++ b/src/cmd/compile/internal/types2/signature.go
+@@ -18,7 +18,7 @@ type Signature struct {
+ 	// We then unpack the *Signature and use the scope for the literal body.
+ 	rparams  *TypeParamList // receiver type parameters from left to right, or nil
+ 	tparams  *TypeParamList // type parameters from left to right, or nil
+-	scope    *Scope         // function scope, present for package-local signatures
++	scope    *Scope         // function scope for package-local and non-instantiated signatures; nil otherwise
+ 	recv     *Var           // nil if not a method
+ 	params   *Tuple         // (incoming) parameters from left to right; or nil
+ 	results  *Tuple         // (outgoing) results from left to right; or nil
+diff --git a/src/cmd/compile/internal/types2/subst.go b/src/cmd/compile/internal/types2/subst.go
+index a4e46b2097..f46e895b12 100644
+--- a/src/cmd/compile/internal/types2/subst.go
++++ b/src/cmd/compile/internal/types2/subst.go
+@@ -115,8 +115,8 @@ func (subst *subster) typ(typ Type) Type {
+ 			return &Signature{
+ 				rparams: t.rparams,
+ 				// TODO(gri) why can't we nil out tparams here, rather than in instantiate?
+-				tparams:  t.tparams,
+-				scope:    t.scope,
++				tparams: t.tparams,
++				// instantiated signatures have a nil scope
+ 				recv:     recv,
+ 				params:   params,
+ 				results:  results,
+diff --git a/src/go/types/object.go b/src/go/types/object.go
+index e7a4425643..9309a529c4 100644
+--- a/src/go/types/object.go
++++ b/src/go/types/object.go
+@@ -343,6 +343,8 @@ func (obj *Func) FullName() string {
+ }
+ 
+ // Scope returns the scope of the function's body block.
++// The result is nil for imported or instantiated functions and methods
++// (but there is also no mechanism to get to an instantiated function).
+ func (obj *Func) Scope() *Scope { return obj.typ.(*Signature).scope }
+ 
+ // hasPtrRecv reports whether the receiver is of the form *T for the given method obj.
+diff --git a/src/go/types/signature.go b/src/go/types/signature.go
+index ad69c95d12..3e0a046afa 100644
+--- a/src/go/types/signature.go
++++ b/src/go/types/signature.go
+@@ -21,7 +21,7 @@ type Signature struct {
+ 	// We then unpack the *Signature and use the scope for the literal body.
+ 	rparams  *TypeParamList // receiver type parameters from left to right, or nil
+ 	tparams  *TypeParamList // type parameters from left to right, or nil
+-	scope    *Scope         // function scope, present for package-local signatures
++	scope    *Scope         // function scope for package-local and non-instantiated signatures; nil otherwise
+ 	recv     *Var           // nil if not a method
+ 	params   *Tuple         // (incoming) parameters from left to right; or nil
+ 	results  *Tuple         // (outgoing) results from left to right; or nil
+diff --git a/src/go/types/subst.go b/src/go/types/subst.go
+index 1fac82fe8a..a05195150f 100644
+--- a/src/go/types/subst.go
++++ b/src/go/types/subst.go
+@@ -115,8 +115,8 @@ func (subst *subster) typ(typ Type) Type {
+ 			return &Signature{
+ 				rparams: t.rparams,
+ 				// TODO(rFindley) why can't we nil out tparams here, rather than in instantiate?
+-				tparams:  t.tparams,
+-				scope:    t.scope,
++				tparams: t.tparams,
++				// instantiated signatures have a nil scope
+ 				recv:     recv,
+ 				params:   params,
+ 				results:  results,

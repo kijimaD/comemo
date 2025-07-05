@@ -9,7 +9,40 @@ Date:   Mon Jul 18 10:05:35 2011 +1000
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/4764044
-
+---
  src/pkg/fmt/scan.go      | 8 +++++---
  src/pkg/fmt/scan_test.go | 2 ++
  2 files changed, 7 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/fmt/scan.go b/src/pkg/fmt/scan.go
+index a8d423d458..259451d02f 100644
+--- a/src/pkg/fmt/scan.go
++++ b/src/pkg/fmt/scan.go
+@@ -550,9 +550,11 @@ func (s *ss) getBase(verb int) (base int, digits string) {
+ 
+ // scanNumber returns the numerical string with specified digits starting here.
+ func (s *ss) scanNumber(digits string, haveDigits bool) string {
+-	s.notEOF()
+-	if !haveDigits && !s.accept(digits) {
+-		s.errorString("expected integer")
++	if !haveDigits {
++		s.notEOF()
++		if !s.accept(digits) {
++			s.errorString("expected integer")
++		}
+ 	}
+ 	for s.accept(digits) {
+ 	}
+diff --git a/src/pkg/fmt/scan_test.go b/src/pkg/fmt/scan_test.go
+index 98b3b5493c..3f06e5725c 100644
+--- a/src/pkg/fmt/scan_test.go
++++ b/src/pkg/fmt/scan_test.go
+@@ -298,6 +298,8 @@ var scanfTests = []ScanfTest{
+ 	// Fixed bugs
+ 	{"%d\n", "27\n", &intVal, 27},  // ok
+ 	{"%d\n", "28 \n", &intVal, 28}, // was: "unexpected newline"
++	{"%v", "0", &intVal, 0},        // was: "EOF"; 0 was taken as base prefix and not counted.
++	{"%v", "0", &uintVal, uint(0)}, // was: "EOF"; 0 was taken as base prefix and not counted.
+ }
+ 
+ var overflowTests = []ScanTest{

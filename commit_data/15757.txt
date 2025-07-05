@@ -9,7 +9,90 @@ Date:   Wed Mar 13 23:26:03 2013 -0400
     R=rsc, dave, r, dr.volker.dobler
     CC=golang-dev
     https://golang.org/cl/7438051
-
+---
  src/pkg/encoding/xml/xml.go      | 15 +++++++++++----
  src/pkg/encoding/xml/xml_test.go | 18 +++++++++++++++++-
  2 files changed, 28 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/encoding/xml/xml.go b/src/pkg/encoding/xml/xml.go
+index 96d97dbe2a..021f7e47d9 100644
+--- a/src/pkg/encoding/xml/xml.go
++++ b/src/pkg/encoding/xml/xml.go
+@@ -1729,6 +1729,7 @@ var (
+ 	esc_tab  = []byte("&#x9;")
+ 	esc_nl   = []byte("&#xA;")
+ 	esc_cr   = []byte("&#xD;")
++	esc_fffd = []byte("\uFFFD") // Unicode replacement character
+ )
+ 
+ // EscapeText writes to w the properly escaped XML equivalent
+@@ -1736,8 +1737,10 @@ var (
+ func EscapeText(w io.Writer, s []byte) error {
+ 	var esc []byte
+ 	last := 0
+-	for i, c := range s {
+-		switch c {
++	for i := 0; i < len(s); {
++		r, width := utf8.DecodeRune(s[i:])
++		i += width
++		switch r {
+ 		case '"':
+ 			esc = esc_quot
+ 		case '\'':
+@@ -1755,15 +1758,19 @@ func EscapeText(w io.Writer, s []byte) error {
+ 		case '\r':
+ 			esc = esc_cr
+ 		default:
++			if !isInCharacterRange(r) {
++				esc = esc_fffd
++				break
++			}
+ 			continue
+ 		}
+-		if _, err := w.Write(s[last:i]); err != nil {
++		if _, err := w.Write(s[last : i-width]); err != nil {
+ 			return err
+ 		}
+ 		if _, err := w.Write(esc); err != nil {
+ 			return err
+ 		}
+-		last = i + 1
++		last = i
+ 	}
+ 	if _, err := w.Write(s[last:]); err != nil {
+ 		return err
+diff --git a/src/pkg/encoding/xml/xml_test.go b/src/pkg/encoding/xml/xml_test.go
+index 5a4e214710..eeedbe575f 100644
+--- a/src/pkg/encoding/xml/xml_test.go
++++ b/src/pkg/encoding/xml/xml_test.go
+@@ -5,6 +5,7 @@
+ package xml
+ 
+ import (
++	"bytes"
+ 	"fmt"
+ 	"io"
+ 	"reflect"
+@@ -695,6 +696,21 @@ func TestEscapeTextIOErrors(t *testing.T) {
+ 	err := EscapeText(errWriter{}, []byte{'A'})
+ 
+ 	if err == nil || err.Error() != expectErr {
+-		t.Errorf("EscapeTest = [error] %v, want %v", err, expectErr)
++		t.Errorf("have %v, want %v", err, expectErr)
++	}
++}
++
++func TestEscapeTextInvalidChar(t *testing.T) {
++	input := []byte("A \x00 terminated string.")
++	expected := "A \uFFFD terminated string."
++
++	buff := new(bytes.Buffer)
++	if err := EscapeText(buff, input); err != nil {
++		t.Fatalf("have %v, want nil", err)
++	}
++	text := buff.String()
++
++	if text != expected {
++		t.Errorf("have %v, want %v", text, expected)
+ 	}
+ }

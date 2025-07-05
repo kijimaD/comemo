@@ -22,7 +22,84 @@ Date:   Sun Nov 3 22:08:35 2019 -0500
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/go_test.go               | 27 ++++++++++-----------------
  src/cmd/go/testdata/print_goroot.go |  7 +++++--
  2 files changed, 15 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index a6bb8d69b0..f646beff47 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -4687,23 +4687,19 @@ func copyFile(src, dst string, perm os.FileMode) error {
+ 	return err2
+ }
+ 
++// TestExecutableGOROOT verifies that the cmd/go binary itself uses
++// os.Executable (when available) to locate GOROOT.
+ func TestExecutableGOROOT(t *testing.T) {
+ 	skipIfGccgo(t, "gccgo has no GOROOT")
+-	if runtime.GOOS == "openbsd" {
+-		t.Skipf("test case does not work on %s, missing os.Executable", runtime.GOOS)
+-	}
+ 
+-	// Env with no GOROOT.
+-	var env []string
+-	for _, e := range os.Environ() {
+-		if !strings.HasPrefix(e, "GOROOT=") {
+-			env = append(env, e)
+-		}
+-	}
++	// Note: Must not call tg methods inside subtests: tg is attached to outer t.
++	tg := testgo(t)
++	tg.unsetenv("GOROOT")
++	defer tg.cleanup()
+ 
+ 	check := func(t *testing.T, exe, want string) {
+ 		cmd := exec.Command(exe, "env", "GOROOT")
+-		cmd.Env = env
++		cmd.Env = tg.env
+ 		out, err := cmd.CombinedOutput()
+ 		if err != nil {
+ 			t.Fatalf("%s env GOROOT: %v, %s", exe, err, out)
+@@ -4723,10 +4719,6 @@ func TestExecutableGOROOT(t *testing.T) {
+ 		}
+ 	}
+ 
+-	// Note: Must not call tg methods inside subtests: tg is attached to outer t.
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-
+ 	tg.makeTempdir()
+ 	tg.tempDir("new/bin")
+ 	newGoTool := tg.path("new/bin/go" + exeSuffix)
+@@ -4773,8 +4765,9 @@ func TestExecutableGOROOT(t *testing.T) {
+ 		}
+ 
+ 		cmd := exec.Command(newGoTool, "run", "testdata/print_goroot.go")
+-		cmd.Env = env
+-		out, err := cmd.CombinedOutput()
++		cmd.Env = tg.env
++		cmd.Stderr = os.Stderr
++		out, err := cmd.Output()
+ 		if err != nil {
+ 			t.Fatalf("%s run testdata/print_goroot.go: %v, %s", newGoTool, err, out)
+ 		}
+diff --git a/src/cmd/go/testdata/print_goroot.go b/src/cmd/go/testdata/print_goroot.go
+index 5477291060..91fbf7d8ec 100644
+--- a/src/cmd/go/testdata/print_goroot.go
++++ b/src/cmd/go/testdata/print_goroot.go
+@@ -4,8 +4,11 @@
+ 
+ package main
+ 
+-import "runtime"
++import (
++	"fmt"
++	"runtime"
++)
+ 
+ func main() {
+-	println(runtime.GOROOT())
++	fmt.Println(runtime.GOROOT())
+ }

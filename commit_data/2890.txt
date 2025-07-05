@@ -8,7 +8,91 @@ Date:   Wed Aug 5 14:40:34 2009 -0700
     DELTA=25  (23 added, 1 deleted, 1 changed)
     OCL=32793
     CL=32799
-
+---
  src/pkg/regexp/all_test.go |  2 ++
  src/pkg/regexp/regexp.go   | 24 ++++++++++++++++++++++--
  2 files changed, 24 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/regexp/all_test.go b/src/pkg/regexp/all_test.go
+index 23c22003ee..0d16b24e3a 100644
+--- a/src/pkg/regexp/all_test.go
++++ b/src/pkg/regexp/all_test.go
+@@ -27,6 +27,7 @@ var good_re = []string{
+ 	`[]`,
+ 	`[abc]`,
+ 	`[^1234]`,
++	`[^\n]`,
+ }
+ 
+ // TODO: nice to do this with a map
+@@ -72,6 +73,7 @@ var matches = []tester {
+ 	tester{ `[a-z]+`,	"abcd",	vec{0,4} },
+ 	tester{ `[^a-z]+`,	"ab1234cd",	vec{2,6} },
+ 	tester{ `[a\-\]z]+`,	"az]-bcz",	vec{0,4} },
++	tester{ `[^\n]+`,	"abcd\n",	vec{0,4} },
+ 	tester{ `[日本語]+`,	"日本語日本語",	vec{0,18} },
+ 	tester{ `()`,	"",	vec{0,0, 0,0} },
+ 	tester{ `(a)`,	"a",	vec{0,1, 0,1} },
+diff --git a/src/pkg/regexp/regexp.go b/src/pkg/regexp/regexp.go
+index 1ab9246f68..745a3ae724 100644
+--- a/src/pkg/regexp/regexp.go
++++ b/src/pkg/regexp/regexp.go
+@@ -87,7 +87,8 @@ const (
+ 	_EOT;		// '$' end of text
+ 	_CHAR;	// 'a' regular character
+ 	_CHARCLASS;	// [a-z] character class
+-	_ANY;		// '.' any character
++	_ANY;		// '.' any character including newline
++	_NOTNL;		// [^\n] special case: any character but newline
+ 	_BRA;		// '(' parenthesized expression
+ 	_EBRA;	// ')'; end of '(' parenthesized expression
+ 	_ALT;		// '|' alternation
+@@ -200,6 +201,14 @@ type _Any struct {
+ func (any *_Any) kind() int { return _ANY }
+ func (any *_Any) print() { print("any") }
+ 
++// --- NOTNL any character but newline
++type _NotNl struct {
++	common
++}
++
++func (notnl *_NotNl) kind() int { return _NOTNL }
++func (notnl *_NotNl) print() { print("notnl") }
++
+ // --- BRA parenthesized expression
+ type _Bra struct {
+ 	common;
+@@ -305,7 +314,6 @@ func specialcclass(c int) bool {
+ 
+ func (p *parser) charClass() instr {
+ 	cc := newCharClass();
+-	p.re.add(cc);
+ 	if p.c() == '^' {
+ 		cc.negate = true;
+ 		p.nextc();
+@@ -317,6 +325,14 @@ func (p *parser) charClass() instr {
+ 			if left >= 0 {
+ 				p.re.setError(ErrBadRange);
+ 			}
++			// Is it [^\n]?
++			if cc.negate && cc.ranges.Len() == 2 &&
++				cc.ranges.At(0) == '\n' && cc.ranges.At(1) == '\n' {
++				nl := new(_NotNl);
++				p.re.add(nl);
++				return nl;
++			}
++			p.re.add(cc);
+ 			return cc;
+ 		case '-':	// do this before backslash processing
+ 			p.re.setError(ErrBadRange);
+@@ -680,6 +696,10 @@ func (re *Regexp) doExecute(str string, pos int) []int {
+ 				if c != endOfFile {
+ 					s[out] = addState(s[out], st.inst.next(), st.match)
+ 				}
++			case _NOTNL:
++				if c != endOfFile && c != '\n' {
++					s[out] = addState(s[out], st.inst.next(), st.match)
++				}
+ 			case _BRA:
+ 				n := st.inst.(*_Bra).n;
+ 				st.match[2*n] = pos;

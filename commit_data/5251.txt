@@ -7,7 +7,7 @@ Date:   Thu Apr 8 21:13:42 2010 -0700
     R=adg
     CC=golang-dev
     https://golang.org/cl/867046
-
+---
  src/pkg/runtime/freebsd/386/defs.h     | 50 +++++++++++++++++++++++++++++++---
  src/pkg/runtime/freebsd/386/signal.c   |  2 ++
  src/pkg/runtime/freebsd/amd64/defs.h   | 44 ++++++++++++++++++++++++++++++
@@ -16,3 +16,214 @@ Date:   Thu Apr 8 21:13:42 2010 -0700
  src/pkg/runtime/freebsd/thread.c       |  4 +--
  src/pkg/runtime/runtime.c              |  2 --
  7 files changed, 101 insertions(+), 9 deletions(-)
+
+diff --git a/src/pkg/runtime/freebsd/386/defs.h b/src/pkg/runtime/freebsd/386/defs.h
+index df1d32a390..69b8661eb0 100644
+--- a/src/pkg/runtime/freebsd/386/defs.h
++++ b/src/pkg/runtime/freebsd/386/defs.h
+@@ -1,4 +1,4 @@
+-// godefs freebsd/defs.c
++// godefs defs.c
+ 
+ // MACHINE GENERATED - DO NOT EDIT.
+ 
+@@ -16,6 +16,50 @@ enum {
+ 	UMTX_OP_WAIT = 0x2,
+ 	UMTX_OP_WAKE = 0x3,
+ 	EINTR = 0x4,
++	SIGHUP = 0x1,
++	SIGINT = 0x2,
++	SIGQUIT = 0x3,
++	SIGILL = 0x4,
++	SIGTRAP = 0x5,
++	SIGABRT = 0x6,
++	SIGEMT = 0x7,
++	SIGFPE = 0x8,
++	SIGKILL = 0x9,
++	SIGBUS = 0xa,
++	SIGSEGV = 0xb,
++	SIGSYS = 0xc,
++	SIGPIPE = 0xd,
++	SIGALRM = 0xe,
++	SIGTERM = 0xf,
++	SIGURG = 0x10,
++	SIGSTOP = 0x11,
++	SIGTSTP = 0x12,
++	SIGCONT = 0x13,
++	SIGCHLD = 0x14,
++	SIGTTIN = 0x15,
++	SIGTTOU = 0x16,
++	SIGIO = 0x17,
++	SIGXCPU = 0x18,
++	SIGXFSZ = 0x19,
++	SIGVTALRM = 0x1a,
++	SIGPROF = 0x1b,
++	SIGWINCH = 0x1c,
++	SIGINFO = 0x1d,
++	SIGUSR1 = 0x1e,
++	SIGUSR2 = 0x1f,
++	FPE_INTDIV = 0x2,
++	FPE_INTOVF = 0x1,
++	FPE_FLTDIV = 0x3,
++	FPE_FLTOVF = 0x4,
++	FPE_FLTUND = 0x5,
++	FPE_FLTRES = 0x6,
++	FPE_FLTINV = 0x7,
++	FPE_FLTSUB = 0x8,
++	BUS_ADRALN = 0x1,
++	BUS_ADRERR = 0x2,
++	BUS_OBJERR = 0x3,
++	SEGV_MAPERR = 0x1,
++	SEGV_ACCERR = 0x2,
+ };
+ 
+ // Types
+@@ -109,9 +153,7 @@ struct Mcontext {
+ 	int32 mc_ownedfp;
+ 	int32 mc_spare1[1];
+ 	int32 mc_fpstate[128];
+-	int32 mc_fsbase;
+-	int32 mc_gsbase;
+-	int32 mc_spare2[6];
++	int32 mc_spare2[8];
+ };
+ 
+ typedef struct Ucontext Ucontext;
+diff --git a/src/pkg/runtime/freebsd/386/signal.c b/src/pkg/runtime/freebsd/386/signal.c
+index 2483e7d907..ec8ac3a7d4 100644
+--- a/src/pkg/runtime/freebsd/386/signal.c
++++ b/src/pkg/runtime/freebsd/386/signal.c
+@@ -49,6 +49,8 @@ sighandler(int32 sig, Siginfo* info, void* context)
+ {
+ 	Ucontext *uc;
+ 	Mcontext *r;
++	G *gp;
++	uintptr *sp;
+ 
+ 	uc = context;
+ 	r = &uc->uc_mcontext;
+diff --git a/src/pkg/runtime/freebsd/amd64/defs.h b/src/pkg/runtime/freebsd/amd64/defs.h
+index f1ad62411d..18b68b3556 100644
+--- a/src/pkg/runtime/freebsd/amd64/defs.h
++++ b/src/pkg/runtime/freebsd/amd64/defs.h
+@@ -16,6 +16,50 @@ enum {
+ 	UMTX_OP_WAIT = 0x2,
+ 	UMTX_OP_WAKE = 0x3,
+ 	EINTR = 0x4,
++	SIGHUP = 0x1,
++	SIGINT = 0x2,
++	SIGQUIT = 0x3,
++	SIGILL = 0x4,
++	SIGTRAP = 0x5,
++	SIGABRT = 0x6,
++	SIGEMT = 0x7,
++	SIGFPE = 0x8,
++	SIGKILL = 0x9,
++	SIGBUS = 0xa,
++	SIGSEGV = 0xb,
++	SIGSYS = 0xc,
++	SIGPIPE = 0xd,
++	SIGALRM = 0xe,
++	SIGTERM = 0xf,
++	SIGURG = 0x10,
++	SIGSTOP = 0x11,
++	SIGTSTP = 0x12,
++	SIGCONT = 0x13,
++	SIGCHLD = 0x14,
++	SIGTTIN = 0x15,
++	SIGTTOU = 0x16,
++	SIGIO = 0x17,
++	SIGXCPU = 0x18,
++	SIGXFSZ = 0x19,
++	SIGVTALRM = 0x1a,
++	SIGPROF = 0x1b,
++	SIGWINCH = 0x1c,
++	SIGINFO = 0x1d,
++	SIGUSR1 = 0x1e,
++	SIGUSR2 = 0x1f,
++	FPE_INTDIV = 0x2,
++	FPE_INTOVF = 0x1,
++	FPE_FLTDIV = 0x3,
++	FPE_FLTOVF = 0x4,
++	FPE_FLTUND = 0x5,
++	FPE_FLTRES = 0x6,
++	FPE_FLTINV = 0x7,
++	FPE_FLTSUB = 0x8,
++	BUS_ADRALN = 0x1,
++	BUS_ADRERR = 0x2,
++	BUS_OBJERR = 0x3,
++	SEGV_MAPERR = 0x1,
++	SEGV_ACCERR = 0x2,
+ };
+ 
+ // Types
+diff --git a/src/pkg/runtime/freebsd/amd64/signal.c b/src/pkg/runtime/freebsd/amd64/signal.c
+index ea15922c62..ba8a5cfdb5 100644
+--- a/src/pkg/runtime/freebsd/amd64/signal.c
++++ b/src/pkg/runtime/freebsd/amd64/signal.c
+@@ -57,6 +57,8 @@ sighandler(int32 sig, Siginfo* info, void* context)
+ {
+ 	Ucontext *uc;
+ 	Mcontext *r;
++	G *gp;
++	uintptr *sp;
+ 
+ 	uc = context;
+ 	r = &uc->uc_mcontext;
+@@ -98,7 +100,7 @@ sighandler(int32 sig, Siginfo* info, void* context)
+ 	if(gotraceback()){
+ 		traceback((void*)r->mc_rip, (void*)r->mc_rsp, 0, (void*)r->mc_r15);
+ 		tracebackothers((void*)r->mc_r15);
+-		dumpregs(mc);
++		dumpregs(r);
+ 	}
+ 
+ 	breakpoint();
+diff --git a/src/pkg/runtime/freebsd/os.h b/src/pkg/runtime/freebsd/os.h
+index 441737865b..47bf7d56f8 100644
+--- a/src/pkg/runtime/freebsd/os.h
++++ b/src/pkg/runtime/freebsd/os.h
+@@ -1 +1,5 @@
+ int32 thr_new(ThrParam*, int32);
++void sigpanic(void);
++void sigaltstack(Sigaltstack*, Sigaltstack*);
++struct sigaction;
++void sigaction(int32, struct sigaction*, struct sigaction*);
+diff --git a/src/pkg/runtime/freebsd/thread.c b/src/pkg/runtime/freebsd/thread.c
+index 9ee21c5924..3340433122 100644
+--- a/src/pkg/runtime/freebsd/thread.c
++++ b/src/pkg/runtime/freebsd/thread.c
+@@ -3,10 +3,10 @@
+ 
+ #include "runtime.h"
+ #include "defs.h"
+-#include "signals.h"
+ #include "os.h"
+ 
+ extern SigTab sigtab[];
++extern int32 sys_umtx_op(uint32*, int32, uint32, void*, void*);
+ 
+ // FreeBSD's umtx_op syscall is effectively the same as Linux's futex, and
+ // thus the code is largely similar. See linux/thread.c for comments.
+@@ -102,7 +102,7 @@ unlock(Lock *l)
+ }
+ 
+ void
+-destroylock(Lock *l)
++destroylock(Lock*)
+ {
+ }
+ 
+diff --git a/src/pkg/runtime/runtime.c b/src/pkg/runtime/runtime.c
+index c2eee60ca4..67b8b9725e 100644
+--- a/src/pkg/runtime/runtime.c
++++ b/src/pkg/runtime/runtime.c
+@@ -22,8 +22,6 @@ gotraceback(void)
+ void
+ panic(int32 unused)
+ {
+-	uint8 *sp;
+-
+ 	fd = 2;
+ 	if(panicking) {
+ 		printf("double panic\n");

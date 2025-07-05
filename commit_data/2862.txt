@@ -8,7 +8,48 @@ Date:   Mon Aug 3 13:34:20 2009 -0700
     DELTA=19  (18 added, 0 deleted, 1 changed)
     OCL=32656
     CL=32670
-
+---
  src/pkg/fmt/fmt_test.go  | 14 ++++++++++++++
  src/pkg/reflect/value.go |  6 +++++-
  2 files changed, 19 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/fmt/fmt_test.go b/src/pkg/fmt/fmt_test.go
+index 5cc887e41d..9d772e1bef 100644
+--- a/src/pkg/fmt/fmt_test.go
++++ b/src/pkg/fmt/fmt_test.go
+@@ -270,3 +270,17 @@ func TestMapPrinter(t *testing.T) {
+ 	presentInMap(Sprintf("%v", m1), a, t);
+ 	presentInMap(Sprint(m1), a, t);
+ }
++
++func TestEmptyMap(t *testing.T) {
++	const emptyMapStr = "map[]";
++	var m map[string]int;
++	s := Sprint(m);
++	if s != emptyMapStr {
++		t.Errorf("nil map printed as %q not %q", s, emptyMapStr);
++	}
++	m = make(map[string]int);
++	s = Sprint(m);
++	if s != emptyMapStr {
++		t.Errorf("empty map printed as %q not %q", s, emptyMapStr);
++	}
++}
+diff --git a/src/pkg/reflect/value.go b/src/pkg/reflect/value.go
+index 4dc130a6cd..c32574a3f0 100644
+--- a/src/pkg/reflect/value.go
++++ b/src/pkg/reflect/value.go
+@@ -1008,8 +1008,12 @@ func (v *MapValue) Len() int {
+ func (v *MapValue) Keys() []Value {
+ 	tk := v.Type().(*MapType).Key();
+ 	m := *(**byte)(v.addr);
++	mlen := int32(0);
++	if m != nil {
++		mlen = maplen(m)
++	}
+ 	it := mapiterinit(m);
+-	a := make([]Value, maplen(m));
++	a := make([]Value, mlen);
+ 	var i int;
+ 	for i = 0; i < len(a); i++ {
+ 		k := MakeZero(tk);

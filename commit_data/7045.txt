@@ -10,7 +10,55 @@ Date:   Wed Jan 5 11:39:57 2011 -0800
     R=rsc, gri
     CC=golang-dev
     https://golang.org/cl/3835043
-
+---
  doc/effective_go.html | 13 ++++++++++++-
  doc/go_spec.html      |  4 ++--
  2 files changed, 14 insertions(+), 3 deletions(-)
+
+diff --git a/doc/effective_go.html b/doc/effective_go.html
+index b70d60a925..26e317b5d2 100644
+--- a/doc/effective_go.html
++++ b/doc/effective_go.html
+@@ -2792,7 +2792,7 @@ user-triggered errors.
+ </p>
+ 
+ <p>
+-With this error handling in place, the <code>error</code> method
++With error handling in place, the <code>error</code> method
+ makes it easy to report parse errors without worrying about unwinding
+ the parse stack by hand.
+ </p>
+@@ -2804,6 +2804,17 @@ Useful though this pattern is, it should be used only within a package.
+ to its client.  That is a good rule to follow.
+ </p>
+ 
++<p>
++By the way, this re-panic idiom changes the panic value if an actual
++error occurs.  However, both the original and new failures will be
++presented in the crash report, so the root cause of the problem will
++still be visible.  Thus this simple re-panic approach is usually
++sufficient&mdash;it's a crash after all&mdash;but if you want to
++display only the original value, you can write a little more code to
++filter unexpected problems and re-panic with the original error.
++That's left as an exercise for the reader.
++</p>
++
+ 
+ <h2 id="web_server">A web server</h2>
+ 
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 1b1deaba2c..d12d51344d 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -3973,9 +3973,9 @@ As with an assignment, the operands on the left must be
+ <a href="#Address_operators">addressable</a> or map index expressions; they
+ denote the iteration variables. If the range expression is a channel, only
+ one iteration variable is permitted, otherwise there may be one or two.
+-<p>
+-
+ </p>
++
++<p>
+ The range expression is evaluated once before beginning the loop.
+ Function calls on the left are evaluated once per iteration.
+ For each iteration, iteration values are produced as follows:

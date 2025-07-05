@@ -11,6 +11,21 @@ Date:   Tue Dec 3 21:19:24 2024 +0000
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/bufio/bufio.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/bufio/bufio.go b/src/bufio/bufio.go
+index 880e52798e..160bd8adb3 100644
+--- a/src/bufio/bufio.go
++++ b/src/bufio/bufio.go
+@@ -29,6 +29,9 @@ var (
+ // Buffered input.
+ 
+ // Reader implements buffering for an io.Reader object.
++// A new Reader is created by calling [NewReader] or [NewReaderSize];
++// alternatively the zero value of a Reader may be used after calling [Reset]
++// on it.
+ type Reader struct {
+ 	buf          []byte
+ 	rd           io.Reader // reader provided by the client

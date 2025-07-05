@@ -15,7 +15,48 @@ Date:   Thu Apr 29 14:52:24 2021 -0400
     Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/ssa/README.md  | 13 +++++++++++++
  src/cmd/compile/internal/ssa/compile.go |  5 +++++
  2 files changed, 18 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/README.md b/src/cmd/compile/internal/ssa/README.md
+index 4483c2c85f..833bf1ddc9 100644
+--- a/src/cmd/compile/internal/ssa/README.md
++++ b/src/cmd/compile/internal/ssa/README.md
+@@ -184,6 +184,19 @@ compile passes, making it easy to see what each pass does to a particular
+ program. You can also click on values and blocks to highlight them, to help
+ follow the control flow and values.
+ 
++The value specified in GOSSAFUNC can also be a package-qualified function
++name, e.g. 
++
++	GOSSAFUNC=blah.Foo go build
++    
++This will match any function named "Foo" within a package whose final
++suffix is "blah" (e.g. something/blah.Foo, anotherthing/extra/blah.Foo).
++
++If non-HTML dumps are needed, append a "+" to the GOSSAFUNC value
++and dumps will be written to stdout:
++
++	GOSSAFUNC=Bar+ go build
++
+ <!---
+ TODO: need more ideas for this section
+ -->
+diff --git a/src/cmd/compile/internal/ssa/compile.go b/src/cmd/compile/internal/ssa/compile.go
+index 8aae04f2ec..cd8eba405d 100644
+--- a/src/cmd/compile/internal/ssa/compile.go
++++ b/src/cmd/compile/internal/ssa/compile.go
+@@ -297,6 +297,11 @@ enables time reporting for all phases
+     -d=ssa/prove/debug=2
+ sets debugging level to 2 in the prove pass
+ 
++Be aware that when "/debug=X" is applied to a pass, some passes
++will emit debug output for all functions, and other passes will
++only emit debug output for functions that match the current
++GOSSAFUNC value.
++
+ Multiple flags can be passed at once, by separating them with
+ commas. For example:
+ 

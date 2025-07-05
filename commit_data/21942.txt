@@ -26,7 +26,7 @@ Date:   Thu Feb 5 11:53:33 2015 -0500
     Change-Id: Id46efcd2a89241082b234f63f375b66f2754d695
     Reviewed-on: https://go-review.googlesource.com/4646
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/5g/cgen.c      |  33 ++--
  src/cmd/5g/gsubr.c     |  33 ++--
  src/cmd/5g/peep.c      |  93 +++++++---
@@ -56,3 +56,1736 @@ Date:   Thu Feb 5 11:53:33 2015 -0500
  src/cmd/gc/swt.c       |  27 +--
  src/cmd/gc/typecheck.c | 475 +++++++++++++++++++++++++------------------------
  28 files changed, 549 insertions(+), 518 deletions(-)
+
+diff --git a/src/cmd/5g/cgen.c b/src/cmd/5g/cgen.c
+index 90cc88d5a7..354e0cbfd6 100644
+--- a/src/cmd/5g/cgen.c
++++ b/src/cmd/5g/cgen.c
+@@ -1148,27 +1148,20 @@ bgen(Node *n, int true, int likely, Prog *to)
+ 		goto ret;
+ 
+ 	case OANDAND:
+-		if(!true)
+-			goto caseor;
+-
+-	caseand:
+-		p1 = gbranch(AB, T, 0);
+-		p2 = gbranch(AB, T, 0);
+-		patch(p1, pc);
+-		bgen(n->left, !true, -likely, p2);
+-		bgen(n->right, !true, -likely, p2);
+-		p1 = gbranch(AB, T, 0);
+-		patch(p1, to);
+-		patch(p2, pc);
+-		goto ret;
+-
+ 	case OOROR:
+-		if(!true)
+-			goto caseand;
+-
+-	caseor:
+-		bgen(n->left, true, likely, to);
+-		bgen(n->right, true, likely, to);
++		if((n->op == OANDAND) == true) {
++			p1 = gbranch(AJMP, T, 0);
++			p2 = gbranch(AJMP, T, 0);
++			patch(p1, pc);
++			bgen(n->left, !true, -likely, p2);
++			bgen(n->right, !true, -likely, p2);
++			p1 = gbranch(AJMP, T, 0);
++			patch(p1, to);
++			patch(p2, pc);
++		} else {
++			bgen(n->left, true, likely, to);
++			bgen(n->right, true, likely, to);
++		}
+ 		goto ret;
+ 
+ 	case OEQ:
+diff --git a/src/cmd/5g/gsubr.c b/src/cmd/5g/gsubr.c
+index b7a177d4ea..bdb70270a8 100644
+--- a/src/cmd/5g/gsubr.c
++++ b/src/cmd/5g/gsubr.c
+@@ -69,7 +69,7 @@ gclean(void)
+ 			yyerror("reg %R left allocated\n", i);
+ }
+ 
+-int32
++int
+ anyregalloc(void)
+ {
+ 	int i, j;
+@@ -239,22 +239,25 @@ split64(Node *n, Node *lo, Node *hi)
+ 	nsclean++;
+ 	switch(n->op) {
+ 	default:
+-		if(!dotaddable(n, &n1)) {
+-			igen(n, &n1, N);
+-			sclean[nsclean-1] = n1;
+-		}
+-		n = &n1;
+-		goto common;
+-	case ONAME:
+-		if(n->class == PPARAMREF) {
+-			cgen(n->heapaddr, &n1);
+-			sclean[nsclean-1] = n1;
+-			// fall through.
++		switch(n->op) {
++		default:
++			if(!dotaddable(n, &n1)) {
++				igen(n, &n1, N);
++				sclean[nsclean-1] = n1;
++			}
+ 			n = &n1;
++			break;
++		case ONAME:
++			if(n->class == PPARAMREF) {
++				cgen(n->heapaddr, &n1);
++				sclean[nsclean-1] = n1;
++				n = &n1;
++			}
++			break;
++		case OINDREG:
++			// nothing
++			break;
+ 		}
+-		goto common;
+-	case OINDREG:
+-	common:
+ 		*lo = *n;
+ 		*hi = *n;
+ 		lo->type = types[TUINT32];
+diff --git a/src/cmd/5g/peep.c b/src/cmd/5g/peep.c
+index fe0969be4b..7fe3e1071f 100644
+--- a/src/cmd/5g/peep.c
++++ b/src/cmd/5g/peep.c
+@@ -122,15 +122,14 @@ loop1:
+ 			}
+ 			break;
+ 
+-#ifdef NOTDEF
+-XXX
++			/*
+ 			if(p->scond == C_SCOND_NONE)
+ 			if(regtyp(&p->to))
+ 			if(isdconst(&p->from)) {
+ 				constprop(&p->from, &p->to, r->s1);
+ 			}
+ 			break;
+-#endif
++			*/
+ 		}
+ 	}
+ 	if(t)
+@@ -562,8 +561,6 @@ gotit:
+  * AXXX (x<<y),a,b
+  * ..
+  */
+-#define FAIL(msg) { if(debug['P']) print("\t%s; FAILURE\n", msg); return 0; }
+-/*c2go void FAIL(char*); */
+ 
+ int
+ shiftprop(Flow *r)
+@@ -574,8 +571,11 @@ shiftprop(Flow *r)
+ 	Adr a;
+ 
+ 	p = r->prog;
+-	if(p->to.type != TYPE_REG)
+-		FAIL("BOTCH: result not reg");
++	if(p->to.type != TYPE_REG) {
++		if(debug['P'])
++			print("\tBOTCH: result not reg; FAILURE\n");
++		return 0;
++	}
+ 	n = p->to.reg;
+ 	a = zprog.from;
+ 	if(p->reg != 0 && p->reg != p->to.reg) {
+@@ -588,28 +588,43 @@ shiftprop(Flow *r)
+ 	for(;;) {
+ 		/* find first use of shift result; abort if shift operands or result are changed */
+ 		r1 = uniqs(r1);
+-		if(r1 == nil)
+-			FAIL("branch");
+-		if(uniqp(r1) == nil)
+-			FAIL("merge");
++		if(r1 == nil) {
++			if(debug['P'])
++				print("\tbranch; FAILURE\n");
++			return 0;
++		}
++		if(uniqp(r1) == nil) {
++			if(debug['P'])
++				print("\tmerge; FAILURE\n");
++			return 0;
++		}
+ 		p1 = r1->prog;
+ 		if(debug['P'])
+ 			print("\n%P", p1);
+ 		switch(copyu(p1, &p->to, nil)) {
+ 		case 0:	/* not used or set */
+ 			if((p->from.type == TYPE_REG && copyu(p1, &p->from, nil) > 1) ||
+-			   (a.type == TYPE_REG && copyu(p1, &a, nil) > 1))
+-				FAIL("args modified");
++			   (a.type == TYPE_REG && copyu(p1, &a, nil) > 1)) {
++				if(debug['P'])
++					print("\targs modified; FAILURE\n");
++				return 0;
++			}
+ 			continue;
+-		case 3:	/* set, not used */
+-			FAIL("BOTCH: noref");
++		case 3:	/* set, not used */ {
++			if(debug['P'])
++				print("\tBOTCH: noref; FAILURE\n");
++			return 0;
++		}
+ 		}
+ 		break;
+ 	}
+ 	/* check whether substitution can be done */
+ 	switch(p1->as) {
+ 	default:
+-		FAIL("non-dpi");
++		if(debug['P'])
++			print("\tnon-dpi; FAILURE\n");
++		return 0;
++
+ 	case AAND:
+ 	case AEOR:
+ 	case AADD:
+@@ -620,8 +635,11 @@ shiftprop(Flow *r)
+ 	case ARSB:
+ 	case ARSC:
+ 		if(p1->reg == n || (p1->reg == 0 && p1->to.type == TYPE_REG && p1->to.reg == n)) {
+-			if(p1->from.type != TYPE_REG)
+-				FAIL("can't swap");
++			if(p1->from.type != TYPE_REG) {
++				if(debug['P'])
++					print("\tcan't swap; FAILURE\n");
++				return 0;
++			}
+ 			p1->reg = p1->from.reg;
+ 			p1->from.reg = n;
+ 			switch(p1->as) {
+@@ -645,15 +663,27 @@ shiftprop(Flow *r)
+ 	case ATST:
+ 	case ACMP:
+ 	case ACMN:
+-		if(p1->reg == n)
+-			FAIL("can't swap");
+-		if(p1->reg == 0 && p1->to.reg == n)
+-			FAIL("shift result used twice");
++		if(p1->reg == n) {
++			if(debug['P'])
++				print("\tcan't swap; FAILURE\n");
++			return 0;
++		}
++		if(p1->reg == 0 && p1->to.reg == n) {
++			if(debug['P'])
++				print("\tshift result used twice; FAILURE\n");
++			return 0;
++		}
+ //	case AMVN:
+-		if(p1->from.type == TYPE_SHIFT)
+-			FAIL("shift result used in shift");
+-		if(p1->from.type != TYPE_REG || p1->from.reg != n)
+-			FAIL("BOTCH: where is it used?");
++		if(p1->from.type == TYPE_SHIFT) {
++			if(debug['P'])
++				print("\tshift result used in shift; FAILURE\n");
++			return 0;
++		}
++		if(p1->from.type != TYPE_REG || p1->from.reg != n) {
++			if(debug['P'])
++				print("\tBOTCH: where is it used?; FAILURE\n");
++			return 0;
++		}
+ 		break;
+ 	}
+ 	/* check whether shift result is used subsequently */
+@@ -661,8 +691,11 @@ shiftprop(Flow *r)
+ 	if(p1->to.reg != n)
+ 	for (;;) {
+ 		r1 = uniqs(r1);
+-		if(r1 == nil)
+-			FAIL("inconclusive");
++		if(r1 == nil) {
++			if(debug['P'])
++				print("\tinconclusive; FAILURE\n");
++			return 0;
++		}
+ 		p1 = r1->prog;
+ 		if(debug['P'])
+ 			print("\n%P", p1);
+@@ -672,7 +705,9 @@ shiftprop(Flow *r)
+ 		case 3: /* set, not used */
+ 			break;
+ 		default:/* used */
+-			FAIL("reused");
++			if(debug['P'])
++				print("\treused; FAILURE\n");
++			return 0;
+ 		}
+ 		break;
+ 	}
+diff --git a/src/cmd/6g/cgen.c b/src/cmd/6g/cgen.c
+index 2a25724361..77ab2d2167 100644
+--- a/src/cmd/6g/cgen.c
++++ b/src/cmd/6g/cgen.c
+@@ -790,7 +790,7 @@ agenr(Node *n, Node *a, Node *res)
+ void
+ agen(Node *n, Node *res)
+ {
+-	Node *nl, *nr;
++	Node *nl;
+ 	Node n1, n2;
+ 
+ 	if(debug['g']) {
+@@ -827,8 +827,6 @@ agen(Node *n, Node *res)
+ 	}
+ 
+ 	nl = n->left;
+-	nr = n->right;
+-	USED(nr);
+ 
+ 	switch(n->op) {
+ 	default:
+@@ -1065,17 +1063,7 @@ bgen(Node *n, int true, int likely, Prog *to)
+ 
+ 	switch(n->op) {
+ 	default:
+-	def:
+-		regalloc(&n1, n->type, N);
+-		cgen(n, &n1);
+-		nodconst(&n2, n->type, 0);
+-		gins(optoas(OCMP, n->type), &n1, &n2);
+-		a = AJNE;
+-		if(!true)
+-			a = AJEQ;
+-		patch(gbranch(a, n->type, likely), to);
+-		regfree(&n1);
+-		goto ret;
++		goto def;
+ 
+ 	case OLITERAL:
+ 		// need to ask if it is bool?
+@@ -1095,27 +1083,20 @@ bgen(Node *n, int true, int likely, Prog *to)
+ 		goto ret;
+ 
+ 	case OANDAND:
+-		if(!true)
+-			goto caseor;
+-
+-	caseand:
+-		p1 = gbranch(AJMP, T, 0);
+-		p2 = gbranch(AJMP, T, 0);
+-		patch(p1, pc);
+-		bgen(n->left, !true, -likely, p2);
+-		bgen(n->right, !true, -likely, p2);
+-		p1 = gbranch(AJMP, T, 0);
+-		patch(p1, to);
+-		patch(p2, pc);
+-		goto ret;
+-
+ 	case OOROR:
+-		if(!true)
+-			goto caseand;
+-
+-	caseor:
+-		bgen(n->left, true, likely, to);
+-		bgen(n->right, true, likely, to);
++		if((n->op == OANDAND) == true) {
++			p1 = gbranch(AJMP, T, 0);
++			p2 = gbranch(AJMP, T, 0);
++			patch(p1, pc);
++			bgen(n->left, !true, -likely, p2);
++			bgen(n->right, !true, -likely, p2);
++			p1 = gbranch(AJMP, T, 0);
++			patch(p1, to);
++			patch(p2, pc);
++		} else {
++			bgen(n->left, true, likely, to);
++			bgen(n->right, true, likely, to);
++		}
+ 		goto ret;
+ 
+ 	case OEQ:
+@@ -1273,6 +1254,18 @@ bgen(Node *n, int true, int likely, Prog *to)
+ 	}
+ 	goto ret;
+ 
++def:
++	regalloc(&n1, n->type, N);
++	cgen(n, &n1);
++	nodconst(&n2, n->type, 0);
++	gins(optoas(OCMP, n->type), &n1, &n2);
++	a = AJNE;
++	if(!true)
++		a = AJEQ;
++	patch(gbranch(a, n->type, likely), to);
++	regfree(&n1);
++	goto ret;
++
+ ret:
+ 	;
+ }
+diff --git a/src/cmd/6g/gsubr.c b/src/cmd/6g/gsubr.c
+index 725ed8f819..55d3425081 100644
+--- a/src/cmd/6g/gsubr.c
++++ b/src/cmd/6g/gsubr.c
+@@ -95,7 +95,7 @@ gclean(void)
+ 			yyerror("reg %R left allocated\n", i);
+ }
+ 
+-int32
++int
+ anyregalloc(void)
+ {
+ 	int i, j;
+diff --git a/src/cmd/6g/peep.c b/src/cmd/6g/peep.c
+index 1140a3d4bb..261cb6e0a1 100644
+--- a/src/cmd/6g/peep.c
++++ b/src/cmd/6g/peep.c
+@@ -767,7 +767,7 @@ copyu(Prog *p, Adr *v, Adr *s)
+ 	case ACALL:
+ 		if(REGEXT && v->type == TYPE_REG && v->reg <= REGEXT && v->reg > exregoffset)
+ 			return 2;
+-		if(REGARG >= 0 && v->type == TYPE_REG && v->reg == (uchar)REGARG)
++		if(REGARG >= 0 && v->type == TYPE_REG && v->reg == REGARG)
+ 			return 2;
+ 		if(v->type == p->from.type && v->reg == p->from.reg)
+ 			return 2;
+@@ -782,7 +782,7 @@ copyu(Prog *p, Adr *v, Adr *s)
+ 		return 3;
+ 
+ 	case ATEXT:
+-		if(REGARG >= 0 && v->type == TYPE_REG && v->reg == (uchar)REGARG)
++		if(REGARG >= 0 && v->type == TYPE_REG && v->reg == REGARG)
+ 			return 3;
+ 		return 0;
+ 	}
+diff --git a/src/cmd/8g/cgen.c b/src/cmd/8g/cgen.c
+index c38aa0bcc1..f06927c905 100644
+--- a/src/cmd/8g/cgen.c
++++ b/src/cmd/8g/cgen.c
+@@ -956,17 +956,7 @@ bgen(Node *n, int true, int likely, Prog *to)
+ 
+ 	switch(n->op) {
+ 	default:
+-	def:
+-		regalloc(&n1, n->type, N);
+-		cgen(n, &n1);
+-		nodconst(&n2, n->type, 0);
+-		gins(optoas(OCMP, n->type), &n1, &n2);
+-		a = AJNE;
+-		if(!true)
+-			a = AJEQ;
+-		patch(gbranch(a, n->type, likely), to);
+-		regfree(&n1);
+-		return;
++		goto def;
+ 
+ 	case OLITERAL:
+ 		// need to ask if it is bool?
+@@ -986,27 +976,20 @@ bgen(Node *n, int true, int likely, Prog *to)
+ 		return;
+ 
+ 	case OANDAND:
+-		if(!true)
+-			goto caseor;
+-
+-	caseand:
+-		p1 = gbranch(AJMP, T, 0);
+-		p2 = gbranch(AJMP, T, 0);
+-		patch(p1, pc);
+-		bgen(n->left, !true, -likely, p2);
+-		bgen(n->right, !true, -likely, p2);
+-		p1 = gbranch(AJMP, T, 0);
+-		patch(p1, to);
+-		patch(p2, pc);
+-		return;
+-
+ 	case OOROR:
+-		if(!true)
+-			goto caseand;
+-
+-	caseor:
+-		bgen(n->left, true, likely, to);
+-		bgen(n->right, true, likely, to);
++		if((n->op == OANDAND) == true) {
++			p1 = gbranch(AJMP, T, 0);
++			p2 = gbranch(AJMP, T, 0);
++			patch(p1, pc);
++			bgen(n->left, !true, -likely, p2);
++			bgen(n->right, !true, -likely, p2);
++			p1 = gbranch(AJMP, T, 0);
++			patch(p1, to);
++			patch(p2, pc);
++		} else {
++			bgen(n->left, true, likely, to);
++			bgen(n->right, true, likely, to);
++		}
+ 		return;
+ 
+ 	case OEQ:
+@@ -1150,6 +1133,19 @@ cmp:
+ 		regfree(nr);
+ 		break;
+ 	}
++	return;
++
++def:
++	regalloc(&n1, n->type, N);
++	cgen(n, &n1);
++	nodconst(&n2, n->type, 0);
++	gins(optoas(OCMP, n->type), &n1, &n2);
++	a = AJNE;
++	if(!true)
++		a = AJEQ;
++	patch(gbranch(a, n->type, likely), to);
++	regfree(&n1);
++	return;
+ }
+ 
+ /*
+diff --git a/src/cmd/8g/gsubr.c b/src/cmd/8g/gsubr.c
+index 959ef20592..b82f7622ef 100644
+--- a/src/cmd/8g/gsubr.c
++++ b/src/cmd/8g/gsubr.c
+@@ -667,7 +667,7 @@ gclean(void)
+ 			yyerror("reg %R left allocated\n", i);
+ }
+ 
+-int32
++int
+ anyregalloc(void)
+ {
+ 	int i, j;
+@@ -724,9 +724,9 @@ regalloc(Node *n, Type *t, Node *o)
+ 			if(reg[i] == 0)
+ 				goto out;
+ 
+-		fprint(2, "registers allocated at\n");
++		print("registers allocated at\n");
+ 		for(i=REG_AX; i<=REG_DI; i++)
+-			fprint(2, "\t%R\t%#lux\n", i, regpc[i]);
++			print("\t%R\t%#lux\n", i, regpc[i]);
+ 		fatal("out of fixed registers");
+ 		goto err;
+ 
+@@ -744,9 +744,9 @@ regalloc(Node *n, Type *t, Node *o)
+ 		for(i=REG_X0; i<=REG_X7; i++)
+ 			if(reg[i] == 0)
+ 				goto out;
+-		fprint(2, "registers allocated at\n");
++		print("registers allocated at\n");
+ 		for(i=REG_X0; i<=REG_X7; i++)
+-			fprint(2, "\t%R\t%#lux\n", i, regpc[i]);
++			print("\t%R\t%#lux\n", i, regpc[i]);
+ 		fatal("out of floating registers");
+ 	}
+ 	yyerror("regalloc: unknown type %T", t);
+@@ -853,22 +853,25 @@ split64(Node *n, Node *lo, Node *hi)
+ 	nsclean++;
+ 	switch(n->op) {
+ 	default:
+-		if(!dotaddable(n, &n1)) {
+-			igen(n, &n1, N);
+-			sclean[nsclean-1] = n1;
+-		}
+-		n = &n1;
+-		goto common;
+-	case ONAME:
+-		if(n->class == PPARAMREF) {
+-			cgen(n->heapaddr, &n1);
+-			sclean[nsclean-1] = n1;
+-			// fall through.
++		switch(n->op) {
++		default:
++			if(!dotaddable(n, &n1)) {
++				igen(n, &n1, N);
++				sclean[nsclean-1] = n1;
++			}
+ 			n = &n1;
++			break;
++		case ONAME:
++			if(n->class == PPARAMREF) {
++				cgen(n->heapaddr, &n1);
++				sclean[nsclean-1] = n1;
++				n = &n1;
++			}
++			break;
++		case OINDREG:
++			// nothing
++			break;
+ 		}
+-		goto common;
+-	case OINDREG:
+-	common:
+ 		*lo = *n;
+ 		*hi = *n;
+ 		lo->type = types[TUINT32];
+@@ -1466,7 +1469,7 @@ floatmove_387(Node *f, Node *t)
+ 		gmove(f, &t1);
+ 		switch(tt) {
+ 		default:
+-			fatal("gmove %T", t);
++			fatal("gmove %N", t);
+ 		case TINT8:
+ 			gins(ACMPL, &t1, ncon(-0x80));
+ 			p1 = gbranch(optoas(OLT, types[TINT32]), T, -1);
+diff --git a/src/cmd/9g/cgen.c b/src/cmd/9g/cgen.c
+index b73f207fb3..009ea1ed7a 100644
+--- a/src/cmd/9g/cgen.c
++++ b/src/cmd/9g/cgen.c
+@@ -805,7 +805,7 @@ ginsadd(int as, vlong off, Node *dst)
+ void
+ agen(Node *n, Node *res)
+ {
+-	Node *nl, *nr;
++	Node *nl;
+ 	Node n1, n2, n3;
+ 
+ 	if(debug['g']) {
+@@ -848,8 +848,6 @@ agen(Node *n, Node *res)
+ 	}
+ 
+ 	nl = n->left;
+-	nr = n->right;
+-	USED(nr);
+ 
+ 	switch(n->op) {
+ 	default:
+@@ -1109,27 +1107,20 @@ bgen(Node *n, int true, int likely, Prog *to)
+ 		goto ret;
+ 
+ 	case OANDAND:
+-		if(!true)
+-			goto caseor;
+-
+-	caseand:
+-		p1 = gbranch(ABR, T, 0);
+-		p2 = gbranch(ABR, T, 0);
+-		patch(p1, pc);
+-		bgen(n->left, !true, -likely, p2);
+-		bgen(n->right, !true, -likely, p2);
+-		p1 = gbranch(ABR, T, 0);
+-		patch(p1, to);
+-		patch(p2, pc);
+-		goto ret;
+-
+ 	case OOROR:
+-		if(!true)
+-			goto caseand;
+-
+-	caseor:
+-		bgen(n->left, true, likely, to);
+-		bgen(n->right, true, likely, to);
++		if((n->op == OANDAND) == true) {
++			p1 = gbranch(AJMP, T, 0);
++			p2 = gbranch(AJMP, T, 0);
++			patch(p1, pc);
++			bgen(n->left, !true, -likely, p2);
++			bgen(n->right, !true, -likely, p2);
++			p1 = gbranch(AJMP, T, 0);
++			patch(p1, to);
++			patch(p2, pc);
++		} else {
++			bgen(n->left, true, likely, to);
++			bgen(n->right, true, likely, to);
++		}
+ 		goto ret;
+ 
+ 	case OEQ:
+diff --git a/src/cmd/9g/gg.h b/src/cmd/9g/gg.h
+index cc44f3586c..938675937e 100644
+--- a/src/cmd/9g/gg.h
++++ b/src/cmd/9g/gg.h
+@@ -9,9 +9,6 @@
+ #include "../gc/go.h"
+ #include "../9l/9.out.h"
+ 
+-// TODO(minux): Remove when no longer used.
+-#define noimpl sysfatal("%s not implemented (%s:%d).", __func__, __FILE__, __LINE__)
+-
+ EXTERN	uchar	reg[NREG+NFREG];
+ EXTERN	Node*	panicdiv;
+ extern	vlong	unmappedzero;
+diff --git a/src/cmd/9g/gsubr.c b/src/cmd/9g/gsubr.c
+index e01b587031..1fb1511361 100644
+--- a/src/cmd/9g/gsubr.c
++++ b/src/cmd/9g/gsubr.c
+@@ -87,7 +87,7 @@ gclean(void)
+ 			yyerror("reg %R left allocated, %p\n", i+REG_R0, regpc[i]);
+ }
+ 
+-int32
++int
+ anyregalloc(void)
+ {
+ 	int i, j;
+@@ -732,8 +732,7 @@ fixlargeoffset(Node *n)
+ 	if(n->xoffset != (int32)n->xoffset) {
+ 		// TODO(minux): offset too large, move into R31 and add to R31 instead.
+ 		// this is used only in test/fixedbugs/issue6036.go.
+-		print("offset too large: %N\n", n);
+-		noimpl;
++		fatal("offset too large: %N", n);
+ 		a = *n;
+ 		a.op = OREGISTER;
+ 		a.type = types[tptr];
+diff --git a/src/cmd/9g/peep.c b/src/cmd/9g/peep.c
+index 0980039c9d..cf96d5dcda 100644
+--- a/src/cmd/9g/peep.c
++++ b/src/cmd/9g/peep.c
+@@ -575,7 +575,7 @@ copyu(Prog *p, Addr *v, Addr *s)
+ {
+ 	if(p->from3.type != TYPE_NONE)
+ 		// 9g never generates a from3
+-		print("copyu: from3 (%D) not implemented\n", p->from3);
++		print("copyu: from3 (%D) not implemented\n", &p->from3);
+ 
+ 	switch(p->as) {
+ 
+diff --git a/src/cmd/gc/builtin.c b/src/cmd/gc/builtin.c
+index d381566d1f..1178f622e5 100644
+--- a/src/cmd/gc/builtin.c
++++ b/src/cmd/gc/builtin.c
+@@ -1,4 +1,7 @@
+ // AUTO-GENERATED by mkbuiltin; DO NOT EDIT
++#include <u.h>
++#include <libc.h>
++#include "go.h"
+ char *runtimeimport =
+ 	"package runtime\n"
+ 	"import runtime \"runtime\"\n"
+diff --git a/src/cmd/gc/closure.c b/src/cmd/gc/closure.c
+index eb72ea14ce..0391ece379 100644
+--- a/src/cmd/gc/closure.c
++++ b/src/cmd/gc/closure.c
+@@ -208,10 +208,19 @@ capturevars(Node *xfunc)
+ 			v->closure->addrtaken = 1;
+ 			outer = nod(OADDR, outer, N);
+ 		}
+-		if(debug['m'] > 1)
++		if(debug['m'] > 1) {
++			Sym *name;
++			char *how;
++			name = nil;
++			if(v->curfn && v->curfn->nname)
++				name = v->curfn->nname->sym;
++			how = "ref";
++			if(v->byval)
++				how = "value";
+ 			warnl(v->lineno, "%S capturing by %s: %S (addr=%d assign=%d width=%d)",
+-				(v->curfn && v->curfn->nname) ? v->curfn->nname->sym : S, v->byval ? "value" : "ref",
++				name, how,
+ 				v->sym, v->closure->addrtaken, v->closure->assigned, (int32)v->type->width);
++		}
+ 		typecheck(&outer, Erv);
+ 		func->enter = list(func->enter, outer);
+ 	}
+diff --git a/src/cmd/gc/const.c b/src/cmd/gc/const.c
+index e418b9c561..50accb93a3 100644
+--- a/src/cmd/gc/const.c
++++ b/src/cmd/gc/const.c
+@@ -696,14 +696,7 @@ evconst(Node *n)
+ 	// run op
+ 	switch(TUP(n->op, v.ctype)) {
+ 	default:
+-	illegal:
+-		if(!n->diag) {
+-			yyerror("illegal constant expression: %T %O %T",
+-				nl->type, n->op, nr->type);
+-			n->diag = 1;
+-		}
+-		return;
+-
++		goto illegal;
+ 	case TUP(OADD, CTINT):
+ 	case TUP(OADD, CTRUNE):
+ 		mpaddfixfix(v.u.xval, rv.u.xval, 0);
+@@ -1036,6 +1029,14 @@ setfalse:
+ 	*n = *nodbool(0);
+ 	n->orig = norig;
+ 	return;
++
++illegal:
++	if(!n->diag) {
++		yyerror("illegal constant expression: %T %O %T",
++			nl->type, n->op, nr->type);
++		n->diag = 1;
++	}
++	return;
+ }
+ 
+ Node*
+@@ -1214,28 +1215,31 @@ defaultlit(Node **np, Type *t)
+ 	case CTCPLX:
+ 		t1 = types[TCOMPLEX128];
+ 		goto num;
+-	num:
+-		if(t != T) {
+-			if(isint[t->etype]) {
+-				t1 = t;
+-				n->val = toint(n->val);
+-			}
+-			else
+-			if(isfloat[t->etype]) {
+-				t1 = t;
+-				n->val = toflt(n->val);
+-			}
+-			else
+-			if(iscomplex[t->etype]) {
+-				t1 = t;
+-				n->val = tocplx(n->val);
+-			}
++	}
++	lineno = lno;
++	return;
++
++num:
++	if(t != T) {
++		if(isint[t->etype]) {
++			t1 = t;
++			n->val = toint(n->val);
++		}
++		else
++		if(isfloat[t->etype]) {
++			t1 = t;
++			n->val = toflt(n->val);
++		}
++		else
++		if(iscomplex[t->etype]) {
++			t1 = t;
++			n->val = tocplx(n->val);
+ 		}
+-		overflow(n->val, t1);
+-		convlit(np, t1);
+-		break;
+ 	}
++	overflow(n->val, t1);
++	convlit(np, t1);
+ 	lineno = lno;
++	return;
+ }
+ 
+ /*
+diff --git a/src/cmd/gc/fmt.c b/src/cmd/gc/fmt.c
+index f9eb0ba2b3..bd0a29f6e1 100644
+--- a/src/cmd/gc/fmt.c
++++ b/src/cmd/gc/fmt.c
+@@ -171,7 +171,7 @@ goopnames[] =
+ };
+ 
+ // Fmt "%O":  Node opcodes
+-static int
++int
+ Oconv(Fmt *fp)
+ {
+ 	int o;
+@@ -1558,7 +1558,7 @@ Sconv(Fmt *fp)
+ // Flags: 'l' print definition, not name
+ //	  'h' omit 'func' and receiver from function types, short type names
+ //	  'u' package name, not prefix (FTypeId mode, sticky)
+-static int
++int
+ Tconv(Fmt *fp)
+ {
+ 	Type *t;
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index d99a7d431f..c5ef74586d 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -743,6 +743,7 @@ struct	Var
+ 	Node*	node;
+ 	Var*	nextinnode;
+ 	int	width;
++	int	id;
+ 	char	name;
+ 	char	etype;
+ 	char	addr;
+@@ -1732,6 +1733,13 @@ void datagostring(Strlit *sval, Addr *a);
+ int ismem(Node*);
+ int samereg(Node*, Node*);
+ void	regopt(Prog*);
++int	Tconv(Fmt*);
++int	Oconv(Fmt*);
++Prog*	gbranch(int as, Type *t, int likely);
++void	nodindreg(Node *n, Type *t, int r);
++void	nodreg(Node *n, Type *t, int r);
++Prog*	prog(int as);
++void	datastring(char*, int, Addr*);
+ 
+ EXTERN int32	pcloc;
+ 
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index b915e9fed2..a4b832aa0b 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -660,7 +660,7 @@ importfile(Val *f, int line)
+ 	Biobuf *imp;
+ 	char *file, *p, *q, *tag;
+ 	int32 c;
+-	int len;
++	int n;
+ 	Strlit *path;
+ 	char *cleanbuf, *prefix;
+ 
+@@ -758,8 +758,8 @@ importfile(Val *f, int line)
+ 	}
+ 	file = strdup(namebuf);
+ 
+-	len = strlen(namebuf);
+-	if(len > 2 && namebuf[len-2] == '.' && namebuf[len-1] == 'a') {
++	n = strlen(namebuf);
++	if(n > 2 && namebuf[n-2] == '.' && namebuf[n-1] == 'a') {
+ 		if(!skiptopkgdef(imp)) {
+ 			yyerror("import %s: not a package file", file);
+ 			errorexit();
+@@ -783,7 +783,7 @@ importfile(Val *f, int line)
+ 
+ 	// assume files move (get installed)
+ 	// so don't record the full path.
+-	linehist(file + len - path->len - 2, -1, 1);	// acts as #pragma lib
++	linehist(file + n - path->len - 2, -1, 1);	// acts as #pragma lib
+ 
+ 	/*
+ 	 * position the input right
+@@ -987,17 +987,7 @@ l0:
+ 			rune = c;
+ 			clen += runetochar(cp+clen, &rune);
+ 		}
+-
+-	strlit:
+-		*(int32*)cp = clen-sizeof(int32);	// length
+-		do {
+-			cp[clen++] = 0;
+-		} while(clen & MAXALIGN);
+-		yylval.val.u.sval = (Strlit*)cp;
+-		yylval.val.ctype = CTSTR;
+-		DBG("lex: string literal\n");
+-		strcpy(litbuf, "string literal");
+-		return LLITERAL;
++		goto strlit;
+ 
+ 	case '\'':
+ 		/* '.' */
+@@ -1292,7 +1282,7 @@ talph:
+ 		if(c >= Runeself) {
+ 			ungetc(c);
+ 			rune = getr();
+-			// 0xb7 Â· is used for internal names
++			// 0xb7 · is used for internal names
+ 			if(!isalpharune(rune) && !isdigitrune(rune) && (importpkg == nil || rune != 0xb7))
+ 				yyerror("invalid identifier character U+%04x", rune);
+ 			cp += runetochar(cp, &rune);
+@@ -1480,6 +1470,17 @@ caseout:
+ 	strcpy(litbuf, "literal ");
+ 	strcat(litbuf, lexbuf);
+ 	return LLITERAL;
++
++strlit:
++	*(int32*)cp = clen-sizeof(int32);	// length
++	do {
++		cp[clen++] = 0;
++	} while(clen & MAXALIGN);
++	yylval.val.u.sval = (Strlit*)cp;
++	yylval.val.ctype = CTSTR;
++	DBG("lex: string literal\n");
++	strcpy(litbuf, "string literal");
++	return LLITERAL;
+ }
+ 
+ static void pragcgo(char*);
+diff --git a/src/cmd/gc/mkbuiltin b/src/cmd/gc/mkbuiltin
+index 1dab1c9a05..696aa82424 100755
+--- a/src/cmd/gc/mkbuiltin
++++ b/src/cmd/gc/mkbuiltin
+@@ -20,6 +20,10 @@ GC=${GOCHAR}g
+ gcc -o mkbuiltin1 mkbuiltin1.c
+ rm -f _builtin.c
+ echo "// AUTO-GENERATED by mkbuiltin; DO NOT EDIT" >>_builtin.c
++echo "#include <u.h>" >>_builtin.c
++echo "#include <libc.h>" >>_builtin.c
++echo '#include "go.h"' >>_builtin.c
++
+ for i in runtime unsafe
+ do
+ 	go tool $GC -A $i.go
+diff --git a/src/cmd/gc/pgen.c b/src/cmd/gc/pgen.c
+index 371db2895f..3df78e7f9a 100644
+--- a/src/cmd/gc/pgen.c
++++ b/src/cmd/gc/pgen.c
+@@ -161,6 +161,7 @@ compile(Node *fn)
+ 	Iter save;
+ 	vlong oldstksize;
+ 	NodeList *l;
++	Node *nam;
+ 	Sym *gcargs;
+ 	Sym *gclocals;
+ 
+@@ -229,7 +230,10 @@ compile(Node *fn)
+ 	setlineno(curfn);
+ 
+ 	nodconst(&nod1, types[TINT32], 0);
+-	ptxt = thearch.gins(ATEXT, isblank(curfn->nname) ? N : curfn->nname, &nod1);
++	nam = curfn->nname;
++	if(isblank(nam))
++		nam = N;
++	ptxt = thearch.gins(ATEXT, nam, &nod1);
+ 	if(fn->dupok)
+ 		ptxt->from3.offset |= DUPOK;
+ 	if(fn->wrapper)
+diff --git a/src/cmd/gc/plive.c b/src/cmd/gc/plive.c
+index 283c5125e3..c0d1e57932 100644
+--- a/src/cmd/gc/plive.c
++++ b/src/cmd/gc/plive.c
+@@ -1909,15 +1909,15 @@ static void
+ twobitwritesymbol(Array *arr, Sym *sym)
+ {
+ 	Bvec *bv;
+-	int off, i, j, len;
++	int off, i, j, n;
+ 	uint32 word;
+ 
+-	len = arraylength(arr);
++	n = arraylength(arr);
+ 	off = 0;
+ 	off += 4; // number of bitmaps, to fill in later
+ 	bv = *(Bvec**)arrayget(arr, 0);
+ 	off = duint32(sym, off, bv->n); // number of bits in each bitmap
+-	for(i = 0; i < len; i++) {
++	for(i = 0; i < n; i++) {
+ 		// bitmap words
+ 		bv = *(Bvec**)arrayget(arr, i);
+ 		if(bv == nil)
+diff --git a/src/cmd/gc/popt.c b/src/cmd/gc/popt.c
+index af7e5b1ff3..b02d58e663 100644
+--- a/src/cmd/gc/popt.c
++++ b/src/cmd/gc/popt.c
+@@ -782,10 +782,9 @@ mergetemp(Prog *firstp)
+ 	}
+ 
+ 	// Clear aux structures.
+-	for(i = 0; i < nvar; i++) {
+-		v = &var[i];
+-		v->node->opt = nil;
+-	}
++	for(i = 0; i < nvar; i++)
++		var[i].node->opt = nil;
++
+ 	free(var);
+ 	free(bystart);
+ 	free(inuse);
+diff --git a/src/cmd/gc/popt.h b/src/cmd/gc/popt.h
+index 2bae0d770d..0a30e81f55 100644
+--- a/src/cmd/gc/popt.h
++++ b/src/cmd/gc/popt.h
+@@ -31,34 +31,25 @@
+ #define	Z	N
+ #define	Adr	Addr
+ 
+-#define	D_HI	TYPE_NONE
+-#define	D_LO	TYPE_NONE
+-
+ #define	BLOAD(r)	band(bnot(r->refbehind), r->refahead)
+ #define	BSTORE(r)	band(bnot(r->calbehind), r->calahead)
+ #define	LOAD(r)		(~r->refbehind.b[z] & r->refahead.b[z])
+ #define	STORE(r)	(~r->calbehind.b[z] & r->calahead.b[z])
+ 
+-#define	CLOAD	5
+-#define	CREF	5
+-#define	CINF	1000
+-#define	LOOP	3
+-
+-typedef	struct	Reg	Reg;
+-typedef	struct	Rgn	Rgn;
+-
+-/*c2go
+-extern Node *Z;
+ enum
+ {
+-	D_HI = TYPE_NONE,
+-	D_LO = TYPE_NONE,
+ 	CLOAD = 5,
+ 	CREF = 5,
+ 	CINF = 1000,
+ 	LOOP = 3,
+ };
+ 
++typedef	struct	Reg	Reg;
++typedef	struct	Rgn	Rgn;
++
++/*c2go
++extern Node *Z;
++
+ uint32 BLOAD(Reg*);
+ uint32 BSTORE(Reg*);
+ uint64 LOAD(Reg*);
+diff --git a/src/cmd/gc/range.c b/src/cmd/gc/range.c
+index ff05820b58..ff9de6c349 100644
+--- a/src/cmd/gc/range.c
++++ b/src/cmd/gc/range.c
+@@ -13,6 +13,7 @@
+ void
+ typecheckrange(Node *n)
+ {
++	int toomany;
+ 	char *why;
+ 	Type *t, *t1, *t2;
+ 	Node *v1, *v2;
+@@ -41,6 +42,7 @@ typecheckrange(Node *n)
+ 		t = t->type;
+ 	n->type = t;
+ 
++	toomany = 0;
+ 	switch(t->etype) {
+ 	default:
+ 		yyerror("cannot range over %lN", n->right);
+@@ -64,7 +66,7 @@ typecheckrange(Node *n)
+ 		t1 = t->type;
+ 		t2 = nil;
+ 		if(count(n->list) == 2)
+-			goto toomany;
++			toomany = 1;
+ 		break;
+ 
+ 	case TSTRING:
+@@ -73,10 +75,8 @@ typecheckrange(Node *n)
+ 		break;
+ 	}
+ 
+-	if(count(n->list) > 2) {
+-	toomany:
++	if(count(n->list) > 2 || toomany)
+ 		yyerror("too many variables in range");
+-	}
+ 
+ 	v1 = N;
+ 	if(n->list)
+diff --git a/src/cmd/gc/reflect.c b/src/cmd/gc/reflect.c
+index 7f81e676f9..14a1f13e33 100644
+--- a/src/cmd/gc/reflect.c
++++ b/src/cmd/gc/reflect.c
+@@ -1349,7 +1349,7 @@ usegcprog(Type *t)
+ 
+ // Generates sparse GC bitmask (4 bits per word).
+ static void
+-gengcmask(Type *t, uint8 gcmask[16])
++gengcmask(Type *t, uint8 *gcmask)
+ {
+ 	Bvec *vec;
+ 	vlong xoffset, nptr, i, j;
+diff --git a/src/cmd/gc/select.c b/src/cmd/gc/select.c
+index 5d3b71164a..537d0ca928 100644
+--- a/src/cmd/gc/select.c
++++ b/src/cmd/gc/select.c
+@@ -133,18 +133,16 @@ walkselect(Node *sel)
+ 				break;
+ 
+ 			case OSELRECV:
+-				ch = n->right->left;
+-			Selrecv1:
+-				if(n->left == N)
+-					n = n->right;
+-				else
+-					n->op = OAS;
+-				break;
+-			
+ 			case OSELRECV2:
+ 				ch = n->right->left;
+-				if(n->ntest == N)
+-					goto Selrecv1;
++				if(n->op == OSELRECV || n->ntest == N) {
++					if(n->left == N)
++						n = n->right;
++					else
++						n->op = OAS;
++					break;
++				}
++			
+ 				if(n->left == N) {
+ 					typecheck(&nblank, Erv | Easgn);
+ 					n->left = nblank;
+diff --git a/src/cmd/gc/swt.c b/src/cmd/gc/swt.c
+index e75971d477..0dc0065ed9 100644
+--- a/src/cmd/gc/swt.c
++++ b/src/cmd/gc/swt.c
+@@ -454,31 +454,22 @@ exprbsw(Case *c0, int ncase, int arg)
+ 			n = c0->node;
+ 			lno = setlineno(n);
+ 
+-			if(assignop(n->left->type, exprname->type, nil) == OCONVIFACE ||
+-			   assignop(exprname->type, n->left->type, nil) == OCONVIFACE)
+-				goto snorm;
+-
+-			switch(arg) {
+-			case Strue:
++			if((arg != Strue && arg != Sfalse) ||
++			   assignop(n->left->type, exprname->type, nil) == OCONVIFACE ||
++			   assignop(exprname->type, n->left->type, nil) == OCONVIFACE) {
+ 				a = nod(OIF, N, N);
+-				a->ntest = n->left;			// if val
++				a->ntest = nod(OEQ, exprname, n->left);	// if name == val
++				typecheck(&a->ntest, Erv);
+ 				a->nbody = list1(n->right);			// then goto l
+-				break;
+-
+-			case Sfalse:
++			} else if(arg == Strue) {
+ 				a = nod(OIF, N, N);
+-				a->ntest = nod(ONOT, n->left, N);	// if !val
+-				typecheck(&a->ntest, Erv);
++				a->ntest = n->left;			// if val
+ 				a->nbody = list1(n->right);			// then goto l
+-				break;
+-
+-			default:
+-			snorm:
++			} else { // arg == Sfalse
+ 				a = nod(OIF, N, N);
+-				a->ntest = nod(OEQ, exprname, n->left);	// if name == val
++				a->ntest = nod(ONOT, n->left, N);	// if !val
+ 				typecheck(&a->ntest, Erv);
+ 				a->nbody = list1(n->right);			// then goto l
+-				break;
+ 			}
+ 
+ 			cas = list(cas, a);
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index c73c34804f..649f1c5120 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -555,178 +555,7 @@ reswitch:
+ 		if(l->type == T || r->type == T)
+ 			goto error;
+ 		op = n->op;
+-	arith:
+-		if(op == OLSH || op == ORSH)
+-			goto shift;
+-		// ideal mixed with non-ideal
+-		defaultlit2(&l, &r, 0);
+-		n->left = l;
+-		n->right = r;
+-		if(l->type == T || r->type == T)
+-			goto error;
+-		t = l->type;
+-		if(t->etype == TIDEAL)
+-			t = r->type;
+-		et = t->etype;
+-		if(et == TIDEAL)
+-			et = TINT;
+-		aop = 0;
+-		if(iscmp[n->op] && t->etype != TIDEAL && !eqtype(l->type, r->type)) {
+-			// comparison is okay as long as one side is
+-			// assignable to the other.  convert so they have
+-			// the same type.
+-			//
+-			// the only conversion that isn't a no-op is concrete == interface.
+-			// in that case, check comparability of the concrete type.
+-			// The conversion allocates, so only do it if the concrete type is huge.
+-			if(r->type->etype != TBLANK && (aop = assignop(l->type, r->type, nil)) != 0) {
+-				if(isinter(r->type) && !isinter(l->type) && algtype1(l->type, nil) == ANOEQ) {
+-					yyerror("invalid operation: %N (operator %O not defined on %s)", n, op, typekind(l->type));
+-					goto error;
+-				}
+-				dowidth(l->type);
+-				if(isinter(r->type) == isinter(l->type) || l->type->width >= 1<<16) {
+-					l = nod(aop, l, N);
+-					l->type = r->type;
+-					l->typecheck = 1;
+-					n->left = l;
+-				}
+-				t = r->type;
+-				goto converted;
+-			}
+-			if(l->type->etype != TBLANK && (aop = assignop(r->type, l->type, nil)) != 0) {
+-				if(isinter(l->type) && !isinter(r->type) && algtype1(r->type, nil) == ANOEQ) {
+-					yyerror("invalid operation: %N (operator %O not defined on %s)", n, op, typekind(r->type));
+-					goto error;
+-				}
+-				dowidth(r->type);
+-				if(isinter(r->type) == isinter(l->type) || r->type->width >= 1<<16) {
+-					r = nod(aop, r, N);
+-					r->type = l->type;
+-					r->typecheck = 1;
+-					n->right = r;
+-				}
+-				t = l->type;
+-			}
+-		converted:
+-			et = t->etype;
+-		}
+-		if(t->etype != TIDEAL && !eqtype(l->type, r->type)) {
+-			defaultlit2(&l, &r, 1);
+-			if(n->op == OASOP && n->implicit) {
+-				yyerror("invalid operation: %N (non-numeric type %T)", n, l->type);
+-				goto error;
+-			}
+-			if(isinter(r->type) == isinter(l->type) || aop == 0) {
+-				yyerror("invalid operation: %N (mismatched types %T and %T)", n, l->type, r->type);
+-				goto error;
+-			}
+-		}
+-		if(!okfor[op][et]) {
+-			yyerror("invalid operation: %N (operator %O not defined on %s)", n, op, typekind(t));
+-			goto error;
+-		}
+-		// okfor allows any array == array, map == map, func == func.
+-		// restrict to slice/map/func == nil and nil == slice/map/func.
+-		if(isfixedarray(l->type) && algtype1(l->type, nil) == ANOEQ) {
+-			yyerror("invalid operation: %N (%T cannot be compared)", n, l->type);
+-			goto error;
+-		}
+-		if(isslice(l->type) && !isnil(l) && !isnil(r)) {
+-			yyerror("invalid operation: %N (slice can only be compared to nil)", n);
+-			goto error;
+-		}
+-		if(l->type->etype == TMAP && !isnil(l) && !isnil(r)) {
+-			yyerror("invalid operation: %N (map can only be compared to nil)", n);
+-			goto error;
+-		}
+-		if(l->type->etype == TFUNC && !isnil(l) && !isnil(r)) {
+-			yyerror("invalid operation: %N (func can only be compared to nil)", n);
+-			goto error;
+-		}
+-		if(l->type->etype == TSTRUCT && algtype1(l->type, &badtype) == ANOEQ) {
+-			yyerror("invalid operation: %N (struct containing %T cannot be compared)", n, badtype);
+-			goto error;
+-		}
+-		
+-		t = l->type;
+-		if(iscmp[n->op]) {
+-			evconst(n);
+-			t = idealbool;
+-			if(n->op != OLITERAL) {
+-				defaultlit2(&l, &r, 1);
+-				n->left = l;
+-				n->right = r;
+-			}
+-		} else if(n->op == OANDAND || n->op == OOROR) {
+-			if(l->type == r->type)
+-				t = l->type;
+-			else if(l->type == idealbool)
+-				t = r->type;
+-			else if(r->type == idealbool)
+-				t = l->type;
+-		// non-comparison operators on ideal bools should make them lose their ideal-ness
+-		} else if(t == idealbool)
+-			t = types[TBOOL];
+-
+-		if(et == TSTRING) {
+-			if(iscmp[n->op]) {
+-				n->etype = n->op;
+-				n->op = OCMPSTR;
+-			} else if(n->op == OADD) {
+-				// create OADDSTR node with list of strings in x + y + z + (w + v) + ...
+-				n->op = OADDSTR;
+-				if(l->op == OADDSTR)
+-					n->list = l->list;
+-				else
+-					n->list = list1(l);
+-				if(r->op == OADDSTR)
+-					n->list = concat(n->list, r->list);
+-				else
+-					n->list = list(n->list, r);
+-				n->left = N;
+-				n->right = N;
+-			}
+-		}
+-		if(et == TINTER) {
+-			if(l->op == OLITERAL && l->val.ctype == CTNIL) {
+-				// swap for back end
+-				n->left = r;
+-				n->right = l;
+-			} else if(r->op == OLITERAL && r->val.ctype == CTNIL) {
+-				// leave alone for back end
+-			} else if(isinter(r->type) == isinter(l->type)) {
+-				n->etype = n->op;
+-				n->op = OCMPIFACE;
+-			}
+-		}
+-
+-		if((op == ODIV || op == OMOD) && isconst(r, CTINT))
+-		if(mpcmpfixc(r->val.u.xval, 0) == 0) {
+-			yyerror("division by zero");
+-			goto error;
+-		} 
+-
+-		n->type = t;
+-		goto ret;
+-
+-	shift:
+-		defaultlit(&r, types[TUINT]);
+-		n->right = r;
+-		t = r->type;
+-		if(!isint[t->etype] || issigned[t->etype]) {
+-			yyerror("invalid operation: %N (shift count type %T, must be unsigned integer)", n, r->type);
+-			goto error;
+-		}
+-		t = l->type;
+-		if(t != T && t->etype != TIDEAL && !isint[t->etype]) {
+-			yyerror("invalid operation: %N (shift of type %T)", n, t);
+-			goto error;
+-		}
+-		// no defaultlit for left
+-		// the outer context gives the type
+-		n->type = l->type;
+-		goto ret;
++		goto arith;
+ 
+ 	case OCOM:
+ 	case OMINUS:
+@@ -1454,41 +1283,7 @@ reswitch:
+ 		goto ret;
+ 
+ 	case OCONV:
+-	doconv:
+-		ok |= Erv;
+-		saveorignode(n);
+-		typecheck(&n->left, Erv | (top & (Eindir | Eiota)));
+-		convlit1(&n->left, n->type, 1);
+-		if((t = n->left->type) == T || n->type == T)
+-			goto error;
+-		if((n->op = convertop(t, n->type, &why)) == 0) {
+-			if(!n->diag && !n->type->broke) {
+-				yyerror("cannot convert %lN to type %T%s", n->left, n->type, why);
+-				n->diag = 1;
+-			}
+-			n->op = OCONV;
+-		}
+-		switch(n->op) {
+-		case OCONVNOP:
+-			if(n->left->op == OLITERAL && n->type != types[TBOOL]) {
+-				r = nod(OXXX, N, N);
+-				n->op = OCONV;
+-				n->orig = r;
+-				*r = *n;
+-				n->op = OLITERAL;
+-				n->val = n->left->val;
+-			}
+-			break;
+-		case OSTRARRAYBYTE:
+-			// do not use stringtoarraylit.
+-			// generated code and compiler memory footprint is better without it.
+-			break;
+-		case OSTRARRAYRUNE:
+-			if(n->left->op == OLITERAL)
+-				stringtoarraylit(&n);
+-			break;
+-		}
+-		goto ret;
++		goto doconv;
+ 
+ 	case OMAKE:
+ 		ok |= Erv;
+@@ -1506,13 +1301,14 @@ reswitch:
+ 
+ 		switch(t->etype) {
+ 		default:
+-		badmake:
+ 			yyerror("cannot make type %T", t);
+ 			goto error;
+ 
+ 		case TARRAY:
+-			if(!isslice(t))
+-				goto badmake;
++			if(!isslice(t)) {
++				yyerror("cannot make type %T", t);
++				goto error;
++			}
+ 			if(args == nil) {
+ 				yyerror("missing len argument to make(%T)", t);
+ 				goto error;
+@@ -1805,6 +1601,216 @@ reswitch:
+ 			checkwidth(n->left->type);
+ 		goto ret;
+ 	}
++	goto ret;
++
++arith:
++	if(op == OLSH || op == ORSH)
++		goto shift;
++	// ideal mixed with non-ideal
++	defaultlit2(&l, &r, 0);
++	n->left = l;
++	n->right = r;
++	if(l->type == T || r->type == T)
++		goto error;
++	t = l->type;
++	if(t->etype == TIDEAL)
++		t = r->type;
++	et = t->etype;
++	if(et == TIDEAL)
++		et = TINT;
++	aop = 0;
++	if(iscmp[n->op] && t->etype != TIDEAL && !eqtype(l->type, r->type)) {
++		// comparison is okay as long as one side is
++		// assignable to the other.  convert so they have
++		// the same type.
++		//
++		// the only conversion that isn't a no-op is concrete == interface.
++		// in that case, check comparability of the concrete type.
++		// The conversion allocates, so only do it if the concrete type is huge.
++		if(r->type->etype != TBLANK && (aop = assignop(l->type, r->type, nil)) != 0) {
++			if(isinter(r->type) && !isinter(l->type) && algtype1(l->type, nil) == ANOEQ) {
++				yyerror("invalid operation: %N (operator %O not defined on %s)", n, op, typekind(l->type));
++				goto error;
++			}
++			dowidth(l->type);
++			if(isinter(r->type) == isinter(l->type) || l->type->width >= 1<<16) {
++				l = nod(aop, l, N);
++				l->type = r->type;
++				l->typecheck = 1;
++				n->left = l;
++			}
++			t = r->type;
++			goto converted;
++		}
++		if(l->type->etype != TBLANK && (aop = assignop(r->type, l->type, nil)) != 0) {
++			if(isinter(l->type) && !isinter(r->type) && algtype1(r->type, nil) == ANOEQ) {
++				yyerror("invalid operation: %N (operator %O not defined on %s)", n, op, typekind(r->type));
++				goto error;
++			}
++			dowidth(r->type);
++			if(isinter(r->type) == isinter(l->type) || r->type->width >= 1<<16) {
++				r = nod(aop, r, N);
++				r->type = l->type;
++				r->typecheck = 1;
++				n->right = r;
++			}
++			t = l->type;
++		}
++	converted:
++		et = t->etype;
++	}
++	if(t->etype != TIDEAL && !eqtype(l->type, r->type)) {
++		defaultlit2(&l, &r, 1);
++		if(n->op == OASOP && n->implicit) {
++			yyerror("invalid operation: %N (non-numeric type %T)", n, l->type);
++			goto error;
++		}
++		if(isinter(r->type) == isinter(l->type) || aop == 0) {
++			yyerror("invalid operation: %N (mismatched types %T and %T)", n, l->type, r->type);
++			goto error;
++		}
++	}
++	if(!okfor[op][et]) {
++		yyerror("invalid operation: %N (operator %O not defined on %s)", n, op, typekind(t));
++		goto error;
++	}
++	// okfor allows any array == array, map == map, func == func.
++	// restrict to slice/map/func == nil and nil == slice/map/func.
++	if(isfixedarray(l->type) && algtype1(l->type, nil) == ANOEQ) {
++		yyerror("invalid operation: %N (%T cannot be compared)", n, l->type);
++		goto error;
++	}
++	if(isslice(l->type) && !isnil(l) && !isnil(r)) {
++		yyerror("invalid operation: %N (slice can only be compared to nil)", n);
++		goto error;
++	}
++	if(l->type->etype == TMAP && !isnil(l) && !isnil(r)) {
++		yyerror("invalid operation: %N (map can only be compared to nil)", n);
++		goto error;
++	}
++	if(l->type->etype == TFUNC && !isnil(l) && !isnil(r)) {
++		yyerror("invalid operation: %N (func can only be compared to nil)", n);
++		goto error;
++	}
++	if(l->type->etype == TSTRUCT && algtype1(l->type, &badtype) == ANOEQ) {
++		yyerror("invalid operation: %N (struct containing %T cannot be compared)", n, badtype);
++		goto error;
++	}
++	
++	t = l->type;
++	if(iscmp[n->op]) {
++		evconst(n);
++		t = idealbool;
++		if(n->op != OLITERAL) {
++			defaultlit2(&l, &r, 1);
++			n->left = l;
++			n->right = r;
++		}
++	} else if(n->op == OANDAND || n->op == OOROR) {
++		if(l->type == r->type)
++			t = l->type;
++		else if(l->type == idealbool)
++			t = r->type;
++		else if(r->type == idealbool)
++			t = l->type;
++	// non-comparison operators on ideal bools should make them lose their ideal-ness
++	} else if(t == idealbool)
++		t = types[TBOOL];
++
++	if(et == TSTRING) {
++		if(iscmp[n->op]) {
++			n->etype = n->op;
++			n->op = OCMPSTR;
++		} else if(n->op == OADD) {
++			// create OADDSTR node with list of strings in x + y + z + (w + v) + ...
++			n->op = OADDSTR;
++			if(l->op == OADDSTR)
++				n->list = l->list;
++			else
++				n->list = list1(l);
++			if(r->op == OADDSTR)
++				n->list = concat(n->list, r->list);
++			else
++				n->list = list(n->list, r);
++			n->left = N;
++			n->right = N;
++		}
++	}
++	if(et == TINTER) {
++		if(l->op == OLITERAL && l->val.ctype == CTNIL) {
++			// swap for back end
++			n->left = r;
++			n->right = l;
++		} else if(r->op == OLITERAL && r->val.ctype == CTNIL) {
++			// leave alone for back end
++		} else if(isinter(r->type) == isinter(l->type)) {
++			n->etype = n->op;
++			n->op = OCMPIFACE;
++		}
++	}
++
++	if((op == ODIV || op == OMOD) && isconst(r, CTINT))
++	if(mpcmpfixc(r->val.u.xval, 0) == 0) {
++		yyerror("division by zero");
++		goto error;
++	} 
++
++	n->type = t;
++	goto ret;
++
++shift:
++	defaultlit(&r, types[TUINT]);
++	n->right = r;
++	t = r->type;
++	if(!isint[t->etype] || issigned[t->etype]) {
++		yyerror("invalid operation: %N (shift count type %T, must be unsigned integer)", n, r->type);
++		goto error;
++	}
++	t = l->type;
++	if(t != T && t->etype != TIDEAL && !isint[t->etype]) {
++		yyerror("invalid operation: %N (shift of type %T)", n, t);
++		goto error;
++	}
++	// no defaultlit for left
++	// the outer context gives the type
++	n->type = l->type;
++	goto ret;
++
++doconv:
++	ok |= Erv;
++	saveorignode(n);
++	typecheck(&n->left, Erv | (top & (Eindir | Eiota)));
++	convlit1(&n->left, n->type, 1);
++	if((t = n->left->type) == T || n->type == T)
++		goto error;
++	if((n->op = convertop(t, n->type, &why)) == 0) {
++		if(!n->diag && !n->type->broke) {
++			yyerror("cannot convert %lN to type %T%s", n->left, n->type, why);
++			n->diag = 1;
++		}
++		n->op = OCONV;
++	}
++	switch(n->op) {
++	case OCONVNOP:
++		if(n->left->op == OLITERAL && n->type != types[TBOOL]) {
++			r = nod(OXXX, N, N);
++			n->op = OCONV;
++			n->orig = r;
++			*r = *n;
++			n->op = OLITERAL;
++			n->val = n->left->val;
++		}
++		break;
++	case OSTRARRAYBYTE:
++		// do not use stringtoarraylit.
++		// generated code and compiler memory footprint is better without it.
++		break;
++	case OSTRARRAYRUNE:
++		if(n->left->op == OLITERAL)
++			stringtoarraylit(&n);
++		break;
++	}
++	goto ret;
+ 
+ ret:
+ 	t = n->type;
+@@ -1925,7 +1931,7 @@ checkdefergo(Node *n)
+ 	case OPRINTN:
+ 	case ORECOVER:
+ 		// ok
+-		break;
++		return;
+ 	case OAPPEND:
+ 	case OCAP:
+ 	case OCOMPLEX:
+@@ -1939,23 +1945,21 @@ checkdefergo(Node *n)
+ 	case OREAL:
+ 	case OLITERAL: // conversion or unsafe.Alignof, Offsetof, Sizeof
+ 		if(n->left->orig != N && n->left->orig->op == OCONV)
+-			goto conv;
+-		yyerror("%s discards result of %N", what, n->left);
+-		break;
+-	default:
+-	conv:
+-		// type is broken or missing, most likely a method call on a broken type
+-		// we will warn about the broken type elsewhere. no need to emit a potentially confusing error
+-		if(n->left->type == T || n->left->type->broke)
+ 			break;
++		yyerror("%s discards result of %N", what, n->left);
++		return;
++	}
+ 
+-		if(!n->diag) {
+-			// The syntax made sure it was a call, so this must be
+-			// a conversion.
+-			n->diag = 1;
+-			yyerror("%s requires function call, not conversion", what);
+-		}
+-		break;
++	// type is broken or missing, most likely a method call on a broken type
++	// we will warn about the broken type elsewhere. no need to emit a potentially confusing error
++	if(n->left->type == T || n->left->type->broke)
++		return;
++
++	if(!n->diag) {
++		// The syntax made sure it was a call, so this must be
++		// a conversion.
++		n->diag = 1;
++		yyerror("%s requires function call, not conversion", what);
+ 	}
+ }
+ 
+@@ -3048,15 +3052,20 @@ typecheckas2(Node *n)
+ 			goto out;
+ 		switch(r->op) {
+ 		case OINDEXMAP:
+-			n->op = OAS2MAPR;
+-			goto common;
+ 		case ORECV:
+-			n->op = OAS2RECV;
+-			goto common;
+ 		case ODOTTYPE:
+-			n->op = OAS2DOTTYPE;
+-			r->op = ODOTTYPE2;
+-		common:
++			switch(r->op) {
++			case OINDEXMAP:
++				n->op = OAS2MAPR;
++				break;
++			case ORECV:
++				n->op = OAS2RECV;
++				break;
++			case ODOTTYPE:
++				n->op = OAS2DOTTYPE;
++				r->op = ODOTTYPE2;
++				break;
++			}
+ 			if(l->type != T)
+ 				checkassignto(r->type, l);
+ 			if(l->defn == n)

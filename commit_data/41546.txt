@@ -20,7 +20,7 @@ Date:   Thu Oct 10 16:16:54 2019 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/asm/internal/arch/arch.go                  |  2 --
  src/cmd/compile/internal/amd64/galign.go           |  5 ----
  src/cmd/compile/internal/ssa/config.go             | 13 ----------
@@ -69,3 +69,829 @@ Date:   Thu Oct 10 16:16:54 2019 +0000
  src/sync/atomic/atomic_test.go                     | 11 ++------
  src/syscall/endian_little.go                       |  2 +-
  47 files changed, 56 insertions(+), 154 deletions(-)
+
+diff --git a/src/cmd/asm/internal/arch/arch.go b/src/cmd/asm/internal/arch/arch.go
+index 5d1f9a5326..f090d12bed 100644
+--- a/src/cmd/asm/internal/arch/arch.go
++++ b/src/cmd/asm/internal/arch/arch.go
+@@ -56,8 +56,6 @@ func Set(GOARCH string) *Arch {
+ 		return archX86(&x86.Link386)
+ 	case "amd64":
+ 		return archX86(&x86.Linkamd64)
+-	case "amd64p32":
+-		return archX86(&x86.Linkamd64p32)
+ 	case "arm":
+ 		return archArm()
+ 	case "arm64":
+diff --git a/src/cmd/compile/internal/amd64/galign.go b/src/cmd/compile/internal/amd64/galign.go
+index f6bb961c29..4e7e762d7d 100644
+--- a/src/cmd/compile/internal/amd64/galign.go
++++ b/src/cmd/compile/internal/amd64/galign.go
+@@ -7,17 +7,12 @@ package amd64
+ import (
+ 	"cmd/compile/internal/gc"
+ 	"cmd/internal/obj/x86"
+-	"cmd/internal/objabi"
+ )
+ 
+ var leaptr = x86.ALEAQ
+ 
+ func Init(arch *gc.Arch) {
+ 	arch.LinkArch = &x86.Linkamd64
+-	if objabi.GOARCH == "amd64p32" {
+-		arch.LinkArch = &x86.Linkamd64p32
+-		leaptr = x86.ALEAL
+-	}
+ 	arch.REGSP = x86.REGSP
+ 	arch.MAXWIDTH = 1 << 50
+ 
+diff --git a/src/cmd/compile/internal/ssa/config.go b/src/cmd/compile/internal/ssa/config.go
+index 770f92cc8e..4041a480b3 100644
+--- a/src/cmd/compile/internal/ssa/config.go
++++ b/src/cmd/compile/internal/ssa/config.go
+@@ -210,19 +210,6 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize bool) *Config
+ 		c.FPReg = framepointerRegAMD64
+ 		c.LinkReg = linkRegAMD64
+ 		c.hasGReg = false
+-	case "amd64p32":
+-		c.PtrSize = 4
+-		c.RegSize = 8
+-		c.lowerBlock = rewriteBlockAMD64
+-		c.lowerValue = rewriteValueAMD64
+-		c.splitLoad = rewriteValueAMD64splitload
+-		c.registers = registersAMD64[:]
+-		c.gpRegMask = gpRegMaskAMD64
+-		c.fpRegMask = fpRegMaskAMD64
+-		c.FPReg = framepointerRegAMD64
+-		c.LinkReg = linkRegAMD64
+-		c.hasGReg = false
+-		c.noDuffDevice = true
+ 	case "386":
+ 		c.PtrSize = 4
+ 		c.RegSize = 4
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index 9e8cda978e..539941001d 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -1061,7 +1061,7 @@ func isInlinableMemmove(dst, src *Value, sz int64, c *Config) bool {
+ 	// lowers them, so we only perform this optimization on platforms that we know to
+ 	// have fast Move ops.
+ 	switch c.arch {
+-	case "amd64", "amd64p32":
++	case "amd64":
+ 		return sz <= 16 || (sz < 1024 && disjoint(dst, sz, src, sz))
+ 	case "386", "ppc64", "ppc64le", "arm64":
+ 		return sz <= 8
+@@ -1077,7 +1077,7 @@ func isInlinableMemmove(dst, src *Value, sz int64, c *Config) bool {
+ // for sizes < 32-bit.  This is used to decide whether to promote some rotations.
+ func hasSmallRotate(c *Config) bool {
+ 	switch c.arch {
+-	case "amd64", "amd64p32", "386":
++	case "amd64", "386":
+ 		return true
+ 	default:
+ 		return false
+diff --git a/src/cmd/compile/main.go b/src/cmd/compile/main.go
+index bf4289e8f1..e3ec3361f9 100644
+--- a/src/cmd/compile/main.go
++++ b/src/cmd/compile/main.go
+@@ -24,7 +24,6 @@ import (
+ var archInits = map[string]func(*gc.Arch){
+ 	"386":      x86.Init,
+ 	"amd64":    amd64.Init,
+-	"amd64p32": amd64.Init,
+ 	"arm":      arm.Init,
+ 	"arm64":    arm64.Init,
+ 	"mips":     mips.Init,
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index 8f2f57dc22..ea290b1069 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -61,7 +61,6 @@ var (
+ var okgoarch = []string{
+ 	"386",
+ 	"amd64",
+-	"amd64p32",
+ 	"arm",
+ 	"arm64",
+ 	"mips",
+@@ -86,6 +85,7 @@ var okgoos = []string{
+ 	"android",
+ 	"solaris",
+ 	"freebsd",
++	"nacl", // keep;
+ 	"netbsd",
+ 	"openbsd",
+ 	"plan9",
+diff --git a/src/cmd/go/internal/imports/build.go b/src/cmd/go/internal/imports/build.go
+index 3e9fe357e0..eb070eef4c 100644
+--- a/src/cmd/go/internal/imports/build.go
++++ b/src/cmd/go/internal/imports/build.go
+@@ -210,7 +210,7 @@ var KnownOS = map[string]bool{
+ 	"illumos":   true,
+ 	"js":        true,
+ 	"linux":     true,
+-	"nacl":      true,
++	"nacl":      true, // legacy; don't remove
+ 	"netbsd":    true,
+ 	"openbsd":   true,
+ 	"plan9":     true,
+@@ -222,7 +222,7 @@ var KnownOS = map[string]bool{
+ var KnownArch = map[string]bool{
+ 	"386":         true,
+ 	"amd64":       true,
+-	"amd64p32":    true,
++	"amd64p32":    true, // legacy; don't remove
+ 	"arm":         true,
+ 	"armbe":       true,
+ 	"arm64":       true,
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 68ab85ae07..71eb5d9cd3 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -2390,7 +2390,7 @@ func (b *Builder) gccArchArgs() []string {
+ 	switch cfg.Goarch {
+ 	case "386":
+ 		return []string{"-m32"}
+-	case "amd64", "amd64p32":
++	case "amd64":
+ 		return []string{"-m64"}
+ 	case "arm":
+ 		return []string{"-marm"} // not thumb
+diff --git a/src/cmd/internal/obj/x86/obj6.go b/src/cmd/internal/obj/x86/obj6.go
+index 6716372460..4554d4a525 100644
+--- a/src/cmd/internal/obj/x86/obj6.go
++++ b/src/cmd/internal/obj/x86/obj6.go
+@@ -1226,16 +1226,6 @@ var Linkamd64 = obj.LinkArch{
+ 	DWARFRegisters: AMD64DWARFRegisters,
+ }
+ 
+-var Linkamd64p32 = obj.LinkArch{
+-	Arch:           sys.ArchAMD64P32,
+-	Init:           instinit,
+-	Preprocess:     preprocess,
+-	Assemble:       span6,
+-	Progedit:       progedit,
+-	UnaryDst:       unaryDst,
+-	DWARFRegisters: AMD64DWARFRegisters,
+-}
+-
+ var Link386 = obj.LinkArch{
+ 	Arch:           sys.Arch386,
+ 	Init:           instinit,
+diff --git a/src/cmd/internal/objfile/disasm.go b/src/cmd/internal/objfile/disasm.go
+index 50fc51be87..b979a7f8aa 100644
+--- a/src/cmd/internal/objfile/disasm.go
++++ b/src/cmd/internal/objfile/disasm.go
+@@ -241,7 +241,7 @@ func (d *Disasm) Print(w io.Writer, filter *regexp.Regexp, start, end uint64, pr
+ 				fmt.Fprintf(tw, "  %s:%d\t%#x\t", base(file), line, pc)
+ 			}
+ 
+-			if size%4 != 0 || d.goarch == "386" || d.goarch == "amd64" || d.goarch == "amd64p32" {
++			if size%4 != 0 || d.goarch == "386" || d.goarch == "amd64" {
+ 				// Print instruction as bytes.
+ 				fmt.Fprintf(tw, "%x", code[i:i+size])
+ 			} else {
+@@ -367,24 +367,22 @@ func disasm_ppc64(code []byte, pc uint64, lookup lookupFunc, byteOrder binary.By
+ }
+ 
+ var disasms = map[string]disasmFunc{
+-	"386":      disasm_386,
+-	"amd64":    disasm_amd64,
+-	"amd64p32": disasm_amd64,
+-	"arm":      disasm_arm,
+-	"arm64":    disasm_arm64,
+-	"ppc64":    disasm_ppc64,
+-	"ppc64le":  disasm_ppc64,
++	"386":     disasm_386,
++	"amd64":   disasm_amd64,
++	"arm":     disasm_arm,
++	"arm64":   disasm_arm64,
++	"ppc64":   disasm_ppc64,
++	"ppc64le": disasm_ppc64,
+ }
+ 
+ var byteOrders = map[string]binary.ByteOrder{
+-	"386":      binary.LittleEndian,
+-	"amd64":    binary.LittleEndian,
+-	"amd64p32": binary.LittleEndian,
+-	"arm":      binary.LittleEndian,
+-	"arm64":    binary.LittleEndian,
+-	"ppc64":    binary.BigEndian,
+-	"ppc64le":  binary.LittleEndian,
+-	"s390x":    binary.BigEndian,
++	"386":     binary.LittleEndian,
++	"amd64":   binary.LittleEndian,
++	"arm":     binary.LittleEndian,
++	"arm64":   binary.LittleEndian,
++	"ppc64":   binary.BigEndian,
++	"ppc64le": binary.LittleEndian,
++	"s390x":   binary.BigEndian,
+ }
+ 
+ type Liner interface {
+diff --git a/src/cmd/internal/sys/arch.go b/src/cmd/internal/sys/arch.go
+index 2e07482c1a..e8687363de 100644
+--- a/src/cmd/internal/sys/arch.go
++++ b/src/cmd/internal/sys/arch.go
+@@ -7,8 +7,7 @@ package sys
+ import "encoding/binary"
+ 
+ // ArchFamily represents a family of one or more related architectures.
+-// For example, amd64 and amd64p32 are both members of the AMD64 family,
+-// and ppc64 and ppc64le are both members of the PPC64 family.
++// For example, ppc64 and ppc64le are both members of the PPC64 family.
+ type ArchFamily byte
+ 
+ const (
+@@ -72,15 +71,6 @@ var ArchAMD64 = &Arch{
+ 	MinLC:     1,
+ }
+ 
+-var ArchAMD64P32 = &Arch{
+-	Name:      "amd64p32",
+-	Family:    AMD64,
+-	ByteOrder: binary.LittleEndian,
+-	PtrSize:   4,
+-	RegSize:   8,
+-	MinLC:     1,
+-}
+-
+ var ArchARM = &Arch{
+ 	Name:      "arm",
+ 	Family:    ARM,
+@@ -183,7 +173,6 @@ var ArchWasm = &Arch{
+ var Archs = [...]*Arch{
+ 	Arch386,
+ 	ArchAMD64,
+-	ArchAMD64P32,
+ 	ArchARM,
+ 	ArchARM64,
+ 	ArchMIPS,
+diff --git a/src/cmd/link/internal/amd64/obj.go b/src/cmd/link/internal/amd64/obj.go
+index 537a241baa..029a24d7c1 100644
+--- a/src/cmd/link/internal/amd64/obj.go
++++ b/src/cmd/link/internal/amd64/obj.go
+@@ -38,9 +38,6 @@ import (
+ 
+ func Init() (*sys.Arch, ld.Arch) {
+ 	arch := sys.ArchAMD64
+-	if objabi.GOARCH == "amd64p32" {
+-		arch = sys.ArchAMD64P32
+-	}
+ 
+ 	theArch := ld.Arch{
+ 		Funcalign:  funcAlign,
+diff --git a/src/cmd/link/main.go b/src/cmd/link/main.go
+index 4b8df11451..99550b0584 100644
+--- a/src/cmd/link/main.go
++++ b/src/cmd/link/main.go
+@@ -45,7 +45,7 @@ func main() {
+ 		os.Exit(2)
+ 	case "386":
+ 		arch, theArch = x86.Init()
+-	case "amd64", "amd64p32":
++	case "amd64":
+ 		arch, theArch = amd64.Init()
+ 	case "arm":
+ 		arch, theArch = arm.Init()
+diff --git a/src/crypto/md5/md5block_decl.go b/src/crypto/md5/md5block_decl.go
+index 1ac82cf08c..f251e03d7f 100644
+--- a/src/crypto/md5/md5block_decl.go
++++ b/src/crypto/md5/md5block_decl.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build amd64 amd64p32 386 arm ppc64le ppc64 s390x arm64
++// +build amd64 386 arm ppc64le ppc64 s390x arm64
+ 
+ package md5
+ 
+diff --git a/src/crypto/md5/md5block_generic.go b/src/crypto/md5/md5block_generic.go
+index 86e3b64e9f..0b46e70b60 100644
+--- a/src/crypto/md5/md5block_generic.go
++++ b/src/crypto/md5/md5block_generic.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build !amd64,!amd64p32,!386,!arm,!ppc64le,!ppc64,!s390x,!arm64
++// +build !amd64,!386,!arm,!ppc64le,!ppc64,!s390x,!arm64
+ 
+ package md5
+ 
+diff --git a/src/crypto/sha1/sha1block_decl.go b/src/crypto/sha1/sha1block_decl.go
+index 6d2d073d13..9c7df4e40a 100644
+--- a/src/crypto/sha1/sha1block_decl.go
++++ b/src/crypto/sha1/sha1block_decl.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build amd64p32 arm 386 s390x
++// +build arm 386 s390x
+ 
+ package sha1
+ 
+diff --git a/src/crypto/sha1/sha1block_generic.go b/src/crypto/sha1/sha1block_generic.go
+index 5823e08941..f95ea0eee4 100644
+--- a/src/crypto/sha1/sha1block_generic.go
++++ b/src/crypto/sha1/sha1block_generic.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build !amd64,!amd64p32,!386,!arm,!s390x,!arm64
++// +build !amd64,!386,!arm,!s390x,!arm64
+ 
+ package sha1
+ 
+diff --git a/src/go/build/syslist.go b/src/go/build/syslist.go
+index 197c646d5c..fbfe4c4677 100644
+--- a/src/go/build/syslist.go
++++ b/src/go/build/syslist.go
+@@ -4,5 +4,8 @@
+ 
+ package build
+ 
++// List of past, present, and future known GOOS and GOARCH values.
++// Do not remove from this list, as these are used for go/build filename matching.
++
+ const goosList = "aix android darwin dragonfly freebsd hurd illumos js linux nacl netbsd openbsd plan9 solaris windows zos "
+ const goarchList = "386 amd64 amd64p32 arm armbe arm64 arm64be ppc64 ppc64le mips mipsle mips64 mips64le mips64p32 mips64p32le ppc riscv riscv64 s390 s390x sparc sparc64 wasm "
+diff --git a/src/hash/crc32/crc32_otherarch.go b/src/hash/crc32/crc32_otherarch.go
+index 6f3510a279..1a5e542ab6 100644
+--- a/src/hash/crc32/crc32_otherarch.go
++++ b/src/hash/crc32/crc32_otherarch.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build !amd64,!amd64p32,!s390x,!ppc64le,!arm64
++// +build !amd64,!s390x,!ppc64le,!arm64
+ 
+ package crc32
+ 
+diff --git a/src/internal/bytealg/compare_generic.go b/src/internal/bytealg/compare_generic.go
+index 4839df9528..bd4489a6b9 100644
+--- a/src/internal/bytealg/compare_generic.go
++++ b/src/internal/bytealg/compare_generic.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build !386,!amd64,!amd64p32,!s390x,!arm,!arm64,!ppc64,!ppc64le,!mips,!mipsle,!wasm,!mips64,!mips64le
++// +build !386,!amd64,!s390x,!arm,!arm64,!ppc64,!ppc64le,!mips,!mipsle,!wasm,!mips64,!mips64le
+ 
+ package bytealg
+ 
+diff --git a/src/internal/bytealg/compare_native.go b/src/internal/bytealg/compare_native.go
+index 95486e8542..b53ba97463 100644
+--- a/src/internal/bytealg/compare_native.go
++++ b/src/internal/bytealg/compare_native.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build 386 amd64 amd64p32 s390x arm arm64 ppc64 ppc64le mips mipsle wasm mips64 mips64le
++// +build 386 amd64 s390x arm arm64 ppc64 ppc64le mips mipsle wasm mips64 mips64le
+ 
+ package bytealg
+ 
+diff --git a/src/internal/bytealg/indexbyte_generic.go b/src/internal/bytealg/indexbyte_generic.go
+index 6bff31ceee..fce1b0fc54 100644
+--- a/src/internal/bytealg/indexbyte_generic.go
++++ b/src/internal/bytealg/indexbyte_generic.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build !386,!amd64,!amd64p32,!s390x,!arm,!arm64,!ppc64,!ppc64le,!mips,!mipsle,!mips64,!mips64le,!wasm
++// +build !386,!amd64,!s390x,!arm,!arm64,!ppc64,!ppc64le,!mips,!mipsle,!mips64,!mips64le,!wasm
+ 
+ package bytealg
+ 
+diff --git a/src/internal/bytealg/indexbyte_native.go b/src/internal/bytealg/indexbyte_native.go
+index b4ddc86ea9..157caa34c4 100644
+--- a/src/internal/bytealg/indexbyte_native.go
++++ b/src/internal/bytealg/indexbyte_native.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build 386 amd64 amd64p32 s390x arm arm64 ppc64 ppc64le mips mipsle mips64 mips64le wasm
++// +build 386 amd64 s390x arm arm64 ppc64 ppc64le mips mipsle mips64 mips64le wasm
+ 
+ package bytealg
+ 
+diff --git a/src/internal/cpu/cpu_no_init.go b/src/internal/cpu/cpu_no_init.go
+index 777ea9de8b..d4b2be8cf4 100644
+--- a/src/internal/cpu/cpu_no_init.go
++++ b/src/internal/cpu/cpu_no_init.go
+@@ -4,7 +4,6 @@
+ 
+ // +build !386
+ // +build !amd64
+-// +build !amd64p32
+ // +build !arm
+ // +build !arm64
+ // +build !ppc64
+diff --git a/src/internal/cpu/cpu_x86.go b/src/internal/cpu/cpu_x86.go
+index 5d357be62b..da6cf67258 100644
+--- a/src/internal/cpu/cpu_x86.go
++++ b/src/internal/cpu/cpu_x86.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build 386 amd64 amd64p32
++// +build 386 amd64
+ 
+ package cpu
+ 
+@@ -55,8 +55,8 @@ func doinit() {
+ 		{Name: "sse42", Feature: &X86.HasSSE42},
+ 		{Name: "ssse3", Feature: &X86.HasSSSE3},
+ 
+-		// These capabilities should always be enabled on amd64(p32):
+-		{Name: "sse2", Feature: &X86.HasSSE2, Required: GOARCH == "amd64" || GOARCH == "amd64p32"},
++		// These capabilities should always be enabled on amd64:
++		{Name: "sse2", Feature: &X86.HasSSE2, Required: GOARCH == "amd64"},
+ 	}
+ 
+ 	maxID, _, _, _ := cpuid(0, 0)
+diff --git a/src/internal/cpu/cpu_x86.s b/src/internal/cpu/cpu_x86.s
+index 564e1133ed..93c712d784 100644
+--- a/src/internal/cpu/cpu_x86.s
++++ b/src/internal/cpu/cpu_x86.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build 386 amd64 amd64p32
++// +build 386 amd64
+ 
+ #include "textflag.h"
+ 
+diff --git a/src/internal/cpu/cpu_x86_test.go b/src/internal/cpu/cpu_x86_test.go
+index 9e93d1af5d..61db93bd51 100644
+--- a/src/internal/cpu/cpu_x86_test.go
++++ b/src/internal/cpu/cpu_x86_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build 386 amd64 amd64p32
++// +build 386 amd64
+ 
+ package cpu_test
+ 
+diff --git a/src/math/exp_asm.go b/src/math/exp_asm.go
+index 421618eea9..8dad3c810b 100644
+--- a/src/math/exp_asm.go
++++ b/src/math/exp_asm.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build amd64 amd64p32
++// +build amd64
+ 
+ package math
+ 
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index 1fbc8dd61c..b6010f9265 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -6104,9 +6104,6 @@ var funcLayoutTests []funcLayoutTest
+ 
+ func init() {
+ 	var argAlign uintptr = PtrSize
+-	if runtime.GOARCH == "amd64p32" {
+-		argAlign = 2 * PtrSize
+-	}
+ 	roundup := func(x uintptr, a uintptr) uintptr {
+ 		return (x + a - 1) / a * a
+ 	}
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index 495679b52e..231b38b898 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -16,7 +16,6 @@
+ package reflect
+ 
+ import (
+-	"runtime"
+ 	"strconv"
+ 	"sync"
+ 	"unicode"
+@@ -3015,9 +3014,6 @@ func funcLayout(t *funcType, rcvr *rtype) (frametype *rtype, argSize, retOffset
+ 		offset += arg.size
+ 	}
+ 	argSize = offset
+-	if runtime.GOARCH == "amd64p32" {
+-		offset += -offset & (8 - 1)
+-	}
+ 	offset += -offset & (ptrSize - 1)
+ 	retOffset = offset
+ 	for _, res := range t.out() {
+@@ -3033,9 +3029,6 @@ func funcLayout(t *funcType, rcvr *rtype) (frametype *rtype, argSize, retOffset
+ 		size:    offset,
+ 		ptrdata: uintptr(ptrmap.n) * ptrSize,
+ 	}
+-	if runtime.GOARCH == "amd64p32" {
+-		x.align = 8
+-	}
+ 	if ptrmap.n > 0 {
+ 		x.gcdata = &ptrmap.data[0]
+ 	}
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index 7fec09962c..ffcb204cda 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -555,9 +555,6 @@ func callReflect(ctxt *makeFuncImpl, frame unsafe.Pointer, retValid *bool) {
+ 	// Copy results back into argument frame.
+ 	if numOut > 0 {
+ 		off += -off & (ptrSize - 1)
+-		if runtime.GOARCH == "amd64p32" {
+-			off = align(off, 8)
+-		}
+ 		for i, typ := range ftyp.out() {
+ 			v := out[i]
+ 			if v.typ == nil {
+@@ -697,8 +694,7 @@ func callMethod(ctxt *methodValue, frame unsafe.Pointer, retValid *bool) {
+ 
+ 	// Copy in receiver and rest of args.
+ 	storeRcvr(rcvr, scratch)
+-	// Align the first arg. Only on amd64p32 the alignment can be
+-	// larger than ptrSize.
++	// Align the first arg. The alignment can't be larger than ptrSize.
+ 	argOffset := uintptr(ptrSize)
+ 	if len(t.in()) > 0 {
+ 		argOffset = align(argOffset, uintptr(t.in()[0].align))
+@@ -713,17 +709,11 @@ func callMethod(ctxt *methodValue, frame unsafe.Pointer, retValid *bool) {
+ 	// and then copies the results back into scratch.
+ 	call(frametype, fn, scratch, uint32(frametype.size), uint32(retOffset))
+ 
+-	// Copy return values. On amd64p32, the beginning of return values
+-	// is 64-bit aligned, so the caller's frame layout (which doesn't have
+-	// a receiver) is different from the layout of the fn call, which has
+-	// a receiver.
++	// Copy return values.
+ 	// Ignore any changes to args and just copy return values.
+ 	// Avoid constructing out-of-bounds pointers if there are no return values.
+ 	if frametype.size-retOffset > 0 {
+ 		callerRetOffset := retOffset - argOffset
+-		if runtime.GOARCH == "amd64p32" {
+-			callerRetOffset = align(argSize-argOffset, 8)
+-		}
+ 		// This copies to the stack. Write barriers are not needed.
+ 		memmove(add(frame, callerRetOffset, "frametype.size > retOffset"),
+ 			add(scratch, retOffset, "frametype.size > retOffset"),
+diff --git a/src/runtime/asm.s b/src/runtime/asm.s
+index c886d4e722..95a3424de2 100644
+--- a/src/runtime/asm.s
++++ b/src/runtime/asm.s
+@@ -19,9 +19,6 @@ GLOBL runtime·no_pointers_stackmap(SB),RODATA, $8
+ #ifdef GOARCH_386
+ #define SKIP4 BYTE $0x90; BYTE $0x90; BYTE $0x90; BYTE $0x90
+ #endif
+-#ifdef GOARCH_amd64p32
+-#define SKIP4 BYTE $0x90; BYTE $0x90; BYTE $0x90; BYTE $0x90
+-#endif
+ #ifdef GOARCH_wasm
+ #define SKIP4 UNDEF; UNDEF; UNDEF; UNDEF
+ #endif
+diff --git a/src/runtime/gcinfo_test.go b/src/runtime/gcinfo_test.go
+index 0741f6361c..c228c779e4 100644
+--- a/src/runtime/gcinfo_test.go
++++ b/src/runtime/gcinfo_test.go
+@@ -187,14 +187,6 @@ func infoBigStruct() []byte {
+ 			typeScalar, typeScalar, typeScalar, // t int; y uint16; u uint64
+ 			typePointer, typeScalar, // i string
+ 		}
+-	case "amd64p32":
+-		return []byte{
+-			typePointer,                                                // q *int
+-			typeScalar, typeScalar, typeScalar, typeScalar, typeScalar, // w byte; e [17]byte
+-			typePointer, typeScalar, typeScalar, // r []byte
+-			typeScalar, typeScalar, typeScalar, typeScalar, typeScalar, // t int; y uint16; u uint64
+-			typePointer, typeScalar, // i string
+-		}
+ 	default:
+ 		panic("unknown arch")
+ 	}
+diff --git a/src/runtime/go_tls.h b/src/runtime/go_tls.h
+index 61f7dbef3c..a47e798d9d 100644
+--- a/src/runtime/go_tls.h
++++ b/src/runtime/go_tls.h
+@@ -11,11 +11,6 @@
+ #define	g(r)	0(r)(TLS*1)
+ #endif
+ 
+-#ifdef GOARCH_amd64p32
+-#define	get_tls(r)	MOVL TLS, r
+-#define	g(r)	0(r)(TLS*1)
+-#endif
+-
+ #ifdef GOARCH_386
+ #define	get_tls(r)	MOVL TLS, r
+ #define	g(r)	0(r)(TLS*1)
+diff --git a/src/runtime/hash64.go b/src/runtime/hash64.go
+index e7908d7800..798d6dcd9e 100644
+--- a/src/runtime/hash64.go
++++ b/src/runtime/hash64.go
+@@ -6,7 +6,7 @@
+ //   xxhash: https://code.google.com/p/xxhash/
+ // cityhash: https://code.google.com/p/cityhash/
+ 
+-// +build amd64 amd64p32 arm64 mips64 mips64le ppc64 ppc64le s390x wasm
++// +build amd64 arm64 mips64 mips64le ppc64 ppc64le s390x wasm
+ 
+ package runtime
+ 
+diff --git a/src/runtime/internal/atomic/atomic_amd64x.go b/src/runtime/internal/atomic/atomic_amd64.go
+similarity index 98%
+rename from src/runtime/internal/atomic/atomic_amd64x.go
+rename to src/runtime/internal/atomic/atomic_amd64.go
+index 31c1636b2e..fc865e892d 100644
+--- a/src/runtime/internal/atomic/atomic_amd64x.go
++++ b/src/runtime/internal/atomic/atomic_amd64.go
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build amd64 amd64p32
+-
+ package atomic
+ 
+ import "unsafe"
+diff --git a/src/runtime/internal/atomic/atomic_test.go b/src/runtime/internal/atomic/atomic_test.go
+index 0ba75447e8..9e4461ce38 100644
+--- a/src/runtime/internal/atomic/atomic_test.go
++++ b/src/runtime/internal/atomic/atomic_test.go
+@@ -86,14 +86,8 @@ func TestUnaligned64(t *testing.T) {
+ 	// a continual source of pain. Test that on 32-bit systems they crash
+ 	// instead of failing silently.
+ 
+-	switch runtime.GOARCH {
+-	default:
+-		if unsafe.Sizeof(int(0)) != 4 {
+-			t.Skip("test only runs on 32-bit systems")
+-		}
+-	case "amd64p32":
+-		// amd64p32 can handle unaligned atomics.
+-		t.Skipf("test not needed on %v", runtime.GOARCH)
++	if unsafe.Sizeof(int(0)) != 4 {
++		t.Skip("test only runs on 32-bit systems")
+ 	}
+ 
+ 	x := make([]uint32, 4)
+diff --git a/src/runtime/panic32.go b/src/runtime/panic32.go
+index b89ce9d563..aea8401a37 100644
+--- a/src/runtime/panic32.go
++++ b/src/runtime/panic32.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build 386 amd64p32 arm mips mipsle
++// +build 386 arm mips mipsle
+ 
+ package runtime
+ 
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 2d68721701..dd399e00a6 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -922,7 +922,7 @@ var (
+ 	// Information about what cpu features are available.
+ 	// Packages outside the runtime should not use these
+ 	// as they are not an external api.
+-	// Set on startup in asm_{386,amd64,amd64p32}.s
++	// Set on startup in asm_{386,amd64}.s
+ 	processorVersionInfo uint32
+ 	isIntel              bool
+ 	lfenceBeforeRdtsc    bool
+diff --git a/src/runtime/signal_amd64x.go b/src/runtime/signal_amd64.go
+similarity index 98%
+rename from src/runtime/signal_amd64x.go
+rename to src/runtime/signal_amd64.go
+index 459499e973..9e9bb9ca33 100644
+--- a/src/runtime/signal_amd64x.go
++++ b/src/runtime/signal_amd64.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build amd64 amd64p32
++// +build amd64
+ // +build darwin dragonfly freebsd linux netbsd openbsd solaris
+ 
+ package runtime
+diff --git a/src/runtime/stubs32.go b/src/runtime/stubs32.go
+index 149560fd93..a7f52f6b9e 100644
+--- a/src/runtime/stubs32.go
++++ b/src/runtime/stubs32.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build 386 arm amd64p32 mips mipsle
++// +build 386 arm mips mipsle
+ 
+ package runtime
+ 
+diff --git a/src/runtime/stubs_amd64x.go b/src/runtime/stubs_amd64.go
+similarity index 93%
+rename from src/runtime/stubs_amd64x.go
+rename to src/runtime/stubs_amd64.go
+index e7a1be8135..b4c0df1153 100644
+--- a/src/runtime/stubs_amd64x.go
++++ b/src/runtime/stubs_amd64.go
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build amd64 amd64p32
+-
+ package runtime
+ 
+ // stackcheck checks that SP is in range [g->stack.lo, g->stack.hi).
+diff --git a/src/runtime/sys_x86.go b/src/runtime/sys_x86.go
+index 2b4ed8bdf5..f917cb8bd7 100644
+--- a/src/runtime/sys_x86.go
++++ b/src/runtime/sys_x86.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build amd64 amd64p32 386
++// +build amd64 386
+ 
+ package runtime
+ 
+diff --git a/src/runtime/trace.go b/src/runtime/trace.go
+index d074783550..f919362be8 100644
+--- a/src/runtime/trace.go
++++ b/src/runtime/trace.go
+@@ -84,7 +84,7 @@ const (
+ 	// and ppc64le.
+ 	// Tracing won't work reliably for architectures where cputicks is emulated
+ 	// by nanotime, so the value doesn't matter for those architectures.
+-	traceTickDiv = 16 + 48*(sys.Goarch386|sys.GoarchAmd64|sys.GoarchAmd64p32)
++	traceTickDiv = 16 + 48*(sys.Goarch386|sys.GoarchAmd64)
+ 	// Maximum number of PCs in a single stack trace.
+ 	// Since events contain only stack id rather than whole stack trace,
+ 	// we can allow quite large values here.
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index 5153390f1d..96fb33c04b 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -26,8 +26,8 @@ import (
+ // takes up only 4 bytes on the stack, while on 64-bit systems it takes up 8 bytes.
+ // Typically this is ptrSize.
+ //
+-// As an exception, amd64p32 has ptrSize == 4 but the CALL instruction still
+-// stores an 8-byte return PC onto the stack. To accommodate this, we use regSize
++// As an exception, amd64p32 had ptrSize == 4 but the CALL instruction still
++// stored an 8-byte return PC onto the stack. To accommodate this, we used regSize
+ // as the size of the architecture-pushed return PC.
+ //
+ // usesLR is defined below in terms of minFrameSize, which is defined in
+diff --git a/src/sync/atomic/atomic_test.go b/src/sync/atomic/atomic_test.go
+index 39c40c6aaf..135f02a726 100644
+--- a/src/sync/atomic/atomic_test.go
++++ b/src/sync/atomic/atomic_test.go
+@@ -1391,15 +1391,8 @@ func TestUnaligned64(t *testing.T) {
+ 	// Unaligned 64-bit atomics on 32-bit systems are
+ 	// a continual source of pain. Test that on 32-bit systems they crash
+ 	// instead of failing silently.
+-
+-	switch runtime.GOARCH {
+-	default:
+-		if !arch32 {
+-			t.Skip("test only runs on 32-bit systems")
+-		}
+-	case "amd64p32":
+-		// amd64p32 can handle unaligned atomics.
+-		t.Skipf("test not needed on %v", runtime.GOARCH)
++	if !arch32 {
++		t.Skip("test only runs on 32-bit systems")
+ 	}
+ 
+ 	x := make([]uint32, 4)
+diff --git a/src/syscall/endian_little.go b/src/syscall/endian_little.go
+index 013d878b8d..b633490b71 100644
+--- a/src/syscall/endian_little.go
++++ b/src/syscall/endian_little.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ //
+-// +build 386 amd64 amd64p32 arm arm64 ppc64le mips64le mipsle wasm
++// +build 386 amd64 arm arm64 ppc64le mips64le mipsle wasm
+ 
+ package syscall
+ 

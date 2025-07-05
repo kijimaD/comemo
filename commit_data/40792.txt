@@ -15,6 +15,20 @@ Date:   Thu Jul 4 22:48:23 2019 +0000
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
     Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/example_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/http/example_test.go b/src/net/http/example_test.go
+index 2a09f5f6c6..a783b46618 100644
+--- a/src/net/http/example_test.go
++++ b/src/net/http/example_test.go
+@@ -132,7 +132,7 @@ func ExampleServer_Shutdown() {
+ 
+ 	if err := srv.ListenAndServe(); err != http.ErrServerClosed {
+ 		// Error starting or closing listener:
+-		log.Printf("HTTP server ListenAndServe: %v", err)
++		log.Fatalf("HTTP server ListenAndServe: %v", err)
+ 	}
+ 
+ 	<-idleConnsClosed

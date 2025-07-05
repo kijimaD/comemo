@@ -10,7 +10,52 @@ Date:   Thu Oct 23 08:58:10 2014 +1100
     R=rsc, austin
     CC=golang-codereviews
     https://golang.org/cl/158360043
-
+---
  src/runtime/defs3_linux.go         | 2 +-
  src/runtime/defs_linux_power64le.h | 6 +++---
  2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/defs3_linux.go b/src/runtime/defs3_linux.go
+index eb65f9d1ed..3551a4fa90 100644
+--- a/src/runtime/defs3_linux.go
++++ b/src/runtime/defs3_linux.go
+@@ -35,7 +35,7 @@ type Gregset C.elf_gregset_t
+ type FPregset C.elf_fpregset_t
+ type Vreg C.elf_vrreg_t
+ 
+-type Sigaltstack C.struct_sigaltstack
++type SigaltstackT C.struct_sigaltstack
+ 
+ // PPC64 uses sigcontext in place of mcontext in ucontext.
+ // see http://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/tree/arch/powerpc/include/uapi/asm/ucontext.h
+diff --git a/src/runtime/defs_linux_power64le.h b/src/runtime/defs_linux_power64le.h
+index 41db45ca14..64f145672c 100644
+--- a/src/runtime/defs_linux_power64le.h
++++ b/src/runtime/defs_linux_power64le.h
+@@ -147,7 +147,7 @@ enum {
+ //typedef struct Usigset Usigset;
+ typedef struct Ptregs Ptregs;
+ typedef struct Vreg Vreg;
+-typedef struct Sigaltstack Sigaltstack;
++typedef struct SigaltstackT SigaltstackT;
+ typedef struct Sigcontext Sigcontext;
+ typedef struct Ucontext Ucontext;
+ 
+@@ -179,7 +179,7 @@ struct Vreg {
+ 	uint32	u[4];
+ };
+ 
+-struct Sigaltstack {
++struct SigaltstackT {
+ 	byte	*ss_sp;
+ 	int32	ss_flags;
+ 	byte	Pad_cgo_0[4];
+@@ -201,7 +201,7 @@ struct Sigcontext {
+ struct Ucontext {
+ 	uint64	uc_flags;
+ 	Ucontext	*uc_link;
+-	Sigaltstack	uc_stack;
++	SigaltstackT	uc_stack;
+ 	Usigset	uc_sigmask;
+ 	Usigset	__unused[15];
+ 	Sigcontext	uc_mcontext;

@@ -9,6 +9,20 @@ Date:   Mon Jul 18 14:56:22 2011 -0400
     R=mirtchovski
     CC=golang-dev, rsc
     https://golang.org/cl/4766042
-
+---
  src/pkg/runtime/malloc.h | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/malloc.h b/src/pkg/runtime/malloc.h
+index 2865317ef6..5bc80f4df9 100644
+--- a/src/pkg/runtime/malloc.h
++++ b/src/pkg/runtime/malloc.h
+@@ -268,7 +268,7 @@ struct MCache
+ 	uint64 size;
+ 	int64 local_cachealloc;	// bytes allocated (or freed) from cache since last lock of heap
+ 	int64 local_objects;	// objects allocated (or freed) from cache since last lock of heap
+-	int64 local_alloc;	// bytes allocated and still in use since last lock of heap
++	int64 local_alloc;	// bytes allocated (or freed) since last lock of heap
+ 	int64 local_total_alloc;	// bytes allocated (even if freed) since last lock of heap
+ 	int64 local_nmalloc;	// number of mallocs since last lock of heap
+ 	int64 local_nfree;	// number of frees since last lock of heap

@@ -10,10 +10,117 @@ Date:   Tue Aug 27 21:18:32 2013 +0200
     R=golang-dev, daniel.morsing
     CC=golang-dev
     https://golang.org/cl/13257044
-
+---
  src/cmd/gc/lex.c                     | 12 ++++++------
  test/fixedbugs/bug460.dir/a.go       |  4 ++++
  test/fixedbugs/bug460.dir/b.go       |  7 +++++--
  test/fixedbugs/issue5910.dir/a.go    |  9 +++++++--
  test/fixedbugs/issue5910.dir/main.go |  4 ++++
  5 files changed, 26 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 72094d7d84..ef8546638e 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -2008,27 +2008,27 @@ lexinit1(void)
+ 	// error type
+ 	s = lookup("error");
+ 	s->lexical = LNAME;
+-	errortype = t;
+-	errortype->sym = s;
+ 	s1 = pkglookup("error", builtinpkg);
++	errortype = t;
++	errortype->sym = s1;
+ 	s1->lexical = LNAME;
+ 	s1->def = typenod(errortype);
+ 
+ 	// byte alias
+ 	s = lookup("byte");
+ 	s->lexical = LNAME;
+-	bytetype = typ(TUINT8);
+-	bytetype->sym = s;
+ 	s1 = pkglookup("byte", builtinpkg);
++	bytetype = typ(TUINT8);
++	bytetype->sym = s1;
+ 	s1->lexical = LNAME;
+ 	s1->def = typenod(bytetype);
+ 
+ 	// rune alias
+ 	s = lookup("rune");
+ 	s->lexical = LNAME;
+-	runetype = typ(TINT32);
+-	runetype->sym = s;
+ 	s1 = pkglookup("rune", builtinpkg);
++	runetype = typ(TINT32);
++	runetype->sym = s1;
+ 	s1->lexical = LNAME;
+ 	s1->def = typenod(runetype);
+ }
+diff --git a/test/fixedbugs/bug460.dir/a.go b/test/fixedbugs/bug460.dir/a.go
+index 02a287b317..29049d9aae 100644
+--- a/test/fixedbugs/bug460.dir/a.go
++++ b/test/fixedbugs/bug460.dir/a.go
+@@ -6,4 +6,8 @@ package a
+ 
+ type Foo struct {
+ 	int
++	int8
++	error
++	rune
++	byte
+ }
+diff --git a/test/fixedbugs/bug460.dir/b.go b/test/fixedbugs/bug460.dir/b.go
+index 1868afe073..5c0a0c47e3 100644
+--- a/test/fixedbugs/bug460.dir/b.go
++++ b/test/fixedbugs/bug460.dir/b.go
+@@ -9,6 +9,9 @@ import "./a"
+ var x a.Foo
+ 
+ func main() {
+-	x.int = 20 // ERROR "unexported field"
++	x.int = 20    // ERROR "unexported field"
++	x.int8 = 20   // ERROR "unexported field"
++	x.error = nil // ERROR "unexported field"
++	x.rune = 'a'  // ERROR "unexported field"
++	x.byte = 20   // ERROR "unexported field"
+ }
+-
+diff --git a/test/fixedbugs/issue5910.dir/a.go b/test/fixedbugs/issue5910.dir/a.go
+index ea223917b6..b236c15c7d 100644
+--- a/test/fixedbugs/issue5910.dir/a.go
++++ b/test/fixedbugs/issue5910.dir/a.go
+@@ -1,3 +1,7 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package a
+ 
+ type Package struct {
+@@ -7,11 +11,12 @@ type Package struct {
+ type Future struct {
+ 	result chan struct {
+ 		*Package
++		error
+ 	}
+ }
+ 
+-func (t *Future) Result() *Package {
++func (t *Future) Result() (*Package, error) {
+ 	result := <-t.result
+ 	t.result <- result
+-	return result.Package
++	return result.Package, result.error
+ }
+diff --git a/test/fixedbugs/issue5910.dir/main.go b/test/fixedbugs/issue5910.dir/main.go
+index 6196381951..c5d42ea098 100644
+--- a/test/fixedbugs/issue5910.dir/main.go
++++ b/test/fixedbugs/issue5910.dir/main.go
+@@ -1,3 +1,7 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package main
+ 
+ import "a"

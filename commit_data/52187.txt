@@ -13,7 +13,176 @@ Date:   Sat Nov 6 22:38:51 2021 +0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/runtime/memclr_riscv64.s  | 30 +++++++++++++-----------
  src/runtime/memmove_riscv64.s | 54 ++++++++++++++++++++++---------------------
  2 files changed, 44 insertions(+), 40 deletions(-)
+
+diff --git a/src/runtime/memclr_riscv64.s b/src/runtime/memclr_riscv64.s
+index 54ddaa4560..f0e517a547 100644
+--- a/src/runtime/memclr_riscv64.s
++++ b/src/runtime/memclr_riscv64.s
+@@ -7,40 +7,42 @@
+ // See memclrNoHeapPointers Go doc for important implementation constraints.
+ 
+ // void runtime·memclrNoHeapPointers(void*, uintptr)
+-TEXT runtime·memclrNoHeapPointers(SB),NOSPLIT,$0-16
+-	MOV	ptr+0(FP), T1
+-	MOV	n+8(FP), T2
+-	ADD	T1, T2, T4
++TEXT runtime·memclrNoHeapPointers<ABIInternal>(SB),NOSPLIT,$0-16
++#ifndef GOEXPERIMENT_regabiargs
++	MOV	ptr+0(FP), A0
++	MOV	n+8(FP), A1
++#endif
++	ADD	A0, A1, T4
+ 
+ 	// If less than eight bytes, do one byte at a time.
+-	SLTU	$8, T2, T3
++	SLTU	$8, A1, T3
+ 	BNE	T3, ZERO, outcheck
+ 
+ 	// Do one byte at a time until eight-aligned.
+ 	JMP	aligncheck
+ align:
+-	MOVB	ZERO, (T1)
+-	ADD	$1, T1
++	MOVB	ZERO, (A0)
++	ADD	$1, A0
+ aligncheck:
+-	AND	$7, T1, T3
++	AND	$7, A0, T3
+ 	BNE	T3, ZERO, align
+ 
+ 	// Do eight bytes at a time as long as there is room.
+ 	ADD	$-7, T4, T5
+ 	JMP	wordscheck
+ words:
+-	MOV	ZERO, (T1)
+-	ADD	$8, T1
++	MOV	ZERO, (A0)
++	ADD	$8, A0
+ wordscheck:
+-	SLTU	T5, T1, T3
++	SLTU	T5, A0, T3
+ 	BNE	T3, ZERO, words
+ 
+ 	JMP	outcheck
+ out:
+-	MOVB	ZERO, (T1)
+-	ADD	$1, T1
++	MOVB	ZERO, (A0)
++	ADD	$1, A0
+ outcheck:
+-	BNE	T1, T4, out
++	BNE	A0, T4, out
+ 
+ done:
+ 	RET
+diff --git a/src/runtime/memmove_riscv64.s b/src/runtime/memmove_riscv64.s
+index 5dec8d0a33..538aee3642 100644
+--- a/src/runtime/memmove_riscv64.s
++++ b/src/runtime/memmove_riscv64.s
+@@ -7,59 +7,61 @@
+ // See memmove Go doc for important implementation constraints.
+ 
+ // void runtime·memmove(void*, void*, uintptr)
+-TEXT runtime·memmove(SB),NOSPLIT,$-0-24
+-	MOV	to+0(FP), T0
+-	MOV	from+8(FP), T1
+-	MOV	n+16(FP), T2
+-	ADD	T1, T2, T5
++TEXT runtime·memmove<ABIInternal>(SB),NOSPLIT,$-0-24
++#ifndef GOEXPERIMENT_regabiargs
++	MOV	to+0(FP), A0
++	MOV	from+8(FP), A1
++	MOV	n+16(FP), A2
++#endif
++	ADD	A1, A2, T5
+ 
+ 	// If the destination is ahead of the source, start at the end of the
+ 	// buffer and go backward.
+-	BLTU	T1, T0, b
++	BLTU	A1, A0, b
+ 
+ 	// If less than eight bytes, do one byte at a time.
+-	SLTU	$8, T2, T3
++	SLTU	$8, A2, T3
+ 	BNE	T3, ZERO, f_outcheck
+ 
+ 	// Do one byte at a time until from is eight-aligned.
+ 	JMP	f_aligncheck
+ f_align:
+-	MOVB	(T1), T3
+-	MOVB	T3, (T0)
+-	ADD	$1, T0
+-	ADD	$1, T1
++	MOVB	(A1), T3
++	MOVB	T3, (A0)
++	ADD	$1, A0
++	ADD	$1, A1
+ f_aligncheck:
+-	AND	$7, T1, T3
++	AND	$7, A1, T3
+ 	BNE	T3, ZERO, f_align
+ 
+ 	// Do eight bytes at a time as long as there is room.
+ 	ADD	$-7, T5, T6
+ 	JMP	f_wordscheck
+ f_words:
+-	MOV	(T1), T3
+-	MOV	T3, (T0)
+-	ADD	$8, T0
+-	ADD	$8, T1
++	MOV	(A1), T3
++	MOV	T3, (A0)
++	ADD	$8, A0
++	ADD	$8, A1
+ f_wordscheck:
+-	SLTU	T6, T1, T3
++	SLTU	T6, A1, T3
+ 	BNE	T3, ZERO, f_words
+ 
+ 	// Finish off the remaining partial word.
+ 	JMP 	f_outcheck
+ f_out:
+-	MOVB	(T1), T3
+-	MOVB	T3, (T0)
+-	ADD	$1, T0
+-	ADD	$1, T1
++	MOVB	(A1), T3
++	MOVB	T3, (A0)
++	ADD	$1, A0
++	ADD	$1, A1
+ f_outcheck:
+-	BNE	T1, T5, f_out
++	BNE	A1, T5, f_out
+ 
+ 	RET
+ 
+ b:
+-	ADD	T0, T2, T4
++	ADD	A0, A2, T4
+ 	// If less than eight bytes, do one byte at a time.
+-	SLTU	$8, T2, T3
++	SLTU	$8, A2, T3
+ 	BNE	T3, ZERO, b_outcheck
+ 
+ 	// Do one byte at a time until from+n is eight-aligned.
+@@ -74,7 +76,7 @@ b_aligncheck:
+ 	BNE	T3, ZERO, b_align
+ 
+ 	// Do eight bytes at a time as long as there is room.
+-	ADD	$7, T1, T6
++	ADD	$7, A1, T6
+ 	JMP	b_wordscheck
+ b_words:
+ 	ADD	$-8, T4
+@@ -93,6 +95,6 @@ b_out:
+ 	MOVB	(T5), T3
+ 	MOVB	T3, (T4)
+ b_outcheck:
+-	BNE	T5, T1, b_out
++	BNE	T5, A1, b_out
+ 
+ 	RET

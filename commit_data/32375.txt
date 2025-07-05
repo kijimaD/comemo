@@ -19,7 +19,7 @@ Date:   Wed Jun 8 22:02:08 2016 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/amd64/ssa.go          |  14 +++
  src/cmd/compile/internal/arm/ssa.go            |   2 +
  src/cmd/compile/internal/arm64/ssa.go          |   2 +
@@ -43,3 +43,545 @@ Date:   Wed Jun 8 22:02:08 2016 -0700
  src/runtime/mbarrier.go                        |   1 +
  src/runtime/runtime-gdb_test.go                |   6 +-
  22 files changed, 225 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/ssa.go b/src/cmd/compile/internal/amd64/ssa.go
+index f4be875ab2..7381534851 100644
+--- a/src/cmd/compile/internal/amd64/ssa.go
++++ b/src/cmd/compile/internal/amd64/ssa.go
+@@ -895,6 +895,20 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.To.Type = obj.TYPE_MEM
+ 		p.To.Reg = v.Args[0].Reg()
+ 		gc.AddAux(&p.To, v)
++	case ssa.OpClobber:
++		p := s.Prog(x86.AMOVL)
++		p.From.Type = obj.TYPE_CONST
++		p.From.Offset = 0xdeaddead
++		p.To.Type = obj.TYPE_MEM
++		p.To.Reg = x86.REG_SP
++		gc.AddAux(&p.To, v)
++		p = s.Prog(x86.AMOVL)
++		p.From.Type = obj.TYPE_CONST
++		p.From.Offset = 0xdeaddead
++		p.To.Type = obj.TYPE_MEM
++		p.To.Reg = x86.REG_SP
++		gc.AddAux(&p.To, v)
++		p.To.Offset += 4
+ 	default:
+ 		v.Fatalf("genValue not implemented: %s", v.LongString())
+ 	}
+diff --git a/src/cmd/compile/internal/arm/ssa.go b/src/cmd/compile/internal/arm/ssa.go
+index 5d699a876f..8faaf0ffb8 100644
+--- a/src/cmd/compile/internal/arm/ssa.go
++++ b/src/cmd/compile/internal/arm/ssa.go
+@@ -759,6 +759,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		v.Fatalf("Flag* ops should never make it to codegen %v", v.LongString())
+ 	case ssa.OpARMInvertFlags:
+ 		v.Fatalf("InvertFlags should never make it to codegen %v", v.LongString())
++	case ssa.OpClobber:
++		// TODO: implement for clobberdead experiment. Nop is ok for now.
+ 	default:
+ 		v.Fatalf("genValue not implemented: %s", v.LongString())
+ 	}
+diff --git a/src/cmd/compile/internal/arm64/ssa.go b/src/cmd/compile/internal/arm64/ssa.go
+index c83deea05b..7d79276e66 100644
+--- a/src/cmd/compile/internal/arm64/ssa.go
++++ b/src/cmd/compile/internal/arm64/ssa.go
+@@ -662,6 +662,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		v.Fatalf("Flag* ops should never make it to codegen %v", v.LongString())
+ 	case ssa.OpARM64InvertFlags:
+ 		v.Fatalf("InvertFlags should never make it to codegen %v", v.LongString())
++	case ssa.OpClobber:
++		// TODO: implement for clobberdead experiment. Nop is ok for now.
+ 	default:
+ 		v.Fatalf("genValue not implemented: %s", v.LongString())
+ 	}
+diff --git a/src/cmd/compile/internal/gc/plive.go b/src/cmd/compile/internal/gc/plive.go
+index e53e2b6d15..4525426d4f 100644
+--- a/src/cmd/compile/internal/gc/plive.go
++++ b/src/cmd/compile/internal/gc/plive.go
+@@ -18,8 +18,12 @@ import (
+ 	"cmd/compile/internal/ssa"
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/obj"
++	"cmd/internal/objabi"
++	"cmd/internal/src"
+ 	"crypto/md5"
++	"crypto/sha1"
+ 	"fmt"
++	"os"
+ 	"strings"
+ )
+ 
+@@ -121,8 +125,7 @@ type Liveness struct {
+ 	// index within the stack maps.
+ 	stackMapIndex map[*ssa.Value]int
+ 
+-	// An array with a bit vector for each safe point tracking
+-	// live variables, indexed by bb.rpo.
++	// An array with a bit vector for each safe point tracking live variables.
+ 	livevars []bvec
+ 
+ 	cache progeffectscache
+@@ -795,6 +798,165 @@ func livenessepilogue(lv *Liveness) {
+ 	}
+ }
+ 
++func (lv *Liveness) clobber() {
++	// The clobberdead experiment inserts code to clobber all the dead variables (locals and args)
++	// before and after every safepoint. This experiment is useful for debugging the generation
++	// of live pointer bitmaps.
++	if objabi.Clobberdead_enabled == 0 {
++		return
++	}
++	var varSize int64
++	for _, n := range lv.vars {
++		varSize += n.Type.Size()
++	}
++	if len(lv.livevars) > 1000 || varSize > 10000 {
++		// Be careful to avoid doing too much work.
++		// Bail if >1000 safepoints or >10000 bytes of variables.
++		// Otherwise, giant functions make this experiment generate too much code.
++		return
++	}
++	if h := os.Getenv("GOCLOBBERDEADHASH"); h != "" {
++		// Clobber only functions where the hash of the function name matches a pattern.
++		// Useful for binary searching for a miscompiled function.
++		hstr := ""
++		for _, b := range sha1.Sum([]byte(lv.fn.Func.Nname.Sym.Name)) {
++			hstr += fmt.Sprintf("%08b", b)
++		}
++		if !strings.HasSuffix(hstr, h) {
++			return
++		}
++		fmt.Printf("\t\t\tCLOBBERDEAD %s\n", lv.fn.Func.Nname.Sym.Name)
++	}
++	if lv.f.Name == "forkAndExecInChild" {
++		// forkAndExecInChild calls vfork (on linux/amd64, anyway).
++		// The code we add here clobbers parts of the stack in the child.
++		// When the parent resumes, it is using the same stack frame. But the
++		// child has clobbered stack variables that the parent needs. Boom!
++		// In particular, the sys argument gets clobbered.
++		// Note to self: GOCLOBBERDEADHASH=011100101110
++		return
++	}
++
++	var oldSched []*ssa.Value
++	for _, b := range lv.f.Blocks {
++		// Copy block's values to a temporary.
++		oldSched = append(oldSched[:0], b.Values...)
++		b.Values = b.Values[:0]
++
++		// Clobber all dead variables at entry.
++		if b == lv.f.Entry {
++			for len(oldSched) > 0 && len(oldSched[0].Args) == 0 {
++				// Skip argless ops. We need to skip at least
++				// the lowered ClosurePtr op, because it
++				// really wants to be first. This will also
++				// skip ops like InitMem and SP, which are ok.
++				b.Values = append(b.Values, oldSched[0])
++				oldSched = oldSched[1:]
++			}
++			clobber(lv, b, lv.livevars[0])
++		}
++
++		// Copy values into schedule, adding clobbering around safepoints.
++		for _, v := range oldSched {
++			if !issafepoint(v) {
++				b.Values = append(b.Values, v)
++				continue
++			}
++			before := true
++			if v.Op.IsCall() && v.Aux != nil && v.Aux.(*obj.LSym) == typedmemmove {
++				// Can't put clobber code before the call to typedmemmove.
++				// The variable to-be-copied is marked as dead
++				// at the callsite. That is ok, though, as typedmemmove
++				// is marked as nosplit, and the first thing it does
++				// is to call memmove (also nosplit), after which
++				// the source value is dead.
++				// See issue 16026.
++				before = false
++			}
++			if before {
++				clobber(lv, b, lv.livevars[lv.stackMapIndex[v]])
++			}
++			b.Values = append(b.Values, v)
++			clobber(lv, b, lv.livevars[lv.stackMapIndex[v]])
++		}
++	}
++}
++
++// clobber generates code to clobber all dead variables (those not marked in live).
++// Clobbering instructions are added to the end of b.Values.
++func clobber(lv *Liveness, b *ssa.Block, live bvec) {
++	for i, n := range lv.vars {
++		if !live.Get(int32(i)) {
++			clobberVar(b, n)
++		}
++	}
++}
++
++// clobberVar generates code to trash the pointers in v.
++// Clobbering instructions are added to the end of b.Values.
++func clobberVar(b *ssa.Block, v *Node) {
++	clobberWalk(b, v, 0, v.Type)
++}
++
++// b = block to which we append instructions
++// v = variable
++// offset = offset of (sub-portion of) variable to clobber (in bytes)
++// t = type of sub-portion of v.
++func clobberWalk(b *ssa.Block, v *Node, offset int64, t *types.Type) {
++	if !types.Haspointers(t) {
++		return
++	}
++	switch t.Etype {
++	case TPTR32,
++		TPTR64,
++		TUNSAFEPTR,
++		TFUNC,
++		TCHAN,
++		TMAP:
++		clobberPtr(b, v, offset)
++
++	case TSTRING:
++		// struct { byte *str; int len; }
++		clobberPtr(b, v, offset)
++
++	case TINTER:
++		// struct { Itab *tab; void *data; }
++		// or, when isnilinter(t)==true:
++		// struct { Type *type; void *data; }
++		clobberPtr(b, v, offset)
++		clobberPtr(b, v, offset+int64(Widthptr))
++
++	case TSLICE:
++		// struct { byte *array; int len; int cap; }
++		clobberPtr(b, v, offset)
++
++	case TARRAY:
++		for i := int64(0); i < t.NumElem(); i++ {
++			clobberWalk(b, v, offset+i*t.Elem().Size(), t.Elem())
++		}
++
++	case TSTRUCT:
++		for _, t1 := range t.Fields().Slice() {
++			clobberWalk(b, v, offset+t1.Offset, t1.Type)
++		}
++
++	default:
++		Fatalf("clobberWalk: unexpected type, %v", t)
++	}
++}
++
++// clobberPtr generates a clobber of the pointer at offset offset in v.
++// The clobber instruction is added at the end of b.
++func clobberPtr(b *ssa.Block, v *Node, offset int64) {
++	var aux interface{}
++	if v.Class == PAUTO {
++		aux = &ssa.AutoSymbol{Node: v}
++	} else {
++		aux = &ssa.ArgSymbol{Node: v}
++	}
++	b.NewValue0IA(src.NoXPos, ssa.OpClobber, ssa.TypeVoid, offset, aux)
++}
++
+ func (lv *Liveness) avarinitanyall(b *ssa.Block, any, all bvec) {
+ 	if len(b.Preds) == 0 {
+ 		any.Clear()
+@@ -1154,6 +1316,7 @@ func liveness(e *ssafn, f *ssa.Func) map[*ssa.Value]int {
+ 	livenesssolve(lv)
+ 	livenessepilogue(lv)
+ 	livenesscompact(lv)
++	lv.clobber()
+ 	if debuglive >= 2 {
+ 		livenessprintdebug(lv)
+ 	}
+diff --git a/src/cmd/compile/internal/mips/ssa.go b/src/cmd/compile/internal/mips/ssa.go
+index 6d18a5a435..3673523af0 100644
+--- a/src/cmd/compile/internal/mips/ssa.go
++++ b/src/cmd/compile/internal/mips/ssa.go
+@@ -754,6 +754,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 	case ssa.OpMIPSLoweredGetClosurePtr:
+ 		// Closure pointer is R22 (mips.REGCTXT).
+ 		gc.CheckLoweredGetClosurePtr(v)
++	case ssa.OpClobber:
++		// TODO: implement for clobberdead experiment. Nop is ok for now.
+ 	default:
+ 		v.Fatalf("genValue not implemented: %s", v.LongString())
+ 	}
+diff --git a/src/cmd/compile/internal/mips64/ssa.go b/src/cmd/compile/internal/mips64/ssa.go
+index fea50e88ec..487d624ead 100644
+--- a/src/cmd/compile/internal/mips64/ssa.go
++++ b/src/cmd/compile/internal/mips64/ssa.go
+@@ -519,6 +519,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 	case ssa.OpMIPS64LoweredGetClosurePtr:
+ 		// Closure pointer is R22 (mips.REGCTXT).
+ 		gc.CheckLoweredGetClosurePtr(v)
++	case ssa.OpClobber:
++		// TODO: implement for clobberdead experiment. Nop is ok for now.
+ 	default:
+ 		v.Fatalf("genValue not implemented: %s", v.LongString())
+ 	}
+diff --git a/src/cmd/compile/internal/ppc64/ssa.go b/src/cmd/compile/internal/ppc64/ssa.go
+index 62aeee2fd6..4bd69a4723 100644
+--- a/src/cmd/compile/internal/ppc64/ssa.go
++++ b/src/cmd/compile/internal/ppc64/ssa.go
+@@ -1132,7 +1132,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		v.Fatalf("InvertFlags should never make it to codegen %v", v.LongString())
+ 	case ssa.OpPPC64FlagEQ, ssa.OpPPC64FlagLT, ssa.OpPPC64FlagGT:
+ 		v.Fatalf("Flag* ops should never make it to codegen %v", v.LongString())
+-
++	case ssa.OpClobber:
++		// TODO: implement for clobberdead experiment. Nop is ok for now.
+ 	default:
+ 		v.Fatalf("genValue not implemented: %s", v.LongString())
+ 	}
+diff --git a/src/cmd/compile/internal/s390x/ssa.go b/src/cmd/compile/internal/s390x/ssa.go
+index 3c26dc4f4e..9ccd3c762c 100644
+--- a/src/cmd/compile/internal/s390x/ssa.go
++++ b/src/cmd/compile/internal/s390x/ssa.go
+@@ -732,6 +732,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		bne := s.Prog(s390x.ABNE)
+ 		bne.To.Type = obj.TYPE_BRANCH
+ 		gc.Patch(bne, cs)
++	case ssa.OpClobber:
++		// TODO: implement for clobberdead experiment. Nop is ok for now.
+ 	default:
+ 		v.Fatalf("genValue not implemented: %s", v.LongString())
+ 	}
+diff --git a/src/cmd/compile/internal/ssa/gen/386Ops.go b/src/cmd/compile/internal/ssa/gen/386Ops.go
+index b287775194..8965d62353 100644
+--- a/src/cmd/compile/internal/ssa/gen/386Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/386Ops.go
+@@ -389,7 +389,7 @@ func init() {
+ 			faultOnNilArg0: true,
+ 		},
+ 
+-		{name: "CALLstatic", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "SymOff", clobberFlags: true, call: true, symEffect: "None"},                          // call static function aux.(*gc.Sym).  arg0=mem, auxint=argsize, returns mem
++		{name: "CALLstatic", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "SymOff", clobberFlags: true, call: true, symEffect: "None"},                          // call static function aux.(*obj.LSym).  arg0=mem, auxint=argsize, returns mem
+ 		{name: "CALLclosure", argLength: 3, reg: regInfo{inputs: []regMask{gpsp, buildReg("DX"), 0}, clobbers: callerSave}, aux: "Int64", clobberFlags: true, call: true}, // call function via closure.  arg0=codeptr, arg1=closure, arg2=mem, auxint=argsize, returns mem
+ 		{name: "CALLinter", argLength: 2, reg: regInfo{inputs: []regMask{gp}, clobbers: callerSave}, aux: "Int64", clobberFlags: true, call: true},                        // call fn by pointer.  arg0=codeptr, arg1=mem, auxint=argsize, returns mem
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+index 76e8273a40..ed77bb00d7 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+@@ -478,7 +478,7 @@ func init() {
+ 			faultOnNilArg0: true,
+ 		},
+ 
+-		{name: "CALLstatic", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "SymOff", clobberFlags: true, call: true, symEffect: "None"},                          // call static function aux.(*gc.Sym).  arg0=mem, auxint=argsize, returns mem
++		{name: "CALLstatic", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "SymOff", clobberFlags: true, call: true, symEffect: "None"},                          // call static function aux.(*obj.LSym).  arg0=mem, auxint=argsize, returns mem
+ 		{name: "CALLclosure", argLength: 3, reg: regInfo{inputs: []regMask{gpsp, buildReg("DX"), 0}, clobbers: callerSave}, aux: "Int64", clobberFlags: true, call: true}, // call function via closure.  arg0=codeptr, arg1=closure, arg2=mem, auxint=argsize, returns mem
+ 		{name: "CALLinter", argLength: 2, reg: regInfo{inputs: []regMask{gp}, clobbers: callerSave}, aux: "Int64", clobberFlags: true, call: true},                        // call fn by pointer.  arg0=codeptr, arg1=mem, auxint=argsize, returns mem
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64Ops.go b/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
+index be7fa219b2..832bea227c 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
+@@ -318,7 +318,7 @@ func init() {
+ 		{name: "CSELULT0", argLength: 2, reg: gp1flags1, asm: "CSEL"}, // returns arg0 if flags indicates unsigned LT, 0 otherwise, arg1=flags
+ 
+ 		// function calls
+-		{name: "CALLstatic", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "SymOff", clobberFlags: true, call: true, symEffect: "None"},                           // call static function aux.(*gc.Sym).  arg0=mem, auxint=argsize, returns mem
++		{name: "CALLstatic", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "SymOff", clobberFlags: true, call: true, symEffect: "None"},                           // call static function aux.(*obj.LSym).  arg0=mem, auxint=argsize, returns mem
+ 		{name: "CALLclosure", argLength: 3, reg: regInfo{inputs: []regMask{gpsp, buildReg("R26"), 0}, clobbers: callerSave}, aux: "Int64", clobberFlags: true, call: true}, // call function via closure.  arg0=codeptr, arg1=closure, arg2=mem, auxint=argsize, returns mem
+ 		{name: "CALLinter", argLength: 2, reg: regInfo{inputs: []regMask{gp}, clobbers: callerSave}, aux: "Int64", clobberFlags: true, call: true},                         // call fn by pointer.  arg0=codeptr, arg1=mem, auxint=argsize, returns mem
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/ARMOps.go b/src/cmd/compile/internal/ssa/gen/ARMOps.go
+index baf0350aea..40be5d6647 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARMOps.go
++++ b/src/cmd/compile/internal/ssa/gen/ARMOps.go
+@@ -377,7 +377,7 @@ func init() {
+ 		{name: "SRAcond", argLength: 3, reg: gp2flags1, asm: "SRA"},                                         // arg0 >> 31 if flags indicates HS, arg0 >> arg1 otherwise, signed shift, arg2=flags
+ 
+ 		// function calls
+-		{name: "CALLstatic", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "SymOff", clobberFlags: true, call: true, symEffect: "None"},                          // call static function aux.(*gc.Sym).  arg0=mem, auxint=argsize, returns mem
++		{name: "CALLstatic", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "SymOff", clobberFlags: true, call: true, symEffect: "None"},                          // call static function aux.(*obj.LSym).  arg0=mem, auxint=argsize, returns mem
+ 		{name: "CALLclosure", argLength: 3, reg: regInfo{inputs: []regMask{gpsp, buildReg("R7"), 0}, clobbers: callerSave}, aux: "Int64", clobberFlags: true, call: true}, // call function via closure.  arg0=codeptr, arg1=closure, arg2=mem, auxint=argsize, returns mem
+ 		{name: "CALLinter", argLength: 2, reg: regInfo{inputs: []regMask{gp}, clobbers: callerSave}, aux: "Int64", clobberFlags: true, call: true},                        // call fn by pointer.  arg0=codeptr, arg1=mem, auxint=argsize, returns mem
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/MIPS64Ops.go b/src/cmd/compile/internal/ssa/gen/MIPS64Ops.go
+index d5d49f5b51..b0e6564d52 100644
+--- a/src/cmd/compile/internal/ssa/gen/MIPS64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/MIPS64Ops.go
+@@ -264,7 +264,7 @@ func init() {
+ 		{name: "MOVDF", argLength: 1, reg: fp11, asm: "MOVDF"},     // float64 -> float32
+ 
+ 		// function calls
+-		{name: "CALLstatic", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "SymOff", clobberFlags: true, call: true, symEffect: "None"},                           // call static function aux.(*gc.Sym).  arg0=mem, auxint=argsize, returns mem
++		{name: "CALLstatic", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "SymOff", clobberFlags: true, call: true, symEffect: "None"},                           // call static function aux.(*obj.LSym).  arg0=mem, auxint=argsize, returns mem
+ 		{name: "CALLclosure", argLength: 3, reg: regInfo{inputs: []regMask{gpsp, buildReg("R22"), 0}, clobbers: callerSave}, aux: "Int64", clobberFlags: true, call: true}, // call function via closure.  arg0=codeptr, arg1=closure, arg2=mem, auxint=argsize, returns mem
+ 		{name: "CALLinter", argLength: 2, reg: regInfo{inputs: []regMask{gp}, clobbers: callerSave}, aux: "Int64", clobberFlags: true, call: true},                         // call fn by pointer.  arg0=codeptr, arg1=mem, auxint=argsize, returns mem
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/MIPSOps.go b/src/cmd/compile/internal/ssa/gen/MIPSOps.go
+index a967969eb4..b632c6bfdc 100644
+--- a/src/cmd/compile/internal/ssa/gen/MIPSOps.go
++++ b/src/cmd/compile/internal/ssa/gen/MIPSOps.go
+@@ -248,7 +248,7 @@ func init() {
+ 		{name: "MOVDF", argLength: 1, reg: fp11, asm: "MOVDF"},     // float64 -> float32
+ 
+ 		// function calls
+-		{name: "CALLstatic", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "SymOff", clobberFlags: true, call: true, symEffect: "None"},                           // call static function aux.(*gc.Sym).  arg0=mem, auxint=argsize, returns mem
++		{name: "CALLstatic", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "SymOff", clobberFlags: true, call: true, symEffect: "None"},                           // call static function aux.(*obj.LSym).  arg0=mem, auxint=argsize, returns mem
+ 		{name: "CALLclosure", argLength: 3, reg: regInfo{inputs: []regMask{gpsp, buildReg("R22"), 0}, clobbers: callerSave}, aux: "Int64", clobberFlags: true, call: true}, // call function via closure.  arg0=codeptr, arg1=closure, arg2=mem, auxint=argsize, returns mem
+ 		{name: "CALLinter", argLength: 2, reg: regInfo{inputs: []regMask{gp}, clobbers: callerSave}, aux: "Int64", clobberFlags: true, call: true},                         // call fn by pointer.  arg0=codeptr, arg1=mem, auxint=argsize, returns mem
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64Ops.go b/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
+index 6cca77eca9..f198c139da 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
+@@ -309,7 +309,7 @@ func init() {
+ 		// Convert pointer to integer, takes a memory operand for ordering.
+ 		{name: "MOVDconvert", argLength: 2, reg: gp11, asm: "MOVD"},
+ 
+-		{name: "CALLstatic", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "SymOff", clobberFlags: true, call: true, symEffect: "None"},                   // call static function aux.(*gc.Sym).  arg0=mem, auxint=argsize, returns mem
++		{name: "CALLstatic", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "SymOff", clobberFlags: true, call: true, symEffect: "None"},                   // call static function aux.(*obj.LSym).  arg0=mem, auxint=argsize, returns mem
+ 		{name: "CALLclosure", argLength: 3, reg: regInfo{inputs: []regMask{gp | sp, ctxt, 0}, clobbers: callerSave}, aux: "Int64", clobberFlags: true, call: true}, // call function via closure.  arg0=codeptr, arg1=closure, arg2=mem, auxint=argsize, returns mem
+ 		{name: "CALLinter", argLength: 2, reg: regInfo{inputs: []regMask{gp}, clobbers: callerSave}, aux: "Int64", clobberFlags: true, call: true},                 // call fn by pointer.  arg0=codeptr, arg1=mem, auxint=argsize, returns mem
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/S390XOps.go b/src/cmd/compile/internal/ssa/gen/S390XOps.go
+index a207743e7c..a1a5aa2dc4 100644
+--- a/src/cmd/compile/internal/ssa/gen/S390XOps.go
++++ b/src/cmd/compile/internal/ssa/gen/S390XOps.go
+@@ -413,7 +413,7 @@ func init() {
+ 
+ 		{name: "CLEAR", argLength: 2, reg: regInfo{inputs: []regMask{ptr, 0}}, asm: "CLEAR", aux: "SymValAndOff", typ: "Mem", clobberFlags: true, faultOnNilArg0: true, symEffect: "Write"},
+ 
+-		{name: "CALLstatic", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "SymOff", clobberFlags: true, call: true, symEffect: "None"},                            // call static function aux.(*gc.Sym).  arg0=mem, auxint=argsize, returns mem
++		{name: "CALLstatic", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "SymOff", clobberFlags: true, call: true, symEffect: "None"},                            // call static function aux.(*obj.LSym).  arg0=mem, auxint=argsize, returns mem
+ 		{name: "CALLclosure", argLength: 3, reg: regInfo{inputs: []regMask{ptrsp, buildReg("R12"), 0}, clobbers: callerSave}, aux: "Int64", clobberFlags: true, call: true}, // call function via closure.  arg0=codeptr, arg1=closure, arg2=mem, auxint=argsize, returns mem
+ 		{name: "CALLinter", argLength: 2, reg: regInfo{inputs: []regMask{ptr}, clobbers: callerSave}, aux: "Int64", clobberFlags: true, call: true},                         // call fn by pointer.  arg0=codeptr, arg1=mem, auxint=argsize, returns mem
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index 300a54524b..e9a90963ab 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -314,7 +314,7 @@ var genericOps = []opData{
+ 	// Return values appear on the stack. The method receiver, if any, is treated
+ 	// as a phantom first argument.
+ 	{name: "ClosureCall", argLength: 3, aux: "Int64", call: true},                    // arg0=code pointer, arg1=context ptr, arg2=memory.  auxint=arg size.  Returns memory.
+-	{name: "StaticCall", argLength: 1, aux: "SymOff", call: true, symEffect: "None"}, // call function aux.(*gc.Sym), arg0=memory.  auxint=arg size.  Returns memory.
++	{name: "StaticCall", argLength: 1, aux: "SymOff", call: true, symEffect: "None"}, // call function aux.(*obj.LSym), arg0=memory.  auxint=arg size.  Returns memory.
+ 	{name: "InterCall", argLength: 2, aux: "Int64", call: true},                      // interface call.  arg0=code pointer, arg1=memory, auxint=arg size.  Returns memory.
+ 
+ 	// Conversions: signed extensions, zero (unsigned) extensions, truncations
+@@ -464,6 +464,9 @@ var genericOps = []opData{
+ 	{name: "AtomicCompareAndSwap64", argLength: 4, typ: "(Bool,Mem)", hasSideEffects: true}, // if *arg0==arg1, then set *arg0=arg2.  Returns true iff store happens and new memory.
+ 	{name: "AtomicAnd8", argLength: 3, typ: "Mem", hasSideEffects: true},                    // *arg0 &= arg1.  arg2=memory.  Returns memory.
+ 	{name: "AtomicOr8", argLength: 3, typ: "Mem", hasSideEffects: true},                     // *arg0 |= arg1.  arg2=memory.  Returns memory.
++
++	// Clobber experiment op
++	{name: "Clobber", argLength: 0, typ: "Void", aux: "SymOff", symEffect: "None"}, // write an invalid pointer value to the given pointer slot of a stack variable
+ }
+ 
+ //     kind           control    successors       implicit exit
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index a7977fec95..47c9dba37d 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -1926,6 +1926,7 @@ const (
+ 	OpAtomicCompareAndSwap64
+ 	OpAtomicAnd8
+ 	OpAtomicOr8
++	OpClobber
+ )
+ 
+ var opcodeTable = [...]opInfo{
+@@ -22607,6 +22608,13 @@ var opcodeTable = [...]opInfo{
+ 		hasSideEffects: true,
+ 		generic:        true,
+ 	},
++	{
++		name:      "Clobber",
++		auxType:   auxSymOff,
++		argLen:    0,
++		symEffect: SymNone,
++		generic:   true,
++	},
+ }
+ 
+ func (o Op) Asm() obj.As          { return opcodeTable[o].asm }
+diff --git a/src/cmd/compile/internal/x86/ssa.go b/src/cmd/compile/internal/x86/ssa.go
+index e7fcc97855..3822272273 100644
+--- a/src/cmd/compile/internal/x86/ssa.go
++++ b/src/cmd/compile/internal/x86/ssa.go
+@@ -738,6 +738,13 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		}
+ 	case ssa.Op386FCHS:
+ 		v.Fatalf("FCHS in non-387 mode")
++	case ssa.OpClobber:
++		p := s.Prog(x86.AMOVL)
++		p.From.Type = obj.TYPE_CONST
++		p.From.Offset = 0xdeaddead
++		p.To.Type = obj.TYPE_MEM
++		p.To.Reg = x86.REG_SP
++		gc.AddAux(&p.To, v)
+ 	default:
+ 		v.Fatalf("genValue not implemented: %s", v.LongString())
+ 	}
+diff --git a/src/cmd/internal/objabi/util.go b/src/cmd/internal/objabi/util.go
+index d00edf2a8c..811fdd33d4 100644
+--- a/src/cmd/internal/objabi/util.go
++++ b/src/cmd/internal/objabi/util.go
+@@ -83,6 +83,7 @@ var (
+ 	framepointer_enabled     int
+ 	Fieldtrack_enabled       int
+ 	Preemptibleloops_enabled int
++	Clobberdead_enabled      int
+ )
+ 
+ // Toolchain experiments.
+@@ -96,6 +97,7 @@ var exper = []struct {
+ 	{"fieldtrack", &Fieldtrack_enabled},
+ 	{"framepointer", &framepointer_enabled},
+ 	{"preemptibleloops", &Preemptibleloops_enabled},
++	{"clobberdead", &Clobberdead_enabled},
+ }
+ 
+ func Expstring() string {
+diff --git a/src/runtime/mbarrier.go b/src/runtime/mbarrier.go
+index a437d83880..3713c50c39 100644
+--- a/src/runtime/mbarrier.go
++++ b/src/runtime/mbarrier.go
+@@ -236,6 +236,7 @@ func writebarrierptr_prewrite(dst *uintptr, src uintptr) {
+ }
+ 
+ // typedmemmove copies a value of type t to dst from src.
++// Must be nosplit, see #16026.
+ //go:nosplit
+ func typedmemmove(typ *_type, dst, src unsafe.Pointer) {
+ 	if typ.kind&kindNoPointers == 0 {
+diff --git a/src/runtime/runtime-gdb_test.go b/src/runtime/runtime-gdb_test.go
+index 5f33ebf91c..3cc41e0b7f 100644
+--- a/src/runtime/runtime-gdb_test.go
++++ b/src/runtime/runtime-gdb_test.go
+@@ -69,6 +69,7 @@ func checkGdbPython(t *testing.T) {
+ 
+ const helloSource = `
+ import "fmt"
++import "runtime"
+ var gslice []string
+ func main() {
+ 	mapvar := make(map[string]string,5)
+@@ -78,9 +79,10 @@ func main() {
+ 	ptrvar := &strvar
+ 	slicevar := make([]string, 0, 16)
+ 	slicevar = append(slicevar, mapvar["abc"])
+-	fmt.Println("hi") // line 12
++	fmt.Println("hi") // line 13
+ 	_ = ptrvar
+ 	gslice = slicevar
++	runtime.KeepAlive(mapvar)
+ }
+ `
+ 
+@@ -211,7 +213,7 @@ func testGdbPython(t *testing.T, cgo bool) {
+ 		t.Fatalf("info locals failed: %s", bl)
+ 	}
+ 
+-	btGoroutineRe := regexp.MustCompile(`^#0\s+runtime.+at`)
++	btGoroutineRe := regexp.MustCompile(`^#0\s+(0x[0-9a-f]+\s+in\s+)?runtime.+at`)
+ 	if bl := blocks["goroutine 2 bt"]; !btGoroutineRe.MatchString(bl) {
+ 		t.Fatalf("goroutine 2 bt failed: %s", bl)
+ 	}

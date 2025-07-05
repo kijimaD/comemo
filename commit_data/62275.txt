@@ -15,6 +15,20 @@ Date:   Fri Feb 14 13:50:24 2025 +0000
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/os/root_openat.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/os/root_openat.go b/src/os/root_openat.go
+index 65d3eacf4d..cac0b1df0f 100644
+--- a/src/os/root_openat.go
++++ b/src/os/root_openat.go
+@@ -84,7 +84,7 @@ func rootChown(r *Root, name string, uid, gid int) error {
+ 	if err != nil {
+ 		return &PathError{Op: "chownat", Path: name, Err: err}
+ 	}
+-	return err
++	return nil
+ }
+ 
+ func rootMkdir(r *Root, name string, perm FileMode) error {

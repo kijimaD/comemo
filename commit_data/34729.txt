@@ -14,7 +14,64 @@ Date:   Fri Nov 10 18:35:30 2017 +0000
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Dave Cheney <dave@cheney.net>
-
+---
  src/cmd/compile/internal/gc/fmt.go | 16 +---------------
  src/cmd/compile/internal/gc/ssa.go |  4 ++--
  2 files changed, 3 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index f456510f57..4b2fdb0dca 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -232,16 +232,6 @@ func (o Op) oconv(s fmt.State, flag FmtFlag, mode fmtMode) {
+ 	fmt.Fprint(s, o.String())
+ }
+ 
+-var classnames = []string{
+-	"Pxxx",
+-	"PEXTERN",
+-	"PAUTO",
+-	"PAUTOHEAP",
+-	"PPARAM",
+-	"PPARAMOUT",
+-	"PFUNC",
+-}
+-
+ type (
+ 	fmtMode int
+ 
+@@ -439,11 +429,7 @@ func (n *Node) jconv(s fmt.State, flag FmtFlag) {
+ 	}
+ 
+ 	if n.Class() != 0 {
+-		if int(n.Class()) < len(classnames) {
+-			fmt.Fprintf(s, " class(%s)", classnames[n.Class()])
+-		} else {
+-			fmt.Fprintf(s, " class(%d?)", n.Class())
+-		}
++		fmt.Fprintf(s, " class(%v)", n.Class())
+ 	}
+ 
+ 	if n.Colas() {
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 07e3c05831..a99a20a116 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -179,7 +179,7 @@ func buildssa(fn *Node, worker int) *ssa.Func {
+ 		case PFUNC:
+ 			// local function - already handled by frontend
+ 		default:
+-			s.Fatalf("local variable with class %s unimplemented", classnames[n.Class()])
++			s.Fatalf("local variable with class %v unimplemented", n.Class())
+ 		}
+ 	}
+ 
+@@ -3394,7 +3394,7 @@ func (s *state) addr(n *Node, bounded bool) *ssa.Value {
+ 			// that cse works on their addresses
+ 			return s.newValue1A(ssa.OpAddr, t, n, s.sp)
+ 		default:
+-			s.Fatalf("variable address class %v not implemented", classnames[n.Class()])
++			s.Fatalf("variable address class %v not implemented", n.Class())
+ 			return nil
+ 		}
+ 	case OINDREGSP:

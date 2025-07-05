@@ -8,7 +8,58 @@ Date:   Thu Sep 4 16:48:19 2008 -0700
     R=gri
     OCL=14838
     CL=14838
-
+---
  test/{bugs => fixedbugs}/bug068.go | 6 ++++--
  test/golden.out                    | 7 +++----
  2 files changed, 7 insertions(+), 6 deletions(-)
+
+diff --git a/test/bugs/bug068.go b/test/fixedbugs/bug068.go
+similarity index 67%
+rename from test/bugs/bug068.go
+rename to test/fixedbugs/bug068.go
+index 9fe0656523..f1dcce379f 100644
+--- a/test/bugs/bug068.go
++++ b/test/fixedbugs/bug068.go
+@@ -4,6 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// RESOLUTION: This program is illegal.  We should reject all unnecessary backslashes.
++
+ package main
+ 
+ const c = '\'';  // this works
+@@ -12,6 +14,6 @@ const s = "\'";  // this doesn't
+ /*
+ There is no reason why the escapes need to be different inside strings and chars.
+ 
+-uetli:~/go/test/bugs gri$ 6g bug065.go
+-bug065.go:6: unknown escape sequence: '
++uetli:~/go/test/bugs gri$ 6g bug068.go
++bug068.go:6: unknown escape sequence: '
+ */
+diff --git a/test/golden.out b/test/golden.out
+index 003ef0aafe..aa1173a66a 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -84,10 +84,6 @@ bugs/bug064.go:15: illegal types for operand: CALL
+ 	({<u><int32>INT32;<v><int32>INT32;})
+ BUG: compilation should succeed
+ 
+-=========== bugs/bug068.go
+-bugs/bug068.go:6: unknown escape sequence: '
+-BUG: compilation should succeed
+-
+ =========== bugs/bug074.go
+ bugs/bug074.go:6: illegal types for operand: CONV
+ 	(<string>*STRING)
+@@ -186,6 +182,9 @@ fixedbugs/bug051.go:10: expression must be a constant
+ =========== fixedbugs/bug067.go
+ ok
+ 
++=========== fixedbugs/bug068.go
++fixedbugs/bug068.go:8: unknown escape sequence: '
++
+ =========== fixedbugs/bug070.go
+ outer loop top k 0
+ inner loop top i 0

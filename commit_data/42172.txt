@@ -16,7 +16,81 @@ Date:   Mon Nov 11 10:55:32 2019 +1100
     Change-Id: Ica80b7c11284e4ea9e8cc94a01dbbc9a67e42079
     Reviewed-on: https://go-review.googlesource.com/c/go/+/206124
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/text/template/exec.go      |  3 ++-
  src/text/template/exec_test.go | 44 ++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 46 insertions(+), 1 deletion(-)
+
+diff --git a/src/text/template/exec.go b/src/text/template/exec.go
+index f9bc5d980c..ac3e741390 100644
+--- a/src/text/template/exec.go
++++ b/src/text/template/exec.go
+@@ -461,7 +461,8 @@ func (s *state) evalCommand(dot reflect.Value, cmd *parse.CommandNode, final ref
+ 		// Must be a function.
+ 		return s.evalFunction(dot, n, cmd, cmd.Args, final)
+ 	case *parse.PipeNode:
+-		// Parenthesized pipeline. The arguments are all inside the pipeline; final is ignored.
++		// Parenthesized pipeline. The arguments are all inside the pipeline; final must be absent.
++		s.notAFunction(cmd.Args, final)
+ 		return s.evalPipeline(dot, n)
+ 	case *parse.VariableNode:
+ 		return s.evalVariableNode(dot, n, cmd.Args, final)
+diff --git a/src/text/template/exec_test.go b/src/text/template/exec_test.go
+index f24a59e549..2b299b0bf6 100644
+--- a/src/text/template/exec_test.go
++++ b/src/text/template/exec_test.go
+@@ -352,6 +352,12 @@ var execTests = []execTest{
+ 	{"field on interface", "{{.foo}}", "<no value>", nil, true},
+ 	{"field on parenthesized interface", "{{(.).foo}}", "<no value>", nil, true},
+ 
++	// Issue 31810: Parenthesized first element of pipeline with arguments.
++	// See also TestIssue31810.
++	{"unparenthesized non-function", "{{1 2}}", "", nil, false},
++	{"parenthesized non-function", "{{(1) 2}}", "", nil, false},
++	{"parenthesized non-function with no args", "{{(1)}}", "1", nil, true}, // This is fine.
++
+ 	// Method calls.
+ 	{".Method0", "-{{.Method0}}-", "-M0-", tVal, true},
+ 	{".Method1(1234)", "-{{.Method1 1234}}-", "-1234-", tVal, true},
+@@ -1648,3 +1654,41 @@ func TestExecutePanicDuringCall(t *testing.T) {
+ 		}
+ 	}
+ }
++
++// Issue 31810. Check that a parenthesized first argument behaves properly.
++func TestIssue31810(t *testing.T) {
++	// A simple value with no arguments is fine.
++	var b bytes.Buffer
++	const text = "{{ (.)  }}"
++	tmpl, err := New("").Parse(text)
++	if err != nil {
++		t.Error(err)
++	}
++	err = tmpl.Execute(&b, "result")
++	if err != nil {
++		t.Error(err)
++	}
++	if b.String() != "result" {
++		t.Errorf("%s got %q, expected %q", text, b.String(), "result")
++	}
++
++	// Even a plain function fails - need to use call.
++	f := func() string { return "result" }
++	b.Reset()
++	err = tmpl.Execute(&b, f)
++	if err == nil {
++		t.Error("expected error with no call, got none")
++	}
++
++	// Works if the function is explicitly called.
++	const textCall = "{{ (call .)  }}"
++	tmpl, err = New("").Parse(textCall)
++	b.Reset()
++	err = tmpl.Execute(&b, f)
++	if err != nil {
++		t.Error(err)
++	}
++	if b.String() != "result" {
++		t.Errorf("%s got %q, expected %q", textCall, b.String(), "result")
++	}
++}

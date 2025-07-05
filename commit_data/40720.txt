@@ -9,6 +9,28 @@ Date:   Wed Jul 26 20:26:18 2017 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/bufio/example_test.go | 10 ++++++++++
  1 file changed, 10 insertions(+)
+
+diff --git a/src/bufio/example_test.go b/src/bufio/example_test.go
+index bb57139918..e220e0768f 100644
+--- a/src/bufio/example_test.go
++++ b/src/bufio/example_test.go
+@@ -31,6 +31,16 @@ func ExampleScanner_lines() {
+ 	}
+ }
+ 
++// Use return the most recent call to Scan as a []byte
++func ExampleScanner_Bytes() {
++	scanner := bufio.NewScanner(strings.NewReader("gopher"))
++	for scanner.Scan() {
++		fmt.Println(len(scanner.Bytes()) == 6)
++	}
++	// Output:
++	// true
++}
++
+ // Use a Scanner to implement a simple word-count utility by scanning the
+ // input as a sequence of space-delimited tokens.
+ func ExampleScanner_words() {

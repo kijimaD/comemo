@@ -7,6 +7,20 @@ Date:   Thu Apr 4 16:10:30 2013 +1100
     R=r
     CC=golang-dev
     https://golang.org/cl/8301044
-
+---
  doc/go1.1.html | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/doc/go1.1.html b/doc/go1.1.html
+index 5f56a6afe0..6564b8f75d 100644
+--- a/doc/go1.1.html
++++ b/doc/go1.1.html
+@@ -291,6 +291,8 @@ The byte-order-mark change is strictly backward-compatible.
+ A major addition to the tools is a <em>race detector</em>, a way to find
+ bugs in programs caused by problems like concurrent changes to the same variable.
+ This new facility is built into the <code>go</code> tool.
++For now, it is only available on Linux, Mac OS X, and Windows systems with
++64-bit x86 processors.
+ To enable it, set the <code>-race</code> flag when building or testing your program 
+ (for instance, <code>go test -race</code>).
+ The race detector is documented in <a href="/doc/articles/race_detector.html">a separate article</a>.

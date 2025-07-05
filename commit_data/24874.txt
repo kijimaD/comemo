@@ -10,6 +10,20 @@ Date:   Sun Sep 6 13:42:26 2015 -0700
     Change-Id: I309d91552f96a761f8d429a2cab3a47d200ca9e5
     Reviewed-on: https://go-review.googlesource.com/14341
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 01db547736..9a9834f3e1 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -96,6 +96,8 @@ func buildssa(fn *Node) (ssafn *ssa.Func, usessa bool) {
+ 		case PAUTO:
+ 			// processed at each use, to prevent Addr coming
+ 			// before the decl.
++		case PFUNC:
++			// local function - already handled by frontend
+ 		default:
+ 			str := ""
+ 			if n.Class&PHEAP != 0 {

@@ -17,7 +17,7 @@ Date:   Fri Aug 30 09:09:45 2013 +0900
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/13368044
-
+---
  src/pkg/net/dial.go            |  6 ++--
  src/pkg/net/dial_gen.go        |  6 ++--
  src/pkg/net/fd_unix.go         |  2 +-
@@ -33,3 +33,412 @@ Date:   Fri Aug 30 09:09:45 2013 +0900
  src/pkg/net/unixsock.go        |  7 ++++
  src/pkg/net/unixsock_posix.go  |  7 ----
  14 files changed, 85 insertions(+), 73 deletions(-)
+
+diff --git a/src/pkg/net/dial.go b/src/pkg/net/dial.go
+index 8df4f77849..f0f47b2155 100644
+--- a/src/pkg/net/dial.go
++++ b/src/pkg/net/dial.go
+@@ -82,7 +82,7 @@ func parseNetwork(net string) (afnet string, proto int, err error) {
+ 	return "", 0, UnknownNetworkError(net)
+ }
+ 
+-func resolveAddr(op, net, addr string, deadline time.Time) (Addr, error) {
++func resolveAddr(op, net, addr string, deadline time.Time) (netaddr, error) {
+ 	afnet, _, err := parseNetwork(net)
+ 	if err != nil {
+ 		return nil, err
+@@ -184,7 +184,7 @@ func Listen(net, laddr string) (Listener, error) {
+ 	if err != nil {
+ 		return nil, &OpError{Op: "listen", Net: net, Addr: nil, Err: err}
+ 	}
+-	switch la := la.(type) {
++	switch la := la.toAddr().(type) {
+ 	case *TCPAddr:
+ 		return ListenTCP(net, la)
+ 	case *UnixAddr:
+@@ -203,7 +203,7 @@ func ListenPacket(net, laddr string) (PacketConn, error) {
+ 	if err != nil {
+ 		return nil, &OpError{Op: "listen", Net: net, Addr: nil, Err: err}
+ 	}
+-	switch la := la.(type) {
++	switch la := la.toAddr().(type) {
+ 	case *UDPAddr:
+ 		return ListenUDP(net, la)
+ 	case *IPAddr:
+diff --git a/src/pkg/net/dial_gen.go b/src/pkg/net/dial_gen.go
+index 4fb1c7ad94..f051cdaa84 100644
+--- a/src/pkg/net/dial_gen.go
++++ b/src/pkg/net/dial_gen.go
+@@ -26,7 +26,7 @@ func resolveAndDialChannel(net, addr string, localAddr Addr, deadline time.Time)
+ 		if err != nil {
+ 			return nil, &OpError{Op: "dial", Net: net, Addr: nil, Err: err}
+ 		}
+-		return dial(net, addr, localAddr, ra, noDeadline)
++		return dial(net, addr, localAddr, ra.toAddr(), noDeadline)
+ 	}
+ 	t := time.NewTimer(timeout)
+ 	defer t.Stop()
+@@ -45,8 +45,8 @@ func resolveAndDialChannel(net, addr string, localAddr Addr, deadline time.Time)
+ 			ch <- pair{nil, &OpError{Op: "dial", Net: net, Addr: nil, Err: err}}
+ 			return
+ 		}
+-		resolvedAddr <- ra // in case we need it for OpError
+-		c, err := dial(net, addr, localAddr, ra, noDeadline)
++		resolvedAddr <- ra.toAddr() // in case we need it for OpError
++		c, err := dial(net, addr, localAddr, ra.toAddr(), noDeadline)
+ 		ch <- pair{c, err}
+ 	}()
+ 	select {
+diff --git a/src/pkg/net/fd_unix.go b/src/pkg/net/fd_unix.go
+index bdc2861d55..457c1d18e2 100644
+--- a/src/pkg/net/fd_unix.go
++++ b/src/pkg/net/fd_unix.go
+@@ -41,7 +41,7 @@ func resolveAndDial(net, addr string, localAddr Addr, deadline time.Time) (Conn,
+ 	if err != nil {
+ 		return nil, &OpError{Op: "dial", Net: net, Addr: nil, Err: err}
+ 	}
+-	return dial(net, addr, localAddr, ra, deadline)
++	return dial(net, addr, localAddr, ra.toAddr(), deadline)
+ }
+ 
+ func newFD(sysfd, family, sotype int, net string) (*netFD, error) {
+diff --git a/src/pkg/net/fd_windows.go b/src/pkg/net/fd_windows.go
+index 75f7a63caa..6f344057c7 100644
+--- a/src/pkg/net/fd_windows.go
++++ b/src/pkg/net/fd_windows.go
+@@ -93,7 +93,7 @@ func resolveAndDial(net, addr string, localAddr Addr, deadline time.Time) (Conn,
+ 	if err != nil {
+ 		return nil, &OpError{Op: "dial", Net: net, Addr: nil, Err: err}
+ 	}
+-	return dial(net, addr, localAddr, ra, deadline)
++	return dial(net, addr, localAddr, ra.toAddr(), deadline)
+ }
+ 
+ // operation contains superset of data necessary to perform all async IO.
+diff --git a/src/pkg/net/iprawsock.go b/src/pkg/net/iprawsock.go
+index 0be94eb70e..5cc361390f 100644
+--- a/src/pkg/net/iprawsock.go
++++ b/src/pkg/net/iprawsock.go
+@@ -23,6 +23,13 @@ func (a *IPAddr) String() string {
+ 	return a.IP.String()
+ }
+ 
++func (a *IPAddr) toAddr() Addr {
++	if a == nil {
++		return nil
++	}
++	return a
++}
++
+ // ResolveIPAddr parses addr as an IP address of the form "host" or
+ // "ipv6-host%zone" and resolves the domain name on the network net,
+ // which must be "ip", "ip4" or "ip6".
+@@ -43,5 +50,5 @@ func ResolveIPAddr(net, addr string) (*IPAddr, error) {
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	return a.(*IPAddr), nil
++	return a.toAddr().(*IPAddr), nil
+ }
+diff --git a/src/pkg/net/iprawsock_posix.go b/src/pkg/net/iprawsock_posix.go
+index d74068b39e..7228532576 100644
+--- a/src/pkg/net/iprawsock_posix.go
++++ b/src/pkg/net/iprawsock_posix.go
+@@ -57,13 +57,6 @@ func (a *IPAddr) sockaddr(family int) (syscall.Sockaddr, error) {
+ 	return ipToSockaddr(family, a.IP, 0, a.Zone)
+ }
+ 
+-func (a *IPAddr) toAddr() sockaddr {
+-	if a == nil {
+-		return nil
+-	}
+-	return a
+-}
+-
+ // IPConn is the implementation of the Conn and PacketConn interfaces
+ // for IP network connections.
+ type IPConn struct {
+diff --git a/src/pkg/net/ipsock.go b/src/pkg/net/ipsock.go
+index 33b584db57..10a51f490d 100644
+--- a/src/pkg/net/ipsock.go
++++ b/src/pkg/net/ipsock.go
+@@ -6,7 +6,10 @@
+ 
+ package net
+ 
+-import "time"
++import (
++	"errors"
++	"time"
++)
+ 
+ var (
+ 	// supportsIPv4 reports whether the platform supports IPv4
+@@ -29,30 +32,42 @@ func init() {
+ 	supportsIPv6, supportsIPv4map = probeIPv6Stack()
+ }
+ 
+-func firstFavoriteAddr(filter func(IP) IP, addrs []string) (addr IP) {
++// A netaddr represents a network endpoint address or a list of
++// network endpoint addresses.
++type netaddr interface {
++	// toAddr returns the address represented in Addr interface.
++	// It returns a nil interface when the address is nil.
++	toAddr() Addr
++}
++
++var errNoSuitableAddress = errors.New("no suitable address found")
++
++// firstFavoriteAddr returns an address that implemets netaddr
++// interface.
++func firstFavoriteAddr(filter func(IP) IP, addrs []string, inetaddr func(IP) netaddr) (netaddr, error) {
+ 	if filter == nil {
+ 		// We'll take any IP address, but since the dialing code
+ 		// does not yet try multiple addresses, prefer to use
+ 		// an IPv4 address if possible.  This is especially relevant
+ 		// if localhost resolves to [ipv6-localhost, ipv4-localhost].
+ 		// Too much code assumes localhost == ipv4-localhost.
+-		addr = firstSupportedAddr(ipv4only, addrs)
+-		if addr == nil {
+-			addr = firstSupportedAddr(anyaddr, addrs)
++		addr, err := firstSupportedAddr(ipv4only, addrs, inetaddr)
++		if err != nil {
++			addr, err = firstSupportedAddr(anyaddr, addrs, inetaddr)
+ 		}
++		return addr, err
+ 	} else {
+-		addr = firstSupportedAddr(filter, addrs)
++		return firstSupportedAddr(filter, addrs, inetaddr)
+ 	}
+-	return
+ }
+ 
+-func firstSupportedAddr(filter func(IP) IP, addrs []string) IP {
++func firstSupportedAddr(filter func(IP) IP, addrs []string, inetaddr func(IP) netaddr) (netaddr, error) {
+ 	for _, s := range addrs {
+-		if addr := filter(ParseIP(s)); addr != nil {
+-			return addr
++		if ip := filter(ParseIP(s)); ip != nil {
++			return inetaddr(ip), nil
+ 		}
+ 	}
+-	return nil
++	return nil, errNoSuitableAddress
+ }
+ 
+ // anyaddr returns IP addresses that we can use with the current
+@@ -178,7 +193,10 @@ func JoinHostPort(host, port string) string {
+ 	return host + ":" + port
+ }
+ 
+-func resolveInternetAddr(net, addr string, deadline time.Time) (Addr, error) {
++// resolveInternetAddr resolves addr that is either a literal IP
++// address or a DNS registered name and returns an internet protocol
++// family address.
++func resolveInternetAddr(net, addr string, deadline time.Time) (netaddr, error) {
+ 	var (
+ 		err              error
+ 		host, port, zone string
+@@ -201,28 +219,30 @@ func resolveInternetAddr(net, addr string, deadline time.Time) (Addr, error) {
+ 	default:
+ 		return nil, UnknownNetworkError(net)
+ 	}
+-	inetaddr := func(net string, ip IP, port int, zone string) Addr {
++	inetaddr := func(ip IP) netaddr {
+ 		switch net {
+ 		case "tcp", "tcp4", "tcp6":
+-			return &TCPAddr{IP: ip, Port: port, Zone: zone}
++			return &TCPAddr{IP: ip, Port: portnum, Zone: zone}
+ 		case "udp", "udp4", "udp6":
+-			return &UDPAddr{IP: ip, Port: port, Zone: zone}
++			return &UDPAddr{IP: ip, Port: portnum, Zone: zone}
+ 		case "ip", "ip4", "ip6":
+ 			return &IPAddr{IP: ip, Zone: zone}
++		default:
++			panic("unexpected network: " + net)
+ 		}
+-		return nil
+ 	}
+ 	if host == "" {
+-		return inetaddr(net, nil, portnum, zone), nil
++		return inetaddr(nil), nil
+ 	}
+-	// Try as an IP address.
+-	if ip := parseIPv4(host); ip != nil {
+-		return inetaddr(net, ip, portnum, zone), nil
++	// Try as a literal IP address.
++	var ip IP
++	if ip = parseIPv4(host); ip != nil {
++		return inetaddr(ip), nil
+ 	}
+-	if ip, zone := parseIPv6(host, true); ip != nil {
+-		return inetaddr(net, ip, portnum, zone), nil
++	if ip, zone = parseIPv6(host, true); ip != nil {
++		return inetaddr(ip), nil
+ 	}
+-	// Try as a domain name.
++	// Try as a DNS registered name.
+ 	host, zone = splitHostZone(host)
+ 	addrs, err := lookupHostDeadline(host, deadline)
+ 	if err != nil {
+@@ -235,12 +255,7 @@ func resolveInternetAddr(net, addr string, deadline time.Time) (Addr, error) {
+ 	if net != "" && net[len(net)-1] == '6' || zone != "" {
+ 		filter = ipv6only
+ 	}
+-	ip := firstFavoriteAddr(filter, addrs)
+-	if ip == nil {
+-		// should not happen
+-		return nil, &AddrError{"LookupHost returned no suitable address", addrs[0]}
+-	}
+-	return inetaddr(net, ip, portnum, zone), nil
++	return firstFavoriteAddr(filter, addrs, inetaddr)
+ }
+ 
+ func zoneToString(zone int) string {
+diff --git a/src/pkg/net/sock_posix.go b/src/pkg/net/sock_posix.go
+index a6a6b4e913..c2d343c585 100644
+--- a/src/pkg/net/sock_posix.go
++++ b/src/pkg/net/sock_posix.go
+@@ -17,6 +17,8 @@ import (
+ type sockaddr interface {
+ 	Addr
+ 
++	netaddr
++
+ 	// family returns the platform-dependent address family
+ 	// identifier.
+ 	family() int
+@@ -30,11 +32,6 @@ type sockaddr interface {
+ 	// interface. It returns a nil interface when the address is
+ 	// nil.
+ 	sockaddr(family int) (syscall.Sockaddr, error)
+-
+-	// toAddr returns the address represented in sockaddr
+-	// interface. It returns a nil interface when the address is
+-	// nil.
+-	toAddr() sockaddr
+ }
+ 
+ // socket returns a network file descriptor that is ready for
+diff --git a/src/pkg/net/tcpsock.go b/src/pkg/net/tcpsock.go
+index 4d9ebd214e..8614c74595 100644
+--- a/src/pkg/net/tcpsock.go
++++ b/src/pkg/net/tcpsock.go
+@@ -24,6 +24,13 @@ func (a *TCPAddr) String() string {
+ 	return JoinHostPort(a.IP.String(), itoa(a.Port))
+ }
+ 
++func (a *TCPAddr) toAddr() Addr {
++	if a == nil {
++		return nil
++	}
++	return a
++}
++
+ // ResolveTCPAddr parses addr as a TCP address of the form "host:port"
+ // or "[ipv6-host%zone]:port" and resolves a pair of domain name and
+ // port name on the network net, which must be "tcp", "tcp4" or
+@@ -42,5 +49,5 @@ func ResolveTCPAddr(net, addr string) (*TCPAddr, error) {
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	return a.(*TCPAddr), nil
++	return a.toAddr().(*TCPAddr), nil
+ }
+diff --git a/src/pkg/net/tcpsock_posix.go b/src/pkg/net/tcpsock_posix.go
+index 512b74c3f8..d9e25e26e6 100644
+--- a/src/pkg/net/tcpsock_posix.go
++++ b/src/pkg/net/tcpsock_posix.go
+@@ -52,13 +52,6 @@ func (a *TCPAddr) sockaddr(family int) (syscall.Sockaddr, error) {
+ 	return ipToSockaddr(family, a.IP, a.Port, a.Zone)
+ }
+ 
+-func (a *TCPAddr) toAddr() sockaddr {
+-	if a == nil {
+-		return nil
+-	}
+-	return a
+-}
+-
+ // TCPConn is an implementation of the Conn interface for TCP network
+ // connections.
+ type TCPConn struct {
+diff --git a/src/pkg/net/udpsock.go b/src/pkg/net/udpsock.go
+index 5ce7d6bea0..edbb93be3c 100644
+--- a/src/pkg/net/udpsock.go
++++ b/src/pkg/net/udpsock.go
+@@ -28,6 +28,13 @@ func (a *UDPAddr) String() string {
+ 	return JoinHostPort(a.IP.String(), itoa(a.Port))
+ }
+ 
++func (a *UDPAddr) toAddr() Addr {
++	if a == nil {
++		return nil
++	}
++	return a
++}
++
+ // ResolveUDPAddr parses addr as a UDP address of the form "host:port"
+ // or "[ipv6-host%zone]:port" and resolves a pair of domain name and
+ // port name on the network net, which must be "udp", "udp4" or
+@@ -46,5 +53,5 @@ func ResolveUDPAddr(net, addr string) (*UDPAddr, error) {
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	return a.(*UDPAddr), nil
++	return a.toAddr().(*UDPAddr), nil
+ }
+diff --git a/src/pkg/net/udpsock_posix.go b/src/pkg/net/udpsock_posix.go
+index 67af4de188..142da8186f 100644
+--- a/src/pkg/net/udpsock_posix.go
++++ b/src/pkg/net/udpsock_posix.go
+@@ -45,13 +45,6 @@ func (a *UDPAddr) sockaddr(family int) (syscall.Sockaddr, error) {
+ 	return ipToSockaddr(family, a.IP, a.Port, a.Zone)
+ }
+ 
+-func (a *UDPAddr) toAddr() sockaddr {
+-	if a == nil {
+-		return nil
+-	}
+-	return a
+-}
+-
+ // UDPConn is the implementation of the Conn and PacketConn interfaces
+ // for UDP network connections.
+ type UDPConn struct {
+diff --git a/src/pkg/net/unixsock.go b/src/pkg/net/unixsock.go
+index 94c4c39ddc..85955845b8 100644
+--- a/src/pkg/net/unixsock.go
++++ b/src/pkg/net/unixsock.go
+@@ -23,6 +23,13 @@ func (a *UnixAddr) String() string {
+ 	return a.Name
+ }
+ 
++func (a *UnixAddr) toAddr() Addr {
++	if a == nil {
++		return nil
++	}
++	return a
++}
++
+ // ResolveUnixAddr parses addr as a Unix domain socket address.
+ // The string net gives the network name, "unix", "unixgram" or
+ // "unixpacket".
+diff --git a/src/pkg/net/unixsock_posix.go b/src/pkg/net/unixsock_posix.go
+index c71ee957e0..fc061804c7 100644
+--- a/src/pkg/net/unixsock_posix.go
++++ b/src/pkg/net/unixsock_posix.go
+@@ -105,13 +105,6 @@ func (a *UnixAddr) sockaddr(family int) (syscall.Sockaddr, error) {
+ 	return &syscall.SockaddrUnix{Name: a.Name}, nil
+ }
+ 
+-func (a *UnixAddr) toAddr() sockaddr {
+-	if a == nil {
+-		return nil
+-	}
+-	return a
+-}
+-
+ // UnixConn is an implementation of the Conn interface for connections
+ // to Unix domain sockets.
+ type UnixConn struct {

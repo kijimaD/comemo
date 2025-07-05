@@ -15,7 +15,7 @@ Date:   Tue Aug 21 14:50:48 2018 -0500
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/conf.go           |  5 +++--
  src/net/dnsconfig_unix.go |  3 ++-
  src/net/hosts.go          |  3 ++-
@@ -29,3 +29,448 @@ Date:   Tue Aug 21 14:50:48 2018 -0500
  src/net/port_unix.go      |  7 +++++--
  src/net/sockopt_posix.go  |  3 ++-
  12 files changed, 46 insertions(+), 50 deletions(-)
+
+diff --git a/src/net/conf.go b/src/net/conf.go
+index 71ed1360c5..127aba30cb 100644
+--- a/src/net/conf.go
++++ b/src/net/conf.go
+@@ -7,6 +7,7 @@
+ package net
+ 
+ import (
++	"internal/bytealg"
+ 	"os"
+ 	"runtime"
+ 	"sync"
+@@ -132,7 +133,7 @@ func (c *conf) hostLookupOrder(r *Resolver, hostname string) (ret hostLookupOrde
+ 	if c.forceCgoLookupHost || c.resolv.unknownOpt || c.goos == "android" {
+ 		return fallbackOrder
+ 	}
+-	if byteIndex(hostname, '\\') != -1 || byteIndex(hostname, '%') != -1 {
++	if bytealg.IndexByteString(hostname, '\\') != -1 || bytealg.IndexByteString(hostname, '%') != -1 {
+ 		// Don't deal with special form hostnames with backslashes
+ 		// or '%'.
+ 		return fallbackOrder
+@@ -301,7 +302,7 @@ func goDebugNetDNS() (dnsMode string, debugLevel int) {
+ 			dnsMode = s
+ 		}
+ 	}
+-	if i := byteIndex(goDebug, '+'); i != -1 {
++	if i := bytealg.IndexByteString(goDebug, '+'); i != -1 {
+ 		parsePart(goDebug[:i])
+ 		parsePart(goDebug[i+1:])
+ 		return
+diff --git a/src/net/dnsconfig_unix.go b/src/net/dnsconfig_unix.go
+index 707fd6f6fe..64c66f96b8 100644
+--- a/src/net/dnsconfig_unix.go
++++ b/src/net/dnsconfig_unix.go
+@@ -9,6 +9,7 @@
+ package net
+ 
+ import (
++	"internal/bytealg"
+ 	"os"
+ 	"sync/atomic"
+ 	"time"
+@@ -155,7 +156,7 @@ func dnsDefaultSearch() []string {
+ 		// best effort
+ 		return nil
+ 	}
+-	if i := byteIndex(hn, '.'); i >= 0 && i < len(hn)-1 {
++	if i := bytealg.IndexByteString(hn, '.'); i >= 0 && i < len(hn)-1 {
+ 		return []string{ensureRooted(hn[i+1:])}
+ 	}
+ 	return nil
+diff --git a/src/net/hosts.go b/src/net/hosts.go
+index ebc0353a7f..5c560f3756 100644
+--- a/src/net/hosts.go
++++ b/src/net/hosts.go
+@@ -5,6 +5,7 @@
+ package net
+ 
+ import (
++	"internal/bytealg"
+ 	"sync"
+ 	"time"
+ )
+@@ -68,7 +69,7 @@ func readHosts() {
+ 		return
+ 	}
+ 	for line, ok := file.readLine(); ok; line, ok = file.readLine() {
+-		if i := byteIndex(line, '#'); i >= 0 {
++		if i := bytealg.IndexByteString(line, '#'); i >= 0 {
+ 			// Discard comments.
+ 			line = line[0:i]
+ 		}
+diff --git a/src/net/ip.go b/src/net/ip.go
+index 410de92ccc..9a6fda00e8 100644
+--- a/src/net/ip.go
++++ b/src/net/ip.go
+@@ -12,7 +12,7 @@
+ 
+ package net
+ 
+-import _ "unsafe" // for go:linkname
++import "internal/bytealg"
+ 
+ // IP address lengths (bytes).
+ const (
+@@ -246,7 +246,7 @@ func (ip IP) Mask(mask IPMask) IP {
+ 	if len(mask) == IPv6len && len(ip) == IPv4len && allFF(mask[:12]) {
+ 		mask = mask[12:]
+ 	}
+-	if len(mask) == IPv4len && len(ip) == IPv6len && bytesEqual(ip[:12], v4InV6Prefix) {
++	if len(mask) == IPv4len && len(ip) == IPv6len && bytealg.Equal(ip[:12], v4InV6Prefix) {
+ 		ip = ip[12:]
+ 	}
+ 	n := len(ip)
+@@ -406,21 +406,17 @@ func (ip *IP) UnmarshalText(text []byte) error {
+ // considered to be equal.
+ func (ip IP) Equal(x IP) bool {
+ 	if len(ip) == len(x) {
+-		return bytesEqual(ip, x)
++		return bytealg.Equal(ip, x)
+ 	}
+ 	if len(ip) == IPv4len && len(x) == IPv6len {
+-		return bytesEqual(x[0:12], v4InV6Prefix) && bytesEqual(ip, x[12:])
++		return bytealg.Equal(x[0:12], v4InV6Prefix) && bytealg.Equal(ip, x[12:])
+ 	}
+ 	if len(ip) == IPv6len && len(x) == IPv4len {
+-		return bytesEqual(ip[0:12], v4InV6Prefix) && bytesEqual(ip[12:], x)
++		return bytealg.Equal(ip[0:12], v4InV6Prefix) && bytealg.Equal(ip[12:], x)
+ 	}
+ 	return false
+ }
+ 
+-// bytes.Equal is implemented in runtime/asm_$goarch.s
+-//go:linkname bytesEqual bytes.Equal
+-func bytesEqual(x, y []byte) bool
+-
+ func (ip IP) matchAddrFamily(x IP) bool {
+ 	return ip.To4() != nil && x.To4() != nil || ip.To16() != nil && ip.To4() == nil && x.To16() != nil && x.To4() == nil
+ }
+@@ -711,7 +707,7 @@ func parseIPZone(s string) (IP, string) {
+ // For example, ParseCIDR("192.0.2.1/24") returns the IP address
+ // 192.0.2.1 and the network 192.0.2.0/24.
+ func ParseCIDR(s string) (IP, *IPNet, error) {
+-	i := byteIndex(s, '/')
++	i := bytealg.IndexByteString(s, '/')
+ 	if i < 0 {
+ 		return nil, nil, &ParseError{Type: "CIDR address", Text: s}
+ 	}
+diff --git a/src/net/ipsock.go b/src/net/ipsock.go
+index f4ff82bd75..84fa0ac0a3 100644
+--- a/src/net/ipsock.go
++++ b/src/net/ipsock.go
+@@ -6,6 +6,7 @@ package net
+ 
+ import (
+ 	"context"
++	"internal/bytealg"
+ 	"sync"
+ )
+ 
+@@ -170,7 +171,7 @@ func SplitHostPort(hostport string) (host, port string, err error) {
+ 
+ 	if hostport[0] == '[' {
+ 		// Expect the first ']' just before the last ':'.
+-		end := byteIndex(hostport, ']')
++		end := bytealg.IndexByteString(hostport, ']')
+ 		if end < 0 {
+ 			return addrErr(hostport, "missing ']' in address")
+ 		}
+@@ -192,14 +193,14 @@ func SplitHostPort(hostport string) (host, port string, err error) {
+ 		j, k = 1, end+1 // there can't be a '[' resp. ']' before these positions
+ 	} else {
+ 		host = hostport[:i]
+-		if byteIndex(host, ':') >= 0 {
++		if bytealg.IndexByteString(host, ':') >= 0 {
+ 			return addrErr(hostport, tooManyColons)
+ 		}
+ 	}
+-	if byteIndex(hostport[j:], '[') >= 0 {
++	if bytealg.IndexByteString(hostport[j:], '[') >= 0 {
+ 		return addrErr(hostport, "unexpected '[' in address")
+ 	}
+-	if byteIndex(hostport[k:], ']') >= 0 {
++	if bytealg.IndexByteString(hostport[k:], ']') >= 0 {
+ 		return addrErr(hostport, "unexpected ']' in address")
+ 	}
+ 
+@@ -226,7 +227,7 @@ func splitHostZone(s string) (host, zone string) {
+ func JoinHostPort(host, port string) string {
+ 	// We assume that host is a literal IPv6 address if host has
+ 	// colons.
+-	if byteIndex(host, ':') >= 0 {
++	if bytealg.IndexByteString(host, ':') >= 0 {
+ 		return "[" + host + "]:" + port
+ 	}
+ 	return host + ":" + port
+diff --git a/src/net/ipsock_plan9.go b/src/net/ipsock_plan9.go
+index 312e4adb47..d226585e08 100644
+--- a/src/net/ipsock_plan9.go
++++ b/src/net/ipsock_plan9.go
+@@ -6,6 +6,7 @@ package net
+ 
+ import (
+ 	"context"
++	"internal/bytealg"
+ 	"os"
+ 	"syscall"
+ )
+@@ -49,7 +50,7 @@ func probe(filename, query string) bool {
+ // parsePlan9Addr parses address of the form [ip!]port (e.g. 127.0.0.1!80).
+ func parsePlan9Addr(s string) (ip IP, iport int, err error) {
+ 	addr := IPv4zero // address contains port only
+-	i := byteIndex(s, '!')
++	i := bytealg.IndexByteString(s, '!')
+ 	if i >= 0 {
+ 		addr = ParseIP(s[:i])
+ 		if addr == nil {
+diff --git a/src/net/lookup_plan9.go b/src/net/lookup_plan9.go
+index 5547f0b0ee..d5ae9b2fd9 100644
+--- a/src/net/lookup_plan9.go
++++ b/src/net/lookup_plan9.go
+@@ -7,6 +7,7 @@ package net
+ import (
+ 	"context"
+ 	"errors"
++	"internal/bytealg"
+ 	"io"
+ 	"os"
+ )
+@@ -135,7 +136,7 @@ func lookupProtocol(ctx context.Context, name string) (proto int, err error) {
+ 		return 0, UnknownNetworkError(name)
+ 	}
+ 	s := f[1]
+-	if n, _, ok := dtoi(s[byteIndex(s, '=')+1:]); ok {
++	if n, _, ok := dtoi(s[bytealg.IndexByteString(s, '=')+1:]); ok {
+ 		return n, nil
+ 	}
+ 	return 0, UnknownNetworkError(name)
+@@ -158,7 +159,7 @@ loop:
+ 			continue
+ 		}
+ 		addr := f[1]
+-		if i := byteIndex(addr, '!'); i >= 0 {
++		if i := bytealg.IndexByteString(addr, '!'); i >= 0 {
+ 			addr = addr[:i] // remove port
+ 		}
+ 		if ParseIP(addr) == nil {
+@@ -210,7 +211,7 @@ func (*Resolver) lookupPort(ctx context.Context, network, service string) (port
+ 		return 0, unknownPortError
+ 	}
+ 	s := f[1]
+-	if i := byteIndex(s, '!'); i >= 0 {
++	if i := bytealg.IndexByteString(s, '!'); i >= 0 {
+ 		s = s[i+1:] // remove address
+ 	}
+ 	if n, _, ok := dtoi(s); ok {
+@@ -304,7 +305,7 @@ func (*Resolver) lookupTXT(ctx context.Context, name string) (txt []string, err
+ 		return
+ 	}
+ 	for _, line := range lines {
+-		if i := byteIndex(line, '\t'); i >= 0 {
++		if i := bytealg.IndexByteString(line, '\t'); i >= 0 {
+ 			txt = append(txt, absDomainName([]byte(line[i+1:])))
+ 		}
+ 	}
+diff --git a/src/net/lookup_unix.go b/src/net/lookup_unix.go
+index 2c3191aca8..04f443bb1a 100644
+--- a/src/net/lookup_unix.go
++++ b/src/net/lookup_unix.go
+@@ -8,6 +8,7 @@ package net
+ 
+ import (
+ 	"context"
++	"internal/bytealg"
+ 	"sync"
+ 	"syscall"
+ 
+@@ -27,7 +28,7 @@ func readProtocols() {
+ 
+ 	for line, ok := file.readLine(); ok; line, ok = file.readLine() {
+ 		// tcp    6   TCP    # transmission control protocol
+-		if i := byteIndex(line, '#'); i >= 0 {
++		if i := bytealg.IndexByteString(line, '#'); i >= 0 {
+ 			line = line[0:i]
+ 		}
+ 		f := getFields(line)
+diff --git a/src/net/nss.go b/src/net/nss.go
+index 08c3e6a69f..f10bb52e0e 100644
+--- a/src/net/nss.go
++++ b/src/net/nss.go
+@@ -8,6 +8,7 @@ package net
+ 
+ import (
+ 	"errors"
++	"internal/bytealg"
+ 	"io"
+ 	"os"
+ )
+@@ -85,7 +86,7 @@ func parseNSSConf(r io.Reader) *nssConf {
+ 		if len(line) == 0 {
+ 			return nil
+ 		}
+-		colon := bytesIndexByte(line, ':')
++		colon := bytealg.IndexByte(line, ':')
+ 		if colon == -1 {
+ 			return errors.New("no colon on line")
+ 		}
+@@ -96,7 +97,7 @@ func parseNSSConf(r io.Reader) *nssConf {
+ 			if len(srcs) == 0 {
+ 				break
+ 			}
+-			sp := bytesIndexByte(srcs, ' ')
++			sp := bytealg.IndexByte(srcs, ' ')
+ 			var src string
+ 			if sp == -1 {
+ 				src = string(srcs)
+@@ -108,7 +109,7 @@ func parseNSSConf(r io.Reader) *nssConf {
+ 			var criteria []nssCriterion
+ 			// See if there's a criteria block in brackets.
+ 			if len(srcs) > 0 && srcs[0] == '[' {
+-				bclose := bytesIndexByte(srcs, ']')
++				bclose := bytealg.IndexByte(srcs, ']')
+ 				if bclose == -1 {
+ 					return errors.New("unclosed criterion bracket")
+ 				}
+@@ -143,7 +144,7 @@ func parseCriteria(x []byte) (c []nssCriterion, err error) {
+ 		if len(f) < 3 {
+ 			return errors.New("criterion too short")
+ 		}
+-		eq := bytesIndexByte(f, '=')
++		eq := bytealg.IndexByte(f, '=')
+ 		if eq == -1 {
+ 			return errors.New("criterion lacks equal sign")
+ 		}
+diff --git a/src/net/parse.go b/src/net/parse.go
+index e356cb1559..cdb35bb826 100644
+--- a/src/net/parse.go
++++ b/src/net/parse.go
+@@ -8,10 +8,10 @@
+ package net
+ 
+ import (
++	"internal/bytealg"
+ 	"io"
+ 	"os"
+ 	"time"
+-	_ "unsafe" // For go:linkname
+ )
+ 
+ type file struct {
+@@ -80,17 +80,11 @@ func stat(name string) (mtime time.Time, size int64, err error) {
+ 	return st.ModTime(), st.Size(), nil
+ }
+ 
+-// byteIndex is strings.IndexByte. It returns the index of the
+-// first instance of c in s, or -1 if c is not present in s.
+-// strings.IndexByte is implemented in  runtime/asm_$GOARCH.s
+-//go:linkname byteIndex strings.IndexByte
+-func byteIndex(s string, c byte) int
+-
+ // Count occurrences in s of any bytes in t.
+ func countAnyByte(s string, t string) int {
+ 	n := 0
+ 	for i := 0; i < len(s); i++ {
+-		if byteIndex(t, s[i]) >= 0 {
++		if bytealg.IndexByteString(t, s[i]) >= 0 {
+ 			n++
+ 		}
+ 	}
+@@ -103,7 +97,7 @@ func splitAtBytes(s string, t string) []string {
+ 	n := 0
+ 	last := 0
+ 	for i := 0; i < len(s); i++ {
+-		if byteIndex(t, s[i]) >= 0 {
++		if bytealg.IndexByteString(t, s[i]) >= 0 {
+ 			if last < i {
+ 				a[n] = s[last:i]
+ 				n++
+@@ -276,7 +270,7 @@ func isSpace(b byte) bool {
+ // removeComment returns line, removing any '#' byte and any following
+ // bytes.
+ func removeComment(line []byte) []byte {
+-	if i := bytesIndexByte(line, '#'); i != -1 {
++	if i := bytealg.IndexByte(line, '#'); i != -1 {
+ 		return line[:i]
+ 	}
+ 	return line
+@@ -287,7 +281,7 @@ func removeComment(line []byte) []byte {
+ // It returns the first non-nil error returned by fn.
+ func foreachLine(x []byte, fn func(line []byte) error) error {
+ 	for len(x) > 0 {
+-		nl := bytesIndexByte(x, '\n')
++		nl := bytealg.IndexByte(x, '\n')
+ 		if nl == -1 {
+ 			return fn(x)
+ 		}
+@@ -305,7 +299,7 @@ func foreachLine(x []byte, fn func(line []byte) error) error {
+ func foreachField(x []byte, fn func(field []byte) error) error {
+ 	x = trimSpace(x)
+ 	for len(x) > 0 {
+-		sp := bytesIndexByte(x, ' ')
++		sp := bytealg.IndexByte(x, ' ')
+ 		if sp == -1 {
+ 			return fn(x)
+ 		}
+@@ -319,12 +313,6 @@ func foreachField(x []byte, fn func(field []byte) error) error {
+ 	return nil
+ }
+ 
+-// bytesIndexByte is bytes.IndexByte. It returns the index of the
+-// first instance of c in s, or -1 if c is not present in s.
+-// bytes.IndexByte is implemented in  runtime/asm_$GOARCH.s
+-//go:linkname bytesIndexByte bytes.IndexByte
+-func bytesIndexByte(s []byte, c byte) int
+-
+ // stringsHasSuffix is strings.HasSuffix. It reports whether s ends in
+ // suffix.
+ func stringsHasSuffix(s, suffix string) bool {
+diff --git a/src/net/port_unix.go b/src/net/port_unix.go
+index 64c7f575c7..d0882a2b78 100644
+--- a/src/net/port_unix.go
++++ b/src/net/port_unix.go
+@@ -8,7 +8,10 @@
+ 
+ package net
+ 
+-import "sync"
++import (
++	"internal/bytealg"
++	"sync"
++)
+ 
+ var onceReadServices sync.Once
+ 
+@@ -21,7 +24,7 @@ func readServices() {
+ 
+ 	for line, ok := file.readLine(); ok; line, ok = file.readLine() {
+ 		// "http 80/tcp www www-http # World Wide Web HTTP"
+-		if i := byteIndex(line, '#'); i >= 0 {
++		if i := bytealg.IndexByteString(line, '#'); i >= 0 {
+ 			line = line[:i]
+ 		}
+ 		f := getFields(line)
+diff --git a/src/net/sockopt_posix.go b/src/net/sockopt_posix.go
+index e8af84f418..83ab012595 100644
+--- a/src/net/sockopt_posix.go
++++ b/src/net/sockopt_posix.go
+@@ -7,6 +7,7 @@
+ package net
+ 
+ import (
++	"internal/bytealg"
+ 	"runtime"
+ 	"syscall"
+ )
+@@ -94,7 +95,7 @@ func setIPv4MreqToInterface(mreq *syscall.IPMreq, ifi *Interface) error {
+ 		}
+ 	}
+ done:
+-	if bytesEqual(mreq.Multiaddr[:], IPv4zero.To4()) {
++	if bytealg.Equal(mreq.Multiaddr[:], IPv4zero.To4()) {
+ 		return errNoSuchMulticastInterface
+ 	}
+ 	return nil

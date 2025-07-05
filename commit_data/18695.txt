@@ -13,6 +13,21 @@ Date:   Fri Feb 28 08:31:12 2014 -0800
     R=iant
     CC=golang-codereviews
     https://golang.org/cl/70140043
-
+---
  src/pkg/os/exec_unix.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/pkg/os/exec_unix.go b/src/pkg/os/exec_unix.go
+index 848a5de8f9..1b1e3350b8 100644
+--- a/src/pkg/os/exec_unix.go
++++ b/src/pkg/os/exec_unix.go
+@@ -38,6 +38,9 @@ func (p *Process) signal(sig Signal) error {
+ 	if p.done() {
+ 		return errors.New("os: process already finished")
+ 	}
++	if p.Pid == -1 {
++		return errors.New("os: process already released")
++	}
+ 	s, ok := sig.(syscall.Signal)
+ 	if !ok {
+ 		return errors.New("os: unsupported signal type")

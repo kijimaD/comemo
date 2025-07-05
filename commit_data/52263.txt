@@ -11,7 +11,43 @@ Date:   Tue Apr 19 14:20:29 2022 +0800
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/net/dnsclient.go | 7 ++-----
  src/runtime/stubs.go | 4 ++--
  2 files changed, 4 insertions(+), 7 deletions(-)
+
+diff --git a/src/net/dnsclient.go b/src/net/dnsclient.go
+index a779c37e53..b609dbd468 100644
+--- a/src/net/dnsclient.go
++++ b/src/net/dnsclient.go
+@@ -13,13 +13,10 @@ import (
+ )
+ 
+ // provided by runtime
+-func fastrand() uint32
++func fastrandu() uint
+ 
+ func randInt() int {
+-	x, y := fastrand(), fastrand()    // 32-bit halves
+-	u := uint(x)<<31 ^ uint(int32(y)) // full uint, even on 64-bit systems; avoid 32-bit shift on 32-bit systems
+-	i := int(u >> 1)                  // clear sign bit, even on 32-bit systems
+-	return i
++	return int(fastrandu() >> 1) // clear sign bit
+ }
+ 
+ func randIntn(n int) int {
+diff --git a/src/runtime/stubs.go b/src/runtime/stubs.go
+index ca0cd1ba25..929f8fadca 100644
+--- a/src/runtime/stubs.go
++++ b/src/runtime/stubs.go
+@@ -199,8 +199,8 @@ func fastrandu() uint {
+ //go:linkname sync_fastrandn sync.fastrandn
+ func sync_fastrandn(n uint32) uint32 { return fastrandn(n) }
+ 
+-//go:linkname net_fastrand net.fastrand
+-func net_fastrand() uint32 { return fastrand() }
++//go:linkname net_fastrandu net.fastrandu
++func net_fastrandu() uint { return fastrandu() }
+ 
+ //go:linkname os_fastrand os.fastrand
+ func os_fastrand() uint32 { return fastrand() }

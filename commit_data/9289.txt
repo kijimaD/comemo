@@ -7,6 +7,48 @@ Date:   Thu Aug 4 16:32:14 2011 +1000
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/4830059
-
+---
  src/pkg/fmt/fmt_test.go | 8 ++++++++
  1 file changed, 8 insertions(+)
+
+diff --git a/src/pkg/fmt/fmt_test.go b/src/pkg/fmt/fmt_test.go
+index d13d09c1b6..1142c9f8ad 100644
+--- a/src/pkg/fmt/fmt_test.go
++++ b/src/pkg/fmt/fmt_test.go
+@@ -477,28 +477,36 @@ func TestCountMallocs(t *testing.T) {
+ 	if testing.Short() {
+ 		return
+ 	}
++	runtime.UpdateMemStats()
+ 	mallocs := 0 - runtime.MemStats.Mallocs
+ 	for i := 0; i < 100; i++ {
+ 		Sprintf("")
+ 	}
++	runtime.UpdateMemStats()
+ 	mallocs += runtime.MemStats.Mallocs
+ 	Printf("mallocs per Sprintf(\"\"): %d\n", mallocs/100)
++	runtime.UpdateMemStats()
+ 	mallocs = 0 - runtime.MemStats.Mallocs
+ 	for i := 0; i < 100; i++ {
+ 		Sprintf("xxx")
+ 	}
++	runtime.UpdateMemStats()
+ 	mallocs += runtime.MemStats.Mallocs
+ 	Printf("mallocs per Sprintf(\"xxx\"): %d\n", mallocs/100)
++	runtime.UpdateMemStats()
+ 	mallocs = 0 - runtime.MemStats.Mallocs
+ 	for i := 0; i < 100; i++ {
+ 		Sprintf("%x", i)
+ 	}
++	runtime.UpdateMemStats()
+ 	mallocs += runtime.MemStats.Mallocs
+ 	Printf("mallocs per Sprintf(\"%%x\"): %d\n", mallocs/100)
++	runtime.UpdateMemStats()
+ 	mallocs = 0 - runtime.MemStats.Mallocs
+ 	for i := 0; i < 100; i++ {
+ 		Sprintf("%x %x", i, i)
+ 	}
++	runtime.UpdateMemStats()
+ 	mallocs += runtime.MemStats.Mallocs
+ 	Printf("mallocs per Sprintf(\"%%x %%x\"): %d\n", mallocs/100)
+ }

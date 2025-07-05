@@ -10,6 +10,20 @@ Date:   Tue Aug 17 23:54:33 2021 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/342789
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Trust: Cherry Mui <cherryyz@google.com>
-
+---
  doc/go_spec.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 22b616134a..3e97974d6d 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -4350,7 +4350,7 @@ t0 := (*[0]string)(t)    // t0 == nil
+ t1 := (*[1]string)(t)    // panics: len([1]string) > len(t)
+ 
+ u := make([]byte, 0)
+-u0 = (*[0]byte)(u)       // u0 != nil
++u0 := (*[0]byte)(u)      // u0 != nil
+ </pre>
+ 
+ <h3 id="Constant_expressions">Constant expressions</h3>

@@ -8,6 +8,20 @@ Date:   Thu Sep 18 15:09:48 2008 -0700
     DELTA=1  (0 added, 0 deleted, 1 changed)
     OCL=15488
     CL=15488
-
+---
  src/cmd/make.bash | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/make.bash b/src/cmd/make.bash
+index be8df76001..103b17fa6f 100644
+--- a/src/cmd/make.bash
++++ b/src/cmd/make.bash
+@@ -12,7 +12,7 @@ bash mkenam
+ make enam.o
+ cd ..
+ 
+-for i in cc 6l 6a 6c gc 6g ar db nm acid
++for i in cc 6l 6a 6c gc 6g ar db nm blyacc acid
+ do
+ 	echo; echo; echo %%%% making $i %%%%; echo
+ 	cd $i

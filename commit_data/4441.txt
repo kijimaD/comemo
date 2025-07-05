@@ -7,9 +7,186 @@ Date:   Tue Dec 15 21:09:55 2009 -0800
     R=rsc, r, phf
     CC=golang-dev
     https://golang.org/cl/170046
-
+---
  src/pkg/bytes/bytes.go          | 38 ++++++++++++++++++++++++++++++++++++++
  src/pkg/bytes/bytes_test.go     | 30 ++++++++++++++++++++++++++++++
  src/pkg/strings/strings.go      | 34 ++++++++++++++++++++++++++++++++++
  src/pkg/strings/strings_test.go | 30 ++++++++++++++++++++++++++++++
  4 files changed, 132 insertions(+)
+
+diff --git a/src/pkg/bytes/bytes.go b/src/pkg/bytes/bytes.go
+index 0a21464133..d69af0136a 100644
+--- a/src/pkg/bytes/bytes.go
++++ b/src/pkg/bytes/bytes.go
+@@ -163,6 +163,44 @@ func SplitAfter(s, sep []byte, n int) [][]byte {
+ 	return genSplit(s, sep, len(sep), n)
+ }
+ 
++// Fields splits the array s around each instance of one or more consecutive white space
++// characters, returning a slice of subarrays of s or an empty list if s contains only white space.
++func Fields(s []byte) [][]byte {
++	n := 0
++	inField := false
++	for i := 0; i < len(s); {
++		rune, size := utf8.DecodeRune(s[i:])
++		wasInField := inField
++		inField = !unicode.IsSpace(rune)
++		if inField && !wasInField {
++			n++
++		}
++		i += size
++	}
++
++	a := make([][]byte, n)
++	na := 0
++	fieldStart := -1
++	for i := 0; i <= len(s) && na < n; {
++		rune, size := utf8.DecodeRune(s[i:])
++		if fieldStart < 0 && size > 0 && !unicode.IsSpace(rune) {
++			fieldStart = i
++			i += size
++			continue
++		}
++		if fieldStart >= 0 && (size == 0 || unicode.IsSpace(rune)) {
++			a[na] = s[fieldStart:i]
++			na++
++			fieldStart = -1
++		}
++		if size == 0 {
++			break
++		}
++		i += size
++	}
++	return a[0:na]
++}
++
+ // Join concatenates the elements of a to create a single byte array.   The separator
+ // sep is placed between elements in the resulting array.
+ func Join(a [][]byte, sep []byte) []byte {
+diff --git a/src/pkg/bytes/bytes_test.go b/src/pkg/bytes/bytes_test.go
+index 4c6d4166a0..28ec55e3a9 100644
+--- a/src/pkg/bytes/bytes_test.go
++++ b/src/pkg/bytes/bytes_test.go
+@@ -254,6 +254,36 @@ func TestSplitAfter(t *testing.T) {
+ 	}
+ }
+ 
++type FieldsTest struct {
++	s string
++	a []string
++}
++
++var fieldstests = []FieldsTest{
++	FieldsTest{"", []string{}},
++	FieldsTest{" ", []string{}},
++	FieldsTest{" \t ", []string{}},
++	FieldsTest{"  abc  ", []string{"abc"}},
++	FieldsTest{"1 2 3 4", []string{"1", "2", "3", "4"}},
++	FieldsTest{"1  2  3  4", []string{"1", "2", "3", "4"}},
++	FieldsTest{"1\t\t2\t\t3\t4", []string{"1", "2", "3", "4"}},
++	FieldsTest{"1\u20002\u20013\u20024", []string{"1", "2", "3", "4"}},
++	FieldsTest{"\u2000\u2001\u2002", []string{}},
++	FieldsTest{"\n™\t™\n", []string{"™", "™"}},
++	FieldsTest{faces, []string{faces}},
++}
++
++func TestFields(t *testing.T) {
++	for _, tt := range fieldstests {
++		a := Fields(strings.Bytes(tt.s))
++		result := arrayOfString(a)
++		if !eq(result, tt.a) {
++			t.Errorf("Fields(%q) = %v; want %v", tt.s, a, tt.a)
++			continue
++		}
++	}
++}
++
+ // Test case for any function which accepts and returns a byte array.
+ // For ease of creation, we write the byte arrays as strings.
+ type StringTest struct {
+diff --git a/src/pkg/strings/strings.go b/src/pkg/strings/strings.go
+index ae34a5f3c3..48d4f0e96a 100644
+--- a/src/pkg/strings/strings.go
++++ b/src/pkg/strings/strings.go
+@@ -134,6 +134,40 @@ func SplitAfter(s, sep string, n int) []string {
+ 	return genSplit(s, sep, len(sep), n)
+ }
+ 
++// Fields splits the string s around each instance of one or more consecutive white space
++// characters, returning an array of substrings of s or an empty list if s contains only white space.
++func Fields(s string) []string {
++	n := 0
++	inField := false
++	for _, rune := range s {
++		wasInField := inField
++		inField = !unicode.IsSpace(rune)
++		if inField && !wasInField {
++			n++
++		}
++	}
++
++	a := make([]string, n)
++	na := 0
++	fieldStart := -1
++	for i, rune := range s {
++		if unicode.IsSpace(rune) {
++			if fieldStart >= 0 {
++				a[na] = s[fieldStart:i]
++				na++
++				fieldStart = -1
++			}
++		} else if fieldStart == -1 {
++			fieldStart = i
++		}
++	}
++	if fieldStart != -1 {
++		a[na] = s[fieldStart:]
++		na++
++	}
++	return a[0:na]
++}
++
+ // Join concatenates the elements of a to create a single string.   The separator string
+ // sep is placed between elements in the resulting string.
+ func Join(a []string, sep string) string {
+diff --git a/src/pkg/strings/strings_test.go b/src/pkg/strings/strings_test.go
+index eb0f8d1fb5..05df55ca94 100644
+--- a/src/pkg/strings/strings_test.go
++++ b/src/pkg/strings/strings_test.go
+@@ -180,6 +180,36 @@ func TestSplitAfter(t *testing.T) {
+ 	}
+ }
+ 
++type FieldsTest struct {
++	s string
++	a []string
++}
++
++var fieldstests = []FieldsTest{
++	FieldsTest{"", []string{}},
++	FieldsTest{" ", []string{}},
++	FieldsTest{" \t ", []string{}},
++	FieldsTest{"  abc  ", []string{"abc"}},
++	FieldsTest{"1 2 3 4", []string{"1", "2", "3", "4"}},
++	FieldsTest{"1  2  3  4", []string{"1", "2", "3", "4"}},
++	FieldsTest{"1\t\t2\t\t3\t4", []string{"1", "2", "3", "4"}},
++	FieldsTest{"1\u20002\u20013\u20024", []string{"1", "2", "3", "4"}},
++	FieldsTest{"\u2000\u2001\u2002", []string{}},
++	FieldsTest{"\n™\t™\n", []string{"™", "™"}},
++	FieldsTest{faces, []string{faces}},
++}
++
++func TestFields(t *testing.T) {
++	for _, tt := range fieldstests {
++		a := Fields(tt.s)
++		if !eq(a, tt.a) {
++			t.Errorf("Fields(%q) = %v; want %v", tt.s, a, tt.a)
++			continue
++		}
++	}
++}
++
++
+ // Test case for any function which accepts and returns a single string.
+ type StringTest struct {
+ 	in, out string

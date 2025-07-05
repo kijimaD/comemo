@@ -14,9 +14,78 @@ Date:   Wed May 15 14:31:10 2019 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/crash_unix_test.go | 4 ++++
  src/runtime/memmove_test.go    | 6 ++++++
  src/runtime/semasleep_test.go  | 3 +++
  src/runtime/stack_test.go      | 4 ++++
  4 files changed, 17 insertions(+)
+
+diff --git a/src/runtime/crash_unix_test.go b/src/runtime/crash_unix_test.go
+index 14f418cf97..ce227feebd 100644
+--- a/src/runtime/crash_unix_test.go
++++ b/src/runtime/crash_unix_test.go
+@@ -34,6 +34,10 @@ func init() {
+ }
+ 
+ func TestCrashDumpsAllThreads(t *testing.T) {
++	if *flagQuick {
++		t.Skip("-quick")
++	}
++
+ 	switch runtime.GOOS {
+ 	case "darwin", "dragonfly", "freebsd", "linux", "netbsd", "openbsd", "illumos", "solaris":
+ 	default:
+diff --git a/src/runtime/memmove_test.go b/src/runtime/memmove_test.go
+index b490cd815f..0b2e19123d 100644
+--- a/src/runtime/memmove_test.go
++++ b/src/runtime/memmove_test.go
+@@ -15,6 +15,9 @@ import (
+ )
+ 
+ func TestMemmove(t *testing.T) {
++	if *flagQuick {
++		t.Skip("-quick")
++	}
+ 	t.Parallel()
+ 	size := 256
+ 	if testing.Short() {
+@@ -54,6 +57,9 @@ func TestMemmove(t *testing.T) {
+ }
+ 
+ func TestMemmoveAlias(t *testing.T) {
++	if *flagQuick {
++		t.Skip("-quick")
++	}
+ 	t.Parallel()
+ 	size := 256
+ 	if testing.Short() {
+diff --git a/src/runtime/semasleep_test.go b/src/runtime/semasleep_test.go
+index 5b2cc64483..b931095619 100644
+--- a/src/runtime/semasleep_test.go
++++ b/src/runtime/semasleep_test.go
+@@ -21,6 +21,9 @@ import (
+ // shouldn't cause semasleep to retry with the same timeout which would
+ // cause indefinite spinning.
+ func TestSpuriousWakeupsNeverHangSemasleep(t *testing.T) {
++	if *flagQuick {
++		t.Skip("-quick")
++	}
+ 	testenv.MustHaveGoBuild(t)
+ 	tempDir, err := ioutil.TempDir("", "issue-27250")
+ 	if err != nil {
+diff --git a/src/runtime/stack_test.go b/src/runtime/stack_test.go
+index 7bc63967bb..df73b3a1d5 100644
+--- a/src/runtime/stack_test.go
++++ b/src/runtime/stack_test.go
+@@ -78,6 +78,10 @@ func TestStackMem(t *testing.T) {
+ 
+ // Test stack growing in different contexts.
+ func TestStackGrowth(t *testing.T) {
++	if *flagQuick {
++		t.Skip("-quick")
++	}
++
+ 	if GOARCH == "wasm" {
+ 		t.Skip("fails on wasm (too slow?)")
+ 	}

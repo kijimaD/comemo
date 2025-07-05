@@ -33,10 +33,139 @@ Date:   Tue Nov 3 18:12:31 2015 -0800
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/archive/tar/common.go             |  11 +++++++++
  src/archive/tar/reader.go             |  24 ++++++++++++-------
  src/archive/tar/reader_test.go        |  43 ++++++++++++++++++++++++++++++++++
  src/archive/tar/testdata/hdr-only.tar | Bin 0 -> 10240 bytes
  src/archive/tar/testdata/neg-size.tar | Bin 512 -> 512 bytes
  5 files changed, 70 insertions(+), 8 deletions(-)
+
+diff --git a/src/archive/tar/common.go b/src/archive/tar/common.go
+index c31df062f7..36f4e23980 100644
+--- a/src/archive/tar/common.go
++++ b/src/archive/tar/common.go
+@@ -327,3 +327,14 @@ func toASCII(s string) string {
+ 	}
+ 	return buf.String()
+ }
++
++// isHeaderOnlyType checks if the given type flag is of the type that has no
++// data section even if a size is specified.
++func isHeaderOnlyType(flag byte) bool {
++	switch flag {
++	case TypeLink, TypeSymlink, TypeChar, TypeBlock, TypeDir, TypeFifo:
++		return true
++	default:
++		return false
++	}
++}
+diff --git a/src/archive/tar/reader.go b/src/archive/tar/reader.go
+index 4af5807b72..2ecf396073 100644
+--- a/src/archive/tar/reader.go
++++ b/src/archive/tar/reader.go
+@@ -151,6 +151,13 @@ func (tr *Reader) Next() (*Header, error) {
+ 			return nil, err
+ 		}
+ 		if sp != nil {
++			// Sparse files do not make sense when applied to the special header
++			// types that never have a data section.
++			if isHeaderOnlyType(hdr.Typeflag) {
++				tr.err = ErrHeader
++				return nil, tr.err
++			}
++
+ 			// Current file is a PAX format GNU sparse file.
+ 			// Set the current file reader to a sparse file reader.
+ 			tr.curr, tr.err = newSparseFileReader(tr.curr, sp, hdr.Size)
+@@ -539,10 +546,6 @@ func (tr *Reader) readHeader() *Header {
+ 	hdr.Uid = int(tr.octal(s.next(8)))
+ 	hdr.Gid = int(tr.octal(s.next(8)))
+ 	hdr.Size = tr.octal(s.next(12))
+-	if hdr.Size < 0 {
+-		tr.err = ErrHeader
+-		return nil
+-	}
+ 	hdr.ModTime = time.Unix(tr.octal(s.next(12)), 0)
+ 	s.next(8) // chksum
+ 	hdr.Typeflag = s.next(1)[0]
+@@ -593,12 +596,17 @@ func (tr *Reader) readHeader() *Header {
+ 		return nil
+ 	}
+ 
+-	// Maximum value of hdr.Size is 64 GB (12 octal digits),
+-	// so there's no risk of int64 overflowing.
+-	nb := int64(hdr.Size)
+-	tr.pad = -nb & (blockSize - 1) // blockSize is a power of two
++	nb := hdr.Size
++	if isHeaderOnlyType(hdr.Typeflag) {
++		nb = 0
++	}
++	if nb < 0 {
++		tr.err = ErrHeader
++		return nil
++	}
+ 
+ 	// Set the current file reader.
++	tr.pad = -nb & (blockSize - 1) // blockSize is a power of two
+ 	tr.curr = &regFileReader{r: tr.r, nb: nb}
+ 
+ 	// Check for old GNU sparse format entry.
+diff --git a/src/archive/tar/reader_test.go b/src/archive/tar/reader_test.go
+index f8b344da6e..51d77c1683 100644
+--- a/src/archive/tar/reader_test.go
++++ b/src/archive/tar/reader_test.go
+@@ -901,3 +901,46 @@ func TestReadTruncation(t *testing.T) {
+ 		}
+ 	}
+ }
++
++// TestReadHeaderOnly tests that Reader does not attempt to read special
++// header-only files.
++func TestReadHeaderOnly(t *testing.T) {
++	f, err := os.Open("testdata/hdr-only.tar")
++	if err != nil {
++		t.Fatalf("unexpected error: %v", err)
++	}
++	defer f.Close()
++
++	var hdrs []*Header
++	tr := NewReader(f)
++	for {
++		hdr, err := tr.Next()
++		if err == io.EOF {
++			break
++		}
++		if err != nil {
++			t.Errorf("Next(): got %v, want %v", err, nil)
++			continue
++		}
++		hdrs = append(hdrs, hdr)
++
++		// If a special flag, we should read nothing.
++		cnt, _ := io.ReadFull(tr, []byte{0})
++		if cnt > 0 && hdr.Typeflag != TypeReg {
++			t.Errorf("ReadFull(...): got %d bytes, want 0 bytes", cnt)
++		}
++	}
++
++	// File is crafted with 16 entries. The later 8 are identical to the first
++	// 8 except that the size is set.
++	if len(hdrs) != 16 {
++		t.Fatalf("len(hdrs): got %d, want %d", len(hdrs), 16)
++	}
++	for i := 0; i < 8; i++ {
++		var hdr1, hdr2 = hdrs[i+0], hdrs[i+8]
++		hdr1.Size, hdr2.Size = 0, 0
++		if !reflect.DeepEqual(*hdr1, *hdr2) {
++			t.Errorf("incorrect header:\ngot  %+v\nwant %+v", *hdr1, *hdr2)
++		}
++	}
++}
+diff --git a/src/archive/tar/testdata/hdr-only.tar b/src/archive/tar/testdata/hdr-only.tar
+new file mode 100644
+index 0000000000..f25034083d
+Binary files /dev/null and b/src/archive/tar/testdata/hdr-only.tar differ
+diff --git a/src/archive/tar/testdata/neg-size.tar b/src/archive/tar/testdata/neg-size.tar
+index 5deea3d05c..21edf38cc3 100644
+Binary files a/src/archive/tar/testdata/neg-size.tar and b/src/archive/tar/testdata/neg-size.tar differ

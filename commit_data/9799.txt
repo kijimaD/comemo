@@ -11,7 +11,7 @@ Date:   Mon Sep 26 13:59:01 2011 -0400
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5142044
-
+---
  test/golden.out                |   2 -
  test/nilptr.go                 | 125 +++++++++++++++++++++++++++++++++++++++++
  test/nilptr/arrayindex.go      |  26 ---------
@@ -26,3 +26,554 @@ Date:   Mon Sep 26 13:59:01 2011 -0400
  test/nilptr/structfieldaddr.go |  34 -----------
  test/run                       |   2 +-
  13 files changed, 126 insertions(+), 336 deletions(-)
+
+diff --git a/test/golden.out b/test/golden.out
+index fc4b81d3bd..27c932f65c 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -111,8 +111,6 @@ panic: interface conversion: *main.S is not main.I: missing method Foo
+ =========== interface/returntype.go
+ panic: interface conversion: *main.S is not main.I2: missing method Name
+ 
+-== nilptr/
+-
+ == syntax/
+ 
+ == dwarf/
+diff --git a/test/nilptr.go b/test/nilptr.go
+new file mode 100644
+index 0000000000..41d8f23528
+--- /dev/null
++++ b/test/nilptr.go
+@@ -0,0 +1,125 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++package main
++
++import "unsafe"
++
++// Having a big address space means that indexing
++// at a 256 MB offset from a nil pointer might not
++// cause a memory access fault. This test checks
++// that Go is doing the correct explicit checks to catch
++// these nil pointer accesses, not just relying on the hardware.
++var dummy [512 << 20]byte // give us a big address space
++
++func main() {
++	// the test only tests what we intend to test
++	// if dummy starts in the first 256 MB of memory.
++	// otherwise there might not be anything mapped
++	// at the address that might be accidentally
++	// dereferenced below.
++	if uintptr(unsafe.Pointer(&dummy)) > 256<<20 {
++		panic("dummy too far out")
++	}
++
++	shouldPanic(p1)
++	shouldPanic(p2)
++	shouldPanic(p3)
++	shouldPanic(p4)
++	shouldPanic(p5)
++	shouldPanic(p6)
++	shouldPanic(p7)
++	shouldPanic(p8)
++	shouldPanic(p9)
++	shouldPanic(p10)
++}
++
++func shouldPanic(f func()) {
++	defer func() {
++		if recover() == nil {
++			panic("memory reference did not panic")
++		}
++	}()
++	f()
++}
++
++func p1() {
++	// Array index.
++	var p *[1 << 30]byte = nil
++	println(p[256<<20]) // very likely to be inside dummy, but should panic
++}
++
++var xb byte
++
++func p2() {
++	var p *[1 << 30]byte = nil
++	xb = 123
++
++	// Array index.
++	println(p[uintptr(unsafe.Pointer(&xb))]) // should panic
++}
++
++func p3() {
++	// Array to slice.
++	var p *[1 << 30]byte = nil
++	var x []byte = p[0:] // should panic
++	_ = x
++}
++
++var q *[1 << 30]byte
++
++func p4() {
++	// Array to slice.
++	var x []byte
++	var y = &x
++	*y = q[0:] // should crash (uses arraytoslice runtime routine)
++}
++
++func fb([]byte) {
++	panic("unreachable")
++}
++
++func p5() {
++	// Array to slice.
++	var p *[1 << 30]byte = nil
++	fb(p[0:]) // should crash
++}
++
++func p6() {
++	// Array to slice.
++	var p *[1 << 30]byte = nil
++	var _ []byte = p[10 : len(p)-10] // should crash
++}
++
++type T struct {
++	x [256 << 20]byte
++	i int
++}
++
++func f() *T {
++	return nil
++}
++
++var y *T
++var x = &y
++
++func p7() {
++	// Struct field access with large offset.
++	println(f().i) // should crash
++}
++
++func p8() {
++	// Struct field access with large offset.
++	println((*x).i) // should crash
++}
++
++func p9() {
++	// Struct field access with large offset.
++	var t *T
++	println(&t.i) // should crash
++}
++
++func p10() {
++	// Struct field access with large offset.
++	var t *T
++	println(t.i) // should crash
++}
+diff --git a/test/nilptr/arrayindex.go b/test/nilptr/arrayindex.go
+deleted file mode 100644
+index fa26532c67..0000000000
+--- a/test/nilptr/arrayindex.go
++++ /dev/null
+@@ -1,26 +0,0 @@
+-// $G $D/$F.go && $L $F.$A &&
+-//	((! sh -c ./$A.out) >/dev/null 2>&1 || echo BUG: should fail)
+-
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-import "unsafe"
+-
+-var x byte
+-
+-func main() {
+-	var p *[1<<30]byte = nil
+-	x = 123
+-
+-	// The problem here is not the use of unsafe:
+-	// it is that indexing into p[] with a large
+-	// enough index jumps out of the unmapped section
+-	// at the beginning of memory and into valid memory.
+-	// Pointer offsets and array indices, if they are
+-	// very large, need to dereference the base pointer
+-	// to trigger a trap.
+-	println(p[uintptr(unsafe.Pointer(&x))])	// should crash
+-}
+diff --git a/test/nilptr/arrayindex1.go b/test/nilptr/arrayindex1.go
+deleted file mode 100644
+index 64f46e14d1..0000000000
+--- a/test/nilptr/arrayindex1.go
++++ /dev/null
+@@ -1,31 +0,0 @@
+-// $G $D/$F.go && $L $F.$A &&
+-//	((! sh -c ./$A.out) >/dev/null 2>&1 || echo BUG: should fail)
+-
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-import "unsafe"
+-
+-var dummy [512<<20]byte	// give us a big address space
+-func main() {
+-	// the test only tests what we intend to test
+-	// if dummy starts in the first 256 MB of memory.
+-	// otherwise there might not be anything mapped
+-	// at the address that might be accidentally
+-	// dereferenced below.
+-	if uintptr(unsafe.Pointer(&dummy)) > 256<<20 {
+-		panic("dummy too far out")
+-	}
+-
+-	// The problem here is that indexing into p[] with a large
+-	// enough index jumps out of the unmapped section
+-	// at the beginning of memory and into valid memory.
+-	// Pointer offsets and array indices, if they are
+-	// very large, need to dereference the base pointer
+-	// to trigger a trap.
+-	var p *[1<<30]byte = nil
+-	println(p[256<<20])	// very likely to be inside dummy, but should crash
+-}
+diff --git a/test/nilptr/arraytoslice.go b/test/nilptr/arraytoslice.go
+deleted file mode 100644
+index 03879fb42f..0000000000
+--- a/test/nilptr/arraytoslice.go
++++ /dev/null
+@@ -1,36 +0,0 @@
+-// $G $D/$F.go && $L $F.$A &&
+-//	((! sh -c ./$A.out) >/dev/null 2>&1 || echo BUG: should fail)
+-
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-import "unsafe"
+-
+-func f([]byte) {
+-	panic("unreachable")
+-}
+-
+-var dummy [512<<20]byte	// give us a big address space
+-func main() {
+-	// the test only tests what we intend to test
+-	// if dummy starts in the first 256 MB of memory.
+-	// otherwise there might not be anything mapped
+-	// at the address that might be accidentally
+-	// dereferenced below.
+-	if uintptr(unsafe.Pointer(&dummy)) > 256<<20 {
+-		panic("dummy too far out")
+-	}
+-
+-	// The problem here is that indexing into p[] with a large
+-	// enough index can jump out of the unmapped section
+-	// at the beginning of memory and into valid memory.
+-	//
+-	// To avoid needing a check on every slice beyond the
+-	// usual len and cap, we require the *array -> slice
+-	// conversion to do the check.
+-	var p *[1<<30]byte = nil
+-	f(p[0:])	// should crash
+-}
+diff --git a/test/nilptr/arraytoslice1.go b/test/nilptr/arraytoslice1.go
+deleted file mode 100644
+index c86070fa47..0000000000
+--- a/test/nilptr/arraytoslice1.go
++++ /dev/null
+@@ -1,33 +0,0 @@
+-// $G $D/$F.go && $L $F.$A &&
+-//	((! sh -c ./$A.out) >/dev/null 2>&1 || echo BUG: should fail)
+-
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-import "unsafe"
+-
+-var dummy [512<<20]byte	// give us a big address space
+-func main() {
+-	// the test only tests what we intend to test
+-	// if dummy starts in the first 256 MB of memory.
+-	// otherwise there might not be anything mapped
+-	// at the address that might be accidentally
+-	// dereferenced below.
+-	if uintptr(unsafe.Pointer(&dummy)) > 256<<20 {
+-		panic("dummy too far out")
+-	}
+-
+-	// The problem here is that indexing into p[] with a large
+-	// enough index can jump out of the unmapped section
+-	// at the beginning of memory and into valid memory.
+-	//
+-	// To avoid needing a check on every slice beyond the
+-	// usual len and cap, we require the *array -> slice
+-	// conversion to do the check.
+-	var p *[1<<30]byte = nil
+-	var x []byte = p[0:]	// should crash
+-	_ = x
+-}
+diff --git a/test/nilptr/arraytoslice2.go b/test/nilptr/arraytoslice2.go
+deleted file mode 100644
+index 68ea44083c..0000000000
+--- a/test/nilptr/arraytoslice2.go
++++ /dev/null
+@@ -1,34 +0,0 @@
+-// $G $D/$F.go && $L $F.$A &&
+-//	((! sh -c ./$A.out) >/dev/null 2>&1 || echo BUG: should fail)
+-
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-import "unsafe"
+-
+-var dummy [512<<20]byte	// give us a big address space
+-var q *[1<<30]byte
+-func main() {
+-	// the test only tests what we intend to test
+-	// if dummy starts in the first 256 MB of memory.
+-	// otherwise there might not be anything mapped
+-	// at the address that might be accidentally
+-	// dereferenced below.
+-	if uintptr(unsafe.Pointer(&dummy)) > 256<<20 {
+-		panic("dummy too far out")
+-	}
+-
+-	// The problem here is that indexing into p[] with a large
+-	// enough index can jump out of the unmapped section
+-	// at the beginning of memory and into valid memory.
+-	//
+-	// To avoid needing a check on every slice beyond the
+-	// usual len and cap, we require the *array -> slice
+-	// conversion to do the check.
+-	var x []byte
+-	var y = &x
+-	*y = q[0:]	// should crash (uses arraytoslice runtime routine)
+-}
+diff --git a/test/nilptr/slicearray.go b/test/nilptr/slicearray.go
+deleted file mode 100644
+index 26ca427732..0000000000
+--- a/test/nilptr/slicearray.go
++++ /dev/null
+@@ -1,32 +0,0 @@
+-// $G $D/$F.go && $L $F.$A &&
+-//	((! sh -c ./$A.out) >/dev/null 2>&1 || echo BUG: should fail)
+-
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-import "unsafe"
+-
+-var dummy [512<<20]byte	// give us a big address space
+-func main() {
+-	// the test only tests what we intend to test
+-	// if dummy starts in the first 256 MB of memory.
+-	// otherwise there might not be anything mapped
+-	// at the address that might be accidentally
+-	// dereferenced below.
+-	if uintptr(unsafe.Pointer(&dummy)) > 256<<20 {
+-		panic("dummy too far out")
+-	}
+-
+-	// The problem here is that indexing into p[] with a large
+-	// enough index can jump out of the unmapped section
+-	// at the beginning of memory and into valid memory.
+-	//
+-	// To avoid needing a check on every slice beyond the
+-	// usual len and cap, we require the slice operation
+-	// to do the check.
+-	var p *[1<<30]byte = nil
+-	var _ []byte = p[10:len(p)-10]	// should crash
+-}
+diff --git a/test/nilptr/structfield.go b/test/nilptr/structfield.go
+deleted file mode 100644
+index 35196bb68d..0000000000
+--- a/test/nilptr/structfield.go
++++ /dev/null
+@@ -1,34 +0,0 @@
+-// $G $D/$F.go && $L $F.$A &&
+-//	((! sh -c ./$A.out) >/dev/null 2>&1 || echo BUG: should fail)
+-
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-import "unsafe"
+-
+-var dummy [512<<20]byte	// give us a big address space
+-type T struct {
+-	x [256<<20] byte
+-	i int
+-}
+-
+-func main() {
+-	// the test only tests what we intend to test
+-	// if dummy starts in the first 256 MB of memory.
+-	// otherwise there might not be anything mapped
+-	// at the address that might be accidentally
+-	// dereferenced below.
+-	if uintptr(unsafe.Pointer(&dummy)) > 256<<20 {
+-		panic("dummy too far out")
+-	}
+-
+-	// The problem here is that indexing into t with a large
+-	// enough index can jump out of the unmapped section
+-	// at the beginning of memory and into valid memory.
+-	// We require the pointer dereference to check.
+-	var t *T
+-	println(t.i)	// should crash
+-}
+diff --git a/test/nilptr/structfield1.go b/test/nilptr/structfield1.go
+deleted file mode 100644
+index 7c7abed1aa..0000000000
+--- a/test/nilptr/structfield1.go
++++ /dev/null
+@@ -1,37 +0,0 @@
+-// $G $D/$F.go && $L $F.$A &&
+-//	((! sh -c ./$A.out) >/dev/null 2>&1 || echo BUG: should fail)
+-
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-import "unsafe"
+-
+-var dummy [512<<20]byte	// give us a big address space
+-type T struct {
+-	x [256<<20] byte
+-	i int
+-}
+-
+-func f() *T {
+-	return nil
+-}
+-
+-func main() {
+-	// the test only tests what we intend to test
+-	// if dummy starts in the first 256 MB of memory.
+-	// otherwise there might not be anything mapped
+-	// at the address that might be accidentally
+-	// dereferenced below.
+-	if uintptr(unsafe.Pointer(&dummy)) > 256<<20 {
+-		panic("dummy too far out")
+-	}
+-
+-	// The problem here is that indexing into t with a large
+-	// enough index can jump out of the unmapped section
+-	// at the beginning of memory and into valid memory.
+-	// We require the pointer dereference to check.
+-	println(f().i)	// should crash
+-}
+diff --git a/test/nilptr/structfield2.go b/test/nilptr/structfield2.go
+deleted file mode 100644
+index 02a44f1731..0000000000
+--- a/test/nilptr/structfield2.go
++++ /dev/null
+@@ -1,36 +0,0 @@
+-// $G $D/$F.go && $L $F.$A &&
+-//	((! sh -c ./$A.out) >/dev/null 2>&1 || echo BUG: should fail)
+-
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-import "unsafe"
+-
+-var dummy [512<<20]byte	// give us a big address space
+-type T struct {
+-	x [256<<20] byte
+-	i int
+-}
+-
+-var y *T
+-var x = &y
+-
+-func main() {
+-	// the test only tests what we intend to test
+-	// if dummy starts in the first 256 MB of memory.
+-	// otherwise there might not be anything mapped
+-	// at the address that might be accidentally
+-	// dereferenced below.
+-	if uintptr(unsafe.Pointer(&dummy)) > 256<<20 {
+-		panic("dummy too far out")
+-	}
+-
+-	// The problem here is that indexing into t with a large
+-	// enough index can jump out of the unmapped section
+-	// at the beginning of memory and into valid memory.
+-	// We require the pointer dereference to check.
+-	println((*x).i)	// should crash
+-}
+diff --git a/test/nilptr/structfieldaddr.go b/test/nilptr/structfieldaddr.go
+deleted file mode 100644
+index f3177bafba..0000000000
+--- a/test/nilptr/structfieldaddr.go
++++ /dev/null
+@@ -1,34 +0,0 @@
+-// $G $D/$F.go && $L $F.$A &&
+-//	((! sh -c ./$A.out) >/dev/null 2>&1 || echo BUG: should fail)
+-
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-import "unsafe"
+-
+-var dummy [512<<20]byte	// give us a big address space
+-type T struct {
+-	x [256<<20] byte
+-	i int
+-}
+-
+-func main() {
+-	// the test only tests what we intend to test
+-	// if dummy starts in the first 256 MB of memory.
+-	// otherwise there might not be anything mapped
+-	// at the address that might be accidentally
+-	// dereferenced below.
+-	if uintptr(unsafe.Pointer(&dummy)) > 256<<20 {
+-		panic("dummy too far out")
+-	}
+-
+-	// The problem here is that indexing into t with a large
+-	// enough index can jump out of the unmapped section
+-	// at the beginning of memory and into valid memory.
+-	// We require the address calculation to check.
+-	var t *T
+-	println(&t.i)	// should crash
+-}
+diff --git a/test/run b/test/run
+index 844ee5feca..533b0d824b 100755
+--- a/test/run
++++ b/test/run
+@@ -53,7 +53,7 @@ filterout() {
+ 	grep '^'"$2"'$' $1 >/dev/null
+ }
+ 
+-for dir in . ken chan interface nilptr syntax dwarf fixedbugs bugs
++for dir in . ken chan interface syntax dwarf fixedbugs bugs
+ do
+ 	echo
+ 	echo '==' $dir'/'

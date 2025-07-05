@@ -12,6 +12,36 @@ Date:   Sat May 7 18:57:32 2011 -0700
     R=r, dsymonds, nigeltao_gnome, r2
     CC=golang-dev
     https://golang.org/cl/4518041
-
+---
  src/pkg/compress/lzw/reader.go | 13 ++++++++-----
  1 file changed, 8 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/compress/lzw/reader.go b/src/pkg/compress/lzw/reader.go
+index d418bc8561..a1cd2abc04 100644
+--- a/src/pkg/compress/lzw/reader.go
++++ b/src/pkg/compress/lzw/reader.go
+@@ -165,16 +165,19 @@ func decode1(pw *io.PipeWriter, r io.ByteReader, read func(*decoder) (uint16, os
+ 			if _, err := w.Write(buf[i:]); err != nil {
+ 				return err
+ 			}
+-			// Save what the hi code expands to.
+-			suffix[hi] = uint8(c)
+-			prefix[hi] = last
++			if last != invalidCode {
++				// Save what the hi code expands to.
++				suffix[hi] = uint8(c)
++				prefix[hi] = last
++			}
+ 		default:
+ 			return os.NewError("lzw: invalid code")
+ 		}
+ 		last, hi = code, hi+1
+-		if hi == overflow {
++		if hi >= overflow {
+ 			if d.width == maxWidth {
+-				return os.NewError("lzw: missing clear code")
++				last = invalidCode
++				continue
+ 			}
+ 			d.width++
+ 			overflow <<= 1

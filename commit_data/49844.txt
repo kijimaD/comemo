@@ -32,7 +32,7 @@ Date:   Mon Sep 13 12:23:43 2021 -0400
     Run-TryBot: Katie Hockman <katie@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/testdata/script/test_fuzz_mutator.txt   |  30 +---
  .../go/testdata/script/test_fuzz_seed_corpus.txt   | 168 +++++++++++++++++++++
  src/internal/fuzz/coverage.go                      |  17 ++-
@@ -40,3 +40,757 @@ Date:   Mon Sep 13 12:23:43 2021 -0400
  src/internal/fuzz/worker.go                        |  45 +++---
  src/testing/fuzz.go                                |  24 ++-
  6 files changed, 327 insertions(+), 125 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/test_fuzz_mutator.txt b/src/cmd/go/testdata/script/test_fuzz_mutator.txt
+index fb7984c662..9d0738e169 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_mutator.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_mutator.txt
+@@ -78,6 +78,7 @@ package main
+ 
+ import (
+ 	"bufio"
++	"bytes"
+ 	"fmt"
+ 	"io"
+ 	"os"
+@@ -111,34 +112,11 @@ func main() {
+ }
+ 
+ func checkCoordLog(r io.Reader) error {
+-	scan := bufio.NewScanner(r)
+-	var sawASeed, sawBSeed bool
+-	for scan.Scan() {
+-		line := scan.Text()
+-		switch {
+-		case line == `FuzzA "seed"`:
+-			if sawASeed {
+-				return fmt.Errorf("coordinator: tested FuzzA seed multiple times")
+-			}
+-			sawASeed = true
+-
+-		case line == `FuzzB "seed"`:
+-			if sawBSeed {
+-				return fmt.Errorf("coordinator: tested FuzzB seed multiple times")
+-			}
+-			sawBSeed = true
+-
+-		default:
+-			return fmt.Errorf("coordinator: tested something other than seeds: %s", line)
+-		}
+-	}
+-	if err := scan.Err(); err != nil {
++	b, err := io.ReadAll(r)
++	if err != nil {
+ 		return err
+ 	}
+-	if !sawASeed {
+-		return fmt.Errorf("coordinator: did not test FuzzA seed")
+-	}
+-	if !sawBSeed {
++	if string(bytes.TrimSpace(b)) != `FuzzB "seed"` {
+ 		return fmt.Errorf("coordinator: did not test FuzzB seed")
+ 	}
+ 	return nil
+diff --git a/src/cmd/go/testdata/script/test_fuzz_seed_corpus.txt b/src/cmd/go/testdata/script/test_fuzz_seed_corpus.txt
+new file mode 100644
+index 0000000000..016b101d72
+--- /dev/null
++++ b/src/cmd/go/testdata/script/test_fuzz_seed_corpus.txt
+@@ -0,0 +1,168 @@
++# TODO(jayconrod): support shared memory on more platforms.
++[!darwin] [!linux] [!windows] skip
++
++[short] skip
++env GOCACHE=$WORK/cache
++
++# Test that fuzzing a target with a failure in f.Add prints the crash
++# and doesn't write anything to testdata/fuzz
++! go test -fuzz=FuzzWithAdd -run=FuzzWithAdd -fuzztime=1x
++! stdout ^ok
++! stdout 'Crash written to testdata[/\\]fuzz[/\\]FuzzWithAdd[/\\]'
++stdout FAIL
++
++# Test that fuzzing a target with a sucess in f.Add and a fuzztime of only
++# 1 does not produce a crash.
++go test -fuzz=FuzzWithGoodAdd -run=FuzzWithGoodAdd -fuzztime=1x
++stdout ok
++! stdout FAIL
++
++# Test that fuzzing a target with a failure in testdata/fuzz prints the crash
++# and doesn't write anything to testdata/fuzz
++! go test -fuzz=FuzzWithTestdata -run=FuzzWithTestdata -fuzztime=1x
++! stdout ^ok
++! stdout 'Crash written to testdata[/\\]fuzz[/\\]FuzzWithTestdata[/\\]'
++stdout FAIL
++
++# Test that fuzzing a target with no seed corpus or cache finds a crash, prints
++# it, and write it to testdata
++! go test -fuzz=FuzzWithNoCache -run=FuzzWithNoCache -fuzztime=1x
++! stdout ^ok
++stdout 'Crash written to testdata[/\\]fuzz[/\\]FuzzWithNoCache[/\\]'
++stdout FAIL
++
++# Write a crashing input to the cache
++mkdir $GOCACHE/fuzz/example.com/x/FuzzWithCache
++cp cache-file $GOCACHE/fuzz/example.com/x/FuzzWithCache/1
++
++# Test that fuzzing a target with a failure in the cache prints the crash
++# and writes this as a "new" crash to testdata/fuzz
++! go test -fuzz=FuzzWithCache -run=FuzzWithCache -fuzztime=1x
++! stdout ^ok
++stdout 'Crash written to testdata[/\\]fuzz[/\\]FuzzWithCache[/\\]'
++stdout FAIL
++
++# Clear the fuzz cache and make sure it's gone
++go clean -fuzzcache
++! exists $GOCACHE/fuzz
++
++# The tests below should operate the exact same as the previous tests. If -fuzz
++# is enabled, then whatever target is going to be fuzzed shouldn't be run by
++# anything other than the workers.
++
++# Test that fuzzing a target (with -run=None set) with a failure in f.Add prints
++# the crash and doesn't write anything to testdata/fuzz -fuzztime=1x
++! go test -fuzz=FuzzWithAdd -run=None
++! stdout ^ok
++! stdout 'Crash written to testdata[/\\]fuzz[/\\]FuzzWithAdd[/\\]'
++stdout FAIL
++
++# Test that fuzzing a target (with -run=None set) with a sucess in f.Add and a
++# fuzztime of only 1 does not produce a crash.
++go test -fuzz=FuzzWithGoodAdd -run=None -fuzztime=1x
++stdout ok
++! stdout FAIL
++
++# Test that fuzzing a target (with -run=None set) with a failure in
++# testdata/fuzz prints the crash and doesn't write anything to testdata/fuzz
++! go test -fuzz=FuzzWithTestdata -run=None -fuzztime=1x
++! stdout ^ok
++! stdout 'Crash written to testdata[/\\]fuzz[/\\]FuzzWithTestdata[/\\]'
++stdout FAIL
++
++# Write a crashing input to the cache
++mkdir $GOCACHE/fuzz/example.com/x/FuzzRunNoneWithCache
++cp cache-file $GOCACHE/fuzz/example.com/x/FuzzRunNoneWithCache/1
++
++# Test that fuzzing a target (with -run=None set) with a failure in the cache
++# prints the crash and writes this as a "new" crash to testdata/fuzz
++! go test -fuzz=FuzzRunNoneWithCache -run=None -fuzztime=1x
++! stdout ^ok
++stdout 'Crash written to testdata[/\\]fuzz[/\\]FuzzRunNoneWithCache[/\\]'
++stdout FAIL
++
++# Clear the fuzz cache and make sure it's gone
++go clean -fuzzcache
++! exists $GOCACHE/fuzz
++
++# The tests below should operate the exact same way for the previous tests with
++# a seed corpus (namely, they should still fail). However, the binary is built
++# without instrumentation, so this should be a "testing only" run which executes
++# the seed corpus before attempting to fuzz.
++
++go test -c
++! exec ./x.test$GOEXE -test.fuzz=FuzzWithAdd -test.run=FuzzWithAdd -test.fuzztime=1x -test.fuzzcachedir=$WORK/cache
++! stdout ^ok
++! stdout 'Crash written to testdata[/\\]fuzz[/\\]FuzzWithAdd[/\\]'
++stdout FAIL
++stderr warning
++
++go test -c
++! exec ./x.test$GOEXE -test.fuzz=FuzzWithTestdata -test.run=FuzzWithTestdata -test.fuzztime=1x -test.fuzzcachedir=$WORK/cache
++! stdout ^ok
++! stdout 'Crash written to testdata[/\\]fuzz[/\\]FuzzWithTestdata[/\\]'
++stdout FAIL
++stderr warning
++
++-- go.mod --
++module example.com/x
++
++go 1.16
++-- x_test.go --
++package x
++
++import "testing"
++
++func FuzzWithAdd(f *testing.F) {
++    f.Add(10)
++    f.Fuzz(func(t *testing.T, i int) {
++        if i == 10 {
++            t.Error("bad thing here")
++        }
++    })
++}
++
++func FuzzWithGoodAdd(f *testing.F) {
++    f.Add(10)
++    f.Fuzz(func(t *testing.T, i int) {
++        if i != 10 {
++            t.Error("bad thing here")
++        }
++    })
++}
++
++func FuzzWithTestdata(f *testing.F) {
++    f.Fuzz(func(t *testing.T, i int) {
++        if i == 10 {
++            t.Error("bad thing here")
++        }
++    })
++}
++
++func FuzzWithNoCache(f *testing.F) {
++    f.Fuzz(func(t *testing.T, i int) {
++        t.Error("bad thing here")
++    })
++}
++
++func FuzzWithCache(f *testing.F) {
++    f.Fuzz(func(t *testing.T, i int) {
++        if i == 10 {
++            t.Error("bad thing here")
++        }
++    })
++}
++
++func FuzzRunNoneWithCache(f *testing.F) {
++    f.Fuzz(func(t *testing.T, i int) {
++        if i == 10 {
++            t.Error("bad thing here")
++        }
++    })
++}
++-- testdata/fuzz/FuzzWithTestdata/1 --
++go test fuzz v1
++int(10)
++-- cache-file --
++go test fuzz v1
++int(10)
+\ No newline at end of file
+diff --git a/src/internal/fuzz/coverage.go b/src/internal/fuzz/coverage.go
+index 2468e70fa4..71d0132e21 100644
+--- a/src/internal/fuzz/coverage.go
++++ b/src/internal/fuzz/coverage.go
+@@ -5,6 +5,7 @@
+ package fuzz
+ 
+ import (
++	"fmt"
+ 	"internal/unsafeheader"
+ 	"math/bits"
+ 	"unsafe"
+@@ -54,6 +55,9 @@ func SnapshotCoverage() {
+ // diffCoverage returns a set of bits set in snapshot but not in base.
+ // If there are no new bits set, diffCoverage returns nil.
+ func diffCoverage(base, snapshot []byte) []byte {
++	if len(base) != len(snapshot) {
++		panic(fmt.Sprintf("the number of coverage bits changed: before=%d, after=%d", len(base), len(snapshot)))
++	}
+ 	found := false
+ 	for i := range snapshot {
+ 		if snapshot[i]&^base[i] != 0 {
+@@ -100,9 +104,12 @@ func countBits(cov []byte) int {
+ 	return n
+ }
+ 
+-var coverageSnapshot = make([]byte, len(coverage()))
++var (
++	coverageEnabled  = len(coverage()) > 0
++	coverageSnapshot = make([]byte, len(coverage()))
+ 
+-// _counters and _ecounters mark the start and end, respectively, of where
+-// the 8-bit coverage counters reside in memory. They're known to cmd/link,
+-// which specially assigns their addresses for this purpose.
+-var _counters, _ecounters [0]byte
++	// _counters and _ecounters mark the start and end, respectively, of where
++	// the 8-bit coverage counters reside in memory. They're known to cmd/link,
++	// which specially assigns their addresses for this purpose.
++	_counters, _ecounters [0]byte
++)
+diff --git a/src/internal/fuzz/fuzz.go b/src/internal/fuzz/fuzz.go
+index 816da3286f..7343e17e44 100644
+--- a/src/internal/fuzz/fuzz.go
++++ b/src/internal/fuzz/fuzz.go
+@@ -194,6 +194,7 @@ func CoordinateFuzzing(ctx context.Context, opts CoordinateFuzzingOpts) (err err
+ 	defer statTicker.Stop()
+ 	defer c.logStats()
+ 
++	c.logStats()
+ 	for {
+ 		var inputC chan fuzzInput
+ 		input, ok := c.peekInput()
+@@ -223,12 +224,20 @@ func CoordinateFuzzing(ctx context.Context, opts CoordinateFuzzingOpts) (err err
+ 
+ 		case result := <-c.resultC:
+ 			// Received response from worker.
++			if stopping {
++				break
++			}
+ 			c.updateStats(result)
+ 			if c.opts.Limit > 0 && c.count >= c.opts.Limit {
+ 				stop(nil)
+ 			}
+ 
+ 			if result.crasherMsg != "" {
++				if c.warmupRun() && result.entry.IsSeed {
++					fmt.Fprintf(c.opts.Log, "found a crash while testing seed corpus entry: %q\n", result.entry.Parent)
++					stop(errors.New(result.crasherMsg))
++					break
++				}
+ 				if c.canMinimize() && !result.minimizeAttempted {
+ 					if crashMinimizing != nil {
+ 						// This crash is not minimized, and another crash is being minimized.
+@@ -267,7 +276,7 @@ func CoordinateFuzzing(ctx context.Context, opts CoordinateFuzzingOpts) (err err
+ 					stop(err)
+ 				}
+ 			} else if result.coverageData != nil {
+-				if c.coverageOnlyRun() {
++				if c.warmupRun() {
+ 					if printDebugInfo() {
+ 						fmt.Fprintf(
+ 							c.opts.Log,
+@@ -280,22 +289,15 @@ func CoordinateFuzzing(ctx context.Context, opts CoordinateFuzzingOpts) (err err
+ 						)
+ 					}
+ 					c.updateCoverage(result.coverageData)
+-					c.covOnlyInputs--
+-					if c.covOnlyInputs == 0 {
+-						// The coordinator has finished getting a baseline for
+-						// coverage. Tell all of the workers to initialize their
+-						// baseline coverage data (by setting interestingCount
+-						// to 0).
+-						c.interestingCount = 0
+-						if printDebugInfo() {
+-							fmt.Fprintf(
+-								c.opts.Log,
+-								"DEBUG finished processing input corpus, elapsed: %s, entries: %d, initial coverage bits: %d\n",
+-								c.elapsed(),
+-								len(c.corpus.entries),
+-								countBits(c.coverageMask),
+-							)
+-						}
++					c.warmupInputCount--
++					if printDebugInfo() && c.warmupInputCount == 0 {
++						fmt.Fprintf(
++							c.opts.Log,
++							"DEBUG finished processing input corpus, elapsed: %s, entries: %d, initial coverage bits: %d\n",
++							c.elapsed(),
++							len(c.corpus.entries),
++							countBits(c.coverageMask),
++						)
+ 					}
+ 				} else if keepCoverage := diffCoverage(c.coverageMask, result.coverageData); keepCoverage != nil {
+ 					// Found a value that expanded coverage.
+@@ -352,6 +354,18 @@ func CoordinateFuzzing(ctx context.Context, opts CoordinateFuzzingOpts) (err err
+ 						)
+ 					}
+ 				}
++			} else if c.warmupRun() {
++				// No error or coverage data was reported for this input during
++				// warmup, so continue processing results.
++				c.warmupInputCount--
++				if printDebugInfo() && c.warmupInputCount == 0 {
++					fmt.Fprintf(
++						c.opts.Log,
++						"DEBUG finished testing-only phase, elapsed: %s, entries: %d\n",
++						time.Since(c.startTime),
++						len(c.corpus.entries),
++					)
++				}
+ 			}
+ 
+ 		case inputC <- input:
+@@ -418,6 +432,9 @@ type CorpusEntry = struct {
+ 	Values []interface{}
+ 
+ 	Generation int
++
++	// IsSeed indicates whether this entry is part of the seed corpus.
++	IsSeed bool
+ }
+ 
+ // Data returns the raw input bytes, either from the data struct field,
+@@ -445,15 +462,11 @@ type fuzzInput struct {
+ 	// fuzz function.
+ 	limit int64
+ 
+-	// coverageOnly indicates whether this input is for a coverage-only run. If
++	// warmup indicates whether this is a warmup input before fuzzing begins. If
+ 	// true, the input should not be fuzzed.
+-	coverageOnly bool
++	warmup bool
+ 
+-	// interestingCount reflects the coordinator's current interestingCount
+-	// value.
+-	interestingCount int64
+-
+-	// coverageData reflects the coordinator's current coverageData.
++	// coverageData reflects the coordinator's current coverageMask.
+ 	coverageData []byte
+ }
+ 
+@@ -538,10 +551,11 @@ type coordinator struct {
+ 	// been found this execution.
+ 	interestingCount int64
+ 
+-	// covOnlyInputs is the number of entries in the corpus which still need to
+-	// be received from workers when gathering baseline coverage.
+-	// See coverageOnlyRun.
+-	covOnlyInputs int
++	// warmupInputCount is the number of entries in the corpus which still need
++	// to be received from workers to run once during warmup, but not fuzz. This
++	// could be for coverage data, or only for the purposes of verifying that
++	// the seed corpus doesn't have any crashers. See warmupRun.
++	warmupInputCount int
+ 
+ 	// duration is the time spent fuzzing inside workers, not counting time
+ 	// starting up or tearing down.
+@@ -590,16 +604,6 @@ func newCoordinator(opts CoordinateFuzzingOpts) (*coordinator, error) {
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	if len(corpus.entries) == 0 {
+-		var vals []interface{}
+-		for _, t := range opts.Types {
+-			vals = append(vals, zeroValue(t))
+-		}
+-		data := marshalCorpusFile(vals...)
+-		h := sha256.Sum256(data)
+-		name := fmt.Sprintf("%x", h[:4])
+-		corpus.entries = append(corpus.entries, CorpusEntry{Name: name, Data: data})
+-	}
+ 	c := &coordinator{
+ 		opts:      opts,
+ 		startTime: time.Now(),
+@@ -620,18 +624,31 @@ func newCoordinator(opts CoordinateFuzzingOpts) (*coordinator, error) {
+ 	covSize := len(coverage())
+ 	if covSize == 0 {
+ 		fmt.Fprintf(c.opts.Log, "warning: the test binary was not built with coverage instrumentation, so fuzzing will run without coverage guidance and may be inefficient\n")
++		// Even though a coverage-only run won't occur, we should still run all
++		// of the seed corpus to make sure there are no existing failures before
++		// we start fuzzing.
++		c.warmupInputCount = len(c.opts.Seed)
++		for _, e := range c.opts.Seed {
++			c.inputQueue.enqueue(e)
++		}
+ 	} else {
+-		// Set c.coverageData to a clean []byte full of zeros.
+-		c.coverageMask = make([]byte, covSize)
+-		c.covOnlyInputs = len(c.corpus.entries)
++		c.warmupInputCount = len(c.corpus.entries)
+ 		for _, e := range c.corpus.entries {
+ 			c.inputQueue.enqueue(e)
+ 		}
+-		if c.covOnlyInputs > 0 {
+-			// Set c.interestingCount to -1 so the workers know when the coverage
+-			// run is finished and can update their local coverage data.
+-			c.interestingCount = -1
++		// Set c.coverageMask to a clean []byte full of zeros.
++		c.coverageMask = make([]byte, covSize)
++	}
++
++	if len(c.corpus.entries) == 0 {
++		var vals []interface{}
++		for _, t := range opts.Types {
++			vals = append(vals, zeroValue(t))
+ 		}
++		data := marshalCorpusFile(vals...)
++		h := sha256.Sum256(data)
++		name := fmt.Sprintf("%x", h[:4])
++		c.corpus.entries = append(c.corpus.entries, CorpusEntry{Name: name, Data: data})
+ 	}
+ 
+ 	return c, nil
+@@ -645,8 +662,12 @@ func (c *coordinator) updateStats(result fuzzResult) {
+ 
+ func (c *coordinator) logStats() {
+ 	elapsed := c.elapsed()
+-	if c.coverageOnlyRun() {
+-		fmt.Fprintf(c.opts.Log, "gathering baseline coverage, elapsed: %s, workers: %d, left: %d\n", elapsed, c.opts.Parallel, c.covOnlyInputs)
++	if c.warmupRun() {
++		if coverageEnabled {
++			fmt.Fprintf(c.opts.Log, "gathering baseline coverage, elapsed: %s, workers: %d, left: %d\n", elapsed, c.opts.Parallel, c.warmupInputCount)
++		} else {
++			fmt.Fprintf(c.opts.Log, "testing seed corpus, elapsed: %s, workers: %d, left: %d\n", elapsed, c.opts.Parallel, c.warmupInputCount)
++		}
+ 	} else {
+ 		rate := float64(c.count) / time.Since(c.startTime).Seconds() // be more precise here
+ 		fmt.Fprintf(c.opts.Log, "fuzz: elapsed: %s, execs: %d (%.0f/sec), workers: %d, interesting: %d\n", elapsed, c.count, rate, c.opts.Parallel, c.interestingCount)
+@@ -661,7 +682,7 @@ func (c *coordinator) logStats() {
+ // peekInput doesn't actually remove the input from the queue. The caller
+ // must call sentInput after sending the input.
+ //
+-// If the input queue is empty and the coverage-only run has completed,
++// If the input queue is empty and the coverage/testing-only run has completed,
+ // queue refills it from the corpus.
+ func (c *coordinator) peekInput() (fuzzInput, bool) {
+ 	if c.opts.Limit > 0 && c.count+c.countWaiting >= c.opts.Limit {
+@@ -670,8 +691,9 @@ func (c *coordinator) peekInput() (fuzzInput, bool) {
+ 		return fuzzInput{}, false
+ 	}
+ 	if c.inputQueue.len == 0 {
+-		if c.covOnlyInputs > 0 {
+-			// Wait for coverage-only run to finish before sending more inputs.
++		if c.warmupInputCount > 0 {
++			// Wait for coverage/testing-only run to finish before sending more
++			// inputs.
+ 			return fuzzInput{}, false
+ 		}
+ 		c.refillInputQueue()
+@@ -682,17 +704,17 @@ func (c *coordinator) peekInput() (fuzzInput, bool) {
+ 		panic("input queue empty after refill")
+ 	}
+ 	input := fuzzInput{
+-		entry:            entry.(CorpusEntry),
+-		interestingCount: c.interestingCount,
+-		coverageData:     make([]byte, len(c.coverageMask)),
+-		timeout:          workerFuzzDuration,
++		entry:   entry.(CorpusEntry),
++		timeout: workerFuzzDuration,
++		warmup:  c.warmupRun(),
+ 	}
+-	copy(input.coverageData, c.coverageMask)
+-
+-	if c.coverageOnlyRun() {
+-		// This is a coverage-only run, so this input shouldn't be fuzzed.
+-		// It should count toward the limit set by -fuzztime though.
+-		input.coverageOnly = true
++	if c.coverageMask != nil {
++		input.coverageData = make([]byte, len(c.coverageMask))
++		copy(input.coverageData, c.coverageMask)
++	}
++	if input.warmup {
++		// No fuzzing will occur, but it should count toward the limit set by
++		// -fuzztime.
+ 		input.limit = 1
+ 		return input, true
+ 	}
+@@ -782,22 +804,24 @@ func (c *coordinator) sentMinimizeInput(input fuzzMinimizeInput) {
+ 	c.countWaiting += input.limit
+ }
+ 
+-// coverageOnlyRun returns true while the coordinator is gathering baseline
+-// coverage data for entries in the corpus.
++// warmupRun returns true while the coordinator is running inputs without
++// mutating them as a warmup before fuzzing. This could be to gather baseline
++// coverage data for entries in the corpus, or to test all of the seed corpus
++// for errors before fuzzing begins.
+ //
+-// The coordinator starts in this phase. It doesn't store coverage data in the
+-// cache with each input because that data would be invalid when counter
+-// offsets in the test binary change.
++// The coordinator doesn't store coverage data in the cache with each input
++// because that data would be invalid when counter offsets in the test binary
++// change.
+ //
+ // When gathering coverage, the coordinator sends each entry to a worker to
+ // gather coverage for that entry only, without fuzzing or minimizing. This
+ // phase ends when all workers have finished, and the coordinator has a combined
+ // coverage map.
+-func (c *coordinator) coverageOnlyRun() bool {
+-	return c.covOnlyInputs > 0
++func (c *coordinator) warmupRun() bool {
++	return c.warmupInputCount > 0
+ }
+ 
+-// updateCoverage sets bits in c.coverageData that are set in newCoverage.
++// updateCoverage sets bits in c.coverageMask that are set in newCoverage.
+ // updateCoverage returns the number of newly set bits. See the comment on
+ // coverageMask for the format.
+ func (c *coordinator) updateCoverage(newCoverage []byte) int {
+@@ -814,10 +838,12 @@ func (c *coordinator) updateCoverage(newCoverage []byte) int {
+ }
+ 
+ // canMinimize returns whether the coordinator should attempt to find smaller
+-// inputs that reproduce a crash or new coverage.
++// inputs that reproduce a crash or new coverage. It shouldn't do this if it
++// is in the warmup phase.
+ func (c *coordinator) canMinimize() bool {
+ 	return c.minimizationAllowed &&
+-		(c.opts.Limit == 0 || c.count+c.countWaiting < c.opts.Limit)
++		(c.opts.Limit == 0 || c.count+c.countWaiting < c.opts.Limit) &&
++		!c.warmupRun()
+ }
+ 
+ func (c *coordinator) elapsed() time.Duration {
+@@ -827,7 +853,7 @@ func (c *coordinator) elapsed() time.Duration {
+ // readCache creates a combined corpus from seed values and values in the cache
+ // (in GOCACHE/fuzz).
+ //
+-// TODO(jayconrod,katiehockman): need a mechanism that can remove values that
++// TODO(fuzzing): need a mechanism that can remove values that
+ // aren't useful anymore, for example, because they have the wrong type.
+ func readCache(seed []CorpusEntry, types []reflect.Type, cacheDir string) (corpus, error) {
+ 	var c corpus
+diff --git a/src/internal/fuzz/worker.go b/src/internal/fuzz/worker.go
+index 344c1b45b7..da82a95fa1 100644
+--- a/src/internal/fuzz/worker.go
++++ b/src/internal/fuzz/worker.go
+@@ -98,10 +98,6 @@ func (w *worker) cleanup() error {
+ // those inputs to the worker process, then passes the results back to
+ // the coordinator.
+ func (w *worker) coordinate(ctx context.Context) error {
+-	// interestingCount starts at -1, like the coordinator does, so that the
+-	// worker client's coverage data is updated after a coverage-only run.
+-	interestingCount := int64(-1)
+-
+ 	// Main event loop.
+ 	for {
+ 		// Start or restart the worker if it's not running.
+@@ -151,11 +147,11 @@ func (w *worker) coordinate(ctx context.Context) error {
+ 
+ 		case input := <-w.coordinator.inputC:
+ 			// Received input from coordinator.
+-			args := fuzzArgs{Limit: input.limit, Timeout: input.timeout, CoverageOnly: input.coverageOnly}
+-			if interestingCount < input.interestingCount {
+-				// The coordinator's coverage data has changed, so send the data
+-				// to the client.
+-				args.CoverageData = input.coverageData
++			args := fuzzArgs{
++				Limit:        input.limit,
++				Timeout:      input.timeout,
++				Warmup:       input.warmup,
++				CoverageData: input.coverageData,
+ 			}
+ 			entry, resp, err := w.client.fuzz(ctx, input.entry, args)
+ 			if err != nil {
+@@ -544,9 +540,10 @@ type fuzzArgs struct {
+ 	// than Duration. 0 indicates no limit.
+ 	Limit int64
+ 
+-	// CoverageOnly indicates whether this is a coverage-only run (ie. fuzzing
+-	// should not occur).
+-	CoverageOnly bool
++	// Warmup indicates whether this is part of a warmup run, meaning that
++	// fuzzing should not occur. If coverageEnabled is true, then coverage data
++	// should be reported.
++	Warmup bool
+ 
+ 	// CoverageData is the coverage data. If set, the worker should update its
+ 	// local coverage data prior to fuzzing.
+@@ -713,14 +710,16 @@ func (ws *workerServer) fuzz(ctx context.Context, args fuzzArgs) (resp fuzzRespo
+ 		return dur, nil, ""
+ 	}
+ 
+-	if args.CoverageOnly {
++	if args.Warmup {
+ 		dur, _, errMsg := fuzzOnce(CorpusEntry{Values: vals})
+ 		if errMsg != "" {
+ 			resp.Err = errMsg
+ 			return resp
+ 		}
+ 		resp.InterestingDuration = dur
+-		resp.CoverageData = coverageSnapshot
++		if coverageEnabled {
++			resp.CoverageData = coverageSnapshot
++		}
+ 		return resp
+ 	}
+ 
+@@ -742,6 +741,10 @@ func (ws *workerServer) fuzz(ctx context.Context, args fuzzArgs) (resp fuzzRespo
+ 				// run the same values once more to deflake.
+ 				if !shouldStop() {
+ 					dur, cov, errMsg = fuzzOnce(entry)
++					if errMsg != "" {
++						resp.Err = errMsg
++						return resp
++					}
+ 				}
+ 				if cov != nil {
+ 					resp.CoverageData = cov
+@@ -1069,15 +1072,18 @@ func (wc *workerClient) fuzz(ctx context.Context, entryIn CorpusEntry, args fuzz
+ 		panic("workerServer.fuzz modified input")
+ 	}
+ 	needEntryOut := callErr != nil || resp.Err != "" ||
+-		(!args.CoverageOnly && resp.CoverageData != nil)
++		(!args.Warmup && resp.CoverageData != nil)
+ 	if needEntryOut {
+ 		valuesOut, err := unmarshalCorpusFile(inp)
+ 		if err != nil {
+ 			panic(fmt.Sprintf("unmarshaling fuzz input value after call: %v", err))
+ 		}
+ 		wc.m.r.restore(mem.header().randState, mem.header().randInc)
+-		for i := int64(0); i < mem.header().count; i++ {
+-			wc.m.mutate(valuesOut, cap(mem.valueRef()))
++		if !args.Warmup {
++			// Only mutate the valuesOut if fuzzing actually occurred.
++			for i := int64(0); i < mem.header().count; i++ {
++				wc.m.mutate(valuesOut, cap(mem.valueRef()))
++			}
+ 		}
+ 		dataOut := marshalCorpusFile(valuesOut...)
+ 
+@@ -1089,6 +1095,11 @@ func (wc *workerClient) fuzz(ctx context.Context, entryIn CorpusEntry, args fuzz
+ 			Data:       dataOut,
+ 			Generation: entryIn.Generation + 1,
+ 		}
++		if args.Warmup {
++			// The bytes weren't mutated, so if entryIn was a seed corpus value,
++			// then entryOut is too.
++			entryOut.IsSeed = entryIn.IsSeed
++		}
+ 	}
+ 
+ 	return entryOut, resp, callErr
+diff --git a/src/testing/fuzz.go b/src/testing/fuzz.go
+index c2d9db843d..3a1b0bdeaa 100644
+--- a/src/testing/fuzz.go
++++ b/src/testing/fuzz.go
+@@ -84,6 +84,7 @@ type corpusEntry = struct {
+ 	Data       []byte
+ 	Values     []interface{}
+ 	Generation int
++	IsSeed     bool
+ }
+ 
+ // Cleanup registers a function to be called after the fuzz function has been
+@@ -258,7 +259,7 @@ func (f *F) Add(args ...interface{}) {
+ 		}
+ 		values = append(values, args[i])
+ 	}
+-	f.corpus = append(f.corpus, corpusEntry{Values: values, Name: fmt.Sprintf("seed#%d", len(f.corpus))})
++	f.corpus = append(f.corpus, corpusEntry{Values: values, IsSeed: true, Name: fmt.Sprintf("seed#%d", len(f.corpus))})
+ }
+ 
+ // supportedTypes represents all of the supported types which can be fuzzed.
+@@ -344,11 +345,11 @@ func (f *F) Fuzz(ff interface{}) {
+ 		if err != nil {
+ 			f.Fatal(err)
+ 		}
+-
+-		// If this is the coordinator process, zero the values, since we don't need
+-		// to hold onto them.
+-		if f.fuzzContext.mode == fuzzCoordinator {
+-			for i := range c {
++		for i := range c {
++			c[i].IsSeed = true // these are all seed corpus values
++			if f.fuzzContext.mode == fuzzCoordinator {
++				// If this is the coordinator process, zero the values, since we don't need
++				// to hold onto them.
+ 				c[i].Values = nil
+ 			}
+ 		}
+@@ -550,6 +551,10 @@ func runFuzzTargets(deps testDeps, fuzzTargets []InternalFuzzTarget, deadline ti
+ 	m := newMatcher(deps.MatchString, *match, "-test.run")
+ 	tctx := newTestContext(*parallel, m)
+ 	tctx.deadline = deadline
++	var mFuzz *matcher
++	if *matchFuzz != "" {
++		mFuzz = newMatcher(deps.MatchString, *matchFuzz, "-test.fuzz")
++	}
+ 	fctx := &fuzzContext{deps: deps, mode: seedCorpusOnly}
+ 	root := common{w: os.Stdout} // gather output in one place
+ 	if Verbose() {
+@@ -563,6 +568,13 @@ func runFuzzTargets(deps testDeps, fuzzTargets []InternalFuzzTarget, deadline ti
+ 		if !matched {
+ 			continue
+ 		}
++		if mFuzz != nil {
++			if _, fuzzMatched, _ := mFuzz.fullName(nil, ft.Name); fuzzMatched {
++				// If this target will be fuzzed, then don't run the seed corpus
++				// right now. That will happen later.
++				continue
++			}
++		}
+ 		f := &F{
+ 			common: common{
+ 				signal:  make(chan bool),

@@ -10,7 +10,97 @@ Date:   Thu Feb 18 23:32:55 2010 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/207095
-
+---
  src/pkg/xml/xml.go      | 43 +++++++++++++++++++++++++++++++++++--------
  src/pkg/xml/xml_test.go | 20 ++++++++++++++++++++
  2 files changed, 55 insertions(+), 8 deletions(-)
+
+diff --git a/src/pkg/xml/xml.go b/src/pkg/xml/xml.go
+index 33a86a2557..67cbb824f7 100644
+--- a/src/pkg/xml/xml.go
++++ b/src/pkg/xml/xml.go
+@@ -589,14 +589,7 @@ func (p *Parser) RawToken() (Token, os.Error) {
+ 			return nil, p.err
+ 		}
+ 		p.space()
+-		if b, ok = p.mustgetc(); !ok {
+-			return nil, p.err
+-		}
+-		if b != '"' && b != '\'' {
+-			p.err = SyntaxError("unquoted or missing attribute value in element")
+-			return nil, p.err
+-		}
+-		data := p.text(int(b), false)
++		data := p.attrval()
+ 		if data == nil {
+ 			return nil, p.err
+ 		}
+@@ -610,6 +603,40 @@ func (p *Parser) RawToken() (Token, os.Error) {
+ 	return StartElement{name, attr}, nil
+ }
+ 
++func (p *Parser) attrval() []byte {
++	b, ok := p.mustgetc()
++	if !ok {
++		return nil
++	}
++	// Handle quoted attribute values
++	if b == '"' || b == '\'' {
++		return p.text(int(b), false)
++	}
++	// Handle unquoted attribute values for strict parsers
++	if p.Strict {
++		p.err = SyntaxError("unquoted or missing attribute value in element")
++		return nil
++	}
++	// Handle unquoted attribute values for unstrict parsers
++	p.ungetc(b)
++	p.buf.Reset()
++	for {
++		b, ok = p.mustgetc()
++		if !ok {
++			return nil
++		}
++		// http://www.w3.org/TR/REC-html40/intro/sgmltut.html#h-3.2.2
++		if 'a' <= b && b <= 'z' || 'A' <= b && b <= 'Z' ||
++			'0' <= b && b <= '9' || b == '_' || b == ':' || b == '-' {
++			p.buf.WriteByte(b)
++		} else {
++			p.ungetc(b)
++			break
++		}
++	}
++	return p.buf.Bytes()
++}
++
+ // Skip spaces if any
+ func (p *Parser) space() {
+ 	for {
+diff --git a/src/pkg/xml/xml_test.go b/src/pkg/xml/xml_test.go
+index fa19495001..a4c55b73dc 100644
+--- a/src/pkg/xml/xml_test.go
++++ b/src/pkg/xml/xml_test.go
+@@ -298,3 +298,23 @@ func TestIssue569(t *testing.T) {
+ 		t.Fatalf("Expecting abcd")
+ 	}
+ }
++
++func TestUnquotedAttrs(t *testing.T) {
++	data := "<tag attr=azAZ09:-_\t>"
++	p := NewParser(StringReader(data))
++	p.Strict = false
++	token, err := p.Token()
++	if _, ok := err.(SyntaxError); ok {
++		t.Errorf("Unexpected error: %v", err)
++	}
++	if token.(StartElement).Name.Local != "tag" {
++		t.Errorf("Unexpected tag name: %v", token.(StartElement).Name.Local)
++	}
++	attr := token.(StartElement).Attr[0]
++	if attr.Value != "azAZ09:-_" {
++		t.Errorf("Unexpected attribute value: %v", attr.Value)
++	}
++	if attr.Name.Local != "attr" {
++		t.Errorf("Unexpected attribute name: %v", attr.Name.Local)
++	}
++}

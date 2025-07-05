@@ -12,6 +12,30 @@ Date:   Tue Apr 9 08:32:22 2019 +0200
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/strings/strings_test.go | 12 ++++++++++++
  1 file changed, 12 insertions(+)
+
+diff --git a/src/strings/strings_test.go b/src/strings/strings_test.go
+index 8f0a7a1a0a..9766521615 100644
+--- a/src/strings/strings_test.go
++++ b/src/strings/strings_test.go
+@@ -199,6 +199,18 @@ func TestLastIndex(t *testing.T)    { runIndexTests(t, LastIndex, "LastIndex", l
+ func TestIndexAny(t *testing.T)     { runIndexTests(t, IndexAny, "IndexAny", indexAnyTests) }
+ func TestLastIndexAny(t *testing.T) { runIndexTests(t, LastIndexAny, "LastIndexAny", lastIndexAnyTests) }
+ 
++func TestIndexByte(t *testing.T) {
++	for _, tt := range indexTests {
++		if len(tt.sep) != 1 {
++			continue
++		}
++		pos := IndexByte(tt.s, tt.sep[0])
++		if pos != tt.out {
++			t.Errorf(`IndexByte(%q, %q) = %v; want %v`, tt.s, tt.sep[0], pos, tt.out)
++		}
++	}
++}
++
+ func TestLastIndexByte(t *testing.T) {
+ 	testCases := []IndexTest{
+ 		{"", "q", -1},

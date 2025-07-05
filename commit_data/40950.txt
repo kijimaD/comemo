@@ -18,7 +18,36 @@ Date:   Sun Aug 25 16:05:41 2019 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/191700
     Reviewed-by: Toshihiro Shiino <shiino.toshihiro@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/http/httptrace/trace.go | 4 ++--
  src/net/http/request.go         | 2 +-
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/net/http/httptrace/trace.go b/src/net/http/httptrace/trace.go
+index 8b377edee5..6a5cbac9d8 100644
+--- a/src/net/http/httptrace/trace.go
++++ b/src/net/http/httptrace/trace.go
+@@ -133,8 +133,8 @@ type ClientTrace struct {
+ 	ConnectDone func(network, addr string, err error)
+ 
+ 	// TLSHandshakeStart is called when the TLS handshake is started. When
+-	// connecting to a HTTPS site via a HTTP proxy, the handshake happens after
+-	// the CONNECT request is processed by the proxy.
++	// connecting to an HTTPS site via an HTTP proxy, the handshake happens
++	// after the CONNECT request is processed by the proxy.
+ 	TLSHandshakeStart func()
+ 
+ 	// TLSHandshakeDone is called after the TLS handshake with either the
+diff --git a/src/net/http/request.go b/src/net/http/request.go
+index 31d62083cb..6e113f1607 100644
+--- a/src/net/http/request.go
++++ b/src/net/http/request.go
+@@ -763,7 +763,7 @@ func removeZone(host string) string {
+ 	return host[:j] + host[i:]
+ }
+ 
+-// ParseHTTPVersion parses a HTTP version string.
++// ParseHTTPVersion parses an HTTP version string.
+ // "HTTP/1.0" returns (1, 0, true).
+ func ParseHTTPVersion(vers string) (major, minor int, ok bool) {
+ 	const Big = 1000000 // arbitrary upper bound

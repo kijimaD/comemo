@@ -10,7 +10,7 @@ Date:   Thu Oct 5 16:52:04 2017 +1100
     Reviewed-on: https://go-review.googlesource.com/68390
     Reviewed-by: Jed Denlea <jed@fastly.com>
     Reviewed-by: Nigel Tao <nigeltao@golang.org>
-
+---
  src/image/gif/reader_test.go  | 18 ++++++++++++++++++
  src/image/gif/writer_test.go  |  9 ++++-----
  src/image/jpeg/reader_test.go |  4 ++--
@@ -18,3 +18,280 @@ Date:   Thu Oct 5 16:52:04 2017 +1100
  src/image/png/reader_test.go  |  9 ++++-----
  src/image/png/writer_test.go  | 28 ++++++++++++++--------------
  6 files changed, 46 insertions(+), 30 deletions(-)
+
+diff --git a/src/image/gif/reader_test.go b/src/image/gif/reader_test.go
+index 51c64b7328..4b83c9662a 100644
+--- a/src/image/gif/reader_test.go
++++ b/src/image/gif/reader_test.go
+@@ -9,6 +9,7 @@ import (
+ 	"compress/lzw"
+ 	"image"
+ 	"image/color"
++	"io/ioutil"
+ 	"reflect"
+ 	"strings"
+ 	"testing"
+@@ -342,3 +343,20 @@ func TestUnexpectedEOF(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func BenchmarkDecode(b *testing.B) {
++	data, err := ioutil.ReadFile("../testdata/video-001.gif")
++	if err != nil {
++		b.Fatal(err)
++	}
++	cfg, err := DecodeConfig(bytes.NewReader(data))
++	if err != nil {
++		b.Fatal(err)
++	}
++	b.SetBytes(int64(cfg.Width * cfg.Height))
++	b.ReportAllocs()
++	b.ResetTimer()
++	for i := 0; i < b.N; i++ {
++		Decode(bytes.NewReader(data))
++	}
++}
+diff --git a/src/image/gif/writer_test.go b/src/image/gif/writer_test.go
+index 1bba9b8ece..eb17cf28ed 100644
+--- a/src/image/gif/writer_test.go
++++ b/src/image/gif/writer_test.go
+@@ -500,8 +500,6 @@ func TestEncodeCroppedSubImages(t *testing.T) {
+ }
+ 
+ func BenchmarkEncode(b *testing.B) {
+-	b.StopTimer()
+-
+ 	bo := image.Rect(0, 0, 640, 480)
+ 	rnd := rand.New(rand.NewSource(123))
+ 
+@@ -523,14 +521,14 @@ func BenchmarkEncode(b *testing.B) {
+ 	}
+ 
+ 	b.SetBytes(640 * 480 * 4)
+-	b.StartTimer()
++	b.ReportAllocs()
++	b.ResetTimer()
+ 	for i := 0; i < b.N; i++ {
+ 		Encode(ioutil.Discard, img, nil)
+ 	}
+ }
+ 
+ func BenchmarkQuantizedEncode(b *testing.B) {
+-	b.StopTimer()
+ 	img := image.NewRGBA(image.Rect(0, 0, 640, 480))
+ 	bo := img.Bounds()
+ 	rnd := rand.New(rand.NewSource(123))
+@@ -545,7 +543,8 @@ func BenchmarkQuantizedEncode(b *testing.B) {
+ 		}
+ 	}
+ 	b.SetBytes(640 * 480 * 4)
+-	b.StartTimer()
++	b.ReportAllocs()
++	b.ResetTimer()
+ 	for i := 0; i < b.N; i++ {
+ 		Encode(ioutil.Discard, img, nil)
+ 	}
+diff --git a/src/image/jpeg/reader_test.go b/src/image/jpeg/reader_test.go
+index 77376152bc..a62b509234 100644
+--- a/src/image/jpeg/reader_test.go
++++ b/src/image/jpeg/reader_test.go
+@@ -323,7 +323,6 @@ func TestExtraneousData(t *testing.T) {
+ }
+ 
+ func benchmarkDecode(b *testing.B, filename string) {
+-	b.StopTimer()
+ 	data, err := ioutil.ReadFile(filename)
+ 	if err != nil {
+ 		b.Fatal(err)
+@@ -333,7 +332,8 @@ func benchmarkDecode(b *testing.B, filename string) {
+ 		b.Fatal(err)
+ 	}
+ 	b.SetBytes(int64(cfg.Width * cfg.Height * 4))
+-	b.StartTimer()
++	b.ReportAllocs()
++	b.ResetTimer()
+ 	for i := 0; i < b.N; i++ {
+ 		Decode(bytes.NewReader(data))
+ 	}
+diff --git a/src/image/jpeg/writer_test.go b/src/image/jpeg/writer_test.go
+index a6c056174b..3aff742632 100644
+--- a/src/image/jpeg/writer_test.go
++++ b/src/image/jpeg/writer_test.go
+@@ -243,7 +243,6 @@ func TestEncodeYCbCr(t *testing.T) {
+ }
+ 
+ func BenchmarkEncodeRGBA(b *testing.B) {
+-	b.StopTimer()
+ 	img := image.NewRGBA(image.Rect(0, 0, 640, 480))
+ 	bo := img.Bounds()
+ 	rnd := rand.New(rand.NewSource(123))
+@@ -258,7 +257,8 @@ func BenchmarkEncodeRGBA(b *testing.B) {
+ 		}
+ 	}
+ 	b.SetBytes(640 * 480 * 4)
+-	b.StartTimer()
++	b.ReportAllocs()
++	b.ResetTimer()
+ 	options := &Options{Quality: 90}
+ 	for i := 0; i < b.N; i++ {
+ 		Encode(ioutil.Discard, img, options)
+@@ -266,7 +266,6 @@ func BenchmarkEncodeRGBA(b *testing.B) {
+ }
+ 
+ func BenchmarkEncodeYCbCr(b *testing.B) {
+-	b.StopTimer()
+ 	img := image.NewYCbCr(image.Rect(0, 0, 640, 480), image.YCbCrSubsampleRatio420)
+ 	bo := img.Bounds()
+ 	rnd := rand.New(rand.NewSource(123))
+@@ -280,7 +279,8 @@ func BenchmarkEncodeYCbCr(b *testing.B) {
+ 		}
+ 	}
+ 	b.SetBytes(640 * 480 * 3)
+-	b.StartTimer()
++	b.ReportAllocs()
++	b.ResetTimer()
+ 	options := &Options{Quality: 90}
+ 	for i := 0; i < b.N; i++ {
+ 		Encode(ioutil.Discard, img, options)
+diff --git a/src/image/png/reader_test.go b/src/image/png/reader_test.go
+index cabf533adc..da498fe207 100644
+--- a/src/image/png/reader_test.go
++++ b/src/image/png/reader_test.go
+@@ -650,20 +650,19 @@ func TestGray8Transparent(t *testing.T) {
+ }
+ 
+ func benchmarkDecode(b *testing.B, filename string, bytesPerPixel int) {
+-	b.StopTimer()
+ 	data, err := ioutil.ReadFile(filename)
+ 	if err != nil {
+ 		b.Fatal(err)
+ 	}
+-	s := string(data)
+-	cfg, err := DecodeConfig(strings.NewReader(s))
++	cfg, err := DecodeConfig(bytes.NewReader(data))
+ 	if err != nil {
+ 		b.Fatal(err)
+ 	}
+ 	b.SetBytes(int64(cfg.Width * cfg.Height * bytesPerPixel))
+-	b.StartTimer()
++	b.ReportAllocs()
++	b.ResetTimer()
+ 	for i := 0; i < b.N; i++ {
+-		Decode(strings.NewReader(s))
++		Decode(bytes.NewReader(data))
+ 	}
+ }
+ 
+diff --git a/src/image/png/writer_test.go b/src/image/png/writer_test.go
+index b1f97b1d7b..1107ea0e7f 100644
+--- a/src/image/png/writer_test.go
++++ b/src/image/png/writer_test.go
+@@ -121,10 +121,10 @@ func TestSubImage(t *testing.T) {
+ }
+ 
+ func BenchmarkEncodeGray(b *testing.B) {
+-	b.StopTimer()
+ 	img := image.NewGray(image.Rect(0, 0, 640, 480))
+ 	b.SetBytes(640 * 480 * 1)
+-	b.StartTimer()
++	b.ReportAllocs()
++	b.ResetTimer()
+ 	for i := 0; i < b.N; i++ {
+ 		Encode(ioutil.Discard, img)
+ 	}
+@@ -143,20 +143,19 @@ func (p *pool) Put(b *EncoderBuffer) {
+ }
+ 
+ func BenchmarkEncodeGrayWithBufferPool(b *testing.B) {
+-	b.StopTimer()
+ 	img := image.NewGray(image.Rect(0, 0, 640, 480))
+ 	e := Encoder{
+ 		BufferPool: &pool{},
+ 	}
+ 	b.SetBytes(640 * 480 * 1)
+-	b.StartTimer()
++	b.ReportAllocs()
++	b.ResetTimer()
+ 	for i := 0; i < b.N; i++ {
+ 		e.Encode(ioutil.Discard, img)
+ 	}
+ }
+ 
+ func BenchmarkEncodeNRGBOpaque(b *testing.B) {
+-	b.StopTimer()
+ 	img := image.NewNRGBA(image.Rect(0, 0, 640, 480))
+ 	// Set all pixels to 0xFF alpha to force opaque mode.
+ 	bo := img.Bounds()
+@@ -169,40 +168,40 @@ func BenchmarkEncodeNRGBOpaque(b *testing.B) {
+ 		b.Fatal("expected image to be opaque")
+ 	}
+ 	b.SetBytes(640 * 480 * 4)
+-	b.StartTimer()
++	b.ReportAllocs()
++	b.ResetTimer()
+ 	for i := 0; i < b.N; i++ {
+ 		Encode(ioutil.Discard, img)
+ 	}
+ }
+ 
+ func BenchmarkEncodeNRGBA(b *testing.B) {
+-	b.StopTimer()
+ 	img := image.NewNRGBA(image.Rect(0, 0, 640, 480))
+ 	if img.Opaque() {
+ 		b.Fatal("expected image not to be opaque")
+ 	}
+ 	b.SetBytes(640 * 480 * 4)
+-	b.StartTimer()
++	b.ReportAllocs()
++	b.ResetTimer()
+ 	for i := 0; i < b.N; i++ {
+ 		Encode(ioutil.Discard, img)
+ 	}
+ }
+ 
+ func BenchmarkEncodePaletted(b *testing.B) {
+-	b.StopTimer()
+ 	img := image.NewPaletted(image.Rect(0, 0, 640, 480), color.Palette{
+ 		color.RGBA{0, 0, 0, 255},
+ 		color.RGBA{255, 255, 255, 255},
+ 	})
+ 	b.SetBytes(640 * 480 * 1)
+-	b.StartTimer()
++	b.ReportAllocs()
++	b.ResetTimer()
+ 	for i := 0; i < b.N; i++ {
+ 		Encode(ioutil.Discard, img)
+ 	}
+ }
+ 
+ func BenchmarkEncodeRGBOpaque(b *testing.B) {
+-	b.StopTimer()
+ 	img := image.NewRGBA(image.Rect(0, 0, 640, 480))
+ 	// Set all pixels to 0xFF alpha to force opaque mode.
+ 	bo := img.Bounds()
+@@ -215,20 +214,21 @@ func BenchmarkEncodeRGBOpaque(b *testing.B) {
+ 		b.Fatal("expected image to be opaque")
+ 	}
+ 	b.SetBytes(640 * 480 * 4)
+-	b.StartTimer()
++	b.ReportAllocs()
++	b.ResetTimer()
+ 	for i := 0; i < b.N; i++ {
+ 		Encode(ioutil.Discard, img)
+ 	}
+ }
+ 
+ func BenchmarkEncodeRGBA(b *testing.B) {
+-	b.StopTimer()
+ 	img := image.NewRGBA(image.Rect(0, 0, 640, 480))
+ 	if img.Opaque() {
+ 		b.Fatal("expected image not to be opaque")
+ 	}
+ 	b.SetBytes(640 * 480 * 4)
+-	b.StartTimer()
++	b.ReportAllocs()
++	b.ResetTimer()
+ 	for i := 0; i < b.N; i++ {
+ 		Encode(ioutil.Discard, img)
+ 	}

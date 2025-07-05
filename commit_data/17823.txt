@@ -9,9 +9,127 @@ Date:   Fri Oct 18 16:52:44 2013 -0400
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/14870046
-
+---
  misc/cgo/errors/err1.go   |  6 +++++-
  misc/cgo/errors/err2.go   | 13 +++++++++++++
  misc/cgo/errors/test.bash | 38 +++++++++++++++++++++++++-------------
  src/cmd/cgo/gcc.go        | 12 +++++++++++-
  4 files changed, 54 insertions(+), 15 deletions(-)
+
+diff --git a/misc/cgo/errors/err1.go b/misc/cgo/errors/err1.go
+index 78094c6b51..8e674dce7d 100644
+--- a/misc/cgo/errors/err1.go
++++ b/misc/cgo/errors/err1.go
+@@ -1,10 +1,14 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package main
+ 
+ /*
+ #cgo LDFLAGS: -c
+ 
+ void test() {
+-	xxx;		// This is line 7.
++	xxx;		// ERROR HERE
+ }
+ */
+ import "C"
+diff --git a/misc/cgo/errors/err2.go b/misc/cgo/errors/err2.go
+new file mode 100644
+index 0000000000..0c64ffeebf
+--- /dev/null
++++ b/misc/cgo/errors/err2.go
+@@ -0,0 +1,13 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "C"
++
++func main() {
++	s := ""
++	_ = s
++	C.malloc(s) // ERROR HERE
++}
+diff --git a/misc/cgo/errors/test.bash b/misc/cgo/errors/test.bash
+index e9fa6d0195..697ae2fed2 100755
+--- a/misc/cgo/errors/test.bash
++++ b/misc/cgo/errors/test.bash
+@@ -2,18 +2,30 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-if go tool cgo err1.go >errs 2>&1; then
+-  echo 1>&2 misc/cgo/errors/test.bash: BUG: expected cgo to fail but it succeeded
+-  exit 1
+-fi
+-if ! test -s errs; then
+-  echo 1>&2 misc/cgo/errors/test.bash: BUG: expected error output but saw none
+-  exit 1
+-fi
+-if ! fgrep err1.go:7 errs >/dev/null 2>&1; then
+-  echo 1>&2 misc/cgo/errors/test.bash: BUG: expected error on line 7 but saw:
+-  cat 1>&2 errs
+-  exit 1
+-fi
++check() {
++	file=$1
++	line=$(grep -n 'ERROR HERE' $file | sed 's/:.*//')
++	if [ "$line" = "" ]; then
++		echo 1>&2 misc/cgo/errors/test.bash: BUG: cannot find ERROR HERE in $file
++		exit 1
++	fi
++	if go build $file >errs 2>&1; then
++		echo 1>&2 misc/cgo/errors/test.bash: BUG: expected cgo to fail but it succeeded
++		exit 1
++	fi
++	if ! test -s errs; then
++		echo 1>&2 misc/cgo/errors/test.bash: BUG: expected error output but saw none
++		exit 1
++	fi
++	if ! fgrep $file:$line: errs >/dev/null 2>&1; then
++		echo 1>&2 misc/cgo/errors/test.bash: BUG: expected error on line $line but saw:
++		cat 1>&2 errs
++		exit 1
++	fi
++}
++
++check err1.go
++check err2.go
++
+ rm -rf errs _obj
+ exit 0
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 47531c7e2e..7e9a55a0c9 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -654,7 +654,7 @@ func (p *Package) rewriteRef(f *File) {
+ 				// Okay - might be new(T)
+ 				expr = r.Name.Type.Go
+ 			} else if r.Name.Kind == "var" {
+-				expr = &ast.StarExpr{X: expr}
++				expr = &ast.StarExpr{Star: (*r.Expr).Pos(), X: expr}
+ 			}
+ 
+ 		case "type":
+@@ -683,6 +683,16 @@ func (p *Package) rewriteRef(f *File) {
+ 				}
+ 			}
+ 		}
++
++		// Copy position information from old expr into new expr,
++		// in case expression being replaced is first on line.
++		// See golang.org/issue/6563.
++		pos := (*r.Expr).Pos()
++		switch x := expr.(type) {
++		case *ast.Ident:
++			expr = &ast.Ident{NamePos: pos, Name: x.Name}
++		}
++
+ 		*r.Expr = expr
+ 	}
+ 

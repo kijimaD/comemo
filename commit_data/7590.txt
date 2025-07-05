@@ -9,8 +9,54 @@ Date:   Mon Feb 28 17:16:44 2011 -0500
     R=ken2
     CC=golang-dev
     https://golang.org/cl/4259041
-
+---
  src/cmd/gc/subr.c        |  1 -
  src/cmd/gc/typecheck.c   |  2 +-
  test/fixedbugs/bug325.go | 14 ++++++++++++++
  3 files changed, 15 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 49df50319f..94e6dc5d52 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -203,7 +203,6 @@ fatal(char *fmt, ...)
+ 
+ 	flusherrors();
+ 
+-*(int*)0=0;
+ 	print("%L: internal compiler error: ", lineno);
+ 	va_start(arg, fmt);
+ 	vfprint(1, fmt, arg);
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 731e5a49ed..3e8f358770 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -318,7 +318,7 @@ reswitch:
+ 			n->left = N;
+ 			goto ret;
+ 		}
+-		if(!isptr[t->etype]) {
++		if(!isptr[t->etype] || (t->type != T && t->type->etype == TANY) /* unsafe.Pointer */) {
+ 			yyerror("invalid indirect of %+N", n->left);
+ 			goto error;
+ 		}
+diff --git a/test/fixedbugs/bug325.go b/test/fixedbugs/bug325.go
+new file mode 100644
+index 0000000000..23dbc8b3cb
+--- /dev/null
++++ b/test/fixedbugs/bug325.go
+@@ -0,0 +1,14 @@
++// errchk $G $D/$F.go
++
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "unsafe"
++
++func main() {
++	var x unsafe.Pointer
++	println(*x) // ERROR "invalid indirect.*unsafe.Pointer"
++}

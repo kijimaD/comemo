@@ -18,7 +18,7 @@ Date:   Sat Mar 25 10:18:26 2023 -0700
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
-
+---
  src/os/dir_unix.go                         |  2 +-
  src/os/dirent_wasip1.go                    | 52 ++++++++++++++++++++++++++++++
  src/os/error_posix.go                      |  2 +-
@@ -58,3 +58,855 @@ Date:   Sat Mar 25 10:18:26 2023 -0700
  src/os/user/lookup_unix.go                 |  2 +-
  src/os/wait_unimp.go                       |  4 +--
  38 files changed, 271 insertions(+), 62 deletions(-)
+
+diff --git a/src/os/dir_unix.go b/src/os/dir_unix.go
+index 9b3871a3e8..004b9fbb2b 100644
+--- a/src/os/dir_unix.go
++++ b/src/os/dir_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build aix || dragonfly || freebsd || (js && wasm) || linux || netbsd || openbsd || solaris
++//go:build aix || dragonfly || freebsd || (js && wasm) || wasip1 || linux || netbsd || openbsd || solaris
+ 
+ package os
+ 
+diff --git a/src/os/dirent_wasip1.go b/src/os/dirent_wasip1.go
+new file mode 100644
+index 0000000000..d3f10b2aeb
+--- /dev/null
++++ b/src/os/dirent_wasip1.go
+@@ -0,0 +1,52 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build wasip1
++
++package os
++
++import (
++	"syscall"
++	"unsafe"
++)
++
++// https://github.com/WebAssembly/WASI/blob/main/legacy/preview1/docs.md#-dirent-record
++const sizeOfDirent = 24
++
++func direntIno(buf []byte) (uint64, bool) {
++	return readInt(buf, unsafe.Offsetof(syscall.Dirent{}.Ino), unsafe.Sizeof(syscall.Dirent{}.Ino))
++}
++
++func direntReclen(buf []byte) (uint64, bool) {
++	namelen, ok := direntNamlen(buf)
++	return sizeOfDirent + namelen, ok
++}
++
++func direntNamlen(buf []byte) (uint64, bool) {
++	return readInt(buf, unsafe.Offsetof(syscall.Dirent{}.Namlen), unsafe.Sizeof(syscall.Dirent{}.Namlen))
++}
++
++func direntType(buf []byte) FileMode {
++	off := unsafe.Offsetof(syscall.Dirent{}.Type)
++	if off >= uintptr(len(buf)) {
++		return ^FileMode(0) // unknown
++	}
++	switch syscall.Filetype(buf[off]) {
++	case syscall.FILETYPE_BLOCK_DEVICE:
++		return ModeDevice
++	case syscall.FILETYPE_CHARACTER_DEVICE:
++		return ModeDevice | ModeCharDevice
++	case syscall.FILETYPE_DIRECTORY:
++		return ModeDir
++	case syscall.FILETYPE_REGULAR_FILE:
++		return 0
++	case syscall.FILETYPE_SOCKET_DGRAM:
++		return ModeSocket
++	case syscall.FILETYPE_SOCKET_STREAM:
++		return ModeSocket
++	case syscall.FILETYPE_SYMBOLIC_LINK:
++		return ModeSymlink
++	}
++	return ^FileMode(0) // unknown
++}
+diff --git a/src/os/error_posix.go b/src/os/error_posix.go
+index f709d6e344..b159c036c1 100644
+--- a/src/os/error_posix.go
++++ b/src/os/error_posix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build unix || (js && wasm) || windows
++//go:build unix || (js && wasm) || wasip1 || windows
+ 
+ package os
+ 
+diff --git a/src/os/error_unix_test.go b/src/os/error_unix_test.go
+index 1c694fe5f1..07a3286cd6 100644
+--- a/src/os/error_unix_test.go
++++ b/src/os/error_unix_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build unix || (js && wasm)
++//go:build unix || (js && wasm) || wasip1
+ 
+ package os_test
+ 
+diff --git a/src/os/exec/internal/fdtest/exists_js.go b/src/os/exec/internal/fdtest/exists_js.go
+deleted file mode 100644
+index a7ce33c74f..0000000000
+--- a/src/os/exec/internal/fdtest/exists_js.go
++++ /dev/null
+@@ -1,18 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build js
+-
+-package fdtest
+-
+-import (
+-	"syscall"
+-)
+-
+-// Exists returns true if fd is a valid file descriptor.
+-func Exists(fd uintptr) bool {
+-	var s syscall.Stat_t
+-	err := syscall.Fstat(int(fd), &s)
+-	return err != syscall.EBADF
+-}
+diff --git a/src/os/exec/internal/fdtest/exists_unix.go b/src/os/exec/internal/fdtest/exists_unix.go
+index 265cb69822..472a802d7b 100644
+--- a/src/os/exec/internal/fdtest/exists_unix.go
++++ b/src/os/exec/internal/fdtest/exists_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build unix
++//go:build unix || wasm
+ 
+ // Package fdtest provides test helpers for working with file descriptors across exec.
+ package fdtest
+diff --git a/src/os/exec/lp_js.go b/src/os/exec/lp_wasm.go
+similarity index 97%
+rename from src/os/exec/lp_js.go
+rename to src/os/exec/lp_wasm.go
+index 54ddc4d5b4..f2c8e9c5de 100644
+--- a/src/os/exec/lp_js.go
++++ b/src/os/exec/lp_wasm.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build js && wasm
++//go:build wasm
+ 
+ package exec
+ 
+diff --git a/src/os/exec_posix.go b/src/os/exec_posix.go
+index e1e7d53a27..a512d5199a 100644
+--- a/src/os/exec_posix.go
++++ b/src/os/exec_posix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build unix || (js && wasm) || windows
++//go:build unix || (js && wasm) || wasip1 || windows
+ 
+ package os
+ 
+diff --git a/src/os/exec_unix.go b/src/os/exec_unix.go
+index 90a4a61222..f9063b4db4 100644
+--- a/src/os/exec_unix.go
++++ b/src/os/exec_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build unix || (js && wasm)
++//go:build unix || (js && wasm) || wasip1
+ 
+ package os
+ 
+diff --git a/src/os/executable_procfs.go b/src/os/executable_procfs.go
+index 18348eab91..94e674e364 100644
+--- a/src/os/executable_procfs.go
++++ b/src/os/executable_procfs.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build linux || netbsd || (js && wasm)
++//go:build linux || netbsd
+ 
+ package os
+ 
+diff --git a/src/os/executable_wasm.go b/src/os/executable_wasm.go
+new file mode 100644
+index 0000000000..a88360c16f
+--- /dev/null
++++ b/src/os/executable_wasm.go
+@@ -0,0 +1,16 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build wasm
++
++package os
++
++import (
++	"errors"
++	"runtime"
++)
++
++func executable() (string, error) {
++	return "", errors.New("Executable not implemented for " + runtime.GOOS)
++}
+diff --git a/src/os/export_unix_test.go b/src/os/export_unix_test.go
+index 49c8dae036..b8dcca0f8f 100644
+--- a/src/os/export_unix_test.go
++++ b/src/os/export_unix_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build unix || (js && wasm)
++//go:build unix || (js && wasm) || wasip1
+ 
+ package os
+ 
+diff --git a/src/os/file_open_unix.go b/src/os/file_open_unix.go
+new file mode 100644
+index 0000000000..a3336eac81
+--- /dev/null
++++ b/src/os/file_open_unix.go
+@@ -0,0 +1,17 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build unix || (js && wasm)
++
++package os
++
++import (
++	"internal/poll"
++	"syscall"
++)
++
++func open(path string, flag int, perm uint32) (int, poll.SysFile, error) {
++	fd, err := syscall.Open(path, flag, perm)
++	return fd, poll.SysFile{}, err
++}
+diff --git a/src/os/file_open_wasip1.go b/src/os/file_open_wasip1.go
+new file mode 100644
+index 0000000000..f3ef165e6d
+--- /dev/null
++++ b/src/os/file_open_wasip1.go
+@@ -0,0 +1,31 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build wasip1
++
++package os
++
++import (
++	"internal/poll"
++	"syscall"
++)
++
++func open(filePath string, flag int, perm uint32) (int, poll.SysFile, error) {
++	if filePath == "" {
++		return -1, poll.SysFile{}, syscall.EINVAL
++	}
++	absPath := filePath
++	// os.(*File).Chdir is emulated by setting the working directory to the
++	// absolute path that this file was opened at, which is why we have to
++	// resolve and capture it here.
++	if filePath[0] != '/' {
++		wd, err := syscall.Getwd()
++		if err != nil {
++			return -1, poll.SysFile{}, err
++		}
++		absPath = joinPath(wd, filePath)
++	}
++	fd, err := syscall.Open(absPath, flag, perm)
++	return fd, poll.SysFile{Path: absPath}, err
++}
+diff --git a/src/os/file_posix.go b/src/os/file_posix.go
+index c6d18ffeb6..4e0f7c1d80 100644
+--- a/src/os/file_posix.go
++++ b/src/os/file_posix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build unix || (js && wasm) || windows
++//go:build unix || (js && wasm) || wasip1 || windows
+ 
+ package os
+ 
+diff --git a/src/os/file_unix.go b/src/os/file_unix.go
+index 6a884a29a8..4962e9077d 100644
+--- a/src/os/file_unix.go
++++ b/src/os/file_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build unix || (js && wasm)
++//go:build unix || (js && wasm) || wasip1
+ 
+ package os
+ 
+@@ -231,9 +231,10 @@ func openFileNolog(name string, flag int, perm FileMode) (*File, error) {
+ 	}
+ 
+ 	var r int
++	var s poll.SysFile
+ 	for {
+ 		var e error
+-		r, e = syscall.Open(name, flag|syscall.O_CLOEXEC, syscallMode(perm))
++		r, s, e = open(name, flag|syscall.O_CLOEXEC, syscallMode(perm))
+ 		if e == nil {
+ 			break
+ 		}
+@@ -257,7 +258,9 @@ func openFileNolog(name string, flag int, perm FileMode) (*File, error) {
+ 		syscall.CloseOnExec(r)
+ 	}
+ 
+-	return newFile(uintptr(r), name, kindOpenFile), nil
++	f := newFile(uintptr(r), name, kindOpenFile)
++	f.pfd.SysFile = s
++	return f, nil
+ }
+ 
+ func (file *file) close() error {
+@@ -399,7 +402,7 @@ func Readlink(name string) (string, error) {
+ 			}
+ 		}
+ 		// buffer too small
+-		if runtime.GOOS == "aix" && e == syscall.ERANGE {
++		if (runtime.GOOS == "aix" || runtime.GOOS == "wasip1") && e == syscall.ERANGE {
+ 			continue
+ 		}
+ 		if e != nil {
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index 01211dde3e..d049357b1a 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -104,6 +104,18 @@ var sysdir = func() *sysDir {
+ 				"local",
+ 			},
+ 		}
++	case "wasip1":
++		// wasmtime has issues resolving symbolic links that are often present
++		// in directories like /etc/group below (e.g. private/etc/group on OSX).
++		// For this reason we use files in the Go source tree instead.
++		return &sysDir{
++			runtime.GOROOT(),
++			[]string{
++				"go.env",
++				"LICENSE",
++				"CONTRIBUTING.md",
++			},
++		}
+ 	}
+ 	return &sysDir{
+ 		"/etc",
+@@ -1253,6 +1265,10 @@ func checkMode(t *testing.T, path string, mode FileMode) {
+ }
+ 
+ func TestChmod(t *testing.T) {
++	// Chmod is not supported on wasip1.
++	if runtime.GOOS == "wasip1" {
++		t.Skip("Chmod is not supported on " + runtime.GOOS)
++	}
+ 	t.Parallel()
+ 
+ 	f := newFile("TestChmod", t)
+@@ -1661,7 +1677,7 @@ func TestSeek(t *testing.T) {
+ 
+ func TestSeekError(t *testing.T) {
+ 	switch runtime.GOOS {
+-	case "js", "plan9":
++	case "js", "plan9", "wasip1":
+ 		t.Skipf("skipping test on %v", runtime.GOOS)
+ 	}
+ 	t.Parallel()
+@@ -2172,6 +2188,9 @@ func TestLargeWriteToConsole(t *testing.T) {
+ }
+ 
+ func TestStatDirModeExec(t *testing.T) {
++	if runtime.GOOS == "wasip1" {
++		t.Skip("Chmod is not supported on " + runtime.GOOS)
++	}
+ 	t.Parallel()
+ 
+ 	const mode = 0111
+@@ -2365,9 +2384,11 @@ func TestLongPath(t *testing.T) {
+ 					if dir.Size() != filesize || filesize != wantSize {
+ 						t.Errorf("Size(%q) is %d, len(ReadFile()) is %d, want %d", path, dir.Size(), filesize, wantSize)
+ 					}
+-					err = Chmod(path, dir.Mode())
+-					if err != nil {
+-						t.Fatalf("Chmod(%q) failed: %v", path, err)
++					if runtime.GOOS != "wasip1" { // Chmod is not supported on wasip1
++						err = Chmod(path, dir.Mode())
++						if err != nil {
++							t.Fatalf("Chmod(%q) failed: %v", path, err)
++						}
+ 					}
+ 				}
+ 				if err := Truncate(sizedTempDir+"/bar.txt", 0); err != nil {
+@@ -2561,6 +2582,8 @@ func TestPipeThreads(t *testing.T) {
+ 		t.Skip("skipping on Plan 9; does not support runtime poller")
+ 	case "js":
+ 		t.Skip("skipping on js; no support for os.Pipe")
++	case "wasip1":
++		t.Skip("skipping on wasip1; no support for os.Pipe")
+ 	}
+ 
+ 	threads := 100
+@@ -2963,8 +2986,8 @@ func TestWriteStringAlloc(t *testing.T) {
+ // Test that it's OK to have parallel I/O and Close on a pipe.
+ func TestPipeIOCloseRace(t *testing.T) {
+ 	// Skip on wasm, which doesn't have pipes.
+-	if runtime.GOOS == "js" {
+-		t.Skip("skipping on js: no pipes")
++	if runtime.GOOS == "js" || runtime.GOOS == "wasip1" {
++		t.Skipf("skipping on %s: no pipes", runtime.GOOS)
+ 	}
+ 	t.Parallel()
+ 
+@@ -3041,8 +3064,8 @@ func TestPipeIOCloseRace(t *testing.T) {
+ // Test that it's OK to call Close concurrently on a pipe.
+ func TestPipeCloseRace(t *testing.T) {
+ 	// Skip on wasm, which doesn't have pipes.
+-	if runtime.GOOS == "js" {
+-		t.Skip("skipping on js: no pipes")
++	if runtime.GOOS == "js" || runtime.GOOS == "wasip1" {
++		t.Skipf("skipping on %s: no pipes", runtime.GOOS)
+ 	}
+ 	t.Parallel()
+ 
+diff --git a/src/os/os_unix_test.go b/src/os/os_unix_test.go
+index 9a0ba70400..73940f982f 100644
+--- a/src/os/os_unix_test.go
++++ b/src/os/os_unix_test.go
+@@ -2,11 +2,12 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build unix || (js && wasm)
++//go:build unix || (js && wasm) || wasip1
+ 
+ package os_test
+ 
+ import (
++	"internal/testenv"
+ 	"io"
+ 	. "os"
+ 	"path/filepath"
+@@ -39,6 +40,9 @@ func checkUidGid(t *testing.T, path string, uid, gid int) {
+ }
+ 
+ func TestChown(t *testing.T) {
++	if runtime.GOOS == "wasip1" {
++		t.Skip("file ownership not supported on " + runtime.GOOS)
++	}
+ 	t.Parallel()
+ 
+ 	// Use TempDir() to make sure we're on a local file system,
+@@ -84,6 +88,9 @@ func TestChown(t *testing.T) {
+ }
+ 
+ func TestFileChown(t *testing.T) {
++	if runtime.GOOS == "wasip1" {
++		t.Skip("file ownership not supported on " + runtime.GOOS)
++	}
+ 	t.Parallel()
+ 
+ 	// Use TempDir() to make sure we're on a local file system,
+@@ -129,6 +136,7 @@ func TestFileChown(t *testing.T) {
+ }
+ 
+ func TestLchown(t *testing.T) {
++	testenv.MustHaveSymlink(t)
+ 	t.Parallel()
+ 
+ 	// Use TempDir() to make sure we're on a local file system,
+@@ -219,6 +227,9 @@ func TestReaddirRemoveRace(t *testing.T) {
+ 
+ // Issue 23120: respect umask when doing Mkdir with the sticky bit
+ func TestMkdirStickyUmask(t *testing.T) {
++	if runtime.GOOS == "wasip1" {
++		t.Skip("file permissions not supported on " + runtime.GOOS)
++	}
+ 	t.Parallel()
+ 
+ 	const umask = 0077
+@@ -241,7 +252,7 @@ func TestMkdirStickyUmask(t *testing.T) {
+ 
+ // See also issues: 22939, 24331
+ func newFileTest(t *testing.T, blocking bool) {
+-	if runtime.GOOS == "js" {
++	if runtime.GOOS == "js" || runtime.GOOS == "wasip1" {
+ 		t.Skipf("syscall.Pipe is not available on %s.", runtime.GOOS)
+ 	}
+ 
+diff --git a/src/os/path_unix.go b/src/os/path_unix.go
+index 3c6310a4df..c975cdb11e 100644
+--- a/src/os/path_unix.go
++++ b/src/os/path_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build unix || (js && wasm)
++//go:build unix || (js && wasm) || wasip1
+ 
+ package os
+ 
+diff --git a/src/os/pipe_test.go b/src/os/pipe_test.go
+index d0a4c65de2..6f01d30e24 100644
+--- a/src/os/pipe_test.go
++++ b/src/os/pipe_test.go
+@@ -4,7 +4,7 @@
+ 
+ // Test broken pipes on Unix systems.
+ //
+-//go:build !plan9 && !js
++//go:build !plan9 && !js && !wasip1
+ 
+ package os_test
+ 
+diff --git a/src/os/pipe_unix.go b/src/os/pipe_unix.go
+index 710f77670e..a12412e0ca 100644
+--- a/src/os/pipe_unix.go
++++ b/src/os/pipe_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build aix || darwin || (js && wasm)
++//go:build aix || darwin
+ 
+ package os
+ 
+diff --git a/src/os/pipe_wasm.go b/src/os/pipe_wasm.go
+new file mode 100644
+index 0000000000..87a29b1f71
+--- /dev/null
++++ b/src/os/pipe_wasm.go
+@@ -0,0 +1,16 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build wasm
++
++package os
++
++import "syscall"
++
++// Pipe returns a connected pair of Files; reads from r return bytes written to w.
++// It returns the files and an error, if any.
++func Pipe() (r *File, w *File, err error) {
++	// Neither GOOS=js nor GOOS=wasip1 have pipes.
++	return nil, nil, NewSyscallError("pipe", syscall.ENOSYS)
++}
+diff --git a/src/os/rawconn_test.go b/src/os/rawconn_test.go
+index 62b99f8784..8aae7ae684 100644
+--- a/src/os/rawconn_test.go
++++ b/src/os/rawconn_test.go
+@@ -4,7 +4,7 @@
+ 
+ // Test use of raw connections.
+ //
+-//go:build !plan9 && !js
++//go:build !plan9 && !js && !wasip1
+ 
+ package os_test
+ 
+diff --git a/src/os/read_test.go b/src/os/read_test.go
+index 5511dad948..18f7d54734 100644
+--- a/src/os/read_test.go
++++ b/src/os/read_test.go
+@@ -8,6 +8,7 @@ import (
+ 	"bytes"
+ 	. "os"
+ 	"path/filepath"
++	"runtime"
+ 	"testing"
+ )
+ 
+@@ -71,6 +72,9 @@ func TestReadOnlyWriteFile(t *testing.T) {
+ 	if Getuid() == 0 {
+ 		t.Skipf("Root can write to read-only files anyway, so skip the read-only test.")
+ 	}
++	if runtime.GOOS == "wasip1" {
++		t.Skip("no support for file permissions on " + runtime.GOOS)
++	}
+ 	t.Parallel()
+ 
+ 	// We don't want to use CreateTemp directly, since that opens a file for us as 0600.
+diff --git a/src/os/removeall_test.go b/src/os/removeall_test.go
+index 32c0cbaefa..2f7938bb5c 100644
+--- a/src/os/removeall_test.go
++++ b/src/os/removeall_test.go
+@@ -79,8 +79,8 @@ func TestRemoveAll(t *testing.T) {
+ 		t.Fatalf("Lstat %q succeeded after RemoveAll (third)", path)
+ 	}
+ 
+-	// Chmod is not supported under Windows and test fails as root.
+-	if runtime.GOOS != "windows" && Getuid() != 0 {
++	// Chmod is not supported under Windows or wasip1 and test fails as root.
++	if runtime.GOOS != "windows" && runtime.GOOS != "wasip1" && Getuid() != 0 {
+ 		// Make directory with file and subdirectory and trigger error.
+ 		if err = MkdirAll(dpath, 0777); err != nil {
+ 			t.Fatalf("MkdirAll %q: %s", dpath, err)
+@@ -273,7 +273,7 @@ func TestRemoveReadOnlyDir(t *testing.T) {
+ // Issue #29983.
+ func TestRemoveAllButReadOnlyAndPathError(t *testing.T) {
+ 	switch runtime.GOOS {
+-	case "js", "windows":
++	case "js", "wasip1", "windows":
+ 		t.Skipf("skipping test on %s", runtime.GOOS)
+ 	}
+ 
+@@ -421,9 +421,12 @@ func TestRemoveAllWithMoreErrorThanReqSize(t *testing.T) {
+ 		return
+ 	}
+ 	if err == nil {
+-		if runtime.GOOS == "windows" {
++		if runtime.GOOS == "windows" || runtime.GOOS == "wasip1" {
+ 			// Marking a directory as read-only in Windows does not prevent the RemoveAll
+ 			// from creating or removing files within it.
++			//
++			// For wasip1, there is no support for file permissions so we cannot prevent
++			// RemoveAll from removing the files.
+ 			return
+ 		}
+ 		t.Fatal("RemoveAll(<read-only directory>) = nil; want error")
+diff --git a/src/os/signal/signal_unix.go b/src/os/signal/signal_unix.go
+index 772175a922..21dfa41691 100644
+--- a/src/os/signal/signal_unix.go
++++ b/src/os/signal/signal_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build unix || (js && wasm) || windows
++//go:build unix || (js && wasm) || wasip1 || windows
+ 
+ package signal
+ 
+diff --git a/src/os/stat_unix.go b/src/os/stat_unix.go
+index 437afc02b4..431df33fae 100644
+--- a/src/os/stat_unix.go
++++ b/src/os/stat_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build unix || (js && wasm)
++//go:build unix || (js && wasm) || wasip1
+ 
+ package os
+ 
+diff --git a/src/os/stat_wasip1.go b/src/os/stat_wasip1.go
+new file mode 100644
+index 0000000000..a4f0a20430
+--- /dev/null
++++ b/src/os/stat_wasip1.go
+@@ -0,0 +1,40 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build wasip1
++
++package os
++
++import (
++	"syscall"
++	"time"
++)
++
++func fillFileStatFromSys(fs *fileStat, name string) {
++	fs.name = basename(name)
++	fs.size = int64(fs.sys.Size)
++	fs.mode = FileMode(fs.sys.Mode)
++	fs.modTime = time.Unix(0, int64(fs.sys.Mtime))
++
++	switch fs.sys.Filetype {
++	case syscall.FILETYPE_BLOCK_DEVICE:
++		fs.mode |= ModeDevice
++	case syscall.FILETYPE_CHARACTER_DEVICE:
++		fs.mode |= ModeDevice | ModeCharDevice
++	case syscall.FILETYPE_DIRECTORY:
++		fs.mode |= ModeDir
++	case syscall.FILETYPE_SOCKET_DGRAM:
++		fs.mode |= ModeSocket
++	case syscall.FILETYPE_SOCKET_STREAM:
++		fs.mode |= ModeSocket
++	case syscall.FILETYPE_SYMBOLIC_LINK:
++		fs.mode |= ModeSymlink
++	}
++}
++
++// For testing.
++func atime(fi FileInfo) time.Time {
++	st := fi.Sys().(*syscall.Stat_t)
++	return time.Unix(0, int64(st.Atime))
++}
+diff --git a/src/os/sticky_bsd.go b/src/os/sticky_bsd.go
+index e71daf7c74..a6d9339505 100644
+--- a/src/os/sticky_bsd.go
++++ b/src/os/sticky_bsd.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build aix || darwin || dragonfly || freebsd || (js && wasm) || netbsd || openbsd || solaris
++//go:build aix || darwin || dragonfly || freebsd || (js && wasm) || netbsd || openbsd || solaris || wasip1
+ 
+ package os
+ 
+diff --git a/src/os/sticky_notbsd.go b/src/os/sticky_notbsd.go
+index 9a87fbde92..1d289b0fe3 100644
+--- a/src/os/sticky_notbsd.go
++++ b/src/os/sticky_notbsd.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !aix && !darwin && !dragonfly && !freebsd && (!js || !wasm) && !netbsd && !openbsd && !solaris
++//go:build !aix && !darwin && !dragonfly && !freebsd && !js && !netbsd && !openbsd && !solaris && !wasip1
+ 
+ package os
+ 
+diff --git a/src/os/sys_bsd.go b/src/os/sys_bsd.go
+index e272c24571..63120fb9b4 100644
+--- a/src/os/sys_bsd.go
++++ b/src/os/sys_bsd.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build darwin || dragonfly || freebsd || (js && wasm) || netbsd || openbsd
++//go:build darwin || dragonfly || freebsd || (js && wasm) || netbsd || openbsd || wasip1
+ 
+ package os
+ 
+diff --git a/src/os/sys_wasip1.go b/src/os/sys_wasip1.go
+new file mode 100644
+index 0000000000..5a29aa53cb
+--- /dev/null
++++ b/src/os/sys_wasip1.go
+@@ -0,0 +1,11 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build wasip1
++
++package os
++
++// supportsCloseOnExec reports whether the platform supports the
++// O_CLOEXEC flag.
++const supportsCloseOnExec = false
+diff --git a/src/os/timeout_test.go b/src/os/timeout_test.go
+index 110b914e13..3cf06d5647 100644
+--- a/src/os/timeout_test.go
++++ b/src/os/timeout_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !js && !plan9 && !windows
++//go:build !js && !plan9 && !wasip1 && !windows
+ 
+ package os_test
+ 
+diff --git a/src/os/user/listgroups_stub.go b/src/os/user/listgroups_stub.go
+index 4cf808b65d..aa7df93eed 100644
+--- a/src/os/user/listgroups_stub.go
++++ b/src/os/user/listgroups_stub.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build android || (js && !wasm)
++//go:build android
+ 
+ package user
+ 
+diff --git a/src/os/user/listgroups_unix.go b/src/os/user/listgroups_unix.go
+index ef366fa280..67bd8a776e 100644
+--- a/src/os/user/listgroups_unix.go
++++ b/src/os/user/listgroups_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build ((darwin || dragonfly || freebsd || (js && wasm) || (!android && linux) || netbsd || openbsd || solaris) && ((!cgo && !darwin) || osusergo)) || aix || illumos
++//go:build ((darwin || dragonfly || freebsd || (js && wasm) || wasip1 || (!android && linux) || netbsd || openbsd || solaris) && ((!cgo && !darwin) || osusergo)) || aix || illumos
+ 
+ package user
+ 
+diff --git a/src/os/user/listgroups_unix_test.go b/src/os/user/listgroups_unix_test.go
+index 4fa8b1f29b..ae50319ec8 100644
+--- a/src/os/user/listgroups_unix_test.go
++++ b/src/os/user/listgroups_unix_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build ((darwin || dragonfly || freebsd || (js && wasm) || (!android && linux) || netbsd || openbsd || solaris) && ((!cgo && !darwin) || osusergo)) || aix || illumos
++//go:build ((darwin || dragonfly || freebsd || (js && wasm) || wasip1 || (!android && linux) || netbsd || openbsd || solaris) && ((!cgo && !darwin) || osusergo)) || aix || illumos
+ 
+ package user
+ 
+diff --git a/src/os/user/lookup_unix.go b/src/os/user/lookup_unix.go
+index 608d9b2140..a4308269e0 100644
+--- a/src/os/user/lookup_unix.go
++++ b/src/os/user/lookup_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build ((unix && !android) || (js && wasm)) && ((!cgo && !darwin) || osusergo)
++//go:build ((unix && !android) || (js && wasm) || wasip1) && ((!cgo && !darwin) || osusergo)
+ 
+ package user
+ 
+diff --git a/src/os/wait_unimp.go b/src/os/wait_unimp.go
+index bc93e44cf9..d4aac372fb 100644
+--- a/src/os/wait_unimp.go
++++ b/src/os/wait_unimp.go
+@@ -2,11 +2,11 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// aix, darwin, js/wasm, openbsd and solaris don't implement
++// aix, darwin, js/wasm, openbsd, solaris and wasip1/wasm don't implement
+ // waitid/wait6. netbsd implements wait6, but that is causing test
+ // failures, see issue #48789.
+ 
+-//go:build aix || darwin || (js && wasm) || openbsd || solaris
++//go:build aix || darwin || (js && wasm) || openbsd || solaris || wasip1
+ 
+ package os
+ 

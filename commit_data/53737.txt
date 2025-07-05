@@ -17,8 +17,120 @@ Date:   Wed Aug 31 15:48:35 2022 -0700
     Auto-Submit: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/cmd/compile/internal/noder/helpers.go | 25 +++++++++++++++++++++++++
  src/cmd/compile/internal/noder/irgen.go   | 26 ++++++++++++++++++++++++++
  test/typeparam/issue54765.go              | 28 ++++++++++++++++++++++++++++
  3 files changed, 79 insertions(+)
+
+diff --git a/src/cmd/compile/internal/noder/helpers.go b/src/cmd/compile/internal/noder/helpers.go
+index 4c9c6f6cc9..764dcb3f85 100644
+--- a/src/cmd/compile/internal/noder/helpers.go
++++ b/src/cmd/compile/internal/noder/helpers.go
+@@ -256,3 +256,28 @@ func isTypeParam(t types2.Type) bool {
+ 	_, ok := t.(*types2.TypeParam)
+ 	return ok
+ }
++
++// isNotInHeap reports whether typ is or contains an element of type
++// runtime/internal/sys.NotInHeap.
++func isNotInHeap(typ types2.Type) bool {
++	if named, ok := typ.(*types2.Named); ok {
++		if obj := named.Obj(); obj.Name() == "nih" && obj.Pkg().Path() == "runtime/internal/sys" {
++			return true
++		}
++		typ = named.Underlying()
++	}
++
++	switch typ := typ.(type) {
++	case *types2.Array:
++		return isNotInHeap(typ.Elem())
++	case *types2.Struct:
++		for i := 0; i < typ.NumFields(); i++ {
++			if isNotInHeap(typ.Field(i).Type()) {
++				return true
++			}
++		}
++		return false
++	default:
++		return false
++	}
++}
+diff --git a/src/cmd/compile/internal/noder/irgen.go b/src/cmd/compile/internal/noder/irgen.go
+index ad937eac62..dc69e94924 100644
+--- a/src/cmd/compile/internal/noder/irgen.go
++++ b/src/cmd/compile/internal/noder/irgen.go
+@@ -6,6 +6,7 @@ package noder
+ 
+ import (
+ 	"fmt"
++	"sort"
+ 
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/dwarfgen"
+@@ -63,6 +64,31 @@ func checkFiles(noders []*noder) (posMap, *types2.Package, *types2.Info) {
+ 
+ 	pkg, err := conf.Check(base.Ctxt.Pkgpath, files, info)
+ 
++	// Implementation restriction: we don't allow not-in-heap types to
++	// be used as type arguments (#54765).
++	{
++		type nihTarg struct {
++			pos src.XPos
++			typ types2.Type
++		}
++		var nihTargs []nihTarg
++
++		for name, inst := range info.Instances {
++			for i := 0; i < inst.TypeArgs.Len(); i++ {
++				if targ := inst.TypeArgs.At(i); isNotInHeap(targ) {
++					nihTargs = append(nihTargs, nihTarg{m.makeXPos(name.Pos()), targ})
++				}
++			}
++		}
++		sort.Slice(nihTargs, func(i, j int) bool {
++			ti, tj := nihTargs[i], nihTargs[j]
++			return ti.pos.Before(tj.pos)
++		})
++		for _, targ := range nihTargs {
++			base.ErrorfAt(targ.pos, "cannot use incomplete (or unallocatable) type as a type argument: %v", targ.typ)
++		}
++	}
++
+ 	base.ExitIfErrors()
+ 	if err != nil {
+ 		base.FatalfAt(src.NoXPos, "conf.Check error: %v", err)
+diff --git a/test/typeparam/issue54765.go b/test/typeparam/issue54765.go
+new file mode 100644
+index 0000000000..364567d258
+--- /dev/null
++++ b/test/typeparam/issue54765.go
+@@ -0,0 +1,28 @@
++// errorcheck
++
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test that not-in-heap types cannot be used as type
++// arguments. (pointer-to-nih types are okay though.)
++
++//go:build cgo
++// +build cgo
++
++package p
++
++import (
++	"runtime/cgo"
++	"sync/atomic"
++)
++
++var _ atomic.Pointer[cgo.Incomplete]  // ERROR "cannot use incomplete \(or unallocatable\) type as a type argument: runtime/cgo\.Incomplete"
++var _ atomic.Pointer[*cgo.Incomplete] // ok
++
++func implicit(ptr *cgo.Incomplete) {
++	g(ptr)  // ERROR "cannot use incomplete \(or unallocatable\) type as a type argument: runtime/cgo\.Incomplete"
++	g(&ptr) // ok
++}
++
++func g[T any](_ *T) {}

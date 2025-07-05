@@ -24,7 +24,47 @@ Date:   Tue Jan 12 23:55:08 2021 -0800
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/compile/internal/gc/obj.go     | 2 +-
  src/cmd/compile/internal/ssagen/abi.go | 3 +--
  2 files changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index 753db80f76..3e55b7688e 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -111,7 +111,6 @@ func dumpdata() {
+ 	numDecls := len(typecheck.Target.Decls)
+ 
+ 	dumpglobls(typecheck.Target.Externs)
+-	staticdata.WriteFuncSyms()
+ 	reflectdata.CollectPTabs()
+ 	numExports := len(typecheck.Target.Exports)
+ 	addsignats(typecheck.Target.Externs)
+@@ -151,6 +150,7 @@ func dumpdata() {
+ 		objw.Global(zero, int32(reflectdata.ZeroSize), obj.DUPOK|obj.RODATA)
+ 	}
+ 
++	staticdata.WriteFuncSyms()
+ 	addGCLocals()
+ 
+ 	if numExports != len(typecheck.Target.Exports) {
+diff --git a/src/cmd/compile/internal/ssagen/abi.go b/src/cmd/compile/internal/ssagen/abi.go
+index dc27ec3a29..f1226f6a47 100644
+--- a/src/cmd/compile/internal/ssagen/abi.go
++++ b/src/cmd/compile/internal/ssagen/abi.go
+@@ -138,13 +138,12 @@ func ReadSymABIs(file, myimportpath string) {
+ // For body-less functions, we only create the LSym; for functions
+ // with bodies call a helper to setup up / populate the LSym.
+ func InitLSym(f *ir.Func, hasBody bool) {
+-	staticdata.NeedFuncSym(f.Sym())
+-
+ 	// FIXME: for new-style ABI wrappers, we set up the lsym at the
+ 	// point the wrapper is created.
+ 	if f.LSym != nil && base.Flag.ABIWrap {
+ 		return
+ 	}
++	staticdata.NeedFuncSym(f.Sym())
+ 	selectLSym(f, hasBody)
+ 	if hasBody {
+ 		setupTextLSym(f, 0)

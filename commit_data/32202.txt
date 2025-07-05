@@ -17,8 +17,107 @@ Date:   Wed Apr 12 06:11:08 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/internal/obj/link.go     |  1 -
  src/cmd/internal/obj/x86/asm6.go | 26 ++++++++++++++------------
  src/cmd/internal/obj/x86/obj6.go |  4 ----
  3 files changed, 14 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index 82b12105da..d5d96f792e 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -725,7 +725,6 @@ type Link struct {
+ 	PosTable      src.PosTable
+ 	InlTree       InlTree // global inlining tree used by gc/inl.go
+ 	Imports       []string
+-	Plan9privates *LSym
+ 	DiagFunc      func(string, ...interface{})
+ 	DebugInfo     func(fn *LSym, curfn interface{}) []*dwarf.Var // if non-nil, curfn is a *gc.Node
+ 	Errors        int
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index 3fd5052e65..8d55f9cfe0 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -39,6 +39,11 @@ import (
+ 	"strings"
+ )
+ 
++var (
++	plan9privates *obj.LSym
++	deferreturn   *obj.LSym
++)
++
+ // Instruction layout.
+ 
+ const (
+@@ -1830,10 +1835,6 @@ func span6(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
+ 	n := 0
+ 	var c int32
+ 	errors := ctxt.Errors
+-	var deferreturn *obj.LSym
+-	if ctxt.Headtype == obj.Hnacl {
+-		deferreturn = ctxt.Lookup("runtime.deferreturn", 0)
+-	}
+ 	for {
+ 		loop := int32(0)
+ 		for i := range s.R {
+@@ -1973,6 +1974,13 @@ func instinit(ctxt *obj.Link) {
+ 		return
+ 	}
+ 
++	switch ctxt.Headtype {
++	case obj.Hplan9:
++		plan9privates = ctxt.Lookup("_privates", 0)
++	case obj.Hnacl:
++		deferreturn = ctxt.Lookup("runtime.deferreturn", 0)
++	}
++
+ 	for i := 1; optab[i].as != 0; i++ {
+ 		c := optab[i].as
+ 		if opindex[c&obj.AMask] != nil {
+@@ -4108,13 +4116,10 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
+ 								asmbuf.asmand(ctxt, cursym, p, &pp.From, &p.To)
+ 							}
+ 						case obj.Hplan9:
+-							if ctxt.Plan9privates == nil {
+-								ctxt.Plan9privates = ctxt.Lookup("_privates", 0)
+-							}
+ 							pp.From = obj.Addr{}
+ 							pp.From.Type = obj.TYPE_MEM
+ 							pp.From.Name = obj.NAME_EXTERN
+-							pp.From.Sym = ctxt.Plan9privates
++							pp.From.Sym = plan9privates
+ 							pp.From.Offset = 0
+ 							pp.From.Index = REG_NONE
+ 							asmbuf.Put1(0x8B)
+@@ -4164,13 +4169,10 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
+ 						asmbuf.PutInt32(0)
+ 
+ 					case obj.Hplan9:
+-						if ctxt.Plan9privates == nil {
+-							ctxt.Plan9privates = ctxt.Lookup("_privates", 0)
+-						}
+ 						pp.From = obj.Addr{}
+ 						pp.From.Type = obj.TYPE_MEM
+ 						pp.From.Name = obj.NAME_EXTERN
+-						pp.From.Sym = ctxt.Plan9privates
++						pp.From.Sym = plan9privates
+ 						pp.From.Offset = 0
+ 						pp.From.Index = REG_NONE
+ 						asmbuf.rexflag |= Pw
+diff --git a/src/cmd/internal/obj/x86/obj6.go b/src/cmd/internal/obj/x86/obj6.go
+index b931871cee..fc39efeaa8 100644
+--- a/src/cmd/internal/obj/x86/obj6.go
++++ b/src/cmd/internal/obj/x86/obj6.go
+@@ -589,10 +589,6 @@ func nacladdr(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) {
+ }
+ 
+ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+-	if ctxt.Headtype == obj.Hplan9 && ctxt.Plan9privates == nil {
+-		ctxt.Plan9privates = ctxt.Lookup("_privates", 0)
+-	}
+-
+ 	if cursym.Text == nil || cursym.Text.Link == nil {
+ 		return
+ 	}

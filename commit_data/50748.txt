@@ -12,6 +12,20 @@ Date:   Mon Nov 8 12:13:01 2021 -0500
     Run-TryBot: Katie Hockman <katie@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Julie Qiu <julie@golang.org>
-
+---
  src/testing/fuzz.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/testing/fuzz.go b/src/testing/fuzz.go
+index 10665168f4..46c9d63df4 100644
+--- a/src/testing/fuzz.go
++++ b/src/testing/fuzz.go
+@@ -356,7 +356,7 @@ func (f *F) Fuzz(ff interface{}) {
+ 				crashPath := crashErr.CrashPath()
+ 				fmt.Fprintf(f.w, "Crash written to %s\n", crashPath)
+ 				testName := filepath.Base(crashPath)
+-				fmt.Fprintf(f.w, "To re-run:\ngo test %s -run=%s/%s\n", f.fuzzContext.deps.ImportPath(), f.name, testName)
++				fmt.Fprintf(f.w, "To re-run:\ngo test -run=%s/%s\n", f.name, testName)
+ 			}
+ 		}
+ 		// TODO(jayconrod,katiehockman): Aggregate statistics across workers

@@ -8,6 +8,20 @@ Date:   Thu Jan 7 17:45:36 2021 +0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/282013
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: Alberto Donizetti <alb.donizetti@gmail.com>
-
+---
  src/archive/tar/strconv.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/archive/tar/strconv.go b/src/archive/tar/strconv.go
+index 0a910f33b9..6d0a403808 100644
+--- a/src/archive/tar/strconv.go
++++ b/src/archive/tar/strconv.go
+@@ -28,7 +28,7 @@ func isASCII(s string) bool {
+ }
+ 
+ // toASCII converts the input to an ASCII C-style string.
+-// This a best effort conversion, so invalid characters are dropped.
++// This is a best effort conversion, so invalid characters are dropped.
+ func toASCII(s string) string {
+ 	if isASCII(s) {
+ 		return s

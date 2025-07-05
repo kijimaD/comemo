@@ -11,7 +11,7 @@ Date:   Sat Sep 30 21:10:49 2017 +0000
     Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/link/internal/amd64/asm.go    |  15 ++--
  src/cmd/link/internal/amd64/obj.go    |  72 ++++++++++---------
  src/cmd/link/internal/arm/asm.go      |  49 ++++++-------
@@ -47,3 +47,3540 @@ Date:   Sat Sep 30 21:10:49 2017 +0000
  src/cmd/link/internal/x86/obj.go      |  68 +++++++++---------
  src/cmd/link/main.go                  |  24 ++++---
  34 files changed, 702 insertions(+), 676 deletions(-)
+
+diff --git a/src/cmd/link/internal/amd64/asm.go b/src/cmd/link/internal/amd64/asm.go
+index 0660a6d3bf..c181b2c991 100644
+--- a/src/cmd/link/internal/amd64/asm.go
++++ b/src/cmd/link/internal/amd64/asm.go
+@@ -32,6 +32,7 @@ package amd64
+ 
+ import (
+ 	"cmd/internal/objabi"
++	"cmd/internal/sys"
+ 	"cmd/link/internal/ld"
+ 	"debug/elf"
+ 	"log"
+@@ -102,7 +103,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
+ 	switch r.Type {
+ 	default:
+ 		if r.Type >= 256 {
+-			ld.Errorf(s, "unexpected relocation type %d (%s)", r.Type, ld.RelocName(r.Type))
++			ld.Errorf(s, "unexpected relocation type %d (%s)", r.Type, ld.RelocName(ctxt.Arch, r.Type))
+ 			return false
+ 		}
+ 
+@@ -330,7 +331,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
+ 			return true
+ 		}
+ 
+-		if ld.Headtype == objabi.Hdarwin && s.Size == int64(ld.SysArch.PtrSize) && r.Off == 0 {
++		if ld.Headtype == objabi.Hdarwin && s.Size == int64(ctxt.Arch.PtrSize) && r.Off == 0 {
+ 			// Mach-O relocations are a royal pain to lay out.
+ 			// They use a compact stateful bytecode representation
+ 			// that is too much bother to deal with.
+@@ -422,14 +423,14 @@ func elfreloc1(ctxt *ld.Link, r *ld.Reloc, sectoff int64) bool {
+ 	return true
+ }
+ 
+-func machoreloc1(s *ld.Symbol, r *ld.Reloc, sectoff int64) bool {
++func machoreloc1(arch *sys.Arch, s *ld.Symbol, r *ld.Reloc, sectoff int64) bool {
+ 	var v uint32
+ 
+ 	rs := r.Xsym
+ 
+ 	if rs.Type == ld.SHOSTOBJ || r.Type == objabi.R_PCREL || r.Type == objabi.R_GOTPCREL {
+ 		if rs.Dynid < 0 {
+-			ld.Errorf(s, "reloc %d (%s) to non-macho symbol %s type=%d (%s)", r.Type, ld.RelocName(r.Type), rs.Name, rs.Type, rs.Type)
++			ld.Errorf(s, "reloc %d (%s) to non-macho symbol %s type=%d (%s)", r.Type, ld.RelocName(arch, r.Type), rs.Name, rs.Type, rs.Type)
+ 			return false
+ 		}
+ 
+@@ -438,7 +439,7 @@ func machoreloc1(s *ld.Symbol, r *ld.Reloc, sectoff int64) bool {
+ 	} else {
+ 		v = uint32(rs.Sect.Extnum)
+ 		if v == 0 {
+-			ld.Errorf(s, "reloc %d (%s) to symbol %s in non-macho section %s type=%d (%s)", r.Type, ld.RelocName(r.Type), rs.Name, rs.Sect.Name, rs.Type, rs.Type)
++			ld.Errorf(s, "reloc %d (%s) to symbol %s in non-macho section %s type=%d (%s)", r.Type, ld.RelocName(arch, r.Type), rs.Name, rs.Sect.Name, rs.Type, rs.Type)
+ 			return false
+ 		}
+ 	}
+@@ -485,13 +486,13 @@ func machoreloc1(s *ld.Symbol, r *ld.Reloc, sectoff int64) bool {
+ 	return true
+ }
+ 
+-func pereloc1(s *ld.Symbol, r *ld.Reloc, sectoff int64) bool {
++func pereloc1(arch *sys.Arch, s *ld.Symbol, r *ld.Reloc, sectoff int64) bool {
+ 	var v uint32
+ 
+ 	rs := r.Xsym
+ 
+ 	if rs.Dynid < 0 {
+-		ld.Errorf(s, "reloc %d (%s) to non-coff symbol %s type=%d (%s)", r.Type, ld.RelocName(r.Type), rs.Name, rs.Type, rs.Type)
++		ld.Errorf(s, "reloc %d (%s) to non-coff symbol %s type=%d (%s)", r.Type, ld.RelocName(arch, r.Type), rs.Name, rs.Type, rs.Type)
+ 		return false
+ 	}
+ 
+diff --git a/src/cmd/link/internal/amd64/obj.go b/src/cmd/link/internal/amd64/obj.go
+index ef69c269c1..02d6d63b1c 100644
+--- a/src/cmd/link/internal/amd64/obj.go
++++ b/src/cmd/link/internal/amd64/obj.go
+@@ -37,42 +37,46 @@ import (
+ 	"fmt"
+ )
+ 
+-func Init() {
+-	ld.SysArch = sys.ArchAMD64
++func Init() (*sys.Arch, ld.Arch) {
++	arch := sys.ArchAMD64
+ 	if objabi.GOARCH == "amd64p32" {
+-		ld.SysArch = sys.ArchAMD64P32
++		arch = sys.ArchAMD64P32
+ 	}
+ 
+-	ld.Thearch.Funcalign = funcAlign
+-	ld.Thearch.Maxalign = maxAlign
+-	ld.Thearch.Minalign = minAlign
+-	ld.Thearch.Dwarfregsp = dwarfRegSP
+-	ld.Thearch.Dwarfreglr = dwarfRegLR
+-
+-	ld.Thearch.Adddynrel = adddynrel
+-	ld.Thearch.Archinit = archinit
+-	ld.Thearch.Archreloc = archreloc
+-	ld.Thearch.Archrelocvariant = archrelocvariant
+-	ld.Thearch.Asmb = asmb
+-	ld.Thearch.Elfreloc1 = elfreloc1
+-	ld.Thearch.Elfsetupplt = elfsetupplt
+-	ld.Thearch.Gentext = gentext
+-	ld.Thearch.Machoreloc1 = machoreloc1
+-	ld.Thearch.PEreloc1 = pereloc1
+-	ld.Thearch.Lput = ld.Lputl
+-	ld.Thearch.Wput = ld.Wputl
+-	ld.Thearch.Vput = ld.Vputl
+-	ld.Thearch.Append16 = ld.Append16l
+-	ld.Thearch.Append32 = ld.Append32l
+-	ld.Thearch.Append64 = ld.Append64l
+-	ld.Thearch.TLSIEtoLE = tlsIEtoLE
+-
+-	ld.Thearch.Linuxdynld = "/lib64/ld-linux-x86-64.so.2"
+-	ld.Thearch.Freebsddynld = "/libexec/ld-elf.so.1"
+-	ld.Thearch.Openbsddynld = "/usr/libexec/ld.so"
+-	ld.Thearch.Netbsddynld = "/libexec/ld.elf_so"
+-	ld.Thearch.Dragonflydynld = "/usr/libexec/ld-elf.so.2"
+-	ld.Thearch.Solarisdynld = "/lib/amd64/ld.so.1"
++	theArch := ld.Arch{
++		Funcalign:  funcAlign,
++		Maxalign:   maxAlign,
++		Minalign:   minAlign,
++		Dwarfregsp: dwarfRegSP,
++		Dwarfreglr: dwarfRegLR,
++
++		Adddynrel:        adddynrel,
++		Archinit:         archinit,
++		Archreloc:        archreloc,
++		Archrelocvariant: archrelocvariant,
++		Asmb:             asmb,
++		Elfreloc1:        elfreloc1,
++		Elfsetupplt:      elfsetupplt,
++		Gentext:          gentext,
++		Machoreloc1:      machoreloc1,
++		PEreloc1:         pereloc1,
++		Lput:             ld.Lputl,
++		Wput:             ld.Wputl,
++		Vput:             ld.Vputl,
++		Append16:         ld.Append16l,
++		Append32:         ld.Append32l,
++		Append64:         ld.Append64l,
++		TLSIEtoLE:        tlsIEtoLE,
++
++		Linuxdynld:     "/lib64/ld-linux-x86-64.so.2",
++		Freebsddynld:   "/libexec/ld-elf.so.1",
++		Openbsddynld:   "/usr/libexec/ld.so",
++		Netbsddynld:    "/libexec/ld.elf_so",
++		Dragonflydynld: "/usr/libexec/ld-elf.so.2",
++		Solarisdynld:   "/lib/amd64/ld.so.1",
++	}
++
++	return arch, theArch
+ }
+ 
+ func archinit(ctxt *ld.Link) {
+@@ -94,8 +98,6 @@ func archinit(ctxt *ld.Link) {
+ 		}
+ 
+ 	case objabi.Hdarwin: /* apple MACH */
+-		ld.Machoinit()
+-
+ 		ld.HEADR = ld.INITIAL_MACHO_HEADR
+ 		if *ld.FlagRound == -1 {
+ 			*ld.FlagRound = 4096
+diff --git a/src/cmd/link/internal/arm/asm.go b/src/cmd/link/internal/arm/asm.go
+index 2c959b0e96..3f003ad02b 100644
+--- a/src/cmd/link/internal/arm/asm.go
++++ b/src/cmd/link/internal/arm/asm.go
+@@ -32,6 +32,7 @@ package arm
+ 
+ import (
+ 	"cmd/internal/objabi"
++	"cmd/internal/sys"
+ 	"cmd/link/internal/ld"
+ 	"fmt"
+ 	"log"
+@@ -118,7 +119,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
+ 	switch r.Type {
+ 	default:
+ 		if r.Type >= 256 {
+-			ld.Errorf(s, "unexpected relocation type %d (%s)", r.Type, ld.RelocName(r.Type))
++			ld.Errorf(s, "unexpected relocation type %d (%s)", r.Type, ld.RelocName(ctxt.Arch, r.Type))
+ 			return false
+ 		}
+ 
+@@ -320,7 +321,7 @@ func elfsetupplt(ctxt *ld.Link) {
+ 	}
+ }
+ 
+-func machoreloc1(s *ld.Symbol, r *ld.Reloc, sectoff int64) bool {
++func machoreloc1(arch *sys.Arch, s *ld.Symbol, r *ld.Reloc, sectoff int64) bool {
+ 	var v uint32
+ 
+ 	rs := r.Xsym
+@@ -357,7 +358,7 @@ func machoreloc1(s *ld.Symbol, r *ld.Reloc, sectoff int64) bool {
+ 
+ 	if rs.Type == ld.SHOSTOBJ || r.Type == objabi.R_CALLARM {
+ 		if rs.Dynid < 0 {
+-			ld.Errorf(s, "reloc %d (%s) to non-macho symbol %s type=%d (%s)", r.Type, ld.RelocName(r.Type), rs.Name, rs.Type, rs.Type)
++			ld.Errorf(s, "reloc %d (%s) to non-macho symbol %s type=%d (%s)", r.Type, ld.RelocName(arch, r.Type), rs.Name, rs.Type, rs.Type)
+ 			return false
+ 		}
+ 
+@@ -366,7 +367,7 @@ func machoreloc1(s *ld.Symbol, r *ld.Reloc, sectoff int64) bool {
+ 	} else {
+ 		v = uint32(rs.Sect.Extnum)
+ 		if v == 0 {
+-			ld.Errorf(s, "reloc %d (%s) to symbol %s in non-macho section %s type=%d (%s)", r.Type, ld.RelocName(r.Type), rs.Name, rs.Sect.Name, rs.Type, rs.Type)
++			ld.Errorf(s, "reloc %d (%s) to symbol %s in non-macho section %s type=%d (%s)", r.Type, ld.RelocName(arch, r.Type), rs.Name, rs.Sect.Name, rs.Type, rs.Type)
+ 			return false
+ 		}
+ 	}
+@@ -461,11 +462,11 @@ func trampoline(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol) {
+ 					if immrot(uint32(offset)) == 0 {
+ 						ld.Errorf(s, "odd offset in dynlink direct call: %v+%d", r.Sym, offset)
+ 					}
+-					gentrampdyn(tramp, r.Sym, int64(offset))
++					gentrampdyn(ctxt.Arch, tramp, r.Sym, int64(offset))
+ 				} else if ld.Buildmode == ld.BuildmodeCArchive || ld.Buildmode == ld.BuildmodeCShared || ld.Buildmode == ld.BuildmodePIE {
+-					gentramppic(tramp, r.Sym, int64(offset))
++					gentramppic(ctxt.Arch, tramp, r.Sym, int64(offset))
+ 				} else {
+-					gentramp(tramp, r.Sym, int64(offset))
++					gentramp(ctxt.Arch, tramp, r.Sym, int64(offset))
+ 				}
+ 			}
+ 			// modify reloc to point to tramp, which will be resolved later
+@@ -474,21 +475,21 @@ func trampoline(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol) {
+ 			r.Done = false
+ 		}
+ 	default:
+-		ld.Errorf(s, "trampoline called with non-jump reloc: %d (%s)", r.Type, ld.RelocName(r.Type))
++		ld.Errorf(s, "trampoline called with non-jump reloc: %d (%s)", r.Type, ld.RelocName(ctxt.Arch, r.Type))
+ 	}
+ }
+ 
+ // generate a trampoline to target+offset
+-func gentramp(tramp, target *ld.Symbol, offset int64) {
++func gentramp(arch *sys.Arch, tramp, target *ld.Symbol, offset int64) {
+ 	tramp.Size = 12 // 3 instructions
+ 	tramp.P = make([]byte, tramp.Size)
+ 	t := ld.Symaddr(target) + int64(offset)
+ 	o1 := uint32(0xe5900000 | 11<<12 | 15<<16) // MOVW (R15), R11 // R15 is actual pc + 8
+ 	o2 := uint32(0xe12fff10 | 11)              // JMP  (R11)
+ 	o3 := uint32(t)                            // WORD $target
+-	ld.SysArch.ByteOrder.PutUint32(tramp.P, o1)
+-	ld.SysArch.ByteOrder.PutUint32(tramp.P[4:], o2)
+-	ld.SysArch.ByteOrder.PutUint32(tramp.P[8:], o3)
++	arch.ByteOrder.PutUint32(tramp.P, o1)
++	arch.ByteOrder.PutUint32(tramp.P[4:], o2)
++	arch.ByteOrder.PutUint32(tramp.P[8:], o3)
+ 
+ 	if ld.Linkmode == ld.LinkExternal {
+ 		r := ld.Addrel(tramp)
+@@ -501,17 +502,17 @@ func gentramp(tramp, target *ld.Symbol, offset int64) {
+ }
+ 
+ // generate a trampoline to target+offset in position independent code
+-func gentramppic(tramp, target *ld.Symbol, offset int64) {
++func gentramppic(arch *sys.Arch, tramp, target *ld.Symbol, offset int64) {
+ 	tramp.Size = 16 // 4 instructions
+ 	tramp.P = make([]byte, tramp.Size)
+ 	o1 := uint32(0xe5900000 | 11<<12 | 15<<16 | 4)  // MOVW 4(R15), R11 // R15 is actual pc + 8
+ 	o2 := uint32(0xe0800000 | 11<<12 | 15<<16 | 11) // ADD R15, R11, R11
+ 	o3 := uint32(0xe12fff10 | 11)                   // JMP  (R11)
+ 	o4 := uint32(0)                                 // WORD $(target-pc) // filled in with relocation
+-	ld.SysArch.ByteOrder.PutUint32(tramp.P, o1)
+-	ld.SysArch.ByteOrder.PutUint32(tramp.P[4:], o2)
+-	ld.SysArch.ByteOrder.PutUint32(tramp.P[8:], o3)
+-	ld.SysArch.ByteOrder.PutUint32(tramp.P[12:], o4)
++	arch.ByteOrder.PutUint32(tramp.P, o1)
++	arch.ByteOrder.PutUint32(tramp.P[4:], o2)
++	arch.ByteOrder.PutUint32(tramp.P[8:], o3)
++	arch.ByteOrder.PutUint32(tramp.P[12:], o4)
+ 
+ 	r := ld.Addrel(tramp)
+ 	r.Off = 12
+@@ -522,7 +523,7 @@ func gentramppic(tramp, target *ld.Symbol, offset int64) {
+ }
+ 
+ // generate a trampoline to target+offset in dynlink mode (using GOT)
+-func gentrampdyn(tramp, target *ld.Symbol, offset int64) {
++func gentrampdyn(arch *sys.Arch, tramp, target *ld.Symbol, offset int64) {
+ 	tramp.Size = 20                                 // 5 instructions
+ 	o1 := uint32(0xe5900000 | 11<<12 | 15<<16 | 8)  // MOVW 8(R15), R11 // R15 is actual pc + 8
+ 	o2 := uint32(0xe0800000 | 11<<12 | 15<<16 | 11) // ADD R15, R11, R11
+@@ -539,13 +540,13 @@ func gentrampdyn(tramp, target *ld.Symbol, offset int64) {
+ 		o1 = uint32(0xe5900000 | 11<<12 | 15<<16 | 12)                     // MOVW 12(R15), R11
+ 	}
+ 	tramp.P = make([]byte, tramp.Size)
+-	ld.SysArch.ByteOrder.PutUint32(tramp.P, o1)
+-	ld.SysArch.ByteOrder.PutUint32(tramp.P[4:], o2)
+-	ld.SysArch.ByteOrder.PutUint32(tramp.P[8:], o3)
+-	ld.SysArch.ByteOrder.PutUint32(tramp.P[12:], o4)
+-	ld.SysArch.ByteOrder.PutUint32(tramp.P[16:], o5)
++	arch.ByteOrder.PutUint32(tramp.P, o1)
++	arch.ByteOrder.PutUint32(tramp.P[4:], o2)
++	arch.ByteOrder.PutUint32(tramp.P[8:], o3)
++	arch.ByteOrder.PutUint32(tramp.P[12:], o4)
++	arch.ByteOrder.PutUint32(tramp.P[16:], o5)
+ 	if offset != 0 {
+-		ld.SysArch.ByteOrder.PutUint32(tramp.P[20:], o6)
++		arch.ByteOrder.PutUint32(tramp.P[20:], o6)
+ 	}
+ 
+ 	r := ld.Addrel(tramp)
+diff --git a/src/cmd/link/internal/arm/obj.go b/src/cmd/link/internal/arm/obj.go
+index 2975e5d45a..1b2f3674a0 100644
+--- a/src/cmd/link/internal/arm/obj.go
++++ b/src/cmd/link/internal/arm/obj.go
+@@ -37,38 +37,42 @@ import (
+ 	"fmt"
+ )
+ 
+-func Init() {
+-	ld.SysArch = sys.ArchARM
++func Init() (*sys.Arch, ld.Arch) {
++	arch := sys.ArchARM
+ 
+-	ld.Thearch.Funcalign = funcAlign
+-	ld.Thearch.Maxalign = maxAlign
+-	ld.Thearch.Minalign = minAlign
+-	ld.Thearch.Dwarfregsp = dwarfRegSP
+-	ld.Thearch.Dwarfreglr = dwarfRegLR
++	theArch := ld.Arch{
++		Funcalign:  funcAlign,
++		Maxalign:   maxAlign,
++		Minalign:   minAlign,
++		Dwarfregsp: dwarfRegSP,
++		Dwarfreglr: dwarfRegLR,
+ 
+-	ld.Thearch.Adddynrel = adddynrel
+-	ld.Thearch.Archinit = archinit
+-	ld.Thearch.Archreloc = archreloc
+-	ld.Thearch.Archrelocvariant = archrelocvariant
+-	ld.Thearch.Trampoline = trampoline
+-	ld.Thearch.Asmb = asmb
+-	ld.Thearch.Elfreloc1 = elfreloc1
+-	ld.Thearch.Elfsetupplt = elfsetupplt
+-	ld.Thearch.Gentext = gentext
+-	ld.Thearch.Machoreloc1 = machoreloc1
+-	ld.Thearch.Lput = ld.Lputl
+-	ld.Thearch.Wput = ld.Wputl
+-	ld.Thearch.Vput = ld.Vputl
+-	ld.Thearch.Append16 = ld.Append16l
+-	ld.Thearch.Append32 = ld.Append32l
+-	ld.Thearch.Append64 = ld.Append64l
++		Adddynrel:        adddynrel,
++		Archinit:         archinit,
++		Archreloc:        archreloc,
++		Archrelocvariant: archrelocvariant,
++		Trampoline:       trampoline,
++		Asmb:             asmb,
++		Elfreloc1:        elfreloc1,
++		Elfsetupplt:      elfsetupplt,
++		Gentext:          gentext,
++		Machoreloc1:      machoreloc1,
++		Lput:             ld.Lputl,
++		Wput:             ld.Wputl,
++		Vput:             ld.Vputl,
++		Append16:         ld.Append16l,
++		Append32:         ld.Append32l,
++		Append64:         ld.Append64l,
+ 
+-	ld.Thearch.Linuxdynld = "/lib/ld-linux.so.3" // 2 for OABI, 3 for EABI
+-	ld.Thearch.Freebsddynld = "/usr/libexec/ld-elf.so.1"
+-	ld.Thearch.Openbsddynld = "/usr/libexec/ld.so"
+-	ld.Thearch.Netbsddynld = "/libexec/ld.elf_so"
+-	ld.Thearch.Dragonflydynld = "XXX"
+-	ld.Thearch.Solarisdynld = "XXX"
++		Linuxdynld:     "/lib/ld-linux.so.3", // 2 for OABI, 3 for EABI
++		Freebsddynld:   "/usr/libexec/ld-elf.so.1",
++		Openbsddynld:   "/usr/libexec/ld.so",
++		Netbsddynld:    "/libexec/ld.elf_so",
++		Dragonflydynld: "XXX",
++		Solarisdynld:   "XXX",
++	}
++
++	return arch, theArch
+ }
+ 
+ func archinit(ctxt *ld.Link) {
+@@ -123,7 +127,6 @@ func archinit(ctxt *ld.Link) {
+ 
+ 	case objabi.Hdarwin: /* apple MACH */
+ 		*ld.FlagW = true // disable DWARF generation
+-		ld.Machoinit()
+ 		ld.HEADR = ld.INITIAL_MACHO_HEADR
+ 		if *ld.FlagTextAddr == -1 {
+ 			*ld.FlagTextAddr = 4096 + int64(ld.HEADR)
+diff --git a/src/cmd/link/internal/arm64/asm.go b/src/cmd/link/internal/arm64/asm.go
+index 5955f2cd6b..bbbb4733b1 100644
+--- a/src/cmd/link/internal/arm64/asm.go
++++ b/src/cmd/link/internal/arm64/asm.go
+@@ -32,6 +32,7 @@ package arm64
+ 
+ import (
+ 	"cmd/internal/objabi"
++	"cmd/internal/sys"
+ 	"cmd/link/internal/ld"
+ 	"encoding/binary"
+ 	"fmt"
+@@ -142,7 +143,7 @@ func elfsetupplt(ctxt *ld.Link) {
+ 	return
+ }
+ 
+-func machoreloc1(s *ld.Symbol, r *ld.Reloc, sectoff int64) bool {
++func machoreloc1(arch *sys.Arch, s *ld.Symbol, r *ld.Reloc, sectoff int64) bool {
+ 	var v uint32
+ 
+ 	rs := r.Xsym
+@@ -152,7 +153,7 @@ func machoreloc1(s *ld.Symbol, r *ld.Reloc, sectoff int64) bool {
+ 	// UNSIGNED relocation at all.
+ 	if rs.Type == ld.SHOSTOBJ || r.Type == objabi.R_CALLARM64 || r.Type == objabi.R_ADDRARM64 || r.Type == objabi.R_ADDR {
+ 		if rs.Dynid < 0 {
+-			ld.Errorf(s, "reloc %d (%s) to non-macho symbol %s type=%d (%s)", r.Type, ld.RelocName(r.Type), rs.Name, rs.Type, rs.Type)
++			ld.Errorf(s, "reloc %d (%s) to non-macho symbol %s type=%d (%s)", r.Type, ld.RelocName(arch, r.Type), rs.Name, rs.Type, rs.Type)
+ 			return false
+ 		}
+ 
+@@ -161,7 +162,7 @@ func machoreloc1(s *ld.Symbol, r *ld.Reloc, sectoff int64) bool {
+ 	} else {
+ 		v = uint32(rs.Sect.Extnum)
+ 		if v == 0 {
+-			ld.Errorf(s, "reloc %d (%s) to symbol %s in non-macho section %s type=%d (%s)", r.Type, ld.RelocName(r.Type), rs.Name, rs.Sect.Name, rs.Type, rs.Type)
++			ld.Errorf(s, "reloc %d (%s) to symbol %s in non-macho section %s type=%d (%s)", r.Type, ld.RelocName(arch, r.Type), rs.Name, rs.Sect.Name, rs.Type, rs.Type)
+ 			return false
+ 		}
+ 	}
+@@ -348,7 +349,7 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) bool {
+ 		}
+ 		// The TCB is two pointers. This is not documented anywhere, but is
+ 		// de facto part of the ABI.
+-		v := r.Sym.Value + int64(2*ld.SysArch.PtrSize)
++		v := r.Sym.Value + int64(2*ctxt.Arch.PtrSize)
+ 		if v < 0 || v >= 32678 {
+ 			ld.Errorf(s, "TLS offset out of range %d", v)
+ 		}
+diff --git a/src/cmd/link/internal/arm64/obj.go b/src/cmd/link/internal/arm64/obj.go
+index dce9beb150..b7aa795208 100644
+--- a/src/cmd/link/internal/arm64/obj.go
++++ b/src/cmd/link/internal/arm64/obj.go
+@@ -37,38 +37,42 @@ import (
+ 	"fmt"
+ )
+ 
+-func Init() {
+-	ld.SysArch = sys.ArchARM64
++func Init() (*sys.Arch, ld.Arch) {
++	arch := sys.ArchARM64
+ 
+-	ld.Thearch.Funcalign = funcAlign
+-	ld.Thearch.Maxalign = maxAlign
+-	ld.Thearch.Minalign = minAlign
+-	ld.Thearch.Dwarfregsp = dwarfRegSP
+-	ld.Thearch.Dwarfreglr = dwarfRegLR
++	theArch := ld.Arch{
++		Funcalign:  funcAlign,
++		Maxalign:   maxAlign,
++		Minalign:   minAlign,
++		Dwarfregsp: dwarfRegSP,
++		Dwarfreglr: dwarfRegLR,
+ 
+-	ld.Thearch.Adddynrel = adddynrel
+-	ld.Thearch.Archinit = archinit
+-	ld.Thearch.Archreloc = archreloc
+-	ld.Thearch.Archrelocvariant = archrelocvariant
+-	ld.Thearch.Asmb = asmb
+-	ld.Thearch.Elfreloc1 = elfreloc1
+-	ld.Thearch.Elfsetupplt = elfsetupplt
+-	ld.Thearch.Gentext = gentext
+-	ld.Thearch.Machoreloc1 = machoreloc1
+-	ld.Thearch.Lput = ld.Lputl
+-	ld.Thearch.Wput = ld.Wputl
+-	ld.Thearch.Vput = ld.Vputl
+-	ld.Thearch.Append16 = ld.Append16l
+-	ld.Thearch.Append32 = ld.Append32l
+-	ld.Thearch.Append64 = ld.Append64l
++		Adddynrel:        adddynrel,
++		Archinit:         archinit,
++		Archreloc:        archreloc,
++		Archrelocvariant: archrelocvariant,
++		Asmb:             asmb,
++		Elfreloc1:        elfreloc1,
++		Elfsetupplt:      elfsetupplt,
++		Gentext:          gentext,
++		Machoreloc1:      machoreloc1,
++		Lput:             ld.Lputl,
++		Wput:             ld.Wputl,
++		Vput:             ld.Vputl,
++		Append16:         ld.Append16l,
++		Append32:         ld.Append32l,
++		Append64:         ld.Append64l,
+ 
+-	ld.Thearch.Linuxdynld = "/lib/ld-linux-aarch64.so.1"
++		Linuxdynld: "/lib/ld-linux-aarch64.so.1",
+ 
+-	ld.Thearch.Freebsddynld = "XXX"
+-	ld.Thearch.Openbsddynld = "XXX"
+-	ld.Thearch.Netbsddynld = "XXX"
+-	ld.Thearch.Dragonflydynld = "XXX"
+-	ld.Thearch.Solarisdynld = "XXX"
++		Freebsddynld:   "XXX",
++		Openbsddynld:   "XXX",
++		Netbsddynld:    "XXX",
++		Dragonflydynld: "XXX",
++		Solarisdynld:   "XXX",
++	}
++
++	return arch, theArch
+ }
+ 
+ func archinit(ctxt *ld.Link) {
+@@ -104,7 +108,6 @@ func archinit(ctxt *ld.Link) {
+ 
+ 	case objabi.Hdarwin: /* apple MACH */
+ 		*ld.FlagW = true // disable DWARF generation
+-		ld.Machoinit()
+ 		ld.HEADR = ld.INITIAL_MACHO_HEADR
+ 		if *ld.FlagTextAddr == -1 {
+ 			*ld.FlagTextAddr = 4096 + int64(ld.HEADR)
+diff --git a/src/cmd/link/internal/ld/config.go b/src/cmd/link/internal/ld/config.go
+index ce4f9bece6..04aa201d6f 100644
+--- a/src/cmd/link/internal/ld/config.go
++++ b/src/cmd/link/internal/ld/config.go
+@@ -178,7 +178,7 @@ func mustLinkExternal(ctxt *Link) (res bool, reason string) {
+ 	case "android":
+ 		return true, "android"
+ 	case "darwin":
+-		if SysArch.InFamily(sys.ARM, sys.ARM64) {
++		if ctxt.Arch.InFamily(sys.ARM, sys.ARM64) {
+ 			return true, "iOS"
+ 		}
+ 	}
+@@ -191,7 +191,7 @@ func mustLinkExternal(ctxt *Link) (res bool, reason string) {
+ 	// https://golang.org/issue/10373
+ 	// https://golang.org/issue/14449
+ 	// https://golang.org/issue/21961
+-	if iscgo && SysArch.InFamily(sys.ARM64, sys.MIPS64, sys.MIPS, sys.PPC64) {
++	if iscgo && ctxt.Arch.InFamily(sys.ARM64, sys.MIPS64, sys.MIPS, sys.PPC64) {
+ 		return true, objabi.GOARCH + " does not support internal cgo"
+ 	}
+ 
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 495c8b72e8..7cc382de7d 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -129,7 +129,7 @@ func Adduint64(ctxt *Link, s *Symbol, v uint64) int64 {
+ }
+ 
+ func adduint(ctxt *Link, s *Symbol, v uint64) int64 {
+-	return adduintxx(ctxt, s, v, SysArch.PtrSize)
++	return adduintxx(ctxt, s, v, ctxt.Arch.PtrSize)
+ }
+ 
+ func setuint8(ctxt *Link, s *Symbol, r int64, v uint8) int64 {
+@@ -141,7 +141,7 @@ func setuint32(ctxt *Link, s *Symbol, r int64, v uint32) int64 {
+ }
+ 
+ func setuint(ctxt *Link, s *Symbol, r int64, v uint64) int64 {
+-	return setuintxx(ctxt, s, r, v, int64(SysArch.PtrSize))
++	return setuintxx(ctxt, s, r, v, int64(ctxt.Arch.PtrSize))
+ }
+ 
+ func Addaddrplus(ctxt *Link, s *Symbol, t *Symbol, add int64) int64 {
+@@ -175,7 +175,7 @@ func Addpcrelplus(ctxt *Link, s *Symbol, t *Symbol, add int64) int64 {
+ 	r.Add = add
+ 	r.Type = objabi.R_PCREL
+ 	r.Siz = 4
+-	if SysArch.Family == sys.S390X {
++	if ctxt.Arch.Family == sys.S390X {
+ 		r.Variant = RV_390_DBL
+ 	}
+ 	return i + int64(r.Siz)
+@@ -422,8 +422,8 @@ func relocsym(ctxt *Link, s *Symbol) {
+ 		// We need to be able to reference dynimport symbols when linking against
+ 		// shared libraries, and Solaris needs it always
+ 		if Headtype != objabi.Hsolaris && r.Sym != nil && r.Sym.Type == SDYNIMPORT && !ctxt.DynlinkingGo() {
+-			if !(SysArch.Family == sys.PPC64 && Linkmode == LinkExternal && r.Sym.Name == ".TOC.") {
+-				Errorf(s, "unhandled relocation for %s (type %d (%s) rtype %d (%s))", r.Sym.Name, r.Sym.Type, r.Sym.Type, r.Type, RelocName(r.Type))
++			if !(ctxt.Arch.Family == sys.PPC64 && Linkmode == LinkExternal && r.Sym.Name == ".TOC.") {
++				Errorf(s, "unhandled relocation for %s (type %d (%s) rtype %d (%s))", r.Sym.Name, r.Sym.Type, r.Sym.Type, r.Type, RelocName(ctxt.Arch, r.Type))
+ 			}
+ 		}
+ 		if r.Sym != nil && r.Sym.Type != STLSBSS && r.Type != objabi.R_WEAKADDROFF && !r.Sym.Attr.Reachable() {
+@@ -431,7 +431,7 @@ func relocsym(ctxt *Link, s *Symbol) {
+ 		}
+ 
+ 		// TODO(mundaym): remove this special case - see issue 14218.
+-		if SysArch.Family == sys.S390X {
++		if ctxt.Arch.Family == sys.S390X {
+ 			switch r.Type {
+ 			case objabi.R_PCRELDBL:
+ 				r.Type = objabi.R_PCREL
+@@ -457,10 +457,10 @@ func relocsym(ctxt *Link, s *Symbol) {
+ 				o = int64(ctxt.Arch.ByteOrder.Uint64(s.P[off:]))
+ 			}
+ 			if !Thearch.Archreloc(ctxt, r, s, &o) {
+-				Errorf(s, "unknown reloc to %v: %d (%s)", r.Sym.Name, r.Type, RelocName(r.Type))
++				Errorf(s, "unknown reloc to %v: %d (%s)", r.Sym.Name, r.Type, RelocName(ctxt.Arch, r.Type))
+ 			}
+ 		case objabi.R_TLS_LE:
+-			isAndroidX86 := objabi.GOOS == "android" && (SysArch.InFamily(sys.AMD64, sys.I386))
++			isAndroidX86 := objabi.GOOS == "android" && (ctxt.Arch.InFamily(sys.AMD64, sys.I386))
+ 
+ 			if Linkmode == LinkExternal && Iself && !isAndroidX86 {
+ 				r.Done = false
+@@ -470,13 +470,13 @@ func relocsym(ctxt *Link, s *Symbol) {
+ 				r.Xsym = r.Sym
+ 				r.Xadd = r.Add
+ 				o = 0
+-				if SysArch.Family != sys.AMD64 {
++				if ctxt.Arch.Family != sys.AMD64 {
+ 					o = r.Add
+ 				}
+ 				break
+ 			}
+ 
+-			if Iself && SysArch.Family == sys.ARM {
++			if Iself && ctxt.Arch.Family == sys.ARM {
+ 				// On ELF ARM, the thread pointer is 8 bytes before
+ 				// the start of the thread-local data block, so add 8
+ 				// to the actual TLS offset (r->sym->value).
+@@ -493,7 +493,7 @@ func relocsym(ctxt *Link, s *Symbol) {
+ 				log.Fatalf("unexpected R_TLS_LE relocation for %v", Headtype)
+ 			}
+ 		case objabi.R_TLS_IE:
+-			isAndroidX86 := objabi.GOOS == "android" && (SysArch.InFamily(sys.AMD64, sys.I386))
++			isAndroidX86 := objabi.GOOS == "android" && (ctxt.Arch.InFamily(sys.AMD64, sys.I386))
+ 
+ 			if Linkmode == LinkExternal && Iself && !isAndroidX86 {
+ 				r.Done = false
+@@ -503,7 +503,7 @@ func relocsym(ctxt *Link, s *Symbol) {
+ 				r.Xsym = r.Sym
+ 				r.Xadd = r.Add
+ 				o = 0
+-				if SysArch.Family != sys.AMD64 {
++				if ctxt.Arch.Family != sys.AMD64 {
+ 					o = r.Add
+ 				}
+ 				break
+@@ -512,11 +512,11 @@ func relocsym(ctxt *Link, s *Symbol) {
+ 				// We are linking the final executable, so we
+ 				// can optimize any TLS IE relocation to LE.
+ 				if Thearch.TLSIEtoLE == nil {
+-					log.Fatalf("internal linking of TLS IE not supported on %v", SysArch.Family)
++					log.Fatalf("internal linking of TLS IE not supported on %v", ctxt.Arch.Family)
+ 				}
+ 				Thearch.TLSIEtoLE(s, int(off), int(r.Siz))
+ 				o = int64(ctxt.Tlsoffset)
+-				// TODO: o += r.Add when SysArch.Family != sys.AMD64?
++				// TODO: o += r.Add when ctxt.Arch.Family != sys.AMD64?
+ 				// Why do we treat r.Add differently on AMD64?
+ 				// Is the external linker using Xadd at all?
+ 			} else {
+@@ -542,7 +542,7 @@ func relocsym(ctxt *Link, s *Symbol) {
+ 
+ 				o = r.Xadd
+ 				if Iself {
+-					if SysArch.Family == sys.AMD64 {
++					if ctxt.Arch.Family == sys.AMD64 {
+ 						o = 0
+ 					}
+ 				} else if Headtype == objabi.Hdarwin {
+@@ -552,10 +552,10 @@ func relocsym(ctxt *Link, s *Symbol) {
+ 					// The workaround is that on arm64 don't ever add symaddr to o and always use
+ 					// extern relocation by requiring rs->dynid >= 0.
+ 					if rs.Type != SHOSTOBJ {
+-						if SysArch.Family == sys.ARM64 && rs.Dynid < 0 {
++						if ctxt.Arch.Family == sys.ARM64 && rs.Dynid < 0 {
+ 							Errorf(s, "R_ADDR reloc to %s+%d is not supported on darwin/arm64", rs.Name, o)
+ 						}
+-						if SysArch.Family != sys.ARM64 {
++						if ctxt.Arch.Family != sys.ARM64 {
+ 							o += Symaddr(rs)
+ 						}
+ 					}
+@@ -575,7 +575,7 @@ func relocsym(ctxt *Link, s *Symbol) {
+ 			// fail at runtime. See https://golang.org/issue/7980.
+ 			// Instead of special casing only amd64, we treat this as an error on all
+ 			// 64-bit architectures so as to be future-proof.
+-			if int32(o) < 0 && SysArch.PtrSize > 4 && siz == 4 {
++			if int32(o) < 0 && ctxt.Arch.PtrSize > 4 && siz == 4 {
+ 				Errorf(s, "non-pc-relative relocation address for %s is too big: %#x (%#x + %#x)", r.Sym.Name, uint64(o), Symaddr(r.Sym), r.Add)
+ 				errorexit()
+ 			}
+@@ -599,7 +599,7 @@ func relocsym(ctxt *Link, s *Symbol) {
+ 				r.Xadd = r.Add + Symaddr(r.Sym) - int64(r.Sym.Sect.Vaddr)
+ 
+ 				o = r.Xadd
+-				if Iself && SysArch.Family == sys.AMD64 {
++				if Iself && ctxt.Arch.Family == sys.AMD64 {
+ 					o = 0
+ 				}
+ 				break
+@@ -654,7 +654,7 @@ func relocsym(ctxt *Link, s *Symbol) {
+ 
+ 				o = r.Xadd
+ 				if Iself {
+-					if SysArch.Family == sys.AMD64 {
++					if ctxt.Arch.Family == sys.AMD64 {
+ 						o = 0
+ 					}
+ 				} else if Headtype == objabi.Hdarwin {
+@@ -663,13 +663,13 @@ func relocsym(ctxt *Link, s *Symbol) {
+ 							o += int64(uint64(Symaddr(rs)) - rs.Sect.Vaddr)
+ 						}
+ 						o -= int64(r.Off) // relative to section offset, not symbol
+-					} else if SysArch.Family == sys.ARM {
++					} else if ctxt.Arch.Family == sys.ARM {
+ 						// see ../arm/asm.go:/machoreloc1
+ 						o += Symaddr(rs) - int64(s.Value) - int64(r.Off)
+ 					} else {
+ 						o += int64(r.Siz)
+ 					}
+-				} else if Headtype == objabi.Hwindows && SysArch.Family == sys.AMD64 { // only amd64 needs PCREL
++				} else if Headtype == objabi.Hwindows && ctxt.Arch.Family == sys.AMD64 { // only amd64 needs PCREL
+ 					// PE/COFF's PC32 relocation uses the address after the relocated
+ 					// bytes as the base. Compensate by skewing the addend.
+ 					o += int64(r.Siz)
+@@ -699,7 +699,7 @@ func relocsym(ctxt *Link, s *Symbol) {
+ 			if r.Sym != nil {
+ 				nam = r.Sym.Name
+ 			}
+-			fmt.Printf("relocate %s %#x (%#x+%#x, size %d) => %s %#x +%#x [type %d (%s)/%d, %x]\n", s.Name, s.Value+int64(off), s.Value, r.Off, r.Siz, nam, Symaddr(r.Sym), r.Add, r.Type, RelocName(r.Type), r.Variant, o)
++			fmt.Printf("relocate %s %#x (%#x+%#x, size %d) => %s %#x +%#x [type %d (%s)/%d, %x]\n", s.Name, s.Value+int64(off), s.Value, r.Off, r.Siz, nam, Symaddr(r.Sym), r.Add, r.Type, RelocName(ctxt.Arch, r.Type), r.Variant, o)
+ 		}
+ 		switch siz {
+ 		default:
+@@ -773,7 +773,7 @@ func windynrelocsym(ctxt *Link, s *Symbol) {
+ 			r.Add = int64(targ.Plt)
+ 
+ 			// jmp *addr
+-			if SysArch.Family == sys.I386 {
++			if ctxt.Arch.Family == sys.I386 {
+ 				Adduint8(ctxt, rel, 0xff)
+ 				Adduint8(ctxt, rel, 0x25)
+ 				Addaddr(ctxt, rel, targ)
+@@ -815,7 +815,7 @@ func dynrelocsym(ctxt *Link, s *Symbol) {
+ 				Errorf(s, "dynamic relocation to unreachable symbol %s", r.Sym.Name)
+ 			}
+ 			if !Thearch.Adddynrel(ctxt, s, r) {
+-				Errorf(s, "unsupported dynamic relocation for symbol %s (type=%d (%s) stype=%d (%s))", r.Sym.Name, r.Type, RelocName(r.Type), r.Sym.Type, r.Sym.Type)
++				Errorf(s, "unsupported dynamic relocation for symbol %s (type=%d (%s) stype=%d (%s))", r.Sym.Name, r.Type, RelocName(ctxt.Arch, r.Type), r.Sym.Type, r.Sym.Type)
+ 			}
+ 		}
+ 	}
+@@ -1085,7 +1085,7 @@ func addstrdata(ctxt *Link, name string, value string) {
+ 	s.Attr |= AttrDuplicateOK
+ 	reachable := s.Attr.Reachable()
+ 	Addaddr(ctxt, s, sp)
+-	adduintxx(ctxt, s, uint64(len(value)), SysArch.PtrSize)
++	adduintxx(ctxt, s, uint64(len(value)), ctxt.Arch.PtrSize)
+ 
+ 	// addstring, addaddr, etc., mark the symbols as reachable.
+ 	// In this case that is not necessarily true, so stick to what
+@@ -1209,7 +1209,7 @@ func (p *GCProg) writeByte(ctxt *Link) func(x byte) {
+ }
+ 
+ func (p *GCProg) End(size int64) {
+-	p.w.ZeroUntil(size / int64(SysArch.PtrSize))
++	p.w.ZeroUntil(size / int64(p.ctxt.Arch.PtrSize))
+ 	p.w.End()
+ 	if debugGCProg {
+ 		fmt.Fprintf(os.Stderr, "ld: end GCProg\n")
+@@ -1232,14 +1232,14 @@ func (p *GCProg) AddSym(s *Symbol) {
+ 		return
+ 	}
+ 
+-	ptrsize := int64(SysArch.PtrSize)
++	ptrsize := int64(p.ctxt.Arch.PtrSize)
+ 	nptr := decodetypePtrdata(p.ctxt.Arch, typ) / ptrsize
+ 
+ 	if debugGCProg {
+ 		fmt.Fprintf(os.Stderr, "gcprog sym: %s at %d (ptr=%d+%d)\n", s.Name, s.Value, s.Value/ptrsize, nptr)
+ 	}
+ 
+-	if decodetypeUsegcprog(typ) == 0 {
++	if decodetypeUsegcprog(p.ctxt.Arch, typ) == 0 {
+ 		// Copy pointers from mask into program.
+ 		mask := decodetypeGcmask(p.ctxt, typ)
+ 		for i := int64(0); i < nptr; i++ {
+@@ -1430,7 +1430,7 @@ func (ctxt *Link) dodata() {
+ 	}
+ 	for _, symn := range writable {
+ 		for _, s := range data[symn] {
+-			sect := addsection(&Segdata, s.Name, 06)
++			sect := addsection(ctxt.Arch, &Segdata, s.Name, 06)
+ 			sect.Align = symalign(s)
+ 			datsize = Rnd(datsize, int64(sect.Align))
+ 			sect.Vaddr = uint64(datsize)
+@@ -1445,7 +1445,7 @@ func (ctxt *Link) dodata() {
+ 
+ 	// .got (and .toc on ppc64)
+ 	if len(data[SELFGOT]) > 0 {
+-		sect := addsection(&Segdata, ".got", 06)
++		sect := addsection(ctxt.Arch, &Segdata, ".got", 06)
+ 		sect.Align = dataMaxAlign[SELFGOT]
+ 		datsize = Rnd(datsize, int64(sect.Align))
+ 		sect.Vaddr = uint64(datsize)
+@@ -1474,7 +1474,7 @@ func (ctxt *Link) dodata() {
+ 	}
+ 
+ 	/* pointer-free data */
+-	sect := addsection(&Segdata, ".noptrdata", 06)
++	sect := addsection(ctxt.Arch, &Segdata, ".noptrdata", 06)
+ 	sect.Align = dataMaxAlign[SNOPTRDATA]
+ 	datsize = Rnd(datsize, int64(sect.Align))
+ 	sect.Vaddr = uint64(datsize)
+@@ -1498,7 +1498,7 @@ func (ctxt *Link) dodata() {
+ 		hasinitarr = true
+ 	}
+ 	if hasinitarr {
+-		sect := addsection(&Segdata, ".init_array", 06)
++		sect := addsection(ctxt.Arch, &Segdata, ".init_array", 06)
+ 		sect.Align = dataMaxAlign[SINITARR]
+ 		datsize = Rnd(datsize, int64(sect.Align))
+ 		sect.Vaddr = uint64(datsize)
+@@ -1513,7 +1513,7 @@ func (ctxt *Link) dodata() {
+ 	}
+ 
+ 	/* data */
+-	sect = addsection(&Segdata, ".data", 06)
++	sect = addsection(ctxt.Arch, &Segdata, ".data", 06)
+ 	sect.Align = dataMaxAlign[SDATA]
+ 	datsize = Rnd(datsize, int64(sect.Align))
+ 	sect.Vaddr = uint64(datsize)
+@@ -1534,7 +1534,7 @@ func (ctxt *Link) dodata() {
+ 	gc.End(int64(sect.Length))
+ 
+ 	/* bss */
+-	sect = addsection(&Segdata, ".bss", 06)
++	sect = addsection(ctxt.Arch, &Segdata, ".bss", 06)
+ 	sect.Align = dataMaxAlign[SBSS]
+ 	datsize = Rnd(datsize, int64(sect.Align))
+ 	sect.Vaddr = uint64(datsize)
+@@ -1554,7 +1554,7 @@ func (ctxt *Link) dodata() {
+ 	gc.End(int64(sect.Length))
+ 
+ 	/* pointer-free bss */
+-	sect = addsection(&Segdata, ".noptrbss", 06)
++	sect = addsection(ctxt.Arch, &Segdata, ".noptrbss", 06)
+ 	sect.Align = dataMaxAlign[SNOPTRBSS]
+ 	datsize = Rnd(datsize, int64(sect.Align))
+ 	sect.Vaddr = uint64(datsize)
+@@ -1574,8 +1574,8 @@ func (ctxt *Link) dodata() {
+ 	if len(data[STLSBSS]) > 0 {
+ 		var sect *Section
+ 		if Iself && (Linkmode == LinkExternal || !*FlagD) {
+-			sect = addsection(&Segdata, ".tbss", 06)
+-			sect.Align = int32(SysArch.PtrSize)
++			sect = addsection(ctxt.Arch, &Segdata, ".tbss", 06)
++			sect.Align = int32(ctxt.Arch.PtrSize)
+ 			sect.Vaddr = 0
+ 		}
+ 		datsize = 0
+@@ -1617,7 +1617,7 @@ func (ctxt *Link) dodata() {
+ 		Errorf(nil, "dodata found an STEXT symbol: %s", data[STEXT][0].Name)
+ 	}
+ 	for _, s := range data[SELFRXSECT] {
+-		sect := addsection(&Segtext, s.Name, 04)
++		sect := addsection(ctxt.Arch, &Segtext, s.Name, 04)
+ 		sect.Align = symalign(s)
+ 		datsize = Rnd(datsize, int64(sect.Align))
+ 		sect.Vaddr = uint64(datsize)
+@@ -1630,7 +1630,7 @@ func (ctxt *Link) dodata() {
+ 	}
+ 
+ 	/* read-only data */
+-	sect = addsection(segro, ".rodata", 04)
++	sect = addsection(ctxt.Arch, segro, ".rodata", 04)
+ 
+ 	sect.Vaddr = 0
+ 	ctxt.Syms.Lookup("runtime.rodata", 0).Sect = sect
+@@ -1660,7 +1660,7 @@ func (ctxt *Link) dodata() {
+ 
+ 	/* read-only ELF, Mach-O sections */
+ 	for _, s := range data[SELFROSECT] {
+-		sect = addsection(segro, s.Name, 04)
++		sect = addsection(ctxt.Arch, segro, s.Name, 04)
+ 		sect.Align = symalign(s)
+ 		datsize = Rnd(datsize, int64(sect.Align))
+ 		sect.Vaddr = uint64(datsize)
+@@ -1673,7 +1673,7 @@ func (ctxt *Link) dodata() {
+ 	checkdatsize(ctxt, datsize, SELFROSECT)
+ 
+ 	for _, s := range data[SMACHOPLT] {
+-		sect = addsection(segro, s.Name, 04)
++		sect = addsection(ctxt.Arch, segro, s.Name, 04)
+ 		sect.Align = symalign(s)
+ 		datsize = Rnd(datsize, int64(sect.Align))
+ 		sect.Vaddr = uint64(datsize)
+@@ -1696,7 +1696,7 @@ func (ctxt *Link) dodata() {
+ 	// TODO(mwhudson): It would make sense to do this more widely, but it makes
+ 	// the system linker segfault on darwin.
+ 	addrelrosection := func(suffix string) *Section {
+-		return addsection(segro, suffix, 04)
++		return addsection(ctxt.Arch, segro, suffix, 04)
+ 	}
+ 
+ 	if UseRelro() {
+@@ -1711,7 +1711,7 @@ func (ctxt *Link) dodata() {
+ 				// sort out a rel.ro segment.
+ 				seg = &Segrodata
+ 			}
+-			return addsection(seg, ".data.rel.ro"+suffix, 06)
++			return addsection(ctxt.Arch, seg, ".data.rel.ro"+suffix, 06)
+ 		}
+ 		/* data only written by relocations */
+ 		sect = addrelrosection("")
+@@ -1826,7 +1826,7 @@ func (ctxt *Link) dodata() {
+ 			break
+ 		}
+ 
+-		sect = addsection(&Segdwarf, s.Name, 04)
++		sect = addsection(ctxt.Arch, &Segdwarf, s.Name, 04)
+ 		sect.Align = 1
+ 		datsize = Rnd(datsize, int64(sect.Align))
+ 		sect.Vaddr = uint64(datsize)
+@@ -1843,11 +1843,11 @@ func (ctxt *Link) dodata() {
+ 		var sect *Section
+ 		switch curType {
+ 		case SDWARFINFO:
+-			sect = addsection(&Segdwarf, ".debug_info", 04)
++			sect = addsection(ctxt.Arch, &Segdwarf, ".debug_info", 04)
+ 		case SDWARFRANGE:
+-			sect = addsection(&Segdwarf, ".debug_ranges", 04)
++			sect = addsection(ctxt.Arch, &Segdwarf, ".debug_ranges", 04)
+ 		case SDWARFLOC:
+-			sect = addsection(&Segdwarf, ".debug_loc", 04)
++			sect = addsection(ctxt.Arch, &Segdwarf, ".debug_loc", 04)
+ 		default:
+ 			Errorf(dwarfp[i], "unknown DWARF section %v", curType)
+ 		}
+@@ -2002,8 +2002,8 @@ func dodataSect(ctxt *Link, symn SymKind, syms []*Symbol) (result []*Symbol, max
+ 			// Setting the alignment explicitly prevents
+ 			// symalign from basing it on the size and
+ 			// getting it wrong.
+-			rel.Align = int32(SysArch.RegSize)
+-			plt.Align = int32(SysArch.RegSize)
++			rel.Align = int32(ctxt.Arch.RegSize)
++			plt.Align = int32(ctxt.Arch.RegSize)
+ 		}
+ 	}
+ 
+@@ -2036,7 +2036,7 @@ func (ctxt *Link) textbuildid() {
+ 
+ // assign addresses to text
+ func (ctxt *Link) textaddress() {
+-	addsection(&Segtext, ".text", 05)
++	addsection(ctxt.Arch, &Segtext, ".text", 05)
+ 
+ 	// Assign PCs in text segment.
+ 	// Could parallelize, by assigning to text
+@@ -2124,13 +2124,13 @@ func assignAddress(ctxt *Link, sect *Section, n int, sym *Symbol, va uint64, isT
+ 
+ 	// Only break at outermost syms.
+ 
+-	if SysArch.InFamily(sys.PPC64) && sym.Outer == nil && Iself && Linkmode == LinkExternal && va-sect.Vaddr+funcsize+maxSizeTrampolinesPPC64(sym, isTramp) > 0x1c00000 {
++	if ctxt.Arch.InFamily(sys.PPC64) && sym.Outer == nil && Iself && Linkmode == LinkExternal && va-sect.Vaddr+funcsize+maxSizeTrampolinesPPC64(sym, isTramp) > 0x1c00000 {
+ 
+ 		// Set the length for the previous text section
+ 		sect.Length = va - sect.Vaddr
+ 
+ 		// Create new section, set the starting Vaddr
+-		sect = addsection(&Segtext, ".text", 05)
++		sect = addsection(ctxt.Arch, &Segtext, ".text", 05)
+ 		sect.Vaddr = va
+ 		sym.Sect = sect
+ 
+diff --git a/src/cmd/link/internal/ld/deadcode.go b/src/cmd/link/internal/ld/deadcode.go
+index f9ca346081..8333e6411c 100644
+--- a/src/cmd/link/internal/ld/deadcode.go
++++ b/src/cmd/link/internal/ld/deadcode.go
+@@ -199,7 +199,7 @@ func (d *deadcodepass) markMethod(m methodref) {
+ func (d *deadcodepass) init() {
+ 	var names []string
+ 
+-	if SysArch.Family == sys.ARM {
++	if d.ctxt.Arch.Family == sys.ARM {
+ 		// mark some functions that are only referenced after linker code editing
+ 		names = append(names, "runtime.read_tls_fallback")
+ 	}
+@@ -221,7 +221,7 @@ func (d *deadcodepass) init() {
+ 		} else {
+ 			// The external linker refers main symbol directly.
+ 			if Linkmode == LinkExternal && (Buildmode == BuildmodeExe || Buildmode == BuildmodePIE) {
+-				if Headtype == objabi.Hwindows && SysArch.Family == sys.I386 {
++				if Headtype == objabi.Hwindows && d.ctxt.Arch.Family == sys.I386 {
+ 					*flagEntrySymbol = "_main"
+ 				} else {
+ 					*flagEntrySymbol = "main"
+@@ -275,7 +275,7 @@ func (d *deadcodepass) flood() {
+ 				// later will give a better error than deadcode.
+ 				continue
+ 			}
+-			if decodetypeKind(s)&kindMask == kindInterface {
++			if decodetypeKind(d.ctxt.Arch, s)&kindMask == kindInterface {
+ 				for _, sig := range decodeIfaceMethods(d.ctxt.Arch, s) {
+ 					if d.ctxt.Debugvlog > 1 {
+ 						d.ctxt.Logf("reached iface method: %s\n", sig)
+diff --git a/src/cmd/link/internal/ld/decodesym.go b/src/cmd/link/internal/ld/decodesym.go
+index eba8ee3082..e4cd65a59f 100644
+--- a/src/cmd/link/internal/ld/decodesym.go
++++ b/src/cmd/link/internal/ld/decodesym.go
+@@ -59,33 +59,33 @@ func decodeInuxi(arch *sys.Arch, p []byte, sz int) uint64 {
+ 	}
+ }
+ 
+-func commonsize() int      { return 4*SysArch.PtrSize + 8 + 8 } // runtime._type
+-func structfieldSize() int { return 3 * SysArch.PtrSize }       // runtime.structfield
+-func uncommonSize() int    { return 4 + 2 + 2 + 4 + 4 }         // runtime.uncommontype
++func commonsize(arch *sys.Arch) int      { return 4*arch.PtrSize + 8 + 8 } // runtime._type
++func structfieldSize(arch *sys.Arch) int { return 3 * arch.PtrSize }       // runtime.structfield
++func uncommonSize() int                  { return 4 + 2 + 2 + 4 + 4 }      // runtime.uncommontype
+ 
+ // Type.commonType.kind
+-func decodetypeKind(s *Symbol) uint8 {
+-	return s.P[2*SysArch.PtrSize+7] & objabi.KindMask //  0x13 / 0x1f
++func decodetypeKind(arch *sys.Arch, s *Symbol) uint8 {
++	return s.P[2*arch.PtrSize+7] & objabi.KindMask //  0x13 / 0x1f
+ }
+ 
+ // Type.commonType.kind
+-func decodetypeUsegcprog(s *Symbol) uint8 {
+-	return s.P[2*SysArch.PtrSize+7] & objabi.KindGCProg //  0x13 / 0x1f
++func decodetypeUsegcprog(arch *sys.Arch, s *Symbol) uint8 {
++	return s.P[2*arch.PtrSize+7] & objabi.KindGCProg //  0x13 / 0x1f
+ }
+ 
+ // Type.commonType.size
+ func decodetypeSize(arch *sys.Arch, s *Symbol) int64 {
+-	return int64(decodeInuxi(arch, s.P, SysArch.PtrSize)) // 0x8 / 0x10
++	return int64(decodeInuxi(arch, s.P, arch.PtrSize)) // 0x8 / 0x10
+ }
+ 
+ // Type.commonType.ptrdata
+ func decodetypePtrdata(arch *sys.Arch, s *Symbol) int64 {
+-	return int64(decodeInuxi(arch, s.P[SysArch.PtrSize:], SysArch.PtrSize)) // 0x8 / 0x10
++	return int64(decodeInuxi(arch, s.P[arch.PtrSize:], arch.PtrSize)) // 0x8 / 0x10
+ }
+ 
+ // Type.commonType.tflag
+-func decodetypeHasUncommon(s *Symbol) bool {
+-	return s.P[2*SysArch.PtrSize+4]&tflagUncommon != 0
++func decodetypeHasUncommon(arch *sys.Arch, s *Symbol) bool {
++	return s.P[2*arch.PtrSize+4]&tflagUncommon != 0
+ }
+ 
+ // Find the elf.Section of a given shared library that contains a given address.
+@@ -119,11 +119,11 @@ func decodetypeGcprog(ctxt *Link, s *Symbol) []byte {
+ 		Exitf("cannot find gcprog for %s", s.Name)
+ 		return nil
+ 	}
+-	return decodeRelocSym(s, 2*int32(SysArch.PtrSize)+8+1*int32(SysArch.PtrSize)).P
++	return decodeRelocSym(s, 2*int32(ctxt.Arch.PtrSize)+8+1*int32(ctxt.Arch.PtrSize)).P
+ }
+ 
+ func decodetypeGcprogShlib(ctxt *Link, s *Symbol) uint64 {
+-	if SysArch.Family == sys.ARM64 {
++	if ctxt.Arch.Family == sys.ARM64 {
+ 		for _, shlib := range ctxt.Shlibs {
+ 			if shlib.Path == s.File {
+ 				return shlib.gcdataAddresses[s]
+@@ -131,7 +131,7 @@ func decodetypeGcprogShlib(ctxt *Link, s *Symbol) uint64 {
+ 		}
+ 		return 0
+ 	}
+-	return decodeInuxi(ctxt.Arch, s.P[2*int32(SysArch.PtrSize)+8+1*int32(SysArch.PtrSize):], SysArch.PtrSize)
++	return decodeInuxi(ctxt.Arch, s.P[2*int32(ctxt.Arch.PtrSize)+8+1*int32(ctxt.Arch.PtrSize):], ctxt.Arch.PtrSize)
+ }
+ 
+ func decodetypeGcmask(ctxt *Link, s *Symbol) []byte {
+@@ -140,92 +140,92 @@ func decodetypeGcmask(ctxt *Link, s *Symbol) []byte {
+ 		ptrdata := decodetypePtrdata(ctxt.Arch, s)
+ 		sect := findShlibSection(ctxt, s.File, addr)
+ 		if sect != nil {
+-			r := make([]byte, ptrdata/int64(SysArch.PtrSize))
++			r := make([]byte, ptrdata/int64(ctxt.Arch.PtrSize))
+ 			sect.ReadAt(r, int64(addr-sect.Addr))
+ 			return r
+ 		}
+ 		Exitf("cannot find gcmask for %s", s.Name)
+ 		return nil
+ 	}
+-	mask := decodeRelocSym(s, 2*int32(SysArch.PtrSize)+8+1*int32(SysArch.PtrSize))
++	mask := decodeRelocSym(s, 2*int32(ctxt.Arch.PtrSize)+8+1*int32(ctxt.Arch.PtrSize))
+ 	return mask.P
+ }
+ 
+ // Type.ArrayType.elem and Type.SliceType.Elem
+-func decodetypeArrayElem(s *Symbol) *Symbol {
+-	return decodeRelocSym(s, int32(commonsize())) // 0x1c / 0x30
++func decodetypeArrayElem(arch *sys.Arch, s *Symbol) *Symbol {
++	return decodeRelocSym(s, int32(commonsize(arch))) // 0x1c / 0x30
+ }
+ 
+ func decodetypeArrayLen(arch *sys.Arch, s *Symbol) int64 {
+-	return int64(decodeInuxi(arch, s.P[commonsize()+2*SysArch.PtrSize:], SysArch.PtrSize))
++	return int64(decodeInuxi(arch, s.P[commonsize(arch)+2*arch.PtrSize:], arch.PtrSize))
+ }
+ 
+ // Type.PtrType.elem
+-func decodetypePtrElem(s *Symbol) *Symbol {
+-	return decodeRelocSym(s, int32(commonsize())) // 0x1c / 0x30
++func decodetypePtrElem(arch *sys.Arch, s *Symbol) *Symbol {
++	return decodeRelocSym(s, int32(commonsize(arch))) // 0x1c / 0x30
+ }
+ 
+ // Type.MapType.key, elem
+-func decodetypeMapKey(s *Symbol) *Symbol {
+-	return decodeRelocSym(s, int32(commonsize())) // 0x1c / 0x30
++func decodetypeMapKey(arch *sys.Arch, s *Symbol) *Symbol {
++	return decodeRelocSym(s, int32(commonsize(arch))) // 0x1c / 0x30
+ }
+ 
+-func decodetypeMapValue(s *Symbol) *Symbol {
+-	return decodeRelocSym(s, int32(commonsize())+int32(SysArch.PtrSize)) // 0x20 / 0x38
++func decodetypeMapValue(arch *sys.Arch, s *Symbol) *Symbol {
++	return decodeRelocSym(s, int32(commonsize(arch))+int32(arch.PtrSize)) // 0x20 / 0x38
+ }
+ 
+ // Type.ChanType.elem
+-func decodetypeChanElem(s *Symbol) *Symbol {
+-	return decodeRelocSym(s, int32(commonsize())) // 0x1c / 0x30
++func decodetypeChanElem(arch *sys.Arch, s *Symbol) *Symbol {
++	return decodeRelocSym(s, int32(commonsize(arch))) // 0x1c / 0x30
+ }
+ 
+ // Type.FuncType.dotdotdot
+ func decodetypeFuncDotdotdot(arch *sys.Arch, s *Symbol) bool {
+-	return uint16(decodeInuxi(arch, s.P[commonsize()+2:], 2))&(1<<15) != 0
++	return uint16(decodeInuxi(arch, s.P[commonsize(arch)+2:], 2))&(1<<15) != 0
+ }
+ 
+ // Type.FuncType.inCount
+ func decodetypeFuncInCount(arch *sys.Arch, s *Symbol) int {
+-	return int(decodeInuxi(arch, s.P[commonsize():], 2))
++	return int(decodeInuxi(arch, s.P[commonsize(arch):], 2))
+ }
+ 
+ func decodetypeFuncOutCount(arch *sys.Arch, s *Symbol) int {
+-	return int(uint16(decodeInuxi(arch, s.P[commonsize()+2:], 2)) & (1<<15 - 1))
++	return int(uint16(decodeInuxi(arch, s.P[commonsize(arch)+2:], 2)) & (1<<15 - 1))
+ }
+ 
+-func decodetypeFuncInType(s *Symbol, i int) *Symbol {
+-	uadd := commonsize() + 4
+-	if SysArch.PtrSize == 8 {
++func decodetypeFuncInType(arch *sys.Arch, s *Symbol, i int) *Symbol {
++	uadd := commonsize(arch) + 4
++	if arch.PtrSize == 8 {
+ 		uadd += 4
+ 	}
+-	if decodetypeHasUncommon(s) {
++	if decodetypeHasUncommon(arch, s) {
+ 		uadd += uncommonSize()
+ 	}
+-	return decodeRelocSym(s, int32(uadd+i*SysArch.PtrSize))
++	return decodeRelocSym(s, int32(uadd+i*arch.PtrSize))
+ }
+ 
+ func decodetypeFuncOutType(arch *sys.Arch, s *Symbol, i int) *Symbol {
+-	return decodetypeFuncInType(s, i+decodetypeFuncInCount(arch, s))
++	return decodetypeFuncInType(arch, s, i+decodetypeFuncInCount(arch, s))
+ }
+ 
+ // Type.StructType.fields.Slice::length
+ func decodetypeStructFieldCount(arch *sys.Arch, s *Symbol) int {
+-	return int(decodeInuxi(arch, s.P[commonsize()+2*SysArch.PtrSize:], SysArch.PtrSize))
++	return int(decodeInuxi(arch, s.P[commonsize(arch)+2*arch.PtrSize:], arch.PtrSize))
+ }
+ 
+-func decodetypeStructFieldArrayOff(s *Symbol, i int) int {
+-	off := commonsize() + 4*SysArch.PtrSize
+-	if decodetypeHasUncommon(s) {
++func decodetypeStructFieldArrayOff(arch *sys.Arch, s *Symbol, i int) int {
++	off := commonsize(arch) + 4*arch.PtrSize
++	if decodetypeHasUncommon(arch, s) {
+ 		off += uncommonSize()
+ 	}
+-	off += i * structfieldSize()
++	off += i * structfieldSize(arch)
+ 	return off
+ }
+ 
+ // decodetypeStr returns the contents of an rtype's str field (a nameOff).
+-func decodetypeStr(s *Symbol) string {
+-	str := decodetypeName(s, 4*SysArch.PtrSize+8)
+-	if s.P[2*SysArch.PtrSize+4]&tflagExtraStar != 0 {
++func decodetypeStr(arch *sys.Arch, s *Symbol) string {
++	str := decodetypeName(s, 4*arch.PtrSize+8)
++	if s.P[2*arch.PtrSize+4]&tflagExtraStar != 0 {
+ 		return str[1:]
+ 	}
+ 	return str
+@@ -243,14 +243,14 @@ func decodetypeName(s *Symbol, off int) string {
+ 	return string(data[3 : 3+namelen])
+ }
+ 
+-func decodetypeStructFieldName(s *Symbol, i int) string {
+-	off := decodetypeStructFieldArrayOff(s, i)
++func decodetypeStructFieldName(arch *sys.Arch, s *Symbol, i int) string {
++	off := decodetypeStructFieldArrayOff(arch, s, i)
+ 	return decodetypeName(s, off)
+ }
+ 
+-func decodetypeStructFieldType(s *Symbol, i int) *Symbol {
+-	off := decodetypeStructFieldArrayOff(s, i)
+-	return decodeRelocSym(s, int32(off+SysArch.PtrSize))
++func decodetypeStructFieldType(arch *sys.Arch, s *Symbol, i int) *Symbol {
++	off := decodetypeStructFieldArrayOff(arch, s, i)
++	return decodeRelocSym(s, int32(off+arch.PtrSize))
+ }
+ 
+ func decodetypeStructFieldOffs(arch *sys.Arch, s *Symbol, i int) int64 {
+@@ -258,13 +258,13 @@ func decodetypeStructFieldOffs(arch *sys.Arch, s *Symbol, i int) int64 {
+ }
+ 
+ func decodetypeStructFieldOffsAnon(arch *sys.Arch, s *Symbol, i int) int64 {
+-	off := decodetypeStructFieldArrayOff(s, i)
+-	return int64(decodeInuxi(arch, s.P[off+2*SysArch.PtrSize:], SysArch.PtrSize))
++	off := decodetypeStructFieldArrayOff(arch, s, i)
++	return int64(decodeInuxi(arch, s.P[off+2*arch.PtrSize:], arch.PtrSize))
+ }
+ 
+ // InterfaceType.methods.length
+ func decodetypeIfaceMethodCount(arch *sys.Arch, s *Symbol) int64 {
+-	return int64(decodeInuxi(arch, s.P[commonsize()+2*SysArch.PtrSize:], SysArch.PtrSize))
++	return int64(decodeInuxi(arch, s.P[commonsize(arch)+2*arch.PtrSize:], arch.PtrSize))
+ }
+ 
+ // methodsig is a fully qualified typed method signature, like
+@@ -303,7 +303,7 @@ func decodeMethodSig(arch *sys.Arch, s *Symbol, off, size, count int) []methodsi
+ 			if i > 0 {
+ 				buf.WriteString(", ")
+ 			}
+-			buf.WriteString(decodetypeFuncInType(mtypSym, i).Name)
++			buf.WriteString(decodetypeFuncInType(arch, mtypSym, i).Name)
+ 		}
+ 		buf.WriteString(") (")
+ 		outCount := decodetypeFuncOutCount(arch, mtypSym)
+@@ -323,10 +323,10 @@ func decodeMethodSig(arch *sys.Arch, s *Symbol, off, size, count int) []methodsi
+ }
+ 
+ func decodeIfaceMethods(arch *sys.Arch, s *Symbol) []methodsig {
+-	if decodetypeKind(s)&kindMask != kindInterface {
++	if decodetypeKind(arch, s)&kindMask != kindInterface {
+ 		panic(fmt.Sprintf("symbol %q is not an interface", s.Name))
+ 	}
+-	r := decodeReloc(s, int32(commonsize()+SysArch.PtrSize))
++	r := decodeReloc(s, int32(commonsize(arch)+arch.PtrSize))
+ 	if r == nil {
+ 		return nil
+ 	}
+@@ -340,27 +340,27 @@ func decodeIfaceMethods(arch *sys.Arch, s *Symbol) []methodsig {
+ }
+ 
+ func decodetypeMethods(arch *sys.Arch, s *Symbol) []methodsig {
+-	if !decodetypeHasUncommon(s) {
++	if !decodetypeHasUncommon(arch, s) {
+ 		panic(fmt.Sprintf("no methods on %q", s.Name))
+ 	}
+-	off := commonsize() // reflect.rtype
+-	switch decodetypeKind(s) & kindMask {
++	off := commonsize(arch) // reflect.rtype
++	switch decodetypeKind(arch, s) & kindMask {
+ 	case kindStruct: // reflect.structType
+-		off += 4 * SysArch.PtrSize
++		off += 4 * arch.PtrSize
+ 	case kindPtr: // reflect.ptrType
+-		off += SysArch.PtrSize
++		off += arch.PtrSize
+ 	case kindFunc: // reflect.funcType
+-		off += SysArch.PtrSize // 4 bytes, pointer aligned
++		off += arch.PtrSize // 4 bytes, pointer aligned
+ 	case kindSlice: // reflect.sliceType
+-		off += SysArch.PtrSize
++		off += arch.PtrSize
+ 	case kindArray: // reflect.arrayType
+-		off += 3 * SysArch.PtrSize
++		off += 3 * arch.PtrSize
+ 	case kindChan: // reflect.chanType
+-		off += 2 * SysArch.PtrSize
++		off += 2 * arch.PtrSize
+ 	case kindMap: // reflect.mapType
+-		off += 4*SysArch.PtrSize + 8
++		off += 4*arch.PtrSize + 8
+ 	case kindInterface: // reflect.interfaceType
+-		off += 3 * SysArch.PtrSize
++		off += 3 * arch.PtrSize
+ 	default:
+ 		// just Sizeof(rtype)
+ 	}
+diff --git a/src/cmd/link/internal/ld/dwarf.go b/src/cmd/link/internal/ld/dwarf.go
+index 713bb07bfa..f8198a7446 100644
+--- a/src/cmd/link/internal/ld/dwarf.go
++++ b/src/cmd/link/internal/ld/dwarf.go
+@@ -27,7 +27,7 @@ type dwctxt struct {
+ }
+ 
+ func (c dwctxt) PtrSize() int {
+-	return SysArch.PtrSize
++	return c.linkctxt.Arch.PtrSize
+ }
+ func (c dwctxt) AddInt(s dwarf.Sym, size int, i int64) {
+ 	ls := s.(*Symbol)
+@@ -57,7 +57,7 @@ func (c dwctxt) AddSectionOffset(s dwarf.Sym, size int, t interface{}, ofs int64
+ 	default:
+ 		Errorf(ls, "invalid size %d in adddwarfref\n", size)
+ 		fallthrough
+-	case SysArch.PtrSize:
++	case c.linkctxt.Arch.PtrSize:
+ 		Addaddr(c.linkctxt, ls, t.(*Symbol))
+ 	case 4:
+ 		addaddrplus4(c.linkctxt, ls, t.(*Symbol), 0)
+@@ -211,7 +211,7 @@ func adddwarfref(ctxt *Link, s *Symbol, t *Symbol, size int) int64 {
+ 	default:
+ 		Errorf(s, "invalid size %d in adddwarfref\n", size)
+ 		fallthrough
+-	case SysArch.PtrSize:
++	case ctxt.Arch.PtrSize:
+ 		result = Addaddr(ctxt, s, t)
+ 	case 4:
+ 		result = addaddrplus4(ctxt, s, t, 0)
+@@ -362,7 +362,7 @@ func defgotype(ctxt *Link, gotype *Symbol) *Symbol {
+ 
+ func newtype(ctxt *Link, gotype *Symbol) *dwarf.DWDie {
+ 	name := gotype.Name[5:] // could also decode from Type.string
+-	kind := decodetypeKind(gotype)
++	kind := decodetypeKind(ctxt.Arch, gotype)
+ 	bytesize := decodetypeSize(ctxt.Arch, gotype)
+ 
+ 	var die *dwarf.DWDie
+@@ -407,7 +407,7 @@ func newtype(ctxt *Link, gotype *Symbol) *dwarf.DWDie {
+ 		die = newdie(ctxt, &dwtypes, dwarf.DW_ABRV_ARRAYTYPE, name, 0)
+ 		dotypedef(ctxt, &dwtypes, name, die)
+ 		newattr(die, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, bytesize, 0)
+-		s := decodetypeArrayElem(gotype)
++		s := decodetypeArrayElem(ctxt.Arch, gotype)
+ 		newrefattr(die, dwarf.DW_AT_type, defgotype(ctxt, s))
+ 		fld := newdie(ctxt, die, dwarf.DW_ABRV_ARRAYRANGE, "range", 0)
+ 
+@@ -419,7 +419,7 @@ func newtype(ctxt *Link, gotype *Symbol) *dwarf.DWDie {
+ 	case objabi.KindChan:
+ 		die = newdie(ctxt, &dwtypes, dwarf.DW_ABRV_CHANTYPE, name, 0)
+ 		newattr(die, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, bytesize, 0)
+-		s := decodetypeChanElem(gotype)
++		s := decodetypeChanElem(ctxt.Arch, gotype)
+ 		newrefattr(die, dwarf.DW_AT_go_elem, defgotype(ctxt, s))
+ 		// Save elem type for synthesizechantypes. We could synthesize here
+ 		// but that would change the order of DIEs we output.
+@@ -434,7 +434,7 @@ func newtype(ctxt *Link, gotype *Symbol) *dwarf.DWDie {
+ 		var fld *dwarf.DWDie
+ 		var s *Symbol
+ 		for i := 0; i < nfields; i++ {
+-			s = decodetypeFuncInType(gotype, i)
++			s = decodetypeFuncInType(ctxt.Arch, gotype, i)
+ 			fld = newdie(ctxt, die, dwarf.DW_ABRV_FUNCTYPEPARAM, s.Name[5:], 0)
+ 			newrefattr(fld, dwarf.DW_AT_type, defgotype(ctxt, s))
+ 		}
+@@ -464,9 +464,9 @@ func newtype(ctxt *Link, gotype *Symbol) *dwarf.DWDie {
+ 
+ 	case objabi.KindMap:
+ 		die = newdie(ctxt, &dwtypes, dwarf.DW_ABRV_MAPTYPE, name, 0)
+-		s := decodetypeMapKey(gotype)
++		s := decodetypeMapKey(ctxt.Arch, gotype)
+ 		newrefattr(die, dwarf.DW_AT_go_key, defgotype(ctxt, s))
+-		s = decodetypeMapValue(gotype)
++		s = decodetypeMapValue(ctxt.Arch, gotype)
+ 		newrefattr(die, dwarf.DW_AT_go_elem, defgotype(ctxt, s))
+ 		// Save gotype for use in synthesizemaptypes. We could synthesize here,
+ 		// but that would change the order of the DIEs.
+@@ -475,14 +475,14 @@ func newtype(ctxt *Link, gotype *Symbol) *dwarf.DWDie {
+ 	case objabi.KindPtr:
+ 		die = newdie(ctxt, &dwtypes, dwarf.DW_ABRV_PTRTYPE, name, 0)
+ 		dotypedef(ctxt, &dwtypes, name, die)
+-		s := decodetypePtrElem(gotype)
++		s := decodetypePtrElem(ctxt.Arch, gotype)
+ 		newrefattr(die, dwarf.DW_AT_type, defgotype(ctxt, s))
+ 
+ 	case objabi.KindSlice:
+ 		die = newdie(ctxt, &dwtypes, dwarf.DW_ABRV_SLICETYPE, name, 0)
+ 		dotypedef(ctxt, &dwtypes, name, die)
+ 		newattr(die, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, bytesize, 0)
+-		s := decodetypeArrayElem(gotype)
++		s := decodetypeArrayElem(ctxt.Arch, gotype)
+ 		elem := defgotype(ctxt, s)
+ 		newrefattr(die, dwarf.DW_AT_go_elem, elem)
+ 
+@@ -496,8 +496,8 @@ func newtype(ctxt *Link, gotype *Symbol) *dwarf.DWDie {
+ 		newattr(die, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, bytesize, 0)
+ 		nfields := decodetypeStructFieldCount(ctxt.Arch, gotype)
+ 		for i := 0; i < nfields; i++ {
+-			f := decodetypeStructFieldName(gotype, i)
+-			s := decodetypeStructFieldType(gotype, i)
++			f := decodetypeStructFieldName(ctxt.Arch, gotype, i)
++			s := decodetypeStructFieldType(ctxt.Arch, gotype, i)
+ 			if f == "" {
+ 				f = s.Name[5:] // skip "type."
+ 			}
+@@ -668,19 +668,19 @@ func synthesizemaptypes(ctxt *Link, die *dwarf.DWDie) {
+ 			continue
+ 		}
+ 		gotype := getattr(die, dwarf.DW_AT_type).Data.(*Symbol)
+-		keytype := decodetypeMapKey(gotype)
+-		valtype := decodetypeMapValue(gotype)
++		keytype := decodetypeMapKey(ctxt.Arch, gotype)
++		valtype := decodetypeMapValue(ctxt.Arch, gotype)
+ 		keysize, valsize := decodetypeSize(ctxt.Arch, keytype), decodetypeSize(ctxt.Arch, valtype)
+ 		keytype, valtype = walksymtypedef(ctxt, defgotype(ctxt, keytype)), walksymtypedef(ctxt, defgotype(ctxt, valtype))
+ 
+ 		// compute size info like hashmap.c does.
+ 		indirectKey, indirectVal := false, false
+ 		if keysize > MaxKeySize {
+-			keysize = int64(SysArch.PtrSize)
++			keysize = int64(ctxt.Arch.PtrSize)
+ 			indirectKey = true
+ 		}
+ 		if valsize > MaxValSize {
+-			valsize = int64(SysArch.PtrSize)
++			valsize = int64(ctxt.Arch.PtrSize)
+ 			indirectVal = true
+ 		}
+ 
+@@ -727,13 +727,13 @@ func synthesizemaptypes(ctxt *Link, die *dwarf.DWDie) {
+ 			fld = newdie(ctxt, dwhb, dwarf.DW_ABRV_STRUCTFIELD, "overflow", 0)
+ 			newrefattr(fld, dwarf.DW_AT_type, defptrto(ctxt, dtolsym(dwhb.Sym)))
+ 			newmemberoffsetattr(fld, BucketSize+BucketSize*(int32(keysize)+int32(valsize)))
+-			if SysArch.RegSize > SysArch.PtrSize {
++			if ctxt.Arch.RegSize > ctxt.Arch.PtrSize {
+ 				fld = newdie(ctxt, dwhb, dwarf.DW_ABRV_STRUCTFIELD, "pad", 0)
+ 				newrefattr(fld, dwarf.DW_AT_type, mustFind(ctxt, "uintptr"))
+-				newmemberoffsetattr(fld, BucketSize+BucketSize*(int32(keysize)+int32(valsize))+int32(SysArch.PtrSize))
++				newmemberoffsetattr(fld, BucketSize+BucketSize*(int32(keysize)+int32(valsize))+int32(ctxt.Arch.PtrSize))
+ 			}
+ 
+-			newattr(dwhb, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, BucketSize+BucketSize*keysize+BucketSize*valsize+int64(SysArch.RegSize), 0)
++			newattr(dwhb, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, BucketSize+BucketSize*keysize+BucketSize*valsize+int64(ctxt.Arch.RegSize), 0)
+ 		})
+ 
+ 		// Construct hash<K,V>
+@@ -1060,7 +1060,7 @@ func writelines(ctxt *Link, syms []*Symbol) ([]*Symbol, []*Symbol) {
+ 	headerend = ls.Size
+ 
+ 	Adduint8(ctxt, ls, 0) // start extended opcode
+-	dwarf.Uleb128put(dwarfctxt, ls, 1+int64(SysArch.PtrSize))
++	dwarf.Uleb128put(dwarfctxt, ls, 1+int64(ctxt.Arch.PtrSize))
+ 	Adduint8(ctxt, ls, dwarf.DW_LNE_set_address)
+ 
+ 	pc := s.Value
+@@ -1189,11 +1189,11 @@ func writeframes(ctxt *Link, syms []*Symbol) []*Symbol {
+ 		dwarf.Uleb128put(dwarfctxt, fs, int64(Thearch.Dwarfregsp)) // ...of the platform's SP register...
+ 		dwarf.Uleb128put(dwarfctxt, fs, int64(0))                  // ...is CFA+0.
+ 	} else {
+-		dwarf.Uleb128put(dwarfctxt, fs, int64(SysArch.PtrSize)) // ...plus the word size (because the call instruction implicitly adds one word to the frame).
++		dwarf.Uleb128put(dwarfctxt, fs, int64(ctxt.Arch.PtrSize)) // ...plus the word size (because the call instruction implicitly adds one word to the frame).
+ 
+-		Adduint8(ctxt, fs, dwarf.DW_CFA_offset_extended)                             // The previous value...
+-		dwarf.Uleb128put(dwarfctxt, fs, int64(Thearch.Dwarfreglr))                   // ...of the return address...
+-		dwarf.Uleb128put(dwarfctxt, fs, int64(-SysArch.PtrSize)/dataAlignmentFactor) // ...is saved at [CFA - (PtrSize/4)].
++		Adduint8(ctxt, fs, dwarf.DW_CFA_offset_extended)                               // The previous value...
++		dwarf.Uleb128put(dwarfctxt, fs, int64(Thearch.Dwarfreglr))                     // ...of the return address...
++		dwarf.Uleb128put(dwarfctxt, fs, int64(-ctxt.Arch.PtrSize)/dataAlignmentFactor) // ...is saved at [CFA - (PtrSize/4)].
+ 	}
+ 
+ 	// 4 is to exclude the length field.
+@@ -1245,10 +1245,10 @@ func writeframes(ctxt *Link, syms []*Symbol) []*Symbol {
+ 				}
+ 				deltaBuf = appendPCDeltaCFA(deltaBuf, int64(nextpc)-int64(pcsp.pc), int64(pcsp.value))
+ 			} else {
+-				deltaBuf = appendPCDeltaCFA(deltaBuf, int64(nextpc)-int64(pcsp.pc), int64(SysArch.PtrSize)+int64(pcsp.value))
++				deltaBuf = appendPCDeltaCFA(deltaBuf, int64(nextpc)-int64(pcsp.pc), int64(ctxt.Arch.PtrSize)+int64(pcsp.value))
+ 			}
+ 		}
+-		pad := int(Rnd(int64(len(deltaBuf)), int64(SysArch.PtrSize))) - len(deltaBuf)
++		pad := int(Rnd(int64(len(deltaBuf)), int64(ctxt.Arch.PtrSize))) - len(deltaBuf)
+ 		deltaBuf = append(deltaBuf, zeros[:pad]...)
+ 
+ 		// Emit the FDE header, Section 6.4.1.
+@@ -1256,14 +1256,14 @@ func writeframes(ctxt *Link, syms []*Symbol) []*Symbol {
+ 		//	4 bytes: Pointer to the CIE above, at offset 0
+ 		//	ptrsize: initial location
+ 		//	ptrsize: address range
+-		Adduint32(ctxt, fs, uint32(4+2*SysArch.PtrSize+len(deltaBuf))) // length (excludes itself)
++		Adduint32(ctxt, fs, uint32(4+2*ctxt.Arch.PtrSize+len(deltaBuf))) // length (excludes itself)
+ 		if Linkmode == LinkExternal {
+ 			adddwarfref(ctxt, fs, fs, 4)
+ 		} else {
+ 			Adduint32(ctxt, fs, 0) // CIE offset
+ 		}
+ 		Addaddr(ctxt, fs, s)
+-		adduintxx(ctxt, fs, uint64(s.Size), SysArch.PtrSize) // address range
++		adduintxx(ctxt, fs, uint64(s.Size), ctxt.Arch.PtrSize) // address range
+ 		Addbytes(fs, deltaBuf)
+ 	}
+ 	return syms
+@@ -1324,7 +1324,7 @@ func writeinfo(ctxt *Link, syms []*Symbol, funcs, consts []*Symbol, abbrevsym *S
+ 		// debug_abbrev_offset (*)
+ 		adddwarfref(ctxt, s, abbrevsym, 4)
+ 
+-		Adduint8(ctxt, s, uint8(SysArch.PtrSize)) // address_size
++		Adduint8(ctxt, s, uint8(ctxt.Arch.PtrSize)) // address_size
+ 
+ 		dwarf.Uleb128put(dwarfctxt, s, int64(compunit.Abbrev))
+ 		dwarf.PutAttrs(dwarfctxt, s, compunit.Abbrev, compunit.Attr)
+@@ -1414,7 +1414,7 @@ func writearanges(ctxt *Link, syms []*Symbol) []*Symbol {
+ 	s.Type = SDWARFSECT
+ 	// The first tuple is aligned to a multiple of the size of a single tuple
+ 	// (twice the size of an address)
+-	headersize := int(Rnd(4+2+4+1+1, int64(SysArch.PtrSize*2))) // don't count unit_length field itself
++	headersize := int(Rnd(4+2+4+1+1, int64(ctxt.Arch.PtrSize*2))) // don't count unit_length field itself
+ 
+ 	for compunit := dwroot.Child; compunit != nil; compunit = compunit.Link {
+ 		b := getattr(compunit, dwarf.DW_AT_low_pc)
+@@ -1427,23 +1427,23 @@ func writearanges(ctxt *Link, syms []*Symbol) []*Symbol {
+ 		}
+ 
+ 		// Write .debug_aranges	 Header + entry	 (sec 6.1.2)
+-		unitlength := uint32(headersize) + 4*uint32(SysArch.PtrSize) - 4
++		unitlength := uint32(headersize) + 4*uint32(ctxt.Arch.PtrSize) - 4
+ 		Adduint32(ctxt, s, unitlength) // unit_length (*)
+ 		Adduint16(ctxt, s, 2)          // dwarf version (appendix F)
+ 
+ 		adddwarfref(ctxt, s, dtolsym(compunit.Sym), 4)
+ 
+-		Adduint8(ctxt, s, uint8(SysArch.PtrSize)) // address_size
+-		Adduint8(ctxt, s, 0)                      // segment_size
++		Adduint8(ctxt, s, uint8(ctxt.Arch.PtrSize)) // address_size
++		Adduint8(ctxt, s, 0)                        // segment_size
+ 		padding := headersize - (4 + 2 + 4 + 1 + 1)
+ 		for i := 0; i < padding; i++ {
+ 			Adduint8(ctxt, s, 0)
+ 		}
+ 
+ 		Addaddrplus(ctxt, s, b.Data.(*Symbol), b.Value-(b.Data.(*Symbol)).Value)
+-		adduintxx(ctxt, s, uint64(e.Value-b.Value), SysArch.PtrSize)
+-		adduintxx(ctxt, s, 0, SysArch.PtrSize)
+-		adduintxx(ctxt, s, 0, SysArch.PtrSize)
++		adduintxx(ctxt, s, uint64(e.Value-b.Value), ctxt.Arch.PtrSize)
++		adduintxx(ctxt, s, 0, ctxt.Arch.PtrSize)
++		adduintxx(ctxt, s, 0, ctxt.Arch.PtrSize)
+ 	}
+ 	if s.Size > 0 {
+ 		syms = append(syms, s)
+@@ -1520,7 +1520,7 @@ func dwarfgeneratedebugsyms(ctxt *Link) {
+ 
+ 	die := newdie(ctxt, &dwtypes, dwarf.DW_ABRV_BASETYPE, "uintptr", 0) // needed for array size
+ 	newattr(die, dwarf.DW_AT_encoding, dwarf.DW_CLS_CONSTANT, dwarf.DW_ATE_unsigned, 0)
+-	newattr(die, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, int64(SysArch.PtrSize), 0)
++	newattr(die, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, int64(ctxt.Arch.PtrSize), 0)
+ 	newattr(die, dwarf.DW_AT_go_kind, dwarf.DW_CLS_CONSTANT, objabi.KindUintptr, 0)
+ 
+ 	// Prototypes needed for type synthesis.
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index b998533b7a..c5bdff3daf 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -919,13 +919,13 @@ var buildinfo []byte
+ func Elfinit(ctxt *Link) {
+ 	Iself = true
+ 
+-	if SysArch.InFamily(sys.AMD64, sys.ARM64, sys.MIPS64, sys.PPC64, sys.S390X) {
++	if ctxt.Arch.InFamily(sys.AMD64, sys.ARM64, sys.MIPS64, sys.PPC64, sys.S390X) {
+ 		elfRelType = ".rela"
+ 	} else {
+ 		elfRelType = ".rel"
+ 	}
+ 
+-	switch SysArch.Family {
++	switch ctxt.Arch.Family {
+ 	// 64-bit architectures
+ 	case sys.PPC64, sys.S390X:
+ 		if ctxt.Arch.ByteOrder == binary.BigEndian {
+@@ -935,7 +935,7 @@ func Elfinit(ctxt *Link) {
+ 		}
+ 		fallthrough
+ 	case sys.AMD64, sys.ARM64, sys.MIPS64:
+-		if SysArch.Family == sys.MIPS64 {
++		if ctxt.Arch.Family == sys.MIPS64 {
+ 			ehdr.flags = 0x20000004 /* MIPS 3 CPIC */
+ 		}
+ 		elf64 = true
+@@ -948,7 +948,7 @@ func Elfinit(ctxt *Link) {
+ 
+ 	// 32-bit architectures
+ 	case sys.ARM, sys.MIPS:
+-		if SysArch.Family == sys.ARM {
++		if ctxt.Arch.Family == sys.ARM {
+ 			// we use EABI on linux/arm, freebsd/arm, netbsd/arm.
+ 			if Headtype == objabi.Hlinux || Headtype == objabi.Hfreebsd || Headtype == objabi.Hnetbsd {
+ 				// We set a value here that makes no indication of which
+@@ -961,7 +961,7 @@ func Elfinit(ctxt *Link) {
+ 				// appropriate.
+ 				ehdr.flags = 0x5000002 // has entry point, Version5 EABI
+ 			}
+-		} else if SysArch.Family == sys.MIPS {
++		} else if ctxt.Arch.Family == sys.MIPS {
+ 			ehdr.flags = 0x50001004 /* MIPS 32 CPIC O32*/
+ 		}
+ 		fallthrough
+@@ -1480,7 +1480,7 @@ func elfdynhash(ctxt *Link) {
+ 	}
+ 
+ 	// s390x (ELF64) hash table entries are 8 bytes
+-	if SysArch.Family == sys.S390X {
++	if ctxt.Arch.Family == sys.S390X {
+ 		Adduint64(ctxt, s, uint64(nbucket))
+ 		Adduint64(ctxt, s, uint64(nsym))
+ 		for i := 0; i < nbucket; i++ {
+@@ -1713,7 +1713,7 @@ func elfshbits(sect *Section) *ElfShdr {
+ 	return sh
+ }
+ 
+-func elfshreloc(sect *Section) *ElfShdr {
++func elfshreloc(arch *sys.Arch, sect *Section) *ElfShdr {
+ 	// If main section is SHT_NOBITS, nothing to relocate.
+ 	// Also nothing to relocate in .shstrtab or notes.
+ 	if sect.Vaddr >= sect.Seg.Vaddr+sect.Seg.Filelen {
+@@ -1744,15 +1744,15 @@ func elfshreloc(sect *Section) *ElfShdr {
+ 	}
+ 
+ 	sh.type_ = uint32(typ)
+-	sh.entsize = uint64(SysArch.RegSize) * 2
++	sh.entsize = uint64(arch.RegSize) * 2
+ 	if typ == SHT_RELA {
+-		sh.entsize += uint64(SysArch.RegSize)
++		sh.entsize += uint64(arch.RegSize)
+ 	}
+ 	sh.link = uint32(elfshname(".symtab").shnum)
+ 	sh.info = uint32(sect.Elfsect.shnum)
+ 	sh.off = sect.Reloff
+ 	sh.size = sect.Rellen
+-	sh.addralign = uint64(SysArch.RegSize)
++	sh.addralign = uint64(arch.RegSize)
+ 	return sh
+ }
+ 
+@@ -1795,13 +1795,13 @@ func elfrelocsect(ctxt *Link, sect *Section, syms []*Symbol) {
+ 				continue
+ 			}
+ 			if r.Xsym.ElfsymForReloc() == 0 {
+-				Errorf(sym, "reloc %d (%s) to non-elf symbol %s (outer=%s) %d (%s)", r.Type, RelocName(r.Type), r.Sym.Name, r.Xsym.Name, r.Sym.Type, r.Sym.Type)
++				Errorf(sym, "reloc %d (%s) to non-elf symbol %s (outer=%s) %d (%s)", r.Type, RelocName(ctxt.Arch, r.Type), r.Sym.Name, r.Xsym.Name, r.Sym.Type, r.Sym.Type)
+ 			}
+ 			if !r.Xsym.Attr.Reachable() {
+-				Errorf(sym, "unreachable reloc %d (%s) target %v", r.Type, RelocName(r.Type), r.Xsym.Name)
++				Errorf(sym, "unreachable reloc %d (%s) target %v", r.Type, RelocName(ctxt.Arch, r.Type), r.Xsym.Name)
+ 			}
+ 			if !Thearch.Elfreloc1(ctxt, r, int64(uint64(sym.Value+int64(r.Off))-sect.Vaddr)) {
+-				Errorf(sym, "unsupported obj reloc %d (%s)/%d to %s", r.Type, RelocName(r.Type), r.Siz, r.Sym.Name)
++				Errorf(sym, "unsupported obj reloc %d (%s)/%d to %s", r.Type, RelocName(ctxt.Arch, r.Type), r.Siz, r.Sym.Name)
+ 			}
+ 		}
+ 	}
+@@ -1959,7 +1959,7 @@ func (ctxt *Link) doelf() {
+ 		Addstring(shstrtab, ".interp")
+ 		Addstring(shstrtab, ".hash")
+ 		Addstring(shstrtab, ".got")
+-		if SysArch.Family == sys.PPC64 {
++		if ctxt.Arch.Family == sys.PPC64 {
+ 			Addstring(shstrtab, ".glink")
+ 		}
+ 		Addstring(shstrtab, ".got.plt")
+@@ -2006,7 +2006,7 @@ func (ctxt *Link) doelf() {
+ 		s.Type = SELFGOT // writable
+ 
+ 		/* ppc64 glink resolver */
+-		if SysArch.Family == sys.PPC64 {
++		if ctxt.Arch.Family == sys.PPC64 {
+ 			s := ctxt.Syms.Lookup(".glink", 0)
+ 			s.Attr |= AttrReachable
+ 			s.Type = SELFRXSECT
+@@ -2025,7 +2025,7 @@ func (ctxt *Link) doelf() {
+ 		s = ctxt.Syms.Lookup(".plt", 0)
+ 
+ 		s.Attr |= AttrReachable
+-		if SysArch.Family == sys.PPC64 {
++		if ctxt.Arch.Family == sys.PPC64 {
+ 			// In the ppc64 ABI, .plt is a data section
+ 			// written by the dynamic linker.
+ 			s.Type = SELFSECT
+@@ -2080,15 +2080,15 @@ func (ctxt *Link) doelf() {
+ 			Elfwritedynent(ctxt, s, DT_RUNPATH, uint64(Addstring(dynstr, rpath.val)))
+ 		}
+ 
+-		if SysArch.Family == sys.PPC64 {
++		if ctxt.Arch.Family == sys.PPC64 {
+ 			elfwritedynentsym(ctxt, s, DT_PLTGOT, ctxt.Syms.Lookup(".plt", 0))
+-		} else if SysArch.Family == sys.S390X {
++		} else if ctxt.Arch.Family == sys.S390X {
+ 			elfwritedynentsym(ctxt, s, DT_PLTGOT, ctxt.Syms.Lookup(".got", 0))
+ 		} else {
+ 			elfwritedynentsym(ctxt, s, DT_PLTGOT, ctxt.Syms.Lookup(".got.plt", 0))
+ 		}
+ 
+-		if SysArch.Family == sys.PPC64 {
++		if ctxt.Arch.Family == sys.PPC64 {
+ 			Elfwritedynent(ctxt, s, DT_PPC64_OPT, 0)
+ 		}
+ 
+@@ -2178,9 +2178,9 @@ func Asmbelfsetup() {
+ 
+ func Asmbelf(ctxt *Link, symo int64) {
+ 	eh := getElfEhdr()
+-	switch SysArch.Family {
++	switch ctxt.Arch.Family {
+ 	default:
+-		Exitf("unknown architecture in asmbelf: %v", SysArch.Family)
++		Exitf("unknown architecture in asmbelf: %v", ctxt.Arch.Family)
+ 	case sys.MIPS, sys.MIPS64:
+ 		eh.machine = EM_MIPS
+ 	case sys.ARM:
+@@ -2370,7 +2370,7 @@ func Asmbelf(ctxt *Link, symo int64) {
+ 		} else {
+ 			sh.entsize = ELF32SYMSIZE
+ 		}
+-		sh.addralign = uint64(SysArch.RegSize)
++		sh.addralign = uint64(ctxt.Arch.RegSize)
+ 		sh.link = uint32(elfshname(".dynstr").shnum)
+ 
+ 		// sh->info = index of first non-local symbol (number of local symbols)
+@@ -2394,7 +2394,7 @@ func Asmbelf(ctxt *Link, symo int64) {
+ 			sh = elfshname(".gnu.version_r")
+ 			sh.type_ = SHT_GNU_VERNEED
+ 			sh.flags = SHF_ALLOC
+-			sh.addralign = uint64(SysArch.RegSize)
++			sh.addralign = uint64(ctxt.Arch.RegSize)
+ 			sh.info = uint32(elfverneed)
+ 			sh.link = uint32(elfshname(".dynstr").shnum)
+ 			shsym(sh, ctxt.Syms.Lookup(".gnu.version_r", 0))
+@@ -2405,7 +2405,7 @@ func Asmbelf(ctxt *Link, symo int64) {
+ 			sh.type_ = SHT_RELA
+ 			sh.flags = SHF_ALLOC
+ 			sh.entsize = ELF64RELASIZE
+-			sh.addralign = uint64(SysArch.RegSize)
++			sh.addralign = uint64(ctxt.Arch.RegSize)
+ 			sh.link = uint32(elfshname(".dynsym").shnum)
+ 			sh.info = uint32(elfshname(".plt").shnum)
+ 			shsym(sh, ctxt.Syms.Lookup(".rela.plt", 0))
+@@ -2469,15 +2469,15 @@ func Asmbelf(ctxt *Link, symo int64) {
+ 			sh := elfshname(".got")
+ 			sh.type_ = SHT_PROGBITS
+ 			sh.flags = SHF_ALLOC + SHF_WRITE
+-			sh.entsize = uint64(SysArch.RegSize)
+-			sh.addralign = uint64(SysArch.RegSize)
++			sh.entsize = uint64(ctxt.Arch.RegSize)
++			sh.addralign = uint64(ctxt.Arch.RegSize)
+ 			shsym(sh, ctxt.Syms.Lookup(".got", 0))
+ 
+ 			sh = elfshname(".got.plt")
+ 			sh.type_ = SHT_PROGBITS
+ 			sh.flags = SHF_ALLOC + SHF_WRITE
+-			sh.entsize = uint64(SysArch.RegSize)
+-			sh.addralign = uint64(SysArch.RegSize)
++			sh.entsize = uint64(ctxt.Arch.RegSize)
++			sh.addralign = uint64(ctxt.Arch.RegSize)
+ 			shsym(sh, ctxt.Syms.Lookup(".got.plt", 0))
+ 		}
+ 
+@@ -2485,7 +2485,7 @@ func Asmbelf(ctxt *Link, symo int64) {
+ 		sh.type_ = SHT_HASH
+ 		sh.flags = SHF_ALLOC
+ 		sh.entsize = 4
+-		sh.addralign = uint64(SysArch.RegSize)
++		sh.addralign = uint64(ctxt.Arch.RegSize)
+ 		sh.link = uint32(elfshname(".dynsym").shnum)
+ 		shsym(sh, ctxt.Syms.Lookup(".hash", 0))
+ 
+@@ -2494,8 +2494,8 @@ func Asmbelf(ctxt *Link, symo int64) {
+ 
+ 		sh.type_ = SHT_DYNAMIC
+ 		sh.flags = SHF_ALLOC + SHF_WRITE
+-		sh.entsize = 2 * uint64(SysArch.RegSize)
+-		sh.addralign = uint64(SysArch.RegSize)
++		sh.entsize = 2 * uint64(ctxt.Arch.RegSize)
++		sh.addralign = uint64(ctxt.Arch.RegSize)
+ 		sh.link = uint32(elfshname(".dynstr").shnum)
+ 		shsym(sh, ctxt.Syms.Lookup(".dynamic", 0))
+ 		ph := newElfPhdr()
+@@ -2517,7 +2517,7 @@ func Asmbelf(ctxt *Link, symo int64) {
+ 			ph.type_ = PT_TLS
+ 			ph.flags = PF_R
+ 			ph.memsz = tlssize
+-			ph.align = uint64(SysArch.RegSize)
++			ph.align = uint64(ctxt.Arch.RegSize)
+ 		}
+ 	}
+ 
+@@ -2525,12 +2525,12 @@ func Asmbelf(ctxt *Link, symo int64) {
+ 		ph := newElfPhdr()
+ 		ph.type_ = PT_GNU_STACK
+ 		ph.flags = PF_W + PF_R
+-		ph.align = uint64(SysArch.RegSize)
++		ph.align = uint64(ctxt.Arch.RegSize)
+ 
+ 		ph = newElfPhdr()
+ 		ph.type_ = PT_PAX_FLAGS
+ 		ph.flags = 0x2a00 // mprotect, randexec, emutramp disabled
+-		ph.align = uint64(SysArch.RegSize)
++		ph.align = uint64(ctxt.Arch.RegSize)
+ 	} else if Headtype == objabi.Hsolaris {
+ 		ph := newElfPhdr()
+ 		ph.type_ = PT_SUNWSTACK
+@@ -2568,20 +2568,20 @@ elfobj:
+ 
+ 	if Linkmode == LinkExternal {
+ 		for _, sect := range Segtext.Sections {
+-			elfshreloc(sect)
++			elfshreloc(ctxt.Arch, sect)
+ 		}
+ 		for _, sect := range Segrodata.Sections {
+-			elfshreloc(sect)
++			elfshreloc(ctxt.Arch, sect)
+ 		}
+ 		for _, sect := range Segrelrodata.Sections {
+-			elfshreloc(sect)
++			elfshreloc(ctxt.Arch, sect)
+ 		}
+ 		for _, sect := range Segdata.Sections {
+-			elfshreloc(sect)
++			elfshreloc(ctxt.Arch, sect)
+ 		}
+ 		for _, s := range dwarfp {
+ 			if len(s.R) > 0 || s.Type == SDWARFINFO || s.Type == SDWARFLOC {
+-				elfshreloc(s.Sect)
++				elfshreloc(ctxt.Arch, s.Sect)
+ 			}
+ 		}
+ 		// add a .note.GNU-stack section to mark the stack as non-executable
+@@ -2597,8 +2597,8 @@ elfobj:
+ 		sh.type_ = SHT_SYMTAB
+ 		sh.off = uint64(symo)
+ 		sh.size = uint64(Symsize)
+-		sh.addralign = uint64(SysArch.RegSize)
+-		sh.entsize = 8 + 2*uint64(SysArch.RegSize)
++		sh.addralign = uint64(ctxt.Arch.RegSize)
++		sh.entsize = 8 + 2*uint64(ctxt.Arch.RegSize)
+ 		sh.link = uint32(elfshname(".strtab").shnum)
+ 		sh.info = uint32(elfglobalsymndx)
+ 
+@@ -2723,7 +2723,7 @@ func elfadddynsym(ctxt *Link, s *Symbol) {
+ 		/* size of object */
+ 		Adduint64(ctxt, d, uint64(s.Size))
+ 
+-		if SysArch.Family == sys.AMD64 && !s.Attr.CgoExportDynamic() && s.Dynimplib != "" && !seenlib[s.Dynimplib] {
++		if ctxt.Arch.Family == sys.AMD64 && !s.Attr.CgoExportDynamic() && s.Dynimplib != "" && !seenlib[s.Dynimplib] {
+ 			Elfwritedynent(ctxt, ctxt.Syms.Lookup(".dynamic", 0), DT_NEEDED, uint64(Addstring(ctxt.Syms.Lookup(".dynstr", 0), s.Dynimplib)))
+ 		}
+ 	} else {
+@@ -2751,9 +2751,9 @@ func elfadddynsym(ctxt *Link, s *Symbol) {
+ 		t := STB_GLOBAL << 4
+ 
+ 		// TODO(mwhudson): presumably the behavior should actually be the same on both arm and 386.
+-		if SysArch.Family == sys.I386 && s.Attr.CgoExport() && s.Type&SMASK == STEXT {
++		if ctxt.Arch.Family == sys.I386 && s.Attr.CgoExport() && s.Type&SMASK == STEXT {
+ 			t |= STT_FUNC
+-		} else if SysArch.Family == sys.ARM && s.Attr.CgoExportDynamic() && s.Type&SMASK == STEXT {
++		} else if ctxt.Arch.Family == sys.ARM && s.Attr.CgoExportDynamic() && s.Type&SMASK == STEXT {
+ 			t |= STT_FUNC
+ 		} else {
+ 			t |= STT_OBJECT
+diff --git a/src/cmd/link/internal/ld/ldelf.go b/src/cmd/link/internal/ld/ldelf.go
+index 419113f76d..148e152eeb 100644
+--- a/src/cmd/link/internal/ld/ldelf.go
++++ b/src/cmd/link/internal/ld/ldelf.go
+@@ -528,9 +528,9 @@ func ldelf(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
+ 		return
+ 	}
+ 
+-	switch SysArch.Family {
++	switch ctxt.Arch.Family {
+ 	default:
+-		Errorf(nil, "%s: elf %s unimplemented", pn, SysArch.Name)
++		Errorf(nil, "%s: elf %s unimplemented", pn, ctxt.Arch.Name)
+ 		return
+ 
+ 	case sys.MIPS:
+@@ -1051,7 +1051,7 @@ func readelfsym(ctxt *Link, elfobj *ElfObj, i int, sym *ElfSym, needSym int, loc
+ 			}
+ 
+ 		case ElfSymBindLocal:
+-			if SysArch.Family == sys.ARM && (strings.HasPrefix(sym.name, "$a") || strings.HasPrefix(sym.name, "$d")) {
++			if ctxt.Arch.Family == sys.ARM && (strings.HasPrefix(sym.name, "$a") || strings.HasPrefix(sym.name, "$d")) {
+ 				// binutils for arm generate these mapping
+ 				// symbols, ignore these
+ 				break
+@@ -1134,7 +1134,7 @@ func relSize(ctxt *Link, pn string, elftype uint32) uint8 {
+ 		S390X = uint32(sys.S390X)
+ 	)
+ 
+-	switch uint32(SysArch.Family) | elftype<<24 {
++	switch uint32(ctxt.Arch.Family) | elftype<<24 {
+ 	default:
+ 		Errorf(nil, "%s: unknown relocation type %d; compiled without -fpic?", pn, elftype)
+ 		fallthrough
+diff --git a/src/cmd/link/internal/ld/ldmacho.go b/src/cmd/link/internal/ld/ldmacho.go
+index 89556c6b1f..272161d482 100644
+--- a/src/cmd/link/internal/ld/ldmacho.go
++++ b/src/cmd/link/internal/ld/ldmacho.go
+@@ -480,9 +480,9 @@ func ldmacho(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
+ 	m.length = length
+ 	m.name = pn
+ 
+-	switch SysArch.Family {
++	switch ctxt.Arch.Family {
+ 	default:
+-		Errorf(nil, "%s: mach-o %s unimplemented", pn, SysArch.Name)
++		Errorf(nil, "%s: mach-o %s unimplemented", pn, ctxt.Arch.Name)
+ 		return
+ 
+ 	case sys.AMD64:
+@@ -731,7 +731,7 @@ func ldmacho(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
+ 			rp = &r[rpi]
+ 			rel = &sect.rel[j]
+ 			if rel.scattered != 0 {
+-				if SysArch.Family != sys.I386 {
++				if ctxt.Arch.Family != sys.I386 {
+ 					// mach-o only uses scattered relocation on 32-bit platforms
+ 					Errorf(s, "unexpected scattered relocation")
+ 					continue
+@@ -827,7 +827,7 @@ func ldmacho(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
+ 			rp.Off = int32(rel.addr)
+ 
+ 			// Handle X86_64_RELOC_SIGNED referencing a section (rel->extrn == 0).
+-			if SysArch.Family == sys.AMD64 && rel.extrn == 0 && rel.type_ == MACHO_X86_64_RELOC_SIGNED {
++			if ctxt.Arch.Family == sys.AMD64 && rel.extrn == 0 && rel.type_ == MACHO_X86_64_RELOC_SIGNED {
+ 				// Calculate the addend as the offset into the section.
+ 				//
+ 				// The rip-relative offset stored in the object file is encoded
+@@ -852,7 +852,7 @@ func ldmacho(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
+ 
+ 			// An unsigned internal relocation has a value offset
+ 			// by the section address.
+-			if SysArch.Family == sys.AMD64 && rel.extrn == 0 && rel.type_ == MACHO_X86_64_RELOC_UNSIGNED {
++			if ctxt.Arch.Family == sys.AMD64 && rel.extrn == 0 && rel.type_ == MACHO_X86_64_RELOC_UNSIGNED {
+ 				secaddr = c.seg.sect[rel.symnum-1].addr
+ 				rp.Add -= int64(secaddr)
+ 			}
+@@ -860,7 +860,7 @@ func ldmacho(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
+ 			// For i386 Mach-O PC-relative, the addend is written such that
+ 			// it *is* the PC being subtracted. Use that to make
+ 			// it match our version of PC-relative.
+-			if rel.pcrel != 0 && SysArch.Family == sys.I386 {
++			if rel.pcrel != 0 && ctxt.Arch.Family == sys.I386 {
+ 				rp.Add += int64(rp.Off) + int64(rp.Siz)
+ 			}
+ 			if rel.extrn == 0 {
+@@ -879,7 +879,7 @@ func ldmacho(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
+ 				// include that information in the addend.
+ 				// We only care about the delta from the
+ 				// section base.
+-				if SysArch.Family == sys.I386 {
++				if ctxt.Arch.Family == sys.I386 {
+ 					rp.Add -= int64(c.seg.sect[rel.symnum-1].addr)
+ 				}
+ 			} else {
+diff --git a/src/cmd/link/internal/ld/ldpe.go b/src/cmd/link/internal/ld/ldpe.go
+index 14f56d4b3c..a74b46655f 100644
+--- a/src/cmd/link/internal/ld/ldpe.go
++++ b/src/cmd/link/internal/ld/ldpe.go
+@@ -404,7 +404,7 @@ func readpesym(ctxt *Link, f *pe.File, sym *pe.COFFSymbol, sectsyms map[*pe.Sect
+ 		if strings.HasPrefix(name, "__imp_") {
+ 			name = name[6:] // __imp_Name => Name
+ 		}
+-		if SysArch.Family == sys.I386 && name[0] == '_' {
++		if ctxt.Arch.Family == sys.I386 && name[0] == '_' {
+ 			name = name[1:] // _Name => Name
+ 		}
+ 	}
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 2f9057f66e..d72905058d 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -105,8 +105,8 @@ type Arch struct {
+ 	Elfreloc1        func(*Link, *Reloc, int64) bool
+ 	Elfsetupplt      func(*Link)
+ 	Gentext          func(*Link)
+-	Machoreloc1      func(*Symbol, *Reloc, int64) bool
+-	PEreloc1         func(*Symbol, *Reloc, int64) bool
++	Machoreloc1      func(*sys.Arch, *Symbol, *Reloc, int64) bool
++	PEreloc1         func(*sys.Arch, *Symbol, *Reloc, int64) bool
+ 	Wput             func(uint16)
+ 	Lput             func(uint32)
+ 	Vput             func(uint64)
+@@ -188,7 +188,6 @@ func UseRelro() bool {
+ }
+ 
+ var (
+-	SysArch         *sys.Arch
+ 	dynexp          []*Symbol
+ 	dynlib          []string
+ 	ldflag          []string
+@@ -379,7 +378,7 @@ func (ctxt *Link) findLibPathCmd(cmd, libname string) string {
+ 	if *flagExtld == "" {
+ 		*flagExtld = "gcc"
+ 	}
+-	args := hostlinkArchArgs()
++	args := hostlinkArchArgs(ctxt.Arch)
+ 	args = append(args, cmd)
+ 	if ctxt.Debugvlog != 0 {
+ 		ctxt.Logf("%s %v\n", *flagExtld, args)
+@@ -413,7 +412,7 @@ func (ctxt *Link) loadlib() {
+ 	}
+ 
+ 	loadinternal(ctxt, "runtime")
+-	if SysArch.Family == sys.ARM {
++	if ctxt.Arch.Family == sys.ARM {
+ 		loadinternal(ctxt, "math")
+ 	}
+ 	if *flagRace {
+@@ -457,7 +456,7 @@ func (ctxt *Link) loadlib() {
+ 		*FlagTextAddr = 0
+ 	}
+ 
+-	if Linkmode == LinkExternal && SysArch.Family == sys.PPC64 {
++	if Linkmode == LinkExternal && ctxt.Arch.Family == sys.PPC64 {
+ 		toc := ctxt.Syms.Lookup(".TOC.", 0)
+ 		toc.Type = SDYNIMPORT
+ 	}
+@@ -503,7 +502,7 @@ func (ctxt *Link) loadlib() {
+ 	// a variable to hold g in assembly (currently only intel).
+ 	if tlsg.Type == 0 {
+ 		tlsg.Type = STLSBSS
+-		tlsg.Size = int64(SysArch.PtrSize)
++		tlsg.Size = int64(ctxt.Arch.PtrSize)
+ 	} else if tlsg.Type != SDYNIMPORT {
+ 		Errorf(nil, "runtime declared tlsg variable %v", tlsg.Type)
+ 	}
+@@ -527,7 +526,7 @@ func (ctxt *Link) loadlib() {
+ 
+ 		// In addition, on ARM, the runtime depends on the linker
+ 		// recording the value of GOARM.
+-		if SysArch.Family == sys.ARM {
++		if ctxt.Arch.Family == sys.ARM {
+ 			s := ctxt.Syms.Lookup("runtime.goarm", 0)
+ 			s.Type = SRODATA
+ 			s.Size = 0
+@@ -639,7 +638,7 @@ func (ctxt *Link) loadlib() {
+ 		}
+ 	}
+ 
+-	if SysArch == sys.Arch386 {
++	if ctxt.Arch == sys.Arch386 {
+ 		if (Buildmode == BuildmodeCArchive && Iself) || Buildmode == BuildmodeCShared || Buildmode == BuildmodePIE || ctxt.DynlinkingGo() {
+ 			got := ctxt.Syms.Lookup("_GLOBAL_OFFSET_TABLE_", 0)
+ 			got.Type = SDYNIMPORT
+@@ -1082,7 +1081,7 @@ func (l *Link) hostlink() {
+ 
+ 	var argv []string
+ 	argv = append(argv, *flagExtld)
+-	argv = append(argv, hostlinkArchArgs()...)
++	argv = append(argv, hostlinkArchArgs(l.Arch)...)
+ 
+ 	if !*FlagS && !debug_s {
+ 		argv = append(argv, "-gdwarf-2")
+@@ -1100,7 +1099,7 @@ func (l *Link) hostlink() {
+ 		if l.DynlinkingGo() {
+ 			argv = append(argv, "-Wl,-flat_namespace")
+ 		}
+-		if Buildmode == BuildmodeExe && !SysArch.InFamily(sys.ARM64) {
++		if Buildmode == BuildmodeExe && !l.Arch.InFamily(sys.ARM64) {
+ 			argv = append(argv, "-Wl,-no_pie")
+ 		}
+ 	case objabi.Hopenbsd:
+@@ -1129,7 +1128,7 @@ func (l *Link) hostlink() {
+ 	case BuildmodeCShared:
+ 		if Headtype == objabi.Hdarwin {
+ 			argv = append(argv, "-dynamiclib")
+-			if SysArch.Family != sys.AMD64 {
++			if l.Arch.Family != sys.AMD64 {
+ 				argv = append(argv, "-Wl,-read_only_relocs,suppress")
+ 			}
+ 		} else {
+@@ -1169,7 +1168,7 @@ func (l *Link) hostlink() {
+ 		// from the beginning of the section (like STYPE).
+ 		argv = append(argv, "-Wl,-znocopyreloc")
+ 
+-		if SysArch.InFamily(sys.ARM, sys.ARM64) {
++		if l.Arch.InFamily(sys.ARM, sys.ARM64) {
+ 			// On ARM, the GNU linker will generate COPY relocations
+ 			// even with -znocopyreloc set.
+ 			// https://sourceware.org/bugzilla/show_bug.cgi?id=19962
+@@ -1335,7 +1334,7 @@ func (l *Link) hostlink() {
+ 
+ 	if !*FlagS && !*FlagW && !debug_s && Headtype == objabi.Hdarwin {
+ 		// Skip combining dwarf on arm.
+-		if !SysArch.InFamily(sys.ARM, sys.ARM64) {
++		if !l.Arch.InFamily(sys.ARM, sys.ARM64) {
+ 			dsym := filepath.Join(*flagTmpdir, "go.dwarf")
+ 			if out, err := exec.Command("dsymutil", "-f", *flagOutfile, "-o", dsym).CombinedOutput(); err != nil {
+ 				Exitf("%s: running dsymutil failed: %v\n%s", os.Args[0], err, out)
+@@ -1359,8 +1358,8 @@ func (l *Link) hostlink() {
+ 
+ // hostlinkArchArgs returns arguments to pass to the external linker
+ // based on the architecture.
+-func hostlinkArchArgs() []string {
+-	switch SysArch.Family {
++func hostlinkArchArgs(arch *sys.Arch) []string {
++	switch arch.Family {
+ 	case sys.I386:
+ 		return []string{"-m32"}
+ 	case sys.AMD64, sys.PPC64, sys.S390X:
+@@ -1417,7 +1416,7 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *Library, length int64, pn string, fil
+ 			return nil
+ 		}
+ 
+-		if line == SysArch.Name {
++		if line == ctxt.Arch.Name {
+ 			// old header format: just $GOOS
+ 			Errorf(nil, "%s: stale object file", pn)
+ 			return nil
+@@ -1633,12 +1632,12 @@ func ldshlibsyms(ctxt *Link, shlib string) {
+ 			// the type data.
+ 			if strings.HasPrefix(lsym.Name, "type.") && !strings.HasPrefix(lsym.Name, "type..") {
+ 				lsym.P = readelfsymboldata(ctxt, f, &elfsym)
+-				gcdataLocations[elfsym.Value+2*uint64(SysArch.PtrSize)+8+1*uint64(SysArch.PtrSize)] = lsym
++				gcdataLocations[elfsym.Value+2*uint64(ctxt.Arch.PtrSize)+8+1*uint64(ctxt.Arch.PtrSize)] = lsym
+ 			}
+ 		}
+ 	}
+ 	gcdataAddresses := make(map[*Symbol]uint64)
+-	if SysArch.Family == sys.ARM64 {
++	if ctxt.Arch.Family == sys.ARM64 {
+ 		for _, sect := range f.Sections {
+ 			if sect.Type == elf.SHT_RELA {
+ 				var rela elf.Rela64
+@@ -1666,12 +1665,12 @@ func ldshlibsyms(ctxt *Link, shlib string) {
+ 	ctxt.Shlibs = append(ctxt.Shlibs, Shlib{Path: libpath, Hash: hash, Deps: deps, File: f, gcdataAddresses: gcdataAddresses})
+ }
+ 
+-func addsection(seg *Segment, name string, rwx int) *Section {
++func addsection(arch *sys.Arch, seg *Segment, name string, rwx int) *Section {
+ 	sect := new(Section)
+ 	sect.Rwx = uint8(rwx)
+ 	sect.Name = name
+ 	sect.Seg = seg
+-	sect.Align = int32(SysArch.PtrSize) // everything is at least pointer-aligned
++	sect.Align = int32(arch.PtrSize) // everything is at least pointer-aligned
+ 	seg.Sections = append(seg.Sections, sect)
+ 	return sect
+ }
+@@ -1715,7 +1714,7 @@ func callsize(ctxt *Link) int {
+ 	if haslinkregister(ctxt) {
+ 		return 0
+ 	}
+-	return SysArch.RegSize
++	return ctxt.Arch.RegSize
+ }
+ 
+ func (ctxt *Link) dostkcheck() {
+@@ -2077,7 +2076,7 @@ func genasmsym(ctxt *Link, put func(*Link, *Symbol, string, SymbolType, int64, *
+ 			locals = s.FuncInfo.Locals
+ 		}
+ 		// NOTE(ality): acid can't produce a stack trace without .frame symbols
+-		put(ctxt, nil, ".frame", FrameSym, int64(locals)+int64(SysArch.PtrSize), nil)
++		put(ctxt, nil, ".frame", FrameSym, int64(locals)+int64(ctxt.Arch.PtrSize), nil)
+ 
+ 		if s.FuncInfo == nil {
+ 			continue
+@@ -2093,7 +2092,7 @@ func genasmsym(ctxt *Link, put func(*Link, *Symbol, string, SymbolType, int64, *
+ 			if a.Name == objabi.A_PARAM {
+ 				off = a.Aoffset
+ 			} else {
+-				off = a.Aoffset - int32(SysArch.PtrSize)
++				off = a.Aoffset - int32(ctxt.Arch.PtrSize)
+ 			}
+ 
+ 			// FP
+@@ -2103,8 +2102,8 @@ func genasmsym(ctxt *Link, put func(*Link, *Symbol, string, SymbolType, int64, *
+ 			}
+ 
+ 			// SP
+-			if off <= int32(-SysArch.PtrSize) {
+-				put(ctxt, nil, a.Asym.Name, AutoSym, -(int64(off) + int64(SysArch.PtrSize)), a.Gotype)
++			if off <= int32(-ctxt.Arch.PtrSize) {
++				put(ctxt, nil, a.Asym.Name, AutoSym, -(int64(off) + int64(ctxt.Arch.PtrSize)), a.Gotype)
+ 				continue
+ 			}
+ 			// Otherwise, off is addressing the saved program counter.
+diff --git a/src/cmd/link/internal/ld/link.go b/src/cmd/link/internal/ld/link.go
+index 8e09ce9044..0b4f64fedf 100644
+--- a/src/cmd/link/internal/ld/link.go
++++ b/src/cmd/link/internal/ld/link.go
+@@ -331,14 +331,14 @@ const (
+ 	RV_TYPE_MASK      RelocVariant = RV_CHECK_OVERFLOW - 1
+ )
+ 
+-func RelocName(r objabi.RelocType) string {
++func RelocName(arch *sys.Arch, r objabi.RelocType) string {
+ 	// We didn't have some relocation types at Go1.4.
+ 	// Uncomment code when we include those in bootstrap code.
+ 
+ 	switch {
+ 	case r >= 512: // Mach-O
+ 		// nr := (r - 512)>>1
+-		// switch SysArch.Family {
++		// switch ctxt.Arch.Family {
+ 		// case sys.AMD64:
+ 		// 	return macho.RelocTypeX86_64(nr).String()
+ 		// case sys.ARM:
+@@ -352,7 +352,7 @@ func RelocName(r objabi.RelocType) string {
+ 		// }
+ 	case r >= 256: // ELF
+ 		nr := r - 256
+-		switch SysArch.Family {
++		switch arch.Family {
+ 		case sys.AMD64:
+ 			return elf.R_X86_64(nr).String()
+ 		case sys.ARM:
+diff --git a/src/cmd/link/internal/ld/macho.go b/src/cmd/link/internal/ld/macho.go
+index f06cf9c617..87c2d4f89b 100644
+--- a/src/cmd/link/internal/ld/macho.go
++++ b/src/cmd/link/internal/ld/macho.go
+@@ -148,8 +148,6 @@ const (
+ // Mach-O file writing
+ // http://developer.apple.com/mac/library/DOCUMENTATION/DeveloperTools/Conceptual/MachORuntime/Reference/reference.html
+ 
+-var macho64 bool
+-
+ var machohdr MachoHdr
+ 
+ var load []MachoLoad
+@@ -183,16 +181,12 @@ var nsortsym int
+ // up about 1300 bytes; we overestimate that as 2k.
+ var loadBudget int = INITIAL_MACHO_HEADR - 2*1024
+ 
+-func Machoinit() {
+-	macho64 = SysArch.RegSize == 8
+-}
+-
+ func getMachoHdr() *MachoHdr {
+ 	return &machohdr
+ }
+ 
+-func newMachoLoad(type_ uint32, ndata uint32) *MachoLoad {
+-	if macho64 && (ndata&1 != 0) {
++func newMachoLoad(arch *sys.Arch, type_ uint32, ndata uint32) *MachoLoad {
++	if arch.PtrSize == 8 && (ndata&1 != 0) {
+ 		ndata++
+ 	}
+ 
+@@ -235,14 +229,14 @@ var dylib []string
+ 
+ var linkoff int64
+ 
+-func machowrite() int {
++func machowrite(arch *sys.Arch) int {
+ 	o1 := coutbuf.Offset()
+ 
+ 	loadsize := 4 * 4 * ndebug
+ 	for i := 0; i < len(load); i++ {
+ 		loadsize += 4 * (len(load[i].data) + 2)
+ 	}
+-	if macho64 {
++	if arch.PtrSize == 8 {
+ 		loadsize += 18 * 4 * nseg
+ 		loadsize += 20 * 4 * nsect
+ 	} else {
+@@ -250,7 +244,7 @@ func machowrite() int {
+ 		loadsize += 17 * 4 * nsect
+ 	}
+ 
+-	if macho64 {
++	if arch.PtrSize == 8 {
+ 		Thearch.Lput(MH_MAGIC_64)
+ 	} else {
+ 		Thearch.Lput(MH_MAGIC)
+@@ -269,13 +263,13 @@ func machowrite() int {
+ 	} else {
+ 		Thearch.Lput(0) /* flags */
+ 	}
+-	if macho64 {
++	if arch.PtrSize == 8 {
+ 		Thearch.Lput(0) /* reserved */
+ 	}
+ 
+ 	for i := 0; i < nseg; i++ {
+ 		s := &seg[i]
+-		if macho64 {
++		if arch.PtrSize == 8 {
+ 			Thearch.Lput(LC_SEGMENT_64)
+ 			Thearch.Lput(72 + 80*s.nsect)
+ 			strnput(s.name, 16)
+@@ -303,7 +297,7 @@ func machowrite() int {
+ 
+ 		for j := uint32(0); j < s.nsect; j++ {
+ 			t := &s.sect[j]
+-			if macho64 {
++			if arch.PtrSize == 8 {
+ 				strnput(t.name, 16)
+ 				strnput(t.segname, 16)
+ 				Thearch.Vput(t.addr)
+@@ -406,9 +400,9 @@ func machoshbits(ctxt *Link, mseg *MachoSeg, sect *Section, segname string) {
+ 	buf := "__" + strings.Replace(sect.Name[1:], ".", "_", -1)
+ 
+ 	var msect *MachoSect
+-	if sect.Rwx&1 == 0 && segname != "__DWARF" && (SysArch.Family == sys.ARM64 ||
+-		(SysArch.Family == sys.AMD64 && Buildmode != BuildmodeExe) ||
+-		(SysArch.Family == sys.ARM && Buildmode != BuildmodeExe)) {
++	if sect.Rwx&1 == 0 && segname != "__DWARF" && (ctxt.Arch.Family == sys.ARM64 ||
++		(ctxt.Arch.Family == sys.AMD64 && Buildmode != BuildmodeExe) ||
++		(ctxt.Arch.Family == sys.ARM && Buildmode != BuildmodeExe)) {
+ 		// Darwin external linker on arm64 and on amd64 and arm in c-shared/c-archive buildmode
+ 		// complains about absolute relocs in __TEXT, so if the section is not
+ 		// executable, put it in __DATA segment.
+@@ -471,9 +465,9 @@ func Asmbmacho(ctxt *Link) {
+ 	va := *FlagTextAddr - int64(HEADR)
+ 
+ 	mh := getMachoHdr()
+-	switch SysArch.Family {
++	switch ctxt.Arch.Family {
+ 	default:
+-		Exitf("unknown macho architecture: %v", SysArch.Family)
++		Exitf("unknown macho architecture: %v", ctxt.Arch.Family)
+ 
+ 	case sys.ARM:
+ 		mh.cpu = MACHO_CPU_ARM
+@@ -498,7 +492,7 @@ func Asmbmacho(ctxt *Link) {
+ 		ms = newMachoSeg("", 40)
+ 
+ 		ms.fileoffset = Segtext.Fileoff
+-		if SysArch.Family == sys.ARM || Buildmode == BuildmodeCArchive {
++		if ctxt.Arch.Family == sys.ARM || Buildmode == BuildmodeCArchive {
+ 			ms.filesize = Segdata.Fileoff + Segdata.Filelen - Segtext.Fileoff
+ 		} else {
+ 			ms.filesize = Segdwarf.Fileoff + Segdwarf.Filelen - Segtext.Fileoff
+@@ -560,32 +554,32 @@ func Asmbmacho(ctxt *Link) {
+ 	}
+ 
+ 	if Linkmode != LinkExternal {
+-		switch SysArch.Family {
++		switch ctxt.Arch.Family {
+ 		default:
+-			Exitf("unknown macho architecture: %v", SysArch.Family)
++			Exitf("unknown macho architecture: %v", ctxt.Arch.Family)
+ 
+ 		case sys.ARM:
+-			ml := newMachoLoad(LC_UNIXTHREAD, 17+2)
++			ml := newMachoLoad(ctxt.Arch, LC_UNIXTHREAD, 17+2)
+ 			ml.data[0] = 1                           /* thread type */
+ 			ml.data[1] = 17                          /* word count */
+ 			ml.data[2+15] = uint32(Entryvalue(ctxt)) /* start pc */
+ 
+ 		case sys.AMD64:
+-			ml := newMachoLoad(LC_UNIXTHREAD, 42+2)
++			ml := newMachoLoad(ctxt.Arch, LC_UNIXTHREAD, 42+2)
+ 			ml.data[0] = 4                           /* thread type */
+ 			ml.data[1] = 42                          /* word count */
+ 			ml.data[2+32] = uint32(Entryvalue(ctxt)) /* start pc */
+ 			ml.data[2+32+1] = uint32(Entryvalue(ctxt) >> 32)
+ 
+ 		case sys.ARM64:
+-			ml := newMachoLoad(LC_UNIXTHREAD, 68+2)
++			ml := newMachoLoad(ctxt.Arch, LC_UNIXTHREAD, 68+2)
+ 			ml.data[0] = 6                           /* thread type */
+ 			ml.data[1] = 68                          /* word count */
+ 			ml.data[2+64] = uint32(Entryvalue(ctxt)) /* start pc */
+ 			ml.data[2+64+1] = uint32(Entryvalue(ctxt) >> 32)
+ 
+ 		case sys.I386:
+-			ml := newMachoLoad(LC_UNIXTHREAD, 16+2)
++			ml := newMachoLoad(ctxt.Arch, LC_UNIXTHREAD, 16+2)
+ 			ml.data[0] = 1                           /* thread type */
+ 			ml.data[1] = 16                          /* word count */
+ 			ml.data[2+10] = uint32(Entryvalue(ctxt)) /* start pc */
+@@ -609,7 +603,7 @@ func Asmbmacho(ctxt *Link) {
+ 			ms.prot2 = 3
+ 		}
+ 
+-		ml := newMachoLoad(LC_SYMTAB, 4)
++		ml := newMachoLoad(ctxt.Arch, LC_SYMTAB, 4)
+ 		ml.data[0] = uint32(linkoff)                               /* symoff */
+ 		ml.data[1] = uint32(nsortsym)                              /* nsyms */
+ 		ml.data[2] = uint32(linkoff + s1.Size + s2.Size + s3.Size) /* stroff */
+@@ -618,12 +612,12 @@ func Asmbmacho(ctxt *Link) {
+ 		machodysymtab(ctxt)
+ 
+ 		if Linkmode != LinkExternal {
+-			ml := newMachoLoad(LC_LOAD_DYLINKER, 6)
++			ml := newMachoLoad(ctxt.Arch, LC_LOAD_DYLINKER, 6)
+ 			ml.data[0] = 12 /* offset to string */
+ 			stringtouint32(ml.data[1:], "/usr/lib/dyld")
+ 
+ 			for i := 0; i < len(dylib); i++ {
+-				ml = newMachoLoad(LC_LOAD_DYLIB, 4+(uint32(len(dylib[i]))+1+7)/8*2)
++				ml = newMachoLoad(ctxt.Arch, LC_LOAD_DYLIB, 4+(uint32(len(dylib[i]))+1+7)/8*2)
+ 				ml.data[0] = 24 /* offset of string from beginning of load */
+ 				ml.data[1] = 0  /* time stamp */
+ 				ml.data[2] = 0  /* version */
+@@ -642,12 +636,12 @@ func Asmbmacho(ctxt *Link) {
+ 		// and we can assume OS X.
+ 		//
+ 		// See golang.org/issues/12941.
+-		ml := newMachoLoad(LC_VERSION_MIN_MACOSX, 2)
++		ml := newMachoLoad(ctxt.Arch, LC_VERSION_MIN_MACOSX, 2)
+ 		ml.data[0] = 10<<16 | 7<<8 | 0<<0 // OS X version 10.7.0
+ 		ml.data[1] = 10<<16 | 7<<8 | 0<<0 // SDK 10.7.0
+ 	}
+ 
+-	a := machowrite()
++	a := machowrite(ctxt.Arch)
+ 	if int32(a) > HEADR {
+ 		Exitf("HEADR too small: %d > %d", a, HEADR)
+ 	}
+@@ -787,10 +781,10 @@ func machosymtab(ctxt *Link) {
+ 		Addstring(symstr, strings.Replace(s.Extname, "·", ".", -1))
+ 
+ 		if s.Type == SDYNIMPORT || s.Type == SHOSTOBJ {
+-			Adduint8(ctxt, symtab, 0x01)                // type N_EXT, external symbol
+-			Adduint8(ctxt, symtab, 0)                   // no section
+-			Adduint16(ctxt, symtab, 0)                  // desc
+-			adduintxx(ctxt, symtab, 0, SysArch.PtrSize) // no value
++			Adduint8(ctxt, symtab, 0x01)                  // type N_EXT, external symbol
++			Adduint8(ctxt, symtab, 0)                     // no section
++			Adduint16(ctxt, symtab, 0)                    // desc
++			adduintxx(ctxt, symtab, 0, ctxt.Arch.PtrSize) // no value
+ 		} else {
+ 			if s.Attr.CgoExport() || export {
+ 				Adduint8(ctxt, symtab, 0x0f)
+@@ -808,13 +802,13 @@ func machosymtab(ctxt *Link) {
+ 				Adduint8(ctxt, symtab, uint8(o.Sect.Extnum))
+ 			}
+ 			Adduint16(ctxt, symtab, 0) // desc
+-			adduintxx(ctxt, symtab, uint64(Symaddr(s)), SysArch.PtrSize)
++			adduintxx(ctxt, symtab, uint64(Symaddr(s)), ctxt.Arch.PtrSize)
+ 		}
+ 	}
+ }
+ 
+ func machodysymtab(ctxt *Link) {
+-	ml := newMachoLoad(LC_DYSYMTAB, 18)
++	ml := newMachoLoad(ctxt.Arch, LC_DYSYMTAB, 18)
+ 
+ 	n := 0
+ 	ml.data[0] = uint32(n)                   /* ilocalsym */
+@@ -930,10 +924,10 @@ func machorelocsect(ctxt *Link, sect *Section, syms []*Symbol) {
+ 				continue
+ 			}
+ 			if !r.Xsym.Attr.Reachable() {
+-				Errorf(sym, "unreachable reloc %d (%s) target %v", r.Type, RelocName(r.Type), r.Xsym.Name)
++				Errorf(sym, "unreachable reloc %d (%s) target %v", r.Type, RelocName(ctxt.Arch, r.Type), r.Xsym.Name)
+ 			}
+-			if !Thearch.Machoreloc1(sym, r, int64(uint64(sym.Value+int64(r.Off))-sect.Vaddr)) {
+-				Errorf(sym, "unsupported obj reloc %d (%s)/%d to %s", r.Type, RelocName(r.Type), r.Siz, r.Sym.Name)
++			if !Thearch.Machoreloc1(ctxt.Arch, sym, r, int64(uint64(sym.Value+int64(r.Off))-sect.Vaddr)) {
++				Errorf(sym, "unsupported obj reloc %d (%s)/%d to %s", r.Type, RelocName(ctxt.Arch, r.Type), r.Siz, r.Sym.Name)
+ 			}
+ 		}
+ 	}
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index f03460d2b4..bb10fb388e 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -100,8 +100,9 @@ var (
+ )
+ 
+ // Main is the main entry point for the linker code.
+-func Main() {
+-	ctxt := linknew(SysArch)
++func Main(arch *sys.Arch, theArch Arch) {
++	Thearch = theArch
++	ctxt := linknew(arch)
+ 	ctxt.Bso = bufio.NewWriter(os.Stdout)
+ 
+ 	// For testing behavior of go command when tools crash silently.
+@@ -114,7 +115,7 @@ func Main() {
+ 	}
+ 
+ 	// TODO(matloob): define these above and then check flag values here
+-	if SysArch.Family == sys.AMD64 && objabi.GOOS == "plan9" {
++	if ctxt.Arch.Family == sys.AMD64 && objabi.GOOS == "plan9" {
+ 		flag.BoolVar(&Flag8, "8", false, "use 64-bit addresses in symbol table")
+ 	}
+ 	objabi.Flagfn1("B", "add an ELF NT_GNU_BUILD_ID `note` when using ELF", addbuildinfo)
+diff --git a/src/cmd/link/internal/ld/pcln.go b/src/cmd/link/internal/ld/pcln.go
+index b21ffe8bed..a32b235fa0 100644
+--- a/src/cmd/link/internal/ld/pcln.go
++++ b/src/cmd/link/internal/ld/pcln.go
+@@ -226,12 +226,12 @@ func (ctxt *Link) pclntab() {
+ 	}
+ 
+ 	pclntabNfunc = nfunc
+-	Symgrow(ftab, 8+int64(SysArch.PtrSize)+int64(nfunc)*2*int64(SysArch.PtrSize)+int64(SysArch.PtrSize)+4)
++	Symgrow(ftab, 8+int64(ctxt.Arch.PtrSize)+int64(nfunc)*2*int64(ctxt.Arch.PtrSize)+int64(ctxt.Arch.PtrSize)+4)
+ 	setuint32(ctxt, ftab, 0, 0xfffffffb)
+-	setuint8(ctxt, ftab, 6, uint8(SysArch.MinLC))
+-	setuint8(ctxt, ftab, 7, uint8(SysArch.PtrSize))
++	setuint8(ctxt, ftab, 6, uint8(ctxt.Arch.MinLC))
++	setuint8(ctxt, ftab, 7, uint8(ctxt.Arch.PtrSize))
+ 	setuint(ctxt, ftab, 8, uint64(nfunc))
+-	pclntabPclntabOffset = int32(8 + SysArch.PtrSize)
++	pclntabPclntabOffset = int32(8 + ctxt.Arch.PtrSize)
+ 
+ 	funcnameoff := make(map[string]int32)
+ 	nameToOffset := func(name string) int32 {
+@@ -279,10 +279,10 @@ func (ctxt *Link) pclntab() {
+ 		}
+ 
+ 		funcstart := int32(len(ftab.P))
+-		funcstart += int32(-len(ftab.P)) & (int32(SysArch.PtrSize) - 1)
++		funcstart += int32(-len(ftab.P)) & (int32(ctxt.Arch.PtrSize) - 1)
+ 
+-		setaddr(ctxt, ftab, 8+int64(SysArch.PtrSize)+int64(nfunc)*2*int64(SysArch.PtrSize), s)
+-		setuint(ctxt, ftab, 8+int64(SysArch.PtrSize)+int64(nfunc)*2*int64(SysArch.PtrSize)+int64(SysArch.PtrSize), uint64(funcstart))
++		setaddr(ctxt, ftab, 8+int64(ctxt.Arch.PtrSize)+int64(nfunc)*2*int64(ctxt.Arch.PtrSize), s)
++		setuint(ctxt, ftab, 8+int64(ctxt.Arch.PtrSize)+int64(nfunc)*2*int64(ctxt.Arch.PtrSize)+int64(ctxt.Arch.PtrSize), uint64(funcstart))
+ 
+ 		// Write runtime._func. Keep in sync with ../../../../runtime/runtime2.go:/_func
+ 		// and package debug/gosym.
+@@ -290,8 +290,8 @@ func (ctxt *Link) pclntab() {
+ 		// fixed size of struct, checked below
+ 		off := funcstart
+ 
+-		end := funcstart + int32(SysArch.PtrSize) + 3*4 + 5*4 + int32(len(pcln.Pcdata))*4 + int32(len(pcln.Funcdata))*int32(SysArch.PtrSize)
+-		if len(pcln.Funcdata) > 0 && (end&int32(SysArch.PtrSize-1) != 0) {
++		end := funcstart + int32(ctxt.Arch.PtrSize) + 3*4 + 5*4 + int32(len(pcln.Pcdata))*4 + int32(len(pcln.Funcdata))*int32(ctxt.Arch.PtrSize)
++		if len(pcln.Funcdata) > 0 && (end&int32(ctxt.Arch.PtrSize-1) != 0) {
+ 			end += 4
+ 		}
+ 		Symgrow(ftab, int64(end))
+@@ -370,25 +370,25 @@ func (ctxt *Link) pclntab() {
+ 		// funcdata, must be pointer-aligned and we're only int32-aligned.
+ 		// Missing funcdata will be 0 (nil pointer).
+ 		if len(pcln.Funcdata) > 0 {
+-			if off&int32(SysArch.PtrSize-1) != 0 {
++			if off&int32(ctxt.Arch.PtrSize-1) != 0 {
+ 				off += 4
+ 			}
+ 			for i := 0; i < len(pcln.Funcdata); i++ {
+ 				if pcln.Funcdata[i] == nil {
+-					setuint(ctxt, ftab, int64(off)+int64(SysArch.PtrSize)*int64(i), uint64(pcln.Funcdataoff[i]))
++					setuint(ctxt, ftab, int64(off)+int64(ctxt.Arch.PtrSize)*int64(i), uint64(pcln.Funcdataoff[i]))
+ 				} else {
+ 					// TODO: Dedup.
+ 					funcdataBytes += pcln.Funcdata[i].Size
+ 
+-					setaddrplus(ctxt, ftab, int64(off)+int64(SysArch.PtrSize)*int64(i), pcln.Funcdata[i], pcln.Funcdataoff[i])
++					setaddrplus(ctxt, ftab, int64(off)+int64(ctxt.Arch.PtrSize)*int64(i), pcln.Funcdata[i], pcln.Funcdataoff[i])
+ 				}
+ 			}
+ 
+-			off += int32(len(pcln.Funcdata)) * int32(SysArch.PtrSize)
++			off += int32(len(pcln.Funcdata)) * int32(ctxt.Arch.PtrSize)
+ 		}
+ 
+ 		if off != end {
+-			Errorf(s, "bad math in functab: funcstart=%d off=%d but end=%d (npcdata=%d nfuncdata=%d ptrsize=%d)", funcstart, off, end, len(pcln.Pcdata), len(pcln.Funcdata), SysArch.PtrSize)
++			Errorf(s, "bad math in functab: funcstart=%d off=%d but end=%d (npcdata=%d nfuncdata=%d ptrsize=%d)", funcstart, off, end, len(pcln.Pcdata), len(pcln.Funcdata), ctxt.Arch.PtrSize)
+ 			errorexit()
+ 		}
+ 
+@@ -397,14 +397,14 @@ func (ctxt *Link) pclntab() {
+ 
+ 	pclntabLastFunc = last
+ 	// Final entry of table is just end pc.
+-	setaddrplus(ctxt, ftab, 8+int64(SysArch.PtrSize)+int64(nfunc)*2*int64(SysArch.PtrSize), last, last.Size)
++	setaddrplus(ctxt, ftab, 8+int64(ctxt.Arch.PtrSize)+int64(nfunc)*2*int64(ctxt.Arch.PtrSize), last, last.Size)
+ 
+ 	// Start file table.
+ 	start := int32(len(ftab.P))
+ 
+-	start += int32(-len(ftab.P)) & (int32(SysArch.PtrSize) - 1)
++	start += int32(-len(ftab.P)) & (int32(ctxt.Arch.PtrSize) - 1)
+ 	pclntabFiletabOffset = start
+-	setuint32(ctxt, ftab, 8+int64(SysArch.PtrSize)+int64(nfunc)*2*int64(SysArch.PtrSize)+int64(SysArch.PtrSize), uint32(start))
++	setuint32(ctxt, ftab, 8+int64(ctxt.Arch.PtrSize)+int64(nfunc)*2*int64(ctxt.Arch.PtrSize)+int64(ctxt.Arch.PtrSize), uint32(start))
+ 
+ 	Symgrow(ftab, int64(start)+(int64(len(ctxt.Filesyms))+1)*4)
+ 	setuint32(ctxt, ftab, int64(start), uint32(len(ctxt.Filesyms)+1))
+diff --git a/src/cmd/link/internal/ld/pe.go b/src/cmd/link/internal/ld/pe.go
+index 347d02d07f..78661fb4ea 100644
+--- a/src/cmd/link/internal/ld/pe.go
++++ b/src/cmd/link/internal/ld/pe.go
+@@ -517,7 +517,7 @@ func (f *peFile) emitRelocations(ctxt *Link) {
+ 				if r.Xsym.Dynid < 0 {
+ 					Errorf(sym, "reloc %d to non-coff symbol %s (outer=%s) %d", r.Type, r.Sym.Name, r.Xsym.Name, r.Sym.Type)
+ 				}
+-				if !Thearch.PEreloc1(sym, r, int64(uint64(sym.Value+int64(r.Off))-base)) {
++				if !Thearch.PEreloc1(ctxt.Arch, sym, r, int64(uint64(sym.Value+int64(r.Off))-base)) {
+ 					Errorf(sym, "unsupported obj reloc %d/%d to %s", r.Type, r.Siz, r.Sym.Name)
+ 				}
+ 				relocs++
+@@ -636,7 +636,7 @@ func (f *peFile) writeSymbols(ctxt *Link) {
+ 		}
+ 
+ 		// Only windows/386 requires underscore prefix on external symbols.
+-		if SysArch.Family == sys.I386 &&
++		if ctxt.Arch.Family == sys.I386 &&
+ 			Linkmode == LinkExternal &&
+ 			(s.Type == SHOSTOBJ || s.Attr.CgoExport()) {
+ 			s.Name = "_" + s.Name
+@@ -705,12 +705,12 @@ func (f *peFile) writeSymbolTableAndStringTable(ctxt *Link) {
+ }
+ 
+ // writeFileHeader writes COFF file header for peFile f.
+-func (f *peFile) writeFileHeader() {
++func (f *peFile) writeFileHeader(arch *sys.Arch) {
+ 	var fh pe.FileHeader
+ 
+-	switch SysArch.Family {
++	switch arch.Family {
+ 	default:
+-		Exitf("unknown PE architecture: %v", SysArch.Family)
++		Exitf("unknown PE architecture: %v", arch.Family)
+ 	case sys.AMD64:
+ 		fh.Machine = IMAGE_FILE_MACHINE_AMD64
+ 	case sys.I386:
+@@ -865,7 +865,7 @@ var pefile peFile
+ func Peinit(ctxt *Link) {
+ 	var l int
+ 
+-	switch SysArch.Family {
++	switch ctxt.Arch.Family {
+ 	// 64-bit architectures
+ 	case sys.AMD64:
+ 		pe64 = 1
+@@ -923,7 +923,7 @@ func pewrite(ctxt *Link) {
+ 		strnput("PE", 4)
+ 	}
+ 
+-	pefile.writeFileHeader()
++	pefile.writeFileHeader(ctxt.Arch)
+ 
+ 	pefile.writeOptionalHeader(ctxt)
+ 
+@@ -976,7 +976,7 @@ func initdynimport(ctxt *Link) *Dll {
+ 			if err != nil {
+ 				Errorf(s, "failed to parse stdcall decoration: %v", err)
+ 			}
+-			m.argsize *= SysArch.PtrSize
++			m.argsize *= ctxt.Arch.PtrSize
+ 			s.Extname = s.Extname[:i]
+ 		}
+ 
+@@ -990,10 +990,10 @@ func initdynimport(ctxt *Link) *Dll {
+ 		for d := dr; d != nil; d = d.next {
+ 			for m = d.ms; m != nil; m = m.next {
+ 				m.s.Type = SDATA
+-				Symgrow(m.s, int64(SysArch.PtrSize))
++				Symgrow(m.s, int64(ctxt.Arch.PtrSize))
+ 				dynName := m.s.Extname
+ 				// only windows/386 requires stdcall decoration
+-				if SysArch.Family == sys.I386 && m.argsize >= 0 {
++				if ctxt.Arch.Family == sys.I386 && m.argsize >= 0 {
+ 					dynName += fmt.Sprintf("@%d", m.argsize)
+ 				}
+ 				dynSym := ctxt.Syms.Lookup(dynName, 0)
+@@ -1002,7 +1002,7 @@ func initdynimport(ctxt *Link) *Dll {
+ 				r := Addrel(m.s)
+ 				r.Sym = dynSym
+ 				r.Off = 0
+-				r.Siz = uint8(SysArch.PtrSize)
++				r.Siz = uint8(ctxt.Arch.PtrSize)
+ 				r.Type = objabi.R_ADDR
+ 			}
+ 		}
+@@ -1016,10 +1016,10 @@ func initdynimport(ctxt *Link) *Dll {
+ 				m.s.Sub = dynamic.Sub
+ 				dynamic.Sub = m.s
+ 				m.s.Value = dynamic.Size
+-				dynamic.Size += int64(SysArch.PtrSize)
++				dynamic.Size += int64(ctxt.Arch.PtrSize)
+ 			}
+ 
+-			dynamic.Size += int64(SysArch.PtrSize)
++			dynamic.Size += int64(ctxt.Arch.PtrSize)
+ 		}
+ 	}
+ 
+@@ -1285,9 +1285,9 @@ func addpersrc(ctxt *Link) {
+ }
+ 
+ func Asmbpe(ctxt *Link) {
+-	switch SysArch.Family {
++	switch ctxt.Arch.Family {
+ 	default:
+-		Exitf("unknown PE architecture: %v", SysArch.Family)
++		Exitf("unknown PE architecture: %v", ctxt.Arch.Family)
+ 	case sys.AMD64, sys.I386:
+ 	}
+ 
+diff --git a/src/cmd/link/internal/ld/symtab.go b/src/cmd/link/internal/ld/symtab.go
+index 9812fe6053..61f986904b 100644
+--- a/src/cmd/link/internal/ld/symtab.go
++++ b/src/cmd/link/internal/ld/symtab.go
+@@ -147,7 +147,7 @@ func putelfsym(ctxt *Link, x *Symbol, s string, t SymbolType, addr int64, go_ *S
+ 	if x.Type&SHIDDEN != 0 {
+ 		other = STV_HIDDEN
+ 	}
+-	if SysArch.Family == sys.PPC64 && typ == STT_FUNC && x.Attr.Shared() && x.Name != "runtime.duffzero" && x.Name != "runtime.duffcopy" {
++	if ctxt.Arch.Family == sys.PPC64 && typ == STT_FUNC && x.Attr.Shared() && x.Name != "runtime.duffzero" && x.Name != "runtime.duffcopy" {
+ 		// On ppc64 the top three bits of the st_other field indicate how
+ 		// many instructions separate the global and local entry points. In
+ 		// our case it is two instructions, indicated by the value 3.
+@@ -225,7 +225,7 @@ func putplan9sym(ctxt *Link, x *Symbol, s string, typ SymbolType, addr int64, go
+ 
+ 	case AutoSym, ParamSym, FrameSym:
+ 		l := 4
+-		if Headtype == objabi.Hplan9 && SysArch.Family == sys.AMD64 && !Flag8 {
++		if Headtype == objabi.Hplan9 && ctxt.Arch.Family == sys.AMD64 && !Flag8 {
+ 			Lputb(uint32(addr >> 32))
+ 			l = 8
+ 		}
+@@ -313,7 +313,7 @@ func textsectionmap(ctxt *Link) uint32 {
+ 			break
+ 		}
+ 	}
+-	Symgrow(t, 3*nsections*int64(SysArch.PtrSize))
++	Symgrow(t, 3*nsections*int64(ctxt.Arch.PtrSize))
+ 
+ 	off := int64(0)
+ 	n := 0
+diff --git a/src/cmd/link/internal/ld/typelink.go b/src/cmd/link/internal/ld/typelink.go
+index a3badb3b4f..29e497a730 100644
+--- a/src/cmd/link/internal/ld/typelink.go
++++ b/src/cmd/link/internal/ld/typelink.go
+@@ -27,7 +27,7 @@ func (ctxt *Link) typelink() {
+ 	typelinks := byTypeStr{}
+ 	for _, s := range ctxt.Syms.Allsym {
+ 		if s.Attr.Reachable() && s.Attr.MakeTypelink() {
+-			typelinks = append(typelinks, typelinkSortKey{decodetypeStr(s), s})
++			typelinks = append(typelinks, typelinkSortKey{decodetypeStr(ctxt.Arch, s), s})
+ 		}
+ 	}
+ 	sort.Sort(typelinks)
+diff --git a/src/cmd/link/internal/mips/asm.go b/src/cmd/link/internal/mips/asm.go
+index c8e716dc84..8c7f744e70 100644
+--- a/src/cmd/link/internal/mips/asm.go
++++ b/src/cmd/link/internal/mips/asm.go
+@@ -32,6 +32,7 @@ package mips
+ 
+ import (
+ 	"cmd/internal/objabi"
++	"cmd/internal/sys"
+ 	"cmd/link/internal/ld"
+ 	"fmt"
+ 	"log"
+@@ -75,12 +76,12 @@ func elfsetupplt(ctxt *ld.Link) {
+ 	return
+ }
+ 
+-func machoreloc1(s *ld.Symbol, r *ld.Reloc, sectoff int64) bool {
++func machoreloc1(arch *sys.Arch, s *ld.Symbol, r *ld.Reloc, sectoff int64) bool {
+ 	return false
+ }
+ 
+-func applyrel(r *ld.Reloc, s *ld.Symbol, val *int64, t int64) {
+-	o := ld.SysArch.ByteOrder.Uint32(s.P[r.Off:])
++func applyrel(arch *sys.Arch, r *ld.Reloc, s *ld.Symbol, val *int64, t int64) {
++	o := arch.ByteOrder.Uint32(s.P[r.Off:])
+ 	switch r.Type {
+ 	case objabi.R_ADDRMIPS, objabi.R_ADDRMIPSTLS:
+ 		*val = int64(o&0xffff0000 | uint32(t)&0xffff)
+@@ -111,13 +112,13 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) bool {
+ 				ld.Errorf(s, "missing section for %s", rs.Name)
+ 			}
+ 			r.Xsym = rs
+-			applyrel(r, s, val, r.Xadd)
++			applyrel(ctxt.Arch, r, s, val, r.Xadd)
+ 			return true
+ 		case objabi.R_ADDRMIPSTLS, objabi.R_CALLMIPS, objabi.R_JMPMIPS:
+ 			r.Done = false
+ 			r.Xsym = r.Sym
+ 			r.Xadd = r.Add
+-			applyrel(r, s, val, r.Add)
++			applyrel(ctxt.Arch, r, s, val, r.Add)
+ 			return true
+ 		}
+ 	}
+@@ -131,7 +132,7 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) bool {
+ 		return true
+ 	case objabi.R_ADDRMIPS, objabi.R_ADDRMIPSU:
+ 		t := ld.Symaddr(r.Sym) + r.Add
+-		applyrel(r, s, val, t)
++		applyrel(ctxt.Arch, r, s, val, t)
+ 		return true
+ 	case objabi.R_CALLMIPS, objabi.R_JMPMIPS:
+ 		t := ld.Symaddr(r.Sym) + r.Add
+@@ -145,7 +146,7 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) bool {
+ 			ld.Errorf(s, "direct call too far: %s %x", r.Sym.Name, t)
+ 		}
+ 
+-		applyrel(r, s, val, t)
++		applyrel(ctxt.Arch, r, s, val, t)
+ 		return true
+ 	case objabi.R_ADDRMIPSTLS:
+ 		// thread pointer is at 0x7000 offset from the start of TLS data area
+@@ -153,7 +154,7 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) bool {
+ 		if t < -32768 || t >= 32678 {
+ 			ld.Errorf(s, "TLS offset out of range %d", t)
+ 		}
+-		applyrel(r, s, val, t)
++		applyrel(ctxt.Arch, r, s, val, t)
+ 		return true
+ 	}
+ 
+diff --git a/src/cmd/link/internal/mips/obj.go b/src/cmd/link/internal/mips/obj.go
+index 3ba02b794a..0bc7aff546 100644
+--- a/src/cmd/link/internal/mips/obj.go
++++ b/src/cmd/link/internal/mips/obj.go
+@@ -37,53 +37,55 @@ import (
+ 	"fmt"
+ )
+ 
+-// Reading object files.
+-
+-func Init() {
++func Init() (*sys.Arch, ld.Arch) {
++	arch := sys.ArchMIPS
+ 	if objabi.GOARCH == "mipsle" {
+-		ld.SysArch = sys.ArchMIPSLE
+-	} else {
+-		ld.SysArch = sys.ArchMIPS
++		arch = sys.ArchMIPSLE
+ 	}
+ 
+-	ld.Thearch.Funcalign = FuncAlign
+-	ld.Thearch.Maxalign = MaxAlign
+-	ld.Thearch.Minalign = MinAlign
+-	ld.Thearch.Dwarfregsp = DWARFREGSP
+-	ld.Thearch.Dwarfreglr = DWARFREGLR
++	theArch := ld.Arch{
++		Funcalign:  FuncAlign,
++		Maxalign:   MaxAlign,
++		Minalign:   MinAlign,
++		Dwarfregsp: DWARFREGSP,
++		Dwarfreglr: DWARFREGLR,
+ 
+-	ld.Thearch.Adddynrel = adddynrel
+-	ld.Thearch.Archinit = archinit
+-	ld.Thearch.Archreloc = archreloc
+-	ld.Thearch.Archrelocvariant = archrelocvariant
+-	ld.Thearch.Asmb = asmb
+-	ld.Thearch.Elfreloc1 = elfreloc1
+-	ld.Thearch.Elfsetupplt = elfsetupplt
+-	ld.Thearch.Gentext = gentext
+-	ld.Thearch.Machoreloc1 = machoreloc1
+-	if ld.SysArch == sys.ArchMIPSLE {
+-		ld.Thearch.Lput = ld.Lputl
+-		ld.Thearch.Wput = ld.Wputl
+-		ld.Thearch.Vput = ld.Vputl
+-		ld.Thearch.Append16 = ld.Append16l
+-		ld.Thearch.Append32 = ld.Append32l
+-		ld.Thearch.Append64 = ld.Append64l
+-	} else {
+-		ld.Thearch.Lput = ld.Lputb
+-		ld.Thearch.Wput = ld.Wputb
+-		ld.Thearch.Vput = ld.Vputb
+-		ld.Thearch.Append16 = ld.Append16b
+-		ld.Thearch.Append32 = ld.Append32b
+-		ld.Thearch.Append64 = ld.Append64b
++		Adddynrel:        adddynrel,
++		Archinit:         archinit,
++		Archreloc:        archreloc,
++		Archrelocvariant: archrelocvariant,
++		Asmb:             asmb,
++		Elfreloc1:        elfreloc1,
++		Elfsetupplt:      elfsetupplt,
++		Gentext:          gentext,
++		Machoreloc1:      machoreloc1,
++
++		Linuxdynld: "/lib/ld.so.1",
++
++		Freebsddynld:   "XXX",
++		Openbsddynld:   "XXX",
++		Netbsddynld:    "XXX",
++		Dragonflydynld: "XXX",
++		Solarisdynld:   "XXX",
+ 	}
+ 
+-	ld.Thearch.Linuxdynld = "/lib/ld.so.1"
++	if arch == sys.ArchMIPSLE {
++		theArch.Lput = ld.Lputl
++		theArch.Wput = ld.Wputl
++		theArch.Vput = ld.Vputl
++		theArch.Append16 = ld.Append16l
++		theArch.Append32 = ld.Append32l
++		theArch.Append64 = ld.Append64l
++	} else {
++		theArch.Lput = ld.Lputb
++		theArch.Wput = ld.Wputb
++		theArch.Vput = ld.Vputb
++		theArch.Append16 = ld.Append16b
++		theArch.Append32 = ld.Append32b
++		theArch.Append64 = ld.Append64b
++	}
+ 
+-	ld.Thearch.Freebsddynld = "XXX"
+-	ld.Thearch.Openbsddynld = "XXX"
+-	ld.Thearch.Netbsddynld = "XXX"
+-	ld.Thearch.Dragonflydynld = "XXX"
+-	ld.Thearch.Solarisdynld = "XXX"
++	return arch, theArch
+ }
+ 
+ func archinit(ctxt *ld.Link) {
+diff --git a/src/cmd/link/internal/mips64/asm.go b/src/cmd/link/internal/mips64/asm.go
+index c3100331e8..d7a70a84c5 100644
+--- a/src/cmd/link/internal/mips64/asm.go
++++ b/src/cmd/link/internal/mips64/asm.go
+@@ -93,7 +93,7 @@ func elfsetupplt(ctxt *ld.Link) {
+ 	return
+ }
+ 
+-func machoreloc1(s *ld.Symbol, r *ld.Reloc, sectoff int64) bool {
++func machoreloc1(arch *sys.Arch, s *ld.Symbol, r *ld.Reloc, sectoff int64) bool {
+ 	return false
+ }
+ 
+@@ -140,7 +140,7 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) bool {
+ 	case objabi.R_ADDRMIPS,
+ 		objabi.R_ADDRMIPSU:
+ 		t := ld.Symaddr(r.Sym) + r.Add
+-		o1 := ld.SysArch.ByteOrder.Uint32(s.P[r.Off:])
++		o1 := ctxt.Arch.ByteOrder.Uint32(s.P[r.Off:])
+ 		if r.Type == objabi.R_ADDRMIPS {
+ 			*val = int64(o1&0xffff0000 | uint32(t)&0xffff)
+ 		} else {
+@@ -153,14 +153,14 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) bool {
+ 		if t < -32768 || t >= 32678 {
+ 			ld.Errorf(s, "TLS offset out of range %d", t)
+ 		}
+-		o1 := ld.SysArch.ByteOrder.Uint32(s.P[r.Off:])
++		o1 := ctxt.Arch.ByteOrder.Uint32(s.P[r.Off:])
+ 		*val = int64(o1&0xffff0000 | uint32(t)&0xffff)
+ 		return true
+ 	case objabi.R_CALLMIPS,
+ 		objabi.R_JMPMIPS:
+ 		// Low 26 bits = (S + A) >> 2
+ 		t := ld.Symaddr(r.Sym) + r.Add
+-		o1 := ld.SysArch.ByteOrder.Uint32(s.P[r.Off:])
++		o1 := ctxt.Arch.ByteOrder.Uint32(s.P[r.Off:])
+ 		*val = int64(o1&0xfc000000 | uint32(t>>2)&^0xfc000000)
+ 		return true
+ 	}
+@@ -272,7 +272,7 @@ func asmb(ctxt *ld.Link) {
+ 	default:
+ 	case objabi.Hplan9: /* plan 9 */
+ 		magic := uint32(4*18*18 + 7)
+-		if ld.SysArch == sys.ArchMIPS64LE {
++		if ctxt.Arch == sys.ArchMIPS64LE {
+ 			magic = uint32(4*26*26 + 7)
+ 		}
+ 		ld.Thearch.Lput(magic)                      /* magic */
+diff --git a/src/cmd/link/internal/mips64/obj.go b/src/cmd/link/internal/mips64/obj.go
+index 1a24a7eede..e89a5e3841 100644
+--- a/src/cmd/link/internal/mips64/obj.go
++++ b/src/cmd/link/internal/mips64/obj.go
+@@ -37,51 +37,52 @@ import (
+ 	"fmt"
+ )
+ 
+-func Init() {
++func Init() (*sys.Arch, ld.Arch) {
++	arch := sys.ArchMIPS64
+ 	if objabi.GOARCH == "mips64le" {
+-		ld.SysArch = sys.ArchMIPS64LE
+-	} else {
+-		ld.SysArch = sys.ArchMIPS64
++		arch = sys.ArchMIPS64LE
+ 	}
+ 
+-	ld.Thearch.Funcalign = funcAlign
+-	ld.Thearch.Maxalign = maxAlign
+-	ld.Thearch.Minalign = minAlign
+-	ld.Thearch.Dwarfregsp = dwarfRegSP
+-	ld.Thearch.Dwarfreglr = dwarfRegLR
++	theArch := ld.Arch{
++		Funcalign:        funcAlign,
++		Maxalign:         maxAlign,
++		Minalign:         minAlign,
++		Dwarfregsp:       dwarfRegSP,
++		Dwarfreglr:       dwarfRegLR,
++		Adddynrel:        adddynrel,
++		Archinit:         archinit,
++		Archreloc:        archreloc,
++		Archrelocvariant: archrelocvariant,
++		Asmb:             asmb,
++		Elfreloc1:        elfreloc1,
++		Elfsetupplt:      elfsetupplt,
++		Gentext:          gentext,
++		Machoreloc1:      machoreloc1,
+ 
+-	ld.Thearch.Adddynrel = adddynrel
+-	ld.Thearch.Archinit = archinit
+-	ld.Thearch.Archreloc = archreloc
+-	ld.Thearch.Archrelocvariant = archrelocvariant
+-	ld.Thearch.Asmb = asmb
+-	ld.Thearch.Elfreloc1 = elfreloc1
+-	ld.Thearch.Elfsetupplt = elfsetupplt
+-	ld.Thearch.Gentext = gentext
+-	ld.Thearch.Machoreloc1 = machoreloc1
+-	if ld.SysArch == sys.ArchMIPS64LE {
+-		ld.Thearch.Lput = ld.Lputl
+-		ld.Thearch.Wput = ld.Wputl
+-		ld.Thearch.Vput = ld.Vputl
+-		ld.Thearch.Append16 = ld.Append16l
+-		ld.Thearch.Append32 = ld.Append32l
+-		ld.Thearch.Append64 = ld.Append64l
++		Linuxdynld:     "/lib64/ld64.so.1",
++		Freebsddynld:   "XXX",
++		Openbsddynld:   "XXX",
++		Netbsddynld:    "XXX",
++		Dragonflydynld: "XXX",
++		Solarisdynld:   "XXX",
++	}
++	if arch == sys.ArchMIPS64LE {
++		theArch.Lput = ld.Lputl
++		theArch.Wput = ld.Wputl
++		theArch.Vput = ld.Vputl
++		theArch.Append16 = ld.Append16l
++		theArch.Append32 = ld.Append32l
++		theArch.Append64 = ld.Append64l
+ 	} else {
+-		ld.Thearch.Lput = ld.Lputb
+-		ld.Thearch.Wput = ld.Wputb
+-		ld.Thearch.Vput = ld.Vputb
+-		ld.Thearch.Append16 = ld.Append16b
+-		ld.Thearch.Append32 = ld.Append32b
+-		ld.Thearch.Append64 = ld.Append64b
++		theArch.Lput = ld.Lputb
++		theArch.Wput = ld.Wputb
++		theArch.Vput = ld.Vputb
++		theArch.Append16 = ld.Append16b
++		theArch.Append32 = ld.Append32b
++		theArch.Append64 = ld.Append64b
+ 	}
+ 
+-	ld.Thearch.Linuxdynld = "/lib64/ld64.so.1"
+-
+-	ld.Thearch.Freebsddynld = "XXX"
+-	ld.Thearch.Openbsddynld = "XXX"
+-	ld.Thearch.Netbsddynld = "XXX"
+-	ld.Thearch.Dragonflydynld = "XXX"
+-	ld.Thearch.Solarisdynld = "XXX"
++	return arch, theArch
+ }
+ 
+ func archinit(ctxt *ld.Link) {
+diff --git a/src/cmd/link/internal/ppc64/asm.go b/src/cmd/link/internal/ppc64/asm.go
+index 4bec2172df..aead0008a2 100644
+--- a/src/cmd/link/internal/ppc64/asm.go
++++ b/src/cmd/link/internal/ppc64/asm.go
+@@ -32,6 +32,7 @@ package ppc64
+ 
+ import (
+ 	"cmd/internal/objabi"
++	"cmd/internal/sys"
+ 	"cmd/link/internal/ld"
+ 	"encoding/binary"
+ 	"fmt"
+@@ -262,7 +263,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
+ 	switch r.Type {
+ 	default:
+ 		if r.Type >= 256 {
+-			ld.Errorf(s, "unexpected relocation type %d (%s)", r.Type, ld.RelocName(r.Type))
++			ld.Errorf(s, "unexpected relocation type %d (%s)", r.Type, ld.RelocName(ctxt.Arch, r.Type))
+ 			return false
+ 		}
+ 
+@@ -447,7 +448,7 @@ func elfsetupplt(ctxt *ld.Link) {
+ 	}
+ }
+ 
+-func machoreloc1(s *ld.Symbol, r *ld.Reloc, sectoff int64) bool {
++func machoreloc1(arch *sys.Arch, s *ld.Symbol, r *ld.Reloc, sectoff int64) bool {
+ 	return false
+ }
+ 
+@@ -570,7 +571,7 @@ func trampoline(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol) {
+ 					ld.Errorf(s, "unexpected trampoline for shared or dynamic linking\n")
+ 				} else {
+ 					ctxt.AddTramp(tramp)
+-					gentramp(tramp, r.Sym, int64(r.Add))
++					gentramp(ctxt.Arch, tramp, r.Sym, int64(r.Add))
+ 				}
+ 			}
+ 			r.Sym = tramp
+@@ -578,11 +579,11 @@ func trampoline(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol) {
+ 			r.Done = false
+ 		}
+ 	default:
+-		ld.Errorf(s, "trampoline called with non-jump reloc: %d (%s)", r.Type, ld.RelocName(r.Type))
++		ld.Errorf(s, "trampoline called with non-jump reloc: %d (%s)", r.Type, ld.RelocName(ctxt.Arch, r.Type))
+ 	}
+ }
+ 
+-func gentramp(tramp, target *ld.Symbol, offset int64) {
++func gentramp(arch *sys.Arch, tramp, target *ld.Symbol, offset int64) {
+ 	// Used for default build mode for an executable
+ 	// Address of the call target is generated using
+ 	// relocation and doesn't depend on r2 (TOC).
+@@ -612,10 +613,10 @@ func gentramp(tramp, target *ld.Symbol, offset int64) {
+ 	}
+ 	o3 := uint32(0x7fe903a6) // mtctr r31
+ 	o4 := uint32(0x4e800420) // bctr
+-	ld.SysArch.ByteOrder.PutUint32(tramp.P, o1)
+-	ld.SysArch.ByteOrder.PutUint32(tramp.P[4:], o2)
+-	ld.SysArch.ByteOrder.PutUint32(tramp.P[8:], o3)
+-	ld.SysArch.ByteOrder.PutUint32(tramp.P[12:], o4)
++	arch.ByteOrder.PutUint32(tramp.P, o1)
++	arch.ByteOrder.PutUint32(tramp.P[4:], o2)
++	arch.ByteOrder.PutUint32(tramp.P[8:], o3)
++	arch.ByteOrder.PutUint32(tramp.P[12:], o4)
+ }
+ 
+ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) bool {
+diff --git a/src/cmd/link/internal/ppc64/obj.go b/src/cmd/link/internal/ppc64/obj.go
+index 2d11eb5e49..07e8a31a78 100644
+--- a/src/cmd/link/internal/ppc64/obj.go
++++ b/src/cmd/link/internal/ppc64/obj.go
+@@ -37,53 +37,57 @@ import (
+ 	"fmt"
+ )
+ 
+-func Init() {
++func Init() (*sys.Arch, ld.Arch) {
++	arch := sys.ArchPPC64
+ 	if objabi.GOARCH == "ppc64le" {
+-		ld.SysArch = sys.ArchPPC64LE
+-	} else {
+-		ld.SysArch = sys.ArchPPC64
++		arch = sys.ArchPPC64LE
+ 	}
+ 
+-	ld.Thearch.Funcalign = funcAlign
+-	ld.Thearch.Maxalign = maxAlign
+-	ld.Thearch.Minalign = minAlign
+-	ld.Thearch.Dwarfregsp = dwarfRegSP
+-	ld.Thearch.Dwarfreglr = dwarfRegLR
++	theArch := ld.Arch{
++		Funcalign:  funcAlign,
++		Maxalign:   maxAlign,
++		Minalign:   minAlign,
++		Dwarfregsp: dwarfRegSP,
++		Dwarfreglr: dwarfRegLR,
+ 
+-	ld.Thearch.Adddynrel = adddynrel
+-	ld.Thearch.Archinit = archinit
+-	ld.Thearch.Archreloc = archreloc
+-	ld.Thearch.Archrelocvariant = archrelocvariant
+-	ld.Thearch.Asmb = asmb
+-	ld.Thearch.Elfreloc1 = elfreloc1
+-	ld.Thearch.Elfsetupplt = elfsetupplt
+-	ld.Thearch.Gentext = gentext
+-	ld.Thearch.Trampoline = trampoline
+-	ld.Thearch.Machoreloc1 = machoreloc1
+-	if ld.SysArch == sys.ArchPPC64LE {
+-		ld.Thearch.Lput = ld.Lputl
+-		ld.Thearch.Wput = ld.Wputl
+-		ld.Thearch.Vput = ld.Vputl
+-		ld.Thearch.Append16 = ld.Append16l
+-		ld.Thearch.Append32 = ld.Append32l
+-		ld.Thearch.Append64 = ld.Append64l
+-	} else {
+-		ld.Thearch.Lput = ld.Lputb
+-		ld.Thearch.Wput = ld.Wputb
+-		ld.Thearch.Vput = ld.Vputb
+-		ld.Thearch.Append16 = ld.Append16b
+-		ld.Thearch.Append32 = ld.Append32b
+-		ld.Thearch.Append64 = ld.Append64b
++		Adddynrel:        adddynrel,
++		Archinit:         archinit,
++		Archreloc:        archreloc,
++		Archrelocvariant: archrelocvariant,
++		Asmb:             asmb,
++		Elfreloc1:        elfreloc1,
++		Elfsetupplt:      elfsetupplt,
++		Gentext:          gentext,
++		Trampoline:       trampoline,
++		Machoreloc1:      machoreloc1,
++
++		// TODO(austin): ABI v1 uses /usr/lib/ld.so.1,
++		Linuxdynld: "/lib64/ld64.so.1",
++
++		Freebsddynld:   "XXX",
++		Openbsddynld:   "XXX",
++		Netbsddynld:    "XXX",
++		Dragonflydynld: "XXX",
++		Solarisdynld:   "XXX",
+ 	}
+ 
+-	// TODO(austin): ABI v1 uses /usr/lib/ld.so.1
+-	ld.Thearch.Linuxdynld = "/lib64/ld64.so.1"
++	if arch == sys.ArchPPC64LE {
++		theArch.Lput = ld.Lputl
++		theArch.Wput = ld.Wputl
++		theArch.Vput = ld.Vputl
++		theArch.Append16 = ld.Append16l
++		theArch.Append32 = ld.Append32l
++		theArch.Append64 = ld.Append64l
++	} else {
++		theArch.Lput = ld.Lputb
++		theArch.Wput = ld.Wputb
++		theArch.Vput = ld.Vputb
++		theArch.Append16 = ld.Append16b
++		theArch.Append32 = ld.Append32b
++		theArch.Append64 = ld.Append64b
++	}
+ 
+-	ld.Thearch.Freebsddynld = "XXX"
+-	ld.Thearch.Openbsddynld = "XXX"
+-	ld.Thearch.Netbsddynld = "XXX"
+-	ld.Thearch.Dragonflydynld = "XXX"
+-	ld.Thearch.Solarisdynld = "XXX"
++	return arch, theArch
+ }
+ 
+ func archinit(ctxt *ld.Link) {
+@@ -105,7 +109,7 @@ func archinit(ctxt *ld.Link) {
+ 		}
+ 
+ 	case objabi.Hlinux: /* ppc64 elf */
+-		if ld.SysArch == sys.ArchPPC64 {
++		if ctxt.Arch == sys.ArchPPC64 {
+ 			*ld.FlagD = true // TODO(austin): ELF ABI v1 not supported yet
+ 		}
+ 		ld.Elfinit(ctxt)
+diff --git a/src/cmd/link/internal/s390x/asm.go b/src/cmd/link/internal/s390x/asm.go
+index 947213327f..4fcb5055c9 100644
+--- a/src/cmd/link/internal/s390x/asm.go
++++ b/src/cmd/link/internal/s390x/asm.go
+@@ -32,6 +32,7 @@ package s390x
+ 
+ import (
+ 	"cmd/internal/objabi"
++	"cmd/internal/sys"
+ 	"cmd/link/internal/ld"
+ 	"debug/elf"
+ 	"fmt"
+@@ -376,7 +377,7 @@ func elfsetupplt(ctxt *ld.Link) {
+ 	}
+ }
+ 
+-func machoreloc1(s *ld.Symbol, r *ld.Reloc, sectoff int64) bool {
++func machoreloc1(arch *sys.Arch, s *ld.Symbol, r *ld.Reloc, sectoff int64) bool {
+ 	return false
+ }
+ 
+diff --git a/src/cmd/link/internal/s390x/obj.go b/src/cmd/link/internal/s390x/obj.go
+index cd5da6a42c..ce480d2eeb 100644
+--- a/src/cmd/link/internal/s390x/obj.go
++++ b/src/cmd/link/internal/s390x/obj.go
+@@ -37,39 +37,43 @@ import (
+ 	"fmt"
+ )
+ 
+-func Init() {
+-	ld.SysArch = sys.ArchS390X
++func Init() (*sys.Arch, ld.Arch) {
++	arch := sys.ArchS390X
+ 
+-	ld.Thearch.Funcalign = funcAlign
+-	ld.Thearch.Maxalign = maxAlign
+-	ld.Thearch.Minalign = minAlign
+-	ld.Thearch.Dwarfregsp = dwarfRegSP
+-	ld.Thearch.Dwarfreglr = dwarfRegLR
++	theArch := ld.Arch{
++		Funcalign:  funcAlign,
++		Maxalign:   maxAlign,
++		Minalign:   minAlign,
++		Dwarfregsp: dwarfRegSP,
++		Dwarfreglr: dwarfRegLR,
+ 
+-	ld.Thearch.Adddynrel = adddynrel
+-	ld.Thearch.Archinit = archinit
+-	ld.Thearch.Archreloc = archreloc
+-	ld.Thearch.Archrelocvariant = archrelocvariant
+-	ld.Thearch.Asmb = asmb // in asm.go
+-	ld.Thearch.Elfreloc1 = elfreloc1
+-	ld.Thearch.Elfsetupplt = elfsetupplt
+-	ld.Thearch.Gentext = gentext
+-	ld.Thearch.Machoreloc1 = machoreloc1
+-	ld.Thearch.Lput = ld.Lputb
+-	ld.Thearch.Wput = ld.Wputb
+-	ld.Thearch.Vput = ld.Vputb
+-	ld.Thearch.Append16 = ld.Append16b
+-	ld.Thearch.Append32 = ld.Append32b
+-	ld.Thearch.Append64 = ld.Append64b
++		Adddynrel:        adddynrel,
++		Archinit:         archinit,
++		Archreloc:        archreloc,
++		Archrelocvariant: archrelocvariant,
++		Asmb:             asmb, // in asm.go
++		Elfreloc1:        elfreloc1,
++		Elfsetupplt:      elfsetupplt,
++		Gentext:          gentext,
++		Machoreloc1:      machoreloc1,
++		Lput:             ld.Lputb,
++		Wput:             ld.Wputb,
++		Vput:             ld.Vputb,
++		Append16:         ld.Append16b,
++		Append32:         ld.Append32b,
++		Append64:         ld.Append64b,
+ 
+-	ld.Thearch.Linuxdynld = "/lib64/ld64.so.1"
++		Linuxdynld: "/lib64/ld64.so.1",
+ 
+-	// not relevant for s390x
+-	ld.Thearch.Freebsddynld = "XXX"
+-	ld.Thearch.Openbsddynld = "XXX"
+-	ld.Thearch.Netbsddynld = "XXX"
+-	ld.Thearch.Dragonflydynld = "XXX"
+-	ld.Thearch.Solarisdynld = "XXX"
++		// not relevant for s390x
++		Freebsddynld:   "XXX",
++		Openbsddynld:   "XXX",
++		Netbsddynld:    "XXX",
++		Dragonflydynld: "XXX",
++		Solarisdynld:   "XXX",
++	}
++
++	return arch, theArch
+ }
+ 
+ func archinit(ctxt *ld.Link) {
+diff --git a/src/cmd/link/internal/x86/asm.go b/src/cmd/link/internal/x86/asm.go
+index bfdee795a4..02f5562d5f 100644
+--- a/src/cmd/link/internal/x86/asm.go
++++ b/src/cmd/link/internal/x86/asm.go
+@@ -32,6 +32,7 @@ package x86
+ 
+ import (
+ 	"cmd/internal/objabi"
++	"cmd/internal/sys"
+ 	"cmd/link/internal/ld"
+ 	"log"
+ )
+@@ -170,7 +171,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
+ 	switch r.Type {
+ 	default:
+ 		if r.Type >= 256 {
+-			ld.Errorf(s, "unexpected relocation type %d (%s)", r.Type, ld.RelocName(r.Type))
++			ld.Errorf(s, "unexpected relocation type %d (%s)", r.Type, ld.RelocName(ctxt.Arch, r.Type))
+ 			return false
+ 		}
+ 
+@@ -311,7 +312,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
+ 			return true
+ 		}
+ 
+-		if ld.Headtype == objabi.Hdarwin && s.Size == int64(ld.SysArch.PtrSize) && r.Off == 0 {
++		if ld.Headtype == objabi.Hdarwin && s.Size == int64(ctxt.Arch.PtrSize) && r.Off == 0 {
+ 			// Mach-O relocations are a royal pain to lay out.
+ 			// They use a compact stateful bytecode representation
+ 			// that is too much bother to deal with.
+@@ -398,14 +399,14 @@ func elfreloc1(ctxt *ld.Link, r *ld.Reloc, sectoff int64) bool {
+ 	return true
+ }
+ 
+-func machoreloc1(s *ld.Symbol, r *ld.Reloc, sectoff int64) bool {
++func machoreloc1(arch *sys.Arch, s *ld.Symbol, r *ld.Reloc, sectoff int64) bool {
+ 	var v uint32
+ 
+ 	rs := r.Xsym
+ 
+ 	if rs.Type == ld.SHOSTOBJ {
+ 		if rs.Dynid < 0 {
+-			ld.Errorf(s, "reloc %d (%s) to non-macho symbol %s type=%d (%s)", r.Type, ld.RelocName(r.Type), rs.Name, rs.Type, rs.Type)
++			ld.Errorf(s, "reloc %d (%s) to non-macho symbol %s type=%d (%s)", r.Type, ld.RelocName(arch, r.Type), rs.Name, rs.Type, rs.Type)
+ 			return false
+ 		}
+ 
+@@ -414,7 +415,7 @@ func machoreloc1(s *ld.Symbol, r *ld.Reloc, sectoff int64) bool {
+ 	} else {
+ 		v = uint32(rs.Sect.Extnum)
+ 		if v == 0 {
+-			ld.Errorf(s, "reloc %d (%s) to symbol %s in non-macho section %s type=%d (%s)", r.Type, ld.RelocName(r.Type), rs.Name, rs.Sect.Name, rs.Type, rs.Type)
++			ld.Errorf(s, "reloc %d (%s) to symbol %s in non-macho section %s type=%d (%s)", r.Type, ld.RelocName(arch, r.Type), rs.Name, rs.Sect.Name, rs.Type, rs.Type)
+ 			return false
+ 		}
+ 	}
+@@ -448,13 +449,13 @@ func machoreloc1(s *ld.Symbol, r *ld.Reloc, sectoff int64) bool {
+ 	return true
+ }
+ 
+-func pereloc1(s *ld.Symbol, r *ld.Reloc, sectoff int64) bool {
++func pereloc1(arch *sys.Arch, s *ld.Symbol, r *ld.Reloc, sectoff int64) bool {
+ 	var v uint32
+ 
+ 	rs := r.Xsym
+ 
+ 	if rs.Dynid < 0 {
+-		ld.Errorf(s, "reloc %d (%s) to non-coff symbol %s type=%d (%s)", r.Type, ld.RelocName(r.Type), rs.Name, rs.Type, rs.Type)
++		ld.Errorf(s, "reloc %d (%s) to non-coff symbol %s type=%d (%s)", r.Type, ld.RelocName(arch, r.Type), rs.Name, rs.Type, rs.Type)
+ 		return false
+ 	}
+ 
+diff --git a/src/cmd/link/internal/x86/obj.go b/src/cmd/link/internal/x86/obj.go
+index fa925d1aec..ca4875c1af 100644
+--- a/src/cmd/link/internal/x86/obj.go
++++ b/src/cmd/link/internal/x86/obj.go
+@@ -37,37 +37,41 @@ import (
+ 	"fmt"
+ )
+ 
+-func Init() {
+-	ld.SysArch = sys.Arch386
+-
+-	ld.Thearch.Funcalign = funcAlign
+-	ld.Thearch.Maxalign = maxAlign
+-	ld.Thearch.Minalign = minAlign
+-	ld.Thearch.Dwarfregsp = dwarfRegSP
+-	ld.Thearch.Dwarfreglr = dwarfRegLR
+-
+-	ld.Thearch.Adddynrel = adddynrel
+-	ld.Thearch.Archinit = archinit
+-	ld.Thearch.Archreloc = archreloc
+-	ld.Thearch.Archrelocvariant = archrelocvariant
+-	ld.Thearch.Asmb = asmb
+-	ld.Thearch.Elfreloc1 = elfreloc1
+-	ld.Thearch.Elfsetupplt = elfsetupplt
+-	ld.Thearch.Gentext = gentext
+-	ld.Thearch.Machoreloc1 = machoreloc1
+-	ld.Thearch.PEreloc1 = pereloc1
+-	ld.Thearch.Lput = ld.Lputl
+-	ld.Thearch.Wput = ld.Wputl
+-	ld.Thearch.Vput = ld.Vputl
+-	ld.Thearch.Append16 = ld.Append16l
+-	ld.Thearch.Append32 = ld.Append32l
+-	ld.Thearch.Append64 = ld.Append64l
+-
+-	ld.Thearch.Linuxdynld = "/lib/ld-linux.so.2"
+-	ld.Thearch.Freebsddynld = "/usr/libexec/ld-elf.so.1"
+-	ld.Thearch.Openbsddynld = "/usr/libexec/ld.so"
+-	ld.Thearch.Netbsddynld = "/usr/libexec/ld.elf_so"
+-	ld.Thearch.Solarisdynld = "/lib/ld.so.1"
++func Init() (*sys.Arch, ld.Arch) {
++	arch := sys.Arch386
++
++	theArch := ld.Arch{
++		Funcalign:  funcAlign,
++		Maxalign:   maxAlign,
++		Minalign:   minAlign,
++		Dwarfregsp: dwarfRegSP,
++		Dwarfreglr: dwarfRegLR,
++
++		Adddynrel:        adddynrel,
++		Archinit:         archinit,
++		Archreloc:        archreloc,
++		Archrelocvariant: archrelocvariant,
++		Asmb:             asmb,
++		Elfreloc1:        elfreloc1,
++		Elfsetupplt:      elfsetupplt,
++		Gentext:          gentext,
++		Machoreloc1:      machoreloc1,
++		PEreloc1:         pereloc1,
++		Lput:             ld.Lputl,
++		Wput:             ld.Wputl,
++		Vput:             ld.Vputl,
++		Append16:         ld.Append16l,
++		Append32:         ld.Append32l,
++		Append64:         ld.Append64l,
++
++		Linuxdynld:   "/lib/ld-linux.so.2",
++		Freebsddynld: "/usr/libexec/ld-elf.so.1",
++		Openbsddynld: "/usr/libexec/ld.so",
++		Netbsddynld:  "/usr/libexec/ld.elf_so",
++		Solarisdynld: "/lib/ld.so.1",
++	}
++
++	return arch, theArch
+ }
+ 
+ func archinit(ctxt *ld.Link) {
+@@ -89,8 +93,6 @@ func archinit(ctxt *ld.Link) {
+ 		}
+ 
+ 	case objabi.Hdarwin: /* apple MACH */
+-		ld.Machoinit()
+-
+ 		ld.HEADR = ld.INITIAL_MACHO_HEADR
+ 		if *ld.FlagTextAddr == -1 {
+ 			*ld.FlagTextAddr = 4096 + int64(ld.HEADR)
+diff --git a/src/cmd/link/main.go b/src/cmd/link/main.go
+index eab190d5b1..6bc9b5dcb6 100644
+--- a/src/cmd/link/main.go
++++ b/src/cmd/link/main.go
+@@ -6,6 +6,7 @@ package main
+ 
+ import (
+ 	"cmd/internal/objabi"
++	"cmd/internal/sys"
+ 	"cmd/link/internal/amd64"
+ 	"cmd/link/internal/arm"
+ 	"cmd/link/internal/arm64"
+@@ -26,7 +27,7 @@ import (
+ //
+ // Before any argument parsing is done, the Init function of relevant
+ // architecture package is called. The only job done in Init is
+-// configuration of the ld.Thearch and ld.SysArch variables.
++// configuration of the architecture-specific variables.
+ //
+ // Then control flow passes to ld.Main, which parses flags, makes
+ // some configuration decisions, and then gives the architecture
+@@ -34,26 +35,29 @@ import (
+ // via the ld.Thearch.Archinit function.
+ 
+ func main() {
++	var arch *sys.Arch
++	var theArch ld.Arch
++
+ 	switch objabi.GOARCH {
+ 	default:
+ 		fmt.Fprintf(os.Stderr, "link: unknown architecture %q\n", objabi.GOARCH)
+ 		os.Exit(2)
+ 	case "386":
+-		x86.Init()
++		arch, theArch = x86.Init()
+ 	case "amd64", "amd64p32":
+-		amd64.Init()
++		arch, theArch = amd64.Init()
+ 	case "arm":
+-		arm.Init()
++		arch, theArch = arm.Init()
+ 	case "arm64":
+-		arm64.Init()
++		arch, theArch = arm64.Init()
+ 	case "mips", "mipsle":
+-		mips.Init()
++		arch, theArch = mips.Init()
+ 	case "mips64", "mips64le":
+-		mips64.Init()
++		arch, theArch = mips64.Init()
+ 	case "ppc64", "ppc64le":
+-		ppc64.Init()
++		arch, theArch = ppc64.Init()
+ 	case "s390x":
+-		s390x.Init()
++		arch, theArch = s390x.Init()
+ 	}
+-	ld.Main()
++	ld.Main(arch, theArch)
+ }

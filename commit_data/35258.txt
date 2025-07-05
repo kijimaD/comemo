@@ -28,6 +28,20 @@ Date:   Tue Jan 23 21:58:33 2018 +0100
     Reviewed-on: https://go-review.googlesource.com/89315
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/os/error_plan9.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/os/error_plan9.go b/src/os/error_plan9.go
+index 0d76a66e45..b82bf0dea3 100644
+--- a/src/os/error_plan9.go
++++ b/src/os/error_plan9.go
+@@ -5,7 +5,7 @@
+ package os
+ 
+ func isExist(err error) bool {
+-	return checkErrMessageContent(err, " exists", " is a directory")
++	return checkErrMessageContent(err, "exists", "is a directory")
+ }
+ 
+ func isNotExist(err error) bool {

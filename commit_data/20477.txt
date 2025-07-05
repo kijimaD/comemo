@@ -16,7 +16,7 @@ Date:   Thu Sep 11 17:56:58 2014 +0900
     R=golang-codereviews, iant
     CC=golang-codereviews
     https://golang.org/cl/136480043
-
+---
  src/net/tcpsockopt_darwin.go                       | 12 ++++++----
  src/net/tcpsockopt_dragonfly.go                    | 13 ++++-------
  src/net/tcpsockopt_solaris.go                      | 27 ----------------------
@@ -24,3 +24,200 @@ Date:   Thu Sep 11 17:56:58 2014 +0900
  src/net/tcpsockopt_unix.go                         | 10 +++-----
  src/net/tcpsockopt_windows.go                      | 12 ++++------
  6 files changed, 25 insertions(+), 57 deletions(-)
+
+diff --git a/src/net/tcpsockopt_darwin.go b/src/net/tcpsockopt_darwin.go
+index 33140849c9..1f1609088b 100644
+--- a/src/net/tcpsockopt_darwin.go
++++ b/src/net/tcpsockopt_darwin.go
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// TCP socket options for darwin
+-
+ package net
+ 
+ import (
+@@ -12,16 +10,20 @@ import (
+ 	"time"
+ )
+ 
+-// Set keep alive period.
++const sysTCP_KEEPINTVL = 0x101
++
+ func setKeepAlivePeriod(fd *netFD, d time.Duration) error {
+ 	if err := fd.incref(); err != nil {
+ 		return err
+ 	}
+ 	defer fd.decref()
+-
+ 	// The kernel expects seconds so round to next highest second.
+ 	d += (time.Second - time.Nanosecond)
+ 	secs := int(d.Seconds())
+-
++	switch err := syscall.SetsockoptInt(fd.sysfd, syscall.IPPROTO_TCP, sysTCP_KEEPINTVL, secs); err {
++	case nil, syscall.ENOPROTOOPT: // OS X 10.7 and earlier don't support this option
++	default:
++		return os.NewSyscallError("setsockopt", err)
++	}
+ 	return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(fd.sysfd, syscall.IPPROTO_TCP, syscall.TCP_KEEPALIVE, secs))
+ }
+diff --git a/src/net/tcpsockopt_dragonfly.go b/src/net/tcpsockopt_dragonfly.go
+index d10a77773d..0aa213239d 100644
+--- a/src/net/tcpsockopt_dragonfly.go
++++ b/src/net/tcpsockopt_dragonfly.go
+@@ -10,20 +10,17 @@ import (
+ 	"time"
+ )
+ 
+-// Set keep alive period.
+ func setKeepAlivePeriod(fd *netFD, d time.Duration) error {
+ 	if err := fd.incref(); err != nil {
+ 		return err
+ 	}
+ 	defer fd.decref()
+-
+-	// The kernel expects milliseconds so round to next highest millisecond.
++	// The kernel expects milliseconds so round to next highest
++	// millisecond.
+ 	d += (time.Millisecond - time.Nanosecond)
+-	msecs := int(time.Duration(d.Nanoseconds()) / time.Millisecond)
+-
+-	err := os.NewSyscallError("setsockopt", syscall.SetsockoptInt(fd.sysfd, syscall.IPPROTO_TCP, syscall.TCP_KEEPINTVL, msecs))
+-	if err != nil {
+-		return err
++	msecs := int(d / time.Millisecond)
++	if err := syscall.SetsockoptInt(fd.sysfd, syscall.IPPROTO_TCP, syscall.TCP_KEEPINTVL, msecs); err != nil {
++		return os.NewSyscallError("setsockopt", err)
+ 	}
+ 	return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(fd.sysfd, syscall.IPPROTO_TCP, syscall.TCP_KEEPIDLE, msecs))
+ }
+diff --git a/src/net/tcpsockopt_solaris.go b/src/net/tcpsockopt_solaris.go
+deleted file mode 100644
+index eaab6b6787..0000000000
+--- a/src/net/tcpsockopt_solaris.go
++++ /dev/null
+@@ -1,27 +0,0 @@
+-// Copyright 2013 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// TCP socket options for solaris
+-
+-package net
+-
+-import (
+-	"os"
+-	"syscall"
+-	"time"
+-)
+-
+-// Set keep alive period.
+-func setKeepAlivePeriod(fd *netFD, d time.Duration) error {
+-	if err := fd.incref(); err != nil {
+-		return err
+-	}
+-	defer fd.decref()
+-
+-	// The kernel expects seconds so round to next highest second.
+-	d += (time.Second - time.Nanosecond)
+-	secs := int(d.Seconds())
+-
+-	return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(fd.sysfd, syscall.IPPROTO_TCP, syscall.SO_KEEPALIVE, secs))
+-}
+diff --git a/src/net/tcpsockopt_openbsd.go b/src/net/tcpsockopt_stub.go
+similarity index 66%
+rename from src/net/tcpsockopt_openbsd.go
+rename to src/net/tcpsockopt_stub.go
+index 1644343114..346293ca46 100644
+--- a/src/net/tcpsockopt_openbsd.go
++++ b/src/net/tcpsockopt_stub.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build nacl openbsd
++
+ package net
+ 
+ import (
+@@ -10,7 +12,7 @@ import (
+ )
+ 
+ func setKeepAlivePeriod(fd *netFD, d time.Duration) error {
+-	// OpenBSD has no user-settable per-socket TCP keepalive
+-	// options.
+-	return syscall.EPROTONOSUPPORT
++	// NaCl and OpenBSD have no user-settable per-socket TCP
++	// keepalive options.
++	return syscall.ENOPROTOOPT
+ }
+diff --git a/src/net/tcpsockopt_unix.go b/src/net/tcpsockopt_unix.go
+index 2693a541d2..c9f604cad7 100644
+--- a/src/net/tcpsockopt_unix.go
++++ b/src/net/tcpsockopt_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build freebsd linux nacl netbsd
++// +build freebsd linux netbsd solaris
+ 
+ package net
+ 
+@@ -12,20 +12,16 @@ import (
+ 	"time"
+ )
+ 
+-// Set keep alive period.
+ func setKeepAlivePeriod(fd *netFD, d time.Duration) error {
+ 	if err := fd.incref(); err != nil {
+ 		return err
+ 	}
+ 	defer fd.decref()
+-
+ 	// The kernel expects seconds so round to next highest second.
+ 	d += (time.Second - time.Nanosecond)
+ 	secs := int(d.Seconds())
+-
+-	err := os.NewSyscallError("setsockopt", syscall.SetsockoptInt(fd.sysfd, syscall.IPPROTO_TCP, syscall.TCP_KEEPINTVL, secs))
+-	if err != nil {
+-		return err
++	if err := syscall.SetsockoptInt(fd.sysfd, syscall.IPPROTO_TCP, syscall.TCP_KEEPINTVL, secs); err != nil {
++		return os.NewSyscallError("setsockopt", err)
+ 	}
+ 	return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(fd.sysfd, syscall.IPPROTO_TCP, syscall.TCP_KEEPIDLE, secs))
+ }
+diff --git a/src/net/tcpsockopt_windows.go b/src/net/tcpsockopt_windows.go
+index 8ef1407977..091f5233f2 100644
+--- a/src/net/tcpsockopt_windows.go
++++ b/src/net/tcpsockopt_windows.go
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// TCP socket options for windows
+-
+ package net
+ 
+ import (
+@@ -18,14 +16,14 @@ func setKeepAlivePeriod(fd *netFD, d time.Duration) error {
+ 		return err
+ 	}
+ 	defer fd.decref()
+-
+-	// Windows expects milliseconds so round to next highest millisecond.
++	// The kernel expects milliseconds so round to next highest
++	// millisecond.
+ 	d += (time.Millisecond - time.Nanosecond)
+-	millis := uint32(d / time.Millisecond)
++	msecs := uint32(d / time.Millisecond)
+ 	ka := syscall.TCPKeepalive{
+ 		OnOff:    1,
+-		Time:     millis,
+-		Interval: millis,
++		Time:     msecs,
++		Interval: msecs,
+ 	}
+ 	ret := uint32(0)
+ 	size := uint32(unsafe.Sizeof(ka))

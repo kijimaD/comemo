@@ -10,6 +10,27 @@ Date:   Thu Nov 19 15:07:06 2020 +0000
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/metrics/sample.go | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/metrics/sample.go b/src/runtime/metrics/sample.go
+index b4b0979aa6..60189cb334 100644
+--- a/src/runtime/metrics/sample.go
++++ b/src/runtime/metrics/sample.go
+@@ -27,11 +27,11 @@ func runtime_readMetrics(unsafe.Pointer, int, int)
+ // Read populates each Value field in the given slice of metric samples.
+ //
+ // Desired metrics should be present in the slice with the appropriate name.
+-// The user of this API is encouraged to re-use the same slice between calls.
++// The user of this API is encouraged to re-use the same slice between calls for
++// efficiency, but is not required to do so.
+ //
+-// Metric values with names not appearing in the value returned by Descriptions
+-// will have the value populated as KindBad to indicate that the name is
+-// unknown.
++// Sample values with names not appearing in All will have their Value populated
++// as KindBad to indicate that the name is unknown.
+ func Read(m []Sample) {
+ 	runtime_readMetrics(unsafe.Pointer(&m[0]), len(m), cap(m))
+ }

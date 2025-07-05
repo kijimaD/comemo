@@ -8,7 +8,46 @@ Date:   Tue Aug 22 22:52:15 2017 -0400
     Reviewed-on: https://go-review.googlesource.com/57944
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/go_boring_test.go    | 20 ++++++++++++++++++++
  src/cmd/link/internal/ld/lib.go |  1 +
  2 files changed, 21 insertions(+)
+
+diff --git a/src/cmd/go/go_boring_test.go b/src/cmd/go/go_boring_test.go
+new file mode 100644
+index 0000000000..0000497f06
+--- /dev/null
++++ b/src/cmd/go/go_boring_test.go
+@@ -0,0 +1,20 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main_test
++
++import "testing"
++
++func TestBoringInternalLink(t *testing.T) {
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.parallel()
++	tg.tempFile("main.go", `package main
++		import "crypto/sha1"
++		func main() {
++			sha1.New()
++		}`)
++	tg.run("build", "-ldflags=-w -extld=false", tg.path("main.go"))
++	tg.run("build", "-ldflags=-extld=false", tg.path("main.go"))
++}
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 023410512c..59dc4e7acc 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -856,6 +856,7 @@ var hostobj []Hostobj
+ // These packages can use internal linking mode.
+ // Others trigger external mode.
+ var internalpkg = []string{
++	"crypto/internal/boring",
+ 	"crypto/x509",
+ 	"net",
+ 	"os/user",

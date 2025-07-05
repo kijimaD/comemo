@@ -11,6 +11,26 @@ Date:   Wed May 4 12:20:14 2016 +1000
     Change-Id: If93ddbb8137d57da9846b671160b4cebe1992570
     Reviewed-on: https://go-review.googlesource.com/22752
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  api/next.txt | 8 --------
  1 file changed, 8 deletions(-)
+
+diff --git a/api/next.txt b/api/next.txt
+index a4ced103ed..09e6cf1f96 100644
+--- a/api/next.txt
++++ b/api/next.txt
+@@ -147,14 +147,6 @@ pkg debug/elf, const R_390_TLS_TPOFF R_390
+ pkg debug/elf, method (R_390) GoString() string
+ pkg debug/elf, method (R_390) String() string
+ pkg debug/elf, type R_390 int
+-pkg debug/pe, method (StringTable) String(uint32) (string, error)
+-pkg debug/pe, type File struct, StringTable StringTable
+-pkg debug/pe, type Reloc struct
+-pkg debug/pe, type Reloc struct, SymbolTableIndex uint32
+-pkg debug/pe, type Reloc struct, Type uint16
+-pkg debug/pe, type Reloc struct, VirtualAddress uint32
+-pkg debug/pe, type Section struct, Relocs []Reloc
+-pkg debug/pe, type StringTable []uint8
+ pkg encoding/json, method (*Encoder) DisableHTMLEscaping()
+ pkg encoding/json, method (*Encoder) Indent(string, string)
+ pkg go/build, type Package struct, CgoFFLAGS []string

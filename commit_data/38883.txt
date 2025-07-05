@@ -15,6 +15,21 @@ Date:   Wed Dec 5 20:59:42 2018 +0100
     Run-TryBot: David du Colombier <0intro@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/timeout_test.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/net/timeout_test.go b/src/net/timeout_test.go
+index 7c7d0c8993..9599fa1d3e 100644
+--- a/src/net/timeout_test.go
++++ b/src/net/timeout_test.go
+@@ -812,6 +812,9 @@ func (b neverEnding) Read(p []byte) (int, error) {
+ }
+ 
+ func testVariousDeadlines(t *testing.T) {
++	if runtime.GOOS == "plan9" {
++		t.Skip("skipping test on plan9; see golang.org/issue/26945")
++	}
+ 	type result struct {
+ 		n   int64
+ 		err error

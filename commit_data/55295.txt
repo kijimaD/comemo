@@ -16,7 +16,50 @@ Date:   Thu Jan 26 11:22:26 2023 -0800
     Reviewed-by: Robert Griesemer <gri@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/types2/unify.go | 10 +---------
  src/go/types/unify.go                    | 10 +---------
  2 files changed, 2 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/unify.go b/src/cmd/compile/internal/types2/unify.go
+index 08508c0e60..381093c574 100644
+--- a/src/cmd/compile/internal/types2/unify.go
++++ b/src/cmd/compile/internal/types2/unify.go
+@@ -17,15 +17,7 @@ import (
+ // provided to the unify call. For unidirectional unification, only
+ // one of these sets (say x) is provided, and then type parameters are
+ // only resolved for the x argument passed to unify, not the y argument
+-// (even if that also contains possibly the same type parameters). This
+-// is crucial to infer the type parameters of self-recursive calls:
+-//
+-//	func f[P any](a P) { f(a) }
+-//
+-// For the call f(a) we want to infer that the type argument for P is P.
+-// During unification, the parameter type P must be resolved to the type
+-// parameter P ("x" side), but the argument type P must be left alone so
+-// that unification resolves the type parameter P to P.
++// (even if that also contains possibly the same type parameters).
+ //
+ // For bidirectional unification, both sets are provided. This enables
+ // unification to go from argument to parameter type and vice versa.
+diff --git a/src/go/types/unify.go b/src/go/types/unify.go
+index 9fb0c75893..206ec69d59 100644
+--- a/src/go/types/unify.go
++++ b/src/go/types/unify.go
+@@ -19,15 +19,7 @@ import (
+ // provided to the unify call. For unidirectional unification, only
+ // one of these sets (say x) is provided, and then type parameters are
+ // only resolved for the x argument passed to unify, not the y argument
+-// (even if that also contains possibly the same type parameters). This
+-// is crucial to infer the type parameters of self-recursive calls:
+-//
+-//	func f[P any](a P) { f(a) }
+-//
+-// For the call f(a) we want to infer that the type argument for P is P.
+-// During unification, the parameter type P must be resolved to the type
+-// parameter P ("x" side), but the argument type P must be left alone so
+-// that unification resolves the type parameter P to P.
++// (even if that also contains possibly the same type parameters).
+ //
+ // For bidirectional unification, both sets are provided. This enables
+ // unification to go from argument to parameter type and vice versa.

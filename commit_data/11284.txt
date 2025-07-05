@@ -7,7 +7,7 @@ Date:   Thu Jan 19 16:04:26 2012 -0800
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5536076
-
+---
  src/pkg/Makefile                                   | 4 ++--
  src/pkg/{exp => database}/sql/Makefile             | 2 +-
  src/pkg/{exp => database}/sql/convert.go           | 2 +-
@@ -21,3 +21,156 @@ Date:   Thu Jan 19 16:04:26 2012 -0800
  src/pkg/{exp => database}/sql/sql.go               | 3 +--
  src/pkg/{exp => database}/sql/sql_test.go          | 0
  12 files changed, 8 insertions(+), 10 deletions(-)
+
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index 0b8a1d16f1..80cee4c841 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -59,6 +59,8 @@ DIRS=\
+ 	crypto/x509\
+ 	crypto/x509/pkix\
+ 	crypto/xtea\
++	database/sql\
++	database/sql/driver\
+ 	debug/dwarf\
+ 	debug/macho\
+ 	debug/elf\
+@@ -82,8 +84,6 @@ DIRS=\
+ 	exp/gotype\
+ 	exp/norm\
+ 	exp/spdy\
+-	exp/sql\
+-	exp/sql/driver\
+ 	exp/ssh\
+ 	exp/terminal\
+ 	exp/types\
+diff --git a/src/pkg/exp/sql/Makefile b/src/pkg/database/sql/Makefile
+similarity index 93%
+rename from src/pkg/exp/sql/Makefile
+rename to src/pkg/database/sql/Makefile
+index 1e4f74c821..b8dd59a7f1 100644
+--- a/src/pkg/exp/sql/Makefile
++++ b/src/pkg/database/sql/Makefile
+@@ -4,7 +4,7 @@
+ 
+ include ../../../Make.inc
+ 
+-TARG=exp/sql
++TARG=database/sql
+ GOFILES=\
+ 	convert.go\
+ 	sql.go\
+diff --git a/src/pkg/exp/sql/convert.go b/src/pkg/database/sql/convert.go
+similarity index 99%
+rename from src/pkg/exp/sql/convert.go
+rename to src/pkg/database/sql/convert.go
+index feb79aeafe..9835e38de7 100644
+--- a/src/pkg/exp/sql/convert.go
++++ b/src/pkg/database/sql/convert.go
+@@ -7,8 +7,8 @@
+ package sql
+ 
+ import (
++	"database/sql/driver"
+ 	"errors"
+-	"exp/sql/driver"
+ 	"fmt"
+ 	"reflect"
+ 	"strconv"
+diff --git a/src/pkg/exp/sql/convert_test.go b/src/pkg/database/sql/convert_test.go
+similarity index 99%
+rename from src/pkg/exp/sql/convert_test.go
+rename to src/pkg/database/sql/convert_test.go
+index 8c0cafc150..b188864f62 100644
+--- a/src/pkg/exp/sql/convert_test.go
++++ b/src/pkg/database/sql/convert_test.go
+@@ -5,7 +5,7 @@
+ package sql
+ 
+ import (
+-	"exp/sql/driver"
++	"database/sql/driver"
+ 	"fmt"
+ 	"reflect"
+ 	"testing"
+diff --git a/src/pkg/exp/sql/doc.txt b/src/pkg/database/sql/doc.txt
+similarity index 100%
+rename from src/pkg/exp/sql/doc.txt
+rename to src/pkg/database/sql/doc.txt
+diff --git a/src/pkg/exp/sql/driver/Makefile b/src/pkg/database/sql/driver/Makefile
+similarity index 90%
+rename from src/pkg/exp/sql/driver/Makefile
+rename to src/pkg/database/sql/driver/Makefile
+index fce3f2c27c..564aaa6899 100644
+--- a/src/pkg/exp/sql/driver/Makefile
++++ b/src/pkg/database/sql/driver/Makefile
+@@ -4,7 +4,7 @@
+ 
+ include ../../../../Make.inc
+ 
+-TARG=exp/sql/driver
++TARG=database/sql/driver
+ GOFILES=\
+ 	driver.go\
+ 	types.go\
+diff --git a/src/pkg/exp/sql/driver/driver.go b/src/pkg/database/sql/driver/driver.go
+similarity index 100%
+rename from src/pkg/exp/sql/driver/driver.go
+rename to src/pkg/database/sql/driver/driver.go
+diff --git a/src/pkg/exp/sql/driver/types.go b/src/pkg/database/sql/driver/types.go
+similarity index 100%
+rename from src/pkg/exp/sql/driver/types.go
+rename to src/pkg/database/sql/driver/types.go
+diff --git a/src/pkg/exp/sql/driver/types_test.go b/src/pkg/database/sql/driver/types_test.go
+similarity index 100%
+rename from src/pkg/exp/sql/driver/types_test.go
+rename to src/pkg/database/sql/driver/types_test.go
+diff --git a/src/pkg/exp/sql/fakedb_test.go b/src/pkg/database/sql/fakedb_test.go
+similarity index 99%
+rename from src/pkg/exp/sql/fakedb_test.go
+rename to src/pkg/database/sql/fakedb_test.go
+index 0376583b68..b0d137cd71 100644
+--- a/src/pkg/exp/sql/fakedb_test.go
++++ b/src/pkg/database/sql/fakedb_test.go
+@@ -5,6 +5,7 @@
+ package sql
+ 
+ import (
++	"database/sql/driver"
+ 	"errors"
+ 	"fmt"
+ 	"io"
+@@ -13,8 +14,6 @@ import (
+ 	"strings"
+ 	"sync"
+ 	"time"
+-
+-	"exp/sql/driver"
+ )
+ 
+ var _ = log.Printf
+diff --git a/src/pkg/exp/sql/sql.go b/src/pkg/database/sql/sql.go
+similarity index 99%
+rename from src/pkg/exp/sql/sql.go
+rename to src/pkg/database/sql/sql.go
+index 3201e76674..a8bf2a8b00 100644
+--- a/src/pkg/exp/sql/sql.go
++++ b/src/pkg/database/sql/sql.go
+@@ -7,12 +7,11 @@
+ package sql
+ 
+ import (
++	"database/sql/driver"
+ 	"errors"
+ 	"fmt"
+ 	"io"
+ 	"sync"
+-
+-	"exp/sql/driver"
+ )
+ 
+ var drivers = make(map[string]driver.Driver)
+diff --git a/src/pkg/exp/sql/sql_test.go b/src/pkg/database/sql/sql_test.go
+similarity index 100%
+rename from src/pkg/exp/sql/sql_test.go
+rename to src/pkg/database/sql/sql_test.go

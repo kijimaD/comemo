@@ -11,9 +11,206 @@ Date:   Thu Feb 3 12:50:41 2011 +1100
     R=rsc, brainman, vincent.vanackere
     CC=golang-dev
     https://golang.org/cl/4126047
-
+---
  src/pkg/syscall/exec_windows.go         |  8 +++++++-
  src/pkg/syscall/syscall_windows.go      | 22 +++++++++++++++++-----
  src/pkg/syscall/zsyscall_windows_386.go | 24 ++++++++++++++++++++----
  src/pkg/syscall/ztypes_windows_386.go   |  7 +++++++
  4 files changed, 51 insertions(+), 10 deletions(-)
+
+diff --git a/src/pkg/syscall/exec_windows.go b/src/pkg/syscall/exec_windows.go
+index c3ed3ba98e..64a0030dc6 100644
+--- a/src/pkg/syscall/exec_windows.go
++++ b/src/pkg/syscall/exec_windows.go
+@@ -107,7 +107,7 @@ func escapeAddQuotes(s string) string {
+ 
+ 
+ func CloseOnExec(fd int) {
+-	return
++	SetHandleInformation(int32(fd), HANDLE_FLAG_INHERIT, 0)
+ }
+ 
+ func SetNonblock(fd int, nonblocking bool) (errno int) {
+@@ -144,6 +144,12 @@ func forkExec(argv0 string, argv []string, envv []string, traceme bool, dir stri
+ 	startupInfo.StdOutput = 0
+ 	startupInfo.StdErr = 0
+ 
++	// Acquire the fork lock so that no other threads
++	// create new fds that are not yet close-on-exec
++	// before we fork.
++	ForkLock.Lock()
++	defer ForkLock.Unlock()
++
+ 	var currentProc, _ = GetCurrentProcess()
+ 	if len(fd) > 0 && fd[0] > 0 {
+ 		if ok, err := DuplicateHandle(currentProc, int32(fd[0]), currentProc, &startupInfo.StdInput, 0, true, DUPLICATE_SAME_ACCESS); !ok {
+diff --git a/src/pkg/syscall/syscall_windows.go b/src/pkg/syscall/syscall_windows.go
+index 762ed53db6..267b30647f 100644
+--- a/src/pkg/syscall/syscall_windows.go
++++ b/src/pkg/syscall/syscall_windows.go
+@@ -111,7 +111,7 @@ func NewCallback(fn interface{}) uintptr
+ //sys	GetVersion() (ver uint32, errno int)
+ //sys	FormatMessage(flags uint32, msgsrc uint32, msgid uint32, langid uint32, buf []uint16, args *byte) (n uint32, errno int) = FormatMessageW
+ //sys	ExitProcess(exitcode uint32)
+-//sys	CreateFile(name *uint16, access uint32, mode uint32, sa *byte, createmode uint32, attrs uint32, templatefile int32) (handle int32, errno int) [failretval==-1] = CreateFileW
++//sys	CreateFile(name *uint16, access uint32, mode uint32, sa *SecurityAttributes, createmode uint32, attrs uint32, templatefile int32) (handle int32, errno int) [failretval==-1] = CreateFileW
+ //sys	ReadFile(handle int32, buf []byte, done *uint32, overlapped *Overlapped) (ok bool, errno int)
+ //sys	WriteFile(handle int32, buf []byte, done *uint32, overlapped *Overlapped) (ok bool, errno int)
+ //sys	SetFilePointer(handle int32, lowoffset int32, highoffsetptr *int32, whence uint32) (newlowoffset uint32, errno int) [failretval==0xffffffff]
+@@ -123,7 +123,7 @@ func NewCallback(fn interface{}) uintptr
+ //sys	GetFileInformationByHandle(handle int32, data *ByHandleFileInformation) (ok bool, errno int)
+ //sys	GetCurrentDirectory(buflen uint32, buf *uint16) (n uint32, errno int) = GetCurrentDirectoryW
+ //sys	SetCurrentDirectory(path *uint16) (ok bool, errno int) = SetCurrentDirectoryW
+-//sys	CreateDirectory(path *uint16, sa *byte) (ok bool, errno int) = CreateDirectoryW
++//sys	CreateDirectory(path *uint16, sa *SecurityAttributes) (ok bool, errno int) = CreateDirectoryW
+ //sys	RemoveDirectory(path *uint16) (ok bool, errno int) = RemoveDirectoryW
+ //sys	DeleteFile(path *uint16) (ok bool, errno int) = DeleteFileW
+ //sys	MoveFile(from *uint16, to *uint16) (ok bool, errno int) = MoveFileW
+@@ -141,7 +141,7 @@ func NewCallback(fn interface{}) uintptr
+ //sys	DuplicateHandle(hSourceProcessHandle int32, hSourceHandle int32, hTargetProcessHandle int32, lpTargetHandle *int32, dwDesiredAccess uint32, bInheritHandle bool, dwOptions uint32) (ok bool, errno int)
+ //sys	WaitForSingleObject(handle int32, waitMilliseconds uint32) (event uint32, errno int) [failretval==0xffffffff]
+ //sys	GetTempPath(buflen uint32, buf *uint16) (n uint32, errno int) = GetTempPathW
+-//sys	CreatePipe(readhandle *uint32, writehandle *uint32, lpsa *byte, size uint32) (ok bool, errno int)
++//sys	CreatePipe(readhandle *uint32, writehandle *uint32, sa *SecurityAttributes, size uint32) (ok bool, errno int)
+ //sys	GetFileType(filehandle uint32) (n uint32, errno int)
+ //sys	CryptAcquireContext(provhandle *uint32, container *uint16, provider *uint16, provtype uint32, flags uint32) (ok bool, errno int) = advapi32.CryptAcquireContextW
+ //sys	CryptReleaseContext(provhandle uint32, flags uint32) (ok bool, errno int) = advapi32.CryptReleaseContext
+@@ -157,6 +157,7 @@ func NewCallback(fn interface{}) uintptr
+ //sys	GetCommandLine() (cmd *uint16) = kernel32.GetCommandLineW
+ //sys	CommandLineToArgv(cmd *uint16, argc *int32) (argv *[8192]*[8192]uint16, errno int) [failretval==nil] = shell32.CommandLineToArgvW
+ //sys	LocalFree(hmem uint32) (handle uint32, errno int) [failretval!=0]
++//sys	SetHandleInformation(handle int32, mask uint32, flags uint32) (ok bool, errno int)
+ 
+ // syscall interface implementation for other packages
+ 
+@@ -181,6 +182,13 @@ func Errstr(errno int) string {
+ 
+ func Exit(code int) { ExitProcess(uint32(code)) }
+ 
++func makeInheritSa() *SecurityAttributes {
++	var sa SecurityAttributes
++	sa.Length = uint32(unsafe.Sizeof(sa))
++	sa.InheritHandle = 1
++	return &sa
++}
++
+ func Open(path string, mode int, perm uint32) (fd int, errno int) {
+ 	if len(path) == 0 {
+ 		return -1, ERROR_FILE_NOT_FOUND
+@@ -202,6 +210,10 @@ func Open(path string, mode int, perm uint32) (fd int, errno int) {
+ 		access |= FILE_APPEND_DATA
+ 	}
+ 	sharemode := uint32(FILE_SHARE_READ | FILE_SHARE_WRITE)
++	var sa *SecurityAttributes
++	if mode&O_CLOEXEC == 0 {
++		sa = makeInheritSa()
++	}
+ 	var createmode uint32
+ 	switch {
+ 	case mode&O_CREAT != 0:
+@@ -215,7 +227,7 @@ func Open(path string, mode int, perm uint32) (fd int, errno int) {
+ 	default:
+ 		createmode = OPEN_EXISTING
+ 	}
+-	h, e := CreateFile(StringToUTF16Ptr(path), access, sharemode, nil, createmode, FILE_ATTRIBUTE_NORMAL, 0)
++	h, e := CreateFile(StringToUTF16Ptr(path), access, sharemode, sa, createmode, FILE_ATTRIBUTE_NORMAL, 0)
+ 	return int(h), int(e)
+ }
+ 
+@@ -439,7 +451,7 @@ func Pipe(p []int) (errno int) {
+ 		return EINVAL
+ 	}
+ 	var r, w uint32
+-	if ok, errno := CreatePipe(&r, &w, nil, 0); !ok {
++	if ok, errno := CreatePipe(&r, &w, makeInheritSa(), 0); !ok {
+ 		return errno
+ 	}
+ 	p[0] = int(r)
+diff --git a/src/pkg/syscall/zsyscall_windows_386.go b/src/pkg/syscall/zsyscall_windows_386.go
+index b71177e428..d5f170fe39 100644
+--- a/src/pkg/syscall/zsyscall_windows_386.go
++++ b/src/pkg/syscall/zsyscall_windows_386.go
+@@ -66,6 +66,7 @@ var (
+ 	procGetCommandLineW            = getSysProcAddr(modkernel32, "GetCommandLineW")
+ 	procCommandLineToArgvW         = getSysProcAddr(modshell32, "CommandLineToArgvW")
+ 	procLocalFree                  = getSysProcAddr(modkernel32, "LocalFree")
++	procSetHandleInformation       = getSysProcAddr(modkernel32, "SetHandleInformation")
+ 	procWSAStartup                 = getSysProcAddr(modwsock32, "WSAStartup")
+ 	procWSACleanup                 = getSysProcAddr(modwsock32, "WSACleanup")
+ 	procsocket                     = getSysProcAddr(modwsock32, "socket")
+@@ -180,7 +181,7 @@ func ExitProcess(exitcode uint32) {
+ 	return
+ }
+ 
+-func CreateFile(name *uint16, access uint32, mode uint32, sa *byte, createmode uint32, attrs uint32, templatefile int32) (handle int32, errno int) {
++func CreateFile(name *uint16, access uint32, mode uint32, sa *SecurityAttributes, createmode uint32, attrs uint32, templatefile int32) (handle int32, errno int) {
+ 	r0, _, e1 := Syscall9(procCreateFileW, 7, uintptr(unsafe.Pointer(name)), uintptr(access), uintptr(mode), uintptr(unsafe.Pointer(sa)), uintptr(createmode), uintptr(attrs), uintptr(templatefile), 0, 0)
+ 	handle = int32(r0)
+ 	if handle == -1 {
+@@ -368,7 +369,7 @@ func SetCurrentDirectory(path *uint16) (ok bool, errno int) {
+ 	return
+ }
+ 
+-func CreateDirectory(path *uint16, sa *byte) (ok bool, errno int) {
++func CreateDirectory(path *uint16, sa *SecurityAttributes) (ok bool, errno int) {
+ 	r0, _, e1 := Syscall(procCreateDirectoryW, 2, uintptr(unsafe.Pointer(path)), uintptr(unsafe.Pointer(sa)), 0)
+ 	ok = bool(r0 != 0)
+ 	if !ok {
+@@ -630,8 +631,8 @@ func GetTempPath(buflen uint32, buf *uint16) (n uint32, errno int) {
+ 	return
+ }
+ 
+-func CreatePipe(readhandle *uint32, writehandle *uint32, lpsa *byte, size uint32) (ok bool, errno int) {
+-	r0, _, e1 := Syscall6(procCreatePipe, 4, uintptr(unsafe.Pointer(readhandle)), uintptr(unsafe.Pointer(writehandle)), uintptr(unsafe.Pointer(lpsa)), uintptr(size), 0, 0)
++func CreatePipe(readhandle *uint32, writehandle *uint32, sa *SecurityAttributes, size uint32) (ok bool, errno int) {
++	r0, _, e1 := Syscall6(procCreatePipe, 4, uintptr(unsafe.Pointer(readhandle)), uintptr(unsafe.Pointer(writehandle)), uintptr(unsafe.Pointer(sa)), uintptr(size), 0, 0)
+ 	ok = bool(r0 != 0)
+ 	if !ok {
+ 		if e1 != 0 {
+@@ -861,6 +862,21 @@ func LocalFree(hmem uint32) (handle uint32, errno int) {
+ 	return
+ }
+ 
++func SetHandleInformation(handle int32, mask uint32, flags uint32) (ok bool, errno int) {
++	r0, _, e1 := Syscall(procSetHandleInformation, 3, uintptr(handle), uintptr(mask), uintptr(flags))
++	ok = bool(r0 != 0)
++	if !ok {
++		if e1 != 0 {
++			errno = int(e1)
++		} else {
++			errno = EINVAL
++		}
++	} else {
++		errno = 0
++	}
++	return
++}
++
+ func WSAStartup(verreq uint32, data *WSAData) (sockerrno int) {
+ 	r0, _, _ := Syscall(procWSAStartup, 2, uintptr(verreq), uintptr(unsafe.Pointer(data)), 0)
+ 	sockerrno = int(r0)
+diff --git a/src/pkg/syscall/ztypes_windows_386.go b/src/pkg/syscall/ztypes_windows_386.go
+index b1271aff17..e9ab354619 100644
+--- a/src/pkg/syscall/ztypes_windows_386.go
++++ b/src/pkg/syscall/ztypes_windows_386.go
+@@ -74,6 +74,7 @@ const (
+ 	OPEN_ALWAYS       = 4
+ 	TRUNCATE_EXISTING = 5
+ 
++	HANDLE_FLAG_INHERIT    = 0x00000001
+ 	STARTF_USESTDHANDLES   = 0x00000100
+ 	DUPLICATE_CLOSE_SOURCE = 0x00000001
+ 	DUPLICATE_SAME_ACCESS  = 0x00000002
+@@ -172,6 +173,12 @@ func NsecToTimeval(nsec int64) (tv Timeval) {
+ 	return
+ }
+ 
++type SecurityAttributes struct {
++	Length             uint32
++	SecurityDescriptor uintptr
++	InheritHandle      uint32
++}
++
+ type Overlapped struct {
+ 	Internal     uint32
+ 	InternalHigh uint32

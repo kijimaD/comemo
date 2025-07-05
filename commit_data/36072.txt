@@ -10,6 +10,24 @@ Date:   Mon Apr 2 16:15:25 2018 -0700
     Change-Id: I59053d34dc6f8b29e20749c7b03c3cb4f4d641ff
     Reviewed-on: https://go-review.googlesource.com/104236
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/export.go | 6 +-----
  1 file changed, 1 insertion(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/export.go b/src/cmd/compile/internal/gc/export.go
+index 37b0984479..4ea999109b 100644
+--- a/src/cmd/compile/internal/gc/export.go
++++ b/src/cmd/compile/internal/gc/export.go
+@@ -36,11 +36,7 @@ func exportsym(n *Node) {
+ 	n.Sym.SetOnExportList(true)
+ 
+ 	if Debug['E'] != 0 {
+-		if n.Sym.Pkg == localpkg {
+-			fmt.Printf("export symbol %v\n", n.Sym)
+-		} else {
+-			fmt.Printf("reexport name %v\n", n.Sym)
+-		}
++		fmt.Printf("export symbol %v\n", n.Sym)
+ 	}
+ 
+ 	exportlist = append(exportlist, n)

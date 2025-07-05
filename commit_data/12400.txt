@@ -9,7 +9,67 @@ Date:   Tue Mar 6 11:14:45 2012 +1100
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/5754046
-
+---
  src/pkg/unicode/utf8/utf8.go      | 13 ++++++++-----
  src/pkg/unicode/utf8/utf8_test.go | 11 +++++++++++
  2 files changed, 19 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/unicode/utf8/utf8.go b/src/pkg/unicode/utf8/utf8.go
+index 631533a5a3..57ea19e96d 100644
+--- a/src/pkg/unicode/utf8/utf8.go
++++ b/src/pkg/unicode/utf8/utf8.go
+@@ -6,13 +6,16 @@
+ // UTF-8. It includes functions to translate between runes and UTF-8 byte sequences.
+ package utf8
+ 
+-import "unicode" // only needed for a couple of constants
++// The conditions RuneError==unicode.ReplacementChar and
++// MaxRune==unicode.MaxRune are verified in the tests.
++// Defining them locally avoids this package depending on package unicode.
+ 
+ // Numbers fundamental to the encoding.
+ const (
+-	RuneError = unicode.ReplacementChar // the "error" Rune or "replacement character".
+-	RuneSelf  = 0x80                    // characters below Runeself are represented as themselves in a single byte.
+-	UTFMax    = 4                       // maximum number of bytes of a UTF-8 encoded Unicode character.
++	RuneError = '\uFFFD'     // the "error" Rune or "Unicode replacement character"
++	RuneSelf  = 0x80         // characters below Runeself are represented as themselves in a single byte.
++	MaxRune   = '\U0010FFFF' // Maximum valid Unicode code point.
++	UTFMax    = 4            // maximum number of bytes of a UTF-8 encoded Unicode character.
+ )
+ 
+ const (
+@@ -309,7 +312,7 @@ func EncodeRune(p []byte, r rune) int {
+ 		return 2
+ 	}
+ 
+-	if uint32(r) > unicode.MaxRune {
++	if uint32(r) > MaxRune {
+ 		r = RuneError
+ 	}
+ 
+diff --git a/src/pkg/unicode/utf8/utf8_test.go b/src/pkg/unicode/utf8/utf8_test.go
+index 63514265bb..abf5a468ea 100644
+--- a/src/pkg/unicode/utf8/utf8_test.go
++++ b/src/pkg/unicode/utf8/utf8_test.go
+@@ -7,9 +7,20 @@ package utf8_test
+ import (
+ 	"bytes"
+ 	"testing"
++	"unicode"
+ 	. "unicode/utf8"
+ )
+ 
++// Validate the constants redefined from unicode.
++func init() {
++	if MaxRune != unicode.MaxRune {
++		panic("utf8.MaxRune is wrong")
++	}
++	if RuneError != unicode.ReplacementChar {
++		panic("utf8.RuneError is wrong")
++	}
++}
++
+ type Utf8Map struct {
+ 	r   rune
+ 	str string

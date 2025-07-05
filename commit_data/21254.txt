@@ -10,6 +10,24 @@ Date:   Fri Dec 12 14:49:08 2014 -0800
     Reviewed-on: https://go-review.googlesource.com/1490
     Reviewed-by: Minux Ma <minux@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  .gitattributes | 12 ++++++++++--
  1 file changed, 10 insertions(+), 2 deletions(-)
+
+diff --git a/.gitattributes b/.gitattributes
+index 97da3389fb..07953cae39 100644
+--- a/.gitattributes
++++ b/.gitattributes
+@@ -1,2 +1,10 @@
+-# see golang.org/issue/9281
+-* eol=lf
++# Treat all files in the Go repo as binary, with no git magic updating
++# line endings. Windows users contributing to Go will need to use a
++# modern version of git and editors capable of LF line endings.
++#
++# We'll prevent accidental CRLF line endings from entering the repo
++# via the git-review gofmt checks.
++#
++# See golang.org/issue/9281
++
++* -text

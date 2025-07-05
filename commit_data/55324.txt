@@ -19,8 +19,97 @@ Date:   Fri Jan 27 05:54:48 2023 +0000
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/internal/syscall/windows/syscall_windows.go  |  5 +++++
  src/internal/syscall/windows/zsyscall_windows.go | 10 ++++++++++
  src/os/file_windows.go                           | 15 ++++++++++++++-
  3 files changed, 29 insertions(+), 1 deletion(-)
+
+diff --git a/src/internal/syscall/windows/syscall_windows.go b/src/internal/syscall/windows/syscall_windows.go
+index 311d083f45..672ed63922 100644
+--- a/src/internal/syscall/windows/syscall_windows.go
++++ b/src/internal/syscall/windows/syscall_windows.go
+@@ -151,6 +151,7 @@ const (
+ //sys	GetModuleFileName(module syscall.Handle, fn *uint16, len uint32) (n uint32, err error) = kernel32.GetModuleFileNameW
+ //sys	SetFileInformationByHandle(handle syscall.Handle, fileInformationClass uint32, buf uintptr, bufsize uint32) (err error) = kernel32.SetFileInformationByHandle
+ //sys	VirtualQuery(address uintptr, buffer *MemoryBasicInformation, length uintptr) (err error) = kernel32.VirtualQuery
++//sys	GetTempPath2(buflen uint32, buf *uint16) (n uint32, err error) = GetTempPath2W
+ 
+ const (
+ 	// flags for CreateToolhelp32Snapshot
+@@ -363,6 +364,10 @@ func LoadGetFinalPathNameByHandle() error {
+ 	return procGetFinalPathNameByHandleW.Find()
+ }
+ 
++func ErrorLoadingGetTempPath2() error {
++	return procGetTempPath2W.Find()
++}
++
+ //sys	CreateEnvironmentBlock(block **uint16, token syscall.Token, inheritExisting bool) (err error) = userenv.CreateEnvironmentBlock
+ //sys	DestroyEnvironmentBlock(block *uint16) (err error) = userenv.DestroyEnvironmentBlock
+ 
+diff --git a/src/internal/syscall/windows/zsyscall_windows.go b/src/internal/syscall/windows/zsyscall_windows.go
+index fd2f255b9b..1b5a0c045e 100644
+--- a/src/internal/syscall/windows/zsyscall_windows.go
++++ b/src/internal/syscall/windows/zsyscall_windows.go
+@@ -62,6 +62,7 @@ var (
+ 	procGetFinalPathNameByHandleW     = modkernel32.NewProc("GetFinalPathNameByHandleW")
+ 	procGetModuleFileNameW            = modkernel32.NewProc("GetModuleFileNameW")
+ 	procGetVolumeInformationByHandleW = modkernel32.NewProc("GetVolumeInformationByHandleW")
++	procGetTempPath2W                 = modkernel32.NewProc("GetTempPath2W")
+ 	procLockFileEx                    = modkernel32.NewProc("LockFileEx")
+ 	procModule32FirstW                = modkernel32.NewProc("Module32FirstW")
+ 	procModule32NextW                 = modkernel32.NewProc("Module32NextW")
+@@ -220,6 +221,15 @@ func GetModuleFileName(module syscall.Handle, fn *uint16, len uint32) (n uint32,
+ 	return
+ }
+ 
++func GetTempPath2(buflen uint32, buf *uint16) (n uint32, err error) {
++	r0, _, e1 := syscall.Syscall(procGetTempPath2W.Addr(), 2, uintptr(buflen), uintptr(unsafe.Pointer(buf)), 0)
++	n = uint32(r0)
++	if n == 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
+ func GetVolumeInformationByHandle(file syscall.Handle, volumeNameBuffer *uint16, volumeNameSize uint32, volumeNameSerialNumber *uint32, maximumComponentLength *uint32, fileSystemFlags *uint32, fileSystemNameBuffer *uint16, fileSystemNameSize uint32) (err error) {
+ 	r1, _, e1 := syscall.Syscall9(procGetVolumeInformationByHandleW.Addr(), 8, uintptr(file), uintptr(unsafe.Pointer(volumeNameBuffer)), uintptr(volumeNameSize), uintptr(unsafe.Pointer(volumeNameSerialNumber)), uintptr(unsafe.Pointer(maximumComponentLength)), uintptr(unsafe.Pointer(fileSystemFlags)), uintptr(unsafe.Pointer(fileSystemNameBuffer)), uintptr(fileSystemNameSize), 0)
+ 	if r1 == 0 {
+diff --git a/src/os/file_windows.go b/src/os/file_windows.go
+index a48feca855..e7ee3a5607 100644
+--- a/src/os/file_windows.go
++++ b/src/os/file_windows.go
+@@ -9,6 +9,7 @@ import (
+ 	"internal/poll"
+ 	"internal/syscall/windows"
+ 	"runtime"
++	"sync"
+ 	"syscall"
+ 	"unicode/utf16"
+ 	"unsafe"
+@@ -230,11 +231,23 @@ func Pipe() (r *File, w *File, err error) {
+ 	return newFile(p[0], "|0", "pipe"), newFile(p[1], "|1", "pipe"), nil
+ }
+ 
++var (
++	useGetTempPath2Once sync.Once
++	useGetTempPath2     bool
++)
++
+ func tempDir() string {
++	useGetTempPath2Once.Do(func() {
++		useGetTempPath2 = (windows.ErrorLoadingGetTempPath2() == nil)
++	})
++	getTempPath := syscall.GetTempPath
++	if useGetTempPath2 {
++		getTempPath = windows.GetTempPath2
++	}
+ 	n := uint32(syscall.MAX_PATH)
+ 	for {
+ 		b := make([]uint16, n)
+-		n, _ = syscall.GetTempPath(uint32(len(b)), &b[0])
++		n, _ = getTempPath(uint32(len(b)), &b[0])
+ 		if n > uint32(len(b)) {
+ 			continue
+ 		}

@@ -45,6 +45,49 @@ Date:   Wed Jul 21 10:57:46 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1862045
-
+---
  src/pkg/io/pipe.go | 17 +++++++++++++++++
  1 file changed, 17 insertions(+)
+
+diff --git a/src/pkg/io/pipe.go b/src/pkg/io/pipe.go
+index 898526921f..ad949cc6c5 100644
+--- a/src/pkg/io/pipe.go
++++ b/src/pkg/io/pipe.go
+@@ -52,6 +52,13 @@ func (p *pipe) run() {
+ 		case <-p.done:
+ 			if ndone++; ndone == 2 {
+ 				// both reader and writer are gone
++				// close out any existing i/o
++				if r1 == nil {
++					p.r2 <- pipeResult{0, os.EINVAL}
++				}
++				if w1 == nil {
++					p.w2 <- pipeResult{0, os.EINVAL}
++				}
+ 				return
+ 			}
+ 			continue
+@@ -89,6 +96,11 @@ func (p *pipe) run() {
+ 				p.r2 <- pipeResult{0, werr}
+ 				continue
+ 			}
++			if rerr != nil {
++				// read end is closed
++				p.r2 <- pipeResult{0, os.EINVAL}
++				continue
++			}
+ 			r1 = nil // disable Read until this one is done
+ 		case wb = <-w1:
+ 			if rerr != nil {
+@@ -96,6 +108,11 @@ func (p *pipe) run() {
+ 				p.w2 <- pipeResult{0, rerr}
+ 				continue
+ 			}
++			if werr != nil {
++				// write end is closed
++				p.w2 <- pipeResult{0, os.EINVAL}
++				continue
++			}
+ 			w1 = nil // disable Write until this one is done
+ 		}
+ 

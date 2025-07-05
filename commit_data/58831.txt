@@ -19,7 +19,7 @@ Date:   Mon Dec 18 18:13:30 2023 -0800
     Reviewed-by: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/base/debug.go         |  1 -
  src/cmd/compile/internal/noder/irgen.go        | 29 +++++++++++++-------------
  src/cmd/compile/internal/types2/stdlib_test.go |  1 +
@@ -27,3 +27,139 @@ Date:   Mon Dec 18 18:13:30 2023 -0800
  test/fixedbugs/bug398.go                       | 10 ++++-----
  test/fixedbugs/issue16369.go                   |  4 ++--
  6 files changed, 23 insertions(+), 23 deletions(-)
+
+diff --git a/src/cmd/compile/internal/base/debug.go b/src/cmd/compile/internal/base/debug.go
+index a85f0139fc..aadd950a0a 100644
+--- a/src/cmd/compile/internal/base/debug.go
++++ b/src/cmd/compile/internal/base/debug.go
+@@ -36,7 +36,6 @@ type DebugFlags struct {
+ 	Gossahash             string `help:"hash value for use in debugging the compiler"`
+ 	InlFuncsWithClosures  int    `help:"allow functions with closures to be inlined" concurrent:"ok"`
+ 	InlStaticInit         int    `help:"allow static initialization of inlined calls" concurrent:"ok"`
+-	InterfaceCycles       int    `help:"allow anonymous interface cycles"`
+ 	Libfuzzer             int    `help:"enable coverage instrumentation for libfuzzer"`
+ 	LoopVar               int    `help:"shared (0, default), 1 (private loop variables), 2, private + log"`
+ 	LoopVarHash           string `help:"for debugging changes in loop behavior. Overrides experiment and loopvar flag."`
+diff --git a/src/cmd/compile/internal/noder/irgen.go b/src/cmd/compile/internal/noder/irgen.go
+index 46511d1f97..d909f3467b 100644
+--- a/src/cmd/compile/internal/noder/irgen.go
++++ b/src/cmd/compile/internal/noder/irgen.go
+@@ -92,23 +92,22 @@ func checkFiles(m posMap, noders []*noder) (*types2.Package, *types2.Info) {
+ 	}
+ 
+ 	// Check for anonymous interface cycles (#56103).
+-	if base.Debug.InterfaceCycles == 0 {
+-		var f cycleFinder
+-		for _, file := range files {
+-			syntax.Inspect(file, func(n syntax.Node) bool {
+-				if n, ok := n.(*syntax.InterfaceType); ok {
+-					if f.hasCycle(n.GetTypeInfo().Type.(*types2.Interface)) {
+-						base.ErrorfAt(m.makeXPos(n.Pos()), errors.InvalidTypeCycle, "invalid recursive type: anonymous interface refers to itself (see https://go.dev/issue/56103)")
+-
+-						for typ := range f.cyclic {
+-							f.cyclic[typ] = false // suppress duplicate errors
+-						}
++	// TODO(gri) move this code into the type checkers (types2 and go/types)
++	var f cycleFinder
++	for _, file := range files {
++		syntax.Inspect(file, func(n syntax.Node) bool {
++			if n, ok := n.(*syntax.InterfaceType); ok {
++				if f.hasCycle(n.GetTypeInfo().Type.(*types2.Interface)) {
++					base.ErrorfAt(m.makeXPos(n.Pos()), errors.InvalidTypeCycle, "invalid recursive type: anonymous interface refers to itself (see https://go.dev/issue/56103)")
++
++					for typ := range f.cyclic {
++						f.cyclic[typ] = false // suppress duplicate errors
+ 					}
+-					return false
+ 				}
+-				return true
+-			})
+-		}
++				return false
++			}
++			return true
++		})
+ 	}
+ 	base.ExitIfErrors()
+ 
+diff --git a/src/cmd/compile/internal/types2/stdlib_test.go b/src/cmd/compile/internal/types2/stdlib_test.go
+index 7c14e3476e..405af78572 100644
+--- a/src/cmd/compile/internal/types2/stdlib_test.go
++++ b/src/cmd/compile/internal/types2/stdlib_test.go
+@@ -311,6 +311,7 @@ func TestStdFixed(t *testing.T) {
+ 
+ 	testTestDir(t, filepath.Join(testenv.GOROOT(t), "test", "fixedbugs"),
+ 		"bug248.go", "bug302.go", "bug369.go", // complex test instructions - ignore
++		"bug398.go",      // types2 doesn't check for anonymous interface cycles (go.dev/issue/56103)
+ 		"issue6889.go",   // gc-specific test
+ 		"issue11362.go",  // canonical import path check
+ 		"issue16369.go",  // types2 handles this correctly - not an issue
+diff --git a/src/go/types/stdlib_test.go b/src/go/types/stdlib_test.go
+index f90f9388c2..a89cd858db 100644
+--- a/src/go/types/stdlib_test.go
++++ b/src/go/types/stdlib_test.go
+@@ -312,6 +312,7 @@ func TestStdFixed(t *testing.T) {
+ 
+ 	testTestDir(t, filepath.Join(testenv.GOROOT(t), "test", "fixedbugs"),
+ 		"bug248.go", "bug302.go", "bug369.go", // complex test instructions - ignore
++		"bug398.go",      // go/types doesn't check for anonymous interface cycles (go.dev/issue/56103)
+ 		"issue6889.go",   // gc-specific test
+ 		"issue11362.go",  // canonical import path check
+ 		"issue16369.go",  // go/types handles this correctly - not an issue
+diff --git a/test/fixedbugs/bug398.go b/test/fixedbugs/bug398.go
+index db3e43c7f9..2b00f6074d 100644
+--- a/test/fixedbugs/bug398.go
++++ b/test/fixedbugs/bug398.go
+@@ -1,4 +1,4 @@
+-// compile -d=interfacecycles
++// errorcheck
+ 
+ // Copyright 2012 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+@@ -11,11 +11,11 @@ package p
+ 
+ // exported interfaces
+ 
+-type I1 interface {
++type I1 interface { // ERROR "invalid recursive type: anonymous interface refers to itself"
+       F() interface{I1}
+ }
+ 
+-type I2 interface {
++type I2 interface { // ERROR "invalid recursive type: anonymous interface refers to itself"
+       F() interface{I2}
+ }
+ 
+@@ -28,11 +28,11 @@ func F() bool {
+ 
+ // non-exported interfaces
+ 
+-type i1 interface {
++type i1 interface { // ERROR "invalid recursive type: anonymous interface refers to itself"
+       F() interface{i1}
+ }
+ 
+-type i2 interface {
++type i2 interface { // ERROR "invalid recursive type: anonymous interface refers to itself"
+       F() interface{i2}
+ }
+ 
+diff --git a/test/fixedbugs/issue16369.go b/test/fixedbugs/issue16369.go
+index 3a7bb7eaed..86d0ce645d 100644
+--- a/test/fixedbugs/issue16369.go
++++ b/test/fixedbugs/issue16369.go
+@@ -1,4 +1,4 @@
+-// compile -d=interfacecycles
++// errorcheck
+ 
+ // Copyright 2016 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+@@ -6,7 +6,7 @@
+ 
+ package p
+ 
+-type T interface {
++type T interface { // ERROR "invalid recursive type: anonymous interface refers to itself"
+ 	M(interface {
+ 		T
+ 	})

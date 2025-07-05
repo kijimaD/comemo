@@ -9,6 +9,22 @@ Date:   Tue Jan 5 16:56:16 2016 +0000
     Change-Id: Ia0017371f56065a5e88d1ebb800a6489136ee9b1
     Reviewed-on: https://go-review.googlesource.com/18280
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/crypto/hmac/hmac.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/crypto/hmac/hmac.go b/src/crypto/hmac/hmac.go
+index e0cc1d6d22..3b41cde0bd 100644
+--- a/src/crypto/hmac/hmac.go
++++ b/src/crypto/hmac/hmac.go
+@@ -26,8 +26,8 @@ import (
+ 	"hash"
+ )
+ 
+-// FIPS 198:
+-// http://csrc.nist.gov/publications/fips/fips198/fips-198a.pdf
++// FIPS 198-1:
++// http://csrc.nist.gov/publications/fips/fips198-1/FIPS-198-1_final.pdf
+ 
+ // key is zero padded to the block size of the hash function
+ // ipad = 0x36 byte repeated for key length

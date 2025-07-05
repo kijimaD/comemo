@@ -10,6 +10,20 @@ Date:   Fri Jun 22 11:16:40 2018 +0200
     Reviewed-on: https://go-review.googlesource.com/120496
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/transfer_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/http/transfer_test.go b/src/net/http/transfer_test.go
+index 9a201aab2d..993ea4ef18 100644
+--- a/src/net/http/transfer_test.go
++++ b/src/net/http/transfer_test.go
+@@ -86,7 +86,7 @@ func TestDetectInMemoryReaders(t *testing.T) {
+ 	for i, tt := range tests {
+ 		got := isKnownInMemoryReader(tt.r)
+ 		if got != tt.want {
+-			t.Logf("%d: got = %v; want %v", i, got, tt.want)
++			t.Errorf("%d: got = %v; want %v", i, got, tt.want)
+ 		}
+ 	}
+ }

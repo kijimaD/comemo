@@ -8,6 +8,20 @@ Date:   Wed Jun 11 20:33:44 2014 -0700
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/104080043
-
+---
  src/pkg/net/hosts.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/hosts.go b/src/pkg/net/hosts.go
+index e6674ba341..9400503e41 100644
+--- a/src/pkg/net/hosts.go
++++ b/src/pkg/net/hosts.go
+@@ -51,7 +51,7 @@ func readHosts() {
+ 			}
+ 		}
+ 		// Update the data cache.
+-		hosts.expire = time.Now().Add(cacheMaxAge)
++		hosts.expire = now.Add(cacheMaxAge)
+ 		hosts.path = hp
+ 		hosts.byName = hs
+ 		hosts.byAddr = is

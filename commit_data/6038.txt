@@ -8,6 +8,19 @@ Date:   Tue Aug 17 17:35:48 2010 -0400
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/1976044
-
+---
  src/Make.common | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/Make.common b/src/Make.common
+index 42bb64e84f..2755005a01 100644
+--- a/src/Make.common
++++ b/src/Make.common
+@@ -24,3 +24,7 @@ clean:
+ 
+ %.make:
+ 	(cd $* && $(QUOTED_GOBIN)/gomake install)
++
++.PHONY: all clean nuke install coverage test bench testpackage-clean\ 
++	importpath dir
++

@@ -20,7 +20,82 @@ Date:   Tue Mar 3 18:07:32 2020 +0000
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/reflect/all_test.go | 31 +++++++++++++++++++++++++++++++
  src/reflect/value.go    | 14 ++++++++++++++
  2 files changed, 45 insertions(+)
+
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index 00c18104eb..66d9661aeb 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -4163,6 +4163,37 @@ func TestConvert(t *testing.T) {
+ 	}
+ }
+ 
++var gFloat32 float32
++
++func TestConvertNaNs(t *testing.T) {
++	const snan uint32 = 0x7f800001
++
++	// Test to see if a store followed by a load of a signaling NaN
++	// maintains the signaling bit. The only platform known to fail
++	// this test is 386,GO386=387. The real test below will always fail
++	// if the platform can't even store+load a float without mucking
++	// with the bits.
++	gFloat32 = math.Float32frombits(snan)
++	runtime.Gosched() // make sure we don't optimize the store/load away
++	r := math.Float32bits(gFloat32)
++	if r != snan {
++		// This should only happen on 386,GO386=387. We have no way to
++		// test for 387, so we just make sure we're at least on 386.
++		if runtime.GOARCH != "386" {
++			t.Errorf("store/load of sNaN not faithful")
++		}
++		t.Skip("skipping test, float store+load not faithful")
++	}
++
++	type myFloat32 float32
++	x := V(myFloat32(math.Float32frombits(snan)))
++	y := x.Convert(TypeOf(float32(0)))
++	z := y.Interface().(float32)
++	if got := math.Float32bits(z); got != snan {
++		t.Errorf("signaling nan conversion got %x, want %x", got, snan)
++	}
++}
++
+ type ComparableStruct struct {
+ 	X int
+ }
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index 51e7d195fe..08f0d259de 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -2541,6 +2541,14 @@ func makeFloat(f flag, v float64, t Type) Value {
+ 	return Value{typ, ptr, f | flagIndir | flag(typ.Kind())}
+ }
+ 
++// makeFloat returns a Value of type t equal to v, where t is a float32 type.
++func makeFloat32(f flag, v float32, t Type) Value {
++	typ := t.common()
++	ptr := unsafe_New(typ)
++	*(*float32)(ptr) = v
++	return Value{typ, ptr, f | flagIndir | flag(typ.Kind())}
++}
++
+ // makeComplex returns a Value of type t equal to v (possibly truncated to complex64),
+ // where t is a complex64 or complex128 type.
+ func makeComplex(f flag, v complex128, t Type) Value {
+@@ -2613,6 +2621,12 @@ func cvtUintFloat(v Value, t Type) Value {
+ 
+ // convertOp: floatXX -> floatXX
+ func cvtFloat(v Value, t Type) Value {
++	if v.Type().Kind() == Float32 && t.Kind() == Float32 {
++		// Don't do any conversion if both types have underlying type float32.
++		// This avoids converting to float64 and back, which will
++		// convert a signaling NaN to a quiet NaN. See issue 36400.
++		return makeFloat32(v.flag.ro(), *(*float32)(v.ptr), t)
++	}
+ 	return makeFloat(v.flag.ro(), v.Float(), t)
+ }
+ 

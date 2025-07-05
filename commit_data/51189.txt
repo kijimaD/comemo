@@ -20,9 +20,112 @@ Date:   Mon Dec 13 12:42:38 2021 -0800
     Run-TryBot: Dan Scales <danscales@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/noder/stencil.go | 19 +++++++++++++++++--
  test/typeparam/issue50121.dir/a.go        | 22 ++++++++++++++++++++++
  test/typeparam/issue50121.dir/main.go     | 18 ++++++++++++++++++
  test/typeparam/issue50121.go              |  7 +++++++
  4 files changed, 64 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/stencil.go b/src/cmd/compile/internal/noder/stencil.go
+index 004db54c3b..62c306b89e 100644
+--- a/src/cmd/compile/internal/noder/stencil.go
++++ b/src/cmd/compile/internal/noder/stencil.go
+@@ -684,7 +684,22 @@ func (g *genInst) getInstantiation(nameNode *ir.Name, shapes []*types.Type, isMe
+ 		}
+ 		info.dictInfo.shapeToBound = make(map[*types.Type]*types.Type)
+ 
+-		// genericSubst fills in info.dictParam and info.tparamToBound.
++		if sym.Def != nil {
++			// This instantiation must have been imported from another
++			// package (because it was needed for inlining), so we should
++			// not re-generate it and have conflicting definitions for the
++			// symbol (issue #50121). It will have already gone through the
++			// dictionary transformations of dictPass, so we don't actually
++			// need the info.dictParam and info.shapeToBound info filled in
++			// below. We just set the imported instantiation as info.fun.
++			assert(sym.Pkg != types.LocalPkg)
++			info.fun = sym.Def.(*ir.Name).Func
++			assert(info.fun != nil)
++			g.instInfoMap[sym] = info
++			return info
++		}
++
++		// genericSubst fills in info.dictParam and info.shapeToBound.
+ 		st := g.genericSubst(sym, nameNode, shapes, isMeth, info)
+ 		info.fun = st
+ 		g.instInfoMap[sym] = info
+@@ -722,7 +737,7 @@ type subster struct {
+ // args shapes. For a method with a generic receiver, it returns an instantiated
+ // function type where the receiver becomes the first parameter. For either a generic
+ // method or function, a dictionary parameter is the added as the very first
+-// parameter. genericSubst fills in info.dictParam and info.tparamToBound.
++// parameter. genericSubst fills in info.dictParam and info.shapeToBound.
+ func (g *genInst) genericSubst(newsym *types.Sym, nameNode *ir.Name, shapes []*types.Type, isMethod bool, info *instInfo) *ir.Func {
+ 	var tparams []*types.Type
+ 	if isMethod {
+diff --git a/test/typeparam/issue50121.dir/a.go b/test/typeparam/issue50121.dir/a.go
+new file mode 100644
+index 0000000000..9918fa38a6
+--- /dev/null
++++ b/test/typeparam/issue50121.dir/a.go
+@@ -0,0 +1,22 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++import (
++	"constraints"
++	"math/rand"
++)
++
++type Builder[T constraints.Integer] struct{}
++
++func (r Builder[T]) New() T {
++	return T(rand.Int())
++}
++
++var IntBuilder = Builder[int]{}
++
++func BuildInt() int {
++	return IntBuilder.New()
++}
+diff --git a/test/typeparam/issue50121.dir/main.go b/test/typeparam/issue50121.dir/main.go
+new file mode 100644
+index 0000000000..71eb44ff62
+--- /dev/null
++++ b/test/typeparam/issue50121.dir/main.go
+@@ -0,0 +1,18 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"a"
++)
++
++//go:noinline
++func BuildInt() int {
++	return a.BuildInt()
++}
++
++func main() {
++	BuildInt()
++}
+diff --git a/test/typeparam/issue50121.go b/test/typeparam/issue50121.go
+new file mode 100644
+index 0000000000..76930e5e4f
+--- /dev/null
++++ b/test/typeparam/issue50121.go
+@@ -0,0 +1,7 @@
++// rundir -G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ignored

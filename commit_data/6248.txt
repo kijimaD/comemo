@@ -12,7 +12,50 @@ Date:   Sat Sep 11 23:41:25 2010 -0400
     R=r
     CC=golang-dev
     https://golang.org/cl/2106049
-
+---
  src/pkg/math/all_test.go | 11 +++++++++++
  src/pkg/math/tan.go      |  2 +-
  2 files changed, 12 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/math/all_test.go b/src/pkg/math/all_test.go
+index 10f1e2435f..54c0cfa925 100644
+--- a/src/pkg/math/all_test.go
++++ b/src/pkg/math/all_test.go
+@@ -7,6 +7,7 @@ package math_test
+ import (
+ 	"fmt"
+ 	. "math"
++	"runtime"
+ 	"testing"
+ )
+ 
+@@ -2100,6 +2101,16 @@ func TestTan(t *testing.T) {
+ 			t.Errorf("Tan(%g) = %g, want %g\n", vfsinSC[i], f, sinSC[i])
+ 		}
+ 	}
++
++	// Make sure portable Tan(Pi/2) doesn't panic (it used to).
++	// The portable implementation returns NaN.
++	// Assembly implementations might not,
++	// because Pi/2 is not exactly representable.
++	if runtime.GOARCH != "386" {
++		if f := Tan(Pi / 2); !alike(f, NaN()) {
++			t.Errorf("Tan(%g) = %g, want %g\n", Pi/2, f, NaN())
++		}
++	}
+ }
+ 
+ func TestTanh(t *testing.T) {
+diff --git a/src/pkg/math/tan.go b/src/pkg/math/tan.go
+index 842ac64386..a36ebbf449 100644
+--- a/src/pkg/math/tan.go
++++ b/src/pkg/math/tan.go
+@@ -54,7 +54,7 @@ func Tan(x float64) float64 {
+ 
+ 	if flag {
+ 		if temp == 0 {
+-			panic(NaN())
++			return NaN()
+ 		}
+ 		temp = 1 / temp
+ 	}

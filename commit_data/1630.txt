@@ -7,7 +7,7 @@ Date:   Fri Feb 6 13:47:10 2009 -0800
     R=ken
     OCL=24501
     CL=24566
-
+---
  src/cmd/6g/cgen.c      |  15 +++-
  src/cmd/gc/dcl.c       | 218 +++++++++++++++++++++++++++++++++++++++++++------
  src/cmd/gc/go.h        |  14 ++++
@@ -17,3 +17,546 @@ Date:   Fri Feb 6 13:47:10 2009 -0800
  src/cmd/gc/sysimport.c |   1 +
  src/cmd/gc/walk.c      |  25 +++---
  8 files changed, 251 insertions(+), 61 deletions(-)
+
+diff --git a/src/cmd/6g/cgen.c b/src/cmd/6g/cgen.c
+index 05dd256ffa..b8bf0cfe75 100644
+--- a/src/cmd/6g/cgen.c
++++ b/src/cmd/6g/cgen.c
+@@ -205,7 +205,7 @@ cgen(Node *n, Node *res)
+ 	case ODOTPTR:
+ 	case OINDEX:
+ 	case OIND:
+-	case ONAME:	// PHEAP var
++	case ONAME:	// PHEAP or PPARAMREF var
+ 		igen(n, &n1, res);
+ 		gmove(&n1, res);
+ 		regfree(&n1);
+@@ -526,9 +526,18 @@ agen(Node *n, Node *res)
+ 		break;
+ 
+ 	case ONAME:
+-		// should only get here for heap vars
+-		if(!(n->class & PHEAP))
++		// should only get here with names in this func.
++		if(n->funcdepth > 0 && n->funcdepth != funcdepth) {
++			dump("bad agen", n);
++			fatal("agen: bad ONAME funcdepth %d != %d",
++				n->funcdepth, funcdepth);
++		}
++
++		// should only get here for heap vars or paramref
++		if(!(n->class & PHEAP) && n->class != PPARAMREF) {
++			dump("bad agen", n);
+ 			fatal("agen: bad ONAME class %#x", n->class);
++		}
+ 		cgen(n->heapaddr, res);
+ 		if(n->xoffset != 0) {
+ 			nodconst(&n1, types[TINT64], n->xoffset);
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index c13f78e5a2..9f7244fc7c 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -402,13 +402,12 @@ funchdr(Node *n)
+ 	autodcl = dcl();
+ 	autodcl->back = autodcl;
+ 
+-	if(dclcontext != PEXTERN)
++	if(funcdepth == 0 && dclcontext != PEXTERN)
+ 		fatal("funchdr: dclcontext");
+ 
+ 	dclcontext = PAUTO;
+ 	markdcl();
+ 	funcargs(n->type);
+-
+ }
+ 
+ void
+@@ -418,6 +417,8 @@ funcargs(Type *ft)
+ 	Iter save;
+ 	int all;
+ 
++	funcdepth++;
++
+ 	// declare the this/in arguments
+ 	t = funcfirst(&save, ft);
+ 	while(t != T) {
+@@ -466,9 +467,176 @@ funcbody(Node *n)
+ 	if(dclcontext != PAUTO)
+ 		fatal("funcbody: dclcontext");
+ 	popdcl();
+-	dclcontext = PEXTERN;
++	funcdepth--;
++	if(funcdepth == 0)
++		dclcontext = PEXTERN;
++}
++
++void
++funclit0(Type *t)
++{
++	Node *n;
++
++	n = nod(OXXX, N, N);
++	n->outer = funclit;
++	funclit = n;
++
++	funcargs(t);
+ }
+ 
++Node*
++funclit1(Type *type, Node *body)
++{
++	Node *func;
++	Node *a, *d, *f, *n, *args, *clos, *in, *out;
++	Type *ft, *t;
++	Iter save;
++	int narg, shift;
++
++	popdcl();
++	func = funclit;
++	funclit = func->outer;
++
++	// build up type of func f that we're going to compile.
++	// as we referred to variables from the outer function,
++	// we accumulated a list of PHEAP names in func.
++	//
++	narg = 0;
++	if(func->cvars == N)
++		ft = type;
++	else {
++		// add PHEAP versions as function arguments.
++		in = N;
++		for(a=listfirst(&save, &func->cvars); a; a=listnext(&save)) {
++			d = nod(ODCLFIELD, a, N);
++			d->type = ptrto(a->type);
++			in = list(in, d);
++
++			// while we're here, set up a->heapaddr for back end
++			n = nod(ONAME, N, N);
++			snprint(namebuf, sizeof namebuf, "&%s", a->sym->name);
++			n->sym = lookup(namebuf);
++			n->type = ptrto(a->type);
++			n->class = PPARAM;
++			n->xoffset = narg*types[tptr]->width;
++			n->addable = 1;
++			n->ullman = 1;
++			narg++;
++			a->heapaddr = n;
++
++			a->xoffset = 0;
++
++			// unlink from actual ONAME in symbol table
++			a->closure->closure = a->outer;
++		}
++
++		// add a dummy arg for the closure's caller pc
++		d = nod(ODCLFIELD, a, N);
++		d->type = types[TUINTPTR];
++		in = list(in, d);
++
++		// slide param offset to make room for ptrs above.
++		// narg+1 to skip over caller pc.
++		shift = (narg+1)*types[tptr]->width;
++
++		// now the original arguments.
++		for(t=structfirst(&save, getinarg(type)); t; t=structnext(&save)) {
++			d = nod(ODCLFIELD, t->nname, N);
++			d->type = t->type;
++			in = list(in, d);
++
++			a = t->nname;
++			if(a != N) {
++				if(a->stackparam != N)
++					a = a->stackparam;
++				a->xoffset += shift;
++			}
++		}
++		in = rev(in);
++
++		// out arguments
++		out = N;
++		for(t=structfirst(&save, getoutarg(type)); t; t=structnext(&save)) {
++			d = nod(ODCLFIELD, t->nname, N);
++			d->type = t->type;
++			out = list(out, d);
++
++			a = t->nname;
++			if(a != N) {
++				if(a->stackparam != N)
++					a = a->stackparam;
++				a->xoffset += shift;
++			}
++		}
++		out = rev(out);
++
++		ft = functype(N, in, out);
++	}
++
++	// declare function.
++	vargen++;
++	snprint(namebuf, sizeof(namebuf), "_f%.3ld", vargen);
++	f = newname(lookup(namebuf));
++	addvar(f, ft, PFUNC);
++	f->funcdepth = 0;
++
++	// compile function
++	n = nod(ODCLFUNC, N, N);
++	n->nname = f;
++	n->type = ft;
++	if(body == N)
++		body = nod(ORETURN, N, N);
++	n->nbody = body;
++	compile(n);
++	funcdepth--;
++
++	// if there's no closure, we can use f directly
++	if(func->cvars == N)
++		return f;
++
++	// build up type for this instance of the closure func.
++	in = N;
++	d = nod(ODCLFIELD, N, N);	// siz
++	d->type = types[TINT];
++	in = list(in, d);
++	d = nod(ODCLFIELD, N, N);	// f
++	d->type = ft;
++	in = list(in, d);
++	for(a=listfirst(&save, &func->cvars); a; a=listnext(&save)) {
++		d = nod(ODCLFIELD, N, N);	// arg
++		d->type = ptrto(a->type);
++		in = list(in, d);
++	}
++	in = rev(in);
++
++	d = nod(ODCLFIELD, N, N);
++	d->type = type;
++	out = d;
++
++	clos = syslook("closure", 1);
++	clos->type = functype(N, in, out);
++
++	// literal expression is sys.closure(siz, f, arg0, arg1, ...)
++	// which builds a function that calls f after filling in arg0,
++	// arg1, ... for the PHEAP arguments above.
++	args = N;
++	if(narg*8 > 100)
++		yyerror("closure needs too many variables; runtime will reject it");
++	a = nodintconst(narg*8);
++	args = list(args, a);	// siz
++	args = list(args, f);	// f
++	for(a=listfirst(&save, &func->cvars); a; a=listnext(&save)) {
++		d = oldname(a->sym);
++		addrescapes(d);
++		args = list(args, nod(OADDR, d, N));
++	}
++	args = rev(args);
++
++	return nod(OCALL, clos, args);
++}
++
++
++
+ /*
+  * turn a parsed struct into a type
+  */
+@@ -657,28 +825,6 @@ markdcl(void)
+ //		print("markdcl\n");
+ }
+ 
+-void
+-markdclstack(void)
+-{
+-	Sym *d, *s;
+-
+-	markdcl();
+-
+-	// copy the entire pop of the stack
+-	// all the way back to block0.
+-	// after this the symbol table is at
+-	// block0 and popdcl will restore it.
+-	for(d=dclstack; d!=S; d=d->link) {
+-		if(d == b0stack)
+-			break;
+-		if(d->name != nil) {
+-			s = pkglookup(d->name, d->package);
+-			pushdcl(s);
+-			dcopy(s, d);
+-		}
+-	}
+-}
+-
+ void
+ dumpdcl(char *st)
+ {
+@@ -755,6 +901,7 @@ addvar(Node *n, Type *t, int ctxt)
+ 	s->offset = 0;
+ 	s->lexical = LNAME;
+ 
++	n->funcdepth = funcdepth;
+ 	n->type = t;
+ 	n->vargen = gen;
+ 	n->class = ctxt;
+@@ -909,6 +1056,7 @@ Node*
+ oldname(Sym *s)
+ {
+ 	Node *n;
++	Node *c;
+ 
+ 	n = s->oname;
+ 	if(n == N) {
+@@ -918,6 +1066,26 @@ oldname(Sym *s)
+ 		n->addable = 1;
+ 		n->ullman = 1;
+ 	}
++	if(n->funcdepth > 0 && n->funcdepth != funcdepth) {
++		// inner func is referring to var
++		// in outer func.
++		if(n->closure == N || n->closure->funcdepth != funcdepth) {
++			// create new closure var.
++			c = nod(ONAME, N, N);
++			c->sym = s;
++			c->class = PPARAMREF;
++			c->type = n->type;
++			c->addable = 0;
++			c->ullman = 2;
++			c->funcdepth = funcdepth;
++			c->outer = n->closure;
++			n->closure = c;
++			c->closure = n;
++			funclit->cvars = list(c, funclit->cvars);
++		}
++		// return ref to closure var, not original
++		return n->closure;
++	}
+ 	return n;
+ }
+ 
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 6545d1e18c..7b861d38c2 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -187,6 +187,7 @@ struct	Node
+ 	uchar	colas;		// OAS resulting from :=
+ 	uchar	diag;		// already printed error about this
+ 	uchar	noescape;	// ONAME never move to heap
++	uchar	funcdepth;
+ 
+ 	// most nodes
+ 	Node*	left;
+@@ -209,6 +210,7 @@ struct	Node
+ 	Node*	nname;
+ 	Node*	enter;
+ 	Node*	exit;
++	Node*	cvars;	// closure params
+ 
+ 	// OLITERAL/OREGISTER
+ 	Val	val;
+@@ -218,6 +220,10 @@ struct	Node
+ 	Node*	stackparam;	// OPARAM node referring to stack copy of param
+ 	Node*	alloc;	// allocation call
+ 
++	// ONAME closure param with PPARAMREF
++	Node*	outer;	// outer PPARAMREF in nested closure
++	Node*	closure;	// ONAME/PHEAP <-> ONAME/PPARAMREF
++
+ 	Sym*	osym;		// import
+ 	Sym*	psym;		// import
+ 	Sym*	sym;		// various
+@@ -414,6 +420,7 @@ enum
+ 	PAUTO,
+ 	PPARAM,
+ 	PPARAMOUT,
++	PPARAMREF,	// param passed by reference
+ 	PFUNC,
+ 
+ 	PHEAP = 1<<7,
+@@ -527,6 +534,10 @@ EXTERN	int32	thunk;
+ 
+ EXTERN	int	exporting;
+ 
++EXTERN	int	funcdepth;
++
++EXTERN	Node*	funclit;
++
+ /*
+  *	y.tab.c
+  */
+@@ -750,6 +761,9 @@ Node*	embedded(Sym*);
+ Node*	variter(Node*, Type*, Node*);
+ void	constiter(Node*, Type*, Node*);
+ 
++void	funclit0(Type*);
++Node*	funclit1(Type*, Node*);
++
+ /*
+  *	export.c
+  */
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index e323276c8d..5ed7ed09c9 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -1245,33 +1245,15 @@ Bfntype:
+ fnlitdcl:
+ 	fntype
+ 	{
+-		markdclstack();	// save dcl stack and revert to block0
++		markdcl();
+ 		$$ = $1;
+-		funcargs($$);
++		funclit0($$);
+ 	}
+ 
+ fnliteral:
+ 	fnlitdcl '{' ostmt_list '}'
+ 	{
+-		popdcl();
+-
+-		vargen++;
+-		snprint(namebuf, sizeof(namebuf), "_f%.3ld", vargen);
+-
+-		$$ = newname(lookup(namebuf));
+-		addvar($$, $1, PFUNC);
+-
+-		{
+-			Node *n;
+-
+-			n = nod(ODCLFUNC, N, N);
+-			n->nname = $$;
+-			n->type = $1;
+-			n->nbody = $3;
+-			if(n->nbody == N)
+-				n->nbody = nod(ORETURN, N, N);
+-			compile(n);
+-		}
++		$$ = funclit1($1, $3);
+ 	}
+ 
+ fnbody:
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 2df3fc168f..87bd2f20a9 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -880,6 +880,11 @@ Jconv(Fmt *fp)
+ 		strncat(buf, buf1, sizeof(buf));
+ 	}
+ 
++	if(n->xoffset != 0) {
++		snprint(buf1, sizeof(buf1), " x(%lld)", n->xoffset);
++		strncat(buf, buf1, sizeof(buf));
++	}
++
+ 	if(n->class != 0) {
+ 		snprint(buf1, sizeof(buf1), " class(%d)", n->class);
+ 		strncat(buf, buf1, sizeof(buf));
+@@ -890,6 +895,12 @@ Jconv(Fmt *fp)
+ 		strncat(buf, buf1, sizeof(buf));
+ 	}
+ 
++	if(n->funcdepth != 0) {
++		snprint(buf1, sizeof(buf1), " f(%d)", n->funcdepth);
++		strncat(buf, buf1, sizeof(buf));
++	}
++
++
+ 	return fmtstrcpy(fp, buf);
+ }
+ 
+@@ -2070,6 +2081,8 @@ ullmancalc(Node *n)
+ 	case OLITERAL:
+ 	case ONAME:
+ 		ul = 1;
++		if(n->class == PPARAMREF || (n->class & PHEAP))
++			ul++;
+ 		goto out;
+ 	case OCALL:
+ 	case OCALLMETH:
+diff --git a/src/cmd/gc/sys.go b/src/cmd/gc/sys.go
+index dbe446cb73..b121456c38 100644
+--- a/src/cmd/gc/sys.go
++++ b/src/cmd/gc/sys.go
+@@ -67,6 +67,8 @@ func	arraysliced(old []any, lb int, hb int, width int) (ary []any);
+ func	arrayslices(old *any, nel int, lb int, hb int, width int) (ary []any);
+ func	arrays2d(old *any, nel int) (ary []any);
+ 
++func	closure();	// has args, but compiler fills in
++
+ // used by go programs
+ 
+ func	Breakpoint();
+diff --git a/src/cmd/gc/sysimport.c b/src/cmd/gc/sysimport.c
+index af4b2df776..da12b6361a 100644
+--- a/src/cmd/gc/sysimport.c
++++ b/src/cmd/gc/sysimport.c
+@@ -50,6 +50,7 @@ char *sysimport =
+ 	"func sys.arraysliced (old []any, lb int, hb int, width int) (ary []any)\n"
+ 	"func sys.arrayslices (old *any, nel int, lb int, hb int, width int) (ary []any)\n"
+ 	"func sys.arrays2d (old *any, nel int) (ary []any)\n"
++	"func sys.closure ()\n"
+ 	"func sys.Breakpoint ()\n"
+ 	"func sys.Reflect (i interface { }) (? uint64, ? string, ? bool)\n"
+ 	"func sys.Unreflect (? uint64, ? string, ? bool) (ret interface { })\n"
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index b680cb0744..73313ba20d 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -294,7 +294,7 @@ loop:
+ 	case ONAME:
+ 		if(top == Etop)
+ 			goto nottop;
+-		if(!(n->class & PHEAP))
++		if(!(n->class & PHEAP) && n->class != PPARAMREF)
+ 			n->addable = 1;
+ 		if(n->type == T) {
+ 			s = n->sym;
+@@ -2022,7 +2022,10 @@ loop:
+ 			argtype(on, l->type);		// any-1
+ 			break;
+ 		}
+-		if(isptr[l->type->etype] || l->type->etype == TCHAN || l->type->etype == TMAP) {
++		if(isptr[l->type->etype]
++		|| l->type->etype == TCHAN
++		|| l->type->etype == TMAP
++		|| l->type->etype == TFUNC) {
+ 			on = syslook("printpointer", 1);
+ 			argtype(on, l->type);	// any-1
+ 			break;
+@@ -3668,22 +3671,22 @@ addrescapes(Node *n)
+ 		case PPARAM:
+ 			if(debug['E'])
+ 				print("%L %s %S escapes %p\n", n->lineno, pnames[n->class], n->sym, n);
+-			n->class |= PHEAP;
+-			n->addable = 0;
+-			n->ullman = 2;
+-			n->alloc = callnew(n->type);
+-
+ 			// if func param, need separate temporary
+ 			// to hold heap pointer.
+-			if(n->class == PPARAM+PHEAP) {
++			if(n->class == PPARAM) {
+ 				// expression to refer to stack copy
+ 				n->stackparam = nod(OPARAM, n, N);
+ 				n->stackparam->type = n->type;
+ 				n->stackparam->addable = 1;
+ 				n->stackparam->xoffset = n->xoffset;
+-				n->xoffset = 0;
+ 			}
+ 
++			n->class |= PHEAP;
++			n->addable = 0;
++			n->ullman = 2;
++			n->alloc = callnew(n->type);
++			n->xoffset = 0;
++
+ 			// create stack variable to hold pointer to heap
+ 			n->heapaddr = nod(0, N, N);
+ 			tempname(n->heapaddr, ptrto(n->type));
+@@ -3721,9 +3724,7 @@ paramstoheap(Type **argin)
+ 
+ 	nn = N;
+ 	for(t = structfirst(&savet, argin); t != T; t = structnext(&savet)) {
+-		if(t->sym == S)
+-			continue;
+-		v = t->sym->oname;
++		v = t->nname;
+ 		if(v == N || !(v->class & PHEAP))
+ 			continue;
+ 

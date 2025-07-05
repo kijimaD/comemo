@@ -8,7 +8,7 @@ Date:   Tue Aug 13 15:26:48 2013 +0400
     R=golang-dev, khr, cshapiro, rsc, r
     CC=golang-dev
     https://golang.org/cl/12670045
-
+---
  src/pkg/sync/atomic/64bit_arm.go      |  10 +
  src/pkg/sync/atomic/asm_386.s         |  47 +++++
  src/pkg/sync/atomic/asm_amd64.s       |  26 +++
@@ -20,3 +20,795 @@ Date:   Tue Aug 13 15:26:48 2013 +0400
  src/pkg/sync/atomic/doc.go            |  25 +++
  src/pkg/sync/atomic/race.go           |  48 +++++
  10 files changed, 548 insertions(+), 45 deletions(-)
+
+diff --git a/src/pkg/sync/atomic/64bit_arm.go b/src/pkg/sync/atomic/64bit_arm.go
+index f070e78bd3..7d280ffd22 100644
+--- a/src/pkg/sync/atomic/64bit_arm.go
++++ b/src/pkg/sync/atomic/64bit_arm.go
+@@ -34,3 +34,13 @@ func addUint64(val *uint64, delta uint64) (new uint64) {
+ 	}
+ 	return
+ }
++
++func swapUint64(addr *uint64, new uint64) (old uint64) {
++	for {
++		old := *addr
++		if CompareAndSwapUint64(addr, old, new) {
++			break
++		}
++	}
++	return
++}
+diff --git a/src/pkg/sync/atomic/asm_386.s b/src/pkg/sync/atomic/asm_386.s
+index 75379f5fcf..eaa72eabba 100644
+--- a/src/pkg/sync/atomic/asm_386.s
++++ b/src/pkg/sync/atomic/asm_386.s
+@@ -6,6 +6,53 @@
+ 
+ #include "../../../cmd/ld/textflag.h"
+ 
++TEXT ·SwapInt32(SB),NOSPLIT,$0-12
++	JMP	·SwapUint32(SB)
++
++TEXT ·SwapUint32(SB),NOSPLIT,$0-12
++	MOVL	addr+0(FP), BP
++	MOVL	new+4(FP), AX
++	XCHGL	AX, 0(BP)
++	MOVL	AX, new+8(FP)
++	RET
++
++TEXT ·SwapInt64(SB),NOSPLIT,$0-20
++	JMP	·SwapUint64(SB)
++
++TEXT ·SwapUint64(SB),NOSPLIT,$0-20
++	// no XCHGQ so use CMPXCHG8B loop
++	MOVL	addr+0(FP), BP
++	TESTL	$7, BP
++	JZ	2(PC)
++	MOVL	0, AX // crash with nil ptr deref
++	// CX:BX = new
++	MOVL	new_lo+4(FP), BX
++	MOVL	new_hi+8(FP), CX
++	// DX:AX = *addr
++	MOVL	0(BP), AX
++	MOVL	4(BP), DX
++swaploop:
++	// if *addr == DX:AX
++	//	*addr = CX:BX
++	// else
++	//	DX:AX = *addr
++	// all in one instruction
++	LOCK
++	CMPXCHG8B	0(BP)
++	JNZ	swaploop
++
++	// success
++	// return DX:AX
++	MOVL	AX, new_lo+12(FP)
++	MOVL	DX, new_hi+16(FP)
++	RET
++
++TEXT ·SwapUintptr(SB),NOSPLIT,$0-12
++	JMP	·SwapUint32(SB)
++
++TEXT ·SwapPointer(SB),NOSPLIT,$0-12
++	JMP	·SwapUint32(SB)
++
+ TEXT ·CompareAndSwapInt32(SB),NOSPLIT,$0-13
+ 	JMP	·CompareAndSwapUint32(SB)
+ 
+diff --git a/src/pkg/sync/atomic/asm_amd64.s b/src/pkg/sync/atomic/asm_amd64.s
+index 4e062cc20d..0900492dc9 100644
+--- a/src/pkg/sync/atomic/asm_amd64.s
++++ b/src/pkg/sync/atomic/asm_amd64.s
+@@ -6,6 +6,32 @@
+ 
+ #include "../../../cmd/ld/textflag.h"
+ 
++TEXT ·SwapInt32(SB),NOSPLIT,$0-20
++	JMP	·SwapUint32(SB)
++
++TEXT ·SwapUint32(SB),NOSPLIT,$0-20
++	MOVQ	addr+0(FP), BP
++	MOVL	new+8(FP), AX
++	XCHGL	AX, 0(BP)
++	MOVL	AX, new+16(FP)
++	RET
++
++TEXT ·SwapInt64(SB),NOSPLIT,$0-24
++	JMP	·SwapUint64(SB)
++
++TEXT ·SwapUint64(SB),NOSPLIT,$0-24
++	MOVQ	addr+0(FP), BP
++	MOVQ	new+8(FP), AX
++	XCHGQ	AX, 0(BP)
++	MOVQ	AX, new+16(FP)
++	RET
++
++TEXT ·SwapUintptr(SB),NOSPLIT,$0-24
++	JMP	·SwapUint64(SB)
++
++TEXT ·SwapPointer(SB),NOSPLIT,$0-24
++	JMP	·SwapUint64(SB)
++
+ TEXT ·CompareAndSwapInt32(SB),NOSPLIT,$0-17
+ 	JMP	·CompareAndSwapUint32(SB)
+ 
+diff --git a/src/pkg/sync/atomic/asm_arm.s b/src/pkg/sync/atomic/asm_arm.s
+index 70db48967b..61a4d8c4cf 100644
+--- a/src/pkg/sync/atomic/asm_arm.s
++++ b/src/pkg/sync/atomic/asm_arm.s
+@@ -91,6 +91,37 @@ add64loop:
+ 	MOVW	R5, rethi+16(FP)
+ 	RET
+ 
++TEXT ·armSwapUint32(SB),NOSPLIT,$0-12
++	MOVW	addr+0(FP), R1
++	MOVW	new+4(FP), R2
++swaploop:
++	// LDREX and STREX were introduced in ARM 6.
++	LDREX	(R1), R3
++	STREX	R2, (R1), R0
++	CMP	$0, R0
++	BNE	swaploop
++	MOVW	R3, old+8(FP)
++	RET
++
++TEXT ·armSwapUint64(SB),NOSPLIT,$0-20
++	BL	fastCheck64<>(SB)
++	MOVW	addr+0(FP), R1
++	// make unaligned atomic access panic
++	AND.S	$7, R1, R2
++	BEQ 	2(PC)
++	MOVW	R2, (R2)
++	MOVW	newlo+4(FP), R2
++	MOVW	newhi+8(FP), R3
++swap64loop:
++	// LDREXD and STREXD were introduced in ARM 11.
++	LDREXD	(R1), R4	// loads R4 and R5
++	STREXD	R2, (R1), R0	// stores R2 and R3
++	CMP	$0, R0
++	BNE	swap64loop
++	MOVW	R4, oldlo+12(FP)
++	MOVW	R5, oldhi+16(FP)
++	RET
++
+ TEXT ·armLoadUint64(SB),NOSPLIT,$0-12
+ 	BL	fastCheck64<>(SB)
+ 	MOVW	addr+0(FP), R1
+diff --git a/src/pkg/sync/atomic/asm_freebsd_arm.s b/src/pkg/sync/atomic/asm_freebsd_arm.s
+index 813c1aa4f2..db37f73bc4 100644
+--- a/src/pkg/sync/atomic/asm_freebsd_arm.s
++++ b/src/pkg/sync/atomic/asm_freebsd_arm.s
+@@ -28,6 +28,18 @@ TEXT ·AddUint32(SB),NOSPLIT,$0
+ TEXT ·AddUintptr(SB),NOSPLIT,$0
+ 	B ·AddUint32(SB)
+ 
++TEXT ·SwapInt32(SB),NOSPLIT,$0
++	B ·SwapUint32(SB)
++
++TEXT ·SwapUint32(SB),NOSPLIT,$0
++	B ·armSwapUint32(SB)
++
++TEXT ·SwapUintptr(SB),NOSPLIT,$0
++	B ·SwapUint32(SB)
++
++TEXT ·SwapPointer(SB),NOSPLIT,$0
++	B ·SwapUint32(SB)
++
+ TEXT ·CompareAndSwapInt64(SB),NOSPLIT,$0
+ 	B ·CompareAndSwapUint64(SB)
+ 
+@@ -40,6 +52,12 @@ TEXT ·AddInt64(SB),NOSPLIT,$0
+ TEXT ·AddUint64(SB),NOSPLIT,$0
+ 	B ·addUint64(SB)
+ 
++TEXT ·SwapInt64(SB),NOSPLIT,$0
++	B ·swapUint64(SB)
++
++TEXT ·SwapUint64(SB),NOSPLIT,$0
++	B ·swapUint64(SB)
++
+ TEXT ·LoadInt32(SB),NOSPLIT,$0
+ 	B ·LoadUint32(SB)
+ 
+diff --git a/src/pkg/sync/atomic/asm_linux_arm.s b/src/pkg/sync/atomic/asm_linux_arm.s
+index 31c86ccbe3..4b6b69c505 100644
+--- a/src/pkg/sync/atomic/asm_linux_arm.s
++++ b/src/pkg/sync/atomic/asm_linux_arm.s
+@@ -76,6 +76,26 @@ addloop1:
+ TEXT ·AddUintptr(SB),NOSPLIT,$0
+ 	B	·AddUint32(SB)
+ 
++TEXT ·SwapInt32(SB),NOSPLIT,$0
++	B	·SwapUint32(SB)
++
++// Implement using kernel cas for portability.
++TEXT ·SwapUint32(SB),NOSPLIT,$0-12
++	MOVW	addr+0(FP), R2
++	MOVW	new+4(FP), R1
++swaploop1:
++	MOVW	0(R2), R0
++	BL	cas<>(SB)
++	BCC	swaploop1
++	MOVW	R0, old+8(FP)
++	RET
++
++TEXT ·SwapUintptr(SB),NOSPLIT,$0
++	B	·SwapUint32(SB)
++
++TEXT ·SwapPointer(SB),NOSPLIT,$0
++	B	·SwapUint32(SB)
++
+ TEXT cas64<>(SB),NOSPLIT,$0
+ 	MOVW	$0xffff0f60, PC // __kuser_cmpxchg64: Linux-3.1 and above
+ 
+@@ -148,6 +168,12 @@ TEXT ·AddInt64(SB),NOSPLIT,$0
+ TEXT ·AddUint64(SB),NOSPLIT,$0
+ 	B	·addUint64(SB)
+ 
++TEXT ·SwapInt64(SB),NOSPLIT,$0
++	B	·swapUint64(SB)
++
++TEXT ·SwapUint64(SB),NOSPLIT,$0
++	B	·swapUint64(SB)
++
+ TEXT ·LoadInt32(SB),NOSPLIT,$0
+ 	B	·LoadUint32(SB)
+ 
+diff --git a/src/pkg/sync/atomic/asm_netbsd_arm.s b/src/pkg/sync/atomic/asm_netbsd_arm.s
+index a4d1f4e828..64f4dbe714 100644
+--- a/src/pkg/sync/atomic/asm_netbsd_arm.s
++++ b/src/pkg/sync/atomic/asm_netbsd_arm.s
+@@ -28,6 +28,18 @@ TEXT ·AddUint32(SB),NOSPLIT,$0
+ TEXT ·AddUintptr(SB),NOSPLIT,$0
+ 	B ·AddUint32(SB)
+ 
++TEXT ·SwapInt32(SB),NOSPLIT,$0
++	B ·SwapUint32(SB)
++
++TEXT ·SwapUint32(SB),NOSPLIT,$0
++	B ·armSwapUint32(SB)
++
++TEXT ·SwapUintptr(SB),NOSPLIT,$0
++	B ·SwapUint32(SB)
++
++TEXT ·SwapPointer(SB),NOSPLIT,$0
++	B ·SwapUint32(SB)
++
+ TEXT ·CompareAndSwapInt64(SB),NOSPLIT,$0
+ 	B ·CompareAndSwapUint64(SB)
+ 
+@@ -40,6 +52,12 @@ TEXT ·AddInt64(SB),NOSPLIT,$0
+ TEXT ·AddUint64(SB),NOSPLIT,$0
+ 	B ·addUint64(SB)
+ 
++TEXT ·SwapInt64(SB),NOSPLIT,$0
++	B ·swapUint64(SB)
++
++TEXT ·SwapUint64(SB),NOSPLIT,$0
++	B ·swapUint64(SB)
++
+ TEXT ·LoadInt32(SB),NOSPLIT,$0
+ 	B ·LoadUint32(SB)
+ 
+diff --git a/src/pkg/sync/atomic/atomic_test.go b/src/pkg/sync/atomic/atomic_test.go
+index cec81c4626..7f02a3f634 100644
+--- a/src/pkg/sync/atomic/atomic_test.go
++++ b/src/pkg/sync/atomic/atomic_test.go
+@@ -5,7 +5,9 @@
+ package atomic_test
+ 
+ import (
++	"fmt"
+ 	"runtime"
++	"strings"
+ 	. "sync/atomic"
+ 	"testing"
+ 	"unsafe"
+@@ -38,6 +40,142 @@ var test64err = func() (err interface{}) {
+ 	return nil
+ }()
+ 
++func TestSwapInt32(t *testing.T) {
++	var x struct {
++		before int32
++		i      int32
++		after  int32
++	}
++	x.before = magic32
++	x.after = magic32
++	var j int32
++	for delta := int32(1); delta+delta > delta; delta += delta {
++		k := SwapInt32(&x.i, delta)
++		if x.i != delta || k != j {
++			t.Fatalf("delta=%d i=%d j=%d k=%d", delta, x.i, j, k)
++		}
++		j = delta
++	}
++	if x.before != magic32 || x.after != magic32 {
++		t.Fatalf("wrong magic: %#x _ %#x != %#x _ %#x", x.before, x.after, magic32, magic32)
++	}
++}
++
++func TestSwapUint32(t *testing.T) {
++	var x struct {
++		before uint32
++		i      uint32
++		after  uint32
++	}
++	x.before = magic32
++	x.after = magic32
++	var j uint32
++	for delta := uint32(1); delta+delta > delta; delta += delta {
++		k := SwapUint32(&x.i, delta)
++		if x.i != delta || k != j {
++			t.Fatalf("delta=%d i=%d j=%d k=%d", delta, x.i, j, k)
++		}
++		j = delta
++	}
++	if x.before != magic32 || x.after != magic32 {
++		t.Fatalf("wrong magic: %#x _ %#x != %#x _ %#x", x.before, x.after, magic32, magic32)
++	}
++}
++
++func TestSwapInt64(t *testing.T) {
++	if test64err != nil {
++		t.Skipf("Skipping 64-bit tests: %v", test64err)
++	}
++	var x struct {
++		before int64
++		i      int64
++		after  int64
++	}
++	x.before = magic64
++	x.after = magic64
++	var j int64
++	for delta := int64(1); delta+delta > delta; delta += delta {
++		k := SwapInt64(&x.i, delta)
++		if x.i != delta || k != j {
++			t.Fatalf("delta=%d i=%d j=%d k=%d", delta, x.i, j, k)
++		}
++		j = delta
++	}
++	if x.before != magic64 || x.after != magic64 {
++		t.Fatalf("wrong magic: %#x _ %#x != %#x _ %#x", x.before, x.after, uint64(magic64), uint64(magic64))
++	}
++}
++
++func TestSwapUint64(t *testing.T) {
++	if test64err != nil {
++		t.Skipf("Skipping 64-bit tests: %v", test64err)
++	}
++	var x struct {
++		before uint64
++		i      uint64
++		after  uint64
++	}
++	x.before = magic64
++	x.after = magic64
++	var j uint64
++	for delta := uint64(1); delta+delta > delta; delta += delta {
++		k := SwapUint64(&x.i, delta)
++		if x.i != delta || k != j {
++			t.Fatalf("delta=%d i=%d j=%d k=%d", delta, x.i, j, k)
++		}
++		j = delta
++	}
++	if x.before != magic64 || x.after != magic64 {
++		t.Fatalf("wrong magic: %#x _ %#x != %#x _ %#x", x.before, x.after, uint64(magic64), uint64(magic64))
++	}
++}
++
++func TestSwapUintptr(t *testing.T) {
++	var x struct {
++		before uintptr
++		i      uintptr
++		after  uintptr
++	}
++	var m uint64 = magic64
++	magicptr := uintptr(m)
++	x.before = magicptr
++	x.after = magicptr
++	var j uintptr
++	for delta := uintptr(1); delta+delta > delta; delta += delta {
++		k := SwapUintptr(&x.i, delta)
++		if x.i != delta || k != j {
++			t.Fatalf("delta=%d i=%d j=%d k=%d", delta, x.i, j, k)
++		}
++		j = delta
++	}
++	if x.before != magicptr || x.after != magicptr {
++		t.Fatalf("wrong magic: %#x _ %#x != %#x _ %#x", x.before, x.after, magicptr, magicptr)
++	}
++}
++
++func TestSwapPointer(t *testing.T) {
++	var x struct {
++		before uintptr
++		i      unsafe.Pointer
++		after  uintptr
++	}
++	var m uint64 = magic64
++	magicptr := uintptr(m)
++	x.before = magicptr
++	x.after = magicptr
++	var j uintptr
++	for delta := uintptr(1); delta+delta > delta; delta += delta {
++		k := SwapPointer(&x.i, unsafe.Pointer(delta))
++		if uintptr(x.i) != delta || uintptr(k) != j {
++			t.Fatalf("delta=%d i=%d j=%d k=%d", delta, x.i, j, k)
++		}
++		j = delta
++	}
++	if x.before != magicptr || x.after != magicptr {
++		t.Fatalf("wrong magic: %#x _ %#x != %#x _ %#x", x.before, x.after, magicptr, magicptr)
++	}
++}
++
+ func TestAddInt32(t *testing.T) {
+ 	var x struct {
+ 		before int32
+@@ -608,27 +746,85 @@ func TestStorePointer(t *testing.T) {
+ // uses the atomic operation to add 1 to a value.  After running
+ // multiple hammers in parallel, check that we end with the correct
+ // total.
+-
+-var hammer32 = []struct {
+-	name string
+-	f    func(*uint32, int)
+-}{
+-	{"AddInt32", hammerAddInt32},
+-	{"AddUint32", hammerAddUint32},
+-	{"AddUintptr", hammerAddUintptr32},
+-	{"CompareAndSwapInt32", hammerCompareAndSwapInt32},
+-	{"CompareAndSwapUint32", hammerCompareAndSwapUint32},
+-	{"CompareAndSwapUintptr", hammerCompareAndSwapUintptr32},
+-	{"CompareAndSwapPointer", hammerCompareAndSwapPointer32},
++// Swap can't add 1, so it uses a different scheme.
++// The functions repeatedly generate a pseudo-random number such that
++// low bits are equal to high bits, swap, check that the old value
++// has low and high bits equal.
++
++var hammer32 = map[string]func(*uint32, int){
++	"SwapInt32":             hammerSwapInt32,
++	"SwapUint32":            hammerSwapUint32,
++	"SwapUintptr":           hammerSwapUintptr32,
++	"SwapPointer":           hammerSwapPointer32,
++	"AddInt32":              hammerAddInt32,
++	"AddUint32":             hammerAddUint32,
++	"AddUintptr":            hammerAddUintptr32,
++	"CompareAndSwapInt32":   hammerCompareAndSwapInt32,
++	"CompareAndSwapUint32":  hammerCompareAndSwapUint32,
++	"CompareAndSwapUintptr": hammerCompareAndSwapUintptr32,
++	"CompareAndSwapPointer": hammerCompareAndSwapPointer32,
+ }
+ 
+ func init() {
+ 	var v uint64 = 1 << 50
+ 	if uintptr(v) != 0 {
+ 		// 64-bit system; clear uintptr tests
+-		hammer32[2].f = nil
+-		hammer32[5].f = nil
+-		hammer32[6].f = nil
++		delete(hammer32, "SwapUintptr")
++		delete(hammer32, "SwapPointer")
++		delete(hammer32, "AddUintptr")
++		delete(hammer32, "CompareAndSwapUintptr")
++		delete(hammer32, "CompareAndSwapPointer")
++	}
++}
++
++func hammerSwapInt32(uaddr *uint32, count int) {
++	addr := (*int32)(unsafe.Pointer(uaddr))
++	seed := int(uintptr(unsafe.Pointer(&count)))
++	for i := 0; i < count; i++ {
++		new := uint32(seed+i)<<16 | uint32(seed+i)<<16>>16
++		old := uint32(SwapInt32(addr, int32(new)))
++		if old>>16 != old<<16>>16 {
++			panic(fmt.Sprintf("SwapInt32 is not atomic: %v", old))
++		}
++	}
++}
++
++func hammerSwapUint32(addr *uint32, count int) {
++	seed := int(uintptr(unsafe.Pointer(&count)))
++	for i := 0; i < count; i++ {
++		new := uint32(seed+i)<<16 | uint32(seed+i)<<16>>16
++		old := SwapUint32(addr, new)
++		if old>>16 != old<<16>>16 {
++			panic(fmt.Sprintf("SwapUint32 is not atomic: %v", old))
++		}
++	}
++}
++
++func hammerSwapUintptr32(uaddr *uint32, count int) {
++	// only safe when uintptr is 32-bit.
++	// not called on 64-bit systems.
++	addr := (*uintptr)(unsafe.Pointer(uaddr))
++	seed := int(uintptr(unsafe.Pointer(&count)))
++	for i := 0; i < count; i++ {
++		new := uintptr(seed+i)<<16 | uintptr(seed+i)<<16>>16
++		old := SwapUintptr(addr, new)
++		if old>>16 != old<<16>>16 {
++			panic(fmt.Sprintf("SwapUintptr is not atomic: %v", old))
++		}
++	}
++}
++
++func hammerSwapPointer32(uaddr *uint32, count int) {
++	// only safe when uintptr is 32-bit.
++	// not called on 64-bit systems.
++	addr := (*unsafe.Pointer)(unsafe.Pointer(uaddr))
++	seed := int(uintptr(unsafe.Pointer(&count)))
++	for i := 0; i < count; i++ {
++		new := uintptr(seed+i)<<16 | uintptr(seed+i)<<16>>16
++		old := uintptr(SwapPointer(addr, unsafe.Pointer(new)))
++		if old>>16 != old<<16>>16 {
++			panic(fmt.Sprintf("SwapPointer is not atomic: %v", old))
++		}
+ 	}
+ }
+ 
+@@ -713,47 +909,103 @@ func TestHammer32(t *testing.T) {
+ 	}
+ 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(p))
+ 
+-	for _, tt := range hammer32 {
+-		if tt.f == nil {
+-			continue
+-		}
++	for name, testf := range hammer32 {
+ 		c := make(chan int)
+ 		var val uint32
+ 		for i := 0; i < p; i++ {
+ 			go func() {
+-				tt.f(&val, n)
+-				c <- 1
++				defer func() {
++					if err := recover(); err != nil {
++						t.Error(err.(string))
++					}
++					c <- 1
++				}()
++				testf(&val, n)
+ 			}()
+ 		}
+ 		for i := 0; i < p; i++ {
+ 			<-c
+ 		}
+-		if val != uint32(n)*p {
+-			t.Fatalf("%s: val=%d want %d", tt.name, val, n*p)
++		if !strings.HasPrefix(name, "Swap") && val != uint32(n)*p {
++			t.Fatalf("%s: val=%d want %d", name, val, n*p)
+ 		}
+ 	}
+ }
+ 
+-var hammer64 = []struct {
+-	name string
+-	f    func(*uint64, int)
+-}{
+-	{"AddInt64", hammerAddInt64},
+-	{"AddUint64", hammerAddUint64},
+-	{"AddUintptr", hammerAddUintptr64},
+-	{"CompareAndSwapInt64", hammerCompareAndSwapInt64},
+-	{"CompareAndSwapUint64", hammerCompareAndSwapUint64},
+-	{"CompareAndSwapUintptr", hammerCompareAndSwapUintptr64},
+-	{"CompareAndSwapPointer", hammerCompareAndSwapPointer64},
++var hammer64 = map[string]func(*uint64, int){
++	"SwapInt64":             hammerSwapInt64,
++	"SwapUint64":            hammerSwapUint64,
++	"SwapUintptr":           hammerSwapUintptr64,
++	"SwapPointer":           hammerSwapPointer64,
++	"AddInt64":              hammerAddInt64,
++	"AddUint64":             hammerAddUint64,
++	"AddUintptr":            hammerAddUintptr64,
++	"CompareAndSwapInt64":   hammerCompareAndSwapInt64,
++	"CompareAndSwapUint64":  hammerCompareAndSwapUint64,
++	"CompareAndSwapUintptr": hammerCompareAndSwapUintptr64,
++	"CompareAndSwapPointer": hammerCompareAndSwapPointer64,
+ }
+ 
+ func init() {
+ 	var v uint64 = 1 << 50
+ 	if uintptr(v) == 0 {
+ 		// 32-bit system; clear uintptr tests
+-		hammer64[2].f = nil
+-		hammer64[5].f = nil
+-		hammer64[6].f = nil
++		delete(hammer64, "SwapUintptr")
++		delete(hammer64, "SwapPointer")
++		delete(hammer64, "AddUintptr")
++		delete(hammer64, "CompareAndSwapUintptr")
++		delete(hammer64, "CompareAndSwapPointer")
++	}
++}
++
++func hammerSwapInt64(uaddr *uint64, count int) {
++	addr := (*int64)(unsafe.Pointer(uaddr))
++	seed := int(uintptr(unsafe.Pointer(&count)))
++	for i := 0; i < count; i++ {
++		new := uint64(seed+i)<<32 | uint64(seed+i)<<32>>32
++		old := uint64(SwapInt64(addr, int64(new)))
++		if old>>32 != old<<32>>32 {
++			panic(fmt.Sprintf("SwapInt64 is not atomic: %v", old))
++		}
++	}
++}
++
++func hammerSwapUint64(addr *uint64, count int) {
++	seed := int(uintptr(unsafe.Pointer(&count)))
++	for i := 0; i < count; i++ {
++		new := uint64(seed+i)<<32 | uint64(seed+i)<<32>>32
++		old := SwapUint64(addr, new)
++		if old>>32 != old<<32>>32 {
++			panic(fmt.Sprintf("SwapUint64 is not atomic: %v", old))
++		}
++	}
++}
++
++func hammerSwapUintptr64(uaddr *uint64, count int) {
++	// only safe when uintptr is 64-bit.
++	// not called on 32-bit systems.
++	addr := (*uintptr)(unsafe.Pointer(uaddr))
++	seed := int(uintptr(unsafe.Pointer(&count)))
++	for i := 0; i < count; i++ {
++		new := uintptr(seed+i)<<32 | uintptr(seed+i)<<32>>32
++		old := SwapUintptr(addr, new)
++		if old>>32 != old<<32>>32 {
++			panic(fmt.Sprintf("SwapUintptr is not atomic: %v", old))
++		}
++	}
++}
++
++func hammerSwapPointer64(uaddr *uint64, count int) {
++	// only safe when uintptr is 64-bit.
++	// not called on 32-bit systems.
++	addr := (*unsafe.Pointer)(unsafe.Pointer(uaddr))
++	seed := int(uintptr(unsafe.Pointer(&count)))
++	for i := 0; i < count; i++ {
++		new := uintptr(seed+i)<<32 | uintptr(seed+i)<<32>>32
++		old := uintptr(SwapPointer(addr, unsafe.Pointer(new)))
++		if old>>32 != old<<32>>32 {
++			panic(fmt.Sprintf("SwapPointer is not atomic: %v", old))
++		}
+ 	}
+ }
+ 
+@@ -841,23 +1093,25 @@ func TestHammer64(t *testing.T) {
+ 	}
+ 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(p))
+ 
+-	for _, tt := range hammer64 {
+-		if tt.f == nil {
+-			continue
+-		}
++	for name, testf := range hammer64 {
+ 		c := make(chan int)
+ 		var val uint64
+ 		for i := 0; i < p; i++ {
+ 			go func() {
+-				tt.f(&val, n)
+-				c <- 1
++				defer func() {
++					if err := recover(); err != nil {
++						t.Error(err.(string))
++					}
++					c <- 1
++				}()
++				testf(&val, n)
+ 			}()
+ 		}
+ 		for i := 0; i < p; i++ {
+ 			<-c
+ 		}
+-		if val != uint64(n)*p {
+-			t.Fatalf("%s: val=%d want %d", tt.name, val, n*p)
++		if !strings.HasPrefix(name, "Swap") && val != uint64(n)*p {
++			t.Fatalf("%s: val=%d want %d", name, val, n*p)
+ 		}
+ 	}
+ }
+diff --git a/src/pkg/sync/atomic/doc.go b/src/pkg/sync/atomic/doc.go
+index 27a12c9848..4651e2e8c2 100644
+--- a/src/pkg/sync/atomic/doc.go
++++ b/src/pkg/sync/atomic/doc.go
+@@ -13,6 +13,13 @@
+ // Share memory by communicating;
+ // don't communicate by sharing memory.
+ //
++// The swap operation, implemented by the SwapT functions, is the atomic
++// equivalent of:
++//
++//	old = *addr
++//	*addr = new
++//	return old
++//
+ // The compare-and-swap operation, implemented by the CompareAndSwapT
+ // functions, is the atomic equivalent of:
+ //
+@@ -45,6 +52,24 @@ import (
+ // variable or in an allocated struct or slice can be relied upon to be
+ // 64-bit aligned.
+ 
++// SwapInt32 atomically stores new into *addr and returns the previous *addr value.
++func SwapInt32(addr *int32, new int32) (old int32)
++
++// SwapInt64 atomically stores new into *addr and returns the previous *addr value.
++func SwapInt64(addr *int64, new int64) (old int64)
++
++// SwapUint32 atomically stores new into *addr and returns the previous *addr value.
++func SwapUint32(addr *uint32, new uint32) (old uint32)
++
++// SwapUint64 atomically stores new into *addr and returns the previous *addr value.
++func SwapUint64(addr *uint64, new uint64) (old uint64)
++
++// SwapUintptr atomically stores new into *addr and returns the previous *addr value.
++func SwapUintptr(addr *uintptr, new uintptr) (old uintptr)
++
++// SwapPointer atomically stores new into *addr and returns the previous *addr value.
++func SwapPointer(addr *unsafe.Pointer, new unsafe.Pointer) (old unsafe.Pointer)
++
+ // CompareAndSwapInt32 executes the compare-and-swap operation for an int32 value.
+ func CompareAndSwapInt32(addr *int32, old, new int32) (swapped bool)
+ 
+diff --git a/src/pkg/sync/atomic/race.go b/src/pkg/sync/atomic/race.go
+index 2320b57070..6cbbf12cb6 100644
+--- a/src/pkg/sync/atomic/race.go
++++ b/src/pkg/sync/atomic/race.go
+@@ -20,6 +20,54 @@ import (
+ 
+ var mtx uint32 = 1 // same for all
+ 
++func SwapInt32(addr *int32, new int32) (old int32) {
++	return int32(SwapUint32((*uint32)(unsafe.Pointer(addr)), uint32(new)))
++}
++
++func SwapUint32(addr *uint32, new uint32) (old uint32) {
++	_ = *addr
++	runtime.RaceSemacquire(&mtx)
++	runtime.RaceRead(unsafe.Pointer(addr))
++	runtime.RaceAcquire(unsafe.Pointer(addr))
++	old = *addr
++	*addr = new
++	runtime.RaceReleaseMerge(unsafe.Pointer(addr))
++	runtime.RaceSemrelease(&mtx)
++	return
++}
++
++func SwapInt64(addr *int64, new int64) (old int64) {
++	return int64(SwapUint64((*uint64)(unsafe.Pointer(addr)), uint64(new)))
++}
++
++func SwapUint64(addr *uint64, new uint64) (old uint64) {
++	_ = *addr
++	runtime.RaceSemacquire(&mtx)
++	runtime.RaceRead(unsafe.Pointer(addr))
++	runtime.RaceAcquire(unsafe.Pointer(addr))
++	old = *addr
++	*addr = new
++	runtime.RaceReleaseMerge(unsafe.Pointer(addr))
++	runtime.RaceSemrelease(&mtx)
++	return
++}
++
++func SwapUintptr(addr *uintptr, new uintptr) (old uintptr) {
++	return uintptr(SwapPointer((*unsafe.Pointer)(unsafe.Pointer(addr)), unsafe.Pointer(new)))
++}
++
++func SwapPointer(addr *unsafe.Pointer, new unsafe.Pointer) (old unsafe.Pointer) {
++	_ = *addr
++	runtime.RaceSemacquire(&mtx)
++	runtime.RaceRead(unsafe.Pointer(addr))
++	runtime.RaceAcquire(unsafe.Pointer(addr))
++	old = *addr
++	*addr = new
++	runtime.RaceReleaseMerge(unsafe.Pointer(addr))
++	runtime.RaceSemrelease(&mtx)
++	return
++}
++
+ func CompareAndSwapInt32(val *int32, old, new int32) bool {
+ 	return CompareAndSwapUint32((*uint32)(unsafe.Pointer(val)), uint32(old), uint32(new))
+ }

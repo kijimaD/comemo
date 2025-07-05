@@ -18,7 +18,7 @@ Date:   Thu Nov 26 00:47:44 2020 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/closure.go     | 32 ++++++++++--------------
  src/cmd/compile/internal/gc/escape.go      |  4 +--
  src/cmd/compile/internal/gc/inl.go         |  4 +--
@@ -31,3 +31,350 @@ Date:   Thu Nov 26 00:47:44 2020 -0500
  src/cmd/compile/internal/ir/op_string.go   |  6 ++---
  src/cmd/compile/internal/ir/sizeof_test.go |  2 +-
  11 files changed, 82 insertions(+), 51 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/closure.go b/src/cmd/compile/internal/gc/closure.go
+index 0cf59ee0eb..e8a0617be3 100644
+--- a/src/cmd/compile/internal/gc/closure.go
++++ b/src/cmd/compile/internal/gc/closure.go
+@@ -23,8 +23,7 @@ func (p *noder) funcLit(expr *syntax.FuncLit) ir.Node {
+ 	fn.Nname.Ntype = xtype
+ 	fn.Nname.Defn = fn
+ 
+-	clo := p.nod(expr, ir.OCLOSURE, nil, nil)
+-	clo.SetFunc(fn)
++	clo := ir.NewClosureExpr(p.pos(expr), fn)
+ 	fn.ClosureType = ntype
+ 	fn.OClosure = clo
+ 
+@@ -285,21 +284,19 @@ func transformclosure(fn *ir.Func) {
+ 		offset := int64(Widthptr)
+ 		for _, v := range fn.ClosureVars {
+ 			// cv refers to the field inside of closure OSTRUCTLIT.
+-			cv := ir.Nod(ir.OCLOSUREVAR, nil, nil)
+-
+-			cv.SetType(v.Type())
++			typ := v.Type()
+ 			if !v.Byval() {
+-				cv.SetType(types.NewPtr(v.Type()))
++				typ = types.NewPtr(typ)
+ 			}
+-			offset = Rnd(offset, int64(cv.Type().Align))
+-			cv.SetOffset(offset)
+-			offset += cv.Type().Width
++			offset = Rnd(offset, int64(typ.Align))
++			cr := ir.NewClosureRead(typ, offset)
++			offset += typ.Width
+ 
+ 			if v.Byval() && v.Type().Width <= int64(2*Widthptr) {
+ 				// If it is a small variable captured by value, downgrade it to PAUTO.
+ 				v.SetClass(ir.PAUTO)
+ 				fn.Dcl = append(fn.Dcl, v)
+-				body = append(body, ir.Nod(ir.OAS, v, cv))
++				body = append(body, ir.Nod(ir.OAS, v, cr))
+ 			} else {
+ 				// Declare variable holding addresses taken from closure
+ 				// and initialize in entry prologue.
+@@ -310,10 +307,11 @@ func transformclosure(fn *ir.Func) {
+ 				addr.Curfn = fn
+ 				fn.Dcl = append(fn.Dcl, addr)
+ 				v.Heapaddr = addr
++				var src ir.Node = cr
+ 				if v.Byval() {
+-					cv = ir.Nod(ir.OADDR, cv, nil)
++					src = ir.Nod(ir.OADDR, cr, nil)
+ 				}
+-				body = append(body, ir.Nod(ir.OAS, addr, cv))
++				body = append(body, ir.Nod(ir.OAS, addr, src))
+ 			}
+ 		}
+ 
+@@ -473,21 +471,17 @@ func makepartialcall(dot ir.Node, t0 *types.Type, meth *types.Sym) *ir.Func {
+ 	tfn.Type().SetPkg(t0.Pkg())
+ 
+ 	// Declare and initialize variable holding receiver.
+-
+-	cv := ir.Nod(ir.OCLOSUREVAR, nil, nil)
+-	cv.SetType(rcvrtype)
+-	cv.SetOffset(Rnd(int64(Widthptr), int64(cv.Type().Align)))
+-
++	cr := ir.NewClosureRead(rcvrtype, Rnd(int64(Widthptr), int64(rcvrtype.Align)))
+ 	ptr := NewName(lookup(".this"))
+ 	declare(ptr, ir.PAUTO)
+ 	ptr.SetUsed(true)
+ 	var body []ir.Node
+ 	if rcvrtype.IsPtr() || rcvrtype.IsInterface() {
+ 		ptr.SetType(rcvrtype)
+-		body = append(body, ir.Nod(ir.OAS, ptr, cv))
++		body = append(body, ir.Nod(ir.OAS, ptr, cr))
+ 	} else {
+ 		ptr.SetType(types.NewPtr(rcvrtype))
+-		body = append(body, ir.Nod(ir.OAS, ptr, ir.Nod(ir.OADDR, cv, nil)))
++		body = append(body, ir.Nod(ir.OAS, ptr, ir.Nod(ir.OADDR, cr, nil)))
+ 	}
+ 
+ 	call := ir.Nod(ir.OCALL, nodSym(ir.OXDOT, ptr, meth), nil)
+diff --git a/src/cmd/compile/internal/gc/escape.go b/src/cmd/compile/internal/gc/escape.go
+index 4bddb7f0f4..4cbc5d3851 100644
+--- a/src/cmd/compile/internal/gc/escape.go
++++ b/src/cmd/compile/internal/gc/escape.go
+@@ -486,7 +486,7 @@ func (e *Escape) exprSkipInit(k EscHole, n ir.Node) {
+ 	default:
+ 		base.Fatalf("unexpected expr: %v", n)
+ 
+-	case ir.OLITERAL, ir.ONIL, ir.OGETG, ir.OCLOSUREVAR, ir.OTYPE, ir.OMETHEXPR:
++	case ir.OLITERAL, ir.ONIL, ir.OGETG, ir.OCLOSUREREAD, ir.OTYPE, ir.OMETHEXPR:
+ 		// nop
+ 
+ 	case ir.ONAME:
+@@ -1718,7 +1718,7 @@ func mayAffectMemory(n ir.Node) bool {
+ 	// We're ignoring things like division by zero, index out of range,
+ 	// and nil pointer dereference here.
+ 	switch n.Op() {
+-	case ir.ONAME, ir.OCLOSUREVAR, ir.OLITERAL, ir.ONIL:
++	case ir.ONAME, ir.OCLOSUREREAD, ir.OLITERAL, ir.ONIL:
+ 		return false
+ 
+ 	// Left+Right group.
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index 20f145b8eb..97f37a4716 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -963,7 +963,7 @@ func mkinlcall(n ir.Node, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]bool)
+ 
+ 	// Handle captured variables when inlining closures.
+ 	if c := fn.OClosure; c != nil {
+-		for _, v := range c.Func().ClosureVars {
++		for _, v := range fn.ClosureVars {
+ 			if v.Op() == ir.OXXX {
+ 				continue
+ 			}
+@@ -973,7 +973,7 @@ func mkinlcall(n ir.Node, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]bool)
+ 			// NB: if we enabled inlining of functions containing OCLOSURE or refined
+ 			// the reassigned check via some sort of copy propagation this would most
+ 			// likely need to be changed to a loop to walk up to the correct Param
+-			if o == nil || (o.Curfn != Curfn && o.Curfn.OClosure != Curfn) {
++			if o == nil || o.Curfn != Curfn {
+ 				base.Fatalf("%v: unresolvable capture %v %v\n", ir.Line(n), fn, v)
+ 			}
+ 
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 91faf18a1d..10df6d5411 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -2025,7 +2025,7 @@ func (s *state) expr(n ir.Node) *ssa.Value {
+ 		}
+ 		addr := s.addr(n)
+ 		return s.load(n.Type(), addr)
+-	case ir.OCLOSUREVAR:
++	case ir.OCLOSUREREAD:
+ 		addr := s.addr(n)
+ 		return s.load(n.Type(), addr)
+ 	case ir.ONIL:
+@@ -4895,7 +4895,7 @@ func (s *state) addr(n ir.Node) *ssa.Value {
+ 	case ir.ODOTPTR:
+ 		p := s.exprPtr(n.Left(), n.Bounded(), n.Pos())
+ 		return s.newValue1I(ssa.OpOffPtr, t, n.Offset(), p)
+-	case ir.OCLOSUREVAR:
++	case ir.OCLOSUREREAD:
+ 		return s.newValue1I(ssa.OpOffPtr, t, n.Offset(),
+ 			s.entryNewValue0(ssa.OpGetClosurePtr, s.f.Config.Types.BytePtr))
+ 	case ir.OCONVNOP:
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 7d19a2b58e..8c2df77ffe 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -1948,7 +1948,7 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
+ 			n.SetType(types.NewPtr(t.Elem()))
+ 		}
+ 
+-	case ir.OCLOSUREVAR:
++	case ir.OCLOSUREREAD:
+ 		ok |= ctxExpr
+ 
+ 	case ir.OCFUNC:
+@@ -3099,7 +3099,7 @@ func islvalue(n ir.Node) bool {
+ 			return false
+ 		}
+ 		fallthrough
+-	case ir.ODEREF, ir.ODOTPTR, ir.OCLOSUREVAR:
++	case ir.ODEREF, ir.ODOTPTR, ir.OCLOSUREREAD:
+ 		return true
+ 
+ 	case ir.ODOT:
+@@ -3186,7 +3186,7 @@ func samesafeexpr(l ir.Node, r ir.Node) bool {
+ 	}
+ 
+ 	switch l.Op() {
+-	case ir.ONAME, ir.OCLOSUREVAR:
++	case ir.ONAME, ir.OCLOSUREREAD:
+ 		return l == r
+ 
+ 	case ir.ODOT, ir.ODOTPTR:
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index d749dff827..e0e715716b 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -555,7 +555,7 @@ opswitch:
+ 	case ir.ORECOVER:
+ 		n = mkcall("gorecover", n.Type(), init, ir.Nod(ir.OADDR, nodfp, nil))
+ 
+-	case ir.OCLOSUREVAR, ir.OCFUNC:
++	case ir.OCLOSUREREAD, ir.OCFUNC:
+ 
+ 	case ir.OCALLINTER, ir.OCALLFUNC, ir.OCALLMETH:
+ 		if n.Op() == ir.OCALLINTER {
+diff --git a/src/cmd/compile/internal/ir/expr.go b/src/cmd/compile/internal/ir/expr.go
+index 418351742e..13774a2c7b 100644
+--- a/src/cmd/compile/internal/ir/expr.go
++++ b/src/cmd/compile/internal/ir/expr.go
+@@ -6,6 +6,8 @@ package ir
+ 
+ import (
+ 	"cmd/compile/internal/types"
++	"cmd/internal/src"
++	"fmt"
+ )
+ 
+ // A miniStmt is a miniNode with extra fields common to expressions.
+@@ -45,3 +47,40 @@ func (n *miniExpr) SetBounded(b bool)     { n.flags.set(miniExprBounded, b) }
+ func (n *miniExpr) Init() Nodes           { return n.init }
+ func (n *miniExpr) PtrInit() *Nodes       { return &n.init }
+ func (n *miniExpr) SetInit(x Nodes)       { n.init = x }
++
++// A ClosureExpr is a function literal expression.
++type ClosureExpr struct {
++	miniExpr
++	fn *Func
++}
++
++func NewClosureExpr(pos src.XPos, fn *Func) *ClosureExpr {
++	n := &ClosureExpr{fn: fn}
++	n.op = OCLOSURE
++	n.pos = pos
++	return n
++}
++
++func (n *ClosureExpr) String() string                { return fmt.Sprint(n) }
++func (n *ClosureExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
++func (n *ClosureExpr) RawCopy() Node                 { c := *n; return &c }
++func (n *ClosureExpr) Func() *Func                   { return n.fn }
++
++// A ClosureRead denotes reading a variable stored within a closure struct.
++type ClosureRead struct {
++	miniExpr
++	offset int64
++}
++
++func NewClosureRead(typ *types.Type, offset int64) *ClosureRead {
++	n := &ClosureRead{offset: offset}
++	n.typ = typ
++	n.op = OCLOSUREREAD
++	return n
++}
++
++func (n *ClosureRead) String() string                { return fmt.Sprint(n) }
++func (n *ClosureRead) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
++func (n *ClosureRead) RawCopy() Node                 { c := *n; return &c }
++func (n *ClosureRead) Type() *types.Type             { return n.typ }
++func (n *ClosureRead) Offset() int64                 { return n.offset }
+diff --git a/src/cmd/compile/internal/ir/func.go b/src/cmd/compile/internal/ir/func.go
+index 92a24c8385..9d2a8ad94b 100644
+--- a/src/cmd/compile/internal/ir/func.go
++++ b/src/cmd/compile/internal/ir/func.go
+@@ -53,8 +53,8 @@ type Func struct {
+ 	body Nodes
+ 	iota int64
+ 
+-	Nname    *Name // ONAME node
+-	OClosure Node  // OCLOSURE node
++	Nname    *Name        // ONAME node
++	OClosure *ClosureExpr // OCLOSURE node
+ 
+ 	Shortname *types.Sym
+ 
+diff --git a/src/cmd/compile/internal/ir/node.go b/src/cmd/compile/internal/ir/node.go
+index 02a5d7769a..8e10569f6a 100644
+--- a/src/cmd/compile/internal/ir/node.go
++++ b/src/cmd/compile/internal/ir/node.go
+@@ -601,20 +601,20 @@ const (
+ 	OTARRAY // []int, [8]int, [N]int or [...]int
+ 
+ 	// misc
+-	ODDD        // func f(args ...int) or f(l...) or var a = [...]int{0, 1, 2}.
+-	OINLCALL    // intermediary representation of an inlined call.
+-	OEFACE      // itable and data words of an empty-interface value.
+-	OITAB       // itable word of an interface value.
+-	OIDATA      // data word of an interface value in Left
+-	OSPTR       // base pointer of a slice or string.
+-	OCLOSUREVAR // variable reference at beginning of closure function
+-	OCFUNC      // reference to c function pointer (not go func value)
+-	OCHECKNIL   // emit code to ensure pointer/interface not nil
+-	OVARDEF     // variable is about to be fully initialized
+-	OVARKILL    // variable is dead
+-	OVARLIVE    // variable is alive
+-	ORESULT     // result of a function call; Xoffset is stack offset
+-	OINLMARK    // start of an inlined body, with file/line of caller. Xoffset is an index into the inline tree.
++	ODDD         // func f(args ...int) or f(l...) or var a = [...]int{0, 1, 2}.
++	OINLCALL     // intermediary representation of an inlined call.
++	OEFACE       // itable and data words of an empty-interface value.
++	OITAB        // itable word of an interface value.
++	OIDATA       // data word of an interface value in Left
++	OSPTR        // base pointer of a slice or string.
++	OCLOSUREREAD // read from inside closure struct at beginning of closure function
++	OCFUNC       // reference to c function pointer (not go func value)
++	OCHECKNIL    // emit code to ensure pointer/interface not nil
++	OVARDEF      // variable is about to be fully initialized
++	OVARKILL     // variable is dead
++	OVARLIVE     // variable is alive
++	ORESULT      // result of a function call; Xoffset is stack offset
++	OINLMARK     // start of an inlined body, with file/line of caller. Xoffset is an index into the inline tree.
+ 
+ 	// arch-specific opcodes
+ 	ORETJMP // return to other function
+@@ -1162,8 +1162,6 @@ var okForNod = [OEND]bool{
+ 	OCFUNC:         true,
+ 	OCHECKNIL:      true,
+ 	OCLOSE:         true,
+-	OCLOSURE:       true,
+-	OCLOSUREVAR:    true,
+ 	OCOMPLEX:       true,
+ 	OCOMPLIT:       true,
+ 	OCONV:          true,
+diff --git a/src/cmd/compile/internal/ir/op_string.go b/src/cmd/compile/internal/ir/op_string.go
+index d0d3778357..637c924dd5 100644
+--- a/src/cmd/compile/internal/ir/op_string.go
++++ b/src/cmd/compile/internal/ir/op_string.go
+@@ -152,7 +152,7 @@ func _() {
+ 	_ = x[OITAB-141]
+ 	_ = x[OIDATA-142]
+ 	_ = x[OSPTR-143]
+-	_ = x[OCLOSUREVAR-144]
++	_ = x[OCLOSUREREAD-144]
+ 	_ = x[OCFUNC-145]
+ 	_ = x[OCHECKNIL-146]
+ 	_ = x[OVARDEF-147]
+@@ -165,9 +165,9 @@ func _() {
+ 	_ = x[OEND-154]
+ }
+ 
+-const _Op_name = "XXXNAMENONAMETYPEPACKLITERALNILADDSUBORXORADDSTRADDRANDANDAPPENDBYTES2STRBYTES2STRTMPRUNES2STRSTR2BYTESSTR2BYTESTMPSTR2RUNESASAS2AS2DOTTYPEAS2FUNCAS2MAPRAS2RECVASOPCALLCALLFUNCCALLMETHCALLINTERCALLPARTCAPCLOSECLOSURECOMPLITMAPLITSTRUCTLITARRAYLITSLICELITPTRLITCONVCONVIFACECONVNOPCOPYDCLDCLFUNCDCLFIELDDCLCONSTDCLTYPEDELETEDOTDOTPTRDOTMETHDOTINTERXDOTDOTTYPEDOTTYPE2EQNELTLEGEGTDEREFINDEXINDEXMAPKEYSTRUCTKEYLENMAKEMAKECHANMAKEMAPMAKESLICEMAKESLICECOPYMULDIVMODLSHRSHANDANDNOTNEWNEWOBJNOTBITNOTPLUSNEGORORPANICPRINTPRINTNPARENSENDSLICESLICEARRSLICESTRSLICE3SLICE3ARRSLICEHEADERRECOVERRECVRUNESTRSELRECVSELRECV2IOTAREALIMAGCOMPLEXALIGNOFOFFSETOFSIZEOFMETHEXPRBLOCKBREAKCASECONTINUEDEFEREMPTYFALLFORFORUNTILGOTOIFLABELGORANGERETURNSELECTSWITCHTYPESWTCHANTMAPTSTRUCTTINTERTFUNCTARRAYDDDINLCALLEFACEITABIDATASPTRCLOSUREVARCFUNCCHECKNILVARDEFVARKILLVARLIVERESULTINLMARKRETJMPGETGEND"
++const _Op_name = "XXXNAMENONAMETYPEPACKLITERALNILADDSUBORXORADDSTRADDRANDANDAPPENDBYTES2STRBYTES2STRTMPRUNES2STRSTR2BYTESSTR2BYTESTMPSTR2RUNESASAS2AS2DOTTYPEAS2FUNCAS2MAPRAS2RECVASOPCALLCALLFUNCCALLMETHCALLINTERCALLPARTCAPCLOSECLOSURECOMPLITMAPLITSTRUCTLITARRAYLITSLICELITPTRLITCONVCONVIFACECONVNOPCOPYDCLDCLFUNCDCLFIELDDCLCONSTDCLTYPEDELETEDOTDOTPTRDOTMETHDOTINTERXDOTDOTTYPEDOTTYPE2EQNELTLEGEGTDEREFINDEXINDEXMAPKEYSTRUCTKEYLENMAKEMAKECHANMAKEMAPMAKESLICEMAKESLICECOPYMULDIVMODLSHRSHANDANDNOTNEWNEWOBJNOTBITNOTPLUSNEGORORPANICPRINTPRINTNPARENSENDSLICESLICEARRSLICESTRSLICE3SLICE3ARRSLICEHEADERRECOVERRECVRUNESTRSELRECVSELRECV2IOTAREALIMAGCOMPLEXALIGNOFOFFSETOFSIZEOFMETHEXPRBLOCKBREAKCASECONTINUEDEFEREMPTYFALLFORFORUNTILGOTOIFLABELGORANGERETURNSELECTSWITCHTYPESWTCHANTMAPTSTRUCTTINTERTFUNCTARRAYDDDINLCALLEFACEITABIDATASPTRCLOSUREREADCFUNCCHECKNILVARDEFVARKILLVARLIVERESULTINLMARKRETJMPGETGEND"
+ 
+-var _Op_index = [...]uint16{0, 3, 7, 13, 17, 21, 28, 31, 34, 37, 39, 42, 48, 52, 58, 64, 73, 85, 94, 103, 115, 124, 126, 129, 139, 146, 153, 160, 164, 168, 176, 184, 193, 201, 204, 209, 216, 223, 229, 238, 246, 254, 260, 264, 273, 280, 284, 287, 294, 302, 310, 317, 323, 326, 332, 339, 347, 351, 358, 366, 368, 370, 372, 374, 376, 378, 383, 388, 396, 399, 408, 411, 415, 423, 430, 439, 452, 455, 458, 461, 464, 467, 470, 476, 479, 485, 488, 494, 498, 501, 505, 510, 515, 521, 526, 530, 535, 543, 551, 557, 566, 577, 584, 588, 595, 602, 610, 614, 618, 622, 629, 636, 644, 650, 658, 663, 668, 672, 680, 685, 690, 694, 697, 705, 709, 711, 716, 718, 723, 729, 735, 741, 747, 752, 756, 763, 769, 774, 780, 783, 790, 795, 799, 804, 808, 818, 823, 831, 837, 844, 851, 857, 864, 870, 874, 877}
++var _Op_index = [...]uint16{0, 3, 7, 13, 17, 21, 28, 31, 34, 37, 39, 42, 48, 52, 58, 64, 73, 85, 94, 103, 115, 124, 126, 129, 139, 146, 153, 160, 164, 168, 176, 184, 193, 201, 204, 209, 216, 223, 229, 238, 246, 254, 260, 264, 273, 280, 284, 287, 294, 302, 310, 317, 323, 326, 332, 339, 347, 351, 358, 366, 368, 370, 372, 374, 376, 378, 383, 388, 396, 399, 408, 411, 415, 423, 430, 439, 452, 455, 458, 461, 464, 467, 470, 476, 479, 485, 488, 494, 498, 501, 505, 510, 515, 521, 526, 530, 535, 543, 551, 557, 566, 577, 584, 588, 595, 602, 610, 614, 618, 622, 629, 636, 644, 650, 658, 663, 668, 672, 680, 685, 690, 694, 697, 705, 709, 711, 716, 718, 723, 729, 735, 741, 747, 752, 756, 763, 769, 774, 780, 783, 790, 795, 799, 804, 808, 819, 824, 832, 838, 845, 852, 858, 865, 871, 875, 878}
+ 
+ func (i Op) String() string {
+ 	if i >= Op(len(_Op_index)-1) {
+diff --git a/src/cmd/compile/internal/ir/sizeof_test.go b/src/cmd/compile/internal/ir/sizeof_test.go
+index 9321f765e0..0859022a62 100644
+--- a/src/cmd/compile/internal/ir/sizeof_test.go
++++ b/src/cmd/compile/internal/ir/sizeof_test.go
+@@ -20,7 +20,7 @@ func TestSizeof(t *testing.T) {
+ 		_32bit uintptr     // size on 32bit platforms
+ 		_64bit uintptr     // size on 64bit platforms
+ 	}{
+-		{Func{}, 172, 296},
++		{Func{}, 168, 288},
+ 		{Name{}, 128, 224},
+ 		{node{}, 84, 144},
+ 	}

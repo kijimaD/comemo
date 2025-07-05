@@ -14,7 +14,7 @@ Date:   Tue Oct 18 12:58:57 2011 -0400
     R=bradfitz, r, dave, rsc
     CC=golang-dev
     https://golang.org/cl/5278049
-
+---
  src/pkg/exp/terminal/Makefile         |  15 ++
  src/pkg/exp/terminal/shell.go         | 359 ++++++++++++++++++++++++++++++++++
  src/pkg/exp/terminal/shell_test.go    | 110 +++++++++++
@@ -22,3 +22,863 @@ Date:   Tue Oct 18 12:58:57 2011 -0400
  src/pkg/syscall/types_linux.c         | 107 ++++++++++
  src/pkg/syscall/ztypes_linux_amd64.go | 111 +++++++++++
  6 files changed, 805 insertions(+)
+
+diff --git a/src/pkg/exp/terminal/Makefile b/src/pkg/exp/terminal/Makefile
+new file mode 100644
+index 0000000000..40331d6e40
+--- /dev/null
++++ b/src/pkg/exp/terminal/Makefile
+@@ -0,0 +1,15 @@
++# Copyright 2011 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++include ../../../Make.inc
++
++TARG=exp/terminal
++GOFILES=\
++	shell.go\
++
++ifneq ($(GOOS),windows)
++GOFILES+=terminal.go
++endif
++
++include ../../../Make.pkg
+diff --git a/src/pkg/exp/terminal/shell.go b/src/pkg/exp/terminal/shell.go
+new file mode 100644
+index 0000000000..e3f584774e
+--- /dev/null
++++ b/src/pkg/exp/terminal/shell.go
+@@ -0,0 +1,359 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package terminal
++
++import (
++	"os"
++	"io"
++)
++
++// Shell contains the state for running a VT100 terminal that is capable of
++// reading lines of input.
++type Shell struct {
++	c      io.ReadWriter
++	prompt string
++
++	// line is the current line being entered.
++	line []byte
++	// pos is the logical position of the cursor in line
++	pos int
++
++	// cursorX contains the current X value of the cursor where the left
++	// edge is 0. cursorY contains the row number where the first row of
++	// the current line is 0.
++	cursorX, cursorY int
++	// maxLine is the greatest value of cursorY so far.
++	maxLine int
++
++	termWidth, termHeight int
++
++	// outBuf contains the terminal data to be sent.
++	outBuf []byte
++	// remainder contains the remainder of any partial key sequences after
++	// a read. It aliases into inBuf.
++	remainder []byte
++	inBuf     [256]byte
++}
++
++// NewShell runs a VT100 terminal on the given ReadWriter. If the ReadWriter is
++// a local terminal, that terminal must first have been put into raw mode.
++// prompt is a string that is written at the start of each input line (i.e.
++// "> ").
++func NewShell(c io.ReadWriter, prompt string) *Shell {
++	return &Shell{
++		c:          c,
++		prompt:     prompt,
++		termWidth:  80,
++		termHeight: 24,
++	}
++}
++
++const (
++	keyCtrlD     = 4
++	keyEnter     = '\r'
++	keyEscape    = 27
++	keyBackspace = 127
++	keyUnknown   = 256 + iota
++	keyUp
++	keyDown
++	keyLeft
++	keyRight
++	keyAltLeft
++	keyAltRight
++)
++
++// bytesToKey tries to parse a key sequence from b. If successful, it returns
++// the key and the remainder of the input. Otherwise it returns -1.
++func bytesToKey(b []byte) (int, []byte) {
++	if len(b) == 0 {
++		return -1, nil
++	}
++
++	if b[0] != keyEscape {
++		return int(b[0]), b[1:]
++	}
++
++	if len(b) >= 3 && b[0] == keyEscape && b[1] == '[' {
++		switch b[2] {
++		case 'A':
++			return keyUp, b[3:]
++		case 'B':
++			return keyDown, b[3:]
++		case 'C':
++			return keyRight, b[3:]
++		case 'D':
++			return keyLeft, b[3:]
++		}
++	}
++
++	if len(b) >= 6 && b[0] == keyEscape && b[1] == '[' && b[2] == '1' && b[3] == ';' && b[4] == '3' {
++		switch b[5] {
++		case 'C':
++			return keyAltRight, b[6:]
++		case 'D':
++			return keyAltLeft, b[6:]
++		}
++	}
++
++	// If we get here then we have a key that we don't recognise, or a
++	// partial sequence. It's not clear how one should find the end of a
++	// sequence without knowing them all, but it seems that [a-zA-Z] only
++	// appears at the end of a sequence.
++	for i, c := range b[0:] {
++		if c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' {
++			return keyUnknown, b[i+1:]
++		}
++	}
++
++	return -1, b
++}
++
++// queue appends data to the end of ss.outBuf
++func (ss *Shell) queue(data []byte) {
++	if len(ss.outBuf)+len(data) > cap(ss.outBuf) {
++		newOutBuf := make([]byte, len(ss.outBuf), 2*(len(ss.outBuf)+len(data)))
++		copy(newOutBuf, ss.outBuf)
++		ss.outBuf = newOutBuf
++	}
++
++	oldLen := len(ss.outBuf)
++	ss.outBuf = ss.outBuf[:len(ss.outBuf)+len(data)]
++	copy(ss.outBuf[oldLen:], data)
++}
++
++var eraseUnderCursor = []byte{' ', keyEscape, '[', 'D'}
++
++func isPrintable(key int) bool {
++	return key >= 32 && key < 127
++}
++
++// moveCursorToPos appends data to ss.outBuf which will move the cursor to the
++// given, logical position in the text.
++func (ss *Shell) moveCursorToPos(pos int) {
++	x := len(ss.prompt) + pos
++	y := x / ss.termWidth
++	x = x % ss.termWidth
++
++	up := 0
++	if y < ss.cursorY {
++		up = ss.cursorY - y
++	}
++
++	down := 0
++	if y > ss.cursorY {
++		down = y - ss.cursorY
++	}
++
++	left := 0
++	if x < ss.cursorX {
++		left = ss.cursorX - x
++	}
++
++	right := 0
++	if x > ss.cursorX {
++		right = x - ss.cursorX
++	}
++
++	movement := make([]byte, 3*(up+down+left+right))
++	m := movement
++	for i := 0; i < up; i++ {
++		m[0] = keyEscape
++		m[1] = '['
++		m[2] = 'A'
++		m = m[3:]
++	}
++	for i := 0; i < down; i++ {
++		m[0] = keyEscape
++		m[1] = '['
++		m[2] = 'B'
++		m = m[3:]
++	}
++	for i := 0; i < left; i++ {
++		m[0] = keyEscape
++		m[1] = '['
++		m[2] = 'D'
++		m = m[3:]
++	}
++	for i := 0; i < right; i++ {
++		m[0] = keyEscape
++		m[1] = '['
++		m[2] = 'C'
++		m = m[3:]
++	}
++
++	ss.cursorX = x
++	ss.cursorY = y
++	ss.queue(movement)
++}
++
++const maxLineLength = 4096
++
++// handleKey processes the given key and, optionally, returns a line of text
++// that the user has entered.
++func (ss *Shell) handleKey(key int) (line string, ok bool) {
++	switch key {
++	case keyBackspace:
++		if ss.pos == 0 {
++			return
++		}
++		ss.pos--
++
++		copy(ss.line[ss.pos:], ss.line[1+ss.pos:])
++		ss.line = ss.line[:len(ss.line)-1]
++		ss.writeLine(ss.line[ss.pos:])
++		ss.moveCursorToPos(ss.pos)
++		ss.queue(eraseUnderCursor)
++	case keyAltLeft:
++		// move left by a word.
++		if ss.pos == 0 {
++			return
++		}
++		ss.pos--
++		for ss.pos > 0 {
++			if ss.line[ss.pos] != ' ' {
++				break
++			}
++			ss.pos--
++		}
++		for ss.pos > 0 {
++			if ss.line[ss.pos] == ' ' {
++				ss.pos++
++				break
++			}
++			ss.pos--
++		}
++		ss.moveCursorToPos(ss.pos)
++	case keyAltRight:
++		// move right by a word.
++		for ss.pos < len(ss.line) {
++			if ss.line[ss.pos] == ' ' {
++				break
++			}
++			ss.pos++
++		}
++		for ss.pos < len(ss.line) {
++			if ss.line[ss.pos] != ' ' {
++				break
++			}
++			ss.pos++
++		}
++		ss.moveCursorToPos(ss.pos)
++	case keyLeft:
++		if ss.pos == 0 {
++			return
++		}
++		ss.pos--
++		ss.moveCursorToPos(ss.pos)
++	case keyRight:
++		if ss.pos == len(ss.line) {
++			return
++		}
++		ss.pos++
++		ss.moveCursorToPos(ss.pos)
++	case keyEnter:
++		ss.moveCursorToPos(len(ss.line))
++		ss.queue([]byte("\r\n"))
++		line = string(ss.line)
++		ok = true
++		ss.line = ss.line[:0]
++		ss.pos = 0
++		ss.cursorX = 0
++		ss.cursorY = 0
++		ss.maxLine = 0
++	default:
++		if !isPrintable(key) {
++			return
++		}
++		if len(ss.line) == maxLineLength {
++			return
++		}
++		if len(ss.line) == cap(ss.line) {
++			newLine := make([]byte, len(ss.line), 2*(1+len(ss.line)))
++			copy(newLine, ss.line)
++			ss.line = newLine
++		}
++		ss.line = ss.line[:len(ss.line)+1]
++		copy(ss.line[ss.pos+1:], ss.line[ss.pos:])
++		ss.line[ss.pos] = byte(key)
++		ss.writeLine(ss.line[ss.pos:])
++		ss.pos++
++		ss.moveCursorToPos(ss.pos)
++	}
++	return
++}
++
++func (ss *Shell) writeLine(line []byte) {
++	for len(line) != 0 {
++		if ss.cursorX == ss.termWidth {
++			ss.queue([]byte("\r\n"))
++			ss.cursorX = 0
++			ss.cursorY++
++			if ss.cursorY > ss.maxLine {
++				ss.maxLine = ss.cursorY
++			}
++		}
++
++		remainingOnLine := ss.termWidth - ss.cursorX
++		todo := len(line)
++		if todo > remainingOnLine {
++			todo = remainingOnLine
++		}
++		ss.queue(line[:todo])
++		ss.cursorX += todo
++		line = line[todo:]
++	}
++}
++
++func (ss *Shell) Write(buf []byte) (n int, err os.Error) {
++	return ss.c.Write(buf)
++}
++
++// ReadLine returns a line of input from the terminal.
++func (ss *Shell) ReadLine() (line string, err os.Error) {
++	ss.writeLine([]byte(ss.prompt))
++	ss.c.Write(ss.outBuf)
++	ss.outBuf = ss.outBuf[:0]
++
++	for {
++		// ss.remainder is a slice at the beginning of ss.inBuf
++		// containing a partial key sequence
++		readBuf := ss.inBuf[len(ss.remainder):]
++		var n int
++		n, err = ss.c.Read(readBuf)
++		if err != nil {
++			return
++		}
++
++		if err == nil {
++			ss.remainder = ss.inBuf[:n+len(ss.remainder)]
++			rest := ss.remainder
++			lineOk := false
++			for !lineOk {
++				var key int
++				key, rest = bytesToKey(rest)
++				if key < 0 {
++					break
++				}
++				if key == keyCtrlD {
++					return "", os.EOF
++				}
++				line, lineOk = ss.handleKey(key)
++			}
++			if len(rest) > 0 {
++				n := copy(ss.inBuf[:], rest)
++				ss.remainder = ss.inBuf[:n]
++			} else {
++				ss.remainder = nil
++			}
++			ss.c.Write(ss.outBuf)
++			ss.outBuf = ss.outBuf[:0]
++			if lineOk {
++				return
++			}
++			continue
++		}
++	}
++	panic("unreachable")
++}
+diff --git a/src/pkg/exp/terminal/shell_test.go b/src/pkg/exp/terminal/shell_test.go
+new file mode 100644
+index 0000000000..2bbe4a4f8f
+--- /dev/null
++++ b/src/pkg/exp/terminal/shell_test.go
+@@ -0,0 +1,110 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package terminal
++
++import (
++	"testing"
++	"os"
++)
++
++type MockTerminal struct {
++	toSend       []byte
++	bytesPerRead int
++	received     []byte
++}
++
++func (c *MockTerminal) Read(data []byte) (n int, err os.Error) {
++	n = len(data)
++	if n == 0 {
++		return
++	}
++	if n > len(c.toSend) {
++		n = len(c.toSend)
++	}
++	if n == 0 {
++		return 0, os.EOF
++	}
++	if c.bytesPerRead > 0 && n > c.bytesPerRead {
++		n = c.bytesPerRead
++	}
++	copy(data, c.toSend[:n])
++	c.toSend = c.toSend[n:]
++	return
++}
++
++func (c *MockTerminal) Write(data []byte) (n int, err os.Error) {
++	c.received = append(c.received, data...)
++	return len(data), nil
++}
++
++func TestClose(t *testing.T) {
++	c := &MockTerminal{}
++	ss := NewShell(c, "> ")
++	line, err := ss.ReadLine()
++	if line != "" {
++		t.Errorf("Expected empty line but got: %s", line)
++	}
++	if err != os.EOF {
++		t.Errorf("Error should have been EOF but got: %s", err)
++	}
++}
++
++var keyPressTests = []struct {
++	in   string
++	line string
++	err  os.Error
++}{
++	{
++		"",
++		"",
++		os.EOF,
++	},
++	{
++		"\r",
++		"",
++		nil,
++	},
++	{
++		"foo\r",
++		"foo",
++		nil,
++	},
++	{
++		"a\x1b[Cb\r", // right
++		"ab",
++		nil,
++	},
++	{
++		"a\x1b[Db\r", // left
++		"ba",
++		nil,
++	},
++	{
++		"a\177b\r", // backspace
++		"b",
++		nil,
++	},
++}
++
++func TestKeyPresses(t *testing.T) {
++	for i, test := range keyPressTests {
++		for j := 0; j < len(test.in); j++ {
++			c := &MockTerminal{
++				toSend:       []byte(test.in),
++				bytesPerRead: j,
++			}
++			ss := NewShell(c, "> ")
++			line, err := ss.ReadLine()
++			if line != test.line {
++				t.Errorf("Line resulting from test %d (%d bytes per read) was '%s', expected '%s'", i, j, line, test.line)
++				break
++			}
++			if err != test.err {
++				t.Errorf("Error resulting from test %d (%d bytes per read) was '%v', expected '%v'", i, j, err, test.err)
++				break
++			}
++		}
++	}
++}
+diff --git a/src/pkg/exp/terminal/terminal.go b/src/pkg/exp/terminal/terminal.go
+new file mode 100644
+index 0000000000..aacd90905f
+--- /dev/null
++++ b/src/pkg/exp/terminal/terminal.go
+@@ -0,0 +1,103 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package terminal provides support functions for dealing with terminals, as
++// commonly found on UNIX systems.
++//
++// Putting a terminal into raw mode is the most common requirement:
++//
++// 	oldState, err := terminal.MakeRaw(0)
++// 	if err != nil {
++// 	        panic(err.String())
++// 	}
++// 	defer terminal.Restore(0, oldState)
++package terminal
++
++import (
++	"os"
++	"syscall"
++	"unsafe"
++)
++
++// State contains the state of a terminal.
++type State struct {
++	termios syscall.Termios
++}
++
++// IsTerminal returns true if the given file descriptor is a terminal.
++func IsTerminal(fd int) bool {
++	var termios syscall.Termios
++	_, _, e := syscall.Syscall6(syscall.SYS_IOCTL, uintptr(fd), uintptr(syscall.TCGETS), uintptr(unsafe.Pointer(&termios)), 0, 0, 0)
++	return e == 0
++}
++
++// MakeRaw put the terminal connected to the given file descriptor into raw
++// mode and returns the previous state of the terminal so that it can be
++// restored.
++func MakeRaw(fd int) (*State, os.Error) {
++	var oldState State
++	if _, _, e := syscall.Syscall6(syscall.SYS_IOCTL, uintptr(fd), uintptr(syscall.TCGETS), uintptr(unsafe.Pointer(&oldState.termios)), 0, 0, 0); e != 0 {
++		return nil, os.Errno(e)
++	}
++
++	newState := oldState.termios
++	newState.Iflag &^= syscall.ISTRIP | syscall.INLCR | syscall.ICRNL | syscall.IGNCR | syscall.IXON | syscall.IXOFF
++	newState.Lflag &^= syscall.ECHO | syscall.ICANON | syscall.ISIG
++	if _, _, e := syscall.Syscall6(syscall.SYS_IOCTL, uintptr(fd), uintptr(syscall.TCSETS), uintptr(unsafe.Pointer(&newState)), 0, 0, 0); e != 0 {
++		return nil, os.Errno(e)
++	}
++
++	return &oldState, nil
++}
++
++// Restore restores the terminal connected to the given file descriptor to a
++// previous state.
++func Restore(fd int, state *State) os.Error {
++	_, _, e := syscall.Syscall6(syscall.SYS_IOCTL, uintptr(fd), uintptr(syscall.TCSETS), uintptr(unsafe.Pointer(&state.termios)), 0, 0, 0)
++	return os.Errno(e)
++}
++
++// ReadPassword reads a line of input from a terminal without local echo.  This
++// is commonly used for inputting passwords and other sensitive data. The slice
++// returned does not include the \n.
++func ReadPassword(fd int) ([]byte, os.Error) {
++	var oldState syscall.Termios
++	if _, _, e := syscall.Syscall6(syscall.SYS_IOCTL, uintptr(fd), uintptr(syscall.TCGETS), uintptr(unsafe.Pointer(&oldState)), 0, 0, 0); e != 0 {
++		return nil, os.Errno(e)
++	}
++
++	newState := oldState
++	newState.Lflag &^= syscall.ECHO
++	if _, _, e := syscall.Syscall6(syscall.SYS_IOCTL, uintptr(fd), uintptr(syscall.TCSETS), uintptr(unsafe.Pointer(&newState)), 0, 0, 0); e != 0 {
++		return nil, os.Errno(e)
++	}
++
++	defer func() {
++		syscall.Syscall6(syscall.SYS_IOCTL, uintptr(fd), uintptr(syscall.TCSETS), uintptr(unsafe.Pointer(&oldState)), 0, 0, 0)
++	}()
++
++	var buf [16]byte
++	var ret []byte
++	for {
++		n, errno := syscall.Read(fd, buf[:])
++		if errno != 0 {
++			return nil, os.Errno(errno)
++		}
++		if n == 0 {
++			if len(ret) == 0 {
++				return nil, os.EOF
++			}
++			break
++		}
++		if buf[n-1] == '\n' {
++			n--
++		}
++		ret = append(ret, buf[:n]...)
++		if n < len(buf) {
++			break
++		}
++	}
++
++	return ret, nil
++}
+diff --git a/src/pkg/syscall/types_linux.c b/src/pkg/syscall/types_linux.c
+index 8ede62fc1c..57a95daf3c 100644
+--- a/src/pkg/syscall/types_linux.c
++++ b/src/pkg/syscall/types_linux.c
+@@ -41,6 +41,7 @@ Input to godefs.  See also mkerrors.sh and mkall.sh
+ #include <linux/filter.h>
+ #include <linux/netlink.h>
+ #include <linux/rtnetlink.h>
++#include <termios.h>
+ #include <time.h>
+ #include <unistd.h>
+ #include <ustat.h>
+@@ -288,3 +289,109 @@ struct my_epoll_event {
+ };
+ 
+ typedef struct my_epoll_event $EpollEvent;
++
++// Terminal handling
++
++typedef struct termios $Termios;
++
++enum {
++	$VINTR = VINTR,
++	$VQUIT = VQUIT,
++	$VERASE = VERASE,
++	$VKILL = VKILL,
++	$VEOF = VEOF,
++	$VTIME = VTIME,
++	$VMIN = VMIN,
++	$VSWTC = VSWTC,
++	$VSTART = VSTART,
++	$VSTOP = VSTOP,
++	$VSUSP = VSUSP,
++	$VEOL = VEOL,
++	$VREPRINT = VREPRINT,
++	$VDISCARD = VDISCARD,
++	$VWERASE = VWERASE,
++	$VLNEXT = VLNEXT,
++	$VEOL2 = VEOL2,
++	$IGNBRK = IGNBRK,
++	$BRKINT = BRKINT,
++	$IGNPAR = IGNPAR,
++	$PARMRK = PARMRK,
++	$INPCK = INPCK,
++	$ISTRIP = ISTRIP,
++	$INLCR = INLCR,
++	$IGNCR = IGNCR,
++	$ICRNL = ICRNL,
++	$IUCLC = IUCLC,
++	$IXON = IXON,
++	$IXANY = IXANY,
++	$IXOFF = IXOFF,
++	$IMAXBEL = IMAXBEL,
++	$IUTF8 = IUTF8,
++	$OPOST = OPOST,
++	$OLCUC = OLCUC,
++	$ONLCR = ONLCR,
++	$OCRNL = OCRNL,
++	$ONOCR = ONOCR,
++	$ONLRET = ONLRET,
++	$OFILL = OFILL,
++	$OFDEL = OFDEL,
++	$B0 = B0,
++	$B50 = B50,
++	$B75 = B75,
++	$B110 = B110,
++	$B134 = B134,
++	$B150 = B150,
++	$B200 = B200,
++	$B300 = B300,
++	$B600 = B600,
++	$B1200 = B1200,
++	$B1800 = B1800,
++	$B2400 = B2400,
++	$B4800 = B4800,
++	$B9600 = B9600,
++	$B19200 = B19200,
++	$B38400 = B38400,
++	$CSIZE = CSIZE,
++	$CS5 = CS5,
++	$CS6 = CS6,
++	$CS7 = CS7,
++	$CS8 = CS8,
++	$CSTOPB = CSTOPB,
++	$CREAD = CREAD,
++	$PARENB = PARENB,
++	$PARODD = PARODD,
++	$HUPCL = HUPCL,
++	$CLOCAL = CLOCAL,
++	$B57600 = B57600,
++	$B115200 = B115200,
++	$B230400 = B230400,
++	$B460800 = B460800,
++	$B500000 = B500000,
++	$B576000 = B576000,
++	$B921600 = B921600,
++	$B1000000 = B1000000,
++	$B1152000 = B1152000,
++	$B1500000 = B1500000,
++	$B2000000 = B2000000,
++	$B2500000 = B2500000,
++	$B3000000 = B3000000,
++	$B3500000 = B3500000,
++	$B4000000 = B4000000,
++	$ISIG = ISIG,
++	$ICANON = ICANON,
++	$XCASE = XCASE,
++	$ECHO = ECHO,
++	$ECHOE = ECHOE,
++	$ECHOK = ECHOK,
++	$ECHONL = ECHONL,
++	$NOFLSH = NOFLSH,
++	$TOSTOP = TOSTOP,
++	$ECHOCTL = ECHOCTL,
++	$ECHOPRT = ECHOPRT,
++	$ECHOKE = ECHOKE,
++	$FLUSHO = FLUSHO,
++	$PENDIN = PENDIN,
++	$IEXTEN = IEXTEN,
++	$TCGETS = TCGETS,
++	$TCSETS = TCSETS,
++};
+diff --git a/src/pkg/syscall/ztypes_linux_amd64.go b/src/pkg/syscall/ztypes_linux_amd64.go
+index 1ad4c8bfe6..add91306f0 100644
+--- a/src/pkg/syscall/ztypes_linux_amd64.go
++++ b/src/pkg/syscall/ztypes_linux_amd64.go
+@@ -105,6 +105,105 @@ const (
+ 	SizeofSockFilter        = 0x8
+ 	SizeofSockFprog         = 0x10
+ 	SizeofInotifyEvent      = 0x10
++	VINTR                   = 0
++	VQUIT                   = 0x1
++	VERASE                  = 0x2
++	VKILL                   = 0x3
++	VEOF                    = 0x4
++	VTIME                   = 0x5
++	VMIN                    = 0x6
++	VSWTC                   = 0x7
++	VSTART                  = 0x8
++	VSTOP                   = 0x9
++	VSUSP                   = 0xa
++	VEOL                    = 0xb
++	VREPRINT                = 0xc
++	VDISCARD                = 0xd
++	VWERASE                 = 0xe
++	VLNEXT                  = 0xf
++	VEOL2                   = 0x10
++	IGNBRK                  = 0x1
++	BRKINT                  = 0x2
++	IGNPAR                  = 0x4
++	PARMRK                  = 0x8
++	INPCK                   = 0x10
++	ISTRIP                  = 0x20
++	INLCR                   = 0x40
++	IGNCR                   = 0x80
++	ICRNL                   = 0x100
++	IUCLC                   = 0x200
++	IXON                    = 0x400
++	IXANY                   = 0x800
++	IXOFF                   = 0x1000
++	IMAXBEL                 = 0x2000
++	IUTF8                   = 0x4000
++	OPOST                   = 0x1
++	OLCUC                   = 0x2
++	ONLCR                   = 0x4
++	OCRNL                   = 0x8
++	ONOCR                   = 0x10
++	ONLRET                  = 0x20
++	OFILL                   = 0x40
++	OFDEL                   = 0x80
++	B0                      = 0
++	B50                     = 0x1
++	B75                     = 0x2
++	B110                    = 0x3
++	B134                    = 0x4
++	B150                    = 0x5
++	B200                    = 0x6
++	B300                    = 0x7
++	B600                    = 0x8
++	B1200                   = 0x9
++	B1800                   = 0xa
++	B2400                   = 0xb
++	B4800                   = 0xc
++	B9600                   = 0xd
++	B19200                  = 0xe
++	B38400                  = 0xf
++	CSIZE                   = 0x30
++	CS5                     = 0
++	CS6                     = 0x10
++	CS7                     = 0x20
++	CS8                     = 0x30
++	CSTOPB                  = 0x40
++	CREAD                   = 0x80
++	PARENB                  = 0x100
++	PARODD                  = 0x200
++	HUPCL                   = 0x400
++	CLOCAL                  = 0x800
++	B57600                  = 0x1001
++	B115200                 = 0x1002
++	B230400                 = 0x1003
++	B460800                 = 0x1004
++	B500000                 = 0x1005
++	B576000                 = 0x1006
++	B921600                 = 0x1007
++	B1000000                = 0x1008
++	B1152000                = 0x1009
++	B1500000                = 0x100a
++	B2000000                = 0x100b
++	B2500000                = 0x100c
++	B3000000                = 0x100d
++	B3500000                = 0x100e
++	B4000000                = 0x100f
++	ISIG                    = 0x1
++	ICANON                  = 0x2
++	XCASE                   = 0x4
++	ECHO                    = 0x8
++	ECHOE                   = 0x10
++	ECHOK                   = 0x20
++	ECHONL                  = 0x40
++	NOFLSH                  = 0x80
++	TOSTOP                  = 0x100
++	ECHOCTL                 = 0x200
++	ECHOPRT                 = 0x400
++	ECHOKE                  = 0x800
++	FLUSHO                  = 0x1000
++	PENDIN                  = 0x4000
++	IEXTEN                  = 0x8000
++	TCGETS                  = 0x5401
++	TCSETS                  = 0x5402
+ )
+ 
+ // Types
+@@ -514,3 +613,15 @@ type EpollEvent struct {
+ 	Fd     int32
+ 	Pad    int32
+ }
++
++type Termios struct {
++	Iflag        uint32
++	Oflag        uint32
++	Cflag        uint32
++	Lflag        uint32
++	Line         uint8
++	Cc           [32]uint8
++	Pad_godefs_0 [3]byte
++	Ispeed       uint32
++	Ospeed       uint32
++}

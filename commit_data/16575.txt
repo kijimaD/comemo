@@ -7,6 +7,20 @@ Date:   Fri Jun 14 12:37:23 2013 -0700
     R=golang-dev, gri, gri
     CC=golang-dev
     https://golang.org/cl/9722045
-
+---
  src/cmd/godoc/linkify.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/godoc/linkify.go b/src/cmd/godoc/linkify.go
+index 5b4862419e..7213abb480 100644
+--- a/src/cmd/godoc/linkify.go
++++ b/src/cmd/godoc/linkify.go
+@@ -56,7 +56,7 @@ func LinkifyText(w io.Writer, text []byte, n ast.Node) {
+ 				if info.mode == identVal {
+ 					fmt.Fprintf(w, `<span id="%s">`, info.name)
+ 					prev = "span"
+-				} else {
++				} else if ast.IsExported(info.name) {
+ 					fmt.Fprintf(w, `<a href="#%s">`, info.name)
+ 					prev = "a"
+ 				}

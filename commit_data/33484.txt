@@ -12,6 +12,32 @@ Date:   Sun Jul 16 14:32:19 2017 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/go_test.go | 7 ++++---
  1 file changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index b836da9f57..a3aa32d64a 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -2588,16 +2588,17 @@ func TestBuildDashIInstallsDependencies(t *testing.T) {
+ 	tg.setenv("GOPATH", tg.path("."))
+ 
+ 	checkbar := func(desc string) {
+-		tg.sleep()
+-		tg.must(os.Chtimes(tg.path("src/x/y/foo/foo.go"), time.Now(), time.Now()))
+-		tg.sleep()
+ 		tg.run("build", "-v", "-i", "x/y/bar")
+ 		tg.grepBoth("x/y/foo", "first build -i "+desc+" did not build x/y/foo")
+ 		tg.run("build", "-v", "-i", "x/y/bar")
+ 		tg.grepBothNot("x/y/foo", "second build -i "+desc+" built x/y/foo")
+ 	}
+ 	checkbar("pkg")
++
+ 	tg.creatingTemp("bar" + exeSuffix)
++	tg.sleep()
++	tg.tempFile("src/x/y/foo/foo.go", `package foo
++		func F() { F() }`)
+ 	tg.tempFile("src/x/y/bar/bar.go", `package main
+ 		import "x/y/foo"
+ 		func main() { foo.F() }`)

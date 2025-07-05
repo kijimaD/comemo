@@ -11,6 +11,28 @@ Date:   Mon Feb 19 19:18:25 2018 +0000
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/html/template/escape.go | 10 ----------
  1 file changed, 10 deletions(-)
+
+diff --git a/src/html/template/escape.go b/src/html/template/escape.go
+index 5963194be6..c77b23ae68 100644
+--- a/src/html/template/escape.go
++++ b/src/html/template/escape.go
+@@ -380,16 +380,6 @@ func appendCmd(cmds []*parse.CommandNode, cmd *parse.CommandNode) []*parse.Comma
+ 	return append(cmds, cmd)
+ }
+ 
+-// indexOfStr is the first i such that eq(s, strs[i]) or -1 if s was not found.
+-func indexOfStr(s string, strs []string, eq func(a, b string) bool) int {
+-	for i, t := range strs {
+-		if eq(s, t) {
+-			return i
+-		}
+-	}
+-	return -1
+-}
+-
+ // newIdentCmd produces a command containing a single identifier node.
+ func newIdentCmd(identifier string, pos parse.Pos) *parse.CommandNode {
+ 	return &parse.CommandNode{

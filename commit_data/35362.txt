@@ -11,7 +11,50 @@ Date:   Fri Dec 1 12:57:57 2017 +0000
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/syscall/exec_solaris.go                  | 14 --------------
  src/syscall/{forkpipe_bsd.go => forkpipe.go} |  3 ++-
  2 files changed, 2 insertions(+), 15 deletions(-)
+
+diff --git a/src/syscall/exec_solaris.go b/src/syscall/exec_solaris.go
+index 8052ff1862..9735ae5706 100644
+--- a/src/syscall/exec_solaris.go
++++ b/src/syscall/exec_solaris.go
+@@ -261,17 +261,3 @@ childerror:
+ 		exit(253)
+ 	}
+ }
+-
+-// Try to open a pipe with O_CLOEXEC set on both file descriptors.
+-func forkExecPipe(p []int) error {
+-	err := Pipe(p)
+-	if err != nil {
+-		return err
+-	}
+-	_, err = fcntl(p[0], F_SETFD, FD_CLOEXEC)
+-	if err != nil {
+-		return err
+-	}
+-	_, err = fcntl(p[1], F_SETFD, FD_CLOEXEC)
+-	return err
+-}
+diff --git a/src/syscall/forkpipe_bsd.go b/src/syscall/forkpipe.go
+similarity index 77%
+rename from src/syscall/forkpipe_bsd.go
+rename to src/syscall/forkpipe.go
+index d41807220a..fa799eb5b9 100644
+--- a/src/syscall/forkpipe_bsd.go
++++ b/src/syscall/forkpipe.go
+@@ -2,10 +2,11 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly netbsd openbsd
++// +build darwin dragonfly netbsd openbsd solaris
+ 
+ package syscall
+ 
++// Try to open a pipe with O_CLOEXEC set on both file descriptors.
+ func forkExecPipe(p []int) error {
+ 	err := Pipe(p)
+ 	if err != nil {

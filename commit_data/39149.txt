@@ -9,6 +9,27 @@ Date:   Tue Jan 8 15:18:44 2019 -0800
     Change-Id: I2d7c996bbe29d5b3922588e199a106eb722c02e6
     Reviewed-on: https://go-review.googlesource.com/c/156839
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/go1.12.html | 9 +++++++++
  1 file changed, 9 insertions(+)
+
+diff --git a/doc/go1.12.html b/doc/go1.12.html
+index cb17b552f0..568920df6d 100644
+--- a/doc/go1.12.html
++++ b/doc/go1.12.html
+@@ -653,6 +653,15 @@ for {
+       This may cause the method to run more slowly than in previous releases.
+     </p>
+ 
++    <p><!--CL 155517 -->
++      <a href="/pkg/os/#File"><code>File</code></a> now supports
++      a <a href="/pkg/os/#File.SyscallConn"><code>SyscallConn</code></a>
++      method returning
++      a <a href="/pkg/syscall/#RawConn"><code>syscall.RawConn</code></a>
++      interface value. This may be used to invoke system-specific
++      operations on the underlying file descriptor.
++    </p>
++
+ </dl><!-- os -->
+ 
+ <dl id="path/filepath"><dt><a href="/pkg/path/filepath/">path/filepath</a></dt>

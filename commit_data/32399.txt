@@ -12,8 +12,48 @@ Date:   Fri Apr 21 18:11:15 2017 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/main.go     | 3 ---
  src/cmd/compile/internal/types/type.go  | 2 +-
  src/cmd/compile/internal/types/utils.go | 1 -
  3 files changed, 1 insertion(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 6d7afa2869..ec6665f75c 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -386,9 +386,6 @@ func Main(archInit func(*Arch)) {
+ 	types.FormatType = func(t *types.Type, s fmt.State, verb rune, mode int) {
+ 		typeFormat(t, s, verb, fmtMode(mode))
+ 	}
+-	types.FieldName = func(f *types.Field) string {
+-		return f.Sym.Name
+-	}
+ 	types.TypeLinkSym = func(t *types.Type) *obj.LSym {
+ 		return typenamesym(t).Linksym()
+ 	}
+diff --git a/src/cmd/compile/internal/types/type.go b/src/cmd/compile/internal/types/type.go
+index b1903f22ec..11ea551b91 100644
+--- a/src/cmd/compile/internal/types/type.go
++++ b/src/cmd/compile/internal/types/type.go
+@@ -1221,7 +1221,7 @@ func (t *Type) FieldOff(i int) int64 {
+ 	return t.Field(i).Offset
+ }
+ func (t *Type) FieldName(i int) string {
+-	return FieldName(t.Field(i))
++	return t.Field(i).Sym.Name
+ }
+ 
+ func (t *Type) NumElem() int64 {
+diff --git a/src/cmd/compile/internal/types/utils.go b/src/cmd/compile/internal/types/utils.go
+index 9d00adf979..5fb4021065 100644
+--- a/src/cmd/compile/internal/types/utils.go
++++ b/src/cmd/compile/internal/types/utils.go
+@@ -25,7 +25,6 @@ var (
+ 	Tconv       func(*Type, int, int, int) string // orig: func tconv(t *Type, flag FmtFlag, mode fmtMode, depth int) string
+ 	FormatSym   func(*Sym, fmt.State, rune, int)  // orig: func symFormat(sym *Sym, s fmt.State, verb rune, mode fmtMode)
+ 	FormatType  func(*Type, fmt.State, rune, int) // orig: func typeFormat(t *Type, s fmt.State, verb rune, mode fmtMode)
+-	FieldName   func(*Field) string
+ 	TypeLinkSym func(*Type) *obj.LSym
+ 	Ctxt        *obj.Link
+ 

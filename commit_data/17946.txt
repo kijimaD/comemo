@@ -8,6 +8,20 @@ Date:   Mon Dec 9 23:46:21 2013 -0500
     R=golang-dev
     CC=golang-dev
     https://golang.org/cl/39850043
-
+---
  src/pkg/os/file.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/pkg/os/file.go b/src/pkg/os/file.go
+index 18cd61d3a8..b4a7458016 100644
+--- a/src/pkg/os/file.go
++++ b/src/pkg/os/file.go
+@@ -250,3 +250,8 @@ func Create(name string) (file *File, err error) {
+ 
+ // lstat is overridden in tests.
+ var lstat = Lstat
++
++// Rename renames (moves) a file. OS-specific restrictions might apply.
++func Rename(oldpath, newpath string) error {
++	return rename(oldpath, newpath)
++}

@@ -9,10 +9,143 @@ Date:   Thu Jul 15 16:13:47 2010 -0700
     R=ken2
     CC=golang-dev
     https://golang.org/cl/1729051
-
+---
  src/cmd/gc/go.h          |  2 +-
  src/cmd/gc/print.c       |  1 +
  src/cmd/gc/typecheck.c   |  2 +-
  src/cmd/gc/unsafe.c      | 20 ++++++++++++++++----
  test/fixedbugs/bug292.go | 22 ++++++++++++++++++++++
  5 files changed, 41 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index f7591515fa..81eece4785 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -1145,7 +1145,7 @@ void	typechecklist(NodeList *l, int top);
+ /*
+  *	unsafe.c
+  */
+-Node*	unsafenmagic(Node *fn, NodeList *args);
++Node*	unsafenmagic(Node *n);
+ 
+ /*
+  *	walk.c
+diff --git a/src/cmd/gc/print.c b/src/cmd/gc/print.c
+index 8738eb41b5..74c00cf222 100644
+--- a/src/cmd/gc/print.c
++++ b/src/cmd/gc/print.c
+@@ -267,6 +267,7 @@ exprfmt(Fmt *f, Node *n, int prec)
+ 		fmtprint(f, "struct literal");
+ 		break;
+ 
++	case OXDOT:
+ 	case ODOT:
+ 	case ODOTPTR:
+ 	case ODOTINTER:
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 71be98c487..85a63124ae 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -690,7 +690,7 @@ reswitch:
+ 	 */
+ 	case OCALL:
+ 		l = n->left;
+-		if(l->op == ONAME && (r = unsafenmagic(l, n->list)) != N) {
++		if(l->op == ONAME && (r = unsafenmagic(n)) != N) {
+ 			n = r;
+ 			goto reswitch;
+ 		}
+diff --git a/src/cmd/gc/unsafe.c b/src/cmd/gc/unsafe.c
+index dbf6f708a8..33f3756311 100644
+--- a/src/cmd/gc/unsafe.c
++++ b/src/cmd/gc/unsafe.c
+@@ -11,13 +11,18 @@
+  * rewrite with a constant
+  */
+ Node*
+-unsafenmagic(Node *fn, NodeList *args)
++unsafenmagic(Node *nn)
+ {
+ 	Node *r, *n;
+ 	Sym *s;
+ 	Type *t, *tr;
+ 	long v;
+ 	Val val;
++	Node *fn;
++	NodeList *args;
++	
++	fn = nn->left;
++	args = nn->list;
+ 
+ 	if(safemode || fn == N || fn->op != ONAME || (s = fn->sym) == S)
+ 		goto no;
+@@ -35,13 +40,14 @@ unsafenmagic(Node *fn, NodeList *args)
+ 		defaultlit(&r, T);
+ 		tr = r->type;
+ 		if(tr == T)
+-			goto no;
++			goto bad;
+ 		v = tr->width;
+ 		goto yes;
+ 	}
+ 	if(strcmp(s->name, "Offsetof") == 0) {
++		typecheck(&r, Erv);
+ 		if(r->op != ODOT && r->op != ODOTPTR)
+-			goto no;
++			goto bad;
+ 		typecheck(&r, Erv);
+ 		v = r->xoffset;
+ 		goto yes;
+@@ -51,7 +57,7 @@ unsafenmagic(Node *fn, NodeList *args)
+ 		defaultlit(&r, T);
+ 		tr = r->type;
+ 		if(tr == T)
+-			goto no;
++			goto bad;
+ 
+ 		// make struct { byte; T; }
+ 		t = typ(TSTRUCT);
+@@ -70,9 +76,15 @@ unsafenmagic(Node *fn, NodeList *args)
+ no:
+ 	return N;
+ 
++bad:
++	yyerror("invalid expression %#N", nn);
++	v = 0;
++	goto ret;
++	
+ yes:
+ 	if(args->next != nil)
+ 		yyerror("extra arguments for %S", s);
++ret:
+ 	// any side effects disappear; ignore init
+ 	val.ctype = CTINT;
+ 	val.u.xval = mal(sizeof(*n->val.u.xval));
+diff --git a/test/fixedbugs/bug292.go b/test/fixedbugs/bug292.go
+new file mode 100644
+index 0000000000..05852cd46d
+--- /dev/null
++++ b/test/fixedbugs/bug292.go
+@@ -0,0 +1,22 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// http://code.google.com/p/go/issues/detail?id=843
++
++package main
++
++import "unsafe"
++
++type T struct {
++	X, Y uint8
++}
++
++func main() {
++	var t T
++	if unsafe.Offsetof(t.X) != 0 || unsafe.Offsetof(t.Y) != 1 {
++		println("BUG", unsafe.Offsetof(t.X), unsafe.Offsetof(t.Y))
++	}
++}

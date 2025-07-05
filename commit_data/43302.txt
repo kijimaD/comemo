@@ -13,8 +13,660 @@ Date:   Tue Mar 10 03:31:22 2020 +1100
     Run-TryBot: Joel Sing <joel@sing.id.au>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/RISCV64.rules |  41 +-
  src/cmd/compile/internal/ssa/gen/RISCV64Ops.go |  12 +-
  src/cmd/compile/internal/ssa/rewriteRISCV64.go | 514 ++++++++++++++++++++++++-
  3 files changed, 549 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/RISCV64.rules b/src/cmd/compile/internal/ssa/gen/RISCV64.rules
+index 4a7efd6e73..c107182b21 100644
+--- a/src/cmd/compile/internal/ssa/gen/RISCV64.rules
++++ b/src/cmd/compile/internal/ssa/gen/RISCV64.rules
+@@ -499,8 +499,41 @@
+ (MOVWstore [off] {sym} ptr (MOVWconst [0]) mem) -> (MOVWstorezero [off] {sym} ptr mem)
+ (MOVDstore [off] {sym} ptr (MOVDconst [0]) mem) -> (MOVDstorezero [off] {sym} ptr mem)
+ 
+-// Fold ADD+MOVDconst into ADDI where possible.
+-(ADD (MOVDconst [off]) ptr) && is32Bit(off) -> (ADDI [off] ptr)
++// Fold constant into immediate instructions where possible.
++(ADD (MOVBconst [val]) x) && is32Bit(val) -> (ADDI [val] x)
++(ADD (MOVHconst [val]) x) && is32Bit(val) -> (ADDI [val] x)
++(ADD (MOVWconst [val]) x) && is32Bit(val) -> (ADDI [val] x)
++(ADD (MOVDconst [val]) x) && is32Bit(val) -> (ADDI [val] x)
++
++(AND (MOVBconst [val]) x) && is32Bit(val) -> (ANDI [val] x)
++(AND (MOVHconst [val]) x) && is32Bit(val) -> (ANDI [val] x)
++(AND (MOVWconst [val]) x) && is32Bit(val) -> (ANDI [val] x)
++(AND (MOVDconst [val]) x) && is32Bit(val) -> (ANDI [val] x)
++
++(OR (MOVBconst [val]) x) && is32Bit(val) -> (ORI [val] x)
++(OR (MOVHconst [val]) x) && is32Bit(val) -> (ORI [val] x)
++(OR (MOVWconst [val]) x) && is32Bit(val) -> (ORI [val] x)
++(OR (MOVDconst [val]) x) && is32Bit(val) -> (ORI [val] x)
++
++(XOR (MOVBconst [val]) x) && is32Bit(val) -> (XORI [val] x)
++(XOR (MOVHconst [val]) x) && is32Bit(val) -> (XORI [val] x)
++(XOR (MOVWconst [val]) x) && is32Bit(val) -> (XORI [val] x)
++(XOR (MOVDconst [val]) x) && is32Bit(val) -> (XORI [val] x)
++
++(SLL x (MOVBconst [val])) -> (SLLI [val&63] x)
++(SLL x (MOVHconst [val])) -> (SLLI [val&63] x)
++(SLL x (MOVWconst [val])) -> (SLLI [val&63] x)
++(SLL x (MOVDconst [val])) -> (SLLI [val&63] x)
++
++(SRL x (MOVBconst [val])) -> (SRLI [val&63] x)
++(SRL x (MOVHconst [val])) -> (SRLI [val&63] x)
++(SRL x (MOVWconst [val])) -> (SRLI [val&63] x)
++(SRL x (MOVDconst [val])) -> (SRLI [val&63] x)
++
++(SRA x (MOVBconst [val])) -> (SRAI [val&63] x)
++(SRA x (MOVHconst [val])) -> (SRAI [val&63] x)
++(SRA x (MOVWconst [val])) -> (SRAI [val&63] x)
++(SRA x (MOVDconst [val])) -> (SRAI [val&63] x)
+ 
+ // Convert subtraction of a const into ADDI with negative immediate, where possible.
+ (SUB x (MOVBconst [val])) && is32Bit(-val) -> (ADDI [-val] x)
+@@ -526,5 +559,5 @@
+ // Subtraction from zero with sign extension.
+ (SUBW (MOVDconst [0]) x) -> (NEGW x)
+ 
+-// remove redundant *const ops
+-(ADDI [0]  x) -> x
++// Addition of zero.
++(ADDI [0] x) -> x
+diff --git a/src/cmd/compile/internal/ssa/gen/RISCV64Ops.go b/src/cmd/compile/internal/ssa/gen/RISCV64Ops.go
+index ba6067a927..e191273e23 100644
+--- a/src/cmd/compile/internal/ssa/gen/RISCV64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/RISCV64Ops.go
+@@ -190,12 +190,12 @@ func init() {
+ 		{name: "MOVDstorezero", argLength: 2, reg: gpstore0, aux: "SymOff", asm: "MOV", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"},  // 64 bits
+ 
+ 		// Shift ops
+-		{name: "SLL", argLength: 2, reg: gp21, asm: "SLL"},                 // arg0 << aux1
+-		{name: "SRA", argLength: 2, reg: gp21, asm: "SRA"},                 // arg0 >> aux1, signed
+-		{name: "SRL", argLength: 2, reg: gp21, asm: "SRL"},                 // arg0 >> aux1, unsigned
+-		{name: "SLLI", argLength: 1, reg: gp11, asm: "SLLI", aux: "Int64"}, // arg0 << auxint
+-		{name: "SRAI", argLength: 1, reg: gp11, asm: "SRAI", aux: "Int64"}, // arg0 >> auxint, signed
+-		{name: "SRLI", argLength: 1, reg: gp11, asm: "SRLI", aux: "Int64"}, // arg0 >> auxint, unsigned
++		{name: "SLL", argLength: 2, reg: gp21, asm: "SLL"},                 // arg0 << (aux1 & 63)
++		{name: "SRA", argLength: 2, reg: gp21, asm: "SRA"},                 // arg0 >> (aux1 & 63), signed
++		{name: "SRL", argLength: 2, reg: gp21, asm: "SRL"},                 // arg0 >> (aux1 & 63), unsigned
++		{name: "SLLI", argLength: 1, reg: gp11, asm: "SLLI", aux: "Int64"}, // arg0 << auxint, shift amount 0-63
++		{name: "SRAI", argLength: 1, reg: gp11, asm: "SRAI", aux: "Int64"}, // arg0 >> auxint, signed, shift amount 0-63
++		{name: "SRLI", argLength: 1, reg: gp11, asm: "SRLI", aux: "Int64"}, // arg0 >> auxint, unsigned, shift amount 0-63
+ 
+ 		// Bitwise ops
+ 		{name: "XOR", argLength: 2, reg: gp21, asm: "XOR", commutative: true}, // arg0 ^ arg1
+diff --git a/src/cmd/compile/internal/ssa/rewriteRISCV64.go b/src/cmd/compile/internal/ssa/rewriteRISCV64.go
+index 09c44e264e..e16a922dd5 100644
+--- a/src/cmd/compile/internal/ssa/rewriteRISCV64.go
++++ b/src/cmd/compile/internal/ssa/rewriteRISCV64.go
+@@ -430,6 +430,8 @@ func rewriteValueRISCV64(v *Value) bool {
+ 		return rewriteValueRISCV64_OpRISCV64ADD(v)
+ 	case OpRISCV64ADDI:
+ 		return rewriteValueRISCV64_OpRISCV64ADDI(v)
++	case OpRISCV64AND:
++		return rewriteValueRISCV64_OpRISCV64AND(v)
+ 	case OpRISCV64MOVBUload:
+ 		return rewriteValueRISCV64_OpRISCV64MOVBUload(v)
+ 	case OpRISCV64MOVBload:
+@@ -462,10 +464,20 @@ func rewriteValueRISCV64(v *Value) bool {
+ 		return rewriteValueRISCV64_OpRISCV64MOVWstore(v)
+ 	case OpRISCV64MOVWstorezero:
+ 		return rewriteValueRISCV64_OpRISCV64MOVWstorezero(v)
++	case OpRISCV64OR:
++		return rewriteValueRISCV64_OpRISCV64OR(v)
++	case OpRISCV64SLL:
++		return rewriteValueRISCV64_OpRISCV64SLL(v)
++	case OpRISCV64SRA:
++		return rewriteValueRISCV64_OpRISCV64SRA(v)
++	case OpRISCV64SRL:
++		return rewriteValueRISCV64_OpRISCV64SRL(v)
+ 	case OpRISCV64SUB:
+ 		return rewriteValueRISCV64_OpRISCV64SUB(v)
+ 	case OpRISCV64SUBW:
+ 		return rewriteValueRISCV64_OpRISCV64SUBW(v)
++	case OpRISCV64XOR:
++		return rewriteValueRISCV64_OpRISCV64XOR(v)
+ 	case OpRotateLeft16:
+ 		return rewriteValueRISCV64_OpRotateLeft16(v)
+ 	case OpRotateLeft32:
+@@ -2194,22 +2206,82 @@ func rewriteValueRISCV64_OpPanicBounds(v *Value) bool {
+ func rewriteValueRISCV64_OpRISCV64ADD(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+-	// match: (ADD (MOVDconst [off]) ptr)
+-	// cond: is32Bit(off)
+-	// result: (ADDI [off] ptr)
++	// match: (ADD (MOVBconst [val]) x)
++	// cond: is32Bit(val)
++	// result: (ADDI [val] x)
++	for {
++		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
++			if v_0.Op != OpRISCV64MOVBconst {
++				continue
++			}
++			val := v_0.AuxInt
++			x := v_1
++			if !(is32Bit(val)) {
++				continue
++			}
++			v.reset(OpRISCV64ADDI)
++			v.AuxInt = val
++			v.AddArg(x)
++			return true
++		}
++		break
++	}
++	// match: (ADD (MOVHconst [val]) x)
++	// cond: is32Bit(val)
++	// result: (ADDI [val] x)
++	for {
++		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
++			if v_0.Op != OpRISCV64MOVHconst {
++				continue
++			}
++			val := v_0.AuxInt
++			x := v_1
++			if !(is32Bit(val)) {
++				continue
++			}
++			v.reset(OpRISCV64ADDI)
++			v.AuxInt = val
++			v.AddArg(x)
++			return true
++		}
++		break
++	}
++	// match: (ADD (MOVWconst [val]) x)
++	// cond: is32Bit(val)
++	// result: (ADDI [val] x)
++	for {
++		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
++			if v_0.Op != OpRISCV64MOVWconst {
++				continue
++			}
++			val := v_0.AuxInt
++			x := v_1
++			if !(is32Bit(val)) {
++				continue
++			}
++			v.reset(OpRISCV64ADDI)
++			v.AuxInt = val
++			v.AddArg(x)
++			return true
++		}
++		break
++	}
++	// match: (ADD (MOVDconst [val]) x)
++	// cond: is32Bit(val)
++	// result: (ADDI [val] x)
+ 	for {
+ 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+ 			if v_0.Op != OpRISCV64MOVDconst {
+ 				continue
+ 			}
+-			off := v_0.AuxInt
+-			ptr := v_1
+-			if !(is32Bit(off)) {
++			val := v_0.AuxInt
++			x := v_1
++			if !(is32Bit(val)) {
+ 				continue
+ 			}
+ 			v.reset(OpRISCV64ADDI)
+-			v.AuxInt = off
+-			v.AddArg(ptr)
++			v.AuxInt = val
++			v.AddArg(x)
+ 			return true
+ 		}
+ 		break
+@@ -2250,6 +2322,91 @@ func rewriteValueRISCV64_OpRISCV64ADDI(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueRISCV64_OpRISCV64AND(v *Value) bool {
++	v_1 := v.Args[1]
++	v_0 := v.Args[0]
++	// match: (AND (MOVBconst [val]) x)
++	// cond: is32Bit(val)
++	// result: (ANDI [val] x)
++	for {
++		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
++			if v_0.Op != OpRISCV64MOVBconst {
++				continue
++			}
++			val := v_0.AuxInt
++			x := v_1
++			if !(is32Bit(val)) {
++				continue
++			}
++			v.reset(OpRISCV64ANDI)
++			v.AuxInt = val
++			v.AddArg(x)
++			return true
++		}
++		break
++	}
++	// match: (AND (MOVHconst [val]) x)
++	// cond: is32Bit(val)
++	// result: (ANDI [val] x)
++	for {
++		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
++			if v_0.Op != OpRISCV64MOVHconst {
++				continue
++			}
++			val := v_0.AuxInt
++			x := v_1
++			if !(is32Bit(val)) {
++				continue
++			}
++			v.reset(OpRISCV64ANDI)
++			v.AuxInt = val
++			v.AddArg(x)
++			return true
++		}
++		break
++	}
++	// match: (AND (MOVWconst [val]) x)
++	// cond: is32Bit(val)
++	// result: (ANDI [val] x)
++	for {
++		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
++			if v_0.Op != OpRISCV64MOVWconst {
++				continue
++			}
++			val := v_0.AuxInt
++			x := v_1
++			if !(is32Bit(val)) {
++				continue
++			}
++			v.reset(OpRISCV64ANDI)
++			v.AuxInt = val
++			v.AddArg(x)
++			return true
++		}
++		break
++	}
++	// match: (AND (MOVDconst [val]) x)
++	// cond: is32Bit(val)
++	// result: (ANDI [val] x)
++	for {
++		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
++			if v_0.Op != OpRISCV64MOVDconst {
++				continue
++			}
++			val := v_0.AuxInt
++			x := v_1
++			if !(is32Bit(val)) {
++				continue
++			}
++			v.reset(OpRISCV64ANDI)
++			v.AuxInt = val
++			v.AddArg(x)
++			return true
++		}
++		break
++	}
++	return false
++}
+ func rewriteValueRISCV64_OpRISCV64MOVBUload(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+@@ -3091,6 +3248,262 @@ func rewriteValueRISCV64_OpRISCV64MOVWstorezero(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueRISCV64_OpRISCV64OR(v *Value) bool {
++	v_1 := v.Args[1]
++	v_0 := v.Args[0]
++	// match: (OR (MOVBconst [val]) x)
++	// cond: is32Bit(val)
++	// result: (ORI [val] x)
++	for {
++		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
++			if v_0.Op != OpRISCV64MOVBconst {
++				continue
++			}
++			val := v_0.AuxInt
++			x := v_1
++			if !(is32Bit(val)) {
++				continue
++			}
++			v.reset(OpRISCV64ORI)
++			v.AuxInt = val
++			v.AddArg(x)
++			return true
++		}
++		break
++	}
++	// match: (OR (MOVHconst [val]) x)
++	// cond: is32Bit(val)
++	// result: (ORI [val] x)
++	for {
++		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
++			if v_0.Op != OpRISCV64MOVHconst {
++				continue
++			}
++			val := v_0.AuxInt
++			x := v_1
++			if !(is32Bit(val)) {
++				continue
++			}
++			v.reset(OpRISCV64ORI)
++			v.AuxInt = val
++			v.AddArg(x)
++			return true
++		}
++		break
++	}
++	// match: (OR (MOVWconst [val]) x)
++	// cond: is32Bit(val)
++	// result: (ORI [val] x)
++	for {
++		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
++			if v_0.Op != OpRISCV64MOVWconst {
++				continue
++			}
++			val := v_0.AuxInt
++			x := v_1
++			if !(is32Bit(val)) {
++				continue
++			}
++			v.reset(OpRISCV64ORI)
++			v.AuxInt = val
++			v.AddArg(x)
++			return true
++		}
++		break
++	}
++	// match: (OR (MOVDconst [val]) x)
++	// cond: is32Bit(val)
++	// result: (ORI [val] x)
++	for {
++		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
++			if v_0.Op != OpRISCV64MOVDconst {
++				continue
++			}
++			val := v_0.AuxInt
++			x := v_1
++			if !(is32Bit(val)) {
++				continue
++			}
++			v.reset(OpRISCV64ORI)
++			v.AuxInt = val
++			v.AddArg(x)
++			return true
++		}
++		break
++	}
++	return false
++}
++func rewriteValueRISCV64_OpRISCV64SLL(v *Value) bool {
++	v_1 := v.Args[1]
++	v_0 := v.Args[0]
++	// match: (SLL x (MOVBconst [val]))
++	// result: (SLLI [val&63] x)
++	for {
++		x := v_0
++		if v_1.Op != OpRISCV64MOVBconst {
++			break
++		}
++		val := v_1.AuxInt
++		v.reset(OpRISCV64SLLI)
++		v.AuxInt = val & 63
++		v.AddArg(x)
++		return true
++	}
++	// match: (SLL x (MOVHconst [val]))
++	// result: (SLLI [val&63] x)
++	for {
++		x := v_0
++		if v_1.Op != OpRISCV64MOVHconst {
++			break
++		}
++		val := v_1.AuxInt
++		v.reset(OpRISCV64SLLI)
++		v.AuxInt = val & 63
++		v.AddArg(x)
++		return true
++	}
++	// match: (SLL x (MOVWconst [val]))
++	// result: (SLLI [val&63] x)
++	for {
++		x := v_0
++		if v_1.Op != OpRISCV64MOVWconst {
++			break
++		}
++		val := v_1.AuxInt
++		v.reset(OpRISCV64SLLI)
++		v.AuxInt = val & 63
++		v.AddArg(x)
++		return true
++	}
++	// match: (SLL x (MOVDconst [val]))
++	// result: (SLLI [val&63] x)
++	for {
++		x := v_0
++		if v_1.Op != OpRISCV64MOVDconst {
++			break
++		}
++		val := v_1.AuxInt
++		v.reset(OpRISCV64SLLI)
++		v.AuxInt = val & 63
++		v.AddArg(x)
++		return true
++	}
++	return false
++}
++func rewriteValueRISCV64_OpRISCV64SRA(v *Value) bool {
++	v_1 := v.Args[1]
++	v_0 := v.Args[0]
++	// match: (SRA x (MOVBconst [val]))
++	// result: (SRAI [val&63] x)
++	for {
++		x := v_0
++		if v_1.Op != OpRISCV64MOVBconst {
++			break
++		}
++		val := v_1.AuxInt
++		v.reset(OpRISCV64SRAI)
++		v.AuxInt = val & 63
++		v.AddArg(x)
++		return true
++	}
++	// match: (SRA x (MOVHconst [val]))
++	// result: (SRAI [val&63] x)
++	for {
++		x := v_0
++		if v_1.Op != OpRISCV64MOVHconst {
++			break
++		}
++		val := v_1.AuxInt
++		v.reset(OpRISCV64SRAI)
++		v.AuxInt = val & 63
++		v.AddArg(x)
++		return true
++	}
++	// match: (SRA x (MOVWconst [val]))
++	// result: (SRAI [val&63] x)
++	for {
++		x := v_0
++		if v_1.Op != OpRISCV64MOVWconst {
++			break
++		}
++		val := v_1.AuxInt
++		v.reset(OpRISCV64SRAI)
++		v.AuxInt = val & 63
++		v.AddArg(x)
++		return true
++	}
++	// match: (SRA x (MOVDconst [val]))
++	// result: (SRAI [val&63] x)
++	for {
++		x := v_0
++		if v_1.Op != OpRISCV64MOVDconst {
++			break
++		}
++		val := v_1.AuxInt
++		v.reset(OpRISCV64SRAI)
++		v.AuxInt = val & 63
++		v.AddArg(x)
++		return true
++	}
++	return false
++}
++func rewriteValueRISCV64_OpRISCV64SRL(v *Value) bool {
++	v_1 := v.Args[1]
++	v_0 := v.Args[0]
++	// match: (SRL x (MOVBconst [val]))
++	// result: (SRLI [val&63] x)
++	for {
++		x := v_0
++		if v_1.Op != OpRISCV64MOVBconst {
++			break
++		}
++		val := v_1.AuxInt
++		v.reset(OpRISCV64SRLI)
++		v.AuxInt = val & 63
++		v.AddArg(x)
++		return true
++	}
++	// match: (SRL x (MOVHconst [val]))
++	// result: (SRLI [val&63] x)
++	for {
++		x := v_0
++		if v_1.Op != OpRISCV64MOVHconst {
++			break
++		}
++		val := v_1.AuxInt
++		v.reset(OpRISCV64SRLI)
++		v.AuxInt = val & 63
++		v.AddArg(x)
++		return true
++	}
++	// match: (SRL x (MOVWconst [val]))
++	// result: (SRLI [val&63] x)
++	for {
++		x := v_0
++		if v_1.Op != OpRISCV64MOVWconst {
++			break
++		}
++		val := v_1.AuxInt
++		v.reset(OpRISCV64SRLI)
++		v.AuxInt = val & 63
++		v.AddArg(x)
++		return true
++	}
++	// match: (SRL x (MOVDconst [val]))
++	// result: (SRLI [val&63] x)
++	for {
++		x := v_0
++		if v_1.Op != OpRISCV64MOVDconst {
++			break
++		}
++		val := v_1.AuxInt
++		v.reset(OpRISCV64SRLI)
++		v.AuxInt = val & 63
++		v.AddArg(x)
++		return true
++	}
++	return false
++}
+ func rewriteValueRISCV64_OpRISCV64SUB(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+@@ -3276,6 +3689,91 @@ func rewriteValueRISCV64_OpRISCV64SUBW(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueRISCV64_OpRISCV64XOR(v *Value) bool {
++	v_1 := v.Args[1]
++	v_0 := v.Args[0]
++	// match: (XOR (MOVBconst [val]) x)
++	// cond: is32Bit(val)
++	// result: (XORI [val] x)
++	for {
++		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
++			if v_0.Op != OpRISCV64MOVBconst {
++				continue
++			}
++			val := v_0.AuxInt
++			x := v_1
++			if !(is32Bit(val)) {
++				continue
++			}
++			v.reset(OpRISCV64XORI)
++			v.AuxInt = val
++			v.AddArg(x)
++			return true
++		}
++		break
++	}
++	// match: (XOR (MOVHconst [val]) x)
++	// cond: is32Bit(val)
++	// result: (XORI [val] x)
++	for {
++		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
++			if v_0.Op != OpRISCV64MOVHconst {
++				continue
++			}
++			val := v_0.AuxInt
++			x := v_1
++			if !(is32Bit(val)) {
++				continue
++			}
++			v.reset(OpRISCV64XORI)
++			v.AuxInt = val
++			v.AddArg(x)
++			return true
++		}
++		break
++	}
++	// match: (XOR (MOVWconst [val]) x)
++	// cond: is32Bit(val)
++	// result: (XORI [val] x)
++	for {
++		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
++			if v_0.Op != OpRISCV64MOVWconst {
++				continue
++			}
++			val := v_0.AuxInt
++			x := v_1
++			if !(is32Bit(val)) {
++				continue
++			}
++			v.reset(OpRISCV64XORI)
++			v.AuxInt = val
++			v.AddArg(x)
++			return true
++		}
++		break
++	}
++	// match: (XOR (MOVDconst [val]) x)
++	// cond: is32Bit(val)
++	// result: (XORI [val] x)
++	for {
++		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
++			if v_0.Op != OpRISCV64MOVDconst {
++				continue
++			}
++			val := v_0.AuxInt
++			x := v_1
++			if !(is32Bit(val)) {
++				continue
++			}
++			v.reset(OpRISCV64XORI)
++			v.AuxInt = val
++			v.AddArg(x)
++			return true
++		}
++		break
++	}
++	return false
++}
+ func rewriteValueRISCV64_OpRotateLeft16(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]

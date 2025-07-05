@@ -20,9 +20,200 @@ Date:   Wed Jul 31 14:33:57 2019 +0200
     Run-TryBot: Elias Naur <mail@eliasnaur.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/cgo/testcarchive/carchive_test.go | 34 +++++++++++++++++++++++--------
  misc/cgo/testcarchive/testdata/main2.c | 37 ++++++++++++++++++++--------------
  misc/cgo/testcarchive/testdata/main3.c | 21 +++++++++++++++++++
  src/runtime/signal_unix.go             |  7 +++++++
  4 files changed, 76 insertions(+), 23 deletions(-)
+
+diff --git a/misc/cgo/testcarchive/carchive_test.go b/misc/cgo/testcarchive/carchive_test.go
+index 381239ab79..739bfe42bf 100644
+--- a/misc/cgo/testcarchive/carchive_test.go
++++ b/misc/cgo/testcarchive/carchive_test.go
+@@ -282,7 +282,13 @@ func TestEarlySignalHandler(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 
+-	if out, err := exec.Command(bin[0], bin[1:]...).CombinedOutput(); err != nil {
++	darwin := "0"
++	if runtime.GOOS == "darwin" {
++		darwin = "1"
++	}
++	cmd = exec.Command(bin[0], append(bin[1:], darwin)...)
++
++	if out, err := cmd.CombinedOutput(); err != nil {
+ 		t.Logf("%s", out)
+ 		t.Fatal(err)
+ 	}
+@@ -320,12 +326,15 @@ func TestSignalForwarding(t *testing.T) {
+ 	t.Logf("%s", out)
+ 	expectSignal(t, err, syscall.SIGSEGV)
+ 
+-	// Test SIGPIPE forwarding
+-	cmd = exec.Command(bin[0], append(bin[1:], "3")...)
++	// SIGPIPE is never forwarded on darwin. See golang.org/issue/33384.
++	if runtime.GOOS != "darwin" {
++		// Test SIGPIPE forwarding
++		cmd = exec.Command(bin[0], append(bin[1:], "3")...)
+ 
+-	out, err = cmd.CombinedOutput()
+-	t.Logf("%s", out)
+-	expectSignal(t, err, syscall.SIGPIPE)
++		out, err = cmd.CombinedOutput()
++		t.Logf("%s", out)
++		expectSignal(t, err, syscall.SIGPIPE)
++	}
+ }
+ 
+ func TestSignalForwardingExternal(t *testing.T) {
+@@ -744,11 +753,20 @@ func TestCompileWithoutShared(t *testing.T) {
+ 	}
+ 	defer os.Remove(exe)
+ 
+-	binArgs := append(cmdToRun(exe), "3")
++	binArgs := append(cmdToRun(exe), "1")
+ 	t.Log(binArgs)
+ 	out, err = exec.Command(binArgs[0], binArgs[1:]...).CombinedOutput()
+ 	t.Logf("%s", out)
+-	expectSignal(t, err, syscall.SIGPIPE)
++	expectSignal(t, err, syscall.SIGSEGV)
++
++	// SIGPIPE is never forwarded on darwin. See golang.org/issue/33384.
++	if runtime.GOOS != "darwin" {
++		binArgs := append(cmdToRun(exe), "3")
++		t.Log(binArgs)
++		out, err = exec.Command(binArgs[0], binArgs[1:]...).CombinedOutput()
++		t.Logf("%s", out)
++		expectSignal(t, err, syscall.SIGPIPE)
++	}
+ }
+ 
+ // Test that installing a second time recreates the header files.
+diff --git a/misc/cgo/testcarchive/testdata/main2.c b/misc/cgo/testcarchive/testdata/main2.c
+index 769cd497e6..da35673421 100644
+--- a/misc/cgo/testcarchive/testdata/main2.c
++++ b/misc/cgo/testcarchive/testdata/main2.c
+@@ -123,8 +123,12 @@ int main(int argc, char** argv) {
+ 	sigset_t mask;
+ 	int i;
+ 	struct timespec ts;
++	int darwin;
++
++	darwin = atoi(argv[1]);
++
++	verbose = argc > 2;
+ 
+-	verbose = argc > 1;
+ 	setvbuf(stdout, NULL, _IONBF, 0);
+ 
+ 	// Call setsid so that we can use kill(0, SIGIO) below.
+@@ -186,22 +190,25 @@ int main(int argc, char** argv) {
+ 		printf("provoking SIGPIPE\n");
+ 	}
+ 
+-	GoRaiseSIGPIPE();
++	// SIGPIPE is never forwarded on Darwin, see golang.org/issue/33384.
++	if (!darwin) {
++		GoRaiseSIGPIPE();
+ 
+-	if (verbose) {
+-		printf("waiting for sigpipeSeen\n");
+-	}
++		if (verbose) {
++			printf("waiting for sigpipeSeen\n");
++		}
+ 
+-	// Wait until the signal has been delivered.
+-	i = 0;
+-	while (!sigpipeSeen) {
+-		ts.tv_sec = 0;
+-		ts.tv_nsec = 1000000;
+-		nanosleep(&ts, NULL);
+-		i++;
+-		if (i > 5000) {
+-			fprintf(stderr, "looping too long waiting for SIGPIPE\n");
+-			exit(EXIT_FAILURE);
++		// Wait until the signal has been delivered.
++		i = 0;
++		while (!sigpipeSeen) {
++			ts.tv_sec = 0;
++			ts.tv_nsec = 1000000;
++			nanosleep(&ts, NULL);
++			i++;
++			if (i > 5000) {
++				fprintf(stderr, "looping too long waiting for SIGPIPE\n");
++				exit(EXIT_FAILURE);
++			}
+ 		}
+ 	}
+ 
+diff --git a/misc/cgo/testcarchive/testdata/main3.c b/misc/cgo/testcarchive/testdata/main3.c
+index 60a16cf5fc..4d11d9ce4c 100644
+--- a/misc/cgo/testcarchive/testdata/main3.c
++++ b/misc/cgo/testcarchive/testdata/main3.c
+@@ -12,6 +12,7 @@
+ #include <time.h>
+ #include <sched.h>
+ #include <unistd.h>
++#include <pthread.h>
+ 
+ #include "libgo3.h"
+ 
+@@ -51,11 +52,18 @@ static void init() {
+ 	}
+ }
+ 
++static void *provokeSIGPIPE(void *arg) {
++	ProvokeSIGPIPE();
++	return NULL;
++}
++
+ int main(int argc, char** argv) {
+ 	int verbose;
+ 	struct sigaction sa;
+ 	int i;
+ 	struct timespec ts;
++	int res;
++	pthread_t tid;
+ 
+ 	verbose = argc > 2;
+ 	setvbuf(stdout, NULL, _IONBF, 0);
+@@ -68,6 +76,19 @@ int main(int argc, char** argv) {
+ 	// a non-default SIGPIPE handler before the runtime initializes.
+ 	ProvokeSIGPIPE();
+ 
++	// Test that SIGPIPE on a non-main thread is also handled by Go.
++	res = pthread_create(&tid, NULL, provokeSIGPIPE, NULL);
++	if (res != 0) {
++		fprintf(stderr, "pthread_create: %s\n", strerror(res));
++		exit(EXIT_FAILURE);
++	}
++
++	res = pthread_join(tid, NULL);
++	if (res != 0) {
++		fprintf(stderr, "pthread_join: %s\n", strerror(res));
++		exit(EXIT_FAILURE);
++	}
++
+ 	if (verbose) {
+ 		printf("calling sigaction\n");
+ 	}
+diff --git a/src/runtime/signal_unix.go b/src/runtime/signal_unix.go
+index ad51dc1800..436c18c126 100644
+--- a/src/runtime/signal_unix.go
++++ b/src/runtime/signal_unix.go
+@@ -636,6 +636,13 @@ func sigfwdgo(sig uint32, info *siginfo, ctx unsafe.Pointer) bool {
+ 		return true
+ 	}
+ 
++	// This function and its caller sigtrampgo assumes SIGPIPE is delivered on the
++	// originating thread. This property does not hold on macOS (golang.org/issue/33384),
++	// so we have no choice but to ignore SIGPIPE.
++	if GOOS == "darwin" && sig == _SIGPIPE {
++		return true
++	}
++
+ 	// If there is no handler to forward to, no need to forward.
+ 	if fwdFn == _SIG_DFL {
+ 		return false

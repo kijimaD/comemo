@@ -66,7 +66,288 @@ Date:   Sat Mar 2 14:42:51 2019 -0800
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/math/big/arith.go      | 162 ++++++++-------------------------------------
  src/math/big/arith_test.go |  42 ------------
  2 files changed, 26 insertions(+), 178 deletions(-)
+
+diff --git a/src/math/big/arith.go b/src/math/big/arith.go
+index 611193ef18..541694c670 100644
+--- a/src/math/big/arith.go
++++ b/src/math/big/arith.go
+@@ -19,10 +19,6 @@ const (
+ 	_W = bits.UintSize // word size in bits
+ 	_B = 1 << _W       // digit base
+ 	_M = _B - 1        // digit mask
+-
+-	_W2 = _W / 2   // half word size in bits
+-	_B2 = 1 << _W2 // half digit base
+-	_M2 = _B2 - 1  // half digit mask
+ )
+ 
+ // ----------------------------------------------------------------------------
+@@ -30,50 +26,18 @@ const (
+ //
+ // These operations are used by the vector operations below.
+ 
+-// z1<<_W + z0 = x+y+c, with c == 0 or 1
+-func addWW_g(x, y, c Word) (z1, z0 Word) {
+-	yc := y + c
+-	z0 = x + yc
+-	if z0 < x || yc < y {
+-		z1 = 1
+-	}
+-	return
+-}
+-
+-// z1<<_W + z0 = x-y-c, with c == 0 or 1
+-func subWW_g(x, y, c Word) (z1, z0 Word) {
+-	yc := y + c
+-	z0 = x - yc
+-	if z0 > x || yc < y {
+-		z1 = 1
+-	}
+-	return
+-}
+-
+ // z1<<_W + z0 = x*y
+-// Adapted from Warren, Hacker's Delight, p. 132.
+ func mulWW_g(x, y Word) (z1, z0 Word) {
+-	x0 := x & _M2
+-	x1 := x >> _W2
+-	y0 := y & _M2
+-	y1 := y >> _W2
+-	w0 := x0 * y0
+-	t := x1*y0 + w0>>_W2
+-	w1 := t & _M2
+-	w2 := t >> _W2
+-	w1 += x0 * y1
+-	z1 = x1*y1 + w2 + w1>>_W2
+-	z0 = x * y
+-	return
++	hi, lo := bits.Mul(uint(x), uint(y))
++	return Word(hi), Word(lo)
+ }
+ 
+ // z1<<_W + z0 = x*y + c
+ func mulAddWWW_g(x, y, c Word) (z1, z0 Word) {
+-	z1, zz0 := mulWW_g(x, y)
+-	if z0 = zz0 + c; z0 < zz0 {
+-		z1++
+-	}
+-	return
++	hi, lo := bits.Mul(uint(x), uint(y))
++	var cc uint
++	lo, cc = bits.Add(lo, uint(c), 0)
++	return Word(hi + cc), Word(lo)
+ }
+ 
+ // nlz returns the number of leading zeros in x.
+@@ -83,122 +47,48 @@ func nlz(x Word) uint {
+ }
+ 
+ // q = (u1<<_W + u0 - r)/v
+-// Adapted from Warren, Hacker's Delight, p. 152.
+ func divWW_g(u1, u0, v Word) (q, r Word) {
+-	if u1 >= v {
+-		return 1<<_W - 1, 1<<_W - 1
+-	}
+-
+-	s := nlz(v)
+-	v <<= s
+-
+-	vn1 := v >> _W2
+-	vn0 := v & _M2
+-	un32 := u1<<s | u0>>(_W-s)
+-	un10 := u0 << s
+-	un1 := un10 >> _W2
+-	un0 := un10 & _M2
+-	q1 := un32 / vn1
+-	rhat := un32 - q1*vn1
+-
+-	for q1 >= _B2 || q1*vn0 > _B2*rhat+un1 {
+-		q1--
+-		rhat += vn1
+-		if rhat >= _B2 {
+-			break
+-		}
+-	}
+-
+-	un21 := un32*_B2 + un1 - q1*v
+-	q0 := un21 / vn1
+-	rhat = un21 - q0*vn1
+-
+-	for q0 >= _B2 || q0*vn0 > _B2*rhat+un0 {
+-		q0--
+-		rhat += vn1
+-		if rhat >= _B2 {
+-			break
+-		}
+-	}
+-
+-	return q1*_B2 + q0, (un21*_B2 + un0 - q0*v) >> s
++	qq, rr := bits.Div(uint(u1), uint(u0), uint(v))
++	return Word(qq), Word(rr)
+ }
+ 
+-// Keep for performance debugging.
+-// Using addWW_g is likely slower.
+-const use_addWW_g = false
+-
+ // The resulting carry c is either 0 or 1.
+ func addVV_g(z, x, y []Word) (c Word) {
+-	if use_addWW_g {
+-		for i := range z {
+-			c, z[i] = addWW_g(x[i], y[i], c)
+-		}
+-		return
+-	}
+-
+-	for i, xi := range x[:len(z)] {
+-		yi := y[i]
+-		zi := xi + yi + c
+-		z[i] = zi
+-		// see "Hacker's Delight", section 2-12 (overflow detection)
+-		c = (xi&yi | (xi|yi)&^zi) >> (_W - 1)
++	for i := range x[:len(z)] {
++		zi, cc := bits.Add(uint(x[i]), uint(y[i]), uint(c))
++		z[i] = Word(zi)
++		c = Word(cc)
+ 	}
+ 	return
+ }
+ 
+ // The resulting carry c is either 0 or 1.
+ func subVV_g(z, x, y []Word) (c Word) {
+-	if use_addWW_g {
+-		for i := range z {
+-			c, z[i] = subWW_g(x[i], y[i], c)
+-		}
+-		return
+-	}
+-
+-	for i, xi := range x[:len(z)] {
+-		yi := y[i]
+-		zi := xi - yi - c
+-		z[i] = zi
+-		// see "Hacker's Delight", section 2-12 (overflow detection)
+-		c = (yi&^xi | (yi|^xi)&zi) >> (_W - 1)
++	for i := range x[:len(z)] {
++		zi, cc := bits.Sub(uint(x[i]), uint(y[i]), uint(c))
++		z[i] = Word(zi)
++		c = Word(cc)
+ 	}
+ 	return
+ }
+ 
+ // The resulting carry c is either 0 or 1.
+ func addVW_g(z, x []Word, y Word) (c Word) {
+-	if use_addWW_g {
+-		c = y
+-		for i := range z {
+-			c, z[i] = addWW_g(x[i], c, 0)
+-		}
+-		return
+-	}
+-
+ 	c = y
+-	for i, xi := range x[:len(z)] {
+-		zi := xi + c
+-		z[i] = zi
+-		c = xi &^ zi >> (_W - 1)
++	for i := range x[:len(z)] {
++		zi, cc := bits.Add(uint(x[i]), uint(c), 0)
++		z[i] = Word(zi)
++		c = Word(cc)
+ 	}
+ 	return
+ }
+ 
+ func subVW_g(z, x []Word, y Word) (c Word) {
+-	if use_addWW_g {
+-		c = y
+-		for i := range z {
+-			c, z[i] = subWW_g(x[i], c, 0)
+-		}
+-		return
+-	}
+-
+ 	c = y
+-	for i, xi := range x[:len(z)] {
+-		zi := xi - c
+-		z[i] = zi
+-		c = (zi &^ xi) >> (_W - 1)
++	for i := range x[:len(z)] {
++		zi, cc := bits.Sub(uint(x[i]), uint(c), 0)
++		z[i] = Word(zi)
++		c = Word(cc)
+ 	}
+ 	return
+ }
+@@ -255,11 +145,11 @@ func mulAddVWW_g(z, x []Word, y, r Word) (c Word) {
+ 	return
+ }
+ 
+-// TODO(gri) Remove use of addWW_g here and then we can remove addWW_g and subWW_g.
+ func addMulVVW_g(z, x []Word, y Word) (c Word) {
+ 	for i := range z {
+ 		z1, z0 := mulAddWWW_g(x[i], y, z[i])
+-		c, z[i] = addWW_g(z0, c, 0)
++		lo, cc := bits.Add(uint(z0), uint(c), 0)
++		c, z[i] = Word(cc), Word(lo)
+ 		c += z1
+ 	}
+ 	return
+diff --git a/src/math/big/arith_test.go b/src/math/big/arith_test.go
+index cf386b3b38..8a64321102 100644
+--- a/src/math/big/arith_test.go
++++ b/src/math/big/arith_test.go
+@@ -14,48 +14,6 @@ import (
+ 
+ var isRaceBuilder = strings.HasSuffix(testenv.Builder(), "-race")
+ 
+-type funWW func(x, y, c Word) (z1, z0 Word)
+-type argWW struct {
+-	x, y, c, z1, z0 Word
+-}
+-
+-var sumWW = []argWW{
+-	{0, 0, 0, 0, 0},
+-	{0, 1, 0, 0, 1},
+-	{0, 0, 1, 0, 1},
+-	{0, 1, 1, 0, 2},
+-	{12345, 67890, 0, 0, 80235},
+-	{12345, 67890, 1, 0, 80236},
+-	{_M, 1, 0, 1, 0},
+-	{_M, 0, 1, 1, 0},
+-	{_M, 1, 1, 1, 1},
+-	{_M, _M, 0, 1, _M - 1},
+-	{_M, _M, 1, 1, _M},
+-}
+-
+-func testFunWW(t *testing.T, msg string, f funWW, a argWW) {
+-	z1, z0 := f(a.x, a.y, a.c)
+-	if z1 != a.z1 || z0 != a.z0 {
+-		t.Errorf("%s%+v\n\tgot z1:z0 = %#x:%#x; want %#x:%#x", msg, a, z1, z0, a.z1, a.z0)
+-	}
+-}
+-
+-func TestFunWW(t *testing.T) {
+-	for _, a := range sumWW {
+-		arg := a
+-		testFunWW(t, "addWW_g", addWW_g, arg)
+-
+-		arg = argWW{a.y, a.x, a.c, a.z1, a.z0}
+-		testFunWW(t, "addWW_g symmetric", addWW_g, arg)
+-
+-		arg = argWW{a.z0, a.x, a.c, a.z1, a.y}
+-		testFunWW(t, "subWW_g", subWW_g, arg)
+-
+-		arg = argWW{a.z0, a.y, a.c, a.z1, a.x}
+-		testFunWW(t, "subWW_g symmetric", subWW_g, arg)
+-	}
+-}
+-
+ type funVV func(z, x, y []Word) (c Word)
+ type argVV struct {
+ 	z, x, y nat

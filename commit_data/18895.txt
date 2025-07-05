@@ -10,7 +10,34 @@ Date:   Wed Mar 19 10:16:48 2014 +1100
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/77300043
-
+---
  src/pkg/strconv/quote.go      | 3 ++-
  src/pkg/strconv/quote_test.go | 1 +
  2 files changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/strconv/quote.go b/src/pkg/strconv/quote.go
+index 7d6cdcf0b5..aded7e5930 100644
+--- a/src/pkg/strconv/quote.go
++++ b/src/pkg/strconv/quote.go
+@@ -144,7 +144,8 @@ func AppendQuoteRuneToASCII(dst []byte, r rune) []byte {
+ // characters other than space and tab.
+ func CanBackquote(s string) bool {
+ 	for i := 0; i < len(s); i++ {
+-		if (s[i] < ' ' && s[i] != '\t') || s[i] == '`' {
++		c := s[i]
++		if (c < ' ' && c != '\t') || c == '`' || c == '\u007F' {
+ 			return false
+ 		}
+ 	}
+diff --git a/src/pkg/strconv/quote_test.go b/src/pkg/strconv/quote_test.go
+index 61d9bf9a57..e4b5b6b9fd 100644
+--- a/src/pkg/strconv/quote_test.go
++++ b/src/pkg/strconv/quote_test.go
+@@ -140,6 +140,7 @@ var canbackquotetests = []canBackquoteTest{
+ 	{string(29), false},
+ 	{string(30), false},
+ 	{string(31), false},
++	{string(0x7F), false},
+ 	{`' !"#$%&'()*+,-./:;<=>?@[\]^_{|}~`, true},
+ 	{`0123456789`, true},
+ 	{`ABCDEFGHIJKLMNOPQRSTUVWXYZ`, true},

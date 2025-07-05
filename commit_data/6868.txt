@@ -7,7 +7,75 @@ Date:   Tue Dec 7 17:20:52 2010 -0500
     R=rsc
     CC=golang-dev
     https://golang.org/cl/3002041
-
+---
  src/cmd/ld/dwarf.c | 18 ++++++++++++------
  src/cmd/ld/lib.c   |  9 +++++++--
  2 files changed, 19 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/ld/dwarf.c b/src/cmd/ld/dwarf.c
+index 9342e1e284..4c9be955ba 100644
+--- a/src/cmd/ld/dwarf.c
++++ b/src/cmd/ld/dwarf.c
+@@ -800,20 +800,25 @@ decode_reloc(Sym *s, int32 off)
+ static uvlong
+ decode_inuxi(uchar* p, int sz)
+ {
+-	uvlong r;
+-	uchar *inuxi;
++	uint64 v;
++	uint32 l;
++	uchar *cast, *inuxi;
+ 	int i;
+ 
+-	r = 0;
++	v = l = 0;
++	cast = nil;
+ 	inuxi = nil;
+ 	switch (sz) {
+ 	case 2:
++		cast = (uchar*)&l;
+ 		inuxi = inuxi2;
+ 		break;
+ 	case 4:
++		cast = (uchar*)&l;
+ 		inuxi = inuxi4;
+ 		break;
+ 	case 8:
++		cast = (uchar*)&v;
+ 		inuxi = inuxi8;
+ 		break;
+ 	default:
+@@ -821,9 +826,10 @@ decode_inuxi(uchar* p, int sz)
+ 		errorexit();
+ 	}
+ 	for (i = 0; i < sz; i++)
+-		r += p[i] << (8*inuxi[i]);
+-
+-	return r;
++		cast[inuxi[i]] = p[i];
++	if (sz == 8)
++		return v;
++	return l;
+ }
+ 
+ // Type.commonType.kind
+diff --git a/src/cmd/ld/lib.c b/src/cmd/ld/lib.c
+index 43cff969c8..e666515c04 100644
+--- a/src/cmd/ld/lib.c
++++ b/src/cmd/ld/lib.c
+@@ -592,8 +592,13 @@ nuxiinit(void)
+ 		if(i < 1)
+ 			inuxi1[i] = c;
+ 		inuxi4[i] = c;
+-		inuxi8[i] = c;
+-		inuxi8[i+4] = c+4;
++		if(c == i) {
++			inuxi8[i] = c;
++			inuxi8[i+4] = c+4;
++		} else {
++			inuxi8[i] = c+4;
++			inuxi8[i+4] = c;
++		}
+ 		fnuxi4[i] = c;
+ 		fnuxi8[i] = c;
+ 		fnuxi8[i+4] = c+4;

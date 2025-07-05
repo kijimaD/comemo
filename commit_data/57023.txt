@@ -17,6 +17,30 @@ Date:   Thu Jun 8 17:08:52 2023 +0000
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/runtime/metrics_test.go | 12 ++++++++++--
  1 file changed, 10 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/metrics_test.go b/src/runtime/metrics_test.go
+index c138a2a1ba..a64e898739 100644
+--- a/src/runtime/metrics_test.go
++++ b/src/runtime/metrics_test.go
+@@ -143,8 +143,16 @@ func TestReadMetrics(t *testing.T) {
+ 		case "/gc/heap/frees:objects":
+ 			frees = samples[i].Value.Uint64()
+ 		case "/gc/heap/live:bytes":
+-			if live := samples[i].Value.Uint64(); live > mstats.HeapAlloc {
+-				t.Errorf("live bytes: %d > heap alloc: %d", live, mstats.HeapAlloc)
++			// Check for "obviously wrong" values. We can't check a stronger invariant,
++			// such as live <= HeapAlloc, because live is not 100% accurate. It's computed
++			// under racy conditions, and some objects may be double-counted (this is
++			// intentional and necessary for GC performance).
++			//
++			// Instead, check against a much more reasonable upper-bound: the amount of
++			// mapped heap memory. We can't possibly overcount to the point of exceeding
++			// total mapped heap memory, except if there's an accounting bug.
++			if live := samples[i].Value.Uint64(); live > mstats.HeapSys {
++				t.Errorf("live bytes: %d > heap sys: %d", live, mstats.HeapSys)
+ 			} else if live == 0 {
+ 				// Might happen if we don't call runtime.GC() above.
+ 				t.Error("live bytes is 0")

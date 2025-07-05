@@ -19,8 +19,146 @@ Date:   Thu Oct 14 12:55:43 2021 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/357509
     Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/ssa/gen/PPC64.rules |  6 ++-
  src/cmd/compile/internal/ssa/gen/PPC64Ops.go |  2 +-
  src/cmd/compile/internal/ssa/rewritePPC64.go | 68 ++++++++++++++++++++++++++++
  3 files changed, 74 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64.rules b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+index 8e42bae215..ccca72a416 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64.rules
++++ b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+@@ -848,6 +848,7 @@
+ (ADDconst [c] (SUBFCconst [d] x)) && is32Bit(c+d) => (SUBFCconst [c+d] x)
+ (NEG (ADDconst [c] x)) && is32Bit(-c) => (SUBFCconst [-c] x)
+ (NEG (SUBFCconst [c] x)) && is32Bit(-c) => (ADDconst [-c] x)
++(NEG (SUB x y)) => (SUB y x)
+ 
+ // Use register moves instead of stores and loads to move int<=>float values
+ // Common with math Float64bits, Float64frombits
+@@ -1087,7 +1088,7 @@
+ ((CMP|CMPW|CMPU|CMPWU) x y) && canonLessThan(x,y) => (InvertFlags ((CMP|CMPW|CMPU|CMPWU) y x))
+ 
+ // ISEL auxInt values 0=LT 1=GT 2=EQ   arg2 ? arg0 : arg1
+-// ISEL auxInt values 4=GE 5=LE 6=NE   arg2 ? arg1 : arg0
++// ISEL auxInt values 4=GE 5=LE 6=NE   !arg2 ? arg1 : arg0
+ // ISELB special case where arg0, arg1 values are 0, 1
+ 
+ (Equal cmp) => (ISELB [2] (MOVDconst [1]) cmp)
+@@ -1138,6 +1139,9 @@
+ (ISEL [n] x y (InvertFlags bool)) && n%4 == 0 => (ISEL [n+1] x y bool)
+ (ISEL [n] x y (InvertFlags bool)) && n%4 == 1 => (ISEL [n-1] x y bool)
+ (ISEL [n] x y (InvertFlags bool)) && n%4 == 2 => (ISEL [n] x y bool)
++(XORconst [1] (ISELB [6] (MOVDconst [1]) cmp)) => (ISELB [2] (MOVDconst [1]) cmp)
++(XORconst [1] (ISELB [5] (MOVDconst [1]) cmp)) => (ISELB [1] (MOVDconst [1]) cmp)
++(XORconst [1] (ISELB [4] (MOVDconst [1]) cmp)) => (ISELB [0] (MOVDconst [1]) cmp)
+ 
+ // A particular pattern seen in cgo code:
+ (AND (MOVDconst [c]) x:(MOVBZload _ _)) => (ANDconst [c&0xFF] x)
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64Ops.go b/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
+index ff9ce64e18..42775fa3c2 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
+@@ -396,7 +396,7 @@ func init() {
+ 		{name: "CMPWUconst", argLength: 1, reg: gp1cr, asm: "CMPWU", aux: "Int32", typ: "Flags"},
+ 
+ 		// ISEL auxInt values 0=LT 1=GT 2=EQ   arg2 ? arg0 : arg1
+-		// ISEL auxInt values 4=GE 5=LE 6=NE   arg2 ? arg1 : arg0
++		// ISEL auxInt values 4=GE 5=LE 6=NE   !arg2 ? arg1 : arg0
+ 		// ISELB special case where arg0, arg1 values are 0, 1 for boolean result
+ 		{name: "ISEL", argLength: 3, reg: crgp21, asm: "ISEL", aux: "Int32", typ: "Int32"},  // see above
+ 		{name: "ISELB", argLength: 2, reg: crgp11, asm: "ISEL", aux: "Int32", typ: "Int32"}, // see above
+diff --git a/src/cmd/compile/internal/ssa/rewritePPC64.go b/src/cmd/compile/internal/ssa/rewritePPC64.go
+index 1e6624e906..ea1c1fa60a 100644
+--- a/src/cmd/compile/internal/ssa/rewritePPC64.go
++++ b/src/cmd/compile/internal/ssa/rewritePPC64.go
+@@ -11372,6 +11372,18 @@ func rewriteValuePPC64_OpPPC64NEG(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (NEG (SUB x y))
++	// result: (SUB y x)
++	for {
++		if v_0.Op != OpPPC64SUB {
++			break
++		}
++		y := v_0.Args[1]
++		x := v_0.Args[0]
++		v.reset(OpPPC64SUB)
++		v.AddArg2(y, x)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValuePPC64_OpPPC64NOR(v *Value) bool {
+@@ -13912,6 +13924,8 @@ func rewriteValuePPC64_OpPPC64XOR(v *Value) bool {
+ }
+ func rewriteValuePPC64_OpPPC64XORconst(v *Value) bool {
+ 	v_0 := v.Args[0]
++	b := v.Block
++	typ := &b.Func.Config.Types
+ 	// match: (XORconst [c] (XORconst [d] x))
+ 	// result: (XORconst [c^d] x)
+ 	for {
+@@ -13936,6 +13950,60 @@ func rewriteValuePPC64_OpPPC64XORconst(v *Value) bool {
+ 		v.copyOf(x)
+ 		return true
+ 	}
++	// match: (XORconst [1] (ISELB [6] (MOVDconst [1]) cmp))
++	// result: (ISELB [2] (MOVDconst [1]) cmp)
++	for {
++		if auxIntToInt64(v.AuxInt) != 1 || v_0.Op != OpPPC64ISELB || auxIntToInt32(v_0.AuxInt) != 6 {
++			break
++		}
++		cmp := v_0.Args[1]
++		v_0_0 := v_0.Args[0]
++		if v_0_0.Op != OpPPC64MOVDconst || auxIntToInt64(v_0_0.AuxInt) != 1 {
++			break
++		}
++		v.reset(OpPPC64ISELB)
++		v.AuxInt = int32ToAuxInt(2)
++		v0 := b.NewValue0(v.Pos, OpPPC64MOVDconst, typ.Int64)
++		v0.AuxInt = int64ToAuxInt(1)
++		v.AddArg2(v0, cmp)
++		return true
++	}
++	// match: (XORconst [1] (ISELB [5] (MOVDconst [1]) cmp))
++	// result: (ISELB [1] (MOVDconst [1]) cmp)
++	for {
++		if auxIntToInt64(v.AuxInt) != 1 || v_0.Op != OpPPC64ISELB || auxIntToInt32(v_0.AuxInt) != 5 {
++			break
++		}
++		cmp := v_0.Args[1]
++		v_0_0 := v_0.Args[0]
++		if v_0_0.Op != OpPPC64MOVDconst || auxIntToInt64(v_0_0.AuxInt) != 1 {
++			break
++		}
++		v.reset(OpPPC64ISELB)
++		v.AuxInt = int32ToAuxInt(1)
++		v0 := b.NewValue0(v.Pos, OpPPC64MOVDconst, typ.Int64)
++		v0.AuxInt = int64ToAuxInt(1)
++		v.AddArg2(v0, cmp)
++		return true
++	}
++	// match: (XORconst [1] (ISELB [4] (MOVDconst [1]) cmp))
++	// result: (ISELB [0] (MOVDconst [1]) cmp)
++	for {
++		if auxIntToInt64(v.AuxInt) != 1 || v_0.Op != OpPPC64ISELB || auxIntToInt32(v_0.AuxInt) != 4 {
++			break
++		}
++		cmp := v_0.Args[1]
++		v_0_0 := v_0.Args[0]
++		if v_0_0.Op != OpPPC64MOVDconst || auxIntToInt64(v_0_0.AuxInt) != 1 {
++			break
++		}
++		v.reset(OpPPC64ISELB)
++		v.AuxInt = int32ToAuxInt(0)
++		v0 := b.NewValue0(v.Pos, OpPPC64MOVDconst, typ.Int64)
++		v0.AuxInt = int64ToAuxInt(1)
++		v.AddArg2(v0, cmp)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValuePPC64_OpPanicBounds(v *Value) bool {

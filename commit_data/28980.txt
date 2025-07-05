@@ -20,6 +20,25 @@ Date:   Mon Aug 8 15:41:18 2016 +0200
     Change-Id: I0615ba31ed7567600a0667ebb27458481da73adb
     Reviewed-on: https://go-review.googlesource.com/25572
     Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
-
+---
  src/internal/trace/parser.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/internal/trace/parser.go b/src/internal/trace/parser.go
+index c31517f683..b1fc17ac58 100644
+--- a/src/internal/trace/parser.go
++++ b/src/internal/trace/parser.go
+@@ -581,11 +581,13 @@ func postProcessTrace(ver int, events []*Event) error {
+ 				return fmt.Errorf("g %v is not runnable before EvGoWaiting (offset %v, time %v)", ev.G, ev.Off, ev.Ts)
+ 			}
+ 			g.state = gWaiting
++			g.ev = ev
+ 		case EvGoInSyscall:
+ 			if g.state != gRunnable {
+ 				return fmt.Errorf("g %v is not runnable before EvGoInSyscall (offset %v, time %v)", ev.G, ev.Off, ev.Ts)
+ 			}
+ 			g.state = gWaiting
++			g.ev = ev
+ 		case EvGoCreate:
+ 			if err := checkRunning(p, g, ev, true); err != nil {
+ 				return err

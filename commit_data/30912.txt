@@ -9,6 +9,20 @@ Date:   Mon Dec 19 06:01:18 2016 +0900
     Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/crypto/tls/conn.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/crypto/tls/conn.go b/src/crypto/tls/conn.go
+index 4b2702a716..03895a723f 100644
+--- a/src/crypto/tls/conn.go
++++ b/src/crypto/tls/conn.go
+@@ -37,7 +37,7 @@ type Conn struct {
+ 	vers          uint16  // TLS version
+ 	haveVers      bool    // version has been negotiated
+ 	config        *Config // configuration passed to constructor
+-	// handshakeComplete is true if the connection is currently transfering
++	// handshakeComplete is true if the connection is currently transferring
+ 	// application data (i.e. is not currently processing a handshake).
+ 	handshakeComplete bool
+ 	// handshakes counts the number of handshakes performed on the

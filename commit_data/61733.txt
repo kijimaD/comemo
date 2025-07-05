@@ -18,9 +18,94 @@ Date:   Thu Nov 21 00:01:36 2024 +0800
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
-
+---
  src/cmd/dist/buildruntime.go               | 2 +-
  src/cmd/go/internal/cfg/cfg.go             | 2 +-
  src/cmd/go/testdata/script/env_changed.txt | 4 ++++
  src/internal/buildcfg/cfg.go               | 4 ++--
  4 files changed, 8 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/dist/buildruntime.go b/src/cmd/dist/buildruntime.go
+index 73260246fa..04b5b45410 100644
+--- a/src/cmd/dist/buildruntime.go
++++ b/src/cmd/dist/buildruntime.go
+@@ -65,7 +65,7 @@ func mkbuildcfg(file string) {
+ 	fmt.Fprintf(&buf, "const version = `%s`\n", findgoversion())
+ 	fmt.Fprintf(&buf, "const defaultGOOS = runtime.GOOS\n")
+ 	fmt.Fprintf(&buf, "const defaultGOARCH = runtime.GOARCH\n")
+-	fmt.Fprintf(&buf, "const defaultGOFIPS140 = `%s`\n", gofips140)
++	fmt.Fprintf(&buf, "const DefaultGOFIPS140 = `%s`\n", gofips140)
+ 
+ 	writefile(buf.String(), file, writeSkipSame)
+ }
+diff --git a/src/cmd/go/internal/cfg/cfg.go b/src/cmd/go/internal/cfg/cfg.go
+index b4dac0bf1e..6c2af99c2d 100644
+--- a/src/cmd/go/internal/cfg/cfg.go
++++ b/src/cmd/go/internal/cfg/cfg.go
+@@ -439,7 +439,7 @@ var (
+ 	GORISCV64, goRISCV64Changed = EnvOrAndChanged("GORISCV64", buildcfg.DefaultGORISCV64)
+ 	GOWASM, goWASMChanged       = EnvOrAndChanged("GOWASM", fmt.Sprint(buildcfg.GOWASM))
+ 
+-	GOFIPS140, GOFIPS140Changed = EnvOrAndChanged("GOFIPS140", buildcfg.GOFIPS140)
++	GOFIPS140, GOFIPS140Changed = EnvOrAndChanged("GOFIPS140", buildcfg.DefaultGOFIPS140)
+ 	GOPROXY, GOPROXYChanged     = EnvOrAndChanged("GOPROXY", "")
+ 	GOSUMDB, GOSUMDBChanged     = EnvOrAndChanged("GOSUMDB", "")
+ 	GOPRIVATE                   = Getenv("GOPRIVATE")
+diff --git a/src/cmd/go/testdata/script/env_changed.txt b/src/cmd/go/testdata/script/env_changed.txt
+index 571d754a16..f57f69bfd7 100644
+--- a/src/cmd/go/testdata/script/env_changed.txt
++++ b/src/cmd/go/testdata/script/env_changed.txt
+@@ -7,6 +7,7 @@ env GOPROXY=nodefault
+ env GO111MODULE=auto
+ env CGO_CFLAGS=nodefault
+ env CGO_CPPFLAGS=nodefault
++env GOFIPS140=latest
+ 
+ go env -changed
+ # linux output like GOTOOLCHAIN='local'
+@@ -17,6 +18,7 @@ stdout 'GOPROXY=''?nodefault''?'
+ stdout 'GO111MODULE=''?auto''?'
+ stdout 'CGO_CFLAGS=''?nodefault''?'
+ stdout 'CGO_CPPFLAGS=''?nodefault''?'
++stdout 'GOFIPS140=''?latest''?'
+ 
+ go env -changed -json
+ stdout '"GOTOOLCHAIN": "local"'
+@@ -25,6 +27,7 @@ stdout '"GOPROXY": "nodefault"'
+ stdout '"GO111MODULE": "auto"'
+ stdout '"CGO_CFLAGS": "nodefault"'
+ stdout '"CGO_CPPFLAGS": "nodefault"'
++stdout '"GOFIPS140": "latest"'
+ 
+ [GOOS:windows] env GOOS=linux
+ [!GOOS:windows] env GOOS=windows
+@@ -64,6 +67,7 @@ go env -changed
+ --  a/go.env --
+ GOPROXY=s
+ GOAMD64=v1
++GOFIPS140=off
+ 
+ --  b/go.env --
+ GOTOOLCHAIN=local
+diff --git a/src/internal/buildcfg/cfg.go b/src/internal/buildcfg/cfg.go
+index 1d6dc0ff3c..fca09bf8d3 100644
+--- a/src/internal/buildcfg/cfg.go
++++ b/src/internal/buildcfg/cfg.go
+@@ -72,7 +72,7 @@ func goamd64() int {
+ }
+ 
+ func gofips140() string {
+-	v := envOr("GOFIPS140", defaultGOFIPS140)
++	v := envOr("GOFIPS140", DefaultGOFIPS140)
+ 	switch v {
+ 	case "off", "latest", "inprocess", "certified":
+ 		return v
+@@ -81,7 +81,7 @@ func gofips140() string {
+ 		return v
+ 	}
+ 	Error = fmt.Errorf("invalid GOFIPS140: must be off, latest, inprocess, certified, or vX.Y.Z")
+-	return defaultGOFIPS140
++	return DefaultGOFIPS140
+ }
+ 
+ // isFIPSVersion reports whether v is a valid FIPS version,

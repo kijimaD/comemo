@@ -7,9 +7,110 @@ Date:   Fri Jun 18 22:43:37 2010 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/1700043
-
+---
  src/pkg/strconv/atof.go      | 13 +++++++++++++
  src/pkg/strconv/atof_test.go | 15 +++++++++++++++
  src/pkg/strconv/ftoa.go      | 11 +++++++++++
  src/pkg/strconv/ftoa_test.go |  8 ++++++++
  4 files changed, 47 insertions(+)
+
+diff --git a/src/pkg/strconv/atof.go b/src/pkg/strconv/atof.go
+index bf0c5aaba3..262a8b53c7 100644
+--- a/src/pkg/strconv/atof.go
++++ b/src/pkg/strconv/atof.go
+@@ -367,3 +367,16 @@ func Atof(s string) (f float, err os.Error) {
+ 	f1, err1 := Atof64(s)
+ 	return float(f1), err1
+ }
++
++
++// AtofN converts the string s to a 64-bit floating-point number,
++// but it rounds the result assuming that it will be stored in a value
++// of n bits (32 or 64).
++func AtofN(s string, n int) (f float64, err os.Error) {
++	if n == 32 {
++		f1, err1 := Atof32(s)
++		return float64(f1), err1
++	}
++	f1, err1 := Atof64(s)
++	return f1, err1
++}
+diff --git a/src/pkg/strconv/atof_test.go b/src/pkg/strconv/atof_test.go
+index c0fe1bda75..30f1b05bab 100644
+--- a/src/pkg/strconv/atof_test.go
++++ b/src/pkg/strconv/atof_test.go
+@@ -114,6 +114,13 @@ func testAtof(t *testing.T, opt bool) {
+ 				test.in, out, err, test.out, test.err)
+ 		}
+ 
++		out, err = AtofN(test.in, 64)
++		outs = FtoaN(out, 'g', -1, 64)
++		if outs != test.out || !reflect.DeepEqual(err, test.err) {
++			t.Errorf("AtofN(%v, 64) = %v, %v want %v, %v\n",
++				test.in, out, err, test.out, test.err)
++		}
++
+ 		if float64(float32(out)) == out {
+ 			out32, err := Atof32(test.in)
+ 			outs := Ftoa32(out32, 'g', -1)
+@@ -121,6 +128,14 @@ func testAtof(t *testing.T, opt bool) {
+ 				t.Errorf("Atof32(%v) = %v, %v want %v, %v  # %v\n",
+ 					test.in, out32, err, test.out, test.err, out)
+ 			}
++
++			out, err := AtofN(test.in, 32)
++			out32 = float32(out)
++			outs = FtoaN(float64(out32), 'g', -1, 32)
++			if outs != test.out || !reflect.DeepEqual(err, test.err) {
++				t.Errorf("AtofN(%v, 32) = %v, %v want %v, %v  # %v\n",
++					test.in, out32, err, test.out, test.err, out)
++			}
+ 		}
+ 
+ 		if FloatSize == 64 || float64(float32(out)) == out {
+diff --git a/src/pkg/strconv/ftoa.go b/src/pkg/strconv/ftoa.go
+index 86e35b3995..656d81c981 100644
+--- a/src/pkg/strconv/ftoa.go
++++ b/src/pkg/strconv/ftoa.go
+@@ -64,6 +64,17 @@ func Ftoa64(f float64, fmt byte, prec int) string {
+ 	return genericFtoa(math.Float64bits(f), fmt, prec, &float64info)
+ }
+ 
++// FtoaN converts the 64-bit floating-point number f to a string,
++// according to the format fmt and precision prec, but it rounds the
++// result assuming that it was obtained from a floating-point value
++// of n bits (32 or 64).
++func FtoaN(f float64, fmt byte, prec int, n int) string {
++	if n == 32 {
++		return Ftoa32(float32(f), fmt, prec)
++	}
++	return Ftoa64(f, fmt, prec)
++}
++
+ // Ftoa behaves as Ftoa32 or Ftoa64, depending on the size of the float type.
+ func Ftoa(f float, fmt byte, prec int) string {
+ 	if FloatSize == 32 {
+diff --git a/src/pkg/strconv/ftoa_test.go b/src/pkg/strconv/ftoa_test.go
+index 3771c40b91..85510b79c7 100644
+--- a/src/pkg/strconv/ftoa_test.go
++++ b/src/pkg/strconv/ftoa_test.go
+@@ -110,11 +110,19 @@ func TestFtoa(t *testing.T) {
+ 		if s != test.s {
+ 			t.Error("test", test.f, string(test.fmt), test.prec, "want", test.s, "got", s)
+ 		}
++		s = FtoaN(test.f, test.fmt, test.prec, 64)
++		if s != test.s {
++			t.Error("testN=64", test.f, string(test.fmt), test.prec, "want", test.s, "got", s)
++		}
+ 		if float64(float32(test.f)) == test.f && test.fmt != 'b' {
+ 			s := Ftoa32(float32(test.f), test.fmt, test.prec)
+ 			if s != test.s {
+ 				t.Error("test32", test.f, string(test.fmt), test.prec, "want", test.s, "got", s)
+ 			}
++			s = FtoaN(test.f, test.fmt, test.prec, 32)
++			if s != test.s {
++				t.Error("testN=32", test.f, string(test.fmt), test.prec, "want", test.s, "got", s)
++			}
+ 		}
+ 	}
+ }

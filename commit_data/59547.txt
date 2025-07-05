@@ -12,7 +12,54 @@ Date:   Fri Mar 22 23:07:57 2024 +0800
     Reviewed-by: David Chase <drchase@google.com>
     Auto-Submit: Ian Lance Taylor <iant@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  test/typeparam/builtins.go | 8 ++++----
  test/typeparam/typelist.go | 4 +---
  2 files changed, 5 insertions(+), 7 deletions(-)
+
+diff --git a/test/typeparam/builtins.go b/test/typeparam/builtins.go
+index 763d7202d0..51cdb31e56 100644
+--- a/test/typeparam/builtins.go
++++ b/test/typeparam/builtins.go
+@@ -69,6 +69,10 @@ func m1[
+ 	C1 interface{ chan int },
+ 	C2 interface{ chan int | chan string },
+ ]() {
++	type m1S0 []int
++	type m1M0 map[string]int
++	type m1C0 chan int
++
+ 	_ = make([]int, 10)
+ 	_ = make(m1S0, 10)
+ 	_ = make(S1, 10)
+@@ -84,10 +88,6 @@ func m1[
+ 	_ = make(C1)
+ 	_ = make(C1, 10)
+ }
+-// TODO: put these type declarations back inside m1 when issue 47631 is fixed.
+-type m1S0 []int
+-type m1M0 map[string]int
+-type m1C0 chan int
+ 
+ // len/cap
+ 
+diff --git a/test/typeparam/typelist.go b/test/typeparam/typelist.go
+index 7c713212b0..cd8ef7d6e7 100644
+--- a/test/typeparam/typelist.go
++++ b/test/typeparam/typelist.go
+@@ -26,14 +26,12 @@ func at[T interface{ ~[]E }, E any](x T, i int) E {
+ // type is itself, its "operational type" is defined by the type list in
+ // the tybe bound, if any.
+ func _[T interface{ ~int }](x T) {
++	type myint int
+ 	var _ int = int(x)
+ 	var _ T = 42
+ 	var _ T = T(myint(42))
+ }
+ 
+-// TODO: put this type declaration back inside the above function when issue 47631 is fixed.
+-type myint int
+-
+ // Indexing a generic type which has a an array as core type.
+ func _[T interface{ ~[10]int }](x T) {
+ 	_ = x[9] // ok

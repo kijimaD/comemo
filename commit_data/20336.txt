@@ -10,7 +10,53 @@ Date:   Mon Sep 1 19:42:22 2014 -0400
     R=golang-codereviews
     CC=bradfitz, golang-codereviews, iant, r
     https://golang.org/cl/137050043
-
+---
  src/pkg/runtime/mprof.go      |  4 ++--
  src/pkg/runtime/stack_test.go | 10 ++++++++++
  2 files changed, 12 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/runtime/mprof.go b/src/pkg/runtime/mprof.go
+index 8546a341bd..1734fd8470 100644
+--- a/src/pkg/runtime/mprof.go
++++ b/src/pkg/runtime/mprof.go
+@@ -584,13 +584,13 @@ func Stack(buf []byte, all bool) int {
+ 
+ 	n := 0
+ 	if len(buf) > 0 {
+-		gp.writebuf = buf
++		gp.writebuf = buf[0:0:len(buf)]
+ 		goroutineheader(gp)
+ 		traceback(pc, sp, 0, gp)
+ 		if all {
+ 			tracebackothers(gp)
+ 		}
+-		n = len(buf) - len(gp.writebuf)
++		n = len(gp.writebuf)
+ 		gp.writebuf = nil
+ 	}
+ 
+diff --git a/src/pkg/runtime/stack_test.go b/src/pkg/runtime/stack_test.go
+index 2877074f76..b3dcbd12a0 100644
+--- a/src/pkg/runtime/stack_test.go
++++ b/src/pkg/runtime/stack_test.go
+@@ -6,6 +6,7 @@ package runtime_test
+ 
+ import (
+ 	. "runtime"
++	"strings"
+ 	"sync"
+ 	"testing"
+ 	"time"
+@@ -331,3 +332,12 @@ func TestStackCache(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestStackOutput(t *testing.T) {
++	b := make([]byte, 1024)
++	stk := string(b[:Stack(b, false)])
++	if !strings.HasPrefix(stk, "goroutine ") {
++		t.Errorf("Stack (len %d):\n%s", len(stk), stk)
++		t.Errorf("Stack output should begin with \"goroutine \"")
++	}
++}

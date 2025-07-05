@@ -7,6 +7,22 @@ Date:   Thu Feb 26 17:52:51 2015 -0500
     Change-Id: Icee6c88b7eed5fb27f046373ecf53bf64b68c696
     Reviewed-on: https://go-review.googlesource.com/6191
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/cmd/addr2line/addr2line_test.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/cmd/addr2line/addr2line_test.go b/src/cmd/addr2line/addr2line_test.go
+index 10d1dc9225..8fd9995ce5 100644
+--- a/src/cmd/addr2line/addr2line_test.go
++++ b/src/cmd/addr2line/addr2line_test.go
+@@ -95,6 +95,10 @@ func TestAddr2Line(t *testing.T) {
+ 	switch runtime.GOOS {
+ 	case "nacl", "android":
+ 		t.Skipf("skipping on %s", runtime.GOOS)
++	case "darwin":
++		if runtime.GOARCH == "arm" {
++			t.Skipf("skipping on %s/%s", runtime.GOOS, runtime.GOARCH)
++		}
+ 	}
+ 
+ 	syms := loadSyms(t)

@@ -13,6 +13,20 @@ Date:   Mon Nov 7 11:50:48 2016 -0500
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/dist/test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 7629547279..e7027a67cd 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -809,7 +809,7 @@ func (t *tester) cgoTest(dt *distTest) error {
+ 	case "android-arm",
+ 		"dragonfly-386", "dragonfly-amd64",
+ 		"freebsd-386", "freebsd-amd64", "freebsd-arm",
+-		"linux-386", "linux-amd64", "linux-arm", "linux-s390x",
++		"linux-386", "linux-amd64", "linux-arm", "linux-ppc64le", "linux-s390x",
+ 		"netbsd-386", "netbsd-amd64":
+ 
+ 		cmd := t.addCmd(dt, "misc/cgo/test", "go", "test", "-ldflags", "-linkmode=external")

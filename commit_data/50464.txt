@@ -21,7 +21,198 @@ Date:   Fri Oct 22 12:36:00 2021 +1100
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/go/internal/vcs/vcs.go      | 53 +++++++++++++++++++++++++++----------
  src/cmd/go/internal/vcs/vcs_test.go | 48 ++++++++++++++++++---------------
  2 files changed, 65 insertions(+), 36 deletions(-)
+
+diff --git a/src/cmd/go/internal/vcs/vcs.go b/src/cmd/go/internal/vcs/vcs.go
+index c4853d7ae3..990e1d4248 100644
+--- a/src/cmd/go/internal/vcs/vcs.go
++++ b/src/cmd/go/internal/vcs/vcs.go
+@@ -35,8 +35,9 @@ import (
+ // A Cmd describes how to use a version control system
+ // like Mercurial, Git, or Subversion.
+ type Cmd struct {
+-	Name string
+-	Cmd  string // name of binary to invoke command
++	Name      string
++	Cmd       string   // name of binary to invoke command
++	RootNames []string // filename indicating the root of a checkout directory
+ 
+ 	CreateCmd   []string // commands to download a fresh copy of a repository
+ 	DownloadCmd []string // commands to download updates into an existing repository
+@@ -129,8 +130,9 @@ func vcsByCmd(cmd string) *Cmd {
+ 
+ // vcsHg describes how to use Mercurial.
+ var vcsHg = &Cmd{
+-	Name: "Mercurial",
+-	Cmd:  "hg",
++	Name:      "Mercurial",
++	Cmd:       "hg",
++	RootNames: []string{".hg"},
+ 
+ 	CreateCmd:   []string{"clone -U -- {repo} {dir}"},
+ 	DownloadCmd: []string{"pull"},
+@@ -212,8 +214,9 @@ func parseRevTime(out []byte) (string, time.Time, error) {
+ 
+ // vcsGit describes how to use Git.
+ var vcsGit = &Cmd{
+-	Name: "Git",
+-	Cmd:  "git",
++	Name:      "Git",
++	Cmd:       "git",
++	RootNames: []string{".git"},
+ 
+ 	CreateCmd:   []string{"clone -- {repo} {dir}", "-go-internal-cd {dir} submodule update --init --recursive"},
+ 	DownloadCmd: []string{"pull --ff-only", "submodule update --init --recursive"},
+@@ -325,8 +328,9 @@ func gitStatus(vcsGit *Cmd, rootDir string) (Status, error) {
+ 
+ // vcsBzr describes how to use Bazaar.
+ var vcsBzr = &Cmd{
+-	Name: "Bazaar",
+-	Cmd:  "bzr",
++	Name:      "Bazaar",
++	Cmd:       "bzr",
++	RootNames: []string{".bzr"},
+ 
+ 	CreateCmd: []string{"branch -- {repo} {dir}"},
+ 
+@@ -387,8 +391,9 @@ func bzrResolveRepo(vcsBzr *Cmd, rootDir, remoteRepo string) (realRepo string, e
+ 
+ // vcsSvn describes how to use Subversion.
+ var vcsSvn = &Cmd{
+-	Name: "Subversion",
+-	Cmd:  "svn",
++	Name:      "Subversion",
++	Cmd:       "svn",
++	RootNames: []string{".svn"},
+ 
+ 	CreateCmd:   []string{"checkout -- {repo} {dir}"},
+ 	DownloadCmd: []string{"update"},
+@@ -437,8 +442,9 @@ const fossilRepoName = ".fossil"
+ 
+ // vcsFossil describes how to use Fossil (fossil-scm.org)
+ var vcsFossil = &Cmd{
+-	Name: "Fossil",
+-	Cmd:  "fossil",
++	Name:      "Fossil",
++	Cmd:       "fossil",
++	RootNames: []string{".fslckout", "_FOSSIL_"},
+ 
+ 	CreateCmd:   []string{"-go-internal-mkdir {dir} clone -- {repo} " + filepath.Join("{dir}", fossilRepoName), "-go-internal-cd {dir} open .fossil"},
+ 	DownloadCmd: []string{"up"},
+@@ -662,7 +668,7 @@ func FromDir(dir, srcRoot string, allowNesting bool) (repoDir string, vcsCmd *Cm
+ 	origDir := dir
+ 	for len(dir) > len(srcRoot) {
+ 		for _, vcs := range vcsList {
+-			if _, err := os.Stat(filepath.Join(dir, "."+vcs.Cmd)); err == nil {
++			if _, err := statAny(dir, vcs.RootNames); err == nil {
+ 				// Record first VCS we find.
+ 				// If allowNesting is false (as it is in GOPATH), keep looking for
+ 				// repositories in parent directories and report an error if one is
+@@ -698,6 +704,25 @@ func FromDir(dir, srcRoot string, allowNesting bool) (repoDir string, vcsCmd *Cm
+ 	return repoDir, vcsCmd, nil
+ }
+ 
++// statAny provides FileInfo for the first filename found in the directory.
++// Otherwise, it returns the last error seen.
++func statAny(dir string, filenames []string) (os.FileInfo, error) {
++	if len(filenames) == 0 {
++		return nil, errors.New("invalid argument: no filenames provided")
++	}
++
++	var err error
++	var fi os.FileInfo
++	for _, name := range filenames {
++		fi, err = os.Stat(filepath.Join(dir, name))
++		if err == nil {
++			return fi, nil
++		}
++	}
++
++	return nil, err
++}
++
+ type vcsNotFoundError struct {
+ 	dir string
+ }
+@@ -855,7 +880,7 @@ func CheckNested(vcs *Cmd, dir, srcRoot string) error {
+ 	otherDir := dir
+ 	for len(otherDir) > len(srcRoot) {
+ 		for _, otherVCS := range vcsList {
+-			if _, err := os.Stat(filepath.Join(otherDir, "."+otherVCS.Cmd)); err == nil {
++			if _, err := statAny(otherDir, otherVCS.RootNames); err == nil {
+ 				// Allow expected vcs in original dir.
+ 				if otherDir == dir && otherVCS == vcs {
+ 					continue
+diff --git a/src/cmd/go/internal/vcs/vcs_test.go b/src/cmd/go/internal/vcs/vcs_test.go
+index 9ac0a56a07..c4e4f4d3c6 100644
+--- a/src/cmd/go/internal/vcs/vcs_test.go
++++ b/src/cmd/go/internal/vcs/vcs_test.go
+@@ -6,6 +6,7 @@ package vcs
+ 
+ import (
+ 	"errors"
++	"fmt"
+ 	"internal/testenv"
+ 	"os"
+ 	"path/filepath"
+@@ -214,32 +215,35 @@ func TestFromDir(t *testing.T) {
+ 	defer os.RemoveAll(tempDir)
+ 
+ 	for j, vcs := range vcsList {
+-		dir := filepath.Join(tempDir, "example.com", vcs.Name, "."+vcs.Cmd)
+-		if j&1 == 0 {
+-			err := os.MkdirAll(dir, 0755)
+-			if err != nil {
+-				t.Fatal(err)
++		for r, rootName := range vcs.RootNames {
++			vcsName := fmt.Sprint(vcs.Name, r)
++			dir := filepath.Join(tempDir, "example.com", vcsName, rootName)
++			if j&1 == 0 {
++				err := os.MkdirAll(dir, 0755)
++				if err != nil {
++					t.Fatal(err)
++				}
++			} else {
++				err := os.MkdirAll(filepath.Dir(dir), 0755)
++				if err != nil {
++					t.Fatal(err)
++				}
++				f, err := os.Create(dir)
++				if err != nil {
++					t.Fatal(err)
++				}
++				f.Close()
+ 			}
+-		} else {
+-			err := os.MkdirAll(filepath.Dir(dir), 0755)
++
++			wantRepoDir := filepath.Dir(dir)
++			gotRepoDir, gotVCS, err := FromDir(dir, tempDir, false)
+ 			if err != nil {
+-				t.Fatal(err)
++				t.Errorf("FromDir(%q, %q): %v", dir, tempDir, err)
++				continue
+ 			}
+-			f, err := os.Create(dir)
+-			if err != nil {
+-				t.Fatal(err)
++			if gotRepoDir != wantRepoDir || gotVCS.Name != vcs.Name {
++				t.Errorf("FromDir(%q, %q) = RepoDir(%s), VCS(%s); want RepoDir(%s), VCS(%s)", dir, tempDir, gotRepoDir, gotVCS.Name, wantRepoDir, vcs.Name)
+ 			}
+-			f.Close()
+-		}
+-
+-		wantRepoDir := filepath.Dir(dir)
+-		gotRepoDir, gotVCS, err := FromDir(dir, tempDir, false)
+-		if err != nil {
+-			t.Errorf("FromDir(%q, %q): %v", dir, tempDir, err)
+-			continue
+-		}
+-		if gotRepoDir != wantRepoDir || gotVCS.Name != vcs.Name {
+-			t.Errorf("FromDir(%q, %q) = RepoDir(%s), VCS(%s); want RepoDir(%s), VCS(%s)", dir, tempDir, gotRepoDir, gotVCS.Name, wantRepoDir, vcs.Name)
+ 		}
+ 	}
+ }

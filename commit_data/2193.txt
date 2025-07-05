@@ -8,7 +8,7 @@ Date:   Tue May 12 16:09:47 2009 -0700
     DELTA=20  (20 added, 0 deleted, 0 changed)
     OCL=28707
     CL=28716
-
+---
  test/interface1.go  | 2 ++
  test/interface10.go | 2 ++
  test/interface2.go  | 2 ++
@@ -19,3 +19,123 @@ Date:   Tue May 12 16:09:47 2009 -0700
  test/interface8.go  | 3 +++
  test/interface9.go  | 2 ++
  9 files changed, 20 insertions(+)
+
+diff --git a/test/interface1.go b/test/interface1.go
+index 649a955f6d..202c37d860 100644
+--- a/test/interface1.go
++++ b/test/interface1.go
+@@ -4,6 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Check that interface{M()} = *interface{M()} produces a compiler error.
++
+ package main
+ 
+ type Inst interface {
+diff --git a/test/interface10.go b/test/interface10.go
+index c52a20fcd8..d216b890d5 100644
+--- a/test/interface10.go
++++ b/test/interface10.go
+@@ -4,6 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Check methods derived from embedded interface and *interface values.
++
+ package main
+ 
+ import "os"
+diff --git a/test/interface2.go b/test/interface2.go
+index 53676787ff..1e3758069f 100644
+--- a/test/interface2.go
++++ b/test/interface2.go
+@@ -4,6 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Check that interface conversion fails when method is missing.
++
+ package main
+ 
+ type S struct
+diff --git a/test/interface3.go b/test/interface3.go
+index 04af91a029..93298bce78 100644
+--- a/test/interface3.go
++++ b/test/interface3.go
+@@ -4,6 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Check methods with different return types.
++
+ package main
+ 
+ type S struct { a int }
+diff --git a/test/interface5.go b/test/interface5.go
+index 86036a778b..3b5ed01ca4 100644
+--- a/test/interface5.go
++++ b/test/interface5.go
+@@ -4,6 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Static error messages about interface conversions.
++
+ package main
+ 
+ type T struct { a int }
+diff --git a/test/interface6.go b/test/interface6.go
+index c675595fd8..49926f0a2f 100644
+--- a/test/interface6.go
++++ b/test/interface6.go
+@@ -4,6 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Interface values containing structures.
++
+ package main
+ 
+ import "os"
+diff --git a/test/interface7.go b/test/interface7.go
+index ee1ac31165..a52d7a5a11 100644
+--- a/test/interface7.go
++++ b/test/interface7.go
+@@ -4,6 +4,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Interface comparisons using types hidden
++// inside reflected-on structs.
++
+ package main
+ 
+ import "reflect"
+diff --git a/test/interface8.go b/test/interface8.go
+index f7dc04d34c..4c2d4d4c5c 100644
+--- a/test/interface8.go
++++ b/test/interface8.go
+@@ -4,6 +4,9 @@
+ 
+ // $G $F.go && $L $F.$A && ./$A.out
+ 
++// Implicit methods for embedded types.
++// Mixed pointer and non-pointer receivers.
++
+ package main
+ 
+ type T int
+diff --git a/test/interface9.go b/test/interface9.go
+index 9ba5864a80..42214bd769 100644
+--- a/test/interface9.go
++++ b/test/interface9.go
+@@ -4,6 +4,8 @@
+ 
+ // errchk $G $F.go
+ 
++// Error messages about missing implicit methods.
++
+ package main
+ 
+ type T int

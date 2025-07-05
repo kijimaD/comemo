@@ -13,7 +13,7 @@ Date:   Tue Feb 13 22:03:05 2018 +0100
     Change-Id: I8fb4fcdd1333fc5193b93a2f09598f18c45e7a00
     Reviewed-on: https://go-review.googlesource.com/94095
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/client.go                |  2 +-
  src/net/http/fs.go                    | 22 +++++++++----------
  src/net/http/httptest/recorder.go     |  1 +
@@ -27,3 +27,397 @@ Date:   Tue Feb 13 22:03:05 2018 +0100
  src/net/http/transfer.go              | 10 ++++-----
  src/net/http/transport.go             |  2 +-
  12 files changed, 56 insertions(+), 62 deletions(-)
+
+diff --git a/src/net/http/client.go b/src/net/http/client.go
+index 6f6024ed4d..a02c805f38 100644
+--- a/src/net/http/client.go
++++ b/src/net/http/client.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// HTTP client. See RFC 2616.
++// HTTP client. See RFC 7230 through 7235.
+ //
+ // This is the high-level Client interface.
+ // The low-level implementation is in transport.go.
+diff --git a/src/net/http/fs.go b/src/net/http/fs.go
+index ecad14ac1e..774c5e564b 100644
+--- a/src/net/http/fs.go
++++ b/src/net/http/fs.go
+@@ -235,17 +235,17 @@ func serveContent(w ResponseWriter, r *Request, name string, modtime time.Time,
+ 		}
+ 		switch {
+ 		case len(ranges) == 1:
+-			// RFC 2616, Section 14.16:
+-			// "When an HTTP message includes the content of a single
+-			// range (for example, a response to a request for a
+-			// single range, or to a request for a set of ranges
+-			// that overlap without any holes), this content is
+-			// transmitted with a Content-Range header, and a
+-			// Content-Length header showing the number of bytes
+-			// actually transferred.
++			// RFC 7233, Section 4.1:
++			// "If a single part is being transferred, the server
++			// generating the 206 response MUST generate a
++			// Content-Range header field, describing what range
++			// of the selected representation is enclosed, and a
++			// payload consisting of the range.
+ 			// ...
+-			// A response to a request for a single range MUST NOT
+-			// be sent using the multipart/byteranges media type."
++			// A server MUST NOT generate a multipart response to
++			// a request for a single range, since a client that
++			// does not request multiple parts might not support
++			// multipart responses."
+ 			ra := ranges[0]
+ 			if _, err := content.Seek(ra.start, io.SeekStart); err != nil {
+ 				Error(w, err.Error(), StatusRequestedRangeNotSatisfiable)
+@@ -731,7 +731,7 @@ func (r httpRange) mimeHeader(contentType string, size int64) textproto.MIMEHead
+ 	}
+ }
+ 
+-// parseRange parses a Range header string as per RFC 2616.
++// parseRange parses a Range header string as per RFC 7233.
+ // errNoOverlap is returned if none of the ranges overlap.
+ func parseRange(s string, size int64) ([]httpRange, error) {
+ 	if s == "" {
+diff --git a/src/net/http/httptest/recorder.go b/src/net/http/httptest/recorder.go
+index 741f076b36..16f9736183 100644
+--- a/src/net/http/httptest/recorder.go
++++ b/src/net/http/httptest/recorder.go
+@@ -192,6 +192,7 @@ func (rw *ResponseRecorder) Result() *http.Response {
+ 			switch k {
+ 			case "Transfer-Encoding", "Content-Length", "Trailer":
+ 				// Ignore since forbidden by RFC 2616 14.40.
++				// TODO: inconsistent with RFC 7230, section 4.1.2.
+ 				continue
+ 			}
+ 			k = http.CanonicalHeaderKey(k)
+diff --git a/src/net/http/httputil/reverseproxy.go b/src/net/http/httputil/reverseproxy.go
+index b96bb21019..8704ab7a90 100644
+--- a/src/net/http/httputil/reverseproxy.go
++++ b/src/net/http/httputil/reverseproxy.go
+@@ -125,7 +125,10 @@ func cloneHeader(h http.Header) http.Header {
+ }
+ 
+ // Hop-by-hop headers. These are removed when sent to the backend.
+-// http://www.w3.org/Protocols/rfc2616/rfc2616-sec13.html
++// As of RFC 7230, hop-by-hop headers are required to appear in the
++// Connection header field. These are the headers defined by the
++// obsoleted RFC 2616 (section 13.5.1) and are used for backward
++// compatibility.
+ var hopHeaders = []string{
+ 	"Connection",
+ 	"Proxy-Connection", // non-standard but still sent by libcurl and rejected by e.g. google
+@@ -251,7 +254,7 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+ }
+ 
+ // removeConnectionHeaders removes hop-by-hop headers listed in the "Connection" header of h.
+-// See RFC 2616, section 14.10.
++// See RFC 7230, section 6.1
+ func removeConnectionHeaders(h http.Header) {
+ 	if c := h.Get("Connection"); c != "" {
+ 		for _, f := range strings.Split(c, ",") {
+diff --git a/src/net/http/readrequest_test.go b/src/net/http/readrequest_test.go
+index 22a9c2ef4b..18eed345a8 100644
+--- a/src/net/http/readrequest_test.go
++++ b/src/net/http/readrequest_test.go
+@@ -126,7 +126,7 @@ var reqTests = []reqTest{
+ 		noError,
+ 	},
+ 
+-	// Tests a bogus abs_path on the Request-Line (RFC 2616 section 5.1.2)
++	// Tests a bogus absolute-path on the Request-Line (RFC 7230 section 5.3.1)
+ 	{
+ 		"GET ../../../../etc/passwd HTTP/1.1\r\n" +
+ 			"Host: test\r\n\r\n",
+diff --git a/src/net/http/request.go b/src/net/http/request.go
+index c9642e55c2..4d01ed04b6 100644
+--- a/src/net/http/request.go
++++ b/src/net/http/request.go
+@@ -110,7 +110,7 @@ type Request struct {
+ 	// For server requests the URL is parsed from the URI
+ 	// supplied on the Request-Line as stored in RequestURI.  For
+ 	// most requests, fields other than Path and RawQuery will be
+-	// empty. (See RFC 2616, Section 5.1.2)
++	// empty. (See RFC 7230, Section 5.3)
+ 	//
+ 	// For client requests, the URL's Host specifies the server to
+ 	// connect to, while the Request's Host field optionally
+@@ -207,9 +207,9 @@ type Request struct {
+ 	// Transport.DisableKeepAlives were set.
+ 	Close bool
+ 
+-	// For server requests Host specifies the host on which the
+-	// URL is sought. Per RFC 2616, this is either the value of
+-	// the "Host" header or the host name given in the URL itself.
++	// For server requests Host specifies the host on which the URL
++	// is sought. Per RFC 7230, section 5.4, this is either the value
++	// of the "Host" header or the host name given in the URL itself.
+ 	// It may be of the form "host:port". For international domain
+ 	// names, Host may be in Punycode or Unicode form. Use
+ 	// golang.org/x/net/idna to convert it to either format if
+@@ -268,8 +268,8 @@ type Request struct {
+ 	// This field is ignored by the HTTP client.
+ 	RemoteAddr string
+ 
+-	// RequestURI is the unmodified Request-URI of the
+-	// Request-Line (RFC 2616, Section 5.1) as sent by the client
++	// RequestURI is the unmodified request-target of the
++	// Request-Line (RFC 7230, Section 3.1.1) as sent by the client
+ 	// to a server. Usually the URL field should be used instead.
+ 	// It is an error to set this field in an HTTP client request.
+ 	RequestURI string
+@@ -481,7 +481,7 @@ func (r *Request) Write(w io.Writer) error {
+ // WriteProxy is like Write but writes the request in the form
+ // expected by an HTTP proxy. In particular, WriteProxy writes the
+ // initial Request-URI line of the request with an absolute URI, per
+-// section 5.1.2 of RFC 2616, including the scheme and host.
++// section 5.3 of RFC 7230, including the scheme and host.
+ // In either case, WriteProxy also writes a Host header, using
+ // either r.Host or r.URL.Host.
+ func (r *Request) WriteProxy(w io.Writer) error {
+@@ -979,7 +979,7 @@ func readRequest(b *bufio.Reader, deleteHostHeader bool) (req *Request, err erro
+ 	}
+ 	req.Header = Header(mimeHeader)
+ 
+-	// RFC 2616: Must treat
++	// RFC 7230, section 5.3: Must treat
+ 	//	GET /index.html HTTP/1.1
+ 	//	Host: www.google.com
+ 	// and
+@@ -1094,8 +1094,8 @@ func parsePostForm(r *Request) (vs url.Values, err error) {
+ 		return
+ 	}
+ 	ct := r.Header.Get("Content-Type")
+-	// RFC 2616, section 7.2.1 - empty type
+-	//   SHOULD be treated as application/octet-stream
++	// RFC 7231, section 3.1.1.5 - empty type
++	//   MAY be treated as application/octet-stream
+ 	if ct == "" {
+ 		ct = "application/octet-stream"
+ 	}
+diff --git a/src/net/http/request_test.go b/src/net/http/request_test.go
+index 967156bac9..fa716ee59d 100644
+--- a/src/net/http/request_test.go
++++ b/src/net/http/request_test.go
+@@ -91,8 +91,8 @@ type parseContentTypeTest struct {
+ 
+ var parseContentTypeTests = []parseContentTypeTest{
+ 	{false, stringMap{"Content-Type": {"text/plain"}}},
+-	// Empty content type is legal - should be treated as
+-	// application/octet-stream (RFC 2616, section 7.2.1)
++	// Empty content type is legal - may be treated as
++	// application/octet-stream (RFC 7231, section 3.1.1.5)
+ 	{false, stringMap{}},
+ 	{true, stringMap{"Content-Type": {"text/plain; boundary="}}},
+ 	{false, stringMap{"Content-Type": {"application/unknown"}}},
+diff --git a/src/net/http/response.go b/src/net/http/response.go
+index a91efcffba..09674670b1 100644
+--- a/src/net/http/response.go
++++ b/src/net/http/response.go
+@@ -39,7 +39,7 @@ type Response struct {
+ 
+ 	// Header maps header keys to values. If the response had multiple
+ 	// headers with the same key, they may be concatenated, with comma
+-	// delimiters.  (Section 4.2 of RFC 2616 requires that multiple headers
++	// delimiters.  (RFC 7230, section 3.2.2 requires that multiple headers
+ 	// be semantically equivalent to a comma-delimited sequence.) When
+ 	// Header values are duplicated by other fields in this struct (e.g.,
+ 	// ContentLength, TransferEncoding, Trailer), the field values are
+@@ -201,7 +201,7 @@ func ReadResponse(r *bufio.Reader, req *Request) (*Response, error) {
+ 	return resp, nil
+ }
+ 
+-// RFC 2616: Should treat
++// RFC 7234, section 5.4: Should treat
+ //	Pragma: no-cache
+ // like
+ //	Cache-Control: no-cache
+diff --git a/src/net/http/response_test.go b/src/net/http/response_test.go
+index 1ea19619fe..c28b0cba89 100644
+--- a/src/net/http/response_test.go
++++ b/src/net/http/response_test.go
+@@ -295,7 +295,7 @@ var respTests = []respTest{
+ 	},
+ 
+ 	// Status line without a Reason-Phrase, but trailing space.
+-	// (permitted by RFC 2616)
++	// (permitted by RFC 7230, section 3.1.2)
+ 	{
+ 		"HTTP/1.0 303 \r\n\r\n",
+ 		Response{
+@@ -314,7 +314,7 @@ var respTests = []respTest{
+ 	},
+ 
+ 	// Status line without a Reason-Phrase, and no trailing space.
+-	// (not permitted by RFC 2616, but we'll accept it anyway)
++	// (not permitted by RFC 7230, but we'll accept it anyway)
+ 	{
+ 		"HTTP/1.0 303\r\n\r\n",
+ 		Response{
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index 57e1b5dacb..c4377e8ce5 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// HTTP server. See RFC 2616.
++// HTTP server. See RFC 7230 through 7235.
+ 
+ package http
+ 
+@@ -513,6 +513,7 @@ func (w *response) declareTrailer(k string) {
+ 	switch k {
+ 	case "Transfer-Encoding", "Content-Length", "Trailer":
+ 		// Forbidden by RFC 2616 14.40.
++		// TODO: inconsistent with RFC 7230, section 4.1.2
+ 		return
+ 	}
+ 	w.trailers = append(w.trailers, k)
+@@ -937,7 +938,7 @@ func (c *conn) readRequest(ctx context.Context) (w *response, err error) {
+ 
+ 	c.r.setReadLimit(c.server.initialReadLimitSize())
+ 	if c.lastMethod == "POST" {
+-		// RFC 2616 section 4.1 tolerance for old buggy clients.
++		// RFC 7230 section 3 tolerance for old buggy clients.
+ 		peek, _ := c.bufr.Peek(4) // ReadRequest will get err below
+ 		c.bufr.Discard(numLeadingCRorLF(peek))
+ 	}
+@@ -1414,7 +1415,7 @@ func (cw *chunkWriter) writeHeader(p []byte) {
+ }
+ 
+ // foreachHeaderElement splits v according to the "#rule" construction
+-// in RFC 2616 section 2.1 and calls fn for each non-empty element.
++// in RFC 7230 section 7 and calls fn for each non-empty element.
+ func foreachHeaderElement(v string, fn func(string)) {
+ 	v = textproto.TrimString(v)
+ 	if v == "" {
+@@ -1431,7 +1432,7 @@ func foreachHeaderElement(v string, fn func(string)) {
+ 	}
+ }
+ 
+-// writeStatusLine writes an HTTP/1.x Status-Line (RFC 2616 Section 6.1)
++// writeStatusLine writes an HTTP/1.x Status-Line (RFC 7230 Section 3.1.2)
+ // to bw. is11 is whether the HTTP request is HTTP/1.1. false means HTTP/1.0.
+ // code is the response status code.
+ // scratch is an optional scratch buffer. If it has at least capacity 3, it's used.
+@@ -1868,11 +1869,11 @@ func (w *response) sendExpectationFailed() {
+ 	// make the ResponseWriter an optional
+ 	// "ExpectReplier" interface or something.
+ 	//
+-	// For now we'll just obey RFC 2616 14.20 which says
+-	// "If a server receives a request containing an
+-	// Expect field that includes an expectation-
+-	// extension that it does not support, it MUST
+-	// respond with a 417 (Expectation Failed) status."
++	// For now we'll just obey RFC 7231 5.1.1 which says
++	// "A server that receives an Expect field-value other
++	// than 100-continue MAY respond with a 417 (Expectation
++	// Failed) status code to indicate that the unexpected
++	// expectation cannot be met."
+ 	w.Header().Set("Connection", "close")
+ 	w.WriteHeader(StatusExpectationFailed)
+ 	w.finishRequest()
+@@ -1998,22 +1999,11 @@ func StripPrefix(prefix string, h Handler) Handler {
+ func Redirect(w ResponseWriter, r *Request, url string, code int) {
+ 	// parseURL is just url.Parse (url is shadowed for godoc).
+ 	if u, err := parseURL(url); err == nil {
+-		// If url was relative, make absolute by
++		// If url was relative, make its path absolute by
+ 		// combining with request path.
+-		// The browser would probably do this for us,
++		// The client would probably do this for us,
+ 		// but doing it ourselves is more reliable.
+-
+-		// NOTE(rsc): RFC 2616 says that the Location
+-		// line must be an absolute URI, like
+-		// "http://www.google.com/redirect/",
+-		// not a path like "/redirect/".
+-		// Unfortunately, we don't know what to
+-		// put in the host name section to get the
+-		// client to connect to us again, so we can't
+-		// know the right absolute URI to send back.
+-		// Because of this problem, no one pays attention
+-		// to the RFC; they all send back just a new path.
+-		// So do we.
++		// See RFC 7231, section 7.1.2
+ 		if u.Scheme == "" && u.Host == "" {
+ 			oldpath := r.URL.Path
+ 			if oldpath == "" { // should not happen, but avoid a crash if it does
+@@ -2048,8 +2038,8 @@ func Redirect(w ResponseWriter, r *Request, url string, code int) {
+ 	}
+ 	w.WriteHeader(code)
+ 
+-	// RFC 2616 recommends that a short note "SHOULD" be included in the
+-	// response because older user agents may not understand 301/307.
++	// RFC 7231 notes that a short hypertext note is usually included in
++	// the response because older user agents may not understand 301/307.
+ 	// Shouldn't send the response for POST or HEAD; that leaves GET.
+ 	if r.Method == "GET" {
+ 		note := "<a href=\"" + htmlEscape(url) + "\">" + statusText[code] + "</a>.\n"
+diff --git a/src/net/http/transfer.go b/src/net/http/transfer.go
+index a400a6abb1..e0fafb2a6d 100644
+--- a/src/net/http/transfer.go
++++ b/src/net/http/transfer.go
+@@ -390,7 +390,7 @@ func (t *transferReader) protoAtLeast(m, n int) bool {
+ }
+ 
+ // bodyAllowedForStatus reports whether a given response status code
+-// permits a body. See RFC 2616, section 4.4.
++// permits a body. See RFC 7230, section 3.3.
+ func bodyAllowedForStatus(status int) bool {
+ 	switch {
+ 	case status >= 100 && status <= 199:
+@@ -411,7 +411,7 @@ var (
+ func suppressedHeaders(status int) []string {
+ 	switch {
+ 	case status == 304:
+-		// RFC 2616 section 10.3.5: "the response MUST NOT include other entity-headers"
++		// RFC 7232 section 4.1
+ 		return suppressedHeaders304
+ 	case !bodyAllowedForStatus(status):
+ 		return suppressedHeadersNoBody
+@@ -482,7 +482,7 @@ func readTransfer(msg interface{}, r *bufio.Reader) (err error) {
+ 
+ 	// If there is no Content-Length or chunked Transfer-Encoding on a *Response
+ 	// and the status is not 1xx, 204 or 304, then the body is unbounded.
+-	// See RFC 2616, section 4.4.
++	// See RFC 7230, section 3.3.
+ 	switch msg.(type) {
+ 	case *Response:
+ 		if realLength == -1 &&
+@@ -601,7 +601,7 @@ func (t *transferReader) fixTransferEncoding() error {
+ 	return nil
+ }
+ 
+-// Determine the expected body length, using RFC 2616 Section 4.4. This
++// Determine the expected body length, using RFC 7230 Section 3.3. This
+ // function is not a method, because ultimately it should be shared by
+ // ReadResponse and ReadRequest.
+ func fixLength(isResponse bool, status int, requestMethod string, header Header, te []string) (int64, error) {
+@@ -667,7 +667,7 @@ func fixLength(isResponse bool, status int, requestMethod string, header Header,
+ 	header.Del("Content-Length")
+ 
+ 	if isRequest {
+-		// RFC 2616 neither explicitly permits nor forbids an
++		// RFC 7230 neither explicitly permits nor forbids an
+ 		// entity-body on a GET request so we permit one if
+ 		// declared, but we default to 0 here (not -1 below)
+ 		// if there's no mention of a body.
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index 7ef8f0147b..9e9f8b11aa 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// HTTP client implementation. See RFC 2616.
++// HTTP client implementation. See RFC 7230 through 7235.
+ //
+ // This is the low-level Transport implementation of RoundTripper.
+ // The high-level interface is in client.go.

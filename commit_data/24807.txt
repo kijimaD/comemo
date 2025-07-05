@@ -25,7 +25,7 @@ Date:   Fri Aug 28 14:24:10 2015 -0400
     Change-Id: I595a4300f68868fb7641852a54674c6b2b78855e
     Reviewed-on: https://go-review.googlesource.com/14028
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go             | 153 ++++++++++++++++++++++---
  src/cmd/compile/internal/gc/testdata/fp_ssa.go | 102 ++++++++++++++++-
  src/cmd/compile/internal/ssa/decompose.go      |   9 +-
@@ -37,3 +37,576 @@ Date:   Fri Aug 28 14:24:10 2015 -0400
  src/cmd/compile/internal/ssa/rewriteAMD64.go   |  43 +++++++
  src/cmd/compile/internal/ssa/rewritegeneric.go |   3 +
  10 files changed, 325 insertions(+), 23 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index c0bff2a5f0..17288c3156 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -747,14 +747,16 @@ var opToSSA = map[opAndType]ssa.Op{
+ 
+ 	opAndType{ONOT, TBOOL}: ssa.OpNot,
+ 
+-	opAndType{OMINUS, TINT8}:   ssa.OpNeg8,
+-	opAndType{OMINUS, TUINT8}:  ssa.OpNeg8,
+-	opAndType{OMINUS, TINT16}:  ssa.OpNeg16,
+-	opAndType{OMINUS, TUINT16}: ssa.OpNeg16,
+-	opAndType{OMINUS, TINT32}:  ssa.OpNeg32,
+-	opAndType{OMINUS, TUINT32}: ssa.OpNeg32,
+-	opAndType{OMINUS, TINT64}:  ssa.OpNeg64,
+-	opAndType{OMINUS, TUINT64}: ssa.OpNeg64,
++	opAndType{OMINUS, TINT8}:    ssa.OpNeg8,
++	opAndType{OMINUS, TUINT8}:   ssa.OpNeg8,
++	opAndType{OMINUS, TINT16}:   ssa.OpNeg16,
++	opAndType{OMINUS, TUINT16}:  ssa.OpNeg16,
++	opAndType{OMINUS, TINT32}:   ssa.OpNeg32,
++	opAndType{OMINUS, TUINT32}:  ssa.OpNeg32,
++	opAndType{OMINUS, TINT64}:   ssa.OpNeg64,
++	opAndType{OMINUS, TUINT64}:  ssa.OpNeg64,
++	opAndType{OMINUS, TFLOAT32}: ssa.OpNeg32F,
++	opAndType{OMINUS, TFLOAT64}: ssa.OpNeg64F,
+ 
+ 	opAndType{OCOM, TINT8}:   ssa.OpCom8,
+ 	opAndType{OCOM, TUINT8}:  ssa.OpCom8,
+@@ -953,6 +955,14 @@ func (s *state) ssaOp(op uint8, t *Type) ssa.Op {
+ 	return x
+ }
+ 
++func floatForComplex(t *Type) *Type {
++	if t.Size() == 8 {
++		return Types[TFLOAT32]
++	} else {
++		return Types[TFLOAT64]
++	}
++}
++
+ type opAndTwoTypes struct {
+ 	op     uint8
+ 	etype1 uint8
+@@ -1394,7 +1404,24 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 			}
+ 			return s.newValue1(op, n.Type, x)
+ 		}
+-		// TODO: Still lack complex conversions.
++
++		if ft.IsComplex() && tt.IsComplex() {
++			var op ssa.Op
++			if ft.Size() == tt.Size() {
++				op = ssa.OpCopy
++			} else if ft.Size() == 8 && tt.Size() == 16 {
++				op = ssa.OpCvt32Fto64F
++			} else if ft.Size() == 16 && tt.Size() == 8 {
++				op = ssa.OpCvt64Fto32F
++			} else {
++				s.Fatalf("weird complex conversion %s -> %s", ft, tt)
++			}
++			ftp := floatForComplex(ft)
++			ttp := floatForComplex(tt)
++			return s.newValue2(ssa.OpComplexMake, tt,
++				s.newValue1(op, ttp, s.newValue1(ssa.OpComplexReal, ftp, x)),
++				s.newValue1(op, ttp, s.newValue1(ssa.OpComplexImag, ftp, x)))
++		}
+ 
+ 		s.Unimplementedf("unhandled OCONV %s -> %s", Econv(int(n.Left.Type.Etype), 0), Econv(int(n.Type.Etype), 0))
+ 		return nil
+@@ -1404,7 +1431,97 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 		a := s.expr(n.Left)
+ 		b := s.expr(n.Right)
+ 		return s.newValue2(s.ssaOp(n.Op, n.Left.Type), Types[TBOOL], a, b)
+-	case OADD, OAND, OMUL, OOR, OSUB, ODIV, OMOD, OHMUL, OXOR:
++	case OMUL:
++		a := s.expr(n.Left)
++		b := s.expr(n.Right)
++		if n.Type.IsComplex() {
++			mulop := ssa.OpMul64F
++			addop := ssa.OpAdd64F
++			subop := ssa.OpSub64F
++			pt := floatForComplex(n.Type) // Could be Float32 or Float64
++			wt := Types[TFLOAT64]         // Compute in Float64 to minimize cancellation error
++
++			areal := s.newValue1(ssa.OpComplexReal, pt, a)
++			breal := s.newValue1(ssa.OpComplexReal, pt, b)
++			aimag := s.newValue1(ssa.OpComplexImag, pt, a)
++			bimag := s.newValue1(ssa.OpComplexImag, pt, b)
++
++			if pt != wt { // Widen for calculation
++				areal = s.newValue1(ssa.OpCvt32Fto64F, wt, areal)
++				breal = s.newValue1(ssa.OpCvt32Fto64F, wt, breal)
++				aimag = s.newValue1(ssa.OpCvt32Fto64F, wt, aimag)
++				bimag = s.newValue1(ssa.OpCvt32Fto64F, wt, bimag)
++			}
++
++			xreal := s.newValue2(subop, wt, s.newValue2(mulop, wt, areal, breal), s.newValue2(mulop, wt, aimag, bimag))
++			ximag := s.newValue2(addop, wt, s.newValue2(mulop, wt, areal, bimag), s.newValue2(mulop, wt, aimag, breal))
++
++			if pt != wt { // Narrow to store back
++				xreal = s.newValue1(ssa.OpCvt64Fto32F, pt, xreal)
++				ximag = s.newValue1(ssa.OpCvt64Fto32F, pt, ximag)
++			}
++
++			return s.newValue2(ssa.OpComplexMake, n.Type, xreal, ximag)
++		}
++		return s.newValue2(s.ssaOp(n.Op, n.Type), a.Type, a, b)
++
++	case ODIV:
++		a := s.expr(n.Left)
++		b := s.expr(n.Right)
++		if n.Type.IsComplex() {
++			// TODO this is not executed because the front-end substitutes a runtime call.
++			// That probably ought to change; with modest optimization the widen/narrow
++			// conversions could all be elided in larger expression trees.
++			mulop := ssa.OpMul64F
++			addop := ssa.OpAdd64F
++			subop := ssa.OpSub64F
++			divop := ssa.OpDiv64F
++			pt := floatForComplex(n.Type) // Could be Float32 or Float64
++			wt := Types[TFLOAT64]         // Compute in Float64 to minimize cancellation error
++
++			areal := s.newValue1(ssa.OpComplexReal, pt, a)
++			breal := s.newValue1(ssa.OpComplexReal, pt, b)
++			aimag := s.newValue1(ssa.OpComplexImag, pt, a)
++			bimag := s.newValue1(ssa.OpComplexImag, pt, b)
++
++			if pt != wt { // Widen for calculation
++				areal = s.newValue1(ssa.OpCvt32Fto64F, wt, areal)
++				breal = s.newValue1(ssa.OpCvt32Fto64F, wt, breal)
++				aimag = s.newValue1(ssa.OpCvt32Fto64F, wt, aimag)
++				bimag = s.newValue1(ssa.OpCvt32Fto64F, wt, bimag)
++			}
++
++			denom := s.newValue2(addop, wt, s.newValue2(mulop, wt, breal, breal), s.newValue2(mulop, wt, bimag, bimag))
++			xreal := s.newValue2(addop, wt, s.newValue2(mulop, wt, areal, breal), s.newValue2(mulop, wt, aimag, bimag))
++			ximag := s.newValue2(subop, wt, s.newValue2(mulop, wt, aimag, breal), s.newValue2(mulop, wt, areal, bimag))
++
++			// TODO not sure if this is best done in wide precision or narrow
++			// Double-rounding might be an issue.
++			// Note that the pre-SSA implementation does the entire calculation
++			// in wide format, so wide is compatible.
++			xreal = s.newValue2(divop, wt, xreal, denom)
++			ximag = s.newValue2(divop, wt, ximag, denom)
++
++			if pt != wt { // Narrow to store back
++				xreal = s.newValue1(ssa.OpCvt64Fto32F, pt, xreal)
++				ximag = s.newValue1(ssa.OpCvt64Fto32F, pt, ximag)
++			}
++
++			return s.newValue2(ssa.OpComplexMake, n.Type, xreal, ximag)
++		}
++		return s.newValue2(s.ssaOp(n.Op, n.Type), a.Type, a, b)
++	case OADD, OSUB:
++		a := s.expr(n.Left)
++		b := s.expr(n.Right)
++		if n.Type.IsComplex() {
++			pt := floatForComplex(n.Type)
++			op := s.ssaOp(n.Op, pt)
++			return s.newValue2(ssa.OpComplexMake, n.Type,
++				s.newValue2(op, pt, s.newValue1(ssa.OpComplexReal, pt, a), s.newValue1(ssa.OpComplexReal, pt, b)),
++				s.newValue2(op, pt, s.newValue1(ssa.OpComplexImag, pt, a), s.newValue1(ssa.OpComplexImag, pt, b)))
++		}
++		return s.newValue2(s.ssaOp(n.Op, n.Type), a.Type, a, b)
++	case OAND, OOR, OMOD, OHMUL, OXOR:
+ 		a := s.expr(n.Left)
+ 		b := s.expr(n.Right)
+ 		return s.newValue2(s.ssaOp(n.Op, n.Type), a.Type, a, b)
+@@ -1464,8 +1581,18 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 		s.startBlock(bResult)
+ 		return s.variable(n, Types[TBOOL])
+ 
+-	// unary ops
+-	case ONOT, OMINUS, OCOM:
++		// unary ops
++	case OMINUS:
++		a := s.expr(n.Left)
++		if n.Type.IsComplex() {
++			tp := floatForComplex(n.Type)
++			negop := s.ssaOp(n.Op, tp)
++			return s.newValue2(ssa.OpComplexMake, n.Type,
++				s.newValue1(negop, tp, s.newValue1(ssa.OpComplexReal, tp, a)),
++				s.newValue1(negop, tp, s.newValue1(ssa.OpComplexImag, tp, a)))
++		}
++		return s.newValue1(s.ssaOp(n.Op, n.Type), a.Type, a)
++	case ONOT, OCOM:
+ 		a := s.expr(n.Left)
+ 		return s.newValue1(s.ssaOp(n.Op, n.Type), a.Type, a)
+ 
+@@ -2551,7 +2678,7 @@ func genValue(v *ssa.Value) {
+ 		ssa.OpAMD64ORQ, ssa.OpAMD64ORL, ssa.OpAMD64ORW, ssa.OpAMD64ORB,
+ 		ssa.OpAMD64XORQ, ssa.OpAMD64XORL, ssa.OpAMD64XORW, ssa.OpAMD64XORB,
+ 		ssa.OpAMD64MULQ, ssa.OpAMD64MULL, ssa.OpAMD64MULW, ssa.OpAMD64MULB,
+-		ssa.OpAMD64MULSS, ssa.OpAMD64MULSD:
++		ssa.OpAMD64MULSS, ssa.OpAMD64MULSD, ssa.OpAMD64PXOR:
+ 		r := regnum(v)
+ 		x := regnum(v.Args[0])
+ 		y := regnum(v.Args[1])
+diff --git a/src/cmd/compile/internal/gc/testdata/fp_ssa.go b/src/cmd/compile/internal/gc/testdata/fp_ssa.go
+index c9eb23d371..2cbf00bab0 100644
+--- a/src/cmd/compile/internal/gc/testdata/fp_ssa.go
++++ b/src/cmd/compile/internal/gc/testdata/fp_ssa.go
+@@ -1306,7 +1306,7 @@ func fail32bool(s string, f func(a, b float32) bool, a, b float32, e bool) int {
+ 
+ func expect64(s string, x, expected float64) int {
+ 	if x != expected {
+-		println("Expected", expected, "for", s, ", got", x)
++		println("F64 Expected", expected, "for", s, ", got", x)
+ 		return 1
+ 	}
+ 	return 0
+@@ -1314,7 +1314,7 @@ func expect64(s string, x, expected float64) int {
+ 
+ func expect32(s string, x, expected float32) int {
+ 	if x != expected {
+-		println("Expected", expected, "for", s, ", got", x)
++		println("F32 Expected", expected, "for", s, ", got", x)
+ 		return 1
+ 	}
+ 	return 0
+@@ -1322,7 +1322,7 @@ func expect32(s string, x, expected float32) int {
+ 
+ func expectUint64(s string, x, expected uint64) int {
+ 	if x != expected {
+-		fmt.Printf("%s: Expected 0x%016x, got 0x%016x\n", s, expected, x)
++		fmt.Printf("U64 Expected 0x%016x for %s, got 0x%016x\n", expected, s, x)
+ 		return 1
+ 	}
+ 	return 0
+@@ -1435,6 +1435,100 @@ func cmpOpTest(s string,
+ 	return fails
+ }
+ 
++func expectCx128(s string, x, expected complex128) int {
++	if x != expected {
++		println("Cx 128 Expected", expected, "for", s, ", got", x)
++		return 1
++	}
++	return 0
++}
++
++func expectCx64(s string, x, expected complex64) int {
++	if x != expected {
++		println("Cx 64 Expected", expected, "for", s, ", got", x)
++		return 1
++	}
++	return 0
++}
++
++func cx128sum_ssa(a, b complex128) complex128 {
++	return a + b
++}
++
++func cx128diff_ssa(a, b complex128) complex128 {
++	return a - b
++}
++
++func cx128prod_ssa(a, b complex128) complex128 {
++	return a * b
++}
++
++func cx128quot_ssa(a, b complex128) complex128 {
++	return a / b
++}
++
++func cx128neg_ssa(a complex128) complex128 {
++	return -a
++}
++
++func cx64sum_ssa(a, b complex64) complex64 {
++	return a + b
++}
++
++func cx64diff_ssa(a, b complex64) complex64 {
++	return a - b
++}
++
++func cx64prod_ssa(a, b complex64) complex64 {
++	return a * b
++}
++
++func cx64quot_ssa(a, b complex64) complex64 {
++	return a / b
++}
++
++func cx64neg_ssa(a complex64) complex64 {
++	return -a
++}
++
++func complexTest128() int {
++	fails := 0
++	var a complex128 = 1 + 2i
++	var b complex128 = 3 + 6i
++	sum := cx128sum_ssa(b, a)
++	diff := cx128diff_ssa(b, a)
++	prod := cx128prod_ssa(b, a)
++	quot := cx128quot_ssa(b, a)
++	neg := cx128neg_ssa(a)
++
++	fails += expectCx128("sum", sum, 4+8i)
++	fails += expectCx128("diff", diff, 2+4i)
++	fails += expectCx128("prod", prod, -9+12i)
++	fails += expectCx128("quot", quot, 3+0i)
++	fails += expectCx128("neg", neg, -1-2i)
++
++	return fails
++}
++
++func complexTest64() int {
++	fails := 0
++	var a complex64 = 1 + 2i
++	var b complex64 = 3 + 6i
++	sum := cx64sum_ssa(b, a)
++	diff := cx64diff_ssa(b, a)
++	prod := cx64prod_ssa(b, a)
++	quot := cx64quot_ssa(b, a)
++	neg := cx64neg_ssa(a)
++
++	fails += expectCx64("sum", sum, 4+8i)
++	fails += expectCx64("diff", diff, 2+4i)
++	fails += expectCx64("prod", prod, -9+12i)
++	fails += expectCx64("quot", quot, 3+0i)
++	fails += expectCx64("neg", neg, -1-2i)
++
++	return fails
++}
++
+ func main() {
+ 
+ 	a := 3.0
+@@ -1523,6 +1617,8 @@ func main() {
+ 	}
+ 
+ 	fails += floatingToIntegerConversionsTest()
++	fails += complexTest128()
++	fails += complexTest64()
+ 
+ 	if fails > 0 {
+ 		fmt.Printf("Saw %v failures\n", fails)
+diff --git a/src/cmd/compile/internal/ssa/decompose.go b/src/cmd/compile/internal/ssa/decompose.go
+index a2dfdc16ab..3ef20ef34f 100644
+--- a/src/cmd/compile/internal/ssa/decompose.go
++++ b/src/cmd/compile/internal/ssa/decompose.go
+@@ -77,12 +77,13 @@ func decomposeSlicePhi(v *Value) {
+ func decomposeComplexPhi(v *Value) {
+ 	fe := v.Block.Func.Config.fe
+ 	var partType Type
+-	if v.Type.Size() == 8 {
++	switch z := v.Type.Size(); z {
++	case 8:
+ 		partType = fe.TypeFloat32()
+-	} else if v.Type.Size() == 16 {
++	case 16:
+ 		partType = fe.TypeFloat64()
+-	} else {
+-		panic("Whoops, are sizes in bytes or bits?")
++	default:
++		v.Fatalf("decomposeComplexPhi: bad complex size %d", z)
+ 	}
+ 
+ 	real := v.Block.NewValue0(v.Line, OpPhi, partType)
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index 46fb76f1dd..28ae88ff24 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -81,6 +81,8 @@
+ (Neg32 x) -> (NEGL x)
+ (Neg16 x) -> (NEGW x)
+ (Neg8 x) -> (NEGB x)
++(Neg32F x) -> (PXOR x (MOVSSconst <config.Frontend().TypeFloat32()> {math.Copysign(0, -1)}))
++(Neg64F x) -> (PXOR x (MOVSDconst <config.Frontend().TypeFloat64()> {math.Copysign(0, -1)}))
+ 
+ (Com64 x) -> (NOTQ x)
+ (Com32 x) -> (NOTL x)
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+index f2c402a348..555a5149a7 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+@@ -354,6 +354,8 @@ func init() {
+ 		{name: "CVTSD2SS", reg: fp11, asm: "CVTSD2SS"}, // convert float64 to float32
+ 		{name: "CVTSS2SD", reg: fp11, asm: "CVTSS2SD"}, // convert float32 to float64
+ 
++		{name: "PXOR", reg: fp21, asm: "PXOR"}, // exclusive or, applied to X regs for float negation.
++
+ 		{name: "LEAQ", reg: gp11sb},  // arg0 + auxint + offset encoded in aux
+ 		{name: "LEAQ1", reg: gp21sb}, // arg0 + arg1 + auxint
+ 		{name: "LEAQ2", reg: gp21sb}, // arg0 + 2*arg1 + auxint
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index 8f6a858e43..d17f207a80 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -24,7 +24,6 @@ var genericOps = []opData{
+ 	{name: "SubPtr"},
+ 	{name: "Sub32F"},
+ 	{name: "Sub64F"},
+-	// TODO: Sub64C, Sub128C
+ 
+ 	{name: "Mul8"}, // arg0 * arg1
+ 	{name: "Mul16"},
+@@ -225,6 +224,8 @@ var genericOps = []opData{
+ 	{name: "Neg16"},
+ 	{name: "Neg32"},
+ 	{name: "Neg64"},
++	{name: "Neg32F"},
++	{name: "Neg64F"},
+ 
+ 	{name: "Com8"}, // ^arg0
+ 	{name: "Com16"},
+@@ -336,8 +337,8 @@ var genericOps = []opData{
+ 
+ 	// Complex (part/whole)
+ 	{name: "ComplexMake"}, // arg0=real, arg1=imag
+-	{name: "ComplexReal"}, // real_part(arg0)
+-	{name: "ComplexImag"}, // imaginary_part(arg0)
++	{name: "ComplexReal"}, // real(arg0)
++	{name: "ComplexImag"}, // imag(arg0)
+ 
+ 	// Strings
+ 	{name: "StringMake"}, // arg0=ptr, arg1=len
+diff --git a/src/cmd/compile/internal/ssa/gen/rulegen.go b/src/cmd/compile/internal/ssa/gen/rulegen.go
+index d98ad2587f..5dcbf1ee1c 100644
+--- a/src/cmd/compile/internal/ssa/gen/rulegen.go
++++ b/src/cmd/compile/internal/ssa/gen/rulegen.go
+@@ -142,6 +142,9 @@ func genRules(arch arch) {
+ 	if *genLog {
+ 		fmt.Fprintln(w, "import \"fmt\"")
+ 	}
++	fmt.Fprintln(w, "import \"math\"")
++	fmt.Fprintln(w, "var _ = math.MinInt8 // in case not otherwise used")
++
+ 	fmt.Fprintf(w, "func rewriteValue%s(v *Value, config *Config) bool {\n", arch.name)
+ 	fmt.Fprintln(w, "b := v.Block")
+ 
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 51a998e352..a41b04b29f 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -237,6 +237,7 @@ const (
+ 	OpAMD64CVTSQ2SD
+ 	OpAMD64CVTSD2SS
+ 	OpAMD64CVTSS2SD
++	OpAMD64PXOR
+ 	OpAMD64LEAQ
+ 	OpAMD64LEAQ1
+ 	OpAMD64LEAQ2
+@@ -435,6 +436,8 @@ const (
+ 	OpNeg16
+ 	OpNeg32
+ 	OpNeg64
++	OpNeg32F
++	OpNeg64F
+ 	OpCom8
+ 	OpCom16
+ 	OpCom32
+@@ -2794,6 +2797,19 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name: "PXOR",
++		asm:  x86.APXOR,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4294901760}, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15
++				{1, 4294901760}, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15
++			},
++			outputs: []regMask{
++				4294901760, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15
++			},
++		},
++	},
+ 	{
+ 		name: "LEAQ",
+ 		reg: regInfo{
+@@ -3743,6 +3759,14 @@ var opcodeTable = [...]opInfo{
+ 		name:    "Neg64",
+ 		generic: true,
+ 	},
++	{
++		name:    "Neg32F",
++		generic: true,
++	},
++	{
++		name:    "Neg64F",
++		generic: true,
++	},
+ 	{
+ 		name:    "Com8",
+ 		generic: true,
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index e089028258..67ec747e20 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -2,6 +2,9 @@
+ // generated with: cd gen; go run *.go
+ package ssa
+ 
++import "math"
++
++var _ = math.MinInt8 // in case not otherwise used
+ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	switch v.Op {
+@@ -6059,6 +6062,26 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 		goto endce1f7e17fc193f6c076e47d5e401e126
+ 	endce1f7e17fc193f6c076e47d5e401e126:
+ 		;
++	case OpNeg32F:
++		// match: (Neg32F x)
++		// cond:
++		// result: (PXOR x (MOVSSconst <config.Frontend().TypeFloat32()> {math.Copysign(0, -1)}))
++		{
++			x := v.Args[0]
++			v.Op = OpAMD64PXOR
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AddArg(x)
++			v0 := b.NewValue0(v.Line, OpAMD64MOVSSconst, TypeInvalid)
++			v0.Type = config.Frontend().TypeFloat32()
++			v0.Aux = math.Copysign(0, -1)
++			v.AddArg(v0)
++			return true
++		}
++		goto end47074133a76e069317ceca46372cafc3
++	end47074133a76e069317ceca46372cafc3:
++		;
+ 	case OpNeg64:
+ 		// match: (Neg64 x)
+ 		// cond:
+@@ -6075,6 +6098,26 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 		goto enda06c5b1718f2b96aba10bf5a5c437c6c
+ 	enda06c5b1718f2b96aba10bf5a5c437c6c:
+ 		;
++	case OpNeg64F:
++		// match: (Neg64F x)
++		// cond:
++		// result: (PXOR x (MOVSDconst <config.Frontend().TypeFloat64()> {math.Copysign(0, -1)}))
++		{
++			x := v.Args[0]
++			v.Op = OpAMD64PXOR
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AddArg(x)
++			v0 := b.NewValue0(v.Line, OpAMD64MOVSDconst, TypeInvalid)
++			v0.Type = config.Frontend().TypeFloat64()
++			v0.Aux = math.Copysign(0, -1)
++			v.AddArg(v0)
++			return true
++		}
++		goto end9240202f5753ebd23f11f982ece3e06e
++	end9240202f5753ebd23f11f982ece3e06e:
++		;
+ 	case OpNeg8:
+ 		// match: (Neg8 x)
+ 		// cond:
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index 09f03f985f..ca771d75ae 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -2,6 +2,9 @@
+ // generated with: cd gen; go run *.go
+ package ssa
+ 
++import "math"
++
++var _ = math.MinInt8 // in case not otherwise used
+ func rewriteValuegeneric(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	switch v.Op {

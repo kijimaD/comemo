@@ -11,8 +11,133 @@ Date:   Wed Mar 4 11:14:53 2020 -0500
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/mkpreempt.go      | 24 +++++++++++++++++-------
  src/runtime/preempt_mips64x.s |  4 ++++
  src/runtime/preempt_mipsx.s   |  4 ++++
  3 files changed, 25 insertions(+), 7 deletions(-)
+
+diff --git a/src/runtime/mkpreempt.go b/src/runtime/mkpreempt.go
+index c26406e55f..35ed42871f 100644
+--- a/src/runtime/mkpreempt.go
++++ b/src/runtime/mkpreempt.go
+@@ -382,6 +382,7 @@ func genMIPS(_64bit bool) {
+ 	sub := "SUB"
+ 	r28 := "R28"
+ 	regsize := 4
++	softfloat := "GOMIPS_softfloat"
+ 	if _64bit {
+ 		mov = "MOVV"
+ 		movf = "MOVD"
+@@ -389,6 +390,7 @@ func genMIPS(_64bit bool) {
+ 		sub = "SUBV"
+ 		r28 = "RSB"
+ 		regsize = 8
++		softfloat = "GOMIPS64_softfloat"
+ 	}
+ 
+ 	// Add integer registers R1-R22, R24-R25, R28
+@@ -411,28 +413,36 @@ func genMIPS(_64bit bool) {
+ 		mov+" LO, R1\n"+mov+" R1, %d(R29)",
+ 		mov+" %d(R29), R1\n"+mov+" R1, LO",
+ 		regsize)
++
+ 	// Add floating point control/status register FCR31 (FCR0-FCR30 are irrelevant)
+-	l.addSpecial(
++	var lfp = layout{sp: "R29", stack: l.stack}
++	lfp.addSpecial(
+ 		mov+" FCR31, R1\n"+mov+" R1, %d(R29)",
+ 		mov+" %d(R29), R1\n"+mov+" R1, FCR31",
+ 		regsize)
+ 	// Add floating point registers F0-F31.
+ 	for i := 0; i <= 31; i++ {
+ 		reg := fmt.Sprintf("F%d", i)
+-		l.add(movf, reg, regsize)
++		lfp.add(movf, reg, regsize)
+ 	}
+ 
+ 	// allocate frame, save PC of interrupted instruction (in LR)
+-	p(mov+" R31, -%d(R29)", l.stack)
+-	p(sub+" $%d, R29", l.stack)
++	p(mov+" R31, -%d(R29)", lfp.stack)
++	p(sub+" $%d, R29", lfp.stack)
+ 
+ 	l.save()
++	p("#ifndef %s", softfloat)
++	lfp.save()
++	p("#endif")
+ 	p("CALL ·asyncPreempt2(SB)")
++	p("#ifndef %s", softfloat)
++	lfp.restore()
++	p("#endif")
+ 	l.restore()
+ 
+-	p(mov+" %d(R29), R31", l.stack)     // sigctxt.pushCall has pushed LR (at interrupt) on stack, restore it
+-	p(mov + " (R29), R23")              // load PC to REGTMP
+-	p(add+" $%d, R29", l.stack+regsize) // pop frame (including the space pushed by sigctxt.pushCall)
++	p(mov+" %d(R29), R31", lfp.stack)     // sigctxt.pushCall has pushed LR (at interrupt) on stack, restore it
++	p(mov + " (R29), R23")                // load PC to REGTMP
++	p(add+" $%d, R29", lfp.stack+regsize) // pop frame (including the space pushed by sigctxt.pushCall)
+ 	p("JMP (R23)")
+ }
+ 
+diff --git a/src/runtime/preempt_mips64x.s b/src/runtime/preempt_mips64x.s
+index 8048a87cd3..1e123e8077 100644
+--- a/src/runtime/preempt_mips64x.s
++++ b/src/runtime/preempt_mips64x.s
+@@ -37,6 +37,7 @@ TEXT ·asyncPreempt(SB),NOSPLIT|NOFRAME,$0-0
+ 	MOVV R1, 208(R29)
+ 	MOVV LO, R1
+ 	MOVV R1, 216(R29)
++	#ifndef GOMIPS64_softfloat
+ 	MOVV FCR31, R1
+ 	MOVV R1, 224(R29)
+ 	MOVD F0, 232(R29)
+@@ -71,7 +72,9 @@ TEXT ·asyncPreempt(SB),NOSPLIT|NOFRAME,$0-0
+ 	MOVD F29, 464(R29)
+ 	MOVD F30, 472(R29)
+ 	MOVD F31, 480(R29)
++	#endif
+ 	CALL ·asyncPreempt2(SB)
++	#ifndef GOMIPS64_softfloat
+ 	MOVD 480(R29), F31
+ 	MOVD 472(R29), F30
+ 	MOVD 464(R29), F29
+@@ -106,6 +109,7 @@ TEXT ·asyncPreempt(SB),NOSPLIT|NOFRAME,$0-0
+ 	MOVD 232(R29), F0
+ 	MOVV 224(R29), R1
+ 	MOVV R1, FCR31
++	#endif
+ 	MOVV 216(R29), R1
+ 	MOVV R1, LO
+ 	MOVV 208(R29), R1
+diff --git a/src/runtime/preempt_mipsx.s b/src/runtime/preempt_mipsx.s
+index 840e861497..afac33e0a0 100644
+--- a/src/runtime/preempt_mipsx.s
++++ b/src/runtime/preempt_mipsx.s
+@@ -37,6 +37,7 @@ TEXT ·asyncPreempt(SB),NOSPLIT|NOFRAME,$0-0
+ 	MOVW R1, 104(R29)
+ 	MOVW LO, R1
+ 	MOVW R1, 108(R29)
++	#ifndef GOMIPS_softfloat
+ 	MOVW FCR31, R1
+ 	MOVW R1, 112(R29)
+ 	MOVF F0, 116(R29)
+@@ -71,7 +72,9 @@ TEXT ·asyncPreempt(SB),NOSPLIT|NOFRAME,$0-0
+ 	MOVF F29, 232(R29)
+ 	MOVF F30, 236(R29)
+ 	MOVF F31, 240(R29)
++	#endif
+ 	CALL ·asyncPreempt2(SB)
++	#ifndef GOMIPS_softfloat
+ 	MOVF 240(R29), F31
+ 	MOVF 236(R29), F30
+ 	MOVF 232(R29), F29
+@@ -106,6 +109,7 @@ TEXT ·asyncPreempt(SB),NOSPLIT|NOFRAME,$0-0
+ 	MOVF 116(R29), F0
+ 	MOVW 112(R29), R1
+ 	MOVW R1, FCR31
++	#endif
+ 	MOVW 108(R29), R1
+ 	MOVW R1, LO
+ 	MOVW 104(R29), R1

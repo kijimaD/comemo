@@ -29,7 +29,7 @@ Date:   Fri Oct 7 10:12:54 2022 +0300
     Auto-Submit: Michael Pratt <mpratt@google.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Run-TryBot: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/defs2_linux.go                         | 11 ---
  src/runtime/defs_linux.go                          | 12 ----
  src/runtime/defs_linux_386.go                      | 16 -----
@@ -72,3 +72,1928 @@ Date:   Fri Oct 7 10:12:54 2022 +0300
  src/runtime/sys_linux_riscv64.s                    | 52 --------------
  src/runtime/sys_linux_s390x.s                      | 52 --------------
  41 files changed, 411 insertions(+), 813 deletions(-)
+
+diff --git a/src/runtime/defs2_linux.go b/src/runtime/defs2_linux.go
+index 41ad73576f..5d6730a7ad 100644
+--- a/src/runtime/defs2_linux.go
++++ b/src/runtime/defs2_linux.go
+@@ -121,17 +121,6 @@ const (
+ 
+ 	O_RDONLY  = C.O_RDONLY
+ 	O_CLOEXEC = C.O_CLOEXEC
+-
+-	EPOLLIN       = C.POLLIN
+-	EPOLLOUT      = C.POLLOUT
+-	EPOLLERR      = C.POLLERR
+-	EPOLLHUP      = C.POLLHUP
+-	EPOLLRDHUP    = C.POLLRDHUP
+-	EPOLLET       = C.EPOLLET
+-	EPOLL_CLOEXEC = C.EPOLL_CLOEXEC
+-	EPOLL_CTL_ADD = C.EPOLL_CTL_ADD
+-	EPOLL_CTL_DEL = C.EPOLL_CTL_DEL
+-	EPOLL_CTL_MOD = C.EPOLL_CTL_MOD
+ )
+ 
+ type Fpreg C.struct__fpreg
+diff --git a/src/runtime/defs_linux.go b/src/runtime/defs_linux.go
+index e55bb6bbbc..296fcb4bfd 100644
+--- a/src/runtime/defs_linux.go
++++ b/src/runtime/defs_linux.go
+@@ -115,17 +115,6 @@ const (
+ 	CLOCK_THREAD_CPUTIME_ID = C.CLOCK_THREAD_CPUTIME_ID
+ 
+ 	SIGEV_THREAD_ID = C.SIGEV_THREAD_ID
+-
+-	EPOLLIN       = C.POLLIN
+-	EPOLLOUT      = C.POLLOUT
+-	EPOLLERR      = C.POLLERR
+-	EPOLLHUP      = C.POLLHUP
+-	EPOLLRDHUP    = C.POLLRDHUP
+-	EPOLLET       = C.EPOLLET
+-	EPOLL_CLOEXEC = C.EPOLL_CLOEXEC
+-	EPOLL_CTL_ADD = C.EPOLL_CTL_ADD
+-	EPOLL_CTL_DEL = C.EPOLL_CTL_DEL
+-	EPOLL_CTL_MOD = C.EPOLL_CTL_MOD
+ )
+ 
+ type Sigset C.sigset_t
+@@ -136,4 +125,3 @@ type Siginfo C.siginfo_t
+ type Itimerspec C.struct_itimerspec
+ type Itimerval C.struct_itimerval
+ type Sigevent C.struct_sigevent
+-type EpollEvent C.struct_epoll_event
+diff --git a/src/runtime/defs_linux_386.go b/src/runtime/defs_linux_386.go
+index 5376bded2b..7027286f5c 100644
+--- a/src/runtime/defs_linux_386.go
++++ b/src/runtime/defs_linux_386.go
+@@ -93,17 +93,6 @@ const (
+ 	_O_NONBLOCK = 0x800
+ 	_O_CLOEXEC  = 0x80000
+ 
+-	_EPOLLIN       = 0x1
+-	_EPOLLOUT      = 0x4
+-	_EPOLLERR      = 0x8
+-	_EPOLLHUP      = 0x10
+-	_EPOLLRDHUP    = 0x2000
+-	_EPOLLET       = 0x80000000
+-	_EPOLL_CLOEXEC = 0x80000
+-	_EPOLL_CTL_ADD = 0x1
+-	_EPOLL_CTL_DEL = 0x2
+-	_EPOLL_CTL_MOD = 0x3
+-
+ 	_AF_UNIX    = 0x1
+ 	_SOCK_DGRAM = 0x2
+ )
+@@ -254,11 +243,6 @@ type sigevent struct {
+ 	_ [_sigev_max_size - unsafe.Sizeof(sigeventFields{})]byte
+ }
+ 
+-type epollevent struct {
+-	events uint32
+-	data   [8]byte // to match amd64
+-}
+-
+ type sockaddr_un struct {
+ 	family uint16
+ 	path   [108]byte
+diff --git a/src/runtime/defs_linux_amd64.go b/src/runtime/defs_linux_amd64.go
+index da4d357532..4ce6146177 100644
+--- a/src/runtime/defs_linux_amd64.go
++++ b/src/runtime/defs_linux_amd64.go
+@@ -89,17 +89,6 @@ const (
+ 
+ 	_SIGEV_THREAD_ID = 0x4
+ 
+-	_EPOLLIN       = 0x1
+-	_EPOLLOUT      = 0x4
+-	_EPOLLERR      = 0x8
+-	_EPOLLHUP      = 0x10
+-	_EPOLLRDHUP    = 0x2000
+-	_EPOLLET       = 0x80000000
+-	_EPOLL_CLOEXEC = 0x80000
+-	_EPOLL_CTL_ADD = 0x1
+-	_EPOLL_CTL_DEL = 0x2
+-	_EPOLL_CTL_MOD = 0x3
+-
+ 	_AF_UNIX    = 0x1
+ 	_SOCK_DGRAM = 0x2
+ )
+@@ -171,11 +160,6 @@ type sigevent struct {
+ 	_ [_sigev_max_size - unsafe.Sizeof(sigeventFields{})]byte
+ }
+ 
+-type epollevent struct {
+-	events uint32
+-	data   [8]byte // unaligned uintptr
+-}
+-
+ // created by cgo -cdefs and then converted to Go
+ // cgo -cdefs defs_linux.go defs1_linux.go
+ 
+diff --git a/src/runtime/defs_linux_arm.go b/src/runtime/defs_linux_arm.go
+index 18aa0931e5..999c11431b 100644
+--- a/src/runtime/defs_linux_arm.go
++++ b/src/runtime/defs_linux_arm.go
+@@ -87,17 +87,6 @@ const (
+ 
+ 	_SIGEV_THREAD_ID = 0x4
+ 
+-	_EPOLLIN       = 0x1
+-	_EPOLLOUT      = 0x4
+-	_EPOLLERR      = 0x8
+-	_EPOLLHUP      = 0x10
+-	_EPOLLRDHUP    = 0x2000
+-	_EPOLLET       = 0x80000000
+-	_EPOLL_CLOEXEC = 0x80000
+-	_EPOLL_CTL_ADD = 0x1
+-	_EPOLL_CTL_DEL = 0x2
+-	_EPOLL_CTL_MOD = 0x3
+-
+ 	_AF_UNIX    = 0x1
+ 	_SOCK_DGRAM = 0x2
+ )
+@@ -208,12 +197,6 @@ type sigactiont struct {
+ 	sa_mask     uint64
+ }
+ 
+-type epollevent struct {
+-	events uint32
+-	_pad   uint32
+-	data   [8]byte // to match amd64
+-}
+-
+ type sockaddr_un struct {
+ 	family uint16
+ 	path   [108]byte
+diff --git a/src/runtime/defs_linux_arm64.go b/src/runtime/defs_linux_arm64.go
+index c5d7d7e3fd..73f26a9b00 100644
+--- a/src/runtime/defs_linux_arm64.go
++++ b/src/runtime/defs_linux_arm64.go
+@@ -89,17 +89,6 @@ const (
+ 
+ 	_SIGEV_THREAD_ID = 0x4
+ 
+-	_EPOLLIN       = 0x1
+-	_EPOLLOUT      = 0x4
+-	_EPOLLERR      = 0x8
+-	_EPOLLHUP      = 0x10
+-	_EPOLLRDHUP    = 0x2000
+-	_EPOLLET       = 0x80000000
+-	_EPOLL_CLOEXEC = 0x80000
+-	_EPOLL_CTL_ADD = 0x1
+-	_EPOLL_CTL_DEL = 0x2
+-	_EPOLL_CTL_MOD = 0x3
+-
+ 	_AF_UNIX    = 0x1
+ 	_SOCK_DGRAM = 0x2
+ )
+@@ -171,12 +160,6 @@ type sigevent struct {
+ 	_ [_sigev_max_size - unsafe.Sizeof(sigeventFields{})]byte
+ }
+ 
+-type epollevent struct {
+-	events uint32
+-	_pad   uint32
+-	data   [8]byte // to match amd64
+-}
+-
+ // Created by cgo -cdefs and then converted to Go by hand
+ // ../cmd/cgo/cgo -cdefs defs_linux.go defs1_linux.go defs2_linux.go
+ 
+diff --git a/src/runtime/defs_linux_loong64.go b/src/runtime/defs_linux_loong64.go
+index dda4009fb0..956121d0fc 100644
+--- a/src/runtime/defs_linux_loong64.go
++++ b/src/runtime/defs_linux_loong64.go
+@@ -89,17 +89,6 @@ const (
+ 	_CLOCK_THREAD_CPUTIME_ID = 0x3
+ 
+ 	_SIGEV_THREAD_ID = 0x4
+-
+-	_EPOLLIN       = 0x1
+-	_EPOLLOUT      = 0x4
+-	_EPOLLERR      = 0x8
+-	_EPOLLHUP      = 0x10
+-	_EPOLLRDHUP    = 0x2000
+-	_EPOLLET       = 0x80000000
+-	_EPOLL_CLOEXEC = 0x80000
+-	_EPOLL_CTL_ADD = 0x1
+-	_EPOLL_CTL_DEL = 0x2
+-	_EPOLL_CTL_MOD = 0x3
+ )
+ 
+ type timespec struct {
+@@ -146,12 +135,6 @@ type sigevent struct {
+ 	_ [_sigev_max_size - unsafe.Sizeof(sigeventFields{})]byte
+ }
+ 
+-type epollevent struct {
+-	events    uint32
+-	pad_cgo_0 [4]byte
+-	data      [8]byte // unaligned uintptr
+-}
+-
+ const (
+ 	_O_RDONLY   = 0x0
+ 	_O_NONBLOCK = 0x800
+diff --git a/src/runtime/defs_linux_mips64x.go b/src/runtime/defs_linux_mips64x.go
+index e645248131..30157fa808 100644
+--- a/src/runtime/defs_linux_mips64x.go
++++ b/src/runtime/defs_linux_mips64x.go
+@@ -90,17 +90,6 @@ const (
+ 	_CLOCK_THREAD_CPUTIME_ID = 0x3
+ 
+ 	_SIGEV_THREAD_ID = 0x4
+-
+-	_EPOLLIN       = 0x1
+-	_EPOLLOUT      = 0x4
+-	_EPOLLERR      = 0x8
+-	_EPOLLHUP      = 0x10
+-	_EPOLLRDHUP    = 0x2000
+-	_EPOLLET       = 0x80000000
+-	_EPOLL_CLOEXEC = 0x80000
+-	_EPOLL_CTL_ADD = 0x1
+-	_EPOLL_CTL_DEL = 0x2
+-	_EPOLL_CTL_MOD = 0x3
+ )
+ 
+ //struct Sigset {
+@@ -178,12 +167,6 @@ type sigevent struct {
+ 	_ [_sigev_max_size - unsafe.Sizeof(sigeventFields{})]byte
+ }
+ 
+-type epollevent struct {
+-	events    uint32
+-	pad_cgo_0 [4]byte
+-	data      [8]byte // unaligned uintptr
+-}
+-
+ const (
+ 	_O_RDONLY    = 0x0
+ 	_O_NONBLOCK  = 0x80
+diff --git a/src/runtime/defs_linux_mipsx.go b/src/runtime/defs_linux_mipsx.go
+index 5afb6f423f..5d779778c9 100644
+--- a/src/runtime/defs_linux_mipsx.go
++++ b/src/runtime/defs_linux_mipsx.go
+@@ -90,17 +90,6 @@ const (
+ 	_CLOCK_THREAD_CPUTIME_ID = 0x3
+ 
+ 	_SIGEV_THREAD_ID = 0x4
+-
+-	_EPOLLIN       = 0x1
+-	_EPOLLOUT      = 0x4
+-	_EPOLLERR      = 0x8
+-	_EPOLLHUP      = 0x10
+-	_EPOLLRDHUP    = 0x2000
+-	_EPOLLET       = 0x80000000
+-	_EPOLL_CLOEXEC = 0x80000
+-	_EPOLL_CTL_ADD = 0x1
+-	_EPOLL_CTL_DEL = 0x2
+-	_EPOLL_CTL_MOD = 0x3
+ )
+ 
+ type timespec struct {
+@@ -172,12 +161,6 @@ type sigevent struct {
+ 	_ [_sigev_max_size - unsafe.Sizeof(sigeventFields{})]byte
+ }
+ 
+-type epollevent struct {
+-	events    uint32
+-	pad_cgo_0 [4]byte
+-	data      uint64
+-}
+-
+ const (
+ 	_O_RDONLY    = 0x0
+ 	_O_NONBLOCK  = 0x80
+diff --git a/src/runtime/defs_linux_ppc64.go b/src/runtime/defs_linux_ppc64.go
+index f3e305e34e..36d021a727 100644
+--- a/src/runtime/defs_linux_ppc64.go
++++ b/src/runtime/defs_linux_ppc64.go
+@@ -87,17 +87,6 @@ const (
+ 	_CLOCK_THREAD_CPUTIME_ID = 0x3
+ 
+ 	_SIGEV_THREAD_ID = 0x4
+-
+-	_EPOLLIN       = 0x1
+-	_EPOLLOUT      = 0x4
+-	_EPOLLERR      = 0x8
+-	_EPOLLHUP      = 0x10
+-	_EPOLLRDHUP    = 0x2000
+-	_EPOLLET       = 0x80000000
+-	_EPOLL_CLOEXEC = 0x80000
+-	_EPOLL_CTL_ADD = 0x1
+-	_EPOLL_CTL_DEL = 0x2
+-	_EPOLL_CTL_MOD = 0x3
+ )
+ 
+ //struct Sigset {
+@@ -172,12 +161,6 @@ type sigevent struct {
+ 	_ [_sigev_max_size - unsafe.Sizeof(sigeventFields{})]byte
+ }
+ 
+-type epollevent struct {
+-	events    uint32
+-	pad_cgo_0 [4]byte
+-	data      [8]byte // unaligned uintptr
+-}
+-
+ // created by cgo -cdefs and then converted to Go
+ // cgo -cdefs defs_linux.go defs3_linux.go
+ 
+diff --git a/src/runtime/defs_linux_ppc64le.go b/src/runtime/defs_linux_ppc64le.go
+index f3e305e34e..36d021a727 100644
+--- a/src/runtime/defs_linux_ppc64le.go
++++ b/src/runtime/defs_linux_ppc64le.go
+@@ -87,17 +87,6 @@ const (
+ 	_CLOCK_THREAD_CPUTIME_ID = 0x3
+ 
+ 	_SIGEV_THREAD_ID = 0x4
+-
+-	_EPOLLIN       = 0x1
+-	_EPOLLOUT      = 0x4
+-	_EPOLLERR      = 0x8
+-	_EPOLLHUP      = 0x10
+-	_EPOLLRDHUP    = 0x2000
+-	_EPOLLET       = 0x80000000
+-	_EPOLL_CLOEXEC = 0x80000
+-	_EPOLL_CTL_ADD = 0x1
+-	_EPOLL_CTL_DEL = 0x2
+-	_EPOLL_CTL_MOD = 0x3
+ )
+ 
+ //struct Sigset {
+@@ -172,12 +161,6 @@ type sigevent struct {
+ 	_ [_sigev_max_size - unsafe.Sizeof(sigeventFields{})]byte
+ }
+ 
+-type epollevent struct {
+-	events    uint32
+-	pad_cgo_0 [4]byte
+-	data      [8]byte // unaligned uintptr
+-}
+-
+ // created by cgo -cdefs and then converted to Go
+ // cgo -cdefs defs_linux.go defs3_linux.go
+ 
+diff --git a/src/runtime/defs_linux_riscv64.go b/src/runtime/defs_linux_riscv64.go
+index 29496acdcb..116a842e58 100644
+--- a/src/runtime/defs_linux_riscv64.go
++++ b/src/runtime/defs_linux_riscv64.go
+@@ -89,17 +89,6 @@ const (
+ 	_CLOCK_THREAD_CPUTIME_ID = 0x3
+ 
+ 	_SIGEV_THREAD_ID = 0x4
+-
+-	_EPOLLIN       = 0x1
+-	_EPOLLOUT      = 0x4
+-	_EPOLLERR      = 0x8
+-	_EPOLLHUP      = 0x10
+-	_EPOLLRDHUP    = 0x2000
+-	_EPOLLET       = 0x80000000
+-	_EPOLL_CLOEXEC = 0x80000
+-	_EPOLL_CTL_ADD = 0x1
+-	_EPOLL_CTL_DEL = 0x2
+-	_EPOLL_CTL_MOD = 0x3
+ )
+ 
+ type timespec struct {
+@@ -171,12 +160,6 @@ type sigevent struct {
+ 	_ [_sigev_max_size - unsafe.Sizeof(sigeventFields{})]byte
+ }
+ 
+-type epollevent struct {
+-	events    uint32
+-	pad_cgo_0 [4]byte
+-	data      [8]byte // unaligned uintptr
+-}
+-
+ const (
+ 	_O_RDONLY   = 0x0
+ 	_O_NONBLOCK = 0x800
+diff --git a/src/runtime/defs_linux_s390x.go b/src/runtime/defs_linux_s390x.go
+index 817a29ed30..79a54fe7e7 100644
+--- a/src/runtime/defs_linux_s390x.go
++++ b/src/runtime/defs_linux_s390x.go
+@@ -88,17 +88,6 @@ const (
+ 	_CLOCK_THREAD_CPUTIME_ID = 0x3
+ 
+ 	_SIGEV_THREAD_ID = 0x4
+-
+-	_EPOLLIN       = 0x1
+-	_EPOLLOUT      = 0x4
+-	_EPOLLERR      = 0x8
+-	_EPOLLHUP      = 0x10
+-	_EPOLLRDHUP    = 0x2000
+-	_EPOLLET       = 0x80000000
+-	_EPOLL_CLOEXEC = 0x80000
+-	_EPOLL_CTL_ADD = 0x1
+-	_EPOLL_CTL_DEL = 0x2
+-	_EPOLL_CTL_MOD = 0x3
+ )
+ 
+ type timespec struct {
+@@ -168,12 +157,6 @@ type sigevent struct {
+ 	_ [_sigev_max_size - unsafe.Sizeof(sigeventFields{})]byte
+ }
+ 
+-type epollevent struct {
+-	events    uint32
+-	pad_cgo_0 [4]byte
+-	data      [8]byte // unaligned uintptr
+-}
+-
+ const (
+ 	_O_RDONLY    = 0x0
+ 	_O_NONBLOCK  = 0x800
+diff --git a/src/runtime/export_linux_test.go b/src/runtime/export_linux_test.go
+index dea94a934c..a441c0efa2 100644
+--- a/src/runtime/export_linux_test.go
++++ b/src/runtime/export_linux_test.go
+@@ -6,19 +6,17 @@
+ 
+ package runtime
+ 
+-import "unsafe"
++import (
++	"runtime/internal/syscall"
++)
+ 
+ const SiginfoMaxSize = _si_max_size
+ const SigeventMaxSize = _sigev_max_size
+ 
++var Closeonexec = syscall.CloseOnExec
+ var NewOSProc0 = newosproc0
+ var Mincore = mincore
+ var Add = add
+ 
+-type EpollEvent epollevent
+ type Siginfo siginfo
+ type Sigevent sigevent
+-
+-func Epollctl(epfd, op, fd int32, ev unsafe.Pointer) int32 {
+-	return epollctl(epfd, op, fd, (*epollevent)(ev))
+-}
+diff --git a/src/runtime/export_unix2_test.go b/src/runtime/export_unix2_test.go
+new file mode 100644
+index 0000000000..360565f272
+--- /dev/null
++++ b/src/runtime/export_unix2_test.go
+@@ -0,0 +1,10 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build unix && !linux
++
++package runtime
++
++// for linux close-on-exec implemented in runtime/internal/syscall
++var Closeonexec = closeonexec
+diff --git a/src/runtime/export_unix_test.go b/src/runtime/export_unix_test.go
+index a548cf7b7a..0119538787 100644
+--- a/src/runtime/export_unix_test.go
++++ b/src/runtime/export_unix_test.go
+@@ -9,7 +9,6 @@ package runtime
+ import "unsafe"
+ 
+ var NonblockingPipe = nonblockingPipe
+-var Closeonexec = closeonexec
+ 
+ func sigismember(mask *sigset, i int) bool {
+ 	clear := *mask
+diff --git a/src/runtime/internal/syscall/defs_linux.go b/src/runtime/internal/syscall/defs_linux.go
+new file mode 100644
+index 0000000000..71f1fa1453
+--- /dev/null
++++ b/src/runtime/internal/syscall/defs_linux.go
+@@ -0,0 +1,10 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package syscall
++
++const (
++	F_SETFD    = 2
++	FD_CLOEXEC = 1
++)
+diff --git a/src/runtime/internal/syscall/defs_linux_386.go b/src/runtime/internal/syscall/defs_linux_386.go
+new file mode 100644
+index 0000000000..dc723a60b2
+--- /dev/null
++++ b/src/runtime/internal/syscall/defs_linux_386.go
+@@ -0,0 +1,29 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package syscall
++
++const (
++	SYS_FCNTL         = 55
++	SYS_EPOLL_CTL     = 255
++	SYS_EPOLL_PWAIT   = 319
++	SYS_EPOLL_CREATE1 = 329
++	SYS_EPOLL_PWAIT2  = 441
++
++	EPOLLIN       = 0x1
++	EPOLLOUT      = 0x4
++	EPOLLERR      = 0x8
++	EPOLLHUP      = 0x10
++	EPOLLRDHUP    = 0x2000
++	EPOLLET       = 0x80000000
++	EPOLL_CLOEXEC = 0x80000
++	EPOLL_CTL_ADD = 0x1
++	EPOLL_CTL_DEL = 0x2
++	EPOLL_CTL_MOD = 0x3
++)
++
++type EpollEvent struct {
++	Events uint32
++	Data   [8]byte // to match amd64
++}
+diff --git a/src/runtime/internal/syscall/defs_linux_amd64.go b/src/runtime/internal/syscall/defs_linux_amd64.go
+new file mode 100644
+index 0000000000..886eb5bda2
+--- /dev/null
++++ b/src/runtime/internal/syscall/defs_linux_amd64.go
+@@ -0,0 +1,29 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package syscall
++
++const (
++	SYS_FCNTL         = 72
++	SYS_EPOLL_CTL     = 233
++	SYS_EPOLL_PWAIT   = 281
++	SYS_EPOLL_CREATE1 = 291
++	SYS_EPOLL_PWAIT2  = 441
++
++	EPOLLIN       = 0x1
++	EPOLLOUT      = 0x4
++	EPOLLERR      = 0x8
++	EPOLLHUP      = 0x10
++	EPOLLRDHUP    = 0x2000
++	EPOLLET       = 0x80000000
++	EPOLL_CLOEXEC = 0x80000
++	EPOLL_CTL_ADD = 0x1
++	EPOLL_CTL_DEL = 0x2
++	EPOLL_CTL_MOD = 0x3
++)
++
++type EpollEvent struct {
++	Events uint32
++	Data   [8]byte // unaligned uintptr
++}
+diff --git a/src/runtime/internal/syscall/defs_linux_arm.go b/src/runtime/internal/syscall/defs_linux_arm.go
+new file mode 100644
+index 0000000000..8f812a2f68
+--- /dev/null
++++ b/src/runtime/internal/syscall/defs_linux_arm.go
+@@ -0,0 +1,30 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package syscall
++
++const (
++	SYS_FCNTL         = 55
++	SYS_EPOLL_CTL     = 251
++	SYS_EPOLL_PWAIT   = 346
++	SYS_EPOLL_CREATE1 = 357
++	SYS_EPOLL_PWAIT2  = 441
++
++	EPOLLIN       = 0x1
++	EPOLLOUT      = 0x4
++	EPOLLERR      = 0x8
++	EPOLLHUP      = 0x10
++	EPOLLRDHUP    = 0x2000
++	EPOLLET       = 0x80000000
++	EPOLL_CLOEXEC = 0x80000
++	EPOLL_CTL_ADD = 0x1
++	EPOLL_CTL_DEL = 0x2
++	EPOLL_CTL_MOD = 0x3
++)
++
++type EpollEvent struct {
++	Events uint32
++	_pad   uint32
++	Data   [8]byte // to match amd64
++}
+diff --git a/src/runtime/internal/syscall/defs_linux_arm64.go b/src/runtime/internal/syscall/defs_linux_arm64.go
+new file mode 100644
+index 0000000000..48e11b0c51
+--- /dev/null
++++ b/src/runtime/internal/syscall/defs_linux_arm64.go
+@@ -0,0 +1,30 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package syscall
++
++const (
++	SYS_EPOLL_CREATE1 = 20
++	SYS_EPOLL_CTL     = 21
++	SYS_EPOLL_PWAIT   = 22
++	SYS_FCNTL         = 25
++	SYS_EPOLL_PWAIT2  = 441
++
++	EPOLLIN       = 0x1
++	EPOLLOUT      = 0x4
++	EPOLLERR      = 0x8
++	EPOLLHUP      = 0x10
++	EPOLLRDHUP    = 0x2000
++	EPOLLET       = 0x80000000
++	EPOLL_CLOEXEC = 0x80000
++	EPOLL_CTL_ADD = 0x1
++	EPOLL_CTL_DEL = 0x2
++	EPOLL_CTL_MOD = 0x3
++)
++
++type EpollEvent struct {
++	Events uint32
++	_pad   uint32
++	Data   [8]byte // to match amd64
++}
+diff --git a/src/runtime/internal/syscall/defs_linux_loong64.go b/src/runtime/internal/syscall/defs_linux_loong64.go
+new file mode 100644
+index 0000000000..b78ef81861
+--- /dev/null
++++ b/src/runtime/internal/syscall/defs_linux_loong64.go
+@@ -0,0 +1,30 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package syscall
++
++const (
++	SYS_EPOLL_CREATE1 = 20
++	SYS_EPOLL_CTL     = 21
++	SYS_EPOLL_PWAIT   = 22
++	SYS_FCNTL         = 25
++	SYS_EPOLL_PWAIT2  = 441
++
++	EPOLLIN       = 0x1
++	EPOLLOUT      = 0x4
++	EPOLLERR      = 0x8
++	EPOLLHUP      = 0x10
++	EPOLLRDHUP    = 0x2000
++	EPOLLET       = 0x80000000
++	EPOLL_CLOEXEC = 0x80000
++	EPOLL_CTL_ADD = 0x1
++	EPOLL_CTL_DEL = 0x2
++	EPOLL_CTL_MOD = 0x3
++)
++
++type EpollEvent struct {
++	Events    uint32
++	pad_cgo_0 [4]byte
++	Data      [8]byte // unaligned uintptr
++}
+diff --git a/src/runtime/internal/syscall/defs_linux_mips64x.go b/src/runtime/internal/syscall/defs_linux_mips64x.go
+new file mode 100644
+index 0000000000..92b49ca969
+--- /dev/null
++++ b/src/runtime/internal/syscall/defs_linux_mips64x.go
+@@ -0,0 +1,32 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build linux && (mips64 || mips64le)
++
++package syscall
++
++const (
++	SYS_FCNTL         = 5070
++	SYS_EPOLL_CTL     = 5208
++	SYS_EPOLL_PWAIT   = 5272
++	SYS_EPOLL_CREATE1 = 5285
++	SYS_EPOLL_PWAIT2  = 5441
++
++	EPOLLIN       = 0x1
++	EPOLLOUT      = 0x4
++	EPOLLERR      = 0x8
++	EPOLLHUP      = 0x10
++	EPOLLRDHUP    = 0x2000
++	EPOLLET       = 0x80000000
++	EPOLL_CLOEXEC = 0x80000
++	EPOLL_CTL_ADD = 0x1
++	EPOLL_CTL_DEL = 0x2
++	EPOLL_CTL_MOD = 0x3
++)
++
++type EpollEvent struct {
++	Events    uint32
++	pad_cgo_0 [4]byte
++	Data      [8]byte // unaligned uintptr
++}
+diff --git a/src/runtime/internal/syscall/defs_linux_mipsx.go b/src/runtime/internal/syscall/defs_linux_mipsx.go
+new file mode 100644
+index 0000000000..e28d09c7f1
+--- /dev/null
++++ b/src/runtime/internal/syscall/defs_linux_mipsx.go
+@@ -0,0 +1,32 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build linux && (mips || mipsle)
++
++package syscall
++
++const (
++	SYS_FCNTL         = 4055
++	SYS_EPOLL_CTL     = 4249
++	SYS_EPOLL_PWAIT   = 4313
++	SYS_EPOLL_CREATE1 = 4326
++	SYS_EPOLL_PWAIT2  = 4441
++
++	EPOLLIN       = 0x1
++	EPOLLOUT      = 0x4
++	EPOLLERR      = 0x8
++	EPOLLHUP      = 0x10
++	EPOLLRDHUP    = 0x2000
++	EPOLLET       = 0x80000000
++	EPOLL_CLOEXEC = 0x80000
++	EPOLL_CTL_ADD = 0x1
++	EPOLL_CTL_DEL = 0x2
++	EPOLL_CTL_MOD = 0x3
++)
++
++type EpollEvent struct {
++	Events    uint32
++	pad_cgo_0 [4]byte
++	Data      uint64
++}
+diff --git a/src/runtime/internal/syscall/defs_linux_ppc64x.go b/src/runtime/internal/syscall/defs_linux_ppc64x.go
+new file mode 100644
+index 0000000000..a74483eb6d
+--- /dev/null
++++ b/src/runtime/internal/syscall/defs_linux_ppc64x.go
+@@ -0,0 +1,32 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build linux && (ppc64 || ppc64le)
++
++package syscall
++
++const (
++	SYS_FCNTL         = 55
++	SYS_EPOLL_CTL     = 237
++	SYS_EPOLL_PWAIT   = 303
++	SYS_EPOLL_CREATE1 = 315
++	SYS_EPOLL_PWAIT2  = 441
++
++	EPOLLIN       = 0x1
++	EPOLLOUT      = 0x4
++	EPOLLERR      = 0x8
++	EPOLLHUP      = 0x10
++	EPOLLRDHUP    = 0x2000
++	EPOLLET       = 0x80000000
++	EPOLL_CLOEXEC = 0x80000
++	EPOLL_CTL_ADD = 0x1
++	EPOLL_CTL_DEL = 0x2
++	EPOLL_CTL_MOD = 0x3
++)
++
++type EpollEvent struct {
++	Events    uint32
++	pad_cgo_0 [4]byte
++	Data      [8]byte // unaligned uintptr
++}
+diff --git a/src/runtime/internal/syscall/defs_linux_riscv64.go b/src/runtime/internal/syscall/defs_linux_riscv64.go
+new file mode 100644
+index 0000000000..b78ef81861
+--- /dev/null
++++ b/src/runtime/internal/syscall/defs_linux_riscv64.go
+@@ -0,0 +1,30 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package syscall
++
++const (
++	SYS_EPOLL_CREATE1 = 20
++	SYS_EPOLL_CTL     = 21
++	SYS_EPOLL_PWAIT   = 22
++	SYS_FCNTL         = 25
++	SYS_EPOLL_PWAIT2  = 441
++
++	EPOLLIN       = 0x1
++	EPOLLOUT      = 0x4
++	EPOLLERR      = 0x8
++	EPOLLHUP      = 0x10
++	EPOLLRDHUP    = 0x2000
++	EPOLLET       = 0x80000000
++	EPOLL_CLOEXEC = 0x80000
++	EPOLL_CTL_ADD = 0x1
++	EPOLL_CTL_DEL = 0x2
++	EPOLL_CTL_MOD = 0x3
++)
++
++type EpollEvent struct {
++	Events    uint32
++	pad_cgo_0 [4]byte
++	Data      [8]byte // unaligned uintptr
++}
+diff --git a/src/runtime/internal/syscall/defs_linux_s390x.go b/src/runtime/internal/syscall/defs_linux_s390x.go
+new file mode 100644
+index 0000000000..a7bb1ba66d
+--- /dev/null
++++ b/src/runtime/internal/syscall/defs_linux_s390x.go
+@@ -0,0 +1,30 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package syscall
++
++const (
++	SYS_FCNTL         = 55
++	SYS_EPOLL_CTL     = 250
++	SYS_EPOLL_PWAIT   = 312
++	SYS_EPOLL_CREATE1 = 327
++	SYS_EPOLL_PWAIT2  = 441
++
++	EPOLLIN       = 0x1
++	EPOLLOUT      = 0x4
++	EPOLLERR      = 0x8
++	EPOLLHUP      = 0x10
++	EPOLLRDHUP    = 0x2000
++	EPOLLET       = 0x80000000
++	EPOLL_CLOEXEC = 0x80000
++	EPOLL_CTL_ADD = 0x1
++	EPOLL_CTL_DEL = 0x2
++	EPOLL_CTL_MOD = 0x3
++)
++
++type EpollEvent struct {
++	Events    uint32
++	pad_cgo_0 [4]byte
++	Data      [8]byte // unaligned uintptr
++}
+diff --git a/src/runtime/internal/syscall/syscall_linux.go b/src/runtime/internal/syscall/syscall_linux.go
+index 7f268e8fba..a103d318c4 100644
+--- a/src/runtime/internal/syscall/syscall_linux.go
++++ b/src/runtime/internal/syscall/syscall_linux.go
+@@ -6,7 +6,7 @@
+ package syscall
+ 
+ import (
+-	_ "unsafe" // for go:linkname
++	"unsafe"
+ )
+ 
+ // TODO(https://go.dev/issue/51087): This package is incomplete and currently
+@@ -37,3 +37,30 @@ func Syscall6(num, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, errno uintptr)
+ func syscall_RawSyscall6(num, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, errno uintptr) {
+ 	return Syscall6(num, a1, a2, a3, a4, a5, a6)
+ }
++
++func EpollCreate1(flags int32) (fd int32, errno uintptr) {
++	r1, _, e := Syscall6(SYS_EPOLL_CREATE1, uintptr(flags), 0, 0, 0, 0, 0)
++	return int32(r1), e
++}
++
++var _zero uintptr
++
++func EpollWait(epfd int32, events []EpollEvent, maxev, waitms int32) (n int32, errno uintptr) {
++	var ev unsafe.Pointer
++	if len(events) > 0 {
++		ev = unsafe.Pointer(&events[0])
++	} else {
++		ev = unsafe.Pointer(&_zero)
++	}
++	r1, _, e := Syscall6(SYS_EPOLL_PWAIT, uintptr(epfd), uintptr(ev), uintptr(maxev), uintptr(waitms), 0, 0)
++	return int32(r1), e
++}
++
++func EpollCtl(epfd, op, fd int32, event *EpollEvent) (errno uintptr) {
++	_, _, e := Syscall6(SYS_EPOLL_CTL, uintptr(epfd), uintptr(op), uintptr(fd), uintptr(unsafe.Pointer(event)), 0, 0)
++	return e
++}
++
++func CloseOnExec(fd int32) {
++	Syscall6(SYS_FCNTL, uintptr(fd), F_SETFD, FD_CLOEXEC, 0, 0, 0)
++}
+diff --git a/src/runtime/internal/syscall/syscall_linux_test.go b/src/runtime/internal/syscall/syscall_linux_test.go
+new file mode 100644
+index 0000000000..1976da5c28
+--- /dev/null
++++ b/src/runtime/internal/syscall/syscall_linux_test.go
+@@ -0,0 +1,19 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package syscall_test
++
++import (
++	"runtime/internal/syscall"
++	"testing"
++)
++
++func TestEpollctlErrorSign(t *testing.T) {
++	v := syscall.EpollCtl(-1, 1, -1, &syscall.EpollEvent{})
++
++	const EBADF = 0x09
++	if v != EBADF {
++		t.Errorf("epollctl = %v, want %v", v, EBADF)
++	}
++}
+diff --git a/src/runtime/netpoll_epoll.go b/src/runtime/netpoll_epoll.go
+index 09da662c92..7164a59551 100644
+--- a/src/runtime/netpoll_epoll.go
++++ b/src/runtime/netpoll_epoll.go
+@@ -8,19 +8,10 @@ package runtime
+ 
+ import (
+ 	"runtime/internal/atomic"
++	"runtime/internal/syscall"
+ 	"unsafe"
+ )
+ 
+-func epollcreate(size int32) int32
+-func epollcreate1(flags int32) int32
+-
+-//go:noescape
+-func epollctl(epfd, op, fd int32, ev *epollevent) int32
+-
+-//go:noescape
+-func epollwait(epfd int32, ev *epollevent, nev, timeout int32) int32
+-func closeonexec(fd int32)
+-
+ var (
+ 	epfd int32 = -1 // epoll descriptor
+ 
+@@ -30,27 +21,24 @@ var (
+ )
+ 
+ func netpollinit() {
+-	epfd = epollcreate1(_EPOLL_CLOEXEC)
+-	if epfd < 0 {
+-		epfd = epollcreate(1024)
+-		if epfd < 0 {
+-			println("runtime: epollcreate failed with", -epfd)
+-			throw("runtime: netpollinit failed")
+-		}
+-		closeonexec(epfd)
+-	}
+-	r, w, errno := nonblockingPipe()
++	var errno uintptr
++	epfd, errno = syscall.EpollCreate1(syscall.EPOLL_CLOEXEC)
+ 	if errno != 0 {
+-		println("runtime: pipe failed with", -errno)
++		println("runtime: epollcreate failed with", errno)
++		throw("runtime: netpollinit failed")
++	}
++	r, w, errpipe := nonblockingPipe()
++	if errpipe != 0 {
++		println("runtime: pipe failed with", -errpipe)
+ 		throw("runtime: pipe failed")
+ 	}
+-	ev := epollevent{
+-		events: _EPOLLIN,
++	ev := syscall.EpollEvent{
++		Events: syscall.EPOLLIN,
+ 	}
+-	*(**uintptr)(unsafe.Pointer(&ev.data)) = &netpollBreakRd
+-	errno = epollctl(epfd, _EPOLL_CTL_ADD, r, &ev)
++	*(**uintptr)(unsafe.Pointer(&ev.Data)) = &netpollBreakRd
++	errno = syscall.EpollCtl(epfd, syscall.EPOLL_CTL_ADD, r, &ev)
+ 	if errno != 0 {
+-		println("runtime: epollctl failed with", -errno)
++		println("runtime: epollctl failed with", errno)
+ 		throw("runtime: epollctl failed")
+ 	}
+ 	netpollBreakRd = uintptr(r)
+@@ -61,16 +49,16 @@ func netpollIsPollDescriptor(fd uintptr) bool {
+ 	return fd == uintptr(epfd) || fd == netpollBreakRd || fd == netpollBreakWr
+ }
+ 
+-func netpollopen(fd uintptr, pd *pollDesc) int32 {
+-	var ev epollevent
+-	ev.events = _EPOLLIN | _EPOLLOUT | _EPOLLRDHUP | _EPOLLET
+-	*(**pollDesc)(unsafe.Pointer(&ev.data)) = pd
+-	return -epollctl(epfd, _EPOLL_CTL_ADD, int32(fd), &ev)
++func netpollopen(fd uintptr, pd *pollDesc) uintptr {
++	var ev syscall.EpollEvent
++	ev.Events = syscall.EPOLLIN | syscall.EPOLLOUT | syscall.EPOLLRDHUP | syscall.EPOLLET
++	*(**pollDesc)(unsafe.Pointer(&ev.Data)) = pd
++	return syscall.EpollCtl(epfd, syscall.EPOLL_CTL_ADD, int32(fd), &ev)
+ }
+ 
+-func netpollclose(fd uintptr) int32 {
+-	var ev epollevent
+-	return -epollctl(epfd, _EPOLL_CTL_DEL, int32(fd), &ev)
++func netpollclose(fd uintptr) uintptr {
++	var ev syscall.EpollEvent
++	return syscall.EpollCtl(epfd, syscall.EPOLL_CTL_DEL, int32(fd), &ev)
+ }
+ 
+ func netpollarm(pd *pollDesc, mode int) {
+@@ -124,12 +112,12 @@ func netpoll(delay int64) gList {
+ 		// 1e9 ms == ~11.5 days.
+ 		waitms = 1e9
+ 	}
+-	var events [128]epollevent
++	var events [128]syscall.EpollEvent
+ retry:
+-	n := epollwait(epfd, &events[0], int32(len(events)), waitms)
+-	if n < 0 {
+-		if n != -_EINTR {
+-			println("runtime: epollwait on fd", epfd, "failed with", -n)
++	n, errno := syscall.EpollWait(epfd, events[:], int32(len(events)), waitms)
++	if errno != 0 {
++		if errno != _EINTR {
++			println("runtime: epollwait on fd", epfd, "failed with", errno)
+ 			throw("runtime: netpoll failed")
+ 		}
+ 		// If a timed sleep was interrupted, just return to
+@@ -141,14 +129,14 @@ retry:
+ 	}
+ 	var toRun gList
+ 	for i := int32(0); i < n; i++ {
+-		ev := &events[i]
+-		if ev.events == 0 {
++		ev := events[i]
++		if ev.Events == 0 {
+ 			continue
+ 		}
+ 
+-		if *(**uintptr)(unsafe.Pointer(&ev.data)) == &netpollBreakRd {
+-			if ev.events != _EPOLLIN {
+-				println("runtime: netpoll: break fd ready for", ev.events)
++		if *(**uintptr)(unsafe.Pointer(&ev.Data)) == &netpollBreakRd {
++			if ev.Events != syscall.EPOLLIN {
++				println("runtime: netpoll: break fd ready for", ev.Events)
+ 				throw("runtime: netpoll: break fd ready for something unexpected")
+ 			}
+ 			if delay != 0 {
+@@ -163,15 +151,15 @@ retry:
+ 		}
+ 
+ 		var mode int32
+-		if ev.events&(_EPOLLIN|_EPOLLRDHUP|_EPOLLHUP|_EPOLLERR) != 0 {
++		if ev.Events&(syscall.EPOLLIN|syscall.EPOLLRDHUP|syscall.EPOLLHUP|syscall.EPOLLERR) != 0 {
+ 			mode += 'r'
+ 		}
+-		if ev.events&(_EPOLLOUT|_EPOLLHUP|_EPOLLERR) != 0 {
++		if ev.Events&(syscall.EPOLLOUT|syscall.EPOLLHUP|syscall.EPOLLERR) != 0 {
+ 			mode += 'w'
+ 		}
+ 		if mode != 0 {
+-			pd := *(**pollDesc)(unsafe.Pointer(&ev.data))
+-			pd.setEventErr(ev.events == _EPOLLERR)
++			pd := *(**pollDesc)(unsafe.Pointer(&ev.Data))
++			pd.setEventErr(ev.Events == syscall.EPOLLERR)
+ 			netpollready(&toRun, pd, mode)
+ 		}
+ 	}
+diff --git a/src/runtime/runtime_linux_test.go b/src/runtime/runtime_linux_test.go
+index a753aeea58..6af5561e91 100644
+--- a/src/runtime/runtime_linux_test.go
++++ b/src/runtime/runtime_linux_test.go
+@@ -53,15 +53,6 @@ func TestMincoreErrorSign(t *testing.T) {
+ 	}
+ }
+ 
+-func TestEpollctlErrorSign(t *testing.T) {
+-	v := Epollctl(-1, 1, -1, unsafe.Pointer(&EpollEvent{}))
+-
+-	const EBADF = 0x09
+-	if v != -EBADF {
+-		t.Errorf("epollctl = %v, want %v", v, -EBADF)
+-	}
+-}
+-
+ func TestKernelStructSize(t *testing.T) {
+ 	// Check that the Go definitions of structures exchanged with the kernel are
+ 	// the same size as what the kernel defines.
+diff --git a/src/runtime/sys_linux_386.s b/src/runtime/sys_linux_386.s
+index 4942f21e4f..4f5b34b996 100644
+--- a/src/runtime/sys_linux_386.s
++++ b/src/runtime/sys_linux_386.s
+@@ -33,7 +33,6 @@
+ #define SYS_access		33
+ #define SYS_kill		37
+ #define SYS_brk 		45
+-#define SYS_fcntl		55
+ #define SYS_munmap		91
+ #define SYS_socketcall		102
+ #define SYS_setittimer		104
+@@ -52,15 +51,11 @@
+ #define SYS_sched_getaffinity	242
+ #define SYS_set_thread_area	243
+ #define SYS_exit_group		252
+-#define SYS_epoll_create	254
+-#define SYS_epoll_ctl		255
+-#define SYS_epoll_wait		256
+ #define SYS_timer_create	259
+ #define SYS_timer_settime	260
+ #define SYS_timer_delete	263
+ #define SYS_clock_gettime	265
+ #define SYS_tgkill		270
+-#define SYS_epoll_create1	329
+ #define SYS_pipe2		331
+ 
+ TEXT runtime·exit(SB),NOSPLIT,$0
+@@ -726,53 +721,6 @@ TEXT runtime·sched_getaffinity(SB),NOSPLIT,$0
+ 	MOVL	AX, ret+12(FP)
+ 	RET
+ 
+-// int32 runtime·epollcreate(int32 size);
+-TEXT runtime·epollcreate(SB),NOSPLIT,$0
+-	MOVL    $SYS_epoll_create, AX
+-	MOVL	size+0(FP), BX
+-	INVOKE_SYSCALL
+-	MOVL	AX, ret+4(FP)
+-	RET
+-
+-// int32 runtime·epollcreate1(int32 flags);
+-TEXT runtime·epollcreate1(SB),NOSPLIT,$0
+-	MOVL    $SYS_epoll_create1, AX
+-	MOVL	flags+0(FP), BX
+-	INVOKE_SYSCALL
+-	MOVL	AX, ret+4(FP)
+-	RET
+-
+-// func epollctl(epfd, op, fd int32, ev *epollEvent) int
+-TEXT runtime·epollctl(SB),NOSPLIT,$0
+-	MOVL	$SYS_epoll_ctl, AX
+-	MOVL	epfd+0(FP), BX
+-	MOVL	op+4(FP), CX
+-	MOVL	fd+8(FP), DX
+-	MOVL	ev+12(FP), SI
+-	INVOKE_SYSCALL
+-	MOVL	AX, ret+16(FP)
+-	RET
+-
+-// int32 runtime·epollwait(int32 epfd, EpollEvent *ev, int32 nev, int32 timeout);
+-TEXT runtime·epollwait(SB),NOSPLIT,$0
+-	MOVL	$SYS_epoll_wait, AX
+-	MOVL	epfd+0(FP), BX
+-	MOVL	ev+4(FP), CX
+-	MOVL	nev+8(FP), DX
+-	MOVL	timeout+12(FP), SI
+-	INVOKE_SYSCALL
+-	MOVL	AX, ret+16(FP)
+-	RET
+-
+-// void runtime·closeonexec(int32 fd);
+-TEXT runtime·closeonexec(SB),NOSPLIT,$0
+-	MOVL	$SYS_fcntl, AX
+-	MOVL	fd+0(FP), BX  // fd
+-	MOVL	$2, CX  // F_SETFD
+-	MOVL	$1, DX  // FD_CLOEXEC
+-	INVOKE_SYSCALL
+-	RET
+-
+ // int access(const char *name, int mode)
+ TEXT runtime·access(SB),NOSPLIT,$0
+ 	MOVL	$SYS_access, AX
+diff --git a/src/runtime/sys_linux_amd64.s b/src/runtime/sys_linux_amd64.s
+index ca6ecb13eb..d91f9bd31f 100644
+--- a/src/runtime/sys_linux_amd64.s
++++ b/src/runtime/sys_linux_amd64.s
+@@ -33,24 +33,19 @@
+ #define SYS_clone		56
+ #define SYS_exit		60
+ #define SYS_kill		62
+-#define SYS_fcntl		72
+ #define SYS_sigaltstack 	131
+ #define SYS_arch_prctl		158
+ #define SYS_gettid		186
+ #define SYS_futex		202
+ #define SYS_sched_getaffinity	204
+-#define SYS_epoll_create	213
+ #define SYS_timer_create	222
+ #define SYS_timer_settime	223
+ #define SYS_timer_delete	226
+ #define SYS_clock_gettime	228
+ #define SYS_exit_group		231
+-#define SYS_epoll_ctl		233
+ #define SYS_tgkill		234
+ #define SYS_openat		257
+ #define SYS_faccessat		269
+-#define SYS_epoll_pwait		281
+-#define SYS_epoll_create1	291
+ #define SYS_pipe2		293
+ 
+ TEXT runtime·exit(SB),NOSPLIT,$0-4
+@@ -666,55 +661,6 @@ TEXT runtime·sched_getaffinity(SB),NOSPLIT,$0
+ 	MOVL	AX, ret+24(FP)
+ 	RET
+ 
+-// int32 runtime·epollcreate(int32 size);
+-TEXT runtime·epollcreate(SB),NOSPLIT,$0
+-	MOVL    size+0(FP), DI
+-	MOVL    $SYS_epoll_create, AX
+-	SYSCALL
+-	MOVL	AX, ret+8(FP)
+-	RET
+-
+-// int32 runtime·epollcreate1(int32 flags);
+-TEXT runtime·epollcreate1(SB),NOSPLIT,$0
+-	MOVL	flags+0(FP), DI
+-	MOVL	$SYS_epoll_create1, AX
+-	SYSCALL
+-	MOVL	AX, ret+8(FP)
+-	RET
+-
+-// func epollctl(epfd, op, fd int32, ev *epollEvent) int
+-TEXT runtime·epollctl(SB),NOSPLIT,$0
+-	MOVL	epfd+0(FP), DI
+-	MOVL	op+4(FP), SI
+-	MOVL	fd+8(FP), DX
+-	MOVQ	ev+16(FP), R10
+-	MOVL	$SYS_epoll_ctl, AX
+-	SYSCALL
+-	MOVL	AX, ret+24(FP)
+-	RET
+-
+-// int32 runtime·epollwait(int32 epfd, EpollEvent *ev, int32 nev, int32 timeout);
+-TEXT runtime·epollwait(SB),NOSPLIT,$0
+-	// This uses pwait instead of wait, because Android O blocks wait.
+-	MOVL	epfd+0(FP), DI
+-	MOVQ	ev+8(FP), SI
+-	MOVL	nev+16(FP), DX
+-	MOVL	timeout+20(FP), R10
+-	MOVQ	$0, R8
+-	MOVL	$SYS_epoll_pwait, AX
+-	SYSCALL
+-	MOVL	AX, ret+24(FP)
+-	RET
+-
+-// void runtime·closeonexec(int32 fd);
+-TEXT runtime·closeonexec(SB),NOSPLIT,$0
+-	MOVL    fd+0(FP), DI  // fd
+-	MOVQ    $2, SI  // F_SETFD
+-	MOVQ    $1, DX  // FD_CLOEXEC
+-	MOVL	$SYS_fcntl, AX
+-	SYSCALL
+-	RET
+-
+ // int access(const char *name, int mode)
+ TEXT runtime·access(SB),NOSPLIT,$0
+ 	// This uses faccessat instead of access, because Android O blocks access.
+diff --git a/src/runtime/sys_linux_arm.s b/src/runtime/sys_linux_arm.s
+index 9ac64328c1..1bc9e86d6d 100644
+--- a/src/runtime/sys_linux_arm.s
++++ b/src/runtime/sys_linux_arm.s
+@@ -41,15 +41,10 @@
+ #define SYS_nanosleep (SYS_BASE + 162)
+ #define SYS_sched_getaffinity (SYS_BASE + 242)
+ #define SYS_clock_gettime (SYS_BASE + 263)
+-#define SYS_epoll_create (SYS_BASE + 250)
+-#define SYS_epoll_ctl (SYS_BASE + 251)
+-#define SYS_epoll_wait (SYS_BASE + 252)
+ #define SYS_timer_create (SYS_BASE + 257)
+ #define SYS_timer_settime (SYS_BASE + 258)
+ #define SYS_timer_delete (SYS_BASE + 261)
+-#define SYS_epoll_create1 (SYS_BASE + 357)
+ #define SYS_pipe2 (SYS_BASE + 359)
+-#define SYS_fcntl (SYS_BASE + 55)
+ #define SYS_access (SYS_BASE + 33)
+ #define SYS_connect (SYS_BASE + 283)
+ #define SYS_socket (SYS_BASE + 281)
+@@ -616,53 +611,6 @@ TEXT runtime·sched_getaffinity(SB),NOSPLIT,$0
+ 	MOVW	R0, ret+12(FP)
+ 	RET
+ 
+-// int32 runtime·epollcreate(int32 size)
+-TEXT runtime·epollcreate(SB),NOSPLIT,$0
+-	MOVW	size+0(FP), R0
+-	MOVW	$SYS_epoll_create, R7
+-	SWI	$0
+-	MOVW	R0, ret+4(FP)
+-	RET
+-
+-// int32 runtime·epollcreate1(int32 flags)
+-TEXT runtime·epollcreate1(SB),NOSPLIT,$0
+-	MOVW	flags+0(FP), R0
+-	MOVW	$SYS_epoll_create1, R7
+-	SWI	$0
+-	MOVW	R0, ret+4(FP)
+-	RET
+-
+-// func epollctl(epfd, op, fd int32, ev *epollEvent) int
+-TEXT runtime·epollctl(SB),NOSPLIT,$0
+-	MOVW	epfd+0(FP), R0
+-	MOVW	op+4(FP), R1
+-	MOVW	fd+8(FP), R2
+-	MOVW	ev+12(FP), R3
+-	MOVW	$SYS_epoll_ctl, R7
+-	SWI	$0
+-	MOVW	R0, ret+16(FP)
+-	RET
+-
+-// int32 runtime·epollwait(int32 epfd, EpollEvent *ev, int32 nev, int32 timeout)
+-TEXT runtime·epollwait(SB),NOSPLIT,$0
+-	MOVW	epfd+0(FP), R0
+-	MOVW	ev+4(FP), R1
+-	MOVW	nev+8(FP), R2
+-	MOVW	timeout+12(FP), R3
+-	MOVW	$SYS_epoll_wait, R7
+-	SWI	$0
+-	MOVW	R0, ret+16(FP)
+-	RET
+-
+-// void runtime·closeonexec(int32 fd)
+-TEXT runtime·closeonexec(SB),NOSPLIT,$0
+-	MOVW	fd+0(FP), R0	// fd
+-	MOVW	$2, R1	// F_SETFD
+-	MOVW	$1, R2	// FD_CLOEXEC
+-	MOVW	$SYS_fcntl, R7
+-	SWI	$0
+-	RET
+-
+ // b __kuser_get_tls @ 0xffff0fe0
+ TEXT runtime·read_tls_fallback(SB),NOSPLIT|NOFRAME,$0
+ 	MOVW	$0xffff0fe0, R0
+diff --git a/src/runtime/sys_linux_arm64.s b/src/runtime/sys_linux_arm64.s
+index b47b6fd0a0..04a2cd2da1 100644
+--- a/src/runtime/sys_linux_arm64.s
++++ b/src/runtime/sys_linux_arm64.s
+@@ -22,7 +22,6 @@
+ #define SYS_openat		56
+ #define SYS_close		57
+ #define SYS_pipe2		59
+-#define SYS_fcntl		25
+ #define SYS_nanosleep		101
+ #define SYS_mmap		222
+ #define SYS_munmap		215
+@@ -42,9 +41,6 @@
+ #define SYS_futex		98
+ #define SYS_sched_getaffinity	123
+ #define SYS_exit_group		94
+-#define SYS_epoll_create1	20
+-#define SYS_epoll_ctl		21
+-#define SYS_epoll_pwait		22
+ #define SYS_clock_gettime	113
+ #define SYS_faccessat		48
+ #define SYS_socket		198
+@@ -762,54 +758,6 @@ TEXT runtime·sched_getaffinity(SB),NOSPLIT|NOFRAME,$0
+ 	MOVW	R0, ret+24(FP)
+ 	RET
+ 
+-// int32 runtime·epollcreate(int32 size);
+-TEXT runtime·epollcreate(SB),NOSPLIT|NOFRAME,$0
+-	MOVW	$0, R0
+-	MOVD	$SYS_epoll_create1, R8
+-	SVC
+-	MOVW	R0, ret+8(FP)
+-	RET
+-
+-// int32 runtime·epollcreate1(int32 flags);
+-TEXT runtime·epollcreate1(SB),NOSPLIT|NOFRAME,$0
+-	MOVW	flags+0(FP), R0
+-	MOVD	$SYS_epoll_create1, R8
+-	SVC
+-	MOVW	R0, ret+8(FP)
+-	RET
+-
+-// func epollctl(epfd, op, fd int32, ev *epollEvent) int
+-TEXT runtime·epollctl(SB),NOSPLIT|NOFRAME,$0
+-	MOVW	epfd+0(FP), R0
+-	MOVW	op+4(FP), R1
+-	MOVW	fd+8(FP), R2
+-	MOVD	ev+16(FP), R3
+-	MOVD	$SYS_epoll_ctl, R8
+-	SVC
+-	MOVW	R0, ret+24(FP)
+-	RET
+-
+-// int32 runtime·epollwait(int32 epfd, EpollEvent *ev, int32 nev, int32 timeout);
+-TEXT runtime·epollwait(SB),NOSPLIT|NOFRAME,$0
+-	MOVW	epfd+0(FP), R0
+-	MOVD	ev+8(FP), R1
+-	MOVW	nev+16(FP), R2
+-	MOVW	timeout+20(FP), R3
+-	MOVD	$0, R4
+-	MOVD	$SYS_epoll_pwait, R8
+-	SVC
+-	MOVW	R0, ret+24(FP)
+-	RET
+-
+-// void runtime·closeonexec(int32 fd);
+-TEXT runtime·closeonexec(SB),NOSPLIT|NOFRAME,$0
+-	MOVW	fd+0(FP), R0  // fd
+-	MOVD	$2, R1	// F_SETFD
+-	MOVD	$1, R2	// FD_CLOEXEC
+-	MOVD	$SYS_fcntl, R8
+-	SVC
+-	RET
+-
+ // int access(const char *name, int mode)
+ TEXT runtime·access(SB),NOSPLIT,$0-20
+ 	MOVD	$AT_FDCWD, R0
+diff --git a/src/runtime/sys_linux_loong64.s b/src/runtime/sys_linux_loong64.s
+index 36a92df87c..5705c37496 100644
+--- a/src/runtime/sys_linux_loong64.s
++++ b/src/runtime/sys_linux_loong64.s
+@@ -18,7 +18,6 @@
+ #define SYS_close		57
+ #define SYS_getpid		172
+ #define SYS_kill		129
+-#define SYS_fcntl		25
+ #define SYS_mmap		222
+ #define SYS_munmap		215
+ #define SYS_setitimer		103
+@@ -35,12 +34,9 @@
+ #define SYS_futex		98
+ #define SYS_sched_getaffinity	123
+ #define SYS_exit_group		94
+-#define SYS_epoll_ctl		21
+ #define SYS_tgkill		131
+ #define SYS_openat		56
+-#define SYS_epoll_pwait		22
+ #define SYS_clock_gettime	113
+-#define SYS_epoll_create1	20
+ #define SYS_brk			214
+ #define SYS_pipe2		59
+ #define SYS_timer_create	107
+@@ -534,54 +530,6 @@ TEXT runtime·sched_getaffinity(SB),NOSPLIT|NOFRAME,$0
+ 	MOVW	R4, ret+24(FP)
+ 	RET
+ 
+-// int32 runtime·epollcreate(int32 size);
+-TEXT runtime·epollcreate(SB),NOSPLIT|NOFRAME,$0
+-	MOVW	size+0(FP), R4
+-	MOVV	$SYS_epoll_create1, R11
+-	SYSCALL
+-	MOVW	R4, ret+8(FP)
+-	RET
+-
+-// int32 runtime·epollcreate1(int32 flags);
+-TEXT runtime·epollcreate1(SB),NOSPLIT|NOFRAME,$0
+-	MOVW	flags+0(FP), R4
+-	MOVV	$SYS_epoll_create1, R11
+-	SYSCALL
+-	MOVW	R4, ret+8(FP)
+-	RET
+-
+-// func epollctl(epfd, op, fd int32, ev *epollEvent) int
+-TEXT runtime·epollctl(SB),NOSPLIT|NOFRAME,$0
+-	MOVW	epfd+0(FP), R4
+-	MOVW	op+4(FP), R5
+-	MOVW	fd+8(FP), R6
+-	MOVV	ev+16(FP), R7
+-	MOVV	$SYS_epoll_ctl, R11
+-	SYSCALL
+-	MOVW	R4, ret+24(FP)
+-	RET
+-
+-// int32 runtime·epollwait(int32 epfd, EpollEvent *ev, int32 nev, int32 timeout);
+-TEXT runtime·epollwait(SB),NOSPLIT|NOFRAME,$0
+-	MOVW	epfd+0(FP), R4
+-	MOVV	ev+8(FP), R5
+-	MOVW	nev+16(FP), R6
+-	MOVW	timeout+20(FP), R7
+-	MOVV	$0, R8
+-	MOVV	$SYS_epoll_pwait, R11
+-	SYSCALL
+-	MOVW	R4, ret+24(FP)
+-	RET
+-
+-// void runtime·closeonexec(int32 fd);
+-TEXT runtime·closeonexec(SB),NOSPLIT|NOFRAME,$0
+-	MOVW	fd+0(FP), R4  // fd
+-	MOVV	$2, R5	// F_SETFD
+-	MOVV	$1, R6	// FD_CLOEXEC
+-	MOVV	$SYS_fcntl, R11
+-	SYSCALL
+-	RET
+-
+ // func sbrk0() uintptr
+ TEXT runtime·sbrk0(SB),NOSPLIT|NOFRAME,$0-8
+ 	// Implemented as brk(NULL).
+diff --git a/src/runtime/sys_linux_mips64x.s b/src/runtime/sys_linux_mips64x.s
+index 06d54dff78..5d11339584 100644
+--- a/src/runtime/sys_linux_mips64x.s
++++ b/src/runtime/sys_linux_mips64x.s
+@@ -20,7 +20,6 @@
+ #define SYS_close		5003
+ #define SYS_getpid		5038
+ #define SYS_kill		5060
+-#define SYS_fcntl		5070
+ #define SYS_mmap		5009
+ #define SYS_munmap		5011
+ #define SYS_setitimer		5036
+@@ -37,16 +36,12 @@
+ #define SYS_futex		5194
+ #define SYS_sched_getaffinity	5196
+ #define SYS_exit_group		5205
+-#define SYS_epoll_create	5207
+-#define SYS_epoll_ctl		5208
+ #define SYS_timer_create	5216
+ #define SYS_timer_settime	5217
+ #define SYS_timer_delete	5220
+ #define SYS_tgkill		5225
+ #define SYS_openat		5247
+-#define SYS_epoll_pwait		5272
+ #define SYS_clock_gettime	5222
+-#define SYS_epoll_create1	5285
+ #define SYS_brk			5012
+ #define SYS_pipe2		5287
+ 
+@@ -568,62 +563,6 @@ TEXT runtime·sched_getaffinity(SB),NOSPLIT|NOFRAME,$0
+ 	MOVW	R2, ret+24(FP)
+ 	RET
+ 
+-// int32 runtime·epollcreate(int32 size);
+-TEXT runtime·epollcreate(SB),NOSPLIT|NOFRAME,$0
+-	MOVW    size+0(FP), R4
+-	MOVV	$SYS_epoll_create, R2
+-	SYSCALL
+-	BEQ	R7, 2(PC)
+-	SUBVU	R2, R0, R2	// caller expects negative errno
+-	MOVW	R2, ret+8(FP)
+-	RET
+-
+-// int32 runtime·epollcreate1(int32 flags);
+-TEXT runtime·epollcreate1(SB),NOSPLIT|NOFRAME,$0
+-	MOVW	flags+0(FP), R4
+-	MOVV	$SYS_epoll_create1, R2
+-	SYSCALL
+-	BEQ	R7, 2(PC)
+-	SUBVU	R2, R0, R2	// caller expects negative errno
+-	MOVW	R2, ret+8(FP)
+-	RET
+-
+-// func epollctl(epfd, op, fd int32, ev *epollEvent) int
+-TEXT runtime·epollctl(SB),NOSPLIT|NOFRAME,$0
+-	MOVW	epfd+0(FP), R4
+-	MOVW	op+4(FP), R5
+-	MOVW	fd+8(FP), R6
+-	MOVV	ev+16(FP), R7
+-	MOVV	$SYS_epoll_ctl, R2
+-	SYSCALL
+-	SUBVU	R2, R0, R2	// caller expects negative errno
+-	MOVW	R2, ret+24(FP)
+-	RET
+-
+-// int32 runtime·epollwait(int32 epfd, EpollEvent *ev, int32 nev, int32 timeout);
+-TEXT runtime·epollwait(SB),NOSPLIT|NOFRAME,$0
+-	// This uses pwait instead of wait, because Android O blocks wait.
+-	MOVW	epfd+0(FP), R4
+-	MOVV	ev+8(FP), R5
+-	MOVW	nev+16(FP), R6
+-	MOVW	timeout+20(FP), R7
+-	MOVV	$0, R8
+-	MOVV	$SYS_epoll_pwait, R2
+-	SYSCALL
+-	BEQ	R7, 2(PC)
+-	SUBVU	R2, R0, R2	// caller expects negative errno
+-	MOVW	R2, ret+24(FP)
+-	RET
+-
+-// void runtime·closeonexec(int32 fd);
+-TEXT runtime·closeonexec(SB),NOSPLIT|NOFRAME,$0
+-	MOVW    fd+0(FP), R4  // fd
+-	MOVV    $2, R5  // F_SETFD
+-	MOVV    $1, R6  // FD_CLOEXEC
+-	MOVV	$SYS_fcntl, R2
+-	SYSCALL
+-	RET
+-
+ // func sbrk0() uintptr
+ TEXT runtime·sbrk0(SB),NOSPLIT|NOFRAME,$0-8
+ 	// Implemented as brk(NULL).
+diff --git a/src/runtime/sys_linux_mipsx.s b/src/runtime/sys_linux_mipsx.s
+index e70edcc0e2..c4507c6098 100644
+--- a/src/runtime/sys_linux_mipsx.s
++++ b/src/runtime/sys_linux_mipsx.s
+@@ -20,7 +20,6 @@
+ #define SYS_getpid		4020
+ #define SYS_kill		4037
+ #define SYS_brk			4045
+-#define SYS_fcntl		4055
+ #define SYS_mmap		4090
+ #define SYS_munmap		4091
+ #define SYS_setitimer		4104
+@@ -37,15 +36,11 @@
+ #define SYS_futex		4238
+ #define SYS_sched_getaffinity	4240
+ #define SYS_exit_group		4246
+-#define SYS_epoll_create	4248
+-#define SYS_epoll_ctl		4249
+-#define SYS_epoll_wait		4250
+ #define SYS_timer_create	4257
+ #define SYS_timer_settime	4258
+ #define SYS_timer_delete	4261
+ #define SYS_clock_gettime	4263
+ #define SYS_tgkill		4266
+-#define SYS_epoll_create1	4326
+ #define SYS_pipe2		4328
+ 
+ TEXT runtime·exit(SB),NOSPLIT,$0-4
+@@ -487,60 +482,6 @@ TEXT runtime·sched_getaffinity(SB),NOSPLIT,$0-16
+ 	MOVW	R2, ret+12(FP)
+ 	RET
+ 
+-// int32 runtime·epollcreate(int32 size);
+-TEXT runtime·epollcreate(SB),NOSPLIT,$0-8
+-	MOVW	size+0(FP), R4
+-	MOVW	$SYS_epoll_create, R2
+-	SYSCALL
+-	BEQ	R7, 2(PC)
+-	SUBU	R2, R0, R2	// caller expects negative errno
+-	MOVW	R2, ret+4(FP)
+-	RET
+-
+-// int32 runtime·epollcreate1(int32 flags);
+-TEXT runtime·epollcreate1(SB),NOSPLIT,$0-8
+-	MOVW	flags+0(FP), R4
+-	MOVW	$SYS_epoll_create1, R2
+-	SYSCALL
+-	BEQ	R7, 2(PC)
+-	SUBU	R2, R0, R2	// caller expects negative errno
+-	MOVW	R2, ret+4(FP)
+-	RET
+-
+-// func epollctl(epfd, op, fd int32, ev *epollEvent) int
+-TEXT runtime·epollctl(SB),NOSPLIT,$0-20
+-	MOVW	epfd+0(FP), R4
+-	MOVW	op+4(FP), R5
+-	MOVW	fd+8(FP), R6
+-	MOVW	ev+12(FP), R7
+-	MOVW	$SYS_epoll_ctl, R2
+-	SYSCALL
+-	SUBU	R2, R0, R2	// caller expects negative errno
+-	MOVW	R2, ret+16(FP)
+-	RET
+-
+-// int32 runtime·epollwait(int32 epfd, EpollEvent *ev, int32 nev, int32 timeout);
+-TEXT runtime·epollwait(SB),NOSPLIT,$0-20
+-	MOVW	epfd+0(FP), R4
+-	MOVW	ev+4(FP), R5
+-	MOVW	nev+8(FP), R6
+-	MOVW	timeout+12(FP), R7
+-	MOVW	$SYS_epoll_wait, R2
+-	SYSCALL
+-	BEQ	R7, 2(PC)
+-	SUBU	R2, R0, R2	// caller expects negative errno
+-	MOVW	R2, ret+16(FP)
+-	RET
+-
+-// void runtime·closeonexec(int32 fd);
+-TEXT runtime·closeonexec(SB),NOSPLIT,$0-4
+-	MOVW	fd+0(FP), R4	// fd
+-	MOVW	$2, R5	// F_SETFD
+-	MOVW	$1, R6	// FD_CLOEXEC
+-	MOVW	$SYS_fcntl, R2
+-	SYSCALL
+-	RET
+-
+ // func sbrk0() uintptr
+ TEXT runtime·sbrk0(SB),NOSPLIT,$0-4
+ 	// Implemented as brk(NULL).
+diff --git a/src/runtime/sys_linux_ppc64x.s b/src/runtime/sys_linux_ppc64x.s
+index 2913a05f56..853008d5fe 100644
+--- a/src/runtime/sys_linux_ppc64x.s
++++ b/src/runtime/sys_linux_ppc64x.s
+@@ -21,7 +21,6 @@
+ #define SYS_getpid		 20
+ #define SYS_kill		 37
+ #define SYS_brk			 45
+-#define SYS_fcntl		 55
+ #define SYS_mmap		 90
+ #define SYS_munmap		 91
+ #define SYS_setitimer		104
+@@ -38,15 +37,11 @@
+ #define SYS_futex		221
+ #define SYS_sched_getaffinity	223
+ #define SYS_exit_group		234
+-#define SYS_epoll_create	236
+-#define SYS_epoll_ctl		237
+-#define SYS_epoll_wait		238
+ #define SYS_timer_create	240
+ #define SYS_timer_settime	241
+ #define SYS_timer_delete	244
+ #define SYS_clock_gettime	246
+ #define SYS_tgkill		250
+-#define SYS_epoll_create1	315
+ #define SYS_pipe2		317
+ 
+ TEXT runtime·exit(SB),NOSPLIT|NOFRAME,$0-4
+@@ -876,55 +871,6 @@ TEXT runtime·sched_getaffinity(SB),NOSPLIT|NOFRAME,$0
+ 	MOVW	R3, ret+24(FP)
+ 	RET
+ 
+-// int32 runtime·epollcreate(int32 size);
+-TEXT runtime·epollcreate(SB),NOSPLIT|NOFRAME,$0
+-	MOVW    size+0(FP), R3
+-	SYSCALL	$SYS_epoll_create
+-	BVC	2(PC)
+-	NEG	R3	// caller expects negative errno
+-	MOVW	R3, ret+8(FP)
+-	RET
+-
+-// int32 runtime·epollcreate1(int32 flags);
+-TEXT runtime·epollcreate1(SB),NOSPLIT|NOFRAME,$0
+-	MOVW	flags+0(FP), R3
+-	SYSCALL	$SYS_epoll_create1
+-	BVC	2(PC)
+-	NEG	R3	// caller expects negative errno
+-	MOVW	R3, ret+8(FP)
+-	RET
+-
+-// func epollctl(epfd, op, fd int32, ev *epollEvent) int
+-TEXT runtime·epollctl(SB),NOSPLIT|NOFRAME,$0
+-	MOVW	epfd+0(FP), R3
+-	MOVW	op+4(FP), R4
+-	MOVW	fd+8(FP), R5
+-	MOVD	ev+16(FP), R6
+-	SYSCALL	$SYS_epoll_ctl
+-	NEG	R3	// caller expects negative errno
+-	MOVW	R3, ret+24(FP)
+-	RET
+-
+-// int32 runtime·epollwait(int32 epfd, EpollEvent *ev, int32 nev, int32 timeout);
+-TEXT runtime·epollwait(SB),NOSPLIT|NOFRAME,$0
+-	MOVW	epfd+0(FP), R3
+-	MOVD	ev+8(FP), R4
+-	MOVW	nev+16(FP), R5
+-	MOVW	timeout+20(FP), R6
+-	SYSCALL	$SYS_epoll_wait
+-	BVC	2(PC)
+-	NEG	R3	// caller expects negative errno
+-	MOVW	R3, ret+24(FP)
+-	RET
+-
+-// void runtime·closeonexec(int32 fd);
+-TEXT runtime·closeonexec(SB),NOSPLIT|NOFRAME,$0
+-	MOVW    fd+0(FP), R3  // fd
+-	MOVD    $2, R4  // F_SETFD
+-	MOVD    $1, R5  // FD_CLOEXEC
+-	SYSCALL	$SYS_fcntl
+-	RET
+-
+ // func sbrk0() uintptr
+ TEXT runtime·sbrk0(SB),NOSPLIT|NOFRAME,$0
+ 	// Implemented as brk(NULL).
+diff --git a/src/runtime/sys_linux_riscv64.s b/src/runtime/sys_linux_riscv64.s
+index afb2d11da9..f4fb1c124b 100644
+--- a/src/runtime/sys_linux_riscv64.s
++++ b/src/runtime/sys_linux_riscv64.s
+@@ -18,13 +18,9 @@
+ #define SYS_clone		220
+ #define SYS_close		57
+ #define SYS_connect		203
+-#define SYS_epoll_create1	20
+-#define SYS_epoll_ctl		21
+-#define SYS_epoll_pwait		22
+ #define SYS_exit		93
+ #define SYS_exit_group		94
+ #define SYS_faccessat		48
+-#define SYS_fcntl		25
+ #define SYS_futex		98
+ #define SYS_getpid		172
+ #define SYS_gettid		178
+@@ -578,54 +574,6 @@ TEXT runtime·sched_getaffinity(SB),NOSPLIT|NOFRAME,$0
+ 	MOV	A0, ret+24(FP)
+ 	RET
+ 
+-// func epollcreate(size int32) int32
+-TEXT runtime·epollcreate(SB),NOSPLIT|NOFRAME,$0
+-	MOV	$0, A0
+-	MOV	$SYS_epoll_create1, A7
+-	ECALL
+-	MOVW	A0, ret+8(FP)
+-	RET
+-
+-// func epollcreate1(flags int32) int32
+-TEXT runtime·epollcreate1(SB),NOSPLIT|NOFRAME,$0
+-	MOVW	flags+0(FP), A0
+-	MOV	$SYS_epoll_create1, A7
+-	ECALL
+-	MOVW	A0, ret+8(FP)
+-	RET
+-
+-// func epollctl(epfd, op, fd int32, ev *epollevent) int32
+-TEXT runtime·epollctl(SB),NOSPLIT|NOFRAME,$0
+-	MOVW	epfd+0(FP), A0
+-	MOVW	op+4(FP), A1
+-	MOVW	fd+8(FP), A2
+-	MOV	ev+16(FP), A3
+-	MOV	$SYS_epoll_ctl, A7
+-	ECALL
+-	MOVW	A0, ret+24(FP)
+-	RET
+-
+-// func epollwait(epfd int32, ev *epollevent, nev, timeout int32) int32
+-TEXT runtime·epollwait(SB),NOSPLIT|NOFRAME,$0
+-	MOVW	epfd+0(FP), A0
+-	MOV	ev+8(FP), A1
+-	MOVW	nev+16(FP), A2
+-	MOVW	timeout+20(FP), A3
+-	MOV	$0, A4
+-	MOV	$SYS_epoll_pwait, A7
+-	ECALL
+-	MOVW	A0, ret+24(FP)
+-	RET
+-
+-// func closeonexec(int32)
+-TEXT runtime·closeonexec(SB),NOSPLIT|NOFRAME,$0
+-	MOVW	fd+0(FP), A0  // fd
+-	MOV	$2, A1	// F_SETFD
+-	MOV	$1, A2	// FD_CLOEXEC
+-	MOV	$SYS_fcntl, A7
+-	ECALL
+-	RET
+-
+ // func sbrk0() uintptr
+ TEXT runtime·sbrk0(SB),NOSPLIT,$0-8
+ 	// Implemented as brk(NULL).
+diff --git a/src/runtime/sys_linux_s390x.s b/src/runtime/sys_linux_s390x.s
+index c82cb9b4aa..777a4747d4 100644
+--- a/src/runtime/sys_linux_s390x.s
++++ b/src/runtime/sys_linux_s390x.s
+@@ -17,7 +17,6 @@
+ #define SYS_getpid               20
+ #define SYS_kill                 37
+ #define SYS_brk			 45
+-#define SYS_fcntl                55
+ #define SYS_mmap                 90
+ #define SYS_munmap               91
+ #define SYS_setitimer           104
+@@ -35,15 +34,11 @@
+ #define SYS_sched_getaffinity   240
+ #define SYS_tgkill              241
+ #define SYS_exit_group          248
+-#define SYS_epoll_create        249
+-#define SYS_epoll_ctl           250
+-#define SYS_epoll_wait          251
+ #define SYS_timer_create        254
+ #define SYS_timer_settime       255
+ #define SYS_timer_delete        258
+ #define SYS_clock_gettime       260
+ #define SYS_pipe2		325
+-#define SYS_epoll_create1       327
+ 
+ TEXT runtime·exit(SB),NOSPLIT|NOFRAME,$0-4
+ 	MOVW	code+0(FP), R2
+@@ -589,53 +584,6 @@ TEXT runtime·sched_getaffinity(SB),NOSPLIT|NOFRAME,$0
+ 	MOVW	R2, ret+24(FP)
+ 	RET
+ 
+-// int32 runtime·epollcreate(int32 size);
+-TEXT runtime·epollcreate(SB),NOSPLIT|NOFRAME,$0
+-	MOVW    size+0(FP), R2
+-	MOVW	$SYS_epoll_create, R1
+-	SYSCALL
+-	MOVW	R2, ret+8(FP)
+-	RET
+-
+-// int32 runtime·epollcreate1(int32 flags);
+-TEXT runtime·epollcreate1(SB),NOSPLIT|NOFRAME,$0
+-	MOVW	flags+0(FP), R2
+-	MOVW	$SYS_epoll_create1, R1
+-	SYSCALL
+-	MOVW	R2, ret+8(FP)
+-	RET
+-
+-// func epollctl(epfd, op, fd int32, ev *epollEvent) int
+-TEXT runtime·epollctl(SB),NOSPLIT|NOFRAME,$0
+-	MOVW	epfd+0(FP), R2
+-	MOVW	op+4(FP), R3
+-	MOVW	fd+8(FP), R4
+-	MOVD	ev+16(FP), R5
+-	MOVW	$SYS_epoll_ctl, R1
+-	SYSCALL
+-	MOVW	R2, ret+24(FP)
+-	RET
+-
+-// int32 runtime·epollwait(int32 epfd, EpollEvent *ev, int32 nev, int32 timeout);
+-TEXT runtime·epollwait(SB),NOSPLIT|NOFRAME,$0
+-	MOVW	epfd+0(FP), R2
+-	MOVD	ev+8(FP), R3
+-	MOVW	nev+16(FP), R4
+-	MOVW	timeout+20(FP), R5
+-	MOVW	$SYS_epoll_wait, R1
+-	SYSCALL
+-	MOVW	R2, ret+24(FP)
+-	RET
+-
+-// void runtime·closeonexec(int32 fd);
+-TEXT runtime·closeonexec(SB),NOSPLIT|NOFRAME,$0
+-	MOVW    fd+0(FP), R2  // fd
+-	MOVD    $2, R3  // F_SETFD
+-	MOVD    $1, R4  // FD_CLOEXEC
+-	MOVW	$SYS_fcntl, R1
+-	SYSCALL
+-	RET
+-
+ // func sbrk0() uintptr
+ TEXT runtime·sbrk0(SB),NOSPLIT|NOFRAME,$0-8
+ 	// Implemented as brk(NULL).

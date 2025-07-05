@@ -12,7 +12,82 @@ Date:   Tue May 24 15:43:25 2016 -0700
     Change-Id: Ib35c7c85bf58e5909ea9231043f8cbaa6bf278b7
     Reviewed-on: https://go-review.googlesource.com/23406
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/ssa/gen/rulegen.go |  7 ++-----
  src/cmd/compile/internal/ssa/rewrite.go     | 27 +++++++++++++++++++++++++++
  2 files changed, 29 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/rulegen.go b/src/cmd/compile/internal/ssa/gen/rulegen.go
+index fcabdb1dd9..0fc5749f1d 100644
+--- a/src/cmd/compile/internal/ssa/gen/rulegen.go
++++ b/src/cmd/compile/internal/ssa/gen/rulegen.go
+@@ -150,9 +150,6 @@ func genRules(arch arch) {
+ 	fmt.Fprintln(w, "// generated with: cd gen; go run *.go")
+ 	fmt.Fprintln(w)
+ 	fmt.Fprintln(w, "package ssa")
+-	if *genLog {
+-		fmt.Fprintln(w, "import \"fmt\"")
+-	}
+ 	fmt.Fprintln(w, "import \"math\"")
+ 	fmt.Fprintln(w, "var _ = math.MinInt8 // in case not otherwise used")
+ 
+@@ -196,7 +193,7 @@ func genRules(arch arch) {
+ 
+ 			genResult(w, arch, result, rule.loc)
+ 			if *genLog {
+-				fmt.Fprintf(w, "fmt.Println(\"rewrite %s\")\n", rule.loc)
++				fmt.Fprintf(w, "logRule(\"%s\")\n", rule.loc)
+ 			}
+ 			fmt.Fprintf(w, "return true\n")
+ 
+@@ -300,7 +297,7 @@ func genRules(arch arch) {
+ 			}
+ 
+ 			if *genLog {
+-				fmt.Fprintf(w, "fmt.Println(\"rewrite %s\")\n", rule.loc)
++				fmt.Fprintf(w, "logRule(\"%s\")\n", rule.loc)
+ 			}
+ 			fmt.Fprintf(w, "return true\n")
+ 
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index 7d6d2179f7..03c38827cc 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -7,6 +7,8 @@ package ssa
+ import (
+ 	"fmt"
+ 	"math"
++	"os"
++	"path/filepath"
+ )
+ 
+ func applyRewrite(f *Func, rb func(*Block) bool, rv func(*Value, *Config) bool) {
+@@ -357,3 +359,28 @@ func clobber(v *Value) bool {
+ 	// Note: leave v.Block intact.  The Block field is used after clobber.
+ 	return true
+ }
++
++// logRule logs the use of the rule s. This will only be enabled if
++// rewrite rules were generated with the -log option, see gen/rulegen.go.
++func logRule(s string) {
++	if ruleFile == nil {
++		// Open a log file to write log to. We open in append
++		// mode because all.bash runs the compiler lots of times,
++		// and we want the concatenation of all of those logs.
++		// This means, of course, that users need to rm the old log
++		// to get fresh data.
++		// TODO: all.bash runs compilers in parallel. Need to synchronize logging somehow?
++		w, err := os.OpenFile(filepath.Join(os.Getenv("GOROOT"), "src", "rulelog"),
++			os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
++		if err != nil {
++			panic(err)
++		}
++		ruleFile = w
++	}
++	_, err := fmt.Fprintf(ruleFile, "rewrite %s\n", s)
++	if err != nil {
++		panic(err)
++	}
++}
++
++var ruleFile *os.File

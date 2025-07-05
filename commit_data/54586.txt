@@ -13,6 +13,20 @@ Date:   Wed Nov 2 14:19:36 2022 +0000
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/go/parser/parser.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/go/parser/parser.go b/src/go/parser/parser.go
+index bd7b3945ea..4dcfaca299 100644
+--- a/src/go/parser/parser.go
++++ b/src/go/parser/parser.go
+@@ -1387,7 +1387,7 @@ func (p *parser) parseFuncTypeOrLit() ast.Expr {
+ }
+ 
+ // parseOperand may return an expression or a raw type (incl. array
+-// types of the form [...]T. Callers must verify the result.
++// types of the form [...]T). Callers must verify the result.
+ func (p *parser) parseOperand() ast.Expr {
+ 	if p.trace {
+ 		defer un(trace(p, "Operand"))

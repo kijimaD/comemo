@@ -13,10 +13,180 @@ Date:   Mon Apr 19 17:37:25 2021 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/311379
     Trust: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/compile/internal/walk/assign.go  | 10 +--------
  src/cmd/compile/internal/walk/builtin.go |  5 +----
  src/cmd/compile/internal/walk/expr.go    | 36 ++++++++++++++++++++++----------
  src/cmd/compile/internal/walk/order.go   | 10 +++++----
  test/abi/map.go                          | 34 ++++++++++++++++++++++++++++++
  5 files changed, 67 insertions(+), 28 deletions(-)
+
+diff --git a/src/cmd/compile/internal/walk/assign.go b/src/cmd/compile/internal/walk/assign.go
+index 4ab219f5ea..c8342b4fa4 100644
+--- a/src/cmd/compile/internal/walk/assign.go
++++ b/src/cmd/compile/internal/walk/assign.go
+@@ -157,15 +157,7 @@ func walkAssignMapRead(init *ir.Nodes, n *ir.AssignListStmt) ir.Node {
+ 	t := r.X.Type()
+ 
+ 	fast := mapfast(t)
+-	var key ir.Node
+-	if fast != mapslow {
+-		// fast versions take key by value
+-		key = r.Index
+-	} else {
+-		// standard version takes key by reference
+-		// order.expr made sure key is addressable.
+-		key = typecheck.NodAddr(r.Index)
+-	}
++	key := mapKeyArg(fast, r, r.Index)
+ 
+ 	// from:
+ 	//   a,b = m[i]
+diff --git a/src/cmd/compile/internal/walk/builtin.go b/src/cmd/compile/internal/walk/builtin.go
+index b5b24b26ca..684fc7d72a 100644
+--- a/src/cmd/compile/internal/walk/builtin.go
++++ b/src/cmd/compile/internal/walk/builtin.go
+@@ -214,10 +214,7 @@ func walkDelete(init *ir.Nodes, n *ir.CallExpr) ir.Node {
+ 
+ 	t := map_.Type()
+ 	fast := mapfast(t)
+-	if fast == mapslow {
+-		// order.stmt made sure key is addressable.
+-		key = typecheck.NodAddr(key)
+-	}
++	key = mapKeyArg(fast, n, key)
+ 	return mkcall1(mapfndel(mapdelete[fast], t), nil, init, reflectdata.TypePtr(t), map_, key)
+ }
+ 
+diff --git a/src/cmd/compile/internal/walk/expr.go b/src/cmd/compile/internal/walk/expr.go
+index d8160d971c..6affbd4aec 100644
+--- a/src/cmd/compile/internal/walk/expr.go
++++ b/src/cmd/compile/internal/walk/expr.go
+@@ -669,6 +669,29 @@ func walkIndex(n *ir.IndexExpr, init *ir.Nodes) ir.Node {
+ 	return n
+ }
+ 
++// mapKeyArg returns an expression for key that is suitable to be passed
++// as the key argument for mapaccess and mapdelete functions.
++// n is is the map indexing or delete Node (to provide Pos).
++// Note: this is not used for mapassign, which does distinguish pointer vs.
++// integer key.
++func mapKeyArg(fast int, n, key ir.Node) ir.Node {
++	switch fast {
++	case mapslow:
++		// standard version takes key by reference.
++		// order.expr made sure key is addressable.
++		return typecheck.NodAddr(key)
++	case mapfast32ptr:
++		// mapaccess and mapdelete don't distinguish pointer vs. integer key.
++		return ir.NewConvExpr(n.Pos(), ir.OCONVNOP, types.Types[types.TUINT32], key)
++	case mapfast64ptr:
++		// mapaccess and mapdelete don't distinguish pointer vs. integer key.
++		return ir.NewConvExpr(n.Pos(), ir.OCONVNOP, types.Types[types.TUINT64], key)
++	default:
++		// fast version takes key by value.
++		return key
++	}
++}
++
+ // walkIndexMap walks an OINDEXMAP node.
+ func walkIndexMap(n *ir.IndexExpr, init *ir.Nodes) ir.Node {
+ 	// Replace m[k] with *map{access1,assign}(maptype, m, &k)
+@@ -681,25 +704,16 @@ func walkIndexMap(n *ir.IndexExpr, init *ir.Nodes) ir.Node {
+ 	if n.Assigned {
+ 		// This m[k] expression is on the left-hand side of an assignment.
+ 		fast := mapfast(t)
+-		switch fast {
+-		case mapslow:
++		if fast == mapslow {
+ 			// standard version takes key by reference.
+ 			// order.expr made sure key is addressable.
+ 			key = typecheck.NodAddr(key)
+-		case mapfast32ptr, mapfast64ptr:
+-			// pointer version takes pointer key.
+-			key = ir.NewConvExpr(n.Pos(), ir.OCONVNOP, types.Types[types.TUNSAFEPTR], key)
+ 		}
+ 		call = mkcall1(mapfn(mapassign[fast], t, false), nil, init, reflectdata.TypePtr(t), map_, key)
+ 	} else {
+ 		// m[k] is not the target of an assignment.
+ 		fast := mapfast(t)
+-		if fast == mapslow {
+-			// standard version takes key by reference.
+-			// order.expr made sure key is addressable.
+-			key = typecheck.NodAddr(key)
+-		}
+-
++		key = mapKeyArg(fast, n, key)
+ 		if w := t.Elem().Width; w <= zeroValSize {
+ 			call = mkcall1(mapfn(mapaccess1[fast], t, false), types.NewPtr(t.Elem()), init, reflectdata.TypePtr(t), map_, key)
+ 		} else {
+diff --git a/src/cmd/compile/internal/walk/order.go b/src/cmd/compile/internal/walk/order.go
+index 7b69f34e85..dcb8f654f5 100644
+--- a/src/cmd/compile/internal/walk/order.go
++++ b/src/cmd/compile/internal/walk/order.go
+@@ -276,10 +276,12 @@ func (o *orderState) mapKeyTemp(t *types.Type, n ir.Node) ir.Node {
+ 	}
+ 	var kt *types.Type
+ 	switch alg {
+-	case mapfast32, mapfast32ptr:
++	case mapfast32:
+ 		kt = types.Types[types.TUINT32]
+-	case mapfast64, mapfast64ptr:
++	case mapfast64:
+ 		kt = types.Types[types.TUINT64]
++	case mapfast32ptr, mapfast64ptr:
++		kt = types.Types[types.TUNSAFEPTR]
+ 	case mapfaststr:
+ 		kt = types.Types[types.TSTRING]
+ 	}
+@@ -287,8 +289,8 @@ func (o *orderState) mapKeyTemp(t *types.Type, n ir.Node) ir.Node {
+ 	switch {
+ 	case nt == kt:
+ 		return n
+-	case nt.Kind() == kt.Kind():
+-		// can directly convert (e.g. named type to underlying type)
++	case nt.Kind() == kt.Kind(), nt.IsPtrShaped() && kt.IsPtrShaped():
++		// can directly convert (e.g. named type to underlying type, or one pointer to another)
+ 		return typecheck.Expr(ir.NewConvExpr(n.Pos(), ir.OCONVNOP, kt, n))
+ 	case nt.IsInteger() && kt.IsInteger():
+ 		// can directly convert (e.g. int32 to uint32)
+diff --git a/test/abi/map.go b/test/abi/map.go
+new file mode 100644
+index 0000000000..236655a3af
+--- /dev/null
++++ b/test/abi/map.go
+@@ -0,0 +1,34 @@
++// run
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "runtime"
++
++type T [10]int
++
++var m map[*T]int
++
++//go:noinline
++func F() {
++	m = map[*T]int{
++		K(): V(), // the key temp should be live across call to V
++	}
++}
++
++//go:noinline
++func V() int { runtime.GC(); runtime.GC(); runtime.GC(); return 123 }
++
++//go:noinline
++func K() *T {
++	p := new(T)
++	runtime.SetFinalizer(p, func(*T) { println("FAIL") })
++	return p
++}
++
++func main() {
++	F()
++}

@@ -17,7 +17,7 @@ Date:   Fri Aug 29 09:54:00 2014 -0700
     R=golang-codereviews, adg
     CC=golang-codereviews
     https://golang.org/cl/130620043
-
+---
  src/pkg/html/template/error.go            |  16 +-
  src/pkg/html/template/escape.go           |  75 ++++-----
  src/pkg/html/template/escape_test.go      |  18 +--
@@ -27,3 +27,1242 @@ Date:   Fri Aug 29 09:54:00 2014 -0700
  src/pkg/text/template/parse/parse.go      |  62 ++++----
  src/pkg/text/template/parse/parse_test.go |   3 +-
  8 files changed, 272 insertions(+), 168 deletions(-)
+
+diff --git a/src/pkg/html/template/error.go b/src/pkg/html/template/error.go
+index 46e49ccf83..8f99e1b962 100644
+--- a/src/pkg/html/template/error.go
++++ b/src/pkg/html/template/error.go
+@@ -6,12 +6,16 @@ package template
+ 
+ import (
+ 	"fmt"
++	"text/template/parse"
+ )
+ 
+ // Error describes a problem encountered during template Escaping.
+ type Error struct {
+ 	// ErrorCode describes the kind of error.
+ 	ErrorCode ErrorCode
++	// Node is the node that caused the problem, if known.
++	// If not nil, it overrides Name and Line.
++	Node parse.Node
+ 	// Name is the name of the template in which the error was encountered.
+ 	Name string
+ 	// Line is the line number of the error in the template source or 0.
+@@ -182,9 +186,13 @@ const (
+ )
+ 
+ func (e *Error) Error() string {
+-	if e.Line != 0 {
++	switch {
++	case e.Node != nil:
++		loc, _ := (*parse.Tree)(nil).ErrorContext(e.Node)
++		return fmt.Sprintf("html/template:%s: %s", loc, e.Description)
++	case e.Line != 0:
+ 		return fmt.Sprintf("html/template:%s:%d: %s", e.Name, e.Line, e.Description)
+-	} else if e.Name != "" {
++	case e.Name != "":
+ 		return fmt.Sprintf("html/template:%s: %s", e.Name, e.Description)
+ 	}
+ 	return "html/template: " + e.Description
+@@ -192,6 +200,6 @@ func (e *Error) Error() string {
+ 
+ // errorf creates an error given a format string f and args.
+ // The template Name still needs to be supplied.
+-func errorf(k ErrorCode, line int, f string, args ...interface{}) *Error {
+-	return &Error{k, "", line, fmt.Sprintf(f, args...)}
++func errorf(k ErrorCode, node parse.Node, line int, f string, args ...interface{}) *Error {
++	return &Error{k, node, "", line, fmt.Sprintf(f, args...)}
+ }
+diff --git a/src/pkg/html/template/escape.go b/src/pkg/html/template/escape.go
+index 3ba3747f6f..ee01fb12ab 100644
+--- a/src/pkg/html/template/escape.go
++++ b/src/pkg/html/template/escape.go
+@@ -13,41 +13,33 @@ import (
+ 	"text/template/parse"
+ )
+ 
+-// escapeTemplates rewrites the named templates, which must be
++// escapeTemplate rewrites the named template, which must be
+ // associated with t, to guarantee that the output of any of the named
+-// templates is properly escaped.  Names should include the names of
+-// all templates that might be Executed but need not include helper
+-// templates.  If no error is returned, then the named templates have
++// templates is properly escaped.  If no error is returned, then the named templates have
+ // been modified.  Otherwise the named templates have been rendered
+ // unusable.
+-func escapeTemplates(tmpl *Template, names ...string) error {
++func escapeTemplate(tmpl *Template, node parse.Node, name string) error {
+ 	e := newEscaper(tmpl)
+-	for _, name := range names {
+-		c, _ := e.escapeTree(context{}, name, 0)
+-		var err error
+-		if c.err != nil {
+-			err, c.err.Name = c.err, name
+-		} else if c.state != stateText {
+-			err = &Error{ErrEndContext, name, 0, fmt.Sprintf("ends in a non-text context: %v", c)}
+-		}
+-		if err != nil {
+-			// Prevent execution of unsafe templates.
+-			for _, name := range names {
+-				if t := tmpl.set[name]; t != nil {
+-					t.escapeErr = err
+-					t.text.Tree = nil
+-					t.Tree = nil
+-				}
+-			}
+-			return err
++	c, _ := e.escapeTree(context{}, node, name, 0)
++	var err error
++	if c.err != nil {
++		err, c.err.Name = c.err, name
++	} else if c.state != stateText {
++		err = &Error{ErrEndContext, nil, name, 0, fmt.Sprintf("ends in a non-text context: %v", c)}
++	}
++	if err != nil {
++		// Prevent execution of unsafe templates.
++		if t := tmpl.set[name]; t != nil {
++			t.escapeErr = err
++			t.text.Tree = nil
++			t.Tree = nil
+ 		}
++		return err
+ 	}
+ 	e.commit()
+-	for _, name := range names {
+-		if t := tmpl.set[name]; t != nil {
+-			t.escapeErr = escapeOK
+-			t.Tree = t.text.Tree
+-		}
++	if t := tmpl.set[name]; t != nil {
++		t.escapeErr = escapeOK
++		t.Tree = t.text.Tree
+ 	}
+ 	return nil
+ }
+@@ -169,7 +161,7 @@ func (e *escaper) escapeAction(c context, n *parse.ActionNode) context {
+ 		case urlPartUnknown:
+ 			return context{
+ 				state: stateError,
+-				err:   errorf(ErrAmbigContext, n.Line, "%s appears in an ambiguous URL context", n),
++				err:   errorf(ErrAmbigContext, n, n.Line, "%s appears in an ambiguous URL context", n),
+ 			}
+ 		default:
+ 			panic(c.urlPart.String())
+@@ -339,7 +331,7 @@ func escFnsEq(a, b string) bool {
+ func newIdentCmd(identifier string, pos parse.Pos) *parse.CommandNode {
+ 	return &parse.CommandNode{
+ 		NodeType: parse.NodeCommand,
+-		Args:     []parse.Node{parse.NewIdentifier(identifier).SetPos(pos)},
++		Args:     []parse.Node{parse.NewIdentifier(identifier).SetTree(nil).SetPos(pos)}, // TODO: SetTree.
+ 	}
+ }
+ 
+@@ -373,7 +365,7 @@ func nudge(c context) context {
+ // join joins the two contexts of a branch template node. The result is an
+ // error context if either of the input contexts are error contexts, or if the
+ // the input contexts differ.
+-func join(a, b context, line int, nodeName string) context {
++func join(a, b context, node parse.Node, nodeName string) context {
+ 	if a.state == stateError {
+ 		return a
+ 	}
+@@ -406,14 +398,14 @@ func join(a, b context, line int, nodeName string) context {
+ 	// ends in an unquoted value state even though the else branch
+ 	// ends in stateBeforeValue.
+ 	if c, d := nudge(a), nudge(b); !(c.eq(a) && d.eq(b)) {
+-		if e := join(c, d, line, nodeName); e.state != stateError {
++		if e := join(c, d, node, nodeName); e.state != stateError {
+ 			return e
+ 		}
+ 	}
+ 
+ 	return context{
+ 		state: stateError,
+-		err:   errorf(ErrBranchEnd, line, "{{%s}} branches end in different contexts: %v, %v", nodeName, a, b),
++		err:   errorf(ErrBranchEnd, node, 0, "{{%s}} branches end in different contexts: %v, %v", nodeName, a, b),
+ 	}
+ }
+ 
+@@ -425,7 +417,7 @@ func (e *escaper) escapeBranch(c context, n *parse.BranchNode, nodeName string)
+ 		// We check that executing n.List once results in the same context
+ 		// as executing n.List twice.
+ 		c1, _ := e.escapeListConditionally(c0, n.List, nil)
+-		c0 = join(c0, c1, n.Line, nodeName)
++		c0 = join(c0, c1, n, nodeName)
+ 		if c0.state == stateError {
+ 			// Make clear that this is a problem on loop re-entry
+ 			// since developers tend to overlook that branch when
+@@ -436,7 +428,7 @@ func (e *escaper) escapeBranch(c context, n *parse.BranchNode, nodeName string)
+ 		}
+ 	}
+ 	c1 := e.escapeList(c, n.ElseList)
+-	return join(c0, c1, n.Line, nodeName)
++	return join(c0, c1, n, nodeName)
+ }
+ 
+ // escapeList escapes a list template node.
+@@ -488,7 +480,7 @@ func (e *escaper) escapeListConditionally(c context, n *parse.ListNode, filter f
+ 
+ // escapeTemplate escapes a {{template}} call node.
+ func (e *escaper) escapeTemplate(c context, n *parse.TemplateNode) context {
+-	c, name := e.escapeTree(c, n.Name, n.Line)
++	c, name := e.escapeTree(c, n, n.Name, n.Line)
+ 	if name != n.Name {
+ 		e.editTemplateNode(n, name)
+ 	}
+@@ -497,7 +489,7 @@ func (e *escaper) escapeTemplate(c context, n *parse.TemplateNode) context {
+ 
+ // escapeTree escapes the named template starting in the given context as
+ // necessary and returns its output context.
+-func (e *escaper) escapeTree(c context, name string, line int) (context, string) {
++func (e *escaper) escapeTree(c context, node parse.Node, name string, line int) (context, string) {
+ 	// Mangle the template name with the input context to produce a reliable
+ 	// identifier.
+ 	dname := c.mangle(name)
+@@ -513,12 +505,12 @@ func (e *escaper) escapeTree(c context, name string, line int) (context, string)
+ 		if e.tmpl.set[name] != nil {
+ 			return context{
+ 				state: stateError,
+-				err:   errorf(ErrNoSuchTemplate, line, "%q is an incomplete or empty template", name),
++				err:   errorf(ErrNoSuchTemplate, node, line, "%q is an incomplete or empty template", name),
+ 			}, dname
+ 		}
+ 		return context{
+ 			state: stateError,
+-			err:   errorf(ErrNoSuchTemplate, line, "no such template %q", name),
++			err:   errorf(ErrNoSuchTemplate, node, line, "no such template %q", name),
+ 		}, dname
+ 	}
+ 	if dname != name {
+@@ -550,8 +542,7 @@ func (e *escaper) computeOutCtx(c context, t *template.Template) context {
+ 	if !ok && c1.state != stateError {
+ 		return context{
+ 			state: stateError,
+-			// TODO: Find the first node with a line in t.text.Tree.Root
+-			err: errorf(ErrOutputContext, 0, "cannot compute output context for template %s", t.Name()),
++			err:   errorf(ErrOutputContext, t.Tree.Root, 0, "cannot compute output context for template %s", t.Name()),
+ 		}
+ 	}
+ 	return c1
+@@ -695,7 +686,7 @@ func contextAfterText(c context, s []byte) (context, int) {
+ 		if j := bytes.IndexAny(s[:i], "\"'<=`"); j >= 0 {
+ 			return context{
+ 				state: stateError,
+-				err:   errorf(ErrBadHTML, 0, "%q in unquoted attr: %q", s[j:j+1], s[:i]),
++				err:   errorf(ErrBadHTML, nil, 0, "%q in unquoted attr: %q", s[j:j+1], s[:i]),
+ 			}, len(s)
+ 		}
+ 	}
+diff --git a/src/pkg/html/template/escape_test.go b/src/pkg/html/template/escape_test.go
+index 5509b836f9..ef7b877484 100644
+--- a/src/pkg/html/template/escape_test.go
++++ b/src/pkg/html/template/escape_test.go
+@@ -861,29 +861,29 @@ func TestErrors(t *testing.T) {
+ 		// Error cases.
+ 		{
+ 			"{{if .Cond}}<a{{end}}",
+-			"z:1: {{if}} branches",
++			"z:1:5: {{if}} branches",
+ 		},
+ 		{
+ 			"{{if .Cond}}\n{{else}}\n<a{{end}}",
+-			"z:1: {{if}} branches",
++			"z:1:5: {{if}} branches",
+ 		},
+ 		{
+ 			// Missing quote in the else branch.
+ 			`{{if .Cond}}<a href="foo">{{else}}<a href="bar>{{end}}`,
+-			"z:1: {{if}} branches",
++			"z:1:5: {{if}} branches",
+ 		},
+ 		{
+ 			// Different kind of attribute: href implies a URL.
+ 			"<a {{if .Cond}}href='{{else}}title='{{end}}{{.X}}'>",
+-			"z:1: {{if}} branches",
++			"z:1:8: {{if}} branches",
+ 		},
+ 		{
+ 			"\n{{with .X}}<a{{end}}",
+-			"z:2: {{with}} branches",
++			"z:2:7: {{with}} branches",
+ 		},
+ 		{
+ 			"\n{{with .X}}<a>{{else}}<a{{end}}",
+-			"z:2: {{with}} branches",
++			"z:2:7: {{with}} branches",
+ 		},
+ 		{
+ 			"{{range .Items}}<a{{end}}",
+@@ -891,7 +891,7 @@ func TestErrors(t *testing.T) {
+ 		},
+ 		{
+ 			"\n{{range .Items}} x='<a{{end}}",
+-			"z:2: on range loop re-entry: {{range}} branches",
++			"z:2:8: on range loop re-entry: {{range}} branches",
+ 		},
+ 		{
+ 			"<a b=1 c={{.H}}",
+@@ -903,7 +903,7 @@ func TestErrors(t *testing.T) {
+ 		},
+ 		{
+ 			`<a href="{{if .F}}/foo?a={{else}}/bar/{{end}}{{.H}}">`,
+-			"z:1: {{.H}} appears in an ambiguous URL context",
++			"z:1:47: {{.H}} appears in an ambiguous URL context",
+ 		},
+ 		{
+ 			`<a onclick="alert('Hello \`,
+@@ -932,7 +932,7 @@ func TestErrors(t *testing.T) {
+ 		},
+ 		{
+ 			`{{template "foo"}}`,
+-			"z:1: no such template \"foo\"",
++			"z:1:11: no such template \"foo\"",
+ 		},
+ 		{
+ 			`<div{{template "y"}}>` +
+diff --git a/src/pkg/html/template/template.go b/src/pkg/html/template/template.go
+index 538837cc5c..ce6170105c 100644
+--- a/src/pkg/html/template/template.go
++++ b/src/pkg/html/template/template.go
+@@ -56,7 +56,7 @@ func (t *Template) escape() error {
+ 	t.nameSpace.mu.Lock()
+ 	defer t.nameSpace.mu.Unlock()
+ 	if t.escapeErr == nil {
+-		if err := escapeTemplates(t, t.Name()); err != nil {
++		if err := escapeTemplate(t, t.text.Root, t.Name()); err != nil {
+ 			return err
+ 		}
+ 	} else if t.escapeErr != escapeOK {
+@@ -112,7 +112,7 @@ func (t *Template) lookupAndEscapeTemplate(name string) (tmpl *Template, err err
+ 		panic("html/template internal error: template escaping out of sync")
+ 	}
+ 	if tmpl.escapeErr == nil {
+-		err = escapeTemplates(tmpl, name)
++		err = escapeTemplate(tmpl, tmpl.text.Root, name)
+ 	}
+ 	return tmpl, err
+ }
+diff --git a/src/pkg/html/template/transition.go b/src/pkg/html/template/transition.go
+index 7f30a7ab8d..b486fcd285 100644
+--- a/src/pkg/html/template/transition.go
++++ b/src/pkg/html/template/transition.go
+@@ -102,7 +102,7 @@ func tTag(c context, s []byte) (context, int) {
+ 	if i == j {
+ 		return context{
+ 			state: stateError,
+-			err:   errorf(ErrBadHTML, 0, "expected space, attr name, or end of tag, but got %q", s[i:]),
++			err:   errorf(ErrBadHTML, nil, 0, "expected space, attr name, or end of tag, but got %q", s[i:]),
+ 		}, len(s)
+ 	}
+ 	switch attrType(string(s[i:j])) {
+@@ -245,7 +245,7 @@ func tJS(c context, s []byte) (context, int) {
+ 		default:
+ 			return context{
+ 				state: stateError,
+-				err:   errorf(ErrSlashAmbig, 0, "'/' could start a division or regexp: %.32q", s[i:]),
++				err:   errorf(ErrSlashAmbig, nil, 0, "'/' could start a division or regexp: %.32q", s[i:]),
+ 			}, len(s)
+ 		}
+ 	default:
+@@ -277,7 +277,7 @@ func tJSDelimited(c context, s []byte) (context, int) {
+ 			if i == len(s) {
+ 				return context{
+ 					state: stateError,
+-					err:   errorf(ErrPartialEscape, 0, "unfinished escape sequence in JS string: %q", s),
++					err:   errorf(ErrPartialEscape, nil, 0, "unfinished escape sequence in JS string: %q", s),
+ 				}, len(s)
+ 			}
+ 		case '[':
+@@ -299,7 +299,7 @@ func tJSDelimited(c context, s []byte) (context, int) {
+ 		// into charsets is desired.
+ 		return context{
+ 			state: stateError,
+-			err:   errorf(ErrPartialCharset, 0, "unfinished JS regexp charset: %q", s),
++			err:   errorf(ErrPartialCharset, nil, 0, "unfinished JS regexp charset: %q", s),
+ 		}, len(s)
+ 	}
+ 
+@@ -459,7 +459,7 @@ func tCSSStr(c context, s []byte) (context, int) {
+ 			if i == len(s) {
+ 				return context{
+ 					state: stateError,
+-					err:   errorf(ErrPartialEscape, 0, "unfinished escape sequence in CSS string: %q", s),
++					err:   errorf(ErrPartialEscape, nil, 0, "unfinished escape sequence in CSS string: %q", s),
+ 				}, len(s)
+ 			}
+ 		} else {
+@@ -489,7 +489,7 @@ func eatAttrName(s []byte, i int) (int, *Error) {
+ 			// These result in a parse warning in HTML5 and are
+ 			// indicative of serious problems if seen in an attr
+ 			// name in a template.
+-			return -1, errorf(ErrBadHTML, 0, "%q in attribute name: %.32q", s[j:j+1], s)
++			return -1, errorf(ErrBadHTML, nil, 0, "%q in attribute name: %.32q", s[j:j+1], s)
+ 		default:
+ 			// No-op.
+ 		}
+diff --git a/src/pkg/text/template/parse/node.go b/src/pkg/text/template/parse/node.go
+index dc6a3bb929..e6d6613250 100644
+--- a/src/pkg/text/template/parse/node.go
++++ b/src/pkg/text/template/parse/node.go
+@@ -26,8 +26,9 @@ type Node interface {
+ 	// CopyXxx methods that return *XxxNode.
+ 	Copy() Node
+ 	Position() Pos // byte position of start of node in full original input string
+-	// Make sure only functions in this package can create Nodes.
+-	unexported()
++	// tree returns the containing *Tree.
++	// It is unexported so all implementations of Node are in this package.
++	tree() *Tree
+ }
+ 
+ // NodeType identifies the type of a parse tree node.
+@@ -41,11 +42,6 @@ func (p Pos) Position() Pos {
+ 	return p
+ }
+ 
+-// unexported keeps Node implementations local to the package.
+-// All implementations embed Pos, so this takes care of it.
+-func (Pos) unexported() {
+-}
+-
+ // Type returns itself and provides an easy default implementation
+ // for embedding in a Node. Embedded in all non-trivial Nodes.
+ func (t NodeType) Type() NodeType {
+@@ -81,17 +77,22 @@ const (
+ type ListNode struct {
+ 	NodeType
+ 	Pos
++	tr    *Tree
+ 	Nodes []Node // The element nodes in lexical order.
+ }
+ 
+-func newList(pos Pos) *ListNode {
+-	return &ListNode{NodeType: NodeList, Pos: pos}
++func (t *Tree) newList(pos Pos) *ListNode {
++	return &ListNode{tr: t, NodeType: NodeList, Pos: pos}
+ }
+ 
+ func (l *ListNode) append(n Node) {
+ 	l.Nodes = append(l.Nodes, n)
+ }
+ 
++func (l *ListNode) tree() *Tree {
++	return l.tr
++}
++
+ func (l *ListNode) String() string {
+ 	b := new(bytes.Buffer)
+ 	for _, n := range l.Nodes {
+@@ -104,7 +105,7 @@ func (l *ListNode) CopyList() *ListNode {
+ 	if l == nil {
+ 		return l
+ 	}
+-	n := newList(l.Pos)
++	n := l.tr.newList(l.Pos)
+ 	for _, elem := range l.Nodes {
+ 		n.append(elem.Copy())
+ 	}
+@@ -119,32 +120,38 @@ func (l *ListNode) Copy() Node {
+ type TextNode struct {
+ 	NodeType
+ 	Pos
++	tr   *Tree
+ 	Text []byte // The text; may span newlines.
+ }
+ 
+-func newText(pos Pos, text string) *TextNode {
+-	return &TextNode{NodeType: NodeText, Pos: pos, Text: []byte(text)}
++func (t *Tree) newText(pos Pos, text string) *TextNode {
++	return &TextNode{tr: t, NodeType: NodeText, Pos: pos, Text: []byte(text)}
+ }
+ 
+ func (t *TextNode) String() string {
+ 	return fmt.Sprintf(textFormat, t.Text)
+ }
+ 
++func (t *TextNode) tree() *Tree {
++	return t.tr
++}
++
+ func (t *TextNode) Copy() Node {
+-	return &TextNode{NodeType: NodeText, Text: append([]byte{}, t.Text...)}
++	return &TextNode{tr: t.tr, NodeType: NodeText, Pos: t.Pos, Text: append([]byte{}, t.Text...)}
+ }
+ 
+ // PipeNode holds a pipeline with optional declaration
+ type PipeNode struct {
+ 	NodeType
+ 	Pos
++	tr   *Tree
+ 	Line int             // The line number in the input (deprecated; kept for compatibility)
+ 	Decl []*VariableNode // Variable declarations in lexical order.
+ 	Cmds []*CommandNode  // The commands in lexical order.
+ }
+ 
+-func newPipeline(pos Pos, line int, decl []*VariableNode) *PipeNode {
+-	return &PipeNode{NodeType: NodePipe, Pos: pos, Line: line, Decl: decl}
++func (t *Tree) newPipeline(pos Pos, line int, decl []*VariableNode) *PipeNode {
++	return &PipeNode{tr: t, NodeType: NodePipe, Pos: pos, Line: line, Decl: decl}
+ }
+ 
+ func (p *PipeNode) append(command *CommandNode) {
+@@ -171,6 +178,10 @@ func (p *PipeNode) String() string {
+ 	return s
+ }
+ 
++func (p *PipeNode) tree() *Tree {
++	return p.tr
++}
++
+ func (p *PipeNode) CopyPipe() *PipeNode {
+ 	if p == nil {
+ 		return p
+@@ -179,7 +190,7 @@ func (p *PipeNode) CopyPipe() *PipeNode {
+ 	for _, d := range p.Decl {
+ 		decl = append(decl, d.Copy().(*VariableNode))
+ 	}
+-	n := newPipeline(p.Pos, p.Line, decl)
++	n := p.tr.newPipeline(p.Pos, p.Line, decl)
+ 	for _, c := range p.Cmds {
+ 		n.append(c.Copy().(*CommandNode))
+ 	}
+@@ -196,12 +207,13 @@ func (p *PipeNode) Copy() Node {
+ type ActionNode struct {
+ 	NodeType
+ 	Pos
++	tr   *Tree
+ 	Line int       // The line number in the input (deprecated; kept for compatibility)
+ 	Pipe *PipeNode // The pipeline in the action.
+ }
+ 
+-func newAction(pos Pos, line int, pipe *PipeNode) *ActionNode {
+-	return &ActionNode{NodeType: NodeAction, Pos: pos, Line: line, Pipe: pipe}
++func (t *Tree) newAction(pos Pos, line int, pipe *PipeNode) *ActionNode {
++	return &ActionNode{tr: t, NodeType: NodeAction, Pos: pos, Line: line, Pipe: pipe}
+ }
+ 
+ func (a *ActionNode) String() string {
+@@ -209,8 +221,12 @@ func (a *ActionNode) String() string {
+ 
+ }
+ 
++func (a *ActionNode) tree() *Tree {
++	return a.tr
++}
++
+ func (a *ActionNode) Copy() Node {
+-	return newAction(a.Pos, a.Line, a.Pipe.CopyPipe())
++	return a.tr.newAction(a.Pos, a.Line, a.Pipe.CopyPipe())
+ 
+ }
+ 
+@@ -218,11 +234,12 @@ func (a *ActionNode) Copy() Node {
+ type CommandNode struct {
+ 	NodeType
+ 	Pos
++	tr   *Tree
+ 	Args []Node // Arguments in lexical order: Identifier, field, or constant.
+ }
+ 
+-func newCommand(pos Pos) *CommandNode {
+-	return &CommandNode{NodeType: NodeCommand, Pos: pos}
++func (t *Tree) newCommand(pos Pos) *CommandNode {
++	return &CommandNode{tr: t, NodeType: NodeCommand, Pos: pos}
+ }
+ 
+ func (c *CommandNode) append(arg Node) {
+@@ -244,11 +261,15 @@ func (c *CommandNode) String() string {
+ 	return s
+ }
+ 
++func (c *CommandNode) tree() *Tree {
++	return c.tr
++}
++
+ func (c *CommandNode) Copy() Node {
+ 	if c == nil {
+ 		return c
+ 	}
+-	n := newCommand(c.Pos)
++	n := c.tr.newCommand(c.Pos)
+ 	for _, c := range c.Args {
+ 		n.append(c.Copy())
+ 	}
+@@ -259,6 +280,7 @@ func (c *CommandNode) Copy() Node {
+ type IdentifierNode struct {
+ 	NodeType
+ 	Pos
++	tr    *Tree
+ 	Ident string // The identifier's name.
+ }
+ 
+@@ -275,12 +297,24 @@ func (i *IdentifierNode) SetPos(pos Pos) *IdentifierNode {
+ 	return i
+ }
+ 
++// SetTree sets the parent tree for the node. NewIdentifier is a public method so we can't modify its signature.
++// Chained for convenience.
++// TODO: fix one day?
++func (i *IdentifierNode) SetTree(t *Tree) *IdentifierNode {
++	i.tr = t
++	return i
++}
++
+ func (i *IdentifierNode) String() string {
+ 	return i.Ident
+ }
+ 
++func (i *IdentifierNode) tree() *Tree {
++	return i.tr
++}
++
+ func (i *IdentifierNode) Copy() Node {
+-	return NewIdentifier(i.Ident).SetPos(i.Pos)
++	return NewIdentifier(i.Ident).SetTree(i.tr).SetPos(i.Pos)
+ }
+ 
+ // VariableNode holds a list of variable names, possibly with chained field
+@@ -288,11 +322,12 @@ func (i *IdentifierNode) Copy() Node {
+ type VariableNode struct {
+ 	NodeType
+ 	Pos
++	tr    *Tree
+ 	Ident []string // Variable name and fields in lexical order.
+ }
+ 
+-func newVariable(pos Pos, ident string) *VariableNode {
+-	return &VariableNode{NodeType: NodeVariable, Pos: pos, Ident: strings.Split(ident, ".")}
++func (t *Tree) newVariable(pos Pos, ident string) *VariableNode {
++	return &VariableNode{tr: t, NodeType: NodeVariable, Pos: pos, Ident: strings.Split(ident, ".")}
+ }
+ 
+ func (v *VariableNode) String() string {
+@@ -306,50 +341,58 @@ func (v *VariableNode) String() string {
+ 	return s
+ }
+ 
++func (v *VariableNode) tree() *Tree {
++	return v.tr
++}
++
+ func (v *VariableNode) Copy() Node {
+-	return &VariableNode{NodeType: NodeVariable, Pos: v.Pos, Ident: append([]string{}, v.Ident...)}
++	return &VariableNode{tr: v.tr, NodeType: NodeVariable, Pos: v.Pos, Ident: append([]string{}, v.Ident...)}
+ }
+ 
+ // DotNode holds the special identifier '.'.
+ type DotNode struct {
++	NodeType
+ 	Pos
++	tr *Tree
+ }
+ 
+-func newDot(pos Pos) *DotNode {
+-	return &DotNode{Pos: pos}
+-}
+-
+-func (d *DotNode) Type() NodeType {
+-	return NodeDot
++func (t *Tree) newDot(pos Pos) *DotNode {
++	return &DotNode{tr: t, NodeType: NodeDot, Pos: pos}
+ }
+ 
+ func (d *DotNode) String() string {
+ 	return "."
+ }
+ 
++func (d *DotNode) tree() *Tree {
++	return d.tr
++}
++
+ func (d *DotNode) Copy() Node {
+-	return newDot(d.Pos)
++	return d.tr.newDot(d.Pos)
+ }
+ 
+ // NilNode holds the special identifier 'nil' representing an untyped nil constant.
+ type NilNode struct {
++	NodeType
+ 	Pos
++	tr *Tree
+ }
+ 
+-func newNil(pos Pos) *NilNode {
+-	return &NilNode{Pos: pos}
+-}
+-
+-func (n *NilNode) Type() NodeType {
+-	return NodeNil
++func (t *Tree) newNil(pos Pos) *NilNode {
++	return &NilNode{tr: t, NodeType: NodeNil, Pos: pos}
+ }
+ 
+ func (n *NilNode) String() string {
+ 	return "nil"
+ }
+ 
++func (n *NilNode) tree() *Tree {
++	return n.tr
++}
++
+ func (n *NilNode) Copy() Node {
+-	return newNil(n.Pos)
++	return n.tr.newNil(n.Pos)
+ }
+ 
+ // FieldNode holds a field (identifier starting with '.').
+@@ -358,11 +401,12 @@ func (n *NilNode) Copy() Node {
+ type FieldNode struct {
+ 	NodeType
+ 	Pos
++	tr    *Tree
+ 	Ident []string // The identifiers in lexical order.
+ }
+ 
+-func newField(pos Pos, ident string) *FieldNode {
+-	return &FieldNode{NodeType: NodeField, Pos: pos, Ident: strings.Split(ident[1:], ".")} // [1:] to drop leading period
++func (t *Tree) newField(pos Pos, ident string) *FieldNode {
++	return &FieldNode{tr: t, NodeType: NodeField, Pos: pos, Ident: strings.Split(ident[1:], ".")} // [1:] to drop leading period
+ }
+ 
+ func (f *FieldNode) String() string {
+@@ -373,8 +417,12 @@ func (f *FieldNode) String() string {
+ 	return s
+ }
+ 
++func (f *FieldNode) tree() *Tree {
++	return f.tr
++}
++
+ func (f *FieldNode) Copy() Node {
+-	return &FieldNode{NodeType: NodeField, Pos: f.Pos, Ident: append([]string{}, f.Ident...)}
++	return &FieldNode{tr: f.tr, NodeType: NodeField, Pos: f.Pos, Ident: append([]string{}, f.Ident...)}
+ }
+ 
+ // ChainNode holds a term followed by a chain of field accesses (identifier starting with '.').
+@@ -383,12 +431,13 @@ func (f *FieldNode) Copy() Node {
+ type ChainNode struct {
+ 	NodeType
+ 	Pos
++	tr    *Tree
+ 	Node  Node
+ 	Field []string // The identifiers in lexical order.
+ }
+ 
+-func newChain(pos Pos, node Node) *ChainNode {
+-	return &ChainNode{NodeType: NodeChain, Pos: pos, Node: node}
++func (t *Tree) newChain(pos Pos, node Node) *ChainNode {
++	return &ChainNode{tr: t, NodeType: NodeChain, Pos: pos, Node: node}
+ }
+ 
+ // Add adds the named field (which should start with a period) to the end of the chain.
+@@ -414,19 +463,24 @@ func (c *ChainNode) String() string {
+ 	return s
+ }
+ 
++func (c *ChainNode) tree() *Tree {
++	return c.tr
++}
++
+ func (c *ChainNode) Copy() Node {
+-	return &ChainNode{NodeType: NodeChain, Pos: c.Pos, Node: c.Node, Field: append([]string{}, c.Field...)}
++	return &ChainNode{tr: c.tr, NodeType: NodeChain, Pos: c.Pos, Node: c.Node, Field: append([]string{}, c.Field...)}
+ }
+ 
+ // BoolNode holds a boolean constant.
+ type BoolNode struct {
+ 	NodeType
+ 	Pos
++	tr   *Tree
+ 	True bool // The value of the boolean constant.
+ }
+ 
+-func newBool(pos Pos, true bool) *BoolNode {
+-	return &BoolNode{NodeType: NodeBool, Pos: pos, True: true}
++func (t *Tree) newBool(pos Pos, true bool) *BoolNode {
++	return &BoolNode{tr: t, NodeType: NodeBool, Pos: pos, True: true}
+ }
+ 
+ func (b *BoolNode) String() string {
+@@ -436,8 +490,12 @@ func (b *BoolNode) String() string {
+ 	return "false"
+ }
+ 
++func (b *BoolNode) tree() *Tree {
++	return b.tr
++}
++
+ func (b *BoolNode) Copy() Node {
+-	return newBool(b.Pos, b.True)
++	return b.tr.newBool(b.Pos, b.True)
+ }
+ 
+ // NumberNode holds a number: signed or unsigned integer, float, or complex.
+@@ -446,6 +504,7 @@ func (b *BoolNode) Copy() Node {
+ type NumberNode struct {
+ 	NodeType
+ 	Pos
++	tr         *Tree
+ 	IsInt      bool       // Number has an integral value.
+ 	IsUint     bool       // Number has an unsigned integral value.
+ 	IsFloat    bool       // Number has a floating-point value.
+@@ -457,8 +516,8 @@ type NumberNode struct {
+ 	Text       string     // The original textual representation from the input.
+ }
+ 
+-func newNumber(pos Pos, text string, typ itemType) (*NumberNode, error) {
+-	n := &NumberNode{NodeType: NodeNumber, Pos: pos, Text: text}
++func (t *Tree) newNumber(pos Pos, text string, typ itemType) (*NumberNode, error) {
++	n := &NumberNode{tr: t, NodeType: NodeNumber, Pos: pos, Text: text}
+ 	switch typ {
+ 	case itemCharConstant:
+ 		rune, _, tail, err := strconv.UnquoteChar(text[1:], text[0])
+@@ -559,6 +618,10 @@ func (n *NumberNode) String() string {
+ 	return n.Text
+ }
+ 
++func (n *NumberNode) tree() *Tree {
++	return n.tr
++}
++
+ func (n *NumberNode) Copy() Node {
+ 	nn := new(NumberNode)
+ 	*nn = *n // Easy, fast, correct.
+@@ -569,53 +632,61 @@ func (n *NumberNode) Copy() Node {
+ type StringNode struct {
+ 	NodeType
+ 	Pos
++	tr     *Tree
+ 	Quoted string // The original text of the string, with quotes.
+ 	Text   string // The string, after quote processing.
+ }
+ 
+-func newString(pos Pos, orig, text string) *StringNode {
+-	return &StringNode{NodeType: NodeString, Pos: pos, Quoted: orig, Text: text}
++func (t *Tree) newString(pos Pos, orig, text string) *StringNode {
++	return &StringNode{tr: t, NodeType: NodeString, Pos: pos, Quoted: orig, Text: text}
+ }
+ 
+ func (s *StringNode) String() string {
+ 	return s.Quoted
+ }
+ 
++func (s *StringNode) tree() *Tree {
++	return s.tr
++}
++
+ func (s *StringNode) Copy() Node {
+-	return newString(s.Pos, s.Quoted, s.Text)
++	return s.tr.newString(s.Pos, s.Quoted, s.Text)
+ }
+ 
+ // endNode represents an {{end}} action.
+ // It does not appear in the final parse tree.
+ type endNode struct {
++	NodeType
+ 	Pos
++	tr *Tree
+ }
+ 
+-func newEnd(pos Pos) *endNode {
+-	return &endNode{Pos: pos}
+-}
+-
+-func (e *endNode) Type() NodeType {
+-	return nodeEnd
++func (t *Tree) newEnd(pos Pos) *endNode {
++	return &endNode{tr: t, NodeType: nodeEnd, Pos: pos}
+ }
+ 
+ func (e *endNode) String() string {
+ 	return "{{end}}"
+ }
+ 
++func (e *endNode) tree() *Tree {
++	return e.tr
++}
++
+ func (e *endNode) Copy() Node {
+-	return newEnd(e.Pos)
++	return e.tr.newEnd(e.Pos)
+ }
+ 
+ // elseNode represents an {{else}} action. Does not appear in the final tree.
+ type elseNode struct {
+ 	NodeType
+ 	Pos
++	tr   *Tree
+ 	Line int // The line number in the input (deprecated; kept for compatibility)
+ }
+ 
+-func newElse(pos Pos, line int) *elseNode {
+-	return &elseNode{NodeType: nodeElse, Pos: pos, Line: line}
++func (t *Tree) newElse(pos Pos, line int) *elseNode {
++	return &elseNode{tr: t, NodeType: nodeElse, Pos: pos, Line: line}
+ }
+ 
+ func (e *elseNode) Type() NodeType {
+@@ -626,14 +697,19 @@ func (e *elseNode) String() string {
+ 	return "{{else}}"
+ }
+ 
++func (e *elseNode) tree() *Tree {
++	return e.tr
++}
++
+ func (e *elseNode) Copy() Node {
+-	return newElse(e.Pos, e.Line)
++	return e.tr.newElse(e.Pos, e.Line)
+ }
+ 
+ // BranchNode is the common representation of if, range, and with.
+ type BranchNode struct {
+ 	NodeType
+ 	Pos
++	tr       *Tree
+ 	Line     int       // The line number in the input (deprecated; kept for compatibility)
+ 	Pipe     *PipeNode // The pipeline to be evaluated.
+ 	List     *ListNode // What to execute if the value is non-empty.
+@@ -658,17 +734,34 @@ func (b *BranchNode) String() string {
+ 	return fmt.Sprintf("{{%s %s}}%s{{end}}", name, b.Pipe, b.List)
+ }
+ 
++func (b *BranchNode) tree() *Tree {
++	return b.tr
++}
++
++func (b *BranchNode) Copy() Node {
++	switch b.NodeType {
++	case NodeIf:
++		return b.tr.newIf(b.Pos, b.Line, b.Pipe, b.List, b.ElseList)
++	case NodeRange:
++		return b.tr.newRange(b.Pos, b.Line, b.Pipe, b.List, b.ElseList)
++	case NodeWith:
++		return b.tr.newWith(b.Pos, b.Line, b.Pipe, b.List, b.ElseList)
++	default:
++		panic("unknown branch type")
++	}
++}
++
+ // IfNode represents an {{if}} action and its commands.
+ type IfNode struct {
+ 	BranchNode
+ }
+ 
+-func newIf(pos Pos, line int, pipe *PipeNode, list, elseList *ListNode) *IfNode {
+-	return &IfNode{BranchNode{NodeType: NodeIf, Pos: pos, Line: line, Pipe: pipe, List: list, ElseList: elseList}}
++func (t *Tree) newIf(pos Pos, line int, pipe *PipeNode, list, elseList *ListNode) *IfNode {
++	return &IfNode{BranchNode{tr: t, NodeType: NodeIf, Pos: pos, Line: line, Pipe: pipe, List: list, ElseList: elseList}}
+ }
+ 
+ func (i *IfNode) Copy() Node {
+-	return newIf(i.Pos, i.Line, i.Pipe.CopyPipe(), i.List.CopyList(), i.ElseList.CopyList())
++	return i.tr.newIf(i.Pos, i.Line, i.Pipe.CopyPipe(), i.List.CopyList(), i.ElseList.CopyList())
+ }
+ 
+ // RangeNode represents a {{range}} action and its commands.
+@@ -676,12 +769,12 @@ type RangeNode struct {
+ 	BranchNode
+ }
+ 
+-func newRange(pos Pos, line int, pipe *PipeNode, list, elseList *ListNode) *RangeNode {
+-	return &RangeNode{BranchNode{NodeType: NodeRange, Pos: pos, Line: line, Pipe: pipe, List: list, ElseList: elseList}}
++func (t *Tree) newRange(pos Pos, line int, pipe *PipeNode, list, elseList *ListNode) *RangeNode {
++	return &RangeNode{BranchNode{tr: t, NodeType: NodeRange, Pos: pos, Line: line, Pipe: pipe, List: list, ElseList: elseList}}
+ }
+ 
+ func (r *RangeNode) Copy() Node {
+-	return newRange(r.Pos, r.Line, r.Pipe.CopyPipe(), r.List.CopyList(), r.ElseList.CopyList())
++	return r.tr.newRange(r.Pos, r.Line, r.Pipe.CopyPipe(), r.List.CopyList(), r.ElseList.CopyList())
+ }
+ 
+ // WithNode represents a {{with}} action and its commands.
+@@ -689,25 +782,26 @@ type WithNode struct {
+ 	BranchNode
+ }
+ 
+-func newWith(pos Pos, line int, pipe *PipeNode, list, elseList *ListNode) *WithNode {
+-	return &WithNode{BranchNode{NodeType: NodeWith, Pos: pos, Line: line, Pipe: pipe, List: list, ElseList: elseList}}
++func (t *Tree) newWith(pos Pos, line int, pipe *PipeNode, list, elseList *ListNode) *WithNode {
++	return &WithNode{BranchNode{tr: t, NodeType: NodeWith, Pos: pos, Line: line, Pipe: pipe, List: list, ElseList: elseList}}
+ }
+ 
+ func (w *WithNode) Copy() Node {
+-	return newWith(w.Pos, w.Line, w.Pipe.CopyPipe(), w.List.CopyList(), w.ElseList.CopyList())
++	return w.tr.newWith(w.Pos, w.Line, w.Pipe.CopyPipe(), w.List.CopyList(), w.ElseList.CopyList())
+ }
+ 
+ // TemplateNode represents a {{template}} action.
+ type TemplateNode struct {
+ 	NodeType
+ 	Pos
++	tr   *Tree
+ 	Line int       // The line number in the input (deprecated; kept for compatibility)
+ 	Name string    // The name of the template (unquoted).
+ 	Pipe *PipeNode // The command to evaluate as dot for the template.
+ }
+ 
+-func newTemplate(pos Pos, line int, name string, pipe *PipeNode) *TemplateNode {
+-	return &TemplateNode{NodeType: NodeTemplate, Line: line, Pos: pos, Name: name, Pipe: pipe}
++func (t *Tree) newTemplate(pos Pos, line int, name string, pipe *PipeNode) *TemplateNode {
++	return &TemplateNode{tr: t, NodeType: NodeTemplate, Pos: pos, Line: line, Name: name, Pipe: pipe}
+ }
+ 
+ func (t *TemplateNode) String() string {
+@@ -717,6 +811,10 @@ func (t *TemplateNode) String() string {
+ 	return fmt.Sprintf("{{template %q %s}}", t.Name, t.Pipe)
+ }
+ 
++func (t *TemplateNode) tree() *Tree {
++	return t.tr
++}
++
+ func (t *TemplateNode) Copy() Node {
+-	return newTemplate(t.Pos, t.Line, t.Name, t.Pipe.CopyPipe())
++	return t.tr.newTemplate(t.Pos, t.Line, t.Name, t.Pipe.CopyPipe())
+ }
+diff --git a/src/pkg/text/template/parse/parse.go b/src/pkg/text/template/parse/parse.go
+index 34112fb7b3..af33880c15 100644
+--- a/src/pkg/text/template/parse/parse.go
++++ b/src/pkg/text/template/parse/parse.go
+@@ -129,9 +129,15 @@ func New(name string, funcs ...map[string]interface{}) *Tree {
+ }
+ 
+ // ErrorContext returns a textual representation of the location of the node in the input text.
++// The receiver is only used when the node does not have a pointer to the tree inside,
++// which can occur in old code.
+ func (t *Tree) ErrorContext(n Node) (location, context string) {
+ 	pos := int(n.Position())
+-	text := t.text[:pos]
++	tree := n.tree()
++	if tree == nil {
++		tree = t
++	}
++	text := tree.text[:pos]
+ 	byteNum := strings.LastIndex(text, "\n")
+ 	if byteNum == -1 {
+ 		byteNum = pos // On first line.
+@@ -144,7 +150,7 @@ func (t *Tree) ErrorContext(n Node) (location, context string) {
+ 	if len(context) > 20 {
+ 		context = fmt.Sprintf("%.20s...", context)
+ 	}
+-	return fmt.Sprintf("%s:%d:%d", t.ParseName, lineNum, byteNum), context
++	return fmt.Sprintf("%s:%d:%d", tree.ParseName, lineNum, byteNum), context
+ }
+ 
+ // errorf formats the error and terminates processing.
+@@ -268,7 +274,7 @@ func IsEmptyTree(n Node) bool {
+ // as itemList except it also parses {{define}} actions.
+ // It runs to EOF.
+ func (t *Tree) parse(treeSet map[string]*Tree) (next Node) {
+-	t.Root = newList(t.peek().pos)
++	t.Root = t.newList(t.peek().pos)
+ 	for t.peek().typ != itemEOF {
+ 		if t.peek().typ == itemLeftDelim {
+ 			delim := t.next()
+@@ -316,7 +322,7 @@ func (t *Tree) parseDefinition(treeSet map[string]*Tree) {
+ //	textOrAction*
+ // Terminates at {{end}} or {{else}}, returned separately.
+ func (t *Tree) itemList() (list *ListNode, next Node) {
+-	list = newList(t.peekNonSpace().pos)
++	list = t.newList(t.peekNonSpace().pos)
+ 	for t.peekNonSpace().typ != itemEOF {
+ 		n := t.textOrAction()
+ 		switch n.Type() {
+@@ -334,7 +340,7 @@ func (t *Tree) itemList() (list *ListNode, next Node) {
+ func (t *Tree) textOrAction() Node {
+ 	switch token := t.nextNonSpace(); token.typ {
+ 	case itemText:
+-		return newText(token.pos, token.val)
++		return t.newText(token.pos, token.val)
+ 	case itemLeftDelim:
+ 		return t.action()
+ 	default:
+@@ -365,7 +371,7 @@ func (t *Tree) action() (n Node) {
+ 	}
+ 	t.backup()
+ 	// Do not pop variables; they persist until "end".
+-	return newAction(t.peek().pos, t.lex.lineNumber(), t.pipeline("command"))
++	return t.newAction(t.peek().pos, t.lex.lineNumber(), t.pipeline("command"))
+ }
+ 
+ // Pipeline:
+@@ -384,7 +390,7 @@ func (t *Tree) pipeline(context string) (pipe *PipeNode) {
+ 			tokenAfterVariable := t.peek()
+ 			if next := t.peekNonSpace(); next.typ == itemColonEquals || (next.typ == itemChar && next.val == ",") {
+ 				t.nextNonSpace()
+-				variable := newVariable(v.pos, v.val)
++				variable := t.newVariable(v.pos, v.val)
+ 				decl = append(decl, variable)
+ 				t.vars = append(t.vars, v.val)
+ 				if next.typ == itemChar && next.val == "," {
+@@ -401,7 +407,7 @@ func (t *Tree) pipeline(context string) (pipe *PipeNode) {
+ 		}
+ 		break
+ 	}
+-	pipe = newPipeline(pos, t.lex.lineNumber(), decl)
++	pipe = t.newPipeline(pos, t.lex.lineNumber(), decl)
+ 	for {
+ 		switch token := t.nextNonSpace(); token.typ {
+ 		case itemRightDelim, itemRightParen:
+@@ -442,7 +448,7 @@ func (t *Tree) parseControl(allowElseIf bool, context string) (pos Pos, line int
+ 			// TODO: Should we allow else-if in with and range?
+ 			if t.peek().typ == itemIf {
+ 				t.next() // Consume the "if" token.
+-				elseList = newList(next.Position())
++				elseList = t.newList(next.Position())
+ 				elseList.append(t.ifControl())
+ 				// Do not consume the next item - only one {{end}} required.
+ 				break
+@@ -461,7 +467,7 @@ func (t *Tree) parseControl(allowElseIf bool, context string) (pos Pos, line int
+ //	{{if pipeline}} itemList {{else}} itemList {{end}}
+ // If keyword is past.
+ func (t *Tree) ifControl() Node {
+-	return newIf(t.parseControl(true, "if"))
++	return t.newIf(t.parseControl(true, "if"))
+ }
+ 
+ // Range:
+@@ -469,7 +475,7 @@ func (t *Tree) ifControl() Node {
+ //	{{range pipeline}} itemList {{else}} itemList {{end}}
+ // Range keyword is past.
+ func (t *Tree) rangeControl() Node {
+-	return newRange(t.parseControl(false, "range"))
++	return t.newRange(t.parseControl(false, "range"))
+ }
+ 
+ // With:
+@@ -477,14 +483,14 @@ func (t *Tree) rangeControl() Node {
+ //	{{with pipeline}} itemList {{else}} itemList {{end}}
+ // If keyword is past.
+ func (t *Tree) withControl() Node {
+-	return newWith(t.parseControl(false, "with"))
++	return t.newWith(t.parseControl(false, "with"))
+ }
+ 
+ // End:
+ //	{{end}}
+ // End keyword is past.
+ func (t *Tree) endControl() Node {
+-	return newEnd(t.expect(itemRightDelim, "end").pos)
++	return t.newEnd(t.expect(itemRightDelim, "end").pos)
+ }
+ 
+ // Else:
+@@ -495,9 +501,9 @@ func (t *Tree) elseControl() Node {
+ 	peek := t.peekNonSpace()
+ 	if peek.typ == itemIf {
+ 		// We see "{{else if ... " but in effect rewrite it to {{else}}{{if ... ".
+-		return newElse(peek.pos, t.lex.lineNumber())
++		return t.newElse(peek.pos, t.lex.lineNumber())
+ 	}
+-	return newElse(t.expect(itemRightDelim, "else").pos, t.lex.lineNumber())
++	return t.newElse(t.expect(itemRightDelim, "else").pos, t.lex.lineNumber())
+ }
+ 
+ // Template:
+@@ -523,7 +529,7 @@ func (t *Tree) templateControl() Node {
+ 		// Do not pop variables; they persist until "end".
+ 		pipe = t.pipeline("template")
+ 	}
+-	return newTemplate(token.pos, t.lex.lineNumber(), name, pipe)
++	return t.newTemplate(token.pos, t.lex.lineNumber(), name, pipe)
+ }
+ 
+ // command:
+@@ -531,7 +537,7 @@ func (t *Tree) templateControl() Node {
+ // space-separated arguments up to a pipeline character or right delimiter.
+ // we consume the pipe character but leave the right delim to terminate the action.
+ func (t *Tree) command() *CommandNode {
+-	cmd := newCommand(t.peekNonSpace().pos)
++	cmd := t.newCommand(t.peekNonSpace().pos)
+ 	for {
+ 		t.peekNonSpace() // skip leading spaces.
+ 		operand := t.operand()
+@@ -568,7 +574,7 @@ func (t *Tree) operand() Node {
+ 		return nil
+ 	}
+ 	if t.peek().typ == itemField {
+-		chain := newChain(t.peek().pos, node)
++		chain := t.newChain(t.peek().pos, node)
+ 		for t.peek().typ == itemField {
+ 			chain.Add(t.next().val)
+ 		}
+@@ -578,9 +584,9 @@ func (t *Tree) operand() Node {
+ 		// TODO: Switch to Chains always when we can.
+ 		switch node.Type() {
+ 		case NodeField:
+-			node = newField(chain.Position(), chain.String())
++			node = t.newField(chain.Position(), chain.String())
+ 		case NodeVariable:
+-			node = newVariable(chain.Position(), chain.String())
++			node = t.newVariable(chain.Position(), chain.String())
+ 		default:
+ 			node = chain
+ 		}
+@@ -605,19 +611,19 @@ func (t *Tree) term() Node {
+ 		if !t.hasFunction(token.val) {
+ 			t.errorf("function %q not defined", token.val)
+ 		}
+-		return NewIdentifier(token.val).SetPos(token.pos)
++		return NewIdentifier(token.val).SetTree(t).SetPos(token.pos)
+ 	case itemDot:
+-		return newDot(token.pos)
++		return t.newDot(token.pos)
+ 	case itemNil:
+-		return newNil(token.pos)
++		return t.newNil(token.pos)
+ 	case itemVariable:
+ 		return t.useVar(token.pos, token.val)
+ 	case itemField:
+-		return newField(token.pos, token.val)
++		return t.newField(token.pos, token.val)
+ 	case itemBool:
+-		return newBool(token.pos, token.val == "true")
++		return t.newBool(token.pos, token.val == "true")
+ 	case itemCharConstant, itemComplex, itemNumber:
+-		number, err := newNumber(token.pos, token.val, token.typ)
++		number, err := t.newNumber(token.pos, token.val, token.typ)
+ 		if err != nil {
+ 			t.error(err)
+ 		}
+@@ -633,7 +639,7 @@ func (t *Tree) term() Node {
+ 		if err != nil {
+ 			t.error(err)
+ 		}
+-		return newString(token.pos, token.val, s)
++		return t.newString(token.pos, token.val, s)
+ 	}
+ 	t.backup()
+ 	return nil
+@@ -660,7 +666,7 @@ func (t *Tree) popVars(n int) {
+ // useVar returns a node for a variable reference. It errors if the
+ // variable is not defined.
+ func (t *Tree) useVar(pos Pos, name string) Node {
+-	v := newVariable(pos, name)
++	v := t.newVariable(pos, name)
+ 	for _, varName := range t.vars {
+ 		if varName == v.Ident[0] {
+ 			return v
+diff --git a/src/pkg/text/template/parse/parse_test.go b/src/pkg/text/template/parse/parse_test.go
+index ba1a18ec54..fa6790bef9 100644
+--- a/src/pkg/text/template/parse/parse_test.go
++++ b/src/pkg/text/template/parse/parse_test.go
+@@ -77,6 +77,7 @@ func TestNumberParse(t *testing.T) {
+ 		// because imaginary comes out as a number.
+ 		var c complex128
+ 		typ := itemNumber
++		var tree *Tree
+ 		if test.text[0] == '\'' {
+ 			typ = itemCharConstant
+ 		} else {
+@@ -85,7 +86,7 @@ func TestNumberParse(t *testing.T) {
+ 				typ = itemComplex
+ 			}
+ 		}
+-		n, err := newNumber(0, test.text, typ)
++		n, err := tree.newNumber(0, test.text, typ)
+ 		ok := test.isInt || test.isUint || test.isFloat || test.isComplex
+ 		if ok && err != nil {
+ 			t.Errorf("unexpected error for %q: %s", test.text, err)

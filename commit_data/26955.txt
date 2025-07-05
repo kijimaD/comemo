@@ -29,6 +29,43 @@ Date:   Tue Mar 1 15:09:24 2016 -0500
     Reviewed-by: Rick Hudson <rlh@golang.org>
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/mgc.go | 11 +++++++----
  1 file changed, 7 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 52936cec2c..6147454c1e 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -933,6 +933,9 @@ func gcStart(mode gcMode, forceTrigger bool) {
+ 	if mode == gcBackgroundMode {
+ 		gcBgMarkStartWorkers()
+ 	}
++
++	gcResetMarkState()
++
+ 	now := nanotime()
+ 	work.stwprocs, work.maxprocs = gcprocs(), gomaxprocs
+ 	work.tSweepTerm = now
+@@ -950,8 +953,6 @@ func gcStart(mode gcMode, forceTrigger bool) {
+ 	// reclaimed until the next GC cycle.
+ 	clearpools()
+ 
+-	gcResetMarkState()
+-
+ 	work.finalizersDone = false
+ 
+ 	if mode == gcBackgroundMode { // Do as much work concurrently as possible
+@@ -1724,8 +1725,10 @@ func gcCopySpans() {
+ }
+ 
+ // gcResetMarkState resets global state prior to marking (concurrent
+-// or STW) and resets the stack scan state of all Gs. Any Gs created
+-// after this will also be in the reset state.
++// or STW) and resets the stack scan state of all Gs.
++//
++// This is safe to do without the world stopped because any Gs created
++// during or after this will start out in the reset state.
+ func gcResetMarkState() {
+ 	// This may be called during a concurrent phase, so make sure
+ 	// allgs doesn't change.

@@ -11,7 +11,7 @@ Date:   Fri Dec 2 15:32:55 2016 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  misc/cgo/test/cgo_unix_test.go           |  1 +
  misc/cgo/test/issue18146.go              | 87 ++++++++++++++++++++++++++++++++
  src/runtime/cgo/gcc_darwin_386.c         |  3 +-
@@ -37,3 +37,591 @@ Date:   Fri Dec 2 15:32:55 2016 -0800
  src/runtime/cgo/gcc_solaris_amd64.c      |  3 +-
  src/runtime/cgo/libcgo_unix.h            |  8 +++
  24 files changed, 160 insertions(+), 21 deletions(-)
+
+diff --git a/misc/cgo/test/cgo_unix_test.go b/misc/cgo/test/cgo_unix_test.go
+index b3633b73f3..e3d5916649 100644
+--- a/misc/cgo/test/cgo_unix_test.go
++++ b/misc/cgo/test/cgo_unix_test.go
+@@ -10,3 +10,4 @@ import "testing"
+ 
+ func TestSigaltstack(t *testing.T) { testSigaltstack(t) }
+ func TestSigprocmask(t *testing.T) { testSigprocmask(t) }
++func Test18146(t *testing.T)       { test18146(t) }
+diff --git a/misc/cgo/test/issue18146.go b/misc/cgo/test/issue18146.go
+new file mode 100644
+index 0000000000..6e551c981e
+--- /dev/null
++++ b/misc/cgo/test/issue18146.go
+@@ -0,0 +1,87 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !windows
++
++// Issue 18146: pthread_create failure during syscall.Exec.
++
++package cgotest
++
++import "C"
++
++import (
++	"bytes"
++	"crypto/md5"
++	"os"
++	"os/exec"
++	"runtime"
++	"syscall"
++	"testing"
++)
++
++func test18146(t *testing.T) {
++	switch runtime.GOOS {
++	case "darwin", "openbsd":
++		t.Skip("skipping on %s; issue 18146", runtime.GOOS)
++	}
++
++	attempts := 1000
++	threads := 4
++
++	if testing.Short() {
++		attempts = 100
++	}
++
++	if os.Getenv("test18146") == "exec" {
++		runtime.GOMAXPROCS(1)
++		for n := threads; n > 0; n-- {
++			go func() {
++				for {
++					_ = md5.Sum([]byte("Hello, !"))
++				}
++			}()
++		}
++		runtime.GOMAXPROCS(threads)
++		argv := append(os.Args, "-test.run=NoSuchTestExists")
++		if err := syscall.Exec(os.Args[0], argv, nil); err != nil {
++			t.Fatal(err)
++		}
++	}
++
++	var cmds []*exec.Cmd
++	defer func() {
++		for _, cmd := range cmds {
++			cmd.Process.Kill()
++		}
++	}()
++
++	args := append(append([]string(nil), os.Args[1:]...), "-test.run=Test18146")
++	for n := attempts; n > 0; n-- {
++		cmd := exec.Command(os.Args[0], args...)
++		cmd.Env = append(os.Environ(), "test18146=exec")
++		buf := bytes.NewBuffer(nil)
++		cmd.Stdout = buf
++		cmd.Stderr = buf
++		if err := cmd.Start(); err != nil {
++			t.Error(err)
++			return
++		}
++		cmds = append(cmds, cmd)
++	}
++
++	failures := 0
++	for _, cmd := range cmds {
++		err := cmd.Wait()
++		if err == nil {
++			continue
++		}
++
++		t.Errorf("syscall.Exec failed: %v\n%s", err, cmd.Stdout)
++		failures++
++	}
++
++	if failures > 0 {
++		t.Logf("Failed %v of %v attempts.", failures, len(cmds))
++	}
++}
+diff --git a/src/runtime/cgo/gcc_darwin_386.c b/src/runtime/cgo/gcc_darwin_386.c
+index effbcdfd4b..83092dbeac 100644
+--- a/src/runtime/cgo/gcc_darwin_386.c
++++ b/src/runtime/cgo/gcc_darwin_386.c
+@@ -6,6 +6,7 @@
+ #include <pthread.h>
+ #include <signal.h>
+ #include "libcgo.h"
++#include "libcgo_unix.h"
+ 
+ static void* threadentry(void*);
+ static pthread_key_t k1;
+@@ -123,7 +124,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 	pthread_attr_getstacksize(&attr, &size);
+ 	// Leave stacklo=0 and set stackhi=size; mstack will do the rest.
+ 	ts->g->stackhi = size;
+-	err = pthread_create(&p, &attr, threadentry, ts);
++	err = _cgo_try_pthread_create(&p, &attr, threadentry, ts);
+ 
+ 	pthread_sigmask(SIG_SETMASK, &oset, nil);
+ 
+diff --git a/src/runtime/cgo/gcc_darwin_amd64.c b/src/runtime/cgo/gcc_darwin_amd64.c
+index 15396b0d25..93a6b8e3ed 100644
+--- a/src/runtime/cgo/gcc_darwin_amd64.c
++++ b/src/runtime/cgo/gcc_darwin_amd64.c
+@@ -6,6 +6,7 @@
+ #include <pthread.h>
+ #include <signal.h>
+ #include "libcgo.h"
++#include "libcgo_unix.h"
+ 
+ static void* threadentry(void*);
+ static pthread_key_t k1;
+@@ -94,7 +95,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 	pthread_attr_getstacksize(&attr, &size);
+ 	// Leave stacklo=0 and set stackhi=size; mstack will do the rest.
+ 	ts->g->stackhi = size;
+-	err = pthread_create(&p, &attr, threadentry, ts);
++	err = _cgo_try_pthread_create(&p, &attr, threadentry, ts);
+ 
+ 	pthread_sigmask(SIG_SETMASK, &oset, nil);
+ 
+diff --git a/src/runtime/cgo/gcc_darwin_arm.c b/src/runtime/cgo/gcc_darwin_arm.c
+index dbf88c34ac..b3f8046011 100644
+--- a/src/runtime/cgo/gcc_darwin_arm.c
++++ b/src/runtime/cgo/gcc_darwin_arm.c
+@@ -10,6 +10,7 @@
+ #include <unistd.h>
+ 
+ #include "libcgo.h"
++#include "libcgo_unix.h"
+ 
+ #include <CoreFoundation/CFBundle.h>
+ #include <CoreFoundation/CFString.h>
+@@ -65,7 +66,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 	pthread_attr_getstacksize(&attr, &size);
+ 	// Leave stacklo=0 and set stackhi=size; mstack will do the rest.
+ 	ts->g->stackhi = size;
+-	err = pthread_create(&p, &attr, threadentry, ts);
++	err = _cgo_try_pthread_create(&p, &attr, threadentry, ts);
+ 
+ 	pthread_sigmask(SIG_SETMASK, &oset, nil);
+ 
+diff --git a/src/runtime/cgo/gcc_darwin_arm64.c b/src/runtime/cgo/gcc_darwin_arm64.c
+index a9eb4f2cd2..039dcc02bd 100644
+--- a/src/runtime/cgo/gcc_darwin_arm64.c
++++ b/src/runtime/cgo/gcc_darwin_arm64.c
+@@ -11,6 +11,7 @@
+ #include <stdlib.h>
+ 
+ #include "libcgo.h"
++#include "libcgo_unix.h"
+ 
+ #include <CoreFoundation/CFBundle.h>
+ #include <CoreFoundation/CFString.h>
+@@ -67,7 +68,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 	pthread_attr_getstacksize(&attr, &size);
+ 	// Leave stacklo=0 and set stackhi=size; mstack will do the rest.
+ 	ts->g->stackhi = size;
+-	err = pthread_create(&p, &attr, threadentry, ts);
++	err = _cgo_try_pthread_create(&p, &attr, threadentry, ts);
+ 
+ 	pthread_sigmask(SIG_SETMASK, &oset, nil);
+ 
+diff --git a/src/runtime/cgo/gcc_dragonfly_amd64.c b/src/runtime/cgo/gcc_dragonfly_amd64.c
+index e532ad69d6..bdfbf6b561 100644
+--- a/src/runtime/cgo/gcc_dragonfly_amd64.c
++++ b/src/runtime/cgo/gcc_dragonfly_amd64.c
+@@ -8,6 +8,7 @@
+ #include <signal.h>
+ #include <string.h>
+ #include "libcgo.h"
++#include "libcgo_unix.h"
+ 
+ static void* threadentry(void*);
+ static void (*setg_gcc)(void*);
+@@ -42,7 +43,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 
+ 	// Leave stacklo=0 and set stackhi=size; mstack will do the rest.
+ 	ts->g->stackhi = size;
+-	err = pthread_create(&p, &attr, threadentry, ts);
++	err = _cgo_try_pthread_create(&p, &attr, threadentry, ts);
+ 
+ 	pthread_sigmask(SIG_SETMASK, &oset, nil);
+ 
+diff --git a/src/runtime/cgo/gcc_freebsd_386.c b/src/runtime/cgo/gcc_freebsd_386.c
+index d288666a3d..c6d4f258c0 100644
+--- a/src/runtime/cgo/gcc_freebsd_386.c
++++ b/src/runtime/cgo/gcc_freebsd_386.c
+@@ -8,6 +8,7 @@
+ #include <signal.h>
+ #include <string.h>
+ #include "libcgo.h"
++#include "libcgo_unix.h"
+ 
+ static void* threadentry(void*);
+ static void (*setg_gcc)(void*);
+@@ -42,7 +43,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 	pthread_attr_getstacksize(&attr, &size);
+ 	// Leave stacklo=0 and set stackhi=size; mstack will do the rest.
+ 	ts->g->stackhi = size;
+-	err = pthread_create(&p, &attr, threadentry, ts);
++	err = _cgo_try_pthread_create(&p, &attr, threadentry, ts);
+ 
+ 	pthread_sigmask(SIG_SETMASK, &oset, nil);
+ 
+diff --git a/src/runtime/cgo/gcc_freebsd_amd64.c b/src/runtime/cgo/gcc_freebsd_amd64.c
+index e532ad69d6..bdfbf6b561 100644
+--- a/src/runtime/cgo/gcc_freebsd_amd64.c
++++ b/src/runtime/cgo/gcc_freebsd_amd64.c
+@@ -8,6 +8,7 @@
+ #include <signal.h>
+ #include <string.h>
+ #include "libcgo.h"
++#include "libcgo_unix.h"
+ 
+ static void* threadentry(void*);
+ static void (*setg_gcc)(void*);
+@@ -42,7 +43,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 
+ 	// Leave stacklo=0 and set stackhi=size; mstack will do the rest.
+ 	ts->g->stackhi = size;
+-	err = pthread_create(&p, &attr, threadentry, ts);
++	err = _cgo_try_pthread_create(&p, &attr, threadentry, ts);
+ 
+ 	pthread_sigmask(SIG_SETMASK, &oset, nil);
+ 
+diff --git a/src/runtime/cgo/gcc_freebsd_arm.c b/src/runtime/cgo/gcc_freebsd_arm.c
+index c4e7574326..746ca89322 100644
+--- a/src/runtime/cgo/gcc_freebsd_arm.c
++++ b/src/runtime/cgo/gcc_freebsd_arm.c
+@@ -9,6 +9,7 @@
+ #include <signal.h>
+ #include <string.h>
+ #include "libcgo.h"
++#include "libcgo_unix.h"
+ 
+ #ifdef ARM_TP_ADDRESS
+ // ARM_TP_ADDRESS is (ARM_VECTORS_HIGH + 0x1000) or 0xffff1000
+@@ -58,7 +59,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 	pthread_attr_getstacksize(&attr, &size);
+ 	// Leave stacklo=0 and set stackhi=size; mstack will do the rest.
+ 	ts->g->stackhi = size;
+-	err = pthread_create(&p, &attr, threadentry, ts);
++	err = _cgo_try_pthread_create(&p, &attr, threadentry, ts);
+ 
+ 	pthread_sigmask(SIG_SETMASK, &oset, nil);
+ 
+diff --git a/src/runtime/cgo/gcc_libinit.c b/src/runtime/cgo/gcc_libinit.c
+index 0bdf40a4ca..f6fbaa3f01 100644
+--- a/src/runtime/cgo/gcc_libinit.c
++++ b/src/runtime/cgo/gcc_libinit.c
+@@ -6,10 +6,13 @@
+ // +build darwin dragonfly freebsd linux netbsd solaris
+ 
+ #include <pthread.h>
++#include <errno.h>
+ #include <stdio.h>
+ #include <stdlib.h>
+ #include <string.h> // strerror
++#include <time.h>
+ #include "libcgo.h"
++#include "libcgo_unix.h"
+ 
+ static pthread_cond_t runtime_init_cond = PTHREAD_COND_INITIALIZER;
+ static pthread_mutex_t runtime_init_mu = PTHREAD_MUTEX_INITIALIZER;
+@@ -21,7 +24,7 @@ static void (*cgo_context_function)(struct context_arg*);
+ void
+ x_cgo_sys_thread_create(void* (*func)(void*), void* arg) {
+ 	pthread_t p;
+-	int err = pthread_create(&p, NULL, func, arg);
++	int err = _cgo_try_pthread_create(&p, NULL, func, arg);
+ 	if (err != 0) {
+ 		fprintf(stderr, "pthread_create failed: %s", strerror(err));
+ 		abort();
+@@ -84,3 +87,23 @@ void (*(_cgo_get_context_function(void)))(struct context_arg*) {
+ 	pthread_mutex_unlock(&runtime_init_mu);
+ 	return ret;
+ }
++
++// _cgo_try_pthread_create retries pthread_create if it fails with
++// EAGAIN.
++int
++_cgo_try_pthread_create(pthread_t* thread, const pthread_attr_t* attr, void* (*pfn)(void*), void* arg) {
++	int tries;
++	int err;
++	struct timespec ts;
++
++	for (tries = 0; tries < 20; tries++) {
++		err = pthread_create(thread, attr, pfn, arg);
++		if (err != EAGAIN) {
++			return err;
++		}
++		ts.tv_sec = 0;
++		ts.tv_nsec = (tries + 1) * 1000 * 1000; // Milliseconds.
++		nanosleep(&ts, nil);
++	}
++	return EAGAIN;
++}
+diff --git a/src/runtime/cgo/gcc_linux_386.c b/src/runtime/cgo/gcc_linux_386.c
+index 30fe92bfea..457a2c7e3a 100644
+--- a/src/runtime/cgo/gcc_linux_386.c
++++ b/src/runtime/cgo/gcc_linux_386.c
+@@ -6,6 +6,7 @@
+ #include <string.h>
+ #include <signal.h>
+ #include "libcgo.h"
++#include "libcgo_unix.h"
+ 
+ static void *threadentry(void*);
+ static void (*setg_gcc)(void*);
+@@ -53,7 +54,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 	pthread_attr_getstacksize(&attr, &size);
+ 	// Leave stacklo=0 and set stackhi=size; mstack will do the rest.
+ 	ts->g->stackhi = size;
+-	err = pthread_create(&p, &attr, threadentry, ts);
++	err = _cgo_try_pthread_create(&p, &attr, threadentry, ts);
+ 
+ 	pthread_sigmask(SIG_SETMASK, &oset, nil);
+ 
+diff --git a/src/runtime/cgo/gcc_linux_amd64.c b/src/runtime/cgo/gcc_linux_amd64.c
+index 0c34c66592..5d8ff10140 100644
+--- a/src/runtime/cgo/gcc_linux_amd64.c
++++ b/src/runtime/cgo/gcc_linux_amd64.c
+@@ -8,6 +8,7 @@
+ #include <signal.h>
+ #include <stdlib.h>
+ #include "libcgo.h"
++#include "libcgo_unix.h"
+ 
+ static void* threadentry(void*);
+ static void (*setg_gcc)(void*);
+@@ -70,7 +71,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 	pthread_attr_getstacksize(&attr, &size);
+ 	// Leave stacklo=0 and set stackhi=size; mstack will do the rest.
+ 	ts->g->stackhi = size;
+-	err = pthread_create(&p, &attr, threadentry, ts);
++	err = _cgo_try_pthread_create(&p, &attr, threadentry, ts);
+ 
+ 	pthread_sigmask(SIG_SETMASK, &oset, nil);
+ 
+diff --git a/src/runtime/cgo/gcc_linux_arm.c b/src/runtime/cgo/gcc_linux_arm.c
+index 945c3f19e4..31ced5e03c 100644
+--- a/src/runtime/cgo/gcc_linux_arm.c
++++ b/src/runtime/cgo/gcc_linux_arm.c
+@@ -6,6 +6,7 @@
+ #include <string.h>
+ #include <signal.h>
+ #include "libcgo.h"
++#include "libcgo_unix.h"
+ 
+ static void *threadentry(void*);
+ 
+@@ -33,7 +34,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 	pthread_attr_getstacksize(&attr, &size);
+ 	// Leave stacklo=0 and set stackhi=size; mstack will do the rest.
+ 	ts->g->stackhi = size;
+-	err = pthread_create(&p, &attr, threadentry, ts);
++	err = _cgo_try_pthread_create(&p, &attr, threadentry, ts);
+ 
+ 	pthread_sigmask(SIG_SETMASK, &oset, nil);
+ 
+diff --git a/src/runtime/cgo/gcc_linux_arm64.c b/src/runtime/cgo/gcc_linux_arm64.c
+index ca9ba0ba6e..35b8e27967 100644
+--- a/src/runtime/cgo/gcc_linux_arm64.c
++++ b/src/runtime/cgo/gcc_linux_arm64.c
+@@ -6,6 +6,7 @@
+ #include <string.h>
+ #include <signal.h>
+ #include "libcgo.h"
++#include "libcgo_unix.h"
+ 
+ static void *threadentry(void*);
+ 
+@@ -33,7 +34,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 	pthread_attr_getstacksize(&attr, &size);
+ 	// Leave stacklo=0 and set stackhi=size; mstack will do the rest.
+ 	ts->g->stackhi = size;
+-	err = pthread_create(&p, &attr, threadentry, ts);
++	err = _cgo_try_pthread_create(&p, &attr, threadentry, ts);
+ 
+ 	pthread_sigmask(SIG_SETMASK, &oset, nil);
+ 
+diff --git a/src/runtime/cgo/gcc_linux_mips64x.c b/src/runtime/cgo/gcc_linux_mips64x.c
+index 8a95629f56..e0ce08f4e5 100644
+--- a/src/runtime/cgo/gcc_linux_mips64x.c
++++ b/src/runtime/cgo/gcc_linux_mips64x.c
+@@ -10,6 +10,7 @@
+ #include <string.h>
+ #include <signal.h>
+ #include "libcgo.h"
++#include "libcgo_unix.h"
+ 
+ static void *threadentry(void*);
+ 
+@@ -37,7 +38,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 	pthread_attr_getstacksize(&attr, &size);
+ 	// Leave stacklo=0 and set stackhi=size; mstack will do the rest.
+ 	ts->g->stackhi = size;
+-	err = pthread_create(&p, &attr, threadentry, ts);
++	err = _cgo_try_pthread_create(&p, &attr, threadentry, ts);
+ 
+ 	pthread_sigmask(SIG_SETMASK, &oset, nil);
+ 
+diff --git a/src/runtime/cgo/gcc_linux_ppc64x.c b/src/runtime/cgo/gcc_linux_ppc64x.c
+index fb19805bda..fcf77cfe47 100644
+--- a/src/runtime/cgo/gcc_linux_ppc64x.c
++++ b/src/runtime/cgo/gcc_linux_ppc64x.c
+@@ -8,6 +8,7 @@
+ #include <string.h>
+ #include <signal.h>
+ #include "libcgo.h"
++#include "libcgo_unix.h"
+ 
+ static void *threadentry(void*);
+ 
+@@ -43,7 +44,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 	pthread_attr_getstacksize(&attr, &size);
+ 	// Leave stacklo=0 and set stackhi=size; mstack will do the rest.
+ 	ts->g->stackhi = size;
+-	err = pthread_create(&p, &attr, threadentry, ts);
++	err = _cgo_try_pthread_create(&p, &attr, threadentry, ts);
+ 
+ 	pthread_sigmask(SIG_SETMASK, &oset, nil);
+ 
+diff --git a/src/runtime/cgo/gcc_linux_s390x.c b/src/runtime/cgo/gcc_linux_s390x.c
+index 81e3b339b0..cdc9c23f49 100644
+--- a/src/runtime/cgo/gcc_linux_s390x.c
++++ b/src/runtime/cgo/gcc_linux_s390x.c
+@@ -6,6 +6,7 @@
+ #include <string.h>
+ #include <signal.h>
+ #include "libcgo.h"
++#include "libcgo_unix.h"
+ 
+ static void *threadentry(void*);
+ 
+@@ -41,7 +42,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 	pthread_attr_getstacksize(&attr, &size);
+ 	// Leave stacklo=0 and set stackhi=size; mstack will do the rest.
+ 	ts->g->stackhi = size;
+-	err = pthread_create(&p, &attr, threadentry, ts);
++	err = _cgo_try_pthread_create(&p, &attr, threadentry, ts);
+ 
+ 	pthread_sigmask(SIG_SETMASK, &oset, nil);
+ 
+diff --git a/src/runtime/cgo/gcc_netbsd_386.c b/src/runtime/cgo/gcc_netbsd_386.c
+index 99558ea140..fb317c1c68 100644
+--- a/src/runtime/cgo/gcc_netbsd_386.c
++++ b/src/runtime/cgo/gcc_netbsd_386.c
+@@ -7,6 +7,7 @@
+ #include <signal.h>
+ #include <string.h>
+ #include "libcgo.h"
++#include "libcgo_unix.h"
+ 
+ static void* threadentry(void*);
+ static void (*setg_gcc)(void*);
+@@ -41,7 +42,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 	pthread_attr_getstacksize(&attr, &size);
+ 	// Leave stacklo=0 and set stackhi=size; mstack will do the rest.
+ 	ts->g->stackhi = size;
+-	err = pthread_create(&p, &attr, threadentry, ts);
++	err = _cgo_try_pthread_create(&p, &attr, threadentry, ts);
+ 
+ 	pthread_sigmask(SIG_SETMASK, &oset, nil);
+ 
+diff --git a/src/runtime/cgo/gcc_netbsd_amd64.c b/src/runtime/cgo/gcc_netbsd_amd64.c
+index f5c8b1e74f..77a553f5fa 100644
+--- a/src/runtime/cgo/gcc_netbsd_amd64.c
++++ b/src/runtime/cgo/gcc_netbsd_amd64.c
+@@ -7,6 +7,7 @@
+ #include <signal.h>
+ #include <string.h>
+ #include "libcgo.h"
++#include "libcgo_unix.h"
+ 
+ static void* threadentry(void*);
+ static void (*setg_gcc)(void*);
+@@ -42,7 +43,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 
+ 	// Leave stacklo=0 and set stackhi=size; mstack will do the rest.
+ 	ts->g->stackhi = size;
+-	err = pthread_create(&p, &attr, threadentry, ts);
++	err = _cgo_try_pthread_create(&p, &attr, threadentry, ts);
+ 
+ 	pthread_sigmask(SIG_SETMASK, &oset, nil);
+ 
+diff --git a/src/runtime/cgo/gcc_netbsd_arm.c b/src/runtime/cgo/gcc_netbsd_arm.c
+index 97ce908485..672f49c3d8 100644
+--- a/src/runtime/cgo/gcc_netbsd_arm.c
++++ b/src/runtime/cgo/gcc_netbsd_arm.c
+@@ -7,6 +7,7 @@
+ #include <signal.h>
+ #include <string.h>
+ #include "libcgo.h"
++#include "libcgo_unix.h"
+ 
+ static void *threadentry(void*);
+ 
+@@ -42,7 +43,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 	pthread_attr_getstacksize(&attr, &size);
+ 	// Leave stacklo=0 and set stackhi=size; mstack will do the rest.
+ 	ts->g->stackhi = size;
+-	err = pthread_create(&p, &attr, threadentry, ts);
++	err = _cgo_try_pthread_create(&p, &attr, threadentry, ts);
+ 
+ 	pthread_sigmask(SIG_SETMASK, &oset, nil);
+ 
+diff --git a/src/runtime/cgo/gcc_signal_darwin_armx.c b/src/runtime/cgo/gcc_signal_darwin_armx.c
+index 02c54d80a2..a2d520bce8 100644
+--- a/src/runtime/cgo/gcc_signal_darwin_armx.c
++++ b/src/runtime/cgo/gcc_signal_darwin_armx.c
+@@ -37,6 +37,7 @@
+ #include <mach/thread_status.h>
+ 
+ #include "libcgo.h"
++#include "libcgo_unix.h"
+ 
+ uintptr_t x_cgo_panicmem;
+ 
+@@ -201,7 +202,7 @@ darwin_arm_init_mach_exception_handler()
+ 	uintptr_t port_set = (uintptr_t)mach_exception_handler_port_set;
+ 	pthread_attr_init(&attr);
+ 	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+-	ret = pthread_create(&thr, &attr, mach_exception_handler, (void*)port_set);
++	ret = _cgo_try_pthread_create(&thr, &attr, mach_exception_handler, (void*)port_set);
+ 
+ 	pthread_sigmask(SIG_SETMASK, &oset, nil);
+ 
+diff --git a/src/runtime/cgo/gcc_solaris_amd64.c b/src/runtime/cgo/gcc_solaris_amd64.c
+index 98a1a8be53..079bd12898 100644
+--- a/src/runtime/cgo/gcc_solaris_amd64.c
++++ b/src/runtime/cgo/gcc_solaris_amd64.c
+@@ -7,6 +7,7 @@
+ #include <signal.h>
+ #include <ucontext.h>
+ #include "libcgo.h"
++#include "libcgo_unix.h"
+ 
+ static void* threadentry(void*);
+ static void (*setg_gcc)(void*);
+@@ -53,7 +54,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 		ts->g->stackhi = size;
+ 	}
+ 	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+-	err = pthread_create(&p, &attr, threadentry, ts);
++	err = _cgo_try_pthread_create(&p, &attr, threadentry, ts);
+ 
+ 	pthread_sigmask(SIG_SETMASK, &oset, nil);
+ 
+diff --git a/src/runtime/cgo/libcgo_unix.h b/src/runtime/cgo/libcgo_unix.h
+new file mode 100644
+index 0000000000..13c84ce131
+--- /dev/null
++++ b/src/runtime/cgo/libcgo_unix.h
+@@ -0,0 +1,8 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++/*
++ * Call pthread_create, retrying on EAGAIN.
++ */
++int _cgo_try_pthread_create(pthread_t*, const pthread_attr_t*, void* (*)(void*), void*);

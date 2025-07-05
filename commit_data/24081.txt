@@ -12,10 +12,156 @@ Date:   Mon Jul 6 14:13:17 2015 -0700
     Change-Id: I45d4ff7e1f7f1486fdd99f867867ce6ea006a288
     Reviewed-on: https://go-review.googlesource.com/11879
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go             |  2 +-
  src/cmd/compile/internal/ssa/deadcode.go       | 69 +++++++++++++++-----------
  src/cmd/compile/internal/ssa/gen/rulegen.go    |  2 +-
  src/cmd/compile/internal/ssa/nilcheck.go       |  2 +-
  src/cmd/compile/internal/ssa/rewritegeneric.go |  4 +-
  5 files changed, 46 insertions(+), 33 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 1be5f0cb85..866db610b8 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -464,7 +464,7 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 		switch n.Val().Ctype() {
+ 		case CTINT:
+ 			return s.constInt(n.Type, Mpgetfix(n.Val().U.(*Mpint)))
+-		case CTSTR:
++		case CTSTR, CTBOOL:
+ 			return s.entryNewValue0A(ssa.OpConst, n.Type, n.Val().U)
+ 		default:
+ 			s.Unimplementedf("unhandled OLITERAL %v", n.Val().Ctype())
+diff --git a/src/cmd/compile/internal/ssa/deadcode.go b/src/cmd/compile/internal/ssa/deadcode.go
+index 48d6fd6938..a5d0fe0f34 100644
+--- a/src/cmd/compile/internal/ssa/deadcode.go
++++ b/src/cmd/compile/internal/ssa/deadcode.go
+@@ -98,38 +98,51 @@ func deadcode(f *Func) {
+ 
+ // There was an edge b->c.  It has been removed from b's successors.
+ // Fix up c to handle that fact.
+-func removePredecessor(b, c *Block) {
+-	n := len(c.Preds) - 1
+-	if n == 0 {
+-		// c is now dead - don't bother working on it
+-		if c.Preds[0] != b {
+-			b.Fatalf("%s.Preds[0]==%s, want %s", c, c.Preds[0], b)
+-		}
+-		return
+-	}
++func (f *Func) removePredecessor(b, c *Block) {
++	work := [][2]*Block{{b, c}}
++
++	for len(work) > 0 {
++		b, c := work[0][0], work[0][1]
++		work = work[1:]
++
++		n := len(c.Preds) - 1
+ 
+-	// find index of b in c's predecessor list
+-	var i int
+-	for j, p := range c.Preds {
+-		if p == b {
+-			i = j
+-			break
++		// find index of b in c's predecessor list
++		var i int
++		for j, p := range c.Preds {
++			if p == b {
++				i = j
++				break
++			}
+ 		}
+-	}
+ 
+-	c.Preds[i] = c.Preds[n]
+-	c.Preds[n] = nil // aid GC
+-	c.Preds = c.Preds[:n]
+-	// rewrite phi ops to match the new predecessor list
+-	for _, v := range c.Values {
+-		if v.Op != OpPhi {
+-			continue
++		c.Preds[i] = c.Preds[n]
++		c.Preds[n] = nil // aid GC
++		c.Preds = c.Preds[:n]
++
++		// rewrite phi ops to match the new predecessor list
++		for _, v := range c.Values {
++			if v.Op != OpPhi {
++				continue
++			}
++			v.Args[i] = v.Args[n]
++			v.Args[n] = nil // aid GC
++			v.Args = v.Args[:n]
++			if n == 1 {
++				v.Op = OpCopy
++			}
+ 		}
+-		v.Args[i] = v.Args[n]
+-		v.Args[n] = nil // aid GC
+-		v.Args = v.Args[:n]
+-		if n == 1 {
+-			v.Op = OpCopy
++
++		if n == 0 {
++			// c is now dead--recycle its values
++			for _, v := range c.Values {
++				f.vid.put(v.ID)
++			}
++			c.Values = nil
++			// Also kill any successors of c now, to spare later processing.
++			for _, succ := range c.Succs {
++				work = append(work, [2]*Block{c, succ})
++			}
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/ssa/gen/rulegen.go b/src/cmd/compile/internal/ssa/gen/rulegen.go
+index 1a4b2c1b85..46e0e507c4 100644
+--- a/src/cmd/compile/internal/ssa/gen/rulegen.go
++++ b/src/cmd/compile/internal/ssa/gen/rulegen.go
+@@ -232,7 +232,7 @@ func genRules(arch arch) {
+ 
+ 			// Modify predecessor lists for no-longer-reachable blocks
+ 			for succ := range m {
+-				fmt.Fprintf(w, "removePredecessor(b, %s)\n", succ)
++				fmt.Fprintf(w, "v.Block.Func.removePredecessor(b, %s)\n", succ)
+ 			}
+ 
+ 			fmt.Fprintf(w, "b.Kind = %s\n", blockName(t[0], arch))
+diff --git a/src/cmd/compile/internal/ssa/nilcheck.go b/src/cmd/compile/internal/ssa/nilcheck.go
+index 1265ee9971..d24340e630 100644
+--- a/src/cmd/compile/internal/ssa/nilcheck.go
++++ b/src/cmd/compile/internal/ssa/nilcheck.go
+@@ -46,7 +46,7 @@ func nilcheckelim(f *Func) {
+ 			// and the fuse pass will join this block with its successor.
+ 			b.Kind = BlockPlain
+ 			b.Control = nil
+-			removePredecessor(b, b.Succs[1])
++			f.removePredecessor(b, b.Succs[1])
+ 			b.Succs = b.Succs[:1]
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index e2feeb53cc..78cb2c8ebb 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -403,7 +403,7 @@ func rewriteBlockgeneric(b *Block) bool {
+ 			if !(c.(bool)) {
+ 				goto end915e334b6388fed7d63e09aa69ecb05c
+ 			}
+-			removePredecessor(b, no)
++			v.Block.Func.removePredecessor(b, no)
+ 			b.Kind = BlockPlain
+ 			b.Control = nil
+ 			b.Succs = b.Succs[:1]
+@@ -427,7 +427,7 @@ func rewriteBlockgeneric(b *Block) bool {
+ 			if !(!c.(bool)) {
+ 				goto end6452ee3a5bb02c708bddc3181c3ea3cb
+ 			}
+-			removePredecessor(b, yes)
++			v.Block.Func.removePredecessor(b, yes)
+ 			b.Kind = BlockPlain
+ 			b.Control = nil
+ 			b.Succs = b.Succs[:1]

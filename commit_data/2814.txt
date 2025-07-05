@@ -10,7 +10,7 @@ Date:   Tue Jul 28 17:20:19 2009 -0700
     DELTA=150  (45 added, 7 deleted, 98 changed)
     OCL=32381
     CL=32387
-
+---
  src/pkg/gob/Makefile        | 17 ++++++---
  src/pkg/gob/codec_test.go   | 90 ++++++++++++++++++++++-----------------------
  src/pkg/gob/decode.go       | 82 +++++++++++++++++++++++++++--------------
@@ -19,3 +19,544 @@ Date:   Tue Jul 28 17:20:19 2009 -0700
  src/pkg/gob/encoder.go      | 10 ++---
  src/pkg/gob/encoder_test.go |  3 +-
  7 files changed, 136 insertions(+), 98 deletions(-)
+
+diff --git a/src/pkg/gob/Makefile b/src/pkg/gob/Makefile
+index 54bcf813c0..3534430c53 100644
+--- a/src/pkg/gob/Makefile
++++ b/src/pkg/gob/Makefile
+@@ -36,15 +36,17 @@ O1=\
+ 	type.$O\
+ 
+ O2=\
+-	decode.$O\
+ 	encode.$O\
+ 
+ O3=\
+-	decoder.$O\
++	decode.$O\
+ 	encoder.$O\
+ 
++O4=\
++	decoder.$O\
++
+ 
+-phases: a1 a2 a3
++phases: a1 a2 a3 a4
+ _obj$D/gob.a: phases
+ 
+ a1: $(O1)
+@@ -52,13 +54,17 @@ a1: $(O1)
+ 	rm -f $(O1)
+ 
+ a2: $(O2)
+-	$(AR) grc _obj$D/gob.a decode.$O encode.$O
++	$(AR) grc _obj$D/gob.a encode.$O
+ 	rm -f $(O2)
+ 
+ a3: $(O3)
+-	$(AR) grc _obj$D/gob.a decoder.$O encoder.$O
++	$(AR) grc _obj$D/gob.a decode.$O encoder.$O
+ 	rm -f $(O3)
+ 
++a4: $(O4)
++	$(AR) grc _obj$D/gob.a decoder.$O
++	rm -f $(O4)
++
+ 
+ newpkg: clean
+ 	mkdir -p _obj$D
+@@ -68,6 +74,7 @@ $(O1): newpkg
+ $(O2): a1
+ $(O3): a2
+ $(O4): a3
++$(O5): a4
+ 
+ nuke: clean
+ 	rm -f $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/gob.a
+diff --git a/src/pkg/gob/codec_test.go b/src/pkg/gob/codec_test.go
+index 66d6b01ec5..8263a9286c 100644
+--- a/src/pkg/gob/codec_test.go
++++ b/src/pkg/gob/codec_test.go
+@@ -21,20 +21,20 @@ type EncodeT struct {
+ 	b	[]byte;
+ }
+ var encodeT = []EncodeT {
+-	EncodeT{ 0x00,	[]byte{0x80} },
+-	EncodeT{ 0x0f,	[]byte{0x8f} },
+-	EncodeT{ 0xff,	[]byte{0x7f, 0x81} },
+-	EncodeT{ 0xffff,	[]byte{0x7f, 0x7f, 0x83} },
+-	EncodeT{ 0xffffff,	[]byte{0x7f, 0x7f, 0x7f, 0x87} },
+-	EncodeT{ 0xffffffff,	[]byte{0x7f, 0x7f, 0x7f, 0x7f, 0x8f} },
+-	EncodeT{ 0xffffffffff,	[]byte{0x7f, 0x7f, 0x7f, 0x7f, 0x7f, 0x9f} },
+-	EncodeT{ 0xffffffffffff,	[]byte{0x7f, 0x7f, 0x7f, 0x7f, 0x7f, 0x7f, 0xbf} },
+-	EncodeT{ 0xffffffffffffff,	[]byte{0x7f, 0x7f, 0x7f, 0x7f, 0x7f, 0x7f, 0x7f, 0xff} },
+-	EncodeT{ 0xffffffffffffffff,	[]byte{0x7f, 0x7f, 0x7f, 0x7f, 0x7f, 0x7f, 0x7f, 0x7f, 0x7f, 0x81} },
+-	EncodeT{ 0x1111,	[]byte{0x11, 0xa2} },
+-	EncodeT{ 0x1111111111111111,	[]byte{0x11, 0x22, 0x44, 0x08, 0x11, 0x22, 0x44, 0x08, 0x91} },
+-	EncodeT{ 0x8888888888888888,	[]byte{0x08, 0x11, 0x22, 0x44, 0x08, 0x11, 0x22, 0x44, 0x08, 0x81} },
+-	EncodeT{ 1<<63,	[]byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x81} },
++	EncodeT{ 0x00,	[]byte{0x00} },
++	EncodeT{ 0x0F,	[]byte{0x0F} },
++	EncodeT{ 0xFF,	[]byte{0xFF, 0xFF} },
++	EncodeT{ 0xFFFF,	[]byte{0xFE, 0xFF, 0xFF} },
++	EncodeT{ 0xFFFFFF,	[]byte{0xFD, 0xFF, 0xFF, 0xFF} },
++	EncodeT{ 0xFFFFFFFF,	[]byte{0xFC, 0xFF, 0xFF, 0xFF, 0xFF} },
++	EncodeT{ 0xFFFFFFFFFF,	[]byte{0xFB, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF} },
++	EncodeT{ 0xFFFFFFFFFFFF,	[]byte{0xFA, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF} },
++	EncodeT{ 0xFFFFFFFFFFFFFF,	[]byte{0xF9, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF} },
++	EncodeT{ 0xFFFFFFFFFFFFFFFF,	[]byte{0xF8, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF} },
++	EncodeT{ 0x1111,	[]byte{0xFE, 0x11, 0x11} },
++	EncodeT{ 0x1111111111111111,	[]byte{0xF8, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11} },
++	EncodeT{ 0x8888888888888888,	[]byte{0xF8, 0x88, 0x88, 0x88, 0x88, 0x88, 0x88, 0x88, 0x88} },
++	EncodeT{ 1<<63,	[]byte{0xF8, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00} },
+ }
+ 
+ 
+@@ -50,11 +50,10 @@ func TestUintCodec(t *testing.T) {
+ 			t.Error("encodeUint:", tt.x, encState.err)
+ 		}
+ 		if !bytes.Equal(tt.b, b.Data()) {
+-			t.Errorf("encodeUint: expected % x got % x", tt.b, b.Data())
++			t.Errorf("encodeUint: %#x encode: expected % x got % x", tt.x, tt.b, b.Data())
+ 		}
+ 	}
+-	decState := new(decodeState);
+-	decState.b = b;
++	decState := newDecodeState(b);
+ 	for u := uint64(0); ; u = (u+1) * 7 {
+ 		b.Reset();
+ 		encodeUint(encState, u);
+@@ -82,8 +81,8 @@ func verifyInt(i int64, t *testing.T) {
+ 	if encState.err != nil {
+ 		t.Error("encodeInt:", i, encState.err)
+ 	}
+-	decState := new(decodeState);
+-	decState.b = b;
++	decState := newDecodeState(b);
++	decState.buf = make([]byte, 8);
+ 	j := decodeInt(decState);
+ 	if decState.err != nil {
+ 		t.Error("DecodeInt:", i, decState.err)
+@@ -109,14 +108,14 @@ func TestIntCodec(t *testing.T) {
+ 	verifyInt(-1<<63, t);	// a tricky case
+ }
+ 
+-// The result of encoding a true boolean with field number 6
+-var boolResult = []byte{0x87, 0x81}
+-// The result of encoding a number 17 with field number 6
+-var signedResult = []byte{0x87, 0xa2}
+-var unsignedResult = []byte{0x87, 0x91}
+-var floatResult = []byte{0x87, 0x40, 0xe2}
++// The result of encoding a true boolean with field number 7
++var boolResult = []byte{0x07, 0x01}
++// The result of encoding a number 17 with field number 7
++var signedResult = []byte{0x07, 2*17}
++var unsignedResult = []byte{0x07, 17}
++var floatResult = []byte{0x07, 0xFE, 0x31, 0x40}
+ // The result of encoding "hello" with field number 6
+-var bytesResult = []byte{0x87, 0x85, 'h', 'e', 'l', 'l', 'o'}
++var bytesResult = []byte{0x07, 0x05, 'h', 'e', 'l', 'l', 'o'}
+ 
+ func newencoderState(b *bytes.Buffer) *encoderState {
+ 	b.Reset();
+@@ -338,9 +337,8 @@ func execDec(typ string, instr *decInstr, state *decodeState, t *testing.T, p un
+ 	state.fieldnum = 6;
+ }
+ 
+-func newdecodeState(data []byte) *decodeState {
+-	state := new(decodeState);
+-	state.b = bytes.NewBuffer(data);
++func newDecodeStateFromData(data []byte) *decodeState {
++	state := newDecodeState(bytes.NewBuffer(data));
+ 	state.fieldnum = -1;
+ 	return state;
+ }
+@@ -354,7 +352,7 @@ func TestScalarDecInstructions(t *testing.T) {
+ 	{
+ 		var data struct { a bool };
+ 		instr := &decInstr{ decBool, 6, 0, 0, ovfl };
+-		state := newdecodeState(boolResult);
++		state := newDecodeStateFromData(boolResult);
+ 		execDec("bool", instr, state, t, unsafe.Pointer(&data));
+ 		if data.a != true {
+ 			t.Errorf("bool a = %v not true", data.a)
+@@ -364,7 +362,7 @@ func TestScalarDecInstructions(t *testing.T) {
+ 	{
+ 		var data struct { a int };
+ 		instr := &decInstr{ decOpMap[valueKind(data.a)], 6, 0, 0, ovfl };
+-		state := newdecodeState(signedResult);
++		state := newDecodeStateFromData(signedResult);
+ 		execDec("int", instr, state, t, unsafe.Pointer(&data));
+ 		if data.a != 17 {
+ 			t.Errorf("int a = %v not 17", data.a)
+@@ -375,7 +373,7 @@ func TestScalarDecInstructions(t *testing.T) {
+ 	{
+ 		var data struct { a uint };
+ 		instr := &decInstr{ decOpMap[valueKind(data.a)], 6, 0, 0, ovfl };
+-		state := newdecodeState(unsignedResult);
++		state := newDecodeStateFromData(unsignedResult);
+ 		execDec("uint", instr, state, t, unsafe.Pointer(&data));
+ 		if data.a != 17 {
+ 			t.Errorf("uint a = %v not 17", data.a)
+@@ -386,7 +384,7 @@ func TestScalarDecInstructions(t *testing.T) {
+ 	{
+ 		var data struct { a int8 };
+ 		instr := &decInstr{ decInt8, 6, 0, 0, ovfl };
+-		state := newdecodeState(signedResult);
++		state := newDecodeStateFromData(signedResult);
+ 		execDec("int8", instr, state, t, unsafe.Pointer(&data));
+ 		if data.a != 17 {
+ 			t.Errorf("int8 a = %v not 17", data.a)
+@@ -397,7 +395,7 @@ func TestScalarDecInstructions(t *testing.T) {
+ 	{
+ 		var data struct { a uint8 };
+ 		instr := &decInstr{ decUint8, 6, 0, 0, ovfl };
+-		state := newdecodeState(unsignedResult);
++		state := newDecodeStateFromData(unsignedResult);
+ 		execDec("uint8", instr, state, t, unsafe.Pointer(&data));
+ 		if data.a != 17 {
+ 			t.Errorf("uint8 a = %v not 17", data.a)
+@@ -408,7 +406,7 @@ func TestScalarDecInstructions(t *testing.T) {
+ 	{
+ 		var data struct { a int16 };
+ 		instr := &decInstr{ decInt16, 6, 0, 0, ovfl };
+-		state := newdecodeState(signedResult);
++		state := newDecodeStateFromData(signedResult);
+ 		execDec("int16", instr, state, t, unsafe.Pointer(&data));
+ 		if data.a != 17 {
+ 			t.Errorf("int16 a = %v not 17", data.a)
+@@ -419,7 +417,7 @@ func TestScalarDecInstructions(t *testing.T) {
+ 	{
+ 		var data struct { a uint16 };
+ 		instr := &decInstr{ decUint16, 6, 0, 0, ovfl };
+-		state := newdecodeState(unsignedResult);
++		state := newDecodeStateFromData(unsignedResult);
+ 		execDec("uint16", instr, state, t, unsafe.Pointer(&data));
+ 		if data.a != 17 {
+ 			t.Errorf("uint16 a = %v not 17", data.a)
+@@ -430,7 +428,7 @@ func TestScalarDecInstructions(t *testing.T) {
+ 	{
+ 		var data struct { a int32 };
+ 		instr := &decInstr{ decInt32, 6, 0, 0, ovfl };
+-		state := newdecodeState(signedResult);
++		state := newDecodeStateFromData(signedResult);
+ 		execDec("int32", instr, state, t, unsafe.Pointer(&data));
+ 		if data.a != 17 {
+ 			t.Errorf("int32 a = %v not 17", data.a)
+@@ -441,7 +439,7 @@ func TestScalarDecInstructions(t *testing.T) {
+ 	{
+ 		var data struct { a uint32 };
+ 		instr := &decInstr{ decUint32, 6, 0, 0, ovfl };
+-		state := newdecodeState(unsignedResult);
++		state := newDecodeStateFromData(unsignedResult);
+ 		execDec("uint32", instr, state, t, unsafe.Pointer(&data));
+ 		if data.a != 17 {
+ 			t.Errorf("uint32 a = %v not 17", data.a)
+@@ -452,7 +450,7 @@ func TestScalarDecInstructions(t *testing.T) {
+ 	{
+ 		var data struct { a uintptr };
+ 		instr := &decInstr{ decOpMap[valueKind(data.a)], 6, 0, 0, ovfl };
+-		state := newdecodeState(unsignedResult);
++		state := newDecodeStateFromData(unsignedResult);
+ 		execDec("uintptr", instr, state, t, unsafe.Pointer(&data));
+ 		if data.a != 17 {
+ 			t.Errorf("uintptr a = %v not 17", data.a)
+@@ -463,7 +461,7 @@ func TestScalarDecInstructions(t *testing.T) {
+ 	{
+ 		var data struct { a int64 };
+ 		instr := &decInstr{ decInt64, 6, 0, 0, ovfl };
+-		state := newdecodeState(signedResult);
++		state := newDecodeStateFromData(signedResult);
+ 		execDec("int64", instr, state, t, unsafe.Pointer(&data));
+ 		if data.a != 17 {
+ 			t.Errorf("int64 a = %v not 17", data.a)
+@@ -474,7 +472,7 @@ func TestScalarDecInstructions(t *testing.T) {
+ 	{
+ 		var data struct { a uint64 };
+ 		instr := &decInstr{ decUint64, 6, 0, 0, ovfl };
+-		state := newdecodeState(unsignedResult);
++		state := newDecodeStateFromData(unsignedResult);
+ 		execDec("uint64", instr, state, t, unsafe.Pointer(&data));
+ 		if data.a != 17 {
+ 			t.Errorf("uint64 a = %v not 17", data.a)
+@@ -485,7 +483,7 @@ func TestScalarDecInstructions(t *testing.T) {
+ 	{
+ 		var data struct { a float };
+ 		instr := &decInstr{ decOpMap[valueKind(data.a)], 6, 0, 0, ovfl };
+-		state := newdecodeState(floatResult);
++		state := newDecodeStateFromData(floatResult);
+ 		execDec("float", instr, state, t, unsafe.Pointer(&data));
+ 		if data.a != 17 {
+ 			t.Errorf("float a = %v not 17", data.a)
+@@ -496,7 +494,7 @@ func TestScalarDecInstructions(t *testing.T) {
+ 	{
+ 		var data struct { a float32 };
+ 		instr := &decInstr{ decFloat32, 6, 0, 0, ovfl };
+-		state := newdecodeState(floatResult);
++		state := newDecodeStateFromData(floatResult);
+ 		execDec("float32", instr, state, t, unsafe.Pointer(&data));
+ 		if data.a != 17 {
+ 			t.Errorf("float32 a = %v not 17", data.a)
+@@ -507,7 +505,7 @@ func TestScalarDecInstructions(t *testing.T) {
+ 	{
+ 		var data struct { a float64 };
+ 		instr := &decInstr{ decFloat64, 6, 0, 0, ovfl };
+-		state := newdecodeState(floatResult);
++		state := newDecodeStateFromData(floatResult);
+ 		execDec("float64", instr, state, t, unsafe.Pointer(&data));
+ 		if data.a != 17 {
+ 			t.Errorf("float64 a = %v not 17", data.a)
+@@ -518,7 +516,7 @@ func TestScalarDecInstructions(t *testing.T) {
+ 	{
+ 		var data struct { a []byte };
+ 		instr := &decInstr{ decUint8Array, 6, 0, 0, ovfl };
+-		state := newdecodeState(bytesResult);
++		state := newDecodeStateFromData(bytesResult);
+ 		execDec("bytes", instr, state, t, unsafe.Pointer(&data));
+ 		if string(data.a) != "hello" {
+ 			t.Errorf(`bytes a = %q not "hello"`, string(data.a))
+@@ -529,7 +527,7 @@ func TestScalarDecInstructions(t *testing.T) {
+ 	{
+ 		var data struct { a string };
+ 		instr := &decInstr{ decString, 6, 0, 0, ovfl };
+-		state := newdecodeState(bytesResult);
++		state := newDecodeStateFromData(bytesResult);
+ 		execDec("bytes", instr, state, t, unsafe.Pointer(&data));
+ 		if data.a != "hello" {
+ 			t.Errorf(`bytes a = %q not "hello"`, data.a)
+diff --git a/src/pkg/gob/decode.go b/src/pkg/gob/decode.go
+index 4469089c45..9cd2387369 100644
+--- a/src/pkg/gob/decode.go
++++ b/src/pkg/gob/decode.go
+@@ -18,6 +18,7 @@ import (
+ )
+ 
+ var (
++	errBadUint = os.ErrorString("gob: encoded unsigned integer out of range");
+ 	errRange = os.ErrorString("gob: internal error: field numbers out of bounds");
+ 	errNotStruct = os.ErrorString("gob: TODO: can only handle structs")
+ )
+@@ -27,6 +28,14 @@ type decodeState struct {
+ 	b	*bytes.Buffer;
+ 	err	os.Error;
+ 	fieldnum	int;	// the last field number read.
++	buf	[]byte;
++}
++
++func newDecodeState(b *bytes.Buffer) *decodeState {
++	d := new(decodeState);
++	d.b = b;
++	d.buf = make([]byte, uint64Size);
++	return d;
+ }
+ 
+ func overflow(name string) os.ErrorString {
+@@ -35,21 +44,34 @@ func overflow(name string) os.ErrorString {
+ 
+ // decodeUintReader reads an encoded unsigned integer from an io.Reader.
+ // Used only by the Decoder to read the message length.
+-func decodeUintReader(r io.Reader, oneByte []byte) (x uint64, err os.Error) {
+-	for shift := uint(0);; shift += 7 {
+-		var n int;
+-		n, err = r.Read(oneByte);
+-		if err != nil {
+-			return 0, err
+-		}
+-		b := oneByte[0];
+-		x |= uint64(b) << shift;
+-		if b&0x80 != 0 {
+-			x &^= 0x80 << shift;
+-			break
++func decodeUintReader(r io.Reader, buf []byte) (x uint64, err os.Error) {
++	n1, err := r.Read(buf[0:1]);
++	if err != nil {
++		return
++	}
++	b := buf[0];
++	if b <= 0x7f {
++		return uint64(b), nil
++	}
++	nb := -int(int8(b));
++	if nb > uint64Size {
++		err = errBadUint;
++		return;
++	}
++	var n int;
++	n, err = io.ReadFull(r, buf[0:nb]);
++	if err != nil {
++		if err == os.EOF {
++			err = io.ErrUnexpectedEOF
+ 		}
++		return
++	}
++	// Could check that the high byte is zero but it's not worth it.
++	for i := 0; i < n; i++ {
++		x <<= 8;
++		x |= uint64(buf[i]);
+ 	}
+-	return x, nil;
++	return
+ }
+ 
+ // decodeUint reads an encoded unsigned integer from state.r.
+@@ -59,17 +81,23 @@ func decodeUint(state *decodeState) (x uint64) {
+ 	if state.err != nil {
+ 		return
+ 	}
+-	for shift := uint(0);; shift += 7 {
+-		var b uint8;
+-		b, state.err = state.b.ReadByte();
+-		if state.err != nil {
+-			return 0
+-		}
+-		x |= uint64(b) << shift;
+-		if b&0x80 != 0 {
+-			x &^= 0x80 << shift;
+-			break
+-		}
++	var b uint8;
++	b, state.err = state.b.ReadByte();
++	if b <= 0x7f {	// includes state.err != nil
++		return uint64(b)
++	}
++	nb := -int(int8(b));
++	if nb > uint64Size {
++		state.err = errBadUint;
++		return;
++	}
++	var n int;
++	n, state.err = state.b.Read(state.buf[0:nb]);
++	// Don't need to check error; it's safe to loop regardless.
++	// Could check that the high byte is zero but it's not worth it.
++	for i := 0; i < n; i++ {
++		x <<= 8;
++		x |= uint64(state.buf[i]);
+ 	}
+ 	return x;
+ }
+@@ -338,8 +366,7 @@ func decodeStruct(engine *decEngine, rtyp *reflect.StructType, b *bytes.Buffer,
+ 		}
+ 		p = *(*uintptr)(up);
+ 	}
+-	state := new(decodeState);
+-	state.b = b;
++	state := newDecodeState(b);
+ 	state.fieldnum = -1;
+ 	basep := p;
+ 	for state.err == nil {
+@@ -368,8 +395,7 @@ func decodeStruct(engine *decEngine, rtyp *reflect.StructType, b *bytes.Buffer,
+ }
+ 
+ func ignoreStruct(engine *decEngine, b *bytes.Buffer) os.Error {
+-	state := new(decodeState);
+-	state.b = b;
++	state := newDecodeState(b);
+ 	state.fieldnum = -1;
+ 	for state.err == nil {
+ 		delta := int(decodeUint(state));
+diff --git a/src/pkg/gob/decoder.go b/src/pkg/gob/decoder.go
+index 7dd99a0762..91bfcbbb8e 100644
+--- a/src/pkg/gob/decoder.go
++++ b/src/pkg/gob/decoder.go
+@@ -30,7 +30,7 @@ func NewDecoder(r io.Reader) *Decoder {
+ 	dec := new(Decoder);
+ 	dec.r = r;
+ 	dec.seen = make(map[typeId] *wireType);
+-	dec.state = new(decodeState);	// buffer set in Decode(); rest is unimportant
++	dec.state = newDecodeState(nil);	// buffer set in Decode(); rest is unimportant
+ 	dec.oneByte = make([]byte, 1);
+ 
+ 	return dec;
+diff --git a/src/pkg/gob/encode.go b/src/pkg/gob/encode.go
+index 0589f38632..be3599770f 100644
+--- a/src/pkg/gob/encode.go
++++ b/src/pkg/gob/encode.go
+@@ -15,6 +15,8 @@ import (
+ 	"unsafe";
+ )
+ 
++const uint64Size = unsafe.Sizeof(uint64(0))
++
+ // The global execution state of an instance of the encoder.
+ // Field numbers are delta encoded and always increase. The field
+ // number is initialized to -1 so 0 comes out as delta(1). A delta of
+@@ -23,27 +25,33 @@ type encoderState struct {
+ 	b	*bytes.Buffer;
+ 	err	os.Error;	// error encountered during encoding;
+ 	fieldnum	int;	// the last field number written.
+-	buf [16]byte;	// buffer used by the encoder; here to avoid allocation.
++	buf [1+uint64Size]byte;	// buffer used by the encoder; here to avoid allocation.
+ }
+ 
+-// Integers encode as a variant of Google's protocol buffer varint (varvarint?).
+-// The variant is that the continuation bytes have a zero top bit instead of a one.
+-// That way there's only one bit to clear and the value is a little easier to see if
+-// you're the unfortunate sort of person who must read the hex to debug.
++// Unsigned integers have a two-state encoding.  If the number is less
++// than 128 (0 through 0x7F), its value is written directly.
++// Otherwise the value is written in big-endian byte order preceded
++// by the byte length, negated.
+ 
+ // encodeUint writes an encoded unsigned integer to state.b.  Sets state.err.
+ // If state.err is already non-nil, it does nothing.
+ func encodeUint(state *encoderState, x uint64) {
+-	var n int;
+ 	if state.err != nil {
+ 		return
+ 	}
+-	for n = 0; x > 0x7F; n++ {
+-		state.buf[n] = uint8(x & 0x7F);
+-		x >>= 7;
++	if x <= 0x7F {
++		state.err = state.b.WriteByte(uint8(x));
++		return;
++	}
++	var n, m int;
++	m = uint64Size;
++	for n = 1; x > 0; n++ {
++		state.buf[m] = uint8(x & 0xFF);
++		x >>= 8;
++		m--;
+ 	}
+-	state.buf[n] = 0x80 | uint8(x);
+-	n, state.err = state.b.Write(state.buf[0:n+1]);
++	state.buf[m] = uint8(-(n-1));
++	n, state.err = state.b.Write(state.buf[m:uint64Size+1]);
+ }
+ 
+ // encodeInt writes an encoded signed integer to state.w.
+diff --git a/src/pkg/gob/encoder.go b/src/pkg/gob/encoder.go
+index 1a401eb1c5..3d8f3928cb 100644
+--- a/src/pkg/gob/encoder.go
++++ b/src/pkg/gob/encoder.go
+@@ -78,11 +78,11 @@
+ 	The rest of this comment documents the encoding, details that are not important
+ 	for most users.  Details are presented bottom-up.
+ 
+-	An unsigned integer is encoded as an arbitrary-precision, variable-length sequence
+-	of bytes.  It is sent in little-endian order (low bits first), with seven bits per
+-	byte.  The high bit of each byte is zero, except that the high bit of the final
+-	(highest precision) byte of the encoding will be set.  Thus 0 is transmitted as
+-	(80), 7 is transmitted as (87) and 256=2*128 is transmitted as (00 82).
++	An unsigned integer is sent one of two ways.  If it is less than 128, it is sent
++	as a byte with that value.  Otherwise it is sent as a minimal-length big-endian
++	(high byte first) byte stream holding the value, preceded by one byte holding the
++	byte count, negated.  Thus 0 is transmitted as (00), 7 is transmitted as (07) and
++	256 is transmitted as (FE 01 00).
+ 
+ 	A boolean is encoded within an unsigned integer: 0 for false, 1 for true.
+ 
+diff --git a/src/pkg/gob/encoder_test.go b/src/pkg/gob/encoder_test.go
+index a7e66a57e3..3e82d8f76e 100644
+--- a/src/pkg/gob/encoder_test.go
++++ b/src/pkg/gob/encoder_test.go
+@@ -50,8 +50,7 @@ func TestBasicEncoder(t *testing.T) {
+ 	}
+ 
+ 	// Decode the result by hand to verify;
+-	state := new(decodeState);
+-	state.b = b;
++	state := newDecodeState(b);
+ 	// The output should be:
+ 	// 0) The length, 38.
+ 	length := decodeUint(state);

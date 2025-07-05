@@ -13,10 +13,163 @@ Date:   Mon Nov 4 05:12:11 2019 +1100
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/internal/bytealg/equal_riscv64.s      | 49 +++++++++++++++++++++++++++++
  src/internal/bytealg/indexbyte_generic.go |  2 +-
  src/internal/bytealg/indexbyte_native.go  |  2 +-
  src/internal/bytealg/indexbyte_riscv64.s  | 52 +++++++++++++++++++++++++++++++
  src/internal/cpu/cpu_riscv64.go           |  7 +++++
  5 files changed, 110 insertions(+), 2 deletions(-)
+
+diff --git a/src/internal/bytealg/equal_riscv64.s b/src/internal/bytealg/equal_riscv64.s
+new file mode 100644
+index 0000000000..22cb4fa97d
+--- /dev/null
++++ b/src/internal/bytealg/equal_riscv64.s
+@@ -0,0 +1,49 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "go_asm.h"
++#include "textflag.h"
++
++#define	CTXT	S4
++
++// func memequal(a, b unsafe.Pointer, size uintptr) bool
++TEXT runtime·memequal(SB),NOSPLIT|NOFRAME,$0-25
++	MOV	a+0(FP), A1
++	MOV	b+8(FP), A2
++	BEQ	A1, A2, eq
++	MOV	size+16(FP), A3
++	ADD	A1, A3, A4
++loop:
++	BEQ	A1, A4, eq
++
++	MOVBU	(A1), A6
++	ADD	$1, A1
++	MOVBU	(A2), A7
++	ADD	$1, A2
++	BEQ	A6, A7, loop
++
++	MOVB	ZERO, ret+24(FP)
++	RET
++eq:
++	MOV	$1, A1
++	MOVB	A1, ret+24(FP)
++	RET
++
++// func memequal_varlen(a, b unsafe.Pointer) bool
++TEXT runtime·memequal_varlen(SB),NOSPLIT,$40-17
++	MOV	a+0(FP), A1
++	MOV	b+8(FP), A2
++	BEQ	A1, A2, eq
++	MOV	8(CTXT), A3    // compiler stores size at offset 8 in the closure
++	MOV	A1, 8(X2)
++	MOV	A2, 16(X2)
++	MOV	A3, 24(X2)
++	CALL	runtime·memequal(SB)
++	MOVBU	32(X2), A1
++	MOVB	A1, ret+16(FP)
++	RET
++eq:
++	MOV	$1, A1
++	MOVB	A1, ret+16(FP)
++	RET
+diff --git a/src/internal/bytealg/indexbyte_generic.go b/src/internal/bytealg/indexbyte_generic.go
+index fce1b0fc54..0b012a8850 100644
+--- a/src/internal/bytealg/indexbyte_generic.go
++++ b/src/internal/bytealg/indexbyte_generic.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build !386,!amd64,!s390x,!arm,!arm64,!ppc64,!ppc64le,!mips,!mipsle,!mips64,!mips64le,!wasm
++// +build !386,!amd64,!s390x,!arm,!arm64,!ppc64,!ppc64le,!mips,!mipsle,!mips64,!mips64le,!riscv64,!wasm
+ 
+ package bytealg
+ 
+diff --git a/src/internal/bytealg/indexbyte_native.go b/src/internal/bytealg/indexbyte_native.go
+index 157caa34c4..f96c5be491 100644
+--- a/src/internal/bytealg/indexbyte_native.go
++++ b/src/internal/bytealg/indexbyte_native.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build 386 amd64 s390x arm arm64 ppc64 ppc64le mips mipsle mips64 mips64le wasm
++// +build 386 amd64 s390x arm arm64 ppc64 ppc64le mips mipsle mips64 mips64le riscv64 wasm
+ 
+ package bytealg
+ 
+diff --git a/src/internal/bytealg/indexbyte_riscv64.s b/src/internal/bytealg/indexbyte_riscv64.s
+new file mode 100644
+index 0000000000..087be86e44
+--- /dev/null
++++ b/src/internal/bytealg/indexbyte_riscv64.s
+@@ -0,0 +1,52 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "go_asm.h"
++#include "textflag.h"
++
++TEXT ·IndexByte(SB),NOSPLIT,$0-40
++	MOV	s+0(FP), A1
++	MOV	s_len+8(FP), A2
++	MOVBU	c+24(FP), A3	// byte to find
++	MOV	A1, A4		// store base for later
++	ADD	A1, A2		// end
++	ADD	$-1, A1
++
++loop:
++	ADD	$1, A1
++	BEQ	A1, A2, notfound
++	MOVBU	(A1), A5
++	BNE	A3, A5, loop
++
++	SUB	A4, A1		// remove base
++	MOV	A1, ret+32(FP)
++	RET
++
++notfound:
++	MOV	$-1, A1
++	MOV	A1, ret+32(FP)
++	RET
++
++TEXT ·IndexByteString(SB),NOSPLIT,$0-32
++	MOV	p+0(FP), A1
++	MOV	b_len+8(FP), A2
++	MOVBU	c+16(FP), A3	// byte to find
++	MOV	A1, A4		// store base for later
++	ADD	A1, A2		// end
++	ADD	$-1, A1
++
++loop:
++	ADD	$1, A1
++	BEQ	A1, A2, notfound
++	MOVBU	(A1), A5
++	BNE	A3, A5, loop
++
++	SUB	A4, A1		// remove base
++	MOV	A1, ret+24(FP)
++	RET
++
++notfound:
++	MOV	$-1, A1
++	MOV	A1, ret+24(FP)
++	RET
+diff --git a/src/internal/cpu/cpu_riscv64.go b/src/internal/cpu/cpu_riscv64.go
+new file mode 100644
+index 0000000000..c49cab79fd
+--- /dev/null
++++ b/src/internal/cpu/cpu_riscv64.go
+@@ -0,0 +1,7 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cpu
++
++const CacheLinePadSize = 32

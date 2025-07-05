@@ -16,7 +16,7 @@ Date:   Wed Aug 9 08:50:41 2023 -0400
     Auto-Submit: Than McIntosh <thanm@google.com>
     Run-TryBot: Than McIntosh <thanm@google.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/base/flag.go         | 14 +++++++-------
  src/cmd/cover/cfg_test.go                     |  4 ++--
  src/cmd/cover/cover.go                        |  7 ++++---
@@ -25,3 +25,197 @@ Date:   Wed Aug 9 08:50:41 2023 -0400
  src/internal/coverage/{ => covcmd}/cmddefs.go | 16 +---------------
  src/internal/coverage/defs.go                 | 14 ++++++++++++++
  7 files changed, 31 insertions(+), 29 deletions(-)
+
+diff --git a/src/cmd/compile/internal/base/flag.go b/src/cmd/compile/internal/base/flag.go
+index 6d9497c3a9..1eb46e2369 100644
+--- a/src/cmd/compile/internal/base/flag.go
++++ b/src/cmd/compile/internal/base/flag.go
+@@ -9,7 +9,7 @@ import (
+ 	"flag"
+ 	"fmt"
+ 	"internal/buildcfg"
+-	"internal/coverage"
++	"internal/coverage/covcmd"
+ 	"internal/platform"
+ 	"log"
+ 	"os"
+@@ -133,11 +133,11 @@ type CmdFlags struct {
+ 			Patterns map[string][]string
+ 			Files    map[string]string
+ 		}
+-		ImportDirs   []string                   // appended to by -I
+-		ImportMap    map[string]string          // set by -importcfg
+-		PackageFile  map[string]string          // set by -importcfg; nil means not in use
+-		CoverageInfo *coverage.CoverFixupConfig // set by -coveragecfg
+-		SpectreIndex bool                       // set by -spectre=index or -spectre=all
++		ImportDirs   []string                 // appended to by -I
++		ImportMap    map[string]string        // set by -importcfg
++		PackageFile  map[string]string        // set by -importcfg; nil means not in use
++		CoverageInfo *covcmd.CoverFixupConfig // set by -coveragecfg
++		SpectreIndex bool                     // set by -spectre=index or -spectre=all
+ 		// Whether we are adding any sort of code instrumentation, such as
+ 		// when the race detector is enabled.
+ 		Instrumenting bool
+@@ -504,7 +504,7 @@ func readImportCfg(file string) {
+ }
+ 
+ func readCoverageCfg(file string) {
+-	var cfg coverage.CoverFixupConfig
++	var cfg covcmd.CoverFixupConfig
+ 	data, err := os.ReadFile(file)
+ 	if err != nil {
+ 		log.Fatalf("-coveragecfg: %v", err)
+diff --git a/src/cmd/cover/cfg_test.go b/src/cmd/cover/cfg_test.go
+index 6782ec89a4..91c33a0ac2 100644
+--- a/src/cmd/cover/cfg_test.go
++++ b/src/cmd/cover/cfg_test.go
+@@ -7,7 +7,7 @@ package main_test
+ import (
+ 	"encoding/json"
+ 	"fmt"
+-	"internal/coverage"
++	"internal/coverage/covcmd"
+ 	"internal/testenv"
+ 	"os"
+ 	"path/filepath"
+@@ -24,7 +24,7 @@ func writeFile(t *testing.T, path string, contents []byte) {
+ func writePkgConfig(t *testing.T, outdir, tag, ppath, pname string, gran string) string {
+ 	incfg := filepath.Join(outdir, tag+"incfg.txt")
+ 	outcfg := filepath.Join(outdir, "outcfg.txt")
+-	p := coverage.CoverPkgConfig{
++	p := covcmd.CoverPkgConfig{
+ 		PkgPath:     ppath,
+ 		PkgName:     pname,
+ 		Granularity: gran,
+diff --git a/src/cmd/cover/cover.go b/src/cmd/cover/cover.go
+index a4b837c9ad..eb44d40001 100644
+--- a/src/cmd/cover/cover.go
++++ b/src/cmd/cover/cover.go
+@@ -13,6 +13,7 @@ import (
+ 	"go/parser"
+ 	"go/token"
+ 	"internal/coverage"
++	"internal/coverage/covcmd"
+ 	"internal/coverage/encodemeta"
+ 	"internal/coverage/slicewriter"
+ 	"io"
+@@ -50,7 +51,7 @@ where -pkgcfg points to a file containing the package path,
+ package name, module path, and related info from "go build",
+ and -outfilelist points to a file containing the filenames
+ of the instrumented output files (one per input file).
+-See https://pkg.go.dev/internal/coverage#CoverPkgConfig for
++See https://pkg.go.dev/internal/coverage/covcmd#CoverPkgConfig for
+ more on the package config.
+ `
+ 
+@@ -72,7 +73,7 @@ var (
+ 	pkgcfg      = flag.String("pkgcfg", "", "enable full-package instrumentation mode using params from specified config file")
+ )
+ 
+-var pkgconfig coverage.CoverPkgConfig
++var pkgconfig covcmd.CoverPkgConfig
+ 
+ // outputfiles is the list of *.cover.go instrumented outputs to write,
+ // one per input (set when -pkgcfg is in use)
+@@ -1122,7 +1123,7 @@ func (p *Package) emitMetaData(w io.Writer) {
+ 	}
+ 	fmt.Fprintf(w, "}\n")
+ 
+-	fixcfg := coverage.CoverFixupConfig{
++	fixcfg := covcmd.CoverFixupConfig{
+ 		Strategy:           "normal",
+ 		MetaVar:            mkMetaVar(),
+ 		MetaLen:            len(payload),
+diff --git a/src/cmd/dist/buildtool.go b/src/cmd/dist/buildtool.go
+index 0c2f51029a..de68f11025 100644
+--- a/src/cmd/dist/buildtool.go
++++ b/src/cmd/dist/buildtool.go
+@@ -63,6 +63,7 @@ var bootstrapDirs = []string{
+ 	"go/constant",
+ 	"internal/abi",
+ 	"internal/coverage",
++	"internal/coverage/covcmd",
+ 	"internal/bisect",
+ 	"internal/buildcfg",
+ 	"internal/goarch",
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 197078a0e9..64b0aae267 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -14,7 +14,7 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"go/token"
+-	"internal/coverage"
++	"internal/coverage/covcmd"
+ 	"internal/lazyregexp"
+ 	"io"
+ 	"io/fs"
+@@ -2064,7 +2064,7 @@ func (b *Builder) cover2(a *Action, infiles, outfiles []string, varName string,
+ func (b *Builder) writeCoverPkgInputs(a *Action, pconfigfile string, covoutputsfile string, outfiles []string) error {
+ 	p := a.Package
+ 	p.Internal.CoverageCfg = a.Objdir + "coveragecfg"
+-	pcfg := coverage.CoverPkgConfig{
++	pcfg := covcmd.CoverPkgConfig{
+ 		PkgPath: p.ImportPath,
+ 		PkgName: p.Name,
+ 		// Note: coverage granularity is currently hard-wired to
+diff --git a/src/internal/coverage/cmddefs.go b/src/internal/coverage/covcmd/cmddefs.go
+similarity index 81%
+rename from src/internal/coverage/cmddefs.go
+rename to src/internal/coverage/covcmd/cmddefs.go
+index 49376a4665..8a350f3903 100644
+--- a/src/internal/coverage/cmddefs.go
++++ b/src/internal/coverage/covcmd/cmddefs.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package coverage
++package covcmd
+ 
+ // CoverPkgConfig is a bundle of information passed from the Go
+ // command to the cover command during "go build -cover" runs. The
+@@ -71,17 +71,3 @@ type CoverFixupConfig struct {
+ 	// Counter granularity (perblock or perfunc).
+ 	CounterGranularity string
+ }
+-
+-// MetaFilePaths contains information generated by the Go command and
+-// the read in by coverage test support functions within an executing
+-// "go test -cover" binary.
+-type MetaFileCollection struct {
+-	ImportPaths       []string
+-	MetaFileFragments []string
+-}
+-
+-// Name of file within the "go test -cover" temp coverdir directory
+-// containing a list of meta-data files for packages being tested
+-// in a "go test -coverpkg=... ..." run. This constant is shared
+-// by the Go command and by the coverage runtime.
+-const MetaFilesFileName = "metafiles.txt"
+diff --git a/src/internal/coverage/defs.go b/src/internal/coverage/defs.go
+index 8751b9f878..340ac95635 100644
+--- a/src/internal/coverage/defs.go
++++ b/src/internal/coverage/defs.go
+@@ -261,6 +261,20 @@ func (cm CounterGranularity) String() string {
+ 	return "<invalid>"
+ }
+ 
++// Name of file within the "go test -cover" temp coverdir directory
++// containing a list of meta-data files for packages being tested
++// in a "go test -coverpkg=... ..." run. This constant is shared
++// by the Go command and by the coverage runtime.
++const MetaFilesFileName = "metafiles.txt"
++
++// MetaFilePaths contains information generated by the Go command and
++// the read in by coverage test support functions within an executing
++// "go test -cover" binary.
++type MetaFileCollection struct {
++	ImportPaths       []string
++	MetaFileFragments []string
++}
++
+ //.....................................................................
+ //
+ // Counter data definitions:

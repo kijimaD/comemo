@@ -14,7 +14,35 @@ Date:   Wed Jan 25 16:48:17 2017 +0900
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
     Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/path/filepath/path.go      | 4 ++++
  src/path/filepath/path_test.go | 1 +
  2 files changed, 5 insertions(+)
+
+diff --git a/src/path/filepath/path.go b/src/path/filepath/path.go
+index 1d8e35c969..e35ed5fefd 100644
+--- a/src/path/filepath/path.go
++++ b/src/path/filepath/path.go
+@@ -461,6 +461,10 @@ func Dir(path string) string {
+ 		i--
+ 	}
+ 	dir := Clean(path[len(vol) : i+1])
++	if dir == "." && len(vol) > 2 {
++		// must be UNC
++		return vol
++	}
+ 	return vol + dir
+ }
+ 
+diff --git a/src/path/filepath/path_test.go b/src/path/filepath/path_test.go
+index 921b23842b..70baa6112f 100644
+--- a/src/path/filepath/path_test.go
++++ b/src/path/filepath/path_test.go
+@@ -665,6 +665,7 @@ var windirtests = []PathTest{
+ 	{`c:\a\b`, `c:\a`},
+ 	{`c:a\b`, `c:a`},
+ 	{`c:a\b\c`, `c:a\b`},
++	{`\\host\share`, `\\host\share`},
+ 	{`\\host\share\`, `\\host\share\`},
+ 	{`\\host\share\a`, `\\host\share\`},
+ 	{`\\host\share\a\b`, `\\host\share\a`},

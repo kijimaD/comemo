@@ -8,7 +8,32 @@ Date:   Wed Jul 21 11:59:45 2021 +0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/336189
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: Robert Findley <rfindley@google.com>
-
+---
  src/reflect/visiblefields.go      | 4 ++++
  src/reflect/visiblefields_test.go | 4 ++++
  2 files changed, 8 insertions(+)
+
+diff --git a/src/reflect/visiblefields.go b/src/reflect/visiblefields.go
+index c068979dcc..1a2b53570b 100644
+--- a/src/reflect/visiblefields.go
++++ b/src/reflect/visiblefields.go
+@@ -1,3 +1,7 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package reflect
+ 
+ // VisibleFields returns all the visible fields in t, which must be a
+diff --git a/src/reflect/visiblefields_test.go b/src/reflect/visiblefields_test.go
+index 2688b63091..915bbee867 100644
+--- a/src/reflect/visiblefields_test.go
++++ b/src/reflect/visiblefields_test.go
+@@ -1,3 +1,7 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package reflect_test
+ 
+ import (

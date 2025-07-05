@@ -9,8 +9,110 @@ Date:   Thu Feb 16 14:47:14 2012 +1100
     R=r
     CC=golang-dev
     https://golang.org/cl/5656071
-
+---
  src/pkg/debug/gosym/Makefile                       | 19 --------------
  .../debug/gosym/{pclinetest.s => pclinetest.asm}   |  2 --
  src/pkg/debug/gosym/pclntab_test.go                | 30 ++++++++++++++++++----
  3 files changed, 25 insertions(+), 26 deletions(-)
+
+diff --git a/src/pkg/debug/gosym/Makefile b/src/pkg/debug/gosym/Makefile
+deleted file mode 100644
+index 4f420e7299..0000000000
+--- a/src/pkg/debug/gosym/Makefile
++++ /dev/null
+@@ -1,19 +0,0 @@
+-# Copyright 2009 The Go Authors.  All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../Make.inc
+-
+-TARG=debug/gosym
+-GOFILES=\
+-	pclntab.go\
+-	symtab.go\
+-
+-include ../../../Make.pkg
+-
+-test: make-pclinetest
+-
+-testshort: make-pclinetest
+-
+-make-pclinetest:
+-	@if [ "`uname`-`uname -m`" = Linux-x86_64 -a $(GOARCH) = amd64 ]; then mkdir -p _test && $(AS) pclinetest.s && $(LD) -E main -o _test/pclinetest pclinetest.$O; fi
+diff --git a/src/pkg/debug/gosym/pclinetest.s b/src/pkg/debug/gosym/pclinetest.asm
+similarity index 99%
+rename from src/pkg/debug/gosym/pclinetest.s
+rename to src/pkg/debug/gosym/pclinetest.asm
+index c1d4818d40..6305435b09 100644
+--- a/src/pkg/debug/gosym/pclinetest.s
++++ b/src/pkg/debug/gosym/pclinetest.asm
+@@ -1,5 +1,3 @@
+-// +build ignore
+-
+ TEXT linefrompc(SB),7,$0	// Each byte stores its line delta
+ BYTE $2;
+ BYTE $1;
+diff --git a/src/pkg/debug/gosym/pclntab_test.go b/src/pkg/debug/gosym/pclntab_test.go
+index b90181bdc6..2c477757a8 100644
+--- a/src/pkg/debug/gosym/pclntab_test.go
++++ b/src/pkg/debug/gosym/pclntab_test.go
+@@ -7,14 +7,31 @@ package gosym
+ import (
+ 	"debug/elf"
+ 	"os"
++	"os/exec"
+ 	"runtime"
++	"strings"
+ 	"testing"
+ )
+ 
++var pclinetestBinary string
++
+ func dotest() bool {
+ 	// For now, only works on ELF platforms.
+-	// TODO: convert to work with new go tool
+-	return false && runtime.GOOS == "linux" && runtime.GOARCH == "amd64"
++	if runtime.GOOS != "linux" || runtime.GOARCH != "amd64" {
++		return false
++	}
++	if pclinetestBinary != "" {
++		return true
++	}
++	// This command builds pclinetest from pclinetest.asm;
++	// the resulting binary looks like it was built from pclinetest.s,
++	// but we have renamed it to keep it away from the go tool.
++	pclinetestBinary = os.TempDir() + "/pclinetest"
++	cmd := exec.Command("sh", "-c", "go tool 6a pclinetest.asm && go tool 6l -E main -o "+pclinetestBinary+" pclinetest.6")
++	if err := cmd.Run(); err != nil {
++		panic(err)
++	}
++	return true
+ }
+ 
+ func getTable(t *testing.T) *Table {
+@@ -149,7 +166,7 @@ func TestPCLine(t *testing.T) {
+ 		return
+ 	}
+ 
+-	f, tab := crack("_test/pclinetest", t)
++	f, tab := crack(pclinetestBinary, t)
+ 	text := f.Section(".text")
+ 	textdat, err := text.Data()
+ 	if err != nil {
+@@ -163,10 +180,13 @@ func TestPCLine(t *testing.T) {
+ 		file, line, fn := tab.PCToLine(pc)
+ 		off := pc - text.Addr // TODO(rsc): should not need off; bug in 8g
+ 		wantLine += int(textdat[off])
++		t.Logf("off is %d", off)
+ 		if fn == nil {
+ 			t.Errorf("failed to get line of PC %#x", pc)
+-		} else if len(file) < 12 || file[len(file)-12:] != "pclinetest.s" || line != wantLine || fn != sym {
+-			t.Errorf("expected %s:%d (%s) at PC %#x, got %s:%d (%s)", "pclinetest.s", wantLine, sym.Name, pc, file, line, fn.Name)
++		} else if !strings.HasSuffix(file, "pclinetest.s") {
++			t.Errorf("expected %s (%s) at PC %#x, got %s (%s)", "pclinetest.s", sym.Name, pc, file, fn.Name)
++		} else if line != wantLine || fn != sym {
++			t.Errorf("expected :%d (%s) at PC %#x, got :%d (%s)", wantLine, sym.Name, pc, line, fn.Name)
+ 		}
+ 	}
+ 

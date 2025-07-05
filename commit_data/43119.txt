@@ -371,7 +371,7 @@ Date:   Sun Dec 23 02:15:44 2018 +0000
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/bytes/bytes.go                    | 97 ++++++++++++++++++++++++++++++++---
  src/bytes/bytes_test.go               | 54 +++++++++++++++++--
  src/internal/bytealg/bytealg.go       |  1 +
@@ -379,3 +379,473 @@ Date:   Sun Dec 23 02:15:44 2018 +0000
  src/strings/strings.go                | 44 +++++++++++++---
  src/strings/strings_test.go           | 54 +++++++++++++++++--
  6 files changed, 262 insertions(+), 26 deletions(-)
+
+diff --git a/src/bytes/bytes.go b/src/bytes/bytes.go
+index e7931387aa..ef7294d805 100644
+--- a/src/bytes/bytes.go
++++ b/src/bytes/bytes.go
+@@ -183,6 +183,29 @@ func IndexAny(s []byte, chars string) int {
+ 		// Avoid scanning all of s.
+ 		return -1
+ 	}
++	if len(s) == 1 {
++		r := rune(s[0])
++		if r >= utf8.RuneSelf {
++			// search utf8.RuneError.
++			for _, r = range chars {
++				if r == utf8.RuneError {
++					return 0
++				}
++			}
++			return -1
++		}
++		if bytealg.IndexByteString(chars, s[0]) >= 0 {
++			return 0
++		}
++		return -1
++	}
++	if len(chars) == 1 {
++		r := rune(chars[0])
++		if r >= utf8.RuneSelf {
++			r = utf8.RuneError
++		}
++		return IndexRune(s, r)
++	}
+ 	if len(s) > 8 {
+ 		if as, isASCII := makeASCIISet(chars); isASCII {
+ 			for i, c := range s {
+@@ -197,14 +220,26 @@ func IndexAny(s []byte, chars string) int {
+ 	for i := 0; i < len(s); i += width {
+ 		r := rune(s[i])
+ 		if r < utf8.RuneSelf {
++			if bytealg.IndexByteString(chars, s[i]) >= 0 {
++				return i
++			}
+ 			width = 1
+-		} else {
+-			r, width = utf8.DecodeRune(s[i:])
++			continue
+ 		}
+-		for _, ch := range chars {
+-			if r == ch {
+-				return i
++		r, width = utf8.DecodeRune(s[i:])
++		if r == utf8.RuneError {
++			for _, r = range chars {
++				if r == utf8.RuneError {
++					return i
++				}
+ 			}
++			continue
++		}
++		// r is 2 to 4 bytes. Using strings.Index is more reasonable, but as the bytes
++		// package should not import the strings package, use bytealg.IndexString
++		// instead. And this does not seem to lose much performance.
++		if chars == string(r) || bytealg.IndexString(chars, string(r)) >= 0 {
++			return i
+ 		}
+ 	}
+ 	return -1
+@@ -229,13 +264,59 @@ func LastIndexAny(s []byte, chars string) int {
+ 			return -1
+ 		}
+ 	}
++	if len(s) == 1 {
++		r := rune(s[0])
++		if r >= utf8.RuneSelf {
++			for _, r = range chars {
++				if r == utf8.RuneError {
++					return 0
++				}
++			}
++			return -1
++		}
++		if bytealg.IndexByteString(chars, s[0]) >= 0 {
++			return 0
++		}
++		return -1
++	}
++	if len(chars) == 1 {
++		cr := rune(chars[0])
++		if cr >= utf8.RuneSelf {
++			cr = utf8.RuneError
++		}
++		for i := len(s); i > 0; {
++			r, size := utf8.DecodeLastRune(s[:i])
++			i -= size
++			if r == cr {
++				return i
++			}
++		}
++		return -1
++	}
+ 	for i := len(s); i > 0; {
++		r := rune(s[i-1])
++		if r < utf8.RuneSelf {
++			if bytealg.IndexByteString(chars, s[i-1]) >= 0 {
++				return i - 1
++			}
++			i--
++			continue
++		}
+ 		r, size := utf8.DecodeLastRune(s[:i])
+ 		i -= size
+-		for _, c := range chars {
+-			if r == c {
+-				return i
++		if r == utf8.RuneError {
++			for _, r = range chars {
++				if r == utf8.RuneError {
++					return i
++				}
+ 			}
++			continue
++		}
++		// r is 2 to 4 bytes. Using strings.Index is more reasonable, but as the bytes
++		// package should not import the strings package, use bytealg.IndexString
++		// instead. And this does not seem to lose much performance.
++		if chars == string(r) || bytealg.IndexString(chars, string(r)) >= 0 {
++			return i
+ 		}
+ 	}
+ 	return -1
+diff --git a/src/bytes/bytes_test.go b/src/bytes/bytes_test.go
+index a208d4ed76..544ee46f90 100644
+--- a/src/bytes/bytes_test.go
++++ b/src/bytes/bytes_test.go
+@@ -169,6 +169,7 @@ var indexAnyTests = []BinOpTest{
+ 	{"", "abc", -1},
+ 	{"a", "", -1},
+ 	{"a", "a", 0},
++	{"\x80", "\xffb", 0},
+ 	{"aaa", "a", 0},
+ 	{"abc", "xyz", -1},
+ 	{"abc", "xcz", 2},
+@@ -179,6 +180,7 @@ var indexAnyTests = []BinOpTest{
+ 	{dots + dots + dots, " ", -1},
+ 	{"012abcba210", "\xffb", 4},
+ 	{"012\x80bcb\x80210", "\xffb", 3},
++	{"0123456\xcf\x80abc", "\xcfb\x80", 10},
+ }
+ 
+ var lastIndexAnyTests = []BinOpTest{
+@@ -187,6 +189,7 @@ var lastIndexAnyTests = []BinOpTest{
+ 	{"", "abc", -1},
+ 	{"a", "", -1},
+ 	{"a", "a", 0},
++	{"\x80", "\xffb", 0},
+ 	{"aaa", "a", 2},
+ 	{"abc", "xyz", -1},
+ 	{"abc", "ab", 1},
+@@ -197,6 +200,7 @@ var lastIndexAnyTests = []BinOpTest{
+ 	{dots + dots + dots, " ", -1},
+ 	{"012abcba210", "\xffb", 6},
+ 	{"012\x80bcb\x80210", "\xffb", 7},
++	{"0123456\xcf\x80abc", "\xcfb\x80", 10},
+ }
+ 
+ // Execute f on each test case.  funcName should be the name of f; it's used
+@@ -1890,10 +1894,24 @@ func BenchmarkBytesCompare(b *testing.B) {
+ }
+ 
+ func BenchmarkIndexAnyASCII(b *testing.B) {
+-	x := Repeat([]byte{'#'}, 4096) // Never matches set
+-	cs := "0123456789abcdef"
+-	for k := 1; k <= 4096; k <<= 4 {
+-		for j := 1; j <= 16; j <<= 1 {
++	x := Repeat([]byte{'#'}, 2048) // Never matches set
++	cs := "0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz"
++	for k := 1; k <= 2048; k <<= 4 {
++		for j := 1; j <= 64; j <<= 1 {
++			b.Run(fmt.Sprintf("%d:%d", k, j), func(b *testing.B) {
++				for i := 0; i < b.N; i++ {
++					IndexAny(x[:k], cs[:j])
++				}
++			})
++		}
++	}
++}
++
++func BenchmarkIndexAnyUTF8(b *testing.B) {
++	x := Repeat([]byte{'#'}, 2048) // Never matches set
++	cs := "你好世界, hello world. 你好世界, hello world. 你好世界, hello world."
++	for k := 1; k <= 2048; k <<= 4 {
++		for j := 1; j <= 64; j <<= 1 {
+ 			b.Run(fmt.Sprintf("%d:%d", k, j), func(b *testing.B) {
+ 				for i := 0; i < b.N; i++ {
+ 					IndexAny(x[:k], cs[:j])
+@@ -1903,6 +1921,34 @@ func BenchmarkIndexAnyASCII(b *testing.B) {
+ 	}
+ }
+ 
++func BenchmarkLastIndexAnyASCII(b *testing.B) {
++	x := Repeat([]byte{'#'}, 2048) // Never matches set
++	cs := "0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz"
++	for k := 1; k <= 2048; k <<= 4 {
++		for j := 1; j <= 64; j <<= 1 {
++			b.Run(fmt.Sprintf("%d:%d", k, j), func(b *testing.B) {
++				for i := 0; i < b.N; i++ {
++					LastIndexAny(x[:k], cs[:j])
++				}
++			})
++		}
++	}
++}
++
++func BenchmarkLastIndexAnyUTF8(b *testing.B) {
++	x := Repeat([]byte{'#'}, 2048) // Never matches set
++	cs := "你好世界, hello world. 你好世界, hello world. 你好世界, hello world."
++	for k := 1; k <= 2048; k <<= 4 {
++		for j := 1; j <= 64; j <<= 1 {
++			b.Run(fmt.Sprintf("%d:%d", k, j), func(b *testing.B) {
++				for i := 0; i < b.N; i++ {
++					LastIndexAny(x[:k], cs[:j])
++				}
++			})
++		}
++	}
++}
++
+ func BenchmarkTrimASCII(b *testing.B) {
+ 	cs := "0123456789abcdef"
+ 	for k := 1; k <= 4096; k <<= 4 {
+diff --git a/src/internal/bytealg/bytealg.go b/src/internal/bytealg/bytealg.go
+index 4c90cd3671..6fd9308369 100644
+--- a/src/internal/bytealg/bytealg.go
++++ b/src/internal/bytealg/bytealg.go
+@@ -20,6 +20,7 @@ const (
+ )
+ 
+ // MaxLen is the maximum length of the string to be searched for (argument b) in Index.
++// If MaxLen is not 0, make sure MaxLen >= 4.
+ var MaxLen int
+ 
+ // FIXME: the logic of HashStrBytes, HashStrRevBytes, IndexRabinKarpBytes and HashStr, HashStrRev,
+diff --git a/src/internal/bytealg/index_generic.go b/src/internal/bytealg/index_generic.go
+index 98e859f925..83345f1013 100644
+--- a/src/internal/bytealg/index_generic.go
++++ b/src/internal/bytealg/index_generic.go
+@@ -16,8 +16,42 @@ func Index(a, b []byte) int {
+ 
+ // IndexString returns the index of the first instance of b in a, or -1 if b is not present in a.
+ // Requires 2 <= len(b) <= MaxLen.
+-func IndexString(a, b string) int {
+-	panic("unimplemented")
++func IndexString(s, substr string) int {
++	// This is a partial copy of strings.Index, here because bytes.IndexAny and bytes.LastIndexAny
++	// call bytealg.IndexString. Some platforms have an optimized assembly version of this function.
++	// This implementation is used for those that do not. Although the pure Go implementation here
++	// works for the case of len(b) > MaxLen, we do not require that its assembly implementation also
++	// supports the case of len(b) > MaxLen. And we do not guarantee that this function supports the
++	// case of len(b) > MaxLen.
++	n := len(substr)
++	c0 := substr[0]
++	c1 := substr[1]
++	i := 0
++	t := len(s) - n + 1
++	fails := 0
++	for i < t {
++		if s[i] != c0 {
++			o := IndexByteString(s[i:t], c0)
++			if o < 0 {
++				return -1
++			}
++			i += o
++		}
++		if s[i+1] == c1 && s[i:i+n] == substr {
++			return i
++		}
++		i++
++		fails++
++		if fails >= 4+i>>4 && i < t {
++			// See comment in src/bytes/bytes.go.
++			j := IndexRabinKarp(s[i:], substr)
++			if j < 0 {
++				return -1
++			}
++			return i + j
++		}
++	}
++	return -1
+ }
+ 
+ // Cutover reports the number of failures of IndexByte we should tolerate
+diff --git a/src/strings/strings.go b/src/strings/strings.go
+index 7fb05b7d0e..2789f5fb25 100644
+--- a/src/strings/strings.go
++++ b/src/strings/strings.go
+@@ -143,6 +143,14 @@ func IndexAny(s, chars string) int {
+ 		// Avoid scanning all of s.
+ 		return -1
+ 	}
++	if len(chars) == 1 {
++		// Avoid scanning all of s.
++		r := rune(chars[0])
++		if r >= utf8.RuneSelf {
++			r = utf8.RuneError
++		}
++		return IndexRune(s, r)
++	}
+ 	if len(s) > 8 {
+ 		if as, isASCII := makeASCIISet(chars); isASCII {
+ 			for i := 0; i < len(s); i++ {
+@@ -154,10 +162,8 @@ func IndexAny(s, chars string) int {
+ 		}
+ 	}
+ 	for i, c := range s {
+-		for _, m := range chars {
+-			if c == m {
+-				return i
+-			}
++		if IndexRune(chars, c) >= 0 {
++			return i
+ 		}
+ 	}
+ 	return -1
+@@ -171,6 +177,16 @@ func LastIndexAny(s, chars string) int {
+ 		// Avoid scanning all of s.
+ 		return -1
+ 	}
++	if len(s) == 1 {
++		rc := rune(s[0])
++		if rc >= utf8.RuneSelf {
++			rc = utf8.RuneError
++		}
++		if IndexRune(chars, rc) >= 0 {
++			return 0
++		}
++		return -1
++	}
+ 	if len(s) > 8 {
+ 		if as, isASCII := makeASCIISet(chars); isASCII {
+ 			for i := len(s) - 1; i >= 0; i-- {
+@@ -181,13 +197,25 @@ func LastIndexAny(s, chars string) int {
+ 			return -1
+ 		}
+ 	}
++	if len(chars) == 1 {
++		rc := rune(chars[0])
++		if rc >= utf8.RuneSelf {
++			rc = utf8.RuneError
++		}
++		for i := len(s); i > 0; {
++			r, size := utf8.DecodeLastRuneInString(s[:i])
++			i -= size
++			if rc == r {
++				return i
++			}
++		}
++		return -1
++	}
+ 	for i := len(s); i > 0; {
+ 		r, size := utf8.DecodeLastRuneInString(s[:i])
+ 		i -= size
+-		for _, c := range chars {
+-			if r == c {
+-				return i
+-			}
++		if IndexRune(chars, r) >= 0 {
++			return i
+ 		}
+ 	}
+ 	return -1
+diff --git a/src/strings/strings_test.go b/src/strings/strings_test.go
+index 984fecfa8d..c01c4dabc5 100644
+--- a/src/strings/strings_test.go
++++ b/src/strings/strings_test.go
+@@ -153,6 +153,7 @@ var indexAnyTests = []IndexTest{
+ 	{"", "abc", -1},
+ 	{"a", "", -1},
+ 	{"a", "a", 0},
++	{"\x80", "\xffb", 0},
+ 	{"aaa", "a", 0},
+ 	{"abc", "xyz", -1},
+ 	{"abc", "xcz", 2},
+@@ -163,6 +164,7 @@ var indexAnyTests = []IndexTest{
+ 	{dots + dots + dots, " ", -1},
+ 	{"012abcba210", "\xffb", 4},
+ 	{"012\x80bcb\x80210", "\xffb", 3},
++	{"0123456\xcf\x80abc", "\xcfb\x80", 10},
+ }
+ 
+ var lastIndexAnyTests = []IndexTest{
+@@ -171,6 +173,7 @@ var lastIndexAnyTests = []IndexTest{
+ 	{"", "abc", -1},
+ 	{"a", "", -1},
+ 	{"a", "a", 0},
++	{"\x80", "\xffb", 0},
+ 	{"aaa", "a", 2},
+ 	{"abc", "xyz", -1},
+ 	{"abc", "ab", 1},
+@@ -181,6 +184,7 @@ var lastIndexAnyTests = []IndexTest{
+ 	{dots + dots + dots, " ", -1},
+ 	{"012abcba210", "\xffb", 6},
+ 	{"012\x80bcb\x80210", "\xffb", 7},
++	{"0123456\xcf\x80abc", "\xcfb\x80", 10},
+ }
+ 
+ // Execute f on each test case.  funcName should be the name of f; it's used
+@@ -1787,10 +1791,24 @@ func BenchmarkRepeat(b *testing.B) {
+ }
+ 
+ func BenchmarkIndexAnyASCII(b *testing.B) {
+-	x := Repeat("#", 4096) // Never matches set
+-	cs := "0123456789abcdef"
+-	for k := 1; k <= 4096; k <<= 4 {
+-		for j := 1; j <= 16; j <<= 1 {
++	x := Repeat("#", 2048) // Never matches set
++	cs := "0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz"
++	for k := 1; k <= 2048; k <<= 4 {
++		for j := 1; j <= 64; j <<= 1 {
++			b.Run(fmt.Sprintf("%d:%d", k, j), func(b *testing.B) {
++				for i := 0; i < b.N; i++ {
++					IndexAny(x[:k], cs[:j])
++				}
++			})
++		}
++	}
++}
++
++func BenchmarkIndexAnyUTF8(b *testing.B) {
++	x := Repeat("#", 2048) // Never matches set
++	cs := "你好世界, hello world. 你好世界, hello world. 你好世界, hello world."
++	for k := 1; k <= 2048; k <<= 4 {
++		for j := 1; j <= 64; j <<= 1 {
+ 			b.Run(fmt.Sprintf("%d:%d", k, j), func(b *testing.B) {
+ 				for i := 0; i < b.N; i++ {
+ 					IndexAny(x[:k], cs[:j])
+@@ -1800,6 +1818,34 @@ func BenchmarkIndexAnyASCII(b *testing.B) {
+ 	}
+ }
+ 
++func BenchmarkLastIndexAnyASCII(b *testing.B) {
++	x := Repeat("#", 2048) // Never matches set
++	cs := "0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz"
++	for k := 1; k <= 2048; k <<= 4 {
++		for j := 1; j <= 64; j <<= 1 {
++			b.Run(fmt.Sprintf("%d:%d", k, j), func(b *testing.B) {
++				for i := 0; i < b.N; i++ {
++					LastIndexAny(x[:k], cs[:j])
++				}
++			})
++		}
++	}
++}
++
++func BenchmarkLastIndexAnyUTF8(b *testing.B) {
++	x := Repeat("#", 2048) // Never matches set
++	cs := "你好世界, hello world. 你好世界, hello world. 你好世界, hello world."
++	for k := 1; k <= 2048; k <<= 4 {
++		for j := 1; j <= 64; j <<= 1 {
++			b.Run(fmt.Sprintf("%d:%d", k, j), func(b *testing.B) {
++				for i := 0; i < b.N; i++ {
++					LastIndexAny(x[:k], cs[:j])
++				}
++			})
++		}
++	}
++}
++
+ func BenchmarkTrimASCII(b *testing.B) {
+ 	cs := "0123456789abcdef"
+ 	for k := 1; k <= 4096; k <<= 4 {

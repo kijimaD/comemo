@@ -12,8 +12,108 @@ Date:   Thu May 22 18:00:02 2025 +0200
     Auto-Submit: Filippo Valsorda <filippo@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Roland Shoemaker <roland@golang.org>
-
+---
  src/crypto/hmac/hmac_test.go             | 13 +++++++++++++
  src/crypto/internal/fips140/hmac/hmac.go | 20 +++++++++++++++-----
  src/hash/hash.go                         |  7 ++++---
  3 files changed, 32 insertions(+), 8 deletions(-)
+
+diff --git a/src/crypto/hmac/hmac_test.go b/src/crypto/hmac/hmac_test.go
+index 9b7eee7bf7..4046a9555a 100644
+--- a/src/crypto/hmac/hmac_test.go
++++ b/src/crypto/hmac/hmac_test.go
+@@ -11,6 +11,7 @@ import (
+ 	"crypto/sha1"
+ 	"crypto/sha256"
+ 	"crypto/sha512"
++	"errors"
+ 	"fmt"
+ 	"hash"
+ 	"testing"
+@@ -583,6 +584,18 @@ func TestHMAC(t *testing.T) {
+ 	}
+ }
+ 
++func TestNoClone(t *testing.T) {
++	h := New(func() hash.Hash { return justHash{sha256.New()} }, []byte("key"))
++	if _, ok := h.(hash.Cloner); !ok {
++		t.Skip("no Cloner support")
++	}
++	h.Write([]byte("test"))
++	_, err := h.(hash.Cloner).Clone()
++	if !errors.Is(err, errors.ErrUnsupported) {
++		t.Errorf("Clone() = %v, want ErrUnsupported", err)
++	}
++}
++
+ func TestNonUniqueHash(t *testing.T) {
+ 	if boring.Enabled {
+ 		t.Skip("hash.Hash provided by boringcrypto are not comparable")
+diff --git a/src/crypto/internal/fips140/hmac/hmac.go b/src/crypto/internal/fips140/hmac/hmac.go
+index 9b28017662..a18b22650d 100644
+--- a/src/crypto/internal/fips140/hmac/hmac.go
++++ b/src/crypto/internal/fips140/hmac/hmac.go
+@@ -130,26 +130,36 @@ func (h *HMAC) Reset() {
+ 	h.marshaled = true
+ }
+ 
++type errCloneUnsupported struct{}
++
++func (e errCloneUnsupported) Error() string {
++	return "crypto/hmac: hash does not support hash.Cloner"
++}
++
++func (e errCloneUnsupported) Unwrap() error {
++	return errors.ErrUnsupported
++}
++
+ // Clone implements [hash.Cloner] if the underlying hash does.
+-// Otherwise, it returns [errors.ErrUnsupported].
++// Otherwise, it returns an error wrapping [errors.ErrUnsupported].
+ func (h *HMAC) Clone() (hash.Cloner, error) {
+ 	r := *h
+ 	ic, ok := h.inner.(hash.Cloner)
+ 	if !ok {
+-		return nil, errors.ErrUnsupported
++		return nil, errCloneUnsupported{}
+ 	}
+ 	oc, ok := h.outer.(hash.Cloner)
+ 	if !ok {
+-		return nil, errors.ErrUnsupported
++		return nil, errCloneUnsupported{}
+ 	}
+ 	var err error
+ 	r.inner, err = ic.Clone()
+ 	if err != nil {
+-		return nil, errors.ErrUnsupported
++		return nil, errCloneUnsupported{}
+ 	}
+ 	r.outer, err = oc.Clone()
+ 	if err != nil {
+-		return nil, errors.ErrUnsupported
++		return nil, errCloneUnsupported{}
+ 	}
+ 	return &r, nil
+ }
+diff --git a/src/hash/hash.go b/src/hash/hash.go
+index af84e7796b..d4b9a91663 100644
+--- a/src/hash/hash.go
++++ b/src/hash/hash.go
+@@ -57,13 +57,14 @@ type Hash64 interface {
+ 	Sum64() uint64
+ }
+ 
+-// A Cloner is a hash function whose state can be cloned.
++// A Cloner is a hash function whose state can be cloned, returning a value with
++// equivalent and independent state.
+ //
+ // All [Hash] implementations in the standard library implement this interface,
+ // unless GOFIPS140=v1.0.0 is set.
+ //
+-// If a hash can only determine at runtime if it can be cloned,
+-// (e.g., if it wraps another hash), it may return [errors.ErrUnsupported].
++// If a hash can only determine at runtime if it can be cloned (e.g. if it wraps
++// another hash), it may return an error wrapping [errors.ErrUnsupported].
+ type Cloner interface {
+ 	Hash
+ 	Clone() (Cloner, error)

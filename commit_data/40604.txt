@@ -20,7 +20,7 @@ Date:   Mon Jun 3 18:04:58 2019 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  misc/cgo/test/cgo_test.go |  1 -
  misc/cgo/test/test.go     | 12 ------------
  misc/cgo/test/testx.go    |  5 -----
@@ -28,3 +28,216 @@ Date:   Mon Jun 3 18:04:58 2019 -0700
  src/cmd/cgo/gcc.go        | 40 ----------------------------------------
  src/cmd/cgo/out.go        | 36 +++++++++++++++++++++---------------
  6 files changed, 22 insertions(+), 76 deletions(-)
+
+diff --git a/misc/cgo/test/cgo_test.go b/misc/cgo/test/cgo_test.go
+index 7f886bad68..2d6d269608 100644
+--- a/misc/cgo/test/cgo_test.go
++++ b/misc/cgo/test/cgo_test.go
+@@ -56,7 +56,6 @@ func Test25143(t *testing.T)                 { test25143(t) }
+ func Test26066(t *testing.T)                 { test26066(t) }
+ func Test27660(t *testing.T)                 { test27660(t) }
+ func Test28896(t *testing.T)                 { test28896(t) }
+-func Test29878(t *testing.T)                 { test29878(t) }
+ func Test30065(t *testing.T)                 { test30065(t) }
+ func TestAlign(t *testing.T)                 { testAlign(t) }
+ func TestAtol(t *testing.T)                  { testAtol(t) }
+diff --git a/misc/cgo/test/test.go b/misc/cgo/test/test.go
+index b23fca0d0f..88180bd70e 100644
+--- a/misc/cgo/test/test.go
++++ b/misc/cgo/test/test.go
+@@ -849,10 +849,6 @@ static int f29748(S29748 *p) { return 0; }
+ static void issue29781F(char **p, int n) {}
+ #define ISSUE29781C 0
+ 
+-// issue 29878
+-uint64_t issue29878exported(int8_t);  // prototype must match
+-int16_t issue29878function(uint32_t arg) { return issue29878exported(arg); }
+-
+ */
+ import "C"
+ 
+@@ -2054,14 +2050,6 @@ func issue29781G() {
+ 		X))
+ }
+ 
+-func test29878(t *testing.T) {
+-	const arg uint32 = 123                    // fits into all integer types
+-	var ret int16 = C.issue29878function(arg) // no conversions needed
+-	if int64(ret) != int64(arg) {
+-		t.Errorf("return value unexpected: got %d, want %d", ret, arg)
+-	}
+-}
+-
+ // issue 30065
+ 
+ func test30065(t *testing.T) {
+diff --git a/misc/cgo/test/testx.go b/misc/cgo/test/testx.go
+index b0b23e3011..27c7040307 100644
+--- a/misc/cgo/test/testx.go
++++ b/misc/cgo/test/testx.go
+@@ -535,8 +535,3 @@ func test20910(t *testing.T) {
+ // issue 28772 part 2
+ 
+ const issue28772Constant2 = C.issue28772Constant2
+-
+-//export issue29878exported
+-func issue29878exported(arg int8) uint64 {
+-	return uint64(arg)
+-}
+diff --git a/src/cmd/cgo/doc.go b/src/cmd/cgo/doc.go
+index 2ca77fe8be..f227d7f850 100644
+--- a/src/cmd/cgo/doc.go
++++ b/src/cmd/cgo/doc.go
+@@ -148,8 +148,6 @@ C.long, C.ulong (unsigned long), C.longlong (long long),
+ C.ulonglong (unsigned long long), C.float, C.double,
+ C.complexfloat (complex float), and C.complexdouble (complex double).
+ The C type void* is represented by Go's unsafe.Pointer.
+-The C sized integer types (int8_t, uint8_t, …) are represented by their Go
+-counterparts (int8, uint8, …).
+ The C types __int128_t and __uint128_t are represented by [16]byte.
+ 
+ A few special C types which would normally be represented by a pointer
+@@ -298,7 +296,7 @@ Go functions can be exported for use by C code in the following way:
+ 
+ They will be available in the C code as:
+ 
+-	extern int64_t MyFunction(int arg1, int arg2, GoString arg3);
++	extern GoInt64 MyFunction(int arg1, int arg2, GoString arg3);
+ 	extern struct MyFunction2_return MyFunction2(int arg1, int arg2, GoString arg3);
+ 
+ found in the _cgo_export.h generated header, after any preambles
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 941f1db832..9428ffd3bf 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -23,7 +23,6 @@ import (
+ 	"internal/xcoff"
+ 	"math"
+ 	"os"
+-	"regexp"
+ 	"strconv"
+ 	"strings"
+ 	"unicode"
+@@ -2047,8 +2046,6 @@ type typeConv struct {
+ 
+ 	ptrSize int64
+ 	intSize int64
+-
+-	exactWidthIntegerTypes map[string]*Type
+ }
+ 
+ var tagGen int
+@@ -2091,21 +2088,6 @@ func (c *typeConv) Init(ptrSize, intSize int64) {
+ 	} else {
+ 		c.goVoidPtr = c.Ident("unsafe.Pointer")
+ 	}
+-
+-	c.exactWidthIntegerTypes = make(map[string]*Type)
+-	for _, t := range []ast.Expr{
+-		c.int8, c.int16, c.int32, c.int64,
+-		c.uint8, c.uint16, c.uint32, c.uint64,
+-	} {
+-		name := t.(*ast.Ident).Name
+-		u := new(Type)
+-		*u = *goTypes[name]
+-		if u.Align > ptrSize {
+-			u.Align = ptrSize
+-		}
+-		u.Go = t
+-		c.exactWidthIntegerTypes[name] = u
+-	}
+ }
+ 
+ // base strips away qualifiers and typedefs to get the underlying type
+@@ -2477,26 +2459,6 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
+ 			t.Align = c.ptrSize
+ 			break
+ 		}
+-		// Exact-width integer types.  These are always compatible with
+-		// the corresponding Go types since the C standard requires
+-		// them to have no padding bit and use the two’s complement
+-		// representation.
+-		if exactWidthIntegerType.MatchString(dt.Name) {
+-			sub := c.Type(dt.Type, pos)
+-			goname := strings.TrimPrefix(dt.Name, "__")
+-			goname = strings.TrimSuffix(goname, "_t")
+-			u := c.exactWidthIntegerTypes[goname]
+-			if sub.Size != u.Size {
+-				fatalf("%s: unexpected size: %d vs. %d – %s", lineno(pos), sub.Size, u.Size, dtype)
+-			}
+-			if sub.Align != u.Align {
+-				fatalf("%s: unexpected alignment: %d vs. %d – %s", lineno(pos), sub.Align, u.Align, dtype)
+-			}
+-			t.Size = u.Size
+-			t.Align = u.Align
+-			t.Go = u.Go
+-			break
+-		}
+ 		name := c.Ident("_Ctype_" + dt.Name)
+ 		goIdent[name.Name] = name
+ 		sub := c.Type(dt.Type, pos)
+@@ -2632,8 +2594,6 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
+ 	return t
+ }
+ 
+-var exactWidthIntegerType = regexp.MustCompile(`^(__)?u?int(8|16|32|64)_t$`)
+-
+ // isStructUnionClass reports whether the type described by the Go syntax x
+ // is a struct, union, or class with a tag.
+ func isStructUnionClass(x ast.Expr) bool {
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index 5b3a7cb9c1..488db52c2e 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -1367,19 +1367,19 @@ func c(repr string, args ...interface{}) *TypeRepr {
+ 
+ // Map predeclared Go types to Type.
+ var goTypes = map[string]*Type{
+-	"bool":       {Size: 1, Align: 1, C: c("uint8_t")},
+-	"byte":       {Size: 1, Align: 1, C: c("uint8_t")},
++	"bool":       {Size: 1, Align: 1, C: c("GoUint8")},
++	"byte":       {Size: 1, Align: 1, C: c("GoUint8")},
+ 	"int":        {Size: 0, Align: 0, C: c("GoInt")},
+ 	"uint":       {Size: 0, Align: 0, C: c("GoUint")},
+-	"rune":       {Size: 4, Align: 4, C: c("int32_t")},
+-	"int8":       {Size: 1, Align: 1, C: c("int8_t")},
+-	"uint8":      {Size: 1, Align: 1, C: c("uint8_t")},
+-	"int16":      {Size: 2, Align: 2, C: c("int16_t")},
+-	"uint16":     {Size: 2, Align: 2, C: c("uint16_t")},
+-	"int32":      {Size: 4, Align: 4, C: c("int32_t")},
+-	"uint32":     {Size: 4, Align: 4, C: c("uint32_t")},
+-	"int64":      {Size: 8, Align: 8, C: c("int64_t")},
+-	"uint64":     {Size: 8, Align: 8, C: c("uint64_t")},
++	"rune":       {Size: 4, Align: 4, C: c("GoInt32")},
++	"int8":       {Size: 1, Align: 1, C: c("GoInt8")},
++	"uint8":      {Size: 1, Align: 1, C: c("GoUint8")},
++	"int16":      {Size: 2, Align: 2, C: c("GoInt16")},
++	"uint16":     {Size: 2, Align: 2, C: c("GoUint16")},
++	"int32":      {Size: 4, Align: 4, C: c("GoInt32")},
++	"uint32":     {Size: 4, Align: 4, C: c("GoUint32")},
++	"int64":      {Size: 8, Align: 8, C: c("GoInt64")},
++	"uint64":     {Size: 8, Align: 8, C: c("GoUint64")},
+ 	"float32":    {Size: 4, Align: 4, C: c("GoFloat32")},
+ 	"float64":    {Size: 8, Align: 8, C: c("GoFloat64")},
+ 	"complex64":  {Size: 8, Align: 4, C: c("GoComplex64")},
+@@ -1871,10 +1871,16 @@ const gccExportHeaderProlog = `
+ #ifndef GO_CGO_PROLOGUE_H
+ #define GO_CGO_PROLOGUE_H
+ 
+-#include <stdint.h>
+-
+-typedef intGOINTBITS_t GoInt;
+-typedef uintGOINTBITS_t GoUint;
++typedef signed char GoInt8;
++typedef unsigned char GoUint8;
++typedef short GoInt16;
++typedef unsigned short GoUint16;
++typedef int GoInt32;
++typedef unsigned int GoUint32;
++typedef long long GoInt64;
++typedef unsigned long long GoUint64;
++typedef GoIntGOINTBITS GoInt;
++typedef GoUintGOINTBITS GoUint;
+ typedef __SIZE_TYPE__ GoUintptr;
+ typedef float GoFloat32;
+ typedef double GoFloat64;

@@ -16,9 +16,93 @@ Date:   Mon Aug 8 16:07:05 2022 +0000
     Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/walk/builtin.go | 19 +++++++++++++++++++
  src/runtime/crash_test.go                |  8 ++++++++
  src/runtime/slice.go                     |  6 ++++++
  src/runtime/testdata/testprog/unsafe.go  | 12 ++++++++++++
  4 files changed, 45 insertions(+)
+
+diff --git a/src/cmd/compile/internal/walk/builtin.go b/src/cmd/compile/internal/walk/builtin.go
+index 7e84f28217..5a649c0951 100644
+--- a/src/cmd/compile/internal/walk/builtin.go
++++ b/src/cmd/compile/internal/walk/builtin.go
+@@ -682,6 +682,25 @@ func walkUnsafeSlice(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
+ 		nif.Body.Append(mkcall("panicunsafeslicelen", nil, &nif.Body))
+ 		appendWalkStmt(init, nif)
+ 
++		if sliceType.Elem().Size() == 0 {
++			// if ptr == nil && len > 0  {
++			//      panicunsafesliceptrnil()
++			// }
++			nifPtr := ir.NewIfStmt(base.Pos, nil, nil, nil)
++			isNil := ir.NewBinaryExpr(base.Pos, ir.OEQ, unsafePtr, typecheck.NodNil())
++			gtZero := ir.NewBinaryExpr(base.Pos, ir.OGT, typecheck.Conv(len, lenType), ir.NewInt(0))
++			nifPtr.Cond =
++				ir.NewLogicalExpr(base.Pos, ir.OANDAND, isNil, gtZero)
++			nifPtr.Body.Append(mkcall("panicunsafeslicenilptr", nil, &nifPtr.Body))
++			appendWalkStmt(init, nifPtr)
++
++			h := ir.NewSliceHeaderExpr(n.Pos(), sliceType,
++				typecheck.Conv(ptr, types.Types[types.TUNSAFEPTR]),
++				typecheck.Conv(len, types.Types[types.TINT]),
++				typecheck.Conv(len, types.Types[types.TINT]))
++			return walkExpr(typecheck.Expr(h), init)
++		}
++
+ 		// mem, overflow := runtime.mulUintptr(et.size, len)
+ 		mem := typecheck.Temp(types.Types[types.TUINTPTR])
+ 		overflow := typecheck.Temp(types.Types[types.TBOOL])
+diff --git a/src/runtime/crash_test.go b/src/runtime/crash_test.go
+index 01d7cbeb29..02604595ac 100644
+--- a/src/runtime/crash_test.go
++++ b/src/runtime/crash_test.go
+@@ -844,3 +844,11 @@ func TestPanicWhilePanicking(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestPanicOnUnsafeSlice(t *testing.T) {
++	output := runTestProg(t, "testprog", "panicOnNilAndEleSizeIsZero")
++	want := "panic: runtime error: unsafe.Slice: ptr is nil and len is not zero"
++	if !strings.Contains(output, want) {
++		t.Errorf("output does not contain %q:\n%s", want, output)
++	}
++}
+\ No newline at end of file
+diff --git a/src/runtime/slice.go b/src/runtime/slice.go
+index 2413a46d6a..8a0ce49fad 100644
+--- a/src/runtime/slice.go
++++ b/src/runtime/slice.go
+@@ -129,6 +129,12 @@ func unsafeslice(et *_type, ptr unsafe.Pointer, len int) {
+ 		panicunsafeslicelen()
+ 	}
+ 
++	if et.size == 0 {
++		if ptr == nil && len > 0  {
++			panicunsafeslicenilptr()
++		}
++	}
++
+ 	mem, overflow := math.MulUintptr(et.size, uintptr(len))
+ 	if overflow || mem > -uintptr(ptr) {
+ 		if ptr == nil {
+diff --git a/src/runtime/testdata/testprog/unsafe.go b/src/runtime/testdata/testprog/unsafe.go
+new file mode 100644
+index 0000000000..d6dddf22c2
+--- /dev/null
++++ b/src/runtime/testdata/testprog/unsafe.go
+@@ -0,0 +1,12 @@
++package main
++
++import "unsafe"
++
++func init() {
++	register("panicOnNilAndEleSizeIsZero", panicOnNilAndEleSizeIsZero)
++}
++
++func panicOnNilAndEleSizeIsZero() {
++	var p *struct{}
++	_ = unsafe.Slice(p, 5)
++}
+\ No newline at end of file

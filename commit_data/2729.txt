@@ -8,6 +8,20 @@ Date:   Thu Jul 16 15:01:21 2009 -0700
     DELTA=5  (0 added, 0 deleted, 5 changed)
     OCL=31740
     CL=31742
-
+---
  src/pkg/reflect/all_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/reflect/all_test.go b/src/pkg/reflect/all_test.go
+index 59d799d672..52e85f411f 100644
+--- a/src/pkg/reflect/all_test.go
++++ b/src/pkg/reflect/all_test.go
+@@ -565,7 +565,7 @@ func TestInterfaceExtraction(t *testing.T) {
+ 	s.w = os.Stdout;
+ 	v := Indirect(NewValue(&s)).(*StructValue).Field(0).Interface();
+ 	if v != s.w.(interface{}) {
+-		t.Errorf("Interface() on interface: ", v, s.w);
++		t.Error("Interface() on interface: ", v, s.w);
+ 	}
+ }
+ 

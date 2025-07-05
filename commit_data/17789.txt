@@ -7,7 +7,34 @@ Date:   Sat Oct 12 18:40:41 2013 -0400
     R=golang-dev, dave
     CC=golang-dev
     https://golang.org/cl/14629043
-
+---
  doc/code.html             | 2 +-
  doc/codewalk/codewalk.xml | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/code.html b/doc/code.html
+index f9aa6ac171..946585ccd8 100644
+--- a/doc/code.html
++++ b/doc/code.html
+@@ -296,7 +296,7 @@ package newmath
+ // Sqrt returns an approximation to the square root of x.
+ func Sqrt(x float64) float64 {
+ 	z := 1.0
+-	for i := 0; i < 1000; i++ {
++	for i := 0; i &lt; 1000; i++ {
+ 		z -= (z*z - x) / (2 * z)
+ 	}
+ 	return z
+diff --git a/doc/codewalk/codewalk.xml b/doc/codewalk/codewalk.xml
+index 9cd8361e84..3496db71d7 100644
+--- a/doc/codewalk/codewalk.xml
++++ b/doc/codewalk/codewalk.xml
+@@ -42,7 +42,7 @@
+ 	its <code>src</code> is just a file name.
+ </step>
+ 
+-<step title="Specifiying a source line" src='doc/codewalk/codewalk.xml:/title="Title"/'>
++<step title="Specifying a source line" src='doc/codewalk/codewalk.xml:/title="Title"/'>
+ 	The most complex part of the codewalk specification is
+ 	saying what lines to highlight.
+ 	Instead of ordinary line numbers,

@@ -7,7 +7,7 @@ Date:   Fri Mar 11 14:47:44 2011 -0500
     R=golang-dev, rog, bradfitzwork, r
     CC=golang-dev
     https://golang.org/cl/4243072
-
+---
  src/pkg/netchan/common.go                |   4 +-
  src/pkg/netchan/export.go                |   4 +-
  src/pkg/netchan/import.go                |   4 +-
@@ -23,3 +23,724 @@ Date:   Fri Mar 11 14:47:44 2011 -0500
  test/ddd1.go                             |   1 -
  test/named1.go                           |   9 +-
  14 files changed, 202 insertions(+), 147 deletions(-)
+
+diff --git a/src/pkg/netchan/common.go b/src/pkg/netchan/common.go
+index dd06050ee5..d2cd8efc55 100644
+--- a/src/pkg/netchan/common.go
++++ b/src/pkg/netchan/common.go
+@@ -306,7 +306,7 @@ func (nch *netChan) sender() {
+ }
+ 
+ // Receive value from local side for sending to remote side.
+-func (nch *netChan) recv() (val reflect.Value, closed bool) {
++func (nch *netChan) recv() (val reflect.Value, ok bool) {
+ 	if nch.dir != Send {
+ 		panic("recv on wrong direction of channel")
+ 	}
+@@ -317,7 +317,7 @@ func (nch *netChan) recv() (val reflect.Value, closed bool) {
+ 		nch.space++
+ 	}
+ 	nch.space--
+-	return nch.ch.Recv(), nch.ch.Closed()
++	return nch.ch.Recv()
+ }
+ 
+ // acked is called when the remote side indicates that
+diff --git a/src/pkg/netchan/export.go b/src/pkg/netchan/export.go
+index 55eba0e2e0..e91e777e30 100644
+--- a/src/pkg/netchan/export.go
++++ b/src/pkg/netchan/export.go
+@@ -181,8 +181,8 @@ func (client *expClient) run() {
+ // The header is passed by value to avoid issues of overwriting.
+ func (client *expClient) serveRecv(nch *netChan, hdr header, count int64) {
+ 	for {
+-		val, closed := nch.recv()
+-		if closed {
++		val, ok := nch.recv()
++		if !ok {
+ 			if err := client.encode(&hdr, payClosed, nil); err != nil {
+ 				expLog("error encoding server closed message:", err)
+ 			}
+diff --git a/src/pkg/netchan/import.go b/src/pkg/netchan/import.go
+index 30edcd8123..5db679a3ed 100644
+--- a/src/pkg/netchan/import.go
++++ b/src/pkg/netchan/import.go
+@@ -213,8 +213,8 @@ func (imp *Importer) ImportNValues(name string, chT interface{}, dir Dir, size,
+ 	if dir == Send {
+ 		go func() {
+ 			for i := 0; n == -1 || i < n; i++ {
+-				val, closed := nch.recv()
+-				if closed {
++				val, ok := nch.recv()
++				if !ok {
+ 					if err = imp.encode(hdr, payClosed, nil); err != nil {
+ 						impLog("error encoding client closed message:", err)
+ 					}
+diff --git a/src/pkg/netchan/netchan_test.go b/src/pkg/netchan/netchan_test.go
+index 1c84a9d14d..1b5c560872 100644
+--- a/src/pkg/netchan/netchan_test.go
++++ b/src/pkg/netchan/netchan_test.go
+@@ -41,8 +41,8 @@ func exportReceive(exp *Exporter, t *testing.T, expDone chan bool) {
+ 		t.Fatal("exportReceive:", err)
+ 	}
+ 	for i := 0; i < count; i++ {
+-		v := <-ch
+-		if closed(ch) {
++		v, ok := <-ch
++		if !ok {
+ 			if i != closeCount {
+ 				t.Errorf("exportReceive expected close at %d; got one at %d", closeCount, i)
+ 			}
+@@ -78,8 +78,8 @@ func importReceive(imp *Importer, t *testing.T, done chan bool) {
+ 		t.Fatal("importReceive:", err)
+ 	}
+ 	for i := 0; i < count; i++ {
+-		v := <-ch
+-		if closed(ch) {
++		v, ok := <-ch
++		if !ok {
+ 			if i != closeCount {
+ 				t.Errorf("importReceive expected close at %d; got one at %d", closeCount, i)
+ 			}
+@@ -212,8 +212,8 @@ func TestExportHangup(t *testing.T) {
+ 	}
+ 	// Now hang up the channel.  Importer should see it close.
+ 	exp.Hangup("exportedSend")
+-	v = <-ich
+-	if !closed(ich) {
++	v, ok := <-ich
++	if ok {
+ 		t.Fatal("expected channel to be closed; got value", v)
+ 	}
+ }
+@@ -242,8 +242,8 @@ func TestImportHangup(t *testing.T) {
+ 	}
+ 	// Now hang up the channel.  Exporter should see it close.
+ 	imp.Hangup("exportedRecv")
+-	v = <-ech
+-	if !closed(ech) {
++	v, ok := <-ech
++	if ok {
+ 		t.Fatal("expected channel to be closed; got value", v)
+ 	}
+ }
+diff --git a/src/pkg/os/inotify/inotify_linux_test.go b/src/pkg/os/inotify/inotify_linux_test.go
+index 332edcb644..79c3bfa36e 100644
+--- a/src/pkg/os/inotify/inotify_linux_test.go
++++ b/src/pkg/os/inotify/inotify_linux_test.go
+@@ -35,6 +35,7 @@ func TestInotifyEvents(t *testing.T) {
+ 	// Receive events on the event channel on a separate goroutine
+ 	eventstream := watcher.Event
+ 	var eventsReceived = 0
++	done := make(chan bool)
+ 	go func() {
+ 		for event := range eventstream {
+ 			// Only count relevant events
+@@ -45,6 +46,7 @@ func TestInotifyEvents(t *testing.T) {
+ 				t.Logf("unexpected event received: %s", event)
+ 			}
+ 		}
++		done <- true
+ 	}()
+ 
+ 	// Create a file
+@@ -64,16 +66,12 @@ func TestInotifyEvents(t *testing.T) {
+ 	t.Log("calling Close()")
+ 	watcher.Close()
+ 	t.Log("waiting for the event channel to become closed...")
+-	var i = 0
+-	for !closed(eventstream) {
+-		if i >= 20 {
+-			t.Fatal("event stream was not closed after 1 second, as expected")
+-		}
+-		t.Log("waiting for 50 ms...")
+-		time.Sleep(50e6) // 50 ms
+-		i++
++	select {
++	case <-done:
++		t.Log("event channel closed")
++	case <-time.After(1e9):
++		t.Fatal("event stream was not closed after 1 second")
+ 	}
+-	t.Log("event channel closed")
+ }
+ 
+ 
+diff --git a/src/pkg/reflect/all_test.go b/src/pkg/reflect/all_test.go
+index 7a97ea1737..f616adaac3 100644
+--- a/src/pkg/reflect/all_test.go
++++ b/src/pkg/reflect/all_test.go
+@@ -968,28 +968,28 @@ func TestChan(t *testing.T) {
+ 
+ 		// Recv
+ 		c <- 3
+-		if i := cv.Recv().(*IntValue).Get(); i != 3 {
+-			t.Errorf("native send 3, reflect Recv %d", i)
++		if i, ok := cv.Recv(); i.(*IntValue).Get() != 3 || !ok {
++			t.Errorf("native send 3, reflect Recv %d, %t", i.(*IntValue).Get(), ok)
+ 		}
+ 
+ 		// TryRecv fail
+-		val := cv.TryRecv()
+-		if val != nil {
+-			t.Errorf("TryRecv on empty chan: %s", valueToString(val))
++		val, ok := cv.TryRecv()
++		if val != nil || ok {
++			t.Errorf("TryRecv on empty chan: %s, %t", valueToString(val), ok)
+ 		}
+ 
+ 		// TryRecv success
+ 		c <- 4
+-		val = cv.TryRecv()
++		val, ok = cv.TryRecv()
+ 		if val == nil {
+ 			t.Errorf("TryRecv on ready chan got nil")
+-		} else if i := val.(*IntValue).Get(); i != 4 {
+-			t.Errorf("native send 4, TryRecv %d", i)
++		} else if i := val.(*IntValue).Get(); i != 4 || !ok {
++			t.Errorf("native send 4, TryRecv %d, %t", i, ok)
+ 		}
+ 
+ 		// TrySend fail
+ 		c <- 100
+-		ok := cv.TrySend(NewValue(5))
++		ok = cv.TrySend(NewValue(5))
+ 		i := <-c
+ 		if ok {
+ 			t.Errorf("TrySend on full chan succeeded: value %d", i)
+@@ -1008,20 +1008,11 @@ func TestChan(t *testing.T) {
+ 		// Close
+ 		c <- 123
+ 		cv.Close()
+-		if cv.Closed() {
+-			t.Errorf("closed too soon - 1")
++		if i, ok := cv.Recv(); i.(*IntValue).Get() != 123 || !ok {
++			t.Errorf("send 123 then close; Recv %d, %t", i.(*IntValue).Get(), ok)
+ 		}
+-		if i := cv.Recv().(*IntValue).Get(); i != 123 {
+-			t.Errorf("send 123 then close; Recv %d", i)
+-		}
+-		if cv.Closed() {
+-			t.Errorf("closed too soon - 2")
+-		}
+-		if i := cv.Recv().(*IntValue).Get(); i != 0 {
+-			t.Errorf("after close Recv %d", i)
+-		}
+-		if !cv.Closed() {
+-			t.Errorf("not closed")
++		if i, ok := cv.Recv(); i.(*IntValue).Get() != 0 || ok {
++			t.Errorf("after close Recv %d, %t", i.(*IntValue).Get(), ok)
+ 		}
+ 	}
+ 
+@@ -1032,7 +1023,7 @@ func TestChan(t *testing.T) {
+ 	if cv.TrySend(NewValue(7)) {
+ 		t.Errorf("TrySend on sync chan succeeded")
+ 	}
+-	if cv.TryRecv() != nil {
++	if v, ok := cv.TryRecv(); v != nil || ok {
+ 		t.Errorf("TryRecv on sync chan succeeded")
+ 	}
+ 
+diff --git a/src/pkg/reflect/value.go b/src/pkg/reflect/value.go
+index 0b70b17f8f..01a40ec9a4 100644
+--- a/src/pkg/reflect/value.go
++++ b/src/pkg/reflect/value.go
+@@ -671,19 +671,12 @@ func (v *ChanValue) Get() uintptr { return *(*uintptr)(v.addr) }
+ 
+ // implemented in ../pkg/runtime/reflect.cgo
+ func makechan(typ *runtime.ChanType, size uint32) (ch *byte)
+-func chansend(ch, val *byte, pres *bool)
+-func chanrecv(ch, val *byte, pres *bool)
+-func chanclosed(ch *byte) bool
++func chansend(ch, val *byte, selected *bool)
++func chanrecv(ch, val *byte, selected *bool, ok *bool)
+ func chanclose(ch *byte)
+ func chanlen(ch *byte) int32
+ func chancap(ch *byte) int32
+ 
+-// Closed returns the result of closed(c) on the underlying channel.
+-func (v *ChanValue) Closed() bool {
+-	ch := *(**byte)(v.addr)
+-	return chanclosed(ch)
+-}
+-
+ // Close closes the channel.
+ func (v *ChanValue) Close() {
+ 	ch := *(**byte)(v.addr)
+@@ -700,52 +693,61 @@ func (v *ChanValue) Cap() int {
+ 	return int(chancap(ch))
+ }
+ 
+-// internal send; non-blocking if b != nil
+-func (v *ChanValue) send(x Value, b *bool) {
++// internal send; non-blocking if selected != nil
++func (v *ChanValue) send(x Value, selected *bool) {
+ 	t := v.Type().(*ChanType)
+ 	if t.Dir()&SendDir == 0 {
+ 		panic("send on recv-only channel")
+ 	}
+ 	typesMustMatch(t.Elem(), x.Type())
+ 	ch := *(**byte)(v.addr)
+-	chansend(ch, (*byte)(x.getAddr()), b)
++	chansend(ch, (*byte)(x.getAddr()), selected)
+ }
+ 
+-// internal recv; non-blocking if b != nil
+-func (v *ChanValue) recv(b *bool) Value {
++// internal recv; non-blocking if selected != nil
++func (v *ChanValue) recv(selected *bool) (Value, bool) {
+ 	t := v.Type().(*ChanType)
+ 	if t.Dir()&RecvDir == 0 {
+ 		panic("recv on send-only channel")
+ 	}
+ 	ch := *(**byte)(v.addr)
+ 	x := MakeZero(t.Elem())
+-	chanrecv(ch, (*byte)(x.getAddr()), b)
+-	return x
++	var ok bool
++	chanrecv(ch, (*byte)(x.getAddr()), selected, &ok)
++	return x, ok
+ }
+ 
+ // Send sends x on the channel v.
+ func (v *ChanValue) Send(x Value) { v.send(x, nil) }
+ 
+ // Recv receives and returns a value from the channel v.
+-func (v *ChanValue) Recv() Value { return v.recv(nil) }
++// The receive blocks until a value is ready.
++// The boolean value ok is true if the value x corresponds to a send
++// on the channel, false if it is a zero value received because the channel is closed.
++func (v *ChanValue) Recv() (x Value, ok bool) {
++	return v.recv(nil)
++}
+ 
+ // TrySend attempts to sends x on the channel v but will not block.
+ // It returns true if the value was sent, false otherwise.
+ func (v *ChanValue) TrySend(x Value) bool {
+-	var ok bool
+-	v.send(x, &ok)
+-	return ok
++	var selected bool
++	v.send(x, &selected)
++	return selected
+ }
+ 
+ // TryRecv attempts to receive a value from the channel v but will not block.
+-// It returns the value if one is received, nil otherwise.
+-func (v *ChanValue) TryRecv() Value {
+-	var ok bool
+-	x := v.recv(&ok)
+-	if !ok {
+-		return nil
+-	}
+-	return x
++// If the receive cannot finish without blocking, TryRecv instead returns x == nil.
++// If the receive can finish without blocking, TryRecv returns x != nil.
++// The boolean value ok is true if the value x corresponds to a send
++// on the channel, false if it is a zero value received because the channel is closed.
++func (v *ChanValue) TryRecv() (x Value, ok bool) {
++	var selected bool
++	x, ok = v.recv(&selected)
++	if !selected {
++		return nil, false
++	}
++	return x, ok
+ }
+ 
+ // MakeChan creates a new channel with the specified type and buffer size.
+diff --git a/src/pkg/template/template.go b/src/pkg/template/template.go
+index c3cb8901a0..f27c987abe 100644
+--- a/src/pkg/template/template.go
++++ b/src/pkg/template/template.go
+@@ -896,8 +896,8 @@ func (t *Template) executeRepeated(r *repeatedElement, st *state) {
+ 		}
+ 	} else if ch := iter(field); ch != nil {
+ 		for {
+-			e := ch.Recv()
+-			if ch.Closed() {
++			e, ok := ch.Recv()
++			if !ok {
+ 				break
+ 			}
+ 			loopBody(st.clone(e))
+diff --git a/src/pkg/testing/script/script.go b/src/pkg/testing/script/script.go
+index 11f5a74251..b341b1f896 100644
+--- a/src/pkg/testing/script/script.go
++++ b/src/pkg/testing/script/script.go
+@@ -306,8 +306,8 @@ func recvValues(multiplex chan<- interface{}, channel interface{}) {
+ 	c := reflect.NewValue(channel).(*reflect.ChanValue)
+ 
+ 	for {
+-		v := c.Recv()
+-		if c.Closed() {
++		v, ok := c.Recv()
++		if !ok {
+ 			multiplex <- channelClosed{channel}
+ 			return
+ 		}
+diff --git a/test/chan/perm.go b/test/chan/perm.go
+index c725829d13..038ff94e36 100644
+--- a/test/chan/perm.go
++++ b/test/chan/perm.go
+@@ -22,21 +22,18 @@ func main() {
+ 
+ 	c <- 0 // ok
+ 	<-c    // ok
+-	//TODO(rsc): uncomment when this syntax is valid for receive+check closed
+-	//	x, ok := <-c	// ok
+-	//	_, _ = x, ok
++	x, ok := <-c	// ok
++	_, _ = x, ok
+ 
+ 	cr <- 0 // ERROR "send"
+ 	<-cr    // ok
+-	//TODO(rsc): uncomment when this syntax is valid for receive+check closed
+-	//	x, ok = <-cr	// ok
+-	//	_, _ = x, ok
++	x, ok = <-cr	// ok
++	_, _ = x, ok
+ 
+ 	cs <- 0 // ok
+ 	<-cs    // ERROR "receive"
+-	////TODO(rsc): uncomment when this syntax is valid for receive+check closed
+-	////	x, ok = <-cs	// ERROR "receive"
+-	////	_, _ = x, ok
++	x, ok = <-cs	// ERROR "receive"
++	_, _ = x, ok
+ 
+ 	select {
+ 	case c <- 0: // ok
+diff --git a/test/chan/select3.go b/test/chan/select3.go
+index 47941063c0..b4e8f8e4bf 100644
+--- a/test/chan/select3.go
++++ b/test/chan/select3.go
+@@ -88,12 +88,16 @@ func main() {
+ 		ch <- 7
+ 	})
+ 
+-	// receiving (a small number of times) from a closed channel never blocks
++	// receiving from a closed channel never blocks
+ 	testBlock(never, func() {
+ 		for i := 0; i < 10; i++ {
+ 			if <-closedch != 0 {
+ 				panic("expected zero value when reading from closed channel")
+ 			}
++			if x, ok := <-closedch; x != 0 || ok {
++				println("closedch:", x, ok)
++				panic("expected 0, false from closed channel")
++			}
+ 		}
+ 	})
+ 
+@@ -191,12 +195,24 @@ func main() {
+ 		case <-closedch:
+ 		}
+ 	})
++	testBlock(never, func() {
++		select {
++		case x := <-closedch:
++			_ = x
++		}
++	})
++	testBlock(never, func() {
++		select {
++		case x, ok := <-closedch:
++			_, _ = x, ok
++		}
++	})
+ 	testPanic(always, func() {
+ 		select {
+ 		case closedch <- 7:
+ 		}
+ 	})
+-	
++
+ 	// select should not get confused if it sees itself
+ 	testBlock(always, func() {
+ 		c := make(chan int)
+diff --git a/test/closedchan.go b/test/closedchan.go
+index 46d9d0f5d2..95314b3345 100644
+--- a/test/closedchan.go
++++ b/test/closedchan.go
+@@ -4,7 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Test close(c), closed(c).
++// Test close(c), receive of closed channel.
+ //
+ // TODO(rsc): Doesn't check behavior of close(c) when there
+ // are blocked senders/receivers.
+@@ -14,10 +14,11 @@ package main
+ type Chan interface {
+ 	Send(int)
+ 	Nbsend(int) bool
+-	Recv() int
++	Recv() (int)
+ 	Nbrecv() (int, bool)
++	Recv2() (int, bool)
++	Nbrecv2() (int, bool, bool)
+ 	Close()
+-	Closed() bool
+ 	Impl() string
+ }
+ 
+@@ -52,12 +53,23 @@ func (c XChan) Nbrecv() (int, bool) {
+ 	panic("nbrecv")
+ }
+ 
+-func (c XChan) Close() {
+-	close(c)
++func (c XChan) Recv2() (int, bool) {
++	x, ok := <-c
++	return x, ok
++}
++
++func (c XChan) Nbrecv2() (int, bool, bool) {
++	select {
++	case x, ok := <-c:
++		return x, ok, true
++	default:
++		return 0, false, false
++	}
++	panic("nbrecv2")
+ }
+ 
+-func (c XChan) Closed() bool {
+-	return closed(c)
++func (c XChan) Close() {
++	close(c)
+ }
+ 
+ func (c XChan) Impl() string {
+@@ -101,12 +113,26 @@ func (c SChan) Nbrecv() (int, bool) {
+ 	panic("nbrecv")
+ }
+ 
+-func (c SChan) Close() {
+-	close(c)
++func (c SChan) Recv2() (int, bool) {
++	select {
++	case x, ok := <-c:
++		return x, ok
++	}
++	panic("recv")
+ }
+ 
+-func (c SChan) Closed() bool {
+-	return closed(c)
++func (c SChan) Nbrecv2() (int, bool, bool) {
++	select {
++	default:
++		return 0, false, false
++	case x, ok := <-c:
++		return x, ok, true
++	}
++	panic("nbrecv")
++}
++
++func (c SChan) Close() {
++	close(c)
+ }
+ 
+ func (c SChan) Impl() string {
+@@ -156,12 +182,28 @@ func (c SSChan) Nbrecv() (int, bool) {
+ 	panic("nbrecv")
+ }
+ 
+-func (c SSChan) Close() {
+-	close(c)
++func (c SSChan) Recv2() (int, bool) {
++	select {
++	case <-dummy:
++	case x, ok := <-c:
++		return x, ok
++	}
++	panic("recv")
+ }
+ 
+-func (c SSChan) Closed() bool {
+-	return closed(c)
++func (c SSChan) Nbrecv2() (int, bool, bool) {
++	select {
++	case <-dummy:
++	default:
++		return 0, false, false
++	case x, ok := <-c:
++		return x, ok, true
++	}
++	panic("nbrecv")
++}
++
++func (c SSChan) Close() {
++	close(c)
+ }
+ 
+ func (c SSChan) Impl() string {
+@@ -179,29 +221,23 @@ func shouldPanic(f func()) {
+ }
+ 
+ func test1(c Chan) {
+-	// not closed until the close signal (a zero value) has been received.
+-	if c.Closed() {
+-		println("test1: Closed before Recv zero:", c.Impl())
+-	}
+-
+ 	for i := 0; i < 3; i++ {
+ 		// recv a close signal (a zero value)
+ 		if x := c.Recv(); x != 0 {
+-			println("test1: recv on closed got non-zero:", x, c.Impl())
++			println("test1: recv on closed:", x, c.Impl())
+ 		}
+-
+-		// should now be closed.
+-		if !c.Closed() {
+-			println("test1: not closed after recv zero", c.Impl())
++		if x, ok := c.Recv2(); x != 0 || ok {
++			println("test1: recv2 on closed:", x, ok, c.Impl())
+ 		}
+ 
+-		// should work with ,ok: received a value without blocking, so ok == true.
+-		x, ok := c.Nbrecv()
+-		if !ok {
+-			println("test1: recv on closed got not ok", c.Impl())
++		// should work with select: received a value without blocking, so selected == true.
++		x, selected := c.Nbrecv()
++		if x != 0 || !selected {
++			println("test1: recv on closed nb:", x, selected, c.Impl())
+ 		}
+-		if x != 0 {
+-			println("test1: recv ,ok on closed got non-zero:", x, c.Impl())
++		x, ok, selected := c.Nbrecv2()
++		if x != 0 || ok || !selected {
++			println("test1: recv2 on closed nb:", x, ok, selected, c.Impl())
+ 		}
+ 	}
+ 
+@@ -221,11 +257,6 @@ func test1(c Chan) {
+ }
+ 
+ func testasync1(c Chan) {
+-	// not closed until the close signal (a zero value) has been received.
+-	if c.Closed() {
+-		println("testasync1: Closed before Recv zero:", c.Impl())
+-	}
+-
+ 	// should be able to get the last value via Recv
+ 	if x := c.Recv(); x != 1 {
+ 		println("testasync1: Recv did not get 1:", x, c.Impl())
+@@ -235,19 +266,31 @@ func testasync1(c Chan) {
+ }
+ 
+ func testasync2(c Chan) {
+-	// not closed until the close signal (a zero value) has been received.
+-	if c.Closed() {
+-		println("testasync2: Closed before Recv zero:", c.Impl())
++	// should be able to get the last value via Recv2
++	if x, ok := c.Recv2(); x != 1 || !ok {
++		println("testasync1: Recv did not get 1, true:", x, ok, c.Impl())
+ 	}
+ 
++	test1(c)
++}
++
++func testasync3(c Chan) {
+ 	// should be able to get the last value via Nbrecv
+-	if x, ok := c.Nbrecv(); !ok || x != 1 {
+-		println("testasync2: Nbrecv did not get 1, true:", x, ok, c.Impl())
++	if x, selected := c.Nbrecv(); x != 1 || !selected {
++		println("testasync2: Nbrecv did not get 1, true:", x, selected, c.Impl())
+ 	}
+ 
+ 	test1(c)
+ }
+ 
++func testasync4(c Chan) {
++	// should be able to get the last value via Nbrecv2
++	if x, ok, selected := c.Nbrecv2(); x != 1 || !ok || !selected {
++		println("testasync2: Nbrecv did not get 1, true, true:", x, ok, selected, c.Impl())
++	}
++	test1(c)
++}
++
+ func closedsync() chan int {
+ 	c := make(chan int)
+ 	close(c)
+@@ -261,15 +304,27 @@ func closedasync() chan int {
+ 	return c
+ }
+ 
++var mks = []func(chan int) Chan {
++	func(c chan int) Chan { return XChan(c) },
++	func(c chan int) Chan { return SChan(c) },
++	func(c chan int) Chan { return SSChan(c) },
++}
++
++var testcloseds = []func(Chan) {
++	testasync1,
++	testasync2,
++	testasync3,
++	testasync4,
++}
++
+ func main() {
+-	test1(XChan(closedsync()))
+-	test1(SChan(closedsync()))
+-	test1(SSChan(closedsync()))
+-
+-	testasync1(XChan(closedasync()))
+-	testasync1(SChan(closedasync()))
+-	testasync1(SSChan(closedasync()))
+-	testasync2(XChan(closedasync()))
+-	testasync2(SChan(closedasync()))
+-	testasync2(SSChan(closedasync()))
++	for _, mk := range mks {
++		test1(mk(closedsync()))
++	}
++	
++	for _, testclosed := range testcloseds {
++		for _, mk := range mks {
++			testclosed(mk(closedasync()))
++		}
++	}
+ }
+diff --git a/test/ddd1.go b/test/ddd1.go
+index fcd32c282f..ff6342843a 100644
+--- a/test/ddd1.go
++++ b/test/ddd1.go
+@@ -35,7 +35,6 @@ func bad(args ...int) {
+ 	ch := make(chan int)
+ 	close(ch...)	// ERROR "[.][.][.]"
+ 	_ = len(args...)	// ERROR "[.][.][.]"
+-	_ = closed(ch...)	// ERROR "[.][.][.]"
+ 	_ = new(int...)	// ERROR "[.][.][.]"
+ 	n := 10
+ 	_ = make([]byte, n...)	// ERROR "[.][.][.]"
+diff --git a/test/named1.go b/test/named1.go
+index 1776313f05..7e7aab9c1d 100644
+--- a/test/named1.go
++++ b/test/named1.go
+@@ -43,10 +43,6 @@ func main() {
+ 	_, b = m[2] // ERROR "cannot .* bool.*type Bool"
+ 	m[2] = 1, b // ERROR "cannot use.*type Bool.*as type bool"
+ 
+-	////TODO(rsc): uncomment when this syntax is valid for receive+check closed
+-	////	_, b = <-c // ERROR "cannot .* bool.*type Bool"
+-	////	_ = b
+-
+ 	var inter interface{}
+ 	_, b = inter.(Map) // ERROR "cannot .* bool.*type Bool"
+ 	_ = b
+@@ -57,8 +53,9 @@ func main() {
+ 	_, b = minter.(Map) // ERROR "cannot .* bool.*type Bool"
+ 	_ = b
+ 
+-	asBool(closed(c)) // ERROR "cannot use.*type bool.*as type Bool"
+-	b = closed(c)     // ERROR "cannot use.*type bool.*type Bool"
++	_, bb := <-c
++	asBool(bb) // ERROR "cannot use.*type bool.*as type Bool"
++	_, b = <-c     // ERROR "cannot .* bool.*type Bool"
+ 	_ = b
+ 
+ 	asString(String(slice)) // ERROR "cannot .*type Slice.*type String"

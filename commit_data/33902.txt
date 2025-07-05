@@ -11,7 +11,7 @@ Date:   Thu Sep 14 11:10:23 2017 -0400
     Change-Id: I85ab707cfbe64eded8e110d4d6b40d1b75f50541
     Reviewed-on: https://go-review.googlesource.com/63916
     Reviewed-by: Adam Langley <agl@golang.org>
-
+---
  src/crypto/internal/boring/aes.go       | 1 +
  src/crypto/internal/boring/boring.go    | 1 +
  src/crypto/internal/boring/ecdsa.go     | 1 +
@@ -21,3 +21,101 @@ Date:   Thu Sep 14 11:10:23 2017 -0400
  src/crypto/internal/boring/rsa.go       | 1 +
  src/crypto/internal/boring/sha.go       | 1 +
  8 files changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/src/crypto/internal/boring/aes.go b/src/crypto/internal/boring/aes.go
+index cd7064e686..12e5c38a06 100644
+--- a/src/crypto/internal/boring/aes.go
++++ b/src/crypto/internal/boring/aes.go
+@@ -5,6 +5,7 @@
+ // +build linux,amd64
+ // +build !android
+ // +build !cmd_go_bootstrap
++// +build !msan
+ 
+ package boring
+ 
+diff --git a/src/crypto/internal/boring/boring.go b/src/crypto/internal/boring/boring.go
+index 1dd49fecfb..98aa851de7 100644
+--- a/src/crypto/internal/boring/boring.go
++++ b/src/crypto/internal/boring/boring.go
+@@ -5,6 +5,7 @@
+ // +build linux,amd64
+ // +build !android
+ // +build !cmd_go_bootstrap
++// +build !msan
+ 
+ package boring
+ 
+diff --git a/src/crypto/internal/boring/ecdsa.go b/src/crypto/internal/boring/ecdsa.go
+index f931d732f4..6f6bcf6a4a 100644
+--- a/src/crypto/internal/boring/ecdsa.go
++++ b/src/crypto/internal/boring/ecdsa.go
+@@ -5,6 +5,7 @@
+ // +build linux,amd64
+ // +build !android
+ // +build !cmd_go_bootstrap
++// +build !msan
+ 
+ package boring
+ 
+diff --git a/src/crypto/internal/boring/hmac.go b/src/crypto/internal/boring/hmac.go
+index 673b007e59..aecb1870f5 100644
+--- a/src/crypto/internal/boring/hmac.go
++++ b/src/crypto/internal/boring/hmac.go
+@@ -5,6 +5,7 @@
+ // +build linux,amd64
+ // +build !android
+ // +build !cmd_go_bootstrap
++// +build !msan
+ 
+ package boring
+ 
+diff --git a/src/crypto/internal/boring/notboring.go b/src/crypto/internal/boring/notboring.go
+index 22f3553324..257aa3b8b4 100644
+--- a/src/crypto/internal/boring/notboring.go
++++ b/src/crypto/internal/boring/notboring.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build !linux !amd64 cmd_go_bootstrap android !cgo
++// +build !linux !amd64 !cgo android cmd_go_bootstrap msan
+ 
+ package boring
+ 
+diff --git a/src/crypto/internal/boring/rand.go b/src/crypto/internal/boring/rand.go
+index 71c644bdf4..c3fc27cc08 100644
+--- a/src/crypto/internal/boring/rand.go
++++ b/src/crypto/internal/boring/rand.go
+@@ -5,6 +5,7 @@
+ // +build linux,amd64
+ // +build !android
+ // +build !cmd_go_bootstrap
++// +build !msan
+ 
+ package boring
+ 
+diff --git a/src/crypto/internal/boring/rsa.go b/src/crypto/internal/boring/rsa.go
+index c31554de0c..8a077b71df 100644
+--- a/src/crypto/internal/boring/rsa.go
++++ b/src/crypto/internal/boring/rsa.go
+@@ -5,6 +5,7 @@
+ // +build linux,amd64
+ // +build !android
+ // +build !cmd_go_bootstrap
++// +build !msan
+ 
+ package boring
+ 
+diff --git a/src/crypto/internal/boring/sha.go b/src/crypto/internal/boring/sha.go
+index bc91f4a490..b8e6e57684 100644
+--- a/src/crypto/internal/boring/sha.go
++++ b/src/crypto/internal/boring/sha.go
+@@ -5,6 +5,7 @@
+ // +build linux,amd64
+ // +build !android
+ // +build !cmd_go_bootstrap
++// +build !msan
+ 
+ package boring
+ 

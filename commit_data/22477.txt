@@ -24,7 +24,7 @@ Date:   Sun Mar 8 11:37:02 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/7072
     Reviewed-by: Minux Ma <minux@golang.org>
     Run-TryBot: David Crawshaw <crawshaw@golang.org>
-
+---
  src/runtime/cgo/gcc_darwin_arm.c         |   4 +
  src/runtime/cgo/gcc_signal_darwin_armx.c | 185 +++++++++++++++++++++++++++++++
  src/runtime/cgo/gcc_signal_darwin_lldb.c |  14 +++
@@ -33,3 +33,364 @@ Date:   Sun Mar 8 11:37:02 2015 -0400
  src/runtime/cgo/signal_darwin_armx.go    |  31 ++++++
  src/runtime/sigpanic_unix.go             |  10 ++
  7 files changed, 303 insertions(+)
+
+diff --git a/src/runtime/cgo/gcc_darwin_arm.c b/src/runtime/cgo/gcc_darwin_arm.c
+index aa7f43832a..c303b914cc 100644
+--- a/src/runtime/cgo/gcc_darwin_arm.c
++++ b/src/runtime/cgo/gcc_darwin_arm.c
+@@ -84,6 +84,8 @@ threadentry(void *v)
+ 	ts = *(ThreadStart*)v;
+ 	free(v);
+ 
++	darwin_arm_init_thread_exception_port();
++
+ 	crosscall_arm1(ts.fn, setg_gcc, (void*)ts.g);
+ 	return nil;
+ }
+@@ -145,5 +147,7 @@ x_cgo_init(G *g, void (*setg)(void*), void **tlsg, void **tlsbase)
+ 	// yes, tlsbase from mrc might not be correctly aligned.
+ 	inittls(tlsg, (void**)((uintptr)tlsbase & ~3));
+ 
++	darwin_arm_init_mach_exception_handler();
++	darwin_arm_init_thread_exception_port();
+ 	init_working_dir();
+ }
+diff --git a/src/runtime/cgo/gcc_signal_darwin_armx.c b/src/runtime/cgo/gcc_signal_darwin_armx.c
+new file mode 100644
+index 0000000000..cb32898e43
+--- /dev/null
++++ b/src/runtime/cgo/gcc_signal_darwin_armx.c
+@@ -0,0 +1,185 @@
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Emulation of the Unix signal SIGSEGV.
++//
++// On iOS, Go tests and apps under development are run by lldb.
++// The debugger uses a task-level exception handler to intercept signals.
++// Despite having a 'handle' mechanism like gdb, lldb will not allow a
++// SIGSEGV to pass to the running program. For Go, this means we cannot
++// generate a panic, which cannot be recovered, and so tests fail.
++//
++// We work around this by registering a thread-level mach exception handler
++// and intercepting EXC_BAD_ACCESS. The kernel offers thread handlers a
++// chance to resolve exceptions before the task handler, so we can generate
++// the panic and avoid lldb's SIGSEGV handler.
++//
++// If you want to debug a segfault under lldb, compile the standard library
++// with the build tag lldb:
++//
++//	go test -tags lldb -installsuffix lldb
++
++// +build darwin,arm,!lldb
++
++// TODO(crawshaw): darwin,arm64,!lldb
++
++#include <limits.h>
++#include <pthread.h>
++#include <stdio.h>
++#include <signal.h>
++#include <stdlib.h>
++#include <unistd.h>
++
++#include <mach/arm/thread_status.h>
++#include <mach/exception_types.h>
++#include <mach/mach.h>
++#include <mach/mach_init.h>
++#include <mach/mach_port.h>
++#include <mach/thread_act.h>
++#include <mach/thread_status.h>
++
++#include "libcgo.h"
++
++uintptr_t x_cgo_panicmem;
++
++static pthread_mutex_t mach_exception_handler_port_set_mu;
++static mach_port_t mach_exception_handler_port_set = MACH_PORT_NULL;
++
++kern_return_t
++catch_exception_raise(
++	mach_port_t exception_port,
++	mach_port_t thread,
++	mach_port_t task,
++	exception_type_t exception,
++	exception_data_t code_vector,
++	mach_msg_type_number_t code_count)
++{
++	kern_return_t ret;
++	arm_unified_thread_state_t thread_state;
++	mach_msg_type_number_t state_count = ARM_UNIFIED_THREAD_STATE_COUNT;
++
++	// Returning KERN_SUCCESS intercepts the exception.
++	//
++	// Returning KERN_FAILURE lets the exception fall through to the
++	// next handler, which is the standard signal emulation code
++	// registered on the task port.
++
++	if (exception != EXC_BAD_ACCESS) {
++		return KERN_FAILURE;
++	}
++
++	ret = thread_get_state(thread, ARM_UNIFIED_THREAD_STATE, (thread_state_t)&thread_state, &state_count);
++	if (ret) {
++		fprintf(stderr, "runtime/cgo: thread_get_state failed: %d\n", ret);
++		abort();
++	}
++
++	// Bounce call to sigpanic through asm that makes it look like
++	// we call sigpanic directly from the faulting code.
++	thread_state.ts_32.__r[1] = thread_state.ts_32.__lr;
++	thread_state.ts_32.__r[2] = thread_state.ts_32.__pc;
++	thread_state.ts_32.__pc = x_cgo_panicmem;
++
++	ret = thread_set_state(thread, ARM_UNIFIED_THREAD_STATE, (thread_state_t)&thread_state, state_count);
++	if (ret) {
++		fprintf(stderr, "runtime/cgo: thread_set_state failed: %d\n", ret);
++		abort();
++	}
++
++	return KERN_SUCCESS;
++}
++
++void
++darwin_arm_init_thread_exception_port()
++{
++	// Called by each new OS thread to bind its EXC_BAD_ACCESS exception
++	// to mach_exception_handler_port_set.
++	int ret;
++	mach_port_t port = MACH_PORT_NULL;
++
++	ret = mach_port_allocate(mach_task_self(), MACH_PORT_RIGHT_RECEIVE, &port);
++	if (ret) {
++		fprintf(stderr, "runtime/cgo: mach_port_allocate failed: %d\n", ret);
++		abort();
++	}
++	ret = mach_port_insert_right(
++		mach_task_self(),
++		port,
++		port,
++		MACH_MSG_TYPE_MAKE_SEND);
++	if (ret) {
++		fprintf(stderr, "runtime/cgo: mach_port_insert_right failed: %d\n", ret);
++		abort();
++	}
++
++	ret = thread_set_exception_ports(
++		mach_thread_self(),
++		EXC_MASK_BAD_ACCESS,
++		port,
++		EXCEPTION_DEFAULT,
++		THREAD_STATE_NONE);
++	if (ret) {
++		fprintf(stderr, "runtime/cgo: thread_set_exception_ports failed: %d\n", ret);
++		abort();
++	}
++
++	ret = pthread_mutex_lock(&mach_exception_handler_port_set_mu);
++	if (ret) {
++		fprintf(stderr, "runtime/cgo: pthread_mutex_lock failed: %d\n", ret);
++		abort();
++	}
++	ret = mach_port_move_member(
++		mach_task_self(),
++		port,
++		mach_exception_handler_port_set);
++	if (ret) {
++		fprintf(stderr, "runtime/cgo: mach_port_move_member failed: %d\n", ret);
++		abort();
++	}
++	ret = pthread_mutex_unlock(&mach_exception_handler_port_set_mu);
++	if (ret) {
++		fprintf(stderr, "runtime/cgo: pthread_mutex_unlock failed: %d\n", ret);
++		abort();
++	}
++}
++
++static void*
++mach_exception_handler(void *port)
++{
++	// Calls catch_exception_raise.
++	extern boolean_t exc_server();
++	mach_msg_server(exc_server, 2048, (mach_port_t)port, 0);
++	abort(); // never returns
++}
++
++void
++darwin_arm_init_mach_exception_handler()
++{
++	pthread_mutex_init(&mach_exception_handler_port_set_mu, NULL);
++
++	// Called once per process to initialize a mach port server, listening
++	// for EXC_BAD_ACCESS thread exceptions.
++	int ret;
++	pthread_t thr = NULL;
++	pthread_attr_t attr;
++
++	ret = mach_port_allocate(
++		mach_task_self(),
++		MACH_PORT_RIGHT_PORT_SET,
++		&mach_exception_handler_port_set);
++	if (ret) {
++		fprintf(stderr, "runtime/cgo: mach_port_allocate failed for port_set: %d\n", ret);
++		abort();
++	}
++
++	// Start a thread to handle exceptions.
++	pthread_attr_init(&attr);
++	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
++	ret = pthread_create(&thr, &attr, mach_exception_handler, (void*)mach_exception_handler_port_set);
++	if (ret) {
++		fprintf(stderr, "runtime/cgo: pthread_create failed: %d\n", ret);
++		abort();
++	}
++	pthread_attr_destroy(&attr);
++}
+diff --git a/src/runtime/cgo/gcc_signal_darwin_lldb.c b/src/runtime/cgo/gcc_signal_darwin_lldb.c
+new file mode 100644
+index 0000000000..d3a3dddadd
+--- /dev/null
++++ b/src/runtime/cgo/gcc_signal_darwin_lldb.c
+@@ -0,0 +1,14 @@
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build darwin
++// +build arm arm64
++// +build lldb
++
++#include <stdint.h>
++
++uintptr_t x_cgo_panicmem;
++
++void darwin_arm_init_thread_exception_port() {}
++void darwin_arm_init_mach_exception_handler() {}
+diff --git a/src/runtime/cgo/libcgo.h b/src/runtime/cgo/libcgo.h
+index 9d918fd7ab..6d4f23e29b 100644
+--- a/src/runtime/cgo/libcgo.h
++++ b/src/runtime/cgo/libcgo.h
+@@ -63,3 +63,13 @@ void crosscall_386(void (*fn)(void));
+  * Prints error then calls abort. For linux and android.
+  */
+ void fatalf(const char* format, ...);
++
++/*
++ * Registers the current mach thread port for EXC_BAD_ACCESS processing.
++ */
++void darwin_arm_init_thread_exception_port(void);
++
++/*
++ * Starts a mach message server processing EXC_BAD_ACCESS.
++ */
++void darwin_arm_init_mach_exception_handler(void);
+diff --git a/src/runtime/cgo/signal_darwin_arm.s b/src/runtime/cgo/signal_darwin_arm.s
+new file mode 100644
+index 0000000000..ee5c3d3476
+--- /dev/null
++++ b/src/runtime/cgo/signal_darwin_arm.s
+@@ -0,0 +1,49 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "textflag.h"
++
++// panicmem is the entrypoint for SIGSEGV as intercepted via a
++// mach thread port as EXC_BAD_ACCESS. As the segfault may have happened
++// in C code, we first need to load_g then call panicmem.
++//
++//	R1 - LR at moment of fault
++//	R2 - PC at moment of fault
++TEXT ·panicmem(SB),NOSPLIT,$-4
++	// If in external C code, we need to load the g register.
++	BL  runtime·load_g(SB)
++	CMP $0, g
++	BNE ongothread
++
++	// On a foreign thread. We call badsignal, which will, if all
++	// goes according to plan, not return.
++	SUB  $4, R13
++	MOVW $11, R1
++	MOVW $11, R2
++	MOVM.DB.W [R1,R2], (R13)
++	// TODO: badsignal should not return, but it does. Issue #10139.
++	//BL runtime·badsignal(SB)
++	MOVW $139, R1
++	MOVW R1, 4(R13)
++	B    runtime·exit(SB)
++
++ongothread:
++	// Trigger a SIGSEGV panic.
++	//
++	// The goal is to arrange the stack so it looks like the runtime
++	// function sigpanic was called from the PC that faulted. It has
++	// to be sigpanic, as the stack unwinding code in traceback.go
++	// looks explicitly for it.
++	//
++	// To do this we call into runtime·setsigsegv, which sets the
++	// appropriate state inside the g object. We give it the faulting
++	// PC on the stack, then put it in the LR before calling sigpanic.
++	MOVM.DB.W [R1,R2], (R13)
++	BL runtime·setsigsegv(SB)
++	MOVM.IA.W (R13), [R1,R2]
++
++	SUB $4, R13
++	MOVW R1, 0(R13)
++	MOVW R2, R14
++	B runtime·sigpanic(SB)
+diff --git a/src/runtime/cgo/signal_darwin_armx.go b/src/runtime/cgo/signal_darwin_armx.go
+new file mode 100644
+index 0000000000..9c1ba5dee1
+--- /dev/null
++++ b/src/runtime/cgo/signal_darwin_armx.go
+@@ -0,0 +1,31 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build darwin
++// +build arm arm64
++
++package cgo
++
++import "unsafe"
++
++//go:cgo_import_static x_cgo_panicmem
++//go:linkname x_cgo_panicmem x_cgo_panicmem
++var x_cgo_panicmem uintptr
++
++// TODO(crawshaw): move this into x_cgo_init, it will not run until
++// runtime has finished loading, which may be after its use.
++func init() {
++	x_cgo_panicmem = funcPC(panicmem)
++}
++
++func funcPC(f interface{}) uintptr {
++	var ptrSize = unsafe.Sizeof(uintptr(0))
++	return **(**uintptr)(add(unsafe.Pointer(&f), ptrSize))
++}
++
++func add(p unsafe.Pointer, x uintptr) unsafe.Pointer {
++	return unsafe.Pointer(uintptr(p) + x)
++}
++
++func panicmem()
+diff --git a/src/runtime/sigpanic_unix.go b/src/runtime/sigpanic_unix.go
+index f1205dc965..1ce622316a 100644
+--- a/src/runtime/sigpanic_unix.go
++++ b/src/runtime/sigpanic_unix.go
+@@ -41,3 +41,13 @@ func sigpanic() {
+ 	}
+ 	panic(errorString(sigtable[g.sig].name))
+ }
++
++// setsigsegv is used on darwin/arm{,64} to fake a segmentation fault.
++//go:nosplit
++func setsigsegv(pc uintptr) {
++	g := getg()
++	g.sig = _SIGSEGV
++	g.sigpc = pc
++	g.sigcode0 = _SEGV_MAPERR
++	g.sigcode1 = 0 // TODO: emulate si_addr
++}

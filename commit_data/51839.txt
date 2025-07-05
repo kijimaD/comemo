@@ -13,7 +13,33 @@ Date:   Fri Nov 26 10:12:39 2021 +0100
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Ben Shi <powerman1st@163.com>
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 2 +-
  2 files changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/AUTHORS b/AUTHORS
+index eba4821594..bffd52275d 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -263,6 +263,7 @@ Casey Callendrello <squeed@gmail.com>
+ Casey Marshall <casey.marshall@gmail.com>
+ Cezar Sá Espinola <cezarsa@gmail.com>
+ ChaiShushan <chaishushan@gmail.com>
++Changkun Ou <hi@changkun.de> <hi@changkun.us>
+ Chaoqun Han <hanssccv@gmail.com>
+ Charles Fenwick Elliott <Charles@FenwickElliott.io>
+ Charles L. Dorian <cldorian@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index e4947941b4..e6ac7bda21 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -486,7 +486,7 @@ Cedric Staub <cs@squareup.com>
+ Cezar Sá Espinola <cezarsa@gmail.com>
+ Chad Rosier <mrosier.qdt@qualcommdatacenter.com>
+ ChaiShushan <chaishushan@gmail.com>
+-Changkun Ou <hi@changkun.us>
++Changkun Ou <hi@changkun.de> <hi@changkun.us>
+ Channing Kimble-Brown <channing@golang.org>
+ Chao Xu <xuchao@google.com>
+ Chaoqun Han <hanssccv@gmail.com>

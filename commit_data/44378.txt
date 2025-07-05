@@ -82,3 +82,4 @@ Date:   Fri Jun 19 16:14:40 2020 -0400
  test/fixedbugs/issue39651.go                       |   26 +
  test/fixedbugs/issue8606.go                        |   59 +-
  70 files changed, 2188 insertions(+), 3028 deletions(-)
+

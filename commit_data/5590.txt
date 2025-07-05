@@ -7,7 +7,49 @@ Date:   Wed Jun 2 10:36:19 2010 -0700
     R=r, iant
     CC=golang-dev
     https://golang.org/cl/1433042
-
+---
  test/bugs/bug284.go |  5 +++++
  test/golden.out     | 12 ++++++++----
  2 files changed, 13 insertions(+), 4 deletions(-)
+
+diff --git a/test/bugs/bug284.go b/test/bugs/bug284.go
+index ae402602b3..b9edc31766 100644
+--- a/test/bugs/bug284.go
++++ b/test/bugs/bug284.go
+@@ -179,4 +179,9 @@ func main() {
+ 	c2 = C2(c0) // ERROR "cannot"
+ 	c2 = C2(c1) // ERROR "cannot"
+ 	c2 = c2
++
++	// internal compiler error (6g and gccgo)
++	type T interface{}
++	var _ T = 17 // assignment compatible
++	_ = T(17)    // internal compiler error even though assignment compatible
+ }
+diff --git a/test/golden.out b/test/golden.out
+index 19ae250230..f0458d8c13 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -200,10 +200,10 @@ errchk: bugs/bug284.go:107: missing expected error: 'cannot'
+ errchk: bugs/bug284.go:110: missing expected error: 'cannot'
+ errchk: bugs/bug284.go:111: missing expected error: 'cannot'
+ errchk: bugs/bug284.go:112: missing expected error: 'cannot'
+-errchk: bugs/bug284.go:130: error message does not match 'cannot'
+-errchk: bugs/bug284.go:133: error message does not match 'cannot'
+-errchk: bugs/bug284.go:134: error message does not match 'cannot'
+-errchk: bugs/bug284.go:135: error message does not match 'cannot'
++errchk: bugs/bug284.go:130: missing expected error: 'cannot'
++errchk: bugs/bug284.go:133: missing expected error: 'cannot'
++errchk: bugs/bug284.go:134: missing expected error: 'cannot'
++errchk: bugs/bug284.go:135: missing expected error: 'cannot'
+ errchk: bugs/bug284.go:145: missing expected error: 'cannot'
+ errchk: bugs/bug284.go:148: missing expected error: 'cannot'
+ errchk: bugs/bug284.go:149: missing expected error: 'cannot'
+@@ -216,3 +216,7 @@ errchk: bugs/bug284.go:175: missing expected error: 'cannot'
+ errchk: bugs/bug284.go:178: missing expected error: 'cannot'
+ errchk: bugs/bug284.go:179: missing expected error: 'cannot'
+ errchk: bugs/bug284.go:180: missing expected error: 'cannot'
++errchk: bugs/bug284.go: unmatched error messages:
++==================================================
++bugs/bug284.go:186: internal compiler error: typename ideal
++==================================================

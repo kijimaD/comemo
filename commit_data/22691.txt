@@ -15,7 +15,7 @@ Date:   Fri Mar 20 16:59:08 2015 -0700
     Change-Id: I67268b91766970ced3b928260053ccdce8753d58
     Reviewed-on: https://go-review.googlesource.com/7912
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/internal/gc/align.go    |   4 +-
  src/cmd/internal/gc/const.go    |  12 +-
  src/cmd/internal/gc/go.go       |  22 +-
@@ -27,3 +27,1876 @@ Date:   Fri Mar 20 16:59:08 2015 -0700
  test/fixedbugs/issue6866.go     |  80 ++++++
  test/fixedbugs/issue7740.go     |  35 +++
  10 files changed, 215 insertions(+), 1357 deletions(-)
+
+diff --git a/src/cmd/internal/gc/align.go b/src/cmd/internal/gc/align.go
+index 9025b1a029..bb15bea60c 100644
+--- a/src/cmd/internal/gc/align.go
++++ b/src/cmd/internal/gc/align.go
+@@ -485,8 +485,8 @@ func typeinit() {
+ 			okforarith[i] = true
+ 			okforconst[i] = true
+ 			issimple[i] = true
+-			minfltval[i] = new(Mpflt)
+-			maxfltval[i] = new(Mpflt)
++			minfltval[i] = newMpflt()
++			maxfltval[i] = newMpflt()
+ 		}
+ 
+ 		if Iscomplex[i] {
+diff --git a/src/cmd/internal/gc/const.go b/src/cmd/internal/gc/const.go
+index 6842c84a6b..8d4ebe12fa 100644
+--- a/src/cmd/internal/gc/const.go
++++ b/src/cmd/internal/gc/const.go
+@@ -23,8 +23,10 @@ func truncfltlit(oldv *Mpflt, t *Type) *Mpflt {
+ 	v.U.Fval = oldv
+ 	overflow(v, t)
+ 
+-	fv := new(Mpflt)
+-	*fv = *oldv
++	fv := newMpflt()
++
++	// *fv = *oldv
++	mpmovefltflt(fv, oldv)
+ 
+ 	// convert large precision literal floating
+ 	// into limited precision (float64 or float32)
+@@ -276,7 +278,7 @@ func copyval(v Val) Val {
+ 		v.U.Xval = i
+ 
+ 	case CTFLT:
+-		f := new(Mpflt)
++		f := newMpflt()
+ 		mpmovefltflt(f, v.U.Fval)
+ 		v.U.Fval = f
+ 
+@@ -313,13 +315,13 @@ func tocplx(v Val) Val {
+ func toflt(v Val) Val {
+ 	switch v.Ctype {
+ 	case CTINT, CTRUNE:
+-		f := new(Mpflt)
++		f := newMpflt()
+ 		Mpmovefixflt(f, v.U.Xval)
+ 		v.Ctype = CTFLT
+ 		v.U.Fval = f
+ 
+ 	case CTCPLX:
+-		f := new(Mpflt)
++		f := newMpflt()
+ 		mpmovefltflt(f, &v.U.Cval.Real)
+ 		if mpcmpfltc(&v.U.Cval.Imag, 0) != 0 {
+ 			Yyerror("constant %v%vi truncated to real", Fconv(&v.U.Cval.Real, obj.FmtSharp), Fconv(&v.U.Cval.Imag, obj.FmtSharp|obj.FmtSign))
+diff --git a/src/cmd/internal/gc/go.go b/src/cmd/internal/gc/go.go
+index 7972231405..13b36efae0 100644
+--- a/src/cmd/internal/gc/go.go
++++ b/src/cmd/internal/gc/go.go
+@@ -57,12 +57,9 @@ const (
+ )
+ 
+ const (
+-	Mpscale = 29         // safely smaller than bits in a long
+-	Mpprec  = 16         // Mpscale*Mpprec is max number of bits
+-	Mpnorm  = Mpprec - 1 // significant words in a normalized float
+-	Mpbase  = 1 << Mpscale
+-	Mpsign  = Mpbase >> 1
+-	Mpmask  = Mpbase - 1
++	// TODO(gri) replace these with a single precision constant.
++	Mpscale = 29 // safely smaller than bits in a long
++	Mpprec  = 16 // Mpscale*Mpprec is max number of bits
+ 	Mpdebug = 0
+ )
+ 
+@@ -72,19 +69,12 @@ type Mpint struct {
+ 	Ovf bool // set if Val overflowed compiler limit (sticky)
+ }
+ 
+-// Mpfix is the original (old) representation of an integer constant.
+-// Still needed for Mpflt.
+-type Mpfix struct {
+-	A   [Mpprec]int
+-	Neg uint8
+-	Ovf uint8
+-}
+-
++// Mpflt represents a floating-point constant.
+ type Mpflt struct {
+-	Val Mpfix
+-	Exp int16
++	Val big.Float
+ }
+ 
++// Mpcplx represents a complex constant.
+ type Mpcplx struct {
+ 	Real Mpflt
+ 	Imag Mpflt
+diff --git a/src/cmd/internal/gc/lex.go b/src/cmd/internal/gc/lex.go
+index bee288ff2b..9f5b964e9a 100644
+--- a/src/cmd/internal/gc/lex.go
++++ b/src/cmd/internal/gc/lex.go
+@@ -1444,7 +1444,7 @@ casei:
+ 	yylval.val.U.Cval = new(Mpcplx)
+ 	Mpmovecflt(&yylval.val.U.Cval.Real, 0.0)
+ 	mpatoflt(&yylval.val.U.Cval.Imag, str)
+-	if yylval.val.U.Cval.Imag.Val.Ovf != 0 {
++	if yylval.val.U.Cval.Imag.Val.IsInf() {
+ 		Yyerror("overflow in imaginary constant")
+ 		Mpmovecflt(&yylval.val.U.Cval.Real, 0.0)
+ 	}
+@@ -1461,9 +1461,9 @@ caseout:
+ 	ungetc(c)
+ 
+ 	str = lexbuf.String()
+-	yylval.val.U.Fval = new(Mpflt)
++	yylval.val.U.Fval = newMpflt()
+ 	mpatoflt(yylval.val.U.Fval, str)
+-	if yylval.val.U.Fval.Val.Ovf != 0 {
++	if yylval.val.U.Fval.Val.IsInf() {
+ 		Yyerror("overflow in float constant")
+ 		Mpmovecflt(yylval.val.U.Fval, 0.0)
+ 	}
+diff --git a/src/cmd/internal/gc/mparith1.go b/src/cmd/internal/gc/mparith1.go
+index a8bde45a15..b31da8e323 100644
+--- a/src/cmd/internal/gc/mparith1.go
++++ b/src/cmd/internal/gc/mparith1.go
+@@ -8,27 +8,8 @@ import (
+ 	"cmd/internal/gc/big"
+ 	"cmd/internal/obj"
+ 	"fmt"
+-	"math"
+ )
+ 
+-/// uses arithmetic
+-
+-func mpcmpfixflt(a *Mpfix, b *Mpflt) int {
+-	var c Mpflt
+-
+-	buf := _Bconv(a, 0)
+-	mpatoflt(&c, buf)
+-	return mpcmpfltflt(&c, b)
+-}
+-
+-func mpcmpfltfix(a *Mpflt, b *Mpfix) int {
+-	var c Mpflt
+-
+-	buf := _Bconv(b, 0)
+-	mpatoflt(&c, buf)
+-	return mpcmpfltflt(a, &c)
+-}
+-
+ func Mpcmpfixfix(a, b *Mpint) int {
+ 	return a.Val.Cmp(&b.Val)
+ }
+@@ -38,11 +19,7 @@ func mpcmpfixc(b *Mpint, c int64) int {
+ }
+ 
+ func mpcmpfltflt(a *Mpflt, b *Mpflt) int {
+-	var c Mpflt
+-
+-	mpmovefltflt(&c, a)
+-	mpsubfltflt(&c, b)
+-	return mptestflt(&c)
++	return a.Val.Cmp(&b.Val)
+ }
+ 
+ func mpcmpfltc(b *Mpflt, c float64) int {
+@@ -56,23 +33,16 @@ func mpsubfixfix(a, b *Mpint) {
+ 	a.Val.Sub(&a.Val, &b.Val)
+ }
+ 
+-func _mpsubfixfix(a *Mpfix, b *Mpfix) {
+-	_mpnegfix(a)
+-	_mpaddfixfix(a, b, 0)
+-	_mpnegfix(a)
+-}
+-
+ func mpsubfltflt(a *Mpflt, b *Mpflt) {
+-	mpnegflt(a)
+-	mpaddfltflt(a, b)
+-	mpnegflt(a)
+-}
++	if Mpdebug != 0 {
++		fmt.Printf("\n%v - %v", Fconv(a, 0), Fconv(b, 0))
++	}
+ 
+-func mpaddcfix(a *Mpfix, c int64) {
+-	var b Mpfix
++	a.Val.Sub(&a.Val, &b.Val)
+ 
+-	_Mpmovecfix(&b, c)
+-	_mpaddfixfix(a, &b, 0)
++	if Mpdebug != 0 {
++		fmt.Printf(" = %v\n\n", Fconv(a, 0))
++	}
+ }
+ 
+ func mpaddcflt(a *Mpflt, c float64) {
+@@ -82,13 +52,6 @@ func mpaddcflt(a *Mpflt, c float64) {
+ 	mpaddfltflt(a, &b)
+ }
+ 
+-func mpmulcfix(a *Mpfix, c int64) {
+-	var b Mpfix
+-
+-	_Mpmovecfix(&b, c)
+-	_mpmulfixfix(a, &b)
+-}
+-
+ func mpmulcflt(a *Mpflt, c float64) {
+ 	var b Mpflt
+ 
+@@ -100,153 +63,39 @@ func mpdivfixfix(a, b *Mpint) {
+ 	a.Val.Quo(&a.Val, &b.Val)
+ }
+ 
+-func _mpdivfixfix(a *Mpfix, b *Mpfix) {
+-	var q Mpfix
+-	var r Mpfix
+-
+-	mpdivmodfixfix(&q, &r, a, b)
+-	_mpmovefixfix(a, &q)
+-}
+-
+ func mpmodfixfix(a, b *Mpint) {
+ 	a.Val.Rem(&a.Val, &b.Val)
+ }
+ 
+-func _mpmodfixfix(a *Mpfix, b *Mpfix) {
+-	var q Mpfix
+-	var r Mpfix
+-
+-	mpdivmodfixfix(&q, &r, a, b)
+-	_mpmovefixfix(a, &r)
+-}
+-
+-func mpcomfix(a *Mpfix) {
+-	var b Mpfix
+-
+-	_Mpmovecfix(&b, 1)
+-	_mpnegfix(a)
+-	_mpsubfixfix(a, &b)
+-}
+-
+-// *a = Mpfix(*b)
+-func mpmoveintfix(a *Mpfix, b *Mpint) {
++func Mpmovefixflt(a *Mpflt, b *Mpint) {
+ 	if b.Ovf {
+-		_Mpmovecfix(a, 0)
+-		a.Ovf = 1
+-		return
+-	}
+-
+-	var bb big.Int
+-	bb.Abs(&b.Val)
+-	i := 0
+-	for ; i < Mpprec && bb.Sign() != 0; i++ {
+-		// depends on (unspecified) behavior of Int.Uint64
+-		a.A[i] = int(bb.Uint64() & Mpmask)
+-		bb.Rsh(&bb, Mpscale)
+-	}
+-
+-	if bb.Sign() != 0 {
+-		// MPint overflows
+-		_Mpmovecfix(a, 0)
+-		a.Ovf = 1
+-		return
+-	}
+-
+-	for ; i < Mpprec; i++ {
+-		a.A[i] = 0
+-	}
+-
+-	a.Neg = 0
+-	if b.Val.Sign() < 0 {
+-		a.Neg = 1
+-	}
+-	a.Ovf = 0
+-
+-	// leave for debugging
+-	// println("mpmoveintfix:", b.Val.String(), "->", _Bconv(a, 0))
+-}
+-
+-// *a = big.Int(*b)
+-func mpmovefixint(a *Mpint, b *Mpfix) {
+-	if b.Ovf != 0 {
+-		mpsetovf(a)
++		// sign doesn't really matter but copy anyway
++		a.Val.SetInf(b.Val.Sign() < 0)
+ 		return
+ 	}
+-
+-	i := Mpprec - 1
+-	for ; i >= 0 && b.A[i] == 0; i-- {
+-	}
+-
+-	a.Val.SetUint64(0)
+-	var x big.Int
+-	for ; i >= 0; i-- {
+-		a.Val.Lsh(&a.Val, Mpscale)
+-		a.Val.Or(&a.Val, x.SetUint64(uint64(b.A[i]&Mpmask)))
+-	}
+-
+-	if b.Neg != 0 {
+-		a.Val.Neg(&a.Val)
+-	}
+-	a.Ovf = false
+-
+-	// leave for debugging
+-	// println("mpmovefixint:", _Bconv(b, 0), "->", a.Val.String())
+-}
+-
+-func Mpmovefixflt(a *Mpflt, b *Mpint) {
+-	mpmoveintfix(&a.Val, b) // a.Val = *b
+-	a.Exp = 0
+-	mpnorm(a)
+-}
+-
+-func _Mpmovefixflt(a *Mpflt, b *Mpfix) {
+-	a.Val = *b
+-	a.Exp = 0
+-	mpnorm(a)
+-}
+-
+-// convert (truncate) b to a.
+-// return -1 (but still convert) if b was non-integer.
+-func mpexactfltfix(a *Mpint, b *Mpflt) int {
+-	mpmovefixint(a, &b.Val) // *a = b.Val
+-	Mpshiftfix(a, int(b.Exp))
+-	if b.Exp < 0 {
+-		var f Mpflt
+-		mpmoveintfix(&f.Val, a) // f.Val = *a
+-		f.Exp = 0
+-		mpnorm(&f)
+-		if mpcmpfltflt(b, &f) != 0 {
+-			return -1
+-		}
+-	}
+-
+-	return 0
++	a.Val.SetInt(&b.Val)
+ }
+ 
+ func mpmovefltfix(a *Mpint, b *Mpflt) int {
+-	if mpexactfltfix(a, b) == 0 {
++	if _, acc := b.Val.Int(&a.Val); acc == big.Exact {
+ 		return 0
+ 	}
+ 
+-	// try rounding down a little
+-	f := *b
++	const delta = Mpscale // a reasonably small number of bits > 0
++	var t big.Float
++	t.SetPrec(Mpscale*Mpprec - delta)
+ 
+-	f.Val.A[0] = 0
+-	if mpexactfltfix(a, &f) == 0 {
++	// try rounding down a little
++	t.SetMode(big.ToZero)
++	t.Set(&b.Val)
++	if _, acc := t.Int(&a.Val); acc == big.Exact {
+ 		return 0
+ 	}
+ 
+ 	// try rounding up a little
+-	for i := 1; i < Mpprec; i++ {
+-		f.Val.A[i]++
+-		if f.Val.A[i] != Mpbase {
+-			break
+-		}
+-		f.Val.A[i] = 0
+-	}
+-
+-	mpnorm(&f)
+-	if mpexactfltfix(a, &f) == 0 {
++	t.SetMode(big.AwayFromZero)
++	t.Set(&b.Val)
++	if _, acc := t.Int(&a.Val); acc == big.Exact {
+ 		return 0
+ 	}
+ 
+@@ -257,66 +106,8 @@ func mpmovefixfix(a, b *Mpint) {
+ 	a.Val.Set(&b.Val)
+ }
+ 
+-func _mpmovefixfix(a *Mpfix, b *Mpfix) {
+-	*a = *b
+-}
+-
+ func mpmovefltflt(a *Mpflt, b *Mpflt) {
+-	*a = *b
+-}
+-
+-var tab = []float64{1e0, 1e1, 1e2, 1e3, 1e4, 1e5, 1e6, 1e7}
+-
+-func mppow10flt(a *Mpflt, p int) {
+-	if p < 0 {
+-		panic("abort")
+-	}
+-	if p < len(tab) {
+-		Mpmovecflt(a, tab[p])
+-		return
+-	}
+-
+-	mppow10flt(a, p>>1)
+-	mpmulfltflt(a, a)
+-	if p&1 != 0 {
+-		mpmulcflt(a, 10)
+-	}
+-}
+-
+-func mphextofix(a *Mpfix, s string) {
+-	for s != "" && s[0] == '0' {
+-		s = s[1:]
+-	}
+-
+-	// overflow
+-	if 4*len(s) > Mpscale*Mpprec {
+-		a.Ovf = 1
+-		return
+-	}
+-
+-	end := len(s) - 1
+-	var c int8
+-	var d int
+-	var bit int
+-	for hexdigitp := end; hexdigitp >= 0; hexdigitp-- {
+-		c = int8(s[hexdigitp])
+-		if c >= '0' && c <= '9' {
+-			d = int(c) - '0'
+-		} else if c >= 'A' && c <= 'F' {
+-			d = int(c) - 'A' + 10
+-		} else {
+-			d = int(c) - 'a' + 10
+-		}
+-
+-		bit = 4 * (end - hexdigitp)
+-		for d > 0 {
+-			if d&1 != 0 {
+-				a.A[bit/Mpscale] |= int(1) << uint(bit%Mpscale)
+-			}
+-			bit++
+-			d = d >> 1
+-		}
+-	}
++	a.Val.Set(&b.Val)
+ }
+ 
+ //
+@@ -324,201 +115,27 @@ func mphextofix(a *Mpfix, s string) {
+ // required syntax is [+-]d*[.]d*[e[+-]d*] or [+-]0xH*[e[+-]d*]
+ //
+ func mpatoflt(a *Mpflt, as string) {
+-	for as[0] == ' ' || as[0] == '\t' {
++	for len(as) > 0 && (as[0] == ' ' || as[0] == '\t') {
+ 		as = as[1:]
+ 	}
+ 
+-	/* determine base */
+-	s := as
+-
+-	base := -1
+-	for base == -1 {
+-		if s == "" {
+-			base = 10
+-			break
+-		}
+-		c := s[0]
+-		s = s[1:]
+-		switch c {
+-		case '-', '+':
+-			break
+-
+-		case '0':
+-			if s != "" && s[0] == 'x' {
+-				base = 16
+-			} else {
+-				base = 10
+-			}
+-
+-		default:
+-			base = 10
+-		}
+-	}
+-
+-	s = as
+-	dp := 0 /* digits after decimal point */
+-	f := 0  /* sign */
+-	ex := 0 /* exponent */
+-	eb := 0 /* binary point */
+-
+-	Mpmovecflt(a, 0.0)
+-	var ef int
+-	var c int
+-	if base == 16 {
+-		start := ""
+-		var c int
+-		for {
+-			c, _ = intstarstringplusplus(s)
+-			if c == '-' {
+-				f = 1
+-				s = s[1:]
+-			} else if c == '+' {
+-				s = s[1:]
+-			} else if c == '0' && s[1] == 'x' {
+-				s = s[2:]
+-				start = s
+-			} else if (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F') {
+-				s = s[1:]
+-			} else {
+-				break
+-			}
+-		}
+-
+-		if start == "" {
+-			Yyerror("malformed hex constant: %s", as)
+-			goto bad
+-		}
+-
+-		mphextofix(&a.Val, start[:len(start)-len(s)])
+-		if a.Val.Ovf != 0 {
+-			Yyerror("constant too large: %s", as)
+-			goto bad
+-		}
+-
+-		a.Exp = 0
+-		mpnorm(a)
+-	}
+-
+-	for {
+-		c, s = intstarstringplusplus(s)
+-		switch c {
+-		default:
+-			Yyerror("malformed constant: %s (at %c)", as, c)
+-			goto bad
+-
+-		case '-':
+-			f = 1
+-			fallthrough
+-
+-		case ' ', '\t', '+':
+-			continue
+-
+-		case '.':
+-			if base == 16 {
+-				Yyerror("decimal point in hex constant: %s", as)
+-				goto bad
+-			}
+-
+-			dp = 1
+-			continue
+-
+-		case '1',
+-			'2',
+-			'3',
+-			'4',
+-			'5',
+-			'6',
+-			'7',
+-			'8',
+-			'9',
+-			'0':
+-			mpmulcflt(a, 10)
+-			mpaddcflt(a, float64(c)-'0')
+-			if dp != 0 {
+-				dp++
+-			}
+-			continue
+-
+-		case 'P', 'p':
+-			eb = 1
+-			fallthrough
+-
+-		case 'E', 'e':
+-			ex = 0
+-			ef = 0
+-			for {
+-				c, s = intstarstringplusplus(s)
+-				if c == '+' || c == ' ' || c == '\t' {
+-					continue
+-				}
+-				if c == '-' {
+-					ef = 1
+-					continue
+-				}
+-
+-				if c >= '0' && c <= '9' {
+-					ex = ex*10 + (c - '0')
+-					if ex > 1e8 {
+-						Yyerror("constant exponent out of range: %s", as)
+-						errorexit()
+-					}
+-
+-					continue
+-				}
+-
+-				break
+-			}
+-
+-			if ef != 0 {
+-				ex = -ex
+-			}
+-			fallthrough
+-
+-		case 0:
+-			break
+-		}
+-
+-		break
+-	}
+-
+-	if eb != 0 {
+-		if dp != 0 {
+-			Yyerror("decimal point and binary point in constant: %s", as)
+-			goto bad
+-		}
+-
+-		mpsetexp(a, int(a.Exp)+ex)
+-		goto out
+-	}
+-
+-	if dp != 0 {
+-		dp--
+-	}
+-	if mpcmpfltc(a, 0.0) != 0 {
+-		if ex >= dp {
+-			var b Mpflt
+-			mppow10flt(&b, ex-dp)
+-			mpmulfltflt(a, &b)
+-		} else {
+-			// 4 approximates least_upper_bound(log2(10)).
+-			if dp-ex >= 1<<(32-3) || int(int16(4*(dp-ex))) != 4*(dp-ex) {
+-				Mpmovecflt(a, 0.0)
+-			} else {
+-				var b Mpflt
+-				mppow10flt(&b, dp-ex)
+-				mpdivfltflt(a, &b)
+-			}
+-		}
++	f, ok := a.Val.SetString(as)
++	if !ok {
++		// At the moment we lose precise error cause;
++		// the old code additionally distinguished between:
++		// - malformed hex constant
++		// - decimal point in hex constant
++		// - constant exponent out of range
++		// - decimal point and binary point in constant
++		// TODO(gri) use different conversion function or check separately
++		Yyerror("malformed constant: %s", as)
++		a.Val.SetUint64(0)
+ 	}
+ 
+-out:
+-	if f != 0 {
+-		mpnegflt(a)
++	if f.IsInf() {
++		Yyerror("constant too large: %s", as)
++		a.Val.SetUint64(0)
+ 	}
+-	return
+-
+-bad:
+-	Mpmovecflt(a, 0.0)
+ }
+ 
+ func mpatofix(a *Mpint, as string) {
+@@ -547,137 +164,9 @@ func Bconv(xval *Mpint, flag int) string {
+ 	return xval.Val.String()
+ }
+ 
+-func _Bconv(xval *Mpfix, flag int) string {
+-	var q Mpfix
+-
+-	_mpmovefixfix(&q, xval)
+-	f := 0
+-	if mptestfix(&q) < 0 {
+-		f = 1
+-		_mpnegfix(&q)
+-	}
+-
+-	var buf [500]byte
+-	p := len(buf)
+-	var r Mpfix
+-	if flag&obj.FmtSharp != 0 /*untyped*/ {
+-		// Hexadecimal
+-		var sixteen Mpfix
+-		_Mpmovecfix(&sixteen, 16)
+-
+-		var digit int
+-		for {
+-			mpdivmodfixfix(&q, &r, &q, &sixteen)
+-			digit = int(_Mpgetfix(&r))
+-			if digit < 10 {
+-				p--
+-				buf[p] = byte(digit + '0')
+-			} else {
+-				p--
+-				buf[p] = byte(digit - 10 + 'A')
+-			}
+-			if mptestfix(&q) <= 0 {
+-				break
+-			}
+-		}
+-
+-		p--
+-		buf[p] = 'x'
+-		p--
+-		buf[p] = '0'
+-	} else {
+-		// Decimal
+-		var ten Mpfix
+-		_Mpmovecfix(&ten, 10)
+-
+-		for {
+-			mpdivmodfixfix(&q, &r, &q, &ten)
+-			p--
+-			buf[p] = byte(_Mpgetfix(&r) + '0')
+-			if mptestfix(&q) <= 0 {
+-				break
+-			}
+-		}
+-	}
+-
+-	if f != 0 {
+-		p--
+-		buf[p] = '-'
+-	}
+-
+-	return string(buf[p:])
+-}
+-
+ func Fconv(fvp *Mpflt, flag int) string {
+-	if flag&obj.FmtSharp != 0 /*untyped*/ {
+-		// alternate form - decimal for error messages.
+-		// for well in range, convert to double and use print's %g
+-		exp := int(fvp.Exp) + sigfig(fvp)*Mpscale
+-
+-		var fp string
+-		if -900 < exp && exp < 900 {
+-			d := mpgetflt(fvp)
+-			if d >= 0 && (flag&obj.FmtSign != 0 /*untyped*/) {
+-				fp += "+"
+-			}
+-			fp += fmt.Sprintf("%.6g", d)
+-			return fp
+-		}
+-
+-		// very out of range. compute decimal approximation by hand.
+-		// decimal exponent
+-		dexp := float64(fvp.Exp) * 0.301029995663981195 // log_10(2)
+-		exp = int(dexp)
+-
+-		// decimal mantissa
+-		fv := *fvp
+-
+-		fv.Val.Neg = 0
+-		fv.Exp = 0
+-		d := mpgetflt(&fv)
+-		d *= math.Pow(10, dexp-float64(exp))
+-		for d >= 9.99995 {
+-			d /= 10
+-			exp++
+-		}
+-
+-		if fvp.Val.Neg != 0 {
+-			fp += "-"
+-		} else if flag&obj.FmtSign != 0 /*untyped*/ {
+-			fp += "+"
+-		}
+-		fp += fmt.Sprintf("%.5fe+%d", d, exp)
+-		return fp
+-	}
+-
+-	var fv Mpflt
+-	var buf string
+-	if sigfig(fvp) == 0 {
+-		buf = "0p+0"
+-		goto out
+-	}
+-
+-	fv = *fvp
+-
+-	for fv.Val.A[0] == 0 {
+-		_Mpshiftfix(&fv.Val, -Mpscale)
+-		fv.Exp += Mpscale
+-	}
+-
+-	for fv.Val.A[0]&1 == 0 {
+-		_Mpshiftfix(&fv.Val, -1)
+-		fv.Exp += 1
+-	}
+-
+-	if fv.Exp >= 0 {
+-		buf = fmt.Sprintf("%vp+%d", _Bconv(&fv.Val, obj.FmtSharp), fv.Exp)
+-		goto out
++	if flag&obj.FmtSharp != 0 {
++		return fvp.Val.Format('g', 6)
+ 	}
+-
+-	buf = fmt.Sprintf("%vp-%d", _Bconv(&fv.Val, obj.FmtSharp), -fv.Exp)
+-
+-out:
+-	var fp string
+-	fp += buf
+-	return fp
++	return fvp.Val.Format('b', 0)
+ }
+diff --git a/src/cmd/internal/gc/mparith2.go b/src/cmd/internal/gc/mparith2.go
+index 80253dd85c..807f7337b0 100644
+--- a/src/cmd/internal/gc/mparith2.go
++++ b/src/cmd/internal/gc/mparith2.go
+@@ -4,151 +4,7 @@
+ 
+ package gc
+ 
+-//
+-// return the significant
+-// words of the argument
+-//
+-func mplen(a *Mpfix) int {
+-	n := -1
+-	for i := 0; i < Mpprec; i++ {
+-		if a.A[i] != 0 {
+-			n = i
+-		}
+-	}
+-
+-	return n + 1
+-}
+-
+-//
+-// left shift mpint by one
+-// ignores sign
+-//
+-func mplsh(a *Mpfix, quiet int) {
+-	var x int
+-
+-	c := 0
+-	for i := 0; i < Mpprec; i++ {
+-		x = (a.A[i] << 1) + c
+-		c = 0
+-		if x >= Mpbase {
+-			x -= Mpbase
+-			c = 1
+-		}
+-
+-		a.A[i] = x
+-	}
+-
+-	a.Ovf = uint8(c)
+-	if a.Ovf != 0 && quiet == 0 {
+-		Yyerror("constant shift overflow")
+-	}
+-}
+-
+-//
+-// left shift mpint by Mpscale
+-// ignores sign
+-//
+-func mplshw(a *Mpfix, quiet int) {
+-	i := Mpprec - 1
+-	if a.A[i] != 0 {
+-		a.Ovf = 1
+-		if quiet == 0 {
+-			Yyerror("constant shift overflow")
+-		}
+-	}
+-
+-	for ; i > 0; i-- {
+-		a.A[i] = a.A[i-1]
+-	}
+-	a.A[i] = 0
+-}
+-
+-//
+-// right shift mpint by one
+-// ignores sign and overflow
+-//
+-func mprsh(a *Mpfix) {
+-	var x int
+-
+-	c := 0
+-	lo := a.A[0] & 1
+-	for i := Mpprec - 1; i >= 0; i-- {
+-		x = a.A[i]
+-		a.A[i] = (x + c) >> 1
+-		c = 0
+-		if x&1 != 0 {
+-			c = Mpbase
+-		}
+-	}
+-
+-	if a.Neg != 0 && lo != 0 {
+-		mpaddcfix(a, -1)
+-	}
+-}
+-
+-//
+-// right shift mpint by Mpscale
+-// ignores sign and overflow
+-//
+-func mprshw(a *Mpfix) {
+-	var i int
+-
+-	lo := a.A[0]
+-	for i = 0; i < Mpprec-1; i++ {
+-		a.A[i] = a.A[i+1]
+-	}
+-
+-	a.A[i] = 0
+-	if a.Neg != 0 && lo != 0 {
+-		mpaddcfix(a, -1)
+-	}
+-}
+-
+-//
+-// return the sign of (abs(a)-abs(b))
+-//
+-func mpcmp(a *Mpfix, b *Mpfix) int {
+-	if a.Ovf != 0 || b.Ovf != 0 {
+-		if nsavederrors+nerrors == 0 {
+-			Yyerror("ovf in cmp")
+-		}
+-		return 0
+-	}
+-
+-	var x int
+-	for i := Mpprec - 1; i >= 0; i-- {
+-		x = a.A[i] - b.A[i]
+-		if x > 0 {
+-			return +1
+-		}
+-		if x < 0 {
+-			return -1
+-		}
+-	}
+-
+-	return 0
+-}
+-
+-//
+-// negate a
+-// ignore sign and ovf
+-//
+-func mpneg(a *Mpfix) {
+-	var x int
+-
+-	c := 0
+-	for i := 0; i < Mpprec; i++ {
+-		x = -a.A[i] - c
+-		c = 0
+-		if x < 0 {
+-			x += Mpbase
+-			c = 1
+-		}
+-
+-		a.A[i] = x
+-	}
+-}
+-
++// shift left by s (or right by -s)
+ func Mpshiftfix(a *Mpint, s int) {
+ 	switch {
+ 	case s > 0:
+@@ -162,32 +18,6 @@ func Mpshiftfix(a *Mpint, s int) {
+ 	}
+ }
+ 
+-// shift left by s (or right by -s)
+-func _Mpshiftfix(a *Mpfix, s int) {
+-	if s >= 0 {
+-		for s >= Mpscale {
+-			mplshw(a, 0)
+-			s -= Mpscale
+-		}
+-
+-		for s > 0 {
+-			mplsh(a, 0)
+-			s--
+-		}
+-	} else {
+-		s = -s
+-		for s >= Mpscale {
+-			mprshw(a)
+-			s -= Mpscale
+-		}
+-
+-		for s > 0 {
+-			mprsh(a)
+-			s--
+-		}
+-	}
+-}
+-
+ /// implements fix arithmetic
+ 
+ func mpsetovf(a *Mpint) {
+@@ -221,73 +51,6 @@ func mpaddfixfix(a, b *Mpint, quiet int) {
+ 	}
+ }
+ 
+-func _mpaddfixfix(a *Mpfix, b *Mpfix, quiet int) {
+-	if a.Ovf != 0 || b.Ovf != 0 {
+-		if nsavederrors+nerrors == 0 {
+-			Yyerror("ovf in mpaddxx")
+-		}
+-		a.Ovf = 1
+-		return
+-	}
+-
+-	c := 0
+-	if a.Neg != b.Neg {
+-		// perform a-b
+-		switch mpcmp(a, b) {
+-		case 0:
+-			_Mpmovecfix(a, 0)
+-
+-		case 1:
+-			var x int
+-			for i := 0; i < Mpprec; i++ {
+-				x = a.A[i] - b.A[i] - c
+-				c = 0
+-				if x < 0 {
+-					x += Mpbase
+-					c = 1
+-				}
+-
+-				a.A[i] = x
+-			}
+-
+-		case -1:
+-			a.Neg ^= 1
+-			var x int
+-			for i := 0; i < Mpprec; i++ {
+-				x = b.A[i] - a.A[i] - c
+-				c = 0
+-				if x < 0 {
+-					x += Mpbase
+-					c = 1
+-				}
+-
+-				a.A[i] = x
+-			}
+-		}
+-		return
+-	}
+-
+-	// perform a+b
+-	var x int
+-	for i := 0; i < Mpprec; i++ {
+-		x = a.A[i] + b.A[i] + c
+-		c = 0
+-		if x >= Mpbase {
+-			x -= Mpbase
+-			c = 1
+-		}
+-
+-		a.A[i] = x
+-	}
+-
+-	a.Ovf = uint8(c)
+-	if a.Ovf != 0 && quiet == 0 {
+-		Yyerror("constant addition overflow")
+-	}
+-
+-	return
+-}
+-
+ func mpmulfixfix(a, b *Mpint) {
+ 	if a.Ovf || b.Ovf {
+ 		if nsavederrors+nerrors == 0 {
+@@ -304,110 +67,6 @@ func mpmulfixfix(a, b *Mpint) {
+ 	}
+ }
+ 
+-func _mpmulfixfix(a *Mpfix, b *Mpfix) {
+-	if a.Ovf != 0 || b.Ovf != 0 {
+-		if nsavederrors+nerrors == 0 {
+-			Yyerror("ovf in mpmulfixfix")
+-		}
+-		a.Ovf = 1
+-		return
+-	}
+-
+-	// pick the smaller
+-	// to test for bits
+-	na := mplen(a)
+-
+-	nb := mplen(b)
+-	var s Mpfix
+-	var c *Mpfix
+-	if na > nb {
+-		_mpmovefixfix(&s, a)
+-		c = b
+-		na = nb
+-	} else {
+-		_mpmovefixfix(&s, b)
+-		c = a
+-	}
+-
+-	s.Neg = 0
+-
+-	var q Mpfix
+-	_Mpmovecfix(&q, 0)
+-	var j int
+-	var x int
+-	for i := 0; i < na; i++ {
+-		x = c.A[i]
+-		for j = 0; j < Mpscale; j++ {
+-			if x&1 != 0 {
+-				if s.Ovf != 0 {
+-					q.Ovf = 1
+-					goto out
+-				}
+-
+-				_mpaddfixfix(&q, &s, 1)
+-				if q.Ovf != 0 {
+-					goto out
+-				}
+-			}
+-
+-			mplsh(&s, 1)
+-			x >>= 1
+-		}
+-	}
+-
+-out:
+-	q.Neg = a.Neg ^ b.Neg
+-	_mpmovefixfix(a, &q)
+-	if a.Ovf != 0 {
+-		Yyerror("constant multiplication overflow")
+-	}
+-}
+-
+-func mpmulfract(a *Mpfix, b *Mpfix) {
+-	if a.Ovf != 0 || b.Ovf != 0 {
+-		if nsavederrors+nerrors == 0 {
+-			Yyerror("ovf in mpmulflt")
+-		}
+-		a.Ovf = 1
+-		return
+-	}
+-
+-	var s Mpfix
+-	_mpmovefixfix(&s, b)
+-	s.Neg = 0
+-	var q Mpfix
+-	_Mpmovecfix(&q, 0)
+-
+-	i := Mpprec - 1
+-	x := a.A[i]
+-	if x != 0 {
+-		Yyerror("mpmulfract not normal")
+-	}
+-
+-	var j int
+-	for i--; i >= 0; i-- {
+-		x = a.A[i]
+-		if x == 0 {
+-			mprshw(&s)
+-			continue
+-		}
+-
+-		for j = 0; j < Mpscale; j++ {
+-			x <<= 1
+-			if x&Mpbase != 0 {
+-				_mpaddfixfix(&q, &s, 1)
+-			}
+-			mprsh(&s)
+-		}
+-	}
+-
+-	q.Neg = a.Neg ^ b.Neg
+-	_mpmovefixfix(a, &q)
+-	if a.Ovf != 0 {
+-		Yyerror("constant multiplication overflow")
+-	}
+-}
+-
+ func mporfixfix(a, b *Mpint) {
+ 	if a.Ovf || b.Ovf {
+ 		if nsavederrors+nerrors == 0 {
+@@ -502,10 +161,6 @@ func mpnegfix(a *Mpint) {
+ 	a.Val.Neg(&a.Val)
+ }
+ 
+-func _mpnegfix(a *Mpfix) {
+-	a.Neg ^= 1
+-}
+-
+ func Mpgetfix(a *Mpint) int64 {
+ 	if a.Ovf {
+ 		if nsavederrors+nerrors == 0 {
+@@ -517,148 +172,6 @@ func Mpgetfix(a *Mpint) int64 {
+ 	return a.Val.Int64()
+ }
+ 
+-func _Mpgetfix(a *Mpfix) int64 {
+-	if a.Ovf != 0 {
+-		if nsavederrors+nerrors == 0 {
+-			Yyerror("constant overflow")
+-		}
+-		return 0
+-	}
+-
+-	v := int64(uint64(a.A[0]))
+-	v |= int64(uint64(a.A[1]) << Mpscale)
+-	v |= int64(uint64(a.A[2]) << (Mpscale + Mpscale))
+-	if a.Neg != 0 {
+-		v = int64(-uint64(v))
+-	}
+-	return v
+-}
+-
+ func Mpmovecfix(a *Mpint, c int64) {
+ 	a.Val.SetInt64(c)
+ }
+-
+-func _Mpmovecfix(a *Mpfix, c int64) {
+-	a.Neg = 0
+-	a.Ovf = 0
+-
+-	x := c
+-	if x < 0 {
+-		a.Neg = 1
+-		x = int64(-uint64(x))
+-	}
+-
+-	for i := 0; i < Mpprec; i++ {
+-		a.A[i] = int(x & Mpmask)
+-		x >>= Mpscale
+-	}
+-}
+-
+-func mpdivmodfixfix(q *Mpfix, r *Mpfix, n *Mpfix, d *Mpfix) {
+-	var i int
+-
+-	ns := int(n.Neg)
+-	ds := int(d.Neg)
+-	n.Neg = 0
+-	d.Neg = 0
+-
+-	_mpmovefixfix(r, n)
+-	_Mpmovecfix(q, 0)
+-
+-	// shift denominator until it
+-	// is larger than numerator
+-	for i = 0; i < Mpprec*Mpscale; i++ {
+-		if mpcmp(d, r) > 0 {
+-			break
+-		}
+-		mplsh(d, 1)
+-	}
+-
+-	// if it never happens
+-	// denominator is probably zero
+-	if i >= Mpprec*Mpscale {
+-		q.Ovf = 1
+-		r.Ovf = 1
+-		n.Neg = uint8(ns)
+-		d.Neg = uint8(ds)
+-		Yyerror("constant division overflow")
+-		return
+-	}
+-
+-	// shift denominator back creating
+-	// quotient a bit at a time
+-	// when done the remaining numerator
+-	// will be the remainder
+-	for ; i > 0; i-- {
+-		mplsh(q, 1)
+-		mprsh(d)
+-		if mpcmp(d, r) <= 0 {
+-			mpaddcfix(q, 1)
+-			_mpsubfixfix(r, d)
+-		}
+-	}
+-
+-	n.Neg = uint8(ns)
+-	d.Neg = uint8(ds)
+-	r.Neg = uint8(ns)
+-	q.Neg = uint8(ns ^ ds)
+-}
+-
+-func mpiszero(a *Mpfix) bool {
+-	for i := Mpprec - 1; i >= 0; i-- {
+-		if a.A[i] != 0 {
+-			return false
+-		}
+-	}
+-	return true
+-}
+-
+-func mpdivfract(a *Mpfix, b *Mpfix) {
+-	var n Mpfix
+-	var d Mpfix
+-	var j int
+-	var x int
+-
+-	_mpmovefixfix(&n, a) // numerator
+-	_mpmovefixfix(&d, b) // denominator
+-
+-	neg := int(n.Neg) ^ int(d.Neg)
+-
+-	n.Neg = 0
+-	d.Neg = 0
+-	for i := Mpprec - 1; i >= 0; i-- {
+-		x = 0
+-		for j = 0; j < Mpscale; j++ {
+-			x <<= 1
+-			if mpcmp(&d, &n) <= 0 {
+-				if !mpiszero(&d) {
+-					x |= 1
+-				}
+-				_mpsubfixfix(&n, &d)
+-			}
+-
+-			mprsh(&d)
+-		}
+-
+-		a.A[i] = x
+-	}
+-
+-	a.Neg = uint8(neg)
+-}
+-
+-func mptestfix(a *Mpfix) int {
+-	var b Mpfix
+-
+-	_Mpmovecfix(&b, 0)
+-	r := mpcmp(a, &b)
+-	if a.Neg != 0 {
+-		if r > 0 {
+-			return -1
+-		}
+-		if r < 0 {
+-			return +1
+-		}
+-	}
+-
+-	return r
+-}
+diff --git a/src/cmd/internal/gc/mparith3.go b/src/cmd/internal/gc/mparith3.go
+index 57263a09d6..73658c4a1f 100644
+--- a/src/cmd/internal/gc/mparith3.go
++++ b/src/cmd/internal/gc/mparith3.go
+@@ -9,281 +9,75 @@ import (
+ 	"math"
+ )
+ 
+-/*
+- * returns the leading non-zero
+- * word of the number
+- */
+-func sigfig(a *Mpflt) int {
+-	var i int
+-
+-	for i = Mpprec - 1; i >= 0; i-- {
+-		if a.Val.A[i] != 0 {
+-			break
+-		}
+-	}
+-
+-	//print("sigfig %d %d\n", i-z+1, z);
+-	return i + 1
+-}
+-
+-/*
+- * sets the exponent.
+- * a too large exponent is an error.
+- * a too small exponent rounds the number to zero.
+- */
+-func mpsetexp(a *Mpflt, exp int) {
+-	if int(int16(exp)) != exp {
+-		if exp > 0 {
+-			Yyerror("float constant is too large")
+-			a.Exp = 0x7fff
+-		} else {
+-			Mpmovecflt(a, 0)
+-		}
+-	} else {
+-		a.Exp = int16(exp)
+-	}
+-}
+-
+-/*
+- * shifts the leading non-zero
+- * word of the number to Mpnorm
+- */
+-func mpnorm(a *Mpflt) {
+-	os := sigfig(a)
+-	if os == 0 {
+-		// zero
+-		a.Exp = 0
+-
+-		a.Val.Neg = 0
+-		return
+-	}
+-
+-	// this will normalize to the nearest word
+-	x := a.Val.A[os-1]
+-
+-	s := (Mpnorm - os) * Mpscale
+-
+-	// further normalize to the nearest bit
+-	for {
+-		x <<= 1
+-		if x&Mpbase != 0 {
+-			break
+-		}
+-		s++
+-		if x == 0 {
+-			// this error comes from trying to
+-			// convert an Inf or something
+-			// where the initial x=0x80000000
+-			s = (Mpnorm - os) * Mpscale
+-
+-			break
+-		}
+-	}
+-
+-	_Mpshiftfix(&a.Val, s)
+-	mpsetexp(a, int(a.Exp)-s)
++func newMpflt() *Mpflt {
++	var a Mpflt
++	a.Val.SetPrec(Mpscale * Mpprec)
++	return &a
+ }
+ 
+ /// implements float arihmetic
+ 
+ func mpaddfltflt(a *Mpflt, b *Mpflt) {
+-	if Mpdebug != 0 /*TypeKind(100016)*/ {
++	if Mpdebug != 0 {
+ 		fmt.Printf("\n%v + %v", Fconv(a, 0), Fconv(b, 0))
+ 	}
+ 
+-	sa := sigfig(a)
+-	var s int
+-	var sb int
+-	if sa == 0 {
+-		mpmovefltflt(a, b)
+-		goto out
+-	}
+-
+-	sb = sigfig(b)
+-	if sb == 0 {
+-		goto out
+-	}
+-
+-	s = int(a.Exp) - int(b.Exp)
+-	if s > 0 {
+-		// a is larger, shift b right
+-		var c Mpflt
+-		mpmovefltflt(&c, b)
+-
+-		_Mpshiftfix(&c.Val, -s)
+-		_mpaddfixfix(&a.Val, &c.Val, 0)
+-		goto out
+-	}
+-
+-	if s < 0 {
+-		// b is larger, shift a right
+-		_Mpshiftfix(&a.Val, s)
++	a.Val.Add(&a.Val, &b.Val)
+ 
+-		mpsetexp(a, int(a.Exp)-s)
+-		_mpaddfixfix(&a.Val, &b.Val, 0)
+-		goto out
+-	}
+-
+-	_mpaddfixfix(&a.Val, &b.Val, 0)
+-
+-out:
+-	mpnorm(a)
+-	if Mpdebug != 0 /*TypeKind(100016)*/ {
++	if Mpdebug != 0 {
+ 		fmt.Printf(" = %v\n\n", Fconv(a, 0))
+ 	}
+ }
+ 
+ func mpmulfltflt(a *Mpflt, b *Mpflt) {
+-	if Mpdebug != 0 /*TypeKind(100016)*/ {
++	if Mpdebug != 0 {
+ 		fmt.Printf("%v\n * %v\n", Fconv(a, 0), Fconv(b, 0))
+ 	}
+ 
+-	sa := sigfig(a)
+-	if sa == 0 {
+-		// zero
+-		a.Exp = 0
+-
+-		a.Val.Neg = 0
+-		return
+-	}
+-
+-	sb := sigfig(b)
+-	if sb == 0 {
+-		// zero
+-		mpmovefltflt(a, b)
+-
+-		return
+-	}
+-
+-	mpmulfract(&a.Val, &b.Val)
+-	mpsetexp(a, (int(a.Exp)+int(b.Exp))+Mpscale*Mpprec-Mpscale-1)
++	a.Val.Mul(&a.Val, &b.Val)
+ 
+-	mpnorm(a)
+-	if Mpdebug != 0 /*TypeKind(100016)*/ {
++	if Mpdebug != 0 {
+ 		fmt.Printf(" = %v\n\n", Fconv(a, 0))
+ 	}
+ }
+ 
+ func mpdivfltflt(a *Mpflt, b *Mpflt) {
+-	if Mpdebug != 0 /*TypeKind(100016)*/ {
++	if Mpdebug != 0 {
+ 		fmt.Printf("%v\n / %v\n", Fconv(a, 0), Fconv(b, 0))
+ 	}
+ 
+-	sb := sigfig(b)
+-	if sb == 0 {
+-		// zero and ovfl
+-		a.Exp = 0
+-
+-		a.Val.Neg = 0
+-		a.Val.Ovf = 1
+-		Yyerror("constant division by zero")
+-		return
+-	}
+-
+-	sa := sigfig(a)
+-	if sa == 0 {
+-		// zero
+-		a.Exp = 0
+-
+-		a.Val.Neg = 0
+-		return
+-	}
+-
+-	// adjust b to top
+-	var c Mpflt
+-	mpmovefltflt(&c, b)
+-
+-	_Mpshiftfix(&c.Val, Mpscale)
+-
+-	// divide
+-	mpdivfract(&a.Val, &c.Val)
+-
+-	mpsetexp(a, (int(a.Exp)-int(c.Exp))-Mpscale*(Mpprec-1)+1)
++	a.Val.Quo(&a.Val, &b.Val)
+ 
+-	mpnorm(a)
+-	if Mpdebug != 0 /*TypeKind(100016)*/ {
++	if Mpdebug != 0 {
+ 		fmt.Printf(" = %v\n\n", Fconv(a, 0))
+ 	}
+ }
+ 
+ func mpgetfltN(a *Mpflt, prec int, bias int) float64 {
+-	if a.Val.Ovf != 0 && nsavederrors+nerrors == 0 {
++	var x float64
++	switch prec {
++	case 53:
++		x, _ = a.Val.Float64()
++	case 24:
++		// We should be using a.Val.Float32() here but that seems incorrect
++		// for certain denormal values (all.bash fails). The current code
++		// appears to work for all existing test cases, though there ought
++		// to be issues with denormal numbers that are incorrectly rounded.
++		// TODO(gri) replace with a.Val.Float32() once correctly working
++		// See also: https://github.com/golang/go/issues/10321
++		var t Mpflt
++		t.Val.SetPrec(24).Set(&a.Val)
++		x, _ = t.Val.Float64()
++	default:
++		panic("unreachable")
++	}
++
++	// check for overflow
++	if math.IsInf(x, 0) && nsavederrors+nerrors == 0 {
+ 		Yyerror("mpgetflt ovf")
+ 	}
+ 
+-	s := sigfig(a)
+-	if s == 0 {
+-		return 0
+-	}
+-
+-	if s != Mpnorm {
+-		Yyerror("mpgetflt norm")
+-		mpnorm(a)
+-	}
+-
+-	for a.Val.A[Mpnorm-1]&Mpsign == 0 {
+-		_Mpshiftfix(&a.Val, 1)
+-		mpsetexp(a, int(a.Exp)-1) // can set 'a' to zero
+-		s = sigfig(a)
+-		if s == 0 {
+-			return 0
+-		}
+-	}
+-
+-	// pick up the mantissa, a rounding bit, and a tie-breaking bit in a uvlong
+-	s = prec + 2
+-
+-	v := uint64(0)
+-	var i int
+-	for i = Mpnorm - 1; s >= Mpscale; i-- {
+-		v = v<<Mpscale | uint64(a.Val.A[i])
+-		s -= Mpscale
+-	}
+-
+-	if s > 0 {
+-		v = v<<uint(s) | uint64(a.Val.A[i])>>uint(Mpscale-s)
+-		if a.Val.A[i]&((1<<uint(Mpscale-s))-1) != 0 {
+-			v |= 1
+-		}
+-		i--
+-	}
+-
+-	for ; i >= 0; i-- {
+-		if a.Val.A[i] != 0 {
+-			v |= 1
+-		}
+-	}
+-
+-	// gradual underflow
+-	e := Mpnorm*Mpscale + int(a.Exp) - prec
+-
+-	minexp := bias + 1 - prec + 1
+-	if e < minexp {
+-		s := minexp - e
+-		if s > prec+1 {
+-			s = prec + 1
+-		}
+-		if v&((1<<uint(s))-1) != 0 {
+-			v |= 1 << uint(s)
+-		}
+-		v >>= uint(s)
+-		e = minexp
+-	}
+-
+-	// round to even
+-	v |= (v & 4) >> 2
+-
+-	v += v & 1
+-	v >>= 2
+-
+-	f := float64(v)
+-	f = math.Ldexp(f, e)
+-
+-	if a.Val.Neg != 0 {
+-		f = -f
+-	}
+-
+-	return f
++	return x
+ }
+ 
+ func mpgetflt(a *Mpflt) float64 {
+@@ -295,62 +89,17 @@ func mpgetflt32(a *Mpflt) float64 {
+ }
+ 
+ func Mpmovecflt(a *Mpflt, c float64) {
+-	if Mpdebug != 0 /*TypeKind(100016)*/ {
++	if Mpdebug != 0 {
+ 		fmt.Printf("\nconst %g", c)
+ 	}
+-	_Mpmovecfix(&a.Val, 0)
+-	a.Exp = 0
+-	var f float64
+-	var l int
+-	var i int
+-	if c == 0 {
+-		goto out
+-	}
+-	if c < 0 {
+-		a.Val.Neg = 1
+-		c = -c
+-	}
+-
+-	f, i = math.Frexp(c)
+-	a.Exp = int16(i)
+ 
+-	for i := 0; i < 10; i++ {
+-		f = f * Mpbase
+-		l = int(math.Floor(f))
+-		f = f - float64(l)
+-		a.Exp -= Mpscale
+-		a.Val.A[0] = l
+-		if f == 0 {
+-			break
+-		}
+-		_Mpshiftfix(&a.Val, Mpscale)
+-	}
++	a.Val.SetFloat64(c)
+ 
+-out:
+-	mpnorm(a)
+-	if Mpdebug != 0 /*TypeKind(100016)*/ {
++	if Mpdebug != 0 {
+ 		fmt.Printf(" = %v\n", Fconv(a, 0))
+ 	}
+ }
+ 
+ func mpnegflt(a *Mpflt) {
+-	a.Val.Neg ^= 1
+-}
+-
+-func mptestflt(a *Mpflt) int {
+-	if Mpdebug != 0 /*TypeKind(100016)*/ {
+-		fmt.Printf("\n%v?", Fconv(a, 0))
+-	}
+-	s := sigfig(a)
+-	if s != 0 {
+-		s = +1
+-		if a.Val.Neg != 0 {
+-			s = -1
+-		}
+-	}
+-
+-	if Mpdebug != 0 /*TypeKind(100016)*/ {
+-		fmt.Printf(" = %d\n", s)
+-	}
+-	return s
++	a.Val.Neg(&a.Val)
+ }
+diff --git a/src/cmd/internal/gc/subr.go b/src/cmd/internal/gc/subr.go
+index 52bb201a82..559bf74964 100644
+--- a/src/cmd/internal/gc/subr.go
++++ b/src/cmd/internal/gc/subr.go
+@@ -693,7 +693,7 @@ func Nodintconst(v int64) *Node {
+ func nodfltconst(v *Mpflt) *Node {
+ 	c := Nod(OLITERAL, nil, nil)
+ 	c.Addable = 1
+-	c.Val.U.Fval = new(Mpflt)
++	c.Val.U.Fval = newMpflt()
+ 	mpmovefltflt(c.Val.U.Fval, v)
+ 	c.Val.Ctype = CTFLT
+ 	c.Type = Types[TIDEAL]
+diff --git a/test/fixedbugs/issue6866.go b/test/fixedbugs/issue6866.go
+new file mode 100644
+index 0000000000..1080b276e7
+--- /dev/null
++++ b/test/fixedbugs/issue6866.go
+@@ -0,0 +1,80 @@
++// run
++
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// WARNING: GENERATED FILE - DO NOT MODIFY MANUALLY!
++// (To generate, in go/types directory: go test -run=Hilbert -H=2 -out="h2.src")
++
++// This program tests arbitrary precision constant arithmetic
++// by generating the constant elements of a Hilbert matrix H,
++// its inverse I, and the product P = H*I. The product should
++// be the identity matrix.
++package main
++
++func main() {
++	if !ok {
++		print()
++		return
++	}
++}
++
++// Hilbert matrix, n = 2
++const (
++	h0_0, h0_1 = 1.0 / (iota + 1), 1.0 / (iota + 2)
++	h1_0, h1_1
++)
++
++// Inverse Hilbert matrix
++const (
++	i0_0 = +1 * b2_1 * b2_1 * b0_0 * b0_0
++	i0_1 = -2 * b2_0 * b3_1 * b1_0 * b1_0
++
++	i1_0 = -2 * b3_1 * b2_0 * b1_1 * b1_1
++	i1_1 = +3 * b3_0 * b3_0 * b2_1 * b2_1
++)
++
++// Product matrix
++const (
++	p0_0 = h0_0*i0_0 + h0_1*i1_0
++	p0_1 = h0_0*i0_1 + h0_1*i1_1
++
++	p1_0 = h1_0*i0_0 + h1_1*i1_0
++	p1_1 = h1_0*i0_1 + h1_1*i1_1
++)
++
++// Verify that product is identity matrix
++const ok = p0_0 == 1 && p0_1 == 0 &&
++	p1_0 == 0 && p1_1 == 1 &&
++	true
++
++func print() {
++	println(p0_0, p0_1)
++	println(p1_0, p1_1)
++}
++
++// Binomials
++const (
++	b0_0 = f0 / (f0 * f0)
++
++	b1_0 = f1 / (f0 * f1)
++	b1_1 = f1 / (f1 * f0)
++
++	b2_0 = f2 / (f0 * f2)
++	b2_1 = f2 / (f1 * f1)
++	b2_2 = f2 / (f2 * f0)
++
++	b3_0 = f3 / (f0 * f3)
++	b3_1 = f3 / (f1 * f2)
++	b3_2 = f3 / (f2 * f1)
++	b3_3 = f3 / (f3 * f0)
++)
++
++// Factorials
++const (
++	f0 = 1
++	f1 = 1
++	f2 = f1 * 2
++	f3 = f2 * 3
++)
+diff --git a/test/fixedbugs/issue7740.go b/test/fixedbugs/issue7740.go
+new file mode 100644
+index 0000000000..d5005ed6c0
+--- /dev/null
++++ b/test/fixedbugs/issue7740.go
+@@ -0,0 +1,35 @@
++// run
++
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This test computes the precision of the compiler's internal multiprecision floats.
++
++package main
++
++import (
++	"fmt"
++	"math"
++	"runtime"
++)
++
++const ulp = (1.0 + (2.0 / 3.0)) - (5.0 / 3.0)
++
++func main() {
++	// adjust precision depending on compiler
++	var prec float64
++	switch runtime.Compiler {
++	case "gc":
++		prec = 16 * 29
++	case "gccgo":
++		prec = 256
++	default:
++		// unknown compiler
++		return
++	}
++	p := 1 - math.Log(math.Abs(ulp))/math.Log(2)
++	if math.Abs(p-prec) > 1e-10 {
++		fmt.Printf("BUG: got %g; want %g\n", p, prec)
++	}
++}

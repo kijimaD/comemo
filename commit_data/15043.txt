@@ -10,7 +10,34 @@ Date:   Wed Jan 30 21:19:03 2013 +0100
     R=rsc
     CC=golang-dev
     https://golang.org/cl/7201043
-
+---
  src/pkg/exp/locale/collate/tools/colcmp/colcmp.go | 2 +-
  src/pkg/exp/locale/collate/tools/colcmp/gen.go    | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/exp/locale/collate/tools/colcmp/colcmp.go b/src/pkg/exp/locale/collate/tools/colcmp/colcmp.go
+index 66d12127bd..cd8c94774c 100644
+--- a/src/pkg/exp/locale/collate/tools/colcmp/colcmp.go
++++ b/src/pkg/exp/locale/collate/tools/colcmp/colcmp.go
+@@ -279,7 +279,7 @@ func parseInput(args []string) []Input {
+ 		}
+ 		s = string(rs)
+ 		if *doNorm {
+-			s = norm.NFC.String(s)
++			s = norm.NFD.String(s)
+ 		}
+ 		input = append(input, makeInputString(s))
+ 	}
+diff --git a/src/pkg/exp/locale/collate/tools/colcmp/gen.go b/src/pkg/exp/locale/collate/tools/colcmp/gen.go
+index f9e31187de..0a14b10d09 100644
+--- a/src/pkg/exp/locale/collate/tools/colcmp/gen.go
++++ b/src/pkg/exp/locale/collate/tools/colcmp/gen.go
+@@ -139,7 +139,7 @@ func (g *phraseGenerator) generate(doNorm bool) []Input {
+ 			buf16 = make([]uint16, 0, buf16Size)
+ 		}
+ 		if doNorm {
+-			buf8 = norm.NFC.AppendString(buf8, str)
++			buf8 = norm.NFD.AppendString(buf8, str)
+ 		} else {
+ 			buf8 = append(buf8, str...)
+ 		}

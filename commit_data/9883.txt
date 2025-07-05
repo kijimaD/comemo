@@ -15,6 +15,41 @@ Date:   Thu Oct 6 11:30:48 2011 -0400
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5224041
-
+---
  src/pkg/runtime/malloc.goc | 9 +++++++++
  1 file changed, 9 insertions(+)
+
+diff --git a/src/pkg/runtime/malloc.goc b/src/pkg/runtime/malloc.goc
+index 84e0ac4795..6d2f65b3c9 100644
+--- a/src/pkg/runtime/malloc.goc
++++ b/src/pkg/runtime/malloc.goc
+@@ -80,6 +80,7 @@ runtime·mallocgc(uintptr size, uint32 flag, int32 dogc, int32 zeroed)
+ 			m->mcache->next_sample -= size;
+ 		else {
+ 			// pick next profile time
++			// If you change this, also change allocmcache.
+ 			if(rate > 0x3fffffff)	// make 2*rate not overflow
+ 				rate = 0x3fffffff;
+ 			m->mcache->next_sample = runtime·fastrand1() % (2*rate);
+@@ -205,6 +206,7 @@ runtime·mlookup(void *v, byte **base, uintptr *size, MSpan **sp)
+ MCache*
+ runtime·allocmcache(void)
+ {
++	int32 rate;
+ 	MCache *c;
+ 
+ 	runtime·lock(&runtime·mheap);
+@@ -212,6 +214,13 @@ runtime·allocmcache(void)
+ 	mstats.mcache_inuse = runtime·mheap.cachealloc.inuse;
+ 	mstats.mcache_sys = runtime·mheap.cachealloc.sys;
+ 	runtime·unlock(&runtime·mheap);
++
++	// Set first allocation sample size.
++	rate = runtime·MemProfileRate;
++	if(rate > 0x3fffffff)	// make 2*rate not overflow
++		rate = 0x3fffffff;
++	c->next_sample = runtime·fastrand1() % (2*rate);
++
+ 	return c;
+ }
+ 

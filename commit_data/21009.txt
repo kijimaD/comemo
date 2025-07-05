@@ -40,8 +40,177 @@ Date:   Wed Nov 5 23:01:48 2014 -0500
     R=khr, bradfitz
     CC=golang-codereviews, r
     https://golang.org/cl/167060043
-
+---
  src/runtime/mprof.go     | 43 ++++++++++++++++++++++++++++---------------
  src/runtime/stubs.go     | 28 ++++++++++++++++++++++++++++
  src/runtime/traceback.go | 22 +++++++++++++++++++++-
  3 files changed, 77 insertions(+), 16 deletions(-)
+
+diff --git a/src/runtime/mprof.go b/src/runtime/mprof.go
+index d64e3be695..d409c6c306 100644
+--- a/src/runtime/mprof.go
++++ b/src/runtime/mprof.go
+@@ -528,8 +528,6 @@ var allgs []*g // proc.c
+ // Most clients should use the runtime/pprof package instead
+ // of calling GoroutineProfile directly.
+ func GoroutineProfile(p []StackRecord) (n int, ok bool) {
+-	sp := getcallersp(unsafe.Pointer(&p))
+-	pc := getcallerpc(unsafe.Pointer(&p))
+ 
+ 	n = NumGoroutine()
+ 	if n <= len(p) {
+@@ -542,7 +540,11 @@ func GoroutineProfile(p []StackRecord) (n int, ok bool) {
+ 		if n <= len(p) {
+ 			ok = true
+ 			r := p
+-			saveg(pc, sp, gp, &r[0])
++			sp := getcallersp(unsafe.Pointer(&p))
++			pc := getcallerpc(unsafe.Pointer(&p))
++			onM(func() {
++				saveg(pc, sp, gp, &r[0])
++			})
+ 			r = r[1:]
+ 			for _, gp1 := range allgs {
+ 				if gp1 == gp || readgstatus(gp1) == _Gdead {
+@@ -573,8 +575,6 @@ func saveg(pc, sp uintptr, gp *g, r *StackRecord) {
+ // If all is true, Stack formats stack traces of all other goroutines
+ // into buf after the trace for the current goroutine.
+ func Stack(buf []byte, all bool) int {
+-	sp := getcallersp(unsafe.Pointer(&buf))
+-	pc := getcallerpc(unsafe.Pointer(&buf))
+ 	mp := acquirem()
+ 	gp := mp.curg
+ 	if all {
+@@ -589,14 +589,19 @@ func Stack(buf []byte, all bool) int {
+ 
+ 	n := 0
+ 	if len(buf) > 0 {
+-		gp.writebuf = buf[0:0:len(buf)]
+-		goroutineheader(gp)
+-		traceback(pc, sp, 0, gp)
+-		if all {
+-			tracebackothers(gp)
+-		}
+-		n = len(gp.writebuf)
+-		gp.writebuf = nil
++		sp := getcallersp(unsafe.Pointer(&buf))
++		pc := getcallerpc(unsafe.Pointer(&buf))
++		onM(func() {
++			g0 := getg()
++			g0.writebuf = buf[0:0:len(buf)]
++			goroutineheader(gp)
++			traceback(pc, sp, 0, gp)
++			if all {
++				tracebackothers(gp)
++			}
++			n = len(g0.writebuf)
++			g0.writebuf = nil
++		})
+ 	}
+ 
+ 	if all {
+@@ -623,7 +628,11 @@ func tracealloc(p unsafe.Pointer, size uintptr, typ *_type) {
+ 	}
+ 	if gp.m.curg == nil || gp == gp.m.curg {
+ 		goroutineheader(gp)
+-		traceback(getcallerpc(unsafe.Pointer(&p)), getcallersp(unsafe.Pointer(&p)), 0, gp)
++		pc := getcallerpc(unsafe.Pointer(&p))
++		sp := getcallersp(unsafe.Pointer(&p))
++		onM(func() {
++			traceback(pc, sp, 0, gp)
++		})
+ 	} else {
+ 		goroutineheader(gp.m.curg)
+ 		traceback(^uintptr(0), ^uintptr(0), 0, gp.m.curg)
+@@ -639,7 +648,11 @@ func tracefree(p unsafe.Pointer, size uintptr) {
+ 	gp.m.traceback = 2
+ 	print("tracefree(", p, ", ", hex(size), ")\n")
+ 	goroutineheader(gp)
+-	traceback(getcallerpc(unsafe.Pointer(&p)), getcallersp(unsafe.Pointer(&p)), 0, gp)
++	pc := getcallerpc(unsafe.Pointer(&p))
++	sp := getcallersp(unsafe.Pointer(&p))
++	onM(func() {
++		traceback(pc, sp, 0, gp)
++	})
+ 	print("\n")
+ 	gp.m.traceback = 0
+ 	unlock(&tracelock)
+diff --git a/src/runtime/stubs.go b/src/runtime/stubs.go
+index 3419047198..fe8f9c9222 100644
+--- a/src/runtime/stubs.go
++++ b/src/runtime/stubs.go
+@@ -221,6 +221,34 @@ func atomicloaduint(ptr *uint) uint
+ //go:noescape
+ func setcallerpc(argp unsafe.Pointer, pc uintptr)
+ 
++// getcallerpc returns the program counter (PC) of its caller's caller.
++// getcallersp returns the stack pointer (SP) of its caller's caller.
++// For both, the argp must be a pointer to the caller's first function argument.
++// The implementation may or may not use argp, depending on
++// the architecture.
++//
++// For example:
++//
++//	func f(arg1, arg2, arg3 int) {
++//		pc := getcallerpc(unsafe.Pointer(&arg1))
++//		sp := getcallerpc(unsafe.Pointer(&arg2))
++//	}
++//
++// These two lines find the PC and SP immediately following
++// the call to f (where f will return).
++//
++// The call to getcallerpc and getcallersp must be done in the
++// frame being asked about. It would not be correct for f to pass &arg1
++// to another function g and let g call getcallerpc/getcallersp.
++// The call inside g might return information about g's caller or
++// information about f's caller or complete garbage.
++//
++// The result of getcallersp is correct at the time of the return,
++// but it may be invalidated by any subsequent call to a function
++// that might relocate the stack in order to grow or shrink it.
++// A general rule is that the result of getcallersp should be used
++// immediately and can only be passed to nosplit functions.
++
+ //go:noescape
+ func getcallerpc(argp unsafe.Pointer) uintptr
+ 
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index 834435b400..1c6ce6e644 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -101,6 +101,22 @@ func gentraceback(pc0 uintptr, sp0 uintptr, lr0 uintptr, gp *g, skip int, pcbuf
+ 		gothrow("gentraceback before goexitPC initialization")
+ 	}
+ 	g := getg()
++	if g == gp && g == g.m.curg {
++		// The starting sp has been passed in as a uintptr, and the caller may
++		// have other uintptr-typed stack references as well.
++		// If during one of the calls that got us here or during one of the
++		// callbacks below the stack must be grown, all these uintptr references
++		// to the stack will not be updated, and gentraceback will continue
++		// to inspect the old stack memory, which may no longer be valid.
++		// Even if all the variables were updated correctly, it is not clear that
++		// we want to expose a traceback that begins on one stack and ends
++		// on another stack. That could confuse callers quite a bit.
++		// Instead, we require that gentraceback and any other function that
++		// accepts an sp for the current goroutine (typically obtained by
++		// calling getcallersp) must not run on that goroutine's stack but
++		// instead on the g0 stack.
++		gothrow("gentraceback cannot trace user goroutine on its own stack")
++	}
+ 	gotraceback := gotraceback(nil)
+ 	if pc0 == ^uintptr(0) && sp0 == ^uintptr(0) { // Signal to fetch saved values from gp.
+ 		if gp.syscallsp != 0 {
+@@ -511,7 +527,11 @@ func traceback1(pc uintptr, sp uintptr, lr uintptr, gp *g, flags uint) {
+ func callers(skip int, pcbuf *uintptr, m int) int {
+ 	sp := getcallersp(unsafe.Pointer(&skip))
+ 	pc := uintptr(getcallerpc(unsafe.Pointer(&skip)))
+-	return gentraceback(pc, sp, 0, getg(), skip, pcbuf, m, nil, nil, 0)
++	var n int
++	onM(func() {
++		n = gentraceback(pc, sp, 0, getg(), skip, pcbuf, m, nil, nil, 0)
++	})
++	return n
+ }
+ 
+ func gcallers(gp *g, skip int, pcbuf *uintptr, m int) int {

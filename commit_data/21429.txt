@@ -7,6 +7,41 @@ Date:   Thu Jan 1 22:16:38 2015 -0500
     Change-Id: Ic6bc4af7bcc89b2881b2b9e7290aeb6fd54804e2
     Reviewed-on: https://go-review.googlesource.com/2239
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/math/nextafter.go | 14 ++++++++------
  1 file changed, 8 insertions(+), 6 deletions(-)
+
+diff --git a/src/math/nextafter.go b/src/math/nextafter.go
+index bbb139986a..4314a05714 100644
+--- a/src/math/nextafter.go
++++ b/src/math/nextafter.go
+@@ -5,10 +5,11 @@
+ package math
+ 
+ // Nextafter32 returns the next representable float32 value after x towards y.
+-// Special cases:
++//
++// Special cases are:
+ //	Nextafter32(x, x)   = x
+-//      Nextafter32(NaN, y) = NaN
+-//      Nextafter32(x, NaN) = NaN
++//	Nextafter32(NaN, y) = NaN
++//	Nextafter32(x, NaN) = NaN
+ func Nextafter32(x, y float32) (r float32) {
+ 	switch {
+ 	case IsNaN(float64(x)) || IsNaN(float64(y)): // special case
+@@ -26,10 +27,11 @@ func Nextafter32(x, y float32) (r float32) {
+ }
+ 
+ // Nextafter returns the next representable float64 value after x towards y.
+-// Special cases:
++//
++// Special cases are:
+ //	Nextafter64(x, x)   = x
+-//      Nextafter64(NaN, y) = NaN
+-//      Nextafter64(x, NaN) = NaN
++//	Nextafter64(NaN, y) = NaN
++//	Nextafter64(x, NaN) = NaN
+ func Nextafter(x, y float64) (r float64) {
+ 	switch {
+ 	case IsNaN(x) || IsNaN(y): // special case

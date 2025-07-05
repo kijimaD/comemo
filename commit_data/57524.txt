@@ -19,6 +19,28 @@ Date:   Mon Apr 3 09:32:05 2023 -0400
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/runtime/proc.go | 6 ++++--
  1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index fafab7f58c..8fab6d46d1 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -4540,12 +4540,14 @@ func newproc1(fn *funcval, callergp *g, callerpc uintptr) *g {
+ 	totalSize := uintptr(4*goarch.PtrSize + sys.MinFrameSize) // extra space in case of reads slightly beyond frame
+ 	totalSize = alignUp(totalSize, sys.StackAlign)
+ 	sp := newg.stack.hi - totalSize
+-	spArg := sp
+ 	if usesLR {
+ 		// caller's LR
+ 		*(*uintptr)(unsafe.Pointer(sp)) = 0
+ 		prepGoExitFrame(sp)
+-		spArg += sys.MinFrameSize
++	}
++	if GOARCH == "arm64" {
++		// caller's FP
++		*(*uintptr)(unsafe.Pointer(sp - goarch.PtrSize)) = 0
+ 	}
+ 
+ 	memclrNoHeapPointers(unsafe.Pointer(&newg.sched), unsafe.Sizeof(newg.sched))

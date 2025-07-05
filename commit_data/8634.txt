@@ -11,7 +11,67 @@ Date:   Mon Jun 6 22:17:28 2011 +1000
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/4532117
-
+---
  misc/dashboard/builder/exec.go | 17 +++++++++--------
  misc/dashboard/builder/main.go |  2 +-
  2 files changed, 10 insertions(+), 9 deletions(-)
+
+diff --git a/misc/dashboard/builder/exec.go b/misc/dashboard/builder/exec.go
+index 0db5091365..a042c56994 100644
+--- a/misc/dashboard/builder/exec.go
++++ b/misc/dashboard/builder/exec.go
+@@ -27,8 +27,11 @@ func run(envv []string, dir string, argv ...string) os.Error {
+ }
+ 
+ // runLog runs a process and returns the combined stdout/stderr, 
+-// as well as writing it to logfile (if specified).
+-func runLog(envv []string, logfile, dir string, argv ...string) (output string, exitStatus int, err os.Error) {
++// as well as writing it to logfile (if specified). It returns
++// process combined stdout and stderr output, exit status and error.
++// The error returned is nil, if process is started successfully,
++// even if exit status is not 0.
++func runLog(envv []string, logfile, dir string, argv ...string) (string, int, os.Error) {
+ 	if *verbose {
+ 		log.Println("runLog", argv)
+ 	}
+@@ -39,7 +42,7 @@ func runLog(envv []string, logfile, dir string, argv ...string) (output string,
+ 	if logfile != "" {
+ 		f, err := os.OpenFile(logfile, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0666)
+ 		if err != nil {
+-			return
++			return "", 0, err
+ 		}
+ 		defer f.Close()
+ 		w = io.MultiWriter(f, b)
+@@ -51,15 +54,13 @@ func runLog(envv []string, logfile, dir string, argv ...string) (output string,
+ 	cmd.Stdout = w
+ 	cmd.Stderr = w
+ 
+-	err = cmd.Run()
+-	output = b.String()
++	err := cmd.Run()
+ 	if err != nil {
+ 		if ws, ok := err.(*os.Waitmsg); ok {
+-			exitStatus = ws.ExitStatus()
++			return b.String(), ws.ExitStatus(), nil
+ 		}
+-		return
+ 	}
+-	return
++	return b.String(), 0, nil
+ }
+ 
+ // useBash prefixes a list of args with 'bash' if the first argument
+diff --git a/misc/dashboard/builder/main.go b/misc/dashboard/builder/main.go
+index 5ba5c11c34..9377fbe326 100644
+--- a/misc/dashboard/builder/main.go
++++ b/misc/dashboard/builder/main.go
+@@ -294,7 +294,7 @@ func (b *Builder) buildHash(hash string) (err os.Error) {
+ 	logfile := path.Join(workpath, "build.log")
+ 	buildLog, status, err := runLog(b.envv(), logfile, srcDir, *buildCmd)
+ 	if err != nil {
+-		return fmt.Errorf("all.bash: %s", err)
++		return fmt.Errorf("%s: %s", *buildCmd, err)
+ 	}
+ 
+ 	// if we're in external mode, build all packages and return

@@ -15,6 +15,47 @@ Date:   Mon Feb 5 20:49:16 2024 +0800
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Run-TryBot: M Zhuo <mengzhuo1203@gmail.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  test/codegen/floats.go | 32 ++++++++++++++++++++++++++++++++
  1 file changed, 32 insertions(+)
+
+diff --git a/test/codegen/floats.go b/test/codegen/floats.go
+index 7991174b66..54dc87ecfd 100644
+--- a/test/codegen/floats.go
++++ b/test/codegen/floats.go
+@@ -156,3 +156,35 @@ func ArrayCopy(a [16]byte) (b [16]byte) {
+ 	b = a
+ 	return
+ }
++
++// ---------------- //
++//  Float Min/Max   //
++// ---------------- //
++
++func Float64Min(a, b float64) float64 {
++	// amd64:"MINSD"
++	// arm64:"FMIND"
++	// riscv64:"FMIN"
++	return min(a, b)
++}
++
++func Float64Max(a, b float64) float64 {
++	// amd64:"MINSD"
++	// arm64:"FMAXD"
++	// riscv64:"FMAX"
++	return max(a, b)
++}
++
++func Float32Min(a, b float32) float32 {
++	// amd64:"MINSS"
++	// arm64:"FMINS"
++	// riscv64:"FMINS"
++	return min(a, b)
++}
++
++func Float32Max(a, b float32) float32 {
++	// amd64:"MINSS"
++	// arm64:"FMAXS"
++	// riscv64:"FMAXS"
++	return max(a, b)
++}

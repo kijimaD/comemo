@@ -7,8 +7,231 @@ Date:   Fri Dec 16 19:51:25 2011 +0900
     R=golang-dev, jsing
     CC=golang-dev
     https://golang.org/cl/5495062
-
+---
  src/pkg/syscall/Makefile    | 16 ++++++-------
  src/pkg/syscall/mkall.sh    | 56 +++++++++++++++++++++----------------------
  src/pkg/syscall/mkerrors.sh | 58 ++++++++++++++++++++++-----------------------
  3 files changed, 65 insertions(+), 65 deletions(-)
+
+diff --git a/src/pkg/syscall/Makefile b/src/pkg/syscall/Makefile
+index f6494eaa74..9cf68131ba 100644
+--- a/src/pkg/syscall/Makefile
++++ b/src/pkg/syscall/Makefile
+@@ -16,22 +16,22 @@ GOFILES=\
+ 	zsysnum_$(GOOS)_$(GOARCH).go\
+ 	ztypes_$(GOOS)_$(GOARCH).go\
+ 
+-GOFILES_freebsd=\
++GOFILES_darwin=\
+ 	bpf_bsd.go\
+ 	env_unix.go\
+ 	exec_unix.go\
+ 	route_bsd.go\
+-	route_freebsd.go\
++	route_darwin.go\
+ 	sockcmsg_unix.go\
+ 	syscall_bsd.go\
+ 	syscall_unix.go\
+ 
+-GOFILES_darwin=\
++GOFILES_freebsd=\
+ 	bpf_bsd.go\
+ 	env_unix.go\
+ 	exec_unix.go\
+ 	route_bsd.go\
+-	route_darwin.go\
++	route_freebsd.go\
+ 	sockcmsg_unix.go\
+ 	syscall_bsd.go\
+ 	syscall_unix.go\
+@@ -67,6 +67,10 @@ GOFILES_openbsd=\
+ 	syscall_unix.go\
+ 	zsysctl_openbsd.go\
+ 
++GOFILES_plan9=\
++	env_plan9.go\
++	exec_plan9.go\
++
+ GOFILES_windows=\
+ 	env_windows.go\
+ 	exec_windows.go\
+@@ -74,10 +78,6 @@ GOFILES_windows=\
+ 	zerrors_windows.go\
+ 	ztypes_windows.go\
+ 
+-GOFILES_plan9=\
+-	env_plan9.go\
+-	exec_plan9.go\
+-
+ OFILES=\
+ 	asm_$(GOOS)_$(GOARCH).$O\
+ 
+diff --git a/src/pkg/syscall/mkall.sh b/src/pkg/syscall/mkall.sh
+index d89fd4331b..7bedfd090a 100755
+--- a/src/pkg/syscall/mkall.sh
++++ b/src/pkg/syscall/mkall.sh
+@@ -109,26 +109,26 @@ _* | *_ | _)
+ 	echo 'undefined $GOOS_$GOARCH:' "$GOOSARCH" 1>&2
+ 	exit 1
+ 	;;
+-freebsd_386)
++darwin_386)
+ 	mkerrors="$mkerrors -m32"
+ 	mksyscall="./mksyscall.pl -l32"
+-	mksysnum="curl -s 'http://svn.freebsd.org/base/head/sys/kern/syscalls.master' | ./mksysnum_freebsd.pl"
++	mksysnum="./mksysnum_darwin.pl /usr/include/sys/syscall.h"
+ 	mktypes="GOARCH=$GOARCH cgo -godefs"
+ 	;;
+-freebsd_amd64)
++darwin_amd64)
+ 	mkerrors="$mkerrors -m64"
+-	mksysnum="curl -s 'http://svn.freebsd.org/base/head/sys/kern/syscalls.master' | ./mksysnum_freebsd.pl"
++	mksysnum="./mksysnum_darwin.pl /usr/include/sys/syscall.h"
+ 	mktypes="GOARCH=$GOARCH cgo -godefs"
+ 	;;
+-darwin_386)
++freebsd_386)
+ 	mkerrors="$mkerrors -m32"
+ 	mksyscall="./mksyscall.pl -l32"
+-	mksysnum="./mksysnum_darwin.pl /usr/include/sys/syscall.h"
++	mksysnum="curl -s 'http://svn.freebsd.org/base/head/sys/kern/syscalls.master' | ./mksysnum_freebsd.pl"
+ 	mktypes="GOARCH=$GOARCH cgo -godefs"
+ 	;;
+-darwin_amd64)
++freebsd_amd64)
+ 	mkerrors="$mkerrors -m64"
+-	mksysnum="./mksysnum_darwin.pl /usr/include/sys/syscall.h"
++	mksysnum="curl -s 'http://svn.freebsd.org/base/head/sys/kern/syscalls.master' | ./mksysnum_freebsd.pl"
+ 	mktypes="GOARCH=$GOARCH cgo -godefs"
+ 	;;
+ linux_386)
+@@ -148,26 +148,6 @@ linux_arm)
+ 	mksysnum="./mksysnum_linux.pl /usr/include/asm/unistd.h"
+ 	mktypes="GOARCH=$GOARCH cgo -godefs"
+ 	;;
+-windows_386)
+-	mksyscall="./mksyscall_windows.pl -l32"
+-	mksysnum=
+-	mktypes=
+-	mkerrors="./mkerrors_windows.sh -m32"
+-	zerrors="zerrors_windows.go"
+-	;;
+-windows_amd64)
+-	mksyscall="./mksyscall_windows.pl"
+-	mksysnum=
+-	mktypes=
+-	mkerrors="./mkerrors_windows.sh -m32"
+-	zerrors="zerrors_windows.go"
+-	;;
+-plan9_386)
+-	mkerrors=
+-	mksyscall="./mksyscall.pl -l32 -plan9"
+-	mksysnum="./mksysnum_plan9.sh /n/sources/plan9/sys/src/libc/9syscall/sys.h"
+-	mktypes="XXX"
+-	;;
+ openbsd_386)
+ 	mkerrors="$mkerrors -m32"
+ 	mksyscall="./mksyscall.pl -l32 -openbsd"
+@@ -184,6 +164,26 @@ openbsd_amd64)
+ 	mksysnum="curl -s 'http://www.openbsd.org/cgi-bin/cvsweb/~checkout~/src/sys/kern/syscalls.master' | ./mksysnum_openbsd.pl"
+ 	mktypes="GOARCH=$GOARCH cgo -godefs"
+ 	;;
++plan9_386)
++	mkerrors=
++	mksyscall="./mksyscall.pl -l32 -plan9"
++	mksysnum="./mksysnum_plan9.sh /n/sources/plan9/sys/src/libc/9syscall/sys.h"
++	mktypes="XXX"
++	;;
++windows_386)
++	mksyscall="./mksyscall_windows.pl -l32"
++	mksysnum=
++	mktypes=
++	mkerrors="./mkerrors_windows.sh -m32"
++	zerrors="zerrors_windows.go"
++	;;
++windows_amd64)
++	mksyscall="./mksyscall_windows.pl"
++	mksysnum=
++	mktypes=
++	mkerrors="./mkerrors_windows.sh -m32"
++	zerrors="zerrors_windows.go"
++	;;
+ *)
+ 	echo 'unrecognized $GOOS_$GOARCH: ' "$GOOSARCH" 1>&2
+ 	exit 1
+diff --git a/src/pkg/syscall/mkerrors.sh b/src/pkg/syscall/mkerrors.sh
+index ff9ece9a89..740dd872a7 100755
+--- a/src/pkg/syscall/mkerrors.sh
++++ b/src/pkg/syscall/mkerrors.sh
+@@ -15,35 +15,6 @@ GCC=gcc
+ 
+ uname=$(uname)
+ 
+-includes_Linux='
+-#define _LARGEFILE_SOURCE
+-#define _LARGEFILE64_SOURCE
+-#define _FILE_OFFSET_BITS 64
+-#define _GNU_SOURCE
+-
+-#include <bits/sockaddr.h>
+-#include <sys/epoll.h>
+-#include <sys/inotify.h>
+-#include <sys/ioctl.h>
+-#include <sys/mman.h>
+-#include <sys/mount.h>
+-#include <sys/stat.h>
+-#include <sys/types.h>
+-#include <linux/if_addr.h>
+-#include <linux/if_ether.h>
+-#include <linux/if_tun.h>
+-#include <linux/filter.h>
+-#include <linux/netlink.h>
+-#include <linux/reboot.h>
+-#include <linux/rtnetlink.h>
+-#include <linux/ptrace.h>
+-#include <linux/wait.h>
+-#include <net/if.h>
+-#include <net/if_arp.h>
+-#include <net/route.h>
+-#include <netpacket/packet.h>
+-'
+-
+ includes_Darwin='
+ #define _DARWIN_C_SOURCE
+ #define KERNEL
+@@ -84,6 +55,35 @@ includes_FreeBSD='
+ #include <netinet/ip_mroute.h>
+ '
+ 
++includes_Linux='
++#define _LARGEFILE_SOURCE
++#define _LARGEFILE64_SOURCE
++#define _FILE_OFFSET_BITS 64
++#define _GNU_SOURCE
++
++#include <bits/sockaddr.h>
++#include <sys/epoll.h>
++#include <sys/inotify.h>
++#include <sys/ioctl.h>
++#include <sys/mman.h>
++#include <sys/mount.h>
++#include <sys/stat.h>
++#include <sys/types.h>
++#include <linux/if_addr.h>
++#include <linux/if_ether.h>
++#include <linux/if_tun.h>
++#include <linux/filter.h>
++#include <linux/netlink.h>
++#include <linux/reboot.h>
++#include <linux/rtnetlink.h>
++#include <linux/ptrace.h>
++#include <linux/wait.h>
++#include <net/if.h>
++#include <net/if_arp.h>
++#include <net/route.h>
++#include <netpacket/packet.h>
++'
++
+ includes_OpenBSD='
+ #include <sys/types.h>
+ #include <sys/param.h>

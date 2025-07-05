@@ -9,7 +9,32 @@ Date:   Wed Feb 12 15:40:45 2014 -0500
     R=gobot
     CC=golang-codereviews
     https://golang.org/cl/57680047
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index a0e1b1880e..cfc9f0c860 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -222,6 +222,7 @@ Ken Friedenbach <kenliz@cruzio.com>
+ Ken Rockot <ken@oz.gs>
+ Kevin Ballard <kevin@sb.org>
+ Kyle Consalus <consalus@gmail.com>
++Kyle Isom <kyle@gokyle.net>
+ Kyle Lemons <kyle@kylelemons.net>
+ L Campbell <unpantsu@gmail.com>
+ Lai Jiangshan <eag0628@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 1cf4fb41d6..0fd880aaf8 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -320,6 +320,7 @@ Kevin Ballard <kevin@sb.org>
+ Kevin Klues <klueska@gmail.com> <klueska@google.com>
+ Kirklin McDonald <kirklin.mcdonald@gmail.com>
+ Kyle Consalus <consalus@gmail.com>
++Kyle Isom <kyle@gokyle.net>
+ Kyle Lemons <kyle@kylelemons.net> <kevlar@google.com>
+ L Campbell <unpantsu@gmail.com>
+ Lai Jiangshan <eag0628@gmail.com>

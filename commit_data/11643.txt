@@ -9,7 +9,7 @@ Date:   Mon Feb 6 12:19:59 2012 +0100
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5534077
-
+---
  src/cmd/gc/fmt.c                 |  9 +++++++--
  src/cmd/gc/go.h                  |  9 ++++++++-
  src/cmd/gc/go.y                  |  2 +-
@@ -18,3 +18,145 @@ Date:   Mon Feb 6 12:19:59 2012 +0100
  test/fixedbugs/bug392.dir/one.go | 19 +++++++++++++++++++
  test/fixedbugs/bug392.dir/two.go |  1 +
  7 files changed, 40 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/gc/fmt.c b/src/cmd/gc/fmt.c
+index 31b0a623f2..35d33bce87 100644
+--- a/src/cmd/gc/fmt.c
++++ b/src/cmd/gc/fmt.c
+@@ -1150,11 +1150,16 @@ exprfmt(Fmt *f, Node *n, int prec)
+ 		return fmtprint(f, "%N{ %,H }", n->right, n->list);
+ 
+ 	case OPTRLIT:
++		if (fmtmode == FExp && n->left->right->implicit == Implicit) 
++			return fmtprint(f, "%N", n->left);
+ 		return fmtprint(f, "&%N", n->left);
+ 
+ 	case OSTRUCTLIT:
+ 		if (fmtmode == FExp) {   // requires special handling of field names
+-			fmtprint(f, "%T{", n->type);
++			if(n->right->implicit == Implicit)
++				fmtstrcpy(f, "{");
++			else 
++				fmtprint(f, "%T{", n->type);
+ 			for(l=n->list; l; l=l->next) {
+ 				// another special case: if n->left is an embedded field of builtin type,
+ 				// it needs to be non-qualified.  Can't figure that out in %S, so do it here
+@@ -1411,7 +1416,7 @@ nodedump(Fmt *fp, Node *n)
+ 		fmtprint(fp, "%O-%O%J", n->op, n->etype, n);
+ 		break;
+ 	case OTYPE:
+-		fmtprint(fp, "%O %S type=%T", n->op, n->sym, n->type);
++		fmtprint(fp, "%O %S%J type=%T", n->op, n->sym, n, n->type);
+ 		if(recur && n->type == T && n->ntype) {
+ 			indent(fp);
+ 			fmtprint(fp, "%O-ntype%N", n->op, n->ntype);
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 7dc8e57e50..4b47dddc11 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -217,6 +217,13 @@ enum
+ 	EscNever,
+ };
+ 
++enum
++{
++	Explicit,
++	Implicit,  // don't print in output
++	ImplPtr,   // OIND added by &T{ ... } literal
++};
++
+ struct	Node
+ {
+ 	// Tree structure.
+@@ -252,7 +259,7 @@ struct	Node
+ 	uchar	used;
+ 	uchar	isddd;
+ 	uchar	readonly;
+-	uchar	implicit;	// don't show in printout
++	uchar	implicit;	// Explicit, Implicit, ImplPtr. 
+ 	uchar	addrtaken;	// address taken, even if not moved to heap
+ 	uchar	dupok;	// duplicate definitions ok (for func)
+ 
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index de07354250..c44aabf398 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -808,7 +808,7 @@ uexpr:
+ 			// Special case for &T{...}: turn into (*T){...}.
+ 			$$ = $2;
+ 			$$->right = nod(OIND, $$->right, N);
+-			$$->right->implicit = 1;
++			$$->right->implicit = ImplPtr;
+ 		} else {
+ 			$$ = nod(OADDR, $2, N);
+ 		}
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 2e8c3b1e25..4f2aea4992 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -2047,10 +2047,9 @@ typecheckcomplit(Node **np)
+ 	n->type = t;
+ 	
+ 	if(isptr[t->etype]) {
+-		// For better or worse, we don't allow pointers as
+-		// the composite literal type, except when using
+-		// the &T syntax, which sets implicit.
+-		if(!n->right->implicit) {
++		// For better or worse, we don't allow pointers as the composite literal type,
++		// except when using the &T syntax, which sets implicit to ImplPtr.
++		if(n->right->implicit == Explicit) {
+ 			yyerror("invalid pointer type %T for composite literal (use &%T instead)", t, t->type);
+ 			goto error;
+ 		}
+diff --git a/src/cmd/gc/y.tab.c b/src/cmd/gc/y.tab.c
+index 80e05bbc3d..9bf1019e9d 100644
+--- a/src/cmd/gc/y.tab.c
++++ b/src/cmd/gc/y.tab.c
+@@ -3232,7 +3232,7 @@ yyreduce:
+ 			// Special case for &T{...}: turn into (*T){...}.
+ 			(yyval.node) = (yyvsp[(2) - (2)].node);
+ 			(yyval.node)->right = nod(OIND, (yyval.node)->right, N);
+-			(yyval.node)->right->implicit = 1;
++			(yyval.node)->right->implicit = ImplPtr;
+ 		} else {
+ 			(yyval.node) = nod(OADDR, (yyvsp[(2) - (2)].node), N);
+ 		}
+diff --git a/test/fixedbugs/bug392.dir/one.go b/test/fixedbugs/bug392.dir/one.go
+index a7017255e5..69fe089462 100644
+--- a/test/fixedbugs/bug392.dir/one.go
++++ b/test/fixedbugs/bug392.dir/one.go
+@@ -20,3 +20,22 @@ func F3() (ret []int) { return append(ret, 1) }
+ // Call of inlined method with blank receiver.
+ func (_ *T) M() int { return 1 }
+ func (t *T) MM() int { return t.M() }
++
++
++// One more like issue 2678
++type S struct { x, y int }
++type U []S
++
++func F4(S int) U { return U{{S,S}} }
++
++func F5() []*S {
++	return []*S{ {1,2}, { 3, 4} }
++}
++
++func F6(S int) *U {
++	return &U{{S,S}}
++}
++
++
++
++
+diff --git a/test/fixedbugs/bug392.dir/two.go b/test/fixedbugs/bug392.dir/two.go
+index b0ce26d39a..3485519f97 100644
+--- a/test/fixedbugs/bug392.dir/two.go
++++ b/test/fixedbugs/bug392.dir/two.go
+@@ -13,6 +13,7 @@ func use() {
+ 	one.F1(nil)
+ 	one.F2(nil)
+ 	one.F3()
++	one.F4(1)
+ 
+ 	var t *one.T
+ 	t.M()

@@ -11,7 +11,100 @@ Date:   Wed Mar 30 23:08:44 2016 -0700
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/dnsclient_unix.go      | 17 ++++++++++++++
  src/net/dnsclient_unix_test.go | 51 ++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 68 insertions(+)
+
+diff --git a/src/net/dnsclient_unix.go b/src/net/dnsclient_unix.go
+index 736e57322c..cf0b2680db 100644
+--- a/src/net/dnsclient_unix.go
++++ b/src/net/dnsclient_unix.go
+@@ -319,8 +319,25 @@ func lookup(name string, qtype uint16) (cname string, rrs []dnsRR, err error) {
+ 	return
+ }
+ 
++// avoidDNS reports whether this is a hostname for which we should not
++// use DNS. Currently this includes only .onion and .local names,
++// per RFC 7686 and RFC 6762, respectively. See golang.org/issue/13705.
++func avoidDNS(name string) bool {
++	if name == "" {
++		return true
++	}
++	if name[len(name)-1] == '.' {
++		name = name[:len(name)-1]
++	}
++	return stringsHasSuffixFold(name, ".onion") || stringsHasSuffixFold(name, ".local")
++}
++
+ // nameList returns a list of names for sequential DNS queries.
+ func (conf *dnsConfig) nameList(name string) []string {
++	if avoidDNS(name) {
++		return nil
++	}
++
+ 	// If name is rooted (trailing dot), try only that name.
+ 	rooted := len(name) > 0 && name[len(name)-1] == '.'
+ 	if rooted {
+diff --git a/src/net/dnsclient_unix_test.go b/src/net/dnsclient_unix_test.go
+index 4a5c438e46..6845481e17 100644
+--- a/src/net/dnsclient_unix_test.go
++++ b/src/net/dnsclient_unix_test.go
+@@ -94,6 +94,57 @@ func TestSpecialDomainName(t *testing.T) {
+ 	}
+ }
+ 
++// Issue 13705: don't try to resolve onion addresses, etc
++func TestAvoidDNSName(t *testing.T) {
++	tests := []struct {
++		name  string
++		avoid bool
++	}{
++		{"foo.com", false},
++		{"foo.com.", false},
++
++		{"foo.onion.", true},
++		{"foo.onion", true},
++		{"foo.ONION", true},
++		{"foo.ONION.", true},
++
++		{"foo.local.", true},
++		{"foo.local", true},
++		{"foo.LOCAL", true},
++		{"foo.LOCAL.", true},
++
++		{"", true}, // will be rejected earlier too
++
++		// Without stuff before onion/local, they're fine to
++		// use DNS. With a search path,
++		// "onion.vegegtables.com" can use DNS. Without a
++		// search path (or with a trailing dot), the queries
++		// are just kinda useless, but don't reveal anything
++		// private.
++		{"local", false},
++		{"onion", false},
++		{"local.", false},
++		{"onion.", false},
++	}
++	for _, tt := range tests {
++		got := avoidDNS(tt.name)
++		if got != tt.avoid {
++			t.Errorf("avoidDNS(%q) = %v; want %v", tt.name, got, tt.avoid)
++		}
++	}
++}
++
++// Issue 13705: don't try to resolve onion addresses, etc
++func TestLookupTorOnion(t *testing.T) {
++	addrs, err := goLookupIP("foo.onion")
++	if len(addrs) > 0 {
++		t.Errorf("unexpected addresses: %v", addrs)
++	}
++	if err != nil {
++		t.Fatalf("lookup = %v; want nil", err)
++	}
++}
++
+ type resolvConfTest struct {
+ 	dir  string
+ 	path string

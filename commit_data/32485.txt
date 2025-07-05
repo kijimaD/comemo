@@ -10,6 +10,22 @@ Date:   Wed Apr 26 23:43:46 2017 +0200
     Reviewed-on: https://go-review.googlesource.com/41858
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/all.bash | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/all.bash b/src/all.bash
+index 5d994d3d0d..abe2beb6dd 100755
+--- a/src/all.bash
++++ b/src/all.bash
+@@ -8,6 +8,10 @@ if [ ! -f make.bash ]; then
+ 	echo 'all.bash must be run from $GOROOT/src' 1>&2
+ 	exit 1
+ fi
++if [ ! -f cmd/api/run.go ]; then
++	echo 'all.bash cannot be run from a binary download package' 1>&2
++	exit 1
++fi
+ OLDPATH="$PATH"
+ . ./make.bash "$@" --no-banner
+ bash run.bash --no-rebuild

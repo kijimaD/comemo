@@ -18,7 +18,57 @@ Date:   Fri Mar 22 08:14:45 2019 -0400
     Change-Id: Ia70b89f0cf7f9b16246d95df17ad6e307228b8c7
     Reviewed-on: https://go-review.googlesource.com/c/go/+/168818
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/gc/dwinl.go |  2 +-
  src/cmd/compile/internal/gc/pgen.go  | 16 +++++++++++++++-
  2 files changed, 16 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/dwinl.go b/src/cmd/compile/internal/gc/dwinl.go
+index ade76f40f8..cc42a04c64 100644
+--- a/src/cmd/compile/internal/gc/dwinl.go
++++ b/src/cmd/compile/internal/gc/dwinl.go
+@@ -127,7 +127,7 @@ func assembleInlines(fnsym *obj.LSym, dwVars []*dwarf.Var) dwarf.InlCalls {
+ 				DeclLine: v.DeclLine,
+ 				DeclCol:  v.DeclCol,
+ 			}
+-			synthesized := strings.HasPrefix(v.Name, "~r") || canonName == "_"
++			synthesized := strings.HasPrefix(v.Name, "~r") || canonName == "_" || strings.HasPrefix(v.Name, "~b")
+ 			if idx, found := m[vp]; found {
+ 				v.ChildIndex = int32(idx)
+ 				v.IsInAbstract = !synthesized
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index 5b9b6ce45e..b0ed01947a 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -593,8 +593,22 @@ func createDwarfVars(fnsym *obj.LSym, fn *Func, automDecls []*Node) ([]*Node, []
+ 		typename := dwarf.InfoPrefix + typesymname(n.Type)
+ 		decls = append(decls, n)
+ 		abbrev := dwarf.DW_ABRV_AUTO_LOCLIST
++		isReturnValue := (n.Class() == PPARAMOUT)
+ 		if n.Class() == PPARAM || n.Class() == PPARAMOUT {
+ 			abbrev = dwarf.DW_ABRV_PARAM_LOCLIST
++		} else if n.Class() == PAUTOHEAP {
++			// If dcl in question has been promoted to heap, do a bit
++			// of extra work to recover original class (auto or param);
++			// see issue 30908. This insures that we get the proper
++			// signature in the abstract function DIE, but leaves a
++			// misleading location for the param (we want pointer-to-heap
++			// and not stack).
++			// TODO(thanm): generate a better location expression
++			stackcopy := n.Name.Param.Stackcopy
++			if stackcopy != nil && (stackcopy.Class() == PPARAM || stackcopy.Class() == PPARAMOUT) {
++				abbrev = dwarf.DW_ABRV_PARAM_LOCLIST
++				isReturnValue = (stackcopy.Class() == PPARAMOUT)
++			}
+ 		}
+ 		inlIndex := 0
+ 		if genDwarfInline > 1 {
+@@ -608,7 +622,7 @@ func createDwarfVars(fnsym *obj.LSym, fn *Func, automDecls []*Node) ([]*Node, []
+ 		declpos := Ctxt.InnermostPos(n.Pos)
+ 		vars = append(vars, &dwarf.Var{
+ 			Name:          n.Sym.Name,
+-			IsReturnValue: n.Class() == PPARAMOUT,
++			IsReturnValue: isReturnValue,
+ 			Abbrev:        abbrev,
+ 			StackOffset:   int32(n.Xoffset),
+ 			Type:          Ctxt.Lookup(typename),

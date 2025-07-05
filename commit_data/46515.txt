@@ -17,7 +17,38 @@ Date:   Wed Jan 6 22:13:45 2021 -0500
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/alldocs.go            | 4 ++++
  src/cmd/go/internal/list/list.go | 4 ++++
  2 files changed, 8 insertions(+)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 78f114f6af..d4303c2aad 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -840,6 +840,10 @@
+ //         TestGoFiles     []string   // _test.go files in package
+ //         XTestGoFiles    []string   // _test.go files outside package
+ //
++//         // Embedded files
++//         EmbedPatterns []string // //go:embed patterns
++//         EmbedFiles    []string // files and directories matched by EmbedPatterns
++//
+ //         // Cgo directives
+ //         CgoCFLAGS    []string // cgo: flags for C compiler
+ //         CgoCPPFLAGS  []string // cgo: flags for C preprocessor
+diff --git a/src/cmd/go/internal/list/list.go b/src/cmd/go/internal/list/list.go
+index ce6f579c05..61d3bc53d3 100644
+--- a/src/cmd/go/internal/list/list.go
++++ b/src/cmd/go/internal/list/list.go
+@@ -89,6 +89,10 @@ to -f '{{.ImportPath}}'. The struct being passed to the template is:
+         TestGoFiles     []string   // _test.go files in package
+         XTestGoFiles    []string   // _test.go files outside package
+ 
++        // Embedded files
++        EmbedPatterns []string // //go:embed patterns
++        EmbedFiles    []string // files and directories matched by EmbedPatterns
++
+         // Cgo directives
+         CgoCFLAGS    []string // cgo: flags for C compiler
+         CgoCPPFLAGS  []string // cgo: flags for C preprocessor

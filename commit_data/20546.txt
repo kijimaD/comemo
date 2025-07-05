@@ -10,6 +10,18 @@ Date:   Wed Sep 17 05:44:42 2014 +0000
     R=golang-codereviews, minux
     CC=golang-codereviews
     https://golang.org/cl/141640043
-
+---
  src/sync/atomic/export_linux_arm_test.go | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/src/sync/atomic/export_linux_arm_test.go b/src/sync/atomic/export_linux_arm_test.go
+index 5cd43353ee..9f0c856a79 100644
+--- a/src/sync/atomic/export_linux_arm_test.go
++++ b/src/sync/atomic/export_linux_arm_test.go
+@@ -4,6 +4,4 @@
+ 
+ package atomic
+ 
+-func generalCAS64(addr *uint64, old uint64, new uint64) bool
+-
+ var GeneralCAS64 = generalCAS64

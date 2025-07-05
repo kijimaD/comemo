@@ -14,8 +14,99 @@ Date:   Thu Feb 5 13:58:43 2009 -0800
     DELTA=25  (0 added, 22 deleted, 3 changed)
     OCL=24446
     CL=24446
-
+---
  src/cmd/6l/go.c  | 16 ----------------
  src/cmd/6l/l.h   |  2 --
  src/cmd/6l/obj.c | 10 +++-------
  3 files changed, 3 insertions(+), 25 deletions(-)
+
+diff --git a/src/cmd/6l/go.c b/src/cmd/6l/go.c
+index a1a515fb3e..961a3320b0 100644
+--- a/src/cmd/6l/go.c
++++ b/src/cmd/6l/go.c
+@@ -503,22 +503,6 @@ isinitfunc(Sym *s)
+ 	return 0;
+ }
+ 
+-void
+-ignoreoptfuncs(void)
+-{
+-	Prog *p;
+-
+-	// nop out calls to optional functions
+-	// that were not pulled in from libraries.
+-	for(p=firstp; p != P; p=p->link) {
+-		if(p->to.sym != S && p->to.sym->type == SOPT) {
+-			if(p->as != ACALL)
+-				diag("bad use of optional function: %P", p);
+-			nopout(p);
+-		}
+-	}
+-}
+-
+ static void mark(Sym*);
+ static int markdepth;
+ 
+diff --git a/src/cmd/6l/l.h b/src/cmd/6l/l.h
+index 6382203a59..83c28bd4b7 100644
+--- a/src/cmd/6l/l.h
++++ b/src/cmd/6l/l.h
+@@ -150,7 +150,6 @@ enum
+ 	SFILE,
+ 	SCONST,
+ 	SUNDEF,
+-	SOPT,
+ 
+ 	SIMPORT,
+ 	SEXPORT,
+@@ -386,7 +385,6 @@ void	ckoff(Sym*, int32);
+ Prog*	copyp(Prog*);
+ double	cputime(void);
+ void	datblk(int32, int32);
+-void	ignoreoptfuncs(void);
+ void	deadcode(void);
+ void	definetypestrings(void);
+ void	definetypesigs(void);
+diff --git a/src/cmd/6l/obj.c b/src/cmd/6l/obj.c
+index a23e030f59..b682ab1b1b 100644
+--- a/src/cmd/6l/obj.c
++++ b/src/cmd/6l/obj.c
+@@ -368,7 +368,6 @@ main(int argc, char *argv[])
+ 		sprint(a, "%s/lib/lib_%s_%s.a", goroot, goarch, goos);
+ 		objfile(a);
+ 	}
+-	ignoreoptfuncs();
+ 	definetypestrings();
+ 	definetypesigs();
+ 	deadcode();
+@@ -950,11 +949,8 @@ loop:
+ 		if(debug['W'])
+ 			print("	ANAME	%s\n", s->name);
+ 		h[o] = s;
+-		if((v == D_EXTERN || v == D_STATIC) && s->type == 0) {
++		if((v == D_EXTERN || v == D_STATIC) && s->type == 0)
+ 			s->type = SXREF;
+-			if(isinitfunc(s))
+-				s->type = SOPT;	// optional function; don't pull in an object file just for s.
+-		}
+ 		if(v == D_FILE) {
+ 			if(s->type != SFILE) {
+ 				histgen++;
+@@ -1096,7 +1092,7 @@ loop:
+ 
+ 	case ATEXT:
+ 		s = p->from.sym;
+-		if(ntext++ == 0 && s->type != 0 && s->type != SXREF && s->type != SOPT) {
++		if(ntext++ == 0 && s->type != 0 && s->type != SXREF) {
+ 			/* redefinition, so file has probably been seen before */
+ 			if(debug['v'])
+ 				Bprint(&bso, "skipping: %s: redefinition: %s", pn, s->name);
+@@ -1113,7 +1109,7 @@ loop:
+ 			diag("%s: no TEXT symbol: %P", pn, p);
+ 			errorexit();
+ 		}
+-		if(s->type != 0 && s->type != SXREF && s->type != SOPT) {
++		if(s->type != 0 && s->type != SXREF) {
+ 			if(p->from.scale & DUPOK) {
+ 				skip = 1;
+ 				goto casdef;

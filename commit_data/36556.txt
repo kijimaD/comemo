@@ -36,7 +36,7 @@ Date:   Thu Apr 26 18:30:11 2018 +0200
     Run-TryBot: Martin Möhrmann <moehrmann@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/gc/builtin.go         |   1 +
  src/cmd/compile/internal/gc/builtin/runtime.go |   1 +
  src/cmd/compile/internal/gc/order.go           |   9 +-
@@ -49,3 +49,547 @@ Date:   Thu Apr 26 18:30:11 2018 +0200
  test/codegen/slices.go                         |  31 ++++
  test/fixedbugs/issue4085b.go                   |   6 +
  11 files changed, 295 insertions(+), 26 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/builtin.go b/src/cmd/compile/internal/gc/builtin.go
+index 4223a5e3fe..4259fb4153 100644
+--- a/src/cmd/compile/internal/gc/builtin.go
++++ b/src/cmd/compile/internal/gc/builtin.go
+@@ -13,6 +13,7 @@ var runtimeDecls = [...]struct {
+ 	{"panicindex", funcTag, 5},
+ 	{"panicslice", funcTag, 5},
+ 	{"panicdivide", funcTag, 5},
++	{"panicmakeslicelen", funcTag, 5},
+ 	{"throwinit", funcTag, 5},
+ 	{"panicwrap", funcTag, 5},
+ 	{"gopanic", funcTag, 7},
+diff --git a/src/cmd/compile/internal/gc/builtin/runtime.go b/src/cmd/compile/internal/gc/builtin/runtime.go
+index 17bdf362e9..ae1850c72f 100644
+--- a/src/cmd/compile/internal/gc/builtin/runtime.go
++++ b/src/cmd/compile/internal/gc/builtin/runtime.go
+@@ -18,6 +18,7 @@ func newobject(typ *byte) *any
+ func panicindex()
+ func panicslice()
+ func panicdivide()
++func panicmakeslicelen()
+ func throwinit()
+ func panicwrap()
+ 
+diff --git a/src/cmd/compile/internal/gc/order.go b/src/cmd/compile/internal/gc/order.go
+index b62c2412a0..1a10587797 100644
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@ -1104,7 +1104,14 @@ func (o *Order) expr(n, lhs *Node) *Node {
+ 		}
+ 
+ 	case OAPPEND:
+-		o.callArgs(&n.List)
++		// Check for append(x, make([]T, y)...) .
++		if isAppendOfMake(n) {
++			n.List.SetFirst(o.expr(n.List.First(), nil))             // order x
++			n.List.Second().Left = o.expr(n.List.Second().Left, nil) // order y
++		} else {
++			o.callArgs(&n.List)
++		}
++
+ 		if lhs == nil || lhs.Op != ONAME && !samesafeexpr(lhs, n.List.First()) {
+ 			n = o.copyExpr(n, n.Type, false)
+ 		}
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index aa324984dc..73fe7bdfee 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -703,7 +703,7 @@ func (s *state) stmt(n *Node) {
+ 		s.call(n, callNormal)
+ 		if n.Op == OCALLFUNC && n.Left.Op == ONAME && n.Left.Class() == PFUNC {
+ 			if fn := n.Left.Sym.Name; compiling_runtime && fn == "throw" ||
+-				n.Left.Sym.Pkg == Runtimepkg && (fn == "throwinit" || fn == "gopanic" || fn == "panicwrap" || fn == "block") {
++				n.Left.Sym.Pkg == Runtimepkg && (fn == "throwinit" || fn == "gopanic" || fn == "panicwrap" || fn == "block" || fn == "panicmakeslicelen" || fn == "panicmakeslicecap") {
+ 				m := s.mem()
+ 				b := s.endBlock()
+ 				b.Kind = ssa.BlockExit
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index a264bf340d..3046b9dda8 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -728,9 +728,13 @@ opswitch:
+ 			if r.Type.Elem().NotInHeap() {
+ 				yyerror("%v is go:notinheap; heap allocation disallowed", r.Type.Elem())
+ 			}
+-			if r.Isddd() {
++			switch {
++			case isAppendOfMake(r):
++				// x = append(y, make([]T, y)...)
++				r = extendslice(r, init)
++			case r.Isddd():
+ 				r = appendslice(r, init) // also works for append(slice, string).
+-			} else {
++			default:
+ 				r = walkappend(r, init, n)
+ 			}
+ 			n.Right = r
+@@ -2910,6 +2914,18 @@ func addstr(n *Node, init *Nodes) *Node {
+ 	return r
+ }
+ 
++func walkAppendArgs(n *Node, init *Nodes) {
++	walkexprlistsafe(n.List.Slice(), init)
++
++	// walkexprlistsafe will leave OINDEX (s[n]) alone if both s
++	// and n are name or literal, but those may index the slice we're
++	// modifying here. Fix explicitly.
++	ls := n.List.Slice()
++	for i1, n1 := range ls {
++		ls[i1] = cheapexpr(n1, init)
++	}
++}
++
+ // expand append(l1, l2...) to
+ //   init {
+ //     s := l1
+@@ -2925,15 +2941,7 @@ func addstr(n *Node, init *Nodes) *Node {
+ //
+ // l2 is allowed to be a string.
+ func appendslice(n *Node, init *Nodes) *Node {
+-	walkexprlistsafe(n.List.Slice(), init)
+-
+-	// walkexprlistsafe will leave OINDEX (s[n]) alone if both s
+-	// and n are name or literal, but those may index the slice we're
+-	// modifying here. Fix explicitly.
+-	ls := n.List.Slice()
+-	for i1, n1 := range ls {
+-		ls[i1] = cheapexpr(n1, init)
+-	}
++	walkAppendArgs(n, init)
+ 
+ 	l1 := n.List.First()
+ 	l2 := n.List.Second()
+@@ -3027,6 +3035,174 @@ func appendslice(n *Node, init *Nodes) *Node {
+ 	return s
+ }
+ 
++// isAppendOfMake reports whether n is of the form append(x , make([]T, y)...).
++// isAppendOfMake assumes n has already been typechecked.
++func isAppendOfMake(n *Node) bool {
++	if Debug['N'] != 0 || instrumenting {
++		return false
++	}
++
++	if n.Typecheck() == 0 {
++		Fatalf("missing typecheck: %+v", n)
++	}
++
++	if n.Op != OAPPEND || !n.Isddd() || n.List.Len() != 2 {
++		return false
++	}
++
++	second := n.List.Second()
++	if second.Op != OMAKESLICE {
++		return false
++	}
++
++	if n.List.Second().Right != nil {
++		return false
++	}
++
++	// y must be either an integer constant or a variable of type int.
++	// typecheck checks that constant arguments to make are not negative and
++	// fit into an int.
++	// runtime.growslice uses int as type for the newcap argument.
++	// Constraining variables to be type int avoids the need for runtime checks
++	// that e.g. check if an int64 value fits into an int.
++	// TODO(moehrmann): support other integer types that always fit in an int
++	y := second.Left
++	if !Isconst(y, CTINT) && y.Type.Etype != TINT {
++		return false
++	}
++
++	return true
++}
++
++// extendslice rewrites append(l1, make([]T, l2)...) to
++//   init {
++//     if l2 < 0 {
++//       panicmakeslicelen()
++//     }
++//     s := l1
++//     n := len(s) + l2
++//     // Compare n and s as uint so growslice can panic on overflow of len(s) + l2.
++//     // cap is a positive int and n can become negative when len(s) + l2
++//     // overflows int. Interpreting n when negative as uint makes it larger
++//     // than cap(s). growslice will check the int n arg and panic if n is
++//     // negative. This prevents the overflow from being undetected.
++//     if uint(n) > uint(cap(s)) {
++//       s = growslice(T, s, n)
++//     }
++//     s = s[:n]
++//     lptr := &l1[0]
++//     sptr := &s[0]
++//     if lptr == sptr || !hasPointers(T) {
++//       // growslice did not clear the whole underlying array (or did not get called)
++//       hp := &s[len(l1)]
++//       hn := l2 * sizeof(T)
++//       memclr(hp, hn)
++//     }
++//   }
++//   s
++func extendslice(n *Node, init *Nodes) *Node {
++	// isAppendOfMake made sure l2 fits in an int.
++	l2 := conv(n.List.Second().Left, types.Types[TINT])
++	l2 = typecheck(l2, Erv)
++	n.List.SetSecond(l2) // walkAppendArgs expects l2 in n.List.Second().
++
++	walkAppendArgs(n, init)
++
++	l1 := n.List.First()
++	l2 = n.List.Second() // re-read l2, as it may have been updated by walkAppendArgs
++
++	var nodes []*Node
++
++	// if l2 < 0
++	nifneg := nod(OIF, nod(OLT, l2, nodintconst(0)), nil)
++	nifneg.SetLikely(false)
++
++	// panicmakeslicelen()
++	nifneg.Nbody.Set1(mkcall("panicmakeslicelen", nil, init))
++	nodes = append(nodes, nifneg)
++
++	// s := l1
++	s := temp(l1.Type)
++	nodes = append(nodes, nod(OAS, s, l1))
++
++	elemtype := s.Type.Elem()
++
++	// n := len(s) + l2
++	nn := temp(types.Types[TINT])
++	nodes = append(nodes, nod(OAS, nn, nod(OADD, nod(OLEN, s, nil), l2)))
++
++	// if uint(n) > uint(cap(s))
++	nuint := nod(OCONV, nn, nil)
++	nuint.Type = types.Types[TUINT]
++	capuint := nod(OCONV, nod(OCAP, s, nil), nil)
++	capuint.Type = types.Types[TUINT]
++	nif := nod(OIF, nod(OGT, nuint, capuint), nil)
++
++	// instantiate growslice(typ *type, old []any, newcap int) []any
++	fn := syslook("growslice")
++	fn = substArgTypes(fn, elemtype, elemtype)
++
++	// s = growslice(T, s, n)
++	nif.Nbody.Set1(nod(OAS, s, mkcall1(fn, s.Type, &nif.Ninit, typename(elemtype), s, nn)))
++	nodes = append(nodes, nif)
++
++	// s = s[:n]
++	nt := nod(OSLICE, s, nil)
++	nt.SetSliceBounds(nil, nn, nil)
++	nodes = append(nodes, nod(OAS, s, nt))
++
++	// lptr := &l1[0]
++	l1ptr := temp(l1.Type.Elem().PtrTo())
++	tmp := nod(OSPTR, l1, nil)
++	nodes = append(nodes, nod(OAS, l1ptr, tmp))
++
++	// sptr := &s[0]
++	sptr := temp(elemtype.PtrTo())
++	tmp = nod(OSPTR, s, nil)
++	nodes = append(nodes, nod(OAS, sptr, tmp))
++
++	var clr []*Node
++
++	// hp := &s[len(l1)]
++	hp := temp(types.Types[TUNSAFEPTR])
++
++	tmp = nod(OINDEX, s, nod(OLEN, l1, nil))
++	tmp.SetBounded(true)
++	tmp = nod(OADDR, tmp, nil)
++	tmp = nod(OCONVNOP, tmp, nil)
++	tmp.Type = types.Types[TUNSAFEPTR]
++	clr = append(clr, nod(OAS, hp, tmp))
++
++	// hn := l2 * sizeof(elem(s))
++	hn := temp(types.Types[TUINTPTR])
++
++	tmp = nod(OMUL, l2, nodintconst(elemtype.Width))
++	tmp = conv(tmp, types.Types[TUINTPTR])
++	clr = append(clr, nod(OAS, hn, tmp))
++
++	clrname := "memclrNoHeapPointers"
++	hasPointers := types.Haspointers(elemtype)
++	if hasPointers {
++		clrname = "memclrHasPointers"
++	}
++	clrfn := mkcall(clrname, nil, init, hp, hn)
++	clr = append(clr, clrfn)
++
++	if hasPointers {
++		// if l1ptr == sptr
++		nifclr := nod(OIF, nod(OEQ, l1ptr, sptr), nil)
++		nifclr.Nbody.Set(clr)
++		nodes = append(nodes, nifclr)
++	} else {
++		nodes = append(nodes, clr...)
++	}
++
++	typecheckslice(nodes, Etop)
++	walkstmtlist(nodes)
++	init.Append(nodes...)
++	return s
++}
++
+ // Rewrite append(src, x, y, z) so that any side effects in
+ // x, y, z (including runtime panics) are evaluated in
+ // initialization statements before the append.
+diff --git a/src/runtime/slice.go b/src/runtime/slice.go
+index 40c5995153..fd5d08b52c 100644
+--- a/src/runtime/slice.go
++++ b/src/runtime/slice.go
+@@ -44,6 +44,14 @@ func maxSliceCap(elemsize uintptr) uintptr {
+ 	return maxAlloc / elemsize
+ }
+ 
++func panicmakeslicelen() {
++	panic(errorString("makeslice: len out of range"))
++}
++
++func panicmakeslicecap() {
++	panic(errorString("makeslice: cap out of range"))
++}
++
+ func makeslice(et *_type, len, cap int) slice {
+ 	// NOTE: The len > maxElements check here is not strictly necessary,
+ 	// but it produces a 'len out of range' error instead of a 'cap out of range' error
+@@ -52,11 +60,11 @@ func makeslice(et *_type, len, cap int) slice {
+ 	// See issue 4085.
+ 	maxElements := maxSliceCap(et.size)
+ 	if len < 0 || uintptr(len) > maxElements {
+-		panic(errorString("makeslice: len out of range"))
++		panicmakeslicelen()
+ 	}
+ 
+ 	if cap < len || uintptr(cap) > maxElements {
+-		panic(errorString("makeslice: cap out of range"))
++		panicmakeslicecap()
+ 	}
+ 
+ 	p := mallocgc(et.size*uintptr(cap), et, true)
+@@ -66,12 +74,12 @@ func makeslice(et *_type, len, cap int) slice {
+ func makeslice64(et *_type, len64, cap64 int64) slice {
+ 	len := int(len64)
+ 	if int64(len) != len64 {
+-		panic(errorString("makeslice: len out of range"))
++		panicmakeslicelen()
+ 	}
+ 
+ 	cap := int(cap64)
+ 	if int64(cap) != cap64 {
+-		panic(errorString("makeslice: cap out of range"))
++		panicmakeslicecap()
+ 	}
+ 
+ 	return makeslice(et, len, cap)
+diff --git a/src/runtime/slice_test.go b/src/runtime/slice_test.go
+index 46db071ebe..c2dfb7afd1 100644
+--- a/src/runtime/slice_test.go
++++ b/src/runtime/slice_test.go
+@@ -72,6 +72,36 @@ func BenchmarkGrowSlice(b *testing.B) {
+ 	})
+ }
+ 
++var (
++	SinkIntSlice        []int
++	SinkIntPointerSlice []*int
++)
++
++func BenchmarkExtendSlice(b *testing.B) {
++	var length = 4 // Use a variable to prevent stack allocation of slices.
++	b.Run("IntSlice", func(b *testing.B) {
++		s := make([]int, 0, length)
++		for i := 0; i < b.N; i++ {
++			s = append(s[:0:length/2], make([]int, length)...)
++		}
++		SinkIntSlice = s
++	})
++	b.Run("PointerSlice", func(b *testing.B) {
++		s := make([]*int, 0, length)
++		for i := 0; i < b.N; i++ {
++			s = append(s[:0:length/2], make([]*int, length)...)
++		}
++		SinkIntPointerSlice = s
++	})
++	b.Run("NoGrow", func(b *testing.B) {
++		s := make([]int, 0, length)
++		for i := 0; i < b.N; i++ {
++			s = append(s[:0:length], make([]int, length)...)
++		}
++		SinkIntSlice = s
++	})
++}
++
+ func BenchmarkAppend(b *testing.B) {
+ 	b.StopTimer()
+ 	x := make([]int, 0, N)
+diff --git a/test/append.go b/test/append.go
+index 3f6251ee50..3d16063406 100644
+--- a/test/append.go
++++ b/test/append.go
+@@ -13,14 +13,12 @@ import (
+ 	"reflect"
+ )
+ 
+-
+ func verify(name string, result, expected interface{}) {
+ 	if !reflect.DeepEqual(result, expected) {
+ 		panic(name)
+ 	}
+ }
+ 
+-
+ func main() {
+ 	for _, t := range tests {
+ 		verify(t.name, t.result, t.expected)
+@@ -30,6 +28,10 @@ func main() {
+ 	verifyType()
+ }
+ 
++var (
++	zero int = 0
++	one  int = 1
++)
+ 
+ var tests = []struct {
+ 	name             string
+@@ -49,7 +51,6 @@ var tests = []struct {
+ 	{"bool i", append([]bool{true, false, true}, []bool{true}...), []bool{true, false, true, true}},
+ 	{"bool j", append([]bool{true, false, true}, []bool{true, true, true}...), []bool{true, false, true, true, true, true}},
+ 
+-
+ 	{"byte a", append([]byte{}), []byte{}},
+ 	{"byte b", append([]byte{}, 0), []byte{0}},
+ 	{"byte c", append([]byte{}, 0, 1, 2, 3), []byte{0, 1, 2, 3}},
+@@ -84,7 +85,6 @@ var tests = []struct {
+ 	{"int16 i", append([]int16{0, 1, 2}, []int16{3}...), []int16{0, 1, 2, 3}},
+ 	{"int16 j", append([]int16{0, 1, 2}, []int16{3, 4, 5}...), []int16{0, 1, 2, 3, 4, 5}},
+ 
+-
+ 	{"uint32 a", append([]uint32{}), []uint32{}},
+ 	{"uint32 b", append([]uint32{}, 0), []uint32{0}},
+ 	{"uint32 c", append([]uint32{}, 0, 1, 2, 3), []uint32{0, 1, 2, 3}},
+@@ -99,7 +99,6 @@ var tests = []struct {
+ 	{"uint32 i", append([]uint32{0, 1, 2}, []uint32{3}...), []uint32{0, 1, 2, 3}},
+ 	{"uint32 j", append([]uint32{0, 1, 2}, []uint32{3, 4, 5}...), []uint32{0, 1, 2, 3, 4, 5}},
+ 
+-
+ 	{"float64 a", append([]float64{}), []float64{}},
+ 	{"float64 b", append([]float64{}, 0), []float64{0}},
+ 	{"float64 c", append([]float64{}, 0, 1, 2, 3), []float64{0, 1, 2, 3}},
+@@ -114,7 +113,6 @@ var tests = []struct {
+ 	{"float64 i", append([]float64{0, 1, 2}, []float64{3}...), []float64{0, 1, 2, 3}},
+ 	{"float64 j", append([]float64{0, 1, 2}, []float64{3, 4, 5}...), []float64{0, 1, 2, 3, 4, 5}},
+ 
+-
+ 	{"complex128 a", append([]complex128{}), []complex128{}},
+ 	{"complex128 b", append([]complex128{}, 0), []complex128{0}},
+ 	{"complex128 c", append([]complex128{}, 0, 1, 2, 3), []complex128{0, 1, 2, 3}},
+@@ -129,7 +127,6 @@ var tests = []struct {
+ 	{"complex128 i", append([]complex128{0, 1, 2}, []complex128{3}...), []complex128{0, 1, 2, 3}},
+ 	{"complex128 j", append([]complex128{0, 1, 2}, []complex128{3, 4, 5}...), []complex128{0, 1, 2, 3, 4, 5}},
+ 
+-
+ 	{"string a", append([]string{}), []string{}},
+ 	{"string b", append([]string{}, "0"), []string{"0"}},
+ 	{"string c", append([]string{}, "0", "1", "2", "3"), []string{"0", "1", "2", "3"}},
+@@ -143,8 +140,19 @@ var tests = []struct {
+ 
+ 	{"string i", append([]string{"0", "1", "2"}, []string{"3"}...), []string{"0", "1", "2", "3"}},
+ 	{"string j", append([]string{"0", "1", "2"}, []string{"3", "4", "5"}...), []string{"0", "1", "2", "3", "4", "5"}},
+-}
+ 
++	{"make a", append([]string{}, make([]string, 0)...), []string{}},
++	{"make b", append([]string(nil), make([]string, 0)...), []string(nil)},
++
++	{"make c", append([]struct{}{}, make([]struct{}, 0)...), []struct{}{}},
++	{"make d", append([]struct{}{}, make([]struct{}, 2)...), make([]struct{}, 2)},
++
++	{"make e", append([]int{0, 1}, make([]int, 0)...), []int{0, 1}},
++	{"make f", append([]int{0, 1}, make([]int, 2)...), []int{0, 1, 0, 0}},
++
++	{"make g", append([]*int{&zero, &one}, make([]*int, 0)...), []*int{&zero, &one}},
++	{"make h", append([]*int{&zero, &one}, make([]*int, 2)...), []*int{&zero, &one, nil, nil}},
++}
+ 
+ func verifyStruct() {
+ 	type T struct {
+@@ -185,7 +193,6 @@ func verifyStruct() {
+ 	verify("struct m", append(s, e...), r)
+ }
+ 
+-
+ func verifyInterface() {
+ 	type T interface{}
+ 	type S []T
+diff --git a/test/append1.go b/test/append1.go
+index 6d42368e42..0fe24c0956 100644
+--- a/test/append1.go
++++ b/test/append1.go
+@@ -17,4 +17,6 @@ func main() {
+ 	_ = append(s...)       // ERROR "cannot use ... on first argument"
+ 	_ = append(s, 2, s...) // ERROR "too many arguments to append"
+ 
++	_ = append(s, make([]int, 0))     // ERROR "cannot use make.* as type int in append"
++	_ = append(s, make([]int, -1)...) // ERROR "negative len argument in make"
+ }
+diff --git a/test/codegen/slices.go b/test/codegen/slices.go
+index a5fae7426d..15dbcee737 100644
+--- a/test/codegen/slices.go
++++ b/test/codegen/slices.go
+@@ -30,3 +30,34 @@ func SliceClearPointers(s []*int) []*int {
+ 	}
+ 	return s
+ }
++
++// ------------------ //
++//      Extension     //
++// ------------------ //
++
++// Issue #21266 - avoid makeslice in append(x, make([]T, y)...)
++
++func SliceExtensionConst(s []int) []int {
++	// amd64:`.*runtime\.memclrNoHeapPointers`
++	// amd64:-`.*runtime\.makeslice`
++	// amd64:-`.*runtime\.panicmakeslicelen`
++	return append(s, make([]int, 1<<2)...)
++}
++
++func SliceExtensionPointer(s []*int, l int) []*int {
++	// amd64:`.*runtime\.memclrHasPointers`
++	// amd64:-`.*runtime\.makeslice`
++	return append(s, make([]*int, l)...)
++}
++
++func SliceExtensionVar(s []byte, l int) []byte {
++	// amd64:`.*runtime\.memclrNoHeapPointers`
++	// amd64:-`.*runtime\.makeslice`
++	return append(s, make([]byte, l)...)
++}
++
++func SliceExtensionInt64(s []int, l64 int64) []int {
++	// 386:`.*runtime\.makeslice`
++	// 386:-`.*runtime\.memclr`
++	return append(s, make([]int, l64)...)
++}
+diff --git a/test/fixedbugs/issue4085b.go b/test/fixedbugs/issue4085b.go
+index db9a15894b..6bf315fcc2 100644
+--- a/test/fixedbugs/issue4085b.go
++++ b/test/fixedbugs/issue4085b.go
+@@ -34,6 +34,12 @@ func main() {
+ 		shouldPanic("len out of range", func() { _ = make(T, int64(n)) })
+ 		shouldPanic("cap out of range", func() { _ = make(T, 0, int64(n)) })
+ 	}
++
++	// Test make in append panics since the gc compiler optimizes makes in appends.
++	shouldPanic("len out of range", func() { _ = append(T{}, make(T, n)...) })
++	shouldPanic("cap out of range", func() { _ = append(T{}, make(T, 0, n)...) })
++	shouldPanic("len out of range", func() { _ = append(T{}, make(T, int64(n))...) })
++	shouldPanic("cap out of range", func() { _ = append(T{}, make(T, 0, int64(n))...) })
+ }
+ 
+ func shouldPanic(str string, f func()) {

@@ -32,7 +32,7 @@ Date:   Thu Oct 29 01:13:16 2020 -0700
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
     Trust: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/iexport.go   | 40 ++++++++++++++++++++++++++-----
  src/cmd/compile/internal/gc/iimport.go   | 41 +++++++++++++++++++++++++-------
  src/cmd/compile/internal/gc/inl.go       |  4 ----
@@ -42,3 +42,276 @@ Date:   Thu Oct 29 01:13:16 2020 -0700
  test/fixedbugs/issue37837.go             |  7 ++++++
  test/inline.go                           |  3 +--
  8 files changed, 140 insertions(+), 25 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/iexport.go b/src/cmd/compile/internal/gc/iexport.go
+index 9bc1f64600..1f53d8ca7d 100644
+--- a/src/cmd/compile/internal/gc/iexport.go
++++ b/src/cmd/compile/internal/gc/iexport.go
+@@ -1138,13 +1138,10 @@ func (w *exportWriter) stmt(n *Node) {
+ 		w.pos(n.Pos)
+ 		w.stmtList(n.Ninit)
+ 		w.exprsOrNil(n.Left, nil)
+-		w.stmtList(n.List)
++		w.caseList(n)
+ 
+-	case OCASE:
+-		w.op(OCASE)
+-		w.pos(n.Pos)
+-		w.stmtList(n.List)
+-		w.stmtList(n.Nbody)
++	// case OCASE:
++	//	handled by caseList
+ 
+ 	case OFALL:
+ 		w.op(OFALL)
+@@ -1168,6 +1165,24 @@ func (w *exportWriter) stmt(n *Node) {
+ 	}
+ }
+ 
++func (w *exportWriter) caseList(sw *Node) {
++	namedTypeSwitch := sw.Op == OSWITCH && sw.Left != nil && sw.Left.Op == OTYPESW && sw.Left.Left != nil
++
++	cases := sw.List.Slice()
++	w.uint64(uint64(len(cases)))
++	for _, cas := range cases {
++		if cas.Op != OCASE {
++			Fatalf("expected OCASE, got %v", cas)
++		}
++		w.pos(cas.Pos)
++		w.stmtList(cas.List)
++		if namedTypeSwitch {
++			w.localName(cas.Rlist.First())
++		}
++		w.stmtList(cas.Nbody)
++	}
++}
++
+ func (w *exportWriter) exprList(list Nodes) {
+ 	for _, n := range list.Slice() {
+ 		w.expr(n)
+@@ -1232,6 +1247,19 @@ func (w *exportWriter) expr(n *Node) {
+ 		w.op(OTYPE)
+ 		w.typ(n.Type)
+ 
++	case OTYPESW:
++		w.op(OTYPESW)
++		w.pos(n.Pos)
++		var s *types.Sym
++		if n.Left != nil {
++			if n.Left.Op != ONONAME {
++				Fatalf("expected ONONAME, got %v", n.Left)
++			}
++			s = n.Left.Sym
++		}
++		w.localIdent(s, 0) // declared pseudo-variable, if any
++		w.exprsOrNil(n.Right, nil)
++
+ 	// case OTARRAY, OTMAP, OTCHAN, OTSTRUCT, OTINTER, OTFUNC:
+ 	// 	should have been resolved by typechecking - handled by default case
+ 
+diff --git a/src/cmd/compile/internal/gc/iimport.go b/src/cmd/compile/internal/gc/iimport.go
+index 7f2b05f288..c0114d0e53 100644
+--- a/src/cmd/compile/internal/gc/iimport.go
++++ b/src/cmd/compile/internal/gc/iimport.go
+@@ -784,6 +784,28 @@ func (r *importReader) stmtList() []*Node {
+ 	return list
+ }
+ 
++func (r *importReader) caseList(sw *Node) []*Node {
++	namedTypeSwitch := sw.Op == OSWITCH && sw.Left != nil && sw.Left.Op == OTYPESW && sw.Left.Left != nil
++
++	cases := make([]*Node, r.uint64())
++	for i := range cases {
++		cas := nodl(r.pos(), OCASE, nil, nil)
++		cas.List.Set(r.stmtList())
++		if namedTypeSwitch {
++			// Note: per-case variables will have distinct, dotted
++			// names after import. That's okay: swt.go only needs
++			// Sym for diagnostics anyway.
++			caseVar := newnamel(cas.Pos, r.ident())
++			declare(caseVar, dclcontext)
++			cas.Rlist.Set1(caseVar)
++			caseVar.Name.Defn = sw.Left
++		}
++		cas.Nbody.Set(r.stmtList())
++		cases[i] = cas
++	}
++	return cases
++}
++
+ func (r *importReader) exprList() []*Node {
+ 	var list []*Node
+ 	for {
+@@ -831,6 +853,14 @@ func (r *importReader) node() *Node {
+ 	case OTYPE:
+ 		return typenod(r.typ())
+ 
++	case OTYPESW:
++		n := nodl(r.pos(), OTYPESW, nil, nil)
++		if s := r.ident(); s != nil {
++			n.Left = npos(n.Pos, newnoname(s))
++		}
++		n.Right, _ = r.exprsOrNil()
++		return n
++
+ 	// case OTARRAY, OTMAP, OTCHAN, OTSTRUCT, OTINTER, OTFUNC:
+ 	//      unreachable - should have been resolved by typechecking
+ 
+@@ -1025,16 +1055,11 @@ func (r *importReader) node() *Node {
+ 		n := nodl(r.pos(), op, nil, nil)
+ 		n.Ninit.Set(r.stmtList())
+ 		n.Left, _ = r.exprsOrNil()
+-		n.List.Set(r.stmtList())
++		n.List.Set(r.caseList(n))
+ 		return n
+ 
+-	case OCASE:
+-		n := nodl(r.pos(), OCASE, nil, nil)
+-		n.List.Set(r.exprList())
+-		// TODO(gri) eventually we must declare variables for type switch
+-		// statements (type switch statements are not yet exported)
+-		n.Nbody.Set(r.stmtList())
+-		return n
++	// case OCASE:
++	//	handled by caseList
+ 
+ 	case OFALL:
+ 		n := nodl(r.pos(), OFALL, nil, nil)
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index 253036fea6..139572f652 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -392,13 +392,9 @@ func (v *hairyVisitor) visit(n *Node) bool {
+ 		v.reason = "call to recover"
+ 		return true
+ 
+-	case OCALLPART:
+-		// OCALLPART is inlineable, but no extra cost to the budget
+-
+ 	case OCLOSURE,
+ 		ORANGE,
+ 		OSELECT,
+-		OTYPESW,
+ 		OGO,
+ 		ODEFER,
+ 		ODCLTYPE, // can't print yet
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 8ebeaf1330..cbba5ff79c 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -2065,11 +2065,6 @@ func typecheck1(n *Node, top int) (res *Node) {
+ 		n.Type = nil
+ 		return n
+ 
+-	case OCASE:
+-		ok |= ctxStmt
+-		typecheckslice(n.List.Slice(), ctxExpr)
+-		typecheckslice(n.Nbody.Slice(), ctxStmt)
+-
+ 	case ODCLFUNC:
+ 		ok |= ctxStmt
+ 		typecheckfunc(n)
+diff --git a/test/fixedbugs/issue37837.dir/a.go b/test/fixedbugs/issue37837.dir/a.go
+new file mode 100644
+index 0000000000..49d830ffbc
+--- /dev/null
++++ b/test/fixedbugs/issue37837.dir/a.go
+@@ -0,0 +1,33 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++func F(i interface{}) int { // ERROR "can inline F" "i does not escape"
++	switch i.(type) {
++	case nil:
++		return 0
++	case int:
++		return 1
++	case float64:
++		return 2
++	default:
++		return 3
++	}
++}
++
++func G(i interface{}) interface{} { // ERROR "can inline G" "leaking param: i"
++	switch i := i.(type) {
++	case nil: // ERROR "moved to heap: i"
++		return &i
++	case int: // ERROR "moved to heap: i"
++		return &i
++	case float64: // ERROR "moved to heap: i"
++		return &i
++	case string, []byte: // ERROR "moved to heap: i"
++		return &i
++	default: // ERROR "moved to heap: i"
++		return &i
++	}
++}
+diff --git a/test/fixedbugs/issue37837.dir/b.go b/test/fixedbugs/issue37837.dir/b.go
+new file mode 100644
+index 0000000000..461f5c7a55
+--- /dev/null
++++ b/test/fixedbugs/issue37837.dir/b.go
+@@ -0,0 +1,32 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "./a"
++
++func main() {
++	// Test that inlined type switches without short variable
++	// declarations work correctly.
++	check(0, a.F(nil)) // ERROR "inlining call to a.F"
++	check(1, a.F(0))   // ERROR "inlining call to a.F" "does not escape"
++	check(2, a.F(0.0)) // ERROR "inlining call to a.F" "does not escape"
++	check(3, a.F(""))  // ERROR "inlining call to a.F" "does not escape"
++
++	// Test that inlined type switches with short variable
++	// declarations work correctly.
++	_ = a.G(nil).(*interface{})                       // ERROR "inlining call to a.G"
++	_ = a.G(1).(*int)                                 // ERROR "inlining call to a.G" "does not escape"
++	_ = a.G(2.0).(*float64)                           // ERROR "inlining call to a.G" "does not escape"
++	_ = (*a.G("").(*interface{})).(string)            // ERROR "inlining call to a.G" "does not escape"
++	_ = (*a.G(([]byte)(nil)).(*interface{})).([]byte) // ERROR "inlining call to a.G" "does not escape"
++	_ = (*a.G(true).(*interface{})).(bool)            // ERROR "inlining call to a.G" "does not escape"
++}
++
++//go:noinline
++func check(want, got int) {
++	if want != got {
++		println("want", want, "but got", got)
++	}
++}
+diff --git a/test/fixedbugs/issue37837.go b/test/fixedbugs/issue37837.go
+new file mode 100644
+index 0000000000..2e8abc5f05
+--- /dev/null
++++ b/test/fixedbugs/issue37837.go
+@@ -0,0 +1,7 @@
++// errorcheckandrundir -0 -m
++
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ignored
+diff --git a/test/inline.go b/test/inline.go
+index 470414f883..d754f06e03 100644
+--- a/test/inline.go
++++ b/test/inline.go
+@@ -152,8 +152,7 @@ func switchBreak(x, y int) int {
+ 	return n
+ }
+ 
+-// can't currently inline functions with a type switch
+-func switchType(x interface{}) int { // ERROR "x does not escape"
++func switchType(x interface{}) int { // ERROR "can inline switchType" "x does not escape"
+ 	switch x.(type) {
+ 	case int:
+ 		return x.(int)

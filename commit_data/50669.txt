@@ -25,6 +25,26 @@ Date:   Mon Sep 27 14:40:06 2021 -0400
     Run-TryBot: Filippo Valsorda <filippo@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Roland Shoemaker <roland@golang.org>
-
+---
  src/crypto/ecdsa/ecdsa.go | 8 ++------
  1 file changed, 2 insertions(+), 6 deletions(-)
+
+diff --git a/src/crypto/ecdsa/ecdsa.go b/src/crypto/ecdsa/ecdsa.go
+index 219436935f..282596d2d2 100644
+--- a/src/crypto/ecdsa/ecdsa.go
++++ b/src/crypto/ecdsa/ecdsa.go
+@@ -200,12 +200,8 @@ var errZeroParam = errors.New("zero parameter")
+ func Sign(rand io.Reader, priv *PrivateKey, hash []byte) (r, s *big.Int, err error) {
+ 	randutil.MaybeReadByte(rand)
+ 
+-	// Get min(log2(q) / 2, 256) bits of entropy from rand.
+-	entropylen := (priv.Curve.Params().BitSize + 7) / 16
+-	if entropylen > 32 {
+-		entropylen = 32
+-	}
+-	entropy := make([]byte, entropylen)
++	// Get 256 bits of entropy from rand.
++	entropy := make([]byte, 32)
+ 	_, err = io.ReadFull(rand, entropy)
+ 	if err != nil {
+ 		return

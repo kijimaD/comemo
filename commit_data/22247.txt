@@ -8,7 +8,48 @@ Date:   Mon Mar 2 04:14:49 2015 -0500
     Reviewed-on: https://go-review.googlesource.com/6452
     Reviewed-by: Keith Randall <khr@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/env_plan9.go | 9 ---------
  src/runtime/env_posix.go | 9 ---------
  2 files changed, 18 deletions(-)
+
+diff --git a/src/runtime/env_plan9.go b/src/runtime/env_plan9.go
+index ec50cac484..b988020d9c 100644
+--- a/src/runtime/env_plan9.go
++++ b/src/runtime/env_plan9.go
+@@ -6,15 +6,6 @@ package runtime
+ 
+ import "unsafe"
+ 
+-func getenv(s *byte) *byte {
+-	val := gogetenv(gostringnocopy(s))
+-	if val == "" {
+-		return nil
+-	}
+-	// Strings found in environment are NUL-terminated.
+-	return &bytes(val)[0]
+-}
+-
+ var tracebackbuf [128]byte
+ 
+ func gogetenv(key string) string {
+diff --git a/src/runtime/env_posix.go b/src/runtime/env_posix.go
+index b6567d39f4..5e49287421 100644
+--- a/src/runtime/env_posix.go
++++ b/src/runtime/env_posix.go
+@@ -8,15 +8,6 @@ package runtime
+ 
+ import "unsafe"
+ 
+-func getenv(s *byte) *byte {
+-	val := gogetenv(gostringnocopy(s))
+-	if val == "" {
+-		return nil
+-	}
+-	// Strings found in environment are NUL-terminated.
+-	return &bytes(val)[0]
+-}
+-
+ func gogetenv(key string) string {
+ 	env := environ()
+ 	if env == nil {

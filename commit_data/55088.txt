@@ -21,9 +21,56 @@ Date:   Tue Dec 20 17:19:09 2022 -0500
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/runtime/race/internal/amd64v1/doc.go | 2 ++
  src/runtime/race/internal/amd64v3/doc.go | 2 ++
  src/runtime/race/race_v1_amd64.go        | 1 -
  src/runtime/race/race_v3_amd64.go        | 1 -
  4 files changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/race/internal/amd64v1/doc.go b/src/runtime/race/internal/amd64v1/doc.go
+index 130b290bdb..ccb088cc46 100644
+--- a/src/runtime/race/internal/amd64v1/doc.go
++++ b/src/runtime/race/internal/amd64v1/doc.go
+@@ -5,4 +5,6 @@
+ // This package holds the race detector .syso for
+ // amd64 architectures with GOAMD64<v3.
+ 
++//go:build amd64 && ((linux && !amd64.v3) || darwin || freebsd || netbsd || openbsd || windows)
++
+ package amd64v1
+diff --git a/src/runtime/race/internal/amd64v3/doc.go b/src/runtime/race/internal/amd64v3/doc.go
+index 6983335281..215998a90c 100644
+--- a/src/runtime/race/internal/amd64v3/doc.go
++++ b/src/runtime/race/internal/amd64v3/doc.go
+@@ -5,4 +5,6 @@
+ // This package holds the race detector .syso for
+ // amd64 architectures with GOAMD64>=v3.
+ 
++//go:build amd64 && linux && amd64.v3
++
+ package amd64v3
+diff --git a/src/runtime/race/race_v1_amd64.go b/src/runtime/race/race_v1_amd64.go
+index b8a20315fd..7c40db1dcf 100644
+--- a/src/runtime/race/race_v1_amd64.go
++++ b/src/runtime/race/race_v1_amd64.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build (linux && !amd64.v3) || darwin || freebsd || netbsd || openbsd || windows
+-// +build linux,!amd64.v3 darwin freebsd netbsd openbsd windows
+ 
+ package race
+ 
+diff --git a/src/runtime/race/race_v3_amd64.go b/src/runtime/race/race_v3_amd64.go
+index 913bb77f48..80728d834a 100644
+--- a/src/runtime/race/race_v3_amd64.go
++++ b/src/runtime/race/race_v3_amd64.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build linux && amd64.v3
+-// +build linux,amd64.v3
+ 
+ package race
+ 

@@ -7,7 +7,34 @@ Date:   Thu Nov 8 23:25:48 2012 +0800
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/6818106
-
+---
  src/pkg/time/sleep.go | 2 ++
  src/pkg/time/tick.go  | 2 ++
  2 files changed, 4 insertions(+)
+
+diff --git a/src/pkg/time/sleep.go b/src/pkg/time/sleep.go
+index 27820b0eaa..657e254103 100644
+--- a/src/pkg/time/sleep.go
++++ b/src/pkg/time/sleep.go
+@@ -36,6 +36,8 @@ type Timer struct {
+ // Stop prevents the Timer from firing.
+ // It returns true if the call stops the timer, false if the timer has already
+ // expired or stopped.
++// Stop does not close the channel, to prevent a read from the channel succeeding
++// incorrectly.
+ func (t *Timer) Stop() (ok bool) {
+ 	return stopTimer(&t.r)
+ }
+diff --git a/src/pkg/time/tick.go b/src/pkg/time/tick.go
+index 8e43559048..b92c339c02 100644
+--- a/src/pkg/time/tick.go
++++ b/src/pkg/time/tick.go
+@@ -39,6 +39,8 @@ func NewTicker(d Duration) *Ticker {
+ }
+ 
+ // Stop turns off a ticker.  After Stop, no more ticks will be sent.
++// Stop does not close the channel, to prevent a read from the channel succeeding
++// incorrectly.
+ func (t *Ticker) Stop() {
+ 	stopTimer(&t.r)
+ }

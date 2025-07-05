@@ -8,7 +8,34 @@ Date:   Mon Dec 7 22:01:59 2009 -0800
     
     R=ken2
     https://golang.org/cl/165086
-
+---
  src/cmd/6l/list.c | 2 +-
  src/cmd/8l/list.c | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/6l/list.c b/src/cmd/6l/list.c
+index 34b66c0c80..ecb189b83a 100644
+--- a/src/cmd/6l/list.c
++++ b/src/cmd/6l/list.c
+@@ -361,7 +361,7 @@ int
+ Sconv(Fmt *fp)
+ {
+ 	int i, c;
+-	char str[30], *p, *a;
++	char str[100], *p, *a;
+ 
+ 	a = va_arg(fp->args, char*);
+ 	p = str;
+diff --git a/src/cmd/8l/list.c b/src/cmd/8l/list.c
+index ec6a1fa0fb..8736ac88bf 100644
+--- a/src/cmd/8l/list.c
++++ b/src/cmd/8l/list.c
+@@ -275,7 +275,7 @@ int
+ Sconv(Fmt *fp)
+ {
+ 	int i, c;
+-	char str[30], *p, *a;
++	char str[100], *p, *a;
+ 
+ 	a = va_arg(fp->args, char*);
+ 	p = str;

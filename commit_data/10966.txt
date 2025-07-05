@@ -9,7 +9,126 @@ Date:   Thu Dec 22 10:21:59 2011 -0500
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/5504071
-
+---
  misc/dashboard/app/build/handler.go | 15 +++++-----
  misc/dashboard/app/build/key.go     | 60 ++++++++++++++++++++++++++++++++-----
  2 files changed, 61 insertions(+), 14 deletions(-)
+
+diff --git a/misc/dashboard/app/build/handler.go b/misc/dashboard/app/build/handler.go
+index dd32365f88..eba8d0eaf6 100644
+--- a/misc/dashboard/app/build/handler.go
++++ b/misc/dashboard/app/build/handler.go
+@@ -322,7 +322,7 @@ func AuthHandler(h dashHandler) http.HandlerFunc {
+ 		// Validate key query parameter for POST requests only.
+ 		key := r.FormValue("key")
+ 		builder := r.FormValue("builder")
+-		if r.Method == "POST" && !validKey(key, builder) {
++		if r.Method == "POST" && !validKey(c, key, builder) {
+ 			err = os.NewError("invalid key: " + key)
+ 		}
+ 
+@@ -368,7 +368,8 @@ func keyHandler(w http.ResponseWriter, r *http.Request) {
+ 		logErr(w, r, os.NewError("must supply builder in query string"))
+ 		return
+ 	}
+-	fmt.Fprint(w, builderKey(builder))
++	c := appengine.NewContext(r)
++	fmt.Fprint(w, builderKey(c, builder))
+ }
+ 
+ func init() {
+@@ -392,18 +393,18 @@ func validHash(hash string) bool {
+ 	return hash != ""
+ }
+ 
+-func validKey(key, builder string) bool {
++func validKey(c appengine.Context, key, builder string) bool {
+ 	if appengine.IsDevAppServer() {
+ 		return true
+ 	}
+-	if key == secretKey {
++	if key == secretKey(c) {
+ 		return true
+ 	}
+-	return key == builderKey(builder)
++	return key == builderKey(c, builder)
+ }
+ 
+-func builderKey(builder string) string {
+-	h := hmac.NewMD5([]byte(secretKey))
++func builderKey(c appengine.Context, builder string) string {
++	h := hmac.NewMD5([]byte(secretKey(c)))
+ 	h.Write([]byte(builder))
+ 	return fmt.Sprintf("%x", h.Sum())
+ }
+diff --git a/misc/dashboard/app/build/key.go b/misc/dashboard/app/build/key.go
+index d31bef9da0..5306c3b6bd 100644
+--- a/misc/dashboard/app/build/key.go
++++ b/misc/dashboard/app/build/key.go
+@@ -4,13 +4,59 @@
+ 
+ package build
+ 
+-import "appengine"
++import (
++	"sync"
+ 
+-// Delete this init function before deploying to production.
+-func init() {
+-	if !appengine.IsDevAppServer() {
+-		panic("please read misc/dashboard/app/build/key.go")
+-	}
++	"appengine"
++	"appengine/datastore"
++)
++
++var theKey struct {
++	sync.RWMutex
++	BuilderKey
++}
++
++type BuilderKey struct {
++	Secret string
+ }
+ 
+-const secretKey = "" // Important! Put a secret here before deploying!
++func (k *BuilderKey) Key(c appengine.Context) *datastore.Key {
++	return datastore.NewKey(c, "BuilderKey", "root", 0, nil)
++}
++
++func secretKey(c appengine.Context) string {
++	// check with rlock
++	theKey.RLock()
++	k := theKey.Secret
++	theKey.RUnlock()
++	if k != "" {
++		return k
++	}
++
++	// prepare to fill; check with lock and keep lock
++	theKey.Lock()
++	defer theKey.Unlock()
++	if theKey.Secret != "" {
++		return theKey.Secret
++	}
++
++	// fill
++	if err := datastore.Get(c, theKey.Key(c), &theKey.BuilderKey); err != nil {
++		if err == datastore.ErrNoSuchEntity {
++			// If the key is not stored in datastore, write it.
++			// This only happens at the beginning of a new deployment.
++			// The code is left here for SDK use and in case a fresh
++			// deployment is ever needed.  "gophers rule" is not the
++			// real key.
++			if !appengine.IsDevAppServer() {
++				panic("lost key from datastore")
++			}
++			theKey.Secret = "gophers rule"
++			datastore.Put(c, theKey.Key(c), &theKey.BuilderKey)
++			return theKey.Secret
++		}
++		panic("cannot load builder key: " + err.String())
++	}
++
++	return theKey.Secret
++}

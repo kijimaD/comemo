@@ -11,10 +11,142 @@ Date:   Tue Jul 14 13:20:08 2015 -0700
     Change-Id: I3d0640f654f01307633b1a5f75bab16e211ea6c0
     Reviewed-on: https://go-review.googlesource.com/12178
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/gc/ssa.go           |  2 ++
  src/cmd/compile/internal/ssa/TODO            |  1 -
  src/cmd/compile/internal/ssa/gen/AMD64.rules |  4 ++--
  src/cmd/compile/internal/ssa/rewriteAMD64.go | 20 ++++++++++++--------
  src/cmd/compile/internal/ssa/stackalloc.go   | 16 ++++++++++------
  5 files changed, 26 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 96351def6e..2dad3e1a10 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -626,6 +626,8 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 			entry := s.newValue2(ssa.OpLoad, s.config.Uintptr, closure, s.mem())
+ 			call = s.newValue3(ssa.OpClosureCall, ssa.TypeMem, entry, closure, s.mem())
+ 		}
++		dowidth(n.Left.Type)
++		call.AuxInt = n.Left.Type.Argwid // call operations carry the argsize of the callee along with them
+ 		b := s.endBlock()
+ 		b.Kind = ssa.BlockCall
+ 		b.Control = call
+diff --git a/src/cmd/compile/internal/ssa/TODO b/src/cmd/compile/internal/ssa/TODO
+index 340c905654..cfaf520510 100644
+--- a/src/cmd/compile/internal/ssa/TODO
++++ b/src/cmd/compile/internal/ssa/TODO
+@@ -29,7 +29,6 @@ Regalloc
+  - Make calls clobber all registers
+ 
+ StackAlloc:
+- - Compute size of outargs section correctly
+  - Sort variables so all ptr-containing ones are first (so stack
+    maps are smaller)
+  - Reuse stack slots for noninterfering and type-compatible variables
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index 6882621f71..47e1fb9c6a 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -88,8 +88,8 @@
+ (If (SETB cmp) yes no) -> (ULT cmp yes no)
+ (If cond yes no) && cond.Op == OpAMD64MOVBload -> (NE (TESTB <TypeFlags> cond cond) yes no)
+ 
+-(StaticCall {target} mem) -> (CALLstatic {target} mem)
+-(ClosureCall entry closure mem) -> (CALLclosure entry closure mem)
++(StaticCall [argwid] {target} mem) -> (CALLstatic [argwid] {target} mem)
++(ClosureCall [argwid] entry closure mem) -> (CALLclosure [argwid] entry closure mem)
+ 
+ // Rules below here apply some simple optimizations after lowering.
+ // TODO: Should this be a separate pass?
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 7393cd9a89..7e892c3844 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -460,10 +460,11 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 	endf8ca12fe79290bc82b11cfa463bc9413:
+ 		;
+ 	case OpClosureCall:
+-		// match: (ClosureCall entry closure mem)
++		// match: (ClosureCall [argwid] entry closure mem)
+ 		// cond:
+-		// result: (CALLclosure entry closure mem)
++		// result: (CALLclosure [argwid] entry closure mem)
+ 		{
++			argwid := v.AuxInt
+ 			entry := v.Args[0]
+ 			closure := v.Args[1]
+ 			mem := v.Args[2]
+@@ -471,13 +472,14 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 			v.AuxInt = 0
+ 			v.Aux = nil
+ 			v.resetArgs()
++			v.AuxInt = argwid
+ 			v.AddArg(entry)
+ 			v.AddArg(closure)
+ 			v.AddArg(mem)
+ 			return true
+ 		}
+-		goto endee26da781e813a3c602ccb4f7ade98c7
+-	endee26da781e813a3c602ccb4f7ade98c7:
++		goto endfd75d26316012d86cb71d0dd1214259b
++	endfd75d26316012d86cb71d0dd1214259b:
+ 		;
+ 	case OpConst:
+ 		// match: (Const <t> [val])
+@@ -1611,22 +1613,24 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 	end78e66b6fc298684ff4ac8aec5ce873c9:
+ 		;
+ 	case OpStaticCall:
+-		// match: (StaticCall {target} mem)
++		// match: (StaticCall [argwid] {target} mem)
+ 		// cond:
+-		// result: (CALLstatic {target} mem)
++		// result: (CALLstatic [argwid] {target} mem)
+ 		{
++			argwid := v.AuxInt
+ 			target := v.Aux
+ 			mem := v.Args[0]
+ 			v.Op = OpAMD64CALLstatic
+ 			v.AuxInt = 0
+ 			v.Aux = nil
+ 			v.resetArgs()
++			v.AuxInt = argwid
+ 			v.Aux = target
+ 			v.AddArg(mem)
+ 			return true
+ 		}
+-		goto end1948857a7cfc2a4f905045e58d3b9ec1
+-	end1948857a7cfc2a4f905045e58d3b9ec1:
++		goto end32c5cbec813d1c2ae94fc9b1090e4b2a
++	end32c5cbec813d1c2ae94fc9b1090e4b2a:
+ 		;
+ 	case OpStore:
+ 		// match: (Store ptr val mem)
+diff --git a/src/cmd/compile/internal/ssa/stackalloc.go b/src/cmd/compile/internal/ssa/stackalloc.go
+index 85a55ece7c..0bd64a1a14 100644
+--- a/src/cmd/compile/internal/ssa/stackalloc.go
++++ b/src/cmd/compile/internal/ssa/stackalloc.go
+@@ -9,12 +9,16 @@ package ssa
+ func stackalloc(f *Func) {
+ 	home := f.RegAlloc
+ 
+-	// First compute the size of the outargs section.
+-	n := int64(16) //TODO: compute max of all callsites
+-
+-	// Include one slot for deferreturn.
+-	if false && n < f.Config.ptrSize { //TODO: check for deferreturn
+-		n = f.Config.ptrSize
++	// Start with space for callee arguments/returns.
++	var n int64
++	for _, b := range f.Blocks {
++		if b.Kind != BlockCall {
++			continue
++		}
++		v := b.Control
++		if n < v.AuxInt {
++			n = v.AuxInt
++		}
+ 	}
+ 
+ 	// TODO: group variables by ptr/nonptr, size, etc.  Emit ptr vars last

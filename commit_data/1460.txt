@@ -8,6 +8,21 @@ Date:   Fri Jan 9 16:22:13 2009 -0800
     DELTA=3  (3 added, 0 deleted, 0 changed)
     OCL=22467
     CL=22471
-
+---
  src/runtime/malloc.c | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/runtime/malloc.c b/src/runtime/malloc.c
+index 744e1222b7..1d3c8b958b 100644
+--- a/src/runtime/malloc.c
++++ b/src/runtime/malloc.c
+@@ -68,6 +68,9 @@ free(void *v)
+ 	MSpan *s;
+ 	MCache *c;
+ 
++	if(v == nil)
++		return;
++
+ 	// Find size class for v.
+ 	page = (uintptr)v >> PageShift;
+ 	sizeclass = MHeapMapCache_GET(&mheap.mapcache, page, tmp);

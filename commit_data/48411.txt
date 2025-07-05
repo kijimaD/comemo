@@ -41,7 +41,7 @@ Date:   Sat May 15 18:46:05 2021 -0700
     Trust: Katie Hockman <katie@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Katie Hockman <katie@golang.org>
-
+---
  src/internal/fuzz/coverage.go         | 26 ++++++++++++++------------
  src/internal/fuzz/fuzz.go             |  6 +++---
  src/internal/fuzz/worker.go           | 16 +++++-----------
@@ -49,3 +49,202 @@ Date:   Sat May 15 18:46:05 2021 -0700
  src/testing/internal/testdeps/deps.go |  8 ++++++++
  src/testing/testing.go                |  4 ++++
  6 files changed, 46 insertions(+), 30 deletions(-)
+
+diff --git a/src/internal/fuzz/coverage.go b/src/internal/fuzz/coverage.go
+index e039d68d9a..316aa14783 100644
+--- a/src/internal/fuzz/coverage.go
++++ b/src/internal/fuzz/coverage.go
+@@ -26,25 +26,27 @@ func coverage() []byte {
+ 	return res
+ }
+ 
+-// coverageCopy returns a copy of the current bytes provided by coverage().
+-// TODO(jayconrod,katiehockman): consider using a shared buffer instead, to
+-// make fewer costly allocations.
+-func coverageCopy() []byte {
+-	cov := coverage()
+-	ret := make([]byte, len(cov))
+-	copy(ret, cov)
+-	return ret
+-}
+-
+-// resetCovereage sets all of the counters for each edge of the instrumented
++// ResetCovereage sets all of the counters for each edge of the instrumented
+ // source code to 0.
+-func resetCoverage() {
++func ResetCoverage() {
+ 	cov := coverage()
+ 	for i := range cov {
+ 		cov[i] = 0
+ 	}
+ }
+ 
++// SnapshotCoverage copies the current counter values into coverageSnapshot,
++// preserving them for later inspection.
++func SnapshotCoverage() {
++	cov := coverage()
++	if coverageSnapshot == nil {
++		coverageSnapshot = make([]byte, len(cov))
++	}
++	copy(coverageSnapshot, cov)
++}
++
++var coverageSnapshot []byte
++
+ // _counters and _ecounters mark the start and end, respectively, of where
+ // the 8-bit coverage counters reside in memory. They're known to cmd/link,
+ // which specially assigns their addresses for this purpose.
+diff --git a/src/internal/fuzz/fuzz.go b/src/internal/fuzz/fuzz.go
+index b4145f58dc..3bb2da872c 100644
+--- a/src/internal/fuzz/fuzz.go
++++ b/src/internal/fuzz/fuzz.go
+@@ -439,13 +439,13 @@ func newCoordinator(opts CoordinateFuzzingOpts) (*coordinator, error) {
+ 		covOnlyInputs: covOnlyInputs,
+ 	}
+ 
+-	cov := coverageCopy()
+-	if len(cov) == 0 {
++	covSize := len(coverage())
++	if covSize == 0 {
+ 		fmt.Fprintf(c.opts.Log, "warning: coverage-guided fuzzing is not supported on this platform\n")
+ 		c.covOnlyInputs = 0
+ 	} else {
+ 		// Set c.coverageData to a clean []byte full of zeros.
+-		c.coverageData = make([]byte, len(cov))
++		c.coverageData = make([]byte, covSize)
+ 	}
+ 
+ 	if c.covOnlyInputs > 0 {
+diff --git a/src/internal/fuzz/worker.go b/src/internal/fuzz/worker.go
+index 61d3226b30..15b1f89daa 100644
+--- a/src/internal/fuzz/worker.go
++++ b/src/internal/fuzz/worker.go
+@@ -615,15 +615,12 @@ func (ws *workerServer) fuzz(ctx context.Context, args fuzzArgs) (resp fuzzRespo
+ 	}
+ 
+ 	if args.CoverageOnly {
+-		// Reset the coverage each time before running the fuzzFn.
+-		resetCoverage()
+ 		ws.fuzzFn(CorpusEntry{Values: vals})
+-		resp.CoverageData = coverageCopy()
++		resp.CoverageData = coverageSnapshot
+ 		return resp
+ 	}
+ 
+-	cov := coverage()
+-	if len(cov) != len(ws.coverageData) {
++	if cov := coverage(); len(cov) != len(ws.coverageData) {
+ 		panic(fmt.Sprintf("num edges changed at runtime: %d, expected %d", len(cov), len(ws.coverageData)))
+ 	}
+ 	for {
+@@ -635,7 +632,6 @@ func (ws *workerServer) fuzz(ctx context.Context, args fuzzArgs) (resp fuzzRespo
+ 			resp.Count++
+ 			ws.m.mutate(vals, cap(mem.valueRef()))
+ 			writeToMem(vals, mem)
+-			resetCoverage()
+ 			if err := ws.fuzzFn(CorpusEntry{Values: vals}); err != nil {
+ 				// TODO(jayconrod,katiehockman): consider making the maximum
+ 				// minimization time customizable with a go command flag.
+@@ -651,12 +647,10 @@ func (ws *workerServer) fuzz(ctx context.Context, args fuzzArgs) (resp fuzzRespo
+ 				}
+ 				return resp
+ 			}
+-			for i := range cov {
+-				if ws.coverageData[i] == 0 && cov[i] > ws.coverageData[i] {
++			for i := range coverageSnapshot {
++				if ws.coverageData[i] == 0 && coverageSnapshot[i] > ws.coverageData[i] {
+ 					// TODO(jayconrod,katie): minimize this.
+-					// This run hit a new edge. Only allocate a new slice as a
+-					// copy of cov if we are returning, since it is expensive.
+-					resp.CoverageData = coverageCopy()
++					resp.CoverageData = coverageSnapshot
+ 					return resp
+ 				}
+ 			}
+diff --git a/src/testing/fuzz.go b/src/testing/fuzz.go
+index 7afd24d258..d81796b4fc 100644
+--- a/src/testing/fuzz.go
++++ b/src/testing/fuzz.go
+@@ -338,7 +338,9 @@ func (f *F) Fuzz(ff interface{}) {
+ 			for _, v := range e.Values {
+ 				args = append(args, reflect.ValueOf(v))
+ 			}
++			f.fuzzContext.resetCoverage()
+ 			fn.Call(args)
++			f.fuzzContext.snapshotCoverage()
+ 		})
+ 		<-t.signal
+ 		f.inFuzzFn = false
+@@ -452,6 +454,8 @@ type fuzzContext struct {
+ 	coordinateFuzzing func(time.Duration, int64, int, []corpusEntry, []reflect.Type, string, string) error
+ 	runFuzzWorker     func(func(corpusEntry) error) error
+ 	readCorpus        func(string, []reflect.Type) ([]corpusEntry, error)
++	resetCoverage     func()
++	snapshotCoverage  func()
+ }
+ 
+ // runFuzzTargets runs the fuzz targets matching the pattern for -run. This will
+@@ -465,8 +469,10 @@ func runFuzzTargets(deps testDeps, fuzzTargets []InternalFuzzTarget) (ran, ok bo
+ 	m := newMatcher(deps.MatchString, *match, "-test.run")
+ 	tctx := newTestContext(*parallel, m)
+ 	fctx := &fuzzContext{
+-		importPath: deps.ImportPath,
+-		readCorpus: deps.ReadCorpus,
++		importPath:       deps.ImportPath,
++		readCorpus:       deps.ReadCorpus,
++		resetCoverage:    deps.ResetCoverage,
++		snapshotCoverage: deps.SnapshotCoverage,
+ 	}
+ 	root := common{w: os.Stdout} // gather output in one place
+ 	if Verbose() {
+@@ -519,8 +525,10 @@ func runFuzzing(deps testDeps, fuzzTargets []InternalFuzzTarget) (ran, ok bool)
+ 	m := newMatcher(deps.MatchString, *matchFuzz, "-test.fuzz")
+ 	tctx := newTestContext(1, m)
+ 	fctx := &fuzzContext{
+-		importPath: deps.ImportPath,
+-		readCorpus: deps.ReadCorpus,
++		importPath:       deps.ImportPath,
++		readCorpus:       deps.ReadCorpus,
++		resetCoverage:    deps.ResetCoverage,
++		snapshotCoverage: deps.SnapshotCoverage,
+ 	}
+ 	if *isFuzzWorker {
+ 		fctx.runFuzzWorker = deps.RunFuzzWorker
+diff --git a/src/testing/internal/testdeps/deps.go b/src/testing/internal/testdeps/deps.go
+index b9c110100f..24ef7c4d62 100644
+--- a/src/testing/internal/testdeps/deps.go
++++ b/src/testing/internal/testdeps/deps.go
+@@ -174,3 +174,11 @@ func (TestDeps) RunFuzzWorker(fn func(fuzz.CorpusEntry) error) error {
+ func (TestDeps) ReadCorpus(dir string, types []reflect.Type) ([]fuzz.CorpusEntry, error) {
+ 	return fuzz.ReadCorpus(dir, types)
+ }
++
++func (TestDeps) ResetCoverage() {
++	fuzz.ResetCoverage()
++}
++
++func (TestDeps) SnapshotCoverage() {
++	fuzz.SnapshotCoverage()
++}
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index 1877ce3ba4..63dcc62597 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -1397,6 +1397,8 @@ func (f matchStringOnly) RunFuzzWorker(func(corpusEntry) error) error { return e
+ func (f matchStringOnly) ReadCorpus(string, []reflect.Type) ([]corpusEntry, error) {
+ 	return nil, errMain
+ }
++func (f matchStringOnly) ResetCoverage()    {}
++func (f matchStringOnly) SnapshotCoverage() {}
+ 
+ // Main is an internal function, part of the implementation of the "go test" command.
+ // It was exported because it is cross-package and predates "internal" packages.
+@@ -1442,6 +1444,8 @@ type testDeps interface {
+ 	CoordinateFuzzing(time.Duration, int64, int, []corpusEntry, []reflect.Type, string, string) error
+ 	RunFuzzWorker(func(corpusEntry) error) error
+ 	ReadCorpus(string, []reflect.Type) ([]corpusEntry, error)
++	ResetCoverage()
++	SnapshotCoverage()
+ }
+ 
+ // MainStart is meant for use by tests generated by 'go test'.

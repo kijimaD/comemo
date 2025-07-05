@@ -30,8 +30,163 @@ Date:   Wed Feb 7 15:37:33 2018 -0500
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/gc/asm_test.go      | 40 ++++++++++++++++
  src/cmd/compile/internal/ssa/gen/ARM64.rules |  6 +++
  src/cmd/compile/internal/ssa/rewriteARM64.go | 68 ++++++++++++++++++++++++++++
  3 files changed, 114 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/asm_test.go b/src/cmd/compile/internal/gc/asm_test.go
+index 73c55018f9..9b62d9f6b1 100644
+--- a/src/cmd/compile/internal/gc/asm_test.go
++++ b/src/cmd/compile/internal/gc/asm_test.go
+@@ -2711,6 +2711,46 @@ var linuxARM64Tests = []*asmTest{
+ 		pos: []string{"LSL\t\\$17"},
+ 		neg: []string{"CMP"},
+ 	},
++	{
++		fn: `
++		func $(a int32, ptr *int) {
++			if a >= 0 {
++				*ptr = 0
++			}
++		}
++		`,
++		pos: []string{"TBNZ"},
++	},
++	{
++		fn: `
++		func $(a int64, ptr *int) {
++			if a >= 0 {
++				*ptr = 0
++			}
++		}
++		`,
++		pos: []string{"TBNZ"},
++	},
++	{
++		fn: `
++		func $(a int32, ptr *int) {
++			if a < 0 {
++				*ptr = 0
++			}
++		}
++		`,
++		pos: []string{"TBZ"},
++	},
++	{
++		fn: `
++		func $(a int64, ptr *int) {
++			if a < 0 {
++				*ptr = 0
++			}
++		}
++		`,
++		pos: []string{"TBZ"},
++	},
+ }
+ 
+ var linuxMIPSTests = []*asmTest{
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64.rules b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+index 888f5f8556..48ca634438 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+@@ -534,6 +534,12 @@
+ (ZW  (ANDconst [c] x) yes no) && oneBit(int64(uint32(c))) -> (TBZ  {ntz(int64(uint32(c)))} x yes no)
+ (NZW (ANDconst [c] x) yes no) && oneBit(int64(uint32(c))) -> (TBNZ {ntz(int64(uint32(c)))} x yes no)
+ 
++// Test sign-bit for signed comparisons against zero
++(GE (CMPWconst [0] x) yes no) -> (TBZ  {int64(31)} x yes no)
++(GE (CMPconst [0] x) yes no) -> (TBZ  {int64(63)} x yes no)
++(LT (CMPWconst [0] x) yes no) -> (TBNZ  {int64(31)} x yes no)
++(LT (CMPconst [0] x) yes no) -> (TBNZ  {int64(63)} x yes no)
++
+ // fold offset into address
+ (ADDconst [off1] (MOVDaddr [off2] {sym} ptr)) -> (MOVDaddr [off1+off2] {sym} ptr)
+ 
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM64.go b/src/cmd/compile/internal/ssa/rewriteARM64.go
+index 05974dab4c..4e91217517 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM64.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM64.go
+@@ -16802,6 +16802,40 @@ func rewriteBlockARM64(b *Block) bool {
+ 			return true
+ 		}
+ 	case BlockARM64GE:
++		// match: (GE (CMPWconst [0] x) yes no)
++		// cond:
++		// result: (TBZ  {int64(31)} x yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARM64CMPWconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			x := v.Args[0]
++			b.Kind = BlockARM64TBZ
++			b.SetControl(x)
++			b.Aux = int64(31)
++			return true
++		}
++		// match: (GE (CMPconst [0] x) yes no)
++		// cond:
++		// result: (TBZ  {int64(63)} x yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARM64CMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			x := v.Args[0]
++			b.Kind = BlockARM64TBZ
++			b.SetControl(x)
++			b.Aux = int64(63)
++			return true
++		}
+ 		// match: (GE (FlagEQ) yes no)
+ 		// cond:
+ 		// result: (First nil yes no)
+@@ -17202,6 +17236,40 @@ func rewriteBlockARM64(b *Block) bool {
+ 			return true
+ 		}
+ 	case BlockARM64LT:
++		// match: (LT (CMPWconst [0] x) yes no)
++		// cond:
++		// result: (TBNZ  {int64(31)} x yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARM64CMPWconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			x := v.Args[0]
++			b.Kind = BlockARM64TBNZ
++			b.SetControl(x)
++			b.Aux = int64(31)
++			return true
++		}
++		// match: (LT (CMPconst [0] x) yes no)
++		// cond:
++		// result: (TBNZ  {int64(63)} x yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARM64CMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			x := v.Args[0]
++			b.Kind = BlockARM64TBNZ
++			b.SetControl(x)
++			b.Aux = int64(63)
++			return true
++		}
+ 		// match: (LT (FlagEQ) yes no)
+ 		// cond:
+ 		// result: (First nil no yes)

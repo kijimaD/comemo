@@ -12,7 +12,7 @@ Date:   Sun Oct 29 17:43:53 2017 -0700
     Change-Id: Iffd0b022ca129d340ef429697e05b581f04e5c4f
     Reviewed-on: https://go-review.googlesource.com/74270
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/vendor/golang_org/x/crypto/cryptobyte/asn1.go  | 732 +++++++++++++++++++++
  .../golang_org/x/crypto/cryptobyte/asn1/asn1.go    |  46 ++
  .../golang_org/x/crypto/cryptobyte/asn1_test.go    | 300 +++++++++
@@ -21,3 +21,2182 @@ Date:   Sun Oct 29 17:43:53 2017 -0700
  .../golang_org/x/crypto/cryptobyte/example_test.go | 154 +++++
  .../golang_org/x/crypto/cryptobyte/string.go       | 167 +++++
  7 files changed, 2136 insertions(+)
+
+diff --git a/src/vendor/golang_org/x/crypto/cryptobyte/asn1.go b/src/vendor/golang_org/x/crypto/cryptobyte/asn1.go
+new file mode 100644
+index 0000000000..225a49f8c1
+--- /dev/null
++++ b/src/vendor/golang_org/x/crypto/cryptobyte/asn1.go
+@@ -0,0 +1,732 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cryptobyte
++
++import (
++	encoding_asn1 "encoding/asn1"
++	"fmt"
++	"math/big"
++	"reflect"
++	"time"
++
++	"golang_org/x/crypto/cryptobyte/asn1"
++)
++
++// This file contains ASN.1-related methods for String and Builder.
++
++// Builder
++
++// AddASN1Int64 appends a DER-encoded ASN.1 INTEGER.
++func (b *Builder) AddASN1Int64(v int64) {
++	b.addASN1Signed(asn1.INTEGER, v)
++}
++
++// AddASN1Enum appends a DER-encoded ASN.1 ENUMERATION.
++func (b *Builder) AddASN1Enum(v int64) {
++	b.addASN1Signed(asn1.ENUM, v)
++}
++
++func (b *Builder) addASN1Signed(tag asn1.Tag, v int64) {
++	b.AddASN1(tag, func(c *Builder) {
++		length := 1
++		for i := v; i >= 0x80 || i < -0x80; i >>= 8 {
++			length++
++		}
++
++		for ; length > 0; length-- {
++			i := v >> uint((length-1)*8) & 0xff
++			c.AddUint8(uint8(i))
++		}
++	})
++}
++
++// AddASN1Uint64 appends a DER-encoded ASN.1 INTEGER.
++func (b *Builder) AddASN1Uint64(v uint64) {
++	b.AddASN1(asn1.INTEGER, func(c *Builder) {
++		length := 1
++		for i := v; i >= 0x80; i >>= 8 {
++			length++
++		}
++
++		for ; length > 0; length-- {
++			i := v >> uint((length-1)*8) & 0xff
++			c.AddUint8(uint8(i))
++		}
++	})
++}
++
++// AddASN1BigInt appends a DER-encoded ASN.1 INTEGER.
++func (b *Builder) AddASN1BigInt(n *big.Int) {
++	if b.err != nil {
++		return
++	}
++
++	b.AddASN1(asn1.INTEGER, func(c *Builder) {
++		if n.Sign() < 0 {
++			// A negative number has to be converted to two's-complement form. So we
++			// invert and subtract 1. If the most-significant-bit isn't set then
++			// we'll need to pad the beginning with 0xff in order to keep the number
++			// negative.
++			nMinus1 := new(big.Int).Neg(n)
++			nMinus1.Sub(nMinus1, bigOne)
++			bytes := nMinus1.Bytes()
++			for i := range bytes {
++				bytes[i] ^= 0xff
++			}
++			if bytes[0]&0x80 == 0 {
++				c.add(0xff)
++			}
++			c.add(bytes...)
++		} else if n.Sign() == 0 {
++			c.add(0)
++		} else {
++			bytes := n.Bytes()
++			if bytes[0]&0x80 != 0 {
++				c.add(0)
++			}
++			c.add(bytes...)
++		}
++	})
++}
++
++// AddASN1OctetString appends a DER-encoded ASN.1 OCTET STRING.
++func (b *Builder) AddASN1OctetString(bytes []byte) {
++	b.AddASN1(asn1.OCTET_STRING, func(c *Builder) {
++		c.AddBytes(bytes)
++	})
++}
++
++const generalizedTimeFormatStr = "20060102150405Z0700"
++
++// AddASN1GeneralizedTime appends a DER-encoded ASN.1 GENERALIZEDTIME.
++func (b *Builder) AddASN1GeneralizedTime(t time.Time) {
++	if t.Year() < 0 || t.Year() > 9999 {
++		b.err = fmt.Errorf("cryptobyte: cannot represent %v as a GeneralizedTime", t)
++		return
++	}
++	b.AddASN1(asn1.GeneralizedTime, func(c *Builder) {
++		c.AddBytes([]byte(t.Format(generalizedTimeFormatStr)))
++	})
++}
++
++// AddASN1BitString appends a DER-encoded ASN.1 BIT STRING. This does not
++// support BIT STRINGs that are not a whole number of bytes.
++func (b *Builder) AddASN1BitString(data []byte) {
++	b.AddASN1(asn1.BIT_STRING, func(b *Builder) {
++		b.AddUint8(0)
++		b.AddBytes(data)
++	})
++}
++
++func (b *Builder) addBase128Int(n int64) {
++	var length int
++	if n == 0 {
++		length = 1
++	} else {
++		for i := n; i > 0; i >>= 7 {
++			length++
++		}
++	}
++
++	for i := length - 1; i >= 0; i-- {
++		o := byte(n >> uint(i*7))
++		o &= 0x7f
++		if i != 0 {
++			o |= 0x80
++		}
++
++		b.add(o)
++	}
++}
++
++func isValidOID(oid encoding_asn1.ObjectIdentifier) bool {
++	if len(oid) < 2 {
++		return false
++	}
++
++	if oid[0] > 2 || (oid[0] <= 1 && oid[1] >= 40) {
++		return false
++	}
++
++	for _, v := range oid {
++		if v < 0 {
++			return false
++		}
++	}
++
++	return true
++}
++
++func (b *Builder) AddASN1ObjectIdentifier(oid encoding_asn1.ObjectIdentifier) {
++	b.AddASN1(asn1.OBJECT_IDENTIFIER, func(b *Builder) {
++		if !isValidOID(oid) {
++			b.err = fmt.Errorf("cryptobyte: invalid OID: %v", oid)
++			return
++		}
++
++		b.addBase128Int(int64(oid[0])*40 + int64(oid[1]))
++		for _, v := range oid[2:] {
++			b.addBase128Int(int64(v))
++		}
++	})
++}
++
++func (b *Builder) AddASN1Boolean(v bool) {
++	b.AddASN1(asn1.BOOLEAN, func(b *Builder) {
++		if v {
++			b.AddUint8(0xff)
++		} else {
++			b.AddUint8(0)
++		}
++	})
++}
++
++func (b *Builder) AddASN1NULL() {
++	b.add(uint8(asn1.NULL), 0)
++}
++
++// MarshalASN1 calls encoding_asn1.Marshal on its input and appends the result if
++// successful or records an error if one occurred.
++func (b *Builder) MarshalASN1(v interface{}) {
++	// NOTE(martinkr): This is somewhat of a hack to allow propagation of
++	// encoding_asn1.Marshal errors into Builder.err. N.B. if you call MarshalASN1 with a
++	// value embedded into a struct, its tag information is lost.
++	if b.err != nil {
++		return
++	}
++	bytes, err := encoding_asn1.Marshal(v)
++	if err != nil {
++		b.err = err
++		return
++	}
++	b.AddBytes(bytes)
++}
++
++// AddASN1 appends an ASN.1 object. The object is prefixed with the given tag.
++// Tags greater than 30 are not supported and result in an error (i.e.
++// low-tag-number form only). The child builder passed to the
++// BuilderContinuation can be used to build the content of the ASN.1 object.
++func (b *Builder) AddASN1(tag asn1.Tag, f BuilderContinuation) {
++	if b.err != nil {
++		return
++	}
++	// Identifiers with the low five bits set indicate high-tag-number format
++	// (two or more octets), which we don't support.
++	if tag&0x1f == 0x1f {
++		b.err = fmt.Errorf("cryptobyte: high-tag number identifier octects not supported: 0x%x", tag)
++		return
++	}
++	b.AddUint8(uint8(tag))
++	b.addLengthPrefixed(1, true, f)
++}
++
++// String
++
++func (s *String) ReadASN1Boolean(out *bool) bool {
++	var bytes String
++	if !s.ReadASN1(&bytes, asn1.INTEGER) || len(bytes) != 1 {
++		return false
++	}
++
++	switch bytes[0] {
++	case 0:
++		*out = false
++	case 0xff:
++		*out = true
++	default:
++		return false
++	}
++
++	return true
++}
++
++var bigIntType = reflect.TypeOf((*big.Int)(nil)).Elem()
++
++// ReadASN1Integer decodes an ASN.1 INTEGER into out and advances. If out does
++// not point to an integer or to a big.Int, it panics. It returns true on
++// success and false on error.
++func (s *String) ReadASN1Integer(out interface{}) bool {
++	if reflect.TypeOf(out).Kind() != reflect.Ptr {
++		panic("out is not a pointer")
++	}
++	switch reflect.ValueOf(out).Elem().Kind() {
++	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
++		var i int64
++		if !s.readASN1Int64(&i) || reflect.ValueOf(out).Elem().OverflowInt(i) {
++			return false
++		}
++		reflect.ValueOf(out).Elem().SetInt(i)
++		return true
++	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
++		var u uint64
++		if !s.readASN1Uint64(&u) || reflect.ValueOf(out).Elem().OverflowUint(u) {
++			return false
++		}
++		reflect.ValueOf(out).Elem().SetUint(u)
++		return true
++	case reflect.Struct:
++		if reflect.TypeOf(out).Elem() == bigIntType {
++			return s.readASN1BigInt(out.(*big.Int))
++		}
++	}
++	panic("out does not point to an integer type")
++}
++
++func checkASN1Integer(bytes []byte) bool {
++	if len(bytes) == 0 {
++		// An INTEGER is encoded with at least one octet.
++		return false
++	}
++	if len(bytes) == 1 {
++		return true
++	}
++	if bytes[0] == 0 && bytes[1]&0x80 == 0 || bytes[0] == 0xff && bytes[1]&0x80 == 0x80 {
++		// Value is not minimally encoded.
++		return false
++	}
++	return true
++}
++
++var bigOne = big.NewInt(1)
++
++func (s *String) readASN1BigInt(out *big.Int) bool {
++	var bytes String
++	if !s.ReadASN1(&bytes, asn1.INTEGER) || !checkASN1Integer(bytes) {
++		return false
++	}
++	if bytes[0]&0x80 == 0x80 {
++		// Negative number.
++		neg := make([]byte, len(bytes))
++		for i, b := range bytes {
++			neg[i] = ^b
++		}
++		out.SetBytes(neg)
++		out.Add(out, bigOne)
++		out.Neg(out)
++	} else {
++		out.SetBytes(bytes)
++	}
++	return true
++}
++
++func (s *String) readASN1Int64(out *int64) bool {
++	var bytes String
++	if !s.ReadASN1(&bytes, asn1.INTEGER) || !checkASN1Integer(bytes) || !asn1Signed(out, bytes) {
++		return false
++	}
++	return true
++}
++
++func asn1Signed(out *int64, n []byte) bool {
++	length := len(n)
++	if length > 8 {
++		return false
++	}
++	for i := 0; i < length; i++ {
++		*out <<= 8
++		*out |= int64(n[i])
++	}
++	// Shift up and down in order to sign extend the result.
++	*out <<= 64 - uint8(length)*8
++	*out >>= 64 - uint8(length)*8
++	return true
++}
++
++func (s *String) readASN1Uint64(out *uint64) bool {
++	var bytes String
++	if !s.ReadASN1(&bytes, asn1.INTEGER) || !checkASN1Integer(bytes) || !asn1Unsigned(out, bytes) {
++		return false
++	}
++	return true
++}
++
++func asn1Unsigned(out *uint64, n []byte) bool {
++	length := len(n)
++	if length > 9 || length == 9 && n[0] != 0 {
++		// Too large for uint64.
++		return false
++	}
++	if n[0]&0x80 != 0 {
++		// Negative number.
++		return false
++	}
++	for i := 0; i < length; i++ {
++		*out <<= 8
++		*out |= uint64(n[i])
++	}
++	return true
++}
++
++// ReadASN1Enum decodes an ASN.1 ENUMERATION into out and advances. It returns
++// true on success and false on error.
++func (s *String) ReadASN1Enum(out *int) bool {
++	var bytes String
++	var i int64
++	if !s.ReadASN1(&bytes, asn1.ENUM) || !checkASN1Integer(bytes) || !asn1Signed(&i, bytes) {
++		return false
++	}
++	if int64(int(i)) != i {
++		return false
++	}
++	*out = int(i)
++	return true
++}
++
++func (s *String) readBase128Int(out *int) bool {
++	ret := 0
++	for i := 0; len(*s) > 0; i++ {
++		if i == 4 {
++			return false
++		}
++		ret <<= 7
++		b := s.read(1)[0]
++		ret |= int(b & 0x7f)
++		if b&0x80 == 0 {
++			*out = ret
++			return true
++		}
++	}
++	return false // truncated
++}
++
++// ReadASN1ObjectIdentifier decodes an ASN.1 OBJECT IDENTIFIER into out and
++// advances. It returns true on success and false on error.
++func (s *String) ReadASN1ObjectIdentifier(out *encoding_asn1.ObjectIdentifier) bool {
++	var bytes String
++	if !s.ReadASN1(&bytes, asn1.OBJECT_IDENTIFIER) || len(bytes) == 0 {
++		return false
++	}
++
++	// In the worst case, we get two elements from the first byte (which is
++	// encoded differently) and then every varint is a single byte long.
++	components := make([]int, len(bytes)+1)
++
++	// The first varint is 40*value1 + value2:
++	// According to this packing, value1 can take the values 0, 1 and 2 only.
++	// When value1 = 0 or value1 = 1, then value2 is <= 39. When value1 = 2,
++	// then there are no restrictions on value2.
++	var v int
++	if !bytes.readBase128Int(&v) {
++		return false
++	}
++	if v < 80 {
++		components[0] = v / 40
++		components[1] = v % 40
++	} else {
++		components[0] = 2
++		components[1] = v - 80
++	}
++
++	i := 2
++	for ; len(bytes) > 0; i++ {
++		if !bytes.readBase128Int(&v) {
++			return false
++		}
++		components[i] = v
++	}
++	*out = components[:i]
++	return true
++}
++
++// ReadASN1GeneralizedTime decodes an ASN.1 GENERALIZEDTIME into out and
++// advances. It returns true on success and false on error.
++func (s *String) ReadASN1GeneralizedTime(out *time.Time) bool {
++	var bytes String
++	if !s.ReadASN1(&bytes, asn1.GeneralizedTime) {
++		return false
++	}
++	t := string(bytes)
++	res, err := time.Parse(generalizedTimeFormatStr, t)
++	if err != nil {
++		return false
++	}
++	if serialized := res.Format(generalizedTimeFormatStr); serialized != t {
++		return false
++	}
++	*out = res
++	return true
++}
++
++// ReadASN1BitString decodes an ASN.1 BIT STRING into out and advances. It
++// returns true on success and false on error.
++func (s *String) ReadASN1BitString(out *encoding_asn1.BitString) bool {
++	var bytes String
++	if !s.ReadASN1(&bytes, asn1.BIT_STRING) || len(bytes) == 0 {
++		return false
++	}
++
++	paddingBits := uint8(bytes[0])
++	bytes = bytes[1:]
++	if paddingBits > 7 ||
++		len(bytes) == 0 && paddingBits != 0 ||
++		len(bytes) > 0 && bytes[len(bytes)-1]&(1<<paddingBits-1) != 0 {
++		return false
++	}
++
++	out.BitLength = len(bytes)*8 - int(paddingBits)
++	out.Bytes = bytes
++	return true
++}
++
++// ReadASN1BitString decodes an ASN.1 BIT STRING into out and advances. It is
++// an error if the BIT STRING is not a whole number of bytes. This function
++// returns true on success and false on error.
++func (s *String) ReadASN1BitStringAsBytes(out *[]byte) bool {
++	var bytes String
++	if !s.ReadASN1(&bytes, asn1.BIT_STRING) || len(bytes) == 0 {
++		return false
++	}
++
++	paddingBits := uint8(bytes[0])
++	if paddingBits != 0 {
++		return false
++	}
++	*out = bytes[1:]
++	return true
++}
++
++// ReadASN1Bytes reads the contents of a DER-encoded ASN.1 element (not including
++// tag and length bytes) into out, and advances. The element must match the
++// given tag. It returns true on success and false on error.
++func (s *String) ReadASN1Bytes(out *[]byte, tag asn1.Tag) bool {
++	return s.ReadASN1((*String)(out), tag)
++}
++
++// ReadASN1 reads the contents of a DER-encoded ASN.1 element (not including
++// tag and length bytes) into out, and advances. The element must match the
++// given tag. It returns true on success and false on error.
++//
++// Tags greater than 30 are not supported (i.e. low-tag-number format only).
++func (s *String) ReadASN1(out *String, tag asn1.Tag) bool {
++	var t asn1.Tag
++	if !s.ReadAnyASN1(out, &t) || t != tag {
++		return false
++	}
++	return true
++}
++
++// ReadASN1Element reads the contents of a DER-encoded ASN.1 element (including
++// tag and length bytes) into out, and advances. The element must match the
++// given tag. It returns true on success and false on error.
++//
++// Tags greater than 30 are not supported (i.e. low-tag-number format only).
++func (s *String) ReadASN1Element(out *String, tag asn1.Tag) bool {
++	var t asn1.Tag
++	if !s.ReadAnyASN1Element(out, &t) || t != tag {
++		return false
++	}
++	return true
++}
++
++// ReadAnyASN1 reads the contents of a DER-encoded ASN.1 element (not including
++// tag and length bytes) into out, sets outTag to its tag, and advances. It
++// returns true on success and false on error.
++//
++// Tags greater than 30 are not supported (i.e. low-tag-number format only).
++func (s *String) ReadAnyASN1(out *String, outTag *asn1.Tag) bool {
++	return s.readASN1(out, outTag, true /* skip header */)
++}
++
++// ReadAnyASN1Element reads the contents of a DER-encoded ASN.1 element
++// (including tag and length bytes) into out, sets outTag to is tag, and
++// advances. It returns true on success and false on error.
++//
++// Tags greater than 30 are not supported (i.e. low-tag-number format only).
++func (s *String) ReadAnyASN1Element(out *String, outTag *asn1.Tag) bool {
++	return s.readASN1(out, outTag, false /* include header */)
++}
++
++// PeekASN1Tag returns true if the next ASN.1 value on the string starts with
++// the given tag.
++func (s String) PeekASN1Tag(tag asn1.Tag) bool {
++	if len(s) == 0 {
++		return false
++	}
++	return asn1.Tag(s[0]) == tag
++}
++
++// SkipASN1 reads and discards an ASN.1 element with the given tag.
++func (s *String) SkipASN1(tag asn1.Tag) bool {
++	var unused String
++	return s.ReadASN1(&unused, tag)
++}
++
++// ReadOptionalASN1 attempts to read the contents of a DER-encoded ASN.1
++// element (not including tag and length bytes) tagged with the given tag into
++// out. It stores whether an element with the tag was found in outPresent,
++// unless outPresent is nil. It returns true on success and false on error.
++func (s *String) ReadOptionalASN1(out *String, outPresent *bool, tag asn1.Tag) bool {
++	present := s.PeekASN1Tag(tag)
++	if outPresent != nil {
++		*outPresent = present
++	}
++	if present && !s.ReadASN1(out, tag) {
++		return false
++	}
++	return true
++}
++
++// SkipOptionalASN1 advances s over an ASN.1 element with the given tag, or
++// else leaves s unchanged.
++func (s *String) SkipOptionalASN1(tag asn1.Tag) bool {
++	if !s.PeekASN1Tag(tag) {
++		return true
++	}
++	var unused String
++	return s.ReadASN1(&unused, tag)
++}
++
++// ReadOptionalASN1Integer attempts to read an optional ASN.1 INTEGER
++// explicitly tagged with tag into out and advances. If no element with a
++// matching tag is present, it writes defaultValue into out instead. If out
++// does not point to an integer or to a big.Int, it panics. It returns true on
++// success and false on error.
++func (s *String) ReadOptionalASN1Integer(out interface{}, tag asn1.Tag, defaultValue interface{}) bool {
++	if reflect.TypeOf(out).Kind() != reflect.Ptr {
++		panic("out is not a pointer")
++	}
++	var present bool
++	var i String
++	if !s.ReadOptionalASN1(&i, &present, tag) {
++		return false
++	}
++	if !present {
++		switch reflect.ValueOf(out).Elem().Kind() {
++		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
++			reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
++			reflect.ValueOf(out).Elem().Set(reflect.ValueOf(defaultValue))
++		case reflect.Struct:
++			if reflect.TypeOf(out).Elem() != bigIntType {
++				panic("invalid integer type")
++			}
++			if reflect.TypeOf(defaultValue).Kind() != reflect.Ptr ||
++				reflect.TypeOf(defaultValue).Elem() != bigIntType {
++				panic("out points to big.Int, but defaultValue does not")
++			}
++			out.(*big.Int).Set(defaultValue.(*big.Int))
++		default:
++			panic("invalid integer type")
++		}
++		return true
++	}
++	if !i.ReadASN1Integer(out) || !i.Empty() {
++		return false
++	}
++	return true
++}
++
++// ReadOptionalASN1OctetString attempts to read an optional ASN.1 OCTET STRING
++// explicitly tagged with tag into out and advances. If no element with a
++// matching tag is present, it writes defaultValue into out instead. It returns
++// true on success and false on error.
++func (s *String) ReadOptionalASN1OctetString(out *[]byte, outPresent *bool, tag asn1.Tag) bool {
++	var present bool
++	var child String
++	if !s.ReadOptionalASN1(&child, &present, tag) {
++		return false
++	}
++	if outPresent != nil {
++		*outPresent = present
++	}
++	if present {
++		var oct String
++		if !child.ReadASN1(&oct, asn1.OCTET_STRING) || !child.Empty() {
++			return false
++		}
++		*out = oct
++	} else {
++		*out = nil
++	}
++	return true
++}
++
++// ReadOptionalASN1Boolean sets *out to the value of the next ASN.1 BOOLEAN or,
++// if the next bytes are not an ASN.1 BOOLEAN, to the value of defaultValue.
++func (s *String) ReadOptionalASN1Boolean(out *bool, defaultValue bool) bool {
++	var present bool
++	var child String
++	if !s.ReadOptionalASN1(&child, &present, asn1.BOOLEAN) {
++		return false
++	}
++
++	if !present {
++		*out = defaultValue
++		return true
++	}
++
++	return s.ReadASN1Boolean(out)
++}
++
++func (s *String) readASN1(out *String, outTag *asn1.Tag, skipHeader bool) bool {
++	if len(*s) < 2 {
++		return false
++	}
++	tag, lenByte := (*s)[0], (*s)[1]
++
++	if tag&0x1f == 0x1f {
++		// ITU-T X.690 section 8.1.2
++		//
++		// An identifier octet with a tag part of 0x1f indicates a high-tag-number
++		// form identifier with two or more octets. We only support tags less than
++		// 31 (i.e. low-tag-number form, single octet identifier).
++		return false
++	}
++
++	if outTag != nil {
++		*outTag = asn1.Tag(tag)
++	}
++
++	// ITU-T X.690 section 8.1.3
++	//
++	// Bit 8 of the first length byte indicates whether the length is short- or
++	// long-form.
++	var length, headerLen uint32 // length includes headerLen
++	if lenByte&0x80 == 0 {
++		// Short-form length (section 8.1.3.4), encoded in bits 1-7.
++		length = uint32(lenByte) + 2
++		headerLen = 2
++	} else {
++		// Long-form length (section 8.1.3.5). Bits 1-7 encode the number of octets
++		// used to encode the length.
++		lenLen := lenByte & 0x7f
++		var len32 uint32
++
++		if lenLen == 0 || lenLen > 4 || len(*s) < int(2+lenLen) {
++			return false
++		}
++
++		lenBytes := String((*s)[2 : 2+lenLen])
++		if !lenBytes.readUnsigned(&len32, int(lenLen)) {
++			return false
++		}
++
++		// ITU-T X.690 section 10.1 (DER length forms) requires encoding the length
++		// with the minimum number of octets.
++		if len32 < 128 {
++			// Length should have used short-form encoding.
++			return false
++		}
++		if len32>>((lenLen-1)*8) == 0 {
++			// Leading octet is 0. Length should have been at least one byte shorter.
++			return false
++		}
++
++		headerLen = 2 + uint32(lenLen)
++		if headerLen+len32 < len32 {
++			// Overflow.
++			return false
++		}
++		length = headerLen + len32
++	}
++
++	if uint32(int(length)) != length || !s.ReadBytes((*[]byte)(out), int(length)) {
++		return false
++	}
++	if skipHeader && !out.Skip(int(headerLen)) {
++		panic("cryptobyte: internal error")
++	}
++
++	return true
++}
+diff --git a/src/vendor/golang_org/x/crypto/cryptobyte/asn1/asn1.go b/src/vendor/golang_org/x/crypto/cryptobyte/asn1/asn1.go
+new file mode 100644
+index 0000000000..cda8e3edfd
+--- /dev/null
++++ b/src/vendor/golang_org/x/crypto/cryptobyte/asn1/asn1.go
+@@ -0,0 +1,46 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package asn1 contains supporting types for parsing and building ASN.1
++// messages with the cryptobyte package.
++package asn1 // import "golang.org/x/crypto/cryptobyte/asn1"
++
++// Tag represents an ASN.1 identifier octet, consisting of a tag number
++// (indicating a type) and class (such as context-specific or constructed).
++//
++// Methods in the cryptobyte package only support the low-tag-number form, i.e.
++// a single identifier octet with bits 7-8 encoding the class and bits 1-6
++// encoding the tag number.
++type Tag uint8
++
++const (
++	classConstructed     = 0x20
++	classContextSpecific = 0x80
++)
++
++// Constructed returns t with the constructed class bit set.
++func (t Tag) Constructed() Tag { return t | classConstructed }
++
++// ContextSpecific returns t with the context-specific class bit set.
++func (t Tag) ContextSpecific() Tag { return t | classContextSpecific }
++
++// The following is a list of standard tag and class combinations.
++const (
++	BOOLEAN           = Tag(1)
++	INTEGER           = Tag(2)
++	BIT_STRING        = Tag(3)
++	OCTET_STRING      = Tag(4)
++	NULL              = Tag(5)
++	OBJECT_IDENTIFIER = Tag(6)
++	ENUM              = Tag(10)
++	UTF8String        = Tag(12)
++	SEQUENCE          = Tag(16 | classConstructed)
++	SET               = Tag(17 | classConstructed)
++	PrintableString   = Tag(19)
++	T61String         = Tag(20)
++	IA5String         = Tag(22)
++	UTCTime           = Tag(23)
++	GeneralizedTime   = Tag(24)
++	GeneralString     = Tag(27)
++)
+diff --git a/src/vendor/golang_org/x/crypto/cryptobyte/asn1_test.go b/src/vendor/golang_org/x/crypto/cryptobyte/asn1_test.go
+new file mode 100644
+index 0000000000..59e562dcee
+--- /dev/null
++++ b/src/vendor/golang_org/x/crypto/cryptobyte/asn1_test.go
+@@ -0,0 +1,300 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cryptobyte
++
++import (
++	"bytes"
++	encoding_asn1 "encoding/asn1"
++	"math/big"
++	"reflect"
++	"testing"
++	"time"
++
++	"golang_org/x/crypto/cryptobyte/asn1"
++)
++
++type readASN1Test struct {
++	name string
++	in   []byte
++	tag  asn1.Tag
++	ok   bool
++	out  interface{}
++}
++
++var readASN1TestData = []readASN1Test{
++	{"valid", []byte{0x30, 2, 1, 2}, 0x30, true, []byte{1, 2}},
++	{"truncated", []byte{0x30, 3, 1, 2}, 0x30, false, nil},
++	{"zero length of length", []byte{0x30, 0x80}, 0x30, false, nil},
++	{"invalid long form length", []byte{0x30, 0x81, 1, 1}, 0x30, false, nil},
++	{"non-minimal length", append([]byte{0x30, 0x82, 0, 0x80}, make([]byte, 0x80)...), 0x30, false, nil},
++	{"invalid tag", []byte{0xa1, 3, 0x4, 1, 1}, 31, false, nil},
++	{"high tag", []byte{0x1f, 0x81, 0x80, 0x01, 2, 1, 2}, 0xff /* actually 0x4001, but tag is uint8 */, false, nil},
++}
++
++func TestReadASN1(t *testing.T) {
++	for _, test := range readASN1TestData {
++		t.Run(test.name, func(t *testing.T) {
++			var in, out String = test.in, nil
++			ok := in.ReadASN1(&out, test.tag)
++			if ok != test.ok || ok && !bytes.Equal(out, test.out.([]byte)) {
++				t.Errorf("in.ReadASN1() = %v, want %v; out = %v, want %v", ok, test.ok, out, test.out)
++			}
++		})
++	}
++}
++
++func TestReadASN1Optional(t *testing.T) {
++	var empty String
++	var present bool
++	ok := empty.ReadOptionalASN1(nil, &present, 0xa0)
++	if !ok || present {
++		t.Errorf("empty.ReadOptionalASN1() = %v, want true; present = %v want false", ok, present)
++	}
++
++	var in, out String = []byte{0xa1, 3, 0x4, 1, 1}, nil
++	ok = in.ReadOptionalASN1(&out, &present, 0xa0)
++	if !ok || present {
++		t.Errorf("in.ReadOptionalASN1() = %v, want true, present = %v, want false", ok, present)
++	}
++	ok = in.ReadOptionalASN1(&out, &present, 0xa1)
++	wantBytes := []byte{4, 1, 1}
++	if !ok || !present || !bytes.Equal(out, wantBytes) {
++		t.Errorf("in.ReadOptionalASN1() = %v, want true; present = %v, want true; out = %v, want = %v", ok, present, out, wantBytes)
++	}
++}
++
++var optionalOctetStringTestData = []struct {
++	readASN1Test
++	present bool
++}{
++	{readASN1Test{"empty", []byte{}, 0xa0, true, []byte{}}, false},
++	{readASN1Test{"invalid", []byte{0xa1, 3, 0x4, 2, 1}, 0xa1, false, []byte{}}, true},
++	{readASN1Test{"missing", []byte{0xa1, 3, 0x4, 1, 1}, 0xa0, true, []byte{}}, false},
++	{readASN1Test{"present", []byte{0xa1, 3, 0x4, 1, 1}, 0xa1, true, []byte{1}}, true},
++}
++
++func TestReadASN1OptionalOctetString(t *testing.T) {
++	for _, test := range optionalOctetStringTestData {
++		t.Run(test.name, func(t *testing.T) {
++			in := String(test.in)
++			var out []byte
++			var present bool
++			ok := in.ReadOptionalASN1OctetString(&out, &present, test.tag)
++			if ok != test.ok || present != test.present || !bytes.Equal(out, test.out.([]byte)) {
++				t.Errorf("in.ReadOptionalASN1OctetString() = %v, want %v; present = %v want %v; out = %v, want %v", ok, test.ok, present, test.present, out, test.out)
++			}
++		})
++	}
++}
++
++const defaultInt = -1
++
++var optionalIntTestData = []readASN1Test{
++	{"empty", []byte{}, 0xa0, true, defaultInt},
++	{"invalid", []byte{0xa1, 3, 0x2, 2, 127}, 0xa1, false, 0},
++	{"missing", []byte{0xa1, 3, 0x2, 1, 127}, 0xa0, true, defaultInt},
++	{"present", []byte{0xa1, 3, 0x2, 1, 42}, 0xa1, true, 42},
++}
++
++func TestReadASN1OptionalInteger(t *testing.T) {
++	for _, test := range optionalIntTestData {
++		t.Run(test.name, func(t *testing.T) {
++			in := String(test.in)
++			var out int
++			ok := in.ReadOptionalASN1Integer(&out, test.tag, defaultInt)
++			if ok != test.ok || ok && out != test.out.(int) {
++				t.Errorf("in.ReadOptionalASN1Integer() = %v, want %v; out = %v, want %v", ok, test.ok, out, test.out)
++			}
++		})
++	}
++}
++
++func TestReadASN1IntegerSigned(t *testing.T) {
++	testData64 := []struct {
++		in  []byte
++		out int64
++	}{
++		{[]byte{2, 3, 128, 0, 0}, -0x800000},
++		{[]byte{2, 2, 255, 0}, -256},
++		{[]byte{2, 2, 255, 127}, -129},
++		{[]byte{2, 1, 128}, -128},
++		{[]byte{2, 1, 255}, -1},
++		{[]byte{2, 1, 0}, 0},
++		{[]byte{2, 1, 1}, 1},
++		{[]byte{2, 1, 2}, 2},
++		{[]byte{2, 1, 127}, 127},
++		{[]byte{2, 2, 0, 128}, 128},
++		{[]byte{2, 2, 1, 0}, 256},
++		{[]byte{2, 4, 0, 128, 0, 0}, 0x800000},
++	}
++	for i, test := range testData64 {
++		in := String(test.in)
++		var out int64
++		ok := in.ReadASN1Integer(&out)
++		if !ok || out != test.out {
++			t.Errorf("#%d: in.ReadASN1Integer() = %v, want true; out = %d, want %d", i, ok, out, test.out)
++		}
++	}
++
++	// Repeat the same cases, reading into a big.Int.
++	t.Run("big.Int", func(t *testing.T) {
++		for i, test := range testData64 {
++			in := String(test.in)
++			var out big.Int
++			ok := in.ReadASN1Integer(&out)
++			if !ok || out.Int64() != test.out {
++				t.Errorf("#%d: in.ReadASN1Integer() = %v, want true; out = %d, want %d", i, ok, out.Int64(), test.out)
++			}
++		}
++	})
++}
++
++func TestReadASN1IntegerUnsigned(t *testing.T) {
++	testData := []struct {
++		in  []byte
++		out uint64
++	}{
++		{[]byte{2, 1, 0}, 0},
++		{[]byte{2, 1, 1}, 1},
++		{[]byte{2, 1, 2}, 2},
++		{[]byte{2, 1, 127}, 127},
++		{[]byte{2, 2, 0, 128}, 128},
++		{[]byte{2, 2, 1, 0}, 256},
++		{[]byte{2, 4, 0, 128, 0, 0}, 0x800000},
++		{[]byte{2, 8, 127, 255, 255, 255, 255, 255, 255, 255}, 0x7fffffffffffffff},
++		{[]byte{2, 9, 0, 128, 0, 0, 0, 0, 0, 0, 0}, 0x8000000000000000},
++		{[]byte{2, 9, 0, 255, 255, 255, 255, 255, 255, 255, 255}, 0xffffffffffffffff},
++	}
++	for i, test := range testData {
++		in := String(test.in)
++		var out uint64
++		ok := in.ReadASN1Integer(&out)
++		if !ok || out != test.out {
++			t.Errorf("#%d: in.ReadASN1Integer() = %v, want true; out = %d, want %d", i, ok, out, test.out)
++		}
++	}
++}
++
++func TestReadASN1IntegerInvalid(t *testing.T) {
++	testData := []String{
++		[]byte{3, 1, 0}, // invalid tag
++		// truncated
++		[]byte{2, 1},
++		[]byte{2, 2, 0},
++		// not minimally encoded
++		[]byte{2, 2, 0, 1},
++		[]byte{2, 2, 0xff, 0xff},
++	}
++
++	for i, test := range testData {
++		var out int64
++		if test.ReadASN1Integer(&out) {
++			t.Errorf("#%d: in.ReadASN1Integer() = true, want false (out = %d)", i, out)
++		}
++	}
++}
++
++func TestASN1ObjectIdentifier(t *testing.T) {
++	testData := []struct {
++		in  []byte
++		ok  bool
++		out []int
++	}{
++		{[]byte{}, false, []int{}},
++		{[]byte{6, 0}, false, []int{}},
++		{[]byte{5, 1, 85}, false, []int{2, 5}},
++		{[]byte{6, 1, 85}, true, []int{2, 5}},
++		{[]byte{6, 2, 85, 0x02}, true, []int{2, 5, 2}},
++		{[]byte{6, 4, 85, 0x02, 0xc0, 0x00}, true, []int{2, 5, 2, 0x2000}},
++		{[]byte{6, 3, 0x81, 0x34, 0x03}, true, []int{2, 100, 3}},
++		{[]byte{6, 7, 85, 0x02, 0xc0, 0x80, 0x80, 0x80, 0x80}, false, []int{}},
++	}
++
++	for i, test := range testData {
++		in := String(test.in)
++		var out encoding_asn1.ObjectIdentifier
++		ok := in.ReadASN1ObjectIdentifier(&out)
++		if ok != test.ok || ok && !out.Equal(test.out) {
++			t.Errorf("#%d: in.ReadASN1ObjectIdentifier() = %v, want %v; out = %v, want %v", i, ok, test.ok, out, test.out)
++			continue
++		}
++
++		var b Builder
++		b.AddASN1ObjectIdentifier(out)
++		result, err := b.Bytes()
++		if builderOk := err == nil; test.ok != builderOk {
++			t.Errorf("#%d: error from Builder.Bytes: %s", i, err)
++			continue
++		}
++		if test.ok && !bytes.Equal(result, test.in) {
++			t.Errorf("#%d: reserialisation didn't match, got %x, want %x", i, result, test.in)
++			continue
++		}
++	}
++}
++
++func TestReadASN1GeneralizedTime(t *testing.T) {
++	testData := []struct {
++		in  string
++		ok  bool
++		out time.Time
++	}{
++		{"20100102030405Z", true, time.Date(2010, 01, 02, 03, 04, 05, 0, time.UTC)},
++		{"20100102030405", false, time.Time{}},
++		{"20100102030405+0607", true, time.Date(2010, 01, 02, 03, 04, 05, 0, time.FixedZone("", 6*60*60+7*60))},
++		{"20100102030405-0607", true, time.Date(2010, 01, 02, 03, 04, 05, 0, time.FixedZone("", -6*60*60-7*60))},
++		/* These are invalid times. However, the time package normalises times
++		 * and they were accepted in some versions. See #11134. */
++		{"00000100000000Z", false, time.Time{}},
++		{"20101302030405Z", false, time.Time{}},
++		{"20100002030405Z", false, time.Time{}},
++		{"20100100030405Z", false, time.Time{}},
++		{"20100132030405Z", false, time.Time{}},
++		{"20100231030405Z", false, time.Time{}},
++		{"20100102240405Z", false, time.Time{}},
++		{"20100102036005Z", false, time.Time{}},
++		{"20100102030460Z", false, time.Time{}},
++		{"-20100102030410Z", false, time.Time{}},
++		{"2010-0102030410Z", false, time.Time{}},
++		{"2010-0002030410Z", false, time.Time{}},
++		{"201001-02030410Z", false, time.Time{}},
++		{"20100102-030410Z", false, time.Time{}},
++		{"2010010203-0410Z", false, time.Time{}},
++		{"201001020304-10Z", false, time.Time{}},
++	}
++	for i, test := range testData {
++		in := String(append([]byte{byte(asn1.GeneralizedTime), byte(len(test.in))}, test.in...))
++		var out time.Time
++		ok := in.ReadASN1GeneralizedTime(&out)
++		if ok != test.ok || ok && !reflect.DeepEqual(out, test.out) {
++			t.Errorf("#%d: in.ReadASN1GeneralizedTime() = %v, want %v; out = %q, want %q", i, ok, test.ok, out, test.out)
++		}
++	}
++}
++
++func TestReadASN1BitString(t *testing.T) {
++	testData := []struct {
++		in  []byte
++		ok  bool
++		out encoding_asn1.BitString
++	}{
++		{[]byte{}, false, encoding_asn1.BitString{}},
++		{[]byte{0x00}, true, encoding_asn1.BitString{}},
++		{[]byte{0x07, 0x00}, true, encoding_asn1.BitString{Bytes: []byte{0}, BitLength: 1}},
++		{[]byte{0x07, 0x01}, false, encoding_asn1.BitString{}},
++		{[]byte{0x07, 0x40}, false, encoding_asn1.BitString{}},
++		{[]byte{0x08, 0x00}, false, encoding_asn1.BitString{}},
++		{[]byte{0xff}, false, encoding_asn1.BitString{}},
++		{[]byte{0xfe, 0x00}, false, encoding_asn1.BitString{}},
++	}
++	for i, test := range testData {
++		in := String(append([]byte{3, byte(len(test.in))}, test.in...))
++		var out encoding_asn1.BitString
++		ok := in.ReadASN1BitString(&out)
++		if ok != test.ok || ok && (!bytes.Equal(out.Bytes, test.out.Bytes) || out.BitLength != test.out.BitLength) {
++			t.Errorf("#%d: in.ReadASN1BitString() = %v, want %v; out = %v, want %v", i, ok, test.ok, out, test.out)
++		}
++	}
++}
+diff --git a/src/vendor/golang_org/x/crypto/cryptobyte/builder.go b/src/vendor/golang_org/x/crypto/cryptobyte/builder.go
+new file mode 100644
+index 0000000000..29b4c76412
+--- /dev/null
++++ b/src/vendor/golang_org/x/crypto/cryptobyte/builder.go
+@@ -0,0 +1,309 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cryptobyte
++
++import (
++	"errors"
++	"fmt"
++)
++
++// A Builder builds byte strings from fixed-length and length-prefixed values.
++// Builders either allocate space as needed, or are ‘fixed’, which means that
++// they write into a given buffer and produce an error if it's exhausted.
++//
++// The zero value is a usable Builder that allocates space as needed.
++//
++// Simple values are marshaled and appended to a Builder using methods on the
++// Builder. Length-prefixed values are marshaled by providing a
++// BuilderContinuation, which is a function that writes the inner contents of
++// the value to a given Builder. See the documentation for BuilderContinuation
++// for details.
++type Builder struct {
++	err            error
++	result         []byte
++	fixedSize      bool
++	child          *Builder
++	offset         int
++	pendingLenLen  int
++	pendingIsASN1  bool
++	inContinuation *bool
++}
++
++// NewBuilder creates a Builder that appends its output to the given buffer.
++// Like append(), the slice will be reallocated if its capacity is exceeded.
++// Use Bytes to get the final buffer.
++func NewBuilder(buffer []byte) *Builder {
++	return &Builder{
++		result: buffer,
++	}
++}
++
++// NewFixedBuilder creates a Builder that appends its output into the given
++// buffer. This builder does not reallocate the output buffer. Writes that
++// would exceed the buffer's capacity are treated as an error.
++func NewFixedBuilder(buffer []byte) *Builder {
++	return &Builder{
++		result:    buffer,
++		fixedSize: true,
++	}
++}
++
++// Bytes returns the bytes written by the builder or an error if one has
++// occurred during during building.
++func (b *Builder) Bytes() ([]byte, error) {
++	if b.err != nil {
++		return nil, b.err
++	}
++	return b.result[b.offset:], nil
++}
++
++// BytesOrPanic returns the bytes written by the builder or panics if an error
++// has occurred during building.
++func (b *Builder) BytesOrPanic() []byte {
++	if b.err != nil {
++		panic(b.err)
++	}
++	return b.result[b.offset:]
++}
++
++// AddUint8 appends an 8-bit value to the byte string.
++func (b *Builder) AddUint8(v uint8) {
++	b.add(byte(v))
++}
++
++// AddUint16 appends a big-endian, 16-bit value to the byte string.
++func (b *Builder) AddUint16(v uint16) {
++	b.add(byte(v>>8), byte(v))
++}
++
++// AddUint24 appends a big-endian, 24-bit value to the byte string. The highest
++// byte of the 32-bit input value is silently truncated.
++func (b *Builder) AddUint24(v uint32) {
++	b.add(byte(v>>16), byte(v>>8), byte(v))
++}
++
++// AddUint32 appends a big-endian, 32-bit value to the byte string.
++func (b *Builder) AddUint32(v uint32) {
++	b.add(byte(v>>24), byte(v>>16), byte(v>>8), byte(v))
++}
++
++// AddBytes appends a sequence of bytes to the byte string.
++func (b *Builder) AddBytes(v []byte) {
++	b.add(v...)
++}
++
++// BuilderContinuation is continuation-passing interface for building
++// length-prefixed byte sequences. Builder methods for length-prefixed
++// sequences (AddUint8LengthPrefixed etc) will invoke the BuilderContinuation
++// supplied to them. The child builder passed to the continuation can be used
++// to build the content of the length-prefixed sequence. For example:
++//
++//   parent := cryptobyte.NewBuilder()
++//   parent.AddUint8LengthPrefixed(func (child *Builder) {
++//     child.AddUint8(42)
++//     child.AddUint8LengthPrefixed(func (grandchild *Builder) {
++//       grandchild.AddUint8(5)
++//     })
++//   })
++//
++// It is an error to write more bytes to the child than allowed by the reserved
++// length prefix. After the continuation returns, the child must be considered
++// invalid, i.e. users must not store any copies or references of the child
++// that outlive the continuation.
++//
++// If the continuation panics with a value of type BuildError then the inner
++// error will be returned as the error from Bytes. If the child panics
++// otherwise then Bytes will repanic with the same value.
++type BuilderContinuation func(child *Builder)
++
++// BuildError wraps an error. If a BuilderContinuation panics with this value,
++// the panic will be recovered and the inner error will be returned from
++// Builder.Bytes.
++type BuildError struct {
++	Err error
++}
++
++// AddUint8LengthPrefixed adds a 8-bit length-prefixed byte sequence.
++func (b *Builder) AddUint8LengthPrefixed(f BuilderContinuation) {
++	b.addLengthPrefixed(1, false, f)
++}
++
++// AddUint16LengthPrefixed adds a big-endian, 16-bit length-prefixed byte sequence.
++func (b *Builder) AddUint16LengthPrefixed(f BuilderContinuation) {
++	b.addLengthPrefixed(2, false, f)
++}
++
++// AddUint24LengthPrefixed adds a big-endian, 24-bit length-prefixed byte sequence.
++func (b *Builder) AddUint24LengthPrefixed(f BuilderContinuation) {
++	b.addLengthPrefixed(3, false, f)
++}
++
++// AddUint32LengthPrefixed adds a big-endian, 32-bit length-prefixed byte sequence.
++func (b *Builder) AddUint32LengthPrefixed(f BuilderContinuation) {
++	b.addLengthPrefixed(4, false, f)
++}
++
++func (b *Builder) callContinuation(f BuilderContinuation, arg *Builder) {
++	if !*b.inContinuation {
++		*b.inContinuation = true
++
++		defer func() {
++			*b.inContinuation = false
++
++			r := recover()
++			if r == nil {
++				return
++			}
++
++			if buildError, ok := r.(BuildError); ok {
++				b.err = buildError.Err
++			} else {
++				panic(r)
++			}
++		}()
++	}
++
++	f(arg)
++}
++
++func (b *Builder) addLengthPrefixed(lenLen int, isASN1 bool, f BuilderContinuation) {
++	// Subsequent writes can be ignored if the builder has encountered an error.
++	if b.err != nil {
++		return
++	}
++
++	offset := len(b.result)
++	b.add(make([]byte, lenLen)...)
++
++	if b.inContinuation == nil {
++		b.inContinuation = new(bool)
++	}
++
++	b.child = &Builder{
++		result:         b.result,
++		fixedSize:      b.fixedSize,
++		offset:         offset,
++		pendingLenLen:  lenLen,
++		pendingIsASN1:  isASN1,
++		inContinuation: b.inContinuation,
++	}
++
++	b.callContinuation(f, b.child)
++	b.flushChild()
++	if b.child != nil {
++		panic("cryptobyte: internal error")
++	}
++}
++
++func (b *Builder) flushChild() {
++	if b.child == nil {
++		return
++	}
++	b.child.flushChild()
++	child := b.child
++	b.child = nil
++
++	if child.err != nil {
++		b.err = child.err
++		return
++	}
++
++	length := len(child.result) - child.pendingLenLen - child.offset
++
++	if length < 0 {
++		panic("cryptobyte: internal error") // result unexpectedly shrunk
++	}
++
++	if child.pendingIsASN1 {
++		// For ASN.1, we reserved a single byte for the length. If that turned out
++		// to be incorrect, we have to move the contents along in order to make
++		// space.
++		if child.pendingLenLen != 1 {
++			panic("cryptobyte: internal error")
++		}
++		var lenLen, lenByte uint8
++		if int64(length) > 0xfffffffe {
++			b.err = errors.New("pending ASN.1 child too long")
++			return
++		} else if length > 0xffffff {
++			lenLen = 5
++			lenByte = 0x80 | 4
++		} else if length > 0xffff {
++			lenLen = 4
++			lenByte = 0x80 | 3
++		} else if length > 0xff {
++			lenLen = 3
++			lenByte = 0x80 | 2
++		} else if length > 0x7f {
++			lenLen = 2
++			lenByte = 0x80 | 1
++		} else {
++			lenLen = 1
++			lenByte = uint8(length)
++			length = 0
++		}
++
++		// Insert the initial length byte, make space for successive length bytes,
++		// and adjust the offset.
++		child.result[child.offset] = lenByte
++		extraBytes := int(lenLen - 1)
++		if extraBytes != 0 {
++			child.add(make([]byte, extraBytes)...)
++			childStart := child.offset + child.pendingLenLen
++			copy(child.result[childStart+extraBytes:], child.result[childStart:])
++		}
++		child.offset++
++		child.pendingLenLen = extraBytes
++	}
++
++	l := length
++	for i := child.pendingLenLen - 1; i >= 0; i-- {
++		child.result[child.offset+i] = uint8(l)
++		l >>= 8
++	}
++	if l != 0 {
++		b.err = fmt.Errorf("cryptobyte: pending child length %d exceeds %d-byte length prefix", length, child.pendingLenLen)
++		return
++	}
++
++	if !b.fixedSize {
++		b.result = child.result // In case child reallocated result.
++	}
++}
++
++func (b *Builder) add(bytes ...byte) {
++	if b.err != nil {
++		return
++	}
++	if b.child != nil {
++		panic("attempted write while child is pending")
++	}
++	if len(b.result)+len(bytes) < len(bytes) {
++		b.err = errors.New("cryptobyte: length overflow")
++	}
++	if b.fixedSize && len(b.result)+len(bytes) > cap(b.result) {
++		b.err = errors.New("cryptobyte: Builder is exceeding its fixed-size buffer")
++		return
++	}
++	b.result = append(b.result, bytes...)
++}
++
++// A MarshalingValue marshals itself into a Builder.
++type MarshalingValue interface {
++	// Marshal is called by Builder.AddValue. It receives a pointer to a builder
++	// to marshal itself into. It may return an error that occurred during
++	// marshaling, such as unset or invalid values.
++	Marshal(b *Builder) error
++}
++
++// AddValue calls Marshal on v, passing a pointer to the builder to append to.
++// If Marshal returns an error, it is set on the Builder so that subsequent
++// appends don't have an effect.
++func (b *Builder) AddValue(v MarshalingValue) {
++	err := v.Marshal(b)
++	if err != nil {
++		b.err = err
++	}
++}
+diff --git a/src/vendor/golang_org/x/crypto/cryptobyte/cryptobyte_test.go b/src/vendor/golang_org/x/crypto/cryptobyte/cryptobyte_test.go
+new file mode 100644
+index 0000000000..f294dd552b
+--- /dev/null
++++ b/src/vendor/golang_org/x/crypto/cryptobyte/cryptobyte_test.go
+@@ -0,0 +1,428 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cryptobyte
++
++import (
++	"bytes"
++	"errors"
++	"fmt"
++	"testing"
++)
++
++func builderBytesEq(b *Builder, want ...byte) error {
++	got := b.BytesOrPanic()
++	if !bytes.Equal(got, want) {
++		return fmt.Errorf("Bytes() = %v, want %v", got, want)
++	}
++	return nil
++}
++
++func TestContinuationError(t *testing.T) {
++	const errorStr = "TestContinuationError"
++	var b Builder
++	b.AddUint8LengthPrefixed(func(b *Builder) {
++		b.AddUint8(1)
++		panic(BuildError{Err: errors.New(errorStr)})
++	})
++
++	ret, err := b.Bytes()
++	if ret != nil {
++		t.Error("expected nil result")
++	}
++	if err == nil {
++		t.Fatal("unexpected nil error")
++	}
++	if s := err.Error(); s != errorStr {
++		t.Errorf("expected error %q, got %v", errorStr, s)
++	}
++}
++
++func TestContinuationNonError(t *testing.T) {
++	defer func() {
++		recover()
++	}()
++
++	var b Builder
++	b.AddUint8LengthPrefixed(func(b *Builder) {
++		b.AddUint8(1)
++		panic(1)
++	})
++
++	t.Error("Builder did not panic")
++}
++
++func TestGeneratedPanic(t *testing.T) {
++	defer func() {
++		recover()
++	}()
++
++	var b Builder
++	b.AddUint8LengthPrefixed(func(b *Builder) {
++		var p *byte
++		*p = 0
++	})
++
++	t.Error("Builder did not panic")
++}
++
++func TestBytes(t *testing.T) {
++	var b Builder
++	v := []byte("foobarbaz")
++	b.AddBytes(v[0:3])
++	b.AddBytes(v[3:4])
++	b.AddBytes(v[4:9])
++	if err := builderBytesEq(&b, v...); err != nil {
++		t.Error(err)
++	}
++	s := String(b.BytesOrPanic())
++	for _, w := range []string{"foo", "bar", "baz"} {
++		var got []byte
++		if !s.ReadBytes(&got, 3) {
++			t.Errorf("ReadBytes() = false, want true (w = %v)", w)
++		}
++		want := []byte(w)
++		if !bytes.Equal(got, want) {
++			t.Errorf("ReadBytes(): got = %v, want %v", got, want)
++		}
++	}
++	if len(s) != 0 {
++		t.Errorf("len(s) = %d, want 0", len(s))
++	}
++}
++
++func TestUint8(t *testing.T) {
++	var b Builder
++	b.AddUint8(42)
++	if err := builderBytesEq(&b, 42); err != nil {
++		t.Error(err)
++	}
++
++	var s String = b.BytesOrPanic()
++	var v uint8
++	if !s.ReadUint8(&v) {
++		t.Error("ReadUint8() = false, want true")
++	}
++	if v != 42 {
++		t.Errorf("v = %d, want 42", v)
++	}
++	if len(s) != 0 {
++		t.Errorf("len(s) = %d, want 0", len(s))
++	}
++}
++
++func TestUint16(t *testing.T) {
++	var b Builder
++	b.AddUint16(65534)
++	if err := builderBytesEq(&b, 255, 254); err != nil {
++		t.Error(err)
++	}
++	var s String = b.BytesOrPanic()
++	var v uint16
++	if !s.ReadUint16(&v) {
++		t.Error("ReadUint16() == false, want true")
++	}
++	if v != 65534 {
++		t.Errorf("v = %d, want 65534", v)
++	}
++	if len(s) != 0 {
++		t.Errorf("len(s) = %d, want 0", len(s))
++	}
++}
++
++func TestUint24(t *testing.T) {
++	var b Builder
++	b.AddUint24(0xfffefd)
++	if err := builderBytesEq(&b, 255, 254, 253); err != nil {
++		t.Error(err)
++	}
++
++	var s String = b.BytesOrPanic()
++	var v uint32
++	if !s.ReadUint24(&v) {
++		t.Error("ReadUint8() = false, want true")
++	}
++	if v != 0xfffefd {
++		t.Errorf("v = %d, want fffefd", v)
++	}
++	if len(s) != 0 {
++		t.Errorf("len(s) = %d, want 0", len(s))
++	}
++}
++
++func TestUint24Truncation(t *testing.T) {
++	var b Builder
++	b.AddUint24(0x10111213)
++	if err := builderBytesEq(&b, 0x11, 0x12, 0x13); err != nil {
++		t.Error(err)
++	}
++}
++
++func TestUint32(t *testing.T) {
++	var b Builder
++	b.AddUint32(0xfffefdfc)
++	if err := builderBytesEq(&b, 255, 254, 253, 252); err != nil {
++		t.Error(err)
++	}
++
++	var s String = b.BytesOrPanic()
++	var v uint32
++	if !s.ReadUint32(&v) {
++		t.Error("ReadUint8() = false, want true")
++	}
++	if v != 0xfffefdfc {
++		t.Errorf("v = %x, want fffefdfc", v)
++	}
++	if len(s) != 0 {
++		t.Errorf("len(s) = %d, want 0", len(s))
++	}
++}
++
++func TestUMultiple(t *testing.T) {
++	var b Builder
++	b.AddUint8(23)
++	b.AddUint32(0xfffefdfc)
++	b.AddUint16(42)
++	if err := builderBytesEq(&b, 23, 255, 254, 253, 252, 0, 42); err != nil {
++		t.Error(err)
++	}
++
++	var s String = b.BytesOrPanic()
++	var (
++		x uint8
++		y uint32
++		z uint16
++	)
++	if !s.ReadUint8(&x) || !s.ReadUint32(&y) || !s.ReadUint16(&z) {
++		t.Error("ReadUint8() = false, want true")
++	}
++	if x != 23 || y != 0xfffefdfc || z != 42 {
++		t.Errorf("x, y, z = %d, %d, %d; want 23, 4294901244, 5", x, y, z)
++	}
++	if len(s) != 0 {
++		t.Errorf("len(s) = %d, want 0", len(s))
++	}
++}
++
++func TestUint8LengthPrefixedSimple(t *testing.T) {
++	var b Builder
++	b.AddUint8LengthPrefixed(func(c *Builder) {
++		c.AddUint8(23)
++		c.AddUint8(42)
++	})
++	if err := builderBytesEq(&b, 2, 23, 42); err != nil {
++		t.Error(err)
++	}
++
++	var base, child String = b.BytesOrPanic(), nil
++	var x, y uint8
++	if !base.ReadUint8LengthPrefixed(&child) || !child.ReadUint8(&x) ||
++		!child.ReadUint8(&y) {
++		t.Error("parsing failed")
++	}
++	if x != 23 || y != 42 {
++		t.Errorf("want x, y == 23, 42; got %d, %d", x, y)
++	}
++	if len(base) != 0 {
++		t.Errorf("len(base) = %d, want 0", len(base))
++	}
++	if len(child) != 0 {
++		t.Errorf("len(child) = %d, want 0", len(child))
++	}
++}
++
++func TestUint8LengthPrefixedMulti(t *testing.T) {
++	var b Builder
++	b.AddUint8LengthPrefixed(func(c *Builder) {
++		c.AddUint8(23)
++		c.AddUint8(42)
++	})
++	b.AddUint8(5)
++	b.AddUint8LengthPrefixed(func(c *Builder) {
++		c.AddUint8(123)
++		c.AddUint8(234)
++	})
++	if err := builderBytesEq(&b, 2, 23, 42, 5, 2, 123, 234); err != nil {
++		t.Error(err)
++	}
++
++	var s, child String = b.BytesOrPanic(), nil
++	var u, v, w, x, y uint8
++	if !s.ReadUint8LengthPrefixed(&child) || !child.ReadUint8(&u) || !child.ReadUint8(&v) ||
++		!s.ReadUint8(&w) || !s.ReadUint8LengthPrefixed(&child) || !child.ReadUint8(&x) || !child.ReadUint8(&y) {
++		t.Error("parsing failed")
++	}
++	if u != 23 || v != 42 || w != 5 || x != 123 || y != 234 {
++		t.Errorf("u, v, w, x, y = %d, %d, %d, %d, %d; want 23, 42, 5, 123, 234",
++			u, v, w, x, y)
++	}
++	if len(s) != 0 {
++		t.Errorf("len(s) = %d, want 0", len(s))
++	}
++	if len(child) != 0 {
++		t.Errorf("len(child) = %d, want 0", len(child))
++	}
++}
++
++func TestUint8LengthPrefixedNested(t *testing.T) {
++	var b Builder
++	b.AddUint8LengthPrefixed(func(c *Builder) {
++		c.AddUint8(5)
++		c.AddUint8LengthPrefixed(func(d *Builder) {
++			d.AddUint8(23)
++			d.AddUint8(42)
++		})
++		c.AddUint8(123)
++	})
++	if err := builderBytesEq(&b, 5, 5, 2, 23, 42, 123); err != nil {
++		t.Error(err)
++	}
++
++	var base, child1, child2 String = b.BytesOrPanic(), nil, nil
++	var u, v, w, x uint8
++	if !base.ReadUint8LengthPrefixed(&child1) {
++		t.Error("parsing base failed")
++	}
++	if !child1.ReadUint8(&u) || !child1.ReadUint8LengthPrefixed(&child2) || !child1.ReadUint8(&x) {
++		t.Error("parsing child1 failed")
++	}
++	if !child2.ReadUint8(&v) || !child2.ReadUint8(&w) {
++		t.Error("parsing child2 failed")
++	}
++	if u != 5 || v != 23 || w != 42 || x != 123 {
++		t.Errorf("u, v, w, x = %d, %d, %d, %d, want 5, 23, 42, 123",
++			u, v, w, x)
++	}
++	if len(base) != 0 {
++		t.Errorf("len(base) = %d, want 0", len(base))
++	}
++	if len(child1) != 0 {
++		t.Errorf("len(child1) = %d, want 0", len(child1))
++	}
++	if len(base) != 0 {
++		t.Errorf("len(child2) = %d, want 0", len(child2))
++	}
++}
++
++func TestPreallocatedBuffer(t *testing.T) {
++	var buf [5]byte
++	b := NewBuilder(buf[0:0])
++	b.AddUint8(1)
++	b.AddUint8LengthPrefixed(func(c *Builder) {
++		c.AddUint8(3)
++		c.AddUint8(4)
++	})
++	b.AddUint16(1286) // Outgrow buf by one byte.
++	want := []byte{1, 2, 3, 4, 0}
++	if !bytes.Equal(buf[:], want) {
++		t.Errorf("buf = %v want %v", buf, want)
++	}
++	if err := builderBytesEq(b, 1, 2, 3, 4, 5, 6); err != nil {
++		t.Error(err)
++	}
++}
++
++func TestWriteWithPendingChild(t *testing.T) {
++	var b Builder
++	b.AddUint8LengthPrefixed(func(c *Builder) {
++		c.AddUint8LengthPrefixed(func(d *Builder) {
++			defer func() {
++				if recover() == nil {
++					t.Errorf("recover() = nil, want error; c.AddUint8() did not panic")
++				}
++			}()
++			c.AddUint8(2) // panics
++
++			defer func() {
++				if recover() == nil {
++					t.Errorf("recover() = nil, want error; b.AddUint8() did not panic")
++				}
++			}()
++			b.AddUint8(2) // panics
++		})
++
++		defer func() {
++			if recover() == nil {
++				t.Errorf("recover() = nil, want error; b.AddUint8() did not panic")
++			}
++		}()
++		b.AddUint8(2) // panics
++	})
++}
++
++// ASN.1
++
++func TestASN1Int64(t *testing.T) {
++	tests := []struct {
++		in   int64
++		want []byte
++	}{
++		{-0x800000, []byte{2, 3, 128, 0, 0}},
++		{-256, []byte{2, 2, 255, 0}},
++		{-129, []byte{2, 2, 255, 127}},
++		{-128, []byte{2, 1, 128}},
++		{-1, []byte{2, 1, 255}},
++		{0, []byte{2, 1, 0}},
++		{1, []byte{2, 1, 1}},
++		{2, []byte{2, 1, 2}},
++		{127, []byte{2, 1, 127}},
++		{128, []byte{2, 2, 0, 128}},
++		{256, []byte{2, 2, 1, 0}},
++		{0x800000, []byte{2, 4, 0, 128, 0, 0}},
++	}
++	for i, tt := range tests {
++		var b Builder
++		b.AddASN1Int64(tt.in)
++		if err := builderBytesEq(&b, tt.want...); err != nil {
++			t.Errorf("%v, (i = %d; in = %v)", err, i, tt.in)
++		}
++
++		var n int64
++		s := String(b.BytesOrPanic())
++		ok := s.ReadASN1Integer(&n)
++		if !ok || n != tt.in {
++			t.Errorf("s.ReadASN1Integer(&n) = %v, n = %d; want true, n = %d (i = %d)",
++				ok, n, tt.in, i)
++		}
++		if len(s) != 0 {
++			t.Errorf("len(s) = %d, want 0", len(s))
++		}
++	}
++}
++
++func TestASN1Uint64(t *testing.T) {
++	tests := []struct {
++		in   uint64
++		want []byte
++	}{
++		{0, []byte{2, 1, 0}},
++		{1, []byte{2, 1, 1}},
++		{2, []byte{2, 1, 2}},
++		{127, []byte{2, 1, 127}},
++		{128, []byte{2, 2, 0, 128}},
++		{256, []byte{2, 2, 1, 0}},
++		{0x800000, []byte{2, 4, 0, 128, 0, 0}},
++		{0x7fffffffffffffff, []byte{2, 8, 127, 255, 255, 255, 255, 255, 255, 255}},
++		{0x8000000000000000, []byte{2, 9, 0, 128, 0, 0, 0, 0, 0, 0, 0}},
++		{0xffffffffffffffff, []byte{2, 9, 0, 255, 255, 255, 255, 255, 255, 255, 255}},
++	}
++	for i, tt := range tests {
++		var b Builder
++		b.AddASN1Uint64(tt.in)
++		if err := builderBytesEq(&b, tt.want...); err != nil {
++			t.Errorf("%v, (i = %d; in = %v)", err, i, tt.in)
++		}
++
++		var n uint64
++		s := String(b.BytesOrPanic())
++		ok := s.ReadASN1Integer(&n)
++		if !ok || n != tt.in {
++			t.Errorf("s.ReadASN1Integer(&n) = %v, n = %d; want true, n = %d (i = %d)",
++				ok, n, tt.in, i)
++		}
++		if len(s) != 0 {
++			t.Errorf("len(s) = %d, want 0", len(s))
++		}
++	}
++}
+diff --git a/src/vendor/golang_org/x/crypto/cryptobyte/example_test.go b/src/vendor/golang_org/x/crypto/cryptobyte/example_test.go
+new file mode 100644
+index 0000000000..056c23014a
+--- /dev/null
++++ b/src/vendor/golang_org/x/crypto/cryptobyte/example_test.go
+@@ -0,0 +1,154 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cryptobyte_test
++
++import (
++	"errors"
++	"fmt"
++
++	"golang_org/x/crypto/cryptobyte"
++	"golang_org/x/crypto/cryptobyte/asn1"
++)
++
++func ExampleString_lengthPrefixed() {
++	// This is an example of parsing length-prefixed data (as found in, for
++	// example, TLS). Imagine a 16-bit prefixed series of 8-bit prefixed
++	// strings.
++
++	input := cryptobyte.String([]byte{0, 12, 5, 'h', 'e', 'l', 'l', 'o', 5, 'w', 'o', 'r', 'l', 'd'})
++	var result []string
++
++	var values cryptobyte.String
++	if !input.ReadUint16LengthPrefixed(&values) ||
++		!input.Empty() {
++		panic("bad format")
++	}
++
++	for !values.Empty() {
++		var value cryptobyte.String
++		if !values.ReadUint8LengthPrefixed(&value) {
++			panic("bad format")
++		}
++
++		result = append(result, string(value))
++	}
++
++	// Output: []string{"hello", "world"}
++	fmt.Printf("%#v\n", result)
++}
++
++func ExampleString_aSN1() {
++	// This is an example of parsing ASN.1 data that looks like:
++	//    Foo ::= SEQUENCE {
++	//      version [6] INTEGER DEFAULT 0
++	//      data OCTET STRING
++	//    }
++
++	input := cryptobyte.String([]byte{0x30, 12, 0xa6, 3, 2, 1, 2, 4, 5, 'h', 'e', 'l', 'l', 'o'})
++
++	var (
++		version                   int64
++		data, inner, versionBytes cryptobyte.String
++		haveVersion               bool
++	)
++	if !input.ReadASN1(&inner, asn1.SEQUENCE) ||
++		!input.Empty() ||
++		!inner.ReadOptionalASN1(&versionBytes, &haveVersion, asn1.Tag(6).Constructed().ContextSpecific()) ||
++		(haveVersion && !versionBytes.ReadASN1Integer(&version)) ||
++		(haveVersion && !versionBytes.Empty()) ||
++		!inner.ReadASN1(&data, asn1.OCTET_STRING) ||
++		!inner.Empty() {
++		panic("bad format")
++	}
++
++	// Output: haveVersion: true, version: 2, data: hello
++	fmt.Printf("haveVersion: %t, version: %d, data: %s\n", haveVersion, version, string(data))
++}
++
++func ExampleBuilder_aSN1() {
++	// This is an example of building ASN.1 data that looks like:
++	//    Foo ::= SEQUENCE {
++	//      version [6] INTEGER DEFAULT 0
++	//      data OCTET STRING
++	//    }
++
++	version := int64(2)
++	data := []byte("hello")
++	const defaultVersion = 0
++
++	var b cryptobyte.Builder
++	b.AddASN1(asn1.SEQUENCE, func(b *cryptobyte.Builder) {
++		if version != defaultVersion {
++			b.AddASN1(asn1.Tag(6).Constructed().ContextSpecific(), func(b *cryptobyte.Builder) {
++				b.AddASN1Int64(version)
++			})
++		}
++		b.AddASN1OctetString(data)
++	})
++
++	result, err := b.Bytes()
++	if err != nil {
++		panic(err)
++	}
++
++	// Output: 300ca603020102040568656c6c6f
++	fmt.Printf("%x\n", result)
++}
++
++func ExampleBuilder_lengthPrefixed() {
++	// This is an example of building length-prefixed data (as found in,
++	// for example, TLS). Imagine a 16-bit prefixed series of 8-bit
++	// prefixed strings.
++	input := []string{"hello", "world"}
++
++	var b cryptobyte.Builder
++	b.AddUint16LengthPrefixed(func(b *cryptobyte.Builder) {
++		for _, value := range input {
++			b.AddUint8LengthPrefixed(func(b *cryptobyte.Builder) {
++				b.AddBytes([]byte(value))
++			})
++		}
++	})
++
++	result, err := b.Bytes()
++	if err != nil {
++		panic(err)
++	}
++
++	// Output: 000c0568656c6c6f05776f726c64
++	fmt.Printf("%x\n", result)
++}
++
++func ExampleBuilder_lengthPrefixOverflow() {
++	// Writing more data that can be expressed by the length prefix results
++	// in an error from Bytes().
++
++	tooLarge := make([]byte, 256)
++
++	var b cryptobyte.Builder
++	b.AddUint8LengthPrefixed(func(b *cryptobyte.Builder) {
++		b.AddBytes(tooLarge)
++	})
++
++	result, err := b.Bytes()
++	fmt.Printf("len=%d err=%s\n", len(result), err)
++
++	// Output: len=0 err=cryptobyte: pending child length 256 exceeds 1-byte length prefix
++}
++
++func ExampleBuilderContinuation_errorHandling() {
++	var b cryptobyte.Builder
++	// Continuations that panic with a BuildError will cause Bytes to
++	// return the inner error.
++	b.AddUint16LengthPrefixed(func(b *cryptobyte.Builder) {
++		b.AddUint32(0)
++		panic(cryptobyte.BuildError{Err: errors.New("example error")})
++	})
++
++	result, err := b.Bytes()
++	fmt.Printf("len=%d err=%s\n", len(result), err)
++
++	// Output: len=0 err=example error
++}
+diff --git a/src/vendor/golang_org/x/crypto/cryptobyte/string.go b/src/vendor/golang_org/x/crypto/cryptobyte/string.go
+new file mode 100644
+index 0000000000..7636fb9c8a
+--- /dev/null
++++ b/src/vendor/golang_org/x/crypto/cryptobyte/string.go
+@@ -0,0 +1,167 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package cryptobyte contains types that help with parsing and constructing
++// length-prefixed, binary messages, including ASN.1 DER. (The asn1 subpackage
++// contains useful ASN.1 constants.)
++//
++// The String type is for parsing. It wraps a []byte slice and provides helper
++// functions for consuming structures, value by value.
++//
++// The Builder type is for constructing messages. It providers helper functions
++// for appending values and also for appending length-prefixed submessages –
++// without having to worry about calculating the length prefix ahead of time.
++//
++// See the documentation and examples for the Builder and String types to get
++// started.
++package cryptobyte // import "golang.org/x/crypto/cryptobyte"
++
++// String represents a string of bytes. It provides methods for parsing
++// fixed-length and length-prefixed values from it.
++type String []byte
++
++// read advances a String by n bytes and returns them. If less than n bytes
++// remain, it returns nil.
++func (s *String) read(n int) []byte {
++	if len(*s) < n {
++		return nil
++	}
++	v := (*s)[:n]
++	*s = (*s)[n:]
++	return v
++}
++
++// Skip advances the String by n byte and reports whether it was successful.
++func (s *String) Skip(n int) bool {
++	return s.read(n) != nil
++}
++
++// ReadUint8 decodes an 8-bit value into out and advances over it. It
++// returns true on success and false on error.
++func (s *String) ReadUint8(out *uint8) bool {
++	v := s.read(1)
++	if v == nil {
++		return false
++	}
++	*out = uint8(v[0])
++	return true
++}
++
++// ReadUint16 decodes a big-endian, 16-bit value into out and advances over it.
++// It returns true on success and false on error.
++func (s *String) ReadUint16(out *uint16) bool {
++	v := s.read(2)
++	if v == nil {
++		return false
++	}
++	*out = uint16(v[0])<<8 | uint16(v[1])
++	return true
++}
++
++// ReadUint24 decodes a big-endian, 24-bit value into out and advances over it.
++// It returns true on success and false on error.
++func (s *String) ReadUint24(out *uint32) bool {
++	v := s.read(3)
++	if v == nil {
++		return false
++	}
++	*out = uint32(v[0])<<16 | uint32(v[1])<<8 | uint32(v[2])
++	return true
++}
++
++// ReadUint32 decodes a big-endian, 32-bit value into out and advances over it.
++// It returns true on success and false on error.
++func (s *String) ReadUint32(out *uint32) bool {
++	v := s.read(4)
++	if v == nil {
++		return false
++	}
++	*out = uint32(v[0])<<24 | uint32(v[1])<<16 | uint32(v[2])<<8 | uint32(v[3])
++	return true
++}
++
++func (s *String) readUnsigned(out *uint32, length int) bool {
++	v := s.read(length)
++	if v == nil {
++		return false
++	}
++	var result uint32
++	for i := 0; i < length; i++ {
++		result <<= 8
++		result |= uint32(v[i])
++	}
++	*out = result
++	return true
++}
++
++func (s *String) readLengthPrefixed(lenLen int, outChild *String) bool {
++	lenBytes := s.read(lenLen)
++	if lenBytes == nil {
++		return false
++	}
++	var length uint32
++	for _, b := range lenBytes {
++		length = length << 8
++		length = length | uint32(b)
++	}
++	if int(length) < 0 {
++		// This currently cannot overflow because we read uint24 at most, but check
++		// anyway in case that changes in the future.
++		return false
++	}
++	v := s.read(int(length))
++	if v == nil {
++		return false
++	}
++	*outChild = v
++	return true
++}
++
++// ReadUint8LengthPrefixed reads the content of an 8-bit length-prefixed value
++// into out and advances over it. It returns true on success and false on
++// error.
++func (s *String) ReadUint8LengthPrefixed(out *String) bool {
++	return s.readLengthPrefixed(1, out)
++}
++
++// ReadUint16LengthPrefixed reads the content of a big-endian, 16-bit
++// length-prefixed value into out and advances over it. It returns true on
++// success and false on error.
++func (s *String) ReadUint16LengthPrefixed(out *String) bool {
++	return s.readLengthPrefixed(2, out)
++}
++
++// ReadUint24LengthPrefixed reads the content of a big-endian, 24-bit
++// length-prefixed value into out and advances over it. It returns true on
++// success and false on error.
++func (s *String) ReadUint24LengthPrefixed(out *String) bool {
++	return s.readLengthPrefixed(3, out)
++}
++
++// ReadBytes reads n bytes into out and advances over them. It returns true on
++// success and false and error.
++func (s *String) ReadBytes(out *[]byte, n int) bool {
++	v := s.read(n)
++	if v == nil {
++		return false
++	}
++	*out = v
++	return true
++}
++
++// CopyBytes copies len(out) bytes into out and advances over them. It returns
++// true on success and false on error.
++func (s *String) CopyBytes(out []byte) bool {
++	n := len(out)
++	v := s.read(n)
++	if v == nil {
++		return false
++	}
++	return copy(out, v) == n
++}
++
++// Empty reports whether the string does not contain any bytes.
++func (s String) Empty() bool {
++	return len(s) == 0
++}

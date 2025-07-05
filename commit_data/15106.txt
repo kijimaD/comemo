@@ -7,6 +7,20 @@ Date:   Sun Feb 3 01:25:58 2013 -0500
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/7275045
-
+---
  src/pkg/exp/gotype/gotype_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/exp/gotype/gotype_test.go b/src/pkg/exp/gotype/gotype_test.go
+index 67ab7cfa74..d6ab5eae41 100644
+--- a/src/pkg/exp/gotype/gotype_test.go
++++ b/src/pkg/exp/gotype/gotype_test.go
+@@ -181,7 +181,7 @@ var tests = []string{
+ 
+ 	// "runtime",
+ 	"runtime/cgo",
+-	"runtime/debug",
++	// "runtime/debug", // rejects a valid constant - issue 4744
+ 	"runtime/pprof",
+ 
+ 	"sort",

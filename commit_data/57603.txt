@@ -17,8 +17,63 @@ Date:   Thu Aug 17 22:04:49 2023 -0700
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Auto-Submit: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/cmd/compile/internal/escape/escape.go |  6 ------
  src/cmd/compile/internal/pkginit/init.go  | 15 ---------------
  src/cmd/compile/internal/ssagen/nowb.go   |  3 ---
  3 files changed, 24 deletions(-)
+
+diff --git a/src/cmd/compile/internal/escape/escape.go b/src/cmd/compile/internal/escape/escape.go
+index 25136c242b..f38bcadb3e 100644
+--- a/src/cmd/compile/internal/escape/escape.go
++++ b/src/cmd/compile/internal/escape/escape.go
+@@ -125,12 +125,6 @@ func Funcs(all []*ir.Func) {
+ // Batch performs escape analysis on a minimal batch of
+ // functions.
+ func Batch(fns []*ir.Func, recursive bool) {
+-	for _, fn := range fns {
+-		if fn.Op() != ir.ODCLFUNC {
+-			base.Fatalf("unexpected node: %v", fn)
+-		}
+-	}
+-
+ 	var b batch
+ 	b.heapLoc.attrs = attrEscapes | attrPersists | attrMutates | attrCalls
+ 	b.mutatorLoc.attrs = attrMutates
+diff --git a/src/cmd/compile/internal/pkginit/init.go b/src/cmd/compile/internal/pkginit/init.go
+index 7d2e4ce076..3b7efba434 100644
+--- a/src/cmd/compile/internal/pkginit/init.go
++++ b/src/cmd/compile/internal/pkginit/init.go
+@@ -199,18 +199,3 @@ func MakeTask() {
+ 	// It's not quite read only, the state field must be modifiable.
+ 	objw.Global(lsym, int32(ot), obj.NOPTR)
+ }
+-
+-// initRequiredForCoverage returns TRUE if we need to force creation
+-// of an init function for the package so as to insert a coverage
+-// runtime registration call.
+-func initRequiredForCoverage(l []ir.Node) bool {
+-	if base.Flag.Cfg.CoverageInfo == nil {
+-		return false
+-	}
+-	for _, n := range l {
+-		if n.Op() == ir.ODCLFUNC {
+-			return true
+-		}
+-	}
+-	return false
+-}
+diff --git a/src/cmd/compile/internal/ssagen/nowb.go b/src/cmd/compile/internal/ssagen/nowb.go
+index 8a020611df..3ef0952eff 100644
+--- a/src/cmd/compile/internal/ssagen/nowb.go
++++ b/src/cmd/compile/internal/ssagen/nowb.go
+@@ -98,9 +98,6 @@ func (c *nowritebarrierrecChecker) findExtraCalls(nn ir.Node) {
+ 	default:
+ 		base.Fatalf("expected ONAME or OCLOSURE node, got %+v", arg)
+ 	}
+-	if callee.Op() != ir.ODCLFUNC {
+-		base.Fatalf("expected ODCLFUNC node, got %+v", callee)
+-	}
+ 	c.extraCalls[c.curfn] = append(c.extraCalls[c.curfn], nowritebarrierrecCall{callee, n.Pos()})
+ }
+ 

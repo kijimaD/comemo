@@ -10,7 +10,58 @@ Date:   Thu Jan 28 18:18:40 2010 -0800
     R=r
     CC=golang-dev
     https://golang.org/cl/194134
-
+---
  doc/install.html      |  2 +-
  src/cmd/gotest/gotest | 14 +++++++-------
  2 files changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/doc/install.html b/doc/install.html
+index 33dacf2cfc..5e2cd757f7 100644
+--- a/doc/install.html
++++ b/doc/install.html
+@@ -311,7 +311,7 @@ To update an existing tree to the latest release, you can run:
+ $ cd $GOROOT/src
+ $ hg pull
+ $ hg update release
+-$ make all
++$ ./all.bash
+ </pre>
+ 
+ <h2>Community resources</h2>
+diff --git a/src/cmd/gotest/gotest b/src/cmd/gotest/gotest
+index e6e9f16f5f..47662818e1 100755
+--- a/src/cmd/gotest/gotest
++++ b/src/cmd/gotest/gotest
+@@ -42,10 +42,10 @@ xarm)
+ esac
+ 
+ # Allow overrides
+-GC=${_GC:-$GC}
+-GL=${GL:-$LD}
+-GC="$GC -I _test"
+-GL="$GL -L _test"
++GC="$GOBIN/${_GC:-$GC} -I _test"
++GL="$GOBIN/${GL:-$LD} -L _test"
++CC="$GOBIN/$CC"
++LD="$GOBIN/$LD"
+ export GC GL O AS CC LD
+ 
+ gofiles=""
+@@ -99,7 +99,7 @@ set -e
+ "$GOBIN"/gomake testpackage-clean
+ "$GOBIN"/gomake testpackage "GOTESTFILES=$gofiles"
+ if $havex; then
+-	"$GOBIN"/$GC -o $xofile $xgofiles
++	$GC -o $xofile $xgofiles
+ fi
+ 
+ # They all compile; now generate the code to call them.
+@@ -182,6 +182,6 @@ importpath=$("$GOBIN"/gomake -s importpath)
+ 	echo '}'
+ }>_testmain.go
+ 
+-"$GOBIN"/$GC _testmain.go
+-"$GOBIN"/$GL _testmain.$O
++$GC _testmain.go
++$GL _testmain.$O
+ $E ./$O.out "$@"

@@ -10,7 +10,71 @@ Date:   Sun Dec 30 15:40:42 2012 +1100
     R=rsc, dave
     CC=golang-dev
     https://golang.org/cl/6943047
-
+---
  src/pkg/encoding/json/decode.go      |  8 +++++---
  src/pkg/encoding/json/decode_test.go | 25 +++++++++++++++++++++++++
  2 files changed, 30 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/encoding/json/decode.go b/src/pkg/encoding/json/decode.go
+index b46dac96f5..93a8eb8e92 100644
+--- a/src/pkg/encoding/json/decode.go
++++ b/src/pkg/encoding/json/decode.go
+@@ -430,9 +430,9 @@ func (d *decodeState) object(v reflect.Value) {
+ 	// Check type of target: struct or map[string]T
+ 	switch v.Kind() {
+ 	case reflect.Map:
+-		// map must have string type
++		// map must have string kind
+ 		t := v.Type()
+-		if t.Key() != reflect.TypeOf("") {
++		if t.Key().Kind() != reflect.String {
+ 			d.saveError(&UnmarshalTypeError{"object", v.Type()})
+ 			break
+ 		}
+@@ -536,10 +536,12 @@ func (d *decodeState) object(v reflect.Value) {
+ 		} else {
+ 			d.value(subv)
+ 		}
++
+ 		// Write value back to map;
+ 		// if using struct, subv points into struct already.
+ 		if v.Kind() == reflect.Map {
+-			v.SetMapIndex(reflect.ValueOf(key), subv)
++			kv := reflect.ValueOf(key).Convert(v.Type().Key())
++			v.SetMapIndex(kv, subv)
+ 		}
+ 
+ 		// Next token must be , or }.
+diff --git a/src/pkg/encoding/json/decode_test.go b/src/pkg/encoding/json/decode_test.go
+index b9fad0597a..4f334d1347 100644
+--- a/src/pkg/encoding/json/decode_test.go
++++ b/src/pkg/encoding/json/decode_test.go
+@@ -1000,3 +1000,28 @@ func TestUnmarshalNulls(t *testing.T) {
+ 		t.Errorf("Unmarshal of null values affected primitives")
+ 	}
+ }
++
++func TestStringKind(t *testing.T) {
++	type stringKind string
++	type aMap map[stringKind]int
++
++	var m1, m2 map[stringKind]int
++	m1 = map[stringKind]int{
++		"foo": 42,
++	}
++
++	data, err := Marshal(m1)
++	if err != nil {
++		t.Errorf("Unexpected error marshalling: %v", err)
++	}
++
++	err = Unmarshal(data, &m2)
++	if err != nil {
++		t.Errorf("Unexpected error unmarshalling: %v", err)
++	}
++
++	if !reflect.DeepEqual(m1, m2) {
++		t.Error("Items should be equal after encoding and then decoding")
++	}
++
++}

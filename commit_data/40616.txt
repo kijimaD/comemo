@@ -11,6 +11,28 @@ Date:   Wed Jun 5 12:33:30 2019 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/180780
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/dnsclient_unix_test.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/dnsclient_unix_test.go b/src/net/dnsclient_unix_test.go
+index 1b67494e51..98304d36ea 100644
+--- a/src/net/dnsclient_unix_test.go
++++ b/src/net/dnsclient_unix_test.go
+@@ -589,6 +589,8 @@ func TestGoLookupIPOrderFallbackToFile(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
++	defer conf.teardown()
++
+ 	if err := conf.writeAndUpdate([]string{}); err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -620,7 +622,6 @@ func TestGoLookupIPOrderFallbackToFile(t *testing.T) {
+ 			t.Errorf("%s: address doesn't match expectation. got %v, want %v", name, got, want)
+ 		}
+ 	}
+-	defer conf.teardown()
+ }
+ 
+ // Issue 12712.

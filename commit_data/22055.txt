@@ -22,8 +22,90 @@ Date:   Sat Feb 14 15:54:25 2015 +0300
     Change-Id: I4242dec5e055e460c9a8990eaca1d085ae240ed2
     Reviewed-on: https://go-review.googlesource.com/4902
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/race.go      |  3 +++
  src/runtime/race1.go     | 20 --------------------
  src/runtime/race_amd64.s |  4 ++++
  3 files changed, 7 insertions(+), 20 deletions(-)
+
+diff --git a/src/runtime/race.go b/src/runtime/race.go
+index e7703ba770..923d6113f6 100644
+--- a/src/runtime/race.go
++++ b/src/runtime/race.go
+@@ -23,6 +23,9 @@ func RaceSemrelease(s *uint32)
+ // private interface for the runtime
+ const raceenabled = true
+ 
++// For all functions accepting callerpc and pc,
++// callerpc is a return PC of the function that calls this function,
++// pc is start PC of the function that calls this function.
+ func raceReadObjectPC(t *_type, addr unsafe.Pointer, callerpc, pc uintptr) {
+ 	kind := t.kind & kindMask
+ 	if kind == kindArray || kind == kindStruct {
+diff --git a/src/runtime/race1.go b/src/runtime/race1.go
+index 41f4938e87..4c14d84746 100644
+--- a/src/runtime/race1.go
++++ b/src/runtime/race1.go
+@@ -226,26 +226,6 @@ func racereadrangepc(addr unsafe.Pointer, sz, callpc, pc uintptr) {
+ 	}
+ }
+ 
+-//go:nosplit
+-func racewriteobjectpc(addr unsafe.Pointer, t *_type, callpc, pc uintptr) {
+-	kind := t.kind & _KindMask
+-	if kind == _KindArray || kind == _KindStruct {
+-		racewriterangepc(addr, t.size, callpc, pc)
+-	} else {
+-		racewritepc(addr, callpc, pc)
+-	}
+-}
+-
+-//go:nosplit
+-func racereadobjectpc(addr unsafe.Pointer, t *_type, callpc, pc uintptr) {
+-	kind := t.kind & _KindMask
+-	if kind == _KindArray || kind == _KindStruct {
+-		racereadrangepc(addr, t.size, callpc, pc)
+-	} else {
+-		racereadpc(addr, callpc, pc)
+-	}
+-}
+-
+ //go:nosplit
+ func raceacquire(addr unsafe.Pointer) {
+ 	raceacquireg(getg(), addr)
+diff --git a/src/runtime/race_amd64.s b/src/runtime/race_amd64.s
+index 267cd6cec4..d9e674b61f 100644
+--- a/src/runtime/race_amd64.s
++++ b/src/runtime/race_amd64.s
+@@ -58,6 +58,7 @@ TEXT	runtime·racereadpc(SB), NOSPLIT, $0-24
+ 	MOVQ	addr+0(FP), RARG1
+ 	MOVQ	callpc+8(FP), RARG2
+ 	MOVQ	pc+16(FP), RARG3
++	ADDQ	$1, RARG3 // pc is function start, tsan wants return address
+ 	// void __tsan_read_pc(ThreadState *thr, void *addr, void *callpc, void *pc);
+ 	MOVQ	$__tsan_read_pc(SB), AX
+ 	JMP	racecalladdr<>(SB)
+@@ -81,6 +82,7 @@ TEXT	runtime·racewritepc(SB), NOSPLIT, $0-24
+ 	MOVQ	addr+0(FP), RARG1
+ 	MOVQ	callpc+8(FP), RARG2
+ 	MOVQ	pc+16(FP), RARG3
++	ADDQ	$1, RARG3 // pc is function start, tsan wants return address
+ 	// void __tsan_write_pc(ThreadState *thr, void *addr, void *callpc, void *pc);
+ 	MOVQ	$__tsan_write_pc(SB), AX
+ 	JMP	racecalladdr<>(SB)
+@@ -105,6 +107,7 @@ TEXT	runtime·racereadrangepc1(SB), NOSPLIT, $0-24
+ 	MOVQ	addr+0(FP), RARG1
+ 	MOVQ	size+8(FP), RARG2
+ 	MOVQ	pc+16(FP), RARG3
++	ADDQ	$1, RARG3 // pc is function start, tsan wants return address
+ 	// void __tsan_read_range(ThreadState *thr, void *addr, uintptr size, void *pc);
+ 	MOVQ	$__tsan_read_range(SB), AX
+ 	JMP	racecalladdr<>(SB)
+@@ -129,6 +132,7 @@ TEXT	runtime·racewriterangepc1(SB), NOSPLIT, $0-24
+ 	MOVQ	addr+0(FP), RARG1
+ 	MOVQ	size+8(FP), RARG2
+ 	MOVQ	pc+16(FP), RARG3
++	ADDQ	$1, RARG3 // pc is function start, tsan wants return address
+ 	// void __tsan_write_range(ThreadState *thr, void *addr, uintptr size, void *pc);
+ 	MOVQ	$__tsan_write_range(SB), AX
+ 	JMP	racecalladdr<>(SB)

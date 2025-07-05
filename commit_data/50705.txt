@@ -12,7 +12,34 @@ Date:   Tue Oct 19 14:05:29 2021 -0400
     Run-TryBot: Michael Matloob <matloob@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/modload/init.go    | 2 +-
  src/cmd/go/internal/modload/modfile.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index 0602aee0cc..9aef5a7c33 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -968,7 +968,7 @@ func makeMainModules(ms []module.Version, rootDirs []string, modFiles []*modfile
+ 			for _, r := range modFiles[i].Replace {
+ 				if replacedByWorkFile[r.Old.Path] {
+ 					continue
+-				} else if prev, ok := replacements[r.Old]; ok && !curModuleReplaces[r.Old] {
++				} else if prev, ok := replacements[r.Old]; ok && !curModuleReplaces[r.Old] && prev != r.New {
+ 					base.Fatalf("go: conflicting replacements for %v:\n\t%v\n\t%v\nuse \"go mod editwork -replace %v=[override]\" to resolve", r.Old, prev, r.New, r.Old)
+ 				}
+ 				curModuleReplaces[r.Old] = true
+diff --git a/src/cmd/go/internal/modload/modfile.go b/src/cmd/go/internal/modload/modfile.go
+index 1672d563b7..a7e92222a1 100644
+--- a/src/cmd/go/internal/modload/modfile.go
++++ b/src/cmd/go/internal/modload/modfile.go
+@@ -378,7 +378,7 @@ func canonicalizeReplacePath(r module.Version, modRoot string) module.Version {
+ 		return r
+ 	}
+ 	abs := filepath.Join(modRoot, r.Path)
+-	if rel, err := filepath.Rel(workFilePath, abs); err == nil {
++	if rel, err := filepath.Rel(filepath.Dir(workFilePath), abs); err == nil {
+ 		return module.Version{Path: rel, Version: r.Version}
+ 	}
+ 	// We couldn't make the version's path relative to the workspace's path,

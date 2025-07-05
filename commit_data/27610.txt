@@ -49,7 +49,92 @@ Date:   Fri Mar 18 11:00:03 2016 +0100
     Change-Id: Ie7c6a1c4f9c8eb2f5d65ab127a3845386d6f8b5d
     Reviewed-on: https://go-review.googlesource.com/20835
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/chan_test.go | 29 ++++++++++++++++++++++++++++-
  src/runtime/proc.go      | 11 ++++++++++-
  2 files changed, 38 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/chan_test.go b/src/runtime/chan_test.go
+index 911821bea5..219f2b449b 100644
+--- a/src/runtime/chan_test.go
++++ b/src/runtime/chan_test.go
+@@ -777,7 +777,7 @@ func BenchmarkChanContended(b *testing.B) {
+ 	})
+ }
+ 
+-func BenchmarkChanSync(b *testing.B) {
++func benchmarkChanSync(b *testing.B, work int) {
+ 	const CallsPerSched = 1000
+ 	procs := 2
+ 	N := int32(b.N / CallsPerSched / procs * procs)
+@@ -793,10 +793,14 @@ func BenchmarkChanSync(b *testing.B) {
+ 				for g := 0; g < CallsPerSched; g++ {
+ 					if i%2 == 0 {
+ 						<-myc
++						localWork(work)
+ 						myc <- 0
++						localWork(work)
+ 					} else {
+ 						myc <- 0
++						localWork(work)
+ 						<-myc
++						localWork(work)
+ 					}
+ 				}
+ 			}
+@@ -808,6 +812,14 @@ func BenchmarkChanSync(b *testing.B) {
+ 	}
+ }
+ 
++func BenchmarkChanSync(b *testing.B) {
++	benchmarkChanSync(b, 0)
++}
++
++func BenchmarkChanSyncWork(b *testing.B) {
++	benchmarkChanSync(b, 1000)
++}
++
+ func benchmarkChanProdCons(b *testing.B, chanSize, localWork int) {
+ 	const CallsPerSched = 1000
+ 	procs := runtime.GOMAXPROCS(-1)
+@@ -981,3 +993,18 @@ func BenchmarkChanPopular(b *testing.B) {
+ 	}
+ 	wg.Wait()
+ }
++
++var (
++	alwaysFalse = false
++	workSink    = 0
++)
++
++func localWork(w int) {
++	foo := 0
++	for i := 0; i < w; i++ {
++		foo /= (foo + 1)
++	}
++	if alwaysFalse {
++		workSink += foo
++	}
++}
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 1e1987ff9e..2cc29df434 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -3999,7 +3999,16 @@ func runqgrab(_p_ *p, batch *[256]guintptr, batchHead uint32, stealRunNextG bool
+ 					// Instead of stealing runnext in this window, back off
+ 					// to give _p_ a chance to schedule runnext. This will avoid
+ 					// thrashing gs between different Ps.
+-					usleep(100)
++					// A sync chan send/recv takes ~50ns as of time of writing,
++					// so 3us gives ~50x overshoot.
++					if GOOS != "windows" {
++						usleep(3)
++					} else {
++						// On windows system timer granularity is 1-15ms,
++						// which is way too much for this optimization.
++						// So just yield.
++						osyield()
++					}
+ 					if !_p_.runnext.cas(next, 0) {
+ 						continue
+ 					}

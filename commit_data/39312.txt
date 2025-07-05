@@ -16,7 +16,7 @@ Date:   Fri Feb 22 08:36:41 2019 -0500
     Reviewed-on: https://go-review.googlesource.com/c/163417
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  misc/cgo/testsanitizers/cc_test.go                       | 2 +-
  misc/cgo/testsanitizers/{src => testdata}/msan.go        | 0
  misc/cgo/testsanitizers/{src => testdata}/msan2.go       | 0
@@ -41,3 +41,105 @@ Date:   Fri Feb 22 08:36:41 2019 -0500
  misc/cgo/testsanitizers/{src => testdata}/tsan9.go       | 0
  misc/cgo/testsanitizers/{src => testdata}/tsan_shared.go | 0
  23 files changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/misc/cgo/testsanitizers/cc_test.go b/misc/cgo/testsanitizers/cc_test.go
+index 218e225429..0192a663dd 100644
+--- a/misc/cgo/testsanitizers/cc_test.go
++++ b/misc/cgo/testsanitizers/cc_test.go
+@@ -394,7 +394,7 @@ func (c *config) checkRuntime() (skip bool, err error) {
+ 
+ // srcPath returns the path to the given file relative to this test's source tree.
+ func srcPath(path string) string {
+-	return filepath.Join("src", path)
++	return filepath.Join("testdata", path)
+ }
+ 
+ // A tempDir manages a temporary directory within a test.
+diff --git a/misc/cgo/testsanitizers/src/msan.go b/misc/cgo/testsanitizers/testdata/msan.go
+similarity index 100%
+rename from misc/cgo/testsanitizers/src/msan.go
+rename to misc/cgo/testsanitizers/testdata/msan.go
+diff --git a/misc/cgo/testsanitizers/src/msan2.go b/misc/cgo/testsanitizers/testdata/msan2.go
+similarity index 100%
+rename from misc/cgo/testsanitizers/src/msan2.go
+rename to misc/cgo/testsanitizers/testdata/msan2.go
+diff --git a/misc/cgo/testsanitizers/src/msan2_cmsan.go b/misc/cgo/testsanitizers/testdata/msan2_cmsan.go
+similarity index 100%
+rename from misc/cgo/testsanitizers/src/msan2_cmsan.go
+rename to misc/cgo/testsanitizers/testdata/msan2_cmsan.go
+diff --git a/misc/cgo/testsanitizers/src/msan3.go b/misc/cgo/testsanitizers/testdata/msan3.go
+similarity index 100%
+rename from misc/cgo/testsanitizers/src/msan3.go
+rename to misc/cgo/testsanitizers/testdata/msan3.go
+diff --git a/misc/cgo/testsanitizers/src/msan4.go b/misc/cgo/testsanitizers/testdata/msan4.go
+similarity index 100%
+rename from misc/cgo/testsanitizers/src/msan4.go
+rename to misc/cgo/testsanitizers/testdata/msan4.go
+diff --git a/misc/cgo/testsanitizers/src/msan5.go b/misc/cgo/testsanitizers/testdata/msan5.go
+similarity index 100%
+rename from misc/cgo/testsanitizers/src/msan5.go
+rename to misc/cgo/testsanitizers/testdata/msan5.go
+diff --git a/misc/cgo/testsanitizers/src/msan6.go b/misc/cgo/testsanitizers/testdata/msan6.go
+similarity index 100%
+rename from misc/cgo/testsanitizers/src/msan6.go
+rename to misc/cgo/testsanitizers/testdata/msan6.go
+diff --git a/misc/cgo/testsanitizers/src/msan_fail.go b/misc/cgo/testsanitizers/testdata/msan_fail.go
+similarity index 100%
+rename from misc/cgo/testsanitizers/src/msan_fail.go
+rename to misc/cgo/testsanitizers/testdata/msan_fail.go
+diff --git a/misc/cgo/testsanitizers/src/msan_shared.go b/misc/cgo/testsanitizers/testdata/msan_shared.go
+similarity index 100%
+rename from misc/cgo/testsanitizers/src/msan_shared.go
+rename to misc/cgo/testsanitizers/testdata/msan_shared.go
+diff --git a/misc/cgo/testsanitizers/src/tsan.go b/misc/cgo/testsanitizers/testdata/tsan.go
+similarity index 100%
+rename from misc/cgo/testsanitizers/src/tsan.go
+rename to misc/cgo/testsanitizers/testdata/tsan.go
+diff --git a/misc/cgo/testsanitizers/src/tsan10.go b/misc/cgo/testsanitizers/testdata/tsan10.go
+similarity index 100%
+rename from misc/cgo/testsanitizers/src/tsan10.go
+rename to misc/cgo/testsanitizers/testdata/tsan10.go
+diff --git a/misc/cgo/testsanitizers/src/tsan11.go b/misc/cgo/testsanitizers/testdata/tsan11.go
+similarity index 100%
+rename from misc/cgo/testsanitizers/src/tsan11.go
+rename to misc/cgo/testsanitizers/testdata/tsan11.go
+diff --git a/misc/cgo/testsanitizers/src/tsan12.go b/misc/cgo/testsanitizers/testdata/tsan12.go
+similarity index 100%
+rename from misc/cgo/testsanitizers/src/tsan12.go
+rename to misc/cgo/testsanitizers/testdata/tsan12.go
+diff --git a/misc/cgo/testsanitizers/src/tsan2.go b/misc/cgo/testsanitizers/testdata/tsan2.go
+similarity index 100%
+rename from misc/cgo/testsanitizers/src/tsan2.go
+rename to misc/cgo/testsanitizers/testdata/tsan2.go
+diff --git a/misc/cgo/testsanitizers/src/tsan3.go b/misc/cgo/testsanitizers/testdata/tsan3.go
+similarity index 100%
+rename from misc/cgo/testsanitizers/src/tsan3.go
+rename to misc/cgo/testsanitizers/testdata/tsan3.go
+diff --git a/misc/cgo/testsanitizers/src/tsan4.go b/misc/cgo/testsanitizers/testdata/tsan4.go
+similarity index 100%
+rename from misc/cgo/testsanitizers/src/tsan4.go
+rename to misc/cgo/testsanitizers/testdata/tsan4.go
+diff --git a/misc/cgo/testsanitizers/src/tsan5.go b/misc/cgo/testsanitizers/testdata/tsan5.go
+similarity index 100%
+rename from misc/cgo/testsanitizers/src/tsan5.go
+rename to misc/cgo/testsanitizers/testdata/tsan5.go
+diff --git a/misc/cgo/testsanitizers/src/tsan6.go b/misc/cgo/testsanitizers/testdata/tsan6.go
+similarity index 100%
+rename from misc/cgo/testsanitizers/src/tsan6.go
+rename to misc/cgo/testsanitizers/testdata/tsan6.go
+diff --git a/misc/cgo/testsanitizers/src/tsan7.go b/misc/cgo/testsanitizers/testdata/tsan7.go
+similarity index 100%
+rename from misc/cgo/testsanitizers/src/tsan7.go
+rename to misc/cgo/testsanitizers/testdata/tsan7.go
+diff --git a/misc/cgo/testsanitizers/src/tsan8.go b/misc/cgo/testsanitizers/testdata/tsan8.go
+similarity index 100%
+rename from misc/cgo/testsanitizers/src/tsan8.go
+rename to misc/cgo/testsanitizers/testdata/tsan8.go
+diff --git a/misc/cgo/testsanitizers/src/tsan9.go b/misc/cgo/testsanitizers/testdata/tsan9.go
+similarity index 100%
+rename from misc/cgo/testsanitizers/src/tsan9.go
+rename to misc/cgo/testsanitizers/testdata/tsan9.go
+diff --git a/misc/cgo/testsanitizers/src/tsan_shared.go b/misc/cgo/testsanitizers/testdata/tsan_shared.go
+similarity index 100%
+rename from misc/cgo/testsanitizers/src/tsan_shared.go
+rename to misc/cgo/testsanitizers/testdata/tsan_shared.go

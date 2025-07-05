@@ -7,7 +7,7 @@ Date:   Wed Nov 18 16:51:59 2009 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/157074
-
+---
  misc/cgo/stdio/test.bash          |  2 --
  src/cmd/6l/obj.c                  |  5 ++---
  src/cmd/8l/obj.c                  | 10 +++-------
@@ -16,3 +16,170 @@ Date:   Wed Nov 18 16:51:59 2009 -0800
  src/pkg/runtime/freebsd/386/sys.s | 14 ++++++--------
  src/pkg/runtime/proc.c            |  2 ++
  7 files changed, 28 insertions(+), 26 deletions(-)
+
+diff --git a/misc/cgo/stdio/test.bash b/misc/cgo/stdio/test.bash
+index 8918aab92c..82e3f7b45b 100755
+--- a/misc/cgo/stdio/test.bash
++++ b/misc/cgo/stdio/test.bash
+@@ -3,8 +3,6 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-if [ "$(uname)" = "FreeBSD" ]; then exit 0; fi
+-
+ set -e
+ gomake hello fib chain
+ echo '*' hello >run.out
+diff --git a/src/cmd/6l/obj.c b/src/cmd/6l/obj.c
+index 63e2f95269..9ecdf6ee81 100644
+--- a/src/cmd/6l/obj.c
++++ b/src/cmd/6l/obj.c
+@@ -150,10 +150,9 @@ main(int argc, char *argv[])
+ 		if(strcmp(goos, "darwin") == 0)
+ 			HEADTYPE = 6;
+ 		else
+-		if(strcmp(goos, "freebsd") == 0) {
+-			debug['d'] = 1;	/* no dynamic syms for now */
++		if(strcmp(goos, "freebsd") == 0)
+ 			HEADTYPE = 9;
+-		} else
++		else
+ 			print("goos is not known: %s\n", goos);
+ 	}
+ 
+diff --git a/src/cmd/8l/obj.c b/src/cmd/8l/obj.c
+index 1bfeff5bc2..dc66e6ee3f 100644
+--- a/src/cmd/8l/obj.c
++++ b/src/cmd/8l/obj.c
+@@ -158,10 +158,9 @@ main(int argc, char *argv[])
+ 		if(strcmp(goos, "nacl") == 0)
+ 			HEADTYPE = 8;
+ 		else
+-		if(strcmp(goos, "freebsd") == 0) {
+-			debug['d'] = 1; /* no dynamic syms for now */
++		if(strcmp(goos, "freebsd") == 0)
+ 			HEADTYPE = 9;
+-		} else
++		else
+ 			print("goos is not known: %sn", goos);
+ 	}
+ 
+@@ -241,10 +240,7 @@ main(int argc, char *argv[])
+ 		 * Also known to ../../pkg/runtime/linux/386/sys.s
+ 		 * and ../../libcgo/linux_386.c.
+ 		 */
+-		if (HEADTYPE == 7)
+-			tlsoffset = -8;
+-		else
+-			tlsoffset = 0;
++		tlsoffset = -8;
+ 		elfinit();
+ 		HEADR = ELFRESERVE;
+ 		if(INITTEXT == -1)
+diff --git a/src/libcgo/freebsd_386.c b/src/libcgo/freebsd_386.c
+index 1f596f861b..b445b940ad 100644
+--- a/src/libcgo/freebsd_386.c
++++ b/src/libcgo/freebsd_386.c
+@@ -6,15 +6,13 @@
+ #include "libcgo.h"
+ 
+ static void* threadentry(void*);
+-static pthread_key_t k1, k2;
+ 
+-/* gccism: arrange for inittls to be called at dynamic load time */
+-static void inittls(void) __attribute__((constructor));
++char *environ[] = { 0 };
++char *__progname;
+ 
+ static void
+ inittls(void)
+ {
+-	/* unimplemented for now */
+ }
+ 
+ void
+@@ -51,8 +49,16 @@ threadentry(void *v)
+ 	 */
+ 	ts.g->stackguard = (uintptr)&ts - ts.g->stackguard + 4096;
+ 
+-	pthread_setspecific(k1, (void*)ts.g);
+-	pthread_setspecific(k2, (void*)ts.m);
++	/*
++	 * Set specific keys.  On FreeBSD/ELF, the thread local storage
++	 * is just before %gs:0.  Our dynamic 8.out's reserve 8 bytes
++	 * for the two words g and m at %gs:-8 and %gs:-4.
++	 */
++	asm volatile (
++		"movl %0, %%gs:-8\n"	// MOVL g, -8(GS)
++		"movl %1, %%gs:-4\n"	// MOVL m, -4(GS)
++		:: "r"(ts.g), "r"(ts.m)
++	);
+ 
+ 	crosscall_386(ts.fn);
+ 	return nil;
+diff --git a/src/libcgo/freebsd_amd64.c b/src/libcgo/freebsd_amd64.c
+index 14a409f5eb..4eb0e1ee59 100644
+--- a/src/libcgo/freebsd_amd64.c
++++ b/src/libcgo/freebsd_amd64.c
+@@ -7,6 +7,9 @@
+ 
+ static void* threadentry(void*);
+ 
++char *environ[] = { 0 };
++char *__progname;
++
+ void
+ initcgo(void)
+ {
+diff --git a/src/pkg/runtime/freebsd/386/sys.s b/src/pkg/runtime/freebsd/386/sys.s
+index 1048fea14e..1c0eaead5b 100644
+--- a/src/pkg/runtime/freebsd/386/sys.s
++++ b/src/pkg/runtime/freebsd/386/sys.s
+@@ -19,8 +19,8 @@ TEXT thr_new(SB),7,$-4
+ 	RET
+ 
+ TEXT thr_start(SB),7,$0
+-	MOVL mm+0(FP), AX
+-	MOVL m_g0(AX), BX
++	MOVL	mm+0(FP), AX
++	MOVL	m_g0(AX), BX
+ 	LEAL	m_tls(AX), BP
+ 	MOVL	0(BP), DI
+ 	ADDL	$7, DI
+@@ -132,7 +132,8 @@ int i386_set_ldt(int, const union ldt_entry *, int);
+ // setldt(int entry, int address, int limit)
+ TEXT setldt(SB),7,$32
+ 	MOVL	address+4(FP), BX	// aka base
+-	MOVL	limit+8(FP), CX
++	// see comment in linux/386/sys.s; freebsd is similar
++	ADDL	$0x8, BX
+ 
+ 	// set up data_desc
+ 	LEAL	16(SP), AX	// struct data_desc
+@@ -145,11 +146,8 @@ TEXT setldt(SB),7,$32
+ 	SHRL	$8, BX
+ 	MOVB	BX, 7(AX)
+ 
+-	MOVW	CX, 0(AX)
+-	SHRL	$16, CX
+-	ANDL	$0x0F, CX
+-	ORL	$0x40, CX		// 32-bit operand size
+-	MOVB	CX, 6(AX)
++	MOVW	$0xffff, 0(AX)
++	MOVB	$0xCF, 6(AX)	// 32-bit operand, 4k limit unit, 4 more bits of limit
+ 
+ 	MOVB	$0xF2, 5(AX)	// r/w data descriptor, dpl=3, present
+ 
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index e6e811c5c3..2f36868f5f 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -385,6 +385,8 @@ starttheworld(void)
+ void
+ mstart(void)
+ {
++	if(g != m->g0)
++		throw("bad mstart");
+ 	if(m->mcache == nil)
+ 		m->mcache = allocmcache();
+ 	minit();

@@ -15,8 +15,63 @@ Date:   Fri Nov 4 17:01:34 2016 -0700
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Chris Manghane <cmang@golang.org>
-
+---
  src/cmd/vet/copylock.go          | 5 +----
  src/cmd/vet/shadow.go            | 3 ++-
  src/cmd/vet/testdata/copylock.go | 9 ---------
  3 files changed, 3 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/vet/copylock.go b/src/cmd/vet/copylock.go
+index e8f94fc685..31c1257a47 100644
+--- a/src/cmd/vet/copylock.go
++++ b/src/cmd/vet/copylock.go
+@@ -61,10 +61,7 @@ func checkCopyLocksGenDecl(f *File, gd *ast.GenDecl) {
+ 		return
+ 	}
+ 	for _, spec := range gd.Specs {
+-		valueSpec, ok := spec.(*ast.ValueSpec)
+-		if !ok {
+-			continue
+-		}
++		valueSpec := spec.(*ast.ValueSpec)
+ 		for i, x := range valueSpec.Values {
+ 			if path := lockPathRhs(f, x); path != nil {
+ 				f.Badf(x.Pos(), "variable declaration copies lock value to %v: %v", valueSpec.Names[i].Name, path)
+diff --git a/src/cmd/vet/shadow.go b/src/cmd/vet/shadow.go
+index 764129d94c..29c952fd88 100644
+--- a/src/cmd/vet/shadow.go
++++ b/src/cmd/vet/shadow.go
+@@ -188,7 +188,8 @@ func checkShadowDecl(f *File, d *ast.GenDecl) {
+ 	for _, spec := range d.Specs {
+ 		valueSpec, ok := spec.(*ast.ValueSpec)
+ 		if !ok {
+-			continue
++			f.Badf(spec.Pos(), "invalid AST: var GenDecl not ValueSpec")
++			return
+ 		}
+ 		// Don't complain about deliberate redeclarations of the form
+ 		//	var i = i
+diff --git a/src/cmd/vet/testdata/copylock.go b/src/cmd/vet/testdata/copylock.go
+index 52ac29c47c..35ed766f1d 100644
+--- a/src/cmd/vet/testdata/copylock.go
++++ b/src/cmd/vet/testdata/copylock.go
+@@ -1,7 +1,6 @@
+ package testdata
+ 
+ import (
+-	"runtime"
+ 	"sync"
+ 	"sync/atomic"
+ )
+@@ -157,11 +156,3 @@ func AtomicTypesCheck() {
+ 	vP := &vX
+ 	vZ := &atomic.Value{}
+ }
+-
+-// ensure we don't crash when we encounter aliases; issue 17755
+-
+-var _ => runtime.MemProfileRate
+-
+-const _ => runtime.Compiler
+-
+-type _ => sync.Mutex

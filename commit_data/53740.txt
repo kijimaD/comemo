@@ -21,7 +21,7 @@ Date:   Thu Sep 1 10:32:20 2022 +0700
     Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/types2/stdlib_test.go | 9 +++++++++
  src/go/types/stdlib_test.go                    | 9 +++++++++
  test/fixedbugs/bug514.go                       | 2 +-
@@ -31,3 +31,121 @@ Date:   Thu Sep 1 10:32:20 2022 +0700
  test/fixedbugs/issue46903.go                   | 3 +--
  test/fixedbugs/issue51733.go                   | 2 +-
  8 files changed, 24 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/stdlib_test.go b/src/cmd/compile/internal/types2/stdlib_test.go
+index fc541a4b45..2577abf6de 100644
+--- a/src/cmd/compile/internal/types2/stdlib_test.go
++++ b/src/cmd/compile/internal/types2/stdlib_test.go
+@@ -197,6 +197,15 @@ func TestStdFixed(t *testing.T) {
+ 		"issue48230.go",  // go/types doesn't check validity of //go:xxx directives
+ 		"issue49767.go",  // go/types does not have constraints on channel element size
+ 		"issue49814.go",  // go/types does not have constraints on array size
++
++		// These tests requires runtime/cgo.Incomplete, which is only available on some platforms.
++		// However, types2 does not know about build constraints.
++		"bug514.go",
++		"issue40954.go",
++		"issue42032.go",
++		"issue42076.go",
++		"issue46903.go",
++		"issue51733.go",
+ 	)
+ }
+ 
+diff --git a/src/go/types/stdlib_test.go b/src/go/types/stdlib_test.go
+index d75729ac39..53333b69db 100644
+--- a/src/go/types/stdlib_test.go
++++ b/src/go/types/stdlib_test.go
+@@ -199,6 +199,15 @@ func TestStdFixed(t *testing.T) {
+ 		"issue48230.go",  // go/types doesn't check validity of //go:xxx directives
+ 		"issue49767.go",  // go/types does not have constraints on channel element size
+ 		"issue49814.go",  // go/types does not have constraints on array size
++
++		// These tests requires runtime/cgo.Incomplete, which is only available on some platforms.
++		// However, go/types does not know about build constraints.
++		"bug514.go",
++		"issue40954.go",
++		"issue42032.go",
++		"issue42076.go",
++		"issue46903.go",
++		"issue51733.go",
+ 	)
+ }
+ 
+diff --git a/test/fixedbugs/bug514.go b/test/fixedbugs/bug514.go
+index 9b23185337..1a6c7f14dd 100644
+--- a/test/fixedbugs/bug514.go
++++ b/test/fixedbugs/bug514.go
+@@ -4,7 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build cgo
++//go:build cgo && !aix
+ 
+ package main
+ 
+diff --git a/test/fixedbugs/issue40954.go b/test/fixedbugs/issue40954.go
+index 0beaabb743..e268b808ca 100644
+--- a/test/fixedbugs/issue40954.go
++++ b/test/fixedbugs/issue40954.go
+@@ -4,7 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build cgo
++//go:build cgo && !aix
+ 
+ package main
+ 
+diff --git a/test/fixedbugs/issue42032.go b/test/fixedbugs/issue42032.go
+index eb11859101..68fbc89045 100644
+--- a/test/fixedbugs/issue42032.go
++++ b/test/fixedbugs/issue42032.go
+@@ -4,7 +4,7 @@
+ // source code is governed by a BSD-style license that can be found in
+ // the LICENSE file.
+ 
+-//go:build cgo
++//go:build cgo && !aix
+ 
+ package main
+ 
+diff --git a/test/fixedbugs/issue42076.go b/test/fixedbugs/issue42076.go
+index ef8db2da30..b958d0eeb5 100644
+--- a/test/fixedbugs/issue42076.go
++++ b/test/fixedbugs/issue42076.go
+@@ -4,7 +4,7 @@
+ // source code is governed by a BSD-style license that can be found in
+ // the LICENSE file.
+ 
+-//go:build cgo
++//go:build cgo && !aix
+ 
+ package main
+ 
+diff --git a/test/fixedbugs/issue46903.go b/test/fixedbugs/issue46903.go
+index d77564add2..90ceb9a86c 100644
+--- a/test/fixedbugs/issue46903.go
++++ b/test/fixedbugs/issue46903.go
+@@ -1,6 +1,5 @@
+ // run
+-//go:build goexperiment.unified && cgo
+-// +build goexperiment.unified,cgo
++//go:build goexperiment.unified && cgo && !aix
+ 
+ // TODO(mdempsky): Enable test unconditionally. This test should pass
+ // for non-unified mode too.
+diff --git a/test/fixedbugs/issue51733.go b/test/fixedbugs/issue51733.go
+index 933c3e868c..757ef733c3 100644
+--- a/test/fixedbugs/issue51733.go
++++ b/test/fixedbugs/issue51733.go
+@@ -4,7 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build cgo
++//go:build cgo && !aix
+ 
+ package main
+ 

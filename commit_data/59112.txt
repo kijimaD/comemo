@@ -15,9 +15,163 @@ Date:   Tue Feb 6 18:08:34 2024 -0500
     Reviewed-by: David Chase <drchase@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/internal/ld/data.go | 28 ++++++++++++++++++++++---
  src/cmd/link/internal/ld/main.go |  1 +
  src/cmd/link/internal/ld/pcln.go |  2 +-
  src/cmd/link/link_test.go        | 44 ++++++++++++++++++++++++++++++++++++++--
  4 files changed, 69 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 896d773124..b4930277e4 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -45,6 +45,7 @@ import (
+ 	"fmt"
+ 	"internal/abi"
+ 	"log"
++	"math/rand"
+ 	"os"
+ 	"sort"
+ 	"strconv"
+@@ -122,10 +123,11 @@ func trampoline(ctxt *Link, s loader.Sym) {
+ 		}
+ 
+ 		if ldr.SymValue(rs) == 0 && ldr.SymType(rs) != sym.SDYNIMPORT && ldr.SymType(rs) != sym.SUNDEFEXT {
+-			// Symbols in the same package are laid out together.
++			// Symbols in the same package are laid out together (if we
++			// don't randomize the function order).
+ 			// Except that if SymPkg(s) == "", it is a host object symbol
+ 			// which may call an external symbol via PLT.
+-			if ldr.SymPkg(s) != "" && ldr.SymPkg(rs) == ldr.SymPkg(s) {
++			if ldr.SymPkg(s) != "" && ldr.SymPkg(rs) == ldr.SymPkg(s) && *flagRandLayout == 0 {
+ 				// RISC-V is only able to reach +/-1MiB via a JAL instruction.
+ 				// We need to generate a trampoline when an address is
+ 				// currently unknown.
+@@ -134,7 +136,7 @@ func trampoline(ctxt *Link, s loader.Sym) {
+ 				}
+ 			}
+ 			// Runtime packages are laid out together.
+-			if isRuntimeDepPkg(ldr.SymPkg(s)) && isRuntimeDepPkg(ldr.SymPkg(rs)) {
++			if isRuntimeDepPkg(ldr.SymPkg(s)) && isRuntimeDepPkg(ldr.SymPkg(rs)) && *flagRandLayout == 0 {
+ 				continue
+ 			}
+ 		}
+@@ -2397,6 +2399,26 @@ func (ctxt *Link) textaddress() {
+ 
+ 	ldr := ctxt.loader
+ 
++	if *flagRandLayout != 0 {
++		r := rand.New(rand.NewSource(*flagRandLayout))
++		textp := ctxt.Textp
++		i := 0
++		// don't move the buildid symbol
++		if len(textp) > 0 && ldr.SymName(textp[0]) == "go:buildid" {
++			i++
++		}
++		// Skip over C symbols, as functions in a (C object) section must stay together.
++		// TODO: maybe we can move a section as a whole.
++		// Note: we load C symbols before Go symbols, so we can scan from the start.
++		for i < len(textp) && (ldr.SubSym(textp[i]) != 0 || ldr.AttrSubSymbol(textp[i])) {
++			i++
++		}
++		textp = textp[i:]
++		r.Shuffle(len(textp), func(i, j int) {
++			textp[i], textp[j] = textp[j], textp[i]
++		})
++	}
++
+ 	text := ctxt.xdefine("runtime.text", sym.STEXT, 0)
+ 	etext := ctxt.xdefine("runtime.etext", sym.STEXT, 0)
+ 	ldr.SetSymSect(text, sect)
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index feb4ba5c17..877b3a6be8 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -102,6 +102,7 @@ var (
+ 	FlagTextAddr      = flag.Int64("T", -1, "set the start address of text symbols")
+ 	flagEntrySymbol   = flag.String("E", "", "set `entry` symbol name")
+ 	flagPruneWeakMap  = flag.Bool("pruneweakmap", true, "prune weak mapinit refs")
++	flagRandLayout    = flag.Int64("randlayout", 0, "randomize function layout")
+ 	cpuprofile        = flag.String("cpuprofile", "", "write cpu profile to `file`")
+ 	memprofile        = flag.String("memprofile", "", "write memory profile to `file`")
+ 	memprofilerate    = flag.Int64("memprofilerate", 0, "set runtime.MemProfileRate to `rate`")
+diff --git a/src/cmd/link/internal/ld/pcln.go b/src/cmd/link/internal/ld/pcln.go
+index df06084352..c5996f11d3 100644
+--- a/src/cmd/link/internal/ld/pcln.go
++++ b/src/cmd/link/internal/ld/pcln.go
+@@ -877,7 +877,7 @@ func (ctxt *Link) findfunctab(state *pclntab, container loader.Bitmap) {
+ 				q = ldr.SymValue(e)
+ 			}
+ 
+-			//print("%d: [%lld %lld] %s\n", idx, p, q, s->name);
++			//fmt.Printf("%d: [%x %x] %s\n", idx, p, q, ldr.SymName(s))
+ 			for ; p < q; p += SUBBUCKETSIZE {
+ 				i = int((p - min) / SUBBUCKETSIZE)
+ 				if indexes[i] > idx {
+diff --git a/src/cmd/link/link_test.go b/src/cmd/link/link_test.go
+index 7029d3213f..6afde4b085 100644
+--- a/src/cmd/link/link_test.go
++++ b/src/cmd/link/link_test.go
+@@ -348,7 +348,7 @@ func TestXFlag(t *testing.T) {
+ 	}
+ }
+ 
+-var testMachOBuildVersionSrc = `
++var trivialSrc = `
+ package main
+ func main() { }
+ `
+@@ -361,7 +361,7 @@ func TestMachOBuildVersion(t *testing.T) {
+ 	tmpdir := t.TempDir()
+ 
+ 	src := filepath.Join(tmpdir, "main.go")
+-	err := os.WriteFile(src, []byte(testMachOBuildVersionSrc), 0666)
++	err := os.WriteFile(src, []byte(trivialSrc), 0666)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -1375,3 +1375,43 @@ func TestFlagS(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestRandLayout(t *testing.T) {
++	// Test that the -randlayout flag randomizes function order and
++	// generates a working binary.
++	testenv.MustHaveGoBuild(t)
++
++	t.Parallel()
++
++	tmpdir := t.TempDir()
++
++	src := filepath.Join(tmpdir, "hello.go")
++	err := os.WriteFile(src, []byte(trivialSrc), 0666)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	var syms [2]string
++	for i, seed := range []string{"123", "456"} {
++		exe := filepath.Join(tmpdir, "hello"+seed+".exe")
++		cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-ldflags=-randlayout="+seed, "-o", exe, src)
++		out, err := cmd.CombinedOutput()
++		if err != nil {
++			t.Fatalf("build failed: %v\n%s", err, out)
++		}
++		cmd = testenv.Command(t, exe)
++		err = cmd.Run()
++		if err != nil {
++			t.Fatalf("executable failed to run: %v\n%s", err, out)
++		}
++		cmd = testenv.Command(t, testenv.GoToolPath(t), "tool", "nm", exe)
++		out, err = cmd.CombinedOutput()
++		if err != nil {
++			t.Fatalf("fail to run \"go tool nm\": %v\n%s", err, out)
++		}
++		syms[i] = string(out)
++	}
++	if syms[0] == syms[1] {
++		t.Errorf("randlayout with different seeds produced same layout:\n%s\n===\n\n%s", syms[0], syms[1])
++	}
++}

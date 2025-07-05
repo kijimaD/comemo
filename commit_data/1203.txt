@@ -9,7 +9,7 @@ Date:   Thu Nov 20 10:54:02 2008 -0800
     DELTA=1024  (521 added, 425 deleted, 78 changed)
     OCL=19687
     CL=19695
-
+---
  src/lib/math/Makefile                 |  19 ++---
  src/lib/math/{test.go => all_test.go} |  36 ++++----
  src/lib/math/exp.go                   | 154 +++++++++++++++++++++++++++-------
@@ -17,3 +17,681 @@ Date:   Thu Nov 20 10:54:02 2008 -0800
  src/lib/math/pow.go                   | 106 ++++++++++++++---------
  src/lib/math/sin.go                   |   4 +
  6 files changed, 329 insertions(+), 136 deletions(-)
+
+diff --git a/src/lib/math/Makefile b/src/lib/math/Makefile
+index b24dbca7a9..672d17fac6 100644
+--- a/src/lib/math/Makefile
++++ b/src/lib/math/Makefile
+@@ -33,6 +33,7 @@ coverage: packages
+ 
+ O1=\
+ 	atan.$O\
++	exp.$O\
+ 	fabs.$O\
+ 	floor.$O\
+ 	fmod.$O\
+@@ -46,32 +47,25 @@ O1=\
+ O2=\
+ 	asin.$O\
+ 	atan2.$O\
+-	exp.$O\
+-
+-O3=\
+ 	pow.$O\
+ 	sinh.$O\
+ 
+-O4=\
++O3=\
+ 	tanh.$O\
+ 
+-math.a: a1 a2 a3 a4
++math.a: a1 a2 a3
+ 
+ a1:	$(O1)
+-	$(AR) grc math.a atan.$O fabs.$O floor.$O fmod.$O hypot.$O log.$O pow10.$O sin.$O sqrt.$O tan.$O
++	$(AR) grc math.a atan.$O exp.$O fabs.$O floor.$O fmod.$O hypot.$O log.$O pow10.$O sin.$O sqrt.$O tan.$O
+ 	rm -f $(O1)
+ 
+ a2:	$(O2)
+-	$(AR) grc math.a asin.$O atan2.$O exp.$O
++	$(AR) grc math.a asin.$O atan2.$O pow.$O sinh.$O
+ 	rm -f $(O2)
+ 
+ a3:	$(O3)
+-	$(AR) grc math.a pow.$O sinh.$O
+-	rm -f $(O3)
+-
+-a4:	$(O4)
+ 	$(AR) grc math.a tanh.$O
+-	rm -f $(O4)
++	rm -f $(O3)
+ 
+ newpkg: clean
+ 	$(AR) grc math.a
+@@ -79,7 +73,6 @@ newpkg: clean
+ $(O1): newpkg
+ $(O2): a1
+ $(O3): a2
+-$(O4): a3
+ 
+ nuke: clean
+ 	rm -f $(GOROOT)/pkg/math.a
+diff --git a/src/lib/math/test.go b/src/lib/math/all_test.go
+similarity index 87%
+rename from src/lib/math/test.go
+rename to src/lib/math/all_test.go
+index b4eb8bb0eb..8fa334c350 100644
+--- a/src/lib/math/test.go
++++ b/src/lib/math/all_test.go
+@@ -50,7 +50,7 @@ var atan = []float64 {
+ var exp = []float64 {
+ 	  1.4533071302642137e+02,
+ 	  2.2958822575694450e+03,
+-	  7.5814542574851664e-01,
++	  7.5814542574851666e-01,
+ 	  6.6668778421791010e-03,
+ 	  1.5310493273896035e+04,
+ 	  1.8659907517999329e+01,
+@@ -156,13 +156,12 @@ var tanh = []float64 {
+ 	 -9.9999994291374019e-01,
+ }
+ 
+-func Close(a,b float64) bool {
++func Tolerance(a,b,e float64) bool {
+ 	d := a-b;
+ 	if d < 0 {
+ 		d = -d;
+ 	}
+ 
+-	e := float64(1e-14);
+ 	if a != 0 {
+ 		e = e*a;
+ 		if e < 0 {
+@@ -171,10 +170,16 @@ func Close(a,b float64) bool {
+ 	}
+ 	return d < e;
+ }
++func Close(a,b float64) bool {
++	return Tolerance(a, b, 1e-14);
++}
++func VeryClose(a,b float64) bool {
++	return Tolerance(a, b, 4e-16);
++}
+ 
+ export func TestAsin(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+-		if f := math.Asin(vf[i]/10); !Close(asin[i], f) {
++		if f := math.Asin(vf[i]/10); !VeryClose(asin[i], f) {
+ 			t.Errorf("math.Asin(%g) = %g, want %g\n", vf[i]/10, f, asin[i]);
+ 		}
+ 	}
+@@ -182,7 +187,7 @@ export func TestAsin(t *testing.T) {
+ 
+ export func TestAtan(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+-		if f := math.Atan(vf[i]); !Close(atan[i], f) {
++		if f := math.Atan(vf[i]); !VeryClose(atan[i], f) {
+ 			t.Errorf("math.Atan(%g) = %g, want %g\n", vf[i], f, atan[i]);
+ 		}
+ 	}
+@@ -190,7 +195,7 @@ export func TestAtan(t *testing.T) {
+ 
+ export func TestExp(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+-		if f := math.Exp(vf[i]); !Close(exp[i], f) {
++		if f := math.Exp(vf[i]); !VeryClose(exp[i], f) {
+ 			t.Errorf("math.Exp(%g) = %g, want %g\n", vf[i], f, exp[i]);
+ 		}
+ 	}
+@@ -198,7 +203,7 @@ export func TestExp(t *testing.T) {
+ 
+ export func TestFloor(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+-		if f := math.Floor(vf[i]); !Close(floor[i], f) {
++		if f := math.Floor(vf[i]); floor[i] != f {
+ 			t.Errorf("math.Floor(%g) = %g, want %g\n", vf[i], f, floor[i]);
+ 		}
+ 	}
+@@ -207,10 +212,14 @@ export func TestFloor(t *testing.T) {
+ export func TestLog(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+ 		a := math.Fabs(vf[i]);
+-		if f := math.Log(a); !Close(log[i], f) {
+-			t.Errorf("math.Log(%g) = %g, want %g\n", a, f, floor[i]);
++		if f := math.Log(a); log[i] != f {
++			t.Errorf("math.Log(%g) = %g, want %g\n", a, f, log[i]);
+ 		}
+ 	}
++	const Ln10 = 2.30258509299404568401799145468436421;
++	if f := math.Log(10); f != Ln10 {
++		t.Errorf("math.Log(%g) = %g, want %g\n", 10, f, Ln10);
++	}
+ }
+ 
+ export func TestPow(t *testing.T) {
+@@ -231,7 +240,7 @@ export func TestSin(t *testing.T) {
+ 
+ export func TestSinh(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+-		if f := math.Sinh(vf[i]); !Close(sinh[i], f) {
++		if f := math.Sinh(vf[i]); !VeryClose(sinh[i], f) {
+ 			t.Errorf("math.Sinh(%g) = %g, want %g\n", vf[i], f, sinh[i]);
+ 		}
+ 	}
+@@ -240,7 +249,7 @@ export func TestSinh(t *testing.T) {
+ export func TestSqrt(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+ 		a := math.Fabs(vf[i]);
+-		if f := math.Sqrt(a); !Close(sqrt[i], f) {
++		if f := math.Sqrt(a); !VeryClose(sqrt[i], f) {
+ 			t.Errorf("math.Sqrt(%g) = %g, want %g\n", a, f, floor[i]);
+ 		}
+ 	}
+@@ -256,7 +265,7 @@ export func TestTan(t *testing.T) {
+ 
+ export func TestTanh(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+-		if f := math.Tanh(vf[i]); !Close(tanh[i], f) {
++		if f := math.Tanh(vf[i]); !VeryClose(tanh[i], f) {
+ 			t.Errorf("math.Tanh(%g) = %g, want %g\n", vf[i], f, tanh[i]);
+ 		}
+ 	}
+@@ -265,9 +274,8 @@ export func TestTanh(t *testing.T) {
+ export func TestHypot(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+ 		a := math.Fabs(tanh[i]*math.Sqrt(2));
+-		if f := math.Hypot(tanh[i], tanh[i]); !Close(a, f) {
++		if f := math.Hypot(tanh[i], tanh[i]); !VeryClose(a, f) {
+ 			t.Errorf("math.Hypot(%g, %g) = %g, want %g\n", tanh[i], tanh[i], f, a);
+ 		}
+ 	}
+ }
+-
+diff --git a/src/lib/math/exp.go b/src/lib/math/exp.go
+index 9bc26d2b67..e1402f02a2 100644
+--- a/src/lib/math/exp.go
++++ b/src/lib/math/exp.go
+@@ -6,42 +6,132 @@ package math
+ 
+ import "math"
+ 
+-/*
+- *	exp returns the exponential func of its
+- *	floating-point argument.
+- *
+- *	The coefficients are #1069 from Hart and Cheney. (22.35D)
+- */
+-
+-const
+-(
+-	p0	= .2080384346694663001443843411e7;
+-	p1	= .3028697169744036299076048876e5;
+-	p2	= .6061485330061080841615584556e2;
+-	q0	= .6002720360238832528230907598e7;
+-	q1	= .3277251518082914423057964422e6;
+-	q2	= .1749287689093076403844945335e4;
+-	log2e	= .14426950408889634073599247e1;
+-	sqrt2	= .14142135623730950488016887e1;
+-	maxf	= 10000;
++// The original C code, the long comment, and the constants
++// below are from FreeBSD's /usr/src/lib/msun/src/e_exp.c
++// and came with this notice.  The go code is a simplified
++// version of the original C.
++//
++// ====================================================
++// Copyright (C) 2004 by Sun Microsystems, Inc. All rights reserved.
++//
++// Permission to use, copy, modify, and distribute this
++// software is freely granted, provided that this notice
++// is preserved.
++// ====================================================
++//
++//
++// exp(x)
++// Returns the exponential of x.
++//
++// Method
++//   1. Argument reduction:
++//      Reduce x to an r so that |r| <= 0.5*ln2 ~ 0.34658.
++//      Given x, find r and integer k such that
++//
++//               x = k*ln2 + r,  |r| <= 0.5*ln2.
++//
++//      Here r will be represented as r = hi-lo for better
++//      accuracy.
++//
++//   2. Approximation of exp(r) by a special rational function on
++//      the interval [0,0.34658]:
++//      Write
++//          R(r**2) = r*(exp(r)+1)/(exp(r)-1) = 2 + r*r/6 - r**4/360 + ...
++//      We use a special Remes algorithm on [0,0.34658] to generate
++//      a polynomial of degree 5 to approximate R. The maximum error
++//      of this polynomial approximation is bounded by 2**-59. In
++//      other words,
++//          R(z) ~ 2.0 + P1*z + P2*z**2 + P3*z**3 + P4*z**4 + P5*z**5
++//      (where z=r*r, and the values of P1 to P5 are listed below)
++//      and
++//          |                  5          |     -59
++//          | 2.0+P1*z+...+P5*z   -  R(z) | <= 2
++//          |                             |
++//      The computation of exp(r) thus becomes
++//                             2*r
++//              exp(r) = 1 + -------
++//                            R - r
++//                                 r*R1(r)
++//                     = 1 + r + ----------- (for better accuracy)
++//                                2 - R1(r)
++//      where
++//                               2       4             10
++//              R1(r) = r - (P1*r  + P2*r  + ... + P5*r   ).
++//
++//   3. Scale back to obtain exp(x):
++//      From step 1, we have
++//         exp(x) = 2^k * exp(r)
++//
++// Special cases:
++//      exp(INF) is INF, exp(NaN) is NaN;
++//      exp(-INF) is 0, and
++//      for finite argument, only exp(0)=1 is exact.
++//
++// Accuracy:
++//      according to an error analysis, the error is always less than
++//      1 ulp (unit in the last place).
++//
++// Misc. info.
++//      For IEEE double
++//          if x >  7.09782712893383973096e+02 then exp(x) overflow
++//          if x < -7.45133219101941108420e+02 then exp(x) underflow
++//
++// Constants:
++// The hexadecimal values are the intended ones for the following
++// constants. The decimal values may be used, provided that the
++// compiler will convert from decimal to binary accurately enough
++// to produce the hexadecimal values shown.
++
++export const (
++	Ln2				= 0.693147180559945309417232121458176568;
++	HalfLn2			= 0.346573590279972654708616060729088284;
++
++	Ln2Hi	= 6.93147180369123816490e-01;
++	Ln2Lo	= 1.90821492927058770002e-10;
++	Log2e	= 1.44269504088896338700e+00;
++
++	P1   =  1.66666666666666019037e-01; /* 0x3FC55555; 0x5555553E */
++	P2   = -2.77777777770155933842e-03; /* 0xBF66C16C; 0x16BEBD93 */
++	P3   =  6.61375632143793436117e-05; /* 0x3F11566A; 0xAF25DE2C */
++	P4   = -1.65339022054652515390e-06; /* 0xBEBBBD41; 0xC5D26BF1 */
++	P5   =  4.13813679705723846039e-08; /* 0x3E663769; 0x72BEA4D0 */
++
++	Overflow	= 7.09782712893383973096e+02;
++	Underflow	= -7.45133219101941108420e+02;
++	NearZero	= 1.0/(1<<28);		// 2^-28
+ )
+ 
+-export func Exp(arg float64) float64 {
+-	if arg == 0. {
+-		return 1;
+-	}
+-	if arg < -maxf {
++export func Exp(x float64) float64 {
++	// special cases
++	switch {
++	case sys.isNaN(x) || sys.isInf(x, 1):
++		return x;
++	case sys.isInf(x, -1):
++		return 0;
++	case x > Overflow:
++		return sys.Inf(1);
++	case x < Underflow:
+ 		return 0;
++	case -NearZero < x && x < NearZero:
++		return 1;
+ 	}
+-	if arg > maxf {
+-		return sys.Inf(1)
++
++	// reduce; computed as r = hi - lo for extra precision.
++	var k int;
++	switch {
++	case x < 0:
++		k = int(Log2e*x - 0.5);
++	case x > 0:
++		k = int(Log2e*x + 0.5);
+ 	}
++	hi := x - float64(k)*Ln2Hi;
++	lo := float64(k)*Ln2Lo;
++	r := hi - lo;
+ 
+-	x := arg*log2e;
+-	ent := int(Floor(x));
+-	fract := (x-float64(ent)) - 0.5;
+-	xsq := fract*fract;
+-	temp1 := ((p2*xsq+p1)*xsq+p0)*fract;
+-	temp2 := ((xsq+q2)*xsq+q1)*xsq + q0;
+-	return sys.ldexp(sqrt2*(temp2+temp1)/(temp2-temp1), ent);
++	// compute
++	t := r * r;
++	c := r - t*(P1+t*(P2+t*(P3+t*(P4+t*P5))));
++	y := 1 - ((lo - (r*c)/(2-c)) - hi);
++	// TODO(rsc): make sure sys.ldexp can handle boundary k
++	return sys.ldexp(y, k);
+ }
+diff --git a/src/lib/math/log.go b/src/lib/math/log.go
+index e51c72980f..c0cfebf8bc 100644
+--- a/src/lib/math/log.go
++++ b/src/lib/math/log.go
+@@ -4,56 +4,128 @@
+ 
+ package math
+ 
+-/*
+- *	Log returns the natural logarithm of its floating
+- *	point argument.
+- *
+- *	The coefficients are #2705 from Hart & Cheney. (19.38D)
+- *
+- *	It calls frexp.
+- */
++// The original C code, the long comment, and the constants
++// below are from FreeBSD's /usr/src/lib/msun/src/e_log.c
++// and came with this notice.  The go code is a simpler
++// version of the original C.
++//
++// ====================================================
++// Copyright (C) 1993 by Sun Microsystems, Inc. All rights reserved.
++//
++// Developed at SunPro, a Sun Microsystems, Inc. business.
++// Permission to use, copy, modify, and distribute this
++// software is freely granted, provided that this notice
++// is preserved.
++// ====================================================
++//
++// __ieee754_log(x)
++// Return the logrithm of x
++//
++// Method :
++//   1. Argument Reduction: find k and f such that
++//			x = 2^k * (1+f),
++//	   where  sqrt(2)/2 < 1+f < sqrt(2) .
++//
++//   2. Approximation of log(1+f).
++//	Let s = f/(2+f) ; based on log(1+f) = log(1+s) - log(1-s)
++//		 = 2s + 2/3 s**3 + 2/5 s**5 + .....,
++//	     	 = 2s + s*R
++//      We use a special Reme algorithm on [0,0.1716] to generate
++// 	a polynomial of degree 14 to approximate R The maximum error
++//	of this polynomial approximation is bounded by 2**-58.45. In
++//	other words,
++//		        2      4      6      8      10      12      14
++//	    R(z) ~ Lg1*s +Lg2*s +Lg3*s +Lg4*s +Lg5*s  +Lg6*s  +Lg7*s
++//  	(the values of Lg1 to Lg7 are listed in the program)
++//	and
++//	    |      2          14          |     -58.45
++//	    | Lg1*s +...+Lg7*s    -  R(z) | <= 2
++//	    |                             |
++//	Note that 2s = f - s*f = f - hfsq + s*hfsq, where hfsq = f*f/2.
++//	In order to guarantee error in log below 1ulp, we compute log
++//	by
++//		log(1+f) = f - s*(f - R)	(if f is not too large)
++//		log(1+f) = f - (hfsq - s*(hfsq+R)).	(better accuracy)
++//
++//	3. Finally,  log(x) = k*ln2 + log(1+f).
++//			    = k*ln2_hi+(f-(hfsq-(s*(hfsq+R)+k*ln2_lo)))
++//	   Here ln2 is split into two floating point number:
++//			ln2_hi + ln2_lo,
++//	   where n*ln2_hi is always exact for |n| < 2000.
++//
++// Special cases:
++//	log(x) is NaN with signal if x < 0 (including -INF) ;
++//	log(+INF) is +INF; log(0) is -INF with signal;
++//	log(NaN) is that NaN with no signal.
++//
++// Accuracy:
++//	according to an error analysis, the error is always less than
++//	1 ulp (unit in the last place).
++//
++// Constants:
++// The hexadecimal values are the intended ones for the following
++// constants. The decimal values may be used, provided that the
++// compiler will convert from decimal to binary accurately enough
++// to produce the hexadecimal values shown.
+ 
+-const
+-(
+-	log2	=   .693147180559945309e0;
+-	ln10u1	=   .4342944819032518276511;
+-	sqrto2	=   .707106781186547524e0;
+-	p0	=  -.240139179559210510e2;
+-	p1	=   .309572928215376501e2;
+-	p2	=  -.963769093377840513e1;
+-	p3	=   .421087371217979714e0;
+-	q0	=  -.120069589779605255e2;
+-	q1	=   .194809660700889731e2;
+-	q2	=  -.891110902798312337e1;
++const (
++	Ln2Hi = 6.93147180369123816490e-01;	/* 3fe62e42 fee00000 */
++	Ln2Lo = 1.90821492927058770002e-10;	/* 3dea39ef 35793c76 */
++	Lg1 = 6.666666666666735130e-01;  /* 3FE55555 55555593 */
++	Lg2 = 3.999999999940941908e-01;  /* 3FD99999 9997FA04 */
++	Lg3 = 2.857142874366239149e-01;  /* 3FD24924 94229359 */
++	Lg4 = 2.222219843214978396e-01;  /* 3FCC71C5 1D8E78AF */
++	Lg5 = 1.818357216161805012e-01;  /* 3FC74664 96CB03DE */
++	Lg6 = 1.531383769920937332e-01;  /* 3FC39A09 D078C69F */
++	Lg7 = 1.479819860511658591e-01;  /* 3FC2F112 DF3E5244 */
++
++	Two54 = 1<<54;				// 2^54
++	TwoM20 = 1.0/(1<<20);		// 2^-20
++	TwoM1022 = 2.2250738585072014e-308;	// 2^-1022
++	Sqrt2 = 1.41421356237309504880168872420969808;
+ )
+ 
+-export func Log(arg float64) float64 {
+-	if arg <= 0 {
++export func Log(x float64) float64 {
++	// special cases
++	switch {
++	case sys.isNaN(x) || sys.isInf(x, 1):
++		return x;
++	case x < 0:
+ 		return sys.NaN();
++	case x == 0:
++		return sys.Inf(-1);
+ 	}
+ 
+-	x, exp := sys.frexp(arg);
+-	for x < 0.5 {
+-		x = x*2;
+-		exp = exp-1;
+-	}
+-	if x < sqrto2 {
+-		x = x*2;
+-		exp = exp-1;
++	// reduce
++	f1, ki := sys.frexp(x);
++	if f1 < Sqrt2/2 {
++		f1 *= 2;
++		ki--;
+ 	}
++	f := f1 - 1;
++	k := float64(ki);
+ 
+-	z := (x-1) / (x+1);
+-	zsq := z*z;
+-
+-	temp := ((p3*zsq + p2)*zsq + p1)*zsq + p0;
+-	temp = temp/(((zsq + q2)*zsq + q1)*zsq + q0);
+-	temp = temp*z + float64(exp)*log2;
+-	return temp;
++	// compute
++	s := f/(2+f);
++	s2 := s*s;
++	s4 := s2*s2;
++	t1 := s2*(Lg1 + s4*(Lg3 + s4*(Lg5 + s4*Lg7)));
++	t2 := s4*(Lg2 + s4*(Lg4 + s4*Lg6));
++	R :=  t1 + t2;
++	hfsq := 0.5*f*f;
++	return k*Ln2Hi - ((hfsq-(s*(hfsq+R)+k*Ln2Lo)) - f);
+ }
+ 
++const
++(
++	ln10u1	= .4342944819032518276511;
++)
++
+ export func Log10(arg float64) float64 {
+ 	if arg <= 0 {
+ 		return sys.NaN();
+ 	}
+ 	return Log(arg) * ln10u1;
+ }
++
++
+diff --git a/src/lib/math/pow.go b/src/lib/math/pow.go
+index 9e63db74b9..bdecf1329e 100644
+--- a/src/lib/math/pow.go
++++ b/src/lib/math/pow.go
+@@ -6,56 +6,82 @@ package math
+ 
+ import "math"
+ 
+-/*
+-	arg1 ^ arg2 (exponentiation)
+- */
++// x^y: exponentation
++export func Pow(x, y float64) float64 {
++	// TODO: x or y NaN, ±Inf, maybe ±0.
++	switch {
++	case y == 0:
++		return 1;
++	case y == 1:
++		return x;
++	case x == 0 && y > 0:
++		return 0;
++	case x == 0 && y < 0:
++		return sys.Inf(1);
++	case y == 0.5:
++		return Sqrt(x);
++	case y == -0.5:
++		return 1 / Sqrt(x);
++	}
+ 
+-export func Pow(arg1,arg2 float64) float64 {
+-	if arg2 < 0 {
+-		return 1/Pow(arg1, -arg2);
++	absy := y;
++	flip := false;
++	if absy < 0 {
++		absy = -absy;
++		flip = true;
++	}
++	yi, yf := sys.modf(absy);
++	if yf != 0 && x < 0 {
++		return sys.NaN();
++	}
++	if yi >= 1<<63 {
++		return Exp(y * Log(x));
+ 	}
+-	if arg1 <= 0 {
+-		if(arg1 == 0) {
+-			if arg2 <= 0 {
+-				return sys.NaN();
+-			}
+-			return 0;
+-		}
+ 
+-		temp := Floor(arg2);
+-		if temp != arg2 {
+-			panic(sys.NaN());
+-		}
++	ans := float64(1);
+ 
+-		l := int32(temp);
+-		if l&1 != 0 {
+-			return -Pow(-arg1, arg2);
++	// ans *= x^yf
++	if yf != 0 {
++		if yf > 0.5 {
++			yf--;
++			yi++;
+ 		}
+-		return Pow(-arg1, arg2);
++		ans = Exp(yf * Log(x));
+ 	}
+ 
+-	temp := Floor(arg2);
+-	if temp != arg2 {
+-		if arg2-temp == .5 {
+-			if temp == 0 {
+-				return Sqrt(arg1);
++	// ans *= x^yi
++	// by multiplying in successive squarings
++	// of x according to bits of yi.
++	// accumulate powers of two into exp.
++	// will still have to do ans *= 2^exp later.
++	x1, xe := sys.frexp(x);
++	exp := 0;
++	if i := int64(yi); i != 0 {
++		for {
++			if i&1 == 1 {
++				ans *= x1;
++				exp += xe;
++			}
++			i >>= 1;
++			if i == 0 {
++				break;
++			}
++			x1 *= x1;
++			xe <<= 1;
++			if x1 < .5 {
++				x1 += x1;
++				xe--;
+ 			}
+-			return Pow(arg1, temp) * Sqrt(arg1);
+ 		}
+-		return Exp(arg2 * Log(arg1));
+ 	}
+ 
+-	l := int32(temp);
+-	temp = 1;
+-	for {
+-		if l&1 != 0 {
+-			temp = temp*arg1;
+-		}
+-		l >>= 1;
+-		if l == 0 {
+-			return temp;
+-		}
+-		arg1 *= arg1;
++	// ans *= 2^exp
++	// if flip { ans = 1 / ans }
++	// but in the opposite order
++	if flip {
++		ans = 1 / ans;
++		exp = -exp;
+ 	}
+-	panic("unreachable")
++	return sys.ldexp(ans, exp);
+ }
++
+diff --git a/src/lib/math/sin.go b/src/lib/math/sin.go
+index 635e60d219..57de55913b 100644
+--- a/src/lib/math/sin.go
++++ b/src/lib/math/sin.go
+@@ -4,6 +4,9 @@
+ 
+ package math
+ 
++/*
++	Coefficients are #3370 from Hart & Cheney (18.80D).
++*/
+ const
+ (
+ 	p0	=  .1357884097877375669092680e8;
+@@ -15,6 +18,7 @@ const
+ 	q1	=  .4081792252343299749395779e6;
+ 	q2	=  .9463096101538208180571257e4;
+ 	q3	=  .1326534908786136358911494e3;
++
+         piu2	=  .6366197723675813430755350e0;	// 2/pi
+ )
+ 

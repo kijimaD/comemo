@@ -10,6 +10,20 @@ Date:   Fri Sep 16 18:28:57 2011 -0700
     R=golang-dev, gri
     CC=golang-dev
     https://golang.org/cl/5031050
-
+---
  test/fixedbugs/bug330.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/test/fixedbugs/bug330.go b/test/fixedbugs/bug330.go
+index cf1d6cc2d7..114492aff8 100644
+--- a/test/fixedbugs/bug330.go
++++ b/test/fixedbugs/bug330.go
+@@ -8,6 +8,6 @@ package main
+ 
+ func main() {
+ 	x := ""
+-	x = +"hello"  // ERROR "invalid operation.*string"
+-	x = +x  // ERROR "invalid operation.*string"
++	x = +"hello"  // ERROR "invalid operation.*string|expected numeric"
++	x = +x  // ERROR "invalid operation.*string|expected numeric"
+ }

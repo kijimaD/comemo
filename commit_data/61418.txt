@@ -14,7 +14,7 @@ Date:   Wed Nov 6 23:13:37 2024 +0000
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: David Chase <drchase@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  api/next/63952.txt                            |   33 +
  doc/next/6-stdlib/99-minor/debug/elf/63952.md |   20 +
  src/debug/elf/elf.go                          |    9 +
@@ -23,3 +23,2901 @@ Date:   Wed Nov 6 23:13:37 2024 +0000
  src/debug/elf/symbols_test.go                 | 2008 +++++++++++++++----------
  src/debug/elf/testdata/libtiffxx.so_          |  Bin 0 -> 9064 bytes
  7 files changed, 1698 insertions(+), 997 deletions(-)
+
+diff --git a/api/next/63952.txt b/api/next/63952.txt
+new file mode 100644
+index 0000000000..738e56f0e1
+--- /dev/null
++++ b/api/next/63952.txt
+@@ -0,0 +1,33 @@
++pkg debug/elf, const VER_FLG_BASE = 1 #63952
++pkg debug/elf, const VER_FLG_BASE DynamicVersionFlag #63952
++pkg debug/elf, const VER_FLG_INFO = 4 #63952
++pkg debug/elf, const VER_FLG_INFO DynamicVersionFlag #63952
++pkg debug/elf, const VER_FLG_WEAK = 2 #63952
++pkg debug/elf, const VER_FLG_WEAK DynamicVersionFlag #63952
++pkg debug/elf, const VerFlagGlobal = 2 #63952
++pkg debug/elf, const VerFlagGlobal SymbolVersionFlag #63952
++pkg debug/elf, const VerFlagHidden = 4 #63952
++pkg debug/elf, const VerFlagHidden SymbolVersionFlag #63952
++pkg debug/elf, const VerFlagLocal = 1 #63952
++pkg debug/elf, const VerFlagLocal SymbolVersionFlag #63952
++pkg debug/elf, const VerFlagNone = 0 #63952
++pkg debug/elf, const VerFlagNone SymbolVersionFlag #63952
++pkg debug/elf, method (*File) DynamicVersionNeeds() ([]DynamicVersionNeed, error) #63952
++pkg debug/elf, method (*File) DynamicVersions() ([]DynamicVersion, error) #63952
++pkg debug/elf, type DynamicVersion struct #63952
++pkg debug/elf, type DynamicVersion struct, Deps []string #63952
++pkg debug/elf, type DynamicVersion struct, Flags DynamicVersionFlag #63952
++pkg debug/elf, type DynamicVersion struct, Index uint16 #63952
++pkg debug/elf, type DynamicVersion struct, Version uint16 #63952
++pkg debug/elf, type DynamicVersionDep struct #63952
++pkg debug/elf, type DynamicVersionDep struct, Dep string #63952
++pkg debug/elf, type DynamicVersionDep struct, Flags DynamicVersionFlag #63952
++pkg debug/elf, type DynamicVersionDep struct, Other uint16 #63952
++pkg debug/elf, type DynamicVersionFlag uint16 #63952
++pkg debug/elf, type DynamicVersionNeed struct #63952
++pkg debug/elf, type DynamicVersionNeed struct, Name string #63952
++pkg debug/elf, type DynamicVersionNeed struct, Needs []DynamicVersionDep #63952
++pkg debug/elf, type DynamicVersionNeed struct, Version uint16 #63952
++pkg debug/elf, type Symbol struct, VersionFlags SymbolVersionFlag #63952
++pkg debug/elf, type Symbol struct, VersionIndex int16 #63952
++pkg debug/elf, type SymbolVersionFlag uint8 #63952
+diff --git a/doc/next/6-stdlib/99-minor/debug/elf/63952.md b/doc/next/6-stdlib/99-minor/debug/elf/63952.md
+new file mode 100644
+index 0000000000..946673f2a1
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/debug/elf/63952.md
+@@ -0,0 +1,20 @@
++The [debug/elf] package adds several new constants, types, and methods to add support for handling dynamic versions and version flags in ELF (Executable and Linkable Format) files:
++
++Several new types have been introduced:
++- [DynamicVersion] struct represents a dynamic version entry in the ELF file.
++- [DynamicVersionDep] struct represents a dependency of a dynamic version.
++- [DynamicVersionNeed] struct represents a required dynamic version in the ELF file.
++- [DynamicVersionFlag] is a new type defined as uint16, representing flags for dynamic versions.
++    - [VER_FLG_BASE] version definition of the file.
++    - [VER_FLG_WEAK] weak version identifier.
++    - [VER_FLG_INFO] reference exists for informational purposes.
++- [SymbolVersionFlag] is a new type defined as uint8, representing version flags for ELF symbols.
++    - [VerFlagNone] no flags.
++    - [VerFlagLocal] symbol has local scope.
++    - [VerFlagGlobal] symbol has global scope.
++    - [VerFlagHidden] symbol is hidden.
++
++The following methods have been added:
++- [File.DynamicVersionNeeds] method returns a list of dynamic version needs in the ELF file, representing dependencies required by the executable.
++- [File.DynamicVersions] retrieves a list of dynamic versions defined in the ELF file.
++<!-- go.dev/issue/63952 -->
+\ No newline at end of file
+diff --git a/src/debug/elf/elf.go b/src/debug/elf/elf.go
+index cecda61ed6..e902f84665 100644
+--- a/src/debug/elf/elf.go
++++ b/src/debug/elf/elf.go
+@@ -3579,6 +3579,15 @@ type intName struct {
+ 	s string
+ }
+ 
++// Dynamic version flags.
++type DynamicVersionFlag uint16
++
++const (
++	VER_FLG_BASE DynamicVersionFlag = 0x1 /* Version definition of the file. */
++	VER_FLG_WEAK DynamicVersionFlag = 0x2 /* Weak version identifier. */
++	VER_FLG_INFO DynamicVersionFlag = 0x4 /* Reference exists for informational purposes. */
++)
++
+ func stringName(i uint32, names []intName, goSyntax bool) string {
+ 	for _, n := range names {
+ 		if n.i == i {
+diff --git a/src/debug/elf/file.go b/src/debug/elf/file.go
+index 398439dcce..05062f1433 100644
+--- a/src/debug/elf/file.go
++++ b/src/debug/elf/file.go
+@@ -52,11 +52,12 @@ type FileHeader struct {
+ // A File represents an open ELF file.
+ type File struct {
+ 	FileHeader
+-	Sections  []*Section
+-	Progs     []*Prog
+-	closer    io.Closer
+-	gnuNeed   []verneed
+-	gnuVersym []byte
++	Sections    []*Section
++	Progs       []*Prog
++	closer      io.Closer
++	dynVers     []DynamicVersion
++	dynVerNeeds []DynamicVersionNeed
++	gnuVersym   []byte
+ }
+ 
+ // A SectionHeader represents a single ELF section header.
+@@ -207,11 +208,16 @@ func (p *Prog) Open() io.ReadSeeker { return io.NewSectionReader(p.sr, 0, 1<<63-
+ type Symbol struct {
+ 	Name        string
+ 	Info, Other byte
++
++	// These fields are used for symbol versioning
++	// and are present only for the dynamic symbol table.
++	VersionIndex int16
++	VersionFlags SymbolVersionFlag
++
+ 	Section     SectionIndex
+ 	Value, Size uint64
+ 
+-	// Version and Library are present only for the dynamic symbol
+-	// table.
++	// These fields are present only for the dynamic symbol table.
+ 	Version string
+ 	Library string
+ }
+@@ -657,6 +663,7 @@ func (f *File) getSymbols32(typ SectionType) ([]Symbol, []byte, error) {
+ 		symbols[i].Name = str
+ 		symbols[i].Info = sym.Info
+ 		symbols[i].Other = sym.Other
++		symbols[i].VersionIndex = -1
+ 		symbols[i].Section = SectionIndex(sym.Shndx)
+ 		symbols[i].Value = uint64(sym.Value)
+ 		symbols[i].Size = uint64(sym.Size)
+@@ -704,6 +711,7 @@ func (f *File) getSymbols64(typ SectionType) ([]Symbol, []byte, error) {
+ 		symbols[i].Name = str
+ 		symbols[i].Info = sym.Info
+ 		symbols[i].Other = sym.Other
++		symbols[i].VersionIndex = -1
+ 		symbols[i].Section = SectionIndex(sym.Shndx)
+ 		symbols[i].Value = sym.Value
+ 		symbols[i].Size = sym.Size
+@@ -1446,7 +1454,7 @@ func (f *File) DynamicSymbols() ([]Symbol, error) {
+ 	}
+ 	if f.gnuVersionInit(str) {
+ 		for i := range sym {
+-			sym[i].Library, sym[i].Version = f.gnuVersion(i)
++			sym[i].VersionIndex, sym[i].Version, sym[i].Library, sym[i].VersionFlags = f.gnuVersion(i)
+ 		}
+ 	}
+ 	return sym, nil
+@@ -1473,22 +1481,121 @@ func (f *File) ImportedSymbols() ([]ImportedSymbol, error) {
+ 		if ST_BIND(s.Info) == STB_GLOBAL && s.Section == SHN_UNDEF {
+ 			all = append(all, ImportedSymbol{Name: s.Name})
+ 			sym := &all[len(all)-1]
+-			sym.Library, sym.Version = f.gnuVersion(i)
++			_, sym.Version, sym.Library, _ = f.gnuVersion(i)
+ 		}
+ 	}
+ 	return all, nil
+ }
+ 
+-type verneed struct {
+-	File string
+-	Name string
++type SymbolVersionFlag byte
++
++const (
++	VerFlagNone   SymbolVersionFlag = 0x0 // No flags.
++	VerFlagLocal  SymbolVersionFlag = 0x1 // Symbol has local scope.
++	VerFlagGlobal SymbolVersionFlag = 0x2 // Symbol has global scope.
++	VerFlagHidden SymbolVersionFlag = 0x4 // Symbol is hidden.
++)
++
++// DynamicVersion is a version defined by a dynamic object.
++type DynamicVersion struct {
++	Version uint16 // Version of data structure.
++	Flags   DynamicVersionFlag
++	Index   uint16   // Version index.
++	Deps    []string // Dependencies.
+ }
+ 
+-// gnuVersionInit parses the GNU version tables
+-// for use by calls to gnuVersion.
+-func (f *File) gnuVersionInit(str []byte) bool {
+-	if f.gnuNeed != nil {
+-		// Already initialized
++type DynamicVersionNeed struct {
++	Version uint16              // Version of data structure.
++	Name    string              // Shared library name.
++	Needs   []DynamicVersionDep // Dependencies.
++}
++
++type DynamicVersionDep struct {
++	Flags DynamicVersionFlag
++	Other uint16 // Version index.
++	Dep   string // Name of required version.
++}
++
++// dynamicVersions returns version information for a dynamic object.
++func (f *File) dynamicVersions(str []byte) bool {
++	if f.dynVers != nil {
++		// Already initialized.
++		return true
++	}
++
++	// Accumulate verdef information.
++	vd := f.SectionByType(SHT_GNU_VERDEF)
++	if vd == nil {
++		return false
++	}
++	d, _ := vd.Data()
++
++	var dynVers []DynamicVersion
++	i := 0
++	for {
++		if i+20 > len(d) {
++			break
++		}
++		version := f.ByteOrder.Uint16(d[i : i+2])
++		flags := DynamicVersionFlag(f.ByteOrder.Uint16(d[i+2 : i+4]))
++		ndx := f.ByteOrder.Uint16(d[i+4 : i+6])
++		cnt := f.ByteOrder.Uint16(d[i+6 : i+8])
++		aux := f.ByteOrder.Uint32(d[i+12 : i+16])
++		next := f.ByteOrder.Uint32(d[i+16 : i+20])
++
++		var depName string
++		var deps []string
++		j := i + int(aux)
++		for c := 0; c < int(cnt); c++ {
++			if j+8 > len(d) {
++				break
++			}
++			vname := f.ByteOrder.Uint32(d[j : j+4])
++			vnext := f.ByteOrder.Uint32(d[j+4 : j+8])
++			depName, _ = getString(str, int(vname))
++
++			deps = append(deps, depName)
++
++			j += int(vnext)
++		}
++
++		dynVers = append(dynVers, DynamicVersion{
++			Version: version,
++			Flags:   flags,
++			Index:   ndx,
++			Deps:    deps,
++		})
++
++		if next == 0 {
++			break
++		}
++		i += int(next)
++	}
++
++	f.dynVers = dynVers
++
++	return true
++}
++
++// DynamicVersions returns version information for a dynamic object.
++func (f *File) DynamicVersions() ([]DynamicVersion, error) {
++	if f.dynVers == nil {
++		_, str, err := f.getSymbols(SHT_DYNSYM)
++		if err != nil {
++			return nil, err
++		}
++		if !f.gnuVersionInit(str) {
++			return nil, errors.New("DynamicVersions: missing version table")
++		}
++	}
++
++	return f.dynVers, nil
++}
++
++// dynamicVersionNeeds returns version dependencies for a dynamic object.
++func (f *File) dynamicVersionNeeds(str []byte) bool {
++	if f.dynVerNeeds != nil {
++		// Already initialized.
+ 		return true
+ 	}
+ 
+@@ -1499,7 +1606,7 @@ func (f *File) gnuVersionInit(str []byte) bool {
+ 	}
+ 	d, _ := vn.Data()
+ 
+-	var need []verneed
++	var dynVerNeeds []DynamicVersionNeed
+ 	i := 0
+ 	for {
+ 		if i+16 > len(d) {
+@@ -1515,68 +1622,124 @@ func (f *File) gnuVersionInit(str []byte) bool {
+ 		next := f.ByteOrder.Uint32(d[i+12 : i+16])
+ 		file, _ := getString(str, int(fileoff))
+ 
+-		var name string
++		var deps []DynamicVersionDep
+ 		j := i + int(aux)
+ 		for c := 0; c < int(cnt); c++ {
+ 			if j+16 > len(d) {
+ 				break
+ 			}
+-			// hash := f.ByteOrder.Uint32(d[j:j+4])
+-			// flags := f.ByteOrder.Uint16(d[j+4:j+6])
++			flags := DynamicVersionFlag(f.ByteOrder.Uint16(d[j+4 : j+6]))
+ 			other := f.ByteOrder.Uint16(d[j+6 : j+8])
+ 			nameoff := f.ByteOrder.Uint32(d[j+8 : j+12])
+ 			next := f.ByteOrder.Uint32(d[j+12 : j+16])
+-			name, _ = getString(str, int(nameoff))
+-			ndx := int(other)
+-			if ndx >= len(need) {
+-				a := make([]verneed, 2*(ndx+1))
+-				copy(a, need)
+-				need = a
+-			}
++			depName, _ := getString(str, int(nameoff))
++
++			deps = append(deps, DynamicVersionDep{
++				Flags: flags,
++				Other: other,
++				Dep:   depName,
++			})
+ 
+-			need[ndx] = verneed{file, name}
+ 			if next == 0 {
+ 				break
+ 			}
+ 			j += int(next)
+ 		}
+ 
++		dynVerNeeds = append(dynVerNeeds, DynamicVersionNeed{
++			Version: vers,
++			Name:    file,
++			Needs:   deps,
++		})
++
+ 		if next == 0 {
+ 			break
+ 		}
+ 		i += int(next)
+ 	}
+ 
++	f.dynVerNeeds = dynVerNeeds
++
++	return true
++}
++
++// DynamicVersionNeeds returns version dependencies for a dynamic object.
++func (f *File) DynamicVersionNeeds() ([]DynamicVersionNeed, error) {
++	if f.dynVerNeeds == nil {
++		_, str, err := f.getSymbols(SHT_DYNSYM)
++		if err != nil {
++			return nil, err
++		}
++		if !f.gnuVersionInit(str) {
++			return nil, errors.New("DynamicVersionNeeds: missing version table")
++		}
++	}
++
++	return f.dynVerNeeds, nil
++}
++
++// gnuVersionInit parses the GNU version tables
++// for use by calls to gnuVersion.
++func (f *File) gnuVersionInit(str []byte) bool {
+ 	// Versym parallels symbol table, indexing into verneed.
+ 	vs := f.SectionByType(SHT_GNU_VERSYM)
+ 	if vs == nil {
+ 		return false
+ 	}
+-	d, _ = vs.Data()
++	d, _ := vs.Data()
+ 
+-	f.gnuNeed = need
+ 	f.gnuVersym = d
++	f.dynamicVersions(str)
++	f.dynamicVersionNeeds(str)
+ 	return true
+ }
+ 
+ // gnuVersion adds Library and Version information to sym,
+ // which came from offset i of the symbol table.
+-func (f *File) gnuVersion(i int) (library string, version string) {
++func (f *File) gnuVersion(i int) (versionIndex int16, version string, library string, versionFlags SymbolVersionFlag) {
+ 	// Each entry is two bytes; skip undef entry at beginning.
+ 	i = (i + 1) * 2
+ 	if i >= len(f.gnuVersym) {
+-		return
++		return -1, "", "", VerFlagNone
+ 	}
+ 	s := f.gnuVersym[i:]
+ 	if len(s) < 2 {
+-		return
++		return -1, "", "", VerFlagNone
++	}
++	j := int32(f.ByteOrder.Uint16(s))
++	var ndx = int16(j & 0x7fff)
++
++	if ndx == 0 {
++		return ndx, "", "", VerFlagLocal
++	} else if ndx == 1 {
++		return ndx, "", "", VerFlagGlobal
++	}
++
++	if ndx < 2 {
++		return 0, "", "", VerFlagNone
++	}
++
++	for _, v := range f.dynVerNeeds {
++		for _, n := range v.Needs {
++			if uint16(ndx) == n.Other {
++				return ndx, n.Dep, v.Name, VerFlagHidden
++			}
++		}
+ 	}
+-	j := int(f.ByteOrder.Uint16(s))
+-	if j < 2 || j >= len(f.gnuNeed) {
+-		return
++
++	for _, v := range f.dynVers {
++		if uint16(ndx) == v.Index {
++			if len(v.Deps) > 0 {
++				flags := VerFlagNone
++				if j&0x8000 != 0 {
++					flags = VerFlagHidden
++				}
++				return ndx, v.Deps[0], "", flags
++			}
++		}
+ 	}
+-	n := &f.gnuNeed[j]
+-	return n.File, n.Name
++
++	return -1, "", "", VerFlagNone
+ }
+ 
+ // ImportedLibraries returns the names of all libraries
+diff --git a/src/debug/elf/file_test.go b/src/debug/elf/file_test.go
+index 5dd83a2917..55d58b3234 100644
+--- a/src/debug/elf/file_test.go
++++ b/src/debug/elf/file_test.go
+@@ -78,80 +78,80 @@ var fileTests = []fileTest{
+ 		},
+ 		[]string{"libc.so.6"},
+ 		[]Symbol{
+-			{"", 3, 0, 1, 134512852, 0, "", ""},
+-			{"", 3, 0, 2, 134512876, 0, "", ""},
+-			{"", 3, 0, 3, 134513020, 0, "", ""},
+-			{"", 3, 0, 4, 134513292, 0, "", ""},
+-			{"", 3, 0, 5, 134513480, 0, "", ""},
+-			{"", 3, 0, 6, 134513512, 0, "", ""},
+-			{"", 3, 0, 7, 134513532, 0, "", ""},
+-			{"", 3, 0, 8, 134513612, 0, "", ""},
+-			{"", 3, 0, 9, 134513996, 0, "", ""},
+-			{"", 3, 0, 10, 134514008, 0, "", ""},
+-			{"", 3, 0, 11, 134518268, 0, "", ""},
+-			{"", 3, 0, 12, 134518280, 0, "", ""},
+-			{"", 3, 0, 13, 134518284, 0, "", ""},
+-			{"", 3, 0, 14, 134518436, 0, "", ""},
+-			{"", 3, 0, 15, 134518444, 0, "", ""},
+-			{"", 3, 0, 16, 134518452, 0, "", ""},
+-			{"", 3, 0, 17, 134518456, 0, "", ""},
+-			{"", 3, 0, 18, 134518484, 0, "", ""},
+-			{"", 3, 0, 19, 0, 0, "", ""},
+-			{"", 3, 0, 20, 0, 0, "", ""},
+-			{"", 3, 0, 21, 0, 0, "", ""},
+-			{"", 3, 0, 22, 0, 0, "", ""},
+-			{"", 3, 0, 23, 0, 0, "", ""},
+-			{"", 3, 0, 24, 0, 0, "", ""},
+-			{"", 3, 0, 25, 0, 0, "", ""},
+-			{"", 3, 0, 26, 0, 0, "", ""},
+-			{"", 3, 0, 27, 0, 0, "", ""},
+-			{"", 3, 0, 28, 0, 0, "", ""},
+-			{"", 3, 0, 29, 0, 0, "", ""},
+-			{"crt1.c", 4, 0, 65521, 0, 0, "", ""},
+-			{"/usr/src/lib/csu/i386-elf/crti.S", 4, 0, 65521, 0, 0, "", ""},
+-			{"<command line>", 4, 0, 65521, 0, 0, "", ""},
+-			{"<built-in>", 4, 0, 65521, 0, 0, "", ""},
+-			{"/usr/src/lib/csu/i386-elf/crti.S", 4, 0, 65521, 0, 0, "", ""},
+-			{"crtstuff.c", 4, 0, 65521, 0, 0, "", ""},
+-			{"__CTOR_LIST__", 1, 0, 14, 134518436, 0, "", ""},
+-			{"__DTOR_LIST__", 1, 0, 15, 134518444, 0, "", ""},
+-			{"__EH_FRAME_BEGIN__", 1, 0, 12, 134518280, 0, "", ""},
+-			{"__JCR_LIST__", 1, 0, 16, 134518452, 0, "", ""},
+-			{"p.0", 1, 0, 11, 134518276, 0, "", ""},
+-			{"completed.1", 1, 0, 18, 134518484, 1, "", ""},
+-			{"__do_global_dtors_aux", 2, 0, 8, 134513760, 0, "", ""},
+-			{"object.2", 1, 0, 18, 134518488, 24, "", ""},
+-			{"frame_dummy", 2, 0, 8, 134513836, 0, "", ""},
+-			{"crtstuff.c", 4, 0, 65521, 0, 0, "", ""},
+-			{"__CTOR_END__", 1, 0, 14, 134518440, 0, "", ""},
+-			{"__DTOR_END__", 1, 0, 15, 134518448, 0, "", ""},
+-			{"__FRAME_END__", 1, 0, 12, 134518280, 0, "", ""},
+-			{"__JCR_END__", 1, 0, 16, 134518452, 0, "", ""},
+-			{"__do_global_ctors_aux", 2, 0, 8, 134513960, 0, "", ""},
+-			{"/usr/src/lib/csu/i386-elf/crtn.S", 4, 0, 65521, 0, 0, "", ""},
+-			{"<command line>", 4, 0, 65521, 0, 0, "", ""},
+-			{"<built-in>", 4, 0, 65521, 0, 0, "", ""},
+-			{"/usr/src/lib/csu/i386-elf/crtn.S", 4, 0, 65521, 0, 0, "", ""},
+-			{"hello.c", 4, 0, 65521, 0, 0, "", ""},
+-			{"printf", 18, 0, 0, 0, 44, "", ""},
+-			{"_DYNAMIC", 17, 0, 65521, 134518284, 0, "", ""},
+-			{"__dso_handle", 17, 2, 11, 134518272, 0, "", ""},
+-			{"_init", 18, 0, 6, 134513512, 0, "", ""},
+-			{"environ", 17, 0, 18, 134518512, 4, "", ""},
+-			{"__deregister_frame_info", 32, 0, 0, 0, 0, "", ""},
+-			{"__progname", 17, 0, 11, 134518268, 4, "", ""},
+-			{"_start", 18, 0, 8, 134513612, 145, "", ""},
+-			{"__bss_start", 16, 0, 65521, 134518484, 0, "", ""},
+-			{"main", 18, 0, 8, 134513912, 46, "", ""},
+-			{"_init_tls", 18, 0, 0, 0, 5, "", ""},
+-			{"_fini", 18, 0, 9, 134513996, 0, "", ""},
+-			{"atexit", 18, 0, 0, 0, 43, "", ""},
+-			{"_edata", 16, 0, 65521, 134518484, 0, "", ""},
+-			{"_GLOBAL_OFFSET_TABLE_", 17, 0, 65521, 134518456, 0, "", ""},
+-			{"_end", 16, 0, 65521, 134518516, 0, "", ""},
+-			{"exit", 18, 0, 0, 0, 68, "", ""},
+-			{"_Jv_RegisterClasses", 32, 0, 0, 0, 0, "", ""},
+-			{"__register_frame_info", 32, 0, 0, 0, 0, "", ""},
++			{"", 3, 0, -1, VerFlagNone, 1, 134512852, 0, "", ""},
++			{"", 3, 0, -1, VerFlagNone, 2, 134512876, 0, "", ""},
++			{"", 3, 0, -1, VerFlagNone, 3, 134513020, 0, "", ""},
++			{"", 3, 0, -1, VerFlagNone, 4, 134513292, 0, "", ""},
++			{"", 3, 0, -1, VerFlagNone, 5, 134513480, 0, "", ""},
++			{"", 3, 0, -1, VerFlagNone, 6, 134513512, 0, "", ""},
++			{"", 3, 0, -1, VerFlagNone, 7, 134513532, 0, "", ""},
++			{"", 3, 0, -1, VerFlagNone, 8, 134513612, 0, "", ""},
++			{"", 3, 0, -1, VerFlagNone, 9, 134513996, 0, "", ""},
++			{"", 3, 0, -1, VerFlagNone, 10, 134514008, 0, "", ""},
++			{"", 3, 0, -1, VerFlagNone, 11, 134518268, 0, "", ""},
++			{"", 3, 0, -1, VerFlagNone, 12, 134518280, 0, "", ""},
++			{"", 3, 0, -1, VerFlagNone, 13, 134518284, 0, "", ""},
++			{"", 3, 0, -1, VerFlagNone, 14, 134518436, 0, "", ""},
++			{"", 3, 0, -1, VerFlagNone, 15, 134518444, 0, "", ""},
++			{"", 3, 0, -1, VerFlagNone, 16, 134518452, 0, "", ""},
++			{"", 3, 0, -1, VerFlagNone, 17, 134518456, 0, "", ""},
++			{"", 3, 0, -1, VerFlagNone, 18, 134518484, 0, "", ""},
++			{"", 3, 0, -1, VerFlagNone, 19, 0, 0, "", ""},
++			{"", 3, 0, -1, VerFlagNone, 20, 0, 0, "", ""},
++			{"", 3, 0, -1, VerFlagNone, 21, 0, 0, "", ""},
++			{"", 3, 0, -1, VerFlagNone, 22, 0, 0, "", ""},
++			{"", 3, 0, -1, VerFlagNone, 23, 0, 0, "", ""},
++			{"", 3, 0, -1, VerFlagNone, 24, 0, 0, "", ""},
++			{"", 3, 0, -1, VerFlagNone, 25, 0, 0, "", ""},
++			{"", 3, 0, -1, VerFlagNone, 26, 0, 0, "", ""},
++			{"", 3, 0, -1, VerFlagNone, 27, 0, 0, "", ""},
++			{"", 3, 0, -1, VerFlagNone, 28, 0, 0, "", ""},
++			{"", 3, 0, -1, VerFlagNone, 29, 0, 0, "", ""},
++			{"crt1.c", 4, 0, -1, VerFlagNone, 65521, 0, 0, "", ""},
++			{"/usr/src/lib/csu/i386-elf/crti.S", 4, 0, -1, VerFlagNone, 65521, 0, 0, "", ""},
++			{"<command line>", 4, 0, -1, VerFlagNone, 65521, 0, 0, "", ""},
++			{"<built-in>", 4, 0, -1, VerFlagNone, 65521, 0, 0, "", ""},
++			{"/usr/src/lib/csu/i386-elf/crti.S", 4, 0, -1, VerFlagNone, 65521, 0, 0, "", ""},
++			{"crtstuff.c", 4, 0, -1, VerFlagNone, 65521, 0, 0, "", ""},
++			{"__CTOR_LIST__", 1, 0, -1, VerFlagNone, 14, 134518436, 0, "", ""},
++			{"__DTOR_LIST__", 1, 0, -1, VerFlagNone, 15, 134518444, 0, "", ""},
++			{"__EH_FRAME_BEGIN__", 1, 0, -1, VerFlagNone, 12, 134518280, 0, "", ""},
++			{"__JCR_LIST__", 1, 0, -1, VerFlagNone, 16, 134518452, 0, "", ""},
++			{"p.0", 1, 0, -1, VerFlagNone, 11, 134518276, 0, "", ""},
++			{"completed.1", 1, 0, -1, VerFlagNone, 18, 134518484, 1, "", ""},
++			{"__do_global_dtors_aux", 2, 0, -1, VerFlagNone, 8, 134513760, 0, "", ""},
++			{"object.2", 1, 0, -1, VerFlagNone, 18, 134518488, 24, "", ""},
++			{"frame_dummy", 2, 0, -1, VerFlagNone, 8, 134513836, 0, "", ""},
++			{"crtstuff.c", 4, 0, -1, VerFlagNone, 65521, 0, 0, "", ""},
++			{"__CTOR_END__", 1, 0, -1, VerFlagNone, 14, 134518440, 0, "", ""},
++			{"__DTOR_END__", 1, 0, -1, VerFlagNone, 15, 134518448, 0, "", ""},
++			{"__FRAME_END__", 1, 0, -1, VerFlagNone, 12, 134518280, 0, "", ""},
++			{"__JCR_END__", 1, 0, -1, VerFlagNone, 16, 134518452, 0, "", ""},
++			{"__do_global_ctors_aux", 2, 0, -1, VerFlagNone, 8, 134513960, 0, "", ""},
++			{"/usr/src/lib/csu/i386-elf/crtn.S", 4, 0, -1, VerFlagNone, 65521, 0, 0, "", ""},
++			{"<command line>", 4, 0, -1, VerFlagNone, 65521, 0, 0, "", ""},
++			{"<built-in>", 4, 0, -1, VerFlagNone, 65521, 0, 0, "", ""},
++			{"/usr/src/lib/csu/i386-elf/crtn.S", 4, 0, -1, VerFlagNone, 65521, 0, 0, "", ""},
++			{"hello.c", 4, 0, -1, VerFlagNone, 65521, 0, 0, "", ""},
++			{"printf", 18, 0, -1, VerFlagNone, 0, 0, 44, "", ""},
++			{"_DYNAMIC", 17, 0, -1, VerFlagNone, 65521, 134518284, 0, "", ""},
++			{"__dso_handle", 17, 2, -1, VerFlagNone, 11, 134518272, 0, "", ""},
++			{"_init", 18, 0, -1, VerFlagNone, 6, 134513512, 0, "", ""},
++			{"environ", 17, 0, -1, VerFlagNone, 18, 134518512, 4, "", ""},
++			{"__deregister_frame_info", 32, 0, -1, VerFlagNone, 0, 0, 0, "", ""},
++			{"__progname", 17, 0, -1, VerFlagNone, 11, 134518268, 4, "", ""},
++			{"_start", 18, 0, -1, VerFlagNone, 8, 134513612, 145, "", ""},
++			{"__bss_start", 16, 0, -1, VerFlagNone, 65521, 134518484, 0, "", ""},
++			{"main", 18, 0, -1, VerFlagNone, 8, 134513912, 46, "", ""},
++			{"_init_tls", 18, 0, -1, VerFlagNone, 0, 0, 5, "", ""},
++			{"_fini", 18, 0, -1, VerFlagNone, 9, 134513996, 0, "", ""},
++			{"atexit", 18, 0, -1, VerFlagNone, 0, 0, 43, "", ""},
++			{"_edata", 16, 0, -1, VerFlagNone, 65521, 134518484, 0, "", ""},
++			{"_GLOBAL_OFFSET_TABLE_", 17, 0, -1, VerFlagNone, 65521, 134518456, 0, "", ""},
++			{"_end", 16, 0, -1, VerFlagNone, 65521, 134518516, 0, "", ""},
++			{"exit", 18, 0, -1, VerFlagNone, 0, 0, 68, "", ""},
++			{"_Jv_RegisterClasses", 32, 0, -1, VerFlagNone, 0, 0, 0, "", ""},
++			{"__register_frame_info", 32, 0, -1, VerFlagNone, 0, 0, 0, "", ""},
+ 		},
+ 	},
+ 	{
+@@ -208,79 +208,79 @@ var fileTests = []fileTest{
+ 		},
+ 		[]string{"libc.so.6"},
+ 		[]Symbol{
+-			{"", 3, 0, 1, 4194816, 0, "", ""},
+-			{"", 3, 0, 2, 4194844, 0, "", ""},
+-			{"", 3, 0, 3, 4194880, 0, "", ""},
+-			{"", 3, 0, 4, 4194920, 0, "", ""},
+-			{"", 3, 0, 5, 4194952, 0, "", ""},
+-			{"", 3, 0, 6, 4195048, 0, "", ""},
+-			{"", 3, 0, 7, 4195110, 0, "", ""},
+-			{"", 3, 0, 8, 4195120, 0, "", ""},
+-			{"", 3, 0, 9, 4195152, 0, "", ""},
+-			{"", 3, 0, 10, 4195176, 0, "", ""},
+-			{"", 3, 0, 11, 4195224, 0, "", ""},
+-			{"", 3, 0, 12, 4195248, 0, "", ""},
+-			{"", 3, 0, 13, 4195296, 0, "", ""},
+-			{"", 3, 0, 14, 4195732, 0, "", ""},
+-			{"", 3, 0, 15, 4195748, 0, "", ""},
+-			{"", 3, 0, 16, 4195768, 0, "", ""},
+-			{"", 3, 0, 17, 4195808, 0, "", ""},
+-			{"", 3, 0, 18, 6293128, 0, "", ""},
+-			{"", 3, 0, 19, 6293144, 0, "", ""},
+-			{"", 3, 0, 20, 6293160, 0, "", ""},
+-			{"", 3, 0, 21, 6293168, 0, "", ""},
+-			{"", 3, 0, 22, 6293584, 0, "", ""},
+-			{"", 3, 0, 23, 6293592, 0, "", ""},
+-			{"", 3, 0, 24, 6293632, 0, "", ""},
+-			{"", 3, 0, 25, 6293656, 0, "", ""},
+-			{"", 3, 0, 26, 0, 0, "", ""},
+-			{"", 3, 0, 27, 0, 0, "", ""},
+-			{"", 3, 0, 28, 0, 0, "", ""},
+-			{"", 3, 0, 29, 0, 0, "", ""},
+-			{"", 3, 0, 30, 0, 0, "", ""},
+-			{"", 3, 0, 31, 0, 0, "", ""},
+-			{"", 3, 0, 32, 0, 0, "", ""},
+-			{"", 3, 0, 33, 0, 0, "", ""},
+-			{"init.c", 4, 0, 65521, 0, 0, "", ""},
+-			{"initfini.c", 4, 0, 65521, 0, 0, "", ""},
+-			{"call_gmon_start", 2, 0, 13, 4195340, 0, "", ""},
+-			{"crtstuff.c", 4, 0, 65521, 0, 0, "", ""},
+-			{"__CTOR_LIST__", 1, 0, 18, 6293128, 0, "", ""},
+-			{"__DTOR_LIST__", 1, 0, 19, 6293144, 0, "", ""},
+-			{"__JCR_LIST__", 1, 0, 20, 6293160, 0, "", ""},
+-			{"__do_global_dtors_aux", 2, 0, 13, 4195376, 0, "", ""},
+-			{"completed.6183", 1, 0, 25, 6293656, 1, "", ""},
+-			{"p.6181", 1, 0, 24, 6293648, 0, "", ""},
+-			{"frame_dummy", 2, 0, 13, 4195440, 0, "", ""},
+-			{"crtstuff.c", 4, 0, 65521, 0, 0, "", ""},
+-			{"__CTOR_END__", 1, 0, 18, 6293136, 0, "", ""},
+-			{"__DTOR_END__", 1, 0, 19, 6293152, 0, "", ""},
+-			{"__FRAME_END__", 1, 0, 17, 4195968, 0, "", ""},
+-			{"__JCR_END__", 1, 0, 20, 6293160, 0, "", ""},
+-			{"__do_global_ctors_aux", 2, 0, 13, 4195680, 0, "", ""},
+-			{"initfini.c", 4, 0, 65521, 0, 0, "", ""},
+-			{"hello.c", 4, 0, 65521, 0, 0, "", ""},
+-			{"_GLOBAL_OFFSET_TABLE_", 1, 2, 23, 6293592, 0, "", ""},
+-			{"__init_array_end", 0, 2, 18, 6293124, 0, "", ""},
+-			{"__init_array_start", 0, 2, 18, 6293124, 0, "", ""},
+-			{"_DYNAMIC", 1, 2, 21, 6293168, 0, "", ""},
+-			{"data_start", 32, 0, 24, 6293632, 0, "", ""},
+-			{"__libc_csu_fini", 18, 0, 13, 4195520, 2, "", ""},
+-			{"_start", 18, 0, 13, 4195296, 0, "", ""},
+-			{"__gmon_start__", 32, 0, 0, 0, 0, "", ""},
+-			{"_Jv_RegisterClasses", 32, 0, 0, 0, 0, "", ""},
+-			{"puts@@GLIBC_2.2.5", 18, 0, 0, 0, 396, "", ""},
+-			{"_fini", 18, 0, 14, 4195732, 0, "", ""},
+-			{"__libc_start_main@@GLIBC_2.2.5", 18, 0, 0, 0, 450, "", ""},
+-			{"_IO_stdin_used", 17, 0, 15, 4195748, 4, "", ""},
+-			{"__data_start", 16, 0, 24, 6293632, 0, "", ""},
+-			{"__dso_handle", 17, 2, 24, 6293640, 0, "", ""},
+-			{"__libc_csu_init", 18, 0, 13, 4195536, 137, "", ""},
+-			{"__bss_start", 16, 0, 65521, 6293656, 0, "", ""},
+-			{"_end", 16, 0, 65521, 6293664, 0, "", ""},
+-			{"_edata", 16, 0, 65521, 6293656, 0, "", ""},
+-			{"main", 18, 0, 13, 4195480, 27, "", ""},
+-			{"_init", 18, 0, 11, 4195224, 0, "", ""},
++			{"", 3, 0, -1, VerFlagNone, 1, 4194816, 0, "", ""},
++			{"", 3, 0, -1, VerFlagNone, 2, 4194844, 0, "", ""},
++			{"", 3, 0, -1, VerFlagNone, 3, 4194880, 0, "", ""},
++			{"", 3, 0, -1, VerFlagNone, 4, 4194920, 0, "", ""},
++			{"", 3, 0, -1, VerFlagNone, 5, 4194952, 0, "", ""},
++			{"", 3, 0, -1, VerFlagNone, 6, 4195048, 0, "", ""},
++			{"", 3, 0, -1, VerFlagNone, 7, 4195110, 0, "", ""},
++			{"", 3, 0, -1, VerFlagNone, 8, 4195120, 0, "", ""},
++			{"", 3, 0, -1, VerFlagNone, 9, 4195152, 0, "", ""},
++			{"", 3, 0, -1, VerFlagNone, 10, 4195176, 0, "", ""},
++			{"", 3, 0, -1, VerFlagNone, 11, 4195224, 0, "", ""},
++			{"", 3, 0, -1, VerFlagNone, 12, 4195248, 0, "", ""},
++			{"", 3, 0, -1, VerFlagNone, 13, 4195296, 0, "", ""},
++			{"", 3, 0, -1, VerFlagNone, 14, 4195732, 0, "", ""},
++			{"", 3, 0, -1, VerFlagNone, 15, 4195748, 0, "", ""},
++			{"", 3, 0, -1, VerFlagNone, 16, 4195768, 0, "", ""},
++			{"", 3, 0, -1, VerFlagNone, 17, 4195808, 0, "", ""},
++			{"", 3, 0, -1, VerFlagNone, 18, 6293128, 0, "", ""},
++			{"", 3, 0, -1, VerFlagNone, 19, 6293144, 0, "", ""},
++			{"", 3, 0, -1, VerFlagNone, 20, 6293160, 0, "", ""},
++			{"", 3, 0, -1, VerFlagNone, 21, 6293168, 0, "", ""},
++			{"", 3, 0, -1, VerFlagNone, 22, 6293584, 0, "", ""},
++			{"", 3, 0, -1, VerFlagNone, 23, 6293592, 0, "", ""},
++			{"", 3, 0, -1, VerFlagNone, 24, 6293632, 0, "", ""},
++			{"", 3, 0, -1, VerFlagNone, 25, 6293656, 0, "", ""},
++			{"", 3, 0, -1, VerFlagNone, 26, 0, 0, "", ""},
++			{"", 3, 0, -1, VerFlagNone, 27, 0, 0, "", ""},
++			{"", 3, 0, -1, VerFlagNone, 28, 0, 0, "", ""},
++			{"", 3, 0, -1, VerFlagNone, 29, 0, 0, "", ""},
++			{"", 3, 0, -1, VerFlagNone, 30, 0, 0, "", ""},
++			{"", 3, 0, -1, VerFlagNone, 31, 0, 0, "", ""},
++			{"", 3, 0, -1, VerFlagNone, 32, 0, 0, "", ""},
++			{"", 3, 0, -1, VerFlagNone, 33, 0, 0, "", ""},
++			{"init.c", 4, 0, -1, VerFlagNone, 65521, 0, 0, "", ""},
++			{"initfini.c", 4, 0, -1, VerFlagNone, 65521, 0, 0, "", ""},
++			{"call_gmon_start", 2, 0, -1, VerFlagNone, 13, 4195340, 0, "", ""},
++			{"crtstuff.c", 4, 0, -1, VerFlagNone, 65521, 0, 0, "", ""},
++			{"__CTOR_LIST__", 1, 0, -1, VerFlagNone, 18, 6293128, 0, "", ""},
++			{"__DTOR_LIST__", 1, 0, -1, VerFlagNone, 19, 6293144, 0, "", ""},
++			{"__JCR_LIST__", 1, 0, -1, VerFlagNone, 20, 6293160, 0, "", ""},
++			{"__do_global_dtors_aux", 2, 0, -1, VerFlagNone, 13, 4195376, 0, "", ""},
++			{"completed.6183", 1, 0, -1, VerFlagNone, 25, 6293656, 1, "", ""},
++			{"p.6181", 1, 0, -1, VerFlagNone, 24, 6293648, 0, "", ""},
++			{"frame_dummy", 2, 0, -1, VerFlagNone, 13, 4195440, 0, "", ""},
++			{"crtstuff.c", 4, 0, -1, VerFlagNone, 65521, 0, 0, "", ""},
++			{"__CTOR_END__", 1, 0, -1, VerFlagNone, 18, 6293136, 0, "", ""},
++			{"__DTOR_END__", 1, 0, -1, VerFlagNone, 19, 6293152, 0, "", ""},
++			{"__FRAME_END__", 1, 0, -1, VerFlagNone, 17, 4195968, 0, "", ""},
++			{"__JCR_END__", 1, 0, -1, VerFlagNone, 20, 6293160, 0, "", ""},
++			{"__do_global_ctors_aux", 2, 0, -1, VerFlagNone, 13, 4195680, 0, "", ""},
++			{"initfini.c", 4, 0, -1, VerFlagNone, 65521, 0, 0, "", ""},
++			{"hello.c", 4, 0, -1, VerFlagNone, 65521, 0, 0, "", ""},
++			{"_GLOBAL_OFFSET_TABLE_", 1, 2, -1, VerFlagNone, 23, 6293592, 0, "", ""},
++			{"__init_array_end", 0, 2, -1, VerFlagNone, 18, 6293124, 0, "", ""},
++			{"__init_array_start", 0, 2, -1, VerFlagNone, 18, 6293124, 0, "", ""},
++			{"_DYNAMIC", 1, 2, -1, VerFlagNone, 21, 6293168, 0, "", ""},
++			{"data_start", 32, 0, -1, VerFlagNone, 24, 6293632, 0, "", ""},
++			{"__libc_csu_fini", 18, 0, -1, VerFlagNone, 13, 4195520, 2, "", ""},
++			{"_start", 18, 0, -1, VerFlagNone, 13, 4195296, 0, "", ""},
++			{"__gmon_start__", 32, 0, -1, VerFlagNone, 0, 0, 0, "", ""},
++			{"_Jv_RegisterClasses", 32, 0, -1, VerFlagNone, 0, 0, 0, "", ""},
++			{"puts@@GLIBC_2.2.5", 18, 0, -1, VerFlagNone, 0, 0, 396, "", ""},
++			{"_fini", 18, 0, -1, VerFlagNone, 14, 4195732, 0, "", ""},
++			{"__libc_start_main@@GLIBC_2.2.5", 18, 0, -1, VerFlagNone, 0, 0, 450, "", ""},
++			{"_IO_stdin_used", 17, 0, -1, VerFlagNone, 15, 4195748, 4, "", ""},
++			{"__data_start", 16, 0, -1, VerFlagNone, 24, 6293632, 0, "", ""},
++			{"__dso_handle", 17, 2, -1, VerFlagNone, 24, 6293640, 0, "", ""},
++			{"__libc_csu_init", 18, 0, -1, VerFlagNone, 13, 4195536, 137, "", ""},
++			{"__bss_start", 16, 0, -1, VerFlagNone, 65521, 6293656, 0, "", ""},
++			{"_end", 16, 0, -1, VerFlagNone, 65521, 6293664, 0, "", ""},
++			{"_edata", 16, 0, -1, VerFlagNone, 65521, 6293656, 0, "", ""},
++			{"main", 18, 0, -1, VerFlagNone, 13, 4195480, 27, "", ""},
++			{"_init", 18, 0, -1, VerFlagNone, 11, 4195224, 0, "", ""},
+ 		},
+ 	},
+ 	{
+@@ -338,21 +338,21 @@ var fileTests = []fileTest{
+ 		[]ProgHeader{},
+ 		nil,
+ 		[]Symbol{
+-			{"hello.c", 4, 0, 65521, 0, 0, "", ""},
+-			{"", 3, 0, 1, 0, 0, "", ""},
+-			{"", 3, 0, 3, 0, 0, "", ""},
+-			{"", 3, 0, 4, 0, 0, "", ""},
+-			{"", 3, 0, 5, 0, 0, "", ""},
+-			{"", 3, 0, 6, 0, 0, "", ""},
+-			{"", 3, 0, 8, 0, 0, "", ""},
+-			{"", 3, 0, 9, 0, 0, "", ""},
+-			{"", 3, 0, 11, 0, 0, "", ""},
+-			{"", 3, 0, 13, 0, 0, "", ""},
+-			{"", 3, 0, 15, 0, 0, "", ""},
+-			{"", 3, 0, 16, 0, 0, "", ""},
+-			{"", 3, 0, 14, 0, 0, "", ""},
+-			{"main", 18, 0, 1, 0, 23, "", ""},
+-			{"puts", 16, 0, 0, 0, 0, "", ""},
++			{"hello.c", 4, 0, -1, VerFlagNone, 65521, 0, 0, "", ""},
++			{"", 3, 0, -1, VerFlagNone, 1, 0, 0, "", ""},
++			{"", 3, 0, -1, VerFlagNone, 3, 0, 0, "", ""},
++			{"", 3, 0, -1, VerFlagNone, 4, 0, 0, "", ""},
++			{"", 3, 0, -1, VerFlagNone, 5, 0, 0, "", ""},
++			{"", 3, 0, -1, VerFlagNone, 6, 0, 0, "", ""},
++			{"", 3, 0, -1, VerFlagNone, 8, 0, 0, "", ""},
++			{"", 3, 0, -1, VerFlagNone, 9, 0, 0, "", ""},
++			{"", 3, 0, -1, VerFlagNone, 11, 0, 0, "", ""},
++			{"", 3, 0, -1, VerFlagNone, 13, 0, 0, "", ""},
++			{"", 3, 0, -1, VerFlagNone, 15, 0, 0, "", ""},
++			{"", 3, 0, -1, VerFlagNone, 16, 0, 0, "", ""},
++			{"", 3, 0, -1, VerFlagNone, 14, 0, 0, "", ""},
++			{"main", 18, 0, -1, VerFlagNone, 1, 0, 23, "", ""},
++			{"puts", 16, 0, -1, VerFlagNone, 0, 0, 0, "", ""},
+ 		},
+ 	},
+ 	{
+@@ -384,21 +384,21 @@ var fileTests = []fileTest{
+ 		[]ProgHeader{},
+ 		nil,
+ 		[]Symbol{
+-			{"hello.c", 4, 0, 65521, 0, 0, "", ""},
+-			{"", 3, 0, 1, 0, 0, "", ""},
+-			{"", 3, 0, 3, 0, 0, "", ""},
+-			{"", 3, 0, 4, 0, 0, "", ""},
+-			{"", 3, 0, 5, 0, 0, "", ""},
+-			{"", 3, 0, 6, 0, 0, "", ""},
+-			{"", 3, 0, 8, 0, 0, "", ""},
+-			{"", 3, 0, 9, 0, 0, "", ""},
+-			{"", 3, 0, 11, 0, 0, "", ""},
+-			{"", 3, 0, 13, 0, 0, "", ""},
+-			{"", 3, 0, 15, 0, 0, "", ""},
+-			{"", 3, 0, 16, 0, 0, "", ""},
+-			{"", 3, 0, 14, 0, 0, "", ""},
+-			{"main", 18, 0, 1, 0, 27, "", ""},
+-			{"puts", 16, 0, 0, 0, 0, "", ""},
++			{"hello.c", 4, 0, -1, VerFlagNone, 65521, 0, 0, "", ""},
++			{"", 3, 0, -1, VerFlagNone, 1, 0, 0, "", ""},
++			{"", 3, 0, -1, VerFlagNone, 3, 0, 0, "", ""},
++			{"", 3, 0, -1, VerFlagNone, 4, 0, 0, "", ""},
++			{"", 3, 0, -1, VerFlagNone, 5, 0, 0, "", ""},
++			{"", 3, 0, -1, VerFlagNone, 6, 0, 0, "", ""},
++			{"", 3, 0, -1, VerFlagNone, 8, 0, 0, "", ""},
++			{"", 3, 0, -1, VerFlagNone, 9, 0, 0, "", ""},
++			{"", 3, 0, -1, VerFlagNone, 11, 0, 0, "", ""},
++			{"", 3, 0, -1, VerFlagNone, 13, 0, 0, "", ""},
++			{"", 3, 0, -1, VerFlagNone, 15, 0, 0, "", ""},
++			{"", 3, 0, -1, VerFlagNone, 16, 0, 0, "", ""},
++			{"", 3, 0, -1, VerFlagNone, 14, 0, 0, "", ""},
++			{"main", 18, 0, -1, VerFlagNone, 1, 0, 27, "", ""},
++			{"puts", 16, 0, -1, VerFlagNone, 0, 0, 0, "", ""},
+ 		},
+ 	},
+ 	{
+@@ -430,21 +430,21 @@ var fileTests = []fileTest{
+ 		[]ProgHeader{},
+ 		nil,
+ 		[]Symbol{
+-			{"hello.c", 4, 0, 65521, 0, 0, "", ""},
+-			{"", 3, 0, 1, 0, 0, "", ""},
+-			{"", 3, 0, 3, 0, 0, "", ""},
+-			{"", 3, 0, 4, 0, 0, "", ""},
+-			{"", 3, 0, 5, 0, 0, "", ""},
+-			{"", 3, 0, 6, 0, 0, "", ""},
+-			{"", 3, 0, 8, 0, 0, "", ""},
+-			{"", 3, 0, 9, 0, 0, "", ""},
+-			{"", 3, 0, 11, 0, 0, "", ""},
+-			{"", 3, 0, 13, 0, 0, "", ""},
+-			{"", 3, 0, 15, 0, 0, "", ""},
+-			{"", 3, 0, 16, 0, 0, "", ""},
+-			{"", 3, 0, 14, 0, 0, "", ""},
+-			{"main", 18, 0, 1, 0, 44, "", ""},
+-			{"puts", 16, 0, 0, 0, 0, "", ""},
++			{"hello.c", 4, 0, -1, VerFlagNone, 65521, 0, 0, "", ""},
++			{"", 3, 0, -1, VerFlagNone, 1, 0, 0, "", ""},
++			{"", 3, 0, -1, VerFlagNone, 3, 0, 0, "", ""},
++			{"", 3, 0, -1, VerFlagNone, 4, 0, 0, "", ""},
++			{"", 3, 0, -1, VerFlagNone, 5, 0, 0, "", ""},
++			{"", 3, 0, -1, VerFlagNone, 6, 0, 0, "", ""},
++			{"", 3, 0, -1, VerFlagNone, 8, 0, 0, "", ""},
++			{"", 3, 0, -1, VerFlagNone, 9, 0, 0, "", ""},
++			{"", 3, 0, -1, VerFlagNone, 11, 0, 0, "", ""},
++			{"", 3, 0, -1, VerFlagNone, 13, 0, 0, "", ""},
++			{"", 3, 0, -1, VerFlagNone, 15, 0, 0, "", ""},
++			{"", 3, 0, -1, VerFlagNone, 16, 0, 0, "", ""},
++			{"", 3, 0, -1, VerFlagNone, 14, 0, 0, "", ""},
++			{"main", 18, 0, -1, VerFlagNone, 1, 0, 44, "", ""},
++			{"puts", 16, 0, -1, VerFlagNone, 0, 0, 0, "", ""},
+ 		},
+ 	},
+ }
+diff --git a/src/debug/elf/symbols_test.go b/src/debug/elf/symbols_test.go
+index 42f02312e8..ecc897b4a8 100644
+--- a/src/debug/elf/symbols_test.go
++++ b/src/debug/elf/symbols_test.go
+@@ -53,750 +53,936 @@ func TestSymbols(t *testing.T) {
+ var symbolsGolden = map[string][]Symbol{
+ 	"testdata/gcc-amd64-linux-exec": {
+ 		Symbol{
+-			Name:    "",
+-			Info:    0x3,
+-			Other:   0x0,
+-			Section: 0x1,
+-			Value:   0x400200,
+-			Size:    0x0,
+-		},
+-		Symbol{
+-			Name:    "",
+-			Info:    0x3,
+-			Other:   0x0,
+-			Section: 0x2,
+-			Value:   0x40021C,
+-			Size:    0x0,
+-		},
+-		Symbol{
+-			Name:    "",
+-			Info:    0x3,
+-			Other:   0x0,
+-			Section: 0x3,
+-			Value:   0x400240,
+-			Size:    0x0,
+-		},
+-		Symbol{
+-			Name:    "",
+-			Info:    0x3,
+-			Other:   0x0,
+-			Section: 0x4,
+-			Value:   0x400268,
+-			Size:    0x0,
+-		},
+-		Symbol{
+-			Name:    "",
+-			Info:    0x3,
+-			Other:   0x0,
+-			Section: 0x5,
+-			Value:   0x400288,
+-			Size:    0x0,
+-		},
+-		Symbol{
+-			Name:    "",
+-			Info:    0x3,
+-			Other:   0x0,
+-			Section: 0x6,
+-			Value:   0x4002E8,
+-			Size:    0x0,
+-		},
+-		Symbol{
+-			Name:    "",
+-			Info:    0x3,
+-			Other:   0x0,
+-			Section: 0x7,
+-			Value:   0x400326,
+-			Size:    0x0,
+-		},
+-		Symbol{
+-			Name:    "",
+-			Info:    0x3,
+-			Other:   0x0,
+-			Section: 0x8,
+-			Value:   0x400330,
+-			Size:    0x0,
+-		},
+-		Symbol{
+-			Name:    "",
+-			Info:    0x3,
+-			Other:   0x0,
+-			Section: 0x9,
+-			Value:   0x400350,
+-			Size:    0x0,
+-		},
+-		Symbol{
+-			Name:    "",
+-			Info:    0x3,
+-			Other:   0x0,
+-			Section: 0xA,
+-			Value:   0x400368,
+-			Size:    0x0,
+-		},
+-		Symbol{
+-			Name:    "",
+-			Info:    0x3,
+-			Other:   0x0,
+-			Section: 0xB,
+-			Value:   0x400398,
+-			Size:    0x0,
+-		},
+-		Symbol{
+-			Name:    "",
+-			Info:    0x3,
+-			Other:   0x0,
+-			Section: 0xC,
+-			Value:   0x4003B0,
+-			Size:    0x0,
+-		},
+-		Symbol{
+-			Name:    "",
+-			Info:    0x3,
+-			Other:   0x0,
+-			Section: 0xD,
+-			Value:   0x4003E0,
+-			Size:    0x0,
+-		},
+-		Symbol{
+-			Name:    "",
+-			Info:    0x3,
+-			Other:   0x0,
+-			Section: 0xE,
+-			Value:   0x400594,
+-			Size:    0x0,
+-		},
+-		Symbol{
+-			Name:    "",
+-			Info:    0x3,
+-			Other:   0x0,
+-			Section: 0xF,
+-			Value:   0x4005A4,
+-			Size:    0x0,
+-		},
+-		Symbol{
+-			Name:    "",
+-			Info:    0x3,
+-			Other:   0x0,
+-			Section: 0x10,
+-			Value:   0x4005B8,
+-			Size:    0x0,
+-		},
+-		Symbol{
+-			Name:    "",
+-			Info:    0x3,
+-			Other:   0x0,
+-			Section: 0x11,
+-			Value:   0x4005E0,
+-			Size:    0x0,
+-		},
+-		Symbol{
+-			Name:    "",
+-			Info:    0x3,
+-			Other:   0x0,
+-			Section: 0x12,
+-			Value:   0x600688,
+-			Size:    0x0,
+-		},
+-		Symbol{
+-			Name:    "",
+-			Info:    0x3,
+-			Other:   0x0,
+-			Section: 0x13,
+-			Value:   0x600698,
+-			Size:    0x0,
+-		},
+-		Symbol{
+-			Name:    "",
+-			Info:    0x3,
+-			Other:   0x0,
+-			Section: 0x14,
+-			Value:   0x6006A8,
+-			Size:    0x0,
+-		},
+-		Symbol{
+-			Name:    "",
+-			Info:    0x3,
+-			Other:   0x0,
+-			Section: 0x15,
+-			Value:   0x6006B0,
+-			Size:    0x0,
+-		},
+-		Symbol{
+-			Name:    "",
+-			Info:    0x3,
+-			Other:   0x0,
+-			Section: 0x16,
+-			Value:   0x600850,
+-			Size:    0x0,
+-		},
+-		Symbol{
+-			Name:    "",
+-			Info:    0x3,
+-			Other:   0x0,
+-			Section: 0x17,
+-			Value:   0x600858,
+-			Size:    0x0,
+-		},
+-		Symbol{
+-			Name:    "",
+-			Info:    0x3,
+-			Other:   0x0,
+-			Section: 0x18,
+-			Value:   0x600880,
+-			Size:    0x0,
+-		},
+-		Symbol{
+-			Name:    "",
+-			Info:    0x3,
+-			Other:   0x0,
+-			Section: 0x19,
+-			Value:   0x600898,
+-			Size:    0x0,
+-		},
+-		Symbol{
+-			Name:    "",
+-			Info:    0x3,
+-			Other:   0x0,
+-			Section: 0x1A,
+-			Value:   0x0,
+-			Size:    0x0,
+-		},
+-		Symbol{
+-			Name:    "",
+-			Info:    0x3,
+-			Other:   0x0,
+-			Section: 0x1B,
+-			Value:   0x0,
+-			Size:    0x0,
+-		},
+-		Symbol{
+-			Name:    "",
+-			Info:    0x3,
+-			Other:   0x0,
+-			Section: 0x1C,
+-			Value:   0x0,
+-			Size:    0x0,
+-		},
+-		Symbol{
+-			Name:    "",
+-			Info:    0x3,
+-			Other:   0x0,
+-			Section: 0x1D,
+-			Value:   0x0,
+-			Size:    0x0,
+-		},
+-		Symbol{
+-			Name:    "",
+-			Info:    0x3,
+-			Other:   0x0,
+-			Section: 0x1E,
+-			Value:   0x0,
+-			Size:    0x0,
+-		},
+-		Symbol{
+-			Name:    "",
+-			Info:    0x3,
+-			Other:   0x0,
+-			Section: 0x1F,
+-			Value:   0x0,
+-			Size:    0x0,
+-		},
+-		Symbol{
+-			Name:    "",
+-			Info:    0x3,
+-			Other:   0x0,
+-			Section: 0x20,
+-			Value:   0x0,
+-			Size:    0x0,
+-		},
+-		Symbol{
+-			Name:    "",
+-			Info:    0x3,
+-			Other:   0x0,
+-			Section: 0x21,
+-			Value:   0x0,
+-			Size:    0x0,
+-		},
+-		Symbol{
+-			Name:    "init.c",
+-			Info:    0x4,
+-			Other:   0x0,
+-			Section: 0xFFF1,
+-			Value:   0x0,
+-			Size:    0x0,
+-		},
+-		Symbol{
+-			Name:    "initfini.c",
+-			Info:    0x4,
+-			Other:   0x0,
+-			Section: 0xFFF1,
+-			Value:   0x0,
+-			Size:    0x0,
+-		},
+-		Symbol{
+-			Name:    "call_gmon_start",
+-			Info:    0x2,
+-			Other:   0x0,
+-			Section: 0xD,
+-			Value:   0x40040C,
+-			Size:    0x0,
+-		},
+-		Symbol{
+-			Name:    "crtstuff.c",
+-			Info:    0x4,
+-			Other:   0x0,
+-			Section: 0xFFF1,
+-			Value:   0x0,
+-			Size:    0x0,
+-		},
+-		Symbol{
+-			Name:    "__CTOR_LIST__",
+-			Info:    0x1,
+-			Other:   0x0,
+-			Section: 0x12,
+-			Value:   0x600688,
+-			Size:    0x0,
+-		},
+-		Symbol{
+-			Name:    "__DTOR_LIST__",
+-			Info:    0x1,
+-			Other:   0x0,
+-			Section: 0x13,
+-			Value:   0x600698,
+-			Size:    0x0,
+-		},
+-		Symbol{
+-			Name:    "__JCR_LIST__",
+-			Info:    0x1,
+-			Other:   0x0,
+-			Section: 0x14,
+-			Value:   0x6006A8,
+-			Size:    0x0,
+-		},
+-		Symbol{
+-			Name:    "__do_global_dtors_aux",
+-			Info:    0x2,
+-			Other:   0x0,
+-			Section: 0xD,
+-			Value:   0x400430,
+-			Size:    0x0,
+-		},
+-		Symbol{
+-			Name:    "completed.6183",
+-			Info:    0x1,
+-			Other:   0x0,
+-			Section: 0x19,
+-			Value:   0x600898,
+-			Size:    0x1,
+-		},
+-		Symbol{
+-			Name:    "p.6181",
+-			Info:    0x1,
+-			Other:   0x0,
+-			Section: 0x18,
+-			Value:   0x600890,
+-			Size:    0x0,
+-		},
+-		Symbol{
+-			Name:    "frame_dummy",
+-			Info:    0x2,
+-			Other:   0x0,
+-			Section: 0xD,
+-			Value:   0x400470,
+-			Size:    0x0,
+-		},
+-		Symbol{
+-			Name:    "crtstuff.c",
+-			Info:    0x4,
+-			Other:   0x0,
+-			Section: 0xFFF1,
+-			Value:   0x0,
+-			Size:    0x0,
+-		},
+-		Symbol{
+-			Name:    "__CTOR_END__",
+-			Info:    0x1,
+-			Other:   0x0,
+-			Section: 0x12,
+-			Value:   0x600690,
+-			Size:    0x0,
+-		},
+-		Symbol{
+-			Name:    "__DTOR_END__",
+-			Info:    0x1,
+-			Other:   0x0,
+-			Section: 0x13,
+-			Value:   0x6006A0,
+-			Size:    0x0,
+-		},
+-		Symbol{
+-			Name:    "__FRAME_END__",
+-			Info:    0x1,
+-			Other:   0x0,
+-			Section: 0x11,
+-			Value:   0x400680,
+-			Size:    0x0,
+-		},
+-		Symbol{
+-			Name:    "__JCR_END__",
+-			Info:    0x1,
+-			Other:   0x0,
+-			Section: 0x14,
+-			Value:   0x6006A8,
+-			Size:    0x0,
+-		},
+-		Symbol{
+-			Name:    "__do_global_ctors_aux",
+-			Info:    0x2,
+-			Other:   0x0,
+-			Section: 0xD,
+-			Value:   0x400560,
+-			Size:    0x0,
+-		},
+-		Symbol{
+-			Name:    "initfini.c",
+-			Info:    0x4,
+-			Other:   0x0,
+-			Section: 0xFFF1,
+-			Value:   0x0,
+-			Size:    0x0,
+-		},
+-		Symbol{
+-			Name:    "hello.c",
+-			Info:    0x4,
+-			Other:   0x0,
+-			Section: 0xFFF1,
+-			Value:   0x0,
+-			Size:    0x0,
+-		},
+-		Symbol{
+-			Name:    "_GLOBAL_OFFSET_TABLE_",
+-			Info:    0x1,
+-			Other:   0x2,
+-			Section: 0x17,
+-			Value:   0x600858,
+-			Size:    0x0,
+-		},
+-		Symbol{
+-			Name:    "__init_array_end",
+-			Info:    0x0,
+-			Other:   0x2,
+-			Section: 0x12,
+-			Value:   0x600684,
+-			Size:    0x0,
+-		},
+-		Symbol{
+-			Name:    "__init_array_start",
+-			Info:    0x0,
+-			Other:   0x2,
+-			Section: 0x12,
+-			Value:   0x600684,
+-			Size:    0x0,
+-		},
+-		Symbol{
+-			Name:    "_DYNAMIC",
+-			Info:    0x1,
+-			Other:   0x2,
+-			Section: 0x15,
+-			Value:   0x6006B0,
+-			Size:    0x0,
+-		},
+-		Symbol{
+-			Name:    "data_start",
+-			Info:    0x20,
+-			Other:   0x0,
+-			Section: 0x18,
+-			Value:   0x600880,
+-			Size:    0x0,
+-		},
+-		Symbol{
+-			Name:    "__libc_csu_fini",
+-			Info:    0x12,
+-			Other:   0x0,
+-			Section: 0xD,
+-			Value:   0x4004C0,
+-			Size:    0x2,
+-		},
+-		Symbol{
+-			Name:    "_start",
+-			Info:    0x12,
+-			Other:   0x0,
+-			Section: 0xD,
+-			Value:   0x4003E0,
+-			Size:    0x0,
+-		},
+-		Symbol{
+-			Name:    "__gmon_start__",
+-			Info:    0x20,
+-			Other:   0x0,
+-			Section: 0x0,
+-			Value:   0x0,
+-			Size:    0x0,
+-		},
+-		Symbol{
+-			Name:    "_Jv_RegisterClasses",
+-			Info:    0x20,
+-			Other:   0x0,
+-			Section: 0x0,
+-			Value:   0x0,
+-			Size:    0x0,
+-		},
+-		Symbol{
+-			Name:    "puts@@GLIBC_2.2.5",
+-			Info:    0x12,
+-			Other:   0x0,
+-			Section: 0x0,
+-			Value:   0x0,
+-			Size:    0x18C,
+-		},
+-		Symbol{
+-			Name:    "_fini",
+-			Info:    0x12,
+-			Other:   0x0,
+-			Section: 0xE,
+-			Value:   0x400594,
+-			Size:    0x0,
+-		},
+-		Symbol{
+-			Name:    "__libc_start_main@@GLIBC_2.2.5",
+-			Info:    0x12,
+-			Other:   0x0,
+-			Section: 0x0,
+-			Value:   0x0,
+-			Size:    0x1C2,
+-		},
+-		Symbol{
+-			Name:    "_IO_stdin_used",
+-			Info:    0x11,
+-			Other:   0x0,
+-			Section: 0xF,
+-			Value:   0x4005A4,
+-			Size:    0x4,
+-		},
+-		Symbol{
+-			Name:    "__data_start",
+-			Info:    0x10,
+-			Other:   0x0,
+-			Section: 0x18,
+-			Value:   0x600880,
+-			Size:    0x0,
+-		},
+-		Symbol{
+-			Name:    "__dso_handle",
+-			Info:    0x11,
+-			Other:   0x2,
+-			Section: 0x18,
+-			Value:   0x600888,
+-			Size:    0x0,
+-		},
+-		Symbol{
+-			Name:    "__libc_csu_init",
+-			Info:    0x12,
+-			Other:   0x0,
+-			Section: 0xD,
+-			Value:   0x4004D0,
+-			Size:    0x89,
+-		},
+-		Symbol{
+-			Name:    "__bss_start",
+-			Info:    0x10,
+-			Other:   0x0,
+-			Section: 0xFFF1,
+-			Value:   0x600898,
+-			Size:    0x0,
+-		},
+-		Symbol{
+-			Name:    "_end",
+-			Info:    0x10,
+-			Other:   0x0,
+-			Section: 0xFFF1,
+-			Value:   0x6008A0,
+-			Size:    0x0,
+-		},
+-		Symbol{
+-			Name:    "_edata",
+-			Info:    0x10,
+-			Other:   0x0,
+-			Section: 0xFFF1,
+-			Value:   0x600898,
+-			Size:    0x0,
+-		},
+-		Symbol{
+-			Name:    "main",
+-			Info:    0x12,
+-			Other:   0x0,
+-			Section: 0xD,
+-			Value:   0x400498,
+-			Size:    0x1B,
+-		},
+-		Symbol{
+-			Name:    "_init",
+-			Info:    0x12,
+-			Other:   0x0,
+-			Section: 0xB,
+-			Value:   0x400398,
+-			Size:    0x0,
++			Name:         "",
++			Info:         0x3,
++			Other:        0x0,
++			VersionIndex: -1,
++			VersionFlags: VerFlagNone,
++			Section:      0x1,
++			Value:        0x400200,
++			Size:         0x0,
++		},
++		Symbol{
++			Name:         "",
++			Info:         0x3,
++			Other:        0x0,
++			VersionIndex: -1,
++			VersionFlags: VerFlagNone,
++			Section:      0x2,
++			Value:        0x40021C,
++			Size:         0x0,
++		},
++		Symbol{
++			Name:         "",
++			Info:         0x3,
++			Other:        0x0,
++			VersionIndex: -1,
++			VersionFlags: VerFlagNone,
++			Section:      0x3,
++			Value:        0x400240,
++			Size:         0x0,
++		},
++		Symbol{
++			Name:         "",
++			Info:         0x3,
++			Other:        0x0,
++			VersionIndex: -1,
++			VersionFlags: VerFlagNone,
++			Section:      0x4,
++			Value:        0x400268,
++			Size:         0x0,
++		},
++		Symbol{
++			Name:         "",
++			Info:         0x3,
++			Other:        0x0,
++			VersionIndex: -1,
++			VersionFlags: VerFlagNone,
++			Section:      0x5,
++			Value:        0x400288,
++			Size:         0x0,
++		},
++		Symbol{
++			Name:         "",
++			Info:         0x3,
++			Other:        0x0,
++			VersionIndex: -1,
++			VersionFlags: VerFlagNone,
++			Section:      0x6,
++			Value:        0x4002E8,
++			Size:         0x0,
++		},
++		Symbol{
++			Name:         "",
++			Info:         0x3,
++			Other:        0x0,
++			VersionIndex: -1,
++			VersionFlags: VerFlagNone,
++			Section:      0x7,
++			Value:        0x400326,
++			Size:         0x0,
++		},
++		Symbol{
++			Name:         "",
++			Info:         0x3,
++			Other:        0x0,
++			VersionIndex: -1,
++			VersionFlags: VerFlagNone,
++			Section:      0x8,
++			Value:        0x400330,
++			Size:         0x0,
++		},
++		Symbol{
++			Name:         "",
++			Info:         0x3,
++			Other:        0x0,
++			VersionIndex: -1,
++			VersionFlags: VerFlagNone,
++			Section:      0x9,
++			Value:        0x400350,
++			Size:         0x0,
++		},
++		Symbol{
++			Name:         "",
++			Info:         0x3,
++			Other:        0x0,
++			VersionIndex: -1,
++			VersionFlags: VerFlagNone,
++			Section:      0xA,
++			Value:        0x400368,
++			Size:         0x0,
++		},
++		Symbol{
++			Name:         "",
++			Info:         0x3,
++			Other:        0x0,
++			VersionIndex: -1,
++			VersionFlags: VerFlagNone,
++			Section:      0xB,
++			Value:        0x400398,
++			Size:         0x0,
++		},
++		Symbol{
++			Name:         "",
++			Info:         0x3,
++			Other:        0x0,
++			VersionIndex: -1,
++			VersionFlags: VerFlagNone,
++			Section:      0xC,
++			Value:        0x4003B0,
++			Size:         0x0,
++		},
++		Symbol{
++			Name:         "",
++			Info:         0x3,
++			Other:        0x0,
++			VersionIndex: -1,
++			VersionFlags: VerFlagNone,
++			Section:      0xD,
++			Value:        0x4003E0,
++			Size:         0x0,
++		},
++		Symbol{
++			Name:         "",
++			Info:         0x3,
++			Other:        0x0,
++			VersionIndex: -1,
++			VersionFlags: VerFlagNone,
++			Section:      0xE,
++			Value:        0x400594,
++			Size:         0x0,
++		},
++		Symbol{
++			Name:         "",
++			Info:         0x3,
++			Other:        0x0,
++			VersionIndex: -1,
++			VersionFlags: VerFlagNone,
++			Section:      0xF,
++			Value:        0x4005A4,
++			Size:         0x0,
++		},
++		Symbol{
++			Name:         "",
++			Info:         0x3,
++			Other:        0x0,
++			VersionIndex: -1,
++			VersionFlags: VerFlagNone,
++			Section:      0x10,
++			Value:        0x4005B8,
++			Size:         0x0,
++		},
++		Symbol{
++			Name:         "",
++			Info:         0x3,
++			Other:        0x0,
++			VersionIndex: -1,
++			VersionFlags: VerFlagNone,
++			Section:      0x11,
++			Value:        0x4005E0,
++			Size:         0x0,
++		},
++		Symbol{
++			Name:         "",
++			Info:         0x3,
++			Other:        0x0,
++			VersionIndex: -1,
++			VersionFlags: VerFlagNone,
++			Section:      0x12,
++			Value:        0x600688,
++			Size:         0x0,
++		},
++		Symbol{
++			Name:         "",
++			Info:         0x3,
++			Other:        0x0,
++			VersionIndex: -1,
++			VersionFlags: VerFlagNone,
++			Section:      0x13,
++			Value:        0x600698,
++			Size:         0x0,
++		},
++		Symbol{
++			Name:         "",
++			Info:         0x3,
++			Other:        0x0,
++			VersionIndex: -1,
++			VersionFlags: VerFlagNone,
++			Section:      0x14,
++			Value:        0x6006A8,
++			Size:         0x0,
++		},
++		Symbol{
++			Name:         "",
++			Info:         0x3,
++			Other:        0x0,
++			VersionIndex: -1,
++			VersionFlags: VerFlagNone,
++			Section:      0x15,
++			Value:        0x6006B0,
++			Size:         0x0,
++		},
++		Symbol{
++			Name:         "",
++			Info:         0x3,
++			Other:        0x0,
++			VersionIndex: -1,
++			VersionFlags: VerFlagNone,
++			Section:      0x16,
++			Value:        0x600850,
++			Size:         0x0,
++		},
++		Symbol{
++			Name:         "",
++			Info:         0x3,
++			Other:        0x0,
++			VersionIndex: -1,
++			VersionFlags: VerFlagNone,
++			Section:      0x17,
++			Value:        0x600858,
++			Size:         0x0,
++		},
++		Symbol{
++			Name:         "",
++			Info:         0x3,
++			Other:        0x0,
++			VersionIndex: -1,
++			VersionFlags: VerFlagNone,
++			Section:      0x18,
++			Value:        0x600880,
++			Size:         0x0,
++		},
++		Symbol{
++			Name:         "",
++			Info:         0x3,
++			Other:        0x0,
++			VersionIndex: -1,
++			VersionFlags: VerFlagNone,
++			Section:      0x19,
++			Value:        0x600898,
++			Size:         0x0,
++		},
++		Symbol{
++			Name:         "",
++			Info:         0x3,
++			Other:        0x0,
++			VersionIndex: -1,
++			VersionFlags: VerFlagNone,
++			Section:      0x1A,
++			Value:        0x0,
++			Size:         0x0,
++		},
++		Symbol{
++			Name:         "",
++			Info:         0x3,
++			Other:        0x0,
++			VersionIndex: -1,
++			VersionFlags: VerFlagNone,
++			Section:      0x1B,
++			Value:        0x0,
++			Size:         0x0,
++		},
++		Symbol{
++			Name:         "",
++			Info:         0x3,
++			Other:        0x0,
++			VersionIndex: -1,
++			VersionFlags: VerFlagNone,
++			Section:      0x1C,
++			Value:        0x0,
++			Size:         0x0,
++		},
++		Symbol{
++			Name:         "",
++			Info:         0x3,
++			Other:        0x0,
++			VersionIndex: -1,
++			VersionFlags: VerFlagNone,
++			Section:      0x1D,
++			Value:        0x0,
++			Size:         0x0,
++		},
++		Symbol{
++			Name:         "",
++			Info:         0x3,
++			Other:        0x0,
++			VersionIndex: -1,
++			VersionFlags: VerFlagNone,
++			Section:      0x1E,
++			Value:        0x0,
++			Size:         0x0,
++		},
++		Symbol{
++			Name:         "",
++			Info:         0x3,
++			Other:        0x0,
++			VersionIndex: -1,
++			VersionFlags: VerFlagNone,
++			Section:      0x1F,
++			Value:        0x0,
++			Size:         0x0,
++		},
++		Symbol{
++			Name:         "",
++			Info:         0x3,
++			Other:        0x0,
++			VersionIndex: -1,
++			VersionFlags: VerFlagNone,
++			Section:      0x20,
++			Value:        0x0,
++			Size:         0x0,
++		},
++		Symbol{
++			Name:         "",
++			Info:         0x3,
++			Other:        0x0,
++			VersionIndex: -1,
++			VersionFlags: VerFlagNone,
++			Section:      0x21,
++			Value:        0x0,
++			Size:         0x0,
++		},
++		Symbol{
++			Name:         "init.c",
++			Info:         0x4,
++			Other:        0x0,
++			VersionIndex: -1,
++			VersionFlags: VerFlagNone,
++			Section:      0xFFF1,
++			Value:        0x0,
++			Size:         0x0,
++		},
++		Symbol{
++			Name:         "initfini.c",
++			Info:         0x4,
++			Other:        0x0,
++			VersionIndex: -1,
++			VersionFlags: VerFlagNone,
++			Section:      0xFFF1,
++			Value:        0x0,
++			Size:         0x0,
++		},
++		Symbol{
++			Name:         "call_gmon_start",
++			Info:         0x2,
++			Other:        0x0,
++			VersionIndex: -1,
++			VersionFlags: VerFlagNone,
++			Section:      0xD,
++			Value:        0x40040C,
++			Size:         0x0,
++		},
++		Symbol{
++			Name:         "crtstuff.c",
++			Info:         0x4,
++			Other:        0x0,
++			VersionIndex: -1,
++			VersionFlags: VerFlagNone,
++			Section:      0xFFF1,
++			Value:        0x0,
++			Size:         0x0,
++		},
++		Symbol{
++			Name:         "__CTOR_LIST__",
++			Info:         0x1,
++			Other:        0x0,
++			VersionIndex: -1,
++			VersionFlags: VerFlagNone,
++			Section:      0x12,
++			Value:        0x600688,
++			Size:         0x0,
++		},
++		Symbol{
++			Name:         "__DTOR_LIST__",
++			Info:         0x1,
++			Other:        0x0,
++			VersionIndex: -1,
++			VersionFlags: VerFlagNone,
++			Section:      0x13,
++			Value:        0x600698,
++			Size:         0x0,
++		},
++		Symbol{
++			Name:         "__JCR_LIST__",
++			Info:         0x1,
++			Other:        0x0,
++			VersionIndex: -1,
++			VersionFlags: VerFlagNone,
++			Section:      0x14,
++			Value:        0x6006A8,
++			Size:         0x0,
++		},
++		Symbol{
++			Name:         "__do_global_dtors_aux",
++			Info:         0x2,
++			Other:        0x0,
++			VersionIndex: -1,
++			VersionFlags: VerFlagNone,
++			Section:      0xD,
++			Value:        0x400430,
++			Size:         0x0,
++		},
++		Symbol{
++			Name:         "completed.6183",
++			Info:         0x1,
++			Other:        0x0,
++			VersionIndex: -1,
++			VersionFlags: VerFlagNone,
++			Section:      0x19,
++			Value:        0x600898,
++			Size:         0x1,
++		},
++		Symbol{
++			Name:         "p.6181",
++			Info:         0x1,
++			Other:        0x0,
++			VersionIndex: -1,
++			VersionFlags: VerFlagNone,
++			Section:      0x18,
++			Value:        0x600890,
++			Size:         0x0,
++		},
++		Symbol{
++			Name:         "frame_dummy",
++			Info:         0x2,
++			Other:        0x0,
++			VersionIndex: -1,
++			VersionFlags: VerFlagNone,
++			Section:      0xD,
++			Value:        0x400470,
++			Size:         0x0,
++		},
++		Symbol{
++			Name:         "crtstuff.c",
++			Info:         0x4,
++			Other:        0x0,
++			VersionIndex: -1,
++			VersionFlags: VerFlagNone,
++			Section:      0xFFF1,
++			Value:        0x0,
++			Size:         0x0,
++		},
++		Symbol{
++			Name:         "__CTOR_END__",
++			Info:         0x1,
++			Other:        0x0,
++			VersionIndex: -1,
++			VersionFlags: VerFlagNone,
++			Section:      0x12,
++			Value:        0x600690,
++			Size:         0x0,
++		},
++		Symbol{
++			Name:         "__DTOR_END__",
++			Info:         0x1,
++			Other:        0x0,
++			VersionIndex: -1,
++			VersionFlags: VerFlagNone,
++			Section:      0x13,
++			Value:        0x6006A0,
++			Size:         0x0,
++		},
++		Symbol{
++			Name:         "__FRAME_END__",
++			Info:         0x1,
++			Other:        0x0,
++			VersionIndex: -1,
++			VersionFlags: VerFlagNone,
++			Section:      0x11,
++			Value:        0x400680,
++			Size:         0x0,
++		},
++		Symbol{
++			Name:         "__JCR_END__",
++			Info:         0x1,
++			Other:        0x0,
++			VersionIndex: -1,
++			VersionFlags: VerFlagNone,
++			Section:      0x14,
++			Value:        0x6006A8,
++			Size:         0x0,
++		},
++		Symbol{
++			Name:         "__do_global_ctors_aux",
++			Info:         0x2,
++			Other:        0x0,
++			VersionIndex: -1,
++			VersionFlags: VerFlagNone,
++			Section:      0xD,
++			Value:        0x400560,
++			Size:         0x0,
++		},
++		Symbol{
++			Name:         "initfini.c",
++			Info:         0x4,
++			Other:        0x0,
++			VersionIndex: -1,
++			VersionFlags: VerFlagNone,
++			Section:      0xFFF1,
++			Value:        0x0,
++			Size:         0x0,
++		},
++		Symbol{
++			Name:         "hello.c",
++			Info:         0x4,
++			Other:        0x0,
++			VersionIndex: -1,
++			VersionFlags: VerFlagNone,
++			Section:      0xFFF1,
++			Value:        0x0,
++			Size:         0x0,
++		},
++		Symbol{
++			Name:         "_GLOBAL_OFFSET_TABLE_",
++			Info:         0x1,
++			Other:        0x2,
++			VersionIndex: -1,
++			VersionFlags: VerFlagNone,
++			Section:      0x17,
++			Value:        0x600858,
++			Size:         0x0,
++		},
++		Symbol{
++			Name:         "__init_array_end",
++			Info:         0x0,
++			Other:        0x2,
++			VersionIndex: -1,
++			VersionFlags: VerFlagNone,
++			Section:      0x12,
++			Value:        0x600684,
++			Size:         0x0,
++		},
++		Symbol{
++			Name:         "__init_array_start",
++			Info:         0x0,
++			Other:        0x2,
++			VersionIndex: -1,
++			VersionFlags: VerFlagNone,
++			Section:      0x12,
++			Value:        0x600684,
++			Size:         0x0,
++		},
++		Symbol{
++			Name:         "_DYNAMIC",
++			Info:         0x1,
++			Other:        0x2,
++			VersionIndex: -1,
++			VersionFlags: VerFlagNone,
++			Section:      0x15,
++			Value:        0x6006B0,
++			Size:         0x0,
++		},
++		Symbol{
++			Name:         "data_start",
++			Info:         0x20,
++			Other:        0x0,
++			VersionIndex: -1,
++			VersionFlags: VerFlagNone,
++			Section:      0x18,
++			Value:        0x600880,
++			Size:         0x0,
++		},
++		Symbol{
++			Name:         "__libc_csu_fini",
++			Info:         0x12,
++			Other:        0x0,
++			VersionIndex: -1,
++			VersionFlags: VerFlagNone,
++			Section:      0xD,
++			Value:        0x4004C0,
++			Size:         0x2,
++		},
++		Symbol{
++			Name:         "_start",
++			Info:         0x12,
++			Other:        0x0,
++			VersionIndex: -1,
++			VersionFlags: VerFlagNone,
++			Section:      0xD,
++			Value:        0x4003E0,
++			Size:         0x0,
++		},
++		Symbol{
++			Name:         "__gmon_start__",
++			Info:         0x20,
++			Other:        0x0,
++			VersionIndex: -1,
++			VersionFlags: VerFlagNone,
++			Section:      0x0,
++			Value:        0x0,
++			Size:         0x0,
++		},
++		Symbol{
++			Name:         "_Jv_RegisterClasses",
++			Info:         0x20,
++			Other:        0x0,
++			VersionIndex: -1,
++			VersionFlags: VerFlagNone,
++			Section:      0x0,
++			Value:        0x0,
++			Size:         0x0,
++		},
++		Symbol{
++			Name:         "puts@@GLIBC_2.2.5",
++			Info:         0x12,
++			Other:        0x0,
++			VersionIndex: -1,
++			VersionFlags: VerFlagNone,
++			Section:      0x0,
++			Value:        0x0,
++			Size:         0x18C,
++		},
++		Symbol{
++			Name:         "_fini",
++			Info:         0x12,
++			Other:        0x0,
++			VersionIndex: -1,
++			VersionFlags: VerFlagNone,
++			Section:      0xE,
++			Value:        0x400594,
++			Size:         0x0,
++		},
++		Symbol{
++			Name:         "__libc_start_main@@GLIBC_2.2.5",
++			Info:         0x12,
++			Other:        0x0,
++			VersionIndex: -1,
++			VersionFlags: VerFlagNone,
++			Section:      0x0,
++			Value:        0x0,
++			Size:         0x1C2,
++		},
++		Symbol{
++			Name:         "_IO_stdin_used",
++			Info:         0x11,
++			Other:        0x0,
++			VersionIndex: -1,
++			VersionFlags: VerFlagNone,
++			Section:      0xF,
++			Value:        0x4005A4,
++			Size:         0x4,
++		},
++		Symbol{
++			Name:         "__data_start",
++			Info:         0x10,
++			Other:        0x0,
++			VersionIndex: -1,
++			VersionFlags: VerFlagNone,
++			Section:      0x18,
++			Value:        0x600880,
++			Size:         0x0,
++		},
++		Symbol{
++			Name:         "__dso_handle",
++			Info:         0x11,
++			Other:        0x2,
++			VersionIndex: -1,
++			VersionFlags: VerFlagNone,
++			Section:      0x18,
++			Value:        0x600888,
++			Size:         0x0,
++		},
++		Symbol{
++			Name:         "__libc_csu_init",
++			Info:         0x12,
++			Other:        0x0,
++			VersionIndex: -1,
++			VersionFlags: VerFlagNone,
++			Section:      0xD,
++			Value:        0x4004D0,
++			Size:         0x89,
++		},
++		Symbol{
++			Name:         "__bss_start",
++			Info:         0x10,
++			Other:        0x0,
++			VersionIndex: -1,
++			VersionFlags: VerFlagNone,
++			Section:      0xFFF1,
++			Value:        0x600898,
++			Size:         0x0,
++		},
++		Symbol{
++			Name:         "_end",
++			Info:         0x10,
++			Other:        0x0,
++			VersionIndex: -1,
++			VersionFlags: VerFlagNone,
++			Section:      0xFFF1,
++			Value:        0x6008A0,
++			Size:         0x0,
++		},
++		Symbol{
++			Name:         "_edata",
++			Info:         0x10,
++			Other:        0x0,
++			VersionIndex: -1,
++			VersionFlags: VerFlagNone,
++			Section:      0xFFF1,
++			Value:        0x600898,
++			Size:         0x0,
++		},
++		Symbol{
++			Name:         "main",
++			Info:         0x12,
++			Other:        0x0,
++			VersionIndex: -1,
++			VersionFlags: VerFlagNone,
++			Section:      0xD,
++			Value:        0x400498,
++			Size:         0x1B,
++		},
++		Symbol{
++			Name:         "_init",
++			Info:         0x12,
++			Other:        0x0,
++			VersionIndex: -1,
++			VersionFlags: VerFlagNone,
++			Section:      0xB,
++			Value:        0x400398,
++			Size:         0x0,
+ 		},
+ 	},
+ 	"testdata/go-relocation-test-clang-x86.obj": {
+ 		Symbol{
+-			Name:    "go-relocation-test-clang.c",
+-			Info:    0x4,
+-			Other:   0x0,
+-			Section: 0xFFF1,
+-			Value:   0x0,
+-			Size:    0x0,
+-		},
+-		Symbol{
+-			Name:    ".Linfo_string0",
+-			Info:    0x0,
+-			Other:   0x0,
+-			Section: 0xC,
+-			Value:   0x0,
+-			Size:    0x0,
+-		},
+-		Symbol{
+-			Name:    ".Linfo_string1",
+-			Info:    0x0,
+-			Other:   0x0,
+-			Section: 0xC,
+-			Value:   0x2C,
+-			Size:    0x0,
+-		},
+-		Symbol{
+-			Name:    ".Linfo_string2",
+-			Info:    0x0,
+-			Other:   0x0,
+-			Section: 0xC,
+-			Value:   0x47,
+-			Size:    0x0,
+-		},
+-		Symbol{
+-			Name:    ".Linfo_string3",
+-			Info:    0x0,
+-			Other:   0x0,
+-			Section: 0xC,
+-			Value:   0x4C,
+-			Size:    0x0,
+-		},
+-		Symbol{
+-			Name:    ".Linfo_string4",
+-			Info:    0x0,
+-			Other:   0x0,
+-			Section: 0xC,
+-			Value:   0x4E,
+-			Size:    0x0,
+-		},
+-		Symbol{
+-			Name:    "",
+-			Info:    0x3,
+-			Other:   0x0,
+-			Section: 0x1,
+-			Value:   0x0,
+-			Size:    0x0,
+-		},
+-		Symbol{
+-			Name:    "",
+-			Info:    0x3,
+-			Other:   0x0,
+-			Section: 0x2,
+-			Value:   0x0,
+-			Size:    0x0,
+-		},
+-		Symbol{
+-			Name:    "",
+-			Info:    0x3,
+-			Other:   0x0,
+-			Section: 0x3,
+-			Value:   0x0,
+-			Size:    0x0,
+-		},
+-		Symbol{
+-			Name:    "",
+-			Info:    0x3,
+-			Other:   0x0,
+-			Section: 0x4,
+-			Value:   0x0,
+-			Size:    0x0,
+-		},
+-		Symbol{
+-			Name:    "",
+-			Info:    0x3,
+-			Other:   0x0,
+-			Section: 0x6,
+-			Value:   0x0,
+-			Size:    0x0,
+-		},
+-		Symbol{
+-			Name:    "",
+-			Info:    0x3,
+-			Other:   0x0,
+-			Section: 0x7,
+-			Value:   0x0,
+-			Size:    0x0,
+-		},
+-		Symbol{
+-			Name:    "",
+-			Info:    0x3,
+-			Other:   0x0,
+-			Section: 0x8,
+-			Value:   0x0,
+-			Size:    0x0,
+-		},
+-		Symbol{
+-			Name:    "",
+-			Info:    0x3,
+-			Other:   0x0,
+-			Section: 0xA,
+-			Value:   0x0,
+-			Size:    0x0,
+-		},
+-		Symbol{
+-			Name:    "",
+-			Info:    0x3,
+-			Other:   0x0,
+-			Section: 0xC,
+-			Value:   0x0,
+-			Size:    0x0,
+-		},
+-		Symbol{
+-			Name:    "",
+-			Info:    0x3,
+-			Other:   0x0,
+-			Section: 0xD,
+-			Value:   0x0,
+-			Size:    0x0,
+-		},
+-		Symbol{
+-			Name:    "",
+-			Info:    0x3,
+-			Other:   0x0,
+-			Section: 0xE,
+-			Value:   0x0,
+-			Size:    0x0,
+-		},
+-		Symbol{
+-			Name:    "",
+-			Info:    0x3,
+-			Other:   0x0,
+-			Section: 0xF,
+-			Value:   0x0,
+-			Size:    0x0,
+-		},
+-		Symbol{
+-			Name:    "",
+-			Info:    0x3,
+-			Other:   0x0,
+-			Section: 0x10,
+-			Value:   0x0,
+-			Size:    0x0,
+-		},
+-		Symbol{
+-			Name:    "v",
+-			Info:    0x11,
+-			Other:   0x0,
+-			Section: 0xFFF2,
+-			Value:   0x4,
+-			Size:    0x4,
++			Name:         "go-relocation-test-clang.c",
++			Info:         0x4,
++			Other:        0x0,
++			VersionIndex: -1,
++			VersionFlags: VerFlagNone,
++			Section:      0xFFF1,
++			Value:        0x0,
++			Size:         0x0,
++		},
++		Symbol{
++			Name:         ".Linfo_string0",
++			Info:         0x0,
++			Other:        0x0,
++			VersionIndex: -1,
++			VersionFlags: VerFlagNone,
++			Section:      0xC,
++			Value:        0x0,
++			Size:         0x0,
++		},
++		Symbol{
++			Name:         ".Linfo_string1",
++			Info:         0x0,
++			Other:        0x0,
++			VersionIndex: -1,
++			VersionFlags: VerFlagNone,
++			Section:      0xC,
++			Value:        0x2C,
++			Size:         0x0,
++		},
++		Symbol{
++			Name:         ".Linfo_string2",
++			Info:         0x0,
++			Other:        0x0,
++			VersionIndex: -1,
++			VersionFlags: VerFlagNone,
++			Section:      0xC,
++			Value:        0x47,
++			Size:         0x0,
++		},
++		Symbol{
++			Name:         ".Linfo_string3",
++			Info:         0x0,
++			Other:        0x0,
++			VersionIndex: -1,
++			VersionFlags: VerFlagNone,
++			Section:      0xC,
++			Value:        0x4C,
++			Size:         0x0,
++		},
++		Symbol{
++			Name:         ".Linfo_string4",
++			Info:         0x0,
++			Other:        0x0,
++			VersionIndex: -1,
++			VersionFlags: VerFlagNone,
++			Section:      0xC,
++			Value:        0x4E,
++			Size:         0x0,
++		},
++		Symbol{
++			Name:         "",
++			Info:         0x3,
++			Other:        0x0,
++			VersionIndex: -1,
++			VersionFlags: VerFlagNone,
++			Section:      0x1,
++			Value:        0x0,
++			Size:         0x0,
++		},
++		Symbol{
++			Name:         "",
++			Info:         0x3,
++			Other:        0x0,
++			VersionIndex: -1,
++			VersionFlags: VerFlagNone,
++			Section:      0x2,
++			Value:        0x0,
++			Size:         0x0,
++		},
++		Symbol{
++			Name:         "",
++			Info:         0x3,
++			Other:        0x0,
++			VersionIndex: -1,
++			VersionFlags: VerFlagNone,
++			Section:      0x3,
++			Value:        0x0,
++			Size:         0x0,
++		},
++		Symbol{
++			Name:         "",
++			Info:         0x3,
++			Other:        0x0,
++			VersionIndex: -1,
++			VersionFlags: VerFlagNone,
++			Section:      0x4,
++			Value:        0x0,
++			Size:         0x0,
++		},
++		Symbol{
++			Name:         "",
++			Info:         0x3,
++			Other:        0x0,
++			VersionIndex: -1,
++			VersionFlags: VerFlagNone,
++			Section:      0x6,
++			Value:        0x0,
++			Size:         0x0,
++		},
++		Symbol{
++			Name:         "",
++			Info:         0x3,
++			Other:        0x0,
++			VersionIndex: -1,
++			VersionFlags: VerFlagNone,
++			Section:      0x7,
++			Value:        0x0,
++			Size:         0x0,
++		},
++		Symbol{
++			Name:         "",
++			Info:         0x3,
++			Other:        0x0,
++			VersionIndex: -1,
++			VersionFlags: VerFlagNone,
++			Section:      0x8,
++			Value:        0x0,
++			Size:         0x0,
++		},
++		Symbol{
++			Name:         "",
++			Info:         0x3,
++			Other:        0x0,
++			VersionIndex: -1,
++			VersionFlags: VerFlagNone,
++			Section:      0xA,
++			Value:        0x0,
++			Size:         0x0,
++		},
++		Symbol{
++			Name:         "",
++			Info:         0x3,
++			Other:        0x0,
++			VersionIndex: -1,
++			VersionFlags: VerFlagNone,
++			Section:      0xC,
++			Value:        0x0,
++			Size:         0x0,
++		},
++		Symbol{
++			Name:         "",
++			Info:         0x3,
++			Other:        0x0,
++			VersionIndex: -1,
++			VersionFlags: VerFlagNone,
++			Section:      0xD,
++			Value:        0x0,
++			Size:         0x0,
++		},
++		Symbol{
++			Name:         "",
++			Info:         0x3,
++			Other:        0x0,
++			VersionIndex: -1,
++			VersionFlags: VerFlagNone,
++			Section:      0xE,
++			Value:        0x0,
++			Size:         0x0,
++		},
++		Symbol{
++			Name:         "",
++			Info:         0x3,
++			Other:        0x0,
++			VersionIndex: -1,
++			VersionFlags: VerFlagNone,
++			Section:      0xF,
++			Value:        0x0,
++			Size:         0x0,
++		},
++		Symbol{
++			Name:         "",
++			Info:         0x3,
++			Other:        0x0,
++			VersionIndex: -1,
++			VersionFlags: VerFlagNone,
++			Section:      0x10,
++			Value:        0x0,
++			Size:         0x0,
++		},
++		Symbol{
++			Name:         "v",
++			Info:         0x11,
++			Other:        0x0,
++			VersionIndex: -1,
++			VersionFlags: VerFlagNone,
++			Section:      0xFFF2,
++			Value:        0x4,
++			Size:         0x4,
+ 		},
+ 	},
+ 	"testdata/hello-world-core.gz": {},
+@@ -805,34 +991,324 @@ var symbolsGolden = map[string][]Symbol{
+ var dynamicSymbolsGolden = map[string][]Symbol{
+ 	"testdata/gcc-amd64-linux-exec": {
+ 		Symbol{
+-			Name:    "__gmon_start__",
+-			Info:    0x20,
+-			Other:   0x0,
+-			Section: 0x0,
+-			Value:   0x0,
+-			Size:    0x0,
+-		},
+-		Symbol{
+-			Name:    "puts",
+-			Info:    0x12,
+-			Other:   0x0,
+-			Section: 0x0,
+-			Value:   0x0,
+-			Size:    0x18C,
+-			Version: "GLIBC_2.2.5",
+-			Library: "libc.so.6",
+-		},
+-		Symbol{
+-			Name:    "__libc_start_main",
+-			Info:    0x12,
+-			Other:   0x0,
+-			Section: 0x0,
+-			Value:   0x0,
+-			Size:    0x1C2,
+-			Version: "GLIBC_2.2.5",
+-			Library: "libc.so.6",
++			Name:         "__gmon_start__",
++			Info:         0x20,
++			Other:        0x0,
++			VersionIndex: 0x0,
++			VersionFlags: VerFlagLocal,
++			Section:      0x0,
++			Value:        0x0,
++			Size:         0x0,
++		},
++		Symbol{
++			Name:         "puts",
++			Info:         0x12,
++			Other:        0x0,
++			VersionIndex: 0x2,
++			VersionFlags: VerFlagHidden,
++			Section:      0x0,
++			Value:        0x0,
++			Size:         0x18C,
++			Version:      "GLIBC_2.2.5",
++			Library:      "libc.so.6",
++		},
++		Symbol{
++			Name:         "__libc_start_main",
++			Info:         0x12,
++			Other:        0x0,
++			VersionIndex: 0x2,
++			VersionFlags: VerFlagHidden,
++			Section:      0x0,
++			Value:        0x0,
++			Size:         0x1C2,
++			Version:      "GLIBC_2.2.5",
++			Library:      "libc.so.6",
+ 		},
+ 	},
+ 	"testdata/go-relocation-test-clang-x86.obj": {},
+ 	"testdata/hello-world-core.gz":              {},
++	"testdata/libtiffxx.so_": {
++		Symbol{
++			Name:         "_ZNSo3putEc",
++			Info:         0x12,
++			Other:        0x0,
++			VersionIndex: 0x3,
++			VersionFlags: VerFlagHidden,
++			Section:      0x0,
++			Value:        0x0,
++			Size:         0x0,
++			Version:      "GLIBCXX_3.4",
++			Library:      "libstdc++.so.6",
++		},
++		Symbol{
++			Name:         "strchr",
++			Info:         0x12,
++			Other:        0x0,
++			VersionIndex: 0x4,
++			VersionFlags: VerFlagHidden,
++			Section:      0x0,
++			Value:        0x0,
++			Size:         0x0,
++			Version:      "GLIBC_2.2.5",
++			Library:      "libc.so.6",
++		},
++		Symbol{
++			Name:         "__cxa_finalize",
++			Info:         0x22,
++			Other:        0x0,
++			VersionIndex: 0x4,
++			VersionFlags: VerFlagHidden,
++			Section:      0x0,
++			Value:        0x0,
++			Size:         0x0,
++			Version:      "GLIBC_2.2.5",
++			Library:      "libc.so.6",
++		},
++		Symbol{
++			Name:         "_ZNSo5tellpEv",
++			Info:         0x12,
++			Other:        0x0,
++			VersionIndex: 0x3,
++			VersionFlags: VerFlagHidden,
++			Section:      0x0,
++			Value:        0x0,
++			Size:         0x0,
++			Version:      "GLIBCXX_3.4",
++			Library:      "libstdc++.so.6",
++		},
++		Symbol{
++			Name:         "_ZNSo5seekpElSt12_Ios_Seekdir",
++			Info:         0x12,
++			Other:        0x0,
++			VersionIndex: 0x3,
++			VersionFlags: VerFlagHidden,
++			Section:      0x0,
++			Value:        0x0,
++			Size:         0x0,
++			Version:      "GLIBCXX_3.4",
++			Library:      "libstdc++.so.6",
++		},
++		Symbol{
++			Name:         "_Znwm",
++			Info:         0x12,
++			Other:        0x0,
++			VersionIndex: 0x3,
++			VersionFlags: VerFlagHidden,
++			Section:      0x0,
++			Value:        0x0,
++			Size:         0x0,
++			Version:      "GLIBCXX_3.4",
++			Library:      "libstdc++.so.6",
++		},
++		Symbol{
++			Name:         "_ZdlPvm",
++			Info:         0x12,
++			Other:        0x0,
++			VersionIndex: 0x5,
++			VersionFlags: VerFlagHidden,
++			Section:      0x0,
++			Value:        0x0,
++			Size:         0x0,
++			Version:      "CXXABI_1.3.9",
++			Library:      "libstdc++.so.6",
++		},
++		Symbol{
++			Name:         "__stack_chk_fail",
++			Info:         0x12,
++			Other:        0x0,
++			VersionIndex: 0x6,
++			VersionFlags: VerFlagHidden,
++			Section:      0x0,
++			Value:        0x0,
++			Size:         0x0,
++			Version:      "GLIBC_2.4",
++			Library:      "libc.so.6",
++		},
++		Symbol{
++			Name:         "_ZSt16__ostream_insertIcSt11char_traitsIcEERSt13basic_ostreamIT_T0_ES6_PKS3_l",
++			Info:         0x12,
++			Other:        0x0,
++			VersionIndex: 0x7,
++			VersionFlags: VerFlagHidden,
++			Section:      0x0,
++			Value:        0x0,
++			Size:         0x0,
++			Version:      "GLIBCXX_3.4.9",
++			Library:      "libstdc++.so.6",
++		},
++		Symbol{
++			Name:         "_ZNSo5seekpESt4fposI11__mbstate_tE",
++			Info:         0x12,
++			Other:        0x0,
++			VersionIndex: 0x3,
++			VersionFlags: VerFlagHidden,
++			Section:      0x0,
++			Value:        0x0,
++			Size:         0x0,
++			Version:      "GLIBCXX_3.4",
++			Library:      "libstdc++.so.6",
++		},
++		Symbol{
++			Name:         "_ZNSi4readEPcl",
++			Info:         0x12,
++			Other:        0x0,
++			VersionIndex: 0x3,
++			VersionFlags: VerFlagHidden,
++			Section:      0x0,
++			Value:        0x0,
++			Size:         0x0,
++			Version:      "GLIBCXX_3.4",
++			Library:      "libstdc++.so.6",
++		},
++		Symbol{
++			Name:         "_ZNSi5seekgESt4fposI11__mbstate_tE",
++			Info:         0x12,
++			Other:        0x0,
++			VersionIndex: 0x3,
++			VersionFlags: VerFlagHidden,
++			Section:      0x0,
++			Value:        0x0,
++			Size:         0x0,
++			Version:      "GLIBCXX_3.4",
++			Library:      "libstdc++.so.6",
++		},
++		Symbol{
++			Name:         "_ZNSo5writeEPKcl",
++			Info:         0x12,
++			Other:        0x0,
++			VersionIndex: 0x3,
++			VersionFlags: VerFlagHidden,
++			Section:      0x0,
++			Value:        0x0,
++			Size:         0x0,
++			Version:      "GLIBCXX_3.4",
++			Library:      "libstdc++.so.6",
++		},
++		Symbol{
++			Name:         "_ZNSi5seekgElSt12_Ios_Seekdir",
++			Info:         0x12,
++			Other:        0x0,
++			VersionIndex: 0x3,
++			VersionFlags: VerFlagHidden,
++			Section:      0x0,
++			Value:        0x0,
++			Size:         0x0,
++			Version:      "GLIBCXX_3.4",
++			Library:      "libstdc++.so.6",
++		},
++		Symbol{
++			Name:         "_ZSt21ios_base_library_initv",
++			Info:         0x12,
++			Other:        0x0,
++			VersionIndex: 0x8,
++			VersionFlags: VerFlagHidden,
++			Section:      0x0,
++			Value:        0x0,
++			Size:         0x0,
++			Version:      "GLIBCXX_3.4.32",
++			Library:      "libstdc++.so.6",
++		},
++		Symbol{
++			Name:         "TIFFClientOpen",
++			Info:         0x12,
++			Other:        0x0,
++			VersionIndex: 0x9,
++			VersionFlags: VerFlagHidden,
++			Section:      0x0,
++			Value:        0x0,
++			Size:         0x0,
++			Version:      "LIBTIFF_4.0",
++			Library:      "libtiff.so.6",
++		},
++		Symbol{
++			Name:         "_ZNSt9basic_iosIcSt11char_traitsIcEE5clearESt12_Ios_Iostate",
++			Info:         0x12,
++			Other:        0x0,
++			VersionIndex: 0x3,
++			VersionFlags: VerFlagHidden,
++			Section:      0x0,
++			Value:        0x0,
++			Size:         0x0,
++			Version:      "GLIBCXX_3.4",
++			Library:      "libstdc++.so.6",
++		},
++		Symbol{
++			Name:         "_ZNSi5tellgEv",
++			Info:         0x12,
++			Other:        0x0,
++			VersionIndex: 0x3,
++			VersionFlags: VerFlagHidden,
++			Section:      0x0,
++			Value:        0x0,
++			Size:         0x0,
++			Version:      "GLIBCXX_3.4",
++			Library:      "libstdc++.so.6",
++		},
++		Symbol{
++			Name:         "_ITM_deregisterTMCloneTable",
++			Info:         0x20,
++			Other:        0x0,
++			VersionIndex: 0x1,
++			VersionFlags: VerFlagGlobal,
++			Section:      0x0,
++			Value:        0x0,
++			Size:         0x0,
++		},
++		Symbol{
++			Name:         "__gmon_start__",
++			Info:         0x20,
++			Other:        0x0,
++			VersionIndex: 0x1,
++			VersionFlags: VerFlagGlobal,
++			Section:      0x0,
++			Value:        0x0,
++			Size:         0x0,
++		},
++		Symbol{
++			Name:         "_ITM_registerTMCloneTable",
++			Info:         0x20,
++			Other:        0x0,
++			VersionIndex: 0x1,
++			VersionFlags: VerFlagGlobal,
++			Section:      0x0,
++			Value:        0x0,
++			Size:         0x0,
++		},
++		Symbol{
++			Name:         "LIBTIFFXX_4.0",
++			Info:         0x11,
++			Other:        0x0,
++			VersionIndex: 0x2,
++			VersionFlags: VerFlagNone,
++			Section:      0xFFF1,
++			Value:        0x0,
++			Size:         0x0,
++			Version:      "LIBTIFFXX_4.0",
++			Library:      "",
++		},
++		Symbol{
++			Name:         "_Z14TIFFStreamOpenPKcPSo",
++			Info:         0x12,
++			Other:        0x0,
++			VersionIndex: 0x2,
++			VersionFlags: VerFlagNone,
++			Section:      0xF,
++			Value:        0x1860,
++			Size:         0xB8,
++			Version:      "LIBTIFFXX_4.0",
++			Library:      "",
++		},
++		Symbol{
++			Name:         "_Z14TIFFStreamOpenPKcPSi",
++			Info:         0x12,
++			Other:        0x0,
++			VersionIndex: 0x2,
++			VersionFlags: VerFlagNone,
++			Section:      0xF,
++			Value:        0x1920,
++			Size:         0x13,
++			Version:      "LIBTIFFXX_4.0",
++			Library:      "",
++		},
++	},
+ }
+diff --git a/src/debug/elf/testdata/libtiffxx.so_ b/src/debug/elf/testdata/libtiffxx.so_
+new file mode 100644
+index 0000000000..4035257151
+Binary files /dev/null and b/src/debug/elf/testdata/libtiffxx.so_ differ

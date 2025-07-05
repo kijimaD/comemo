@@ -15,7 +15,66 @@ Date:   Wed May 24 12:28:25 2023 +0200
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-
+---
  src/maps/maps.go      | 8 --------
  src/maps/maps_test.go | 9 +++++++++
  2 files changed, 9 insertions(+), 8 deletions(-)
+
+diff --git a/src/maps/maps.go b/src/maps/maps.go
+index 15ec456a17..4dabb7caa3 100644
+--- a/src/maps/maps.go
++++ b/src/maps/maps.go
+@@ -20,10 +20,6 @@ func Keys[M ~map[K]V, K comparable, V any](m M) []K {
+ 	return r
+ }
+ 
+-func keysForBenchmarking[M ~map[K]V, K comparable, V any](m M, s []K) {
+-	keys(m, unsafe.Pointer(&s))
+-}
+-
+ // values is implemented in the runtime package.
+ //
+ //go:noescape
+@@ -37,10 +33,6 @@ func Values[M ~map[K]V, K comparable, V any](m M) []V {
+ 	return r
+ }
+ 
+-func valuesForBenchmarking[M ~map[K]V, K comparable, V any](m M, s []V) {
+-	values(m, unsafe.Pointer(&s))
+-}
+-
+ // Equal reports whether two maps contain the same key/value pairs.
+ // Values are compared using ==.
+ func Equal[M1, M2 ~map[K]V, K, V comparable](m1 M1, m2 M2) bool {
+diff --git a/src/maps/maps_test.go b/src/maps/maps_test.go
+index 6b92e0d8d6..dc803e2dbc 100644
+--- a/src/maps/maps_test.go
++++ b/src/maps/maps_test.go
+@@ -10,11 +10,16 @@ import (
+ 	"sort"
+ 	"strconv"
+ 	"testing"
++	"unsafe"
+ )
+ 
+ var m1 = map[int]int{1: 2, 2: 4, 4: 8, 8: 16}
+ var m2 = map[int]string{1: "2", 2: "4", 4: "8", 8: "16"}
+ 
++func keysForBenchmarking[M ~map[K]V, K comparable, V any](m M, s []K) {
++	keys(m, unsafe.Pointer(&s))
++}
++
+ func TestKeys(t *testing.T) {
+ 	want := []int{1, 2, 4, 8}
+ 
+@@ -48,6 +53,10 @@ func TestKeys(t *testing.T) {
+ 	}
+ }
+ 
++func valuesForBenchmarking[M ~map[K]V, K comparable, V any](m M, s []V) {
++	values(m, unsafe.Pointer(&s))
++}
++
+ func TestValues(t *testing.T) {
+ 	got1 := Values(m1)
+ 	want1 := []int{2, 4, 8, 16}

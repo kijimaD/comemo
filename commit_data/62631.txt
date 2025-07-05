@@ -16,7 +16,76 @@ Date:   Thu Mar 20 00:09:52 2025 +1100
     Reviewed-by: Keith Randall <khr@golang.org>
     Auto-Submit: Keith Randall <khr@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/compile/internal/ssagen/intrinsics.go      | 5 ++---
  src/cmd/compile/internal/ssagen/intrinsics_test.go | 6 ++++++
  2 files changed, 8 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssagen/intrinsics.go b/src/cmd/compile/internal/ssagen/intrinsics.go
+index e1e4649555..f2b13045eb 100644
+--- a/src/cmd/compile/internal/ssagen/intrinsics.go
++++ b/src/cmd/compile/internal/ssagen/intrinsics.go
+@@ -1114,9 +1114,8 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
+ 			return s.newValue1(ssa.OpPopCount8, types.Types[types.TINT], args[0])
+ 		},
+ 		sys.S390X, sys.PPC64, sys.Wasm)
+-	addF("math/bits", "OnesCount",
+-		makeOnesCountAMD64(ssa.OpPopCount64),
+-		sys.AMD64)
++	alias("math/bits", "OnesCount", "math/bits", "OnesCount64", p8...)
++
+ 	addF("math/bits", "Mul64",
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue2(ssa.OpMul64uhilo, types.NewTuple(types.Types[types.TUINT64], types.Types[types.TUINT64]), args[0], args[1])
+diff --git a/src/cmd/compile/internal/ssagen/intrinsics_test.go b/src/cmd/compile/internal/ssagen/intrinsics_test.go
+index 192f91c183..a06fdeedb2 100644
+--- a/src/cmd/compile/internal/ssagen/intrinsics_test.go
++++ b/src/cmd/compile/internal/ssagen/intrinsics_test.go
+@@ -297,6 +297,7 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
+ 	{"arm64", "math/bits", "Len8"}:                                     struct{}{},
+ 	{"arm64", "math/bits", "Mul"}:                                      struct{}{},
+ 	{"arm64", "math/bits", "Mul64"}:                                    struct{}{},
++	{"arm64", "math/bits", "OnesCount"}:                                struct{}{},
+ 	{"arm64", "math/bits", "OnesCount16"}:                              struct{}{},
+ 	{"arm64", "math/bits", "OnesCount32"}:                              struct{}{},
+ 	{"arm64", "math/bits", "OnesCount64"}:                              struct{}{},
+@@ -434,6 +435,7 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
+ 	{"loong64", "math/bits", "Len16"}:                                  struct{}{},
+ 	{"loong64", "math/bits", "Len32"}:                                  struct{}{},
+ 	{"loong64", "math/bits", "Len64"}:                                  struct{}{},
++	{"loong64", "math/bits", "OnesCount"}:                              struct{}{},
+ 	{"loong64", "math/bits", "OnesCount16"}:                            struct{}{},
+ 	{"loong64", "math/bits", "OnesCount32"}:                            struct{}{},
+ 	{"loong64", "math/bits", "OnesCount64"}:                            struct{}{},
+@@ -888,6 +890,7 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
+ 	{"ppc64", "math/bits", "Len8"}:                                     struct{}{},
+ 	{"ppc64", "math/bits", "Mul"}:                                      struct{}{},
+ 	{"ppc64", "math/bits", "Mul64"}:                                    struct{}{},
++	{"ppc64", "math/bits", "OnesCount"}:                                struct{}{},
+ 	{"ppc64", "math/bits", "OnesCount16"}:                              struct{}{},
+ 	{"ppc64", "math/bits", "OnesCount32"}:                              struct{}{},
+ 	{"ppc64", "math/bits", "OnesCount64"}:                              struct{}{},
+@@ -1011,6 +1014,7 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
+ 	{"ppc64le", "math/bits", "Len8"}:                                   struct{}{},
+ 	{"ppc64le", "math/bits", "Mul"}:                                    struct{}{},
+ 	{"ppc64le", "math/bits", "Mul64"}:                                  struct{}{},
++	{"ppc64le", "math/bits", "OnesCount"}:                              struct{}{},
+ 	{"ppc64le", "math/bits", "OnesCount16"}:                            struct{}{},
+ 	{"ppc64le", "math/bits", "OnesCount32"}:                            struct{}{},
+ 	{"ppc64le", "math/bits", "OnesCount64"}:                            struct{}{},
+@@ -1232,6 +1236,7 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
+ 	{"s390x", "math/bits", "Len8"}:                                     struct{}{},
+ 	{"s390x", "math/bits", "Mul"}:                                      struct{}{},
+ 	{"s390x", "math/bits", "Mul64"}:                                    struct{}{},
++	{"s390x", "math/bits", "OnesCount"}:                                struct{}{},
+ 	{"s390x", "math/bits", "OnesCount16"}:                              struct{}{},
+ 	{"s390x", "math/bits", "OnesCount32"}:                              struct{}{},
+ 	{"s390x", "math/bits", "OnesCount64"}:                              struct{}{},
+@@ -1298,6 +1303,7 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
+ 	{"wasm", "math/bits", "Len32"}:                                     struct{}{},
+ 	{"wasm", "math/bits", "Len64"}:                                     struct{}{},
+ 	{"wasm", "math/bits", "Len8"}:                                      struct{}{},
++	{"wasm", "math/bits", "OnesCount"}:                                 struct{}{},
+ 	{"wasm", "math/bits", "OnesCount16"}:                               struct{}{},
+ 	{"wasm", "math/bits", "OnesCount32"}:                               struct{}{},
+ 	{"wasm", "math/bits", "OnesCount64"}:                               struct{}{},

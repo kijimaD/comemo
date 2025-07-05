@@ -10,7 +10,54 @@ Date:   Wed Jun 3 16:04:01 2015 -0700
     Reviewed-on: https://go-review.googlesource.com/10666
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/encoding/csv/reader.go      | 11 +++++------
  src/encoding/csv/reader_test.go |  9 +++++++++
  2 files changed, 14 insertions(+), 6 deletions(-)
+
+diff --git a/src/encoding/csv/reader.go b/src/encoding/csv/reader.go
+index ca81a41242..37bf80ceae 100644
+--- a/src/encoding/csv/reader.go
++++ b/src/encoding/csv/reader.go
+@@ -228,16 +228,15 @@ func (r *Reader) parseRecord() (fields []string, err error) {
+ 	}
+ 	r.r.UnreadRune()
+ 
+-	// If FieldsPerRecord is greater then 0 we can assume the final
+-	// length of fields to be equal to FieldsPerRecord.
+-	if r.FieldsPerRecord > 0 {
+-		fields = make([]string, 0, r.FieldsPerRecord)
+-	}
+-
+ 	// At this point we have at least one field.
+ 	for {
+ 		haveField, delim, err := r.parseField()
+ 		if haveField {
++			// If FieldsPerRecord is greater then 0 we can assume the final
++			// length of fields to be equal to FieldsPerRecord.
++			if r.FieldsPerRecord > 0 && fields == nil {
++				fields = make([]string, 0, r.FieldsPerRecord)
++			}
+ 			fields = append(fields, r.field.String())
+ 		}
+ 		if delim == '\n' || err == io.EOF {
+diff --git a/src/encoding/csv/reader_test.go b/src/encoding/csv/reader_test.go
+index b3c4f3bf18..be1002d034 100644
+--- a/src/encoding/csv/reader_test.go
++++ b/src/encoding/csv/reader_test.go
+@@ -86,6 +86,15 @@ field"`,
+ 			{"d", "e", "f"},
+ 		},
+ 	},
++	{
++		Name:               "BlankLineFieldCount",
++		Input:              "a,b,c\n\nd,e,f\n\n",
++		UseFieldsPerRecord: true,
++		Output: [][]string{
++			{"a", "b", "c"},
++			{"d", "e", "f"},
++		},
++	},
+ 	{
+ 		Name:             "TrimSpace",
+ 		Input:            " a,  b,   c\n",

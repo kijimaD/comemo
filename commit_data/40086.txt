@@ -25,8 +25,90 @@ Date:   Tue Apr 16 20:32:31 2019 +0700
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/closure.go | 14 ++++++++++----
  test/fixedbugs/issue30709.go           | 33 +++++++++++++++++++++++++++++++++
  test/fixedbugs/issue30709.out          |  4 ++++
  3 files changed, 47 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/closure.go b/src/cmd/compile/internal/gc/closure.go
+index 6db0f02001..89e2a4ef00 100644
+--- a/src/cmd/compile/internal/gc/closure.go
++++ b/src/cmd/compile/internal/gc/closure.go
+@@ -73,6 +73,16 @@ func (p *noder) funcLit(expr *syntax.FuncLit) *Node {
+ 
+ func typecheckclosure(clo *Node, top int) {
+ 	xfunc := clo.Func.Closure
++	clo.Func.Ntype = typecheck(clo.Func.Ntype, Etype)
++	clo.Type = clo.Func.Ntype.Type
++	clo.Func.Top = top
++
++	// Do not typecheck xfunc twice, otherwise, we will end up pushing
++	// xfunc to xtop multiple times, causing initLSym called twice.
++	// See #30709
++	if xfunc.Typecheck() == 1 {
++		return
++	}
+ 
+ 	for _, ln := range xfunc.Func.Cvars.Slice() {
+ 		n := ln.Name.Defn
+@@ -95,10 +105,6 @@ func typecheckclosure(clo *Node, top int) {
+ 	declare(xfunc.Func.Nname, PFUNC)
+ 	xfunc = typecheck(xfunc, ctxStmt)
+ 
+-	clo.Func.Ntype = typecheck(clo.Func.Ntype, Etype)
+-	clo.Type = clo.Func.Ntype.Type
+-	clo.Func.Top = top
+-
+ 	// Type check the body now, but only if we're inside a function.
+ 	// At top level (in a variable initialization: curfn==nil) we're not
+ 	// ready to type check code yet; we'll check it later, because the
+diff --git a/test/fixedbugs/issue30709.go b/test/fixedbugs/issue30709.go
+new file mode 100644
+index 0000000000..49524540ed
+--- /dev/null
++++ b/test/fixedbugs/issue30709.go
+@@ -0,0 +1,33 @@
++// run
++
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Check closure in const declaration group can be compiled
++// and set correct value
++
++package main
++
++import "unsafe"
++
++const (
++	x = unsafe.Sizeof(func() {})
++	y
++)
++
++func main() {
++	const (
++		z = unsafe.Sizeof(func() {})
++		t
++	)
++
++	// x and y must be equal
++	println(x == y)
++	// size must be greater than zero
++	println(y > 0)
++
++	// Same logic as x, y above
++	println(z == t)
++	println(t > 0)
++}
+diff --git a/test/fixedbugs/issue30709.out b/test/fixedbugs/issue30709.out
+new file mode 100644
+index 0000000000..1140ff52e2
+--- /dev/null
++++ b/test/fixedbugs/issue30709.out
+@@ -0,0 +1,4 @@
++true
++true
++true
++true

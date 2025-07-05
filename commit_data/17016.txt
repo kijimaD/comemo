@@ -9,6 +9,24 @@ Date:   Sun Aug 4 09:06:14 2013 +1000
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/12420043
-
+---
  src/pkg/html/template/content_test.go | 6 ------
  1 file changed, 6 deletions(-)
+
+diff --git a/src/pkg/html/template/content_test.go b/src/pkg/html/template/content_test.go
+index da1eb5c376..5e130faacb 100644
+--- a/src/pkg/html/template/content_test.go
++++ b/src/pkg/html/template/content_test.go
+@@ -264,12 +264,6 @@ func TestStringer(t *testing.T) {
+ func TestEscapingNilNonemptyInterfaces(t *testing.T) {
+ 	tmpl := Must(New("x").Parse("{{.E}}"))
+ 
+-	defer func() {
+-		if r := recover(); r != nil {
+-			t.Errorf("panic during template execution: %v", r)
+-		}
+-	}()
+-
+ 	got := new(bytes.Buffer)
+ 	testData := struct{ E error }{} // any non-empty interface here will do; error is just ready at hand
+ 	tmpl.Execute(got, testData)

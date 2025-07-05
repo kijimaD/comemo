@@ -21,7 +21,7 @@ Date:   Sat Jul 3 11:22:26 2021 -0700
     Trust: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/escape/call.go    | 7 +++++++
  src/cmd/compile/internal/inline/inl.go     | 9 +--------
  src/cmd/compile/internal/ir/func.go        | 2 +-
@@ -30,3 +30,115 @@ Date:   Sat Jul 3 11:22:26 2021 -0700
  src/cmd/compile/internal/noder/stencil.go  | 2 --
  src/cmd/compile/internal/typecheck/func.go | 2 --
  7 files changed, 9 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/compile/internal/escape/call.go b/src/cmd/compile/internal/escape/call.go
+index 6fcfb1b3b4..9e5abed591 100644
+--- a/src/cmd/compile/internal/escape/call.go
++++ b/src/cmd/compile/internal/escape/call.go
+@@ -57,6 +57,13 @@ func (e *escape) callCommon(ks []hole, call ir.Node, init *ir.Nodes, wrapper *ir
+ 		var fn *ir.Name
+ 		switch call.Op() {
+ 		case ir.OCALLFUNC:
++			// If we have a direct call to a closure (not just one we were
++			// able to statically resolve with ir.StaticValue), mark it as
++			// such so batch.outlives can optimize the flow results.
++			if call.X.Op() == ir.OCLOSURE {
++				call.X.(*ir.ClosureExpr).Func.SetClosureCalled(true)
++			}
++
+ 			switch v := ir.StaticValue(call.X); v.Op() {
+ 			case ir.ONAME:
+ 				if v := v.(*ir.Name); v.Class == ir.PFUNC {
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index f1e927d643..45a533fcaf 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -470,9 +470,6 @@ func inlcopy(n ir.Node) ir.Node {
+ 			// x.Func.Body for iexport and local inlining.
+ 			oldfn := x.Func
+ 			newfn := ir.NewFunc(oldfn.Pos())
+-			if oldfn.ClosureCalled() {
+-				newfn.SetClosureCalled(true)
+-			}
+ 			m.(*ir.ClosureExpr).Func = newfn
+ 			newfn.Nname = ir.NewNameAt(oldfn.Nname.Pos(), oldfn.Nname.Sym())
+ 			// XXX OK to share fn.Type() ??
+@@ -1154,11 +1151,7 @@ func (subst *inlsubst) closure(n *ir.ClosureExpr) ir.Node {
+ 	// the closure is inlined in a specific function.
+ 	newclo := newfn.OClosure
+ 	newclo.SetInit(subst.list(n.Init()))
+-	if oldfn.ClosureCalled() {
+-		return typecheck.Callee(newclo)
+-	} else {
+-		return typecheck.Expr(newclo)
+-	}
++	return typecheck.Expr(newclo)
+ }
+ 
+ // node recursively copies a node from the saved pristine body of the
+diff --git a/src/cmd/compile/internal/ir/func.go b/src/cmd/compile/internal/ir/func.go
+index 3b9e36d4c5..269b6f14ec 100644
+--- a/src/cmd/compile/internal/ir/func.go
++++ b/src/cmd/compile/internal/ir/func.go
+@@ -202,7 +202,7 @@ const (
+ 	funcExportInline             // include inline body in export data
+ 	funcInstrumentBody           // add race/msan instrumentation during SSA construction
+ 	funcOpenCodedDeferDisallowed // can't do open-coded defers
+-	funcClosureCalled            // closure is only immediately called
++	funcClosureCalled            // closure is only immediately called; used by escape analysis
+ )
+ 
+ type SymAndPos struct {
+diff --git a/src/cmd/compile/internal/noder/helpers.go b/src/cmd/compile/internal/noder/helpers.go
+index 08affe4411..b0fb913ee8 100644
+--- a/src/cmd/compile/internal/noder/helpers.go
++++ b/src/cmd/compile/internal/noder/helpers.go
+@@ -160,8 +160,6 @@ func Call(pos src.XPos, typ *types.Type, fun ir.Node, args []ir.Node, dots bool)
+ 
+ 	// Add information, now that we know that fun is actually being called.
+ 	switch fun := fun.(type) {
+-	case *ir.ClosureExpr:
+-		fun.Func.SetClosureCalled(true)
+ 	case *ir.SelectorExpr:
+ 		if fun.Op() == ir.OMETHVALUE {
+ 			op := ir.ODOTMETH
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index d938dca5d4..05cfc614a2 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -1523,9 +1523,6 @@ func (r *reader) expr() ir.Node {
+ 
+ 	case exprCall:
+ 		fun := r.expr()
+-		if clo, ok := fun.(*ir.ClosureExpr); ok {
+-			clo.Func.SetClosureCalled(true)
+-		}
+ 		pos := r.pos()
+ 		args := r.exprs()
+ 		dots := r.bool()
+diff --git a/src/cmd/compile/internal/noder/stencil.go b/src/cmd/compile/internal/noder/stencil.go
+index d35e036ae6..dbaebf7623 100644
+--- a/src/cmd/compile/internal/noder/stencil.go
++++ b/src/cmd/compile/internal/noder/stencil.go
+@@ -1193,8 +1193,6 @@ func (subst *subster) node(n ir.Node) ir.Node {
+ 			newfn := ir.NewClosureFunc(oldfn.Pos(), subst.newf != nil)
+ 			ir.NameClosure(newfn.OClosure, subst.newf)
+ 
+-			newfn.SetClosureCalled(oldfn.ClosureCalled())
+-
+ 			saveNewf := subst.newf
+ 			ir.CurFunc = newfn
+ 			subst.newf = newfn
+diff --git a/src/cmd/compile/internal/typecheck/func.go b/src/cmd/compile/internal/typecheck/func.go
+index 68f0c20e52..847e9b9aea 100644
+--- a/src/cmd/compile/internal/typecheck/func.go
++++ b/src/cmd/compile/internal/typecheck/func.go
+@@ -242,8 +242,6 @@ func tcClosure(clo *ir.ClosureExpr, top int) ir.Node {
+ 		fn.Iota = x
+ 	}
+ 
+-	fn.SetClosureCalled(top&ctxCallee != 0)
+-
+ 	ir.NameClosure(clo, ir.CurFunc)
+ 	Func(fn)
+ 

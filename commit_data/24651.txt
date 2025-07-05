@@ -10,7 +10,49 @@ Date:   Mon Aug 17 21:32:40 2015 -0400
     Change-Id: Ifaac78d5733bfc780df01b1a66da766af0b17726
     Reviewed-on: https://go-review.googlesource.com/13675
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  doc/asm.html   | 4 ++--
  doc/go1.5.html | 6 +++---
  2 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/doc/asm.html b/doc/asm.html
+index ba888118b9..c992e14ade 100644
+--- a/doc/asm.html
++++ b/doc/asm.html
+@@ -741,10 +741,10 @@ Addressing modes:
+ 
+ </ul>
+ 
+-<h3 id="ppc64">Power 64, a.k.a. ppc64</h3>
++<h3 id="ppc64">64-bit PowerPC, a.k.a. ppc64</h3>
+ 
+ <p>
+-The Power 64 port is in an experimental state.
++The 64-bit PowerPC port is in an experimental state.
+ </p>
+ 
+ <p>
+diff --git a/doc/go1.5.html b/doc/go1.5.html
+index 13ca1eddb9..8f3035fe9a 100644
+--- a/doc/go1.5.html
++++ b/doc/go1.5.html
+@@ -236,8 +236,8 @@ is only supported using external linking.
+ </p>
+ 
+ <p>
+-Also available as experiments are <code>ppc64</code> (IBM Power 64)
+-and <code>ppc64le</code> (IBM Power 64, little-endian).
++Also available as experiments are <code>ppc64</code>
++and <code>ppc64le</code> (64-bit PowerPC, big- and little-endian).
+ Both these ports support <code>cgo</code> but
+ only with internal linking.
+ </p>
+@@ -952,7 +952,7 @@ also now supports decoding of DWARF line tables.
+ 
+ <li>
+ The <a href="/pkg/debug/elf/"><code>debug/elf</code></a>
+-package now has support for the 64-bit Power architecture.
++package now has support for the 64-bit PowerPC architecture.
+ </li>
+ 
+ <li>

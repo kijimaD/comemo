@@ -10,7 +10,119 @@ Date:   Fri Feb 14 12:57:03 2014 -0800
     R=gri, bradfitz, mtj
     CC=golang-codereviews
     https://golang.org/cl/63710043
-
+---
  src/pkg/math/big/int.go      | 24 +++++++++++++++-----
  src/pkg/math/big/int_test.go | 53 ++++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 71 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/math/big/int.go b/src/pkg/math/big/int.go
+index 7bbb152d79..4591590d40 100644
+--- a/src/pkg/math/big/int.go
++++ b/src/pkg/math/big/int.go
+@@ -982,17 +982,29 @@ func (z *Int) GobDecode(buf []byte) error {
+ }
+ 
+ // MarshalJSON implements the json.Marshaler interface.
+-func (x *Int) MarshalJSON() ([]byte, error) {
++func (z *Int) MarshalJSON() ([]byte, error) {
+ 	// TODO(gri): get rid of the []byte/string conversions
+-	return []byte(x.String()), nil
++	return []byte(z.String()), nil
+ }
+ 
+ // UnmarshalJSON implements the json.Unmarshaler interface.
+-func (z *Int) UnmarshalJSON(x []byte) error {
++func (z *Int) UnmarshalJSON(text []byte) error {
+ 	// TODO(gri): get rid of the []byte/string conversions
+-	_, ok := z.SetString(string(x), 0)
+-	if !ok {
+-		return fmt.Errorf("math/big: cannot unmarshal %s into a *big.Int", x)
++	if _, ok := z.SetString(string(text), 0); !ok {
++		return fmt.Errorf("math/big: cannot unmarshal %q into a *big.Int", text)
++	}
++	return nil
++}
++
++// MarshalText implements the encoding.TextMarshaler interface
++func (z *Int) MarshalText() (text []byte, err error) {
++	return []byte(z.String()), nil
++}
++
++// UnmarshalText implements the encoding.TextUnmarshaler interface
++func (z *Int) UnmarshalText(text []byte) error {
++	if _, ok := z.SetString(string(text), 0); !ok {
++		return fmt.Errorf("math/big: cannot unmarshal %q into a *big.Int", text)
+ 	}
+ 	return nil
+ }
+diff --git a/src/pkg/math/big/int_test.go b/src/pkg/math/big/int_test.go
+index 87b975d5c4..3dd9c5b712 100644
+--- a/src/pkg/math/big/int_test.go
++++ b/src/pkg/math/big/int_test.go
+@@ -9,6 +9,7 @@ import (
+ 	"encoding/gob"
+ 	"encoding/hex"
+ 	"encoding/json"
++	"encoding/xml"
+ 	"fmt"
+ 	"math/rand"
+ 	"testing"
+@@ -1528,6 +1529,58 @@ func TestIntJSONEncoding(t *testing.T) {
+ 	}
+ }
+ 
++var intVals = []string{
++	"-141592653589793238462643383279502884197169399375105820974944592307816406286",
++	"-1415926535897932384626433832795028841971",
++	"-141592653589793",
++	"-1",
++	"0",
++	"1",
++	"141592653589793",
++	"1415926535897932384626433832795028841971",
++	"141592653589793238462643383279502884197169399375105820974944592307816406286",
++}
++
++func TestIntJSONEncodingTextMarshaller(t *testing.T) {
++	for _, num := range intVals {
++		var tx Int
++		tx.SetString(num, 0)
++		b, err := json.Marshal(&tx)
++		if err != nil {
++			t.Errorf("marshaling of %s failed: %s", &tx, err)
++			continue
++		}
++		var rx Int
++		if err := json.Unmarshal(b, &rx); err != nil {
++			t.Errorf("unmarshaling of %s failed: %s", &tx, err)
++			continue
++		}
++		if rx.Cmp(&tx) != 0 {
++			t.Errorf("JSON encoding of %s failed: got %s want %s", &tx, &rx, &tx)
++		}
++	}
++}
++
++func TestIntXMLEncodingTextMarshaller(t *testing.T) {
++	for _, num := range intVals {
++		var tx Int
++		tx.SetString(num, 0)
++		b, err := xml.Marshal(&tx)
++		if err != nil {
++			t.Errorf("marshaling of %s failed: %s", &tx, err)
++			continue
++		}
++		var rx Int
++		if err := xml.Unmarshal(b, &rx); err != nil {
++			t.Errorf("unmarshaling of %s failed: %s", &tx, err)
++			continue
++		}
++		if rx.Cmp(&tx) != 0 {
++			t.Errorf("XML encoding of %s failed: got %s want %s", &tx, &rx, &tx)
++		}
++	}
++}
++
+ func TestIssue2607(t *testing.T) {
+ 	// This code sequence used to hang.
+ 	n := NewInt(10)

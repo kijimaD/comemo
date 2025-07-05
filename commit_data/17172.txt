@@ -9,6 +9,28 @@ Date:   Tue Aug 13 11:32:32 2013 +1000
     R=golang-dev, dsymonds, rsc
     CC=golang-dev
     https://golang.org/cl/12823043
-
+---
  src/pkg/go/build/build.go | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/go/build/build.go b/src/pkg/go/build/build.go
+index 563e7fe21b..ecea22456e 100644
+--- a/src/pkg/go/build/build.go
++++ b/src/pkg/go/build/build.go
+@@ -395,13 +395,14 @@ func (ctxt *Context) ImportDir(dir string, mode ImportMode) (*Package, error) {
+ }
+ 
+ // NoGoError is the error used by Import to describe a directory
+-// containing no Go source files.
++// containing no buildable Go source files. (It may still contain
++// test files, files hidden by build tags, and so on.)
+ type NoGoError struct {
+ 	Dir string
+ }
+ 
+ func (e *NoGoError) Error() string {
+-	return "no Go source files in " + e.Dir
++	return "no buildable Go source files in " + e.Dir
+ }
+ 
+ // Import returns details about the Go package named by the import path,

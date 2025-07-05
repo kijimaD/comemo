@@ -7,7 +7,60 @@ Date:   Thu Jul 26 23:21:41 2012 -0700
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/6445049
-
+---
  misc/cgo/test/basic.go    | 16 ++++++++++++++++
  misc/cgo/test/cgo_test.go |  1 +
  2 files changed, 17 insertions(+)
+
+diff --git a/misc/cgo/test/basic.go b/misc/cgo/test/basic.go
+index 70ec5e43ac..c0f636289a 100644
+--- a/misc/cgo/test/basic.go
++++ b/misc/cgo/test/basic.go
+@@ -11,6 +11,7 @@ package cgotest
+ #include <stdlib.h>
+ #include <sys/stat.h>
+ #include <errno.h>
++#include <unistd.h>
+ 
+ #define SHIFT(x, y)  ((x)<<(y))
+ #define KILO SHIFT(1, 10)
+@@ -57,6 +58,7 @@ import "C"
+ import (
+ 	"syscall"
+ 	"testing"
++	"time"
+ 	"unsafe"
+ )
+ 
+@@ -124,6 +126,20 @@ func testMultipleAssign(t *testing.T) {
+ 	C.free(unsafe.Pointer(p))
+ }
+ 
++func testSetgid(t *testing.T) {
++	// Issue 3871.
++	c := make(chan bool)
++	go func() {
++		C.setgid(0)
++		c <- true
++	}()
++	select {
++	case <-c:
++	case <-time.After(5 * time.Second):
++		t.Error("setgid hung")
++	}
++}
++
+ var (
+ 	cuint  = (C.uint)(0)
+ 	culong C.ulong
+diff --git a/misc/cgo/test/cgo_test.go b/misc/cgo/test/cgo_test.go
+index 34beee69d1..43d32da585 100644
+--- a/misc/cgo/test/cgo_test.go
++++ b/misc/cgo/test/cgo_test.go
+@@ -27,5 +27,6 @@ func Test1328(t *testing.T)                { test1328(t) }
+ func TestParallelSleep(t *testing.T)       { testParallelSleep(t) }
+ func TestSetEnv(t *testing.T)              { testSetEnv(t) }
+ func TestHelpers(t *testing.T)             { testHelpers(t) }
++func TestSetgid(t *testing.T)              { testSetgid(t) }
+ 
+ func BenchmarkCgoCall(b *testing.B) { benchCgoCall(b) }

@@ -14,8 +14,64 @@ Date:   Tue May 20 00:30:58 2014 -0400
     R=golang-codereviews, iant
     CC=golang-codereviews, r
     https://golang.org/cl/95530043
-
+---
  include/link.h     |  1 +
  src/liblink/asm6.c |  9 +++++++++
  src/liblink/asm8.c | 11 +++++++++++
  3 files changed, 21 insertions(+)
+
+diff --git a/include/link.h b/include/link.h
+index 044849254f..248497888e 100644
+--- a/include/link.h
++++ b/include/link.h
+@@ -243,6 +243,7 @@ enum
+ 	R_PLT0,
+ 	R_PLT1,
+ 	R_PLT2,
++	R_USEFIELD,
+ };
+ 
+ // Auto.type
+diff --git a/src/liblink/asm6.c b/src/liblink/asm6.c
+index 2c719a7758..66afc7a12a 100644
+--- a/src/liblink/asm6.c
++++ b/src/liblink/asm6.c
+@@ -3443,6 +3443,15 @@ asmins(Link *ctxt, Prog *p)
+ 	ctxt->andptr = ctxt->and;
+ 	ctxt->asmode = p->mode;
+ 	
++	if(p->as == AUSEFIELD) {
++		r = addrel(ctxt->cursym);
++		r->off = 0;
++		r->siz = 0;
++		r->sym = p->from.sym;
++		r->type = R_USEFIELD;
++		return;
++	}
++	
+ 	if(ctxt->headtype == Hnacl) {
+ 		if(p->as == AREP) {
+ 			ctxt->rep++;
+diff --git a/src/liblink/asm8.c b/src/liblink/asm8.c
+index 39bd5bae10..3ab527ce89 100644
+--- a/src/liblink/asm8.c
++++ b/src/liblink/asm8.c
+@@ -2744,7 +2744,18 @@ static uchar naclret[] = {
+ static void
+ asmins(Link *ctxt, Prog *p)
+ {
++	Reloc *r;
++
+ 	ctxt->andptr = ctxt->and;
++	
++	if(p->as == AUSEFIELD) {
++		r = addrel(ctxt->cursym);
++		r->off = 0;
++		r->sym = p->from.sym;
++		r->type = R_USEFIELD;
++		r->siz = 0;
++		return;
++	}
+ 
+ 	if(ctxt->headtype == Hnacl) {
+ 		switch(p->as) {

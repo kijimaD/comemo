@@ -9,7 +9,7 @@ Date:   Wed Sep 30 11:51:08 2009 -0700
     DELTA=1110  (540 added, 525 deleted, 45 changed)
     OCL=35153
     CL=35158
-
+---
  misc/cgo/gmp/Makefile                |  23 ++++++++
  {src/cmd/cgo => misc/cgo/gmp}/gmp.go |  98 +++------------------------------
  misc/cgo/gmp/pidigits.go             | 104 +++++++++++++++++++++++++++++++++++
@@ -20,3 +20,667 @@ Date:   Wed Sep 30 11:51:08 2009 -0700
  src/cmd/cgo/out.go                   |  84 +++++++++++++++++-----------
  src/cmd/cgo/stdio.go                 |  27 ---------
  9 files changed, 255 insertions(+), 211 deletions(-)
+
+diff --git a/misc/cgo/gmp/Makefile b/misc/cgo/gmp/Makefile
+new file mode 100644
+index 0000000000..1e521ab7da
+--- /dev/null
++++ b/misc/cgo/gmp/Makefile
+@@ -0,0 +1,23 @@
++# Copyright 2009 The Go Authors.  All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++include $(GOROOT)/src/Make.$(GOARCH)
++
++TARG=gmp
++CGOFILES=\
++	gmp.go
++
++CGO_LDFLAGS=-lgmp
++
++# Can have plain GOFILES too, but this example doesn't.
++
++include $(GOROOT)/src/Make.pkg
++
++# Simple test program
++
++pidigits.$O: install pidigits.go
++	$(GC) pidigits.go
++
++pidigits: pidigits.$O
++	$(LD) -o $@ pidigits.$O
+diff --git a/src/cmd/cgo/gmp.go b/misc/cgo/gmp/gmp.go
+similarity index 74%
+rename from src/cmd/cgo/gmp.go
+rename to misc/cgo/gmp/gmp.go
+index efb4c29dda..5cda6dc739 100644
+--- a/src/cmd/cgo/gmp.go
++++ b/misc/cgo/gmp/gmp.go
+@@ -32,8 +32,8 @@ arithmetic types.  A C struct translates to a Go struct, field by
+ field; unrepresentable fields are replaced with opaque byte arrays.  A
+ C union translates into a struct containing the first union member and
+ perhaps additional padding.  C arrays become Go arrays.  C pointers
+-become Go pointers.  C function pointers and void pointers become Go's
+-*byte.
++become Go pointers.  C function pointers become Go's uintptr.
++C void pointer's become Go's unsafe.Pointer.
+ 
+ For example, mpz_t is defined in <gmp.h> as:
+ 
+@@ -81,17 +81,8 @@ calls the C xxx in a standard pthread.  The new function translates
+ its arguments, calls xxx, and translates the return value.
+ 
+ Translation of parameters and the return value follows the type
+-translation above with one extension: a function expecting a char*
+-will change to expect a string, and a function returning a char* will
+-change to return a string.  The wrapper that cgo generates for the
+-first case allocates a new C string, passes that pointer to the C
+-function, and then frees the string when the function returns.  The
+-wrapper for the second case assumes the char* being returned is
+-pointer that must be freed.  It makes a Go string with a copy of the
+-contents and then frees the pointer.  The char* conventions are a
+-useful heuristic; there should be some way to override them but isn't
+-yet.  One can also imagine wrapping Go functions being passed into C
+-functions so that C can call them.
++translation above except that arrays passed as parameters translate
++explicitly in Go to pointers to arrays, as they do (implicitly) in C.
+ 
+ Garbage collection is the big problem.  It is fine for the Go world to
+ have pointers into the C world and to free those pointers when they
+@@ -101,86 +92,11 @@ wrapped by Go objects with appropriate destroy methods.
+ 
+ It is much more difficult for the C world to have pointers into the Go
+ world, because the Go garbage collector is unaware of the memory
+-allocated by C. I think the most important consideration is not to
+-constrain future implementations, so the rule is basically that Go
+-code can hand a Go pointer to C code but must separately arrange for
++allocated by C.  The most important consideration is not to
++constrain future implementations, so the rule is that Go code can
++hand a Go pointer to C code but must separately arrange for
+ Go to hang on to a reference to the pointer until C is done with it.
+-
+-Note: the sketches assume that the char* <-> string conversions described
+-above have been thrown away.  Otherwise one can't pass nil as the first
+-argument to mpz_get_str.
+-
+-Sketch of 6c.c:
+-
+-	// NOTE: Maybe cgo is smart enough to figure out that
+-	// mpz_init's real C name is __gmpz_init and use that instead.
+-
+-	// Tell dynamic linker to initialize _cgo_mpz_init in this file
+-	// to point at the function of the same name in gcc.c.
+-	#pragma dynld _cgo_mpz_init _cgo_mpz_init "gmp.so"
+-	#pragma dynld _cgo_mpz_get_str _cgo_mpz_get_str "gmp.so"
+-
+-	void (*_cgo_mpz_init)(void*);
+-	void (*_cgo_mpz_get_str)(void*);
+-
+-	// implementation of Go function called as C.mpz_init below.
+-	void
+-	gmp·_C_mpz_init(struct { char x[8]; } p)	// dummy struct, same size as 6g parameter frame
+-	{
+-		cgocall(_cgo_mpz_init, &p);
+-	}
+-
+-	void
+-	gmp·_C_mpz_get_str(struct { char x[32]; } p)
+-	{
+-		cgocall(_cgo_mpz_get_str, &p);
+-	}
+-
+-Sketch of 6g.go:
+-
+-	// Type declarations from above, omitted.
+-
+-	// Extern declarations for 6c.c functions
+-	func _C_mpz_init(*_C_mpz_t)
+-	func _C_mpz_get_str(*_C_char, int32, *_C_mpz_t) *_C_char
+-
+-	// Original Go source with C.xxx replaced by _C_xxx
+-	// as described above.
+-
+-Sketch of gcc.c:
+-
+-	void
+-	_cgo_mpz_init(void *v)
+-	{
+-		struct {
+-			__mpz_struct *p1;	// not mpz_t because of C array passing rule
+-		} *a = v;
+-		mpz_init(a->p1);
+-	}
+-
+-	void
+-	_cgo_mpz_get_str(void *v)
+-	{
+-		struct {
+-			char *p1;
+-			int32 p2;
+-			in32 _pad1;
+-			__mpz_struct *p3;
+-			char *p4;
+-		} *a = v;
+-		a->p4 = mpz_get_str(a->p1, a->p2, a->p3);
+-	}
+-
+-Gmp defines mpz_t as __mpz_struct[1], meaning that if you
+-declare one it takes up a struct worth of space, but when you
+-pass one to a function, it passes a pointer to the space instead
+-of copying it.  This can't be modeled directly in Go or in C structs
+-so some rewriting happens in the generated files.  In Go,
+-the functions take *_C_mpz_t instead of _C_mpz_t, and in the
+-GCC structs, the parameters are __mpz_struct* instead of mpz_t.
+-
+ */
+-
+ package gmp
+ 
+ // #include <gmp.h>
+diff --git a/misc/cgo/gmp/pidigits.go b/misc/cgo/gmp/pidigits.go
+new file mode 100644
+index 0000000000..d22bbc653d
+--- /dev/null
++++ b/misc/cgo/gmp/pidigits.go
+@@ -0,0 +1,104 @@
++/*
++Redistribution and use in source and binary forms, with or without
++modification, are permitted provided that the following conditions are met:
++
++    * Redistributions of source code must retain the above copyright
++    notice, this list of conditions and the following disclaimer.
++
++    * Redistributions in binary form must reproduce the above copyright
++    notice, this list of conditions and the following disclaimer in the
++    documentation and/or other materials provided with the distribution.
++
++    * Neither the name of "The Computer Language Benchmarks Game" nor the
++    name of "The Computer Language Shootout Benchmarks" nor the names of
++    its contributors may be used to endorse or promote products derived
++    from this software without specific prior written permission.
++
++THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
++AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
++IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
++ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
++LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
++CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
++SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
++INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
++CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
++ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
++POSSIBILITY OF SUCH DAMAGE.
++*/
++
++/* The Computer Language Benchmarks Game
++ * http://shootout.alioth.debian.org/
++ *
++ * contributed by The Go Authors.
++ * based on pidigits.c (by Paolo Bonzini & Sean Bartlett,
++ *                      modified by Michael Mellor)
++ */
++
++package main
++
++import (
++	big "gmp";
++	"fmt";
++	"runtime";
++)
++
++var (
++	tmp1 = big.NewInt(0);
++	tmp2 = big.NewInt(0);
++	numer = big.NewInt(1);
++	accum = big.NewInt(0);
++	denom = big.NewInt(1);
++	ten = big.NewInt(10);
++)
++
++func extractDigit() int64 {
++	if big.CmpInt(numer, accum) > 0 {
++		return -1;
++	}
++	tmp1.Lsh(numer, 1).Add(tmp1, numer).Add(tmp1, accum);
++	big.DivModInt(tmp1, tmp2, tmp1, denom);
++	tmp2.Add(tmp2, numer);
++	if big.CmpInt(tmp2, denom) >= 0 {
++		return -1;
++	}
++	return tmp1.Int64();
++}
++
++func nextTerm(k int64) {
++	y2 := k*2 + 1;
++	accum.Add(accum, tmp1.Lsh(numer, 1));
++	accum.Mul(accum, tmp1.SetInt64(y2));
++	numer.Mul(numer, tmp1.SetInt64(k));
++	denom.Mul(denom, tmp1.SetInt64(y2));
++}
++
++func eliminateDigit(d int64) {
++	accum.Sub(accum, tmp1.Mul(denom, tmp1.SetInt64(d)));
++	accum.Mul(accum, ten);
++	numer.Mul(numer, ten);
++}
++
++func main() {
++	i := 0;
++	k := int64(0);
++	for {
++		d := int64(-1);
++		for d < 0 {
++			k++;
++			nextTerm(k);
++			d = extractDigit();
++		}
++		eliminateDigit(d);
++		fmt.Printf("%c", d + '0');
++
++		if i++; i%50 == 0 {
++			fmt.Printf("\n");
++			if i >= 1000 {
++				break;
++			}
++		}
++	}
++
++	fmt.Printf("\n%d calls; bit sizes: %d %d %d\n", runtime.Cgocalls(), numer.Len(), accum.Len(), denom.Len());
++}
+diff --git a/src/Make.pkg b/src/Make.pkg
+index 204f07d352..fadd78e3dd 100644
+--- a/src/Make.pkg
++++ b/src/Make.pkg
+@@ -8,15 +8,23 @@ testpackage: _test/$(TARG).a
+ 
+ elem=$(lastword $(subst /, ,$(TARG)))
+ dir=$(patsubst %/$(elem),%,./$(TARG))
+-
+ pkgdir=$(GOROOT)/pkg/$(GOOS)_$(GOARCH)
+ 
++INSTALLFILES=$(pkgdir)/$(TARG).a
++
++# The rest of the cgo rules are below, but these variable updates
++# must be done here so they apply to the main rules.
++GOFILES+=$(patsubst %.go,%.cgo1.go,$(CGOFILES))
++GOFILES+=$(patsubst %.go,%.cgo2.go,$(CGOFILES))
++OFILES+=$(patsubst %.go,%.cgo3.$O,$(CGOFILES))
++INSTALLFILES+=$(patsubst %.go,$(pkgdir)/$(dir)/$(elem)_%.so,$(CGOFILES))
++
+ coverage:
+ 	gotest
+ 	6cov -g $(shell pwd) | grep -v '_test\.go:'
+ 
+ clean:
+-	rm -rf *.[$(OS)] *.a [$(OS)].out _obj _test _testmain.go
++	rm -rf *.[$(OS)o] *.a [$(OS)].out *.cgo[12].go *.cgo[34].c *.so _obj _test _testmain.go
+ 
+ test:
+ 	gotest
+@@ -27,11 +35,11 @@ nuke: clean
+ testpackage-clean:
+ 	rm -f _test/$(TARG).a _gotest_.$O
+ 
+-install: $(pkgdir)/$(TARG).a
++install: $(INSTALLFILES)
+ 
+ $(pkgdir)/$(TARG).a: package
+-	test -d $(GOROOT)/pkg && mkdir -p $(pkgdir)/$(dir)
+-	cp _obj/$(TARG).a $(pkgdir)/$(TARG).a
++	@test -d $(GOROOT)/pkg && mkdir -p $(pkgdir)/$(dir)
++	cp _obj/$(TARG).a $@
+ 
+ _go_.$O: $(GOFILES)
+ 	$(GC) -o $@ $(GOFILES)
+@@ -39,21 +47,13 @@ _go_.$O: $(GOFILES)
+ _gotest_.$O: $(GOFILES) $(GOTESTFILES)
+ 	$(GC) -o $@ $(GOFILES) $(GOTESTFILES)
+ 
+-%.$O: %.c
+-	$(CC) $(CFLAGS) $*.c
+-
+-%.$O: %.s
+-	$(AS) $*.s
+-
+-%.$O: $(HFILES)
+-
+ _obj/$(TARG).a: _go_.$O $(OFILES)
+-	mkdir -p _obj/$(dir)
++	@mkdir -p _obj/$(dir)
+ 	rm -f _obj/$(TARG).a
+ 	gopack grc $@ _go_.$O $(OFILES)
+ 
+ _test/$(TARG).a: _gotest_.$O $(OFILES)
+-	mkdir -p _test/$(dir)
++	@mkdir -p _test/$(dir)
+ 	rm -f _test/$(TARG).a
+ 	gopack grc $@ _gotest_.$O $(OFILES)
+ 
+@@ -63,3 +63,56 @@ importpath:
+ dir:
+ 	@echo $(dir)
+ 
++
++# To use cgo in a Go package, add a line
++#
++#	CGOFILES=x.go
++#
++# to the main Makefile.  This signals that cgo should process x.go.
++# There are two optional variables to set, CGO_CFLAGS and CGO_LDFLAGS,
++# which specify compiler and linker flags to use when compiling
++# (using gcc) the C support for x.go.
++
++# Cgo translates each x.go file listed in $(CGOFILES) into
++#
++#	x.cgo1.go - basic translation of x.go
++#	x.cgo2.go - declarations needed for x.cgo1.go; imports "unsafe"
++#	x.cgo3.c - C trampoline code to be compiled with 6c and linked into the package
++#	x.cgo4.c - C implementations compiled with gcc to create dynamic library
++#
++%.cgo1.go %.cgo2.go %.cgo3.c %.cgo4.c: %.go
++	cgo $*.go
++
++# The rules above added x.cgo1.go and x.cgo2.go to $(GOFILES),
++# added x.cgo3.$O to $OFILES, and added the installed copy of
++# package_x.so (built from x.cgo4.c) to $(INSTALLFILES).
++
++# Compile x.cgo3.c with 6c; needs access to the runtime headers.
++RUNTIME_CFLAGS_amd64=-D_64BIT
++RUNTIME_CFLAGS=-I$(GOROOT)/src/pkg/runtime $(RUNTIME_CFLAGS_$(GOARCH))
++%.cgo3.$O: %.cgo3.c
++	$(CC) $(CFLAGS) $(RUNTIME_CFLAGS) $*.cgo3.c
++
++# Compile x.cgo4.c with gcc to make package_x.so.
++%.cgo4.o: %.cgo4.c
++	gcc -fPIC -O2 -o $@ -c $(CGO_CFLAGS) $*.cgo4.c
++
++$(elem)_%.so: %.cgo4.o
++	gcc -shared -o $@ $*.cgo4.o $(CGO_LDFLAGS)
++
++$(pkgdir)/$(dir)/$(elem)_%.so: $(elem)_%.so
++	@test -d $(GOROOT)/pkg && mkdir -p $(pkgdir)/$(dir)
++	cp $(elem)_$*.so $@
++
++
++# Generic build rules.
++# These come last so that the rules above can override them
++# for more specific file names.
++%.$O: %.c
++	$(CC) $(CFLAGS) $*.c
++
++%.$O: %.s
++	$(AS) $*.s
++
++%.$O: $(HFILES)
++
+diff --git a/src/cmd/cgo/Makefile b/src/cmd/cgo/Makefile
+index b05d6b5c85..2c62cbdf51 100644
+--- a/src/cmd/cgo/Makefile
++++ b/src/cmd/cgo/Makefile
+@@ -13,28 +13,3 @@ GOFILES=\
+ 	util.go\
+ 
+ include $(GOROOT)/src/Make.cmd
+-
+-# Tests
+-# TODO(rsc): Delete
+-
+-gmp:
+-	make cgo
+-	cgo gmp.go
+-	gcc -fPIC -O2 -o gcc.o -c _cgo_gcc.c
+-	gcc -shared -o gmp.so gcc.o -L$(GOROOT)/pkg/$(GOOS)_$(GOARCH) -lcgo -lgmp
+-	6c -D_64BIT -I$(GOROOT)/src/pkg/runtime _cgo_c.c
+-	6g _cgo_go.go
+-	gopack grc gmp.a _cgo_c.6 _cgo_go.6
+-	6g pidigits.go
+-	6l pidigits.6
+-	LD_LIBRARY_PATH=.:$(GOROOT)/pkg/$(GOOS)_$(GOARCH) 6.out
+-
+-stdio:
+-	make cgo
+-	cgo stdio.go
+-	gcc -fPIC -O2 -o gcc.o -c _cgo_gcc.c
+-	gcc -shared -Wl,--rpath -Wl,$(GOROOT)/pkg/$(GOOS)_$(GOARCH) -o main.so gcc.o -L$(GOROOT)/pkg/$(GOOS)_$(GOARCH) -lcgo
+-	6c -D_64BIT -I$(GOROOT)/src/pkg/runtime _cgo_c.c
+-	6g _cgo_go.go
+-	6l _cgo_c.6 _cgo_go.6
+-	LD_LIBRARY_PATH=.:$(GOROOT)/pkg/$(GOOS)_$(GOARCH) 6.out
+diff --git a/src/cmd/cgo/ast.go b/src/cmd/cgo/ast.go
+index 7ac4ad38b9..29fe55240d 100644
+--- a/src/cmd/cgo/ast.go
++++ b/src/cmd/cgo/ast.go
+@@ -13,7 +13,6 @@ import (
+ 	"go/parser";
+ 	"go/scanner";
+ 	"os";
+-	"strings";
+ )
+ 
+ // A Cref refers to an expression of the form C.xxx in the AST.
+@@ -73,11 +72,8 @@ func openProg(name string) *Prog {
+ 	p.Package = p.AST.Name.Value;
+ 
+ 	// Find the import "C" line and get any extra C preamble.
+-	// Delete the import "C" line along the way or convert it
+-	// to an import of "unsafe" (needed for the translation of void*).
++	// Delete the import "C" line along the way.
+ 	sawC := false;
+-	sawUnsafe := false;
+-	rewroteUnsafe := false;
+ 	w := 0;
+ 	for _, decl := range p.AST.Decls {
+ 		d, ok := decl.(*ast.GenDecl);
+@@ -90,14 +86,6 @@ func openProg(name string) *Prog {
+ 		for _, spec := range d.Specs {
+ 			s, ok := spec.(*ast.ImportSpec);
+ 			if !ok || len(s.Path) != 1 || string(s.Path[0].Value) != `"C"` {
+-				if s != nil && len(s.Path) == 1 && string(s.Path[0].Value) == `"unsafe"` {
+-					if rewroteUnsafe {
+-						// we rewrote the import "C" into import "unsafe",
+-						// so drop this one.
+-						continue;
+-					}
+-					sawUnsafe = true;
+-				}
+ 				d.Specs[ws] = spec;
+ 				ws++;
+ 				continue;
+@@ -111,12 +99,6 @@ func openProg(name string) *Prog {
+ 			} else if len(d.Specs) == 1 && d.Doc != nil {
+ 				p.Preamble += doc.CommentText(d.Doc) + "\n";
+ 			}
+-			if !sawUnsafe {
+-				rewroteUnsafe = true;
+-				s.Path[0].Value = strings.Bytes(`"unsafe"`);
+-				d.Specs[ws] = spec;
+-				ws++;
+-			}
+ 		}
+ 		if ws == 0 {
+ 			continue;
+diff --git a/src/cmd/cgo/main.go b/src/cmd/cgo/main.go
+index 110b5ad997..0832b3f408 100644
+--- a/src/cmd/cgo/main.go
++++ b/src/cmd/cgo/main.go
+@@ -69,5 +69,5 @@ func main() {
+ 	}
+ 
+ 	p.PackagePath = p.Package;
+-	p.writeOutput(args[0], "_cgo_go.go", "_cgo_c.c", "_cgo_gcc.c");
++	p.writeOutput(args[0]);
+ }
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index e867baf1fc..36fbe03490 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -9,49 +9,62 @@ import (
+ 	"go/ast";
+ 	"go/printer";
+ 	"os";
++	"strings";
+ )
+ 
+-// writeOutput creates output files to be compiled by 6g, 6c, and gcc.
+-// (The comments here say 6g and 6c but the code applies to the 8 and 5 tools too.)
+-func (p *Prog) writeOutput(srcfile, go_, c, gcc string) {
+-	fgo, err := os.Open(go_, os.O_WRONLY|os.O_CREAT|os.O_TRUNC, 0666);
+-	if err != nil {
+-		fatal("%s", err);
+-	}
+-	fc, err := os.Open(c, os.O_WRONLY|os.O_CREAT|os.O_TRUNC, 0666);
+-	if err != nil {
+-		fatal("%s", err);
+-	}
+-	fgcc, err := os.Open(gcc, os.O_WRONLY|os.O_CREAT|os.O_TRUNC, 0666);
++func creat(name string) *os.File {
++	f, err := os.Open(name, os.O_WRONLY|os.O_CREAT|os.O_TRUNC, 0666);
+ 	if err != nil {
+ 		fatal("%s", err);
+ 	}
++	return f;
++}
+ 
+-	// Write Go output: Go input with rewrites of C.xxx to _C_xxx,
+-	// then append the definitions of the _C_xxx types and vars and funcs.
+-	fmt.Fprintf(fgo, "//line %s:1\n", srcfile);
+-	printer.Fprint(fgo, p.AST, 0, 8);
+-	fmt.Fprintf(fgo, "\n\n// Added by cgo\n");
++// writeOutput creates output files to be compiled by 6g, 6c, and gcc.
++// (The comments here say 6g and 6c but the code applies to the 8 and 5 tools too.)
++func (p *Prog) writeOutput(srcfile string) {
++	pkgroot := os.Getenv("GOROOT") + "/pkg/" + os.Getenv("GOOS") + "_" + os.Getenv("GOARCH");
++
++	base := srcfile;
++	if strings.HasSuffix(base, ".go") {
++		base = base[0:len(base)-3];
++	}
++	fgo1 := creat(base + ".cgo1.go");
++	fgo2 := creat(base + ".cgo2.go");
++	fc := creat(base + ".cgo3.c");
++	fgcc := creat(base + ".cgo4.c");
++
++	// Write Go output: Go input with rewrites of C.xxx to _C_xxx.
++	fmt.Fprintf(fgo1, "// Created by cgo - DO NOT EDIT\n");
++	fmt.Fprintf(fgo1, "//line %s:1\n", srcfile);
++	printer.Fprint(fgo1, p.AST, 0, 8);
++
++	// Write second Go output: definitions of _C_xxx.
++	// In a separate file so that the import of "unsafe" does not
++	// pollute the original file.
++	fmt.Fprintf(fgo2, "// Created by cgo - DO NOT EDIT\n");
++	fmt.Fprintf(fgo2, "package %s\n\n", p.Package);
++	fmt.Fprintf(fgo2, "import \"unsafe\"\n\n");
+ 
+ 	for name, def := range p.Typedef {
+-		fmt.Fprintf(fgo, "type %s ", name);
+-		printer.Fprint(fgo, def, 0, 8);
+-		fmt.Fprintf(fgo, "\n");
++		fmt.Fprintf(fgo2, "type %s ", name);
++		printer.Fprint(fgo2, def, 0, 8);
++		fmt.Fprintf(fgo2, "\n");
+ 	}
+-	fmt.Fprintf(fgo, "type _C_void [0]byte\n");
++	fmt.Fprintf(fgo2, "type _C_void [0]byte\n");
+ 
+ 	// While we process the vars and funcs, also write 6c and gcc output.
+ 	// Gcc output starts with the preamble.
+ 	fmt.Fprintf(fgcc, "%s\n", p.Preamble);
+ 	fmt.Fprintf(fgcc, "%s\n", gccProlog);
+ 
+-	fmt.Fprintf(fc, cProlog, p.Package, p.Package);
++	fmt.Fprintf(fc, cProlog, pkgroot, pkgroot, pkgroot, pkgroot, p.Package, p.Package);
+ 
+ 	for name, def := range p.Vardef {
+-		fmt.Fprintf(fc, "#pragma dynld %s·_C_%s %s \"%s.so\"\n", p.Package, name, name, p.PackagePath);
+-		fmt.Fprintf(fgo, "var _C_%s ", name);
+-		printer.Fprint(fgo, &ast.StarExpr{X: def.Go}, 0, 8);
+-		fmt.Fprintf(fgo, "\n");
++		fmt.Fprintf(fc, "#pragma dynld %s·_C_%s %s \"%s/%s_%s.so\"\n", p.Package, name, name, pkgroot, p.PackagePath, base);
++		fmt.Fprintf(fgo2, "var _C_%s ", name);
++		printer.Fprint(fgo2, &ast.StarExpr{X: def.Go}, 0, 8);
++		fmt.Fprintf(fgo2, "\n");
+ 	}
+ 	fmt.Fprintf(fc, "\n");
+ 
+@@ -61,8 +74,8 @@ func (p *Prog) writeOutput(srcfile, go_, c, gcc string) {
+ 			Name: &ast.Ident{Value: "_C_" + name},
+ 			Type: def.Go,
+ 		};
+-		printer.Fprint(fgo, d, 0, 8);
+-		fmt.Fprintf(fgo, "\n");
++		printer.Fprint(fgo2, d, 0, 8);
++		fmt.Fprintf(fgo2, "\n");
+ 
+ 		if name == "CString" || name == "GoString" {
+ 			// The builtins are already defined in the C prolog.
+@@ -118,7 +131,7 @@ func (p *Prog) writeOutput(srcfile, go_, c, gcc string) {
+ 
+ 		// C wrapper calls into gcc, passing a pointer to the argument frame.
+ 		// Also emit #pragma to get a pointer to the gcc wrapper.
+-		fmt.Fprintf(fc, "#pragma dynld _cgo_%s _cgo_%s \"%s.so\"\n", name, name, p.PackagePath);
++		fmt.Fprintf(fc, "#pragma dynld _cgo_%s _cgo_%s \"%s/%s_%s.so\"\n", name, name, pkgroot, p.PackagePath, base);
+ 		fmt.Fprintf(fc, "void (*_cgo_%s)(void*);\n", name);
+ 		fmt.Fprintf(fc, "\n");
+ 		fmt.Fprintf(fc, "void\n");
+@@ -149,6 +162,11 @@ func (p *Prog) writeOutput(srcfile, go_, c, gcc string) {
+ 		fmt.Fprintf(fgcc, "}\n");
+ 		fmt.Fprintf(fgcc, "\n");
+ 	}
++
++	fgo1.Close();
++	fgo2.Close();
++	fc.Close();
++	fgcc.Close();
+ }
+ 
+ const gccProlog = `
+@@ -179,10 +197,10 @@ const cProlog = `
+ #include "runtime.h"
+ #include "cgocall.h"
+ 
+-#pragma dynld initcgo initcgo "libcgo.so"
+-#pragma dynld cgo cgo "libcgo.so"
+-#pragma dynld _cgo_malloc _cgo_malloc "libcgo.so"
+-#pragma dynld _cgo_free free "libcgo.so"
++#pragma dynld initcgo initcgo "%s/libcgo.so"
++#pragma dynld cgo cgo "%s/libcgo.so"
++#pragma dynld _cgo_malloc _cgo_malloc "%s/libcgo.so"
++#pragma dynld _cgo_free free "%s/libcgo.so"
+ 
+ void
+ %s·_C_GoString(int8 *p, String s)
+diff --git a/src/cmd/cgo/stdio.go b/src/cmd/cgo/stdio.go
+deleted file mode 100644
+index 4f09de7998..0000000000
+--- a/src/cmd/cgo/stdio.go
++++ /dev/null
+@@ -1,27 +0,0 @@
+-// Copyright 2009 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-// #include <stdio.h>
+-// #include <stdlib.h>
+-import "C"
+-
+-type File C.FILE;
+-
+-func (f *File) Putc(c int) {
+-	C.putc(C.int(c), (*C.FILE)(f));
+-}
+-
+-func (f *File) Puts(s string) {
+-	p := C.CString(s);
+-	C.fputs(p, (*C.FILE)(f));
+-	C.free(unsafe.Pointer(p));
+-}
+-
+-var Stdout = (*File)(C.stdout);
+-
+-func main() {
+-	Stdout.Puts("hello, world\n");
+-}

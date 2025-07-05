@@ -11,7 +11,125 @@ Date:   Fri Apr 3 11:58:12 2020 -0400
     Run-TryBot: Katie Hockman <katie@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
-
+---
  src/crypto/x509/x509.go      | 28 ++++++++++++++++++++++------
  src/crypto/x509/x509_test.go | 27 +++++++++++++++++++++++++++
  2 files changed, 49 insertions(+), 6 deletions(-)
+
+diff --git a/src/crypto/x509/x509.go b/src/crypto/x509/x509.go
+index 2bf6d379eb..6776608d75 100644
+--- a/src/crypto/x509/x509.go
++++ b/src/crypto/x509/x509.go
+@@ -17,6 +17,7 @@ import (
+ 	"crypto/ed25519"
+ 	"crypto/elliptic"
+ 	"crypto/rsa"
++	"crypto/sha1"
+ 	_ "crypto/sha1"
+ 	_ "crypto/sha256"
+ 	_ "crypto/sha512"
+@@ -1686,7 +1687,7 @@ func isIA5String(s string) error {
+ 	return nil
+ }
+ 
+-func buildExtensions(template *Certificate, subjectIsEmpty bool, authorityKeyId []byte) (ret []pkix.Extension, err error) {
++func buildExtensions(template *Certificate, subjectIsEmpty bool, authorityKeyId []byte, subjectKeyId []byte) (ret []pkix.Extension, err error) {
+ 	ret = make([]pkix.Extension, 10 /* maximum number of elements. */)
+ 	n := 0
+ 
+@@ -1751,9 +1752,9 @@ func buildExtensions(template *Certificate, subjectIsEmpty bool, authorityKeyId
+ 		n++
+ 	}
+ 
+-	if len(template.SubjectKeyId) > 0 && !oidInExtensions(oidExtensionSubjectKeyId, template.ExtraExtensions) {
++	if len(subjectKeyId) > 0 && !oidInExtensions(oidExtensionSubjectKeyId, template.ExtraExtensions) {
+ 		ret[n].Id = oidExtensionSubjectKeyId
+-		ret[n].Value, err = asn1.Marshal(template.SubjectKeyId)
++		ret[n].Value, err = asn1.Marshal(subjectKeyId)
+ 		if err != nil {
+ 			return
+ 		}
+@@ -2082,6 +2083,9 @@ var emptyASN1Subject = []byte{0x30, 0}
+ // The AuthorityKeyId will be taken from the SubjectKeyId of parent, if any,
+ // unless the resulting certificate is self-signed. Otherwise the value from
+ // template will be used.
++//
++// If SubjectKeyId from template is empty and the template is a CA, SubjectKeyId
++// will be generated from the hash of the public key.
+ func CreateCertificate(rand io.Reader, template, parent *Certificate, pub, priv interface{}) (cert []byte, err error) {
+ 	key, ok := priv.(crypto.Signer)
+ 	if !ok {
+@@ -2117,12 +2121,24 @@ func CreateCertificate(rand io.Reader, template, parent *Certificate, pub, priv
+ 		authorityKeyId = parent.SubjectKeyId
+ 	}
+ 
+-	extensions, err := buildExtensions(template, bytes.Equal(asn1Subject, emptyASN1Subject), authorityKeyId)
++	encodedPublicKey := asn1.BitString{BitLength: len(publicKeyBytes) * 8, Bytes: publicKeyBytes}
++	pki := publicKeyInfo{nil, publicKeyAlgorithm, encodedPublicKey}
++	subjectKeyId := template.SubjectKeyId
++	if len(subjectKeyId) == 0 && template.IsCA {
++		// SubjectKeyId generated using method 1 in RFC 5280, Section 4.2.1.2
++		b, err := asn1.Marshal(pki)
++		if err != nil {
++			return nil, err
++		}
++		h := sha1.Sum(b)
++		subjectKeyId = h[:]
++	}
++
++	extensions, err := buildExtensions(template, bytes.Equal(asn1Subject, emptyASN1Subject), authorityKeyId, subjectKeyId)
+ 	if err != nil {
+ 		return
+ 	}
+ 
+-	encodedPublicKey := asn1.BitString{BitLength: len(publicKeyBytes) * 8, Bytes: publicKeyBytes}
+ 	c := tbsCertificate{
+ 		Version:            2,
+ 		SerialNumber:       template.SerialNumber,
+@@ -2130,7 +2146,7 @@ func CreateCertificate(rand io.Reader, template, parent *Certificate, pub, priv
+ 		Issuer:             asn1.RawValue{FullBytes: asn1Issuer},
+ 		Validity:           validity{template.NotBefore.UTC(), template.NotAfter.UTC()},
+ 		Subject:            asn1.RawValue{FullBytes: asn1Subject},
+-		PublicKey:          publicKeyInfo{nil, publicKeyAlgorithm, encodedPublicKey},
++		PublicKey:          pki,
+ 		Extensions:         extensions,
+ 	}
+ 
+diff --git a/src/crypto/x509/x509_test.go b/src/crypto/x509/x509_test.go
+index c2f110e87b..b7c5679e7a 100644
+--- a/src/crypto/x509/x509_test.go
++++ b/src/crypto/x509/x509_test.go
+@@ -1710,6 +1710,33 @@ func TestNoAuthorityKeyIdInSelfSignedCert(t *testing.T) {
+ 	}
+ }
+ 
++func TestNoSubjectKeyIdInCert(t *testing.T) {
++	template := &Certificate{
++		SerialNumber: big.NewInt(1),
++		Subject: pkix.Name{
++			CommonName: "Σ Acme Co",
++		},
++		NotBefore: time.Unix(1000, 0),
++		NotAfter:  time.Unix(100000, 0),
++
++		BasicConstraintsValid: true,
++		IsCA:                  true,
++	}
++	if cert := serialiseAndParse(t, template); len(cert.SubjectKeyId) == 0 {
++		t.Fatalf("self-signed certificate did not generate subject key id using the public key")
++	}
++
++	template.IsCA = false
++	if cert := serialiseAndParse(t, template); len(cert.SubjectKeyId) != 0 {
++		t.Fatalf("self-signed certificate generated subject key id when it isn't a CA")
++	}
++
++	template.SubjectKeyId = []byte{1, 2, 3, 4}
++	if cert := serialiseAndParse(t, template); len(cert.SubjectKeyId) == 0 {
++		t.Fatalf("self-signed certificate erased explicit subject key id")
++	}
++}
++
+ func TestASN1BitLength(t *testing.T) {
+ 	tests := []struct {
+ 		bytes  []byte

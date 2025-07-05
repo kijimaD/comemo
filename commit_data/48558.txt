@@ -12,7 +12,50 @@ Date:   Sat May 29 22:14:12 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/check_test.go | 8 ++++++++
  src/go/types/universe.go   | 5 ++++-
  2 files changed, 12 insertions(+), 1 deletion(-)
+
+diff --git a/src/go/types/check_test.go b/src/go/types/check_test.go
+index 9c71277264..6c3b630a1b 100644
+--- a/src/go/types/check_test.go
++++ b/src/go/types/check_test.go
+@@ -330,6 +330,14 @@ func TestIndexRepresentability(t *testing.T) {
+ 	checkFiles(t, &StdSizes{4, 4}, "", []string{"index.go"}, [][]byte{[]byte(src)}, false)
+ }
+ 
++func TestIssue46453(t *testing.T) {
++	if typeparams.Enabled {
++		t.Skip("type params are enabled")
++	}
++	const src = "package p\ntype _ comparable // ERROR \"undeclared name: comparable\""
++	checkFiles(t, nil, "", []string{"issue46453.go"}, [][]byte{[]byte(src)}, false)
++}
++
+ func TestCheck(t *testing.T)     { DefPredeclaredTestFuncs(); testDir(t, "check") }
+ func TestExamples(t *testing.T)  { testDir(t, "examples") }
+ func TestFixedbugs(t *testing.T) { testDir(t, "fixedbugs") }
+diff --git a/src/go/types/universe.go b/src/go/types/universe.go
+index 7c211fa6f7..d7feb2c609 100644
+--- a/src/go/types/universe.go
++++ b/src/go/types/universe.go
+@@ -8,6 +8,7 @@ package types
+ 
+ import (
+ 	"go/constant"
++	"go/internal/typeparams"
+ 	"go/token"
+ 	"strings"
+ )
+@@ -237,7 +238,9 @@ func init() {
+ 	defPredeclaredConsts()
+ 	defPredeclaredNil()
+ 	defPredeclaredFuncs()
+-	defPredeclaredComparable()
++	if typeparams.Enabled {
++		defPredeclaredComparable()
++	}
+ 
+ 	universeIota = Universe.Lookup("iota").(*Const)
+ 	universeByte = Universe.Lookup("byte").(*TypeName).typ.(*Basic)

@@ -13,6 +13,32 @@ Date:   Wed Sep 7 17:23:03 2022 +0200
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-
+---
  src/internal/syscall/windows/syscall_windows.go | 7 +------
  1 file changed, 1 insertion(+), 6 deletions(-)
+
+diff --git a/src/internal/syscall/windows/syscall_windows.go b/src/internal/syscall/windows/syscall_windows.go
+index de7cda2094..39ff25fcb7 100644
+--- a/src/internal/syscall/windows/syscall_windows.go
++++ b/src/internal/syscall/windows/syscall_windows.go
+@@ -5,7 +5,6 @@
+ package windows
+ 
+ import (
+-	"internal/unsafeheader"
+ 	"sync"
+ 	"syscall"
+ 	"unicode/utf16"
+@@ -26,11 +25,7 @@ func UTF16PtrToString(p *uint16) string {
+ 		n++
+ 	}
+ 	// Turn *uint16 into []uint16.
+-	var s []uint16
+-	hdr := (*unsafeheader.Slice)(unsafe.Pointer(&s))
+-	hdr.Data = unsafe.Pointer(p)
+-	hdr.Cap = n
+-	hdr.Len = n
++	s := unsafe.Slice((*uint16)(unsafe.Pointer(p)), n)
+ 	// Decode []uint16 into string.
+ 	return string(utf16.Decode(s))
+ }

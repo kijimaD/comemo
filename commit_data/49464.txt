@@ -17,7 +17,65 @@ Date:   Tue Aug 17 19:09:33 2021 +1000
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/RISCV64.rules |  4 ++++
  src/cmd/compile/internal/ssa/rewriteRISCV64.go | 24 ++++++++++++++++++++++++
  2 files changed, 28 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/RISCV64.rules b/src/cmd/compile/internal/ssa/gen/RISCV64.rules
+index 1414b2b34d..4eb48e3928 100644
+--- a/src/cmd/compile/internal/ssa/gen/RISCV64.rules
++++ b/src/cmd/compile/internal/ssa/gen/RISCV64.rules
+@@ -588,6 +588,10 @@
+ (BNEZ (SEQZ x) yes no) => (BEQZ x yes no)
+ (BNEZ (SNEZ x) yes no) => (BNEZ x yes no)
+ 
++// Absorb NEG into branch when possible.
++(BEQZ x:(NEG y) yes no) && x.Uses == 1 => (BEQZ y yes no)
++(BNEZ x:(NEG y) yes no) && x.Uses == 1 => (BNEZ y yes no)
++
+ // Convert BEQZ/BNEZ into more optimal branch conditions.
+ (BEQZ (SUB x y) yes no) => (BEQ x y yes no)
+ (BNEZ (SUB x y) yes no) => (BNE x y yes no)
+diff --git a/src/cmd/compile/internal/ssa/rewriteRISCV64.go b/src/cmd/compile/internal/ssa/rewriteRISCV64.go
+index 9323cda55d..641be038db 100644
+--- a/src/cmd/compile/internal/ssa/rewriteRISCV64.go
++++ b/src/cmd/compile/internal/ssa/rewriteRISCV64.go
+@@ -6102,6 +6102,18 @@ func rewriteBlockRISCV64(b *Block) bool {
+ 			b.resetWithControl(BlockRISCV64BEQZ, x)
+ 			return true
+ 		}
++		// match: (BEQZ x:(NEG y) yes no)
++		// cond: x.Uses == 1
++		// result: (BEQZ y yes no)
++		for b.Controls[0].Op == OpRISCV64NEG {
++			x := b.Controls[0]
++			y := x.Args[0]
++			if !(x.Uses == 1) {
++				break
++			}
++			b.resetWithControl(BlockRISCV64BEQZ, y)
++			return true
++		}
+ 		// match: (BEQZ (SUB x y) yes no)
+ 		// result: (BEQ x y yes no)
+ 		for b.Controls[0].Op == OpRISCV64SUB {
+@@ -6215,6 +6227,18 @@ func rewriteBlockRISCV64(b *Block) bool {
+ 			b.resetWithControl(BlockRISCV64BNEZ, x)
+ 			return true
+ 		}
++		// match: (BNEZ x:(NEG y) yes no)
++		// cond: x.Uses == 1
++		// result: (BNEZ y yes no)
++		for b.Controls[0].Op == OpRISCV64NEG {
++			x := b.Controls[0]
++			y := x.Args[0]
++			if !(x.Uses == 1) {
++				break
++			}
++			b.resetWithControl(BlockRISCV64BNEZ, y)
++			return true
++		}
+ 		// match: (BNEZ (SUB x y) yes no)
+ 		// result: (BNE x y yes no)
+ 		for b.Controls[0].Op == OpRISCV64SUB {

@@ -15,7 +15,7 @@ Date:   Fri Aug 11 17:29:08 2023 -0700
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Auto-Submit: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/escape/call.go         |  5 ++--
  src/cmd/compile/internal/escape/desugar.go      | 37 -------------------------
  src/cmd/compile/internal/escape/expr.go         |  2 +-
@@ -26,3 +26,186 @@ Date:   Fri Aug 11 17:29:08 2023 -0700
  src/cmd/compile/internal/typecheck/stmt.go      |  3 +-
  src/cmd/compile/internal/typecheck/typecheck.go |  4 ---
  9 files changed, 17 insertions(+), 60 deletions(-)
+
+diff --git a/src/cmd/compile/internal/escape/call.go b/src/cmd/compile/internal/escape/call.go
+index c69eca1998..704b2e9dd1 100644
+--- a/src/cmd/compile/internal/escape/call.go
++++ b/src/cmd/compile/internal/escape/call.go
+@@ -55,7 +55,7 @@ func (e *escape) callCommon(ks []hole, call ir.Node, init *ir.Nodes, wrapper *ir
+ 		ir.Dump("esc", call)
+ 		base.Fatalf("unexpected call op: %v", call.Op())
+ 
+-	case ir.OCALLFUNC, ir.OCALLMETH, ir.OCALLINTER:
++	case ir.OCALLFUNC, ir.OCALLINTER:
+ 		call := call.(*ir.CallExpr)
+ 		typecheck.AssertFixedCall(call)
+ 
+@@ -186,9 +186,8 @@ func (e *escape) callCommon(ks []hole, call ir.Node, init *ir.Nodes, wrapper *ir
+ 		argument(e.discardHole(), &call.X)
+ 		argument(e.discardHole(), &call.Y)
+ 
+-	case ir.ODELETE, ir.OMAX, ir.OMIN, ir.OPRINT, ir.OPRINTN, ir.ORECOVER:
++	case ir.ODELETE, ir.OMAX, ir.OMIN, ir.OPRINT, ir.OPRINTN, ir.ORECOVERFP:
+ 		call := call.(*ir.CallExpr)
+-		fixRecoverCall(call)
+ 		for i := range call.Args {
+ 			argument(e.discardHole(), &call.Args[i])
+ 		}
+diff --git a/src/cmd/compile/internal/escape/desugar.go b/src/cmd/compile/internal/escape/desugar.go
+deleted file mode 100644
+index b2c42947dd..0000000000
+--- a/src/cmd/compile/internal/escape/desugar.go
++++ /dev/null
+@@ -1,37 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package escape
+-
+-import (
+-	"cmd/compile/internal/base"
+-	"cmd/compile/internal/ir"
+-	"cmd/compile/internal/typecheck"
+-	"cmd/compile/internal/types"
+-)
+-
+-// TODO(mdempsky): Desugaring doesn't belong during escape analysis,
+-// but for now it's the most convenient place for some rewrites.
+-
+-// fixRecoverCall rewrites an ORECOVER call into ORECOVERFP,
+-// adding an explicit frame pointer argument.
+-// If call is not an ORECOVER call, it's left unmodified.
+-func fixRecoverCall(call *ir.CallExpr) {
+-	if call.Op() != ir.ORECOVER {
+-		return
+-	}
+-
+-	pos := call.Pos()
+-
+-	// FP is equal to caller's SP plus FixedFrameSize.
+-	var fp ir.Node = ir.NewCallExpr(pos, ir.OGETCALLERSP, nil, nil)
+-	if off := base.Ctxt.Arch.FixedFrameSize; off != 0 {
+-		fp = ir.NewBinaryExpr(fp.Pos(), ir.OADD, fp, ir.NewInt(base.Pos, off))
+-	}
+-	// TODO(mdempsky): Replace *int32 with unsafe.Pointer, without upsetting checkptr.
+-	fp = ir.NewConvExpr(pos, ir.OCONVNOP, types.NewPtr(types.Types[types.TINT32]), fp)
+-
+-	call.SetOp(ir.ORECOVERFP)
+-	call.Args = []ir.Node{typecheck.Expr(fp)}
+-}
+diff --git a/src/cmd/compile/internal/escape/expr.go b/src/cmd/compile/internal/escape/expr.go
+index e5f590ddcb..d3f963d40a 100644
+--- a/src/cmd/compile/internal/escape/expr.go
++++ b/src/cmd/compile/internal/escape/expr.go
+@@ -139,7 +139,7 @@ func (e *escape) exprSkipInit(k hole, n ir.Node) {
+ 		e.discard(n.X)
+ 
+ 	case ir.OCALLMETH, ir.OCALLFUNC, ir.OCALLINTER, ir.OINLCALL,
+-		ir.OLEN, ir.OCAP, ir.OMIN, ir.OMAX, ir.OCOMPLEX, ir.OREAL, ir.OIMAG, ir.OAPPEND, ir.OCOPY, ir.ORECOVER,
++		ir.OLEN, ir.OCAP, ir.OMIN, ir.OMAX, ir.OCOMPLEX, ir.OREAL, ir.OIMAG, ir.OAPPEND, ir.OCOPY, ir.ORECOVERFP,
+ 		ir.OUNSAFEADD, ir.OUNSAFESLICE, ir.OUNSAFESTRING, ir.OUNSAFESTRINGDATA, ir.OUNSAFESLICEDATA:
+ 		e.call([]hole{k}, n)
+ 
+diff --git a/src/cmd/compile/internal/escape/stmt.go b/src/cmd/compile/internal/escape/stmt.go
+index 5ae78e35fc..4752e561e2 100644
+--- a/src/cmd/compile/internal/escape/stmt.go
++++ b/src/cmd/compile/internal/escape/stmt.go
+@@ -182,7 +182,7 @@ func (e *escape) stmt(n ir.Node) {
+ 			dsts[i] = res.Nname.(*ir.Name)
+ 		}
+ 		e.assignList(dsts, n.Results, "return", n)
+-	case ir.OCALLFUNC, ir.OCALLMETH, ir.OCALLINTER, ir.OINLCALL, ir.OCLEAR, ir.OCLOSE, ir.OCOPY, ir.ODELETE, ir.OPANIC, ir.OPRINT, ir.OPRINTN, ir.ORECOVER:
++	case ir.OCALLFUNC, ir.OCALLMETH, ir.OCALLINTER, ir.OINLCALL, ir.OCLEAR, ir.OCLOSE, ir.OCOPY, ir.ODELETE, ir.OPANIC, ir.OPRINT, ir.OPRINTN, ir.ORECOVERFP:
+ 		e.call(nil, n)
+ 	case ir.OGO, ir.ODEFER:
+ 		n := n.(*ir.GoDeferStmt)
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index dfafd50dad..9003cbab70 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -626,6 +626,8 @@ func (v *hairyVisitor) doNode(n ir.Node) bool {
+ 		v.budget -= inlineExtraPanicCost
+ 
+ 	case ir.ORECOVER:
++		base.FatalfAt(n.Pos(), "ORECOVER missed typecheck")
++	case ir.ORECOVERFP:
+ 		// recover matches the argument frame pointer to find
+ 		// the right panic value, so it needs an argument frame.
+ 		v.reason = "call to recover"
+diff --git a/src/cmd/compile/internal/typecheck/const.go b/src/cmd/compile/internal/typecheck/const.go
+index f56d330e7f..7ef913236e 100644
+--- a/src/cmd/compile/internal/typecheck/const.go
++++ b/src/cmd/compile/internal/typecheck/const.go
+@@ -518,6 +518,7 @@ func callOrChan(n ir.Node) bool {
+ 		ir.OPRINTN,
+ 		ir.OREAL,
+ 		ir.ORECOVER,
++		ir.ORECOVERFP,
+ 		ir.ORECV,
+ 		ir.OUNSAFEADD,
+ 		ir.OUNSAFESLICE,
+diff --git a/src/cmd/compile/internal/typecheck/func.go b/src/cmd/compile/internal/typecheck/func.go
+index 0bcb319291..eb17e63d9a 100644
+--- a/src/cmd/compile/internal/typecheck/func.go
++++ b/src/cmd/compile/internal/typecheck/func.go
+@@ -830,22 +830,17 @@ func tcRecover(n *ir.CallExpr) ir.Node {
+ 		return n
+ 	}
+ 
+-	n.SetType(types.Types[types.TINTER])
+-	return n
+-}
+-
+-// tcRecoverFP typechecks an ORECOVERFP node.
+-func tcRecoverFP(n *ir.CallExpr) ir.Node {
+-	if len(n.Args) != 1 {
+-		base.FatalfAt(n.Pos(), "wrong number of arguments: %v", n)
+-	}
+-
+-	n.Args[0] = Expr(n.Args[0])
+-	if !n.Args[0].Type().IsPtrShaped() {
+-		base.FatalfAt(n.Pos(), "%L is not pointer shaped", n.Args[0])
++	// FP is equal to caller's SP plus FixedFrameSize.
++	var fp ir.Node = ir.NewCallExpr(n.Pos(), ir.OGETCALLERSP, nil, nil)
++	if off := base.Ctxt.Arch.FixedFrameSize; off != 0 {
++		fp = ir.NewBinaryExpr(n.Pos(), ir.OADD, fp, ir.NewInt(base.Pos, off))
+ 	}
++	// TODO(mdempsky): Replace *int32 with unsafe.Pointer, without upsetting checkptr.
++	fp = ir.NewConvExpr(n.Pos(), ir.OCONVNOP, types.NewPtr(types.Types[types.TINT32]), fp)
+ 
++	n.SetOp(ir.ORECOVERFP)
+ 	n.SetType(types.Types[types.TINTER])
++	n.Args = []ir.Node{Expr(fp)}
+ 	return n
+ }
+ 
+diff --git a/src/cmd/compile/internal/typecheck/stmt.go b/src/cmd/compile/internal/typecheck/stmt.go
+index 9dea261bb9..91ef184f9f 100644
+--- a/src/cmd/compile/internal/typecheck/stmt.go
++++ b/src/cmd/compile/internal/typecheck/stmt.go
+@@ -283,7 +283,8 @@ func tcGoDefer(n *ir.GoDeferStmt) {
+ 		ir.OPANIC,
+ 		ir.OPRINT,
+ 		ir.OPRINTN,
+-		ir.ORECOVER:
++		ir.ORECOVER,
++		ir.ORECOVERFP:
+ 		return
+ 
+ 	case ir.OAPPEND,
+diff --git a/src/cmd/compile/internal/typecheck/typecheck.go b/src/cmd/compile/internal/typecheck/typecheck.go
+index 6e4feeccd9..5dac366b10 100644
+--- a/src/cmd/compile/internal/typecheck/typecheck.go
++++ b/src/cmd/compile/internal/typecheck/typecheck.go
+@@ -661,10 +661,6 @@ func typecheck1(n ir.Node, top int) ir.Node {
+ 		n := n.(*ir.CallExpr)
+ 		return tcRecover(n)
+ 
+-	case ir.ORECOVERFP:
+-		n := n.(*ir.CallExpr)
+-		return tcRecoverFP(n)
+-
+ 	case ir.OUNSAFEADD:
+ 		n := n.(*ir.BinaryExpr)
+ 		return tcUnsafeAdd(n)

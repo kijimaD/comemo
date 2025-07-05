@@ -23,8 +23,77 @@ Date:   Tue Oct 5 22:59:49 2021 +0700
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/types2/expr.go            |  6 ++++++
  .../internal/types2/testdata/check/expr2.src       |  4 ++--
  test/fixedbugs/issue48784.go                       | 23 ++++++++++++++++++++++
  3 files changed, 31 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/expr.go b/src/cmd/compile/internal/types2/expr.go
+index 90c80f9de0..3a3a139156 100644
+--- a/src/cmd/compile/internal/types2/expr.go
++++ b/src/cmd/compile/internal/types2/expr.go
+@@ -996,6 +996,12 @@ func (check *Checker) binary(x *operand, e syntax.Expr, lhs, rhs syntax.Expr, op
+ 		if isString(x.typ) != isString(y.typ) {
+ 			return false
+ 		}
++		if x.isNil() && !hasNil(y.typ) {
++			return false
++		}
++		if y.isNil() && !hasNil(x.typ) {
++			return false
++		}
+ 		return true
+ 	}
+ 	if canMix(x, &y) {
+diff --git a/src/cmd/compile/internal/types2/testdata/check/expr2.src b/src/cmd/compile/internal/types2/testdata/check/expr2.src
+index f9726b5de5..8e5862319e 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/expr2.src
++++ b/src/cmd/compile/internal/types2/testdata/check/expr2.src
+@@ -29,7 +29,7 @@ func arrays() {
+ 	_ = a == b
+ 	_ = a != b
+ 	_ = a /* ERROR < not defined */ < b
+-	_ = a == nil /* ERROR cannot convert */
++	_ = a == nil /* ERROR invalid operation.*mismatched types */
+ 
+ 	type C [10]int
+ 	var c C
+@@ -53,7 +53,7 @@ func structs() {
+ 	_ = s == t
+ 	_ = s != t
+ 	_ = s /* ERROR < not defined */ < t
+-	_ = s == nil /* ERROR cannot convert */
++	_ = s == nil /* ERROR invalid operation.*mismatched types */
+ 
+ 	type S struct {
+ 		x int
+diff --git a/test/fixedbugs/issue48784.go b/test/fixedbugs/issue48784.go
+new file mode 100644
+index 0000000000..6048518df2
+--- /dev/null
++++ b/test/fixedbugs/issue48784.go
+@@ -0,0 +1,23 @@
++// errorcheck -e
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type T struct{}
++
++var s string
++var b bool
++var i int
++var t T
++var a [1]int
++
++var (
++	_ = s == nil // ERROR "invalid operation:.*mismatched types string and untyped nil"
++	_ = b == nil // ERROR "invalid operation:.*mismatched types bool and untyped nil"
++	_ = i == nil // ERROR "invalid operation:.*mismatched types int and untyped nil"
++	_ = t == nil // ERROR "invalid operation:.*mismatched types T and untyped nil"
++	_ = a == nil // ERROR "invalid operation:.*mismatched types \[1\]int and untyped nil"
++)

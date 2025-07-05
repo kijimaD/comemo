@@ -21,7 +21,108 @@ Date:   Wed Mar 13 12:24:54 2019 +0100
     Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Damien Neil <dneil@google.com>
-
+---
  src/errors/frame.go      | 15 +++------------
  src/errors/frame_test.go | 31 +++++++++++++++++++++++++++----
  2 files changed, 30 insertions(+), 16 deletions(-)
+
+diff --git a/src/errors/frame.go b/src/errors/frame.go
+index a5369e5c36..487092fa89 100644
+--- a/src/errors/frame.go
++++ b/src/errors/frame.go
+@@ -10,10 +10,7 @@ import (
+ 
+ // A Frame contains part of a call stack.
+ type Frame struct {
+-	// Make room for three PCs: the one we were asked for, what it called,
+-	// and possibly a PC for skipPleaseUseCallersFrames. See:
+-	// https://go.googlesource.com/go/+/032678e0fb/src/runtime/extern.go#169
+-	frames [3]uintptr
++	frames [1]uintptr
+ }
+ 
+ // Caller returns a Frame that describes a frame on the caller's stack.
+@@ -21,7 +18,7 @@ type Frame struct {
+ // Caller(0) returns the frame for the caller of Caller.
+ func Caller(skip int) Frame {
+ 	var s Frame
+-	runtime.Callers(skip+1, s.frames[:])
++	runtime.Callers(skip+2, s.frames[:])
+ 	return s
+ }
+ 
+@@ -30,13 +27,7 @@ func Caller(skip int) Frame {
+ // The returned function may be "" even if file and line are not.
+ func (f Frame) location() (function, file string, line int) {
+ 	frames := runtime.CallersFrames(f.frames[:])
+-	if _, ok := frames.Next(); !ok {
+-		return "", "", 0
+-	}
+-	fr, ok := frames.Next()
+-	if !ok {
+-		return "", "", 0
+-	}
++	fr, _ := frames.Next()
+ 	return fr.Function, fr.File, fr.Line
+ }
+ 
+diff --git a/src/errors/frame_test.go b/src/errors/frame_test.go
+index 864a6934d1..ba08166966 100644
+--- a/src/errors/frame_test.go
++++ b/src/errors/frame_test.go
+@@ -9,19 +9,42 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"math/big"
++	"regexp"
++	"strings"
+ 	"testing"
+ )
+ 
++func TestFrame(t *testing.T) {
++
++	// Extra line
++	got := fmt.Sprintf("%+v", errors.New("Test"))
++	got = got[strings.Index(got, "Test"):]
++	const want = "^Test:" +
++		"\n    errors_test.TestFrame" +
++		"\n        .*/errors/frame_test.go:20$"
++	ok, err := regexp.MatchString(want, got)
++	if err != nil {
++		t.Fatal(err)
++	}
++	if !ok {
++		t.Errorf("\n got %v;\nwant %v", got, want)
++	}
++}
++
+ type myType struct{}
+ 
+ func (myType) Format(s fmt.State, v rune) {
+ 	s.Write(bytes.Repeat([]byte("Hi! "), 10))
+ }
+ 
++func BenchmarkNew(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		_ = errors.New("new error")
++	}
++}
++
+ func BenchmarkErrorf(b *testing.B) {
+ 	err := errors.New("foo")
+-	// pi := big.NewFloat(3.14) // Something expensive.
+-	num := big.NewInt(5)
+ 	args := func(a ...interface{}) []interface{} { return a }
+ 	benchCases := []struct {
+ 		name   string
+@@ -30,8 +53,8 @@ func BenchmarkErrorf(b *testing.B) {
+ 	}{
+ 		{"no_format", "msg: %v", args(err)},
+ 		{"with_format", "failed %d times: %v", args(5, err)},
+-		{"method: mytype", "pi: %v", args("myfile.go", myType{}, err)},
+-		{"method: number", "pi: %v", args("myfile.go", num, err)},
++		{"method: mytype", "pi %s %v: %v", args("myfile.go", myType{}, err)},
++		{"method: number", "pi %s %d: %v", args("myfile.go", big.NewInt(5), err)},
+ 	}
+ 	for _, bc := range benchCases {
+ 		b.Run(bc.name, func(b *testing.B) {

@@ -8,10 +8,103 @@ Date:   Tue Sep 24 00:17:08 2013 -0400
     R=golang-dev, dave, rsc
     CC=golang-dev
     https://golang.org/cl/13704044
-
+---
  src/cmd/dist/a.h       |  1 +
  src/cmd/dist/build.c   | 10 ++++++++++
  src/cmd/dist/buildgo.c |  6 ++++--
  src/cmd/go/build.go    |  3 ++-
  src/cmd/go/env.go      |  2 ++
  5 files changed, 19 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/dist/a.h b/src/cmd/dist/a.h
+index 0f46a43166..5ded13d6f6 100644
+--- a/src/cmd/dist/a.h
++++ b/src/cmd/dist/a.h
+@@ -75,6 +75,7 @@ extern char *goroot_final;
+ extern char *goextlinkenabled;
+ extern char *goversion;
+ extern char *defaultcc;
++extern char *defaultcxx;
+ extern char *workdir;
+ extern char *tooldir;
+ extern char *slash;
+diff --git a/src/cmd/dist/build.c b/src/cmd/dist/build.c
+index 0fe951fc0e..9fe6058a50 100644
+--- a/src/cmd/dist/build.c
++++ b/src/cmd/dist/build.c
+@@ -27,6 +27,7 @@ char *gochar;
+ char *goversion;
+ char *slash;	// / for unix, \ for windows
+ char *defaultcc;
++char *defaultcxx;
+ bool	rebuildall;
+ bool defaultclang;
+ 
+@@ -163,6 +164,15 @@ init(void)
+ 	}
+ 	defaultcc = btake(&b);
+ 
++	xgetenv(&b, "CXX");
++	if(b.len == 0) {
++		if(defaultclang)
++			bprintf(&b, "clang++");
++		else
++			bprintf(&b, "g++");
++	}
++	defaultcxx = btake(&b);
++
+ 	xsetenv("GOROOT", goroot);
+ 	xsetenv("GOARCH", goarch);
+ 	xsetenv("GOOS", goos);
+diff --git a/src/cmd/dist/buildgo.c b/src/cmd/dist/buildgo.c
+index f236698c00..a340252bc5 100644
+--- a/src/cmd/dist/buildgo.c
++++ b/src/cmd/dist/buildgo.c
+@@ -12,6 +12,7 @@
+ //
+ //	package main
+ //	const defaultCC = <defaultcc>
++//	const defaultCXX = <defaultcxx>
+ //
+ // It is invoked to write cmd/go/zdefaultcc.go
+ // but we also write cmd/cgo/zdefaultcc.go.
+@@ -28,8 +29,9 @@ mkzdefaultcc(char *dir, char *file)
+ 		"\n"
+ 		"package main\n"
+ 		"\n"
+-		"const defaultCC = `%s`\n",
+-		defaultcc);
++		"const defaultCC = `%s`\n"
++		"const defaultCXX = `%s`\n",
++		defaultcc, defaultcxx);
+ 
+ 	writefile(&out, file, 0);
+ 
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 07d8f9ddc4..e614f2f538 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -1837,8 +1837,9 @@ func (b *builder) gccCmd(objdir string) []string {
+ }
+ 
+ // gxxCmd returns a g++ command line prefix
++// defaultCXX is defined in zdefaultcc.go, written by cmd/dist.
+ func (b *builder) gxxCmd(objdir string) []string {
+-	return b.ccompilerCmd("CXX", "g++", objdir)
++	return b.ccompilerCmd("CXX", defaultCXX, objdir)
+ }
+ 
+ // ccompilerCmd returns a command line prefix for the given environment
+diff --git a/src/cmd/go/env.go b/src/cmd/go/env.go
+index 539364af4e..2db821797b 100644
+--- a/src/cmd/go/env.go
++++ b/src/cmd/go/env.go
+@@ -54,6 +54,8 @@ func mkEnv() []envVar {
+ 		cmd := b.gccCmd(".")
+ 		env = append(env, envVar{"CC", cmd[0]})
+ 		env = append(env, envVar{"GOGCCFLAGS", strings.Join(cmd[3:], " ")})
++		cmd = b.gxxCmd(".")
++		env = append(env, envVar{"CXX", cmd[0]})
+ 	}
+ 
+ 	if buildContext.CgoEnabled {

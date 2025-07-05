@@ -19,7 +19,7 @@ Date:   Mon Aug 4 16:43:49 2008 -0700
     TBR=r
     OCL=13784
     CL=13842
-
+---
  src/cmd/gc/sys.go                 |   2 +
  src/cmd/gc/sysimport.c            | 255 +++++++++++++++++++-------------------
  src/runtime/amd64_linux.h         |  13 +-
@@ -34,3 +34,1829 @@ Date:   Mon Aug 4 16:43:49 2008 -0700
  src/runtime/sys_amd64_linux.s     |  88 ++++++++++++-
  src/syscall/syscall_amd64_linux.s |   4 +-
  13 files changed, 953 insertions(+), 200 deletions(-)
+
+diff --git a/src/cmd/gc/sys.go b/src/cmd/gc/sys.go
+index 8c52d9e154..02137bf16e 100644
+--- a/src/cmd/gc/sys.go
++++ b/src/cmd/gc/sys.go
+@@ -64,6 +64,7 @@ func	writefile(string, string) (bool);	// write string into file; boolean status
+ func	bytestorune(*byte, int32, int32) (int32, int32);	// convert bytes to runes	
+ func	stringtorune(string, int32, int32) (int32, int32);	// convert bytes to runes	
+ 
++func	sleep(ms int64);
+ func	exit(int32);
+ 
+ export
+@@ -136,5 +137,6 @@ export
+ 	stringtorune
+ 
+ 	// system calls
++	sleep
+ 	exit
+ 	;
+diff --git a/src/cmd/gc/sysimport.c b/src/cmd/gc/sysimport.c
+index b586559fac..bf2b468ad4 100644
+--- a/src/cmd/gc/sysimport.c
++++ b/src/cmd/gc/sysimport.c
+@@ -3,10 +3,10 @@ char*	sysimport =
+ 	"type sys._esys_002 {}\n"
+ 	"type sys.any 24\n"
+ 	"type sys._esys_003 *sys.any\n"
+-	"type sys._osys_372 {_esys_370 sys._esys_003}\n"
++	"type sys._osys_373 {_esys_371 sys._esys_003}\n"
+ 	"type sys.uint32 6\n"
+-	"type sys._isys_374 {_esys_371 sys.uint32}\n"
+-	"type sys._esys_001 (sys._esys_002 sys._osys_372 sys._isys_374)\n"
++	"type sys._isys_375 {_esys_372 sys.uint32}\n"
++	"type sys._esys_001 (sys._esys_002 sys._osys_373 sys._isys_375)\n"
+ 	"var !sys.mal sys._esys_001\n"
+ 	"type sys._esys_005 {}\n"
+ 	"type sys._esys_006 {}\n"
+@@ -16,243 +16,243 @@ char*	sysimport =
+ 	"type sys._esys_009 {}\n"
+ 	"type sys._esys_010 {}\n"
+ 	"type sys.int32 5\n"
+-	"type sys._isys_380 {_esys_379 sys.int32}\n"
+-	"type sys._esys_008 (sys._esys_009 sys._esys_010 sys._isys_380)\n"
++	"type sys._isys_381 {_esys_380 sys.int32}\n"
++	"type sys._esys_008 (sys._esys_009 sys._esys_010 sys._isys_381)\n"
+ 	"var !sys.panicl sys._esys_008\n"
+ 	"type sys._esys_012 {}\n"
+ 	"type sys._esys_013 {}\n"
+ 	"type sys.bool 12\n"
+-	"type sys._isys_385 {_esys_384 sys.bool}\n"
+-	"type sys._esys_011 (sys._esys_012 sys._esys_013 sys._isys_385)\n"
++	"type sys._isys_386 {_esys_385 sys.bool}\n"
++	"type sys._esys_011 (sys._esys_012 sys._esys_013 sys._isys_386)\n"
+ 	"var !sys.printbool sys._esys_011\n"
+ 	"type sys._esys_015 {}\n"
+ 	"type sys._esys_016 {}\n"
+ 	"type sys.float64 10\n"
+-	"type sys._isys_390 {_esys_389 sys.float64}\n"
+-	"type sys._esys_014 (sys._esys_015 sys._esys_016 sys._isys_390)\n"
++	"type sys._isys_391 {_esys_390 sys.float64}\n"
++	"type sys._esys_014 (sys._esys_015 sys._esys_016 sys._isys_391)\n"
+ 	"var !sys.printfloat sys._esys_014\n"
+ 	"type sys._esys_018 {}\n"
+ 	"type sys._esys_019 {}\n"
+ 	"type sys.int64 7\n"
+-	"type sys._isys_395 {_esys_394 sys.int64}\n"
+-	"type sys._esys_017 (sys._esys_018 sys._esys_019 sys._isys_395)\n"
++	"type sys._isys_396 {_esys_395 sys.int64}\n"
++	"type sys._esys_017 (sys._esys_018 sys._esys_019 sys._isys_396)\n"
+ 	"var !sys.printint sys._esys_017\n"
+ 	"type sys._esys_021 {}\n"
+ 	"type sys._esys_022 {}\n"
+ 	"type sys._esys_023 25\n"
+ 	"type sys.string *sys._esys_023\n"
+-	"type sys._isys_400 {_esys_399 sys.string}\n"
+-	"type sys._esys_020 (sys._esys_021 sys._esys_022 sys._isys_400)\n"
++	"type sys._isys_401 {_esys_400 sys.string}\n"
++	"type sys._esys_020 (sys._esys_021 sys._esys_022 sys._isys_401)\n"
+ 	"var !sys.printstring sys._esys_020\n"
+ 	"type sys._esys_025 {}\n"
+ 	"type sys._esys_026 {}\n"
+ 	"type sys._esys_027 *sys.any\n"
+-	"type sys._isys_405 {_esys_404 sys._esys_027}\n"
+-	"type sys._esys_024 (sys._esys_025 sys._esys_026 sys._isys_405)\n"
++	"type sys._isys_406 {_esys_405 sys._esys_027}\n"
++	"type sys._esys_024 (sys._esys_025 sys._esys_026 sys._isys_406)\n"
+ 	"var !sys.printpointer sys._esys_024\n"
+ 	"type sys._esys_029 {}\n"
+-	"type sys._osys_412 {_esys_409 sys.string}\n"
+-	"type sys._isys_414 {_esys_410 sys.string _esys_411 sys.string}\n"
+-	"type sys._esys_028 (sys._esys_029 sys._osys_412 sys._isys_414)\n"
++	"type sys._osys_413 {_esys_410 sys.string}\n"
++	"type sys._isys_415 {_esys_411 sys.string _esys_412 sys.string}\n"
++	"type sys._esys_028 (sys._esys_029 sys._osys_413 sys._isys_415)\n"
+ 	"var !sys.catstring sys._esys_028\n"
+ 	"type sys._esys_031 {}\n"
+-	"type sys._osys_422 {_esys_419 sys.int32}\n"
+-	"type sys._isys_424 {_esys_420 sys.string _esys_421 sys.string}\n"
+-	"type sys._esys_030 (sys._esys_031 sys._osys_422 sys._isys_424)\n"
++	"type sys._osys_423 {_esys_420 sys.int32}\n"
++	"type sys._isys_425 {_esys_421 sys.string _esys_422 sys.string}\n"
++	"type sys._esys_030 (sys._esys_031 sys._osys_423 sys._isys_425)\n"
+ 	"var !sys.cmpstring sys._esys_030\n"
+ 	"type sys._esys_033 {}\n"
+-	"type sys._osys_433 {_esys_429 sys.string}\n"
+-	"type sys._isys_435 {_esys_430 sys.string _esys_431 sys.int32 _esys_432 sys.int32}\n"
+-	"type sys._esys_032 (sys._esys_033 sys._osys_433 sys._isys_435)\n"
++	"type sys._osys_434 {_esys_430 sys.string}\n"
++	"type sys._isys_436 {_esys_431 sys.string _esys_432 sys.int32 _esys_433 sys.int32}\n"
++	"type sys._esys_032 (sys._esys_033 sys._osys_434 sys._isys_436)\n"
+ 	"var !sys.slicestring sys._esys_032\n"
+ 	"type sys._esys_035 {}\n"
+ 	"type sys.uint8 2\n"
+-	"type sys._osys_444 {_esys_441 sys.uint8}\n"
+-	"type sys._isys_446 {_esys_442 sys.string _esys_443 sys.int32}\n"
+-	"type sys._esys_034 (sys._esys_035 sys._osys_444 sys._isys_446)\n"
++	"type sys._osys_445 {_esys_442 sys.uint8}\n"
++	"type sys._isys_447 {_esys_443 sys.string _esys_444 sys.int32}\n"
++	"type sys._esys_034 (sys._esys_035 sys._osys_445 sys._isys_447)\n"
+ 	"var !sys.indexstring sys._esys_034\n"
+ 	"type sys._esys_037 {}\n"
+-	"type sys._osys_453 {_esys_451 sys.string}\n"
+-	"type sys._isys_455 {_esys_452 sys.int64}\n"
+-	"type sys._esys_036 (sys._esys_037 sys._osys_453 sys._isys_455)\n"
++	"type sys._osys_454 {_esys_452 sys.string}\n"
++	"type sys._isys_456 {_esys_453 sys.int64}\n"
++	"type sys._esys_036 (sys._esys_037 sys._osys_454 sys._isys_456)\n"
+ 	"var !sys.intstring sys._esys_036\n"
+ 	"type sys._esys_039 {}\n"
+-	"type sys._osys_462 {_esys_459 sys.string}\n"
++	"type sys._osys_463 {_esys_460 sys.string}\n"
+ 	"type sys._esys_040 *sys.uint8\n"
+-	"type sys._isys_464 {_esys_460 sys._esys_040 _esys_461 sys.int32}\n"
+-	"type sys._esys_038 (sys._esys_039 sys._osys_462 sys._isys_464)\n"
++	"type sys._isys_465 {_esys_461 sys._esys_040 _esys_462 sys.int32}\n"
++	"type sys._esys_038 (sys._esys_039 sys._osys_463 sys._isys_465)\n"
+ 	"var !sys.byteastring sys._esys_038\n"
+ 	"type sys._esys_042 {}\n"
+ 	"type sys._esys_043 <>\n"
+-	"type sys._osys_473 {_esys_469 sys._esys_043}\n"
++	"type sys._osys_474 {_esys_470 sys._esys_043}\n"
+ 	"type sys._esys_044 *sys.uint8\n"
+ 	"type sys._esys_045 *sys.uint8\n"
+-	"type sys._ssys_480 {}\n"
+-	"type sys._esys_046 *sys._ssys_480\n"
+-	"type sys._isys_475 {_esys_470 sys._esys_044 _esys_471 sys._esys_045 _esys_472 sys._esys_046}\n"
+-	"type sys._esys_041 (sys._esys_042 sys._osys_473 sys._isys_475)\n"
++	"type sys._ssys_481 {}\n"
++	"type sys._esys_046 *sys._ssys_481\n"
++	"type sys._isys_476 {_esys_471 sys._esys_044 _esys_472 sys._esys_045 _esys_473 sys._esys_046}\n"
++	"type sys._esys_041 (sys._esys_042 sys._osys_474 sys._isys_476)\n"
+ 	"var !sys.mkiface sys._esys_041\n"
+ 	"type sys._esys_048 {}\n"
+-	"type sys._osys_484 {_esys_483 sys.int32}\n"
++	"type sys._osys_485 {_esys_484 sys.int32}\n"
+ 	"type sys._esys_049 {}\n"
+-	"type sys._esys_047 (sys._esys_048 sys._osys_484 sys._esys_049)\n"
++	"type sys._esys_047 (sys._esys_048 sys._osys_485 sys._esys_049)\n"
+ 	"var !sys.argc sys._esys_047\n"
+ 	"type sys._esys_051 {}\n"
+-	"type sys._osys_488 {_esys_487 sys.int32}\n"
++	"type sys._osys_489 {_esys_488 sys.int32}\n"
+ 	"type sys._esys_052 {}\n"
+-	"type sys._esys_050 (sys._esys_051 sys._osys_488 sys._esys_052)\n"
++	"type sys._esys_050 (sys._esys_051 sys._osys_489 sys._esys_052)\n"
+ 	"var !sys.envc sys._esys_050\n"
+ 	"type sys._esys_054 {}\n"
+-	"type sys._osys_493 {_esys_491 sys.string}\n"
+-	"type sys._isys_495 {_esys_492 sys.int32}\n"
+-	"type sys._esys_053 (sys._esys_054 sys._osys_493 sys._isys_495)\n"
++	"type sys._osys_494 {_esys_492 sys.string}\n"
++	"type sys._isys_496 {_esys_493 sys.int32}\n"
++	"type sys._esys_053 (sys._esys_054 sys._osys_494 sys._isys_496)\n"
+ 	"var !sys.argv sys._esys_053\n"
+ 	"type sys._esys_056 {}\n"
+-	"type sys._osys_501 {_esys_499 sys.string}\n"
+-	"type sys._isys_503 {_esys_500 sys.int32}\n"
+-	"type sys._esys_055 (sys._esys_056 sys._osys_501 sys._isys_503)\n"
++	"type sys._osys_502 {_esys_500 sys.string}\n"
++	"type sys._isys_504 {_esys_501 sys.int32}\n"
++	"type sys._esys_055 (sys._esys_056 sys._osys_502 sys._isys_504)\n"
+ 	"var !sys.envv sys._esys_055\n"
+ 	"type sys._esys_058 {}\n"
+-	"type sys._osys_510 {_esys_507 sys.float64 _esys_508 sys.int32}\n"
+-	"type sys._isys_512 {_esys_509 sys.float64}\n"
+-	"type sys._esys_057 (sys._esys_058 sys._osys_510 sys._isys_512)\n"
++	"type sys._osys_511 {_esys_508 sys.float64 _esys_509 sys.int32}\n"
++	"type sys._isys_513 {_esys_510 sys.float64}\n"
++	"type sys._esys_057 (sys._esys_058 sys._osys_511 sys._isys_513)\n"
+ 	"var !sys.frexp sys._esys_057\n"
+ 	"type sys._esys_060 {}\n"
+-	"type sys._osys_519 {_esys_516 sys.float64}\n"
+-	"type sys._isys_521 {_esys_517 sys.float64 _esys_518 sys.int32}\n"
+-	"type sys._esys_059 (sys._esys_060 sys._osys_519 sys._isys_521)\n"
++	"type sys._osys_520 {_esys_517 sys.float64}\n"
++	"type sys._isys_522 {_esys_518 sys.float64 _esys_519 sys.int32}\n"
++	"type sys._esys_059 (sys._esys_060 sys._osys_520 sys._isys_522)\n"
+ 	"var !sys.ldexp sys._esys_059\n"
+ 	"type sys._esys_062 {}\n"
+-	"type sys._osys_529 {_esys_526 sys.float64 _esys_527 sys.float64}\n"
+-	"type sys._isys_531 {_esys_528 sys.float64}\n"
+-	"type sys._esys_061 (sys._esys_062 sys._osys_529 sys._isys_531)\n"
++	"type sys._osys_530 {_esys_527 sys.float64 _esys_528 sys.float64}\n"
++	"type sys._isys_532 {_esys_529 sys.float64}\n"
++	"type sys._esys_061 (sys._esys_062 sys._osys_530 sys._isys_532)\n"
+ 	"var !sys.modf sys._esys_061\n"
+ 	"type sys._esys_064 {}\n"
+-	"type sys._osys_538 {_esys_535 sys.bool}\n"
+-	"type sys._isys_540 {_esys_536 sys.float64 _esys_537 sys.int32}\n"
+-	"type sys._esys_063 (sys._esys_064 sys._osys_538 sys._isys_540)\n"
++	"type sys._osys_539 {_esys_536 sys.bool}\n"
++	"type sys._isys_541 {_esys_537 sys.float64 _esys_538 sys.int32}\n"
++	"type sys._esys_063 (sys._esys_064 sys._osys_539 sys._isys_541)\n"
+ 	"var !sys.isInf sys._esys_063\n"
+ 	"type sys._esys_066 {}\n"
+-	"type sys._osys_547 {_esys_545 sys.bool}\n"
+-	"type sys._isys_549 {_esys_546 sys.float64}\n"
+-	"type sys._esys_065 (sys._esys_066 sys._osys_547 sys._isys_549)\n"
++	"type sys._osys_548 {_esys_546 sys.bool}\n"
++	"type sys._isys_550 {_esys_547 sys.float64}\n"
++	"type sys._esys_065 (sys._esys_066 sys._osys_548 sys._isys_550)\n"
+ 	"var !sys.isNaN sys._esys_065\n"
+ 	"type sys._esys_068 {}\n"
+-	"type sys._osys_555 {_esys_553 sys.float64}\n"
+-	"type sys._isys_557 {_esys_554 sys.int32}\n"
+-	"type sys._esys_067 (sys._esys_068 sys._osys_555 sys._isys_557)\n"
++	"type sys._osys_556 {_esys_554 sys.float64}\n"
++	"type sys._isys_558 {_esys_555 sys.int32}\n"
++	"type sys._esys_067 (sys._esys_068 sys._osys_556 sys._isys_558)\n"
+ 	"var !sys.Inf sys._esys_067\n"
+ 	"type sys._esys_070 {}\n"
+-	"type sys._osys_562 {_esys_561 sys.float64}\n"
++	"type sys._osys_563 {_esys_562 sys.float64}\n"
+ 	"type sys._esys_071 {}\n"
+-	"type sys._esys_069 (sys._esys_070 sys._osys_562 sys._esys_071)\n"
++	"type sys._esys_069 (sys._esys_070 sys._osys_563 sys._esys_071)\n"
+ 	"var !sys.NaN sys._esys_069\n"
+ 	"type sys._esys_073 {}\n"
+ 	"type sys._esys_075 [sys.any] sys.any\n"
+ 	"type sys._esys_074 *sys._esys_075\n"
+-	"type sys._osys_565 {hmap sys._esys_074}\n"
+-	"type sys._isys_567 {keysize sys.uint32 valsize sys.uint32 keyalg sys.uint32 valalg sys.uint32 hint sys.uint32}\n"
+-	"type sys._esys_072 (sys._esys_073 sys._osys_565 sys._isys_567)\n"
++	"type sys._osys_566 {hmap sys._esys_074}\n"
++	"type sys._isys_568 {keysize sys.uint32 valsize sys.uint32 keyalg sys.uint32 valalg sys.uint32 hint sys.uint32}\n"
++	"type sys._esys_072 (sys._esys_073 sys._osys_566 sys._isys_568)\n"
+ 	"var !sys.newmap sys._esys_072\n"
+ 	"type sys._esys_077 {}\n"
+-	"type sys._osys_576 {val sys.any}\n"
++	"type sys._osys_577 {val sys.any}\n"
+ 	"type sys._esys_079 [sys.any] sys.any\n"
+ 	"type sys._esys_078 *sys._esys_079\n"
+-	"type sys._isys_578 {hmap sys._esys_078 key sys.any}\n"
+-	"type sys._esys_076 (sys._esys_077 sys._osys_576 sys._isys_578)\n"
++	"type sys._isys_579 {hmap sys._esys_078 key sys.any}\n"
++	"type sys._esys_076 (sys._esys_077 sys._osys_577 sys._isys_579)\n"
+ 	"var !sys.mapaccess1 sys._esys_076\n"
+ 	"type sys._esys_081 {}\n"
+-	"type sys._osys_584 {val sys.any pres sys.bool}\n"
++	"type sys._osys_585 {val sys.any pres sys.bool}\n"
+ 	"type sys._esys_083 [sys.any] sys.any\n"
+ 	"type sys._esys_082 *sys._esys_083\n"
+-	"type sys._isys_586 {hmap sys._esys_082 key sys.any}\n"
+-	"type sys._esys_080 (sys._esys_081 sys._osys_584 sys._isys_586)\n"
++	"type sys._isys_587 {hmap sys._esys_082 key sys.any}\n"
++	"type sys._esys_080 (sys._esys_081 sys._osys_585 sys._isys_587)\n"
+ 	"var !sys.mapaccess2 sys._esys_080\n"
+ 	"type sys._esys_085 {}\n"
+ 	"type sys._esys_086 {}\n"
+ 	"type sys._esys_088 [sys.any] sys.any\n"
+ 	"type sys._esys_087 *sys._esys_088\n"
+-	"type sys._isys_593 {hmap sys._esys_087 key sys.any val sys.any}\n"
+-	"type sys._esys_084 (sys._esys_085 sys._esys_086 sys._isys_593)\n"
++	"type sys._isys_594 {hmap sys._esys_087 key sys.any val sys.any}\n"
++	"type sys._esys_084 (sys._esys_085 sys._esys_086 sys._isys_594)\n"
+ 	"var !sys.mapassign1 sys._esys_084\n"
+ 	"type sys._esys_090 {}\n"
+ 	"type sys._esys_091 {}\n"
+ 	"type sys._esys_093 [sys.any] sys.any\n"
+ 	"type sys._esys_092 *sys._esys_093\n"
+-	"type sys._isys_599 {hmap sys._esys_092 key sys.any val sys.any pres sys.bool}\n"
+-	"type sys._esys_089 (sys._esys_090 sys._esys_091 sys._isys_599)\n"
++	"type sys._isys_600 {hmap sys._esys_092 key sys.any val sys.any pres sys.bool}\n"
++	"type sys._esys_089 (sys._esys_090 sys._esys_091 sys._isys_600)\n"
+ 	"var !sys.mapassign2 sys._esys_089\n"
+ 	"type sys._esys_095 {}\n"
+ 	"type sys._esys_097 1 sys.any\n"
+ 	"type sys._esys_096 *sys._esys_097\n"
+-	"type sys._osys_606 {hchan sys._esys_096}\n"
+-	"type sys._isys_608 {elemsize sys.uint32 elemalg sys.uint32 hint sys.uint32}\n"
+-	"type sys._esys_094 (sys._esys_095 sys._osys_606 sys._isys_608)\n"
++	"type sys._osys_607 {hchan sys._esys_096}\n"
++	"type sys._isys_609 {elemsize sys.uint32 elemalg sys.uint32 hint sys.uint32}\n"
++	"type sys._esys_094 (sys._esys_095 sys._osys_607 sys._isys_609)\n"
+ 	"var !sys.newchan sys._esys_094\n"
+ 	"type sys._esys_099 {}\n"
+-	"type sys._osys_615 {elem sys.any}\n"
++	"type sys._osys_616 {elem sys.any}\n"
+ 	"type sys._esys_101 1 sys.any\n"
+ 	"type sys._esys_100 *sys._esys_101\n"
+-	"type sys._isys_617 {hchan sys._esys_100}\n"
+-	"type sys._esys_098 (sys._esys_099 sys._osys_615 sys._isys_617)\n"
++	"type sys._isys_618 {hchan sys._esys_100}\n"
++	"type sys._esys_098 (sys._esys_099 sys._osys_616 sys._isys_618)\n"
+ 	"var !sys.chanrecv1 sys._esys_098\n"
+ 	"type sys._esys_103 {}\n"
+-	"type sys._osys_622 {elem sys.any pres sys.bool}\n"
++	"type sys._osys_623 {elem sys.any pres sys.bool}\n"
+ 	"type sys._esys_105 1 sys.any\n"
+ 	"type sys._esys_104 *sys._esys_105\n"
+-	"type sys._isys_624 {hchan sys._esys_104}\n"
+-	"type sys._esys_102 (sys._esys_103 sys._osys_622 sys._isys_624)\n"
++	"type sys._isys_625 {hchan sys._esys_104}\n"
++	"type sys._esys_102 (sys._esys_103 sys._osys_623 sys._isys_625)\n"
+ 	"var !sys.chanrecv2 sys._esys_102\n"
+ 	"type sys._esys_107 {}\n"
+-	"type sys._osys_630 {pres sys.bool}\n"
++	"type sys._osys_631 {pres sys.bool}\n"
+ 	"type sys._esys_109 1 sys.any\n"
+ 	"type sys._esys_108 *sys._esys_109\n"
+ 	"type sys._esys_110 *sys.any\n"
+-	"type sys._isys_632 {hchan sys._esys_108 elem sys._esys_110}\n"
+-	"type sys._esys_106 (sys._esys_107 sys._osys_630 sys._isys_632)\n"
++	"type sys._isys_633 {hchan sys._esys_108 elem sys._esys_110}\n"
++	"type sys._esys_106 (sys._esys_107 sys._osys_631 sys._isys_633)\n"
+ 	"var !sys.chanrecv3 sys._esys_106\n"
+ 	"type sys._esys_112 {}\n"
+ 	"type sys._esys_113 {}\n"
+ 	"type sys._esys_115 1 sys.any\n"
+ 	"type sys._esys_114 *sys._esys_115\n"
+-	"type sys._isys_638 {hchan sys._esys_114 elem sys.any}\n"
+-	"type sys._esys_111 (sys._esys_112 sys._esys_113 sys._isys_638)\n"
++	"type sys._isys_639 {hchan sys._esys_114 elem sys.any}\n"
++	"type sys._esys_111 (sys._esys_112 sys._esys_113 sys._isys_639)\n"
+ 	"var !sys.chansend1 sys._esys_111\n"
+ 	"type sys._esys_117 {}\n"
+-	"type sys._osys_643 {pres sys.bool}\n"
++	"type sys._osys_644 {pres sys.bool}\n"
+ 	"type sys._esys_119 1 sys.any\n"
+ 	"type sys._esys_118 *sys._esys_119\n"
+-	"type sys._isys_645 {hchan sys._esys_118 elem sys.any}\n"
+-	"type sys._esys_116 (sys._esys_117 sys._osys_643 sys._isys_645)\n"
++	"type sys._isys_646 {hchan sys._esys_118 elem sys.any}\n"
++	"type sys._esys_116 (sys._esys_117 sys._osys_644 sys._isys_646)\n"
+ 	"var !sys.chansend2 sys._esys_116\n"
+ 	"type sys._esys_121 {}\n"
+ 	"type sys._esys_122 *sys.uint8\n"
+-	"type sys._osys_651 {sel sys._esys_122}\n"
+-	"type sys._isys_653 {size sys.uint32}\n"
+-	"type sys._esys_120 (sys._esys_121 sys._osys_651 sys._isys_653)\n"
++	"type sys._osys_652 {sel sys._esys_122}\n"
++	"type sys._isys_654 {size sys.uint32}\n"
++	"type sys._esys_120 (sys._esys_121 sys._osys_652 sys._isys_654)\n"
+ 	"var !sys.newselect sys._esys_120\n"
+ 	"type sys._esys_124 {}\n"
+-	"type sys._osys_658 {selected sys.bool}\n"
++	"type sys._osys_659 {selected sys.bool}\n"
+ 	"type sys._esys_125 *sys.uint8\n"
+ 	"type sys._esys_127 1 sys.any\n"
+ 	"type sys._esys_126 *sys._esys_127\n"
+-	"type sys._isys_660 {sel sys._esys_125 hchan sys._esys_126 elem sys.any}\n"
+-	"type sys._esys_123 (sys._esys_124 sys._osys_658 sys._isys_660)\n"
++	"type sys._isys_661 {sel sys._esys_125 hchan sys._esys_126 elem sys.any}\n"
++	"type sys._esys_123 (sys._esys_124 sys._osys_659 sys._isys_661)\n"
+ 	"var !sys.selectsend sys._esys_123\n"
+ 	"type sys._esys_129 {}\n"
+-	"type sys._osys_667 {selected sys.bool}\n"
++	"type sys._osys_668 {selected sys.bool}\n"
+ 	"type sys._esys_130 *sys.uint8\n"
+ 	"type sys._esys_132 1 sys.any\n"
+ 	"type sys._esys_131 *sys._esys_132\n"
+ 	"type sys._esys_133 *sys.any\n"
+-	"type sys._isys_669 {sel sys._esys_130 hchan sys._esys_131 elem sys._esys_133}\n"
+-	"type sys._esys_128 (sys._esys_129 sys._osys_667 sys._isys_669)\n"
++	"type sys._isys_670 {sel sys._esys_130 hchan sys._esys_131 elem sys._esys_133}\n"
++	"type sys._esys_128 (sys._esys_129 sys._osys_668 sys._isys_670)\n"
+ 	"var !sys.selectrecv sys._esys_128\n"
+ 	"type sys._esys_135 {}\n"
+ 	"type sys._esys_136 {}\n"
+ 	"type sys._esys_137 *sys.uint8\n"
+-	"type sys._isys_676 {sel sys._esys_137}\n"
+-	"type sys._esys_134 (sys._esys_135 sys._esys_136 sys._isys_676)\n"
++	"type sys._isys_677 {sel sys._esys_137}\n"
++	"type sys._esys_134 (sys._esys_135 sys._esys_136 sys._isys_677)\n"
+ 	"var !sys.selectgo sys._esys_134\n"
+ 	"type sys._esys_139 {}\n"
+ 	"type sys._esys_140 {}\n"
+@@ -265,34 +265,39 @@ char*	sysimport =
+ 	"type sys._esys_142 (sys._esys_143 sys._esys_144 sys._esys_145)\n"
+ 	"var !sys.goexit sys._esys_142\n"
+ 	"type sys._esys_147 {}\n"
+-	"type sys._osys_685 {_esys_682 sys.string _esys_683 sys.bool}\n"
+-	"type sys._isys_687 {_esys_684 sys.string}\n"
+-	"type sys._esys_146 (sys._esys_147 sys._osys_685 sys._isys_687)\n"
++	"type sys._osys_686 {_esys_683 sys.string _esys_684 sys.bool}\n"
++	"type sys._isys_688 {_esys_685 sys.string}\n"
++	"type sys._esys_146 (sys._esys_147 sys._osys_686 sys._isys_688)\n"
+ 	"var !sys.readfile sys._esys_146\n"
+ 	"type sys._esys_149 {}\n"
+-	"type sys._osys_694 {_esys_691 sys.bool}\n"
+-	"type sys._isys_696 {_esys_692 sys.string _esys_693 sys.string}\n"
+-	"type sys._esys_148 (sys._esys_149 sys._osys_694 sys._isys_696)\n"
++	"type sys._osys_695 {_esys_692 sys.bool}\n"
++	"type sys._isys_697 {_esys_693 sys.string _esys_694 sys.string}\n"
++	"type sys._esys_148 (sys._esys_149 sys._osys_695 sys._isys_697)\n"
+ 	"var !sys.writefile sys._esys_148\n"
+ 	"type sys._esys_151 {}\n"
+-	"type sys._osys_706 {_esys_701 sys.int32 _esys_702 sys.int32}\n"
++	"type sys._osys_707 {_esys_702 sys.int32 _esys_703 sys.int32}\n"
+ 	"type sys._esys_152 *sys.uint8\n"
+-	"type sys._isys_708 {_esys_703 sys._esys_152 _esys_704 sys.int32 _esys_705 sys.int32}\n"
+-	"type sys._esys_150 (sys._esys_151 sys._osys_706 sys._isys_708)\n"
++	"type sys._isys_709 {_esys_704 sys._esys_152 _esys_705 sys.int32 _esys_706 sys.int32}\n"
++	"type sys._esys_150 (sys._esys_151 sys._osys_707 sys._isys_709)\n"
+ 	"var !sys.bytestorune sys._esys_150\n"
+ 	"type sys._esys_154 {}\n"
+-	"type sys._osys_719 {_esys_714 sys.int32 _esys_715 sys.int32}\n"
+-	"type sys._isys_721 {_esys_716 sys.string _esys_717 sys.int32 _esys_718 sys.int32}\n"
+-	"type sys._esys_153 (sys._esys_154 sys._osys_719 sys._isys_721)\n"
++	"type sys._osys_720 {_esys_715 sys.int32 _esys_716 sys.int32}\n"
++	"type sys._isys_722 {_esys_717 sys.string _esys_718 sys.int32 _esys_719 sys.int32}\n"
++	"type sys._esys_153 (sys._esys_154 sys._osys_720 sys._isys_722)\n"
+ 	"var !sys.stringtorune sys._esys_153\n"
+ 	"type sys._esys_156 {}\n"
+ 	"type sys._esys_157 {}\n"
+-	"type sys._isys_728 {_esys_727 sys.int32}\n"
++	"type sys._isys_728 {ms sys.int64}\n"
+ 	"type sys._esys_155 (sys._esys_156 sys._esys_157 sys._isys_728)\n"
+-	"var !sys.exit sys._esys_155\n"
++	"var !sys.sleep sys._esys_155\n"
+ 	"type sys._esys_159 {}\n"
+ 	"type sys._esys_160 {}\n"
+-	"type sys._esys_161 {}\n"
+-	"type sys._esys_158 (sys._esys_159 sys._esys_160 sys._esys_161)\n"
++	"type sys._isys_733 {_esys_732 sys.int32}\n"
++	"type sys._esys_158 (sys._esys_159 sys._esys_160 sys._isys_733)\n"
++	"var !sys.exit sys._esys_158\n"
++	"type sys._esys_162 {}\n"
++	"type sys._esys_163 {}\n"
++	"type sys._esys_164 {}\n"
++	"type sys._esys_161 (sys._esys_162 sys._esys_163 sys._esys_164)\n"
+ 	"))\n"
+ ;
+diff --git a/src/runtime/amd64_linux.h b/src/runtime/amd64_linux.h
+index 9412954b4c..6a166425a8 100644
+--- a/src/runtime/amd64_linux.h
++++ b/src/runtime/amd64_linux.h
+@@ -3,7 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ /*
+- *  System structs for Darwin, amd64
++ *  System structs for Linux, amd64
+  */
+ 
+ typedef uint64 dev_t;
+@@ -22,6 +22,11 @@ struct timespec {
+ 	int64 tv_nsec;
+ };
+ 
++struct timeval {
++	time_t tv_sec;
++	int64 tv_usec;
++};
++
+ struct stat {
+ 	dev_t	st_dev;     /* ID of device containing file */
+ 	ino_t	st_ino;     /* inode number */
+@@ -40,3 +45,9 @@ struct stat {
+ };
+ 
+ #define	O_CREAT	0100
++
++// Linux-specific system calls
++int64	futex(uint32*, int32, uint32, struct timespec*, uint32*, uint32);
++int64	clone(int32, void*, M*, G*, void(*)(void*), void*);
++int64	select(int32, void*, void*, void*, void*);
++
+diff --git a/src/runtime/chan.c b/src/runtime/chan.c
+index 9796e6c091..963e699445 100644
+--- a/src/runtime/chan.c
++++ b/src/runtime/chan.c
+@@ -4,6 +4,8 @@
+ 
+ #include "runtime.h"
+ 
++// TODO locking of select
++
+ static	int32	debug	= 0;
+ 
+ typedef	struct	Hchan	Hchan;
+@@ -30,6 +32,7 @@ struct	WaitQ
+ 
+ struct	Hchan
+ {
++	Lock;
+ 	uint32	elemsize;
+ 	uint32	dataqsiz;		// size of the circular q
+ 	uint32	qcount;			// total data in the q
+@@ -159,6 +162,7 @@ sendchan(Hchan *c, byte *ep, bool *pres)
+ 		prints("\n");
+ 	}
+ 
++	lock(c);
+ 	if(c->dataqsiz > 0)
+ 		goto asynch;
+ 
+@@ -169,7 +173,8 @@ sendchan(Hchan *c, byte *ep, bool *pres)
+ 
+ 		gp = sg->g;
+ 		gp->param = sg;
+-		gp->status = Grunnable;
++		unlock(c);
++		ready(gp);
+ 
+ 		if(pres != nil)
+ 			*pres = true;
+@@ -177,6 +182,7 @@ sendchan(Hchan *c, byte *ep, bool *pres)
+ 	}
+ 
+ 	if(pres != nil) {
++		unlock(c);
+ 		*pres = false;
+ 		return;
+ 	}
+@@ -187,18 +193,24 @@ sendchan(Hchan *c, byte *ep, bool *pres)
+ 	g->param = nil;
+ 	g->status = Gwaiting;
+ 	enqueue(&c->sendq, sg);
++	unlock(c);
+ 	sys·gosched();
+ 
++	lock(c);
+ 	sg = g->param;
+ 	freesg(c, sg);
++	unlock(c);
+ 	return;
+ 
+ asynch:
+ 	while(c->qcount >= c->dataqsiz) {
++		// (rsc) should check for pres != nil
+ 		sg = allocsg(c);
+ 		g->status = Gwaiting;
+ 		enqueue(&c->sendq, sg);
++		unlock(c);
+ 		sys·gosched();
++		lock(c);
+ 	}
+ 	if(ep != nil)
+ 		c->elemalg->copy(c->elemsize, c->senddataq->elem, ep);
+@@ -209,8 +221,10 @@ asynch:
+ 	if(sg != nil) {
+ 		gp = sg->g;
+ 		freesg(c, sg);
+-		gp->status = Grunnable;
+-	}
++		unlock(c);
++		ready(gp);
++	}else
++		unlock(c);
+ }
+ 
+ static void
+@@ -225,6 +239,7 @@ chanrecv(Hchan* c, byte *ep, bool* pres)
+ 		prints("\n");
+ 	}
+ 
++	lock(c);
+ 	if(c->dataqsiz > 0)
+ 		goto asynch;
+ 
+@@ -234,7 +249,8 @@ chanrecv(Hchan* c, byte *ep, bool* pres)
+ 
+ 		gp = sg->g;
+ 		gp->param = sg;
+-		gp->status = Grunnable;
++		unlock(c);
++		ready(gp);
+ 
+ 		if(pres != nil)
+ 			*pres = true;
+@@ -242,6 +258,7 @@ chanrecv(Hchan* c, byte *ep, bool* pres)
+ 	}
+ 
+ 	if(pres != nil) {
++		unlock(c);
+ 		*pres = false;
+ 		return;
+ 	}
+@@ -250,11 +267,14 @@ chanrecv(Hchan* c, byte *ep, bool* pres)
+ 	g->param = nil;
+ 	g->status = Gwaiting;
+ 	enqueue(&c->recvq, sg);
++	unlock(c);
+ 	sys·gosched();
+ 
++	lock(c);
+ 	sg = g->param;
+ 	c->elemalg->copy(c->elemsize, ep, sg->elem);
+ 	freesg(c, sg);
++	unlock(c);
+ 	return;
+ 
+ asynch:
+@@ -262,7 +282,9 @@ asynch:
+ 		sg = allocsg(c);
+ 		g->status = Gwaiting;
+ 		enqueue(&c->recvq, sg);
++		unlock(c);
+ 		sys·gosched();
++		lock(c);
+ 	}
+ 	c->elemalg->copy(c->elemsize, ep, c->recvdataq->elem);
+ 	c->recvdataq = c->recvdataq->link;
+@@ -271,8 +293,10 @@ asynch:
+ 	if(sg != nil) {
+ 		gp = sg->g;
+ 		freesg(c, sg);
+-		gp->status = Grunnable;
+-	}
++		unlock(c);
++		ready(gp);
++	}else
++		unlock(c);
+ }
+ 
+ // chansend1(hchan *chan any, elem any);
+@@ -571,6 +595,8 @@ sys·selectgo(Select *sel)
+ 	}
+ 
+ 	// send and recv paths to sleep for a rendezvous
++	// (rsc) not correct to set Gwaiting after queueing;
++	// might already have been readied.
+ 	g->status = Gwaiting;
+ 	sys·gosched();
+ 
+@@ -619,7 +645,7 @@ gotr:
+ 		c->elemalg->copy(c->elemsize, cas->u.elemp, sg->elem);
+ 	gp = sg->g;
+ 	gp->param = sg;
+-	gp->status = Grunnable;
++	ready(gp);
+ 	goto retc;
+ 
+ gots:
+@@ -636,7 +662,7 @@ gots:
+ 	c->elemalg->copy(c->elemsize, sg->elem, cas->u.elem);
+ 	gp = sg->g;
+ 	gp->param = sg;
+-	gp->status = Grunnable;
++	ready(gp);
+ 
+ retc:
+ 	if(sel->ncase >= 1 && sel->ncase < nelem(selfree)) {
+diff --git a/src/runtime/proc.c b/src/runtime/proc.c
+index 232ee1b03c..ef86a9a449 100644
+--- a/src/runtime/proc.c
++++ b/src/runtime/proc.c
+@@ -4,18 +4,58 @@
+ 
+ #include "runtime.h"
+ 
++typedef struct Sched Sched;
++
++M	m0;
++G	g0;	// idle goroutine for m0
++
++// Maximum number of os procs (M's) to kick off.
++// Can override with $gomaxprocs environment variable.
++// For now set to 1 (single-threaded), because not 
++// everything is properly locked (e.g., chans) and because
++// Darwin's multithreading code isn't implemented.
++int32	gomaxprocs = 1;
++
+ static	int32	debug	= 0;
+ 
++struct Sched {
++	G *runhead;
++	G *runtail;
++	int32 nwait;
++	int32 nready;
++	int32 ng;
++	int32 nm;
++	M *wait;
++	Lock;
++};
++
++Sched sched;
++
+ void
+ sys·goexit(void)
+ {
+-//prints("goexit goid=");
+-//sys·printint(g->goid);
+-//prints("\n");
++	if(debug){
++		prints("goexit goid=");
++		sys·printint(g->goid);
++		prints("\n");
++	}
+ 	g->status = Gdead;
+ 	sys·gosched();
+ }
+ 
++void
++schedinit(void)
++{
++	byte *p;
++	extern int32 getenvc(void);
++	
++	p = getenv("gomaxprocs");
++	if(p && '0' <= *p && *p <= '9')
++		gomaxprocs = atoi(p);
++	sched.nm = 1;
++	sched.nwait = 1;
++}
++
+ void
+ sys·newproc(int32 siz, byte* fn, byte* arg0)
+ {
+@@ -64,10 +104,13 @@ sys·newproc(int32 siz, byte* fn, byte* arg0)
+ 	newg->sched.SP = sp;
+ 	newg->sched.PC = fn;
+ 
++	lock(&sched);
++	sched.ng++;
+ 	goidgen++;
+ 	newg->goid = goidgen;
++	unlock(&sched);
+ 
+-	newg->status = Grunnable;
++	ready(newg);
+ 
+ //prints(" goid=");
+ //sys·printint(newg->goid);
+@@ -80,7 +123,7 @@ tracebackothers(G *me)
+ 	G *g;
+ 
+ 	for(g = allg; g != nil; g = g->alllink) {
+-		if(g == me)
++		if(g == me || g->status == Gdead)
+ 			continue;
+ 		prints("\ngoroutine ");
+ 		sys·printint(g->goid);
+@@ -89,46 +132,175 @@ tracebackothers(G *me)
+ 	}
+ }
+ 
++void newmach(void);
++
++static void
++readylocked(G *g)
++{
++	g->status = Grunnable;
++	if(sched.runhead == nil)
++		sched.runhead = g;
++	else
++		sched.runtail->runlink = g;
++	sched.runtail = g;
++	g->runlink = nil;
++	sched.nready++;
++	// Don't wake up another scheduler.
++	// This only gets called when we're
++	// about to reschedule anyway.
++}
++
++static Lock print;
++	
++void
++ready(G *g)
++{
++	M *mm;
++
++	// gp might be running on another scheduler.
++	// (E.g., it queued and then we decided to wake it up
++	// before it had a chance to sys·gosched().)
++	// Grabbing the runlock ensures that it is not running elsewhere.
++	// You can delete the if check, but don't delete the 
++	// lock/unlock sequence (being able to grab the lock
++	// means the proc has gone to sleep).
++	lock(&g->runlock);
++	if(g->status == Grunnable || g->status == Grunning)
++		*(int32*)0x1023 = 0x1023;
++	lock(&sched);
++	g->status = Grunnable;
++	if(sched.runhead == nil)
++		sched.runhead = g;
++	else
++		sched.runtail->runlink = g;
++	sched.runtail = g;
++	g->runlink = nil;
++	unlock(&g->runlock);
++	sched.nready++;
++	if(sched.nready > sched.nwait)
++	if(gomaxprocs == 0 || sched.nm < gomaxprocs){
++		if(debug){
++			prints("new scheduler: ");
++			sys·printint(sched.nready);
++			prints(" > ");
++			sys·printint(sched.nwait);
++			prints("\n");
++		}
++		sched.nwait++;
++		newmach();
++	}
++	if(sched.wait){
++		mm = sched.wait;
++		sched.wait = mm->waitlink;
++		rwakeupandunlock(&mm->waitr);
++	}else
++		unlock(&sched);
++}
++
++extern void p0(void), p1(void);
++
+ G*
+ nextgoroutine(void)
+ {
+ 	G *gp;
+ 
+-	gp = m->lastg;
+-	if(gp == nil)
+-		gp = allg;
+-
+-	for(gp=gp->alllink; gp!=nil; gp=gp->alllink) {
+-		if(gp->status == Grunnable) {
+-			m->lastg = gp;
+-			return gp;
++	while((gp = sched.runhead) == nil){
++		if(debug){
++			prints("nextgoroutine runhead=nil ng=");
++			sys·printint(sched.ng);
++			prints("\n");
+ 		}
++		if(sched.ng == 0)
++			return nil;
++		m->waitlink = sched.wait;
++		m->waitr.l = &sched.Lock;
++		sched.wait = m;
++		sched.nwait++;
++		if(sched.nm == sched.nwait)
++			prints("all goroutines are asleep - deadlock!\n");
++		rsleep(&m->waitr);
++		sched.nwait--;
+ 	}
+-	for(gp=allg; gp!=nil; gp=gp->alllink) {
+-		if(gp->status == Grunnable) {
+-			m->lastg = gp;
+-			return gp;
+-		}
+-	}
+-	return nil;
++	sched.nready--;
++	sched.runhead = gp->runlink;
++	return gp;
+ }
+ 
+ void
+ scheduler(void)
+ {
+ 	G* gp;
+-	
++
++	m->pid = getprocid();
++
+ 	gosave(&m->sched);
++	lock(&sched);
++
++	if(m->curg == nil){
++		// Brand new scheduler; nwait counts us.
++		// Not anymore.
++		sched.nwait--;
++	}else{
++		gp = m->curg;
++		gp->m = nil;
++		switch(gp->status){
++		case Gdead:
++			sched.ng--;
++			if(debug){
++				prints("sched: dead: ");
++				sys·printint(sched.ng);
++				prints("\n");
++			}
++			break;
++		case Grunning:
++			readylocked(gp);
++			break;
++		case Grunnable:
++			// don't want to see this
++			*(int32*)0x456 = 0x234;
++			break;
++		}
++		unlock(&gp->runlock);
++	}
++
+ 	gp = nextgoroutine();
+ 	if(gp == nil) {
+ //		prints("sched: no more work\n");
+ 		sys·exit(0);
+ 	}
++	unlock(&sched);
++	
++	lock(&gp->runlock);
++	gp->status = Grunning;
+ 	m->curg = gp;
++	gp->m = m;
+ 	g = gp;
+ 	gogo(&gp->sched);
+ }
+ 
++void
++newmach(void)
++{
++	M *mm;
++	byte *stk, *stktop;
++	int64 ret;
++	
++	sched.nm++;
++	if(!(sched.nm&(sched.nm-1))){
++		sys·printint(sched.nm);
++		prints(" threads\n");
++	}
++	mm = mal(sizeof(M)+sizeof(G)+1024+104);
++	sys·memclr((byte*)mm, sizeof(M));
++	mm->g0 = (G*)(mm+1);
++	sys·memclr((byte*)mm->g0, sizeof(G));
++	stk = (byte*)mm->g0 + 104;
++	stktop = stk + 1024;
++	mm->g0->stackguard = stk;
++	mm->g0->stackbase = stktop;
++	newosproc(mm, mm->g0, stktop, (void(*)(void*))scheduler, nil);
++}
++
+ void
+ gom0init(void)
+ {
+@@ -138,10 +310,11 @@ gom0init(void)
+ void
+ sys·gosched(void)
+ {
+-	if(gosave(&g->sched))
+-		return;
+-	g = m->g0;
+-	gogo(&m->sched);
++	if(gosave(&g->sched) == 0){
++		// (rsc) signal race here?
++		g = m->g0;
++		gogo(&m->sched);
++	}
+ }
+ 
+ //
+diff --git a/src/runtime/rt0_amd64.s b/src/runtime/rt0_amd64.s
+index 20761464fb..9d7aedc7db 100644
+--- a/src/runtime/rt0_amd64.s
++++ b/src/runtime/rt0_amd64.s
+@@ -14,9 +14,9 @@ TEXT	_rt0_amd64(SB),7,$-8
+ 	MOVQ	AX, 16(SP)
+ 	MOVQ	BX, 24(SP)
+ 
+-	// allocate the per-user and per-mach blocks
++	// set the per-goroutine and per-mach registers
+ 
+-	LEAQ	m0<>(SB), R14		// dedicated m. register
++	LEAQ	m0(SB), R14		// dedicated m. register
+ 	LEAQ	g0(SB), R15		// dedicated g. register
+ 	MOVQ	R15, 0(R14)		// m has pointer to its g0
+ 
+@@ -33,8 +33,9 @@ TEXT	_rt0_amd64(SB),7,$-8
+ 	MOVQ	24(SP), AX		// copy argv
+ 	MOVQ	AX, 8(SP)
+ 	CALL	args(SB)
++	CALL	schedinit(SB)
+ 	CALL	main·init_function(SB) // initialization
+-
++	
+ 	// create a new goroutine to start program
+ 
+ 	PUSHQ	$main·main(SB)		// entry
+@@ -102,4 +103,22 @@ TEXT setspgoto(SB), 7, $0
+ 	POPQ	AX
+ 	RET
+ 
+-GLOBL	m0<>(SB),$64
++// bool cas(int32 *val, int32 old, int32 new)
++// Atomically:
++//	if(*val == old){
++//		*val = new;
++//		return 1;
++//	}else
++//		return 0;
++TEXT cas(SB), 7, $0
++	MOVQ	8(SP), BX
++	MOVL	16(SP), AX
++	MOVL	20(SP), CX
++	LOCK
++	CMPXCHGL	CX, 0(BX)
++	JZ 3(PC)
++	MOVL	$0, AX
++	RET
++	MOVL	$1, AX
++	RET
++
+diff --git a/src/runtime/rt1_amd64_darwin.c b/src/runtime/rt1_amd64_darwin.c
+index e0d2cb8b77..3878649e4b 100644
+--- a/src/runtime/rt1_amd64_darwin.c
++++ b/src/runtime/rt1_amd64_darwin.c
+@@ -5,7 +5,6 @@
+ #include "runtime.h"
+ #include "signals.h"
+ 
+-
+ typedef uint64 __uint64_t;
+ 
+ /* From /usr/include/mach/i386/_structs.h */
+@@ -174,3 +173,75 @@ initsig(void)
+ 			sys·sigaction(i, &a, (void*)0);
+ 		}
+ }
++
++static void
++unimplemented(int8 *name)
++{
++	prints(name);
++	prints(" not implemented\n");
++	*(int32*)1231 = 1231;
++}
++
++void
++sys·sleep(int64 ms)
++{
++	unimplemented("sleep");
++}
++
++void
++lock(Lock *l)
++{
++	if(xadd(&l->key, 1) == 1)
++		return;
++	unimplemented("lock wait");
++}
++
++void
++unlock(Lock *l)
++{
++	if(xadd(&l->key, -1) == 0)
++		return;
++	unimplemented("unlock wakeup");
++}
++
++void
++rsleep(Rendez *r)
++{
++	unimplemented("rsleep");
++
++	// dumb implementation:
++	r->sleeping = 1;
++	unlock(r->l);
++	while(r->sleeping)
++		;
++	lock(r->l);
++}
++
++void
++rwakeup(Rendez *r)
++{
++	unimplemented("rwakeup");
++
++	// dumb implementation:
++	r->sleeping = 0;
++}
++
++void
++rwakeupandunlock(Rendez *r)
++{
++	// dumb implementation:
++	rwakeup(r);
++	unlock(r->l);
++}
++
++void
++newosproc(M *mm, G *gg, void *stk, void (*fn)(void*), void *arg)
++{
++	unimplemented("newosproc");
++}
++
++int32
++getprocid(void)
++{
++	return 0;
++}
+diff --git a/src/runtime/rt1_amd64_linux.c b/src/runtime/rt1_amd64_linux.c
+index 99700fdf89..df0274f76a 100644
+--- a/src/runtime/rt1_amd64_linux.c
++++ b/src/runtime/rt1_amd64_linux.c
+@@ -3,6 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ #include "runtime.h"
++#include "amd64_linux.h"
+ #include "signals.h"
+ 
+ /* From /usr/include/asm-x86_64/sigcontext.h */
+@@ -161,7 +162,7 @@ sighandler(int32 sig, siginfo* info, void** context)
+ }
+ 
+ 
+-sigaction a;
++static sigaction a;
+ 
+ void
+ initsig(void)
+@@ -177,3 +178,235 @@ initsig(void)
+ 			sys·rt_sigaction(i, &a, (void*)0, 8);
+ 		}
+ }
++
++// Linux futex.  The simple cases really are simple:
++//
++//	futex(addr, FUTEX_WAIT, val, duration, _, _)
++//		Inside the kernel, atomically check that *addr == val
++//		and go to sleep for at most duration.
++//
++//	futex(addr, FUTEX_WAKE, val, _, _, _)
++//		Wake up at least val procs sleeping on addr.
++//
++// (Of course, they have added more complicated things since then.)
++
++enum
++{	
++	FUTEX_WAIT = 0,
++	FUTEX_WAKE = 1,
++	
++	EINTR = 4,
++	EAGAIN = 11,
++};
++
++// TODO(rsc) I tried using 1<<40 here but it woke up (-ETIMEDOUT).
++// I wonder if the timespec that gets to the kernel
++// actually has two 32-bit numbers in it, so that
++// a 64-bit 1<<40 ends up being 0 seconds, 
++// 1<<8 nanoseconds.
++static struct timespec longtime =
++{
++	1<<30,	// 34 years
++	0
++};
++
++static void
++efutex(uint32 *addr, int32 op, int32 val, struct timespec *ts)
++{
++	int64 ret;
++
++again:
++	ret = futex(addr, op, val, ts, nil, 0);
++
++	// These happen when you use a debugger, among other times.
++	if(ret == -EAGAIN || ret == -EINTR){
++		// If we were sleeping, it's okay to wake up early.
++		if(op == FUTEX_WAIT)
++			return;
++		
++		// If we were waking someone up, we don't know
++		// whether that succeeded, so wake someone else up too.
++		if(op == FUTEX_WAKE){
++prints("futexwake ");
++sys·printint(ret);
++prints("\n");
++			goto again;
++		}
++	}
++
++	if(ret < 0){
++		prints("futex error addr=");
++		sys·printpointer(addr);
++		prints(" op=");
++		sys·printint(op);
++		prints(" val=");
++		sys·printint(val);
++		prints(" ts=");
++		sys·printpointer(ts);
++		prints(" returned ");
++		sys·printint(-ret);
++		prints("\n");
++		*(int32*)101 = 202;
++	}
++}
++
++// Lock and unlock.  
++// A zeroed Lock is unlocked (no need to initialize each lock).
++// The l->key is either 0 (unlocked), 1 (locked), or >=2 (contended).
++
++void
++lock(Lock *l)
++{
++	uint32 v;
++	
++	if(l->key != 0) *(int32*)0x1001 = 0x1001;
++	l->key = 1;
++	return;
++
++	for(;;){
++		// Try for lock.  If we incremented it from 0 to 1, we win.
++		if((v=xadd(&l->key, 1)) == 1)
++			return;
++
++		// We lose.  It was already >=1 and is now >=2.
++		// Use futex to atomically check that the value is still
++		// what we think it is and go to sleep.
++		efutex(&l->key, FUTEX_WAIT, v, &longtime);
++	}
++}
++
++void
++unlock(Lock *l)
++{
++	uint32 v;
++
++	if(l->key != 1) *(int32*)0x1002 = 0x1002;
++	l->key = 0;
++	return;
++
++	// Unlock the lock.  If we decremented from 1 to 0, wasn't contended.
++	if((v=xadd(&l->key, -1)) == 0)
++		return;
++	
++	// The lock was contended.  Mark it as unlocked and wake a waiter.
++	l->key = 0;
++	efutex(&l->key, FUTEX_WAKE, 1, nil);
++}
++
++// Sleep and wakeup (see description in runtime.h)
++
++void
++rsleep(Rendez *r)
++{
++	// Record that we're about to go to sleep and drop the lock.
++	r->sleeping = 1;
++	unlock(r->l);
++	
++	// Go to sleep if r->sleeping is still 1.
++	efutex(&r->sleeping, FUTEX_WAIT, 1, &longtime);
++
++	// Reacquire the lock.
++	lock(r->l);
++}
++
++void
++rwakeup(Rendez *r)
++{
++	if(!r->sleeping)
++		return;
++
++	// Clear the sleeping flag in case sleeper
++	// is between unlock and futex.
++	r->sleeping = 0;
++	
++	// Wake up if actually made it to sleep.
++	efutex(&r->sleeping, FUTEX_WAKE, 1, nil);
++}
++
++// Like rwakeup(r), unlock(r->l), but drops the lock before
++// waking the other proc.  This reduces bouncing back and forth
++// in the scheduler: the first thing the other proc wants to do
++// is acquire r->l, so it helps to unlock it before we wake him.
++void
++rwakeupandunlock(Rendez *r)
++{
++	int32 wassleeping;
++	
++	if(!r->sleeping){
++		unlock(r->l);
++		return;
++	}
++
++	r->sleeping = 0;
++	unlock(r->l);
++	efutex(&r->sleeping, FUTEX_WAKE, 1, nil);
++}
++
++enum
++{
++	CLONE_VM = 0x100,
++	CLONE_FS = 0x200,
++	CLONE_FILES = 0x400,
++	CLONE_SIGHAND = 0x800,
++	CLONE_PTRACE = 0x2000,
++	CLONE_VFORK = 0x4000,
++	CLONE_PARENT = 0x8000,
++	CLONE_THREAD = 0x10000,
++	CLONE_NEWNS = 0x20000,
++	CLONE_SYSVSEM = 0x40000,
++	CLONE_SETTLS = 0x80000,
++	CLONE_PARENT_SETTID = 0x100000,
++	CLONE_CHILD_CLEARTID = 0x200000,
++	CLONE_UNTRACED = 0x800000,
++	CLONE_CHILD_SETTID = 0x1000000,
++	CLONE_STOPPED = 0x2000000,
++	CLONE_NEWUTS = 0x4000000,
++	CLONE_NEWIPC = 0x8000000,
++};
++
++void
++newosproc(M *mm, G *gg, void *stk, void (*fn)(void*), void *arg)
++{
++	int64 ret;
++	int32 flags;
++	
++	flags = CLONE_PARENT	/* getppid doesn't change in child */
++		| CLONE_VM	/* share memory */
++		| CLONE_FS	/* share cwd, etc */
++		| CLONE_FILES	/* share fd table */
++		| CLONE_SIGHAND	/* share sig handler table */
++		| CLONE_PTRACE	/* revisit - okay for now */
++		| CLONE_THREAD	/* revisit - okay for now */
++		;
++
++	if(0){
++		prints("newosproc stk=");
++		sys·printpointer(stk);
++		prints(" mm=");
++		sys·printpointer(mm);
++		prints(" gg=");
++		sys·printpointer(gg);
++		prints(" fn=");
++		sys·printpointer(fn);
++		prints(" arg=");
++		sys·printpointer(arg);
++		prints(" clone=");
++		sys·printpointer(clone);
++		prints("\n");
++	}
++
++	ret = clone(flags, stk, mm, gg, fn, arg);
++	if(ret < 0)
++		*(int32*)123 = 123;
++}
++
++void
++sys·sleep(int64 ms)
++{
++	struct timeval tv;
++
++	tv.tv_sec = ms/1000;
++	tv.tv_usec = ms%1000 * 1000;
++	select(0, nil, nil, nil, &tv);
++}
++
+diff --git a/src/runtime/runtime.c b/src/runtime/runtime.c
+index b53f857cb0..75d23d50d8 100644
+--- a/src/runtime/runtime.c
++++ b/src/runtime/runtime.c
+@@ -4,7 +4,6 @@
+ 
+ #include "runtime.h"
+ 
+-G	g0;			// idle goroutine
+ int32	debug	= 0;
+ 
+ void
+@@ -24,10 +23,6 @@ sys·panicl(int32 lno)
+ 	sys·exit(2);
+ }
+ 
+-static	uint8*	hunk;
+-static	uint32	nhunk;
+-static	uint64	nmmap;
+-static	uint64	nmal;
+ enum
+ {
+ 	NHUNK		= 20<<20,
+@@ -76,42 +71,51 @@ rnd(uint32 n, uint32 m)
+ 	return n;
+ }
+ 
+-static byte*
++static void*
+ brk(uint32 n)
+ {
+-	byte* v;
++	byte *v;
+ 
+ 	v = sys·mmap(nil, n, PROT_READ|PROT_WRITE, MAP_ANON|MAP_PRIVATE, 0, 0);
+-	sys·memclr(v, n);
+-	nmmap += n;
++	m->mem.nmmap += n;
+ 	return v;
+ }
+ 
++
+ void*
+ mal(uint32 n)
+ {
+ 	byte* v;
++	Mem *mem;
+ 
+ 	// round to keep everything 64-bit aligned
+ 	n = rnd(n, 8);
+-	nmal += n;
+-
+-	// do we have enough in contiguous hunk
+-	if(n > nhunk) {
+ 
+-		// if it is big allocate it separately
+-		if(n > NHUNK)
+-			return brk(n);
+-
+-		// allocate a new contiguous hunk
+-		hunk = brk(NHUNK);
+-		nhunk = NHUNK;
++	// be careful.  calling any function might invoke
++	// mal to allocate more stack.
++	if(n > NHUNK) {
++		// this call is okay - calling mal recursively
++		// won't change anything we depend on.
++		v = brk(n);
++	} else {
++		// allocate a new hunk if this one is too small
++		if(n > m->mem.nhunk) {
++			// better not to call brk here - it might grow the stack,
++			// causing a call to mal and the allocation of a 
++			// new hunk behind our backs.  then we'd toss away
++			// almost all of that new hunk and replace it.
++			// that'd just be a memory leak - the code would still run.
++			m->mem.hunk =
++				sys·mmap(nil, NHUNK, PROT_READ|PROT_WRITE,
++					MAP_ANON|MAP_PRIVATE, 0, 0);
++			m->mem.nhunk = NHUNK;
++			m->mem.nmmap += NHUNK;
++		}
++		v = m->mem.hunk;
++		m->mem.hunk += n;
++		m->mem.nhunk -= n;
+ 	}
+-
+-	// allocate from the contiguous hunk
+-	v = hunk;
+-	hunk += n;
+-	nhunk -= n;
++	m->mem.nmal += n;
+ 	return v;
+ }
+ 
+@@ -491,6 +495,44 @@ args(int32 c, uint8 **v)
+ 		;
+ }
+ 
++int32
++getenvc(void)
++{
++	return envc;
++}
++
++byte*
++getenv(int8 *s)
++{
++	int32 i, j, len;
++	byte *v, *bs;
++	
++	bs = (byte*)s;
++	len = findnull(s);
++	for(i=0; i<envc; i++){
++		v = envv[i];
++		for(j=0; j<len; j++)
++			if(bs[j] != v[j])
++				goto nomatch;
++		if(v[len] != '=')
++			goto nomatch;
++		return v+len+1;
++	nomatch:;
++	}
++	return nil;
++}
++
++int32
++atoi(byte *p)
++{
++	int32 n;
++	
++	n = 0;
++	while('0' <= *p && *p <= '9')
++		n = n*10 + *p++ - '0';
++	return n;
++}
++
+ //func argc() int32;  // return number of arguments
+ void
+ sys·argc(int32 v)
+@@ -579,9 +621,35 @@ check(void)
+ 	if(sizeof(k) != 8) throw("bad k");
+ 	if(sizeof(l) != 8) throw("bad l");
+ //	prints(1"check ok\n");
++
++	uint32 z;
++	z = 1;
++	if(!cas(&z, 1, 2))
++		throw("cas1");
++	if(z != 2)
++		throw("cas2");
++	
++	z = 4;
++	if(cas(&z, 5, 6))
++		throw("cas3");
++	if(z != 4)
++		throw("cas4");
++
+ 	initsig();
+ }
+ 
++uint32
++xadd(uint32 *val, uint32 delta)
++{
++	uint32 v;
++	
++	for(;;){
++		v = *val;
++		if(cas(val, v, v+delta))
++			return v+delta;
++	}
++}
++
+ /*
+  * map and chan helpers for
+  * dealing with unknown types
+diff --git a/src/runtime/runtime.h b/src/runtime/runtime.h
+index 26eb1af2ac..a53ac51b99 100644
+--- a/src/runtime/runtime.h
++++ b/src/runtime/runtime.h
+@@ -40,8 +40,11 @@ typedef	struct	Map		Map;
+ typedef	struct	Gobuf		Gobuf;
+ typedef	struct	G		G;
+ typedef	struct	M		M;
+-typedef struct	Stktop		Stktop;
++typedef	struct	Stktop		Stktop;
+ typedef	struct	Alg		Alg;
++typedef	struct	Lock		Lock;
++typedef	struct	Rendez	Rendez;
++typedef	struct	Mem		Mem;
+ 
+ /*
+  * per cpu declaration
+@@ -57,6 +60,7 @@ enum
+ 	// G status
+ 	Gidle,
+ 	Grunnable,
++	Grunning,
+ 	Gwaiting,
+ 	Gdead,
+ };
+@@ -69,6 +73,15 @@ enum
+ /*
+  * structures
+  */
++struct	Lock
++{
++	uint32	key;
++};
++struct	Rendez
++{
++	Lock*	l;
++	uint32	sleeping;	// someone is sleeping (Linux)
++};
+ struct String
+ {
+ 	int32	len;
+@@ -111,6 +124,16 @@ struct	G
+ 	int16	status;
+ 	int32	goid;
+ 	int32	selgen;		// valid sudog pointer
++	G*	runlink;
++	Lock	runlock;
++	M*	m;	// for debuggers
++};
++struct	Mem
++{
++	uint8*	hunk;
++	uint32	nhunk;
++	uint64	nmmap;
++	uint64	nmal;
+ };
+ struct	M
+ {
+@@ -124,6 +147,10 @@ struct	M
+ 	byte*	moresp;
+ 	int32	siz1;
+ 	int32	siz2;
++	Rendez	waitr;
++	M*	waitlink;
++	int32	pid;	// for debuggers
++	Mem	mem;
+ };
+ struct	Stktop
+ {
+@@ -161,6 +188,7 @@ extern	string	emptystring;
+ M*	allm;
+ G*	allg;
+ int32	goidgen;
++extern	int32	gomaxprocs;
+ 
+ /*
+  * common functions and data
+@@ -195,6 +223,37 @@ int32	read(int32, void*, int32);
+ int32	write(int32, void*, int32);
+ void	close(int32);
+ int32	fstat(int32, void*);
++bool	cas(uint32*, uint32, uint32);
++uint32	xadd(uint32*, uint32);
++void	exit1(int32);
++void	ready(G*);
++byte*	getenv(int8*);
++int32	atoi(byte*);
++void	newosproc(M *mm, G *gg, void *stk, void (*fn)(void*), void *arg);
++int32	getprocid(void);
++
++/*
++ * mutual exclusion locks.  in the uncontended case,
++ * as fast as spin locks (just a few user-level instructions),
++ * but on the contention path they sleep in the kernel.
++ */
++void	lock(Lock*);
++void	unlock(Lock*);
++void	lockinit(Lock*);
++
++/*
++ * sleep and wakeup.
++ * a Rendez is somewhere to sleep.  it is protected by the lock r->l.
++ * the caller must acquire r->l, check the condition, and if the 
++ * condition is false, call rsleep.  rsleep will atomically drop the lock
++ * and go to sleep.  a subsequent rwakeup (caller must hold r->l)
++ * will wake up the guy who is rsleeping.  the lock keeps rsleep and
++ * rwakeup from missing each other.
++ * n.b. only one proc can rsleep on a given rendez at a time.
++ */
++void	rsleep(Rendez*);
++void	rwakeup(Rendez*);
++void	rwakeupandunlock(Rendez*);
+ 
+ /*
+  * low level go -called
+diff --git a/src/runtime/sys_amd64_darwin.s b/src/runtime/sys_amd64_darwin.s
+index 39549cb4b3..57eece6bef 100644
+--- a/src/runtime/sys_amd64_darwin.s
++++ b/src/runtime/sys_amd64_darwin.s
+@@ -6,6 +6,7 @@
+ // System calls and other sys.stuff for AMD64, Darwin
+ //
+ 
++// TODO(rsc): Either sys·exit or exit1 is wrong!
+ TEXT	sys·exit(SB),1,$-8
+ 	MOVL	8(SP), DI		// arg 1 exit status
+ 	MOVL	$(0x2000000+1), AX	// syscall entry
+@@ -13,6 +14,13 @@ TEXT	sys·exit(SB),1,$-8
+ 	CALL	notok(SB)
+ 	RET
+ 
++TEXT	exit1(SB),1,$-8
++	MOVL	8(SP), DI		// arg 1 exit status
++	MOVL	$(0x2000000+1), AX	// syscall entry
++	SYSCALL
++	CALL	notok(SB)
++	RET
++
+ TEXT	sys·write(SB),1,$-8
+ 	MOVL	8(SP), DI		// arg 1 fid
+ 	MOVQ	16(SP), SI		// arg 2 buf
+@@ -80,7 +88,7 @@ TEXT sigtramp(SB),1,$24
+ 	CALL	sighandler(SB)
+ 	RET
+ 
+-TEXT	sys·mmap(SB),1,$-8
++TEXT	sys·mmap(SB),7,$-8
+ 	MOVQ	8(SP), DI		// arg 1 addr
+ 	MOVL	16(SP), SI		// arg 2 len
+ 	MOVL	20(SP), DX		// arg 3 prot
+@@ -98,7 +106,7 @@ TEXT	notok(SB),1,$-8
+ 	MOVQ	BP, (BP)
+ 	RET
+ 
+-TEXT	sys·memclr(SB),1,$-8
++TEXT	sys·memclr(SB),7,$-8
+ 	MOVQ	8(SP), DI		// arg 1 addr
+ 	MOVL	16(SP), CX		// arg 2 count
+ 	ADDL	$7, CX
+diff --git a/src/runtime/sys_amd64_linux.s b/src/runtime/sys_amd64_linux.s
+index 106159dc8e..60091e5c84 100644
+--- a/src/runtime/sys_amd64_linux.s
++++ b/src/runtime/sys_amd64_linux.s
+@@ -8,7 +8,13 @@
+ 
+ TEXT	sys·exit(SB),1,$0-8
+ 	MOVL	8(SP), DI
+-	MOVL	$60, AX
++	MOVL	$231, AX	// force all os threads to exit
++	SYSCALL
++	RET
++
++TEXT exit1(SB),1,$0-8
++	MOVL	8(SP), DI
++	MOVL	$60, AX	// exit the current os thread
+ 	SYSCALL
+ 	RET
+ 
+@@ -61,8 +67,7 @@ TEXT	sys·rt_sigaction(SB),1,$0-32
+ 	MOVL	8(SP), DI
+ 	MOVQ	16(SP), SI
+ 	MOVQ	24(SP), DX
+-	MOVQ	32(SP), CX
+-	MOVL	CX, R10
++	MOVQ	32(SP), R10
+ 	MOVL	$13, AX			// syscall entry
+ 	SYSCALL
+ 	RET
+@@ -74,11 +79,11 @@ TEXT	sigtramp(SB),1,$24-16
+ 	CALL	sighandler(SB)
+ 	RET
+ 
+-TEXT	sys·mmap(SB),1,$0-32
++TEXT	sys·mmap(SB),7,$0-32
+ 	MOVQ	8(SP), DI
+ 	MOVL	16(SP), SI
+ 	MOVL	20(SP), DX
+-	MOVL	24(SP), CX
++	MOVL	24(SP), R10
+ 	MOVL	28(SP), R8
+ 	MOVL	32(SP), R9
+ 
+@@ -102,7 +107,7 @@ TEXT	notok(SB),7,$0
+ 	MOVQ	BP, (BP)
+ 	RET
+ 
+-TEXT	sys·memclr(SB),1,$0-16
++TEXT	sys·memclr(SB),7,$0-16
+ 	MOVQ	8(SP), DI		// arg 1 addr
+ 	MOVL	16(SP), CX		// arg 2 count (cannot be zero)
+ 	ADDL	$7, CX
+@@ -123,3 +128,74 @@ TEXT	sys·setcallerpc+0(SB),1,$0
+ 	MOVQ	x+8(FP), BX
+ 	MOVQ	BX, -8(AX)		// set calling pc
+ 	RET
++
++// int64 futex(int32 *uaddr, int32 op, int32 val, 
++//	struct timespec *timeout, int32 *uaddr2, int32 val2);
++TEXT futex(SB),1,$0
++	MOVQ	8(SP), DI
++	MOVL	16(SP), SI
++	MOVL	20(SP), DX
++	MOVQ	24(SP), R10
++	MOVQ	32(SP), R8
++	MOVL	40(SP), R9
++	MOVL	$202, AX
++	SYSCALL
++	RET
++
++// int64 clone(int32 flags, void *stack, M *m, G *g, void (*fn)(void*), void *arg);
++TEXT clone(SB),7,$0
++	MOVL	8(SP), DI
++	MOVQ	16(SP), SI
++	
++	// Copy m, g, fn, arg off parent stack for use by child.
++	// Careful: Linux system call clobbers CX and R11.
++	MOVQ	24(SP), R8
++	MOVQ	32(SP), R9
++	MOVQ	40(SP), R12
++	MOVQ	48(SP), R13
++
++	MOVL	$56, AX
++	SYSCALL
++
++	// In parent, return.
++	CMPQ	AX, $0
++	JEQ	2(PC)
++	RET
++	
++	// In child, call fn(arg) on new stack
++	MOVQ	SI, SP
++	MOVQ	R8, R14	// m
++	MOVQ	R9, R15	// g
++	PUSHQ	R13
++	CALL	R12
++	
++	// It shouldn't return.  If it does, exit
++	MOVL	$111, DI
++	MOVL	$60, AX
++	SYSCALL
++	JMP	-3(PC)	// keep exiting
++
++// int64 select(int32, void*, void*, void*, void*)
++TEXT select(SB),1,$0
++	MOVL	8(SP), DI
++	MOVQ	16(SP), SI
++	MOVQ	24(SP), DX
++	MOVQ	32(SP), R10
++	MOVQ	40(SP), R8
++	MOVL	$23, AX
++	SYSCALL
++	RET
++
++// Linux allocates each thread its own pid, like Plan 9.
++// But the getpid() system call returns the pid of the 
++// original thread (the one that exec started with),
++// no matter which thread asks.  This system call,
++// which Linux calls gettid, returns the actual pid of
++// the calling thread, not the fake one.
++//
++// int32 getprocid(void)
++TEXT getprocid(SB),1,$0
++	MOVL	$186, AX
++	SYSCALL
++	RET
++
+diff --git a/src/syscall/syscall_amd64_linux.s b/src/syscall/syscall_amd64_linux.s
+index c6ce48cd0e..e69fe7aadd 100644
+--- a/src/syscall/syscall_amd64_linux.s
++++ b/src/syscall/syscall_amd64_linux.s
+@@ -7,7 +7,9 @@
+ //
+ 
+ // func Syscall(trap int64, a1, a2, a3 int64) (r1, r2, err int64);
+-// Trap # in AX, args in DI SI DX, return in AX DX
++// Trap # in AX, args in DI SI DX R10 R8 R9, return in AX DX
++// Note that this differs from "standard" ABI convention, which
++// would pass 4th arg in CX, not R10.
+ 
+ TEXT	syscall·Syscall(SB),7,$-8
+ 	MOVQ	16(SP), DI

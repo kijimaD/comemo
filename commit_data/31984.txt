@@ -13,7 +13,7 @@ Date:   Tue Mar 28 15:13:19 2017 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/alg.go     | 18 +++++++++---------
  src/cmd/compile/internal/gc/closure.go |  6 +++---
  src/cmd/compile/internal/gc/dcl.go     |  2 +-
@@ -22,3 +22,204 @@ Date:   Tue Mar 28 15:13:19 2017 -0700
  src/cmd/compile/internal/gc/subr.go    | 12 ++++++------
  src/cmd/compile/internal/gc/walk.go    |  8 ++++----
  7 files changed, 34 insertions(+), 34 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/alg.go b/src/cmd/compile/internal/gc/alg.go
+index c31c023f99..a63ae091fe 100644
+--- a/src/cmd/compile/internal/gc/alg.go
++++ b/src/cmd/compile/internal/gc/alg.go
+@@ -198,13 +198,13 @@ func genhash(sym *Sym, t *Type) {
+ 	tfn := nod(OTFUNC, nil, nil)
+ 	fn.Func.Nname.Name.Param.Ntype = tfn
+ 
+-	n := nod(ODCLFIELD, newname(lookup("p")), typenod(typPtr(t)))
++	n := namedfield("p", typPtr(t))
+ 	tfn.List.Append(n)
+ 	np := n.Left
+-	n = nod(ODCLFIELD, newname(lookup("h")), typenod(Types[TUINTPTR]))
++	n = namedfield("h", Types[TUINTPTR])
+ 	tfn.List.Append(n)
+ 	nh := n.Left
+-	n = nod(ODCLFIELD, nil, typenod(Types[TUINTPTR])) // return value
++	n = anonfield(Types[TUINTPTR]) // return value
+ 	tfn.Rlist.Append(n)
+ 
+ 	funchdr(fn)
+@@ -349,9 +349,9 @@ func hashfor(t *Type) *Node {
+ 	n := newname(sym)
+ 	n.Class = PFUNC
+ 	tfn := nod(OTFUNC, nil, nil)
+-	tfn.List.Append(nod(ODCLFIELD, nil, typenod(typPtr(t))))
+-	tfn.List.Append(nod(ODCLFIELD, nil, typenod(Types[TUINTPTR])))
+-	tfn.Rlist.Append(nod(ODCLFIELD, nil, typenod(Types[TUINTPTR])))
++	tfn.List.Append(anonfield(typPtr(t)))
++	tfn.List.Append(anonfield(Types[TUINTPTR]))
++	tfn.Rlist.Append(anonfield(Types[TUINTPTR]))
+ 	tfn = typecheck(tfn, Etype)
+ 	n.Type = tfn.Type
+ 	return n
+@@ -376,13 +376,13 @@ func geneq(sym *Sym, t *Type) {
+ 	tfn := nod(OTFUNC, nil, nil)
+ 	fn.Func.Nname.Name.Param.Ntype = tfn
+ 
+-	n := nod(ODCLFIELD, newname(lookup("p")), typenod(typPtr(t)))
++	n := namedfield("p", typPtr(t))
+ 	tfn.List.Append(n)
+ 	np := n.Left
+-	n = nod(ODCLFIELD, newname(lookup("q")), typenod(typPtr(t)))
++	n = namedfield("q", typPtr(t))
+ 	tfn.List.Append(n)
+ 	nq := n.Left
+-	n = nod(ODCLFIELD, nil, typenod(Types[TBOOL]))
++	n = anonfield(Types[TBOOL])
+ 	tfn.Rlist.Append(n)
+ 
+ 	funchdr(fn)
+diff --git a/src/cmd/compile/internal/gc/closure.go b/src/cmd/compile/internal/gc/closure.go
+index bd2ab1dc45..00518966f9 100644
+--- a/src/cmd/compile/internal/gc/closure.go
++++ b/src/cmd/compile/internal/gc/closure.go
+@@ -473,7 +473,7 @@ func walkclosure(func_ *Node, init *Nodes) *Node {
+ 
+ 	typ := nod(OTSTRUCT, nil, nil)
+ 
+-	typ.List.Set1(nod(ODCLFIELD, newname(lookup(".F")), typenod(Types[TUINTPTR])))
++	typ.List.Set1(namedfield(".F", Types[TUINTPTR]))
+ 	for _, v := range func_.Func.Cvars.Slice() {
+ 		if v.Op == OXXX {
+ 			continue
+@@ -674,8 +674,8 @@ func walkpartialcall(n *Node, init *Nodes) *Node {
+ 	}
+ 
+ 	typ := nod(OTSTRUCT, nil, nil)
+-	typ.List.Set1(nod(ODCLFIELD, newname(lookup("F")), typenod(Types[TUINTPTR])))
+-	typ.List.Append(nod(ODCLFIELD, newname(lookup("R")), typenod(n.Left.Type)))
++	typ.List.Set1(namedfield("F", Types[TUINTPTR]))
++	typ.List.Append(namedfield("R", n.Left.Type))
+ 
+ 	clos := nod(OCOMPLIT, nil, nod(OIND, typ, nil))
+ 	clos.Esc = n.Esc
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index c29a98c60f..c58d615910 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -876,7 +876,7 @@ func fakethis() *Node {
+ 	if thisT == nil {
+ 		thisT = typPtr(typ(TSTRUCT))
+ 	}
+-	return nod(ODCLFIELD, nil, typenod(thisT))
++	return anonfield(thisT)
+ }
+ 
+ func fakethisfield() *Field {
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index 326b15c48d..336c275ede 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -1559,7 +1559,7 @@ func dumptypestructs() {
+ 		// The latter is the type of an auto-generated wrapper.
+ 		dtypesym(typPtr(errortype))
+ 
+-		dtypesym(functype(nil, []*Node{nod(ODCLFIELD, nil, typenod(errortype))}, []*Node{nod(ODCLFIELD, nil, typenod(Types[TSTRING]))}))
++		dtypesym(functype(nil, []*Node{anonfield(errortype)}, []*Node{anonfield(Types[TSTRING])}))
+ 
+ 		// add paths for runtime and main, which 6l imports implicitly.
+ 		dimportpath(Runtimepkg)
+diff --git a/src/cmd/compile/internal/gc/select.go b/src/cmd/compile/internal/gc/select.go
+index 10e75df100..bd6b857c76 100644
+--- a/src/cmd/compile/internal/gc/select.go
++++ b/src/cmd/compile/internal/gc/select.go
+@@ -332,21 +332,21 @@ func selecttype(size int32) *Type {
+ 	// and then cache; and also cache Select per size.
+ 
+ 	scase := nod(OTSTRUCT, nil, nil)
+-	scase.List.Append(nod(ODCLFIELD, newname(lookup("elem")), typenod(typPtr(Types[TUINT8]))))
+-	scase.List.Append(nod(ODCLFIELD, newname(lookup("chan")), typenod(typPtr(Types[TUINT8]))))
+-	scase.List.Append(nod(ODCLFIELD, newname(lookup("pc")), typenod(Types[TUINTPTR])))
+-	scase.List.Append(nod(ODCLFIELD, newname(lookup("kind")), typenod(Types[TUINT16])))
+-	scase.List.Append(nod(ODCLFIELD, newname(lookup("receivedp")), typenod(typPtr(Types[TUINT8]))))
+-	scase.List.Append(nod(ODCLFIELD, newname(lookup("releasetime")), typenod(Types[TUINT64])))
++	scase.List.Append(namedfield("elem", typPtr(Types[TUINT8])))
++	scase.List.Append(namedfield("chan", typPtr(Types[TUINT8])))
++	scase.List.Append(namedfield("pc", Types[TUINTPTR]))
++	scase.List.Append(namedfield("kind", Types[TUINT16]))
++	scase.List.Append(namedfield("receivedp", typPtr(Types[TUINT8])))
++	scase.List.Append(namedfield("releasetime", Types[TUINT64]))
+ 	scase = typecheck(scase, Etype)
+ 	scase.Type.SetNoalg(true)
+ 	scase.Type.SetLocal(true)
+ 
+ 	sel := nod(OTSTRUCT, nil, nil)
+-	sel.List.Append(nod(ODCLFIELD, newname(lookup("tcase")), typenod(Types[TUINT16])))
+-	sel.List.Append(nod(ODCLFIELD, newname(lookup("ncase")), typenod(Types[TUINT16])))
+-	sel.List.Append(nod(ODCLFIELD, newname(lookup("pollorder")), typenod(typPtr(Types[TUINT8]))))
+-	sel.List.Append(nod(ODCLFIELD, newname(lookup("lockorder")), typenod(typPtr(Types[TUINT8]))))
++	sel.List.Append(namedfield("tcase", Types[TUINT16]))
++	sel.List.Append(namedfield("ncase", Types[TUINT16]))
++	sel.List.Append(namedfield("pollorder", typPtr(Types[TUINT8])))
++	sel.List.Append(namedfield("lockorder", typPtr(Types[TUINT8])))
+ 	arr := nod(OTARRAY, nodintconst(int64(size)), scase)
+ 	sel.List.Append(nod(ODCLFIELD, newname(lookup("scase")), arr))
+ 	arr = nod(OTARRAY, nodintconst(int64(size)), typenod(Types[TUINT16]))
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 13e85640c9..df18606009 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -1722,7 +1722,7 @@ func genwrapper(rcvr *Type, method *Field, newnam *Sym, iface int) {
+ 	dclcontext = PEXTERN
+ 	markdcl()
+ 
+-	this := nod(ODCLFIELD, newname(lookup(".this")), typenod(rcvr))
++	this := namedfield(".this", rcvr)
+ 	this.Left.Name.Param.Ntype = this.Right
+ 	in := structargs(method.Type.Params(), true)
+ 	out := structargs(method.Type.Results(), false)
+@@ -1736,7 +1736,7 @@ func genwrapper(rcvr *Type, method *Field, newnam *Sym, iface int) {
+ 		// Add a dummy padding argument after the
+ 		// receiver to make up the difference.
+ 		tpad := typArray(Types[TUINT8], int64(Widthptr)-rcvr.Width)
+-		pad := nod(ODCLFIELD, newname(lookup(".pad")), typenod(tpad))
++		pad := namedfield(".pad", tpad)
+ 		l = append(l, pad)
+ 	}
+ 
+@@ -1842,10 +1842,10 @@ func hashmem(t *Type) *Node {
+ 	n := newname(sym)
+ 	n.Class = PFUNC
+ 	tfn := nod(OTFUNC, nil, nil)
+-	tfn.List.Append(nod(ODCLFIELD, nil, typenod(typPtr(t))))
+-	tfn.List.Append(nod(ODCLFIELD, nil, typenod(Types[TUINTPTR])))
+-	tfn.List.Append(nod(ODCLFIELD, nil, typenod(Types[TUINTPTR])))
+-	tfn.Rlist.Append(nod(ODCLFIELD, nil, typenod(Types[TUINTPTR])))
++	tfn.List.Append(anonfield(typPtr(t)))
++	tfn.List.Append(anonfield(Types[TUINTPTR]))
++	tfn.List.Append(anonfield(Types[TUINTPTR]))
++	tfn.Rlist.Append(anonfield(Types[TUINTPTR]))
+ 	tfn = typecheck(tfn, Etype)
+ 	n.Type = tfn.Type
+ 	return n
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index e143116471..ce06325626 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -2999,9 +2999,9 @@ func eqfor(t *Type, needsize *int) *Node {
+ 		n := newname(sym)
+ 		n.Class = PFUNC
+ 		ntype := nod(OTFUNC, nil, nil)
+-		ntype.List.Append(nod(ODCLFIELD, nil, typenod(typPtr(t))))
+-		ntype.List.Append(nod(ODCLFIELD, nil, typenod(typPtr(t))))
+-		ntype.Rlist.Append(nod(ODCLFIELD, nil, typenod(Types[TBOOL])))
++		ntype.List.Append(anonfield(typPtr(t)))
++		ntype.List.Append(anonfield(typPtr(t)))
++		ntype.Rlist.Append(anonfield(Types[TBOOL]))
+ 		ntype = typecheck(ntype, Etype)
+ 		n.Type = ntype.Type
+ 		*needsize = 0
+@@ -3600,7 +3600,7 @@ func walkprintfunc(n *Node, init *Nodes) *Node {
+ 	for _, n1 := range n.List.Slice() {
+ 		buf = fmt.Sprintf("a%d", num)
+ 		num++
+-		a = nod(ODCLFIELD, newname(lookup(buf)), typenod(n1.Type))
++		a = namedfield(buf, n1.Type)
+ 		t.List.Append(a)
+ 		printargs = append(printargs, a.Left)
+ 	}

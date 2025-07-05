@@ -8,6 +8,26 @@ Date:   Sun Mar 25 11:35:16 2012 +1100
     R=golang-dev, rogpeppe, r, minux.ma, bradfitz
     CC=golang-dev
     https://golang.org/cl/5900049
-
+---
  doc/reference-cmd.html | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/doc/reference-cmd.html b/doc/reference-cmd.html
+index 8a9529d17a..442df0846b 100644
+--- a/doc/reference-cmd.html
++++ b/doc/reference-cmd.html
+@@ -19,10 +19,10 @@ with arguments appropriate to package-level processing.
+ 
+ <p>
+ The programs can also be run as stand-alone binaries, with unmodified arguments,
+-using the go tool subcommand, such as "go tool fmt".
+-This style of invocation allows, for instance, reformatting a single source file rather than
+-an entire package: "go tool fmt myprogram.go" as compared to
+-"go fmt mypackage".
++using the go tool subcommand, such as "go tool vet".
++This style of invocation allows, for instance, checking a single source file rather than
++an entire package: "go tool vet myprogram.go" as compared to
++"go vet mypackage".
+ Some of the commands, such as prof and yacc, are accessible
+ only through the go tool subcommand.
+ </p>

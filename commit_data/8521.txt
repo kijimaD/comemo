@@ -14,7 +14,97 @@ Date:   Fri May 27 12:14:48 2011 -0700
     R=rsc, fshahriar
     CC=golang-dev
     https://golang.org/cl/4529092
-
+---
  src/pkg/os/dir_unix.go |  2 +-
  src/pkg/os/os_test.go  | 65 ++++++++++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 66 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/os/dir_unix.go b/src/pkg/os/dir_unix.go
+index 9c543838e7..80ffda71df 100644
+--- a/src/pkg/os/dir_unix.go
++++ b/src/pkg/os/dir_unix.go
+@@ -32,7 +32,7 @@ func (f *File) Readdirnames(n int) (names []string, err Error) {
+ 		f.dirinfo.buf = make([]byte, blockSize)
+ 	}
+ 	d := f.dirinfo
+-	wantAll := n < 0
++	wantAll := n <= 0
+ 
+ 	size := n
+ 	if size < 0 {
+diff --git a/src/pkg/os/os_test.go b/src/pkg/os/os_test.go
+index 9a993cd6ed..d9535be6db 100644
+--- a/src/pkg/os/os_test.go
++++ b/src/pkg/os/os_test.go
+@@ -286,6 +286,71 @@ func TestReaddirnamesOneAtATime(t *testing.T) {
+ 	}
+ }
+ 
++func TestReaddirNValues(t *testing.T) {
++	if testing.Short() {
++		t.Logf("test.short; skipping")
++		return
++	}
++	dir, err := ioutil.TempDir("", "")
++	if err != nil {
++		t.Fatalf("TempDir: %v", err)
++	}
++	defer RemoveAll(dir)
++	for i := 1; i <= 20; i++ {
++		f, err := Create(filepath.Join(dir, fmt.Sprintf("%d", i)))
++		if err != nil {
++			t.Fatalf("Create: %v", err)
++		}
++		f.Write([]byte(strings.Repeat("X", i)))
++		f.Close()
++	}
++
++	var d *File
++	openDir := func() {
++		var err Error
++		d, err = Open(dir)
++		if err != nil {
++			t.Fatalf("Open directory: %v", err)
++		}
++	}
++
++	readDirExpect := func(n, want int, wantErr Error) {
++		fi, err := d.Readdir(n)
++		if err != wantErr {
++			t.Fatalf("Readdir of %d got error %v, want %v", n, err, wantErr)
++		}
++		if g, e := len(fi), want; g != e {
++			t.Errorf("Readdir of %d got %d files, want %d", n, g, e)
++		}
++	}
++
++	readDirNamesExpect := func(n, want int, wantErr Error) {
++		fi, err := d.Readdirnames(n)
++		if err != wantErr {
++			t.Fatalf("Readdirnames of %d got error %v, want %v", n, err, wantErr)
++		}
++		if g, e := len(fi), want; g != e {
++			t.Errorf("Readdirnames of %d got %d files, want %d", n, g, e)
++		}
++	}
++
++	for _, fn := range []func(int, int, Error){readDirExpect, readDirNamesExpect} {
++		// Test the -1 case
++		openDir()
++		fn(-1, 20, nil)
++		fn(-2, 0, nil)
++		fn(0, 0, nil)
++		d.Close()
++
++		// Test the bounded case
++		openDir()
++		fn(19, 19, nil)
++		fn(18, 1, nil)
++		fn(17, 0, EOF)
++		d.Close()
++	}
++}
++
+ func TestHardLink(t *testing.T) {
+ 	// Hardlinks are not supported under windows.
+ 	if syscall.OS == "windows" {

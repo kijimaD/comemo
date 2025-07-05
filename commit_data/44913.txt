@@ -17,7 +17,74 @@ Date:   Thu Sep 10 09:34:15 2020 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/go/internal/modget/get.go             |  9 ++++--
  src/cmd/go/testdata/script/mod_get_nopkgs.txt | 40 +++++++++++++++++++++++++++
  2 files changed, 46 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/internal/modget/get.go b/src/cmd/go/internal/modget/get.go
+index 829cfe055a..1b5cf68840 100644
+--- a/src/cmd/go/internal/modget/get.go
++++ b/src/cmd/go/internal/modget/get.go
+@@ -609,9 +609,12 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
+ 		}
+ 		prevBuildList = buildList
+ 	}
+-	if !*getD {
+-		// Only print warnings after the last iteration,
+-		// and only if we aren't going to build.
++	if *getD {
++		// Only print warnings after the last iteration, and only if we aren't going
++		// to build (to avoid doubled warnings).
++		//
++		// Only local patterns in the main module, such as './...', can be unmatched.
++		// (See the mod_get_nopkgs test for more detail.)
+ 		search.WarnUnmatched(matches)
+ 	}
+ 
+diff --git a/src/cmd/go/testdata/script/mod_get_nopkgs.txt b/src/cmd/go/testdata/script/mod_get_nopkgs.txt
+new file mode 100644
+index 0000000000..078e71a041
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_get_nopkgs.txt
+@@ -0,0 +1,40 @@
++cd subdir
++
++# 'go get' on empty patterns that are necessarily local to the module
++# should warn that the patterns are empty, exactly once.
++
++go get ./...
++stderr -count=1 'matched no packages'
++
++go get -d ./...
++stderr -count=1 'matched no packages'
++
++# 'go get' on patterns that could conceivably match nested modules
++# should report a module resolution error.
++
++go get -d example.net/emptysubdir/... # control case
++
++! go get -d example.net/emptysubdir/subdir/...
++! stderr 'matched no packages'
++stderr '^go get example\.net/emptysubdir/subdir/\.\.\.: module example\.net/emptysubdir/subdir: reading http://.*: 404 Not Found\n\tserver response: 404 page not found\n\z'
++
++# It doesn't make sense to 'go get' a path in the standard library,
++# since the standard library necessarily can't have unresolved imports.
++#
++# TODO(#30241): Maybe that won't always be the case?
++#
++# For that case, we emit a "malformed module path" error message,
++# which isn't ideal either.
++
++! go get -d builtin/...  # in GOROOT/src, but contains no packages
++stderr '^go get builtin/...: malformed module path "builtin": missing dot in first path element$'
++
++-- go.mod --
++module example.net/emptysubdir
++
++go 1.16
++-- emptysubdir.go --
++// Package emptysubdir has a subdirectory containing no packages.
++package emptysubdir
++-- subdir/README.txt --
++This module intentionally does not contain any p

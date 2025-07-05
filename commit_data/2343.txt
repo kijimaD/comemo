@@ -7,8 +7,57 @@ Date:   Fri May 29 15:34:47 2009 -0700
     R=r
     OCL=29623
     CL=29623
-
+---
  src/cmd/gc/const.c                 | 9 ++-------
  test/{bugs => fixedbugs}/bug156.go | 0
  test/golden.out                    | 4 ----
  3 files changed, 2 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/gc/const.c b/src/cmd/gc/const.c
+index 147af4fe39..98245fbc4e 100644
+--- a/src/cmd/gc/const.c
++++ b/src/cmd/gc/const.c
+@@ -568,22 +568,17 @@ unary:
+ 		// result will be (a ^ mask)
+ 		switch(et) {
+ 		default:
++			// signed guys change sign
+ 			mpmovecfix(&b, -1);
+ 			break;
+ 
+-		case TINT8:
+-		case TINT16:
+-		case TINT32:
+-		case TINT64:
+-		case TINT:
+-			et++;		// convert to unsigned
+-					// fallthrough
+ 		case TUINT8:
+ 		case TUINT16:
+ 		case TUINT32:
+ 		case TUINT64:
+ 		case TUINT:
+ 		case TUINTPTR:
++			// unsigned guys invert their bits
+ 			mpmovefixfix(&b, maxintval[et]);
+ 			break;
+ 		}
+diff --git a/test/bugs/bug156.go b/test/fixedbugs/bug156.go
+similarity index 100%
+rename from test/bugs/bug156.go
+rename to test/fixedbugs/bug156.go
+diff --git a/test/golden.out b/test/golden.out
+index 46b4fb2209..b5dbddffe6 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -104,10 +104,6 @@ BUG should compile
+ 5 7
+ BUG: should crash
+ 
+-=========== bugs/bug156.go
+-bugs/bug156.go:7: constant 18446744073709551615 overflows int64
+-BUG: bug156
+-
+ =========== fixedbugs/bug016.go
+ fixedbugs/bug016.go:7: constant -3 overflows uint
+ 

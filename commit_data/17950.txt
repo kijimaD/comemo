@@ -7,7 +7,46 @@ Date:   Tue Dec 10 08:42:41 2013 -0500
     R=ality, golang-dev, r, rsc
     CC=golang-dev
     https://golang.org/cl/39640043
-
+---
  include/link.h  | 6 ++++++
  src/cmd/gc/go.h | 3 +++
  2 files changed, 9 insertions(+)
+
+diff --git a/include/link.h b/include/link.h
+index 1d6aec49ee..abaa6ad401 100644
+--- a/include/link.h
++++ b/include/link.h
+@@ -43,6 +43,9 @@ typedef	struct	Library	Library;
+ typedef	struct	Pcln	Pcln;
+ typedef	struct	Pcdata	Pcdata;
+ 
++// prevent incompatible type signatures between liblink and 8l on Plan 9
++#pragma incomplete struct Node
++
+ struct	Addr
+ {
+ 	vlong	offset;
+@@ -111,6 +114,9 @@ struct	Prog
+ 	char	mode;	/* 16, 32, or 64 */
+ };
+ 
++// prevent incompatible type signatures between liblink and 8l on Plan 9
++#pragma incomplete struct Section
++
+ struct	LSym
+ {
+ 	char*	name;
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 6faf4c446c..cc9a5eeaf8 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -129,6 +129,9 @@ struct	Val
+ 	} u;
+ };
+ 
++// prevent incompatible type signatures between libgc and 8g on Plan 9
++#pragma incomplete struct Array
++
+ typedef	struct	Array	Array;
+ typedef	struct	Bvec	Bvec;
+ typedef	struct	Pkg Pkg;

@@ -7,7 +7,53 @@ Date:   Fri Apr 7 09:22:46 2017 -0700
     Change-Id: I9282c1907204ec5c6363de84faec222a38300c9f
     Reviewed-on: https://go-review.googlesource.com/39919
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/devel/release.html  | 12 ++++++++++++
  doc/install-source.html |  4 ++--
  2 files changed, 14 insertions(+), 2 deletions(-)
+
+diff --git a/doc/devel/release.html b/doc/devel/release.html
+index 162966e03c..521c75582a 100644
+--- a/doc/devel/release.html
++++ b/doc/devel/release.html
+@@ -30,6 +30,18 @@ Go 1.8 is a major release of Go.
+ Read the <a href="/doc/go1.8">Go 1.8 Release Notes</a> for more information.
+ </p>
+ 
++<h3 id="go1.8.minor">Minor revisions</h3>
++
++<p>
++go1.8.1 (released 2017/04/07) includes fixes to the compiler, linker, runtime,
++documentation, <code>go</code> command and the <code>crypto/tls</code>,
++<code>encoding/xml</code>, <code>image/png</code>, <code>net</code>,
++<code>net/http</code>, <code>reflect</code>, <code>text/template</code>,
++and <code>time</code> packages.
++See the <a href="https://github.com/golang/go/issues?q=milestone%3AGo1.8.1">Go
++1.8.1 milestone</a> on our issue tracker for details.
++</p>
++
+ <h2 id="go1.7">go1.7 (released 2016/08/15)</h2>
+ 
+ <p>
+diff --git a/doc/install-source.html b/doc/install-source.html
+index 45c5bbbf48..8fb26a956b 100644
+--- a/doc/install-source.html
++++ b/doc/install-source.html
+@@ -221,7 +221,7 @@ To build without <code>cgo</code>, set the environment variable
+ Change to the directory that will be its parent
+ and make sure the <code>go</code> directory does not exist.
+ Then clone the repository and check out the latest release tag
+-(<code class="versionTag">go1.8</code>, for example):</p>
++(<code class="versionTag">go1.8.1</code>, for example):</p>
+ 
+ <pre>
+ $ git clone https://go.googlesource.com/go
+@@ -409,7 +409,7 @@ New releases are announced on the
+ <a href="//groups.google.com/group/golang-announce">golang-announce</a>
+ mailing list.
+ Each announcement mentions the latest release tag, for instance,
+-<code class="versionTag">go1.8</code>.
++<code class="versionTag">go1.8.1</code>.
+ </p>
+ 
+ <p>

@@ -22,7 +22,56 @@ Date:   Fri Dec 13 15:36:47 2024 -0500
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/cmd/go/internal/test/test.go               | 14 ++++++++++++--
  src/cmd/go/testdata/script/test_json_build.txt |  5 +++--
  2 files changed, 15 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index 41ddb2f5d0..b530d027df 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -1009,7 +1009,13 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
+ 					json.Exited(err)
+ 					json.Close()
+ 				}()
+-				json.SetFailedBuild(perr.Desc())
++				if gotestjsonbuildtext.Value() == "1" {
++					// While this flag is about go build -json, the other effect
++					// of that change was to include "FailedBuild" in the test JSON.
++					gotestjsonbuildtext.IncNonDefault()
++				} else {
++					json.SetFailedBuild(perr.Desc())
++				}
+ 				stdout = json
+ 			}
+ 			fmt.Fprintf(stdout, "FAIL\t%s [setup failed]\n", p.ImportPath)
+@@ -1437,7 +1443,11 @@ func (r *runTestActor) Act(b *work.Builder, ctx context.Context, a *work.Action)
+ 	if a.Failed != nil {
+ 		// We were unable to build the binary.
+ 		if json != nil && a.Failed.Package != nil {
+-			json.SetFailedBuild(a.Failed.Package.Desc())
++			if gotestjsonbuildtext.Value() == "1" {
++				gotestjsonbuildtext.IncNonDefault()
++			} else {
++				json.SetFailedBuild(a.Failed.Package.Desc())
++			}
+ 		}
+ 		a.Failed = nil
+ 		fmt.Fprintf(stdout, "FAIL\t%s [build failed]\n", a.Package.ImportPath)
+diff --git a/src/cmd/go/testdata/script/test_json_build.txt b/src/cmd/go/testdata/script/test_json_build.txt
+index a3f0c37923..0a40649dcc 100644
+--- a/src/cmd/go/testdata/script/test_json_build.txt
++++ b/src/cmd/go/testdata/script/test_json_build.txt
+@@ -58,8 +58,9 @@ stderr '# m/builderror \[m/builderror.test\]\n'
+ stderr 'builderror'${/}'main_test.go:3:11: undefined: y\n'
+ stdout '"Action":"start","Package":"m/builderror"'
+ stdout '"Action":"output","Package":"m/builderror","Output":"FAIL\\tm/builderror \[build failed\]\\n"'
+-stdout '"Action":"fail","Package":"m/builderror","Elapsed":.*,"FailedBuild":"m/builderror \[m/builderror\.test\]"'
+-
++stdout '"Action":"fail","Package":"m/builderror","Elapsed":[0-9.]+\}'
++# FailedBuild should NOT appear in the output in this mode.
++! stdout '"FailedBuild"'
+ 
+ -- go.mod --
+ module m

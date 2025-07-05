@@ -9,9 +9,115 @@ Date:   Fri Feb 10 11:44:51 2012 +1100
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5651051
-
+---
  doc/go1.html          | 13 ++++++++++++-
  doc/go1.tmpl          | 13 ++++++++++++-
  src/pkg/os/os_test.go | 14 --------------
  src/pkg/os/time.go    | 19 -------------------
  4 files changed, 24 insertions(+), 35 deletions(-)
+
+diff --git a/doc/go1.html b/doc/go1.html
+index 6d8f148eda..664d3a9dd0 100644
+--- a/doc/go1.html
++++ b/doc/go1.html
+@@ -1347,7 +1347,18 @@ Code that uses the old methods will fail to compile and must be updated by hand.
+ The semantic change makes it difficult for the fix tool to update automatically.
+ </p>
+ 
+-<h3 id="os_fileinfo">The os.FileInfo type</h3>
++<h3 id="os">The os package</h3>
++
++<p>The <code>Time</code> function has been removed; callers should use
++the <a href="/pkg/time/#Time"><code>Time</code></a> type from the
++<code>time</code> package.</p>
++
++<p>
++<em>Updating</em>:
++Code that uses <code>os.Time</code> will fail to compile and must be updated by hand.
++</p>
++
++<h4 id="os_fileinfo">The os.FileInfo type</h4>
+ 
+ <p>
+ Go 1 redefines the <a href="/pkg/os/#FileInfo"><code>os.FileInfo</code></a> type,
+diff --git a/doc/go1.tmpl b/doc/go1.tmpl
+index 096df3c25d..da72c6a4a8 100644
+--- a/doc/go1.tmpl
++++ b/doc/go1.tmpl
+@@ -1250,7 +1250,18 @@ Code that uses the old methods will fail to compile and must be updated by hand.
+ The semantic change makes it difficult for the fix tool to update automatically.
+ </p>
+ 
+-<h3 id="os_fileinfo">The os.FileInfo type</h3>
++<h3 id="os">The os package</h3>
++
++<p>The <code>Time</code> function has been removed; callers should use
++the <a href="/pkg/time/#Time"><code>Time</code></a> type from the
++<code>time</code> package.</p>
++
++<p>
++<em>Updating</em>:
++Code that uses <code>os.Time</code> will fail to compile and must be updated by hand.
++</p>
++
++<h4 id="os_fileinfo">The os.FileInfo type</h4>
+ 
+ <p>
+ Go 1 redefines the <a href="/pkg/os/#FileInfo"><code>os.FileInfo</code></a> type,
+diff --git a/src/pkg/os/os_test.go b/src/pkg/os/os_test.go
+index 25d9cbc73a..a5ffcc0594 100644
+--- a/src/pkg/os/os_test.go
++++ b/src/pkg/os/os_test.go
+@@ -23,7 +23,6 @@ var dot = []string{
+ 	"error.go",
+ 	"file.go",
+ 	"os_test.go",
+-	"time.go",
+ 	"types.go",
+ 	"stat_darwin.go",
+ 	"stat_linux.go",
+@@ -744,19 +743,6 @@ func TestChdirAndGetwd(t *testing.T) {
+ 	fd.Close()
+ }
+ 
+-func TestTime(t *testing.T) {
+-	// Just want to check that Time() is getting something.
+-	// A common failure mode on Darwin is to get 0, 0,
+-	// because it returns the time in registers instead of
+-	// filling in the structure passed to the system call.
+-	// Too bad the compiler doesn't know that
+-	// 365.24*86400 is an integer.
+-	sec, nsec, err := Time()
+-	if sec < (2009-1970)*36524*864 {
+-		t.Errorf("Time() = %d, %d, %s; not plausible", sec, nsec, err)
+-	}
+-}
+-
+ func TestSeek(t *testing.T) {
+ 	f := newFile("TestSeek", t)
+ 	defer Remove(f.Name())
+diff --git a/src/pkg/os/time.go b/src/pkg/os/time.go
+deleted file mode 100644
+index eb564e57a6..0000000000
+--- a/src/pkg/os/time.go
++++ /dev/null
+@@ -1,19 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package os
+-
+-import "syscall"
+-
+-// Time returns the current time, in whole seconds and
+-// fractional nanoseconds, plus an error if any. The current
+-// time is thus 1e9*sec+nsec, in nanoseconds.  The zero of
+-// time is the Unix epoch.
+-func Time() (sec int64, nsec int64, err error) {
+-	var tv syscall.Timeval
+-	if e := syscall.Gettimeofday(&tv); e != nil {
+-		return 0, 0, NewSyscallError("gettimeofday", e)
+-	}
+-	return int64(tv.Sec), int64(tv.Usec) * 1000, err
+-}

@@ -9,7 +9,32 @@ Date:   Mon Jun 25 17:36:02 2012 -0400
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/6339052
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 71432b57b1..7f7ebf2469 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -117,6 +117,7 @@ Jeremy Jackins <jeremyjackins@gmail.com>
+ Jim McGrath <jimmc2@gmail.com>
+ Joe Poirier <jdpoirier@gmail.com>
+ John Asmuth <jasmuth@gmail.com>
++Jonathan Gold <jgold.bg@gmail.com>
+ Jonathan Mark <jhmark@xenops.com>
+ Jonathan Wills <runningwild@gmail.com>
+ Jongmin Kim <atomaths@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index fef2faefe0..4febd1483c 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -177,6 +177,7 @@ John Asmuth <jasmuth@gmail.com>
+ John Beisley <huin@google.com>
+ John DeNero <denero@google.com>
+ Jonathan Allie <jonallie@google.com>
++Jonathan Gold <jgold.bg@gmail.com>
+ Jonathan Mark <jhmark@xenops.com> <jhmark000@gmail.com>
+ Jonathan Pittman <jmpittman@google.com> <jonathan.mark.pittman@gmail.com>
+ Jonathan Wills <runningwild@gmail.com>

@@ -18,7 +18,7 @@ Date:   Sat Jan 29 18:25:41 2022 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Jonathan Amsterdam <jba@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/go/ast/ast.go                        |   1 +
  src/go/printer/comment.go                | 152 +++++++++++++++++++++++++++++++
  src/go/printer/printer.go                |  19 +++-
@@ -30,3 +30,399 @@ Date:   Sat Jan 29 18:25:41 2022 -0500
  src/go/printer/testdata/doc.golden       |  21 +++++
  src/go/printer/testdata/doc.input        |  20 ++++
  10 files changed, 234 insertions(+), 14 deletions(-)
+
+diff --git a/src/go/ast/ast.go b/src/go/ast/ast.go
+index 61855359f8..8d467a7828 100644
+--- a/src/go/ast/ast.go
++++ b/src/go/ast/ast.go
+@@ -159,6 +159,7 @@ func (g *CommentGroup) Text() string {
+ }
+ 
+ // isDirective reports whether c is a comment directive.
++// This code is also in go/printer.
+ func isDirective(c string) bool {
+ 	// "//line " is a line directive.
+ 	// (The // has been removed.)
+diff --git a/src/go/printer/comment.go b/src/go/printer/comment.go
+new file mode 100644
+index 0000000000..9749146739
+--- /dev/null
++++ b/src/go/printer/comment.go
+@@ -0,0 +1,152 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package printer
++
++import (
++	"go/ast"
++	"go/doc/comment"
++	"strings"
++)
++
++// formatDocComment reformats the doc comment list,
++// returning the canonical formatting.
++func formatDocComment(list []*ast.Comment) []*ast.Comment {
++	// Extract comment text (removing comment markers).
++	var kind, text string
++	var directives []*ast.Comment
++	if len(list) == 1 && strings.HasPrefix(list[0].Text, "/*") {
++		kind = "/*"
++		text = list[0].Text
++		if !strings.Contains(text, "\n") || allStars(text) {
++			// Single-line /* .. */ comment in doc comment position,
++			// or multiline old-style comment like
++			//	/*
++			//	 * Comment
++			//	 * text here.
++			//	 */
++			// Should not happen, since it will not work well as a
++			// doc comment, but if it does, just ignore:
++			// reformatting it will only make the situation worse.
++			return list
++		}
++		text = text[2 : len(text)-2] // cut /* and */
++	} else if strings.HasPrefix(list[0].Text, "//") {
++		kind = "//"
++		var b strings.Builder
++		for _, c := range list {
++			if !strings.HasPrefix(c.Text, "//") {
++				return list
++			}
++			// Accumulate //go:build etc lines separately.
++			if isDirective(c.Text[2:]) {
++				directives = append(directives, c)
++				continue
++			}
++			b.WriteString(strings.TrimPrefix(c.Text[2:], " "))
++			b.WriteString("\n")
++		}
++		text = b.String()
++	} else {
++		// Not sure what this is, so leave alone.
++		return list
++	}
++
++	if text == "" {
++		return list
++	}
++
++	// Parse comment and reformat as text.
++	var p comment.Parser
++	d := p.Parse(text)
++
++	var pr comment.Printer
++	text = string(pr.Comment(d))
++
++	// For /* */ comment, return one big comment with text inside.
++	slash := list[0].Slash
++	if kind == "/*" {
++		c := &ast.Comment{
++			Slash: slash,
++			Text:  "/*\n" + text + "*/",
++		}
++		return []*ast.Comment{c}
++	}
++
++	// For // comment, return sequence of // lines.
++	var out []*ast.Comment
++	for text != "" {
++		var line string
++		line, text, _ = strings.Cut(text, "\n")
++		if line == "" {
++			line = "//"
++		} else if strings.HasPrefix(line, "\t") {
++			line = "//" + line
++		} else {
++			line = "// " + line
++		}
++		out = append(out, &ast.Comment{
++			Slash: slash,
++			Text:  line,
++		})
++	}
++	if len(directives) > 0 {
++		out = append(out, &ast.Comment{
++			Slash: slash,
++			Text:  "//",
++		})
++		for _, c := range directives {
++			out = append(out, &ast.Comment{
++				Slash: slash,
++				Text:  c.Text,
++			})
++		}
++	}
++	return out
++}
++
++// isDirective reports whether c is a comment directive.
++// See go.dev/issue/37974.
++// This code is also in go/ast.
++func isDirective(c string) bool {
++	// "//line " is a line directive.
++	// (The // has been removed.)
++	if strings.HasPrefix(c, "line ") {
++		return true
++	}
++
++	// "//[a-z0-9]+:[a-z0-9]"
++	// (The // has been removed.)
++	colon := strings.Index(c, ":")
++	if colon <= 0 || colon+1 >= len(c) {
++		return false
++	}
++	for i := 0; i <= colon+1; i++ {
++		if i == colon {
++			continue
++		}
++		b := c[i]
++		if !('a' <= b && b <= 'z' || '0' <= b && b <= '9') {
++			return false
++		}
++	}
++	return true
++}
++
++// allStars reports whether text is the interior of an
++// old-style /* */ comment with a star at the start of each line.
++func allStars(text string) bool {
++	for i := 0; i < len(text); i++ {
++		if text[i] == '\n' {
++			j := i + 1
++			for j < len(text) && (text[j] == ' ' || text[j] == '\t') {
++				j++
++			}
++			if j < len(text) && text[j] != '*' {
++				return false
++			}
++		}
++	}
++	return true
++}
+diff --git a/src/go/printer/printer.go b/src/go/printer/printer.go
+index 5014f59ab5..25eec6bd75 100644
+--- a/src/go/printer/printer.go
++++ b/src/go/printer/printer.go
+@@ -738,11 +738,28 @@ func (p *printer) containsLinebreak() bool {
+ func (p *printer) intersperseComments(next token.Position, tok token.Token) (wroteNewline, droppedFF bool) {
+ 	var last *ast.Comment
+ 	for p.commentBefore(next) {
+-		for _, c := range p.comment.List {
++		list := p.comment.List
++		changed := false
++		if p.lastTok != token.IMPORT && // do not rewrite cgo's import "C" comments
++			p.posFor(p.comment.Pos()).Column == 1 &&
++			p.posFor(p.comment.End()+1) == next {
++			// Unindented comment abutting next token position:
++			// a top-level doc comment.
++			list = formatDocComment(list)
++			changed = true
++		}
++		for _, c := range list {
+ 			p.writeCommentPrefix(p.posFor(c.Pos()), next, last, tok)
+ 			p.writeComment(c)
+ 			last = c
+ 		}
++		// In case list was rewritten, change print state to where
++		// the original list would have ended.
++		if len(p.comment.List) > 0 && changed {
++			last = p.comment.List[len(p.comment.List)-1]
++			p.pos = p.posFor(last.End())
++			p.last = p.pos
++		}
+ 		p.nextComment()
+ 	}
+ 
+diff --git a/src/go/printer/printer_test.go b/src/go/printer/printer_test.go
+index ad2d86052a..cb62b3e4f3 100644
+--- a/src/go/printer/printer_test.go
++++ b/src/go/printer/printer_test.go
+@@ -6,6 +6,7 @@ package printer
+ 
+ import (
+ 	"bytes"
++	"errors"
+ 	"flag"
+ 	"fmt"
+ 	"go/ast"
+@@ -92,8 +93,7 @@ func checkEqual(aname, bname string, a, b []byte) error {
+ 	if bytes.Equal(a, b) {
+ 		return nil
+ 	}
+-
+-	return fmt.Errorf("diff %s %s\n%s", aname, bname, diff.Diff(aname, a, bname, b))
++	return errors.New(string(diff.Diff(aname, a, bname, b)))
+ }
+ 
+ func runcheck(t *testing.T, source, golden string, mode checkMode) {
+diff --git a/src/go/printer/testdata/comments.golden b/src/go/printer/testdata/comments.golden
+index 1a21fff331..d03da3b65a 100644
+--- a/src/go/printer/testdata/comments.golden
++++ b/src/go/printer/testdata/comments.golden
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ // This is a package for testing comment placement by go/printer.
+-//
+ package main
+ 
+ import "fmt"	// fmt
+@@ -97,6 +96,13 @@ type S3 struct {
+ 	f3	int	// f3 is not exported
+ }
+ 
++// Here is a comment.
++// Here is an accidentally unindented line.
++// More comment.
++//
++//dir:ect ive
++type directiveCheck struct{}
++
+ // This comment group should be separated
+ // with a newline from the next comment
+ // group.
+@@ -116,9 +122,7 @@ func f0() {
+ 	x := pi
+ }
+ 
+-//
+ // This comment should be associated with f1, with one blank line before the comment.
+-//
+ func f1() {
+ 	f0()
+ 	/* 1 */
+@@ -691,6 +695,7 @@ func _() {
+ // Print line directives correctly.
+ 
+ // The following is a legal line directive.
++//
+ //line foo:1
+ func _() {
+ 	_ = 0
+diff --git a/src/go/printer/testdata/comments.input b/src/go/printer/testdata/comments.input
+index aa428a2aa6..2a15fa44a5 100644
+--- a/src/go/printer/testdata/comments.input
++++ b/src/go/printer/testdata/comments.input
+@@ -97,6 +97,12 @@ type S3 struct {
+ 	f3 int // f3 is not exported
+ }
+ 
++// Here is a comment.
++//Here is an accidentally unindented line.
++//dir:ect ive
++// More comment.
++type directiveCheck struct{}
++
+ // This comment group should be separated
+ // with a newline from the next comment
+ // group.
+@@ -616,7 +622,7 @@ func _() {
+ func _() {
+ 	f(); f()
+ 	f(); /* comment */ f()
+-	f() /* comment */; f()	
++	f() /* comment */; f()
+ 	f(); /* a */ /* b */ f()
+ 	f() /* a */ /* b */; f()
+ 	f() /* a */; /* b */ f()
+@@ -663,7 +669,7 @@ func _() {
+ // This way, commas interspersed in lists stay with the respective expression.
+ func f(x/* comment */, y int, z int /* comment */, u, v, w int /* comment */) {
+ 	f(x /* comment */, y)
+-	f(x /* comment */, 
++	f(x /* comment */,
+ 	y)
+ 	f(
+ 		x /* comment */,
+@@ -718,10 +724,10 @@ var	lflag		bool				// -l			- disable line directives
+ 
+ // Trailing white space in comments should be trimmed
+ func _() {
+-// This comment has 4 blanks following that should be trimmed:    
+-/* Each line of this comment has blanks or tabs following that should be trimmed:	
+-   line 2:    
+-   line 3:    			
++// This comment has 4 blanks following that should be trimmed:
++/* Each line of this comment has blanks or tabs following that should be trimmed:
++   line 2:
++   line 3:
+ */
+ }
+ 
+diff --git a/src/go/printer/testdata/comments.x b/src/go/printer/testdata/comments.x
+index ae7729286e..5d088ab2c3 100644
+--- a/src/go/printer/testdata/comments.x
++++ b/src/go/printer/testdata/comments.x
+@@ -1,5 +1,4 @@
+ // This is a package for testing comment placement by go/printer.
+-//
+ package main
+ 
+ // The SZ struct; it is empty.
+diff --git a/src/go/printer/testdata/comments2.golden b/src/go/printer/testdata/comments2.golden
+index 8b3a94ddcd..83213d1a9d 100644
+--- a/src/go/printer/testdata/comments2.golden
++++ b/src/go/printer/testdata/comments2.golden
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ // This is a package for testing comment placement by go/printer.
+-//
+ package main
+ 
+ // Test cases for idempotent comment formatting (was issue 1835).
+diff --git a/src/go/printer/testdata/doc.golden b/src/go/printer/testdata/doc.golden
+new file mode 100644
+index 0000000000..7ac241a4bb
+--- /dev/null
++++ b/src/go/printer/testdata/doc.golden
+@@ -0,0 +1,21 @@
++package p
++
++/*
++Doc comment.
++
++  - List1.
++
++  - List2.
++*/
++var X int
++
++/* erroneous doc comment */
++var Y int
++
++/*
++ * Another erroneous
++ * doc comment.
++ */
++var Z int
++
++
+diff --git a/src/go/printer/testdata/doc.input b/src/go/printer/testdata/doc.input
+new file mode 100644
+index 0000000000..5c057ed2c4
+--- /dev/null
++++ b/src/go/printer/testdata/doc.input
+@@ -0,0 +1,20 @@
++package p
++
++/*
++Doc comment.
++  - List1.
++
++  - List2.
++*/
++var X int
++
++/* erroneous doc comment */
++var Y int
++
++/*
++ * Another erroneous
++ * doc comment.
++ */
++var Z int
++
++

@@ -11,6 +11,20 @@ Date:   Sun Mar 4 13:42:51 2018 +0100
     Change-Id: I0481057bd52e39d84b3d6f5140335e293eff38f3
     Reviewed-on: https://go-review.googlesource.com/106998
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/mime/type_unix.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/mime/type_unix.go b/src/mime/type_unix.go
+index bb06a77c45..6549c0f5e9 100644
+--- a/src/mime/type_unix.go
++++ b/src/mime/type_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux nacl netbsd openbsd solaris
++// +build darwin dragonfly freebsd js,wasm linux nacl netbsd openbsd solaris
+ 
+ package mime
+ 

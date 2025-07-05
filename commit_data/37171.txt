@@ -17,9 +17,90 @@ Date:   Fri Jul 6 12:14:22 2018 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/iimport.go | 19 +++++++++++++++++++
  test/fixedbugs/issue25055.dir/a.go     |  7 +++++++
  test/fixedbugs/issue25055.dir/b.go     |  9 +++++++++
  test/fixedbugs/issue25055.go           |  7 +++++++
  4 files changed, 42 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/iimport.go b/src/cmd/compile/internal/gc/iimport.go
+index 54c5d8dc2f..21151b5215 100644
+--- a/src/cmd/compile/internal/gc/iimport.go
++++ b/src/cmd/compile/internal/gc/iimport.go
+@@ -296,8 +296,23 @@ func (r *importReader) doDecl(n *Node) {
+ 		// declaration before recursing.
+ 		t := importtype(r.p.ipkg, pos, n.Sym)
+ 
++		// We also need to defer width calculations until
++		// after the underlying type has been assigned.
++		//
++		// TODO(mdempsky): Add nesting support directly to
++		// {defer,resume}checkwidth? Width calculations are
++		// already deferred during initial typechecking, but
++		// not when we're expanding inline function bodies, so
++		// we currently need to handle both cases here.
++		deferring := defercalc != 0
++		if !deferring {
++			defercheckwidth()
++		}
+ 		underlying := r.typ()
+ 		copytype(typenod(t), underlying)
++		if !deferring {
++			resumecheckwidth()
++		}
+ 
+ 		if underlying.IsInterface() {
+ 			break
+@@ -576,6 +591,10 @@ func (r *importReader) typ1() *types.Type {
+ 		t := types.New(TINTER)
+ 		t.SetPkg(r.currPkg)
+ 		t.SetInterface(append(embeddeds, methods...))
++
++		// Ensure we expand the interface in the frontend (#25055).
++		checkwidth(t)
++
+ 		return t
+ 	}
+ }
+diff --git a/test/fixedbugs/issue25055.dir/a.go b/test/fixedbugs/issue25055.dir/a.go
+new file mode 100644
+index 0000000000..7fea195e2b
+--- /dev/null
++++ b/test/fixedbugs/issue25055.dir/a.go
+@@ -0,0 +1,7 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++var A chan *interface{}
+diff --git a/test/fixedbugs/issue25055.dir/b.go b/test/fixedbugs/issue25055.dir/b.go
+new file mode 100644
+index 0000000000..01efeae3e6
+--- /dev/null
++++ b/test/fixedbugs/issue25055.dir/b.go
+@@ -0,0 +1,9 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package b
++
++import "./a"
++
++var _ = <-a.A
+diff --git a/test/fixedbugs/issue25055.go b/test/fixedbugs/issue25055.go
+new file mode 100644
+index 0000000000..0e15a8e71f
+--- /dev/null
++++ b/test/fixedbugs/issue25055.go
+@@ -0,0 +1,7 @@
++// compiledir -c=2
++
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ignored

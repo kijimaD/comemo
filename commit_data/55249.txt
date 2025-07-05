@@ -16,6 +16,23 @@ Date:   Fri Jan 6 08:44:28 2023 +0000
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
-
+---
  src/cmd/internal/archive/archive.go | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/internal/archive/archive.go b/src/cmd/internal/archive/archive.go
+index d2c4f69ef5..e35a418e17 100644
+--- a/src/cmd/internal/archive/archive.go
++++ b/src/cmd/internal/archive/archive.go
+@@ -368,7 +368,10 @@ func (r *objReader) parseArchive(verbose bool) error {
+ 			if bytes.Equal(p, goobjHeader) {
+ 				typ = EntryGoObj
+ 				o = &GoObj{}
+-				r.parseObject(o, size)
++				err := r.parseObject(o, size)
++				if err != nil {
++					return err
++				}
+ 			} else {
+ 				typ = EntryNativeObj
+ 				r.skip(size)

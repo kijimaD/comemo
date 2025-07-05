@@ -12,7 +12,49 @@ Date:   Tue Jan 10 20:48:02 2012 -0800
     R=golang-dev, dave, rsc
     CC=golang-dev
     https://golang.org/cl/5504096
-
+---
  src/pkg/runtime/sys_darwin_amd64.s |  2 +-
  src/pkg/runtime/sys_linux_arm.s    | 10 +++++-----
  2 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/runtime/sys_darwin_amd64.s b/src/pkg/runtime/sys_darwin_amd64.s
+index 86f9936614..e0dbdb7c16 100644
+--- a/src/pkg/runtime/sys_darwin_amd64.s
++++ b/src/pkg/runtime/sys_darwin_amd64.s
+@@ -175,7 +175,7 @@ TEXT runtime·usleep(SB),7,$16
+ 	MOVL	$0, DX
+ 	MOVL	$0, R10
+ 	MOVQ	SP, R8
+-	MOVL	$(0x2000000+23), AX
++	MOVL	$(0x2000000+93), AX
+ 	SYSCALL
+ 	RET
+ 
+diff --git a/src/pkg/runtime/sys_linux_arm.s b/src/pkg/runtime/sys_linux_arm.s
+index e0e4135b54..c3a828a924 100644
+--- a/src/pkg/runtime/sys_linux_arm.s
++++ b/src/pkg/runtime/sys_linux_arm.s
+@@ -34,7 +34,7 @@
+ #define SYS_gettid (SYS_BASE + 224)
+ #define SYS_tkill (SYS_BASE + 238)
+ #define SYS_sched_yield (SYS_BASE + 158)
+-#define SYS_select (SYS_BASE + 82)
++#define SYS_select (SYS_BASE + 142) // newselect
+ 
+ #define ARM_BASE (SYS_BASE + 0x0f0000)
+ #define SYS_ARM_cacheflush (ARM_BASE + 2)
+@@ -313,10 +313,10 @@ TEXT runtime·usleep(SB),7,$12
+ 	MOVW	usec+0(FP), R0
+ 	MOVW	R0, R1
+ 	MOVW	$1000000, R2
+-	DIV	R1, R0
+-	MOD	R2, R0
+-	MOVW	R1, 4(SP)
+-	MOVW	R2, 8(SP)
++	DIV	R2, R0
++	MOD	R2, R1
++	MOVW	R0, 4(SP)
++	MOVW	R1, 8(SP)
+ 	MOVW	$0, R0
+ 	MOVW	$0, R1
+ 	MOVW	$0, R2

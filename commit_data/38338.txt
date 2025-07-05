@@ -24,9 +24,73 @@ Date:   Mon Oct 22 14:07:36 2018 -0700
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/go/types/api_test.go         |  2 +-
  src/go/types/testdata/issues.src | 11 +++++++++++
  src/go/types/typestring_test.go  |  2 +-
  src/go/types/typexpr.go          |  4 ++--
  4 files changed, 15 insertions(+), 4 deletions(-)
+
+diff --git a/src/go/types/api_test.go b/src/go/types/api_test.go
+index 85de9f6079..fe3950a52d 100644
+--- a/src/go/types/api_test.go
++++ b/src/go/types/api_test.go
+@@ -262,7 +262,7 @@ func TestTypesInfo(t *testing.T) {
+ 			`...int`,
+ 			`[]int`,
+ 		},
+-		{`package issue28277_b; func f(a, b, c ...[]struct{})`,
++		{`package issue28277_b; func f(a, b int, c ...[]struct{})`,
+ 			`...[]struct{}`,
+ 			`[][]struct{}`,
+ 		},
+diff --git a/src/go/types/testdata/issues.src b/src/go/types/testdata/issues.src
+index 13f8309c82..8260f58519 100644
+--- a/src/go/types/testdata/issues.src
++++ b/src/go/types/testdata/issues.src
+@@ -302,3 +302,14 @@ var issue27346 = [][n /* ERROR undeclared */ ]int{
+ }
+ 
+ var issue22467 = map[int][... /* ERROR invalid use of ... */ ]int{0: {}}
++
++// Test that invalid use of ... in parameter lists is recognized
++// (issue #28281).
++func issue28281a(int, int, ...int)
++func issue28281b(a, b int, c ...int)
++func issue28281c(a, b, c ... /* ERROR can only use ... with final parameter */ int)
++func issue28281d(... /* ERROR can only use ... with final parameter */ int, int)
++func issue28281e(a, b, c  ... /* ERROR can only use ... with final parameter */ int, d int)
++func issue28281f(... /* ERROR can only use ... with final parameter */ int, ... /* ERROR can only use ... with final parameter */ int, int)
++func (... /* ERROR expected type */ TT) f()
++func issue28281g() (... /* ERROR expected type */ TT)
+\ No newline at end of file
+diff --git a/src/go/types/typestring_test.go b/src/go/types/typestring_test.go
+index 0efb7f0013..3cae4f134a 100644
+--- a/src/go/types/typestring_test.go
++++ b/src/go/types/typestring_test.go
+@@ -89,7 +89,7 @@ var independentTestTypes = []testEntry{
+ 	dup("func(...int) string"),
+ 	dup("func(x ...int) string"),
+ 	dup("func(x ...int) (u string)"),
+-	{"func(x, y ...int) (u string)", "func(x int, y ...int) (u string)"},
++	{"func(x int, y ...int) (u string)", "func(x int, y ...int) (u string)"},
+ 
+ 	// interfaces
+ 	dup("interface{}"),
+diff --git a/src/go/types/typexpr.go b/src/go/types/typexpr.go
+index 0a9c0f13e3..b16bf962cd 100644
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@ -414,10 +414,10 @@ func (check *Checker) collectParams(scope *Scope, list *ast.FieldList, variadicO
+ 		ftype := field.Type
+ 		if t, _ := ftype.(*ast.Ellipsis); t != nil {
+ 			ftype = t.Elt
+-			if variadicOk && i == len(list.List)-1 {
++			if variadicOk && i == len(list.List)-1 && len(field.Names) <= 1 {
+ 				variadic = true
+ 			} else {
+-				check.invalidAST(field.Pos(), "... not permitted")
++				check.softErrorf(t.Pos(), "can only use ... with final parameter in list")
+ 				// ignore ... and continue
+ 			}
+ 		}

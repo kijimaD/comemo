@@ -14,10 +14,103 @@ Date:   Wed Jan 6 16:43:21 2016 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  misc/cgo/testcarchive/main2.c | 2 +-
  misc/cgo/testcarchive/main3.c | 4 ++--
  misc/cgo/testcarchive/main4.c | 4 ++--
  misc/cgo/testcshared/main4.c  | 2 +-
  misc/cgo/testcshared/main5.c  | 4 ++--
  5 files changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/misc/cgo/testcarchive/main2.c b/misc/cgo/testcarchive/main2.c
+index 39e39c41a5..372697760d 100644
+--- a/misc/cgo/testcarchive/main2.c
++++ b/misc/cgo/testcarchive/main2.c
+@@ -152,7 +152,7 @@ int main(int argc, char** argv) {
+ 			perror("sched_yield");
+ 		}
+ 		i++;
+-		if (i > 10000) {
++		if (i > 100000) {
+ 			fprintf(stderr, "looping too long waiting for signal\n");
+ 			exit(EXIT_FAILURE);
+ 		}
+diff --git a/misc/cgo/testcarchive/main3.c b/misc/cgo/testcarchive/main3.c
+index 2d3e5650db..11046d087d 100644
+--- a/misc/cgo/testcarchive/main3.c
++++ b/misc/cgo/testcarchive/main3.c
+@@ -68,7 +68,7 @@ int main(int argc, char** argv) {
+ 			perror("sched_yield");
+ 		}
+ 		i++;
+-		if (i > 10000) {
++		if (i > 100000) {
+ 			fprintf(stderr, "looping too long waiting for signal\n");
+ 			exit(EXIT_FAILURE);
+ 		}
+@@ -142,7 +142,7 @@ int main(int argc, char** argv) {
+ 			perror("sched_yield");
+ 		}
+ 		i++;
+-		if (i > 10000) {
++		if (i > 100000) {
+ 			fprintf(stderr, "looping too long waiting for signal\n");
+ 			exit(EXIT_FAILURE);
+ 		}
+diff --git a/misc/cgo/testcarchive/main4.c b/misc/cgo/testcarchive/main4.c
+index 3d7b736115..2aaf09b7c1 100644
+--- a/misc/cgo/testcarchive/main4.c
++++ b/misc/cgo/testcarchive/main4.c
+@@ -78,7 +78,7 @@ static void* thread1(void* arg) {
+ 			perror("sched_yield");
+ 		}
+ 		i++;
+-		if (i > 10000) {
++		if (i > 100000) {
+ 			fprintf(stderr, "looping too long waiting for signal\n");
+ 			exit(EXIT_FAILURE);
+ 		}
+@@ -133,7 +133,7 @@ static void* thread2(void* arg) {
+ 			perror("sched_yield");
+ 		}
+ 		i++;
+-		if (i > 10000) {
++		if (i > 100000) {
+ 			fprintf(stderr, "looping too long waiting for signal\n");
+ 			exit(EXIT_FAILURE);
+ 		}
+diff --git a/misc/cgo/testcshared/main4.c b/misc/cgo/testcshared/main4.c
+index 803eb73bd9..fd7b5b31ed 100644
+--- a/misc/cgo/testcshared/main4.c
++++ b/misc/cgo/testcshared/main4.c
+@@ -170,7 +170,7 @@ int main(int argc, char** argv) {
+ 			perror("sched_yield");
+ 		}
+ 		i++;
+-		if (i > 10000) {
++		if (i > 100000) {
+ 			fprintf(stderr, "looping too long waiting for signal\n");
+ 			exit(EXIT_FAILURE);
+ 		}
+diff --git a/misc/cgo/testcshared/main5.c b/misc/cgo/testcshared/main5.c
+index 50ddb47c6b..97a258f21a 100644
+--- a/misc/cgo/testcshared/main5.c
++++ b/misc/cgo/testcshared/main5.c
+@@ -81,7 +81,7 @@ int main(int argc, char** argv) {
+ 			perror("sched_yield");
+ 		}
+ 		i++;
+-		if (i > 10000) {
++		if (i > 100000) {
+ 			fprintf(stderr, "looping too long waiting for signal\n");
+ 			exit(EXIT_FAILURE);
+ 		}
+@@ -186,7 +186,7 @@ int main(int argc, char** argv) {
+ 			perror("sched_yield");
+ 		}
+ 		i++;
+-		if (i > 10000) {
++		if (i > 100000) {
+ 			fprintf(stderr, "looping too long waiting for signal\n");
+ 			exit(EXIT_FAILURE);
+ 		}

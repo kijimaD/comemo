@@ -13,6 +13,28 @@ Date:   Wed Sep 28 09:12:11 2022 +0000
     Auto-Submit: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/base/flag.go | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/base/flag.go b/src/cmd/compile/internal/base/flag.go
+index 459ebf3ba4..9b97ce85d2 100644
+--- a/src/cmd/compile/internal/base/flag.go
++++ b/src/cmd/compile/internal/base/flag.go
+@@ -10,7 +10,6 @@ import (
+ 	"fmt"
+ 	"internal/buildcfg"
+ 	"internal/coverage"
+-	"io/ioutil"
+ 	"log"
+ 	"os"
+ 	"reflect"
+@@ -437,7 +436,7 @@ func readImportCfg(file string) {
+ 
+ func readCoverageCfg(file string) {
+ 	var cfg coverage.CoverFixupConfig
+-	data, err := ioutil.ReadFile(file)
++	data, err := os.ReadFile(file)
+ 	if err != nil {
+ 		log.Fatalf("-coveragecfg: %v", err)
+ 	}

@@ -7,7 +7,34 @@ Date:   Thu Dec 23 11:40:10 2010 +1100
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/3831041
-
+---
  src/pkg/testing/benchmark.go | 2 +-
  src/pkg/testing/testing.go   | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/testing/benchmark.go b/src/pkg/testing/benchmark.go
+index d82007e2ce..ad938027d3 100644
+--- a/src/pkg/testing/benchmark.go
++++ b/src/pkg/testing/benchmark.go
+@@ -175,7 +175,7 @@ func RunBenchmarks(matchString func(pat, str string) (bool, os.Error), benchmark
+ 	for _, Benchmark := range benchmarks {
+ 		matched, err := matchString(*matchBenchmarks, Benchmark.Name)
+ 		if err != nil {
+-			println("invalid regexp for -benchmarks:", err)
++			println("invalid regexp for -benchmarks:", err.String())
+ 			os.Exit(1)
+ 		}
+ 		if !matched {
+diff --git a/src/pkg/testing/testing.go b/src/pkg/testing/testing.go
+index ae6d034646..0e04935ce4 100644
+--- a/src/pkg/testing/testing.go
++++ b/src/pkg/testing/testing.go
+@@ -144,7 +144,7 @@ func Main(matchString func(pat, str string) (bool, os.Error), tests []InternalTe
+ 	for i := 0; i < len(tests); i++ {
+ 		matched, err := matchString(*match, tests[i].Name)
+ 		if err != nil {
+-			println("invalid regexp for -match:", err)
++			println("invalid regexp for -match:", err.String())
+ 			os.Exit(1)
+ 		}
+ 		if !matched {

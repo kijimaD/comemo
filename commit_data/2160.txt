@@ -9,9 +9,103 @@ Date:   Thu May 7 10:31:48 2009 -0700
     DELTA=27  (25 added, 0 deleted, 2 changed)
     OCL=28404
     CL=28411
-
+---
  src/lib/net/dialgoogle_test.go   | 13 ++++++++++++-
  src/lib/net/net.go               |  2 +-
  src/lib/syscall/socket_darwin.go |  7 +++++++
  src/lib/syscall/socket_linux.go  |  7 +++++++
  4 files changed, 27 insertions(+), 2 deletions(-)
+
+diff --git a/src/lib/net/dialgoogle_test.go b/src/lib/net/dialgoogle_test.go
+index 690ba572d7..1e0c0aaf06 100644
+--- a/src/lib/net/dialgoogle_test.go
++++ b/src/lib/net/dialgoogle_test.go
+@@ -10,6 +10,7 @@ import (
+ 	"io";
+ 	"net";
+ 	"os";
++	"syscall";
+ 	"testing";
+ )
+ 
+@@ -81,7 +82,17 @@ func TestDialGoogle(t *testing.T) {
+ 		doDialTCP(t, "tcp", addr);
+ 		if addr[0] != '[' {
+ 			doDial(t, "tcp4", addr);
+-			doDialTCP(t, "tcp4", addr)
++			doDialTCP(t, "tcp4", addr);
++
++			if !preferIPv4 {
++				// make sure preferIPv4 flag works.
++				preferIPv4 = true;
++				syscall.SocketDisableIPv6 = true;
++				doDial(t, "tcp4", addr);
++				doDialTCP(t, "tcp4", addr);
++				syscall.SocketDisableIPv6 = false;
++				preferIPv4 = false;
++			}
+ 		}
+ 		doDial(t, "tcp6", addr);
+ 		doDialTCP(t, "tcp6", addr)
+diff --git a/src/lib/net/net.go b/src/lib/net/net.go
+index 63074470bc..b4bb48b24f 100644
+--- a/src/lib/net/net.go
++++ b/src/lib/net/net.go
+@@ -345,7 +345,7 @@ func internetSocket(net, laddr, raddr string, proto int64, mode string)
+ 	default:
+ 		// Otherwise, guess.
+ 		// If the addresses are IPv4 and we prefer IPv4, use 4; else 6.
+-		if preferIPv4 && lip.To4() != nil && rip.To4() != nil {
++		if preferIPv4 && (lip == nil || lip.To4() != nil) && (rip == nil || rip.To4() != nil) {
+ 			vers = 4
+ 		} else {
+ 			vers = 6
+diff --git a/src/lib/syscall/socket_darwin.go b/src/lib/syscall/socket_darwin.go
+index dc76b9bead..ba640e9568 100644
+--- a/src/lib/syscall/socket_darwin.go
++++ b/src/lib/syscall/socket_darwin.go
+@@ -12,12 +12,19 @@ import (
+ 	"unsafe";
+ )
+ 
++// For testing: clients can set this flag to force
++// creation of IPv6 sockets to return EAFNOSUPPORT.
++var SocketDisableIPv6 bool
++
+ func SockaddrToSockaddrInet4(s *Sockaddr) *SockaddrInet4;
+ func SockaddrToSockaddrInet6(s *Sockaddr) *SockaddrInet6;
+ func SockaddrInet4ToSockaddr(s *SockaddrInet4) *Sockaddr;
+ func SockaddrInet6ToSockaddr(s *SockaddrInet6) *Sockaddr;
+ 
+ func Socket(domain, proto, typ int64) (ret int64, err int64) {
++	if domain == AF_INET6 && SocketDisableIPv6 {
++		return -1, EAFNOSUPPORT
++	}
+ 	r1, r2, e := Syscall(SYS_SOCKET, domain, proto, typ);
+ 	return r1, e
+ }
+diff --git a/src/lib/syscall/socket_linux.go b/src/lib/syscall/socket_linux.go
+index 39b9aa60f5..8dc75dd3a4 100644
+--- a/src/lib/syscall/socket_linux.go
++++ b/src/lib/syscall/socket_linux.go
+@@ -12,6 +12,10 @@ import (
+ 	"unsafe";
+ )
+ 
++// For testing: clients can set this flag to force
++// creation of IPv6 sockets to return EAFNOSUPPORT.
++var SocketDisableIPv6 bool
++
+ func SockaddrToSockaddrInet4(s *Sockaddr) *SockaddrInet4;
+ func SockaddrToSockaddrInet6(s *Sockaddr) *SockaddrInet6;
+ func SockaddrInet4ToSockaddr(s *SockaddrInet4) *Sockaddr;
+@@ -30,6 +34,9 @@ func saLen(s *Sockaddr) int64 {
+ }
+ 
+ func Socket(domain, proto, typ int64) (ret int64, err int64) {
++	if domain == AF_INET6 && SocketDisableIPv6 {
++		return -1, EAFNOSUPPORT
++	}
+ 	r1, r2, e := Syscall(SYS_SOCKET, domain, proto, typ);
+ 	return r1, e
+ }

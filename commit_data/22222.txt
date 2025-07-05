@@ -21,6 +21,27 @@ Date:   Sun Mar 1 18:08:15 2015 +0100
     Change-Id: I7e11a9b109c22f23608eb09c406b7c3dba31f26a
     Reviewed-on: https://go-review.googlesource.com/6386
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/os1_plan9.go | 7 +------
  1 file changed, 1 insertion(+), 6 deletions(-)
+
+diff --git a/src/runtime/os1_plan9.go b/src/runtime/os1_plan9.go
+index 61b0397249..bba1f17e32 100644
+--- a/src/runtime/os1_plan9.go
++++ b/src/runtime/os1_plan9.go
+@@ -85,14 +85,9 @@ func crash() {
+ 	*(*int)(nil) = 0
+ }
+ 
+-var random_dev = []byte("/dev/random\x00")
+-
+ //go:nosplit
+ func getRandomData(r []byte) {
+-	fd := open(&random_dev[0], 0 /* O_RDONLY */, 0)
+-	n := read(fd, unsafe.Pointer(&r[0]), int32(len(r)))
+-	close(fd)
+-	extendRandom(r, int(n))
++	extendRandom(r, 0)
+ }
+ 
+ func goenvs() {

@@ -9,8 +9,83 @@ Date:   Mon May 21 11:07:27 2012 -0700
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/6203094
-
+---
  src/pkg/net/http/response.go      |  9 ++++++---
  src/pkg/net/http/response_test.go | 15 +++++++++++++++
  src/pkg/net/http/transfer.go      |  6 ++++--
  3 files changed, 25 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/net/http/response.go b/src/pkg/net/http/response.go
+index b790220978..945ecd8a4b 100644
+--- a/src/pkg/net/http/response.go
++++ b/src/pkg/net/http/response.go
+@@ -202,9 +202,12 @@ func (r *Response) Write(w io.Writer) error {
+ 			text = "status code " + strconv.Itoa(r.StatusCode)
+ 		}
+ 	}
+-	io.WriteString(w, "HTTP/"+strconv.Itoa(r.ProtoMajor)+".")
+-	io.WriteString(w, strconv.Itoa(r.ProtoMinor)+" ")
+-	io.WriteString(w, strconv.Itoa(r.StatusCode)+" "+text+"\r\n")
++	protoMajor, protoMinor := strconv.Itoa(r.ProtoMajor), strconv.Itoa(r.ProtoMinor)
++	statusCode := strconv.Itoa(r.StatusCode) + " "
++	if strings.HasPrefix(text, statusCode) {
++		text = text[len(statusCode):]
++	}
++	io.WriteString(w, "HTTP/"+protoMajor+"."+protoMinor+" "+statusCode+text+"\r\n")
+ 
+ 	// Process Body,ContentLength,Close,Trailer
+ 	tw, err := newTransferWriter(r)
+diff --git a/src/pkg/net/http/response_test.go b/src/pkg/net/http/response_test.go
+index 165ec3624a..6eed4887dd 100644
+--- a/src/pkg/net/http/response_test.go
++++ b/src/pkg/net/http/response_test.go
+@@ -14,6 +14,7 @@ import (
+ 	"io/ioutil"
+ 	"net/url"
+ 	"reflect"
++	"strings"
+ 	"testing"
+ )
+ 
+@@ -444,3 +445,17 @@ func TestLocationResponse(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestResponseStatusStutter(t *testing.T) {
++	r := &Response{
++		Status:     "123 some status",
++		StatusCode: 123,
++		ProtoMajor: 1,
++		ProtoMinor: 3,
++	}
++	var buf bytes.Buffer
++	r.Write(&buf)
++	if strings.Contains(buf.String(), "123 123") {
++		t.Errorf("stutter in status: %s", buf.String())
++	}
++}
+diff --git a/src/pkg/net/http/transfer.go b/src/pkg/net/http/transfer.go
+index 3c8fe7f5b5..9e9d84172d 100644
+--- a/src/pkg/net/http/transfer.go
++++ b/src/pkg/net/http/transfer.go
+@@ -71,7 +71,9 @@ func newTransferWriter(r interface{}) (t *transferWriter, err error) {
+ 			}
+ 		}
+ 	case *Response:
+-		t.Method = rr.Request.Method
++		if rr.Request != nil {
++			t.Method = rr.Request.Method
++		}
+ 		t.Body = rr.Body
+ 		t.BodyCloser = rr.Body
+ 		t.ContentLength = rr.ContentLength
+@@ -79,7 +81,7 @@ func newTransferWriter(r interface{}) (t *transferWriter, err error) {
+ 		t.TransferEncoding = rr.TransferEncoding
+ 		t.Trailer = rr.Trailer
+ 		atLeastHTTP11 = rr.ProtoAtLeast(1, 1)
+-		t.ResponseToHEAD = noBodyExpected(rr.Request.Method)
++		t.ResponseToHEAD = noBodyExpected(t.Method)
+ 	}
+ 
+ 	// Sanitize Body,ContentLength,TransferEncoding

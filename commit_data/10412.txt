@@ -10,6 +10,20 @@ Date:   Tue Nov 15 14:29:45 2011 -0800
     R=golang-dev, gri
     CC=golang-dev
     https://golang.org/cl/5372107
-
+---
  src/pkg/exp/sql/driver/driver.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/pkg/exp/sql/driver/driver.go b/src/pkg/exp/sql/driver/driver.go
+index 35fc6ae43c..9fc47905ce 100644
+--- a/src/pkg/exp/sql/driver/driver.go
++++ b/src/pkg/exp/sql/driver/driver.go
+@@ -138,6 +138,8 @@ type Rows interface {
+ 	// The dest slice may be populated with only with values
+ 	// of subset types defined above, but excluding string.
+ 	// All string values must be converted to []byte.
++	//
++	// Next should return io.EOF when there are no more rows.
+ 	Next(dest []interface{}) error
+ }
+ 

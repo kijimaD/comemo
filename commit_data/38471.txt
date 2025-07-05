@@ -14,6 +14,29 @@ Date:   Wed Oct 31 17:15:32 2018 +0200
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/time/example_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/time/example_test.go b/src/time/example_test.go
+index 7e303ac5a0..0fd325f2e4 100644
+--- a/src/time/example_test.go
++++ b/src/time/example_test.go
+@@ -132,7 +132,7 @@ func ExampleAfter() {
+ 	select {
+ 	case m := <-c:
+ 		handle(m)
+-	case <-time.After(5 * time.Minute):
++	case <-time.After(10 * time.Second):
+ 		fmt.Println("timed out")
+ 	}
+ }
+@@ -144,7 +144,7 @@ func ExampleSleep() {
+ func statusUpdate() string { return "" }
+ 
+ func ExampleTick() {
+-	c := time.Tick(1 * time.Minute)
++	c := time.Tick(5 * time.Second)
+ 	for now := range c {
+ 		fmt.Printf("%v %s\n", now, statusUpdate())
+ 	}

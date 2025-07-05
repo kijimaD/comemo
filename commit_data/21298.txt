@@ -8,6 +8,35 @@ Date:   Thu Dec 18 17:28:03 2014 -0500
     Signed-off-by: Shenghou Ma <minux@golang.org>
     Reviewed-on: https://go-review.googlesource.com/1802
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-
+---
  test/fixedbugs/issue9355.go | 10 +++++-----
  1 file changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/test/fixedbugs/issue9355.go b/test/fixedbugs/issue9355.go
+index 7903ff2c41..a6cf0e32a8 100644
+--- a/test/fixedbugs/issue9355.go
++++ b/test/fixedbugs/issue9355.go
+@@ -17,7 +17,7 @@ import (
+ )
+ 
+ func main() {
+-	if runtime.Compiler != "gc" {
++	if runtime.Compiler != "gc" || runtime.GOOS == "nacl" {
+ 		return
+ 	}
+ 	a, err := build.ArchChar(runtime.GOARCH)
+@@ -27,10 +27,10 @@ func main() {
+ 	}
+ 	out := run("go", "tool", a+"g", "-S", filepath.Join("fixedbugs", "issue9355.dir", "a.go"))
+ 	patterns := []string{
+-		`rel 0\+\d t=1 \"\"\.x\+8\n`,  // y = &x.b
+-		`rel 0\+\d t=1 \"\"\.x\+28\n`, // z = &x.d.q
+-		`rel 0\+\d t=1 \"\"\.b\+5\n`,  // c = &b[5]
+-		`rel 0\+\d t=1 \"\"\.x\+88\n`, // w = &x.f[3].r
++		`rel 0\+\d t=1 \"\"\.x\+8\r?\n`,  // y = &x.b
++		`rel 0\+\d t=1 \"\"\.x\+28\r?\n`, // z = &x.d.q
++		`rel 0\+\d t=1 \"\"\.b\+5\r?\n`,  // c = &b[5]
++		`rel 0\+\d t=1 \"\"\.x\+88\r?\n`, // w = &x.f[3].r
+ 	}
+ 	for _, p := range patterns {
+ 		if ok, err := regexp.Match(p, out); !ok || err != nil {

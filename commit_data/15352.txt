@@ -13,7 +13,7 @@ Date:   Thu Feb 21 12:19:54 2013 -0500
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/7402046
-
+---
  src/cmd/fix/error.go              | 353 ----------------
  src/cmd/fix/error_test.go         | 240 -----------
  src/cmd/fix/filepath.go           |  56 ---
@@ -85,3 +85,7272 @@ Date:   Thu Feb 21 12:19:54 2013 -0500
  src/cmd/fix/xmlapi.go             | 111 -----
  src/cmd/fix/xmlapi_test.go        |  85 ----
  70 files changed, 6848 deletions(-)
+
+diff --git a/src/cmd/fix/error.go b/src/cmd/fix/error.go
+deleted file mode 100644
+index 55613210a7..0000000000
+--- a/src/cmd/fix/error.go
++++ /dev/null
+@@ -1,353 +0,0 @@
+-// Copyright 2011 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-import (
+-	"go/ast"
+-	"regexp"
+-	"strings"
+-)
+-
+-func init() {
+-	register(errorFix)
+-}
+-
+-var errorFix = fix{
+-	"error",
+-	"2011-11-02",
+-	errorFn,
+-	`Use error instead of os.Error.
+-
+-This fix rewrites code using os.Error to use error:
+-
+-	os.Error -> error
+-	os.NewError -> errors.New
+-	os.EOF -> io.EOF
+-
+-Seeing the old names above (os.Error and so on) triggers the following
+-heuristic rewrites.  The heuristics can be forced using the -force=error flag.
+-
+-A top-level function, variable, or constant named error is renamed error_.
+-
+-Error implementations—those types used as os.Error or named
+-XxxError—have their String methods renamed to Error.  Any existing
+-Error field or method is renamed to Err.
+-
+-Error values—those with type os.Error or named e, err, error, err1,
+-and so on—have method calls and field references rewritten just
+-as the types do (String to Error, Error to Err).  Also, a type assertion
+-of the form err.(*os.Waitmsg) becomes err.(*exec.ExitError).
+-
+-http://codereview.appspot.com/5305066
+-`,
+-}
+-
+-// At minimum, this fix applies the following rewrites:
+-//
+-//	os.Error -> error
+-//	os.NewError -> errors.New
+-//	os.EOF -> io.EOF
+-//
+-// However, if can apply any of those rewrites, it assumes that the
+-// file predates the error type and tries to update the code to use
+-// the new definition for error - an Error method, not a String method.
+-// This more heuristic procedure may not be 100% accurate, so it is
+-// only run when the file needs updating anyway.  The heuristic can
+-// be forced to run using -force=error.
+-//
+-// First, we must identify the implementations of os.Error.
+-// These include the type of any value returned as or assigned to an os.Error.
+-// To that set we add any type whose name contains "Error" or "error".
+-// The heuristic helps for implementations that are not used as os.Error
+-// in the file in which they are defined.
+-//
+-// In any implementation of os.Error, we rename an existing struct field
+-// or method named Error to Err and rename the String method to Error.
+-//
+-// Second, we must identify the values of type os.Error.
+-// These include any value that obviously has type os.Error.
+-// To that set we add any variable whose name is e or err or error
+-// possibly followed by _ or a numeric or capitalized suffix.
+-// The heuristic helps for variables that are initialized using calls
+-// to functions in other packages.  The type checker does not have
+-// information about those packages available, and in general cannot
+-// (because the packages may themselves not compile).
+-//
+-// For any value of type os.Error, we replace a call to String with a call to Error.
+-// We also replace type assertion err.(*os.Waitmsg) with err.(*exec.ExitError).
+-
+-// Variables matching this regexp are assumed to have type os.Error.
+-var errVar = regexp.MustCompile(`^(e|err|error)_?([A-Z0-9].*)?$`)
+-
+-// Types matching this regexp are assumed to be implementations of os.Error.
+-var errType = regexp.MustCompile(`^\*?([Ee]rror|.*Error)$`)
+-
+-// Type-checking configuration: tell the type-checker this basic
+-// information about types, functions, and variables in external packages.
+-var errorTypeConfig = &TypeConfig{
+-	Type: map[string]*Type{
+-		"os.Error": {},
+-	},
+-	Func: map[string]string{
+-		"fmt.Errorf":  "os.Error",
+-		"os.NewError": "os.Error",
+-	},
+-	Var: map[string]string{
+-		"os.EPERM":        "os.Error",
+-		"os.ENOENT":       "os.Error",
+-		"os.ESRCH":        "os.Error",
+-		"os.EINTR":        "os.Error",
+-		"os.EIO":          "os.Error",
+-		"os.ENXIO":        "os.Error",
+-		"os.E2BIG":        "os.Error",
+-		"os.ENOEXEC":      "os.Error",
+-		"os.EBADF":        "os.Error",
+-		"os.ECHILD":       "os.Error",
+-		"os.EDEADLK":      "os.Error",
+-		"os.ENOMEM":       "os.Error",
+-		"os.EACCES":       "os.Error",
+-		"os.EFAULT":       "os.Error",
+-		"os.EBUSY":        "os.Error",
+-		"os.EEXIST":       "os.Error",
+-		"os.EXDEV":        "os.Error",
+-		"os.ENODEV":       "os.Error",
+-		"os.ENOTDIR":      "os.Error",
+-		"os.EISDIR":       "os.Error",
+-		"os.EINVAL":       "os.Error",
+-		"os.ENFILE":       "os.Error",
+-		"os.EMFILE":       "os.Error",
+-		"os.ENOTTY":       "os.Error",
+-		"os.EFBIG":        "os.Error",
+-		"os.ENOSPC":       "os.Error",
+-		"os.ESPIPE":       "os.Error",
+-		"os.EROFS":        "os.Error",
+-		"os.EMLINK":       "os.Error",
+-		"os.EPIPE":        "os.Error",
+-		"os.EAGAIN":       "os.Error",
+-		"os.EDOM":         "os.Error",
+-		"os.ERANGE":       "os.Error",
+-		"os.EADDRINUSE":   "os.Error",
+-		"os.ECONNREFUSED": "os.Error",
+-		"os.ENAMETOOLONG": "os.Error",
+-		"os.EAFNOSUPPORT": "os.Error",
+-		"os.ETIMEDOUT":    "os.Error",
+-		"os.ENOTCONN":     "os.Error",
+-	},
+-}
+-
+-func errorFn(f *ast.File) bool {
+-	if !imports(f, "os") && !force["error"] {
+-		return false
+-	}
+-
+-	// Fix gets called once to run the heuristics described above
+-	// when we notice that this file definitely needs fixing
+-	// (it mentions os.Error or something similar).
+-	var fixed bool
+-	var didHeuristic bool
+-	heuristic := func() {
+-		if didHeuristic {
+-			return
+-		}
+-		didHeuristic = true
+-
+-		// We have identified a necessary fix (like os.Error -> error)
+-		// but have not applied it or any others yet.  Prepare the file
+-		// for fixing and apply heuristic fixes.
+-
+-		// Rename error to error_ to make room for error.
+-		fixed = renameTop(f, "error", "error_") || fixed
+-
+-		// Use type checker to build list of error implementations.
+-		typeof, assign := typecheck(errorTypeConfig, f)
+-
+-		isError := map[string]bool{}
+-		for _, val := range assign["os.Error"] {
+-			t := typeof[val]
+-			if strings.HasPrefix(t, "*") {
+-				t = t[1:]
+-			}
+-			if t != "" && !strings.HasPrefix(t, "func(") {
+-				isError[t] = true
+-			}
+-		}
+-
+-		// We use both the type check results and the "Error" name heuristic
+-		// to identify implementations of os.Error.
+-		isErrorImpl := func(typ string) bool {
+-			return isError[typ] || errType.MatchString(typ)
+-		}
+-
+-		isErrorVar := func(x ast.Expr) bool {
+-			if typ := typeof[x]; typ != "" {
+-				return isErrorImpl(typ) || typ == "os.Error"
+-			}
+-			if sel, ok := x.(*ast.SelectorExpr); ok {
+-				return sel.Sel.Name == "Error" || sel.Sel.Name == "Err"
+-			}
+-			if id, ok := x.(*ast.Ident); ok {
+-				return errVar.MatchString(id.Name)
+-			}
+-			return false
+-		}
+-
+-		walk(f, func(n interface{}) {
+-			// In method declaration on error implementation type,
+-			// rename String() to Error() and Error() to Err().
+-			fn, ok := n.(*ast.FuncDecl)
+-			if ok &&
+-				fn.Recv != nil &&
+-				len(fn.Recv.List) == 1 &&
+-				isErrorImpl(typeName(fn.Recv.List[0].Type)) {
+-				// Rename.
+-				switch fn.Name.Name {
+-				case "String":
+-					fn.Name.Name = "Error"
+-					fixed = true
+-				case "Error":
+-					fn.Name.Name = "Err"
+-					fixed = true
+-				}
+-				return
+-			}
+-
+-			// In type definition of an error implementation type,
+-			// rename Error field to Err to make room for method.
+-			// Given type XxxError struct { ... Error T } rename field to Err.
+-			d, ok := n.(*ast.GenDecl)
+-			if ok {
+-				for _, s := range d.Specs {
+-					switch s := s.(type) {
+-					case *ast.TypeSpec:
+-						if isErrorImpl(typeName(s.Name)) {
+-							st, ok := s.Type.(*ast.StructType)
+-							if ok {
+-								for _, f := range st.Fields.List {
+-									for _, n := range f.Names {
+-										if n.Name == "Error" {
+-											n.Name = "Err"
+-											fixed = true
+-										}
+-									}
+-								}
+-							}
+-						}
+-					}
+-				}
+-			}
+-
+-			// For values that are an error implementation type,
+-			// rename .Error to .Err and .String to .Error
+-			sel, selok := n.(*ast.SelectorExpr)
+-			if selok && isErrorImpl(typeof[sel.X]) {
+-				switch sel.Sel.Name {
+-				case "Error":
+-					sel.Sel.Name = "Err"
+-					fixed = true
+-				case "String":
+-					sel.Sel.Name = "Error"
+-					fixed = true
+-				}
+-			}
+-
+-			// Assume x.Err is an error value and rename .String to .Error
+-			// Children have been processed so the rewrite from Error to Err
+-			// has already happened there.
+-			if selok {
+-				if subsel, ok := sel.X.(*ast.SelectorExpr); ok && subsel.Sel.Name == "Err" && sel.Sel.Name == "String" {
+-					sel.Sel.Name = "Error"
+-					fixed = true
+-				}
+-			}
+-
+-			// For values that are an error variable, rename .String to .Error.
+-			if selok && isErrorVar(sel.X) && sel.Sel.Name == "String" {
+-				sel.Sel.Name = "Error"
+-				fixed = true
+-			}
+-
+-			// Rewrite composite literal of error type to turn Error: into Err:.
+-			lit, ok := n.(*ast.CompositeLit)
+-			if ok && isErrorImpl(typeof[lit]) {
+-				for _, e := range lit.Elts {
+-					if kv, ok := e.(*ast.KeyValueExpr); ok && isName(kv.Key, "Error") {
+-						kv.Key.(*ast.Ident).Name = "Err"
+-						fixed = true
+-					}
+-				}
+-			}
+-
+-			// Rename os.Waitmsg to exec.ExitError
+-			// when used in a type assertion on an error.
+-			ta, ok := n.(*ast.TypeAssertExpr)
+-			if ok && isErrorVar(ta.X) && isPtrPkgDot(ta.Type, "os", "Waitmsg") {
+-				addImport(f, "exec")
+-				sel := ta.Type.(*ast.StarExpr).X.(*ast.SelectorExpr)
+-				sel.X.(*ast.Ident).Name = "exec"
+-				sel.Sel.Name = "ExitError"
+-				fixed = true
+-			}
+-
+-		})
+-	}
+-
+-	fix := func() {
+-		if fixed {
+-			return
+-		}
+-		fixed = true
+-		heuristic()
+-	}
+-
+-	if force["error"] {
+-		heuristic()
+-	}
+-
+-	walk(f, func(n interface{}) {
+-		p, ok := n.(*ast.Expr)
+-		if !ok {
+-			return
+-		}
+-		sel, ok := (*p).(*ast.SelectorExpr)
+-		if !ok {
+-			return
+-		}
+-		switch {
+-		case isPkgDot(sel, "os", "Error"):
+-			fix()
+-			*p = &ast.Ident{NamePos: sel.Pos(), Name: "error"}
+-		case isPkgDot(sel, "os", "NewError"):
+-			fix()
+-			addImport(f, "errors")
+-			sel.X.(*ast.Ident).Name = "errors"
+-			sel.Sel.Name = "New"
+-		case isPkgDot(sel, "os", "EOF"):
+-			fix()
+-			addImport(f, "io")
+-			sel.X.(*ast.Ident).Name = "io"
+-		}
+-	})
+-
+-	if fixed && !usesImport(f, "os") {
+-		deleteImport(f, "os")
+-	}
+-
+-	return fixed
+-}
+-
+-func typeName(typ ast.Expr) string {
+-	if p, ok := typ.(*ast.StarExpr); ok {
+-		typ = p.X
+-	}
+-	id, ok := typ.(*ast.Ident)
+-	if ok {
+-		return id.Name
+-	}
+-	sel, ok := typ.(*ast.SelectorExpr)
+-	if ok {
+-		return typeName(sel.X) + "." + sel.Sel.Name
+-	}
+-	return ""
+-}
+diff --git a/src/cmd/fix/error_test.go b/src/cmd/fix/error_test.go
+deleted file mode 100644
+index 027eed24f8..0000000000
+--- a/src/cmd/fix/error_test.go
++++ /dev/null
+@@ -1,240 +0,0 @@
+-// Copyright 2011 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-func init() {
+-	addTestCases(errorTests, errorFn)
+-}
+-
+-var errorTests = []testCase{
+-	{
+-		Name: "error.0",
+-		In: `package main
+-
+-func error() {}
+-
+-var error int
+-`,
+-		Out: `package main
+-
+-func error() {}
+-
+-var error int
+-`,
+-	},
+-	{
+-		Name: "error.1",
+-		In: `package main
+-
+-import "os"
+-
+-func f() os.Error {
+-	return os.EOF
+-}
+-
+-func error() {}
+-
+-var error int
+-
+-func g() {
+-	error := 1
+-	_ = error
+-}
+-
+-func h(os.Error) {}
+-
+-func i(...os.Error) {}
+-`,
+-		Out: `package main
+-
+-import "io"
+-
+-func f() error {
+-	return io.EOF
+-}
+-
+-func error_() {}
+-
+-var error_ int
+-
+-func g() {
+-	error := 1
+-	_ = error
+-}
+-
+-func h(error) {}
+-
+-func i(...error) {}
+-`,
+-	},
+-	{
+-		Name: "error.2",
+-		In: `package main
+-
+-import "os"
+-
+-func f() os.Error {
+-	return os.EOF
+-}
+-
+-func g() string {
+-	// these all convert because f is known
+-	if err := f(); err != nil {
+-		return err.String()
+-	}
+-	if err1 := f(); err1 != nil {
+-		return err1.String()
+-	}
+-	if e := f(); e != nil {
+-		return e.String()
+-	}
+-	if x := f(); x != nil {
+-		return x.String()
+-	}
+-
+-	// only the error names (err, err1, e) convert; u is not known
+-	if err := u(); err != nil {
+-		return err.String()
+-	}
+-	if err1 := u(); err1 != nil {
+-		return err1.String()
+-	}
+-	if e := u(); e != nil {
+-		return e.String()
+-	}
+-	if x := u(); x != nil {
+-		return x.String()
+-	}
+-	return ""
+-}
+-
+-type T int
+-
+-func (t T) String() string { return "t" }
+-
+-type PT int
+-
+-func (p *PT) String() string { return "pt" }
+-
+-type MyError int
+-
+-func (t MyError) String() string { return "myerror" }
+-
+-type PMyError int
+-
+-func (p *PMyError) String() string { return "pmyerror" }
+-
+-func error() {}
+-
+-var error int
+-`,
+-		Out: `package main
+-
+-import "io"
+-
+-func f() error {
+-	return io.EOF
+-}
+-
+-func g() string {
+-	// these all convert because f is known
+-	if err := f(); err != nil {
+-		return err.Error()
+-	}
+-	if err1 := f(); err1 != nil {
+-		return err1.Error()
+-	}
+-	if e := f(); e != nil {
+-		return e.Error()
+-	}
+-	if x := f(); x != nil {
+-		return x.Error()
+-	}
+-
+-	// only the error names (err, err1, e) convert; u is not known
+-	if err := u(); err != nil {
+-		return err.Error()
+-	}
+-	if err1 := u(); err1 != nil {
+-		return err1.Error()
+-	}
+-	if e := u(); e != nil {
+-		return e.Error()
+-	}
+-	if x := u(); x != nil {
+-		return x.String()
+-	}
+-	return ""
+-}
+-
+-type T int
+-
+-func (t T) String() string { return "t" }
+-
+-type PT int
+-
+-func (p *PT) String() string { return "pt" }
+-
+-type MyError int
+-
+-func (t MyError) Error() string { return "myerror" }
+-
+-type PMyError int
+-
+-func (p *PMyError) Error() string { return "pmyerror" }
+-
+-func error_() {}
+-
+-var error_ int
+-`,
+-	},
+-	{
+-		Name: "error.3",
+-		In: `package main
+-
+-import "os"
+-
+-func f() os.Error {
+-	return os.EOF
+-}
+-
+-type PathError struct {
+-	Name  string
+-	Error os.Error
+-}
+-
+-func (p *PathError) String() string {
+-	return p.Name + ": " + p.Error.String()
+-}
+-
+-func (p *PathError) Error1() string {
+-	p = &PathError{Error: nil}
+-	return fmt.Sprint(p.Name, ": ", p.Error)
+-}
+-`,
+-		Out: `package main
+-
+-import "io"
+-
+-func f() error {
+-	return io.EOF
+-}
+-
+-type PathError struct {
+-	Name string
+-	Err  error
+-}
+-
+-func (p *PathError) Error() string {
+-	return p.Name + ": " + p.Err.Error()
+-}
+-
+-func (p *PathError) Error1() string {
+-	p = &PathError{Err: nil}
+-	return fmt.Sprint(p.Name, ": ", p.Err)
+-}
+-`,
+-	},
+-}
+diff --git a/src/cmd/fix/filepath.go b/src/cmd/fix/filepath.go
+deleted file mode 100644
+index f31226018a..0000000000
+--- a/src/cmd/fix/filepath.go
++++ /dev/null
+@@ -1,56 +0,0 @@
+-// Copyright 2011 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-import (
+-	"go/ast"
+-)
+-
+-func init() {
+-	register(filepathFix)
+-}
+-
+-var filepathFix = fix{
+-	"filepath",
+-	"2011-06-26",
+-	filepathFunc,
+-	`Adapt code from filepath.[List]SeparatorString to string(filepath.[List]Separator).
+-
+-http://codereview.appspot.com/4527090
+-`,
+-}
+-
+-func filepathFunc(f *ast.File) (fixed bool) {
+-	if !imports(f, "path/filepath") {
+-		return
+-	}
+-
+-	walk(f, func(n interface{}) {
+-		e, ok := n.(*ast.Expr)
+-		if !ok {
+-			return
+-		}
+-
+-		var ident string
+-		switch {
+-		case isPkgDot(*e, "filepath", "SeparatorString"):
+-			ident = "filepath.Separator"
+-		case isPkgDot(*e, "filepath", "ListSeparatorString"):
+-			ident = "filepath.ListSeparator"
+-		default:
+-			return
+-		}
+-
+-		// string(filepath.[List]Separator)
+-		*e = &ast.CallExpr{
+-			Fun:  ast.NewIdent("string"),
+-			Args: []ast.Expr{ast.NewIdent(ident)},
+-		}
+-
+-		fixed = true
+-	})
+-
+-	return
+-}
+diff --git a/src/cmd/fix/filepath_test.go b/src/cmd/fix/filepath_test.go
+deleted file mode 100644
+index 37a2f5d9f0..0000000000
+--- a/src/cmd/fix/filepath_test.go
++++ /dev/null
+@@ -1,33 +0,0 @@
+-// Copyright 2011 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-func init() {
+-	addTestCases(filepathTests, filepathFunc)
+-}
+-
+-var filepathTests = []testCase{
+-	{
+-		Name: "filepath.0",
+-		In: `package main
+-
+-import (
+-	"path/filepath"
+-)
+-
+-var _ = filepath.SeparatorString
+-var _ = filepath.ListSeparatorString
+-`,
+-		Out: `package main
+-
+-import (
+-	"path/filepath"
+-)
+-
+-var _ = string(filepath.Separator)
+-var _ = string(filepath.ListSeparator)
+-`,
+-	},
+-}
+diff --git a/src/cmd/fix/go1pkgrename.go b/src/cmd/fix/go1pkgrename.go
+deleted file mode 100644
+index f701f62f0a..0000000000
+--- a/src/cmd/fix/go1pkgrename.go
++++ /dev/null
+@@ -1,146 +0,0 @@
+-// Copyright 2011 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-import (
+-	"go/ast"
+-	"strings"
+-)
+-
+-func init() {
+-	register(go1pkgrenameFix)
+-}
+-
+-var go1pkgrenameFix = fix{
+-	"go1rename",
+-	"2011-11-08",
+-	go1pkgrename,
+-	`Rewrite imports for packages moved during transition to Go 1.
+-
+-http://codereview.appspot.com/5316078
+-`,
+-}
+-
+-var go1PackageRenames = []struct{ old, new string }{
+-	{"asn1", "encoding/asn1"},
+-	{"big", "math/big"},
+-	{"cmath", "math/cmplx"},
+-	{"csv", "encoding/csv"},
+-	{"exec", "os/exec"},
+-	{"exp/template/html", "html/template"},
+-	{"gob", "encoding/gob"},
+-	{"http", "net/http"},
+-	{"http/cgi", "net/http/cgi"},
+-	{"http/fcgi", "net/http/fcgi"},
+-	{"http/httptest", "net/http/httptest"},
+-	{"http/pprof", "net/http/pprof"},
+-	{"json", "encoding/json"},
+-	{"mail", "net/mail"},
+-	{"rpc", "net/rpc"},
+-	{"rpc/jsonrpc", "net/rpc/jsonrpc"},
+-	{"scanner", "text/scanner"},
+-	{"smtp", "net/smtp"},
+-	{"syslog", "log/syslog"},
+-	{"tabwriter", "text/tabwriter"},
+-	{"template", "text/template"},
+-	{"template/parse", "text/template/parse"},
+-	{"rand", "math/rand"},
+-	{"url", "net/url"},
+-	{"utf16", "unicode/utf16"},
+-	{"utf8", "unicode/utf8"},
+-	{"xml", "encoding/xml"},
+-
+-	// go.crypto sub-repository
+-	{"crypto/bcrypt", "code.google.com/p/go.crypto/bcrypt"},
+-	{"crypto/blowfish", "code.google.com/p/go.crypto/blowfish"},
+-	{"crypto/cast5", "code.google.com/p/go.crypto/cast5"},
+-	{"crypto/md4", "code.google.com/p/go.crypto/md4"},
+-	{"crypto/ocsp", "code.google.com/p/go.crypto/ocsp"},
+-	{"crypto/openpgp", "code.google.com/p/go.crypto/openpgp"},
+-	{"crypto/openpgp/armor", "code.google.com/p/go.crypto/openpgp/armor"},
+-	{"crypto/openpgp/elgamal", "code.google.com/p/go.crypto/openpgp/elgamal"},
+-	{"crypto/openpgp/errors", "code.google.com/p/go.crypto/openpgp/errors"},
+-	{"crypto/openpgp/packet", "code.google.com/p/go.crypto/openpgp/packet"},
+-	{"crypto/openpgp/s2k", "code.google.com/p/go.crypto/openpgp/s2k"},
+-	{"crypto/ripemd160", "code.google.com/p/go.crypto/ripemd160"},
+-	{"crypto/twofish", "code.google.com/p/go.crypto/twofish"},
+-	{"crypto/xtea", "code.google.com/p/go.crypto/xtea"},
+-	{"exp/ssh", "code.google.com/p/go.crypto/ssh"},
+-
+-	// go.image sub-repository
+-	{"image/bmp", "code.google.com/p/go.image/bmp"},
+-	{"image/tiff", "code.google.com/p/go.image/tiff"},
+-
+-	// go.net sub-repository
+-	{"net/dict", "code.google.com/p/go.net/dict"},
+-	{"net/websocket", "code.google.com/p/go.net/websocket"},
+-	{"exp/spdy", "code.google.com/p/go.net/spdy"},
+-	{"http/spdy", "code.google.com/p/go.net/spdy"},
+-
+-	// go.codereview sub-repository
+-	{"encoding/git85", "code.google.com/p/go.codereview/git85"},
+-	{"patch", "code.google.com/p/go.codereview/patch"},
+-
+-	// exp
+-	{"ebnf", "exp/ebnf"},
+-	{"go/types", "exp/types"},
+-
+-	// deleted
+-	{"container/vector", ""},
+-	{"exp/datafmt", ""},
+-	{"go/typechecker", ""},
+-	{"old/netchan", ""},
+-	{"old/regexp", ""},
+-	{"old/template", ""},
+-	{"try", ""},
+-}
+-
+-var go1PackageNameRenames = []struct{ newPath, old, new string }{
+-	{"html/template", "html", "template"},
+-	{"math/cmplx", "cmath", "cmplx"},
+-}
+-
+-func go1pkgrename(f *ast.File) bool {
+-	fixed := false
+-
+-	// First update the imports.
+-	for _, rename := range go1PackageRenames {
+-		spec := importSpec(f, rename.old)
+-		if spec == nil {
+-			continue
+-		}
+-		if rename.new == "" {
+-			warn(spec.Pos(), "package %q has been deleted in Go 1", rename.old)
+-			continue
+-		}
+-		if rewriteImport(f, rename.old, rename.new) {
+-			fixed = true
+-		}
+-		if strings.HasPrefix(rename.new, "exp/") {
+-			warn(spec.Pos(), "package %q is not part of Go 1", rename.new)
+-		}
+-	}
+-	if !fixed {
+-		return false
+-	}
+-
+-	// Now update the package names used by importers.
+-	for _, rename := range go1PackageNameRenames {
+-		// These are rare packages, so do the import test before walking.
+-		if imports(f, rename.newPath) {
+-			walk(f, func(n interface{}) {
+-				if sel, ok := n.(*ast.SelectorExpr); ok {
+-					if isTopName(sel.X, rename.old) {
+-						// We know Sel.X is an Ident.
+-						sel.X.(*ast.Ident).Name = rename.new
+-						return
+-					}
+-				}
+-			})
+-		}
+-	}
+-
+-	return fixed
+-}
+diff --git a/src/cmd/fix/go1pkgrename_test.go b/src/cmd/fix/go1pkgrename_test.go
+deleted file mode 100644
+index 840e443b01..0000000000
+--- a/src/cmd/fix/go1pkgrename_test.go
++++ /dev/null
+@@ -1,139 +0,0 @@
+-// Copyright 2011 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-func init() {
+-	addTestCases(go1pkgrenameTests, go1pkgrename)
+-}
+-
+-var go1pkgrenameTests = []testCase{
+-	{
+-		Name: "go1rename.0",
+-		In: `package main
+-
+-import (
+-	"asn1"
+-	"big"
+-	"cmath"
+-	"csv"
+-	"exec"
+-	"exp/template/html"
+-	"gob"
+-	"http"
+-	"http/cgi"
+-	"http/fcgi"
+-	"http/httptest"
+-	"http/pprof"
+-	"json"
+-	"mail"
+-	"rand"
+-	"rpc"
+-	"rpc/jsonrpc"
+-	"scanner"
+-	"smtp"
+-	"syslog"
+-	"tabwriter"
+-	"template"
+-	"template/parse"
+-	"url"
+-	"utf16"
+-	"utf8"
+-	"xml"
+-
+-	"crypto/bcrypt"
+-)
+-`,
+-		Out: `package main
+-
+-import (
+-	"encoding/asn1"
+-	"encoding/csv"
+-	"encoding/gob"
+-	"encoding/json"
+-	"encoding/xml"
+-	"html/template"
+-	"log/syslog"
+-	"math/big"
+-	"math/cmplx"
+-	"math/rand"
+-	"net/http"
+-	"net/http/cgi"
+-	"net/http/fcgi"
+-	"net/http/httptest"
+-	"net/http/pprof"
+-	"net/mail"
+-	"net/rpc"
+-	"net/rpc/jsonrpc"
+-	"net/smtp"
+-	"net/url"
+-	"os/exec"
+-	"text/scanner"
+-	"text/tabwriter"
+-	"text/template"
+-	"text/template/parse"
+-	"unicode/utf16"
+-	"unicode/utf8"
+-
+-	"code.google.com/p/go.crypto/bcrypt"
+-)
+-`,
+-	},
+-	{
+-		Name: "go1rename.1",
+-		In: `package main
+-
+-import "cmath"
+-import poot "exp/template/html"
+-
+-import (
+-	"ebnf"
+-	"old/regexp"
+-)
+-
+-var _ = cmath.Sin
+-var _ = poot.Poot
+-`,
+-		Out: `package main
+-
+-import "math/cmplx"
+-import poot "html/template"
+-
+-import (
+-	"exp/ebnf"
+-	"old/regexp"
+-)
+-
+-var _ = cmplx.Sin
+-var _ = poot.Poot
+-`,
+-	},
+-	{
+-		Name: "go1rename.2",
+-		In: `package foo
+-
+-import (
+-	"fmt"
+-	"http"
+-	"url"
+-
+-	"google/secret/project/go"
+-)
+-
+-func main() {}
+-`,
+-		Out: `package foo
+-
+-import (
+-	"fmt"
+-	"net/http"
+-	"net/url"
+-
+-	"google/secret/project/go"
+-)
+-
+-func main() {}
+-`,
+-	},
+-}
+diff --git a/src/cmd/fix/go1rename.go b/src/cmd/fix/go1rename.go
+deleted file mode 100644
+index 9266c749c5..0000000000
+--- a/src/cmd/fix/go1rename.go
++++ /dev/null
+@@ -1,167 +0,0 @@
+-// Copyright 2012 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-func init() {
+-	register(go1renameFix)
+-}
+-
+-var go1renameFix = fix{
+-	"go1rename",
+-	"2012-02-12",
+-	renameFix(go1renameReplace),
+-	`Rewrite package-level names that have been renamed in Go 1.
+-
+-http://codereview.appspot.com/5625045/
+-http://codereview.appspot.com/5672072/
+-`,
+-}
+-
+-var go1renameReplace = []rename{
+-	{
+-		OldImport: "crypto/aes",
+-		NewImport: "crypto/cipher",
+-		Old:       "*aes.Cipher",
+-		New:       "cipher.Block",
+-	},
+-	{
+-		OldImport: "crypto/des",
+-		NewImport: "crypto/cipher",
+-		Old:       "*des.Cipher",
+-		New:       "cipher.Block",
+-	},
+-	{
+-		OldImport: "crypto/des",
+-		NewImport: "crypto/cipher",
+-		Old:       "*des.TripleDESCipher",
+-		New:       "cipher.Block",
+-	},
+-	{
+-		OldImport: "encoding/json",
+-		NewImport: "",
+-		Old:       "json.MarshalForHTML",
+-		New:       "json.Marshal",
+-	},
+-	{
+-		OldImport: "net/url",
+-		NewImport: "",
+-		Old:       "url.ParseWithReference",
+-		New:       "url.Parse",
+-	},
+-	{
+-		OldImport: "net/url",
+-		NewImport: "",
+-		Old:       "url.ParseRequest",
+-		New:       "url.ParseRequestURI",
+-	},
+-	{
+-		OldImport: "os",
+-		NewImport: "syscall",
+-		Old:       "os.Exec",
+-		New:       "syscall.Exec",
+-	},
+-	{
+-		OldImport: "runtime",
+-		NewImport: "",
+-		Old:       "runtime.Cgocalls",
+-		New:       "runtime.NumCgoCall",
+-	},
+-	{
+-		OldImport: "runtime",
+-		NewImport: "",
+-		Old:       "runtime.Goroutines",
+-		New:       "runtime.NumGoroutine",
+-	},
+-	{
+-		OldImport: "net/http",
+-		NewImport: "net/http/httputil",
+-		Old:       "http.ErrPersistEOF",
+-		New:       "httputil.ErrPersistEOF",
+-	},
+-	{
+-		OldImport: "net/http",
+-		NewImport: "net/http/httputil",
+-		Old:       "http.ErrPipeline",
+-		New:       "httputil.ErrPipeline",
+-	},
+-	{
+-		OldImport: "net/http",
+-		NewImport: "net/http/httputil",
+-		Old:       "http.ErrClosed",
+-		New:       "httputil.ErrClosed",
+-	},
+-	{
+-		OldImport: "net/http",
+-		NewImport: "net/http/httputil",
+-		Old:       "http.ServerConn",
+-		New:       "httputil.ServerConn",
+-	},
+-	{
+-		OldImport: "net/http",
+-		NewImport: "net/http/httputil",
+-		Old:       "http.ClientConn",
+-		New:       "httputil.ClientConn",
+-	},
+-	{
+-		OldImport: "net/http",
+-		NewImport: "net/http/httputil",
+-		Old:       "http.NewChunkedReader",
+-		New:       "httputil.NewChunkedReader",
+-	},
+-	{
+-		OldImport: "net/http",
+-		NewImport: "net/http/httputil",
+-		Old:       "http.NewChunkedWriter",
+-		New:       "httputil.NewChunkedWriter",
+-	},
+-	{
+-		OldImport: "net/http",
+-		NewImport: "net/http/httputil",
+-		Old:       "http.ReverseProxy",
+-		New:       "httputil.ReverseProxy",
+-	},
+-	{
+-		OldImport: "net/http",
+-		NewImport: "net/http/httputil",
+-		Old:       "http.NewSingleHostReverseProxy",
+-		New:       "httputil.NewSingleHostReverseProxy",
+-	},
+-	{
+-		OldImport: "net/http",
+-		NewImport: "net/http/httputil",
+-		Old:       "http.DumpRequest",
+-		New:       "httputil.DumpRequest",
+-	},
+-	{
+-		OldImport: "net/http",
+-		NewImport: "net/http/httputil",
+-		Old:       "http.DumpRequestOut",
+-		New:       "httputil.DumpRequestOut",
+-	},
+-	{
+-		OldImport: "net/http",
+-		NewImport: "net/http/httputil",
+-		Old:       "http.DumpResponse",
+-		New:       "httputil.DumpResponse",
+-	},
+-	{
+-		OldImport: "net/http",
+-		NewImport: "net/http/httputil",
+-		Old:       "http.NewClientConn",
+-		New:       "httputil.NewClientConn",
+-	},
+-	{
+-		OldImport: "net/http",
+-		NewImport: "net/http/httputil",
+-		Old:       "http.NewServerConn",
+-		New:       "httputil.NewServerConn",
+-	},
+-	{
+-		OldImport: "net/http",
+-		NewImport: "net/http/httputil",
+-		Old:       "http.NewProxyClientConn",
+-		New:       "httputil.NewProxyClientConn",
+-	},
+-}
+diff --git a/src/cmd/fix/go1rename_test.go b/src/cmd/fix/go1rename_test.go
+deleted file mode 100644
+index 90219ba710..0000000000
+--- a/src/cmd/fix/go1rename_test.go
++++ /dev/null
+@@ -1,195 +0,0 @@
+-// Copyright 2012 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-func init() {
+-	addTestCases(go1renameTests, go1renameFix.f)
+-}
+-
+-var go1renameTests = []testCase{
+-	{
+-		Name: "go1rename.0",
+-		In: `package main
+-
+-import (
+-	"crypto/aes"
+-	"crypto/des"
+-	"encoding/json"
+-	"net/http"
+-	"net/url"
+-	"os"
+-	"runtime"
+-)
+-
+-var (
+-	_ *aes.Cipher
+-	_ *des.Cipher
+-	_ *des.TripleDESCipher
+-	_ = json.MarshalForHTML
+-	_ = aes.New()
+-	_ = url.Parse
+-	_ = url.ParseWithReference
+-	_ = url.ParseRequest
+-	_ = os.Exec
+-	_ = runtime.Cgocalls
+-	_ = runtime.Goroutines
+-	_ = http.ErrPersistEOF
+-	_ = http.ErrPipeline
+-	_ = http.ErrClosed
+-	_ = http.NewSingleHostReverseProxy
+-	_ = http.NewChunkedReader
+-	_ = http.NewChunkedWriter
+-	_ *http.ReverseProxy
+-	_ *http.ClientConn
+-	_ *http.ServerConn
+-)
+-`,
+-		Out: `package main
+-
+-import (
+-	"crypto/aes"
+-	"crypto/cipher"
+-	"encoding/json"
+-	"net/http/httputil"
+-	"net/url"
+-	"runtime"
+-	"syscall"
+-)
+-
+-var (
+-	_ cipher.Block
+-	_ cipher.Block
+-	_ cipher.Block
+-	_ = json.Marshal
+-	_ = aes.New()
+-	_ = url.Parse
+-	_ = url.Parse
+-	_ = url.ParseRequestURI
+-	_ = syscall.Exec
+-	_ = runtime.NumCgoCall
+-	_ = runtime.NumGoroutine
+-	_ = httputil.ErrPersistEOF
+-	_ = httputil.ErrPipeline
+-	_ = httputil.ErrClosed
+-	_ = httputil.NewSingleHostReverseProxy
+-	_ = httputil.NewChunkedReader
+-	_ = httputil.NewChunkedWriter
+-	_ *httputil.ReverseProxy
+-	_ *httputil.ClientConn
+-	_ *httputil.ServerConn
+-)
+-`,
+-	},
+-	{
+-		Name: "httputil.0",
+-		In: `package main
+-
+-import "net/http"
+-
+-func f() {
+-	http.DumpRequest(nil, false)
+-	http.DumpRequestOut(nil, false)
+-	http.DumpResponse(nil, false)
+-	http.NewChunkedReader(nil)
+-	http.NewChunkedWriter(nil)
+-	http.NewClientConn(nil, nil)
+-	http.NewProxyClientConn(nil, nil)
+-	http.NewServerConn(nil, nil)
+-	http.NewSingleHostReverseProxy(nil)
+-}
+-`,
+-		Out: `package main
+-
+-import "net/http/httputil"
+-
+-func f() {
+-	httputil.DumpRequest(nil, false)
+-	httputil.DumpRequestOut(nil, false)
+-	httputil.DumpResponse(nil, false)
+-	httputil.NewChunkedReader(nil)
+-	httputil.NewChunkedWriter(nil)
+-	httputil.NewClientConn(nil, nil)
+-	httputil.NewProxyClientConn(nil, nil)
+-	httputil.NewServerConn(nil, nil)
+-	httputil.NewSingleHostReverseProxy(nil)
+-}
+-`,
+-	},
+-	{
+-		Name: "httputil.1",
+-		In: `package main
+-
+-import "net/http"
+-
+-func f() {
+-	http.DumpRequest(nil, false)
+-	http.DumpRequestOut(nil, false)
+-	http.DumpResponse(nil, false)
+-	http.NewChunkedReader(nil)
+-	http.NewChunkedWriter(nil)
+-	http.NewClientConn(nil, nil)
+-	http.NewProxyClientConn(nil, nil)
+-	http.NewServerConn(nil, nil)
+-	http.NewSingleHostReverseProxy(nil)
+-}
+-`,
+-		Out: `package main
+-
+-import "net/http/httputil"
+-
+-func f() {
+-	httputil.DumpRequest(nil, false)
+-	httputil.DumpRequestOut(nil, false)
+-	httputil.DumpResponse(nil, false)
+-	httputil.NewChunkedReader(nil)
+-	httputil.NewChunkedWriter(nil)
+-	httputil.NewClientConn(nil, nil)
+-	httputil.NewProxyClientConn(nil, nil)
+-	httputil.NewServerConn(nil, nil)
+-	httputil.NewSingleHostReverseProxy(nil)
+-}
+-`,
+-	},
+-	{
+-		Name: "httputil.2",
+-		In: `package main
+-
+-import "net/http"
+-
+-func f() {
+-	http.DumpRequest(nil, false)
+-	http.DumpRequestOut(nil, false)
+-	http.DumpResponse(nil, false)
+-	http.NewChunkedReader(nil)
+-	http.NewChunkedWriter(nil)
+-	http.NewClientConn(nil, nil)
+-	http.NewProxyClientConn(nil, nil)
+-	http.NewServerConn(nil, nil)
+-	http.NewSingleHostReverseProxy(nil)
+-	http.Get("")
+-}
+-`,
+-		Out: `package main
+-
+-import (
+-	"net/http"
+-	"net/http/httputil"
+-)
+-
+-func f() {
+-	httputil.DumpRequest(nil, false)
+-	httputil.DumpRequestOut(nil, false)
+-	httputil.DumpResponse(nil, false)
+-	httputil.NewChunkedReader(nil)
+-	httputil.NewChunkedWriter(nil)
+-	httputil.NewClientConn(nil, nil)
+-	httputil.NewProxyClientConn(nil, nil)
+-	httputil.NewServerConn(nil, nil)
+-	httputil.NewSingleHostReverseProxy(nil)
+-	http.Get("")
+-}
+-`,
+-	},
+-}
+diff --git a/src/cmd/fix/googlecode.go b/src/cmd/fix/googlecode.go
+deleted file mode 100644
+index 143781a74f..0000000000
+--- a/src/cmd/fix/googlecode.go
++++ /dev/null
+@@ -1,41 +0,0 @@
+-// Copyright 2011 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-import (
+-	"go/ast"
+-	"regexp"
+-)
+-
+-func init() {
+-	register(googlecodeFix)
+-}
+-
+-var googlecodeFix = fix{
+-	"googlecode",
+-	"2011-11-21",
+-	googlecode,
+-	`Rewrite Google Code imports from the deprecated form
+-"foo.googlecode.com/vcs/path" to "code.google.com/p/foo/path".
+-`,
+-}
+-
+-var googlecodeRe = regexp.MustCompile(`^([a-z0-9\-]+)\.googlecode\.com/(svn|git|hg)(/[a-z0-9A-Z_.\-/]+)?$`)
+-
+-func googlecode(f *ast.File) bool {
+-	fixed := false
+-
+-	for _, s := range f.Imports {
+-		old := importPath(s)
+-		if m := googlecodeRe.FindStringSubmatch(old); m != nil {
+-			new := "code.google.com/p/" + m[1] + m[3]
+-			if rewriteImport(f, old, new) {
+-				fixed = true
+-			}
+-		}
+-	}
+-
+-	return fixed
+-}
+diff --git a/src/cmd/fix/googlecode_test.go b/src/cmd/fix/googlecode_test.go
+deleted file mode 100644
+index c62ee4f326..0000000000
+--- a/src/cmd/fix/googlecode_test.go
++++ /dev/null
+@@ -1,31 +0,0 @@
+-// Copyright 2011 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-func init() {
+-	addTestCases(googlecodeTests, googlecode)
+-}
+-
+-var googlecodeTests = []testCase{
+-	{
+-		Name: "googlecode.0",
+-		In: `package main
+-
+-import (
+-	"foo.googlecode.com/hg/bar"
+-	"go-qux-23.googlecode.com/svn"
+-	"zap.googlecode.com/git/some/path"
+-)
+-`,
+-		Out: `package main
+-
+-import (
+-	"code.google.com/p/foo/bar"
+-	"code.google.com/p/go-qux-23"
+-	"code.google.com/p/zap/some/path"
+-)
+-`,
+-	},
+-}
+diff --git a/src/cmd/fix/hashsum.go b/src/cmd/fix/hashsum.go
+deleted file mode 100644
+index 0df6ad7496..0000000000
+--- a/src/cmd/fix/hashsum.go
++++ /dev/null
+@@ -1,94 +0,0 @@
+-// Copyright 2011 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-import (
+-	"go/ast"
+-)
+-
+-func init() {
+-	register(hashSumFix)
+-}
+-
+-var hashSumFix = fix{
+-	"hashsum",
+-	"2011-11-30",
+-	hashSumFn,
+-	`Pass a nil argument to calls to hash.Sum
+-
+-This fix rewrites code so that it passes a nil argument to hash.Sum.
+-The additional argument will allow callers to avoid an
+-allocation in the future.
+-
+-http://codereview.appspot.com/5448065
+-`,
+-}
+-
+-// Type-checking configuration: tell the type-checker this basic
+-// information about types, functions, and variables in external packages.
+-var hashSumTypeConfig = &TypeConfig{
+-	Var: map[string]string{
+-		"crypto.MD4":       "crypto.Hash",
+-		"crypto.MD5":       "crypto.Hash",
+-		"crypto.SHA1":      "crypto.Hash",
+-		"crypto.SHA224":    "crypto.Hash",
+-		"crypto.SHA256":    "crypto.Hash",
+-		"crypto.SHA384":    "crypto.Hash",
+-		"crypto.SHA512":    "crypto.Hash",
+-		"crypto.MD5SHA1":   "crypto.Hash",
+-		"crypto.RIPEMD160": "crypto.Hash",
+-	},
+-
+-	Func: map[string]string{
+-		"adler32.New":    "hash.Hash",
+-		"crc32.New":      "hash.Hash",
+-		"crc32.NewIEEE":  "hash.Hash",
+-		"crc64.New":      "hash.Hash",
+-		"fnv.New32a":     "hash.Hash",
+-		"fnv.New32":      "hash.Hash",
+-		"fnv.New64a":     "hash.Hash",
+-		"fnv.New64":      "hash.Hash",
+-		"hmac.New":       "hash.Hash",
+-		"hmac.NewMD5":    "hash.Hash",
+-		"hmac.NewSHA1":   "hash.Hash",
+-		"hmac.NewSHA256": "hash.Hash",
+-		"md4.New":        "hash.Hash",
+-		"md5.New":        "hash.Hash",
+-		"ripemd160.New":  "hash.Hash",
+-		"sha1.New224":    "hash.Hash",
+-		"sha1.New":       "hash.Hash",
+-		"sha256.New224":  "hash.Hash",
+-		"sha256.New":     "hash.Hash",
+-		"sha512.New384":  "hash.Hash",
+-		"sha512.New":     "hash.Hash",
+-	},
+-
+-	Type: map[string]*Type{
+-		"crypto.Hash": {
+-			Method: map[string]string{
+-				"New": "func() hash.Hash",
+-			},
+-		},
+-	},
+-}
+-
+-func hashSumFn(f *ast.File) bool {
+-	typeof, _ := typecheck(hashSumTypeConfig, f)
+-
+-	fixed := false
+-
+-	walk(f, func(n interface{}) {
+-		call, ok := n.(*ast.CallExpr)
+-		if ok && len(call.Args) == 0 {
+-			sel, ok := call.Fun.(*ast.SelectorExpr)
+-			if ok && sel.Sel.Name == "Sum" && typeof[sel.X] == "hash.Hash" {
+-				call.Args = append(call.Args, ast.NewIdent("nil"))
+-				fixed = true
+-			}
+-		}
+-	})
+-
+-	return fixed
+-}
+diff --git a/src/cmd/fix/hashsum_test.go b/src/cmd/fix/hashsum_test.go
+deleted file mode 100644
+index 241af2020d..0000000000
+--- a/src/cmd/fix/hashsum_test.go
++++ /dev/null
+@@ -1,99 +0,0 @@
+-// Copyright 2011 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-func init() {
+-	addTestCases(hashSumTests, hashSumFn)
+-}
+-
+-var hashSumTests = []testCase{
+-	{
+-		Name: "hashsum.0",
+-		In: `package main
+-
+-import "crypto/sha256"
+-
+-func f() []byte {
+-	h := sha256.New()
+-	return h.Sum()
+-}
+-`,
+-		Out: `package main
+-
+-import "crypto/sha256"
+-
+-func f() []byte {
+-	h := sha256.New()
+-	return h.Sum(nil)
+-}
+-`,
+-	},
+-
+-	{
+-		Name: "hashsum.1",
+-		In: `package main
+-
+-func f(h hash.Hash) []byte {
+-	return h.Sum()
+-}
+-`,
+-		Out: `package main
+-
+-func f(h hash.Hash) []byte {
+-	return h.Sum(nil)
+-}
+-`,
+-	},
+-
+-	{
+-		Name: "hashsum.0",
+-		In: `package main
+-
+-import "crypto/sha256"
+-
+-func f() []byte {
+-	h := sha256.New()
+-	h.Write([]byte("foo"))
+-	digest := h.Sum()
+-}
+-`,
+-		Out: `package main
+-
+-import "crypto/sha256"
+-
+-func f() []byte {
+-	h := sha256.New()
+-	h.Write([]byte("foo"))
+-	digest := h.Sum(nil)
+-}
+-`,
+-	},
+-
+-	{
+-		Name: "hashsum.0",
+-		In: `package main
+-
+-import _ "crypto/sha256"
+-import "crypto"
+-
+-func f() []byte {
+-	hashType := crypto.SHA256
+-	h := hashType.New()
+-	digest := h.Sum()
+-}
+-`,
+-		Out: `package main
+-
+-import _ "crypto/sha256"
+-import "crypto"
+-
+-func f() []byte {
+-	hashType := crypto.SHA256
+-	h := hashType.New()
+-	digest := h.Sum(nil)
+-}
+-`,
+-	},
+-}
+diff --git a/src/cmd/fix/hmacnew.go b/src/cmd/fix/hmacnew.go
+deleted file mode 100644
+index c0c44ef3e6..0000000000
+--- a/src/cmd/fix/hmacnew.go
++++ /dev/null
+@@ -1,61 +0,0 @@
+-// Copyright 2011 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-import "go/ast"
+-
+-func init() {
+-	register(hmacNewFix)
+-}
+-
+-var hmacNewFix = fix{
+-	"hmacnew",
+-	"2012-01-19",
+-	hmacnew,
+-	`Deprecate hmac.NewMD5, hmac.NewSHA1 and hmac.NewSHA256.
+-
+-This fix rewrites code using hmac.NewMD5, hmac.NewSHA1 and hmac.NewSHA256 to
+-use hmac.New:
+-
+-	hmac.NewMD5(key) -> hmac.New(md5.New, key)
+-	hmac.NewSHA1(key) -> hmac.New(sha1.New, key)
+-	hmac.NewSHA256(key) -> hmac.New(sha256.New, key)
+-
+-`,
+-}
+-
+-func hmacnew(f *ast.File) (fixed bool) {
+-	if !imports(f, "crypto/hmac") {
+-		return
+-	}
+-
+-	walk(f, func(n interface{}) {
+-		ce, ok := n.(*ast.CallExpr)
+-		if !ok {
+-			return
+-		}
+-
+-		var pkg string
+-		switch {
+-		case isPkgDot(ce.Fun, "hmac", "NewMD5"):
+-			pkg = "md5"
+-		case isPkgDot(ce.Fun, "hmac", "NewSHA1"):
+-			pkg = "sha1"
+-		case isPkgDot(ce.Fun, "hmac", "NewSHA256"):
+-			pkg = "sha256"
+-		default:
+-			return
+-		}
+-
+-		addImport(f, "crypto/"+pkg)
+-
+-		ce.Fun = ast.NewIdent("hmac.New")
+-		ce.Args = append([]ast.Expr{ast.NewIdent(pkg + ".New")}, ce.Args...)
+-
+-		fixed = true
+-	})
+-
+-	return
+-}
+diff --git a/src/cmd/fix/hmacnew_test.go b/src/cmd/fix/hmacnew_test.go
+deleted file mode 100644
+index 5aeee85738..0000000000
+--- a/src/cmd/fix/hmacnew_test.go
++++ /dev/null
+@@ -1,107 +0,0 @@
+-// Copyright 2011 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-func init() {
+-	addTestCases(hmacNewTests, hmacnew)
+-}
+-
+-var hmacNewTests = []testCase{
+-	{
+-		Name: "hmacnew.0",
+-		In: `package main
+-
+-import "crypto/hmac"
+-
+-var f = hmac.NewSHA1([]byte("some key"))
+-`,
+-		Out: `package main
+-
+-import (
+-	"crypto/hmac"
+-	"crypto/sha1"
+-)
+-
+-var f = hmac.New(sha1.New, []byte("some key"))
+-`,
+-	},
+-	{
+-		Name: "hmacnew.1",
+-		In: `package main
+-
+-import "crypto/hmac"
+-
+-var key = make([]byte, 8)
+-var f = hmac.NewSHA1(key)
+-`,
+-		Out: `package main
+-
+-import (
+-	"crypto/hmac"
+-	"crypto/sha1"
+-)
+-
+-var key = make([]byte, 8)
+-var f = hmac.New(sha1.New, key)
+-`,
+-	},
+-	{
+-		Name: "hmacnew.2",
+-		In: `package main
+-
+-import "crypto/hmac"
+-
+-var f = hmac.NewMD5([]byte("some key"))
+-`,
+-		Out: `package main
+-
+-import (
+-	"crypto/hmac"
+-	"crypto/md5"
+-)
+-
+-var f = hmac.New(md5.New, []byte("some key"))
+-`,
+-	},
+-	{
+-		Name: "hmacnew.3",
+-		In: `package main
+-
+-import "crypto/hmac"
+-
+-var f = hmac.NewSHA256([]byte("some key"))
+-`,
+-		Out: `package main
+-
+-import (
+-	"crypto/hmac"
+-	"crypto/sha256"
+-)
+-
+-var f = hmac.New(sha256.New, []byte("some key"))
+-`,
+-	},
+-	{
+-		Name: "hmacnew.4",
+-		In: `package main
+-
+-import (
+-	"crypto/hmac"
+-	"crypto/sha1"
+-)
+-
+-var f = hmac.New(sha1.New, []byte("some key"))
+-`,
+-		Out: `package main
+-
+-import (
+-	"crypto/hmac"
+-	"crypto/sha1"
+-)
+-
+-var f = hmac.New(sha1.New, []byte("some key"))
+-`,
+-	},
+-}
+diff --git a/src/cmd/fix/htmlerr.go b/src/cmd/fix/htmlerr.go
+deleted file mode 100644
+index b5105c8226..0000000000
+--- a/src/cmd/fix/htmlerr.go
++++ /dev/null
+@@ -1,47 +0,0 @@
+-// Copyright 2011 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-import (
+-	"go/ast"
+-)
+-
+-func init() {
+-	register(htmlerrFix)
+-}
+-
+-var htmlerrFix = fix{
+-	"htmlerr",
+-	"2011-11-04",
+-	htmlerr,
+-	`Rename html's Tokenizer.Error method to Err.
+-
+-http://codereview.appspot.com/5327064/
+-`,
+-}
+-
+-var htmlerrTypeConfig = &TypeConfig{
+-	Func: map[string]string{
+-		"html.NewTokenizer": "html.Tokenizer",
+-	},
+-}
+-
+-func htmlerr(f *ast.File) bool {
+-	if !imports(f, "html") {
+-		return false
+-	}
+-
+-	typeof, _ := typecheck(htmlerrTypeConfig, f)
+-
+-	fixed := false
+-	walk(f, func(n interface{}) {
+-		s, ok := n.(*ast.SelectorExpr)
+-		if ok && typeof[s.X] == "html.Tokenizer" && s.Sel.Name == "Error" {
+-			s.Sel.Name = "Err"
+-			fixed = true
+-		}
+-	})
+-	return fixed
+-}
+diff --git a/src/cmd/fix/htmlerr_test.go b/src/cmd/fix/htmlerr_test.go
+deleted file mode 100644
+index 043abc42a2..0000000000
+--- a/src/cmd/fix/htmlerr_test.go
++++ /dev/null
+@@ -1,39 +0,0 @@
+-// Copyright 2011 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-func init() {
+-	addTestCases(htmlerrTests, htmlerr)
+-}
+-
+-var htmlerrTests = []testCase{
+-	{
+-		Name: "htmlerr.0",
+-		In: `package main
+-
+-import (
+-	"html"
+-)
+-
+-func f() {
+-	e := errors.New("")
+-	t := html.NewTokenizer(r)
+-	_, _ = e.Error(), t.Error()
+-}
+-`,
+-		Out: `package main
+-
+-import (
+-	"html"
+-)
+-
+-func f() {
+-	e := errors.New("")
+-	t := html.NewTokenizer(r)
+-	_, _ = e.Error(), t.Err()
+-}
+-`,
+-	},
+-}
+diff --git a/src/cmd/fix/httpfinalurl.go b/src/cmd/fix/httpfinalurl.go
+deleted file mode 100644
+index 49b9f1c516..0000000000
+--- a/src/cmd/fix/httpfinalurl.go
++++ /dev/null
+@@ -1,57 +0,0 @@
+-// Copyright 2011 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-import (
+-	"go/ast"
+-)
+-
+-func init() {
+-	register(httpFinalURLFix)
+-}
+-
+-var httpFinalURLFix = fix{
+-	"httpfinalurl",
+-	"2011-05-13",
+-	httpfinalurl,
+-	`Adapt http Get calls to not have a finalURL result parameter.
+-
+-http://codereview.appspot.com/4535056/
+-`,
+-}
+-
+-func httpfinalurl(f *ast.File) bool {
+-	if !imports(f, "http") {
+-		return false
+-	}
+-
+-	fixed := false
+-	walk(f, func(n interface{}) {
+-		// Fix up calls to http.Get.
+-		//
+-		// If they have blank identifiers, remove them:
+-		//    resp, _, err := http.Get(url)
+-		// -> resp, err := http.Get(url)
+-		//
+-		// But if they're using the finalURL parameter, warn:
+-		//    resp, finalURL, err := http.Get(url)
+-		as, ok := n.(*ast.AssignStmt)
+-		if !ok || len(as.Lhs) != 3 || len(as.Rhs) != 1 {
+-			return
+-		}
+-
+-		if !isCall(as.Rhs[0], "http", "Get") {
+-			return
+-		}
+-
+-		if isBlank(as.Lhs[1]) {
+-			as.Lhs = []ast.Expr{as.Lhs[0], as.Lhs[2]}
+-			fixed = true
+-		} else {
+-			warn(as.Pos(), "call to http.Get records final URL")
+-		}
+-	})
+-	return fixed
+-}
+diff --git a/src/cmd/fix/httpfinalurl_test.go b/src/cmd/fix/httpfinalurl_test.go
+deleted file mode 100644
+index 9249f7e185..0000000000
+--- a/src/cmd/fix/httpfinalurl_test.go
++++ /dev/null
+@@ -1,37 +0,0 @@
+-// Copyright 2011 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-func init() {
+-	addTestCases(httpfinalurlTests, httpfinalurl)
+-}
+-
+-var httpfinalurlTests = []testCase{
+-	{
+-		Name: "finalurl.0",
+-		In: `package main
+-
+-import (
+-	"http"
+-)
+-
+-func f() {
+-	resp, _, err := http.Get("http://www.google.com/")
+-	_, _ = resp, err
+-}
+-`,
+-		Out: `package main
+-
+-import (
+-	"http"
+-)
+-
+-func f() {
+-	resp, err := http.Get("http://www.google.com/")
+-	_, _ = resp, err
+-}
+-`,
+-	},
+-}
+diff --git a/src/cmd/fix/httpfs.go b/src/cmd/fix/httpfs.go
+deleted file mode 100644
+index d87b30f9de..0000000000
+--- a/src/cmd/fix/httpfs.go
++++ /dev/null
+@@ -1,70 +0,0 @@
+-// Copyright 2011 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-import (
+-	"go/ast"
+-	"go/token"
+-)
+-
+-func init() {
+-	register(httpFileSystemFix)
+-}
+-
+-var httpFileSystemFix = fix{
+-	"httpfs",
+-	"2011-06-27",
+-	httpfs,
+-	`Adapt http FileServer to take a FileSystem.
+-
+-http://codereview.appspot.com/4629047  http FileSystem interface
+-`,
+-}
+-
+-func httpfs(f *ast.File) bool {
+-	if !imports(f, "http") {
+-		return false
+-	}
+-
+-	fixed := false
+-	walk(f, func(n interface{}) {
+-		call, ok := n.(*ast.CallExpr)
+-		if !ok || !isPkgDot(call.Fun, "http", "FileServer") {
+-			return
+-		}
+-		if len(call.Args) != 2 {
+-			return
+-		}
+-		dir, prefix := call.Args[0], call.Args[1]
+-		call.Args = []ast.Expr{&ast.CallExpr{
+-			Fun: &ast.SelectorExpr{
+-				X:   ast.NewIdent("http"),
+-				Sel: ast.NewIdent("Dir"),
+-			},
+-			Args: []ast.Expr{dir},
+-		}}
+-		wrapInStripHandler := true
+-		if prefixLit, ok := prefix.(*ast.BasicLit); ok {
+-			if prefixLit.Kind == token.STRING && (prefixLit.Value == `"/"` || prefixLit.Value == `""`) {
+-				wrapInStripHandler = false
+-			}
+-		}
+-		if wrapInStripHandler {
+-			call.Fun.(*ast.SelectorExpr).Sel = ast.NewIdent("StripPrefix")
+-			call.Args = []ast.Expr{
+-				prefix,
+-				&ast.CallExpr{
+-					Fun: &ast.SelectorExpr{
+-						X:   ast.NewIdent("http"),
+-						Sel: ast.NewIdent("FileServer"),
+-					},
+-					Args: call.Args,
+-				},
+-			}
+-		}
+-		fixed = true
+-	})
+-	return fixed
+-}
+diff --git a/src/cmd/fix/httpfs_test.go b/src/cmd/fix/httpfs_test.go
+deleted file mode 100644
+index dd8ef2cfd6..0000000000
+--- a/src/cmd/fix/httpfs_test.go
++++ /dev/null
+@@ -1,47 +0,0 @@
+-// Copyright 2011 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-func init() {
+-	addTestCases(httpFileSystemTests, httpfs)
+-}
+-
+-var httpFileSystemTests = []testCase{
+-	{
+-		Name: "httpfs.0",
+-		In: `package httpfs
+-
+-import (
+-	"http"
+-)
+-
+-func f() {
+-	_ = http.FileServer("/var/www/foo", "/")
+-	_ = http.FileServer("/var/www/foo", "")
+-	_ = http.FileServer("/var/www/foo/bar", "/bar")
+-	s := "/foo"
+-	_ = http.FileServer(s, "/")
+-	prefix := "/p"
+-	_ = http.FileServer(s, prefix)
+-}
+-`,
+-		Out: `package httpfs
+-
+-import (
+-	"http"
+-)
+-
+-func f() {
+-	_ = http.FileServer(http.Dir("/var/www/foo"))
+-	_ = http.FileServer(http.Dir("/var/www/foo"))
+-	_ = http.StripPrefix("/bar", http.FileServer(http.Dir("/var/www/foo/bar")))
+-	s := "/foo"
+-	_ = http.FileServer(http.Dir(s))
+-	prefix := "/p"
+-	_ = http.StripPrefix(prefix, http.FileServer(http.Dir(s)))
+-}
+-`,
+-	},
+-}
+diff --git a/src/cmd/fix/httpheaders.go b/src/cmd/fix/httpheaders.go
+deleted file mode 100644
+index 15c21ac867..0000000000
+--- a/src/cmd/fix/httpheaders.go
++++ /dev/null
+@@ -1,67 +0,0 @@
+-// Copyright 2011 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-import (
+-	"go/ast"
+-)
+-
+-func init() {
+-	register(httpHeadersFix)
+-}
+-
+-var httpHeadersFix = fix{
+-	"httpheaders",
+-	"2011-06-16",
+-	httpheaders,
+-	`Rename http Referer, UserAgent, Cookie, SetCookie, which are now methods.
+-
+-http://codereview.appspot.com/4620049/
+-`,
+-}
+-
+-func httpheaders(f *ast.File) bool {
+-	if !imports(f, "http") {
+-		return false
+-	}
+-
+-	called := make(map[ast.Node]bool)
+-	walk(f, func(ni interface{}) {
+-		switch n := ni.(type) {
+-		case *ast.CallExpr:
+-			called[n.Fun] = true
+-		}
+-	})
+-
+-	fixed := false
+-	typeof, _ := typecheck(headerTypeConfig, f)
+-	walk(f, func(ni interface{}) {
+-		switch n := ni.(type) {
+-		case *ast.SelectorExpr:
+-			if called[n] {
+-				break
+-			}
+-			if t := typeof[n.X]; t != "*http.Request" && t != "*http.Response" {
+-				break
+-			}
+-			switch n.Sel.Name {
+-			case "Referer", "UserAgent":
+-				n.Sel.Name += "()"
+-				fixed = true
+-			case "Cookie":
+-				n.Sel.Name = "Cookies()"
+-				fixed = true
+-			}
+-		}
+-	})
+-	return fixed
+-}
+-
+-var headerTypeConfig = &TypeConfig{
+-	Type: map[string]*Type{
+-		"*http.Request":  {},
+-		"*http.Response": {},
+-	},
+-}
+diff --git a/src/cmd/fix/httpheaders_test.go b/src/cmd/fix/httpheaders_test.go
+deleted file mode 100644
+index 37506b82da..0000000000
+--- a/src/cmd/fix/httpheaders_test.go
++++ /dev/null
+@@ -1,73 +0,0 @@
+-// Copyright 2011 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-func init() {
+-	addTestCases(httpHeadersTests, httpheaders)
+-}
+-
+-var httpHeadersTests = []testCase{
+-	{
+-		Name: "httpheaders.0",
+-		In: `package headertest
+-
+-import (
+-	"http"
+-)
+-
+-type Other struct {
+-	Referer   string
+-	UserAgent string
+-	Cookie    []*http.Cookie
+-}
+-
+-func f(req *http.Request, res *http.Response, other *Other) {
+-	_ = req.Referer
+-	_ = req.UserAgent
+-	_ = req.Cookie
+-
+-	_ = res.Cookie
+-
+-	_ = other.Referer
+-	_ = other.UserAgent
+-	_ = other.Cookie
+-
+-	_ = req.Referer()
+-	_ = req.UserAgent()
+-	_ = req.Cookies()
+-	_ = res.Cookies()
+-}
+-`,
+-		Out: `package headertest
+-
+-import (
+-	"http"
+-)
+-
+-type Other struct {
+-	Referer   string
+-	UserAgent string
+-	Cookie    []*http.Cookie
+-}
+-
+-func f(req *http.Request, res *http.Response, other *Other) {
+-	_ = req.Referer()
+-	_ = req.UserAgent()
+-	_ = req.Cookies()
+-
+-	_ = res.Cookies()
+-
+-	_ = other.Referer
+-	_ = other.UserAgent
+-	_ = other.Cookie
+-
+-	_ = req.Referer()
+-	_ = req.UserAgent()
+-	_ = req.Cookies()
+-	_ = res.Cookies()
+-}
+-`,
+-	},
+-}
+diff --git a/src/cmd/fix/httpserver.go b/src/cmd/fix/httpserver.go
+deleted file mode 100644
+index 7aa6517864..0000000000
+--- a/src/cmd/fix/httpserver.go
++++ /dev/null
+@@ -1,141 +0,0 @@
+-// Copyright 2011 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-import (
+-	"go/ast"
+-	"go/token"
+-)
+-
+-func init() {
+-	register(httpserverFix)
+-}
+-
+-var httpserverFix = fix{
+-	"httpserver",
+-	"2011-03-15",
+-	httpserver,
+-	`Adapt http server methods and functions to changes
+-made to the http ResponseWriter interface.
+-
+-http://codereview.appspot.com/4245064  Hijacker
+-http://codereview.appspot.com/4239076  Header
+-http://codereview.appspot.com/4239077  Flusher
+-http://codereview.appspot.com/4248075  RemoteAddr, UsingTLS
+-`,
+-}
+-
+-func httpserver(f *ast.File) bool {
+-	if !imports(f, "http") {
+-		return false
+-	}
+-
+-	fixed := false
+-	for _, decl := range f.Decls {
+-		fn, ok := decl.(*ast.FuncDecl)
+-		if !ok {
+-			continue
+-		}
+-		w, req, ok := isServeHTTP(fn)
+-		if !ok {
+-			continue
+-		}
+-		walk(fn.Body, func(n interface{}) {
+-			// Want to replace expression sometimes,
+-			// so record pointer to it for updating below.
+-			ptr, ok := n.(*ast.Expr)
+-			if ok {
+-				n = *ptr
+-			}
+-
+-			// Look for w.UsingTLS() and w.Remoteaddr().
+-			call, ok := n.(*ast.CallExpr)
+-			if !ok || (len(call.Args) != 0 && len(call.Args) != 2) {
+-				return
+-			}
+-			sel, ok := call.Fun.(*ast.SelectorExpr)
+-			if !ok {
+-				return
+-			}
+-			if !refersTo(sel.X, w) {
+-				return
+-			}
+-			switch sel.Sel.String() {
+-			case "Hijack":
+-				// replace w with w.(http.Hijacker)
+-				sel.X = &ast.TypeAssertExpr{
+-					X:    sel.X,
+-					Type: ast.NewIdent("http.Hijacker"),
+-				}
+-				fixed = true
+-			case "Flush":
+-				// replace w with w.(http.Flusher)
+-				sel.X = &ast.TypeAssertExpr{
+-					X:    sel.X,
+-					Type: ast.NewIdent("http.Flusher"),
+-				}
+-				fixed = true
+-			case "UsingTLS":
+-				if ptr == nil {
+-					// can only replace expression if we have pointer to it
+-					break
+-				}
+-				// replace with req.TLS != nil
+-				*ptr = &ast.BinaryExpr{
+-					X: &ast.SelectorExpr{
+-						X:   ast.NewIdent(req.String()),
+-						Sel: ast.NewIdent("TLS"),
+-					},
+-					Op: token.NEQ,
+-					Y:  ast.NewIdent("nil"),
+-				}
+-				fixed = true
+-			case "RemoteAddr":
+-				if ptr == nil {
+-					// can only replace expression if we have pointer to it
+-					break
+-				}
+-				// replace with req.RemoteAddr
+-				*ptr = &ast.SelectorExpr{
+-					X:   ast.NewIdent(req.String()),
+-					Sel: ast.NewIdent("RemoteAddr"),
+-				}
+-				fixed = true
+-			case "SetHeader":
+-				// replace w.SetHeader with w.Header().Set
+-				// or w.Header().Del if second argument is ""
+-				sel.X = &ast.CallExpr{
+-					Fun: &ast.SelectorExpr{
+-						X:   ast.NewIdent(w.String()),
+-						Sel: ast.NewIdent("Header"),
+-					},
+-				}
+-				sel.Sel = ast.NewIdent("Set")
+-				if len(call.Args) == 2 && isEmptyString(call.Args[1]) {
+-					sel.Sel = ast.NewIdent("Del")
+-					call.Args = call.Args[:1]
+-				}
+-				fixed = true
+-			}
+-		})
+-	}
+-	return fixed
+-}
+-
+-func isServeHTTP(fn *ast.FuncDecl) (w, req *ast.Ident, ok bool) {
+-	for _, field := range fn.Type.Params.List {
+-		if isPkgDot(field.Type, "http", "ResponseWriter") {
+-			w = field.Names[0]
+-			continue
+-		}
+-		if isPtrPkgDot(field.Type, "http", "Request") {
+-			req = field.Names[0]
+-			continue
+-		}
+-	}
+-
+-	ok = w != nil && req != nil
+-	return
+-}
+diff --git a/src/cmd/fix/httpserver_test.go b/src/cmd/fix/httpserver_test.go
+deleted file mode 100644
+index b6ddff27e2..0000000000
+--- a/src/cmd/fix/httpserver_test.go
++++ /dev/null
+@@ -1,53 +0,0 @@
+-// Copyright 2011 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-func init() {
+-	addTestCases(httpserverTests, httpserver)
+-}
+-
+-var httpserverTests = []testCase{
+-	{
+-		Name: "httpserver.0",
+-		In: `package main
+-
+-import "http"
+-
+-func f(xyz http.ResponseWriter, abc *http.Request, b string) {
+-	xyz.SetHeader("foo", "bar")
+-	xyz.SetHeader("baz", "")
+-	xyz.Hijack()
+-	xyz.Flush()
+-	go xyz.Hijack()
+-	defer xyz.Flush()
+-	_ = xyz.UsingTLS()
+-	_ = true == xyz.UsingTLS()
+-	_ = xyz.RemoteAddr()
+-	_ = xyz.RemoteAddr() == "hello"
+-	if xyz.UsingTLS() {
+-	}
+-}
+-`,
+-		Out: `package main
+-
+-import "http"
+-
+-func f(xyz http.ResponseWriter, abc *http.Request, b string) {
+-	xyz.Header().Set("foo", "bar")
+-	xyz.Header().Del("baz")
+-	xyz.(http.Hijacker).Hijack()
+-	xyz.(http.Flusher).Flush()
+-	go xyz.(http.Hijacker).Hijack()
+-	defer xyz.(http.Flusher).Flush()
+-	_ = abc.TLS != nil
+-	_ = true == (abc.TLS != nil)
+-	_ = abc.RemoteAddr
+-	_ = abc.RemoteAddr == "hello"
+-	if abc.TLS != nil {
+-	}
+-}
+-`,
+-	},
+-}
+diff --git a/src/cmd/fix/imagecolor.go b/src/cmd/fix/imagecolor.go
+deleted file mode 100644
+index 1aac40a6fd..0000000000
+--- a/src/cmd/fix/imagecolor.go
++++ /dev/null
+@@ -1,85 +0,0 @@
+-// Copyright 2011 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-import (
+-	"go/ast"
+-)
+-
+-func init() {
+-	register(imagecolorFix)
+-}
+-
+-var imagecolorFix = fix{
+-	"imagecolor",
+-	"2011-10-04",
+-	imagecolor,
+-	`Adapt code to types moved from image to color.
+-
+-http://codereview.appspot.com/5132048
+-`,
+-}
+-
+-var colorRenames = []struct{ in, out string }{
+-	{"Color", "Color"},
+-	{"ColorModel", "Model"},
+-	{"ColorModelFunc", "ModelFunc"},
+-	{"PalettedColorModel", "Palette"},
+-
+-	{"RGBAColor", "RGBA"},
+-	{"RGBA64Color", "RGBA64"},
+-	{"NRGBAColor", "NRGBA"},
+-	{"NRGBA64Color", "NRGBA64"},
+-	{"AlphaColor", "Alpha"},
+-	{"Alpha16Color", "Alpha16"},
+-	{"GrayColor", "Gray"},
+-	{"Gray16Color", "Gray16"},
+-
+-	{"RGBAColorModel", "RGBAModel"},
+-	{"RGBA64ColorModel", "RGBA64Model"},
+-	{"NRGBAColorModel", "NRGBAModel"},
+-	{"NRGBA64ColorModel", "NRGBA64Model"},
+-	{"AlphaColorModel", "AlphaModel"},
+-	{"Alpha16ColorModel", "Alpha16Model"},
+-	{"GrayColorModel", "GrayModel"},
+-	{"Gray16ColorModel", "Gray16Model"},
+-}
+-
+-func imagecolor(f *ast.File) (fixed bool) {
+-	if !imports(f, "image") {
+-		return
+-	}
+-
+-	walk(f, func(n interface{}) {
+-		s, ok := n.(*ast.SelectorExpr)
+-
+-		if !ok || !isTopName(s.X, "image") {
+-			return
+-		}
+-
+-		switch sel := s.Sel.String(); {
+-		case sel == "ColorImage":
+-			s.Sel = &ast.Ident{Name: "Uniform"}
+-			fixed = true
+-		case sel == "NewColorImage":
+-			s.Sel = &ast.Ident{Name: "NewUniform"}
+-			fixed = true
+-		default:
+-			for _, rename := range colorRenames {
+-				if sel == rename.in {
+-					addImport(f, "image/color")
+-					s.X.(*ast.Ident).Name = "color"
+-					s.Sel.Name = rename.out
+-					fixed = true
+-				}
+-			}
+-		}
+-	})
+-
+-	if fixed && !usesImport(f, "image") {
+-		deleteImport(f, "image")
+-	}
+-	return
+-}
+diff --git a/src/cmd/fix/imagecolor_test.go b/src/cmd/fix/imagecolor_test.go
+deleted file mode 100644
+index c623654817..0000000000
+--- a/src/cmd/fix/imagecolor_test.go
++++ /dev/null
+@@ -1,126 +0,0 @@
+-// Copyright 2011 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-func init() {
+-	addTestCases(colorTests, imagecolor)
+-}
+-
+-var colorTests = []testCase{
+-	{
+-		Name: "color.0",
+-		In: `package main
+-
+-import (
+-	"image"
+-)
+-
+-var (
+-	_ image.Image
+-	_ image.RGBA
+-	_ image.Black
+-	_ image.Color
+-	_ image.ColorModel
+-	_ image.ColorModelFunc
+-	_ image.PalettedColorModel
+-	_ image.RGBAColor
+-	_ image.RGBA64Color
+-	_ image.NRGBAColor
+-	_ image.NRGBA64Color
+-	_ image.AlphaColor
+-	_ image.Alpha16Color
+-	_ image.GrayColor
+-	_ image.Gray16Color
+-)
+-
+-func f() {
+-	_ = image.RGBAColorModel
+-	_ = image.RGBA64ColorModel
+-	_ = image.NRGBAColorModel
+-	_ = image.NRGBA64ColorModel
+-	_ = image.AlphaColorModel
+-	_ = image.Alpha16ColorModel
+-	_ = image.GrayColorModel
+-	_ = image.Gray16ColorModel
+-}
+-`,
+-		Out: `package main
+-
+-import (
+-	"image"
+-	"image/color"
+-)
+-
+-var (
+-	_ image.Image
+-	_ image.RGBA
+-	_ image.Black
+-	_ color.Color
+-	_ color.Model
+-	_ color.ModelFunc
+-	_ color.Palette
+-	_ color.RGBA
+-	_ color.RGBA64
+-	_ color.NRGBA
+-	_ color.NRGBA64
+-	_ color.Alpha
+-	_ color.Alpha16
+-	_ color.Gray
+-	_ color.Gray16
+-)
+-
+-func f() {
+-	_ = color.RGBAModel
+-	_ = color.RGBA64Model
+-	_ = color.NRGBAModel
+-	_ = color.NRGBA64Model
+-	_ = color.AlphaModel
+-	_ = color.Alpha16Model
+-	_ = color.GrayModel
+-	_ = color.Gray16Model
+-}
+-`,
+-	},
+-	{
+-		Name: "color.1",
+-		In: `package main
+-
+-import (
+-	"fmt"
+-	"image"
+-)
+-
+-func f() {
+-	fmt.Println(image.RGBAColor{1, 2, 3, 4}.RGBA())
+-}
+-`,
+-		Out: `package main
+-
+-import (
+-	"fmt"
+-	"image/color"
+-)
+-
+-func f() {
+-	fmt.Println(color.RGBA{1, 2, 3, 4}.RGBA())
+-}
+-`,
+-	},
+-	{
+-		Name: "color.2",
+-		In: `package main
+-
+-import "image"
+-
+-var c *image.ColorImage = image.NewColorImage(nil)
+-`,
+-		Out: `package main
+-
+-import "image"
+-
+-var c *image.Uniform = image.NewUniform(nil)
+-`,
+-	},
+-}
+diff --git a/src/cmd/fix/imagenew.go b/src/cmd/fix/imagenew.go
+deleted file mode 100644
+index b4e36d4f0c..0000000000
+--- a/src/cmd/fix/imagenew.go
++++ /dev/null
+@@ -1,83 +0,0 @@
+-// Copyright 2011 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-import (
+-	"go/ast"
+-)
+-
+-func init() {
+-	register(imagenewFix)
+-}
+-
+-var imagenewFix = fix{
+-	"imagenew",
+-	"2011-09-14",
+-	imagenew,
+-	`Adapt image.NewXxx calls to pass an image.Rectangle instead of (w, h int).
+-
+-http://codereview.appspot.com/4964073
+-`,
+-}
+-
+-var imagenewFuncs = map[string]bool{
+-	"NewRGBA":    true,
+-	"NewRGBA64":  true,
+-	"NewNRGBA":   true,
+-	"NewNRGBA64": true,
+-	"NewAlpha":   true,
+-	"NewAlpha16": true,
+-	"NewGray":    true,
+-	"NewGray16":  true,
+-}
+-
+-func imagenew(f *ast.File) bool {
+-	if !imports(f, "image") {
+-		return false
+-	}
+-
+-	fixed := false
+-	walk(f, func(n interface{}) {
+-		call, ok := n.(*ast.CallExpr)
+-		if !ok {
+-			return
+-		}
+-		isNewFunc := false
+-		for newFunc := range imagenewFuncs {
+-			if len(call.Args) == 2 && isPkgDot(call.Fun, "image", newFunc) {
+-				isNewFunc = true
+-				break
+-			}
+-		}
+-		if len(call.Args) == 3 && isPkgDot(call.Fun, "image", "NewPaletted") {
+-			isNewFunc = true
+-		}
+-		if !isNewFunc {
+-			return
+-		}
+-		// Replace image.NewXxx(w, h) with image.NewXxx(image.Rect(0, 0, w, h)).
+-		rectArgs := []ast.Expr{
+-			&ast.BasicLit{Value: "0"},
+-			&ast.BasicLit{Value: "0"},
+-		}
+-		rectArgs = append(rectArgs, call.Args[:2]...)
+-		rect := []ast.Expr{
+-			&ast.CallExpr{
+-				Fun: &ast.SelectorExpr{
+-					X: &ast.Ident{
+-						Name: "image",
+-					},
+-					Sel: &ast.Ident{
+-						Name: "Rect",
+-					},
+-				},
+-				Args: rectArgs,
+-			},
+-		}
+-		call.Args = append(rect, call.Args[2:]...)
+-		fixed = true
+-	})
+-	return fixed
+-}
+diff --git a/src/cmd/fix/imagenew_test.go b/src/cmd/fix/imagenew_test.go
+deleted file mode 100644
+index 30abed23c2..0000000000
+--- a/src/cmd/fix/imagenew_test.go
++++ /dev/null
+@@ -1,51 +0,0 @@
+-// Copyright 2011 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-func init() {
+-	addTestCases(imagenewTests, imagenew)
+-}
+-
+-var imagenewTests = []testCase{
+-	{
+-		Name: "imagenew.0",
+-		In: `package main
+-
+-import (
+-	"image"
+-)
+-
+-func f() {
+-	image.NewRGBA(1, 2)
+-	image.NewRGBA64(1, 2)
+-	image.NewNRGBA(1, 2)
+-	image.NewNRGBA64(1, 2)
+-	image.NewAlpha(1, 2)
+-	image.NewAlpha16(1, 2)
+-	image.NewGray(1, 2)
+-	image.NewGray16(1, 2)
+-	image.NewPaletted(1, 2, nil)
+-}
+-`,
+-		Out: `package main
+-
+-import (
+-	"image"
+-)
+-
+-func f() {
+-	image.NewRGBA(image.Rect(0, 0, 1, 2))
+-	image.NewRGBA64(image.Rect(0, 0, 1, 2))
+-	image.NewNRGBA(image.Rect(0, 0, 1, 2))
+-	image.NewNRGBA64(image.Rect(0, 0, 1, 2))
+-	image.NewAlpha(image.Rect(0, 0, 1, 2))
+-	image.NewAlpha16(image.Rect(0, 0, 1, 2))
+-	image.NewGray(image.Rect(0, 0, 1, 2))
+-	image.NewGray16(image.Rect(0, 0, 1, 2))
+-	image.NewPaletted(image.Rect(0, 0, 1, 2), nil)
+-}
+-`,
+-	},
+-}
+diff --git a/src/cmd/fix/imageycbcr.go b/src/cmd/fix/imageycbcr.go
+deleted file mode 100644
+index 41b96d18d3..0000000000
+--- a/src/cmd/fix/imageycbcr.go
++++ /dev/null
+@@ -1,64 +0,0 @@
+-// Copyright 2011 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-import (
+-	"go/ast"
+-)
+-
+-func init() {
+-	register(imageycbcrFix)
+-}
+-
+-var imageycbcrFix = fix{
+-	"imageycbcr",
+-	"2011-12-20",
+-	imageycbcr,
+-	`Adapt code to types moved from image/ycbcr to image and image/color.
+-
+-http://codereview.appspot.com/5493084
+-`,
+-}
+-
+-func imageycbcr(f *ast.File) (fixed bool) {
+-	if !imports(f, "image/ycbcr") {
+-		return
+-	}
+-
+-	walk(f, func(n interface{}) {
+-		s, ok := n.(*ast.SelectorExpr)
+-
+-		if !ok || !isTopName(s.X, "ycbcr") {
+-			return
+-		}
+-
+-		switch s.Sel.String() {
+-		case "RGBToYCbCr", "YCbCrToRGB":
+-			addImport(f, "image/color")
+-			s.X.(*ast.Ident).Name = "color"
+-		case "YCbCrColor":
+-			addImport(f, "image/color")
+-			s.X.(*ast.Ident).Name = "color"
+-			s.Sel.Name = "YCbCr"
+-		case "YCbCrColorModel":
+-			addImport(f, "image/color")
+-			s.X.(*ast.Ident).Name = "color"
+-			s.Sel.Name = "YCbCrModel"
+-		case "SubsampleRatio", "SubsampleRatio444", "SubsampleRatio422", "SubsampleRatio420":
+-			addImport(f, "image")
+-			s.X.(*ast.Ident).Name = "image"
+-			s.Sel.Name = "YCbCr" + s.Sel.Name
+-		case "YCbCr":
+-			addImport(f, "image")
+-			s.X.(*ast.Ident).Name = "image"
+-		default:
+-			return
+-		}
+-		fixed = true
+-	})
+-
+-	deleteImport(f, "image/ycbcr")
+-	return
+-}
+diff --git a/src/cmd/fix/imageycbcr_test.go b/src/cmd/fix/imageycbcr_test.go
+deleted file mode 100644
+index 23b599dcd3..0000000000
+--- a/src/cmd/fix/imageycbcr_test.go
++++ /dev/null
+@@ -1,54 +0,0 @@
+-// Copyright 2011 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-func init() {
+-	addTestCases(ycbcrTests, imageycbcr)
+-}
+-
+-var ycbcrTests = []testCase{
+-	{
+-		Name: "ycbcr.0",
+-		In: `package main
+-
+-import (
+-	"image/ycbcr"
+-)
+-
+-func f() {
+-	_ = ycbcr.RGBToYCbCr
+-	_ = ycbcr.YCbCrToRGB
+-	_ = ycbcr.YCbCrColorModel
+-	var _ ycbcr.YCbCrColor
+-	var _ ycbcr.YCbCr
+-	var (
+-		_ ycbcr.SubsampleRatio = ycbcr.SubsampleRatio444
+-		_ ycbcr.SubsampleRatio = ycbcr.SubsampleRatio422
+-		_ ycbcr.SubsampleRatio = ycbcr.SubsampleRatio420
+-	)
+-}
+-`,
+-		Out: `package main
+-
+-import (
+-	"image"
+-	"image/color"
+-)
+-
+-func f() {
+-	_ = color.RGBToYCbCr
+-	_ = color.YCbCrToRGB
+-	_ = color.YCbCrModel
+-	var _ color.YCbCr
+-	var _ image.YCbCr
+-	var (
+-		_ image.YCbCrSubsampleRatio = image.YCbCrSubsampleRatio444
+-		_ image.YCbCrSubsampleRatio = image.YCbCrSubsampleRatio422
+-		_ image.YCbCrSubsampleRatio = image.YCbCrSubsampleRatio420
+-	)
+-}
+-`,
+-	},
+-}
+diff --git a/src/cmd/fix/iocopyn.go b/src/cmd/fix/iocopyn.go
+deleted file mode 100644
+index 720f3c6890..0000000000
+--- a/src/cmd/fix/iocopyn.go
++++ /dev/null
+@@ -1,41 +0,0 @@
+-// Copyright 2011 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-import (
+-	"go/ast"
+-)
+-
+-func init() {
+-	register(ioCopyNFix)
+-}
+-
+-var ioCopyNFix = fix{
+-	"iocopyn",
+-	"2011-09-30",
+-	ioCopyN,
+-	`Rename io.Copyn to io.CopyN.
+-
+-http://codereview.appspot.com/5157045
+-`,
+-}
+-
+-func ioCopyN(f *ast.File) bool {
+-	if !imports(f, "io") {
+-		return false
+-	}
+-
+-	fixed := false
+-	walk(f, func(n interface{}) {
+-		if expr, ok := n.(ast.Expr); ok {
+-			if isPkgDot(expr, "io", "Copyn") {
+-				expr.(*ast.SelectorExpr).Sel.Name = "CopyN"
+-				fixed = true
+-				return
+-			}
+-		}
+-	})
+-	return fixed
+-}
+diff --git a/src/cmd/fix/iocopyn_test.go b/src/cmd/fix/iocopyn_test.go
+deleted file mode 100644
+index f86fad7637..0000000000
+--- a/src/cmd/fix/iocopyn_test.go
++++ /dev/null
+@@ -1,37 +0,0 @@
+-// Copyright 2011 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-func init() {
+-	addTestCases(ioCopyNTests, ioCopyN)
+-}
+-
+-var ioCopyNTests = []testCase{
+-	{
+-		Name: "io.CopyN.0",
+-		In: `package main
+-
+-import (
+-	"io"
+-)
+-
+-func f() {
+-	io.Copyn(dst, src)
+-	foo.Copyn(dst, src)
+-}
+-`,
+-		Out: `package main
+-
+-import (
+-	"io"
+-)
+-
+-func f() {
+-	io.CopyN(dst, src)
+-	foo.Copyn(dst, src)
+-}
+-`,
+-	},
+-}
+diff --git a/src/cmd/fix/mapdelete.go b/src/cmd/fix/mapdelete.go
+deleted file mode 100644
+index db89c7bf45..0000000000
+--- a/src/cmd/fix/mapdelete.go
++++ /dev/null
+@@ -1,89 +0,0 @@
+-// Copyright 2011 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-import "go/ast"
+-
+-func init() {
+-	register(mapdeleteFix)
+-}
+-
+-var mapdeleteFix = fix{
+-	"mapdelete",
+-	"2011-10-18",
+-	mapdelete,
+-	`Use delete(m, k) instead of m[k] = 0, false.
+-
+-http://codereview.appspot.com/5272045
+-`,
+-}
+-
+-func mapdelete(f *ast.File) bool {
+-	fixed := false
+-	walk(f, func(n interface{}) {
+-		stmt, ok := n.(*ast.Stmt)
+-		if !ok {
+-			return
+-		}
+-		as, ok := (*stmt).(*ast.AssignStmt)
+-		if !ok || len(as.Lhs) != 1 || len(as.Rhs) != 2 {
+-			return
+-		}
+-		ix, ok := as.Lhs[0].(*ast.IndexExpr)
+-		if !ok {
+-			return
+-		}
+-		if !isTopName(as.Rhs[1], "false") {
+-			warn(as.Pos(), "two-element map assignment with non-false second value")
+-			return
+-		}
+-		if !canDrop(as.Rhs[0]) {
+-			warn(as.Pos(), "two-element map assignment with non-trivial first value")
+-			return
+-		}
+-		*stmt = &ast.ExprStmt{
+-			X: &ast.CallExpr{
+-				Fun: &ast.Ident{
+-					NamePos: as.Pos(),
+-					Name:    "delete",
+-				},
+-				Args: []ast.Expr{ix.X, ix.Index},
+-			},
+-		}
+-		fixed = true
+-	})
+-	return fixed
+-}
+-
+-// canDrop reports whether it is safe to drop the
+-// evaluation of n from the program.
+-// It is very conservative.
+-func canDrop(n ast.Expr) bool {
+-	switch n := n.(type) {
+-	case *ast.Ident, *ast.BasicLit:
+-		return true
+-	case *ast.ParenExpr:
+-		return canDrop(n.X)
+-	case *ast.SelectorExpr:
+-		return canDrop(n.X)
+-	case *ast.CompositeLit:
+-		if !canDrop(n.Type) {
+-			return false
+-		}
+-		for _, e := range n.Elts {
+-			if !canDrop(e) {
+-				return false
+-			}
+-		}
+-		return true
+-	case *ast.StarExpr:
+-		// Dropping *x is questionable,
+-		// but we have to be able to drop (*T)(nil).
+-		return canDrop(n.X)
+-	case *ast.ArrayType, *ast.ChanType, *ast.FuncType, *ast.InterfaceType, *ast.MapType, *ast.StructType:
+-		return true
+-	}
+-	return false
+-}
+diff --git a/src/cmd/fix/mapdelete_test.go b/src/cmd/fix/mapdelete_test.go
+deleted file mode 100644
+index 8ed50328e9..0000000000
+--- a/src/cmd/fix/mapdelete_test.go
++++ /dev/null
+@@ -1,43 +0,0 @@
+-// Copyright 2011 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-func init() {
+-	addTestCases(mapdeleteTests, mapdelete)
+-}
+-
+-var mapdeleteTests = []testCase{
+-	{
+-		Name: "mapdelete.0",
+-		In: `package main
+-
+-func f() {
+-	m[x] = 0, false
+-	m[x] = g(), false
+-	m[x] = 1
+-	delete(m, x)
+-	m[x] = 0, b
+-}
+-
+-func g(false bool) {
+-	m[x] = 0, false
+-}
+-`,
+-		Out: `package main
+-
+-func f() {
+-	delete(m, x)
+-	m[x] = g(), false
+-	m[x] = 1
+-	delete(m, x)
+-	m[x] = 0, b
+-}
+-
+-func g(false bool) {
+-	m[x] = 0, false
+-}
+-`,
+-	},
+-}
+diff --git a/src/cmd/fix/math.go b/src/cmd/fix/math.go
+deleted file mode 100644
+index 2ec837eb00..0000000000
+--- a/src/cmd/fix/math.go
++++ /dev/null
+@@ -1,51 +0,0 @@
+-// Copyright 2011 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-import "go/ast"
+-
+-func init() {
+-	register(mathFix)
+-}
+-
+-var mathFix = fix{
+-	"math",
+-	"2011-09-29",
+-	math,
+-	`Remove the leading F from math functions such as Fabs.
+-
+-http://codereview.appspot.com/5158043
+-`,
+-}
+-
+-var mathRenames = []struct{ in, out string }{
+-	{"Fabs", "Abs"},
+-	{"Fdim", "Dim"},
+-	{"Fmax", "Max"},
+-	{"Fmin", "Min"},
+-	{"Fmod", "Mod"},
+-}
+-
+-func math(f *ast.File) bool {
+-	if !imports(f, "math") {
+-		return false
+-	}
+-
+-	fixed := false
+-
+-	walk(f, func(n interface{}) {
+-		// Rename functions.
+-		if expr, ok := n.(ast.Expr); ok {
+-			for _, s := range mathRenames {
+-				if isPkgDot(expr, "math", s.in) {
+-					expr.(*ast.SelectorExpr).Sel.Name = s.out
+-					fixed = true
+-					return
+-				}
+-			}
+-		}
+-	})
+-	return fixed
+-}
+diff --git a/src/cmd/fix/math_test.go b/src/cmd/fix/math_test.go
+deleted file mode 100644
+index b8d69d2f2f..0000000000
+--- a/src/cmd/fix/math_test.go
++++ /dev/null
+@@ -1,47 +0,0 @@
+-// Copyright 2011 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-func init() {
+-	addTestCases(mathTests, math)
+-}
+-
+-var mathTests = []testCase{
+-	{
+-		Name: "math.0",
+-		In: `package main
+-
+-import (
+-	"math"
+-)
+-
+-func f() {
+-	math.Fabs(1)
+-	math.Fdim(1)
+-	math.Fmax(1)
+-	math.Fmin(1)
+-	math.Fmod(1)
+-	math.Abs(1)
+-	foo.Fabs(1)
+-}
+-`,
+-		Out: `package main
+-
+-import (
+-	"math"
+-)
+-
+-func f() {
+-	math.Abs(1)
+-	math.Dim(1)
+-	math.Max(1)
+-	math.Min(1)
+-	math.Mod(1)
+-	math.Abs(1)
+-	foo.Fabs(1)
+-}
+-`,
+-	},
+-}
+diff --git a/src/cmd/fix/netdial.go b/src/cmd/fix/netdial.go
+deleted file mode 100644
+index 2de994cffe..0000000000
+--- a/src/cmd/fix/netdial.go
++++ /dev/null
+@@ -1,117 +0,0 @@
+-// Copyright 2011 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-import (
+-	"go/ast"
+-)
+-
+-func init() {
+-	register(netdialFix)
+-	register(tlsdialFix)
+-	register(netlookupFix)
+-}
+-
+-var netdialFix = fix{
+-	"netdial",
+-	"2011-03-28",
+-	netdial,
+-	`Adapt 3-argument calls of net.Dial to use 2-argument form.
+-
+-http://codereview.appspot.com/4244055
+-`,
+-}
+-
+-var tlsdialFix = fix{
+-	"tlsdial",
+-	"2011-03-28",
+-	tlsdial,
+-	`Adapt 4-argument calls of tls.Dial to use 3-argument form.
+-
+-http://codereview.appspot.com/4244055
+-`,
+-}
+-
+-var netlookupFix = fix{
+-	"netlookup",
+-	"2011-03-28",
+-	netlookup,
+-	`Adapt 3-result calls to net.LookupHost to use 2-result form.
+-
+-http://codereview.appspot.com/4244055
+-`,
+-}
+-
+-func netdial(f *ast.File) bool {
+-	if !imports(f, "net") {
+-		return false
+-	}
+-
+-	fixed := false
+-	walk(f, func(n interface{}) {
+-		call, ok := n.(*ast.CallExpr)
+-		if !ok || !isPkgDot(call.Fun, "net", "Dial") || len(call.Args) != 3 {
+-			return
+-		}
+-		// net.Dial(a, "", b) -> net.Dial(a, b)
+-		if !isEmptyString(call.Args[1]) {
+-			warn(call.Pos(), "call to net.Dial with non-empty second argument")
+-			return
+-		}
+-		call.Args[1] = call.Args[2]
+-		call.Args = call.Args[:2]
+-		fixed = true
+-	})
+-	return fixed
+-}
+-
+-func tlsdial(f *ast.File) bool {
+-	if !imports(f, "crypto/tls") {
+-		return false
+-	}
+-
+-	fixed := false
+-	walk(f, func(n interface{}) {
+-		call, ok := n.(*ast.CallExpr)
+-		if !ok || !isPkgDot(call.Fun, "tls", "Dial") || len(call.Args) != 4 {
+-			return
+-		}
+-		// tls.Dial(a, "", b, c) -> tls.Dial(a, b, c)
+-		if !isEmptyString(call.Args[1]) {
+-			warn(call.Pos(), "call to tls.Dial with non-empty second argument")
+-			return
+-		}
+-		call.Args[1] = call.Args[2]
+-		call.Args[2] = call.Args[3]
+-		call.Args = call.Args[:3]
+-		fixed = true
+-	})
+-	return fixed
+-}
+-
+-func netlookup(f *ast.File) bool {
+-	if !imports(f, "net") {
+-		return false
+-	}
+-
+-	fixed := false
+-	walk(f, func(n interface{}) {
+-		as, ok := n.(*ast.AssignStmt)
+-		if !ok || len(as.Lhs) != 3 || len(as.Rhs) != 1 {
+-			return
+-		}
+-		call, ok := as.Rhs[0].(*ast.CallExpr)
+-		if !ok || !isPkgDot(call.Fun, "net", "LookupHost") {
+-			return
+-		}
+-		if !isBlank(as.Lhs[2]) {
+-			warn(as.Pos(), "call to net.LookupHost expecting cname; use net.LookupCNAME")
+-			return
+-		}
+-		as.Lhs = as.Lhs[:2]
+-		fixed = true
+-	})
+-	return fixed
+-}
+diff --git a/src/cmd/fix/netdial_test.go b/src/cmd/fix/netdial_test.go
+deleted file mode 100644
+index fff00b4ada..0000000000
+--- a/src/cmd/fix/netdial_test.go
++++ /dev/null
+@@ -1,57 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-func init() {
+-	addTestCases(netdialTests, nil)
+-}
+-
+-var netdialTests = []testCase{
+-	{
+-		Name: "netdial.0",
+-		Fn:   netdial,
+-		In: `package main
+-
+-import "net"
+-
+-func f() {
+-	c, err := net.Dial(net, "", addr)
+-	c, err = net.Dial(net, "", addr)
+-}
+-`,
+-		Out: `package main
+-
+-import "net"
+-
+-func f() {
+-	c, err := net.Dial(net, addr)
+-	c, err = net.Dial(net, addr)
+-}
+-`,
+-	},
+-
+-	{
+-		Name: "netlookup.0",
+-		Fn:   netlookup,
+-		In: `package main
+-
+-import "net"
+-
+-func f() {
+-	foo, bar, _ := net.LookupHost(host)
+-	foo, bar, _ = net.LookupHost(host)
+-}
+-`,
+-		Out: `package main
+-
+-import "net"
+-
+-func f() {
+-	foo, bar := net.LookupHost(host)
+-	foo, bar = net.LookupHost(host)
+-}
+-`,
+-	},
+-}
+diff --git a/src/cmd/fix/netudpgroup.go b/src/cmd/fix/netudpgroup.go
+deleted file mode 100644
+index b54beb0de3..0000000000
+--- a/src/cmd/fix/netudpgroup.go
++++ /dev/null
+@@ -1,58 +0,0 @@
+-// Copyright 2011 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-import (
+-	"go/ast"
+-)
+-
+-func init() {
+-	register(netudpgroupFix)
+-}
+-
+-var netudpgroupFix = fix{
+-	"netudpgroup",
+-	"2011-08-18",
+-	netudpgroup,
+-	`Adapt 1-argument calls of net.(*UDPConn).JoinGroup, LeaveGroup to use 2-argument form.
+-
+-http://codereview.appspot.com/4815074
+-`,
+-}
+-
+-func netudpgroup(f *ast.File) bool {
+-	if !imports(f, "net") {
+-		return false
+-	}
+-
+-	fixed := false
+-	for _, d := range f.Decls {
+-		fd, ok := d.(*ast.FuncDecl)
+-		if !ok || fd.Body == nil {
+-			continue
+-		}
+-		walk(fd.Body, func(n interface{}) {
+-			ce, ok := n.(*ast.CallExpr)
+-			if !ok {
+-				return
+-			}
+-			se, ok := ce.Fun.(*ast.SelectorExpr)
+-			if !ok || len(ce.Args) != 1 {
+-				return
+-			}
+-			switch se.Sel.String() {
+-			case "JoinGroup", "LeaveGroup":
+-				// c.JoinGroup(a) -> c.JoinGroup(nil, a)
+-				// c.LeaveGroup(a) -> c.LeaveGroup(nil, a)
+-				arg := ce.Args[0]
+-				ce.Args = make([]ast.Expr, 2)
+-				ce.Args[0] = ast.NewIdent("nil")
+-				ce.Args[1] = arg
+-				fixed = true
+-			}
+-		})
+-	}
+-	return fixed
+-}
+diff --git a/src/cmd/fix/netudpgroup_test.go b/src/cmd/fix/netudpgroup_test.go
+deleted file mode 100644
+index 88c0e093fc..0000000000
+--- a/src/cmd/fix/netudpgroup_test.go
++++ /dev/null
+@@ -1,53 +0,0 @@
+-// Copyright 2011 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-func init() {
+-	addTestCases(netudpgroupTests, netudpgroup)
+-}
+-
+-var netudpgroupTests = []testCase{
+-	{
+-		Name: "netudpgroup.0",
+-		In: `package main
+-
+-import "net"
+-
+-func f() {
+-	err := x.JoinGroup(gaddr)
+-	err = y.LeaveGroup(gaddr)
+-}
+-`,
+-		Out: `package main
+-
+-import "net"
+-
+-func f() {
+-	err := x.JoinGroup(nil, gaddr)
+-	err = y.LeaveGroup(nil, gaddr)
+-}
+-`,
+-	},
+-	// Innocent function with no body.
+-	{
+-		Name: "netudpgroup.1",
+-		In: `package main
+-
+-import "net"
+-
+-func f()
+-
+-var _ net.IP
+-`,
+-		Out: `package main
+-
+-import "net"
+-
+-func f()
+-
+-var _ net.IP
+-`,
+-	},
+-}
+diff --git a/src/cmd/fix/newwriter.go b/src/cmd/fix/newwriter.go
+deleted file mode 100644
+index 4befe24fb6..0000000000
+--- a/src/cmd/fix/newwriter.go
++++ /dev/null
+@@ -1,90 +0,0 @@
+-// Copyright 2012 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-import (
+-	"go/ast"
+-)
+-
+-func init() {
+-	register(newWriterFix)
+-}
+-
+-var newWriterFix = fix{
+-	"newWriter",
+-	"2012-02-14",
+-	newWriter,
+-	`Adapt bufio, gzip and zlib NewWriterXxx calls for whether they return errors.
+-
+-Also rename gzip.Compressor and gzip.Decompressor to gzip.Writer and gzip.Reader.
+-
+-http://codereview.appspot.com/5639057 and
+-http://codereview.appspot.com/5642054
+-`,
+-}
+-
+-func newWriter(f *ast.File) bool {
+-	if !imports(f, "bufio") && !imports(f, "compress/gzip") && !imports(f, "compress/zlib") {
+-		return false
+-	}
+-
+-	fixed := false
+-	walk(f, func(n interface{}) {
+-		switch n := n.(type) {
+-		case *ast.SelectorExpr:
+-			if isTopName(n.X, "gzip") {
+-				switch n.Sel.String() {
+-				case "Compressor":
+-					n.Sel = &ast.Ident{Name: "Writer"}
+-					fixed = true
+-				case "Decompressor":
+-					n.Sel = &ast.Ident{Name: "Reader"}
+-					fixed = true
+-				}
+-			} else if isTopName(n.X, "zlib") {
+-				if n.Sel.String() == "NewWriterDict" {
+-					n.Sel = &ast.Ident{Name: "NewWriterLevelDict"}
+-					fixed = true
+-				}
+-			}
+-
+-		case *ast.AssignStmt:
+-			// Drop the ", _" in assignments of the form:
+-			//	w0, _ = gzip.NewWriter(w1)
+-			if len(n.Lhs) != 2 || len(n.Rhs) != 1 {
+-				return
+-			}
+-			i, ok := n.Lhs[1].(*ast.Ident)
+-			if !ok {
+-				return
+-			}
+-			if i.String() != "_" {
+-				return
+-			}
+-			c, ok := n.Rhs[0].(*ast.CallExpr)
+-			if !ok {
+-				return
+-			}
+-			s, ok := c.Fun.(*ast.SelectorExpr)
+-			if !ok {
+-				return
+-			}
+-			sel := s.Sel.String()
+-			switch {
+-			case isTopName(s.X, "bufio") && (sel == "NewReaderSize" || sel == "NewWriterSize"):
+-				// No-op.
+-			case isTopName(s.X, "gzip") && sel == "NewWriter":
+-				// No-op.
+-			case isTopName(s.X, "zlib") && sel == "NewWriter":
+-				// No-op.
+-			default:
+-				return
+-			}
+-			n.Lhs = n.Lhs[:1]
+-			fixed = true
+-		}
+-	})
+-	return fixed
+-}
+diff --git a/src/cmd/fix/newwriter_test.go b/src/cmd/fix/newwriter_test.go
+deleted file mode 100644
+index 1f59628a0d..0000000000
+--- a/src/cmd/fix/newwriter_test.go
++++ /dev/null
+@@ -1,83 +0,0 @@
+-// Copyright 2012 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-func init() {
+-	addTestCases(newWriterTests, newWriter)
+-}
+-
+-var newWriterTests = []testCase{
+-	{
+-		Name: "newWriter.0",
+-		In: `package main
+-
+-import (
+-	"bufio"
+-	"compress/gzip"
+-	"compress/zlib"
+-	"io"
+-
+-	"foo"
+-)
+-
+-func f() *gzip.Compressor {
+-	var (
+-		_ gzip.Compressor
+-		_ *gzip.Decompressor
+-		_ struct {
+-			W *gzip.Compressor
+-			R gzip.Decompressor
+-		}
+-	)
+-
+-	var w io.Writer
+-	br := bufio.NewReader(nil)
+-	br, _ = bufio.NewReaderSize(nil, 256)
+-	bw, err := bufio.NewWriterSize(w, 256) // Unfixable, as it declares an err variable.
+-	bw, _ = bufio.NewWriterSize(w, 256)
+-	fw, _ := foo.NewWriter(w)
+-	gw, _ := gzip.NewWriter(w)
+-	gw, _ = gzip.NewWriter(w)
+-	zw, _ := zlib.NewWriter(w)
+-	_ = zlib.NewWriterDict(zw, 0, nil)
+-	return gw
+-}
+-`,
+-		Out: `package main
+-
+-import (
+-	"bufio"
+-	"compress/gzip"
+-	"compress/zlib"
+-	"io"
+-
+-	"foo"
+-)
+-
+-func f() *gzip.Writer {
+-	var (
+-		_ gzip.Writer
+-		_ *gzip.Reader
+-		_ struct {
+-			W *gzip.Writer
+-			R gzip.Reader
+-		}
+-	)
+-
+-	var w io.Writer
+-	br := bufio.NewReader(nil)
+-	br = bufio.NewReaderSize(nil, 256)
+-	bw, err := bufio.NewWriterSize(w, 256) // Unfixable, as it declares an err variable.
+-	bw = bufio.NewWriterSize(w, 256)
+-	fw, _ := foo.NewWriter(w)
+-	gw := gzip.NewWriter(w)
+-	gw = gzip.NewWriter(w)
+-	zw := zlib.NewWriter(w)
+-	_ = zlib.NewWriterLevelDict(zw, 0, nil)
+-	return gw
+-}
+-`,
+-	},
+-}
+diff --git a/src/cmd/fix/oserrorstring.go b/src/cmd/fix/oserrorstring.go
+deleted file mode 100644
+index a75a2c12d3..0000000000
+--- a/src/cmd/fix/oserrorstring.go
++++ /dev/null
+@@ -1,75 +0,0 @@
+-// Copyright 2011 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-import (
+-	"go/ast"
+-)
+-
+-func init() {
+-	register(oserrorstringFix)
+-}
+-
+-var oserrorstringFix = fix{
+-	"oserrorstring",
+-	"2011-06-22",
+-	oserrorstring,
+-	`Replace os.ErrorString() conversions with calls to os.NewError().
+-
+-http://codereview.appspot.com/4607052
+-`,
+-}
+-
+-func oserrorstring(f *ast.File) bool {
+-	if !imports(f, "os") {
+-		return false
+-	}
+-
+-	fixed := false
+-	walk(f, func(n interface{}) {
+-		// The conversion os.ErrorString(x) looks like a call
+-		// of os.ErrorString with one argument.
+-		if call := callExpr(n, "os", "ErrorString"); call != nil {
+-			// os.ErrorString(args) -> os.NewError(args)
+-			call.Fun.(*ast.SelectorExpr).Sel.Name = "NewError"
+-			// os.ErrorString(args) -> os.NewError(args)
+-			call.Fun.(*ast.SelectorExpr).Sel.Name = "NewError"
+-			fixed = true
+-			return
+-		}
+-
+-		// Remove os.Error type from variable declarations initialized
+-		// with an os.NewError.
+-		// (An *ast.ValueSpec may also be used in a const declaration
+-		// but those won't be initialized with a call to os.NewError.)
+-		if spec, ok := n.(*ast.ValueSpec); ok &&
+-			len(spec.Names) == 1 &&
+-			isPkgDot(spec.Type, "os", "Error") &&
+-			len(spec.Values) == 1 &&
+-			callExpr(spec.Values[0], "os", "NewError") != nil {
+-			// var name os.Error = os.NewError(x) ->
+-			// var name          = os.NewError(x)
+-			spec.Type = nil
+-			fixed = true
+-			return
+-		}
+-
+-		// Other occurrences of os.ErrorString are not fixed
+-		// but they are rare.
+-
+-	})
+-	return fixed
+-}
+-
+-// callExpr returns the call expression if x is a call to pkg.name with one argument;
+-// otherwise it returns nil.
+-func callExpr(x interface{}, pkg, name string) *ast.CallExpr {
+-	if call, ok := x.(*ast.CallExpr); ok &&
+-		len(call.Args) == 1 &&
+-		isPkgDot(call.Fun, pkg, name) {
+-		return call
+-	}
+-	return nil
+-}
+diff --git a/src/cmd/fix/oserrorstring_test.go b/src/cmd/fix/oserrorstring_test.go
+deleted file mode 100644
+index 75551480c5..0000000000
+--- a/src/cmd/fix/oserrorstring_test.go
++++ /dev/null
+@@ -1,57 +0,0 @@
+-// Copyright 2011 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-func init() {
+-	addTestCases(oserrorstringTests, oserrorstring)
+-}
+-
+-var oserrorstringTests = []testCase{
+-	{
+-		Name: "oserrorstring.0",
+-		In: `package main
+-
+-import "os"
+-
+-var _ = os.ErrorString("foo")
+-var _ os.Error = os.ErrorString("bar1")
+-var _ os.Error = os.NewError("bar2")
+-var _ os.Error = MyError("bal") // don't rewrite this one
+-
+-var (
+-	_          = os.ErrorString("foo")
+-	_ os.Error = os.ErrorString("bar1")
+-	_ os.Error = os.NewError("bar2")
+-	_ os.Error = MyError("bal") // don't rewrite this one
+-)
+-
+-func _() (err os.Error) {
+-	err = os.ErrorString("foo")
+-	return os.ErrorString("foo")
+-}
+-`,
+-		Out: `package main
+-
+-import "os"
+-
+-var _ = os.NewError("foo")
+-var _ = os.NewError("bar1")
+-var _ = os.NewError("bar2")
+-var _ os.Error = MyError("bal") // don't rewrite this one
+-
+-var (
+-	_          = os.NewError("foo")
+-	_          = os.NewError("bar1")
+-	_          = os.NewError("bar2")
+-	_ os.Error = MyError("bal") // don't rewrite this one
+-)
+-
+-func _() (err os.Error) {
+-	err = os.NewError("foo")
+-	return os.NewError("foo")
+-}
+-`,
+-	},
+-}
+diff --git a/src/cmd/fix/osopen.go b/src/cmd/fix/osopen.go
+deleted file mode 100644
+index 5fe4cd067f..0000000000
+--- a/src/cmd/fix/osopen.go
++++ /dev/null
+@@ -1,124 +0,0 @@
+-// Copyright 2011 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-import (
+-	"go/ast"
+-)
+-
+-func init() {
+-	register(osopenFix)
+-}
+-
+-var osopenFix = fix{
+-	"osopen",
+-	"2011-04-04",
+-	osopen,
+-	`Adapt os.Open calls to new, easier API and rename O_CREAT O_CREATE.
+-
+-http://codereview.appspot.com/4357052
+-`,
+-}
+-
+-func osopen(f *ast.File) bool {
+-	if !imports(f, "os") {
+-		return false
+-	}
+-
+-	fixed := false
+-	walk(f, func(n interface{}) {
+-		// Rename O_CREAT to O_CREATE.
+-		if expr, ok := n.(ast.Expr); ok && isPkgDot(expr, "os", "O_CREAT") {
+-			expr.(*ast.SelectorExpr).Sel.Name = "O_CREATE"
+-			fixed = true
+-			return
+-		}
+-
+-		// Fix up calls to Open.
+-		call, ok := n.(*ast.CallExpr)
+-		if !ok || len(call.Args) != 3 {
+-			return
+-		}
+-		if !isPkgDot(call.Fun, "os", "Open") {
+-			return
+-		}
+-		sel := call.Fun.(*ast.SelectorExpr)
+-		args := call.Args
+-		// os.Open(a, os.O_RDONLY, c) -> os.Open(a)
+-		if isPkgDot(args[1], "os", "O_RDONLY") || isPkgDot(args[1], "syscall", "O_RDONLY") {
+-			call.Args = call.Args[0:1]
+-			fixed = true
+-			return
+-		}
+-		// os.Open(a, createlike_flags, c) -> os.Create(a, c)
+-		if isCreateFlag(args[1]) {
+-			sel.Sel.Name = "Create"
+-			if !isSimplePerm(args[2]) {
+-				warn(sel.Pos(), "rewrote os.Open to os.Create with permission not 0666")
+-			}
+-			call.Args = args[0:1]
+-			fixed = true
+-			return
+-		}
+-		// Fallback: os.Open(a, b, c) -> os.OpenFile(a, b, c)
+-		sel.Sel.Name = "OpenFile"
+-		fixed = true
+-	})
+-	return fixed
+-}
+-
+-func isCreateFlag(flag ast.Expr) bool {
+-	foundCreate := false
+-	foundTrunc := false
+-	// OR'ing of flags: is O_CREATE on?  + or | would be fine; we just look for os.O_CREATE
+-	// and don't worry about the actual operator.
+-	p := flag.Pos()
+-	for {
+-		lhs := flag
+-		expr, isBinary := flag.(*ast.BinaryExpr)
+-		if isBinary {
+-			lhs = expr.Y
+-		}
+-		sel, ok := lhs.(*ast.SelectorExpr)
+-		if !ok || !isTopName(sel.X, "os") {
+-			return false
+-		}
+-		switch sel.Sel.Name {
+-		case "O_CREATE":
+-			foundCreate = true
+-		case "O_TRUNC":
+-			foundTrunc = true
+-		case "O_RDONLY", "O_WRONLY", "O_RDWR":
+-			// okay
+-		default:
+-			// Unexpected flag, like O_APPEND or O_EXCL.
+-			// Be conservative and do not rewrite.
+-			return false
+-		}
+-		if !isBinary {
+-			break
+-		}
+-		flag = expr.X
+-	}
+-	if !foundCreate {
+-		return false
+-	}
+-	if !foundTrunc {
+-		warn(p, "rewrote os.Open with O_CREATE but not O_TRUNC to os.Create")
+-	}
+-	return foundCreate
+-}
+-
+-func isSimplePerm(perm ast.Expr) bool {
+-	basicLit, ok := perm.(*ast.BasicLit)
+-	if !ok {
+-		return false
+-	}
+-	switch basicLit.Value {
+-	case "0666":
+-		return true
+-	}
+-	return false
+-}
+diff --git a/src/cmd/fix/osopen_test.go b/src/cmd/fix/osopen_test.go
+deleted file mode 100644
+index 5797adb7b2..0000000000
+--- a/src/cmd/fix/osopen_test.go
++++ /dev/null
+@@ -1,82 +0,0 @@
+-// Copyright 2011 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-func init() {
+-	addTestCases(osopenTests, osopen)
+-}
+-
+-var osopenTests = []testCase{
+-	{
+-		Name: "osopen.0",
+-		In: `package main
+-
+-import (
+-	"os"
+-)
+-
+-func f() {
+-	os.OpenFile(a, b, c)
+-	os.Open(a, os.O_RDONLY, 0)
+-	os.Open(a, os.O_RDONLY, 0666)
+-	os.Open(a, os.O_RDWR, 0)
+-	os.Open(a, os.O_CREAT, 0666)
+-	os.Open(a, os.O_CREAT|os.O_TRUNC, 0664)
+-	os.Open(a, os.O_CREATE, 0666)
+-	os.Open(a, os.O_CREATE|os.O_TRUNC, 0664)
+-	os.Open(a, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
+-	os.Open(a, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0666)
+-	os.Open(a, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0666)
+-	os.Open(a, os.O_SURPRISE|os.O_CREATE, 0666)
+-	_ = os.O_CREAT
+-}
+-`,
+-		Out: `package main
+-
+-import (
+-	"os"
+-)
+-
+-func f() {
+-	os.OpenFile(a, b, c)
+-	os.Open(a)
+-	os.Open(a)
+-	os.OpenFile(a, os.O_RDWR, 0)
+-	os.Create(a)
+-	os.Create(a)
+-	os.Create(a)
+-	os.Create(a)
+-	os.Create(a)
+-	os.OpenFile(a, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0666)
+-	os.OpenFile(a, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0666)
+-	os.OpenFile(a, os.O_SURPRISE|os.O_CREATE, 0666)
+-	_ = os.O_CREATE
+-}
+-`,
+-	},
+-	{
+-		Name: "osopen.1",
+-		In: `package main
+-
+-import (
+-	"os"
+-)
+-
+-func f() {
+-	_ = os.O_CREAT
+-}
+-`,
+-		Out: `package main
+-
+-import (
+-	"os"
+-)
+-
+-func f() {
+-	_ = os.O_CREATE
+-}
+-`,
+-	},
+-}
+diff --git a/src/cmd/fix/procattr.go b/src/cmd/fix/procattr.go
+deleted file mode 100644
+index ea375ec9dd..0000000000
+--- a/src/cmd/fix/procattr.go
++++ /dev/null
+@@ -1,62 +0,0 @@
+-// Copyright 2011 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-import (
+-	"go/ast"
+-	"go/token"
+-)
+-
+-func init() {
+-	register(procattrFix)
+-}
+-
+-var procattrFix = fix{
+-	"procattr",
+-	"2011-03-15",
+-	procattr,
+-	`Adapt calls to os.StartProcess to use new ProcAttr type.
+-
+-http://codereview.appspot.com/4253052
+-`,
+-}
+-
+-func procattr(f *ast.File) bool {
+-	if !imports(f, "os") && !imports(f, "syscall") {
+-		return false
+-	}
+-
+-	fixed := false
+-	walk(f, func(n interface{}) {
+-		call, ok := n.(*ast.CallExpr)
+-		if !ok || len(call.Args) != 5 {
+-			return
+-		}
+-		var pkg string
+-		if isPkgDot(call.Fun, "os", "StartProcess") {
+-			pkg = "os"
+-		} else if isPkgDot(call.Fun, "syscall", "StartProcess") {
+-			pkg = "syscall"
+-		} else {
+-			return
+-		}
+-		// os.StartProcess(a, b, c, d, e) -> os.StartProcess(a, b, &os.ProcAttr{Env: c, Dir: d, Files: e})
+-		lit := &ast.CompositeLit{Type: ast.NewIdent(pkg + ".ProcAttr")}
+-		env, dir, files := call.Args[2], call.Args[3], call.Args[4]
+-		if !isName(env, "nil") && !isCall(env, "os", "Environ") {
+-			lit.Elts = append(lit.Elts, &ast.KeyValueExpr{Key: ast.NewIdent("Env"), Value: env})
+-		}
+-		if !isEmptyString(dir) {
+-			lit.Elts = append(lit.Elts, &ast.KeyValueExpr{Key: ast.NewIdent("Dir"), Value: dir})
+-		}
+-		if !isName(files, "nil") {
+-			lit.Elts = append(lit.Elts, &ast.KeyValueExpr{Key: ast.NewIdent("Files"), Value: files})
+-		}
+-		call.Args[2] = &ast.UnaryExpr{Op: token.AND, X: lit}
+-		call.Args = call.Args[:3]
+-		fixed = true
+-	})
+-	return fixed
+-}
+diff --git a/src/cmd/fix/procattr_test.go b/src/cmd/fix/procattr_test.go
+deleted file mode 100644
+index 9e2b86e744..0000000000
+--- a/src/cmd/fix/procattr_test.go
++++ /dev/null
+@@ -1,74 +0,0 @@
+-// Copyright 2011 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-func init() {
+-	addTestCases(procattrTests, procattr)
+-}
+-
+-var procattrTests = []testCase{
+-	{
+-		Name: "procattr.0",
+-		In: `package main
+-
+-import (
+-	"os"
+-	"syscall"
+-)
+-
+-func f() {
+-	os.StartProcess(a, b, c, d, e)
+-	os.StartProcess(a, b, os.Environ(), d, e)
+-	os.StartProcess(a, b, nil, d, e)
+-	os.StartProcess(a, b, c, "", e)
+-	os.StartProcess(a, b, c, d, nil)
+-	os.StartProcess(a, b, nil, "", nil)
+-
+-	os.StartProcess(
+-		a,
+-		b,
+-		c,
+-		d,
+-		e,
+-	)
+-
+-	syscall.StartProcess(a, b, c, d, e)
+-	syscall.StartProcess(a, b, os.Environ(), d, e)
+-	syscall.StartProcess(a, b, nil, d, e)
+-	syscall.StartProcess(a, b, c, "", e)
+-	syscall.StartProcess(a, b, c, d, nil)
+-	syscall.StartProcess(a, b, nil, "", nil)
+-}
+-`,
+-		Out: `package main
+-
+-import (
+-	"os"
+-	"syscall"
+-)
+-
+-func f() {
+-	os.StartProcess(a, b, &os.ProcAttr{Env: c, Dir: d, Files: e})
+-	os.StartProcess(a, b, &os.ProcAttr{Dir: d, Files: e})
+-	os.StartProcess(a, b, &os.ProcAttr{Dir: d, Files: e})
+-	os.StartProcess(a, b, &os.ProcAttr{Env: c, Files: e})
+-	os.StartProcess(a, b, &os.ProcAttr{Env: c, Dir: d})
+-	os.StartProcess(a, b, &os.ProcAttr{})
+-
+-	os.StartProcess(
+-		a,
+-		b, &os.ProcAttr{Env: c, Dir: d, Files: e},
+-	)
+-
+-	syscall.StartProcess(a, b, &syscall.ProcAttr{Env: c, Dir: d, Files: e})
+-	syscall.StartProcess(a, b, &syscall.ProcAttr{Dir: d, Files: e})
+-	syscall.StartProcess(a, b, &syscall.ProcAttr{Dir: d, Files: e})
+-	syscall.StartProcess(a, b, &syscall.ProcAttr{Env: c, Files: e})
+-	syscall.StartProcess(a, b, &syscall.ProcAttr{Env: c, Dir: d})
+-	syscall.StartProcess(a, b, &syscall.ProcAttr{})
+-}
+-`,
+-	},
+-}
+diff --git a/src/cmd/fix/reflect.go b/src/cmd/fix/reflect.go
+deleted file mode 100644
+index a81f485467..0000000000
+--- a/src/cmd/fix/reflect.go
++++ /dev/null
+@@ -1,862 +0,0 @@
+-// Copyright 2011 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// TODO(rsc): Once there is better support for writing
+-// multi-package commands, this should really be in
+-// its own package, and then we can drop all the "reflect"
+-// prefixes on the global variables and functions.
+-
+-package main
+-
+-import (
+-	"go/ast"
+-	"go/token"
+-	"strings"
+-)
+-
+-func init() {
+-	register(reflectFix)
+-}
+-
+-var reflectFix = fix{
+-	"reflect",
+-	"2011-04-08",
+-	reflectFn,
+-	`Adapt code to new reflect API.
+-
+-http://codereview.appspot.com/4281055
+-http://codereview.appspot.com/4433066
+-`,
+-}
+-
+-// The reflect API change dropped the concrete types *reflect.ArrayType etc.
+-// Any type assertions prior to method calls can be deleted:
+-//	x.(*reflect.ArrayType).Len() -> x.Len()
+-//
+-// Any type checks can be replaced by assignment and check of Kind:
+-//	x, y := z.(*reflect.ArrayType)
+-// ->
+-//	x := z
+-//	y := x.Kind() == reflect.Array
+-//
+-// If z is an ordinary variable name and x is not subsequently assigned to,
+-// references to x can be replaced by z and the assignment deleted.
+-// We only bother if x and z are the same name.
+-// If y is not subsequently assigned to and neither is x, references to
+-// y can be replaced by its expression.  We only bother when there is
+-// just one use or when the use appears in an if clause.
+-//
+-// Not all type checks result in a single Kind check.  The rewrite of the type check for
+-// reflect.ArrayOrSliceType checks x.Kind() against reflect.Array and reflect.Slice.
+-// The rewrite for *reflect.IntType checks against Int, Int8, Int16, Int32, Int64.
+-// The rewrite for *reflect.UintType adds Uintptr.
+-//
+-// A type switch turns into an assignment and a switch on Kind:
+-//	switch x := y.(type) {
+-//	case reflect.ArrayOrSliceType:
+-//		...
+-//	case *reflect.ChanType:
+-//		...
+-//	case *reflect.IntType:
+-//		...
+-//	}
+-// ->
+-//	switch x := y; x.Kind() {
+-//	case reflect.Array, reflect.Slice:
+-//		...
+-//	case reflect.Chan:
+-//		...
+-//	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+-//		...
+-//	}
+-//
+-// The same simplification applies: we drop x := x if x is not assigned
+-// to in the switch cases.
+-//
+-// Because the type check assignment includes a type assertion in its
+-// syntax and the rewrite traversal is bottom up, we must do a pass to
+-// rewrite the type check assignments and then a separate pass to
+-// rewrite the type assertions.
+-//
+-// The same process applies to the API changes for reflect.Value.
+-//
+-// For both cases, but especially Value, the code needs to be aware
+-// of the type of a receiver when rewriting a method call.   For example,
+-// x.(*reflect.ArrayValue).Elem(i) becomes x.Index(i) while
+-// x.(*reflect.MapValue).Elem(v) becomes x.MapIndex(v).
+-// In general, reflectFn needs to know the type of the receiver expression.
+-// In most cases (and in all the cases in the Go source tree), the toy
+-// type checker in typecheck.go provides enough information for fix
+-// to make the rewrite.  If fix misses a rewrite, the code that is left over
+-// will not compile, so it will be noticed immediately.
+-
+-func reflectFn(f *ast.File) bool {
+-	if !imports(f, "reflect") {
+-		return false
+-	}
+-
+-	fixed := false
+-
+-	// Rewrite names in method calls.
+-	// Needs basic type information (see above).
+-	typeof, _ := typecheck(reflectTypeConfig, f)
+-	walk(f, func(n interface{}) {
+-		switch n := n.(type) {
+-		case *ast.SelectorExpr:
+-			typ := typeof[n.X]
+-			if m := reflectRewriteMethod[typ]; m != nil {
+-				if replace := m[n.Sel.Name]; replace != "" {
+-					n.Sel.Name = replace
+-					fixed = true
+-					return
+-				}
+-			}
+-
+-			// For all reflect Values, replace SetValue with Set.
+-			if isReflectValue[typ] && n.Sel.Name == "SetValue" {
+-				n.Sel.Name = "Set"
+-				fixed = true
+-				return
+-			}
+-
+-			// Replace reflect.MakeZero with reflect.Zero.
+-			if isPkgDot(n, "reflect", "MakeZero") {
+-				n.Sel.Name = "Zero"
+-				fixed = true
+-				return
+-			}
+-		}
+-	})
+-
+-	// Replace PtrValue's PointTo(x) with Set(x.Addr()).
+-	walk(f, func(n interface{}) {
+-		call, ok := n.(*ast.CallExpr)
+-		if !ok || len(call.Args) != 1 {
+-			return
+-		}
+-		sel, ok := call.Fun.(*ast.SelectorExpr)
+-		if !ok || sel.Sel.Name != "PointTo" {
+-			return
+-		}
+-		typ := typeof[sel.X]
+-		if typ != "*reflect.PtrValue" {
+-			return
+-		}
+-		sel.Sel.Name = "Set"
+-		if !isTopName(call.Args[0], "nil") {
+-			call.Args[0] = &ast.SelectorExpr{
+-				X:   call.Args[0],
+-				Sel: ast.NewIdent("Addr()"),
+-			}
+-		}
+-		fixed = true
+-	})
+-
+-	// Fix type switches.
+-	walk(f, func(n interface{}) {
+-		if reflectFixSwitch(n) {
+-			fixed = true
+-		}
+-	})
+-
+-	// Fix type assertion checks (multiple assignment statements).
+-	// Have to work on the statement context (statement list or if statement)
+-	// so that we can insert an extra statement occasionally.
+-	// Ignoring for and switch because they don't come up in
+-	// typical code.
+-	walk(f, func(n interface{}) {
+-		switch n := n.(type) {
+-		case *[]ast.Stmt:
+-			// v is the replacement statement list.
+-			var v []ast.Stmt
+-			insert := func(x ast.Stmt) {
+-				v = append(v, x)
+-			}
+-			for i, x := range *n {
+-				// Tentatively append to v; if we rewrite x
+-				// we'll have to update the entry, so remember
+-				// the index.
+-				j := len(v)
+-				v = append(v, x)
+-				if reflectFixTypecheck(&x, insert, (*n)[i+1:]) {
+-					// reflectFixTypecheck may have overwritten x.
+-					// Update the entry we appended just before the call.
+-					v[j] = x
+-					fixed = true
+-				}
+-			}
+-			*n = v
+-		case *ast.IfStmt:
+-			x := &ast.ExprStmt{X: n.Cond}
+-			if reflectFixTypecheck(&n.Init, nil, []ast.Stmt{x, n.Body, n.Else}) {
+-				n.Cond = x.X
+-				fixed = true
+-			}
+-		}
+-	})
+-
+-	// Warn about any typecheck statements that we missed.
+-	walk(f, reflectWarnTypecheckStmt)
+-
+-	// Now that those are gone, fix remaining type assertions.
+-	// Delayed because the type checks have
+-	// type assertions as part of their syntax.
+-	walk(f, func(n interface{}) {
+-		if reflectFixAssert(n) {
+-			fixed = true
+-		}
+-	})
+-
+-	// Now that the type assertions are gone, rewrite remaining
+-	// references to specific reflect types to use the general ones.
+-	walk(f, func(n interface{}) {
+-		ptr, ok := n.(*ast.Expr)
+-		if !ok {
+-			return
+-		}
+-		nn := *ptr
+-		typ := reflectType(nn)
+-		if typ == "" {
+-			return
+-		}
+-		if strings.HasSuffix(typ, "Type") {
+-			*ptr = newPkgDot(nn.Pos(), "reflect", "Type")
+-		} else {
+-			*ptr = newPkgDot(nn.Pos(), "reflect", "Value")
+-		}
+-		fixed = true
+-	})
+-
+-	// Rewrite v.Set(nil) to v.Set(reflect.MakeZero(v.Type())).
+-	walk(f, func(n interface{}) {
+-		call, ok := n.(*ast.CallExpr)
+-		if !ok || len(call.Args) != 1 || !isTopName(call.Args[0], "nil") {
+-			return
+-		}
+-		sel, ok := call.Fun.(*ast.SelectorExpr)
+-		if !ok || !isReflectValue[typeof[sel.X]] || sel.Sel.Name != "Set" {
+-			return
+-		}
+-		call.Args[0] = &ast.CallExpr{
+-			Fun: newPkgDot(call.Args[0].Pos(), "reflect", "Zero"),
+-			Args: []ast.Expr{
+-				&ast.CallExpr{
+-					Fun: &ast.SelectorExpr{
+-						X:   sel.X,
+-						Sel: &ast.Ident{Name: "Type"},
+-					},
+-				},
+-			},
+-		}
+-		fixed = true
+-	})
+-
+-	// Rewrite v != nil to v.IsValid().
+-	// Rewrite nil used as reflect.Value (in function argument or return) to reflect.Value{}.
+-	walk(f, func(n interface{}) {
+-		ptr, ok := n.(*ast.Expr)
+-		if !ok {
+-			return
+-		}
+-		if isTopName(*ptr, "nil") && isReflectValue[typeof[*ptr]] {
+-			*ptr = ast.NewIdent("reflect.Value{}")
+-			fixed = true
+-			return
+-		}
+-		nn, ok := (*ptr).(*ast.BinaryExpr)
+-		if !ok || (nn.Op != token.EQL && nn.Op != token.NEQ) || !isTopName(nn.Y, "nil") || !isReflectValue[typeof[nn.X]] {
+-			return
+-		}
+-		var call ast.Expr = &ast.CallExpr{
+-			Fun: &ast.SelectorExpr{
+-				X:   nn.X,
+-				Sel: &ast.Ident{Name: "IsValid"},
+-			},
+-		}
+-		if nn.Op == token.EQL {
+-			call = &ast.UnaryExpr{Op: token.NOT, X: call}
+-		}
+-		*ptr = call
+-		fixed = true
+-	})
+-
+-	// Rewrite
+-	//	reflect.Typeof -> reflect.TypeOf,
+-	walk(f, func(n interface{}) {
+-		sel, ok := n.(*ast.SelectorExpr)
+-		if !ok {
+-			return
+-		}
+-		if isTopName(sel.X, "reflect") && sel.Sel.Name == "Typeof" {
+-			sel.Sel.Name = "TypeOf"
+-			fixed = true
+-		}
+-		if isTopName(sel.X, "reflect") && sel.Sel.Name == "NewValue" {
+-			sel.Sel.Name = "ValueOf"
+-			fixed = true
+-		}
+-	})
+-
+-	return fixed
+-}
+-
+-// reflectFixSwitch rewrites *n (if n is an *ast.Stmt) corresponding
+-// to a type switch.
+-func reflectFixSwitch(n interface{}) bool {
+-	ptr, ok := n.(*ast.Stmt)
+-	if !ok {
+-		return false
+-	}
+-	n = *ptr
+-
+-	ts, ok := n.(*ast.TypeSwitchStmt)
+-	if !ok {
+-		return false
+-	}
+-
+-	// Are any switch cases referring to reflect types?
+-	// (That is, is this an old reflect type switch?)
+-	for _, cas := range ts.Body.List {
+-		for _, typ := range cas.(*ast.CaseClause).List {
+-			if reflectType(typ) != "" {
+-				goto haveReflect
+-			}
+-		}
+-	}
+-	return false
+-
+-haveReflect:
+-	// Now we know it's an old reflect type switch.  Prepare the new version,
+-	// but don't replace or edit the original until we're sure of success.
+-
+-	// Figure out the initializer statement, if any, and the receiver for the Kind call.
+-	var init ast.Stmt
+-	var rcvr ast.Expr
+-
+-	init = ts.Init
+-	switch n := ts.Assign.(type) {
+-	default:
+-		warn(ts.Pos(), "unexpected form in type switch")
+-		return false
+-
+-	case *ast.AssignStmt:
+-		as := n
+-		ta := as.Rhs[0].(*ast.TypeAssertExpr)
+-		x := isIdent(as.Lhs[0])
+-		z := isIdent(ta.X)
+-
+-		if isBlank(x) || x != nil && z != nil && x.Name == z.Name && !assignsTo(x, ts.Body.List) {
+-			// Can drop the variable creation.
+-			rcvr = ta.X
+-		} else {
+-			// Need to use initialization statement.
+-			if init != nil {
+-				warn(ts.Pos(), "cannot rewrite reflect type switch with initializing statement")
+-				return false
+-			}
+-			init = &ast.AssignStmt{
+-				Lhs:    []ast.Expr{as.Lhs[0]},
+-				TokPos: as.TokPos,
+-				Tok:    token.DEFINE,
+-				Rhs:    []ast.Expr{ta.X},
+-			}
+-			rcvr = as.Lhs[0]
+-		}
+-
+-	case *ast.ExprStmt:
+-		rcvr = n.X.(*ast.TypeAssertExpr).X
+-	}
+-
+-	// Prepare rewritten type switch (see large comment above for form).
+-	sw := &ast.SwitchStmt{
+-		Switch: ts.Switch,
+-		Init:   init,
+-		Tag: &ast.CallExpr{
+-			Fun: &ast.SelectorExpr{
+-				X: rcvr,
+-				Sel: &ast.Ident{
+-					NamePos: rcvr.End(),
+-					Name:    "Kind",
+-					Obj:     nil,
+-				},
+-			},
+-			Lparen: rcvr.End(),
+-			Rparen: rcvr.End(),
+-		},
+-		Body: &ast.BlockStmt{
+-			Lbrace: ts.Body.Lbrace,
+-			List:   nil, // to be filled in
+-			Rbrace: ts.Body.Rbrace,
+-		},
+-	}
+-
+-	// Translate cases.
+-	for _, tcas := range ts.Body.List {
+-		tcas := tcas.(*ast.CaseClause)
+-		cas := &ast.CaseClause{
+-			Case:  tcas.Case,
+-			Colon: tcas.Colon,
+-			Body:  tcas.Body,
+-		}
+-		for _, t := range tcas.List {
+-			if isTopName(t, "nil") {
+-				cas.List = append(cas.List, newPkgDot(t.Pos(), "reflect", "Invalid"))
+-				continue
+-			}
+-
+-			typ := reflectType(t)
+-			if typ == "" {
+-				warn(t.Pos(), "cannot rewrite reflect type switch case with non-reflect type %s", gofmt(t))
+-				cas.List = append(cas.List, t)
+-				continue
+-			}
+-
+-			for _, k := range reflectKind[typ] {
+-				cas.List = append(cas.List, newPkgDot(t.Pos(), "reflect", k))
+-			}
+-		}
+-		sw.Body.List = append(sw.Body.List, cas)
+-	}
+-
+-	// Everything worked.  Rewrite AST.
+-	*ptr = sw
+-	return true
+-}
+-
+-// Rewrite x, y = z.(T) into
+-//	x = z
+-//	y = x.Kind() == K
+-// as described in the long comment above.
+-//
+-// If insert != nil, it can be called to insert a statement after *ptr in its block.
+-// If insert == nil, insertion is not possible.
+-// At most one call to insert is allowed.
+-//
+-// Scope gives the statements for which a declaration
+-// in *ptr would be in scope.
+-//
+-// The result is true of the statement was rewritten.
+-//
+-func reflectFixTypecheck(ptr *ast.Stmt, insert func(ast.Stmt), scope []ast.Stmt) bool {
+-	st := *ptr
+-	as, ok := st.(*ast.AssignStmt)
+-	if !ok || len(as.Lhs) != 2 || len(as.Rhs) != 1 {
+-		return false
+-	}
+-
+-	ta, ok := as.Rhs[0].(*ast.TypeAssertExpr)
+-	if !ok {
+-		return false
+-	}
+-	typ := reflectType(ta.Type)
+-	if typ == "" {
+-		return false
+-	}
+-
+-	// Have x, y := z.(t).
+-	x := isIdent(as.Lhs[0])
+-	y := isIdent(as.Lhs[1])
+-	z := isIdent(ta.X)
+-
+-	// First step is x := z, unless it's x := x and the resulting x is never reassigned.
+-	// rcvr is the x in x.Kind().
+-	var rcvr ast.Expr
+-	if isBlank(x) ||
+-		as.Tok == token.DEFINE && x != nil && z != nil && x.Name == z.Name && !assignsTo(x, scope) {
+-		// Can drop the statement.
+-		// If we need to insert a statement later, now we have a slot.
+-		*ptr = &ast.EmptyStmt{}
+-		insert = func(x ast.Stmt) { *ptr = x }
+-		rcvr = ta.X
+-	} else {
+-		*ptr = &ast.AssignStmt{
+-			Lhs:    []ast.Expr{as.Lhs[0]},
+-			TokPos: as.TokPos,
+-			Tok:    as.Tok,
+-			Rhs:    []ast.Expr{ta.X},
+-		}
+-		rcvr = as.Lhs[0]
+-	}
+-
+-	// Prepare x.Kind() == T expression appropriate to t.
+-	// If x is not a simple identifier, warn that we might be
+-	// reevaluating x.
+-	if x == nil {
+-		warn(as.Pos(), "rewrite reevaluates expr with possible side effects: %s", gofmt(as.Lhs[0]))
+-	}
+-	yExpr, yNotExpr := reflectKindEq(rcvr, reflectKind[typ])
+-
+-	// Second step is y := x.Kind() == T, unless it's only used once
+-	// or we have no way to insert that statement.
+-	var yStmt *ast.AssignStmt
+-	if as.Tok == token.DEFINE && countUses(y, scope) <= 1 || insert == nil {
+-		// Can drop the statement and use the expression directly.
+-		rewriteUses(y,
+-			func(token.Pos) ast.Expr { return yExpr },
+-			func(token.Pos) ast.Expr { return yNotExpr },
+-			scope)
+-	} else {
+-		yStmt = &ast.AssignStmt{
+-			Lhs:    []ast.Expr{as.Lhs[1]},
+-			TokPos: as.End(),
+-			Tok:    as.Tok,
+-			Rhs:    []ast.Expr{yExpr},
+-		}
+-		insert(yStmt)
+-	}
+-	return true
+-}
+-
+-// reflectKindEq returns the expression z.Kind() == kinds[0] || z.Kind() == kinds[1] || ...
+-// and its negation.
+-// The qualifier "reflect." is inserted before each kinds[i] expression.
+-func reflectKindEq(z ast.Expr, kinds []string) (ast.Expr, ast.Expr) {
+-	n := len(kinds)
+-	if n == 1 {
+-		y := &ast.BinaryExpr{
+-			X: &ast.CallExpr{
+-				Fun: &ast.SelectorExpr{
+-					X:   z,
+-					Sel: ast.NewIdent("Kind"),
+-				},
+-			},
+-			Op: token.EQL,
+-			Y:  newPkgDot(token.NoPos, "reflect", kinds[0]),
+-		}
+-		ynot := &ast.BinaryExpr{
+-			X: &ast.CallExpr{
+-				Fun: &ast.SelectorExpr{
+-					X:   z,
+-					Sel: ast.NewIdent("Kind"),
+-				},
+-			},
+-			Op: token.NEQ,
+-			Y:  newPkgDot(token.NoPos, "reflect", kinds[0]),
+-		}
+-		return y, ynot
+-	}
+-
+-	x, xnot := reflectKindEq(z, kinds[0:n-1])
+-	y, ynot := reflectKindEq(z, kinds[n-1:])
+-
+-	or := &ast.BinaryExpr{
+-		X:  x,
+-		Op: token.LOR,
+-		Y:  y,
+-	}
+-	andnot := &ast.BinaryExpr{
+-		X:  xnot,
+-		Op: token.LAND,
+-		Y:  ynot,
+-	}
+-	return or, andnot
+-}
+-
+-// if x represents a known old reflect type/value like *reflect.PtrType or reflect.ArrayOrSliceValue,
+-// reflectType returns the string form of that type.
+-func reflectType(x ast.Expr) string {
+-	ptr, ok := x.(*ast.StarExpr)
+-	if ok {
+-		x = ptr.X
+-	}
+-
+-	sel, ok := x.(*ast.SelectorExpr)
+-	if !ok || !isName(sel.X, "reflect") {
+-		return ""
+-	}
+-
+-	var s = "reflect."
+-	if ptr != nil {
+-		s = "*reflect."
+-	}
+-	s += sel.Sel.Name
+-
+-	if reflectKind[s] != nil {
+-		return s
+-	}
+-	return ""
+-}
+-
+-// reflectWarnTypecheckStmt warns about statements
+-// of the form x, y = z.(T) for any old reflect type T.
+-// The last pass should have gotten them all, and if it didn't,
+-// the next pass is going to turn them into x, y = z.
+-func reflectWarnTypecheckStmt(n interface{}) {
+-	as, ok := n.(*ast.AssignStmt)
+-	if !ok || len(as.Lhs) != 2 || len(as.Rhs) != 1 {
+-		return
+-	}
+-	ta, ok := as.Rhs[0].(*ast.TypeAssertExpr)
+-	if !ok || reflectType(ta.Type) == "" {
+-		return
+-	}
+-	warn(n.(ast.Node).Pos(), "unfixed reflect type check")
+-}
+-
+-// reflectFixAssert rewrites x.(T) to x for any old reflect type T.
+-func reflectFixAssert(n interface{}) bool {
+-	ptr, ok := n.(*ast.Expr)
+-	if ok {
+-		ta, ok := (*ptr).(*ast.TypeAssertExpr)
+-		if ok && reflectType(ta.Type) != "" {
+-			*ptr = ta.X
+-			return true
+-		}
+-	}
+-	return false
+-}
+-
+-// Tables describing the transformations.
+-
+-// Description of old reflect API for partial type checking.
+-// We pretend the Elem method is on Type and Value instead
+-// of enumerating all the types it is actually on.
+-// Also, we pretend that ArrayType etc embeds Type for the
+-// purposes of describing the API.  (In fact they embed commonType,
+-// which implements Type.)
+-var reflectTypeConfig = &TypeConfig{
+-	Type: map[string]*Type{
+-		"reflect.ArrayOrSliceType":  {Embed: []string{"reflect.Type"}},
+-		"reflect.ArrayOrSliceValue": {Embed: []string{"reflect.Value"}},
+-		"reflect.ArrayType":         {Embed: []string{"reflect.Type"}},
+-		"reflect.ArrayValue":        {Embed: []string{"reflect.Value"}},
+-		"reflect.BoolType":          {Embed: []string{"reflect.Type"}},
+-		"reflect.BoolValue":         {Embed: []string{"reflect.Value"}},
+-		"reflect.ChanType":          {Embed: []string{"reflect.Type"}},
+-		"reflect.ChanValue": {
+-			Method: map[string]string{
+-				"Recv":    "func() (reflect.Value, bool)",
+-				"TryRecv": "func() (reflect.Value, bool)",
+-			},
+-			Embed: []string{"reflect.Value"},
+-		},
+-		"reflect.ComplexType":  {Embed: []string{"reflect.Type"}},
+-		"reflect.ComplexValue": {Embed: []string{"reflect.Value"}},
+-		"reflect.FloatType":    {Embed: []string{"reflect.Type"}},
+-		"reflect.FloatValue":   {Embed: []string{"reflect.Value"}},
+-		"reflect.FuncType": {
+-			Method: map[string]string{
+-				"In":  "func(int) reflect.Type",
+-				"Out": "func(int) reflect.Type",
+-			},
+-			Embed: []string{"reflect.Type"},
+-		},
+-		"reflect.FuncValue": {
+-			Method: map[string]string{
+-				"Call": "func([]reflect.Value) []reflect.Value",
+-			},
+-		},
+-		"reflect.IntType":        {Embed: []string{"reflect.Type"}},
+-		"reflect.IntValue":       {Embed: []string{"reflect.Value"}},
+-		"reflect.InterfaceType":  {Embed: []string{"reflect.Type"}},
+-		"reflect.InterfaceValue": {Embed: []string{"reflect.Value"}},
+-		"reflect.MapType": {
+-			Method: map[string]string{
+-				"Key": "func() reflect.Type",
+-			},
+-			Embed: []string{"reflect.Type"},
+-		},
+-		"reflect.MapValue": {
+-			Method: map[string]string{
+-				"Keys": "func() []reflect.Value",
+-			},
+-			Embed: []string{"reflect.Value"},
+-		},
+-		"reflect.Method": {
+-			Field: map[string]string{
+-				"Type": "*reflect.FuncType",
+-				"Func": "*reflect.FuncValue",
+-			},
+-		},
+-		"reflect.PtrType":   {Embed: []string{"reflect.Type"}},
+-		"reflect.PtrValue":  {Embed: []string{"reflect.Value"}},
+-		"reflect.SliceType": {Embed: []string{"reflect.Type"}},
+-		"reflect.SliceValue": {
+-			Method: map[string]string{
+-				"Slice": "func(int, int) *reflect.SliceValue",
+-			},
+-			Embed: []string{"reflect.Value"},
+-		},
+-		"reflect.StringType":  {Embed: []string{"reflect.Type"}},
+-		"reflect.StringValue": {Embed: []string{"reflect.Value"}},
+-		"reflect.StructField": {
+-			Field: map[string]string{
+-				"Type": "reflect.Type",
+-			},
+-		},
+-		"reflect.StructType": {
+-			Method: map[string]string{
+-				"Field":           "func() reflect.StructField",
+-				"FieldByIndex":    "func() reflect.StructField",
+-				"FieldByName":     "func() reflect.StructField,bool",
+-				"FieldByNameFunc": "func() reflect.StructField,bool",
+-			},
+-			Embed: []string{"reflect.Type"},
+-		},
+-		"reflect.StructValue": {
+-			Method: map[string]string{
+-				"Field":           "func() reflect.Value",
+-				"FieldByIndex":    "func() reflect.Value",
+-				"FieldByName":     "func() reflect.Value",
+-				"FieldByNameFunc": "func() reflect.Value",
+-			},
+-			Embed: []string{"reflect.Value"},
+-		},
+-		"reflect.Type": {
+-			Method: map[string]string{
+-				"Elem":   "func() reflect.Type",
+-				"Method": "func() reflect.Method",
+-			},
+-		},
+-		"reflect.UintType":           {Embed: []string{"reflect.Type"}},
+-		"reflect.UintValue":          {Embed: []string{"reflect.Value"}},
+-		"reflect.UnsafePointerType":  {Embed: []string{"reflect.Type"}},
+-		"reflect.UnsafePointerValue": {Embed: []string{"reflect.Value"}},
+-		"reflect.Value": {
+-			Method: map[string]string{
+-				"Addr":     "func() *reflect.PtrValue",
+-				"Elem":     "func() reflect.Value",
+-				"Method":   "func() *reflect.FuncValue",
+-				"SetValue": "func(reflect.Value)",
+-			},
+-		},
+-	},
+-	Func: map[string]string{
+-		"reflect.Append":      "*reflect.SliceValue",
+-		"reflect.AppendSlice": "*reflect.SliceValue",
+-		"reflect.Indirect":    "reflect.Value",
+-		"reflect.MakeSlice":   "*reflect.SliceValue",
+-		"reflect.MakeChan":    "*reflect.ChanValue",
+-		"reflect.MakeMap":     "*reflect.MapValue",
+-		"reflect.MakeZero":    "reflect.Value",
+-		"reflect.NewValue":    "reflect.Value",
+-		"reflect.PtrTo":       "*reflect.PtrType",
+-		"reflect.Typeof":      "reflect.Type",
+-	},
+-}
+-
+-var reflectRewriteMethod = map[string]map[string]string{
+-	// The type API didn't change much.
+-	"*reflect.ChanType": {"Dir": "ChanDir"},
+-	"*reflect.FuncType": {"DotDotDot": "IsVariadic"},
+-
+-	// The value API has longer names to disambiguate
+-	// methods with different signatures.
+-	"reflect.ArrayOrSliceValue": { // interface, not pointer
+-		"Elem": "Index",
+-	},
+-	"*reflect.ArrayValue": {
+-		"Elem": "Index",
+-	},
+-	"*reflect.BoolValue": {
+-		"Get": "Bool",
+-		"Set": "SetBool",
+-	},
+-	"*reflect.ChanValue": {
+-		"Get": "Pointer",
+-	},
+-	"*reflect.ComplexValue": {
+-		"Get":      "Complex",
+-		"Set":      "SetComplex",
+-		"Overflow": "OverflowComplex",
+-	},
+-	"*reflect.FloatValue": {
+-		"Get":      "Float",
+-		"Set":      "SetFloat",
+-		"Overflow": "OverflowFloat",
+-	},
+-	"*reflect.FuncValue": {
+-		"Get": "Pointer",
+-	},
+-	"*reflect.IntValue": {
+-		"Get":      "Int",
+-		"Set":      "SetInt",
+-		"Overflow": "OverflowInt",
+-	},
+-	"*reflect.InterfaceValue": {
+-		"Get": "InterfaceData",
+-	},
+-	"*reflect.MapValue": {
+-		"Elem":    "MapIndex",
+-		"Get":     "Pointer",
+-		"Keys":    "MapKeys",
+-		"SetElem": "SetMapIndex",
+-	},
+-	"*reflect.PtrValue": {
+-		"Get": "Pointer",
+-	},
+-	"*reflect.SliceValue": {
+-		"Elem": "Index",
+-		"Get":  "Pointer",
+-	},
+-	"*reflect.StringValue": {
+-		"Get": "String",
+-		"Set": "SetString",
+-	},
+-	"*reflect.UintValue": {
+-		"Get":      "Uint",
+-		"Set":      "SetUint",
+-		"Overflow": "OverflowUint",
+-	},
+-	"*reflect.UnsafePointerValue": {
+-		"Get": "Pointer",
+-		"Set": "SetPointer",
+-	},
+-}
+-
+-var reflectKind = map[string][]string{
+-	"reflect.ArrayOrSliceType":   {"Array", "Slice"}, // interface, not pointer
+-	"*reflect.ArrayType":         {"Array"},
+-	"*reflect.BoolType":          {"Bool"},
+-	"*reflect.ChanType":          {"Chan"},
+-	"*reflect.ComplexType":       {"Complex64", "Complex128"},
+-	"*reflect.FloatType":         {"Float32", "Float64"},
+-	"*reflect.FuncType":          {"Func"},
+-	"*reflect.IntType":           {"Int", "Int8", "Int16", "Int32", "Int64"},
+-	"*reflect.InterfaceType":     {"Interface"},
+-	"*reflect.MapType":           {"Map"},
+-	"*reflect.PtrType":           {"Ptr"},
+-	"*reflect.SliceType":         {"Slice"},
+-	"*reflect.StringType":        {"String"},
+-	"*reflect.StructType":        {"Struct"},
+-	"*reflect.UintType":          {"Uint", "Uint8", "Uint16", "Uint32", "Uint64", "Uintptr"},
+-	"*reflect.UnsafePointerType": {"UnsafePointer"},
+-
+-	"reflect.ArrayOrSliceValue":   {"Array", "Slice"}, // interface, not pointer
+-	"*reflect.ArrayValue":         {"Array"},
+-	"*reflect.BoolValue":          {"Bool"},
+-	"*reflect.ChanValue":          {"Chan"},
+-	"*reflect.ComplexValue":       {"Complex64", "Complex128"},
+-	"*reflect.FloatValue":         {"Float32", "Float64"},
+-	"*reflect.FuncValue":          {"Func"},
+-	"*reflect.IntValue":           {"Int", "Int8", "Int16", "Int32", "Int64"},
+-	"*reflect.InterfaceValue":     {"Interface"},
+-	"*reflect.MapValue":           {"Map"},
+-	"*reflect.PtrValue":           {"Ptr"},
+-	"*reflect.SliceValue":         {"Slice"},
+-	"*reflect.StringValue":        {"String"},
+-	"*reflect.StructValue":        {"Struct"},
+-	"*reflect.UintValue":          {"Uint", "Uint8", "Uint16", "Uint32", "Uint64", "Uintptr"},
+-	"*reflect.UnsafePointerValue": {"UnsafePointer"},
+-}
+-
+-var isReflectValue = map[string]bool{
+-	"reflect.ArrayOrSliceValue":   true, // interface, not pointer
+-	"*reflect.ArrayValue":         true,
+-	"*reflect.BoolValue":          true,
+-	"*reflect.ChanValue":          true,
+-	"*reflect.ComplexValue":       true,
+-	"*reflect.FloatValue":         true,
+-	"*reflect.FuncValue":          true,
+-	"*reflect.IntValue":           true,
+-	"*reflect.InterfaceValue":     true,
+-	"*reflect.MapValue":           true,
+-	"*reflect.PtrValue":           true,
+-	"*reflect.SliceValue":         true,
+-	"*reflect.StringValue":        true,
+-	"*reflect.StructValue":        true,
+-	"*reflect.UintValue":          true,
+-	"*reflect.UnsafePointerValue": true,
+-	"reflect.Value":               true, // interface, not pointer
+-}
+diff --git a/src/cmd/fix/reflect_test.go b/src/cmd/fix/reflect_test.go
+deleted file mode 100644
+index a62027eb4b..0000000000
+--- a/src/cmd/fix/reflect_test.go
++++ /dev/null
+@@ -1,38 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file
+-
+-// Too slow under race detector.
+-// +build !race
+-
+-package main
+-
+-import (
+-	"io/ioutil"
+-	"log"
+-	"path/filepath"
+-)
+-
+-func init() {
+-	addTestCases(reflectTests(), reflectFn)
+-}
+-
+-func reflectTests() []testCase {
+-	var tests []testCase
+-
+-	names, _ := filepath.Glob("testdata/reflect.*.in")
+-	for _, in := range names {
+-		out := in[:len(in)-len(".in")] + ".out"
+-		inb, err := ioutil.ReadFile(in)
+-		if err != nil {
+-			log.Fatal(err)
+-		}
+-		outb, err := ioutil.ReadFile(out)
+-		if err != nil {
+-			log.Fatal(err)
+-		}
+-		tests = append(tests, testCase{Name: in, In: string(inb), Out: string(outb)})
+-	}
+-
+-	return tests
+-}
+diff --git a/src/cmd/fix/signal.go b/src/cmd/fix/signal.go
+deleted file mode 100644
+index 5a583d41e9..0000000000
+--- a/src/cmd/fix/signal.go
++++ /dev/null
+@@ -1,50 +0,0 @@
+-// Copyright 2011 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-import (
+-	"go/ast"
+-	"strings"
+-)
+-
+-func init() {
+-	register(signalFix)
+-}
+-
+-var signalFix = fix{
+-	"signal",
+-	"2011-06-29",
+-	signal,
+-	`Adapt code to types moved from os/signal to signal.
+-
+-http://codereview.appspot.com/4437091
+-`,
+-}
+-
+-func signal(f *ast.File) (fixed bool) {
+-	if !imports(f, "os/signal") {
+-		return
+-	}
+-
+-	walk(f, func(n interface{}) {
+-		s, ok := n.(*ast.SelectorExpr)
+-
+-		if !ok || !isTopName(s.X, "signal") {
+-			return
+-		}
+-
+-		sel := s.Sel.String()
+-		if sel == "Signal" || sel == "UnixSignal" || strings.HasPrefix(sel, "SIG") {
+-			addImport(f, "os")
+-			s.X = &ast.Ident{Name: "os"}
+-			fixed = true
+-		}
+-	})
+-
+-	if fixed && !usesImport(f, "os/signal") {
+-		deleteImport(f, "os/signal")
+-	}
+-	return
+-}
+diff --git a/src/cmd/fix/signal_test.go b/src/cmd/fix/signal_test.go
+deleted file mode 100644
+index 7bca7d5c4d..0000000000
+--- a/src/cmd/fix/signal_test.go
++++ /dev/null
+@@ -1,94 +0,0 @@
+-// Copyright 2011 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-func init() {
+-	addTestCases(signalTests, signal)
+-}
+-
+-var signalTests = []testCase{
+-	{
+-		Name: "signal.0",
+-		In: `package main
+-
+-import (
+-	_ "a"
+-	"os/signal"
+-	_ "z"
+-)
+-
+-type T1 signal.UnixSignal
+-type T2 signal.Signal
+-
+-func f() {
+-	_ = signal.SIGHUP
+-	_ = signal.Incoming
+-}
+-`,
+-		Out: `package main
+-
+-import (
+-	_ "a"
+-	"os"
+-	"os/signal"
+-	_ "z"
+-)
+-
+-type T1 os.UnixSignal
+-type T2 os.Signal
+-
+-func f() {
+-	_ = os.SIGHUP
+-	_ = signal.Incoming
+-}
+-`,
+-	},
+-	{
+-		Name: "signal.1",
+-		In: `package main
+-
+-import (
+-	"os"
+-	"os/signal"
+-)
+-
+-func f() {
+-	var _ os.Error
+-	_ = signal.SIGHUP
+-}
+-`,
+-		Out: `package main
+-
+-import "os"
+-
+-func f() {
+-	var _ os.Error
+-	_ = os.SIGHUP
+-}
+-`,
+-	},
+-	{
+-		Name: "signal.2",
+-		In: `package main
+-
+-import "os"
+-import "os/signal"
+-
+-func f() {
+-	var _ os.Error
+-	_ = signal.SIGHUP
+-}
+-`,
+-		Out: `package main
+-
+-import "os"
+-
+-func f() {
+-	var _ os.Error
+-	_ = os.SIGHUP
+-}
+-`,
+-	},
+-}
+diff --git a/src/cmd/fix/sorthelpers.go b/src/cmd/fix/sorthelpers.go
+deleted file mode 100644
+index fa549313eb..0000000000
+--- a/src/cmd/fix/sorthelpers.go
++++ /dev/null
+@@ -1,49 +0,0 @@
+-// Copyright 2011 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-import (
+-	"go/ast"
+-)
+-
+-func init() {
+-	register(sorthelpersFix)
+-}
+-
+-var sorthelpersFix = fix{
+-	"sorthelpers",
+-	"2011-07-08",
+-	sorthelpers,
+-	`Adapt code from sort.Sort[Ints|Float64s|Strings] to sort.[Ints|Float64s|Strings].
+-`,
+-}
+-
+-func sorthelpers(f *ast.File) (fixed bool) {
+-	if !imports(f, "sort") {
+-		return
+-	}
+-
+-	walk(f, func(n interface{}) {
+-		s, ok := n.(*ast.SelectorExpr)
+-		if !ok || !isTopName(s.X, "sort") {
+-			return
+-		}
+-
+-		switch s.Sel.String() {
+-		case "SortFloat64s":
+-			s.Sel.Name = "Float64s"
+-		case "SortInts":
+-			s.Sel.Name = "Ints"
+-		case "SortStrings":
+-			s.Sel.Name = "Strings"
+-		default:
+-			return
+-		}
+-
+-		fixed = true
+-	})
+-
+-	return
+-}
+diff --git a/src/cmd/fix/sorthelpers_test.go b/src/cmd/fix/sorthelpers_test.go
+deleted file mode 100644
+index dd6b58e033..0000000000
+--- a/src/cmd/fix/sorthelpers_test.go
++++ /dev/null
+@@ -1,45 +0,0 @@
+-// Copyright 2011 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-func init() {
+-	addTestCases(sorthelpersTests, sorthelpers)
+-}
+-
+-var sorthelpersTests = []testCase{
+-	{
+-		Name: "sortslice.0",
+-		In: `package main
+-
+-import (
+-	"sort"
+-)
+-
+-func main() {
+-	var s []string
+-	sort.SortStrings(s)
+-	var i []ints
+-	sort.SortInts(i)
+-	var f []float64
+-	sort.SortFloat64s(f)
+-}
+-`,
+-		Out: `package main
+-
+-import (
+-	"sort"
+-)
+-
+-func main() {
+-	var s []string
+-	sort.Strings(s)
+-	var i []ints
+-	sort.Ints(i)
+-	var f []float64
+-	sort.Float64s(f)
+-}
+-`,
+-	},
+-}
+diff --git a/src/cmd/fix/sortslice.go b/src/cmd/fix/sortslice.go
+deleted file mode 100644
+index 89267b847e..0000000000
+--- a/src/cmd/fix/sortslice.go
++++ /dev/null
+@@ -1,52 +0,0 @@
+-// Copyright 2011 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-import (
+-	"go/ast"
+-)
+-
+-func init() {
+-	register(sortsliceFix)
+-}
+-
+-var sortsliceFix = fix{
+-	"sortslice",
+-	"2011-06-26",
+-	sortslice,
+-	`Adapt code from sort.[Float64|Int|String]Array to  sort.[Float64|Int|String]Slice.
+-		
+-http://codereview.appspot.com/4602054
+-http://codereview.appspot.com/4639041
+-`,
+-}
+-
+-func sortslice(f *ast.File) (fixed bool) {
+-	if !imports(f, "sort") {
+-		return
+-	}
+-
+-	walk(f, func(n interface{}) {
+-		s, ok := n.(*ast.SelectorExpr)
+-		if !ok || !isTopName(s.X, "sort") {
+-			return
+-		}
+-
+-		switch s.Sel.String() {
+-		case "Float64Array":
+-			s.Sel.Name = "Float64Slice"
+-		case "IntArray":
+-			s.Sel.Name = "IntSlice"
+-		case "StringArray":
+-			s.Sel.Name = "StringSlice"
+-		default:
+-			return
+-		}
+-
+-		fixed = true
+-	})
+-
+-	return
+-}
+diff --git a/src/cmd/fix/sortslice_test.go b/src/cmd/fix/sortslice_test.go
+deleted file mode 100644
+index 7b745a2320..0000000000
+--- a/src/cmd/fix/sortslice_test.go
++++ /dev/null
+@@ -1,35 +0,0 @@
+-// Copyright 2011 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-func init() {
+-	addTestCases(sortsliceTests, sortslice)
+-}
+-
+-var sortsliceTests = []testCase{
+-	{
+-		Name: "sortslice.0",
+-		In: `package main
+-
+-import (
+-	"sort"
+-)
+-
+-var _ = sort.Float64Array
+-var _ = sort.IntArray
+-var _ = sort.StringArray
+-`,
+-		Out: `package main
+-
+-import (
+-	"sort"
+-)
+-
+-var _ = sort.Float64Slice
+-var _ = sort.IntSlice
+-var _ = sort.StringSlice
+-`,
+-	},
+-}
+diff --git a/src/cmd/fix/strconv.go b/src/cmd/fix/strconv.go
+deleted file mode 100644
+index 6cd69020b2..0000000000
+--- a/src/cmd/fix/strconv.go
++++ /dev/null
+@@ -1,127 +0,0 @@
+-// Copyright 2011 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-import "go/ast"
+-
+-func init() {
+-	register(strconvFix)
+-}
+-
+-var strconvFix = fix{
+-	"strconv",
+-	"2011-12-01",
+-	strconvFn,
+-	`Convert to new strconv API.
+-
+-http://codereview.appspot.com/5434095
+-http://codereview.appspot.com/5434069
+-`,
+-}
+-
+-func strconvFn(f *ast.File) bool {
+-	if !imports(f, "strconv") {
+-		return false
+-	}
+-
+-	fixed := false
+-
+-	walk(f, func(n interface{}) {
+-		// Rename functions.
+-		call, ok := n.(*ast.CallExpr)
+-		if !ok || len(call.Args) < 1 {
+-			return
+-		}
+-		sel, ok := call.Fun.(*ast.SelectorExpr)
+-		if !ok || !isTopName(sel.X, "strconv") {
+-			return
+-		}
+-		change := func(name string) {
+-			fixed = true
+-			sel.Sel.Name = name
+-		}
+-		add := func(s string) {
+-			call.Args = append(call.Args, expr(s))
+-		}
+-		switch sel.Sel.Name {
+-		case "Atob":
+-			change("ParseBool")
+-		case "Atof32":
+-			change("ParseFloat")
+-			add("32") // bitSize
+-			warn(call.Pos(), "rewrote strconv.Atof32(_) to strconv.ParseFloat(_, 32) but return value must be converted to float32")
+-		case "Atof64":
+-			change("ParseFloat")
+-			add("64") // bitSize
+-		case "AtofN":
+-			change("ParseFloat")
+-		case "Atoi":
+-			// Atoi stayed as a convenience wrapper.
+-		case "Atoi64":
+-			change("ParseInt")
+-			add("10") // base
+-			add("64") // bitSize
+-		case "Atoui":
+-			change("ParseUint")
+-			add("10") // base
+-			add("0")  // bitSize
+-			warn(call.Pos(), "rewrote strconv.Atoui(_) to strconv.ParseUint(_, 10, 0) but return value must be converted to uint")
+-		case "Atoui64":
+-			change("ParseUint")
+-			add("10") // base
+-			add("64") // bitSize
+-		case "Btoa":
+-			change("FormatBool")
+-		case "Btoi64":
+-			change("ParseInt")
+-			add("64") // bitSize
+-		case "Btoui64":
+-			change("ParseUint")
+-			add("64") // bitSize
+-		case "Ftoa32":
+-			change("FormatFloat")
+-			call.Args[0] = strconvRewrite("float32", "float64", call.Args[0])
+-			add("32") // bitSize
+-		case "Ftoa64":
+-			change("FormatFloat")
+-			add("64") // bitSize
+-		case "FtoaN":
+-			change("FormatFloat")
+-		case "Itoa":
+-			// Itoa stayed as a convenience wrapper.
+-		case "Itoa64":
+-			change("FormatInt")
+-			add("10") // base
+-		case "Itob":
+-			change("FormatInt")
+-			call.Args[0] = strconvRewrite("int", "int64", call.Args[0])
+-		case "Itob64":
+-			change("FormatInt")
+-		case "Uitoa":
+-			change("FormatUint")
+-			call.Args[0] = strconvRewrite("uint", "uint64", call.Args[0])
+-			add("10") // base
+-		case "Uitoa64":
+-			change("FormatUint")
+-			add("10") // base
+-		case "Uitob":
+-			change("FormatUint")
+-			call.Args[0] = strconvRewrite("uint", "uint64", call.Args[0])
+-		case "Uitob64":
+-			change("FormatUint")
+-		}
+-	})
+-	return fixed
+-}
+-
+-// rewrite from type t1 to type t2
+-// If the expression x is of the form t1(_), use t2(_).  Otherwise use t2(x).
+-func strconvRewrite(t1, t2 string, x ast.Expr) ast.Expr {
+-	if call, ok := x.(*ast.CallExpr); ok && isTopName(call.Fun, t1) {
+-		call.Fun.(*ast.Ident).Name = t2
+-		return x
+-	}
+-	return &ast.CallExpr{Fun: ast.NewIdent(t2), Args: []ast.Expr{x}}
+-}
+diff --git a/src/cmd/fix/strconv_test.go b/src/cmd/fix/strconv_test.go
+deleted file mode 100644
+index 7fbd4e42eb..0000000000
+--- a/src/cmd/fix/strconv_test.go
++++ /dev/null
+@@ -1,93 +0,0 @@
+-// Copyright 2011 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-func init() {
+-	addTestCases(strconvTests, strconvFn)
+-}
+-
+-var strconvTests = []testCase{
+-	{
+-		Name: "strconv.0",
+-		In: `package main
+-
+-import "strconv"
+-
+-func f() {
+-	foo.Atob("abc")
+-
+-	strconv.Atob("true")
+-	strconv.Btoa(false)
+-
+-	strconv.Atof32("1.2")
+-	strconv.Atof64("1.2")
+-	strconv.AtofN("1.2", 64)
+-	strconv.Ftoa32(1.2, 'g', 17)
+-	strconv.Ftoa64(1.2, 'g', 17)
+-	strconv.FtoaN(1.2, 'g', 17, 64)
+-
+-	strconv.Atoi("3")
+-	strconv.Atoi64("3")
+-	strconv.Btoi64("1234", 5)
+-
+-	strconv.Atoui("3")
+-	strconv.Atoui64("3")
+-	strconv.Btoui64("1234", 5)
+-
+-	strconv.Itoa(123)
+-	strconv.Itoa64(1234)
+-	strconv.Itob(123, 5)
+-	strconv.Itob64(1234, 5)
+-
+-	strconv.Uitoa(123)
+-	strconv.Uitoa64(1234)
+-	strconv.Uitob(123, 5)
+-	strconv.Uitob64(1234, 5)
+-
+-	strconv.Uitoa(uint(x))
+-	strconv.Uitoa(f(x))
+-}
+-`,
+-		Out: `package main
+-
+-import "strconv"
+-
+-func f() {
+-	foo.Atob("abc")
+-
+-	strconv.ParseBool("true")
+-	strconv.FormatBool(false)
+-
+-	strconv.ParseFloat("1.2", 32)
+-	strconv.ParseFloat("1.2", 64)
+-	strconv.ParseFloat("1.2", 64)
+-	strconv.FormatFloat(float64(1.2), 'g', 17, 32)
+-	strconv.FormatFloat(1.2, 'g', 17, 64)
+-	strconv.FormatFloat(1.2, 'g', 17, 64)
+-
+-	strconv.Atoi("3")
+-	strconv.ParseInt("3", 10, 64)
+-	strconv.ParseInt("1234", 5, 64)
+-
+-	strconv.ParseUint("3", 10, 0)
+-	strconv.ParseUint("3", 10, 64)
+-	strconv.ParseUint("1234", 5, 64)
+-
+-	strconv.Itoa(123)
+-	strconv.FormatInt(1234, 10)
+-	strconv.FormatInt(int64(123), 5)
+-	strconv.FormatInt(1234, 5)
+-
+-	strconv.FormatUint(uint64(123), 10)
+-	strconv.FormatUint(1234, 10)
+-	strconv.FormatUint(uint64(123), 5)
+-	strconv.FormatUint(1234, 5)
+-
+-	strconv.FormatUint(uint64(x), 10)
+-	strconv.FormatUint(uint64(f(x)), 10)
+-}
+-`,
+-	},
+-}
+diff --git a/src/cmd/fix/stringssplit.go b/src/cmd/fix/stringssplit.go
+deleted file mode 100644
+index d89ecf039c..0000000000
+--- a/src/cmd/fix/stringssplit.go
++++ /dev/null
+@@ -1,72 +0,0 @@
+-// Copyright 2011 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-import (
+-	"go/ast"
+-	"go/token"
+-)
+-
+-func init() {
+-	register(stringssplitFix)
+-}
+-
+-var stringssplitFix = fix{
+-	"stringssplit",
+-	"2011-06-28",
+-	stringssplit,
+-	`Restore strings.Split to its original meaning and add strings.SplitN. Bytes too.
+-
+-http://codereview.appspot.com/4661051
+-`,
+-}
+-
+-func stringssplit(f *ast.File) bool {
+-	if !imports(f, "bytes") && !imports(f, "strings") {
+-		return false
+-	}
+-
+-	fixed := false
+-	walk(f, func(n interface{}) {
+-		call, ok := n.(*ast.CallExpr)
+-		// func Split(s, sep string, n int) []string
+-		// func SplitAfter(s, sep string, n int) []string
+-		if !ok || len(call.Args) != 3 {
+-			return
+-		}
+-		// Is this our function?
+-		switch {
+-		case isPkgDot(call.Fun, "bytes", "Split"):
+-		case isPkgDot(call.Fun, "bytes", "SplitAfter"):
+-		case isPkgDot(call.Fun, "strings", "Split"):
+-		case isPkgDot(call.Fun, "strings", "SplitAfter"):
+-		default:
+-			return
+-		}
+-
+-		sel := call.Fun.(*ast.SelectorExpr)
+-		args := call.Args
+-		fixed = true // We're committed.
+-
+-		// Is the last argument -1? If so, drop the arg.
+-		// (Actually we just look for a negative integer literal.)
+-		// Otherwise, Split->SplitN and keep the arg.
+-		final := args[2]
+-		if unary, ok := final.(*ast.UnaryExpr); ok && unary.Op == token.SUB {
+-			if lit, ok := unary.X.(*ast.BasicLit); ok {
+-				// Is it an integer? If so, it's a negative integer and that's what we're after.
+-				if lit.Kind == token.INT {
+-					// drop the last arg.
+-					call.Args = args[0:2]
+-					return
+-				}
+-			}
+-		}
+-
+-		// If not, rename and keep the argument list.
+-		sel.Sel.Name += "N"
+-	})
+-	return fixed
+-}
+diff --git a/src/cmd/fix/stringssplit_test.go b/src/cmd/fix/stringssplit_test.go
+deleted file mode 100644
+index fa42b1bea9..0000000000
+--- a/src/cmd/fix/stringssplit_test.go
++++ /dev/null
+@@ -1,51 +0,0 @@
+-// Copyright 2011 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-func init() {
+-	addTestCases(stringssplitTests, stringssplit)
+-}
+-
+-var stringssplitTests = []testCase{
+-	{
+-		Name: "stringssplit.0",
+-		In: `package main
+-
+-import (
+-	"bytes"
+-	"strings"
+-)
+-
+-func f() {
+-	bytes.Split(a, b, c)
+-	bytes.Split(a, b, -1)
+-	bytes.SplitAfter(a, b, c)
+-	bytes.SplitAfter(a, b, -1)
+-	strings.Split(a, b, c)
+-	strings.Split(a, b, -1)
+-	strings.SplitAfter(a, b, c)
+-	strings.SplitAfter(a, b, -1)
+-}
+-`,
+-		Out: `package main
+-
+-import (
+-	"bytes"
+-	"strings"
+-)
+-
+-func f() {
+-	bytes.SplitN(a, b, c)
+-	bytes.Split(a, b)
+-	bytes.SplitAfterN(a, b, c)
+-	bytes.SplitAfter(a, b)
+-	strings.SplitN(a, b, c)
+-	strings.Split(a, b)
+-	strings.SplitAfterN(a, b, c)
+-	strings.SplitAfter(a, b)
+-}
+-`,
+-	},
+-}
+diff --git a/src/cmd/fix/template.go b/src/cmd/fix/template.go
+deleted file mode 100644
+index a3dd1440bc..0000000000
+--- a/src/cmd/fix/template.go
++++ /dev/null
+@@ -1,111 +0,0 @@
+-// Copyright 2011 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-import (
+-	"go/ast"
+-)
+-
+-func init() {
+-	register(templateFix)
+-}
+-
+-var templateFix = fix{
+-	"template",
+-	"2011-11-22",
+-	template,
+-	`Rewrite calls to template.ParseFile to template.ParseFiles
+-
+-http://codereview.appspot.com/5433048
+-`,
+-}
+-
+-var templateSetGlobals = []string{
+-	"ParseSetFiles",
+-	"ParseSetGlob",
+-	"ParseTemplateFiles",
+-	"ParseTemplateGlob",
+-	"Set",
+-	"SetMust",
+-}
+-
+-var templateSetMethods = []string{
+-	"ParseSetFiles",
+-	"ParseSetGlob",
+-	"ParseTemplateFiles",
+-	"ParseTemplateGlob",
+-}
+-
+-var templateTypeConfig = &TypeConfig{
+-	Type: map[string]*Type{
+-		"template.Template": {
+-			Method: map[string]string{
+-				"Funcs":      "func() *template.Template",
+-				"Delims":     "func() *template.Template",
+-				"Parse":      "func() (*template.Template, error)",
+-				"ParseFile":  "func() (*template.Template, error)",
+-				"ParseInSet": "func() (*template.Template, error)",
+-			},
+-		},
+-		"template.Set": {
+-			Method: map[string]string{
+-				"ParseSetFiles":      "func() (*template.Set, error)",
+-				"ParseSetGlob":       "func() (*template.Set, error)",
+-				"ParseTemplateFiles": "func() (*template.Set, error)",
+-				"ParseTemplateGlob":  "func() (*template.Set, error)",
+-			},
+-		},
+-	},
+-
+-	Func: map[string]string{
+-		"template.New":     "*template.Template",
+-		"template.Must":    "(*template.Template, error)",
+-		"template.SetMust": "(*template.Set, error)",
+-	},
+-}
+-
+-func template(f *ast.File) bool {
+-	if !imports(f, "text/template") && !imports(f, "html/template") {
+-		return false
+-	}
+-
+-	fixed := false
+-
+-	typeof, _ := typecheck(templateTypeConfig, f)
+-
+-	// Now update the names used by importers.
+-	walk(f, func(n interface{}) {
+-		if sel, ok := n.(*ast.SelectorExpr); ok {
+-			// Reference to top-level function ParseFile.
+-			if isPkgDot(sel, "template", "ParseFile") {
+-				sel.Sel.Name = "ParseFiles"
+-				fixed = true
+-				return
+-			}
+-			// Reference to ParseFiles method.
+-			if typeof[sel.X] == "*template.Template" && sel.Sel.Name == "ParseFile" {
+-				sel.Sel.Name = "ParseFiles"
+-				fixed = true
+-				return
+-			}
+-			// The Set type and its functions are now gone.
+-			for _, name := range templateSetGlobals {
+-				if isPkgDot(sel, "template", name) {
+-					warn(sel.Pos(), "reference to template.%s must be fixed manually", name)
+-					return
+-				}
+-			}
+-			// The methods of Set are now gone.
+-			for _, name := range templateSetMethods {
+-				if typeof[sel.X] == "*template.Set" && sel.Sel.Name == name {
+-					warn(sel.Pos(), "reference to template.*Set.%s must be fixed manually", name)
+-					return
+-				}
+-			}
+-		}
+-	})
+-
+-	return fixed
+-}
+diff --git a/src/cmd/fix/template_test.go b/src/cmd/fix/template_test.go
+deleted file mode 100644
+index f713a2901e..0000000000
+--- a/src/cmd/fix/template_test.go
++++ /dev/null
+@@ -1,55 +0,0 @@
+-// Copyright 2011 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-func init() {
+-	addTestCases(templateTests, template)
+-}
+-
+-var templateTests = []testCase{
+-	{
+-		Name: "template.0",
+-		In: `package main
+-
+-import (
+-	"text/template"
+-)
+-
+-func f() {
+-	template.ParseFile(a)
+-	var t template.Template
+-	x, y := template.ParseFile()
+-	template.New("x").Funcs(m).ParseFile(a) // chained method
+-	// Output should complain about these as functions or methods.
+-	var s *template.Set
+-	s.ParseSetFiles(a)
+-	template.ParseSetGlob(a)
+-	s.ParseTemplateFiles(a)
+-	template.ParseTemplateGlob(a)
+-	x := template.SetMust(a())
+-}
+-`,
+-		Out: `package main
+-
+-import (
+-	"text/template"
+-)
+-
+-func f() {
+-	template.ParseFiles(a)
+-	var t template.Template
+-	x, y := template.ParseFiles()
+-	template.New("x").Funcs(m).ParseFiles(a) // chained method
+-	// Output should complain about these as functions or methods.
+-	var s *template.Set
+-	s.ParseSetFiles(a)
+-	template.ParseSetGlob(a)
+-	s.ParseTemplateFiles(a)
+-	template.ParseTemplateGlob(a)
+-	x := template.SetMust(a())
+-}
+-`,
+-	},
+-}
+diff --git a/src/cmd/fix/timefileinfo.go b/src/cmd/fix/timefileinfo.go
+deleted file mode 100644
+index b2ea23d8f9..0000000000
+--- a/src/cmd/fix/timefileinfo.go
++++ /dev/null
+@@ -1,298 +0,0 @@
+-// Copyright 2011 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-import (
+-	"go/ast"
+-	"go/token"
+-	"strings"
+-)
+-
+-func init() {
+-	register(timefileinfoFix)
+-}
+-
+-var timefileinfoFix = fix{
+-	"time+fileinfo",
+-	"2011-11-29",
+-	timefileinfo,
+-	`Rewrite for new time and os.FileInfo APIs.
+-
+-This fix applies some of the more mechanical changes,
+-but most code will still need manual cleanup.
+-
+-http://codereview.appspot.com/5392041
+-http://codereview.appspot.com/5416060
+-`,
+-}
+-
+-var timefileinfoTypeConfig = &TypeConfig{
+-	Type: map[string]*Type{
+-		"os.File": {
+-			Method: map[string]string{
+-				"Readdir": "func() []*os.FileInfo",
+-				"Stat":    "func() (*os.FileInfo, error)",
+-			},
+-		},
+-		"time.Time": {
+-			Method: map[string]string{
+-				"Seconds":     "time.raw",
+-				"Nanoseconds": "time.raw",
+-			},
+-		},
+-	},
+-	Func: map[string]string{
+-		"ioutil.ReadDir":              "([]*os.FileInfo, error)",
+-		"os.Stat":                     "(*os.FileInfo, error)",
+-		"os.Lstat":                    "(*os.FileInfo, error)",
+-		"time.LocalTime":              "*time.Time",
+-		"time.UTC":                    "*time.Time",
+-		"time.SecondsToLocalTime":     "*time.Time",
+-		"time.SecondsToUTC":           "*time.Time",
+-		"time.NanosecondsToLocalTime": "*time.Time",
+-		"time.NanosecondsToUTC":       "*time.Time",
+-		"time.Parse":                  "(*time.Time, error)",
+-		"time.Nanoseconds":            "time.raw",
+-		"time.Seconds":                "time.raw",
+-	},
+-}
+-
+-// timefileinfoIsOld reports whether f has evidence of being
+-// "old code", from before the API changes.  Evidence means:
+-//
+-//	a mention of *os.FileInfo (the pointer)
+-//	a mention of *time.Time (the pointer)
+-//	a mention of old functions from package time
+-//	an attempt to call time.UTC
+-//
+-func timefileinfoIsOld(f *ast.File, typeof map[interface{}]string) bool {
+-	old := false
+-
+-	// called records the expressions that appear as
+-	// the function part of a function call, so that
+-	// we can distinguish a ref to the possibly new time.UTC
+-	// from the definitely old time.UTC() function call.
+-	called := make(map[interface{}]bool)
+-
+-	before := func(n interface{}) {
+-		if old {
+-			return
+-		}
+-		if star, ok := n.(*ast.StarExpr); ok {
+-			if isPkgDot(star.X, "os", "FileInfo") || isPkgDot(star.X, "time", "Time") {
+-				old = true
+-				return
+-			}
+-		}
+-		if sel, ok := n.(*ast.SelectorExpr); ok {
+-			if isTopName(sel.X, "time") {
+-				if timefileinfoOldTimeFunc[sel.Sel.Name] {
+-					old = true
+-					return
+-				}
+-			}
+-			if typeof[sel.X] == "os.FileInfo" || typeof[sel.X] == "*os.FileInfo" {
+-				switch sel.Sel.Name {
+-				case "Mtime_ns", "IsDirectory", "IsRegular":
+-					old = true
+-					return
+-				case "Name", "Mode", "Size":
+-					if !called[sel] {
+-						old = true
+-						return
+-					}
+-				}
+-			}
+-		}
+-		call, ok := n.(*ast.CallExpr)
+-		if ok && isPkgDot(call.Fun, "time", "UTC") {
+-			old = true
+-			return
+-		}
+-		if ok {
+-			called[call.Fun] = true
+-		}
+-	}
+-	walkBeforeAfter(f, before, nop)
+-	return old
+-}
+-
+-var timefileinfoOldTimeFunc = map[string]bool{
+-	"LocalTime":              true,
+-	"SecondsToLocalTime":     true,
+-	"SecondsToUTC":           true,
+-	"NanosecondsToLocalTime": true,
+-	"NanosecondsToUTC":       true,
+-	"Seconds":                true,
+-	"Nanoseconds":            true,
+-}
+-
+-var isTimeNow = map[string]bool{
+-	"LocalTime":   true,
+-	"UTC":         true,
+-	"Seconds":     true,
+-	"Nanoseconds": true,
+-}
+-
+-func timefileinfo(f *ast.File) bool {
+-	if !imports(f, "os") && !imports(f, "time") && !imports(f, "io/ioutil") {
+-		return false
+-	}
+-
+-	typeof, _ := typecheck(timefileinfoTypeConfig, f)
+-
+-	if !timefileinfoIsOld(f, typeof) {
+-		return false
+-	}
+-
+-	fixed := false
+-	walk(f, func(n interface{}) {
+-		p, ok := n.(*ast.Expr)
+-		if !ok {
+-			return
+-		}
+-		nn := *p
+-
+-		// Rewrite *os.FileInfo and *time.Time to drop the pointer.
+-		if star, ok := nn.(*ast.StarExpr); ok {
+-			if isPkgDot(star.X, "os", "FileInfo") || isPkgDot(star.X, "time", "Time") {
+-				fixed = true
+-				*p = star.X
+-				return
+-			}
+-		}
+-
+-		// Rewrite old time API calls to new calls.
+-		// The code will still not compile after this edit,
+-		// but the compiler will catch that, and the replacement
+-		// code will be the correct functions to use in the new API.
+-		if sel, ok := nn.(*ast.SelectorExpr); ok && isTopName(sel.X, "time") {
+-			fn := sel.Sel.Name
+-			if fn == "LocalTime" || fn == "Seconds" || fn == "Nanoseconds" {
+-				fixed = true
+-				sel.Sel.Name = "Now"
+-				return
+-			}
+-		}
+-
+-		if call, ok := nn.(*ast.CallExpr); ok {
+-			if sel, ok := call.Fun.(*ast.SelectorExpr); ok {
+-				// Rewrite time.UTC but only when called (there's a new time.UTC var now).
+-				if isPkgDot(sel, "time", "UTC") {
+-					fixed = true
+-					sel.Sel.Name = "Now"
+-					// rewrite time.Now() into time.Now().UTC()
+-					*p = &ast.CallExpr{
+-						Fun: &ast.SelectorExpr{
+-							X:   call,
+-							Sel: ast.NewIdent("UTC"),
+-						},
+-					}
+-					return
+-				}
+-
+-				// Rewrite conversions.
+-				if ok && isTopName(sel.X, "time") && len(call.Args) == 1 {
+-					fn := sel.Sel.Name
+-					switch fn {
+-					case "SecondsToLocalTime", "SecondsToUTC",
+-						"NanosecondsToLocalTime", "NanosecondsToUTC":
+-						fixed = true
+-						sel.Sel.Name = "Unix"
+-						call.Args = append(call.Args, nil)
+-						if strings.HasPrefix(fn, "Seconds") {
+-							// Unix(sec, 0)
+-							call.Args[1] = ast.NewIdent("0")
+-						} else {
+-							// Unix(0, nsec)
+-							call.Args[1] = call.Args[0]
+-							call.Args[0] = ast.NewIdent("0")
+-						}
+-						if strings.HasSuffix(fn, "ToUTC") {
+-							// rewrite call into call.UTC()
+-							*p = &ast.CallExpr{
+-								Fun: &ast.SelectorExpr{
+-									X:   call,
+-									Sel: ast.NewIdent("UTC"),
+-								},
+-							}
+-						}
+-						return
+-					}
+-				}
+-
+-				// Rewrite method calls.
+-				switch typeof[sel.X] {
+-				case "*time.Time", "time.Time":
+-					switch sel.Sel.Name {
+-					case "Seconds":
+-						fixed = true
+-						sel.Sel.Name = "Unix"
+-						return
+-					case "Nanoseconds":
+-						fixed = true
+-						sel.Sel.Name = "UnixNano"
+-						return
+-					}
+-
+-				case "*os.FileInfo", "os.FileInfo":
+-					switch sel.Sel.Name {
+-					case "IsDirectory":
+-						fixed = true
+-						sel.Sel.Name = "IsDir"
+-						return
+-					case "IsRegular":
+-						fixed = true
+-						sel.Sel.Name = "IsDir"
+-						*p = &ast.UnaryExpr{
+-							Op: token.NOT,
+-							X:  call,
+-						}
+-						return
+-					}
+-				}
+-			}
+-		}
+-
+-		// Rewrite subtraction of two times.
+-		// Cannot handle +=/-=.
+-		if bin, ok := nn.(*ast.BinaryExpr); ok &&
+-			bin.Op == token.SUB &&
+-			(typeof[bin.X] == "time.raw" || typeof[bin.Y] == "time.raw") {
+-			fixed = true
+-			*p = &ast.CallExpr{
+-				Fun: &ast.SelectorExpr{
+-					X:   bin.X,
+-					Sel: ast.NewIdent("Sub"),
+-				},
+-				Args: []ast.Expr{bin.Y},
+-			}
+-		}
+-
+-		// Rewrite field references for os.FileInfo.
+-		if sel, ok := nn.(*ast.SelectorExpr); ok {
+-			if typ := typeof[sel.X]; typ == "*os.FileInfo" || typ == "os.FileInfo" {
+-				addCall := false
+-				switch sel.Sel.Name {
+-				case "Name", "Size", "Mode":
+-					fixed = true
+-					addCall = true
+-				case "Mtime_ns":
+-					fixed = true
+-					sel.Sel.Name = "ModTime"
+-					addCall = true
+-				}
+-				if addCall {
+-					*p = &ast.CallExpr{
+-						Fun: sel,
+-					}
+-					return
+-				}
+-			}
+-		}
+-	})
+-
+-	return true
+-}
+diff --git a/src/cmd/fix/timefileinfo_test.go b/src/cmd/fix/timefileinfo_test.go
+deleted file mode 100644
+index 6573b85456..0000000000
+--- a/src/cmd/fix/timefileinfo_test.go
++++ /dev/null
+@@ -1,187 +0,0 @@
+-// Copyright 2011 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-func init() {
+-	addTestCases(timefileinfoTests, timefileinfo)
+-}
+-
+-var timefileinfoTests = []testCase{
+-	{
+-		Name: "timefileinfo.0",
+-		In: `package main
+-
+-import "os"
+-
+-func main() {
+-	st, _ := os.Stat("/etc/passwd")
+-	_ = st.Name
+-}
+-`,
+-		Out: `package main
+-
+-import "os"
+-
+-func main() {
+-	st, _ := os.Stat("/etc/passwd")
+-	_ = st.Name()
+-}
+-`,
+-	},
+-	{
+-		Name: "timefileinfo.1",
+-		In: `package main
+-
+-import "os"
+-
+-func main() {
+-	st, _ := os.Stat("/etc/passwd")
+-	_ = st.Size
+-	_ = st.Mode
+-	_ = st.Mtime_ns
+-	_ = st.IsDirectory()
+-	_ = st.IsRegular()
+-}
+-`,
+-		Out: `package main
+-
+-import "os"
+-
+-func main() {
+-	st, _ := os.Stat("/etc/passwd")
+-	_ = st.Size()
+-	_ = st.Mode()
+-	_ = st.ModTime()
+-	_ = st.IsDir()
+-	_ = !st.IsDir()
+-}
+-`,
+-	},
+-	{
+-		Name: "timefileinfo.2",
+-		In: `package main
+-
+-import "os"
+-
+-func f(st *os.FileInfo) {
+-	_ = st.Name
+-	_ = st.Size
+-	_ = st.Mode
+-	_ = st.Mtime_ns
+-	_ = st.IsDirectory()
+-	_ = st.IsRegular()
+-}
+-`,
+-		Out: `package main
+-
+-import "os"
+-
+-func f(st os.FileInfo) {
+-	_ = st.Name()
+-	_ = st.Size()
+-	_ = st.Mode()
+-	_ = st.ModTime()
+-	_ = st.IsDir()
+-	_ = !st.IsDir()
+-}
+-`,
+-	},
+-	{
+-		Name: "timefileinfo.3",
+-		In: `package main
+-
+-import "time"
+-
+-func main() {
+-	_ = time.Seconds()
+-	_ = time.Nanoseconds()
+-	_ = time.LocalTime()
+-	_ = time.UTC()
+-	_ = time.SecondsToLocalTime(sec)
+-	_ = time.SecondsToUTC(sec)
+-	_ = time.NanosecondsToLocalTime(nsec)
+-	_ = time.NanosecondsToUTC(nsec)
+-}
+-`,
+-		Out: `package main
+-
+-import "time"
+-
+-func main() {
+-	_ = time.Now()
+-	_ = time.Now()
+-	_ = time.Now()
+-	_ = time.Now().UTC()
+-	_ = time.Unix(sec, 0)
+-	_ = time.Unix(sec, 0).UTC()
+-	_ = time.Unix(0, nsec)
+-	_ = time.Unix(0, nsec).UTC()
+-}
+-`,
+-	},
+-	{
+-		Name: "timefileinfo.4",
+-		In: `package main
+-
+-import "time"
+-
+-func f(*time.Time)
+-
+-func main() {
+-	t := time.LocalTime()
+-	_ = t.Seconds()
+-	_ = t.Nanoseconds()
+-
+-	t1 := time.Nanoseconds()
+-	f(nil)
+-	t2 := time.Nanoseconds()
+-	dt := t2 - t1
+-}
+-`,
+-		Out: `package main
+-
+-import "time"
+-
+-func f(time.Time)
+-
+-func main() {
+-	t := time.Now()
+-	_ = t.Unix()
+-	_ = t.UnixNano()
+-
+-	t1 := time.Now()
+-	f(nil)
+-	t2 := time.Now()
+-	dt := t2.Sub(t1)
+-}
+-`,
+-	},
+-	{
+-		Name: "timefileinfo.5", // test for issues 1505, 2636
+-		In: `package main
+-
+-import (
+-	"fmt"
+-	"time"
+-)
+-
+-func main() {
+-	fmt.Println(time.SecondsToUTC(now)) // this comment must not introduce an illegal linebreak
+-}
+-`,
+-		Out: `package main
+-
+-import (
+-	"fmt"
+-	"time"
+-)
+-
+-func main() {
+-	fmt.Println(time.Unix(now, 0).UTC( // this comment must not introduce an illegal linebreak
+-	))
+-}
+-`,
+-	},
+-}
+diff --git a/src/cmd/fix/url.go b/src/cmd/fix/url.go
+deleted file mode 100644
+index 49aac739b3..0000000000
+--- a/src/cmd/fix/url.go
++++ /dev/null
+@@ -1,101 +0,0 @@
+-// Copyright 2011 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-import "go/ast"
+-
+-func init() {
+-	register(urlFix)
+-}
+-
+-var urlFix = fix{
+-	"url",
+-	"2011-08-17",
+-	url,
+-	`Move the URL pieces of package http into a new package, url.
+-
+-http://codereview.appspot.com/4893043
+-`,
+-}
+-
+-var urlRenames = []struct{ in, out string }{
+-	{"URL", "URL"},
+-	{"ParseURL", "Parse"},
+-	{"ParseURLReference", "ParseWithReference"},
+-	{"ParseQuery", "ParseQuery"},
+-	{"Values", "Values"},
+-	{"URLEscape", "QueryEscape"},
+-	{"URLUnescape", "QueryUnescape"},
+-	{"URLError", "Error"},
+-	{"URLEscapeError", "EscapeError"},
+-}
+-
+-func url(f *ast.File) bool {
+-	if imports(f, "url") || !imports(f, "http") {
+-		return false
+-	}
+-
+-	fixed := false
+-
+-	// Update URL code.
+-	urlWalk := func(n interface{}) {
+-		// Is it an identifier?
+-		if ident, ok := n.(*ast.Ident); ok && ident.Name == "url" {
+-			ident.Name = "url_"
+-			return
+-		}
+-		// Parameter and result names.
+-		if fn, ok := n.(*ast.FuncType); ok {
+-			fixed = urlDoFields(fn.Params) || fixed
+-			fixed = urlDoFields(fn.Results) || fixed
+-		}
+-	}
+-
+-	// Fix up URL code and add import, at most once.
+-	fix := func() {
+-		if fixed {
+-			return
+-		}
+-		addImport(f, "url")
+-		walkBeforeAfter(f, urlWalk, nop)
+-		fixed = true
+-	}
+-
+-	walk(f, func(n interface{}) {
+-		// Rename functions and methods.
+-		if expr, ok := n.(ast.Expr); ok {
+-			for _, s := range urlRenames {
+-				if isPkgDot(expr, "http", s.in) {
+-					fix()
+-					expr.(*ast.SelectorExpr).X.(*ast.Ident).Name = "url"
+-					expr.(*ast.SelectorExpr).Sel.Name = s.out
+-					return
+-				}
+-			}
+-		}
+-	})
+-
+-	// Remove the http import if no longer needed.
+-	if fixed && !usesImport(f, "http") {
+-		deleteImport(f, "http")
+-	}
+-
+-	return fixed
+-}
+-
+-func urlDoFields(list *ast.FieldList) (fixed bool) {
+-	if list == nil {
+-		return
+-	}
+-	for _, field := range list.List {
+-		for _, ident := range field.Names {
+-			if ident.Name == "url" {
+-				fixed = true
+-				ident.Name = "url_"
+-			}
+-		}
+-	}
+-	return
+-}
+diff --git a/src/cmd/fix/url2.go b/src/cmd/fix/url2.go
+deleted file mode 100644
+index 5fd05ad2a7..0000000000
+--- a/src/cmd/fix/url2.go
++++ /dev/null
+@@ -1,46 +0,0 @@
+-// Copyright 2011 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-import "go/ast"
+-
+-func init() {
+-	register(url2Fix)
+-}
+-
+-var url2Fix = fix{
+-	"url2",
+-	"2012-02-16",
+-	url2,
+-	`Rename some functions in net/url.
+-
+-http://codereview.appspot.com/5671061
+-`,
+-}
+-
+-func url2(f *ast.File) bool {
+-	if !imports(f, "net/url") {
+-		return false
+-	}
+-
+-	fixed := false
+-
+-	walk(f, func(n interface{}) {
+-		// Rename functions and methods.
+-		sel, ok := n.(*ast.SelectorExpr)
+-		if !ok {
+-			return
+-		}
+-		if !isTopName(sel.X, "url") {
+-			return
+-		}
+-		if sel.Sel.Name == "ParseWithReference" {
+-			sel.Sel.Name = "ParseWithFragment"
+-			fixed = true
+-		}
+-	})
+-
+-	return fixed
+-}
+diff --git a/src/cmd/fix/url2_test.go b/src/cmd/fix/url2_test.go
+deleted file mode 100644
+index c68dd88f18..0000000000
+--- a/src/cmd/fix/url2_test.go
++++ /dev/null
+@@ -1,31 +0,0 @@
+-// Copyright 2011 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-func init() {
+-	addTestCases(url2Tests, url2)
+-}
+-
+-var url2Tests = []testCase{
+-	{
+-		Name: "url2.0",
+-		In: `package main
+-
+-import "net/url"
+-
+-func f() {
+-	url.ParseWithReference("foo")
+-}
+-`,
+-		Out: `package main
+-
+-import "net/url"
+-
+-func f() {
+-	url.ParseWithFragment("foo")
+-}
+-`,
+-	},
+-}
+diff --git a/src/cmd/fix/url_test.go b/src/cmd/fix/url_test.go
+deleted file mode 100644
+index 39827f780e..0000000000
+--- a/src/cmd/fix/url_test.go
++++ /dev/null
+@@ -1,159 +0,0 @@
+-// Copyright 2011 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-func init() {
+-	addTestCases(urlTests, url)
+-}
+-
+-var urlTests = []testCase{
+-	{
+-		Name: "url.0",
+-		In: `package main
+-
+-import (
+-	"http"
+-)
+-
+-func f() {
+-	var _ http.URL
+-	http.ParseURL(a)
+-	http.ParseURLReference(a)
+-	http.ParseQuery(a)
+-	m := http.Values{a: b}
+-	http.URLEscape(a)
+-	http.URLUnescape(a)
+-	var x http.URLError
+-	var y http.URLEscapeError
+-}
+-`,
+-		Out: `package main
+-
+-import "url"
+-
+-func f() {
+-	var _ url.URL
+-	url.Parse(a)
+-	url.ParseWithReference(a)
+-	url.ParseQuery(a)
+-	m := url.Values{a: b}
+-	url.QueryEscape(a)
+-	url.QueryUnescape(a)
+-	var x url.Error
+-	var y url.EscapeError
+-}
+-`,
+-	},
+-	{
+-		Name: "url.1",
+-		In: `package main
+-
+-import (
+-	"http"
+-)
+-
+-func f() {
+-	http.ParseURL(a)
+-	var x http.Request
+-}
+-`,
+-		Out: `package main
+-
+-import (
+-	"http"
+-	"url"
+-)
+-
+-func f() {
+-	url.Parse(a)
+-	var x http.Request
+-}
+-`,
+-	},
+-	{
+-		Name: "url.2",
+-		In: `package main
+-
+-import (
+-	"http"
+-)
+-
+-type U struct{ url int }
+-type M map[int]int
+-
+-func f() {
+-	http.ParseURL(a)
+-	var url = 23
+-	url, x := 45, y
+-	_ = U{url: url}
+-	_ = M{url + 1: url}
+-}
+-
+-func g(url string) string {
+-	return url
+-}
+-
+-func h() (url string) {
+-	return url
+-}
+-`,
+-		Out: `package main
+-
+-import "url"
+-
+-type U struct{ url_ int }
+-type M map[int]int
+-
+-func f() {
+-	url.Parse(a)
+-	var url_ = 23
+-	url_, x := 45, y
+-	_ = U{url_: url_}
+-	_ = M{url_ + 1: url_}
+-}
+-
+-func g(url_ string) string {
+-	return url_
+-}
+-
+-func h() (url_ string) {
+-	return url_
+-}
+-`,
+-	},
+-	{
+-		Name: "url.3",
+-		In: `package main
+-
+-import "http"
+-
+-type U struct{ url string }
+-
+-func f() {
+-	var u U
+-	u.url = "x"
+-}
+-
+-func (url *T) m() string {
+-	return url
+-}
+-`,
+-		Out: `package main
+-
+-import "http"
+-
+-type U struct{ url string }
+-
+-func f() {
+-	var u U
+-	u.url = "x"
+-}
+-
+-func (url *T) m() string {
+-	return url
+-}
+-`,
+-	},
+-}
+diff --git a/src/cmd/fix/xmlapi.go b/src/cmd/fix/xmlapi.go
+deleted file mode 100644
+index e74425914d..0000000000
+--- a/src/cmd/fix/xmlapi.go
++++ /dev/null
+@@ -1,111 +0,0 @@
+-// Copyright 2012 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-import (
+-	"go/ast"
+-)
+-
+-func init() {
+-	register(xmlapiFix)
+-}
+-
+-var xmlapiFix = fix{
+-	"xmlapi",
+-	"2012-01-23",
+-	xmlapi,
+-	`
+-	Make encoding/xml's API look more like the rest of the encoding packages.
+-
+-http://codereview.appspot.com/5574053
+-`,
+-}
+-
+-var xmlapiTypeConfig = &TypeConfig{
+-	Func: map[string]string{
+-		"xml.NewParser":         "*xml.Parser",
+-		"os.Open":               "*os.File",
+-		"os.OpenFile":           "*os.File",
+-		"bytes.NewBuffer":       "*bytes.Buffer",
+-		"bytes.NewBufferString": "*bytes.Buffer",
+-		"bufio.NewReader":       "*bufio.Reader",
+-		"bufio.NewReadWriter":   "*bufio.ReadWriter",
+-	},
+-}
+-
+-var isReader = map[string]bool{
+-	"*os.File":          true,
+-	"*bytes.Buffer":     true,
+-	"*bufio.Reader":     true,
+-	"*bufio.ReadWriter": true,
+-	"io.Reader":         true,
+-}
+-
+-func xmlapi(f *ast.File) bool {
+-	if !imports(f, "encoding/xml") {
+-		return false
+-	}
+-
+-	typeof, _ := typecheck(xmlapiTypeConfig, f)
+-
+-	fixed := false
+-	walk(f, func(n interface{}) {
+-		s, ok := n.(*ast.SelectorExpr)
+-		if ok && typeof[s.X] == "*xml.Parser" && s.Sel.Name == "Unmarshal" {
+-			s.Sel.Name = "DecodeElement"
+-			fixed = true
+-			return
+-		}
+-		if ok && isPkgDot(s, "xml", "Parser") {
+-			s.Sel.Name = "Decoder"
+-			fixed = true
+-			return
+-		}
+-
+-		call, ok := n.(*ast.CallExpr)
+-		if !ok {
+-			return
+-		}
+-		switch {
+-		case len(call.Args) == 2 && isPkgDot(call.Fun, "xml", "Marshal"):
+-			*call = xmlMarshal(call.Args)
+-			fixed = true
+-		case len(call.Args) == 2 && isPkgDot(call.Fun, "xml", "Unmarshal"):
+-			if isReader[typeof[call.Args[0]]] {
+-				*call = xmlUnmarshal(call.Args)
+-				fixed = true
+-			}
+-		case len(call.Args) == 1 && isPkgDot(call.Fun, "xml", "NewParser"):
+-			sel := call.Fun.(*ast.SelectorExpr).Sel
+-			sel.Name = "NewDecoder"
+-			fixed = true
+-		}
+-	})
+-	return fixed
+-}
+-
+-func xmlMarshal(args []ast.Expr) ast.CallExpr {
+-	return xmlCallChain("NewEncoder", "Encode", args)
+-}
+-
+-func xmlUnmarshal(args []ast.Expr) ast.CallExpr {
+-	return xmlCallChain("NewDecoder", "Decode", args)
+-}
+-
+-func xmlCallChain(first, second string, args []ast.Expr) ast.CallExpr {
+-	return ast.CallExpr{
+-		Fun: &ast.SelectorExpr{
+-			X: &ast.CallExpr{
+-				Fun: &ast.SelectorExpr{
+-					X:   ast.NewIdent("xml"),
+-					Sel: ast.NewIdent(first),
+-				},
+-				Args: args[:1],
+-			},
+-			Sel: ast.NewIdent(second),
+-		},
+-		Args: args[1:2],
+-	}
+-}
+diff --git a/src/cmd/fix/xmlapi_test.go b/src/cmd/fix/xmlapi_test.go
+deleted file mode 100644
+index 6486c81248..0000000000
+--- a/src/cmd/fix/xmlapi_test.go
++++ /dev/null
+@@ -1,85 +0,0 @@
+-// Copyright 2012 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-func init() {
+-	addTestCases(xmlapiTests, xmlapi)
+-}
+-
+-var xmlapiTests = []testCase{
+-	{
+-		Name: "xmlapi.0",
+-		In: `package main
+-
+-import "encoding/xml"
+-
+-func f() {
+-	xml.Marshal(a, b)
+-	xml.Unmarshal(a, b)
+-
+-	var buf1 bytes.Buffer
+-	buf2 := &bytes.Buffer{}
+-	buf3 := bytes.NewBuffer(data)
+-	buf4 := bytes.NewBufferString(data)
+-	buf5 := bufio.NewReader(r)
+-	xml.Unmarshal(&buf1, v)
+-	xml.Unmarshal(buf2, v)
+-	xml.Unmarshal(buf3, v)
+-	xml.Unmarshal(buf4, v)
+-	xml.Unmarshal(buf5, v)
+-
+-	f := os.Open("foo.xml")
+-	xml.Unmarshal(f, v)
+-
+-	p1 := xml.NewParser(stream)
+-	p1.Unmarshal(v, start)
+-
+-	var p2 *xml.Parser
+-	p2.Unmarshal(v, start)
+-}
+-
+-func g(r io.Reader, f *os.File, b []byte) {
+-	xml.Unmarshal(r, v)
+-	xml.Unmarshal(f, v)
+-	xml.Unmarshal(b, v)
+-}
+-`,
+-		Out: `package main
+-
+-import "encoding/xml"
+-
+-func f() {
+-	xml.NewEncoder(a).Encode(b)
+-	xml.Unmarshal(a, b)
+-
+-	var buf1 bytes.Buffer
+-	buf2 := &bytes.Buffer{}
+-	buf3 := bytes.NewBuffer(data)
+-	buf4 := bytes.NewBufferString(data)
+-	buf5 := bufio.NewReader(r)
+-	xml.NewDecoder(&buf1).Decode(v)
+-	xml.NewDecoder(buf2).Decode(v)
+-	xml.NewDecoder(buf3).Decode(v)
+-	xml.NewDecoder(buf4).Decode(v)
+-	xml.NewDecoder(buf5).Decode(v)
+-
+-	f := os.Open("foo.xml")
+-	xml.NewDecoder(f).Decode(v)
+-
+-	p1 := xml.NewDecoder(stream)
+-	p1.DecodeElement(v, start)
+-
+-	var p2 *xml.Decoder
+-	p2.DecodeElement(v, start)
+-}
+-
+-func g(r io.Reader, f *os.File, b []byte) {
+-	xml.NewDecoder(r).Decode(v)
+-	xml.NewDecoder(f).Decode(v)
+-	xml.Unmarshal(b, v)
+-}
+-`,
+-	},
+-}

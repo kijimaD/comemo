@@ -13,7 +13,36 @@ Date:   Wed Oct 24 13:32:24 2018 +0200
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/internal/syscall/unix/getrandom_freebsd.go | 3 ---
  src/internal/syscall/unix/getrandom_linux.go   | 3 ---
  2 files changed, 6 deletions(-)
+
+diff --git a/src/internal/syscall/unix/getrandom_freebsd.go b/src/internal/syscall/unix/getrandom_freebsd.go
+index fc241f2345..f1ba5730c9 100644
+--- a/src/internal/syscall/unix/getrandom_freebsd.go
++++ b/src/internal/syscall/unix/getrandom_freebsd.go
+@@ -28,9 +28,6 @@ const (
+ 
+ // GetRandom calls the FreeBSD getrandom system call.
+ func GetRandom(p []byte, flags GetRandomFlag) (n int, err error) {
+-	if randomTrap == 0 {
+-		return 0, syscall.ENOSYS
+-	}
+ 	if len(p) == 0 {
+ 		return 0, nil
+ 	}
+diff --git a/src/internal/syscall/unix/getrandom_linux.go b/src/internal/syscall/unix/getrandom_linux.go
+index 0d0d4f115c..00d8110f6f 100644
+--- a/src/internal/syscall/unix/getrandom_linux.go
++++ b/src/internal/syscall/unix/getrandom_linux.go
+@@ -26,9 +26,6 @@ const (
+ // GetRandom calls the Linux getrandom system call.
+ // See https://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/commit/?id=c6e9d6f38894798696f23c8084ca7edbf16ee895
+ func GetRandom(p []byte, flags GetRandomFlag) (n int, err error) {
+-	if randomTrap == 0 {
+-		return 0, syscall.ENOSYS
+-	}
+ 	if len(p) == 0 {
+ 		return 0, nil
+ 	}

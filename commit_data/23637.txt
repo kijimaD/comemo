@@ -11,7 +11,7 @@ Date:   Tue May 26 22:50:45 2015 -0400
     Change-Id: I0fbfeb0d0b36e225eb282fce9e480a96ec1d278f
     Reviewed-on: https://go-review.googlesource.com/10524
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/gc/const.go     | 100 +++++++++++++++----------------
  src/cmd/compile/internal/gc/cplx.go      |   1 -
  src/cmd/compile/internal/gc/dcl.go       |   4 +-
@@ -30,3 +30,868 @@ Date:   Tue May 26 22:50:45 2015 -0400
  src/cmd/compile/internal/gc/walk.go      |   2 +-
  src/cmd/compile/internal/gc/y.go         |   6 +-
  17 files changed, 117 insertions(+), 108 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/const.go b/src/cmd/compile/internal/gc/const.go
+index b3605ab206..b24edfcf43 100644
+--- a/src/cmd/compile/internal/gc/const.go
++++ b/src/cmd/compile/internal/gc/const.go
+@@ -56,7 +56,6 @@ func truncfltlit(oldv *Mpflt, t *Type) *Mpflt {
+ 	}
+ 
+ 	var v Val
+-	v.Ctype = CTFLT
+ 	v.U = oldv
+ 	overflow(v, t)
+ 
+@@ -136,7 +135,7 @@ func convlit1(np **Node, t *Type, explicit bool) {
+ 	case OLSH, ORSH:
+ 		convlit1(&n.Left, t, explicit && isideal(n.Left.Type))
+ 		t = n.Left.Type
+-		if t != nil && t.Etype == TIDEAL && n.Val.Ctype != CTINT {
++		if t != nil && t.Etype == TIDEAL && n.Val.Ctype() != CTINT {
+ 			n.Val = toint(n.Val)
+ 		}
+ 		if t != nil && !Isint[t.Etype] {
+@@ -229,7 +228,6 @@ func convlit1(np **Node, t *Type, explicit bool) {
+ 			if n.Type.Etype == TUNSAFEPTR {
+ 				n.Val.U = new(Mpint)
+ 				Mpmovecfix(n.Val.U.(*Mpint), 0)
+-				n.Val.Ctype = CTINT
+ 			} else {
+ 				goto bad
+ 			}
+@@ -244,7 +242,7 @@ func convlit1(np **Node, t *Type, explicit bool) {
+ 		if n.Type.Etype == TUNSAFEPTR && t.Etype != TUINTPTR {
+ 			goto bad
+ 		}
+-		ct := int(n.Val.Ctype)
++		ct := int(n.Val.Ctype())
+ 		if Isint[et] {
+ 			switch ct {
+ 			default:
+@@ -307,10 +305,11 @@ bad:
+ }
+ 
+ func copyval(v Val) Val {
+-	switch v.Ctype {
++	switch v.Ctype() {
+ 	case CTINT, CTRUNE:
+ 		i := new(Mpint)
+ 		mpmovefixfix(i, v.U.(*Mpint))
++		i.Rune = v.U.(*Mpint).Rune
+ 		v.U = i
+ 
+ 	case CTFLT:
+@@ -329,19 +328,17 @@ func copyval(v Val) Val {
+ }
+ 
+ func tocplx(v Val) Val {
+-	switch v.Ctype {
++	switch v.Ctype() {
+ 	case CTINT, CTRUNE:
+ 		c := new(Mpcplx)
+ 		Mpmovefixflt(&c.Real, v.U.(*Mpint))
+ 		Mpmovecflt(&c.Imag, 0.0)
+-		v.Ctype = CTCPLX
+ 		v.U = c
+ 
+ 	case CTFLT:
+ 		c := new(Mpcplx)
+ 		mpmovefltflt(&c.Real, v.U.(*Mpflt))
+ 		Mpmovecflt(&c.Imag, 0.0)
+-		v.Ctype = CTCPLX
+ 		v.U = c
+ 	}
+ 
+@@ -349,11 +346,10 @@ func tocplx(v Val) Val {
+ }
+ 
+ func toflt(v Val) Val {
+-	switch v.Ctype {
++	switch v.Ctype() {
+ 	case CTINT, CTRUNE:
+ 		f := newMpflt()
+ 		Mpmovefixflt(f, v.U.(*Mpint))
+-		v.Ctype = CTFLT
+ 		v.U = f
+ 
+ 	case CTCPLX:
+@@ -362,7 +358,6 @@ func toflt(v Val) Val {
+ 		if mpcmpfltc(&v.U.(*Mpcplx).Imag, 0) != 0 {
+ 			Yyerror("constant %v%vi truncated to real", Fconv(&v.U.(*Mpcplx).Real, obj.FmtSharp), Fconv(&v.U.(*Mpcplx).Imag, obj.FmtSharp|obj.FmtSign))
+ 		}
+-		v.Ctype = CTFLT
+ 		v.U = f
+ 	}
+ 
+@@ -370,16 +365,17 @@ func toflt(v Val) Val {
+ }
+ 
+ func toint(v Val) Val {
+-	switch v.Ctype {
++	switch v.Ctype() {
+ 	case CTRUNE:
+-		v.Ctype = CTINT
++		i := new(Mpint)
++		mpmovefixfix(i, v.U.(*Mpint))
++		v.U = i
+ 
+ 	case CTFLT:
+ 		i := new(Mpint)
+ 		if mpmovefltfix(i, v.U.(*Mpflt)) < 0 {
+ 			Yyerror("constant %v truncated to integer", Fconv(v.U.(*Mpflt), obj.FmtSharp))
+ 		}
+-		v.Ctype = CTINT
+ 		v.U = i
+ 
+ 	case CTCPLX:
+@@ -390,7 +386,6 @@ func toint(v Val) Val {
+ 		if mpcmpfltc(&v.U.(*Mpcplx).Imag, 0) != 0 {
+ 			Yyerror("constant %v%vi truncated to real", Fconv(&v.U.(*Mpcplx).Real, obj.FmtSharp), Fconv(&v.U.(*Mpcplx).Imag, obj.FmtSharp|obj.FmtSign))
+ 		}
+-		v.Ctype = CTINT
+ 		v.U = i
+ 	}
+ 
+@@ -398,7 +393,7 @@ func toint(v Val) Val {
+ }
+ 
+ func doesoverflow(v Val, t *Type) bool {
+-	switch v.Ctype {
++	switch v.Ctype() {
+ 	case CTINT, CTRUNE:
+ 		if !Isint[t.Etype] {
+ 			Fatal("overflow: %v integer constant", t)
+@@ -443,7 +438,7 @@ func overflow(v Val, t *Type) {
+ 		return
+ 	}
+ 
+-	switch v.Ctype {
++	switch v.Ctype() {
+ 	case CTINT, CTRUNE:
+ 		Yyerror("constant %v overflows %v", v.U.(*Mpint), t)
+ 
+@@ -456,14 +451,13 @@ func overflow(v Val, t *Type) {
+ }
+ 
+ func tostr(v Val) Val {
+-	switch v.Ctype {
++	switch v.Ctype() {
+ 	case CTINT, CTRUNE:
+ 		if Mpcmpfixfix(v.U.(*Mpint), Minintval[TINT]) < 0 || Mpcmpfixfix(v.U.(*Mpint), Maxintval[TINT]) > 0 {
+ 			Yyerror("overflow in int -> string")
+ 		}
+ 		r := uint(Mpgetfix(v.U.(*Mpint)))
+ 		v = Val{}
+-		v.Ctype = CTSTR
+ 		v.U = string(r)
+ 
+ 	case CTFLT:
+@@ -472,7 +466,6 @@ func tostr(v Val) Val {
+ 
+ 	case CTNIL:
+ 		v = Val{}
+-		v.Ctype = CTSTR
+ 		v.U = ""
+ 	}
+ 
+@@ -483,7 +476,7 @@ func consttype(n *Node) int {
+ 	if n == nil || n.Op != OLITERAL {
+ 		return -1
+ 	}
+-	return int(n.Val.Ctype)
++	return int(n.Val.Ctype())
+ }
+ 
+ func Isconst(n *Node, ct int) bool {
+@@ -569,7 +562,6 @@ func evconst(n *Node) {
+ 				nl = Nod(OXXX, nil, nil)
+ 				*nl = *l1.N
+ 				nl.Orig = nl
+-				nl.Val.Ctype = CTSTR
+ 				nl.Val.U = strings.Join(strs, "")
+ 				l1.N = nl
+ 				l1.Next = l2
+@@ -617,7 +609,7 @@ func evconst(n *Node) {
+ 			v = copyval(v)
+ 		}
+ 
+-		switch uint32(n.Op)<<16 | uint32(v.Ctype) {
++		switch uint32(n.Op)<<16 | uint32(v.Ctype()) {
+ 		default:
+ 			if n.Diag == 0 {
+ 				Yyerror("illegal constant expression %v %v", Oconv(int(n.Op), 0), nl.Type)
+@@ -743,7 +735,7 @@ func evconst(n *Node) {
+ 		if nr.Type != nil && (Issigned[nr.Type.Etype] || !Isint[nr.Type.Etype]) {
+ 			goto illegal
+ 		}
+-		if nl.Val.Ctype != CTRUNE {
++		if nl.Val.Ctype() != CTRUNE {
+ 			nl.Val = toint(nl.Val)
+ 		}
+ 		nr.Val = toint(nr.Val)
+@@ -760,38 +752,46 @@ func evconst(n *Node) {
+ 	rv = nr.Val
+ 
+ 	// convert to common ideal
+-	if v.Ctype == CTCPLX || rv.Ctype == CTCPLX {
++	if v.Ctype() == CTCPLX || rv.Ctype() == CTCPLX {
+ 		v = tocplx(v)
+ 		rv = tocplx(rv)
+ 	}
+ 
+-	if v.Ctype == CTFLT || rv.Ctype == CTFLT {
++	if v.Ctype() == CTFLT || rv.Ctype() == CTFLT {
+ 		v = toflt(v)
+ 		rv = toflt(rv)
+ 	}
+ 
+ 	// Rune and int turns into rune.
+-	if v.Ctype == CTRUNE && rv.Ctype == CTINT {
+-		rv.Ctype = CTRUNE
++	if v.Ctype() == CTRUNE && rv.Ctype() == CTINT {
++		i := new(Mpint)
++		mpmovefixfix(i, rv.U.(*Mpint))
++		i.Rune = true
++		rv.U = i
+ 	}
+-	if v.Ctype == CTINT && rv.Ctype == CTRUNE {
++	if v.Ctype() == CTINT && rv.Ctype() == CTRUNE {
+ 		if n.Op == OLSH || n.Op == ORSH {
+-			rv.Ctype = CTINT
++			i := new(Mpint)
++			mpmovefixfix(i, rv.U.(*Mpint))
++			rv.U = i
+ 		} else {
+-			v.Ctype = CTRUNE
++			i := new(Mpint)
++			mpmovefixfix(i, v.U.(*Mpint))
++			i.Rune = true
++			v.U = i
+ 		}
+ 	}
+ 
+-	if v.Ctype != rv.Ctype {
++	if v.Ctype() != rv.Ctype() {
+ 		// Use of undefined name as constant?
+-		if (v.Ctype == 0 || rv.Ctype == 0) && nerrors > 0 {
++		if (v.Ctype() == 0 || rv.Ctype() == 0) && nerrors > 0 {
+ 			return
+ 		}
+-		Fatal("constant type mismatch %v(%d) %v(%d)", nl.Type, v.Ctype, nr.Type, rv.Ctype)
++		Fatal("constant type mismatch %v(%d) %v(%d)", nl.Type, v.Ctype(), nr.Type, rv.Ctype())
+ 	}
+ 
+ 	// run op
+-	switch uint32(n.Op)<<16 | uint32(v.Ctype) {
++	switch uint32(n.Op)<<16 | uint32(v.Ctype()) {
+ 	default:
+ 		goto illegal
+ 
+@@ -1075,7 +1075,7 @@ ret:
+ 	lineno = int32(lno)
+ 
+ 	// truncate precision for non-ideal float.
+-	if v.Ctype == CTFLT && n.Type.Etype != TIDEAL {
++	if v.Ctype() == CTFLT && n.Type.Etype != TIDEAL {
+ 		n.Val.U = truncfltlit(v.U.(*Mpflt), n.Type)
+ 	}
+ 	return
+@@ -1104,9 +1104,9 @@ illegal:
+ func nodlit(v Val) *Node {
+ 	n := Nod(OLITERAL, nil, nil)
+ 	n.Val = v
+-	switch v.Ctype {
++	switch v.Ctype() {
+ 	default:
+-		Fatal("nodlit ctype %d", v.Ctype)
++		Fatal("nodlit ctype %d", v.Ctype())
+ 
+ 	case CTSTR:
+ 		n.Type = idealstring
+@@ -1132,10 +1132,9 @@ func nodcplxlit(r Val, i Val) *Node {
+ 	n := Nod(OLITERAL, nil, nil)
+ 	n.Type = Types[TIDEAL]
+ 	n.Val.U = c
+-	n.Val.Ctype = CTCPLX
+ 
+-	if r.Ctype != CTFLT || i.Ctype != CTFLT {
+-		Fatal("nodcplxlit ctype %d/%d", r.Ctype, i.Ctype)
++	if r.Ctype() != CTFLT || i.Ctype() != CTFLT {
++		Fatal("nodcplxlit ctype %d/%d", r.Ctype(), i.Ctype())
+ 	}
+ 
+ 	mpmovefltflt(&c.Real, r.U.(*Mpflt))
+@@ -1155,7 +1154,7 @@ func idealkind(n *Node) int {
+ 		return CTxxx
+ 
+ 	case OLITERAL:
+-		return int(n.Val.Ctype)
++		return int(n.Val.Ctype())
+ 
+ 		// numeric kinds.
+ 	case OADD,
+@@ -1230,7 +1229,7 @@ func defaultlit(np **Node, t *Type) {
+ 			return
+ 		}
+ 
+-		if n.Val.Ctype == CTNIL {
++		if n.Val.Ctype() == CTNIL {
+ 			lineno = int32(lno)
+ 			if n.Diag == 0 {
+ 				Yyerror("use of untyped nil")
+@@ -1241,7 +1240,7 @@ func defaultlit(np **Node, t *Type) {
+ 			break
+ 		}
+ 
+-		if n.Val.Ctype == CTSTR {
++		if n.Val.Ctype() == CTSTR {
+ 			t1 := Types[TSTRING]
+ 			Convlit(np, t1)
+ 			break
+@@ -1447,12 +1446,11 @@ func (n *Node) Convconst(con *Node, t *Type) {
+ 	con.Val = n.Val
+ 
+ 	if Isint[tt] {
+-		con.Val.Ctype = CTINT
+ 		con.Val.U = new(Mpint)
+ 		var i int64
+-		switch n.Val.Ctype {
++		switch n.Val.Ctype() {
+ 		default:
+-			Fatal("convconst ctype=%d %v", n.Val.Ctype, Tconv(t, obj.FmtLong))
++			Fatal("convconst ctype=%d %v", n.Val.Ctype(), Tconv(t, obj.FmtLong))
+ 
+ 		case CTINT, CTRUNE:
+ 			i = Mpgetfix(n.Val.U.(*Mpint))
+@@ -1471,8 +1469,8 @@ func (n *Node) Convconst(con *Node, t *Type) {
+ 
+ 	if Isfloat[tt] {
+ 		con.Val = toflt(con.Val)
+-		if con.Val.Ctype != CTFLT {
+-			Fatal("convconst ctype=%d %v", con.Val.Ctype, t)
++		if con.Val.Ctype() != CTFLT {
++			Fatal("convconst ctype=%d %v", con.Val.Ctype(), t)
+ 		}
+ 		if tt == TFLOAT32 {
+ 			con.Val.U = truncfltlit(con.Val.U.(*Mpflt), t)
+@@ -1636,13 +1634,13 @@ func isgoconst(n *Node) bool {
+ 		}
+ 
+ 	case OLITERAL:
+-		if n.Val.Ctype != CTNIL {
++		if n.Val.Ctype() != CTNIL {
+ 			return true
+ 		}
+ 
+ 	case ONAME:
+ 		l := n.Sym.Def
+-		if l != nil && l.Op == OLITERAL && n.Val.Ctype != CTNIL {
++		if l != nil && l.Op == OLITERAL && n.Val.Ctype() != CTNIL {
+ 			return true
+ 		}
+ 
+diff --git a/src/cmd/compile/internal/gc/cplx.go b/src/cmd/compile/internal/gc/cplx.go
+index 56a4892636..7a0c84b1c2 100644
+--- a/src/cmd/compile/internal/gc/cplx.go
++++ b/src/cmd/compile/internal/gc/cplx.go
+@@ -227,7 +227,6 @@ func nodfconst(n *Node, t *Type, fval *Mpflt) {
+ 	n.Addable = true
+ 	ullmancalc(n)
+ 	n.Val.U = fval
+-	n.Val.Ctype = CTFLT
+ 	n.Type = t
+ 
+ 	if !Isfloat[t.Etype] {
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index dffb791e9d..fc2f14a02e 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -828,7 +828,7 @@ func structfield(n *Node) *Type {
+ 		f.Broke = 1
+ 	}
+ 
+-	switch n.Val.Ctype {
++	switch n.Val.Ctype() {
+ 	case CTSTR:
+ 		f.Note = new(string)
+ 		*f.Note = n.Val.U.(string)
+@@ -937,7 +937,7 @@ func interfacefield(n *Node) *Type {
+ 		Fatal("interfacefield: oops %v\n", n)
+ 	}
+ 
+-	if n.Val.Ctype != CTxxx {
++	if n.Val.Ctype() != CTxxx {
+ 		Yyerror("interface method cannot have annotation")
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index aaf0f9546d..e3446f21a2 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -299,7 +299,7 @@ func Jconv(n *Node, flag int) string {
+ 
+ // Fmt "%V": Values
+ func Vconv(v *Val, flag int) string {
+-	switch v.Ctype {
++	switch v.Ctype() {
+ 	case CTINT:
+ 		if (flag&obj.FmtSharp != 0) || fmtmode == FExp {
+ 			return Bconv(v.U.(*Mpint), obj.FmtSharp)
+@@ -1109,7 +1109,7 @@ func exprfmt(n *Node, prec int) string {
+ 				return Sconv(n.Sym, 0)
+ 			}
+ 		}
+-		if n.Val.Ctype == CTNIL && n.Orig != nil && n.Orig != n {
++		if n.Val.Ctype() == CTNIL && n.Orig != nil && n.Orig != n {
+ 			return exprfmt(n.Orig, prec)
+ 		}
+ 		if n.Type != nil && n.Type != Types[n.Type.Etype] && n.Type != idealbool && n.Type != idealstring {
+diff --git a/src/cmd/compile/internal/gc/gen.go b/src/cmd/compile/internal/gc/gen.go
+index 95049ce615..d1b4d44471 100644
+--- a/src/cmd/compile/internal/gc/gen.go
++++ b/src/cmd/compile/internal/gc/gen.go
+@@ -340,14 +340,12 @@ func Clearslim(n *Node) {
+ 	case TFLOAT32, TFLOAT64:
+ 		var zero Mpflt
+ 		Mpmovecflt(&zero, 0.0)
+-		z.Val.Ctype = CTFLT
+ 		z.Val.U = &zero
+ 
+ 	case TPTR32, TPTR64, TCHAN, TMAP:
+-		z.Val.Ctype = CTNIL
++		z.Val.U = new(NilVal)
+ 
+ 	case TBOOL:
+-		z.Val.Ctype = CTBOOL
+ 		z.Val.U = false
+ 
+ 	case TINT8,
+@@ -358,7 +356,6 @@ func Clearslim(n *Node) {
+ 		TUINT16,
+ 		TUINT32,
+ 		TUINT64:
+-		z.Val.Ctype = CTINT
+ 		z.Val.U = new(Mpint)
+ 		Mpmovecfix(z.Val.U.(*Mpint), 0)
+ 
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index dc33f62ba4..21a8a68b39 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -66,8 +66,9 @@ const (
+ 
+ // Mpint represents an integer constant.
+ type Mpint struct {
+-	Val big.Int
+-	Ovf bool // set if Val overflowed compiler limit (sticky)
++	Val  big.Int
++	Ovf  bool // set if Val overflowed compiler limit (sticky)
++	Rune bool // set if syntax indicates default type rune
+ }
+ 
+ // Mpflt represents a floating-point constant.
+@@ -82,16 +83,40 @@ type Mpcplx struct {
+ }
+ 
+ type Val struct {
+-	Ctype int16
+ 	// U contains one of:
+-	// bool     bool when Ctype == CTBOOL
+-	// *Mpint   int when Ctype == CTINT, rune when Ctype == CTRUNE
+-	// *Mpflt   float when Ctype == CTFLT
+-	// *Mpcplx  pair of floats when Ctype == CTCPLX
+-	// string   string when Ctype == CTSTR
++	// bool     bool when n.ValCtype() == CTBOOL
++	// *Mpint   int when n.ValCtype() == CTINT, rune when n.ValCtype() == CTRUNE
++	// *Mpflt   float when n.ValCtype() == CTFLT
++	// *Mpcplx  pair of floats when n.ValCtype() == CTCPLX
++	// string   string when n.ValCtype() == CTSTR
++	// *Nilval  when n.ValCtype() == CTNIL
+ 	U interface{}
+ }
+ 
++type NilVal struct{}
++
++func (v Val) Ctype() int {
++	switch x := v.U.(type) {
++	default:
++		return 0
++	case *NilVal:
++		return CTNIL
++	case bool:
++		return CTBOOL
++	case *Mpint:
++		if x.Rune {
++			return CTRUNE
++		}
++		return CTINT
++	case *Mpflt:
++		return CTFLT
++	case *Mpcplx:
++		return CTCPLX
++	case string:
++		return CTSTR
++	}
++}
++
+ type Pkg struct {
+ 	Name     string // package name
+ 	Path     string // string literal used in import statement
+diff --git a/src/cmd/compile/internal/gc/go.y b/src/cmd/compile/internal/gc/go.y
+index 40e273c6ca..b8e9ceb304 100644
+--- a/src/cmd/compile/internal/gc/go.y
++++ b/src/cmd/compile/internal/gc/go.y
+@@ -1996,7 +1996,7 @@ ohidden_interfacedcl_list:
+ 
+ oliteral:
+ 	{
+-		$$.Ctype = CTxxx;
++		$$.U = nil
+ 	}
+ |	LLITERAL
+ 
+@@ -2231,7 +2231,7 @@ hidden_literal:
+ |	'-' LLITERAL
+ 	{
+ 		$$ = nodlit($2);
+-		switch($$.Val.Ctype){
++		switch($$.Val.Ctype()){
+ 		case CTINT, CTRUNE:
+ 			mpnegfix($$.Val.U.(*Mpint));
+ 			break;
+@@ -2258,7 +2258,7 @@ hidden_constant:
+ 	hidden_literal
+ |	'(' hidden_literal '+' hidden_literal ')'
+ 	{
+-		if $2.Val.Ctype == CTRUNE && $4.Val.Ctype == CTINT {
++		if $2.Val.Ctype() == CTRUNE && $4.Val.Ctype() == CTINT {
+ 			$$ = $2;
+ 			mpaddfixfix($2.Val.U.(*Mpint), $4.Val.U.(*Mpint), 0);
+ 			break;
+diff --git a/src/cmd/compile/internal/gc/gsubr.go b/src/cmd/compile/internal/gc/gsubr.go
+index 93bd8a2068..6dd2bc9f54 100644
+--- a/src/cmd/compile/internal/gc/gsubr.go
++++ b/src/cmd/compile/internal/gc/gsubr.go
+@@ -408,7 +408,7 @@ func Naddr(a *obj.Addr, n *Node) {
+ 		if Thearch.Thechar == '8' {
+ 			a.Width = 0
+ 		}
+-		switch n.Val.Ctype {
++		switch n.Val.Ctype() {
+ 		default:
+ 			Fatal("naddr: const %v", Tconv(n.Type, obj.FmtLong))
+ 
+diff --git a/src/cmd/compile/internal/gc/lex.go b/src/cmd/compile/internal/gc/lex.go
+index cf41c40964..fd64dabb21 100644
+--- a/src/cmd/compile/internal/gc/lex.go
++++ b/src/cmd/compile/internal/gc/lex.go
+@@ -639,7 +639,7 @@ func fakeimport() {
+ }
+ 
+ func importfile(f *Val, line int) {
+-	if f.Ctype != CTSTR {
++	if _, ok := f.U.(string); !ok {
+ 		Yyerror("import statement not a string")
+ 		fakeimport()
+ 		return
+@@ -1064,9 +1064,10 @@ l0:
+ 			ungetc(int(v))
+ 		}
+ 
+-		yylval.val.U = new(Mpint)
+-		Mpmovecfix(yylval.val.U.(*Mpint), v)
+-		yylval.val.Ctype = CTRUNE
++		x := new(Mpint)
++		yylval.val.U = x
++		Mpmovecfix(x, v)
++		x.Rune = true
+ 		if Debug['x'] != 0 {
+ 			fmt.Printf("lex: codepoint literal\n")
+ 		}
+@@ -1410,7 +1411,6 @@ ncu:
+ 		Mpmovecfix(yylval.val.U.(*Mpint), 0)
+ 	}
+ 
+-	yylval.val.Ctype = CTINT
+ 	if Debug['x'] != 0 {
+ 		fmt.Printf("lex: integer literal\n")
+ 	}
+@@ -1472,7 +1472,6 @@ casei:
+ 		Mpmovecflt(&yylval.val.U.(*Mpcplx).Real, 0.0)
+ 	}
+ 
+-	yylval.val.Ctype = CTCPLX
+ 	if Debug['x'] != 0 {
+ 		fmt.Printf("lex: imaginary literal\n")
+ 	}
+@@ -1491,7 +1490,6 @@ caseout:
+ 		Mpmovecflt(yylval.val.U.(*Mpflt), 0.0)
+ 	}
+ 
+-	yylval.val.Ctype = CTFLT
+ 	if Debug['x'] != 0 {
+ 		fmt.Printf("lex: floating literal\n")
+ 	}
+@@ -1500,7 +1498,6 @@ caseout:
+ 
+ strlit:
+ 	yylval.val.U = internString(cp.Bytes())
+-	yylval.val.Ctype = CTSTR
+ 	if Debug['x'] != 0 {
+ 		fmt.Printf("lex: string literal\n")
+ 	}
+@@ -2235,7 +2232,7 @@ func lexinit() {
+ 	Types[TNIL] = typ(TNIL)
+ 	s = Pkglookup("nil", builtinpkg)
+ 	var v Val
+-	v.Ctype = CTNIL
++	v.U = new(NilVal)
+ 	s.Def = nodlit(v)
+ 	s.Def.Sym = s
+ }
+@@ -2359,7 +2356,7 @@ func lexfini() {
+ 	s = Lookup("nil")
+ 	if s.Def == nil {
+ 		var v Val
+-		v.Ctype = CTNIL
++		v.U = new(NilVal)
+ 		s.Def = nodlit(v)
+ 		s.Def.Sym = s
+ 		s.Origpkg = builtinpkg
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index 690582a162..d3849e8571 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -383,7 +383,7 @@ func dsymptr(s *Sym, off int, x *Sym, xoff int) int {
+ 
+ func gdata(nam *Node, nr *Node, wid int) {
+ 	if nr.Op == OLITERAL {
+-		switch nr.Val.Ctype {
++		switch nr.Val.Ctype() {
+ 		case CTCPLX:
+ 			gdatacomplex(nam, nr.Val.U.(*Mpcplx))
+ 			return
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index ddcce6a714..061711c994 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -517,7 +517,7 @@ func staticname(t *Type, ctxt int) *Node {
+ 
+ func isliteral(n *Node) bool {
+ 	if n.Op == OLITERAL {
+-		if n.Val.Ctype != CTNIL {
++		if n.Val.Ctype() != CTNIL {
+ 			return true
+ 		}
+ 	}
+@@ -1351,7 +1351,7 @@ func addvalue(p *InitPlan, xoffset int64, key *Node, n *Node) {
+ func iszero(n *Node) bool {
+ 	switch n.Op {
+ 	case OLITERAL:
+-		switch n.Val.Ctype {
++		switch n.Val.Ctype() {
+ 		default:
+ 			Dump("unexpected literal", n)
+ 			Fatal("iszero")
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 48068fc6dd..4dd8b29b8e 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -667,7 +667,6 @@ func Nodintconst(v int64) *Node {
+ 	c.Addable = true
+ 	c.Val.U = new(Mpint)
+ 	Mpmovecfix(c.Val.U.(*Mpint), v)
+-	c.Val.Ctype = CTINT
+ 	c.Type = Types[TIDEAL]
+ 	ullmancalc(c)
+ 	return c
+@@ -678,7 +677,6 @@ func nodfltconst(v *Mpflt) *Node {
+ 	c.Addable = true
+ 	c.Val.U = newMpflt()
+ 	mpmovefltflt(c.Val.U.(*Mpflt), v)
+-	c.Val.Ctype = CTFLT
+ 	c.Type = Types[TIDEAL]
+ 	ullmancalc(c)
+ 	return c
+@@ -691,7 +689,6 @@ func Nodconst(n *Node, t *Type, v int64) {
+ 	ullmancalc(n)
+ 	n.Val.U = new(Mpint)
+ 	Mpmovecfix(n.Val.U.(*Mpint), v)
+-	n.Val.Ctype = CTINT
+ 	n.Type = t
+ 
+ 	if Isfloat[t.Etype] {
+@@ -701,14 +698,13 @@ func Nodconst(n *Node, t *Type, v int64) {
+ 
+ func nodnil() *Node {
+ 	c := Nodintconst(0)
+-	c.Val.Ctype = CTNIL
++	c.Val.U = new(NilVal)
+ 	c.Type = Types[TNIL]
+ 	return c
+ }
+ 
+ func Nodbool(b bool) *Node {
+ 	c := Nodintconst(0)
+-	c.Val.Ctype = CTBOOL
+ 	c.Val.U = b
+ 	c.Type = idealbool
+ 	return c
+@@ -796,7 +792,7 @@ func isnil(n *Node) bool {
+ 	if n.Op != OLITERAL {
+ 		return false
+ 	}
+-	if n.Val.Ctype != CTNIL {
++	if n.Val.Ctype() != CTNIL {
+ 		return false
+ 	}
+ 	return true
+@@ -2431,7 +2427,6 @@ func genwrapper(rcvr *Type, method *Type, newnam *Sym, iface int) {
+ 		var l *NodeList
+ 
+ 		var v Val
+-		v.Ctype = CTSTR
+ 		v.U = rcvr.Type.Sym.Pkg.Name // package name
+ 		l = list(l, nodlit(v))
+ 		v.U = rcvr.Type.Sym.Name // type name
+diff --git a/src/cmd/compile/internal/gc/swt.go b/src/cmd/compile/internal/gc/swt.go
+index a3df7e2a2e..6f04328d47 100644
+--- a/src/cmd/compile/internal/gc/swt.go
++++ b/src/cmd/compile/internal/gc/swt.go
+@@ -579,7 +579,7 @@ func (s *typeSwitch) walk(sw *Node) {
+ 		switch c.typ {
+ 		case caseKindTypeNil:
+ 			var v Val
+-			v.Ctype = CTNIL
++			v.U = new(NilVal)
+ 			a = Nod(OIF, nil, nil)
+ 			a.Left = Nod(OEQ, s.facename, nodlit(v))
+ 			typecheck(&a.Left, Erv)
+@@ -742,11 +742,11 @@ func exprcmp(c1, c2 *caseClause) int {
+ 	n2 := c2.node.Left
+ 
+ 	// sort by type (for switches on interface)
+-	ct := int(n1.Val.Ctype)
+-	if ct > int(n2.Val.Ctype) {
++	ct := int(n1.Val.Ctype())
++	if ct > int(n2.Val.Ctype()) {
+ 		return +1
+ 	}
+-	if ct < int(n2.Val.Ctype) {
++	if ct < int(n2.Val.Ctype()) {
+ 		return -1
+ 	}
+ 	if !Eqtype(n1.Type, n2.Type) {
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 518a472b09..36088e791a 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -301,7 +301,7 @@ OpSwitch:
+ 	case OLITERAL:
+ 		ok |= Erv
+ 
+-		if n.Type == nil && n.Val.Ctype == CTSTR {
++		if n.Type == nil && n.Val.Ctype() == CTSTR {
+ 			n.Type = idealstring
+ 		}
+ 		break OpSwitch
+@@ -756,12 +756,12 @@ OpSwitch:
+ 		}
+ 
+ 		if et == TINTER {
+-			if l.Op == OLITERAL && l.Val.Ctype == CTNIL {
++			if l.Op == OLITERAL && l.Val.Ctype() == CTNIL {
+ 				// swap for back end
+ 				n.Left = r
+ 
+ 				n.Right = l
+-			} else if r.Op == OLITERAL && r.Val.Ctype == CTNIL {
++			} else if r.Op == OLITERAL && r.Val.Ctype() == CTNIL {
+ 			} else // leave alone for back end
+ 			if Isinter(r.Type) == Isinter(l.Type) {
+ 				n.Etype = n.Op
+@@ -2833,7 +2833,7 @@ func keydup(n *Node, hash map[uint32][]*Node) {
+ 	}
+ 
+ 	var b uint32
+-	switch n.Val.Ctype {
++	switch n.Val.Ctype() {
+ 	default: // unknown, bool, nil
+ 		b = 23
+ 
+@@ -3486,7 +3486,7 @@ func typecheckfunc(n *Node) {
+ 
+ func stringtoarraylit(np **Node) {
+ 	n := *np
+-	if n.Left.Op != OLITERAL || n.Left.Val.Ctype != CTSTR {
++	if n.Left.Op != OLITERAL || n.Left.Val.Ctype() != CTSTR {
+ 		Fatal("stringtoarraylit %v", n)
+ 	}
+ 
+@@ -3844,7 +3844,7 @@ ret:
+ 
+ func checkmake(t *Type, arg string, n *Node) int {
+ 	if n.Op == OLITERAL {
+-		switch n.Val.Ctype {
++		switch n.Val.Ctype() {
+ 		case CTINT, CTRUNE, CTFLT, CTCPLX:
+ 			n.Val = toint(n.Val)
+ 			if mpcmpfixc(n.Val.U.(*Mpint), 0) < 0 {
+diff --git a/src/cmd/compile/internal/gc/unsafe.go b/src/cmd/compile/internal/gc/unsafe.go
+index 824ecd0339..a41bed8a34 100644
+--- a/src/cmd/compile/internal/gc/unsafe.go
++++ b/src/cmd/compile/internal/gc/unsafe.go
+@@ -138,8 +138,6 @@ yes:
+ 	// any side effects disappear; ignore init
+ ret:
+ 	var val Val
+-	val.Ctype = CTINT
+-
+ 	val.U = new(Mpint)
+ 	Mpmovecfix(val.U.(*Mpint), v)
+ 	n := Nod(OLITERAL, nil, nil)
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 63375fe431..07d13091a7 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -2027,7 +2027,7 @@ func walkprint(nn *Node, init **NodeList) *Node {
+ 
+ 		n = l.N
+ 		if n.Op == OLITERAL {
+-			switch n.Val.Ctype {
++			switch n.Val.Ctype() {
+ 			case CTRUNE:
+ 				defaultlit(&n, runetype)
+ 
+diff --git a/src/cmd/compile/internal/gc/y.go b/src/cmd/compile/internal/gc/y.go
+index c1abdfea46..1ee619f6d6 100644
+--- a/src/cmd/compile/internal/gc/y.go
++++ b/src/cmd/compile/internal/gc/y.go
+@@ -3182,7 +3182,7 @@ yydefault:
+ 		yyDollar = yyS[yypt-0 : yypt+1]
+ 		//line go.y:1998
+ 		{
+-			yyVAL.val.Ctype = CTxxx
++			yyVAL.val.U = nil
+ 		}
+ 	case 304:
+ 		yyDollar = yyS[yypt-4 : yypt+1]
+@@ -3434,7 +3434,7 @@ yydefault:
+ 		//line go.y:2232
+ 		{
+ 			yyVAL.node = nodlit(yyDollar[2].val)
+-			switch yyVAL.node.Val.Ctype {
++			switch yyVAL.node.Val.Ctype() {
+ 			case CTINT, CTRUNE:
+ 				mpnegfix(yyVAL.node.Val.U.(*Mpint))
+ 				break
+@@ -3462,7 +3462,7 @@ yydefault:
+ 		yyDollar = yyS[yypt-5 : yypt+1]
+ 		//line go.y:2260
+ 		{
+-			if yyDollar[2].node.Val.Ctype == CTRUNE && yyDollar[4].node.Val.Ctype == CTINT {
++			if yyDollar[2].node.Val.Ctype() == CTRUNE && yyDollar[4].node.Val.Ctype() == CTINT {
+ 				yyVAL.node = yyDollar[2].node
+ 				mpaddfixfix(yyDollar[2].node.Val.U.(*Mpint), yyDollar[4].node.Val.U.(*Mpint), 0)
+ 				break

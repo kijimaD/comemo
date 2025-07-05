@@ -9,9 +9,84 @@ Date:   Tue Dec 7 12:56:26 2010 -0500
     R=rsc
     CC=golang-dev
     https://golang.org/cl/3259043
-
+---
  src/cmd/gc/dcl.c         |  2 ++
  src/cmd/gc/go.y          |  1 -
  src/cmd/gc/typecheck.c   |  1 -
  test/fixedbugs/bug314.go | 31 +++++++++++++++++++++++++++++++
  4 files changed, 33 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index a9a17b236d..a71272aa22 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -844,6 +844,8 @@ dostruct(NodeList *l, int et)
+ 		t->broke = 1;
+ 		return t;
+ 	}
++	if(et == TINTER)
++		t = sortinter(t);
+ 	if(!funarg)
+ 		checkwidth(t);
+ 	return t;
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index 7960a22640..917265758b 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -1726,7 +1726,6 @@ hidden_type_misc:
+ |	LINTERFACE '{' ohidden_interfacedcl_list '}'
+ 	{
+ 		$$ = dostruct($3, TINTER);
+-		$$ = sortinter($$);
+ 	}
+ |	'*' hidden_type
+ 	{
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 70464a4b76..5450862213 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -263,7 +263,6 @@ reswitch:
+ 		n->type = dostruct(n->list, TINTER);
+ 		if(n->type == T)
+ 			goto error;
+-		n->type = sortinter(n->type);
+ 		break;
+ 
+ 	case OTFUNC:
+diff --git a/test/fixedbugs/bug314.go b/test/fixedbugs/bug314.go
+new file mode 100644
+index 0000000000..95d81d7951
+--- /dev/null
++++ b/test/fixedbugs/bug314.go
+@@ -0,0 +1,31 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out || echo BUG: bug314
++
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Used to call wrong methods; issue 1290.
++
++package main
++
++type S struct {
++}
++func (S) a() int{
++	return 0
++}
++func (S) b() int{
++	return 1
++}
++
++func main() {
++	var i interface {
++		b() int
++		a() int
++	} = S{}
++	if i.a() != 0 {
++		panic("wrong method called")
++	}
++	if i.b() != 1 {
++		panic("wrong method called")
++	}
++}

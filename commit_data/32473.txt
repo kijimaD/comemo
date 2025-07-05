@@ -66,7 +66,7 @@ Date:   Tue Apr 25 18:14:12 2017 -0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Marvin Stenger <marvin.stenger94@gmail.com>
-
+---
  src/cmd/compile/fmt_test.go                |   1 -
  src/cmd/compile/internal/gc/alg.go         |   2 +-
  src/cmd/compile/internal/gc/bexport.go     |   2 +-
@@ -96,3 +96,1602 @@ Date:   Tue Apr 25 18:14:12 2017 -0700
  src/cmd/compile/internal/gc/universe.go    |   2 +-
  src/cmd/compile/internal/gc/walk.go        |  34 ++++----
  28 files changed, 237 insertions(+), 218 deletions(-)
+
+diff --git a/src/cmd/compile/fmt_test.go b/src/cmd/compile/fmt_test.go
+index f5d491e70b..6839265c85 100644
+--- a/src/cmd/compile/fmt_test.go
++++ b/src/cmd/compile/fmt_test.go
+@@ -614,7 +614,6 @@ var knownFormats = map[string]string{
+ 	"cmd/compile/internal/gc.Ctype %v":                "",
+ 	"cmd/compile/internal/gc.Level %d":                "",
+ 	"cmd/compile/internal/gc.Level %v":                "",
+-	"cmd/compile/internal/gc.Node %#v":                "",
+ 	"cmd/compile/internal/gc.Nodes %#v":               "",
+ 	"cmd/compile/internal/gc.Nodes %+v":               "",
+ 	"cmd/compile/internal/gc.Nodes %.v":               "",
+diff --git a/src/cmd/compile/internal/gc/alg.go b/src/cmd/compile/internal/gc/alg.go
+index c410a8da2e..8bdb7fc349 100644
+--- a/src/cmd/compile/internal/gc/alg.go
++++ b/src/cmd/compile/internal/gc/alg.go
+@@ -343,7 +343,7 @@ func hashfor(t *types.Type) *Node {
+ 	}
+ 
+ 	n := newname(sym)
+-	n.Class = PFUNC
++	n.SetClass(PFUNC)
+ 	tfn := nod(OTFUNC, nil, nil)
+ 	tfn.List.Append(anonfield(types.NewPtr(t)))
+ 	tfn.List.Append(anonfield(types.Types[TUINTPTR]))
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index 94d232bb2a..26c8bc9a9d 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -487,7 +487,7 @@ func (p *exporter) obj(sym *types.Sym) {
+ 			Fatalf("exporter: variable/function exported but not defined: %v", sym)
+ 		}
+ 
+-		if n.Type.Etype == TFUNC && n.Class == PFUNC {
++		if n.Type.Etype == TFUNC && n.Class() == PFUNC {
+ 			// function
+ 			p.tag(funcTag)
+ 			p.pos(n)
+diff --git a/src/cmd/compile/internal/gc/bitset.go b/src/cmd/compile/internal/gc/bitset.go
+index bc5a8789bc..89e6fe85c8 100644
+--- a/src/cmd/compile/internal/gc/bitset.go
++++ b/src/cmd/compile/internal/gc/bitset.go
+@@ -34,3 +34,14 @@ func (f *bitset32) set2(shift uint8, b uint8) {
+ 	// Set new bits.
+ 	*(*uint32)(f) |= uint32(b) << shift
+ }
++
++func (f bitset32) get3(shift uint8) uint8 {
++	return uint8(f>>shift) & 7
++}
++
++func (f *bitset32) set3(shift uint8, b uint8) {
++	// Clear old bits.
++	*(*uint32)(f) &^= 7 << shift
++	// Set new bits.
++	*(*uint32)(f) |= uint32(b) << shift
++}
+diff --git a/src/cmd/compile/internal/gc/closure.go b/src/cmd/compile/internal/gc/closure.go
+index 8826bc3f92..dd270bdd17 100644
+--- a/src/cmd/compile/internal/gc/closure.go
++++ b/src/cmd/compile/internal/gc/closure.go
+@@ -121,7 +121,7 @@ func typecheckclosure(func_ *Node, top int) {
+ 	}
+ 
+ 	for _, ln := range func_.Func.Dcl {
+-		if ln.Op == ONAME && (ln.Class == PPARAM || ln.Class == PPARAMOUT) {
++		if ln.Op == ONAME && (ln.Class() == PPARAM || ln.Class() == PPARAMOUT) {
+ 			ln.Name.Decldepth = 1
+ 		}
+ 	}
+@@ -275,7 +275,7 @@ func capturevars(xfunc *Node) {
+ 		outermost := v.Name.Defn
+ 
+ 		// out parameters will be assigned to implicitly upon return.
+-		if outer.Class != PPARAMOUT && !outermost.Addrtaken() && !outermost.Assigned() && v.Type.Width <= 128 {
++		if outer.Class() != PPARAMOUT && !outermost.Addrtaken() && !outermost.Assigned() && v.Type.Width <= 128 {
+ 			v.Name.SetByval(true)
+ 		} else {
+ 			outermost.SetAddrtaken(true)
+@@ -338,7 +338,7 @@ func transformclosure(xfunc *Node) {
+ 			fld.Funarg = types.FunargParams
+ 			if v.Name.Byval() {
+ 				// If v is captured by value, we merely downgrade it to PPARAM.
+-				v.Class = PPARAM
++				v.SetClass(PPARAM)
+ 				fld.Nname = asTypesNode(v)
+ 			} else {
+ 				// If v of type T is captured by reference,
+@@ -347,7 +347,7 @@ func transformclosure(xfunc *Node) {
+ 				// (accesses will implicitly deref &v).
+ 				addr := newname(lookup("&" + v.Sym.Name))
+ 				addr.Type = types.NewPtr(v.Type)
+-				addr.Class = PPARAM
++				addr.SetClass(PPARAM)
+ 				v.Name.Param.Heapaddr = addr
+ 				fld.Nname = asTypesNode(addr)
+ 			}
+@@ -389,7 +389,7 @@ func transformclosure(xfunc *Node) {
+ 
+ 			if v.Name.Byval() && v.Type.Width <= int64(2*Widthptr) {
+ 				// If it is a small variable captured by value, downgrade it to PAUTO.
+-				v.Class = PAUTO
++				v.SetClass(PAUTO)
+ 				xfunc.Func.Dcl = append(xfunc.Func.Dcl, v)
+ 				body = append(body, nod(OAS, v, cv))
+ 			} else {
+@@ -397,7 +397,7 @@ func transformclosure(xfunc *Node) {
+ 				// and initialize in entry prologue.
+ 				addr := newname(lookup("&" + v.Sym.Name))
+ 				addr.Type = types.NewPtr(v.Type)
+-				addr.Class = PAUTO
++				addr.SetClass(PAUTO)
+ 				addr.SetUsed(true)
+ 				addr.Name.Curfn = xfunc
+ 				xfunc.Func.Dcl = append(xfunc.Func.Dcl, addr)
+@@ -579,7 +579,7 @@ func makepartialcall(fn *Node, t0 *types.Type, meth *types.Sym) *Node {
+ 	Curfn = xfunc
+ 	for i, t := range t0.Params().Fields().Slice() {
+ 		n := newname(lookupN("a", i))
+-		n.Class = PPARAM
++		n.SetClass(PPARAM)
+ 		xfunc.Func.Dcl = append(xfunc.Func.Dcl, n)
+ 		callargs = append(callargs, n)
+ 		fld := nod(ODCLFIELD, n, typenod(t.Type))
+@@ -596,7 +596,7 @@ func makepartialcall(fn *Node, t0 *types.Type, meth *types.Sym) *Node {
+ 	var retargs []*Node
+ 	for i, t := range t0.Results().Fields().Slice() {
+ 		n := newname(lookupN("r", i))
+-		n.Class = PPARAMOUT
++		n.SetClass(PPARAMOUT)
+ 		xfunc.Func.Dcl = append(xfunc.Func.Dcl, n)
+ 		retargs = append(retargs, n)
+ 		l = append(l, nod(ODCLFIELD, n, typenod(t.Type)))
+@@ -621,7 +621,7 @@ func makepartialcall(fn *Node, t0 *types.Type, meth *types.Sym) *Node {
+ 		cv.Xoffset = int64(cv.Type.Align)
+ 	}
+ 	ptr := newname(lookup("rcvr"))
+-	ptr.Class = PAUTO
++	ptr.SetClass(PAUTO)
+ 	ptr.SetUsed(true)
+ 	ptr.Name.Curfn = xfunc
+ 	xfunc.Func.Dcl = append(xfunc.Func.Dcl, ptr)
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index 22e2fd8ea5..061644443e 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -125,7 +125,7 @@ func declare(n *Node, ctxt Class) {
+ 	s.Def = asTypesNode(n)
+ 	n.Name.Vargen = int32(gen)
+ 	n.Name.Funcdepth = funcdepth
+-	n.Class = ctxt
++	n.SetClass(ctxt)
+ 
+ 	autoexport(n, ctxt)
+ }
+@@ -269,7 +269,7 @@ func oldname(s *types.Sym) *Node {
+ 		if c == nil || c.Name.Funcdepth != funcdepth {
+ 			// Do not have a closure var for the active closure yet; make one.
+ 			c = newname(s)
+-			c.Class = PAUTOHEAP
++			c.SetClass(PAUTOHEAP)
+ 			c.SetIsClosureVar(true)
+ 			c.SetIsddd(n.Isddd())
+ 			c.Name.Defn = n
+@@ -663,7 +663,7 @@ func tofunargs(l []*Node, funarg types.Funarg) *types.Type {
+ 		f.Funarg = funarg
+ 
+ 		// esc.go needs to find f given a PPARAM to add the tag.
+-		if n.Left != nil && n.Left.Class == PPARAM {
++		if n.Left != nil && n.Left.Class() == PPARAM {
+ 			n.Left.Name.Param.Field = f
+ 		}
+ 		if f.Broke() {
+@@ -683,7 +683,7 @@ func tofunargsfield(fields []*types.Field, funarg types.Funarg) *types.Type {
+ 		f.Funarg = funarg
+ 
+ 		// esc.go needs to find f given a PPARAM to add the tag.
+-		if asNode(f.Nname) != nil && asNode(f.Nname).Class == PPARAM {
++		if asNode(f.Nname) != nil && asNode(f.Nname).Class() == PPARAM {
+ 			asNode(f.Nname).Name.Param.Field = f
+ 		}
+ 	}
+@@ -1215,7 +1215,7 @@ func (c *nowritebarrierrecChecker) visitcall(n *Node) {
+ 	if n.Op == OCALLMETH {
+ 		fn = asNode(n.Left.Sym.Def)
+ 	}
+-	if fn == nil || fn.Op != ONAME || fn.Class != PFUNC || fn.Name.Defn == nil {
++	if fn == nil || fn.Op != ONAME || fn.Class() != PFUNC || fn.Name.Defn == nil {
+ 		return
+ 	}
+ 	defn := fn.Name.Defn
+diff --git a/src/cmd/compile/internal/gc/esc.go b/src/cmd/compile/internal/gc/esc.go
+index 8ee4af2831..aaf590da02 100644
+--- a/src/cmd/compile/internal/gc/esc.go
++++ b/src/cmd/compile/internal/gc/esc.go
+@@ -134,7 +134,7 @@ func (v *bottomUpVisitor) visitcode(n *Node, min uint32) uint32 {
+ 		if n.Op == OCALLMETH {
+ 			fn = asNode(n.Left.Sym.Def)
+ 		}
+-		if fn != nil && fn.Op == ONAME && fn.Class == PFUNC && fn.Name.Defn != nil {
++		if fn != nil && fn.Op == ONAME && fn.Class() == PFUNC && fn.Name.Defn != nil {
+ 			m := v.visit(fn.Name.Defn)
+ 			if m < min {
+ 				min = m
+@@ -413,7 +413,7 @@ func newEscState(recursive bool) *EscState {
+ 	e := new(EscState)
+ 	e.theSink.Op = ONAME
+ 	e.theSink.Orig = &e.theSink
+-	e.theSink.Class = PEXTERN
++	e.theSink.SetClass(PEXTERN)
+ 	e.theSink.Sym = lookup(".sink")
+ 	e.nodeEscState(&e.theSink).Loopdepth = -1
+ 	e.recursive = recursive
+@@ -557,7 +557,7 @@ func (e *EscState) escfunc(fn *Node) {
+ 			continue
+ 		}
+ 		lnE := e.nodeEscState(ln)
+-		switch ln.Class {
++		switch ln.Class() {
+ 		// out params are in a loopdepth between the sink and all local variables
+ 		case PPARAMOUT:
+ 			lnE.Loopdepth = 0
+@@ -579,7 +579,7 @@ func (e *EscState) escfunc(fn *Node) {
+ 	// in a mutually recursive group we lose track of the return values
+ 	if e.recursive {
+ 		for _, ln := range Curfn.Func.Dcl {
+-			if ln.Op == ONAME && ln.Class == PPARAMOUT {
++			if ln.Op == ONAME && ln.Class() == PPARAMOUT {
+ 				e.escflows(&e.theSink, ln, e.stepAssign(nil, ln, ln, "returned from recursive function"))
+ 			}
+ 		}
+@@ -860,7 +860,7 @@ func (e *EscState) esc(n *Node, parent *Node) {
+ 			if i >= retList.Len() {
+ 				break
+ 			}
+-			if lrn.Op != ONAME || lrn.Class != PPARAMOUT {
++			if lrn.Op != ONAME || lrn.Class() != PPARAMOUT {
+ 				continue
+ 			}
+ 			e.escassignWhyWhere(lrn, retList.Index(i), "return", n)
+@@ -988,7 +988,7 @@ func (e *EscState) esc(n *Node, parent *Node) {
+ 		// it should always be known, but if not, be conservative
+ 		// and keep the current loop depth.
+ 		if n.Left.Op == ONAME {
+-			switch n.Left.Class {
++			switch n.Left.Class() {
+ 			case PAUTO:
+ 				nE := e.nodeEscState(n)
+ 				leftE := e.nodeEscState(n.Left)
+@@ -1083,7 +1083,7 @@ func (e *EscState) escassign(dst, src *Node, step *EscStep) {
+ 		OCALLPART:
+ 
+ 	case ONAME:
+-		if dst.Class == PEXTERN {
++		if dst.Class() == PEXTERN {
+ 			dstwhy = "assigned to top level variable"
+ 			dst = &e.theSink
+ 		}
+@@ -1440,7 +1440,7 @@ func (e *EscState) initEscRetval(call *Node, fntype *types.Type) {
+ 		ret := newname(lookup(buf))
+ 		ret.SetAddable(false) // TODO(mdempsky): Seems suspicious.
+ 		ret.Type = f.Type
+-		ret.Class = PAUTO
++		ret.SetClass(PAUTO)
+ 		ret.Name.Curfn = Curfn
+ 		e.nodeEscState(ret).Loopdepth = e.loopdepth
+ 		ret.SetUsed(true)
+@@ -1466,7 +1466,7 @@ func (e *EscState) esccall(call *Node, parent *Node) {
+ 	case OCALLFUNC:
+ 		fn = call.Left
+ 		fntype = fn.Type
+-		indirect = fn.Op != ONAME || fn.Class != PFUNC
++		indirect = fn.Op != ONAME || fn.Class() != PFUNC
+ 
+ 	case OCALLMETH:
+ 		fn = asNode(call.Left.Sym.Def)
+@@ -1519,7 +1519,7 @@ func (e *EscState) esccall(call *Node, parent *Node) {
+ 	}
+ 
+ 	cE := e.nodeEscState(call)
+-	if fn != nil && fn.Op == ONAME && fn.Class == PFUNC &&
++	if fn != nil && fn.Op == ONAME && fn.Class() == PFUNC &&
+ 		fn.Name.Defn != nil && fn.Name.Defn.Nbody.Len() != 0 && fn.Name.Param.Ntype != nil && fn.Name.Defn.Esc < EscFuncTagged {
+ 		if Debug['m'] > 3 {
+ 			fmt.Printf("%v::esccall:: %S in recursive group\n", linestr(lineno), call)
+@@ -1533,7 +1533,7 @@ func (e *EscState) esccall(call *Node, parent *Node) {
+ 
+ 		sawRcvr := false
+ 		for _, n := range fn.Name.Defn.Func.Dcl {
+-			switch n.Class {
++			switch n.Class() {
+ 			case PPARAM:
+ 				if call.Op != OCALLFUNC && !sawRcvr {
+ 					e.escassignWhyWhere(n, call.Left.Left, "call receiver", call)
+@@ -1725,8 +1725,8 @@ func (e *EscState) escflood(dst *Node) {
+ // funcOutputAndInput reports whether dst and src correspond to output and input parameters of the same function.
+ func funcOutputAndInput(dst, src *Node) bool {
+ 	// Note if dst is marked as escaping, then "returned" is too weak.
+-	return dst.Op == ONAME && dst.Class == PPARAMOUT &&
+-		src.Op == ONAME && src.Class == PPARAM && src.Name.Curfn == dst.Name.Curfn
++	return dst.Op == ONAME && dst.Class() == PPARAMOUT &&
++		src.Op == ONAME && src.Class() == PPARAM && src.Name.Curfn == dst.Name.Curfn
+ }
+ 
+ func (es *EscStep) describe(src *Node) {
+@@ -1830,7 +1830,7 @@ func (e *EscState) escwalkBody(level Level, dst *Node, src *Node, step *EscStep,
+ 	// If parameter content escapes to heap, set EscContentEscapes
+ 	// Note minor confusion around escape from pointer-to-struct vs escape from struct
+ 	if dst.Esc == EscHeap &&
+-		src.Op == ONAME && src.Class == PPARAM && src.Esc&EscMask < EscHeap &&
++		src.Op == ONAME && src.Class() == PPARAM && src.Esc&EscMask < EscHeap &&
+ 		level.int() > 0 {
+ 		src.Esc = escMax(EscContentEscapes|src.Esc, EscNone)
+ 		if Debug['m'] != 0 {
+@@ -1845,7 +1845,7 @@ func (e *EscState) escwalkBody(level Level, dst *Node, src *Node, step *EscStep,
+ 	osrcesc = src.Esc
+ 	switch src.Op {
+ 	case ONAME:
+-		if src.Class == PPARAM && (leaks || dstE.Loopdepth < 0) && src.Esc&EscMask < EscHeap {
++		if src.Class() == PPARAM && (leaks || dstE.Loopdepth < 0) && src.Esc&EscMask < EscHeap {
+ 			if level.guaranteedDereference() > 0 {
+ 				src.Esc = escMax(EscContentEscapes|src.Esc, EscNone)
+ 				if Debug['m'] != 0 {
+diff --git a/src/cmd/compile/internal/gc/export.go b/src/cmd/compile/internal/gc/export.go
+index 5f72c67c00..75be4ec10d 100644
+--- a/src/cmd/compile/internal/gc/export.go
++++ b/src/cmd/compile/internal/gc/export.go
+@@ -109,7 +109,7 @@ func reexportdep(n *Node) {
+ 
+ 	switch n.Op {
+ 	case ONAME:
+-		switch n.Class {
++		switch n.Class() {
+ 		// methods will be printed along with their type
+ 		// nodes for T.Method expressions
+ 		case PFUNC:
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index 622a5756fb..6b5dd7d76a 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -447,11 +447,11 @@ func (n *Node) jconv(s fmt.State, flag FmtFlag) {
+ 		fmt.Fprintf(s, " x(%d)", n.Xoffset)
+ 	}
+ 
+-	if n.Class != 0 {
+-		if int(n.Class) < len(classnames) {
+-			fmt.Fprintf(s, " class(%s)", classnames[n.Class])
++	if n.Class() != 0 {
++		if int(n.Class()) < len(classnames) {
++			fmt.Fprintf(s, " class(%s)", classnames[n.Class()])
+ 		} else {
+-			fmt.Fprintf(s, " class(%d?)", n.Class)
++			fmt.Fprintf(s, " class(%d?)", n.Class())
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/gen.go b/src/cmd/compile/internal/gc/gen.go
+index 3738070027..fffc5b76dd 100644
+--- a/src/cmd/compile/internal/gc/gen.go
++++ b/src/cmd/compile/internal/gc/gen.go
+@@ -36,7 +36,7 @@ func addrescapes(n *Node) {
+ 
+ 		// if this is a tmpname (PAUTO), it was tagged by tmpname as not escaping.
+ 		// on PPARAM it means something different.
+-		if n.Class == PAUTO && n.Esc == EscNever {
++		if n.Class() == PAUTO && n.Esc == EscNever {
+ 			break
+ 		}
+ 
+@@ -46,7 +46,7 @@ func addrescapes(n *Node) {
+ 			break
+ 		}
+ 
+-		if n.Class != PPARAM && n.Class != PPARAMOUT && n.Class != PAUTO {
++		if n.Class() != PPARAM && n.Class() != PPARAMOUT && n.Class() != PAUTO {
+ 			break
+ 		}
+ 
+@@ -91,13 +91,13 @@ func addrescapes(n *Node) {
+ // isParamStackCopy reports whether this is the on-stack copy of a
+ // function parameter that moved to the heap.
+ func (n *Node) isParamStackCopy() bool {
+-	return n.Op == ONAME && (n.Class == PPARAM || n.Class == PPARAMOUT) && n.Name.Param.Heapaddr != nil
++	return n.Op == ONAME && (n.Class() == PPARAM || n.Class() == PPARAMOUT) && n.Name.Param.Heapaddr != nil
+ }
+ 
+ // isParamHeapCopy reports whether this is the on-heap copy of
+ // a function parameter that moved to the heap.
+ func (n *Node) isParamHeapCopy() bool {
+-	return n.Op == ONAME && n.Class == PAUTOHEAP && n.Name.Param.Stackcopy != nil
++	return n.Op == ONAME && n.Class() == PAUTOHEAP && n.Name.Param.Stackcopy != nil
+ }
+ 
+ // moveToHeap records the parameter or local variable n as moved to the heap.
+@@ -108,7 +108,7 @@ func moveToHeap(n *Node) {
+ 	if compiling_runtime {
+ 		yyerror("%v escapes to heap, not allowed in runtime.", n)
+ 	}
+-	if n.Class == PAUTOHEAP {
++	if n.Class() == PAUTOHEAP {
+ 		Dump("n", n)
+ 		Fatalf("double move to heap")
+ 	}
+@@ -127,7 +127,7 @@ func moveToHeap(n *Node) {
+ 	// Parameters have a local stack copy used at function start/end
+ 	// in addition to the copy in the heap that may live longer than
+ 	// the function.
+-	if n.Class == PPARAM || n.Class == PPARAMOUT {
++	if n.Class() == PPARAM || n.Class() == PPARAMOUT {
+ 		if n.Xoffset == BADWIDTH {
+ 			Fatalf("addrescapes before param assignment")
+ 		}
+@@ -140,9 +140,9 @@ func moveToHeap(n *Node) {
+ 		stackcopy.SetAddable(false)
+ 		stackcopy.Type = n.Type
+ 		stackcopy.Xoffset = n.Xoffset
+-		stackcopy.Class = n.Class
++		stackcopy.SetClass(n.Class())
+ 		stackcopy.Name.Param.Heapaddr = heapaddr
+-		if n.Class == PPARAMOUT {
++		if n.Class() == PPARAMOUT {
+ 			// Make sure the pointer to the heap copy is kept live throughout the function.
+ 			// The function could panic at any point, and then a defer could recover.
+ 			// Thus, we need the pointer to the heap copy always available so the
+@@ -164,7 +164,7 @@ func moveToHeap(n *Node) {
+ 			}
+ 			// Parameters are before locals, so can stop early.
+ 			// This limits the search even in functions with many local variables.
+-			if d.Class == PAUTO {
++			if d.Class() == PAUTO {
+ 				break
+ 			}
+ 		}
+@@ -175,7 +175,7 @@ func moveToHeap(n *Node) {
+ 	}
+ 
+ 	// Modify n in place so that uses of n now mean indirection of the heapaddr.
+-	n.Class = PAUTOHEAP
++	n.SetClass(PAUTOHEAP)
+ 	n.Xoffset = 0
+ 	n.Name.Param.Heapaddr = heapaddr
+ 	n.Esc = EscHeap
+@@ -215,7 +215,7 @@ func tempnamel(pos src.XPos, curfn *Node, nn *Node, t *types.Type) {
+ 	n := newnamel(pos, s)
+ 	s.Def = asTypesNode(n)
+ 	n.Type = t
+-	n.Class = PAUTO
++	n.SetClass(PAUTO)
+ 	n.Esc = EscNever
+ 	n.Name.Curfn = curfn
+ 	n.Name.SetAutoTemp(true)
+diff --git a/src/cmd/compile/internal/gc/gsubr.go b/src/cmd/compile/internal/gc/gsubr.go
+index 69a34d3d98..f91a1bd916 100644
+--- a/src/cmd/compile/internal/gc/gsubr.go
++++ b/src/cmd/compile/internal/gc/gsubr.go
+@@ -312,7 +312,7 @@ func nodarg(t interface{}, fp int) *Node {
+ 			}
+ 
+ 			for _, n := range Curfn.Func.Dcl {
+-				if (n.Class == PPARAM || n.Class == PPARAMOUT) && !t.Sym.IsBlank() && n.Sym == t.Sym {
++				if (n.Class() == PPARAM || n.Class() == PPARAMOUT) && !t.Sym.IsBlank() && n.Sym == t.Sym {
+ 					if n != expect {
+ 						Fatalf("nodarg: unexpected node: %v (%p %v) vs %v (%p %v)", n, n, n.Op, asNode(t.Nname), asNode(t.Nname), asNode(t.Nname).Op)
+ 					}
+@@ -353,9 +353,9 @@ func nodarg(t interface{}, fp int) *Node {
+ 		n.Xoffset += Ctxt.FixedFrameSize()
+ 
+ 	case 1: // reading arguments inside call
+-		n.Class = PPARAM
++		n.SetClass(PPARAM)
+ 		if funarg == types.FunargResults {
+-			n.Class = PPARAMOUT
++			n.SetClass(PPARAMOUT)
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index 57d37b10c2..61df76bf2f 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -216,7 +216,7 @@ func (v *hairyVisitor) visit(n *Node) bool {
+ 		}
+ 		// Functions that call runtime.getcaller{pc,sp} can not be inlined
+ 		// because getcaller{pc,sp} expect a pointer to the caller's first argument.
+-		if n.Left.Op == ONAME && n.Left.Class == PFUNC && isRuntimePkg(n.Left.Sym.Pkg) {
++		if n.Left.Op == ONAME && n.Left.Class() == PFUNC && isRuntimePkg(n.Left.Sym.Pkg) {
+ 			fn := n.Left.Sym.Name
+ 			if fn == "getcallerpc" || fn == "getcallersp" {
+ 				v.reason = "call to " + fn
+@@ -621,14 +621,14 @@ func mkinlcall1(n *Node, fn *Node, isddd bool) *Node {
+ 		if ln.Op != ONAME {
+ 			continue
+ 		}
+-		if ln.Class == PPARAMOUT { // return values handled below.
++		if ln.Class() == PPARAMOUT { // return values handled below.
+ 			continue
+ 		}
+ 		if ln.isParamStackCopy() { // ignore the on-stack copy of a parameter that moved to the heap
+ 			continue
+ 		}
+ 		inlvars[ln] = typecheck(inlvar(ln), Erv)
+-		if ln.Class == PPARAM || ln.Name.Param.Stackcopy != nil && ln.Name.Param.Stackcopy.Class == PPARAM {
++		if ln.Class() == PPARAM || ln.Name.Param.Stackcopy != nil && ln.Name.Param.Stackcopy.Class() == PPARAM {
+ 			ninit.Append(nod(ODCL, inlvars[ln], nil))
+ 		}
+ 	}
+@@ -816,7 +816,7 @@ func inlvar(var_ *Node) *Node {
+ 
+ 	n := newname(var_.Sym)
+ 	n.Type = var_.Type
+-	n.Class = PAUTO
++	n.SetClass(PAUTO)
+ 	n.SetUsed(true)
+ 	n.Name.Curfn = Curfn // the calling function, not the called one
+ 	n.SetAddrtaken(var_.Addrtaken())
+@@ -829,7 +829,7 @@ func inlvar(var_ *Node) *Node {
+ func retvar(t *types.Field, i int) *Node {
+ 	n := newname(lookupN("~r", i))
+ 	n.Type = t.Type
+-	n.Class = PAUTO
++	n.SetClass(PAUTO)
+ 	n.SetUsed(true)
+ 	n.Name.Curfn = Curfn // the calling function, not the called one
+ 	Curfn.Func.Dcl = append(Curfn.Func.Dcl, n)
+@@ -841,7 +841,7 @@ func retvar(t *types.Field, i int) *Node {
+ func argvar(t *types.Type, i int) *Node {
+ 	n := newname(lookupN("~arg", i))
+ 	n.Type = t.Elem()
+-	n.Class = PAUTO
++	n.SetClass(PAUTO)
+ 	n.SetUsed(true)
+ 	n.Name.Curfn = Curfn // the calling function, not the called one
+ 	Curfn.Func.Dcl = append(Curfn.Func.Dcl, n)
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index ef7c72dfb6..f075ce0fcb 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -749,10 +749,10 @@ func (p *noder) stmt(stmt syntax.Stmt) *Node {
+ 		n.List.Set(results)
+ 		if n.List.Len() == 0 && Curfn != nil {
+ 			for _, ln := range Curfn.Func.Dcl {
+-				if ln.Class == PPARAM {
++				if ln.Class() == PPARAM {
+ 					continue
+ 				}
+-				if ln.Class != PPARAMOUT {
++				if ln.Class() != PPARAMOUT {
+ 					break
+ 				}
+ 				if asNode(ln.Sym.Def) != ln {
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index e9d94607ec..0d598cebec 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -193,7 +193,7 @@ func addptabs() {
+ 		if s.Pkg.Name != "main" {
+ 			continue
+ 		}
+-		if n.Type.Etype == TFUNC && n.Class == PFUNC {
++		if n.Type.Etype == TFUNC && n.Class() == PFUNC {
+ 			// function
+ 			ptabs = append(ptabs, ptabEntry{s: s, t: asNode(s.Def).Type})
+ 		} else {
+@@ -213,7 +213,7 @@ func dumpglobls() {
+ 		if n.Type == nil {
+ 			Fatalf("external %v nil type\n", n)
+ 		}
+-		if n.Class == PFUNC {
++		if n.Class() == PFUNC {
+ 			continue
+ 		}
+ 		if n.Sym.Pkg != localpkg {
+@@ -422,8 +422,8 @@ func gdata(nam *Node, nr *Node, wid int) {
+ 		s.WriteAddr(Ctxt, nam.Xoffset, wid, to.Sym.Linksym(), to.Xoffset)
+ 
+ 	case ONAME:
+-		if nr.Class != PFUNC {
+-			Fatalf("gdata NAME not PFUNC %d", nr.Class)
++		if nr.Class() != PFUNC {
++			Fatalf("gdata NAME not PFUNC %d", nr.Class())
+ 		}
+ 		s.WriteAddr(Ctxt, nam.Xoffset, wid, funcsym(nr.Sym).Linksym(), nr.Xoffset)
+ 
+diff --git a/src/cmd/compile/internal/gc/order.go b/src/cmd/compile/internal/gc/order.go
+index 48bd25f7ea..cdda2f3486 100644
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@ -178,7 +178,7 @@ func ordersafeexpr(n *Node, order *Order) *Node {
+ // because we emit explicit VARKILL instructions marking the end of those
+ // temporaries' lifetimes.
+ func isaddrokay(n *Node) bool {
+-	return islvalue(n) && (n.Op != ONAME || n.Class == PEXTERN || n.IsAutoTmp())
++	return islvalue(n) && (n.Op != ONAME || n.Class() == PEXTERN || n.IsAutoTmp())
+ }
+ 
+ // Orderaddrtemp ensures that n is okay to pass by address to runtime routines.
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index af34778dd5..c7e27cb947 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -65,11 +65,11 @@ func emitptrargsmap() {
+ // the top of the stack and increasing in size.
+ // Non-autos sort on offset.
+ func cmpstackvarlt(a, b *Node) bool {
+-	if (a.Class == PAUTO) != (b.Class == PAUTO) {
+-		return b.Class == PAUTO
++	if (a.Class() == PAUTO) != (b.Class() == PAUTO) {
++		return b.Class() == PAUTO
+ 	}
+ 
+-	if a.Class != PAUTO {
++	if a.Class() != PAUTO {
+ 		return a.Xoffset < b.Xoffset
+ 	}
+ 
+@@ -110,7 +110,7 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
+ 
+ 	// Mark the PAUTO's unused.
+ 	for _, ln := range fn.Dcl {
+-		if ln.Class == PAUTO {
++		if ln.Class() == PAUTO {
+ 			ln.SetUsed(false)
+ 		}
+ 	}
+@@ -149,7 +149,7 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
+ 
+ 	// Reassign stack offsets of the locals that are used.
+ 	for i, n := range fn.Dcl {
+-		if n.Op != ONAME || n.Class != PAUTO {
++		if n.Op != ONAME || n.Class() != PAUTO {
+ 			continue
+ 		}
+ 		if !n.Used() {
+@@ -237,7 +237,7 @@ func debuginfo(fnsym *obj.LSym, curfn interface{}) []*dwarf.Var {
+ 		var abbrev int
+ 		offs := n.Xoffset
+ 
+-		switch n.Class {
++		switch n.Class() {
+ 		case PAUTO:
+ 			if !n.Used() {
+ 				Fatalf("debuginfo unused node (AllocFrame should truncate fn.Func.Dcl)")
+diff --git a/src/cmd/compile/internal/gc/pgen_test.go b/src/cmd/compile/internal/gc/pgen_test.go
+index 35ca114211..28b8f8bcf8 100644
+--- a/src/cmd/compile/internal/gc/pgen_test.go
++++ b/src/cmd/compile/internal/gc/pgen_test.go
+@@ -25,110 +25,115 @@ func typeWithPointers() *types.Type {
+ 	return t
+ }
+ 
++func nodeWithClass(n Node, c Class) *Node {
++	n.SetClass(c)
++	return &n
++}
++
+ // Test all code paths for cmpstackvarlt.
+ func TestCmpstackvar(t *testing.T) {
+ 	testdata := []struct {
+-		a, b Node
++		a, b *Node
+ 		lt   bool
+ 	}{
+ 		{
+-			Node{Class: PAUTO},
+-			Node{Class: PFUNC},
++			nodeWithClass(Node{}, PAUTO),
++			nodeWithClass(Node{}, PFUNC),
+ 			false,
+ 		},
+ 		{
+-			Node{Class: PFUNC},
+-			Node{Class: PAUTO},
++			nodeWithClass(Node{}, PFUNC),
++			nodeWithClass(Node{}, PAUTO),
+ 			true,
+ 		},
+ 		{
+-			Node{Class: PFUNC, Xoffset: 0},
+-			Node{Class: PFUNC, Xoffset: 10},
++			nodeWithClass(Node{Xoffset: 0}, PFUNC),
++			nodeWithClass(Node{Xoffset: 10}, PFUNC),
+ 			true,
+ 		},
+ 		{
+-			Node{Class: PFUNC, Xoffset: 20},
+-			Node{Class: PFUNC, Xoffset: 10},
++			nodeWithClass(Node{Xoffset: 20}, PFUNC),
++			nodeWithClass(Node{Xoffset: 10}, PFUNC),
+ 			false,
+ 		},
+ 		{
+-			Node{Class: PFUNC, Xoffset: 10},
+-			Node{Class: PFUNC, Xoffset: 10},
++			nodeWithClass(Node{Xoffset: 10}, PFUNC),
++			nodeWithClass(Node{Xoffset: 10}, PFUNC),
+ 			false,
+ 		},
+ 		{
+-			Node{Class: PPARAM, Xoffset: 10},
+-			Node{Class: PPARAMOUT, Xoffset: 20},
++			nodeWithClass(Node{Xoffset: 10}, PPARAM),
++			nodeWithClass(Node{Xoffset: 20}, PPARAMOUT),
+ 			true,
+ 		},
+ 		{
+-			Node{Class: PPARAMOUT, Xoffset: 10},
+-			Node{Class: PPARAM, Xoffset: 20},
++			nodeWithClass(Node{Xoffset: 10}, PPARAMOUT),
++			nodeWithClass(Node{Xoffset: 20}, PPARAM),
+ 			true,
+ 		},
+ 		{
+-			Node{Class: PAUTO, flags: nodeUsed},
+-			Node{Class: PAUTO},
++			nodeWithClass(Node{flags: nodeUsed}, PAUTO),
++			nodeWithClass(Node{}, PAUTO),
+ 			true,
+ 		},
+ 		{
+-			Node{Class: PAUTO},
+-			Node{Class: PAUTO, flags: nodeUsed},
++			nodeWithClass(Node{}, PAUTO),
++			nodeWithClass(Node{flags: nodeUsed}, PAUTO),
+ 			false,
+ 		},
+ 		{
+-			Node{Class: PAUTO, Type: typeWithoutPointers()},
+-			Node{Class: PAUTO, Type: typeWithPointers()},
++			nodeWithClass(Node{Type: typeWithoutPointers()}, PAUTO),
++			nodeWithClass(Node{Type: typeWithPointers()}, PAUTO),
+ 			false,
+ 		},
+ 		{
+-			Node{Class: PAUTO, Type: typeWithPointers()},
+-			Node{Class: PAUTO, Type: typeWithoutPointers()},
++			nodeWithClass(Node{Type: typeWithPointers()}, PAUTO),
++			nodeWithClass(Node{Type: typeWithoutPointers()}, PAUTO),
+ 			true,
+ 		},
+ 		{
+-			Node{Class: PAUTO, Type: &types.Type{}, Name: &Name{flags: nameNeedzero}},
+-			Node{Class: PAUTO, Type: &types.Type{}, Name: &Name{}},
++			nodeWithClass(Node{Type: &types.Type{}, Name: &Name{flags: nameNeedzero}}, PAUTO),
++			nodeWithClass(Node{Type: &types.Type{}, Name: &Name{}}, PAUTO),
+ 			true,
+ 		},
+ 		{
+-			Node{Class: PAUTO, Type: &types.Type{}, Name: &Name{}},
+-			Node{Class: PAUTO, Type: &types.Type{}, Name: &Name{flags: nameNeedzero}},
++			nodeWithClass(Node{Type: &types.Type{}, Name: &Name{}}, PAUTO),
++			nodeWithClass(Node{Type: &types.Type{}, Name: &Name{flags: nameNeedzero}}, PAUTO),
+ 			false,
+ 		},
+ 		{
+-			Node{Class: PAUTO, Type: &types.Type{Width: 1}, Name: &Name{}},
+-			Node{Class: PAUTO, Type: &types.Type{Width: 2}, Name: &Name{}},
++			nodeWithClass(Node{Type: &types.Type{Width: 1}, Name: &Name{}}, PAUTO),
++			nodeWithClass(Node{Type: &types.Type{Width: 2}, Name: &Name{}}, PAUTO),
+ 			false,
+ 		},
+ 		{
+-			Node{Class: PAUTO, Type: &types.Type{Width: 2}, Name: &Name{}},
+-			Node{Class: PAUTO, Type: &types.Type{Width: 1}, Name: &Name{}},
++			nodeWithClass(Node{Type: &types.Type{Width: 2}, Name: &Name{}}, PAUTO),
++			nodeWithClass(Node{Type: &types.Type{Width: 1}, Name: &Name{}}, PAUTO),
+ 			true,
+ 		},
+ 		{
+-			Node{Class: PAUTO, Type: &types.Type{}, Name: &Name{}, Sym: &types.Sym{Name: "abc"}},
+-			Node{Class: PAUTO, Type: &types.Type{}, Name: &Name{}, Sym: &types.Sym{Name: "xyz"}},
++			nodeWithClass(Node{Type: &types.Type{}, Name: &Name{}, Sym: &types.Sym{Name: "abc"}}, PAUTO),
++			nodeWithClass(Node{Type: &types.Type{}, Name: &Name{}, Sym: &types.Sym{Name: "xyz"}}, PAUTO),
+ 			true,
+ 		},
+ 		{
+-			Node{Class: PAUTO, Type: &types.Type{}, Name: &Name{}, Sym: &types.Sym{Name: "abc"}},
+-			Node{Class: PAUTO, Type: &types.Type{}, Name: &Name{}, Sym: &types.Sym{Name: "abc"}},
++			nodeWithClass(Node{Type: &types.Type{}, Name: &Name{}, Sym: &types.Sym{Name: "abc"}}, PAUTO),
++			nodeWithClass(Node{Type: &types.Type{}, Name: &Name{}, Sym: &types.Sym{Name: "abc"}}, PAUTO),
+ 			false,
+ 		},
+ 		{
+-			Node{Class: PAUTO, Type: &types.Type{}, Name: &Name{}, Sym: &types.Sym{Name: "xyz"}},
+-			Node{Class: PAUTO, Type: &types.Type{}, Name: &Name{}, Sym: &types.Sym{Name: "abc"}},
++			nodeWithClass(Node{Type: &types.Type{}, Name: &Name{}, Sym: &types.Sym{Name: "xyz"}}, PAUTO),
++			nodeWithClass(Node{Type: &types.Type{}, Name: &Name{}, Sym: &types.Sym{Name: "abc"}}, PAUTO),
+ 			false,
+ 		},
+ 	}
+ 	for _, d := range testdata {
+-		got := cmpstackvarlt(&d.a, &d.b)
++		got := cmpstackvarlt(d.a, d.b)
+ 		if got != d.lt {
+ 			t.Errorf("want %#v < %#v", d.a, d.b)
+ 		}
+ 		// If we expect a < b to be true, check that b < a is false.
+-		if d.lt && cmpstackvarlt(&d.b, &d.a) {
++		if d.lt && cmpstackvarlt(d.b, d.a) {
+ 			t.Errorf("unexpected %#v < %#v", d.b, d.a)
+ 		}
+ 	}
+@@ -136,34 +141,34 @@ func TestCmpstackvar(t *testing.T) {
+ 
+ func TestStackvarSort(t *testing.T) {
+ 	inp := []*Node{
+-		{Class: PFUNC, Type: &types.Type{}, Name: &Name{}, Sym: &types.Sym{}},
+-		{Class: PAUTO, Type: &types.Type{}, Name: &Name{}, Sym: &types.Sym{}},
+-		{Class: PFUNC, Xoffset: 0, Type: &types.Type{}, Name: &Name{}, Sym: &types.Sym{}},
+-		{Class: PFUNC, Xoffset: 10, Type: &types.Type{}, Name: &Name{}, Sym: &types.Sym{}},
+-		{Class: PFUNC, Xoffset: 20, Type: &types.Type{}, Name: &Name{}, Sym: &types.Sym{}},
+-		{Class: PAUTO, flags: nodeUsed, Type: &types.Type{}, Name: &Name{}, Sym: &types.Sym{}},
+-		{Class: PAUTO, Type: typeWithoutPointers(), Name: &Name{}, Sym: &types.Sym{}},
+-		{Class: PAUTO, Type: &types.Type{}, Name: &Name{}, Sym: &types.Sym{}},
+-		{Class: PAUTO, Type: &types.Type{}, Name: &Name{flags: nameNeedzero}, Sym: &types.Sym{}},
+-		{Class: PAUTO, Type: &types.Type{Width: 1}, Name: &Name{}, Sym: &types.Sym{}},
+-		{Class: PAUTO, Type: &types.Type{Width: 2}, Name: &Name{}, Sym: &types.Sym{}},
+-		{Class: PAUTO, Type: &types.Type{}, Name: &Name{}, Sym: &types.Sym{Name: "abc"}},
+-		{Class: PAUTO, Type: &types.Type{}, Name: &Name{}, Sym: &types.Sym{Name: "xyz"}},
++		nodeWithClass(Node{Type: &types.Type{}, Name: &Name{}, Sym: &types.Sym{}}, PFUNC),
++		nodeWithClass(Node{Type: &types.Type{}, Name: &Name{}, Sym: &types.Sym{}}, PAUTO),
++		nodeWithClass(Node{Xoffset: 0, Type: &types.Type{}, Name: &Name{}, Sym: &types.Sym{}}, PFUNC),
++		nodeWithClass(Node{Xoffset: 10, Type: &types.Type{}, Name: &Name{}, Sym: &types.Sym{}}, PFUNC),
++		nodeWithClass(Node{Xoffset: 20, Type: &types.Type{}, Name: &Name{}, Sym: &types.Sym{}}, PFUNC),
++		nodeWithClass(Node{flags: nodeUsed, Type: &types.Type{}, Name: &Name{}, Sym: &types.Sym{}}, PAUTO),
++		nodeWithClass(Node{Type: typeWithoutPointers(), Name: &Name{}, Sym: &types.Sym{}}, PAUTO),
++		nodeWithClass(Node{Type: &types.Type{}, Name: &Name{}, Sym: &types.Sym{}}, PAUTO),
++		nodeWithClass(Node{Type: &types.Type{}, Name: &Name{flags: nameNeedzero}, Sym: &types.Sym{}}, PAUTO),
++		nodeWithClass(Node{Type: &types.Type{Width: 1}, Name: &Name{}, Sym: &types.Sym{}}, PAUTO),
++		nodeWithClass(Node{Type: &types.Type{Width: 2}, Name: &Name{}, Sym: &types.Sym{}}, PAUTO),
++		nodeWithClass(Node{Type: &types.Type{}, Name: &Name{}, Sym: &types.Sym{Name: "abc"}}, PAUTO),
++		nodeWithClass(Node{Type: &types.Type{}, Name: &Name{}, Sym: &types.Sym{Name: "xyz"}}, PAUTO),
+ 	}
+ 	want := []*Node{
+-		{Class: PFUNC, Type: &types.Type{}, Name: &Name{}, Sym: &types.Sym{}},
+-		{Class: PFUNC, Xoffset: 0, Type: &types.Type{}, Name: &Name{}, Sym: &types.Sym{}},
+-		{Class: PFUNC, Xoffset: 10, Type: &types.Type{}, Name: &Name{}, Sym: &types.Sym{}},
+-		{Class: PFUNC, Xoffset: 20, Type: &types.Type{}, Name: &Name{}, Sym: &types.Sym{}},
+-		{Class: PAUTO, flags: nodeUsed, Type: &types.Type{}, Name: &Name{}, Sym: &types.Sym{}},
+-		{Class: PAUTO, Type: &types.Type{}, Name: &Name{flags: nameNeedzero}, Sym: &types.Sym{}},
+-		{Class: PAUTO, Type: &types.Type{Width: 2}, Name: &Name{}, Sym: &types.Sym{}},
+-		{Class: PAUTO, Type: &types.Type{Width: 1}, Name: &Name{}, Sym: &types.Sym{}},
+-		{Class: PAUTO, Type: &types.Type{}, Name: &Name{}, Sym: &types.Sym{}},
+-		{Class: PAUTO, Type: &types.Type{}, Name: &Name{}, Sym: &types.Sym{}},
+-		{Class: PAUTO, Type: &types.Type{}, Name: &Name{}, Sym: &types.Sym{Name: "abc"}},
+-		{Class: PAUTO, Type: &types.Type{}, Name: &Name{}, Sym: &types.Sym{Name: "xyz"}},
+-		{Class: PAUTO, Type: typeWithoutPointers(), Name: &Name{}, Sym: &types.Sym{}},
++		nodeWithClass(Node{Type: &types.Type{}, Name: &Name{}, Sym: &types.Sym{}}, PFUNC),
++		nodeWithClass(Node{Xoffset: 0, Type: &types.Type{}, Name: &Name{}, Sym: &types.Sym{}}, PFUNC),
++		nodeWithClass(Node{Xoffset: 10, Type: &types.Type{}, Name: &Name{}, Sym: &types.Sym{}}, PFUNC),
++		nodeWithClass(Node{Xoffset: 20, Type: &types.Type{}, Name: &Name{}, Sym: &types.Sym{}}, PFUNC),
++		nodeWithClass(Node{flags: nodeUsed, Type: &types.Type{}, Name: &Name{}, Sym: &types.Sym{}}, PAUTO),
++		nodeWithClass(Node{Type: &types.Type{}, Name: &Name{flags: nameNeedzero}, Sym: &types.Sym{}}, PAUTO),
++		nodeWithClass(Node{Type: &types.Type{Width: 2}, Name: &Name{}, Sym: &types.Sym{}}, PAUTO),
++		nodeWithClass(Node{Type: &types.Type{Width: 1}, Name: &Name{}, Sym: &types.Sym{}}, PAUTO),
++		nodeWithClass(Node{Type: &types.Type{}, Name: &Name{}, Sym: &types.Sym{}}, PAUTO),
++		nodeWithClass(Node{Type: &types.Type{}, Name: &Name{}, Sym: &types.Sym{}}, PAUTO),
++		nodeWithClass(Node{Type: &types.Type{}, Name: &Name{}, Sym: &types.Sym{Name: "abc"}}, PAUTO),
++		nodeWithClass(Node{Type: &types.Type{}, Name: &Name{}, Sym: &types.Sym{Name: "xyz"}}, PAUTO),
++		nodeWithClass(Node{Type: typeWithoutPointers(), Name: &Name{}, Sym: &types.Sym{}}, PAUTO),
+ 	}
+ 	// haspointers updates Type.Haspointers as a side effect, so
+ 	// exercise this function on all inputs so that reflect.DeepEqual
+diff --git a/src/cmd/compile/internal/gc/plive.go b/src/cmd/compile/internal/gc/plive.go
+index c461eb4c47..d33fc00eda 100644
+--- a/src/cmd/compile/internal/gc/plive.go
++++ b/src/cmd/compile/internal/gc/plive.go
+@@ -145,7 +145,7 @@ type progeffectscache struct {
+ // nor do we care about empty structs (handled by the pointer check),
+ // nor do we care about the fake PAUTOHEAP variables.
+ func livenessShouldTrack(n *Node) bool {
+-	return n.Op == ONAME && (n.Class == PAUTO || n.Class == PPARAM || n.Class == PPARAMOUT) && types.Haspointers(n.Type)
++	return n.Op == ONAME && (n.Class() == PAUTO || n.Class() == PPARAM || n.Class() == PPARAMOUT) && types.Haspointers(n.Type)
+ }
+ 
+ // getvariables returns the list of on-stack variables that we need to track.
+@@ -183,7 +183,7 @@ func (lv *Liveness) initcache() {
+ 	lv.cache.initialized = true
+ 
+ 	for i, node := range lv.vars {
+-		switch node.Class {
++		switch node.Class() {
+ 		case PPARAM:
+ 			// A return instruction with a p.to is a tail return, which brings
+ 			// the stack pointer back up (if it ever went down) and then jumps
+@@ -487,7 +487,7 @@ func onebitlivepointermap(lv *Liveness, liveout bvec, vars []*Node, args bvec, l
+ 			break
+ 		}
+ 		node := vars[i]
+-		switch node.Class {
++		switch node.Class() {
+ 		case PAUTO:
+ 			xoffset = node.Xoffset + lv.stkptrsize
+ 			onebitwalktype1(node.Type, &xoffset, locals)
+@@ -658,7 +658,7 @@ func livenessepilogue(lv *Liveness) {
+ 	// don't need to keep the stack copy live?
+ 	if lv.fn.Func.HasDefer() {
+ 		for i, n := range lv.vars {
+-			if n.Class == PPARAMOUT {
++			if n.Class() == PPARAMOUT {
+ 				if n.IsOutputParamHeapAddr() {
+ 					// Just to be paranoid.  Heap addresses are PAUTOs.
+ 					Fatalf("variable %v both output param and heap output param", n)
+@@ -792,7 +792,7 @@ func livenessepilogue(lv *Liveness) {
+ 	// the only things that can possibly be live are the
+ 	// input parameters.
+ 	for j, n := range lv.vars {
+-		if n.Class != PPARAM && lv.livevars[0].Get(int32(j)) {
++		if n.Class() != PPARAM && lv.livevars[0].Get(int32(j)) {
+ 			Fatalf("internal error: %v %L recorded as live on entry", lv.fn.Func.Nname, n)
+ 		}
+ 	}
+@@ -949,7 +949,7 @@ func clobberWalk(b *ssa.Block, v *Node, offset int64, t *types.Type) {
+ // The clobber instruction is added at the end of b.
+ func clobberPtr(b *ssa.Block, v *Node, offset int64) {
+ 	var aux interface{}
+-	if v.Class == PAUTO {
++	if v.Class() == PAUTO {
+ 		aux = &ssa.AutoSymbol{Node: v}
+ 	} else {
+ 		aux = &ssa.ArgSymbol{Node: v}
+diff --git a/src/cmd/compile/internal/gc/racewalk.go b/src/cmd/compile/internal/gc/racewalk.go
+index 6db33c3b39..cfb803187c 100644
+--- a/src/cmd/compile/internal/gc/racewalk.go
++++ b/src/cmd/compile/internal/gc/racewalk.go
+@@ -472,7 +472,7 @@ func callinstr(np **Node, init *Nodes, wr int, skip int) bool {
+ 	if isartificial(b) {
+ 		return false
+ 	}
+-	class := b.Class
++	class := b.Class()
+ 
+ 	// BUG: we _may_ want to instrument PAUTO sometimes
+ 	// e.g. if we've got a local variable/method receiver
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index b5082c8321..509cef087a 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -944,7 +944,7 @@ func typename(t *types.Type) *Node {
+ 	if s.Def == nil {
+ 		n := newnamel(src.NoXPos, s)
+ 		n.Type = types.Types[TUINT8]
+-		n.Class = PEXTERN
++		n.SetClass(PEXTERN)
+ 		n.SetTypecheck(1)
+ 		s.Def = asTypesNode(n)
+ 	}
+@@ -964,7 +964,7 @@ func itabname(t, itype *types.Type) *Node {
+ 	if s.Def == nil {
+ 		n := newname(s)
+ 		n.Type = types.Types[TUINT8]
+-		n.Class = PEXTERN
++		n.SetClass(PEXTERN)
+ 		n.SetTypecheck(1)
+ 		s.Def = asTypesNode(n)
+ 		itabs = append(itabs, itabEntry{t: t, itype: itype, lsym: s.Linksym()})
+@@ -1821,7 +1821,7 @@ func zeroaddr(size int64) *Node {
+ 	if s.Def == nil {
+ 		x := newname(s)
+ 		x.Type = types.Types[TUINT8]
+-		x.Class = PEXTERN
++		x.SetClass(PEXTERN)
+ 		x.SetTypecheck(1)
+ 		s.Def = asTypesNode(x)
+ 	}
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index 00a0bc484c..e8f3d70bd1 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -43,7 +43,7 @@ func init1(n *Node, out *[]*Node) {
+ 		init1(n1, out)
+ 	}
+ 
+-	if n.Left != nil && n.Type != nil && n.Left.Op == OTYPE && n.Class == PFUNC {
++	if n.Left != nil && n.Type != nil && n.Left.Op == OTYPE && n.Class() == PFUNC {
+ 		// Methods called as Type.Method(receiver, ...).
+ 		// Definitions for method expressions are stored in type->nname.
+ 		init1(asNode(n.Type.FuncType().Nname), out)
+@@ -52,7 +52,7 @@ func init1(n *Node, out *[]*Node) {
+ 	if n.Op != ONAME {
+ 		return
+ 	}
+-	switch n.Class {
++	switch n.Class() {
+ 	case PEXTERN, PFUNC:
+ 	default:
+ 		if isblank(n) && n.Name.Curfn == nil && n.Name.Defn != nil && n.Name.Defn.Initorder() == InitNotStarted {
+@@ -76,7 +76,7 @@ func init1(n *Node, out *[]*Node) {
+ 		// Conversely, if there exists an initialization cycle involving
+ 		// a variable in the program, the tree walk will reach a cycle
+ 		// involving that variable.
+-		if n.Class != PFUNC {
++		if n.Class() != PFUNC {
+ 			foundinitloop(n, n)
+ 		}
+ 
+@@ -85,7 +85,7 @@ func init1(n *Node, out *[]*Node) {
+ 			if x == n {
+ 				break
+ 			}
+-			if x.Class != PFUNC {
++			if x.Class() != PFUNC {
+ 				foundinitloop(n, x)
+ 			}
+ 		}
+@@ -257,7 +257,7 @@ func initfix(l []*Node) []*Node {
+ // compilation of top-level (static) assignments
+ // into DATA statements if at all possible.
+ func staticinit(n *Node, out *[]*Node) bool {
+-	if n.Op != ONAME || n.Class != PEXTERN || n.Name.Defn == nil || n.Name.Defn.Op != OAS {
++	if n.Op != ONAME || n.Class() != PEXTERN || n.Name.Defn == nil || n.Name.Defn.Op != OAS {
+ 		Fatalf("staticinit")
+ 	}
+ 
+@@ -273,11 +273,11 @@ func staticcopy(l *Node, r *Node, out *[]*Node) bool {
+ 	if r.Op != ONAME {
+ 		return false
+ 	}
+-	if r.Class == PFUNC {
++	if r.Class() == PFUNC {
+ 		gdata(l, r, Widthptr)
+ 		return true
+ 	}
+-	if r.Class != PEXTERN || r.Sym.Pkg != localpkg {
++	if r.Class() != PEXTERN || r.Sym.Pkg != localpkg {
+ 		return false
+ 	}
+ 	if r.Name.Defn == nil { // probably zeroed but perhaps supplied externally and of unknown value
+@@ -417,7 +417,7 @@ func staticassign(l *Node, r *Node, out *[]*Node) bool {
+ 		//dump("not static ptrlit", r);
+ 
+ 	case OSTRARRAYBYTE:
+-		if l.Class == PEXTERN && r.Left.Op == OLITERAL {
++		if l.Class() == PEXTERN && r.Left.Op == OLITERAL {
+ 			sval := r.Left.Val().U.(string)
+ 			slicebytes(l, sval, len(sval))
+ 			return true
+@@ -591,7 +591,7 @@ func isliteral(n *Node) bool {
+ }
+ 
+ func (n *Node) isSimpleName() bool {
+-	return n.Op == ONAME && n.Addable() && n.Class != PAUTOHEAP && n.Class != PEXTERN
++	return n.Op == ONAME && n.Addable() && n.Class() != PAUTOHEAP && n.Class() != PEXTERN
+ }
+ 
+ func litas(l *Node, r *Node, init *Nodes) {
+@@ -787,7 +787,7 @@ func slicelit(ctxt initContext, n *Node, var_ *Node, init *Nodes) {
+ 		// copy static to slice
+ 		var_ = typecheck(var_, Erv|Easgn)
+ 		var nam Node
+-		if !stataddr(&nam, var_) || nam.Class != PEXTERN {
++		if !stataddr(&nam, var_) || nam.Class() != PEXTERN {
+ 			Fatalf("slicelit: %v", var_)
+ 		}
+ 
+@@ -1354,7 +1354,7 @@ func genAsStatic(as *Node) {
+ 	}
+ 
+ 	var nam Node
+-	if !stataddr(&nam, as.Left) || (nam.Class != PEXTERN && as.Left != nblank) {
++	if !stataddr(&nam, as.Left) || (nam.Class() != PEXTERN && as.Left != nblank) {
+ 		Fatalf("genAsStatic: lhs %v", as.Left)
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/sizeof_test.go b/src/cmd/compile/internal/gc/sizeof_test.go
+index 2f15ce02fb..e25b117338 100644
+--- a/src/cmd/compile/internal/gc/sizeof_test.go
++++ b/src/cmd/compile/internal/gc/sizeof_test.go
+@@ -25,7 +25,7 @@ func TestSizeof(t *testing.T) {
+ 		{Func{}, 100, 168},
+ 		{Name{}, 36, 56},
+ 		{Param{}, 28, 56},
+-		{Node{}, 80, 136},
++		{Node{}, 76, 128},
+ 	}
+ 
+ 	for _, tt := range tests {
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 0d16ba715c..2f3c25223c 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -162,11 +162,11 @@ func buildssa(fn *Node) *ssa.Func {
+ 	// Generate addresses of local declarations
+ 	s.decladdrs = map[*Node]*ssa.Value{}
+ 	for _, n := range fn.Func.Dcl {
+-		switch n.Class {
++		switch n.Class() {
+ 		case PPARAM, PPARAMOUT:
+ 			aux := s.lookupSymbol(n, &ssa.ArgSymbol{Node: n})
+ 			s.decladdrs[n] = s.entryNewValue1A(ssa.OpAddr, types.NewPtr(n.Type), aux, s.sp)
+-			if n.Class == PPARAMOUT && s.canSSA(n) {
++			if n.Class() == PPARAMOUT && s.canSSA(n) {
+ 				// Save ssa-able PPARAMOUT variables so we can
+ 				// store them back to the stack at the end of
+ 				// the function.
+@@ -180,13 +180,13 @@ func buildssa(fn *Node) *ssa.Func {
+ 		case PFUNC:
+ 			// local function - already handled by frontend
+ 		default:
+-			s.Fatalf("local variable with class %s unimplemented", classnames[n.Class])
++			s.Fatalf("local variable with class %s unimplemented", classnames[n.Class()])
+ 		}
+ 	}
+ 
+ 	// Populate SSAable arguments.
+ 	for _, n := range fn.Func.Dcl {
+-		if n.Class == PPARAM && s.canSSA(n) {
++		if n.Class() == PPARAM && s.canSSA(n) {
+ 			s.vars[n] = s.newValue0A(ssa.OpArg, n.Type, n)
+ 		}
+ 	}
+@@ -306,15 +306,15 @@ func (s *state) Debug_checknil() bool                                { return s.
+ 
+ var (
+ 	// dummy node for the memory variable
+-	memVar = Node{Op: ONAME, Class: Pxxx, Sym: &types.Sym{Name: "mem"}}
++	memVar = Node{Op: ONAME, Sym: &types.Sym{Name: "mem"}}
+ 
+ 	// dummy nodes for temporary variables
+-	ptrVar    = Node{Op: ONAME, Class: Pxxx, Sym: &types.Sym{Name: "ptr"}}
+-	lenVar    = Node{Op: ONAME, Class: Pxxx, Sym: &types.Sym{Name: "len"}}
+-	newlenVar = Node{Op: ONAME, Class: Pxxx, Sym: &types.Sym{Name: "newlen"}}
+-	capVar    = Node{Op: ONAME, Class: Pxxx, Sym: &types.Sym{Name: "cap"}}
+-	typVar    = Node{Op: ONAME, Class: Pxxx, Sym: &types.Sym{Name: "typ"}}
+-	okVar     = Node{Op: ONAME, Class: Pxxx, Sym: &types.Sym{Name: "ok"}}
++	ptrVar    = Node{Op: ONAME, Sym: &types.Sym{Name: "ptr"}}
++	lenVar    = Node{Op: ONAME, Sym: &types.Sym{Name: "len"}}
++	newlenVar = Node{Op: ONAME, Sym: &types.Sym{Name: "newlen"}}
++	capVar    = Node{Op: ONAME, Sym: &types.Sym{Name: "cap"}}
++	typVar    = Node{Op: ONAME, Sym: &types.Sym{Name: "typ"}}
++	okVar     = Node{Op: ONAME, Sym: &types.Sym{Name: "ok"}}
+ )
+ 
+ // startBlock sets the current block we're generating code in to b.
+@@ -541,7 +541,7 @@ func (s *state) stmt(n *Node) {
+ 
+ 	case OCALLMETH, OCALLINTER:
+ 		s.call(n, callNormal)
+-		if n.Op == OCALLFUNC && n.Left.Op == ONAME && n.Left.Class == PFUNC {
++		if n.Op == OCALLFUNC && n.Left.Op == ONAME && n.Left.Class() == PFUNC {
+ 			if fn := n.Left.Sym.Name; compiling_runtime && fn == "throw" ||
+ 				n.Left.Sym.Pkg == Runtimepkg && (fn == "throwinit" || fn == "gopanic" || fn == "panicwrap" || fn == "block") {
+ 				m := s.mem()
+@@ -592,7 +592,7 @@ func (s *state) stmt(n *Node) {
+ 		return
+ 
+ 	case ODCL:
+-		if n.Left.Class == PAUTOHEAP {
++		if n.Left.Class() == PAUTOHEAP {
+ 			Fatalf("DCL %v", n)
+ 		}
+ 
+@@ -1394,7 +1394,7 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 		aux := s.lookupSymbol(n, &ssa.ExternSymbol{Sym: n.Left.Sym.Linksym()})
+ 		return s.entryNewValue1A(ssa.OpAddr, n.Type, aux, s.sb)
+ 	case ONAME:
+-		if n.Class == PFUNC {
++		if n.Class() == PFUNC {
+ 			// "value" of a function is the address of the function's closure
+ 			sym := funcsym(n.Sym).Linksym()
+ 			aux := s.lookupSymbol(n, &ssa.ExternSymbol{Sym: sym})
+@@ -3040,7 +3040,7 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
+ 	fn := n.Left
+ 	switch n.Op {
+ 	case OCALLFUNC:
+-		if k == callNormal && fn.Op == ONAME && fn.Class == PFUNC {
++		if k == callNormal && fn.Op == ONAME && fn.Class() == PFUNC {
+ 			sym = fn.Sym
+ 			break
+ 		}
+@@ -3060,7 +3060,7 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
+ 		// We can then pass that to defer or go.
+ 		n2 := newnamel(fn.Pos, fn.Sym)
+ 		n2.Name.Curfn = s.curfn
+-		n2.Class = PFUNC
++		n2.SetClass(PFUNC)
+ 		n2.Pos = fn.Pos
+ 		n2.Type = types.Types[TUINT8] // dummy type for a static closure. Could use runtime.funcval if we had it.
+ 		closure = s.expr(n2)
+@@ -3198,7 +3198,7 @@ func (s *state) addr(n *Node, bounded bool) *ssa.Value {
+ 	t := types.NewPtr(n.Type)
+ 	switch n.Op {
+ 	case ONAME:
+-		switch n.Class {
++		switch n.Class() {
+ 		case PEXTERN:
+ 			// global variable
+ 			aux := s.lookupSymbol(n, &ssa.ExternSymbol{Sym: n.Sym.Linksym()})
+@@ -3230,7 +3230,7 @@ func (s *state) addr(n *Node, bounded bool) *ssa.Value {
+ 			aux := s.lookupSymbol(n, &ssa.ArgSymbol{Node: n})
+ 			return s.newValue1A(ssa.OpAddr, t, aux, s.sp)
+ 		default:
+-			s.Fatalf("variable address class %v not implemented", classnames[n.Class])
++			s.Fatalf("variable address class %v not implemented", classnames[n.Class()])
+ 			return nil
+ 		}
+ 	case OINDREGSP:
+@@ -3307,10 +3307,10 @@ func (s *state) canSSA(n *Node) bool {
+ 	if n.isParamHeapCopy() {
+ 		return false
+ 	}
+-	if n.Class == PAUTOHEAP {
++	if n.Class() == PAUTOHEAP {
+ 		Fatalf("canSSA of PAUTOHEAP %v", n)
+ 	}
+-	switch n.Class {
++	switch n.Class() {
+ 	case PEXTERN:
+ 		return false
+ 	case PPARAMOUT:
+@@ -3328,7 +3328,7 @@ func (s *state) canSSA(n *Node) bool {
+ 			return false
+ 		}
+ 	}
+-	if n.Class == PPARAM && n.Sym != nil && n.Sym.Name == ".this" {
++	if n.Class() == PPARAM && n.Sym != nil && n.Sym.Name == ".this" {
+ 		// wrappers generated by genwrapper need to update
+ 		// the .this pointer in place.
+ 		// TODO: treat as a PPARMOUT?
+@@ -4175,7 +4175,7 @@ func (s *state) dottype(n *Node, commaok bool) (res, resok *ssa.Value) {
+ 	bEnd := s.f.NewBlock(ssa.BlockPlain)
+ 	// Note that we need a new valVar each time (unlike okVar where we can
+ 	// reuse the variable) because it might have a different type every time.
+-	valVar := &Node{Op: ONAME, Class: Pxxx, Sym: &types.Sym{Name: "val"}}
++	valVar := &Node{Op: ONAME, Sym: &types.Sym{Name: "val"}}
+ 
+ 	// type assertion succeeded
+ 	s.startBlock(bOk)
+@@ -4251,7 +4251,7 @@ func (s *state) mem() *ssa.Value {
+ }
+ 
+ func (s *state) addNamedValue(n *Node, v *ssa.Value) {
+-	if n.Class == Pxxx {
++	if n.Class() == Pxxx {
+ 		// Don't track our dummy nodes (&memVar etc.).
+ 		return
+ 	}
+@@ -4259,12 +4259,12 @@ func (s *state) addNamedValue(n *Node, v *ssa.Value) {
+ 		// Don't track temporary variables.
+ 		return
+ 	}
+-	if n.Class == PPARAMOUT {
++	if n.Class() == PPARAMOUT {
+ 		// Don't track named output values.  This prevents return values
+ 		// from being assigned too early. See #14591 and #14762. TODO: allow this.
+ 		return
+ 	}
+-	if n.Class == PAUTO && n.Xoffset != 0 {
++	if n.Class() == PAUTO && n.Xoffset != 0 {
+ 		s.Fatalf("AUTO var with offset %v %d", n, n.Xoffset)
+ 	}
+ 	loc := ssa.LocalSlot{N: n, Type: n.Type, Off: 0}
+@@ -4378,7 +4378,7 @@ func genssa(f *ssa.Func, pp *Progs) {
+ 				// See issue 20029.
+ 				n := v.Aux.(*Node)
+ 				if n.Name.Needzero() {
+-					if n.Class != PAUTO {
++					if n.Class() != PAUTO {
+ 						v.Fatalf("zero of variable which isn't PAUTO %v", n)
+ 					}
+ 					if n.Type.Size()%int64(Widthptr) != 0 {
+@@ -4502,8 +4502,8 @@ func defframe(s *SSAGenState, e *ssafn) {
+ 		if !n.Name.Needzero() {
+ 			continue
+ 		}
+-		if n.Class != PAUTO {
+-			Fatalf("needzero class %d", n.Class)
++		if n.Class() != PAUTO {
++			Fatalf("needzero class %d", n.Class())
+ 		}
+ 		if n.Type.Size()%int64(Widthptr) != 0 || n.Xoffset%int64(Widthptr) != 0 || n.Type.Size() == 0 {
+ 			Fatalf("var %L has size %d offset %d", n, n.Type.Size(), n.Xoffset)
+@@ -4702,7 +4702,7 @@ func AddrAuto(a *obj.Addr, v *ssa.Value) {
+ 	a.Sym = n.Sym.Linksym()
+ 	a.Reg = int16(thearch.REGSP)
+ 	a.Offset = n.Xoffset + off
+-	if n.Class == PPARAM || n.Class == PPARAMOUT {
++	if n.Class() == PPARAM || n.Class() == PPARAMOUT {
+ 		a.Name = obj.NAME_PARAM
+ 	} else {
+ 		a.Name = obj.NAME_AUTO
+@@ -4824,7 +4824,7 @@ func (e *ssafn) SplitString(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot) {
+ 	n := name.N.(*Node)
+ 	ptrType := types.NewPtr(types.Types[TUINT8])
+ 	lenType := types.Types[TINT]
+-	if n.Class == PAUTO && !n.Addrtaken() {
++	if n.Class() == PAUTO && !n.Addrtaken() {
+ 		// Split this string up into two separate variables.
+ 		p := e.namedAuto(n.Sym.Name+".ptr", ptrType, n.Pos)
+ 		l := e.namedAuto(n.Sym.Name+".len", lenType, n.Pos)
+@@ -4837,7 +4837,7 @@ func (e *ssafn) SplitString(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot) {
+ func (e *ssafn) SplitInterface(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot) {
+ 	n := name.N.(*Node)
+ 	t := types.NewPtr(types.Types[TUINT8])
+-	if n.Class == PAUTO && !n.Addrtaken() {
++	if n.Class() == PAUTO && !n.Addrtaken() {
+ 		// Split this interface up into two separate variables.
+ 		f := ".itab"
+ 		if n.Type.IsEmptyInterface() {
+@@ -4855,7 +4855,7 @@ func (e *ssafn) SplitSlice(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot, ss
+ 	n := name.N.(*Node)
+ 	ptrType := types.NewPtr(name.Type.ElemType().(*types.Type))
+ 	lenType := types.Types[TINT]
+-	if n.Class == PAUTO && !n.Addrtaken() {
++	if n.Class() == PAUTO && !n.Addrtaken() {
+ 		// Split this slice up into three separate variables.
+ 		p := e.namedAuto(n.Sym.Name+".ptr", ptrType, n.Pos)
+ 		l := e.namedAuto(n.Sym.Name+".len", lenType, n.Pos)
+@@ -4877,7 +4877,7 @@ func (e *ssafn) SplitComplex(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot)
+ 	} else {
+ 		t = types.Types[TFLOAT32]
+ 	}
+-	if n.Class == PAUTO && !n.Addrtaken() {
++	if n.Class() == PAUTO && !n.Addrtaken() {
+ 		// Split this complex up into two separate variables.
+ 		c := e.namedAuto(n.Sym.Name+".real", t, n.Pos)
+ 		d := e.namedAuto(n.Sym.Name+".imag", t, n.Pos)
+@@ -4895,7 +4895,7 @@ func (e *ssafn) SplitInt64(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot) {
+ 	} else {
+ 		t = types.Types[TUINT32]
+ 	}
+-	if n.Class == PAUTO && !n.Addrtaken() {
++	if n.Class() == PAUTO && !n.Addrtaken() {
+ 		// Split this int64 up into two separate variables.
+ 		h := e.namedAuto(n.Sym.Name+".hi", t, n.Pos)
+ 		l := e.namedAuto(n.Sym.Name+".lo", types.Types[TUINT32], n.Pos)
+@@ -4912,7 +4912,7 @@ func (e *ssafn) SplitStruct(name ssa.LocalSlot, i int) ssa.LocalSlot {
+ 	n := name.N.(*Node)
+ 	st := name.Type
+ 	ft := st.FieldType(i)
+-	if n.Class == PAUTO && !n.Addrtaken() {
++	if n.Class() == PAUTO && !n.Addrtaken() {
+ 		// Note: the _ field may appear several times.  But
+ 		// have no fear, identically-named but distinct Autos are
+ 		// ok, albeit maybe confusing for a debugger.
+@@ -4929,7 +4929,7 @@ func (e *ssafn) SplitArray(name ssa.LocalSlot) ssa.LocalSlot {
+ 		Fatalf("bad array size")
+ 	}
+ 	et := at.ElemType()
+-	if n.Class == PAUTO && !n.Addrtaken() {
++	if n.Class() == PAUTO && !n.Addrtaken() {
+ 		x := e.namedAuto(n.Sym.Name+"[0]", et, n.Pos)
+ 		return ssa.LocalSlot{N: x, Type: et, Off: 0}
+ 	}
+@@ -4956,7 +4956,7 @@ func (e *ssafn) namedAuto(name string, typ ssa.Type, pos src.XPos) ssa.GCNode {
+ 	asNode(s.Def).SetUsed(true)
+ 	n.Sym = s
+ 	n.Type = t
+-	n.Class = PAUTO
++	n.SetClass(PAUTO)
+ 	n.SetAddable(true)
+ 	n.Esc = EscNever
+ 	n.Name.Curfn = e.curfn
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index a3bcb6481b..12aa779e68 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -1799,7 +1799,7 @@ func hashmem(t *types.Type) *Node {
+ 	sym := Runtimepkg.Lookup("memhash")
+ 
+ 	n := newname(sym)
+-	n.Class = PFUNC
++	n.SetClass(PFUNC)
+ 	tfn := nod(OTFUNC, nil, nil)
+ 	tfn.List.Append(anonfield(types.NewPtr(t)))
+ 	tfn.List.Append(anonfield(types.Types[TUINTPTR]))
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index 399e835983..08ec5c9b00 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -57,7 +57,6 @@ type Node struct {
+ 
+ 	Op    Op
+ 	Etype types.EType // op for OASOP, etype for OTYPE, exclam for export, 6g saved reg, ChanDir for OTCHAN, for OINDEXMAP 1=LHS,0=RHS
+-	Class Class       // PPARAM, PAUTO, PEXTERN, etc
+ }
+ 
+ // IsAutoTmp indicates if n was created by the compiler as a temporary,
+@@ -70,7 +69,10 @@ func (n *Node) IsAutoTmp() bool {
+ }
+ 
+ const (
+-	nodeWalkdef, _   = iota, 1 << iota // tracks state during typecheckdef; 2 == loop detected; two bits
++	nodeClass, _     = iota, 1 << iota // PPARAM, PAUTO, PEXTERN, etc; three bits; first in the list because frequently accessed
++	_, _                               // second nodeClass bit
++	_, _                               // third nodeClass bit
++	nodeWalkdef, _                     // tracks state during typecheckdef; 2 == loop detected; two bits
+ 	_, _                               // second nodeWalkdef bit
+ 	nodeTypecheck, _                   // tracks state during typechecking; 2 == loop detected; two bits
+ 	_, _                               // second nodeTypecheck bit
+@@ -99,6 +101,7 @@ const (
+ 	_, nodeEmbedded // ODCLFIELD embedded type
+ )
+ 
++func (n *Node) Class() Class     { return Class(n.flags.get3(nodeClass)) }
+ func (n *Node) Walkdef() uint8   { return n.flags.get2(nodeWalkdef) }
+ func (n *Node) Typecheck() uint8 { return n.flags.get2(nodeTypecheck) }
+ func (n *Node) Initorder() uint8 { return n.flags.get2(nodeInitorder) }
+@@ -125,6 +128,7 @@ func (n *Node) HasVal() bool                { return n.flags&nodeHasVal != 0 }
+ func (n *Node) HasOpt() bool                { return n.flags&nodeHasOpt != 0 }
+ func (n *Node) Embedded() bool              { return n.flags&nodeEmbedded != 0 }
+ 
++func (n *Node) SetClass(b Class)     { n.flags.set3(nodeClass, uint8(b)) }
+ func (n *Node) SetWalkdef(b uint8)   { n.flags.set2(nodeWalkdef, b) }
+ func (n *Node) SetTypecheck(b uint8) { n.flags.set2(nodeTypecheck, b) }
+ func (n *Node) SetInitorder(b uint8) { n.flags.set2(nodeInitorder, b) }
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index f8d972117e..3622b9af57 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -886,7 +886,7 @@ OpSwitch:
+ 			n.Right = newname(n.Sym)
+ 			n.Type = methodfunc(n.Type, n.Left.Type)
+ 			n.Xoffset = 0
+-			n.Class = PFUNC
++			n.SetClass(PFUNC)
+ 			ok = Erv
+ 			break OpSwitch
+ 		}
+@@ -3177,7 +3177,7 @@ func islvalue(n *Node) bool {
+ 		return islvalue(n.Left)
+ 
+ 	case ONAME:
+-		if n.Class == PFUNC {
++		if n.Class() == PFUNC {
+ 			return false
+ 		}
+ 		return true
+@@ -3443,7 +3443,7 @@ out:
+ // type check function definition
+ func typecheckfunc(n *Node) {
+ 	for _, ln := range n.Func.Dcl {
+-		if ln.Op == ONAME && (ln.Class == PPARAM || ln.Class == PPARAMOUT) {
++		if ln.Op == ONAME && (ln.Class() == PPARAM || ln.Class() == PPARAMOUT) {
+ 			ln.Name.Decldepth = 1
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/gc/universe.go b/src/cmd/compile/internal/gc/universe.go
+index 47c1386944..9b697320ac 100644
+--- a/src/cmd/compile/internal/gc/universe.go
++++ b/src/cmd/compile/internal/gc/universe.go
+@@ -460,6 +460,6 @@ func finishUniverse() {
+ 
+ 	nodfp = newname(lookup(".fp"))
+ 	nodfp.Type = types.Types[TINT32]
+-	nodfp.Class = PPARAM
++	nodfp.SetClass(PPARAM)
+ 	nodfp.SetUsed(true)
+ }
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 4753704f55..d07ddd10fd 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -29,7 +29,7 @@ func walk(fn *Node) {
+ 
+ 	// Final typecheck for any unused variables.
+ 	for i, ln := range fn.Func.Dcl {
+-		if ln.Op == ONAME && (ln.Class == PAUTO || ln.Class == PAUTOHEAP) {
++		if ln.Op == ONAME && (ln.Class() == PAUTO || ln.Class() == PAUTOHEAP) {
+ 			ln = typecheck(ln, Erv|Easgn)
+ 			fn.Func.Dcl[i] = ln
+ 		}
+@@ -37,13 +37,13 @@ func walk(fn *Node) {
+ 
+ 	// Propagate the used flag for typeswitch variables up to the NONAME in it's definition.
+ 	for _, ln := range fn.Func.Dcl {
+-		if ln.Op == ONAME && (ln.Class == PAUTO || ln.Class == PAUTOHEAP) && ln.Name.Defn != nil && ln.Name.Defn.Op == OTYPESW && ln.Used() {
++		if ln.Op == ONAME && (ln.Class() == PAUTO || ln.Class() == PAUTOHEAP) && ln.Name.Defn != nil && ln.Name.Defn.Op == OTYPESW && ln.Used() {
+ 			ln.Name.Defn.Left.SetUsed(true)
+ 		}
+ 	}
+ 
+ 	for _, ln := range fn.Func.Dcl {
+-		if ln.Op != ONAME || (ln.Class != PAUTO && ln.Class != PAUTOHEAP) || ln.Sym.Name[0] == '&' || ln.Used() {
++		if ln.Op != ONAME || (ln.Class() != PAUTO && ln.Class() != PAUTOHEAP) || ln.Sym.Name[0] == '&' || ln.Used() {
+ 			continue
+ 		}
+ 		if defn := ln.Name.Defn; defn != nil && defn.Op == OTYPESW {
+@@ -95,7 +95,7 @@ func samelist(a, b []*Node) bool {
+ 
+ func paramoutheap(fn *Node) bool {
+ 	for _, ln := range fn.Func.Dcl {
+-		switch ln.Class {
++		switch ln.Class() {
+ 		case PPARAMOUT:
+ 			if ln.isParamStackCopy() || ln.Addrtaken() {
+ 				return true
+@@ -221,7 +221,7 @@ func walkstmt(n *Node) *Node {
+ 
+ 	case ODCL:
+ 		v := n.Left
+-		if v.Class == PAUTOHEAP {
++		if v.Class() == PAUTOHEAP {
+ 			if compiling_runtime {
+ 				yyerror("%v escapes to heap, not allowed in runtime.", v)
+ 			}
+@@ -305,7 +305,7 @@ func walkstmt(n *Node) *Node {
+ 
+ 			var cl Class
+ 			for _, ln := range Curfn.Func.Dcl {
+-				cl = ln.Class
++				cl = ln.Class()
+ 				if cl == PAUTO || cl == PAUTOHEAP {
+ 					break
+ 				}
+@@ -483,7 +483,7 @@ func walkexpr(n *Node, init *Nodes) *Node {
+ 		Fatalf("missed typecheck: %+v", n)
+ 	}
+ 
+-	if n.Op == ONAME && n.Class == PAUTOHEAP {
++	if n.Op == ONAME && n.Class() == PAUTOHEAP {
+ 		nn := nod(OIND, n.Name.Param.Heapaddr, nil)
+ 		nn = typecheck(nn, Erv)
+ 		nn = walkexpr(nn, init)
+@@ -876,10 +876,10 @@ opswitch:
+ 
+ 		if staticbytes == nil {
+ 			staticbytes = newname(Runtimepkg.Lookup("staticbytes"))
+-			staticbytes.Class = PEXTERN
++			staticbytes.SetClass(PEXTERN)
+ 			staticbytes.Type = types.NewArray(types.Types[TUINT8], 256)
+ 			zerobase = newname(Runtimepkg.Lookup("zerobase"))
+-			zerobase.Class = PEXTERN
++			zerobase.SetClass(PEXTERN)
+ 			zerobase.Type = types.Types[TUINTPTR]
+ 		}
+ 
+@@ -897,7 +897,7 @@ opswitch:
+ 			n.Left = cheapexpr(n.Left, init)
+ 			value = nod(OINDEX, staticbytes, byteindex(n.Left))
+ 			value.SetBounded(true)
+-		case n.Left.Class == PEXTERN && n.Left.Name != nil && n.Left.Name.Readonly():
++		case n.Left.Class() == PEXTERN && n.Left.Name != nil && n.Left.Name.Readonly():
+ 			// n.Left is a readonly global; use it directly.
+ 			value = n.Left
+ 		case !n.Left.Type.IsInterface() && n.Esc == EscNone && n.Left.Type.Width <= 1024:
+@@ -2028,7 +2028,7 @@ func isstack(n *Node) bool {
+ 		return true
+ 
+ 	case ONAME:
+-		switch n.Class {
++		switch n.Class() {
+ 		case PAUTO, PPARAM, PPARAMOUT:
+ 			return true
+ 		}
+@@ -2335,7 +2335,7 @@ func aliased(n *Node, all []*Node, i int) bool {
+ 			continue
+ 		}
+ 
+-		switch n.Class {
++		switch n.Class() {
+ 		default:
+ 			varwrite = 1
+ 			continue
+@@ -2387,7 +2387,7 @@ func varexpr(n *Node) bool {
+ 		return true
+ 
+ 	case ONAME:
+-		switch n.Class {
++		switch n.Class() {
+ 		case PAUTO, PPARAM, PPARAMOUT:
+ 			if !n.Addrtaken() {
+ 				return true
+@@ -2465,7 +2465,7 @@ func vmatch1(l *Node, r *Node) bool {
+ 	}
+ 	switch l.Op {
+ 	case ONAME:
+-		switch l.Class {
++		switch l.Class() {
+ 		case PPARAM, PAUTO:
+ 			break
+ 
+@@ -2512,7 +2512,7 @@ func paramstoheap(params *types.Type) []*Node {
+ 
+ 		if stackcopy := v.Name.Param.Stackcopy; stackcopy != nil {
+ 			nn = append(nn, walkstmt(nod(ODCL, v, nil)))
+-			if stackcopy.Class == PPARAM {
++			if stackcopy.Class() == PPARAM {
+ 				nn = append(nn, walkstmt(typecheck(nod(OAS, v, stackcopy), Etop)))
+ 			}
+ 		}
+@@ -2553,7 +2553,7 @@ func returnsfromheap(params *types.Type) []*Node {
+ 		if v == nil {
+ 			continue
+ 		}
+-		if stackcopy := v.Name.Param.Stackcopy; stackcopy != nil && stackcopy.Class == PPARAMOUT {
++		if stackcopy := v.Name.Param.Stackcopy; stackcopy != nil && stackcopy.Class() == PPARAMOUT {
+ 			nn = append(nn, walkstmt(typecheck(nod(OAS, stackcopy, v), Etop)))
+ 		}
+ 	}
+@@ -3051,7 +3051,7 @@ func eqfor(t *types.Type, needsize *int) *Node {
+ 	case ASPECIAL:
+ 		sym := typesymprefix(".eq", t)
+ 		n := newname(sym)
+-		n.Class = PFUNC
++		n.SetClass(PFUNC)
+ 		ntype := nod(OTFUNC, nil, nil)
+ 		ntype.List.Append(anonfield(types.NewPtr(t)))
+ 		ntype.List.Append(anonfield(types.NewPtr(t)))

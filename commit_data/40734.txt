@@ -9,7 +9,34 @@ Date:   Mon Jun 24 15:44:05 2019 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/alldocs.go                 | 2 +-
  src/cmd/go/internal/modfetch/fetch.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 40cbaa2331..fa60fb63b5 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -2767,7 +2767,7 @@
+ // 	GOPROXY=proxy.example.com
+ // 	GONOPROXY=none
+ //
+-// This would tell the go comamnd and other tools that modules beginning with
++// This would tell the go command and other tools that modules beginning with
+ // a corp.example.com subdomain are private but that the company proxy should
+ // be used for downloading both public and private modules, because
+ // GONOPROXY has been set to a pattern that won't match any modules,
+diff --git a/src/cmd/go/internal/modfetch/fetch.go b/src/cmd/go/internal/modfetch/fetch.go
+index bc1d35e690..74e36cc6fc 100644
+--- a/src/cmd/go/internal/modfetch/fetch.go
++++ b/src/cmd/go/internal/modfetch/fetch.go
+@@ -757,7 +757,7 @@ users would configure go using:
+ 	GOPROXY=proxy.example.com
+ 	GONOPROXY=none
+ 
+-This would tell the go comamnd and other tools that modules beginning with
++This would tell the go command and other tools that modules beginning with
+ a corp.example.com subdomain are private but that the company proxy should
+ be used for downloading both public and private modules, because
+ GONOPROXY has been set to a pattern that won't match any modules,

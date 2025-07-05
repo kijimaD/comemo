@@ -27,7 +27,76 @@ Date:   Thu May 14 16:44:58 2015 +0000
     Change-Id: I1edb73c0ed0f1fcddd2f1516230b548b92ab1269
     Reviewed-on: https://go-review.googlesource.com/10101
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/text/template/funcs.go    |  2 ++
  src/text/template/template.go | 12 ++++++++++--
  2 files changed, 12 insertions(+), 2 deletions(-)
+
+diff --git a/src/text/template/funcs.go b/src/text/template/funcs.go
+index cdd187bda2..ccd0dfc80d 100644
+--- a/src/text/template/funcs.go
++++ b/src/text/template/funcs.go
+@@ -92,6 +92,8 @@ func goodFunc(typ reflect.Type) bool {
+ // findFunction looks for a function in the template, and global map.
+ func findFunction(name string, tmpl *Template) (reflect.Value, bool) {
+ 	if tmpl != nil && tmpl.common != nil {
++		tmpl.muFuncs.RLock()
++		defer tmpl.muFuncs.RUnlock()
+ 		if fn := tmpl.execFuncs[name]; fn.IsValid() {
+ 			return fn, true
+ 		}
+diff --git a/src/text/template/template.go b/src/text/template/template.go
+index 8611faad9f..a7c5c8cd2c 100644
+--- a/src/text/template/template.go
++++ b/src/text/template/template.go
+@@ -7,18 +7,20 @@ package template
+ import (
+ 	"fmt"
+ 	"reflect"
++	"sync"
+ 	"text/template/parse"
+ )
+ 
+ // common holds the information shared by related templates.
+ type common struct {
+-	tmpl map[string]*Template
++	tmpl   map[string]*Template
++	option option
+ 	// We use two maps, one for parsing and one for execution.
+ 	// This separation makes the API cleaner since it doesn't
+ 	// expose reflection to the client.
++	muFuncs    sync.RWMutex // protects parseFuncs and execFuncs
+ 	parseFuncs FuncMap
+ 	execFuncs  map[string]reflect.Value
+-	option     option
+ }
+ 
+ // Template is the representation of a parsed template. The *parse.Tree
+@@ -84,6 +86,8 @@ func (t *Template) Clone() (*Template, error) {
+ 		tmpl := v.copy(nt.common)
+ 		nt.tmpl[k] = tmpl
+ 	}
++	t.muFuncs.RLock()
++	defer t.muFuncs.RUnlock()
+ 	for k, v := range t.parseFuncs {
+ 		nt.parseFuncs[k] = v
+ 	}
+@@ -146,6 +150,8 @@ func (t *Template) Delims(left, right string) *Template {
+ // value is the template, so calls can be chained.
+ func (t *Template) Funcs(funcMap FuncMap) *Template {
+ 	t.init()
++	t.muFuncs.Lock()
++	defer t.muFuncs.Unlock()
+ 	addValueFuncs(t.execFuncs, funcMap)
+ 	addFuncs(t.parseFuncs, funcMap)
+ 	return t
+@@ -169,7 +175,9 @@ func (t *Template) Lookup(name string) *Template {
+ // can contain text other than space, comments, and template definitions.)
+ func (t *Template) Parse(text string) (*Template, error) {
+ 	t.init()
++	t.muFuncs.RLock()
+ 	trees, err := parse.Parse(t.name, text, t.leftDelim, t.rightDelim, t.parseFuncs, builtins)
++	t.muFuncs.RUnlock()
+ 	if err != nil {
+ 		return nil, err
+ 	}

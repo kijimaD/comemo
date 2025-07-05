@@ -15,7 +15,61 @@ Date:   Wed Mar 18 18:46:04 2020 +0000
     Reviewed-by: Austin Clements <austin@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/export_test.go |  8 ++++++++
  src/runtime/gc_test.go     | 19 +++++++++++++++++++
  2 files changed, 27 insertions(+)
+
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index 6a8d00c60d..67379796c7 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -975,3 +975,11 @@ func MapHashCheck(m interface{}, k interface{}) (uintptr, uintptr) {
+ 	y := typehash(kt, noescape(p), uintptr(mh.hash0))
+ 	return x, y
+ }
++
++func MSpanCountAlloc(bits []byte) int {
++	s := mspan{
++		nelems:     uintptr(len(bits) * 8),
++		gcmarkBits: (*gcBits)(unsafe.Pointer(&bits[0])),
++	}
++	return s.countAlloc()
++}
+diff --git a/src/runtime/gc_test.go b/src/runtime/gc_test.go
+index 8ffb4f4a0f..4c281ce52b 100644
+--- a/src/runtime/gc_test.go
++++ b/src/runtime/gc_test.go
+@@ -6,6 +6,7 @@ package runtime_test
+ 
+ import (
+ 	"fmt"
++	"math/rand"
+ 	"os"
+ 	"reflect"
+ 	"runtime"
+@@ -751,6 +752,24 @@ func BenchmarkScanStackNoLocals(b *testing.B) {
+ 	close(teardown)
+ }
+ 
++func BenchmarkMSpanCountAlloc(b *testing.B) {
++	// n is the number of bytes to benchmark against.
++	// n must always be a multiple of 8, since gcBits is
++	// always rounded up 8 bytes.
++	for _, n := range []int{8, 16, 32, 64, 128} {
++		b.Run(fmt.Sprintf("bits=%d", n*8), func(b *testing.B) {
++			// Initialize a new byte slice with pseduo-random data.
++			bits := make([]byte, n)
++			rand.Read(bits)
++
++			b.ResetTimer()
++			for i := 0; i < b.N; i++ {
++				runtime.MSpanCountAlloc(bits)
++			}
++		})
++	}
++}
++
+ func countpwg(n *int, ready *sync.WaitGroup, teardown chan bool) {
+ 	if *n == 0 {
+ 		ready.Done()

@@ -9,8 +9,55 @@ Date:   Thu Mar 23 11:21:42 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/dcl.go     | 2 +-
  src/cmd/compile/internal/gc/reflect.go | 2 +-
  src/cmd/compile/internal/gc/subr.go    | 4 ++--
  3 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index aa1da36678..21a2b21325 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -1003,7 +1003,7 @@ func methodsym(nsym *Sym, t0 *Type, iface int) *Sym {
+ 	suffix = ""
+ 	if iface != 0 {
+ 		dowidth(t0)
+-		if t0.Width < Types[Tptr].Width {
++		if t0.Width < int64(Widthptr) {
+ 			suffix = "·i"
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index 8be381443f..326b15c48d 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -363,7 +363,7 @@ func methods(t *Type) []*Sig {
+ 
+ 		if !sig.isym.Siggen() {
+ 			sig.isym.SetSiggen(true)
+-			if !eqtype(this, it) || this.Width < Types[Tptr].Width {
++			if !eqtype(this, it) || this.Width < int64(Widthptr) {
+ 				compiling_wrappers = 1
+ 				genwrapper(it, f, sig.isym, 1)
+ 				compiling_wrappers = 0
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 234240983b..92a269f15d 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -1701,13 +1701,13 @@ func genwrapper(rcvr *Type, method *Field, newnam *Sym, iface int) {
+ 
+ 	t := nod(OTFUNC, nil, nil)
+ 	l := []*Node{this}
+-	if iface != 0 && rcvr.Width < Types[Tptr].Width {
++	if iface != 0 && rcvr.Width < int64(Widthptr) {
+ 		// Building method for interface table and receiver
+ 		// is smaller than the single pointer-sized word
+ 		// that the interface call will pass in.
+ 		// Add a dummy padding argument after the
+ 		// receiver to make up the difference.
+-		tpad := typArray(Types[TUINT8], Types[Tptr].Width-rcvr.Width)
++		tpad := typArray(Types[TUINT8], int64(Widthptr)-rcvr.Width)
+ 		pad := nod(ODCLFIELD, newname(lookup(".pad")), typenod(tpad))
+ 		l = append(l, pad)
+ 	}

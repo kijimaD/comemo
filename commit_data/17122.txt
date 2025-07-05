@@ -17,7 +17,172 @@ Date:   Fri Aug 9 23:15:08 2013 +1000
     R=golang-dev, crawshaw
     CC=golang-dev
     https://golang.org/cl/12680046
-
+---
  src/pkg/encoding/binary/binary.go      | 37 +++++++++++++++++++++
  src/pkg/encoding/binary/binary_test.go | 59 ++++++++++++++++++++++++++++++++++
  2 files changed, 96 insertions(+)
+
+diff --git a/src/pkg/encoding/binary/binary.go b/src/pkg/encoding/binary/binary.go
+index 87bc3947ed..28fc09480e 100644
+--- a/src/pkg/encoding/binary/binary.go
++++ b/src/pkg/encoding/binary/binary.go
+@@ -202,48 +202,85 @@ func Write(w io.Writer, order ByteOrder, data interface{}) error {
+ 	case int8:
+ 		bs = b[:1]
+ 		b[0] = byte(v)
++	case []int8:
++		bs = make([]byte, len(v))
++		for i, x := range v {
++			bs[i] = byte(x)
++		}
+ 	case *uint8:
+ 		bs = b[:1]
+ 		b[0] = *v
+ 	case uint8:
+ 		bs = b[:1]
+ 		b[0] = byte(v)
++	case []uint8:
++		bs = v
+ 	case *int16:
+ 		bs = b[:2]
+ 		order.PutUint16(bs, uint16(*v))
+ 	case int16:
+ 		bs = b[:2]
+ 		order.PutUint16(bs, uint16(v))
++	case []int16:
++		bs = make([]byte, 2*len(v))
++		for i, x := range v {
++			order.PutUint16(bs[2*i:], uint16(x))
++		}
+ 	case *uint16:
+ 		bs = b[:2]
+ 		order.PutUint16(bs, *v)
+ 	case uint16:
+ 		bs = b[:2]
+ 		order.PutUint16(bs, v)
++	case []uint16:
++		bs = make([]byte, 2*len(v))
++		for i, x := range v {
++			order.PutUint16(bs[2*i:], x)
++		}
+ 	case *int32:
+ 		bs = b[:4]
+ 		order.PutUint32(bs, uint32(*v))
+ 	case int32:
+ 		bs = b[:4]
+ 		order.PutUint32(bs, uint32(v))
++	case []int32:
++		bs = make([]byte, 4*len(v))
++		for i, x := range v {
++			order.PutUint32(bs[4*i:], uint32(x))
++		}
+ 	case *uint32:
+ 		bs = b[:4]
+ 		order.PutUint32(bs, *v)
+ 	case uint32:
+ 		bs = b[:4]
+ 		order.PutUint32(bs, v)
++	case []uint32:
++		bs = make([]byte, 4*len(v))
++		for i, x := range v {
++			order.PutUint32(bs[4*i:], x)
++		}
+ 	case *int64:
+ 		bs = b[:8]
+ 		order.PutUint64(bs, uint64(*v))
+ 	case int64:
+ 		bs = b[:8]
+ 		order.PutUint64(bs, uint64(v))
++	case []int64:
++		bs = make([]byte, 8*len(v))
++		for i, x := range v {
++			order.PutUint64(bs[8*i:], uint64(x))
++		}
+ 	case *uint64:
+ 		bs = b[:8]
+ 		order.PutUint64(bs, *v)
+ 	case uint64:
+ 		bs = b[:8]
+ 		order.PutUint64(bs, v)
++	case []uint64:
++		bs = make([]byte, 8*len(v))
++		for i, x := range v {
++			order.PutUint64(bs[8*i:], x)
++		}
+ 	}
+ 	if bs != nil {
+ 		_, err := w.Write(bs)
+diff --git a/src/pkg/encoding/binary/binary_test.go b/src/pkg/encoding/binary/binary_test.go
+index 056f0998f2..083488adad 100644
+--- a/src/pkg/encoding/binary/binary_test.go
++++ b/src/pkg/encoding/binary/binary_test.go
+@@ -141,6 +141,52 @@ func TestWriteSlice(t *testing.T) {
+ 	checkResult(t, "WriteSlice", BigEndian, err, buf.Bytes(), src)
+ }
+ 
++// Addresses of arrays are easier to manipulate with reflection than are slices.
++var intArrays = []interface{}{
++	&[100]int8{},
++	&[100]int16{},
++	&[100]int32{},
++	&[100]int64{},
++	&[100]uint8{},
++	&[100]uint16{},
++	&[100]uint32{},
++	&[100]uint64{},
++}
++
++func TestSliceRoundTrip(t *testing.T) {
++	buf := new(bytes.Buffer)
++	for _, array := range intArrays {
++		src := reflect.ValueOf(array).Elem()
++		unsigned := false
++		switch src.Index(0).Kind() {
++		case reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
++			unsigned = true
++		}
++		for i := 0; i < src.Len(); i++ {
++			if unsigned {
++				src.Index(i).SetUint(uint64(i * 0x87654321))
++			} else {
++				src.Index(i).SetInt(int64(i * 0x87654321))
++			}
++		}
++		buf.Reset()
++		srcSlice := src.Slice(0, src.Len())
++		err := Write(buf, BigEndian, srcSlice.Interface())
++		if err != nil {
++			t.Fatal(err)
++		}
++		dst := reflect.New(src.Type()).Elem()
++		dstSlice := dst.Slice(0, dst.Len())
++		err = Read(buf, BigEndian, dstSlice.Interface())
++		if err != nil {
++			t.Fatal(err)
++		}
++		if !reflect.DeepEqual(src.Interface(), dst.Interface()) {
++			t.Fatal(src)
++		}
++	}
++}
++
+ func TestWriteT(t *testing.T) {
+ 	buf := new(bytes.Buffer)
+ 	ts := T{}
+@@ -312,3 +358,16 @@ func BenchmarkWriteInts(b *testing.B) {
+ 		b.Fatalf("first half doesn't match: %x %x", buf.Bytes(), big[:30])
+ 	}
+ }
++
++func BenchmarkWriteSlice1000Int32s(b *testing.B) {
++	slice := make([]int32, 1000)
++	buf := new(bytes.Buffer)
++	var w io.Writer = buf
++	b.SetBytes(4 * 1000)
++	b.ResetTimer()
++	for i := 0; i < b.N; i++ {
++		buf.Reset()
++		Write(w, BigEndian, slice)
++	}
++	b.StopTimer()
++}

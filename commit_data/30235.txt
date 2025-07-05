@@ -20,7 +20,7 @@ Date:   Mon Oct 17 17:00:05 2016 -0400
     Reviewed-on: https://go-review.googlesource.com/31366
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/reflect/value.go    |  4 ++++
  src/runtime/chan.go     |  6 +++---
  src/runtime/hashmap.go  | 18 +++++++++++++++---
@@ -29,3 +29,184 @@ Date:   Mon Oct 17 17:00:05 2016 -0400
  src/runtime/select.go   |  4 ++--
  src/runtime/stubs.go    |  6 ++++++
  7 files changed, 53 insertions(+), 10 deletions(-)
+
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index fa1b3e3b51..283fbd3c53 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -440,6 +440,8 @@ func (v Value) call(op string, in []Value) []Value {
+ 
+ 	var ret []Value
+ 	if nout == 0 {
++		// This is untyped because the frame is really a
++		// stack, even though it's a heap object.
+ 		memclr(args, frametype.size)
+ 		framePool.Put(args)
+ 	} else {
+@@ -644,6 +646,8 @@ func callMethod(ctxt *methodValue, frame unsafe.Pointer) {
+ 		retOffset,
+ 		frametype.size-retOffset)
+ 
++	// This is untyped because the frame is really a stack, even
++	// though it's a heap object.
+ 	memclr(args, frametype.size)
+ 	framePool.Put(args)
+ }
+diff --git a/src/runtime/chan.go b/src/runtime/chan.go
+index 261d37d4ee..ac81cc74dc 100644
+--- a/src/runtime/chan.go
++++ b/src/runtime/chan.go
+@@ -334,7 +334,7 @@ func closechan(c *hchan) {
+ 			break
+ 		}
+ 		if sg.elem != nil {
+-			memclr(sg.elem, uintptr(c.elemsize))
++			typedmemclr(c.elemtype, sg.elem)
+ 			sg.elem = nil
+ 		}
+ 		if sg.releasetime != 0 {
+@@ -443,7 +443,7 @@ func chanrecv(t *chantype, c *hchan, ep unsafe.Pointer, block bool) (selected, r
+ 		}
+ 		unlock(&c.lock)
+ 		if ep != nil {
+-			memclr(ep, uintptr(c.elemsize))
++			typedmemclr(c.elemtype, ep)
+ 		}
+ 		return true, false
+ 	}
+@@ -467,7 +467,7 @@ func chanrecv(t *chantype, c *hchan, ep unsafe.Pointer, block bool) (selected, r
+ 		if ep != nil {
+ 			typedmemmove(c.elemtype, ep, qp)
+ 		}
+-		memclr(qp, uintptr(c.elemsize))
++		typedmemclr(c.elemtype, qp)
+ 		c.recvx++
+ 		if c.recvx == c.dataqsiz {
+ 			c.recvx = 0
+diff --git a/src/runtime/hashmap.go b/src/runtime/hashmap.go
+index 68f4c8b841..86d3b37ff1 100644
+--- a/src/runtime/hashmap.go
++++ b/src/runtime/hashmap.go
+@@ -637,9 +637,17 @@ func mapdelete(t *maptype, h *hmap, key unsafe.Pointer) {
+ 			if !alg.equal(key, k2) {
+ 				continue
+ 			}
+-			memclr(k, uintptr(t.keysize))
++			if t.indirectkey {
++				*(*unsafe.Pointer)(k) = nil
++			} else {
++				typedmemclr(t.key, k)
++			}
+ 			v := unsafe.Pointer(uintptr(unsafe.Pointer(b)) + dataOffset + bucketCnt*uintptr(t.keysize) + i*uintptr(t.valuesize))
+-			memclr(v, uintptr(t.valuesize))
++			if t.indirectvalue {
++				*(*unsafe.Pointer)(v) = nil
++			} else {
++				typedmemclr(t.elem, v)
++			}
+ 			b.tophash[i] = empty
+ 			h.count--
+ 			goto done
+@@ -1079,7 +1087,11 @@ func evacuate(t *maptype, h *hmap, oldbucket uintptr) {
+ 			b = (*bmap)(add(h.oldbuckets, oldbucket*uintptr(t.bucketsize)))
+ 			// Preserve b.tophash because the evacuation
+ 			// state is maintained there.
+-			memclr(add(unsafe.Pointer(b), dataOffset), uintptr(t.bucketsize)-dataOffset)
++			if t.bucket.kind&kindNoPointers == 0 {
++				memclrHasPointers(add(unsafe.Pointer(b), dataOffset), uintptr(t.bucketsize)-dataOffset)
++			} else {
++				memclr(add(unsafe.Pointer(b), dataOffset), uintptr(t.bucketsize)-dataOffset)
++			}
+ 		}
+ 	}
+ 
+diff --git a/src/runtime/iface.go b/src/runtime/iface.go
+index f7ad40d1c0..721ac6924f 100644
+--- a/src/runtime/iface.go
++++ b/src/runtime/iface.go
+@@ -222,7 +222,7 @@ func assertI2T(t *_type, i iface, r unsafe.Pointer) {
+ func assertI2T2(t *_type, i iface, r unsafe.Pointer) bool {
+ 	tab := i.tab
+ 	if tab == nil || tab._type != t {
+-		memclr(r, t.size)
++		typedmemclr(t, r)
+ 		return false
+ 	}
+ 	if isDirectIface(t) {
+@@ -257,7 +257,7 @@ func assertE2T2(t *_type, e eface, r unsafe.Pointer) bool {
+ 		GC()
+ 	}
+ 	if e._type != t {
+-		memclr(r, t.size)
++		typedmemclr(t, r)
+ 		return false
+ 	}
+ 	if isDirectIface(t) {
+diff --git a/src/runtime/mbarrier.go b/src/runtime/mbarrier.go
+index 90f730ee12..1a7bef4fa1 100644
+--- a/src/runtime/mbarrier.go
++++ b/src/runtime/mbarrier.go
+@@ -331,3 +331,24 @@ func reflect_typedslicecopy(elemType *_type, dst, src slice) int {
+ 	}
+ 	return typedslicecopy(elemType, dst, src)
+ }
++
++// typedmemclr clears the typed memory at ptr with type typ. The
++// memory at ptr must already be type-safe.
++//
++// If the caller knows that typ has pointers, it can alternatively
++// call memclrHasPointers.
++//
++//go:nosplit
++func typedmemclr(typ *_type, ptr unsafe.Pointer) {
++	memclr(ptr, typ.size)
++}
++
++// memclrHasPointers clears n bytes of typed memory starting at ptr.
++// The caller must ensure that the type of the object at ptr has
++// pointers, usually by checking typ.kind&kindNoPointers. However, ptr
++// does not have to point to the start of the allocation.
++//
++//go:nosplit
++func memclrHasPointers(ptr unsafe.Pointer, n uintptr) {
++	memclr(ptr, n)
++}
+diff --git a/src/runtime/select.go b/src/runtime/select.go
+index 1aaafff198..03e9e4a30a 100644
+--- a/src/runtime/select.go
++++ b/src/runtime/select.go
+@@ -518,7 +518,7 @@ bufrecv:
+ 	if cas.elem != nil {
+ 		typedmemmove(c.elemtype, cas.elem, qp)
+ 	}
+-	memclr(qp, uintptr(c.elemsize))
++	typedmemclr(c.elemtype, qp)
+ 	c.recvx++
+ 	if c.recvx == c.dataqsiz {
+ 		c.recvx = 0
+@@ -564,7 +564,7 @@ rclose:
+ 		*cas.receivedp = false
+ 	}
+ 	if cas.elem != nil {
+-		memclr(cas.elem, uintptr(c.elemsize))
++		typedmemclr(c.elemtype, cas.elem)
+ 	}
+ 	if raceenabled {
+ 		raceacquire(unsafe.Pointer(c))
+diff --git a/src/runtime/stubs.go b/src/runtime/stubs.go
+index b73a97f735..693a3445c2 100644
+--- a/src/runtime/stubs.go
++++ b/src/runtime/stubs.go
+@@ -61,6 +61,12 @@ func badsystemstack() {
+ }
+ 
+ // memclr clears n bytes starting at ptr.
++//
++// Usually you should use typedmemclr. memclr should be used only when
++// the caller knows that *ptr contains no heap pointers or to
++// initialize memory to a type-safe state when allocation reuses dead
++// memory.
++//
+ // in memclr_*.s
+ //go:noescape
+ func memclr(ptr unsafe.Pointer, n uintptr)

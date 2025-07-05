@@ -9,7 +9,36 @@ Date:   Tue Feb 28 08:55:25 2012 +1100
     R=golang-dev, gri
     CC=golang-dev
     https://golang.org/cl/5699096
-
+---
  src/cmd/go/doc.go  | 3 ++-
  src/cmd/go/test.go | 3 ++-
  2 files changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/doc.go b/src/cmd/go/doc.go
+index e2df7beb1c..2df7a0498d 100644
+--- a/src/cmd/go/doc.go
++++ b/src/cmd/go/doc.go
+@@ -565,7 +565,8 @@ directory containing the package sources, has its own flags:
+ 	    Verbose output: log all tests as they are run.
+ 
+ 	-test.run pattern
+-	    Run only those tests matching the regular expression.
++	    Run only those tests and examples matching the regular
++	    expression.
+ 
+ 	-test.bench pattern
+ 	    Run benchmarks matching the regular expression.
+diff --git a/src/cmd/go/test.go b/src/cmd/go/test.go
+index 1b040e89a0..3b33c4fe22 100644
+--- a/src/cmd/go/test.go
++++ b/src/cmd/go/test.go
+@@ -93,7 +93,8 @@ directory containing the package sources, has its own flags:
+ 	    Verbose output: log all tests as they are run.
+ 
+ 	-test.run pattern
+-	    Run only those tests matching the regular expression.
++	    Run only those tests and examples matching the regular
++	    expression.
+ 
+ 	-test.bench pattern
+ 	    Run benchmarks matching the regular expression.

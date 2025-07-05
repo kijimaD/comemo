@@ -14,6 +14,19 @@ Date:   Sat Jun 24 11:00:37 2023 -0400
     Reviewed-by: Jonathan Amsterdam <jba@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/go/internal/test/test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index 995da15c90..7df6f421d6 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -660,6 +660,7 @@ var defaultVetFlags = []string{
+ 	"-printf",
+ 	// "-rangeloops",
+ 	// "-shift",
++	"-slog",
+ 	"-stringintconv",
+ 	// "-structtags",
+ 	// "-tests",

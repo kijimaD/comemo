@@ -11,6 +11,19 @@ Date:   Fri Dec 10 12:39:57 2021 +0330
     Run-TryBot: Robert Findley <rfindley@google.com>
     Trust: Nooras Saba‎ <saba@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/go/types/testdata/check/issues.go2 | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/go/types/testdata/check/issues.go2 b/src/go/types/testdata/check/issues.go2
+index ac8ef789e5..371856eea3 100644
+--- a/src/go/types/testdata/check/issues.go2
++++ b/src/go/types/testdata/check/issues.go2
+@@ -47,7 +47,6 @@ func (T) m1()
+ func (*T) m2()
+ 
+ func _() {
+-	// TODO(rFindley) this error should be positioned on the 'T'.
+ 	f2[T /* ERROR wrong method signature */ ]()
+ 	f2[*T]()
+ }

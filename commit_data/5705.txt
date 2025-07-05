@@ -7,6 +7,27 @@ Date:   Wed Jun 23 15:08:27 2010 +1000
     R=nigeltao_golang
     CC=golang-dev, r, rsc
     https://golang.org/cl/1690043
-
+---
  src/pkg/Makefile | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index 1bbb91bfeb..e489b71d47 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -66,6 +66,7 @@ DIRS=\
+ 	exp/bignum\
+ 	exp/datafmt\
+ 	exp/draw\
++	exp/draw/x11\
+ 	exp/eval\
+ 	exp/iterable\
+ 	expvar\
+@@ -130,6 +131,7 @@ DIRS=\
+ 
+ NOTEST=\
+ 	debug/proc\
++	exp/draw/x11\
+ 	go/ast\
+ 	go/doc\
+ 	go/token\

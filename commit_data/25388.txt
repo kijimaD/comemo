@@ -13,8 +13,103 @@ Date:   Fri Aug 28 09:33:51 2015 +0200
     Change-Id: If80536eab35abcd25300d8ddc2d27d5c42d7e78e
     Reviewed-on: https://go-review.googlesource.com/14010
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/reflect/export_test.go |  4 ++--
  src/reflect/type.go        |  2 +-
  src/reflect/value.go       | 27 +++++++++++++++++----------
  3 files changed, 20 insertions(+), 13 deletions(-)
+
+diff --git a/src/reflect/export_test.go b/src/reflect/export_test.go
+index 0b9d0fde9e..26a648e193 100644
+--- a/src/reflect/export_test.go
++++ b/src/reflect/export_test.go
+@@ -8,13 +8,13 @@ import "unsafe"
+ 
+ // MakeRO returns a copy of v with the read-only flag set.
+ func MakeRO(v Value) Value {
+-	v.flag |= flagRO
++	v.flag |= flagStickyRO
+ 	return v
+ }
+ 
+ // IsRO reports whether v's read-only flag is set.
+ func IsRO(v Value) bool {
+-	return v.flag&flagRO != 0
++	return v.flag&flagStickyRO != 0
+ }
+ 
+ var CallGC = &callGC
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index e98c960a03..aa56fcbe95 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -496,7 +496,7 @@ func (t *uncommonType) Method(i int) (m Method) {
+ 	fl := flag(Func)
+ 	if p.pkgPath != nil {
+ 		m.PkgPath = *p.pkgPath
+-		fl |= flagRO
++		fl |= flagStickyRO
+ 	}
+ 	mt := p.typ
+ 	m.Type = mt
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index 001d0274ec..2317a7bec3 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -44,7 +44,8 @@ type Value struct {
+ 
+ 	// flag holds metadata about the value.
+ 	// The lowest bits are flag bits:
+-	//	- flagRO: obtained via unexported field, so read-only
++	//	- flagStickyRO: obtained via unexported not embedded field, so read-only
++	//	- flagEmbedRO: obtained via unexported embedded field, so read-only
+ 	//	- flagIndir: val holds a pointer to the data
+ 	//	- flagAddr: v.CanAddr is true (implies flagIndir)
+ 	//	- flagMethod: v is a method value.
+@@ -67,11 +68,13 @@ type flag uintptr
+ const (
+ 	flagKindWidth        = 5 // there are 27 kinds
+ 	flagKindMask    flag = 1<<flagKindWidth - 1
+-	flagRO          flag = 1 << 5
+-	flagIndir       flag = 1 << 6
+-	flagAddr        flag = 1 << 7
+-	flagMethod      flag = 1 << 8
+-	flagMethodShift      = 9
++	flagStickyRO    flag = 1 << 5
++	flagEmbedRO     flag = 1 << 6
++	flagIndir       flag = 1 << 7
++	flagAddr        flag = 1 << 8
++	flagMethod      flag = 1 << 9
++	flagMethodShift      = 10
++	flagRO          flag = flagStickyRO | flagEmbedRO
+ )
+ 
+ func (f flag) kind() Kind {
+@@ -745,11 +748,15 @@ func (v Value) Field(i int) Value {
+ 	field := &tt.fields[i]
+ 	typ := field.typ
+ 
+-	// Inherit permission bits from v.
+-	fl := v.flag&(flagRO|flagIndir|flagAddr) | flag(typ.Kind())
++	// Inherit permission bits from v, but clear flagEmbedRO.
++	fl := v.flag&(flagStickyRO|flagIndir|flagAddr) | flag(typ.Kind())
+ 	// Using an unexported field forces flagRO.
+ 	if field.pkgPath != nil {
+-		fl |= flagRO
++		if field.name == nil {
++			fl |= flagEmbedRO
++		} else {
++			fl |= flagStickyRO
++		}
+ 	}
+ 	// Either flagIndir is set and v.ptr points at struct,
+ 	// or flagIndir is not set and v.ptr is the actual struct data.
+@@ -1104,7 +1111,7 @@ func (v Value) Method(i int) Value {
+ 	if v.typ.Kind() == Interface && v.IsNil() {
+ 		panic("reflect: Method on nil interface value")
+ 	}
+-	fl := v.flag & (flagRO | flagIndir)
++	fl := v.flag & (flagStickyRO | flagIndir) // Clear flagEmbedRO
+ 	fl |= flag(Func)
+ 	fl |= flag(i)<<flagMethodShift | flagMethod
+ 	return Value{v.typ, v.ptr, fl}

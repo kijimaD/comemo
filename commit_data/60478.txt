@@ -18,9 +18,180 @@ Date:   Wed Jul 24 10:24:16 2024 +0000
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
-
+---
  src/archive/tar/reader_test.go |  8 +++++---
  src/archive/tar/tar_test.go    | 12 +++++-------
  src/archive/tar/writer_test.go |  4 ++--
  src/archive/zip/reader_test.go | 10 +++++-----
  4 files changed, 17 insertions(+), 17 deletions(-)
+
+diff --git a/src/archive/tar/reader_test.go b/src/archive/tar/reader_test.go
+index 7e0462c3f8..cc49fe3641 100644
+--- a/src/archive/tar/reader_test.go
++++ b/src/archive/tar/reader_test.go
+@@ -11,10 +11,12 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"io"
++	"maps"
+ 	"math"
+ 	"os"
+ 	"path"
+ 	"reflect"
++	"slices"
+ 	"strconv"
+ 	"strings"
+ 	"testing"
+@@ -1017,7 +1019,7 @@ func TestParsePAX(t *testing.T) {
+ 	for i, v := range vectors {
+ 		r := strings.NewReader(v.in)
+ 		got, err := parsePAX(r)
+-		if !reflect.DeepEqual(got, v.want) && !(len(got) == 0 && len(v.want) == 0) {
++		if !maps.Equal(got, v.want) && !(len(got) == 0 && len(v.want) == 0) {
+ 			t.Errorf("test %d, parsePAX():\ngot  %v\nwant %v", i, got, v.want)
+ 		}
+ 		if ok := err == nil; ok != v.ok {
+@@ -1134,7 +1136,7 @@ func TestReadOldGNUSparseMap(t *testing.T) {
+ 		v.input = v.input[copy(blk[:], v.input):]
+ 		tr := Reader{r: bytes.NewReader(v.input)}
+ 		got, err := tr.readOldGNUSparseMap(&hdr, &blk)
+-		if !equalSparseEntries(got, v.wantMap) {
++		if !slices.Equal(got, v.wantMap) {
+ 			t.Errorf("test %d, readOldGNUSparseMap(): got %v, want %v", i, got, v.wantMap)
+ 		}
+ 		if err != v.wantErr {
+@@ -1325,7 +1327,7 @@ func TestReadGNUSparsePAXHeaders(t *testing.T) {
+ 		r := strings.NewReader(v.inputData + "#") // Add canary byte
+ 		tr := Reader{curr: &regFileReader{r, int64(r.Len())}}
+ 		got, err := tr.readGNUSparsePAXHeaders(&hdr)
+-		if !equalSparseEntries(got, v.wantMap) {
++		if !slices.Equal(got, v.wantMap) {
+ 			t.Errorf("test %d, readGNUSparsePAXHeaders(): got %v, want %v", i, got, v.wantMap)
+ 		}
+ 		if err != v.wantErr {
+diff --git a/src/archive/tar/tar_test.go b/src/archive/tar/tar_test.go
+index 7398e7602a..372f1737ed 100644
+--- a/src/archive/tar/tar_test.go
++++ b/src/archive/tar/tar_test.go
+@@ -11,11 +11,13 @@ import (
+ 	"internal/testenv"
+ 	"io"
+ 	"io/fs"
++	"maps"
+ 	"math"
+ 	"os"
+ 	"path"
+ 	"path/filepath"
+ 	"reflect"
++	"slices"
+ 	"strings"
+ 	"testing"
+ 	"time"
+@@ -98,10 +100,6 @@ func (f *testFile) Seek(pos int64, whence int) (int64, error) {
+ 	return f.pos, nil
+ }
+ 
+-func equalSparseEntries(x, y []sparseEntry) bool {
+-	return (len(x) == 0 && len(y) == 0) || reflect.DeepEqual(x, y)
+-}
+-
+ func TestSparseEntries(t *testing.T) {
+ 	vectors := []struct {
+ 		in   []sparseEntry
+@@ -198,11 +196,11 @@ func TestSparseEntries(t *testing.T) {
+ 			continue
+ 		}
+ 		gotAligned := alignSparseEntries(append([]sparseEntry{}, v.in...), v.size)
+-		if !equalSparseEntries(gotAligned, v.wantAligned) {
++		if !slices.Equal(gotAligned, v.wantAligned) {
+ 			t.Errorf("test %d, alignSparseEntries():\ngot  %v\nwant %v", i, gotAligned, v.wantAligned)
+ 		}
+ 		gotInverted := invertSparseEntries(append([]sparseEntry{}, v.in...), v.size)
+-		if !equalSparseEntries(gotInverted, v.wantInverted) {
++		if !slices.Equal(gotInverted, v.wantInverted) {
+ 			t.Errorf("test %d, inverseSparseEntries():\ngot  %v\nwant %v", i, gotInverted, v.wantInverted)
+ 		}
+ 	}
+@@ -744,7 +742,7 @@ func TestHeaderAllowedFormats(t *testing.T) {
+ 		if formats != v.formats {
+ 			t.Errorf("test %d, allowedFormats(): got %v, want %v", i, formats, v.formats)
+ 		}
+-		if formats&FormatPAX > 0 && !reflect.DeepEqual(paxHdrs, v.paxHdrs) && !(len(paxHdrs) == 0 && len(v.paxHdrs) == 0) {
++		if formats&FormatPAX > 0 && !maps.Equal(paxHdrs, v.paxHdrs) && !(len(paxHdrs) == 0 && len(v.paxHdrs) == 0) {
+ 			t.Errorf("test %d, allowedFormats():\ngot  %v\nwant %s", i, paxHdrs, v.paxHdrs)
+ 		}
+ 		if (formats != FormatUnknown) && (err != nil) {
+diff --git a/src/archive/tar/writer_test.go b/src/archive/tar/writer_test.go
+index 9c3bcea767..9542abe3e7 100644
+--- a/src/archive/tar/writer_test.go
++++ b/src/archive/tar/writer_test.go
+@@ -10,9 +10,9 @@ import (
+ 	"errors"
+ 	"io"
+ 	"io/fs"
++	"maps"
+ 	"os"
+ 	"path"
+-	"reflect"
+ 	"slices"
+ 	"strings"
+ 	"testing"
+@@ -702,7 +702,7 @@ func TestPaxXattrs(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+-	if !reflect.DeepEqual(hdr.Xattrs, xattrs) {
++	if !maps.Equal(hdr.Xattrs, xattrs) {
+ 		t.Fatalf("xattrs did not survive round trip: got %+v, want %+v",
+ 			hdr.Xattrs, xattrs)
+ 	}
+diff --git a/src/archive/zip/reader_test.go b/src/archive/zip/reader_test.go
+index 00e5ec3e05..bfa35c992a 100644
+--- a/src/archive/zip/reader_test.go
++++ b/src/archive/zip/reader_test.go
+@@ -13,8 +13,8 @@ import (
+ 	"io/fs"
+ 	"os"
+ 	"path/filepath"
+-	"reflect"
+ 	"regexp"
++	"slices"
+ 	"strings"
+ 	"testing"
+ 	"testing/fstest"
+@@ -1274,7 +1274,7 @@ func TestFSWalk(t *testing.T) {
+ 			} else if !test.wantErr && sawErr {
+ 				t.Error("unexpected error")
+ 			}
+-			if test.want != nil && !reflect.DeepEqual(files, test.want) {
++			if test.want != nil && !slices.Equal(files, test.want) {
+ 				t.Errorf("got %v want %v", files, test.want)
+ 			}
+ 		})
+@@ -1580,7 +1580,7 @@ func TestCVE202141772(t *testing.T) {
+ 			t.Errorf("Opening %q with fs.FS API succeeded", f.Name)
+ 		}
+ 	}
+-	if !reflect.DeepEqual(names, entryNames) {
++	if !slices.Equal(names, entryNames) {
+ 		t.Errorf("Unexpected file entries: %q", names)
+ 	}
+ 	if _, err := r.Open(""); err == nil {
+@@ -1693,7 +1693,7 @@ func TestInsecurePaths(t *testing.T) {
+ 		for _, f := range zr.File {
+ 			gotPaths = append(gotPaths, f.Name)
+ 		}
+-		if !reflect.DeepEqual(gotPaths, []string{path}) {
++		if !slices.Equal(gotPaths, []string{path}) {
+ 			t.Errorf("NewReader for archive with file %q: got files %q", path, gotPaths)
+ 			continue
+ 		}
+@@ -1718,7 +1718,7 @@ func TestDisableInsecurePathCheck(t *testing.T) {
+ 	for _, f := range zr.File {
+ 		gotPaths = append(gotPaths, f.Name)
+ 	}
+-	if want := []string{name}; !reflect.DeepEqual(gotPaths, want) {
++	if want := []string{name}; !slices.Equal(gotPaths, want) {
+ 		t.Errorf("NewReader with zipinsecurepath=1: got files %q, want %q", gotPaths, want)
+ 	}
+ }

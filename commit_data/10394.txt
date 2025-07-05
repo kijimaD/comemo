@@ -20,9 +20,154 @@ Date:   Tue Nov 15 11:39:18 2011 +1100
     R=nigeltao
     CC=golang-dev
     https://golang.org/cl/5369109
-
+---
  src/pkg/html/parse.go      |  3 +++
  src/pkg/html/parse_test.go |  5 ++++-
  src/pkg/html/render.go     | 25 +++++++++++++++++++++----
  src/pkg/html/token.go      | 20 ++++++++++++++------
  4 files changed, 42 insertions(+), 11 deletions(-)
+
+diff --git a/src/pkg/html/parse.go b/src/pkg/html/parse.go
+index e8edcf956f..b92b25c7b0 100644
+--- a/src/pkg/html/parse.go
++++ b/src/pkg/html/parse.go
+@@ -655,6 +655,9 @@ func inBodyIM(p *parser) bool {
+ 			}
+ 			p.popUntil(buttonScopeStopTags, "p")
+ 			p.addElement(p.tok.Data, p.tok.Attr)
++		case "plaintext":
++			p.popUntil(buttonScopeStopTags, "p")
++			p.addElement(p.tok.Data, p.tok.Attr)
+ 		case "optgroup", "option":
+ 			if p.top().Data == "option" {
+ 				p.oe.pop()
+diff --git a/src/pkg/html/parse_test.go b/src/pkg/html/parse_test.go
+index 992f73b060..3c278b3145 100644
+--- a/src/pkg/html/parse_test.go
++++ b/src/pkg/html/parse_test.go
+@@ -134,7 +134,7 @@ func TestParser(t *testing.T) {
+ 	}{
+ 		// TODO(nigeltao): Process all the test cases from all the .dat files.
+ 		{"tests1.dat", -1},
+-		{"tests2.dat", 10},
++		{"tests2.dat", 26},
+ 		{"tests3.dat", 0},
+ 	}
+ 	for _, tf := range testFiles {
+@@ -214,4 +214,7 @@ var renderTestBlacklist = map[string]bool{
+ 	`<a href="blah">aba<table><a href="foo">br<tr><td></td></tr>x</table>aoe`: true,
+ 	`<a><table><a></table><p><a><div><a>`:                                     true,
+ 	`<a><table><td><a><table></table><a></tr><a></table><a>`:                  true,
++	// A <plaintext> element is reparented, putting it before a table.
++	// A <plaintext> element can't have anything after it in HTML.
++	`<table><plaintext><td>`: true,
+ }
+diff --git a/src/pkg/html/render.go b/src/pkg/html/render.go
+index c815f35f1e..92c349fb32 100644
+--- a/src/pkg/html/render.go
++++ b/src/pkg/html/render.go
+@@ -52,7 +52,19 @@ func Render(w io.Writer, n *Node) error {
+ 	return buf.Flush()
+ }
+ 
++// plaintextAbort is returned from render1 when a <plaintext> element 
++// has been rendered. No more end tags should be rendered after that.
++var plaintextAbort = errors.New("html: internal error (plaintext abort)")
++
+ func render(w writer, n *Node) error {
++	err := render1(w, n)
++	if err == plaintextAbort {
++		err = nil
++	}
++	return err
++}
++
++func render1(w writer, n *Node) error {
+ 	// Render non-element nodes; these are the easy cases.
+ 	switch n.Type {
+ 	case ErrorNode:
+@@ -61,7 +73,7 @@ func render(w writer, n *Node) error {
+ 		return escape(w, n.Data)
+ 	case DocumentNode:
+ 		for _, c := range n.Child {
+-			if err := render(w, c); err != nil {
++			if err := render1(w, c); err != nil {
+ 				return err
+ 			}
+ 		}
+@@ -128,7 +140,7 @@ func render(w writer, n *Node) error {
+ 
+ 	// Render any child nodes.
+ 	switch n.Data {
+-	case "noembed", "noframes", "noscript", "script", "style":
++	case "noembed", "noframes", "noscript", "plaintext", "script", "style":
+ 		for _, c := range n.Child {
+ 			if c.Type != TextNode {
+ 				return fmt.Errorf("html: raw text element <%s> has non-text child node", n.Data)
+@@ -137,18 +149,23 @@ func render(w writer, n *Node) error {
+ 				return err
+ 			}
+ 		}
++		if n.Data == "plaintext" {
++			// Don't render anything else. <plaintext> must be the
++			// last element in the file, with no closing tag.
++			return plaintextAbort
++		}
+ 	case "textarea", "title":
+ 		for _, c := range n.Child {
+ 			if c.Type != TextNode {
+ 				return fmt.Errorf("html: RCDATA element <%s> has non-text child node", n.Data)
+ 			}
+-			if err := render(w, c); err != nil {
++			if err := render1(w, c); err != nil {
+ 				return err
+ 			}
+ 		}
+ 	default:
+ 		for _, c := range n.Child {
+-			if err := render(w, c); err != nil {
++			if err := render1(w, c); err != nil {
+ 				return err
+ 			}
+ 		}
+diff --git a/src/pkg/html/token.go b/src/pkg/html/token.go
+index 78a240a66f..9400873e6b 100644
+--- a/src/pkg/html/token.go
++++ b/src/pkg/html/token.go
+@@ -401,14 +401,14 @@ func (z *Tokenizer) readStartTag() TokenType {
+ 			break
+ 		}
+ 	}
+-	// Any "<noembed>", "<noframes>", "<noscript>", "<script>", "<style>",
++	// Any "<noembed>", "<noframes>", "<noscript>", "<plaintext", "<script>", "<style>",
+ 	// "<textarea>" or "<title>" tag flags the tokenizer's next token as raw.
+-	// The tag name lengths of these special cases ranges in [5, 8].
+-	if x := z.data.end - z.data.start; 5 <= x && x <= 8 {
++	// The tag name lengths of these special cases ranges in [5, 9].
++	if x := z.data.end - z.data.start; 5 <= x && x <= 9 {
+ 		switch z.buf[z.data.start] {
+-		case 'n', 's', 't', 'N', 'S', 'T':
++		case 'n', 'p', 's', 't', 'N', 'P', 'S', 'T':
+ 			switch s := strings.ToLower(string(z.buf[z.data.start:z.data.end])); s {
+-			case "noembed", "noframes", "noscript", "script", "style", "textarea", "title":
++			case "noembed", "noframes", "noscript", "plaintext", "script", "style", "textarea", "title":
+ 				z.rawTag = s
+ 			}
+ 		}
+@@ -551,7 +551,15 @@ func (z *Tokenizer) Next() TokenType {
+ 	z.data.start = z.raw.end
+ 	z.data.end = z.raw.end
+ 	if z.rawTag != "" {
+-		z.readRawOrRCDATA()
++		if z.rawTag == "plaintext" {
++			// Read everything up to EOF.
++			for z.err == nil {
++				z.readByte()
++			}
++			z.textIsRaw = true
++		} else {
++			z.readRawOrRCDATA()
++		}
+ 		if z.data.end > z.data.start {
+ 			z.tt = TextToken
+ 			return z.tt

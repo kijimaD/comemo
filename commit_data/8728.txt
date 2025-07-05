@@ -7,7 +7,60 @@ Date:   Wed Jun 15 09:10:59 2011 +1000
     R=rsc, gri
     CC=golang-dev
     https://golang.org/cl/4602062
-
+---
  src/pkg/mail/message.go      | 6 +++---
  src/pkg/mail/message_test.go | 3 +--
  2 files changed, 4 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/mail/message.go b/src/pkg/mail/message.go
+index 0f4a1913e1..342e35f18c 100644
+--- a/src/pkg/mail/message.go
++++ b/src/pkg/mail/message.go
+@@ -59,7 +59,7 @@ func ReadMessage(r io.Reader) (msg *Message, err os.Error) {
+ 	return &Message{
+ 		Header: Header(hdr),
+ 		Body:   tp.R,
+-	},nil
++	}, nil
+ }
+ 
+ // Layouts suitable for passing to time.Parse.
+@@ -228,7 +228,7 @@ func (p *addrParser) parseAddress() (addr *Address, err os.Error) {
+ 	if err == nil {
+ 		return &Address{
+ 			Address: spec,
+-		},err
++		}, err
+ 	}
+ 	debug.Printf("parseAddress: not an addr-spec: %v", err)
+ 	debug.Printf("parseAddress: state is now %q", *p)
+@@ -260,7 +260,7 @@ func (p *addrParser) parseAddress() (addr *Address, err os.Error) {
+ 	return &Address{
+ 		Name:    displayName,
+ 		Address: spec,
+-	},nil
++	}, nil
+ }
+ 
+ // consumeAddrSpec parses a single RFC 5322 addr-spec at the start of p.
+diff --git a/src/pkg/mail/message_test.go b/src/pkg/mail/message_test.go
+index a3af90a2ee..e1bcc89ee5 100644
+--- a/src/pkg/mail/message_test.go
++++ b/src/pkg/mail/message_test.go
+@@ -229,7 +229,6 @@ func TestAddressParsing(t *testing.T) {
+ 		},
+ 		// Custom example of RFC 2047 "B"-encoded UTF-8 address.
+ 		{
+-			// XXX: a different example
+ 			`=?UTF-8?B?SsO2cmc=?= <joerg@example.com>`,
+ 			[]*Address{
+ 				&Address{
+@@ -246,7 +245,7 @@ func TestAddressParsing(t *testing.T) {
+ 			continue
+ 		}
+ 		if !reflect.DeepEqual(addrs, test.exp) {
+-			t.Errorf("Parse of %q: got %+v, want %+v", test.addrsStr, *addrs[0], *test.exp[0])
++			t.Errorf("Parse of %q: got %+v, want %+v", test.addrsStr, addrs, test.exp)
+ 		}
+ 	}
+ }

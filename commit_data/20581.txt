@@ -10,6 +10,20 @@ Date:   Thu Sep 18 23:07:36 2014 -0400
     R=golang-codereviews, adg, dvyukov
     CC=golang-codereviews
     https://golang.org/cl/141600043
-
+---
  src/syscall/syscall_unix.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/syscall/syscall_unix.go b/src/syscall/syscall_unix.go
+index f18dfca5e6..a06bd7dd08 100644
+--- a/src/syscall/syscall_unix.go
++++ b/src/syscall/syscall_unix.go
+@@ -109,7 +109,7 @@ func (e Errno) Error() string {
+ }
+ 
+ func (e Errno) Temporary() bool {
+-	return e == EINTR || e == EMFILE || e.Timeout()
++	return e == EINTR || e == EMFILE || e == ECONNRESET || e == ECONNABORTED || e.Timeout()
+ }
+ 
+ func (e Errno) Timeout() bool {

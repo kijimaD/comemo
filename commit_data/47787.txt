@@ -12,9 +12,140 @@ Date:   Wed Apr 7 22:36:15 2021 -0700
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/builtins.go        |  2 +-
  src/cmd/compile/internal/types2/call.go            | 37 +++++++++++++++++++---
  .../internal/types2/fixedbugs/issue39754.go2       |  6 ++--
  .../internal/types2/fixedbugs/issue44799.go2       | 19 +++++++++++
  4 files changed, 57 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/builtins.go b/src/cmd/compile/internal/types2/builtins.go
+index f0fd216b13..25bfb24ef4 100644
+--- a/src/cmd/compile/internal/types2/builtins.go
++++ b/src/cmd/compile/internal/types2/builtins.go
+@@ -129,7 +129,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 			arg(&x, i)
+ 			xlist = append(xlist, &x)
+ 		}
+-		check.arguments(call, sig, xlist) // discard result (we know the result type)
++		check.arguments(call, sig, nil, xlist) // discard result (we know the result type)
+ 		// ok to continue even if check.arguments reported errors
+ 
+ 		x.mode = value
+diff --git a/src/cmd/compile/internal/types2/call.go b/src/cmd/compile/internal/types2/call.go
+index b340c52e74..6d149340b2 100644
+--- a/src/cmd/compile/internal/types2/call.go
++++ b/src/cmd/compile/internal/types2/call.go
+@@ -67,9 +67,14 @@ func (check *Checker) funcInst(x *operand, inst *syntax.IndexExpr) {
+ }
+ 
+ func (check *Checker) callExpr(x *operand, call *syntax.CallExpr) exprKind {
++	var inst *syntax.IndexExpr // function instantiation, if any
+ 	if iexpr, _ := call.Fun.(*syntax.IndexExpr); iexpr != nil {
+ 		if check.indexExpr(x, iexpr) {
+-			check.funcInst(x, iexpr)
++			// Delay function instantiation to argument checking,
++			// where we combine type and value arguments for type
++			// inference.
++			assert(x.mode == value)
++			inst = iexpr
+ 		}
+ 		x.expr = iexpr
+ 		check.record(x)
+@@ -137,9 +142,33 @@ func (check *Checker) callExpr(x *operand, call *syntax.CallExpr) exprKind {
+ 		return statement
+ 	}
+ 
++	// evaluate type arguments, if any
++	var targs []Type
++	if inst != nil {
++		xlist := unpackExpr(inst.Index)
++		targs = check.typeList(xlist)
++		if targs == nil {
++			check.use(call.ArgList...)
++			x.mode = invalid
++			x.expr = call
++			return statement
++		}
++		assert(len(targs) == len(xlist))
++
++		// check number of type arguments (got) vs number of type parameters (want)
++		got, want := len(targs), len(sig.tparams)
++		if got > want {
++			check.errorf(xlist[want], "got %d type arguments but want %d", got, want)
++			check.use(call.ArgList...)
++			x.mode = invalid
++			x.expr = call
++			return statement
++		}
++	}
++
+ 	// evaluate arguments
+ 	args, _ := check.exprList(call.ArgList, false)
+-	sig = check.arguments(call, sig, args)
++	sig = check.arguments(call, sig, targs, args)
+ 
+ 	// determine result
+ 	switch sig.results.Len() {
+@@ -208,7 +237,7 @@ func (check *Checker) exprList(elist []syntax.Expr, allowCommaOk bool) (xlist []
+ 	return
+ }
+ 
+-func (check *Checker) arguments(call *syntax.CallExpr, sig *Signature, args []*operand) (rsig *Signature) {
++func (check *Checker) arguments(call *syntax.CallExpr, sig *Signature, targs []Type, args []*operand) (rsig *Signature) {
+ 	rsig = sig
+ 
+ 	// TODO(gri) try to eliminate this extra verification loop
+@@ -292,7 +321,7 @@ func (check *Checker) arguments(call *syntax.CallExpr, sig *Signature, args []*o
+ 	if len(sig.tparams) > 0 {
+ 		// TODO(gri) provide position information for targs so we can feed
+ 		//           it to the instantiate call for better error reporting
+-		targs := check.infer(call.Pos(), sig.tparams, nil, sigParams, args, true)
++		targs = check.infer(call.Pos(), sig.tparams, targs, sigParams, args, true)
+ 		if targs == nil {
+ 			return // error already reported
+ 		}
+diff --git a/src/cmd/compile/internal/types2/fixedbugs/issue39754.go2 b/src/cmd/compile/internal/types2/fixedbugs/issue39754.go2
+index 36b774faaf..f70b8d0ce0 100644
+--- a/src/cmd/compile/internal/types2/fixedbugs/issue39754.go2
++++ b/src/cmd/compile/internal/types2/fixedbugs/issue39754.go2
+@@ -1,4 +1,3 @@
+-// UNREVIEWED
+ // Copyright 2020 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+@@ -17,5 +16,8 @@ func f[V interface{}, A, B Box[V]]() {}
+ 
+ func _() {
+ 	f[int, Optional[int], Optional[int]]()
+-	f[int, Optional[int], Optional /* ERROR does not satisfy Box */ [string]]()
++	_ = f[int, Optional[int], Optional /* ERROR does not satisfy Box */ [string]]
++	// TODO(gri) Provide better position information here.
++	//           See TODO in call.go, Checker.arguments.
++	f[int, Optional[int], Optional[string]]( /* ERROR does not satisfy Box */ )
+ }
+diff --git a/src/cmd/compile/internal/types2/fixedbugs/issue44799.go2 b/src/cmd/compile/internal/types2/fixedbugs/issue44799.go2
+new file mode 100644
+index 0000000000..9e528a7475
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/fixedbugs/issue44799.go2
+@@ -0,0 +1,19 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func Map[F, T any](s []F, f func(F) T) []T { return nil }
++
++func Reduce[Elem1, Elem2 any](s []Elem1, initializer Elem2, f func(Elem2, Elem1) Elem2) Elem2 { var x Elem2; return x }
++
++func main() {
++	var s []int
++	var f1 func(int) float64
++	var f2 func(float64, int) float64
++	_ = Map[int](s, f1)
++	_ = Map(s, f1)
++	_ = Reduce[int](s, 0, f2)
++	_ = Reduce(s, 0, f2)
++}

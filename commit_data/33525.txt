@@ -7,6 +7,37 @@ Date:   Mon Jun 5 15:53:08 2017 +1000
     Change-Id: Ia4abb76a8fa9e9ab280cd9162238ebd3fba79e4d
     Reviewed-on: https://go-review.googlesource.com/56318
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/link/internal/ld/pe.go | 5 +----
  1 file changed, 1 insertion(+), 4 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/pe.go b/src/cmd/link/internal/ld/pe.go
+index 9a632f74b6..c7788d84af 100644
+--- a/src/cmd/link/internal/ld/pe.go
++++ b/src/cmd/link/internal/ld/pe.go
+@@ -322,8 +322,6 @@ var PEFILEHEADR int32
+ 
+ var pe64 int
+ 
+-var pensect int
+-
+ var nextsectoff int
+ 
+ var nextfileoff int
+@@ -471,7 +469,6 @@ func (f *peFile) addSection(name string, sectsize int, filesize int) *peSection
+ 		nextfileoff += int(sect.SizeOfRawData)
+ 	}
+ 	f.sections = append(f.sections, sect)
+-	pensect++
+ 	return sect
+ }
+ 
+@@ -1269,7 +1266,7 @@ func Asmbpe(ctxt *Link) {
+ 		peemitreloc(ctxt, t, d, c)
+ 	}
+ 
+-	fh.NumberOfSections = uint16(pensect)
++	fh.NumberOfSections = uint16(len(pefile.sections))
+ 
+ 	// Being able to produce identical output for identical input is
+ 	// much more beneficial than having build timestamp in the header.

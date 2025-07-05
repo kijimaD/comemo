@@ -9,7 +9,7 @@ Date:   Tue May 19 23:49:24 2015 +0000
     Change-Id: I3fb998bdf11eceef13e3997e336d86e7c5d47a60
     Reviewed-on: https://go-review.googlesource.com/10254
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/cmd/5l/asm.go                          |  14 +-
  src/cmd/6l/asm.go                          |   2 +-
  src/cmd/7l/asm.go                          |  14 +-
@@ -19,3 +19,823 @@ Date:   Tue May 19 23:49:24 2015 +0000
  src/cmd/internal/ld/macho.go               |   8 +-
  src/cmd/internal/ld/macho_combine_dwarf.go | 369 -----------------------------
  8 files changed, 58 insertions(+), 527 deletions(-)
+
+diff --git a/src/cmd/5l/asm.go b/src/cmd/5l/asm.go
+index 70d6790fc1..1b69671b9f 100644
+--- a/src/cmd/5l/asm.go
++++ b/src/cmd/5l/asm.go
+@@ -533,12 +533,14 @@ func asmb() {
+ 			fmt.Fprintf(&ld.Bso, "%5.2f dwarf\n", obj.Cputime())
+ 		}
+ 
+-		dwarfoff := uint32(ld.Rnd(int64(uint64(ld.HEADR)+ld.Segtext.Length), int64(ld.INITRND)) + ld.Rnd(int64(ld.Segdata.Filelen), int64(ld.INITRND)))
+-		ld.Cseek(int64(dwarfoff))
++		if ld.Debug['w'] == 0 { // TODO(minux): enable DWARF Support
++			dwarfoff := uint32(ld.Rnd(int64(uint64(ld.HEADR)+ld.Segtext.Length), int64(ld.INITRND)) + ld.Rnd(int64(ld.Segdata.Filelen), int64(ld.INITRND)))
++			ld.Cseek(int64(dwarfoff))
+ 
+-		ld.Segdwarf.Fileoff = uint64(ld.Cpos())
+-		ld.Dwarfemitdebugsections()
+-		ld.Segdwarf.Filelen = uint64(ld.Cpos()) - ld.Segdwarf.Fileoff
++			ld.Segdwarf.Fileoff = uint64(ld.Cpos())
++			ld.Dwarfemitdebugsections()
++			ld.Segdwarf.Filelen = uint64(ld.Cpos()) - ld.Segdwarf.Fileoff
++		}
+ 
+ 		machlink = uint32(ld.Domacholink())
+ 	}
+@@ -565,7 +567,7 @@ func asmb() {
+ 			symo = uint32(ld.Segdata.Fileoff + ld.Segdata.Filelen)
+ 
+ 		case obj.Hdarwin:
+-			symo = uint32(ld.Segdwarf.Fileoff + uint64(ld.Rnd(int64(ld.Segdwarf.Filelen), int64(ld.INITRND))) + uint64(machlink))
++			symo = uint32(ld.Rnd(int64(uint64(ld.HEADR)+ld.Segtext.Filelen), int64(ld.INITRND)) + ld.Rnd(int64(ld.Segdata.Filelen), int64(ld.INITRND)) + int64(machlink))
+ 		}
+ 
+ 		ld.Cseek(int64(symo))
+diff --git a/src/cmd/6l/asm.go b/src/cmd/6l/asm.go
+index 02b4c7cdd2..5520a5acf1 100644
+--- a/src/cmd/6l/asm.go
++++ b/src/cmd/6l/asm.go
+@@ -710,7 +710,7 @@ func asmb() {
+ 			symo = int64(ld.Segdata.Fileoff + ld.Segdata.Filelen)
+ 
+ 		case obj.Hdarwin:
+-			symo = int64(ld.Segdwarf.Fileoff + uint64(ld.Rnd(int64(ld.Segdwarf.Filelen), int64(ld.INITRND))) + uint64(machlink))
++			symo = int64(ld.Segdata.Fileoff + uint64(ld.Rnd(int64(ld.Segdata.Filelen), int64(ld.INITRND))) + uint64(machlink))
+ 
+ 		case obj.Hlinux,
+ 			obj.Hfreebsd,
+diff --git a/src/cmd/7l/asm.go b/src/cmd/7l/asm.go
+index 064ff56283..3dfb8c666d 100644
+--- a/src/cmd/7l/asm.go
++++ b/src/cmd/7l/asm.go
+@@ -317,12 +317,14 @@ func asmb() {
+ 			fmt.Fprintf(&ld.Bso, "%5.2f dwarf\n", obj.Cputime())
+ 		}
+ 
+-		dwarfoff := uint32(ld.Rnd(int64(uint64(ld.HEADR)+ld.Segtext.Length), int64(ld.INITRND)) + ld.Rnd(int64(ld.Segdata.Filelen), int64(ld.INITRND)))
+-		ld.Cseek(int64(dwarfoff))
++		if ld.Debug['w'] == 0 { // TODO(minux): enable DWARF Support
++			dwarfoff := uint32(ld.Rnd(int64(uint64(ld.HEADR)+ld.Segtext.Length), int64(ld.INITRND)) + ld.Rnd(int64(ld.Segdata.Filelen), int64(ld.INITRND)))
++			ld.Cseek(int64(dwarfoff))
+ 
+-		ld.Segdwarf.Fileoff = uint64(ld.Cpos())
+-		ld.Dwarfemitdebugsections()
+-		ld.Segdwarf.Filelen = uint64(ld.Cpos()) - ld.Segdwarf.Fileoff
++			ld.Segdwarf.Fileoff = uint64(ld.Cpos())
++			ld.Dwarfemitdebugsections()
++			ld.Segdwarf.Filelen = uint64(ld.Cpos()) - ld.Segdwarf.Fileoff
++		}
+ 
+ 		machlink = uint32(ld.Domacholink())
+ 	}
+@@ -349,7 +351,7 @@ func asmb() {
+ 			symo = uint32(ld.Segdata.Fileoff + ld.Segdata.Filelen)
+ 
+ 		case obj.Hdarwin:
+-			symo = uint32(ld.Segdwarf.Fileoff + uint64(ld.Rnd(int64(ld.Segdwarf.Filelen), int64(ld.INITRND))) + uint64(machlink))
++			symo = uint32(ld.Rnd(int64(uint64(ld.HEADR)+ld.Segtext.Filelen), int64(ld.INITRND)) + ld.Rnd(int64(ld.Segdata.Filelen), int64(ld.INITRND)) + int64(machlink))
+ 		}
+ 
+ 		ld.Cseek(int64(symo))
+diff --git a/src/cmd/8l/asm.go b/src/cmd/8l/asm.go
+index a736d43686..a63c51f58d 100644
+--- a/src/cmd/8l/asm.go
++++ b/src/cmd/8l/asm.go
+@@ -551,7 +551,7 @@ func asmb() {
+ 			symo = uint32(ld.Segdata.Fileoff + ld.Segdata.Filelen)
+ 
+ 		case obj.Hdarwin:
+-			symo = uint32(ld.Segdwarf.Fileoff + uint64(ld.Rnd(int64(ld.Segdwarf.Filelen), int64(ld.INITRND))) + uint64(machlink))
++			symo = uint32(ld.Segdata.Fileoff + uint64(ld.Rnd(int64(ld.Segdata.Filelen), int64(ld.INITRND))) + uint64(machlink))
+ 
+ 		case obj.Hwindows:
+ 			symo = uint32(ld.Segdata.Fileoff + ld.Segdata.Filelen)
+diff --git a/src/cmd/internal/ld/dwarf.go b/src/cmd/internal/ld/dwarf.go
+index 841ef9abf9..476b329e7a 100644
+--- a/src/cmd/internal/ld/dwarf.go
++++ b/src/cmd/internal/ld/dwarf.go
+@@ -17,7 +17,6 @@ package ld
+ import (
+ 	"cmd/internal/obj"
+ 	"fmt"
+-	"os"
+ 	"strings"
+ )
+ 
+@@ -241,7 +240,6 @@ var abbrevs = [DW_NABRV]DWAbbrev{
+ 			{DW_AT_low_pc, DW_FORM_addr},
+ 			{DW_AT_high_pc, DW_FORM_addr},
+ 			{DW_AT_stmt_list, DW_FORM_data4},
+-			{DW_AT_comp_dir, DW_FORM_string},
+ 		},
+ 	},
+ 
+@@ -696,9 +694,6 @@ func adddwarfrel(sec *LSym, sym *LSym, offsetbase int64, siz int, addend int64)
+ 	if Iself && Thearch.Thechar == '6' {
+ 		addend = 0
+ 	}
+-	if HEADTYPE == obj.Hdarwin {
+-		addend += sym.Value
+-	}
+ 	switch siz {
+ 	case 4:
+ 		Thearch.Lput(uint32(addend))
+@@ -1552,13 +1547,6 @@ func flushunit(dwinfo *DWDie, pc int64, pcsym *LSym, unitstart int64, header_len
+ 	}
+ }
+ 
+-func getCompilationDir() string {
+-	if dir, err := os.Getwd(); err == nil {
+-		return dir
+-	}
+-	return "/"
+-}
+-
+ func writelines() {
+ 	if linesec == nil {
+ 		linesec = Linklookup(Ctxt, ".dwarfline", 0)
+@@ -1583,9 +1571,6 @@ func writelines() {
+ 	newattr(dwinfo, DW_AT_language, DW_CLS_CONSTANT, int64(lang), 0)
+ 	newattr(dwinfo, DW_AT_stmt_list, DW_CLS_PTR, unitstart-lineo, 0)
+ 	newattr(dwinfo, DW_AT_low_pc, DW_CLS_ADDRESS, s.Value, s)
+-	// OS X linker requires compilation dir or absolute path in comp unit name to output debug info.
+-	compDir := getCompilationDir()
+-	newattr(dwinfo, DW_AT_comp_dir, DW_CLS_STRING, int64(len(compDir)), compDir)
+ 
+ 	// Write .debug_line Line Number Program Header (sec 6.2.4)
+ 	// Fields marked with (*) must be changed for 64-bit dwarf
+@@ -2098,14 +2083,6 @@ func writedwarfreloc(s *LSym) int64 {
+ 	return start
+ }
+ 
+-func addmachodwarfsect(prev *Section, name string) *Section {
+-	sect := addsection(&Segdwarf, name, 04)
+-	sect.Extnum = prev.Extnum + 1
+-	sym := Linklookup(Ctxt, name, 0)
+-	sym.Sect = sect
+-	return sect
+-}
+-
+ /*
+  * This is the main entry point for generating dwarf.  After emitting
+  * the mandatory debug_abbrev section, it calls writelines() to set up
+@@ -2120,32 +2097,8 @@ func Dwarfemitdebugsections() {
+ 		return
+ 	}
+ 
+-	if Linkmode == LinkExternal {
+-		if !Iself && HEADTYPE != obj.Hdarwin {
+-			return
+-		}
+-		if HEADTYPE == obj.Hdarwin {
+-			sect := Segdata.Sect
+-			// find the last section.
+-			for sect.Next != nil {
+-				sect = sect.Next
+-			}
+-			sect = addmachodwarfsect(sect, ".debug_abbrev")
+-			sect = addmachodwarfsect(sect, ".debug_line")
+-			sect = addmachodwarfsect(sect, ".debug_frame")
+-			sect = addmachodwarfsect(sect, ".debug_info")
+-		}
+-		infosym = Linklookup(Ctxt, ".debug_info", 0)
+-		infosym.Hide = 1
+-
+-		abbrevsym = Linklookup(Ctxt, ".debug_abbrev", 0)
+-		abbrevsym.Hide = 1
+-
+-		linesym = Linklookup(Ctxt, ".debug_line", 0)
+-		linesym.Hide = 1
+-
+-		framesym = Linklookup(Ctxt, ".debug_frame", 0)
+-		framesym.Hide = 1
++	if Linkmode == LinkExternal && !Iself {
++		return
+ 	}
+ 
+ 	// For diagnostic messages.
+@@ -2238,15 +2191,6 @@ func Dwarfemitdebugsections() {
+ 	for Cpos()&7 != 0 {
+ 		Cput(0)
+ 	}
+-	if HEADTYPE != obj.Hdarwin {
+-		dwarfemitreloc()
+-	}
+-}
+-
+-func dwarfemitreloc() {
+-	if Debug['w'] != 0 { // disable dwarf
+-		return
+-	}
+ 	inforeloco = writedwarfreloc(infosec)
+ 	inforelocsize = Cpos() - inforeloco
+ 	align(inforelocsize)
+@@ -2319,6 +2263,18 @@ func dwarfaddshstrings(shstrtab *LSym) {
+ 			elfstrdbg[ElfStrRelDebugLine] = Addstring(shstrtab, ".rel.debug_line")
+ 			elfstrdbg[ElfStrRelDebugFrame] = Addstring(shstrtab, ".rel.debug_frame")
+ 		}
++
++		infosym = Linklookup(Ctxt, ".debug_info", 0)
++		infosym.Hide = 1
++
++		abbrevsym = Linklookup(Ctxt, ".debug_abbrev", 0)
++		abbrevsym.Hide = 1
++
++		linesym = Linklookup(Ctxt, ".debug_line", 0)
++		linesym.Hide = 1
++
++		framesym = Linklookup(Ctxt, ".debug_frame", 0)
++		framesym.Hide = 1
+ 	}
+ }
+ 
+@@ -2464,15 +2420,14 @@ func dwarfaddelfheaders() {
+ /*
+  * Macho
+  */
+-func dwarfaddmachoheaders(ms *MachoSeg) {
++func dwarfaddmachoheaders() {
+ 	if Debug['w'] != 0 { // disable dwarf
+ 		return
+ 	}
+ 
+ 	// Zero vsize segments won't be loaded in memory, even so they
+ 	// have to be page aligned in the file.
+-	fakestart := Rnd(int64(Segdwarf.Fileoff), 0x1000)
+-	addr := Segdata.Vaddr + Segdata.Length
++	fakestart := abbrevo &^ 0xfff
+ 
+ 	nsect := 4
+ 	if pubnamessize > 0 {
+@@ -2488,94 +2443,57 @@ func dwarfaddmachoheaders(ms *MachoSeg) {
+ 		nsect++
+ 	}
+ 
+-	if Linkmode != LinkExternal {
+-		ms = newMachoSeg("__DWARF", nsect)
+-		ms.fileoffset = uint64(fakestart)
+-		ms.filesize = Segdwarf.Filelen
+-		ms.vaddr = addr
+-	}
++	ms := newMachoSeg("__DWARF", nsect)
++	ms.fileoffset = uint64(fakestart)
++	ms.filesize = uint64(abbrevo) - uint64(fakestart)
++	ms.vaddr = ms.fileoffset + Segdata.Vaddr - Segdata.Fileoff
+ 
+ 	msect := newMachoSect(ms, "__debug_abbrev", "__DWARF")
+ 	msect.off = uint32(abbrevo)
+ 	msect.size = uint64(abbrevsize)
+-	msect.addr = addr
+-	addr += msect.size
+-	msect.flag = 0x02000000
+-	if abbrevsym != nil {
+-		abbrevsym.Value = int64(msect.addr)
+-	}
++	msect.addr = uint64(msect.off) + Segdata.Vaddr - Segdata.Fileoff
++	ms.filesize += msect.size
+ 
+ 	msect = newMachoSect(ms, "__debug_line", "__DWARF")
+ 	msect.off = uint32(lineo)
+ 	msect.size = uint64(linesize)
+-	msect.addr = addr
+-	addr += msect.size
+-	msect.flag = 0x02000000
+-	if linesym != nil {
+-		linesym.Value = int64(msect.addr)
+-	}
+-	if linerelocsize > 0 {
+-		msect.nreloc = uint32(len(linesec.R))
+-		msect.reloc = uint32(linereloco)
+-	}
++	msect.addr = uint64(msect.off) + Segdata.Vaddr - Segdata.Fileoff
++	ms.filesize += msect.size
+ 
+ 	msect = newMachoSect(ms, "__debug_frame", "__DWARF")
+ 	msect.off = uint32(frameo)
+ 	msect.size = uint64(framesize)
+-	msect.addr = addr
+-	addr += msect.size
+-	msect.flag = 0x02000000
+-	if framesym != nil {
+-		framesym.Value = int64(msect.addr)
+-	}
+-	if framerelocsize > 0 {
+-		msect.nreloc = uint32(len(framesec.R))
+-		msect.reloc = uint32(framereloco)
+-	}
++	msect.addr = uint64(msect.off) + Segdata.Vaddr - Segdata.Fileoff
++	ms.filesize += msect.size
+ 
+ 	msect = newMachoSect(ms, "__debug_info", "__DWARF")
+ 	msect.off = uint32(infoo)
+ 	msect.size = uint64(infosize)
+-	msect.addr = addr
+-	addr += msect.size
+-	msect.flag = 0x02000000
+-	if infosym != nil {
+-		infosym.Value = int64(msect.addr)
+-	}
+-	if inforelocsize > 0 {
+-		msect.nreloc = uint32(len(infosec.R))
+-		msect.reloc = uint32(inforeloco)
+-	}
++	msect.addr = uint64(msect.off) + Segdata.Vaddr - Segdata.Fileoff
++	ms.filesize += msect.size
+ 
+ 	if pubnamessize > 0 {
+ 		msect := newMachoSect(ms, "__debug_pubnames", "__DWARF")
+ 		msect.off = uint32(pubnameso)
+ 		msect.size = uint64(pubnamessize)
+-		msect.addr = addr
+-		addr += msect.size
+-		msect.flag = 0x02000000
++		msect.addr = uint64(msect.off) + Segdata.Vaddr - Segdata.Fileoff
++		ms.filesize += msect.size
+ 	}
+ 
+ 	if pubtypessize > 0 {
+ 		msect := newMachoSect(ms, "__debug_pubtypes", "__DWARF")
+ 		msect.off = uint32(pubtypeso)
+ 		msect.size = uint64(pubtypessize)
+-		msect.addr = addr
+-		addr += msect.size
+-		msect.flag = 0x02000000
++		msect.addr = uint64(msect.off) + Segdata.Vaddr - Segdata.Fileoff
++		ms.filesize += msect.size
+ 	}
+ 
+ 	if arangessize > 0 {
+ 		msect := newMachoSect(ms, "__debug_aranges", "__DWARF")
+ 		msect.off = uint32(arangeso)
+ 		msect.size = uint64(arangessize)
+-		msect.addr = addr
+-		addr += msect.size
+-		msect.flag = 0x02000000
+-		if arangesrelocsize > 0 {
+-			msect.nreloc = uint32(len(arangessec.R))
+-			msect.reloc = uint32(arangesreloco)
+-		}
++		msect.addr = uint64(msect.off) + Segdata.Vaddr - Segdata.Fileoff
++		ms.filesize += msect.size
+ 	}
+ 
+ 	// TODO(lvd) fix gdb/python to load MachO (16 char section name limit)
+@@ -2583,9 +2501,8 @@ func dwarfaddmachoheaders(ms *MachoSeg) {
+ 		msect := newMachoSect(ms, "__debug_gdb_scripts", "__DWARF")
+ 		msect.off = uint32(gdbscripto)
+ 		msect.size = uint64(gdbscriptsize)
+-		msect.addr = addr
+-		addr += msect.size
+-		msect.flag = 0x02000000
++		msect.addr = uint64(msect.off) + Segdata.Vaddr - Segdata.Fileoff
++		ms.filesize += msect.size
+ 	}
+ }
+ 
+diff --git a/src/cmd/internal/ld/lib.go b/src/cmd/internal/ld/lib.go
+index a36cd0f8f4..753e8eebd8 100644
+--- a/src/cmd/internal/ld/lib.go
++++ b/src/cmd/internal/ld/lib.go
+@@ -922,7 +922,7 @@ func hostlink() {
+ 	}
+ 
+ 	if HEADTYPE == obj.Hdarwin {
+-		argv = append(argv, "-Wl,-no_pie,-pagezero_size,4000000,-headerpad,1144")
++		argv = append(argv, "-Wl,-no_pie,-pagezero_size,4000000")
+ 	}
+ 	if HEADTYPE == obj.Hopenbsd {
+ 		argv = append(argv, "-Wl,-nopie")
+@@ -1029,25 +1029,6 @@ func hostlink() {
+ 	if out, err := exec.Command(argv[0], argv[1:]...).CombinedOutput(); err != nil {
+ 		Exitf("running %s failed: %v\n%s", argv[0], err, out)
+ 	}
+-
+-	if Debug['s'] == 0 && debug_s == 0 && HEADTYPE == obj.Hdarwin {
+-		dsym := fmt.Sprintf("%s/go.dwarf", tmpdir)
+-		if out, err := exec.Command("dsymutil", "-f", outfile, "-o", dsym).CombinedOutput(); err != nil {
+-			Ctxt.Cursym = nil
+-			Exitf("%s: running dsymutil failed: %v\n%s", os.Args[0], err, out)
+-		}
+-		combinedOutput := fmt.Sprintf("%s/go.combined", tmpdir)
+-		if err := machoCombineDwarf(outfile, dsym, combinedOutput); err != nil {
+-			Ctxt.Cursym = nil
+-			Exitf("%s: combining dwarf failed: %v", os.Args[0], err)
+-		}
+-		origOutput := fmt.Sprintf("%s/go.orig", tmpdir)
+-		os.Rename(outfile, origOutput)
+-		if err := os.Rename(combinedOutput, outfile); err != nil {
+-			Ctxt.Cursym = nil
+-			Exitf("%s: rename(%s, %s) failed: %v", os.Args[0], combinedOutput, outfile, err)
+-		}
+-	}
+ }
+ 
+ func ldobj(f *obj.Biobuf, pkg string, length int64, pn string, file string, whence int) {
+diff --git a/src/cmd/internal/ld/macho.go b/src/cmd/internal/ld/macho.go
+index 0258aff104..ceeb7b0f5d 100644
+--- a/src/cmd/internal/ld/macho.go
++++ b/src/cmd/internal/ld/macho.go
+@@ -443,8 +443,7 @@ func Asmbmacho() {
+ 		ms = newMachoSeg("", 40)
+ 
+ 		ms.fileoffset = Segtext.Fileoff
+-		ms.filesize = Segdwarf.Fileoff + Segdwarf.Filelen - Segtext.Fileoff
+-		ms.vsize = ms.filesize
++		ms.filesize = Segdata.Fileoff + Segdata.Filelen - Segtext.Fileoff
+ 	}
+ 
+ 	/* segment for zero page */
+@@ -562,8 +561,8 @@ func Asmbmacho() {
+ 	}
+ 
+ 	// TODO: dwarf headers go in ms too
+-	if Debug['s'] == 0 {
+-		dwarfaddmachoheaders(ms)
++	if Debug['s'] == 0 && Linkmode != LinkExternal {
++		dwarfaddmachoheaders()
+ 	}
+ 
+ 	a := machowrite()
+@@ -851,5 +850,4 @@ func Machoemitreloc() {
+ 	for sect := Segdata.Sect; sect != nil; sect = sect.Next {
+ 		machorelocsect(sect, datap)
+ 	}
+-	dwarfemitreloc()
+ }
+diff --git a/src/cmd/internal/ld/macho_combine_dwarf.go b/src/cmd/internal/ld/macho_combine_dwarf.go
+deleted file mode 100644
+index 9134373a52..0000000000
+--- a/src/cmd/internal/ld/macho_combine_dwarf.go
++++ /dev/null
+@@ -1,369 +0,0 @@
+-// Copyright 2015 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package ld
+-
+-import (
+-	"bytes"
+-	"debug/macho"
+-	"encoding/binary"
+-	"fmt"
+-	"io"
+-	"os"
+-	"reflect"
+-	"unsafe"
+-)
+-
+-var fakedwarf, realdwarf, linkseg *macho.Segment
+-var dwarfstart, linkstart int64
+-var linkoffset uint32
+-var machHeader *macho.FileHeader
+-var mappedHeader []byte
+-
+-const (
+-	LC_LOAD_DYLINKER        = 0xe
+-	LC_PREBOUND_DYLIB       = 0x10
+-	LC_LOAD_WEAK_DYLIB      = 0x18
+-	LC_UUID                 = 0x1b
+-	LC_RPATH                = 0x8000001c
+-	LC_CODE_SIGNATURE       = 0x1d
+-	LC_SEGMENT_SPLIT_INFO   = 0x1e
+-	LC_REEXPORT_DYLIB       = 0x8000001f
+-	LC_ENCRYPTION_INFO      = 0x21
+-	LC_DYLD_INFO            = 0x22
+-	LC_DYLD_INFO_ONLY       = 0x80000022
+-	LC_VERSION_MIN_MACOSX   = 0x24
+-	LC_VERSION_MIN_IPHONEOS = 0x25
+-	LC_FUNCTION_STARTS      = 0x26
+-	LC_MAIN                 = 0x80000028
+-	LC_DATA_IN_CODE         = 0x29
+-	LC_SOURCE_VERSION       = 0x2A
+-	LC_DYLIB_CODE_SIGN_DRS  = 0x2B
+-	LC_ENCRYPTION_INFO_64   = 0x2C
+-
+-	dwarfMinAlign = 6  // 64 = 1 << 6
+-	pageAlign     = 12 // 4096 = 1 << 12
+-)
+-
+-type loadCmd struct {
+-	Cmd macho.LoadCmd
+-	Len uint32
+-}
+-
+-type dyldInfoCmd struct {
+-	Cmd                      macho.LoadCmd
+-	Len                      uint32
+-	RebaseOff, RebaseLen     uint32
+-	BindOff, BindLen         uint32
+-	WeakBindOff, WeakBindLen uint32
+-	LazyBindOff, LazyBindLen uint32
+-	ExportOff, ExportLen     uint32
+-}
+-
+-type linkEditDataCmd struct {
+-	Cmd              macho.LoadCmd
+-	Len              uint32
+-	DataOff, DataLen uint32
+-}
+-
+-type encryptionInfoCmd struct {
+-	Cmd                macho.LoadCmd
+-	Len                uint32
+-	CryptOff, CryptLen uint32
+-	CryptId            uint32
+-}
+-
+-type loadCmdReader struct {
+-	offset, next int64
+-	f            *os.File
+-	order        binary.ByteOrder
+-}
+-
+-func (r *loadCmdReader) Next() (cmd loadCmd, err error) {
+-	r.offset = r.next
+-	if _, err = r.f.Seek(r.offset, 0); err != nil {
+-		return
+-	}
+-	if err = binary.Read(r.f, r.order, &cmd); err != nil {
+-		return
+-	}
+-	r.next = r.offset + int64(cmd.Len)
+-	return
+-}
+-
+-func (r loadCmdReader) ReadAt(offset int64, data interface{}) error {
+-	if _, err := r.f.Seek(r.offset+offset, 0); err != nil {
+-		return err
+-	}
+-	return binary.Read(r.f, r.order, data)
+-}
+-
+-func (r loadCmdReader) WriteAt(offset int64, data interface{}) error {
+-	if _, err := r.f.Seek(r.offset+offset, 0); err != nil {
+-		return err
+-	}
+-	return binary.Write(r.f, r.order, data)
+-}
+-
+-// machoCombineDwarf merges dwarf info generated by dsymutil into a macho executable.
+-// With internal linking, DWARF is embedded into the executable, this lets us do the
+-// same for external linking.
+-// inexe is the path to the executable with no DWARF. It must have enough room in the macho
+-// header to add the DWARF sections. (Use ld's -headerpad option)
+-// dsym is the path to the macho file containing DWARF from dsymutil.
+-// outexe is the path where the combined executable should be saved.
+-func machoCombineDwarf(inexe, dsym, outexe string) error {
+-	exef, err := os.Open(inexe)
+-	if err != nil {
+-		return err
+-	}
+-	dwarff, err := os.Open(dsym)
+-	if err != nil {
+-		return err
+-	}
+-	outf, err := os.Create(outexe)
+-	if err != nil {
+-		return err
+-	}
+-	outf.Chmod(0755)
+-
+-	exem, err := macho.NewFile(exef)
+-	if err != nil {
+-		return err
+-	}
+-	dwarfm, err := macho.NewFile(dwarff)
+-	if err != nil {
+-		return err
+-	}
+-
+-	// The string table needs to be the last thing in the file
+-	// for code signing to work. So we'll need to move the
+-	// linkedit section, but all the others can be copied directly.
+-	linkseg = exem.Segment("__LINKEDIT")
+-	if linkseg == nil {
+-		return fmt.Errorf("missing __LINKEDIT segment")
+-	}
+-
+-	if _, err = exef.Seek(0, 0); err != nil {
+-		return err
+-	}
+-	if _, err := io.CopyN(outf, exef, int64(linkseg.Offset)); err != nil {
+-		return err
+-	}
+-
+-	realdwarf = dwarfm.Segment("__DWARF")
+-	if realdwarf == nil {
+-		return fmt.Errorf("missing __DWARF segment")
+-	}
+-
+-	// Now copy the dwarf data into the output.
+-	maxalign := uint32(dwarfMinAlign) //
+-	for _, sect := range dwarfm.Sections {
+-		if sect.Align > maxalign {
+-			maxalign = sect.Align
+-		}
+-	}
+-	dwarfstart = machoCalcStart(realdwarf.Offset, linkseg.Offset, maxalign)
+-	if _, err = outf.Seek(dwarfstart, 0); err != nil {
+-		return err
+-	}
+-
+-	if _, err = dwarff.Seek(int64(realdwarf.Offset), 0); err != nil {
+-		return err
+-	}
+-	if _, err := io.CopyN(outf, dwarff, int64(realdwarf.Filesz)); err != nil {
+-		return err
+-	}
+-
+-	// And finally the linkedit section.
+-	if _, err = exef.Seek(int64(linkseg.Offset), 0); err != nil {
+-		return err
+-	}
+-	linkstart = machoCalcStart(linkseg.Offset, uint64(dwarfstart)+realdwarf.Filesz, pageAlign)
+-	linkoffset = uint32(linkstart - int64(linkseg.Offset))
+-	if _, err = outf.Seek(linkstart, 0); err != nil {
+-		return err
+-	}
+-	if _, err := io.Copy(outf, exef); err != nil {
+-		return err
+-	}
+-
+-	// Now we need to update the headers.
+-	cmdOffset := unsafe.Sizeof(exem.FileHeader)
+-	is64bit := exem.Magic == macho.Magic64
+-	if is64bit {
+-		// mach_header_64 has one extra uint32.
+-		cmdOffset += unsafe.Sizeof(exem.Magic)
+-	}
+-
+-	textsect := exem.Section("__text")
+-	if linkseg == nil {
+-		return fmt.Errorf("missing __text section")
+-	}
+-
+-	dwarfCmdOffset := int64(cmdOffset) + int64(exem.FileHeader.Cmdsz)
+-	availablePadding := int64(textsect.Offset) - dwarfCmdOffset
+-	if availablePadding < int64(realdwarf.Len) {
+-		return fmt.Errorf("No room to add dwarf info. Need at least %d padding bytes, found %d", realdwarf.Len, availablePadding)
+-	}
+-	// First, copy the dwarf load command into the header
+-	if _, err = outf.Seek(dwarfCmdOffset, 0); err != nil {
+-		return err
+-	}
+-	if _, err := io.CopyN(outf, bytes.NewReader(realdwarf.Raw()), int64(realdwarf.Len)); err != nil {
+-		return err
+-	}
+-
+-	if _, err = outf.Seek(int64(unsafe.Offsetof(exem.FileHeader.Ncmd)), 0); err != nil {
+-		return err
+-	}
+-	if err = binary.Write(outf, exem.ByteOrder, exem.Ncmd+1); err != nil {
+-		return err
+-	}
+-	if err = binary.Write(outf, exem.ByteOrder, exem.Cmdsz+realdwarf.Len); err != nil {
+-		return err
+-	}
+-
+-	reader := loadCmdReader{next: int64(cmdOffset), f: outf, order: exem.ByteOrder}
+-	for i := uint32(0); i < exem.Ncmd; i++ {
+-		cmd, err := reader.Next()
+-		if err != nil {
+-			return err
+-		}
+-		switch cmd.Cmd {
+-		case macho.LoadCmdSegment64:
+-			err = machoUpdateSegment(reader, &macho.Segment64{}, &macho.Section64{})
+-		case macho.LoadCmdSegment:
+-			err = machoUpdateSegment(reader, &macho.Segment32{}, &macho.Section32{})
+-		case LC_DYLD_INFO, LC_DYLD_INFO_ONLY:
+-			err = machoUpdateLoadCommand(reader, &dyldInfoCmd{}, "RebaseOff", "BindOff", "WeakBindOff", "LazyBindOff", "ExportOff")
+-		case macho.LoadCmdSymtab:
+-			err = machoUpdateLoadCommand(reader, &macho.SymtabCmd{}, "Symoff", "Stroff")
+-		case macho.LoadCmdDysymtab:
+-			err = machoUpdateLoadCommand(reader, &macho.DysymtabCmd{}, "Tocoffset", "Modtaboff", "Extrefsymoff", "Indirectsymoff", "Extreloff", "Locreloff")
+-		case LC_CODE_SIGNATURE, LC_SEGMENT_SPLIT_INFO, LC_FUNCTION_STARTS, LC_DATA_IN_CODE, LC_DYLIB_CODE_SIGN_DRS:
+-			err = machoUpdateLoadCommand(reader, &linkEditDataCmd{}, "DataOff")
+-		case LC_ENCRYPTION_INFO, LC_ENCRYPTION_INFO_64:
+-			err = machoUpdateLoadCommand(reader, &encryptionInfoCmd{}, "CryptOff")
+-		case macho.LoadCmdDylib, macho.LoadCmdThread, macho.LoadCmdUnixThread, LC_PREBOUND_DYLIB, LC_UUID, LC_VERSION_MIN_MACOSX, LC_VERSION_MIN_IPHONEOS, LC_SOURCE_VERSION, LC_MAIN, LC_LOAD_DYLINKER, LC_LOAD_WEAK_DYLIB, LC_REEXPORT_DYLIB, LC_RPATH:
+-			// Nothing to update
+-		default:
+-			err = fmt.Errorf("Unknown load command 0x%x (%s)\n", int(cmd.Cmd), cmd.Cmd)
+-		}
+-		if err != nil {
+-			return err
+-		}
+-	}
+-	return machoUpdateDwarfHeader(&reader)
+-}
+-
+-// machoUpdateSegment updates the load command for a moved segment.
+-// Only the linkedit segment should move, and it should have 0 sections.
+-// seg should be a macho.Segment32 or macho.Segment64 as appropriate.
+-// sect should be a macho.Section32 or macho.Section64 as appropriate.
+-func machoUpdateSegment(r loadCmdReader, seg, sect interface{}) error {
+-	if err := r.ReadAt(0, seg); err != nil {
+-		return err
+-	}
+-	segValue := reflect.ValueOf(seg)
+-	offset := reflect.Indirect(segValue).FieldByName("Offset")
+-
+-	// Only the linkedit segment moved, any thing before that is fine.
+-	if offset.Uint() < linkseg.Offset {
+-		return nil
+-	}
+-	offset.SetUint(offset.Uint() + uint64(linkoffset))
+-	if err := r.WriteAt(0, seg); err != nil {
+-		return err
+-	}
+-	// There shouldn't be any sections, but just to make sure...
+-	return machoUpdateSections(r, segValue, reflect.ValueOf(sect), uint64(linkoffset))
+-}
+-
+-func machoUpdateSections(r loadCmdReader, seg, sect reflect.Value, delta uint64) error {
+-	iseg := reflect.Indirect(seg)
+-	nsect := iseg.FieldByName("Nsect").Uint()
+-	if nsect == 0 {
+-		return nil
+-	}
+-	sectOffset := int64(iseg.Type().Size())
+-
+-	isect := reflect.Indirect(sect)
+-	offsetField := isect.FieldByName("Offset")
+-	reloffField := isect.FieldByName("Reloff")
+-	sectSize := int64(isect.Type().Size())
+-	for i := uint64(0); i < nsect; i++ {
+-		if err := r.ReadAt(sectOffset, sect.Interface()); err != nil {
+-			return err
+-		}
+-		if offsetField.Uint() != 0 {
+-			offsetField.SetUint(offsetField.Uint() + delta)
+-		}
+-		if reloffField.Uint() != 0 {
+-			reloffField.SetUint(reloffField.Uint() + delta)
+-		}
+-		if err := r.WriteAt(sectOffset, sect.Interface()); err != nil {
+-			return err
+-		}
+-		sectOffset += sectSize
+-	}
+-	return nil
+-}
+-
+-// machoUpdateDwarfHeader updates the DWARF segment load command.
+-func machoUpdateDwarfHeader(r *loadCmdReader) error {
+-	var seg, sect interface{}
+-	cmd, err := r.Next()
+-	if err != nil {
+-		return err
+-	}
+-	if cmd.Cmd == macho.LoadCmdSegment64 {
+-		seg = new(macho.Segment64)
+-		sect = new(macho.Section64)
+-	} else {
+-		seg = new(macho.Segment32)
+-		sect = new(macho.Section32)
+-	}
+-	if err := r.ReadAt(0, seg); err != nil {
+-		return err
+-	}
+-	segValue := reflect.ValueOf(seg)
+-	offset := reflect.Indirect(segValue).FieldByName("Offset")
+-
+-	delta := uint64(dwarfstart) - realdwarf.Offset
+-	offset.SetUint(offset.Uint() + delta)
+-	if err := r.WriteAt(0, seg); err != nil {
+-		return err
+-	}
+-	return machoUpdateSections(*r, segValue, reflect.ValueOf(sect), delta)
+-}
+-
+-func machoUpdateLoadCommand(r loadCmdReader, cmd interface{}, fields ...string) error {
+-	if err := r.ReadAt(0, cmd); err != nil {
+-		return err
+-	}
+-	value := reflect.Indirect(reflect.ValueOf(cmd))
+-
+-	for _, name := range fields {
+-		field := value.FieldByName(name)
+-		fieldval := field.Uint()
+-		if fieldval >= linkseg.Offset {
+-			field.SetUint(fieldval + uint64(linkoffset))
+-		}
+-	}
+-	if err := r.WriteAt(0, cmd); err != nil {
+-		return err
+-	}
+-	return nil
+-}
+-
+-func machoCalcStart(origAddr, newAddr uint64, alignExp uint32) int64 {
+-	align := uint64(1 << alignExp)
+-	if (origAddr % align) == (newAddr % align) {
+-		return int64(newAddr)
+-	}
+-	padding := (align - (newAddr % align))
+-	padding += origAddr % align
+-	return int64(padding + newAddr)
+-}

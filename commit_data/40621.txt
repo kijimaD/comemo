@@ -16,6 +16,20 @@ Date:   Thu Jun 6 19:17:01 2019 +0800
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-
+---
  src/syscall/exec_linux_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/syscall/exec_linux_test.go b/src/syscall/exec_linux_test.go
+index 8759775fcc..cc2140f811 100644
+--- a/src/syscall/exec_linux_test.go
++++ b/src/syscall/exec_linux_test.go
+@@ -46,7 +46,7 @@ func skipUnprivilegedUserClone(t *testing.T) {
+ 	// Skip the test if the sysctl that prevents unprivileged user
+ 	// from creating user namespaces is enabled.
+ 	data, errRead := ioutil.ReadFile("/proc/sys/kernel/unprivileged_userns_clone")
+-	if errRead != nil || len(data) < 1 && data[0] == '0' {
++	if errRead != nil || len(data) < 1 || data[0] == '0' {
+ 		t.Skip("kernel prohibits user namespace in unprivileged process")
+ 	}
+ }

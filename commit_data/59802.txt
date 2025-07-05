@@ -14,7 +14,7 @@ Date:   Wed Apr 24 16:51:20 2024 -0400
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Alan Donovan <adonovan@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
-
+---
  api/next/66559.txt                           |  1 +
  doc/next/6-stdlib/99-minor/go/types/66559.md |  3 +++
  src/cmd/compile/internal/types2/alias.go     |  8 +++-----
@@ -23,3 +23,124 @@ Date:   Wed Apr 24 16:51:20 2024 -0400
  src/go/types/alias.go                        |  8 +++-----
  src/go/types/api_test.go                     | 18 ++++++++++++++++++
  7 files changed, 45 insertions(+), 17 deletions(-)
+
+diff --git a/api/next/66559.txt b/api/next/66559.txt
+new file mode 100644
+index 0000000000..8b83bcca40
+--- /dev/null
++++ b/api/next/66559.txt
+@@ -0,0 +1 @@
++pkg go/types, method (*Alias) Rhs() Type #66559
+diff --git a/doc/next/6-stdlib/99-minor/go/types/66559.md b/doc/next/6-stdlib/99-minor/go/types/66559.md
+new file mode 100644
+index 0000000000..fbaf39191e
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/go/types/66559.md
+@@ -0,0 +1,3 @@
++The [Alias] type now has an [Rhs] method that returns the type on the
++right-hand side of its declaration: given `type A = B`, the `Rhs` of A
++is B. ([#66559](/issue/12345))
+diff --git a/src/cmd/compile/internal/types2/alias.go b/src/cmd/compile/internal/types2/alias.go
+index 030f6cd827..9b7a13f81e 100644
+--- a/src/cmd/compile/internal/types2/alias.go
++++ b/src/cmd/compile/internal/types2/alias.go
+@@ -32,11 +32,9 @@ func (a *Alias) Obj() *TypeName   { return a.obj }
+ func (a *Alias) Underlying() Type { return unalias(a).Underlying() }
+ func (a *Alias) String() string   { return TypeString(a, nil) }
+ 
+-// TODO(adonovan): uncomment when proposal #66559 is accepted.
+-//
+-// // Rhs returns the type R on the right-hand side of an alias
+-// // declaration "type A = R", which may be another alias.
+-// func (a *Alias) Rhs() Type { return a.fromRHS }
++// Rhs returns the type R on the right-hand side of an alias
++// declaration "type A = R", which may be another alias.
++func (a *Alias) Rhs() Type { return a.fromRHS }
+ 
+ // Unalias returns t if it is not an alias type;
+ // otherwise it follows t's alias chain until it
+diff --git a/src/cmd/compile/internal/types2/api.go b/src/cmd/compile/internal/types2/api.go
+index 36d900401d..029d105e2e 100644
+--- a/src/cmd/compile/internal/types2/api.go
++++ b/src/cmd/compile/internal/types2/api.go
+@@ -475,10 +475,3 @@ func (conf *Config) Check(path string, files []*syntax.File, info *Info) (*Packa
+ 	pkg := NewPackage(path, "")
+ 	return pkg, NewChecker(conf, pkg, info).Files(files)
+ }
+-
+-// Rhs returns the type R on the right-hand side of an alias
+-// declaration "type A = R", which may be another alias.
+-//
+-// TODO(adonovan): move to alias.go (common with go/types) once
+-// proposal #66559 is accepted.
+-func (a *Alias) Rhs() Type { return a.fromRHS }
+diff --git a/src/cmd/compile/internal/types2/api_test.go b/src/cmd/compile/internal/types2/api_test.go
+index 840a3f3bdc..cf3c105f6c 100644
+--- a/src/cmd/compile/internal/types2/api_test.go
++++ b/src/cmd/compile/internal/types2/api_test.go
+@@ -3005,3 +3005,20 @@ type B = T[A]
+ 		t.Errorf("Unalias(type B = T[A]) = %q, want %q", got, want)
+ 	}
+ }
++
++func TestAlias_Rhs(t *testing.T) {
++	const src = `package p
++
++type A = B
++type B = C
++type C = int
++`
++
++	pkg := mustTypecheck(src, &Config{EnableAlias: true}, nil)
++	A := pkg.Scope().Lookup("A")
++
++	got, want := A.Type().(*Alias).Rhs().String(), "p.B"
++	if got != want {
++		t.Errorf("A.Rhs = %s, want %s", got, want)
++	}
++}
+diff --git a/src/go/types/alias.go b/src/go/types/alias.go
+index 963eb92d35..56d2ad0c97 100644
+--- a/src/go/types/alias.go
++++ b/src/go/types/alias.go
+@@ -35,11 +35,9 @@ func (a *Alias) Obj() *TypeName   { return a.obj }
+ func (a *Alias) Underlying() Type { return unalias(a).Underlying() }
+ func (a *Alias) String() string   { return TypeString(a, nil) }
+ 
+-// TODO(adonovan): uncomment when proposal #66559 is accepted.
+-//
+-// // Rhs returns the type R on the right-hand side of an alias
+-// // declaration "type A = R", which may be another alias.
+-// func (a *Alias) Rhs() Type { return a.fromRHS }
++// Rhs returns the type R on the right-hand side of an alias
++// declaration "type A = R", which may be another alias.
++func (a *Alias) Rhs() Type { return a.fromRHS }
+ 
+ // Unalias returns t if it is not an alias type;
+ // otherwise it follows t's alias chain until it
+diff --git a/src/go/types/api_test.go b/src/go/types/api_test.go
+index 564bbc2423..6f8dddb936 100644
+--- a/src/go/types/api_test.go
++++ b/src/go/types/api_test.go
+@@ -3014,3 +3014,21 @@ type B = T[A]
+ 		t.Errorf("Unalias(type B = T[A]) = %q, want %q", got, want)
+ 	}
+ }
++
++func TestAlias_Rhs(t *testing.T) {
++	t.Setenv("GODEBUG", "gotypesalias=1")
++	const src = `package p
++
++type A = B
++type B = C
++type C = int
++`
++
++	pkg := mustTypecheck(src, nil, nil)
++	A := pkg.Scope().Lookup("A")
++
++	got, want := A.Type().(*Alias).Rhs().String(), "p.B"
++	if got != want {
++		t.Errorf("A.Rhs = %s, want %s", got, want)
++	}
++}

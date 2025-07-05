@@ -11,6 +11,36 @@ Date:   Thu May 19 22:26:01 2016 -0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
-
+---
  src/syscall/exec_linux_test.go | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/syscall/exec_linux_test.go b/src/syscall/exec_linux_test.go
+index ec5be107e0..099756328c 100644
+--- a/src/syscall/exec_linux_test.go
++++ b/src/syscall/exec_linux_test.go
+@@ -141,7 +141,7 @@ func TestUnshare(t *testing.T) {
+ 		t.Skip("skipping test on Kubernetes-based builders; see Issue 12815")
+ 	}
+ 
+-	cmd := exec.Command("ip", "a")
++	cmd := exec.Command("cat", "/proc/net/dev")
+ 	cmd.SysProcAttr = &syscall.SysProcAttr{
+ 		Unshare: syscall.CLONE_NEWNET,
+ 	}
+@@ -152,12 +152,12 @@ func TestUnshare(t *testing.T) {
+ 
+ 	// Check there is only the local network interface
+ 	sout := strings.TrimSpace(string(out))
+-	if !strings.Contains(sout, "lo") {
++	if !strings.Contains(sout, "lo:") {
+ 		t.Fatalf("Expected lo network interface to exist, got %s", sout)
+ 	}
+ 
+ 	lines := strings.Split(sout, "\n")
+-	if len(lines) != 2 {
+-		t.Fatalf("Expected 2 lines of output, got %d", len(lines))
++	if len(lines) != 3 {
++		t.Fatalf("Expected 3 lines of output, got %d", len(lines))
+ 	}
+ }

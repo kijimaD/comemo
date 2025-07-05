@@ -12,7 +12,7 @@ Date:   Wed Apr 7 20:16:58 2021 +0800
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: Tobias Klauser <tobias.klauser@gmail.com>
-
+---
  src/runtime/crash_unix_test.go       |  6 +---
  src/runtime/race/output_test.go      | 12 ++------
  src/runtime/race/testdata/io_test.go |  2 +-
@@ -21,3 +21,355 @@ Date:   Wed Apr 7 20:16:58 2021 +0800
  src/runtime/signal_windows_test.go   | 13 ++-------
  src/runtime/syscall_windows_test.go  | 55 ++++++++----------------------------
  7 files changed, 31 insertions(+), 113 deletions(-)
+
+diff --git a/src/runtime/crash_unix_test.go b/src/runtime/crash_unix_test.go
+index 341c35ca56..b5cc910ad1 100644
+--- a/src/runtime/crash_unix_test.go
++++ b/src/runtime/crash_unix_test.go
+@@ -85,11 +85,7 @@ func TestCrashDumpsAllThreads(t *testing.T) {
+ 
+ 	t.Parallel()
+ 
+-	dir, err := os.MkdirTemp("", "go-build")
+-	if err != nil {
+-		t.Fatalf("failed to create temp directory: %v", err)
+-	}
+-	defer os.RemoveAll(dir)
++	dir := t.TempDir()
+ 
+ 	if err := os.WriteFile(filepath.Join(dir, "main.go"), []byte(crashDumpsAllThreadsSource), 0666); err != nil {
+ 		t.Fatalf("failed to create Go file: %v", err)
+diff --git a/src/runtime/race/output_test.go b/src/runtime/race/output_test.go
+index 2a2197ae26..99052071d0 100644
+--- a/src/runtime/race/output_test.go
++++ b/src/runtime/race/output_test.go
+@@ -20,11 +20,7 @@ import (
+ )
+ 
+ func TestOutput(t *testing.T) {
+-	pkgdir, err := os.MkdirTemp("", "go-build-race-output")
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	defer os.RemoveAll(pkgdir)
++	pkgdir := t.TempDir()
+ 	out, err := exec.Command(testenv.GoToolPath(t), "install", "-race", "-pkgdir="+pkgdir, "testing").CombinedOutput()
+ 	if err != nil {
+ 		t.Fatalf("go install -race: %v\n%s", err, out)
+@@ -35,11 +31,7 @@ func TestOutput(t *testing.T) {
+ 			t.Logf("test %v runs only on %v, skipping: ", test.name, test.goos)
+ 			continue
+ 		}
+-		dir, err := os.MkdirTemp("", "go-build")
+-		if err != nil {
+-			t.Fatalf("failed to create temp directory: %v", err)
+-		}
+-		defer os.RemoveAll(dir)
++		dir := t.TempDir()
+ 		source := "main.go"
+ 		if test.run == "test" {
+ 			source = "main_test.go"
+diff --git a/src/runtime/race/testdata/io_test.go b/src/runtime/race/testdata/io_test.go
+index c5055f7837..3303cb0717 100644
+--- a/src/runtime/race/testdata/io_test.go
++++ b/src/runtime/race/testdata/io_test.go
+@@ -17,7 +17,7 @@ import (
+ 
+ func TestNoRaceIOFile(t *testing.T) {
+ 	x := 0
+-	path, _ := os.MkdirTemp("", "race_test")
++	path := t.TempDir()
+ 	fname := filepath.Join(path, "data")
+ 	go func() {
+ 		x = 42
+diff --git a/src/runtime/runtime-gdb_test.go b/src/runtime/runtime-gdb_test.go
+index 5df8c3c745..8c76a9123c 100644
+--- a/src/runtime/runtime-gdb_test.go
++++ b/src/runtime/runtime-gdb_test.go
+@@ -169,11 +169,7 @@ func testGdbPython(t *testing.T, cgo bool) {
+ 	checkGdbVersion(t)
+ 	checkGdbPython(t)
+ 
+-	dir, err := os.MkdirTemp("", "go-build")
+-	if err != nil {
+-		t.Fatalf("failed to create temp directory: %v", err)
+-	}
+-	defer os.RemoveAll(dir)
++	dir := t.TempDir()
+ 
+ 	var buf bytes.Buffer
+ 	buf.WriteString("package main\n")
+@@ -194,7 +190,7 @@ func testGdbPython(t *testing.T, cgo bool) {
+ 		}
+ 	}
+ 
+-	err = os.WriteFile(filepath.Join(dir, "main.go"), src, 0644)
++	err := os.WriteFile(filepath.Join(dir, "main.go"), src, 0644)
+ 	if err != nil {
+ 		t.Fatalf("failed to create file: %v", err)
+ 	}
+@@ -403,15 +399,11 @@ func TestGdbBacktrace(t *testing.T) {
+ 	t.Parallel()
+ 	checkGdbVersion(t)
+ 
+-	dir, err := os.MkdirTemp("", "go-build")
+-	if err != nil {
+-		t.Fatalf("failed to create temp directory: %v", err)
+-	}
+-	defer os.RemoveAll(dir)
++	dir := t.TempDir()
+ 
+ 	// Build the source code.
+ 	src := filepath.Join(dir, "main.go")
+-	err = os.WriteFile(src, []byte(backtraceSource), 0644)
++	err := os.WriteFile(src, []byte(backtraceSource), 0644)
+ 	if err != nil {
+ 		t.Fatalf("failed to create file: %v", err)
+ 	}
+@@ -481,15 +473,11 @@ func TestGdbAutotmpTypes(t *testing.T) {
+ 		t.Skip("TestGdbAutotmpTypes is too slow on aix/ppc64")
+ 	}
+ 
+-	dir, err := os.MkdirTemp("", "go-build")
+-	if err != nil {
+-		t.Fatalf("failed to create temp directory: %v", err)
+-	}
+-	defer os.RemoveAll(dir)
++	dir := t.TempDir()
+ 
+ 	// Build the source code.
+ 	src := filepath.Join(dir, "main.go")
+-	err = os.WriteFile(src, []byte(autotmpTypeSource), 0644)
++	err := os.WriteFile(src, []byte(autotmpTypeSource), 0644)
+ 	if err != nil {
+ 		t.Fatalf("failed to create file: %v", err)
+ 	}
+@@ -550,15 +538,11 @@ func TestGdbConst(t *testing.T) {
+ 	t.Parallel()
+ 	checkGdbVersion(t)
+ 
+-	dir, err := os.MkdirTemp("", "go-build")
+-	if err != nil {
+-		t.Fatalf("failed to create temp directory: %v", err)
+-	}
+-	defer os.RemoveAll(dir)
++	dir := t.TempDir()
+ 
+ 	// Build the source code.
+ 	src := filepath.Join(dir, "main.go")
+-	err = os.WriteFile(src, []byte(constsSource), 0644)
++	err := os.WriteFile(src, []byte(constsSource), 0644)
+ 	if err != nil {
+ 		t.Fatalf("failed to create file: %v", err)
+ 	}
+@@ -617,15 +601,11 @@ func TestGdbPanic(t *testing.T) {
+ 	t.Parallel()
+ 	checkGdbVersion(t)
+ 
+-	dir, err := os.MkdirTemp("", "go-build")
+-	if err != nil {
+-		t.Fatalf("failed to create temp directory: %v", err)
+-	}
+-	defer os.RemoveAll(dir)
++	dir := t.TempDir()
+ 
+ 	// Build the source code.
+ 	src := filepath.Join(dir, "main.go")
+-	err = os.WriteFile(src, []byte(panicSource), 0644)
++	err := os.WriteFile(src, []byte(panicSource), 0644)
+ 	if err != nil {
+ 		t.Fatalf("failed to create file: %v", err)
+ 	}
+@@ -695,15 +675,11 @@ func TestGdbInfCallstack(t *testing.T) {
+ 	t.Parallel()
+ 	checkGdbVersion(t)
+ 
+-	dir, err := os.MkdirTemp("", "go-build")
+-	if err != nil {
+-		t.Fatalf("failed to create temp directory: %v", err)
+-	}
+-	defer os.RemoveAll(dir)
++	dir := t.TempDir()
+ 
+ 	// Build the source code.
+ 	src := filepath.Join(dir, "main.go")
+-	err = os.WriteFile(src, []byte(InfCallstackSource), 0644)
++	err := os.WriteFile(src, []byte(InfCallstackSource), 0644)
+ 	if err != nil {
+ 		t.Fatalf("failed to create file: %v", err)
+ 	}
+diff --git a/src/runtime/runtime-lldb_test.go b/src/runtime/runtime-lldb_test.go
+index c923b872aa..19a6cc6f8d 100644
+--- a/src/runtime/runtime-lldb_test.go
++++ b/src/runtime/runtime-lldb_test.go
+@@ -142,14 +142,10 @@ func TestLldbPython(t *testing.T) {
+ 
+ 	checkLldbPython(t)
+ 
+-	dir, err := os.MkdirTemp("", "go-build")
+-	if err != nil {
+-		t.Fatalf("failed to create temp directory: %v", err)
+-	}
+-	defer os.RemoveAll(dir)
++	dir := t.TempDir()
+ 
+ 	src := filepath.Join(dir, "main.go")
+-	err = os.WriteFile(src, []byte(lldbHelloSource), 0644)
++	err := os.WriteFile(src, []byte(lldbHelloSource), 0644)
+ 	if err != nil {
+ 		t.Fatalf("failed to create src file: %v", err)
+ 	}
+diff --git a/src/runtime/signal_windows_test.go b/src/runtime/signal_windows_test.go
+index 05bc6f8e71..d0f61fb6c2 100644
+--- a/src/runtime/signal_windows_test.go
++++ b/src/runtime/signal_windows_test.go
+@@ -8,7 +8,6 @@ import (
+ 	"bytes"
+ 	"fmt"
+ 	"internal/testenv"
+-	"os"
+ 	"os/exec"
+ 	"path/filepath"
+ 	"runtime"
+@@ -29,11 +28,7 @@ func TestVectoredHandlerDontCrashOnLibrary(t *testing.T) {
+ 	testenv.MustHaveExecPath(t, "gcc")
+ 	testprog.Lock()
+ 	defer testprog.Unlock()
+-	dir, err := os.MkdirTemp("", "go-build")
+-	if err != nil {
+-		t.Fatalf("failed to create temp directory: %v", err)
+-	}
+-	defer os.RemoveAll(dir)
++	dir := t.TempDir()
+ 
+ 	// build go dll
+ 	dll := filepath.Join(dir, "testwinlib.dll")
+@@ -157,11 +152,7 @@ func TestLibraryCtrlHandler(t *testing.T) {
+ 	testenv.MustHaveExecPath(t, "gcc")
+ 	testprog.Lock()
+ 	defer testprog.Unlock()
+-	dir, err := os.MkdirTemp("", "go-build")
+-	if err != nil {
+-		t.Fatalf("failed to create temp directory: %v", err)
+-	}
+-	defer os.RemoveAll(dir)
++	dir := t.TempDir()
+ 
+ 	// build go dll
+ 	dll := filepath.Join(dir, "dummy.dll")
+diff --git a/src/runtime/syscall_windows_test.go b/src/runtime/syscall_windows_test.go
+index 65ecb4fbf2..98e426a3d5 100644
+--- a/src/runtime/syscall_windows_test.go
++++ b/src/runtime/syscall_windows_test.go
+@@ -543,11 +543,7 @@ func TestStdcallAndCDeclCallbacks(t *testing.T) {
+ 	if _, err := exec.LookPath("gcc"); err != nil {
+ 		t.Skip("skipping test: gcc is missing")
+ 	}
+-	tmp, err := os.MkdirTemp("", "TestCDeclCallback")
+-	if err != nil {
+-		t.Fatal("TempDir failed: ", err)
+-	}
+-	defer os.RemoveAll(tmp)
++	tmp := t.TempDir()
+ 
+ 	oldRegs := runtime.SetIntArgRegs(abi.IntArgRegs)
+ 	defer runtime.SetIntArgRegs(oldRegs)
+@@ -702,14 +698,10 @@ uintptr_t cfunc(callback f, uintptr_t n) {
+    return r;
+ }
+ `
+-	tmpdir, err := os.MkdirTemp("", "TestReturnAfterStackGrowInCallback")
+-	if err != nil {
+-		t.Fatal("TempDir failed: ", err)
+-	}
+-	defer os.RemoveAll(tmpdir)
++	tmpdir := t.TempDir()
+ 
+ 	srcname := "mydll.c"
+-	err = os.WriteFile(filepath.Join(tmpdir, srcname), []byte(src), 0)
++	err := os.WriteFile(filepath.Join(tmpdir, srcname), []byte(src), 0)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -771,14 +763,10 @@ uintptr_t cfunc(uintptr_t a, double b, float c, double d) {
+ 	return 0;
+ }
+ `
+-	tmpdir, err := os.MkdirTemp("", "TestFloatArgs")
+-	if err != nil {
+-		t.Fatal("TempDir failed: ", err)
+-	}
+-	defer os.RemoveAll(tmpdir)
++	tmpdir := t.TempDir()
+ 
+ 	srcname := "mydll.c"
+-	err = os.WriteFile(filepath.Join(tmpdir, srcname), []byte(src), 0)
++	err := os.WriteFile(filepath.Join(tmpdir, srcname), []byte(src), 0)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -833,14 +821,10 @@ double cfuncDouble(uintptr_t a, double b, float c, double d) {
+ 	return 0;
+ }
+ `
+-	tmpdir, err := os.MkdirTemp("", "TestFloatReturn")
+-	if err != nil {
+-		t.Fatal("TempDir failed: ", err)
+-	}
+-	defer os.RemoveAll(tmpdir)
++	tmpdir := t.TempDir()
+ 
+ 	srcname := "mydll.c"
+-	err = os.WriteFile(filepath.Join(tmpdir, srcname), []byte(src), 0)
++	err := os.WriteFile(filepath.Join(tmpdir, srcname), []byte(src), 0)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -1048,16 +1032,7 @@ func TestDLLPreloadMitigation(t *testing.T) {
+ 		t.Skip("skipping test: gcc is missing")
+ 	}
+ 
+-	tmpdir, err := os.MkdirTemp("", "TestDLLPreloadMitigation")
+-	if err != nil {
+-		t.Fatal("TempDir failed: ", err)
+-	}
+-	defer func() {
+-		err := os.RemoveAll(tmpdir)
+-		if err != nil {
+-			t.Error(err)
+-		}
+-	}()
++	tmpdir := t.TempDir()
+ 
+ 	dir0, err := os.Getwd()
+ 	if err != nil {
+@@ -1135,11 +1110,7 @@ func TestBigStackCallbackSyscall(t *testing.T) {
+ 		t.Fatal("Abs failed: ", err)
+ 	}
+ 
+-	tmpdir, err := os.MkdirTemp("", "TestBigStackCallback")
+-	if err != nil {
+-		t.Fatal("TempDir failed: ", err)
+-	}
+-	defer os.RemoveAll(tmpdir)
++	tmpdir := t.TempDir()
+ 
+ 	outname := "mydll.dll"
+ 	cmd := exec.Command("gcc", "-shared", "-s", "-Werror", "-o", outname, srcname)
+@@ -1284,14 +1255,10 @@ func BenchmarkOsYield(b *testing.B) {
+ }
+ 
+ func BenchmarkRunningGoProgram(b *testing.B) {
+-	tmpdir, err := os.MkdirTemp("", "BenchmarkRunningGoProgram")
+-	if err != nil {
+-		b.Fatal(err)
+-	}
+-	defer os.RemoveAll(tmpdir)
++	tmpdir := b.TempDir()
+ 
+ 	src := filepath.Join(tmpdir, "main.go")
+-	err = os.WriteFile(src, []byte(benchmarkRunningGoProgram), 0666)
++	err := os.WriteFile(src, []byte(benchmarkRunningGoProgram), 0666)
+ 	if err != nil {
+ 		b.Fatal(err)
+ 	}

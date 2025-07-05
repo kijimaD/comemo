@@ -8,9 +8,254 @@ Date:   Fri Mar 14 19:37:39 2014 +0100
     R=rsc, dave, iant, khr
     CC=golang-codereviews
     https://golang.org/cl/75820044
-
+---
  src/cmd/6g/ggen.c              |  2 +-
  src/pkg/runtime/hashmap_fast.c | 66 +++++++++++++++++-------------------------
  src/pkg/runtime/panic.c        | 11 +++----
  src/pkg/runtime/print.c        |  4 +--
  4 files changed, 35 insertions(+), 48 deletions(-)
+
+diff --git a/src/cmd/6g/ggen.c b/src/cmd/6g/ggen.c
+index 230c0a2ca0..b046ac5a42 100644
+--- a/src/cmd/6g/ggen.c
++++ b/src/cmd/6g/ggen.c
+@@ -22,7 +22,7 @@ defframe(Prog *ptxt)
+ 
+ 	// fill in final stack size
+ 	ptxt->to.offset <<= 32;
+-	frame = rnd(stksize+maxarg, widthptr);
++	frame = rnd(stksize+maxarg, widthreg);
+ 	ptxt->to.offset |= frame;
+ 	
+ 	// insert code to contain ambiguously live variables
+diff --git a/src/pkg/runtime/hashmap_fast.c b/src/pkg/runtime/hashmap_fast.c
+index 30b8bb183f..83bf6feb55 100644
+--- a/src/pkg/runtime/hashmap_fast.c
++++ b/src/pkg/runtime/hashmap_fast.c
+@@ -12,15 +12,16 @@
+ 
+ #pragma textflag NOSPLIT
+ void
+-HASH_LOOKUP1(MapType *t, Hmap *h, KEYTYPE key, byte *value)
++HASH_LOOKUP1(MapType *t, Hmap *h, KEYTYPE key, GoOutput base, ...)
+ {
+ 	uintptr bucket, i;
+ 	Bucket *b;
+ 	KEYTYPE *k;
+-	byte *v;
++	byte *v, **valueptr;
+ 	uint8 top;
+ 	int8 keymaybe;
+ 
++	valueptr = (byte**)&base;
+ 	if(debug) {
+ 		runtime·prints("runtime.mapaccess1_fastXXX: map=");
+ 		runtime·printpointer(h);
+@@ -29,8 +30,7 @@ HASH_LOOKUP1(MapType *t, Hmap *h, KEYTYPE key, byte *value)
+ 		runtime·prints("\n");
+ 	}
+ 	if(h == nil || h->count == 0) {
+-		value = t->elem->zero;
+-		FLUSH(&value);
++		*valueptr = t->elem->zero;
+ 		return;
+ 	}
+ 	if(raceenabled)
+@@ -48,8 +48,7 @@ HASH_LOOKUP1(MapType *t, Hmap *h, KEYTYPE key, byte *value)
+ 				if(QUICK_NE(key, *k))
+ 					continue;
+ 				if(QUICK_EQ(key, *k) || SLOW_EQ(key, *k)) {
+-					value = v;
+-					FLUSH(&value);
++					*valueptr = v;
+ 					return;
+ 				}
+ 			}
+@@ -61,8 +60,7 @@ HASH_LOOKUP1(MapType *t, Hmap *h, KEYTYPE key, byte *value)
+ 				if(QUICK_NE(key, *k))
+ 					continue;
+ 				if(QUICK_EQ(key, *k)) {
+-					value = v;
+-					FLUSH(&value);
++					*valueptr = v;
+ 					return;
+ 				}
+ 				if(MAYBE_EQ(key, *k)) {
+@@ -80,8 +78,7 @@ HASH_LOOKUP1(MapType *t, Hmap *h, KEYTYPE key, byte *value)
+ 			if(keymaybe >= 0) {
+ 				k = (KEYTYPE*)b->data + keymaybe;
+ 				if(SLOW_EQ(key, *k)) {
+-					value = (byte*)((KEYTYPE*)b->data + BUCKETSIZE) + keymaybe * h->valuesize;
+-					FLUSH(&value);
++					*valueptr = (byte*)((KEYTYPE*)b->data + BUCKETSIZE) + keymaybe * h->valuesize;
+ 					return;
+ 				}
+ 			}
+@@ -110,29 +107,30 @@ dohash:
+ 				if(QUICK_NE(key, *k))
+ 					continue;
+ 				if(QUICK_EQ(key, *k) || SLOW_EQ(key, *k)) {
+-					value = v;
+-					FLUSH(&value);
++					*valueptr = v;
+ 					return;
+ 				}
+ 			}
+ 			b = b->overflow;
+ 		} while(b != nil);
+ 	}
+-	value = t->elem->zero;
+-	FLUSH(&value);
++	*valueptr = t->elem->zero;
+ }
+ 
+ #pragma textflag NOSPLIT
+ void
+-HASH_LOOKUP2(MapType *t, Hmap *h, KEYTYPE key, byte *value, bool res)
++HASH_LOOKUP2(MapType *t, Hmap *h, KEYTYPE key, GoOutput base, ...)
+ {
+ 	uintptr bucket, i;
+ 	Bucket *b;
+ 	KEYTYPE *k;
+-	byte *v;
++	byte *v, **valueptr;
+ 	uint8 top;
+ 	int8 keymaybe;
++	bool *okptr;
+ 
++	valueptr = (byte**)&base;
++	okptr = (bool*)(valueptr+1);
+ 	if(debug) {
+ 		runtime·prints("runtime.mapaccess2_fastXXX: map=");
+ 		runtime·printpointer(h);
+@@ -141,10 +139,8 @@ HASH_LOOKUP2(MapType *t, Hmap *h, KEYTYPE key, byte *value, bool res)
+ 		runtime·prints("\n");
+ 	}
+ 	if(h == nil || h->count == 0) {
+-		value = t->elem->zero;
+-		res = false;
+-		FLUSH(&value);
+-		FLUSH(&res);
++		*valueptr = t->elem->zero;
++		*okptr = false;
+ 		return;
+ 	}
+ 	if(raceenabled)
+@@ -162,10 +158,8 @@ HASH_LOOKUP2(MapType *t, Hmap *h, KEYTYPE key, byte *value, bool res)
+ 				if(QUICK_NE(key, *k))
+ 					continue;
+ 				if(QUICK_EQ(key, *k) || SLOW_EQ(key, *k)) {
+-					value = v;
+-					res = true;
+-					FLUSH(&value);
+-					FLUSH(&res);
++					*valueptr = v;
++					*okptr = true;
+ 					return;
+ 				}
+ 			}
+@@ -177,10 +171,8 @@ HASH_LOOKUP2(MapType *t, Hmap *h, KEYTYPE key, byte *value, bool res)
+ 				if(QUICK_NE(key, *k))
+ 					continue;
+ 				if(QUICK_EQ(key, *k)) {
+-					value = v;
+-					res = true;
+-					FLUSH(&value);
+-					FLUSH(&res);
++					*valueptr = v;
++					*okptr = true;
+ 					return;
+ 				}
+ 				if(MAYBE_EQ(key, *k)) {
+@@ -198,10 +190,8 @@ HASH_LOOKUP2(MapType *t, Hmap *h, KEYTYPE key, byte *value, bool res)
+ 			if(keymaybe >= 0) {
+ 				k = (KEYTYPE*)b->data + keymaybe;
+ 				if(SLOW_EQ(key, *k)) {
+-					value = (byte*)((KEYTYPE*)b->data + BUCKETSIZE) + keymaybe * h->valuesize;
+-					res = true;
+-					FLUSH(&value);
+-					FLUSH(&res);
++					*valueptr = (byte*)((KEYTYPE*)b->data + BUCKETSIZE) + keymaybe * h->valuesize;
++					*okptr = true;
+ 					return;
+ 				}
+ 			}
+@@ -230,18 +220,14 @@ dohash:
+ 				if(QUICK_NE(key, *k))
+ 					continue;
+ 				if(QUICK_EQ(key, *k) || SLOW_EQ(key, *k)) {
+-					value = v;
+-					res = true;
+-					FLUSH(&value);
+-					FLUSH(&res);
++					*valueptr = v;
++					*okptr = true;
+ 					return;
+ 				}
+ 			}
+ 			b = b->overflow;
+ 		} while(b != nil);
+ 	}
+-	value = t->elem->zero;
+-	res = false;
+-	FLUSH(&value);
+-	FLUSH(&res);
++	*valueptr = t->elem->zero;
++	*okptr = false;
+ }
+diff --git a/src/pkg/runtime/panic.c b/src/pkg/runtime/panic.c
+index d35f7800a3..0bf3b6a140 100644
+--- a/src/pkg/runtime/panic.c
++++ b/src/pkg/runtime/panic.c
+@@ -353,10 +353,11 @@ runtime·unwindstack(G *gp, byte *sp)
+ // find the stack segment of its caller.
+ #pragma textflag NOSPLIT
+ void
+-runtime·recover(byte *argp, Eface ret)
++runtime·recover(byte *argp, GoOutput retbase, ...)
+ {
+ 	Panic *p;
+ 	Stktop *top;
++	Eface *ret;
+ 
+ 	// Must be an unrecovered panic in progress.
+ 	// Must be on a stack segment created for a deferred call during a panic.
+@@ -367,16 +368,16 @@ runtime·recover(byte *argp, Eface ret)
+ 	// do not count as official calls to adjust what we consider the top frame
+ 	// while they are active on the stack. The linker emits adjustments of
+ 	// g->panicwrap in the prologue and epilogue of functions marked as wrappers.
++	ret = (Eface*)&retbase;
+ 	top = (Stktop*)g->stackbase;
+ 	p = g->panic;
+ 	if(p != nil && !p->recovered && top->panic && argp == (byte*)top - top->argsize - g->panicwrap) {
+ 		p->recovered = 1;
+-		ret = p->arg;
++		*ret = p->arg;
+ 	} else {
+-		ret.type = nil;
+-		ret.data = nil;
++		ret->type = nil;
++		ret->data = nil;
+ 	}
+-	FLUSH(&ret);
+ }
+ 
+ void
+diff --git a/src/pkg/runtime/print.c b/src/pkg/runtime/print.c
+index e58c8bf3e6..a04708fae9 100644
+--- a/src/pkg/runtime/print.c
++++ b/src/pkg/runtime/print.c
+@@ -115,11 +115,11 @@ vprintf(int8 *s, byte *base)
+ 		case 'U':
+ 		case 'X':
+ 		case 'f':
+-			arg = ROUND(arg, sizeof(uintptr));
++			arg = ROUND(arg, sizeof(uintreg));
+ 			siz = 8;
+ 			break;
+ 		case 'C':
+-			arg = ROUND(arg, sizeof(uintptr));
++			arg = ROUND(arg, sizeof(uintreg));
+ 			siz = 16;
+ 			break;
+ 		case 'p':	// pointer-sized

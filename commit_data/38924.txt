@@ -14,7 +14,63 @@ Date:   Thu Jun 21 18:01:01 2018 +0100
     Reviewed-on: https://go-review.googlesource.com/c/120316
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/cover/cover.go      | 16 ++++++++++++++++
  src/cmd/cover/cover_test.go |  6 ++++++
  2 files changed, 22 insertions(+)
+
+diff --git a/src/cmd/cover/cover.go b/src/cmd/cover/cover.go
+index 54cf4be25e..7f473a233c 100644
+--- a/src/cmd/cover/cover.go
++++ b/src/cmd/cover/cover.go
+@@ -16,6 +16,7 @@ import (
+ 	"log"
+ 	"os"
+ 	"sort"
++	"unicode"
+ 
+ 	"cmd/internal/edit"
+ 	"cmd/internal/objabi"
+@@ -116,6 +117,10 @@ func parseFlags() error {
+ 		return fmt.Errorf("too many options")
+ 	}
+ 
++	if *varVar != "" && !isValidIdentifier(*varVar) {
++		return fmt.Errorf("argument of -var is not a valid identifier: %v", *varVar)
++	}
++
+ 	if *mode != "" {
+ 		switch *mode {
+ 		case "set":
+@@ -676,3 +681,14 @@ func (f *File) addVariables(w io.Writer) {
+ 		fmt.Fprintf(w, "var _ = %s.LoadUint32\n", atomicPackageName)
+ 	}
+ }
++
++func isValidIdentifier(ident string) bool {
++	first := true
++	for _, c := range ident {
++		if !unicode.IsLetter(c) && c != '_' && (first || !unicode.IsDigit(c)) {
++			return false // invalid identifier
++		}
++		first = false
++	}
++	return true
++}
+diff --git a/src/cmd/cover/cover_test.go b/src/cmd/cover/cover_test.go
+index a374dc4e9b..aebe6f8cb5 100644
+--- a/src/cmd/cover/cover_test.go
++++ b/src/cmd/cover/cover_test.go
+@@ -145,6 +145,12 @@ func TestCover(t *testing.T) {
+ 	cmd := exec.Command(testcover, "-mode=count", "-var=thisNameMustBeVeryLongToCauseOverflowOfCounterIncrementStatementOntoNextLineForTest", "-o", coverOutput, coverInput)
+ 	run(cmd, t)
+ 
++	cmd = exec.Command(testcover, "-mode=set", "-var=Not_an-identifier", "-o", coverOutput, coverInput)
++	err = cmd.Run()
++	if err == nil {
++		t.Error("Expected cover to fail with an error")
++	}
++
+ 	// Copy testmain to testTempDir, so that it is in the same directory
+ 	// as coverOutput.
+ 	b, err := ioutil.ReadFile(testMain)

@@ -15,6 +15,20 @@ Date:   Sun May 11 08:43:40 2025 +0900
     Auto-Submit: Sean Liao <sean@liao.dev>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Sean Liao <sean@liao.dev>
-
+---
  src/net/http/server.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index f2bedb7d6a..5dd21bdf3f 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -3154,7 +3154,7 @@ const shutdownPollIntervalMax = 500 * time.Millisecond
+ // Shutdown returns the context's error, otherwise it returns any
+ // error returned from closing the [Server]'s underlying Listener(s).
+ //
+-// When Shutdown is called, [Serve], [ListenAndServe], and
++// When Shutdown is called, [Serve], [ServeTLS], [ListenAndServe], and
+ // [ListenAndServeTLS] immediately return [ErrServerClosed]. Make sure the
+ // program doesn't exit and waits instead for Shutdown to return.
+ //

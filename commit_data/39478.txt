@@ -13,7 +13,38 @@ Date:   Fri Mar 1 07:12:24 2019 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/sendfile_linux.go    | 4 ++--
  src/net/sendfile_unix_alt.go | 4 ++--
  2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/net/sendfile_linux.go b/src/net/sendfile_linux.go
+index 297e625d24..e5150aa5e8 100644
+--- a/src/net/sendfile_linux.go
++++ b/src/net/sendfile_linux.go
+@@ -42,8 +42,8 @@ func sendFile(c *netFD, r io.Reader) (written int64, err error, handled bool) {
+ 		written, werr = poll.SendFile(&c.pfd, int(fd), remain)
+ 		return true
+ 	})
+-	if werr == nil {
+-		werr = err
++	if err == nil {
++		err = werr
+ 	}
+ 
+ 	if lr != nil {
+diff --git a/src/net/sendfile_unix_alt.go b/src/net/sendfile_unix_alt.go
+index 43df3bfd15..8cededce58 100644
+--- a/src/net/sendfile_unix_alt.go
++++ b/src/net/sendfile_unix_alt.go
+@@ -68,8 +68,8 @@ func sendFile(c *netFD, r io.Reader) (written int64, err error, handled bool) {
+ 		written, werr = poll.SendFile(&c.pfd, int(fd), pos, remain)
+ 		return true
+ 	})
+-	if werr == nil {
+-		werr = err
++	if err == nil {
++		err = werr
+ 	}
+ 
+ 	if lr != nil {

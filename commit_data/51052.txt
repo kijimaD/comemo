@@ -19,7 +19,7 @@ Date:   Mon Nov 29 14:26:44 2021 -0500
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/internal/modget/get.go                 |  2 +-
  src/cmd/go/internal/modload/buildlist.go          |  2 +-
  src/cmd/go/internal/modload/edit.go               |  4 +-
@@ -27,3 +27,167 @@ Date:   Mon Nov 29 14:26:44 2021 -0500
  src/cmd/go/internal/modload/mvs.go                |  6 +-
  src/cmd/go/testdata/script/mod_get_issue48511.txt | 68 +++++++++++++++++++++++
  6 files changed, 76 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/go/internal/modget/get.go b/src/cmd/go/internal/modget/get.go
+index 2c48c3c444..893cc92e39 100644
+--- a/src/cmd/go/internal/modget/get.go
++++ b/src/cmd/go/internal/modget/get.go
+@@ -1124,7 +1124,7 @@ func (r *resolver) loadPackages(ctx context.Context, patterns []string, findPack
+ 	}
+ 
+ 	opts.AllowPackage = func(ctx context.Context, path string, m module.Version) error {
+-		if m.Path == "" || m.Version == "" && modload.MainModules.Contains(m.Path) {
++		if m.Path == "" || m.Version == "" {
+ 			// Packages in the standard library and main modules are already at their
+ 			// latest (and only) available versions.
+ 			return nil
+diff --git a/src/cmd/go/internal/modload/buildlist.go b/src/cmd/go/internal/modload/buildlist.go
+index f4c1311af5..4ce71fef5b 100644
+--- a/src/cmd/go/internal/modload/buildlist.go
++++ b/src/cmd/go/internal/modload/buildlist.go
+@@ -45,7 +45,7 @@ type Requirements struct {
+ 	pruning modPruning
+ 
+ 	// rootModules is the set of root modules of the graph, sorted and capped to
+-	// length. It may contain duplicates, and may  contain multiple versions for a
++	// length. It may contain duplicates, and may contain multiple versions for a
+ 	// given module path. The root modules of the groph are the set of main
+ 	// modules in workspace mode, and the main module's direct requirements
+ 	// outside workspace mode.
+diff --git a/src/cmd/go/internal/modload/edit.go b/src/cmd/go/internal/modload/edit.go
+index 023983caed..0f37e3b2e9 100644
+--- a/src/cmd/go/internal/modload/edit.go
++++ b/src/cmd/go/internal/modload/edit.go
+@@ -76,7 +76,7 @@ func editRequirements(ctx context.Context, rs *Requirements, tryUpgrade, mustSel
+ 		// requirements.
+ 		var rootPaths []string
+ 		for _, m := range mustSelect {
+-			if !MainModules.Contains(m.Path) && m.Version != "none" {
++			if m.Version != "none" && !MainModules.Contains(m.Path) {
+ 				rootPaths = append(rootPaths, m.Path)
+ 			}
+ 		}
+@@ -370,7 +370,7 @@ func selectPotentiallyImportedModules(ctx context.Context, limiter *versionLimit
+ 		if err != nil {
+ 			return nil, false, err
+ 		}
+-		initial = mg.BuildList()[1:]
++		initial = mg.BuildList()[MainModules.Len():]
+ 	} else {
+ 		initial = rs.rootModules
+ 	}
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index 27bbfb7832..5e7075da4e 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -1091,7 +1091,7 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
+ 			break
+ 		}
+ 		if changed {
+-			// Don't resolve missing imports until the module graph have stabilized.
++			// Don't resolve missing imports until the module graph has stabilized.
+ 			// If the roots are still changing, they may turn out to specify a
+ 			// requirement on the missing package(s), and we would rather use a
+ 			// version specified by a new root than add a new dependency on an
+diff --git a/src/cmd/go/internal/modload/mvs.go b/src/cmd/go/internal/modload/mvs.go
+index 40224d534b..588bcf4bdc 100644
+--- a/src/cmd/go/internal/modload/mvs.go
++++ b/src/cmd/go/internal/modload/mvs.go
+@@ -42,7 +42,7 @@ type mvsReqs struct {
+ }
+ 
+ func (r *mvsReqs) Required(mod module.Version) ([]module.Version, error) {
+-	if MainModules.Contains(mod.Path) {
++	if mod.Version == "" && MainModules.Contains(mod.Path) {
+ 		// Use the build list as it existed when r was constructed, not the current
+ 		// global build list.
+ 		return r.roots, nil
+@@ -108,12 +108,12 @@ func versions(ctx context.Context, path string, allowed AllowedFunc) ([]string,
+ // previousVersion returns the tagged version of m.Path immediately prior to
+ // m.Version, or version "none" if no prior version is tagged.
+ //
+-// Since the version of Target is not found in the version list,
++// Since the version of a main module is not found in the version list,
+ // it has no previous version.
+ func previousVersion(m module.Version) (module.Version, error) {
+ 	// TODO(golang.org/issue/38714): thread tracing context through MVS.
+ 
+-	if MainModules.Contains(m.Path) {
++	if m.Version == "" && MainModules.Contains(m.Path) {
+ 		return module.Version{Path: m.Path, Version: "none"}, nil
+ 	}
+ 
+diff --git a/src/cmd/go/testdata/script/mod_get_issue48511.txt b/src/cmd/go/testdata/script/mod_get_issue48511.txt
+new file mode 100644
+index 0000000000..0ba486d35b
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_get_issue48511.txt
+@@ -0,0 +1,68 @@
++# Regression test for https://golang.org/issue/48511:
++# requirement minimization was accidentally replacing previous
++# versions of the main module, causing dependencies to be
++# spuriously dropping during requirement minimization and
++# leading to an infinite loop.
++
++cp go.mod go.mod.orig
++go mod tidy
++cmp go.mod go.mod.orig
++
++go get -u=patch ./...
++cmp go.mod go.mod.want
++
++-- go.mod --
++module example.net/m
++
++go 1.16
++
++replace (
++	example.net/a v0.1.0 => ./a
++	example.net/b v0.1.0 => ./b
++	example.net/b v0.1.1 => ./b
++	example.net/m v0.1.0 => ./m1
++)
++
++require example.net/a v0.1.0
++-- go.mod.want --
++module example.net/m
++
++go 1.16
++
++replace (
++	example.net/a v0.1.0 => ./a
++	example.net/b v0.1.0 => ./b
++	example.net/b v0.1.1 => ./b
++	example.net/m v0.1.0 => ./m1
++)
++
++require (
++	example.net/a v0.1.0
++	example.net/b v0.1.1 // indirect
++)
++-- m.go --
++package m
++
++import "example.net/a"
++-- m1/go.mod --
++module example.net/m
++
++go 1.16
++
++require example.net/b v0.1.0
++-- a/go.mod --
++module example.net/a
++
++go 1.16
++
++require example.net/m v0.1.0
++-- a/a.go --
++package a
++
++import "example.net/b"
++-- b/go.mod --
++module example.net/b
++
++go 1.16
++-- b/b.go --
++package b

@@ -9,7 +9,32 @@ Date:   Fri Aug 23 10:38:30 2013 -0500
     R=gobot
     CC=golang-dev
     https://golang.org/cl/13189043
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 149ad9e903..f6f409e493 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -153,6 +153,7 @@ James P. Cooper <jamespcooper@gmail.com>
+ James Toy <nil@opensesame.st>
+ James Whitehead <jnwhiteh@gmail.com>
+ Jan H. Hosang <jan.hosang@gmail.com>
++Jan Mercl <0xjnml@gmail.com>
+ Jan Mercl <befelemepeseveze@gmail.com>
+ Jan Newmarch <jan.newmarch@gmail.com>
+ Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 0995911e36..9c6afc96a4 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -225,6 +225,7 @@ James Tucker <raggi@google.com>
+ James Whitehead <jnwhiteh@gmail.com>
+ Jamie Gennis <jgennis@google.com> <jgennis@gmail.com>
+ Jan H. Hosang <jan.hosang@gmail.com>
++Jan Mercl <0xjnml@gmail.com>
+ Jan Mercl <befelemepeseveze@gmail.com>
+ Jan Newmarch <jan.newmarch@gmail.com>
+ Jan Ziak <0xe2.0x9a.0x9b@gmail.com>

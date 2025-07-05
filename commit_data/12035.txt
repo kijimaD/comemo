@@ -12,7 +12,7 @@ Date:   Sat Feb 18 22:15:42 2012 +0100
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5656099
-
+---
  test/compos.go              | 2 +-
  test/fixedbugs/bug020.go    | 2 +-
  test/fixedbugs/bug064.go    | 2 +-
@@ -121,3 +121,1074 @@ Date:   Sat Feb 18 22:15:42 2012 +0100
  test/shift2.go              | 2 +-
  test/varinit.go             | 2 +-
  107 files changed, 107 insertions(+), 107 deletions(-)
+
+diff --git a/test/compos.go b/test/compos.go
+index 70f90f3794..65aca4f1e0 100644
+--- a/test/compos.go
++++ b/test/compos.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out || echo BUG: compos
++// run
+ 
+ // Copyright 2009 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug020.go b/test/fixedbugs/bug020.go
+index 896bf5707c..cde3f8679b 100644
+--- a/test/fixedbugs/bug020.go
++++ b/test/fixedbugs/bug020.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go || echo BUG should compile
++// compile
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug064.go b/test/fixedbugs/bug064.go
+index 92d2154236..d8b3bea9a6 100644
+--- a/test/fixedbugs/bug064.go
++++ b/test/fixedbugs/bug064.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go || echo BUG: compilation should succeed
++// compile
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug071.go b/test/fixedbugs/bug071.go
+index 9f2932c7a9..ec38f7a979 100644
+--- a/test/fixedbugs/bug071.go
++++ b/test/fixedbugs/bug071.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go || echo BUG: compiler crashes
++// compile
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug077.go b/test/fixedbugs/bug077.go
+index 2cbf96d98f..80581a8a3b 100644
+--- a/test/fixedbugs/bug077.go
++++ b/test/fixedbugs/bug077.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go || echo BUG: should compile
++// compile
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug080.go b/test/fixedbugs/bug080.go
+index bae16cdb2e..32b2c53b9e 100644
+--- a/test/fixedbugs/bug080.go
++++ b/test/fixedbugs/bug080.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go || echo BUG: fails incorrectly
++// compile
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug087.go b/test/fixedbugs/bug087.go
+index 4af8d976f8..67e7210cdb 100644
+--- a/test/fixedbugs/bug087.go
++++ b/test/fixedbugs/bug087.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go || echo BUG: fails incorrectly
++// compile
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug093.go b/test/fixedbugs/bug093.go
+index 52d92c7e3d..acd94466f5 100644
+--- a/test/fixedbugs/bug093.go
++++ b/test/fixedbugs/bug093.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out || echo BUG: fails incorrectly
++// run
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug094.go b/test/fixedbugs/bug094.go
+index 2953eb28d3..3ef11da3d3 100644
+--- a/test/fixedbugs/bug094.go
++++ b/test/fixedbugs/bug094.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go || echo BUG: fails incorrectly
++// compile
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug096.go b/test/fixedbugs/bug096.go
+index 9be687a7bb..411ba74e0c 100644
+--- a/test/fixedbugs/bug096.go
++++ b/test/fixedbugs/bug096.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go || echo BUG should compile
++// compile
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug097.go b/test/fixedbugs/bug097.go
+index ec3c21543d..a067e0f57a 100644
+--- a/test/fixedbugs/bug097.go
++++ b/test/fixedbugs/bug097.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out || echo BUG wrong result
++// run
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug098.go b/test/fixedbugs/bug098.go
+index 1dad4d502a..eb4ee4de03 100644
+--- a/test/fixedbugs/bug098.go
++++ b/test/fixedbugs/bug098.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go || echo BUG should compile
++// compile
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug099.go b/test/fixedbugs/bug099.go
+index f76f0e873c..03a5c454b0 100644
+--- a/test/fixedbugs/bug099.go
++++ b/test/fixedbugs/bug099.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out || echo BUG should not crash
++// run
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug102.go b/test/fixedbugs/bug102.go
+index 1d97eb4a8d..f1c2324b78 100644
+--- a/test/fixedbugs/bug102.go
++++ b/test/fixedbugs/bug102.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out || echo BUG: should not crash
++// run
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug109.go b/test/fixedbugs/bug109.go
+index 459c29ff2d..556dc34dde 100644
+--- a/test/fixedbugs/bug109.go
++++ b/test/fixedbugs/bug109.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go || echo BUG: should compile
++// compile
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug111.go b/test/fixedbugs/bug111.go
+index e72b343ae3..d977bd54fb 100644
+--- a/test/fixedbugs/bug111.go
++++ b/test/fixedbugs/bug111.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out || echo BUG should compile and run
++// run
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug112.go b/test/fixedbugs/bug112.go
+index 3c932843c7..e2ed5c0d41 100644
+--- a/test/fixedbugs/bug112.go
++++ b/test/fixedbugs/bug112.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go || echo BUG should compile
++// compile
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug115.go b/test/fixedbugs/bug115.go
+index 16b22d7079..7cc3dc40a6 100644
+--- a/test/fixedbugs/bug115.go
++++ b/test/fixedbugs/bug115.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go || echo BUG: bug115 should compile
++// compile
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug116.go b/test/fixedbugs/bug116.go
+index 42ca803432..5d8e520315 100644
+--- a/test/fixedbugs/bug116.go
++++ b/test/fixedbugs/bug116.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out || echo BUG: bug116
++// run
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug118.go b/test/fixedbugs/bug118.go
+index 84006816fd..198b8ff280 100644
+--- a/test/fixedbugs/bug118.go
++++ b/test/fixedbugs/bug118.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go || echo BUG should compile
++// compile
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug119.go b/test/fixedbugs/bug119.go
+index 750507891c..6f2514c24e 100644
+--- a/test/fixedbugs/bug119.go
++++ b/test/fixedbugs/bug119.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out || echo BUG: should not fail
++// run
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug120.go b/test/fixedbugs/bug120.go
+index bf401bf304..58355e53de 100644
+--- a/test/fixedbugs/bug120.go
++++ b/test/fixedbugs/bug120.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out || echo BUG: bug120
++// run
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug128.go b/test/fixedbugs/bug128.go
+index 3fd647c004..e8cbea079f 100644
+--- a/test/fixedbugs/bug128.go
++++ b/test/fixedbugs/bug128.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out || echo BUG: should compile
++// run
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug129.go b/test/fixedbugs/bug129.go
+index d1e2d8b563..157ce78ff7 100644
+--- a/test/fixedbugs/bug129.go
++++ b/test/fixedbugs/bug129.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go || echo BUG129
++// compile
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug130.go b/test/fixedbugs/bug130.go
+index 855c7072bc..16b029af34 100644
+--- a/test/fixedbugs/bug130.go
++++ b/test/fixedbugs/bug130.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out || echo BUG: should run
++// run
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug135.go b/test/fixedbugs/bug135.go
+index 470135ed43..34d234e224 100644
+--- a/test/fixedbugs/bug135.go
++++ b/test/fixedbugs/bug135.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go || echo BUG: should compile
++// compile
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug137.go b/test/fixedbugs/bug137.go
+index 9d43f431be..48368177a2 100644
+--- a/test/fixedbugs/bug137.go
++++ b/test/fixedbugs/bug137.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go || echo BUG should compile
++// compile
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug139.go b/test/fixedbugs/bug139.go
+index 2bdbef1c0f..095e5c93cc 100644
+--- a/test/fixedbugs/bug139.go
++++ b/test/fixedbugs/bug139.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go || echo BUG should compile
++// compile
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug140.go b/test/fixedbugs/bug140.go
+index 441c57a485..8caf1d7d9f 100644
+--- a/test/fixedbugs/bug140.go
++++ b/test/fixedbugs/bug140.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go || echo BUG should compile
++// compile
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug141.go b/test/fixedbugs/bug141.go
+index 1b125e5d1e..81ba6f1b56 100644
+--- a/test/fixedbugs/bug141.go
++++ b/test/fixedbugs/bug141.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out || echo BUG: should run
++// run
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug142.go b/test/fixedbugs/bug142.go
+index e54458baf4..e28d889a93 100644
+--- a/test/fixedbugs/bug142.go
++++ b/test/fixedbugs/bug142.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out || echo BUG: bug142
++// run
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug143.go b/test/fixedbugs/bug143.go
+index 2f575fcfed..a43e406676 100644
+--- a/test/fixedbugs/bug143.go
++++ b/test/fixedbugs/bug143.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go || echo BUG should compile
++// compile
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug144.go b/test/fixedbugs/bug144.go
+index bab9a44029..9f8ec7667c 100644
+--- a/test/fixedbugs/bug144.go
++++ b/test/fixedbugs/bug144.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go || echo BUG should compile
++// compile
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug145.go b/test/fixedbugs/bug145.go
+index c59bcebd6e..602fe7426d 100644
+--- a/test/fixedbugs/bug145.go
++++ b/test/fixedbugs/bug145.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go || echo BUG should compile
++// compile
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug147.go b/test/fixedbugs/bug147.go
+index a16630b871..e8b3d24394 100644
+--- a/test/fixedbugs/bug147.go
++++ b/test/fixedbugs/bug147.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out || echo BUG: bug147
++// run
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug149.go b/test/fixedbugs/bug149.go
+index a40403b7d7..78b687e971 100644
+--- a/test/fixedbugs/bug149.go
++++ b/test/fixedbugs/bug149.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go || echo BUG: should compile
++// compile
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug150.go b/test/fixedbugs/bug150.go
+index 017cabdf8a..b565ef73dd 100644
+--- a/test/fixedbugs/bug150.go
++++ b/test/fixedbugs/bug150.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go || echo BUG: bug150 
++// compile
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug151.go b/test/fixedbugs/bug151.go
+index b240677373..d9f5e021c9 100644
+--- a/test/fixedbugs/bug151.go
++++ b/test/fixedbugs/bug151.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go || echo BUG: bug151
++// compile
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug154.go b/test/fixedbugs/bug154.go
+index 4371cc5ce9..a2cfd4accd 100644
+--- a/test/fixedbugs/bug154.go
++++ b/test/fixedbugs/bug154.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out || echo BUG: should not panic
++// run
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug156.go b/test/fixedbugs/bug156.go
+index 0b77a72d91..f26658729f 100644
+--- a/test/fixedbugs/bug156.go
++++ b/test/fixedbugs/bug156.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go || echo BUG: bug156
++// compile
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug157.go b/test/fixedbugs/bug157.go
+index 9bf68f7a47..1072d7df49 100644
+--- a/test/fixedbugs/bug157.go
++++ b/test/fixedbugs/bug157.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go || echo BUG: should compile
++// compile
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug158.go b/test/fixedbugs/bug158.go
+index cdf3195feb..496d7e0db0 100644
+--- a/test/fixedbugs/bug158.go
++++ b/test/fixedbugs/bug158.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go || echo BUG: should compile
++// compile
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug159.go b/test/fixedbugs/bug159.go
+index 1aa64433a7..92d5345635 100644
+--- a/test/fixedbugs/bug159.go
++++ b/test/fixedbugs/bug159.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out || echo BUG: bug159
++// run
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug161.go b/test/fixedbugs/bug161.go
+index e5f25f746d..aab58ee895 100644
+--- a/test/fixedbugs/bug161.go
++++ b/test/fixedbugs/bug161.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go || echo BUG: should compile
++// compile
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug168.go b/test/fixedbugs/bug168.go
+index e25eb56b0b..53301fa81e 100644
+--- a/test/fixedbugs/bug168.go
++++ b/test/fixedbugs/bug168.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out || echo BUG: bug168
++// run
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug173.go b/test/fixedbugs/bug173.go
+index 898b8400ba..6479bb2531 100644
+--- a/test/fixedbugs/bug173.go
++++ b/test/fixedbugs/bug173.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go || echo BUG: bug173
++// compile
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug174.go b/test/fixedbugs/bug174.go
+index 7ff8655132..448f630867 100644
+--- a/test/fixedbugs/bug174.go
++++ b/test/fixedbugs/bug174.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go || echo BUG: bug174
++// compile
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug190.go b/test/fixedbugs/bug190.go
+index da0bfde0fc..bb2d81cbb9 100644
+--- a/test/fixedbugs/bug190.go
++++ b/test/fixedbugs/bug190.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go || echo BUG: should compile
++// compile
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug194.go b/test/fixedbugs/bug194.go
+index dcd633ddef..2976529031 100644
+--- a/test/fixedbugs/bug194.go
++++ b/test/fixedbugs/bug194.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out || echo BUG should compile and run
++// run
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug196.go b/test/fixedbugs/bug196.go
+index ea8ab0dc19..5255de1892 100644
+--- a/test/fixedbugs/bug196.go
++++ b/test/fixedbugs/bug196.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out || echo BUG: bug196
++// run
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug202.go b/test/fixedbugs/bug202.go
+index 2fc91b5208..49871e3e06 100644
+--- a/test/fixedbugs/bug202.go
++++ b/test/fixedbugs/bug202.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out || echo BUG should run
++// run
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug214.go b/test/fixedbugs/bug214.go
+index 502e69826a..5420058c46 100644
+--- a/test/fixedbugs/bug214.go
++++ b/test/fixedbugs/bug214.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go || echo BUG: bug214
++// compile
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug216.go b/test/fixedbugs/bug216.go
+index 76f85464af..c83a522bf9 100644
+--- a/test/fixedbugs/bug216.go
++++ b/test/fixedbugs/bug216.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go || echo BUG: bug216
++// compile
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug218.go b/test/fixedbugs/bug218.go
+index b2c9ede750..0e008db17f 100644
+--- a/test/fixedbugs/bug218.go
++++ b/test/fixedbugs/bug218.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go || echo BUG: bug218
++// compile
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug219.go b/test/fixedbugs/bug219.go
+index f7eba81a81..290c691eab 100644
+--- a/test/fixedbugs/bug219.go
++++ b/test/fixedbugs/bug219.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go || echo BUG: bug219
++// compile
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug239.go b/test/fixedbugs/bug239.go
+index 32c3d7e1c1..e4902527db 100644
+--- a/test/fixedbugs/bug239.go
++++ b/test/fixedbugs/bug239.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go || echo BUG: bug239
++// compile
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug242.go b/test/fixedbugs/bug242.go
+index d80ae76a21..4791ae485f 100644
+--- a/test/fixedbugs/bug242.go
++++ b/test/fixedbugs/bug242.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out || echo BUG: tuple evaluation order
++// run
+ 
+ // Copyright 2010 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug245.go b/test/fixedbugs/bug245.go
+index 6e5a8b344f..c607a6dc33 100644
+--- a/test/fixedbugs/bug245.go
++++ b/test/fixedbugs/bug245.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go || echo BUG: bug245
++// compile
+ 
+ // Copyright 2010 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug246.go b/test/fixedbugs/bug246.go
+index 12041eb1d4..e506f8c0dc 100644
+--- a/test/fixedbugs/bug246.go
++++ b/test/fixedbugs/bug246.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out || echo BUG: bug246
++// run
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug247.go b/test/fixedbugs/bug247.go
+index 2f56b88d47..b6851e1bca 100644
+--- a/test/fixedbugs/bug247.go
++++ b/test/fixedbugs/bug247.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out || echo BUG: bug247
++// run
+ 
+ // Copyright 2010 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug250.go b/test/fixedbugs/bug250.go
+index a3a52d2457..5140f3e29d 100644
+--- a/test/fixedbugs/bug250.go
++++ b/test/fixedbugs/bug250.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go || echo BUG: bug250
++// compile
+ 
+ // Copyright 2010 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug253.go b/test/fixedbugs/bug253.go
+index bb5b770f51..f6ab712ef2 100644
+--- a/test/fixedbugs/bug253.go
++++ b/test/fixedbugs/bug253.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out || echo BUG: bug253
++// run
+ 
+ // Copyright 2010 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug254.go b/test/fixedbugs/bug254.go
+index c0c7f249ed..9b1c81911b 100644
+--- a/test/fixedbugs/bug254.go
++++ b/test/fixedbugs/bug254.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out || echo BUG: bug254
++// run
+ 
+ // Copyright 2010 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug257.go b/test/fixedbugs/bug257.go
+index 1b32475003..003f3ff94d 100644
+--- a/test/fixedbugs/bug257.go
++++ b/test/fixedbugs/bug257.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out || echo BUG: bugxxx
++// run
+ 
+ // Copyright 2010 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug260.go b/test/fixedbugs/bug260.go
+index 39d29b430c..6211c4885a 100644
+--- a/test/fixedbugs/bug260.go
++++ b/test/fixedbugs/bug260.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out || echo BUG: bug260 failed
++// run
+ 
+ // Copyright 2010 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug264.go b/test/fixedbugs/bug264.go
+index 6d86c6fe5b..fcf373cce9 100644
+--- a/test/fixedbugs/bug264.go
++++ b/test/fixedbugs/bug264.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out || echo BUG
++// run
+ 
+ // Copyright 2010 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug265.go b/test/fixedbugs/bug265.go
+index 55f32ececc..7f06fced60 100644
+--- a/test/fixedbugs/bug265.go
++++ b/test/fixedbugs/bug265.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out || echo BUG
++// run
+ 
+ // Copyright 2010 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug266.go b/test/fixedbugs/bug266.go
+index 25c246f7df..d4da891d31 100644
+--- a/test/fixedbugs/bug266.go
++++ b/test/fixedbugs/bug266.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out || echo BUG: bug266
++// run
+ 
+ // Copyright 2010 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug267.go b/test/fixedbugs/bug267.go
+index 06ebb89946..cf8bf841f8 100644
+--- a/test/fixedbugs/bug267.go
++++ b/test/fixedbugs/bug267.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go || echo BUG
++// compile
+ 
+ // Copyright 2010 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug275.go b/test/fixedbugs/bug275.go
+index 2bbc807c59..f5f6b14f01 100644
+--- a/test/fixedbugs/bug275.go
++++ b/test/fixedbugs/bug275.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go || echo BUG should compile
++// compile
+ 
+ // Copyright 2010 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug276.go b/test/fixedbugs/bug276.go
+index 844a6b2382..dc2308ea6b 100644
+--- a/test/fixedbugs/bug276.go
++++ b/test/fixedbugs/bug276.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out || echo BUG code should run
++// run
+ 
+ // Copyright 2010 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug277.go b/test/fixedbugs/bug277.go
+index 22b2908c98..207556493e 100644
+--- a/test/fixedbugs/bug277.go
++++ b/test/fixedbugs/bug277.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go || echo BUG should compile
++// compile
+ 
+ // Copyright 2010 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug283.go b/test/fixedbugs/bug283.go
+index 2bbc44a011..eefed0334b 100644
+--- a/test/fixedbugs/bug283.go
++++ b/test/fixedbugs/bug283.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go || echo BUG: should compile
++// compile
+ 
+ // Copyright 2010 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug285.go b/test/fixedbugs/bug285.go
+index 7eed8fb7ab..0a8a0f09e6 100644
+--- a/test/fixedbugs/bug285.go
++++ b/test/fixedbugs/bug285.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out || echo BUG: bug285
++// run
+ 
+ // Copyright 2010 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug286.go b/test/fixedbugs/bug286.go
+index eb67838561..44f05153f4 100644
+--- a/test/fixedbugs/bug286.go
++++ b/test/fixedbugs/bug286.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out || echo BUG: bug286 failed
++// run
+ 
+ // Copyright 2010 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug301.go b/test/fixedbugs/bug301.go
+index a58f4e13b1..572668f191 100644
+--- a/test/fixedbugs/bug301.go
++++ b/test/fixedbugs/bug301.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go || echo BUG: bug301.go
++// compile
+ 
+ // Copyright 2010 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug314.go b/test/fixedbugs/bug314.go
+index 95d81d7951..6e26d14e1f 100644
+--- a/test/fixedbugs/bug314.go
++++ b/test/fixedbugs/bug314.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out || echo BUG: bug314
++// run
+ 
+ // Copyright 2010 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug315.go b/test/fixedbugs/bug315.go
+index c59ef29e6c..7b8a9e5701 100644
+--- a/test/fixedbugs/bug315.go
++++ b/test/fixedbugs/bug315.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go || echo BUG: bug315
++// compile
+ 
+ // Copyright 2010 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug316.go b/test/fixedbugs/bug316.go
+index 2146408a1e..e1374122d4 100644
+--- a/test/fixedbugs/bug316.go
++++ b/test/fixedbugs/bug316.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go || echo BUG: bug316
++// compile
+ 
+ // Copyright 2010 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug317.go b/test/fixedbugs/bug317.go
+index 0cb26c29ba..3ff4dc4657 100644
+--- a/test/fixedbugs/bug317.go
++++ b/test/fixedbugs/bug317.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out || echo BUG: bug317
++// run
+ 
+ // Copyright 2011 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug321.go b/test/fixedbugs/bug321.go
+index d0595ff59b..7d018271fc 100644
+--- a/test/fixedbugs/bug321.go
++++ b/test/fixedbugs/bug321.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out || echo BUG: bug321
++// run
+ 
+ // Copyright 2011 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug331.go b/test/fixedbugs/bug331.go
+index 6c5acd1f4d..fac0e36289 100644
+--- a/test/fixedbugs/bug331.go
++++ b/test/fixedbugs/bug331.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out || echo BUG: bug331
++// run
+ 
+ // Copyright 2011 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug334.go b/test/fixedbugs/bug334.go
+index 870c9ae24f..bd671696ba 100644
+--- a/test/fixedbugs/bug334.go
++++ b/test/fixedbugs/bug334.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go || echo BUG: bug334
++// compile
+ 
+ // Copyright 2011 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug341.go b/test/fixedbugs/bug341.go
+index 8ee52e1ef0..db1af3eaa3 100644
+--- a/test/fixedbugs/bug341.go
++++ b/test/fixedbugs/bug341.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out || echo BUG: bug341
++// run
+ 
+ // Copyright 2011 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug343.go b/test/fixedbugs/bug343.go
+index efc87e3d7a..82201088b2 100644
+--- a/test/fixedbugs/bug343.go
++++ b/test/fixedbugs/bug343.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out || echo BUG: bug343
++// run
+ 
+ // Copyright 2011 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug346.go b/test/fixedbugs/bug346.go
+index 31284c31a1..d9203aa435 100644
+--- a/test/fixedbugs/bug346.go
++++ b/test/fixedbugs/bug346.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out || echo BUG: issue2056
++// run
+ 
+ // Copyright 2011 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug352.go b/test/fixedbugs/bug352.go
+index 62fd006c42..1ae2d6139b 100644
+--- a/test/fixedbugs/bug352.go
++++ b/test/fixedbugs/bug352.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out || echo BUG: bug352
++// run
+ 
+ // Copyright 2011 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug354.go b/test/fixedbugs/bug354.go
+index 6a7dfca25f..1245d91f5f 100644
+--- a/test/fixedbugs/bug354.go
++++ b/test/fixedbugs/bug354.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go || echo BUG: bug354
++// compile
+ 
+ // Copyright 2011 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug356.go b/test/fixedbugs/bug356.go
+index d21f0cfac6..273c5b8efc 100644
+--- a/test/fixedbugs/bug356.go
++++ b/test/fixedbugs/bug356.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out || echo BUG: bug344
++// run
+ 
+ // Copyright 2011 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug361.go b/test/fixedbugs/bug361.go
+index d2a64bcef4..3e3b7c1818 100644
+--- a/test/fixedbugs/bug361.go
++++ b/test/fixedbugs/bug361.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go || echo BUG: bug360
++// compile
+ 
+ // Copyright 2011 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug372.go b/test/fixedbugs/bug372.go
+index a6f7208bbd..34578565af 100644
+--- a/test/fixedbugs/bug372.go
++++ b/test/fixedbugs/bug372.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out || echo BUG: bug372
++// run
+ 
+ // Copyright 2011 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug375.go b/test/fixedbugs/bug375.go
+index 5273585263..cb159b0d6b 100644
+--- a/test/fixedbugs/bug375.go
++++ b/test/fixedbugs/bug375.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out || echo BUG: bug375
++// run
+ 
+ // Copyright 2011 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug378.go b/test/fixedbugs/bug378.go
+index b393b3dc1e..f3346c648d 100644
+--- a/test/fixedbugs/bug378.go
++++ b/test/fixedbugs/bug378.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out || echo BUG: bug378
++// run
+ 
+ // Copyright 2011 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug387.go b/test/fixedbugs/bug387.go
+index c9db4aea89..59d5ef9038 100644
+--- a/test/fixedbugs/bug387.go
++++ b/test/fixedbugs/bug387.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go || echo "Bug387"
++// compile
+ 
+ // Copyright 2011 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug391.go b/test/fixedbugs/bug391.go
+index 81507188b2..07d129ddc4 100644
+--- a/test/fixedbugs/bug391.go
++++ b/test/fixedbugs/bug391.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go || echo "Issue2576"
++// compile
+ 
+ // Copyright 2011 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug393.go b/test/fixedbugs/bug393.go
+index 45d8015790..f8a9c65781 100644
+--- a/test/fixedbugs/bug393.go
++++ b/test/fixedbugs/bug393.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go || echo BUG: bug393
++// compile
+ 
+ // Copyright 2012 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug399.go b/test/fixedbugs/bug399.go
+index 25f6351e06..94852c9ee5 100644
+--- a/test/fixedbugs/bug399.go
++++ b/test/fixedbugs/bug399.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go || echo "Bug399"
++// compile
+ 
+ // Copyright 2011 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug401.go b/test/fixedbugs/bug401.go
+index 553e217b7d..5589b5b1bb 100644
+--- a/test/fixedbugs/bug401.go
++++ b/test/fixedbugs/bug401.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out || echo "Bug401"
++// run
+ 
+ // Copyright 2011 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug406.go b/test/fixedbugs/bug406.go
+index 9d755045b6..c6f8534c9b 100644
+--- a/test/fixedbugs/bug406.go
++++ b/test/fixedbugs/bug406.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out || echo "Bug406"
++// run
+ 
+ // Copyright 2012 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug417.go b/test/fixedbugs/bug417.go
+index 8cd3f5eb92..a9acb42386 100644
+--- a/test/fixedbugs/bug417.go
++++ b/test/fixedbugs/bug417.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go || echo BUG: should compile
++// compile
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/indirect.go b/test/indirect.go
+index cfddde9ce2..df8d3c7366 100644
+--- a/test/indirect.go
++++ b/test/indirect.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out || echo BUG indirect
++// run
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/interface/noeq.go b/test/interface/noeq.go
+index 3c2ea5975a..b89fd0e824 100644
+--- a/test/interface/noeq.go
++++ b/test/interface/noeq.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out || echo BUG: interface/noeq
++// run
+ 
+ // Copyright 2011 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/interface/recursive.go b/test/interface/recursive.go
+index 77897704ad..fcc88331e0 100644
+--- a/test/interface/recursive.go
++++ b/test/interface/recursive.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go || echo BUG: should compile
++// compile
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/interface/struct.go b/test/interface/struct.go
+index 40b7f4f910..3c9d01da4a 100644
+--- a/test/interface/struct.go
++++ b/test/interface/struct.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out || echo BUG interface6
++// run
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/method3.go b/test/method3.go
+index 7946a87502..5711ffd94c 100644
+--- a/test/method3.go
++++ b/test/method3.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out || echo BUG method3
++// run
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/shift2.go b/test/shift2.go
+index ec4c7addc2..cf0a45fdbf 100644
+--- a/test/shift2.go
++++ b/test/shift2.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go || echo BUG: shift2
++// compile
+ 
+ // Copyright 2011 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/varinit.go b/test/varinit.go
+index c768777932..5614783e04 100644
+--- a/test/varinit.go
++++ b/test/varinit.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out || echo BUG wrong result
++// run
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style

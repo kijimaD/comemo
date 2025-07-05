@@ -17,7 +17,43 @@ Date:   Tue Nov 24 17:48:38 2020 +0100
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Trust: Elias Naur <mail@eliasnaur.com>
-
+---
  src/cmd/dist/util.go            | 6 ------
  src/cmd/internal/objabi/util.go | 7 ++++++-
  2 files changed, 6 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/dist/util.go b/src/cmd/dist/util.go
+index 0a419e465f..9b4f8d2dec 100644
+--- a/src/cmd/dist/util.go
++++ b/src/cmd/dist/util.go
+@@ -383,12 +383,6 @@ func xsamefile(f1, f2 string) bool {
+ }
+ 
+ func xgetgoarm() string {
+-	if goos == "android" {
+-		// Assume all android devices have VFPv3.
+-		// These ports are also mostly cross-compiled, so it makes little
+-		// sense to auto-detect the setting.
+-		return "7"
+-	}
+ 	if gohostarch != "arm" || goos != gohostos {
+ 		// Conservative default for cross-compilation.
+ 		return "5"
+diff --git a/src/cmd/internal/objabi/util.go b/src/cmd/internal/objabi/util.go
+index 9479ab2cd9..d36e743580 100644
+--- a/src/cmd/internal/objabi/util.go
++++ b/src/cmd/internal/objabi/util.go
+@@ -40,7 +40,12 @@ const (
+ )
+ 
+ func goarm() int {
+-	switch v := envOr("GOARM", defaultGOARM); v {
++	def := defaultGOARM
++	if GOOS == "android" {
++		// Android devices always support GOARM=7.
++		def = "7"
++	}
++	switch v := envOr("GOARM", def); v {
+ 	case "5":
+ 		return 5
+ 	case "6":

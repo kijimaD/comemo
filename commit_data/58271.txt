@@ -12,6 +12,19 @@ Date:   Tue Oct 17 15:21:15 2023 -0400
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  misc/ios/detect.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/misc/ios/detect.go b/misc/ios/detect.go
+index 1cb8ae5ff7..1a72eafda0 100644
+--- a/misc/ios/detect.go
++++ b/misc/ios/detect.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build ignore
+-// +build ignore
+ 
+ // detect attempts to autodetect the correct
+ // values of the environment variables

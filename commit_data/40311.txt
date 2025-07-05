@@ -14,6 +14,32 @@ Date:   Thu May 2 03:12:12 2019 -0400
     Run-TryBot: Elias Naur <mail@eliasnaur.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/dist/build.go | 11 ++++++-----
  1 file changed, 6 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index a9c6c04c73..2af6a2dd1b 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -1425,14 +1425,15 @@ func cmdbootstrap() {
+ }
+ 
+ func wrapperPathFor(goos, goarch string) string {
+-	if goos == gohostos && goarch == gohostarch {
+-		return ""
+-	}
+ 	switch {
+ 	case goos == "android":
+-		return pathf("%s/misc/android/go_android_exec.go", goroot)
++		if gohostos != "android" {
++			return pathf("%s/misc/android/go_android_exec.go", goroot)
++		}
+ 	case goos == "darwin" && (goarch == "arm" || goarch == "arm64"):
+-		return pathf("%s/misc/ios/go_darwin_arm_exec.go", goroot)
++		if gohostos != "darwin" || (gohostarch != "arm" && gohostarch != "arm64") {
++			return pathf("%s/misc/ios/go_darwin_arm_exec.go", goroot)
++		}
+ 	}
+ 	return ""
+ }

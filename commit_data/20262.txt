@@ -10,10 +10,188 @@ Date:   Thu Aug 28 08:22:54 2014 -0700
     R=golang-codereviews, bradfitz, dave
     CC=golang-codereviews
     https://golang.org/cl/127380043
-
+---
  src/pkg/mime/type.go         | 52 ++++++++++++++++++++++++++++++--------------
  src/pkg/mime/type_plan9.go   |  2 +-
  src/pkg/mime/type_test.go    | 16 +++++++++-----
  src/pkg/mime/type_unix.go    |  2 +-
  src/pkg/mime/type_windows.go |  2 +-
  5 files changed, 50 insertions(+), 24 deletions(-)
+
+diff --git a/src/pkg/mime/type.go b/src/pkg/mime/type.go
+index 00cff263ba..d1e403f022 100644
+--- a/src/pkg/mime/type.go
++++ b/src/pkg/mime/type.go
+@@ -11,19 +11,28 @@ import (
+ 	"sync"
+ )
+ 
+-var mimeTypes = map[string]string{
+-	".css":  "text/css; charset=utf-8",
+-	".gif":  "image/gif",
+-	".htm":  "text/html; charset=utf-8",
+-	".html": "text/html; charset=utf-8",
+-	".jpg":  "image/jpeg",
+-	".js":   "application/x-javascript",
+-	".pdf":  "application/pdf",
+-	".png":  "image/png",
+-	".xml":  "text/xml; charset=utf-8",
+-}
++var (
++	mimeLock       sync.RWMutex
++	mimeTypes      = map[string]string{}
++	mimeTypesLower = map[string]string{}
++)
+ 
+-var mimeLock sync.RWMutex
++func init() {
++	mimeTypes := map[string]string{
++		".css":  "text/css; charset=utf-8",
++		".gif":  "image/gif",
++		".htm":  "text/html; charset=utf-8",
++		".html": "text/html; charset=utf-8",
++		".jpg":  "image/jpeg",
++		".js":   "application/x-javascript",
++		".pdf":  "application/pdf",
++		".png":  "image/png",
++		".xml":  "text/xml; charset=utf-8",
++	}
++	for ext, typ := range mimeTypes {
++		AddExtensionType(ext, typ)
++	}
++}
+ 
+ var once sync.Once
+ 
+@@ -31,6 +40,8 @@ var once sync.Once
+ // The extension ext should begin with a leading dot, as in ".html".
+ // When ext has no associated type, TypeByExtension returns "".
+ //
++// Extensions are looked up first case-sensitively, then case-insensitively.
++//
+ // The built-in table is small but on unix it is augmented by the local
+ // system's mime.types file(s) if available under one or more of these
+ // names:
+@@ -39,7 +50,7 @@ var once sync.Once
+ //   /etc/apache2/mime.types
+ //   /etc/apache/mime.types
+ //
+-// Windows system mime types are extracted from registry.
++// Windows system MIME types are extracted from registry.
+ //
+ // Text types have the charset parameter set to "utf-8" by default.
+ func TypeByExtension(ext string) string {
+@@ -47,15 +58,21 @@ func TypeByExtension(ext string) string {
+ 	mimeLock.RLock()
+ 	typename := mimeTypes[ext]
+ 	mimeLock.RUnlock()
++	if typename == "" {
++		lower := strings.ToLower(ext)
++		mimeLock.RLock()
++		typename = mimeTypesLower[lower]
++		mimeLock.RUnlock()
++	}
+ 	return typename
+ }
+ 
+ // AddExtensionType sets the MIME type associated with
+-// the extension ext to typ.  The extension should begin with
++// the extension ext to typ. The extension should begin with
+ // a leading dot, as in ".html".
+ func AddExtensionType(ext, typ string) error {
+-	if ext == "" || ext[0] != '.' {
+-		return fmt.Errorf(`mime: extension "%s" misses dot`, ext)
++	if !strings.HasPrefix(ext, ".") {
++		return fmt.Errorf(`mime: extension %q misses dot`, ext)
+ 	}
+ 	once.Do(initMime)
+ 	return setExtensionType(ext, typ)
+@@ -70,8 +87,11 @@ func setExtensionType(extension, mimeType string) error {
+ 		param["charset"] = "utf-8"
+ 		mimeType = FormatMediaType(mimeType, param)
+ 	}
++	extLower := strings.ToLower(extension)
++
+ 	mimeLock.Lock()
+ 	mimeTypes[extension] = mimeType
++	mimeTypesLower[extLower] = mimeType
+ 	mimeLock.Unlock()
+ 	return nil
+ }
+diff --git a/src/pkg/mime/type_plan9.go b/src/pkg/mime/type_plan9.go
+index b8f0511ee7..8cbf6777f1 100644
+--- a/src/pkg/mime/type_plan9.go
++++ b/src/pkg/mime/type_plan9.go
+@@ -48,6 +48,6 @@ func initMimeForTests() map[string]string {
+ 	return map[string]string{
+ 		".t1":  "application/test",
+ 		".t2":  "text/test; charset=utf-8",
+-		".png": "image/png",
++		".pNg": "image/png",
+ 	}
+ }
+diff --git a/src/pkg/mime/type_test.go b/src/pkg/mime/type_test.go
+index 07e1cd5dae..3ec86fbb54 100644
+--- a/src/pkg/mime/type_test.go
++++ b/src/pkg/mime/type_test.go
+@@ -4,7 +4,9 @@
+ 
+ package mime
+ 
+-import "testing"
++import (
++	"testing"
++)
+ 
+ var typeTests = initMimeForTests()
+ 
+@@ -14,16 +16,20 @@ func TestTypeByExtension(t *testing.T) {
+ 		if val != want {
+ 			t.Errorf("TypeByExtension(%q) = %q, want %q", ext, val, want)
+ 		}
+-
+ 	}
+ }
+ 
+ func TestCustomExtension(t *testing.T) {
+-	custom := "text/xml; charset=iso-8859-1"
+-	if error := AddExtensionType(".xml", custom); error != nil {
++	custom := "test/test; charset=iso-8859-1"
++	if error := AddExtensionType(".tesT", custom); error != nil {
+ 		t.Fatalf("error %s for AddExtension(%s)", error, custom)
+ 	}
+-	if registered := TypeByExtension(".xml"); registered != custom {
++	// test with same capitalization
++	if registered := TypeByExtension(".tesT"); registered != custom {
++		t.Fatalf("registered %s instead of %s", registered, custom)
++	}
++	// test with different capitalization
++	if registered := TypeByExtension(".Test"); registered != custom {
+ 		t.Fatalf("registered %s instead of %s", registered, custom)
+ 	}
+ }
+diff --git a/src/pkg/mime/type_unix.go b/src/pkg/mime/type_unix.go
+index 1d394315a4..3e404cf742 100644
+--- a/src/pkg/mime/type_unix.go
++++ b/src/pkg/mime/type_unix.go
+@@ -53,7 +53,7 @@ func initMime() {
+ func initMimeForTests() map[string]string {
+ 	typeFiles = []string{"testdata/test.types"}
+ 	return map[string]string{
+-		".t1":  "application/test",
++		".T1":  "application/test",
+ 		".t2":  "text/test; charset=utf-8",
+ 		".png": "image/png",
+ 	}
+diff --git a/src/pkg/mime/type_windows.go b/src/pkg/mime/type_windows.go
+index 180f948d16..ae758d78b3 100644
+--- a/src/pkg/mime/type_windows.go
++++ b/src/pkg/mime/type_windows.go
+@@ -58,6 +58,6 @@ func initMime() {
+ 
+ func initMimeForTests() map[string]string {
+ 	return map[string]string{
+-		".png": "image/png",
++		".PnG": "image/png",
+ 	}
+ }

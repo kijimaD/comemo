@@ -16,6 +16,20 @@ Date:   Sun May 15 20:12:34 2016 +0200
     Run-TryBot: Minux Ma <minux@golang.org>
     Reviewed-by: Minux Ma <minux@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/mime/type_plan9.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/mime/type_plan9.go b/src/mime/type_plan9.go
+index c3ba186e7c..14ff973405 100644
+--- a/src/mime/type_plan9.go
++++ b/src/mime/type_plan9.go
+@@ -21,7 +21,7 @@ func initMimePlan9() {
+ }
+ 
+ var typeFiles = []string{
+-	"/sys/lib/mimetypes",
++	"/sys/lib/mimetype",
+ }
+ 
+ func initMimeForTests() map[string]string {

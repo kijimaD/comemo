@@ -13,7 +13,60 @@ Date:   Wed Oct 4 13:44:34 2017 +0100
     Reviewed-by: Adam Langley <agl@golang.org>
     Run-TryBot: Adam Langley <agl@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/crypto/tls/conn.go      |  7 ++++---
  src/crypto/tls/conn_test.go | 12 ++++++++++++
  2 files changed, 16 insertions(+), 3 deletions(-)
+
+diff --git a/src/crypto/tls/conn.go b/src/crypto/tls/conn.go
+index 9f32d4b7d7..22017f53d7 100644
+--- a/src/crypto/tls/conn.go
++++ b/src/crypto/tls/conn.go
+@@ -213,10 +213,11 @@ func extractPadding(payload []byte) (toRemove int, good byte) {
+ 	// if len(payload) >= (paddingLen - 1) then the MSB of t is zero
+ 	good = byte(int32(^t) >> 31)
+ 
+-	toCheck := 255 // the maximum possible padding length
++	// The maximum possible padding length plus the actual length field
++	toCheck := 256
+ 	// The length of the padded data is public, so we can use an if here
+-	if toCheck+1 > len(payload) {
+-		toCheck = len(payload) - 1
++	if toCheck > len(payload) {
++		toCheck = len(payload)
+ 	}
+ 
+ 	for i := 0; i < toCheck; i++ {
+diff --git a/src/crypto/tls/conn_test.go b/src/crypto/tls/conn_test.go
+index e27c5414b2..5c7f7ce2bb 100644
+--- a/src/crypto/tls/conn_test.go
++++ b/src/crypto/tls/conn_test.go
+@@ -21,6 +21,12 @@ func TestRoundUp(t *testing.T) {
+ 	}
+ }
+ 
++// will be initialized with {0, 255, 255, ..., 255}
++var padding255Bad = [256]byte{}
++
++// will be initialized with {255, 255, 255, ..., 255}
++var padding255Good = [256]byte{255}
++
+ var paddingTests = []struct {
+ 	in          []byte
+ 	good        bool
+@@ -36,9 +42,15 @@ var paddingTests = []struct {
+ 	{[]byte{1, 4, 4, 4, 4, 4}, true, 1},
+ 	{[]byte{5, 5, 5, 5, 5, 5}, true, 0},
+ 	{[]byte{6, 6, 6, 6, 6, 6}, false, 0},
++	{padding255Bad[:], false, 0},
++	{padding255Good[:], true, 0},
+ }
+ 
+ func TestRemovePadding(t *testing.T) {
++	for i := 1; i < len(padding255Bad); i++ {
++		padding255Bad[i] = 255
++		padding255Good[i] = 255
++	}
+ 	for i, test := range paddingTests {
+ 		paddingLen, good := extractPadding(test.in)
+ 		expectedGood := byte(255)

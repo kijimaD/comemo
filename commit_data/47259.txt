@@ -11,6 +11,11 @@ Date:   Sat Mar 6 23:25:25 2021 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/299530
     Reviewed-by: Austin Clements <austin@google.com>
     Trust: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/{internal-abi.md => abi-internal.md} | 0
  1 file changed, 0 insertions(+), 0 deletions(-)
+
+diff --git a/src/cmd/compile/internal-abi.md b/src/cmd/compile/abi-internal.md
+similarity index 100%
+rename from src/cmd/compile/internal-abi.md
+rename to src/cmd/compile/abi-internal.md

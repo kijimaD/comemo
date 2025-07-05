@@ -7,6 +7,28 @@ Date:   Mon Oct 22 11:15:17 2012 +1100
     R=rsc, pkleiweg
     CC=golang-dev
     https://golang.org/cl/6725052
-
+---
  src/pkg/go/build/doc.go | 10 ++++++++++
  1 file changed, 10 insertions(+)
+
+diff --git a/src/pkg/go/build/doc.go b/src/pkg/go/build/doc.go
+index 04e48c1547..df560c38f6 100644
+--- a/src/pkg/go/build/doc.go
++++ b/src/pkg/go/build/doc.go
+@@ -74,6 +74,16 @@
+ //
+ //	(linux AND 386) OR (darwin AND (NOT cgo))
+ //
++// A file may have multiple build constraints. The overall constraint is the AND
++// of the individual constraints. That is, the build constraints:
++//
++//	// +build linux darwin
++//	// +build 386
++//
++// corresponds to the boolean formula:
++//
++//	(linux OR darwin) AND 386
++//
+ // During a particular build, the following words are satisfied:
+ //
+ //	- the target operating system, as spelled by runtime.GOOS

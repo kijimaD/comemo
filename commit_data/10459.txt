@@ -7,9 +7,75 @@ Date:   Fri Nov 18 18:33:44 2011 -0500
     R=golang-dev
     CC=golang-dev, rsc
     https://golang.org/cl/5411048
-
+---
  src/pkg/html/template/doc.go | 2 +-
  src/pkg/net/http/server.go   | 4 ++--
  src/pkg/websocket/client.go  | 2 +-
  src/pkg/websocket/server.go  | 2 +-
  4 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/html/template/doc.go b/src/pkg/html/template/doc.go
+index 0324c9c0ee..570567e876 100644
+--- a/src/pkg/html/template/doc.go
++++ b/src/pkg/html/template/doc.go
+@@ -29,7 +29,7 @@ trusted, while Execute's data parameter is not. More details are provided below.
+ 
+ Example
+ 
+-    import "template"
++    import "text/template"
+     ...
+     t, err := (&template.Set{}).Parse(`{{define "T"}}Hello, {{.}}!{{end}}`)
+     err = t.Execute(out, "T", "<script>alert('you have been pwned')</script>")
+diff --git a/src/pkg/net/http/server.go b/src/pkg/net/http/server.go
+index 7221d2508b..27040c7be5 100644
+--- a/src/pkg/net/http/server.go
++++ b/src/pkg/net/http/server.go
+@@ -1013,8 +1013,8 @@ func (srv *Server) Serve(l net.Listener) error {
+ //	package main
+ //
+ //	import (
+-//		"http"
+ //		"io"
++//		"net/http"
+ //		"log"
+ //	)
+ //
+@@ -1044,8 +1044,8 @@ func ListenAndServe(addr string, handler Handler) error {
+ // A trivial example server is:
+ //
+ //	import (
+-//		"http"
+ //		"log"
++//		"net/http"
+ //	)
+ //
+ //	func handler(w http.ResponseWriter, req *http.Request) {
+diff --git a/src/pkg/websocket/client.go b/src/pkg/websocket/client.go
+index 5dfd824e6e..89cdcda71a 100644
+--- a/src/pkg/websocket/client.go
++++ b/src/pkg/websocket/client.go
+@@ -72,8 +72,8 @@ A trivial example client:
+ 	package main
+ 
+ 	import (
+-		"http"
+ 		"log"
++		"net/http"
+ 		"strings"
+ 		"websocket"
+ 	)
+diff --git a/src/pkg/websocket/server.go b/src/pkg/websocket/server.go
+index 57dc4fd1df..8320b032ea 100644
+--- a/src/pkg/websocket/server.go
++++ b/src/pkg/websocket/server.go
+@@ -60,8 +60,8 @@ A trivial example server:
+ 	package main
+ 
+ 	import (
+-		"http"
+ 		"io"
++		"net/http"
+ 		"websocket"
+ 	)
+ 

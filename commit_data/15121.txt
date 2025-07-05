@@ -20,9 +20,250 @@ Date:   Sun Feb 3 23:02:12 2013 -0500
     R=adg
     CC=golang-dev
     https://golang.org/cl/7288052
-
+---
  src/pkg/time/example_test.go | 32 ++++++++++++++++++++++++++
  src/pkg/time/format.go       | 53 +++++++++++++++++++++++++++++++++-----------
  src/pkg/time/time_test.go    | 37 +++++++++++++++++++++++++++++++
  src/pkg/time/zoneinfo.go     | 25 +++++++++++++++++++--
  4 files changed, 132 insertions(+), 15 deletions(-)
+
+diff --git a/src/pkg/time/example_test.go b/src/pkg/time/example_test.go
+index cda565ff3e..8928caabab 100644
+--- a/src/pkg/time/example_test.go
++++ b/src/pkg/time/example_test.go
+@@ -67,6 +67,38 @@ func ExampleTime_Format() {
+ 	// Nov 10, 2009 at 11:00pm (UTC)
+ }
+ 
++func ExampleParse() {
++	const longForm = "Jan 2, 2006 at 3:04pm (MST)"
++	t, _ := time.Parse(longForm, "Feb 3, 2013 at 7:54pm (PST)")
++	fmt.Println(t)
++
++	// Note: without explicit zone, returns time in UTC.
++	const shortForm = "2006-Jan-02"
++	t, _ = time.Parse(shortForm, "2013-Feb-03")
++	fmt.Println(t)
++
++	// Output:
++	// 2013-02-03 19:54:00 -0800 PST
++	// 2013-02-03 00:00:00 +0000 UTC
++}
++
++func ExampleParseInLocation() {
++	loc, _ := time.LoadLocation("Europe/Berlin")
++
++	const longForm = "Jan 2, 2006 at 3:04pm (MST)"
++	t, _ := time.ParseInLocation(longForm, "Jul 9, 2012 at 5:02am (CEST)", loc)
++	fmt.Println(t)
++
++	// Note: without explicit zone, returns time in given location.
++	const shortForm = "2006-Jan-02"
++	t, _ = time.ParseInLocation(shortForm, "2012-Jul-09", loc)
++	fmt.Println(t)
++
++	// Output:
++	// 2012-07-09 05:02:00 +0200 CEST
++	// 2012-07-09 00:00:00 +0200 CEST
++}
++
+ func ExampleTime_Round() {
+ 	t := time.Date(0, 0, 0, 12, 15, 30, 918273645, time.UTC)
+ 	round := []time.Duration{
+diff --git a/src/pkg/time/format.go b/src/pkg/time/format.go
+index 8d21040bf9..d9e27c1be7 100644
+--- a/src/pkg/time/format.go
++++ b/src/pkg/time/format.go
+@@ -641,7 +641,37 @@ func skip(value, prefix string) (string, error) {
+ // 0, this time is before the zero Time).
+ // Years must be in the range 0000..9999. The day of the week is checked
+ // for syntax but it is otherwise ignored.
++//
++// In the absence of a time zone indicator, Parse returns a time in UTC.
++//
++// When parsing a time with a zone offset like -0700, if the offset corresponds
++// to a time zone used by the current location (Local), then Parse uses that
++// location and zone in the returned time. Otherwise it records the time as
++// being in a fabricated location with time fixed at the given zone offset.
++//
++// When parsing a time with a zone abbreviation like MST, if the zone abbreviation
++// has a defined offset in the current location, then that offset is used.
++// The zone abbreviation "UTC" is recognized as UTC regardless of location.
++// If the zone abbreviation is unknown, Parse records the time as being
++// in a fabricated location with the given zone abbreviation and a zero offset.
++// This choice means that such a time can be parse and reformatted with the
++// same layout losslessly, but the exact instant used in the representation will
++// differ by the actual zone offset. To avoid such problems, prefer time layouts
++// that use a numeric zone offset, or use ParseInLocation.
+ func Parse(layout, value string) (Time, error) {
++	return parse(layout, value, UTC, Local)
++}
++
++// ParseInLocation is like Parse but differs in two important ways.
++// First, in the absence of time zone information, Parse interprets a time as UTC;
++// ParseInLocation interprets the time as in the given location.
++// Second, when given a zone offset or abbreviation, Parse tries to match it
++// against the Local location; ParseInLocation uses the given location.
++func ParseInLocation(layout, value string, loc *Location) (Time, error) {
++	return parse(layout, value, loc, loc)
++}
++
++func parse(layout, value string, defaultLocation, local *Location) (Time, error) {
+ 	alayout, avalue := layout, value
+ 	rangeErrString := "" // set if a value is out of range
+ 	amSet := false       // do we need to subtract 12 from the hour for midnight?
+@@ -892,20 +922,19 @@ func Parse(layout, value string) (Time, error) {
+ 		hour = 0
+ 	}
+ 
+-	// TODO: be more aggressive checking day?
+ 	if z != nil {
+ 		return Date(year, Month(month), day, hour, min, sec, nsec, z), nil
+ 	}
+ 
+-	t := Date(year, Month(month), day, hour, min, sec, nsec, UTC)
+ 	if zoneOffset != -1 {
++		t := Date(year, Month(month), day, hour, min, sec, nsec, UTC)
+ 		t.sec -= int64(zoneOffset)
+ 
+ 		// Look for local zone with the given offset.
+ 		// If that zone was in effect at the given time, use it.
+-		name, offset, _, _, _ := Local.lookup(t.sec + internalToUnix)
++		name, offset, _, _, _ := local.lookup(t.sec + internalToUnix)
+ 		if offset == zoneOffset && (zoneName == "" || name == zoneName) {
+-			t.loc = Local
++			t.loc = local
+ 			return t, nil
+ 		}
+ 
+@@ -915,16 +944,14 @@ func Parse(layout, value string) (Time, error) {
+ 	}
+ 
+ 	if zoneName != "" {
++		t := Date(year, Month(month), day, hour, min, sec, nsec, UTC)
+ 		// Look for local zone with the given offset.
+ 		// If that zone was in effect at the given time, use it.
+-		offset, _, ok := Local.lookupName(zoneName)
++		offset, _, ok := local.lookupName(zoneName, t.sec+internalToUnix)
+ 		if ok {
+-			name, off, _, _, _ := Local.lookup(t.sec + internalToUnix - int64(offset))
+-			if name == zoneName && off == offset {
+-				t.sec -= int64(offset)
+-				t.loc = Local
+-				return t, nil
+-			}
++			t.sec -= int64(offset)
++			t.loc = local
++			return t, nil
+ 		}
+ 
+ 		// Otherwise, create fake zone with unknown offset.
+@@ -932,8 +959,8 @@ func Parse(layout, value string) (Time, error) {
+ 		return t, nil
+ 	}
+ 
+-	// Otherwise, fall back to UTC.
+-	return t, nil
++	// Otherwise, fall back to default.
++	return Date(year, Month(month), day, hour, min, sec, nsec, defaultLocation), nil
+ }
+ 
+ func parseNanoseconds(value string, nbytes int) (ns int, rangeErrString string, err error) {
+diff --git a/src/pkg/time/time_test.go b/src/pkg/time/time_test.go
+index 3698c4fe2a..583b248faa 100644
+--- a/src/pkg/time/time_test.go
++++ b/src/pkg/time/time_test.go
+@@ -478,6 +478,7 @@ var parseTests = []ParseTest{
+ 	{"RubyDate", RubyDate, "Thu Feb 04 21:00:57 -0800 2010", true, true, 1, 0},
+ 	{"RFC850", RFC850, "Thursday, 04-Feb-10 21:00:57 PST", true, true, 1, 0},
+ 	{"RFC1123", RFC1123, "Thu, 04 Feb 2010 21:00:57 PST", true, true, 1, 0},
++	{"RFC1123", RFC1123, "Thu, 04 Feb 2010 22:00:57 PDT", true, true, 1, 0},
+ 	{"RFC1123Z", RFC1123Z, "Thu, 04 Feb 2010 21:00:57 -0800", true, true, 1, 0},
+ 	{"RFC3339", RFC3339, "2010-02-04T21:00:57-08:00", true, false, 1, 0},
+ 	{"custom: \"2006-01-02 15:04:05-07\"", "2006-01-02 15:04:05-07", "2010-02-04 21:00:57-08", true, false, 1, 0},
+@@ -533,6 +534,42 @@ func TestParse(t *testing.T) {
+ 	}
+ }
+ 
++func TestParseInSydney(t *testing.T) {
++	loc, err := LoadLocation("Australia/Sydney")
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	// Check that Parse (and ParseInLocation) understand
++	// that Feb EST and Aug EST are different time zones in Sydney
++	// even though both are called EST.
++	t1, err := ParseInLocation("Jan 02 2006 MST", "Feb 01 2013 EST", loc)
++	if err != nil {
++		t.Fatal(err)
++	}
++	t2 := Date(2013, February, 1, 00, 00, 00, 0, loc)
++	if t1 != t2 {
++		t.Fatalf("ParseInLocation(Feb 01 2013 EST, Sydney) = %v, want %v", t1, t2)
++	}
++	_, offset := t1.Zone()
++	if offset != 11*60*60 {
++		t.Fatalf("ParseInLocation(Feb 01 2013 EST, Sydney).Zone = _, %d, want _, %d", offset, 11*60*60)
++	}
++
++	t1, err = ParseInLocation("Jan 02 2006 MST", "Aug 01 2013 EST", loc)
++	if err != nil {
++		t.Fatal(err)
++	}
++	t2 = Date(2013, August, 1, 00, 00, 00, 0, loc)
++	if t1 != t2 {
++		t.Fatalf("ParseInLocation(Aug 01 2013 EST, Sydney) = %v, want %v", t1, t2)
++	}
++	_, offset = t1.Zone()
++	if offset != 10*60*60 {
++		t.Fatalf("ParseInLocation(Aug 01 2013 EST, Sydney).Zone = _, %d, want _, %d", offset, 10*60*60)
++	}
++}
++
+ var rubyTests = []ParseTest{
+ 	{"RubyDate", RubyDate, "Thu Feb 04 21:00:57 -0800 2010", true, true, 1, 0},
+ 	// Ignore the time zone in the test. If it parses, it'll be OK.
+diff --git a/src/pkg/time/zoneinfo.go b/src/pkg/time/zoneinfo.go
+index 116d343005..c44477f474 100644
+--- a/src/pkg/time/zoneinfo.go
++++ b/src/pkg/time/zoneinfo.go
+@@ -145,15 +145,36 @@ func (l *Location) lookup(sec int64) (name string, offset int, isDST bool, start
+ }
+ 
+ // lookupName returns information about the time zone with
+-// the given name (such as "EST").
+-func (l *Location) lookupName(name string) (offset int, isDST bool, ok bool) {
++// the given name (such as "EST") at the given pseudo-Unix time
++// (what the given time of day would be in UTC).
++func (l *Location) lookupName(name string, unix int64) (offset int, isDST bool, ok bool) {
+ 	l = l.get()
++
++	// First try for a zone with the right name that was actually
++	// in effect at the given time. (In Sydney, Australia, both standard
++	// and daylight-savings time are abbreviated "EST". Using the
++	// offset helps us pick the right one for the given time.
++	// It's not perfect: during the backward transition we might pick
++	// either one.)
++	for i := range l.zone {
++		zone := &l.zone[i]
++		if zone.name == name {
++			nam, offset, isDST, _, _ := l.lookup(unix - int64(zone.offset))
++			if nam == zone.name {
++				return offset, isDST, true
++			}
++		}
++	}
++
++	// Otherwise fall back to an ordinary name match.
+ 	for i := range l.zone {
+ 		zone := &l.zone[i]
+ 		if zone.name == name {
+ 			return zone.offset, zone.isDST, true
+ 		}
+ 	}
++
++	// Otherwise, give up.
+ 	return
+ }
+ 

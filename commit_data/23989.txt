@@ -9,7 +9,51 @@ Date:   Fri Jun 26 14:52:52 2015 -0700
     Change-Id: Icc2a7ba8acea26fd187d52cf1901bfebf8573f93
     Reviewed-on: https://go-review.googlesource.com/11591
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/sync/export_test.go    | 2 ++
  src/sync/waitgroup_test.go | 8 ++++++++
  2 files changed, 10 insertions(+)
+
+diff --git a/src/sync/export_test.go b/src/sync/export_test.go
+index fa5983a2d1..6f49b3bd8a 100644
+--- a/src/sync/export_test.go
++++ b/src/sync/export_test.go
+@@ -7,3 +7,5 @@ package sync
+ // Export for testing.
+ var Runtime_Semacquire = runtime_Semacquire
+ var Runtime_Semrelease = runtime_Semrelease
++
++const RaceEnabled = raceenabled
+diff --git a/src/sync/waitgroup_test.go b/src/sync/waitgroup_test.go
+index 06a77798d0..d3329624fc 100644
+--- a/src/sync/waitgroup_test.go
++++ b/src/sync/waitgroup_test.go
+@@ -47,6 +47,12 @@ func TestWaitGroup(t *testing.T) {
+ 	}
+ }
+ 
++func knownRacy(t *testing.T) {
++	if RaceEnabled {
++		t.Skip("skipping known-racy test under the race detector")
++	}
++}
++
+ func TestWaitGroupMisuse(t *testing.T) {
+ 	defer func() {
+ 		err := recover()
+@@ -62,6 +68,7 @@ func TestWaitGroupMisuse(t *testing.T) {
+ }
+ 
+ func TestWaitGroupMisuse2(t *testing.T) {
++	knownRacy(t)
+ 	if runtime.NumCPU() <= 2 {
+ 		t.Skip("NumCPU<=2, skipping: this test requires parallelism")
+ 	}
+@@ -104,6 +111,7 @@ func TestWaitGroupMisuse2(t *testing.T) {
+ }
+ 
+ func TestWaitGroupMisuse3(t *testing.T) {
++	knownRacy(t)
+ 	if runtime.NumCPU() <= 1 {
+ 		t.Skip("NumCPU==1, skipping: this test requires parallelism")
+ 	}

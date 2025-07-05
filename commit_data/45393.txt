@@ -14,7 +14,7 @@ Date:   Wed Oct 7 17:27:42 2020 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Hyang-Ah Hana Kim <hyangah@gmail.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/cmd/go.mod                                         |  2 +-
  src/cmd/go.sum                                         |  4 ++--
  .../google/pprof/internal/driver/driver_focus.go       |  2 +-
@@ -23,3 +23,134 @@ Date:   Wed Oct 7 17:27:42 2020 -0400
  .../github.com/google/pprof/internal/report/report.go  |  2 +-
  src/cmd/vendor/modules.txt                             |  2 +-
  7 files changed, 30 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index 4d4320aa9b..f79b238a1d 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -3,7 +3,7 @@ module cmd
+ go 1.16
+ 
+ require (
+-	github.com/google/pprof v0.0.0-20200708004538-1a94d8640e99
++	github.com/google/pprof v0.0.0-20201007051231-1066cbb265c7
+ 	github.com/ianlancetaylor/demangle v0.0.0-20200414190113-039b1ae3a340 // indirect
+ 	golang.org/x/arch v0.0.0-20201008161808-52c3e6f60cff
+ 	golang.org/x/crypto v0.0.0-20200820211705-5c72a883971a
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index 3f2562a040..6eff8a2c57 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -1,8 +1,8 @@
+ github.com/chzyer/logex v1.1.10/go.mod h1:+Ywpsq7O8HXn0nuIou7OrIPyXbp3wmkHB+jjWRnGsAI=
+ github.com/chzyer/readline v0.0.0-20180603132655-2972be24d48e/go.mod h1:nSuG5e5PlCu98SY8svDHJxuZscDgtXS6KTTbou5AhLI=
+ github.com/chzyer/test v0.0.0-20180213035817-a1ea475d72b1/go.mod h1:Q3SI9o4m/ZMnBNeIyt5eFwwo7qiLfzFZmjNmxjkiQlU=
+-github.com/google/pprof v0.0.0-20200708004538-1a94d8640e99 h1:Ak8CrdlwwXwAZxzS66vgPt4U8yUZX7JwLvVR58FN5jM=
+-github.com/google/pprof v0.0.0-20200708004538-1a94d8640e99/go.mod h1:ZgVRPoUq/hfqzAqh7sHMqb3I9Rq5C59dIz2SbBwJ4eM=
++github.com/google/pprof v0.0.0-20201007051231-1066cbb265c7 h1:qYWTuM6SUNWgtvkhV8oH6GFHCpU+rKQOxPcepM3xKi0=
++github.com/google/pprof v0.0.0-20201007051231-1066cbb265c7/go.mod h1:ZgVRPoUq/hfqzAqh7sHMqb3I9Rq5C59dIz2SbBwJ4eM=
+ github.com/ianlancetaylor/demangle v0.0.0-20181102032728-5e5cf60278f6/go.mod h1:aSSvb/t6k1mPoxDqO4vJh6VOCGPwU4O0C2/Eqndh1Sc=
+ github.com/ianlancetaylor/demangle v0.0.0-20200414190113-039b1ae3a340 h1:S1+yTUaFPXuDZnPDbO+TrDFIjPzQraYH8/CwSlu9Fac=
+ github.com/ianlancetaylor/demangle v0.0.0-20200414190113-039b1ae3a340/go.mod h1:aSSvb/t6k1mPoxDqO4vJh6VOCGPwU4O0C2/Eqndh1Sc=
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/driver_focus.go b/src/cmd/vendor/github.com/google/pprof/internal/driver/driver_focus.go
+index 048ba17cb0..fd05adb146 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/driver_focus.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/driver_focus.go
+@@ -58,7 +58,7 @@ func applyFocus(prof *profile.Profile, numLabelUnits map[string]string, cfg conf
+ 	taghide, err := compileRegexOption("taghide", cfg.TagHide, err)
+ 	tns, tnh := prof.FilterTagsByName(tagshow, taghide)
+ 	warnNoMatches(tagshow == nil || tns, "TagShow", ui)
+-	warnNoMatches(tagignore == nil || tnh, "TagHide", ui)
++	warnNoMatches(taghide == nil || tnh, "TagHide", ui)
+ 
+ 	if prunefrom != nil {
+ 		prof.PruneFrom(prunefrom)
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/tempfile.go b/src/cmd/vendor/github.com/google/pprof/internal/driver/tempfile.go
+index 28679f1c15..b6c8776ff8 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/tempfile.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/tempfile.go
+@@ -24,9 +24,11 @@ import (
+ // newTempFile returns a new output file in dir with the provided prefix and suffix.
+ func newTempFile(dir, prefix, suffix string) (*os.File, error) {
+ 	for index := 1; index < 10000; index++ {
+-		path := filepath.Join(dir, fmt.Sprintf("%s%03d%s", prefix, index, suffix))
+-		if _, err := os.Stat(path); err != nil {
+-			return os.Create(path)
++		switch f, err := os.OpenFile(filepath.Join(dir, fmt.Sprintf("%s%03d%s", prefix, index, suffix)), os.O_RDWR|os.O_CREATE|os.O_EXCL, 0666); {
++		case err == nil:
++			return f, nil
++		case !os.IsExist(err):
++			return nil, err
+ 		}
+ 	}
+ 	// Give up
+@@ -44,11 +46,15 @@ func deferDeleteTempFile(path string) {
+ }
+ 
+ // cleanupTempFiles removes any temporary files selected for deferred cleaning.
+-func cleanupTempFiles() {
++func cleanupTempFiles() error {
+ 	tempFilesMu.Lock()
++	defer tempFilesMu.Unlock()
++	var lastErr error
+ 	for _, f := range tempFiles {
+-		os.Remove(f)
++		if err := os.Remove(f); err != nil {
++			lastErr = err
++		}
+ 	}
+ 	tempFiles = nil
+-	tempFilesMu.Unlock()
++	return lastErr
+ }
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/graph/dotgraph.go b/src/cmd/vendor/github.com/google/pprof/internal/graph/dotgraph.go
+index 09debfb007..cde648f20b 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/graph/dotgraph.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/graph/dotgraph.go
+@@ -127,7 +127,7 @@ func (b *builder) addLegend() {
+ 	}
+ 	title := labels[0]
+ 	fmt.Fprintf(b, `subgraph cluster_L { "%s" [shape=box fontsize=16`, title)
+-	fmt.Fprintf(b, ` label="%s\l"`, strings.Join(labels, `\l`))
++	fmt.Fprintf(b, ` label="%s\l"`, strings.Join(escapeForDot(labels), `\l`))
+ 	if b.config.LegendURL != "" {
+ 		fmt.Fprintf(b, ` URL="%s" target="_blank"`, b.config.LegendURL)
+ 	}
+@@ -472,3 +472,14 @@ func min64(a, b int64) int64 {
+ 	}
+ 	return b
+ }
++
++// escapeForDot escapes double quotes and backslashes, and replaces Graphviz's
++// "center" character (\n) with a left-justified character.
++// See https://graphviz.org/doc/info/attrs.html#k:escString for more info.
++func escapeForDot(in []string) []string {
++	var out = make([]string, len(in))
++	for i := range in {
++		out[i] = strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(in[i], `\`, `\\`), `"`, `\"`), "\n", `\l`)
++	}
++	return out
++}
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/report/report.go b/src/cmd/vendor/github.com/google/pprof/internal/report/report.go
+index a345208910..bc5685d61e 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/report/report.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/report/report.go
+@@ -1207,7 +1207,7 @@ func reportLabels(rpt *Report, g *graph.Graph, origCount, droppedNodes, droppedE
+ 	// Help new users understand the graph.
+ 	// A new line is intentionally added here to better show this message.
+ 	if fullHeaders {
+-		label = append(label, "\\lSee https://git.io/JfYMW for how to read the graph")
++		label = append(label, "\nSee https://git.io/JfYMW for how to read the graph")
+ 	}
+ 
+ 	return label
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index 75a118f039..4be3a2b680 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -1,4 +1,4 @@
+-# github.com/google/pprof v0.0.0-20200708004538-1a94d8640e99
++# github.com/google/pprof v0.0.0-20201007051231-1066cbb265c7
+ ## explicit
+ github.com/google/pprof/driver
+ github.com/google/pprof/internal/binutils

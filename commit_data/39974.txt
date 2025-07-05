@@ -19,7 +19,7 @@ Date:   Sat Apr 6 12:42:51 2019 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/amd64/ssa.go  | 1 -
  src/cmd/compile/internal/arm/ssa.go    | 1 -
  src/cmd/compile/internal/arm64/ssa.go  | 1 -
@@ -31,3 +31,130 @@ Date:   Sat Apr 6 12:42:51 2019 -0700
  src/cmd/compile/internal/wasm/ssa.go   | 1 -
  src/cmd/compile/internal/x86/ssa.go    | 1 -
  10 files changed, 7 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/ssa.go b/src/cmd/compile/internal/amd64/ssa.go
+index 5b8590c357..693316bdc7 100644
+--- a/src/cmd/compile/internal/amd64/ssa.go
++++ b/src/cmd/compile/internal/amd64/ssa.go
+@@ -1208,7 +1208,6 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
+ 			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[0].Block()})
+ 		}
+ 	case ssa.BlockExit:
+-		s.Prog(obj.AUNDEF) // tell plive.go that we never reach here
+ 	case ssa.BlockRet:
+ 		s.Prog(obj.ARET)
+ 	case ssa.BlockRetJmp:
+diff --git a/src/cmd/compile/internal/arm/ssa.go b/src/cmd/compile/internal/arm/ssa.go
+index 8af6b1e6ed..ee9c9f1c3f 100644
+--- a/src/cmd/compile/internal/arm/ssa.go
++++ b/src/cmd/compile/internal/arm/ssa.go
+@@ -929,7 +929,6 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
+ 		}
+ 
+ 	case ssa.BlockExit:
+-		s.Prog(obj.AUNDEF) // tell plive.go that we never reach here
+ 
+ 	case ssa.BlockRet:
+ 		s.Prog(obj.ARET)
+diff --git a/src/cmd/compile/internal/arm64/ssa.go b/src/cmd/compile/internal/arm64/ssa.go
+index 0b9f62834c..be4ddb4b6b 100644
+--- a/src/cmd/compile/internal/arm64/ssa.go
++++ b/src/cmd/compile/internal/arm64/ssa.go
+@@ -1006,7 +1006,6 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
+ 		}
+ 
+ 	case ssa.BlockExit:
+-		s.Prog(obj.AUNDEF) // tell plive.go that we never reach here
+ 
+ 	case ssa.BlockRet:
+ 		s.Prog(obj.ARET)
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index be317c2109..dd056afcca 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -5335,6 +5335,13 @@ func genssa(f *ssa.Func, pp *Progs) {
+ 			}
+ 		}
+ 	}
++	if f.Blocks[len(f.Blocks)-1].Kind == ssa.BlockExit {
++		// We need the return address of a panic call to
++		// still be inside the function in question. So if
++		// it ends in a call which doesn't return, add a
++		// nop (which will never execute) after the call.
++		thearch.Ginsnop(pp)
++	}
+ 
+ 	if inlMarks != nil {
+ 		// We have some inline marks. Try to find other instructions we're
+diff --git a/src/cmd/compile/internal/mips/ssa.go b/src/cmd/compile/internal/mips/ssa.go
+index d2ea0f46bb..19b7c95bfd 100644
+--- a/src/cmd/compile/internal/mips/ssa.go
++++ b/src/cmd/compile/internal/mips/ssa.go
+@@ -828,7 +828,6 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
+ 			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[0].Block()})
+ 		}
+ 	case ssa.BlockExit:
+-		s.Prog(obj.AUNDEF) // tell plive.go that we never reach here
+ 	case ssa.BlockRet:
+ 		s.Prog(obj.ARET)
+ 	case ssa.BlockRetJmp:
+diff --git a/src/cmd/compile/internal/mips64/ssa.go b/src/cmd/compile/internal/mips64/ssa.go
+index d0c8b06900..01b8ed0564 100644
+--- a/src/cmd/compile/internal/mips64/ssa.go
++++ b/src/cmd/compile/internal/mips64/ssa.go
+@@ -793,7 +793,6 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
+ 			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[0].Block()})
+ 		}
+ 	case ssa.BlockExit:
+-		s.Prog(obj.AUNDEF) // tell plive.go that we never reach here
+ 	case ssa.BlockRet:
+ 		s.Prog(obj.ARET)
+ 	case ssa.BlockRetJmp:
+diff --git a/src/cmd/compile/internal/ppc64/ssa.go b/src/cmd/compile/internal/ppc64/ssa.go
+index a32f80fb29..49f78ee188 100644
+--- a/src/cmd/compile/internal/ppc64/ssa.go
++++ b/src/cmd/compile/internal/ppc64/ssa.go
+@@ -1291,7 +1291,6 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
+ 			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[0].Block()})
+ 		}
+ 	case ssa.BlockExit:
+-		s.Prog(obj.AUNDEF) // tell plive.go that we never reach here
+ 	case ssa.BlockRet:
+ 		s.Prog(obj.ARET)
+ 	case ssa.BlockRetJmp:
+diff --git a/src/cmd/compile/internal/s390x/ssa.go b/src/cmd/compile/internal/s390x/ssa.go
+index d90605bcbd..c5b2d74bcc 100644
+--- a/src/cmd/compile/internal/s390x/ssa.go
++++ b/src/cmd/compile/internal/s390x/ssa.go
+@@ -815,7 +815,6 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
+ 			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[0].Block()})
+ 		}
+ 	case ssa.BlockExit:
+-		s.Prog(obj.AUNDEF) // tell plive.go that we never reach here
+ 	case ssa.BlockRet:
+ 		s.Prog(obj.ARET)
+ 	case ssa.BlockRetJmp:
+diff --git a/src/cmd/compile/internal/wasm/ssa.go b/src/cmd/compile/internal/wasm/ssa.go
+index 63eb319edb..7fdd335ee9 100644
+--- a/src/cmd/compile/internal/wasm/ssa.go
++++ b/src/cmd/compile/internal/wasm/ssa.go
+@@ -97,7 +97,6 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
+ 		p.To.Sym = b.Aux.(*obj.LSym)
+ 
+ 	case ssa.BlockExit:
+-		s.Prog(obj.AUNDEF)
+ 
+ 	case ssa.BlockDefer:
+ 		p := s.Prog(wasm.AGet)
+diff --git a/src/cmd/compile/internal/x86/ssa.go b/src/cmd/compile/internal/x86/ssa.go
+index b7b0f44529..66c7b753c6 100644
+--- a/src/cmd/compile/internal/x86/ssa.go
++++ b/src/cmd/compile/internal/x86/ssa.go
+@@ -916,7 +916,6 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
+ 			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[0].Block()})
+ 		}
+ 	case ssa.BlockExit:
+-		s.Prog(obj.AUNDEF) // tell plive.go that we never reach here
+ 	case ssa.BlockRet:
+ 		s.Prog(obj.ARET)
+ 	case ssa.BlockRetJmp:

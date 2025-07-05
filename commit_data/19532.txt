@@ -9,8 +9,87 @@ Date:   Thu Jun 12 17:01:13 2014 -0700
     R=golang-codereviews, bradfitz, gri
     CC=golang-codereviews
     https://golang.org/cl/105030046
-
+---
  src/pkg/time/example_test.go |  4 ++--
  src/pkg/time/time.go         | 19 +++++++++----------
  src/pkg/time/time_test.go    |  2 +-
  3 files changed, 12 insertions(+), 13 deletions(-)
+
+diff --git a/src/pkg/time/example_test.go b/src/pkg/time/example_test.go
+index cfa5b38c5f..a37e8b86dd 100644
+--- a/src/pkg/time/example_test.go
++++ b/src/pkg/time/example_test.go
+@@ -122,7 +122,7 @@ func ExampleTime_Round() {
+ 	}
+ 	// Output:
+ 	// t.Round(   1ns) = 12:15:30.918273645
+-	// t.Round(   1us) = 12:15:30.918274
++	// t.Round(   1µs) = 12:15:30.918274
+ 	// t.Round(   1ms) = 12:15:30.918
+ 	// t.Round(    1s) = 12:15:31
+ 	// t.Round(    2s) = 12:15:30
+@@ -150,7 +150,7 @@ func ExampleTime_Truncate() {
+ 
+ 	// Output:
+ 	// t.Truncate(   1ns) = 12:15:30.918273645
+-	// t.Truncate(   1us) = 12:15:30.918273
++	// t.Truncate(   1µs) = 12:15:30.918273
+ 	// t.Truncate(   1ms) = 12:15:30.918
+ 	// t.Truncate(    1s) = 12:15:30
+ 	// t.Truncate(    2s) = 12:15:30
+diff --git a/src/pkg/time/time.go b/src/pkg/time/time.go
+index 0a2b091428..fa449c052d 100644
+--- a/src/pkg/time/time.go
++++ b/src/pkg/time/time.go
+@@ -475,29 +475,28 @@ func (d Duration) String() string {
+ 	if u < uint64(Second) {
+ 		// Special case: if duration is smaller than a second,
+ 		// use smaller units, like 1.2ms
+-		var (
+-			prec int
+-			unit byte
+-		)
++		var prec int
++		w--
++		buf[w] = 's'
++		w--
+ 		switch {
+ 		case u == 0:
+ 			return "0"
+ 		case u < uint64(Microsecond):
+ 			// print nanoseconds
+ 			prec = 0
+-			unit = 'n'
++			buf[w] = 'n'
+ 		case u < uint64(Millisecond):
+ 			// print microseconds
+ 			prec = 3
+-			unit = 'u'
++			// U+00B5 'µ' micro sign == 0xC2 0xB5
++			w-- // Need room for two bytes.
++			copy(buf[w:], "µ")
+ 		default:
+ 			// print milliseconds
+ 			prec = 6
+-			unit = 'm'
++			buf[w] = 'm'
+ 		}
+-		w -= 2
+-		buf[w] = unit
+-		buf[w+1] = 's'
+ 		w, u = fmtFrac(buf[:w], u, prec)
+ 		w = fmtInt(buf[:w], u)
+ 	} else {
+diff --git a/src/pkg/time/time_test.go b/src/pkg/time/time_test.go
+index 4ae7da5a44..7e31dd78a9 100644
+--- a/src/pkg/time/time_test.go
++++ b/src/pkg/time/time_test.go
+@@ -535,7 +535,7 @@ var durationTests = []struct {
+ }{
+ 	{"0", 0},
+ 	{"1ns", 1 * Nanosecond},
+-	{"1.1us", 1100 * Nanosecond},
++	{"1.1µs", 1100 * Nanosecond},
+ 	{"2.2ms", 2200 * Microsecond},
+ 	{"3.3s", 3300 * Millisecond},
+ 	{"4m5s", 4*Minute + 5*Second},

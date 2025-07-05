@@ -11,6 +11,27 @@ Date:   Tue Jun 2 13:28:33 2015 +1000
     Change-Id: I453a0cf032e0077d2622d5b85030310d159b9c4b
     Reviewed-on: https://go-review.googlesource.com/10606
     Reviewed-by: Nigel Tao <nigeltao@golang.org>
-
+---
  src/cmd/pprof/internal/profile/profile.go | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/pprof/internal/profile/profile.go b/src/cmd/pprof/internal/profile/profile.go
+index 5eb641f7cd..6d175bf32a 100644
+--- a/src/cmd/pprof/internal/profile/profile.go
++++ b/src/cmd/pprof/internal/profile/profile.go
+@@ -125,11 +125,11 @@ func Parse(r io.Reader) (*Profile, error) {
+ 
+ 	var p *Profile
+ 	if len(orig) >= 2 && orig[0] == 0x1f && orig[1] == 0x8b {
+-		var data []byte
+-
+-		if gz, err := gzip.NewReader(bytes.NewBuffer(orig)); err == nil {
+-			data, err = ioutil.ReadAll(gz)
++		gz, err := gzip.NewReader(bytes.NewBuffer(orig))
++		if err != nil {
++			return nil, fmt.Errorf("decompressing profile: %v", err)
+ 		}
++		data, err := ioutil.ReadAll(gz)
+ 		if err != nil {
+ 			return nil, fmt.Errorf("decompressing profile: %v", err)
+ 		}

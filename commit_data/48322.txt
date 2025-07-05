@@ -10,6 +10,26 @@ Date:   Fri May 7 10:41:24 2021 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/318011
     Trust: Joe Tsai <joetsai@digital-static.net>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  doc/go1.17.html | 8 +++++++-
  1 file changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/doc/go1.17.html b/doc/go1.17.html
+index 3cd324e0ab..894b8ae133 100644
+--- a/doc/go1.17.html
++++ b/doc/go1.17.html
+@@ -405,7 +405,13 @@ Do not send CLs removing the interior tags from such phrases.
+ <dl id="reflect"><dt><a href="/pkg/reflect/">reflect</a></dt>
+   <dd>
+     <p><!-- CL 266197 -->
+-      TODO: <a href="https://golang.org/cl/266197">https://golang.org/cl/266197</a>: add Method.IsExported and StructField.IsExported methods
++      The new
++      <a href="/pkg/reflect/#StructField.IsExported"><code>StructField.IsExported</code></a>
++      and
++      <a href="/pkg/reflect/#Method.IsExported"><code>Method.IsExported</code></a>
++      methods report whether a struct field or type method is exported.
++      They provide a more readable alternative to checking whether <code>PkgPath</code>
++      is empty.
+     </p>
+ 
+     <p><!-- CL 281233 -->

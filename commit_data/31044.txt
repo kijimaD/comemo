@@ -11,7 +11,53 @@ Date:   Sat Jan 14 21:40:16 2017 -0800
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/compile/internal/gc/walk.go |  8 ++++----
  test/fixedbugs/issue18661.go        | 18 ++++++++++++++++++
  2 files changed, 22 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index efe2016e46..7c2e2ab442 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -3117,12 +3117,12 @@ func walkcompare(n *Node, init *Nodes) *Node {
+ 		cmpr = cmpr.Left
+ 	}
+ 
+-	if !islvalue(cmpl) || !islvalue(cmpr) {
+-		Fatalf("arguments of comparison must be lvalues - %v %v", cmpl, cmpr)
+-	}
+-
+ 	// Chose not to inline. Call equality function directly.
+ 	if !inline {
++		if !islvalue(cmpl) || !islvalue(cmpr) {
++			Fatalf("arguments of comparison must be lvalues - %v %v", cmpl, cmpr)
++		}
++
+ 		// eq algs take pointers
+ 		pl := temp(ptrto(t))
+ 		al := nod(OAS, pl, nod(OADDR, cmpl, nil))
+diff --git a/test/fixedbugs/issue18661.go b/test/fixedbugs/issue18661.go
+new file mode 100644
+index 0000000000..8c83775200
+--- /dev/null
++++ b/test/fixedbugs/issue18661.go
+@@ -0,0 +1,18 @@
++// compile
++
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++var (
++	e interface{}
++	s = struct{ a *int }{}
++	b = e == s
++)
++
++func test(obj interface{}) {
++	if obj != struct{ a *string }{} {
++	}
++}

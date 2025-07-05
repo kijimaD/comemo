@@ -7,7 +7,7 @@ Date:   Wed Sep 28 20:07:21 2011 -0400
     R=golang-dev, bradfitz, r
     CC=golang-dev
     https://golang.org/cl/5141051
-
+---
  src/cmd/go/Makefile   |  21 ++++++
  src/cmd/go/build.go   |  57 ++++++++++++++++
  src/cmd/go/clean.go   |  31 +++++++++
@@ -23,3 +23,831 @@ Date:   Wed Sep 28 20:07:21 2011 -0400
  src/cmd/go/version.go |  25 +++++++
  src/cmd/go/vet.go     |  27 ++++++++
  14 files changed, 743 insertions(+)
+
+diff --git a/src/cmd/go/Makefile b/src/cmd/go/Makefile
+new file mode 100644
+index 0000000000..82724c0a54
+--- /dev/null
++++ b/src/cmd/go/Makefile
+@@ -0,0 +1,21 @@
++# Copyright 2009 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++include ../../Make.inc
++
++TARG=go
++GOFILES=\
++	build.go\
++	clean.go\
++	fix.go\
++	get.go\
++	fmt.go\
++	help.go\
++	list.go\
++	main.go\
++	test.go\
++	version.go\
++	vet.go\
++
++include ../../Make.cmd
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+new file mode 100644
+index 0000000000..6cd733078c
+--- /dev/null
++++ b/src/cmd/go/build.go
+@@ -0,0 +1,57 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++var cmdBuild = &Command{
++	Run:       runBuild,
++	UsageLine: "build [-n] [-v] [importpath...]",
++	Short:     "compile and install packages and dependencies",
++	Long: `
++Build compiles the packages named by the import paths,
++along with their dependencies, but it does not install the results.
++
++The -n flag prints the commands but does not run them.
++The -v flag prints the commands.
++
++For more about import paths, see 'go help importpath'.
++
++See also: go install, go get, go clean.
++	`,
++}
++
++var buildN = cmdBuild.Flag.Bool("n", false, "")
++var buildV = cmdBuild.Flag.Bool("v", false, "")
++
++func runBuild(cmd *Command, args []string) {
++	args = importPaths(args)
++	_ = args
++	panic("build not implemented")
++}
++
++var cmdInstall = &Command{
++	Run:       runInstall,
++	UsageLine: "install [-n] [-v] [importpath...]",
++	Short:     "install packages and dependencies",
++	Long: `
++Install compiles and installs the packages named by the import paths,
++along with their dependencies.
++
++The -n flag prints the commands but does not run them.
++The -v flag prints the commands.
++
++For more about import paths, see 'go help importpath'.
++
++See also: go build, go get, go clean.
++	`,
++}
++
++var installN = cmdInstall.Flag.Bool("n", false, "")
++var installV = cmdInstall.Flag.Bool("v", false, "")
++
++func runInstall(cmd *Command, args []string) {
++	args = importPaths(args)
++	_ = args
++	panic("install not implemented")
++}
+diff --git a/src/cmd/go/clean.go b/src/cmd/go/clean.go
+new file mode 100644
+index 0000000000..4fa965b732
+--- /dev/null
++++ b/src/cmd/go/clean.go
+@@ -0,0 +1,31 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++var cmdClean = &Command{
++	Run:       runClean,
++	UsageLine: "clean [-nuke] [importpath...]",
++	Short:     "remove intermediate objects",
++	Long: `
++Clean removes intermediate object files generated during
++the compilation of the packages named by the import paths,
++but by default it does not remove the installed package binaries.
++
++The -nuke flag causes clean to remove the installed package binaries too.
++
++TODO: Clean does not clean dependencies of the packages.
++TODO: Rename -nuke.
++
++For more about import paths, see 'go help importpath'.
++	`,
++}
++
++var cleanNuke = cmdClean.Flag.Bool("nuke", false, "")
++
++func runClean(cmd *Command, args []string) {
++	args = importPaths(args)
++	_ = args
++	panic("nuke not implemented")
++}
+diff --git a/src/cmd/go/doc.go b/src/cmd/go/doc.go
+new file mode 100644
+index 0000000000..2f51774c1a
+--- /dev/null
++++ b/src/cmd/go/doc.go
+@@ -0,0 +1,33 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++/*
++Go is a tool for managing Go source code.
++
++Usage: go command [arguments]
++
++The commands are:
++
++    build       compile and install packages and dependencies
++    clean       remove intermediate objects
++    fix         run gofix on packages
++    fmt         run gofmt -w on packages
++    get         download and install packages and dependencies
++    install     install packages and dependencies
++    list        list packages
++    test        test packages
++    version     print Go version
++    vet         run govet on packages
++
++Use "go help [command]" for more information about a command.
++
++Additional help topics:
++
++    gopath      GOPATH environment variable
++    importpath  description of import paths
++    remote      remote import path syntax
++
++Use "go help [topic]" for more information about that topic.
++*/
++package documentation
+diff --git a/src/cmd/go/fix.go b/src/cmd/go/fix.go
+new file mode 100644
+index 0000000000..04755634a7
+--- /dev/null
++++ b/src/cmd/go/fix.go
+@@ -0,0 +1,27 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++var cmdFix = &Command{
++	Run:       runFix,
++	UsageLine: "fix [importpath...]",
++	Short:     "run gofix on packages",
++	Long: `
++Fix runs the gofix command on the packages named by the import paths.
++
++For more about gofix, see 'godoc gofix'.
++For more about import paths, see 'go help importpath'.
++
++To run gofix with specific options, run gofix itself.
++
++See also: go fmt, go vet.
++	`,
++}
++
++func runFix(cmd *Command, args []string) {
++	args = importPaths(args)
++	_ = args
++	panic("fix not implemented")
++}
+diff --git a/src/cmd/go/fmt.go b/src/cmd/go/fmt.go
+new file mode 100644
+index 0000000000..0f3baafe29
+--- /dev/null
++++ b/src/cmd/go/fmt.go
+@@ -0,0 +1,27 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++var cmdFmt = &Command{
++	Run:       runFmt,
++	UsageLine: "fmt [importpath...]",
++	Short:     "run gofmt -w on packages",
++	Long: `
++Fmt runs the command 'gofmt -w' on the packages named by the import paths.
++
++For more about gofmt, see 'godoc gofmt'.
++For more about import paths, see 'go help importpath'.
++
++To run gofmt with specific options, run gofmt itself.
++
++See also: go fix, go vet.
++	`,
++}
++
++func runFmt(cmd *Command, args []string) {
++	args = importPaths(args)
++	_ = args
++	panic("fmt not implemented")
++}
+diff --git a/src/cmd/go/get.go b/src/cmd/go/get.go
+new file mode 100644
+index 0000000000..93d4d441c8
+--- /dev/null
++++ b/src/cmd/go/get.go
+@@ -0,0 +1,39 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++var cmdGet = &Command{
++	Run:       runGet,
++	UsageLine: "get [importpath...]",
++	Short:     "download and install packages and dependencies",
++	Long: `
++Get downloads and installs the packages named by the import paths,
++along with their dependencies.
++
++After downloading the code, 'go get' looks for a tag beginning
++with "go." that corresponds to the local Go version.
++For Go "release.r58" it looks for a tag named "go.r58".
++For "weekly.2011-06-03" it looks for "go.weekly.2011-06-03".
++If the specific "go.X" tag is not found, it uses the latest earlier
++version it can find.  Otherwise, it uses the default version for
++the version control system: HEAD for git, tip for Mercurial,
++and so on.
++
++TODO: Explain versions better.
++
++For more about import paths, see 'go help importpath'.
++
++For more about how 'go get' finds source code to
++download, see 'go help remote'.
++
++See also: go build, go install, go clean.
++	`,
++}
++
++func runGet(cmd *Command, args []string) {
++	args = importPaths(args)
++	_ = args
++	panic("get not implemented")
++}
+diff --git a/src/cmd/go/help.go b/src/cmd/go/help.go
+new file mode 100644
+index 0000000000..e1b53a67ea
+--- /dev/null
++++ b/src/cmd/go/help.go
+@@ -0,0 +1,178 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++var helpImportpath = &Command{
++	UsageLine: "importpath",
++	Short:     "description of import paths",
++	Long: `
++Many commands apply to a set of packages named by import paths:
++
++	go action [importpath...]
++
++An import path that is a rooted path or that begins with
++a . or .. element is interpreted as a file system path and
++denotes the package in that directory.
++
++Otherwise, the import path P denotes the package found in
++the directory DIR/src/P for some DIR listed in the GOPATH
++environment variable (see 'go help gopath'). 
++
++If no import paths are given, the action applies to the
++package in the current directory.
++
++The special import path "all" expands to all package directories
++found in all the GOPATH trees.  For example, 'go list all' 
++lists all the packages on the local system.
++
++An import path can also name a package to be downloaded from
++a remote repository.  Run 'go help remote' for details.
++
++Every package in a program must have a unique import path.
++By convention, this is arranged by starting each path with a
++unique prefix that belongs to you.  For example, paths used
++internally at Google all begin with 'google', and paths
++denoting remote repositories begin with the path to the code,
++such as 'project.googlecode.com/'.
++	`,
++}
++
++var helpRemote = &Command{
++	UsageLine: "remote",
++	Short:     "remote import path syntax",
++	Long: `
++
++An import path (see 'go help importpath') denotes a package
++stored in the local file system.  Certain import paths also
++describe how to obtain the source code for the package using
++a revision control system.
++
++A few common code hosting sites have special syntax:
++
++	BitBucket (Mercurial)
++
++		import "bitbucket.org/user/project"
++		import "bitbucket.org/user/project/sub/directory"
++
++	GitHub (Git)
++
++		import "github.com/user/project"
++		import "github.com/user/project/sub/directory"
++
++	Google Code Project Hosting (Git, Mercurial, Subversion)
++
++		import "project.googlecode.com/git"
++		import "project.googlecode.com/git/sub/directory"
++
++		import "project.googlecode.com/hg"
++		import "project.googlecode.com/hg/sub/directory"
++
++		import "project.googlecode.com/svn/trunk"
++		import "project.googlecode.com/svn/trunk/sub/directory"
++
++	Launchpad (Bazaar)
++
++		import "launchpad.net/project"
++		import "launchpad.net/project/series"
++		import "launchpad.net/project/series/sub/directory"
++
++		import "launchpad.net/~user/project/branch"
++		import "launchpad.net/~user/project/branch/sub/directory"
++
++For code hosted on other servers, an import path of the form
++
++	repository.vcs/path
++
++specifies the given repository, with or without the .vcs suffix,
++using the named version control system, and then the path inside
++that repository.  The supported version control systems are:
++
++	Bazaar      .bzr
++	Git         .git
++	Mercurial   .hg
++	Subversion  .svn
++
++For example,
++
++	import "example.org/user/foo.hg"
++
++denotes the root directory of the Mercurial repository at
++example.org/user/foo or foo.hg, and
++
++	import "example.org/repo.git/foo/bar"
++
++denotes the foo/bar directory of the Git repository at
++example.com/repo or repo.git.
++
++When a version control system supports multiple protocols,
++each is tried in turn when downloading.  For example, a Git
++download tries git://, then https://, then http://.
++
++New downloaded packages are written to the first directory
++listed in the GOPATH environment variable (see 'go help gopath').
++
++The go command attempts to download the version of the
++package appropriate for the Go release being used.
++Run 'go help install' for more.
++	`,
++}
++
++var helpGopath = &Command{
++	UsageLine: "gopath",
++	Short:     "GOPATH environment variable",
++	Long: `
++The GOPATH environment variable lists places to look for Go code.
++On Unix, the value is a colon-separated string.
++On Windows, the value is a semicolon-separated string.
++On Plan 9, the value is a list.
++
++GOPATH must be set to build and install packages outside the
++standard Go tree.
++
++Each directory listed in GOPATH must have a prescribed structure:
++
++The src/ directory holds source code.  The path below 'src'
++determines the import path or executable name.
++
++The pkg/ directory holds installed package objects.
++As in the Go tree, each target operating system and
++architecture pair has its own subdirectory of pkg
++(pkg/GOOS_GOARCH).
++
++If DIR is a directory listed in the GOPATH, a package with
++source in DIR/src/foo/bar can be imported as "foo/bar" and
++has its compiled form installed to "DIR/pkg/GOOS_GOARCH/foo/bar.a".
++
++The bin/ directory holds compiled commands.
++Each command is named for its source directory, but only
++the final element, not the entire path.  That is, the
++command with source in DIR/src/foo/quux is installed into
++DIR/bin/quux, not DIR/bin/foo/quux.  The foo/ is stripped
++so that you can add DIR/bin to your PATH to get at the
++installed commands.
++
++Here's an example directory layout:
++
++    GOPATH=/home/user/gocode
++
++    /home/user/gocode/
++        src/
++            foo/
++                bar/               (go code in package bar)
++                    x.go
++                quux/              (go code in package main)
++                    y.go
++        bin/
++            quux                   (installed command)
++		pkg/
++		    linux_amd64/
++		        foo/
++		            bar.a          (installed package object)
++
++Go searches each directory listed in GOPATH to find source code,
++but new packages are always downloaded into the first directory 
++in the list.
++	`,
++}
+diff --git a/src/cmd/go/list.go b/src/cmd/go/list.go
+new file mode 100644
+index 0000000000..46148ae733
+--- /dev/null
++++ b/src/cmd/go/list.go
+@@ -0,0 +1,49 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++var cmdList = &Command{
++	Run:       runList,
++	UsageLine: "list [-f format] [-json] [importpath...]",
++	Short:     "list packages",
++	Long: `
++List lists the packages named by the import paths.
++
++The default output shows the package name and file system location:
++
++    books /home/you/src/google-api-go-client.googlecode.com/hg/books/v1
++    oauth /home/you/src/goauth2.googlecode.com/hg/oauth
++    sqlite /home/you/src/gosqlite.googlecode.com/hg/sqlite
++
++The -f flag specifies an alternate format for the list,
++using the syntax of package template.  The default output
++is equivalent to -f '{{.Name}} {{.Dir}}'  The struct
++being passed to the template is:
++
++    type Package struct {
++        Name string         // package name
++        Doc string          // package documentation string
++        GoFiles []string    // names of Go source files in package
++        ImportPath string   // import path denoting package
++        Imports []string    // import paths used by this package
++        Deps []string       // all (recursively) imported dependencies
++        Dir string          // directory containing package sources
++        Version string      // version of installed package
++    }
++
++The -json flag causes the package data to be printed in JSON format.
++
++For more about import paths, see 'go help importpath'.
++	`,
++}
++
++var listFmt = cmdList.Flag.String("f", "{{.Name}} {{.Dir}}", "")
++var listJson = cmdList.Flag.Bool("json", false, "")
++
++func runList(cmd *Command, args []string) {
++	args = importPaths(args)
++	_ = args
++	panic("list not implemented")
++}
+diff --git a/src/cmd/go/main.go b/src/cmd/go/main.go
+new file mode 100644
+index 0000000000..784399dce8
+--- /dev/null
++++ b/src/cmd/go/main.go
+@@ -0,0 +1,174 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"flag"
++	"fmt"
++	"io"
++	"os"
++	"strings"
++	"template"
++)
++
++// A Command is an implementation of a go command
++// like go build or go fix.
++type Command struct {
++	// Run runs the command.
++	// The args are the arguments after the command name.
++	Run func(cmd *Command, args []string)
++
++	// UsageLine is the one-line usage message.
++	// The first word in the line is taken to be the command name.
++	UsageLine string
++
++	// Short is the short description shown in the 'go help' output.
++	Short string
++
++	// Long is the long message shown in the 'go help <this-command>' output.
++	Long string
++
++	// Flag is a set of flags specific to this command.
++	Flag flag.FlagSet
++}
++
++// Name returns the command's name: the first word in the usage line.
++func (c *Command) Name() string {
++	name := c.UsageLine
++	i := strings.Index(name, " ")
++	if i >= 0 {
++		name = name[:i]
++	}
++	return name
++}
++
++func (c *Command) Usage() {
++	fmt.Fprintf(os.Stderr, "usage: %s\n\n", c.UsageLine)
++	fmt.Fprintf(os.Stderr, "%s\n", strings.TrimSpace(c.Long))
++	os.Exit(2)
++}
++
++// Commands lists the available commands and help topics.
++// The order here is the order in which they are printed by 'go help'.
++var commands = []*Command{
++	cmdBuild,
++	cmdClean,
++	cmdFix,
++	cmdFmt,
++	cmdGet,
++	cmdInstall,
++	cmdList,
++	cmdTest,
++	cmdVersion,
++	cmdVet,
++
++	helpGopath,
++	helpImportpath,
++	helpRemote,
++}
++
++func main() {
++	flag.Usage = usage
++	flag.Parse()
++
++	args := flag.Args()
++	if len(args) < 1 {
++		usage()
++	}
++
++	if args[0] == "help" {
++		help(args[1:])
++		return
++	}
++
++	for _, cmd := range commands {
++		if cmd.Name() == args[0] && cmd.Run != nil {
++			cmd.Flag.Usage = func() { cmd.Usage() }
++			cmd.Flag.Parse(args[1:])
++			args = cmd.Flag.Args()
++			cmd.Run(cmd, args)
++			return
++		}
++	}
++
++	fmt.Fprintf(os.Stderr, "Unknown command %#q\n\n", args[0])
++	usage()
++}
++
++var usageTemplate = `usage: go command [arguments]
++
++go manages Go source code.
++
++The commands are:
++{{range .}}{{if .Run}}
++    {{.Name | printf "%-11s"}} {{.Short}}{{end}}{{end}}
++
++Use "go help [command]" for more information about a command.
++
++Additional help topics:
++{{range .}}{{if not .Run}}
++    {{.Name | printf "%-11s"}} {{.Short}}{{end}}{{end}}
++
++Use "go help [topic]" for more information about that topic.
++
++`
++
++var helpTemplate = `{{if .Run}}usage: go {{.UsageLine}}
++
++{{end}}{{.Long | trim}}
++`
++
++// tmpl executes the given template text on data, writing the result to w.
++func tmpl(w io.Writer, text string, data interface{}) {
++	t := template.New("top")
++	t.Funcs(template.FuncMap{"trim": strings.TrimSpace})
++	template.Must(t.Parse(text))
++	if err := t.Execute(w, data); err != nil {
++		panic(err)
++	}
++}
++
++func printUsage(w io.Writer) {
++	tmpl(w, usageTemplate, commands)
++}
++
++func usage() {
++	printUsage(os.Stderr)
++	os.Exit(2)
++}
++
++// help implements the 'help' command.
++func help(args []string) {
++	if len(args) == 0 {
++		printUsage(os.Stdout)
++		// not exit 2: succeeded at 'go help'.
++		return
++	}
++	if len(args) != 1 {
++		fmt.Fprintf(os.Stderr, "usage: go help command\n\nToo many arguments given.\n")
++		os.Exit(2) // failed at 'go help'
++	}
++
++	arg := args[0]
++	for _, cmd := range commands {
++		if cmd.Name() == arg {
++			tmpl(os.Stdout, helpTemplate, cmd)
++			// not exit 2: succeeded at 'go help cmd'.
++			return
++		}
++	}
++
++	fmt.Fprintf(os.Stderr, "Unknown help topic %#q.  Run 'go help'.\n", arg)
++	os.Exit(2) // failed at 'go help cmd'
++}
++
++// importPaths returns the import paths to use for the given command line.
++func importPaths(args []string) []string {
++	// TODO: "all"
++	if len(args) == 0 {
++		return []string{"."}
++	}
++	return args
++}
+diff --git a/src/cmd/go/script b/src/cmd/go/script
+new file mode 100755
+index 0000000000..340a7e824c
+--- /dev/null
++++ b/src/cmd/go/script
+@@ -0,0 +1,23 @@
++#!/bin/sh
++
++x() {
++	echo '--- ' "$@"
++	"$@"
++	echo '---'
++	echo
++}
++
++x go help
++x go help build
++x go help clean
++x go help install
++x go help fix
++x go help fmt
++x go help get
++x go help list
++x go help test
++x go help version
++x go help vet
++x go help gopath
++x go help importpath
++x go help remote
+diff --git a/src/cmd/go/test.go b/src/cmd/go/test.go
+new file mode 100644
+index 0000000000..1f1c289898
+--- /dev/null
++++ b/src/cmd/go/test.go
+@@ -0,0 +1,32 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++var cmdTest = &Command{
++	Run:       runTest,
++	UsageLine: "test [importpath...]",
++	Short:     "test packages",
++	Long: `
++Test runs gotest to test the packages named by the import paths.
++It prints a summary of the test results in the format:
++
++	test archive/tar
++	FAIL archive/zip
++	test compress/gzip
++	...
++
++followed by gotest output for each failed package.
++
++For more about import paths, see 'go help importpath'.
++
++See also: go build, go compile, go vet.
++	`,
++}
++
++func runTest(cmd *Command, args []string) {
++	args = importPaths(args)
++	_ = args
++	panic("test not implemented")
++}
+diff --git a/src/cmd/go/version.go b/src/cmd/go/version.go
+new file mode 100644
+index 0000000000..09e2f16334
+--- /dev/null
++++ b/src/cmd/go/version.go
+@@ -0,0 +1,25 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"fmt"
++	"runtime"
++)
++
++var cmdVersion = &Command{
++	Run:       runVersion,
++	UsageLine: "version",
++	Short:     "print Go version",
++	Long:      `Version prints the Go version, as reported by runtime.Version.`,
++}
++
++func runVersion(cmd *Command, args []string) {
++	if len(args) != 0 {
++		cmd.Usage()
++	}
++
++	fmt.Printf("go version %s\n", runtime.Version())
++}
+diff --git a/src/cmd/go/vet.go b/src/cmd/go/vet.go
+new file mode 100644
+index 0000000000..50194ae16a
+--- /dev/null
++++ b/src/cmd/go/vet.go
+@@ -0,0 +1,27 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++var cmdVet = &Command{
++	Run:       runVet,
++	UsageLine: "vet [importpath...]",
++	Short:     "run govet on packages",
++	Long: `
++Vet runs the govet command on the packages named by the import paths.
++
++For more about govet, see 'godoc govet'.
++For more about import paths, see 'go help importpath'.
++
++To run govet with specific options, run govet itself.
++
++See also: go fmt, go fix.
++	`,
++}
++
++func runVet(cmd *Command, args []string) {
++	args = importPaths(args)
++	_ = args
++	panic("vet not implemented")
++}

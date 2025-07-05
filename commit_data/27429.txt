@@ -32,6 +32,24 @@ Date:   Sat Mar 26 08:17:43 2016 -0700
     Reviewed-on: https://go-review.googlesource.com/21178
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/walk.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 9862c24d4f..6d077d5890 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -774,9 +774,9 @@ opswitch:
+ 		}
+ 
+ 		if n.Left != nil && n.Right != nil {
+-			r := convas(Nod(OAS, n.Left, n.Right), init)
+-			r.Dodata = n.Dodata
+-			n = r
++			dd := n.Dodata
++			n = convas(n, init)
++			n.Dodata = dd
+ 			n = applywritebarrier(n)
+ 		}
+ 

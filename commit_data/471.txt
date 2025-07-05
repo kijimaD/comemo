@@ -9,10 +9,186 @@ Date:   Sun Aug 3 18:47:02 2008 -0700
     DELTA=49  (12 added, 28 deleted, 9 changed)
     OCL=13791
     CL=13791
-
+---
  src/cmd/gc/dcl.c    | 10 +++++++---
  src/cmd/gc/export.c | 20 ++------------------
  src/cmd/gc/go.h     |  5 +++--
  src/cmd/gc/go.y     | 18 +++++++-----------
  src/cmd/gc/subr.c   |  1 -
  5 files changed, 19 insertions(+), 35 deletions(-)
+
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index 4b86e8e3c2..0025f4e65b 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -31,6 +31,8 @@ loop:
+ 		goto loop;
+ 	}
+ 
++	if(exportadj)
++		exportsym(n->sym);
+ 	addvar(n, t, dclcontext);
+ }
+ 
+@@ -48,6 +50,8 @@ dodcltype(Type *n, Type *t)
+ 		t = nt;
+ 		t->sym = S;
+ 	}
++	if(exportadj)
++		exportsym(n->sym);
+ 	addtyp(n, t, dclcontext);
+ }
+ 
+@@ -65,6 +69,8 @@ loop:
+ 		n = n->right;
+ 		goto loop;
+ 	}
++	if(exportadj)
++		exportsym(n->sym);
+ 
+ 	if(n->op != ONAME)
+ 		fatal("dodclconst: not a name");
+@@ -990,9 +996,7 @@ fninit(Node *n)
+ 	r = list(r, a);
+ 
+ 	// (9)
+-	a = nod(OEXPORT, N, N);
+-	a->sym = fn->nname->sym;
+-	markexport(a);
++	exportsym(fn->nname->sym);
+ 
+ 	fn->nbody = rev(r);
+ //dump("b", fn);
+diff --git a/src/cmd/gc/export.c b/src/cmd/gc/export.c
+index 839dc76597..01ce962828 100644
+--- a/src/cmd/gc/export.c
++++ b/src/cmd/gc/export.c
+@@ -6,28 +6,12 @@
+ #include	"y.tab.h"
+ 
+ void
+-markexport(Node *n)
++exportsym(Sym *s)
+ {
+-	Sym *s;
+ 	Dcl *d, *r;
+ 
+-loop:
+-	if(n == N)
++	if(s == S)
+ 		return;
+-
+-	if(n->op == OLIST) {
+-		markexport(n->left);
+-		n = n->right;
+-		goto loop;
+-	}
+-
+-	if(n->op != OEXPORT)
+-		fatal("markexport: op no OEXPORT: %O", n->op);
+-
+-	s = n->sym;
+-	if(n->psym != S)
+-		s = pkglookup(n->sym->name, n->psym->name);
+-
+ 	if(s->export != 0)
+ 		return;
+ 	s->export = 1;
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index ed61378a21..b775b32e18 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -211,7 +211,7 @@ enum
+ {
+ 	OXXX,
+ 
+-	OTYPE, OCONST, OVAR, OEXPORT, OIMPORT,
++	OTYPE, OCONST, OVAR, OIMPORT,
+ 
+ 	ONAME, ONONAME,
+ 	ODOT, ODOTPTR, ODOTMETH, ODOTINTER,
+@@ -369,6 +369,7 @@ EXTERN	Sym*	pkgimportname;	// package name from imported package
+ EXTERN	int	tptr;		// either TPTR32 or TPTR64
+ extern	char*	sysimport;
+ EXTERN	char*	filename;	// name to uniqify names
++EXTERN	int	exportadj;	// declaration is being exported
+ 
+ EXTERN	Type*	types[NTYPE];
+ EXTERN	uchar	isptr[NTYPE];
+@@ -549,7 +550,7 @@ void	fninit(Node*);
+  *	export.c
+  */
+ void	renamepkg(Node*);
+-void	markexport(Node*);
++void	exportsym(Sym*);
+ void	dumpe(Sym*);
+ void	dumpexport(void);
+ void	dumpexporttype(Sym*);
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index be445d1d93..558d16bcbc 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -44,7 +44,6 @@
+ %type	<node>		vardcl_list_r vardcl Avardcl Bvardcl
+ %type	<node>		interfacedcl_list_r interfacedcl
+ %type	<node>		structdcl_list_r structdcl
+-%type	<node>		export_list_r export
+ %type	<node>		hidden_importsym_list_r ohidden_importsym_list hidden_importsym isym
+ %type	<node>		hidden_importfield_list_r ohidden_importfield_list hidden_importfield
+ %type	<node>		fnres Afnres Bfnres fnliteral xfndcl fndcl fnbody
+@@ -136,14 +135,17 @@ import_there:
+  */
+ xdcl:
+ 	common_dcl
++|	LEXPORT { exportadj = 1; } common_dcl
++	{
++		$$ = $3;
++		exportadj = 0;
++	}
+ |	LEXPORT export_list_r
+ 	{
+-		markexport(rev($2));
+ 		$$ = N;
+ 	}
+ |	LEXPORT '(' export_list_r ')'
+ 	{
+-		markexport(rev($3));
+ 		$$ = N;
+ 	}
+ |	xfndcl
+@@ -1322,21 +1324,15 @@ new_name_list_r:
+ export_list_r:
+ 	export
+ |	export_list_r ocomma export
+-	{
+-		$$ = nod(OLIST, $1, $3);
+-	}
+ 
+ export:
+ 	sym
+ 	{
+-		$$ = nod(OEXPORT, N, N);
+-		$$->sym = $1;
++		exportsym($1);
+ 	}
+ |	sym '.' sym
+ 	{
+-		$$ = nod(OEXPORT, N, N);
+-		$$->psym = $1;
+-		$$->sym = $3;
++		exportsym(pkglookup($3->name, $1->name));
+ 	}
+ 
+ import_stmt_list_r:
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index f34b2cc5bf..22e4a43151 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -670,7 +670,6 @@ opnames[] =
+ 	[OSWITCH]	= "SWITCH",
+ 	[OTYPE]		= "TYPE",
+ 	[OVAR]		= "VAR",
+-	[OEXPORT]	= "EXPORT",
+ 	[OIMPORT]	= "IMPORT",
+ 	[OXOR]		= "XOR",
+ 	[ONEW]		= "NEW",

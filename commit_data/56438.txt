@@ -12,7 +12,7 @@ Date:   Mon May 8 13:39:27 2023 -0400
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/tools/tools.go                             |  11 +
  .../vendor/golang.org/x/tools/cmd/bisect/go119.go  |  13 +
  .../vendor/golang.org/x/tools/cmd/bisect/go120.go  |  26 +
@@ -21,3 +21,1241 @@ Date:   Mon May 8 13:39:27 2023 -0400
  .../golang.org/x/tools/internal/bisect/bisect.go   | 503 +++++++++++++++++
  src/cmd/vendor/modules.txt                         |   2 +
  7 files changed, 1184 insertions(+)
+
+diff --git a/src/cmd/tools/tools.go b/src/cmd/tools/tools.go
+new file mode 100644
+index 0000000000..5e0f2774c2
+--- /dev/null
++++ b/src/cmd/tools/tools.go
+@@ -0,0 +1,11 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build tools
++
++package tools
++
++// Arrange to vendor the bisect command for use
++// by the internal/godebug package test.
++import _ "golang.org/x/tools/cmd/bisect"
+diff --git a/src/cmd/vendor/golang.org/x/tools/cmd/bisect/go119.go b/src/cmd/vendor/golang.org/x/tools/cmd/bisect/go119.go
+new file mode 100644
+index 0000000000..debe4e0c25
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/tools/cmd/bisect/go119.go
+@@ -0,0 +1,13 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !go1.20
++
++package main
++
++import "os/exec"
++
++func cmdInterrupt(cmd *exec.Cmd) {
++	// cmd.Cancel and cmd.WaitDelay not available before Go 1.20.
++}
+diff --git a/src/cmd/vendor/golang.org/x/tools/cmd/bisect/go120.go b/src/cmd/vendor/golang.org/x/tools/cmd/bisect/go120.go
+new file mode 100644
+index 0000000000..c85edf7b57
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/tools/cmd/bisect/go120.go
+@@ -0,0 +1,26 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build go1.20
++
++package main
++
++import (
++	"os"
++	"os/exec"
++	"time"
++)
++
++func cmdInterrupt(cmd *exec.Cmd) {
++	cmd.Cancel = func() error {
++		// On timeout, send interrupt,
++		// in hopes of shutting down process tree.
++		// Ignore errors sending signal; it's all best effort
++		// and not even implemented on Windows.
++		// TODO(rsc): Maybe use a new process group and kill the whole group?
++		cmd.Process.Signal(os.Interrupt)
++		return nil
++	}
++	cmd.WaitDelay = 2 * time.Second
++}
+diff --git a/src/cmd/vendor/golang.org/x/tools/cmd/bisect/main.go b/src/cmd/vendor/golang.org/x/tools/cmd/bisect/main.go
+new file mode 100644
+index 0000000000..1fc2b0283e
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/tools/cmd/bisect/main.go
+@@ -0,0 +1,609 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Bisect finds changes responsible for causing a failure.
++// A typical use is to identify the source locations in a program
++// that are miscompiled by a given compiler optimization.
++//
++// Usage:
++//
++//	bisect [flags] [var=value...] command [arguments...]
++//
++// Bisect operates on a target command line – the target – that can be
++// run with various changes individually enabled or disabled. With none
++// of the changes enabled, the target is known to succeed (exit with exit
++// code zero). With all the changes enabled, the target is known to fail
++// (exit any other way). Bisect repeats the target with different sets of
++// changes enabled, using binary search to find (non-overlapping) minimal
++// change sets that preserve the failure.
++//
++// The target must cooperate with bisect by accepting a change pattern
++// and then enabling and reporting the changes that match that pattern.
++// The change pattern is passed to the target by substituting it anywhere
++// the string PATTERN appears in the environment values or the command
++// arguments. For each change that matches the pattern, the target must
++// enable that change and also print one or more “match lines”
++// (to standard output or standard error) describing the change.
++// The [golang.org/x/tools/internal/bisect] package provides functions to help
++// targets implement this protocol. We plan to publish that package
++// in a non-internal location after finalizing its API.
++//
++// # Command Line Flags
++//
++// Bisect supports the following command-line flags:
++//
++//	-max M
++//
++// Stop after finding M minimal change sets. The default is no maximum, meaning to run until
++// all changes that provoke a failure have been identified.
++//
++//	-maxset S
++//
++// Disallow change sets larger than S elements. The default is no maximum.
++//
++//	-timeout D
++//
++// If the target runs for longer than duration D, stop the target and interpret that as a failure.
++// The default is no timeout.
++//
++//	-count N
++//
++// Run each trial N times (default 2), checking for consistency.
++//
++//	-v
++//
++// Print verbose output, showing each run and its match lines.
++//
++// # Example
++//
++// For example, the Go compiler can be used as a bisect target to
++// determine the source locations that cause a test failure when compiled with
++// a new optimization:
++//
++//	bisect go test -gcflags=all=-d=loopvarhash=PATTERN
++//
++// The -gcflags=all= instructs the go command to pass the -d=... to the Go compiler
++// when compiling all packages. Bisect replaces the literal text “PATTERN” with a specific pattern
++// on each invocation, varying the patterns to determine the minimal set of changes
++// needed to reproduce the failure.
++//
++// # Defeating Build Caches
++//
++// Build systems cache build results, to avoid repeating the same compilations
++// over and over. When using a cached build result, the go command (correctly)
++// reprints the cached standard output and standard error associated with that
++// command invocation. (This makes commands like 'go build -gcflags=-S' for
++// printing an assembly listing work reliably.)
++//
++// Unfortunately, most build systems, including Bazel, are not as careful
++// as the go command about reprinting compiler output. If the compiler is
++// what prints match lines, a build system that suppresses compiler
++// output when using cached compiler results will confuse bisect.
++// To defeat such build caches, bisect replaces the literal text “RANDOM”
++// in environment values and command arguments with a random 64-bit value
++// during each invocation. The Go compiler conveniently accepts a
++// -d=ignore=... debug flag that ignores its argument, so to run the
++// previous example using Bazel, the invocation is:
++//
++//	bazel test --define=gc_goopts=-d=loopvarhash=PATTERN,unused=RANDOM //path/to:test
++package main
++
++import (
++	"context"
++	"flag"
++	"fmt"
++	"io"
++	"log"
++	"math/rand"
++	"os"
++	"os/exec"
++	"strconv"
++	"strings"
++	"time"
++
++	"golang.org/x/tools/internal/bisect"
++)
++
++// Preserve import of bisect, to allow [bisect.Match] in the doc comment.
++var _ bisect.Matcher
++
++func usage() {
++	fmt.Fprintf(os.Stderr, "usage: bisect [flags] [var=value...] command [arguments...]\n")
++	flag.PrintDefaults()
++	os.Exit(2)
++}
++
++func main() {
++	log.SetFlags(0)
++	log.SetPrefix("bisect: ")
++
++	var b Bisect
++	b.Stdout = os.Stdout
++	b.Stderr = os.Stderr
++	flag.IntVar(&b.Max, "max", 0, "stop after finding `m` failing change sets")
++	flag.IntVar(&b.MaxSet, "maxset", 0, "do not search for change sets larger than `s` elements")
++	flag.DurationVar(&b.Timeout, "timeout", 0, "stop target and consider failed after duration `d`")
++	flag.IntVar(&b.Count, "count", 2, "run target `n` times for each trial")
++	flag.BoolVar(&b.Verbose, "v", false, "enable verbose output")
++
++	flag.Usage = usage
++	flag.Parse()
++	args := flag.Args()
++
++	// Split command line into env settings, command name, args.
++	i := 0
++	for i < len(args) && strings.Contains(args[i], "=") {
++		i++
++	}
++	if i == len(args) {
++		usage()
++	}
++	b.Env, b.Cmd, b.Args = args[:i], args[i], args[i+1:]
++	if !b.Search() {
++		os.Exit(1)
++	}
++}
++
++// A Bisect holds the state for a bisect invocation.
++type Bisect struct {
++	// Env is the additional environment variables for the command.
++	// PATTERN and RANDOM are substituted in the values, but not the names.
++	Env []string
++
++	// Cmd is the command (program name) to run.
++	// PATTERN and RANDOM are not substituted.
++	Cmd string
++
++	// Args is the command arguments.
++	// PATTERN and RANDOM are substituted anywhere they appear.
++	Args []string
++
++	// Command-line flags controlling bisect behavior.
++	Max     int           // maximum number of sets to report (0 = unlimited)
++	MaxSet  int           // maximum number of elements in a set (0 = unlimited)
++	Timeout time.Duration // kill target and assume failed after this duration (0 = unlimited)
++	Count   int           // run target this many times for each trial and give up if flaky (min 1 assumed; default 2 on command line set in main)
++	Verbose bool          // print long output about each trial (only useful for debugging bisect itself)
++
++	// State for running bisect, replaced during testing.
++	// Failing change sets are printed to Stdout; all other output goes to Stderr.
++	Stdout  io.Writer                                                             // where to write standard output (usually os.Stdout)
++	Stderr  io.Writer                                                             // where to write standard error (usually os.Stderr)
++	TestRun func(env []string, cmd string, args []string) (out []byte, err error) // if non-nil, used instead of exec.Command
++
++	// State maintained by Search.
++
++	// By default, Search looks for a minimal set of changes that cause a failure when enabled.
++	// If Disable is true, the search is inverted and seeks a minimal set of changes that
++	// cause a failure when disabled. In this case, the search proceeds as normal except that
++	// each pattern starts with a !.
++	Disable bool
++
++	// Add is a list of suffixes to add to every trial, because they
++	// contain changes that are necessary for a group we are assembling.
++	Add []string
++
++	// Skip is a list of suffixes that uniquely identify changes to exclude from every trial,
++	// because they have already been used in failing change sets.
++	// Suffixes later in the list may only be unique after removing
++	// the ones earlier in the list.
++	// Skip applies after Add.
++	Skip []string
++}
++
++// A Result holds the result of a single target trial.
++type Result struct {
++	Success bool   // whether the target succeeded (exited with zero status)
++	Cmd     string // full target command line
++	Out     string // full target output (stdout and stderr combined)
++
++	Suffix    string   // the suffix used for collecting MatchIDs, MatchText, and MatchFull
++	MatchIDs  []uint64 // match IDs enabled during this trial
++	MatchText []string // match reports for the IDs, with match markers removed
++	MatchFull []string // full match lines for the IDs, with match markers kept
++}
++
++// &searchFatal is a special panic value to signal that Search failed.
++// This lets us unwind the search recursion on a fatal error
++// but have Search return normally.
++var searchFatal int
++
++// Search runs a bisect search according to the configuration in b.
++// It reports whether any failing change sets were found.
++func (b *Bisect) Search() bool {
++	defer func() {
++		// Recover from panic(&searchFatal), implicitly returning false from Search.
++		// Re-panic on any other panic.
++		if e := recover(); e != nil && e != &searchFatal {
++			panic(e)
++		}
++	}()
++
++	// Run with no changes and all changes, to figure out which direction we're searching.
++	// The goal is to find the minimal set of changes to toggle
++	// starting with the state where everything works.
++	// If "no changes" succeeds and "all changes" fails,
++	// we're looking for a minimal set of changes to enable to provoke the failure
++	// (broken = runY, b.Negate = false)
++	// If "no changes" fails and "all changes" succeeds,
++	// we're looking for a minimal set of changes to disable to provoke the failure
++	// (broken = runN, b.Negate = true).
++
++	b.Logf("checking target with all changes disabled")
++	runN := b.Run("n")
++
++	b.Logf("checking target with all changes enabled")
++	runY := b.Run("y")
++
++	var broken *Result
++	switch {
++	case runN.Success && !runY.Success:
++		b.Logf("target succeeds with no changes, fails with all changes")
++		b.Logf("searching for minimal set of enabled changes causing failure")
++		broken = runY
++		b.Disable = false
++
++	case !runN.Success && runY.Success:
++		b.Logf("target fails with no changes, succeeds with all changes")
++		b.Logf("searching for minimal set of disabled changes causing failure")
++		broken = runN
++		b.Disable = true
++
++	case runN.Success && runY.Success:
++		b.Fatalf("target succeeds with no changes and all changes")
++
++	case !runN.Success && !runY.Success:
++		b.Fatalf("target fails with no changes and all changes")
++	}
++
++	// Loop finding and printing change sets, until none remain.
++	found := 0
++	for {
++		// Find set.
++		bad := b.search(broken)
++		if bad == nil {
++			if found == 0 {
++				b.Fatalf("cannot find any failing change sets of size ≤ %d", b.MaxSet)
++			}
++			break
++		}
++
++		// Confirm that set really does fail, to avoid false accusations.
++		// Also asking for user-visible output; earlier runs did not.
++		b.Logf("confirming failing change set")
++		b.Add = append(b.Add[:0], bad...)
++		broken = b.Run("v")
++		if broken.Success {
++			b.Logf("confirmation run succeeded unexpectedly")
++		}
++		b.Add = b.Add[:0]
++
++		// Print confirmed change set.
++		found++
++		b.Logf("FOUND failing change set")
++		desc := "(enabling changes causes failure)"
++		if b.Disable {
++			desc = "(disabling changes causes failure)"
++		}
++		fmt.Fprintf(b.Stdout, "--- change set #%d %s\n%s\n---\n", found, desc, strings.Join(broken.MatchText, "\n"))
++
++		// Stop if we've found enough change sets.
++		if b.Max > 0 && found >= b.Max {
++			break
++		}
++
++		// If running bisect target | tee bad.txt, prints to stdout and stderr
++		// both appear on the terminal, but the ones to stdout go through tee
++		// and can take a little bit of extra time. Sleep 1 millisecond to give
++		// tee time to catch up, so that its stdout print does not get interlaced
++		// with the stderr print from the next b.Log message.
++		time.Sleep(1 * time.Millisecond)
++
++		// Disable the now-known-bad changes and see if any failures remain.
++		b.Logf("checking for more failures")
++		b.Skip = append(bad, b.Skip...)
++		broken = b.Run("")
++		if broken.Success {
++			what := "enabled"
++			if b.Disable {
++				what = "disabled"
++			}
++			b.Logf("target succeeds with all remaining changes %s", what)
++			break
++		}
++		b.Logf("target still fails; searching for more bad changes")
++	}
++	return true
++}
++
++// Fatalf prints a message to standard error and then panics,
++// causing Search to return false.
++func (b *Bisect) Fatalf(format string, args ...any) {
++	s := fmt.Sprintf("bisect: fatal error: "+format, args...)
++	if !strings.HasSuffix(s, "\n") {
++		s += "\n"
++	}
++	b.Stderr.Write([]byte(s))
++	panic(&searchFatal)
++}
++
++// Logf prints a message to standard error.
++func (b *Bisect) Logf(format string, args ...any) {
++	s := fmt.Sprintf("bisect: "+format, args...)
++	if !strings.HasSuffix(s, "\n") {
++		s += "\n"
++	}
++	b.Stderr.Write([]byte(s))
++}
++
++// search searches for a single locally minimal change set.
++//
++// Invariant: r describes the result of r.Suffix + b.Add, which failed.
++// (There's an implicit -b.Skip everywhere here. b.Skip does not change.)
++// We want to extend r.Suffix to preserve the failure, working toward
++// a suffix that identifies a single change.
++func (b *Bisect) search(r *Result) []string {
++	// The caller should be passing in a failure result that we diagnose.
++	if r.Success {
++		b.Fatalf("internal error: unexpected success") // mistake by caller
++	}
++
++	// If the failure reported no changes, the target is misbehaving.
++	if len(r.MatchIDs) == 0 {
++		b.Fatalf("failure with no reported changes:\n\n$ %s\n%s\n", r.Cmd, r.Out)
++	}
++
++	// If there's one matching change, that's the one we're looking for.
++	if len(r.MatchIDs) == 1 {
++		if r.Suffix == "" {
++			return []string{"y"}
++		}
++		return []string{r.Suffix}
++	}
++
++	// If the suffix we were tracking in the trial is already 64 bits,
++	// either the target is bad or bisect itself is buggy.
++	if len(r.Suffix) >= 64 {
++		b.Fatalf("failed to isolate a single change with very long suffix")
++	}
++
++	// We want to split the current matchIDs by left-extending the suffix with 0 and 1.
++	// If all the matches have the same next bit, that won't cause a split, which doesn't
++	// break the algorithm but does waste time. Avoid wasting time by left-extending
++	// the suffix to the longest suffix shared by all the current match IDs
++	// before adding 0 or 1.
++	suffix := commonSuffix(r.MatchIDs)
++	if !strings.HasSuffix(suffix, r.Suffix) {
++		b.Fatalf("internal error: invalid common suffix") // bug in commonSuffix
++	}
++
++	// Run 0suffix and 1suffix. If one fails, chase down the failure in that half.
++	r0 := b.Run("0" + suffix)
++	if !r0.Success {
++		return b.search(r0)
++	}
++	r1 := b.Run("1" + suffix)
++	if !r1.Success {
++		return b.search(r1)
++	}
++
++	// suffix failed, but 0suffix and 1suffix succeeded.
++	// Assuming the target isn't flaky, this means we need
++	// at least one change from 0suffix AND at least one from 1suffix.
++	// We are already tracking N = len(b.Add) other changes and are
++	// allowed to build sets of size at least 1+N (or we shouldn't be here at all).
++	// If we aren't allowed to build sets of size 2+N, give up this branch.
++	if b.MaxSet > 0 && 2+len(b.Add) > b.MaxSet {
++		return nil
++	}
++
++	// Adding all matches for 1suffix, recurse to narrow down 0suffix.
++	old := len(b.Add)
++	b.Add = append(b.Add, "1"+suffix)
++	r0 = b.Run("0" + suffix)
++	if r0.Success {
++		// 0suffix + b.Add + 1suffix = suffix + b.Add is what r describes, and it failed.
++		b.Fatalf("target fails inconsistently")
++	}
++	bad0 := b.search(r0)
++	if bad0 == nil {
++		// Search failed due to MaxSet limit.
++		return nil
++	}
++	b.Add = b.Add[:old]
++
++	// Adding the specific match we found in 0suffix, recurse to narrow down 1suffix.
++	b.Add = append(b.Add[:old], bad0...)
++	r1 = b.Run("1" + suffix)
++	if r1.Success {
++		// 1suffix + b.Add + bad0 = bad0 + b.Add + 1suffix is what b.search(r0) reported as a failure.
++		b.Fatalf("target fails inconsistently")
++	}
++	bad1 := b.search(r1)
++	if bad1 == nil {
++		// Search failed due to MaxSet limit.
++		return nil
++	}
++	b.Add = b.Add[:old]
++
++	// bad0 and bad1 together provoke the failure.
++	return append(bad0, bad1...)
++}
++
++// Run runs a set of trials selecting changes with the given suffix,
++// plus the ones in b.Add and not the ones in b.Skip.
++// The returned result's MatchIDs, MatchText, and MatchFull
++// only list the changes that match suffix.
++// When b.Count > 1, Run runs b.Count trials and requires
++// that they all succeed or they all fail. If not, it calls b.Fatalf.
++func (b *Bisect) Run(suffix string) *Result {
++	out := b.run(suffix)
++	for i := 1; i < b.Count; i++ {
++		r := b.run(suffix)
++		if r.Success != out.Success {
++			b.Fatalf("target fails inconsistently")
++		}
++	}
++	return out
++}
++
++// run runs a single trial for Run.
++func (b *Bisect) run(suffix string) *Result {
++	random := fmt.Sprint(rand.Uint64())
++
++	// Accept suffix == "v" to mean we need user-visible output.
++	visible := ""
++	if suffix == "v" {
++		visible = "v"
++		suffix = ""
++	}
++
++	// Construct change ID pattern.
++	var pattern string
++	if suffix == "y" || suffix == "n" {
++		pattern = suffix
++		suffix = ""
++	} else {
++		var elem []string
++		if suffix != "" {
++			elem = append(elem, "+", suffix)
++		}
++		for _, x := range b.Add {
++			elem = append(elem, "+", x)
++		}
++		for _, x := range b.Skip {
++			elem = append(elem, "-", x)
++		}
++		pattern = strings.Join(elem, "")
++		if pattern == "" {
++			pattern = "y"
++		}
++	}
++	if b.Disable {
++		pattern = "!" + pattern
++	}
++	pattern = visible + pattern
++
++	// Construct substituted env and args.
++	env := make([]string, len(b.Env))
++	for i, x := range b.Env {
++		k, v, _ := strings.Cut(x, "=")
++		env[i] = k + "=" + replace(v, pattern, random)
++	}
++	args := make([]string, len(b.Args))
++	for i, x := range b.Args {
++		args[i] = replace(x, pattern, random)
++	}
++
++	// Construct and log command line.
++	// There is no newline in the log print.
++	// The line will be completed when the command finishes.
++	cmdText := strings.Join(append(append(env, b.Cmd), args...), " ")
++	fmt.Fprintf(b.Stderr, "bisect: run: %s...", cmdText)
++
++	// Run command with args and env.
++	var out []byte
++	var err error
++	if b.TestRun != nil {
++		out, err = b.TestRun(env, b.Cmd, args)
++	} else {
++		ctx := context.Background()
++		if b.Timeout != 0 {
++			var cancel context.CancelFunc
++			ctx, cancel = context.WithTimeout(ctx, b.Timeout)
++			defer cancel()
++		}
++		cmd := exec.CommandContext(ctx, b.Cmd, args...)
++		cmd.Env = append(os.Environ(), env...)
++		// Set up cmd.Cancel, cmd.WaitDelay on Go 1.20 and later
++		// TODO(rsc): Inline go120.go's cmdInterrupt once we stop supporting Go 1.19.
++		cmdInterrupt(cmd)
++		out, err = cmd.CombinedOutput()
++	}
++
++	// Parse output to construct result.
++	r := &Result{
++		Suffix:  suffix,
++		Success: err == nil,
++		Cmd:     cmdText,
++		Out:     string(out),
++	}
++
++	// Calculate bits, mask to identify suffix matches.
++	var bits, mask uint64
++	if suffix != "" && suffix != "y" && suffix != "n" && suffix != "v" {
++		var err error
++		bits, err = strconv.ParseUint(suffix, 2, 64)
++		if err != nil {
++			b.Fatalf("internal error: bad suffix")
++		}
++		mask = uint64(1<<len(suffix)) - 1
++	}
++
++	// Process output, collecting match reports for suffix.
++	have := make(map[uint64]bool)
++	all := r.Out
++	for all != "" {
++		var line string
++		line, all, _ = strings.Cut(all, "\n")
++		short, id, ok := bisect.CutMarker(line)
++		if !ok || (id&mask) != bits {
++			continue
++		}
++
++		if !have[id] {
++			have[id] = true
++			r.MatchIDs = append(r.MatchIDs, id)
++		}
++		r.MatchText = append(r.MatchText, short)
++		r.MatchFull = append(r.MatchFull, line)
++	}
++
++	// Finish log print from above, describing the command's completion.
++	if err == nil {
++		fmt.Fprintf(b.Stderr, " ok (%d matches)\n", len(r.MatchIDs))
++	} else {
++		fmt.Fprintf(b.Stderr, " FAIL (%d matches)\n", len(r.MatchIDs))
++	}
++
++	if err != nil && len(r.MatchIDs) == 0 {
++		b.Fatalf("target failed without printing any matches\n%s", r.Out)
++	}
++
++	// In verbose mode, print extra debugging: all the lines with match markers.
++	if b.Verbose {
++		b.Logf("matches:\n%s", strings.Join(r.MatchFull, "\n\t"))
++	}
++
++	return r
++}
++
++// replace returns x with literal text PATTERN and RANDOM replaced by pattern and random.
++func replace(x, pattern, random string) string {
++	x = strings.ReplaceAll(x, "PATTERN", pattern)
++	x = strings.ReplaceAll(x, "RANDOM", random)
++	return x
++}
++
++// commonSuffix returns the longest common binary suffix shared by all uint64s in list.
++// If list is empty, commonSuffix returns an empty string.
++func commonSuffix(list []uint64) string {
++	if len(list) == 0 {
++		return ""
++	}
++	b := list[0]
++	n := 64
++	for _, x := range list {
++		for x&((1<<n)-1) != b {
++			n--
++			b &= (1 << n) - 1
++		}
++	}
++	s := make([]byte, n)
++	for i := n - 1; i >= 0; i-- {
++		s[i] = '0' + byte(b&1)
++		b >>= 1
++	}
++	return string(s[:])
++}
+diff --git a/src/cmd/vendor/golang.org/x/tools/cmd/bisect/rand.go b/src/cmd/vendor/golang.org/x/tools/cmd/bisect/rand.go
+new file mode 100644
+index 0000000000..daa01d3b44
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/tools/cmd/bisect/rand.go
+@@ -0,0 +1,20 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Starting in Go 1.20, the global rand is auto-seeded,
++// with a better value than the current Unix nanoseconds.
++// Only seed if we're using older versions of Go.
++
++//go:build !go1.20
++
++package main
++
++import (
++	"math/rand"
++	"time"
++)
++
++func init() {
++	rand.Seed(time.Now().UnixNano())
++}
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/bisect/bisect.go b/src/cmd/vendor/golang.org/x/tools/internal/bisect/bisect.go
+new file mode 100644
+index 0000000000..870af6c132
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/tools/internal/bisect/bisect.go
+@@ -0,0 +1,503 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package bisect can be used by compilers and other programs
++// to serve as a target for the bisect debugging tool.
++// See [golang.org/x/tools/cmd/bisect] for details about using the tool.
++//
++// To be a bisect target, allowing bisect to help determine which of a set of independent
++// changes provokes a failure, a program needs to:
++//
++//  1. Define a way to accept a change pattern on its command line or in its environment.
++//     The most common mechanism is a command-line flag.
++//     The pattern can be passed to [New] to create a [Matcher], the compiled form of a pattern.
++//
++//  2. Assign each change a unique ID. One possibility is to use a sequence number,
++//     but the most common mechanism is to hash some kind of identifying information
++//     like the file and line number where the change might be applied.
++//     [Hash] hashes its arguments to compute an ID.
++//
++//  3. Enable each change that the pattern says should be enabled.
++//     The [Matcher.Enable] method answers this question for a given change ID.
++//
++//  4. Report each change that the pattern says should be reported.
++//     The [Matcher.Report] method answers this question for a given change ID.
++//     The report consists of one more lines on standard error or standard output
++//     that contain a “match marker”. [Marker] returns the match marker for a given ID.
++//     When bisect reports a change as causing the failure, it identifies the change
++//     by printing those report lines, with the match marker removed.
++//
++// # Example Usage
++//
++// A program starts by defining how it receives the pattern. In this example, we will assume a flag.
++// The next step is to compile the pattern:
++//
++//	m, err := bisect.New(patternFlag)
++//	if err != nil {
++//		log.Fatal(err)
++//	}
++//
++// Then, each time a potential change is considered, the program computes
++// a change ID by hashing identifying information (source file and line, in this case)
++// and then calls m.ShouldEnable and m.ShouldReport to decide whether to
++// enable and report the change, respectively:
++//
++//	for each change {
++//		h := bisect.Hash(file, line)
++//		if m.ShouldEnable(h) {
++//			enableChange()
++//		}
++//		if m.ShouldReport(h) {
++//			log.Printf("%v %s:%d", bisect.Marker(h), file, line)
++//		}
++//	}
++//
++// Note that the two return different values when bisect is searching for a
++// minimal set of changes to disable to provoke a failure.
++//
++// Finally, note that New returns a nil Matcher when there is no pattern,
++// meaning that the target is not running under bisect at all.
++// In that common case, the computation of the hash can be avoided entirely
++// by checking for m == nil first:
++//
++//	for each change {
++//		if m == nil {
++//			enableChange()
++//		} else {
++//			h := bisect.Hash(file, line)
++//			if m.ShouldEnable(h) {
++//				enableChange()
++//			}
++//			if m.ShouldReport(h) {
++//				log.Printf("%v %s:%d", bisect.Marker(h), file, line)
++//			}
++//		}
++//	}
++//
++// # Pattern Syntax
++//
++// Patterns are generated by the bisect tool and interpreted by [New].
++// Users should not have to understand the patterns except when
++// debugging a target's bisect support or debugging the bisect tool itself.
++//
++// The pattern syntax selecting a change is a sequence of bit strings
++// separated by + and - operators. Each bit string denotes the set of
++// changes with IDs ending in those bits, + is set addition, - is set subtraction,
++// and the expression is evaluated in the usual left-to-right order.
++// The special binary number “y” denotes the set of all changes,
++// standing in for the empty bit string.
++// In the expression, all the + operators must appear before all the - operators.
++// A leading + adds to an empty set. A leading - subtracts from the set of all
++// possible suffixes.
++//
++// For example:
++//
++//   - “01+10” and “+01+10” both denote the set of changes
++//     with IDs ending with the bits 01 or 10.
++//
++//   - “01+10-1001” denotes the set of changes with IDs
++//     ending with the bits 01 or 10, but excluding those ending in 1001.
++//
++//   - “-01-1000” and “y-01-1000 both denote the set of all changes
++//     with IDs not ending in 01 nor 1000.
++//
++//   - “0+1-01+001” is not a valid pattern, because all the + operators do not
++//     appear before all the - operators.
++//
++// In the syntaxes described so far, the pattern specifies the changes to
++// enable and report. If a pattern is prefixed by a “!”, the meaning
++// changes: the pattern specifies the changes to DISABLE and report. This
++// mode of operation is needed when a program passes with all changes
++// enabled but fails with no changes enabled. In this case, bisect
++// searches for minimal sets of changes to disable.
++// Put another way, the leading “!” inverts the result from [Matcher.ShouldEnable]
++// but does not invert the result from [Matcher.ShouldReport].
++//
++// As a convenience for manual debugging, “n” is an alias for “!y”,
++// meaning to disable and report all changes.
++//
++// Finally, a leading “v” in the pattern indicates that the reports will be shown
++// to the user of bisect to describe the changes involved in a failure.
++// At the API level, the leading “v” causes [Matcher.Visible] to return true.
++// See the next section for details.
++//
++// # Match Reports
++//
++// The target program must enable only those changed matched
++// by the pattern, and it must print a match report for each such change.
++// A match report consists of one or more lines of text that will be
++// printed by the bisect tool to describe a change implicated in causing
++// a failure. Each line in the report for a given change must contain a
++// match marker with that change ID, as returned by [Marker].
++// The markers are elided when displaying the lines to the user.
++//
++// A match marker has the form “[bisect-match 0x1234]” where
++// 0x1234 is the change ID in hexadecimal.
++// An alternate form is “[bisect-match 010101]”, giving the change ID in binary.
++//
++// When [Matcher.Visible] returns false, the match reports are only
++// being processed by bisect to learn the set of enabled changes,
++// not shown to the user, meaning that each report can be a match
++// marker on a line by itself, eliding the usual textual description.
++// When the textual description is expensive to compute,
++// checking [Matcher.Visible] can help the avoid that expense
++// in most runs.
++package bisect
++
++// New creates and returns a new Matcher implementing the given pattern.
++// The pattern syntax is defined in the package doc comment.
++//
++// In addition to the pattern syntax syntax, New("") returns nil, nil.
++// The nil *Matcher is valid for use: it returns true from ShouldEnable
++// and false from ShouldReport for all changes. Callers can avoid calling
++// [Hash], [Matcher.ShouldEnable], and [Matcher.ShouldPrint] entirely
++// when they recognize the nil Matcher.
++func New(pattern string) (*Matcher, error) {
++	if pattern == "" {
++		return nil, nil
++	}
++
++	m := new(Matcher)
++
++	// Allow multiple v, so that “bisect cmd vPATTERN” can force verbose all the time.
++	p := pattern
++	for len(p) > 0 && p[0] == 'v' {
++		m.verbose = true
++		p = p[1:]
++		if p == "" {
++			return nil, &parseError{"invalid pattern syntax: " + pattern}
++		}
++	}
++
++	// Allow multiple !, each negating the last, so that “bisect cmd !PATTERN” works
++	// even when bisect chooses to add its own !.
++	m.enable = true
++	for len(p) > 0 && p[0] == '!' {
++		m.enable = !m.enable
++		p = p[1:]
++		if p == "" {
++			return nil, &parseError{"invalid pattern syntax: " + pattern}
++		}
++	}
++
++	if p == "n" {
++		// n is an alias for !y.
++		m.enable = !m.enable
++		p = "y"
++	}
++
++	// Parse actual pattern syntax.
++	result := true
++	bits := uint64(0)
++	start := 0
++	for i := 0; i <= len(p); i++ {
++		// Imagine a trailing - at the end of the pattern to flush final suffix
++		c := byte('-')
++		if i < len(p) {
++			c = p[i]
++		}
++		switch c {
++		default:
++			return nil, &parseError{"invalid pattern syntax: " + pattern}
++		case '0', '1':
++			bits = bits<<1 | uint64(c-'0')
++		case 'y':
++			if i+1 < len(p) && (p[i+1] == '0' || p[i+1] == '1') {
++				return nil, &parseError{"invalid pattern syntax: " + pattern}
++			}
++			bits = 0
++		case '+', '-':
++			if c == '+' && result == false {
++				// Have already seen a -. Should be - from here on.
++				return nil, &parseError{"invalid pattern syntax (+ after -): " + pattern}
++			}
++			if i > 0 {
++				n := i - start
++				if n > 64 {
++					return nil, &parseError{"pattern bits too long: " + pattern}
++				}
++				if n <= 0 {
++					return nil, &parseError{"invalid pattern syntax: " + pattern}
++				}
++				if p[start] == 'y' {
++					n = 0
++				}
++				mask := uint64(1)<<n - 1
++				m.list = append(m.list, cond{mask, bits, result})
++			} else if c == '-' {
++				// leading - subtracts from complete set
++				m.list = append(m.list, cond{0, 0, true})
++			}
++			bits = 0
++			result = c == '+'
++			start = i + 1
++		}
++	}
++	return m, nil
++}
++
++// A Matcher is the parsed, compiled form of a PATTERN string.
++// The nil *Matcher is valid: it has all changes enabled but none reported.
++type Matcher struct {
++	verbose bool
++	enable  bool   // when true, list is for “enable and report” (when false, “disable and report”)
++	list    []cond // conditions; later ones win over earlier ones
++}
++
++// A cond is a single condition in the matcher.
++// Given an input id, if id&mask == bits, return the result.
++type cond struct {
++	mask   uint64
++	bits   uint64
++	result bool
++}
++
++// Verbose reports whether the reports will be shown to users
++// and need to include a human-readable change description.
++// If not, the target can print just the Marker on a line by itself
++// and perhaps save some computation.
++func (m *Matcher) Verbose() bool {
++	return m.verbose
++}
++
++// ShouldEnable reports whether the change with the given id should be enabled.
++func (m *Matcher) ShouldEnable(id uint64) bool {
++	if m == nil {
++		return true
++	}
++	for i := len(m.list) - 1; i >= 0; i-- {
++		c := &m.list[i]
++		if id&c.mask == c.bits {
++			return c.result == m.enable
++		}
++	}
++	return false == m.enable
++}
++
++// ShouldReport reports whether the change with the given id should be reported.
++func (m *Matcher) ShouldReport(id uint64) bool {
++	if m == nil {
++		return false
++	}
++	for i := len(m.list) - 1; i >= 0; i-- {
++		c := &m.list[i]
++		if id&c.mask == c.bits {
++			return c.result
++		}
++	}
++	return false
++}
++
++// Marker returns the match marker text to use on any line reporting details
++// about a match of the given ID.
++// It always returns the hexadecimal format.
++func Marker(id uint64) string {
++	return string(AppendMarker(nil, id))
++}
++
++// AppendMarker is like [Marker] but appends the marker to dst.
++func AppendMarker(dst []byte, id uint64) []byte {
++	const prefix = "[bisect-match 0x"
++	var buf [len(prefix) + 16 + 1]byte
++	copy(buf[:], prefix)
++	for i := 0; i < 16; i++ {
++		buf[len(prefix)+i] = "0123456789abcdef"[id>>60]
++		id <<= 4
++	}
++	buf[len(prefix)+16] = ']'
++	return append(dst, buf[:]...)
++}
++
++// CutMarker finds the first match marker in line and removes it,
++// returning the shortened line (with the marker removed),
++// the ID from the match marker,
++// and whether a marker was found at all.
++// If there is no marker, CutMarker returns line, 0, false.
++func CutMarker(line string) (short string, id uint64, ok bool) {
++	// Find first instance of prefix.
++	prefix := "[bisect-match "
++	i := 0
++	for ; ; i++ {
++		if i >= len(line)-len(prefix) {
++			return line, 0, false
++		}
++		if line[i] == '[' && line[i:i+len(prefix)] == prefix {
++			break
++		}
++	}
++
++	// Scan to ].
++	j := i + len(prefix)
++	for j < len(line) && line[j] != ']' {
++		j++
++	}
++	if j >= len(line) {
++		return line, 0, false
++	}
++
++	// Parse id.
++	idstr := line[i+len(prefix) : j]
++	if len(idstr) >= 3 && idstr[:2] == "0x" {
++		// parse hex
++		if len(idstr) > 2+16 { // max 0x + 16 digits
++			return line, 0, false
++		}
++		for i := 2; i < len(idstr); i++ {
++			id <<= 4
++			switch c := idstr[i]; {
++			case '0' <= c && c <= '9':
++				id |= uint64(c - '0')
++			case 'a' <= c && c <= 'f':
++				id |= uint64(c - 'a' + 10)
++			case 'A' <= c && c <= 'F':
++				id |= uint64(c - 'A' + 10)
++			}
++		}
++	} else {
++		if idstr == "" || len(idstr) > 64 { // min 1 digit, max 64 digits
++			return line, 0, false
++		}
++		// parse binary
++		for i := 0; i < len(idstr); i++ {
++			id <<= 1
++			switch c := idstr[i]; c {
++			default:
++				return line, 0, false
++			case '0', '1':
++				id |= uint64(c - '0')
++			}
++		}
++	}
++
++	// Construct shortened line.
++	// Remove at most one space from around the marker,
++	// so that "foo [marker] bar" shortens to "foo bar".
++	j++ // skip ]
++	if i > 0 && line[i-1] == ' ' {
++		i--
++	} else if j < len(line) && line[j] == ' ' {
++		j++
++	}
++	short = line[:i] + line[j:]
++	return short, id, true
++}
++
++// Hash computes a hash of the data arguments,
++// each of which must be of type string, byte, int, uint, int32, uint32, int64, uint64, uintptr, or a slice of one of those types.
++func Hash(data ...any) uint64 {
++	h := offset64
++	for _, v := range data {
++		switch v := v.(type) {
++		default:
++			// Note: Not printing the type, because reflect.ValueOf(v)
++			// would make the interfaces prepared by the caller escape
++			// and therefore allocate. This way, Hash(file, line) runs
++			// without any allocation. It should be clear from the
++			// source code calling Hash what the bad argument was.
++			panic("bisect.Hash: unexpected argument type")
++		case string:
++			h = fnvString(h, v)
++		case byte:
++			h = fnv(h, v)
++		case int:
++			h = fnvUint64(h, uint64(v))
++		case uint:
++			h = fnvUint64(h, uint64(v))
++		case int32:
++			h = fnvUint32(h, uint32(v))
++		case uint32:
++			h = fnvUint32(h, v)
++		case int64:
++			h = fnvUint64(h, uint64(v))
++		case uint64:
++			h = fnvUint64(h, v)
++		case uintptr:
++			h = fnvUint64(h, uint64(v))
++		case []string:
++			for _, x := range v {
++				h = fnvString(h, x)
++			}
++		case []byte:
++			for _, x := range v {
++				h = fnv(h, x)
++			}
++		case []int:
++			for _, x := range v {
++				h = fnvUint64(h, uint64(x))
++			}
++		case []uint:
++			for _, x := range v {
++				h = fnvUint64(h, uint64(x))
++			}
++		case []int32:
++			for _, x := range v {
++				h = fnvUint32(h, uint32(x))
++			}
++		case []uint32:
++			for _, x := range v {
++				h = fnvUint32(h, x)
++			}
++		case []int64:
++			for _, x := range v {
++				h = fnvUint64(h, uint64(x))
++			}
++		case []uint64:
++			for _, x := range v {
++				h = fnvUint64(h, x)
++			}
++		case []uintptr:
++			for _, x := range v {
++				h = fnvUint64(h, uint64(x))
++			}
++		}
++	}
++	return h
++}
++
++// Trivial error implementation, here to avoid importing errors.
++
++type parseError struct{ text string }
++
++func (e *parseError) Error() string { return e.text }
++
++// FNV-1a implementation. See Go's hash/fnv/fnv.go.
++// Copied here for simplicity (can handle uints directly)
++// and to avoid the dependency.
++
++const (
++	offset64 uint64 = 14695981039346656037
++	prime64  uint64 = 1099511628211
++)
++
++func fnv(h uint64, x byte) uint64 {
++	h ^= uint64(x)
++	h *= prime64
++	return h
++}
++
++func fnvString(h uint64, x string) uint64 {
++	for i := 0; i < len(x); i++ {
++		h ^= uint64(x[i])
++		h *= prime64
++	}
++	return h
++}
++
++func fnvUint64(h uint64, x uint64) uint64 {
++	for i := 0; i < 8; i++ {
++		h ^= uint64(x & 0xFF)
++		x >>= 8
++		h *= prime64
++	}
++	return h
++}
++
++func fnvUint32(h uint64, x uint32) uint64 {
++	for i := 0; i < 4; i++ {
++		h ^= uint64(x & 0xFF)
++		x >>= 8
++		h *= prime64
++	}
++	return h
++}
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index 6cfb4cab1d..2cf140f093 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -48,6 +48,7 @@ golang.org/x/sys/windows
+ golang.org/x/term
+ # golang.org/x/tools v0.8.1-0.20230508195130-8f7fb01dd429
+ ## explicit; go 1.18
++golang.org/x/tools/cmd/bisect
+ golang.org/x/tools/cover
+ golang.org/x/tools/go/analysis
+ golang.org/x/tools/go/analysis/internal/analysisflags
+@@ -89,5 +90,6 @@ golang.org/x/tools/go/ast/inspector
+ golang.org/x/tools/go/cfg
+ golang.org/x/tools/go/types/objectpath
+ golang.org/x/tools/go/types/typeutil
++golang.org/x/tools/internal/bisect
+ golang.org/x/tools/internal/facts
+ golang.org/x/tools/internal/typeparams

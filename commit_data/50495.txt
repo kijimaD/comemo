@@ -25,7 +25,7 @@ Date:   Thu Oct 28 15:00:33 2021 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Katie Hockman <katie@golang.org>
-
+---
  src/cmd/go/go_test.go                              | 12 +++++++----
  src/cmd/go/internal/test/test.go                   | 12 ++++++++---
  src/cmd/go/internal/work/init.go                   | 15 +-------------
@@ -55,3 +55,466 @@ Date:   Thu Oct 28 15:00:33 2021 -0400
  src/internal/fuzz/counters_unsupported.go          |  6 ++++++
  src/internal/fuzz/sys_unimplemented.go             |  3 ++-
  28 files changed, 96 insertions(+), 80 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 339014e94e..c13d77a1af 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -43,10 +43,12 @@ func init() {
+ }
+ 
+ var (
+-	canRace = false // whether we can run the race detector
+-	canCgo  = false // whether we can use cgo
+-	canMSan = false // whether we can run the memory sanitizer
+-	canASan = false // whether we can run the address sanitizer
++	canRace          = false // whether we can run the race detector
++	canCgo           = false // whether we can use cgo
++	canMSan          = false // whether we can run the memory sanitizer
++	canASan          = false // whether we can run the address sanitizer
++	canFuzz          = false // whether we can search for new fuzz failures
++	fuzzInstrumented = false // whether fuzzing uses instrumentation
+ )
+ 
+ var exeSuffix string = func() string {
+@@ -206,6 +208,8 @@ func TestMain(m *testing.M) {
+ 		if isAlpineLinux() || runtime.Compiler == "gccgo" {
+ 			canRace = false
+ 		}
++		canFuzz = sys.FuzzSupported(runtime.GOOS, runtime.GOARCH)
++		fuzzInstrumented = sys.FuzzInstrumented(runtime.GOOS, runtime.GOARCH)
+ 	}
+ 	// Don't let these environment variables confuse the test.
+ 	os.Setenv("GOENV", "off")
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index ea1d4ff20e..0806d29f21 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -31,9 +31,10 @@ import (
+ 	"cmd/go/internal/lockedfile"
+ 	"cmd/go/internal/modload"
+ 	"cmd/go/internal/search"
++	"cmd/go/internal/str"
+ 	"cmd/go/internal/trace"
+ 	"cmd/go/internal/work"
+-	"cmd/go/internal/str"
++	"cmd/internal/sys"
+ 	"cmd/internal/test2json"
+ )
+ 
+@@ -651,8 +652,13 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
+ 	if testO != "" && len(pkgs) != 1 {
+ 		base.Fatalf("cannot use -o flag with multiple packages")
+ 	}
+-	if testFuzz != "" && len(pkgs) != 1 {
+-		base.Fatalf("cannot use -fuzz flag with multiple packages")
++	if testFuzz != "" {
++		if !sys.FuzzSupported(cfg.Goos, cfg.Goarch) {
++			base.Fatalf("-fuzz flag is not supported on %s/%s", cfg.Goos, cfg.Goarch)
++		}
++		if len(pkgs) != 1 {
++			base.Fatalf("cannot use -fuzz flag with multiple packages")
++		}
+ 	}
+ 	if testProfile() != "" && len(pkgs) != 1 {
+ 		base.Fatalf("cannot use %s flag with multiple packages", testProfile())
+diff --git a/src/cmd/go/internal/work/init.go b/src/cmd/go/internal/work/init.go
+index b2ee00d53c..9111150233 100644
+--- a/src/cmd/go/internal/work/init.go
++++ b/src/cmd/go/internal/work/init.go
+@@ -67,20 +67,7 @@ func BuildInit() {
+ // instrumentation is added. 'go test -fuzz' still works without coverage,
+ // but it generates random inputs without guidance, so it's much less effective.
+ func fuzzInstrumentFlags() []string {
+-	// TODO: expand the set of supported platforms, with testing. Nothing about
+-	// the instrumentation is OS specific, but only amd64 and arm64 are
+-	// supported in the runtime. See src/runtime/libfuzzer*.
+-	//
+-	// Keep in sync with build constraints in
+-	// internal/fuzz/counters_{un,}supported.go
+-	switch cfg.Goos {
+-	case "darwin", "freebsd", "linux", "windows":
+-	default:
+-		return nil
+-	}
+-	switch cfg.Goarch {
+-	case "amd64", "arm64":
+-	default:
++	if !sys.FuzzInstrumented(cfg.Goos, cfg.Goarch) {
+ 		return nil
+ 	}
+ 	return []string{"-d=libfuzzer"}
+diff --git a/src/cmd/go/script_test.go b/src/cmd/go/script_test.go
+index acb1f91b44..98c1b68ed9 100644
+--- a/src/cmd/go/script_test.go
++++ b/src/cmd/go/script_test.go
+@@ -357,6 +357,10 @@ Script:
+ 				ok = canASan
+ 			case "race":
+ 				ok = canRace
++			case "fuzz":
++				ok = canFuzz
++			case "fuzz-instrumented":
++				ok = fuzzInstrumented
+ 			case "net":
+ 				ok = testenv.HasExternalNetwork()
+ 			case "link":
+diff --git a/src/cmd/go/testdata/script/README b/src/cmd/go/testdata/script/README
+index 2b88e880c9..2b55fa8977 100644
+--- a/src/cmd/go/testdata/script/README
++++ b/src/cmd/go/testdata/script/README
+@@ -80,6 +80,8 @@ should only run when the condition is satisfied. The available conditions are:
+  - Test environment details:
+    - [short] for testing.Short()
+    - [cgo], [msan], [asan], [race] for whether cgo, msan, asan, and the race detector can be used
++   - [fuzz] for whether 'go test -fuzz' can be used at all
++   - [fuzz-instrumented] for whether 'go test -fuzz' uses coverage-instrumented binaries
+    - [net] for whether the external network can be used
+    - [link] for testenv.HasLink()
+    - [root] for os.Geteuid() == 0
+diff --git a/src/cmd/go/testdata/script/test_fuzz.txt b/src/cmd/go/testdata/script/test_fuzz.txt
+index 4665202bf0..020012d73e 100644
+--- a/src/cmd/go/testdata/script/test_fuzz.txt
++++ b/src/cmd/go/testdata/script/test_fuzz.txt
+@@ -1,5 +1,4 @@
+-# TODO(jayconrod): support shared memory on more platforms.
+-[!darwin] [!linux] [!windows] skip
++[!fuzz] skip
+ 
+ # Test that running a fuzz target that returns without failing or calling
+ # f.Fuzz fails and causes a non-zero exit status.
+@@ -495,4 +494,4 @@ go test fuzz v1
+ []byte("12345")
+ -- corpustesting/testdata/fuzz/FuzzWrongType/1 --
+ go test fuzz v1
+-int("00000")
+\ No newline at end of file
++int("00000")
+diff --git a/src/cmd/go/testdata/script/test_fuzz_cache.txt b/src/cmd/go/testdata/script/test_fuzz_cache.txt
+index fc1c9a1752..552966b06b 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_cache.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_cache.txt
+@@ -1,9 +1,4 @@
+-# TODO(jayconrod): support shared memory on more platforms.
+-[!darwin] [!linux] [!windows] skip
+-
+-# Instrumentation not supported on other archs.
+-# See #14565.
+-[!amd64] [!arm64] skip
++[!fuzz-instrumented] skip
+ 
+ [short] skip
+ env GOCACHE=$WORK/cache
+diff --git a/src/cmd/go/testdata/script/test_fuzz_chatty.txt b/src/cmd/go/testdata/script/test_fuzz_chatty.txt
+index 9ebd480c90..1abcbbd389 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_chatty.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_chatty.txt
+@@ -1,6 +1,4 @@
+-# TODO(jayconrod): support shared memory on more platforms.
+-[!darwin] [!linux] [!windows] skip
+-
++[!fuzz] skip
+ [short] skip
+ 
+ # Run chatty fuzz targets with an error.
+diff --git a/src/cmd/go/testdata/script/test_fuzz_cleanup.txt b/src/cmd/go/testdata/script/test_fuzz_cleanup.txt
+index 88625916ba..b65022bd74 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_cleanup.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_cleanup.txt
+@@ -1,5 +1,4 @@
+-# TODO(jayconrod): support shared memory on more platforms.
+-[!darwin] [!linux] [!windows] skip
++[!fuzz] skip
+ [short] skip
+ 
+ # Cleanup should run after F.Skip.
+diff --git a/src/cmd/go/testdata/script/test_fuzz_deadline.txt b/src/cmd/go/testdata/script/test_fuzz_deadline.txt
+index 12f1054f61..5ba76a3d4f 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_deadline.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_deadline.txt
+@@ -1,6 +1,4 @@
+-# TODO(jayconrod): support shared memory on more platforms.
+-[!darwin] [!linux] [!windows] skip
+-
++[!fuzz] skip
+ [short] skip
+ 
+ # The fuzz function should be able to detect whether -timeout
+diff --git a/src/cmd/go/testdata/script/test_fuzz_fuzztime.txt b/src/cmd/go/testdata/script/test_fuzz_fuzztime.txt
+index c3933bc7e2..56d94a4bcf 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_fuzztime.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_fuzztime.txt
+@@ -1,6 +1,4 @@
+-# TODO(jayconrod): support shared memory on more platforms.
+-[!darwin] [!linux] [!windows] skip
+-
++[!fuzz] skip
+ [short] skip
+ 
+ # There are no seed values, so 'go test' should finish quickly.
+diff --git a/src/cmd/go/testdata/script/test_fuzz_io_error.txt b/src/cmd/go/testdata/script/test_fuzz_io_error.txt
+index 4c7ab4c152..1a0aa6427e 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_io_error.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_io_error.txt
+@@ -6,7 +6,7 @@
+ # This is unlikely, but possible. It's difficult to simulate interruptions
+ # due to ^C and EOF errors which are more common. We don't report those.
+ [short] skip
+-[!darwin] [!linux] [!windows] skip
++[!fuzz] skip
+ 
+ # If the I/O error occurs before F.Fuzz is called, the coordinator should
+ # stop the worker and say that.
+diff --git a/src/cmd/go/testdata/script/test_fuzz_match.txt b/src/cmd/go/testdata/script/test_fuzz_match.txt
+index 3a2ca631ad..0c0085f2c2 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_match.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_match.txt
+@@ -1,5 +1,4 @@
+-# TODO(jayconrod): support shared memory on more platforms.
+-[!darwin] [!linux] [!windows] skip
++[!fuzz] skip
+ 
+ # Matches only fuzz targets to test.
+ go test standalone_fuzz_test.go
+diff --git a/src/cmd/go/testdata/script/test_fuzz_minimize.txt b/src/cmd/go/testdata/script/test_fuzz_minimize.txt
+index 3293e878bb..462fb9a963 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_minimize.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_minimize.txt
+@@ -1,6 +1,4 @@
+-# TODO(jayconrod): support shared memory on more platforms.
+-[!darwin] [!linux] [!windows] skip
+-
++[!fuzz] skip
+ [short] skip
+ 
+ # We clean the fuzz cache during this test. Don't clean the user's cache.
+diff --git a/src/cmd/go/testdata/script/test_fuzz_minimize_interesting.txt b/src/cmd/go/testdata/script/test_fuzz_minimize_interesting.txt
+index 8ea4cdb8a5..e017a4cad3 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_minimize_interesting.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_minimize_interesting.txt
+@@ -1,8 +1,4 @@
+-# TODO(jayconrod): support shared memory on more platforms.
+-[!darwin] [!linux] [!windows] skip
+-
+-# Instrumentation only supported on 64-bit architectures.
+-[!amd64] [!arm64] skip
++[!fuzz-instrumented] skip
+ 
+ # Test that when an interesting value is discovered (one that expands coverage),
+ # the fuzzing engine minimizes it before writing it to the cache.
+diff --git a/src/cmd/go/testdata/script/test_fuzz_multiple.txt b/src/cmd/go/testdata/script/test_fuzz_multiple.txt
+index 6a7732f514..d96b2b6206 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_multiple.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_multiple.txt
+@@ -2,9 +2,7 @@
+ # enabled, and multiple package or multiple fuzz targets match.
+ # TODO(#46312): support fuzzing multiple targets in multiple packages.
+ 
+-# TODO(jayconrod): support shared memory on more platforms.
+-[!darwin] [!linux] [!windows] skip
+-
++[!fuzz] skip
+ [short] skip
+ 
+ # With fuzzing disabled, multiple targets can be tested.
+diff --git a/src/cmd/go/testdata/script/test_fuzz_mutate_crash.txt b/src/cmd/go/testdata/script/test_fuzz_mutate_crash.txt
+index 628e003f41..4c4fa8e651 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_mutate_crash.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_mutate_crash.txt
+@@ -1,5 +1,4 @@
+-# TODO(jayconrod): support shared memory on more platforms.
+-[!darwin] [!linux] [!windows] skip
++[!fuzz] skip
+ 
+ # Tests that a crash caused by a mutator-discovered input writes the bad input
+ # to testdata, and fails+reports correctly. This tests the end-to-end behavior
+diff --git a/src/cmd/go/testdata/script/test_fuzz_mutate_fail.txt b/src/cmd/go/testdata/script/test_fuzz_mutate_fail.txt
+index 935c22a05e..b5eab17349 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_mutate_fail.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_mutate_fail.txt
+@@ -1,5 +1,4 @@
+-# TODO(jayconrod): support shared memory on more platforms.
+-[!darwin] [!linux] [!windows] skip
++[!fuzz] skip
+ 
+ # Check that if a worker does not call F.Fuzz or calls F.Fail first,
+ # 'go test' exits non-zero and no crasher is recorded.
+diff --git a/src/cmd/go/testdata/script/test_fuzz_mutator.txt b/src/cmd/go/testdata/script/test_fuzz_mutator.txt
+index 9d0738e169..76b86488ad 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_mutator.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_mutator.txt
+@@ -1,5 +1,4 @@
+-# TODO(jayconrod): support shared memory on more platforms.
+-[!darwin] [!linux] [!windows] skip
++[!fuzz] skip
+ 
+ # Test basic fuzzing mutator behavior.
+ #
+diff --git a/src/cmd/go/testdata/script/test_fuzz_non_crash_signal.txt b/src/cmd/go/testdata/script/test_fuzz_non_crash_signal.txt
+index 1568757de7..f1a4c6669f 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_non_crash_signal.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_non_crash_signal.txt
+@@ -1,7 +1,7 @@
+ # NOTE: this test is skipped on Windows, since there's no concept of signals.
+ # When a process terminates another process, it provides an exit code.
+-# TODO(jayconrod): support shared memory on more platforms.
+-[!darwin] [!freebsd] [!linux] skip
++[windows] skip
++[!fuzz] skip
+ [short] skip
+ 
+ # FuzzNonCrash sends itself a signal that does not appear to be a crash.
+diff --git a/src/cmd/go/testdata/script/test_fuzz_parallel.txt b/src/cmd/go/testdata/script/test_fuzz_parallel.txt
+index a49f30a27f..1795e0b2a5 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_parallel.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_parallel.txt
+@@ -1,6 +1,4 @@
+-# TODO(jayconrod): support shared memory on more platforms.
+-[!darwin] [!linux] [!windows] skip
+-
++[!fuzz] skip
+ [short] skip
+ 
+ # When running seed inputs, T.Parallel should let multiple inputs run in
+diff --git a/src/cmd/go/testdata/script/test_fuzz_run.txt b/src/cmd/go/testdata/script/test_fuzz_run.txt
+index e546d997cb..99a4413d32 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_run.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_run.txt
+@@ -1,6 +1,4 @@
+-# TODO(jayconrod): support shared memory on more platforms.
+-[!darwin] [!linux] [!windows] skip
+-
++[!fuzz] skip
+ [short] skip
+ env GOCACHE=$WORK/cache
+ 
+@@ -142,4 +140,4 @@ go test fuzz v1
+ string("fails")
+ -- testdata/fuzz/FuzzFoo/thispasses --
+ go test fuzz v1
+-string("passes")
+\ No newline at end of file
++string("passes")
+diff --git a/src/cmd/go/testdata/script/test_fuzz_seed_corpus.txt b/src/cmd/go/testdata/script/test_fuzz_seed_corpus.txt
+index 18f634a3b6..4be9a6e385 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_seed_corpus.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_seed_corpus.txt
+@@ -1,10 +1,4 @@
+-# TODO(jayconrod): support shared memory on more platforms.
+-[!darwin] [!linux] [!windows] skip
+-
+-# Instrumentation not supported on other archs.
+-# See #14565.
+-[!amd64] [!arm64] skip
+-
++[!fuzz-instrumented] skip
+ [short] skip
+ env GOCACHE=$WORK/cache
+ 
+@@ -206,4 +200,4 @@ go test fuzz v1
+ int(10)
+ -- cache-file-bytes --
+ go test fuzz v1
+-[]byte("11111111111111111111")
+\ No newline at end of file
++[]byte("11111111111111111111")
+diff --git a/src/cmd/go/testdata/script/test_fuzz_setenv.txt b/src/cmd/go/testdata/script/test_fuzz_setenv.txt
+index 9738697a91..2924569de1 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_setenv.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_setenv.txt
+@@ -1,5 +1,5 @@
++[!fuzz] skip
+ [short] skip
+-[!darwin] [!linux] [!windows] skip
+ 
+ go test -fuzz=FuzzA -fuzztime=100x fuzz_setenv_test.go
+ 
+diff --git a/src/cmd/go/testdata/script/test_fuzz_unsupported.txt b/src/cmd/go/testdata/script/test_fuzz_unsupported.txt
+new file mode 100644
+index 0000000000..1ed0b8a6f7
+--- /dev/null
++++ b/src/cmd/go/testdata/script/test_fuzz_unsupported.txt
+@@ -0,0 +1,18 @@
++[fuzz] skip
++
++! go test -fuzz=. -fuzztime=1x
++! stdout .
++stderr '^-fuzz flag is not supported on '$GOOS'/'$GOARCH'$'
++
++-- go.mod --
++module example
++
++go 1.18
++-- fuzz_test.go --
++package example
++
++import "testing"
++
++func FuzzTrivial(f *testing.F) {
++	f.Fuzz(func(t *testing.T, _ []byte) {})
++}
+diff --git a/src/cmd/internal/sys/supported.go b/src/cmd/internal/sys/supported.go
+index 473e390587..18ca50f927 100644
+--- a/src/cmd/internal/sys/supported.go
++++ b/src/cmd/internal/sys/supported.go
+@@ -45,6 +45,29 @@ func ASanSupported(goos, goarch string) bool {
+ 	}
+ }
+ 
++// FuzzSupported reports whether goos/goarch supports fuzzing
++// ('go test -fuzz=.').
++func FuzzSupported(goos, goarch string) bool {
++	switch goos {
++	case "darwin", "linux", "windows":
++		return true
++	default:
++		return false
++	}
++}
++
++// FuzzInstrumented reports whether fuzzing on goos/goarch uses coverage
++// instrumentation. (FuzzInstrumented implies FuzzSupported.)
++func FuzzInstrumented(goos, goarch string) bool {
++	switch goarch {
++	case "amd64", "arm64":
++		// TODO(#14565): support more architectures.
++		return FuzzSupported(goos, goarch)
++	default:
++		return false
++	}
++}
++
+ // MustLinkExternal reports whether goos/goarch requires external linking.
+ // (This is the opposite of internal/testenv.CanInternalLink. Keep them in sync.)
+ func MustLinkExternal(goos, goarch string) bool {
+diff --git a/src/internal/fuzz/counters_unsupported.go b/src/internal/fuzz/counters_unsupported.go
+index 9595cb93f7..bf28157068 100644
+--- a/src/internal/fuzz/counters_unsupported.go
++++ b/src/internal/fuzz/counters_unsupported.go
+@@ -2,6 +2,12 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// TODO: expand the set of supported platforms, with testing. Nothing about
++// the instrumentation is OS specific, but only amd64 and arm64 are
++// supported in the runtime. See src/runtime/libfuzzer*.
++//
++// If you update this constraint, also update cmd/internal/sys.FuzzInstrumeted.
++//
+ //go:build !((darwin || linux || windows || freebsd) && (amd64 || arm64))
+ 
+ package fuzz
+diff --git a/src/internal/fuzz/sys_unimplemented.go b/src/internal/fuzz/sys_unimplemented.go
+index 05954bb07f..123a32583c 100644
+--- a/src/internal/fuzz/sys_unimplemented.go
++++ b/src/internal/fuzz/sys_unimplemented.go
+@@ -2,7 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// TODO(jayconrod): support more platforms.
++// If you update this constraint, also update cmd/internal/sys.FuzzSupported.
++//
+ //go:build !darwin && !linux && !windows
+ 
+ package fuzz

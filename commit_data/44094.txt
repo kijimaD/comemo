@@ -17,10 +17,384 @@ Date:   Fri May 8 16:34:57 2020 +0000
     GitHub-Pull-Request: golang/go#36815
     Reviewed-on: https://go-review.googlesource.com/c/go/+/216617
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/strconv/atoc.go      | 105 +++++++++++++++++++++++++
  src/strconv/atoc_test.go | 195 +++++++++++++++++++++++++++++++++++++++++++++++
  src/strconv/atof.go      |   4 +-
  src/strconv/atoi.go      |   2 +-
  src/strconv/ctoa.go      |  27 +++++++
  5 files changed, 330 insertions(+), 3 deletions(-)
+
+diff --git a/src/strconv/atoc.go b/src/strconv/atoc.go
+new file mode 100644
+index 0000000000..55b7c23ee7
+--- /dev/null
++++ b/src/strconv/atoc.go
+@@ -0,0 +1,105 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package strconv
++
++const fnParseComplex = "ParseComplex"
++
++// convErr splits an error returned by parseFloatPrefix
++// into a syntax or range error for ParseComplex.
++func convErr(err error, s string) (syntax, range_ error) {
++	if x, ok := err.(*NumError); ok {
++		x.Func = fnParseComplex
++		x.Num = s
++		if x.Err == ErrRange {
++			return nil, x
++		}
++	}
++	return err, nil
++}
++
++// ParseComplex converts the string s to a complex number
++// with the precision specified by bitSize: 64 for complex64, or 128 for complex128.
++// When bitSize=64, the result still has type complex128, but it will be
++// convertible to complex64 without changing its value.
++//
++// The number represented by s must be of the form N, Ni, or N±Ni, where N stands
++// for a floating-point number as recognized by ParseFloat, and i is the imaginary
++// component. If the second N is unsigned, a + sign is required between the two components
++// as indicated by the ±. If the second N is NaN, only a + sign is accepted.
++// The form may be parenthesized and cannot contain any spaces.
++// The resulting complex number consists of the two components converted by ParseFloat.
++//
++// The errors that ParseComplex returns have concrete type *NumError
++// and include err.Num = s.
++//
++// If s is not syntactically well-formed, ParseComplex returns err.Err = ErrSyntax.
++//
++// If s is syntactically well-formed but either component is more than 1/2 ULP
++// away from the largest floating point number of the given component's size,
++// ParseComplex returns err.Err = ErrRange and c = ±Inf for the respective component.
++func ParseComplex(s string, bitSize int) (complex128, error) {
++	size := 128
++	if bitSize == 64 {
++		size = 32 // complex64 uses float32 parts
++	}
++
++	orig := s
++
++	// Remove parentheses, if any.
++	if len(s) >= 2 && s[0] == '(' && s[len(s)-1] == ')' {
++		s = s[1 : len(s)-1]
++	}
++
++	var pending error // pending range error, or nil
++
++	// Read real part (possibly imaginary part if followed by 'i').
++	re, n, err := parseFloatPrefix(s, size)
++	if err != nil {
++		err, pending = convErr(err, orig)
++		if err != nil {
++			return 0, err
++		}
++	}
++	s = s[n:]
++
++	// If we have nothing left, we're done.
++	if len(s) == 0 {
++		return complex(re, 0), pending
++	}
++
++	// Otherwise, look at the next character.
++	switch s[0] {
++	case '+':
++		// Consume the '+' to avoid an error if we have "+NaNi", but
++		// do this only if we don't have a "++" (don't hide that error).
++		if len(s) > 1 && s[1] != '+' {
++			s = s[1:]
++		}
++	case '-':
++		// ok
++	case 'i':
++		// If 'i' is the last character, we only have an imaginary part.
++		if len(s) == 1 {
++			return complex(0, re), pending
++		}
++		fallthrough
++	default:
++		return 0, syntaxError(fnParseComplex, orig)
++	}
++
++	// Read imaginary part.
++	im, n, err := parseFloatPrefix(s, size)
++	if err != nil {
++		err, pending = convErr(err, orig)
++		if err != nil {
++			return 0, err
++		}
++	}
++	s = s[n:]
++	if s != "i" {
++		return 0, syntaxError(fnParseComplex, orig)
++	}
++	return complex(re, im), pending
++}
+diff --git a/src/strconv/atoc_test.go b/src/strconv/atoc_test.go
+new file mode 100644
+index 0000000000..5c817a2e44
+--- /dev/null
++++ b/src/strconv/atoc_test.go
+@@ -0,0 +1,195 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package strconv_test
++
++import (
++	"math"
++	"math/cmplx"
++	"reflect"
++	. "strconv"
++	"testing"
++)
++
++var (
++	infp0 = complex(math.Inf(+1), 0)
++	infm0 = complex(math.Inf(-1), 0)
++	inf0p = complex(0, math.Inf(+1))
++	inf0m = complex(0, math.Inf(-1))
++	infpp = complex(math.Inf(+1), math.Inf(+1))
++	infpm = complex(math.Inf(+1), math.Inf(-1))
++	infmp = complex(math.Inf(-1), math.Inf(+1))
++	infmm = complex(math.Inf(-1), math.Inf(-1))
++)
++
++type atocTest struct {
++	in  string
++	out complex128
++	err error
++}
++
++func TestParseComplex(t *testing.T) {
++
++	tests := []atocTest{
++		// Clearly invalid
++		{"", 0, ErrSyntax},
++		{" ", 0, ErrSyntax},
++		{"(", 0, ErrSyntax},
++		{")", 0, ErrSyntax},
++		{"i", 0, ErrSyntax},
++		{"+i", 0, ErrSyntax},
++		{"-i", 0, ErrSyntax},
++		{"1I", 0, ErrSyntax},
++		{"10  + 5i", 0, ErrSyntax},
++		{"3+", 0, ErrSyntax},
++		{"3+5", 0, ErrSyntax},
++		{"3+5+5i", 0, ErrSyntax},
++		// Parentheses
++		{"()", 0, ErrSyntax},
++		{"(i)", 0, ErrSyntax},
++		{"(0)", 0, nil},
++		{"(1i)", 1i, nil},
++		{"(3.0+5.5i)", 3.0 + 5.5i, nil},
++		{"(1)+1i", 0, ErrSyntax},
++		{"(3.0+5.5i", 0, ErrSyntax},
++		{"3.0+5.5i)", 0, ErrSyntax},
++		// NaNs
++		{"NaN", complex(math.NaN(), 0), nil},
++		{"NANi", complex(0, math.NaN()), nil},
++		{"nan+nAni", complex(math.NaN(), math.NaN()), nil},
++		{"+NaN", 0, ErrSyntax},
++		{"-NaN", 0, ErrSyntax},
++		{"NaN-NaNi", 0, ErrSyntax},
++		// Infs
++		{"Inf", infp0, nil},
++		{"+inf", infp0, nil},
++		{"-inf", infm0, nil},
++		{"Infinity", infp0, nil},
++		{"+INFINITY", infp0, nil},
++		{"-infinity", infm0, nil},
++		{"+infi", inf0p, nil},
++		{"0-infinityi", inf0m, nil},
++		{"Inf+Infi", infpp, nil},
++		{"+Inf-Infi", infpm, nil},
++		{"-Infinity+Infi", infmp, nil},
++		{"inf-inf", 0, ErrSyntax},
++		// Zeros
++		{"0", 0, nil},
++		{"0i", 0, nil},
++		{"-0.0i", 0, nil},
++		{"0+0.0i", 0, nil},
++		{"0e+0i", 0, nil},
++		{"0e-0+0i", 0, nil},
++		{"-0.0-0.0i", 0, nil},
++		{"0e+012345", 0, nil},
++		{"0x0p+012345i", 0, nil},
++		{"0x0.00p-012345i", 0, nil},
++		{"+0e-0+0e-0i", 0, nil},
++		{"0e+0+0e+0i", 0, nil},
++		{"-0e+0-0e+0i", 0, nil},
++		// Regular non-zeroes
++		{"0.1", 0.1, nil},
++		{"0.1i", 0 + 0.1i, nil},
++		{"0.123", 0.123, nil},
++		{"0.123i", 0 + 0.123i, nil},
++		{"0.123+0.123i", 0.123 + 0.123i, nil},
++		{"99", 99, nil},
++		{"+99", 99, nil},
++		{"-99", -99, nil},
++		{"+1i", 1i, nil},
++		{"-1i", -1i, nil},
++		{"+3+1i", 3 + 1i, nil},
++		{"30+3i", 30 + 3i, nil},
++		{"+3e+3-3e+3i", 3e+3 - 3e+3i, nil},
++		{"+3e+3+3e+3i", 3e+3 + 3e+3i, nil},
++		{"+3e+3+3e+3i+", 0, ErrSyntax},
++		// Separators
++		{"0.1", 0.1, nil},
++		{"0.1i", 0 + 0.1i, nil},
++		{"0.1_2_3", 0.123, nil},
++		{"+0x_3p3i", 0x3p3i, nil},
++		{"0x_10.3p-8+0x3p3i", 0x10.3p-8 + 0x3p3i, nil},
++		{"+0x_1_0.3p-8+0x3p3i", 0x10.3p-8 + 0x3p3i, nil},
++		{"0x10.3p+8-0x_3p3i", 0x10.3p+8 - 0x3p3i, nil},
++		// Hexadecimals
++		{"0x10.3p-8+0x3p3i", 0x10.3p-8 + 0x3p3i, nil},
++		{"+0x10.3p-8+0x3p3i", 0x10.3p-8 + 0x3p3i, nil},
++		{"0x10.3p+8-0x3p3i", 0x10.3p+8 - 0x3p3i, nil},
++		{"0x1p0", 1, nil},
++		{"0x1p1", 2, nil},
++		{"0x1p-1", 0.5, nil},
++		{"0x1ep-1", 15, nil},
++		{"-0x1ep-1", -15, nil},
++		{"-0x2p3", -16, nil},
++		{"0x1e2", 0, ErrSyntax},
++		{"1p2", 0, ErrSyntax},
++		{"0x1e2i", 0, ErrSyntax},
++		// ErrRange
++		// next float64 - too large
++		{"+0x1p1024", infp0, ErrRange},
++		{"-0x1p1024", infm0, ErrRange},
++		{"+0x1p1024i", inf0p, ErrRange},
++		{"-0x1p1024i", inf0m, ErrRange},
++		{"+0x1p1024+0x1p1024i", infpp, ErrRange},
++		{"+0x1p1024-0x1p1024i", infpm, ErrRange},
++		{"-0x1p1024+0x1p1024i", infmp, ErrRange},
++		{"-0x1p1024-0x1p1024i", infmm, ErrRange},
++		// the border is ...158079
++		// borderline - okay
++		{"+0x1.fffffffffffff7fffp1023+0x1.fffffffffffff7fffp1023i", 1.7976931348623157e+308 + 1.7976931348623157e+308i, nil},
++		{"+0x1.fffffffffffff7fffp1023-0x1.fffffffffffff7fffp1023i", 1.7976931348623157e+308 - 1.7976931348623157e+308i, nil},
++		{"-0x1.fffffffffffff7fffp1023+0x1.fffffffffffff7fffp1023i", -1.7976931348623157e+308 + 1.7976931348623157e+308i, nil},
++		{"-0x1.fffffffffffff7fffp1023-0x1.fffffffffffff7fffp1023i", -1.7976931348623157e+308 - 1.7976931348623157e+308i, nil},
++		// borderline - too large
++		{"+0x1.fffffffffffff8p1023", infp0, ErrRange},
++		{"-0x1fffffffffffff.8p+971", infm0, ErrRange},
++		{"+0x1.fffffffffffff8p1023i", inf0p, ErrRange},
++		{"-0x1fffffffffffff.8p+971i", inf0m, ErrRange},
++		{"+0x1.fffffffffffff8p1023+0x1.fffffffffffff8p1023i", infpp, ErrRange},
++		{"+0x1.fffffffffffff8p1023-0x1.fffffffffffff8p1023i", infpm, ErrRange},
++		{"-0x1fffffffffffff.8p+971+0x1fffffffffffff.8p+971i", infmp, ErrRange},
++		{"-0x1fffffffffffff8p+967-0x1fffffffffffff8p+967i", infmm, ErrRange},
++		// a little too large
++		{"1e308+1e308i", 1e+308 + 1e+308i, nil},
++		{"2e308+2e308i", infpp, ErrRange},
++		{"1e309+1e309i", infpp, ErrRange},
++		{"0x1p1025+0x1p1025i", infpp, ErrRange},
++		{"2e308", infp0, ErrRange},
++		{"1e309", infp0, ErrRange},
++		{"0x1p1025", infp0, ErrRange},
++		{"2e308i", inf0p, ErrRange},
++		{"1e309i", inf0p, ErrRange},
++		{"0x1p1025i", inf0p, ErrRange},
++		// way too large
++		{"+1e310+1e310i", infpp, ErrRange},
++		{"+1e310-1e310i", infpm, ErrRange},
++		{"-1e310+1e310i", infmp, ErrRange},
++		{"-1e310-1e310i", infmm, ErrRange},
++		// under/overflow exponent
++		{"1e-4294967296", 0, nil},
++		{"1e-4294967296i", 0, nil},
++		{"1e-4294967296+1i", 1i, nil},
++		{"1+1e-4294967296i", 1, nil},
++		{"1e-4294967296+1e-4294967296i", 0, nil},
++		{"1e+4294967296", infp0, ErrRange},
++		{"1e+4294967296i", inf0p, ErrRange},
++		{"1e+4294967296+1e+4294967296i", infpp, ErrRange},
++		{"1e+4294967296-1e+4294967296i", infpm, ErrRange},
++	}
++	for _, tt := range tests {
++		tt := tt // for capture in Run closures below
++		if tt.err != nil {
++			tt.err = &NumError{Func: "ParseComplex", Num: tt.in, Err: tt.err}
++		}
++		t.Run(tt.in, func(t *testing.T) {
++			got, err := ParseComplex(tt.in, 128)
++			if !reflect.DeepEqual(err, tt.err) {
++				t.Fatalf("ParseComplex(%q, 128) = %v, %v want %v, %v", tt.in, got, err, tt.out, tt.err)
++			}
++			if !(cmplx.IsNaN(tt.out) && cmplx.IsNaN(got)) && got != tt.out {
++				t.Fatalf("ParseComplex(%q, 128) = %v, %v want %v, %v", tt.in, got, err, tt.out, tt.err)
++			}
++		})
++	}
++}
+diff --git a/src/strconv/atof.go b/src/strconv/atof.go
+index 28ad094080..f20ae4af09 100644
+--- a/src/strconv/atof.go
++++ b/src/strconv/atof.go
+@@ -677,8 +677,8 @@ func atof64(s string) (f float64, n int, err error) {
+ // away from the largest floating point number of the given size,
+ // ParseFloat returns f = ±Inf, err.Err = ErrRange.
+ //
+-// ParseFloat recognizes the strings "NaN", "+Inf", and "-Inf" as their
+-// respective special floating point values. It ignores case when matching.
++// ParseFloat recognizes the strings "NaN", and the (possibly signed) strings "Inf" and "Infinity"
++// as their respective special floating point values. It ignores case when matching.
+ func ParseFloat(s string, bitSize int) (float64, error) {
+ 	f, n, err := parseFloatPrefix(s, bitSize)
+ 	if err == nil && n != len(s) {
+diff --git a/src/strconv/atoi.go b/src/strconv/atoi.go
+index 0b82fb0908..f6c4efaef6 100644
+--- a/src/strconv/atoi.go
++++ b/src/strconv/atoi.go
+@@ -22,7 +22,7 @@ var ErrSyntax = errors.New("invalid syntax")
+ 
+ // A NumError records a failed conversion.
+ type NumError struct {
+-	Func string // the failing function (ParseBool, ParseInt, ParseUint, ParseFloat)
++	Func string // the failing function (ParseBool, ParseInt, ParseUint, ParseFloat, ParseComplex)
+ 	Num  string // the input
+ 	Err  error  // the reason the conversion failed (e.g. ErrRange, ErrSyntax, etc.)
+ }
+diff --git a/src/strconv/ctoa.go b/src/strconv/ctoa.go
+new file mode 100644
+index 0000000000..c16a2e579c
+--- /dev/null
++++ b/src/strconv/ctoa.go
+@@ -0,0 +1,27 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package strconv
++
++// FormatComplex converts the complex number c to a string of the
++// form (a+bi) where a and b are the real and imaginary parts,
++// formatted according to the format fmt and precision prec.
++//
++// The format fmt and precision prec have the same meaning as in FormatFloat.
++// It rounds the result assuming that the original was obtained from a complex
++// value of bitSize bits, which must be 64 for complex64 and 128 for complex128.
++func FormatComplex(c complex128, fmt byte, prec, bitSize int) string {
++	if bitSize != 64 && bitSize != 128 {
++		panic("invalid bitSize")
++	}
++	bitSize >>= 1 // complex64 uses float32 internally
++
++	// Check if imaginary part has a sign. If not, add one.
++	im := FormatFloat(imag(c), fmt, prec, bitSize)
++	if im[0] != '+' && im[0] != '-' {
++		im = "+" + im
++	}
++
++	return "(" + FormatFloat(real(c), fmt, prec, bitSize) + im + "i)"
++}

@@ -8,6 +8,32 @@ Date:   Fri Jul 20 11:00:28 2018 +0200
     Reviewed-on: https://go-review.googlesource.com/125256
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go1.11.html | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/doc/go1.11.html b/doc/go1.11.html
+index 0266efa386..213ec30083 100644
+--- a/doc/go1.11.html
++++ b/doc/go1.11.html
+@@ -596,9 +596,9 @@ for k := range m {
+     <p><!-- CL 107715 -->
+       The <code>net</code> package now automatically uses the
+       <a href="http://man7.org/linux/man-pages/man2/splice.2.html"><code>splice</code> system call</a>
+-      on Linux when calling copying data between TCP connections in
++      on Linux when copying data between TCP connections in
+       <a href="/pkg/net/#TCPConn.ReadFrom"><code>TCPConn.ReadFrom</code></a>, as called by
+-      <a href="/pkg/io/#Copy"><code>io.Copy</code>. The result is faster, more efficient TCP proxying.
++      <a href="/pkg/io/#Copy"><code>io.Copy</code></a>. The result is faster, more efficient TCP proxying.
+     </p>
+ 
+     <p><!-- CL 108297 -->
+@@ -623,7 +623,7 @@ for k := range m {
+ 
+     <p><!-- CL 79919 -->
+       The <a href="/pkg/net/http/#Cookie"><code>Cookie</code></a> type has a new
+-      The <a href="/pkg/net/http/#Cookie.SameSite"><code>SameSite</code></a> field
++      <a href="/pkg/net/http/#Cookie.SameSite"><code>SameSite</code></a> field
+       (of new type also named
+       <a href="/pkg/net/http/#SameSite"><code>SameSite</code></a>) to represent the new cookie attribute recently supported by most browsers.
+       The <code>net/http</code>'s <code>Transport</code> does not use the <code>SameSite</code>

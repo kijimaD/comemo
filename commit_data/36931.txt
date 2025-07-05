@@ -16,10 +16,305 @@ Date:   Fri Apr 20 12:16:36 2018 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/cache/cache.go  | 15 ++++++++
  src/cmd/go/internal/vet/vetflag.go  |  2 +-
  src/cmd/go/internal/work/action.go  | 31 +++++++++++----
  src/cmd/go/internal/work/buildid.go | 28 ++++++++------
  src/cmd/go/internal/work/exec.go    | 77 +++++++++++++++++++++++++++++--------
  5 files changed, 116 insertions(+), 37 deletions(-)
+
+diff --git a/src/cmd/go/internal/cache/cache.go b/src/cmd/go/internal/cache/cache.go
+index edb58826f1..0cf01550ff 100644
+--- a/src/cmd/go/internal/cache/cache.go
++++ b/src/cmd/go/internal/cache/cache.go
+@@ -189,6 +189,21 @@ func (c *Cache) get(id ActionID) (Entry, error) {
+ 	return Entry{buf, size, time.Unix(0, tm)}, nil
+ }
+ 
++// GetFile looks up the action ID in the cache and returns
++// the name of the corresponding data file.
++func (c *Cache) GetFile(id ActionID) (file string, entry Entry, err error) {
++	entry, err = c.Get(id)
++	if err != nil {
++		return "", Entry{}, err
++	}
++	file = c.OutputFile(entry.OutputID)
++	info, err := os.Stat(file)
++	if err != nil || info.Size() != entry.Size {
++		return "", Entry{}, errMissing
++	}
++	return file, entry, nil
++}
++
+ // GetBytes looks up the action ID in the cache and returns
+ // the corresponding output bytes.
+ // GetBytes should only be used for data that can be expected to fit in memory.
+diff --git a/src/cmd/go/internal/vet/vetflag.go b/src/cmd/go/internal/vet/vetflag.go
+index 03770ea920..bdfe033018 100644
+--- a/src/cmd/go/internal/vet/vetflag.go
++++ b/src/cmd/go/internal/vet/vetflag.go
+@@ -90,7 +90,7 @@ func vetFlags(args []string) (passToVet, packageNames []string) {
+ 			}
+ 			switch f.Name {
+ 			// Flags known to the build but not to vet, so must be dropped.
+-			case "x", "n", "vettool", "compiler":
++			case "a", "x", "n", "vettool", "compiler":
+ 				if extraWord {
+ 					args = append(args[:i], args[i+2:]...)
+ 					extraWord = false
+diff --git a/src/cmd/go/internal/work/action.go b/src/cmd/go/internal/work/action.go
+index 3b5c4d65fd..8edf55ffa1 100644
+--- a/src/cmd/go/internal/work/action.go
++++ b/src/cmd/go/internal/work/action.go
+@@ -82,9 +82,10 @@ type Action struct {
+ 	actionID cache.ActionID // cache ID of action input
+ 	buildID  string         // build ID of action output
+ 
+-	needVet bool       // Mode=="build": need to fill in vet config
+-	vetCfg  *vetConfig // vet config
+-	output  []byte     // output redirect buffer (nil means use b.Print)
++	VetxOnly bool       // Mode=="vet": only being called to supply info about dependencies
++	needVet  bool       // Mode=="build": need to fill in vet config
++	vetCfg   *vetConfig // vet config
++	output   []byte     // output redirect buffer (nil means use b.Print)
+ 
+ 	// Execution state.
+ 	pending  int  // number of deps yet to complete
+@@ -141,6 +142,7 @@ type actionJSON struct {
+ 	Priority   int      `json:",omitempty"`
+ 	Failed     bool     `json:",omitempty"`
+ 	Built      string   `json:",omitempty"`
++	VetxOnly   bool     `json:",omitempty"`
+ }
+ 
+ // cacheKey is the key for the action cache.
+@@ -180,6 +182,7 @@ func actionGraphJSON(a *Action) string {
+ 			Failed:     a.Failed,
+ 			Priority:   a.priority,
+ 			Built:      a.built,
++			VetxOnly:   a.VetxOnly,
+ 		}
+ 		if a.Package != nil {
+ 			// TODO(rsc): Make this a unique key for a.Package somehow.
+@@ -383,6 +386,12 @@ func (b *Builder) CompileAction(mode, depMode BuildMode, p *load.Package) *Actio
+ // If the caller may be causing p to be installed, it is up to the caller
+ // to make sure that the install depends on (runs after) vet.
+ func (b *Builder) VetAction(mode, depMode BuildMode, p *load.Package) *Action {
++	a := b.vetAction(mode, depMode, p)
++	a.VetxOnly = false
++	return a
++}
++
++func (b *Builder) vetAction(mode, depMode BuildMode, p *load.Package) *Action {
+ 	// Construct vet action.
+ 	a := b.cacheAction("vet", p, func() *Action {
+ 		a1 := b.CompileAction(mode, depMode, p)
+@@ -394,11 +403,18 @@ func (b *Builder) VetAction(mode, depMode BuildMode, p *load.Package) *Action {
+ 		stk.Pop()
+ 		aFmt := b.CompileAction(ModeBuild, depMode, p1)
+ 
++		deps := []*Action{a1, aFmt}
++		for _, p1 := range load.PackageList(p.Internal.Imports) {
++			deps = append(deps, b.vetAction(mode, depMode, p1))
++		}
++
+ 		a := &Action{
+-			Mode:    "vet",
+-			Package: p,
+-			Deps:    []*Action{a1, aFmt},
+-			Objdir:  a1.Objdir,
++			Mode:       "vet",
++			Package:    p,
++			Deps:       deps,
++			Objdir:     a1.Objdir,
++			VetxOnly:   true,
++			IgnoreFail: true, // it's OK if vet of dependencies "fails" (reports problems)
+ 		}
+ 		if a1.Func == nil {
+ 			// Built-in packages like unsafe.
+@@ -406,7 +422,6 @@ func (b *Builder) VetAction(mode, depMode BuildMode, p *load.Package) *Action {
+ 		}
+ 		a1.needVet = true
+ 		a.Func = (*Builder).vet
+-
+ 		return a
+ 	})
+ 	return a
+diff --git a/src/cmd/go/internal/work/buildid.go b/src/cmd/go/internal/work/buildid.go
+index 04ff01a350..9a2528b914 100644
+--- a/src/cmd/go/internal/work/buildid.go
++++ b/src/cmd/go/internal/work/buildid.go
+@@ -174,20 +174,29 @@ func (b *Builder) toolID(name string) string {
+ 		return id
+ 	}
+ 
+-	cmdline := str.StringList(cfg.BuildToolexec, base.Tool(name), "-V=full")
++	path := base.Tool(name)
++	desc := "go tool " + name
++
++	// Special case: undocumented -vettool overrides usual vet, for testing vet.
++	if name == "vet" && VetTool != "" {
++		path = VetTool
++		desc = VetTool
++	}
++
++	cmdline := str.StringList(cfg.BuildToolexec, path, "-V=full")
+ 	cmd := exec.Command(cmdline[0], cmdline[1:]...)
+ 	cmd.Env = base.EnvForDir(cmd.Dir, os.Environ())
+ 	var stdout, stderr bytes.Buffer
+ 	cmd.Stdout = &stdout
+ 	cmd.Stderr = &stderr
+ 	if err := cmd.Run(); err != nil {
+-		base.Fatalf("go tool %s: %v\n%s%s", name, err, stdout.Bytes(), stderr.Bytes())
++		base.Fatalf("%s: %v\n%s%s", desc, err, stdout.Bytes(), stderr.Bytes())
+ 	}
+ 
+ 	line := stdout.String()
+ 	f := strings.Fields(line)
+-	if len(f) < 3 || f[0] != name || f[1] != "version" || f[2] == "devel" && !strings.HasPrefix(f[len(f)-1], "buildID=") {
+-		base.Fatalf("go tool %s -V=full: unexpected output:\n\t%s", name, line)
++	if len(f) < 3 || f[0] != name && path != VetTool || f[1] != "version" || f[2] == "devel" && !strings.HasPrefix(f[len(f)-1], "buildID=") {
++		base.Fatalf("%s -V=full: unexpected output:\n\t%s", desc, line)
+ 	}
+ 	if f[2] == "devel" {
+ 		// On the development branch, use the content ID part of the build ID.
+@@ -509,14 +518,9 @@ func (b *Builder) useCache(a *Action, p *load.Package, actionHash cache.ActionID
+ 	// but we're still happy to use results from the build artifact cache.
+ 	if c := cache.Default(); c != nil {
+ 		if !cfg.BuildA {
+-			entry, err := c.Get(actionHash)
+-			if err == nil {
+-				file := c.OutputFile(entry.OutputID)
+-				info, err1 := os.Stat(file)
+-				buildID, err2 := buildid.ReadFile(file)
+-				if err1 == nil && err2 == nil && info.Size() == entry.Size {
+-					stdout, stdoutEntry, err := c.GetBytes(cache.Subkey(a.actionID, "stdout"))
+-					if err == nil {
++			if file, _, err := c.GetFile(actionHash); err == nil {
++				if buildID, err := buildid.ReadFile(file); err == nil {
++					if stdout, stdoutEntry, err := c.GetBytes(cache.Subkey(a.actionID, "stdout")); err == nil {
+ 						if len(stdout) > 0 {
+ 							if cfg.BuildX || cfg.BuildN {
+ 								b.Showcmd("", "%s  # internal", joinUnambiguously(str.StringList("cat", c.OutputFile(stdoutEntry.OutputID))))
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 5fd2f66b86..1013e1a11f 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -718,16 +718,11 @@ func (b *Builder) cacheObjdirFile(a *Action, c *cache.Cache, name string) error
+ }
+ 
+ func (b *Builder) findCachedObjdirFile(a *Action, c *cache.Cache, name string) (string, error) {
+-	entry, err := c.Get(cache.Subkey(a.actionID, name))
++	file, _, err := c.GetFile(cache.Subkey(a.actionID, name))
+ 	if err != nil {
+ 		return "", err
+ 	}
+-	out := c.OutputFile(entry.OutputID)
+-	info, err := os.Stat(out)
+-	if err != nil || info.Size() != entry.Size {
+-		return "", fmt.Errorf("not in cache")
+-	}
+-	return out, nil
++	return file, nil
+ }
+ 
+ func (b *Builder) loadCachedObjdirFile(a *Action, c *cache.Cache, name string) error {
+@@ -833,16 +828,21 @@ func (b *Builder) loadCachedCgoFiles(a *Action) bool {
+ 	return true
+ }
+ 
++// vetConfig is the configuration passed to vet describing a single package.
+ type vetConfig struct {
+-	Compiler    string
+-	Dir         string
+-	GoFiles     []string
+-	ImportMap   map[string]string
+-	PackageFile map[string]string
+-	Standard    map[string]bool
+-	ImportPath  string
++	Compiler   string   // compiler name (gc, gccgo)
++	Dir        string   // directory containing package
++	ImportPath string   // canonical import path ("package path")
++	GoFiles    []string // absolute paths to package source files
++
++	ImportMap   map[string]string // map import path in source code to package path
++	PackageFile map[string]string // map package path to .a file with export data
++	Standard    map[string]bool   // map package path to whether it's in the standard library
++	PackageVetx map[string]string // map package path to vetx data from earlier vet run
++	VetxOnly    bool              // only compute vetx data; don't report detected problems
++	VetxOutput  string            // write vetx data to this output file
+ 
+-	SucceedOnTypecheckFailure bool
++	SucceedOnTypecheckFailure bool // awful hack; see #18395 and below
+ }
+ 
+ func buildVetConfig(a *Action, gofiles []string) {
+@@ -903,6 +903,8 @@ func (b *Builder) vet(a *Action) error {
+ 	// a.Deps[0] is the build of the package being vetted.
+ 	// a.Deps[1] is the build of the "fmt" package.
+ 
++	a.Failed = false // vet of dependency may have failed but we can still succeed
++
+ 	vcfg := a.Deps[0].vetCfg
+ 	if vcfg == nil {
+ 		// Vet config should only be missing if the build failed.
+@@ -912,6 +914,38 @@ func (b *Builder) vet(a *Action) error {
+ 		return nil
+ 	}
+ 
++	vcfg.VetxOnly = a.VetxOnly
++	vcfg.VetxOutput = a.Objdir + "vet.out"
++	vcfg.PackageVetx = make(map[string]string)
++
++	h := cache.NewHash("vet " + a.Package.ImportPath)
++	fmt.Fprintf(h, "vet %q\n", b.toolID("vet"))
++
++	// Note: We could decide that vet should compute export data for
++	// all analyses, in which case we don't need to include the flags here.
++	// But that would mean that if an analysis causes problems like
++	// unexpected crashes there would be no way to turn it off.
++	// It seems better to let the flags disable export analysis too.
++	fmt.Fprintf(h, "vetflags %q\n", VetFlags)
++
++	fmt.Fprintf(h, "pkg %q\n", a.Deps[0].actionID)
++	for _, a1 := range a.Deps {
++		if a1.Mode == "vet" && a1.built != "" {
++			fmt.Fprintf(h, "vetout %q %s\n", a1.Package.ImportPath, b.fileHash(a1.built))
++			vcfg.PackageVetx[a1.Package.ImportPath] = a1.built
++		}
++	}
++	key := cache.ActionID(h.Sum())
++
++	if vcfg.VetxOnly {
++		if c := cache.Default(); c != nil && !cfg.BuildA {
++			if file, _, err := c.GetFile(key); err == nil {
++				a.built = file
++				return nil
++			}
++		}
++	}
++
+ 	if vcfg.ImportMap["fmt"] == "" {
+ 		a1 := a.Deps[1]
+ 		vcfg.ImportMap["fmt"] = "fmt"
+@@ -949,7 +983,18 @@ func (b *Builder) vet(a *Action) error {
+ 	if tool == "" {
+ 		tool = base.Tool("vet")
+ 	}
+-	return b.run(a, p.Dir, p.ImportPath, env, cfg.BuildToolexec, tool, VetFlags, a.Objdir+"vet.cfg")
++	runErr := b.run(a, p.Dir, p.ImportPath, env, cfg.BuildToolexec, tool, VetFlags, a.Objdir+"vet.cfg")
++
++	// If vet wrote export data, save it for input to future vets.
++	if f, err := os.Open(vcfg.VetxOutput); err == nil {
++		a.built = vcfg.VetxOutput
++		if c := cache.Default(); c != nil {
++			c.Put(key, f)
++		}
++		f.Close()
++	}
++
++	return runErr
+ }
+ 
+ // linkActionID computes the action ID for a link action.

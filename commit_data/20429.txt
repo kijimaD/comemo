@@ -19,6 +19,45 @@ Date:   Sun Sep 7 23:40:27 2014 -0400
     TBR=bradfitz
     CC=brainman, golang-codereviews
     https://golang.org/cl/141210043
-
+---
  src/pkg/net/http/httptest/server_test.go | 23 -----------------------
  1 file changed, 23 deletions(-)
+
+diff --git a/src/pkg/net/http/httptest/server_test.go b/src/pkg/net/http/httptest/server_test.go
+index a1c38c50ba..500a9f0b80 100644
+--- a/src/pkg/net/http/httptest/server_test.go
++++ b/src/pkg/net/http/httptest/server_test.go
+@@ -8,7 +8,6 @@ import (
+ 	"io/ioutil"
+ 	"net/http"
+ 	"testing"
+-	"time"
+ )
+ 
+ func TestServer(t *testing.T) {
+@@ -28,25 +27,3 @@ func TestServer(t *testing.T) {
+ 		t.Errorf("got %q, want hello", string(got))
+ 	}
+ }
+-
+-func TestIssue7264(t *testing.T) {
+-	for i := 0; i < 1000; i++ {
+-		func() {
+-			ts := NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+-			defer ts.Close()
+-			tr := &http.Transport{
+-				ResponseHeaderTimeout: time.Nanosecond,
+-			}
+-			defer tr.CloseIdleConnections()
+-			c := &http.Client{Transport: tr}
+-			res, err := c.Get(ts.URL)
+-			// err can be non-nil here.
+-			// If the client writes the header and then immediately observes
+-			// the timeout and closes the connection, the server might never
+-			// have gotten a chance to send a response. That's okay.
+-			if err == nil {
+-				res.Body.Close()
+-			}
+-		}()
+-	}
+-}

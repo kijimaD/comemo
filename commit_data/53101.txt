@@ -36,9 +36,113 @@ Date:   Wed Jul 6 13:21:34 2022 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/go/internal/fsys/fsys.go                   | 24 ++++++++--------------
  src/cmd/go/testdata/script/fsys_walk.txt           |  6 ++++++
  .../script/{list_permissions.txt => list_perm.txt} |  3 +--
  src/cmd/go/testdata/script/mod_perm.txt            | 23 +++++++++++++++++++++
  4 files changed, 38 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/go/internal/fsys/fsys.go b/src/cmd/go/internal/fsys/fsys.go
+index d96a290de5..0d7bef9112 100644
+--- a/src/cmd/go/internal/fsys/fsys.go
++++ b/src/cmd/go/internal/fsys/fsys.go
+@@ -464,28 +464,20 @@ func IsDirWithGoFiles(dir string) (bool, error) {
+ // walk recursively descends path, calling walkFn. Copied, with some
+ // modifications from path/filepath.walk.
+ func walk(path string, info fs.FileInfo, walkFn filepath.WalkFunc) error {
+-	if !info.IsDir() {
+-		return walkFn(path, info, nil)
++	if err := walkFn(path, info, nil); err != nil || !info.IsDir() {
++		return err
+ 	}
+ 
+-	fis, readErr := ReadDir(path)
+-	walkErr := walkFn(path, info, readErr)
+-	// If readErr != nil, walk can't walk into this directory.
+-	// walkErr != nil means walkFn want walk to skip this directory or stop walking.
+-	// Therefore, if one of readErr and walkErr isn't nil, walk will return.
+-	if readErr != nil || walkErr != nil {
+-		// The caller's behavior is controlled by the return value, which is decided
+-		// by walkFn. walkFn may ignore readErr and return nil.
+-		// If walkFn returns SkipDir, it will be handled by the caller.
+-		// So walk should return whatever walkFn returns.
+-		return walkErr
++	fis, err := ReadDir(path)
++	if err != nil {
++		return walkFn(path, info, err)
+ 	}
+ 
+ 	for _, fi := range fis {
+ 		filename := filepath.Join(path, fi.Name())
+-		if walkErr = walk(filename, fi, walkFn); walkErr != nil {
+-			if !fi.IsDir() || walkErr != filepath.SkipDir {
+-				return walkErr
++		if err := walk(filename, fi, walkFn); err != nil {
++			if !fi.IsDir() || err != filepath.SkipDir {
++				return err
+ 			}
+ 		}
+ 	}
+diff --git a/src/cmd/go/testdata/script/fsys_walk.txt b/src/cmd/go/testdata/script/fsys_walk.txt
+new file mode 100644
+index 0000000000..9d1a9451ff
+--- /dev/null
++++ b/src/cmd/go/testdata/script/fsys_walk.txt
+@@ -0,0 +1,6 @@
++# Test that go list prefix... does not read directories not beginning with prefix.
++env GODEBUG=gofsystrace=1
++go list m...
++stderr mime
++stderr mime[\\/]multipart
++! stderr archive
+diff --git a/src/cmd/go/testdata/script/list_permissions.txt b/src/cmd/go/testdata/script/list_perm.txt
+similarity index 99%
+rename from src/cmd/go/testdata/script/list_permissions.txt
+rename to src/cmd/go/testdata/script/list_perm.txt
+index f65896ca14..3b850ef3cc 100644
+--- a/src/cmd/go/testdata/script/list_permissions.txt
++++ b/src/cmd/go/testdata/script/list_perm.txt
+@@ -11,12 +11,11 @@ stdout '^example.com/noread$'
+ go list ./empty/...
+ stderr 'matched no packages'
+ 
+-[root] stop # Root typically ignores file permissions.
+-
+ # Make the directory ./noread unreadable, and verify that 'go list' reports an
+ # explicit error for a pattern that should match it (rather than treating it as
+ # equivalent to an empty directory).
+ 
++[root] stop # Root typically ignores file permissions.
+ [windows] skip # Does not have Unix-style directory permissions.
+ [plan9] skip   # Might not have Unix-style directory permissions.
+ 
+diff --git a/src/cmd/go/testdata/script/mod_perm.txt b/src/cmd/go/testdata/script/mod_perm.txt
+new file mode 100644
+index 0000000000..f5382eceaf
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_perm.txt
+@@ -0,0 +1,23 @@
++# go list should work in ordinary conditions.
++go list ./...
++! stdout _data
++
++# skip in conditions where chmod 0 may not work.
++# plan9 should be fine, but copied from list_perm.txt unchanged.
++[root] skip
++[windows] skip
++[plan9] skip
++
++# go list should work with unreadable _data directory.
++chmod 0 _data
++go list ./...
++! stdout _data
++
++-- go.mod --
++module m
++
++-- x.go --
++package m
++
++-- _data/x.go --
++package p

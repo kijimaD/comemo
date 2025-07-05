@@ -9,6 +9,29 @@ Date:   Mon Jul 4 11:45:31 2011 +1000
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/4634125
-
+---
  src/pkg/reflect/value.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/reflect/value.go b/src/pkg/reflect/value.go
+index 889d9455bd..bfeb3267c7 100644
+--- a/src/pkg/reflect/value.go
++++ b/src/pkg/reflect/value.go
+@@ -933,7 +933,7 @@ func (v Value) Kind() Kind {
+ }
+ 
+ // Len returns v's length.
+-// It panics if v's Kind is not Array, Chan, Map, or Slice.
++// It panics if v's Kind is not Array, Chan, Map, Slice, or String.
+ func (v Value) Len() int {
+ 	iv := v.internal()
+ 	switch iv.kind {
+@@ -945,6 +945,8 @@ func (v Value) Len() int {
+ 		return int(maplen(iv.word))
+ 	case Slice:
+ 		return (*SliceHeader)(iv.addr).Len
++	case String:
++		return (*StringHeader)(iv.addr).Len
+ 	}
+ 	panic(&ValueError{"reflect.Value.Len", iv.kind})
+ }

@@ -12,9 +12,106 @@ Date:   Sat Aug 6 20:56:39 2022 +0700
     Reviewed-by: David Chase <drchase@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/noder/helpers.go |  5 +++++
  src/cmd/compile/internal/noder/reader.go  | 18 ++++++++++++++----
  src/cmd/compile/internal/noder/writer.go  |  2 ++
  test/fixedbugs/issue54307.go              | 19 +++++++++++++++++++
  4 files changed, 40 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/helpers.go b/src/cmd/compile/internal/noder/helpers.go
+index 40f80ab528..4c9c6f6cc9 100644
+--- a/src/cmd/compile/internal/noder/helpers.go
++++ b/src/cmd/compile/internal/noder/helpers.go
+@@ -251,3 +251,8 @@ func idealType(tv types2.TypeAndValue) types2.Type {
+ 	}
+ 	return typ
+ }
++
++func isTypeParam(t types2.Type) bool {
++	_, ok := t.(*types2.TypeParam)
++	return ok
++}
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index d02d05bc5d..668aa201a9 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -2019,6 +2019,7 @@ func (r *reader) expr() (res ir.Node) {
+ 		typ := r.typ()
+ 		pos := r.pos()
+ 		typeWord, srcRType := r.convRTTI(pos)
++		dstTypeParam := r.Bool()
+ 		x := r.expr()
+ 
+ 		// TODO(mdempsky): Stop constructing expressions of untyped type.
+@@ -2034,12 +2035,21 @@ func (r *reader) expr() (res ir.Node) {
+ 			base.ErrorExit() // harsh, but prevents constructing invalid IR
+ 		}
+ 
+-		n := ir.NewConvExpr(pos, ir.OCONV, typ, x)
+-		n.TypeWord, n.SrcRType = typeWord, srcRType
++		ce := ir.NewConvExpr(pos, ir.OCONV, typ, x)
++		ce.TypeWord, ce.SrcRType = typeWord, srcRType
+ 		if implicit {
+-			n.SetImplicit(true)
++			ce.SetImplicit(true)
+ 		}
+-		return typecheck.Expr(n)
++		n := typecheck.Expr(ce)
++
++		// spec: "If the type is a type parameter, the constant is converted
++		// into a non-constant value of the type parameter."
++		if dstTypeParam && ir.IsConstNode(n) {
++			// Wrap in an OCONVNOP node to ensure result is non-constant.
++			n = Implicit(ir.NewConvExpr(pos, ir.OCONVNOP, n.Type(), n))
++			n.SetTypecheck(1)
++		}
++		return n
+ 	}
+ }
+ 
+diff --git a/src/cmd/compile/internal/noder/writer.go b/src/cmd/compile/internal/noder/writer.go
+index 5f8767bf83..deee2887e2 100644
+--- a/src/cmd/compile/internal/noder/writer.go
++++ b/src/cmd/compile/internal/noder/writer.go
+@@ -1692,6 +1692,7 @@ func (w *writer) expr(expr syntax.Expr) {
+ 			w.typ(tv.Type)
+ 			w.pos(expr)
+ 			w.convRTTI(w.p.typeOf(expr.ArgList[0]), tv.Type)
++			w.Bool(isTypeParam(tv.Type))
+ 			w.expr(expr.ArgList[0])
+ 			break
+ 		}
+@@ -1854,6 +1855,7 @@ func (w *writer) implicitConvExpr(pos poser, dst types2.Type, expr syntax.Expr)
+ 		w.typ(dst)
+ 		w.pos(pos)
+ 		w.convRTTI(src, dst)
++		w.Bool(isTypeParam(dst))
+ 		// fallthrough
+ 	}
+ 	w.expr(expr)
+diff --git a/test/fixedbugs/issue54307.go b/test/fixedbugs/issue54307.go
+new file mode 100644
+index 0000000000..342a53af84
+--- /dev/null
++++ b/test/fixedbugs/issue54307.go
+@@ -0,0 +1,19 @@
++// compile
++
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func f[Int int, Uint uint]() {
++	_ = uint(Int(-1))
++	_ = uint(Uint(0) - 1)
++}
++
++func g[String string]() {
++	_ = String("")[100]
++}
++
++var _ = f[int, uint]
++var _ = g[string]

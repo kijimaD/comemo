@@ -12,9 +12,26 @@ Date:   Fri Mar 1 11:15:00 2013 +1100
     R=rsc, adg
     CC=dr.volker.dobler, golang-dev
     https://golang.org/cl/7436043
-
+---
  src/pkg/{exp => net/http}/cookiejar/jar.go           | 0
  src/pkg/{exp => net/http}/cookiejar/jar_test.go      | 0
  src/pkg/{exp => net/http}/cookiejar/punycode.go      | 0
  src/pkg/{exp => net/http}/cookiejar/punycode_test.go | 0
  4 files changed, 0 insertions(+), 0 deletions(-)
+
+diff --git a/src/pkg/exp/cookiejar/jar.go b/src/pkg/net/http/cookiejar/jar.go
+similarity index 100%
+rename from src/pkg/exp/cookiejar/jar.go
+rename to src/pkg/net/http/cookiejar/jar.go
+diff --git a/src/pkg/exp/cookiejar/jar_test.go b/src/pkg/net/http/cookiejar/jar_test.go
+similarity index 100%
+rename from src/pkg/exp/cookiejar/jar_test.go
+rename to src/pkg/net/http/cookiejar/jar_test.go
+diff --git a/src/pkg/exp/cookiejar/punycode.go b/src/pkg/net/http/cookiejar/punycode.go
+similarity index 100%
+rename from src/pkg/exp/cookiejar/punycode.go
+rename to src/pkg/net/http/cookiejar/punycode.go
+diff --git a/src/pkg/exp/cookiejar/punycode_test.go b/src/pkg/net/http/cookiejar/punycode_test.go
+similarity index 100%
+rename from src/pkg/exp/cookiejar/punycode_test.go
+rename to src/pkg/net/http/cookiejar/punycode_test.go

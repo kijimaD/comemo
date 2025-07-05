@@ -13,7 +13,7 @@ Date:   Mon Apr 6 19:36:36 2015 -0700
     Change-Id: I50f394c60fa2927e177d7fc85b75085060a9e912
     Reviewed-on: https://go-review.googlesource.com/8738
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/8g/ggen.go          | 135 ++++++---------
  src/cmd/internal/gc/cgen.go | 405 ++++++++++++++++++++------------------------
  src/cmd/internal/gc/cplx.go |  77 ++++-----
@@ -21,3 +21,922 @@ Date:   Mon Apr 6 19:36:36 2015 -0700
  src/cmd/internal/gc/go.go   |   4 +-
  src/cmd/internal/gc/subr.go |  18 +-
  6 files changed, 284 insertions(+), 363 deletions(-)
+
+diff --git a/src/cmd/8g/ggen.go b/src/cmd/8g/ggen.go
+index 9a551b0cac..b9792d1993 100644
+--- a/src/cmd/8g/ggen.go
++++ b/src/cmd/8g/ggen.go
+@@ -738,42 +738,74 @@ abop: // asymmetric binary
+ 	return
+ }
+ 
+-func bgen_float(n *gc.Node, true_ int, likely int, to *obj.Prog) {
++func bgen_float(n *gc.Node, wantTrue bool, likely int, to *obj.Prog) {
+ 	nl := n.Left
+ 	nr := n.Right
+ 	a := int(n.Op)
+-	if true_ == 0 {
++	if !wantTrue {
+ 		// brcom is not valid on floats when NaN is involved.
+ 		p1 := gc.Gbranch(obj.AJMP, nil, 0)
+-
+ 		p2 := gc.Gbranch(obj.AJMP, nil, 0)
+ 		gc.Patch(p1, gc.Pc)
+ 
+ 		// No need to avoid re-genning ninit.
+-		bgen_float(n, 1, -likely, p2)
++		bgen_float(n, true, -likely, p2)
+ 
+ 		gc.Patch(gc.Gbranch(obj.AJMP, nil, 0), to)
+ 		gc.Patch(p2, gc.Pc)
+ 		return
+ 	}
+ 
+-	var tmp gc.Node
+-	var et int
+-	var n2 gc.Node
+-	var ax gc.Node
+-	if !gc.Thearch.Use387 {
+-		if !nl.Addable {
+-			var n1 gc.Node
+-			gc.Tempname(&n1, nl.Type)
+-			gc.Cgen(nl, &n1)
+-			nl = &n1
++	if gc.Thearch.Use387 {
++		a = gc.Brrev(a) // because the args are stacked
++		if a == gc.OGE || a == gc.OGT {
++			// only < and <= work right with NaN; reverse if needed
++			nl, nr = nr, nl
++			a = gc.Brrev(a)
+ 		}
+ 
++		var ax, n2, tmp gc.Node
++		gc.Nodreg(&tmp, nr.Type, x86.REG_F0)
++		gc.Nodreg(&n2, nr.Type, x86.REG_F0+1)
++		gc.Nodreg(&ax, gc.Types[gc.TUINT16], x86.REG_AX)
++		if gc.Simsimtype(nr.Type) == gc.TFLOAT64 {
++			if nl.Ullman > nr.Ullman {
++				gc.Cgen(nl, &tmp)
++				gc.Cgen(nr, &tmp)
++				gins(x86.AFXCHD, &tmp, &n2)
++			} else {
++				gc.Cgen(nr, &tmp)
++				gc.Cgen(nl, &tmp)
++			}
++
++			gins(x86.AFUCOMIP, &tmp, &n2)
++			gins(x86.AFMOVDP, &tmp, &tmp) // annoying pop but still better than STSW+SAHF
++		} else {
++			// TODO(rsc): The moves back and forth to memory
++			// here are for truncating the value to 32 bits.
++			// This handles 32-bit comparison but presumably
++			// all the other ops have the same problem.
++			// We need to figure out what the right general
++			// solution is, besides telling people to use float64.
++			var t1 gc.Node
++			gc.Tempname(&t1, gc.Types[gc.TFLOAT32])
++
++			var t2 gc.Node
++			gc.Tempname(&t2, gc.Types[gc.TFLOAT32])
++			gc.Cgen(nr, &t1)
++			gc.Cgen(nl, &t2)
++			gmove(&t2, &tmp)
++			gins(x86.AFCOMFP, &t1, &tmp)
++			gins(x86.AFSTSW, nil, &ax)
++			gins(x86.ASAHF, nil, nil)
++		}
++	} else {
++		// Not 387
++		if !nl.Addable {
++			nl = gc.CgenTemp(nl)
++		}
+ 		if !nr.Addable {
+-			var tmp gc.Node
+-			gc.Tempname(&tmp, nr.Type)
+-			gc.Cgen(nr, &tmp)
+-			nr = &tmp
++			nr = gc.CgenTemp(nr)
+ 		}
+ 
+ 		var n2 gc.Node
+@@ -790,10 +822,7 @@ func bgen_float(n *gc.Node, true_ int, likely int, to *obj.Prog) {
+ 
+ 		if a == gc.OGE || a == gc.OGT {
+ 			// only < and <= work right with NaN; reverse if needed
+-			r := nr
+-
+-			nr = nl
+-			nl = r
++			nl, nr = nr, nl
+ 			a = gc.Brrev(a)
+ 		}
+ 
+@@ -802,75 +831,21 @@ func bgen_float(n *gc.Node, true_ int, likely int, to *obj.Prog) {
+ 			gc.Regfree(nl)
+ 		}
+ 		gc.Regfree(nr)
+-		goto ret
+-	} else {
+-		goto x87
+ 	}
+ 
+-x87:
+-	a = gc.Brrev(a) // because the args are stacked
+-	if a == gc.OGE || a == gc.OGT {
+-		// only < and <= work right with NaN; reverse if needed
+-		r := nr
+-
+-		nr = nl
+-		nl = r
+-		a = gc.Brrev(a)
+-	}
+-
+-	gc.Nodreg(&tmp, nr.Type, x86.REG_F0)
+-	gc.Nodreg(&n2, nr.Type, x86.REG_F0+1)
+-	gc.Nodreg(&ax, gc.Types[gc.TUINT16], x86.REG_AX)
+-	et = gc.Simsimtype(nr.Type)
+-	if et == gc.TFLOAT64 {
+-		if nl.Ullman > nr.Ullman {
+-			gc.Cgen(nl, &tmp)
+-			gc.Cgen(nr, &tmp)
+-			gins(x86.AFXCHD, &tmp, &n2)
+-		} else {
+-			gc.Cgen(nr, &tmp)
+-			gc.Cgen(nl, &tmp)
+-		}
+-
+-		gins(x86.AFUCOMIP, &tmp, &n2)
+-		gins(x86.AFMOVDP, &tmp, &tmp) // annoying pop but still better than STSW+SAHF
+-	} else {
+-		// TODO(rsc): The moves back and forth to memory
+-		// here are for truncating the value to 32 bits.
+-		// This handles 32-bit comparison but presumably
+-		// all the other ops have the same problem.
+-		// We need to figure out what the right general
+-		// solution is, besides telling people to use float64.
+-		var t1 gc.Node
+-		gc.Tempname(&t1, gc.Types[gc.TFLOAT32])
+-
+-		var t2 gc.Node
+-		gc.Tempname(&t2, gc.Types[gc.TFLOAT32])
+-		gc.Cgen(nr, &t1)
+-		gc.Cgen(nl, &t2)
+-		gmove(&t2, &tmp)
+-		gins(x86.AFCOMFP, &t1, &tmp)
+-		gins(x86.AFSTSW, nil, &ax)
+-		gins(x86.ASAHF, nil, nil)
+-	}
+-
+-	goto ret
+-
+-ret:
+-	if a == gc.OEQ {
++	switch a {
++	case gc.OEQ:
+ 		// neither NE nor P
+ 		p1 := gc.Gbranch(x86.AJNE, nil, -likely)
+-
+ 		p2 := gc.Gbranch(x86.AJPS, nil, -likely)
+ 		gc.Patch(gc.Gbranch(obj.AJMP, nil, 0), to)
+ 		gc.Patch(p1, gc.Pc)
+ 		gc.Patch(p2, gc.Pc)
+-	} else if a == gc.ONE {
++	case gc.ONE:
+ 		// either NE or P
+ 		gc.Patch(gc.Gbranch(x86.AJNE, nil, likely), to)
+-
+ 		gc.Patch(gc.Gbranch(x86.AJPS, nil, likely), to)
+-	} else {
++	default:
+ 		gc.Patch(gc.Gbranch(optoas(a, nr.Type), nil, likely), to)
+ 	}
+ }
+diff --git a/src/cmd/internal/gc/cgen.go b/src/cmd/internal/gc/cgen.go
+index 2ceddc986f..8c7cb0eb88 100644
+--- a/src/cmd/internal/gc/cgen.go
++++ b/src/cmd/internal/gc/cgen.go
+@@ -345,18 +345,13 @@ func Cgen(n *Node, res *Node) {
+ 		Dump("cgen-res", res)
+ 		Fatal("cgen: unknown op %v", Nconv(n, obj.FmtShort|obj.FmtSign))
+ 
+-		// these call bgen to get a bool value
+-	case OOROR,
+-		OANDAND,
+-		OEQ,
+-		ONE,
+-		OLT,
+-		OLE,
+-		OGE,
+-		OGT,
++	// these call bgen to get a bool value
++	case OOROR, OANDAND,
++		OEQ, ONE,
++		OLT, OLE,
++		OGE, OGT,
+ 		ONOT:
+ 		p1 := Gbranch(obj.AJMP, nil, 0)
+-
+ 		p2 := Pc
+ 		Thearch.Gmove(Nodbool(true), res)
+ 		p3 := Gbranch(obj.AJMP, nil, 0)
+@@ -1639,22 +1634,22 @@ func Igen(n *Node, a *Node, res *Node) {
+ 	a.Type = n.Type
+ }
+ 
+-/*
+- * generate:
+- *	if(n == true) goto to;
+- */
+-func Bgen(n *Node, true_ bool, likely int, to *obj.Prog) {
++// Bgen generates code for branches:
++//
++// 	if n == wantTrue {
++// 		goto to
++// 	}
++func Bgen(n *Node, wantTrue bool, likely int, to *obj.Prog) {
+ 	if Debug['g'] != 0 {
+-		Dump("\nbgen", n)
++		fmt.Printf("\nbgen wantTrue=%t likely=%d to=%v\n", wantTrue, likely, to)
++		Dump("bgen", n)
+ 	}
+ 
+ 	if n == nil {
+ 		n = Nodbool(true)
+ 	}
+ 
+-	if n.Ninit != nil {
+-		Genlist(n.Ninit)
+-	}
++	Genlist(n.Ninit)
+ 
+ 	if n.Type == nil {
+ 		Convlit(&n, Types[TBOOL])
+@@ -1663,8 +1658,7 @@ func Bgen(n *Node, true_ bool, likely int, to *obj.Prog) {
+ 		}
+ 	}
+ 
+-	et := int(n.Type.Etype)
+-	if et != TBOOL {
++	if n.Type.Etype != TBOOL {
+ 		Yyerror("cgen: bad type %v for %v", Tconv(n.Type, 0), Oconv(int(n.Op), 0))
+ 		Patch(Thearch.Gins(obj.AEND, nil, nil), to)
+ 		return
+@@ -1672,204 +1666,172 @@ func Bgen(n *Node, true_ bool, likely int, to *obj.Prog) {
+ 
+ 	for n.Op == OCONVNOP {
+ 		n = n.Left
+-		if n.Ninit != nil {
+-			Genlist(n.Ninit)
+-		}
++		Genlist(n.Ninit)
+ 	}
+ 
+ 	if Thearch.Bgen_float != nil && n.Left != nil && Isfloat[n.Left.Type.Etype] {
+-		Thearch.Bgen_float(n, bool2int(true_), likely, to)
++		Thearch.Bgen_float(n, wantTrue, likely, to)
+ 		return
+ 	}
+ 
+-	var nl *Node
+-	var nr *Node
+ 	switch n.Op {
+ 	default:
+-		goto def
++		var tmp Node
++		Regalloc(&tmp, n.Type, nil)
++		Cgen(n, &tmp)
++		bgenNonZero(&tmp, wantTrue, likely, to)
++		Regfree(&tmp)
++		return
+ 
+-		// need to ask if it is bool?
+-	case OLITERAL:
+-		if true_ == n.Val.U.Bval {
+-			Patch(Gbranch(obj.AJMP, nil, likely), to)
++	case ONAME:
++		if n.Addable && Ctxt.Arch.Thechar != '5' && Ctxt.Arch.Thechar != '7' && Ctxt.Arch.Thechar != '9' {
++			// no need for a temporary
++			bgenNonZero(n, wantTrue, likely, to)
++			return
+ 		}
++		var tmp Node
++		Regalloc(&tmp, n.Type, nil)
++		Cgen(n, &tmp)
++		bgenNonZero(&tmp, wantTrue, likely, to)
++		Regfree(&tmp)
+ 		return
+ 
+-	case ONAME:
+-		if !n.Addable || Ctxt.Arch.Thechar == '5' || Ctxt.Arch.Thechar == '7' || Ctxt.Arch.Thechar == '9' {
+-			goto def
++	case OLITERAL:
++		// n is a constant. If n == wantTrue, jump; otherwise do nothing.
++		if !Isconst(n, CTBOOL) {
++			Fatal("bgen: non-bool const %v\n", Nconv(n, obj.FmtLong))
+ 		}
+-		var n1 Node
+-		Nodconst(&n1, n.Type, 0)
+-		Thearch.Gins(Thearch.Optoas(OCMP, n.Type), n, &n1)
+-		a := Thearch.Optoas(ONE, n.Type)
+-		if !true_ {
+-			a = Thearch.Optoas(OEQ, n.Type)
++		if wantTrue == n.Val.U.Bval {
++			Patch(Gbranch(obj.AJMP, nil, likely), to)
+ 		}
+-		Patch(Gbranch(a, n.Type, likely), to)
+ 		return
+ 
+ 	case OANDAND, OOROR:
+-		if (n.Op == OANDAND) == true_ {
++		if (n.Op == OANDAND) == wantTrue {
+ 			p1 := Gbranch(obj.AJMP, nil, 0)
+ 			p2 := Gbranch(obj.AJMP, nil, 0)
+ 			Patch(p1, Pc)
+-			Bgen(n.Left, !true_, -likely, p2)
+-			Bgen(n.Right, !true_, -likely, p2)
++			Bgen(n.Left, !wantTrue, -likely, p2)
++			Bgen(n.Right, !wantTrue, -likely, p2)
+ 			p1 = Gbranch(obj.AJMP, nil, 0)
+ 			Patch(p1, to)
+ 			Patch(p2, Pc)
+ 		} else {
+-			Bgen(n.Left, true_, likely, to)
+-			Bgen(n.Right, true_, likely, to)
++			Bgen(n.Left, wantTrue, likely, to)
++			Bgen(n.Right, wantTrue, likely, to)
+ 		}
+-
+ 		return
+ 
+-	case OEQ, ONE, OLT, OGT, OLE, OGE:
+-		nr = n.Right
+-		if nr == nil || nr.Type == nil {
+-			return
+-		}
+-		fallthrough
+-
+ 	case ONOT: // unary
+-		nl = n.Left
+-
+-		if nl == nil || nl.Type == nil {
++		if n.Left == nil || n.Left.Type == nil {
+ 			return
+ 		}
+-	}
+-
+-	switch n.Op {
+-	case ONOT:
+-		Bgen(nl, !true_, likely, to)
++		Bgen(n.Left, !wantTrue, likely, to)
+ 		return
+ 
+ 	case OEQ, ONE, OLT, OGT, OLE, OGE:
+-		a := int(n.Op)
+-		if !true_ {
+-			if Isfloat[nr.Type.Etype] {
+-				// brcom is not valid on floats when NaN is involved.
+-				p1 := Gbranch(obj.AJMP, nil, 0)
+-				p2 := Gbranch(obj.AJMP, nil, 0)
+-				Patch(p1, Pc)
+-				ll := n.Ninit // avoid re-genning ninit
+-				n.Ninit = nil
+-				Bgen(n, true, -likely, p2)
+-				n.Ninit = ll
+-				Patch(Gbranch(obj.AJMP, nil, 0), to)
+-				Patch(p2, Pc)
+-				return
+-			}
+-
+-			a = Brcom(a)
+-			true_ = !true_
++		if n.Left == nil || n.Left.Type == nil || n.Right == nil || n.Right.Type == nil {
++			return
+ 		}
++	}
+ 
+-		// make simplest on right
+-		if nl.Op == OLITERAL || (nl.Ullman < nr.Ullman && nl.Ullman < UINF) {
+-			a = Brrev(a)
+-			r := nl
+-			nl = nr
+-			nr = r
++	// n.Op is one of OEQ, ONE, OLT, OGT, OLE, OGE
++	nl := n.Left
++	nr := n.Right
++	a := int(n.Op)
++
++	if !wantTrue {
++		if Isfloat[nr.Type.Etype] {
++			// Brcom is not valid on floats when NaN is involved.
++			p1 := Gbranch(obj.AJMP, nil, 0)
++			p2 := Gbranch(obj.AJMP, nil, 0)
++			Patch(p1, Pc)
++			ll := n.Ninit // avoid re-genning Ninit
++			n.Ninit = nil
++			Bgen(n, true, -likely, p2)
++			n.Ninit = ll
++			Patch(Gbranch(obj.AJMP, nil, 0), to)
++			Patch(p2, Pc)
++			return
+ 		}
+ 
+-		if Isslice(nl.Type) {
+-			// front end should only leave cmp to literal nil
+-			if (a != OEQ && a != ONE) || nr.Op != OLITERAL {
+-				Yyerror("illegal slice comparison")
+-				break
+-			}
++		a = Brcom(a)
++	}
++	wantTrue = true
+ 
+-			a = Thearch.Optoas(a, Types[Tptr])
+-			var n1 Node
+-			Igen(nl, &n1, nil)
+-			n1.Xoffset += int64(Array_array)
+-			n1.Type = Types[Tptr]
+-			var n2 Node
+-			Regalloc(&n2, Types[Tptr], &n1)
+-			Cgen(&n1, &n2)
+-			Regfree(&n1)
+-			var tmp Node
+-			Nodconst(&tmp, Types[Tptr], 0)
+-			Thearch.Gins(Thearch.Optoas(OCMP, Types[Tptr]), &n2, &tmp)
+-			Patch(Gbranch(a, Types[Tptr], likely), to)
+-			Regfree(&n2)
+-			break
+-		}
++	// make simplest on right
++	if nl.Op == OLITERAL || (nl.Ullman < nr.Ullman && nl.Ullman < UINF) {
++		a = Brrev(a)
++		nl, nr = nr, nl
++	}
+ 
+-		if Isinter(nl.Type) {
+-			// front end should only leave cmp to literal nil
+-			if (a != OEQ && a != ONE) || nr.Op != OLITERAL {
++	if Isslice(nl.Type) || Isinter(nl.Type) {
++		// front end should only leave cmp to literal nil
++		if (a != OEQ && a != ONE) || nr.Op != OLITERAL {
++			if Isslice(nl.Type) {
++				Yyerror("illegal slice comparison")
++			} else {
+ 				Yyerror("illegal interface comparison")
+-				break
+ 			}
+-
+-			a = Thearch.Optoas(a, Types[Tptr])
+-			var n1 Node
+-			Igen(nl, &n1, nil)
+-			n1.Type = Types[Tptr]
+-			var n2 Node
+-			Regalloc(&n2, Types[Tptr], &n1)
+-			Cgen(&n1, &n2)
+-			Regfree(&n1)
+-			var tmp Node
+-			Nodconst(&tmp, Types[Tptr], 0)
+-			Thearch.Gins(Thearch.Optoas(OCMP, Types[Tptr]), &n2, &tmp)
+-			Patch(Gbranch(a, Types[Tptr], likely), to)
+-			Regfree(&n2)
+-			break
++			return
+ 		}
+ 
+-		if Iscomplex[nl.Type.Etype] {
+-			Complexbool(a, nl, nr, true_, likely, to)
+-			break
++		var ptr Node
++		Igen(nl, &ptr, nil)
++		if Isslice(nl.Type) {
++			ptr.Xoffset += int64(Array_array)
+ 		}
++		ptr.Type = Types[Tptr]
++		var tmp Node
++		Regalloc(&tmp, ptr.Type, &ptr)
++		Cgen(&ptr, &tmp)
++		Regfree(&ptr)
++		bgenNonZero(&tmp, a == OEQ != wantTrue, likely, to)
++		Regfree(&tmp)
++		return
++	}
+ 
+-		if Ctxt.Arch.Regsize == 4 && Is64(nr.Type) {
+-			if !nl.Addable || Isconst(nl, CTINT) {
+-				var n1 Node
+-				Tempname(&n1, nl.Type)
+-				Cgen(nl, &n1)
+-				nl = &n1
+-			}
+-
+-			if !nr.Addable {
+-				var n2 Node
+-				Tempname(&n2, nr.Type)
+-				Cgen(nr, &n2)
+-				nr = &n2
+-			}
++	if Iscomplex[nl.Type.Etype] {
++		complexbool(a, nl, nr, wantTrue, likely, to)
++		return
++	}
+ 
+-			Thearch.Cmp64(nl, nr, a, likely, to)
+-			break
++	if Ctxt.Arch.Regsize == 4 && Is64(nr.Type) {
++		if !nl.Addable || Isconst(nl, CTINT) {
++			nl = CgenTemp(nl)
++		}
++		if !nr.Addable {
++			nr = CgenTemp(nr)
+ 		}
++		Thearch.Cmp64(nl, nr, a, likely, to)
++		return
++	}
+ 
++	if nr.Ullman >= UINF {
+ 		var n1 Node
+-		var n2 Node
+-		if nr.Ullman >= UINF {
+-			Regalloc(&n1, nl.Type, nil)
+-			Cgen(nl, &n1)
+-
+-			var tmp Node
+-			Tempname(&tmp, nl.Type)
+-			Thearch.Gmove(&n1, &tmp)
+-			Regfree(&n1)
+-
+-			Regalloc(&n2, nr.Type, nil)
+-			Cgen(nr, &n2)
++		Regalloc(&n1, nl.Type, nil)
++		Cgen(nl, &n1)
+ 
+-			Regalloc(&n1, nl.Type, nil)
+-			Cgen(&tmp, &n1)
++		var tmp Node
++		Tempname(&tmp, nl.Type)
++		Thearch.Gmove(&n1, &tmp)
++		Regfree(&n1)
+ 
+-			goto cmp
+-		}
++		var n2 Node
++		Regalloc(&n2, nr.Type, nil)
++		Cgen(nr, &n2)
++		Regfree(&n2)
+ 
++		Regalloc(&n1, nl.Type, nil)
++		Cgen(&tmp, &n1)
++		Regfree(&n1)
++	} else {
++		var n1 Node
+ 		if !nl.Addable && Ctxt.Arch.Thechar == '8' {
+ 			Tempname(&n1, nl.Type)
+ 		} else {
+ 			Regalloc(&n1, nl.Type, nil)
++			defer Regfree(&n1)
+ 		}
+ 		Cgen(nl, &n1)
+ 		nl = &n1
+@@ -1877,92 +1839,93 @@ func Bgen(n *Node, true_ bool, likely int, to *obj.Prog) {
+ 		if Smallintconst(nr) && Ctxt.Arch.Thechar != '9' {
+ 			Thearch.Gins(Thearch.Optoas(OCMP, nr.Type), nl, nr)
+ 			Patch(Gbranch(Thearch.Optoas(a, nr.Type), nr.Type, likely), to)
+-			if n1.Op == OREGISTER {
+-				Regfree(&n1)
+-			}
+-			break
++			return
+ 		}
+ 
+ 		if !nr.Addable && Ctxt.Arch.Thechar == '8' {
+-			var tmp Node
+-			Tempname(&tmp, nr.Type)
+-			Cgen(nr, &tmp)
+-			nr = &tmp
++			nr = CgenTemp(nr)
+ 		}
+ 
++		var n2 Node
+ 		Regalloc(&n2, nr.Type, nil)
+ 		Cgen(nr, &n2)
+ 		nr = &n2
++		Regfree(&n2)
++	}
+ 
+-	cmp:
+-		l, r := nl, nr
+-		// On x86, only < and <= work right with NaN; reverse if needed
+-		if Ctxt.Arch.Thechar == '6' && Isfloat[nl.Type.Etype] && (a == OGT || a == OGE) {
+-			l, r = r, l
+-			a = Brrev(a)
+-		}
++	l, r := nl, nr
+ 
+-		Thearch.Gins(Thearch.Optoas(OCMP, nr.Type), l, r)
++	// On x86, only < and <= work right with NaN; reverse if needed
++	if Ctxt.Arch.Thechar == '6' && Isfloat[nl.Type.Etype] && (a == OGT || a == OGE) {
++		l, r = r, l
++		a = Brrev(a)
++	}
+ 
+-		if Ctxt.Arch.Thechar == '6' && Isfloat[nr.Type.Etype] && (n.Op == OEQ || n.Op == ONE) {
+-			if n.Op == OEQ {
++	// Do the comparison.
++	Thearch.Gins(Thearch.Optoas(OCMP, nr.Type), l, r)
++
++	// Handle floating point special cases.
++	// Note that 8g has Bgen_float and is handled above.
++	if Isfloat[nl.Type.Etype] {
++		switch Ctxt.Arch.Thechar {
++		case '5':
++			switch n.Op {
++			case ONE:
++				Patch(Gbranch(Thearch.Optoas(OPS, nr.Type), nr.Type, likely), to)
++				Patch(Gbranch(Thearch.Optoas(a, nr.Type), nr.Type, likely), to)
++			default:
++				p := Gbranch(Thearch.Optoas(OPS, nr.Type), nr.Type, -likely)
++				Patch(Gbranch(Thearch.Optoas(a, nr.Type), nr.Type, likely), to)
++				Patch(p, Pc)
++			}
++			return
++		case '6':
++			switch n.Op {
++			case OEQ:
+ 				// neither NE nor P
+ 				p1 := Gbranch(Thearch.Optoas(ONE, nr.Type), nil, -likely)
+ 				p2 := Gbranch(Thearch.Optoas(OPS, nr.Type), nil, -likely)
+ 				Patch(Gbranch(obj.AJMP, nil, 0), to)
+ 				Patch(p1, Pc)
+ 				Patch(p2, Pc)
+-			} else {
++				return
++			case ONE:
+ 				// either NE or P
+ 				Patch(Gbranch(Thearch.Optoas(ONE, nr.Type), nil, likely), to)
+ 				Patch(Gbranch(Thearch.Optoas(OPS, nr.Type), nil, likely), to)
++				return
+ 			}
+-		} else if Ctxt.Arch.Thechar == '5' && Isfloat[nl.Type.Etype] {
+-			if n.Op == ONE {
+-				Patch(Gbranch(Thearch.Optoas(OPS, nr.Type), nr.Type, likely), to)
+-				Patch(Gbranch(Thearch.Optoas(a, nr.Type), nr.Type, likely), to)
+-			} else {
+-				p := Gbranch(Thearch.Optoas(OPS, nr.Type), nr.Type, -likely)
+-				Patch(Gbranch(Thearch.Optoas(a, nr.Type), nr.Type, likely), to)
+-				Patch(p, Pc)
+-			}
+-		} else if (Ctxt.Arch.Thechar == '7' || Ctxt.Arch.Thechar == '9') && Isfloat[nl.Type.Etype] && (a == OLE || a == OGE) {
++		case '7', '9':
++			switch n.Op {
+ 			// On arm64 and ppc64, <= and >= mishandle NaN. Must decompose into < or > and =.
+-			if a == OLE {
+-				a = OLT
+-			} else {
+-				a = OGT
++			// TODO(josh): Convert a <= b to b > a instead?
++			case OLE, OGE:
++				if a == OLE {
++					a = OLT
++				} else {
++					a = OGT
++				}
++				Patch(Gbranch(Thearch.Optoas(a, nr.Type), nr.Type, likely), to)
++				Patch(Gbranch(Thearch.Optoas(OEQ, nr.Type), nr.Type, likely), to)
++				return
+ 			}
+-			Patch(Gbranch(Thearch.Optoas(a, nr.Type), nr.Type, likely), to)
+-			Patch(Gbranch(Thearch.Optoas(OEQ, nr.Type), nr.Type, likely), to)
+-		} else {
+-			Patch(Gbranch(Thearch.Optoas(a, nr.Type), nr.Type, likely), to)
+-		}
+-		if n1.Op == OREGISTER {
+-			Regfree(&n1)
+-		}
+-		if n2.Op == OREGISTER {
+-			Regfree(&n2)
+ 		}
+ 	}
+ 
+-	return
++	// Not a special case. Insert an appropriate conditional jump.
++	Patch(Gbranch(Thearch.Optoas(a, nr.Type), nr.Type, likely), to)
++}
+ 
+-def:
++func bgenNonZero(n *Node, wantTrue bool, likely int, to *obj.Prog) {
+ 	// TODO: Optimize on systems that can compare to zero easily.
+-	var n1 Node
+-	Regalloc(&n1, n.Type, nil)
+-	Cgen(n, &n1)
+-	var n2 Node
+-	Nodconst(&n2, n.Type, 0)
+-	Thearch.Gins(Thearch.Optoas(OCMP, n.Type), &n1, &n2)
+-	a := Thearch.Optoas(ONE, n.Type)
+-	if !true_ {
+-		a = Thearch.Optoas(OEQ, n.Type)
+-	}
+-	Patch(Gbranch(a, n.Type, likely), to)
+-	Regfree(&n1)
+-	return
++	a := ONE
++	if !wantTrue {
++		a = OEQ
++	}
++	var zero Node
++	Nodconst(&zero, n.Type, 0)
++	Thearch.Gins(Thearch.Optoas(OCMP, n.Type), n, &zero)
++	Patch(Gbranch(Thearch.Optoas(a, n.Type), n.Type, likely), to)
+ }
+ 
+ /*
+diff --git a/src/cmd/internal/gc/cplx.go b/src/cmd/internal/gc/cplx.go
+index ec6984c3ef..73251bd1ba 100644
+--- a/src/cmd/internal/gc/cplx.go
++++ b/src/cmd/internal/gc/cplx.go
+@@ -6,10 +6,6 @@ package gc
+ 
+ import "cmd/internal/obj"
+ 
+-func CASE(a int, b int) int {
+-	return a<<16 | b
+-}
+-
+ func overlap_cplx(f *Node, t *Node) bool {
+ 	// check whether f and t could be overlapping stack references.
+ 	// not exact, because it's hard to check for the stack register
+@@ -18,67 +14,52 @@ func overlap_cplx(f *Node, t *Node) bool {
+ 	return f.Op == OINDREG && t.Op == OINDREG && f.Xoffset+f.Type.Width >= t.Xoffset && t.Xoffset+t.Type.Width >= f.Xoffset
+ }
+ 
+-func Complexbool(op int, nl *Node, nr *Node, true_ bool, likely int, to *obj.Prog) {
+-	var tnl Node
+-
++func complexbool(op int, nl, nr *Node, wantTrue bool, likely int, to *obj.Prog) {
+ 	// make both sides addable in ullman order
+ 	if nr != nil {
+ 		if nl.Ullman > nr.Ullman && !nl.Addable {
+-			Tempname(&tnl, nl.Type)
+-			Cgen(nl, &tnl)
+-			nl = &tnl
++			nl = CgenTemp(nl)
+ 		}
+ 
+ 		if !nr.Addable {
+-			var tnr Node
+-			Tempname(&tnr, nr.Type)
+-			Cgen(nr, &tnr)
+-			nr = &tnr
++			nr = CgenTemp(nr)
+ 		}
+ 	}
+-
+ 	if !nl.Addable {
+-		Tempname(&tnl, nl.Type)
+-		Cgen(nl, &tnl)
+-		nl = &tnl
++		nl = CgenTemp(nl)
+ 	}
+ 
++	// Break nl and nr into real and imaginary components.
++	var lreal, limag, rreal, rimag Node
++	subnode(&lreal, &limag, nl)
++	subnode(&rreal, &rimag, nr)
++
+ 	// build tree
+ 	// real(l) == real(r) && imag(l) == imag(r)
+-
+-	var n2 Node
+-	var n1 Node
+-	subnode(&n1, &n2, nl)
+-
+-	var n3 Node
+-	var n4 Node
+-	subnode(&n3, &n4, nr)
+-
+-	var na Node
+-	na.Op = OANDAND
+-	var nb Node
+-	na.Left = &nb
+-	var nc Node
+-	na.Right = &nc
+-	na.Type = Types[TBOOL]
+-
+-	nb = Node{}
+-	nb.Op = OEQ
+-	nb.Left = &n1
+-	nb.Right = &n3
+-	nb.Type = Types[TBOOL]
+-
+-	nc = Node{}
+-	nc.Op = OEQ
+-	nc.Left = &n2
+-	nc.Right = &n4
+-	nc.Type = Types[TBOOL]
++	realeq := Node{
++		Op:    OEQ,
++		Left:  &lreal,
++		Right: &rreal,
++		Type:  Types[TBOOL],
++	}
++	imageq := Node{
++		Op:    OEQ,
++		Left:  &limag,
++		Right: &rimag,
++		Type:  Types[TBOOL],
++	}
++	and := Node{
++		Op:    OANDAND,
++		Left:  &realeq,
++		Right: &imageq,
++		Type:  Types[TBOOL],
++	}
+ 
+ 	if op == ONE {
+-		true_ = !true_
++		wantTrue = !wantTrue
+ 	}
+ 
+-	Bgen(&na, true_, likely, to)
++	Bgen(&and, wantTrue, likely, to)
+ }
+ 
+ // break addable nc-complex into nr-real and ni-imaginary
+diff --git a/src/cmd/internal/gc/gen.go b/src/cmd/internal/gc/gen.go
+index e95ddeb29f..60de0831b2 100644
+--- a/src/cmd/internal/gc/gen.go
++++ b/src/cmd/internal/gc/gen.go
+@@ -1091,6 +1091,14 @@ func cgen_callmeth(n *Node, proc int) {
+ 	cgen_call(&n2, proc)
+ }
+ 
++// CgenTemp creates a temporary node, assigns n to it, and returns it.
++func CgenTemp(n *Node) *Node {
++	var tmp Node
++	Tempname(&tmp, n.Type)
++	Cgen(n, &tmp)
++	return &tmp
++}
++
+ func checklabels() {
+ 	var l *NodeList
+ 
+diff --git a/src/cmd/internal/gc/go.go b/src/cmd/internal/gc/go.go
+index b63f4e8090..c0ec7b5ef4 100644
+--- a/src/cmd/internal/gc/go.go
++++ b/src/cmd/internal/gc/go.go
+@@ -776,8 +776,8 @@ type Arch struct {
+ 
+ 	AddIndex     func(*Node, int64, *Node) bool // optional
+ 	Betypeinit   func()
+-	Bgen_float   func(*Node, int, int, *obj.Prog) // optional
+-	Cgen64       func(*Node, *Node)               // only on 32-bit systems
++	Bgen_float   func(*Node, bool, int, *obj.Prog) // optional
++	Cgen64       func(*Node, *Node)                // only on 32-bit systems
+ 	Cgenindex    func(*Node, *Node, bool) *obj.Prog
+ 	Cgen_bmul    func(int, *Node, *Node, *Node) bool
+ 	Cgen_float   func(*Node, *Node) // optional
+diff --git a/src/cmd/internal/gc/subr.go b/src/cmd/internal/gc/subr.go
+index c18f1e9339..5b883d8e1d 100644
+--- a/src/cmd/internal/gc/subr.go
++++ b/src/cmd/internal/gc/subr.go
+@@ -1796,10 +1796,8 @@ func getinargx(t *Type) *Type {
+ 	return *getinarg(t)
+ }
+ 
+-/*
+- * return !(op)
+- * eg == <=> !=
+- */
++// Brcom returns !(op).
++// For example, Brcom(==) is !=.
+ func Brcom(a int) int {
+ 	switch a {
+ 	case OEQ:
+@@ -1815,15 +1813,12 @@ func Brcom(a int) int {
+ 	case OGE:
+ 		return OLT
+ 	}
+-
+-	Fatal("brcom: no com for %v\n", Oconv(int(a), 0))
++	Fatal("brcom: no com for %v\n", Oconv(a, 0))
+ 	return a
+ }
+ 
+-/*
+- * return reverse(op)
+- * eg a op b <=> b r(op) a
+- */
++// Brrev returns reverse(op).
++// For example, Brrev(<) is >.
+ func Brrev(a int) int {
+ 	switch a {
+ 	case OEQ:
+@@ -1839,8 +1834,7 @@ func Brrev(a int) int {
+ 	case OGE:
+ 		return OLE
+ 	}
+-
+-	Fatal("brcom: no rev for %v\n", Oconv(int(a), 0))
++	Fatal("brrev: no rev for %v\n", Oconv(a, 0))
+ 	return a
+ }
+ 

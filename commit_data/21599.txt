@@ -25,6 +25,29 @@ Date:   Mon Jan 5 11:19:50 2015 +0000
     Change-Id: I9bf50521908bfe777ea2398f154c13e8c90d14ad
     Reviewed-on: https://go-review.googlesource.com/2258
     Reviewed-by: Adam Langley <agl@golang.org>
-
+---
  src/crypto/x509/x509.go | 11 +++++++++++
  1 file changed, 11 insertions(+)
+
+diff --git a/src/crypto/x509/x509.go b/src/crypto/x509/x509.go
+index a69efce633..9616d54ced 100644
+--- a/src/crypto/x509/x509.go
++++ b/src/crypto/x509/x509.go
+@@ -1587,6 +1587,17 @@ func (c *Certificate) CreateCRL(rand io.Reader, priv crypto.Signer, revokedCerts
+ 		RevokedCertificates: revokedCerts,
+ 	}
+ 
++	// Authority Key Id
++	if len(c.SubjectKeyId) > 0 {
++		var aki pkix.Extension
++		aki.Id = oidExtensionAuthorityKeyId
++		aki.Value, err = asn1.Marshal(authKeyId{Id: c.SubjectKeyId})
++		if err != nil {
++			return
++		}
++		tbsCertList.Extensions = append(tbsCertList.Extensions, aki)
++	}
++
+ 	tbsCertListContents, err := asn1.Marshal(tbsCertList)
+ 	if err != nil {
+ 		return

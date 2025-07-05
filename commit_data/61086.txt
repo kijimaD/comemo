@@ -17,7 +17,32 @@ Date:   Mon Sep 30 18:01:10 2024 +0000
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/internal/syscall/unix/getrandom.go | 1 +
  src/runtime/vgetrandom_linux.go        | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/src/internal/syscall/unix/getrandom.go b/src/internal/syscall/unix/getrandom.go
+index 2dbe19887c..db3e7ac0f0 100644
+--- a/src/internal/syscall/unix/getrandom.go
++++ b/src/internal/syscall/unix/getrandom.go
+@@ -13,6 +13,7 @@ import (
+ )
+ 
+ //go:linkname vgetrandom runtime.vgetrandom
++//go:noescape
+ func vgetrandom(p []byte, flags uint32) (ret int, supported bool)
+ 
+ var getrandomUnsupported atomic.Bool
+diff --git a/src/runtime/vgetrandom_linux.go b/src/runtime/vgetrandom_linux.go
+index af0e9cad1e..c938909503 100644
+--- a/src/runtime/vgetrandom_linux.go
++++ b/src/runtime/vgetrandom_linux.go
+@@ -11,6 +11,7 @@ import (
+ 	"unsafe"
+ )
+ 
++//go:noescape
+ func vgetrandom1(buf *byte, length uintptr, flags uint32, state uintptr, stateSize uintptr) int
+ 
+ var vgetrandomAlloc struct {

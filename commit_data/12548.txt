@@ -11,8 +11,153 @@ Date:   Fri Mar 9 14:45:40 2012 -0800
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5794045
-
+---
  src/pkg/archive/zip/reader.go                      |  23 +++---
  src/pkg/archive/zip/reader_test.go                 |  78 ++++++++++++++++++---
  .../archive/zip/testdata/crc32-not-streamed.zip    | Bin 0 -> 314 bytes
  3 files changed, 84 insertions(+), 17 deletions(-)
+
+diff --git a/src/pkg/archive/zip/reader.go b/src/pkg/archive/zip/reader.go
+index a209ae7bdc..ddd507538b 100644
+--- a/src/pkg/archive/zip/reader.go
++++ b/src/pkg/archive/zip/reader.go
+@@ -159,16 +159,21 @@ func (r *checksumReader) Read(b []byte) (n int, err error) {
+ 	if err == nil {
+ 		return
+ 	}
+-	if err == io.EOF && r.desr != nil {
+-		if err1 := readDataDescriptor(r.desr, r.f); err1 != nil {
+-			err = err1
+-		} else if r.hash.Sum32() != r.f.CRC32 {
+-			err = ErrChecksum
++	if err == io.EOF {
++		if r.desr != nil {
++			if err1 := readDataDescriptor(r.desr, r.f); err1 != nil {
++				err = err1
++			} else if r.hash.Sum32() != r.f.CRC32 {
++				err = ErrChecksum
++			}
++		} else {
++			// If there's not a data descriptor, we still compare
++			// the CRC32 of what we've read against the file header
++			// or TOC's CRC32, if it seems like it was set.
++			if r.f.CRC32 != 0 && r.hash.Sum32() != r.f.CRC32 {
++				err = ErrChecksum
++			}
+ 		}
+-		// TODO(bradfitz): even if there's not a data
+-		// descriptor, we could still compare our accumulated
+-		// crc32 on EOF with the content-precededing file
+-		// header's crc32, if it's non-zero.
+ 	}
+ 	r.err = err
+ 	return
+diff --git a/src/pkg/archive/zip/reader_test.go b/src/pkg/archive/zip/reader_test.go
+index e676d75d3c..c2db0dc4a7 100644
+--- a/src/pkg/archive/zip/reader_test.go
++++ b/src/pkg/archive/zip/reader_test.go
+@@ -163,6 +163,46 @@ var tests = []ZipTest{
+ 			},
+ 		},
+ 	},
++	// Tests that we verify (and accept valid) crc32s on files
++	// with crc32s in their file header (not in data descriptors)
++	{
++		Name: "crc32-not-streamed.zip",
++		File: []ZipTestFile{
++			{
++				Name:    "foo.txt",
++				Content: []byte("foo\n"),
++				Mtime:   "03-08-12 16:59:10",
++				Mode:    0644,
++			},
++			{
++				Name:    "bar.txt",
++				Content: []byte("bar\n"),
++				Mtime:   "03-08-12 16:59:12",
++				Mode:    0644,
++			},
++		},
++	},
++	// Tests that we verify (and reject invalid) crc32s on files
++	// with crc32s in their file header (not in data descriptors)
++	{
++		Name:   "crc32-not-streamed.zip",
++		Source: returnCorruptNotStreamedZip,
++		File: []ZipTestFile{
++			{
++				Name:       "foo.txt",
++				Content:    []byte("foo\n"),
++				Mtime:      "03-08-12 16:59:10",
++				Mode:       0644,
++				ContentErr: ErrChecksum,
++			},
++			{
++				Name:    "bar.txt",
++				Content: []byte("bar\n"),
++				Mtime:   "03-08-12 16:59:12",
++				Mode:    0644,
++			},
++		},
++	},
+ }
+ 
+ var crossPlatform = []ZipTestFile{
+@@ -284,10 +324,10 @@ func readTestFile(t *testing.T, zt ZipTest, ft ZipTestFile, f *File) {
+ 	}
+ 
+ 	_, err = io.Copy(&b, r)
++	if err != ft.ContentErr {
++		t.Errorf("%s: copying contents: %v (want %v)", zt.Name, err, ft.ContentErr)
++	}
+ 	if err != nil {
+-		if err != ft.ContentErr {
+-			t.Errorf("%s: copying contents: %v", zt.Name, err)
+-		}
+ 		return
+ 	}
+ 	r.Close()
+@@ -344,12 +384,34 @@ func TestInvalidFiles(t *testing.T) {
+ 	}
+ }
+ 
+-func returnCorruptCRC32Zip() (r io.ReaderAt, size int64) {
+-	data, err := ioutil.ReadFile(filepath.Join("testdata", "go-with-datadesc-sig.zip"))
++func messWith(fileName string, corrupter func(b []byte)) (r io.ReaderAt, size int64) {
++	data, err := ioutil.ReadFile(filepath.Join("testdata", fileName))
+ 	if err != nil {
+-		panic(err)
++		panic("Error reading " + fileName + ": " + err.Error())
+ 	}
+-	// Corrupt one of the CRC32s in the data descriptor:
+-	data[0x2d]++
++	corrupter(data)
+ 	return bytes.NewReader(data), int64(len(data))
+ }
++
++func returnCorruptCRC32Zip() (r io.ReaderAt, size int64) {
++	return messWith("go-with-datadesc-sig.zip", func(b []byte) {
++		// Corrupt one of the CRC32s in the data descriptor:
++		b[0x2d]++
++	})
++}
++
++func returnCorruptNotStreamedZip() (r io.ReaderAt, size int64) {
++	return messWith("crc32-not-streamed.zip", func(b []byte) {
++		// Corrupt foo.txt's final crc32 byte, in both
++		// the file header and TOC. (0x7e -> 0x7f)
++		b[0x11]++
++		b[0x9d]++
++
++		// TODO(bradfitz): add a new test that only corrupts
++		// one of these values, and verify that that's also an
++		// error. Currently, the reader code doesn't verify the
++		// fileheader and TOC's crc32 match if they're both
++		// non-zero and only the second line above, the TOC,
++		// is what matters.
++	})
++}
+diff --git a/src/pkg/archive/zip/testdata/crc32-not-streamed.zip b/src/pkg/archive/zip/testdata/crc32-not-streamed.zip
+new file mode 100644
+index 0000000000..f268d88732
+Binary files /dev/null and b/src/pkg/archive/zip/testdata/crc32-not-streamed.zip differ

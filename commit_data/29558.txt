@@ -9,7 +9,73 @@ Date:   Mon Sep 19 14:09:07 2016 -0400
     Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/plugin/plugin_dlopen.go | 17 +++++++++++++----
  src/plugin/plugin_stubs.go  |  2 +-
  2 files changed, 14 insertions(+), 5 deletions(-)
+
+diff --git a/src/plugin/plugin_dlopen.go b/src/plugin/plugin_dlopen.go
+index 45c0eeb07f..e881b258e0 100644
+--- a/src/plugin/plugin_dlopen.go
++++ b/src/plugin/plugin_dlopen.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build linux,cgo
++// +build linux,cgo darwin,cgo
+ 
+ package plugin
+ 
+@@ -13,6 +13,8 @@ package plugin
+ #include <stdlib.h>
+ #include <stdint.h>
+ 
++#include <stdio.h>
++
+ static uintptr_t pluginOpen(const char* path, char** err) {
+ 	void* h = dlopen(path, RTLD_NOW|RTLD_GLOBAL);
+ 	if (h == NULL) {
+@@ -38,12 +40,18 @@ import (
+ )
+ 
+ func open(name string) (*Plugin, error) {
+-	pluginsMu.Lock()
++	cPath := (*C.char)(C.malloc(C.PATH_MAX + 1))
++	defer C.free(unsafe.Pointer(cPath))
++
+ 	cRelName := C.CString(name)
+-	cPath := C.realpath(cRelName, nil)
++	if C.realpath(cRelName, cPath) == nil {
++		return nil, errors.New("plugin.Open(" + name + "): realpath failed")
++	}
+ 	C.free(unsafe.Pointer(cRelName))
+-	defer C.free(unsafe.Pointer(cPath))
++
+ 	path := C.GoString(cPath)
++
++	pluginsMu.Lock()
+ 	if p := plugins[path]; p != nil {
+ 		pluginsMu.Unlock()
+ 		<-p.loaded
+@@ -61,6 +69,7 @@ func open(name string) (*Plugin, error) {
+ 	if len(name) > 3 && name[len(name)-3:] == ".so" {
+ 		name = name[:len(name)-3]
+ 	}
++
+ 	syms := lastmoduleinit()
+ 	if plugins == nil {
+ 		plugins = make(map[string]*Plugin)
+diff --git a/src/plugin/plugin_stubs.go b/src/plugin/plugin_stubs.go
+index 1b935bffa9..f0bcb4a3bd 100644
+--- a/src/plugin/plugin_stubs.go
++++ b/src/plugin/plugin_stubs.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build !linux !cgo
++// +build !linux,!darwin !cgo
+ 
+ package plugin
+ 

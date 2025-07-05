@@ -14,7 +14,138 @@ Date:   Sun Sep 22 01:34:13 2019 +0200
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/ssa/compile.go |  2 ++
  src/cmd/compile/internal/ssa/poset.go   | 34 +++++++++++++++++++++++++++++++++
  2 files changed, 36 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/compile.go b/src/cmd/compile/internal/ssa/compile.go
+index 1a0a46c154..8551c0a54b 100644
+--- a/src/cmd/compile/internal/ssa/compile.go
++++ b/src/cmd/compile/internal/ssa/compile.go
+@@ -286,10 +286,12 @@ commas. For example:
+ 
+ 	if phase == "check" && flag == "on" {
+ 		checkEnabled = val != 0
++		debugPoset = checkEnabled // also turn on advanced self-checking in prove's datastructure
+ 		return ""
+ 	}
+ 	if phase == "check" && flag == "off" {
+ 		checkEnabled = val == 0
++		debugPoset = checkEnabled
+ 		return ""
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/ssa/poset.go b/src/cmd/compile/internal/ssa/poset.go
+index e74cabb337..cf5b915b94 100644
+--- a/src/cmd/compile/internal/ssa/poset.go
++++ b/src/cmd/compile/internal/ssa/poset.go
+@@ -9,6 +9,9 @@ import (
+ 	"os"
+ )
+ 
++// If true, check poset integrity after every mutation
++var debugPoset = false
++
+ const uintSize = 32 << (^uint(0) >> 32 & 1) // 32 or 64
+ 
+ // bitset is a bit array for dense indexes.
+@@ -785,6 +788,9 @@ func (po *poset) DotDump(fn string, title string) error {
+ // to tell.
+ // Complexity is O(n).
+ func (po *poset) Ordered(n1, n2 *Value) bool {
++	if debugPoset {
++		defer po.CheckIntegrity()
++	}
+ 	if n1.ID == n2.ID {
+ 		panic("should not call Ordered with n1==n2")
+ 	}
+@@ -803,6 +809,9 @@ func (po *poset) Ordered(n1, n2 *Value) bool {
+ // to tell.
+ // Complexity is O(n).
+ func (po *poset) OrderedOrEqual(n1, n2 *Value) bool {
++	if debugPoset {
++		defer po.CheckIntegrity()
++	}
+ 	if n1.ID == n2.ID {
+ 		panic("should not call Ordered with n1==n2")
+ 	}
+@@ -821,6 +830,9 @@ func (po *poset) OrderedOrEqual(n1, n2 *Value) bool {
+ // to tell.
+ // Complexity is O(1).
+ func (po *poset) Equal(n1, n2 *Value) bool {
++	if debugPoset {
++		defer po.CheckIntegrity()
++	}
+ 	if n1.ID == n2.ID {
+ 		panic("should not call Equal with n1==n2")
+ 	}
+@@ -836,6 +848,9 @@ func (po *poset) Equal(n1, n2 *Value) bool {
+ // Complexity is O(n) (because it internally calls Ordered to see if we
+ // can infer n1!=n2 from n1<n2 or n2<n1).
+ func (po *poset) NonEqual(n1, n2 *Value) bool {
++	if debugPoset {
++		defer po.CheckIntegrity()
++	}
+ 	if n1.ID == n2.ID {
+ 		panic("should not call Equal with n1==n2")
+ 	}
+@@ -982,6 +997,9 @@ func (po *poset) setOrder(n1, n2 *Value, strict bool) bool {
+ // SetOrder records that n1<n2. Returns false if this is a contradiction
+ // Complexity is O(1) if n2 was never seen before, or O(n) otherwise.
+ func (po *poset) SetOrder(n1, n2 *Value) bool {
++	if debugPoset {
++		defer po.CheckIntegrity()
++	}
+ 	if n1.ID == n2.ID {
+ 		panic("should not call SetOrder with n1==n2")
+ 	}
+@@ -991,6 +1009,9 @@ func (po *poset) SetOrder(n1, n2 *Value) bool {
+ // SetOrderOrEqual records that n1<=n2. Returns false if this is a contradiction
+ // Complexity is O(1) if n2 was never seen before, or O(n) otherwise.
+ func (po *poset) SetOrderOrEqual(n1, n2 *Value) bool {
++	if debugPoset {
++		defer po.CheckIntegrity()
++	}
+ 	if n1.ID == n2.ID {
+ 		panic("should not call SetOrder with n1==n2")
+ 	}
+@@ -1001,6 +1022,9 @@ func (po *poset) SetOrderOrEqual(n1, n2 *Value) bool {
+ // (that is, if it is already recorded that n1<n2 or n2<n1).
+ // Complexity is O(1) if n2 was never seen before, or O(n) otherwise.
+ func (po *poset) SetEqual(n1, n2 *Value) bool {
++	if debugPoset {
++		defer po.CheckIntegrity()
++	}
+ 	if n1.ID == n2.ID {
+ 		panic("should not call Add with n1==n2")
+ 	}
+@@ -1060,6 +1084,9 @@ func (po *poset) SetEqual(n1, n2 *Value) bool {
+ // (that is, if it is already recorded that n1==n2).
+ // Complexity is O(n).
+ func (po *poset) SetNonEqual(n1, n2 *Value) bool {
++	if debugPoset {
++		defer po.CheckIntegrity()
++	}
+ 	if n1.ID == n2.ID {
+ 		panic("should not call Equal with n1==n2")
+ 	}
+@@ -1108,6 +1135,9 @@ func (po *poset) Undo() {
+ 	if len(po.undo) == 0 {
+ 		panic("empty undo stack")
+ 	}
++	if debugPoset {
++		defer po.CheckIntegrity()
++	}
+ 
+ 	for len(po.undo) > 0 {
+ 		pass := po.undo[len(po.undo)-1]
+@@ -1187,4 +1217,8 @@ func (po *poset) Undo() {
+ 			panic(pass.typ)
+ 		}
+ 	}
++
++	if debugPoset && po.CheckEmpty() != nil {
++		panic("poset not empty at the end of undo")
++	}
+ }

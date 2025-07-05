@@ -11,6 +11,29 @@ Date:   Wed Sep 21 12:53:25 2016 +0900
     Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/syscall/syscall_dragonfly.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/syscall/syscall_dragonfly.go b/src/syscall/syscall_dragonfly.go
+index 97a8ef8932..980687ccbd 100644
+--- a/src/syscall/syscall_dragonfly.go
++++ b/src/syscall/syscall_dragonfly.go
+@@ -57,7 +57,7 @@ func nametomib(name string) (mib []_C_int, err error) {
+ }
+ 
+ func direntIno(buf []byte) (uint64, bool) {
+-	return readInt(buf, unsafe.Offsetof(Dirent{}.Ino), unsafe.Sizeof(Dirent{}.Ino))
++	return readInt(buf, unsafe.Offsetof(Dirent{}.Fileno), unsafe.Sizeof(Dirent{}.Fileno))
+ }
+ 
+ func direntReclen(buf []byte) (uint64, bool) {
+@@ -65,7 +65,7 @@ func direntReclen(buf []byte) (uint64, bool) {
+ 	if !ok {
+ 		return 0, false
+ 	}
+-	return (16 + namlen + 1 + 7) & ^7, true
++	return (16 + namlen + 1 + 7) & ^uint64(7), true
+ }
+ 
+ func direntNamlen(buf []byte) (uint64, bool) {

@@ -8,6 +8,20 @@ Date:   Thu Jun 17 07:01:16 2021 +0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/328849
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  doc/go1.17.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go1.17.html b/doc/go1.17.html
+index 75c05c9e25..f8d7aad034 100644
+--- a/doc/go1.17.html
++++ b/doc/go1.17.html
+@@ -387,7 +387,7 @@ func Foo() bool {
+   registers instead of the stack. This work is enabled for Linux, MacOS, and
+   Windows on the 64-bit x86 architecture (the <code>linux/amd64</code>,
+   <code>darwin/amd64</code>, <code>windows/amd64</code> ports). For a
+-  representative set of Go  packages and programs, benchmarking has shown
++  representative set of Go packages and programs, benchmarking has shown
+   performance improvements of about 5%, and a typical reduction in binary size
+   of about 2%.
+ </p>

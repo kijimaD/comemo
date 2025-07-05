@@ -15,7 +15,7 @@ Date:   Thu Apr 12 17:07:14 2018 -0400
     Reviewed-on: https://go-review.googlesource.com/106775
     Reviewed-by: Alessandro Arzilli <alessandro.arzilli@gmail.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/internal/dwarf/dwarf.go        |  26 ++++++++-
  src/cmd/internal/dwarf/dwarf_defs.go   |   3 +
  src/cmd/internal/obj/objfile.go        |   3 +
@@ -23,3 +23,412 @@ Date:   Thu Apr 12 17:07:14 2018 -0400
  src/cmd/link/internal/ld/dwarf.go      |  31 +++++++---
  src/cmd/link/internal/ld/dwarf_test.go | 101 +++++++++++++++++++++++++++++++--
  6 files changed, 155 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/internal/dwarf/dwarf.go b/src/cmd/internal/dwarf/dwarf.go
+index 37fdba585a..edb84498f9 100644
+--- a/src/cmd/internal/dwarf/dwarf.go
++++ b/src/cmd/internal/dwarf/dwarf.go
+@@ -178,6 +178,7 @@ type Context interface {
+ 	AddBytes(s Sym, b []byte)
+ 	AddAddress(s Sym, t interface{}, ofs int64)
+ 	AddSectionOffset(s Sym, size int, t interface{}, ofs int64)
++	AddDWARFSectionOffset(s Sym, size int, t interface{}, ofs int64)
+ 	CurrentOffset(s Sym) int64
+ 	RecordDclReference(from Sym, to Sym, dclIdx int, inlIndex int)
+ 	RecordChildDieOffsets(s Sym, vars []*Var, offsets []int32)
+@@ -291,6 +292,7 @@ const (
+ 	// Attribute for DW_TAG_member of a struct type.
+ 	// Nonzero value indicates the struct field is an embedded field.
+ 	DW_AT_go_embedded_field = 0x2903
++	DW_AT_go_runtime_type   = 0x2904
+ 
+ 	DW_AT_internal_location = 253 // params and locals; not emitted
+ )
+@@ -642,6 +644,7 @@ var abbrevs = [DW_NABRV]dwAbbrev{
+ 			{DW_AT_encoding, DW_FORM_data1},
+ 			{DW_AT_byte_size, DW_FORM_data1},
+ 			{DW_AT_go_kind, DW_FORM_data1},
++			{DW_AT_go_runtime_type, DW_FORM_addr},
+ 		},
+ 	},
+ 
+@@ -655,6 +658,7 @@ var abbrevs = [DW_NABRV]dwAbbrev{
+ 			{DW_AT_type, DW_FORM_ref_addr},
+ 			{DW_AT_byte_size, DW_FORM_udata},
+ 			{DW_AT_go_kind, DW_FORM_data1},
++			{DW_AT_go_runtime_type, DW_FORM_addr},
+ 		},
+ 	},
+ 
+@@ -666,6 +670,7 @@ var abbrevs = [DW_NABRV]dwAbbrev{
+ 			{DW_AT_name, DW_FORM_string},
+ 			{DW_AT_type, DW_FORM_ref_addr},
+ 			{DW_AT_go_kind, DW_FORM_data1},
++			{DW_AT_go_runtime_type, DW_FORM_addr},
+ 			{DW_AT_go_elem, DW_FORM_ref_addr},
+ 		},
+ 	},
+@@ -677,8 +682,8 @@ var abbrevs = [DW_NABRV]dwAbbrev{
+ 		[]dwAttrForm{
+ 			{DW_AT_name, DW_FORM_string},
+ 			{DW_AT_byte_size, DW_FORM_udata},
+-			// {DW_AT_type,	DW_FORM_ref_addr},
+ 			{DW_AT_go_kind, DW_FORM_data1},
++			{DW_AT_go_runtime_type, DW_FORM_addr},
+ 		},
+ 	},
+ 
+@@ -690,6 +695,7 @@ var abbrevs = [DW_NABRV]dwAbbrev{
+ 			{DW_AT_name, DW_FORM_string},
+ 			{DW_AT_type, DW_FORM_ref_addr},
+ 			{DW_AT_go_kind, DW_FORM_data1},
++			{DW_AT_go_runtime_type, DW_FORM_addr},
+ 		},
+ 	},
+ 
+@@ -701,6 +707,7 @@ var abbrevs = [DW_NABRV]dwAbbrev{
+ 			{DW_AT_name, DW_FORM_string},
+ 			{DW_AT_type, DW_FORM_ref_addr},
+ 			{DW_AT_go_kind, DW_FORM_data1},
++			{DW_AT_go_runtime_type, DW_FORM_addr},
+ 			{DW_AT_go_key, DW_FORM_ref_addr},
+ 			{DW_AT_go_elem, DW_FORM_ref_addr},
+ 		},
+@@ -714,6 +721,7 @@ var abbrevs = [DW_NABRV]dwAbbrev{
+ 			{DW_AT_name, DW_FORM_string},
+ 			{DW_AT_type, DW_FORM_ref_addr},
+ 			{DW_AT_go_kind, DW_FORM_data1},
++			{DW_AT_go_runtime_type, DW_FORM_addr},
+ 		},
+ 	},
+ 
+@@ -734,6 +742,7 @@ var abbrevs = [DW_NABRV]dwAbbrev{
+ 			{DW_AT_name, DW_FORM_string},
+ 			{DW_AT_byte_size, DW_FORM_udata},
+ 			{DW_AT_go_kind, DW_FORM_data1},
++			{DW_AT_go_runtime_type, DW_FORM_addr},
+ 			{DW_AT_go_elem, DW_FORM_ref_addr},
+ 		},
+ 	},
+@@ -746,6 +755,7 @@ var abbrevs = [DW_NABRV]dwAbbrev{
+ 			{DW_AT_name, DW_FORM_string},
+ 			{DW_AT_byte_size, DW_FORM_udata},
+ 			{DW_AT_go_kind, DW_FORM_data1},
++			{DW_AT_go_runtime_type, DW_FORM_addr},
+ 		},
+ 	},
+ 
+@@ -757,6 +767,7 @@ var abbrevs = [DW_NABRV]dwAbbrev{
+ 			{DW_AT_name, DW_FORM_string},
+ 			{DW_AT_byte_size, DW_FORM_udata},
+ 			{DW_AT_go_kind, DW_FORM_data1},
++			{DW_AT_go_runtime_type, DW_FORM_addr},
+ 		},
+ 	},
+ 
+@@ -818,6 +829,15 @@ type DWDie struct {
+ func putattr(ctxt Context, s Sym, abbrev int, form int, cls int, value int64, data interface{}) error {
+ 	switch form {
+ 	case DW_FORM_addr: // address
++		// Allow nil addresses for DW_AT_go_runtime_type.
++		if data == nil && value == 0 {
++			ctxt.AddInt(s, ctxt.PtrSize(), 0)
++			break
++		}
++		if cls == DW_CLS_GO_TYPEREF {
++			ctxt.AddSectionOffset(s, ctxt.PtrSize(), data, value)
++			break
++		}
+ 		ctxt.AddAddress(s, data, value)
+ 
+ 	case DW_FORM_block1: // block
+@@ -861,7 +881,7 @@ func putattr(ctxt Context, s Sym, abbrev int, form int, cls int, value int64, da
+ 
+ 	case DW_FORM_data4: // constant, {line,loclist,mac,rangelist}ptr
+ 		if cls == DW_CLS_PTR { // DW_AT_stmt_list and DW_AT_ranges
+-			ctxt.AddSectionOffset(s, 4, data, value)
++			ctxt.AddDWARFSectionOffset(s, 4, data, value)
+ 			break
+ 		}
+ 		ctxt.AddInt(s, 4, value)
+@@ -898,7 +918,7 @@ func putattr(ctxt Context, s Sym, abbrev int, form int, cls int, value int64, da
+ 		if data == nil {
+ 			return fmt.Errorf("dwarf: null reference in %d", abbrev)
+ 		}
+-		ctxt.AddSectionOffset(s, 4, data, value)
++		ctxt.AddDWARFSectionOffset(s, 4, data, value)
+ 
+ 	case DW_FORM_ref1, // reference within the compilation unit
+ 		DW_FORM_ref2,      // reference
+diff --git a/src/cmd/internal/dwarf/dwarf_defs.go b/src/cmd/internal/dwarf/dwarf_defs.go
+index da238b7e9a..d37c960014 100644
+--- a/src/cmd/internal/dwarf/dwarf_defs.go
++++ b/src/cmd/internal/dwarf/dwarf_defs.go
+@@ -93,6 +93,9 @@ const (
+ 	DW_CLS_REFERENCE
+ 	DW_CLS_ADDRLOC
+ 	DW_CLS_STRING
++
++	// Go-specific internal hackery.
++	DW_CLS_GO_TYPEREF
+ )
+ 
+ // Table 20
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index a973680f76..ef9ce4c688 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -457,6 +457,9 @@ func (c dwCtxt) AddAddress(s dwarf.Sym, data interface{}, value int64) {
+ 	}
+ }
+ func (c dwCtxt) AddSectionOffset(s dwarf.Sym, size int, t interface{}, ofs int64) {
++	panic("should be used only in the linker")
++}
++func (c dwCtxt) AddDWARFSectionOffset(s dwarf.Sym, size int, t interface{}, ofs int64) {
+ 	ls := s.(*LSym)
+ 	rsym := t.(*LSym)
+ 	ls.WriteAddr(c.Link, ls.Size, size, rsym, ofs)
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 51ed4b7ab7..1a42f92430 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -362,7 +362,6 @@ func relocsym(ctxt *Link, s *sym.Symbol) {
+ 		case objabi.R_ADDROFF:
+ 			// The method offset tables using this relocation expect the offset to be relative
+ 			// to the start of the first text section, even if there are multiple.
+-
+ 			if r.Sym.Sect.Name == ".text" {
+ 				o = Symaddr(r.Sym) - int64(Segtext.Sections[0].Vaddr) + r.Add
+ 			} else {
+@@ -450,10 +449,16 @@ func relocsym(ctxt *Link, s *sym.Symbol) {
+ 
+ 		if false {
+ 			nam := "<nil>"
++			var addr int64
+ 			if r.Sym != nil {
+ 				nam = r.Sym.Name
++				addr = Symaddr(r.Sym)
++			}
++			xnam := "<nil>"
++			if r.Xsym != nil {
++				xnam = r.Xsym.Name
+ 			}
+-			fmt.Printf("relocate %s %#x (%#x+%#x, size %d) => %s %#x +%#x [type %d (%s)/%d, %x]\n", s.Name, s.Value+int64(off), s.Value, r.Off, r.Siz, nam, Symaddr(r.Sym), r.Add, r.Type, sym.RelocName(ctxt.Arch, r.Type), r.Variant, o)
++			fmt.Printf("relocate %s %#x (%#x+%#x, size %d) => %s %#x +%#x (xsym: %s +%#x) [type %d (%s)/%d, %x]\n", s.Name, s.Value+int64(off), s.Value, r.Off, r.Siz, nam, addr, r.Add, xnam, r.Xadd, r.Type, sym.RelocName(ctxt.Arch, r.Type), r.Variant, o)
+ 		}
+ 		switch siz {
+ 		default:
+diff --git a/src/cmd/link/internal/ld/dwarf.go b/src/cmd/link/internal/ld/dwarf.go
+index 5dedcc19ca..f18d13e910 100644
+--- a/src/cmd/link/internal/ld/dwarf.go
++++ b/src/cmd/link/internal/ld/dwarf.go
+@@ -61,10 +61,16 @@ func (c dwctxt) AddSectionOffset(s dwarf.Sym, size int, t interface{}, ofs int64
+ 		ls.AddAddrPlus4(t.(*sym.Symbol), 0)
+ 	}
+ 	r := &ls.R[len(ls.R)-1]
+-	r.Type = objabi.R_DWARFSECREF
++	r.Type = objabi.R_ADDROFF
+ 	r.Add = ofs
+ }
+ 
++func (c dwctxt) AddDWARFSectionOffset(s dwarf.Sym, size int, t interface{}, ofs int64) {
++	c.AddSectionOffset(s, size, t, ofs)
++	ls := s.(*sym.Symbol)
++	ls.R[len(ls.R)-1].Type = objabi.R_DWARFSECREF
++}
++
+ func (c dwctxt) Logf(format string, args ...interface{}) {
+ 	c.linkctxt.Logf(format, args...)
+ }
+@@ -546,6 +552,9 @@ func newtype(ctxt *Link, gotype *sym.Symbol) *dwarf.DWDie {
+ 	}
+ 
+ 	newattr(die, dwarf.DW_AT_go_kind, dwarf.DW_CLS_CONSTANT, int64(kind), 0)
++	if gotype.Attr.Reachable() {
++		newattr(die, dwarf.DW_AT_go_runtime_type, dwarf.DW_CLS_GO_TYPEREF, 0, gotype)
++	}
+ 
+ 	if _, ok := prototypedies[gotype.Name]; ok {
+ 		prototypedies[gotype.Name] = die
+@@ -561,14 +570,21 @@ func nameFromDIESym(dwtype *sym.Symbol) string {
+ // Find or construct *T given T.
+ func defptrto(ctxt *Link, dwtype *sym.Symbol) *sym.Symbol {
+ 	ptrname := "*" + nameFromDIESym(dwtype)
+-	die := find(ctxt, ptrname)
+-	if die == nil {
+-		pdie := newdie(ctxt, &dwtypes, dwarf.DW_ABRV_PTRTYPE, ptrname, 0)
+-		newrefattr(pdie, dwarf.DW_AT_type, dwtype)
+-		return dtolsym(pdie.Sym)
++	if die := find(ctxt, ptrname); die != nil {
++		return die
+ 	}
+ 
+-	return die
++	pdie := newdie(ctxt, &dwtypes, dwarf.DW_ABRV_PTRTYPE, ptrname, 0)
++	newrefattr(pdie, dwarf.DW_AT_type, dwtype)
++
++	// The DWARF info synthesizes pointer types that don't exist at the
++	// language level, like *hash<...> and *bucket<...>, and the data
++	// pointers of slices. Link to the ones we can find.
++	gotype := ctxt.Syms.ROLookup("type."+ptrname, 0)
++	if gotype != nil && gotype.Attr.Reachable() {
++		newattr(pdie, dwarf.DW_AT_go_runtime_type, dwarf.DW_CLS_GO_TYPEREF, 0, gotype)
++	}
++	return dtolsym(pdie.Sym)
+ }
+ 
+ // Copies src's children into dst. Copies attributes by value.
+@@ -1692,6 +1708,7 @@ func dwarfgeneratedebugsyms(ctxt *Link) {
+ 	newattr(die, dwarf.DW_AT_encoding, dwarf.DW_CLS_CONSTANT, dwarf.DW_ATE_unsigned, 0)
+ 	newattr(die, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, int64(ctxt.Arch.PtrSize), 0)
+ 	newattr(die, dwarf.DW_AT_go_kind, dwarf.DW_CLS_CONSTANT, objabi.KindUintptr, 0)
++	newattr(die, dwarf.DW_AT_go_runtime_type, dwarf.DW_CLS_ADDRESS, 0, lookupOrDiag(ctxt, "type.uintptr"))
+ 
+ 	// Prototypes needed for type synthesis.
+ 	prototypedies = map[string]*dwarf.DWDie{
+diff --git a/src/cmd/link/internal/ld/dwarf_test.go b/src/cmd/link/internal/ld/dwarf_test.go
+index a3790e4a27..90369e9d29 100644
+--- a/src/cmd/link/internal/ld/dwarf_test.go
++++ b/src/cmd/link/internal/ld/dwarf_test.go
+@@ -16,24 +16,24 @@ import (
+ 	"path/filepath"
+ 	"reflect"
+ 	"runtime"
++	"strconv"
+ 	"testing"
+ )
+ 
+ const (
+ 	NoOpt        = "-gcflags=-l -N"
+-	Opt          = ""
+ 	OptInl4      = "-gcflags=all=-l=4"
+ 	OptInl4DwLoc = "-gcflags=all=-l=4 -dwarflocationlists"
+ )
+ 
+-func TestRuntimeTypeDIEs(t *testing.T) {
++func TestRuntimeTypesPresent(t *testing.T) {
+ 	testenv.MustHaveGoBuild(t)
+ 
+ 	if runtime.GOOS == "plan9" {
+ 		t.Skip("skipping on plan9; no DWARF symbol table in executables")
+ 	}
+ 
+-	dir, err := ioutil.TempDir("", "TestRuntimeTypeDIEs")
++	dir, err := ioutil.TempDir("", "TestRuntimeTypesPresent")
+ 	if err != nil {
+ 		t.Fatalf("could not create directory: %v", err)
+ 	}
+@@ -84,9 +84,14 @@ func findTypes(t *testing.T, dw *dwarf.Data, want map[string]bool) (found map[st
+ 	return
+ }
+ 
+-func gobuild(t *testing.T, dir string, testfile string, gcflags string) *objfilepkg.File {
++type builtFile struct {
++	*objfilepkg.File
++	path string
++}
++
++func gobuild(t *testing.T, dir string, testfile string, gcflags string) *builtFile {
+ 	src := filepath.Join(dir, "test.go")
+-	dst := filepath.Join(dir, "out")
++	dst := filepath.Join(dir, "out.exe")
+ 
+ 	if err := ioutil.WriteFile(src, []byte(testfile), 0666); err != nil {
+ 		t.Fatal(err)
+@@ -102,7 +107,7 @@ func gobuild(t *testing.T, dir string, testfile string, gcflags string) *objfile
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+-	return f
++	return &builtFile{f, dst}
+ }
+ 
+ func TestEmbeddedStructMarker(t *testing.T) {
+@@ -804,3 +809,87 @@ func TestAbstractOriginSanityWithLocationLists(t *testing.T) {
+ 
+ 	abstractOriginSanity(t, OptInl4DwLoc)
+ }
++
++func TestRuntimeTypeAttr(t *testing.T) {
++	testenv.MustHaveGoBuild(t)
++
++	if runtime.GOOS == "plan9" {
++		t.Skip("skipping on plan9; no DWARF symbol table in executables")
++	}
++
++	// Explicitly test external linking, for dsymutil compatility on Darwin.
++	for _, flags := range []string{"-ldflags=linkmode=internal", "-ldflags=-linkmode=external"} {
++		t.Run("flags="+flags, func(t *testing.T) {
++			testRuntimeTypeAttr(t, flags)
++		})
++	}
++}
++
++func testRuntimeTypeAttr(t *testing.T, flags string) {
++	const prog = `
++package main
++
++import "unsafe"
++
++type X struct{ _ int }
++
++func main() {
++	var x interface{} = &X{}
++	p := *(*uintptr)(unsafe.Pointer(&x))
++	print(p)
++}
++`
++	dir, err := ioutil.TempDir("", "TestRuntimeType")
++	if err != nil {
++		t.Fatalf("could not create directory: %v", err)
++	}
++	defer os.RemoveAll(dir)
++
++	f := gobuild(t, dir, prog, flags)
++	out, err := exec.Command(f.path).CombinedOutput()
++	if err != nil {
++		t.Fatalf("could not run test program: %v", err)
++	}
++	addr, err := strconv.ParseUint(string(out), 10, 64)
++	if err != nil {
++		t.Fatalf("could not parse type address from program output %q: %v", out, err)
++	}
++
++	symbols, err := f.Symbols()
++	if err != nil {
++		t.Fatalf("error reading symbols: %v", err)
++	}
++	var typeStar *objfilepkg.Sym
++	for _, sym := range symbols {
++		if sym.Name == "type.*" {
++			typeStar = &sym
++			break
++		}
++	}
++	if typeStar == nil {
++		t.Fatal("couldn't find types.* in symbols")
++	}
++
++	d, err := f.DWARF()
++	if err != nil {
++		t.Fatalf("error reading DWARF: %v", err)
++	}
++
++	rdr := d.Reader()
++	ex := examiner{}
++	if err := ex.populate(rdr); err != nil {
++		t.Fatalf("error reading DWARF: %v", err)
++	}
++	dies := ex.Named("*main.X")
++	if len(dies) != 1 {
++		t.Fatalf("wanted 1 DIE named *main.X, found %v", len(dies))
++	}
++	rtAttr := dies[0].Val(0x2904)
++	if rtAttr == nil {
++		t.Fatalf("*main.X DIE had no runtime type attr. DIE: %v", dies[0])
++	}
++
++	if rtAttr.(uint64)+typeStar.Addr != addr {
++		t.Errorf("DWARF type offset was %#x+%#x, but test program said %#x", rtAttr.(uint64), typeStar.Addr, addr)
++	}
++}

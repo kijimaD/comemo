@@ -17,9 +17,148 @@ Date:   Wed May 3 17:42:01 2023 -0700
     Run-TryBot: Robert Griesemer <gri@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/call.go  |  8 +++++---
  src/cmd/compile/internal/types2/infer.go | 15 +++++++++------
  src/go/types/call.go                     |  8 +++++---
  src/go/types/infer.go                    | 15 +++++++++------
  4 files changed, 28 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/call.go b/src/cmd/compile/internal/types2/call.go
+index c6d1590016..c9a6e2f46e 100644
+--- a/src/cmd/compile/internal/types2/call.go
++++ b/src/cmd/compile/internal/types2/call.go
+@@ -96,10 +96,10 @@ func (check *Checker) funcInst(tsig *Signature, pos syntax.Pos, x *operand, inst
+ 		}
+ 
+ 		// Rename type parameters to avoid problems with recursive instantiations.
+-		// Note that NewTuple(params...) below is nil if len(params) == 0, as desired.
++		// Note that NewTuple(params...) below is (*Tuple)(nil) if len(params) == 0, as desired.
+ 		tparams, params2 := check.renameTParams(pos, sig.TypeParams().list(), NewTuple(params...))
+ 
+-		targs = check.infer(pos, tparams, targs, params2, args)
++		targs = check.infer(pos, tparams, targs, params2.(*Tuple), args)
+ 		if targs == nil {
+ 			// error was already reported
+ 			x.mode = invalid
+@@ -489,7 +489,9 @@ func (check *Checker) arguments(call *syntax.CallExpr, sig *Signature, targs []T
+ 			}
+ 		}
+ 		// rename type parameters to avoid problems with recursive calls
+-		tparams, sigParams = check.renameTParams(call.Pos(), sig.TypeParams().list(), sigParams)
++		var tmp Type
++		tparams, tmp = check.renameTParams(call.Pos(), sig.TypeParams().list(), sigParams)
++		sigParams = tmp.(*Tuple)
+ 	}
+ 
+ 	// collect type parameters from generic function arguments
+diff --git a/src/cmd/compile/internal/types2/infer.go b/src/cmd/compile/internal/types2/infer.go
+index 9c1022c46f..3d313c8ac9 100644
+--- a/src/cmd/compile/internal/types2/infer.go
++++ b/src/cmd/compile/internal/types2/infer.go
+@@ -380,11 +380,14 @@ func (check *Checker) infer(pos syntax.Pos, tparams []*TypeParam, targs []Type,
+ 	return
+ }
+ 
+-// renameTParams renames the type parameters in a function signature described by its
+-// type and ordinary parameters (tparams and params) such that each type parameter is
+-// given a new identity. renameTParams returns the new type and ordinary parameters.
++// renameTParams renames the type parameters in the given type such that each type
++// parameter is given a new identity. renameTParams returns the new type parameters
++// and updated type. If the result type is unchanged from the argument type, none
++// of the type parameters in tparams occurred in the type.
++// If typ is a generic function, type parameters held with typ are not changed and
++// must be updated separately if desired.
+ // The positions is only used for debug traces.
+-func (check *Checker) renameTParams(pos syntax.Pos, tparams []*TypeParam, params *Tuple) ([]*TypeParam, *Tuple) {
++func (check *Checker) renameTParams(pos syntax.Pos, tparams []*TypeParam, typ Type) ([]*TypeParam, Type) {
+ 	// For the purpose of type inference we must differentiate type parameters
+ 	// occurring in explicit type or value function arguments from the type
+ 	// parameters we are solving for via unification because they may be the
+@@ -413,7 +416,7 @@ func (check *Checker) renameTParams(pos syntax.Pos, tparams []*TypeParam, params
+ 	// Type parameter renaming turns the first example into the second
+ 	// example by renaming the type parameter P into P2.
+ 	if len(tparams) == 0 {
+-		return nil, params // nothing to do
++		return nil, typ // nothing to do
+ 	}
+ 
+ 	tparams2 := make([]*TypeParam, len(tparams))
+@@ -428,7 +431,7 @@ func (check *Checker) renameTParams(pos syntax.Pos, tparams []*TypeParam, params
+ 		tparams2[i].bound = check.subst(pos, tparam.bound, renameMap, nil, check.context())
+ 	}
+ 
+-	return tparams2, check.subst(pos, params, renameMap, nil, check.context()).(*Tuple)
++	return tparams2, check.subst(pos, typ, renameMap, nil, check.context())
+ }
+ 
+ // typeParamsString produces a string containing all the type parameter names
+diff --git a/src/go/types/call.go b/src/go/types/call.go
+index f03d9137a6..86c2da0522 100644
+--- a/src/go/types/call.go
++++ b/src/go/types/call.go
+@@ -100,10 +100,10 @@ func (check *Checker) funcInst(tsig *Signature, pos token.Pos, x *operand, ix *t
+ 		}
+ 
+ 		// Rename type parameters to avoid problems with recursive instantiations.
+-		// Note that NewTuple(params...) below is nil if len(params) == 0, as desired.
++		// Note that NewTuple(params...) below is (*Tuple)(nil) if len(params) == 0, as desired.
+ 		tparams, params2 := check.renameTParams(pos, sig.TypeParams().list(), NewTuple(params...))
+ 
+-		targs = check.infer(atPos(pos), tparams, targs, params2, args)
++		targs = check.infer(atPos(pos), tparams, targs, params2.(*Tuple), args)
+ 		if targs == nil {
+ 			// error was already reported
+ 			x.mode = invalid
+@@ -492,7 +492,9 @@ func (check *Checker) arguments(call *ast.CallExpr, sig *Signature, targs []Type
+ 			}
+ 		}
+ 		// rename type parameters to avoid problems with recursive calls
+-		tparams, sigParams = check.renameTParams(call.Pos(), sig.TypeParams().list(), sigParams)
++		var tmp Type
++		tparams, tmp = check.renameTParams(call.Pos(), sig.TypeParams().list(), sigParams)
++		sigParams = tmp.(*Tuple)
+ 	}
+ 
+ 	// collect type parameters from generic function arguments
+diff --git a/src/go/types/infer.go b/src/go/types/infer.go
+index 39bf4a14f7..6b90cd6de8 100644
+--- a/src/go/types/infer.go
++++ b/src/go/types/infer.go
+@@ -382,11 +382,14 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
+ 	return
+ }
+ 
+-// renameTParams renames the type parameters in a function signature described by its
+-// type and ordinary parameters (tparams and params) such that each type parameter is
+-// given a new identity. renameTParams returns the new type and ordinary parameters.
++// renameTParams renames the type parameters in the given type such that each type
++// parameter is given a new identity. renameTParams returns the new type parameters
++// and updated type. If the result type is unchanged from the argument type, none
++// of the type parameters in tparams occurred in the type.
++// If typ is a generic function, type parameters held with typ are not changed and
++// must be updated separately if desired.
+ // The positions is only used for debug traces.
+-func (check *Checker) renameTParams(pos token.Pos, tparams []*TypeParam, params *Tuple) ([]*TypeParam, *Tuple) {
++func (check *Checker) renameTParams(pos token.Pos, tparams []*TypeParam, typ Type) ([]*TypeParam, Type) {
+ 	// For the purpose of type inference we must differentiate type parameters
+ 	// occurring in explicit type or value function arguments from the type
+ 	// parameters we are solving for via unification because they may be the
+@@ -415,7 +418,7 @@ func (check *Checker) renameTParams(pos token.Pos, tparams []*TypeParam, params
+ 	// Type parameter renaming turns the first example into the second
+ 	// example by renaming the type parameter P into P2.
+ 	if len(tparams) == 0 {
+-		return nil, params // nothing to do
++		return nil, typ // nothing to do
+ 	}
+ 
+ 	tparams2 := make([]*TypeParam, len(tparams))
+@@ -430,7 +433,7 @@ func (check *Checker) renameTParams(pos token.Pos, tparams []*TypeParam, params
+ 		tparams2[i].bound = check.subst(pos, tparam.bound, renameMap, nil, check.context())
+ 	}
+ 
+-	return tparams2, check.subst(pos, params, renameMap, nil, check.context()).(*Tuple)
++	return tparams2, check.subst(pos, typ, renameMap, nil, check.context())
+ }
+ 
+ // typeParamsString produces a string containing all the type parameter names

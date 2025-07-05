@@ -9,7 +9,34 @@ Date:   Thu Jan 13 12:44:04 2011 -0800
     R=rsc, r
     CC=golang-dev
     https://golang.org/cl/3994041
-
+---
  src/cmd/godoc/format.go  | 2 +-
  src/cmd/godoc/snippet.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/godoc/format.go b/src/cmd/godoc/format.go
+index 9a739d33be..c6fd90eeba 100644
+--- a/src/cmd/godoc/format.go
++++ b/src/cmd/godoc/format.go
+@@ -93,7 +93,7 @@ func FormatSelections(w io.Writer, text []byte, lw LinkWriter, links Selection,
+ 	segment := func(end int) {
+ 		if lastOffs < end { // ignore empty segments
+ 			if last.end != lastOffs || last.bitset != bitset {
+-				// the last segment is not adjacent or
++				// the last segment is not adjacent to or
+ 				// differs from the new one
+ 				flush()
+ 				// start a new segment
+diff --git a/src/cmd/godoc/snippet.go b/src/cmd/godoc/snippet.go
+index 6a12febe14..c2838ed5a7 100755
+--- a/src/cmd/godoc/snippet.go
++++ b/src/cmd/godoc/snippet.go
+@@ -26,7 +26,7 @@ type Snippet struct {
+ func newSnippet(fset *token.FileSet, decl ast.Decl, id *ast.Ident) *Snippet {
+ 	// TODO instead of pretty-printing the node, should use the original source instead
+ 	var buf bytes.Buffer
+-	writeNode(&buf, fset, decl, true)
++	writeNode(&buf, fset, decl, false)
+ 	return &Snippet{fset.Position(id.Pos()).Line, FormatText(buf.Bytes(), -1, true, id.Name, nil)}
+ }
+ 

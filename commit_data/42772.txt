@@ -13,7 +13,7 @@ Date:   Fri Jan 10 11:15:41 2020 -0500
     Change-Id: I3465cad1b0ba0d912067429146f1cb0668d5aa6b
     Reviewed-on: https://go-review.googlesource.com/c/go/+/214284
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/go_test.go                              | 30 ----------------------
  .../go/testdata/script/install_cgo_excluded.txt    | 11 ++++++++
  src/cmd/go/testdata/script/list_dedup_packages.txt | 30 ++++++++++++++++++++++
@@ -22,3 +22,179 @@ Date:   Fri Jan 10 11:15:41 2020 -0500
  src/cmd/go/testdata/src/xtestonly/f.go             |  3 ---
  src/cmd/go/testdata/src/xtestonly/f_test.go        | 12 ---------
  7 files changed, 64 insertions(+), 50 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index f43c7becc2..d944ff7daf 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -1131,15 +1131,6 @@ func TestVersionControlErrorMessageIncludesCorrectDirectory(t *testing.T) {
+ 	tg.grepStderr(regexp.QuoteMeta(quoted), "go get -u error does not mention shadow/root1/src/foo")
+ }
+ 
+-func TestInstallFailsWithNoBuildableFiles(t *testing.T) {
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
+-	tg.setenv("CGO_ENABLED", "0")
+-	tg.runFail("install", "cgotest")
+-	tg.grepStderr("build constraints exclude all Go files", "go install cgotest did not report 'build constraints exclude all Go files'")
+-}
+-
+ // Issue 21895
+ func TestMSanAndRaceRequireCgo(t *testing.T) {
+ 	if !canMSan && !canRace {
+@@ -1254,19 +1245,6 @@ func TestGoListCmdOnlyShowsCommands(t *testing.T) {
+ 	}
+ }
+ 
+-func TestGoListDedupsPackages(t *testing.T) {
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	// TODO: tg.parallel()
+-	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
+-	tg.run("list", "xtestonly", "./testdata/src/xtestonly/...")
+-	got := strings.TrimSpace(tg.getStdout())
+-	const want = "xtestonly"
+-	if got != want {
+-		t.Errorf("got %q; want %q", got, want)
+-	}
+-}
+-
+ func TestGoListDeps(t *testing.T) {
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+@@ -2131,14 +2109,6 @@ func TestListTemplateContextFunction(t *testing.T) {
+ 	}
+ }
+ 
+-func TestGoTestXtestonlyWorks(t *testing.T) {
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
+-	tg.run("clean", "-i", "xtestonly")
+-	tg.run("test", "xtestonly")
+-}
+-
+ func TestGoTestBuildsAnXtestContainingOnlyNonRunnableExamples(t *testing.T) {
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+diff --git a/src/cmd/go/testdata/script/install_cgo_excluded.txt b/src/cmd/go/testdata/script/install_cgo_excluded.txt
+new file mode 100644
+index 0000000000..fa1fcd67a4
+--- /dev/null
++++ b/src/cmd/go/testdata/script/install_cgo_excluded.txt
+@@ -0,0 +1,11 @@
++env CGO_ENABLED=0
++
++! go install cgotest
++stderr 'build constraints exclude all Go files'
++
++-- cgotest/m.go --
++package cgotest
++
++import "C"
++
++var _ C.int
+diff --git a/src/cmd/go/testdata/script/list_dedup_packages.txt b/src/cmd/go/testdata/script/list_dedup_packages.txt
+new file mode 100644
+index 0000000000..ab7068cf15
+--- /dev/null
++++ b/src/cmd/go/testdata/script/list_dedup_packages.txt
+@@ -0,0 +1,30 @@
++# Setup
++mkdir $WORK/tmp/testdata/src/xtestonly
++cp f.go $WORK/tmp/testdata/src/xtestonly/f.go
++cp f_test.go $WORK/tmp/testdata/src/xtestonly/f_test.go
++env GOPATH=$WORK/tmp/testdata
++cd $WORK
++
++# Check output of go list to ensure no duplicates
++go list xtestonly ./testdata/src/xtestonly/...
++cmp stdout $WORK/gopath/src/wantstdout
++
++-- wantstdout --
++xtestonly
++-- f.go --
++package xtestonly
++
++func F() int { return 42 }
++-- f_test.go --
++package xtestonly_test
++
++import (
++	"testing"
++	"xtestonly"
++)
++
++func TestF(t *testing.T) {
++	if x := xtestonly.F(); x != 42 {
++		t.Errorf("f.F() = %d, want 42", x)
++	}
++}
+diff --git a/src/cmd/go/testdata/script/test_xtestonly_works.txt b/src/cmd/go/testdata/script/test_xtestonly_works.txt
+new file mode 100644
+index 0000000000..01bafb733b
+--- /dev/null
++++ b/src/cmd/go/testdata/script/test_xtestonly_works.txt
+@@ -0,0 +1,23 @@
++[short] skip
++
++go test xtestonly
++! stdout '^ok.*\[no tests to run\]'
++stdout '^ok'
++
++-- xtestonly/f.go --
++package xtestonly
++
++func F() int { return 42 }
++-- xtestonly/f_test.go --
++package xtestonly_test
++
++import (
++	"testing"
++	"xtestonly"
++)
++
++func TestF(t *testing.T) {
++	if x := xtestonly.F(); x != 42 {
++		t.Errorf("f.F() = %d, want 42", x)
++	}
++}
+diff --git a/src/cmd/go/testdata/src/cgotest/m.go b/src/cmd/go/testdata/src/cgotest/m.go
+deleted file mode 100644
+index 4d68307cf0..0000000000
+--- a/src/cmd/go/testdata/src/cgotest/m.go
++++ /dev/null
+@@ -1,5 +0,0 @@
+-package cgotest
+-
+-import "C"
+-
+-var _ C.int
+diff --git a/src/cmd/go/testdata/src/xtestonly/f.go b/src/cmd/go/testdata/src/xtestonly/f.go
+deleted file mode 100644
+index dac039e1ad..0000000000
+--- a/src/cmd/go/testdata/src/xtestonly/f.go
++++ /dev/null
+@@ -1,3 +0,0 @@
+-package xtestonly
+-
+-func F() int { return 42 }
+diff --git a/src/cmd/go/testdata/src/xtestonly/f_test.go b/src/cmd/go/testdata/src/xtestonly/f_test.go
+deleted file mode 100644
+index 01f6e83730..0000000000
+--- a/src/cmd/go/testdata/src/xtestonly/f_test.go
++++ /dev/null
+@@ -1,12 +0,0 @@
+-package xtestonly_test
+-
+-import (
+-	"testing"
+-	"xtestonly"
+-)
+-
+-func TestF(t *testing.T) {
+-	if x := xtestonly.F(); x != 42 {
+-		t.Errorf("f.F() = %d, want 42", x)
+-	}
+-}

@@ -7,6 +7,20 @@ Date:   Fri Dec 23 00:14:59 2011 +0900
     R=golang-dev, alex.brainman, rsc
     CC=golang-dev
     https://golang.org/cl/5502066
-
+---
  src/cmd/go/build.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 62c8d90d30..7e87956e7d 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -917,7 +917,7 @@ func (b *builder) gccCmd(objdir string, flags []string, args ...string) []string
+ 	if build.DefaultContext.CgoEnabled {
+ 		switch b.goos {
+ 		case "windows":
+-			a = append(a, "-mthread")
++			a = append(a, "-mthreads")
+ 		default:
+ 			a = append(a, "-pthread")
+ 		}

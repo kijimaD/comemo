@@ -9,8 +9,71 @@ Date:   Tue Jan 21 14:52:44 2014 -0800
     R=golang-codereviews, iant, mikioh.mikioh
     CC=golang-codereviews
     https://golang.org/cl/53470043
-
+---
  src/pkg/syscall/consistency_unix_test.go |  4 ++--
  src/pkg/syscall/flock.go                 | 22 ++++++++++++++++++++++
  src/pkg/syscall/flock_linux_32bit.go     | 13 +++++++++++++
  3 files changed, 37 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/syscall/consistency_unix_test.go b/src/pkg/syscall/consistency_unix_test.go
+index efab1ee848..6c9fb82356 100644
+--- a/src/pkg/syscall/consistency_unix_test.go
++++ b/src/pkg/syscall/consistency_unix_test.go
+@@ -37,8 +37,8 @@ func _() {
+ 	_ = syscall.Flock_t{
+ 		Type:   int16(0),
+ 		Whence: int16(0),
+-		Start:  0,
+-		Len:    0,
++		Start:  int64(0),
++		Len:    int64(0),
+ 		Pid:    int32(0),
+ 	}
+ }
+diff --git a/src/pkg/syscall/flock.go b/src/pkg/syscall/flock.go
+new file mode 100644
+index 0000000000..5e5f8b5d17
+--- /dev/null
++++ b/src/pkg/syscall/flock.go
+@@ -0,0 +1,22 @@
++// +build linux darwin freebsd openbsd netbsd dragonfly
++
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package syscall
++
++import "unsafe"
++
++// fcntl64Syscall is usually SYS_FCNTL, but is overridden on 32-bit Linux
++// systems by flock_linux_32bit.go to be SYS_FCNTL64.
++var fcntl64Syscall uintptr = SYS_FCNTL
++
++// Lock performs a fcntl syscall for F_GETLK, F_SETLK or F_SETLKW commands.
++func (lk *Flock_t) Lock(fd uintptr, cmd int) error {
++	_, _, errno := Syscall(fcntl64Syscall, fd, uintptr(cmd), uintptr(unsafe.Pointer(lk)))
++	if errno == 0 {
++		return nil
++	}
++	return errno
++}
+diff --git a/src/pkg/syscall/flock_linux_32bit.go b/src/pkg/syscall/flock_linux_32bit.go
+new file mode 100644
+index 0000000000..500a973449
+--- /dev/null
++++ b/src/pkg/syscall/flock_linux_32bit.go
+@@ -0,0 +1,13 @@
++// +build linux,386 linux,arm
++
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package syscall
++
++func init() {
++	// On 32-bit Linux systems, the fcntl syscall that matches Go's
++	// Flock_t type is SYS_FCNTL64, not SYS_FCNTL.
++	fcntl64Syscall = SYS_FCNTL64
++}

@@ -21,7 +21,7 @@ Date:   Tue Jan 7 13:45:50 2014 -0800
     R=cshapiro, khr, dvyukov, gobot
     CC=golang-codereviews
     https://golang.org/cl/13314053
-
+---
  src/pkg/runtime/malloc.goc |  23 +++--
  src/pkg/runtime/malloc.h   |  62 +++++++++++--
  src/pkg/runtime/mfinal.c   | 219 ---------------------------------------------
@@ -32,3 +32,1077 @@ Date:   Tue Jan 7 13:45:50 2014 -0800
  src/pkg/runtime/runtime.h  |   2 +-
  src/pkg/runtime/type.h     |   5 --
  9 files changed, 307 insertions(+), 458 deletions(-)
+
+diff --git a/src/pkg/runtime/malloc.goc b/src/pkg/runtime/malloc.goc
+index eb044384b5..81cda75dfd 100644
+--- a/src/pkg/runtime/malloc.goc
++++ b/src/pkg/runtime/malloc.goc
+@@ -139,7 +139,6 @@ runtime·mallocgc(uintptr size, uintptr typ, uint32 flag)
+ 				rate = 0x3fffffff;
+ 			m->mcache->next_sample = runtime·fastrand1() % (2*rate);
+ 		profile:
+-			runtime·setblockspecial(v, true);
+ 			runtime·MProf_Malloc(v, size, typ);
+ 		}
+ 	}
+@@ -165,7 +164,6 @@ runtime·free(void *v)
+ 	int32 sizeclass;
+ 	MSpan *s;
+ 	MCache *c;
+-	uint32 prof;
+ 	uintptr size;
+ 
+ 	if(v == nil)
+@@ -182,7 +180,6 @@ runtime·free(void *v)
+ 		runtime·printf("free %p: not an allocated block\n", v);
+ 		runtime·throw("free runtime·mlookup");
+ 	}
+-	prof = runtime·blockspecial(v);
+ 
+ 	if(raceenabled)
+ 		runtime·racefree(v);
+@@ -216,8 +213,8 @@ runtime·free(void *v)
+ 		c->local_nsmallfree[sizeclass]++;
+ 		runtime·MCache_Free(c, v, sizeclass, size);
+ 	}
+-	if(prof)
+-		runtime·MProf_Free(v, size);
++	if(s->specials != nil)
++		runtime·freeallspecials(s, v, size);
+ 	m->mallocing = 0;
+ }
+ 
+@@ -770,8 +767,6 @@ func SetFinalizer(obj Eface, finalizer Eface) {
+ 		runtime·printf("runtime.SetFinalizer: pointer not at beginning of allocated block\n");
+ 		goto throw;
+ 	}
+-	nret = 0;
+-	fint = nil;
+ 	if(finalizer.type != nil) {
+ 		if(finalizer.type->kind != KindFunc)
+ 			goto badfunc;
+@@ -792,16 +787,20 @@ func SetFinalizer(obj Eface, finalizer Eface) {
+ 			goto badfunc;
+ 
+ 		// compute size needed for return parameters
++		nret = 0;
+ 		for(i=0; i<ft->out.len; i++) {
+ 			t = ((Type**)ft->out.array)[i];
+ 			nret = ROUND(nret, t->align) + t->size;
+ 		}
+ 		nret = ROUND(nret, sizeof(void*));
+-	}
+-	
+-	if(!runtime·addfinalizer(obj.data, finalizer.data, nret, fint, ot)) {
+-		runtime·printf("runtime.SetFinalizer: finalizer already set\n");
+-		goto throw;
++		ot = (PtrType*)obj.type;
++		if(!runtime·addfinalizer(obj.data, finalizer.data, nret, fint, ot)) {
++			runtime·printf("runtime.SetFinalizer: finalizer already set\n");
++			goto throw;
++		}
++	} else {
++		// NOTE: asking to remove a finalizer when there currently isn't one set is OK.
++		runtime·removefinalizer(obj.data);
+ 	}
+ 	return;
+ 
+diff --git a/src/pkg/runtime/malloc.h b/src/pkg/runtime/malloc.h
+index 705b20199d..66154c0db6 100644
+--- a/src/pkg/runtime/malloc.h
++++ b/src/pkg/runtime/malloc.h
+@@ -341,6 +341,44 @@ struct MTypes
+ 	uintptr	data;
+ };
+ 
++enum
++{
++	KindSpecialFinalizer = 1,
++	KindSpecialProfile = 2,
++	// Note: The finalizer special must be first because if we're freeing
++	// an object, a finalizer special will cause the freeing operation
++	// to abort, and we want to keep the other special records around
++	// if that happens.
++};
++
++typedef struct Special Special;
++struct Special
++{
++	Special*	next;	// linked list in span
++	uint16		offset;	// span offset of object
++	byte		kind;	// kind of Special
++};
++
++// The described object has a finalizer set for it.
++typedef struct SpecialFinalizer SpecialFinalizer;
++struct SpecialFinalizer
++{
++	Special;
++	FuncVal*	fn;
++	uintptr		nret;
++	Type*		fint;
++	PtrType*	ot;
++};
++
++// The described object is being heap profiled.
++typedef struct Bucket Bucket; // from mprof.goc
++typedef struct SpecialProfile SpecialProfile;
++struct SpecialProfile
++{
++	Special;
++	Bucket*	b;
++};
++
+ // An MSpan is a run of pages.
+ enum
+ {
+@@ -356,14 +394,16 @@ struct MSpan
+ 	PageID	start;		// starting page number
+ 	uintptr	npages;		// number of pages in span
+ 	MLink	*freelist;	// list of free objects
+-	uint32	ref;		// number of allocated objects in this span
+-	int32	sizeclass;	// size class
++	uint16	ref;		// number of allocated objects in this span
++	uint8	sizeclass;	// size class
++	uint8	state;		// MSpanInUse etc
+ 	uintptr	elemsize;	// computed from sizeclass or from npages
+-	uint32	state;		// MSpanInUse etc
+ 	int64   unusedsince;	// First time spotted by GC in MSpanFree state
+ 	uintptr npreleased;	// number of pages released to the OS
+ 	byte	*limit;		// end of data in span
+ 	MTypes	types;		// types of allocated objects in this span
++	Lock	specialLock;	// TODO: use to protect types also (instead of settype_lock)
++	Special	*specials;	// linked list of special records sorted by offset.
+ };
+ 
+ void	runtime·MSpan_Init(MSpan *span, PageID start, uintptr npages);
+@@ -426,6 +466,9 @@ struct MHeap
+ 
+ 	FixAlloc spanalloc;	// allocator for Span*
+ 	FixAlloc cachealloc;	// allocator for MCache*
++	FixAlloc specialfinalizeralloc;	// allocator for SpecialFinalizer*
++	FixAlloc specialprofilealloc;	// allocator for SpecialProfile*
++	Lock speciallock; // lock for sepcial record allocators.
+ 
+ 	// Malloc stats.
+ 	uint64 largefree;	// bytes freed for large objects (>MaxSmallSize)
+@@ -457,8 +500,6 @@ void	runtime·checkfreed(void *v, uintptr n);
+ extern	int32	runtime·checking;
+ void	runtime·markspan(void *v, uintptr size, uintptr n, bool leftover);
+ void	runtime·unmarkspan(void *v, uintptr size);
+-bool	runtime·blockspecial(void*);
+-void	runtime·setblockspecial(void*, bool);
+ void	runtime·purgecachedstats(MCache*);
+ void*	runtime·cnew(Type*);
+ void*	runtime·cnewarray(Type*, intgo);
+@@ -478,13 +519,20 @@ enum
+ };
+ 
+ void	runtime·MProf_Malloc(void*, uintptr, uintptr);
+-void	runtime·MProf_Free(void*, uintptr);
++void	runtime·MProf_Free(Bucket*, void*, uintptr);
+ void	runtime·MProf_GC(void);
+ int32	runtime·gcprocs(void);
+ void	runtime·helpgc(int32 nproc);
+ void	runtime·gchelper(void);
+ 
+-void	runtime·walkfintab(void (*fn)(void*));
++void	runtime·setprofilebucket(void *p, Bucket *b);
++
++bool	runtime·addfinalizer(void*, FuncVal *fn, uintptr, Type*, PtrType*);
++void	runtime·removefinalizer(void*);
++void	runtime·queuefinalizer(byte *p, FuncVal *fn, uintptr nret, Type *fint, PtrType *ot);
++
++void	runtime·freeallspecials(MSpan *span, void *p, uintptr size);
++bool	runtime·freespecial(Special *s, void *p, uintptr size);
+ 
+ enum
+ {
+diff --git a/src/pkg/runtime/mfinal.c b/src/pkg/runtime/mfinal.c
+deleted file mode 100644
+index 3e524d3e09..0000000000
+--- a/src/pkg/runtime/mfinal.c
++++ /dev/null
+@@ -1,219 +0,0 @@
+-// Copyright 2010 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "runtime.h"
+-#include "arch_GOARCH.h"
+-#include "malloc.h"
+-#include "type.h"
+-
+-enum { debug = 0 };
+-
+-typedef struct Fin Fin;
+-struct Fin
+-{
+-	FuncVal *fn;
+-	uintptr nret;
+-	Type *fint;
+-	PtrType *ot;
+-};
+-
+-// Finalizer hash table.  Direct hash, linear scan, at most 3/4 full.
+-// Table size is power of 3 so that hash can be key % max.
+-// Key[i] == (void*)-1 denotes free but formerly occupied entry
+-// (doesn't stop the linear scan).
+-// Key and val are separate tables because the garbage collector
+-// must be instructed to ignore the pointers in key but follow the
+-// pointers in val.
+-typedef struct Fintab Fintab;
+-struct Fintab
+-{
+-	Lock;
+-	void **key;
+-	Fin *val;
+-	int32 nkey;	// number of non-nil entries in key
+-	int32 ndead;	// number of dead (-1) entries in key
+-	int32 max;	// size of key, val allocations
+-};
+-
+-#define TABSZ 17
+-#define TAB(p) (&fintab[((uintptr)(p)>>3)%TABSZ])
+-
+-static struct {
+-	Fintab;
+-	uint8 pad[CacheLineSize - sizeof(Fintab)];	
+-} fintab[TABSZ];
+-
+-static void
+-addfintab(Fintab *t, void *k, FuncVal *fn, uintptr nret, Type *fint, PtrType *ot)
+-{
+-	int32 i, j;
+-
+-	i = (uintptr)k % (uintptr)t->max;
+-	for(j=0; j<t->max; j++) {
+-		if(t->key[i] == nil) {
+-			t->nkey++;
+-			goto ret;
+-		}
+-		if(t->key[i] == (void*)-1) {
+-			t->ndead--;
+-			goto ret;
+-		}
+-		if(++i == t->max)
+-			i = 0;
+-	}
+-
+-	// cannot happen - table is known to be non-full
+-	runtime·throw("finalizer table inconsistent");
+-
+-ret:
+-	t->key[i] = k;
+-	t->val[i].fn = fn;
+-	t->val[i].nret = nret;
+-	t->val[i].fint = fint;
+-	t->val[i].ot = ot;
+-}
+-
+-static bool
+-lookfintab(Fintab *t, void *k, bool del, Fin *f)
+-{
+-	int32 i, j;
+-
+-	if(t->max == 0)
+-		return false;
+-	i = (uintptr)k % (uintptr)t->max;
+-	for(j=0; j<t->max; j++) {
+-		if(t->key[i] == nil)
+-			return false;
+-		if(t->key[i] == k) {
+-			if(f)
+-				*f = t->val[i];
+-			if(del) {
+-				t->key[i] = (void*)-1;
+-				t->val[i].fn = nil;
+-				t->val[i].nret = 0;
+-				t->val[i].ot = nil;
+-				t->ndead++;
+-			}
+-			return true;
+-		}
+-		if(++i == t->max)
+-			i = 0;
+-	}
+-
+-	// cannot happen - table is known to be non-full
+-	runtime·throw("finalizer table inconsistent");
+-	return false;
+-}
+-
+-static void
+-resizefintab(Fintab *tab)
+-{
+-	Fintab newtab;
+-	void *k;
+-	int32 i;
+-
+-	runtime·memclr((byte*)&newtab, sizeof newtab);
+-	newtab.max = tab->max;
+-	if(newtab.max == 0)
+-		newtab.max = 3*3*3;
+-	else if(tab->ndead < tab->nkey/2) {
+-		// grow table if not many dead values.
+-		// otherwise just rehash into table of same size.
+-		newtab.max *= 3;
+-	}
+-	
+-	newtab.key = runtime·mallocgc(newtab.max*sizeof newtab.key[0], 0, FlagNoInvokeGC|FlagNoScan);
+-	newtab.val = runtime·mallocgc(newtab.max*sizeof newtab.val[0], 0, FlagNoInvokeGC);
+-	
+-	for(i=0; i<tab->max; i++) {
+-		k = tab->key[i];
+-		if(k != nil && k != (void*)-1)
+-			addfintab(&newtab, k, tab->val[i].fn, tab->val[i].nret, tab->val[i].fint, tab->val[i].ot);
+-	}
+-	
+-	runtime·free(tab->key);
+-	runtime·free(tab->val);
+-	
+-	tab->key = newtab.key;
+-	tab->val = newtab.val;
+-	tab->nkey = newtab.nkey;
+-	tab->ndead = newtab.ndead;
+-	tab->max = newtab.max;
+-}
+-
+-bool
+-runtime·addfinalizer(void *p, FuncVal *f, uintptr nret, Type *fint, PtrType *ot)
+-{
+-	Fintab *tab;
+-	byte *base;
+-	
+-	if(debug) {
+-		if(!runtime·mlookup(p, &base, nil, nil) || p != base)
+-			runtime·throw("addfinalizer on invalid pointer");
+-	}
+-	
+-	tab = TAB(p);
+-	runtime·lock(tab);
+-	if(f == nil) {
+-		lookfintab(tab, p, true, nil);
+-		runtime·unlock(tab);
+-		return true;
+-	}
+-
+-	if(lookfintab(tab, p, false, nil)) {
+-		runtime·unlock(tab);
+-		return false;
+-	}
+-
+-	if(tab->nkey >= tab->max/2+tab->max/4) {
+-		// keep table at most 3/4 full:
+-		// allocate new table and rehash.
+-		resizefintab(tab);
+-	}
+-
+-	addfintab(tab, p, f, nret, fint, ot);
+-	runtime·setblockspecial(p, true);
+-	runtime·unlock(tab);
+-	return true;
+-}
+-
+-// get finalizer; if del, delete finalizer.
+-// caller is responsible for updating RefHasFinalizer (special) bit.
+-bool
+-runtime·getfinalizer(void *p, bool del, FuncVal **fn, uintptr *nret, Type **fint, PtrType **ot)
+-{
+-	Fintab *tab;
+-	bool res;
+-	Fin f;
+-	
+-	tab = TAB(p);
+-	runtime·lock(tab);
+-	res = lookfintab(tab, p, del, &f);
+-	runtime·unlock(tab);
+-	if(res==false)
+-		return false;
+-	*fn = f.fn;
+-	*nret = f.nret;
+-	*fint = f.fint;
+-	*ot = f.ot;
+-	return true;
+-}
+-
+-void
+-runtime·walkfintab(void (*fn)(void*))
+-{
+-	void **key;
+-	void **ekey;
+-	int32 i;
+-
+-	for(i=0; i<TABSZ; i++) {
+-		runtime·lock(&fintab[i]);
+-		key = fintab[i].key;
+-		ekey = key + fintab[i].max;
+-		for(; key < ekey; key++)
+-			if(*key != nil && *key != ((void*)-1))
+-				fn(*key);
+-		runtime·unlock(&fintab[i]);
+-	}
+-}
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index 6fc88bf10b..8014fe4689 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -1602,20 +1602,6 @@ addstackroots(G *gp)
+ 	}
+ }
+ 
+-static void
+-addfinroots(void *v)
+-{
+-	uintptr size;
+-	void *base;
+-
+-	size = 0;
+-	if(!runtime·mlookup(v, &base, &size, nil) || !runtime·blockspecial(base))
+-		runtime·throw("mark - finalizer inconsistency");
+-
+-	// do not mark the finalizer block itself.  just mark the things it points at.
+-	addroot((Obj){base, size, 0});
+-}
+-
+ static void
+ addroots(void)
+ {
+@@ -1623,6 +1609,8 @@ addroots(void)
+ 	FinBlock *fb;
+ 	MSpan *s, **allspans;
+ 	uint32 spanidx;
++	Special *sp;
++	SpecialFinalizer *spf;
+ 
+ 	work.nroot = 0;
+ 
+@@ -1652,6 +1640,29 @@ addroots(void)
+ 		}
+ 	}
+ 
++	// MSpan.specials
++	allspans = runtime·mheap.allspans;
++	for(spanidx=0; spanidx<runtime·mheap.nspan; spanidx++) {
++		s = allspans[spanidx];
++		if(s->state != MSpanInUse)
++			continue;
++		for(sp = s->specials; sp != nil; sp = sp->next) {
++			switch(sp->kind) {
++				case KindSpecialFinalizer:
++					spf = (SpecialFinalizer*)sp;
++					// don't mark finalized object, but scan it so we
++					// retain everything it points to.
++					addroot((Obj){(void*)((s->start << PageShift) + spf->offset), s->elemsize, 0});
++					addroot((Obj){(void*)&spf->fn, PtrSize, 0});
++					addroot((Obj){(void*)&spf->fint, PtrSize, 0});
++					addroot((Obj){(void*)&spf->ot, PtrSize, 0});
++					break;
++				case KindSpecialProfile:
++					break;
++			}
++		}
++	}
++
+ 	// stacks
+ 	for(gp=runtime·allg; gp!=nil; gp=gp->alllink) {
+ 		switch(gp->status){
+@@ -1670,8 +1681,6 @@ addroots(void)
+ 		}
+ 	}
+ 
+-	runtime·walkfintab(addfinroots);
+-
+ 	for(fb=allfin; fb; fb=fb->alllink)
+ 		addroot((Obj){(byte*)fb->fin, fb->cnt*sizeof(fb->fin[0]), 0});
+ }
+@@ -1698,22 +1707,12 @@ addfreelists(void)
+ 	// Note: the sweeper will mark objects in each span's freelist.
+ }
+ 
+-static bool
+-handlespecial(byte *p, uintptr size)
++void
++runtime·queuefinalizer(byte *p, FuncVal *fn, uintptr nret, Type *fint, PtrType *ot)
+ {
+-	FuncVal *fn;
+-	uintptr nret;
+-	PtrType *ot;
+-	Type *fint;
+ 	FinBlock *block;
+ 	Finalizer *f;
+ 
+-	if(!runtime·getfinalizer(p, true, &fn, &nret, &fint, &ot)) {
+-		runtime·setblockspecial(p, false);
+-		runtime·MProf_Free(p, size);
+-		return false;
+-	}
+-
+ 	runtime·lock(&finlock);
+ 	if(finq == nil || finq->cnt == finq->cap) {
+ 		if(finc == nil) {
+@@ -1735,7 +1734,6 @@ handlespecial(byte *p, uintptr size)
+ 	f->ot = ot;
+ 	f->arg = p;
+ 	runtime·unlock(&finlock);
+-	return true;
+ }
+ 
+ // Sweep frees or collects finalizers for blocks not marked in the mark phase.
+@@ -1744,7 +1742,7 @@ static void
+ sweepspan(ParFor *desc, uint32 idx)
+ {
+ 	int32 cl, n, npages;
+-	uintptr size, off, *bitp, shift;
++	uintptr size, off, *bitp, shift, bits;
+ 	byte *p;
+ 	MCache *c;
+ 	byte *arena_start;
+@@ -1755,13 +1753,13 @@ sweepspan(ParFor *desc, uint32 idx)
+ 	uintptr type_data_inc;
+ 	MSpan *s;
+ 	MLink *x;
++	Special *special, **specialp, *y;
+ 
+ 	USED(&desc);
+ 	s = runtime·mheap.allspans[idx];
+ 	if(s->state != MSpanInUse)
+ 		return;
+ 	arena_start = runtime·mheap.arena_start;
+-	p = (byte*)(s->start << PageShift);
+ 	cl = s->sizeclass;
+ 	size = s->elemsize;
+ 	if(cl == 0) {
+@@ -1786,6 +1784,31 @@ sweepspan(ParFor *desc, uint32 idx)
+ 		*bitp |= bitMarked<<shift;
+ 	}
+ 	
++	// Unlink & free special records for any objects we're about to free.
++	specialp = &s->specials;
++	special = *specialp;
++	while(special != nil) {
++		p = (byte*)(s->start << PageShift) + special->offset;
++		off = (uintptr*)p - (uintptr*)arena_start;
++		bitp = (uintptr*)arena_start - off/wordsPerBitmapWord - 1;
++		shift = off % wordsPerBitmapWord;
++		bits = *bitp>>shift;
++		if((bits & (bitAllocated|bitMarked)) == bitAllocated) {
++			// about to free object: splice out special record
++			y = special;
++			special = special->next;
++			*specialp = special;
++			if(!runtime·freespecial(y, p, size)) {
++				// stop freeing of object if it has a finalizer
++				*bitp |= bitMarked << shift;
++			}
++		} else {
++			// object is still live: keep special record
++			specialp = &special->next;
++			special = *specialp;
++		}
++	}
++
+ 	type_data = (byte*)s->types.data;
+ 	type_data_inc = sizeof(uintptr);
+ 	compression = s->types.compression;
+@@ -1799,9 +1822,8 @@ sweepspan(ParFor *desc, uint32 idx)
+ 	// Sweep through n objects of given size starting at p.
+ 	// This thread owns the span now, so it can manipulate
+ 	// the block bitmap without atomic operations.
++	p = (byte*)(s->start << PageShift);
+ 	for(; n > 0; n--, p += size, type_data+=type_data_inc) {
+-		uintptr off, *bitp, shift, bits;
+-
+ 		off = (uintptr*)p - (uintptr*)arena_start;
+ 		bitp = (uintptr*)arena_start - off/wordsPerBitmapWord - 1;
+ 		shift = off % wordsPerBitmapWord;
+@@ -1820,14 +1842,6 @@ sweepspan(ParFor *desc, uint32 idx)
+ 			continue;
+ 		}
+ 
+-		// Special means it has a finalizer or is being profiled.
+-		// In DebugMark mode, the bit has been coopted so
+-		// we have to assume all blocks are special.
+-		if(DebugMark || (bits & bitSpecial) != 0) {
+-			if(handlespecial(p, size))
+-				continue;
+-		}
+-
+ 		// Clear mark, scan, and special bits.
+ 		*bitp &= ~((bitScan|bitMarked|bitSpecial)<<shift);
+ 
+@@ -2643,50 +2657,6 @@ runtime·unmarkspan(void *v, uintptr n)
+ 		*b-- = 0;
+ }
+ 
+-bool
+-runtime·blockspecial(void *v)
+-{
+-	uintptr *b, off, shift;
+-
+-	if(DebugMark)
+-		return true;
+-
+-	off = (uintptr*)v - (uintptr*)runtime·mheap.arena_start;
+-	b = (uintptr*)runtime·mheap.arena_start - off/wordsPerBitmapWord - 1;
+-	shift = off % wordsPerBitmapWord;
+-
+-	return (*b & (bitSpecial<<shift)) != 0;
+-}
+-
+-void
+-runtime·setblockspecial(void *v, bool s)
+-{
+-	uintptr *b, off, shift, bits, obits;
+-
+-	if(DebugMark)
+-		return;
+-
+-	off = (uintptr*)v - (uintptr*)runtime·mheap.arena_start;
+-	b = (uintptr*)runtime·mheap.arena_start - off/wordsPerBitmapWord - 1;
+-	shift = off % wordsPerBitmapWord;
+-
+-	for(;;) {
+-		obits = *b;
+-		if(s)
+-			bits = obits | (bitSpecial<<shift);
+-		else
+-			bits = obits & ~(bitSpecial<<shift);
+-		if(runtime·gomaxprocs == 1) {
+-			*b = bits;
+-			break;
+-		} else {
+-			// more than one goroutine is potentially running: use atomic op
+-			if(runtime·casp((void**)b, (void*)obits, (void*)bits))
+-				break;
+-		}
+-	}
+-}
+-
+ void
+ runtime·MHeap_MapBits(MHeap *h)
+ {
+diff --git a/src/pkg/runtime/mheap.c b/src/pkg/runtime/mheap.c
+index fc80c2600e..1a926a413b 100644
+--- a/src/pkg/runtime/mheap.c
++++ b/src/pkg/runtime/mheap.c
+@@ -57,6 +57,8 @@ runtime·MHeap_Init(MHeap *h)
+ 
+ 	runtime·FixAlloc_Init(&h->spanalloc, sizeof(MSpan), RecordSpan, h, &mstats.mspan_sys);
+ 	runtime·FixAlloc_Init(&h->cachealloc, sizeof(MCache), nil, nil, &mstats.mcache_sys);
++	runtime·FixAlloc_Init(&h->specialfinalizeralloc, sizeof(SpecialFinalizer), nil, nil, &mstats.other_sys);
++	runtime·FixAlloc_Init(&h->specialprofilealloc, sizeof(SpecialProfile), nil, nil, &mstats.other_sys);
+ 	// h->mapcache needs no init
+ 	for(i=0; i<nelem(h->free); i++)
+ 		runtime·MSpanList_Init(&h->free[i]);
+@@ -508,6 +510,8 @@ runtime·MSpan_Init(MSpan *span, PageID start, uintptr npages)
+ 	span->unusedsince = 0;
+ 	span->npreleased = 0;
+ 	span->types.compression = MTypes_Empty;
++	span->specialLock.key = 0;
++	span->specials = nil;
+ }
+ 
+ // Initialize an empty doubly-linked list.
+@@ -549,4 +553,178 @@ runtime·MSpanList_Insert(MSpan *list, MSpan *span)
+ 	span->prev->next = span;
+ }
+ 
++// Adds the special record s to the list of special records for
++// the object p.  All fields of s should be filled in except for
++// offset & next, which this routine will fill in.
++// Returns true if the special was successfully added, false otherwise.
++// (The add will fail only if a record with the same p and s->kind
++//  already exists.)
++static bool
++addspecial(void *p, Special *s)
++{
++	MSpan *span;
++	Special **t, *x;
++	uintptr offset;
++	byte kind;
++
++	span = runtime·MHeap_LookupMaybe(&runtime·mheap, p);
++	if(span == nil)
++		runtime·throw("addspecial on invalid pointer");
++	offset = (uintptr)p - (span->start << PageShift);
++	kind = s->kind;
++
++	runtime·lock(&span->specialLock);
++
++	// Find splice point, check for existing record.
++	t = &span->specials;
++	while((x = *t) != nil) {
++		if(offset == x->offset && kind == x->kind) {
++			runtime·unlock(&span->specialLock);
++			return false; // already exists
++		}
++		if(offset < x->offset || (offset == x->offset && kind < x->kind))
++			break;
++		t = &x->next;
++	}
++	// Splice in record, fill in offset.
++	s->offset = offset;
++	s->next = x;
++	*t = s;
++	runtime·unlock(&span->specialLock);
++	return true;
++}
++
++// Removes the Special record of the given kind for the object p.
++// Returns the record if the record existed, nil otherwise.
++// The caller must FixAlloc_Free the result.
++static Special*
++removespecial(void *p, byte kind)
++{
++	MSpan *span;
++	Special *s, **t;
++	uintptr offset;
++
++	span = runtime·MHeap_LookupMaybe(&runtime·mheap, p);
++	if(span == nil)
++		runtime·throw("removespecial on invalid pointer");
++	offset = (uintptr)p - (span->start << PageShift);
++
++	runtime·lock(&span->specialLock);
++	t = &span->specials;
++	while((s = *t) != nil) {
++		if(offset == s->offset && kind == s->kind) {
++			*t = s->next;
++			runtime·unlock(&span->specialLock);
++			return s;
++		}
++		t = &s->next;
++	}
++	runtime·unlock(&span->specialLock);
++	return nil;
++}
++
++// Adds a finalizer to the object p.  Returns true if it succeeded.
++bool
++runtime·addfinalizer(void *p, FuncVal *f, uintptr nret, Type *fint, PtrType *ot)
++{
++	SpecialFinalizer *s;
++
++	runtime·lock(&runtime·mheap.speciallock);
++	s = runtime·FixAlloc_Alloc(&runtime·mheap.specialfinalizeralloc);
++	runtime·unlock(&runtime·mheap.speciallock);
++	s->kind = KindSpecialFinalizer;
++	s->fn = f;
++	s->nret = nret;
++	s->fint = fint;
++	s->ot = ot;
++	if(addspecial(p, s))
++		return true;
++
++	// There was an old finalizer
++	runtime·lock(&runtime·mheap.speciallock);
++	runtime·FixAlloc_Free(&runtime·mheap.specialfinalizeralloc, s);
++	runtime·unlock(&runtime·mheap.speciallock);
++	return false;
++}
++
++// Removes the finalizer (if any) from the object p.
++void
++runtime·removefinalizer(void *p)
++{
++	SpecialFinalizer *s;
++
++	s = (SpecialFinalizer*)removespecial(p, KindSpecialFinalizer);
++	if(s == nil)
++		return; // there wasn't a finalizer to remove
++	runtime·lock(&runtime·mheap.speciallock);
++	runtime·FixAlloc_Free(&runtime·mheap.specialfinalizeralloc, s);
++	runtime·unlock(&runtime·mheap.speciallock);
++}
++
++// Set the heap profile bucket associated with addr to b.
++void
++runtime·setprofilebucket(void *p, Bucket *b)
++{
++	SpecialProfile *s;
++
++	runtime·lock(&runtime·mheap.speciallock);
++	s = runtime·FixAlloc_Alloc(&runtime·mheap.specialprofilealloc);
++	runtime·unlock(&runtime·mheap.speciallock);
++	s->kind = KindSpecialProfile;
++	s->b = b;
++	if(!addspecial(p, s))
++		runtime·throw("setprofilebucket: profile already set");
++}
++
++// Do whatever cleanup needs to be done to deallocate s.  It has
++// already been unlinked from the MSpan specials list.
++// Returns true if we should keep working on deallocating p.
++bool
++runtime·freespecial(Special *s, void *p, uintptr size)
++{
++	SpecialFinalizer *sf;
++	SpecialProfile *sp;
++
++	switch(s->kind) {
++	case KindSpecialFinalizer:
++		sf = (SpecialFinalizer*)s;
++		runtime·queuefinalizer(p, sf->fn, sf->nret, sf->fint, sf->ot);
++		runtime·lock(&runtime·mheap.speciallock);
++		runtime·FixAlloc_Free(&runtime·mheap.specialfinalizeralloc, sf);
++		runtime·unlock(&runtime·mheap.speciallock);
++		return false; // don't free p until finalizer is done
++	case KindSpecialProfile:
++		sp = (SpecialProfile*)s;
++		runtime·MProf_Free(sp->b, p, size);
++		runtime·lock(&runtime·mheap.speciallock);
++		runtime·FixAlloc_Free(&runtime·mheap.specialprofilealloc, sp);
++		runtime·unlock(&runtime·mheap.speciallock);
++		return true;
++	default:
++		runtime·throw("bad special kind");
++		return true;
++	}
++}
+ 
++// Free all special records for p.
++void
++runtime·freeallspecials(MSpan *span, void *p, uintptr size)
++{
++	Special *s, **t;
++	uintptr offset;
++
++	offset = (uintptr)p - (span->start << PageShift);
++	runtime·lock(&span->specialLock);
++	t = &span->specials;
++	while((s = *t) != nil) {
++		if(offset < s->offset)
++			break;
++		if(offset == s->offset) {
++			*t = s->next;
++			if(!runtime·freespecial(s, p, size))
++				runtime·throw("can't explicitly free an object with a finalizer");
++		} else
++			t = &s->next;
++	}
++	runtime·unlock(&span->specialLock);
++}
+diff --git a/src/pkg/runtime/mprof.goc b/src/pkg/runtime/mprof.goc
+index 58d9e1c613..5523a91446 100644
+--- a/src/pkg/runtime/mprof.goc
++++ b/src/pkg/runtime/mprof.goc
+@@ -22,7 +22,6 @@ enum { MProf, BProf };  // profile types
+ 
+ // Per-call-stack profiling information.
+ // Lookup by hashing call stack into a linked-list hash table.
+-typedef struct Bucket Bucket;
+ struct Bucket
+ {
+ 	Bucket	*next;	// next in hash list
+@@ -138,115 +137,6 @@ runtime·MProf_GC(void)
+ 	runtime·unlock(&proflock);
+ }
+ 
+-// Map from pointer to Bucket* that allocated it.
+-// Three levels:
+-//	Linked-list hash table for top N-AddrHashShift bits.
+-//	Array index for next AddrDenseBits bits.
+-//	Linked list for next AddrHashShift-AddrDenseBits bits.
+-// This is more efficient than using a general map,
+-// because of the typical clustering of the pointer keys.
+-
+-typedef struct AddrHash AddrHash;
+-typedef struct AddrEntry AddrEntry;
+-
+-enum {
+-	AddrHashBits = 12,	// good for 4GB of used address space
+-	AddrHashShift = 20,	// each AddrHash knows about 1MB of address space
+-	AddrDenseBits = 8,	// good for a profiling rate of 4096 bytes
+-};
+-
+-struct AddrHash
+-{
+-	AddrHash *next;	// next in top-level hash table linked list
+-	uintptr addr;	// addr>>20
+-	AddrEntry *dense[1<<AddrDenseBits];
+-};
+-
+-struct AddrEntry
+-{
+-	AddrEntry *next;	// next in bottom-level linked list
+-	uint32 addr;
+-	Bucket *b;
+-};
+-
+-static AddrHash **addrhash;	// points to (AddrHash*)[1<<AddrHashBits]
+-static AddrEntry *addrfree;
+-static uintptr addrmem;
+-
+-// Multiplicative hash function:
+-// hashMultiplier is the bottom 32 bits of int((sqrt(5)-1)/2 * (1<<32)).
+-// This is a good multiplier as suggested in CLR, Knuth.  The hash
+-// value is taken to be the top AddrHashBits bits of the bottom 32 bits
+-// of the multiplied value.
+-enum {
+-	HashMultiplier = 2654435769U
+-};
+-
+-// Set the bucket associated with addr to b.
+-static void
+-setaddrbucket(uintptr addr, Bucket *b)
+-{
+-	int32 i;
+-	uint32 h;
+-	AddrHash *ah;
+-	AddrEntry *e;
+-
+-	h = (uint32)((addr>>AddrHashShift)*HashMultiplier) >> (32-AddrHashBits);
+-	for(ah=addrhash[h]; ah; ah=ah->next)
+-		if(ah->addr == (addr>>AddrHashShift))
+-			goto found;
+-
+-	ah = runtime·persistentalloc(sizeof *ah, 0, &mstats.buckhash_sys);
+-	addrmem += sizeof *ah;
+-	ah->next = addrhash[h];
+-	ah->addr = addr>>AddrHashShift;
+-	addrhash[h] = ah;
+-
+-found:
+-	if((e = addrfree) == nil) {
+-		e = runtime·persistentalloc(64*sizeof *e, 0, &mstats.buckhash_sys);
+-		addrmem += 64*sizeof *e;
+-		for(i=0; i+1<64; i++)
+-			e[i].next = &e[i+1];
+-		e[63].next = nil;
+-	}
+-	addrfree = e->next;
+-	e->addr = (uint32)~(addr & ((1<<AddrHashShift)-1));
+-	e->b = b;
+-	h = (addr>>(AddrHashShift-AddrDenseBits))&(nelem(ah->dense)-1);	// entry in dense is top 8 bits of low 20.
+-	e->next = ah->dense[h];
+-	ah->dense[h] = e;
+-}
+-
+-// Get the bucket associated with addr and clear the association.
+-static Bucket*
+-getaddrbucket(uintptr addr)
+-{
+-	uint32 h;
+-	AddrHash *ah;
+-	AddrEntry *e, **l;
+-	Bucket *b;
+-
+-	h = (uint32)((addr>>AddrHashShift)*HashMultiplier) >> (32-AddrHashBits);
+-	for(ah=addrhash[h]; ah; ah=ah->next)
+-		if(ah->addr == (addr>>AddrHashShift))
+-			goto found;
+-	return nil;
+-
+-found:
+-	h = (addr>>(AddrHashShift-AddrDenseBits))&(nelem(ah->dense)-1);	// entry in dense is top 8 bits of low 20.
+-	for(l=&ah->dense[h]; (e=*l) != nil; l=&e->next) {
+-		if(e->addr == (uint32)~(addr & ((1<<AddrHashShift)-1))) {
+-			*l = e->next;
+-			b = e->b;
+-			e->next = addrfree;
+-			addrfree = e;
+-			return b;
+-		}
+-	}
+-	return nil;
+-}
+-
+ static int8*
+ typeinfoname(int32 typeinfo)
+ {
+@@ -307,25 +197,20 @@ runtime·MProf_Malloc(void *p, uintptr size, uintptr typ)
+ 	b = stkbucket(MProf, stk, nstk, true);
+ 	b->recent_allocs++;
+ 	b->recent_alloc_bytes += size;
+-	setaddrbucket((uintptr)p, b);
++	runtime·setprofilebucket(p, b);
+ 	runtime·unlock(&proflock);
+ }
+ 
+ // Called when freeing a profiled block.
+ void
+-runtime·MProf_Free(void *p, uintptr size)
++runtime·MProf_Free(Bucket *b, void *p, uintptr size)
+ {
+-	Bucket *b;
+-
+ 	runtime·lock(&proflock);
+-	b = getaddrbucket((uintptr)p);
+-	if(b != nil) {
+-		b->recent_frees++;
+-		b->recent_free_bytes += size;
+-		if(runtime·debug.allocfreetrace) {
+-			runtime·printf("MProf_Free(p=%p, size=%p)\n", p, size);
+-			printstackframes(b->stk, b->nstk);
+-		}
++	b->recent_frees++;
++	b->recent_free_bytes += size;
++	if(runtime·debug.allocfreetrace) {
++		runtime·printf("MProf_Free(p=%p, size=%p)\n", p, size);
++		printstackframes(b->stk, b->nstk);
+ 	}
+ 	runtime·unlock(&proflock);
+ }
+@@ -565,9 +450,3 @@ func GoroutineProfile(b Slice) (n int, ok bool) {
+ 		runtime·starttheworld();
+ 	}
+ }
+-
+-void
+-runtime·mprofinit(void)
+-{
+-	addrhash = runtime·persistentalloc((1<<AddrHashBits)*sizeof *addrhash, 0, &mstats.buckhash_sys);
+-}
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index ed3e1e73ee..60cf02022b 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -133,7 +133,6 @@ runtime·schedinit(void)
+ 	runtime·sched.maxmcount = 10000;
+ 	runtime·precisestack = haveexperiment("precisestack");
+ 
+-	runtime·mprofinit();
+ 	runtime·mallocinit();
+ 	mcommoninit(m);
+ 	
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 9e4cc80284..ef783efae0 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -66,6 +66,7 @@ typedef	struct	Itab		Itab;
+ typedef	struct	InterfaceType	InterfaceType;
+ typedef	struct	Eface		Eface;
+ typedef	struct	Type		Type;
++typedef	struct	PtrType		PtrType;
+ typedef	struct	ChanType		ChanType;
+ typedef	struct	MapType		MapType;
+ typedef	struct	Defer		Defer;
+@@ -810,7 +811,6 @@ void	runtime·stackfree(void*, uintptr);
+ MCache*	runtime·allocmcache(void);
+ void	runtime·freemcache(MCache*);
+ void	runtime·mallocinit(void);
+-void	runtime·mprofinit(void);
+ bool	runtime·ifaceeq_c(Iface, Iface);
+ bool	runtime·efaceeq_c(Eface, Eface);
+ uintptr	runtime·ifacehash(Iface, uintptr);
+diff --git a/src/pkg/runtime/type.h b/src/pkg/runtime/type.h
+index 6052e24234..ff0505be87 100644
+--- a/src/pkg/runtime/type.h
++++ b/src/pkg/runtime/type.h
+@@ -15,7 +15,6 @@ typedef struct Method Method;
+ typedef struct IMethod IMethod;
+ typedef struct SliceType SliceType;
+ typedef struct FuncType FuncType;
+-typedef struct PtrType PtrType;
+ 
+ // Needs to be in sync with typekind.h/CommonSize
+ struct Type
+@@ -101,7 +100,3 @@ struct PtrType
+ 	Type;
+ 	Type *elem;
+ };
+-
+-// Here instead of in runtime.h because it uses the type names.
+-bool	runtime·addfinalizer(void*, FuncVal *fn, uintptr, Type*, PtrType*);
+-bool	runtime·getfinalizer(void *p, bool del, FuncVal **fn, uintptr *nret, Type**, PtrType**);

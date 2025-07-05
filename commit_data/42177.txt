@@ -18,7 +18,72 @@ Date:   Mon Nov 11 16:45:34 2019 -0800
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/escape.go |  9 +++++++++
  test/fixedbugs/issue35518.go          | 36 +++++++++++++++++++++++++++++++++++
  2 files changed, 45 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/escape.go b/src/cmd/compile/internal/gc/escape.go
+index 0f71f9990b..76c91ba2d2 100644
+--- a/src/cmd/compile/internal/gc/escape.go
++++ b/src/cmd/compile/internal/gc/escape.go
+@@ -1226,8 +1226,17 @@ func (e *Escape) walkOne(root *EscLocation, walkgen uint32, enqueue func(*EscLoc
+ 
+ // explainPath prints an explanation of how src flows to the walk root.
+ func (e *Escape) explainPath(root, src *EscLocation) {
++	visited := make(map[*EscLocation]bool)
++
+ 	pos := linestr(src.n.Pos)
+ 	for {
++		// Prevent infinite loop.
++		if visited[src] {
++			fmt.Printf("%s:   warning: truncated explanation due to assignment cycle; see golang.org/issue/35518\n", pos)
++			break
++		}
++		visited[src] = true
++
+ 		dst := src.dst
+ 		edge := &dst.edges[src.dstEdgeIdx]
+ 		if edge.src != src {
+diff --git a/test/fixedbugs/issue35518.go b/test/fixedbugs/issue35518.go
+new file mode 100644
+index 0000000000..18a02d4a82
+--- /dev/null
++++ b/test/fixedbugs/issue35518.go
+@@ -0,0 +1,36 @@
++// errorcheck -0 -l -m=2
++
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This test makes sure that -m=2's escape analysis diagnostics don't
++// go into an infinite loop when handling negative dereference
++// cycles. The critical thing being tested here is that compilation
++// succeeds ("errorcheck -0"), not any particular diagnostic output,
++// hence the very lax ERROR patterns below.
++
++package p
++
++type Node struct {
++	Orig *Node
++}
++
++var sink *Node
++
++func f1() {
++	var n Node // ERROR "."
++	n.Orig = &n
++
++	m := n // ERROR "."
++	sink = &m
++}
++
++func f2() {
++	var n1, n2 Node // ERROR "."
++	n1.Orig = &n2
++	n2 = n1
++
++	m := n2 // ERROR "."
++	sink = &m
++}

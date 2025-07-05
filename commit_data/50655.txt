@@ -12,7 +12,111 @@ Date:   Wed Nov 3 10:39:54 2021 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/internal/test/test.go                 | 14 ++++-
  src/cmd/go/testdata/script/test_fail_newline.txt | 65 ++++++++++++++++++++++++
  2 files changed, 77 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index de6525d541..7361c11786 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -1405,15 +1405,25 @@ func (c *runCache) builderRunTest(b *work.Builder, ctx context.Context, a *work.
+ 		if bytes.HasPrefix(out, tooManyTargetsToFuzz[1:]) || bytes.Contains(out, tooManyTargetsToFuzz) {
+ 			norun = " [will not fuzz, -fuzz matches more than one target]"
+ 		}
++		if len(out) > 0 && !bytes.HasSuffix(out, []byte("\n")) {
++			// Ensure that the output ends with a newline before the "ok"
++			// line we're about to print (https://golang.org/issue/49317).
++			cmd.Stdout.Write([]byte("\n"))
++		}
+ 		fmt.Fprintf(cmd.Stdout, "ok  \t%s\t%s%s%s\n", a.Package.ImportPath, t, coveragePercentage(out), norun)
+ 		c.saveOutput(a)
+ 	} else {
+ 		base.SetExitStatus(1)
+-		// If there was test output, assume we don't need to print the exit status.
+-		// Buf there's no test output, do print the exit status.
+ 		if len(out) == 0 {
++			// If there was no test output, print the exit status so that the reason
++			// for failure is clear.
+ 			fmt.Fprintf(cmd.Stdout, "%s\n", err)
++		} else if !bytes.HasSuffix(out, []byte("\n")) {
++			// Otherwise, ensure that the output ends with a newline before the FAIL
++			// line we're about to print (https://golang.org/issue/49317).
++			cmd.Stdout.Write([]byte("\n"))
+ 		}
++
+ 		// NOTE(golang.org/issue/37555): test2json reports that a test passes
+ 		// unless "FAIL" is printed at the beginning of a line. The test may not
+ 		// actually print that if it panics, exits, or terminates abnormally,
+diff --git a/src/cmd/go/testdata/script/test_fail_newline.txt b/src/cmd/go/testdata/script/test_fail_newline.txt
+new file mode 100644
+index 0000000000..43cee565a1
+--- /dev/null
++++ b/src/cmd/go/testdata/script/test_fail_newline.txt
+@@ -0,0 +1,65 @@
++[short] skip
++
++# In package list mode, output is buffered.
++# Check that a newline is printed after the buffer's contents.
++cd fail
++! go test .
++! stderr .
++stdout '^exitcode=1\n'
++stdout '^FAIL\s+example/fail'
++
++# In local directory mode output is streamed, so we don't know
++# whether the test printed anything at all, so we print the exit code
++# (just in case it failed without emitting any output at all),
++# and that happens to add the needed newline as well.
++! go test
++! stderr .
++stdout '^exitcode=1exit status 1\n'
++stdout '^FAIL\s+example/fail'
++
++# In package list mode, if the test passes the 'ok' message appears
++# on its own line.
++cd ../skip
++go test -v .
++! stderr .
++stdout '^skipping\n'
++stdout '^ok\s+example/skip'
++
++# If the output is streamed and the test passes, we can't tell whether it ended
++# in a partial line, and don't want to emit any extra output in the
++# overwhelmingly common case that it did not.
++# (In theory we could hook the 'os' package to report whether output
++# was emitted and whether it ended in a newline, but that seems too invasive.)
++go test
++! stderr .
++stdout '^skippingok\s+example/skip'
++
++
++-- go.mod --
++module example
++
++go 1.18
++-- fail/fail_test.go --
++package fail
++
++import (
++	"os"
++	"testing"
++)
++
++func TestMain(m *testing.M) {
++	os.Stderr.WriteString("exitcode=1")
++	os.Exit(1)
++}
++-- skip/skip_test.go --
++package skip
++
++import (
++	"os"
++	"testing"
++)
++
++func TestMain(m *testing.M) {
++	os.Stderr.WriteString("skipping")
++	os.Exit(0)
++}

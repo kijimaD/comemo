@@ -9,6 +9,23 @@ Date:   Sat Feb 21 13:05:25 2015 -0500
     Change-Id: Ie9703b5475c7f87e737a06de85d1f88e2062f090
     Reviewed-on: https://go-review.googlesource.com/5541
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  misc/nacl/testzip.proto | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/misc/nacl/testzip.proto b/misc/nacl/testzip.proto
+index fd0c6a035b..2aa094135b 100644
+--- a/misc/nacl/testzip.proto
++++ b/misc/nacl/testzip.proto
+@@ -10,6 +10,11 @@ usr	src=../misc/nacl/testdata
+ go	src=..
+ 	src
+ 		cmd
++			asm
++				internal
++					asm
++						testdata
++							+
+ 			internal
+ 				objfile
+ 					objfile.go

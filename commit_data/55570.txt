@@ -22,7 +22,7 @@ Date:   Tue Nov 29 13:30:50 2022 -0500
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  api/next/56986.txt                         |  6 ++++++
  src/cmd/go/internal/load/pkg.go            |  6 ++++++
  src/cmd/go/internal/modindex/build.go      | 15 +++++++------
@@ -40,3 +40,449 @@ Date:   Tue Nov 29 13:30:50 2022 -0500
  src/go/build/testdata/directives/d_test.go |  4 ++++
  src/go/build/testdata/directives/eve.go    |  4 ++++
  16 files changed, 157 insertions(+), 15 deletions(-)
+
+diff --git a/api/next/56986.txt b/api/next/56986.txt
+new file mode 100644
+index 0000000000..9ccb869f11
+--- /dev/null
++++ b/api/next/56986.txt
+@@ -0,0 +1,6 @@
++pkg go/build, type Directive struct #56986
++pkg go/build, type Directive struct, Pos token.Position #56986
++pkg go/build, type Directive struct, Text string #56986
++pkg go/build, type Package struct, Directives []Directive #56986
++pkg go/build, type Package struct, TestDirectives []Directive #56986
++pkg go/build, type Package struct, XTestDirectives []Directive #56986
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 7c0c104883..11b69cb6f4 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -230,6 +230,9 @@ type PackageInternal struct {
+ 	TestmainGo        *[]byte              // content for _testmain.go
+ 	Embed             map[string][]string  // //go:embed comment mapping
+ 	OrigImportPath    string               // original import path before adding '_test' suffix
++	Directives        []build.Directive
++	TestDirectives    []build.Directive
++	XTestDirectives   []build.Directive
+ 
+ 	Asmflags   []string // -asmflags for this package
+ 	Gcflags    []string // -gcflags for this package
+@@ -435,6 +438,9 @@ func (p *Package) copyBuild(opts PackageOpts, pp *build.Package) {
+ 	p.TestEmbedPatterns = pp.TestEmbedPatterns
+ 	p.XTestEmbedPatterns = pp.XTestEmbedPatterns
+ 	p.Internal.OrigImportPath = pp.ImportPath
++	p.Internal.Directives = pp.Directives
++	p.Internal.TestDirectives = pp.TestDirectives
++	p.Internal.XTestDirectives = pp.XTestDirectives
+ }
+ 
+ // A PackageError describes an error loading information about a package.
+diff --git a/src/cmd/go/internal/modindex/build.go b/src/cmd/go/internal/modindex/build.go
+index ba7e47cf17..ae03d4a779 100644
+--- a/src/cmd/go/internal/modindex/build.go
++++ b/src/cmd/go/internal/modindex/build.go
+@@ -376,13 +376,14 @@ var dummyPkg build.Package
+ 
+ // fileInfo records information learned about a file included in a build.
+ type fileInfo struct {
+-	name     string // full name including dir
+-	header   []byte
+-	fset     *token.FileSet
+-	parsed   *ast.File
+-	parseErr error
+-	imports  []fileImport
+-	embeds   []fileEmbed
++	name       string // full name including dir
++	header     []byte
++	fset       *token.FileSet
++	parsed     *ast.File
++	parseErr   error
++	imports    []fileImport
++	embeds     []fileEmbed
++	directives []build.Directive
+ 
+ 	// Additional fields added to go/build's fileinfo for the purposes of the modindex package.
+ 	binaryOnly           bool
+diff --git a/src/cmd/go/internal/modindex/build_read.go b/src/cmd/go/internal/modindex/build_read.go
+index d2fdfcb6d7..9137200123 100644
+--- a/src/cmd/go/internal/modindex/build_read.go
++++ b/src/cmd/go/internal/modindex/build_read.go
+@@ -13,6 +13,7 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"go/ast"
++	"go/build"
+ 	"go/parser"
+ 	"go/token"
+ 	"io"
+@@ -474,6 +475,18 @@ func readGoInfo(f io.Reader, info *fileInfo) error {
+ 		}
+ 	}
+ 
++	// Extract directives.
++	for _, group := range info.parsed.Comments {
++		if group.Pos() >= info.parsed.Package {
++			break
++		}
++		for _, c := range group.List {
++			if strings.HasPrefix(c.Text, "//go:") {
++				info.directives = append(info.directives, build.Directive{Text: c.Text, Pos: info.fset.Position(c.Slash)})
++			}
++		}
++	}
++
+ 	// If the file imports "embed",
+ 	// we have to look for //go:embed comments
+ 	// in the remainder of the file.
+diff --git a/src/cmd/go/internal/modindex/read.go b/src/cmd/go/internal/modindex/read.go
+index 314b84d492..352b87ed62 100644
+--- a/src/cmd/go/internal/modindex/read.go
++++ b/src/cmd/go/internal/modindex/read.go
+@@ -580,6 +580,7 @@ func (rp *IndexPackage) Import(bctxt build.Context, mode build.ImportMode) (p *b
+ 
+ 		var fileList *[]string
+ 		var importMap, embedMap map[string][]token.Position
++		var directives *[]build.Directive
+ 		switch {
+ 		case isCgo:
+ 			allTags["cgo"] = true
+@@ -587,6 +588,7 @@ func (rp *IndexPackage) Import(bctxt build.Context, mode build.ImportMode) (p *b
+ 				fileList = &p.CgoFiles
+ 				importMap = importPos
+ 				embedMap = embedPos
++				directives = &p.Directives
+ 			} else {
+ 				// Ignore Imports and Embeds from cgo files if cgo is disabled.
+ 				fileList = &p.IgnoredGoFiles
+@@ -595,14 +597,17 @@ func (rp *IndexPackage) Import(bctxt build.Context, mode build.ImportMode) (p *b
+ 			fileList = &p.XTestGoFiles
+ 			importMap = xTestImportPos
+ 			embedMap = xTestEmbedPos
++			directives = &p.XTestDirectives
+ 		case isTest:
+ 			fileList = &p.TestGoFiles
+ 			importMap = testImportPos
+ 			embedMap = testEmbedPos
++			directives = &p.TestDirectives
+ 		default:
+ 			fileList = &p.GoFiles
+ 			importMap = importPos
+ 			embedMap = embedPos
++			directives = &p.Directives
+ 		}
+ 		*fileList = append(*fileList, name)
+ 		if importMap != nil {
+@@ -615,6 +620,9 @@ func (rp *IndexPackage) Import(bctxt build.Context, mode build.ImportMode) (p *b
+ 				embedMap[e.pattern] = append(embedMap[e.pattern], e.position)
+ 			}
+ 		}
++		if directives != nil {
++			*directives = append(*directives, tf.directives()...)
++		}
+ 	}
+ 
+ 	p.EmbedPatterns, p.EmbedPatternPos = cleanDecls(embedPos)
+@@ -902,6 +910,13 @@ func (sf *sourceFile) embedsOffset() int {
+ 	return pos + 4 + n*(4*5)
+ }
+ 
++func (sf *sourceFile) directivesOffset() int {
++	pos := sf.embedsOffset()
++	n := sf.d.intAt(pos)
++	// each import is 5 uint32s (string + tokpos)
++	return pos + 4 + n*(4*5)
++}
++
+ func (sf *sourceFile) imports() []rawImport {
+ 	sf.onceReadImports.Do(func() {
+ 		importsOffset := sf.importsOffset()
+@@ -927,6 +942,17 @@ func (sf *sourceFile) embeds() []embed {
+ 	return ret
+ }
+ 
++func (sf *sourceFile) directives() []build.Directive {
++	directivesOffset := sf.directivesOffset()
++	r := sf.d.readAt(directivesOffset)
++	numDirectives := r.int()
++	ret := make([]build.Directive, numDirectives)
++	for i := range ret {
++		ret[i] = build.Directive{Text: r.string(), Pos: r.tokpos()}
++	}
++	return ret
++}
++
+ func asString(b []byte) string {
+ 	return unsafe.String(unsafe.SliceData(b), len(b))
+ }
+diff --git a/src/cmd/go/internal/modindex/scan.go b/src/cmd/go/internal/modindex/scan.go
+index 0c9a23c645..6ca73e29f5 100644
+--- a/src/cmd/go/internal/modindex/scan.go
++++ b/src/cmd/go/internal/modindex/scan.go
+@@ -11,6 +11,7 @@ import (
+ 	"encoding/json"
+ 	"errors"
+ 	"fmt"
++	"go/build"
+ 	"go/doc"
+ 	"go/scanner"
+ 	"go/token"
+@@ -159,6 +160,7 @@ type rawFile struct {
+ 	plusBuildConstraints []string
+ 	imports              []rawImport
+ 	embeds               []embed
++	directives           []build.Directive
+ }
+ 
+ type rawImport struct {
+@@ -231,6 +233,7 @@ func importRaw(modroot, reldir string) *rawPackage {
+ 			goBuildConstraint:    info.goBuildConstraint,
+ 			plusBuildConstraints: info.plusBuildConstraints,
+ 			binaryOnly:           info.binaryOnly,
++			directives:           info.directives,
+ 		}
+ 		if info.parsed != nil {
+ 			rf.pkgName = info.parsed.Name.Name
+diff --git a/src/cmd/go/internal/modindex/write.go b/src/cmd/go/internal/modindex/write.go
+index df1467d9d1..cd18ad96dd 100644
+--- a/src/cmd/go/internal/modindex/write.go
++++ b/src/cmd/go/internal/modindex/write.go
+@@ -11,7 +11,7 @@ import (
+ 	"sort"
+ )
+ 
+-const indexVersion = "go index v1" // 11 bytes (plus \n), to align uint32s in index
++const indexVersion = "go index v2" // 11 bytes (plus \n), to align uint32s in index
+ 
+ // encodeModuleBytes produces the encoded representation of the module index.
+ // encodeModuleBytes may modify the packages slice.
+@@ -84,6 +84,12 @@ func encodeFile(e *encoder, f *rawFile) {
+ 		e.String(embed.pattern)
+ 		e.Position(embed.position)
+ 	}
++
++	e.Int(len(f.directives))
++	for _, d := range f.directives {
++		e.String(d.Text)
++		e.Position(d.Pos)
++	}
+ }
+ 
+ func newEncoder() *encoder {
+diff --git a/src/go/build/build.go b/src/go/build/build.go
+index 789e8bc2c7..d20964e60b 100644
+--- a/src/go/build/build.go
++++ b/src/go/build/build.go
+@@ -455,6 +455,11 @@ type Package struct {
+ 	TestGoFiles  []string // _test.go files in package
+ 	XTestGoFiles []string // _test.go files outside package
+ 
++	// Go directive comments (//go:zzz...) found in source files.
++	Directives      []Directive
++	TestDirectives  []Directive
++	XTestDirectives []Directive
++
+ 	// Dependency information
+ 	Imports        []string                    // import paths from GoFiles, CgoFiles
+ 	ImportPos      map[string][]token.Position // line information for Imports
+@@ -476,6 +481,12 @@ type Package struct {
+ 	XTestEmbedPatternPos map[string][]token.Position // line information for XTestEmbedPatternPos
+ }
+ 
++// A Directive is a Go directive comment (//go:zzz...) found in a source file.
++type Directive struct {
++	Text string         // full line comment including leading slashes
++	Pos  token.Position // position of comment
++}
++
+ // IsCommand reports whether the package is considered a
+ // command to be installed (not just a library).
+ // Packages named "main" are treated as commands.
+@@ -969,6 +980,7 @@ Found:
+ 
+ 		var fileList *[]string
+ 		var importMap, embedMap map[string][]token.Position
++		var directives *[]Directive
+ 		switch {
+ 		case isCgo:
+ 			allTags["cgo"] = true
+@@ -976,6 +988,7 @@ Found:
+ 				fileList = &p.CgoFiles
+ 				importMap = importPos
+ 				embedMap = embedPos
++				directives = &p.Directives
+ 			} else {
+ 				// Ignore imports and embeds from cgo files if cgo is disabled.
+ 				fileList = &p.IgnoredGoFiles
+@@ -984,14 +997,17 @@ Found:
+ 			fileList = &p.XTestGoFiles
+ 			importMap = xTestImportPos
+ 			embedMap = xTestEmbedPos
++			directives = &p.XTestDirectives
+ 		case isTest:
+ 			fileList = &p.TestGoFiles
+ 			importMap = testImportPos
+ 			embedMap = testEmbedPos
++			directives = &p.TestDirectives
+ 		default:
+ 			fileList = &p.GoFiles
+ 			importMap = importPos
+ 			embedMap = embedPos
++			directives = &p.Directives
+ 		}
+ 		*fileList = append(*fileList, name)
+ 		if importMap != nil {
+@@ -1004,6 +1020,9 @@ Found:
+ 				embedMap[emb.pattern] = append(embedMap[emb.pattern], emb.pos)
+ 			}
+ 		}
++		if directives != nil {
++			*directives = append(*directives, info.directives...)
++		}
+ 	}
+ 
+ 	for tag := range allTags {
+@@ -1383,13 +1402,14 @@ var dummyPkg Package
+ 
+ // fileInfo records information learned about a file included in a build.
+ type fileInfo struct {
+-	name     string // full name including dir
+-	header   []byte
+-	fset     *token.FileSet
+-	parsed   *ast.File
+-	parseErr error
+-	imports  []fileImport
+-	embeds   []fileEmbed
++	name       string // full name including dir
++	header     []byte
++	fset       *token.FileSet
++	parsed     *ast.File
++	parseErr   error
++	imports    []fileImport
++	embeds     []fileEmbed
++	directives []Directive
+ }
+ 
+ type fileImport struct {
+diff --git a/src/go/build/build_test.go b/src/go/build/build_test.go
+index 2e60ecc5cc..34b4f4bca3 100644
+--- a/src/go/build/build_test.go
++++ b/src/go/build/build_test.go
+@@ -5,6 +5,7 @@
+ package build
+ 
+ import (
++	"fmt"
+ 	"internal/testenv"
+ 	"io"
+ 	"os"
+@@ -801,3 +802,27 @@ func TestAllTagsNonSourceFile(t *testing.T) {
+ 		t.Errorf("AllTags = %v, want empty", p.AllTags)
+ 	}
+ }
++
++func TestDirectives(t *testing.T) {
++	p, err := ImportDir("testdata/directives", 0)
++	if err != nil {
++		t.Fatalf("could not import testdata: %v", err)
++	}
++
++	check := func(name string, list []Directive, want string) {
++		if runtime.GOOS == "windows" {
++			want = strings.ReplaceAll(want, "testdata/directives/", `testdata\\directives\\`)
++		}
++		t.Helper()
++		s := fmt.Sprintf("%q", list)
++		if s != want {
++			t.Errorf("%s = %s, want %s", name, s, want)
++		}
++	}
++	check("Directives", p.Directives,
++		`[{"//go:main1" "testdata/directives/a.go:1:1"} {"//go:plant" "testdata/directives/eve.go:1:1"}]`)
++	check("TestDirectives", p.TestDirectives,
++		`[{"//go:test1" "testdata/directives/a_test.go:1:1"} {"//go:test2" "testdata/directives/b_test.go:1:1"}]`)
++	check("XTestDirectives", p.XTestDirectives,
++		`[{"//go:xtest1" "testdata/directives/c_test.go:1:1"} {"//go:xtest2" "testdata/directives/d_test.go:1:1"} {"//go:xtest3" "testdata/directives/d_test.go:2:1"}]`)
++}
+diff --git a/src/go/build/read.go b/src/go/build/read.go
+index 52adfeab9a..2f2e075a0c 100644
+--- a/src/go/build/read.go
++++ b/src/go/build/read.go
+@@ -471,6 +471,18 @@ func readGoInfo(f io.Reader, info *fileInfo) error {
+ 		}
+ 	}
+ 
++	// Extract directives.
++	for _, group := range info.parsed.Comments {
++		if group.Pos() >= info.parsed.Package {
++			break
++		}
++		for _, c := range group.List {
++			if strings.HasPrefix(c.Text, "//go:") {
++				info.directives = append(info.directives, Directive{c.Text, info.fset.Position(c.Slash)})
++			}
++		}
++	}
++
+ 	// If the file imports "embed",
+ 	// we have to look for //go:embed comments
+ 	// in the remainder of the file.
+diff --git a/src/go/build/testdata/directives/a.go b/src/go/build/testdata/directives/a.go
+new file mode 100644
+index 0000000000..7bad420d79
+--- /dev/null
++++ b/src/go/build/testdata/directives/a.go
+@@ -0,0 +1,3 @@
++//go:main1
++
++package p
+diff --git a/src/go/build/testdata/directives/a_test.go b/src/go/build/testdata/directives/a_test.go
+new file mode 100644
+index 0000000000..44ed3c02c0
+--- /dev/null
++++ b/src/go/build/testdata/directives/a_test.go
+@@ -0,0 +1,3 @@
++//go:test1
++
++package p
+diff --git a/src/go/build/testdata/directives/b_test.go b/src/go/build/testdata/directives/b_test.go
+new file mode 100644
+index 0000000000..9ab0e5c203
+--- /dev/null
++++ b/src/go/build/testdata/directives/b_test.go
+@@ -0,0 +1,5 @@
++//go:test2
++
++package p
++
++//go:ignored
+diff --git a/src/go/build/testdata/directives/c_test.go b/src/go/build/testdata/directives/c_test.go
+new file mode 100644
+index 0000000000..aeb6e97162
+--- /dev/null
++++ b/src/go/build/testdata/directives/c_test.go
+@@ -0,0 +1,5 @@
++//go:xtest1
++
++package p_test
++
++//go:ignored
+diff --git a/src/go/build/testdata/directives/d_test.go b/src/go/build/testdata/directives/d_test.go
+new file mode 100644
+index 0000000000..5736a33a0e
+--- /dev/null
++++ b/src/go/build/testdata/directives/d_test.go
+@@ -0,0 +1,4 @@
++//go:xtest2
++//go:xtest3
++
++package p_test
+diff --git a/src/go/build/testdata/directives/eve.go b/src/go/build/testdata/directives/eve.go
+new file mode 100644
+index 0000000000..14e53bace9
+--- /dev/null
++++ b/src/go/build/testdata/directives/eve.go
+@@ -0,0 +1,4 @@
++//go:plant
++//axiom:plant
++
++package p

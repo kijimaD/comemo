@@ -15,8 +15,125 @@ Date:   Fri Feb 3 16:18:01 2017 -0500
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/generic.rules | 12 +++++
  src/cmd/compile/internal/ssa/rewrite.go        | 10 ++++
  src/cmd/compile/internal/ssa/rewritegeneric.go | 64 ++++++++++++++++++++++++++
  3 files changed, 86 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index 4adbc9e45f..c7d1743d5b 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -1390,6 +1390,18 @@
+ 	&& isSameSym(mem.Aux, "runtime.newobject")
+ 	&& c == config.ctxt.FixedFrameSize() + config.RegSize // offset of return value
+ 	-> mem
++(Store (Load (OffPtr [c] (SP)) mem) x mem)
++	&& isConstZero(x)
++	&& mem.Op == OpStaticCall
++	&& isSameSym(mem.Aux, "runtime.newobject")
++	&& c == config.ctxt.FixedFrameSize() + config.RegSize // offset of return value
++	-> mem
++(Store (OffPtr (Load (OffPtr [c] (SP)) mem)) x mem)
++	&& isConstZero(x)
++	&& mem.Op == OpStaticCall
++	&& isSameSym(mem.Aux, "runtime.newobject")
++	&& c == config.ctxt.FixedFrameSize() + config.RegSize // offset of return value
++	-> mem
+ // nil checks just need to rewrite to something useless.
+ // they will be deadcode eliminated soon afterwards.
+ (NilCheck (Load (OffPtr [c] (SP)) mem) mem)
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index f7d256df16..b0a16296cd 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -541,3 +541,13 @@ func experiment(f *Func) bool {
+ 	}
+ 	return r
+ }
++
++func isConstZero(v *Value) bool {
++	switch v.Op {
++	case OpConstNil:
++		return true
++	case OpConst64, OpConst32, OpConst16, OpConst8, OpConstBool, OpConst32F, OpConst64F:
++		return v.AuxInt == 0
++	}
++	return false
++}
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index 0709eb89bb..c14a3e000c 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -14668,6 +14668,70 @@ func rewriteValuegeneric_OpStore(v *Value, config *Config) bool {
+ 		v.AddArg(mem)
+ 		return true
+ 	}
++	// match: (Store (Load (OffPtr [c] (SP)) mem) x mem)
++	// cond: isConstZero(x) 	&& mem.Op == OpStaticCall 	&& isSameSym(mem.Aux, "runtime.newobject") 	&& c == config.ctxt.FixedFrameSize() + config.RegSize
++	// result: mem
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpLoad {
++			break
++		}
++		v_0_0 := v_0.Args[0]
++		if v_0_0.Op != OpOffPtr {
++			break
++		}
++		c := v_0_0.AuxInt
++		v_0_0_0 := v_0_0.Args[0]
++		if v_0_0_0.Op != OpSP {
++			break
++		}
++		mem := v_0.Args[1]
++		x := v.Args[1]
++		if mem != v.Args[2] {
++			break
++		}
++		if !(isConstZero(x) && mem.Op == OpStaticCall && isSameSym(mem.Aux, "runtime.newobject") && c == config.ctxt.FixedFrameSize()+config.RegSize) {
++			break
++		}
++		v.reset(OpCopy)
++		v.Type = mem.Type
++		v.AddArg(mem)
++		return true
++	}
++	// match: (Store (OffPtr (Load (OffPtr [c] (SP)) mem)) x mem)
++	// cond: isConstZero(x) 	&& mem.Op == OpStaticCall 	&& isSameSym(mem.Aux, "runtime.newobject") 	&& c == config.ctxt.FixedFrameSize() + config.RegSize
++	// result: mem
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpOffPtr {
++			break
++		}
++		v_0_0 := v_0.Args[0]
++		if v_0_0.Op != OpLoad {
++			break
++		}
++		v_0_0_0 := v_0_0.Args[0]
++		if v_0_0_0.Op != OpOffPtr {
++			break
++		}
++		c := v_0_0_0.AuxInt
++		v_0_0_0_0 := v_0_0_0.Args[0]
++		if v_0_0_0_0.Op != OpSP {
++			break
++		}
++		mem := v_0_0.Args[1]
++		x := v.Args[1]
++		if mem != v.Args[2] {
++			break
++		}
++		if !(isConstZero(x) && mem.Op == OpStaticCall && isSameSym(mem.Aux, "runtime.newobject") && c == config.ctxt.FixedFrameSize()+config.RegSize) {
++			break
++		}
++		v.reset(OpCopy)
++		v.Type = mem.Type
++		v.AddArg(mem)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValuegeneric_OpStringLen(v *Value, config *Config) bool {

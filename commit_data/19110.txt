@@ -8,6 +8,20 @@ Date:   Thu Apr 10 22:15:55 2014 -0700
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/86420046
-
+---
  src/pkg/flag/flag.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/flag/flag.go b/src/pkg/flag/flag.go
+index d3b454fefd..764ed7c8f5 100644
+--- a/src/pkg/flag/flag.go
++++ b/src/pkg/flag/flag.go
+@@ -754,7 +754,7 @@ func (f *FlagSet) parseOne() (bool, error) {
+ 	if fv, ok := flag.Value.(boolFlag); ok && fv.IsBoolFlag() { // special case: doesn't need an arg
+ 		if has_value {
+ 			if err := fv.Set(value); err != nil {
+-				return false, f.failf("invalid boolean value %q for  -%s: %v", value, name, err)
++				return false, f.failf("invalid boolean value %q for -%s: %v", value, name, err)
+ 			}
+ 		} else {
+ 			fv.Set("true")

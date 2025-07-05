@@ -8,6 +8,15 @@ Date:   Thu Jul 9 16:44:20 2009 -0700
     DELTA=2  (0 added, 2 deleted, 0 changed)
     OCL=31417
     CL=31420
-
+---
  lib/place-holder | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/lib/place-holder b/lib/place-holder
+deleted file mode 100644
+index aa084c8aa8..0000000000
+--- a/lib/place-holder
++++ /dev/null
+@@ -1,2 +0,0 @@
+-perforce does not maintain empty directories.
+-this file helps.

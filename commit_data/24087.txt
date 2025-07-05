@@ -17,7 +17,108 @@ Date:   Wed Jul 1 14:12:31 2015 -0400
     Change-Id: Idf1154123fbd5b7a1ee4d339e93f97635cc2bacb
     Reviewed-on: https://go-review.googlesource.com/11795
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/proc1.go           | 22 +++++++++++++++++++
  src/runtime/race/sched_test.go | 48 ++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 70 insertions(+)
+
+diff --git a/src/runtime/proc1.go b/src/runtime/proc1.go
+index da0cab40e6..6a163c62a0 100644
+--- a/src/runtime/proc1.go
++++ b/src/runtime/proc1.go
+@@ -3357,12 +3357,27 @@ func runqempty(_p_ *p) bool {
+ 	return _p_.runqhead == _p_.runqtail && _p_.runnext == 0
+ }
+ 
++// To shake out latent assumptions about scheduling order,
++// we introduce some randomness into scheduling decisions
++// when running with the race detector.
++// The need for this was made obvious by changing the
++// (deterministic) scheduling order in Go 1.5 and breaking
++// many poorly-written tests.
++// With the randomness here, as long as the tests pass
++// consistently with -race, they shouldn't have latent scheduling
++// assumptions.
++const randomizeScheduler = raceenabled
++
+ // runqput tries to put g on the local runnable queue.
+ // If next if false, runqput adds g to the tail of the runnable queue.
+ // If next is true, runqput puts g in the _p_.runnext slot.
+ // If the run queue is full, runnext puts g on the global queue.
+ // Executed only by the owner P.
+ func runqput(_p_ *p, gp *g, next bool) {
++	if randomizeScheduler && next && fastrand1()%2 == 0 {
++		next = false
++	}
++
+ 	if next {
+ 	retryNext:
+ 		oldnext := _p_.runnext
+@@ -3410,6 +3425,13 @@ func runqputslow(_p_ *p, gp *g, h, t uint32) bool {
+ 	}
+ 	batch[n] = gp
+ 
++	if randomizeScheduler {
++		for i := uint32(1); i <= n; i++ {
++			j := fastrand1() % (i + 1)
++			batch[i], batch[j] = batch[j], batch[i]
++		}
++	}
++
+ 	// Link the goroutines.
+ 	for i := uint32(0); i < n; i++ {
+ 		batch[i].schedlink.set(batch[i+1])
+diff --git a/src/runtime/race/sched_test.go b/src/runtime/race/sched_test.go
+new file mode 100644
+index 0000000000..aac8fed4ef
+--- /dev/null
++++ b/src/runtime/race/sched_test.go
+@@ -0,0 +1,48 @@
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build race
++
++package race_test
++
++import (
++	"bytes"
++	"fmt"
++	"reflect"
++	"runtime"
++	"testing"
++)
++
++func TestRandomScheduling(t *testing.T) {
++	// Scheduler is most consistent with GOMAXPROCS=1.
++	// Use that to make the test most likely to fail.
++	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(1))
++	const N = 10
++	out := make([][]int, N)
++	for i := 0; i < N; i++ {
++		c := make(chan int, N)
++		for j := 0; j < N; j++ {
++			go func(j int) {
++				c <- j
++			}(j)
++		}
++		row := make([]int, N)
++		for j := 0; j < N; j++ {
++			row[j] = <-c
++		}
++		out[i] = row
++	}
++
++	for i := 0; i < N; i++ {
++		if !reflect.DeepEqual(out[0], out[i]) {
++			return // found a different order
++		}
++	}
++
++	var buf bytes.Buffer
++	for i := 0; i < N; i++ {
++		fmt.Fprintf(&buf, "%v\n", out[i])
++	}
++	t.Fatalf("consistent goroutine execution order:\n%v", buf.String())
++}

@@ -14,6 +14,30 @@ Date:   Sat Jan 19 18:24:32 2019 +0100
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
     Reviewed-by: Andrew Bonventre <andybons@golang.org>
-
+---
  doc/go1.12.html | 12 ++++++++++++
  1 file changed, 12 insertions(+)
+
+diff --git a/doc/go1.12.html b/doc/go1.12.html
+index 20b3e343d1..fbe0c6a17c 100644
+--- a/doc/go1.12.html
++++ b/doc/go1.12.html
+@@ -113,6 +113,18 @@ go vet -vettool=$(which shadow)
+ </pre>
+ </p>
+ 
++<h3 id="tour">Tour</h3>
++
++<p> <!-- CL 152657 -->
++The Go tour is no longer included in the main binary distribution. To
++run the tour locally, instead of running <code>go</code> <code>tool</code> <code>tour</code>,
++manually install it:
++<pre>
++go install golang.org/x/tour
++tour
++</pre>
++</p>
++
+ <h3 id="gocache">Build cache requirement</h3>
+ 
+ <p>

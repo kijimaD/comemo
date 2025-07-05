@@ -26,7 +26,7 @@ Date:   Wed Feb 27 10:35:23 2013 -0500
     R=gri
     CC=golang-dev
     https://golang.org/cl/7411043
-
+---
  src/pkg/exp/ssa/builder.go                  | 57 +++++++++++++++++------------
  src/pkg/exp/ssa/emit.go                     |  1 +
  src/pkg/exp/ssa/func.go                     |  6 +--
@@ -37,3 +37,499 @@ Date:   Wed Feb 27 10:35:23 2013 -0500
  src/pkg/exp/ssa/sanity.go                   | 39 ++++++++++----------
  src/pkg/exp/ssa/ssa.go                      | 32 +++++++++++-----
  9 files changed, 180 insertions(+), 71 deletions(-)
+
+diff --git a/src/pkg/exp/ssa/builder.go b/src/pkg/exp/ssa/builder.go
+index 5cfc8683ea..33e3b81202 100644
+--- a/src/pkg/exp/ssa/builder.go
++++ b/src/pkg/exp/ssa/builder.go
+@@ -2276,40 +2276,45 @@ start:
+ 					block = t._break
+ 				}
+ 			}
++			// Run function calls deferred in this init
++			// block when explicitly returning from it.
++			fn.emit(new(RunDefers))
+ 			emitJump(fn, block)
+ 			fn.currentBlock = fn.newBasicBlock("unreachable")
+ 			return
+ 		}
+-		var results []Value
+-		// Per the spec, there are three distinct cases of return.
+-		switch {
+-		case len(s.Results) == 0:
+-			// Return with no arguments.
+-			// Prior assigns to named result params are
+-			// reloaded into results tuple.
+-			// A void function is a degenerate case of this.
+-			for _, r := range fn.results {
+-				results = append(results, emitLoad(fn, r))
+-			}
+ 
+-		case len(s.Results) == 1 && len(fn.Signature.Results) > 1:
++		var results []Value
++		if len(s.Results) == 1 && len(fn.Signature.Results) > 1 {
+ 			// Return of one expression in a multi-valued function.
+ 			tuple := b.exprN(fn, s.Results[0])
+ 			for i, v := range tuple.Type().(*types.Result).Values {
+ 				results = append(results, emitExtract(fn, tuple, i, v.Type))
+ 			}
+-
+-		default:
+-			// Return one or more single-valued expressions.
+-			// These become the scalar or tuple result.
+-			for _, r := range s.Results {
+-				results = append(results, b.expr(fn, r))
++		} else {
++			// 1:1 return, or no-arg return in non-void function.
++			for i, r := range s.Results {
++				v := emitConv(fn, b.expr(fn, r), fn.Signature.Results[i].Type)
++				results = append(results, v)
++			}
++		}
++		if fn.namedResults != nil {
++			// Function has named result parameters (NRPs).
++			// Perform parallel assignment of return operands to NRPs.
++			for i, r := range results {
++				emitStore(fn, fn.namedResults[i], r)
++			}
++		}
++		// Run function calls deferred in this
++		// function when explicitly returning from it.
++		fn.emit(new(RunDefers))
++		if fn.namedResults != nil {
++			// Reload NRPs to form the result tuple.
++			results = results[:0]
++			for _, r := range fn.namedResults {
++				results = append(results, emitLoad(fn, r))
+ 			}
+ 		}
+-		// Perform implicit conversions.
+-		for i := range results {
+-			results[i] = emitConv(fn, results[i], fn.Signature.Results[i].Type)
+-		}
+ 		fn.emit(&Ret{Results: results})
+ 		fn.currentBlock = fn.newBasicBlock("unreachable")
+ 
+@@ -2410,7 +2415,9 @@ func (b *Builder) buildFunction(fn *Function) {
+ 	fn.start(b.idents)
+ 	b.stmt(fn, fn.syntax.body)
+ 	if cb := fn.currentBlock; cb != nil && (cb == fn.Blocks[0] || cb.Preds != nil) {
+-		// We fell off the end: an implicit no-arg return statement.
++		// Run function calls deferred in this function when
++		// falling off the end of the body block.
++		fn.emit(new(RunDefers))
+ 		fn.emit(new(Ret))
+ 	}
+ 	fn.finish()
+@@ -2686,6 +2693,9 @@ func (b *Builder) buildDecl(pkg *Package, decl ast.Decl) {
+ 				_break: next,
+ 			}
+ 			b.stmt(init, decl.Body)
++			// Run function calls deferred in this init
++			// block when falling off the end of the block.
++			init.emit(new(RunDefers))
+ 			emitJump(init, next)
+ 			init.targets = init.targets.tail
+ 			init.currentBlock = next
+@@ -2792,6 +2802,7 @@ func (b *Builder) BuildPackage(p *Package) {
+ 	// Finish up.
+ 	emitJump(init, done)
+ 	init.currentBlock = done
++	init.emit(new(RunDefers))
+ 	init.emit(new(Ret))
+ 	init.finish()
+ }
+diff --git a/src/pkg/exp/ssa/emit.go b/src/pkg/exp/ssa/emit.go
+index f095438b3b..1246306fb7 100644
+--- a/src/pkg/exp/ssa/emit.go
++++ b/src/pkg/exp/ssa/emit.go
+@@ -222,6 +222,7 @@ func emitExtract(f *Function, tuple Value, index int, typ types.Type) Value {
+ }
+ 
+ // emitTailCall emits to f a function call in tail position.
++// Precondition: f does/will not use deferred procedure calls.
+ // Postcondition: f.currentBlock is nil.
+ //
+ func emitTailCall(f *Function, call *Call) {
+diff --git a/src/pkg/exp/ssa/func.go b/src/pkg/exp/ssa/func.go
+index 6e0aa58351..32ff18beb3 100644
+--- a/src/pkg/exp/ssa/func.go
++++ b/src/pkg/exp/ssa/func.go
+@@ -225,12 +225,12 @@ func (f *Function) start(idents map[*ast.Ident]types.Object) {
+ 		}
+ 	}
+ 
+-	// Results.
++	// Named results.
+ 	if f.syntax.resultFields != nil {
+ 		for _, field := range f.syntax.resultFields.List {
+ 			// Implicit "var" decl of locals for named results.
+ 			for _, n := range field.Names {
+-				f.results = append(f.results, f.addNamedLocal(idents[n]))
++				f.namedResults = append(f.namedResults, f.addNamedLocal(idents[n]))
+ 			}
+ 		}
+ 	}
+@@ -286,7 +286,7 @@ func buildReferrers(f *Function) {
+ // finish() finalizes the function after SSA code generation of its body.
+ func (f *Function) finish() {
+ 	f.objects = nil
+-	f.results = nil
++	f.namedResults = nil
+ 	f.currentBlock = nil
+ 	f.lblocks = nil
+ 	f.syntax = nil
+diff --git a/src/pkg/exp/ssa/interp/interp.go b/src/pkg/exp/ssa/interp/interp.go
+index 812420d073..1df63bd663 100644
+--- a/src/pkg/exp/ssa/interp/interp.go
++++ b/src/pkg/exp/ssa/interp/interp.go
+@@ -119,6 +119,16 @@ func (fr *frame) get(key ssa.Value) value {
+ 	panic(fmt.Sprintf("get: no value for %T: %v", key, key.Name()))
+ }
+ 
++func (fr *frame) rundefers() {
++	for i := range fr.defers {
++		if fr.i.mode&EnableTracing != 0 {
++			fmt.Fprintln(os.Stderr, "Invoking deferred function", i)
++		}
++		fr.defers[len(fr.defers)-1-i]()
++	}
++	fr.defers = fr.defers[:0]
++}
++
+ // findMethodSet returns the method set for type typ, which may be one
+ // of the interpreter's fake types.
+ func findMethodSet(i *interpreter, typ types.Type) ssa.MethodSet {
+@@ -170,12 +180,15 @@ func visitInstr(fr *frame, instr ssa.Instruction) continuation {
+ 		default:
+ 			var res []value
+ 			for _, r := range instr.Results {
+-				res = append(res, copyVal(fr.get(r)))
++				res = append(res, fr.get(r))
+ 			}
+ 			fr.result = tuple(res)
+ 		}
+ 		return kReturn
+ 
++	case *ssa.RunDefers:
++		fr.rundefers()
++
+ 	case *ssa.Panic:
+ 		panic(targetPanic{fr.get(instr.X)})
+ 
+@@ -466,12 +479,7 @@ func callSSA(i *interpreter, caller *frame, callpos token.Pos, fn *ssa.Function,
+ 			}
+ 			fr.status, fr.panic = stPanic, recover()
+ 		}
+-		for i := range fr.defers {
+-			if fr.i.mode&EnableTracing != 0 {
+-				fmt.Fprintln(os.Stderr, "Invoking deferred function", i)
+-			}
+-			fr.defers[len(fr.defers)-1-i]()
+-		}
++		fr.rundefers()
+ 		// Destroy the locals to avoid accidental use after return.
+ 		for i := range fn.Locals {
+ 			fr.locals[i] = bad{}
+diff --git a/src/pkg/exp/ssa/interp/testdata/coverage.go b/src/pkg/exp/ssa/interp/testdata/coverage.go
+index c271669ae8..5cfbdbdd84 100644
+--- a/src/pkg/exp/ssa/interp/testdata/coverage.go
++++ b/src/pkg/exp/ssa/interp/testdata/coverage.go
+@@ -390,3 +390,51 @@ two:
+ func init() {
+ 	multipleLabels()
+ }
++
++////////////////////////////////////////////////////////////////////////
++// Defer
++
++func deferMutatesResults(noArgReturn bool) (a, b int) {
++	defer func() {
++		if a != 1 || b != 2 {
++			panic(fmt.Sprint(a, b))
++		}
++		a, b = 3, 4
++	}()
++	if noArgReturn {
++		a, b = 1, 2
++		return
++	}
++	return 1, 2
++}
++
++func init() {
++	a, b := deferMutatesResults(true)
++	if a != 3 || b != 4 {
++		panic(fmt.Sprint(a, b))
++	}
++	a, b = deferMutatesResults(false)
++	if a != 3 || b != 4 {
++		panic(fmt.Sprint(a, b))
++	}
++}
++
++// We concatenate init blocks to make a single function, but we must
++// run defers at the end of each block, not the combined function.
++var deferCount = 0
++
++func init() {
++	deferCount = 1
++	defer func() {
++		deferCount++
++	}()
++	// defer runs HERE
++}
++
++func init() {
++	// Strictly speaking the spec says deferCount may be 0 or 2
++	// since the relative order of init blocks is unspecified.
++	if deferCount != 2 {
++		panic(deferCount) // defer call has not run!
++	}
++}
+diff --git a/src/pkg/exp/ssa/lift.go b/src/pkg/exp/ssa/lift.go
+index dba3ceb3c9..a08d939b74 100644
+--- a/src/pkg/exp/ssa/lift.go
++++ b/src/pkg/exp/ssa/lift.go
+@@ -154,22 +154,33 @@ func lift(fn *Function) {
+ 	// concatenation of all non-dead newPhis and non-nil Instrs
+ 	// for the block, reusing the original array if space permits.
+ 
++	// While we're here, we also eliminate 'rundefers'
++	// instructions in functions that contain no 'defer'
++	// instructions.
++	usesDefer := false
++
+ 	// Determine which allocs we can lift and number them densely.
+ 	// The renaming phase uses this numbering for compact maps.
+ 	numAllocs := 0
+ 	for _, b := range fn.Blocks {
+ 		b.gaps = 0
++		b.rundefers = 0
+ 		for i, instr := range b.Instrs {
+-			if alloc, ok := instr.(*Alloc); ok {
+-				if liftAlloc(df, alloc, newPhis) {
+-					alloc.index = numAllocs
++			switch instr := instr.(type) {
++			case *Alloc:
++				if liftAlloc(df, instr, newPhis) {
++					instr.index = numAllocs
+ 					numAllocs++
+ 					// Delete the alloc.
+ 					b.Instrs[i] = nil
+ 					b.gaps++
+ 				} else {
+-					alloc.index = -1
++					instr.index = -1
+ 				}
++			case *Defer:
++				usesDefer = true
++			case *RunDefers:
++				b.rundefers++
+ 			}
+ 		}
+ 	}
+@@ -202,22 +213,33 @@ func lift(fn *Function) {
+ 		}
+ 		nps = nps[:j]
+ 
+-		if j+b.gaps == 0 {
+-			continue // fast path: no new phis and no gaps
++		rundefersToKill := b.rundefers
++		if usesDefer {
++			rundefersToKill = 0
++		}
++
++		if j+b.gaps+rundefersToKill == 0 {
++			continue // fast path: no new phis or gaps
+ 		}
+ 
+ 		// Compact nps + non-nil Instrs into a new slice.
+ 		// TODO(adonovan): opt: compact in situ if there is
+ 		// sufficient space or slack in the slice.
+-		dst := make([]Instruction, j+len(b.Instrs)-b.gaps)
++		dst := make([]Instruction, len(b.Instrs)+j-b.gaps-rundefersToKill)
+ 		for i, np := range nps {
+ 			dst[i] = np.phi
+ 		}
+ 		for _, instr := range b.Instrs {
+-			if instr != nil {
+-				dst[j] = instr
+-				j++
++			if instr == nil {
++				continue
+ 			}
++			if !usesDefer {
++				if _, ok := instr.(*RunDefers); ok {
++					continue
++				}
++			}
++			dst[j] = instr
++			j++
+ 		}
+ 		for i, np := range nps {
+ 			dst[i] = np.phi
+diff --git a/src/pkg/exp/ssa/print.go b/src/pkg/exp/ssa/print.go
+index 2a4dd7e041..e6694a474a 100644
+--- a/src/pkg/exp/ssa/print.go
++++ b/src/pkg/exp/ssa/print.go
+@@ -300,6 +300,10 @@ func (s *Ret) String() string {
+ 	return b.String()
+ }
+ 
++func (*RunDefers) String() string {
++	return "rundefers"
++}
++
+ func (s *Send) String() string {
+ 	return fmt.Sprintf("send %s <- %s", relName(s.Chan, s), relName(s.X, s))
+ }
+diff --git a/src/pkg/exp/ssa/sanity.go b/src/pkg/exp/ssa/sanity.go
+index 003f0ba8ff..d9266d8ab7 100644
+--- a/src/pkg/exp/ssa/sanity.go
++++ b/src/pkg/exp/ssa/sanity.go
+@@ -120,32 +120,33 @@ func (s *sanity) checkInstr(idx int, instr Instruction) {
+ 			}
+ 		}
+ 
+-	case *Call:
+ 	case *BinOp:
+-	case *UnOp:
+-	case *MakeClosure:
+-	case *MakeChan:
+-	case *MakeMap:
+-	case *MakeSlice:
+-	case *Slice:
++	case *Call:
++	case *ChangeInterface:
++	case *Conv:
++	case *Defer:
++	case *Extract:
+ 	case *Field:
+ 	case *FieldAddr:
+-	case *IndexAddr:
++	case *Go:
+ 	case *Index:
+-	case *Select:
++	case *IndexAddr:
++	case *Lookup:
++	case *MakeChan:
++	case *MakeClosure:
++	case *MakeInterface:
++	case *MakeMap:
++	case *MakeSlice:
++	case *MapUpdate:
++	case *Next:
+ 	case *Range:
+-	case *TypeAssert:
+-	case *Extract:
+-	case *Go:
+-	case *Defer:
++	case *RunDefers:
++	case *Select:
+ 	case *Send:
++	case *Slice:
+ 	case *Store:
+-	case *MapUpdate:
+-	case *Next:
+-	case *Lookup:
+-	case *Conv:
+-	case *ChangeInterface:
+-	case *MakeInterface:
++	case *TypeAssert:
++	case *UnOp:
+ 		// TODO(adonovan): implement checks.
+ 	default:
+ 		panic(fmt.Sprintf("Unknown instruction type: %T", instr))
+diff --git a/src/pkg/exp/ssa/ssa.go b/src/pkg/exp/ssa/ssa.go
+index 7f5d0f5af8..35f9905770 100644
+--- a/src/pkg/exp/ssa/ssa.go
++++ b/src/pkg/exp/ssa/ssa.go
+@@ -240,7 +240,7 @@ type Function struct {
+ 	// then cleared.
+ 	currentBlock *BasicBlock             // where to emit code
+ 	objects      map[types.Object]Value  // addresses of local variables
+-	results      []*Alloc                // tuple of named results
++	namedResults []*Alloc                // tuple of named results
+ 	syntax       *funcSyntax             // abstract syntax trees for Go source functions
+ 	targets      *targets                // linked stack of branch targets
+ 	lblocks      map[*ast.Object]*lblock // labelled blocks
+@@ -270,6 +270,7 @@ type BasicBlock struct {
+ 	succs2       [2]*BasicBlock // initial space for Succs.
+ 	dom          *domNode       // node in dominator tree; optional.
+ 	gaps         int            // number of nil Instrs (transient).
++	rundefers    int            // number of rundefers (transient)
+ }
+ 
+ // Pure values ----------------------------------------
+@@ -817,9 +818,7 @@ type If struct {
+ // Ret returns values and control back to the calling function.
+ //
+ // len(Results) is always equal to the number of results in the
+-// function's signature.  A source-level 'return' statement with no
+-// operands in a multiple-return value function is desugared to make
+-// the results explicit.
++// function's signature.
+ //
+ // If len(Results) > 1, Ret returns a tuple value with the specified
+ // components which the caller must access using Extract instructions.
+@@ -827,9 +826,6 @@ type If struct {
+ // There is no instruction to return a ready-made tuple like those
+ // returned by a "value,ok"-mode TypeAssert, Lookup or UnOp(ARROW) or
+ // a tail-call to a function with multiple result parameters.
+-// TODO(adonovan): consider defining one; but: dis- and re-assembling
+-// the tuple is unavoidable if assignability conversions are required
+-// on the components.
+ //
+ // Ret must be the last instruction of its containing BasicBlock.
+ // Such a block has no successors.
+@@ -843,6 +839,20 @@ type Ret struct {
+ 	Results []Value
+ }
+ 
++// RunDefers pops and invokes the entire stack of procedure calls
++// pushed by Defer instructions in this function.
++//
++// It is legal to encounter multiple 'rundefers' instructions in a
++// single control-flow path through a function; this is useful in
++// the combined init() function, for example.
++//
++// Example printed form:
++//	rundefers
++//
++type RunDefers struct {
++	anInstruction
++}
++
+ // Panic initiates a panic with value X.
+ //
+ // A Panic instruction must be the last instruction of its containing
+@@ -875,8 +885,7 @@ type Go struct {
+ }
+ 
+ // Defer pushes the specified call onto a stack of functions
+-// to be called immediately prior to returning from the
+-// current function.
++// to be called by a RunDefers instruction or by a panic.
+ //
+ // See CallCommon for generic function call documentation.
+ //
+@@ -1146,6 +1155,7 @@ func (*Panic) ImplementsInstruction()           {}
+ func (*Phi) ImplementsInstruction()             {}
+ func (*Range) ImplementsInstruction()           {}
+ func (*Ret) ImplementsInstruction()             {}
++func (*RunDefers) ImplementsInstruction()       {}
+ func (*Select) ImplementsInstruction()          {}
+ func (*Send) ImplementsInstruction()            {}
+ func (*Slice) ImplementsInstruction()           {}
+@@ -1267,6 +1277,10 @@ func (s *Ret) Operands(rands []*Value) []*Value {
+ 	return rands
+ }
+ 
++func (*RunDefers) Operands(rands []*Value) []*Value {
++	return rands
++}
++
+ func (v *Select) Operands(rands []*Value) []*Value {
+ 	for i := range v.States {
+ 		rands = append(rands, &v.States[i].Chan, &v.States[i].Send)

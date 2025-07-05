@@ -7,6 +7,20 @@ Date:   Wed Feb 8 10:25:03 2012 -0500
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/5646051
-
+---
  CONTRIBUTORS | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index be8da8abe7..fb02b3013b 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -134,7 +134,7 @@ James Meneghello <rawrz0r@gmail.com>
+ James P. Cooper <jamespcooper@gmail.com>
+ James Toy <nil@opensesame.st>
+ James Whitehead <jnwhiteh@gmail.com>
+-Jamie Gennis <jgennis@google.com>
++Jamie Gennis <jgennis@google.com> <jgennis@gmail.com>
+ Jan H. Hosang <jan.hosang@gmail.com>
+ Jan Mercl <befelemepeseveze@gmail.com>
+ Jan Newmarch <jan.newmarch@gmail.com>

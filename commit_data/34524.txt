@@ -19,6 +19,37 @@ Date:   Fri Oct 27 13:45:50 2017 -0400
     Change-Id: Ied136ce72650261083bb19cc7dee38dac0ad05ca
     Reviewed-on: https://go-review.googlesource.com/73992
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/race/output_test.go | 12 +++++++++++-
  1 file changed, 11 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/race/output_test.go b/src/runtime/race/output_test.go
+index 13dfc33b47..f5b6fea43e 100644
+--- a/src/runtime/race/output_test.go
++++ b/src/runtime/race/output_test.go
+@@ -19,6 +19,16 @@ import (
+ )
+ 
+ func TestOutput(t *testing.T) {
++	pkgdir, err := ioutil.TempDir("", "go-build-race-output")
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer os.RemoveAll(pkgdir)
++	out, err := exec.Command(testenv.GoToolPath(t), "install", "-race", "-pkgdir="+pkgdir, "-gcflags=-l", "testing").CombinedOutput()
++	if err != nil {
++		t.Fatalf("go install -race: %v\n%s", err, out)
++	}
++
+ 	for _, test := range tests {
+ 		if test.goos != "" && test.goos != runtime.GOOS {
+ 			t.Logf("test %v runs only on %v, skipping: ", test.name, test.goos)
+@@ -47,7 +57,7 @@ func TestOutput(t *testing.T) {
+ 			t.Fatalf("failed to close file: %v", err)
+ 		}
+ 		// Pass -l to the compiler to test stack traces.
+-		cmd := exec.Command(testenv.GoToolPath(t), test.run, "-race", "-gcflags=-l", src)
++		cmd := exec.Command(testenv.GoToolPath(t), test.run, "-race", "-pkgdir="+pkgdir, "-gcflags=-l", src)
+ 		// GODEBUG spoils program output, GOMAXPROCS makes it flaky.
+ 		for _, env := range os.Environ() {
+ 			if strings.HasPrefix(env, "GODEBUG=") ||

@@ -9,7 +9,54 @@ Date:   Fri Aug 3 22:05:51 2012 +0200
     R=rsc
     CC=golang-dev, remy
     https://golang.org/cl/6453084
-
+---
  src/cmd/8g/gsubr.c       |  1 +
  test/fixedbugs/bug450.go | 28 ++++++++++++++++++++++++++++
  2 files changed, 29 insertions(+)
+
+diff --git a/src/cmd/8g/gsubr.c b/src/cmd/8g/gsubr.c
+index 439495c034..ca54b86279 100644
+--- a/src/cmd/8g/gsubr.c
++++ b/src/cmd/8g/gsubr.c
+@@ -1853,6 +1853,7 @@ naddr(Node *n, Addr *a, int canemitcode)
+ 		a->width = 0;
+ 		if(n->type != T) {
+ 			a->etype = simtype[n->type->etype];
++			dowidth(n->type);
+ 			a->width = n->type->width;
+ 			a->gotype = ngotype(n);
+ 		}
+diff --git a/test/fixedbugs/bug450.go b/test/fixedbugs/bug450.go
+new file mode 100644
+index 0000000000..3f13de16ce
+--- /dev/null
++++ b/test/fixedbugs/bug450.go
+@@ -0,0 +1,28 @@
++// run
++
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 3899: 8g incorrectly thinks a variable is
++// "set but not used" and elides an assignment, causing
++// variables to end up with wrong data.
++//
++// The reason is a miscalculation of variable width.
++
++package main
++
++func bar(f func()) {
++	f()
++}
++
++func foo() {
++	f := func() {}
++	if f == nil {
++	}
++	bar(f)
++}
++
++func main() {
++	foo()
++}

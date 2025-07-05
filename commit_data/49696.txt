@@ -17,8 +17,85 @@ Date:   Mon Sep 6 19:02:34 2021 +0200
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/syscall/exec_linux.go         | 18 +++---------------
  src/syscall/syscall_dup2_linux.go | 11 -----------
  src/syscall/syscall_dup3_linux.go | 10 ----------
  3 files changed, 3 insertions(+), 36 deletions(-)
+
+diff --git a/src/syscall/exec_linux.go b/src/syscall/exec_linux.go
+index 68bce7559b..dfc5228545 100644
+--- a/src/syscall/exec_linux.go
++++ b/src/syscall/exec_linux.go
+@@ -448,13 +448,7 @@ func forkAndExecInChild1(argv0 *byte, argv, envv []*byte, chroot, dir *byte, att
+ 	// so that pass 2 won't stomp on an fd it needs later.
+ 	if pipe < nextfd {
+ 		_, _, err1 = RawSyscall(SYS_DUP3, uintptr(pipe), uintptr(nextfd), O_CLOEXEC)
+-		if _SYS_dup != SYS_DUP3 && err1 == ENOSYS {
+-			_, _, err1 = RawSyscall(_SYS_dup, uintptr(pipe), uintptr(nextfd), 0)
+-			if err1 != 0 {
+-				goto childerror
+-			}
+-			RawSyscall(fcntl64Syscall, uintptr(nextfd), F_SETFD, FD_CLOEXEC)
+-		} else if err1 != 0 {
++		if err1 != 0 {
+ 			goto childerror
+ 		}
+ 		pipe = nextfd
+@@ -466,13 +460,7 @@ func forkAndExecInChild1(argv0 *byte, argv, envv []*byte, chroot, dir *byte, att
+ 				nextfd++
+ 			}
+ 			_, _, err1 = RawSyscall(SYS_DUP3, uintptr(fd[i]), uintptr(nextfd), O_CLOEXEC)
+-			if _SYS_dup != SYS_DUP3 && err1 == ENOSYS {
+-				_, _, err1 = RawSyscall(_SYS_dup, uintptr(fd[i]), uintptr(nextfd), 0)
+-				if err1 != 0 {
+-					goto childerror
+-				}
+-				RawSyscall(fcntl64Syscall, uintptr(nextfd), F_SETFD, FD_CLOEXEC)
+-			} else if err1 != 0 {
++			if err1 != 0 {
+ 				goto childerror
+ 			}
+ 			fd[i] = nextfd
+@@ -497,7 +485,7 @@ func forkAndExecInChild1(argv0 *byte, argv, envv []*byte, chroot, dir *byte, att
+ 		}
+ 		// The new fd is created NOT close-on-exec,
+ 		// which is exactly what we want.
+-		_, _, err1 = RawSyscall(_SYS_dup, uintptr(fd[i]), uintptr(i), 0)
++		_, _, err1 = RawSyscall(SYS_DUP3, uintptr(fd[i]), uintptr(i), 0)
+ 		if err1 != 0 {
+ 			goto childerror
+ 		}
+diff --git a/src/syscall/syscall_dup2_linux.go b/src/syscall/syscall_dup2_linux.go
+deleted file mode 100644
+index 351a96edc1..0000000000
+--- a/src/syscall/syscall_dup2_linux.go
++++ /dev/null
+@@ -1,11 +0,0 @@
+-// Copyright 2020 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build !android && (386 || amd64 || arm || mips || mipsle || mips64 || mips64le || ppc64 || ppc64le || s390x)
+-// +build !android
+-// +build 386 amd64 arm mips mipsle mips64 mips64le ppc64 ppc64le s390x
+-
+-package syscall
+-
+-const _SYS_dup = SYS_DUP2
+diff --git a/src/syscall/syscall_dup3_linux.go b/src/syscall/syscall_dup3_linux.go
+deleted file mode 100644
+index 66ec67b0ab..0000000000
+--- a/src/syscall/syscall_dup3_linux.go
++++ /dev/null
+@@ -1,10 +0,0 @@
+-// Copyright 2020 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build android || arm64 || riscv64
+-// +build android arm64 riscv64
+-
+-package syscall
+-
+-const _SYS_dup = SYS_DUP3

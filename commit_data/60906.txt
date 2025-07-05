@@ -23,6 +23,20 @@ Date:   Thu Sep 5 16:07:13 2024 +0000
     Reviewed-by: Robert Griesemer <gri@google.com>
     Auto-Submit: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/go/printer/printer_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/go/printer/printer_test.go b/src/go/printer/printer_test.go
+index 00bb842cc8..d541a54465 100644
+--- a/src/go/printer/printer_test.go
++++ b/src/go/printer/printer_test.go
+@@ -126,7 +126,7 @@ func runcheck(t *testing.T, source, golden string, mode checkMode) {
+ 	}
+ 
+ 	// formatted source and golden must be the same
+-	if err := checkEqual(source, golden, res, gld); err != nil {
++	if err := checkEqual(fmt.Sprintf("format(%v)", source), golden, res, gld); err != nil {
+ 		t.Error(err)
+ 		return
+ 	}

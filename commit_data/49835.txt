@@ -23,10 +23,334 @@ Date:   Wed Aug 25 10:08:07 2021 +0200
     Reviewed-by: Than McIntosh <thanm@google.com>
     Trust: Dan Scales <danscales@google.com>
     Trust: Jeremy Faller <jeremy@golang.org>
-
+---
  src/cmd/compile/internal/dwarfgen/dwarf.go |  3 ++
  src/cmd/compile/internal/ir/name.go        |  1 +
  src/cmd/compile/internal/noder/stencil.go  | 18 +++++--
  src/cmd/internal/dwarf/dwarf.go            | 67 +++++++++++++++++++++++-
  src/cmd/link/internal/ld/dwarf_test.go     | 84 ++++++++++++++++++++++++++++++
  5 files changed, 168 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/dwarfgen/dwarf.go b/src/cmd/compile/internal/dwarfgen/dwarf.go
+index 30472a9ebd..3007262db9 100644
+--- a/src/cmd/compile/internal/dwarfgen/dwarf.go
++++ b/src/cmd/compile/internal/dwarfgen/dwarf.go
+@@ -217,6 +217,7 @@ func createDwarfVars(fnsym *obj.LSym, complexOK bool, fn *ir.Func, apDecls []*ir
+ 			DeclCol:       declpos.RelCol(),
+ 			InlIndex:      int32(inlIndex),
+ 			ChildIndex:    -1,
++			DictIndex:     n.DictIndex,
+ 		})
+ 		// Record go type of to insure that it gets emitted by the linker.
+ 		fnsym.Func().RecordAutoType(reflectdata.TypeLinksym(n.Type()))
+@@ -374,6 +375,7 @@ func createSimpleVar(fnsym *obj.LSym, n *ir.Name) *dwarf.Var {
+ 		DeclCol:       declpos.RelCol(),
+ 		InlIndex:      int32(inlIndex),
+ 		ChildIndex:    -1,
++		DictIndex:     n.DictIndex,
+ 	}
+ }
+ 
+@@ -478,6 +480,7 @@ func createComplexVar(fnsym *obj.LSym, fn *ir.Func, varID ssa.VarID) *dwarf.Var
+ 		DeclCol:     declpos.RelCol(),
+ 		InlIndex:    int32(inlIndex),
+ 		ChildIndex:  -1,
++		DictIndex:   n.DictIndex,
+ 	}
+ 	list := debug.LocationLists[varID]
+ 	if len(list) != 0 {
+diff --git a/src/cmd/compile/internal/ir/name.go b/src/cmd/compile/internal/ir/name.go
+index 9fb22378cd..dcfff7deba 100644
+--- a/src/cmd/compile/internal/ir/name.go
++++ b/src/cmd/compile/internal/ir/name.go
+@@ -40,6 +40,7 @@ type Name struct {
+ 	Class     Class      // uint8
+ 	pragma    PragmaFlag // int16
+ 	flags     bitset16
++	DictIndex uint16 // index of the dictionary entry describing the type of this variable declaration plus 1
+ 	sym       *types.Sym
+ 	Func      *Func // TODO(austin): nil for I.M, eqFor, hashfor, and hashmem
+ 	Offset_   int64
+diff --git a/src/cmd/compile/internal/noder/stencil.go b/src/cmd/compile/internal/noder/stencil.go
+index 5069db9fe1..6c990c1828 100644
+--- a/src/cmd/compile/internal/noder/stencil.go
++++ b/src/cmd/compile/internal/noder/stencil.go
+@@ -779,6 +779,7 @@ func (subst *subster) localvar(name *ir.Name) *ir.Name {
+ 	m.Func = name.Func
+ 	subst.ts.Vars[name] = m
+ 	m.SetTypecheck(1)
++	m.DictIndex = name.DictIndex
+ 	if name.Defn != nil {
+ 		if name.Defn.Op() == ir.ONAME {
+ 			// This is a closure variable, so its Defn is the outer
+@@ -1268,14 +1269,18 @@ func (subst *subster) node(n ir.Node) ir.Node {
+ // function info.gfInfo. This will indicate the dictionary entry with the
+ // correct concrete type for the associated instantiated function.
+ func findDictType(info *instInfo, t *types.Type) int {
+-	for i, dt := range info.gfInfo.tparams {
++	return info.gfInfo.findDictType(t)
++}
++
++func (gfInfo *gfInfo) findDictType(t *types.Type) int {
++	for i, dt := range gfInfo.tparams {
+ 		if dt == t {
+ 			return i
+ 		}
+ 	}
+-	for i, dt := range info.gfInfo.derivedTypes {
++	for i, dt := range gfInfo.derivedTypes {
+ 		if types.Identical(dt, t) {
+-			return i + len(info.gfInfo.tparams)
++			return i + len(gfInfo.tparams)
+ 		}
+ 	}
+ 	return -1
+@@ -1736,6 +1741,7 @@ func (g *irgen) getGfInfo(gn *ir.Name) *gfInfo {
+ 
+ 	for _, n := range gf.Dcl {
+ 		addType(&info, n, n.Type())
++		n.DictIndex = uint16(info.findDictType(n.Type()) + 1)
+ 	}
+ 
+ 	if infoPrintMode {
+@@ -1805,9 +1811,13 @@ func (g *irgen) getGfInfo(gn *ir.Name) *gfInfo {
+ 			// Visit the closure body and add all relevant entries to the
+ 			// dictionary of the outer function (closure will just use
+ 			// the dictionary of the outer function).
+-			for _, n1 := range n.(*ir.ClosureExpr).Func.Body {
++			cfunc := n.(*ir.ClosureExpr).Func
++			for _, n1 := range cfunc.Body {
+ 				ir.Visit(n1, visitFunc)
+ 			}
++			for _, n := range cfunc.Dcl {
++				n.DictIndex = uint16(info.findDictType(n.Type()) + 1)
++			}
+ 		}
+ 		if n.Op() == ir.OSWITCH && n.(*ir.SwitchStmt).Tag != nil && n.(*ir.SwitchStmt).Tag.Op() == ir.OTYPESW && !n.(*ir.SwitchStmt).Tag.(*ir.TypeSwitchGuard).X.Type().IsEmptyInterface() {
+ 			for _, cc := range n.(*ir.SwitchStmt).Cases {
+diff --git a/src/cmd/internal/dwarf/dwarf.go b/src/cmd/internal/dwarf/dwarf.go
+index 69aafaf986..be37641706 100644
+--- a/src/cmd/internal/dwarf/dwarf.go
++++ b/src/cmd/internal/dwarf/dwarf.go
+@@ -50,6 +50,7 @@ type Var struct {
+ 	Abbrev        int // Either DW_ABRV_AUTO[_LOCLIST] or DW_ABRV_PARAM[_LOCLIST]
+ 	IsReturnValue bool
+ 	IsInlFormal   bool
++	DictIndex     uint16 // index of the dictionary entry describing the type of this variable
+ 	StackOffset   int32
+ 	// This package can't use the ssa package, so it can't mention ssa.FuncDebug,
+ 	// so indirect through a closure.
+@@ -97,6 +98,8 @@ type FnState struct {
+ 	Scopes        []Scope
+ 	InlCalls      InlCalls
+ 	UseBASEntries bool
++
++	dictIndexToOffset []int64
+ }
+ 
+ func EnableLogging(doit bool) {
+@@ -315,6 +318,7 @@ const (
+ 	DW_AT_go_runtime_type   = 0x2904
+ 
+ 	DW_AT_go_package_name = 0x2905 // Attribute for DW_TAG_compile_unit
++	DW_AT_go_dict_index   = 0x2906 // Attribute for DW_TAG_typedef_type, index of the dictionary entry describing the real type of this type shape
+ 
+ 	DW_AT_internal_location = 253 // params and locals; not emitted
+ )
+@@ -362,6 +366,7 @@ const (
+ 	DW_ABRV_STRINGTYPE
+ 	DW_ABRV_STRUCTTYPE
+ 	DW_ABRV_TYPEDECL
++	DW_ABRV_DICT_INDEX
+ 	DW_NABRV
+ )
+ 
+@@ -882,6 +887,17 @@ var abbrevs = [DW_NABRV]dwAbbrev{
+ 			{DW_AT_type, DW_FORM_ref_addr},
+ 		},
+ 	},
++
++	/* DICT_INDEX */
++	{
++		DW_TAG_typedef,
++		DW_CHILDREN_no,
++		[]dwAttrForm{
++			{DW_AT_name, DW_FORM_string},
++			{DW_AT_type, DW_FORM_ref_addr},
++			{DW_AT_go_dict_index, DW_FORM_udata},
++		},
++	},
+ }
+ 
+ // GetAbbrev returns the contents of the .debug_abbrev section.
+@@ -1196,6 +1212,9 @@ func putPrunedScopes(ctxt Context, s *FnState, fnabbrev int) error {
+ 		sort.Sort(byChildIndex(pruned.Vars))
+ 		scopes[k] = pruned
+ 	}
++
++	s.dictIndexToOffset = putparamtypes(ctxt, s, scopes, fnabbrev)
++
+ 	var encbuf [20]byte
+ 	if putscope(ctxt, s, scopes, 0, fnabbrev, encbuf[:0]) < int32(len(scopes)) {
+ 		return errors.New("multiple toplevel scopes")
+@@ -1451,6 +1470,47 @@ func PutDefaultFunc(ctxt Context, s *FnState, isWrapper bool) error {
+ 	return nil
+ }
+ 
++// putparamtypes writes typedef DIEs for any parametric types that are used by this function.
++func putparamtypes(ctxt Context, s *FnState, scopes []Scope, fnabbrev int) []int64 {
++	if fnabbrev == DW_ABRV_FUNCTION_CONCRETE {
++		return nil
++	}
++
++	maxDictIndex := uint16(0)
++
++	for i := range scopes {
++		for _, v := range scopes[i].Vars {
++			if v.DictIndex > maxDictIndex {
++				maxDictIndex = v.DictIndex
++			}
++		}
++	}
++
++	if maxDictIndex == 0 {
++		return nil
++	}
++
++	dictIndexToOffset := make([]int64, maxDictIndex)
++
++	for i := range scopes {
++		for _, v := range scopes[i].Vars {
++			if v.DictIndex == 0 || dictIndexToOffset[v.DictIndex-1] != 0 {
++				continue
++			}
++
++			dictIndexToOffset[v.DictIndex-1] = ctxt.CurrentOffset(s.Info)
++
++			Uleb128put(ctxt, s.Info, int64(DW_ABRV_DICT_INDEX))
++			n := fmt.Sprintf(".param%d", v.DictIndex-1)
++			putattr(ctxt, s.Info, DW_ABRV_DICT_INDEX, DW_FORM_string, DW_CLS_STRING, int64(len(n)), n)
++			putattr(ctxt, s.Info, DW_ABRV_DICT_INDEX, DW_FORM_ref_addr, DW_CLS_REFERENCE, 0, v.Type)
++			putattr(ctxt, s.Info, DW_ABRV_DICT_INDEX, DW_FORM_udata, DW_CLS_CONSTANT, int64(v.DictIndex-1), nil)
++		}
++	}
++
++	return dictIndexToOffset
++}
++
+ func putscope(ctxt Context, s *FnState, scopes []Scope, curscope int32, fnabbrev int, encbuf []byte) int32 {
+ 
+ 	if logDwarf {
+@@ -1624,7 +1684,12 @@ func putvar(ctxt Context, s *FnState, v *Var, absfn Sym, fnabbrev, inlIndex int,
+ 			putattr(ctxt, s.Info, abbrev, DW_FORM_flag, DW_CLS_FLAG, isReturn, nil)
+ 		}
+ 		putattr(ctxt, s.Info, abbrev, DW_FORM_udata, DW_CLS_CONSTANT, int64(v.DeclLine), nil)
+-		putattr(ctxt, s.Info, abbrev, DW_FORM_ref_addr, DW_CLS_REFERENCE, 0, v.Type)
++		if v.DictIndex > 0 && s.dictIndexToOffset != nil && s.dictIndexToOffset[v.DictIndex-1] != 0 {
++			// If the type of this variable is parametric use the entry emitted by putparamtypes
++			putattr(ctxt, s.Info, abbrev, DW_FORM_ref_addr, DW_CLS_REFERENCE, s.dictIndexToOffset[v.DictIndex-1], s.Info)
++		} else {
++			putattr(ctxt, s.Info, abbrev, DW_FORM_ref_addr, DW_CLS_REFERENCE, 0, v.Type)
++		}
+ 	}
+ 
+ 	if abbrevUsesLoclist(abbrev) {
+diff --git a/src/cmd/link/internal/ld/dwarf_test.go b/src/cmd/link/internal/ld/dwarf_test.go
+index 0aeaa7565c..3d112d97a4 100644
+--- a/src/cmd/link/internal/ld/dwarf_test.go
++++ b/src/cmd/link/internal/ld/dwarf_test.go
+@@ -11,6 +11,7 @@ import (
+ 	"debug/pe"
+ 	"errors"
+ 	"fmt"
++	"internal/buildcfg"
+ 	"internal/testenv"
+ 	"io"
+ 	"io/ioutil"
+@@ -1746,3 +1747,86 @@ func main() {
+ 			expected, found)
+ 	}
+ }
++
++func TestDictIndex(t *testing.T) {
++	// Check that variables with a parametric type have a dictionary index attribute
++	testenv.MustHaveGoBuild(t)
++
++	if runtime.GOOS == "plan9" {
++		t.Skip("skipping on plan9; no DWARF symbol table in executables")
++	}
++	if buildcfg.Experiment.Unified {
++		t.Skip("GOEXPERIMENT=unified does not emit dictionaries yet")
++	}
++	t.Parallel()
++
++	const prog = `
++package main
++
++import "fmt"
++
++func testfn[T any](arg T) {
++	var mapvar = make(map[int]T)
++	mapvar[0] = arg
++	fmt.Println(arg, mapvar)
++}
++
++func main() {
++	testfn("test")
++}
++`
++
++	dir := t.TempDir()
++	f := gobuild(t, dir, prog, NoOpt)
++	defer f.Close()
++
++	d, err := f.DWARF()
++	if err != nil {
++		t.Fatalf("error reading DWARF: %v", err)
++	}
++
++	rdr := d.Reader()
++	found := false
++	for entry, err := rdr.Next(); entry != nil; entry, err = rdr.Next() {
++		if err != nil {
++			t.Fatalf("error reading DWARF: %v", err)
++		}
++		name, _ := entry.Val(dwarf.AttrName).(string)
++		if strings.HasPrefix(name, "main.testfn") {
++			found = true
++			break
++		}
++	}
++
++	if !found {
++		t.Fatalf("could not find main.testfn")
++	}
++
++	offs := []dwarf.Offset{}
++	for entry, err := rdr.Next(); entry != nil; entry, err = rdr.Next() {
++		if err != nil {
++			t.Fatalf("error reading DWARF: %v", err)
++		}
++		if entry.Tag == 0 {
++			break
++		}
++		name, _ := entry.Val(dwarf.AttrName).(string)
++		switch name {
++		case "arg", "mapvar":
++			offs = append(offs, entry.Val(dwarf.AttrType).(dwarf.Offset))
++		}
++	}
++	if len(offs) != 2 {
++		t.Errorf("wrong number of variables found in main.testfn %d", len(offs))
++	}
++	for _, off := range offs {
++		rdr.Seek(off)
++		entry, err := rdr.Next()
++		if err != nil {
++			t.Fatalf("error reading DWARF: %v", err)
++		}
++		if _, ok := entry.Val(intdwarf.DW_AT_go_dict_index).(int64); !ok {
++			t.Errorf("could not find DW_AT_go_dict_index attribute offset %#x (%T)", off, entry.Val(intdwarf.DW_AT_go_dict_index))
++		}
++	}
++}

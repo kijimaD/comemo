@@ -11,7 +11,49 @@ Date:   Tue Feb 5 10:22:32 2019 -0500
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/math/cmplx/cmath_test.go | 6 ++++--
  src/math/cmplx/pow.go        | 3 +++
  2 files changed, 7 insertions(+), 2 deletions(-)
+
+diff --git a/src/math/cmplx/cmath_test.go b/src/math/cmplx/cmath_test.go
+index 80c3b33937..fbb49fdd5b 100644
+--- a/src/math/cmplx/cmath_test.go
++++ b/src/math/cmplx/cmath_test.go
+@@ -400,9 +400,11 @@ var polarSC = []ff{
+ }
+ var vcPowSC = [][2]complex128{
+ 	{NaN(), NaN()},
++	{0, NaN()},
+ }
+ var powSC = []complex128{
+ 	NaN(),
++	NaN(),
+ }
+ var vcSinSC = []complex128{
+ 	NaN(),
+@@ -734,8 +736,8 @@ func TestPow(t *testing.T) {
+ 		}
+ 	}
+ 	for i := 0; i < len(vcPowSC); i++ {
+-		if f := Pow(vcPowSC[i][0], vcPowSC[i][0]); !cAlike(powSC[i], f) {
+-			t.Errorf("Pow(%g, %g) = %g, want %g", vcPowSC[i][0], vcPowSC[i][0], f, powSC[i])
++		if f := Pow(vcPowSC[i][0], vcPowSC[i][1]); !cAlike(powSC[i], f) {
++			t.Errorf("Pow(%g, %g) = %g, want %g", vcPowSC[i][0], vcPowSC[i][1], f, powSC[i])
+ 		}
+ 	}
+ 	for _, pt := range branchPoints {
+diff --git a/src/math/cmplx/pow.go b/src/math/cmplx/pow.go
+index 1630b879b8..5a405f8e96 100644
+--- a/src/math/cmplx/pow.go
++++ b/src/math/cmplx/pow.go
+@@ -48,6 +48,9 @@ import "math"
+ //	Pow(0, c) for real(c)<0 returns Inf+0i if imag(c) is zero, otherwise Inf+Inf i.
+ func Pow(x, y complex128) complex128 {
+ 	if x == 0 { // Guaranteed also true for x == -0.
++		if IsNaN(y) {
++			return NaN()
++		}
+ 		r, i := real(y), imag(y)
+ 		switch {
+ 		case r == 0:

@@ -8,6 +8,20 @@ Date:   Fri Mar 30 14:04:03 2012 +0800
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5955049
-
+---
  doc/go_spec.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 2c905c723b..576db6504a 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1598,7 +1598,7 @@ Given a set of identifiers, an identifier is called <i>unique</i> if it is
+ <i>different</i> from every other in the set.
+ Two identifiers are different if they are spelled differently, or if they
+ appear in different <a href="#Packages">packages</a> and are not
+-<a href="Exported_identifiers">exported</a>. Otherwise, they are the same.
++<a href="#Exported_identifiers">exported</a>. Otherwise, they are the same.
+ </p>
+ 
+ <h3 id="Constant_declarations">Constant declarations</h3>

@@ -6,7 +6,7 @@ Date:   Fri Nov 20 11:42:28 2009 -0800
     
     R=ken2
     https://golang.org/cl/157114
-
+---
  src/cmd/gc/builtin.c.boot  |  1 +
  src/cmd/gc/const.c         |  2 +-
  src/cmd/gc/runtime.go      |  1 +
@@ -14,3 +14,108 @@ Date:   Fri Nov 20 11:42:28 2009 -0800
  src/pkg/runtime/string.cgo | 18 ++++++++++++++++++
  test/ken/string.go         |  2 +-
  6 files changed, 32 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/gc/builtin.c.boot b/src/cmd/gc/builtin.c.boot
+index 58d6f9e828..d2ff0ff90e 100644
+--- a/src/cmd/gc/builtin.c.boot
++++ b/src/cmd/gc/builtin.c.boot
+@@ -19,6 +19,7 @@ char *runtimeimport =
+ 	"func runtime.catstring (? string, ? string) (? string)\n"
+ 	"func runtime.cmpstring (? string, ? string) (? int)\n"
+ 	"func runtime.slicestring (? string, ? int, ? int) (? string)\n"
++	"func runtime.slicestring1 (? string, ? int) (? string)\n"
+ 	"func runtime.indexstring (? string, ? int) (? uint8)\n"
+ 	"func runtime.intstring (? int64) (? string)\n"
+ 	"func runtime.slicebytetostring (? []uint8) (? string)\n"
+diff --git a/src/cmd/gc/const.c b/src/cmd/gc/const.c
+index cca13b9528..4575ff6da4 100644
+--- a/src/cmd/gc/const.c
++++ b/src/cmd/gc/const.c
+@@ -55,7 +55,7 @@ truncfltlit(Mpflt *oldv, Type *t)
+ void
+ convlit(Node **np, Type *t)
+ {
+-	return convlit1(np, t, 0);
++	convlit1(np, t, 0);
+ }
+ 
+ /*
+diff --git a/src/cmd/gc/runtime.go b/src/cmd/gc/runtime.go
+index ea4084012c..6413db5e21 100644
+--- a/src/cmd/gc/runtime.go
++++ b/src/cmd/gc/runtime.go
+@@ -27,6 +27,7 @@ func printsp()
+ func catstring(string, string) string
+ func cmpstring(string, string) int
+ func slicestring(string, int, int) string
++func slicestring1(string, int) string
+ func indexstring(string, int) byte
+ func intstring(int64) string
+ func slicebytetostring([]byte) string
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index bf35b38917..3c3a00cfd6 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -918,10 +918,16 @@ walkexpr(Node **np, NodeList **init)
+ 
+ 	case OSLICESTR:
+ 		// sys_slicestring(s, lb, hb)
+-		n = mkcall("slicestring", n->type, init,
+-			conv(n->left, types[TSTRING]),
+-			conv(n->right->left, types[TINT]),
+-			conv(n->right->right, types[TINT]));
++		if(n->right->right) {
++			n = mkcall("slicestring", n->type, init,
++				conv(n->left, types[TSTRING]),
++				conv(n->right->left, types[TINT]),
++				conv(n->right->right, types[TINT]));
++		} else {
++			n = mkcall("slicestring1", n->type, init,
++				conv(n->left, types[TSTRING]),
++				conv(n->right->left, types[TINT]));
++		}
+ 		goto ret;
+ 
+ 	case OINDEXSTR:
+diff --git a/src/pkg/runtime/string.cgo b/src/pkg/runtime/string.cgo
+index bafa6791b0..6e380a1075 100644
+--- a/src/pkg/runtime/string.cgo
++++ b/src/pkg/runtime/string.cgo
+@@ -142,6 +142,24 @@ func slicestring(si String, lindex int32, hindex int32) (so String) {
+ //	mcpy(so.str, si.str+lindex, l);
+ }
+ 
++func slicestring1(si String, lindex int32) (so String) {
++	int32 l;
++
++	if(lindex < 0 || lindex > si.len) {
++		runtime·printpc(&si);
++		prints(" ");
++		prbounds("slice", lindex, si.len, si.len);
++	}
++
++	l = si.len-lindex;
++	so.str = si.str + lindex;
++	so.len = l;
++
++//	alternate to create a new string
++//	so = gostringsize(l);
++//	mcpy(so.str, si.str+lindex, l);
++}
++
+ func indexstring(s String, i int32) (b byte) {
+ 	if(i < 0 || i >= s.len) {
+ 		runtime·printpc(&s);
+diff --git a/test/ken/string.go b/test/ken/string.go
+index f7c02822f1..03e81a05d5 100644
+--- a/test/ken/string.go
++++ b/test/ken/string.go
+@@ -64,7 +64,7 @@ main()
+ 	}
+ 
+ 	/* slice strings */
+-	print(c[0:3], c[3:6]);
++	print(c[0:3], c[3:]);
+ 
+ 	print("\n");
+ 

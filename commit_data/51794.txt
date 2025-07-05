@@ -28,7 +28,7 @@ Date:   Thu Feb 3 11:50:45 2022 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/builtin/builtin.go                   |   8 +-
  src/cmd/gofmt/testdata/crlf.golden       |   8 +-
  src/cmd/gofmt/testdata/crlf.input        |   8 +-
@@ -41,3 +41,1246 @@ Date:   Thu Feb 3 11:50:45 2022 -0500
  src/runtime/debug/stack_test.go          |  30 +-
  src/unsafe/unsafe.go                     |   6 +-
  11 files changed, 547 insertions(+), 547 deletions(-)
+
+diff --git a/src/builtin/builtin.go b/src/builtin/builtin.go
+index 5657be4564..8997902f8f 100644
+--- a/src/builtin/builtin.go
++++ b/src/builtin/builtin.go
+@@ -3,10 +3,10 @@
+ // license that can be found in the LICENSE file.
+ 
+ /*
+-	Package builtin provides documentation for Go's predeclared identifiers.
+-	The items documented here are not actually in package builtin
+-	but their descriptions here allow godoc to present documentation
+-	for the language's special identifiers.
++Package builtin provides documentation for Go's predeclared identifiers.
++The items documented here are not actually in package builtin
++but their descriptions here allow godoc to present documentation
++for the language's special identifiers.
+ */
+ package builtin
+ 
+diff --git a/src/cmd/gofmt/testdata/crlf.golden b/src/cmd/gofmt/testdata/crlf.golden
+index 193dbacc72..65de9cf199 100644
+--- a/src/cmd/gofmt/testdata/crlf.golden
++++ b/src/cmd/gofmt/testdata/crlf.golden
+@@ -1,8 +1,8 @@
+ /*
+-	Source containing CR/LF line endings.
+-	The gofmt'ed output must only have LF
+-	line endings.
+-	Test case for issue 3961.
++Source containing CR/LF line endings.
++The gofmt'ed output must only have LF
++line endings.
++Test case for issue 3961.
+ */
+ package main
+ 
+diff --git a/src/cmd/gofmt/testdata/crlf.input b/src/cmd/gofmt/testdata/crlf.input
+index ae7e14dbf1..3cd4934caf 100644
+--- a/src/cmd/gofmt/testdata/crlf.input
++++ b/src/cmd/gofmt/testdata/crlf.input
+@@ -1,8 +1,8 @@
+ /*
+-	Source containing CR/LF line endings.
+-	The gofmt'ed output must only have LF
+-	line endings.
+-	Test case for issue 3961.
++Source containing CR/LF line endings.
++The gofmt'ed output must only have LF
++line endings.
++Test case for issue 3961.
+ */
+ package main
+ 
+diff --git a/src/cmd/gofmt/testdata/typeswitch.golden b/src/cmd/gofmt/testdata/typeswitch.golden
+index 2b1905edd3..3cf4dca7d4 100644
+--- a/src/cmd/gofmt/testdata/typeswitch.golden
++++ b/src/cmd/gofmt/testdata/typeswitch.golden
+@@ -1,17 +1,17 @@
+ /*
+-	Parenthesized type switch expressions originally
+-	accepted by gofmt must continue to be rewritten
+-	into the correct unparenthesized form.
+-
+-	Only type-switches that didn't declare a variable
+-	in the type switch type assertion and which
+-	contained only "expression-like" (named) types in their
+-	cases were permitted to have their type assertion parenthesized
+-	by go/parser (due to a weak predicate in the parser). All others
+-	were rejected always, either with a syntax error in the
+-	type switch header or in the case.
+-
+-	See also issue 4470.
++Parenthesized type switch expressions originally
++accepted by gofmt must continue to be rewritten
++into the correct unparenthesized form.
++
++Only type-switches that didn't declare a variable
++in the type switch type assertion and which
++contained only "expression-like" (named) types in their
++cases were permitted to have their type assertion parenthesized
++by go/parser (due to a weak predicate in the parser). All others
++were rejected always, either with a syntax error in the
++type switch header or in the case.
++
++See also issue 4470.
+ */
+ package p
+ 
+diff --git a/src/cmd/gofmt/testdata/typeswitch.input b/src/cmd/gofmt/testdata/typeswitch.input
+index 8f8cba9b85..992a772d52 100644
+--- a/src/cmd/gofmt/testdata/typeswitch.input
++++ b/src/cmd/gofmt/testdata/typeswitch.input
+@@ -1,17 +1,17 @@
+ /*
+-	Parenthesized type switch expressions originally
+-	accepted by gofmt must continue to be rewritten
+-	into the correct unparenthesized form.
+-
+-	Only type-switches that didn't declare a variable
+-	in the type switch type assertion and which
+-	contained only "expression-like" (named) types in their
+-	cases were permitted to have their type assertion parenthesized
+-	by go/parser (due to a weak predicate in the parser). All others
+-	were rejected always, either with a syntax error in the
+-	type switch header or in the case.
+-
+-	See also issue 4470.
++Parenthesized type switch expressions originally
++accepted by gofmt must continue to be rewritten
++into the correct unparenthesized form.
++
++Only type-switches that didn't declare a variable
++in the type switch type assertion and which
++contained only "expression-like" (named) types in their
++cases were permitted to have their type assertion parenthesized
++by go/parser (due to a weak predicate in the parser). All others
++were rejected always, either with a syntax error in the
++type switch header or in the case.
++
++See also issue 4470.
+ */
+ package p
+ 
+diff --git a/src/flag/flag.go b/src/flag/flag.go
+index c27a144434..cdea949a2f 100644
+--- a/src/flag/flag.go
++++ b/src/flag/flag.go
+@@ -3,67 +3,67 @@
+ // license that can be found in the LICENSE file.
+ 
+ /*
+-	Package flag implements command-line flag parsing.
++Package flag implements command-line flag parsing.
+ 
+-	Usage
++Usage
+ 
+-	Define flags using flag.String(), Bool(), Int(), etc.
++Define flags using flag.String(), Bool(), Int(), etc.
+ 
+-	This declares an integer flag, -n, stored in the pointer nFlag, with type *int:
+-		import "flag"
+-		var nFlag = flag.Int("n", 1234, "help message for flag n")
+-	If you like, you can bind the flag to a variable using the Var() functions.
+-		var flagvar int
+-		func init() {
+-			flag.IntVar(&flagvar, "flagname", 1234, "help message for flagname")
+-		}
+-	Or you can create custom flags that satisfy the Value interface (with
+-	pointer receivers) and couple them to flag parsing by
+-		flag.Var(&flagVal, "name", "help message for flagname")
+-	For such flags, the default value is just the initial value of the variable.
+-
+-	After all flags are defined, call
+-		flag.Parse()
+-	to parse the command line into the defined flags.
+-
+-	Flags may then be used directly. If you're using the flags themselves,
+-	they are all pointers; if you bind to variables, they're values.
+-		fmt.Println("ip has value ", *ip)
+-		fmt.Println("flagvar has value ", flagvar)
+-
+-	After parsing, the arguments following the flags are available as the
+-	slice flag.Args() or individually as flag.Arg(i).
+-	The arguments are indexed from 0 through flag.NArg()-1.
+-
+-	Command line flag syntax
+-
+-	The following forms are permitted:
+-
+-		-flag
+-		-flag=x
+-		-flag x  // non-boolean flags only
+-	One or two minus signs may be used; they are equivalent.
+-	The last form is not permitted for boolean flags because the
+-	meaning of the command
+-		cmd -x *
+-	where * is a Unix shell wildcard, will change if there is a file
+-	called 0, false, etc. You must use the -flag=false form to turn
+-	off a boolean flag.
+-
+-	Flag parsing stops just before the first non-flag argument
+-	("-" is a non-flag argument) or after the terminator "--".
+-
+-	Integer flags accept 1234, 0664, 0x1234 and may be negative.
+-	Boolean flags may be:
+-		1, 0, t, f, T, F, true, false, TRUE, FALSE, True, False
+-	Duration flags accept any input valid for time.ParseDuration.
+-
+-	The default set of command-line flags is controlled by
+-	top-level functions.  The FlagSet type allows one to define
+-	independent sets of flags, such as to implement subcommands
+-	in a command-line interface. The methods of FlagSet are
+-	analogous to the top-level functions for the command-line
+-	flag set.
++This declares an integer flag, -n, stored in the pointer nFlag, with type *int:
++	import "flag"
++	var nFlag = flag.Int("n", 1234, "help message for flag n")
++If you like, you can bind the flag to a variable using the Var() functions.
++	var flagvar int
++	func init() {
++		flag.IntVar(&flagvar, "flagname", 1234, "help message for flagname")
++	}
++Or you can create custom flags that satisfy the Value interface (with
++pointer receivers) and couple them to flag parsing by
++	flag.Var(&flagVal, "name", "help message for flagname")
++For such flags, the default value is just the initial value of the variable.
++
++After all flags are defined, call
++	flag.Parse()
++to parse the command line into the defined flags.
++
++Flags may then be used directly. If you're using the flags themselves,
++they are all pointers; if you bind to variables, they're values.
++	fmt.Println("ip has value ", *ip)
++	fmt.Println("flagvar has value ", flagvar)
++
++After parsing, the arguments following the flags are available as the
++slice flag.Args() or individually as flag.Arg(i).
++The arguments are indexed from 0 through flag.NArg()-1.
++
++Command line flag syntax
++
++The following forms are permitted:
++
++	-flag
++	-flag=x
++	-flag x  // non-boolean flags only
++One or two minus signs may be used; they are equivalent.
++The last form is not permitted for boolean flags because the
++meaning of the command
++	cmd -x *
++where * is a Unix shell wildcard, will change if there is a file
++called 0, false, etc. You must use the -flag=false form to turn
++off a boolean flag.
++
++Flag parsing stops just before the first non-flag argument
++("-" is a non-flag argument) or after the terminator "--".
++
++Integer flags accept 1234, 0664, 0x1234 and may be negative.
++Boolean flags may be:
++	1, 0, t, f, T, F, true, false, TRUE, FALSE, True, False
++Duration flags accept any input valid for time.ParseDuration.
++
++The default set of command-line flags is controlled by
++top-level functions.  The FlagSet type allows one to define
++independent sets of flags, such as to implement subcommands
++in a command-line interface. The methods of FlagSet are
++analogous to the top-level functions for the command-line
++flag set.
+ */
+ package flag
+ 
+diff --git a/src/fmt/doc.go b/src/fmt/doc.go
+index a7bd02b627..f14a7a73e3 100644
+--- a/src/fmt/doc.go
++++ b/src/fmt/doc.go
+@@ -3,342 +3,342 @@
+ // license that can be found in the LICENSE file.
+ 
+ /*
+-	Package fmt implements formatted I/O with functions analogous
+-	to C's printf and scanf.  The format 'verbs' are derived from C's but
+-	are simpler.
+-
+-
+-	Printing
+-
+-	The verbs:
+-
+-	General:
+-		%v	the value in a default format
+-			when printing structs, the plus flag (%+v) adds field names
+-		%#v	a Go-syntax representation of the value
+-		%T	a Go-syntax representation of the type of the value
+-		%%	a literal percent sign; consumes no value
+-
+-	Boolean:
+-		%t	the word true or false
+-	Integer:
+-		%b	base 2
+-		%c	the character represented by the corresponding Unicode code point
+-		%d	base 10
+-		%o	base 8
+-		%O	base 8 with 0o prefix
+-		%q	a single-quoted character literal safely escaped with Go syntax.
+-		%x	base 16, with lower-case letters for a-f
+-		%X	base 16, with upper-case letters for A-F
+-		%U	Unicode format: U+1234; same as "U+%04X"
+-	Floating-point and complex constituents:
+-		%b	decimalless scientific notation with exponent a power of two,
+-			in the manner of strconv.FormatFloat with the 'b' format,
+-			e.g. -123456p-78
+-		%e	scientific notation, e.g. -1.234456e+78
+-		%E	scientific notation, e.g. -1.234456E+78
+-		%f	decimal point but no exponent, e.g. 123.456
+-		%F	synonym for %f
+-		%g	%e for large exponents, %f otherwise. Precision is discussed below.
+-		%G	%E for large exponents, %F otherwise
+-		%x	hexadecimal notation (with decimal power of two exponent), e.g. -0x1.23abcp+20
+-		%X	upper-case hexadecimal notation, e.g. -0X1.23ABCP+20
+-	String and slice of bytes (treated equivalently with these verbs):
+-		%s	the uninterpreted bytes of the string or slice
+-		%q	a double-quoted string safely escaped with Go syntax
+-		%x	base 16, lower-case, two characters per byte
+-		%X	base 16, upper-case, two characters per byte
+-	Slice:
+-		%p	address of 0th element in base 16 notation, with leading 0x
+-	Pointer:
+-		%p	base 16 notation, with leading 0x
+-		The %b, %d, %o, %x and %X verbs also work with pointers,
+-		formatting the value exactly as if it were an integer.
+-
+-	The default format for %v is:
+-		bool:                    %t
+-		int, int8 etc.:          %d
+-		uint, uint8 etc.:        %d, %#x if printed with %#v
+-		float32, complex64, etc: %g
+-		string:                  %s
+-		chan:                    %p
+-		pointer:                 %p
+-	For compound objects, the elements are printed using these rules, recursively,
+-	laid out like this:
+-		struct:             {field0 field1 ...}
+-		array, slice:       [elem0 elem1 ...]
+-		maps:               map[key1:value1 key2:value2 ...]
+-		pointer to above:   &{}, &[], &map[]
+-
+-	Width is specified by an optional decimal number immediately preceding the verb.
+-	If absent, the width is whatever is necessary to represent the value.
+-	Precision is specified after the (optional) width by a period followed by a
+-	decimal number. If no period is present, a default precision is used.
+-	A period with no following number specifies a precision of zero.
+-	Examples:
+-		%f     default width, default precision
+-		%9f    width 9, default precision
+-		%.2f   default width, precision 2
+-		%9.2f  width 9, precision 2
+-		%9.f   width 9, precision 0
+-
+-	Width and precision are measured in units of Unicode code points,
+-	that is, runes. (This differs from C's printf where the
+-	units are always measured in bytes.) Either or both of the flags
+-	may be replaced with the character '*', causing their values to be
+-	obtained from the next operand (preceding the one to format),
+-	which must be of type int.
+-
+-	For most values, width is the minimum number of runes to output,
+-	padding the formatted form with spaces if necessary.
+-
+-	For strings, byte slices and byte arrays, however, precision
+-	limits the length of the input to be formatted (not the size of
+-	the output), truncating if necessary. Normally it is measured in
+-	runes, but for these types when formatted with the %x or %X format
+-	it is measured in bytes.
+-
+-	For floating-point values, width sets the minimum width of the field and
+-	precision sets the number of places after the decimal, if appropriate,
+-	except that for %g/%G precision sets the maximum number of significant
+-	digits (trailing zeros are removed). For example, given 12.345 the format
+-	%6.3f prints 12.345 while %.3g prints 12.3. The default precision for %e, %f
+-	and %#g is 6; for %g it is the smallest number of digits necessary to identify
+-	the value uniquely.
+-
+-	For complex numbers, the width and precision apply to the two
+-	components independently and the result is parenthesized, so %f applied
+-	to 1.2+3.4i produces (1.200000+3.400000i).
+-
+-	Other flags:
+-		+	always print a sign for numeric values;
+-			guarantee ASCII-only output for %q (%+q)
+-		-	pad with spaces on the right rather than the left (left-justify the field)
+-		#	alternate format: add leading 0b for binary (%#b), 0 for octal (%#o),
+-			0x or 0X for hex (%#x or %#X); suppress 0x for %p (%#p);
+-			for %q, print a raw (backquoted) string if strconv.CanBackquote
+-			returns true;
+-			always print a decimal point for %e, %E, %f, %F, %g and %G;
+-			do not remove trailing zeros for %g and %G;
+-			write e.g. U+0078 'x' if the character is printable for %U (%#U).
+-		' '	(space) leave a space for elided sign in numbers (% d);
+-			put spaces between bytes printing strings or slices in hex (% x, % X)
+-		0	pad with leading zeros rather than spaces;
+-			for numbers, this moves the padding after the sign;
+-			ignored for strings, byte slices and byte arrays
+-
+-	Flags are ignored by verbs that do not expect them.
+-	For example there is no alternate decimal format, so %#d and %d
+-	behave identically.
+-
+-	For each Printf-like function, there is also a Print function
+-	that takes no format and is equivalent to saying %v for every
+-	operand.  Another variant Println inserts blanks between
+-	operands and appends a newline.
+-
+-	Regardless of the verb, if an operand is an interface value,
+-	the internal concrete value is used, not the interface itself.
+-	Thus:
+-		var i interface{} = 23
+-		fmt.Printf("%v\n", i)
+-	will print 23.
+-
+-	Except when printed using the verbs %T and %p, special
+-	formatting considerations apply for operands that implement
+-	certain interfaces. In order of application:
+-
+-	1. If the operand is a reflect.Value, the operand is replaced by the
+-	concrete value that it holds, and printing continues with the next rule.
+-
+-	2. If an operand implements the Formatter interface, it will
+-	be invoked. In this case the interpretation of verbs and flags is
+-	controlled by that implementation.
+-
+-	3. If the %v verb is used with the # flag (%#v) and the operand
+-	implements the GoStringer interface, that will be invoked.
+-
+-	If the format (which is implicitly %v for Println etc.) is valid
+-	for a string (%s %q %v %x %X), the following two rules apply:
+-
+-	4. If an operand implements the error interface, the Error method
+-	will be invoked to convert the object to a string, which will then
+-	be formatted as required by the verb (if any).
+-
+-	5. If an operand implements method String() string, that method
+-	will be invoked to convert the object to a string, which will then
+-	be formatted as required by the verb (if any).
+-
+-	For compound operands such as slices and structs, the format
+-	applies to the elements of each operand, recursively, not to the
+-	operand as a whole. Thus %q will quote each element of a slice
+-	of strings, and %6.2f will control formatting for each element
+-	of a floating-point array.
+-
+-	However, when printing a byte slice with a string-like verb
+-	(%s %q %x %X), it is treated identically to a string, as a single item.
+-
+-	To avoid recursion in cases such as
+-		type X string
+-		func (x X) String() string { return Sprintf("<%s>", x) }
+-	convert the value before recurring:
+-		func (x X) String() string { return Sprintf("<%s>", string(x)) }
+-	Infinite recursion can also be triggered by self-referential data
+-	structures, such as a slice that contains itself as an element, if
+-	that type has a String method. Such pathologies are rare, however,
+-	and the package does not protect against them.
+-
+-	When printing a struct, fmt cannot and therefore does not invoke
+-	formatting methods such as Error or String on unexported fields.
+-
+-	Explicit argument indexes
+-
+-	In Printf, Sprintf, and Fprintf, the default behavior is for each
+-	formatting verb to format successive arguments passed in the call.
+-	However, the notation [n] immediately before the verb indicates that the
+-	nth one-indexed argument is to be formatted instead. The same notation
+-	before a '*' for a width or precision selects the argument index holding
+-	the value. After processing a bracketed expression [n], subsequent verbs
+-	will use arguments n+1, n+2, etc. unless otherwise directed.
+-
+-	For example,
+-		fmt.Sprintf("%[2]d %[1]d\n", 11, 22)
+-	will yield "22 11", while
+-		fmt.Sprintf("%[3]*.[2]*[1]f", 12.0, 2, 6)
+-	equivalent to
+-		fmt.Sprintf("%6.2f", 12.0)
+-	will yield " 12.00". Because an explicit index affects subsequent verbs,
+-	this notation can be used to print the same values multiple times
+-	by resetting the index for the first argument to be repeated:
+-		fmt.Sprintf("%d %d %#[1]x %#x", 16, 17)
+-	will yield "16 17 0x10 0x11".
+-
+-	Format errors
+-
+-	If an invalid argument is given for a verb, such as providing
+-	a string to %d, the generated string will contain a
+-	description of the problem, as in these examples:
+-
+-		Wrong type or unknown verb: %!verb(type=value)
+-			Printf("%d", "hi"):        %!d(string=hi)
+-		Too many arguments: %!(EXTRA type=value)
+-			Printf("hi", "guys"):      hi%!(EXTRA string=guys)
+-		Too few arguments: %!verb(MISSING)
+-			Printf("hi%d"):            hi%!d(MISSING)
+-		Non-int for width or precision: %!(BADWIDTH) or %!(BADPREC)
+-			Printf("%*s", 4.5, "hi"):  %!(BADWIDTH)hi
+-			Printf("%.*s", 4.5, "hi"): %!(BADPREC)hi
+-		Invalid or invalid use of argument index: %!(BADINDEX)
+-			Printf("%*[2]d", 7):       %!d(BADINDEX)
+-			Printf("%.[2]d", 7):       %!d(BADINDEX)
+-
+-	All errors begin with the string "%!" followed sometimes
+-	by a single character (the verb) and end with a parenthesized
+-	description.
+-
+-	If an Error or String method triggers a panic when called by a
+-	print routine, the fmt package reformats the error message
+-	from the panic, decorating it with an indication that it came
+-	through the fmt package.  For example, if a String method
+-	calls panic("bad"), the resulting formatted message will look
+-	like
+-		%!s(PANIC=bad)
+-
+-	The %!s just shows the print verb in use when the failure
+-	occurred. If the panic is caused by a nil receiver to an Error
+-	or String method, however, the output is the undecorated
+-	string, "<nil>".
+-
+-	Scanning
+-
+-	An analogous set of functions scans formatted text to yield
+-	values.  Scan, Scanf and Scanln read from os.Stdin; Fscan,
+-	Fscanf and Fscanln read from a specified io.Reader; Sscan,
+-	Sscanf and Sscanln read from an argument string.
+-
+-	Scan, Fscan, Sscan treat newlines in the input as spaces.
+-
+-	Scanln, Fscanln and Sscanln stop scanning at a newline and
+-	require that the items be followed by a newline or EOF.
+-
+-	Scanf, Fscanf, and Sscanf parse the arguments according to a
+-	format string, analogous to that of Printf. In the text that
+-	follows, 'space' means any Unicode whitespace character
+-	except newline.
+-
+-	In the format string, a verb introduced by the % character
+-	consumes and parses input; these verbs are described in more
+-	detail below. A character other than %, space, or newline in
+-	the format consumes exactly that input character, which must
+-	be present. A newline with zero or more spaces before it in
+-	the format string consumes zero or more spaces in the input
+-	followed by a single newline or the end of the input. A space
+-	following a newline in the format string consumes zero or more
+-	spaces in the input. Otherwise, any run of one or more spaces
+-	in the format string consumes as many spaces as possible in
+-	the input. Unless the run of spaces in the format string
+-	appears adjacent to a newline, the run must consume at least
+-	one space from the input or find the end of the input.
+-
+-	The handling of spaces and newlines differs from that of C's
+-	scanf family: in C, newlines are treated as any other space,
+-	and it is never an error when a run of spaces in the format
+-	string finds no spaces to consume in the input.
+-
+-	The verbs behave analogously to those of Printf.
+-	For example, %x will scan an integer as a hexadecimal number,
+-	and %v will scan the default representation format for the value.
+-	The Printf verbs %p and %T and the flags # and + are not implemented.
+-	For floating-point and complex values, all valid formatting verbs
+-	(%b %e %E %f %F %g %G %x %X and %v) are equivalent and accept
+-	both decimal and hexadecimal notation (for example: "2.3e+7", "0x4.5p-8")
+-	and digit-separating underscores (for example: "3.14159_26535_89793").
+-
+-	Input processed by verbs is implicitly space-delimited: the
+-	implementation of every verb except %c starts by discarding
+-	leading spaces from the remaining input, and the %s verb
+-	(and %v reading into a string) stops consuming input at the first
+-	space or newline character.
+-
+-	The familiar base-setting prefixes 0b (binary), 0o and 0 (octal),
+-	and 0x (hexadecimal) are accepted when scanning integers
+-	without a format or with the %v verb, as are digit-separating
+-	underscores.
+-
+-	Width is interpreted in the input text but there is no
+-	syntax for scanning with a precision (no %5.2f, just %5f).
+-	If width is provided, it applies after leading spaces are
+-	trimmed and specifies the maximum number of runes to read
+-	to satisfy the verb. For example,
+-	   Sscanf(" 1234567 ", "%5s%d", &s, &i)
+-	will set s to "12345" and i to 67 while
+-	   Sscanf(" 12 34 567 ", "%5s%d", &s, &i)
+-	will set s to "12" and i to 34.
+-
+-	In all the scanning functions, a carriage return followed
+-	immediately by a newline is treated as a plain newline
+-	(\r\n means the same as \n).
+-
+-	In all the scanning functions, if an operand implements method
+-	Scan (that is, it implements the Scanner interface) that
+-	method will be used to scan the text for that operand.  Also,
+-	if the number of arguments scanned is less than the number of
+-	arguments provided, an error is returned.
+-
+-	All arguments to be scanned must be either pointers to basic
+-	types or implementations of the Scanner interface.
+-
+-	Like Scanf and Fscanf, Sscanf need not consume its entire input.
+-	There is no way to recover how much of the input string Sscanf used.
+-
+-	Note: Fscan etc. can read one character (rune) past the input
+-	they return, which means that a loop calling a scan routine
+-	may skip some of the input.  This is usually a problem only
+-	when there is no space between input values.  If the reader
+-	provided to Fscan implements ReadRune, that method will be used
+-	to read characters.  If the reader also implements UnreadRune,
+-	that method will be used to save the character and successive
+-	calls will not lose data.  To attach ReadRune and UnreadRune
+-	methods to a reader without that capability, use
+-	bufio.NewReader.
++Package fmt implements formatted I/O with functions analogous
++to C's printf and scanf.  The format 'verbs' are derived from C's but
++are simpler.
++
++
++Printing
++
++The verbs:
++
++General:
++	%v	the value in a default format
++		when printing structs, the plus flag (%+v) adds field names
++	%#v	a Go-syntax representation of the value
++	%T	a Go-syntax representation of the type of the value
++	%%	a literal percent sign; consumes no value
++
++Boolean:
++	%t	the word true or false
++Integer:
++	%b	base 2
++	%c	the character represented by the corresponding Unicode code point
++	%d	base 10
++	%o	base 8
++	%O	base 8 with 0o prefix
++	%q	a single-quoted character literal safely escaped with Go syntax.
++	%x	base 16, with lower-case letters for a-f
++	%X	base 16, with upper-case letters for A-F
++	%U	Unicode format: U+1234; same as "U+%04X"
++Floating-point and complex constituents:
++	%b	decimalless scientific notation with exponent a power of two,
++		in the manner of strconv.FormatFloat with the 'b' format,
++		e.g. -123456p-78
++	%e	scientific notation, e.g. -1.234456e+78
++	%E	scientific notation, e.g. -1.234456E+78
++	%f	decimal point but no exponent, e.g. 123.456
++	%F	synonym for %f
++	%g	%e for large exponents, %f otherwise. Precision is discussed below.
++	%G	%E for large exponents, %F otherwise
++	%x	hexadecimal notation (with decimal power of two exponent), e.g. -0x1.23abcp+20
++	%X	upper-case hexadecimal notation, e.g. -0X1.23ABCP+20
++String and slice of bytes (treated equivalently with these verbs):
++	%s	the uninterpreted bytes of the string or slice
++	%q	a double-quoted string safely escaped with Go syntax
++	%x	base 16, lower-case, two characters per byte
++	%X	base 16, upper-case, two characters per byte
++Slice:
++	%p	address of 0th element in base 16 notation, with leading 0x
++Pointer:
++	%p	base 16 notation, with leading 0x
++	The %b, %d, %o, %x and %X verbs also work with pointers,
++	formatting the value exactly as if it were an integer.
++
++The default format for %v is:
++	bool:                    %t
++	int, int8 etc.:          %d
++	uint, uint8 etc.:        %d, %#x if printed with %#v
++	float32, complex64, etc: %g
++	string:                  %s
++	chan:                    %p
++	pointer:                 %p
++For compound objects, the elements are printed using these rules, recursively,
++laid out like this:
++	struct:             {field0 field1 ...}
++	array, slice:       [elem0 elem1 ...]
++	maps:               map[key1:value1 key2:value2 ...]
++	pointer to above:   &{}, &[], &map[]
++
++Width is specified by an optional decimal number immediately preceding the verb.
++If absent, the width is whatever is necessary to represent the value.
++Precision is specified after the (optional) width by a period followed by a
++decimal number. If no period is present, a default precision is used.
++A period with no following number specifies a precision of zero.
++Examples:
++	%f     default width, default precision
++	%9f    width 9, default precision
++	%.2f   default width, precision 2
++	%9.2f  width 9, precision 2
++	%9.f   width 9, precision 0
++
++Width and precision are measured in units of Unicode code points,
++that is, runes. (This differs from C's printf where the
++units are always measured in bytes.) Either or both of the flags
++may be replaced with the character '*', causing their values to be
++obtained from the next operand (preceding the one to format),
++which must be of type int.
++
++For most values, width is the minimum number of runes to output,
++padding the formatted form with spaces if necessary.
++
++For strings, byte slices and byte arrays, however, precision
++limits the length of the input to be formatted (not the size of
++the output), truncating if necessary. Normally it is measured in
++runes, but for these types when formatted with the %x or %X format
++it is measured in bytes.
++
++For floating-point values, width sets the minimum width of the field and
++precision sets the number of places after the decimal, if appropriate,
++except that for %g/%G precision sets the maximum number of significant
++digits (trailing zeros are removed). For example, given 12.345 the format
++%6.3f prints 12.345 while %.3g prints 12.3. The default precision for %e, %f
++and %#g is 6; for %g it is the smallest number of digits necessary to identify
++the value uniquely.
++
++For complex numbers, the width and precision apply to the two
++components independently and the result is parenthesized, so %f applied
++to 1.2+3.4i produces (1.200000+3.400000i).
++
++Other flags:
++	+	always print a sign for numeric values;
++		guarantee ASCII-only output for %q (%+q)
++	-	pad with spaces on the right rather than the left (left-justify the field)
++	#	alternate format: add leading 0b for binary (%#b), 0 for octal (%#o),
++		0x or 0X for hex (%#x or %#X); suppress 0x for %p (%#p);
++		for %q, print a raw (backquoted) string if strconv.CanBackquote
++		returns true;
++		always print a decimal point for %e, %E, %f, %F, %g and %G;
++		do not remove trailing zeros for %g and %G;
++		write e.g. U+0078 'x' if the character is printable for %U (%#U).
++	' '	(space) leave a space for elided sign in numbers (% d);
++		put spaces between bytes printing strings or slices in hex (% x, % X)
++	0	pad with leading zeros rather than spaces;
++		for numbers, this moves the padding after the sign;
++		ignored for strings, byte slices and byte arrays
++
++Flags are ignored by verbs that do not expect them.
++For example there is no alternate decimal format, so %#d and %d
++behave identically.
++
++For each Printf-like function, there is also a Print function
++that takes no format and is equivalent to saying %v for every
++operand.  Another variant Println inserts blanks between
++operands and appends a newline.
++
++Regardless of the verb, if an operand is an interface value,
++the internal concrete value is used, not the interface itself.
++Thus:
++	var i interface{} = 23
++	fmt.Printf("%v\n", i)
++will print 23.
++
++Except when printed using the verbs %T and %p, special
++formatting considerations apply for operands that implement
++certain interfaces. In order of application:
++
++1. If the operand is a reflect.Value, the operand is replaced by the
++concrete value that it holds, and printing continues with the next rule.
++
++2. If an operand implements the Formatter interface, it will
++be invoked. In this case the interpretation of verbs and flags is
++controlled by that implementation.
++
++3. If the %v verb is used with the # flag (%#v) and the operand
++implements the GoStringer interface, that will be invoked.
++
++If the format (which is implicitly %v for Println etc.) is valid
++for a string (%s %q %v %x %X), the following two rules apply:
++
++4. If an operand implements the error interface, the Error method
++will be invoked to convert the object to a string, which will then
++be formatted as required by the verb (if any).
++
++5. If an operand implements method String() string, that method
++will be invoked to convert the object to a string, which will then
++be formatted as required by the verb (if any).
++
++For compound operands such as slices and structs, the format
++applies to the elements of each operand, recursively, not to the
++operand as a whole. Thus %q will quote each element of a slice
++of strings, and %6.2f will control formatting for each element
++of a floating-point array.
++
++However, when printing a byte slice with a string-like verb
++(%s %q %x %X), it is treated identically to a string, as a single item.
++
++To avoid recursion in cases such as
++	type X string
++	func (x X) String() string { return Sprintf("<%s>", x) }
++convert the value before recurring:
++	func (x X) String() string { return Sprintf("<%s>", string(x)) }
++Infinite recursion can also be triggered by self-referential data
++structures, such as a slice that contains itself as an element, if
++that type has a String method. Such pathologies are rare, however,
++and the package does not protect against them.
++
++When printing a struct, fmt cannot and therefore does not invoke
++formatting methods such as Error or String on unexported fields.
++
++Explicit argument indexes
++
++In Printf, Sprintf, and Fprintf, the default behavior is for each
++formatting verb to format successive arguments passed in the call.
++However, the notation [n] immediately before the verb indicates that the
++nth one-indexed argument is to be formatted instead. The same notation
++before a '*' for a width or precision selects the argument index holding
++the value. After processing a bracketed expression [n], subsequent verbs
++will use arguments n+1, n+2, etc. unless otherwise directed.
++
++For example,
++	fmt.Sprintf("%[2]d %[1]d\n", 11, 22)
++will yield "22 11", while
++	fmt.Sprintf("%[3]*.[2]*[1]f", 12.0, 2, 6)
++equivalent to
++	fmt.Sprintf("%6.2f", 12.0)
++will yield " 12.00". Because an explicit index affects subsequent verbs,
++this notation can be used to print the same values multiple times
++by resetting the index for the first argument to be repeated:
++	fmt.Sprintf("%d %d %#[1]x %#x", 16, 17)
++will yield "16 17 0x10 0x11".
++
++Format errors
++
++If an invalid argument is given for a verb, such as providing
++a string to %d, the generated string will contain a
++description of the problem, as in these examples:
++
++	Wrong type or unknown verb: %!verb(type=value)
++		Printf("%d", "hi"):        %!d(string=hi)
++	Too many arguments: %!(EXTRA type=value)
++		Printf("hi", "guys"):      hi%!(EXTRA string=guys)
++	Too few arguments: %!verb(MISSING)
++		Printf("hi%d"):            hi%!d(MISSING)
++	Non-int for width or precision: %!(BADWIDTH) or %!(BADPREC)
++		Printf("%*s", 4.5, "hi"):  %!(BADWIDTH)hi
++		Printf("%.*s", 4.5, "hi"): %!(BADPREC)hi
++	Invalid or invalid use of argument index: %!(BADINDEX)
++		Printf("%*[2]d", 7):       %!d(BADINDEX)
++		Printf("%.[2]d", 7):       %!d(BADINDEX)
++
++All errors begin with the string "%!" followed sometimes
++by a single character (the verb) and end with a parenthesized
++description.
++
++If an Error or String method triggers a panic when called by a
++print routine, the fmt package reformats the error message
++from the panic, decorating it with an indication that it came
++through the fmt package.  For example, if a String method
++calls panic("bad"), the resulting formatted message will look
++like
++	%!s(PANIC=bad)
++
++The %!s just shows the print verb in use when the failure
++occurred. If the panic is caused by a nil receiver to an Error
++or String method, however, the output is the undecorated
++string, "<nil>".
++
++Scanning
++
++An analogous set of functions scans formatted text to yield
++values.  Scan, Scanf and Scanln read from os.Stdin; Fscan,
++Fscanf and Fscanln read from a specified io.Reader; Sscan,
++Sscanf and Sscanln read from an argument string.
++
++Scan, Fscan, Sscan treat newlines in the input as spaces.
++
++Scanln, Fscanln and Sscanln stop scanning at a newline and
++require that the items be followed by a newline or EOF.
++
++Scanf, Fscanf, and Sscanf parse the arguments according to a
++format string, analogous to that of Printf. In the text that
++follows, 'space' means any Unicode whitespace character
++except newline.
++
++In the format string, a verb introduced by the % character
++consumes and parses input; these verbs are described in more
++detail below. A character other than %, space, or newline in
++the format consumes exactly that input character, which must
++be present. A newline with zero or more spaces before it in
++the format string consumes zero or more spaces in the input
++followed by a single newline or the end of the input. A space
++following a newline in the format string consumes zero or more
++spaces in the input. Otherwise, any run of one or more spaces
++in the format string consumes as many spaces as possible in
++the input. Unless the run of spaces in the format string
++appears adjacent to a newline, the run must consume at least
++one space from the input or find the end of the input.
++
++The handling of spaces and newlines differs from that of C's
++scanf family: in C, newlines are treated as any other space,
++and it is never an error when a run of spaces in the format
++string finds no spaces to consume in the input.
++
++The verbs behave analogously to those of Printf.
++For example, %x will scan an integer as a hexadecimal number,
++and %v will scan the default representation format for the value.
++The Printf verbs %p and %T and the flags # and + are not implemented.
++For floating-point and complex values, all valid formatting verbs
++(%b %e %E %f %F %g %G %x %X and %v) are equivalent and accept
++both decimal and hexadecimal notation (for example: "2.3e+7", "0x4.5p-8")
++and digit-separating underscores (for example: "3.14159_26535_89793").
++
++Input processed by verbs is implicitly space-delimited: the
++implementation of every verb except %c starts by discarding
++leading spaces from the remaining input, and the %s verb
++(and %v reading into a string) stops consuming input at the first
++space or newline character.
++
++The familiar base-setting prefixes 0b (binary), 0o and 0 (octal),
++and 0x (hexadecimal) are accepted when scanning integers
++without a format or with the %v verb, as are digit-separating
++underscores.
++
++Width is interpreted in the input text but there is no
++syntax for scanning with a precision (no %5.2f, just %5f).
++If width is provided, it applies after leading spaces are
++trimmed and specifies the maximum number of runes to read
++to satisfy the verb. For example,
++   Sscanf(" 1234567 ", "%5s%d", &s, &i)
++will set s to "12345" and i to 67 while
++   Sscanf(" 12 34 567 ", "%5s%d", &s, &i)
++will set s to "12" and i to 34.
++
++In all the scanning functions, a carriage return followed
++immediately by a newline is treated as a plain newline
++(\r\n means the same as \n).
++
++In all the scanning functions, if an operand implements method
++Scan (that is, it implements the Scanner interface) that
++method will be used to scan the text for that operand.  Also,
++if the number of arguments scanned is less than the number of
++arguments provided, an error is returned.
++
++All arguments to be scanned must be either pointers to basic
++types or implementations of the Scanner interface.
++
++Like Scanf and Fscanf, Sscanf need not consume its entire input.
++There is no way to recover how much of the input string Sscanf used.
++
++Note: Fscan etc. can read one character (rune) past the input
++they return, which means that a loop calling a scan routine
++may skip some of the input.  This is usually a problem only
++when there is no space between input values.  If the reader
++provided to Fscan implements ReadRune, that method will be used
++to read characters.  If the reader also implements UnreadRune,
++that method will be used to save the character and successive
++calls will not lose data.  To attach ReadRune and UnreadRune
++methods to a reader without that capability, use
++bufio.NewReader.
+ */
+ package fmt
+diff --git a/src/go/doc/headscan.go b/src/go/doc/headscan.go
+index 320895e43a..f55ca754a6 100644
+--- a/src/go/doc/headscan.go
++++ b/src/go/doc/headscan.go
+@@ -5,13 +5,13 @@
+ //go:build ignore
+ 
+ /*
+-	The headscan command extracts comment headings from package files;
+-	it is used to detect false positives which may require an adjustment
+-	to the comment formatting heuristics in comment.go.
++The headscan command extracts comment headings from package files;
++it is used to detect false positives which may require an adjustment
++to the comment formatting heuristics in comment.go.
+ 
+-	Usage: headscan [-root root_directory]
++Usage: headscan [-root root_directory]
+ 
+-	By default, the $GOROOT/src directory is scanned.
++By default, the $GOROOT/src directory is scanned.
+ */
+ package main
+ 
+diff --git a/src/net/rpc/server.go b/src/net/rpc/server.go
+index d5207a42cf..f53ea75f9c 100644
+--- a/src/net/rpc/server.go
++++ b/src/net/rpc/server.go
+@@ -3,126 +3,126 @@
+ // license that can be found in the LICENSE file.
+ 
+ /*
+-	Package rpc provides access to the exported methods of an object across a
+-	network or other I/O connection.  A server registers an object, making it visible
+-	as a service with the name of the type of the object.  After registration, exported
+-	methods of the object will be accessible remotely.  A server may register multiple
+-	objects (services) of different types but it is an error to register multiple
+-	objects of the same type.
++Package rpc provides access to the exported methods of an object across a
++network or other I/O connection.  A server registers an object, making it visible
++as a service with the name of the type of the object.  After registration, exported
++methods of the object will be accessible remotely.  A server may register multiple
++objects (services) of different types but it is an error to register multiple
++objects of the same type.
+ 
+-	Only methods that satisfy these criteria will be made available for remote access;
+-	other methods will be ignored:
++Only methods that satisfy these criteria will be made available for remote access;
++other methods will be ignored:
+ 
+-		- the method's type is exported.
+-		- the method is exported.
+-		- the method has two arguments, both exported (or builtin) types.
+-		- the method's second argument is a pointer.
+-		- the method has return type error.
++	- the method's type is exported.
++	- the method is exported.
++	- the method has two arguments, both exported (or builtin) types.
++	- the method's second argument is a pointer.
++	- the method has return type error.
+ 
+-	In effect, the method must look schematically like
++In effect, the method must look schematically like
+ 
+-		func (t *T) MethodName(argType T1, replyType *T2) error
++	func (t *T) MethodName(argType T1, replyType *T2) error
+ 
+-	where T1 and T2 can be marshaled by encoding/gob.
+-	These requirements apply even if a different codec is used.
+-	(In the future, these requirements may soften for custom codecs.)
++where T1 and T2 can be marshaled by encoding/gob.
++These requirements apply even if a different codec is used.
++(In the future, these requirements may soften for custom codecs.)
+ 
+-	The method's first argument represents the arguments provided by the caller; the
+-	second argument represents the result parameters to be returned to the caller.
+-	The method's return value, if non-nil, is passed back as a string that the client
+-	sees as if created by errors.New.  If an error is returned, the reply parameter
+-	will not be sent back to the client.
++The method's first argument represents the arguments provided by the caller; the
++second argument represents the result parameters to be returned to the caller.
++The method's return value, if non-nil, is passed back as a string that the client
++sees as if created by errors.New.  If an error is returned, the reply parameter
++will not be sent back to the client.
+ 
+-	The server may handle requests on a single connection by calling ServeConn.  More
+-	typically it will create a network listener and call Accept or, for an HTTP
+-	listener, HandleHTTP and http.Serve.
++The server may handle requests on a single connection by calling ServeConn.  More
++typically it will create a network listener and call Accept or, for an HTTP
++listener, HandleHTTP and http.Serve.
+ 
+-	A client wishing to use the service establishes a connection and then invokes
+-	NewClient on the connection.  The convenience function Dial (DialHTTP) performs
+-	both steps for a raw network connection (an HTTP connection).  The resulting
+-	Client object has two methods, Call and Go, that specify the service and method to
+-	call, a pointer containing the arguments, and a pointer to receive the result
+-	parameters.
++A client wishing to use the service establishes a connection and then invokes
++NewClient on the connection.  The convenience function Dial (DialHTTP) performs
++both steps for a raw network connection (an HTTP connection).  The resulting
++Client object has two methods, Call and Go, that specify the service and method to
++call, a pointer containing the arguments, and a pointer to receive the result
++parameters.
+ 
+-	The Call method waits for the remote call to complete while the Go method
+-	launches the call asynchronously and signals completion using the Call
+-	structure's Done channel.
++The Call method waits for the remote call to complete while the Go method
++launches the call asynchronously and signals completion using the Call
++structure's Done channel.
+ 
+-	Unless an explicit codec is set up, package encoding/gob is used to
+-	transport the data.
++Unless an explicit codec is set up, package encoding/gob is used to
++transport the data.
+ 
+-	Here is a simple example.  A server wishes to export an object of type Arith:
++Here is a simple example.  A server wishes to export an object of type Arith:
+ 
+-		package server
++	package server
+ 
+-		import "errors"
++	import "errors"
+ 
+-		type Args struct {
+-			A, B int
+-		}
++	type Args struct {
++		A, B int
++	}
+ 
+-		type Quotient struct {
+-			Quo, Rem int
+-		}
++	type Quotient struct {
++		Quo, Rem int
++	}
+ 
+-		type Arith int
++	type Arith int
+ 
+-		func (t *Arith) Multiply(args *Args, reply *int) error {
+-			*reply = args.A * args.B
+-			return nil
+-		}
++	func (t *Arith) Multiply(args *Args, reply *int) error {
++		*reply = args.A * args.B
++		return nil
++	}
+ 
+-		func (t *Arith) Divide(args *Args, quo *Quotient) error {
+-			if args.B == 0 {
+-				return errors.New("divide by zero")
+-			}
+-			quo.Quo = args.A / args.B
+-			quo.Rem = args.A % args.B
+-			return nil
++	func (t *Arith) Divide(args *Args, quo *Quotient) error {
++		if args.B == 0 {
++			return errors.New("divide by zero")
+ 		}
++		quo.Quo = args.A / args.B
++		quo.Rem = args.A % args.B
++		return nil
++	}
+ 
+-	The server calls (for HTTP service):
++The server calls (for HTTP service):
+ 
+-		arith := new(Arith)
+-		rpc.Register(arith)
+-		rpc.HandleHTTP()
+-		l, e := net.Listen("tcp", ":1234")
+-		if e != nil {
+-			log.Fatal("listen error:", e)
+-		}
+-		go http.Serve(l, nil)
++	arith := new(Arith)
++	rpc.Register(arith)
++	rpc.HandleHTTP()
++	l, e := net.Listen("tcp", ":1234")
++	if e != nil {
++		log.Fatal("listen error:", e)
++	}
++	go http.Serve(l, nil)
+ 
+-	At this point, clients can see a service "Arith" with methods "Arith.Multiply" and
+-	"Arith.Divide".  To invoke one, a client first dials the server:
++At this point, clients can see a service "Arith" with methods "Arith.Multiply" and
++"Arith.Divide".  To invoke one, a client first dials the server:
+ 
+-		client, err := rpc.DialHTTP("tcp", serverAddress + ":1234")
+-		if err != nil {
+-			log.Fatal("dialing:", err)
+-		}
++	client, err := rpc.DialHTTP("tcp", serverAddress + ":1234")
++	if err != nil {
++		log.Fatal("dialing:", err)
++	}
+ 
+-	Then it can make a remote call:
++Then it can make a remote call:
+ 
+-		// Synchronous call
+-		args := &server.Args{7,8}
+-		var reply int
+-		err = client.Call("Arith.Multiply", args, &reply)
+-		if err != nil {
+-			log.Fatal("arith error:", err)
+-		}
+-		fmt.Printf("Arith: %d*%d=%d", args.A, args.B, reply)
++	// Synchronous call
++	args := &server.Args{7,8}
++	var reply int
++	err = client.Call("Arith.Multiply", args, &reply)
++	if err != nil {
++		log.Fatal("arith error:", err)
++	}
++	fmt.Printf("Arith: %d*%d=%d", args.A, args.B, reply)
+ 
+-	or
++or
+ 
+-		// Asynchronous call
+-		quotient := new(Quotient)
+-		divCall := client.Go("Arith.Divide", args, quotient, nil)
+-		replyCall := <-divCall.Done	// will be equal to divCall
+-		// check errors, print, etc.
++	// Asynchronous call
++	quotient := new(Quotient)
++	divCall := client.Go("Arith.Divide", args, quotient, nil)
++	replyCall := <-divCall.Done	// will be equal to divCall
++	// check errors, print, etc.
+ 
+-	A server implementation will often provide a simple, type-safe wrapper for the
+-	client.
++A server implementation will often provide a simple, type-safe wrapper for the
++client.
+ 
+-	The net/rpc package is frozen and is not accepting new features.
++The net/rpc package is frozen and is not accepting new features.
+ */
+ package rpc
+ 
+diff --git a/src/runtime/debug/stack_test.go b/src/runtime/debug/stack_test.go
+index 9376e82b84..4cab8864df 100644
+--- a/src/runtime/debug/stack_test.go
++++ b/src/runtime/debug/stack_test.go
+@@ -20,22 +20,22 @@ func (t T) method() []byte {
+ }
+ 
+ /*
+-	The traceback should look something like this, modulo line numbers and hex constants.
+-	Don't worry much about the base levels, but check the ones in our own package.
++The traceback should look something like this, modulo line numbers and hex constants.
++Don't worry much about the base levels, but check the ones in our own package.
+ 
+-		goroutine 10 [running]:
+-		runtime/debug.Stack(0x0, 0x0, 0x0)
+-			/Users/r/go/src/runtime/debug/stack.go:28 +0x80
+-		runtime/debug.(*T).ptrmethod(0xc82005ee70, 0x0, 0x0, 0x0)
+-			/Users/r/go/src/runtime/debug/stack_test.go:15 +0x29
+-		runtime/debug.T.method(0x0, 0x0, 0x0, 0x0)
+-			/Users/r/go/src/runtime/debug/stack_test.go:18 +0x32
+-		runtime/debug.TestStack(0xc8201ce000)
+-			/Users/r/go/src/runtime/debug/stack_test.go:37 +0x38
+-		testing.tRunner(0xc8201ce000, 0x664b58)
+-			/Users/r/go/src/testing/testing.go:456 +0x98
+-		created by testing.RunTests
+-			/Users/r/go/src/testing/testing.go:561 +0x86d
++	goroutine 10 [running]:
++	runtime/debug.Stack(0x0, 0x0, 0x0)
++		/Users/r/go/src/runtime/debug/stack.go:28 +0x80
++	runtime/debug.(*T).ptrmethod(0xc82005ee70, 0x0, 0x0, 0x0)
++		/Users/r/go/src/runtime/debug/stack_test.go:15 +0x29
++	runtime/debug.T.method(0x0, 0x0, 0x0, 0x0)
++		/Users/r/go/src/runtime/debug/stack_test.go:18 +0x32
++	runtime/debug.TestStack(0xc8201ce000)
++		/Users/r/go/src/runtime/debug/stack_test.go:37 +0x38
++	testing.tRunner(0xc8201ce000, 0x664b58)
++		/Users/r/go/src/testing/testing.go:456 +0x98
++	created by testing.RunTests
++		/Users/r/go/src/testing/testing.go:561 +0x86d
+ */
+ func TestStack(t *testing.T) {
+ 	b := T(0).method()
+diff --git a/src/unsafe/unsafe.go b/src/unsafe/unsafe.go
+index 16e3890d0b..a6a255658b 100644
+--- a/src/unsafe/unsafe.go
++++ b/src/unsafe/unsafe.go
+@@ -3,10 +3,10 @@
+ // license that can be found in the LICENSE file.
+ 
+ /*
+-	Package unsafe contains operations that step around the type safety of Go programs.
++Package unsafe contains operations that step around the type safety of Go programs.
+ 
+-	Packages that import unsafe may be non-portable and are not protected by the
+-	Go 1 compatibility guidelines.
++Packages that import unsafe may be non-portable and are not protected by the
++Go 1 compatibility guidelines.
+ */
+ package unsafe
+ 

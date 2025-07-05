@@ -13,7 +13,43 @@ Date:   Wed Feb 26 15:02:36 2020 +0000
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/internal/work/exec.go           |  5 ++---
  src/cmd/go/testdata/script/build_n_cgo.txt | 13 +++++++++++++
  2 files changed, 15 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 1bba3a5329..70f3c7b27e 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -2129,9 +2129,8 @@ func (b *Builder) gfortran(a *Action, p *load.Package, workdir, out string, flag
+ func (b *Builder) ccompile(a *Action, p *load.Package, outfile string, flags []string, file string, compiler []string) error {
+ 	file = mkAbs(p.Dir, file)
+ 	desc := p.ImportPath
+-	if !filepath.IsAbs(outfile) {
+-		outfile = filepath.Join(p.Dir, outfile)
+-	}
++	outfile = mkAbs(p.Dir, outfile)
++
+ 	output, err := b.runOut(a, filepath.Dir(file), b.cCompilerEnv(), compiler, flags, "-o", outfile, "-c", filepath.Base(file))
+ 	if len(output) > 0 {
+ 		// On FreeBSD 11, when we pass -g to clang 3.8 it
+diff --git a/src/cmd/go/testdata/script/build_n_cgo.txt b/src/cmd/go/testdata/script/build_n_cgo.txt
+new file mode 100644
+index 0000000000..200d13760e
+--- /dev/null
++++ b/src/cmd/go/testdata/script/build_n_cgo.txt
+@@ -0,0 +1,13 @@
++[!cgo] skip
++
++# Test that nothing is prepended to $WORK path prefix.
++# See issue golang.org/issue/37012.
++go build -n
++! stderr '[/\\]\$WORK'
++
++-- main.go --
++package main
++
++import "C"
++
++var _ C.int

@@ -11,6 +11,20 @@ Date:   Thu Sep 8 10:37:26 2011 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4977057
-
+---
  lib/godoc/package.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/lib/godoc/package.html b/lib/godoc/package.html
+index 7a89d780c2..559fe2dddd 100644
+--- a/lib/godoc/package.html
++++ b/lib/godoc/package.html
+@@ -63,7 +63,7 @@
+ 			{{end}}
+ 			{{range .Factories}}
+ 				{{$name_html := html .Name}}
+-				<h3 id="{{$tname_html}}.{{$name_html}}">func <a href="/{{posLink_url .Decl $.FSet}}">{{$name_html}}</a></h3>
++				<h3 id="{{$name_html}}">func <a href="/{{posLink_url .Decl $.FSet}}">{{$name_html}}</a></h3>
+ 				<p><code>{{node_html .Decl $.FSet}}</code></p>
+ 				{{comment_html .Doc}}
+ 			{{end}}

@@ -15,6 +15,49 @@ Date:   Fri Jul 8 09:41:14 2022 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/cmd/compile/internal/amd64/versions_test.go | 31 ++++++++++++++++++++-----
  1 file changed, 25 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/versions_test.go b/src/cmd/compile/internal/amd64/versions_test.go
+index 2ac6e95c91..b6411a1cb0 100644
+--- a/src/cmd/compile/internal/amd64/versions_test.go
++++ b/src/cmd/compile/internal/amd64/versions_test.go
+@@ -242,12 +242,31 @@ var featureToOpcodes = map[string][]string{
+ 	// go tool objdump doesn't include a [QL] on popcnt instructions, until CL 351889
+ 	// native objdump doesn't include [QL] on linux.
+ 	"popcnt": {"popcntq", "popcntl", "popcnt"},
+-	"bmi1":   {"andnq", "andnl", "andn", "blsiq", "blsil", "blsi", "blsmskq", "blsmskl", "blsmsk", "blsrq", "blsrl", "blsr", "tzcntq", "tzcntl", "tzcnt"},
+-	"bmi2":   {"sarxq", "sarxl", "sarx", "shlxq", "shlxl", "shlx", "shrxq", "shrxl", "shrx"},
+-	"sse41":  {"roundsd"},
+-	"fma":    {"vfmadd231sd"},
+-	"movbe":  {"movbeqq", "movbeq", "movbell", "movbel", "movbe"},
+-	"lzcnt":  {"lzcntq", "lzcntl", "lzcnt"},
++	"bmi1": {
++		"andnq", "andnl", "andn",
++		"blsiq", "blsil", "blsi",
++		"blsmskq", "blsmskl", "blsmsk",
++		"blsrq", "blsrl", "blsr",
++		"tzcntq", "tzcntl", "tzcnt",
++	},
++	"bmi2": {
++		"sarxq", "sarxl", "sarx",
++		"shlxq", "shlxl", "shlx",
++		"shrxq", "shrxl", "shrx",
++	},
++	"sse41": {
++		"roundsd",
++		"pinsrq", "pinsrl", "pinsrd", "pinsrb", "pinsr",
++		"pextrq", "pextrl", "pextrd", "pextrb", "pextr",
++		"pminsb", "pminsd", "pminuw", "pminud", // Note: ub and sw are ok.
++		"pmaxsb", "pmaxsd", "pmaxuw", "pmaxud",
++		"pmovzxbw", "pmovzxbd", "pmovzxbq", "pmovzxwd", "pmovzxwq", "pmovzxdq",
++		"pmovsxbw", "pmovsxbd", "pmovsxbq", "pmovsxwd", "pmovsxwq", "pmovsxdq",
++		"pblendvb",
++	},
++	"fma":   {"vfmadd231sd"},
++	"movbe": {"movbeqq", "movbeq", "movbell", "movbel", "movbe"},
++	"lzcnt": {"lzcntq", "lzcntl", "lzcnt"},
+ }
+ 
+ // Test to use POPCNT instruction, if available

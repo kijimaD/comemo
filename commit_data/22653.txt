@@ -12,7 +12,84 @@ Date:   Thu Mar 19 23:05:34 2015 +1300
     Change-Id: I57cd5447b42a1a6129b02951d44efffb10cf64be
     Reviewed-on: https://go-review.googlesource.com/7797
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/internal/gc/reflect.go | 24 +++++++++++++++++++-----
  src/cmd/internal/ld/lib.go     | 18 ------------------
  2 files changed, 19 insertions(+), 23 deletions(-)
+
+diff --git a/src/cmd/internal/gc/reflect.go b/src/cmd/internal/gc/reflect.go
+index 943b1f561e..35984f1046 100644
+--- a/src/cmd/internal/gc/reflect.go
++++ b/src/cmd/internal/gc/reflect.go
+@@ -472,12 +472,25 @@ func dimportpath(p *Pkg) {
+ 		return
+ 	}
+ 
++	// If we are compiling the runtime package, there are two runtime packages around
++	// -- localpkg and Runtimepkg.  We don't want to produce import path symbols for
++	// both of them, so just produce one for localpkg.
++	if myimportpath == "runtime" && p == Runtimepkg {
++		return
++	}
++
+ 	if dimportpath_gopkg == nil {
+ 		dimportpath_gopkg = mkpkg("go")
+ 		dimportpath_gopkg.Name = "go"
+ 	}
+ 
+-	nam := "importpath." + p.Prefix + "."
++	var nam string
++	if p == localpkg {
++		// Note: myimportpath != "", or else dgopkgpath won't call dimportpath.
++		nam = "importpath." + pathtoprefix(myimportpath) + "."
++	} else {
++		nam = "importpath." + p.Prefix + "."
++	}
+ 
+ 	n := Nod(ONAME, nil, nil)
+ 	n.Sym = Pkglookup(nam, dimportpath_gopkg)
+@@ -495,10 +508,11 @@ func dgopkgpath(s *Sym, ot int, pkg *Pkg) int {
+ 		return dgostringptr(s, ot, "")
+ 	}
+ 
+-	// Emit reference to go.importpath.""., which 6l will
+-	// rewrite using the correct import path.  Every package
+-	// that imports this one directly defines the symbol.
+-	if pkg == localpkg {
++	if pkg == localpkg && myimportpath == "" {
++		// If we don't know the full path of the package being compiled (i.e. -p
++		// was not passed on the compiler command line), emit reference to
++		// go.importpath.""., which 6l will rewrite using the correct import path.
++		// Every package that imports this one directly defines the symbol.
+ 		var ns *Sym
+ 
+ 		if ns == nil {
+diff --git a/src/cmd/internal/ld/lib.go b/src/cmd/internal/ld/lib.go
+index 48fd8bc956..b3317d67e1 100644
+--- a/src/cmd/internal/ld/lib.go
++++ b/src/cmd/internal/ld/lib.go
+@@ -379,24 +379,6 @@ func loadlib() {
+ 		if i < len(Ctxt.Library) {
+ 			objfile(Ctxt.Library[i].File, Ctxt.Library[i].Pkg)
+ 		}
+-
+-		// Pretend that we really imported the package.
+-		s := Linklookup(Ctxt, "go.importpath.runtime/cgo.", 0)
+-
+-		s.Type = SDATA
+-		s.Dupok = 1
+-		s.Reachable = true
+-
+-		// Provided by the code that imports the package.
+-		// Since we are simulating the import, we have to provide this string.
+-		cgostrsym := "go.string.\"runtime/cgo\""
+-
+-		if Linkrlookup(Ctxt, cgostrsym, 0) == nil {
+-			s := Linklookup(Ctxt, cgostrsym, 0)
+-			s.Type = SRODATA
+-			s.Reachable = true
+-			addstrdata(cgostrsym, "runtime/cgo")
+-		}
+ 	}
+ 
+ 	if Linkmode == LinkInternal {

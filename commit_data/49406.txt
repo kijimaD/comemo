@@ -30,7 +30,7 @@ Date:   Thu Feb 11 19:34:22 2021 -0800
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Run-TryBot: Damien Neil <dneil@google.com>
     Reviewed-by: Damien Neil <dneil@google.com>
-
+---
  api/next.txt                    | 52 +++++++++++++++++++++++++++++++++++++++
  src/internal/poll/fd_unix.go    | 54 +++++++++++++++++++++++++++++++++++++++++
  src/internal/poll/fd_windows.go | 18 ++++++++++++++
@@ -40,3 +40,342 @@ Date:   Thu Feb 11 19:34:22 2021 -0800
  src/syscall/net_js.go           |  8 ++++++
  src/syscall/syscall_unix.go     | 27 +++++++++++++++++++++
  8 files changed, 197 insertions(+), 7 deletions(-)
+
+diff --git a/api/next.txt b/api/next.txt
+index 8d2ee73f79..4dbaae3cf2 100644
+--- a/api/next.txt
++++ b/api/next.txt
+@@ -1,52 +1,104 @@
++pkg syscall (darwin-amd64), func RecvfromInet4(int, []uint8, int, *SockaddrInet4) (int, error)
++pkg syscall (darwin-amd64), func RecvfromInet6(int, []uint8, int, *SockaddrInet6) (int, error)
+ pkg syscall (darwin-amd64), func SendtoInet4(int, []uint8, int, SockaddrInet4) error
+ pkg syscall (darwin-amd64), func SendtoInet6(int, []uint8, int, SockaddrInet6) error
++pkg syscall (darwin-amd64-cgo), func RecvfromInet4(int, []uint8, int, *SockaddrInet4) (int, error)
++pkg syscall (darwin-amd64-cgo), func RecvfromInet6(int, []uint8, int, *SockaddrInet6) (int, error)
+ pkg syscall (darwin-amd64-cgo), func SendtoInet4(int, []uint8, int, SockaddrInet4) error
+ pkg syscall (darwin-amd64-cgo), func SendtoInet6(int, []uint8, int, SockaddrInet6) error
++pkg syscall (freebsd-386), func RecvfromInet4(int, []uint8, int, *SockaddrInet4) (int, error)
++pkg syscall (freebsd-386), func RecvfromInet6(int, []uint8, int, *SockaddrInet6) (int, error)
+ pkg syscall (freebsd-386), func SendtoInet4(int, []uint8, int, SockaddrInet4) error
+ pkg syscall (freebsd-386), func SendtoInet6(int, []uint8, int, SockaddrInet6) error
++pkg syscall (freebsd-386-cgo), func RecvfromInet4(int, []uint8, int, *SockaddrInet4) (int, error)
++pkg syscall (freebsd-386-cgo), func RecvfromInet6(int, []uint8, int, *SockaddrInet6) (int, error)
+ pkg syscall (freebsd-386-cgo), func SendtoInet4(int, []uint8, int, SockaddrInet4) error
+ pkg syscall (freebsd-386-cgo), func SendtoInet6(int, []uint8, int, SockaddrInet6) error
++pkg syscall (freebsd-amd64), func RecvfromInet4(int, []uint8, int, *SockaddrInet4) (int, error)
++pkg syscall (freebsd-amd64), func RecvfromInet6(int, []uint8, int, *SockaddrInet6) (int, error)
+ pkg syscall (freebsd-amd64), func SendtoInet4(int, []uint8, int, SockaddrInet4) error
+ pkg syscall (freebsd-amd64), func SendtoInet6(int, []uint8, int, SockaddrInet6) error
++pkg syscall (freebsd-amd64-cgo), func RecvfromInet4(int, []uint8, int, *SockaddrInet4) (int, error)
++pkg syscall (freebsd-amd64-cgo), func RecvfromInet6(int, []uint8, int, *SockaddrInet6) (int, error)
+ pkg syscall (freebsd-amd64-cgo), func SendtoInet4(int, []uint8, int, SockaddrInet4) error
+ pkg syscall (freebsd-amd64-cgo), func SendtoInet6(int, []uint8, int, SockaddrInet6) error
++pkg syscall (freebsd-arm), func RecvfromInet4(int, []uint8, int, *SockaddrInet4) (int, error)
++pkg syscall (freebsd-arm), func RecvfromInet6(int, []uint8, int, *SockaddrInet6) (int, error)
+ pkg syscall (freebsd-arm), func SendtoInet4(int, []uint8, int, SockaddrInet4) error
+ pkg syscall (freebsd-arm), func SendtoInet6(int, []uint8, int, SockaddrInet6) error
++pkg syscall (freebsd-arm-cgo), func RecvfromInet4(int, []uint8, int, *SockaddrInet4) (int, error)
++pkg syscall (freebsd-arm-cgo), func RecvfromInet6(int, []uint8, int, *SockaddrInet6) (int, error)
+ pkg syscall (freebsd-arm-cgo), func SendtoInet4(int, []uint8, int, SockaddrInet4) error
+ pkg syscall (freebsd-arm-cgo), func SendtoInet6(int, []uint8, int, SockaddrInet6) error
++pkg syscall (linux-386), func RecvfromInet4(int, []uint8, int, *SockaddrInet4) (int, error)
++pkg syscall (linux-386), func RecvfromInet6(int, []uint8, int, *SockaddrInet6) (int, error)
+ pkg syscall (linux-386), func SendtoInet4(int, []uint8, int, SockaddrInet4) error
+ pkg syscall (linux-386), func SendtoInet6(int, []uint8, int, SockaddrInet6) error
++pkg syscall (linux-386-cgo), func RecvfromInet4(int, []uint8, int, *SockaddrInet4) (int, error)
++pkg syscall (linux-386-cgo), func RecvfromInet6(int, []uint8, int, *SockaddrInet6) (int, error)
+ pkg syscall (linux-386-cgo), func SendtoInet4(int, []uint8, int, SockaddrInet4) error
+ pkg syscall (linux-386-cgo), func SendtoInet6(int, []uint8, int, SockaddrInet6) error
++pkg syscall (linux-amd64), func RecvfromInet4(int, []uint8, int, *SockaddrInet4) (int, error)
++pkg syscall (linux-amd64), func RecvfromInet6(int, []uint8, int, *SockaddrInet6) (int, error)
+ pkg syscall (linux-amd64), func SendtoInet4(int, []uint8, int, SockaddrInet4) error
+ pkg syscall (linux-amd64), func SendtoInet6(int, []uint8, int, SockaddrInet6) error
++pkg syscall (linux-amd64-cgo), func RecvfromInet4(int, []uint8, int, *SockaddrInet4) (int, error)
++pkg syscall (linux-amd64-cgo), func RecvfromInet6(int, []uint8, int, *SockaddrInet6) (int, error)
+ pkg syscall (linux-amd64-cgo), func SendtoInet4(int, []uint8, int, SockaddrInet4) error
+ pkg syscall (linux-amd64-cgo), func SendtoInet6(int, []uint8, int, SockaddrInet6) error
++pkg syscall (linux-arm), func RecvfromInet4(int, []uint8, int, *SockaddrInet4) (int, error)
++pkg syscall (linux-arm), func RecvfromInet6(int, []uint8, int, *SockaddrInet6) (int, error)
+ pkg syscall (linux-arm), func SendtoInet4(int, []uint8, int, SockaddrInet4) error
+ pkg syscall (linux-arm), func SendtoInet6(int, []uint8, int, SockaddrInet6) error
++pkg syscall (linux-arm-cgo), func RecvfromInet4(int, []uint8, int, *SockaddrInet4) (int, error)
++pkg syscall (linux-arm-cgo), func RecvfromInet6(int, []uint8, int, *SockaddrInet6) (int, error)
+ pkg syscall (linux-arm-cgo), func SendtoInet4(int, []uint8, int, SockaddrInet4) error
+ pkg syscall (linux-arm-cgo), func SendtoInet6(int, []uint8, int, SockaddrInet6) error
++pkg syscall (netbsd-386), func RecvfromInet4(int, []uint8, int, *SockaddrInet4) (int, error)
++pkg syscall (netbsd-386), func RecvfromInet6(int, []uint8, int, *SockaddrInet6) (int, error)
+ pkg syscall (netbsd-386), func SendtoInet4(int, []uint8, int, SockaddrInet4) error
+ pkg syscall (netbsd-386), func SendtoInet6(int, []uint8, int, SockaddrInet6) error
++pkg syscall (netbsd-386-cgo), func RecvfromInet4(int, []uint8, int, *SockaddrInet4) (int, error)
++pkg syscall (netbsd-386-cgo), func RecvfromInet6(int, []uint8, int, *SockaddrInet6) (int, error)
+ pkg syscall (netbsd-386-cgo), func SendtoInet4(int, []uint8, int, SockaddrInet4) error
+ pkg syscall (netbsd-386-cgo), func SendtoInet6(int, []uint8, int, SockaddrInet6) error
++pkg syscall (netbsd-amd64), func RecvfromInet4(int, []uint8, int, *SockaddrInet4) (int, error)
++pkg syscall (netbsd-amd64), func RecvfromInet6(int, []uint8, int, *SockaddrInet6) (int, error)
+ pkg syscall (netbsd-amd64), func SendtoInet4(int, []uint8, int, SockaddrInet4) error
+ pkg syscall (netbsd-amd64), func SendtoInet6(int, []uint8, int, SockaddrInet6) error
++pkg syscall (netbsd-amd64-cgo), func RecvfromInet4(int, []uint8, int, *SockaddrInet4) (int, error)
++pkg syscall (netbsd-amd64-cgo), func RecvfromInet6(int, []uint8, int, *SockaddrInet6) (int, error)
+ pkg syscall (netbsd-amd64-cgo), func SendtoInet4(int, []uint8, int, SockaddrInet4) error
+ pkg syscall (netbsd-amd64-cgo), func SendtoInet6(int, []uint8, int, SockaddrInet6) error
++pkg syscall (netbsd-arm), func RecvfromInet4(int, []uint8, int, *SockaddrInet4) (int, error)
++pkg syscall (netbsd-arm), func RecvfromInet6(int, []uint8, int, *SockaddrInet6) (int, error)
+ pkg syscall (netbsd-arm), func SendtoInet4(int, []uint8, int, SockaddrInet4) error
+ pkg syscall (netbsd-arm), func SendtoInet6(int, []uint8, int, SockaddrInet6) error
++pkg syscall (netbsd-arm-cgo), func RecvfromInet4(int, []uint8, int, *SockaddrInet4) (int, error)
++pkg syscall (netbsd-arm-cgo), func RecvfromInet6(int, []uint8, int, *SockaddrInet6) (int, error)
+ pkg syscall (netbsd-arm-cgo), func SendtoInet4(int, []uint8, int, SockaddrInet4) error
+ pkg syscall (netbsd-arm-cgo), func SendtoInet6(int, []uint8, int, SockaddrInet6) error
++pkg syscall (netbsd-arm64), func RecvfromInet4(int, []uint8, int, *SockaddrInet4) (int, error)
++pkg syscall (netbsd-arm64), func RecvfromInet6(int, []uint8, int, *SockaddrInet6) (int, error)
+ pkg syscall (netbsd-arm64), func SendtoInet4(int, []uint8, int, SockaddrInet4) error
+ pkg syscall (netbsd-arm64), func SendtoInet6(int, []uint8, int, SockaddrInet6) error
++pkg syscall (netbsd-arm64-cgo), func RecvfromInet4(int, []uint8, int, *SockaddrInet4) (int, error)
++pkg syscall (netbsd-arm64-cgo), func RecvfromInet6(int, []uint8, int, *SockaddrInet6) (int, error)
+ pkg syscall (netbsd-arm64-cgo), func SendtoInet4(int, []uint8, int, SockaddrInet4) error
+ pkg syscall (netbsd-arm64-cgo), func SendtoInet6(int, []uint8, int, SockaddrInet6) error
++pkg syscall (openbsd-386), func RecvfromInet4(int, []uint8, int, *SockaddrInet4) (int, error)
++pkg syscall (openbsd-386), func RecvfromInet6(int, []uint8, int, *SockaddrInet6) (int, error)
+ pkg syscall (openbsd-386), func SendtoInet4(int, []uint8, int, SockaddrInet4) error
+ pkg syscall (openbsd-386), func SendtoInet6(int, []uint8, int, SockaddrInet6) error
++pkg syscall (openbsd-386-cgo), func RecvfromInet4(int, []uint8, int, *SockaddrInet4) (int, error)
++pkg syscall (openbsd-386-cgo), func RecvfromInet6(int, []uint8, int, *SockaddrInet6) (int, error)
+ pkg syscall (openbsd-386-cgo), func SendtoInet4(int, []uint8, int, SockaddrInet4) error
+ pkg syscall (openbsd-386-cgo), func SendtoInet6(int, []uint8, int, SockaddrInet6) error
++pkg syscall (openbsd-amd64), func RecvfromInet4(int, []uint8, int, *SockaddrInet4) (int, error)
++pkg syscall (openbsd-amd64), func RecvfromInet6(int, []uint8, int, *SockaddrInet6) (int, error)
+ pkg syscall (openbsd-amd64), func SendtoInet4(int, []uint8, int, SockaddrInet4) error
+ pkg syscall (openbsd-amd64), func SendtoInet6(int, []uint8, int, SockaddrInet6) error
++pkg syscall (openbsd-amd64-cgo), func RecvfromInet4(int, []uint8, int, *SockaddrInet4) (int, error)
++pkg syscall (openbsd-amd64-cgo), func RecvfromInet6(int, []uint8, int, *SockaddrInet6) (int, error)
+ pkg syscall (openbsd-amd64-cgo), func SendtoInet4(int, []uint8, int, SockaddrInet4) error
+ pkg syscall (openbsd-amd64-cgo), func SendtoInet6(int, []uint8, int, SockaddrInet6) error
+diff --git a/src/internal/poll/fd_unix.go b/src/internal/poll/fd_unix.go
+index 51d15f6abc..60b59df2e3 100644
+--- a/src/internal/poll/fd_unix.go
++++ b/src/internal/poll/fd_unix.go
+@@ -230,6 +230,60 @@ func (fd *FD) ReadFrom(p []byte) (int, syscall.Sockaddr, error) {
+ 	}
+ }
+ 
++// ReadFrom wraps the recvfrom network call for IPv4.
++func (fd *FD) ReadFromInet4(p []byte, from *syscall.SockaddrInet4) (int, error) {
++	if err := fd.readLock(); err != nil {
++		return 0, err
++	}
++	defer fd.readUnlock()
++	if err := fd.pd.prepareRead(fd.isFile); err != nil {
++		return 0, err
++	}
++	for {
++		n, err := syscall.RecvfromInet4(fd.Sysfd, p, 0, from)
++		if err != nil {
++			if err == syscall.EINTR {
++				continue
++			}
++			n = 0
++			if err == syscall.EAGAIN && fd.pd.pollable() {
++				if err = fd.pd.waitRead(fd.isFile); err == nil {
++					continue
++				}
++			}
++		}
++		err = fd.eofError(n, err)
++		return n, err
++	}
++}
++
++// ReadFrom wraps the recvfrom network call for IPv6.
++func (fd *FD) ReadFromInet6(p []byte, from *syscall.SockaddrInet6) (int, error) {
++	if err := fd.readLock(); err != nil {
++		return 0, err
++	}
++	defer fd.readUnlock()
++	if err := fd.pd.prepareRead(fd.isFile); err != nil {
++		return 0, err
++	}
++	for {
++		n, err := syscall.RecvfromInet6(fd.Sysfd, p, 0, from)
++		if err != nil {
++			if err == syscall.EINTR {
++				continue
++			}
++			n = 0
++			if err == syscall.EAGAIN && fd.pd.pollable() {
++				if err = fd.pd.waitRead(fd.isFile); err == nil {
++					continue
++				}
++			}
++		}
++		err = fd.eofError(n, err)
++		return n, err
++	}
++}
++
+ // ReadMsg wraps the recvmsg network call.
+ func (fd *FD) ReadMsg(p []byte, oob []byte, flags int) (int, int, int, syscall.Sockaddr, error) {
+ 	if err := fd.readLock(); err != nil {
+diff --git a/src/internal/poll/fd_windows.go b/src/internal/poll/fd_windows.go
+index 3dada32985..14e8f4965b 100644
+--- a/src/internal/poll/fd_windows.go
++++ b/src/internal/poll/fd_windows.go
+@@ -593,6 +593,24 @@ func (fd *FD) ReadFrom(buf []byte) (int, syscall.Sockaddr, error) {
+ 	return n, sa, nil
+ }
+ 
++// ReadFrom wraps the recvfrom network call for IPv4.
++func (fd *FD) ReadFromInet4(buf []byte, sa4 *syscall.SockaddrInet4) (int, error) {
++	n, sa, err := fd.ReadFrom(buf)
++	if sa != nil {
++		*sa4 = *(sa.(*syscall.SockaddrInet4))
++	}
++	return n, err
++}
++
++// ReadFrom wraps the recvfrom network call for IPv6.
++func (fd *FD) ReadFromInet6(buf []byte, sa6 *syscall.SockaddrInet6) (int, error) {
++	n, sa, err := fd.ReadFrom(buf)
++	if sa != nil {
++		*sa6 = *(sa.(*syscall.SockaddrInet6))
++	}
++	return n, err
++}
++
+ // Write implements io.Writer.
+ func (fd *FD) Write(buf []byte) (int, error) {
+ 	if err := fd.writeLock(); err != nil {
+diff --git a/src/net/fd_posix.go b/src/net/fd_posix.go
+index a0675b2072..38e5a8d61d 100644
+--- a/src/net/fd_posix.go
++++ b/src/net/fd_posix.go
+@@ -63,6 +63,17 @@ func (fd *netFD) readFrom(p []byte) (n int, sa syscall.Sockaddr, err error) {
+ 	runtime.KeepAlive(fd)
+ 	return n, sa, wrapSyscallError(readFromSyscallName, err)
+ }
++func (fd *netFD) readFromInet4(p []byte, from *syscall.SockaddrInet4) (n int, err error) {
++	n, err = fd.pfd.ReadFromInet4(p, from)
++	runtime.KeepAlive(fd)
++	return n, wrapSyscallError(readFromSyscallName, err)
++}
++
++func (fd *netFD) readFromInet6(p []byte, from *syscall.SockaddrInet6) (n int, err error) {
++	n, err = fd.pfd.ReadFromInet6(p, from)
++	runtime.KeepAlive(fd)
++	return n, wrapSyscallError(readFromSyscallName, err)
++}
+ 
+ func (fd *netFD) readMsg(p []byte, oob []byte, flags int) (n, oobn, retflags int, sa syscall.Sockaddr, err error) {
+ 	n, oobn, retflags, sa, err = fd.pfd.ReadMsg(p, oob, flags)
+diff --git a/src/net/net_fake.go b/src/net/net_fake.go
+index feb51968dd..48419be670 100644
+--- a/src/net/net_fake.go
++++ b/src/net/net_fake.go
+@@ -266,6 +266,14 @@ func sysSocket(family, sotype, proto int) (int, error) {
+ 
+ func (fd *netFD) readFrom(p []byte) (n int, sa syscall.Sockaddr, err error) {
+ 	return 0, nil, syscall.ENOSYS
++
++}
++func (fd *netFD) readFromInet4(p []byte, sa *syscall.SockaddrInet4) (n int, err error) {
++	return 0, syscall.ENOSYS
++}
++
++func (fd *netFD) readFromInet6(p []byte, sa *syscall.SockaddrInet6) (n int, err error) {
++	return 0, syscall.ENOSYS
+ }
+ 
+ func (fd *netFD) readMsg(p []byte, oob []byte, flags int) (n, oobn, retflags int, sa syscall.Sockaddr, err error) {
+diff --git a/src/net/udpsock_posix.go b/src/net/udpsock_posix.go
+index b71be09217..3a333ca243 100644
+--- a/src/net/udpsock_posix.go
++++ b/src/net/udpsock_posix.go
+@@ -44,13 +44,25 @@ func (a *UDPAddr) toLocal(net string) sockaddr {
+ }
+ 
+ func (c *UDPConn) readFrom(b []byte, addr *UDPAddr) (int, *UDPAddr, error) {
+-	n, sa, err := c.fd.readFrom(b)
+-	switch sa := sa.(type) {
+-	case *syscall.SockaddrInet4:
+-		*addr = UDPAddr{IP: sa.Addr[0:], Port: sa.Port}
+-	case *syscall.SockaddrInet6:
+-		*addr = UDPAddr{IP: sa.Addr[0:], Port: sa.Port, Zone: zoneCache.name(int(sa.ZoneId))}
+-	default:
++	var n int
++	var err error
++	switch c.fd.family {
++	case syscall.AF_INET:
++		var from syscall.SockaddrInet4
++		n, err = c.fd.readFromInet4(b, &from)
++		if err == nil {
++			ip := from.Addr // copy from.Addr; ip escapes, so this line allocates 4 bytes
++			*addr = UDPAddr{IP: ip[:], Port: from.Port}
++		}
++	case syscall.AF_INET6:
++		var from syscall.SockaddrInet6
++		n, err = c.fd.readFromInet6(b, &from)
++		if err == nil {
++			ip := from.Addr // copy from.Addr; ip escapes, so this line allocates 16 bytes
++			*addr = UDPAddr{IP: ip[:], Port: from.Port, Zone: zoneCache.name(int(from.ZoneId))}
++		}
++	}
++	if err != nil {
+ 		// No sockaddr, so don't return UDPAddr.
+ 		addr = nil
+ 	}
+diff --git a/src/syscall/net_js.go b/src/syscall/net_js.go
+index 17799148bd..2998c2159c 100644
+--- a/src/syscall/net_js.go
++++ b/src/syscall/net_js.go
+@@ -92,6 +92,14 @@ func Recvfrom(fd int, p []byte, flags int) (n int, from Sockaddr, err error) {
+ 	return 0, nil, ENOSYS
+ }
+ 
++func RecvfromInet4(fd int, p []byte, flags int, from *SockaddrInet4) (n int, err error) {
++	return 0, ENOSYS
++}
++
++func RecvfromInet6(fd int, p []byte, flags int, from *SockaddrInet6) (n int, err error) {
++	return 0, ENOSYS
++}
++
+ func Sendto(fd int, p []byte, flags int, to Sockaddr) error {
+ 	return ENOSYS
+ }
+diff --git a/src/syscall/syscall_unix.go b/src/syscall/syscall_unix.go
+index 60aeae14de..101e39c7d0 100644
+--- a/src/syscall/syscall_unix.go
++++ b/src/syscall/syscall_unix.go
+@@ -292,6 +292,33 @@ func Recvfrom(fd int, p []byte, flags int) (n int, from Sockaddr, err error) {
+ 	return
+ }
+ 
++func RecvfromInet4(fd int, p []byte, flags int, from *SockaddrInet4) (n int, err error) {
++	var rsa RawSockaddrAny
++	var socklen _Socklen = SizeofSockaddrAny
++	if n, err = recvfrom(fd, p, flags, &rsa, &socklen); err != nil {
++		return
++	}
++	pp := (*RawSockaddrInet4)(unsafe.Pointer(&rsa))
++	port := (*[2]byte)(unsafe.Pointer(&pp.Port))
++	from.Port = int(port[0])<<8 + int(port[1])
++	from.Addr = pp.Addr
++	return
++}
++
++func RecvfromInet6(fd int, p []byte, flags int, from *SockaddrInet6) (n int, err error) {
++	var rsa RawSockaddrAny
++	var socklen _Socklen = SizeofSockaddrAny
++	if n, err = recvfrom(fd, p, flags, &rsa, &socklen); err != nil {
++		return
++	}
++	pp := (*RawSockaddrInet6)(unsafe.Pointer(&rsa))
++	port := (*[2]byte)(unsafe.Pointer(&pp.Port))
++	from.Port = int(port[0])<<8 + int(port[1])
++	from.ZoneId = pp.Scope_id
++	from.Addr = pp.Addr
++	return
++}
++
+ func SendtoInet4(fd int, p []byte, flags int, to SockaddrInet4) (err error) {
+ 	ptr, n, err := to.sockaddr()
+ 	if err != nil {

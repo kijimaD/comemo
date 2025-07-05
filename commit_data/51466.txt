@@ -16,7 +16,7 @@ Date:   Wed Feb 2 13:22:18 2022 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  api/go1.18.txt                                     |   6 --
  doc/go1.18.html                                    |   8 --
  .../types2/testdata/fixedbugs/issue47818.go2       |   4 -
@@ -29,3 +29,365 @@ Date:   Wed Feb 2 13:22:18 2022 -0800
  test/typeparam/issue50121b.dir/a.go                |   9 +-
  test/typeparam/issue50193.go                       |  11 +-
  11 files changed, 28 insertions(+), 203 deletions(-)
+
+diff --git a/api/go1.18.txt b/api/go1.18.txt
+index 2d05c3f41c..7a81ce259e 100644
+--- a/api/go1.18.txt
++++ b/api/go1.18.txt
+@@ -1,12 +1,6 @@
+ pkg bufio, method (*Writer) AvailableBuffer() []uint8
+ pkg bufio, method (ReadWriter) AvailableBuffer() []uint8
+ pkg bytes, func Cut([]uint8, []uint8) ([]uint8, []uint8, bool)
+-pkg constraints, type Complex interface {}
+-pkg constraints, type Float interface {}
+-pkg constraints, type Integer interface {}
+-pkg constraints, type Ordered interface {}
+-pkg constraints, type Signed interface {}
+-pkg constraints, type Unsigned interface {}
+ pkg crypto/tls, method (*Conn) NetConn() net.Conn
+ pkg debug/buildinfo, func Read(io.ReaderAt) (*debug.BuildInfo, error)
+ pkg debug/buildinfo, func ReadFile(string) (*debug.BuildInfo, error)
+diff --git a/doc/go1.18.html b/doc/go1.18.html
+index e69113411e..cb3c2dbac3 100644
+--- a/doc/go1.18.html
++++ b/doc/go1.18.html
+@@ -467,14 +467,6 @@ Do not send CLs removing the interior tags from such phrases.
+ 
+ <h2 id="library">Core library</h2>
+ 
+-<h3 id="constraints">New <code>constraints</code> package</h3>
+-
+-<p><!-- CL 349709 -->
+-  The new <a href="/pkg/constraints/"><code>constraints</code></a> package
+-  defines a set of useful constraints that can be used with type parameters of
+-  generic functions.
+-</p>
+-
+ <h3 id="debug/buildinfo">New <code>debug/buildinfo</code> package</h3>
+ 
+ <p><!-- golang.org/issue/39301 -->
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue47818.go2 b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue47818.go2
+index 2631118bae..546de1ce31 100644
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue47818.go2
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue47818.go2
+@@ -8,8 +8,6 @@
+ 
+ package go1_17
+ 
+-import "constraints"
+-
+ type T[P /* ERROR type parameters require go1\.18 or later */ any /* ERROR undeclared name: any \(requires version go1\.18 or later\) */ ] struct{}
+ 
+ // for init (and main, but we're not in package main) we should only get one error
+@@ -57,5 +55,3 @@ type (
+ 	_ = C1
+ 	_ = C2
+ )
+-
+-type Ordered constraints /* ERROR using type constraint constraints\.Ordered requires go1\.18 or later */ .Ordered
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49705.go2 b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49705.go2
+index 2b991b8722..5b5fba2a1d 100644
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49705.go2
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49705.go2
+@@ -4,8 +4,11 @@
+ 
+ package p
+ 
+-import "constraints"
++type Integer interface {
++	~int | ~int8 | ~int16 | ~int32 | ~int64 |
++	~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr
++}
+ 
+-func shl[I constraints.Integer](n int) I {
++func shl[I Integer](n int) I {
+ 	return 1 << n
+ }
+diff --git a/src/constraints/constraints.go b/src/constraints/constraints.go
+deleted file mode 100644
+index 2c033dff47..0000000000
+--- a/src/constraints/constraints.go
++++ /dev/null
+@@ -1,50 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Package constraints defines a set of useful constraints to be used
+-// with type parameters.
+-package constraints
+-
+-// Signed is a constraint that permits any signed integer type.
+-// If future releases of Go add new predeclared signed integer types,
+-// this constraint will be modified to include them.
+-type Signed interface {
+-	~int | ~int8 | ~int16 | ~int32 | ~int64
+-}
+-
+-// Unsigned is a constraint that permits any unsigned integer type.
+-// If future releases of Go add new predeclared unsigned integer types,
+-// this constraint will be modified to include them.
+-type Unsigned interface {
+-	~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr
+-}
+-
+-// Integer is a constraint that permits any integer type.
+-// If future releases of Go add new predeclared integer types,
+-// this constraint will be modified to include them.
+-type Integer interface {
+-	Signed | Unsigned
+-}
+-
+-// Float is a constraint that permits any floating-point type.
+-// If future releases of Go add new predeclared floating-point types,
+-// this constraint will be modified to include them.
+-type Float interface {
+-	~float32 | ~float64
+-}
+-
+-// Complex is a constraint that permits any complex numeric type.
+-// If future releases of Go add new predeclared complex numeric types,
+-// this constraint will be modified to include them.
+-type Complex interface {
+-	~complex64 | ~complex128
+-}
+-
+-// Ordered is a constraint that permits any ordered type: any type
+-// that supports the operators < <= >= >.
+-// If future releases of Go add new ordered types,
+-// this constraint will be modified to include them.
+-type Ordered interface {
+-	Integer | Float | ~string
+-}
+diff --git a/src/constraints/constraints_test.go b/src/constraints/constraints_test.go
+deleted file mode 100644
+index 47d4cba52a..0000000000
+--- a/src/constraints/constraints_test.go
++++ /dev/null
+@@ -1,117 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package constraints
+-
+-import (
+-	"bytes"
+-	"fmt"
+-	"internal/testenv"
+-	"os"
+-	"os/exec"
+-	"path/filepath"
+-	"testing"
+-)
+-
+-type (
+-	testSigned[T Signed]     struct{ f T }
+-	testUnsigned[T Unsigned] struct{ f T }
+-	testInteger[T Integer]   struct{ f T }
+-	testFloat[T Float]       struct{ f T }
+-	testComplex[T Complex]   struct{ f T }
+-	testOrdered[T Ordered]   struct{ f T }
+-)
+-
+-// TestTypes passes if it compiles.
+-type TestTypes struct {
+-	_ testSigned[int]
+-	_ testSigned[int64]
+-	_ testUnsigned[uint]
+-	_ testUnsigned[uintptr]
+-	_ testInteger[int8]
+-	_ testInteger[uint8]
+-	_ testInteger[uintptr]
+-	_ testFloat[float32]
+-	_ testComplex[complex64]
+-	_ testOrdered[int]
+-	_ testOrdered[float64]
+-	_ testOrdered[string]
+-}
+-
+-var prolog = []byte(`
+-package constrainttest
+-
+-import "constraints"
+-
+-type (
+-	testSigned[T constraints.Signed]     struct{ f T }
+-	testUnsigned[T constraints.Unsigned] struct{ f T }
+-	testInteger[T constraints.Integer]   struct{ f T }
+-	testFloat[T constraints.Float]       struct{ f T }
+-	testComplex[T constraints.Complex]   struct{ f T }
+-	testOrdered[T constraints.Ordered]   struct{ f T }
+-)
+-`)
+-
+-func TestFailure(t *testing.T) {
+-	testenv.MustHaveGoBuild(t)
+-	gocmd := testenv.GoToolPath(t)
+-	tmpdir := t.TempDir()
+-
+-	if err := os.WriteFile(filepath.Join(tmpdir, "go.mod"), []byte("module constraintest"), 0666); err != nil {
+-		t.Fatal(err)
+-	}
+-
+-	// Test for types that should not satisfy a constraint.
+-	// For each pair of constraint and type, write a Go file
+-	//     var V constraint[type]
+-	// For example,
+-	//     var V testSigned[uint]
+-	// This should not compile, as testSigned (above) uses
+-	// constraints.Signed, and uint does not satisfy that constraint.
+-	// Therefore, the build of that code should fail.
+-	for i, test := range []struct {
+-		constraint, typ string
+-	}{
+-		{"testSigned", "uint"},
+-		{"testUnsigned", "int"},
+-		{"testInteger", "float32"},
+-		{"testFloat", "int8"},
+-		{"testComplex", "float64"},
+-		{"testOrdered", "bool"},
+-	} {
+-		i := i
+-		test := test
+-		t.Run(fmt.Sprintf("%s %d", test.constraint, i), func(t *testing.T) {
+-			t.Parallel()
+-			name := fmt.Sprintf("go%d.go", i)
+-			f, err := os.Create(filepath.Join(tmpdir, name))
+-			if err != nil {
+-				t.Fatal(err)
+-			}
+-			if _, err := f.Write(prolog); err != nil {
+-				t.Fatal(err)
+-			}
+-			if _, err := fmt.Fprintf(f, "var V %s[%s]\n", test.constraint, test.typ); err != nil {
+-				t.Fatal(err)
+-			}
+-			if err := f.Close(); err != nil {
+-				t.Fatal(err)
+-			}
+-			cmd := exec.Command(gocmd, "build", name)
+-			cmd.Dir = tmpdir
+-			if out, err := cmd.CombinedOutput(); err == nil {
+-				t.Error("build succeeded, but expected to fail")
+-			} else if len(out) > 0 {
+-				t.Logf("%s", out)
+-				const want = "does not implement"
+-				if !bytes.Contains(out, []byte(want)) {
+-					t.Errorf("output does not include %q", want)
+-				}
+-			} else {
+-				t.Error("no error output, expected something")
+-			}
+-		})
+-	}
+-}
+diff --git a/src/go/types/testdata/fixedbugs/issue47818.go2 b/src/go/types/testdata/fixedbugs/issue47818.go2
+index 2631118bae..546de1ce31 100644
+--- a/src/go/types/testdata/fixedbugs/issue47818.go2
++++ b/src/go/types/testdata/fixedbugs/issue47818.go2
+@@ -8,8 +8,6 @@
+ 
+ package go1_17
+ 
+-import "constraints"
+-
+ type T[P /* ERROR type parameters require go1\.18 or later */ any /* ERROR undeclared name: any \(requires version go1\.18 or later\) */ ] struct{}
+ 
+ // for init (and main, but we're not in package main) we should only get one error
+@@ -57,5 +55,3 @@ type (
+ 	_ = C1
+ 	_ = C2
+ )
+-
+-type Ordered constraints /* ERROR using type constraint constraints\.Ordered requires go1\.18 or later */ .Ordered
+diff --git a/src/go/types/testdata/fixedbugs/issue49705.go2 b/src/go/types/testdata/fixedbugs/issue49705.go2
+index 2b991b8722..5b5fba2a1d 100644
+--- a/src/go/types/testdata/fixedbugs/issue49705.go2
++++ b/src/go/types/testdata/fixedbugs/issue49705.go2
+@@ -4,8 +4,11 @@
+ 
+ package p
+ 
+-import "constraints"
++type Integer interface {
++	~int | ~int8 | ~int16 | ~int32 | ~int64 |
++	~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr
++}
+ 
+-func shl[I constraints.Integer](n int) I {
++func shl[I Integer](n int) I {
+ 	return 1 << n
+ }
+diff --git a/test/typeparam/issue50121.dir/a.go b/test/typeparam/issue50121.dir/a.go
+index 9918fa38a6..ca11b6b27a 100644
+--- a/test/typeparam/issue50121.dir/a.go
++++ b/test/typeparam/issue50121.dir/a.go
+@@ -5,11 +5,15 @@
+ package a
+ 
+ import (
+-	"constraints"
+ 	"math/rand"
+ )
+ 
+-type Builder[T constraints.Integer] struct{}
++type Integer interface {
++	~int | ~int8 | ~int16 | ~int32 | ~int64 |
++	~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr
++}
++
++type Builder[T Integer] struct{}
+ 
+ func (r Builder[T]) New() T {
+ 	return T(rand.Int())
+diff --git a/test/typeparam/issue50121b.dir/a.go b/test/typeparam/issue50121b.dir/a.go
+index f2b706e0fd..4ddbb6ea84 100644
+--- a/test/typeparam/issue50121b.dir/a.go
++++ b/test/typeparam/issue50121b.dir/a.go
+@@ -4,11 +4,12 @@
+ 
+ package a
+ 
+-import (
+-	"constraints"
+-)
++type Integer interface {
++	~int | ~int8 | ~int16 | ~int32 | ~int64 |
++	~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr
++}
+ 
+-type Builder[T constraints.Integer] struct{}
++type Builder[T Integer] struct{}
+ 
+ func (r Builder[T]) New() T {
+ 	return T(42)
+diff --git a/test/typeparam/issue50193.go b/test/typeparam/issue50193.go
+index 8dc488244e..76de588e74 100644
+--- a/test/typeparam/issue50193.go
++++ b/test/typeparam/issue50193.go
+@@ -7,17 +7,20 @@
+ package main
+ 
+ import (
+-	"constraints"
+ 	"fmt"
+ )
+ 
+-func zero[T constraints.Complex]() T {
++type Complex interface {
++	~complex64 | ~complex128
++}
++
++func zero[T Complex]() T {
+ 	return T(0)
+ }
+-func pi[T constraints.Complex]() T {
++func pi[T Complex]() T {
+ 	return T(3.14)
+ }
+-func sqrtN1[T constraints.Complex]() T {
++func sqrtN1[T Complex]() T {
+ 	return T(-1i)
+ }
+ 

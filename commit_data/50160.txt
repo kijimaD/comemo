@@ -21,7 +21,98 @@ Date:   Tue Oct 5 16:25:06 2021 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Roland Shoemaker <roland@golang.org>
-
+---
  src/cmd/go/testdata/script/test_fuzz.txt | 14 ++++++++++++++
  src/internal/fuzz/fuzz.go                | 27 +++++++++++++++++++--------
  2 files changed, 33 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/test_fuzz.txt b/src/cmd/go/testdata/script/test_fuzz.txt
+index c9930aa37e..0b01c2fb43 100644
+--- a/src/cmd/go/testdata/script/test_fuzz.txt
++++ b/src/cmd/go/testdata/script/test_fuzz.txt
+@@ -184,6 +184,20 @@ stdout ok
+ ! stdout ^ok
+ stdout FAIL
+ 
++
++# Fuzzing indicates that one new interesting value was found with an empty
++# corpus, and the total size of the cache is now 1.
++go clean -fuzzcache
++go test -fuzz=Fuzz -fuzztime=10000x success_fuzz_test.go
++stdout 'new interesting: 1'
++stdout 'total: 1'
++
++# Fuzzing again with a small fuzztime does not find any other interesting
++# values but still indicates that the cache size is 1.
++go test -fuzz=Fuzz -fuzztime=2x success_fuzz_test.go
++stdout 'new interesting: 0'
++stdout 'total: 1'
++
+ -- noop_fuzz_test.go --
+ package noop_fuzz
+ 
+diff --git a/src/internal/fuzz/fuzz.go b/src/internal/fuzz/fuzz.go
+index 87f5459afd..2c2a365f4c 100644
+--- a/src/internal/fuzz/fuzz.go
++++ b/src/internal/fuzz/fuzz.go
+@@ -556,6 +556,13 @@ type coordinator struct {
+ 	// count is the number of values fuzzed so far.
+ 	count int64
+ 
++	// countLastLog is the number of values fuzzed when the output was last
++	// logged.
++	countLastLog int64
++
++	// timeLastLog is the time at which the output was last logged.
++	timeLastLog time.Time
++
+ 	// interestingCount is the number of unique interesting values which have
+ 	// been found this execution.
+ 	interestingCount int64
+@@ -618,12 +625,13 @@ func newCoordinator(opts CoordinateFuzzingOpts) (*coordinator, error) {
+ 		return nil, err
+ 	}
+ 	c := &coordinator{
+-		opts:      opts,
+-		startTime: time.Now(),
+-		inputC:    make(chan fuzzInput),
+-		minimizeC: make(chan fuzzMinimizeInput),
+-		resultC:   make(chan fuzzResult),
+-		corpus:    corpus,
++		opts:        opts,
++		startTime:   time.Now(),
++		inputC:      make(chan fuzzInput),
++		minimizeC:   make(chan fuzzMinimizeInput),
++		resultC:     make(chan fuzzResult),
++		corpus:      corpus,
++		timeLastLog: time.Now(),
+ 	}
+ 	if opts.MinimizeLimit > 0 || opts.MinimizeTimeout > 0 {
+ 		for _, t := range opts.Types {
+@@ -676,6 +684,7 @@ func (c *coordinator) updateStats(result fuzzResult) {
+ }
+ 
+ func (c *coordinator) logStats() {
++	now := time.Now()
+ 	if c.warmupRun() {
+ 		runSoFar := c.warmupInputCount - c.warmupInputLeft
+ 		if coverageEnabled {
+@@ -684,14 +693,16 @@ func (c *coordinator) logStats() {
+ 			fmt.Fprintf(c.opts.Log, "fuzz: elapsed: %s, testing seed corpus: %d/%d completed\n", c.elapsed(), runSoFar, c.warmupInputCount)
+ 		}
+ 	} else {
+-		rate := float64(c.count) / time.Since(c.startTime).Seconds() // be more precise here
++		rate := float64(c.count-c.countLastLog) / now.Sub(c.timeLastLog).Seconds()
+ 		if coverageEnabled {
+-			interestingTotalCount := len(c.corpus.entries) - len(c.opts.Seed)
++			interestingTotalCount := int64(c.warmupInputCount-len(c.opts.Seed)) + c.interestingCount
+ 			fmt.Fprintf(c.opts.Log, "fuzz: elapsed: %s, execs: %d (%.0f/sec), new interesting: %d (total: %d)\n", c.elapsed(), c.count, rate, c.interestingCount, interestingTotalCount)
+ 		} else {
+ 			fmt.Fprintf(c.opts.Log, "fuzz: elapsed: %s, execs: %d (%.0f/sec)", c.elapsed(), c.count, rate)
+ 		}
+ 	}
++	c.countLastLog = c.count
++	c.timeLastLog = now
+ }
+ 
+ // peekInput returns the next value that should be sent to workers.

@@ -17,6 +17,23 @@ Date:   Wed Sep 1 15:50:27 2021 +0200
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/syscall/syscall_linux.go | 4 ----
  1 file changed, 4 deletions(-)
+
+diff --git a/src/syscall/syscall_linux.go b/src/syscall/syscall_linux.go
+index a2dba54b97..6d428d58dd 100644
+--- a/src/syscall/syscall_linux.go
++++ b/src/syscall/syscall_linux.go
+@@ -542,11 +542,7 @@ func anyToSockaddr(rsa *RawSockaddrAny) (Sockaddr, error) {
+ func Accept(fd int) (nfd int, sa Sockaddr, err error) {
+ 	var rsa RawSockaddrAny
+ 	var len _Socklen = SizeofSockaddrAny
+-	// Try accept4 first for Android, then try accept for kernel older than 2.6.28
+ 	nfd, err = accept4(fd, &rsa, &len, 0)
+-	if err == ENOSYS {
+-		nfd, err = accept(fd, &rsa, &len)
+-	}
+ 	if err != nil {
+ 		return
+ 	}

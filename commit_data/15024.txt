@@ -12,7 +12,7 @@ Date:   Wed Jan 30 02:53:56 2013 -0800
     R=rminnich, npe, rsc, ality
     CC=golang-dev
     https://golang.org/cl/6569068
-
+---
  src/cmd/dist/buildruntime.c          |   6 ++
  src/pkg/runtime/defs_plan9_386.h     |  30 +++++++++-
  src/pkg/runtime/defs_plan9_amd64.h   |  34 ++++++++++-
@@ -26,3 +26,713 @@ Date:   Wed Jan 30 02:53:56 2013 -0800
  src/pkg/runtime/sys_plan9_amd64.s    |  50 +++++++++++++++-
  src/pkg/runtime/thread_plan9.c       |  63 +++++++-------------
  12 files changed, 439 insertions(+), 57 deletions(-)
+
+diff --git a/src/cmd/dist/buildruntime.c b/src/cmd/dist/buildruntime.c
+index 52a69be0f9..6c07e2a487 100644
+--- a/src/cmd/dist/buildruntime.c
++++ b/src/cmd/dist/buildruntime.c
+@@ -105,9 +105,15 @@ static struct {
+ 		"#define	m(r)	4(r)\n"
+ 	},
+ 	{"386", "plan9",
++		"// Plan 9 does not have per-process segment descriptors with\n"
++		"// which to do thread-local storage. Instead, we will use a\n"
++		"// fixed offset from the per-process TOS struct address for\n"
++		"// the local storage. Since the process ID is contained in the\n"
++		"// TOS struct, we specify an offset for that here as well.\n"
+ 		"#define	get_tls(r)	MOVL _tos(SB), r \n"
+ 		"#define	g(r)	-8(r)\n"
+ 		"#define	m(r)	-4(r)\n"
++		"#define	procid(r)	48(r)\n"
+ 	},
+ 	{"386", "linux",
+ 		"// On Linux systems, what we call 0(GS) and 4(GS) for g and m\n"
+diff --git a/src/pkg/runtime/defs_plan9_386.h b/src/pkg/runtime/defs_plan9_386.h
+index 3874ad256a..bde299dee1 100644
+--- a/src/pkg/runtime/defs_plan9_386.h
++++ b/src/pkg/runtime/defs_plan9_386.h
+@@ -1,3 +1,29 @@
+-// nothing to see here
+-#define tos_pid 48
+ #define PAGESIZE 0x1000
++
++typedef struct Ureg Ureg;
++
++struct Ureg
++{
++	uint32	di;		/* general registers */
++	uint32	si;		/* ... */
++	uint32	bp;		/* ... */
++	uint32	nsp;
++	uint32	bx;		/* ... */
++	uint32	dx;		/* ... */
++	uint32	cx;		/* ... */
++	uint32	ax;		/* ... */
++	uint32	gs;		/* data segments */
++	uint32	fs;		/* ... */
++	uint32	es;		/* ... */
++	uint32	ds;		/* ... */
++	uint32	trap;		/* trap type */
++	uint32	ecode;		/* error code (or zero) */
++	uint32	pc;		/* pc */
++	uint32	cs;		/* old context */
++	uint32	flags;		/* old flags */
++	union {
++		uint32	usp;
++		uint32	sp;
++	};
++	uint32	ss;		/* old stack segment */
++};
+diff --git a/src/pkg/runtime/defs_plan9_amd64.h b/src/pkg/runtime/defs_plan9_amd64.h
+index d5d19f8be3..d8fec67eb7 100644
+--- a/src/pkg/runtime/defs_plan9_amd64.h
++++ b/src/pkg/runtime/defs_plan9_amd64.h
+@@ -1,2 +1,34 @@
+-// nothing to see here
+ #define PAGESIZE 0x200000ULL
++
++typedef struct Ureg Ureg;
++
++struct Ureg {
++	uint64	ax;
++	uint64	bx;
++	uint64	cx;
++	uint64	dx;
++	uint64	si;
++	uint64	di;
++	uint64	bp;
++	uint64	r8;
++	uint64	r9;
++	uint64	r10;
++	uint64	r11;
++	uint64	r12;
++	uint64	r13;
++	uint64	r14;
++	uint64	r15;
++
++	uint16	ds;
++	uint16	es;
++	uint16	fs;
++	uint16	gs;
++
++	uint64	type;
++	uint64	error;				/* error code (or zero) */
++	uint64	ip;				/* pc */
++	uint64	cs;				/* old context */
++	uint64	flags;				/* old flags */
++	uint64	sp;				/* sp */
++	uint64	ss;				/* old stack segment */
++};
+diff --git a/src/pkg/runtime/os_plan9.h b/src/pkg/runtime/os_plan9.h
+index b1dc8158b9..c2cdf5b448 100644
+--- a/src/pkg/runtime/os_plan9.h
++++ b/src/pkg/runtime/os_plan9.h
+@@ -16,9 +16,12 @@ int32	runtime·rfork(int32 flags, void *stk, M *mp, G *gp, void (*fn)(void));
+ int32	runtime·plan9_semacquire(uint32 *addr, int32 block);
+ int32	runtime·plan9_tsemacquire(uint32 *addr, int32 ms);
+ int32 	runtime·plan9_semrelease(uint32 *addr, int32 count);
+-int32	runtime·notify(void (*fn)(void*, byte*));
++int32	runtime·notify(void (*fn)(void*, int8*));
+ int32	runtime·noted(int32);
+-void	runtime·gonote(void*, byte*);
++void	runtime·sigtramp(void*, int8*);
++int32	runtime·sighandler(void*, int8*, G*);
++void	runtime·sigpanic(void);
++void	runtime·goexitsall(int8*);
+ void	runtime·setfpmasks(void);
+ 
+ /* open */
+@@ -79,4 +82,5 @@ struct Tos {
+ 	/* top of stack is here */
+ };
+ 
+-#define	NSIG 1
++#define	NSIG	5	/* number of signals in runtime·SigTab array */
++#define	ERRMAX	128	/* max length of note string */
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 22aead792c..187a827a02 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -295,6 +295,9 @@ struct	M
+ 
+ #ifdef GOOS_windows
+ 	void*	thread;		// thread handle
++#endif
++#ifdef GOOS_plan9
++	int8*		notesig;
+ #endif
+ 	SEH*	seh;
+ 	uintptr	end[];
+diff --git a/src/pkg/runtime/signal_plan9_386.c b/src/pkg/runtime/signal_plan9_386.c
+index d26688516d..17bc117496 100644
+--- a/src/pkg/runtime/signal_plan9_386.c
++++ b/src/pkg/runtime/signal_plan9_386.c
+@@ -3,6 +3,107 @@
+ // license that can be found in the LICENSE file. 
+ 
+ #include "runtime.h"
++#include "defs_GOOS_GOARCH.h"
++#include "os_GOOS.h"
++#include "signals_GOOS.h"
++
++void
++runtime·dumpregs(Ureg *u)
++{
++	runtime·printf("ax	%X\n", u->ax);
++	runtime·printf("bx	%X\n", u->bx);
++	runtime·printf("cx	%X\n", u->cx);
++	runtime·printf("dx	%X\n", u->dx);
++	runtime·printf("di	%X\n", u->di);
++	runtime·printf("si	%X\n", u->si);
++	runtime·printf("bp	%X\n", u->bp);
++	runtime·printf("sp	%X\n", u->sp);
++	runtime·printf("pc	%X\n", u->pc);
++	runtime·printf("flags	%X\n", u->flags);
++	runtime·printf("cs	%X\n", u->cs);
++	runtime·printf("fs	%X\n", u->fs);
++	runtime·printf("gs	%X\n", u->gs);
++}
++
++int32
++runtime·sighandler(void *v, int8 *s, G *gp)
++{
++	Ureg *ureg;
++	uintptr *sp;
++	SigTab *sig, *nsig;
++	int32 len, i;
++
++	if(!s)
++		return NCONT;
++			
++	len = runtime·findnull((byte*)s);
++	if(len <= 4 || runtime·mcmp((byte*)s, (byte*)"sys:", 4) != 0)
++		return NDFLT;
++
++	nsig = nil;
++	sig = runtime·sigtab;
++	for(i=0; i < NSIG; i++) {
++		if(runtime·strstr((byte*)s, (byte*)sig->name)) {
++			nsig = sig;
++			break;
++		}
++		sig++;
++	}
++
++	if(nsig == nil)
++		return NDFLT;
++
++	ureg = v;
++	if(nsig->flags & SigPanic) {
++		if(gp == nil || m->notesig == 0)
++			goto Throw;
++
++		// Save error string from sigtramp's stack,
++		// into gsignal->sigcode0, so we can reliably
++		// access it from the panic routines.
++		if(len > ERRMAX)
++			len = ERRMAX;
++		runtime·memmove((void*)m->notesig, (void*)s, len);
++
++		gp->sig = i;
++		gp->sigpc = ureg->pc;
++
++		// Only push runtime·sigpanic if ureg->pc != 0.
++		// If ureg->pc == 0, probably panicked because of a
++		// call to a nil func.  Not pushing that onto sp will
++		// make the trace look like a call to runtime·sigpanic instead.
++		// (Otherwise the trace will end at runtime·sigpanic and we
++		// won't get to see who faulted.)
++		if(ureg->pc != 0) {
++			sp = (uintptr*)ureg->sp;
++			*--sp = ureg->pc;
++			ureg->sp = (uint32)sp;
++		}
++		ureg->pc = (uintptr)runtime·sigpanic;
++		return NCONT;
++	}
++
++	if(!(nsig->flags & SigThrow))
++		return NDFLT;
++
++Throw:
++	runtime·startpanic();
++
++	runtime·printf("%s\n", s);
++	runtime·printf("PC=%X\n", ureg->pc);
++	runtime·printf("\n");
++
++	if(runtime·gotraceback()) {
++		runtime·traceback((void*)ureg->pc, (void*)ureg->sp, 0, gp);
++		runtime·tracebackothers(gp);
++		runtime·dumpregs(ureg);
++	}
++	runtime·goexitsall("");
++	runtime·exits(s);
++
++	return 0;
++}
++
+ 
+ void
+ runtime·sigenable(uint32 sig)
+diff --git a/src/pkg/runtime/signal_plan9_amd64.c b/src/pkg/runtime/signal_plan9_amd64.c
+index d26688516d..e4f946abce 100644
+--- a/src/pkg/runtime/signal_plan9_amd64.c
++++ b/src/pkg/runtime/signal_plan9_amd64.c
+@@ -3,6 +3,114 @@
+ // license that can be found in the LICENSE file. 
+ 
+ #include "runtime.h"
++#include "defs_GOOS_GOARCH.h"
++#include "os_GOOS.h"
++#include "signals_GOOS.h"
++
++void
++runtime·dumpregs(Ureg *u)
++{
++	runtime·printf("ax	%X\n", u->ax);
++	runtime·printf("bx	%X\n", u->bx);
++	runtime·printf("cx	%X\n", u->cx);
++	runtime·printf("dx	%X\n", u->dx);
++	runtime·printf("di	%X\n", u->di);
++	runtime·printf("si	%X\n", u->si);
++	runtime·printf("bp	%X\n", u->bp);
++	runtime·printf("sp	%X\n", u->sp);
++	runtime·printf("r8	%X\n", u->r8);
++	runtime·printf("r9	%X\n", u->r9);
++	runtime·printf("r10	%X\n", u->r10);
++	runtime·printf("r11	%X\n", u->r11);
++	runtime·printf("r12	%X\n", u->r12);
++	runtime·printf("r13	%X\n", u->r13);
++	runtime·printf("r14	%X\n", u->r14);
++	runtime·printf("r15	%X\n", u->r15);
++	runtime·printf("ip	%X\n", u->ip);
++	runtime·printf("flags	%X\n", u->flags);
++	runtime·printf("cs	%X\n", (uint64)u->cs);
++	runtime·printf("fs	%X\n", (uint64)u->fs);
++	runtime·printf("gs	%X\n", (uint64)u->gs);
++}
++
++int32
++runtime·sighandler(void *v, int8 *s, G *gp)
++{
++	Ureg *ureg;
++	uintptr *sp;
++	SigTab *sig, *nsig;
++	int32 len, i;
++
++	if(!s)
++		return NCONT;
++			
++	len = runtime·findnull((byte*)s);
++	if(len <= 4 || runtime·mcmp((byte*)s, (byte*)"sys:", 4) != 0)
++		return NDFLT;
++
++	nsig = nil;
++	sig = runtime·sigtab;
++	for(i=0; i < NSIG; i++) {
++		if(runtime·strstr((byte*)s, (byte*)sig->name)) {
++			nsig = sig;
++			break;
++		}
++		sig++;
++	}
++
++	if(nsig == nil)
++		return NDFLT;
++
++	ureg = v;
++	if(nsig->flags & SigPanic) {
++		if(gp == nil || m->notesig == 0)
++			goto Throw;
++
++		// Save error string from sigtramp's stack,
++		// into gsignal->sigcode0, so we can reliably
++		// access it from the panic routines.
++		if(len > ERRMAX)
++			len = ERRMAX;
++		runtime·memmove((void*)m->notesig, (void*)s, len);
++
++		gp->sig = i;
++		gp->sigpc = ureg->ip;
++
++		// Only push runtime·sigpanic if ureg->ip != 0.
++		// If ureg->ip == 0, probably panicked because of a
++		// call to a nil func.  Not pushing that onto sp will
++		// make the trace look like a call to runtime·sigpanic instead.
++		// (Otherwise the trace will end at runtime·sigpanic and we
++		// won't get to see who faulted.)
++		if(ureg->ip != 0) {
++			sp = (uintptr*)ureg->sp;
++			*--sp = ureg->ip;
++			ureg->sp = (uint64)sp;
++		}
++		ureg->ip = (uintptr)runtime·sigpanic;
++		return NCONT;
++	}
++
++	if(!(nsig->flags & SigThrow))
++		return NDFLT;
++
++Throw:
++	runtime·startpanic();
++
++	runtime·printf("%s\n", s);
++	runtime·printf("PC=%X\n", ureg->ip);
++	runtime·printf("\n");
++
++	if(runtime·gotraceback()) {
++		runtime·traceback((void*)ureg->ip, (void*)ureg->sp, 0, gp);
++		runtime·tracebackothers(gp);
++		runtime·dumpregs(ureg);
++	}
++	runtime·goexitsall("");
++	runtime·exits(s);
++
++	return 0;
++}
+ 
+ void
+ runtime·sigenable(uint32 sig)
+diff --git a/src/pkg/runtime/signals_plan9.h b/src/pkg/runtime/signals_plan9.h
+index 5df7576133..0f1165e2a8 100644
+--- a/src/pkg/runtime/signals_plan9.h
++++ b/src/pkg/runtime/signals_plan9.h
+@@ -1 +1,24 @@
+-// nothing to see here
++#define N SigNotify
++#define T SigThrow
++#define P SigPanic
++
++SigTab runtime·sigtab[] = {
++	P, "sys: fp:",
++
++	// Go libraries expect to be able
++	// to recover from memory
++	// read/write errors, so we flag
++	// those as panics. All other traps
++	// are generally more serious and
++	// should immediately throw an
++	// exception.
++	P, "sys: trap: fault read addr",
++	P, "sys: trap: fault write addr",
++	T, "sys: trap:",
++
++	N, "sys: bad sys call",
++};
++
++#undef N
++#undef T
++#undef P
+diff --git a/src/pkg/runtime/stack.h b/src/pkg/runtime/stack.h
+index d42385d6cb..06b0c568c2 100644
+--- a/src/pkg/runtime/stack.h
++++ b/src/pkg/runtime/stack.h
+@@ -55,13 +55,19 @@ functions to make sure that this limit cannot be violated.
+ enum {
+ 	// StackSystem is a number of additional bytes to add
+ 	// to each stack below the usual guard area for OS-specific
+-	// purposes like signal handling. Used on Windows because
+-	// it does not use a separate stack.
++	// purposes like signal handling. Used on Windows and on
++	// Plan 9 because they do not use a separate stack.
+ #ifdef GOOS_windows
+ 	StackSystem = 512 * sizeof(uintptr),
++#else
++#ifdef GOOS_plan9
++	// The size of the note handler frame varies among architectures,
++	// but 512 bytes should be enough for every implementation.
++	StackSystem = 512,
+ #else
+ 	StackSystem = 0,
+-#endif
++#endif	// Plan 9
++#endif	// Windows
+ 
+ 	// The amount of extra stack to allocate beyond the size
+ 	// needed for the single frame that triggered the split.
+diff --git a/src/pkg/runtime/sys_plan9_386.s b/src/pkg/runtime/sys_plan9_386.s
+index f8034d4778..3385b083a1 100644
+--- a/src/pkg/runtime/sys_plan9_386.s
++++ b/src/pkg/runtime/sys_plan9_386.s
+@@ -2,7 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "defs_GOOS_GOARCH.h"
+ #include "zasm_GOOS_GOARCH.h"
+ 
+ // setldt(int entry, int address, int limit)
+@@ -102,9 +101,8 @@ TEXT runtime·rfork(SB),7,$0
+ 	MOVL	DX, g(AX)
+ 	MOVL	BX, m(AX)
+ 
+-	// Initialize AX from _tos->pid
+-	MOVL	_tos(SB), AX
+-	MOVL	tos_pid(AX), AX
++	// Initialize AX from TOS struct.
++	MOVL	procid(AX), AX
+ 	MOVL	AX, m_procid(BX)	// save pid as m->procid
+ 	
+ 	CALL	runtime·stackcheck(SB)	// smashes AX, CX
+@@ -121,6 +119,54 @@ TEXT runtime·rfork(SB),7,$0
+ 	CALL	runtime·exit(SB)
+ 	RET
+ 
++// void sigtramp(void *ureg, int8 *note)
++TEXT runtime·sigtramp(SB),7,$0
++	get_tls(AX)
++
++	// check that m exists
++	MOVL	m(AX), BX
++	CMPL	BX, $0
++	JNE	3(PC)
++	CALL	runtime·badsignal(SB) // will exit
++	RET
++
++	// save args
++	MOVL	ureg+4(SP), CX
++	MOVL	note+8(SP), DX
++
++	// change stack
++	MOVL	m_gsignal(BX), BP
++	MOVL	g_stackbase(BP), BP
++	MOVL	BP, SP
++
++	// make room for args and g
++	SUBL	$16, SP
++
++	// save g
++	MOVL	g(AX), BP
++	MOVL	BP, 12(SP)
++
++	// g = m->gsignal
++	MOVL	m_gsignal(BX), DI
++	MOVL	DI, g(AX)
++
++	// load args and call sighandler
++	MOVL	CX, 0(SP)
++	MOVL	DX, 4(SP)
++	MOVL	BP, 8(SP)
++
++	CALL	runtime·sighandler(SB)
++
++	// restore g
++	get_tls(BX)
++	MOVL	12(SP), BP
++	MOVL	BP, g(BX)
++
++	// call noted(AX)
++	MOVL	AX, 0(SP)
++	CALL	runtime·noted(SB)
++	RET
++
+ // Only used by the 64-bit runtime.
+ TEXT runtime·setfpmasks(SB),7,$0
+ 	RET
+diff --git a/src/pkg/runtime/sys_plan9_amd64.s b/src/pkg/runtime/sys_plan9_amd64.s
+index b5e8c59b3c..be164a0460 100644
+--- a/src/pkg/runtime/sys_plan9_amd64.s
++++ b/src/pkg/runtime/sys_plan9_amd64.s
+@@ -2,7 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "defs_GOOS_GOARCH.h"
+ #include "zasm_GOOS_GOARCH.h"
+ 
+ // setldt(int entry, int address, int limit)
+@@ -104,7 +103,7 @@ TEXT runtime·plan9_semrelease(SB),7,$0
+ 	MOVQ	$38, BP
+ 	SYSCALL
+ 	RET
+-	
++
+ TEXT runtime·rfork(SB),7,$0
+ 	MOVQ	$0x8000, AX
+ 	MOVQ	$19, BP // rfork
+@@ -146,6 +145,53 @@ TEXT runtime·rfork(SB),7,$0
+ TEXT runtime·settls(SB),7,$0
+ 	RET
+ 
++// void sigtramp(void *ureg, int8 *note)
++TEXT runtime·sigtramp(SB),7,$0
++	get_tls(AX)
++
++	// check that m exists
++	MOVQ	m(AX), BX
++	CMPQ	BX, $0
++	JNE	3(PC)
++	CALL	runtime·badsignal(SB) // will exit
++	RET
++
++	// save args
++	MOVQ	ureg+8(SP), CX
++	MOVQ	note+16(SP), DX
++
++	// change stack
++	MOVQ	m_gsignal(BX), R10
++	MOVQ	g_stackbase(R10), BP
++	MOVQ	BP, SP
++
++	// make room for args and g
++	SUBQ	$32, SP
++
++	// save g
++	MOVQ	g(AX), BP
++	MOVQ	BP, 24(SP)
++
++	// g = m->gsignal
++	MOVQ	R10, g(AX)
++
++	// load args and call sighandler
++	MOVQ	CX, 0(SP)
++	MOVQ	DX, 8(SP)
++	MOVQ	BP, 16(SP)
++
++	CALL	runtime·sighandler(SB)
++
++	// restore g
++	get_tls(BX)
++	MOVQ	24(SP), R10
++	MOVQ	R10, g(BX)
++
++	// call noted(AX)
++	MOVQ	AX, 0(SP)
++	CALL	runtime·noted(SB)
++	RET
++
+ TEXT runtime·setfpmasks(SB),7,$8
+ 	STMXCSR	0(SP)
+ 	MOVL	0(SP), AX
+diff --git a/src/pkg/runtime/thread_plan9.c b/src/pkg/runtime/thread_plan9.c
+index b7a7de7ee7..932135dca8 100644
+--- a/src/pkg/runtime/thread_plan9.c
++++ b/src/pkg/runtime/thread_plan9.c
+@@ -7,13 +7,17 @@
+ #include "arch_GOARCH.h"
+ 
+ int8 *goos = "plan9";
+-int8 *runtime·exitstatus;
++extern SigTab runtime·sigtab[];
+ 
+ int32 runtime·postnote(int32, int8*);
+ 
+ void
+ runtime·minit(void)
+ {
++	// Initialize stack and goroutine for note handling.
++	m->gsignal = runtime·malg(32*1024);
++	m->notesig = (int8*)runtime·malloc(ERRMAX*sizeof(int8));
++
+ 	// Mask all SSE floating-point exceptions
+ 	// when running on the 64-bit kernel.
+ 	runtime·setfpmasks();
+@@ -65,7 +69,7 @@ runtime·osinit(void)
+ {
+ 	runtime·ncpu = getproccount();
+ 	m->procid = getpid();
+-	runtime·notify(runtime·gonote);
++	runtime·notify(runtime·sigtramp);
+ }
+ 
+ void
+@@ -169,7 +173,7 @@ runtime·itoa(int32 n, byte *p, uint32 len)
+ }
+ 
+ void
+-goexitsall(void)
++runtime·goexitsall(int8 *status)
+ {
+ 	M *mp;
+ 	int32 pid;
+@@ -177,31 +181,7 @@ goexitsall(void)
+ 	pid = getpid();
+ 	for(mp=runtime·atomicloadp(&runtime·allm); mp; mp=mp->alllink)
+ 		if(mp->procid != pid)
+-			runtime·postnote(mp->procid, "gointr");
+-}
+-
+-void
+-runtime·gonote(void*, byte *s)
+-{
+-	uint8 buf[128];
+-	int32 l;
+-
+-	l = runtime·findnull(s);
+-	if(l > 4 && runtime·mcmp(s, (byte*)"sys:", 4) == 0) {
+-		runtime·memclr(buf, sizeof buf);
+-		runtime·memmove((void*)buf, (void*)s, runtime·findnull(s));
+-		runtime·exitstatus = (int8*)buf;
+-		goexitsall();
+-		runtime·noted(NDFLT);
+-	}
+-
+-	if(runtime·exitstatus)
+-		runtime·exits(runtime·exitstatus);
+-
+-	if(runtime·strcmp(s, (byte*)"gointr") == 0)
+-		runtime·noted(NCONT);
+-
+-	runtime·noted(NDFLT);
++			runtime·postnote(mp->procid, status);
+ }
+ 
+ int32
+@@ -240,17 +220,18 @@ void
+ runtime·exit(int32 e)
+ {
+ 	byte tmp[16];
+-
++	int8 *status;
++ 
+ 	if(e == 0)
+-		runtime·exitstatus = "";
++		status = "";
+ 	else {
+ 		/* build error string */
+ 		runtime·itoa(e, tmp, sizeof tmp);
+-		runtime·exitstatus = (int8*)tmp;
++		status = (int8*)tmp;
+ 	}
+ 
+-	goexitsall();
+-	runtime·exits(runtime·exitstatus);
++	runtime·goexitsall(status);
++	runtime·exits(status);
+ }
+ 
+ void
+@@ -307,15 +288,15 @@ os·sigpipe(void)
+ 	runtime·throw("too many writes on closed pipe");
+ }
+ 
+-/*
+- * placeholder - once notes are implemented,
+- * a signal generating a panic must appear as
+- * a call to this function for correct handling by
+- * traceback.
+- */
+ void
+ runtime·sigpanic(void)
+ {
++	if(g->sigpc == 0)
++		runtime·panicstring("call of nil func value");
++	runtime·panicstring(m->notesig);
++
++	if(g->sig == 1 || g->sig == 2)
++		runtime·throw("fault");
+ }
+ 
+ int32
+@@ -357,8 +338,8 @@ static int8 badsignal[] = "runtime: signal received on thread not created by Go.
+ // This runs on a foreign stack, without an m or a g.  No stack split.
+ #pragma textflag 7
+ void
+-runtime·badsignal(int32 sig)
++runtime·badsignal(void)
+ {
+-	USED(sig);
+ 	runtime·pwrite(2, badsignal, sizeof badsignal - 1, -1LL);
++	runtime·exits(badsignal);
+ }

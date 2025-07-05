@@ -27,7 +27,7 @@ Date:   Fri Mar 5 14:24:41 2021 -0500
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/ssa/expand_calls.go   | 54 ++++++++++-------------
  src/cmd/compile/internal/ssa/gen/AMD64Ops.go   |  8 ++--
  src/cmd/compile/internal/ssa/gen/genericOps.go | 27 ++++++++++--
@@ -41,3 +41,567 @@ Date:   Fri Mar 5 14:24:41 2021 -0500
  test/abi/methods.go                            | 51 +++++++++++++++++++++
  test/abi/methods.out                           |  2 +
  12 files changed, 279 insertions(+), 55 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/expand_calls.go b/src/cmd/compile/internal/ssa/expand_calls.go
+index 6e2004224f..29a8f670b0 100644
+--- a/src/cmd/compile/internal/ssa/expand_calls.go
++++ b/src/cmd/compile/internal/ssa/expand_calls.go
+@@ -386,41 +386,34 @@ func (x *expandState) rewriteSelect(leaf *Value, selector *Value, offset int64,
+ 		which := selector.AuxInt
+ 		if which == aux.NResults() { // mem is after the results.
+ 			// rewrite v as a Copy of call -- the replacement call will produce a mem.
+-			if call.Op == OpStaticLECall {
+-				if leaf != selector {
+-					panic("Unexpected selector of memory")
+-				}
+-				// StaticCall selector will address last element of Result.
+-				// TODO do this for all the other call types eventually.
+-				if aux.abiInfo == nil {
+-					panic(badVal("aux.abiInfo nil for call", call))
+-				}
+-				if existing := x.memForCall[call.ID]; existing == nil {
+-					selector.AuxInt = int64(aux.abiInfo.OutRegistersUsed())
+-					x.memForCall[call.ID] = selector
+-				} else {
+-					selector.copyOf(existing)
+-				}
++			if leaf != selector {
++				panic("Unexpected selector of memory")
++			}
++			if aux.abiInfo == nil {
++				panic(badVal("aux.abiInfo nil for call", call))
++			}
++			if existing := x.memForCall[call.ID]; existing == nil {
++				selector.AuxInt = int64(aux.abiInfo.OutRegistersUsed())
++				x.memForCall[call.ID] = selector
+ 			} else {
+-				leaf.copyOf(call)
++				selector.copyOf(existing)
+ 			}
++
+ 		} else {
+ 			leafType := removeTrivialWrapperTypes(leaf.Type)
+ 			if x.canSSAType(leafType) {
+ 				pt := types.NewPtr(leafType)
+ 				// Any selection right out of the arg area/registers has to be same Block as call, use call as mem input.
+-				if call.Op == OpStaticLECall { // TODO this is temporary until all calls are register-able
+-					// Create a "mem" for any loads that need to occur.
+-					if mem := x.memForCall[call.ID]; mem != nil {
+-						if mem.Block != call.Block {
+-							panic(fmt.Errorf("selector and call need to be in same block, selector=%s; call=%s", selector.LongString(), call.LongString()))
+-						}
+-						call = mem
+-					} else {
+-						mem = call.Block.NewValue1I(call.Pos.WithNotStmt(), OpSelectN, types.TypeMem, int64(aux.abiInfo.OutRegistersUsed()), call)
+-						x.memForCall[call.ID] = mem
+-						call = mem
++				// Create a "mem" for any loads that need to occur.
++				if mem := x.memForCall[call.ID]; mem != nil {
++					if mem.Block != call.Block {
++						panic(fmt.Errorf("selector and call need to be in same block, selector=%s; call=%s", selector.LongString(), call.LongString()))
+ 					}
++					call = mem
++				} else {
++					mem = call.Block.NewValue1I(call.Pos.WithNotStmt(), OpSelectN, types.TypeMem, int64(aux.abiInfo.OutRegistersUsed()), call)
++					x.memForCall[call.ID] = mem
++					call = mem
+ 				}
+ 				outParam := aux.abiInfo.OutParam(int(which))
+ 				if len(outParam.Registers) > 0 {
+@@ -1350,14 +1343,15 @@ func expandCalls(f *Func) {
+ 			case OpStaticLECall:
+ 				v.Op = OpStaticCall
+ 				rts := abi.RegisterTypes(v.Aux.(*AuxCall).abiInfo.OutParams())
+-				// TODO need to insert all the register types.
+ 				v.Type = types.NewResults(append(rts, types.TypeMem))
+ 			case OpClosureLECall:
+ 				v.Op = OpClosureCall
+-				v.Type = types.TypeMem
++				rts := abi.RegisterTypes(v.Aux.(*AuxCall).abiInfo.OutParams())
++				v.Type = types.NewResults(append(rts, types.TypeMem))
+ 			case OpInterLECall:
+ 				v.Op = OpInterCall
+-				v.Type = types.TypeMem
++				rts := abi.RegisterTypes(v.Aux.(*AuxCall).abiInfo.OutParams())
++				v.Type = types.NewResults(append(rts, types.TypeMem))
+ 			}
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+index 6bf5be9e47..6c3fe1d192 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+@@ -775,10 +775,10 @@ func init() {
+ 			faultOnNilArg0: true,
+ 		},
+ 
+-		// With a register ABI, the actual register info for these instructions (i.e., what is used in regalloc) is augmented with per-call-site bindings of additional arguments to specific registers.
+-		{name: "CALLstatic", argLength: -1, reg: regInfo{clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true},                                             // call static function aux.(*obj.LSym).  arg0=mem, auxint=argsize, returns mem
+-		{name: "CALLclosure", argLength: 3, reg: regInfo{inputs: []regMask{gpsp, buildReg("DX"), 0}, clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true}, // call function via closure.  arg0=codeptr, arg1=closure, arg2=mem, auxint=argsize, returns mem
+-		{name: "CALLinter", argLength: 2, reg: regInfo{inputs: []regMask{gp}, clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true},                        // call fn by pointer.  arg0=codeptr, arg1=mem, auxint=argsize, returns mem
++		// With a register ABI, the actual register info for these instructions (i.e., what is used in regalloc) is augmented with per-call-site bindings of additional arguments to specific in and out registers.
++		{name: "CALLstatic", argLength: -1, reg: regInfo{clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true},                                              // call static function aux.(*obj.LSym).  last arg=mem, auxint=argsize, returns mem
++		{name: "CALLclosure", argLength: -1, reg: regInfo{inputs: []regMask{gpsp, buildReg("DX"), 0}, clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true}, // call function via closure.  arg0=codeptr, arg1=closure, last arg=mem, auxint=argsize, returns mem
++		{name: "CALLinter", argLength: -1, reg: regInfo{inputs: []regMask{gp}, clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true},                        // call fn by pointer.  arg0=codeptr, last arg=mem, auxint=argsize, returns mem
+ 
+ 		// arg0 = destination pointer
+ 		// arg1 = source pointer
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index ee85156a42..2a5b77bad0 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -264,7 +264,7 @@ var genericOps = []opData{
+ 	//   ±0  → ±0 (sign preserved)
+ 	//   x<0 → NaN
+ 	//   NaN → NaN
+-	{name: "Sqrt", argLength: 1}, // √arg0   (floating point, double precision)
++	{name: "Sqrt", argLength: 1},   // √arg0   (floating point, double precision)
+ 	{name: "Sqrt32", argLength: 1}, // √arg0 (floating point, single precision)
+ 
+ 	// Round to integer, float64 only.
+@@ -396,9 +396,28 @@ var genericOps = []opData{
+ 	// TODO(josharian): ClosureCall and InterCall should have Int32 aux
+ 	// to match StaticCall's 32 bit arg size limit.
+ 	// TODO(drchase,josharian): could the arg size limit be bundled into the rules for CallOff?
+-	{name: "ClosureCall", argLength: 3, aux: "CallOff", call: true},    // arg0=code pointer, arg1=context ptr, arg2=memory.  auxint=arg size.  Returns memory.
+-	{name: "StaticCall", argLength: -1, aux: "CallOff", call: true},    // call function aux.(*obj.LSym), arg0..argN-1 are register inputs, argN=memory.  auxint=arg size.  Returns Result of register results, plus memory.
+-	{name: "InterCall", argLength: 2, aux: "CallOff", call: true},      // interface call.  arg0=code pointer, arg1=memory, auxint=arg size.  Returns memory.
++
++	// Before lowering, LECalls receive their fixed inputs (first), memory (last),
++	// and a variable number of input values in the middle.
++	// They produce a variable number of result values.
++	// These values are not necessarily "SSA-able"; they can be too large,
++	// but in that case inputs are loaded immediately before with OpDereference,
++	// and outputs are stored immediately with OpStore.
++	//
++	// After call expansion, Calls have the same fixed-middle-memory arrangement of inputs,
++	// with the difference that the "middle" is only the register-resident inputs,
++	// and the non-register inputs are instead stored at ABI-defined offsets from SP
++	// (and the stores thread through the memory that is ultimately an input to the call).
++	// Outputs follow a similar pattern; register-resident outputs are the leading elements
++	// of a Result-typed output, with memory last, and any memory-resident outputs have been
++	// stored to ABI-defined locations.  Each non-memory input or output fits in a register.
++	//
++	// Subsequent architecture-specific lowering only changes the opcode.
++
++	{name: "ClosureCall", argLength: -1, aux: "CallOff", call: true}, // arg0=code pointer, arg1=context ptr, arg2..argN-1 are register inputs, argN=memory.  auxint=arg size.  Returns Result of register results, plus memory.
++	{name: "StaticCall", argLength: -1, aux: "CallOff", call: true},  // call function aux.(*obj.LSym), arg0..argN-1 are register inputs, argN=memory.  auxint=arg size.  Returns Result of register results, plus memory.
++	{name: "InterCall", argLength: -1, aux: "CallOff", call: true},   // interface call.  arg0=code pointer, arg1..argN-1 are register inputs, argN=memory, auxint=arg size.  Returns Result of register results, plus memory.
++
+ 	{name: "ClosureLECall", argLength: -1, aux: "CallOff", call: true}, // late-expanded closure call. arg0=code pointer, arg1=context ptr,  arg2..argN-1 are inputs, argN is mem. auxint = arg size. Result is tuple of result(s), plus mem.
+ 	{name: "StaticLECall", argLength: -1, aux: "CallOff", call: true},  // late-expanded static call function aux.(*ssa.AuxCall.Fn). arg0..argN-1 are inputs, argN is mem. auxint = arg size. Result is tuple of result(s), plus mem.
+ 	{name: "InterLECall", argLength: -1, aux: "CallOff", call: true},   // late-expanded interface call. arg0=code pointer, arg1..argN-1 are inputs, argN is mem. auxint = arg size. Result is tuple of result(s), plus mem.
+diff --git a/src/cmd/compile/internal/ssa/op.go b/src/cmd/compile/internal/ssa/op.go
+index 342df73d02..084098fb64 100644
+--- a/src/cmd/compile/internal/ssa/op.go
++++ b/src/cmd/compile/internal/ssa/op.go
+@@ -10,6 +10,7 @@ import (
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/obj"
+ 	"fmt"
++	"strings"
+ )
+ 
+ // An Op encodes the specific operation that a Value performs.
+@@ -68,6 +69,27 @@ type regInfo struct {
+ 	outputs []outputInfo
+ }
+ 
++func (r *regInfo) String() string {
++	s := ""
++	s += "INS:\n"
++	for _, i := range r.inputs {
++		mask := fmt.Sprintf("%64b", i.regs)
++		mask = strings.Replace(mask, "0", ".", -1)
++		s += fmt.Sprintf("%2d |%s|\n", i.idx, mask)
++	}
++	s += "OUTS:\n"
++	for _, i := range r.outputs {
++		mask := fmt.Sprintf("%64b", i.regs)
++		mask = strings.Replace(mask, "0", ".", -1)
++		s += fmt.Sprintf("%2d |%s|\n", i.idx, mask)
++	}
++	s += "CLOBBERS:\n"
++	mask := fmt.Sprintf("%64b", r.clobbers)
++	mask = strings.Replace(mask, "0", ".", -1)
++	s += fmt.Sprintf("   |%s|\n", mask)
++	return s
++}
++
+ type auxType int8
+ 
+ type Param struct {
+@@ -116,20 +138,25 @@ func (a *AuxCall) Reg(i *regInfo, c *Config) *regInfo {
+ 		a.reg = i
+ 		return a.reg
+ 	}
+-	a.reg.inputs = append(a.reg.inputs, i.inputs...)
++
++	k := len(i.inputs)
+ 	for _, p := range a.abiInfo.InParams() {
+ 		for _, r := range p.Registers {
+ 			m := archRegForAbiReg(r, c)
+-			a.reg.inputs = append(a.reg.inputs, inputInfo{idx: len(a.reg.inputs), regs: (1 << m)})
++			a.reg.inputs = append(a.reg.inputs, inputInfo{idx: k, regs: (1 << m)})
++			k++
+ 		}
+ 	}
+-	a.reg.outputs = append(a.reg.outputs, i.outputs...)
++	a.reg.inputs = append(a.reg.inputs, i.inputs...) // These are less constrained, thus should come last
++	k = len(i.outputs)
+ 	for _, p := range a.abiInfo.OutParams() {
+ 		for _, r := range p.Registers {
+ 			m := archRegForAbiReg(r, c)
+-			a.reg.outputs = append(a.reg.outputs, outputInfo{idx: len(a.reg.outputs), regs: (1 << m)})
++			a.reg.outputs = append(a.reg.outputs, outputInfo{idx: k, regs: (1 << m)})
++			k++
+ 		}
+ 	}
++	a.reg.outputs = append(a.reg.outputs, i.outputs...)
+ 	a.reg.clobbers = i.clobbers
+ 	return a.reg
+ }
+@@ -299,12 +326,20 @@ func StaticAuxCall(sym *obj.LSym, args []Param, results []Param, paramResultInfo
+ 
+ // InterfaceAuxCall returns an AuxCall for an interface call.
+ func InterfaceAuxCall(args []Param, results []Param, paramResultInfo *abi.ABIParamResultInfo) *AuxCall {
+-	return &AuxCall{Fn: nil, args: args, results: results, abiInfo: paramResultInfo}
++	var reg *regInfo
++	if paramResultInfo.InRegistersUsed()+paramResultInfo.OutRegistersUsed() > 0 {
++		reg = &regInfo{}
++	}
++	return &AuxCall{Fn: nil, args: args, results: results, abiInfo: paramResultInfo, reg: reg}
+ }
+ 
+ // ClosureAuxCall returns an AuxCall for a closure call.
+ func ClosureAuxCall(args []Param, results []Param, paramResultInfo *abi.ABIParamResultInfo) *AuxCall {
+-	return &AuxCall{Fn: nil, args: args, results: results, abiInfo: paramResultInfo}
++	var reg *regInfo
++	if paramResultInfo.InRegistersUsed()+paramResultInfo.OutRegistersUsed() > 0 {
++		reg = &regInfo{}
++	}
++	return &AuxCall{Fn: nil, args: args, results: results, abiInfo: paramResultInfo, reg: reg}
+ }
+ 
+ func (*AuxCall) CanBeAnSSAAux() {}
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index e65c4c4a18..322e1c2283 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -13275,7 +13275,7 @@ var opcodeTable = [...]opInfo{
+ 	{
+ 		name:         "CALLclosure",
+ 		auxType:      auxCallOff,
+-		argLen:       3,
++		argLen:       -1,
+ 		clobberFlags: true,
+ 		call:         true,
+ 		reg: regInfo{
+@@ -13289,7 +13289,7 @@ var opcodeTable = [...]opInfo{
+ 	{
+ 		name:         "CALLinter",
+ 		auxType:      auxCallOff,
+-		argLen:       2,
++		argLen:       -1,
+ 		clobberFlags: true,
+ 		call:         true,
+ 		reg: regInfo{
+@@ -35596,7 +35596,7 @@ var opcodeTable = [...]opInfo{
+ 	{
+ 		name:    "ClosureCall",
+ 		auxType: auxCallOff,
+-		argLen:  3,
++		argLen:  -1,
+ 		call:    true,
+ 		generic: true,
+ 	},
+@@ -35610,7 +35610,7 @@ var opcodeTable = [...]opInfo{
+ 	{
+ 		name:    "InterCall",
+ 		auxType: auxCallOff,
+-		argLen:  2,
++		argLen:  -1,
+ 		call:    true,
+ 		generic: true,
+ 	},
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index f1f244cce6..7e461f4fe8 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -217,6 +217,10 @@ func AbiForFunc(fn *ir.Func) *abi.ABIConfig {
+ 	return abiForFunc(fn, ssaConfig.ABI0, ssaConfig.ABI1).Copy() // No idea what races will result, be safe
+ }
+ 
++// TODO (NLT 2021-04-15) This must be changed to a name that cannot match; it may be helpful to other register ABI work to keep the trigger-logic
++const magicNameDotSuffix = ".MagicMethodNameForTestingRegisterABI"
++const magicLastTypeName = "MagicLastTypeNameForTestingRegisterABI"
++
+ // abiForFunc implements ABI policy for a function, but does not return a copy of the ABI.
+ // Passing a nil function returns ABIInternal.
+ func abiForFunc(fn *ir.Func, abi0, abi1 *abi.ABIConfig) *abi.ABIConfig {
+@@ -224,16 +228,38 @@ func abiForFunc(fn *ir.Func, abi0, abi1 *abi.ABIConfig) *abi.ABIConfig {
+ 	if !regabiEnabledForAllCompilation() {
+ 		a = abi0
+ 	}
+-	if fn != nil && fn.Pragma&ir.RegisterParams != 0 { // TODO(register args) remove after register abi is working
++
++	if fn != nil {
+ 		name := ir.FuncName(fn)
+-		if strings.Contains(name, ".") {
+-			base.ErrorfAt(fn.Pos(), "Calls to //go:registerparams method %s won't work, remove the pragma from the declaration.", name)
++		magicName := strings.HasSuffix(name, magicNameDotSuffix)
++		if fn.Pragma&ir.RegisterParams != 0 { // TODO(register args) remove after register abi is working
++			if strings.Contains(name, ".") {
++				if !magicName {
++					base.ErrorfAt(fn.Pos(), "Calls to //go:registerparams method %s won't work, remove the pragma from the declaration.", name)
++				}
++			}
++			a = abi1
++		} else if magicName {
++			if base.FmtPos(fn.Pos()) == "<autogenerated>:1" {
++				// no way to put a pragma here, and it will error out in the real source code if they did not do it there.
++				a = abi1
++			} else {
++				base.ErrorfAt(fn.Pos(), "Methods with magic name %s (method %s) must also specify //go:registerparams", magicNameDotSuffix[1:], name)
++			}
++		}
++		if regAbiForFuncType(fn.Type().FuncType()) {
++			// fmt.Printf("Saw magic last type name for function %s\n", name)
++			a = abi1
+ 		}
+-		a = abi1
+ 	}
+ 	return a
+ }
+ 
++func regAbiForFuncType(ft *types.Func) bool {
++	np := ft.Params.NumFields()
++	return np > 0 && strings.Contains(ft.Params.FieldType(np-1).String(), magicLastTypeName)
++}
++
+ func regabiEnabledForAllCompilation() bool {
+ 	// TODO compiler does not yet change behavior for GOEXPERIMENT=regabi
+ 	return false && objabi.Regabi_enabled != 0
+@@ -4863,6 +4889,22 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
+ 	var callArgs []*ssa.Value // For late-expansion, the args themselves (not stored, args to the call instead).
+ 	inRegisters := false
+ 
++	var magicFnNameSym *types.Sym
++	if fn.Name() != nil {
++		magicFnNameSym = fn.Name().Sym()
++		ss := magicFnNameSym.Name
++		if strings.HasSuffix(ss, magicNameDotSuffix) {
++			inRegisters = true
++		}
++	}
++	if magicFnNameSym == nil && n.Op() == ir.OCALLINTER {
++		magicFnNameSym = fn.(*ir.SelectorExpr).Sym()
++		ss := magicFnNameSym.Name
++		if strings.HasSuffix(ss, magicNameDotSuffix[1:]) {
++			inRegisters = true
++		}
++	}
++
+ 	switch n.Op() {
+ 	case ir.OCALLFUNC:
+ 		if k == callNormal && fn.Op() == ir.ONAME && fn.(*ir.Name).Class == ir.PFUNC {
+@@ -4871,7 +4913,7 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
+ 			// TODO(register args) remove after register abi is working
+ 			inRegistersImported := fn.Pragma()&ir.RegisterParams != 0
+ 			inRegistersSamePackage := fn.Func != nil && fn.Func.Pragma&ir.RegisterParams != 0
+-			inRegisters = inRegistersImported || inRegistersSamePackage
++			inRegisters = inRegisters || inRegistersImported || inRegistersSamePackage
+ 			break
+ 		}
+ 		closure = s.expr(fn)
+@@ -4898,6 +4940,11 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
+ 	types.CalcSize(fn.Type())
+ 	stksize := fn.Type().ArgWidth() // includes receiver, args, and results
+ 
++	if regAbiForFuncType(n.X.Type().FuncType()) {
++		// fmt.Printf("Saw magic last type in call %v\n", n)
++		inRegisters = true
++	}
++
+ 	callABI := s.f.ABI1
+ 	if !inRegisters {
+ 		callABI = s.f.ABI0
+@@ -5047,11 +5094,11 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
+ 			// critical that we not clobber any arguments already
+ 			// stored onto the stack.
+ 			codeptr = s.rawLoad(types.Types[types.TUINTPTR], closure)
+-			aux := ssa.ClosureAuxCall(ACArgs, ACResults, s.f.ABIDefault.ABIAnalyzeTypes(nil, ssa.ACParamsToTypes(ACArgs), ssa.ACParamsToTypes(ACResults)))
++			aux := ssa.ClosureAuxCall(ACArgs, ACResults, callABI.ABIAnalyzeTypes(nil, ssa.ACParamsToTypes(ACArgs), ssa.ACParamsToTypes(ACResults)))
+ 			call = s.newValue2A(ssa.OpClosureLECall, aux.LateExpansionResultType(), aux, codeptr, closure)
+ 		case codeptr != nil:
+ 			// Note that the "receiver" parameter is nil because the actual receiver is the first input parameter.
+-			aux := ssa.InterfaceAuxCall(ACArgs, ACResults, s.f.ABIDefault.ABIAnalyzeTypes(nil, ssa.ACParamsToTypes(ACArgs), ssa.ACParamsToTypes(ACResults)))
++			aux := ssa.InterfaceAuxCall(ACArgs, ACResults, params)
+ 			call = s.newValue1A(ssa.OpInterLECall, aux.LateExpansionResultType(), aux, codeptr)
+ 		case callee != nil:
+ 			aux := ssa.StaticAuxCall(callTargetLSym(callee, s.curfn.LSym), ACArgs, ACResults, params)
+diff --git a/test/abi/fibish2.go b/test/abi/fibish2.go
+new file mode 100644
+index 0000000000..14f3f9ada7
+--- /dev/null
++++ b/test/abi/fibish2.go
+@@ -0,0 +1,40 @@
++// run
++
++//go:build !wasm
++// +build !wasm
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "fmt"
++
++// Test that register results are correctly returned (and passed)
++
++type MagicLastTypeNameForTestingRegisterABI func(int,MagicLastTypeNameForTestingRegisterABI) int
++
++//go:registerparams
++//go:noinline
++func minus(decrement int) MagicLastTypeNameForTestingRegisterABI {
++	return MagicLastTypeNameForTestingRegisterABI( func(x int, _ MagicLastTypeNameForTestingRegisterABI) int { return x-decrement} )
++}
++
++//go:noinline
++func f(x int, sub1 MagicLastTypeNameForTestingRegisterABI) (int, int) {
++
++	if x < 3 {
++		return 0, x
++	}
++
++	a, b := f(sub1(sub1(x, sub1), sub1), sub1)
++	c, d := f(sub1(x, sub1), sub1)
++	return a + d, b + c
++}
++
++func main() {
++	x := 40
++	a, b := f(x, minus(1))
++	fmt.Printf("f(%d)=%d,%d\n", x, a, b)
++}
+diff --git a/test/abi/fibish2.out b/test/abi/fibish2.out
+new file mode 100644
+index 0000000000..9bd80c32c9
+--- /dev/null
++++ b/test/abi/fibish2.out
+@@ -0,0 +1 @@
++f(40)=39088169,126491972
+diff --git a/test/abi/fibish_closure.go b/test/abi/fibish_closure.go
+new file mode 100644
+index 0000000000..988001ebac
+--- /dev/null
++++ b/test/abi/fibish_closure.go
+@@ -0,0 +1,34 @@
++// run
++
++//go:build !wasm
++// +build !wasm
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "fmt"
++
++// Test that register results are correctly returned (and passed)
++
++type MagicLastTypeNameForTestingRegisterABI func(int, MagicLastTypeNameForTestingRegisterABI) (int, int)
++
++//go:noinline
++func f(x int, unused MagicLastTypeNameForTestingRegisterABI) (int, int) {
++
++	if x < 3 {
++		return 0, x
++	}
++
++	a, b := f(x-2, unused)
++	c, d := f(x-1, unused)
++	return a + d, b + c
++}
++
++func main() {
++	x := 40
++	a, b := f(x, f)
++	fmt.Printf("f(%d)=%d,%d\n", x, a, b)
++}
+diff --git a/test/abi/fibish_closure.out b/test/abi/fibish_closure.out
+new file mode 100644
+index 0000000000..9bd80c32c9
+--- /dev/null
++++ b/test/abi/fibish_closure.out
+@@ -0,0 +1 @@
++f(40)=39088169,126491972
+diff --git a/test/abi/methods.go b/test/abi/methods.go
+new file mode 100644
+index 0000000000..9ecae9833e
+--- /dev/null
++++ b/test/abi/methods.go
+@@ -0,0 +1,51 @@
++// run
++
++//go:build !wasm
++// +build !wasm
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"fmt"
++)
++
++type toobig struct {
++	a,b,c string
++}
++
++//go:registerparams
++//go:noinline
++func (x *toobig) MagicMethodNameForTestingRegisterABI(y toobig, z toobig) toobig {
++	return toobig{x.a, y.b, z.c}
++}
++
++type AnInterface interface {
++	MagicMethodNameForTestingRegisterABI(y toobig, z toobig) toobig
++}
++
++//go:registerparams
++//go:noinline
++func I(a,b,c string) toobig {
++	return toobig{a,b,c}
++}
++
++// AnIid prevents the compiler from figuring out what the interface really is.
++//go:noinline
++func AnIid(x AnInterface) AnInterface {
++	return x
++}
++
++var tmp toobig
++func main() {
++	x := I("Ahoy", "1,", "2")
++	y := I("3", "there,", "4")
++	z := I("5", "6,", "Matey")
++	tmp = x.MagicMethodNameForTestingRegisterABI(y,z)
++	fmt.Println(tmp.a, tmp.b, tmp.c)
++	tmp = AnIid(&x).MagicMethodNameForTestingRegisterABI(y,z)
++	fmt.Println(tmp.a, tmp.b, tmp.c)
++}
+diff --git a/test/abi/methods.out b/test/abi/methods.out
+new file mode 100644
+index 0000000000..5a72b0edf7
+--- /dev/null
++++ b/test/abi/methods.out
+@@ -0,0 +1,2 @@
++Ahoy there, Matey
++Ahoy there, Matey

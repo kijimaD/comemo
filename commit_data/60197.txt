@@ -10,6 +10,20 @@ Date:   Sat Apr 13 12:51:37 2024 +0800
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/runtime/netpoll_kqueue_event.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/netpoll_kqueue_event.go b/src/runtime/netpoll_kqueue_event.go
+index 6419656414..d5f783e607 100644
+--- a/src/runtime/netpoll_kqueue_event.go
++++ b/src/runtime/netpoll_kqueue_event.go
+@@ -12,7 +12,7 @@ package runtime
+ // get printed somehow and they search for it.
+ const kqIdent = 0xee1eb9f4
+ 
+-func addWakeupEvent(_ int32) {
++func addWakeupEvent(kq int32) {
+ 	ev := keventt{
+ 		ident:  kqIdent,
+ 		filter: _EVFILT_USER,

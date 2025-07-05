@@ -15,9 +15,496 @@ Date:   Mon Sep 28 15:40:13 2009 -0700
     DELTA=148  (67 added, 32 deleted, 49 changed)
     OCL=35040
     CL=35055
-
+---
  src/cmd/5g/cgen.c  | 137 +++++++++++++++++++++++++++++++----------------------
  src/cmd/5g/gg.h    |   2 +
  src/cmd/5g/gsubr.c |  43 +++++++++--------
  test/arm-pass.txt  |  14 +++++-
  4 files changed, 117 insertions(+), 79 deletions(-)
+
+diff --git a/src/cmd/5g/cgen.c b/src/cmd/5g/cgen.c
+index 6c2a22b9c9..28b9631119 100644
+--- a/src/cmd/5g/cgen.c
++++ b/src/cmd/5g/cgen.c
+@@ -276,15 +276,15 @@ cgen(Node *n, Node *res)
+ 
+ 	case OLEN:
+ 		if(istype(nl->type, TMAP)) {
+-			// map hsd len in the first 32-bit word.
++			// map has len in the first 32-bit word.
+ 			// a zero pointer means zero length
+ 			regalloc(&n1, types[tptr], res);
+ 			cgen(nl, &n1);
+ 
+ 			nodconst(&n2, types[tptr], 0);
+ 			regalloc(&n3, n2.type, N);
+-			p1 = gins(optoas(OCMP, types[tptr]), &n1, N);
+-			raddr(&n3, p1);
++			gmove(&n2, &n3);
++			gcmp(optoas(OCMP, types[tptr]), &n1, &n3);
+ 			regfree(&n3);
+ 			p1 = gbranch(optoas(OEQ, types[tptr]), T);
+ 
+@@ -300,15 +300,17 @@ cgen(Node *n, Node *res)
+ 			break;
+ 		}
+ 		if(istype(nl->type, TSTRING) || isslice(nl->type)) {
+-			// both slice and string have len in the first 32-bit word.
+-			// a zero pointer means zero length
+-			regalloc(&n1, types[tptr], res);
+-			agen(nl, &n1);
++			// both slice and string have len one pointer into the struct.
++			igen(nl, &n1, res);
++			n1.op = OREGISTER;	// was OINDREG
++			regalloc(&n2, types[TUINT32], &n1);
+ 			n1.op = OINDREG;
+ 			n1.type = types[TUINT32];
+ 			n1.xoffset = Array_nel;
+-			gmove(&n1, res);
++			gmove(&n1, &n2);
++			gmove(&n2, res);
+ 			regfree(&n1);
++			regfree(&n2);
+ 			break;
+ 		}
+ 		fatal("cgen: OLEN: unknown type %lT", nl->type);
+@@ -450,34 +452,38 @@ agen(Node *n, Node *res)
+ 		cgen_aret(n, res);
+ 		break;
+ 
+-// TODO(kaib): Use the OINDEX case from 8g instead of this one.
+ 	case OINDEX:
++		// TODO(rsc): uint64 indices
+ 		w = n->type->width;
+-		if(nr->addable)
+-			goto irad;
+-		if(nl->addable) {
++		if(nr->addable) {
++			agenr(nl, &n3, res);
++			if(!isconst(nr, CTINT)) {
++				tempalloc(&tmp, types[TINT32]);
++				cgen(nr, &tmp);
++				regalloc(&n1, tmp.type, N);
++				gmove(&tmp, &n1);
++				tempfree(&tmp);
++			}
++		} else if(nl->addable) {
+ 			if(!isconst(nr, CTINT)) {
+-				regalloc(&n1, nr->type, N);
+-				cgen(nr, &n1);
++				tempalloc(&tmp, types[TINT32]);
++				cgen(nr, &tmp);
++				regalloc(&n1, tmp.type, N);
++				gmove(&tmp, &n1);
++				tempfree(&tmp);
+ 			}
+ 			regalloc(&n3, types[tptr], res);
+ 			agen(nl, &n3);
+-			goto index;
+-		}
+-		cgen(nr, res);
+-		tempname(&tmp, nr->type);
+-		gmove(res, &tmp);
+-
+-	irad:
+-		regalloc(&n3, types[tptr], res);
+-		agen(nl, &n3);
+-		if(!isconst(nr, CTINT)) {
+-			regalloc(&n1, nr->type, N);
+-			cgen(nr, &n1);
++		} else {
++			tempalloc(&tmp, types[TINT32]);
++			cgen(nr, &tmp);
++			nr = &tmp;
++			agenr(nl, &n3, res);
++			regalloc(&n1, tmp.type, N);
++			gins(optoas(OAS, tmp.type), &tmp, &n1);
++			tempfree(&tmp);
+ 		}
+-		goto index;
+ 
+-	index:
+ 		// &a is in &n3 (allocated in res)
+ 		// i is in &n1 (if not constant)
+ 		// w is width
+@@ -497,9 +503,8 @@ agen(Node *n, Node *res)
+ 					n1.xoffset = Array_nel;
+ 					nodconst(&n2, types[TUINT32], v);
+ 					regalloc(&n4, n2.type, N);
+-					cgen(&n2, &n4);
+-					p1 = gins(optoas(OCMP, types[TUINT32]), &n1, N);
+-					raddr(&n4, p1);
++					gmove(&n2, &n4);
++					gcmp(optoas(OCMP, types[TUINT32]), &n1, &n4);
+ 					regfree(&n4);
+ 					p1 = gbranch(optoas(OGT, types[TUINT32]), T);
+ 					ginscall(throwindex, 0);
+@@ -521,7 +526,10 @@ agen(Node *n, Node *res)
+ 			}
+ 
+ 			nodconst(&n2, types[tptr], v*w);
+-			gins(optoas(OADD, types[tptr]), &n2, &n3);
++			regalloc(&n4, n2.type, N);
++			gmove(&n2, &n4);
++			gcmp(optoas(OADD, types[tptr]), &n2, &n4);
++			regfree(&n4);
+ 
+ 			gmove(&n3, res);
+ 			regfree(&n3);
+@@ -539,18 +547,18 @@ agen(Node *n, Node *res)
+ 
+ 		if(!debug['B']) {
+ 			// check bounds
++			regalloc(&n4, types[TUINT32], N);
+ 			if(isslice(nl->type)) {
+ 				n1 = n3;
+ 				n1.op = OINDREG;
+ 				n1.type = types[tptr];
+ 				n1.xoffset = Array_nel;
++				cgen(&n1, &n4);
+ 			} else {
+ 				nodconst(&n1, types[TUINT32], nl->type->bound);
++				gmove(&n1, &n4);
+ 			}
+-			regalloc(&n4, n1.type, N);
+-			cgen(&n1, &n4);
+-			p1 = gins(optoas(OCMP, types[TUINT32]), &n2, N);
+-			raddr(&n4, p1);
++			gcmp(optoas(OCMP, types[TUINT32]), &n2, &n4);
+ 			regfree(&n4);
+ 			p1 = gbranch(optoas(OLT, types[TUINT32]), T);
+ 			ginscall(throwindex, 0);
+@@ -566,14 +574,17 @@ agen(Node *n, Node *res)
+ 		}
+ 
+ 		if(w == 1 || w == 2 || w == 4 || w == 8) {
+-			memset(&tmp, 0, sizeof tmp);
+-			tmp.op = OADDR;
+-			tmp.left = &n2;
+-			p1 = gins(AMOVW, &tmp, &n3);
++			memset(&n4, 0, sizeof n4);
++			n4.op = OADDR;
++			n4.left = &n2;
++			cgen(&n4, &n3);
+ 		} else {
++			regalloc(&n4, t, N);
+ 			nodconst(&n1, t, w);
+-			gins(optoas(OMUL, t), &n1, &n2);
++			gmove(&n1, &n4);
++			gins(optoas(OMUL, t), &n4, &n2);
+ 			gins(optoas(OADD, types[tptr]), &n2, &n3);
++			regfree(&n4);
+ 			gmove(&n3, res);
+ 		}
+ 
+@@ -644,6 +655,24 @@ igen(Node *n, Node *a, Node *res)
+ 	a->type = n->type;
+ }
+ 
++/*
++ * generate:
++ *	newreg = &n;
++ *
++ * caller must regfree(a).
++ */
++void
++agenr(Node *n, Node *a, Node *res)
++{
++	Node n1;
++
++	tempalloc(&n1, types[tptr]);
++	agen(n, &n1);
++	regalloc(a, types[tptr], res);
++	gmove(&n1, a);
++	tempfree(&n1);
++}
++
+ /*
+  * generate:
+  *	if(n == true) goto to;
+@@ -688,9 +717,8 @@ bgen(Node *n, int true, Prog *to)
+ 		cgen(n, &n1);
+ 		nodconst(&n2, n->type, 0);
+ 		regalloc(&n3, n->type, N);
+-		cgen(&n2, &n3);
+-		p1 = gins(optoas(OCMP, n->type), &n1, N);
+-		raddr(&n3, p1);
++		gmove(&n2, &n3);
++		gcmp(optoas(OCMP, n->type), &n1, &n3);
+ 		a = ABNE;
+ 		if(!true)
+ 			a = ABEQ;
+@@ -711,10 +739,9 @@ bgen(Node *n, int true, Prog *to)
+ 		nodconst(&n1, n->type, 0);
+ 		regalloc(&n2, n->type, N);
+ 		regalloc(&n3, n->type, N);
+-		cgen(&n1, &n2);
++		gmove(&n1, &n2);
+ 		cgen(n, &n3);
+-		p1 = gins(optoas(OCMP, n->type), &n2, N);
+-		raddr(&n3, p1);
++		gcmp(optoas(OCMP, n->type), &n2, &n3);
+ 		a = ABNE;
+ 		if(!true)
+ 			a = ABEQ;
+@@ -801,9 +828,8 @@ bgen(Node *n, int true, Prog *to)
+ 			n2.op = OINDREG;
+ 			n2.xoffset = Array_array;
+ 			nodconst(&tmp, types[tptr], 0);
+-			cgen(&tmp, &n3);
+-			p1 = gins(optoas(OCMP, types[tptr]), &n2, N);
+-			raddr(&n3, p1);
++			gmove(&tmp, &n3);
++			gcmp(optoas(OCMP, types[tptr]), &n2, &n3);
+ 			patch(gbranch(a, types[tptr]), to);
+ 			regfree(&n3);
+ 			regfree(&n1);
+@@ -824,9 +850,8 @@ bgen(Node *n, int true, Prog *to)
+ 			n2.op = OINDREG;
+ 			n2.xoffset = 0;
+ 			nodconst(&tmp, types[tptr], 0);
+-			cgen(&tmp, &n3);
+-			p1 = gins(optoas(OCMP, types[tptr]), &n2, N);
+-			raddr(&n3, p1);
++			gmove(&tmp, &n3);
++			gcmp(optoas(OCMP, types[tptr]), &n2, &n3);
+ 			patch(gbranch(a, types[tptr]), to);
+ 			regfree(&n1);
+ 			regfree(&n3);
+@@ -849,8 +874,7 @@ bgen(Node *n, int true, Prog *to)
+ 			regalloc(&n2, nr->type, N);
+ 			cgen(&tmp, &n2);
+ 
+-			p1 = gins(optoas(OCMP, nr->type), &n1, N);
+-			raddr(&n2, p1);
++			gcmp(optoas(OCMP, nr->type), &n1, &n2);
+ 			patch(gbranch(a, nr->type), to);
+ 
+ 			regfree(&n1);
+@@ -864,8 +888,7 @@ bgen(Node *n, int true, Prog *to)
+ 		regalloc(&n2, nr->type, N);
+ 		cgen(nr, &n2);
+ 
+-		p1 = gins(optoas(OCMP, nr->type), &n1, N);
+-		raddr(&n2, p1);
++		gcmp(optoas(OCMP, nr->type), &n1, &n2);
+ 		patch(gbranch(a, nr->type), to);
+ 
+ 		regfree(&n1);
+diff --git a/src/cmd/5g/gg.h b/src/cmd/5g/gg.h
+index 5f4f960117..fb457d6d15 100644
+--- a/src/cmd/5g/gg.h
++++ b/src/cmd/5g/gg.h
+@@ -88,6 +88,7 @@ void	ginscall(Node*, int);
+  */
+ void	agen(Node*, Node*);
+ void	igen(Node*, Node*, Node*);
++void agenr(Node *n, Node *a, Node *res);
+ vlong	fieldoffset(Type*, Node*);
+ void	bgen(Node*, int, Prog*);
+ void	sgen(Node*, Node*, int32);
+@@ -95,6 +96,7 @@ void	gmove(Node*, Node*);
+ Prog*	gins(int, Node*, Node*);
+ int	samaddr(Node*, Node*);
+ void	raddr(Node *n, Prog *p);
++Prog*	gcmp(int, Node*, Node*);
+ void	naddr(Node*, Addr*);
+ void	cgen_aret(Node*, Node*);
+ 
+diff --git a/src/cmd/5g/gsubr.c b/src/cmd/5g/gsubr.c
+index 03c9c2de9c..4ad7647973 100644
+--- a/src/cmd/5g/gsubr.c
++++ b/src/cmd/5g/gsubr.c
+@@ -903,6 +903,22 @@ raddr(Node *n, Prog *p)
+ 		p->reg = a.reg;
+ }
+ 
++/* generate a comparison
++ */
++Prog*
++gcmp(int as, Node *lhs, Node *rhs)
++{
++	Prog *p;
++
++	if(lhs->op != OREGISTER || rhs->op != OREGISTER)
++		fatal("bad operands to gcmp: %O %O", lhs->op, rhs->op);
++
++	p = gins(as, rhs, N);
++	raddr(lhs, p);
++	return p;
++}
++
++
+ /*
+  * generate code to compute n;
+  * make a refer to result.
+@@ -1087,6 +1103,7 @@ optoas(int op, Type *t)
+ 		a = ALEAQ;
+ 		break;
+ */
++	// TODO(kaib): make sure the conditional branches work on all edge cases
+ 	case CASE(OEQ, TBOOL):
+ 	case CASE(OEQ, TINT8):
+ 	case CASE(OEQ, TUINT8):
+@@ -1123,64 +1140,52 @@ optoas(int op, Type *t)
+ 	case CASE(OLT, TINT16):
+ 	case CASE(OLT, TINT32):
+ 	case CASE(OLT, TINT64):
+-		a = ABLT;
+-		break;
+-
+ 	case CASE(OLT, TUINT8):
+ 	case CASE(OLT, TUINT16):
+ 	case CASE(OLT, TUINT32):
+ 	case CASE(OLT, TUINT64):
+ 	case CASE(OGT, TFLOAT32):
+ 	case CASE(OGT, TFLOAT64):
+-		a = ABCS;
++		a = ABLT;
+ 		break;
+ 
+ 	case CASE(OLE, TINT8):
+ 	case CASE(OLE, TINT16):
+ 	case CASE(OLE, TINT32):
+ 	case CASE(OLE, TINT64):
+-		a = ABLE;
+-		break;
+-
+ 	case CASE(OLE, TUINT8):
+ 	case CASE(OLE, TUINT16):
+ 	case CASE(OLE, TUINT32):
+ 	case CASE(OLE, TUINT64):
+ 	case CASE(OGE, TFLOAT32):
+ 	case CASE(OGE, TFLOAT64):
+-		a = ABLS;
++		a = ABLE;
+ 		break;
+ 
+ 	case CASE(OGT, TINT8):
+ 	case CASE(OGT, TINT16):
+ 	case CASE(OGT, TINT32):
+ 	case CASE(OGT, TINT64):
+-		a = ABGT;
+-		break;
+-
+ 	case CASE(OGT, TUINT8):
+ 	case CASE(OGT, TUINT16):
+ 	case CASE(OGT, TUINT32):
+ 	case CASE(OGT, TUINT64):
+ 	case CASE(OLT, TFLOAT32):
+ 	case CASE(OLT, TFLOAT64):
+-		a = ABHI;
++		a = ABGT;
+ 		break;
+ 
+ 	case CASE(OGE, TINT8):
+ 	case CASE(OGE, TINT16):
+ 	case CASE(OGE, TINT32):
+ 	case CASE(OGE, TINT64):
+-		a = ABGE;
+-		break;
+-
+ 	case CASE(OGE, TUINT8):
+ 	case CASE(OGE, TUINT16):
+ 	case CASE(OGE, TUINT32):
+ 	case CASE(OGE, TUINT64):
+ 	case CASE(OLE, TFLOAT32):
+ 	case CASE(OLE, TFLOAT64):
+-		a = ABCC;
++		a = ABGE;
+ 		break;
+ 
+ 	case CASE(OCMP, TBOOL):
+@@ -1610,8 +1615,7 @@ oindex:
+ 		}
+ 		regalloc(&n3, n2.type, N);
+ 		cgen(&n2, &n3);
+-		p1 = gins(optoas(OCMP, types[TUINT32]), reg1, N);
+-		raddr(&n3, p1);
++		gcmp(optoas(OCMP, types[TUINT32]), reg1, &n3);
+ 		regfree(&n3);
+ 		p1 = gbranch(optoas(OLT, types[TUINT32]), T);
+ 		ginscall(throwindex, 0);
+@@ -1658,8 +1662,7 @@ oindex_const:
+ 			cgen(&n2, &n3);
+ 			regalloc(&n4, n1.type, N);
+ 			cgen(&n1, &n4);
+-			p1 = gins(optoas(OCMP, types[TUINT32]), &n4, N);
+-			raddr(&n3, p1);
++			gcmp(optoas(OCMP, types[TUINT32]), &n4, &n3);
+ 			regfree(&n4);
+ 			regfree(&n3);
+ 			p1 = gbranch(optoas(OGT, types[TUINT32]), T);
+diff --git a/test/arm-pass.txt b/test/arm-pass.txt
+index a1b5157df3..2ed92d53b5 100644
+--- a/test/arm-pass.txt
++++ b/test/arm-pass.txt
+@@ -12,6 +12,7 @@ cmp2.go
+ cmp3.go
+ cmp4.go
+ cmp5.go
++compos.go
+ const1.go
+ const2.go
+ convert3.go
+@@ -48,6 +49,7 @@ fixedbugs/bug037.go
+ fixedbugs/bug038.go
+ fixedbugs/bug039.go
+ fixedbugs/bug040.go
++fixedbugs/bug045.go
+ fixedbugs/bug046.go
+ fixedbugs/bug048.go
+ fixedbugs/bug049.go
+@@ -90,6 +92,7 @@ fixedbugs/bug096.go
+ fixedbugs/bug097.go
+ fixedbugs/bug098.go
+ fixedbugs/bug099.go
++fixedbugs/bug101.go
+ fixedbugs/bug102.go
+ fixedbugs/bug103.go
+ fixedbugs/bug104.go
+@@ -176,15 +179,18 @@ fixedbugs/bug202.go
+ fixedbugs/bug203.go
+ fixedbugs/bug205.go
+ fixedbugs/bug206.go
++for.go
+ func1.go
+ func2.go
+ func3.go
+ func4.go
+ gc1.go
+ helloworld.go
++if.go
+ import1.go
+ indirect.go
+ indirect1.go
++initcomma.go
+ initializerr.go
+ interface/convert1.go
+ interface/convert2.go
+@@ -197,9 +203,11 @@ interface/returntype.go
+ interface/struct.go
+ iota.go
+ ken/complit.go
++ken/for.go
+ ken/label.go
+ ken/mfunc.go
+-ken/rob1.go
++ken/robfor.go
++ken/robif.go
+ ken/simpbool.go
+ ken/simpprint.go
+ ken/simpswitch.go
+@@ -207,9 +215,11 @@ ken/simpvar.go
+ method1.go
+ method2.go
+ method3.go
++named1.go
+ parentype.go
+ printbig.go
+ rename1.go
+-simassign.go
++sieve.go
++switch.go
+ test0.go
+ varinit.go

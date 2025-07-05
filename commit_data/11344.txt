@@ -7,7 +7,43 @@ Date:   Mon Jan 23 15:10:53 2012 -0500
     R=ken2
     CC=golang-dev
     https://golang.org/cl/5573047
-
+---
  src/cmd/gc/subr.c      | 2 +-
  src/cmd/gc/typecheck.c | 4 ++--
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 4e9f9e05fd..9c31dace4c 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -2156,7 +2156,7 @@ adddot(Node *n)
+ 
+ out:
+ 	if(c > 1)
+-		yyerror("ambiguous DOT reference %T.%S", t, s);
++		yyerror("ambiguous selector %T.%S", t, s);
+ 
+ 	// rebuild elided dots
+ 	for(c=d-1; c>=0; c--)
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 1092608dc9..f9f0d8b301 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -1564,7 +1564,7 @@ lookdot1(Sym *s, Type *t, Type *f, int dostrcmp)
+ 		if(f->sym != s)
+ 			continue;
+ 		if(r != T) {
+-			yyerror("ambiguous DOT reference %T.%S", t, s);
++			yyerror("ambiguous selector %T.%S", t, s);
+ 			break;
+ 		}
+ 		r = f;
+@@ -1656,7 +1656,7 @@ lookdot(Node *n, Type *t, int dostrcmp)
+ 
+ 	if(f1 != T) {
+ 		if(f2 != T)
+-			yyerror("ambiguous DOT reference %S as both field and method",
++			yyerror("%S is both field and method",
+ 				n->right->sym);
+ 		if(f1->width == BADWIDTH)
+ 			fatal("lookdot badwidth %T %p", f1, f1);

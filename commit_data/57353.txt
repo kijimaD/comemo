@@ -17,9 +17,114 @@ Date:   Mon Jul 31 10:30:27 2023 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/encoding/gob/decode.go         |  2 +-
  src/encoding/gob/gobencdec_test.go |  2 +-
  src/encoding/gob/type.go           | 28 ++++++++++++++--------------
  src/encoding/gob/type_test.go      |  8 ++++----
  4 files changed, 20 insertions(+), 20 deletions(-)
+
+diff --git a/src/encoding/gob/decode.go b/src/encoding/gob/decode.go
+index 66c76a0709..684505bf90 100644
+--- a/src/encoding/gob/decode.go
++++ b/src/encoding/gob/decode.go
+@@ -1197,7 +1197,7 @@ func (dec *Decoder) getDecEnginePtr(remoteId typeId, ut *userTypeInfo) (enginePt
+ // emptyStruct is the type we compile into when ignoring a struct value.
+ type emptyStruct struct{}
+ 
+-var emptyStructType = reflect.TypeOf((*emptyStruct)(nil)).Elem()
++var emptyStructType = reflect.TypeFor[emptyStruct]()
+ 
+ // getIgnoreEnginePtr returns the engine for the specified type when the value is to be discarded.
+ func (dec *Decoder) getIgnoreEnginePtr(wireId typeId) (enginePtr **decEngine, err error) {
+diff --git a/src/encoding/gob/gobencdec_test.go b/src/encoding/gob/gobencdec_test.go
+index 6fefd36756..ae806fc39a 100644
+--- a/src/encoding/gob/gobencdec_test.go
++++ b/src/encoding/gob/gobencdec_test.go
+@@ -806,7 +806,7 @@ func TestIgnoreDepthLimit(t *testing.T) {
+ 	defer func() { maxIgnoreNestingDepth = oldNestingDepth }()
+ 	b := new(bytes.Buffer)
+ 	enc := NewEncoder(b)
+-	typ := reflect.TypeOf(int(0))
++	typ := reflect.TypeFor[int]()
+ 	nested := reflect.ArrayOf(1, typ)
+ 	for i := 0; i < 100; i++ {
+ 		nested = reflect.ArrayOf(1, nested)
+diff --git a/src/encoding/gob/type.go b/src/encoding/gob/type.go
+index 205a0b3694..acc36425bd 100644
+--- a/src/encoding/gob/type.go
++++ b/src/encoding/gob/type.go
+@@ -103,14 +103,14 @@ func validUserType(rt reflect.Type) (*userTypeInfo, error) {
+ }
+ 
+ var (
+-	gobEncoderInterfaceType        = reflect.TypeOf((*GobEncoder)(nil)).Elem()
+-	gobDecoderInterfaceType        = reflect.TypeOf((*GobDecoder)(nil)).Elem()
+-	binaryMarshalerInterfaceType   = reflect.TypeOf((*encoding.BinaryMarshaler)(nil)).Elem()
+-	binaryUnmarshalerInterfaceType = reflect.TypeOf((*encoding.BinaryUnmarshaler)(nil)).Elem()
+-	textMarshalerInterfaceType     = reflect.TypeOf((*encoding.TextMarshaler)(nil)).Elem()
+-	textUnmarshalerInterfaceType   = reflect.TypeOf((*encoding.TextUnmarshaler)(nil)).Elem()
+-
+-	wireTypeType = reflect.TypeOf((*wireType)(nil)).Elem()
++	gobEncoderInterfaceType        = reflect.TypeFor[GobEncoder]()
++	gobDecoderInterfaceType        = reflect.TypeFor[GobDecoder]()
++	binaryMarshalerInterfaceType   = reflect.TypeFor[encoding.BinaryMarshaler]()
++	binaryUnmarshalerInterfaceType = reflect.TypeFor[encoding.BinaryUnmarshaler]()
++	textMarshalerInterfaceType     = reflect.TypeFor[encoding.TextMarshaler]()
++	textUnmarshalerInterfaceType   = reflect.TypeFor[encoding.TextUnmarshaler]()
++
++	wireTypeType = reflect.TypeFor[wireType]()
+ )
+ 
+ // implementsInterface reports whether the type implements the
+@@ -270,12 +270,12 @@ var wireTypeUserInfo *userTypeInfo // userTypeInfo of wireType
+ func init() {
+ 	// Some magic numbers to make sure there are no surprises.
+ 	checkId(16, tWireType)
+-	checkId(17, mustGetTypeInfo(reflect.TypeOf((*arrayType)(nil)).Elem()).id)
+-	checkId(18, mustGetTypeInfo(reflect.TypeOf((*CommonType)(nil)).Elem()).id)
+-	checkId(19, mustGetTypeInfo(reflect.TypeOf((*sliceType)(nil)).Elem()).id)
+-	checkId(20, mustGetTypeInfo(reflect.TypeOf((*structType)(nil)).Elem()).id)
+-	checkId(21, mustGetTypeInfo(reflect.TypeOf((*fieldType)(nil)).Elem()).id)
+-	checkId(23, mustGetTypeInfo(reflect.TypeOf((*mapType)(nil)).Elem()).id)
++	checkId(17, mustGetTypeInfo(reflect.TypeFor[arrayType]()).id)
++	checkId(18, mustGetTypeInfo(reflect.TypeFor[CommonType]()).id)
++	checkId(19, mustGetTypeInfo(reflect.TypeFor[sliceType]()).id)
++	checkId(20, mustGetTypeInfo(reflect.TypeFor[structType]()).id)
++	checkId(21, mustGetTypeInfo(reflect.TypeFor[fieldType]()).id)
++	checkId(23, mustGetTypeInfo(reflect.TypeFor[mapType]()).id)
+ 
+ 	copy(builtinIdToTypeSlice[:], idToType)
+ 
+diff --git a/src/encoding/gob/type_test.go b/src/encoding/gob/type_test.go
+index f5f8db8bcb..8d4c6d7ff9 100644
+--- a/src/encoding/gob/type_test.go
++++ b/src/encoding/gob/type_test.go
+@@ -49,15 +49,15 @@ func TestBasic(t *testing.T) {
+ 
+ // Reregister some basic types to check registration is idempotent.
+ func TestReregistration(t *testing.T) {
+-	newtyp := getTypeUnlocked("int", reflect.TypeOf(int(0)))
++	newtyp := getTypeUnlocked("int", reflect.TypeFor[int]())
+ 	if newtyp != tInt.gobType() {
+ 		t.Errorf("reregistration of %s got new type", newtyp.string())
+ 	}
+-	newtyp = getTypeUnlocked("uint", reflect.TypeOf(uint(0)))
++	newtyp = getTypeUnlocked("uint", reflect.TypeFor[uint]())
+ 	if newtyp != tUint.gobType() {
+ 		t.Errorf("reregistration of %s got new type", newtyp.string())
+ 	}
+-	newtyp = getTypeUnlocked("string", reflect.TypeOf("hello"))
++	newtyp = getTypeUnlocked("string", reflect.TypeFor[string]())
+ 	if newtyp != tString.gobType() {
+ 		t.Errorf("reregistration of %s got new type", newtyp.string())
+ 	}
+@@ -145,7 +145,7 @@ type Foo struct {
+ }
+ 
+ func TestStructType(t *testing.T) {
+-	sstruct := getTypeUnlocked("Foo", reflect.TypeOf(Foo{}))
++	sstruct := getTypeUnlocked("Foo", reflect.TypeFor[Foo]())
+ 	str := sstruct.string()
+ 	// If we can print it correctly, we built it correctly.
+ 	expected := "Foo = struct { A int; B int; C string; D bytes; E float; F float; G Bar = struct { X string; }; H Bar; I Foo; }"

@@ -122,7 +122,7 @@ Date:   Thu Feb 2 09:44:26 2017 -0500
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/internal/obj/arm/obj5.go   | 179 ---------------------------
  src/cmd/internal/obj/arm64/obj7.go | 187 -----------------------------
  src/cmd/internal/obj/link.go       |   1 -
@@ -133,3 +133,1360 @@ Date:   Thu Feb 2 09:44:26 2017 -0500
  src/cmd/internal/obj/x86/obj6.go   | 239 -------------------------------------
  src/runtime/sys_nacl_amd64p32.s    |  68 +++++------
  9 files changed, 34 insertions(+), 1126 deletions(-)
+
+diff --git a/src/cmd/internal/obj/arm/obj5.go b/src/cmd/internal/obj/arm/obj5.go
+index 0bf8014398..75d22bcf81 100644
+--- a/src/cmd/internal/obj/arm/obj5.go
++++ b/src/cmd/internal/obj/arm/obj5.go
+@@ -34,7 +34,6 @@ import (
+ 	"cmd/internal/obj"
+ 	"cmd/internal/sys"
+ 	"fmt"
+-	"log"
+ 	"math"
+ )
+ 
+@@ -862,183 +861,6 @@ func initdiv(ctxt *obj.Link) {
+ 	ctxt.Sym_modu = obj.Linklookup(ctxt, "_modu", 0)
+ }
+ 
+-func follow(ctxt *obj.Link, s *obj.LSym) {
+-	ctxt.Cursym = s
+-
+-	firstp := ctxt.NewProg()
+-	lastp := firstp
+-	xfol(ctxt, s.Text, &lastp)
+-	lastp.Link = nil
+-	s.Text = firstp.Link
+-}
+-
+-func relinv(a obj.As) obj.As {
+-	switch a {
+-	case ABEQ:
+-		return ABNE
+-	case ABNE:
+-		return ABEQ
+-	case ABCS:
+-		return ABCC
+-	case ABHS:
+-		return ABLO
+-	case ABCC:
+-		return ABCS
+-	case ABLO:
+-		return ABHS
+-	case ABMI:
+-		return ABPL
+-	case ABPL:
+-		return ABMI
+-	case ABVS:
+-		return ABVC
+-	case ABVC:
+-		return ABVS
+-	case ABHI:
+-		return ABLS
+-	case ABLS:
+-		return ABHI
+-	case ABGE:
+-		return ABLT
+-	case ABLT:
+-		return ABGE
+-	case ABGT:
+-		return ABLE
+-	case ABLE:
+-		return ABGT
+-	}
+-
+-	log.Fatalf("unknown relation: %s", Anames[a])
+-	return 0
+-}
+-
+-func xfol(ctxt *obj.Link, p *obj.Prog, last **obj.Prog) {
+-	var q *obj.Prog
+-	var r *obj.Prog
+-	var i int
+-
+-loop:
+-	if p == nil {
+-		return
+-	}
+-	a := p.As
+-	if a == AB {
+-		q = p.Pcond
+-		if q != nil && q.As != obj.ATEXT {
+-			p.Mark |= FOLL
+-			p = q
+-			if p.Mark&FOLL == 0 {
+-				goto loop
+-			}
+-		}
+-	}
+-
+-	if p.Mark&FOLL != 0 {
+-		i = 0
+-		q = p
+-		for ; i < 4; i, q = i+1, q.Link {
+-			if q == *last || q == nil {
+-				break
+-			}
+-			a = q.As
+-			if a == obj.ANOP {
+-				i--
+-				continue
+-			}
+-
+-			if a == AB || (a == obj.ARET && q.Scond == C_SCOND_NONE) || a == ARFE || a == obj.AUNDEF {
+-				goto copy
+-			}
+-			if q.Pcond == nil || (q.Pcond.Mark&FOLL != 0) {
+-				continue
+-			}
+-			if a != ABEQ && a != ABNE {
+-				continue
+-			}
+-
+-		copy:
+-			for {
+-				r = ctxt.NewProg()
+-				*r = *p
+-				if r.Mark&FOLL == 0 {
+-					fmt.Printf("can't happen 1\n")
+-				}
+-				r.Mark |= FOLL
+-				if p != q {
+-					p = p.Link
+-					(*last).Link = r
+-					*last = r
+-					continue
+-				}
+-
+-				(*last).Link = r
+-				*last = r
+-				if a == AB || (a == obj.ARET && q.Scond == C_SCOND_NONE) || a == ARFE || a == obj.AUNDEF {
+-					return
+-				}
+-				r.As = ABNE
+-				if a == ABNE {
+-					r.As = ABEQ
+-				}
+-				r.Pcond = p.Link
+-				r.Link = p.Pcond
+-				if r.Link.Mark&FOLL == 0 {
+-					xfol(ctxt, r.Link, last)
+-				}
+-				if r.Pcond.Mark&FOLL == 0 {
+-					fmt.Printf("can't happen 2\n")
+-				}
+-				return
+-			}
+-		}
+-
+-		a = AB
+-		q = ctxt.NewProg()
+-		q.As = a
+-		q.Pos = p.Pos
+-		q.To.Type = obj.TYPE_BRANCH
+-		q.To.Offset = p.Pc
+-		q.Pcond = p
+-		p = q
+-	}
+-
+-	p.Mark |= FOLL
+-	(*last).Link = p
+-	*last = p
+-	if a == AB || (a == obj.ARET && p.Scond == C_SCOND_NONE) || a == ARFE || a == obj.AUNDEF {
+-		return
+-	}
+-
+-	if p.Pcond != nil {
+-		if a != ABL && a != ABX && p.Link != nil {
+-			q = obj.Brchain(ctxt, p.Link)
+-			if a != obj.ATEXT {
+-				if q != nil && (q.Mark&FOLL != 0) {
+-					p.As = relinv(a)
+-					p.Link = p.Pcond
+-					p.Pcond = q
+-				}
+-			}
+-
+-			xfol(ctxt, p.Link, last)
+-			q = obj.Brchain(ctxt, p.Pcond)
+-			if q == nil {
+-				q = p.Pcond
+-			}
+-			if q.Mark&FOLL != 0 {
+-				p.Pcond = q
+-				return
+-			}
+-
+-			p = q
+-			goto loop
+-		}
+-	}
+-
+-	p = p.Link
+-	goto loop
+-}
+-
+ var unaryDst = map[obj.As]bool{
+ 	ASWI:  true,
+ 	AWORD: true,
+@@ -1048,7 +870,6 @@ var Linkarm = obj.LinkArch{
+ 	Arch:       sys.ArchARM,
+ 	Preprocess: preprocess,
+ 	Assemble:   span5,
+-	Follow:     follow,
+ 	Progedit:   progedit,
+ 	UnaryDst:   unaryDst,
+ }
+diff --git a/src/cmd/internal/obj/arm64/obj7.go b/src/cmd/internal/obj/arm64/obj7.go
+index f70ca345ed..f68964ab49 100644
+--- a/src/cmd/internal/obj/arm64/obj7.go
++++ b/src/cmd/internal/obj/arm64/obj7.go
+@@ -34,7 +34,6 @@ import (
+ 	"cmd/internal/obj"
+ 	"cmd/internal/sys"
+ 	"fmt"
+-	"log"
+ 	"math"
+ )
+ 
+@@ -443,191 +442,6 @@ func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog) {
+ 	obj.Nopout(p)
+ }
+ 
+-func follow(ctxt *obj.Link, s *obj.LSym) {
+-	ctxt.Cursym = s
+-
+-	firstp := ctxt.NewProg()
+-	lastp := firstp
+-	xfol(ctxt, s.Text, &lastp)
+-	lastp.Link = nil
+-	s.Text = firstp.Link
+-}
+-
+-func relinv(a obj.As) obj.As {
+-	switch a {
+-	case ABEQ:
+-		return ABNE
+-	case ABNE:
+-		return ABEQ
+-	case ABCS:
+-		return ABCC
+-	case ABHS:
+-		return ABLO
+-	case ABCC:
+-		return ABCS
+-	case ABLO:
+-		return ABHS
+-	case ABMI:
+-		return ABPL
+-	case ABPL:
+-		return ABMI
+-	case ABVS:
+-		return ABVC
+-	case ABVC:
+-		return ABVS
+-	case ABHI:
+-		return ABLS
+-	case ABLS:
+-		return ABHI
+-	case ABGE:
+-		return ABLT
+-	case ABLT:
+-		return ABGE
+-	case ABGT:
+-		return ABLE
+-	case ABLE:
+-		return ABGT
+-	case ACBZ:
+-		return ACBNZ
+-	case ACBNZ:
+-		return ACBZ
+-	case ACBZW:
+-		return ACBNZW
+-	case ACBNZW:
+-		return ACBZW
+-	}
+-
+-	log.Fatalf("unknown relation: %s", Anames[a-obj.ABaseARM64])
+-	return 0
+-}
+-
+-func xfol(ctxt *obj.Link, p *obj.Prog, last **obj.Prog) {
+-	var q *obj.Prog
+-	var r *obj.Prog
+-	var i int
+-
+-loop:
+-	if p == nil {
+-		return
+-	}
+-	a := p.As
+-	if a == AB {
+-		q = p.Pcond
+-		if q != nil {
+-			p.Mark |= FOLL
+-			p = q
+-			if !(p.Mark&FOLL != 0) {
+-				goto loop
+-			}
+-		}
+-	}
+-
+-	if p.Mark&FOLL != 0 {
+-		i = 0
+-		q = p
+-		for ; i < 4; i, q = i+1, q.Link {
+-			if q == *last || q == nil {
+-				break
+-			}
+-			a = q.As
+-			if a == obj.ANOP {
+-				i--
+-				continue
+-			}
+-
+-			if a == AB || a == obj.ARET || a == AERET {
+-				goto copy
+-			}
+-			if q.Pcond == nil || (q.Pcond.Mark&FOLL != 0) {
+-				continue
+-			}
+-			if a != ABEQ && a != ABNE {
+-				continue
+-			}
+-
+-		copy:
+-			for {
+-				r = ctxt.NewProg()
+-				*r = *p
+-				if !(r.Mark&FOLL != 0) {
+-					fmt.Printf("can't happen 1\n")
+-				}
+-				r.Mark |= FOLL
+-				if p != q {
+-					p = p.Link
+-					(*last).Link = r
+-					*last = r
+-					continue
+-				}
+-
+-				(*last).Link = r
+-				*last = r
+-				if a == AB || a == obj.ARET || a == AERET {
+-					return
+-				}
+-				if a == ABNE {
+-					r.As = ABEQ
+-				} else {
+-					r.As = ABNE
+-				}
+-				r.Pcond = p.Link
+-				r.Link = p.Pcond
+-				if !(r.Link.Mark&FOLL != 0) {
+-					xfol(ctxt, r.Link, last)
+-				}
+-				if !(r.Pcond.Mark&FOLL != 0) {
+-					fmt.Printf("can't happen 2\n")
+-				}
+-				return
+-			}
+-		}
+-
+-		a = AB
+-		q = ctxt.NewProg()
+-		q.As = a
+-		q.Pos = p.Pos
+-		q.To.Type = obj.TYPE_BRANCH
+-		q.To.Offset = p.Pc
+-		q.Pcond = p
+-		p = q
+-	}
+-
+-	p.Mark |= FOLL
+-	(*last).Link = p
+-	*last = p
+-	if a == AB || a == obj.ARET || a == AERET {
+-		return
+-	}
+-	if p.Pcond != nil {
+-		if a != ABL && p.Link != nil {
+-			q = obj.Brchain(ctxt, p.Link)
+-			if a != obj.ATEXT {
+-				if q != nil && (q.Mark&FOLL != 0) {
+-					p.As = relinv(a)
+-					p.Link = p.Pcond
+-					p.Pcond = q
+-				}
+-			}
+-
+-			xfol(ctxt, p.Link, last)
+-			q = obj.Brchain(ctxt, p.Pcond)
+-			if q == nil {
+-				q = p.Pcond
+-			}
+-			if q.Mark&FOLL != 0 {
+-				p.Pcond = q
+-				return
+-			}
+-
+-			p = q
+-			goto loop
+-		}
+-	}
+-
+-	p = p.Link
+-	goto loop
+-}
+-
+ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 	ctxt.Cursym = cursym
+ 
+@@ -998,7 +812,6 @@ var Linkarm64 = obj.LinkArch{
+ 	Arch:       sys.ArchARM64,
+ 	Preprocess: preprocess,
+ 	Assemble:   span7,
+-	Follow:     follow,
+ 	Progedit:   progedit,
+ 	UnaryDst:   unaryDst,
+ }
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index ffc7a1b25b..1d2d03593d 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -804,7 +804,6 @@ type LinkArch struct {
+ 	*sys.Arch
+ 	Preprocess func(*Link, *LSym)
+ 	Assemble   func(*Link, *LSym)
+-	Follow     func(*Link, *LSym)
+ 	Progedit   func(*Link, *Prog)
+ 	UnaryDst   map[As]bool // Instruction takes one operand, a destination.
+ }
+diff --git a/src/cmd/internal/obj/mips/obj0.go b/src/cmd/internal/obj/mips/obj0.go
+index 87ddcd2bb3..097b834e49 100644
+--- a/src/cmd/internal/obj/mips/obj0.go
++++ b/src/cmd/internal/obj/mips/obj0.go
+@@ -1418,151 +1418,10 @@ func compound(ctxt *obj.Link, p *obj.Prog) bool {
+ 	return false
+ }
+ 
+-func follow(ctxt *obj.Link, s *obj.LSym) {
+-	ctxt.Cursym = s
+-
+-	firstp := ctxt.NewProg()
+-	lastp := firstp
+-	xfol(ctxt, s.Text, &lastp)
+-	lastp.Link = nil
+-	s.Text = firstp.Link
+-}
+-
+-func xfol(ctxt *obj.Link, p *obj.Prog, last **obj.Prog) {
+-	var q *obj.Prog
+-	var r *obj.Prog
+-	var i int
+-
+-loop:
+-	if p == nil {
+-		return
+-	}
+-	a := p.As
+-	if a == AJMP {
+-		q = p.Pcond
+-		if (p.Mark&NOSCHED != 0) || q != nil && (q.Mark&NOSCHED != 0) {
+-			p.Mark |= FOLL
+-			(*last).Link = p
+-			*last = p
+-			p = p.Link
+-			xfol(ctxt, p, last)
+-			p = q
+-			if p != nil && p.Mark&FOLL == 0 {
+-				goto loop
+-			}
+-			return
+-		}
+-
+-		if q != nil {
+-			p.Mark |= FOLL
+-			p = q
+-			if p.Mark&FOLL == 0 {
+-				goto loop
+-			}
+-		}
+-	}
+-
+-	if p.Mark&FOLL != 0 {
+-		i = 0
+-		q = p
+-		for ; i < 4; i, q = i+1, q.Link {
+-			if q == *last || (q.Mark&NOSCHED != 0) {
+-				break
+-			}
+-			a = q.As
+-			if a == obj.ANOP {
+-				i--
+-				continue
+-			}
+-
+-			if a == AJMP || a == ARET || a == ARFE {
+-				goto copy
+-			}
+-			if q.Pcond == nil || (q.Pcond.Mark&FOLL != 0) {
+-				continue
+-			}
+-			if a != ABEQ && a != ABNE {
+-				continue
+-			}
+-
+-		copy:
+-			for {
+-				r = ctxt.NewProg()
+-				*r = *p
+-				if r.Mark&FOLL == 0 {
+-					fmt.Printf("can't happen 1\n")
+-				}
+-				r.Mark |= FOLL
+-				if p != q {
+-					p = p.Link
+-					(*last).Link = r
+-					*last = r
+-					continue
+-				}
+-
+-				(*last).Link = r
+-				*last = r
+-				if a == AJMP || a == ARET || a == ARFE {
+-					return
+-				}
+-				r.As = ABNE
+-				if a == ABNE {
+-					r.As = ABEQ
+-				}
+-				r.Pcond = p.Link
+-				r.Link = p.Pcond
+-				if r.Link.Mark&FOLL == 0 {
+-					xfol(ctxt, r.Link, last)
+-				}
+-				if r.Pcond.Mark&FOLL == 0 {
+-					fmt.Printf("can't happen 2\n")
+-				}
+-				return
+-			}
+-		}
+-
+-		a = AJMP
+-		q = ctxt.NewProg()
+-		q.As = a
+-		q.Pos = p.Pos
+-		q.To.Type = obj.TYPE_BRANCH
+-		q.To.Offset = p.Pc
+-		q.Pcond = p
+-		p = q
+-	}
+-
+-	p.Mark |= FOLL
+-	(*last).Link = p
+-	*last = p
+-	if a == AJMP || a == ARET || a == ARFE {
+-		if p.Mark&NOSCHED != 0 {
+-			p = p.Link
+-			goto loop
+-		}
+-
+-		return
+-	}
+-
+-	if p.Pcond != nil {
+-		if a != AJAL && p.Link != nil {
+-			xfol(ctxt, p.Link, last)
+-			p = p.Pcond
+-			if p == nil || (p.Mark&FOLL != 0) {
+-				return
+-			}
+-			goto loop
+-		}
+-	}
+-
+-	p = p.Link
+-	goto loop
+-}
+-
+ var Linkmips64 = obj.LinkArch{
+ 	Arch:       sys.ArchMIPS64,
+ 	Preprocess: preprocess,
+ 	Assemble:   span0,
+-	Follow:     follow,
+ 	Progedit:   progedit,
+ }
+ 
+@@ -1570,7 +1429,6 @@ var Linkmips64le = obj.LinkArch{
+ 	Arch:       sys.ArchMIPS64LE,
+ 	Preprocess: preprocess,
+ 	Assemble:   span0,
+-	Follow:     follow,
+ 	Progedit:   progedit,
+ }
+ 
+@@ -1578,7 +1436,6 @@ var Linkmips = obj.LinkArch{
+ 	Arch:       sys.ArchMIPS,
+ 	Preprocess: preprocess,
+ 	Assemble:   span0,
+-	Follow:     follow,
+ 	Progedit:   progedit,
+ }
+ 
+@@ -1586,6 +1443,5 @@ var Linkmipsle = obj.LinkArch{
+ 	Arch:       sys.ArchMIPSLE,
+ 	Preprocess: preprocess,
+ 	Assemble:   span0,
+-	Follow:     follow,
+ 	Progedit:   progedit,
+ }
+diff --git a/src/cmd/internal/obj/plist.go b/src/cmd/internal/obj/plist.go
+index 804ea637b3..643f9d02c0 100644
+--- a/src/cmd/internal/obj/plist.go
++++ b/src/cmd/internal/obj/plist.go
+@@ -159,9 +159,6 @@ func flushplist(ctxt *Link, freeProgs bool) {
+ 	for _, s := range text {
+ 		mkfwd(s)
+ 		linkpatch(ctxt, s)
+-		if ctxt.Flag_optimize {
+-			ctxt.Arch.Follow(ctxt, s)
+-		}
+ 		ctxt.Arch.Preprocess(ctxt, s)
+ 		ctxt.Arch.Assemble(ctxt, s)
+ 		fieldtrack(ctxt, s)
+diff --git a/src/cmd/internal/obj/ppc64/obj9.go b/src/cmd/internal/obj/ppc64/obj9.go
+index b328781d87..7668ddd1fc 100644
+--- a/src/cmd/internal/obj/ppc64/obj9.go
++++ b/src/cmd/internal/obj/ppc64/obj9.go
+@@ -1067,177 +1067,10 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32) *obj.Prog {
+ 	return p
+ }
+ 
+-func follow(ctxt *obj.Link, s *obj.LSym) {
+-	ctxt.Cursym = s
+-
+-	firstp := ctxt.NewProg()
+-	lastp := firstp
+-	xfol(ctxt, s.Text, &lastp)
+-	lastp.Link = nil
+-	s.Text = firstp.Link
+-}
+-
+-func relinv(a obj.As) obj.As {
+-	switch a {
+-	case ABEQ:
+-		return ABNE
+-	case ABNE:
+-		return ABEQ
+-
+-	case ABGE:
+-		return ABLT
+-	case ABLT:
+-		return ABGE
+-
+-	case ABGT:
+-		return ABLE
+-	case ABLE:
+-		return ABGT
+-
+-	case ABVC:
+-		return ABVS
+-	case ABVS:
+-		return ABVC
+-	}
+-
+-	return 0
+-}
+-
+-func xfol(ctxt *obj.Link, p *obj.Prog, last **obj.Prog) {
+-	var q *obj.Prog
+-	var r *obj.Prog
+-	var b obj.As
+-	var i int
+-
+-loop:
+-	if p == nil {
+-		return
+-	}
+-	a := p.As
+-	if a == ABR {
+-		q = p.Pcond
+-		if (p.Mark&NOSCHED != 0) || q != nil && (q.Mark&NOSCHED != 0) {
+-			p.Mark |= FOLL
+-			(*last).Link = p
+-			*last = p
+-			p = p.Link
+-			xfol(ctxt, p, last)
+-			p = q
+-			if p != nil && p.Mark&FOLL == 0 {
+-				goto loop
+-			}
+-			return
+-		}
+-
+-		if q != nil {
+-			p.Mark |= FOLL
+-			p = q
+-			if p.Mark&FOLL == 0 {
+-				goto loop
+-			}
+-		}
+-	}
+-
+-	if p.Mark&FOLL != 0 {
+-		i = 0
+-		q = p
+-		for ; i < 4; i, q = i+1, q.Link {
+-			if q == *last || (q.Mark&NOSCHED != 0) {
+-				break
+-			}
+-			b = 0 /* set */
+-			a = q.As
+-			if a == obj.ANOP {
+-				i--
+-				continue
+-			}
+-
+-			if a == ABR || a == obj.ARET || a == ARFI || a == ARFCI || a == ARFID || a == AHRFID {
+-				goto copy
+-			}
+-			if q.Pcond == nil || (q.Pcond.Mark&FOLL != 0) {
+-				continue
+-			}
+-			b = relinv(a)
+-			if b == 0 {
+-				continue
+-			}
+-
+-		copy:
+-			for {
+-				r = ctxt.NewProg()
+-				*r = *p
+-				if r.Mark&FOLL == 0 {
+-					fmt.Printf("can't happen 1\n")
+-				}
+-				r.Mark |= FOLL
+-				if p != q {
+-					p = p.Link
+-					(*last).Link = r
+-					*last = r
+-					continue
+-				}
+-
+-				(*last).Link = r
+-				*last = r
+-				if a == ABR || a == obj.ARET || a == ARFI || a == ARFCI || a == ARFID || a == AHRFID {
+-					return
+-				}
+-				r.As = b
+-				r.Pcond = p.Link
+-				r.Link = p.Pcond
+-				if r.Link.Mark&FOLL == 0 {
+-					xfol(ctxt, r.Link, last)
+-				}
+-				if r.Pcond.Mark&FOLL == 0 {
+-					fmt.Printf("can't happen 2\n")
+-				}
+-				return
+-			}
+-		}
+-
+-		a = ABR
+-		q = ctxt.NewProg()
+-		q.As = a
+-		q.Pos = p.Pos
+-		q.To.Type = obj.TYPE_BRANCH
+-		q.To.Offset = p.Pc
+-		q.Pcond = p
+-		p = q
+-	}
+-
+-	p.Mark |= FOLL
+-	(*last).Link = p
+-	*last = p
+-	if a == ABR || a == obj.ARET || a == ARFI || a == ARFCI || a == ARFID || a == AHRFID {
+-		if p.Mark&NOSCHED != 0 {
+-			p = p.Link
+-			goto loop
+-		}
+-
+-		return
+-	}
+-
+-	if p.Pcond != nil {
+-		if a != ABL && p.Link != nil {
+-			xfol(ctxt, p.Link, last)
+-			p = p.Pcond
+-			if p == nil || (p.Mark&FOLL != 0) {
+-				return
+-			}
+-			goto loop
+-		}
+-	}
+-
+-	p = p.Link
+-	goto loop
+-}
+-
+ var Linkppc64 = obj.LinkArch{
+ 	Arch:       sys.ArchPPC64,
+ 	Preprocess: preprocess,
+ 	Assemble:   span9,
+-	Follow:     follow,
+ 	Progedit:   progedit,
+ }
+ 
+@@ -1245,6 +1078,5 @@ var Linkppc64le = obj.LinkArch{
+ 	Arch:       sys.ArchPPC64LE,
+ 	Preprocess: preprocess,
+ 	Assemble:   span9,
+-	Follow:     follow,
+ 	Progedit:   progedit,
+ }
+diff --git a/src/cmd/internal/obj/s390x/objz.go b/src/cmd/internal/obj/s390x/objz.go
+index 86af775aad..9d2d931af1 100644
+--- a/src/cmd/internal/obj/s390x/objz.go
++++ b/src/cmd/internal/obj/s390x/objz.go
+@@ -837,176 +837,6 @@ func stacksplitPost(ctxt *obj.Link, p *obj.Prog, pPre *obj.Prog, pPreempt *obj.P
+ 	return p
+ }
+ 
+-var pc_cnt int64
+-
+-func follow(ctxt *obj.Link, s *obj.LSym) {
+-	ctxt.Cursym = s
+-
+-	pc_cnt = 0
+-	firstp := ctxt.NewProg()
+-	lastp := firstp
+-	xfol(ctxt, s.Text, &lastp)
+-	lastp.Link = nil
+-	s.Text = firstp.Link
+-}
+-
+-func relinv(a obj.As) obj.As {
+-	switch a {
+-	case ABEQ:
+-		return ABNE
+-	case ABNE:
+-		return ABEQ
+-
+-	case ABGE:
+-		return ABLT
+-	case ABLT:
+-		return ABGE
+-
+-	case ABGT:
+-		return ABLE
+-	case ABLE:
+-		return ABGT
+-
+-	case ABVC:
+-		return ABVS
+-	case ABVS:
+-		return ABVC
+-	}
+-
+-	return 0
+-}
+-
+-func xfol(ctxt *obj.Link, p *obj.Prog, last **obj.Prog) {
+-	var q *obj.Prog
+-	var r *obj.Prog
+-	var b obj.As
+-
+-	for p != nil {
+-		a := p.As
+-		if a == ABR {
+-			q = p.Pcond
+-			if (p.Mark&NOSCHED != 0) || q != nil && (q.Mark&NOSCHED != 0) {
+-				p.Mark |= FOLL
+-				(*last).Link = p
+-				*last = p
+-				(*last).Pc = pc_cnt
+-				pc_cnt += 1
+-				p = p.Link
+-				xfol(ctxt, p, last)
+-				p = q
+-				if p != nil && p.Mark&FOLL == 0 {
+-					continue
+-				}
+-				return
+-			}
+-
+-			if q != nil {
+-				p.Mark |= FOLL
+-				p = q
+-				if p.Mark&FOLL == 0 {
+-					continue
+-				}
+-			}
+-		}
+-
+-		if p.Mark&FOLL != 0 {
+-			q = p
+-			for i := 0; i < 4; i, q = i+1, q.Link {
+-				if q == *last || (q.Mark&NOSCHED != 0) {
+-					break
+-				}
+-				b = 0 /* set */
+-				a = q.As
+-				if a == obj.ANOP {
+-					i--
+-					continue
+-				}
+-				if a != ABR && a != obj.ARET {
+-					if q.Pcond == nil || (q.Pcond.Mark&FOLL != 0) {
+-						continue
+-					}
+-					b = relinv(a)
+-					if b == 0 {
+-						continue
+-					}
+-				}
+-
+-				for {
+-					r = ctxt.NewProg()
+-					*r = *p
+-					if r.Mark&FOLL == 0 {
+-						fmt.Printf("can't happen 1\n")
+-					}
+-					r.Mark |= FOLL
+-					if p != q {
+-						p = p.Link
+-						(*last).Link = r
+-						*last = r
+-						(*last).Pc = pc_cnt
+-						pc_cnt += 1
+-						continue
+-					}
+-
+-					(*last).Link = r
+-					*last = r
+-					(*last).Pc = pc_cnt
+-					pc_cnt += 1
+-					if a == ABR || a == obj.ARET {
+-						return
+-					}
+-					r.As = b
+-					r.Pcond = p.Link
+-					r.Link = p.Pcond
+-					if r.Link.Mark&FOLL == 0 {
+-						xfol(ctxt, r.Link, last)
+-					}
+-					if r.Pcond.Mark&FOLL == 0 {
+-						fmt.Printf("can't happen 2\n")
+-					}
+-					return
+-				}
+-			}
+-
+-			a = ABR
+-			q = ctxt.NewProg()
+-			q.As = a
+-			q.Pos = p.Pos
+-			q.To.Type = obj.TYPE_BRANCH
+-			q.To.Offset = p.Pc
+-			q.Pcond = p
+-			p = q
+-		}
+-
+-		p.Mark |= FOLL
+-		(*last).Link = p
+-		*last = p
+-		(*last).Pc = pc_cnt
+-		pc_cnt += 1
+-
+-		if a == ABR || a == obj.ARET {
+-			if p.Mark&NOSCHED != 0 {
+-				p = p.Link
+-				continue
+-			}
+-
+-			return
+-		}
+-
+-		if p.Pcond != nil {
+-			if a != ABL && p.Link != nil {
+-				xfol(ctxt, p.Link, last)
+-				p = p.Pcond
+-				if p == nil || (p.Mark&FOLL != 0) {
+-					return
+-				}
+-				continue
+-			}
+-		}
+-
+-		p = p.Link
+-	}
+-}
+-
+ var unaryDst = map[obj.As]bool{
+ 	ASTCK:  true,
+ 	ASTCKC: true,
+@@ -1022,7 +852,6 @@ var Links390x = obj.LinkArch{
+ 	Arch:       sys.ArchS390X,
+ 	Preprocess: preprocess,
+ 	Assemble:   spanz,
+-	Follow:     follow,
+ 	Progedit:   progedit,
+ 	UnaryDst:   unaryDst,
+ }
+diff --git a/src/cmd/internal/obj/x86/obj6.go b/src/cmd/internal/obj/x86/obj6.go
+index f1e2b2507d..ec73bb3327 100644
+--- a/src/cmd/internal/obj/x86/obj6.go
++++ b/src/cmd/internal/obj/x86/obj6.go
+@@ -34,7 +34,6 @@ import (
+ 	"cmd/internal/obj"
+ 	"cmd/internal/sys"
+ 	"fmt"
+-	"log"
+ 	"math"
+ 	"strings"
+ )
+@@ -1183,241 +1182,6 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, textarg int32) *ob
+ 	return jls
+ }
+ 
+-func follow(ctxt *obj.Link, s *obj.LSym) {
+-	ctxt.Cursym = s
+-
+-	firstp := ctxt.NewProg()
+-	lastp := firstp
+-	xfol(ctxt, s.Text, &lastp)
+-	lastp.Link = nil
+-	s.Text = firstp.Link
+-}
+-
+-func nofollow(a obj.As) bool {
+-	switch a {
+-	case obj.AJMP,
+-		obj.ARET,
+-		AIRETL,
+-		AIRETQ,
+-		AIRETW,
+-		ARETFL,
+-		ARETFQ,
+-		ARETFW,
+-		obj.AUNDEF:
+-		return true
+-	}
+-
+-	return false
+-}
+-
+-func pushpop(a obj.As) bool {
+-	switch a {
+-	case APUSHL,
+-		APUSHFL,
+-		APUSHQ,
+-		APUSHFQ,
+-		APUSHW,
+-		APUSHFW,
+-		APOPL,
+-		APOPFL,
+-		APOPQ,
+-		APOPFQ,
+-		APOPW,
+-		APOPFW:
+-		return true
+-	}
+-
+-	return false
+-}
+-
+-func relinv(a obj.As) obj.As {
+-	switch a {
+-	case AJEQ:
+-		return AJNE
+-	case AJNE:
+-		return AJEQ
+-	case AJLE:
+-		return AJGT
+-	case AJLS:
+-		return AJHI
+-	case AJLT:
+-		return AJGE
+-	case AJMI:
+-		return AJPL
+-	case AJGE:
+-		return AJLT
+-	case AJPL:
+-		return AJMI
+-	case AJGT:
+-		return AJLE
+-	case AJHI:
+-		return AJLS
+-	case AJCS:
+-		return AJCC
+-	case AJCC:
+-		return AJCS
+-	case AJPS:
+-		return AJPC
+-	case AJPC:
+-		return AJPS
+-	case AJOS:
+-		return AJOC
+-	case AJOC:
+-		return AJOS
+-	}
+-
+-	log.Fatalf("unknown relation: %s", a)
+-	return 0
+-}
+-
+-func xfol(ctxt *obj.Link, p *obj.Prog, last **obj.Prog) {
+-	var q *obj.Prog
+-	var i int
+-	var a obj.As
+-
+-loop:
+-	if p == nil {
+-		return
+-	}
+-	if p.As == obj.AJMP {
+-		q = p.Pcond
+-		if q != nil && q.As != obj.ATEXT {
+-			/* mark instruction as done and continue layout at target of jump */
+-			p.Mark |= DONE
+-
+-			p = q
+-			if p.Mark&DONE == 0 {
+-				goto loop
+-			}
+-		}
+-	}
+-
+-	if p.Mark&DONE != 0 {
+-		/*
+-		 * p goes here, but already used it elsewhere.
+-		 * copy up to 4 instructions or else branch to other copy.
+-		 */
+-		i = 0
+-		q = p
+-		for ; i < 4; i, q = i+1, q.Link {
+-			if q == nil {
+-				break
+-			}
+-			if q == *last {
+-				break
+-			}
+-			a = q.As
+-			if a == obj.ANOP {
+-				i--
+-				continue
+-			}
+-
+-			if nofollow(a) || pushpop(a) {
+-				break // NOTE(rsc): arm does goto copy
+-			}
+-			if q.Pcond == nil || q.Pcond.Mark&DONE != 0 {
+-				continue
+-			}
+-			if a == obj.ACALL || a == ALOOP {
+-				continue
+-			}
+-			for {
+-				if p.As == obj.ANOP {
+-					p = p.Link
+-					continue
+-				}
+-
+-				q = obj.Copyp(ctxt, p)
+-				p = p.Link
+-				q.Mark |= DONE
+-				(*last).Link = q
+-				*last = q
+-				if q.As != a || q.Pcond == nil || q.Pcond.Mark&DONE != 0 {
+-					continue
+-				}
+-
+-				q.As = relinv(q.As)
+-				p = q.Pcond
+-				q.Pcond = q.Link
+-				q.Link = p
+-				xfol(ctxt, q.Link, last)
+-				p = q.Link
+-				if p.Mark&DONE != 0 {
+-					return
+-				}
+-				goto loop
+-				/* */
+-			}
+-		}
+-		q = ctxt.NewProg()
+-		q.As = obj.AJMP
+-		q.Pos = p.Pos
+-		q.To.Type = obj.TYPE_BRANCH
+-		q.To.Offset = p.Pc
+-		q.Pcond = p
+-		p = q
+-	}
+-
+-	/* emit p */
+-	p.Mark |= DONE
+-
+-	(*last).Link = p
+-	*last = p
+-	a = p.As
+-
+-	/* continue loop with what comes after p */
+-	if nofollow(a) {
+-		return
+-	}
+-	if p.Pcond != nil && a != obj.ACALL {
+-		/*
+-		 * some kind of conditional branch.
+-		 * recurse to follow one path.
+-		 * continue loop on the other.
+-		 */
+-		q = obj.Brchain(ctxt, p.Pcond)
+-		if q != nil {
+-			p.Pcond = q
+-		}
+-		q = obj.Brchain(ctxt, p.Link)
+-		if q != nil {
+-			p.Link = q
+-		}
+-		if p.From.Type == obj.TYPE_CONST {
+-			if p.From.Offset == 1 {
+-				/*
+-				 * expect conditional jump to be taken.
+-				 * rewrite so that's the fall-through case.
+-				 */
+-				p.As = relinv(a)
+-
+-				q = p.Link
+-				p.Link = p.Pcond
+-				p.Pcond = q
+-			}
+-		} else {
+-			q = p.Link
+-			if q.Mark&DONE != 0 {
+-				if a != ALOOP {
+-					p.As = relinv(a)
+-					p.Link = p.Pcond
+-					p.Pcond = q
+-				}
+-			}
+-		}
+-
+-		xfol(ctxt, p.Link, last)
+-		if p.Pcond.Mark&DONE != 0 {
+-			return
+-		}
+-		p = p.Pcond
+-		goto loop
+-	}
+-
+-	p = p.Link
+-	goto loop
+-}
+-
+ var unaryDst = map[obj.As]bool{
+ 	ABSWAPL:    true,
+ 	ABSWAPQ:    true,
+@@ -1472,7 +1236,6 @@ var Linkamd64 = obj.LinkArch{
+ 	Arch:       sys.ArchAMD64,
+ 	Preprocess: preprocess,
+ 	Assemble:   span6,
+-	Follow:     follow,
+ 	Progedit:   progedit,
+ 	UnaryDst:   unaryDst,
+ }
+@@ -1481,7 +1244,6 @@ var Linkamd64p32 = obj.LinkArch{
+ 	Arch:       sys.ArchAMD64P32,
+ 	Preprocess: preprocess,
+ 	Assemble:   span6,
+-	Follow:     follow,
+ 	Progedit:   progedit,
+ 	UnaryDst:   unaryDst,
+ }
+@@ -1490,7 +1252,6 @@ var Link386 = obj.LinkArch{
+ 	Arch:       sys.Arch386,
+ 	Preprocess: preprocess,
+ 	Assemble:   span6,
+-	Follow:     follow,
+ 	Progedit:   progedit,
+ 	UnaryDst:   unaryDst,
+ }
+diff --git a/src/runtime/sys_nacl_amd64p32.s b/src/runtime/sys_nacl_amd64p32.s
+index db07ae51fd..8ec5510625 100644
+--- a/src/runtime/sys_nacl_amd64p32.s
++++ b/src/runtime/sys_nacl_amd64p32.s
+@@ -366,40 +366,40 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$80
+ 	// 136(SI) is saved EFLAGS, never to be seen again
+ 	JMP	SI
+ 
+-debughandler:
+-	// print basic information
+-	LEAL	ctxt+0(FP), DI
+-	MOVL	$runtime·sigtrampf(SB), AX
+-	MOVL	AX, 0(SP)
+-	MOVQ	(16*4+16*8)(DI), BX // rip
+-	MOVQ	BX, 8(SP)
+-	MOVQ	(16*4+0*8)(DI), BX // rax
+-	MOVQ	BX, 16(SP)
+-	MOVQ	(16*4+1*8)(DI), BX // rcx
+-	MOVQ	BX, 24(SP)
+-	MOVQ	(16*4+2*8)(DI), BX // rdx
+-	MOVQ	BX, 32(SP)
+-	MOVQ	(16*4+3*8)(DI), BX // rbx
+-	MOVQ	BX, 40(SP)
+-	MOVQ	(16*4+7*8)(DI), BX // rdi
+-	MOVQ	BX, 48(SP)
+-	MOVQ	(16*4+15*8)(DI), BX // r15
+-	MOVQ	BX, 56(SP)
+-	MOVQ	(16*4+4*8)(DI), BX // rsp
+-	MOVQ	0(BX), BX
+-	MOVQ	BX, 64(SP)
+-	CALL	runtime·printf(SB)
+-	
+-	LEAL	ctxt+0(FP), DI
+-	MOVQ	(16*4+16*8)(DI), BX // rip
+-	MOVL	BX, 0(SP)
+-	MOVQ	(16*4+4*8)(DI), BX // rsp
+-	MOVL	BX, 4(SP)
+-	MOVL	$0, 8(SP)	// lr
+-	get_tls(CX)
+-	MOVL	g(CX), BX
+-	MOVL	BX, 12(SP)	// gp
+-	CALL	runtime·traceback(SB)
++//debughandler:
++	//// print basic information
++	//LEAL	ctxt+0(FP), DI
++	//MOVL	$runtime·sigtrampf(SB), AX
++	//MOVL	AX, 0(SP)
++	//MOVQ	(16*4+16*8)(DI), BX // rip
++	//MOVQ	BX, 8(SP)
++	//MOVQ	(16*4+0*8)(DI), BX // rax
++	//MOVQ	BX, 16(SP)
++	//MOVQ	(16*4+1*8)(DI), BX // rcx
++	//MOVQ	BX, 24(SP)
++	//MOVQ	(16*4+2*8)(DI), BX // rdx
++	//MOVQ	BX, 32(SP)
++	//MOVQ	(16*4+3*8)(DI), BX // rbx
++	//MOVQ	BX, 40(SP)
++	//MOVQ	(16*4+7*8)(DI), BX // rdi
++	//MOVQ	BX, 48(SP)
++	//MOVQ	(16*4+15*8)(DI), BX // r15
++	//MOVQ	BX, 56(SP)
++	//MOVQ	(16*4+4*8)(DI), BX // rsp
++	//MOVQ	0(BX), BX
++	//MOVQ	BX, 64(SP)
++	//CALL	runtime·printf(SB)
++	//
++	//LEAL	ctxt+0(FP), DI
++	//MOVQ	(16*4+16*8)(DI), BX // rip
++	//MOVL	BX, 0(SP)
++	//MOVQ	(16*4+4*8)(DI), BX // rsp
++	//MOVL	BX, 4(SP)
++	//MOVL	$0, 8(SP)	// lr
++	//get_tls(CX)
++	//MOVL	g(CX), BX
++	//MOVL	BX, 12(SP)	// gp
++	//CALL	runtime·traceback(SB)
+ 
+ notls:
+ 	MOVL	0, AX

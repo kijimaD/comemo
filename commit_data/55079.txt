@@ -55,7 +55,7 @@ Date:   Mon Dec 19 05:04:48 2022 +0800
     Reviewed-by: Wayne Zuo <wdvxdr@golangcn.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/ssa/_gen/LOONG64.rules |  3 ++-
  src/cmd/compile/internal/ssa/_gen/MIPS64.rules  |  3 ++-
  src/cmd/compile/internal/ssa/_gen/RISCV64.rules |  2 +-
@@ -64,3 +64,212 @@ Date:   Mon Dec 19 05:04:48 2022 +0800
  src/cmd/compile/internal/ssa/rewriteRISCV64.go  | 24 ++++++++++++++++++--
  src/runtime/internal/atomic/atomic_test.go      | 30 +++++++++++++++++++++++++
  7 files changed, 101 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/_gen/LOONG64.rules b/src/cmd/compile/internal/ssa/_gen/LOONG64.rules
+index 2810f0afe1..1caaf13600 100644
+--- a/src/cmd/compile/internal/ssa/_gen/LOONG64.rules
++++ b/src/cmd/compile/internal/ssa/_gen/LOONG64.rules
+@@ -400,7 +400,8 @@
+ 
+ (AtomicAdd(32|64) ...) => (LoweredAtomicAdd(32|64) ...)
+ 
+-(AtomicCompareAndSwap(32|64) ...) => (LoweredAtomicCas(32|64) ...)
++(AtomicCompareAndSwap32 ptr old new mem) => (LoweredAtomicCas32 ptr (SignExt32to64 old) new mem)
++(AtomicCompareAndSwap64 ...) => (LoweredAtomicCas64 ...)
+ 
+ // checks
+ (NilCheck ...) => (LoweredNilCheck ...)
+diff --git a/src/cmd/compile/internal/ssa/_gen/MIPS64.rules b/src/cmd/compile/internal/ssa/_gen/MIPS64.rules
+index 17634afd72..a594df2b26 100644
+--- a/src/cmd/compile/internal/ssa/_gen/MIPS64.rules
++++ b/src/cmd/compile/internal/ssa/_gen/MIPS64.rules
+@@ -392,7 +392,8 @@
+ 
+ (AtomicAdd(32|64) ...) => (LoweredAtomicAdd(32|64) ...)
+ 
+-(AtomicCompareAndSwap(32|64) ...) => (LoweredAtomicCas(32|64) ...)
++(AtomicCompareAndSwap32 ptr old new mem) => (LoweredAtomicCas32 ptr (SignExt32to64 old) new mem)
++(AtomicCompareAndSwap64 ...) => (LoweredAtomicCas64 ...)
+ 
+ // checks
+ (NilCheck ...) => (LoweredNilCheck ...)
+diff --git a/src/cmd/compile/internal/ssa/_gen/RISCV64.rules b/src/cmd/compile/internal/ssa/_gen/RISCV64.rules
+index 78c3375e2d..59f71be5ba 100644
+--- a/src/cmd/compile/internal/ssa/_gen/RISCV64.rules
++++ b/src/cmd/compile/internal/ssa/_gen/RISCV64.rules
+@@ -577,7 +577,7 @@
+ 
+ (AtomicAnd32 ...) => (LoweredAtomicAnd32 ...)
+ 
+-(AtomicCompareAndSwap32 ...) => (LoweredAtomicCas32 ...)
++(AtomicCompareAndSwap32 ptr old new mem) => (LoweredAtomicCas32 ptr (SignExt32to64 old) new mem)
+ (AtomicCompareAndSwap64 ...) => (LoweredAtomicCas64 ...)
+ 
+ (AtomicExchange32 ...) => (LoweredAtomicExchange32 ...)
+diff --git a/src/cmd/compile/internal/ssa/rewriteLOONG64.go b/src/cmd/compile/internal/ssa/rewriteLOONG64.go
+index 26d6594fef..f6da0b7ff0 100644
+--- a/src/cmd/compile/internal/ssa/rewriteLOONG64.go
++++ b/src/cmd/compile/internal/ssa/rewriteLOONG64.go
+@@ -52,8 +52,7 @@ func rewriteValueLOONG64(v *Value) bool {
+ 		v.Op = OpLOONG64LoweredAtomicAdd64
+ 		return true
+ 	case OpAtomicCompareAndSwap32:
+-		v.Op = OpLOONG64LoweredAtomicCas32
+-		return true
++		return rewriteValueLOONG64_OpAtomicCompareAndSwap32(v)
+ 	case OpAtomicCompareAndSwap64:
+ 		v.Op = OpLOONG64LoweredAtomicCas64
+ 		return true
+@@ -705,6 +704,27 @@ func rewriteValueLOONG64_OpAddr(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueLOONG64_OpAtomicCompareAndSwap32(v *Value) bool {
++	v_3 := v.Args[3]
++	v_2 := v.Args[2]
++	v_1 := v.Args[1]
++	v_0 := v.Args[0]
++	b := v.Block
++	typ := &b.Func.Config.Types
++	// match: (AtomicCompareAndSwap32 ptr old new mem)
++	// result: (LoweredAtomicCas32 ptr (SignExt32to64 old) new mem)
++	for {
++		ptr := v_0
++		old := v_1
++		new := v_2
++		mem := v_3
++		v.reset(OpLOONG64LoweredAtomicCas32)
++		v0 := b.NewValue0(v.Pos, OpSignExt32to64, typ.Int64)
++		v0.AddArg(old)
++		v.AddArg4(ptr, v0, new, mem)
++		return true
++	}
++}
+ func rewriteValueLOONG64_OpAvg64u(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+diff --git a/src/cmd/compile/internal/ssa/rewriteMIPS64.go b/src/cmd/compile/internal/ssa/rewriteMIPS64.go
+index 998b27dbb5..c0d42b55f5 100644
+--- a/src/cmd/compile/internal/ssa/rewriteMIPS64.go
++++ b/src/cmd/compile/internal/ssa/rewriteMIPS64.go
+@@ -52,8 +52,7 @@ func rewriteValueMIPS64(v *Value) bool {
+ 		v.Op = OpMIPS64LoweredAtomicAdd64
+ 		return true
+ 	case OpAtomicCompareAndSwap32:
+-		v.Op = OpMIPS64LoweredAtomicCas32
+-		return true
++		return rewriteValueMIPS64_OpAtomicCompareAndSwap32(v)
+ 	case OpAtomicCompareAndSwap64:
+ 		v.Op = OpMIPS64LoweredAtomicCas64
+ 		return true
+@@ -697,6 +696,27 @@ func rewriteValueMIPS64_OpAddr(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueMIPS64_OpAtomicCompareAndSwap32(v *Value) bool {
++	v_3 := v.Args[3]
++	v_2 := v.Args[2]
++	v_1 := v.Args[1]
++	v_0 := v.Args[0]
++	b := v.Block
++	typ := &b.Func.Config.Types
++	// match: (AtomicCompareAndSwap32 ptr old new mem)
++	// result: (LoweredAtomicCas32 ptr (SignExt32to64 old) new mem)
++	for {
++		ptr := v_0
++		old := v_1
++		new := v_2
++		mem := v_3
++		v.reset(OpMIPS64LoweredAtomicCas32)
++		v0 := b.NewValue0(v.Pos, OpSignExt32to64, typ.Int64)
++		v0.AddArg(old)
++		v.AddArg4(ptr, v0, new, mem)
++		return true
++	}
++}
+ func rewriteValueMIPS64_OpAvg64u(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+diff --git a/src/cmd/compile/internal/ssa/rewriteRISCV64.go b/src/cmd/compile/internal/ssa/rewriteRISCV64.go
+index f94e90f01a..961230d8bb 100644
+--- a/src/cmd/compile/internal/ssa/rewriteRISCV64.go
++++ b/src/cmd/compile/internal/ssa/rewriteRISCV64.go
+@@ -61,8 +61,7 @@ func rewriteValueRISCV64(v *Value) bool {
+ 	case OpAtomicAnd8:
+ 		return rewriteValueRISCV64_OpAtomicAnd8(v)
+ 	case OpAtomicCompareAndSwap32:
+-		v.Op = OpRISCV64LoweredAtomicCas32
+-		return true
++		return rewriteValueRISCV64_OpAtomicCompareAndSwap32(v)
+ 	case OpAtomicCompareAndSwap64:
+ 		v.Op = OpRISCV64LoweredAtomicCas64
+ 		return true
+@@ -776,6 +775,27 @@ func rewriteValueRISCV64_OpAtomicAnd8(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueRISCV64_OpAtomicCompareAndSwap32(v *Value) bool {
++	v_3 := v.Args[3]
++	v_2 := v.Args[2]
++	v_1 := v.Args[1]
++	v_0 := v.Args[0]
++	b := v.Block
++	typ := &b.Func.Config.Types
++	// match: (AtomicCompareAndSwap32 ptr old new mem)
++	// result: (LoweredAtomicCas32 ptr (SignExt32to64 old) new mem)
++	for {
++		ptr := v_0
++		old := v_1
++		new := v_2
++		mem := v_3
++		v.reset(OpRISCV64LoweredAtomicCas32)
++		v0 := b.NewValue0(v.Pos, OpSignExt32to64, typ.Int64)
++		v0.AddArg(old)
++		v.AddArg4(ptr, v0, new, mem)
++		return true
++	}
++}
+ func rewriteValueRISCV64_OpAtomicOr8(v *Value) bool {
+ 	v_2 := v.Args[2]
+ 	v_1 := v.Args[1]
+diff --git a/src/runtime/internal/atomic/atomic_test.go b/src/runtime/internal/atomic/atomic_test.go
+index 2ae60b8507..2427bfd211 100644
+--- a/src/runtime/internal/atomic/atomic_test.go
++++ b/src/runtime/internal/atomic/atomic_test.go
+@@ -345,6 +345,36 @@ func TestBitwiseContended(t *testing.T) {
+ 	}
+ }
+ 
++func TestCasRel(t *testing.T) {
++	const _magic = 0x5a5aa5a5
++	var x struct {
++		before uint32
++		i      uint32
++		after  uint32
++		o      uint32
++		n      uint32
++	}
++
++	x.before = _magic
++	x.after = _magic
++	for j := 0; j < 32; j += 1 {
++		x.i = (1 << j) + 0
++		x.o = (1 << j) + 0
++		x.n = (1 << j) + 1
++		if !atomic.CasRel(&x.i, x.o, x.n) {
++			t.Fatalf("should have swapped %#x %#x", x.o, x.n)
++		}
++
++		if x.i != x.n {
++			t.Fatalf("wrong x.i after swap: x.i=%#x x.n=%#x", x.i, x.n)
++		}
++
++		if x.before != _magic || x.after != _magic {
++			t.Fatalf("wrong magic: %#x _ %#x != %#x _ %#x", x.before, x.after, _magic, _magic)
++		}
++	}
++}
++
+ func TestStorepNoWB(t *testing.T) {
+ 	var p [2]*int
+ 	for i := range p {

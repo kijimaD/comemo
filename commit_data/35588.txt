@@ -9,6 +9,51 @@ Date:   Tue Feb 6 08:56:53 2018 +0300
     Change-Id: I7197e13df6cf28400a6dd86c110f41129550abb6
     Reviewed-on: https://go-review.googlesource.com/92235
     Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
-
+---
  src/database/sql/sql.go | 26 ++++++++++++++++++++++++++
  1 file changed, 26 insertions(+)
+
+diff --git a/src/database/sql/sql.go b/src/database/sql/sql.go
+index 5956d6ad46..24e906938e 100644
+--- a/src/database/sql/sql.go
++++ b/src/database/sql/sql.go
+@@ -24,6 +24,7 @@ import (
+ 	"reflect"
+ 	"runtime"
+ 	"sort"
++	"strconv"
+ 	"sync"
+ 	"sync/atomic"
+ 	"time"
+@@ -132,6 +133,31 @@ const (
+ 	LevelLinearizable
+ )
+ 
++func (i IsolationLevel) String() string {
++	switch i {
++	case LevelDefault:
++		return "Default"
++	case LevelReadUncommitted:
++		return "Read Uncommitted"
++	case LevelReadCommitted:
++		return "Read Committed"
++	case LevelWriteCommitted:
++		return "Write Committed"
++	case LevelRepeatableRead:
++		return "Repeatable Read"
++	case LevelSnapshot:
++		return "Snapshot"
++	case LevelSerializable:
++		return "Serializable"
++	case LevelLinearizable:
++		return "Linearizable"
++	default:
++		return "IsolationLevel(" + strconv.Itoa(int(i)) + ")"
++	}
++}
++
++var _ fmt.Stringer = LevelDefault
++
+ // TxOptions holds the transaction options to be used in DB.BeginTx.
+ type TxOptions struct {
+ 	// Isolation is the transaction isolation level.

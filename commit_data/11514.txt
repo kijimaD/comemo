@@ -13,7 +13,87 @@ Date:   Tue Jan 31 12:27:42 2012 -0500
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5592045
-
+---
  src/pkg/crypto/elliptic/elliptic_test.go | 11 ++++++++++
  src/pkg/crypto/elliptic/p224.go          | 35 +++++++++++++++++++++++++++++++-
  2 files changed, 45 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/crypto/elliptic/elliptic_test.go b/src/pkg/crypto/elliptic/elliptic_test.go
+index c23af754f7..1e3407ee0e 100644
+--- a/src/pkg/crypto/elliptic/elliptic_test.go
++++ b/src/pkg/crypto/elliptic/elliptic_test.go
+@@ -6,6 +6,7 @@ package elliptic
+ 
+ import (
+ 	"crypto/rand"
++	"encoding/hex"
+ 	"fmt"
+ 	"math/big"
+ 	"testing"
+@@ -350,3 +351,13 @@ func TestMarshal(t *testing.T) {
+ 		return
+ 	}
+ }
++
++func TestP224Overflow(t *testing.T) {
++	// This tests for a specific bug in the P224 implementation.
++	p224 := P224()
++	pointData, _ := hex.DecodeString("049B535B45FB0A2072398A6831834624C7E32CCFD5A4B933BCEAF77F1DD945E08BBE5178F5EDF5E733388F196D2A631D2E075BB16CBFEEA15B")
++	x, y := Unmarshal(p224, pointData)
++	if !p224.IsOnCurve(x, y) {
++		t.Error("P224 failed to validate a correct point")
++	}
++}
+diff --git a/src/pkg/crypto/elliptic/p224.go b/src/pkg/crypto/elliptic/p224.go
+index 08db5bcc67..87a6d556ce 100644
+--- a/src/pkg/crypto/elliptic/p224.go
++++ b/src/pkg/crypto/elliptic/p224.go
+@@ -341,7 +341,7 @@ func p224Invert(out, in *p224FieldElement) {
+ 
+ // p224Contract converts a FieldElement to its unique, minimal form.
+ //
+-// On entry, in[i] < 2**32
++// On entry, in[i] < 2**29
+ // On exit, in[i] < 2**28
+ func p224Contract(out, in *p224FieldElement) {
+ 	copy(out[:], in[:])
+@@ -365,6 +365,39 @@ func p224Contract(out, in *p224FieldElement) {
+ 		out[i+1] -= 1 & mask
+ 	}
+ 
++	// We might have pushed out[3] over 2**28 so we perform another, partial,
++	// carry chain.
++	for i := 3; i < 7; i++ {
++		out[i+1] += out[i] >> 28
++		out[i] &= bottom28Bits
++	}
++	top = out[7] >> 28
++	out[7] &= bottom28Bits
++
++	// Eliminate top while maintaining the same value mod p.
++	out[0] -= top
++	out[3] += top << 12
++
++	// There are two cases to consider for out[3]:
++	//   1) The first time that we eliminated top, we didn't push out[3] over
++	//      2**28. In this case, the partial carry chain didn't change any values
++	//      and top is zero.
++	//   2) We did push out[3] over 2**28 the first time that we eliminated top.
++	//      The first value of top was in [0..16), therefore, prior to eliminating
++	//      the first top, 0xfff1000 <= out[3] <= 0xfffffff. Therefore, after
++	//      overflowing and being reduced by the second carry chain, out[3] <=
++	//      0xf000. Thus it cannot have overflowed when we eliminated top for the
++	//      second time.
++
++	// Again, we may just have made out[0] negative, so do the same carry down.
++	// As before, if we made out[0] negative then we know that out[3] is
++	// sufficiently positive.
++	for i := 0; i < 3; i++ {
++		mask := uint32(int32(out[i]) >> 31)
++		out[i] += (1 << 28) & mask
++		out[i+1] -= 1 & mask
++	}
++
+ 	// Now we see if the value is >= p and, if so, subtract p.
+ 
+ 	// First we build a mask from the top four limbs, which must all be

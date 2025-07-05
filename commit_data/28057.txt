@@ -14,6 +14,24 @@ Date:   Wed Apr 27 15:44:22 2016 -0400
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
     Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  misc/cgo/testcarchive/carchive_test.go | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/misc/cgo/testcarchive/carchive_test.go b/misc/cgo/testcarchive/carchive_test.go
+index 72e9ef1d59..19c746d49a 100644
+--- a/misc/cgo/testcarchive/carchive_test.go
++++ b/misc/cgo/testcarchive/carchive_test.go
+@@ -147,7 +147,11 @@ func TestInstall(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 
+-	compilemain(t, filepath.Join("pkg", GOOS+"_"+GOARCH, "libgo.a"))
++	libgopath := filepath.Join("pkg", GOOS+"_"+GOARCH, "libgo.a")
++	if GOOS == "darwin" && GOARCH == "arm" {
++		libgopath = filepath.Join("pkg", GOOS+"_"+GOARCH+"_shared", "libgo.a")
++	}
++	compilemain(t, libgopath)
+ 
+ 	binArgs := append(bin, "arg1", "arg2")
+ 	if out, err := exec.Command(binArgs[0], binArgs[1:]...).CombinedOutput(); err != nil {

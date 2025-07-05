@@ -16,6 +16,23 @@ Date:   Mon Dec 6 18:41:49 2021 -0500
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/dist/test.go | 4 +---
  1 file changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index aea1ee6f25..50a2e5936c 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -1043,10 +1043,8 @@ func (t *tester) supportedBuildmode(mode string) bool {
+ 		}
+ 		return false
+ 	case "plugin":
+-		// linux-arm64 is missing because it causes the external linker
+-		// to crash, see https://golang.org/issue/17138
+ 		switch pair {
+-		case "linux-386", "linux-amd64", "linux-arm", "linux-s390x", "linux-ppc64le":
++		case "linux-386", "linux-amd64", "linux-arm", "linux-arm64", "linux-s390x", "linux-ppc64le":
+ 			return true
+ 		case "darwin-amd64", "darwin-arm64":
+ 			return true

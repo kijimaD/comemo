@@ -9,6 +9,23 @@ Date:   Mon Oct 11 10:41:01 2010 -0400
     R=rsc, agl1, cw, r2
     CC=golang-dev
     https://golang.org/cl/2414041
-
+---
  src/pkg/crypto/tls/conn.go | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/crypto/tls/conn.go b/src/pkg/crypto/tls/conn.go
+index 9bf9f21851..b18cda7bba 100644
+--- a/src/pkg/crypto/tls/conn.go
++++ b/src/pkg/crypto/tls/conn.go
+@@ -598,7 +598,10 @@ func (c *Conn) Read(b []byte) (n int, err os.Error) {
+ 	defer c.in.Unlock()
+ 
+ 	for c.input == nil && c.err == nil {
+-		c.readRecord(recordTypeApplicationData)
++		if err := c.readRecord(recordTypeApplicationData); err != nil {
++			// Soft error, like EAGAIN
++			return 0, err
++		}
+ 	}
+ 	if c.err != nil {
+ 		return 0, c.err

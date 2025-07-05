@@ -12,6 +12,35 @@ Date:   Tue Nov 17 14:42:08 2009 -0800
     R=agl1
     CC=golang-dev
     https://golang.org/cl/157044
-
+---
  src/pkg/runtime/proc.c | 7 +++++--
  1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 668a478a80..35e2ad77ea 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -146,7 +146,7 @@ tracebackothers(G *me)
+ 	for(g = allg; g != nil; g = g->alllink) {
+ 		if(g == me || g->status == Gdead)
+ 			continue;
+-		printf("\ngoroutine %d:\n", g->goid);
++		printf("\ngoroutine %d [%d]:\n", g->goid, g->status);
+ 		traceback(g->sched.pc, g->sched.sp, g);
+ 	}
+ }
+@@ -411,10 +411,13 @@ struct CgoThreadStart
+ static void
+ matchmg(void)
+ {
+-	M *m;
+ 	G *g;
+ 
++	if(m->mallocing)
++		return;
+ 	while(sched.mcpu < sched.mcpumax && (g = gget()) != nil){
++		M *m;
++
+ 		// Find the m that will run g.
+ 		if((m = mget(g)) == nil){
+ 			m = malloc(sizeof(M));

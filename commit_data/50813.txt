@@ -12,6 +12,24 @@ Date:   Thu Nov 11 12:52:45 2021 -0500
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/runtime/testdata/testprogcgo/gprof_c.c | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/testdata/testprogcgo/gprof_c.c b/src/runtime/testdata/testprogcgo/gprof_c.c
+index 6ddff445ad..5c7cd77022 100644
+--- a/src/runtime/testdata/testprogcgo/gprof_c.c
++++ b/src/runtime/testdata/testprogcgo/gprof_c.c
+@@ -21,9 +21,10 @@ void gprofCgoContext(void *arg) {
+ 
+ void gprofCgoTraceback(void *arg) {
+ 	// spend some time here so the P is more likely to be retaken.
+- 	for (volatile int i = 0; i < 123456789; i++);
++	volatile int i;
++	for (i = 0; i < 123456789; i++);
+ }
+ 
+ void CallGoSleep() {
+- 	GoSleep();
++	GoSleep();
+ }

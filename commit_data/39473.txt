@@ -10,7 +10,74 @@ Date:   Fri Mar 1 12:08:00 2019 +0100
     Reviewed-on: https://go-review.googlesource.com/c/164700
     Run-TryBot: Elias Naur <mail@eliasnaur.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  misc/android/go_android_exec.go |  5 ++---
  src/androidtest.bash            | 37 -------------------------------------
  2 files changed, 2 insertions(+), 40 deletions(-)
+
+diff --git a/misc/android/go_android_exec.go b/misc/android/go_android_exec.go
+index 9a4e2afc80..ffdacb3db8 100644
+--- a/misc/android/go_android_exec.go
++++ b/misc/android/go_android_exec.go
+@@ -51,7 +51,6 @@ func run(args ...string) string {
+ }
+ 
+ const (
+-	// Directory structure on the target device androidtest.bash assumes.
+ 	deviceGoroot = "/data/local/tmp/goroot"
+ 	deviceGopath = "/data/local/tmp/gopath"
+ )
+@@ -73,8 +72,8 @@ func main() {
+ 		log.Fatal(err)
+ 	}
+ 
+-	// In case we're booting a device or emulator alongside androidtest.bash
+-	// wait for it to be ready. adb wait-for-device is not enough, we have to
++	// In case we're booting a device or emulator alongside all.bash, wait for
++	// it to be ready. adb wait-for-device is not enough, we have to
+ 	// wait for sys.boot_completed.
+ 	run("wait-for-device", "shell", "while [[ -z $(getprop sys.boot_completed) ]]; do sleep 1; done;")
+ 
+diff --git a/src/androidtest.bash b/src/androidtest.bash
+deleted file mode 100755
+index ba776d2278..0000000000
+--- a/src/androidtest.bash
++++ /dev/null
+@@ -1,37 +0,0 @@
+-#!/usr/bin/env bash
+-# Copyright 2014 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-# For testing Android.
+-
+-set -e
+-ulimit -c 0 # no core files
+-
+-if [ ! -f make.bash ]; then
+-	echo 'androidtest.bash must be run from $GOROOT/src' 1>&2
+-	exit 1
+-fi
+-
+-if [ -z $GOOS ]; then
+-	export GOOS=android
+-fi
+-if [ "$GOOS" != "android" ]; then
+-	echo "androidtest.bash requires GOOS=android, got GOOS=$GOOS" 1>&2
+-	exit 1
+-fi
+-
+-if [ -n "$GOARM" ] && [ "$GOARM" != "7" ]; then
+-	echo "android only supports GOARM=7, got GOARM=$GOARM" 1>&2
+-	exit 1
+-fi
+-
+-export CGO_ENABLED=1
+-unset GOBIN
+-
+-export GOROOT=$(dirname $(pwd))
+-# Put the exec wrapper into PATH
+-export PATH=$GOROOT/bin:$PATH
+-
+-# Run standard tests.
+-bash all.bash

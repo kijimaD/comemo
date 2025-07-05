@@ -22,7 +22,7 @@ Date:   Thu Nov 1 12:20:28 2018 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/alg.go       | 1 +
  src/cmd/compile/internal/gc/dcl.go       | 9 ++++++++-
  src/cmd/compile/internal/gc/export.go    | 3 +++
@@ -34,3 +34,161 @@ Date:   Thu Nov 1 12:20:28 2018 -0400
  src/cmd/compile/internal/gc/walk.go      | 1 +
  src/cmd/compile/internal/types/sym.go    | 3 +++
  10 files changed, 25 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/alg.go b/src/cmd/compile/internal/gc/alg.go
+index b112ff6797..f52c15b1f5 100644
+--- a/src/cmd/compile/internal/gc/alg.go
++++ b/src/cmd/compile/internal/gc/alg.go
+@@ -330,6 +330,7 @@ func hashfor(t *types.Type) *Node {
+ 
+ 	n := newname(sym)
+ 	n.SetClass(PFUNC)
++	n.Sym.SetFunc(true)
+ 	n.Type = functype(nil, []*Node{
+ 		anonfield(types.NewPtr(t)),
+ 		anonfield(types.Types[TUINTPTR]),
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index 645ba7558c..d4d0708b1c 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -125,6 +125,9 @@ func declare(n *Node, ctxt Class) {
+ 	s.Def = asTypesNode(n)
+ 	n.Name.Vargen = int32(gen)
+ 	n.SetClass(ctxt)
++	if ctxt == PFUNC {
++		n.Sym.SetFunc(true)
++	}
+ 
+ 	autoexport(n, ctxt)
+ }
+@@ -801,8 +804,12 @@ func origSym(s *types.Sym) *types.Sym {
+ // Method symbols can be used to distinguish the same method appearing
+ // in different method sets. For example, T.M and (*T).M have distinct
+ // method symbols.
++//
++// The returned symbol will be marked as a function.
+ func methodSym(recv *types.Type, msym *types.Sym) *types.Sym {
+-	return methodSymSuffix(recv, msym, "")
++	sym := methodSymSuffix(recv, msym, "")
++	sym.SetFunc(true)
++	return sym
+ }
+ 
+ // methodSymSuffix is like methodsym, but allows attaching a
+diff --git a/src/cmd/compile/internal/gc/export.go b/src/cmd/compile/internal/gc/export.go
+index 85916509cb..4fe1f8b95f 100644
+--- a/src/cmd/compile/internal/gc/export.go
++++ b/src/cmd/compile/internal/gc/export.go
+@@ -140,6 +140,9 @@ func importobj(ipkg *types.Pkg, pos src.XPos, s *types.Sym, op Op, ctxt Class, t
+ 	n.Op = op
+ 	n.Pos = pos
+ 	n.SetClass(ctxt)
++	if ctxt == PFUNC {
++		n.Sym.SetFunc(true)
++	}
+ 	n.Type = t
+ 	return n
+ }
+diff --git a/src/cmd/compile/internal/gc/iimport.go b/src/cmd/compile/internal/gc/iimport.go
+index 8614c7a14f..c9198499dd 100644
+--- a/src/cmd/compile/internal/gc/iimport.go
++++ b/src/cmd/compile/internal/gc/iimport.go
+@@ -334,6 +334,7 @@ func (r *importReader) doDecl(n *Node) {
+ 			m := newfuncnamel(mpos, methodSym(recv.Type, msym))
+ 			m.Type = mtyp
+ 			m.SetClass(PFUNC)
++			// methodSym already marked m.Sym as a function.
+ 
+ 			// (comment from parser.go)
+ 			// inl.C's inlnode in on a dotmeth node expects to find the inlineable body as
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 55d6d55e6d..087371c6f6 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -649,6 +649,11 @@ func Main(archInit func(*Arch)) {
+ 	Curfn = nil
+ 	peekitabs()
+ 
++	// The "init" function is the only user-spellable symbol that
++	// we construct later. Mark it as a function now before
++	// anything can ask for its Linksym.
++	lookup("init").SetFunc(true)
++
+ 	// Phase 8: Compile top level functions.
+ 	// Don't use range--walk can add functions to xtop.
+ 	timings.Start("be", "compilefuncs")
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index b0ccd01752..d43dc8e617 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -3670,6 +3670,7 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
+ 		n2 := newnamel(fn.Pos, fn.Sym)
+ 		n2.Name.Curfn = s.curfn
+ 		n2.SetClass(PFUNC)
++		n2.Sym.SetFunc(true)
+ 		n2.Pos = fn.Pos
+ 		n2.Type = types.Types[TUINT8] // dummy type for a static closure. Could use runtime.funcval if we had it.
+ 		closure = s.expr(n2)
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 97f7e4880d..53bfcba3ff 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -1619,6 +1619,7 @@ func hashmem(t *types.Type) *Node {
+ 
+ 	n := newname(sym)
+ 	n.SetClass(PFUNC)
++	n.Sym.SetFunc(true)
+ 	n.Type = functype(nil, []*Node{
+ 		anonfield(types.NewPtr(t)),
+ 		anonfield(types.Types[TUINTPTR]),
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index e6a8ed4bda..371e0924e7 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -2513,6 +2513,7 @@ func typecheckMethodExpr(n *Node) (res *Node) {
+ 	n.Type = methodfunc(m.Type, n.Left.Type)
+ 	n.Xoffset = 0
+ 	n.SetClass(PFUNC)
++	// methodSym already marked n.Sym as a function.
+ 	return n
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 37d995b1bd..5056212984 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -3063,6 +3063,7 @@ func eqfor(t *types.Type) (n *Node, needsize bool) {
+ 		sym := typesymprefix(".eq", t)
+ 		n := newname(sym)
+ 		n.SetClass(PFUNC)
++		n.Sym.SetFunc(true)
+ 		n.Type = functype(nil, []*Node{
+ 			anonfield(types.NewPtr(t)),
+ 			anonfield(types.NewPtr(t)),
+diff --git a/src/cmd/compile/internal/types/sym.go b/src/cmd/compile/internal/types/sym.go
+index b7fd7ae9fb..28583378d9 100644
+--- a/src/cmd/compile/internal/types/sym.go
++++ b/src/cmd/compile/internal/types/sym.go
+@@ -42,6 +42,7 @@ const (
+ 	symSiggen // type symbol has been generated
+ 	symAsm    // on asmlist, for writing to -asmhdr
+ 	symAlgGen // algorithm table has been generated
++	symFunc   // function symbol; uses internal ABI
+ )
+ 
+ func (sym *Sym) OnExportList() bool { return sym.flags&symOnExportList != 0 }
+@@ -49,12 +50,14 @@ func (sym *Sym) Uniq() bool         { return sym.flags&symUniq != 0 }
+ func (sym *Sym) Siggen() bool       { return sym.flags&symSiggen != 0 }
+ func (sym *Sym) Asm() bool          { return sym.flags&symAsm != 0 }
+ func (sym *Sym) AlgGen() bool       { return sym.flags&symAlgGen != 0 }
++func (sym *Sym) Func() bool         { return sym.flags&symFunc != 0 }
+ 
+ func (sym *Sym) SetOnExportList(b bool) { sym.flags.set(symOnExportList, b) }
+ func (sym *Sym) SetUniq(b bool)         { sym.flags.set(symUniq, b) }
+ func (sym *Sym) SetSiggen(b bool)       { sym.flags.set(symSiggen, b) }
+ func (sym *Sym) SetAsm(b bool)          { sym.flags.set(symAsm, b) }
+ func (sym *Sym) SetAlgGen(b bool)       { sym.flags.set(symAlgGen, b) }
++func (sym *Sym) SetFunc(b bool)         { sym.flags.set(symFunc, b) }
+ 
+ func (sym *Sym) IsBlank() bool {
+ 	return sym != nil && sym.Name == "_"

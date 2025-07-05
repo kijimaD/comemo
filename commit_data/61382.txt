@@ -14,7 +14,44 @@ Date:   Sun Nov 3 15:52:29 2024 +0700
     Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Keith Randall <khr@google.com>
     Auto-Submit: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/noder/reader.go |  2 +-
  test/fixedbugs/issue70175.go             | 17 +++++++++++++++++
  2 files changed, 18 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index 39ac1400a0..eca66487fa 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -2068,7 +2068,7 @@ func (r *reader) switchStmt(label *types.Sym) ir.Node {
+ func (r *reader) label() *types.Sym {
+ 	r.Sync(pkgbits.SyncLabel)
+ 	name := r.String()
+-	if r.inlCall != nil {
++	if r.inlCall != nil && name != "_" {
+ 		name = fmt.Sprintf("~%s·%d", name, inlgen)
+ 	}
+ 	return typecheck.Lookup(name)
+diff --git a/test/fixedbugs/issue70175.go b/test/fixedbugs/issue70175.go
+new file mode 100644
+index 0000000000..0ad6e39a7f
+--- /dev/null
++++ b/test/fixedbugs/issue70175.go
+@@ -0,0 +1,17 @@
++// compile
++
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func f() {
++_:
++
++_:
++}
++
++func main() {
++	f()
++}

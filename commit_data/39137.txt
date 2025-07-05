@@ -13,7 +13,97 @@ Date:   Fri Jan 4 01:30:15 2019 +0000
     Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/crypto/sha1/sha1.go      |  2 +-
  src/crypto/sha1/sha1_test.go | 58 ++++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 59 insertions(+), 1 deletion(-)
+
+diff --git a/src/crypto/sha1/sha1.go b/src/crypto/sha1/sha1.go
+index db70b7d09a..8c48042b1c 100644
+--- a/src/crypto/sha1/sha1.go
++++ b/src/crypto/sha1/sha1.go
+@@ -75,7 +75,7 @@ func (d *digest) UnmarshalBinary(b []byte) error {
+ 	b, d.h[4] = consumeUint32(b)
+ 	b = b[copy(d.x[:], b):]
+ 	b, d.len = consumeUint64(b)
+-	d.nx = int(d.len) % chunk
++	d.nx = int(d.len % chunk)
+ 	return nil
+ }
+ 
+diff --git a/src/crypto/sha1/sha1_test.go b/src/crypto/sha1/sha1_test.go
+index 4f229262ad..c047204bf3 100644
+--- a/src/crypto/sha1/sha1_test.go
++++ b/src/crypto/sha1/sha1_test.go
+@@ -11,6 +11,7 @@ import (
+ 	"crypto/rand"
+ 	"encoding"
+ 	"fmt"
++	"hash"
+ 	"io"
+ 	"testing"
+ )
+@@ -152,6 +153,63 @@ func TestBlockGeneric(t *testing.T) {
+ 	}
+ }
+ 
++// Tests for unmarshaling hashes that have hashed a large amount of data
++// The initial hash generation is omitted from the test, because it takes a long time.
++// The test contains some already-generated states, and their expected sums
++// Tests a problem that is outlined in Github issue #29543
++// The problem is triggered when an amount of data has been hashed for which
++// the data length has a 1 in the 32nd bit. When casted to int, this changes
++// the sign of the value, and causes the modulus operation to return a
++// different result.
++type unmarshalTest struct {
++	state string
++	sum   string
++}
++
++var largeUnmarshalTests = []unmarshalTest{
++	// Data length: 7_102_415_735
++	unmarshalTest{
++		state: "sha\x01\x13\xbc\xfe\x83\x8c\xbd\xdfP\x1f\xd8ڿ<\x9eji8t\xe1\xa5@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuv\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01\xa7VCw",
++		sum:   "bc6245c9959cc33e1c2592e5c9ea9b5d0431246c",
++	},
++	// Data length: 6_565_544_823
++	unmarshalTest{
++		state: "sha\x01m;\x16\xa6R\xbe@\xa9nĈ\xf9S\x03\x00B\xc2\xdcv\xcf@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuv\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01\x87VCw",
++		sum:   "8f2d1c0e4271768f35feb918bfe21ea1387a2072",
++	},
++}
++
++func safeSum(h hash.Hash) (sum []byte, err error) {
++	defer func() {
++		if r := recover(); r != nil {
++			err = fmt.Errorf("sum panic: %v", r)
++		}
++	}()
++
++	return h.Sum(nil), nil
++}
++
++func TestLargeHashes(t *testing.T) {
++	for i, test := range largeUnmarshalTests {
++
++		h := New()
++		if err := h.(encoding.BinaryUnmarshaler).UnmarshalBinary([]byte(test.state)); err != nil {
++			t.Errorf("test %d could not unmarshal: %v", i, err)
++			continue
++		}
++
++		sum, err := safeSum(h)
++		if err != nil {
++			t.Errorf("test %d could not sum: %v", i, err)
++			continue
++		}
++
++		if fmt.Sprintf("%x", sum) != test.sum {
++			t.Errorf("test %d sum mismatch: expect %s got %x", i, test.sum, sum)
++		}
++	}
++}
++
+ var bench = New()
+ var buf = make([]byte, 8192)
+ 

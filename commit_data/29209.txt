@@ -22,7 +22,7 @@ Date:   Tue Aug 30 16:31:53 2016 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/lex.go              |   3 +-
  src/cmd/compile/internal/gc/noder.go            | 177 +++++++++++-------------
  src/cmd/compile/internal/syntax/dumper_test.go  |   2 +-
@@ -34,3 +34,748 @@ Date:   Tue Aug 30 16:31:53 2016 -0700
  src/cmd/compile/internal/syntax/scanner_test.go |   6 +-
  src/cmd/compile/internal/syntax/syntax.go       |  22 ++-
  10 files changed, 168 insertions(+), 128 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/lex.go b/src/cmd/compile/internal/gc/lex.go
+index 309da90458..5d3da58010 100644
+--- a/src/cmd/compile/internal/gc/lex.go
++++ b/src/cmd/compile/internal/gc/lex.go
+@@ -7,6 +7,7 @@ package gc
+ import (
+ 	"bufio"
+ 	"bytes"
++	"cmd/compile/internal/syntax"
+ 	"cmd/internal/obj"
+ 	"fmt"
+ 	"io"
+@@ -60,7 +61,7 @@ func plan9quote(s string) string {
+ 	return s
+ }
+ 
+-type Pragma uint16
++type Pragma syntax.Pragma
+ 
+ const (
+ 	Nointerface       Pragma = 1 << iota
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index 8e2b9ef5fc..a945038c7a 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -6,7 +6,6 @@ package gc
+ 
+ import (
+ 	"fmt"
+-	"sort"
+ 	"strconv"
+ 	"strings"
+ 	"unicode/utf8"
+@@ -15,23 +14,19 @@ import (
+ )
+ 
+ func parseFile(filename string) {
+-	errh := func(_, line int, msg string) {
+-		yyerrorl(lexlineno+int32(line)-1, "%s", msg)
+-	}
+-
+-	file, err := syntax.ReadFile(filename, errh, 0)
++	p := noder{baseline: lexlineno}
++	file, err := syntax.ReadFile(filename, p.error, p.pragma, 0)
+ 	if err != nil {
+ 		Fatalf("syntax.ReadFile %s: %v", filename, err)
+ 	}
+ 
+-	p := noder{pragmas: file.Pragmas}
+-
+-	p.lineno(file.PkgName)
+-	mkpackage(file.PkgName.Value)
++	p.file(file)
+ 
+-	xtop = append(xtop, p.decls(file.DeclList, true)...)
+-	p.globalPragmas()
+-	lexlineno += p.maxline
++	if !imported_unsafe {
++		for _, x := range p.linknames {
++			p.error(0, x, "//go:linkname only allowed in Go files that import \"unsafe\"")
++		}
++	}
+ 
+ 	if nsyntaxerrors == 0 {
+ 		testdclstack()
+@@ -40,13 +35,21 @@ func parseFile(filename string) {
+ 
+ // noder transforms package syntax's AST into a Nod tree.
+ type noder struct {
+-	indent  []byte
+-	pragmas []syntax.Pragma
+-	pline   int32
+-	maxline int32
++	baseline  int32
++	linknames []int // tracks //go:linkname lines
+ }
+ 
+-func (p *noder) decls(decls []syntax.Decl, top bool) (l []*Node) {
++func (p *noder) file(file *syntax.File) {
++	p.lineno(file.PkgName)
++	mkpackage(file.PkgName.Value)
++
++	xtop = append(xtop, p.decls(file.DeclList)...)
++
++	lexlineno = p.baseline + int32(file.Lines) - 1
++	lineno = lexlineno
++}
++
++func (p *noder) decls(decls []syntax.Decl) (l []*Node) {
+ 	var lastConstGroup *syntax.Group
+ 	var lastConstRHS []*Node
+ 	var iotaVal int32
+@@ -59,6 +62,7 @@ func (p *noder) decls(decls []syntax.Decl, top bool) (l []*Node) {
+ 
+ 		case *syntax.VarDecl:
+ 			l = append(l, p.varDecl(decl)...)
++
+ 		case *syntax.ConstDecl:
+ 			// Tricky to handle golang.org/issue/15550 correctly.
+ 
+@@ -91,10 +95,6 @@ func (p *noder) decls(decls []syntax.Decl, top bool) (l []*Node) {
+ 		default:
+ 			panic("unhandled Decl")
+ 		}
+-
+-		if top {
+-			p.pline = p.maxline
+-		}
+ 	}
+ 
+ 	return
+@@ -102,7 +102,7 @@ func (p *noder) decls(decls []syntax.Decl, top bool) (l []*Node) {
+ 
+ func (p *noder) importDecl(imp *syntax.ImportDecl) {
+ 	val := p.basicLit(imp.Path)
+-	importfile(&val, p.indent)
++	importfile(&val, nil)
+ 	ipkg := importpkg
+ 	importpkg = nil
+ 
+@@ -159,6 +159,7 @@ func (p *noder) varDecl(decl *syntax.VarDecl) []*Node {
+ 		exprs = p.exprList(decl.Values)
+ 	}
+ 
++	p.lineno(decl)
+ 	return variter(names, typ, exprs)
+ }
+ 
+@@ -216,7 +217,7 @@ func (p *noder) funcDecl(fun *syntax.FuncDecl) *Node {
+ 		}
+ 	}
+ 
+-	pragma := p.pragma()
++	pragma := Pragma(fun.Pragma)
+ 
+ 	f.Nbody.Set(body)
+ 	f.Noescape = pragma&Noescape != 0
+@@ -224,7 +225,7 @@ func (p *noder) funcDecl(fun *syntax.FuncDecl) *Node {
+ 		Yyerror("can only use //go:noescape with external func implementations")
+ 	}
+ 	f.Func.Pragma = pragma
+-	lineno = lexlineno + int32(fun.EndLine) - 1
++	lineno = p.baseline + int32(fun.EndLine) - 1
+ 	f.Func.Endlineno = lineno
+ 
+ 	funcbody(f)
+@@ -345,15 +346,19 @@ func (p *noder) expr(expr syntax.Expr) *Node {
+ 		if expr.Type != nil {
+ 			n.Right = p.expr(expr.Type)
+ 		}
+-		// TODO(mdempsky): Should apply wrapname to n.List nodes.
+-		n.List.Set(p.exprs(expr.ElemList))
++		l := p.exprs(expr.ElemList)
++		for i, e := range l {
++			l[i] = p.wrapname(expr.ElemList[i], e)
++		}
++		n.List.Set(l)
++		lineno = p.baseline + int32(expr.EndLine) - 1
+ 		return n
+ 	case *syntax.KeyValueExpr:
+ 		return p.nod(expr, OKEY, p.expr(expr.Key), p.wrapname(expr.Value, p.expr(expr.Value)))
+ 	case *syntax.FuncLit:
+ 		closurehdr(p.typeExpr(expr.Type))
+ 		body := p.stmts(expr.Body)
+-		lineno = lexlineno + int32(expr.EndLine) - 1
++		lineno = p.baseline + int32(expr.EndLine) - 1
+ 		return p.setlineno(expr, closurebody(body))
+ 	case *syntax.ParenExpr:
+ 		return p.nod(expr, OPAREN, p.expr(expr.X), nil)
+@@ -398,7 +403,9 @@ func (p *noder) expr(expr syntax.Expr) *Node {
+ 				x = unparen(x) // TODO(mdempsky): Needed?
+ 				if x.Op == OCOMPLIT {
+ 					// Special case for &T{...}: turn into (*T){...}.
+-					x.Right = p.nod(expr, OIND, x.Right, nil)
++					// TODO(mdempsky): Switch back to p.nod after we
++					// get rid of gcCompat.
++					x.Right = Nod(OIND, x.Right, nil)
+ 					x.Right.Implicit = true
+ 					return x
+ 				}
+@@ -577,7 +584,7 @@ func (p *noder) stmt(stmt syntax.Stmt) *Node {
+ 	case *syntax.SendStmt:
+ 		return p.nod(stmt, OSEND, p.expr(stmt.Chan), p.expr(stmt.Value))
+ 	case *syntax.DeclStmt:
+-		return liststmt(p.decls(stmt.DeclList, false))
++		return liststmt(p.decls(stmt.DeclList))
+ 	case *syntax.AssignStmt:
+ 		if stmt.Op != 0 && stmt.Op != syntax.Def {
+ 			n := p.nod(stmt, OASOP, p.expr(stmt.Lhs), p.expr(stmt.Rhs))
+@@ -975,10 +982,7 @@ func (p *noder) setlineno(src syntax.Node, dst *Node) *Node {
+ 		// TODO(mdempsky): Shouldn't happen. Fix package syntax.
+ 		return dst
+ 	}
+-	if l > p.maxline {
+-		p.maxline = l
+-	}
+-	dst.Lineno = lexlineno + l - 1
++	dst.Lineno = p.baseline + l - 1
+ 	return dst
+ }
+ 
+@@ -991,78 +995,57 @@ func (p *noder) lineno(n syntax.Node) {
+ 		// TODO(mdempsky): Shouldn't happen. Fix package syntax.
+ 		return
+ 	}
+-	if l > p.maxline {
+-		p.maxline = l
+-	}
+-	lineno = lexlineno + l - 1
++	lineno = p.baseline + l - 1
+ }
+ 
+-func (p *noder) pragma() Pragma {
+-	lo := sort.Search(len(p.pragmas), func(i int) bool { return int32(p.pragmas[i].Line) >= p.pline })
+-	hi := sort.Search(len(p.pragmas), func(i int) bool { return int32(p.pragmas[i].Line) > p.maxline })
++func (p *noder) error(_, line int, msg string) {
++	yyerrorl(p.baseline+int32(line)-1, "%s", msg)
++}
+ 
+-	var res Pragma
+-	for _, prag := range p.pragmas[lo:hi] {
+-		text := prag.Text
+-		if !strings.HasPrefix(text, "go:") {
+-			continue
++func (p *noder) pragma(pos, line int, text string) syntax.Pragma {
++	switch {
++	case strings.HasPrefix(text, "line "):
++		i := strings.IndexByte(text, ':')
++		if i < 0 {
++			break
++		}
++		n, err := strconv.Atoi(text[i+1:])
++		if err != nil {
++			// todo: make this an error instead? it is almost certainly a bug.
++			break
+ 		}
++		if n > 1e8 {
++			p.error(pos, line, "line number out of range")
++			errorexit()
++		}
++		if n <= 0 {
++			break
++		}
++		lexlineno = p.baseline + int32(line)
++		linehistupdate(text[5:i], n)
++
++	case strings.HasPrefix(text, "go:linkname "):
++		// Record line number so we can emit an error later if
++		// the file doesn't import package unsafe.
++		p.linknames = append(p.linknames, line)
++
++		f := strings.Fields(text)
++		if len(f) != 3 {
++			p.error(pos, line, "usage: //go:linkname localname linkname")
++			break
++		}
++		Lookup(f[1]).Linkname = f[2]
+ 
++	case strings.HasPrefix(text, "go:cgo_"):
++		pragcgobuf += pragcgo(text)
++		fallthrough // because of //go:cgo_unsafe_args
++	default:
+ 		verb := text
+ 		if i := strings.Index(text, " "); i >= 0 {
+ 			verb = verb[:i]
+ 		}
+-
+-		res |= PragmaValue(verb)
++		return syntax.Pragma(PragmaValue(verb))
+ 	}
+-	return res
+-}
+-
+-func (p *noder) globalPragmas() {
+-	origlexlineno := lexlineno
+-	defer func() {
+-		lexlineno = origlexlineno
+-	}()
+-
+-	for _, prag := range p.pragmas {
+-		text := prag.Text
+-
+-		if strings.HasPrefix(text, "go:cgo_") {
+-			pragcgobuf += pragcgo(text)
+-		}
+ 
+-		if strings.HasPrefix(text, "go:linkname ") {
+-			if !imported_unsafe {
+-				Yyerror("//go:linkname only allowed in Go files that import \"unsafe\"")
+-			}
+-			f := strings.Fields(text)
+-			if len(f) != 3 {
+-				Yyerror("usage: //go:linkname localname linkname")
+-				break
+-			}
+-			Lookup(f[1]).Linkname = f[2]
+-		}
+-
+-		// TODO(mdempsky): Move into package syntax.
+-		if strings.HasPrefix(text, "line ") {
+-			i := strings.IndexByte(text, ':')
+-			if i < 0 {
+-				continue
+-			}
+-			n, err := strconv.Atoi(text[i+1:])
+-			if err != nil {
+-				// todo: make this an error instead? it is almost certainly a bug.
+-				continue
+-			}
+-			if n > 1e8 {
+-				Yyerror("line number out of range")
+-				errorexit()
+-			}
+-			if n <= 0 {
+-				continue
+-			}
+-			lexlineno = origlexlineno + int32(prag.Line)
+-			linehistupdate(text[5:i], n)
+-		}
+-	}
++	return 0
+ }
+diff --git a/src/cmd/compile/internal/syntax/dumper_test.go b/src/cmd/compile/internal/syntax/dumper_test.go
+index fd38e7ca78..1ee1d982d0 100644
+--- a/src/cmd/compile/internal/syntax/dumper_test.go
++++ b/src/cmd/compile/internal/syntax/dumper_test.go
+@@ -14,7 +14,7 @@ func TestDump(t *testing.T) {
+ 		t.Skip("skipping test in short mode")
+ 	}
+ 
+-	ast, err := ReadFile(*src, nil, 0)
++	ast, err := ReadFile(*src, nil, nil, 0)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+diff --git a/src/cmd/compile/internal/syntax/nodes.go b/src/cmd/compile/internal/syntax/nodes.go
+index e56b1235fe..280a2e8f69 100644
+--- a/src/cmd/compile/internal/syntax/nodes.go
++++ b/src/cmd/compile/internal/syntax/nodes.go
+@@ -10,6 +10,7 @@ package syntax
+ type Node interface {
+ 	Line() uint32
+ 	aNode()
++	init(p *parser)
+ }
+ 
+ type node struct {
+@@ -35,16 +36,10 @@ func (n *node) init(p *parser) {
+ type File struct {
+ 	PkgName  *Name
+ 	DeclList []Decl
+-	Pragmas  []Pragma
+ 	Lines    int
+ 	node
+ }
+ 
+-type Pragma struct {
+-	Line int
+-	Text string
+-}
+-
+ // ----------------------------------------------------------------------------
+ // Declarations
+ 
+@@ -90,6 +85,7 @@ type (
+ 		Name    *Name
+ 		Type    *FuncType
+ 		Body    []Stmt // nil means no body (forward declaration)
++		Pragma  Pragma // TODO(mdempsky): Cleaner solution.
+ 		EndLine uint32 // TODO(mdempsky): Cleaner solution.
+ 		decl
+ 	}
+@@ -130,7 +126,8 @@ type (
+ 	CompositeLit struct {
+ 		Type     Expr // nil means no literal type
+ 		ElemList []Expr
+-		NKeys    int // number of elements with keys
++		NKeys    int    // number of elements with keys
++		EndLine  uint32 // TODO(mdempsky): Cleaner solution.
+ 		expr
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/syntax/parser.go b/src/cmd/compile/internal/syntax/parser.go
+index 9544001a2e..ae9c14c811 100644
+--- a/src/cmd/compile/internal/syntax/parser.go
++++ b/src/cmd/compile/internal/syntax/parser.go
+@@ -28,7 +28,7 @@ type parser struct {
+ 	nerrors int // error count
+ }
+ 
+-func (p *parser) init(src io.Reader, errh ErrorHandler) {
++func (p *parser) init(src io.Reader, errh ErrorHandler, pragh PragmaHandler) {
+ 	p.scanner.init(src, func(pos, line int, msg string) {
+ 		p.nerrors++
+ 		if !debug && errh != nil {
+@@ -36,7 +36,7 @@ func (p *parser) init(src io.Reader, errh ErrorHandler) {
+ 			return
+ 		}
+ 		panic(fmt.Sprintf("%d: %s\n", line, msg))
+-	})
++	}, pragh)
+ 
+ 	p.fnest = 0
+ 	p.xnest = 0
+@@ -245,6 +245,10 @@ func (p *parser) file() *File {
+ 			continue
+ 		}
+ 
++		// Reset p.pragma BEFORE advancing to the next token (consuming ';')
++		// since comments before may set pragmas for the next function decl.
++		p.pragma = 0
++
+ 		if p.tok != _EOF && !p.got(_Semi) {
+ 			p.syntax_error("after top level declaration")
+ 			p.advance(_Const, _Type, _Var, _Func)
+@@ -253,7 +257,6 @@ func (p *parser) file() *File {
+ 	// p.tok == _EOF
+ 
+ 	f.Lines = p.source.line
+-	f.Pragmas = p.pragmas
+ 
+ 	return f
+ }
+@@ -372,6 +375,9 @@ func (p *parser) varDecl(group *Group) Decl {
+ 		}
+ 	}
+ 	d.Group = group
++	if gcCompat {
++		d.init(p)
++	}
+ 
+ 	return d
+ }
+@@ -426,8 +432,12 @@ func (p *parser) funcDecl() *FuncDecl {
+ 
+ 	f.Name = p.name()
+ 	f.Type = p.funcType()
++	if gcCompat {
++		f.node = f.Type.node
++	}
+ 	f.Body = p.funcBody()
+ 
++	f.Pragma = p.pragma
+ 	f.EndLine = uint32(p.line)
+ 
+ 	// TODO(gri) deal with function properties
+@@ -465,6 +475,9 @@ func (p *parser) binaryExpr(prec int) Expr {
+ 		tprec := p.prec
+ 		p.next()
+ 		t.Y = p.binaryExpr(tprec)
++		if gcCompat {
++			t.init(p)
++		}
+ 		x = t
+ 	}
+ 	return x
+@@ -485,6 +498,9 @@ func (p *parser) unaryExpr() Expr {
+ 			x.Op = p.op
+ 			p.next()
+ 			x.X = p.unaryExpr()
++			if gcCompat {
++				x.init(p)
++			}
+ 			return x
+ 
+ 		case And:
+@@ -730,6 +746,9 @@ loop:
+ 				p.syntax_error("expecting name or (")
+ 				p.advance(_Semi, _Rparen)
+ 			}
++			if gcCompat {
++				x.init(p)
++			}
+ 
+ 		case _Lbrack:
+ 			p.next()
+@@ -851,6 +870,9 @@ func (p *parser) complitexpr() *CompositeLit {
+ 			l.init(p)
+ 			l.Key = e
+ 			l.Value = p.bare_complitexpr()
++			if gcCompat {
++				l.init(p)
++			}
+ 			e = l
+ 			x.NKeys++
+ 		}
+@@ -860,6 +882,7 @@ func (p *parser) complitexpr() *CompositeLit {
+ 		}
+ 	}
+ 
++	x.EndLine = uint32(p.line)
+ 	p.xnest--
+ 	p.want(_Rbrace)
+ 
+@@ -996,6 +1019,9 @@ func (p *parser) funcType() *FuncType {
+ 	typ.init(p)
+ 	typ.ParamList = p.paramList()
+ 	typ.ResultList = p.funcResult()
++	if gcCompat {
++		typ.init(p)
++	}
+ 	return typ
+ }
+ 
+@@ -1134,6 +1160,10 @@ func (p *parser) addField(styp *StructType, name *Name, typ Expr, tag *BasicLit)
+ 	f.Type = typ
+ 	styp.FieldList = append(styp.FieldList, f)
+ 
++	if gcCompat && name != nil {
++		f.node = name.node
++	}
++
+ 	if debug && tag != nil && len(styp.FieldList) != len(styp.TagList) {
+ 		panic("inconsistent struct field list")
+ 	}
+@@ -1443,6 +1473,9 @@ func (p *parser) simpleStmt(lhs Expr, rangeOk bool) SimpleStmt {
+ 			s.init(p)
+ 			s.Chan = lhs
+ 			s.Value = p.expr()
++			if gcCompat {
++				s.init(p)
++			}
+ 			return s
+ 
+ 		default:
+@@ -1509,6 +1542,9 @@ func (p *parser) rangeClause(lhs Expr, def bool) *RangeClause {
+ 	r.Lhs = lhs
+ 	r.Def = def
+ 	r.X = p.expr()
++	if gcCompat {
++		r.init(p)
++	}
+ 	return r
+ }
+ 
+@@ -1583,6 +1619,9 @@ func (p *parser) forStmt() Stmt {
+ 
+ 	p.want(_For)
+ 	s.Init, s.Cond, s.Post = p.header(true)
++	if gcCompat {
++		s.init(p)
++	}
+ 	s.Body = p.stmtBody("for clause")
+ 
+ 	return s
+@@ -1672,6 +1711,10 @@ func (p *parser) ifStmt() *IfStmt {
+ 		p.error("missing condition in if statement")
+ 	}
+ 
++	if gcCompat {
++		s.init(p)
++	}
++
+ 	s.Then = p.stmtBody("if clause")
+ 
+ 	if p.got(_Else) {
+@@ -1914,6 +1957,9 @@ func (p *parser) stmt() Stmt {
+ 		if p.tok != _Semi && p.tok != _Rbrace {
+ 			s.Results = p.exprList()
+ 		}
++		if gcCompat {
++			s.init(p)
++		}
+ 		return s
+ 
+ 	case _Semi:
+diff --git a/src/cmd/compile/internal/syntax/parser_test.go b/src/cmd/compile/internal/syntax/parser_test.go
+index 12fc019414..8e6b77d0c6 100644
+--- a/src/cmd/compile/internal/syntax/parser_test.go
++++ b/src/cmd/compile/internal/syntax/parser_test.go
+@@ -22,7 +22,7 @@ var src = flag.String("src", "parser.go", "source file to parse")
+ var verify = flag.Bool("verify", false, "verify idempotent printing")
+ 
+ func TestParse(t *testing.T) {
+-	_, err := ReadFile(*src, nil, 0)
++	_, err := ReadFile(*src, nil, nil, 0)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -52,7 +52,7 @@ func TestStdLib(t *testing.T) {
+ 				if debug {
+ 					fmt.Printf("parsing %s\n", filename)
+ 				}
+-				ast, err := ReadFile(filename, nil, 0)
++				ast, err := ReadFile(filename, nil, nil, 0)
+ 				if err != nil {
+ 					t.Fatal(err)
+ 				}
+@@ -133,7 +133,7 @@ func verifyPrint(filename string, ast1 *File) {
+ 		panic(err)
+ 	}
+ 
+-	ast2, err := ReadBytes(buf1.Bytes(), nil, 0)
++	ast2, err := ReadBytes(buf1.Bytes(), nil, nil, 0)
+ 	if err != nil {
+ 		panic(err)
+ 	}
+diff --git a/src/cmd/compile/internal/syntax/printer_test.go b/src/cmd/compile/internal/syntax/printer_test.go
+index e8c2201e60..a2d43068dd 100644
+--- a/src/cmd/compile/internal/syntax/printer_test.go
++++ b/src/cmd/compile/internal/syntax/printer_test.go
+@@ -15,7 +15,7 @@ func TestPrint(t *testing.T) {
+ 		t.Skip("skipping test in short mode")
+ 	}
+ 
+-	ast, err := ReadFile(*src, nil, 0)
++	ast, err := ReadFile(*src, nil, nil, 0)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+diff --git a/src/cmd/compile/internal/syntax/scanner.go b/src/cmd/compile/internal/syntax/scanner.go
+index d02bb6d11b..e78950ad1a 100644
+--- a/src/cmd/compile/internal/syntax/scanner.go
++++ b/src/cmd/compile/internal/syntax/scanner.go
+@@ -15,6 +15,7 @@ import (
+ type scanner struct {
+ 	source
+ 	nlsemi bool // if set '\n' and EOF translate to ';'
++	pragma Pragma
+ 
+ 	// current token, valid after calling next()
+ 	pos, line int
+@@ -24,12 +25,13 @@ type scanner struct {
+ 	op        Operator // valid if tok is _Operator, _AssignOp, or _IncOp
+ 	prec      int      // valid if tok is _Operator, _AssignOp, or _IncOp
+ 
+-	pragmas []Pragma
++	pragh PragmaHandler
+ }
+ 
+-func (s *scanner) init(src io.Reader, errh ErrorHandler) {
++func (s *scanner) init(src io.Reader, errh ErrorHandler, pragh PragmaHandler) {
+ 	s.source.init(src, errh)
+ 	s.nlsemi = false
++	s.pragh = pragh
+ }
+ 
+ func (s *scanner) next() {
+@@ -540,6 +542,10 @@ func (s *scanner) lineComment() {
+ 	// recognize pragmas
+ 	var prefix string
+ 	r := s.getr()
++	if s.pragh == nil {
++		goto skip
++	}
++
+ 	switch r {
+ 	case 'g':
+ 		prefix = "go:"
+@@ -565,10 +571,7 @@ func (s *scanner) lineComment() {
+ 		}
+ 		r = s.getr()
+ 	}
+-	s.pragmas = append(s.pragmas, Pragma{
+-		Line: s.line,
+-		Text: strings.TrimSuffix(string(s.stopLit()), "\r"),
+-	})
++	s.pragma |= s.pragh(0, s.line, strings.TrimSuffix(string(s.stopLit()), "\r"))
+ 	return
+ 
+ skip:
+diff --git a/src/cmd/compile/internal/syntax/scanner_test.go b/src/cmd/compile/internal/syntax/scanner_test.go
+index 70b986ed4e..38a7e0da4c 100644
+--- a/src/cmd/compile/internal/syntax/scanner_test.go
++++ b/src/cmd/compile/internal/syntax/scanner_test.go
+@@ -22,7 +22,7 @@ func TestScanner(t *testing.T) {
+ 	defer src.Close()
+ 
+ 	var s scanner
+-	s.init(src, nil)
++	s.init(src, nil, nil)
+ 	for {
+ 		s.next()
+ 		if s.tok == _EOF {
+@@ -51,7 +51,7 @@ func TestTokens(t *testing.T) {
+ 
+ 	// scan source
+ 	var got scanner
+-	got.init(&bytesReader{buf}, nil)
++	got.init(&bytesReader{buf}, nil, nil)
+ 	got.next()
+ 	for i, want := range sampleTokens {
+ 		nlsemi := false
+@@ -338,7 +338,7 @@ func TestScanErrors(t *testing.T) {
+ 			} else if nerrors > 1 {
+ 				t.Errorf("%q: got unexpected %q at pos = %d, line = %d", test.src, msg, pos, line)
+ 			}
+-		})
++		}, nil)
+ 
+ 		for {
+ 			s.next()
+diff --git a/src/cmd/compile/internal/syntax/syntax.go b/src/cmd/compile/internal/syntax/syntax.go
+index 85dddaa47f..6c0abd118d 100644
+--- a/src/cmd/compile/internal/syntax/syntax.go
++++ b/src/cmd/compile/internal/syntax/syntax.go
+@@ -12,17 +12,27 @@ import (
+ 
+ type Mode uint
+ 
++// A Pragma value is a set of flags that augment a function
++// declaration. Callers may assign meaning to the flags as
++// appropriate.
++type Pragma uint16
++
+ type ErrorHandler func(pos, line int, msg string)
+ 
++// A PragmaHandler is used to process //line and //go: directives as
++// they're scanned. The returned Pragma value will be unioned into the
++// next FuncDecl node.
++type PragmaHandler func(pos, line int, text string) Pragma
++
+ // TODO(gri) These need a lot more work.
+ 
+-func ReadFile(filename string, errh ErrorHandler, mode Mode) (*File, error) {
++func ReadFile(filename string, errh ErrorHandler, pragh PragmaHandler, mode Mode) (*File, error) {
+ 	src, err := os.Open(filename)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+ 	defer src.Close()
+-	return Read(src, errh, mode)
++	return Read(src, errh, pragh, mode)
+ }
+ 
+ type bytesReader struct {
+@@ -38,13 +48,13 @@ func (r *bytesReader) Read(p []byte) (int, error) {
+ 	return 0, io.EOF
+ }
+ 
+-func ReadBytes(src []byte, errh ErrorHandler, mode Mode) (*File, error) {
+-	return Read(&bytesReader{src}, errh, mode)
++func ReadBytes(src []byte, errh ErrorHandler, pragh PragmaHandler, mode Mode) (*File, error) {
++	return Read(&bytesReader{src}, errh, pragh, mode)
+ }
+ 
+-func Read(src io.Reader, errh ErrorHandler, mode Mode) (*File, error) {
++func Read(src io.Reader, errh ErrorHandler, pragh PragmaHandler, mode Mode) (*File, error) {
+ 	var p parser
+-	p.init(src, errh)
++	p.init(src, errh, pragh)
+ 
+ 	p.next()
+ 	ast := p.file()

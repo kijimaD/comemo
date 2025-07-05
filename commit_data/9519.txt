@@ -7,7 +7,7 @@ Date:   Fri Aug 26 17:45:19 2011 -0400
     R=golang-dev
     CC=golang-dev, rsc
     https://golang.org/cl/4950050
-
+---
  src/cmd/6a/lex.c   | 4 ++--
  src/cmd/6l/6.out.h | 3 ++-
  src/cmd/6l/optab.c | 3 ++-
@@ -17,3 +17,164 @@ Date:   Fri Aug 26 17:45:19 2011 -0400
  src/cmd/8l/optab.c | 3 ++-
  src/cmd/8l/span.c  | 9 ++++++++-
  8 files changed, 28 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/6a/lex.c b/src/cmd/6a/lex.c
+index 42f4b1d11d..1cc89a37a0 100644
+--- a/src/cmd/6a/lex.c
++++ b/src/cmd/6a/lex.c
+@@ -456,8 +456,8 @@ struct
+ 	"JGT",		LTYPER,	AJGT,
+ 	"JG",		LTYPER,	AJGT,	/* alternate */
+ 	"JNLE",		LTYPER,	AJGT,	/* alternate */
+-
+-	"JCXZ",		LTYPER,	AJCXZ,
++	"JCXZL",	LTYPER,	AJCXZL,
++	"JCXZQ",	LTYPER,	AJCXZQ,
+ 	"JMP",		LTYPEC,	AJMP,
+ 	"LAHF",		LTYPE0,	ALAHF,
+ 	"LARL",		LTYPE3,	ALARL,
+diff --git a/src/cmd/6l/6.out.h b/src/cmd/6l/6.out.h
+index 262da02abd..9a69c8ad52 100644
+--- a/src/cmd/6l/6.out.h
++++ b/src/cmd/6l/6.out.h
+@@ -121,7 +121,7 @@ enum	as
+ 	AIRETW,
+ 	AJCC,
+ 	AJCS,
+-	AJCXZ,
++	AJCXZL,
+ 	AJEQ,
+ 	AJGE,
+ 	AJGT,
+@@ -487,6 +487,7 @@ enum	as
+ 	AIDIVQ,
+ 	AIMULQ,
+ 	AIRETQ,
++	AJCXZQ,
+ 	ALEAQ,
+ 	ALEAVEQ,
+ 	ALODSQ,
+diff --git a/src/cmd/6l/optab.c b/src/cmd/6l/optab.c
+index 36806ec4b6..0a4c0eb07f 100644
+--- a/src/cmd/6l/optab.c
++++ b/src/cmd/6l/optab.c
+@@ -788,7 +788,8 @@ Optab optab[] =
+ 	{ AIRETW,	ynone,	Pe, 0xcf },
+ 	{ AJCC,		yjcond,	Px, 0x73,0x83,(00) },
+ 	{ AJCS,		yjcond,	Px, 0x72,0x82 },
+-	{ AJCXZ,	yloop,	Px, 0xe3 },
++	{ AJCXZL,	yloop,	Px, 0xe3 },
++	{ AJCXZQ,	yloop,	Px, 0xe3 },
+ 	{ AJEQ,		yjcond,	Px, 0x74,0x84 },
+ 	{ AJGE,		yjcond,	Px, 0x7d,0x8d },
+ 	{ AJGT,		yjcond,	Px, 0x7f,0x8f },
+diff --git a/src/cmd/6l/span.c b/src/cmd/6l/span.c
+index 7313e42b2f..9b869a493c 100644
+--- a/src/cmd/6l/span.c
++++ b/src/cmd/6l/span.c
+@@ -88,7 +88,10 @@ span1(Sym *s)
+ 						loop++;
+ 						q->back ^= 2;
+ 					}
+-					s->p[q->pc+1] = v;
++					if(q->as == AJCXZL)
++						s->p[q->pc+2] = v;
++					else
++						s->p[q->pc+1] = v;
+ 				} else {
+ 					bp = s->p + q->pc + q->mark - 4;
+ 					*bp++ = v;
+@@ -1467,6 +1470,8 @@ found:
+ 		if(p->back & 1) {
+ 			v = q->pc - (p->pc + 2);
+ 			if(v >= -128) {
++				if(p->as == AJCXZL)
++					*andptr++ = 0x67;
+ 				*andptr++ = op;
+ 				*andptr++ = v;
+ 			} else if(t[2] == Zloop) {
+@@ -1490,6 +1495,8 @@ found:
+ 		p->forwd = q->comefrom;
+ 		q->comefrom = p;
+ 		if(p->back & 2)	{ // short
++			if(p->as == AJCXZL)
++				*andptr++ = 0x67;
+ 			*andptr++ = op;
+ 			*andptr++ = 0;
+ 		} else if(t[2] == Zloop) {
+diff --git a/src/cmd/8a/lex.c b/src/cmd/8a/lex.c
+index e56460e4bd..44cfa41f87 100644
+--- a/src/cmd/8a/lex.c
++++ b/src/cmd/8a/lex.c
+@@ -371,7 +371,8 @@ struct
+ 	"JG",		LTYPER,	AJGT,	/* alternate */
+ 	"JNLE",		LTYPER,	AJGT,	/* alternate */
+ 
+-	"JCXZ",		LTYPER,	AJCXZ,
++	"JCXZL",	LTYPER,	AJCXZL,
++	"JCXZW",	LTYPER,	AJCXZW,
+ 	"JMP",		LTYPEC,	AJMP,
+ 	"LAHF",		LTYPE0,	ALAHF,
+ 	"LARL",		LTYPE3,	ALARL,
+diff --git a/src/cmd/8l/8.out.h b/src/cmd/8l/8.out.h
+index 9a8483aaf4..5e4b73ad09 100644
+--- a/src/cmd/8l/8.out.h
++++ b/src/cmd/8l/8.out.h
+@@ -115,7 +115,8 @@ enum	as
+ 	AIRETW,
+ 	AJCC,
+ 	AJCS,
+-	AJCXZ,
++	AJCXZL,
++	AJCXZW,
+ 	AJEQ,
+ 	AJGE,
+ 	AJGT,
+diff --git a/src/cmd/8l/optab.c b/src/cmd/8l/optab.c
+index f5c195d75f..42490b8610 100644
+--- a/src/cmd/8l/optab.c
++++ b/src/cmd/8l/optab.c
+@@ -430,7 +430,8 @@ Optab optab[] =
+ 	{ AIRETW,	ynone,	Pe, 0xcf },
+ 	{ AJCC,		yjcond,	Px, 0x73,0x83,(00) },
+ 	{ AJCS,		yjcond,	Px, 0x72,0x82 },
+-	{ AJCXZ,	yloop,	Px, 0xe3 },
++	{ AJCXZL,	yloop,	Px, 0xe3 },
++	{ AJCXZW,	yloop,	Px, 0xe3 },
+ 	{ AJEQ,		yjcond,	Px, 0x74,0x84 },
+ 	{ AJGE,		yjcond,	Px, 0x7d,0x8d },
+ 	{ AJGT,		yjcond,	Px, 0x7f,0x8f },
+diff --git a/src/cmd/8l/span.c b/src/cmd/8l/span.c
+index cc0069c683..ba193da1c6 100644
+--- a/src/cmd/8l/span.c
++++ b/src/cmd/8l/span.c
+@@ -83,7 +83,10 @@ span1(Sym *s)
+ 						loop++;
+ 						q->back ^= 2;
+ 					}
+-					s->p[q->pc+1] = v;
++					if(q->as == AJCXZW)
++						s->p[q->pc+2] = v;
++					else
++						s->p[q->pc+1] = v;
+ 				} else {
+ 					bp = s->p + q->pc + q->mark - 4;
+ 					*bp++ = v;
+@@ -1085,6 +1088,8 @@ found:
+ 		if(p->back & 1) {
+ 			v = q->pc - (p->pc + 2);
+ 			if(v >= -128) {
++				if(p->as == AJCXZW)
++					*andptr++ = 0x67;
+ 				*andptr++ = op;
+ 				*andptr++ = v;
+ 			} else if(t[2] == Zloop) {
+@@ -1108,6 +1113,8 @@ found:
+ 		p->forwd = q->comefrom;
+ 		q->comefrom = p;
+ 		if(p->back & 2)	{ // short
++			if(p->as == AJCXZW)
++				*andptr++ = 0x67;
+ 			*andptr++ = op;
+ 			*andptr++ = 0;
+ 		} else if(t[2] == Zloop) {

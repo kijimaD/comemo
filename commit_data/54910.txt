@@ -26,7 +26,7 @@ Date:   Fri Nov 18 20:58:12 2022 +0100
     Auto-Submit: Filippo Valsorda <filippo@golang.org>
     Run-TryBot: Filippo Valsorda <filippo@golang.org>
     Reviewed-by: Roland Shoemaker <roland@golang.org>
-
+---
  src/crypto/internal/bigmod/_asm/go.mod           |  12 +++
  src/crypto/internal/bigmod/_asm/go.sum           |  32 ++++++
  src/crypto/internal/bigmod/_asm/nat_amd64_asm.go | 130 +++++++++++++++++++++++
@@ -35,3 +35,389 @@ Date:   Fri Nov 18 20:58:12 2022 +0100
  src/crypto/internal/bigmod/nat_amd64.s           |  68 ++++++++++++
  src/crypto/internal/bigmod/nat_noasm.go          |  11 ++
  7 files changed, 299 insertions(+), 25 deletions(-)
+
+diff --git a/src/crypto/internal/bigmod/_asm/go.mod b/src/crypto/internal/bigmod/_asm/go.mod
+new file mode 100644
+index 0000000000..1ce2b5e465
+--- /dev/null
++++ b/src/crypto/internal/bigmod/_asm/go.mod
+@@ -0,0 +1,12 @@
++module asm
++
++go 1.19
++
++require github.com/mmcloughlin/avo v0.4.0
++
++require (
++	golang.org/x/mod v0.4.2 // indirect
++	golang.org/x/sys v0.0.0-20211030160813-b3129d9d1021 // indirect
++	golang.org/x/tools v0.1.7 // indirect
++	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
++)
+diff --git a/src/crypto/internal/bigmod/_asm/go.sum b/src/crypto/internal/bigmod/_asm/go.sum
+new file mode 100644
+index 0000000000..b4b59140f0
+--- /dev/null
++++ b/src/crypto/internal/bigmod/_asm/go.sum
+@@ -0,0 +1,32 @@
++github.com/mmcloughlin/avo v0.4.0 h1:jeHDRktVD+578ULxWpQHkilor6pkdLF7u7EiTzDbfcU=
++github.com/mmcloughlin/avo v0.4.0/go.mod h1:RW9BfYA3TgO9uCdNrKU2h6J8cPD8ZLznvfgHAeszb1s=
++github.com/yuin/goldmark v1.4.0/go.mod h1:mwnBkeHKe2W/ZEtQ+71ViKU8L12m81fl3OWwC1Zlc8k=
++golang.org/x/arch v0.0.0-20210923205945-b76863e36670/go.mod h1:5om86z9Hs0C8fWVUuoMHwpExlXzs5Tkyp9hOrfG7pp8=
++golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2/go.mod h1:djNgcEr1/C05ACkg1iLfiJU5Ep61QUkGW8qpdssI0+w=
++golang.org/x/crypto v0.0.0-20191011191535-87dc89f01550/go.mod h1:yigFU9vqHzYiE8UmvKecakEJjdnWj3jj499lnFckfCI=
++golang.org/x/mod v0.4.2 h1:Gz96sIWK3OalVv/I/qNygP42zyoKp3xptRVCWRFEBvo=
++golang.org/x/mod v0.4.2/go.mod h1:s0Qsj1ACt9ePp/hMypM3fl4fZqREWJwdYDEqhRiZZUA=
++golang.org/x/net v0.0.0-20190404232315-eb5bcb51f2a3/go.mod h1:t9HGtf8HONx5eT2rtn7q6eTqICYqUVnKs3thJo3Qplg=
++golang.org/x/net v0.0.0-20190620200207-3b0461eec859/go.mod h1:z5CRVTTTmAJ677TzLLGU+0bjPO0LkuOLi4/5GtJWs/s=
++golang.org/x/net v0.0.0-20210805182204-aaa1db679c0d/go.mod h1:9nx3DQGgdP8bBQD5qxJ1jj9UTztislL4KSBs9R2vV5Y=
++golang.org/x/sync v0.0.0-20190423024810-112230192c58/go.mod h1:RxMgew5VJxzue5/jJTE5uejpjVlOe/izrB70Jof72aM=
++golang.org/x/sync v0.0.0-20210220032951-036812b2e83c/go.mod h1:RxMgew5VJxzue5/jJTE5uejpjVlOe/izrB70Jof72aM=
++golang.org/x/sys v0.0.0-20190215142949-d0b11bdaac8a/go.mod h1:STP8DvDyc/dI5b8T5hshtkjS+E42TnysNCUPdjciGhY=
++golang.org/x/sys v0.0.0-20190412213103-97732733099d/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
++golang.org/x/sys v0.0.0-20201119102817-f84b799fce68/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
++golang.org/x/sys v0.0.0-20210423082822-04245dca01da/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
++golang.org/x/sys v0.0.0-20210809222454-d867a43fc93e/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
++golang.org/x/sys v0.0.0-20211030160813-b3129d9d1021 h1:giLT+HuUP/gXYrG2Plg9WTjj4qhfgaW424ZIFog3rlk=
++golang.org/x/sys v0.0.0-20211030160813-b3129d9d1021/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
++golang.org/x/term v0.0.0-20201126162022-7de9c90e9dd1/go.mod h1:bj7SfCRtBDWHUb9snDiAeCFNEtKQo2Wmx5Cou7ajbmo=
++golang.org/x/text v0.3.0/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
++golang.org/x/text v0.3.6/go.mod h1:5Zoc/QRtKVWzQhOtBMvqHzDpF6irO9z98xDceosuGiQ=
++golang.org/x/tools v0.0.0-20180917221912-90fa682c2a6e/go.mod h1:n7NCudcB/nEzxVGmLbDWY5pfWTLqBcC2KZ6jyYvM4mQ=
++golang.org/x/tools v0.0.0-20191119224855-298f0cb1881e/go.mod h1:b+2E5dAYhXwXZwtnZ6UAqBI28+e2cm9otk0dWdXHAEo=
++golang.org/x/tools v0.1.7 h1:6j8CgantCy3yc8JGBqkDLMKWqZ0RDU2g1HVgacojGWQ=
++golang.org/x/tools v0.1.7/go.mod h1:LGqMHiF4EqQNHR1JncWGqT5BVaXmza+X+BDGol+dOxo=
++golang.org/x/xerrors v0.0.0-20190717185122-a985d3407aa7/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
++golang.org/x/xerrors v0.0.0-20191011141410-1b5146add898/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
++golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 h1:go1bK/D/BFZV2I8cIQd1NKEZ+0owSTG1fDTci4IqFcE=
++golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
++rsc.io/pdf v0.1.1/go.mod h1:n8OzWcQ6Sp37PL01nO98y4iUCRdTGarVfzxY20ICaU4=
+diff --git a/src/crypto/internal/bigmod/_asm/nat_amd64_asm.go b/src/crypto/internal/bigmod/_asm/nat_amd64_asm.go
+new file mode 100644
+index 0000000000..cea9365dcc
+--- /dev/null
++++ b/src/crypto/internal/bigmod/_asm/nat_amd64_asm.go
+@@ -0,0 +1,130 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	. "github.com/mmcloughlin/avo/build"
++	. "github.com/mmcloughlin/avo/operand"
++	. "github.com/mmcloughlin/avo/reg"
++)
++
++//go:generate go run . -out ../nat_amd64.s -stubs ../nat_amd64.go -pkg bigmod
++
++func main() {
++	Package("crypto/internal/bigmod")
++	ConstraintExpr("amd64,gc,!purego")
++
++	Implement("montgomeryLoop")
++
++	size := Load(Param("d").Len(), GP64())
++	d := Mem{Base: Load(Param("d").Base(), GP64())}
++	b := Mem{Base: Load(Param("b").Base(), GP64())}
++	m := Mem{Base: Load(Param("m").Base(), GP64())}
++	m0inv := Load(Param("m0inv"), GP64())
++
++	overflow := zero()
++	i := zero()
++	Label("outerLoop")
++
++	ai := Load(Param("a").Base(), GP64())
++	MOVQ(Mem{Base: ai}.Idx(i, 8), ai)
++
++	z := uint128{GP64(), GP64()}
++	mul64(z, b, ai)
++	add64(z, d)
++	f := GP64()
++	MOVQ(m0inv, f)
++	IMULQ(z.lo, f)
++	_MASK(f)
++	addMul64(z, m, f)
++	carry := shiftBy63(z)
++
++	j := zero()
++	INCQ(j)
++	JMP(LabelRef("innerLoopCondition"))
++	Label("innerLoop")
++
++	// z = d[j] + a[i] * b[j] + f * m[j] + carry
++	z = uint128{GP64(), GP64()}
++	mul64(z, b.Idx(j, 8), ai)
++	addMul64(z, m.Idx(j, 8), f)
++	add64(z, d.Idx(j, 8))
++	add64(z, carry)
++	// d[j-1] = z_lo & _MASK
++	storeMasked(z.lo, d.Idx(j, 8).Offset(-8))
++	// carry = z_hi<<1 | z_lo>>_W
++	MOVQ(shiftBy63(z), carry)
++
++	INCQ(j)
++	Label("innerLoopCondition")
++	CMPQ(size, j)
++	JGT(LabelRef("innerLoop"))
++
++	ADDQ(carry, overflow)
++	storeMasked(overflow, d.Idx(size, 8).Offset(-8))
++	SHRQ(Imm(63), overflow)
++
++	INCQ(i)
++	CMPQ(size, i)
++	JGT(LabelRef("outerLoop"))
++
++	Store(overflow, ReturnIndex(0))
++	RET()
++	Generate()
++}
++
++// zero zeroes a new register and returns it.
++func zero() Register {
++	r := GP64()
++	XORQ(r, r)
++	return r
++}
++
++// _MASK masks out the top bit of r.
++func _MASK(r Register) {
++	BTRQ(Imm(63), r)
++}
++
++type uint128 struct {
++	hi, lo GPVirtual
++}
++
++// storeMasked stores _MASK(src) in dst. It doesn't modify src.
++func storeMasked(src, dst Op) {
++	out := GP64()
++	MOVQ(src, out)
++	_MASK(out)
++	MOVQ(out, dst)
++}
++
++// shiftBy63 returns z >> 63. It reuses z.lo.
++func shiftBy63(z uint128) Register {
++	SHRQ(Imm(63), z.hi, z.lo)
++	result := z.lo
++	z.hi, z.lo = nil, nil
++	return result
++}
++
++// add64 sets r to r + a.
++func add64(r uint128, a Op) {
++	ADDQ(a, r.lo)
++	ADCQ(Imm(0), r.hi)
++}
++
++// mul64 sets r to a * b.
++func mul64(r uint128, a, b Op) {
++	MOVQ(a, RAX)
++	MULQ(b) // RDX, RAX = RAX * b
++	MOVQ(RAX, r.lo)
++	MOVQ(RDX, r.hi)
++}
++
++// addMul64 sets r to r + a * b.
++func addMul64(r uint128, a, b Op) {
++	MOVQ(a, RAX)
++	MULQ(b) // RDX, RAX = RAX * b
++	ADDQ(RAX, r.lo)
++	ADCQ(RDX, r.hi)
++}
+diff --git a/src/crypto/internal/bigmod/nat.go b/src/crypto/internal/bigmod/nat.go
+index b9d09751cd..804316f504 100644
+--- a/src/crypto/internal/bigmod/nat.go
++++ b/src/crypto/internal/bigmod/nat.go
+@@ -588,45 +588,59 @@ func (x *Nat) montgomeryReduction(m *Modulus) *Nat {
+ // All inputs should be the same length, not aliasing d, and already
+ // reduced modulo m. d will be resized to the size of m and overwritten.
+ func (d *Nat) montgomeryMul(a *Nat, b *Nat, m *Modulus) *Nat {
++	d.resetFor(m)
++	if len(a.limbs) != len(m.nat.limbs) || len(b.limbs) != len(m.nat.limbs) {
++		panic("bigmod: invalid montgomeryMul input")
++	}
++
+ 	// See https://bearssl.org/bigint.html#montgomery-reduction-and-multiplication
+-	// for a description of the algorithm.
++	// for a description of the algorithm implemented mostly in montgomeryLoop.
++	// See Add for how overflow, underflow, and needSubtraction relate.
++	overflow := montgomeryLoop(d.limbs, a.limbs, b.limbs, m.nat.limbs, m.m0inv)
++	underflow := not(d.cmpGeq(m.nat)) // d < m
++	needSubtraction := ctEq(overflow, uint(underflow))
++	d.sub(needSubtraction, m.nat)
+ 
+-	// Eliminate bounds checks in the loop.
+-	size := len(m.nat.limbs)
+-	aLimbs := a.limbs[:size]
+-	bLimbs := b.limbs[:size]
+-	dLimbs := d.resetFor(m).limbs[:size]
+-	mLimbs := m.nat.limbs[:size]
++	return d
++}
+ 
+-	var overflow uint
+-	for i := 0; i < size; i++ {
+-		f := ((dLimbs[0] + aLimbs[i]*bLimbs[0]) * m.m0inv) & _MASK
+-		carry := uint(0)
+-		for j := 0; j < size; j++ {
++func montgomeryLoopGeneric(d, a, b, m []uint, m0inv uint) (overflow uint) {
++	// Eliminate bounds checks in the loop.
++	size := len(d)
++	a = a[:size]
++	b = b[:size]
++	m = m[:size]
++
++	for _, ai := range a {
++		// This is an unrolled iteration of the loop below with j = 0.
++		hi, lo := bits.Mul(ai, b[0])
++		z_lo, c := bits.Add(d[0], lo, 0)
++		f := (z_lo * m0inv) & _MASK // (d[0] + a[i] * b[0]) * m0inv
++		z_hi, _ := bits.Add(0, hi, c)
++		hi, lo = bits.Mul(f, m[0])
++		z_lo, c = bits.Add(z_lo, lo, 0)
++		z_hi, _ = bits.Add(z_hi, hi, c)
++		carry := z_hi<<1 | z_lo>>_W
++
++		for j := 1; j < size; j++ {
+ 			// z = d[j] + a[i] * b[j] + f * m[j] + carry <= 2^(2W+1) - 2^(W+1) + 2^W
+-			hi, lo := bits.Mul(aLimbs[i], bLimbs[j])
+-			z_lo, c := bits.Add(dLimbs[j], lo, 0)
++			hi, lo := bits.Mul(ai, b[j])
++			z_lo, c := bits.Add(d[j], lo, 0)
+ 			z_hi, _ := bits.Add(0, hi, c)
+-			hi, lo = bits.Mul(f, mLimbs[j])
++			hi, lo = bits.Mul(f, m[j])
+ 			z_lo, c = bits.Add(z_lo, lo, 0)
+ 			z_hi, _ = bits.Add(z_hi, hi, c)
+ 			z_lo, c = bits.Add(z_lo, carry, 0)
+ 			z_hi, _ = bits.Add(z_hi, 0, c)
+-			if j > 0 {
+-				dLimbs[j-1] = z_lo & _MASK
+-			}
++			d[j-1] = z_lo & _MASK
+ 			carry = z_hi<<1 | z_lo>>_W // carry <= 2^(W+1) - 2
+ 		}
++
+ 		z := overflow + carry // z <= 2^(W+1) - 1
+-		dLimbs[size-1] = z & _MASK
++		d[size-1] = z & _MASK
+ 		overflow = z >> _W // overflow <= 1
+ 	}
+-	// See Add for how overflow, underflow, and needSubtraction relate.
+-	underflow := not(d.cmpGeq(m.nat)) // d < m
+-	needSubtraction := ctEq(overflow, uint(underflow))
+-	d.sub(needSubtraction, m.nat)
+-
+-	return d
++	return
+ }
+ 
+ // Mul calculates x *= y mod m.
+diff --git a/src/crypto/internal/bigmod/nat_amd64.go b/src/crypto/internal/bigmod/nat_amd64.go
+new file mode 100644
+index 0000000000..eaed2280c4
+--- /dev/null
++++ b/src/crypto/internal/bigmod/nat_amd64.go
+@@ -0,0 +1,7 @@
++// Code generated by command: go run nat_amd64_asm.go -out ../nat_amd64.s -stubs ../nat_amd64.go -pkg bigmod. DO NOT EDIT.
++
++//go:build amd64 && gc && !purego
++
++package bigmod
++
++func montgomeryLoop(d []uint, a []uint, b []uint, m []uint, m0inv uint) uint
+diff --git a/src/crypto/internal/bigmod/nat_amd64.s b/src/crypto/internal/bigmod/nat_amd64.s
+new file mode 100644
+index 0000000000..12b7629984
+--- /dev/null
++++ b/src/crypto/internal/bigmod/nat_amd64.s
+@@ -0,0 +1,68 @@
++// Code generated by command: go run nat_amd64_asm.go -out ../nat_amd64.s -stubs ../nat_amd64.go -pkg bigmod. DO NOT EDIT.
++
++//go:build amd64 && gc && !purego
++
++// func montgomeryLoop(d []uint, a []uint, b []uint, m []uint, m0inv uint) uint
++TEXT ·montgomeryLoop(SB), $8-112
++	MOVQ d_len+8(FP), CX
++	MOVQ d_base+0(FP), BX
++	MOVQ b_base+48(FP), SI
++	MOVQ m_base+72(FP), DI
++	MOVQ m0inv+96(FP), R8
++	XORQ R9, R9
++	XORQ R10, R10
++
++outerLoop:
++	MOVQ  a_base+24(FP), R11
++	MOVQ  (R11)(R10*8), R11
++	MOVQ  (SI), AX
++	MULQ  R11
++	MOVQ  AX, R13
++	MOVQ  DX, R12
++	ADDQ  (BX), R13
++	ADCQ  $0x00, R12
++	MOVQ  R8, R14
++	IMULQ R13, R14
++	BTRQ  $0x3f, R14
++	MOVQ  (DI), AX
++	MULQ  R14
++	ADDQ  AX, R13
++	ADCQ  DX, R12
++	SHRQ  $0x3f, R12, R13
++	XORQ  R12, R12
++	INCQ  R12
++	JMP   innerLoopCondition
++
++innerLoop:
++	MOVQ (SI)(R12*8), AX
++	MULQ R11
++	MOVQ AX, BP
++	MOVQ DX, R15
++	MOVQ (DI)(R12*8), AX
++	MULQ R14
++	ADDQ AX, BP
++	ADCQ DX, R15
++	ADDQ (BX)(R12*8), BP
++	ADCQ $0x00, R15
++	ADDQ R13, BP
++	ADCQ $0x00, R15
++	MOVQ BP, AX
++	BTRQ $0x3f, AX
++	MOVQ AX, -8(BX)(R12*8)
++	SHRQ $0x3f, R15, BP
++	MOVQ BP, R13
++	INCQ R12
++
++innerLoopCondition:
++	CMPQ CX, R12
++	JGT  innerLoop
++	ADDQ R13, R9
++	MOVQ R9, AX
++	BTRQ $0x3f, AX
++	MOVQ AX, -8(BX)(CX*8)
++	SHRQ $0x3f, R9
++	INCQ R10
++	CMPQ CX, R10
++	JGT  outerLoop
++	MOVQ R9, ret+104(FP)
++	RET
+diff --git a/src/crypto/internal/bigmod/nat_noasm.go b/src/crypto/internal/bigmod/nat_noasm.go
+new file mode 100644
+index 0000000000..870b44519d
+--- /dev/null
++++ b/src/crypto/internal/bigmod/nat_noasm.go
+@@ -0,0 +1,11 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !amd64 || !gc || purego
++
++package bigmod
++
++func montgomeryLoop(d, a, b, m []uint, m0inv uint) uint {
++	return montgomeryLoopGeneric(d, a, b, m, m0inv)
++}

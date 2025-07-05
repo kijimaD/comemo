@@ -91,9 +91,206 @@ Date:   Sun May 27 09:03:45 2018 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/compile.go       |  3 ++-
  src/cmd/compile/internal/ssa/fuse.go          | 24 +++++++++++++++++++++---
  src/cmd/compile/internal/ssa/fuse_test.go     | 10 +++++-----
  src/cmd/compile/internal/ssa/nilcheck_test.go | 18 +++++++++---------
  4 files changed, 37 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/compile.go b/src/cmd/compile/internal/ssa/compile.go
+index 8b5d6d94e8..7f933cb66e 100644
+--- a/src/cmd/compile/internal/ssa/compile.go
++++ b/src/cmd/compile/internal/ssa/compile.go
+@@ -373,6 +373,7 @@ var passes = [...]pass{
+ 	{name: "phiopt", fn: phiopt},
+ 	{name: "nilcheckelim", fn: nilcheckelim},
+ 	{name: "prove", fn: prove},
++	{name: "fuse plain", fn: fusePlain},
+ 	{name: "decompose builtin", fn: decomposeBuiltIn, required: true},
+ 	{name: "softfloat", fn: softfloat, required: true},
+ 	{name: "late opt", fn: opt, required: true}, // TODO: split required rules and optimizing rules
+@@ -380,7 +381,7 @@ var passes = [...]pass{
+ 	{name: "generic deadcode", fn: deadcode, required: true}, // remove dead stores, which otherwise mess up store chain
+ 	{name: "check bce", fn: checkbce},
+ 	{name: "branchelim", fn: branchelim},
+-	{name: "fuse", fn: fuse},
++	{name: "fuse", fn: fuseAll},
+ 	{name: "dse", fn: dse},
+ 	{name: "writebarrier", fn: writebarrier, required: true}, // expand write barrier ops
+ 	{name: "insert resched checks", fn: insertLoopReschedChecks,
+diff --git a/src/cmd/compile/internal/ssa/fuse.go b/src/cmd/compile/internal/ssa/fuse.go
+index 4f9a2ad9ca..c451904124 100644
+--- a/src/cmd/compile/internal/ssa/fuse.go
++++ b/src/cmd/compile/internal/ssa/fuse.go
+@@ -8,15 +8,33 @@ import (
+ 	"cmd/internal/src"
+ )
+ 
++// fusePlain runs fuse(f, fuseTypePlain).
++func fusePlain(f *Func) { fuse(f, fuseTypePlain) }
++
++// fuseAll runs fuse(f, fuseTypeAll).
++func fuseAll(f *Func) { fuse(f, fuseTypeAll) }
++
++type fuseType uint8
++
++const (
++	fuseTypePlain fuseType = 1 << iota
++	fuseTypeIf
++	fuseTypeAll = fuseTypePlain | fuseTypeIf
++)
++
+ // fuse simplifies control flow by joining basic blocks.
+-func fuse(f *Func) {
++func fuse(f *Func, typ fuseType) {
+ 	for changed := true; changed; {
+ 		changed = false
+ 		// Fuse from end to beginning, to avoid quadratic behavior in fuseBlockPlain. See issue 13554.
+ 		for i := len(f.Blocks) - 1; i >= 0; i-- {
+ 			b := f.Blocks[i]
+-			changed = fuseBlockIf(b) || changed
+-			changed = fuseBlockPlain(b) || changed
++			if typ&fuseTypeIf != 0 {
++				changed = fuseBlockIf(b) || changed
++			}
++			if typ&fuseTypePlain != 0 {
++				changed = fuseBlockPlain(b) || changed
++			}
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/ssa/fuse_test.go b/src/cmd/compile/internal/ssa/fuse_test.go
+index bba92f805e..c3e25a80c4 100644
+--- a/src/cmd/compile/internal/ssa/fuse_test.go
++++ b/src/cmd/compile/internal/ssa/fuse_test.go
+@@ -26,7 +26,7 @@ func TestFuseEliminatesOneBranch(t *testing.T) {
+ 			Exit("mem")))
+ 
+ 	CheckFunc(fun.f)
+-	fuse(fun.f)
++	fuseAll(fun.f)
+ 
+ 	for _, b := range fun.f.Blocks {
+ 		if b == fun.blocks["then"] && b.Kind != BlockInvalid {
+@@ -56,7 +56,7 @@ func TestFuseEliminatesBothBranches(t *testing.T) {
+ 			Exit("mem")))
+ 
+ 	CheckFunc(fun.f)
+-	fuse(fun.f)
++	fuseAll(fun.f)
+ 
+ 	for _, b := range fun.f.Blocks {
+ 		if b == fun.blocks["then"] && b.Kind != BlockInvalid {
+@@ -90,7 +90,7 @@ func TestFuseHandlesPhis(t *testing.T) {
+ 			Exit("mem")))
+ 
+ 	CheckFunc(fun.f)
+-	fuse(fun.f)
++	fuseAll(fun.f)
+ 
+ 	for _, b := range fun.f.Blocks {
+ 		if b == fun.blocks["then"] && b.Kind != BlockInvalid {
+@@ -122,7 +122,7 @@ func TestFuseEliminatesEmptyBlocks(t *testing.T) {
+ 		))
+ 
+ 	CheckFunc(fun.f)
+-	fuse(fun.f)
++	fuseAll(fun.f)
+ 
+ 	for k, b := range fun.blocks {
+ 		if k[:1] == "z" && b.Kind != BlockInvalid {
+@@ -162,7 +162,7 @@ func BenchmarkFuse(b *testing.B) {
+ 			b.ResetTimer()
+ 			for i := 0; i < b.N; i++ {
+ 				fun := c.Fun("entry", blocks...)
+-				fuse(fun.f)
++				fuseAll(fun.f)
+ 			}
+ 		})
+ 	}
+diff --git a/src/cmd/compile/internal/ssa/nilcheck_test.go b/src/cmd/compile/internal/ssa/nilcheck_test.go
+index 815c4a5047..b2f5cae088 100644
+--- a/src/cmd/compile/internal/ssa/nilcheck_test.go
++++ b/src/cmd/compile/internal/ssa/nilcheck_test.go
+@@ -87,7 +87,7 @@ func TestNilcheckSimple(t *testing.T) {
+ 	nilcheckelim(fun.f)
+ 
+ 	// clean up the removed nil check
+-	fuse(fun.f)
++	fusePlain(fun.f)
+ 	deadcode(fun.f)
+ 
+ 	CheckFunc(fun.f)
+@@ -124,7 +124,7 @@ func TestNilcheckDomOrder(t *testing.T) {
+ 	nilcheckelim(fun.f)
+ 
+ 	// clean up the removed nil check
+-	fuse(fun.f)
++	fusePlain(fun.f)
+ 	deadcode(fun.f)
+ 
+ 	CheckFunc(fun.f)
+@@ -157,7 +157,7 @@ func TestNilcheckAddr(t *testing.T) {
+ 	nilcheckelim(fun.f)
+ 
+ 	// clean up the removed nil check
+-	fuse(fun.f)
++	fusePlain(fun.f)
+ 	deadcode(fun.f)
+ 
+ 	CheckFunc(fun.f)
+@@ -191,7 +191,7 @@ func TestNilcheckAddPtr(t *testing.T) {
+ 	nilcheckelim(fun.f)
+ 
+ 	// clean up the removed nil check
+-	fuse(fun.f)
++	fusePlain(fun.f)
+ 	deadcode(fun.f)
+ 
+ 	CheckFunc(fun.f)
+@@ -235,7 +235,7 @@ func TestNilcheckPhi(t *testing.T) {
+ 	nilcheckelim(fun.f)
+ 
+ 	// clean up the removed nil check
+-	fuse(fun.f)
++	fusePlain(fun.f)
+ 	deadcode(fun.f)
+ 
+ 	CheckFunc(fun.f)
+@@ -276,7 +276,7 @@ func TestNilcheckKeepRemove(t *testing.T) {
+ 	nilcheckelim(fun.f)
+ 
+ 	// clean up the removed nil check
+-	fuse(fun.f)
++	fusePlain(fun.f)
+ 	deadcode(fun.f)
+ 
+ 	CheckFunc(fun.f)
+@@ -323,7 +323,7 @@ func TestNilcheckInFalseBranch(t *testing.T) {
+ 	nilcheckelim(fun.f)
+ 
+ 	// clean up the removed nil check
+-	fuse(fun.f)
++	fusePlain(fun.f)
+ 	deadcode(fun.f)
+ 
+ 	CheckFunc(fun.f)
+@@ -374,7 +374,7 @@ func TestNilcheckUser(t *testing.T) {
+ 	nilcheckelim(fun.f)
+ 
+ 	// clean up the removed nil check
+-	fuse(fun.f)
++	fusePlain(fun.f)
+ 	deadcode(fun.f)
+ 
+ 	CheckFunc(fun.f)
+@@ -418,7 +418,7 @@ func TestNilcheckBug(t *testing.T) {
+ 	nilcheckelim(fun.f)
+ 
+ 	// clean up the removed nil check
+-	fuse(fun.f)
++	fusePlain(fun.f)
+ 	deadcode(fun.f)
+ 
+ 	CheckFunc(fun.f)

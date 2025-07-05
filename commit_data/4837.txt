@@ -7,6 +7,19 @@ Date:   Wed Feb 10 11:31:00 2010 -0800
     R=iant
     CC=golang-dev
     https://golang.org/cl/207054
-
+---
  src/pkg/runtime/malloc.cgo | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/pkg/runtime/malloc.cgo b/src/pkg/runtime/malloc.cgo
+index 8c945baebd..53411da1b1 100644
+--- a/src/pkg/runtime/malloc.cgo
++++ b/src/pkg/runtime/malloc.cgo
+@@ -130,7 +130,6 @@ free(void *v)
+ 	size = class_to_size[sizeclass];
+ 	if(size > sizeof(uintptr))
+ 		((uintptr*)v)[1] = 1;	// mark as "needs to be zeroed"
+-	runtime_memclr(v, size);
+ 	mstats.alloc -= size;
+ 	mstats.by_size[sizeclass].nfree++;
+ 	MCache_Free(c, v, sizeclass, size);

@@ -14,7 +14,36 @@ Date:   Tue Aug 28 00:39:34 2018 +0300
     Reviewed-by: Keith Randall <khr@golang.org>
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ssa/nilcheck.go | 2 +-
  test/nilptr3.go                          | 4 ++--
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/nilcheck.go b/src/cmd/compile/internal/ssa/nilcheck.go
+index 0359e25c98..f2e17c606b 100644
+--- a/src/cmd/compile/internal/ssa/nilcheck.go
++++ b/src/cmd/compile/internal/ssa/nilcheck.go
+@@ -47,7 +47,7 @@ func nilcheckelim(f *Func) {
+ 			// a value resulting from taking the address of a
+ 			// value, or a value constructed from an offset of a
+ 			// non-nil ptr (OpAddPtr) implies it is non-nil
+-			if v.Op == OpAddr || v.Op == OpLocalAddr || v.Op == OpAddPtr {
++			if v.Op == OpAddr || v.Op == OpLocalAddr || v.Op == OpAddPtr || v.Op == OpOffPtr {
+ 				nonNilValues[v.ID] = true
+ 			}
+ 		}
+diff --git a/test/nilptr3.go b/test/nilptr3.go
+index a22e60ef11..6aa718e027 100644
+--- a/test/nilptr3.go
++++ b/test/nilptr3.go
+@@ -246,8 +246,8 @@ type TT struct {
+ 
+ func f(t *TT) *byte {
+ 	// See issue 17242.
+-	s := &t.SS  // ERROR "removed nil check"
+-	return &s.x // ERROR "generated nil check"
++	s := &t.SS  // ERROR "generated nil check"
++	return &s.x // ERROR "removed nil check"
+ }
+ 
+ // make sure not to do nil check for newobject

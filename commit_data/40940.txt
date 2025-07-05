@@ -9,6 +9,21 @@ Date:   Mon Aug 26 12:57:09 2019 -0400
     Change-Id: I9f6837be96410e96d004523c48bef95ee1427484
     Reviewed-on: https://go-review.googlesource.com/c/go/+/191746
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  doc/go1.13.html | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/doc/go1.13.html b/doc/go1.13.html
+index b195fcde48..bd926542c3 100644
+--- a/doc/go1.13.html
++++ b/doc/go1.13.html
+@@ -31,7 +31,8 @@ Do not send CLs removing the interior tags from such phrases.
+   for privacy information about these services and the
+   <a href="/cmd/go/#hdr-Module_downloading_and_verification">go command documentation</a>
+   for configuration details including how to disable the use of these servers or use
+-  different ones.
++  different ones. If you depend on non-public modules, see the
++  <a href="/cmd/go/#hdr-Module_configuration_for_non_public_modules">documentation for configuring your environment</a>.
+ </p>
+ 
+ <h2 id="language">Changes to the language</h2>

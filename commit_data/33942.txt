@@ -20,10 +20,296 @@ Date:   Tue Sep 19 23:50:50 2017 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Adam Langley <agl@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/crypto/internal/boring/aes.go   |  6 ++++++
  src/crypto/internal/boring/ecdsa.go | 13 +++++++++++-
  src/crypto/internal/boring/hmac.go  |  6 ++++++
  src/crypto/internal/boring/rsa.go   | 29 +++++++++++++++++++-------
  src/crypto/rsa/boring_test.go       | 41 +++++++++++++++++++++++++++++++++++++
  5 files changed, 87 insertions(+), 8 deletions(-)
+
+diff --git a/src/crypto/internal/boring/aes.go b/src/crypto/internal/boring/aes.go
+index 12e5c38a06..8ca03b3f3e 100644
+--- a/src/crypto/internal/boring/aes.go
++++ b/src/crypto/internal/boring/aes.go
+@@ -225,6 +225,10 @@ func (c *aesCipher) newGCM(nonceSize int, tls bool) (cipher.AEAD, error) {
+ 	if C._goboringcrypto_EVP_AEAD_CTX_init(&g.ctx, aead, (*C.uint8_t)(unsafe.Pointer(&c.key[0])), C.size_t(len(c.key)), C.GO_EVP_AEAD_DEFAULT_TAG_LENGTH, nil) == 0 {
+ 		return nil, fail("EVP_AEAD_CTX_init")
+ 	}
++	// Note: Because of the finalizer, any time g.ctx is passed to cgo,
++	// that call must be followed by a call to runtime.KeepAlive(g),
++	// to make sure g is not collected (and finalized) before the cgo
++	// call returns.
+ 	runtime.SetFinalizer(g, (*aesGCM).finalize)
+ 	if g.NonceSize() != nonceSize {
+ 		panic("boringcrypto: internal confusion about nonce size")
+@@ -287,6 +291,7 @@ func (g *aesGCM) Seal(dst, nonce, plaintext, additionalData []byte) []byte {
+ 		base(nonce), C.size_t(len(nonce)),
+ 		base(plaintext), C.size_t(len(plaintext)),
+ 		base(additionalData), C.size_t(len(additionalData)))
++	runtime.KeepAlive(g)
+ 	if ok == 0 {
+ 		panic(fail("EVP_AEAD_CTX_seal"))
+ 	}
+@@ -328,6 +333,7 @@ func (g *aesGCM) Open(dst, nonce, ciphertext, additionalData []byte) ([]byte, er
+ 		base(nonce), C.size_t(len(nonce)),
+ 		base(ciphertext), C.size_t(len(ciphertext)),
+ 		base(additionalData), C.size_t(len(additionalData)))
++	runtime.KeepAlive(g)
+ 	if ok == 0 {
+ 		return nil, errOpen
+ 	}
+diff --git a/src/crypto/internal/boring/ecdsa.go b/src/crypto/internal/boring/ecdsa.go
+index 6f6bcf6a4a..4fcba4be72 100644
+--- a/src/crypto/internal/boring/ecdsa.go
++++ b/src/crypto/internal/boring/ecdsa.go
+@@ -61,6 +61,10 @@ func NewPublicKeyECDSA(curve string, X, Y *big.Int) (*PublicKeyECDSA, error) {
+ 		return nil, err
+ 	}
+ 	k := &PublicKeyECDSA{key}
++	// Note: Because of the finalizer, any time k.key is passed to cgo,
++	// that call must be followed by a call to runtime.KeepAlive(k),
++	// to make sure k is not collected (and finalized) before the cgo
++	// call returns.
+ 	runtime.SetFinalizer(k, (*PublicKeyECDSA).finalize)
+ 	return k, nil
+ }
+@@ -113,6 +117,10 @@ func NewPrivateKeyECDSA(curve string, X, Y *big.Int, D *big.Int) (*PrivateKeyECD
+ 		return nil, fail("EC_KEY_set_private_key")
+ 	}
+ 	k := &PrivateKeyECDSA{key}
++	// Note: Because of the finalizer, any time k.key is passed to cgo,
++	// that call must be followed by a call to runtime.KeepAlive(k),
++	// to make sure k is not collected (and finalized) before the cgo
++	// call returns.
+ 	runtime.SetFinalizer(k, (*PrivateKeyECDSA).finalize)
+ 	return k, nil
+ }
+@@ -140,6 +148,7 @@ func SignMarshalECDSA(priv *PrivateKeyECDSA, hash []byte) ([]byte, error) {
+ 	if C._goboringcrypto_ECDSA_sign(0, base(hash), C.size_t(len(hash)), (*C.uint8_t)(unsafe.Pointer(&sig[0])), &sigLen, priv.key) == 0 {
+ 		return nil, fail("ECDSA_sign")
+ 	}
++	runtime.KeepAlive(priv)
+ 	return sig[:sigLen], nil
+ }
+ 
+@@ -151,7 +160,9 @@ func VerifyECDSA(pub *PublicKeyECDSA, hash []byte, r, s *big.Int) bool {
+ 	if err != nil {
+ 		return false
+ 	}
+-	return C._goboringcrypto_ECDSA_verify(0, base(hash), C.size_t(len(hash)), (*C.uint8_t)(unsafe.Pointer(&sig[0])), C.size_t(len(sig)), pub.key) != 0
++	ok := C._goboringcrypto_ECDSA_verify(0, base(hash), C.size_t(len(hash)), (*C.uint8_t)(unsafe.Pointer(&sig[0])), C.size_t(len(sig)), pub.key) != 0
++	runtime.KeepAlive(pub)
++	return ok
+ }
+ 
+ func GenerateKeyECDSA(curve string) (X, Y, D *big.Int, err error) {
+diff --git a/src/crypto/internal/boring/hmac.go b/src/crypto/internal/boring/hmac.go
+index aecb1870f5..01b5844e5f 100644
+--- a/src/crypto/internal/boring/hmac.go
++++ b/src/crypto/internal/boring/hmac.go
+@@ -98,6 +98,10 @@ func (h *boringHMAC) Reset() {
+ 		C._goboringcrypto_HMAC_CTX_cleanup(&h.ctx)
+ 	} else {
+ 		h.needCleanup = true
++		// Note: Because of the finalizer, any time h.ctx is passed to cgo,
++		// that call must be followed by a call to runtime.KeepAlive(h),
++		// to make sure h is not collected (and finalized) before the cgo
++		// call returns.
+ 		runtime.SetFinalizer(h, (*boringHMAC).finalize)
+ 	}
+ 	C._goboringcrypto_HMAC_CTX_init(&h.ctx)
+@@ -109,6 +113,7 @@ func (h *boringHMAC) Reset() {
+ 		println("boringcrypto: HMAC size:", C._goboringcrypto_HMAC_size(&h.ctx), "!=", h.size)
+ 		panic("boringcrypto: HMAC size mismatch")
+ 	}
++	runtime.KeepAlive(h) // Next line will keep h alive too; just making doubly sure.
+ 	h.sum = nil
+ }
+ 
+@@ -120,6 +125,7 @@ func (h *boringHMAC) Write(p []byte) (int, error) {
+ 	if len(p) > 0 {
+ 		C._goboringcrypto_HMAC_Update(&h.ctx, (*C.uint8_t)(unsafe.Pointer(&p[0])), C.size_t(len(p)))
+ 	}
++	runtime.KeepAlive(h)
+ 	return len(p), nil
+ }
+ 
+diff --git a/src/crypto/internal/boring/rsa.go b/src/crypto/internal/boring/rsa.go
+index 8a077b71df..8cb55266e4 100644
+--- a/src/crypto/internal/boring/rsa.go
++++ b/src/crypto/internal/boring/rsa.go
+@@ -58,6 +58,10 @@ func NewPublicKeyRSA(N, E *big.Int) (*PublicKeyRSA, error) {
+ 		return nil, fail("BN_bin2bn")
+ 	}
+ 	k := &PublicKeyRSA{key: key}
++	// Note: Because of the finalizer, any time k.key is passed to cgo,
++	// that call must be followed by a call to runtime.KeepAlive(k),
++	// to make sure k is not collected (and finalized) before the cgo
++	// call returns.
+ 	runtime.SetFinalizer(k, (*PublicKeyRSA).finalize)
+ 	return k, nil
+ }
+@@ -86,6 +90,10 @@ func NewPrivateKeyRSA(N, E, D, P, Q, Dp, Dq, Qinv *big.Int) (*PrivateKeyRSA, err
+ 		return nil, fail("BN_bin2bn")
+ 	}
+ 	k := &PrivateKeyRSA{key: key}
++	// Note: Because of the finalizer, any time k.key is passed to cgo,
++	// that call must be followed by a call to runtime.KeepAlive(k),
++	// to make sure k is not collected (and finalized) before the cgo
++	// call returns.
+ 	runtime.SetFinalizer(k, (*PrivateKeyRSA).finalize)
+ 	return k, nil
+ }
+@@ -163,7 +171,7 @@ func setupRSA(key *C.GO_RSA,
+ 	return pkey, ctx, nil
+ }
+ 
+-func cryptRSA(key *C.GO_RSA,
++func cryptRSA(gokey interface{}, key *C.GO_RSA,
+ 	padding C.int, h hash.Hash, label []byte, saltLen int, ch crypto.Hash,
+ 	init func(*C.GO_EVP_PKEY_CTX) C.int,
+ 	crypt func(*C.GO_EVP_PKEY_CTX, *C.uint8_t, *C.size_t, *C.uint8_t, C.size_t) C.int,
+@@ -184,31 +192,32 @@ func cryptRSA(key *C.GO_RSA,
+ 	if crypt(ctx, base(out), &outLen, base(in), C.size_t(len(in))) == 0 {
+ 		return nil, fail("EVP_PKEY_decrypt/encrypt")
+ 	}
++	runtime.KeepAlive(gokey) // keep key from being freed before now
+ 	return out[:outLen], nil
+ }
+ 
+ func DecryptRSAOAEP(h hash.Hash, priv *PrivateKeyRSA, ciphertext, label []byte) ([]byte, error) {
+-	return cryptRSA(priv.key, C.GO_RSA_PKCS1_OAEP_PADDING, h, label, 0, 0, decryptInit, decrypt, ciphertext)
++	return cryptRSA(priv, priv.key, C.GO_RSA_PKCS1_OAEP_PADDING, h, label, 0, 0, decryptInit, decrypt, ciphertext)
+ }
+ 
+ func EncryptRSAOAEP(h hash.Hash, pub *PublicKeyRSA, msg, label []byte) ([]byte, error) {
+-	return cryptRSA(pub.key, C.GO_RSA_PKCS1_OAEP_PADDING, h, label, 0, 0, encryptInit, encrypt, msg)
++	return cryptRSA(pub, pub.key, C.GO_RSA_PKCS1_OAEP_PADDING, h, label, 0, 0, encryptInit, encrypt, msg)
+ }
+ 
+ func DecryptRSAPKCS1(priv *PrivateKeyRSA, ciphertext []byte) ([]byte, error) {
+-	return cryptRSA(priv.key, C.GO_RSA_PKCS1_PADDING, nil, nil, 0, 0, decryptInit, decrypt, ciphertext)
++	return cryptRSA(priv, priv.key, C.GO_RSA_PKCS1_PADDING, nil, nil, 0, 0, decryptInit, decrypt, ciphertext)
+ }
+ 
+ func EncryptRSAPKCS1(pub *PublicKeyRSA, msg []byte) ([]byte, error) {
+-	return cryptRSA(pub.key, C.GO_RSA_PKCS1_PADDING, nil, nil, 0, 0, encryptInit, encrypt, msg)
++	return cryptRSA(pub, pub.key, C.GO_RSA_PKCS1_PADDING, nil, nil, 0, 0, encryptInit, encrypt, msg)
+ }
+ 
+ func DecryptRSANoPadding(priv *PrivateKeyRSA, ciphertext []byte) ([]byte, error) {
+-	return cryptRSA(priv.key, C.GO_RSA_NO_PADDING, nil, nil, 0, 0, decryptInit, decrypt, ciphertext)
++	return cryptRSA(priv, priv.key, C.GO_RSA_NO_PADDING, nil, nil, 0, 0, decryptInit, decrypt, ciphertext)
+ }
+ 
+ func EncryptRSANoPadding(pub *PublicKeyRSA, msg []byte) ([]byte, error) {
+-	return cryptRSA(pub.key, C.GO_RSA_NO_PADDING, nil, nil, 0, 0, encryptInit, encrypt, msg)
++	return cryptRSA(pub, pub.key, C.GO_RSA_NO_PADDING, nil, nil, 0, 0, encryptInit, encrypt, msg)
+ }
+ 
+ // These dumb wrappers work around the fact that cgo functions cannot be used as values directly.
+@@ -242,6 +251,7 @@ func SignRSAPSS(priv *PrivateKeyRSA, h crypto.Hash, hashed []byte, saltLen int)
+ 	if C._goboringcrypto_RSA_sign_pss_mgf1(priv.key, &outLen, base(out), C.size_t(len(out)), base(hashed), C.size_t(len(hashed)), md, nil, C.int(saltLen)) == 0 {
+ 		return nil, fail("RSA_sign_pss_mgf1")
+ 	}
++	runtime.KeepAlive(priv)
+ 
+ 	return out[:outLen], nil
+ }
+@@ -257,6 +267,7 @@ func VerifyRSAPSS(pub *PublicKeyRSA, h crypto.Hash, hashed, sig []byte, saltLen
+ 	if C._goboringcrypto_RSA_verify_pss_mgf1(pub.key, base(hashed), C.size_t(len(hashed)), md, nil, C.int(saltLen), base(sig), C.size_t(len(sig))) == 0 {
+ 		return fail("RSA_verify_pss_mgf1")
+ 	}
++	runtime.KeepAlive(pub)
+ 	return nil
+ }
+ 
+@@ -268,6 +279,7 @@ func SignRSAPKCS1v15(priv *PrivateKeyRSA, h crypto.Hash, hashed []byte) ([]byte,
+ 		if C._goboringcrypto_RSA_sign_raw(priv.key, &outLen, base(out), C.size_t(len(out)), base(hashed), C.size_t(len(hashed)), C.GO_RSA_PKCS1_PADDING) == 0 {
+ 			return nil, fail("RSA_sign_raw")
+ 		}
++		runtime.KeepAlive(priv)
+ 		return out[:outLen], nil
+ 	}
+ 
+@@ -280,6 +292,7 @@ func SignRSAPKCS1v15(priv *PrivateKeyRSA, h crypto.Hash, hashed []byte) ([]byte,
+ 	if C._goboringcrypto_RSA_sign(nid, base(hashed), C.uint(len(hashed)), base(out), &outLen, priv.key) == 0 {
+ 		return nil, fail("RSA_sign")
+ 	}
++	runtime.KeepAlive(priv)
+ 	return out[:outLen], nil
+ }
+ 
+@@ -300,6 +313,7 @@ func VerifyRSAPKCS1v15(pub *PublicKeyRSA, h crypto.Hash, hashed, sig []byte) err
+ 		if subtle.ConstantTimeCompare(hashed, out[:outLen]) != 1 {
+ 			return fail("RSA_verify")
+ 		}
++		runtime.KeepAlive(pub)
+ 		return nil
+ 	}
+ 	md := cryptoHashToMD(h)
+@@ -310,5 +324,6 @@ func VerifyRSAPKCS1v15(pub *PublicKeyRSA, h crypto.Hash, hashed, sig []byte) err
+ 	if C._goboringcrypto_RSA_verify(nid, base(hashed), C.size_t(len(hashed)), base(sig), C.size_t(len(sig)), pub.key) == 0 {
+ 		return fail("RSA_verify")
+ 	}
++	runtime.KeepAlive(pub)
+ 	return nil
+ }
+diff --git a/src/crypto/rsa/boring_test.go b/src/crypto/rsa/boring_test.go
+index f40e2748ca..dfec83805f 100644
+--- a/src/crypto/rsa/boring_test.go
++++ b/src/crypto/rsa/boring_test.go
+@@ -16,7 +16,10 @@ import (
+ 	"encoding/asn1"
+ 	"encoding/hex"
+ 	"reflect"
++	"runtime"
++	"runtime/debug"
+ 	"sync"
++	"sync/atomic"
+ 	"testing"
+ 	"unsafe"
+ )
+@@ -290,3 +293,41 @@ func TestBoringRandDecryptOAEP(t *testing.T) {
+ 	}
+ 	r.checkOffset(256)
+ }
++
++func TestBoringFinalizers(t *testing.T) {
++	if runtime.GOOS == "nacl" {
++		// Times out on nacl (without BoringCrypto)
++		// but not clear why - probably consuming rand.Reader too quickly
++		// and being throttled. Also doesn't really matter.
++		t.Skip("skipping on nacl")
++	}
++
++	k := testKey(t)
++
++	// Run test with GOGC=10, to make bug more likely.
++	// Without the KeepAlives, the loop usually dies after
++	// about 30 iterations.
++	defer debug.SetGCPercent(debug.SetGCPercent(10))
++	for n := 0; n < 200; n++ {
++		// Clear the underlying BoringCrypto object.
++		atomic.StorePointer(&k.boring, nil)
++
++		// Race to create the underlying BoringCrypto object.
++		// The ones that lose the race are prime candidates for
++		// being GC'ed too early if the finalizers are not being
++		// used correctly.
++		var wg sync.WaitGroup
++		for i := 0; i < 10; i++ {
++			wg.Add(1)
++			go func() {
++				defer wg.Done()
++				sum := make([]byte, 32)
++				_, err := SignPKCS1v15(rand.Reader, k, crypto.SHA256, sum)
++				if err != nil {
++					panic(err) // usually caused by memory corruption, so hard stop
++				}
++			}()
++		}
++		wg.Wait()
++	}
++}

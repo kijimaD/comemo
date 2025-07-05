@@ -12,9 +12,88 @@ Date:   Fri Nov 13 17:14:46 2020 -0500
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/modload/modfile.go                |  6 +++---
  .../mod/example.com_retract_incompatible_v1.0.0.txt   | 19 +++++++++++++++++++
  ...e.com_retract_incompatible_v2.0.0+incompatible.txt |  9 +++++++++
  .../go/testdata/script/mod_retract_incompatible.txt   | 15 +++++++++++++++
  4 files changed, 46 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/modfile.go b/src/cmd/go/internal/modload/modfile.go
+index e9601c3e7c..ede07be4bf 100644
+--- a/src/cmd/go/internal/modload/modfile.go
++++ b/src/cmd/go/internal/modload/modfile.go
+@@ -114,9 +114,9 @@ func CheckRetractions(ctx context.Context, m module.Version) error {
+ 
+ 		// Find the latest version of the module.
+ 		// Ignore exclusions from the main module's go.mod.
+-		// We may need to account for the current version: for example,
+-		// v2.0.0+incompatible is not "latest" if v1.0.0 is current.
+-		rev, err := Query(ctx, path, "latest", Selected(path), nil)
++		const ignoreSelected = ""
++		var allowAll AllowedFunc
++		rev, err := Query(ctx, path, "latest", ignoreSelected, allowAll)
+ 		if err != nil {
+ 			return &entry{nil, err}
+ 		}
+diff --git a/src/cmd/go/testdata/mod/example.com_retract_incompatible_v1.0.0.txt b/src/cmd/go/testdata/mod/example.com_retract_incompatible_v1.0.0.txt
+new file mode 100644
+index 0000000000..a987685e24
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/example.com_retract_incompatible_v1.0.0.txt
+@@ -0,0 +1,19 @@
++The v1.0.0 release of example.com/retract/incompatible retracts
++v2.0.0+incompatible.
++
++-- .mod --
++module example.com/retract/incompatible
++
++go 1.16
++
++retract v2.0.0+incompatible
++-- .info --
++{"Version":"v1.0.0"}
++-- go.mod --
++module example.com/retract/incompatible
++
++go 1.16
++
++retract v2.0.0+incompatible
++-- incompatible.go --
++package incompatible
+diff --git a/src/cmd/go/testdata/mod/example.com_retract_incompatible_v2.0.0+incompatible.txt b/src/cmd/go/testdata/mod/example.com_retract_incompatible_v2.0.0+incompatible.txt
+new file mode 100644
+index 0000000000..c668dbb7a9
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/example.com_retract_incompatible_v2.0.0+incompatible.txt
+@@ -0,0 +1,9 @@
++The v1.0.0 release of example.com/retract/incompatible retracts
++v2.0.0+incompatible.
++
++-- .mod --
++module example.com/retract/incompatible
++-- .info --
++{"Version":"v2.0.0+incompatible"}
++-- incompatible.go --
++package incompatible
+diff --git a/src/cmd/go/testdata/script/mod_retract_incompatible.txt b/src/cmd/go/testdata/script/mod_retract_incompatible.txt
+new file mode 100644
+index 0000000000..61538e8024
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_retract_incompatible.txt
+@@ -0,0 +1,15 @@
++# The current version of a module should not be considered when loading
++# retractions. If the current version is +incompatible, we should not prefer
++# +incompatible versions when looking for retractions.
++# Verifies #42601.
++
++go mod init m
++
++# Request a +incompatible version retracted in v1.0.0.
++go get -d example.com/retract/incompatible@v2.0.0+incompatible
++stderr '^go: warning: example.com/retract/incompatible@v2.0.0\+incompatible: retracted by module author$'
++
++# We should still see a warning if the +incompatible was previously in the
++# build list.
++go get -d example.com/retract/incompatible@v2.0.0+incompatible
++stderr '^go: warning: example.com/retract/incompatible@v2.0.0\+incompatible: retracted by module author$'

@@ -20,8 +20,202 @@ Date:   Wed Jul 10 00:00:13 2019 +0530
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Richard Musiol <neelance@gmail.com>
-
+---
  src/cmd/compile/internal/ssa/gen/Wasm.rules |  6 ++
  src/cmd/compile/internal/ssa/rewriteWasm.go | 98 +++++++++++++++++++++++++++++
  test/codegen/strings.go                     |  3 +
  3 files changed, 107 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/Wasm.rules b/src/cmd/compile/internal/ssa/gen/Wasm.rules
+index f2b5be52ce..998a886c0a 100644
+--- a/src/cmd/compile/internal/ssa/gen/Wasm.rules
++++ b/src/cmd/compile/internal/ssa/gen/Wasm.rules
+@@ -417,3 +417,9 @@
+ // folding offset into address
+ (I64AddConst [off] (LoweredAddr {sym} [off2] base)) && isU32Bit(off+off2) ->
+ 	(LoweredAddr {sym} [off+off2] base)
++
++// transforming readonly globals into constants
++(I64Load [off] (LoweredAddr {sym} [off2] (SB)) _) && symIsRO(sym) && isU32Bit(off+off2) -> (I64Const [int64(read64(sym, off+off2, config.BigEndian))])
++(I64Load32U [off] (LoweredAddr {sym} [off2] (SB)) _) && symIsRO(sym) && isU32Bit(off+off2) -> (I64Const [int64(read32(sym, off+off2, config.BigEndian))])
++(I64Load16U [off] (LoweredAddr {sym} [off2] (SB)) _) && symIsRO(sym) && isU32Bit(off+off2) -> (I64Const [int64(read16(sym, off+off2, config.BigEndian))])
++(I64Load8U [off] (LoweredAddr {sym} [off2] (SB)) _) && symIsRO(sym) && isU32Bit(off+off2) -> (I64Const [int64(read8(sym, off+off2))])
+diff --git a/src/cmd/compile/internal/ssa/rewriteWasm.go b/src/cmd/compile/internal/ssa/rewriteWasm.go
+index f57305dade..f374565327 100644
+--- a/src/cmd/compile/internal/ssa/rewriteWasm.go
++++ b/src/cmd/compile/internal/ssa/rewriteWasm.go
+@@ -5508,6 +5508,8 @@ func rewriteValueWasm_OpWasmI64Eqz_0(v *Value) bool {
+ 	return false
+ }
+ func rewriteValueWasm_OpWasmI64Load_0(v *Value) bool {
++	b := v.Block
++	config := b.Func.Config
+ 	// match: (I64Load [off] (I64AddConst [off2] ptr) mem)
+ 	// cond: isU32Bit(off+off2)
+ 	// result: (I64Load [off+off2] ptr mem)
+@@ -5529,6 +5531,29 @@ func rewriteValueWasm_OpWasmI64Load_0(v *Value) bool {
+ 		v.AddArg(mem)
+ 		return true
+ 	}
++	// match: (I64Load [off] (LoweredAddr {sym} [off2] (SB)) _)
++	// cond: symIsRO(sym) && isU32Bit(off+off2)
++	// result: (I64Const [int64(read64(sym, off+off2, config.BigEndian))])
++	for {
++		off := v.AuxInt
++		_ = v.Args[1]
++		v_0 := v.Args[0]
++		if v_0.Op != OpWasmLoweredAddr {
++			break
++		}
++		off2 := v_0.AuxInt
++		sym := v_0.Aux
++		v_0_0 := v_0.Args[0]
++		if v_0_0.Op != OpSB {
++			break
++		}
++		if !(symIsRO(sym) && isU32Bit(off+off2)) {
++			break
++		}
++		v.reset(OpWasmI64Const)
++		v.AuxInt = int64(read64(sym, off+off2, config.BigEndian))
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueWasm_OpWasmI64Load16S_0(v *Value) bool {
+@@ -5556,6 +5581,8 @@ func rewriteValueWasm_OpWasmI64Load16S_0(v *Value) bool {
+ 	return false
+ }
+ func rewriteValueWasm_OpWasmI64Load16U_0(v *Value) bool {
++	b := v.Block
++	config := b.Func.Config
+ 	// match: (I64Load16U [off] (I64AddConst [off2] ptr) mem)
+ 	// cond: isU32Bit(off+off2)
+ 	// result: (I64Load16U [off+off2] ptr mem)
+@@ -5577,6 +5604,29 @@ func rewriteValueWasm_OpWasmI64Load16U_0(v *Value) bool {
+ 		v.AddArg(mem)
+ 		return true
+ 	}
++	// match: (I64Load16U [off] (LoweredAddr {sym} [off2] (SB)) _)
++	// cond: symIsRO(sym) && isU32Bit(off+off2)
++	// result: (I64Const [int64(read16(sym, off+off2, config.BigEndian))])
++	for {
++		off := v.AuxInt
++		_ = v.Args[1]
++		v_0 := v.Args[0]
++		if v_0.Op != OpWasmLoweredAddr {
++			break
++		}
++		off2 := v_0.AuxInt
++		sym := v_0.Aux
++		v_0_0 := v_0.Args[0]
++		if v_0_0.Op != OpSB {
++			break
++		}
++		if !(symIsRO(sym) && isU32Bit(off+off2)) {
++			break
++		}
++		v.reset(OpWasmI64Const)
++		v.AuxInt = int64(read16(sym, off+off2, config.BigEndian))
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueWasm_OpWasmI64Load32S_0(v *Value) bool {
+@@ -5604,6 +5654,8 @@ func rewriteValueWasm_OpWasmI64Load32S_0(v *Value) bool {
+ 	return false
+ }
+ func rewriteValueWasm_OpWasmI64Load32U_0(v *Value) bool {
++	b := v.Block
++	config := b.Func.Config
+ 	// match: (I64Load32U [off] (I64AddConst [off2] ptr) mem)
+ 	// cond: isU32Bit(off+off2)
+ 	// result: (I64Load32U [off+off2] ptr mem)
+@@ -5625,6 +5677,29 @@ func rewriteValueWasm_OpWasmI64Load32U_0(v *Value) bool {
+ 		v.AddArg(mem)
+ 		return true
+ 	}
++	// match: (I64Load32U [off] (LoweredAddr {sym} [off2] (SB)) _)
++	// cond: symIsRO(sym) && isU32Bit(off+off2)
++	// result: (I64Const [int64(read32(sym, off+off2, config.BigEndian))])
++	for {
++		off := v.AuxInt
++		_ = v.Args[1]
++		v_0 := v.Args[0]
++		if v_0.Op != OpWasmLoweredAddr {
++			break
++		}
++		off2 := v_0.AuxInt
++		sym := v_0.Aux
++		v_0_0 := v_0.Args[0]
++		if v_0_0.Op != OpSB {
++			break
++		}
++		if !(symIsRO(sym) && isU32Bit(off+off2)) {
++			break
++		}
++		v.reset(OpWasmI64Const)
++		v.AuxInt = int64(read32(sym, off+off2, config.BigEndian))
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueWasm_OpWasmI64Load8S_0(v *Value) bool {
+@@ -5673,6 +5748,29 @@ func rewriteValueWasm_OpWasmI64Load8U_0(v *Value) bool {
+ 		v.AddArg(mem)
+ 		return true
+ 	}
++	// match: (I64Load8U [off] (LoweredAddr {sym} [off2] (SB)) _)
++	// cond: symIsRO(sym) && isU32Bit(off+off2)
++	// result: (I64Const [int64(read8(sym, off+off2))])
++	for {
++		off := v.AuxInt
++		_ = v.Args[1]
++		v_0 := v.Args[0]
++		if v_0.Op != OpWasmLoweredAddr {
++			break
++		}
++		off2 := v_0.AuxInt
++		sym := v_0.Aux
++		v_0_0 := v_0.Args[0]
++		if v_0_0.Op != OpSB {
++			break
++		}
++		if !(symIsRO(sym) && isU32Bit(off+off2)) {
++			break
++		}
++		v.reset(OpWasmI64Const)
++		v.AuxInt = int64(read8(sym, off+off2))
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueWasm_OpWasmI64Mul_0(v *Value) bool {
+diff --git a/test/codegen/strings.go b/test/codegen/strings.go
+index d688b6cbf9..0859e241cb 100644
+--- a/test/codegen/strings.go
++++ b/test/codegen/strings.go
+@@ -29,6 +29,7 @@ func ConstantLoad() {
+ 	//   386:`MOVW\t\$12592, \(`,`MOVB\t\$50, 2\(`
+ 	//   arm:`MOVW\t\$48`,`MOVW\t\$49`,`MOVW\t\$50`
+ 	// arm64:`MOVD\t\$12592`,`MOVD\t\$50`
++	//  wasm:`I64Const\t\$12592`,`I64Store16\t\$0`,`I64Const\t\$50`,`I64Store8\t\$2`
+ 	bsink = []byte("012")
+ 
+ 	// 858927408 = 0x33323130
+@@ -36,6 +37,7 @@ func ConstantLoad() {
+ 	// amd64:`MOVL\t\$858927408`,`MOVW\t\$13620, 4\(`
+ 	//   386:`MOVL\t\$858927408`,`MOVW\t\$13620, 4\(`
+ 	// arm64:`MOVD\t\$858927408`,`MOVD\t\$13620`
++	//  wasm:`I64Const\t\$858927408`,`I64Store32\t\$0`,`I64Const\t\$13620`,`I64Store16\t\$4`
+ 	bsink = []byte("012345")
+ 
+ 	// 3978425819141910832 = 0x3736353433323130
+@@ -43,6 +45,7 @@ func ConstantLoad() {
+ 	// amd64:`MOVQ\t\$3978425819141910832`,`MOVQ\t\$7306073769690871863`
+ 	//   386:`MOVL\t\$858927408, \(`,`DUFFCOPY`
+ 	// arm64:`MOVD\t\$3978425819141910832`,`MOVD\t\$1650538808`,`MOVD\t\$25699`,`MOVD\t\$101`
++	//  wasm:`I64Const\t\$3978425819141910832`,`I64Store\t\$0`,`I64Const\t\$7306073769690871863`,`I64Store\t\$7`
+ 	bsink = []byte("0123456789abcde")
+ 
+ 	// 56 = 0x38

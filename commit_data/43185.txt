@@ -9,9 +9,74 @@ Date:   Tue Mar 3 03:40:37 2020 +1100
     Change-Id: I2be4cfe2939e988cd7f8d30260b704701d78475f
     Reviewed-on: https://go-review.googlesource.com/c/go/+/221688
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/asm/internal/asm/testdata/riscvenc.s | 6 +++++-
  src/cmd/internal/obj/riscv/anames.go         | 1 +
  src/cmd/internal/obj/riscv/cpu.go            | 1 +
  src/cmd/internal/obj/riscv/obj.go            | 9 +++++++++
  4 files changed, 16 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/riscvenc.s b/src/cmd/asm/internal/asm/testdata/riscvenc.s
+index 06158153d8..6ccac42d68 100644
+--- a/src/cmd/asm/internal/asm/testdata/riscvenc.s
++++ b/src/cmd/asm/internal/asm/testdata/riscvenc.s
+@@ -305,10 +305,14 @@ start:
+ 	MOVD	F0, 4(X5)				// 27b20200
+ 	MOVD	F0, F1					// d3000022
+ 
++	// NOT pseudo-instruction
++	NOT	X5					// 93c2f2ff
++	NOT	X5, X6					// 13c3f2ff
++
+ 	// These jumps can get printed as jumps to 2 because they go to the
+ 	// second instruction in the function (the first instruction is an
+ 	// invisible stack pointer adjustment).
+-	JMP	start		// JMP	2		// 6ff09fc6
++	JMP	start		// JMP	2		// 6ff01fc6
+ 	JMP	(X5)					// 67800200
+ 	JMP	4(X5)					// 67804200
+ 
+diff --git a/src/cmd/internal/obj/riscv/anames.go b/src/cmd/internal/obj/riscv/anames.go
+index 7d0e52f91b..9edf8f0e65 100644
+--- a/src/cmd/internal/obj/riscv/anames.go
++++ b/src/cmd/internal/obj/riscv/anames.go
+@@ -239,6 +239,7 @@ var Anames = []string{
+ 	"MOVHU",
+ 	"MOVW",
+ 	"MOVWU",
++	"NOT",
+ 	"SEQZ",
+ 	"SNEZ",
+ 	"LAST",
+diff --git a/src/cmd/internal/obj/riscv/cpu.go b/src/cmd/internal/obj/riscv/cpu.go
+index 61a68b91c2..c1fc67f4ab 100644
+--- a/src/cmd/internal/obj/riscv/cpu.go
++++ b/src/cmd/internal/obj/riscv/cpu.go
+@@ -589,6 +589,7 @@ const (
+ 	AMOVHU
+ 	AMOVW
+ 	AMOVWU
++	ANOT
+ 	ASEQZ
+ 	ASNEZ
+ 
+diff --git a/src/cmd/internal/obj/riscv/obj.go b/src/cmd/internal/obj/riscv/obj.go
+index 63b5ed6119..e003584dad 100644
+--- a/src/cmd/internal/obj/riscv/obj.go
++++ b/src/cmd/internal/obj/riscv/obj.go
+@@ -1849,6 +1849,15 @@ func instructionsForProg(p *obj.Prog) []*instruction {
+ 		ins.rs1 = uint32(p.From.Reg)
+ 		ins.rs2 = REG_F0
+ 
++	case ANOT:
++		// NOT rs, rd -> XORI $-1, rs, rd
++		ins.as = AXORI
++		ins.rs1, ins.rs2 = uint32(p.From.Reg), obj.REG_NONE
++		if ins.rd == obj.REG_NONE {
++			ins.rd = ins.rs1
++		}
++		ins.imm = -1
++
+ 	case ASEQZ:
+ 		// SEQZ rs, rd -> SLTIU $1, rs, rd
+ 		ins.as = ASLTIU

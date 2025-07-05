@@ -7,8 +7,55 @@ Date:   Fri Oct 10 15:30:32 2008 -0700
     R=r
     OCL=16929
     CL=16929
-
+---
  src/cmd/gc/sys.go       |  1 +
  src/cmd/gc/sysimport.c  |  1 +
  src/runtime/rt0_amd64.s | 18 ++++++++++++++++++
  3 files changed, 20 insertions(+)
+
+diff --git a/src/cmd/gc/sys.go b/src/cmd/gc/sys.go
+index 8e2e6ac76d..83be8da946 100644
+--- a/src/cmd/gc/sys.go
++++ b/src/cmd/gc/sys.go
+@@ -80,3 +80,4 @@ export func	stringtorune(string, int32) (int32, int32);	// convert bytes to rune
+ 
+ export func	exit(int32);
+ 
++export func	BUG_intereq(a, b interface{}) bool;	// should not be necessary
+diff --git a/src/cmd/gc/sysimport.c b/src/cmd/gc/sysimport.c
+index 1ef5d20be0..81ed5321b9 100644
+--- a/src/cmd/gc/sysimport.c
++++ b/src/cmd/gc/sysimport.c
+@@ -68,5 +68,6 @@ char *sysimport =
+ 	"export func sys.bytestorune (? *sys.uint8, ? sys.int32, ? sys.int32) (? sys.int32, ? sys.int32)\n"
+ 	"export func sys.stringtorune (? sys.string, ? sys.int32) (? sys.int32, ? sys.int32)\n"
+ 	"export func sys.exit (? sys.int32)\n"
++	"export func sys.BUG_intereq (a interface { }, b interface { }) (? sys.bool)\n"
+ 	"\n"
+ 	"$$\n";
+diff --git a/src/runtime/rt0_amd64.s b/src/runtime/rt0_amd64.s
+index 35448e07cc..8e1b13576e 100644
+--- a/src/runtime/rt0_amd64.s
++++ b/src/runtime/rt0_amd64.s
+@@ -133,3 +133,21 @@ TEXT cas(SB), 7, $0
+ 	MOVL	$1, AX
+ 	RET
+ 
++// func BUG_intereq(a, b interface{}) bool {
++//	return a == b
++// }
++// TODO: delete once 6g can compile a == b on interfaces.
++TEXT sys·BUG_intereq(SB),7,$0
++	// First interface at 8(SP) and 16(SP)
++	// Second interface at 24(SP) and 32(SP)
++	// Answer at 40(SP)
++	MOVQ 8(SP), AX
++	CMPQ AX, 24(SP)
++	JNE 6(PC)
++	MOVQ 16(SP), AX
++	CMPQ AX, 32(SP)
++	JNE 3(PC)
++	MOVQ $1, 40(SP)
++	RET
++	MOVQ $0, 40(SP)
++	RET

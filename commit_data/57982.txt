@@ -10,6 +10,26 @@ Date:   Thu Sep 14 20:11:07 2023 +0800
     Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: abner chenc <chenguoqi@loongson.cn>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/link/internal/loadelf/ldelf.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/loadelf/ldelf.go b/src/cmd/link/internal/loadelf/ldelf.go
+index 72c2093d4e..5f802f5547 100644
+--- a/src/cmd/link/internal/loadelf/ldelf.go
++++ b/src/cmd/link/internal/loadelf/ldelf.go
+@@ -1027,11 +1027,13 @@ func relSize(arch *sys.Arch, pn string, elftype uint32) (uint8, uint8, error) {
+ 		LOONG64 | uint32(elf.R_LARCH_SOP_PUSH_ABSOLUTE)<<16,
+ 		LOONG64 | uint32(elf.R_LARCH_MARK_LA)<<16,
+ 		LOONG64 | uint32(elf.R_LARCH_SOP_POP_32_S_0_10_10_16_S2)<<16,
+-		LOONG64 | uint32(elf.R_LARCH_64)<<16,
+ 		LOONG64 | uint32(elf.R_LARCH_MARK_PCREL)<<16,
+ 		LOONG64 | uint32(elf.R_LARCH_32_PCREL)<<16:
+ 		return 4, 4, nil
+ 
++	case LOONG64 | uint32(elf.R_LARCH_64)<<16:
++		return 8, 8, nil
++
+ 	case S390X | uint32(elf.R_390_8)<<16:
+ 		return 1, 1, nil
+ 

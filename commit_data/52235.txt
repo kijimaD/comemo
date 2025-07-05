@@ -11,6 +11,32 @@ Date:   Tue Apr 19 10:33:46 2022 -0700
     Reviewed-by: Keith Randall <khr@google.com>
     Auto-Submit: Keith Randall <khr@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/reflect/all_test.go | 7 ++++---
  1 file changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index f18df4e6c5..a886f9f64a 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -364,6 +364,10 @@ func TestMapIterSet(t *testing.T) {
+ 		}
+ 	}
+ 
++	if strings.HasSuffix(testenv.Builder(), "-noopt") {
++		return // no inlining with the noopt builder
++	}
++
+ 	got := int(testing.AllocsPerRun(10, func() {
+ 		iter := v.MapRange()
+ 		for iter.Next() {
+@@ -375,9 +379,6 @@ func TestMapIterSet(t *testing.T) {
+ 	// The function is inlineable, so if the local usage does not escape
+ 	// the *MapIter, it can remain stack allocated.
+ 	want := 0
+-	if strings.HasSuffix(testenv.Builder(), "-noopt") {
+-		want = 1 // no inlining with the noopt builder
+-	}
+ 	if got != want {
+ 		t.Errorf("wanted %d alloc, got %d", want, got)
+ 	}

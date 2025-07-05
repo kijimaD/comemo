@@ -9,6 +9,19 @@ Date:   Thu Jul 25 17:40:29 2013 -0700
     R=golang-dev, bradfitz, dave
     CC=golang-dev
     https://golang.org/cl/11888043
-
+---
  src/cmd/5c/reg.c | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/5c/reg.c b/src/cmd/5c/reg.c
+index 030b0c327e..25bfc58222 100644
+--- a/src/cmd/5c/reg.c
++++ b/src/cmd/5c/reg.c
+@@ -461,6 +461,7 @@ brk:
+ 			case AGLOBL:
+ 			case ANAME:
+ 			case ASIGNAME:
++			case AFUNCDATA:
+ 				break;
+ 			}
+ 		}

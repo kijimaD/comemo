@@ -26,7 +26,193 @@ Date:   Fri Sep 6 09:55:54 2019 +0000
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/internal/obj/arm64/asm7.go     | 70 +++++++++++++++++++++++++++++-----
  src/cmd/internal/obj/arm64/asm_test.go | 49 ++++++++++++++++++++++++
  2 files changed, 109 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index 54cb556b99..e8b092a2a8 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -840,6 +840,7 @@ var optab = []Optab{
+ 	{obj.ANOP, C_NONE, C_NONE, C_NONE, C_NONE, 0, 0, 0, 0, 0},
+ 	{obj.ADUFFZERO, C_NONE, C_NONE, C_NONE, C_SBRA, 5, 4, 0, 0, 0}, // same as AB/ABL
+ 	{obj.ADUFFCOPY, C_NONE, C_NONE, C_NONE, C_SBRA, 5, 4, 0, 0, 0}, // same as AB/ABL
++	{obj.APCALIGN, C_LCON, C_NONE, C_NONE, C_NONE, 0, 0, 0, 0, 0},  // align code
+ 
+ 	{obj.AXXX, C_NONE, C_NONE, C_NONE, C_NONE, 0, 4, 0, 0, 0},
+ }
+@@ -880,6 +881,32 @@ var prfopfield = []struct {
+ 	{REG_PSTL3STRM, 21},
+ }
+ 
++// Used for padinng NOOP instruction
++const OP_NOOP = 0xd503201f
++
++// align code to a certain length by padding bytes.
++func pcAlignPadLength(pc int64, alignedValue int64, ctxt *obj.Link) int {
++	switch alignedValue {
++	case 8:
++		if pc%8 == 4 {
++			return 4
++		}
++	case 16:
++		switch pc % 16 {
++		case 4:
++			return 12
++		case 8:
++			return 8
++		case 12:
++			return 4
++		}
++	default:
++		ctxt.Diag("Unexpected alignment: %d for PCALIGN directive\n", alignedValue)
++	}
++
++	return 0
++}
++
+ func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 	if ctxt.Retpoline {
+ 		ctxt.Diag("-spectre=ret not supported on arm64")
+@@ -911,12 +938,17 @@ func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 		o = c.oplook(p)
+ 		m = int(o.size)
+ 		if m == 0 {
+-			if p.As != obj.ANOP && p.As != obj.AFUNCDATA && p.As != obj.APCDATA {
++			switch p.As {
++			case obj.APCALIGN:
++				a := p.From.Offset
++				m = pcAlignPadLength(pc, a, ctxt)
++				break
++			case obj.ANOP, obj.AFUNCDATA, obj.APCDATA:
++				continue
++			default:
+ 				c.ctxt.Diag("zero-width instruction\n%v", p)
+ 			}
+-			continue
+ 		}
+-
+ 		switch o.flag & (LFROM | LTO) {
+ 		case LFROM:
+ 			c.addpool(p, &p.From)
+@@ -983,10 +1015,16 @@ func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 			m = int(o.size)
+ 
+ 			if m == 0 {
+-				if p.As != obj.ANOP && p.As != obj.AFUNCDATA && p.As != obj.APCDATA {
++				switch p.As {
++				case obj.APCALIGN:
++					a := p.From.Offset
++					m = pcAlignPadLength(pc, a, ctxt)
++					break
++				case obj.ANOP, obj.AFUNCDATA, obj.APCDATA:
++					continue
++				default:
+ 					c.ctxt.Diag("zero-width instruction\n%v", p)
+ 				}
+-				continue
+ 			}
+ 
+ 			pc += int64(m)
+@@ -1022,11 +1060,22 @@ func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 		if int(o.size) > 4*len(out) {
+ 			log.Fatalf("out array in span7 is too small, need at least %d for %v", o.size/4, p)
+ 		}
+-		c.asmout(p, o, out[:])
+-		for i = 0; i < int(o.size/4); i++ {
+-			c.ctxt.Arch.ByteOrder.PutUint32(bp, out[i])
+-			bp = bp[4:]
+-			psz += 4
++		if p.As == obj.APCALIGN {
++			alignedValue := p.From.Offset
++			v := pcAlignPadLength(p.Pc, alignedValue, c.ctxt)
++			for i = 0; i < int(v/4); i++ {
++				// emit ANOOP instruction by the padding size
++				c.ctxt.Arch.ByteOrder.PutUint32(bp, OP_NOOP)
++				bp = bp[4:]
++				psz += 4
++			}
++		} else {
++			c.asmout(p, o, out[:])
++			for i = 0; i < int(o.size/4); i++ {
++				c.ctxt.Arch.ByteOrder.PutUint32(bp, out[i])
++				bp = bp[4:]
++				psz += 4
++			}
+ 		}
+ 	}
+ 
+@@ -2755,6 +2804,7 @@ func buildop(ctxt *obj.Link) {
+ 		case obj.ANOP,
+ 			obj.AUNDEF,
+ 			obj.AFUNCDATA,
++			obj.APCALIGN,
+ 			obj.APCDATA,
+ 			obj.ADUFFZERO,
+ 			obj.ADUFFCOPY:
+diff --git a/src/cmd/internal/obj/arm64/asm_test.go b/src/cmd/internal/obj/arm64/asm_test.go
+index 2182301212..b91f2e91cc 100644
+--- a/src/cmd/internal/obj/arm64/asm_test.go
++++ b/src/cmd/internal/obj/arm64/asm_test.go
+@@ -12,6 +12,7 @@ import (
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
++	"regexp"
+ 	"testing"
+ )
+ 
+@@ -79,3 +80,51 @@ func TestNoRet(t *testing.T) {
+ 		t.Errorf("%v\n%s", err, out)
+ 	}
+ }
++
++// TestPCALIGN verifies the correctness of the PCALIGN by checking if the
++// code can be aligned to the alignment value.
++func TestPCALIGN(t *testing.T) {
++	testenv.MustHaveGoBuild(t)
++	dir, err := ioutil.TempDir("", "testpcalign")
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer os.RemoveAll(dir)
++	tmpfile := filepath.Join(dir, "test.s")
++
++	code1 := []byte("TEXT ·foo(SB),$0-0\nMOVD $0, R0\nPCALIGN $8\nMOVD $1, R1\nRET\n")
++	code2 := []byte("TEXT ·foo(SB),$0-0\nMOVD $0, R0\nPCALIGN $16\nMOVD $2, R2\nRET\n")
++	// If the output contains this pattern, the pc-offsite of "MOVD $1, R1" is 8 bytes aligned.
++	out1 := `0x0008\s00008\s\(.*\)\tMOVD\t\$1,\sR1`
++	// If the output contains this pattern, the pc-offsite of "MOVD $2, R2" is 16 bytes aligned.
++	out2 := `0x0010\s00016\s\(.*\)\tMOVD\t\$2,\sR2`
++	var testCases = []struct {
++		name string
++		code []byte
++		out  string
++	}{
++		{"8-byte alignment", code1, out1},
++		{"16-byte alignment", code2, out2},
++	}
++
++	for _, test := range testCases {
++		if err := ioutil.WriteFile(tmpfile, test.code, 0644); err != nil {
++			t.Fatal(err)
++		}
++		cmd := exec.Command(testenv.GoToolPath(t), "tool", "asm", "-S", tmpfile)
++		cmd.Env = append(os.Environ(), "GOARCH=arm64", "GOOS=linux")
++		out, err := cmd.CombinedOutput()
++		if err != nil {
++			t.Errorf("The %s build failed: %v, output: %s", test.name, err, out)
++			continue
++		}
++
++		matched, err := regexp.MatchString(test.out, string(out))
++		if err != nil {
++			t.Fatal(err)
++		}
++		if !matched {
++			t.Errorf("The %s testing failed!\ninput: %s\noutput: %s\n", test.name, test.code, out)
++		}
++	}
++}

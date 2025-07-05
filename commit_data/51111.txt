@@ -13,6 +13,21 @@ Date:   Thu Dec 2 13:22:46 2021 -0500
     Trust: Jeremy Faller <jeremy@golang.org>
     Run-TryBot: Jeremy Faller <jeremy@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go1.18.html | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/doc/go1.18.html b/doc/go1.18.html
+index 15cec4e1f0..82facf3845 100644
+--- a/doc/go1.18.html
++++ b/doc/go1.18.html
+@@ -696,7 +696,8 @@ Do not send CLs removing the interior tags from such phrases.
+ <dl id="regexp"><dt><a href="/pkg/regexp/">regexp</a></dt>
+   <dd>
+     <p><!-- CL 354569 -->
+-      TODO: <a href="https://golang.org/cl/354569">https://golang.org/cl/354569</a>: document and implement that invalid UTF-8 bytes are the same as U+FFFD
++      <a href="/pkg/regexp/"><code>regexp</code></a>
++      now treats each invalid byte of a UTF-8 string as <code>U+FFFD</code>.
+     </p>
+   </dd>
+ </dl><!-- regexp -->

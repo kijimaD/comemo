@@ -15,8 +15,104 @@ Date:   Wed Dec 5 17:08:27 2018 -0800
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/go/types/call.go             | 11 +++++++----
  src/go/types/errors.go           |  3 ++-
  src/go/types/testdata/issues.src | 27 ++++++++++++++++++++++++++-
  3 files changed, 35 insertions(+), 6 deletions(-)
+
+diff --git a/src/go/types/call.go b/src/go/types/call.go
+index 52f1ac31ce..0ea1623903 100644
+--- a/src/go/types/call.go
++++ b/src/go/types/call.go
+@@ -374,11 +374,13 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
+ 		switch {
+ 		case index != nil:
+ 			// TODO(gri) should provide actual type where the conflict happens
+-			check.invalidOp(e.Sel.Pos(), "ambiguous selector %s", sel)
++			check.errorf(e.Sel.Pos(), "ambiguous selector %s", sel)
+ 		case indirect:
+-			check.invalidOp(e.Sel.Pos(), "%s is not in method set of %s", sel, x.typ)
++			// TODO(gri) be more specific with this error message
++			check.errorf(e.Sel.Pos(), "%s is not in method set of %s", sel, x.typ)
+ 		default:
+-			check.invalidOp(e.Sel.Pos(), "%s has no field or method %s", x, sel)
++			// TODO(gri) should check if capitalization of sel matters and provide better error message in that case
++			check.errorf(e.Sel.Pos(), "%s.%s undefined (type %s has no field or method %s)", x.expr, sel, x.typ, sel)
+ 		}
+ 		goto Error
+ 	}
+@@ -392,7 +394,8 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
+ 		// method expression
+ 		m, _ := obj.(*Func)
+ 		if m == nil {
+-			check.invalidOp(e.Sel.Pos(), "%s has no method %s", x, sel)
++			// TODO(gri) should check if capitalization of sel matters and provide better error message in that case
++			check.errorf(e.Sel.Pos(), "%s.%s undefined (type %s has no method %s)", x.expr, sel, x.typ, sel)
+ 			goto Error
+ 		}
+ 
+diff --git a/src/go/types/errors.go b/src/go/types/errors.go
+index 4c8d8537ee..68c96c037e 100644
+--- a/src/go/types/errors.go
++++ b/src/go/types/errors.go
+@@ -10,6 +10,7 @@ import (
+ 	"fmt"
+ 	"go/ast"
+ 	"go/token"
++	"path"
+ 	"strings"
+ )
+ 
+@@ -25,7 +26,7 @@ func unreachable() {
+ 
+ func (check *Checker) qualifier(pkg *Package) string {
+ 	if pkg != check.pkg {
+-		return pkg.path
++		return path.Base(pkg.path) // avoid excessively long path names in error messages
+ 	}
+ 	return ""
+ }
+diff --git a/src/go/types/testdata/issues.src b/src/go/types/testdata/issues.src
+index 8260f58519..d020301109 100644
+--- a/src/go/types/testdata/issues.src
++++ b/src/go/types/testdata/issues.src
+@@ -5,6 +5,7 @@
+ package issues
+ 
+ import "fmt"
++import syn "cmd/compile/internal/syntax"
+ 
+ func issue7035() {
+ 	type T struct{ X int }
+@@ -312,4 +313,28 @@ func issue28281d(... /* ERROR can only use ... with final parameter */ int, int)
+ func issue28281e(a, b, c  ... /* ERROR can only use ... with final parameter */ int, d int)
+ func issue28281f(... /* ERROR can only use ... with final parameter */ int, ... /* ERROR can only use ... with final parameter */ int, int)
+ func (... /* ERROR expected type */ TT) f()
+-func issue28281g() (... /* ERROR expected type */ TT)
+\ No newline at end of file
++func issue28281g() (... /* ERROR expected type */ TT)
++
++// Issue #26234: Make various field/method lookup errors easier to read by matching cmd/compile's output
++func issue26234a(f *syn.File) {
++	// The error message below should refer to the actual package path base (syntax)
++	// not the local package name (syn).
++	f.foo /* ERROR f.foo undefined \(type \*syntax.File has no field or method foo\) */
++}
++
++type T struct {
++	x int
++	E1
++	E2
++}
++
++type E1 struct{ f int }
++type E2 struct{ f int }
++
++func issue26234b(x T) {
++	_ = x.f /* ERROR ambiguous selector f */
++}
++
++func issue26234c() {
++	T.x /* ERROR T.x undefined \(type T has no method x\) */ ()
++}

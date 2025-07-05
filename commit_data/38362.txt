@@ -14,8 +14,48 @@ Date:   Mon Oct 22 16:02:43 2018 -0400
     Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/runtime/asm_ppc64x.s       | 2 +-
  src/runtime/sys_linux_ppc64x.s | 2 +-
  src/runtime/tls_ppc64x.s       | 2 +-
  3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/asm_ppc64x.s b/src/runtime/asm_ppc64x.s
+index e77c717935..87076817f9 100644
+--- a/src/runtime/asm_ppc64x.s
++++ b/src/runtime/asm_ppc64x.s
+@@ -648,7 +648,7 @@ TEXT ·cgocallback_gofunc(SB),NOSPLIT,$16-32
+ 	NO_LOCAL_POINTERS
+ 
+ 	// Load m and g from thread-local storage.
+-	MOVB	runtime·iscgo(SB), R3
++	MOVBZ	runtime·iscgo(SB), R3
+ 	CMP	R3, $0
+ 	BEQ	nocgo
+ 	BL	runtime·load_g(SB)
+diff --git a/src/runtime/sys_linux_ppc64x.s b/src/runtime/sys_linux_ppc64x.s
+index 5b5df50d41..bf01099830 100644
+--- a/src/runtime/sys_linux_ppc64x.s
++++ b/src/runtime/sys_linux_ppc64x.s
+@@ -301,7 +301,7 @@ TEXT runtime·_sigtramp(SB),NOSPLIT,$64
+ 
+ 	// this might be called in external code context,
+ 	// where g is not set.
+-	MOVB	runtime·iscgo(SB), R6
++	MOVBZ	runtime·iscgo(SB), R6
+ 	CMP 	R6, $0
+ 	BEQ	2(PC)
+ 	BL	runtime·load_g(SB)
+diff --git a/src/runtime/tls_ppc64x.s b/src/runtime/tls_ppc64x.s
+index 82714853ee..c697449282 100644
+--- a/src/runtime/tls_ppc64x.s
++++ b/src/runtime/tls_ppc64x.s
+@@ -24,7 +24,7 @@
+ // NOTE: setg_gcc<> assume this clobbers only R31.
+ TEXT runtime·save_g(SB),NOSPLIT|NOFRAME,$0-0
+ #ifndef GOOS_aix
+-	MOVB	runtime·iscgo(SB), R31
++	MOVBZ	runtime·iscgo(SB), R31
+ 	CMP	R31, $0
+ 	BEQ	nocgo
+ #endif

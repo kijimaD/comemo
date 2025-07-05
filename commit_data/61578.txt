@@ -13,10 +13,182 @@ Date:   Mon Nov 4 15:33:00 2024 +0100
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
     Reviewed-by: Roland Shoemaker <roland@golang.org>
-
+---
  src/crypto/internal/entropy/entropy.go | 28 ++++++++++++++++
  src/crypto/internal/fips/drbg/rand.go  | 58 ++++++++++++++++++++++++++++++++++
  src/crypto/internal/fips/fips.go       |  9 ++++++
  src/crypto/rand/rand.go                | 11 ++++++-
  src/go/build/deps_test.go              |  6 ++--
  5 files changed, 109 insertions(+), 3 deletions(-)
+
+diff --git a/src/crypto/internal/entropy/entropy.go b/src/crypto/internal/entropy/entropy.go
+new file mode 100644
+index 0000000000..e27b05bda5
+--- /dev/null
++++ b/src/crypto/internal/entropy/entropy.go
+@@ -0,0 +1,28 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package entropy provides the passive entropy source for the FIPS 140-3
++// module. It is only used in FIPS mode by [crypto/internal/fips/drbg.Read].
++//
++// This complies with IG 9.3.A, Additional Comment 12, which until January 1,
++// 2026 allows new modules to meet an [earlier version] of Resolution 2(b):
++// "A software module that contains an approved DRBG that receives a LOAD
++// command (or its logical equivalent) with entropy obtained from [...] inside
++// the physical perimeter of the operational environment of the module [...]."
++//
++// Distributions that have their own SP 800-90B entropy source should replace
++// this package with their own implementation.
++//
++// [earlier version]: https://csrc.nist.gov/CSRC/media/Projects/cryptographic-module-validation-program/documents/IG%209.3.A%20Resolution%202b%5BMarch%2026%202024%5D.pdf
++package entropy
++
++import "crypto/internal/sysrand"
++
++// Depleted notifies the entropy source that the entropy in the module is
++// "depleted" and provides the callback for the LOAD command.
++func Depleted(LOAD func(*[48]byte)) {
++	var entropy [48]byte
++	sysrand.Read(entropy[:])
++	LOAD(&entropy)
++}
+diff --git a/src/crypto/internal/fips/drbg/rand.go b/src/crypto/internal/fips/drbg/rand.go
+new file mode 100644
+index 0000000000..4f4a5701aa
+--- /dev/null
++++ b/src/crypto/internal/fips/drbg/rand.go
+@@ -0,0 +1,58 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package drbg
++
++import (
++	"crypto/internal/entropy"
++	"crypto/internal/fips"
++	"crypto/internal/sysrand"
++	"sync"
++)
++
++var mu sync.Mutex
++var drbg *Counter
++
++// Read fills b with cryptographically secure random bytes. In FIPS mode, it
++// uses an SP 800-90A Rev. 1 Deterministic Random Bit Generator (DRBG).
++// Otherwise, it uses the operating system's random number generator.
++func Read(b []byte) {
++	if !fips.Enabled {
++		sysrand.Read(b)
++		return
++	}
++
++	// At every read, 128 random bits from the operating system are mixed as
++	// additional input, to make the output as strong as non-FIPS randomness.
++	// This is not credited as entropy for FIPS purposes, as allowed by Section
++	// 8.7.2: "Note that a DRBG does not rely on additional input to provide
++	// entropy, even though entropy could be provided in the additional input".
++	additionalInput := new([SeedSize]byte)
++	sysrand.Read(additionalInput[:16])
++
++	mu.Lock()
++	defer mu.Unlock()
++
++	if drbg == nil {
++		entropy.Depleted(func(seed *[48]byte) {
++			drbg = NewCounter(seed)
++		})
++	}
++
++	for len(b) > 0 {
++		size := min(len(b), maxRequestSize)
++		if reseedRequired := drbg.Generate(b[:size], additionalInput); reseedRequired {
++			// See SP 800-90A Rev. 1, Section 9.3.1, Steps 6-8, as explained in
++			// Section 9.3.2: if Generate reports a reseed is required, the
++			// additional input is passed to Reseed along with the entropy and
++			// then nulled before the next Generate call.
++			entropy.Depleted(func(seed *[48]byte) {
++				drbg.Reseed(seed, additionalInput)
++			})
++			additionalInput = nil
++			continue
++		}
++		b = b[size:]
++	}
++}
+diff --git a/src/crypto/internal/fips/fips.go b/src/crypto/internal/fips/fips.go
+new file mode 100644
+index 0000000000..8a20a761da
+--- /dev/null
++++ b/src/crypto/internal/fips/fips.go
+@@ -0,0 +1,9 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package fips
++
++import "internal/godebug"
++
++var Enabled = godebug.New("#fips140").Value() == "on"
+diff --git a/src/crypto/rand/rand.go b/src/crypto/rand/rand.go
+index 08851d23d9..b2dbe13fcd 100644
+--- a/src/crypto/rand/rand.go
++++ b/src/crypto/rand/rand.go
+@@ -8,6 +8,8 @@ package rand
+ 
+ import (
+ 	"crypto/internal/boring"
++	"crypto/internal/fips"
++	"crypto/internal/fips/drbg"
+ 	"crypto/internal/sysrand"
+ 	"io"
+ 	_ "unsafe"
+@@ -23,6 +25,9 @@ import (
+ //   - On Windows, Reader uses the ProcessPrng API.
+ //   - On js/wasm, Reader uses the Web Crypto API.
+ //   - On wasip1/wasm, Reader uses random_get.
++//
++// In FIPS 140-3 mode, the output passes through an SP 800-90A Rev. 1
++// Deterministric Random Bit Generator (DRBG).
+ var Reader io.Reader
+ 
+ func init() {
+@@ -37,7 +42,11 @@ type reader struct{}
+ 
+ func (r *reader) Read(b []byte) (n int, err error) {
+ 	boring.Unreachable()
+-	sysrand.Read(b)
++	if fips.Enabled {
++		drbg.Read(b)
++	} else {
++		sysrand.Read(b)
++	}
+ 	return len(b), nil
+ }
+ 
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 3367ff6144..db8f118538 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -441,13 +441,15 @@ var depsRules = `
+ 	< net/mail;
+ 
+ 	STR < crypto/internal/impl;
+-	OS < crypto/internal/sysrand;
++
++	OS < crypto/internal/sysrand
++	< crypto/internal/entropy;
+ 
+ 	# FIPS is the FIPS 140 module.
+ 	# It must not depend on external crypto packages.
+ 	# Internal packages imported by FIPS might need to retain
+ 	# backwards compatibility with older versions of the module.
+-	STR, crypto/internal/impl, crypto/internal/sysrand
++	STR, crypto/internal/impl, crypto/internal/entropy
+ 	< crypto/internal/fips
+ 	< crypto/internal/fips/alias
+ 	< crypto/internal/fips/subtle

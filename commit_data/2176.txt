@@ -7,7 +7,7 @@ Date:   Fri May 8 15:21:41 2009 -0700
     R=r
     OCL=28569
     CL=28573
-
+---
  doc/progs/cat.go                  |  4 ++--
  doc/progs/cat_rot13.go            |  4 ++--
  doc/progs/helloworld3.go          |  3 ++-
@@ -79,3 +79,1726 @@ Date:   Fri May 8 15:21:41 2009 -0700
  usr/gri/pretty/pretty.go          | 12 ++++++------
  usr/gri/pretty/untab.go           |  2 +-
  70 files changed, 243 insertions(+), 174 deletions(-)
+
+diff --git a/doc/progs/cat.go b/doc/progs/cat.go
+index 1f6c0f9df6..f0f534926e 100644
+--- a/doc/progs/cat.go
++++ b/doc/progs/cat.go
+@@ -18,7 +18,7 @@ func cat(f *file.File) {
+ 		switch nr, er := f.Read(&buf); true {
+ 		case nr < 0:
+ 			fmt.Fprintf(os.Stderr, "error reading from %s: %s\n", f.String(), er.String());
+-			sys.Exit(1);
++			os.Exit(1);
+ 		case nr == 0:  // EOF
+ 			return;
+ 		case nr > 0:
+@@ -38,7 +38,7 @@ func main() {
+ 		f, err := file.Open(flag.Arg(i), 0, 0);
+ 		if f == nil {
+ 			fmt.Fprintf(os.Stderr, "can't open %s: error %s\n", flag.Arg(i), err);
+-			sys.Exit(1);
++			os.Exit(1);
+ 		}
+ 		cat(f);
+ 		f.Close();
+diff --git a/doc/progs/cat_rot13.go b/doc/progs/cat_rot13.go
+index 7411a7bedc..931fdf03c3 100644
+--- a/doc/progs/cat_rot13.go
++++ b/doc/progs/cat_rot13.go
+@@ -60,7 +60,7 @@ func cat(r reader) {
+ 		switch nr, er := r.Read(&buf); {
+ 		case nr < 0:
+ 			fmt.Fprintf(os.Stderr, "error reading from %s: %s\n", r.String(), er.String());
+-			sys.Exit(1);
++			os.Exit(1);
+ 		case nr == 0:  // EOF
+ 			return;
+ 		case nr > 0:
+@@ -81,7 +81,7 @@ func main() {
+ 		f, err := file.Open(flag.Arg(i), 0, 0);
+ 		if f == nil {
+ 			fmt.Fprintf(os.Stderr, "can't open %s: error %s\n", flag.Arg(i), err);
+-			sys.Exit(1);
++			os.Exit(1);
+ 		}
+ 		cat(f);
+ 		f.Close();
+diff --git a/doc/progs/helloworld3.go b/doc/progs/helloworld3.go
+index 630c49232c..01fc3e30a1 100644
+--- a/doc/progs/helloworld3.go
++++ b/doc/progs/helloworld3.go
+@@ -7,6 +7,7 @@ package main
+ import (
+ 	"file";
+ 	"fmt";
++	"os";
+ )
+ 
+ func main() {
+@@ -15,6 +16,6 @@ func main() {
+ 	file, err := file.Open("/does/not/exist",  0,  0);
+ 	if file == nil {
+ 		fmt.Printf("can't open file; err=%s\n",  err.String());
+-		sys.Exit(1);
++		os.Exit(1);
+ 	}
+ }
+diff --git a/doc/progs/strings.go b/doc/progs/strings.go
+index ee2596d8f2..2c4937e38f 100644
+--- a/doc/progs/strings.go
++++ b/doc/progs/strings.go
+@@ -5,10 +5,11 @@
+ package main
+ 
+ import "fmt"
++import "os"
+ 
+ func main() {
+ 	s := "hello";
+-	if s[1] != 'e' { sys.Exit(1) }
++	if s[1] != 'e' { os.Exit(1) }
+ 	s = "good bye";
+ 	var p *string = &s;
+ 	*p = "ciao";
+diff --git a/src/cmd/gc/Makefile b/src/cmd/gc/Makefile
+index 0fc15deaa8..0083240e46 100644
+--- a/src/cmd/gc/Makefile
++++ b/src/cmd/gc/Makefile
+@@ -44,7 +44,7 @@ y.tab.h: $(YFILES)
+ y.tab.c: y.tab.h
+ 	test -f y.tab.c && touch y.tab.c
+ 
+-builtin.c:	sys.go unsafe.go mkbuiltin1.c mkbuiltin
++builtin.c:	sys.go unsafe.go runtime.go mkbuiltin1.c mkbuiltin
+ 	./mkbuiltin >builtin.c || \
+ 	(echo 'mkbuiltin failed; using bootstrap copy of builtin.c'; cp builtin.c.boot builtin.c)
+ 
+diff --git a/src/cmd/gc/builtin.c.boot b/src/cmd/gc/builtin.c.boot
+index 0f189d3634..8657944b56 100644
+--- a/src/cmd/gc/builtin.c.boot
++++ b/src/cmd/gc/builtin.c.boot
+@@ -55,13 +55,6 @@ char *sysimport =
+ 	"func sys.arrayslices (old *any, nel int, lb int, hb int, width int) (ary []any)\n"
+ 	"func sys.arrays2d (old *any, nel int) (ary []any)\n"
+ 	"func sys.closure ()\n"
+-	"func sys.Breakpoint ()\n"
+-	"var sys.Args []string\n"
+-	"var sys.Envs []string\n"
+-	"func sys.Gosched ()\n"
+-	"func sys.Goexit ()\n"
+-	"func sys.Exit (? int)\n"
+-	"func sys.Caller (n int) (pc uint64, file string, line int, ok bool)\n"
+ 	"\n"
+ 	"$$\n";
+ char *unsafeimport =
+@@ -74,3 +67,11 @@ char *unsafeimport =
+ 	"func unsafe.Unreflect (? uint64, ? string, ? bool) (ret interface { })\n"
+ 	"\n"
+ 	"$$\n";
++char *runtimeimport =
++	"package runtime\n"
++	"func runtime.Breakpoint ()\n"
++	"func runtime.Gosched ()\n"
++	"func runtime.Goexit ()\n"
++	"func runtime.Caller (n int) (pc uint64, file string, line int, ok bool)\n"
++	"\n"
++	"$$\n";
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index a74dd645c2..29e2fd64ba 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -541,6 +541,7 @@ EXTERN	Sym*	pkgimportname;	// package name from imported package
+ EXTERN	int	tptr;		// either TPTR32 or TPTR64
+ extern	char*	sysimport;
+ extern	char*	unsafeimport;
++extern	char*	runtimeimport;
+ EXTERN	char*	filename;	// name to uniqify names
+ EXTERN	Idir*	idirs;
+ 
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index b84d91ba74..e5edf50513 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -265,6 +265,10 @@ importfile(Val *f)
+ 		cannedimports("unsafe.6", unsafeimport);
+ 		return;
+ 	}
++	if(strcmp(f->u.sval->s, "runtime") == 0) {
++		cannedimports("runtime.6", runtimeimport);
++		return;
++	}
+ 
+ 	if(!findpkg(f->u.sval))
+ 		fatal("can't find import: %Z", f->u.sval);
+diff --git a/src/cmd/gc/mkbuiltin b/src/cmd/gc/mkbuiltin
+index e0c29c1bb4..b0cb634f50 100755
+--- a/src/cmd/gc/mkbuiltin
++++ b/src/cmd/gc/mkbuiltin
+@@ -5,11 +5,12 @@
+ 
+ set -e
+ gcc -o mkbuiltin1 mkbuiltin1.c
+-6g sys.go
+-6g unsafe.go
+ rm -f _builtin.c
+-./mkbuiltin1 sys >_builtin.c
+-./mkbuiltin1 unsafe >>_builtin.c
++for i in sys unsafe runtime
++do
++	6g $i.go
++	./mkbuiltin1 $i >>_builtin.c
++done
+ 
+ # If _builtin.c has changed vs builtin.c.boot,
+ # check in the new change if being run by
+diff --git a/src/cmd/gc/runtime.go b/src/cmd/gc/runtime.go
+new file mode 100644
+index 0000000000..6b9722ac55
+--- /dev/null
++++ b/src/cmd/gc/runtime.go
+@@ -0,0 +1,9 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package PACKAGE
++func	Breakpoint();
++func	Gosched();
++func	Goexit();
++func	Caller(n int) (pc uint64, file string, line int, ok bool);
+diff --git a/src/cmd/gc/sys.go b/src/cmd/gc/sys.go
+index f77771a09d..67fbb0391d 100644
+--- a/src/cmd/gc/sys.go
++++ b/src/cmd/gc/sys.go
+@@ -72,17 +72,3 @@ func	arrayslices(old *any, nel int, lb int, hb int, width int) (ary []any);
+ func	arrays2d(old *any, nel int) (ary []any);
+ 
+ func	closure();	// has args, but compiler fills in
+-
+-// used by go programs
+-
+-func	Breakpoint();
+-
+-var	Args []string;
+-var	Envs []string;
+-
+-func	Gosched();
+-func	Goexit();
+-
+-func	Exit(int);
+-
+-func	Caller(n int) (pc uint64, file string, line int, ok bool);
+diff --git a/src/cmd/gobuild/gobuild.go b/src/cmd/gobuild/gobuild.go
+index 9324e98ff4..0db9bca042 100644
+--- a/src/cmd/gobuild/gobuild.go
++++ b/src/cmd/gobuild/gobuild.go
+@@ -131,7 +131,7 @@ func ScanFiles(filenames []string) *Info {
+ 	// TODO(rsc): Build a binary from package main?
+ 
+ 	z := new(Info);
+-	z.Args = sys.Args;
++	z.Args = os.Args;
+ 	z.Dir = PkgDir();
+ 	z.Char = theChar;	// for template
+ 	z.ObjDir = ObjDir;	// for template
+diff --git a/src/cmd/gobuild/util.go b/src/cmd/gobuild/util.go
+index 34351cea82..be50ba1cab 100644
+--- a/src/cmd/gobuild/util.go
++++ b/src/cmd/gobuild/util.go
+@@ -34,7 +34,7 @@ const ObjDir = "_obj"
+ 
+ func fatal(args ...) {
+ 	fmt.Fprintf(os.Stderr, "gobuild: %s\n", fmt.Sprint(args));
+-	sys.Exit(1);
++	os.Exit(1);
+ }
+ 
+ func init() {
+diff --git a/src/lib/flag/flag.go b/src/lib/flag/flag.go
+index e66238f6dd..63d649a9bd 100644
+--- a/src/lib/flag/flag.go
++++ b/src/lib/flag/flag.go
+@@ -261,15 +261,15 @@ func PrintDefaults() {
+ }
+ 
+ // Usage prints to standard error a default usage message documenting all defined flags and
+-// then calls sys.Exit(1).
++// then calls os.Exit(1).
+ func Usage() {
+-	if len(sys.Args) > 0 {
+-		fmt.Fprintln(os.Stderr, "Usage of", sys.Args[0] + ":");
++	if len(os.Args) > 0 {
++		fmt.Fprintln(os.Stderr, "Usage of", os.Args[0] + ":");
+ 	} else {
+ 		fmt.Fprintln(os.Stderr, "Usage:");
+ 	}
+ 	PrintDefaults();
+-	sys.Exit(1);
++	os.Exit(1);
+ }
+ 
+ func NFlag() int {
+@@ -280,20 +280,20 @@ func NFlag() int {
+ // after flags have been processed.
+ func Arg(i int) string {
+ 	i += flags.first_arg;
+-	if i < 0 || i >= len(sys.Args) {
++	if i < 0 || i >= len(os.Args) {
+ 		return "";
+ 	}
+-	return sys.Args[i]
++	return os.Args[i]
+ }
+ 
+ // NArg is the number of arguments remaining after flags have been processed.
+ func NArg() int {
+-	return len(sys.Args) - flags.first_arg
++	return len(os.Args) - flags.first_arg
+ }
+ 
+ // Args returns the non-flag command-line arguments.
+ func Args() []string {
+-	return sys.Args[flags.first_arg:len(sys.Args)];
++	return os.Args[flags.first_arg:len(os.Args)];
+ }
+ 
+ func add(name string, value FlagValue, usage string) {
+@@ -393,7 +393,7 @@ func String(name, value string, usage string) *string {
+ 
+ func (f *allFlags) parseOne(index int) (ok bool, next int)
+ {
+-	s := sys.Args[index];
++	s := os.Args[index];
+ 	f.first_arg = index;  // until proven otherwise
+ 	if len(s) == 0 {
+ 		return false, -1
+@@ -450,11 +450,11 @@ func (f *allFlags) parseOne(index int) (ok bool, next int)
+ 		}
+ 	} else {
+ 		// It must have a value, which might be the next argument.
+-		if !has_value && index < len(sys.Args)-1 {
++		if !has_value && index < len(os.Args)-1 {
+ 			// value is the next arg
+ 			has_value = true;
+ 			index++;
+-			value = sys.Args[index];
++			value = os.Args[index];
+ 		}
+ 		if !has_value {
+ 			print("flag needs an argument: -", name, "\n");
+@@ -473,7 +473,7 @@ func (f *allFlags) parseOne(index int) (ok bool, next int)
+ // Parse parses the command-line flags.  Must be called after all flags are defined
+ // and before any are accessed by the program.
+ func Parse() {
+-	for i := 1; i < len(sys.Args); {
++	for i := 1; i < len(os.Args); {
+ 		ok, next := flags.parseOne(i);
+ 		if next > 0 {
+ 			flags.first_arg = next;
+diff --git a/src/lib/http/triv.go b/src/lib/http/triv.go
+index d2e074d73d..f8b59ebeab 100644
+--- a/src/lib/http/triv.go
++++ b/src/lib/http/triv.go
+@@ -74,7 +74,7 @@ func FlagServer(c *http.Conn, req *http.Request) {
+ 
+ // simple argument server
+ func ArgServer(c *http.Conn, req *http.Request) {
+-	for i, s := range sys.Args {
++	for i, s := range os.Args {
+ 		fmt.Fprint(c, s, " ");
+ 	}
+ }
+diff --git a/src/lib/log/log.go b/src/lib/log/log.go
+index 4a679a839e..f5e4dd4a9a 100644
+--- a/src/lib/log/log.go
++++ b/src/lib/log/log.go
+@@ -14,6 +14,7 @@ package log
+ import (
+ 	"fmt";
+ 	"io";
++	"runtime";
+ 	"os";
+ 	"time";
+ )
+@@ -96,7 +97,7 @@ func (l *Logger) formatHeader(ns int64, calldepth int) string {
+ 		}
+ 	}
+ 	if l.flag & (Lshortfile | Llongfile) != 0 {
+-		pc, file, line, ok := sys.Caller(calldepth);
++		pc, file, line, ok := runtime.Caller(calldepth);
+ 		if ok {
+ 			if l.flag & Lshortfile != 0 {
+ 				short, ok := shortnames[file];
+@@ -139,7 +140,7 @@ func (l *Logger) Output(calldepth int, s string) {
+ 	case Lcrash:
+ 		panic("log: fatal error");
+ 	case Lexit:
+-		sys.Exit(1);
++		os.Exit(1);
+ 	}
+ }
+ 
+@@ -173,12 +174,12 @@ func Stderrf(format string, v ...) {
+ 	stderr.Output(2, fmt.Sprintf(format, v))
+ }
+ 
+-// Exit is equivalent to Stderr() followed by a call to sys.Exit(1).
++// Exit is equivalent to Stderr() followed by a call to os.Exit(1).
+ func Exit(v ...) {
+ 	exit.Output(2, fmt.Sprintln(v))
+ }
+ 
+-// Exitf is equivalent to Stderrf() followed by a call to sys.Exit(1).
++// Exitf is equivalent to Stderrf() followed by a call to os.Exit(1).
+ func Exitf(format string, v ...) {
+ 	exit.Output(2, fmt.Sprintf(format, v))
+ }
+diff --git a/src/lib/os/Makefile b/src/lib/os/Makefile
+index b563da3f3e..e7b49e5b99 100644
+--- a/src/lib/os/Makefile
++++ b/src/lib/os/Makefile
+@@ -3,7 +3,7 @@
+ # license that can be found in the LICENSE file.
+ 
+ # DO NOT EDIT.  Automatically generated by gobuild.
+-# gobuild -m dir_${GOARCH}_${GOOS}.go env.go error.go file.go stat_${GOARCH}_${GOOS}.go time.go types.go exec.go >Makefile
++# gobuild -m dir_${GOARCH}_${GOOS}.go env.go error.go file.go proc.go stat_${GOARCH}_${GOOS}.go time.go types.go exec.go >Makefile
+ 
+ D=
+ 
+@@ -41,6 +41,7 @@ coverage: packages
+ 
+ O1=\
+ 	error.$O\
++	proc.$O\
+ 	types.$O\
+ 
+ O2=\
+@@ -60,7 +61,7 @@ phases: a1 a2 a3 a4
+ _obj$D/os.a: phases
+ 
+ a1: $(O1)
+-	$(AR) grc _obj$D/os.a error.$O types.$O
++	$(AR) grc _obj$D/os.a error.$O proc.$O types.$O
+ 	rm -f $(O1)
+ 
+ a2: $(O2)
+diff --git a/src/lib/os/env.go b/src/lib/os/env.go
+index e7df309e03..7487504130 100644
+--- a/src/lib/os/env.go
++++ b/src/lib/os/env.go
+@@ -19,7 +19,7 @@ var env map[string] string;
+ 
+ func copyenv() {
+ 	env = make(map[string] string);
+-	for i, s := range sys.Envs {
++	for i, s := range os.Envs {
+ 		for j := 0; j < len(s); j++ {
+ 			if s[j] == '=' {
+ 				env[s[0:j]] = s[j+1:len(s)];
+diff --git a/src/lib/os/file.go b/src/lib/os/file.go
+index fa1784a426..9b22a896db 100644
+--- a/src/lib/os/file.go
++++ b/src/lib/os/file.go
+@@ -132,7 +132,7 @@ func (file *File) Write(b []byte) (ret int, err Error) {
+ 	if e == syscall.EPIPE {
+ 		file.nepipe++;
+ 		if file.nepipe >= 10 {
+-			sys.Exit(syscall.EPIPE);
++			os.Exit(syscall.EPIPE);
+ 		}
+ 	} else {
+ 		file.nepipe = 0;
+diff --git a/src/lib/regexp/regexp.go b/src/lib/regexp/regexp.go
+index 135dcc368a..8cbd380352 100644
+--- a/src/lib/regexp/regexp.go
++++ b/src/lib/regexp/regexp.go
+@@ -25,6 +25,7 @@ package regexp
+ import (
+ 	"container/vector";
+ 	"os";
++	"runtime";
+ 	"utf8";
+ )
+ 
+@@ -236,7 +237,7 @@ func (nop *_Nop) print() { print("nop") }
+ func (re *Regexp) setError(err os.Error) {
+ 	re.error = err;
+ 	re.ch <- re;
+-	sys.Goexit();
++	runtime.Goexit();
+ }
+ 
+ func (re *Regexp) add(i instr) instr {
+diff --git a/src/lib/template/template.go b/src/lib/template/template.go
+index b886b31813..182a85b426 100644
+--- a/src/lib/template/template.go
++++ b/src/lib/template/template.go
+@@ -44,7 +44,7 @@
+ 	first looked for in the cursor, as in .section and .repeated.
+ 	If it is not found, the search continues in outer sections
+ 	until the top level is reached.
+-	
++
+ 	If a formatter is specified, it must be named in the formatter
+ 	map passed to the template set up routines or in the default
+ 	set ("html","str","") and is used to process the data for
+@@ -61,6 +61,7 @@ import (
+ 	"io";
+ 	"os";
+ 	"reflect";
++	"runtime";
+ 	"strings";
+ 	"template";
+ 	"container/vector";
+@@ -181,7 +182,7 @@ func New(fmap FormatterMap) *Template {
+ // Generic error handler, called only from execError or parseError.
+ func error(errors chan os.Error, line int, err string, args ...) {
+ 	errors <- ParseError{fmt.Sprintf("line %d: %s", line, fmt.Sprintf(err, args))};
+-	sys.Goexit();
++	runtime.Goexit();
+ }
+ 
+ // Report error and stop executing.  The line number must  be provided explicitly.
+diff --git a/src/lib/testing/testing.go b/src/lib/testing/testing.go
+index 2f717d0e97..63e4af5e9a 100644
+--- a/src/lib/testing/testing.go
++++ b/src/lib/testing/testing.go
+@@ -14,6 +14,8 @@ package testing
+ import (
+ 	"flag";
+ 	"fmt";
++	"os";
++	"runtime";
+ )
+ 
+ // Report as tests are run; default is silent for success.
+@@ -47,7 +49,7 @@ func (t *T) Fail() {
+ func (t *T) FailNow() {
+ 	t.Fail();
+ 	t.ch <- t;
+-	sys.Goexit();
++	runtime.Goexit();
+ }
+ 
+ // Log formats its arguments using default formatting, analogous to Print(),
+@@ -129,7 +131,7 @@ func Main(tests []Test) {
+ 	}
+ 	if !ok {
+ 		println("FAIL");
+-		sys.Exit(1);
++		os.Exit(1);
+ 	}
+ 	println("PASS");
+ }
+diff --git a/src/runtime/386/asm.s b/src/runtime/386/asm.s
+index 3ef8d8e47c..9dd9c11a98 100644
+--- a/src/runtime/386/asm.s
++++ b/src/runtime/386/asm.s
+@@ -84,12 +84,12 @@ TEXT mainstart(SB),7,$0
+ 	CALL	initdone(SB)
+ 	CALL	main·main(SB)
+ 	PUSHL	$0
+-	CALL	sys·Exit(SB)
++	CALL	exit(SB)
+ 	POPL	AX
+ 	INT $3
+ 	RET
+ 
+-TEXT	sys·Breakpoint(SB),7,$0
++TEXT	breakpoint(SB),7,$0
+ 	BYTE $0xcc
+ 	RET
+ 
+diff --git a/src/runtime/386/traceback.c b/src/runtime/386/traceback.c
+index b60512ab19..23e92d8926 100644
+--- a/src/runtime/386/traceback.c
++++ b/src/runtime/386/traceback.c
+@@ -82,7 +82,7 @@ traceback(byte *pc0, byte *sp, G *g)
+ 
+ // func caller(n int) (pc uint64, file string, line int, ok bool)
+ void
+-sys·Caller(int32 n, uint64 retpc, string retfile, int32 retline, bool retbool)
++runtime·Caller(int32 n, uint64 retpc, string retfile, int32 retline, bool retbool)
+ {
+ 	uint64 pc;
+ 	byte *sp;
+diff --git a/src/runtime/amd64/asm.s b/src/runtime/amd64/asm.s
+index cad656e70f..b69259e314 100644
+--- a/src/runtime/amd64/asm.s
++++ b/src/runtime/amd64/asm.s
+@@ -55,12 +55,12 @@ TEXT mainstart(SB),7,$0
+ 	CALL	initdone(SB)
+ 	CALL	main·main(SB)
+ 	PUSHQ	$0
+-	CALL	sys·Exit(SB)
++	CALL	exit(SB)
+ 	POPQ	AX
+ 	CALL	notok(SB)
+ 	RET
+ 
+-TEXT	sys·Breakpoint(SB),7,$0
++TEXT	breakpoint(SB),7,$0
+ 	BYTE	$0xcc
+ 	RET
+ 
+diff --git a/src/runtime/amd64/traceback.c b/src/runtime/amd64/traceback.c
+index 2e237a21fa..16d7bed72e 100644
+--- a/src/runtime/amd64/traceback.c
++++ b/src/runtime/amd64/traceback.c
+@@ -79,7 +79,7 @@ traceback(byte *pc0, byte *sp, G *g)
+ 
+ // func caller(n int) (pc uint64, file string, line int, ok bool)
+ void
+-sys·Caller(int32 n, uint64 retpc, String retfile, int32 retline, bool retbool)
++runtime·Caller(int32 n, uint64 retpc, String retfile, int32 retline, bool retbool)
+ {
+ 	uint64 pc;
+ 	byte *sp;
+diff --git a/src/runtime/chan.c b/src/runtime/chan.c
+index 59ac78d79c..be65bcbc16 100644
+--- a/src/runtime/chan.c
++++ b/src/runtime/chan.c
+@@ -211,7 +211,7 @@ loop:
+ 	g->status = Gwaiting;
+ 	enqueue(&c->sendq, sg);
+ 	unlock(&chanlock);
+-	sys·Gosched();
++	gosched();
+ 
+ 	lock(&chanlock);
+ 	sg = g->param;
+@@ -237,7 +237,7 @@ asynch:
+ 		g->status = Gwaiting;
+ 		enqueue(&c->sendq, sg);
+ 		unlock(&chanlock);
+-		sys·Gosched();
++		gosched();
+ 
+ 		lock(&chanlock);
+ 		goto asynch;
+@@ -311,7 +311,7 @@ loop:
+ 	g->status = Gwaiting;
+ 	enqueue(&c->recvq, sg);
+ 	unlock(&chanlock);
+-	sys·Gosched();
++	gosched();
+ 
+ 	lock(&chanlock);
+ 	sg = g->param;
+@@ -339,7 +339,7 @@ asynch:
+ 		g->status = Gwaiting;
+ 		enqueue(&c->recvq, sg);
+ 		unlock(&chanlock);
+-		sys·Gosched();
++		gosched();
+ 
+ 		lock(&chanlock);
+ 		goto asynch;
+@@ -748,7 +748,7 @@ loop:
+ 	g->param = nil;
+ 	g->status = Gwaiting;
+ 	unlock(&chanlock);
+-	sys·Gosched();
++	gosched();
+ 
+ 	lock(&chanlock);
+ 	sg = g->param;
+diff --git a/src/runtime/darwin/386/signal.c b/src/runtime/darwin/386/signal.c
+index a6c782294f..3a63c4b382 100644
+--- a/src/runtime/darwin/386/signal.c
++++ b/src/runtime/darwin/386/signal.c
+@@ -33,7 +33,7 @@ sighandler(int32 sig, Siginfo *info, void *context)
+ 	Regs *r;
+ 
+ 	if(panicking)	// traceback already printed
+-		sys_Exit(2);
++		exit(2);
+ 	panicking = 1;
+ 
+ 	if(sig < 0 || sig >= NSIG){
+@@ -56,8 +56,8 @@ sighandler(int32 sig, Siginfo *info, void *context)
+ 		dumpregs(r);
+ 	}
+ 
+-	sys·Breakpoint();
+-	sys_Exit(2);
++	breakpoint();
++	exit(2);
+ }
+ 
+ void
+diff --git a/src/runtime/darwin/386/sys.s b/src/runtime/darwin/386/sys.s
+index 93dd4e300b..1ad6d2aceb 100644
+--- a/src/runtime/darwin/386/sys.s
++++ b/src/runtime/darwin/386/sys.s
+@@ -11,7 +11,7 @@ TEXT notok(SB),7,$0
+ 	RET
+ 
+ // Exit the entire program (like C exit)
+-TEXT sys·Exit(SB),7,$0
++TEXT exit(SB),7,$0
+ 	MOVL	$1, AX
+ 	INT	$0x80
+ 	CALL	notok(SB)
+diff --git a/src/runtime/darwin/amd64/signal.c b/src/runtime/darwin/amd64/signal.c
+index 88cddeb00d..45e5e8d478 100644
+--- a/src/runtime/darwin/amd64/signal.c
++++ b/src/runtime/darwin/amd64/signal.c
+@@ -41,7 +41,7 @@ sighandler(int32 sig, Siginfo *info, void *context)
+ 	Regs *r;
+ 
+ 	if(panicking)	// traceback already printed
+-		sys_Exit(2);
++		exit(2);
+ 	panicking = 1;
+ 
+ 	if(sig < 0 || sig >= NSIG){
+@@ -64,8 +64,8 @@ sighandler(int32 sig, Siginfo *info, void *context)
+ 		dumpregs(r);
+ 	}
+ 
+-	sys·Breakpoint();
+-	sys_Exit(2);
++	breakpoint();
++	exit(2);
+ }
+ 
+ void
+diff --git a/src/runtime/darwin/amd64/sys.s b/src/runtime/darwin/amd64/sys.s
+index e16983346d..4238cd1858 100644
+--- a/src/runtime/darwin/amd64/sys.s
++++ b/src/runtime/darwin/amd64/sys.s
+@@ -9,7 +9,7 @@
+ //
+ 
+ // Exit the entire program (like C exit)
+-TEXT	sys·Exit(SB),7,$-8
++TEXT	exit(SB),7,$-8
+ 	MOVL	8(SP), DI		// arg 1 exit status
+ 	MOVL	$(0x2000000+1), AX	// syscall entry
+ 	SYSCALL
+diff --git a/src/runtime/linux/386/signal.c b/src/runtime/linux/386/signal.c
+index 9cbd9fa855..7dfca6bb40 100644
+--- a/src/runtime/linux/386/signal.c
++++ b/src/runtime/linux/386/signal.c
+@@ -40,7 +40,7 @@ sighandler(int32 sig, Siginfo* info, void* context)
+ 	Sigcontext *sc;
+ 
+ 	if(panicking)	// traceback already printed
+-		sys_Exit(2);
++		exit(2);
+ 	panicking = 1;
+ 
+ 	uc = context;
+@@ -61,8 +61,8 @@ sighandler(int32 sig, Siginfo* info, void* context)
+ 		dumpregs(sc);
+ 	}
+ 
+-	sys·Breakpoint();
+-	sys_Exit(2);
++	breakpoint();
++	exit(2);
+ }
+ 
+ void
+diff --git a/src/runtime/linux/386/sys.s b/src/runtime/linux/386/sys.s
+index 379d153e4c..419973a5ca 100755
+--- a/src/runtime/linux/386/sys.s
++++ b/src/runtime/linux/386/sys.s
+@@ -20,7 +20,7 @@ TEXT syscall(SB),7,$0
+ 	INT $3	// not reached
+ 	RET
+ 
+-TEXT sys·Exit(SB),7,$0
++TEXT exit(SB),7,$0
+ 	MOVL	$252, AX	// syscall number
+ 	MOVL	4(SP), BX
+ 	INT	$0x80
+diff --git a/src/runtime/linux/amd64/signal.c b/src/runtime/linux/amd64/signal.c
+index 5f3574f8e2..55215176de 100644
+--- a/src/runtime/linux/amd64/signal.c
++++ b/src/runtime/linux/amd64/signal.c
+@@ -49,7 +49,7 @@ sighandler(int32 sig, Siginfo* info, void* context)
+ 	Sigcontext *sc;
+ 
+ 	if(panicking)	// traceback already printed
+-		sys_Exit(2);
++		exit(2);
+ 	panicking = 1;
+ 
+ 	uc = context;
+@@ -71,8 +71,8 @@ sighandler(int32 sig, Siginfo* info, void* context)
+ 		dumpregs(sc);
+ 	}
+ 
+-	sys·Breakpoint();
+-	sys_Exit(2);
++	breakpoint();
++	exit(2);
+ }
+ 
+ void
+diff --git a/src/runtime/linux/amd64/sys.s b/src/runtime/linux/amd64/sys.s
+index 5c4d98f973..f90c704faf 100644
+--- a/src/runtime/linux/amd64/sys.s
++++ b/src/runtime/linux/amd64/sys.s
+@@ -6,7 +6,7 @@
+ // System calls and other sys.stuff for AMD64, Linux
+ //
+ 
+-TEXT	sys·Exit(SB),7,$0-8
++TEXT	exit(SB),7,$0-8
+ 	MOVL	8(SP), DI
+ 	MOVL	$231, AX	// exitgroup - force all os threads to exi
+ 	SYSCALL
+diff --git a/src/runtime/proc.c b/src/runtime/proc.c
+index 3875916e77..d52adf94c0 100644
+--- a/src/runtime/proc.c
++++ b/src/runtime/proc.c
+@@ -129,7 +129,7 @@ initdone(void)
+ }
+ 
+ void
+-sys·Goexit(void)
++goexit(void)
+ {
+ 	if(debug > 1){
+ 		lock(&debuglock);
+@@ -137,7 +137,7 @@ sys·Goexit(void)
+ 		unlock(&debuglock);
+ 	}
+ 	g->status = Gmoribund;
+-	sys·Gosched();
++	gosched();
+ }
+ 
+ void
+@@ -431,7 +431,7 @@ scheduler(void)
+ 		case Gmoribund:
+ 			gp->status = Gdead;
+ 			if(--sched.gcount == 0)
+-				sys_Exit(0);
++				exit(0);
+ 			break;
+ 		}
+ 		if(gp->readyonstop){
+@@ -461,7 +461,7 @@ scheduler(void)
+ // before running g again.  If g->status is Gmoribund,
+ // kills off g.
+ void
+-sys·Gosched(void)
++gosched(void)
+ {
+ 	if(g == m->g0)
+ 		throw("gosched of g0");
+@@ -529,7 +529,7 @@ sys·exitsyscall(void)
+ 	// The scheduler will ready g and put this m to sleep.
+ 	// When the scheduler takes g awa from m,
+ 	// it will undo the sched.mcpu++ above.
+-	sys·Gosched();
++	gosched();
+ }
+ 
+ /*
+@@ -784,7 +784,7 @@ sys·newproc(int32 siz, byte* fn, byte* arg0)
+ 	mcpy(sp, (byte*)&arg0, siz);
+ 
+ 	sp -= sizeof(uintptr);
+-	*(byte**)sp = (byte*)sys·Goexit;
++	*(byte**)sp = (byte*)goexit;
+ 
+ 	sp -= sizeof(uintptr);	// retpc used by gogo
+ 	newg->sched.SP = sp;
+@@ -839,3 +839,21 @@ sys·deferreturn(int32 arg0)
+ 	jmpdefer(sp);
+ }
+ 
++void
++runtime·Breakpoint(void)
++{
++	breakpoint();
++}
++
++void
++runtime·Goexit(void)
++{
++	goexit();
++}
++
++void
++runtime·Gosched(void)
++{
++	gosched();
++}
++
+diff --git a/src/runtime/runtime.c b/src/runtime/runtime.c
+index e05563bd6e..afb9cce172 100644
+--- a/src/runtime/runtime.c
++++ b/src/runtime/runtime.c
+@@ -25,7 +25,7 @@ sys·panicl(int32 lno)
+ 
+ 	if(panicking) {
+ 		printf("double panic\n");
+-		sys_Exit(3);
++		exit(3);
+ 	}
+ 	panicking++;
+ 
+@@ -35,8 +35,8 @@ sys·panicl(int32 lno)
+ 		traceback(sys·getcallerpc(&lno), sp, g);
+ 		tracebackothers(g);
+ 	}
+-	sys·Breakpoint();  // so we can grab it in a debugger
+-	sys_Exit(2);
++	breakpoint();  // so we can grab it in a debugger
++	exit(2);
+ }
+ 
+ void
+@@ -57,7 +57,7 @@ throw(int8 *s)
+ 	printf("throw: %s\n", s);
+ 	sys·panicl(-1);
+ 	*(int32*)0 = 0;	// not reached
+-	sys_Exit(1);	// even more not reached
++	exit(1);	// even more not reached
+ }
+ 
+ void
+@@ -136,8 +136,8 @@ rnd(uint32 n, uint32 m)
+ static int32	argc;
+ static uint8**	argv;
+ 
+-Array sys·Args;
+-Array sys·Envs;
++Array os·Args;
++Array os·Envs;
+ 
+ void
+ args(int32 c, uint8 **v)
+@@ -161,15 +161,15 @@ goargs(void)
+ 
+ 	for(i=0; i<argc; i++)
+ 		gargv[i] = gostring(argv[i]);
+-	sys·Args.array = (byte*)gargv;
+-	sys·Args.nel = argc;
+-	sys·Args.cap = argc;
++	os·Args.array = (byte*)gargv;
++	os·Args.nel = argc;
++	os·Args.cap = argc;
+ 
+ 	for(i=0; i<envc; i++)
+ 		genvv[i] = gostring(argv[argc+1+i]);
+-	sys·Envs.array = (byte*)genvv;
+-	sys·Envs.nel = envc;
+-	sys·Envs.cap = envc;
++	os·Envs.array = (byte*)genvv;
++	os·Envs.nel = envc;
++	os·Envs.cap = envc;
+ }
+ 
+ byte*
+@@ -182,8 +182,8 @@ getenv(int8 *s)
+ 
+ 	bs = (byte*)s;
+ 	len = findnull(bs);
+-	envv = (String*)sys·Envs.array;
+-	envc = sys·Envs.nel;
++	envv = (String*)os·Envs.array;
++	envc = os·Envs.nel;
+ 	for(i=0; i<envc; i++){
+ 		if(envv[i].len <= len)
+ 			continue;
+diff --git a/src/runtime/runtime.h b/src/runtime/runtime.h
+index 6b398c2bfa..68d3748f37 100644
+--- a/src/runtime/runtime.h
++++ b/src/runtime/runtime.h
+@@ -329,6 +329,10 @@ uint32	noequal(uint32, void*, void*);
+ void*	malloc(uintptr size);
+ void*	mallocgc(uintptr size);
+ void	free(void *v);
++void	exit(int32);
++void	breakpoint(void);
++void	gosched(void);
++void	goexit(void);
+ 
+ #pragma	varargck	argpos	printf	1
+ 
+@@ -378,15 +382,11 @@ void	notewakeup(Note*);
+  * UTF-8 characters in identifiers.
+  */
+ #ifndef __GNUC__
+-#define sys_Exit sys·Exit
+-#define sys_Gosched sys·Gosched
+ #define sys_memclr sys·memclr
+ #define sys_write sys·write
+-#define sys_Breakpoint sys·Breakpoint
+ #define sys_catstring sys·catstring
+ #define sys_cmpstring sys·cmpstring
+ #define sys_getcallerpc sys·getcallerpc
+-#define sys_Goexit sys·Goexit
+ #define sys_indexstring sys·indexstring
+ #define sys_intstring sys·intstring
+ #define sys_mal sys·mal
+@@ -408,11 +408,7 @@ void	notewakeup(Note*);
+ /*
+  * low level go-called
+  */
+-void	sys_Goexit(void);
+-void	sys_Gosched(void);
+-void	sys_Exit(int32);
+ void	sys_write(int32, void*, int32);
+-void	sys_Breakpoint(void);
+ uint8*	sys_mmap(byte*, uint32, int32, int32, int32, uint32);
+ void	sys_memclr(byte*, uint32);
+ void	sys_setcallerpc(void*, void*);
+diff --git a/src/runtime/sema.c b/src/runtime/sema.c
+index cad08d1672..5e5b07aa6f 100644
+--- a/src/runtime/sema.c
++++ b/src/runtime/sema.c
+@@ -119,7 +119,7 @@ semsleep2(Sema *s)
+ {
+ 	USED(s);
+ 	g->status = Gwaiting;
+-	sys·Gosched();
++	gosched();
+ }
+ 
+ static int32
+diff --git a/src/runtime/string.c b/src/runtime/string.c
+index 667828d66e..5e4922a99f 100644
+--- a/src/runtime/string.c
++++ b/src/runtime/string.c
+@@ -215,8 +215,6 @@ out:
+ void
+ sys·stringiter2(String s, int32 k, int32 retk, int32 retv)
+ {
+-	int32 l;
+-
+ 	if(k >= s.len) {
+ 		// retk=0 is end of iteration
+ 		retk = 0;
+diff --git a/test/235.go b/test/235.go
+index e24106dd00..b8621cc7e5 100644
+--- a/test/235.go
++++ b/test/235.go
+@@ -6,6 +6,8 @@
+ 
+ package main
+ 
++import "os"
++
+ type T chan uint64;
+ 
+ func M(f uint64) (in, out T) {
+@@ -65,5 +67,5 @@ func main() {
+ 		x = min(xs);
+ 		if x != OUT[i] { panic("bad: ", x, " should be ", OUT[i]); }
+ 	}
+-	sys.Exit(0);
++	os.Exit(0);
+ }
+diff --git a/test/args.go b/test/args.go
+index 4b9671a53f..ba9a377a6f 100644
+--- a/test/args.go
++++ b/test/args.go
+@@ -6,14 +6,16 @@
+ 
+ package main
+ 
++import "os"
++
+ func main() {
+-	if len(sys.Args) != 3 {
++	if len(os.Args) != 3 {
+ 		panic("argc")
+ 	}
+-	if sys.Args[1] != "arg1" {
++	if os.Args[1] != "arg1" {
+ 		panic("arg1")
+ 	}
+-	if sys.Args[2] != "arg2" {
++	if os.Args[2] != "arg2" {
+ 		panic("arg2")
+ 	}
+ }
+diff --git a/test/chan/fifo.go b/test/chan/fifo.go
+index ad53ab6558..00a297a604 100644
+--- a/test/chan/fifo.go
++++ b/test/chan/fifo.go
+@@ -8,6 +8,8 @@
+ 
+ package main
+ 
++import "os"
++
+ const N = 10
+ 
+ func AsynchFifo() {
+@@ -18,7 +20,7 @@ func AsynchFifo() {
+ 	for i := 0; i < N; i++ {
+ 		if <-ch != i {
+ 			print("bad receive\n");
+-			sys.Exit(1);
++			os.Exit(1);
+ 		}
+ 	}
+ }
+diff --git a/test/chan/goroutines.go b/test/chan/goroutines.go
+index c1b7143566..cee8a18ac9 100644
+--- a/test/chan/goroutines.go
++++ b/test/chan/goroutines.go
+@@ -20,12 +20,12 @@ func f(left, right chan int) {
+ 
+ func main() {
+ 	var n = 10000;
+-	if len(sys.Args) > 1 {
++	if len(os.Args) > 1 {
+ 		var err os.Error;
+-		n, err = strconv.Atoi(sys.Args[1]);
++		n, err = strconv.Atoi(os.Args[1]);
+ 		if err != nil {
+ 			print("bad arg\n");
+-			sys.Exit(1);
++			os.Exit(1);
+ 		}
+ 	}
+ 	leftmost := make(chan int);
+diff --git a/test/chan/nonblock.go b/test/chan/nonblock.go
+index 2b61ec9dbb..5fd7f0d45d 100644
+--- a/test/chan/nonblock.go
++++ b/test/chan/nonblock.go
+@@ -9,6 +9,7 @@
+ 
+ package main
+ 
++import "runtime"
+ import "time"
+ 
+ func i32receiver(c chan int32, strobe chan bool) {
+@@ -55,9 +56,9 @@ var ticker = time.Tick(10*1000);	// 10 us
+ func sleep() {
+ 	<-ticker;
+ 	<-ticker;
+-	sys.Gosched();
+-	sys.Gosched();
+-	sys.Gosched();
++	runtime.Gosched();
++	runtime.Gosched();
++	runtime.Gosched();
+ }
+ 
+ func main() {
+diff --git a/test/chan/powser1.go b/test/chan/powser1.go
+index c167da1927..f37f639aba 100644
+--- a/test/chan/powser1.go
++++ b/test/chan/powser1.go
+@@ -13,6 +13,8 @@
+ 
+ package main
+ 
++import "os"
++
+ type rat struct  {
+ 	num, den  int64;	// numerator, denominator
+ }
+@@ -623,7 +625,7 @@ func checka(U PS, a []rat, str string) {
+ 
+ func main() {
+ 	Init();
+-	if len(sys.Args) > 1 {  // print
++	if len(os.Args) > 1 {  // print
+ 		print("Ones: "); printn(Ones, 10);
+ 		print("Twos: "); printn(Twos, 10);
+ 		print("Add: "); printn(Add(Ones, Twos), 10);
+diff --git a/test/chan/powser2.go b/test/chan/powser2.go
+index b48110819b..d910019691 100644
+--- a/test/chan/powser2.go
++++ b/test/chan/powser2.go
+@@ -16,6 +16,8 @@
+ 
+ package main
+ 
++import "os"
++
+ type rat struct  {
+ 	num, den  int64;	// numerator, denominator
+ }
+@@ -636,7 +638,7 @@ func checka(U PS, a []*rat, str string) {
+ 
+ func main() {
+ 	Init();
+-	if len(sys.Args) > 1 {  // print
++	if len(os.Args) > 1 {  // print
+ 		print("Ones: "); Printn(Ones, 10);
+ 		print("Twos: "); Printn(Twos, 10);
+ 		print("Add: "); Printn(Add(Ones, Twos), 10);
+diff --git a/test/chan/sieve.go b/test/chan/sieve.go
+index 7d06e98fa7..49f1c105e2 100644
+--- a/test/chan/sieve.go
++++ b/test/chan/sieve.go
+@@ -9,6 +9,8 @@
+ 
+ package main
+ 
++import "os"
++
+ // Send the sequence 2, 3, 4, ... to channel 'ch'.
+ func Generate(ch chan<- int) {
+ 	for i := 2; ; i++ {
+@@ -47,5 +49,5 @@ func main() {
+ 	for i := 0; i < len(a); i++ {
+ 		if x := <-primes; x != a[i] { panic(x, " != ", a[i]) }
+ 	}
+-	sys.Exit(0);
++	os.Exit(0);
+ }
+diff --git a/test/char_lit.go b/test/char_lit.go
+index d45ecf3980..6699442dc8 100644
+--- a/test/char_lit.go
++++ b/test/char_lit.go
+@@ -6,6 +6,8 @@
+ 
+ package main
+ 
++import "os"
++
+ func main() {
+   var i uint64 =
+     ' ' +
+@@ -33,10 +35,10 @@ func main() {
+   ;
+   if '\Ucafebabe' != 0xcafebabe {
+   	print("cafebabe wrong\n");
+-  	sys.Exit(1)
++  	os.Exit(1)
+   }
+   if i != 0xcc238de1 {
+   	print("number is ", i, " should be ", 0xcc238de1, "\n");
+-  	sys.Exit(1)
++  	os.Exit(1)
+   }
+ }
+diff --git a/test/env.go b/test/env.go
+index 41f230d1aa..88cec4546b 100644
+--- a/test/env.go
++++ b/test/env.go
+@@ -12,15 +12,15 @@ func main() {
+ 	ga, e0 := os.Getenv("GOARCH");
+ 	if e0 != nil {
+ 		print("$GOARCH: ", e0.String(), "\n");
+-		sys.Exit(1);
++		os.Exit(1);
+ 	}
+ 	if ga != "amd64" {
+ 		print("$GOARCH=", ga, "\n");
+-		sys.Exit(1);
++		os.Exit(1);
+ 	}
+ 	xxx, e1 := os.Getenv("DOES_NOT_EXIST");
+ 	if e1 != os.ENOENV {
+ 		print("$DOES_NOT_EXIST=", xxx, "; err = ", e1.String(), "\n");
+-		sys.Exit(1);
++		os.Exit(1);
+ 	}
+ }
+diff --git a/test/fixedbugs/bug006.go b/test/fixedbugs/bug006.go
+index 2fbde9c9a7..e7694f95b5 100644
+--- a/test/fixedbugs/bug006.go
++++ b/test/fixedbugs/bug006.go
+@@ -6,6 +6,8 @@
+ 
+ package main
+ 
++import "os"
++
+ const (
+ 	x float = iota;
+ 	g float = 4.5 * iota;
+@@ -13,5 +15,5 @@ const (
+ 
+ func main() {
+ 	if g == 0.0 { print("zero\n");}
+-	if g != 4.5 { print(" fail\n"); sys.Exit(1); }
++	if g != 4.5 { print(" fail\n"); os.Exit(1); }
+ }
+diff --git a/test/fixedbugs/bug059.go b/test/fixedbugs/bug059.go
+index 44f60fedbc..b190d4f26d 100644
+--- a/test/fixedbugs/bug059.go
++++ b/test/fixedbugs/bug059.go
+@@ -6,6 +6,8 @@
+ 
+ package main
+ 
++import "os"
++
+ func P(a []string) string {
+ 	s := "{";
+ 	for i := 0; i < 2; i++ {
+@@ -29,6 +31,6 @@ func main() {
+ 	a[0] = "x";
+ 	m["0"][0] = "deleted";
+ 	if m["0"][0] != "deleted" {
+-		sys.Exit(1);
++		os.Exit(1);
+ 	}
+ }
+diff --git a/test/fixedbugs/bug060.go b/test/fixedbugs/bug060.go
+index 5d5fc4a7ba..82778b8386 100644
+--- a/test/fixedbugs/bug060.go
++++ b/test/fixedbugs/bug060.go
+@@ -6,12 +6,14 @@
+ 
+ package main
+ 
++import "os"
++
+ func main() {
+ 	m := make(map[int]int);
+ 	m[0] = 0;
+ 	m[0]++;
+ 	if m[0] != 1 {
+ 		print("map does not increment\n");
+-		sys.Exit(1)
++		os.Exit(1)
+ 	}
+ }
+diff --git a/test/fixedbugs/bug120.go b/test/fixedbugs/bug120.go
+index 10e28034dc..06a07e8054 100644
+--- a/test/fixedbugs/bug120.go
++++ b/test/fixedbugs/bug120.go
+@@ -6,6 +6,7 @@
+ 
+ package main
+ 
++import "os"
+ import "strconv";
+ 
+ type Test struct {
+@@ -53,6 +54,6 @@ func main() {
+ 		}
+ 	}
+ 	if !ok {
+-		sys.Exit(1);
++		os.Exit(1);
+ 	}
+ }
+diff --git a/test/fixedbugs/bug130.go b/test/fixedbugs/bug130.go
+index aa3f0dd70e..3d13cb8ab1 100644
+--- a/test/fixedbugs/bug130.go
++++ b/test/fixedbugs/bug130.go
+@@ -6,6 +6,8 @@
+ 
+ package main
+ 
++import "os"
++
+ type I interface { send(chan <- int) }
+ 
+ type S struct { v int }
+@@ -16,5 +18,5 @@ func main() {
+   var i I = &s;
+   c := make(chan int);
+   go i.send(c);
+-  sys.Exit(<-c);
++  os.Exit(<-c);
+ }
+diff --git a/test/fixedbugs/bug141.go b/test/fixedbugs/bug141.go
+index a2fd992c03..756ba308d9 100644
+--- a/test/fixedbugs/bug141.go
++++ b/test/fixedbugs/bug141.go
+@@ -6,6 +6,8 @@
+ 
+ package main
+ 
++import "os"
++
+ type S struct { i int }
+ func (p *S) Get() int { return p.i }
+ 
+@@ -18,7 +20,7 @@ type Getter interface {
+ 
+ func f1(p Empty) {
+ 	switch x := p.(type) {
+-	default: println("failed to match interface"); sys.Exit(1);
++	default: println("failed to match interface"); os.Exit(1);
+ 	case Getter: break;
+ 	}
+ 
+diff --git a/test/if1.go b/test/if1.go
+index 1784d82395..3f3ef1597e 100644
+--- a/test/if1.go
++++ b/test/if1.go
+@@ -6,6 +6,8 @@
+ 
+ package main
+ 
++import "os"
++
+ func main() {
+ 	count := 7;
+ 	if one := 1; {
+@@ -13,6 +15,6 @@ func main() {
+ 	}
+ 	if count != 8 {
+ 		print(count, " should be 8\n");
+-		sys.Exit(1)
++		os.Exit(1)
+ 	}
+ }
+diff --git a/test/int_lit.go b/test/int_lit.go
+index 4121070f34..1f4d318afe 100644
+--- a/test/int_lit.go
++++ b/test/int_lit.go
+@@ -6,6 +6,8 @@
+ 
+ package main
+ 
++import "os"
++
+ func main() {
+   s :=
+     0 +
+@@ -18,6 +20,6 @@ func main() {
+     0X123;
+   if s != 788 {
+     print("s is ", s, "; should be 788\n");
+-    sys.Exit(1);
++    os.Exit(1);
+   }
+ }
+diff --git a/test/interface10.go b/test/interface10.go
+index 6afd42a2f4..f84da58ed1 100644
+--- a/test/interface10.go
++++ b/test/interface10.go
+@@ -6,6 +6,8 @@
+ 
+ package main
+ 
++import "os"
++
+ const Value = 1e12
+ 
+ type Inter interface { M() int64 }
+@@ -73,6 +75,6 @@ func main() {
+ 
+ 	if !ok {
+ 		println("BUG: interface10");
+-		sys.Exit(1)
++		os.Exit(1)
+ 	}
+ }
+diff --git a/test/interface4.go b/test/interface4.go
+index 68c5efafb3..b871309379 100644
+--- a/test/interface4.go
++++ b/test/interface4.go
+@@ -9,6 +9,8 @@
+ 
+ package main
+ 
++import "os"
++
+ type I interface { M() int64 }
+ 
+ type BigPtr struct { a, b, c, d int64 }
+@@ -70,6 +72,6 @@ func main() {
+ 	nonptrs();
+ 
+ 	if bad {
+-		sys.Exit(1)
++		os.Exit(1)
+ 	}
+ }
+diff --git a/test/interface6.go b/test/interface6.go
+index 8bfcdf0fc0..c675595fd8 100644
+--- a/test/interface6.go
++++ b/test/interface6.go
+@@ -6,6 +6,8 @@
+ 
+ package main
+ 
++import "os"
++
+ var fail int
+ 
+ func check(b bool, msg string) {
+@@ -145,6 +147,6 @@ func main() {
+   f11();
+   f12();
+   if fail > 0 {
+-    sys.Exit(1)
++    os.Exit(1)
+   }
+ }
+diff --git a/test/ken/chan.go b/test/ken/chan.go
+index e06d9ab40a..d56d77ade2 100644
+--- a/test/ken/chan.go
++++ b/test/ken/chan.go
+@@ -6,6 +6,8 @@
+ 
+ package main
+ 
++import "os"
++import "runtime"
+ 
+ var	randx	int;
+ 
+@@ -88,7 +90,7 @@ send(c *Chan)
+ 	nproc++;	// total goroutines running
+ 	for {
+ 		for r:=nrand(10); r>=0; r-- {
+-			sys.Gosched();
++			runtime.Gosched();
+ 		}
+ 		c.sc <- c.sv;
+ 		if c.send() {
+@@ -119,7 +121,7 @@ recv(c *Chan)
+ 	nproc++;	// total goroutines running
+ 	for {
+ 		for r:=nrand(10); r>=0; r-- {
+-			sys.Gosched();
++			runtime.Gosched();
+ 		}
+ 		v = <-c.rc;
+ 		if c.recv(v) {
+@@ -148,7 +150,7 @@ sel(r0,r1,r2,r3, s0,s1,s2,s3 *Chan)
+ 
+ 	for {
+ 		for r:=nrand(5); r>=0; r-- {
+-			sys.Gosched();
++			runtime.Gosched();
+ 		}
+ 
+ 		select {
+@@ -270,9 +272,9 @@ test6(c int)
+ func
+ wait()
+ {
+-	sys.Gosched();
++	runtime.Gosched();
+ 	for nproc != 0 {
+-		sys.Gosched();
++		runtime.Gosched();
+ 	}
+ }
+ 
+@@ -321,7 +323,7 @@ main()
+ 
+ 	if tots != t || totr != t {
+ 		print("tots=", tots, " totr=", totr, " sb=", t, "\n");
+-		sys.Exit(1);
++		os.Exit(1);
+ 	}
+-	sys.Exit(0);
++	os.Exit(0);
+ }
+diff --git a/test/ken/chan1.go b/test/ken/chan1.go
+index c6d7825b77..5a59de1c0e 100644
+--- a/test/ken/chan1.go
++++ b/test/ken/chan1.go
+@@ -6,6 +6,8 @@
+ 
+ package main
+ 
++import "runtime"
++
+ const	N	= 1000;		// sent messages
+ const	M	= 10;		// receiving goroutines
+ const	W	= 2;		// channel buffering
+@@ -48,9 +50,9 @@ main()
+ 	c := make(chan int, W);
+ 	for m:=0; m<M; m++ {
+ 		go r(c, m);
+-		sys.Gosched();
++		runtime.Gosched();
+ 	}
+-	sys.Gosched();
+-	sys.Gosched();
++	runtime.Gosched();
++	runtime.Gosched();
+ 	s(c);
+ }
+diff --git a/test/string_lit.go b/test/string_lit.go
+index 5842eaa290..18f539dce6 100644
+--- a/test/string_lit.go
++++ b/test/string_lit.go
+@@ -6,6 +6,8 @@
+ 
+ package main
+ 
++import "os"
++
+ var ecode int;
+ 
+ func assert(a, b, c string) {
+@@ -84,5 +86,5 @@ func main() {
+ 	r = 0x10ffff + 1;
+ 	s = string(r);
+ 	assert(s, "\xef\xbf\xbd", "too-large rune");
+-	sys.Exit(ecode);
++	os.Exit(ecode);
+ }
+diff --git a/test/stringrange.go b/test/stringrange.go
+index 4d581d70f2..32ed1e5f02 100644
+--- a/test/stringrange.go
++++ b/test/stringrange.go
+@@ -8,6 +8,7 @@ package main
+ 
+ import(
+         "fmt";
++        "os";
+         "utf8";
+ )
+ 
+@@ -56,6 +57,6 @@ func main() {
+ 
+ 	if !ok {
+ 		fmt.Println("BUG: stringrange");
+-		sys.Exit(1)
++		os.Exit(1)
+ 	}
+ }
+diff --git a/test/switch1.go b/test/switch1.go
+index fac9ac8ec6..9e61cc6585 100644
+--- a/test/switch1.go
++++ b/test/switch1.go
+@@ -6,13 +6,15 @@
+ 
+ package main
+ 
++import "os"
++
+ func main() {
+ 	i := 0;
+ 	switch x := 5; {
+ 		case i < x:
+-			sys.Exit(0);
++			os.Exit(0);
+ 		case i == x:
+ 		case i > x:
+-			sys.Exit(1);
++			os.Exit(1);
+ 	}
+ }
+diff --git a/test/typeswitch.go b/test/typeswitch.go
+index 5ad694d868..0a421ae96f 100644
+--- a/test/typeswitch.go
++++ b/test/typeswitch.go
+@@ -6,6 +6,8 @@
+ 
+ package main
+ 
++import "os"
++
+ const (
+ 	Bool = iota;
+ 	Int;
+@@ -31,7 +33,7 @@ var m = make(map[string]int)
+ func assert(b bool, s string) {
+ 	if !b {
+ 		println(s);
+-		sys.Exit(1);
++		os.Exit(1);
+ 	}
+ }
+ 
+diff --git a/usr/gri/pretty/godoc.go b/usr/gri/pretty/godoc.go
+index f79749f2b3..90984170c6 100644
+--- a/usr/gri/pretty/godoc.go
++++ b/usr/gri/pretty/godoc.go
+@@ -641,7 +641,7 @@ func findPackages(name string) *pakInfo {
+ 				return info;
+ 			}
+ 		}
+-		
++
+ 		info.Packages = paks;
+ 		if cname == "." {
+ 			info.Path = "";
+@@ -704,7 +704,7 @@ func usage() {
+ 		"	godoc -http=:6060\n"
+ 	);
+ 	flag.PrintDefaults();
+-	sys.Exit(1);
++	os.Exit(1);
+ }
+ 
+ 
+@@ -761,7 +761,7 @@ func main() {
+ 		if err != nil {
+ 			log.Stderrf("packagelistText.Execute: %s", err);
+ 		}
+-		sys.Exit(1);
++		os.Exit(1);
+ 	}
+ 
+ 	doc, errors := info.Package.Doc();
+@@ -770,7 +770,7 @@ func main() {
+ 		if err != nil {
+ 			log.Stderrf("parseerrorText.Execute: %s", err);
+ 		}
+-		sys.Exit(1);
++		os.Exit(1);
+ 	}
+ 
+ 	if flag.NArg() > 1 {
+diff --git a/usr/gri/pretty/pretty.go b/usr/gri/pretty/pretty.go
+index 5a27d40207..dce3a286bf 100644
+--- a/usr/gri/pretty/pretty.go
++++ b/usr/gri/pretty/pretty.go
+@@ -41,7 +41,7 @@ func init() {
+ func usage() {
+ 	fmt.Fprintf(os.Stderr, "usage: pretty { flags } { files }\n");
+ 	flag.PrintDefaults();
+-	sys.Exit(1);
++	os.Exit(1);
+ }
+ 
+ 
+@@ -127,12 +127,12 @@ func main() {
+ 	src, err := readFile(ast_txt);
+ 	if err != nil {
+ 		fmt.Fprintf(os.Stderr, "%s: %v\n", ast_txt, err);
+-		sys.Exit(1);
++		os.Exit(1);
+ 	}
+ 	ast_format, err := format.Parse(src, format.FormatterMap{"isValidPos": isValidPos, "isSend": isSend, "isRecv": isRecv});
+ 	if err != nil {
+ 		fmt.Fprintf(os.Stderr, "%s: format errors:\n%s", ast_txt, err);
+-		sys.Exit(1);
++		os.Exit(1);
+ 	}
+ 
+ 	// process files
+@@ -150,7 +150,7 @@ func main() {
+ 		prog, ok := parser.Parse(src, &ErrorHandler{filename, 0}, mode);
+ 		if !ok {
+ 			exitcode = 1;
+-			continue;  // proceed with next file			
++			continue;  // proceed with next file
+ 		}
+ 
+ 		if !*silent {
+@@ -165,6 +165,6 @@ func main() {
+ 			tw.Flush();
+ 		}
+ 	}
+-	
+-	sys.Exit(exitcode);
++
++	os.Exit(exitcode);
+ }
+diff --git a/usr/gri/pretty/untab.go b/usr/gri/pretty/untab.go
+index 026e5b2dd7..b18e08f8b7 100644
+--- a/usr/gri/pretty/untab.go
++++ b/usr/gri/pretty/untab.go
+@@ -21,7 +21,7 @@ var (
+ 
+ func error(format string, params ...) {
+ 	fmt.Printf(format, params);
+-	sys.Exit(1);
++	os.Exit(1);
+ }
+ 
+ 

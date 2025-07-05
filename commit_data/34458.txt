@@ -77,6 +77,31 @@ Date:   Fri Oct 20 03:50:15 2017 +0000
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/arm/ssa.go | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/cmd/compile/internal/arm/ssa.go b/src/cmd/compile/internal/arm/ssa.go
+index aee9ff3014..300672d9cf 100644
+--- a/src/cmd/compile/internal/arm/ssa.go
++++ b/src/cmd/compile/internal/arm/ssa.go
+@@ -13,6 +13,7 @@ import (
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/arm"
++	"cmd/internal/objabi"
+ )
+ 
+ // loadByType returns the load instruction of the given type.
+@@ -604,6 +605,11 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 			default:
+ 			}
+ 		}
++		if objabi.GOARM >= 6 {
++			// generate more efficient "MOVB/MOVBU/MOVH/MOVHU Reg@>0, Reg" on ARMv6 & ARMv7
++			genshift(s, v.Op.Asm(), 0, v.Args[0].Reg(), v.Reg(), arm.SHIFT_RR, 0)
++			return
++		}
+ 		fallthrough
+ 	case ssa.OpARMMVN,
+ 		ssa.OpARMCLZ,

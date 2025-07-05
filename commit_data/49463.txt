@@ -15,7 +15,86 @@ Date:   Tue Aug 17 19:01:52 2021 +1000
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/RISCV64.rules |  6 +++-
  src/cmd/compile/internal/ssa/rewriteRISCV64.go | 46 ++++++++++++++++++++++++++
  2 files changed, 51 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/RISCV64.rules b/src/cmd/compile/internal/ssa/gen/RISCV64.rules
+index 1acef2a273..1414b2b34d 100644
+--- a/src/cmd/compile/internal/ssa/gen/RISCV64.rules
++++ b/src/cmd/compile/internal/ssa/gen/RISCV64.rules
+@@ -596,11 +596,15 @@
+ (BEQZ (SLTU x y) yes no) => (BGEU x y yes no)
+ (BNEZ (SLTU x y) yes no) => (BLTU x y yes no)
+ 
+-// Convert branch with zero to BEQZ/BNEZ.
++// Convert branch with zero to more optimal branch zero.
+ (BEQ (MOVDconst [0]) cond yes no) => (BEQZ cond yes no)
+ (BEQ cond (MOVDconst [0]) yes no) => (BEQZ cond yes no)
+ (BNE (MOVDconst [0]) cond yes no) => (BNEZ cond yes no)
+ (BNE cond (MOVDconst [0]) yes no) => (BNEZ cond yes no)
++(BLT (MOVDconst [0]) cond yes no) => (BGTZ cond yes no)
++(BLT cond (MOVDconst [0]) yes no) => (BLTZ cond yes no)
++(BGE (MOVDconst [0]) cond yes no) => (BLEZ cond yes no)
++(BGE cond (MOVDconst [0]) yes no) => (BGEZ cond yes no)
+ 
+ // Store zero
+ (MOVBstore [off] {sym} ptr (MOVDconst [0]) mem) => (MOVBstorezero [off] {sym} ptr mem)
+diff --git a/src/cmd/compile/internal/ssa/rewriteRISCV64.go b/src/cmd/compile/internal/ssa/rewriteRISCV64.go
+index e9f17206de..9323cda55d 100644
+--- a/src/cmd/compile/internal/ssa/rewriteRISCV64.go
++++ b/src/cmd/compile/internal/ssa/rewriteRISCV64.go
+@@ -6129,6 +6129,52 @@ func rewriteBlockRISCV64(b *Block) bool {
+ 			b.resetWithControl2(BlockRISCV64BGEU, x, y)
+ 			return true
+ 		}
++	case BlockRISCV64BGE:
++		// match: (BGE (MOVDconst [0]) cond yes no)
++		// result: (BLEZ cond yes no)
++		for b.Controls[0].Op == OpRISCV64MOVDconst {
++			v_0 := b.Controls[0]
++			if auxIntToInt64(v_0.AuxInt) != 0 {
++				break
++			}
++			cond := b.Controls[1]
++			b.resetWithControl(BlockRISCV64BLEZ, cond)
++			return true
++		}
++		// match: (BGE cond (MOVDconst [0]) yes no)
++		// result: (BGEZ cond yes no)
++		for b.Controls[1].Op == OpRISCV64MOVDconst {
++			cond := b.Controls[0]
++			v_1 := b.Controls[1]
++			if auxIntToInt64(v_1.AuxInt) != 0 {
++				break
++			}
++			b.resetWithControl(BlockRISCV64BGEZ, cond)
++			return true
++		}
++	case BlockRISCV64BLT:
++		// match: (BLT (MOVDconst [0]) cond yes no)
++		// result: (BGTZ cond yes no)
++		for b.Controls[0].Op == OpRISCV64MOVDconst {
++			v_0 := b.Controls[0]
++			if auxIntToInt64(v_0.AuxInt) != 0 {
++				break
++			}
++			cond := b.Controls[1]
++			b.resetWithControl(BlockRISCV64BGTZ, cond)
++			return true
++		}
++		// match: (BLT cond (MOVDconst [0]) yes no)
++		// result: (BLTZ cond yes no)
++		for b.Controls[1].Op == OpRISCV64MOVDconst {
++			cond := b.Controls[0]
++			v_1 := b.Controls[1]
++			if auxIntToInt64(v_1.AuxInt) != 0 {
++				break
++			}
++			b.resetWithControl(BlockRISCV64BLTZ, cond)
++			return true
++		}
+ 	case BlockRISCV64BNE:
+ 		// match: (BNE (MOVDconst [0]) cond yes no)
+ 		// result: (BNEZ cond yes no)

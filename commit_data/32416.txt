@@ -10,6 +10,31 @@ Date:   Mon Apr 24 18:37:17 2017 +0900
     Reviewed-by: Marvin Stenger <marvin.stenger94@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/os_linux_arm64.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/os_linux_arm64.go b/src/runtime/os_linux_arm64.go
+index f2a2916c37..986a34135e 100644
+--- a/src/runtime/os_linux_arm64.go
++++ b/src/runtime/os_linux_arm64.go
+@@ -5,7 +5,7 @@
+ package runtime
+ 
+ const (
+-        _ARM64_FEATURE_HAS_CRC32 = 0x80
++	_ARM64_FEATURE_HAS_CRC32 = 0x80
+ )
+ 
+ var randomNumber uint32
+@@ -19,8 +19,8 @@ func archauxv(tag, val uintptr) {
+ 		// it as a byte array.
+ 		randomNumber = uint32(startupRandomData[4]) | uint32(startupRandomData[5])<<8 |
+ 			uint32(startupRandomData[6])<<16 | uint32(startupRandomData[7])<<24
+-        case _AT_HWCAP:
+-                supportCRC32 = val & _ARM64_FEATURE_HAS_CRC32 != 0
++	case _AT_HWCAP:
++		supportCRC32 = val&_ARM64_FEATURE_HAS_CRC32 != 0
+ 	}
+ }
+ 

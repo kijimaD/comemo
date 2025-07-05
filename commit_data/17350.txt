@@ -7,6 +7,19 @@ Date:   Wed Aug 21 14:02:58 2013 +1000
     R=r, adg
     CC=golang-dev, toddwang
     https://golang.org/cl/13149043
-
+---
  CONTRIBUTORS | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index b92726a531..0995911e36 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -436,6 +436,7 @@ Thomas Alan Copeland <talan.copeland@gmail.com>
+ Thomas Kappler <tkappler@gmail.com>
+ Timo Savola <timo.savola@gmail.com>
+ Tobias Columbus <tobias.columbus@gmail.com> <tobias.columbus@googlemail.com>
++Todd Wang <toddwang@gmail.com>
+ Tom Szymanski <tgs@google.com>
+ Tor Andersson <tor.andersson@gmail.com>
+ Trevor Strohman <trevor.strohman@gmail.com>

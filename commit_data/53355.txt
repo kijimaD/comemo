@@ -20,7 +20,34 @@ Date:   Thu Aug 11 12:29:47 2022 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  test/fixedbugs/issue46725.go | 2 +-
  test/fixedbugs/issue54343.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/test/fixedbugs/issue46725.go b/test/fixedbugs/issue46725.go
+index 29799c7d7e..f6e443e60f 100644
+--- a/test/fixedbugs/issue46725.go
++++ b/test/fixedbugs/issue46725.go
+@@ -8,7 +8,7 @@ package main
+ 
+ import "runtime"
+ 
+-type T [4]int
++type T [4]int // N.B., [4]int avoids runtime's tiny object allocator
+ 
+ //go:noinline
+ func g(x []*T) ([]*T, []*T) { return x, x }
+diff --git a/test/fixedbugs/issue54343.go b/test/fixedbugs/issue54343.go
+index f8f73f4048..10b91a5398 100644
+--- a/test/fixedbugs/issue54343.go
++++ b/test/fixedbugs/issue54343.go
+@@ -26,7 +26,7 @@ func New[X any]() *T[X] {
+ 	return p
+ }
+ 
+-type T[X any] int
++type T[X any] [4]int // N.B., [4]int avoids runtime's tiny object allocator
+ 
+ func (*T[X]) M() {}
+ 

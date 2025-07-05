@@ -74,7 +74,7 @@ Date:   Thu Dec 31 21:48:27 2020 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/deadcode/deadcode.go   | 150 +++++++++++++++
  src/cmd/compile/internal/gc/main.go             |  42 +++-
  src/cmd/compile/internal/noder/noder.go         | 119 +++++++++++-
@@ -85,3 +85,786 @@ Date:   Thu Dec 31 21:48:27 2020 -0800
  src/cmd/compile/internal/typecheck/typecheck.go | 243 +-----------------------
  src/cmd/compile/internal/typecheck/universe.go  |   4 +-
  9 files changed, 327 insertions(+), 315 deletions(-)
+
+diff --git a/src/cmd/compile/internal/deadcode/deadcode.go b/src/cmd/compile/internal/deadcode/deadcode.go
+new file mode 100644
+index 0000000000..5453cfe396
+--- /dev/null
++++ b/src/cmd/compile/internal/deadcode/deadcode.go
+@@ -0,0 +1,150 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package deadcode
++
++import (
++	"go/constant"
++
++	"cmd/compile/internal/base"
++	"cmd/compile/internal/ir"
++)
++
++func Func(fn *ir.Func) {
++	stmts(&fn.Body)
++
++	if len(fn.Body) == 0 {
++		return
++	}
++
++	for _, n := range fn.Body {
++		if len(n.Init()) > 0 {
++			return
++		}
++		switch n.Op() {
++		case ir.OIF:
++			n := n.(*ir.IfStmt)
++			if !ir.IsConst(n.Cond, constant.Bool) || len(n.Body) > 0 || len(n.Else) > 0 {
++				return
++			}
++		case ir.OFOR:
++			n := n.(*ir.ForStmt)
++			if !ir.IsConst(n.Cond, constant.Bool) || ir.BoolVal(n.Cond) {
++				return
++			}
++		default:
++			return
++		}
++	}
++
++	fn.Body.Set([]ir.Node{ir.NewBlockStmt(base.Pos, nil)})
++}
++
++func stmts(nn *ir.Nodes) {
++	var lastLabel = -1
++	for i, n := range *nn {
++		if n != nil && n.Op() == ir.OLABEL {
++			lastLabel = i
++		}
++	}
++	for i, n := range *nn {
++		// Cut is set to true when all nodes after i'th position
++		// should be removed.
++		// In other words, it marks whole slice "tail" as dead.
++		cut := false
++		if n == nil {
++			continue
++		}
++		if n.Op() == ir.OIF {
++			n := n.(*ir.IfStmt)
++			n.Cond = expr(n.Cond)
++			if ir.IsConst(n.Cond, constant.Bool) {
++				var body ir.Nodes
++				if ir.BoolVal(n.Cond) {
++					n.Else = ir.Nodes{}
++					body = n.Body
++				} else {
++					n.Body = ir.Nodes{}
++					body = n.Else
++				}
++				// If "then" or "else" branch ends with panic or return statement,
++				// it is safe to remove all statements after this node.
++				// isterminating is not used to avoid goto-related complications.
++				// We must be careful not to deadcode-remove labels, as they
++				// might be the target of a goto. See issue 28616.
++				if body := body; len(body) != 0 {
++					switch body[(len(body) - 1)].Op() {
++					case ir.ORETURN, ir.ORETJMP, ir.OPANIC:
++						if i > lastLabel {
++							cut = true
++						}
++					}
++				}
++			}
++		}
++
++		stmts(n.PtrInit())
++		switch n.Op() {
++		case ir.OBLOCK:
++			n := n.(*ir.BlockStmt)
++			stmts(&n.List)
++		case ir.OFOR:
++			n := n.(*ir.ForStmt)
++			stmts(&n.Body)
++		case ir.OIF:
++			n := n.(*ir.IfStmt)
++			stmts(&n.Body)
++			stmts(&n.Else)
++		case ir.ORANGE:
++			n := n.(*ir.RangeStmt)
++			stmts(&n.Body)
++		case ir.OSELECT:
++			n := n.(*ir.SelectStmt)
++			for _, cas := range n.Cases {
++				stmts(&cas.Body)
++			}
++		case ir.OSWITCH:
++			n := n.(*ir.SwitchStmt)
++			for _, cas := range n.Cases {
++				stmts(&cas.Body)
++			}
++		}
++
++		if cut {
++			nn.Set((*nn)[:i+1])
++			break
++		}
++	}
++}
++
++func expr(n ir.Node) ir.Node {
++	// Perform dead-code elimination on short-circuited boolean
++	// expressions involving constants with the intent of
++	// producing a constant 'if' condition.
++	switch n.Op() {
++	case ir.OANDAND:
++		n := n.(*ir.LogicalExpr)
++		n.X = expr(n.X)
++		n.Y = expr(n.Y)
++		if ir.IsConst(n.X, constant.Bool) {
++			if ir.BoolVal(n.X) {
++				return n.Y // true && x => x
++			} else {
++				return n.X // false && x => false
++			}
++		}
++	case ir.OOROR:
++		n := n.(*ir.LogicalExpr)
++		n.X = expr(n.X)
++		n.Y = expr(n.Y)
++		if ir.IsConst(n.X, constant.Bool) {
++			if ir.BoolVal(n.X) {
++				return n.X // true || x => true
++			} else {
++				return n.Y // false || x => x
++			}
++		}
++	}
++	return n
++}
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 45219801f0..603619eb5a 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -8,6 +8,7 @@ import (
+ 	"bufio"
+ 	"bytes"
+ 	"cmd/compile/internal/base"
++	"cmd/compile/internal/deadcode"
+ 	"cmd/compile/internal/devirtualize"
+ 	"cmd/compile/internal/dwarfgen"
+ 	"cmd/compile/internal/escape"
+@@ -210,12 +211,51 @@ func Main(archInit func(*ssagen.ArchInfo)) {
+ 	dwarfgen.RecordPackageName()
+ 
+ 	// Typecheck.
+-	typecheck.Package()
++	noder.Package()
+ 
+ 	// With all user code typechecked, it's now safe to verify unused dot imports.
+ 	noder.CheckDotImports()
+ 	base.ExitIfErrors()
++	// Phase 6: Compute Addrtaken for names.
++	// We need to wait until typechecking is done so that when we see &x[i]
++	// we know that x has its address taken if x is an array, but not if x is a slice.
++	// We compute Addrtaken in bulk here.
++	// After this phase, we maintain Addrtaken incrementally.
++	if typecheck.DirtyAddrtaken {
++		typecheck.ComputeAddrtaken(typecheck.Target.Decls)
++		typecheck.DirtyAddrtaken = false
++	}
++	typecheck.IncrementalAddrtaken = true
+ 
++	// Phase 7: Eliminate some obviously dead code.
++	// Must happen after typechecking.
++	for _, n := range typecheck.Target.Decls {
++		if n.Op() == ir.ODCLFUNC {
++			deadcode.Func(n.(*ir.Func))
++		}
++	}
++
++	// Phase 8: Decide how to capture closed variables.
++	// This needs to run before escape analysis,
++	// because variables captured by value do not escape.
++	base.Timer.Start("fe", "capturevars")
++	for _, n := range typecheck.Target.Decls {
++		if n.Op() == ir.ODCLFUNC {
++			n := n.(*ir.Func)
++			if n.OClosure != nil {
++				ir.CurFunc = n
++				typecheck.CaptureVars(n)
++			}
++		}
++	}
++	typecheck.CaptureVarsComplete = true
++	ir.CurFunc = nil
++
++	if base.Debug.TypecheckInl != 0 {
++		// Typecheck imported function bodies if Debug.l > 1,
++		// otherwise lazily when used or re-exported.
++		typecheck.AllImportedBodies()
++	}
+ 	// Build init task.
+ 	if initTask := pkginit.Task(); initTask != nil {
+ 		typecheck.Export(initTask)
+diff --git a/src/cmd/compile/internal/noder/noder.go b/src/cmd/compile/internal/noder/noder.go
+index 748fd96380..40569af317 100644
+--- a/src/cmd/compile/internal/noder/noder.go
++++ b/src/cmd/compile/internal/noder/noder.go
+@@ -85,6 +85,69 @@ func ParseFiles(filenames []string) uint {
+ 	return lines
+ }
+ 
++func Package() {
++	typecheck.DeclareUniverse()
++
++	typecheck.TypecheckAllowed = true
++
++	// Process top-level declarations in phases.
++
++	// Phase 1: const, type, and names and types of funcs.
++	//   This will gather all the information about types
++	//   and methods but doesn't depend on any of it.
++	//
++	//   We also defer type alias declarations until phase 2
++	//   to avoid cycles like #18640.
++	//   TODO(gri) Remove this again once we have a fix for #25838.
++
++	// Don't use range--typecheck can add closures to Target.Decls.
++	base.Timer.Start("fe", "typecheck", "top1")
++	for i := 0; i < len(typecheck.Target.Decls); i++ {
++		n := typecheck.Target.Decls[i]
++		if op := n.Op(); op != ir.ODCL && op != ir.OAS && op != ir.OAS2 && (op != ir.ODCLTYPE || !n.(*ir.Decl).X.Alias()) {
++			typecheck.Target.Decls[i] = typecheck.Stmt(n)
++		}
++	}
++
++	// Phase 2: Variable assignments.
++	//   To check interface assignments, depends on phase 1.
++
++	// Don't use range--typecheck can add closures to Target.Decls.
++	base.Timer.Start("fe", "typecheck", "top2")
++	for i := 0; i < len(typecheck.Target.Decls); i++ {
++		n := typecheck.Target.Decls[i]
++		if op := n.Op(); op == ir.ODCL || op == ir.OAS || op == ir.OAS2 || op == ir.ODCLTYPE && n.(*ir.Decl).X.Alias() {
++			typecheck.Target.Decls[i] = typecheck.Stmt(n)
++		}
++	}
++
++	// Phase 3: Type check function bodies.
++	// Don't use range--typecheck can add closures to Target.Decls.
++	base.Timer.Start("fe", "typecheck", "func")
++	var fcount int64
++	for i := 0; i < len(typecheck.Target.Decls); i++ {
++		n := typecheck.Target.Decls[i]
++		if n.Op() == ir.ODCLFUNC {
++			typecheck.FuncBody(n.(*ir.Func))
++			fcount++
++		}
++	}
++
++	// Phase 4: Check external declarations.
++	// TODO(mdempsky): This should be handled when type checking their
++	// corresponding ODCL nodes.
++	base.Timer.Start("fe", "typecheck", "externdcls")
++	for i, n := range typecheck.Target.Externs {
++		if n.Op() == ir.ONAME {
++			typecheck.Target.Externs[i] = typecheck.Expr(typecheck.Target.Externs[i])
++		}
++	}
++
++	// Phase 5: With all user code type-checked, it's now safe to verify map keys.
++	typecheck.CheckMapKeys()
++
++}
++
+ // makeSrcPosBase translates from a *syntax.PosBase to a *src.PosBase.
+ func (p *noder) makeSrcPosBase(b0 *syntax.PosBase) *src.PosBase {
+ 	// fast path: most likely PosBase hasn't changed
+@@ -398,7 +461,61 @@ func (p *noder) varDecl(decl *syntax.VarDecl) []ir.Node {
+ 	}
+ 
+ 	p.setlineno(decl)
+-	return typecheck.DeclVars(names, typ, exprs)
++	return DeclVars(names, typ, exprs)
++}
++
++// declare variables from grammar
++// new_name_list (type | [type] = expr_list)
++func DeclVars(vl []*ir.Name, t ir.Ntype, el []ir.Node) []ir.Node {
++	var init []ir.Node
++	doexpr := len(el) > 0
++
++	if len(el) == 1 && len(vl) > 1 {
++		e := el[0]
++		as2 := ir.NewAssignListStmt(base.Pos, ir.OAS2, nil, nil)
++		as2.Rhs = []ir.Node{e}
++		for _, v := range vl {
++			as2.Lhs.Append(v)
++			typecheck.Declare(v, typecheck.DeclContext)
++			v.Ntype = t
++			v.Defn = as2
++			if ir.CurFunc != nil {
++				init = append(init, ir.NewDecl(base.Pos, ir.ODCL, v))
++			}
++		}
++
++		return append(init, as2)
++	}
++
++	for i, v := range vl {
++		var e ir.Node
++		if doexpr {
++			if i >= len(el) {
++				base.Errorf("assignment mismatch: %d variables but %d values", len(vl), len(el))
++				break
++			}
++			e = el[i]
++		}
++
++		typecheck.Declare(v, typecheck.DeclContext)
++		v.Ntype = t
++
++		if e != nil || ir.CurFunc != nil || ir.IsBlank(v) {
++			if ir.CurFunc != nil {
++				init = append(init, ir.NewDecl(base.Pos, ir.ODCL, v))
++			}
++			as := ir.NewAssignStmt(base.Pos, v, e)
++			init = append(init, as)
++			if e != nil {
++				v.Defn = as
++			}
++		}
++	}
++
++	if len(el) > len(vl) {
++		base.Errorf("assignment mismatch: %d variables but %d values", len(vl), len(el))
++	}
++	return init
+ }
+ 
+ // constState tracks state between constant specifiers within a
+diff --git a/src/cmd/compile/internal/typecheck/dcl.go b/src/cmd/compile/internal/typecheck/dcl.go
+index c4f32ff59d..fd55f472ab 100644
+--- a/src/cmd/compile/internal/typecheck/dcl.go
++++ b/src/cmd/compile/internal/typecheck/dcl.go
+@@ -33,60 +33,6 @@ func DeclFunc(sym *types.Sym, tfn ir.Ntype) *ir.Func {
+ 	return fn
+ }
+ 
+-// declare variables from grammar
+-// new_name_list (type | [type] = expr_list)
+-func DeclVars(vl []*ir.Name, t ir.Ntype, el []ir.Node) []ir.Node {
+-	var init []ir.Node
+-	doexpr := len(el) > 0
+-
+-	if len(el) == 1 && len(vl) > 1 {
+-		e := el[0]
+-		as2 := ir.NewAssignListStmt(base.Pos, ir.OAS2, nil, nil)
+-		as2.Rhs = []ir.Node{e}
+-		for _, v := range vl {
+-			as2.Lhs.Append(v)
+-			Declare(v, DeclContext)
+-			v.Ntype = t
+-			v.Defn = as2
+-			if ir.CurFunc != nil {
+-				init = append(init, ir.NewDecl(base.Pos, ir.ODCL, v))
+-			}
+-		}
+-
+-		return append(init, as2)
+-	}
+-
+-	for i, v := range vl {
+-		var e ir.Node
+-		if doexpr {
+-			if i >= len(el) {
+-				base.Errorf("assignment mismatch: %d variables but %d values", len(vl), len(el))
+-				break
+-			}
+-			e = el[i]
+-		}
+-
+-		Declare(v, DeclContext)
+-		v.Ntype = t
+-
+-		if e != nil || ir.CurFunc != nil || ir.IsBlank(v) {
+-			if ir.CurFunc != nil {
+-				init = append(init, ir.NewDecl(base.Pos, ir.ODCL, v))
+-			}
+-			as := ir.NewAssignStmt(base.Pos, v, e)
+-			init = append(init, as)
+-			if e != nil {
+-				v.Defn = as
+-			}
+-		}
+-	}
+-
+-	if len(el) > len(vl) {
+-		base.Errorf("assignment mismatch: %d variables but %d values", len(vl), len(el))
+-	}
+-	return init
+-}
+-
+ // Declare records that Node n declares symbol n.Sym in the specified
+ // declaration context.
+ func Declare(n *ir.Name, ctxt ir.Class) {
+diff --git a/src/cmd/compile/internal/typecheck/func.go b/src/cmd/compile/internal/typecheck/func.go
+index 3552bcf924..d8c1748432 100644
+--- a/src/cmd/compile/internal/typecheck/func.go
++++ b/src/cmd/compile/internal/typecheck/func.go
+@@ -169,13 +169,13 @@ func ImportedBody(fn *ir.Func) {
+ 	// computeAddrtaken call below (after we typecheck the body).
+ 	// TODO: export/import types and addrtaken marks along with inlined bodies,
+ 	// so this will be unnecessary.
+-	incrementalAddrtaken = false
++	IncrementalAddrtaken = false
+ 	defer func() {
+-		if dirtyAddrtaken {
+-			computeAddrtaken(fn.Inl.Body) // compute addrtaken marks once types are available
+-			dirtyAddrtaken = false
++		if DirtyAddrtaken {
++			ComputeAddrtaken(fn.Inl.Body) // compute addrtaken marks once types are available
++			DirtyAddrtaken = false
+ 		}
+-		incrementalAddrtaken = true
++		IncrementalAddrtaken = true
+ 	}()
+ 
+ 	ImportBody(fn)
+diff --git a/src/cmd/compile/internal/typecheck/subr.go b/src/cmd/compile/internal/typecheck/subr.go
+index 9d414874a0..447e945d81 100644
+--- a/src/cmd/compile/internal/typecheck/subr.go
++++ b/src/cmd/compile/internal/typecheck/subr.go
+@@ -72,7 +72,7 @@ func NodAddrAt(pos src.XPos, n ir.Node) *ir.AddrExpr {
+ }
+ 
+ func markAddrOf(n ir.Node) ir.Node {
+-	if incrementalAddrtaken {
++	if IncrementalAddrtaken {
+ 		// We can only do incremental addrtaken computation when it is ok
+ 		// to typecheck the argument of the OADDR. That's only safe after the
+ 		// main typecheck has completed.
+@@ -86,22 +86,22 @@ func markAddrOf(n ir.Node) ir.Node {
+ 	} else {
+ 		// Remember that we built an OADDR without computing the Addrtaken bit for
+ 		// its argument. We'll do that later in bulk using computeAddrtaken.
+-		dirtyAddrtaken = true
++		DirtyAddrtaken = true
+ 	}
+ 	return n
+ }
+ 
+-// If incrementalAddrtaken is false, we do not compute Addrtaken for an OADDR Node
++// If IncrementalAddrtaken is false, we do not compute Addrtaken for an OADDR Node
+ // when it is built. The Addrtaken bits are set in bulk by computeAddrtaken.
+-// If incrementalAddrtaken is true, then when an OADDR Node is built the Addrtaken
++// If IncrementalAddrtaken is true, then when an OADDR Node is built the Addrtaken
+ // field of its argument is updated immediately.
+-var incrementalAddrtaken = false
++var IncrementalAddrtaken = false
+ 
+-// If dirtyAddrtaken is true, then there are OADDR whose corresponding arguments
++// If DirtyAddrtaken is true, then there are OADDR whose corresponding arguments
+ // have not yet been marked as Addrtaken.
+-var dirtyAddrtaken = false
++var DirtyAddrtaken = false
+ 
+-func computeAddrtaken(top []ir.Node) {
++func ComputeAddrtaken(top []ir.Node) {
+ 	for _, n := range top {
+ 		ir.Visit(n, func(n ir.Node) {
+ 			if n.Op() == ir.OADDR {
+diff --git a/src/cmd/compile/internal/typecheck/syms.go b/src/cmd/compile/internal/typecheck/syms.go
+index ab3384bf90..f0e230432a 100644
+--- a/src/cmd/compile/internal/typecheck/syms.go
++++ b/src/cmd/compile/internal/typecheck/syms.go
+@@ -61,10 +61,10 @@ func Lookup(name string) *types.Sym {
+ 	return types.LocalPkg.Lookup(name)
+ }
+ 
+-// loadsys loads the definitions for the low-level runtime functions,
++// InitRuntime loads the definitions for the low-level runtime functions,
+ // so that the compiler can generate calls to them,
+ // but does not make them visible to user code.
+-func loadsys() {
++func InitRuntime() {
+ 	types.Block = 1
+ 
+ 	inimport = true
+diff --git a/src/cmd/compile/internal/typecheck/typecheck.go b/src/cmd/compile/internal/typecheck/typecheck.go
+index 4b5c3198ca..4c6ac21fc6 100644
+--- a/src/cmd/compile/internal/typecheck/typecheck.go
++++ b/src/cmd/compile/internal/typecheck/typecheck.go
+@@ -35,110 +35,7 @@ func Init() {
+ 	initUniverse()
+ 	DeclContext = ir.PEXTERN
+ 	base.Timer.Start("fe", "loadsys")
+-	loadsys()
+-}
+-
+-func Package() {
+-	declareUniverse()
+-
+-	TypecheckAllowed = true
+-
+-	// Process top-level declarations in phases.
+-
+-	// Phase 1: const, type, and names and types of funcs.
+-	//   This will gather all the information about types
+-	//   and methods but doesn't depend on any of it.
+-	//
+-	//   We also defer type alias declarations until phase 2
+-	//   to avoid cycles like #18640.
+-	//   TODO(gri) Remove this again once we have a fix for #25838.
+-
+-	// Don't use range--typecheck can add closures to Target.Decls.
+-	base.Timer.Start("fe", "typecheck", "top1")
+-	for i := 0; i < len(Target.Decls); i++ {
+-		n := Target.Decls[i]
+-		if op := n.Op(); op != ir.ODCL && op != ir.OAS && op != ir.OAS2 && (op != ir.ODCLTYPE || !n.(*ir.Decl).X.Alias()) {
+-			Target.Decls[i] = Stmt(n)
+-		}
+-	}
+-
+-	// Phase 2: Variable assignments.
+-	//   To check interface assignments, depends on phase 1.
+-
+-	// Don't use range--typecheck can add closures to Target.Decls.
+-	base.Timer.Start("fe", "typecheck", "top2")
+-	for i := 0; i < len(Target.Decls); i++ {
+-		n := Target.Decls[i]
+-		if op := n.Op(); op == ir.ODCL || op == ir.OAS || op == ir.OAS2 || op == ir.ODCLTYPE && n.(*ir.Decl).X.Alias() {
+-			Target.Decls[i] = Stmt(n)
+-		}
+-	}
+-
+-	// Phase 3: Type check function bodies.
+-	// Don't use range--typecheck can add closures to Target.Decls.
+-	base.Timer.Start("fe", "typecheck", "func")
+-	var fcount int64
+-	for i := 0; i < len(Target.Decls); i++ {
+-		n := Target.Decls[i]
+-		if n.Op() == ir.ODCLFUNC {
+-			FuncBody(n.(*ir.Func))
+-			fcount++
+-		}
+-	}
+-
+-	// Phase 4: Check external declarations.
+-	// TODO(mdempsky): This should be handled when type checking their
+-	// corresponding ODCL nodes.
+-	base.Timer.Start("fe", "typecheck", "externdcls")
+-	for i, n := range Target.Externs {
+-		if n.Op() == ir.ONAME {
+-			Target.Externs[i] = Expr(Target.Externs[i])
+-		}
+-	}
+-
+-	// Phase 5: With all user code type-checked, it's now safe to verify map keys.
+-	CheckMapKeys()
+-
+-	// Phase 6: Compute Addrtaken for names.
+-	// We need to wait until typechecking is done so that when we see &x[i]
+-	// we know that x has its address taken if x is an array, but not if x is a slice.
+-	// We compute Addrtaken in bulk here.
+-	// After this phase, we maintain Addrtaken incrementally.
+-	if dirtyAddrtaken {
+-		computeAddrtaken(Target.Decls)
+-		dirtyAddrtaken = false
+-	}
+-	incrementalAddrtaken = true
+-
+-	// Phase 7: Eliminate some obviously dead code.
+-	// Must happen after typechecking.
+-	for _, n := range Target.Decls {
+-		if n.Op() == ir.ODCLFUNC {
+-			deadcode(n.(*ir.Func))
+-		}
+-	}
+-
+-	// Phase 8: Decide how to capture closed variables.
+-	// This needs to run before escape analysis,
+-	// because variables captured by value do not escape.
+-	base.Timer.Start("fe", "capturevars")
+-	for _, n := range Target.Decls {
+-		if n.Op() == ir.ODCLFUNC {
+-			n := n.(*ir.Func)
+-			if n.OClosure != nil {
+-				ir.CurFunc = n
+-				CaptureVars(n)
+-			}
+-		}
+-	}
+-	CaptureVarsComplete = true
+-	ir.CurFunc = nil
+-
+-	if base.Debug.TypecheckInl != 0 {
+-		// Typecheck imported function bodies if Debug.l > 1,
+-		// otherwise lazily when used or re-exported.
+-		AllImportedBodies()
+-	}
++	InitRuntime()
+ }
+ 
+ func AssignExpr(n ir.Node) ir.Node { return typecheck(n, ctxExpr|ctxAssign) }
+@@ -2247,144 +2144,6 @@ func CheckReturn(fn *ir.Func) {
+ 	}
+ }
+ 
+-func deadcode(fn *ir.Func) {
+-	deadcodeslice(&fn.Body)
+-
+-	if len(fn.Body) == 0 {
+-		return
+-	}
+-
+-	for _, n := range fn.Body {
+-		if len(n.Init()) > 0 {
+-			return
+-		}
+-		switch n.Op() {
+-		case ir.OIF:
+-			n := n.(*ir.IfStmt)
+-			if !ir.IsConst(n.Cond, constant.Bool) || len(n.Body) > 0 || len(n.Else) > 0 {
+-				return
+-			}
+-		case ir.OFOR:
+-			n := n.(*ir.ForStmt)
+-			if !ir.IsConst(n.Cond, constant.Bool) || ir.BoolVal(n.Cond) {
+-				return
+-			}
+-		default:
+-			return
+-		}
+-	}
+-
+-	fn.Body.Set([]ir.Node{ir.NewBlockStmt(base.Pos, nil)})
+-}
+-
+-func deadcodeslice(nn *ir.Nodes) {
+-	var lastLabel = -1
+-	for i, n := range *nn {
+-		if n != nil && n.Op() == ir.OLABEL {
+-			lastLabel = i
+-		}
+-	}
+-	for i, n := range *nn {
+-		// Cut is set to true when all nodes after i'th position
+-		// should be removed.
+-		// In other words, it marks whole slice "tail" as dead.
+-		cut := false
+-		if n == nil {
+-			continue
+-		}
+-		if n.Op() == ir.OIF {
+-			n := n.(*ir.IfStmt)
+-			n.Cond = deadcodeexpr(n.Cond)
+-			if ir.IsConst(n.Cond, constant.Bool) {
+-				var body ir.Nodes
+-				if ir.BoolVal(n.Cond) {
+-					n.Else = ir.Nodes{}
+-					body = n.Body
+-				} else {
+-					n.Body = ir.Nodes{}
+-					body = n.Else
+-				}
+-				// If "then" or "else" branch ends with panic or return statement,
+-				// it is safe to remove all statements after this node.
+-				// isterminating is not used to avoid goto-related complications.
+-				// We must be careful not to deadcode-remove labels, as they
+-				// might be the target of a goto. See issue 28616.
+-				if body := body; len(body) != 0 {
+-					switch body[(len(body) - 1)].Op() {
+-					case ir.ORETURN, ir.ORETJMP, ir.OPANIC:
+-						if i > lastLabel {
+-							cut = true
+-						}
+-					}
+-				}
+-			}
+-		}
+-
+-		deadcodeslice(n.PtrInit())
+-		switch n.Op() {
+-		case ir.OBLOCK:
+-			n := n.(*ir.BlockStmt)
+-			deadcodeslice(&n.List)
+-		case ir.OFOR:
+-			n := n.(*ir.ForStmt)
+-			deadcodeslice(&n.Body)
+-		case ir.OIF:
+-			n := n.(*ir.IfStmt)
+-			deadcodeslice(&n.Body)
+-			deadcodeslice(&n.Else)
+-		case ir.ORANGE:
+-			n := n.(*ir.RangeStmt)
+-			deadcodeslice(&n.Body)
+-		case ir.OSELECT:
+-			n := n.(*ir.SelectStmt)
+-			for _, cas := range n.Cases {
+-				deadcodeslice(&cas.Body)
+-			}
+-		case ir.OSWITCH:
+-			n := n.(*ir.SwitchStmt)
+-			for _, cas := range n.Cases {
+-				deadcodeslice(&cas.Body)
+-			}
+-		}
+-
+-		if cut {
+-			nn.Set((*nn)[:i+1])
+-			break
+-		}
+-	}
+-}
+-
+-func deadcodeexpr(n ir.Node) ir.Node {
+-	// Perform dead-code elimination on short-circuited boolean
+-	// expressions involving constants with the intent of
+-	// producing a constant 'if' condition.
+-	switch n.Op() {
+-	case ir.OANDAND:
+-		n := n.(*ir.LogicalExpr)
+-		n.X = deadcodeexpr(n.X)
+-		n.Y = deadcodeexpr(n.Y)
+-		if ir.IsConst(n.X, constant.Bool) {
+-			if ir.BoolVal(n.X) {
+-				return n.Y // true && x => x
+-			} else {
+-				return n.X // false && x => false
+-			}
+-		}
+-	case ir.OOROR:
+-		n := n.(*ir.LogicalExpr)
+-		n.X = deadcodeexpr(n.X)
+-		n.Y = deadcodeexpr(n.Y)
+-		if ir.IsConst(n.X, constant.Bool) {
+-			if ir.BoolVal(n.X) {
+-				return n.X // true || x => true
+-			} else {
+-				return n.Y // false || x => x
+-			}
+-		}
+-	}
+-	return n
+-}
+-
+ // getIotaValue returns the current value for "iota",
+ // or -1 if not within a ConstSpec.
+ func getIotaValue() int64 {
+diff --git a/src/cmd/compile/internal/typecheck/universe.go b/src/cmd/compile/internal/typecheck/universe.go
+index fc8e962e28..054f094cd3 100644
+--- a/src/cmd/compile/internal/typecheck/universe.go
++++ b/src/cmd/compile/internal/typecheck/universe.go
+@@ -336,8 +336,8 @@ func makeErrorInterface() *types.Type {
+ 	return types.NewInterface(types.NoPkg, []*types.Field{method})
+ }
+ 
+-// declareUniverse makes the universe block visible within the current package.
+-func declareUniverse() {
++// DeclareUniverse makes the universe block visible within the current package.
++func DeclareUniverse() {
+ 	// Operationally, this is similar to a dot import of builtinpkg, except
+ 	// that we silently skip symbols that are already declared in the
+ 	// package block rather than emitting a redeclared symbol error.

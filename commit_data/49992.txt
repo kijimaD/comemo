@@ -10,9 +10,70 @@ Date:   Mon Sep 20 00:23:40 2021 +0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/350929
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Trust: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/types2/expr.go                       |  2 +-
  .../compile/internal/types2/testdata/fixedbugs/issue48472.go2 | 11 +++++++++++
  src/go/types/expr.go                                          |  2 +-
  src/go/types/testdata/fixedbugs/issue48472.go2                | 11 +++++++++++
  4 files changed, 24 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/expr.go b/src/cmd/compile/internal/types2/expr.go
+index 12b7b6cd9f..90c80f9de0 100644
+--- a/src/cmd/compile/internal/types2/expr.go
++++ b/src/cmd/compile/internal/types2/expr.go
+@@ -1019,7 +1019,7 @@ func (check *Checker) binary(x *operand, e syntax.Expr, lhs, rhs syntax.Expr, op
+ 		// only report an error if we have valid types
+ 		// (otherwise we had an error reported elsewhere already)
+ 		if x.typ != Typ[Invalid] && y.typ != Typ[Invalid] {
+-			check.errorf(x, invalidOp+"mismatched types %s and %s", x.typ, y.typ)
++			check.errorf(x, invalidOp+"%s (mismatched types %s and %s)", e, x.typ, y.typ)
+ 		}
+ 		x.mode = invalid
+ 		return
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48472.go2 b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48472.go2
+new file mode 100644
+index 0000000000..5fefcaf22b
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48472.go2
+@@ -0,0 +1,11 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func g() {
++	var s string
++	var i int
++	_ = s /* ERROR invalid operation: s \+ i \(mismatched types string and int\) */ + i
++}
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index 007205a9fb..2fc5aa85d2 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -994,7 +994,7 @@ func (check *Checker) binary(x *operand, e ast.Expr, lhs, rhs ast.Expr, op token
+ 			if e != nil {
+ 				posn = e
+ 			}
+-			check.invalidOp(posn, _MismatchedTypes, "mismatched types %s and %s", x.typ, y.typ)
++			check.invalidOp(posn, _MismatchedTypes, "%s (mismatched types %s and %s)", e, x.typ, y.typ)
+ 		}
+ 		x.mode = invalid
+ 		return
+diff --git a/src/go/types/testdata/fixedbugs/issue48472.go2 b/src/go/types/testdata/fixedbugs/issue48472.go2
+new file mode 100644
+index 0000000000..5fefcaf22b
+--- /dev/null
++++ b/src/go/types/testdata/fixedbugs/issue48472.go2
+@@ -0,0 +1,11 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func g() {
++	var s string
++	var i int
++	_ = s /* ERROR invalid operation: s \+ i \(mismatched types string and int\) */ + i
++}

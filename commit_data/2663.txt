@@ -8,6 +8,26 @@ Date:   Fri Jul 10 10:00:25 2009 -0700
     DELTA=2  (0 added, 0 deleted, 2 changed)
     OCL=31449
     CL=31451
-
+---
  src/pkg/go/parser/parser_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/go/parser/parser_test.go b/src/pkg/go/parser/parser_test.go
+index 887fcf80fa..012a6ef106 100644
+--- a/src/pkg/go/parser/parser_test.go
++++ b/src/pkg/go/parser/parser_test.go
+@@ -57,12 +57,12 @@ func TestParse3(t *testing.T) {
+ 		src, err := os.Open(filename, os.O_RDONLY, 0);
+ 		defer src.Close();
+ 		if err != nil {
+-			t.Fatalf("os.Open(%s): %v\n", filename, err);
++			t.Fatal(err);
+ 		}
+ 
+ 		prog, err := Parse(src, 0);
+ 		if err != nil {
+-			t.Errorf("Parse(%q): %v", src, err);
++			t.Errorf("Parse(%s): %v", filename, err);
+ 		}
+ 	}
+ }

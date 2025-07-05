@@ -6,7 +6,55 @@ Date:   Mon Jun 23 20:12:39 2008 -0700
     extant code is too fragile
     
     SVN=124223
-
+---
  src/runtime/rt0_amd64_darwin.s |  2 +-
  src/runtime/rt1_amd64_darwin.c | 11 ++++++++---
  2 files changed, 9 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/rt0_amd64_darwin.s b/src/runtime/rt0_amd64_darwin.s
+index 16592b90ae..fcd86b9879 100644
+--- a/src/runtime/rt0_amd64_darwin.s
++++ b/src/runtime/rt0_amd64_darwin.s
+@@ -64,7 +64,7 @@ TEXT	sys_sigaction(SB),1,$-8
+ 	CALL	notok(SB)
+ 	RET
+ 
+-TEXT sigtramp(SB),1,$-24
++TEXT sigtramp(SB),1,$24
+ 	MOVL	DX,0(SP)
+ 	MOVQ	CX,8(SP)
+ 	MOVQ	R8,16(SP)
+diff --git a/src/runtime/rt1_amd64_darwin.c b/src/runtime/rt1_amd64_darwin.c
+index c24b40fae5..94d27ee70e 100644
+--- a/src/runtime/rt1_amd64_darwin.c
++++ b/src/runtime/rt1_amd64_darwin.c
+@@ -39,6 +39,7 @@ typedef struct  sigaction {
+ void
+ sighandler(int32 sig, siginfo* info, void** context) {
+ 	int32 i;
++	void *pc, *sp;
+ 
+ 	if(sig < 0 || sig >= NSIG){
+ 		prints("Signal ");
+@@ -46,14 +47,18 @@ sighandler(int32 sig, siginfo* info, void** context) {
+ 	}else{
+ 		prints(sigtab[sig].name);
+ 	}
++
+ 	prints("\nFaulting address: 0x");
+ 	sys_printpointer(info->si_addr);
+ 	prints("\nPC: 0x");
+-	sys_printpointer(((void**)((&sig)+1))[22]);
++	pc = ((void**)((&sig)+1))[22];
++	sys_printpointer(pc);
+ 	prints("\nSP: 0x");
+-	sys_printpointer(((void**)((&sig)+1))[13]);
++	sp = ((void**)((&sig)+1))[13];
++	sys_printpointer(sp);
+ 	prints("\n");
+-	traceback(((void**)((&sig)+1))[22], ((void**)((&sig)+1))[13]);	/* empirically discovered locations */
++	if (pc != 0 && sp != 0)
++		traceback(pc, sp);	/* empirically discovered locations */
+ 	sys_exit(2);
+ }
+ 

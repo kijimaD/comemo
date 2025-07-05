@@ -16,7 +16,7 @@ Date:   Thu Feb 24 14:18:24 2022 -0500
     Run-TryBot: Robert Findley <rfindley@google.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  .../types2/testdata/check/typeinference.go2        | 24 ++++++++++++----------
  .../types2/testdata/fixedbugs/issue49541.go2       |  7 ++++---
  .../types2/testdata/fixedbugs/issue50929.go2       |  6 +++---
@@ -35,3 +35,557 @@ Date:   Thu Feb 24 14:18:24 2022 -0500
  test/typeparam/issue51232.go                       | 12 +++++------
  test/typeparam/issue51233.go                       | 16 ++++++++++-----
  17 files changed, 106 insertions(+), 79 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/testdata/check/typeinference.go2 b/src/cmd/compile/internal/types2/testdata/check/typeinference.go2
+index 3d3380da9c..28f3e286b7 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/typeinference.go2
++++ b/src/cmd/compile/internal/types2/testdata/check/typeinference.go2
+@@ -4,22 +4,24 @@
+ 
+ package typeInference
+ 
++// As of issue #51527, type-type inference has been disabled.
++
+ // basic inference
+ type Tb[P ~*Q, Q any] int
+ func _() {
+-	var x Tb[*int]
++	var x Tb /* ERROR got 1 arguments */ [*int]
+ 	var y Tb[*int, int]
+-	x = y
++	x = y /* ERROR cannot use y .* in assignment */
+ 	_ = x
+ }
+ 
+ // recursive inference
+ type Tr[A any, B *C, C *D, D *A] int
+ func _() {
+-	var x Tr[string]
++	var x Tr /* ERROR got 1 arguments */ [string]
+ 	var y Tr[string, ***string, **string, *string]
+ 	var z Tr[int, ***int, **int, *int]
+-	x = y
++	x = y /* ERROR cannot use y .* in assignment */
+ 	x = z // ERROR cannot use z .* as Tr
+ 	_ = x
+ }
+@@ -31,17 +33,17 @@ type To2[A any, B [][]A] int
+ type To3[A any, B [3]*A] int
+ type To4[A any, B any, C struct{a A; b B}] int
+ func _() {
+-	var _ To0[int]
+-	var _ To1[int]
+-	var _ To2[int]
+-	var _ To3[int]
+-	var _ To4[int, string]
++	var _ To0 /* ERROR got 1 arguments */ [int]
++	var _ To1 /* ERROR got 1 arguments */ [int]
++	var _ To2 /* ERROR got 1 arguments */ [int]
++	var _ To3 /* ERROR got 1 arguments */ [int]
++	var _ To4 /* ERROR got 2 arguments */ [int, string]
+ }
+ 
+ // failed inference
+ type Tf0[A, B any] int
+ type Tf1[A any, B ~struct{a A; c C}, C any] int
+ func _() {
+-	var _ Tf0 /* ERROR cannot infer B */ /* ERROR got 1 arguments but 2 type parameters */ [int]
+-	var _ Tf1 /* ERROR cannot infer B */ /* ERROR got 1 arguments but 3 type parameters */ [int]
++	var _ Tf0 /* ERROR got 1 arguments but 2 type parameters */ [int]
++	var _ Tf1 /* ERROR got 1 arguments but 3 type parameters */ [int]
+ }
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49541.go2 b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49541.go2
+index b7bf12a186..c8499c1b61 100644
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49541.go2
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49541.go2
+@@ -10,9 +10,10 @@ type S[A, B any] struct {
+ 
+ func (S[A, B]) m() {}
+ 
+-// TODO(gri) We should only report one error below. See issue #50588.
++// TODO(gri): with type-type inference enabled we should only report one error
++// below. See issue #50588.
+ 
+-func _[A any](s S /* ERROR cannot infer B */ /* ERROR got 1 arguments but 2 type parameters */ [A]) {
++func _[A any](s S /* ERROR got 1 arguments but 2 type parameters */ [A]) {
+ 	// we should see no follow-on errors below
+ 	s.f = 1
+ 	s.m()
+@@ -21,7 +22,7 @@ func _[A any](s S /* ERROR cannot infer B */ /* ERROR got 1 arguments but 2 type
+ // another test case from the issue
+ 
+ func _() {
+-	X(Interface[*F /* ERROR cannot infer B */ /* ERROR got 1 arguments but 2 type parameters */ [string]](Impl{}))
++	X(Interface[*F /* ERROR got 1 arguments but 2 type parameters */ [string]](Impl{}))
+ }
+ 
+ func X[Q Qer](fs Interface[Q]) {
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50929.go2 b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50929.go2
+index 941dbaa3c1..3629ecf104 100644
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50929.go2
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50929.go2
+@@ -16,7 +16,7 @@ func G[A, B any](F[A, B]) {
+ 
+ func _() {
+ 	// TODO(gri) only report one error below (issue #50932)
+-	var x F /* ERROR cannot infer B */ /* ERROR got 1 arguments but 2 type parameters */ [int]
++	var x F /* ERROR got 1 arguments but 2 type parameters */ [int]
+ 	G(x /* ERROR does not match */)
+ }
+ 
+@@ -46,9 +46,9 @@ func NSG[G any](c RSC[G]) {
+ 	fmt.Println(c)
+ }
+ 
+-func MMD[Rc RC /* ERROR cannot infer RG */ /* ERROR got 1 arguments */ [RG], RG any, G any]() M /* ERROR got 2 arguments */ /* ERROR Rc does not match */ [Rc, RG] {
++func MMD[Rc RC /* ERROR got 1 arguments */ [RG], RG any, G any]() M /* ERROR got 2 arguments */ [Rc, RG] {
+ 
+-	var nFn NFn /* ERROR got 2 arguments */ /* ERROR Rc does not match */ [Rc, RG]
++	var nFn NFn /* ERROR got 2 arguments */ [Rc, RG]
+ 
+ 	var empty Rc
+ 	switch any(empty).(type) {
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51232.go2 b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51232.go2
+index 6e575a376d..3fa6a05732 100644
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51232.go2
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51232.go2
+@@ -11,19 +11,20 @@ type RC[RG any] interface {
+ type Fn[RCT RC[RG], RG any] func(RCT)
+ 
+ type F[RCT RC[RG], RG any] interface {
+-	Fn() Fn[RCT]
++	Fn() Fn /* ERROR got 1 arguments */ [RCT]
+ }
+ 
+ type concreteF[RCT RC[RG], RG any] struct {
+-	makeFn func() Fn[RCT]
++	makeFn func() Fn /* ERROR got 1 arguments */ [RCT]
+ }
+ 
+-func (c *concreteF[RCT, RG]) Fn() Fn[RCT] {
++func (c *concreteF[RCT, RG]) Fn() Fn /* ERROR got 1 arguments */ [RCT] {
+ 	return c.makeFn()
+ }
+ 
+-func NewConcrete[RCT RC[RG], RG any](Rc RCT) F[RCT] {
+-	return &concreteF[RCT]{
++func NewConcrete[RCT RC[RG], RG any](Rc RCT) F /* ERROR got 1 arguments */ [RCT] {
++	// TODO(rfindley): eliminate the duplicate error below.
++	return & /* ERROR cannot use .* as F\[RCT\] */ concreteF /* ERROR got 1 arguments */ [RCT]{
+ 		makeFn: nil,
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51233.go2 b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51233.go2
+index 5c8393d039..9c15028c91 100644
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51233.go2
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51233.go2
+@@ -4,22 +4,24 @@
+ 
+ package p
+ 
++// As of issue #51527, type-type inference has been disabled.
++
+ type RC[RG any] interface {
+ 	~[]RG
+ }
+ 
+ type Fn[RCT RC[RG], RG any] func(RCT)
+ 
+-type FFn[RCT RC[RG], RG any] func() Fn[RCT]
++type FFn[RCT RC[RG], RG any] func() Fn /* ERROR got 1 arguments */ [RCT]
+ 
+ type F[RCT RC[RG], RG any] interface {
+-	Fn() Fn[RCT]
++	Fn() Fn /* ERROR got 1 arguments */ [RCT]
+ }
+ 
+ type concreteF[RCT RC[RG], RG any] struct {
+-	makeFn FFn[RCT]
++	makeFn FFn /* ERROR got 1 arguments */ [RCT]
+ }
+ 
+-func (c *concreteF[RCT, RG]) Fn() Fn[RCT] {
++func (c *concreteF[RCT, RG]) Fn() Fn /* ERROR got 1 arguments */ [RCT] {
+ 	return c.makeFn()
+ }
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51339.go2 b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51339.go2
+index 40706ec493..84e551d9ad 100644
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51339.go2
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51339.go2
+@@ -10,7 +10,9 @@ package p
+ type T[P any, B *P] struct{}
+ 
+ func (T /* ERROR cannot use generic type */ ) m0() {}
+-func (T /* ERROR got 1 type parameter, but receiver base type declares 2 */ [_]) m1() {}
++
++// TODO(rfindley): eliminate the duplicate errors here.
++func (T /* ERROR got 1 type parameter, but receiver base type declares 2 */ /* ERROR got 1 arguments but 2 type parameters */ [_]) m1() {}
+ func (T[_, _]) m2() {}
+ // TODO(gri) this error is unfortunate (issue #51343)
+ func (T /* ERROR got 3 arguments but 2 type parameters */ [_, _, _]) m3() {}
+diff --git a/src/cmd/compile/internal/types2/typexpr.go b/src/cmd/compile/internal/types2/typexpr.go
+index 89c1f7b3a0..a9ce55bd1e 100644
+--- a/src/cmd/compile/internal/types2/typexpr.go
++++ b/src/cmd/compile/internal/types2/typexpr.go
+@@ -430,10 +430,14 @@ func (check *Checker) instantiatedType(x syntax.Expr, xlist []syntax.Expr, def *
+ 	// evaluate arguments
+ 	targs := check.typeList(xlist)
+ 	if targs == nil {
+-		def.setUnderlying(Typ[Invalid]) // avoid later errors due to lazy instantiation
++		def.setUnderlying(Typ[Invalid]) // avoid errors later due to lazy instantiation
+ 		return Typ[Invalid]
+ 	}
+ 
++	// enableTypeTypeInference controls whether to infer missing type arguments
++	// using constraint type inference. See issue #51527.
++	const enableTypeTypeInference = false
++
+ 	// create the instance
+ 	ctxt := check.bestContext(nil)
+ 	h := ctxt.instanceHash(orig, targs)
+@@ -453,14 +457,15 @@ func (check *Checker) instantiatedType(x syntax.Expr, xlist []syntax.Expr, def *
+ 	def.setUnderlying(inst)
+ 
+ 	inst.resolver = func(ctxt *Context, n *Named) (*TypeParamList, Type, *methodList) {
+-		tparams := orig.TypeParams().list()
++		tparams := n.orig.TypeParams().list()
+ 
+-		if len(targs) < len(tparams) {
++		targs := n.targs.list()
++		if enableTypeTypeInference && len(targs) < len(tparams) {
+ 			// If inference fails, len(inferred) will be 0, and inst.underlying will
+ 			// be set to Typ[Invalid] in expandNamed.
+ 			inferred := check.infer(x.Pos(), tparams, targs, nil, nil)
+ 			if len(inferred) > len(targs) {
+-				inst.targs = newTypeList(inferred)
++				n.targs = newTypeList(inferred)
+ 			}
+ 		}
+ 
+@@ -473,10 +478,10 @@ func (check *Checker) instantiatedType(x syntax.Expr, xlist []syntax.Expr, def *
+ 		// and so it must be resolved during type-checking so that we can report
+ 		// errors.
+ 		inst.resolve(ctxt)
+-		check.recordInstance(x, inst.TypeArgs().list(), inst)
+ 		// Since check is non-nil, we can still mutate inst. Unpinning the resolver
+ 		// frees some memory.
+ 		inst.resolver = nil
++		check.recordInstance(x, inst.TypeArgs().list(), inst)
+ 
+ 		if check.validateTArgLen(x.Pos(), inst.tparams.Len(), inst.targs.Len()) {
+ 			if i, err := check.verify(x.Pos(), inst.tparams.list(), inst.targs.list()); err != nil {
+diff --git a/src/go/types/errorcodes.go b/src/go/types/errorcodes.go
+index a7514b317a..64cf24c96a 100644
+--- a/src/go/types/errorcodes.go
++++ b/src/go/types/errorcodes.go
+@@ -1339,11 +1339,6 @@ const (
+ 	//  func _() {
+ 	//  	f()
+ 	//  }
+-	//
+-	// Example:
+-	//   type N[P, Q any] struct{}
+-	//
+-	//   var _ N[int]
+ 	_CannotInferTypeArgs
+ 
+ 	// _InvalidTypeArg occurs when a type argument does not satisfy its
+diff --git a/src/go/types/testdata/check/typeinference.go2 b/src/go/types/testdata/check/typeinference.go2
+index 3d3380da9c..28f3e286b7 100644
+--- a/src/go/types/testdata/check/typeinference.go2
++++ b/src/go/types/testdata/check/typeinference.go2
+@@ -4,22 +4,24 @@
+ 
+ package typeInference
+ 
++// As of issue #51527, type-type inference has been disabled.
++
+ // basic inference
+ type Tb[P ~*Q, Q any] int
+ func _() {
+-	var x Tb[*int]
++	var x Tb /* ERROR got 1 arguments */ [*int]
+ 	var y Tb[*int, int]
+-	x = y
++	x = y /* ERROR cannot use y .* in assignment */
+ 	_ = x
+ }
+ 
+ // recursive inference
+ type Tr[A any, B *C, C *D, D *A] int
+ func _() {
+-	var x Tr[string]
++	var x Tr /* ERROR got 1 arguments */ [string]
+ 	var y Tr[string, ***string, **string, *string]
+ 	var z Tr[int, ***int, **int, *int]
+-	x = y
++	x = y /* ERROR cannot use y .* in assignment */
+ 	x = z // ERROR cannot use z .* as Tr
+ 	_ = x
+ }
+@@ -31,17 +33,17 @@ type To2[A any, B [][]A] int
+ type To3[A any, B [3]*A] int
+ type To4[A any, B any, C struct{a A; b B}] int
+ func _() {
+-	var _ To0[int]
+-	var _ To1[int]
+-	var _ To2[int]
+-	var _ To3[int]
+-	var _ To4[int, string]
++	var _ To0 /* ERROR got 1 arguments */ [int]
++	var _ To1 /* ERROR got 1 arguments */ [int]
++	var _ To2 /* ERROR got 1 arguments */ [int]
++	var _ To3 /* ERROR got 1 arguments */ [int]
++	var _ To4 /* ERROR got 2 arguments */ [int, string]
+ }
+ 
+ // failed inference
+ type Tf0[A, B any] int
+ type Tf1[A any, B ~struct{a A; c C}, C any] int
+ func _() {
+-	var _ Tf0 /* ERROR cannot infer B */ /* ERROR got 1 arguments but 2 type parameters */ [int]
+-	var _ Tf1 /* ERROR cannot infer B */ /* ERROR got 1 arguments but 3 type parameters */ [int]
++	var _ Tf0 /* ERROR got 1 arguments but 2 type parameters */ [int]
++	var _ Tf1 /* ERROR got 1 arguments but 3 type parameters */ [int]
+ }
+diff --git a/src/go/types/testdata/fixedbugs/issue49541.go2 b/src/go/types/testdata/fixedbugs/issue49541.go2
+index b7bf12a186..c8499c1b61 100644
+--- a/src/go/types/testdata/fixedbugs/issue49541.go2
++++ b/src/go/types/testdata/fixedbugs/issue49541.go2
+@@ -10,9 +10,10 @@ type S[A, B any] struct {
+ 
+ func (S[A, B]) m() {}
+ 
+-// TODO(gri) We should only report one error below. See issue #50588.
++// TODO(gri): with type-type inference enabled we should only report one error
++// below. See issue #50588.
+ 
+-func _[A any](s S /* ERROR cannot infer B */ /* ERROR got 1 arguments but 2 type parameters */ [A]) {
++func _[A any](s S /* ERROR got 1 arguments but 2 type parameters */ [A]) {
+ 	// we should see no follow-on errors below
+ 	s.f = 1
+ 	s.m()
+@@ -21,7 +22,7 @@ func _[A any](s S /* ERROR cannot infer B */ /* ERROR got 1 arguments but 2 type
+ // another test case from the issue
+ 
+ func _() {
+-	X(Interface[*F /* ERROR cannot infer B */ /* ERROR got 1 arguments but 2 type parameters */ [string]](Impl{}))
++	X(Interface[*F /* ERROR got 1 arguments but 2 type parameters */ [string]](Impl{}))
+ }
+ 
+ func X[Q Qer](fs Interface[Q]) {
+diff --git a/src/go/types/testdata/fixedbugs/issue50929.go2 b/src/go/types/testdata/fixedbugs/issue50929.go2
+index 941dbaa3c1..3629ecf104 100644
+--- a/src/go/types/testdata/fixedbugs/issue50929.go2
++++ b/src/go/types/testdata/fixedbugs/issue50929.go2
+@@ -16,7 +16,7 @@ func G[A, B any](F[A, B]) {
+ 
+ func _() {
+ 	// TODO(gri) only report one error below (issue #50932)
+-	var x F /* ERROR cannot infer B */ /* ERROR got 1 arguments but 2 type parameters */ [int]
++	var x F /* ERROR got 1 arguments but 2 type parameters */ [int]
+ 	G(x /* ERROR does not match */)
+ }
+ 
+@@ -46,9 +46,9 @@ func NSG[G any](c RSC[G]) {
+ 	fmt.Println(c)
+ }
+ 
+-func MMD[Rc RC /* ERROR cannot infer RG */ /* ERROR got 1 arguments */ [RG], RG any, G any]() M /* ERROR got 2 arguments */ /* ERROR Rc does not match */ [Rc, RG] {
++func MMD[Rc RC /* ERROR got 1 arguments */ [RG], RG any, G any]() M /* ERROR got 2 arguments */ [Rc, RG] {
+ 
+-	var nFn NFn /* ERROR got 2 arguments */ /* ERROR Rc does not match */ [Rc, RG]
++	var nFn NFn /* ERROR got 2 arguments */ [Rc, RG]
+ 
+ 	var empty Rc
+ 	switch any(empty).(type) {
+diff --git a/src/go/types/testdata/fixedbugs/issue51232.go2 b/src/go/types/testdata/fixedbugs/issue51232.go2
+index 6e575a376d..3fa6a05732 100644
+--- a/src/go/types/testdata/fixedbugs/issue51232.go2
++++ b/src/go/types/testdata/fixedbugs/issue51232.go2
+@@ -11,19 +11,20 @@ type RC[RG any] interface {
+ type Fn[RCT RC[RG], RG any] func(RCT)
+ 
+ type F[RCT RC[RG], RG any] interface {
+-	Fn() Fn[RCT]
++	Fn() Fn /* ERROR got 1 arguments */ [RCT]
+ }
+ 
+ type concreteF[RCT RC[RG], RG any] struct {
+-	makeFn func() Fn[RCT]
++	makeFn func() Fn /* ERROR got 1 arguments */ [RCT]
+ }
+ 
+-func (c *concreteF[RCT, RG]) Fn() Fn[RCT] {
++func (c *concreteF[RCT, RG]) Fn() Fn /* ERROR got 1 arguments */ [RCT] {
+ 	return c.makeFn()
+ }
+ 
+-func NewConcrete[RCT RC[RG], RG any](Rc RCT) F[RCT] {
+-	return &concreteF[RCT]{
++func NewConcrete[RCT RC[RG], RG any](Rc RCT) F /* ERROR got 1 arguments */ [RCT] {
++	// TODO(rfindley): eliminate the duplicate error below.
++	return & /* ERROR cannot use .* as F\[RCT\] */ concreteF /* ERROR got 1 arguments */ [RCT]{
+ 		makeFn: nil,
+ 	}
+ }
+diff --git a/src/go/types/testdata/fixedbugs/issue51233.go2 b/src/go/types/testdata/fixedbugs/issue51233.go2
+index 5c8393d039..9c15028c91 100644
+--- a/src/go/types/testdata/fixedbugs/issue51233.go2
++++ b/src/go/types/testdata/fixedbugs/issue51233.go2
+@@ -4,22 +4,24 @@
+ 
+ package p
+ 
++// As of issue #51527, type-type inference has been disabled.
++
+ type RC[RG any] interface {
+ 	~[]RG
+ }
+ 
+ type Fn[RCT RC[RG], RG any] func(RCT)
+ 
+-type FFn[RCT RC[RG], RG any] func() Fn[RCT]
++type FFn[RCT RC[RG], RG any] func() Fn /* ERROR got 1 arguments */ [RCT]
+ 
+ type F[RCT RC[RG], RG any] interface {
+-	Fn() Fn[RCT]
++	Fn() Fn /* ERROR got 1 arguments */ [RCT]
+ }
+ 
+ type concreteF[RCT RC[RG], RG any] struct {
+-	makeFn FFn[RCT]
++	makeFn FFn /* ERROR got 1 arguments */ [RCT]
+ }
+ 
+-func (c *concreteF[RCT, RG]) Fn() Fn[RCT] {
++func (c *concreteF[RCT, RG]) Fn() Fn /* ERROR got 1 arguments */ [RCT] {
+ 	return c.makeFn()
+ }
+diff --git a/src/go/types/testdata/fixedbugs/issue51339.go2 b/src/go/types/testdata/fixedbugs/issue51339.go2
+index 6803c44d76..38f86109e3 100644
+--- a/src/go/types/testdata/fixedbugs/issue51339.go2
++++ b/src/go/types/testdata/fixedbugs/issue51339.go2
+@@ -10,7 +10,9 @@ package p
+ type T[P any, B *P] struct{}
+ 
+ func (T /* ERROR cannot use generic type */ ) m0() {}
+-func (/* ERROR got 1 type parameter, but receiver base type declares 2 */ T[_]) m1() {}
++
++// TODO(rfindley): eliminate the duplicate errors here.
++func (/* ERROR got 1 type parameter, but receiver base type declares 2 */ T /* ERROR got 1 arguments but 2 type parameters */ [_]) m1() {}
+ func (T[_, _]) m2() {}
+ // TODO(gri) this error is unfortunate (issue #51343)
+ func (T /* ERROR got 3 arguments but 2 type parameters */ [_, _, _]) m3() {}
+diff --git a/src/go/types/typexpr.go b/src/go/types/typexpr.go
+index 373ade04eb..14735c3709 100644
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@ -415,10 +415,14 @@ func (check *Checker) instantiatedType(ix *typeparams.IndexExpr, def *Named) (re
+ 	// evaluate arguments
+ 	targs := check.typeList(ix.Indices)
+ 	if targs == nil {
+-		def.setUnderlying(Typ[Invalid]) // avoid later errors due to lazy instantiation
++		def.setUnderlying(Typ[Invalid]) // avoid errors later due to lazy instantiation
+ 		return Typ[Invalid]
+ 	}
+ 
++	// enableTypeTypeInference controls whether to infer missing type arguments
++	// using constraint type inference. See issue #51527.
++	const enableTypeTypeInference = false
++
+ 	// create the instance
+ 	ctxt := check.bestContext(nil)
+ 	h := ctxt.instanceHash(orig, targs)
+@@ -438,14 +442,15 @@ func (check *Checker) instantiatedType(ix *typeparams.IndexExpr, def *Named) (re
+ 	def.setUnderlying(inst)
+ 
+ 	inst.resolver = func(ctxt *Context, n *Named) (*TypeParamList, Type, *methodList) {
+-		tparams := orig.TypeParams().list()
++		tparams := n.orig.TypeParams().list()
+ 
+-		if len(targs) < len(tparams) {
++		targs := n.targs.list()
++		if enableTypeTypeInference && len(targs) < len(tparams) {
+ 			// If inference fails, len(inferred) will be 0, and inst.underlying will
+ 			// be set to Typ[Invalid] in expandNamed.
+ 			inferred := check.infer(ix.Orig, tparams, targs, nil, nil)
+ 			if len(inferred) > len(targs) {
+-				inst.targs = newTypeList(inferred)
++				n.targs = newTypeList(inferred)
+ 			}
+ 		}
+ 
+diff --git a/test/typeparam/issue51232.go b/test/typeparam/issue51232.go
+index 44d114d235..0d25e1863d 100644
+--- a/test/typeparam/issue51232.go
++++ b/test/typeparam/issue51232.go
+@@ -1,4 +1,4 @@
+-// compile
++// errorcheck
+ 
+ // Copyright 2022 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+@@ -13,19 +13,19 @@ type RC[RG any] interface {
+ type Fn[RCT RC[RG], RG any] func(RCT)
+ 
+ type F[RCT RC[RG], RG any] interface {
+-	Fn() Fn[RCT]
++	Fn() Fn[RCT] // ERROR "got 1 arguments"
+ }
+ 
+ type concreteF[RCT RC[RG], RG any] struct {
+-	makeFn func() Fn[RCT]
++	makeFn func() Fn[RCT] // ERROR "got 1 arguments"
+ }
+ 
+-func (c *concreteF[RCT, RG]) Fn() Fn[RCT] {
++func (c *concreteF[RCT, RG]) Fn() Fn[RCT] { // ERROR "got 1 arguments"
+ 	return c.makeFn()
+ }
+ 
+-func NewConcrete[RCT RC[RG], RG any](Rc RCT) F[RCT] {
+-	return &concreteF[RCT]{
++func NewConcrete[RCT RC[RG], RG any](Rc RCT) F[RCT] { // ERROR "got 1 arguments"
++	return &concreteF[RCT]{ // ERROR "cannot use" "got 1 arguments"
+ 		makeFn: nil,
+ 	}
+ }
+diff --git a/test/typeparam/issue51233.go b/test/typeparam/issue51233.go
+index 9411f2e6b5..96a25ddb9c 100644
+--- a/test/typeparam/issue51233.go
++++ b/test/typeparam/issue51233.go
+@@ -1,22 +1,28 @@
+-// compile
++// errorcheck
+ 
+ // Copyright 2022 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ package p
+ 
++// As of issue #51527, type-type inference has been disabled.
++
+ type RC[RG any] interface {
+ 	~[]RG
+ }
++
+ type Fn[RCT RC[RG], RG any] func(RCT)
+-type FFn[RCT RC[RG], RG any] func() Fn[RCT]
++
++type FFn[RCT RC[RG], RG any] func() Fn[RCT] // ERROR "got 1 arguments"
++
+ type F[RCT RC[RG], RG any] interface {
+-	Fn() Fn[RCT]
++	Fn() Fn[RCT] // ERROR "got 1 arguments"
+ }
++
+ type concreteF[RCT RC[RG], RG any] struct {
+-	makeFn FFn[RCT]
++	makeFn FFn[RCT] // ERROR "got 1 arguments"
+ }
+ 
+-func (c *concreteF[RCT, RG]) Fn() Fn[RCT] {
++func (c *concreteF[RCT, RG]) Fn() Fn[RCT] { // ERROR "got 1 arguments"
+ 	return c.makeFn()
+ }

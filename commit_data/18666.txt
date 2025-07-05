@@ -10,7 +10,53 @@ Date:   Wed Feb 26 12:25:13 2014 -0800
     R=remyoudompheng
     CC=golang-codereviews, r, rsc
     https://golang.org/cl/69180044
-
+---
  src/cmd/gc/pgen.c |  4 ++--
  test/nilptr4.go   | 24 ++++++++++++++++++++++++
  2 files changed, 26 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/gc/pgen.c b/src/cmd/gc/pgen.c
+index 1048a62cc8..d05471ee30 100644
+--- a/src/cmd/gc/pgen.c
++++ b/src/cmd/gc/pgen.c
+@@ -471,8 +471,8 @@ cgen_checknil(Node *n)
+ 
+ 	if(disable_checknil)
+ 		return;
+-	// Ideally we wouldn't see any TUINTPTR here, but we do.
+-	if(n->type == T || (!isptr[n->type->etype] && n->type->etype != TUINTPTR && n->type->etype != TUNSAFEPTR)) {
++	// Ideally we wouldn't see any integer types here, but we do.
++	if(n->type == T || (!isptr[n->type->etype] && !isint[n->type->etype] && n->type->etype != TUNSAFEPTR)) {
+ 		dump("checknil", n);
+ 		fatal("bad checknil");
+ 	}
+diff --git a/test/nilptr4.go b/test/nilptr4.go
+new file mode 100644
+index 0000000000..3dd7d4e026
+--- /dev/null
++++ b/test/nilptr4.go
+@@ -0,0 +1,24 @@
++// build
++
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test that the compiler does not crash during compilation.
++
++package main
++
++import "unsafe"
++
++// Issue 7413
++func f1() {
++	type t struct {
++		i int
++	}
++
++	var v *t
++	_ = int(uintptr(unsafe.Pointer(&v.i)))
++	_ = int32(uintptr(unsafe.Pointer(&v.i)))
++}
++
++func main() {}

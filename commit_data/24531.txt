@@ -22,6 +22,26 @@ Date:   Fri Jul 31 13:52:17 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/13025
     Reviewed-by: Russ Cox <rsc@golang.org>
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/mgc.go | 8 ++++++++
  1 file changed, 8 insertions(+)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index f0e05f61aa..de9f4f51fd 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -841,6 +841,14 @@ func startGC(mode int) {
+ 	// trigger concurrent GC
+ 	readied := false
+ 	lock(&bggc.lock)
++	// The trigger was originally checked speculatively, so
++	// recheck that this really should trigger GC. (For example,
++	// we may have gone through a whole GC cycle since the
++	// speculative check.)
++	if !shouldtriggergc() {
++		unlock(&bggc.lock)
++		return
++	}
+ 	if !bggc.started {
+ 		bggc.working = 1
+ 		bggc.started = true

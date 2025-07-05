@@ -7,6 +7,20 @@ Date:   Mon Mar 5 22:19:51 2012 +1100
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/5729065
-
+---
  src/pkg/strings/example_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/strings/example_test.go b/src/pkg/strings/example_test.go
+index daeb85ef6b..1141710728 100644
+--- a/src/pkg/strings/example_test.go
++++ b/src/pkg/strings/example_test.go
+@@ -60,7 +60,7 @@ func ExampleIndex() {
+ 	// -1
+ }
+ 
+-func ExampleRune() {
++func ExampleIndexRune() {
+ 	fmt.Println(strings.IndexRune("chicken", 'k'))
+ 	fmt.Println(strings.IndexRune("chicken", 'd'))
+ 	// Output:

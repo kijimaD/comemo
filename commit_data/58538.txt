@@ -15,6 +15,24 @@ Date:   Thu Nov 2 22:15:25 2023 +0100
     Reviewed-by: qiulaidongfeng <2645477756@qq.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Emmanuel Odeke <emmanuel@orijtech.com>
-
+---
  src/embed/example_test.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/embed/example_test.go b/src/embed/example_test.go
+index 5498c275fd..b92eb52009 100644
+--- a/src/embed/example_test.go
++++ b/src/embed/example_test.go
+@@ -14,9 +14,9 @@ import (
+ var content embed.FS
+ 
+ func Example() {
+-	mutex := http.NewServeMux()
+-	mutex.Handle("/", http.FileServer(http.FS(content)))
+-	err := http.ListenAndServe(":8080", mutex)
++	mux := http.NewServeMux()
++	mux.Handle("/", http.FileServer(http.FS(content)))
++	err := http.ListenAndServe(":8080", mux)
+ 	if err != nil {
+ 		log.Fatal(err)
+ 	}

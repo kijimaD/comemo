@@ -7,7 +7,29 @@ Date:   Fri Dec 3 11:47:33 2010 +1100
     R=r, iant
     CC=golang-dev
     https://golang.org/cl/3434041
-
+---
  doc/docs.html                            |   6 ++++++
  doc/talks/gofrontend-gcc-summit-2010.pdf | Bin 0 -> 125185 bytes
  2 files changed, 6 insertions(+)
+
+diff --git a/doc/docs.html b/doc/docs.html
+index c74ae035f4..91893a5fa6 100644
+--- a/doc/docs.html
++++ b/doc/docs.html
+@@ -174,6 +174,12 @@ from Hoare’s 1978 paper to Go provides insight into how and why Go works as it
+ does.
+ </i></p>
+ 
++<h3 id="emerging_go"><a href="talks/gofrontend-gcc-summit-2010.pdf">The Go frontend for GCC</a></h3>
++<p>
++A description of the Go language frontend for gcc.
++Ian Lance Taylor's paper delivered at the GCC Summit 2010.
++</p>
++
+ <h3 id="promo_video"><a href="http://www.youtube.com/watch?v=wwoWei-GAPo">The Go Promo Video</a></h3>
+ <p>
+ A short promotional video featuring Russ Cox demonstrating Go's fast compiler.
+diff --git a/doc/talks/gofrontend-gcc-summit-2010.pdf b/doc/talks/gofrontend-gcc-summit-2010.pdf
+new file mode 100644
+index 0000000000..157fd7676b
+Binary files /dev/null and b/doc/talks/gofrontend-gcc-summit-2010.pdf differ

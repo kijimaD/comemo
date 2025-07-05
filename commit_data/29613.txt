@@ -14,7 +14,7 @@ Date:   Tue Sep 27 13:42:28 2016 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/os3_solaris.go      |  6 ++----
  src/runtime/os_darwin.go        |  4 ++--
  src/runtime/os_dragonfly.go     |  6 ++----
@@ -26,3 +26,263 @@ Date:   Tue Sep 27 13:42:28 2016 -0700
  src/runtime/os_openbsd.go       |  4 ++--
  src/runtime/signal_unix.go      | 39 ++++++++++++---------------------------
  10 files changed, 30 insertions(+), 69 deletions(-)
+
+diff --git a/src/runtime/os3_solaris.go b/src/runtime/os3_solaris.go
+index 144d9cdc1f..322a57c27f 100644
+--- a/src/runtime/os3_solaris.go
++++ b/src/runtime/os3_solaris.go
+@@ -300,10 +300,8 @@ func setSignalstackSP(s *stackt, sp uintptr) {
+ 
+ //go:nosplit
+ //go:nowritebarrierrec
+-func sigmaskToSigset(m sigmask) sigset {
+-	var set sigset
+-	copy(set.__sigbits[:], m[:])
+-	return set
++func sigaddset(mask *sigset, i int) {
++	mask.__sigbits[(i-1)/32] |= 1 << ((uint32(i) - 1) & 31)
+ }
+ 
+ func sigdelset(mask *sigset, i int) {
+diff --git a/src/runtime/os_darwin.go b/src/runtime/os_darwin.go
+index 5061dde1c5..c59fd9b8fc 100644
+--- a/src/runtime/os_darwin.go
++++ b/src/runtime/os_darwin.go
+@@ -544,8 +544,8 @@ func setSignalstackSP(s *stackt, sp uintptr) {
+ 
+ //go:nosplit
+ //go:nowritebarrierrec
+-func sigmaskToSigset(m sigmask) sigset {
+-	return sigset(m[0])
++func sigaddset(mask *sigset, i int) {
++	*mask |= 1 << (uint32(i) - 1)
+ }
+ 
+ func sigdelset(mask *sigset, i int) {
+diff --git a/src/runtime/os_dragonfly.go b/src/runtime/os_dragonfly.go
+index df73346a18..495f41805b 100644
+--- a/src/runtime/os_dragonfly.go
++++ b/src/runtime/os_dragonfly.go
+@@ -273,10 +273,8 @@ func setSignalstackSP(s *stackt, sp uintptr) {
+ 
+ //go:nosplit
+ //go:nowritebarrierrec
+-func sigmaskToSigset(m sigmask) sigset {
+-	var set sigset
+-	copy(set.__bits[:], m[:])
+-	return set
++func sigaddset(mask *sigset, i int) {
++	mask.__bits[(i-1)/32] |= 1 << ((uint32(i) - 1) & 31)
+ }
+ 
+ func sigdelset(mask *sigset, i int) {
+diff --git a/src/runtime/os_freebsd.go b/src/runtime/os_freebsd.go
+index 2fc020e528..d0b3d27c66 100644
+--- a/src/runtime/os_freebsd.go
++++ b/src/runtime/os_freebsd.go
+@@ -263,10 +263,8 @@ func setSignalstackSP(s *stackt, sp uintptr) {
+ 
+ //go:nosplit
+ //go:nowritebarrierrec
+-func sigmaskToSigset(m sigmask) sigset {
+-	var set sigset
+-	copy(set.__bits[:], m[:])
+-	return set
++func sigaddset(mask *sigset, i int) {
++	mask.__bits[(i-1)/32] |= 1 << ((uint32(i) - 1) & 31)
+ }
+ 
+ func sigdelset(mask *sigset, i int) {
+diff --git a/src/runtime/os_linux_generic.go b/src/runtime/os_linux_generic.go
+index 636e248463..94e5ed996f 100644
+--- a/src/runtime/os_linux_generic.go
++++ b/src/runtime/os_linux_generic.go
+@@ -31,6 +31,8 @@ type rlimit struct {
+ 
+ var sigset_all = sigset{^uint32(0), ^uint32(0)}
+ 
++//go:nosplit
++//go:nowritebarrierrec
+ func sigaddset(mask *sigset, i int) {
+ 	(*mask)[(i-1)/32] |= 1 << ((uint32(i) - 1) & 31)
+ }
+@@ -42,11 +44,3 @@ func sigdelset(mask *sigset, i int) {
+ func sigfillset(mask *uint64) {
+ 	*mask = ^uint64(0)
+ }
+-
+-//go:nosplit
+-//go:nowritebarrierrec
+-func sigmaskToSigset(m sigmask) sigset {
+-	var set sigset
+-	copy(set[:], m[:])
+-	return set
+-}
+diff --git a/src/runtime/os_linux_mips64x.go b/src/runtime/os_linux_mips64x.go
+index 8fbeb3dc8d..1c690fed0a 100644
+--- a/src/runtime/os_linux_mips64x.go
++++ b/src/runtime/os_linux_mips64x.go
+@@ -47,6 +47,8 @@ type rlimit struct {
+ 
+ var sigset_all = sigset{^uint64(0), ^uint64(0)}
+ 
++//go:nosplit
++//go:nowritebarrierrec
+ func sigaddset(mask *sigset, i int) {
+ 	(*mask)[(i-1)/64] |= 1 << ((uint32(i) - 1) & 63)
+ }
+@@ -58,11 +60,3 @@ func sigdelset(mask *sigset, i int) {
+ func sigfillset(mask *[2]uint64) {
+ 	(*mask)[0], (*mask)[1] = ^uint64(0), ^uint64(0)
+ }
+-
+-//go:nosplit
+-//go:nowritebarrierrec
+-func sigmaskToSigset(m sigmask) sigset {
+-	var set sigset
+-	set[0] = uint64(m[0]) | uint64(m[1])<<32
+-	return set
+-}
+diff --git a/src/runtime/os_linux_s390x.go b/src/runtime/os_linux_s390x.go
+index 0fb48c0310..bdda2a3a6e 100644
+--- a/src/runtime/os_linux_s390x.go
++++ b/src/runtime/os_linux_s390x.go
+@@ -23,6 +23,8 @@ type rlimit struct {
+ 
+ var sigset_all = sigset(^uint64(0))
+ 
++//go:nosplit
++//go:nowritebarrierrec
+ func sigaddset(mask *sigset, i int) {
+ 	if i > 64 {
+ 		throw("unexpected signal greater than 64")
+@@ -40,9 +42,3 @@ func sigdelset(mask *sigset, i int) {
+ func sigfillset(mask *uint64) {
+ 	*mask = ^uint64(0)
+ }
+-
+-//go:nosplit
+-//go:nowritebarrierrec
+-func sigmaskToSigset(m sigmask) sigset {
+-	return sigset(uint64(m[0]) | uint64(m[1])<<32)
+-}
+diff --git a/src/runtime/os_netbsd.go b/src/runtime/os_netbsd.go
+index 38deb26e91..63611e2175 100644
+--- a/src/runtime/os_netbsd.go
++++ b/src/runtime/os_netbsd.go
+@@ -301,10 +301,8 @@ func setSignalstackSP(s *stackt, sp uintptr) {
+ 
+ //go:nosplit
+ //go:nowritebarrierrec
+-func sigmaskToSigset(m sigmask) sigset {
+-	var set sigset
+-	copy(set.__bits[:], m[:])
+-	return set
++func sigaddset(mask *sigset, i int) {
++	mask.__bits[(i-1)/32] |= 1 << ((uint32(i) - 1) & 31)
+ }
+ 
+ func sigdelset(mask *sigset, i int) {
+diff --git a/src/runtime/os_openbsd.go b/src/runtime/os_openbsd.go
+index d6db2518f3..14af045cbd 100644
+--- a/src/runtime/os_openbsd.go
++++ b/src/runtime/os_openbsd.go
+@@ -279,8 +279,8 @@ func setSignalstackSP(s *stackt, sp uintptr) {
+ 
+ //go:nosplit
+ //go:nowritebarrierrec
+-func sigmaskToSigset(m sigmask) sigset {
+-	return sigset(m[0])
++func sigaddset(mask *sigset, i int) {
++	*mask |= 1 << (uint32(i) - 1)
+ }
+ 
+ func sigdelset(mask *sigset, i int) {
+diff --git a/src/runtime/signal_unix.go b/src/runtime/signal_unix.go
+index d74cb3bf3a..e807d695c7 100644
+--- a/src/runtime/signal_unix.go
++++ b/src/runtime/signal_unix.go
+@@ -36,11 +36,6 @@ const (
+ // Signal forwarding is currently available only on Darwin and Linux.
+ var fwdSig [_NSIG]uintptr
+ 
+-// sigmask represents a general signal mask compatible with the GOOS
+-// specific sigset types: the signal numbered x is represented by bit x-1
+-// to match the representation expected by sigprocmask.
+-type sigmask [(_NSIG + 31) / 32]uint32
+-
+ // channels for synchronizing signal mask updates with the signal mask
+ // thread
+ var (
+@@ -302,7 +297,7 @@ func sigpanic() {
+ //go:nowritebarrierrec
+ func dieFromSignal(sig int32) {
+ 	setsig(sig, _SIG_DFL, false)
+-	updatesigmask(sigmask{})
++	unblocksig(sig)
+ 	raise(sig)
+ 
+ 	// That should have killed us. On some systems, though, raise
+@@ -401,28 +396,25 @@ func ensureSigM() {
+ 		// initially all signals except the essential. When signal.Notify()/Stop is called,
+ 		// sigenable/sigdisable in turn notify this thread to update its signal
+ 		// mask accordingly.
+-		var sigBlocked sigmask
+-		for i := range sigBlocked {
+-			sigBlocked[i] = ^uint32(0)
+-		}
++		sigBlocked := sigset_all
+ 		for i := range sigtable {
+ 			if sigtable[i].flags&_SigUnblock != 0 {
+-				sigBlocked[(i-1)/32] &^= 1 << ((uint32(i) - 1) & 31)
++				sigdelset(&sigBlocked, i)
+ 			}
+ 		}
+-		updatesigmask(sigBlocked)
++		sigprocmask(_SIG_SETMASK, &sigBlocked, nil)
+ 		for {
+ 			select {
+ 			case sig := <-enableSigChan:
+-				if b := sig - 1; sig > 0 {
+-					sigBlocked[b/32] &^= (1 << (b & 31))
++				if sig > 0 {
++					sigdelset(&sigBlocked, int(sig))
+ 				}
+ 			case sig := <-disableSigChan:
+-				if b := sig - 1; sig > 0 {
+-					sigBlocked[b/32] |= (1 << (b & 31))
++				if sig > 0 {
++					sigaddset(&sigBlocked, int(sig))
+ 				}
+ 			}
+-			updatesigmask(sigBlocked)
++			sigprocmask(_SIG_SETMASK, &sigBlocked, nil)
+ 			maskUpdatedChan <- struct{}{}
+ 		}
+ 	}()
+@@ -554,22 +546,15 @@ func sigblock() {
+ 	sigprocmask(_SIG_SETMASK, &sigset_all, nil)
+ }
+ 
+-// updatesigmask sets the current thread's signal mask to m.
++// unblocksig removes sig from the current thread's signal mask.
+ // This is nosplit and nowritebarrierrec because it is called from
+ // dieFromSignal, which can be called by sigfwdgo while running in the
+ // signal handler, on the signal stack, with no g available.
+ //go:nosplit
+ //go:nowritebarrierrec
+-func updatesigmask(m sigmask) {
+-	set := sigmaskToSigset(m)
+-	sigprocmask(_SIG_SETMASK, &set, nil)
+-}
+-
+-// unblocksig removes sig from the current thread's signal mask.
+ func unblocksig(sig int32) {
+-	var m sigmask
+-	m[(sig-1)/32] |= 1 << ((uint32(sig) - 1) & 31)
+-	set := sigmaskToSigset(m)
++	var set sigset
++	sigaddset(&set, int(sig))
+ 	sigprocmask(_SIG_UNBLOCK, &set, nil)
+ }
+ 

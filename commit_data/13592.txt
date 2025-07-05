@@ -10,6 +10,23 @@ Date:   Tue Aug 7 13:19:49 2012 +1000
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/6461046
-
+---
  src/pkg/net/http/fs_test.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/pkg/net/http/fs_test.go b/src/pkg/net/http/fs_test.go
+index 0ebec8ce57..da06fa2fae 100644
+--- a/src/pkg/net/http/fs_test.go
++++ b/src/pkg/net/http/fs_test.go
+@@ -340,6 +340,11 @@ func TestServeFileMimeType(t *testing.T) {
+ }
+ 
+ func TestServeFileFromCWD(t *testing.T) {
++	if runtime.GOOS == "windows" {
++		// TODO(brainman): find out why this test is broken
++		t.Logf("Temporarily skipping test on Windows; see http://golang.org/issue/3917")
++		return
++	}
+ 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+ 		ServeFile(w, r, "fs_test.go")
+ 	}))

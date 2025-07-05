@@ -12,6 +12,29 @@ Date:   Tue Mar 11 23:58:11 2014 -0400
     R=golang-codereviews, bradfitz
     CC=golang-codereviews, iant, khr
     https://golang.org/cl/74390043
-
+---
  src/cmd/gc/plive.c | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/gc/plive.c b/src/cmd/gc/plive.c
+index 4a72e612e2..a6a1d48d79 100644
+--- a/src/cmd/gc/plive.c
++++ b/src/cmd/gc/plive.c
+@@ -1607,7 +1607,7 @@ livenessepilogue(Liveness *lv)
+ 				// We're interpreting the args and locals bitmap instead of liveout so that we
+ 				// include the bits added by the avarinit logic in the
+ 				// previous loop.
+-				if(debuglive >= 1) {
++				if(msg != nil) {
+ 					fmtstrinit(&fmt);
+ 					fmtprint(&fmt, "%L: live at ", p->lineno);
+ 					if(p->as == ACALL && p->to.node)
+@@ -1657,7 +1657,7 @@ livenessepilogue(Liveness *lv)
+ 				pos--;
+ 			}
+ 		}
+-		if(debuglive >= 1) {
++		if(msg != nil) {
+ 			for(j=startmsg; j<nmsg; j++) 
+ 				if(msg[j] != nil)
+ 					print("%s", msg[j]);

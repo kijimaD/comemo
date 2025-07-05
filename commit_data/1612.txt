@@ -12,6 +12,20 @@ Date:   Wed Feb 4 10:37:11 2009 -0800
     R=ken
     OCL=24316
     CL=24316
-
+---
  src/cmd/gc/subr.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 4fdfb78bae..e37dce60ae 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -2790,7 +2790,7 @@ runifacechecks(void)
+ 			r = p->src;
+ 		}
+ 		if(!hasiface(l, r, &m))
+-			yyerror("%T is not %T - missing %S%hT",
++			yyerror("%T is not %T - missing %S%hhT",
+ 				l, r, m->sym, m->type);
+ 	}
+ 	lineno = lno;

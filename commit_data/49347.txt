@@ -17,6 +17,20 @@ Date:   Sat Aug 14 09:46:32 2021 +0000
     Trust: Daniel Martí <mvdan@mvdan.cc>
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/sync/atomic/value.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/sync/atomic/value.go b/src/sync/atomic/value.go
+index 61f81d8fd3..3500cd22f4 100644
+--- a/src/sync/atomic/value.go
++++ b/src/sync/atomic/value.go
+@@ -126,7 +126,7 @@ func (v *Value) Swap(new interface{}) (old interface{}) {
+ 	}
+ }
+ 
+-// CompareAndSwapPointer executes the compare-and-swap operation for the Value.
++// CompareAndSwap executes the compare-and-swap operation for the Value.
+ //
+ // All calls to CompareAndSwap for a given Value must use values of the same
+ // concrete type. CompareAndSwap of an inconsistent type panics, as does

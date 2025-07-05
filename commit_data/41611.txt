@@ -23,6 +23,20 @@ Date:   Sat Oct 12 01:05:03 2019 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
-
+---
  src/cmd/link/internal/ld/go.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/ld/go.go b/src/cmd/link/internal/ld/go.go
+index 15d4f9e50f..6c61869ed8 100644
+--- a/src/cmd/link/internal/ld/go.go
++++ b/src/cmd/link/internal/ld/go.go
+@@ -197,7 +197,7 @@ func setCgoAttr(ctxt *Link, file string, pkg string, directives [][]string) {
+ 				remote, q = remote[:i], remote[i+1:]
+ 			}
+ 			s := ctxt.Syms.Lookup(local, 0)
+-			if s.Type == 0 || s.Type == sym.SXREF || s.Type == sym.SHOSTOBJ {
++			if s.Type == 0 || s.Type == sym.SXREF || s.Type == sym.SBSS || s.Type == sym.SNOPTRBSS || s.Type == sym.SHOSTOBJ {
+ 				s.SetDynimplib(lib)
+ 				s.SetExtname(remote)
+ 				s.SetDynimpvers(q)

@@ -20,6 +20,20 @@ Date:   Sat Apr 25 21:39:19 2020 +0000
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/httputil/reverseproxy_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/http/httputil/reverseproxy_test.go b/src/net/http/httputil/reverseproxy_test.go
+index f58e08867f..08cccb7d92 100644
+--- a/src/net/http/httputil/reverseproxy_test.go
++++ b/src/net/http/httputil/reverseproxy_test.go
+@@ -386,7 +386,7 @@ func TestReverseProxyFlushIntervalHeaders(t *testing.T) {
+ 	}
+ }
+ 
+-func TestReverseProxyCancelation(t *testing.T) {
++func TestReverseProxyCancellation(t *testing.T) {
+ 	const backendResponse = "I am the backend"
+ 
+ 	reqInFlight := make(chan struct{})

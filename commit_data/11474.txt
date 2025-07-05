@@ -7,6 +7,39 @@ Date:   Mon Jan 30 13:41:29 2012 -0500
     R=golang-dev, gri
     CC=golang-dev
     https://golang.org/cl/5581047
-
+---
  lib/codereview/codereview.py | 7 +++++--
  1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/lib/codereview/codereview.py b/lib/codereview/codereview.py
+index 7630cdfe56..56ccb508db 100644
+--- a/lib/codereview/codereview.py
++++ b/lib/codereview/codereview.py
+@@ -895,7 +895,7 @@ def CheckFormat(ui, repo, files, just_warn=False):
+ 
+ # Check that gofmt run on the list of files does not change them
+ def CheckGofmt(ui, repo, files, just_warn):
+-	files = [f for f in files if (not f.startswith('test/') or f.startswith('test/bench/')) and f.endswith('.go')]
++	files = gofmt_required(files)
+ 	if not files:
+ 		return
+ 	cwd = os.getcwd()
+@@ -1749,7 +1749,7 @@ def gofmt(ui, repo, *pats, **opts):
+ 		return codereview_disabled
+ 
+ 	files = ChangedExistingFiles(ui, repo, pats, opts)
+-	files = [f for f in files if f.endswith(".go")]
++	files = gofmt_required(files)
+ 	if not files:
+ 		return "no modified go files"
+ 	cwd = os.getcwd()
+@@ -1766,6 +1766,9 @@ def gofmt(ui, repo, *pats, **opts):
+ 		raise hg_util.Abort("gofmt: " + ExceptionDetail())
+ 	return
+ 
++def gofmt_required(files):
++	return [f for f in files if (not f.startswith('test/') or f.startswith('test/bench/')) and f.endswith('.go')]
++
+ #######################################################################
+ # hg mail
+ 

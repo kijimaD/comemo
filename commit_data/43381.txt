@@ -13,7 +13,7 @@ Date:   Tue Mar 31 01:57:52 2020 +1100
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/asm/internal/arch/arch.go                  |   3 +-
  src/cmd/asm/internal/asm/testdata/riscvenc.s       |  13 +++
  src/cmd/internal/obj/riscv/anames.go               |  10 ++
@@ -23,3 +23,436 @@ Date:   Tue Mar 31 01:57:52 2020 +1100
  .../obj/riscv/testdata/testbranch/branch_test.go   |  94 +++++++++++++++++
  .../obj/riscv/testdata/testbranch/branch_test.s    | 111 +++++++++++++++++++++
  8 files changed, 311 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/asm/internal/arch/arch.go b/src/cmd/asm/internal/arch/arch.go
+index d9ba6670e8..2e5d0ff991 100644
+--- a/src/cmd/asm/internal/arch/arch.go
++++ b/src/cmd/asm/internal/arch/arch.go
+@@ -88,7 +88,8 @@ func jumpX86(word string) bool {
+ 
+ func jumpRISCV(word string) bool {
+ 	switch word {
+-	case "BEQ", "BNE", "BLT", "BGE", "BLTU", "BGEU", "CALL", "JAL", "JALR", "JMP":
++	case "BEQ", "BEQZ", "BGE", "BGEU", "BGEZ", "BGT", "BGTU", "BGTZ", "BLE", "BLEU", "BLEZ",
++		"BLT", "BLTU", "BLTZ", "BNE", "BNEZ", "CALL", "JAL", "JALR", "JMP":
+ 		return true
+ 	}
+ 	return false
+diff --git a/src/cmd/asm/internal/asm/testdata/riscvenc.s b/src/cmd/asm/internal/asm/testdata/riscvenc.s
+index 74bc43d727..8d301f2dd5 100644
+--- a/src/cmd/asm/internal/asm/testdata/riscvenc.s
++++ b/src/cmd/asm/internal/asm/testdata/riscvenc.s
+@@ -330,6 +330,19 @@ start:
+ 	CALL	asmtest(SB)				// 970f0000
+ 	JMP	asmtest(SB)				// 970f0000
+ 
++	// Branch pseudo-instructions
++	BEQZ	X5, start	// BEQZ	X5, 2		// e38a02c2
++	BGEZ	X5, start	// BGEZ	X5, 2		// e3d802c2
++	BGT	X5, X6, start	// BGT	X5, X6, 2	// e3c662c2
++	BGTU	X5, X6, start	// BGTU	X5, X6, 2	// e3e462c2
++	BGTZ	X5, start	// BGTZ	X5, 2		// e34250c2
++	BLE	X5, X6, start	// BLE	X5, X6, 2	// e3d062c2
++	BLEU	X5, X6, start	// BLEU	X5, X6, 2	// e3fe62c0
++	BLEZ	X5, start	// BLEZ	X5, 2		// e35c50c0
++	BLTZ	X5, start	// BLTZ	X5, 2		// e3ca02c0
++	BNEZ	X5, start	// BNEZ	X5, 2		// e39802c0
++
++	// Set pseudo-instructions
+ 	SEQZ	X15, X15				// 93b71700
+ 	SNEZ	X15, X15				// b337f000
+ 
+diff --git a/src/cmd/internal/obj/riscv/anames.go b/src/cmd/internal/obj/riscv/anames.go
+index fa236d81e5..6581bb3402 100644
+--- a/src/cmd/internal/obj/riscv/anames.go
++++ b/src/cmd/internal/obj/riscv/anames.go
+@@ -226,6 +226,16 @@ var Anames = []string{
+ 	"HFENCEGVMA",
+ 	"HFENCEVVMA",
+ 	"WORD",
++	"BEQZ",
++	"BGEZ",
++	"BGT",
++	"BGTU",
++	"BGTZ",
++	"BLE",
++	"BLEU",
++	"BLEZ",
++	"BLTZ",
++	"BNEZ",
+ 	"FNEGD",
+ 	"FNEGS",
+ 	"FNED",
+diff --git a/src/cmd/internal/obj/riscv/asm_test.go b/src/cmd/internal/obj/riscv/asm_test.go
+index 849a87b706..f8f7b4f2ce 100644
+--- a/src/cmd/internal/obj/riscv/asm_test.go
++++ b/src/cmd/internal/obj/riscv/asm_test.go
+@@ -12,6 +12,7 @@ import (
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
++	"runtime"
+ 	"testing"
+ )
+ 
+@@ -131,3 +132,20 @@ TEXT _stub(SB),$0-0
+ 		t.Errorf("%v\n%s", err, out)
+ 	}
+ }
++
++func TestBranch(t *testing.T) {
++	if testing.Short() {
++		t.Skip("Skipping in short mode")
++	}
++	if runtime.GOARCH != "riscv64" {
++		t.Skip("Requires riscv64 to run")
++	}
++
++	testenv.MustHaveGoBuild(t)
++
++	cmd := exec.Command(testenv.GoToolPath(t), "test")
++	cmd.Dir = "testdata/testbranch"
++	if out, err := testenv.CleanCmdEnv(cmd).CombinedOutput(); err != nil {
++		t.Errorf("Branch test failed: %v\n%s", err, out)
++	}
++}
+diff --git a/src/cmd/internal/obj/riscv/cpu.go b/src/cmd/internal/obj/riscv/cpu.go
+index 76457dd8d2..482f9e0b6d 100644
+--- a/src/cmd/internal/obj/riscv/cpu.go
++++ b/src/cmd/internal/obj/riscv/cpu.go
+@@ -576,6 +576,16 @@ const (
+ 
+ 	// Pseudo-instructions.  These get translated by the assembler into other
+ 	// instructions, based on their operands.
++	ABEQZ
++	ABGEZ
++	ABGT
++	ABGTU
++	ABGTZ
++	ABLE
++	ABLEU
++	ABLEZ
++	ABLTZ
++	ABNEZ
+ 	AFNEGD
+ 	AFNEGS
+ 	AFNED
+diff --git a/src/cmd/internal/obj/riscv/obj.go b/src/cmd/internal/obj/riscv/obj.go
+index ed5d533402..73fe8c284f 100644
+--- a/src/cmd/internal/obj/riscv/obj.go
++++ b/src/cmd/internal/obj/riscv/obj.go
+@@ -406,20 +406,40 @@ func rewriteMOV(ctxt *obj.Link, newprog obj.ProgAlloc, p *obj.Prog) {
+ }
+ 
+ // InvertBranch inverts the condition of a conditional branch.
+-func InvertBranch(i obj.As) obj.As {
+-	switch i {
++func InvertBranch(as obj.As) obj.As {
++	switch as {
+ 	case ABEQ:
+ 		return ABNE
+-	case ABNE:
+-		return ABEQ
+-	case ABLT:
+-		return ABGE
++	case ABEQZ:
++		return ABNEZ
+ 	case ABGE:
+ 		return ABLT
+-	case ABLTU:
+-		return ABGEU
+ 	case ABGEU:
+ 		return ABLTU
++	case ABGEZ:
++		return ABLTZ
++	case ABGT:
++		return ABLE
++	case ABGTU:
++		return ABLEU
++	case ABGTZ:
++		return ABLEZ
++	case ABLE:
++		return ABGT
++	case ABLEU:
++		return ABGTU
++	case ABLEZ:
++		return ABGTZ
++	case ABLT:
++		return ABGE
++	case ABLTU:
++		return ABGEU
++	case ABLTZ:
++		return ABGEZ
++	case ABNE:
++		return ABEQ
++	case ABNEZ:
++		return ABEQZ
+ 	default:
+ 		panic("InvertBranch: not a branch")
+ 	}
+@@ -860,7 +880,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 
+ 		for p := cursym.Func.Text; p != nil; p = p.Link {
+ 			switch p.As {
+-			case ABEQ, ABNE, ABLT, ABGE, ABLTU, ABGEU:
++			case ABEQ, ABEQZ, ABGE, ABGEU, ABGEZ, ABGT, ABGTU, ABGTZ, ABLE, ABLEU, ABLEZ, ABLT, ABLTU, ABLTZ, ABNE, ABNEZ:
+ 				if p.To.Type != obj.TYPE_BRANCH {
+ 					panic("assemble: instruction with branch-like opcode lacks destination")
+ 				}
+@@ -917,7 +937,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 	// instructions will break everything--don't do it!
+ 	for p := cursym.Func.Text; p != nil; p = p.Link {
+ 		switch p.As {
+-		case AJAL, ABEQ, ABNE, ABLT, ABLTU, ABGE, ABGEU:
++		case ABEQ, ABEQZ, ABGE, ABGEU, ABGEZ, ABGT, ABGTU, ABGTZ, ABLE, ABLEU, ABLEZ, ABLT, ABLTU, ABLTZ, ABNE, ABNEZ, AJAL:
+ 			switch p.To.Type {
+ 			case obj.TYPE_BRANCH:
+ 				p.To.Type, p.To.Offset = obj.TYPE_CONST, p.Pcond.Pc-p.Pc
+@@ -1778,7 +1798,29 @@ func instructionsForProg(p *obj.Prog) []*instruction {
+ 		ins.rd, ins.rs2 = uint32(p.From.Reg), obj.REG_NONE
+ 		ins.imm = p.To.Offset
+ 
+-	case ABEQ, ABNE, ABLT, ABGE, ABLTU, ABGEU:
++	case ABEQ, ABEQZ, ABGE, ABGEU, ABGEZ, ABGT, ABGTU, ABGTZ, ABLE, ABLEU, ABLEZ, ABLT, ABLTU, ABLTZ, ABNE, ABNEZ:
++		switch ins.as {
++		case ABEQZ:
++			ins.as, ins.rs1, ins.rs2 = ABEQ, REG_ZERO, uint32(p.From.Reg)
++		case ABGEZ:
++			ins.as, ins.rs1, ins.rs2 = ABGE, REG_ZERO, uint32(p.From.Reg)
++		case ABGT:
++			ins.as, ins.rs1, ins.rs2 = ABLT, uint32(p.Reg), uint32(p.From.Reg)
++		case ABGTU:
++			ins.as, ins.rs1, ins.rs2 = ABLTU, uint32(p.Reg), uint32(p.From.Reg)
++		case ABGTZ:
++			ins.as, ins.rs1, ins.rs2 = ABLT, uint32(p.From.Reg), REG_ZERO
++		case ABLE:
++			ins.as, ins.rs1, ins.rs2 = ABGE, uint32(p.Reg), uint32(p.From.Reg)
++		case ABLEU:
++			ins.as, ins.rs1, ins.rs2 = ABGEU, uint32(p.Reg), uint32(p.From.Reg)
++		case ABLEZ:
++			ins.as, ins.rs1, ins.rs2 = ABGE, uint32(p.From.Reg), REG_ZERO
++		case ABLTZ:
++			ins.as, ins.rs1, ins.rs2 = ABLT, REG_ZERO, uint32(p.From.Reg)
++		case ABNEZ:
++			ins.as, ins.rs1, ins.rs2 = ABNE, REG_ZERO, uint32(p.From.Reg)
++		}
+ 		ins.imm = p.To.Offset
+ 
+ 	case ALW, ALWU, ALH, ALHU, ALB, ALBU, ALD, AFLW, AFLD:
+diff --git a/src/cmd/internal/obj/riscv/testdata/testbranch/branch_test.go b/src/cmd/internal/obj/riscv/testdata/testbranch/branch_test.go
+new file mode 100644
+index 0000000000..b0ab5f72aa
+--- /dev/null
++++ b/src/cmd/internal/obj/riscv/testdata/testbranch/branch_test.go
+@@ -0,0 +1,94 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build riscv64
++
++package testbranch
++
++import (
++	"testing"
++)
++
++func testBEQZ(a int64) (r bool)
++func testBGEZ(a int64) (r bool)
++func testBGT(a, b int64) (r bool)
++func testBGTU(a, b int64) (r bool)
++func testBGTZ(a int64) (r bool)
++func testBLE(a, b int64) (r bool)
++func testBLEU(a, b int64) (r bool)
++func testBLEZ(a int64) (r bool)
++func testBLTZ(a int64) (r bool)
++func testBNEZ(a int64) (r bool)
++
++func TestBranchCondition(t *testing.T) {
++	tests := []struct{
++		ins string
++		a int64
++		b int64
++		fn func(a, b int64) bool
++		want bool
++	}{
++		{"BGT", 0, 1, testBGT, true},
++		{"BGT", 0, 0, testBGT, false},
++		{"BGT", 0, -1, testBGT, false},
++		{"BGT", -1, 0, testBGT, true},
++		{"BGT", 1, 0, testBGT, false},
++		{"BGTU", 0, 1, testBGTU, true},
++		{"BGTU", 0, -1, testBGTU, true},
++		{"BGTU", -1, 0, testBGTU, false},
++		{"BGTU", 1, 0, testBGTU, false},
++		{"BLE", 0, 1, testBLE, false},
++		{"BLE", 0, -1, testBLE, true},
++		{"BLE", 0, 0, testBLE, true},
++		{"BLE", -1, 0, testBLE, false},
++		{"BLE", 1, 0, testBLE, true},
++		{"BLEU", 0, 1, testBLEU, false},
++		{"BLEU", 0, -1, testBLEU, false},
++		{"BLEU", 0, 0, testBLEU, true},
++		{"BLEU", -1, 0, testBLEU, true},
++		{"BLEU", 1, 0, testBLEU, true},
++	}
++	for _, test := range tests {
++		t.Run(test.ins, func(t *testing.T) {
++			if got := test.fn(test.a, test.b); got != test.want {
++				t.Errorf("%v %v, %v = %v, want %v", test.ins, test.a, test.b, got, test.want)
++			}
++		})
++	}
++}
++
++func TestBranchZero(t *testing.T) {
++	tests := []struct{
++		ins string
++		a int64
++		fn func(a int64) bool
++		want bool
++	}{
++		{"BEQZ", -1, testBEQZ, false},
++		{"BEQZ", 0, testBEQZ, true},
++		{"BEQZ", 1, testBEQZ, false},
++		{"BGEZ", -1, testBGEZ, false},
++		{"BGEZ", 0, testBGEZ, true},
++		{"BGEZ", 1, testBGEZ, true},
++		{"BGTZ", -1, testBGTZ, false},
++		{"BGTZ", 0, testBGTZ, false},
++		{"BGTZ", 1, testBGTZ, true},
++		{"BLEZ", -1, testBLEZ, true},
++		{"BLEZ", 0, testBLEZ, true},
++		{"BLEZ", 1, testBLEZ, false},
++		{"BLTZ", -1, testBLTZ, true},
++		{"BLTZ", 0, testBLTZ, false},
++		{"BLTZ", 1, testBLTZ, false},
++		{"BNEZ", -1, testBNEZ, true},
++		{"BNEZ", 0, testBNEZ, false},
++		{"BNEZ", 1, testBNEZ, true},
++	}
++	for _, test := range tests {
++		t.Run(test.ins, func(t *testing.T) {
++			if got := test.fn(test.a); got != test.want {
++				t.Errorf("%v %v = %v, want %v", test.ins, test.a, got, test.want)
++			}
++		})
++	}
++}
+diff --git a/src/cmd/internal/obj/riscv/testdata/testbranch/branch_test.s b/src/cmd/internal/obj/riscv/testdata/testbranch/branch_test.s
+new file mode 100644
+index 0000000000..6cff235848
+--- /dev/null
++++ b/src/cmd/internal/obj/riscv/testdata/testbranch/branch_test.s
+@@ -0,0 +1,111 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build riscv64
++
++#include "textflag.h"
++
++// func testBEQZ(a int64) (r bool)
++TEXT ·testBEQZ(SB),NOSPLIT,$0-0
++	MOV	a+0(FP), X5
++	MOV	$1, X6
++	BEQZ	X5, b
++	MOV	$0, X6
++b:
++	MOV	X6, r+8(FP)
++	RET
++
++// func testBGEZ(a int64) (r bool)
++TEXT ·testBGEZ(SB),NOSPLIT,$0-0
++	MOV	a+0(FP), X5
++	MOV	$1, X6
++	BGEZ	X5, b
++	MOV	$0, X6
++b:
++	MOV	X6, r+8(FP)
++	RET
++
++// func testBGT(a, b int64) (r bool)
++TEXT ·testBGT(SB),NOSPLIT,$0-0
++	MOV	a+0(FP), X5
++	MOV	b+8(FP), X6
++	MOV	$1, X7
++	BGT	X5, X6, b
++	MOV	$0, X7
++b:
++	MOV	X7, r+16(FP)
++	RET
++
++// func testBGTU(a, b int64) (r bool)
++TEXT ·testBGTU(SB),NOSPLIT,$0-0
++	MOV	a+0(FP), X5
++	MOV	b+8(FP), X6
++	MOV	$1, X7
++	BGTU	X5, X6, b
++	MOV	$0, X7
++b:
++	MOV	X7, r+16(FP)
++	RET
++
++// func testBGTZ(a int64) (r bool)
++TEXT ·testBGTZ(SB),NOSPLIT,$0-0
++	MOV	a+0(FP), X5
++	MOV	$1, X6
++	BGTZ	X5, b
++	MOV	$0, X6
++b:
++	MOV	X6, r+8(FP)
++	RET
++
++// func testBLE(a, b int64) (r bool)
++TEXT ·testBLE(SB),NOSPLIT,$0-0
++	MOV	a+0(FP), X5
++	MOV	b+8(FP), X6
++	MOV	$1, X7
++	BLE	X5, X6, b
++	MOV	$0, X7
++b:
++	MOV	X7, r+16(FP)
++	RET
++
++// func testBLEU(a, b int64) (r bool)
++TEXT ·testBLEU(SB),NOSPLIT,$0-0
++	MOV	a+0(FP), X5
++	MOV	b+8(FP), X6
++	MOV	$1, X7
++	BLEU	X5, X6, b
++	MOV	$0, X7
++b:
++	MOV	X7, r+16(FP)
++	RET
++
++// func testBLEZ(a int64) (r bool)
++TEXT ·testBLEZ(SB),NOSPLIT,$0-0
++	MOV	a+0(FP), X5
++	MOV	$1, X6
++	BLEZ	X5, b
++	MOV	$0, X6
++b:
++	MOV	X6, r+8(FP)
++	RET
++
++// func testBLTZ(a int64) (r bool)
++TEXT ·testBLTZ(SB),NOSPLIT,$0-0
++	MOV	a+0(FP), X5
++	MOV	$1, X6
++	BLTZ	X5, b
++	MOV	$0, X6
++b:
++	MOV	X6, r+8(FP)
++	RET
++
++// func testBNEZ(a int64) (r bool)
++TEXT ·testBNEZ(SB),NOSPLIT,$0-0
++	MOV	a+0(FP), X5
++	MOV	$1, X6
++	BNEZ	X5, b
++	MOV	$0, X6
++b:
++	MOV	X6, r+8(FP)
++	RET

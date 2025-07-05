@@ -10,7 +10,7 @@ Date:   Sun Oct 26 21:32:30 2008 -0700
     R=r
     OCL=17872
     CL=17872
-
+---
  usr/gri/pretty/Makefile       | 14 ++++---
  usr/gri/pretty/Makefile.iant  | 14 ++++---
  usr/gri/pretty/ast.go         | 19 ++++++++-
@@ -19,3 +19,338 @@ Date:   Sun Oct 26 21:32:30 2008 -0700
  usr/gri/pretty/platform.go    |  2 +-
  usr/gri/pretty/pretty.go      | 31 +++++----------
  7 files changed, 142 insertions(+), 55 deletions(-)
+
+diff --git a/usr/gri/pretty/Makefile b/usr/gri/pretty/Makefile
+index c1c5a15632..2af8b8ab55 100644
+--- a/usr/gri/pretty/Makefile
++++ b/usr/gri/pretty/Makefile
+@@ -17,17 +17,19 @@ install: pretty
+ clean:
+ 	rm -f pretty *.6  *~
+ 
+-pretty.6:	printer.6 platform.6 compilation.6
++pretty.6:	 platform.6 printer.6 compilation.6
+ 
+-compilation.6:	scanner.6 parser.6 ast.6
++compilation.6:	 platform.6 scanner.6 parser.6 ast.6
+ 
+-printer.6:	ast.6 scanner.6
++ast.6:	 scanner.6
+ 
+-parser.6:	scanner.6 utils.6 printer.6 ast.6
++scanner.6:	 utils.6
+ 
+-ast.6:	scanner.6
++parser.6:	 scanner.6 ast.6
+ 
+-scanner.6:	utils.6 platform.6
++platform.6:	 utils.6
++
++printer.6:	 scanner.6 ast.6
+ 
+ %.6:	%.go
+ 	$(G) $(F) $<
+diff --git a/usr/gri/pretty/Makefile.iant b/usr/gri/pretty/Makefile.iant
+index b1b2b62a51..3c952f0f7b 100644
+--- a/usr/gri/pretty/Makefile.iant
++++ b/usr/gri/pretty/Makefile.iant
+@@ -33,17 +33,19 @@ clean:
+ 	rm -f pretty *.o  *~
+ 
+ 
+-pretty.o:	printer.o platform.o compilation.o
++pretty.o:	 platform.o printer.o compilation.o
+ 
+-compilation.o:	scanner.o parser.o ast.o
++compilation.o:	 platform.o scanner.o parser.o ast.o
+ 
+-printer.o:	ast.o scanner.o
++ast.o:	 scanner.o
+ 
+-parser.o:	scanner.o utils.o printer.o ast.o
++scanner.o:	 utils.o
+ 
+-ast.o:	scanner.o
++parser.o:	 scanner.o ast.o
+ 
+-scanner.o:	utils.o platform.o
++platform.o:	 utils.o
++
++printer.o:	 scanner.o ast.o
+ 
+ 
+ flag.o:	fmt.o
+diff --git a/usr/gri/pretty/ast.go b/usr/gri/pretty/ast.go
+index 3179a4811c..91c61ec765 100644
+--- a/usr/gri/pretty/ast.go
++++ b/usr/gri/pretty/ast.go
+@@ -43,7 +43,7 @@ func (p *List) set(i int, x Any) {
+ }
+ 
+ 
+-func (p *List) Add (x Any) {
++func (p *List) Add(x Any) {
+ 	a := p.a;
+ 	n := len(a);
+ 
+@@ -61,6 +61,23 @@ func (p *List) Add (x Any) {
+ }
+ 
+ 
++func (p *List) Pop() Any {
++	a := p.a;
++	n := len(a);
++	
++	var x Any;
++	if n > 0 {
++		x = a[n - 1];
++		a = a[0 : n - 1];
++		p.a = a;
++	} else {
++		panic("pop from empty list");
++	}
++	
++	return x;
++}
++
++
+ export func NewList() *List {
+ 	p := new(List);
+ 	p.a = new([] Any, 10) [0 : 0];
+diff --git a/usr/gri/pretty/compilation.go b/usr/gri/pretty/compilation.go
+index 793863281d..e4720c5c82 100644
+--- a/usr/gri/pretty/compilation.go
++++ b/usr/gri/pretty/compilation.go
+@@ -4,11 +4,19 @@
+ 
+ package Compilation
+ 
++import OS "os"
++import Platform "platform"
+ import Scanner "scanner"
+ import Parser "parser"
+ import AST "ast"
+ 
+ 
++func assert(b bool) {
++	if !b {
++		panic("assertion failed");
++	}
++}
++
+ 
+ export type Flags struct {
+ 	verbose bool;
+@@ -20,13 +28,13 @@ export type Flags struct {
+ }
+ 
+ 
+-type Compilation struct {
+-	prog *AST.Program;
+-	nerrors int;
+-}
+-
++export func Compile(src_file string, flags *Flags) (*AST.Program, int) {
++	src, ok := Platform.ReadSourceFile(src_file);
++	if !ok {
++		print("cannot open ", src_file, "\n");
++		return nil, 1;
++	}
+ 
+-export func Compile(src_file, src string, flags *Flags) *Compilation {
+ 	var scanner Scanner.Scanner;
+ 	scanner.Open(src_file, src, flags.columns, flags.testmode);
+ 
+@@ -36,11 +44,72 @@ export func Compile(src_file, src string, flags *Flags) *Compilation {
+ 	}
+ 
+ 	var parser Parser.Parser;
+-	parser.Open(flags.verbose, flags.sixg, &scanner, tstream);
++	parser.Open(flags.verbose, flags.sixg, flags.deps, &scanner, tstream);
++
++	prog := parser.ParseProgram();
++	return prog, scanner.nerrors;
++}
++
+ 
+-	C := new(Compilation);
+-	C.prog = parser.ParseProgram();
+-	C.nerrors = scanner.nerrors;
+-	
+-	return C;
++func FileExists(name string) bool {
++	fd, err := OS.Open(name, OS.O_RDONLY, 0);
++	if err == nil {
++		fd.Close();
++		return true;
++	}
++	return false;
++}
++
++
++func AddDeps(globalset *map [string] bool, wset *AST.List, src_file string, flags *Flags) {
++	dummy, found := globalset[src_file];
++	if !found {
++		globalset[src_file] = true;
++		
++		prog, nerrors := Compile(src_file, flags);
++		if nerrors > 0 {
++			return;
++		}
++		
++		nimports := prog.decls.len();
++		if nimports > 0 {
++			print(src_file, ".6:\t");
++			
++			localset := new(map [string] bool);
++			for i := 0; i < nimports; i++ {
++				decl := prog.decls.at(i).(*AST.Decl);
++				assert(decl.tok == Scanner.IMPORT && decl.val.tok == Scanner.STRING);
++				src := decl.val.s;
++				src = src[1 : len(src) - 1];  // strip "'s
++				
++				// ignore files when they are seen a 2nd time
++				dummy, found := localset[src];
++				if !found {
++					localset[src] = true;
++					if FileExists(src + ".go") {
++						wset.Add(src);
++						print(" ", src, ".6");
++					} else if
++						FileExists(Platform.GOROOT + "/pkg/" + src + ".6") ||
++						FileExists(Platform.GOROOT + "/pkg/" + src + ".a") {
++						
++					} else {
++						// TODO should collect these and print later
++						//print("missing file: ", src, "\n");
++					}
++				}
++			}
++			print("\n\n");
++		}
++	}
++}
++
++
++export func ComputeDeps(src_file string, flags *Flags) {
++	globalset := new(map [string] bool);
++	wset := AST.NewList();
++	wset.Add(src_file);
++	for wset.len() > 0 {
++		AddDeps(globalset, wset, wset.Pop().(string), flags);
++	}
+ }
+diff --git a/usr/gri/pretty/parser.go b/usr/gri/pretty/parser.go
+index 939358c522..d669589768 100644
+--- a/usr/gri/pretty/parser.go
++++ b/usr/gri/pretty/parser.go
+@@ -10,7 +10,7 @@ import AST "ast"
+ 
+ export type Parser struct {
+ 	// Tracing/debugging
+-	verbose, sixg bool;
++	verbose, sixg, deps bool;
+ 	indent uint;
+ 	
+ 	// Scanner
+@@ -83,9 +83,10 @@ func (P *Parser) Next() {
+ }
+ 
+ 
+-func (P *Parser) Open(verbose, sixg bool, scanner *Scanner.Scanner, tokchan *<-chan *Scanner.Token) {
++func (P *Parser) Open(verbose, sixg, deps bool, scanner *Scanner.Scanner, tokchan *<-chan *Scanner.Token) {
+ 	P.verbose = verbose;
+ 	P.sixg = sixg;
++	P.deps = deps;
+ 	P.indent = 0;
+ 	
+ 	P.scanner = scanner;
+@@ -1187,9 +1188,12 @@ func (P *Parser) ParseCommCase() *AST.Stat {
+ 		if P.tok == Scanner.ASSIGN || P.tok == Scanner.DEFINE {
+ 			pos, tok := P.pos, P.tok;
+ 			P.Next();
+-			P.Expect(Scanner.ARROW);
+-			y := P.ParseExpression(1);
+-			x = AST.NewExpr(pos, tok, x, y);
++			if P.tok == Scanner.ARROW {
++				y := P.ParseExpression(1);
++				x = AST.NewExpr(pos, tok, x, y);
++			} else {
++				P.Expect(Scanner.ARROW);  // use Expect() error handling
++			}
+ 		}
+ 		s.expr = x;
+ 	} else {
+@@ -1526,10 +1530,12 @@ func (P *Parser) ParseProgram() *AST.Program {
+ 		p.decls.Add(P.ParseDecl(false, Scanner.IMPORT));
+ 		P.OptSemicolon();
+ 	}
+-		
+-	for P.tok != Scanner.EOF {
+-		p.decls.Add(P.ParseDeclaration());
+-		P.OptSemicolon();
++	
++	if !P.deps {
++		for P.tok != Scanner.EOF {
++			p.decls.Add(P.ParseDeclaration());
++			P.OptSemicolon();
++		}
+ 	}
+ 	
+ 	p.comments = P.comments;
+diff --git a/usr/gri/pretty/platform.go b/usr/gri/pretty/platform.go
+index 6e96b4ada1..529ef13ff2 100644
+--- a/usr/gri/pretty/platform.go
++++ b/usr/gri/pretty/platform.go
+@@ -41,7 +41,7 @@ func init() {
+ // I/O
+ 
+ export const (
+-	MAGIC_obj_file = "@gri-go.7@v0";  // make it clear thar it cannot be a source file
++	MAGIC_obj_file = "@gri-go.7@v0";  // make it clear that it cannot be a source file
+ 	src_file_ext = ".go";
+ 	obj_file_ext = ".7";
+ )
+diff --git a/usr/gri/pretty/pretty.go b/usr/gri/pretty/pretty.go
+index 2f179d0c0c..0c65bfc006 100644
+--- a/usr/gri/pretty/pretty.go
++++ b/usr/gri/pretty/pretty.go
+@@ -40,27 +40,18 @@ func main() {
+ 	for i := 0; i < Flag.NArg(); i++ {
+ 		src_file := Flag.Arg(i);
+ 
+-		src, ok := Platform.ReadSourceFile(src_file);
+-		if !ok {
+-			print("cannot open ", src_file, "\n");
+-			sys.exit(1);
+-		}
+-
+-		C := Compilation.Compile(src_file, src, &flags);
+-
+-		if C.nerrors > 0 {
+-			sys.exit(1);
+-		}
+-		
+ 		if flags.deps {
+-			print("deps\n");
+-			panic("UNIMPLEMENTED");
+-			return;
+-		}
+-
+-		if !silent.BVal() && !flags.testmode {
+-			var P Printer.Printer;
+-			(&P).Program(C.prog);
++			Compilation.ComputeDeps(src_file, &flags);
++			
++		} else {
++			prog, nerrors := Compilation.Compile(src_file, &flags);
++			if nerrors > 0 {
++				return;
++			}
++			if !silent.BVal() && !flags.testmode {
++				var P Printer.Printer;
++				(&P).Program(prog);
++			}
+ 		}
+ 	}
+ }

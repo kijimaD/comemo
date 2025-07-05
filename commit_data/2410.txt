@@ -9,7 +9,7 @@ Date:   Sat Jun 6 12:46:38 2009 -0700
     R=ken
     OCL=29326
     CL=29985
-
+---
  src/cmd/gc/align.c  |   7 +-
  src/cmd/gc/dcl.c    | 215 +++++++++-----
  src/cmd/gc/export.c | 176 +++++------
@@ -20,3 +20,2938 @@ Date:   Sat Jun 6 12:46:38 2009 -0700
  src/cmd/gc/subr.c   |  47 ++-
  src/cmd/gc/walk.c   | 100 ++++---
  9 files changed, 827 insertions(+), 858 deletions(-)
+
+diff --git a/src/cmd/gc/align.c b/src/cmd/gc/align.c
+index 739851a338..bf9fb16273 100644
+--- a/src/cmd/gc/align.c
++++ b/src/cmd/gc/align.c
+@@ -208,7 +208,7 @@ dowidth(Type *t)
+ }
+ 
+ void
+-typeinit(int lex)
++typeinit(void)
+ {
+ 	int i, etype, sameas;
+ 	Type *t;
+@@ -306,7 +306,7 @@ typeinit(int lex)
+ 	types[TFUNC] = functype(N, N, N);
+ 
+ 	/* types used in front end */
+-	types[TNIL] = typ(TNIL);
++	// types[TNIL] got set early in lexinit
+ 	types[TIDEAL] = typ(TIDEAL);
+ 
+ 	/* simple aliases */
+@@ -317,7 +317,6 @@ typeinit(int lex)
+ 	/* pick up the backend typedefs */
+ 	for(i=0; typedefs[i].name; i++) {
+ 		s = lookup(typedefs[i].name);
+-		s->lexical = lex;
+ 
+ 		etype = typedefs[i].etype;
+ 		if(etype < 0 || etype >= nelem(types))
+@@ -340,7 +339,7 @@ typeinit(int lex)
+ 
+ 		dowidth(t);
+ 		types[etype] = t;
+-		s->otype = t;
++		s->def = typenod(t);
+ 	}
+ 
+ 	Array_array = rnd(0, widthptr);
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index c5359dc5cb..122df1debc 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -67,11 +67,11 @@ dodcltype(Type *n)
+ 	// if n has been forward declared,
+ 	// use the Type* created then
+ 	s = n->sym;
+-	if(s->block == block && s->otype != T) {
+-		switch(s->otype->etype) {
++	if(s->block == block && s->def != N && s->def->op == OTYPE) {
++		switch(s->def->type->etype) {
+ 		case TFORWSTRUCT:
+ 		case TFORWINTER:
+-			n = s->otype;
++			n = s->def->type;
+ 			goto found;
+ 		}
+ 	}
+@@ -95,7 +95,7 @@ updatetype(Type *n, Type *t)
+ 	int local;
+ 
+ 	s = n->sym;
+-	if(s == S || s->otype != n)
++	if(s == S || s->def == N || s->def->op != OTYPE || s->def->type != n)
+ 		fatal("updatetype %T = %T", n, t);
+ 
+ 	switch(n->etype) {
+@@ -132,7 +132,7 @@ updatetype(Type *n, Type *t)
+ 	n->printed = 0;
+ 	n->method = nil;
+ 	n->vargen = 0;
+-
++	n->nod = N;
+ 	// catch declaration of incomplete type
+ 	switch(n->etype) {
+ 	case TFORWSTRUCT:
+@@ -306,7 +306,7 @@ addmethod(Node *n, Type *t, int local)
+ 		goto bad;
+ 
+ 	if(local && !f->local) {
+-		yyerror("cannot define methods on non-local type %T", t);
++		yyerror("cannot define methods on non-local type %T", f);
+ 		return;
+ 	}
+ 
+@@ -383,7 +383,9 @@ funchdr(Node *n)
+ 	Sym *s;
+ 
+ 	s = n->nname->sym;
+-	on = s->oname;
++	on = s->def;
++	if(on != N && (on->op != ONAME || on->builtin))
++		on = N;
+ 
+ 	// check for same types
+ 	if(on != N) {
+@@ -748,7 +750,7 @@ loop:
+ 		f->embedded = n->embedded;
+ 		f->sym = f->nname->sym;
+ 		if(pkgimportname != S && !exportname(f->sym->name))
+-			f->sym = pkglookup(f->sym->name, pkgcontext);
++			f->sym = pkglookup(f->sym->name, structpkg);
+ 	}
+ 
+ 	*t = f;
+@@ -793,11 +795,8 @@ void
+ dcopy(Sym *a, Sym *b)
+ {
+ 	a->name = b->name;
+-	a->oname = b->oname;
+-	a->otype = b->otype;
+-	a->oconst = b->oconst;
++	a->def = b->def;
+ 	a->package = b->package;
+-	a->lexical = b->lexical;
+ 	a->undef = b->undef;
+ 	a->vargen = b->vargen;
+ 	a->block = b->block;
+@@ -954,11 +953,8 @@ addvar(Node *n, Type *t, int ctxt)
+ 
+ 	redeclare("variable", s);
+ 	s->vargen = gen;
+-	s->oname = n;
++	s->def = n;
+ 	s->offset = 0;
+-	s->oconst = nil;
+-	s->otype = nil;
+-	s->lexical = LNAME;
+ 
+ 	n->funcdepth = funcdepth;
+ 	n->type = t;
+@@ -1004,10 +1000,7 @@ addtyp(Type *n, int ctxt)
+ 	}
+ 
+ 	redeclare("type", s);
+-	s->otype = n;
+-	s->oconst = nil;
+-	s->oname = nil;
+-	s->lexical = LATYPE;
++	s->def = typenod(n);
+ 
+ 	d = dcl();
+ 	d->dsym = s;
+@@ -1041,7 +1034,7 @@ addconst(Node *n, Node *e, int ctxt)
+ 	Sym *s;
+ 	Dcl *r, *d;
+ 
+-	if(n->op != ONAME)
++	if(n->op != ONAME && n->op != ONONAME)
+ 		fatal("addconst: not a name");
+ 
+ 	if(e->op != OLITERAL) {
+@@ -1059,10 +1052,8 @@ addconst(Node *n, Node *e, int ctxt)
+ 	}
+ 
+ 	redeclare("constant", s);
+-	s->oconst = e;
+-	s->otype = nil;
+-	s->oname = nil;
+-	s->lexical = LNAME;
++	s->def = e;
++	e->sym = s;
+ 
+ 	d = dcl();
+ 	d->dsym = s;
+@@ -1073,7 +1064,7 @@ addconst(Node *n, Node *e, int ctxt)
+ 	r->back = d;
+ 
+ 	if(dflag())
+-		print("const-dcl %S %N\n", n->sym, n->sym->oconst);
++		print("const-dcl %S %N\n", n->sym, n->sym->def);
+ }
+ 
+ Node*
+@@ -1130,6 +1121,18 @@ newname(Sym *s)
+ 	return n;
+ }
+ 
++Node*
++typenod(Type *t)
++{
++	if(t->nod == N) {
++		t->nod = nod(OTYPE, N, N);
++		t->nod->type = t;
++		t->nod->sym = t->sym;
++	}
++	return t->nod;
++}
++
++
+ /*
+  * this will return an old name
+  * that has already been pushed on the
+@@ -1142,15 +1145,7 @@ oldname(Sym *s)
+ 	Node *n;
+ 	Node *c;
+ 
+-	if(s->oconst) {
+-		n = nod(OLITERAL, N, N);
+-		n->sym = s;
+-		n->val = s->oconst->val;
+-		n->type = s->oconst->type;
+-		return n;
+-	}
+-
+-	n = s->oname;
++	n = s->def;
+ 	if(n == N) {
+ 		n = nod(ONONAME, N, N);
+ 		n->sym = s;
+@@ -1158,7 +1153,15 @@ oldname(Sym *s)
+ 		n->addable = 1;
+ 		n->ullman = 1;
+ 	}
+-	if(n->funcdepth > 0 && n->funcdepth != funcdepth) {
++	if(n->op == OLITERAL) {
++		c = nod(OLITERAL, N, N);
++		c->sym = s;
++		c->val = n->val;
++		c->type = n->type;
++		c->iota = n->iota;
++		return c;
++	}
++	if(n->funcdepth > 0 && n->funcdepth != funcdepth && n->op == ONAME) {
+ 		// inner func is referring to var
+ 		// in outer func.
+ 		if(n->closure == N || n->closure->funcdepth != funcdepth) {
+@@ -1200,9 +1203,19 @@ oldtype(Sym *s)
+ {
+ 	Type *t;
+ 
+-	t = s->otype;
+-	if(t == T)
+-		fatal("%S not a type", s); // cant happen
++	if(s->def == N || s->def->op != OTYPE) {
++		yyerror("%S is not a type", s);
++		return T;
++	}
++	t = s->def->type;
++
++	/*
++	 * If t is lowercase and not in our package
++	 * and this isn't a reference during the parsing
++	 * of import data, complain.
++	 */
++	if(pkgimportname == S && !exportname(s->name) && strcmp(s->package, package) != 0)
++		yyerror("cannot use type %T", t);
+ 	return t;
+ }
+ 
+@@ -1219,9 +1232,9 @@ nametoanondcl(Node *na)
+ 	for(l=&na; (n=*l)->op == OLIST; l=&n->left)
+ 		n->right = nametoanondcl(n->right);
+ 
+-	t = n->sym->otype;
+-	if(t == T) {
+-		yyerror("%s is not a type", n->sym->name);
++	n = n->sym->def;
++	if(n == N || n->op != OTYPE || (t = n->type) == T) {
++		yyerror("%S is not a type", n->sym);
+ 		t = typ(TINT32);
+ 	}
+ 	n = nod(ODCLFIELD, N, N);
+@@ -1261,33 +1274,95 @@ anondcl(Type *t)
+ 	return n;
+ }
+ 
++static Node*
++findtype(Node *n)
++{
++	Node *r;
++
++	for(r=n; r->op==OLIST; r=r->right)
++		if(r->left->op == OKEY)
++			return r->left->right;
++	if(r->op == OKEY)
++		return r->right;
++	if(n->op == OLIST)
++		n = n->left;
++	return N;
++}
++
++static Node*
++xanondcl(Node *nt, int dddok)
++{
++	Node *n;
++	Type *t;
++
++	t = nt->type;
++	if(nt->op != OTYPE) {
++		yyerror("%N is not a type", nt);
++		t = types[TINT32];
++	}
++	n = nod(ODCLFIELD, N, N);
++	n->type = t;
++	if(!dddok && t->etype == TDDD)
++		yyerror("only last argument can have type ...");
++	return n;
++}
++
++static Node*
++namedcl(Node *nn, Node *nt, int dddok)
++{
++	Node *n;
++	Type *t;
++
++	if(nn->op == OKEY)
++		nn = nn->left;
++	if(nn->op == OTYPE && nn->sym == S) {
++		yyerror("cannot mix anonymous %T with named arguments", nn->type);
++		return xanondcl(nn, dddok);
++	}
++	t = types[TINT32];
++	if(nt == N)
++		yyerror("missing type for argument %S", nn->sym);
++	else if(nt->op != OTYPE)
++		yyerror("%S is not a type", nt->sym);
++	else
++		t = nt->type;
++	n = nod(ODCLFIELD, newname(nn->sym), N);
++	n->type = t;
++	if(!dddok && t->etype == TDDD)
++		yyerror("only last argument can have type ...");
++	return n;
++}
++
+ /*
+  * check that the list of declarations is either all anonymous or all named
+  */
+-void
++Node*
+ checkarglist(Node *n)
+ {
+-	if(n->op != OLIST)
+-		return;
+-	if(n->left->op != ODCLFIELD)
+-		fatal("checkarglist");
+-	if(n->left->left != N) {
+-		for(n=n->right; n->op == OLIST; n=n->right)
+-			if(n->left->left == N)
+-				goto mixed;
+-		if(n->left == N)
+-			goto mixed;
+-	} else {
+-		for(n=n->right; n->op == OLIST; n=n->right)
+-			if(n->left->left != N)
+-				goto mixed;
+-		if(n->left != N)
+-			goto mixed;
+-	}
+-	return;
++	Node *r;
++	Node **l;
++
++	// check for all anonymous
++	for(r=n; r->op==OLIST; r=r->right)
++		if(r->left->op == OKEY)
++			goto named;
++	if(r->op == OKEY)
++		goto named;
++
++	// all anonymous - add names
++	for(l=&n; (r=*l)->op==OLIST; l=&r->right)
++		r->left = xanondcl(r->left, 0);
++	*l = xanondcl(r, 1);
++	return n;
++
+ 
+-mixed:
+-	yyerror("cannot mix anonymous and named function arguments");
++named:
++	// otherwise, each run of names ends in a type.
++	// add a type to each one that needs one.
++	for(l=&n; (r=*l)->op==OLIST; l=&r->right)
++		r->left = namedcl(r->left, findtype(r), 0);
++	*l = namedcl(r, findtype(r), 1);
++	return n;
+ }
+ 
+ /*
+@@ -1296,7 +1371,7 @@ mixed:
+  *	func	Init·<file>()				(2)
+  *		if initdone·<file> {			(3)
+  *			if initdone·<file> == 2		(4)
+- *				return			
++ *				return
+  *			throw();			(5)
+  *		}
+  *		initdone.<file>++;			(6)
+@@ -1325,7 +1400,7 @@ anyinit(Node *n)
+ 	// is there an explicit init function
+ 	snprint(namebuf, sizeof(namebuf), "init·%s", filename);
+ 	s = lookup(namebuf);
+-	if(s->oname != N)
++	if(s->def != N)
+ 		return 1;
+ 
+ 	// are there any imported init functions
+@@ -1333,7 +1408,7 @@ anyinit(Node *n)
+ 	for(s = hash[h]; s != S; s = s->link) {
+ 		if(s->name[0] != 'I' || strncmp(s->name, "Init·", 6) != 0)
+ 			continue;
+-		if(s->oname == N)
++		if(s->def == N)
+ 			continue;
+ 		return 1;
+ 	}
+@@ -1409,13 +1484,13 @@ fninit(Node *n)
+ 	for(s = hash[h]; s != S; s = s->link) {
+ 		if(s->name[0] != 'I' || strncmp(s->name, "Init·", 6) != 0)
+ 			continue;
+-		if(s->oname == N)
++		if(s->def == N)
+ 			continue;
+ 		if(s == initsym)
+ 			continue;
+ 
+ 		// could check that it is fn of no args/returns
+-		a = nod(OCALL, s->oname, N);
++		a = nod(OCALL, s->def, N);
+ 		r = list(r, a);
+ 	}
+ 
+@@ -1426,8 +1501,8 @@ fninit(Node *n)
+ 	// could check that it is fn of no args/returns
+ 	snprint(namebuf, sizeof(namebuf), "init·%s", filename);
+ 	s = lookup(namebuf);
+-	if(s->oname != N) {
+-		a = nod(OCALL, s->oname, N);
++	if(s->def != N) {
++		a = nod(OCALL, s->def, N);
+ 		r = list(r, a);
+ 	}
+ 
+diff --git a/src/cmd/gc/export.c b/src/cmd/gc/export.c
+index e9bb438d77..8653cb5511 100644
+--- a/src/cmd/gc/export.c
++++ b/src/cmd/gc/export.c
+@@ -100,7 +100,7 @@ dumpexportconst(Sym *s)
+ 	Node *n;
+ 	Type *t;
+ 
+-	n = s->oconst;
++	n = s->def;
+ 	if(n == N || n->op != OLITERAL)
+ 		fatal("dumpexportconst: oconst nil: %S", s);
+ 
+@@ -141,7 +141,7 @@ dumpexportvar(Sym *s)
+ 	Node *n;
+ 	Type *t;
+ 
+-	n = s->oname;
++	n = s->def;
+ 	if(n == N || n->type == T) {
+ 		yyerror("variable exported but not defined: %S", s);
+ 		return;
+@@ -161,49 +161,54 @@ dumpexportvar(Sym *s)
+ void
+ dumpexporttype(Sym *s)
+ {
+-	dumpprereq(s->otype);
++	Type *t;
++
++	t = s->def->type;
++	dumpprereq(t);
+ 	Bprint(bout, "\t");
+-	switch (s->otype->etype) {
++	switch (t->etype) {
+ 	case TFORW:
+ 	case TFORWSTRUCT:
+ 	case TFORWINTER:
+-		yyerror("export of incomplete type %T", s->otype);
++		yyerror("export of incomplete type %T", t);
+ 		return;
+ 	}
+-	Bprint(bout, "type %#T %l#T\n",  s->otype, s->otype);
++	Bprint(bout, "type %#T %l#T\n",  t, t);
+ }
+ 
+ void
+ dumpsym(Sym *s)
+ {
+-	Type *f;
++	Type *f, *t;
+ 
+ 	if(s->exported != 0)
+ 		return;
+ 	s->exported = 1;
+ 
+-	switch(s->lexical) {
+-	default:
++	if(s->def == N) {
+ 		yyerror("unknown export symbol: %S", s);
++		return;
++	}
++	switch(s->def->op) {
++	default:
++		yyerror("unexpected export symbol: %O %S", s->def->op, s);
+ 		break;
+-	case LPACK:
+-		yyerror("package export symbol: %S", s);
++	case OLITERAL:
++		dumpexportconst(s);
+ 		break;
+-	case LATYPE:
++	case OTYPE:
++		t = s->def->type;
+ 		// TODO(rsc): sort methods by name
+-		for(f=s->otype->method; f!=T; f=f->down)
++		for(f=t->method; f!=T; f=f->down)
+ 			dumpprereq(f);
+ 
+ 		dumpexporttype(s);
+-		for(f=s->otype->method; f!=T; f=f->down)
++		for(f=t->method; f!=T; f=f->down)
+ 			Bprint(bout, "\tfunc (%#T) %hS %#hhT\n",
+ 				f->type->type->type, f->sym, f->type);
+ 		break;
+-	case LNAME:
+-		if(s->oconst)
+-			dumpexportconst(s);
+-		else
+-			dumpexportvar(s);
++	case ONAME:
++		dumpexportvar(s);
+ 		break;
+ 	}
+ }
+@@ -216,7 +221,7 @@ dumptype(Type *t)
+ 		return;
+ 
+ 	// no need to dump type if it's not ours (was imported)
+-	if(t->sym != S && t->sym->otype == t && !t->local)
++	if(t->sym != S && t->sym->def == typenod(t) && !t->local)
+ 		return;
+ 
+ 	Bprint(bout, "type %#T %l#T\n",  t, t);
+@@ -256,43 +261,22 @@ dumpexport(void)
+  * import
+  */
+ 
+-/*
+- * look up and maybe declare pkg.name, which should match lexical
+- */
+-Sym*
+-pkgsym(char *name, char *pkg, int lexical)
+-{
+-	Sym *s;
+-
+-	s = pkglookup(name, pkg);
+-	switch(lexical) {
+-	case LATYPE:
+-		if(s->oname)
+-			yyerror("%s.%s is not a type", name, pkg);
+-		break;
+-	case LNAME:
+-		if(s->otype)
+-			yyerror("%s.%s is not a name", name, pkg);
+-		break;
+-	}
+-	s->lexical = lexical;
+-	return s;
+-}
+-
+ /*
+  * return the sym for ss, which should match lexical
+  */
+ Sym*
+-importsym(Node *ss, int lexical)
++importsym(Sym *s, int op)
+ {
+-	Sym *s;
+-
+-	if(ss->op != OIMPORT)
+-		fatal("importsym: oops1 %N", ss);
+-
+-	s = pkgsym(ss->sym->name, ss->psym->name, lexical);
+-	/* TODO botch - need some diagnostic checking for the following assignment */
+-	if(exportname(ss->sym->name))
++	if(s->def != N && s->def->op != op) {
++		// Clumsy hack for
++		//	package parser
++		//	import "go/parser"	// defines type parser
++		if(s == lookup(package))
++			s->def = N;
++		else
++			yyerror("redeclaration of %lS during import", s, s->def->op, op);
++	}
++	if(exportname(s->name))
+ 		s->export = 1;
+ 	else
+ 		s->export = 2;	// package scope
+@@ -304,47 +288,36 @@ importsym(Node *ss, int lexical)
+  * return the type pkg.name, forward declaring if needed
+  */
+ Type*
+-pkgtype(char *name, char *pkg)
++pkgtype(Sym *s)
+ {
+-	Sym *s;
+ 	Type *t;
+ 
+-	// botch
+-	// s = pkgsym(name, pkg, LATYPE);
+-	Node *n;
+-	n = nod(OIMPORT, N, N);
+-	n->sym = lookup(name);
+-	n->psym = lookup(pkg);
+-	s = importsym(n, LATYPE);
+-
+-	if(s->otype == T) {
++	importsym(s, OTYPE);
++	if(s->def == N || s->def->op != OTYPE) {
+ 		t = typ(TFORW);
+ 		t->sym = s;
+-		s->otype = t;
++		s->def = typenod(t);
+ 	}
+-	return s->otype;
++	return s->def->type;
+ }
+ 
+ static int
+-mypackage(Node *ss)
++mypackage(Sym *s)
+ {
+ 	// we import all definitions for sys.
+ 	// lowercase ones can only be used by the compiler.
+-	return strcmp(ss->psym->name, package) == 0
+-		|| strcmp(ss->psym->name, "sys") == 0;
++	return strcmp(s->package, package) == 0
++		|| strcmp(s->package, "sys") == 0;
+ }
+ 
+ void
+-importconst(Node *ss, Type *t, Node *n)
++importconst(Sym *s, Type *t, Node *n)
+ {
+-	Sym *s;
+-
+-	if(!exportname(ss->sym->name) && !mypackage(ss))
++	if(!exportname(s->name) && !mypackage(s))
+ 		return;
+-
++	importsym(s, OLITERAL);
+ 	convlit(n, t);
+-	s = importsym(ss, LNAME);
+-	if(s->oconst != N) {
++	if(s->def != N) {
+ 		// TODO: check if already the same.
+ 		return;
+ 	}
+@@ -356,19 +329,17 @@ importconst(Node *ss, Type *t, Node *n)
+ }
+ 
+ void
+-importvar(Node *ss, Type *t, int ctxt)
++importvar(Sym *s, Type *t, int ctxt)
+ {
+-	Sym *s;
+-
+-	if(!exportname(ss->sym->name) && !mypackage(ss))
++	if(!exportname(s->name) && !mypackage(s))
+ 		return;
+ 
+-	s = importsym(ss, LNAME);
+-	if(s->oname != N) {
+-		if(cvttype(t, s->oname->type))
++	importsym(s, ONAME);
++	if(s->def != N && s->def->op == ONAME) {
++		if(cvttype(t, s->def->type))
+ 			return;
+ 		warn("redeclare import var %S from %T to %T",
+-			s, s->oname->type, t);
++			s, s->def->type, t);
+ 	}
+ 	checkwidth(t);
+ 	addvar(newname(s), t, ctxt);
+@@ -378,25 +349,34 @@ importvar(Node *ss, Type *t, int ctxt)
+ }
+ 
+ void
+-importtype(Node *ss, Type *t)
++importtype(Sym *s, Type *t)
+ {
+-	Sym *s;
++	Node *n;
++	Type *tt;
+ 
+-	s = importsym(ss, LATYPE);
+-	if(s->otype != T) {
+-		if(cvttype(t, s->otype))
++	importsym(s, OTYPE);
++	n = s->def;
++	if(n != N && n->op == OTYPE) {
++		if(cvttype(t, n->type))
+ 			return;
+-		if(s->otype->etype != TFORW) {
++		if(n->type->etype != TFORW) {
+ 			warn("redeclare import type %S from %lT to %lT",
+-				s, s->otype, t);
+-			s->otype = typ(0);
++				s, n->type, t);
++			n = s->def = typenod(typ(0));
+ 		}
+ 	}
+-	if(s->otype == T)
+-		s->otype = typ(0);
+-	*s->otype = *t;
+-	s->otype->sym = s;
+-	checkwidth(s->otype);
++	if(n == N || n->op != OTYPE) {
++		tt = typ(0);
++		tt->sym = s;
++		n = typenod(tt);
++		s->def = n;
++	}
++	if(n->type == T)
++		n->type = typ(0);
++	*n->type = *t;
++	n->type->sym = s;
++	n->type->nod = n;
++	checkwidth(n->type);
+ 
+ 	if(debug['E'])
+ 		print("import type %S %lT\n", s, t);
+@@ -425,7 +405,9 @@ return;
+ 
+ 	for(h=0; h<NHASH; h++)
+ 	for(s = hash[h]; s != S; s = s->link) {
+-		t = s->otype;
++		if(s->def == N || s->def->op != OTYPE)
++			continue;
++		t = s->def->type;
+ 		if(t == T)
+ 			continue;
+ 
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index e35721e7e4..c8d6107af3 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -145,6 +145,8 @@ struct	Type
+ 	uchar	copyany;
+ 	uchar	local;		// created in this file
+ 
++	Node*	nod;		// canonical OTYPE node
++
+ 	// TFUNCT
+ 	uchar	thistuple;
+ 	uchar	outtuple;
+@@ -187,6 +189,7 @@ struct	Node
+ 	uchar	diag;		// already printed error about this
+ 	uchar	noescape;	// ONAME never move to heap
+ 	uchar	funcdepth;
++	uchar	builtin;	// built-in name, like len or close
+ 
+ 	// most nodes
+ 	Node*	left;
+@@ -247,10 +250,7 @@ struct	Sym
+ 
+ 	char*	package;	// package name
+ 	char*	name;		// variable name
+-	Node*	oname;		// ONAME node if a var
+-	Type*	otype;		// TYPE node if a type
+-	Node*	oconst;		// OLITERAL node if a const
+-	char*	opack;		// package reference if lexical == LPACK
++	Node*	def;		// definition: ONAME OTYPE OPACK or OLITERAL
+ 	vlong	offset;		// stack location if automatic
+ 	int32	lexical;
+ 	int32	vargen;		// unique variable number
+@@ -298,9 +298,8 @@ enum
+ {
+ 	OXXX,
+ 
+-	OTYPE, OVAR, OIMPORT,
+-
+-	ONAME, ONONAME, ODCL,
++	ONAME, ONONAME, OTYPE, OPACK, OLITERAL,
++	ODCL,
+ 	ODOT, ODOTPTR, ODOTMETH, ODOTINTER,
+ 	ODCLFUNC, ODCLFIELD, ODCLARG,
+ 	OLIST, OCMP, OPTR, OARRAY, ORANGE,
+@@ -325,7 +324,7 @@ enum
+ 	OCALL, OCALLMETH, OCALLINTER,
+ 	OINDEX, OSLICE,
+ 	ONOT, OCOM, OPLUS, OMINUS, OSEND, ORECV,
+-	OLITERAL, OREGISTER, OINDREG,
++	OREGISTER, OINDREG,
+ 	OKEY, OPARAM,
+ 	OCOMPOS, OCOMPSLICE, OCOMPMAP,
+ 	OCONV,
+@@ -573,6 +572,7 @@ EXTERN	int	importflag;
+ EXTERN	int	inimportsys;
+ EXTERN	int	initflag;		// compiling the init fn
+ EXTERN	int	statuniqgen;		// name generator for static temps
++EXTERN	int	loophack;
+ 
+ EXTERN	uint32	iota;
+ EXTERN	Node*	lastconst;
+@@ -595,8 +595,7 @@ EXTERN	Node*	fskel;
+ EXTERN	Node*	addtop;
+ EXTERN	Node*	typeswvar;
+ 
+-EXTERN	char*	context;
+-EXTERN	char*	pkgcontext;
++EXTERN	char*	structpkg;
+ extern	int	thechar;
+ extern	char*	thestring;
+ EXTERN	char*	hunk;
+@@ -623,7 +622,7 @@ void	importfile(Val*);
+ void	cannedimports(char*, char*);
+ void	unimportfile();
+ int32	yylex(void);
+-void	typeinit(int lex);
++void	typeinit(void);
+ void	lexinit(void);
+ char*	lexname(int);
+ int32	getr(void);
+@@ -731,7 +730,7 @@ int	isnilinter(Type*);
+ int	isddd(Type*);
+ Type*	maptype(Type*, Type*);
+ Type*	methtype(Type*);
+-Sym*	signame(Type*);
++Node*	signame(Type*);
+ int	eqtype(Type*, Type*);
+ int	cvttype(Type*, Type*);
+ int	eqtypenoname(Type*, Type*);
+@@ -821,6 +820,7 @@ Node*	renameinit(Node*);
+ void	funchdr(Node*);
+ void	funcargs(Type*);
+ void	funcbody(Node*);
++Node*	typenod(Type*);
+ Type*	dostruct(Node*, int);
+ Type**	stotype(Node*, int, Type**);
+ Type*	sortinter(Type*);
+@@ -844,7 +844,7 @@ void	fninit(Node*);
+ Node*	nametoanondcl(Node*);
+ Node*	nametodcl(Node*, Type*);
+ Node*	anondcl(Type*);
+-void	checkarglist(Node*);
++Node*	checkarglist(Node*);
+ void	checkwidth(Type*);
+ void	defercheckwidth(void);
+ void	resumecheckwidth(void);
+@@ -887,12 +887,12 @@ void	doimport6(Node*, Node*);
+ void	doimport7(Node*, Node*);
+ void	doimport8(Node*, Val*, Node*);
+ void	doimport9(Sym*, Node*);
+-void	importconst(Node *ss, Type *t, Node *v);
++void	importconst(Sym *s, Type *t, Node *v);
+ void	importmethod(Sym *s, Type *t);
+-void	importtype(Node *ss, Type *t);
+-void	importvar(Node *ss, Type *t, int ctxt);
++void	importtype(Sym *s, Type *t);
++void	importvar(Sym *s, Type *t, int ctxt);
+ void	checkimports(void);
+-Type*	pkgtype(char*, char*);
++Type*	pkgtype(Sym*);
+ 
+ /*
+  *	walk.c
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index cc9caf9260..f774df2941 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -2,6 +2,30 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++/*
++ * Go language grammar.
++ *
++ * The grammar has 6 reduce/reduce conflicts, caused by
++ * input that can be parsed as either a type or an expression
++ * depending on context, like the t in t(1).  The expressions
++ * have the more general syntax, so the grammar arranges
++ * that such input gets parsed as expressions and then is
++ * fixed up as a type later.  In return for this extra work,
++ * the lexer need not distinguish type names from variable names.
++ *
++ * The Go semicolon rules are:
++ *
++ *  1. all statements and declarations are terminated by semicolons
++ *  2. semicolons can be omitted at top level.
++ *  3. semicolons can be omitted before and after the closing ) or }
++ *	on a list of statements or declarations.
++ *
++ * Thus the grammar must distinguish productions that
++ * can omit the semicolon terminator and those that can't.
++ * Names like Astmt, Avardcl, etc. can drop the semicolon.
++ * Names like Bstmt, Bvardcl, etc. can't.
++ */
++
+ %{
+ #include "go.h"
+ %}
+@@ -12,106 +36,90 @@
+ 	struct	Val	val;
+ 	int		lint;
+ }
+-%token	<val>		LLITERAL
+-%token	<lint>		LASOP
+-%token	<sym>		LNAME LATYPE LPACK
+-%token	<sym>		LPACKAGE LIMPORT LDEFER LCLOSE LCLOSED
+-%token	<sym>		LMAP LCHAN LINTERFACE LFUNC LSTRUCT
+-%token	<sym>		LCOLAS LFALL LRETURN LDDD
+-%token	<sym>		LLEN LCAP LPANIC LPANICN LPRINT LPRINTN
+-%token	<sym>		LVAR LTYPE LCONST LSELECT LMAKE LNEW
+-%token	<sym>		LFOR LIF LELSE LSWITCH LCASE LDEFAULT
+-%token	<sym>		LBREAK LCONTINUE LGO LGOTO LRANGE
+-%token	<sym>		LNIL LTRUE LFALSE LIOTA
+-
+-%token			LOROR LANDAND LEQ LNE LLE LLT LGE LGT
+-%token			LLSH LRSH LINC LDEC LCOMM LANDNOT
+-%token			LIGNORE
+ 
+-/*
+- * the go semicolon rules are:
+- *
+- *  1. all statements and declarations are terminated by semicolons
+- *  2. semicolons can be omitted at top level.
+- *  3. semicolons can be omitted before and after the closing ) or }
+- *	on a list of statements or declarations.
+- *
+- * thus the grammar must distinguish productions that
+- * can omit the semicolon terminator and those that can't.
+- * names like Astmt, Avardcl, etc. can drop the semicolon.
+- * names like Bstmt, Bvardcl, etc. can't.
+- */
+-
+-%type	<sym>		sym sym1 sym2 sym3 keyword lname latype lpackatype
+-%type	<node>		xdcl xdcl_list_r oxdcl_list
+-%type	<node>		common_dcl Acommon_dcl Bcommon_dcl
+-%type	<node>		oarg_type_list arg_type_list_r arg_chunk arg_chunk_list_r arg_type_list
+-%type	<node>		Aelse_stmt Belse_stmt
+-%type	<node>		complex_stmt compound_stmt switch_body ocaseblock_list ostmt_list
+-%type	<node>		caseblock_list_r stmt_list_r Astmt_list_r Bstmt_list_r
+-%type	<node>		Astmt Bstmt
+-%type	<node>		for_stmt for_body for_header
+-%type	<node>		if_stmt if_header select_stmt switch_stmt condition case caseblock
+-%type	<node>		simple_stmt osimple_stmt range_stmt semi_stmt
+-%type	<node>		expr uexpr pexpr expr_list oexpr oexpr_list expr_list_r
+-%type	<node>		exprsym3_list_r exprsym3 pseudocall
+-%type	<node>		name labelname onew_name new_name new_name_list_r new_field
+-%type	<node>		vardcl_list_r vardcl Avardcl Bvardcl
+-%type	<node>		interfacedcl_list_r interfacedcl interfacedcl1
+-%type	<node>		structdcl_list_r structdcl embed
+-%type	<node>		fnres Afnres Bfnres fnliteral xfndcl fndcl fnbody
+-%type	<node>		braced_keyexpr_list keyval_list_r keyval
+-
+-%type	<type>		typedclname new_type
+-%type	<type>		type Atype Btype
+-%type	<type>		othertype Aothertype Bothertype
+-%type	<type>		chantype Achantype Bchantype
+-%type	<type>		fntype Afntype Bfntype
+-%type	<type>		nametype structtype interfacetype convtype
+-%type	<type>		non_name_type Anon_fn_type Bnon_fn_type
+-%type	<type>		Anon_chan_type Bnon_chan_type
+-%type	<type>		indcl fnlitdcl dotdotdot
+-%type	<val>		oliteral
+-
+-%type	<node>		hidden_constant
+-%type	<node>		hidden_dcl hidden_structdcl
+-%type	<type>		hidden_type hidden_type1 hidden_type2
+-%type	<node>		hidden_structdcl_list ohidden_structdcl_list hidden_structdcl_list_r
+-%type	<node>		hidden_interfacedcl_list ohidden_interfacedcl_list hidden_interfacedcl_list_r
+-%type	<node>		hidden_interfacedcl
+-%type	<node>		hidden_funarg_list ohidden_funarg_list hidden_funarg_list_r
+-%type	<node>		hidden_funres ohidden_funres hidden_importsym hidden_pkg_importsym
+-
+-%left			LOROR
+-%left			LANDAND
+-%left			LCOMM
+-%left			LEQ LNE LLE LGE LLT LGT
+-%left			'+' '-' '|' '^'
+-%left			'*' '/' '%' '&' LLSH LRSH LANDNOT
++// |sed 's/.*	//' |9 fmt -l1 |sort |9 fmt -l50 | sed 's/^/%xxx		/'
++
++%token	<val>	LLITERAL
++%token	<lint>	LASOP
++%token	<sym>	LBREAK LCASE LCHAN LCOLAS LCONST LCONTINUE LDDD
++%token	<sym>	LDEFAULT LDEFER LELSE LFALL LFOR LFUNC LGO LGOTO
++%token	<sym>	LIF LIMPORT LINTERFACE LMAKE LMAP LNAME LNEW
++%token	<sym>	LPACKAGE LRANGE LRETURN LSELECT LSTRUCT LSWITCH
++%token	<sym>	LTYPE LVAR
++
++%token		LANDAND LANDNOT LBODY LCOMM LDEC LEQ LGE LGT
++%token		LIGNORE LINC LLE LLSH LLT LNE LOROR LRSH
++
++%type	<lint>	lbrace
++%type	<sym>	sym packname
++%type	<val>	oliteral
++
++%type	<node>	Acommon_dcl Aelse_stmt Afnres Astmt Astmt_list_r
++%type	<node>	Avardcl Bcommon_dcl Belse_stmt Bfnres Bstmt
++%type	<node>	Bstmt_list_r Bvardcl arg_type arg_type_list
++%type	<node>	arg_type_list_r braced_keyexpr_list case caseblock
++%type	<node>	caseblock_list_r common_dcl complex_stmt
++%type	<node>	compound_stmt dotname embed expr expr_list
++%type	<node>	expr_list_r expr_or_type expr_or_type_list
++%type	<node>	expr_or_type_list_r fnbody fndcl fnliteral fnres
++%type	<node>	for_body for_header for_stmt if_header if_stmt
++%type	<node>	interfacedcl interfacedcl1 interfacedcl_list_r
++%type	<node>	keyval keyval_list_r labelname loop_body name
++%type	<node>	name_list name_list_r name_or_type new_field
++%type	<node>	new_name oarg_type_list ocaseblock_list oexpr
++%type	<node>	oexpr_list oexpr_or_type_list onew_name
++%type	<node>	osimple_stmt ostmt_list oxdcl_list pexpr
++%type	<node>	pseudocall range_stmt select_stmt semi_stmt
++%type	<node>	simple_stmt stmt_list_r structdcl structdcl_list_r
++%type	<node>	switch_body switch_stmt uexpr vardcl vardcl_list_r
++%type	<node>	xdcl xdcl_list_r xfndcl
++
++%type	<type>	Achantype Afntype Anon_chan_type Anon_fn_type
++%type	<type>	Aothertype Atype Bchantype Bfntype Bnon_chan_type
++%type	<type>	Bnon_fn_type Bothertype Btype convtype dotdotdot
++%type	<type>	fnlitdcl fntype indcl interfacetype nametype
++%type	<type>	new_type structtype type typedclname
++
++%type	<sym>	hidden_importsym hidden_pkg_importsym
++
++%type	<node>	hidden_constant hidden_dcl hidden_funarg_list
++%type	<node>	hidden_funarg_list_r hidden_funres
++%type	<node>	hidden_interfacedcl hidden_interfacedcl_list
++%type	<node>	hidden_interfacedcl_list_r hidden_structdcl
++%type	<node>	hidden_structdcl_list hidden_structdcl_list_r
++%type	<node>	ohidden_funarg_list ohidden_funres
++%type	<node>	ohidden_interfacedcl_list ohidden_structdcl_list
++
++%type	<type>	hidden_type hidden_type1 hidden_type2
++
++%left		LOROR
++%left		LANDAND
++%left		LCOMM
++%left		LEQ LNE LLE LGE LLT LGT
++%left		'+' '-' '|' '^'
++%left		'*' '/' '%' '&' LLSH LRSH LANDNOT
+ 
+ /*
+- * resolve { vs condition in favor of condition
++ * manual override of shift/reduce conflicts.
++ * the general form is that we assign a precedence
++ * to the token being shifted and then introduce
++ * NotToken with lower precedence or PreferToToken with higher
++ * and annotate the reducing rule accordingly.
+  */
+-%left			'{'
+-%left			Condition
++%left		NotPackage
++%left		LPACKAGE
+ 
+-/*
+- * resolve LPACKAGE vs not in favor of LPACKAGE
+- */
+-%left			NotPackage
+-%left			LPACKAGE
++%left		NotParen
++%left		'('
+ 
+-/*
+- * resolve '.' vs not in favor of '.'
+- */
+-%left			NotDot
+-%left			'.'
++%left		')'
++%left		PreferToRightParen
+ 
+-/*
+- * resolve '(' vs not in favor of '('
+- */
+-%left			NotParen
+-%left			'('
++%left		NotDot
++%left		'.'
++
++%left		NotBrace
++%left		'{'
+ 
+ %%
+ file:
+@@ -230,17 +238,17 @@ import_done:
+ 		if(my == import && strcmp(import->name, package) == 0)
+ 			break;
+ 
+-		if(my->lexical != LNAME || my->oname != N || my->otype != T) {
++		if(my->def != N) {
+ 			// TODO(rsc): this line is only needed because of the
+ 			//	package net
+ 			//	import "net"
+ 			// convention; if we get rid of it, the check can go away
+ 			// and we can just always print the error
+-			if(my->lexical != LPACK || strcmp(my->opack, import->name) != 0)
++			if(my->def->op != OPACK || strcmp(my->name, import->name) != 0)
+ 				yyerror("redeclaration of %S by import", my);
+ 		}
+-		my->lexical = LPACK;
+-		my->opack = import->name;
++		my->def = nod(OPACK, N, N);
++		my->def->sym = import;
+ 	}
+ 
+ hidden_import_list:
+@@ -343,9 +351,8 @@ vardcl:
+ |	Bvardcl
+ 
+ Avardcl:
+-	new_name_list_r Atype
++	name_list Atype
+ 	{
+-		$$ = rev($1);
+ 		dodclvar($$, $2);
+ 
+ 		if(funcdepth == 0) {
+@@ -357,9 +364,8 @@ Avardcl:
+ 	}
+ 
+ Bvardcl:
+-	new_name_list_r Btype
++	name_list Btype
+ 	{
+-		$$ = rev($1);
+ 		dodclvar($$, $2);
+ 
+ 		if(funcdepth == 0) {
+@@ -369,7 +375,7 @@ Bvardcl:
+ 			addtotop($$);
+ 		}
+ 	}
+-|	new_name_list_r type '=' expr_list
++|	name_list type '=' expr_list
+ 	{
+ 		if(addtop != N)
+ 			fatal("new_name_list_r type '=' expr_list");
+@@ -377,7 +383,7 @@ Bvardcl:
+ 		$$ = variter($1, $2, $4);
+ 		addtotop($$);
+ 	}
+-|	new_name_list_r '=' expr_list
++|	name_list '=' expr_list
+ 	{
+ 		if(addtop != N)
+ 			fatal("new_name_list_r '=' expr_list");
+@@ -387,22 +393,22 @@ Bvardcl:
+ 	}
+ 
+ constdcl:
+-	new_name_list_r type '=' expr_list
++	name_list type '=' expr_list
+ 	{
+ 		constiter($1, $2, $4);
+ 	}
+-|	new_name_list_r '=' expr_list
++|	name_list '=' expr_list
+ 	{
+ 		constiter($1, T, $3);
+ 	}
+ 
+ constdcl1:
+ 	constdcl
+-|	new_name_list_r type
++|	name_list type
+ 	{
+ 		constiter($1, $2, N);
+ 	}
+-|	new_name_list_r
++|	name_list
+ 	{
+ 		constiter($1, T, N);
+ 	}
+@@ -464,41 +470,23 @@ simple_stmt:
+ 		$$ = nod(OASOP, $1, $3);
+ 		$$->etype = $2;			// rathole to pass opcode
+ 	}
+-|	exprsym3_list_r '=' expr_list
++|	expr_list '=' expr_list
+ 	{
+-		$$ = rev($1);
+ 		$$ = nod(OAS, $$, $3);
+ 	}
+-|	exprsym3_list_r LCOLAS expr_list
++|	expr_list LCOLAS expr_list
+ 	{
+ 		if(addtop != N)
+-			fatal("exprsym3_list_r LCOLAS expr_list");
++			fatal("expr_list LCOLAS expr_list");
+ 		if($3->op == OTYPESW) {
+ 			$$ = nod(OTYPESW, $1, $3->left);
+ 			break;
+ 		}
+-		$$ = rev($1);
+ 		$$ = colas($$, $3);
+ 		$$ = nod(OAS, $$, $3);
+ 		$$->colas = 1;
+ 		addtotop($$);
+ 	}
+-|	LPRINT '(' oexpr_list ')'
+-	{
+-		$$ = nod(OPRINT, $3, N);
+-	}
+-|	LPRINTN '(' oexpr_list ')'
+-	{
+-		$$ = nod(OPRINTN, $3, N);
+-	}
+-|	LPANIC '(' oexpr_list ')'
+-	{
+-		$$ = nod(OPANIC, $3, N);
+-	}
+-|	LPANICN '(' oexpr_list ')'
+-	{
+-		$$ = nod(OPANICN, $3, N);
+-	}
+ |	expr LINC
+ 	{
+ 		$$ = nod(OASOP, $1, nodintconst(1));
+@@ -533,15 +521,36 @@ case:
+ 		// right will point to next case
+ 		// done in casebody()
+ 		poptodcl();
+-		if(typeswvar != N && typeswvar->right != N)
+-		if($2->op == OLITERAL && $2->val.ctype == CTNIL) {
+-			// this version in type switch case nil
+-			$$ = nod(OTYPESW, N, N);
+-			$$ = nod(OXCASE, $$, N);
+-			break;
++		if(typeswvar != N && typeswvar->right != N) {
++			if($2->op == OLITERAL && $2->val.ctype == CTNIL) {
++				// this version in type switch case nil
++				$$ = nod(OTYPESW, N, N);
++				$$ = nod(OXCASE, $$, N);
++				break;
++			}
++			if($2->op == OTYPE) {
++				$$ = old2new(typeswvar->right, $2->type);
++				$$ = nod(OTYPESW, $$, N);
++				$$ = nod(OXCASE, $$, N);
++				addtotop($$);
++				break;
++			}
++			yyerror("non-type case in type switch");
+ 		}
+ 		$$ = nod(OXCASE, $2, N);
+ 	}
++|	LCASE type ':'
++	{
++		poptodcl();
++		if(typeswvar == N || typeswvar->right == N) {
++			yyerror("type case not in a type switch");
++			$$ = N;
++		} else
++			$$ = old2new(typeswvar->right, $2);
++		$$ = nod(OTYPESW, $$, N);
++		$$ = nod(OXCASE, $$, N);
++		addtotop($$);
++	}
+ |	LCASE name '=' expr ':'
+ 	{
+ 		// will be converted to OCASE
+@@ -561,18 +570,6 @@ case:
+ 		$$ = nod(OXCASE, $$, N);
+ 		addtotop($$);
+ 	}
+-|	LCASE type ':'
+-	{
+-		poptodcl();
+-		if(typeswvar == N || typeswvar->right == N) {
+-			yyerror("type case not in a type switch");
+-			$$ = N;
+-		} else
+-			$$ = old2new(typeswvar->right, $2);
+-		$$ = nod(OTYPESW, $$, N);
+-		$$ = nod(OXCASE, $$, N);
+-		addtotop($$);
+-	}
+ |	LDEFAULT ':'
+ 	{
+ 		poptodcl();
+@@ -620,7 +617,8 @@ compound_stmt:
+ 	'{'
+ 	{
+ 		markdcl();
+-	} ostmt_list '}'
++	}
++	ostmt_list '}'
+ 	{
+ 		$$ = $3;
+ 		if($$ == N)
+@@ -629,7 +627,7 @@ compound_stmt:
+ 	}
+ 
+ switch_body:
+-	'{'
++	LBODY
+ 	{
+ 		markdcl();
+ 	}
+@@ -655,13 +653,26 @@ caseblock_list_r:
+ 		$$ = nod(OLIST, $1, $2);
+ 	}
+ 
++loop_body:
++	LBODY
++	{
++		markdcl();
++	}
++	ostmt_list '}'
++	{
++		$$ = $3;
++		if($$ == N)
++			$$ = nod(OEMPTY, N, N);
++		popdcl();
++	}
++
+ range_stmt:
+-	exprsym3_list_r '=' LRANGE expr
++	expr_list '=' LRANGE expr
+ 	{
+ 		$$ = nod(ORANGE, $1, $4);
+ 		$$->etype = 0;	// := flag
+ 	}
+-|	exprsym3_list_r LCOLAS LRANGE expr
++|	expr_list LCOLAS LRANGE expr
+ 	{
+ 		$$ = nod(ORANGE, $1, $4);
+ 		$$->etype = 1;
+@@ -678,7 +689,7 @@ for_header:
+ 		$$->ntest = $3;
+ 		$$->nincr = $5;
+ 	}
+-|	condition
++|	osimple_stmt
+ 	{
+ 		// normal test
+ 		$$ = nod(OFOR, N, N);
+@@ -693,7 +704,7 @@ for_header:
+ 	}
+ 
+ for_body:
+-	for_header compound_stmt
++	for_header loop_body
+ 	{
+ 		$$ = $1;
+ 		$$->nbody = list($$->nbody, $2);
+@@ -710,30 +721,15 @@ for_stmt:
+ 		popdcl();
+ 	}
+ 
+-/*
+- * using cond instead of osimple_stmt creates
+- * a shift/reduce conflict on an input like
+- *
+- *	if x == []int { true } { true }
+- *
+- * at the first {, giving us an opportunity
+- * to resolve it by reduce, which implements
+- * the rule about { } inside if conditions
+- * needing parens.
+- */
+-condition:
+-	osimple_stmt	%prec Condition
+-
+-
+ if_header:
+-	condition
++	osimple_stmt
+ 	{
+ 		// test
+ 		$$ = nod(OIF, N, N);
+ 		$$->ninit = N;
+ 		$$->ntest = $1;
+ 	}
+-|	osimple_stmt ';' condition
++|	osimple_stmt ';' osimple_stmt
+ 	{
+ 		// init ; test
+ 		$$ = nod(OIF, N, N);
+@@ -746,7 +742,7 @@ if_stmt:
+ 	{
+ 		markdcl();
+ 	}
+-	if_header compound_stmt
++	if_header loop_body
+ 	{
+ 		$$ = $3;
+ 		$$->nbody = $4;
+@@ -878,6 +874,10 @@ uexpr:
+ 	pexpr
+ |	'*' uexpr
+ 	{
++		if($2->op == OTYPE) {
++			$$ = typenod(ptrto($2->type));
++			break;
++		}
+ 		$$ = nod(OIND, $2, N);
+ 	}
+ |	'&' uexpr
+@@ -915,15 +915,26 @@ uexpr:
+  * can be preceeded by 'defer' and 'go'
+  */
+ pseudocall:
+-	pexpr '(' oexpr_list ')'
++	pexpr '(' oexpr_or_type_list ')'
+ 	{
+ 		$$ = unsafenmagic($1, $3);
+-		if($$ == N)
+-			$$ = nod(OCALL, $1, $3);
+-	}
+-|	LCLOSE '(' expr ')'
+-	{
+-		$$ = nod(OCLOSE, $3, N);
++		if($$)
++			break;
++		if($1->op == OTYPE) {
++			// type conversion
++			if($3 == N)
++				yyerror("conversion to %T missing expr", $1->type);
++			else if($3->op == OLIST)
++				yyerror("conversion to %T has too many exprs", $1->type);
++			$$ = nod(OCONV, $3, N);
++			$$->type = $1->type;
++			break;
++		}
++		if($1->op == ONAME && $1->etype != 0) {	// builtin OLEN, OCAP, etc
++			$$ = nod($1->etype, $3, N);
++			break;
++		}
++		$$ = nod(OCALL, $1, $3);
+ 	}
+ 
+ pexpr:
+@@ -931,39 +942,28 @@ pexpr:
+ 	{
+ 		$$ = nodlit($1);
+ 	}
+-|	LNIL
++|	name	%prec NotBrace
++|	pexpr '.' sym
+ 	{
+-		Val v;
+-		v.ctype = CTNIL;
+-		$$ = nodlit(v);
+-	}
+-|	LTRUE
+-	{
+-		$$ = nodbool(1);
+-	}
+-|	LFALSE
+-	{
+-		$$ = nodbool(0);
+-	}
+-|	LIOTA
+-	{
+-		$$ = nodintconst(iota);
+-		$$->iota = 1;	// flag to reevaluate on copy
++		if($1->op == OPACK) {
++			Sym *s;
++			s = pkglookup($3->name, $1->sym->name);
++			$$ = oldname(s);
++			break;
++		}
++		$$ = nod(ODOT, $1, newname($3));
++		$$ = adddot($$);
+ 	}
+-|	name
+-|	'(' expr ')'
++|	'(' expr_or_type ')'
+ 	{
+ 		$$ = $2;
+ 	}
+-|	pexpr '.' sym2
+-	{
+-		$$ = nod(ODOT, $1, newname($3));
+-		$$ = adddot($$);
+-	}
+-|	pexpr '.' '(' type ')'
++|	pexpr '.' '(' expr_or_type ')'
+ 	{
+ 		$$ = nod(ODOTTYPE, $1, N);
+-		$$->type = $4;
++		if($4->op != OTYPE)
++			yyerror("expected type got %O", $4->op);
++		$$->type = $4->type;
+ 	}
+ |	pexpr '.' '(' LTYPE ')'
+ 	{
+@@ -978,93 +978,63 @@ pexpr:
+ 		$$ = nod(OSLICE, $1, $3);
+ 	}
+ |	pseudocall
+-|	LLEN '(' expr ')'
+-	{
+-		$$ = nod(OLEN, $3, N);
+-	}
+-|	LCLOSED '(' expr ')'
+-	{
+-		$$ = nod(OCLOSED, $3, N);
+-	}
+-|	LCAP '(' expr ')'
+-	{
+-		$$ = nod(OCAP, $3, N);
+-	}
+-|	LNEW '(' type ')'
+-	{
+-		$$ = nod(ONEW, N, N);
+-		$$->type = $3;
+-	}
+-|	LNEW '(' type ',' expr_list ')'
+-	{
+-		$$ = nod(ONEW, $5, N);
+-		$$->type = $3;
+-	}
+-|	LMAKE '(' type ')'
+-	{
+-		$$ = nod(OMAKE, N, N);
+-		$$->type = $3;
+-	}
+-|	LMAKE '(' type ',' expr_list ')'
+-	{
+-		$$ = nod(OMAKE, $5, N);
+-		$$->type = $3;
+-	}
+ |	convtype '(' expr ')'
+ 	{
+ 		// conversion
++		$$ = nod(OCONV, $3, N);
++		$$->type = $1;
++	}
++|	convtype lbrace braced_keyexpr_list '}'
++	{
++		// composite expression
+ 		$$ = rev($3);
+ 		if($$ == N)
+ 			$$ = nod(OEMPTY, N, N);
+-		$$ = nod(OCONV, $$, N);
++		$$ = nod(OCOMPOS, $$, N);
+ 		$$->type = $1;
++
++		// If the opening brace was an LBODY,
++		// set up for another one now that we're done.
++		// See comment in lex.c about loophack.
++		if($2 == LBODY)
++			loophack = 1;
+ 	}
+-|	convtype '{' braced_keyexpr_list '}'
++|	pexpr '{' braced_keyexpr_list '}'
+ 	{
+ 		// composite expression
+ 		$$ = rev($3);
+ 		if($$ == N)
+ 			$$ = nod(OEMPTY, N, N);
+ 		$$ = nod(OCOMPOS, $$, N);
+-		$$->type = $1;
++		if($1->op != OTYPE)
++			yyerror("expected type in composite literal");
++		else
++			$$->type = $1->type;
+ 	}
+ |	fnliteral
+ 
+-/*
+- * lexical symbols that can be
+- * from other packages
+- */
+-lpack:
+-	LPACK
++expr_or_type:
++	expr
++|	type	%prec PreferToRightParen
+ 	{
+-		context = $1->opack;
++		$$ = typenod($1);
+ 	}
+-/*
+- * adding this would enable gri's nested package idea
+- *
+-|	lpack '.' LPACK
++
++name_or_type:
++	dotname
++|	type
+ 	{
+-		context = $3->opack;
++		$$ = typenod($1);
+ 	}
+- */
+ 
+-lname:
+-	LNAME
+-|	lpack '.' LNAME
++lbrace:
++	LBODY
+ 	{
+-		$$ = $3;
+-		context = nil;
++		$$ = LBODY;
+ 	}
+-
+-latype:
+-	LATYPE
+-|	lpackatype
+-
+-lpackatype:
+-	lpack '.' LATYPE
++|	'{'
+ 	{
+-		$$ = $3;
+-		context = nil;
++		$$ = '{';
+ 	}
+ 
+ /*
+@@ -1073,19 +1043,19 @@ lpackatype:
+  *	oldname is used after declared
+  */
+ new_name:
+-	sym1
++	sym
+ 	{
+ 		$$ = newname($1);
+ 	}
+ 
+ new_field:
+-	sym2
++	sym
+ 	{
+ 		$$ = newname($1);
+ 	}
+ 
+ new_type:
+-	sym1
++	sym
+ 	{
+ 		$$ = newtype($1);
+ 	}
+@@ -1097,84 +1067,19 @@ onew_name:
+ |	new_name
+ 
+ sym:
+-	LATYPE
+-|	LNAME
+-|	LPACK
+-
+-sym1:
+-	sym
+-|	keyword
+-
+-/*
+- * keywords that can be field names
+- * pretty much any name can be allowed
+- * limited only by good taste
+- */
+-sym2:
+-	sym1
+-
+-/*
+- * keywords that can be variables
+- * but are not already legal expressions
+- */
+-sym3:
+-	LLEN
+-|	LCAP
+-|	LCLOSE
+-|	LCLOSED
+-|	LPANIC
+-|	LPANICN
+-|	LPRINT
+-|	LPRINTN
+-|	LNEW
+-|	LMAKE
+-
+-/*
+- * keywords that we can
+- * use as variable/type names
+- */
+-keyword:
+-	sym3
+-|	LNIL
+-|	LTRUE
+-|	LFALSE
+-|	LIOTA
++	LNAME
+ 
+ name:
+-	lname
+-	{
+-		$$ = oldname($1);
+-	}
+-	/*
+-	 * this rule introduces 1 reduce/reduce conflict
+-	 * with the rule lpack: LPACK above.
+-	 * the reduce/reduce conflict is only with
+-	 * lookahead '.', in which case the correct
+-	 * resolution is the lpack rule.  (and it wins
+-	 * because it is above.)
+-	 */
+-|	LPACK	%prec NotDot
++	sym	%prec NotDot
+ 	{
+ 		$$ = oldname($1);
+ 	}
+ 
+ labelname:
+ 	name
+-|	LATYPE
+-	{
+-		$$ = oldname($1);
+-	}
+-|	keyword
+-	{
+-		$$ = oldname($1);
+-	}
+ 
+ convtype:
+-	latype
+-	{
+-		$$ = oldtype($1);
+-	}
+-|	'[' oexpr ']' type
++	'[' oexpr ']' type
+ 	{
+ 		// array literal
+ 		$$ = aindex($2, $4);
+@@ -1191,10 +1096,6 @@ convtype:
+ 		$$ = maptype($3, $5);
+ 	}
+ |	structtype
+-|	'(' type ')'
+-	{
+-		$$ = $2;
+-	}
+ 
+ /*
+  * to avoid parsing conflicts, type is split into
+@@ -1227,12 +1128,6 @@ Btype:
+ 		$$ = $2;
+ 	}
+ 
+-non_name_type:
+-	chantype
+-|	fntype
+-|	othertype
+-|	dotdotdot
+-
+ dotdotdot:
+ 	LDDD
+ 	{
+@@ -1262,17 +1157,28 @@ Bnon_fn_type:
+ |	Bothertype
+ 
+ nametype:
+-	LATYPE
++	dotname
+ 	{
+-		if($1->otype != T && $1->otype->etype == TANY)
++		if($1->op == OTYPE)
++		if($1->type->etype == TANY)
+ 		if(strcmp(package, "PACKAGE") != 0)
+ 			yyerror("the any type is restricted");
+-		$$ = oldtype($1);
++		$$ = oldtype($1->sym);
+ 	}
+ 
+-othertype:
+-	Aothertype
+-|	Bothertype
++dotname:
++	name	%prec NotDot
++|	name '.' sym
++	{
++		if($1->op == OPACK) {
++			Sym *s;
++			s = pkglookup($3->name, $1->sym->name);
++			$$ = oldname(s);
++			break;
++		}
++		$$ = nod(ODOT, $1, newname($3));
++		$$ = adddot($$);
++	}
+ 
+ Aothertype:
+ 	'[' oexpr ']' Atype
+@@ -1303,11 +1209,7 @@ Aothertype:
+ |	interfacetype
+ 
+ Bothertype:
+-	lpackatype
+-	{
+-		$$ = oldtype($1);
+-	}
+-|	'[' oexpr ']' Btype
++	'[' oexpr ']' Btype
+ 	{
+ 		$$ = aindex($2, $4);
+ 	}
+@@ -1332,10 +1234,6 @@ Bothertype:
+ 		$$ = ptrto($2);
+ 	}
+ 
+-chantype:
+-	Achantype
+-|	Bchantype
+-
+ Achantype:
+ 	LCHAN Atype
+ 	{
+@@ -1378,10 +1276,6 @@ keyval:
+ 	{
+ 		$$ = nod(OKEY, $1, $3);
+ 	}
+-|	LATYPE ':' expr
+-	{
+-		$$ = nod(OKEY, newname($1), $3);
+-	}
+ 
+ 
+ /*
+@@ -1574,15 +1468,24 @@ structdcl:
+ 		$$->val = $3;
+ 	}
+ 
+-embed:
+-	LATYPE
++packname:
++	LNAME
++|	LNAME '.' sym
+ 	{
+-		$$ = embedded($1);
++		char *pkg;
++
++		if($1->def == N || $1->def->op != OPACK) {
++			yyerror("%S is not a package", $1);
++			pkg = $1->name;
++		} else
++			pkg = $1->def->sym->name;
++		$$ = pkglookup($3->name, pkg);
+ 	}
+-|	lpack '.' LATYPE
++
++embed:
++	packname
+ 	{
+-		$$ = embedded($3);
+-		context = nil;
++		$$ = embedded($1);
+ 	}
+ 
+ interfacedcl1:
+@@ -1599,7 +1502,7 @@ interfacedcl1:
+ 
+ interfacedcl:
+ 	interfacedcl1
+-|	latype
++|	packname
+ 	{
+ 		$$ = nod(ODCLFIELD, N, N);
+ 		$$->type = oldtype($1);
+@@ -1614,65 +1517,44 @@ indcl:
+ 
+ /*
+  * function arguments.
+- *
+- * the hard part is that when we're reading a list of names,
+- * we don't know if they are going to be the names of
+- * parameters (like "a,b,c int") or the types of anonymous
+- * parameters (like "int, string, bool").
+- *
+- * an arg_chunk is a comma-separated list of arguments
+- * that ends in an obvious type, either "a, b, c x" or "a, b, c, *x".
+- * in the first case, a, b, c are parameters of type x.
+- * in the second case, a, b, c, and *x are types of anonymous parameters.
+  */
+-arg_chunk:
+-	new_name_list_r type
+-	{
+-		$$ = nametodcl($1, $2);
+-	}
+-|	new_name_list_r dotdotdot
+-	{
+-		$$ = nametodcl($1, $2);
+-	}
+-|	non_name_type
+-	{
+-		$$ = anondcl($1);
++arg_type:
++	name_or_type
++|	sym name_or_type
++	{
++		$$ = $1->def;
++		if($$ == N) {
++			$$ = nod(ONONAME, N, N);
++			$$->sym = $1;
++		}
++		$$ = nod(OKEY, $$, $2);
+ 	}
+-|	new_name_list_r ',' non_name_type
++|	sym dotdotdot
+ 	{
+-		$1 = nametoanondcl($1);
+-		$$ = appendr($1, anondcl($3));
++		$$ = $1->def;
++		if($$ == N) {
++			$$ = nod(ONONAME, N, N);
++			$$->sym = $1;
++		}
++		$$ = nod(OKEY, $$, typenod($2));
+ 	}
+-
+-arg_chunk_list_r:
+-	arg_chunk
+-|	arg_chunk_list_r ',' arg_chunk
++|	dotdotdot
+ 	{
+-		$$ = appendr($1, $3);
++		$$ = typenod($1);
+ 	}
+ 
+-/*
+- * an arg type list is a sequence of arg chunks,
+- * possibly ending in a list of names (plain "a,b,c"),
+- * which must be the types of anonymous parameters.
+- */
+ arg_type_list_r:
+-	arg_chunk_list_r
+-|	arg_chunk_list_r ',' new_name_list_r
++	arg_type
++|	arg_type_list_r ',' arg_type
+ 	{
+-		$3 = nametoanondcl($3);
+-		$$ = appendr($1, $3);
+-	}
+-|	new_name_list_r
+-	{
+-		$$ = nametoanondcl($1);
++		$$ = nod(OLIST, $1, $3);
+ 	}
+ 
+ arg_type_list:
+ 	arg_type_list_r
+ 	{
+ 		$$ = rev($1);
+-		checkarglist($$);
++		$$ = checkarglist($$);
+ 	}
+ 
+ /*
+@@ -1728,34 +1610,26 @@ stmt_list_r:
+ 	Astmt_list_r
+ |	Bstmt_list_r
+ 
+-expr_list_r:
+-	expr
+-|	expr_list_r ',' expr
++name_list_r:
++	name
+ 	{
+-		$$ = nod(OLIST, $1, $3);
++		$$ = newname($1->sym);
+ 	}
+-
+-new_name_list_r:
+-	new_name
+-|	new_name_list_r ',' new_name
++|	name_list_r ',' name
+ 	{
+-		$$ = nod(OLIST, $1, $3);
++		$$ = nod(OLIST, $1, newname($3->sym));
+ 	}
+ 
+-exprsym3:
++expr_list_r:
+ 	expr
+-|	sym3
+-	{
+-		$$ = newname($1);
+-	}
+-|	LATYPE
++|	expr_list_r ',' expr
+ 	{
+-		$$ = newname($1);
++		$$ = nod(OLIST, $1, $3);
+ 	}
+ 
+-exprsym3_list_r:
+-	exprsym3
+-|	exprsym3_list_r ',' exprsym3
++expr_or_type_list_r:
++	expr_or_type
++|	expr_or_type_list_r ',' expr_or_type
+ 	{
+ 		$$ = nod(OLIST, $1, $3);
+ 	}
+@@ -1844,6 +1718,18 @@ expr_list:
+ 		$$ = rev($1);
+ 	}
+ 
++expr_or_type_list:
++	expr_or_type_list_r
++	{
++		$$ = rev($1);
++	}
++
++name_list:
++	name_list_r
++	{
++		$$ = rev($1);
++	}
++
+ 
+ /*
+  * optional things
+@@ -1866,6 +1752,12 @@ oexpr_list:
+ 	}
+ |	expr_list
+ 
++oexpr_or_type_list:
++	{
++		$$ = N;
++	}
++|	expr_or_type_list
++
+ osimple_stmt:
+ 	{
+ 		$$ = N;
+@@ -1934,7 +1826,7 @@ oliteral:
+  * an output package
+  */
+ hidden_import:
+-	LPACKAGE sym1
++	LPACKAGE sym
+ 	/* variables */
+ |	LVAR hidden_pkg_importsym hidden_type
+ 	{
+@@ -1956,7 +1848,7 @@ hidden_import:
+ 	{
+ 		importvar($2, functype(N, $4, $6), PFUNC);
+ 	}
+-|	LFUNC '(' hidden_funarg_list ')' sym1 '(' ohidden_funarg_list ')' ohidden_funres
++|	LFUNC '(' hidden_funarg_list ')' sym '(' ohidden_funarg_list ')' ohidden_funres
+ 	{
+ 		if($3->op != ODCLFIELD) {
+ 			yyerror("bad receiver in method");
+@@ -1972,9 +1864,9 @@ hidden_type:
+ hidden_type1:
+ 	hidden_importsym
+ 	{
+-		$$ = pkgtype($1->sym->name, $1->psym->name);
++		$$ = pkgtype($1);
+ 	}
+-|	LATYPE
++|	LNAME
+ 	{
+ 		$$ = oldtype($1);
+ 	}
+@@ -2034,7 +1926,7 @@ hidden_type2:
+ 	}
+ 
+ hidden_dcl:
+-	sym1 hidden_type
++	sym hidden_type
+ 	{
+ 		$$ = nod(ODCLFIELD, newname($1), N);
+ 		$$->type = $2;
+@@ -2046,7 +1938,7 @@ hidden_dcl:
+ 	}
+ 
+ hidden_structdcl:
+-	sym1 hidden_type oliteral
++	sym hidden_type oliteral
+ 	{
+ 		$$ = nod(ODCLFIELD, newname($1), N);
+ 		$$->type = $2;
+@@ -2063,7 +1955,7 @@ hidden_structdcl:
+ 	}
+ 
+ hidden_interfacedcl:
+-	sym1 '(' ohidden_funarg_list ')' ohidden_funres
++	sym '(' ohidden_funarg_list ')' ohidden_funres
+ 	{
+ 		$$ = nod(ODCLFIELD, newname($1), N);
+ 		$$->type = functype(fakethis(), $3, $5);
+@@ -2105,72 +1997,24 @@ hidden_constant:
+ 			yyerror("bad negated constant");
+ 		}
+ 	}
+-|	LTRUE
+-	{
+-		$$ = nodbool(1);
+-	}
+-|	LFALSE
++|	name
+ 	{
+-		$$ = nodbool(0);
++		$$ = $1;
++		if($$->op != OLITERAL)
++			yyerror("bad constant %S", $$->sym);
+ 	}
+ 
+ hidden_importsym:
+-	sym1 '.' sym2
++	sym '.' sym
+ 	{
+-		$$ = nod(OIMPORT, N, N);
+-		$$->psym = $1;
+-		$$->sym = $3;
++		$$ = pkglookup($3->name, $1->name);
+ 	}
+ 
+ hidden_pkg_importsym:
+ 	hidden_importsym
+ 	{
+ 		$$ = $1;
+-		pkgcontext = $$->psym->name;
+-	}
+-
+-
+-/*
+- * helpful error messages.
+- * THIS SECTION MUST BE AT THE END OF THE FILE.
+- *
+- * these rules trigger reduce/reduce conflicts in the grammar.
+- * they are safe because reduce/reduce conflicts are resolved
+- * in favor of rules appearing earlier in the grammar, and these
+- * are at the end of the file.
+- *
+- * to check whether the rest of the grammar is free of
+- * reduce/reduce conflicts, comment this section out by
+- * removing the slash on the next line.
+- *
+- * there should be exactly 1 reduce/reduce conflict
+- * when this block is commented out.
+- */
+-lpack:
+-	LATYPE
+-	{
+-		yyerror("%s is type, not package", $1->name);
+-		YYERROR;
+-	}
+-
+-latype:
+-	LPACK
+-	{
+-		yyerror("%s is package, not type", $1->name);
+-		YYERROR;
+-	}
+-|	LNAME
+-	{
+-		yyerror("no type %s", $1->name);
+-		YYERROR;
+-	}
+-
+-nametype:
+-	LNAME
+-	{
+-		yyerror("no type %s", $1->name);
+-		YYERROR;
++		structpkg = $$->package;
+ 	}
+ 
+-/**/
+ 
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 8e4f3504e2..58e3ba6ce8 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -64,7 +64,7 @@ main(int argc, char *argv[])
+ 		fatal("betypeinit failed");
+ 
+ 	lexinit();
+-	typeinit(LATYPE);
++	typeinit();
+ 
+ 	lineno = 1;
+ 	block = 1;
+@@ -711,6 +711,40 @@ l0:
+ 		}
+ 		break;
+ 
++	/*
++	 * clumsy dance:
++	 * to implement rule that disallows
++	 *	if T{1}[0] { ... }
++	 * but allows
++	 * 	if (T{1}[0]) { ... }
++	 * the block bodies for if/for/switch/select
++	 * begin with an LBODY token, not '{'.
++	 *
++	 * when we see the keyword, the next
++	 * non-parenthesized '{' becomes an LBODY.
++	 * loophack is normally 0.
++	 * a keyword makes it go up to 1.
++	 * parens increment and decrement when loophack > 0.
++	 * a '{' with loophack == 1 becomes LBODY and disables loophack.
++	 *
++	 * i said it was clumsy.
++	 */
++	case '(':
++		if(loophack > 0)
++			loophack++;
++		goto lx;
++	case ')':
++		if(loophack > 0)
++			loophack--;
++		goto lx;
++	case '{':
++		if(loophack == 1) {
++			DBG("%L lex: LBODY\n", lineno);
++			loophack = 0;
++			return LBODY;
++		}
++		goto lx;
++
+ 	default:
+ 		goto lx;
+ 	}
+@@ -764,15 +798,16 @@ talph:
+ 	ungetc(c);
+ 
+ 	s = lookup(lexbuf);
+-	if(s->lexical == LIGNORE)
++	switch(s->lexical) {
++	case LIGNORE:
+ 		goto l0;
+ 
+-	if(context != nil) {
+-		s = pkglookup(s->name, context);
+-		if(s->lexical == LIGNORE)
+-			goto l0;
+-		if(!exportname(s->name) && strcmp(package, s->package) != 0)
+-			s = pkglookup(s->name, ".private");
++	case LFOR:
++	case LIF:
++	case LSWITCH:
++	case LSELECT:
++		loophack = 1;	// see comment about loophack above
++		break;
+ 	}
+ 
+ 	DBG("lex: %S %s\n", s, lexname(s->lexical));
+@@ -1109,77 +1144,74 @@ static	struct
+ 	char*	name;
+ 	int	lexical;
+ 	int	etype;
++	int	op;
+ } syms[] =
+ {
+-/*	name		lexical		etype
++/*	name		lexical		etype		op
+  */
+ /* basic types */
+-	"int8",		LATYPE,	TINT8,
+-	"int16",	LATYPE,	TINT16,
+-	"int32",	LATYPE,	TINT32,
+-	"int64",	LATYPE,	TINT64,
+-
+-	"uint8",	LATYPE,	TUINT8,
+-	"uint16",	LATYPE,	TUINT16,
+-	"uint32",	LATYPE,	TUINT32,
+-	"uint64",	LATYPE,	TUINT64,
+-
+-	"float32",	LATYPE,	TFLOAT32,
+-	"float64",	LATYPE,	TFLOAT64,
+-	"float80",	LATYPE,	TFLOAT80,
+-
+-	"bool",		LATYPE,	TBOOL,
+-	"byte",		LATYPE,	TUINT8,
+-	"string",	LATYPE,	TSTRING,
+-
+-	"any",		LATYPE,	TANY,
+-
+-	"break",	LBREAK,		Txxx,
+-	"case",		LCASE,		Txxx,
+-	"chan",		LCHAN,		Txxx,
+-	"const",	LCONST,		Txxx,
+-	"continue",	LCONTINUE,	Txxx,
+-	"default",	LDEFAULT,	Txxx,
+-	"else",		LELSE,		Txxx,
+-	"defer",	LDEFER,		Txxx,
+-	"fallthrough",	LFALL,		Txxx,
+-	"false",	LFALSE,		Txxx,
+-	"for",		LFOR,		Txxx,
+-	"func",		LFUNC,		Txxx,
+-	"go",		LGO,		Txxx,
+-	"goto",		LGOTO,		Txxx,
+-	"if",		LIF,		Txxx,
+-	"import",	LIMPORT,	Txxx,
+-	"interface",	LINTERFACE,	Txxx,
+-	"iota",		LIOTA,		Txxx,
+-	"make",		LMAKE,		Txxx,
+-	"map",		LMAP,		Txxx,
+-	"new",		LNEW,		Txxx,
+-	"len",		LLEN,		Txxx,
+-	"cap",		LCAP,		Txxx,
+-	"nil",		LNIL,		Txxx,
+-	"package",	LPACKAGE,	Txxx,
+-	"panic",	LPANIC,		Txxx,
+-	"panicln",	LPANICN,	Txxx,
+-	"print",	LPRINT,		Txxx,
+-	"println",	LPRINTN,	Txxx,
+-	"range",	LRANGE,		Txxx,
+-	"return",	LRETURN,	Txxx,
+-	"select",	LSELECT,	Txxx,
+-	"struct",	LSTRUCT,	Txxx,
+-	"switch",	LSWITCH,	Txxx,
+-	"true",		LTRUE,		Txxx,
+-	"type",		LTYPE,		Txxx,
+-	"var",		LVAR,		Txxx,
+-
+-	"close",	LCLOSE,		Txxx,
+-	"closed",	LCLOSED,	Txxx,
+-
+-	"notwithstanding",		LIGNORE,	Txxx,
+-	"thetruthofthematter",		LIGNORE,	Txxx,
+-	"despiteallobjections",		LIGNORE,	Txxx,
+-	"whereas",			LIGNORE,	Txxx,
+-	"insofaras",			LIGNORE,	Txxx,
++	"int8",		LNAME,		TINT8,		OXXX,
++	"int16",	LNAME,		TINT16,		OXXX,
++	"int32",	LNAME,		TINT32,		OXXX,
++	"int64",	LNAME,		TINT64,		OXXX,
++
++	"uint8",	LNAME,		TUINT8,		OXXX,
++	"uint16",	LNAME,		TUINT16,	OXXX,
++	"uint32",	LNAME,		TUINT32,	OXXX,
++	"uint64",	LNAME,		TUINT64,	OXXX,
++
++	"float32",	LNAME,		TFLOAT32,	OXXX,
++	"float64",	LNAME,		TFLOAT64,	OXXX,
++	"float80",	LNAME,		TFLOAT80,	OXXX,
++
++	"bool",		LNAME,		TBOOL,		OXXX,
++	"byte",		LNAME,		TUINT8,		OXXX,
++	"string",	LNAME,		TSTRING,	OXXX,
++
++	"any",		LNAME,		TANY,		OXXX,
++
++	"break",	LBREAK,		Txxx,		OXXX,
++	"case",		LCASE,		Txxx,		OXXX,
++	"chan",		LCHAN,		Txxx,		OXXX,
++	"const",	LCONST,		Txxx,		OXXX,
++	"continue",	LCONTINUE,	Txxx,		OXXX,
++	"default",	LDEFAULT,	Txxx,		OXXX,
++	"else",		LELSE,		Txxx,		OXXX,
++	"defer",	LDEFER,		Txxx,		OXXX,
++	"fallthrough",	LFALL,		Txxx,		OXXX,
++	"for",		LFOR,		Txxx,		OXXX,
++	"func",		LFUNC,		Txxx,		OXXX,
++	"go",		LGO,		Txxx,		OXXX,
++	"goto",		LGOTO,		Txxx,		OXXX,
++	"if",		LIF,		Txxx,		OXXX,
++	"import",	LIMPORT,	Txxx,		OXXX,
++	"interface",	LINTERFACE,	Txxx,		OXXX,
++	"map",		LMAP,		Txxx,		OXXX,
++	"package",	LPACKAGE,	Txxx,		OXXX,
++	"range",	LRANGE,		Txxx,		OXXX,
++	"return",	LRETURN,	Txxx,		OXXX,
++	"select",	LSELECT,	Txxx,		OXXX,
++	"struct",	LSTRUCT,	Txxx,		OXXX,
++	"switch",	LSWITCH,	Txxx,		OXXX,
++	"type",		LTYPE,		Txxx,		OXXX,
++	"var",		LVAR,		Txxx,		OXXX,
++
++	"cap",		LNAME,		Txxx,		OCAP,
++	"close",	LNAME,		Txxx,		OCLOSE,
++	"closed",	LNAME,		Txxx,		OCLOSED,
++	"len",		LNAME,		Txxx,		OLEN,
++	"make",		LNAME,		Txxx,		OMAKE,
++	"new",		LNAME,		Txxx,		ONEW,
++	"panic",	LNAME,		Txxx,		OPANIC,
++	"panicln",	LNAME,		Txxx,		OPANICN,
++	"print",	LNAME,		Txxx,		OPRINT,
++	"println",	LNAME,		Txxx,		OPRINTN,
++
++	"notwithstanding",		LIGNORE,	Txxx,		OXXX,
++	"thetruthofthematter",		LIGNORE,	Txxx,		OXXX,
++	"despiteallobjections",		LIGNORE,	Txxx,		OXXX,
++	"whereas",			LIGNORE,	Txxx,		OXXX,
++	"insofaras",			LIGNORE,	Txxx,		OXXX,
+ };
+ 
+ void
+@@ -1189,6 +1221,7 @@ lexinit(void)
+ 	Sym *s;
+ 	Type *t;
+ 	int etype;
++	Val v;
+ 
+ 	/*
+ 	 * initialize basic types array
+@@ -1201,25 +1234,51 @@ lexinit(void)
+ 		s->package = package;
+ 
+ 		etype = syms[i].etype;
+-		if(etype == Txxx)
++		if(etype != Txxx) {
++			if(etype < 0 || etype >= nelem(types))
++				fatal("lexinit: %s bad etype", s->name);
++			t = types[etype];
++			if(t == T) {
++				t = typ(etype);
++				t->sym = s;
++
++				dowidth(t);
++				types[etype] = t;
++			}
++			s->def = typenod(t);
+ 			continue;
++		}
+ 
+-		if(etype < 0 || etype >= nelem(types))
+-			fatal("lexinit: %s bad etype", s->name);
+-
+-		t = types[etype];
+-		if(t != T) {
+-			s->otype = t;
++		etype = syms[i].op;
++		if(etype != OXXX) {
++			s->def = nod(ONAME, N, N);
++			s->def->sym = s;
++			s->def->etype = etype;
++			s->def->builtin = 1;
+ 			continue;
+ 		}
+-		t = typ(etype);
+-		t->sym = s;
+-
+-		dowidth(t);
+-		types[etype] = t;
+-		s->otype = t;
+ 	}
+ 
++	// there's only so much table-driven we can handle.
++	// these are special cases.
++	types[TNIL] = typ(TNIL);
++	s = lookup("nil");
++	v.ctype = CTNIL;
++	s->def = nodlit(v);
++	s->def->sym = s;
++
++	s = lookup("true");
++	s->def = nodbool(1);
++	s->def->sym = s;
++
++	s = lookup("false");
++	s->def = nodbool(0);
++	s->def->sym = s;
++
++	s = lookup("iota");
++	s->def = nodintconst(iota);
++	s->def->iota = 1;	// flag to reevaluate on copy
++
+ 	// logically, the type of a string literal.
+ 	// types[TSTRING] is the named type string
+ 	// (the type of x in var x string or var x = "hello").
+@@ -1244,14 +1303,18 @@ struct
+ 	LCONST,		"CONST",
+ 	LCONTINUE,	"CONTINUE",
+ 	LDEC,		"DEC",
++	LDEFER,		"DEFER",
+ 	LELSE,		"ELSE",
+ 	LEQ,		"EQ",
++	LFALL,		"FALL",
++	LFOR,		"FOR",
+ 	LFUNC,		"FUNC",
+ 	LGE,		"GE",
+ 	LGO,		"GO",
+ 	LGOTO,		"GOTO",
+ 	LGT,		"GT",
+ 	LIF,		"IF",
++	LIMPORT,	"IMPORT",
+ 	LINC,		"INC",
+ 	LINTERFACE,	"INTERFACE",
+ 	LLE,		"LE",
+@@ -1262,7 +1325,7 @@ struct
+ 	LNAME,		"NAME",
+ 	LNE,		"NE",
+ 	LOROR,		"OROR",
+-	LPACK,		"PACK",
++	LPACKAGE,	"PACKAGE",
+ 	LRANGE,		"RANGE",
+ 	LRETURN,	"RETURN",
+ 	LRSH,		"RSH",
+@@ -1270,16 +1333,6 @@ struct
+ 	LSWITCH,	"SWITCH",
+ 	LTYPE,		"TYPE",
+ 	LVAR,		"VAR",
+-	LFOR,		"FOR",
+-	LNEW,		"NEW",
+-	LLEN,		"LEN",
+-	LFALL,		"FALL",
+-	LIOTA,		"IOTA",
+-	LPRINT,		"PRINT",
+-	LPACKAGE,	"PACKAGE",
+-	LIMPORT,	"IMPORT",
+-	LDEFER,		"DEFER",
+-	LPANIC,		"PANIC",
+ };
+ 
+ char*
+@@ -1316,8 +1369,8 @@ mkpackage(char* pkg)
+ 
+ 	// declare this name as a package
+ 	s = lookup(package);
+-	s->lexical = LPACK;
+-	s->opack = s->name;
++	s->def = nod(OPACK, N, N);
++	s->def->sym = s;
+ 
+ 	if(outfile == nil) {
+ 		p = strrchr(infile, '/');
+diff --git a/src/cmd/gc/obj.c b/src/cmd/gc/obj.c
+index e54010672a..64d1898963 100644
+--- a/src/cmd/gc/obj.c
++++ b/src/cmd/gc/obj.c
+@@ -58,7 +58,7 @@ dumpglobls(void)
+ 			continue;
+ 
+ 		dowidth(n->type);
+-		ggloblnod(s->oname, n->type->width);
++		ggloblnod(s->def, n->type->width);
+ 	}
+ }
+ 
+@@ -393,6 +393,7 @@ dumpsignatures(void)
+ 	Dcl *d, *x;
+ 	Type *t, *progt, *methodt, *ifacet, *rcvrt;
+ 	Sym *s;
++	Node *n;
+ 
+ 	// copy externdcl list to signatlist
+ 	for(d=externdcl; d!=D; d=d->forw) {
+@@ -403,9 +404,10 @@ dumpsignatures(void)
+ 		if(t == T)
+ 			continue;
+ 
+-		s = signame(t);
+-		if(s == S)
++		n = signame(t);
++		if(n == N || n->sym == S)
+ 			continue;
++		s = n->sym;
+ 
+ 		x = mal(sizeof(*d));
+ 		x->op = OTYPE;
+@@ -425,10 +427,11 @@ dumpsignatures(void)
+ 			continue;
+ 		t = d->dtype;
+ 		et = t->etype;
+-		s = signame(t);
++		n = signame(t);
+ //print("signame %S for %T\n", s, t);
+-		if(s == S)
++		if(n == N || n->sym == S)
+ 			continue;
++		s = n->sym;
+ 
+ 		// only emit one
+ 		if(s->siggen)
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 0e025072c5..0ff75248b8 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -156,9 +156,9 @@ lookup(char *p)
+ 	}
+ 
+ 	s = mal(sizeof(*s));
+-	s->lexical = LNAME;
+ 	s->name = mal(strlen(p)+1);
+ 	s->package = package;
++	s->lexical = LNAME;
+ 
+ 	strcpy(s->name, p);
+ 
+@@ -186,7 +186,6 @@ pkglookup(char *p, char *k)
+ 	}
+ 
+ 	s = mal(sizeof(*s));
+-	s->lexical = LNAME;
+ 	s->name = mal(strlen(p)+1);
+ 	strcpy(s->name, p);
+ 
+@@ -220,13 +219,11 @@ importdot(Sym *opkg)
+ 			if(strcmp(s->package, opkg->name) != 0)
+ 				continue;
+ 			s1 = lookup(s->name);
+-			if(s1->oname != N || s1->otype != T) {
++			if(s1->def != N) {
+ 				yyerror("redeclaration of %S during import", s1);
+ 				continue;
+ 			}
+-			s1->lexical = s->lexical;
+-			s1->oname = s->oname;
+-			s1->otype = s->otype;
++			s1->def = s->def;
+ 		}
+ 	}
+ }
+@@ -571,7 +568,7 @@ loop:
+ 		break;
+ 
+ 	case OTYPE:
+-		print("%O-%E %lT\n", n->op, n->etype, n);
++		print("%O %T\n", n->op, n->type);
+ 		break;
+ 
+ 	case OIF:
+@@ -696,7 +693,6 @@ opnames[] =
+ 	[OGOTO]		= "GOTO",
+ 	[OGT]		= "GT",
+ 	[OIF]		= "IF",
+-	[OIMPORT]	= "IMPORT",
+ 	[OINC]		= "INC",
+ 	[OINDEX]	= "INDEX",
+ 	[OINDREG]	= "INDREG",
+@@ -722,6 +718,7 @@ opnames[] =
+ 	[OOR]		= "OR",
+ 	[OPANICN]	= "PANICN",
+ 	[OPANIC]	= "PANIC",
++	[OPACK]		= "PACK",
+ 	[OPARAM]	= "PARAM",
+ 	[OPLUS]		= "PLUS",
+ 	[OPRINTN]	= "PRINTN",
+@@ -741,7 +738,6 @@ opnames[] =
+ 	[OTYPEOF]	= "TYPEOF",
+ 	[OTYPESW]	= "TYPESW",
+ 	[OTYPE]		= "TYPE",
+-	[OVAR]		= "VAR",
+ 	[OXCASE]	= "XCASE",
+ 	[OXFALL]	= "XFALL",
+ 	[OXOR]		= "XOR",
+@@ -1044,8 +1040,11 @@ Tpretty(Fmt *fp, Type *t)
+ 				fmtprint(fp, "%hS", s);
+ 			else
+ 				fmtprint(fp, "%lS", s);
+-			if(strcmp(s->package, package) == 0)
+-			if((s->otype != t || !s->export) && !s->imported) {
++			if(strcmp(s->package, package) != 0)
++				return 0;
++			if(s->imported)
++				return 0;
++			if(s->def == N || s->def->op != OTYPE || s->def->type != t || !s->export) {
+ 				fmtprint(fp, "·%s", filename);
+ 				if(t->vargen)
+ 					fmtprint(fp, "·%d", t->vargen);
+@@ -1339,7 +1338,7 @@ Nconv(Fmt *fp)
+ 		break;
+ 
+ 	case OTYPE:
+-		snprint(buf, sizeof(buf), "%O-%E%J", n->op, n->etype, n);
++		snprint(buf, sizeof(buf), "%O %T", n->op, n->type);
+ 		break;
+ 	}
+ 	if(n->sym != S) {
+@@ -1581,7 +1580,7 @@ iscomposite(Type *t)
+ 	return 0;
+ }
+ 
+-Sym*
++Node*
+ signame(Type *t)
+ {
+ 	Sym *ss;
+@@ -1611,10 +1610,10 @@ signame(Type *t)
+ 		strcpy(buf, "dotdotdot");
+ 
+ 	ss = pkglookup(buf, e);
+-	if(ss->oname == N) {
+-		ss->oname = newname(ss);
+-		ss->oname->type = types[TUINT8];
+-		ss->oname->class = PEXTERN;
++	if(ss->def == N) {
++		ss->def = newname(ss);
++		ss->def->type = types[TUINT8];
++		ss->def->class = PEXTERN;
+ 	}
+ 
+ //print("siggen %T %d\n", t, t->siggen);
+@@ -1633,10 +1632,10 @@ signame(Type *t)
+ 	}
+ 
+ out:
+-	return ss;
++	return ss->def;
+ 
+ bad:
+-	return S;
++	return N;
+ }
+ 
+ int
+@@ -1942,15 +1941,15 @@ syslook(char *name, int copy)
+ 	Node *n;
+ 
+ 	s = pkglookup(name, "sys");
+-	if(s == S || s->oname == N)
++	if(s == S || s->def == N)
+ 		fatal("looksys: cant find sys.%s", name);
+ 
+ 	if(!copy)
+-		return s->oname;
++		return s->def;
+ 
+ 	n = nod(0, N, N);
+-	*n = *s->oname;
+-	n->type = deep(s->oname->type);
++	*n = *s->def;
++	n->type = deep(s->def->type);
+ 
+ 	return n;
+ }
+@@ -2073,7 +2072,7 @@ frame(int context)
+ 		case OTYPE:
+ 			if(flag)
+ 				print("--- %s frame ---\n", p);
+-			print("%O %lT\n", d->op, d->dnode);
++			print("%O %T\n", d->op, d->dnode);
+ 			flag = 0;
+ 			break;
+ 		}
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 03ca8db03e..e29d608cd8 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -123,8 +123,16 @@ loop:
+ 		return;
+ 
+ 	more = N;
+-	if(n->op != ONAME)
++	switch(n->op) {
++	case ONAME:	// one only; lineno isn't right for right now
++	case OPACK:
++	case OTYPE:
++	case OLITERAL:
++		break;
++	default:
+ 		lineno = n->lineno;
++	}
++
+ 	switch(n->op) {
+ 
+ 	case OLIST:
+@@ -248,6 +256,7 @@ loop:
+ 
+ 	switch(n->op) {
+ 	default:
++		dump("walk", n);
+ 		fatal("walktype: switch 1 unknown op %N", n);
+ 		goto ret;
+ 
+@@ -313,7 +322,10 @@ loop:
+ 		if(n->type == T) {
+ 			s = n->sym;
+ 			if(s->undef == 0) {
+-				yyerror("walktype: %S undeclared", s);
++				if(n->etype != 0)
++					yyerror("walktype: %S must be called", s);
++				else
++					yyerror("walktype: %S undeclared", s);
+ 				s->undef = 1;
+ 			}
+ 		}
+@@ -1030,20 +1042,28 @@ loop:
+ 	case OMAKE:
+ 		if(top != Erv)
+ 			goto nottop;
++		l = n->left;
++		if(l == N) {
++			yyerror("missing argument to make");
++			goto ret;
++		}
+ 		indir(n, makecompat(n));
+ 		goto ret;
+ 
+ 	case ONEW:
+ 		if(top != Erv)
+ 			goto nottop;
+-		if(n->left != N) {
+-			yyerror("cannot new(%T, expr)", t);
+-			goto ret;
+-		}
+-		t = n->type;
+-		if(t == T)
+-			goto ret;
+-		indir(n, callnew(t));
++		l = n->left;
++		if(l == N)
++			yyerror("missing argument to new");
++		else if(n->right != N)
++			yyerror("too many arguments to new");
++		else if(l->op != OTYPE)
++			yyerror("argument to new must be type");
++		else if((t = l->type) == T)
++			;
++		else
++			indir(n, callnew(t));
+ 		goto ret;
+ 	}
+ 
+@@ -1927,12 +1947,12 @@ sigtype(Type *st)
+ 	x = mal(sizeof(*x));
+ 	x->op = OTYPE;
+ 	x->dsym = s;
+-	x->dtype = s->otype;
++	x->dtype = t;
+ 	x->forw = signatlist;
+ 	x->block = block;
+ 	signatlist = x;
+ 
+-	return s->otype;
++	return t;
+ }
+ 
+ /*
+@@ -2350,8 +2370,22 @@ Node*
+ makecompat(Node *n)
+ {
+ 	Type *t;
++	Node *l, *r;
+ 
+-	t = n->type;
++	l = n->left;
++	r = N;
++	if(l->op == OLIST) {
++		r = l->right;
++		l = l->left;
++	}
++	if(l->op != OTYPE) {
++		yyerror("cannot make(expr)");
++		return n;
++	}
++	t = l->type;
++	n->type = t;
++	n->left = r;
++	n->right = N;
+ 
+ 	if(t != T)
+ 	switch(t->etype) {
+@@ -3045,9 +3079,8 @@ arrayop(Node *n, int top)
+ 
+ 		a = listfirst(&save, &n->left);		// nel
+ 		if(a == N) {
+-			if(t->bound < 0)
+-				yyerror("new open array must have size");
+-			a = nodintconst(t->bound);
++			yyerror("new slice must have size");
++			a = nodintconst(1);
+ 		}
+ 		a = nod(OCONV, a, N);
+ 		a->type = types[TINT];
+@@ -3193,7 +3226,6 @@ ifacecvt(Type *tl, Node *n, int et)
+ {
+ 	Type *tr;
+ 	Node *r, *a, *on;
+-	Sym *s;
+ 
+ 	tr = n->type;
+ 
+@@ -3207,19 +3239,10 @@ ifacecvt(Type *tl, Node *n, int et)
+ 		a = n;				// elem
+ 		r = a;
+ 
+-		s = signame(tr);		// sigt
+-		if(s == S)
+-			fatal("ifacecvt: signame-1 T2I: %lT", tr);
+-		a = s->oname;
+-		a = nod(OADDR, a, N);
++		a = nod(OADDR, signame(tr), N);	// sigt
+ 		r = list(a, r);
+ 
+-		s = signame(tl);		// sigi
+-		if(s == S) {
+-			fatal("ifacecvt: signame-2 T2I: %lT", tl);
+-		}
+-		a = s->oname;
+-		a = nod(OADDR, a, N);
++		a = nod(OADDR, signame(tl), N);	// sigi
+ 		r = list(a, r);
+ 
+ 		on = syslook("ifaceT2I", 1);
+@@ -3240,11 +3263,7 @@ ifacecvt(Type *tl, Node *n, int et)
+ 		a = n;				// interface
+ 		r = a;
+ 
+-		s = signame(tl);		// sigi or sigt
+-		if(s == S)
+-			fatal("ifacecvt: signame %d", et);
+-		a = s->oname;
+-		a = nod(OADDR, a, N);
++		a = nod(OADDR, signame(tl), N);	// sigi or sigt
+ 		r = list(a, r);
+ 
+ 		on = syslook(ifacename[et], 1);
+@@ -3268,11 +3287,7 @@ ifacecvt(Type *tl, Node *n, int et)
+ 		a = n;				// elem
+ 		r = a;
+ 
+-		s = signame(tr);		// sigt
+-		if(s == S)
+-			fatal("ifacecvt: signame-1 T2E: %lT", tr);
+-		a = s->oname;
+-		a = nod(OADDR, a, N);
++		a = nod(OADDR, signame(tr), N);	// sigt
+ 		r = list(a, r);
+ 
+ 		on = syslook("ifaceT2E", 1);
+@@ -3394,7 +3409,9 @@ colasname(Node *n)
+ 	switch(n->op) {
+ 	case ONAME:
+ 	case ONONAME:
++	case OPACK:
+ 		break;
++	case OTYPE:
+ 	case OLITERAL:
+ 		if(n->sym != S)
+ 			break;
+@@ -4248,9 +4265,7 @@ arraylit(Node *n, Node *var)
+ 
+ 	if(b < 0) {
+ 		// slice
+-		a = nod(OMAKE, N, N);
+-		a->type = t;
+-		a->left = nodintconst(ninit);
++		a = nod(OMAKE, nod(OLIST, typenod(t), nodintconst(ninit)), N);
+ 		a = nod(OAS, var, a);
+ 		addtop = list(addtop, a);
+ 	} else {
+@@ -4377,8 +4392,7 @@ maplit(Node *n, Node *var)
+ 		tempname(var, t);
+ 	}
+ 
+-	a = nod(OMAKE, N, N);
+-	a->type = t;
++	a = nod(OMAKE, typenod(t), N);
+ 	a = nod(OAS, var, a);
+ 	addtop = list(addtop, a);
+ 

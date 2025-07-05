@@ -11,7 +11,91 @@ Date:   Tue Oct 20 22:52:11 2015 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/http/httputil/dump.go      | 28 +++++++++++++++++++++-------
  src/net/http/httputil/dump_test.go | 17 +++++++++++++++++
  2 files changed, 38 insertions(+), 7 deletions(-)
+
+diff --git a/src/net/http/httputil/dump.go b/src/net/http/httputil/dump.go
+index 0a7003d3eb..6fe8fea110 100644
+--- a/src/net/http/httputil/dump.go
++++ b/src/net/http/httputil/dump.go
+@@ -197,15 +197,29 @@ func DumpRequest(req *http.Request, body bool) (dump []byte, err error) {
+ 
+ 	var b bytes.Buffer
+ 
++	// By default, print out the unmodified req.RequestURI, which
++	// is always set for incoming server requests. But because we
++	// previously used req.URL.RequestURI and the docs weren't
++	// always so clear about when to use DumpRequest vs
++	// DumpRequestOut, fall back to the old way if the caller
++	// provides a non-server Request.
++	reqURI := req.RequestURI
++	if reqURI == "" {
++		reqURI = req.URL.RequestURI()
++	}
++
+ 	fmt.Fprintf(&b, "%s %s HTTP/%d.%d\r\n", valueOrDefault(req.Method, "GET"),
+-		req.URL.RequestURI(), req.ProtoMajor, req.ProtoMinor)
++		reqURI, req.ProtoMajor, req.ProtoMinor)
+ 
+-	host := req.Host
+-	if host == "" && req.URL != nil {
+-		host = req.URL.Host
+-	}
+-	if host != "" {
+-		fmt.Fprintf(&b, "Host: %s\r\n", host)
++	absRequestURI := strings.HasPrefix(req.RequestURI, "http://") || strings.HasPrefix(req.RequestURI, "https://")
++	if !absRequestURI {
++		host := req.Host
++		if host == "" && req.URL != nil {
++			host = req.URL.Host
++		}
++		if host != "" {
++			fmt.Fprintf(&b, "Host: %s\r\n", host)
++		}
+ 	}
+ 
+ 	chunked := len(req.TransferEncoding) > 0 && req.TransferEncoding[0] == "chunked"
+diff --git a/src/net/http/httputil/dump_test.go b/src/net/http/httputil/dump_test.go
+index ae67e983ae..46bf521723 100644
+--- a/src/net/http/httputil/dump_test.go
++++ b/src/net/http/httputil/dump_test.go
+@@ -5,6 +5,7 @@
+ package httputil
+ 
+ import (
++	"bufio"
+ 	"bytes"
+ 	"fmt"
+ 	"io"
+@@ -135,6 +136,14 @@ var dumpTests = []dumpTest{
+ 			"Accept-Encoding: gzip\r\n\r\n" +
+ 			strings.Repeat("a", 8193),
+ 	},
++
++	{
++		Req: *mustReadRequest("GET http://foo.com/ HTTP/1.1\r\n" +
++			"User-Agent: blah\r\n\r\n"),
++		NoBody: true,
++		WantDump: "GET http://foo.com/ HTTP/1.1\r\n" +
++			"User-Agent: blah\r\n\r\n",
++	},
+ }
+ 
+ func TestDumpRequest(t *testing.T) {
+@@ -211,6 +220,14 @@ func mustNewRequest(method, url string, body io.Reader) *http.Request {
+ 	return req
+ }
+ 
++func mustReadRequest(s string) *http.Request {
++	req, err := http.ReadRequest(bufio.NewReader(strings.NewReader(s)))
++	if err != nil {
++		panic(err)
++	}
++	return req
++}
++
+ var dumpResTests = []struct {
+ 	res  *http.Response
+ 	body bool

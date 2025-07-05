@@ -18,9 +18,238 @@ Date:   Wed Jan 6 12:22:16 2016 -0500
     Change-Id: I84a22b3995fafab8052b99de8094a9f35a25de5b
     Reviewed-on: https://go-review.googlesource.com/18317
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/archive/zip/reader.go   | 48 ++++++++++++++++++++++++++-----------
  src/archive/zip/struct.go   |  2 +-
  src/archive/zip/writer.go   |  2 +-
  src/archive/zip/zip_test.go | 58 ++++++++++++++++++++++++++++++++++++++-------
  4 files changed, 85 insertions(+), 25 deletions(-)
+
+diff --git a/src/archive/zip/reader.go b/src/archive/zip/reader.go
+index 9aa77d9c43..9a0e20db1e 100644
+--- a/src/archive/zip/reader.go
++++ b/src/archive/zip/reader.go
+@@ -283,39 +283,59 @@ func readDirectoryHeader(f *File, r io.Reader) error {
+ 	f.Extra = d[filenameLen : filenameLen+extraLen]
+ 	f.Comment = string(d[filenameLen+extraLen:])
+ 
++	needUSize := f.UncompressedSize == ^uint32(0)
++	needCSize := f.CompressedSize == ^uint32(0)
++	needHeaderOffset := f.headerOffset == int64(^uint32(0))
++
+ 	if len(f.Extra) > 0 {
++		// Best effort to find what we need.
++		// Other zip authors might not even follow the basic format,
++		// and we'll just ignore the Extra content in that case.
+ 		b := readBuf(f.Extra)
+ 		for len(b) >= 4 { // need at least tag and size
+ 			tag := b.uint16()
+ 			size := b.uint16()
+ 			if int(size) > len(b) {
+-				return ErrFormat
++				break
+ 			}
+ 			if tag == zip64ExtraId {
+-				// update directory values from the zip64 extra block
++				// update directory values from the zip64 extra block.
++				// They should only be consulted if the sizes read earlier
++				// are maxed out.
++				// See golang.org/issue/13367.
+ 				eb := readBuf(b[:size])
+-				if len(eb) >= 8 {
++
++				if needUSize {
++					needUSize = false
++					if len(eb) < 8 {
++						return ErrFormat
++					}
+ 					f.UncompressedSize64 = eb.uint64()
+ 				}
+-				if len(eb) >= 8 {
++				if needCSize {
++					needCSize = false
++					if len(eb) < 8 {
++						return ErrFormat
++					}
+ 					f.CompressedSize64 = eb.uint64()
+ 				}
+-				if len(eb) >= 8 {
++				if needHeaderOffset {
++					needHeaderOffset = false
++					if len(eb) < 8 {
++						return ErrFormat
++					}
+ 					f.headerOffset = int64(eb.uint64())
+ 				}
++				break
+ 			}
+ 			b = b[size:]
+ 		}
+-		// Should have consumed the whole header.
+-		// But popular zip & JAR creation tools are broken and
+-		// may pad extra zeros at the end, so accept those
+-		// too. See golang.org/issue/8186.
+-		for _, v := range b {
+-			if v != 0 {
+-				return ErrFormat
+-			}
+-		}
+ 	}
++
++	if needUSize || needCSize || needHeaderOffset {
++		return ErrFormat
++	}
++
+ 	return nil
+ }
+ 
+diff --git a/src/archive/zip/struct.go b/src/archive/zip/struct.go
+index 137d0495fd..5ee4f88f80 100644
+--- a/src/archive/zip/struct.go
++++ b/src/archive/zip/struct.go
+@@ -235,7 +235,7 @@ func (h *FileHeader) SetMode(mode os.FileMode) {
+ 
+ // isZip64 reports whether the file size exceeds the 32 bit limit
+ func (fh *FileHeader) isZip64() bool {
+-	return fh.CompressedSize64 > uint32max || fh.UncompressedSize64 > uint32max
++	return fh.CompressedSize64 >= uint32max || fh.UncompressedSize64 >= uint32max
+ }
+ 
+ func msdosModeToFileMode(m uint32) (mode os.FileMode) {
+diff --git a/src/archive/zip/writer.go b/src/archive/zip/writer.go
+index c39c674515..5ce66e6be5 100644
+--- a/src/archive/zip/writer.go
++++ b/src/archive/zip/writer.go
+@@ -78,7 +78,7 @@ func (w *Writer) Close() error {
+ 		b.uint16(h.ModifiedTime)
+ 		b.uint16(h.ModifiedDate)
+ 		b.uint32(h.CRC32)
+-		if h.isZip64() || h.offset > uint32max {
++		if h.isZip64() || h.offset >= uint32max {
+ 			// the file needs a zip64 header. store maxint in both
+ 			// 32 bit size fields (and offset later) to signal that the
+ 			// zip64 extra header should be used.
+diff --git a/src/archive/zip/zip_test.go b/src/archive/zip/zip_test.go
+index 0fa749e73a..f785abf50a 100644
+--- a/src/archive/zip/zip_test.go
++++ b/src/archive/zip/zip_test.go
+@@ -237,10 +237,24 @@ func TestZip64(t *testing.T) {
+ 	testZip64DirectoryRecordLength(buf, t)
+ }
+ 
++func TestZip64EdgeCase(t *testing.T) {
++	if testing.Short() {
++		t.Skip("slow test; skipping")
++	}
++	// Test a zip file with uncompressed size 0xFFFFFFFF.
++	// That's the magic marker for a 64-bit file, so even though
++	// it fits in a 32-bit field we must use the 64-bit field.
++	// Go 1.5 and earlier got this wrong,
++	// writing an invalid zip file.
++	const size = 1<<32 - 1 - int64(len("END\n")) // before the "END\n" part
++	buf := testZip64(t, size)
++	testZip64DirectoryRecordLength(buf, t)
++}
++
+ func testZip64(t testing.TB, size int64) *rleBuffer {
+ 	const chunkSize = 1024
+ 	chunks := int(size / chunkSize)
+-	// write 2^32 bytes plus "END\n" to a zip file
++	// write size bytes plus "END\n" to a zip file
+ 	buf := new(rleBuffer)
+ 	w := NewWriter(buf)
+ 	f, err := w.CreateHeader(&FileHeader{
+@@ -261,6 +275,12 @@ func testZip64(t testing.TB, size int64) *rleBuffer {
+ 			t.Fatal("write chunk:", err)
+ 		}
+ 	}
++	if frag := int(size % chunkSize); frag > 0 {
++		_, err := f.Write(chunk[:frag])
++		if err != nil {
++			t.Fatal("write chunk:", err)
++		}
++	}
+ 	end := []byte("END\n")
+ 	_, err = f.Write(end)
+ 	if err != nil {
+@@ -287,6 +307,12 @@ func testZip64(t testing.TB, size int64) *rleBuffer {
+ 			t.Fatal("read:", err)
+ 		}
+ 	}
++	if frag := int(size % chunkSize); frag > 0 {
++		_, err := io.ReadFull(rc, chunk[:frag])
++		if err != nil {
++			t.Fatal("read:", err)
++		}
++	}
+ 	gotEnd, err := ioutil.ReadAll(rc)
+ 	if err != nil {
+ 		t.Fatal("read end:", err)
+@@ -298,14 +324,14 @@ func testZip64(t testing.TB, size int64) *rleBuffer {
+ 	if err != nil {
+ 		t.Fatal("closing:", err)
+ 	}
+-	if size == 1<<32 {
++	if size+int64(len("END\n")) >= 1<<32-1 {
+ 		if got, want := f0.UncompressedSize, uint32(uint32max); got != want {
+-			t.Errorf("UncompressedSize %d, want %d", got, want)
++			t.Errorf("UncompressedSize %#x, want %#x", got, want)
+ 		}
+ 	}
+ 
+ 	if got, want := f0.UncompressedSize64, uint64(size)+uint64(len(end)); got != want {
+-		t.Errorf("UncompressedSize64 %d, want %d", got, want)
++		t.Errorf("UncompressedSize64 %#x, want %#x", got, want)
+ 	}
+ 
+ 	return buf
+@@ -377,9 +403,14 @@ func testValidHeader(h *FileHeader, t *testing.T) {
+ 	}
+ 
+ 	b := buf.Bytes()
+-	if _, err = NewReader(bytes.NewReader(b), int64(len(b))); err != nil {
++	zf, err := NewReader(bytes.NewReader(b), int64(len(b)))
++	if err != nil {
+ 		t.Fatalf("got %v, expected nil", err)
+ 	}
++	zh := zf.File[0].FileHeader
++	if zh.Name != h.Name || zh.Method != h.Method || zh.UncompressedSize64 != uint64(len("hi")) {
++		t.Fatalf("got %q/%d/%d expected %q/%d/%d", zh.Name, zh.Method, zh.UncompressedSize64, h.Name, h.Method, len("hi"))
++	}
+ }
+ 
+ // Issue 4302.
+@@ -392,20 +423,29 @@ func TestHeaderInvalidTagAndSize(t *testing.T) {
+ 	h := FileHeader{
+ 		Name:   filename,
+ 		Method: Deflate,
+-		Extra:  []byte(ts.Format(time.RFC3339Nano)), // missing tag and len
++		Extra:  []byte(ts.Format(time.RFC3339Nano)), // missing tag and len, but Extra is best-effort parsing
+ 	}
+ 	h.SetModTime(ts)
+ 
+-	testInvalidHeader(&h, t)
++	testValidHeader(&h, t)
+ }
+ 
+ func TestHeaderTooShort(t *testing.T) {
+ 	h := FileHeader{
+ 		Name:   "foo.txt",
+ 		Method: Deflate,
+-		Extra:  []byte{zip64ExtraId}, // missing size
++		Extra:  []byte{zip64ExtraId}, // missing size and second half of tag, but Extra is best-effort parsing
+ 	}
+-	testInvalidHeader(&h, t)
++	testValidHeader(&h, t)
++}
++
++func TestHeaderIgnoredSize(t *testing.T) {
++	h := FileHeader{
++		Name:   "foo.txt",
++		Method: Deflate,
++		Extra:  []byte{zip64ExtraId & 0xFF, zip64ExtraId >> 8, 24, 0, 1, 2, 3, 4, 5, 6, 7, 8, 1, 2, 3, 4, 5, 6, 7, 8, 1, 2, 3, 4, 5, 6, 7, 8, 1, 2, 3, 4, 5, 6, 7, 8}, // bad size but shouldn't be consulted
++	}
++	testValidHeader(&h, t)
+ }
+ 
+ // Issue 4393. It is valid to have an extra data header

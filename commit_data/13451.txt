@@ -11,7 +11,7 @@ Date:   Mon Jul 9 09:16:10 2012 +1000
     R=golang-dev, bsiegert
     CC=golang-dev
     https://golang.org/cl/6344089
-
+---
  src/pkg/crypto/x509/verify.go       | 2 +-
  src/pkg/database/sql/fakedb_test.go | 6 +++---
  src/pkg/go/doc/reader.go            | 2 +-
@@ -21,3 +21,134 @@ Date:   Mon Jul 9 09:16:10 2012 +1000
  src/pkg/regexp/regexp.go            | 4 ++--
  src/pkg/unsafe/unsafe.go            | 2 +-
  8 files changed, 11 insertions(+), 11 deletions(-)
+
+diff --git a/src/pkg/crypto/x509/verify.go b/src/pkg/crypto/x509/verify.go
+index 91506e87bb..68929c7bb6 100644
+--- a/src/pkg/crypto/x509/verify.go
++++ b/src/pkg/crypto/x509/verify.go
+@@ -42,7 +42,7 @@ type CertificateInvalidError struct {
+ func (e CertificateInvalidError) Error() string {
+ 	switch e.Reason {
+ 	case NotAuthorizedToSign:
+-		return "x509: certificate is not authorized to sign other other certificates"
++		return "x509: certificate is not authorized to sign other certificates"
+ 	case Expired:
+ 		return "x509: certificate has expired or is not yet valid"
+ 	case CANotAuthorizedForThisName:
+diff --git a/src/pkg/database/sql/fakedb_test.go b/src/pkg/database/sql/fakedb_test.go
+index 833e8bf4f5..aec572760f 100644
+--- a/src/pkg/database/sql/fakedb_test.go
++++ b/src/pkg/database/sql/fakedb_test.go
+@@ -31,7 +31,7 @@ var _ = log.Printf
+ //   INSERT|<tablename>|col=val,col2=val2,col3=?
+ //   SELECT|<tablename>|projectcol1,projectcol2|filtercol=?,filtercol2=?
+ //
+-// When opening a a fakeDriver's database, it starts empty with no
++// When opening a fakeDriver's database, it starts empty with no
+ // tables.  All tables and data are stored in memory only.
+ type fakeDriver struct {
+ 	mu        sync.Mutex
+@@ -234,7 +234,7 @@ func checkSubsetTypes(args []driver.Value) error {
+ 
+ func (c *fakeConn) Exec(query string, args []driver.Value) (driver.Result, error) {
+ 	// This is an optional interface, but it's implemented here
+-	// just to check that all the args of of the proper types.
++	// just to check that all the args are of the proper types.
+ 	// ErrSkip is returned so the caller acts as if we didn't
+ 	// implement this at all.
+ 	err := checkSubsetTypes(args)
+@@ -249,7 +249,7 @@ func errf(msg string, args ...interface{}) error {
+ }
+ 
+ // parts are table|selectCol1,selectCol2|whereCol=?,whereCol2=?
+-// (note that where where columns must always contain ? marks,
++// (note that where columns must always contain ? marks,
+ //  just a limitation for fakedb)
+ func (c *fakeConn) prepareSelect(stmt *fakeStmt, parts []string) (driver.Stmt, error) {
+ 	if len(parts) != 3 {
+diff --git a/src/pkg/go/doc/reader.go b/src/pkg/go/doc/reader.go
+index 5eaae37b7d..60b174fecd 100644
+--- a/src/pkg/go/doc/reader.go
++++ b/src/pkg/go/doc/reader.go
+@@ -494,7 +494,7 @@ func (r *reader) readPackage(pkg *ast.Package, mode Mode) {
+ 	r.funcs = make(methodSet)
+ 
+ 	// sort package files before reading them so that the
+-	// result result does not depend on map iteration order
++	// result does not depend on map iteration order
+ 	i := 0
+ 	for filename := range pkg.Files {
+ 		r.filenames[i] = filename
+diff --git a/src/pkg/html/template/url.go b/src/pkg/html/template/url.go
+index 454c791ec3..2ca76bf389 100644
+--- a/src/pkg/html/template/url.go
++++ b/src/pkg/html/template/url.go
+@@ -60,7 +60,7 @@ func urlProcessor(norm bool, args ...interface{}) string {
+ 		c := s[i]
+ 		switch c {
+ 		// Single quote and parens are sub-delims in RFC 3986, but we
+-		// escape them so the output can be embedded in in single
++		// escape them so the output can be embedded in single
+ 		// quoted attributes and unquoted CSS url(...) constructs.
+ 		// Single quotes are reserved in URLs, but are only used in
+ 		// the obsolete "mark" rule in an appendix in RFC 3986
+diff --git a/src/pkg/mime/grammar.go b/src/pkg/mime/grammar.go
+index 83cc411343..09e941e3ec 100644
+--- a/src/pkg/mime/grammar.go
++++ b/src/pkg/mime/grammar.go
+@@ -22,7 +22,7 @@ func isTokenChar(r rune) bool {
+ 	return r > 0x20 && r < 0x7f && !isTSpecial(r)
+ }
+ 
+-// isToken returns true if s is a 'token' as as defined by RFC 1521
++// isToken returns true if s is a 'token' as defined by RFC 1521
+ // and RFC 2045.
+ func isToken(s string) bool {
+ 	if s == "" {
+diff --git a/src/pkg/os/exec/exec.go b/src/pkg/os/exec/exec.go
+index 9a8e181701..3db3ab095d 100644
+--- a/src/pkg/os/exec/exec.go
++++ b/src/pkg/os/exec/exec.go
+@@ -16,7 +16,7 @@ import (
+ 	"syscall"
+ )
+ 
+-// Error records the name of a binary that failed to be be executed
++// Error records the name of a binary that failed to be executed
+ // and the reason it failed.
+ type Error struct {
+ 	Name string
+diff --git a/src/pkg/regexp/regexp.go b/src/pkg/regexp/regexp.go
+index 87e6b1c61e..4b329e9ccc 100644
+--- a/src/pkg/regexp/regexp.go
++++ b/src/pkg/regexp/regexp.go
+@@ -441,7 +441,7 @@ func (re *Regexp) ReplaceAllLiteralString(src, repl string) string {
+ }
+ 
+ // ReplaceAllStringFunc returns a copy of src in which all matches of the
+-// Regexp have been replaced by the return value of of function repl applied
++// Regexp have been replaced by the return value of function repl applied
+ // to the matched substring.  The replacement returned by repl is substituted
+ // directly, without using Expand.
+ func (re *Regexp) ReplaceAllStringFunc(src string, repl func(string) string) string {
+@@ -539,7 +539,7 @@ func (re *Regexp) ReplaceAllLiteral(src, repl []byte) []byte {
+ }
+ 
+ // ReplaceAllFunc returns a copy of src in which all matches of the
+-// Regexp have been replaced by the return value of of function repl applied
++// Regexp have been replaced by the return value of function repl applied
+ // to the matched byte slice.  The replacement returned by repl is substituted
+ // directly, without using Expand.
+ func (re *Regexp) ReplaceAllFunc(src []byte, repl func([]byte) []byte) []byte {
+diff --git a/src/pkg/unsafe/unsafe.go b/src/pkg/unsafe/unsafe.go
+index 024969b428..b661281fba 100644
+--- a/src/pkg/unsafe/unsafe.go
++++ b/src/pkg/unsafe/unsafe.go
+@@ -32,6 +32,6 @@ func Sizeof(v ArbitraryType) uintptr
+ func Offsetof(v ArbitraryType) uintptr
+ 
+ // Alignof returns the alignment of the value v.  It is the maximum value m such
+-// that the address of a variable with the type of v will always always be zero mod m.
++// that the address of a variable with the type of v will always be zero mod m.
+ // If v is of the form structValue.field, it returns the alignment of field f within struct object obj.
+ func Alignof(v ArbitraryType) uintptr

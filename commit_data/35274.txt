@@ -24,8 +24,99 @@ Date:   Mon Jan 29 09:50:50 2018 +0000
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/vet/main.go           |  6 ++++--
  src/cmd/vet/print.go          | 23 ++++++++++++++++++-----
  src/cmd/vet/testdata/print.go |  1 +
  3 files changed, 23 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/vet/main.go b/src/cmd/vet/main.go
+index 807e800959..7265aa6f57 100644
+--- a/src/cmd/vet/main.go
++++ b/src/cmd/vet/main.go
+@@ -195,9 +195,11 @@ type File struct {
+ 	// Parsed package "foo" when checking package "foo_test"
+ 	basePkg *Package
+ 
+-	// The objects that are receivers of a "String() string" method.
++	// The keys are the objects that are receivers of a "String()
++	// string" method. The value reports whether the method has a
++	// pointer receiver.
+ 	// This is used by the recursiveStringer method in print.go.
+-	stringers map[*ast.Object]bool
++	stringerPtrs map[*ast.Object]bool
+ 
+ 	// Registered checkers to run.
+ 	checkers map[ast.Node][]func(*File, ast.Node)
+diff --git a/src/cmd/vet/print.go b/src/cmd/vet/print.go
+index 1c015913d5..0cff951f6f 100644
+--- a/src/cmd/vet/print.go
++++ b/src/cmd/vet/print.go
+@@ -187,12 +187,14 @@ func checkFmtPrintfCall(f *File, node ast.Node) {
+ 
+ 	if d, ok := node.(*ast.FuncDecl); ok && isStringer(f, d) {
+ 		// Remember we saw this.
+-		if f.stringers == nil {
+-			f.stringers = make(map[*ast.Object]bool)
++		if f.stringerPtrs == nil {
++			f.stringerPtrs = make(map[*ast.Object]bool)
+ 		}
+ 		if l := d.Recv.List; len(l) == 1 {
+ 			if n := l[0].Names; len(n) == 1 {
+-				f.stringers[n[0].Obj] = true
++				typ := f.pkg.types[l[0].Type]
++				_, ptrRecv := typ.Type.(*types.Pointer)
++				f.stringerPtrs[n[0].Obj] = ptrRecv
+ 			}
+ 		}
+ 		return
+@@ -628,9 +630,10 @@ func (f *File) okPrintfArg(call *ast.CallExpr, state *formatState) (ok bool) {
+ // recursiveStringer reports whether the provided argument is r or &r for the
+ // fmt.Stringer receiver identifier r.
+ func (f *File) recursiveStringer(e ast.Expr) bool {
+-	if len(f.stringers) == 0 {
++	if len(f.stringerPtrs) == 0 {
+ 		return false
+ 	}
++	ptr := false
+ 	var obj *ast.Object
+ 	switch e := e.(type) {
+ 	case *ast.Ident:
+@@ -638,6 +641,7 @@ func (f *File) recursiveStringer(e ast.Expr) bool {
+ 	case *ast.UnaryExpr:
+ 		if id, ok := e.X.(*ast.Ident); ok && e.Op == token.AND {
+ 			obj = id.Obj
++			ptr = true
+ 		}
+ 	}
+ 
+@@ -652,7 +656,16 @@ func (f *File) recursiveStringer(e ast.Expr) bool {
+ 	// We compare the underlying Object, which checks that the identifier
+ 	// is the one we declared as the receiver for the String method in
+ 	// which this printf appears.
+-	return f.stringers[obj]
++	ptrRecv, exist := f.stringerPtrs[obj]
++	if !exist {
++		return false
++	}
++	// We also need to check that using &t when we declared String
++	// on (t *T) is ok; in such a case, the address is printed.
++	if ptr && ptrRecv {
++		return false
++	}
++	return true
+ }
+ 
+ // isFunctionValue reports whether the expression is a function as opposed to a function call.
+diff --git a/src/cmd/vet/testdata/print.go b/src/cmd/vet/testdata/print.go
+index 6725bafadf..b36abfc127 100644
+--- a/src/cmd/vet/testdata/print.go
++++ b/src/cmd/vet/testdata/print.go
+@@ -440,6 +440,7 @@ type recursivePtrStringer int
+ 
+ func (p *recursivePtrStringer) String() string {
+ 	_ = fmt.Sprintf("%v", *p)
++	_ = fmt.Sprint(&p)     // ok; prints address
+ 	return fmt.Sprintln(p) // ERROR "Sprintln arg p causes recursive call to String method"
+ }
+ 

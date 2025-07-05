@@ -7,10 +7,81 @@ Date:   Mon Jul 27 14:36:32 2009 -0700
     R=ken
     OCL=32239
     CL=32239
-
+---
  src/cmd/gc/dcl.c         |  2 +-
  src/cmd/gc/go.y          |  2 +-
  test/fixedbugs/bug043.go |  2 +-
  test/fixedbugs/bug080.go |  2 ++
  test/fixedbugs/bug171.go | 10 ++++++++++
  5 files changed, 15 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index f9f778ce34..31393cf8a1 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -636,7 +636,7 @@ funclit1(Node *ntype, NodeList *body)
+ 	n->nname = f;
+ 	n->type = ft;
+ 	if(body == nil)
+-		body = list1(nod(ORETURN, N, N));
++		body = list1(nod(OEMPTY, N, N));
+ 	n->nbody = body;
+ 	compile(n);
+ 	funcdepth--;
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index 597f13826c..5b0f97e23f 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -1196,7 +1196,7 @@ fnbody:
+ 	{
+ 		$$ = $2;
+ 		if($$ == nil)
+-			$$ = list1(nod(ORETURN, N, N));
++			$$ = list1(nod(OEMPTY, N, N));
+ 		yyoptsemi(0);
+ 	}
+ 
+diff --git a/test/fixedbugs/bug043.go b/test/fixedbugs/bug043.go
+index a0c7eb1e9e..65d720b800 100644
+--- a/test/fixedbugs/bug043.go
++++ b/test/fixedbugs/bug043.go
+@@ -18,6 +18,6 @@ func g (x int) float ;  // BUG this doesn't
+ func g (x int) float { return 0.0 }
+ 
+ func h (x int) (u int, v int) ;  // BUG this doesn't
+-func h (x int) (u int, v int) {}
++func h (x int) (u int, v int) { return; }
+ 
+ func main() {}
+diff --git a/test/fixedbugs/bug080.go b/test/fixedbugs/bug080.go
+index 319eb91c71..a5003d29b1 100644
+--- a/test/fixedbugs/bug080.go
++++ b/test/fixedbugs/bug080.go
+@@ -7,9 +7,11 @@
+ package main	
+  	
+ func f1() (x int, y float) {
++	return;
+ }
+ 
+ func f2   (x int, y float) {
++	return;
+ }
+ 
+ func main() {
+diff --git a/test/fixedbugs/bug171.go b/test/fixedbugs/bug171.go
+new file mode 100644
+index 0000000000..03f47e99e5
+--- /dev/null
++++ b/test/fixedbugs/bug171.go
+@@ -0,0 +1,10 @@
++// errchk $G $D/$F.go
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func f() int { }	// ERROR "return"
++func g() (foo int) { }	// ERROR "return"

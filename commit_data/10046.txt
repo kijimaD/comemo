@@ -19,7 +19,67 @@ Date:   Tue Oct 18 17:01:42 2011 -0500
     R=nigeltao
     CC=golang-dev
     https://golang.org/cl/5306042
-
+---
  src/pkg/exp/template/html/css.go      | 11 ++++++++++-
  src/pkg/exp/template/html/css_test.go | 12 ++++++++----
  2 files changed, 18 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/exp/template/html/css.go b/src/pkg/exp/template/html/css.go
+index d881328c93..c22ec6df0d 100644
+--- a/src/pkg/exp/template/html/css.go
++++ b/src/pkg/exp/template/html/css.go
+@@ -144,6 +144,15 @@ func skipCSSSpace(c []byte) []byte {
+ 	return c
+ }
+ 
++// isCSSSpace returns whether b is a CSS space char as defined in wc.
++func isCSSSpace(b byte) bool {
++	switch b {
++	case '\t', '\n', '\f', '\r', ' ':
++		return true
++	}
++	return false
++}
++
+ // cssEscaper escapes HTML and CSS special characters using \<hex>+ escapes.
+ func cssEscaper(args ...interface{}) string {
+ 	s, _ := stringify(args...)
+@@ -198,7 +207,7 @@ func cssEscaper(args ...interface{}) string {
+ 		b.WriteString(s[written:i])
+ 		b.WriteString(repl)
+ 		written = i + utf8.RuneLen(r)
+-		if repl != `\\` && (written == len(s) || isHex(s[written])) {
++		if repl != `\\` && (written == len(s) || isHex(s[written]) || isCSSSpace(s[written])) {
+ 			b.WriteByte(' ')
+ 		}
+ 	}
+diff --git a/src/pkg/exp/template/html/css_test.go b/src/pkg/exp/template/html/css_test.go
+index 5ba3e77bb3..5f633e8944 100644
+--- a/src/pkg/exp/template/html/css_test.go
++++ b/src/pkg/exp/template/html/css_test.go
+@@ -100,9 +100,13 @@ func TestDecodeCSS(t *testing.T) {
+ 		},
+ 	}
+ 	for _, test := range tests {
+-		got := string(decodeCSS([]byte(test.css)))
+-		if got != test.want {
+-			t.Errorf("%q: want\n\t%q\nbut got\n\t%q", test.css, test.want, got)
++		got1 := string(decodeCSS([]byte(test.css)))
++		if got1 != test.want {
++			t.Errorf("%q: want\n\t%q\nbut got\n\t%q", test.css, test.want, got1)
++		}
++		recoded := cssEscaper(got1)
++		if got2 := string(decodeCSS([]byte(recoded))); got2 != test.want {
++			t.Errorf("%q: escape & decode not dual for %q", test.css, recoded)
+ 		}
+ 	}
+ }
+@@ -156,7 +160,7 @@ func TestCSSEscaper(t *testing.T) {
+ 		"\u00A0\u0100\u2028\u2029\ufeff\U0001D11E")
+ 
+ 	want := ("\\0\x01\x02\x03\x04\x05\x06\x07" +
+-		"\x08\\9\\a\x0b\\c\\d\x0E\x0F" +
++		"\x08\\9 \\a\x0b\\c \\d\x0E\x0F" +
+ 		"\x10\x11\x12\x13\x14\x15\x16\x17" +
+ 		"\x18\x19\x1a\x1b\x1c\x1d\x1e\x1f" +
+ 		` !\22#$%\26\27\28\29*\2b,-.\2f ` +

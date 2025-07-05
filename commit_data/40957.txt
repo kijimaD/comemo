@@ -12,6 +12,31 @@ Date:   Tue Jun 18 22:07:30 2019 +0800
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-
+---
  src/text/template/template.go | 13 +++++++------
  1 file changed, 7 insertions(+), 6 deletions(-)
+
+diff --git a/src/text/template/template.go b/src/text/template/template.go
+index 1135d819b9..2c5ff013e3 100644
+--- a/src/text/template/template.go
++++ b/src/text/template/template.go
+@@ -110,12 +110,13 @@ func (t *Template) Clone() (*Template, error) {
+ 
+ // copy returns a shallow copy of t, with common set to the argument.
+ func (t *Template) copy(c *common) *Template {
+-	nt := New(t.name)
+-	nt.Tree = t.Tree
+-	nt.common = c
+-	nt.leftDelim = t.leftDelim
+-	nt.rightDelim = t.rightDelim
+-	return nt
++	return &Template{
++		name:       t.name,
++		Tree:       t.Tree,
++		common:     c,
++		leftDelim:  t.leftDelim,
++		rightDelim: t.rightDelim,
++	}
+ }
+ 
+ // AddParseTree adds parse tree for template with given name and associates it with t.

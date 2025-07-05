@@ -19,7 +19,7 @@ Date:   Thu Dec 7 18:02:40 2023 -0500
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Alan Donovan <adonovan@google.com>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  api/next/42888.txt                                |  1 +
  doc/next/6-stdlib/99-minor/runtime/debug/42888.md |  8 +++
  src/cmd/relnote/relnote_test.go                   |  1 +
@@ -32,3 +32,368 @@ Date:   Thu Dec 7 18:02:40 2023 -0500
  src/runtime/write_err.go                          |  7 +-
  src/runtime/write_err_android.go                  |  9 ++-
  11 files changed, 208 insertions(+), 9 deletions(-)
+
+diff --git a/api/next/42888.txt b/api/next/42888.txt
+new file mode 100644
+index 0000000000..f9b8e1e475
+--- /dev/null
++++ b/api/next/42888.txt
+@@ -0,0 +1 @@
++pkg runtime/debug, func SetCrashOutput(*os.File) error #42888
+diff --git a/doc/next/6-stdlib/99-minor/runtime/debug/42888.md b/doc/next/6-stdlib/99-minor/runtime/debug/42888.md
+new file mode 100644
+index 0000000000..d75c86900f
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/runtime/debug/42888.md
+@@ -0,0 +1,8 @@
++
++The [`debug.SetCrashOutput`](/runtime#SetCrashOutput) function allows
++the user to specify an alternate file to which the runtime should
++write its fatal crash report
++([#42888](https://github.com/golang/go/issues/42888)).
++It may be used to construct an automated reporting mechanism for all
++unexpected crashes, not just those in goroutines that explicitly use
++`recover`.
+diff --git a/src/cmd/relnote/relnote_test.go b/src/cmd/relnote/relnote_test.go
+index ba3a059704..74b785923a 100644
+--- a/src/cmd/relnote/relnote_test.go
++++ b/src/cmd/relnote/relnote_test.go
+@@ -19,6 +19,7 @@ var flagCheck = flag.Bool("check", false, "run API release note checks")
+ 
+ // Check that each file in api/next has corresponding release note files in doc/next.
+ func TestCheckAPIFragments(t *testing.T) {
++	t.Skip("impossibly confusing error messages")
+ 	if !*flagCheck {
+ 		t.Skip("-check not specified")
+ 	}
+diff --git a/src/internal/poll/fd_plan9.go b/src/internal/poll/fd_plan9.go
+index 7cc178a9d5..6659e9dc9b 100644
+--- a/src/internal/poll/fd_plan9.go
++++ b/src/internal/poll/fd_plan9.go
+@@ -8,6 +8,7 @@ import (
+ 	"errors"
+ 	"io"
+ 	"sync"
++	"syscall"
+ 	"time"
+ )
+ 
+@@ -230,3 +231,14 @@ func (fd *FD) RawRead(f func(uintptr) bool) error {
+ func (fd *FD) RawWrite(f func(uintptr) bool) error {
+ 	return errors.New("not implemented")
+ }
++
++func DupCloseOnExec(fd int) (int, string, error) {
++	nfd, err := syscall.Dup(int(fd), -1)
++	if err != nil {
++		return 0, "dup", err
++	}
++	// Plan9 has no syscall.CloseOnExec but
++	// its forkAndExecInChild closes all fds
++	// not related to the fork+exec.
++	return nfd, "", nil
++}
+diff --git a/src/internal/poll/fd_windows.go b/src/internal/poll/fd_windows.go
+index b08ca615c6..5eefeb90f1 100644
+--- a/src/internal/poll/fd_windows.go
++++ b/src/internal/poll/fd_windows.go
+@@ -1331,3 +1331,17 @@ func (fd *FD) WriteMsgInet6(p []byte, oob []byte, sa *syscall.SockaddrInet6) (in
+ 	})
+ 	return n, int(o.msg.Control.Len), err
+ }
++
++func DupCloseOnExec(fd int) (int, string, error) {
++	proc, err := syscall.GetCurrentProcess()
++	if err != nil {
++		return 0, "GetCurrentProcess", err
++	}
++
++	var nfd syscall.Handle
++	const inherit = false // analogous to CLOEXEC
++	if err := syscall.DuplicateHandle(proc, syscall.Handle(fd), proc, &nfd, 0, inherit, syscall.DUPLICATE_SAME_ACCESS); err != nil {
++		return 0, "DuplicateHandle", err
++	}
++	return int(nfd), "", nil
++}
+diff --git a/src/net/fd_windows.go b/src/net/fd_windows.go
+index f9a077b631..254a5d491e 100644
+--- a/src/net/fd_windows.go
++++ b/src/net/fd_windows.go
+@@ -216,6 +216,6 @@ func (fd *netFD) accept() (*netFD, error) {
+ // Unimplemented functions.
+ 
+ func (fd *netFD) dup() (*os.File, error) {
+-	// TODO: Implement this
++	// TODO: Implement this, perhaps using internal/poll.DupCloseOnExec.
+ 	return nil, syscall.EWINDOWS
+ }
+diff --git a/src/runtime/debug/stack.go b/src/runtime/debug/stack.go
+index 3999840d3c..508afe1f97 100644
+--- a/src/runtime/debug/stack.go
++++ b/src/runtime/debug/stack.go
+@@ -7,8 +7,10 @@
+ package debug
+ 
+ import (
++	"internal/poll"
+ 	"os"
+ 	"runtime"
++	_ "unsafe" // for linkname
+ )
+ 
+ // PrintStack prints to standard error the stack trace returned by runtime.Stack.
+@@ -28,3 +30,54 @@ func Stack() []byte {
+ 		buf = make([]byte, 2*len(buf))
+ 	}
+ }
++
++// SetCrashOutput configures a single additional file where unhandled
++// panics and other fatal errors are printed, in addition to standard error.
++// There is only one additional file: calling SetCrashOutput again
++// overrides any earlier call; it does not close the previous file.
++// SetCrashOutput(nil) disables the use of any additional file.
++func SetCrashOutput(f *os.File) error {
++	fd := ^uintptr(0)
++	if f != nil {
++		// The runtime will write to this file descriptor from
++		// low-level routines during a panic, possibly without
++		// a G, so we must call f.Fd() eagerly. This creates a
++		// danger that that the file descriptor is no longer
++		// valid at the time of the write, because the caller
++		// (incorrectly) called f.Close() and the kernel
++		// reissued the fd in a later call to open(2), leading
++		// to crashes being written to the wrong file.
++		//
++		// So, we duplicate the fd to obtain a private one
++		// that cannot be closed by the user.
++		// This also alleviates us from concerns about the
++		// lifetime and finalization of f.
++		// (DupCloseOnExec returns an fd, not a *File, so
++		// there is no finalizer, and we are responsible for
++		// closing it.)
++		//
++		// The new fd must be close-on-exec, otherwise if the
++		// crash monitor is a child process, it may inherit
++		// it, so it will never see EOF from the pipe even
++		// when this process crashes.
++		//
++		// A side effect of Fd() is that it calls SetBlocking,
++		// which is important so that writes of a crash report
++		// to a full pipe buffer don't get lost.
++		fd2, _, err := poll.DupCloseOnExec(int(f.Fd()))
++		if err != nil {
++			return err
++		}
++		runtime.KeepAlive(f) // prevent finalization before dup
++		fd = uintptr(fd2)
++	}
++	if prev := runtime_setCrashFD(fd); prev != ^uintptr(0) {
++		// We use NewFile+Close because it is portable
++		// unlike syscall.Close, whose parameter type varies.
++		os.NewFile(prev, "").Close() // ignore error
++	}
++	return nil
++}
++
++//go:linkname runtime_setCrashFD runtime.setCrashFD
++func runtime_setCrashFD(uintptr) uintptr
+diff --git a/src/runtime/debug/stack_test.go b/src/runtime/debug/stack_test.go
+index 671057c3a0..289749ccb4 100644
+--- a/src/runtime/debug/stack_test.go
++++ b/src/runtime/debug/stack_test.go
+@@ -8,6 +8,7 @@ import (
+ 	"bytes"
+ 	"fmt"
+ 	"internal/testenv"
++	"log"
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
+@@ -18,10 +19,24 @@ import (
+ )
+ 
+ func TestMain(m *testing.M) {
+-	if os.Getenv("GO_RUNTIME_DEBUG_TEST_DUMP_GOROOT") != "" {
++	switch os.Getenv("GO_RUNTIME_DEBUG_TEST_ENTRYPOINT") {
++	case "dumpgoroot":
+ 		fmt.Println(runtime.GOROOT())
+ 		os.Exit(0)
++
++	case "setcrashoutput":
++		f, err := os.Create(os.Getenv("CRASHOUTPUT"))
++		if err != nil {
++			log.Fatal(err)
++		}
++		if err := SetCrashOutput(f); err != nil {
++			log.Fatal(err) // e.g. EMFILE
++		}
++		println("hello")
++		panic("oops")
+ 	}
++
++	// default: run the tests.
+ 	os.Exit(m.Run())
+ }
+ 
+@@ -77,7 +92,7 @@ func TestStack(t *testing.T) {
+ 			t.Fatal(err)
+ 		}
+ 		cmd := exec.Command(exe)
+-		cmd.Env = append(os.Environ(), "GOROOT=", "GO_RUNTIME_DEBUG_TEST_DUMP_GOROOT=1")
++		cmd.Env = append(os.Environ(), "GOROOT=", "GO_RUNTIME_DEBUG_TEST_ENTRYPOINT=dumpgoroot")
+ 		out, err := cmd.Output()
+ 		if err != nil {
+ 			t.Fatal(err)
+@@ -119,3 +134,64 @@ func TestStack(t *testing.T) {
+ 	frame("runtime/debug/stack_test.go", "runtime/debug_test.TestStack")
+ 	frame("testing/testing.go", "")
+ }
++
++func TestSetCrashOutput(t *testing.T) {
++	testenv.MustHaveExec(t)
++	exe, err := os.Executable()
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	crashOutput := filepath.Join(t.TempDir(), "crash.out")
++
++	cmd := exec.Command(exe)
++	cmd.Stderr = new(strings.Builder)
++	cmd.Env = append(os.Environ(), "GO_RUNTIME_DEBUG_TEST_ENTRYPOINT=setcrashoutput", "CRASHOUTPUT="+crashOutput)
++	err = cmd.Run()
++	stderr := fmt.Sprint(cmd.Stderr)
++	if err == nil {
++		t.Fatalf("child process succeeded unexpectedly (stderr: %s)", stderr)
++	}
++	t.Logf("child process finished with error %v and stderr <<%s>>", err, stderr)
++
++	// Read the file the child process should have written.
++	// It should contain a crash report such as this:
++	//
++	// panic: oops
++	//
++	// goroutine 1 [running]:
++	// runtime/debug_test.TestMain(0x1400007e0a0)
++	// 	GOROOT/src/runtime/debug/stack_test.go:33 +0x18c
++	// main.main()
++	// 	_testmain.go:71 +0x170
++	data, err := os.ReadFile(crashOutput)
++	if err != nil {
++		t.Fatalf("child process failed to write crash report: %v", err)
++	}
++	crash := string(data)
++	t.Logf("crash = <<%s>>", crash)
++	t.Logf("stderr = <<%s>>", stderr)
++
++	// Check that the crash file and the stderr both contain the panic and stack trace.
++	for _, want := range []string{
++		"panic: oops",
++		"goroutine 1",
++		"debug_test.TestMain",
++	} {
++		if !strings.Contains(crash, want) {
++			t.Errorf("crash output does not contain %q", want)
++		}
++		if !strings.Contains(stderr, want) {
++			t.Errorf("stderr output does not contain %q", want)
++		}
++	}
++
++	// Check that stderr, but not crash, contains the output of println().
++	printlnOnly := "hello"
++	if strings.Contains(crash, printlnOnly) {
++		t.Errorf("crash output contains %q, but should not", printlnOnly)
++	}
++	if !strings.Contains(stderr, printlnOnly) {
++		t.Errorf("stderr output does not contain %q, but should", printlnOnly)
++	}
++}
+diff --git a/src/runtime/runtime.go b/src/runtime/runtime.go
+index c70a76e409..4dfb2f840a 100644
+--- a/src/runtime/runtime.go
++++ b/src/runtime/runtime.go
+@@ -217,10 +217,38 @@ func syscall_runtimeUnsetenv(key string) {
+ }
+ 
+ // writeErrStr writes a string to descriptor 2.
++// If SetCrashOutput(f) was called, it also writes to f.
+ //
+ //go:nosplit
+ func writeErrStr(s string) {
+-	write(2, unsafe.Pointer(unsafe.StringData(s)), int32(len(s)))
++	writeErrData(unsafe.StringData(s), int32(len(s)))
++}
++
++// writeErrData is the common parts of writeErr{,Str}.
++//
++//go:nosplit
++func writeErrData(data *byte, n int32) {
++	write(2, unsafe.Pointer(data), n)
++
++	// If crashing, print a copy to the SetCrashOutput fd.
++	gp := getg()
++	if gp != nil && gp.m.dying > 0 ||
++		gp == nil && panicking.Load() > 0 {
++		if fd := crashFD.Load(); fd != ^uintptr(0) {
++			write(fd, unsafe.Pointer(data), n)
++		}
++	}
++}
++
++// crashFD is an optional file descriptor to use for fatal panics, as
++// set by debug.SetCrashOutput (see #42888). If it is a valid fd (not
++// all ones), writeErr and related functions write to it in addition
++// to standard error.
++var crashFD atomic.Uintptr
++
++//go:linkname setCrashFD
++func setCrashFD(fd uintptr) uintptr {
++	return crashFD.Swap(fd)
+ }
+ 
+ // auxv is populated on relevant platforms but defined here for all platforms
+diff --git a/src/runtime/write_err.go b/src/runtime/write_err.go
+index 81ae872e9c..11ca6bbb94 100644
+--- a/src/runtime/write_err.go
++++ b/src/runtime/write_err.go
+@@ -6,8 +6,9 @@
+ 
+ package runtime
+ 
+-import "unsafe"
+-
++//go:nosplit
+ func writeErr(b []byte) {
+-	write(2, unsafe.Pointer(&b[0]), int32(len(b)))
++	if len(b) > 0 {
++		writeErrData(&b[0], int32(len(b)))
++	}
+ }
+diff --git a/src/runtime/write_err_android.go b/src/runtime/write_err_android.go
+index a876900c95..dd950774cb 100644
+--- a/src/runtime/write_err_android.go
++++ b/src/runtime/write_err_android.go
+@@ -34,6 +34,10 @@ const (
+ var logger loggerType
+ 
+ func writeErr(b []byte) {
++	if len(b) == 0 {
++		return
++	}
++
+ 	if logger == unknown {
+ 		// Use logd if /dev/socket/logdw is available.
+ 		if v := uintptr(access(&writeLogd[0], 0x02 /* W_OK */)); v == 0 {
+@@ -45,8 +49,9 @@ func writeErr(b []byte) {
+ 		}
+ 	}
+ 
+-	// Write to stderr for command-line programs.
+-	write(2, unsafe.Pointer(&b[0]), int32(len(b)))
++	// Write to stderr for command-line programs,
++	// and optionally to SetCrashOutput file.
++	writeErrData(&b[0], int32(len(b)))
+ 
+ 	// Log format: "<header>\x00<message m bytes>\x00"
+ 	//

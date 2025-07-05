@@ -25,7 +25,7 @@ Date:   Fri Nov 2 07:50:59 2012 +0100
     R=dave, daniel.morsing, rsc
     CC=golang-dev
     https://golang.org/cl/6733055
-
+---
  src/cmd/5g/cgen.c  | 383 +++++++++++++++++++++++++++++++----------------------
  src/cmd/5g/gsubr.c |   3 +
  src/cmd/6g/cgen.c  | 241 ++++++++++++++++++++-------------
@@ -34,3 +34,872 @@ Date:   Fri Nov 2 07:50:59 2012 +0100
  src/cmd/gc/fmt.c   |   1 +
  test/torture.go    |  17 +++
  7 files changed, 394 insertions(+), 267 deletions(-)
+
+diff --git a/src/cmd/5g/cgen.c b/src/cmd/5g/cgen.c
+index fe8683b5d4..b7abc9e4ec 100644
+--- a/src/cmd/5g/cgen.c
++++ b/src/cmd/5g/cgen.c
+@@ -553,11 +553,9 @@ cgenindex(Node *n, Node *res)
+ void
+ agen(Node *n, Node *res)
+ {
+-	Node *nl, *nr;
+-	Node n1, n2, n3, n4, tmp;
+-	Prog *p1, *p2;
+-	uint32 w;
+-	uint64 v;
++	Node *nl;
++	Node n1, n2, n3;
++	Prog *p1;
+ 	int r;
+ 
+ 	if(debug['g']) {
+@@ -597,7 +595,6 @@ agen(Node *n, Node *res)
+ 	}
+ 
+ 	nl = n->left;
+-	nr = n->right;
+ 
+ 	switch(n->op) {
+ 	default:
+@@ -644,150 +641,9 @@ agen(Node *n, Node *res)
+ 		break;
+ 
+ 	case OINDEX:
+-		p2 = nil;  // to be patched to panicindex.
+-		w = n->type->width;
+-		if(nr->addable) {
+-			if(!isconst(nr, CTINT))
+-				tempname(&tmp, types[TINT32]);
+-			if(!isconst(nl, CTSTR))
+-				agenr(nl, &n3, res);
+-			if(!isconst(nr, CTINT)) {
+-				p2 = cgenindex(nr, &tmp);
+-				regalloc(&n1, tmp.type, N);
+-				gmove(&tmp, &n1);
+-			}
+-		} else
+-		if(nl->addable) {
+-			if(!isconst(nr, CTINT)) {
+-				tempname(&tmp, types[TINT32]);
+-				p2 = cgenindex(nr, &tmp);
+-				regalloc(&n1, tmp.type, N);
+-				gmove(&tmp, &n1);
+-			}
+-			if(!isconst(nl, CTSTR)) {
+-				regalloc(&n3, types[tptr], res);
+-				agen(nl, &n3);
+-			}
+-		} else {
+-			tempname(&tmp, types[TINT32]);
+-			p2 = cgenindex(nr, &tmp);
+-			nr = &tmp;
+-			if(!isconst(nl, CTSTR))
+-				agenr(nl, &n3, res);
+-			regalloc(&n1, tmp.type, N);
+-			gins(optoas(OAS, tmp.type), &tmp, &n1);
+-		}
+-
+-		// &a is in &n3 (allocated in res)
+-		// i is in &n1 (if not constant)
+-		// w is width
+-
+-		// constant index
+-		if(isconst(nr, CTINT)) {
+-			if(isconst(nl, CTSTR))
+-				fatal("constant string constant index");
+-			v = mpgetfix(nr->val.u.xval);
+-			if(isslice(nl->type) || nl->type->etype == TSTRING) {
+-				if(!debug['B'] && !n->bounded) {
+-					n1 = n3;
+-					n1.op = OINDREG;
+-					n1.type = types[tptr];
+-					n1.xoffset = Array_nel;
+-					regalloc(&n4, n1.type, N);
+-					cgen(&n1, &n4);
+-					nodconst(&n2, types[TUINT32], v);
+-					gcmp(optoas(OCMP, types[TUINT32]), &n4, &n2);
+-					regfree(&n4);
+-					p1 = gbranch(optoas(OGT, types[TUINT32]), T, +1);
+-					ginscall(panicindex, 0);
+-					patch(p1, pc);
+-				}
+-
+-				n1 = n3;
+-				n1.op = OINDREG;
+-				n1.type = types[tptr];
+-				n1.xoffset = Array_array;
+-				gmove(&n1, &n3);
+-			}
+-
+-			nodconst(&n2, types[tptr], v*w);
+-			gins(optoas(OADD, types[tptr]), &n2, &n3);
+-			gmove(&n3, res);
+-			regfree(&n3);
+-			break;
+-		}
+-
+-		regalloc(&n2, types[TINT32], &n1);			// i
+-		gmove(&n1, &n2);
++		agenr(n, &n1, res);
++		gmove(&n1, res);
+ 		regfree(&n1);
+-
+-		if(!debug['B'] && !n->bounded) {
+-			// check bounds
+-			regalloc(&n4, types[TUINT32], N);
+-			if(isconst(nl, CTSTR)) {
+-				nodconst(&n1, types[TUINT32], nl->val.u.sval->len);
+-				gmove(&n1, &n4);
+-			} else if(isslice(nl->type) || nl->type->etype == TSTRING) {
+-				n1 = n3;
+-				n1.op = OINDREG;
+-				n1.type = types[tptr];
+-				n1.xoffset = Array_nel;
+-				cgen(&n1, &n4);
+-			} else {
+-				nodconst(&n1, types[TUINT32], nl->type->bound);
+-				gmove(&n1, &n4);
+-			}
+-			gcmp(optoas(OCMP, types[TUINT32]), &n2, &n4);
+-			regfree(&n4);
+-			p1 = gbranch(optoas(OLT, types[TUINT32]), T, +1);
+-			if(p2)
+-				patch(p2, pc);
+-			ginscall(panicindex, 0);
+-			patch(p1, pc);
+-		}
+-		
+-		if(isconst(nl, CTSTR)) {
+-			regalloc(&n3, types[tptr], res);
+-			p1 = gins(AMOVW, N, &n3);
+-			datastring(nl->val.u.sval->s, nl->val.u.sval->len, &p1->from);
+-			p1->from.type = D_CONST;
+-		} else
+-		if(isslice(nl->type) || nl->type->etype == TSTRING) {
+-			n1 = n3;
+-			n1.op = OINDREG;
+-			n1.type = types[tptr];
+-			n1.xoffset = Array_array;
+-			gmove(&n1, &n3);
+-		}
+-
+-		if(w == 0) {
+-			// nothing to do
+-		} else if(w == 1 || w == 2 || w == 4 || w == 8) {
+-			memset(&n4, 0, sizeof n4);
+-			n4.op = OADDR;
+-			n4.left = &n2;
+-			cgen(&n4, &n3);
+-			if (w == 1)
+-				gins(AADD, &n2, &n3);
+-			else if(w == 2)
+-				gshift(AADD, &n2, SHIFT_LL, 1, &n3);
+-			else if(w == 4)
+-				gshift(AADD, &n2, SHIFT_LL, 2, &n3);
+-			else if(w == 8)
+-				gshift(AADD, &n2, SHIFT_LL, 3, &n3);	
+-		} else {
+-			regalloc(&n4, types[TUINT32], N);
+-			nodconst(&n1, types[TUINT32], w);
+-			gmove(&n1, &n4);
+-			gins(optoas(OMUL, types[TUINT32]), &n4, &n2);
+-			gins(optoas(OADD, types[tptr]), &n2, &n3);
+-			regfree(&n4);
+-			gmove(&n3, res);
+-		}
+-
+-		gmove(&n3, res);
+-		regfree(&n2);
+-		regfree(&n3);
+ 		break;
+ 
+ 	case ONAME:
+@@ -968,12 +824,53 @@ igen(Node *n, Node *a, Node *res)
+ 		return;
+ 	}
+ 
+-	regalloc(a, types[tptr], res);
+-	agen(n, a);
++	agenr(n, a, res);
+ 	a->op = OINDREG;
+ 	a->type = n->type;
+ }
+ 
++/*
++ * allocate a register in res and generate
++ *  newreg = &n
++ * The caller must call regfree(a).
++ */
++void
++cgenr(Node *n, Node *a, Node *res)
++{
++	Node n1;
++
++	if(debug['g'])
++		dump("cgenr-n", n);
++
++	if(isfat(n->type))
++		fatal("cgenr on fat node");
++
++	if(n->addable) {
++		regalloc(a, types[tptr], res);
++		gmove(n, a);
++		return;
++	}
++
++	switch(n->op) {
++	case ONAME:
++	case ODOT:
++	case ODOTPTR:
++	case OINDEX:
++	case OCALLFUNC:
++	case OCALLMETH:
++	case OCALLINTER:
++		igen(n, &n1, res);
++		regalloc(a, types[tptr], &n1);
++		gmove(&n1, a);
++		regfree(&n1);
++		break;
++	default:
++		regalloc(a, n->type, res);
++		cgen(n, a);
++		break;
++	}
++}
++
+ /*
+  * generate:
+  *	newreg = &n;
+@@ -983,12 +880,178 @@ igen(Node *n, Node *a, Node *res)
+ void
+ agenr(Node *n, Node *a, Node *res)
+ {
+-	Node n1;
++	Node *nl, *nr;
++	Node n1, n2, n3, n4, tmp;
++	Prog *p1, *p2;
++	uint32 w;
++	uint64 v;
+ 
+-	igen(n, &n1, res);
+-	regalloc(a, types[tptr], N);
+-	agen(&n1, a);
+-	regfree(&n1);
++	if(debug['g'])
++		dump("agenr-n", n);
++
++	nl = n->left;
++	nr = n->right;
++
++	switch(n->op) {
++	case OINDEX:
++		p2 = nil;  // to be patched to panicindex.
++		w = n->type->width;
++		if(nr->addable) {
++			if(!isconst(nr, CTINT))
++				tempname(&tmp, types[TINT32]);
++			if(!isconst(nl, CTSTR))
++				agenr(nl, &n3, res);
++			if(!isconst(nr, CTINT)) {
++				p2 = cgenindex(nr, &tmp);
++				regalloc(&n1, tmp.type, N);
++				gmove(&tmp, &n1);
++			}
++		} else
++		if(nl->addable) {
++			if(!isconst(nr, CTINT)) {
++				tempname(&tmp, types[TINT32]);
++				p2 = cgenindex(nr, &tmp);
++				regalloc(&n1, tmp.type, N);
++				gmove(&tmp, &n1);
++			}
++			if(!isconst(nl, CTSTR)) {
++				agenr(nl, &n3, res);
++			}
++		} else {
++			tempname(&tmp, types[TINT32]);
++			p2 = cgenindex(nr, &tmp);
++			nr = &tmp;
++			if(!isconst(nl, CTSTR))
++				agenr(nl, &n3, res);
++			regalloc(&n1, tmp.type, N);
++			gins(optoas(OAS, tmp.type), &tmp, &n1);
++		}
++
++		// &a is in &n3 (allocated in res)
++		// i is in &n1 (if not constant)
++		// w is width
++
++		// explicit check for nil if array is large enough
++		// that we might derive too big a pointer.
++		if(isfixedarray(nl->type) && nl->type->width >= unmappedzero) {
++			regalloc(&n4, types[tptr], N);
++			gmove(&n3, &n4);
++			p1 = gins(AMOVW, &n4, &n4);
++			p1->from.type = D_OREG;
++			p1->from.offset = 0;
++			regfree(&n4);
++		}
++
++		// constant index
++		if(isconst(nr, CTINT)) {
++			if(isconst(nl, CTSTR))
++				fatal("constant string constant index");
++			v = mpgetfix(nr->val.u.xval);
++			if(isslice(nl->type) || nl->type->etype == TSTRING) {
++				if(!debug['B'] && !n->bounded) {
++					n1 = n3;
++					n1.op = OINDREG;
++					n1.type = types[tptr];
++					n1.xoffset = Array_nel;
++					regalloc(&n4, n1.type, N);
++					gmove(&n1, &n4);
++					nodconst(&n2, types[TUINT32], v);
++					gcmp(optoas(OCMP, types[TUINT32]), &n4, &n2);
++					regfree(&n4);
++					p1 = gbranch(optoas(OGT, types[TUINT32]), T, +1);
++					ginscall(panicindex, 0);
++					patch(p1, pc);
++				}
++
++				n1 = n3;
++				n1.op = OINDREG;
++				n1.type = types[tptr];
++				n1.xoffset = Array_array;
++				gmove(&n1, &n3);
++			}
++
++			nodconst(&n2, types[tptr], v*w);
++			gins(optoas(OADD, types[tptr]), &n2, &n3);
++			*a = n3;
++			break;
++		}
++
++		regalloc(&n2, types[TINT32], &n1);			// i
++		gmove(&n1, &n2);
++		regfree(&n1);
++
++		if(!debug['B'] && !n->bounded) {
++			// check bounds
++			regalloc(&n4, types[TUINT32], N);
++			if(isconst(nl, CTSTR)) {
++				nodconst(&n1, types[TUINT32], nl->val.u.sval->len);
++				gmove(&n1, &n4);
++			} else if(isslice(nl->type) || nl->type->etype == TSTRING) {
++				n1 = n3;
++				n1.op = OINDREG;
++				n1.type = types[tptr];
++				n1.xoffset = Array_nel;
++				gmove(&n1, &n4);
++			} else {
++				nodconst(&n1, types[TUINT32], nl->type->bound);
++				gmove(&n1, &n4);
++			}
++			gcmp(optoas(OCMP, types[TUINT32]), &n2, &n4);
++			regfree(&n4);
++			p1 = gbranch(optoas(OLT, types[TUINT32]), T, +1);
++			if(p2)
++				patch(p2, pc);
++			ginscall(panicindex, 0);
++			patch(p1, pc);
++		}
++		
++		if(isconst(nl, CTSTR)) {
++			regalloc(&n3, types[tptr], res);
++			p1 = gins(AMOVW, N, &n3);
++			datastring(nl->val.u.sval->s, nl->val.u.sval->len, &p1->from);
++			p1->from.type = D_CONST;
++		} else
++		if(isslice(nl->type) || nl->type->etype == TSTRING) {
++			n1 = n3;
++			n1.op = OINDREG;
++			n1.type = types[tptr];
++			n1.xoffset = Array_array;
++			gmove(&n1, &n3);
++		}
++
++		if(w == 0) {
++			// nothing to do
++		} else if(w == 1 || w == 2 || w == 4 || w == 8) {
++			memset(&n4, 0, sizeof n4);
++			n4.op = OADDR;
++			n4.left = &n2;
++			cgen(&n4, &n3);
++			if (w == 1)
++				gins(AADD, &n2, &n3);
++			else if(w == 2)
++				gshift(AADD, &n2, SHIFT_LL, 1, &n3);
++			else if(w == 4)
++				gshift(AADD, &n2, SHIFT_LL, 2, &n3);
++			else if(w == 8)
++				gshift(AADD, &n2, SHIFT_LL, 3, &n3);
++		} else {
++			regalloc(&n4, types[TUINT32], N);
++			nodconst(&n1, types[TUINT32], w);
++			gmove(&n1, &n4);
++			gins(optoas(OMUL, types[TUINT32]), &n4, &n2);
++			gins(optoas(OADD, types[tptr]), &n2, &n3);
++			regfree(&n4);
++		}
++
++		*a = n3;
++		regfree(&n2);
++		break;
++
++	default:
++		regalloc(a, types[tptr], res);
++		agen(n, a);
++		break;
++	}
+ }
+ 
+ void
+@@ -1403,16 +1466,14 @@ sgen(Node *n, Node *res, int64 w)
+ 	if(osrc < odst && odst < osrc+w)
+ 		dir = -dir;
+ 
+-	regalloc(&dst, types[tptr], res);
+ 	if(n->ullman >= res->ullman) {
+-		agen(n, &dst);	// temporarily use dst
++		agenr(n, &dst, res);	// temporarily use dst
+ 		regalloc(&src, types[tptr], N);
+ 		gins(AMOVW, &dst, &src);
+ 		agen(res, &dst);
+ 	} else {
+-		agen(res, &dst);
+-		regalloc(&src, types[tptr], N);
+-		agen(n, &src);
++		agenr(res, &dst, res);
++		agenr(n, &src, N);
+ 	}
+ 
+ 	regalloc(&tmp, types[TUINT32], N);
+diff --git a/src/cmd/5g/gsubr.c b/src/cmd/5g/gsubr.c
+index 0ab335e0bc..8340e8a98b 100644
+--- a/src/cmd/5g/gsubr.c
++++ b/src/cmd/5g/gsubr.c
+@@ -1816,6 +1816,9 @@ sudoaddable(int as, Node *n, Addr *a, int *w)
+ 		goto odot;
+ 
+ 	case OINDEX:
++		return 0;
++		// disabled: OINDEX case is now covered by agenr
++		// for a more suitable register allocation pattern.
+ 		if(n->left->type->etype == TSTRING)
+ 			return 0;
+ 		cleani += 2;
+diff --git a/src/cmd/6g/cgen.c b/src/cmd/6g/cgen.c
+index 195011ae90..53d4e1e248 100644
+--- a/src/cmd/6g/cgen.c
++++ b/src/cmd/6g/cgen.c
+@@ -512,102 +512,79 @@ ret:
+ }
+ 
+ /*
+- * generate:
+- *	res = &n;
++ * allocate a register in res and generate
++ *  newreg = &n
++ * The caller must call regfree(a).
+  */
+ void
+-agen(Node *n, Node *res)
++cgenr(Node *n, Node *a, Node *res)
+ {
+-	Node *nl, *nr;
+-	Node n1, n2, n3, tmp, tmp2, n4, n5, nlen;
+-	Prog *p1;
+-	uint32 w;
+-	uint64 v;
+-	Type *t;
++	Node n1;
+ 
+-	if(debug['g']) {
+-		dump("\nagen-res", res);
+-		dump("agen-r", n);
+-	}
+-	if(n == N || n->type == T)
+-		return;
++	if(debug['g'])
++		dump("cgenr-n", n);
+ 
+-	while(n->op == OCONVNOP)
+-		n = n->left;
++	if(isfat(n->type))
++		fatal("cgenr on fat node");
+ 
+-	if(isconst(n, CTNIL) && n->type->width > widthptr) {
+-		// Use of a nil interface or nil slice.
+-		// Create a temporary we can take the address of and read.
+-		// The generated code is just going to panic, so it need not
+-		// be terribly efficient. See issue 3670.
+-		tempname(&n1, n->type);
+-		clearfat(&n1);
+-		regalloc(&n2, types[tptr], res);
+-		gins(ALEAQ, &n1, &n2);
+-		gmove(&n2, res);
+-		regfree(&n2);
+-		goto ret;
+-	}
+-		
+ 	if(n->addable) {
+-		regalloc(&n1, types[tptr], res);
+-		gins(ALEAQ, n, &n1);
+-		gmove(&n1, res);
+-		regfree(&n1);
+-		goto ret;
++		regalloc(a, types[tptr], res);
++		gmove(n, a);
++		return;
+ 	}
+ 
+-	nl = n->left;
+-	nr = n->right;
+-
+ 	switch(n->op) {
+-	default:
+-		fatal("agen: unknown op %N", n);
+-		break;
+-
++	case ONAME:
++	case ODOT:
++	case ODOTPTR:
++	case OINDEX:
++	case OCALLFUNC:
+ 	case OCALLMETH:
+-		cgen_callmeth(n, 0);
+-		cgen_aret(n, res);
+-		break;
+-
+ 	case OCALLINTER:
+-		cgen_callinter(n, res, 0);
+-		cgen_aret(n, res);
++		igen(n, &n1, res);
++		regalloc(a, types[tptr], &n1);
++		gmove(&n1, a);
++		regfree(&n1);
+ 		break;
+-
+-	case OCALLFUNC:
+-		cgen_call(n, 0);
+-		cgen_aret(n, res);
++	default:
++		regalloc(a, n->type, res);
++		cgen(n, a);
+ 		break;
++	}
++}
+ 
+-	case OSLICE:
+-	case OSLICEARR:
+-	case OSLICESTR:
+-		tempname(&n1, n->type);
+-		cgen_slice(n, &n1);
+-		agen(&n1, res);
+-		break;
++/*
++ * allocate a register in res and generate
++ * res = &n
++ */
++void
++agenr(Node *n, Node *a, Node *res)
++{
++	Node *nl, *nr;
++	Node n1, n2, n3, n4, n5, tmp, tmp2, nlen;
++	Prog *p1;
++	Type *t;
++	uint32 w;
++	uint64 v;
+ 
+-	case OEFACE:
+-		tempname(&n1, n->type);
+-		cgen_eface(n, &n1);
+-		agen(&n1, res);
+-		break;
++	if(debug['g']) {
++		dump("\nagenr-n", n);
++	}
+ 
++	nl = n->left;
++	nr = n->right;
++
++	switch(n->op) {
+ 	case OINDEX:
+ 		w = n->type->width;
+ 		// Generate the non-addressable child first.
+ 		if(nr->addable)
+ 			goto irad;
+ 		if(nl->addable) {
+-			if(!isconst(nr, CTINT)) {
+-				regalloc(&n1, nr->type, N);
+-				cgen(nr, &n1);
+-			}
++			cgenr(nr, &n1, N);
+ 			if(!isconst(nl, CTSTR)) {
+ 				if(isfixedarray(nl->type)) {
+-					regalloc(&n3, types[tptr], res);
+-					agen(nl, &n3);
++					agenr(nl, &n3, res);
+ 				} else {
+ 					igen(nl, &nlen, res);
+ 					nlen.type = types[tptr];
+@@ -626,8 +603,7 @@ agen(Node *n, Node *res)
+ 	irad:
+ 		if(!isconst(nl, CTSTR)) {
+ 			if(isfixedarray(nl->type)) {
+-				regalloc(&n3, types[tptr], res);
+-				agen(nl, &n3);
++				agenr(nl, &n3, res);
+ 			} else {
+ 				if(!nl->addable) {
+ 					// igen will need an addressable node.
+@@ -645,8 +621,7 @@ agen(Node *n, Node *res)
+ 			}
+ 		}
+ 		if(!isconst(nr, CTINT)) {
+-			regalloc(&n1, nr->type, N);
+-			cgen(nr, &n1);
++			cgenr(nr, &n1, N);
+ 		}
+ 		goto index;
+ 
+@@ -686,8 +661,7 @@ agen(Node *n, Node *res)
+ 
+ 			if (v*w != 0)
+ 				ginscon(optoas(OADD, types[tptr]), v*w, &n3);
+-			gmove(&n3, res);
+-			regfree(&n3);
++			*a = n3;
+ 			break;
+ 		}
+ 
+@@ -745,13 +719,105 @@ agen(Node *n, Node *res)
+ 		}
+ 
+ 	indexdone:
+-		gmove(&n3, res);
++		*a = n3;
+ 		regfree(&n2);
+-		regfree(&n3);
+ 		if(!isconst(nl, CTSTR) && !isfixedarray(nl->type))
+ 			regfree(&nlen);
+ 		break;
+ 
++	default:
++		regalloc(a, types[tptr], res);
++		agen(n, a);
++		break;
++	}
++}
++
++/*
++ * generate:
++ *	res = &n;
++ */
++void
++agen(Node *n, Node *res)
++{
++	Node *nl, *nr;
++	Node n1, n2;
++
++	if(debug['g']) {
++		dump("\nagen-res", res);
++		dump("agen-r", n);
++	}
++	if(n == N || n->type == T)
++		return;
++
++	while(n->op == OCONVNOP)
++		n = n->left;
++
++	if(isconst(n, CTNIL) && n->type->width > widthptr) {
++		// Use of a nil interface or nil slice.
++		// Create a temporary we can take the address of and read.
++		// The generated code is just going to panic, so it need not
++		// be terribly efficient. See issue 3670.
++		tempname(&n1, n->type);
++		clearfat(&n1);
++		regalloc(&n2, types[tptr], res);
++		gins(ALEAQ, &n1, &n2);
++		gmove(&n2, res);
++		regfree(&n2);
++		goto ret;
++	}
++		
++	if(n->addable) {
++		regalloc(&n1, types[tptr], res);
++		gins(ALEAQ, n, &n1);
++		gmove(&n1, res);
++		regfree(&n1);
++		goto ret;
++	}
++
++	nl = n->left;
++	nr = n->right;
++	USED(nr);
++
++	switch(n->op) {
++	default:
++		fatal("agen: unknown op %N", n);
++		break;
++
++	case OCALLMETH:
++		cgen_callmeth(n, 0);
++		cgen_aret(n, res);
++		break;
++
++	case OCALLINTER:
++		cgen_callinter(n, res, 0);
++		cgen_aret(n, res);
++		break;
++
++	case OCALLFUNC:
++		cgen_call(n, 0);
++		cgen_aret(n, res);
++		break;
++
++	case OSLICE:
++	case OSLICEARR:
++	case OSLICESTR:
++		tempname(&n1, n->type);
++		cgen_slice(n, &n1);
++		agen(&n1, res);
++		break;
++
++	case OEFACE:
++		tempname(&n1, n->type);
++		cgen_eface(n, &n1);
++		agen(&n1, res);
++		break;
++
++	case OINDEX:
++		agenr(n, &n1, res);
++		gmove(&n1, res);
++		regfree(&n1);
++		break;
++
+ 	case ONAME:
+ 		// should only get here with names in this func.
+ 		if(n->funcdepth > 0 && n->funcdepth != funcdepth) {
+@@ -843,19 +909,7 @@ igen(Node *n, Node *a, Node *res)
+ 		return;
+ 
+ 	case ODOTPTR:
+-		if(n->left->addable
+-			|| n->left->op == OCALLFUNC
+-			|| n->left->op == OCALLMETH
+-			|| n->left->op == OCALLINTER) {
+-			// igen-able nodes.
+-			igen(n->left, &n1, res);
+-			regalloc(a, types[tptr], &n1);
+-			gmove(&n1, a);
+-			regfree(&n1);
+-		} else {
+-			regalloc(a, types[tptr], res);
+-			cgen(n->left, a);
+-		}
++		cgenr(n->left, a, res);
+ 		if(n->xoffset != 0) {
+ 			// explicit check for nil if struct is large enough
+ 			// that we might derive too big a pointer.
+@@ -921,8 +975,7 @@ igen(Node *n, Node *a, Node *res)
+ 		}
+ 	}
+ 
+-	regalloc(a, types[tptr], res);
+-	agen(n, a);
++	agenr(n, a, res);
+ 	a->op = OINDREG;
+ 	a->type = n->type;
+ }
+diff --git a/src/cmd/6g/gg.h b/src/cmd/6g/gg.h
+index 4045e9a2e2..ba1ad75f32 100644
+--- a/src/cmd/6g/gg.h
++++ b/src/cmd/6g/gg.h
+@@ -84,6 +84,7 @@ int	gen_as_init(Node*);
+  * cgen.c
+  */
+ void	agen(Node*, Node*);
++void	agenr(Node*, Node*, Node*);
+ void	igen(Node*, Node*, Node*);
+ vlong	fieldoffset(Type*, Node*);
+ void	sgen(Node*, Node*, int64);
+diff --git a/src/cmd/6g/gsubr.c b/src/cmd/6g/gsubr.c
+index b7ba420da1..35f3c9d31f 100644
+--- a/src/cmd/6g/gsubr.c
++++ b/src/cmd/6g/gsubr.c
+@@ -1960,6 +1960,9 @@ sudoaddable(int as, Node *n, Addr *a)
+ 		goto odot;
+ 
+ 	case OINDEX:
++		return 0;
++		// disabled: OINDEX case is now covered by agenr
++		// for a more suitable register allocation pattern.
+ 		if(n->left->type->etype == TSTRING)
+ 			return 0;
+ 		goto oindex;
+@@ -2103,23 +2106,11 @@ oindex:
+ 				n2 = *l;
+ 				n2.xoffset += Array_nel;
+ 				n2.type = types[simtype[TUINT]];
+-				if(is64(r->type)) {
+-					t = types[TUINT64];
+-					regalloc(&n4, t, N);
+-					gmove(&n2, &n4);
+-					n2 = n4;
+-				}
+ 			} else {
+ 				n2 = *reg;
+ 				n2.xoffset = Array_nel;
+ 				n2.op = OINDREG;
+ 				n2.type = types[simtype[TUINT]];
+-				if(is64(r->type)) {
+-					t = types[TUINT64];
+-					regalloc(&n4, t, N);
+-					gmove(&n2, &n4);
+-					n2 = n4;
+-				}
+ 			}
+ 		} else {
+ 			if(is64(r->type))
+diff --git a/src/cmd/gc/fmt.c b/src/cmd/gc/fmt.c
+index 5f7adf9cfd..e8c0571e5c 100644
+--- a/src/cmd/gc/fmt.c
++++ b/src/cmd/gc/fmt.c
+@@ -1426,6 +1426,7 @@ nodedump(Fmt *fp, Node *n)
+ 		fmtprint(fp, "%O%J", n->op, n);
+ 		break;
+ 	case OREGISTER:
++	case OINDREG:
+ 		fmtprint(fp, "%O-%R%J", n->op, n->val.u.reg, n);
+ 		break;
+ 	case OLITERAL:
+diff --git a/test/torture.go b/test/torture.go
+index 4bce3a1796..c510bb9237 100644
+--- a/test/torture.go
++++ b/test/torture.go
+@@ -116,6 +116,23 @@ func determinantByte(m [4][4]byte) byte {
+ 		m[0][3]*m[1][2]*m[2][1]*m[3][0]
+ }
+ 
++type A []A
++
++// A sequence of constant indexings.
++func IndexChain1(s A) A {
++	return s[0][0][0][0][0][0][0][0][0][0][0][0][0][0][0][0]
++}
++
++// A sequence of non-constant indexings.
++func IndexChain2(s A, i int) A {
++	return s[i][i][i][i][i][i][i][i][i][i][i][i][i][i][i][i]
++}
++
++// Another sequence of indexings.
++func IndexChain3(s []int) int {
++	return s[s[s[s[s[s[s[s[s[s[s[s[s[s[s[s[s[s[s[s[s[0]]]]]]]]]]]]]]]]]]]]]
++}
++
+ // A right-leaning tree of byte multiplications.
+ func righttree(a, b, c, d uint8) uint8 {
+ 	return a * (b * (c * (d *

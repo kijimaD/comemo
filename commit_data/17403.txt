@@ -9,7 +9,44 @@ Date:   Tue Aug 27 21:09:16 2013 +0200
     R=golang-dev, lucio.dere, bradfitz
     CC=golang-dev
     https://golang.org/cl/13216043
-
+---
  src/cmd/5g/gg.h             |  2 +-
  test/fixedbugs/issue6247.go | 17 +++++++++++++++++
  2 files changed, 18 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/5g/gg.h b/src/cmd/5g/gg.h
+index c0d0393ae2..860817f69e 100644
+--- a/src/cmd/5g/gg.h
++++ b/src/cmd/5g/gg.h
+@@ -51,7 +51,7 @@ struct	Prog
+ 
+ #define REGALLOC_R0 0
+ #define REGALLOC_RMAX REGEXT
+-#define REGALLOC_F0 (REGALLOC_RMAX+1)
++#define REGALLOC_F0 NREG
+ #define REGALLOC_FMAX (REGALLOC_F0 + FREGEXT)
+ 
+ EXTERN	int32	dynloc;
+diff --git a/test/fixedbugs/issue6247.go b/test/fixedbugs/issue6247.go
+new file mode 100644
+index 0000000000..eea8f9c878
+--- /dev/null
++++ b/test/fixedbugs/issue6247.go
+@@ -0,0 +1,17 @@
++// compile
++
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 6247: 5g used to be confused by the numbering
++// of floating-point registers.
++
++package main
++
++var p map[string]interface{}
++var v interface{}
++
++func F() {
++	p["hello"] = v.(complex128) * v.(complex128)
++}

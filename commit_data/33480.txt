@@ -24,7 +24,154 @@ Date:   Tue Aug 8 08:14:24 2017 +0000
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/asm/internal/asm/testdata/arm.s | 28 +++++++++++++++++++--
  src/cmd/internal/obj/arm/asm5.go        | 44 +++++++++++++++++++++++++++++++--
  2 files changed, 68 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/arm.s b/src/cmd/asm/internal/asm/testdata/arm.s
+index 8f743e7bfa..cd1d11f518 100644
+--- a/src/cmd/asm/internal/asm/testdata/arm.s
++++ b/src/cmd/asm/internal/asm/testdata/arm.s
+@@ -1106,8 +1106,8 @@ jmp_label_3:
+ 	MVN.S	R9>>R8, R7       // 3978f0e1
+ 	MVN.S	R9->R8, R7       // 5978f0e1
+ 	MVN.S	R9@>R8, R7       // 7978f0e1
+-	MVN	$0xffffffae, R5  // MVN $4294967214, R5   // 51b0e0e30b50e0e1
+-	MVN.S	$0xffffffae, R5  // MVN.S $4294967214, R5 // 51b0e0e30b50f0e1
++	MVN	$0xffffffbe, R5  // MVN $4294967230, R5   // 4150a0e3
++	MVN.S	$0xffffffbf, R5  // MVN.S $4294967231, R5 // 4050b0e3
+ 
+ // MOVM
+ 	MOVM.IA   [R0,R2,R4,R6], (R1)        // MOVM.U [R0,R2,R4,R6], (R1)                      // 550081e8
+@@ -1490,6 +1490,30 @@ jmp_label_3:
+ 	MOVHS	math·Exp(SB), R0     // MOVHS math.Exp(SB), R0
+ 	MOVHU	R0, math·Exp(SB)     // MOVHU R0, math.Exp(SB)
+ 	MOVHU	math·Exp(SB), R0     // MOVHU math.Exp(SB), R0
++	MOVHS	R0<<0(R1), R2                                     // f02091e1
++	MOVHS.U	R0<<0(R1), R2                                     // f02011e1
++	MOVHS.W	R0<<0(R1), R2                                     // f020b1e1
++	MOVHS.P	R0<<0(R1), R2                                     // f02091e0
++	MOVH	R0<<0(R1), R2                                     // f02091e1
++	MOVH.U	R0<<0(R1), R2                                     // f02011e1
++	MOVH.W	R0<<0(R1), R2                                     // f020b1e1
++	MOVH.P	R0<<0(R1), R2                                     // f02091e0
++	MOVHU	R0<<0(R1), R2                                     // b02091e1
++	MOVHU.U	R0<<0(R1), R2                                     // b02011e1
++	MOVHU.W	R0<<0(R1), R2                                     // b020b1e1
++	MOVHU.P	R0<<0(R1), R2                                     // b02091e0
++	MOVHS	R2, R5<<0(R1)                                     // b52081e1
++	MOVHS.U	R2, R5<<0(R1)                                     // b52001e1
++	MOVHS.W	R2, R5<<0(R1)                                     // b520a1e1
++	MOVHS.P	R2, R5<<0(R1)                                     // b52081e0
++	MOVH	R2, R5<<0(R1)                                     // b52081e1
++	MOVH.U	R2, R5<<0(R1)                                     // b52001e1
++	MOVH.W	R2, R5<<0(R1)                                     // b520a1e1
++	MOVH.P	R2, R5<<0(R1)                                     // b52081e0
++	MOVHU	R2, R5<<0(R1)                                     // b52081e1
++	MOVHU.U	R2, R5<<0(R1)                                     // b52001e1
++	MOVHU.W	R2, R5<<0(R1)                                     // b520a1e1
++	MOVHU.P	R2, R5<<0(R1)                                     // b52081e0
+ 
+ //
+ // END
+diff --git a/src/cmd/internal/obj/arm/asm5.go b/src/cmd/internal/obj/arm/asm5.go
+index 8abf732b2c..6188414f93 100644
+--- a/src/cmd/internal/obj/arm/asm5.go
++++ b/src/cmd/internal/obj/arm/asm5.go
+@@ -137,13 +137,13 @@ var optab = []Optab{
+ 	{AMOVW, C_SCON, C_NONE, C_REG, 12, 4, 0, 0, 0},
+ 	{AMOVW, C_LCON, C_NONE, C_REG, 12, 4, 0, LFROM, 0},
+ 	{AMOVW, C_LCONADDR, C_NONE, C_REG, 12, 4, 0, LFROM | LPCREL, 4},
++	{AMVN, C_NCON, C_NONE, C_REG, 12, 4, 0, 0, 0},
+ 	{AADD, C_NCON, C_REG, C_REG, 13, 8, 0, 0, 0},
+ 	{AADD, C_NCON, C_NONE, C_REG, 13, 8, 0, 0, 0},
+ 	{AAND, C_NCON, C_REG, C_REG, 13, 8, 0, 0, 0},
+ 	{AAND, C_NCON, C_NONE, C_REG, 13, 8, 0, 0, 0},
+ 	{AORR, C_NCON, C_REG, C_REG, 13, 8, 0, 0, 0},
+ 	{AORR, C_NCON, C_NONE, C_REG, 13, 8, 0, 0, 0},
+-	{AMVN, C_NCON, C_NONE, C_REG, 13, 8, 0, 0, 0},
+ 	{ACMP, C_NCON, C_REG, C_NONE, 13, 8, 0, 0, 0},
+ 	{AADD, C_SCON, C_REG, C_REG, 13, 8, 0, 0, 0},
+ 	{AADD, C_SCON, C_NONE, C_REG, 13, 8, 0, 0, 0},
+@@ -240,10 +240,16 @@ var optab = []Optab{
+ 	{AMOVBU, C_SHIFT, C_NONE, C_REG, 59, 4, 0, 0, 0},
+ 	{AMOVB, C_SHIFT, C_NONE, C_REG, 60, 4, 0, 0, 0},
+ 	{AMOVBS, C_SHIFT, C_NONE, C_REG, 60, 4, 0, 0, 0},
++	{AMOVH, C_SHIFT, C_NONE, C_REG, 60, 4, 0, 0, 0},
++	{AMOVHS, C_SHIFT, C_NONE, C_REG, 60, 4, 0, 0, 0},
++	{AMOVHU, C_SHIFT, C_NONE, C_REG, 60, 4, 0, 0, 0},
+ 	{AMOVW, C_REG, C_NONE, C_SHIFT, 61, 4, 0, 0, 0},
+ 	{AMOVB, C_REG, C_NONE, C_SHIFT, 61, 4, 0, 0, 0},
+ 	{AMOVBS, C_REG, C_NONE, C_SHIFT, 61, 4, 0, 0, 0},
+ 	{AMOVBU, C_REG, C_NONE, C_SHIFT, 61, 4, 0, 0, 0},
++	{AMOVH, C_REG, C_NONE, C_SHIFT, 62, 4, 0, 0, 0},
++	{AMOVHS, C_REG, C_NONE, C_SHIFT, 62, 4, 0, 0, 0},
++	{AMOVHU, C_REG, C_NONE, C_SHIFT, 62, 4, 0, 0, 0},
+ 	{AMOVH, C_REG, C_NONE, C_HAUTO, 70, 4, REGSP, 0, 0},
+ 	{AMOVH, C_REG, C_NONE, C_HOREG, 70, 4, 0, 0, 0},
+ 	{AMOVHS, C_REG, C_NONE, C_HAUTO, 70, 4, REGSP, 0, 0},
+@@ -1944,6 +1950,8 @@ func (c *ctxt5) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 	case 12: /* movw $lcon, reg */
+ 		if o.a1 == C_SCON {
+ 			o1 = c.omvs(p, &p.From, int(p.To.Reg))
++		} else if p.As == AMVN {
++			o1 = c.omvr(p, &p.From, int(p.To.Reg))
+ 		} else {
+ 			o1 = c.omvl(p, &p.From, int(p.To.Reg))
+ 		}
+@@ -2293,7 +2301,13 @@ func (c *ctxt5) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 			c.ctxt.Diag("bad shift: %v", p)
+ 		}
+ 		o1 = c.olhrr(int(p.From.Offset), int(p.From.Reg), int(p.To.Reg), int(p.Scond))
+-		o1 ^= 1<<5 | 1<<6
++		switch p.As {
++		case AMOVB, AMOVBS:
++			o1 ^= 1<<5 | 1<<6
++		case AMOVH, AMOVHS:
++			o1 ^= 1 << 6
++		default:
++		}
+ 		if p.Scond&C_UBIT != 0 {
+ 			o1 &^= 1 << 23
+ 		}
+@@ -2307,6 +2321,19 @@ func (c *ctxt5) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 			o1 |= 1 << 22
+ 		}
+ 
++	case 62: /* MOVH/MOVHS/MOVHU Reg, Reg<<0(Reg) -> strh */
++		if p.To.Reg == 0 {
++			c.ctxt.Diag("MOV to shifter operand")
++		}
++		if p.To.Offset&(^0xf) != 0 {
++			c.ctxt.Diag("bad shift: %v", p)
++		}
++		o1 = c.olhrr(int(p.To.Offset), int(p.To.Reg), int(p.From.Reg), int(p.Scond))
++		o1 ^= 1 << 20
++		if p.Scond&C_UBIT != 0 {
++			o1 &^= 1 << 23
++		}
++
+ 		/* reloc ops */
+ 	case 64: /* mov/movb/movbu R,addr */
+ 		o1 = c.omvl(p, &p.To, REGTMP)
+@@ -3113,6 +3140,19 @@ func (c *ctxt5) omvs(p *obj.Prog, a *obj.Addr, dr int) uint32 {
+ 	return o1
+ }
+ 
++// MVN $C_NCON, Reg -> MOVW $C_RCON, Reg
++func (c *ctxt5) omvr(p *obj.Prog, a *obj.Addr, dr int) uint32 {
++	o1 := c.oprrr(p, AMOVW, int(p.Scond))
++	o1 |= (uint32(dr) & 15) << 12
++	v := immrot(^uint32(a.Offset))
++	if v == 0 {
++		c.ctxt.Diag("%v: missing literal", p)
++		return 0
++	}
++	o1 |= uint32(v)
++	return o1
++}
++
+ func (c *ctxt5) omvl(p *obj.Prog, a *obj.Addr, dr int) uint32 {
+ 	var o1 uint32
+ 	if p.Pcond == nil {

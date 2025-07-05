@@ -15,7 +15,7 @@ Date:   Tue Nov 21 23:16:56 2023 +0100
     Reviewed-by: Roland Shoemaker <roland@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
     Auto-Submit: Filippo Valsorda <filippo@golang.org>
-
+---
  src/crypto/tls/cipher_suites.go    | 39 +++++++++++++++++++-------------------
  src/crypto/tls/common.go           | 11 +++++++----
  src/crypto/tls/conn.go             |  6 +++---
@@ -23,3 +23,210 @@ Date:   Tue Nov 21 23:16:56 2023 +0100
  src/crypto/tls/handshake_server.go |  8 ++++++++
  src/crypto/tls/tls_test.go         | 12 ++----------
  6 files changed, 43 insertions(+), 37 deletions(-)
+
+diff --git a/src/crypto/tls/cipher_suites.go b/src/crypto/tls/cipher_suites.go
+index eaeb7e04e6..af7c64c4d5 100644
+--- a/src/crypto/tls/cipher_suites.go
++++ b/src/crypto/tls/cipher_suites.go
+@@ -17,7 +17,6 @@ import (
+ 	"fmt"
+ 	"hash"
+ 	"internal/cpu"
+-	"internal/godebug"
+ 	"runtime"
+ 
+ 	"golang.org/x/crypto/chacha20poly1305"
+@@ -323,25 +322,21 @@ var cipherSuitesPreferenceOrderNoAES = []uint16{
+ 	TLS_RSA_WITH_RC4_128_SHA,
+ }
+ 
+-// disabledCipherSuites are not used unless explicitly listed in
+-// Config.CipherSuites. They MUST be at the end of cipherSuitesPreferenceOrder.
+-var disabledCipherSuites = []uint16{
++// disabledCipherSuites are not used unless explicitly listed in Config.CipherSuites.
++var disabledCipherSuites = map[uint16]bool{
+ 	// CBC_SHA256
+-	TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256, TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256,
+-	TLS_RSA_WITH_AES_128_CBC_SHA256,
++	TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256: true,
++	TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256:   true,
++	TLS_RSA_WITH_AES_128_CBC_SHA256:         true,
+ 
+ 	// RC4
+-	TLS_ECDHE_ECDSA_WITH_RC4_128_SHA, TLS_ECDHE_RSA_WITH_RC4_128_SHA,
+-	TLS_RSA_WITH_RC4_128_SHA,
++	TLS_ECDHE_ECDSA_WITH_RC4_128_SHA: true,
++	TLS_ECDHE_RSA_WITH_RC4_128_SHA:   true,
++	TLS_RSA_WITH_RC4_128_SHA:         true,
+ }
+ 
+-var (
+-	defaultCipherSuitesLen int
+-	defaultCipherSuites    []uint16
+-)
+-
+ // rsaKexCiphers contains the ciphers which use RSA based key exchange,
+-// which we disable by default.
++// which we also disable by default unless a GODEBUG is set.
+ var rsaKexCiphers = map[uint16]bool{
+ 	TLS_RSA_WITH_RC4_128_SHA:        true,
+ 	TLS_RSA_WITH_3DES_EDE_CBC_SHA:   true,
+@@ -352,17 +347,21 @@ var rsaKexCiphers = map[uint16]bool{
+ 	TLS_RSA_WITH_AES_256_GCM_SHA384: true,
+ }
+ 
+-var rsaKEXgodebug = godebug.New("tlsrsakex")
++var defaultCipherSuites []uint16
++var defaultCipherSuitesWithRSAKex []uint16
+ 
+ func init() {
+-	rsaKexEnabled := rsaKEXgodebug.Value() == "1"
+-	for _, c := range cipherSuitesPreferenceOrder[:len(cipherSuitesPreferenceOrder)-len(disabledCipherSuites)] {
+-		if !rsaKexEnabled && rsaKexCiphers[c] {
++	defaultCipherSuites = make([]uint16, 0, len(cipherSuitesPreferenceOrder))
++	defaultCipherSuitesWithRSAKex = make([]uint16, 0, len(cipherSuitesPreferenceOrder))
++	for _, c := range cipherSuitesPreferenceOrder {
++		if disabledCipherSuites[c] {
+ 			continue
+ 		}
+-		defaultCipherSuites = append(defaultCipherSuites, c)
++		if !rsaKexCiphers[c] {
++			defaultCipherSuites = append(defaultCipherSuites, c)
++		}
++		defaultCipherSuitesWithRSAKex = append(defaultCipherSuitesWithRSAKex, c)
+ 	}
+-	defaultCipherSuitesLen = len(defaultCipherSuites)
+ }
+ 
+ // defaultCipherSuitesTLS13 is also the preference order, since there are no
+diff --git a/src/crypto/tls/common.go b/src/crypto/tls/common.go
+index faa460e7fa..849e8b0a20 100644
+--- a/src/crypto/tls/common.go
++++ b/src/crypto/tls/common.go
+@@ -1008,6 +1008,8 @@ func (c *Config) time() time.Time {
+ 	return t()
+ }
+ 
++var tlsrsakex = godebug.New("tlsrsakex")
++
+ func (c *Config) cipherSuites() []uint16 {
+ 	if needFIPS() {
+ 		return fipsCipherSuites(c)
+@@ -1015,6 +1017,9 @@ func (c *Config) cipherSuites() []uint16 {
+ 	if c.CipherSuites != nil {
+ 		return c.CipherSuites
+ 	}
++	if tlsrsakex.Value() == "1" {
++		return defaultCipherSuitesWithRSAKex
++	}
+ 	return defaultCipherSuites
+ }
+ 
+@@ -1030,7 +1035,7 @@ var supportedVersions = []uint16{
+ const roleClient = true
+ const roleServer = false
+ 
+-var tls10godebug = godebug.New("tls10server")
++var tls10server = godebug.New("tls10server")
+ 
+ func (c *Config) supportedVersions(isClient bool) []uint16 {
+ 	versions := make([]uint16, 0, len(supportedVersions))
+@@ -1039,9 +1044,7 @@ func (c *Config) supportedVersions(isClient bool) []uint16 {
+ 			continue
+ 		}
+ 		if (c == nil || c.MinVersion == 0) && v < VersionTLS12 {
+-			if !isClient && tls10godebug.Value() == "1" {
+-				tls10godebug.IncNonDefault()
+-			} else {
++			if isClient || tls10server.Value() != "1" {
+ 				continue
+ 			}
+ 		}
+diff --git a/src/crypto/tls/conn.go b/src/crypto/tls/conn.go
+index 3e8832f947..0e4669866e 100644
+--- a/src/crypto/tls/conn.go
++++ b/src/crypto/tls/conn.go
+@@ -1600,7 +1600,7 @@ func (c *Conn) ConnectionState() ConnectionState {
+ 	return c.connectionStateLocked()
+ }
+ 
+-var ekmgodebug = godebug.New("tlsunsafeekm")
++var tlsunsafeekm = godebug.New("tlsunsafeekm")
+ 
+ func (c *Conn) connectionStateLocked() ConnectionState {
+ 	var state ConnectionState
+@@ -1626,8 +1626,8 @@ func (c *Conn) connectionStateLocked() ConnectionState {
+ 		state.ekm = noEKMBecauseRenegotiation
+ 	} else if c.vers != VersionTLS13 && !c.extMasterSecret {
+ 		state.ekm = func(label string, context []byte, length int) ([]byte, error) {
+-			if ekmgodebug.Value() == "1" {
+-				ekmgodebug.IncNonDefault()
++			if tlsunsafeekm.Value() == "1" {
++				tlsunsafeekm.IncNonDefault()
+ 				return c.ekm(label, context, length)
+ 			}
+ 			return noEKMBecauseNoEMS(label, context, length)
+diff --git a/src/crypto/tls/handshake_client.go b/src/crypto/tls/handshake_client.go
+index 4649f36dea..f016e01b4b 100644
+--- a/src/crypto/tls/handshake_client.go
++++ b/src/crypto/tls/handshake_client.go
+@@ -526,6 +526,10 @@ func (hs *clientHandshakeState) pickCipherSuite() error {
+ 		return errors.New("tls: server chose an unconfigured cipher suite")
+ 	}
+ 
++	if hs.c.config.CipherSuites == nil && rsaKexCiphers[hs.suite.id] {
++		tlsrsakex.IncNonDefault()
++	}
++
+ 	hs.c.cipherSuite = hs.suite.id
+ 	return nil
+ }
+diff --git a/src/crypto/tls/handshake_server.go b/src/crypto/tls/handshake_server.go
+index 996b23b1f5..8129e9c616 100644
+--- a/src/crypto/tls/handshake_server.go
++++ b/src/crypto/tls/handshake_server.go
+@@ -168,6 +168,10 @@ func (c *Conn) readClientHello(ctx context.Context) (*clientHelloMsg, error) {
+ 	c.in.version = c.vers
+ 	c.out.version = c.vers
+ 
++	if c.config.MinVersion == 0 && c.vers < VersionTLS12 {
++		tls10server.IncNonDefault()
++	}
++
+ 	return clientHello, nil
+ }
+ 
+@@ -366,6 +370,10 @@ func (hs *serverHandshakeState) pickCipherSuite() error {
+ 	}
+ 	c.cipherSuite = hs.suite.id
+ 
++	if c.config.CipherSuites == nil && rsaKexCiphers[hs.suite.id] {
++		tlsrsakex.IncNonDefault()
++	}
++
+ 	for _, id := range hs.clientHello.cipherSuites {
+ 		if id == TLS_FALLBACK_SCSV {
+ 			// The client is doing a fallback connection. See RFC 7507.
+diff --git a/src/crypto/tls/tls_test.go b/src/crypto/tls/tls_test.go
+index 5b09e53524..58369adda7 100644
+--- a/src/crypto/tls/tls_test.go
++++ b/src/crypto/tls/tls_test.go
+@@ -1491,16 +1491,8 @@ func TestCipherSuites(t *testing.T) {
+ 		t.Errorf("cipherSuitesPreferenceOrderNoAES is not the same size as cipherSuitesPreferenceOrder")
+ 	}
+ 
+-	// Check that disabled suites are at the end of the preference lists, and
+-	// that they are marked insecure.
+-	for i, id := range disabledCipherSuites {
+-		offset := len(cipherSuitesPreferenceOrder) - len(disabledCipherSuites)
+-		if cipherSuitesPreferenceOrder[offset+i] != id {
+-			t.Errorf("disabledCipherSuites[%d]: not at the end of cipherSuitesPreferenceOrder", i)
+-		}
+-		if cipherSuitesPreferenceOrderNoAES[offset+i] != id {
+-			t.Errorf("disabledCipherSuites[%d]: not at the end of cipherSuitesPreferenceOrderNoAES", i)
+-		}
++	// Check that disabled suites are marked insecure.
++	for id := range disabledCipherSuites {
+ 		c := CipherSuiteByID(id)
+ 		if c == nil {
+ 			t.Errorf("%#04x: no CipherSuite entry", id)

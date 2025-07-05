@@ -17,8 +17,59 @@ Date:   Tue Jun 13 16:22:06 2017 +0100
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/vet/cgo.go               |  7 ++++++-
  src/cmd/vet/testdata/cgo/cgo2.go |  3 +++
  src/cmd/vet/testdata/cgo/cgo4.go | 15 +++++++++++++++
  3 files changed, 24 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/vet/cgo.go b/src/cmd/vet/cgo.go
+index 984911c489..76364ff6ed 100644
+--- a/src/cmd/vet/cgo.go
++++ b/src/cmd/vet/cgo.go
+@@ -34,7 +34,12 @@ func checkCgoCall(f *File, node ast.Node) {
+ 		return
+ 	}
+ 	id, ok := sel.X.(*ast.Ident)
+-	if !ok || id.Name != "C" {
++	if !ok {
++		return
++	}
++
++	pkgname, ok := f.pkg.uses[id].(*types.PkgName)
++	if !ok || pkgname.Imported().Path() != "C" {
+ 		return
+ 	}
+ 
+diff --git a/src/cmd/vet/testdata/cgo/cgo2.go b/src/cmd/vet/testdata/cgo/cgo2.go
+index 276aea9619..4f27116893 100644
+--- a/src/cmd/vet/testdata/cgo/cgo2.go
++++ b/src/cmd/vet/testdata/cgo/cgo2.go
+@@ -7,3 +7,6 @@
+ package testdata
+ 
+ var _ = C.f(*p(**p))
++
++// Passing a pointer (via the slice), but C isn't cgo.
++var _ = C.f([]int{3})
+diff --git a/src/cmd/vet/testdata/cgo/cgo4.go b/src/cmd/vet/testdata/cgo/cgo4.go
+new file mode 100644
+index 0000000000..67b54506ab
+--- /dev/null
++++ b/src/cmd/vet/testdata/cgo/cgo4.go
+@@ -0,0 +1,15 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test the cgo checker on a file that doesn't use cgo, but has an
++// import named "C".
++
++package testdata
++
++import C "fmt"
++
++var _ = C.Println(*p(**p))
++
++// Passing a pointer (via a slice), but C is fmt, not cgo.
++var _ = C.Println([]int{3})

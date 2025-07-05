@@ -19,7 +19,7 @@ Date:   Mon Mar 1 17:31:20 2021 -0500
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/abi/abiutils.go          | 54 +++++++++++++++---
  src/cmd/compile/internal/gc/compile.go            |  3 +
  src/cmd/compile/internal/ssa/config.go            |  4 +-
@@ -28,3 +28,416 @@ Date:   Mon Mar 1 17:31:20 2021 -0500
  src/cmd/compile/internal/test/abiutils_test.go    |  2 +-
  src/cmd/compile/internal/test/abiutilsaux_test.go | 32 -----------
  7 files changed, 112 insertions(+), 78 deletions(-)
+
+diff --git a/src/cmd/compile/internal/abi/abiutils.go b/src/cmd/compile/internal/abi/abiutils.go
+index b43d95e976..a5c85a89fb 100644
+--- a/src/cmd/compile/internal/abi/abiutils.go
++++ b/src/cmd/compile/internal/abi/abiutils.go
+@@ -52,12 +52,12 @@ func (a *ABIParamResultInfo) OutRegistersUsed() int {
+ 	return a.outRegistersUsed
+ }
+ 
+-func (a *ABIParamResultInfo) InParam(i int) ABIParamAssignment {
+-	return a.inparams[i]
++func (a *ABIParamResultInfo) InParam(i int) *ABIParamAssignment {
++	return &a.inparams[i]
+ }
+ 
+-func (a *ABIParamResultInfo) OutParam(i int) ABIParamAssignment {
+-	return a.outparams[i]
++func (a *ABIParamResultInfo) OutParam(i int) *ABIParamAssignment {
++	return &a.outparams[i]
+ }
+ 
+ func (a *ABIParamResultInfo) SpillAreaOffset() int64 {
+@@ -111,6 +111,18 @@ func (a *ABIParamAssignment) SpillOffset() int32 {
+ 	return a.offset
+ }
+ 
++// FrameOffset returns the location that a value would spill to, if any exists.
++// For register-allocated inputs, that is their spill offset reserved for morestack
++// (might as well use it, it is there); for stack-allocated inputs and outputs,
++// that is their location on the stack.  For register-allocated outputs, there is
++// no defined spill area, so return -1.
++func (a *ABIParamAssignment) FrameOffset(i *ABIParamResultInfo) int64 {
++	if len(a.Registers) == 0 || a.offset == -1 {
++		return int64(a.offset)
++	}
++	return int64(a.offset) + i.SpillAreaOffset()
++}
++
+ // RegAmounts holds a specified number of integer/float registers.
+ type RegAmounts struct {
+ 	intRegs   int
+@@ -121,14 +133,15 @@ type RegAmounts struct {
+ // by the ABI rules for parameter passing and result returning.
+ type ABIConfig struct {
+ 	// Do we need anything more than this?
++	offsetForLocals  int64 // e.g., obj.(*Link).FixedFrameSize() -- extra linkage information on some architectures.
+ 	regAmounts       RegAmounts
+ 	regsForTypeCache map[*types.Type]int
+ }
+ 
+ // NewABIConfig returns a new ABI configuration for an architecture with
+ // iRegsCount integer/pointer registers and fRegsCount floating point registers.
+-func NewABIConfig(iRegsCount, fRegsCount int) *ABIConfig {
+-	return &ABIConfig{regAmounts: RegAmounts{iRegsCount, fRegsCount}, regsForTypeCache: make(map[*types.Type]int)}
++func NewABIConfig(iRegsCount, fRegsCount int, offsetForLocals int64) *ABIConfig {
++	return &ABIConfig{offsetForLocals: offsetForLocals, regAmounts: RegAmounts{iRegsCount, fRegsCount}, regsForTypeCache: make(map[*types.Type]int)}
+ }
+ 
+ // Copy returns a copy of an ABIConfig for use in a function's compilation so that access to the cache does not need to be protected with a mutex.
+@@ -190,7 +203,8 @@ func (a *ABIParamResultInfo) preAllocateParams(hasRcvr bool, nIns, nOuts int) {
+ func (config *ABIConfig) ABIAnalyzeTypes(rcvr *types.Type, ins, outs []*types.Type) *ABIParamResultInfo {
+ 	setup()
+ 	s := assignState{
+-		rTotal: config.regAmounts,
++		stackOffset: config.offsetForLocals,
++		rTotal:      config.regAmounts,
+ 	}
+ 	result := &ABIParamResultInfo{config: config}
+ 	result.preAllocateParams(rcvr != nil, len(ins), len(outs))
+@@ -230,7 +244,8 @@ func (config *ABIConfig) ABIAnalyzeTypes(rcvr *types.Type, ins, outs []*types.Ty
+ func (config *ABIConfig) ABIAnalyze(t *types.Type) *ABIParamResultInfo {
+ 	setup()
+ 	s := assignState{
+-		rTotal: config.regAmounts,
++		stackOffset: config.offsetForLocals,
++		rTotal:      config.regAmounts,
+ 	}
+ 	result := &ABIParamResultInfo{config: config}
+ 	ft := t.FuncType()
+@@ -265,9 +280,32 @@ func (config *ABIConfig) ABIAnalyze(t *types.Type) *ABIParamResultInfo {
+ 	result.spillAreaSize = alignTo(s.spillOffset, types.RegSize)
+ 	result.outRegistersUsed = s.rUsed.intRegs + s.rUsed.floatRegs
+ 
++	// Fill in the frame offsets for receiver, inputs, results
++	k := 0
++	if t.NumRecvs() != 0 {
++		config.updateOffset(result, ft.Receiver.FieldSlice()[0], result.inparams[0], false)
++		k++
++	}
++	for i, f := range ft.Params.FieldSlice() {
++		config.updateOffset(result, f, result.inparams[k+i], false)
++	}
++	for i, f := range ft.Results.FieldSlice() {
++		config.updateOffset(result, f, result.outparams[i], true)
++	}
+ 	return result
+ }
+ 
++func (config *ABIConfig) updateOffset(result *ABIParamResultInfo, f *types.Field, a ABIParamAssignment, isReturn bool) {
++	if !isReturn || len(a.Registers) == 0 {
++		// TODO in next CL, assign
++		if f.Offset+config.offsetForLocals != a.FrameOffset(result) {
++			if config.regAmounts.intRegs == 0 && config.regAmounts.floatRegs == 0 {
++				panic(fmt.Errorf("Expected node offset %d != abi offset %d", f.Offset, a.FrameOffset(result)))
++			}
++		}
++	}
++}
++
+ //......................................................................
+ //
+ // Non-public portions.
+diff --git a/src/cmd/compile/internal/gc/compile.go b/src/cmd/compile/internal/gc/compile.go
+index ba67c58c45..2d7a74a403 100644
+--- a/src/cmd/compile/internal/gc/compile.go
++++ b/src/cmd/compile/internal/gc/compile.go
+@@ -43,6 +43,9 @@ func enqueueFunc(fn *ir.Func) {
+ 	if len(fn.Body) == 0 {
+ 		// Initialize ABI wrappers if necessary.
+ 		ssagen.InitLSym(fn, false)
++		types.CalcSize(fn.Type()) // TODO register args; remove this once all is done by abiutils
++		a := ssagen.AbiForFunc(fn)
++		a.ABIAnalyze(fn.Type()) // will set parameter spill/home locations correctly
+ 		liveness.WriteFuncMap(fn)
+ 		return
+ 	}
+diff --git a/src/cmd/compile/internal/ssa/config.go b/src/cmd/compile/internal/ssa/config.go
+index 07508d6e83..9921b51cc7 100644
+--- a/src/cmd/compile/internal/ssa/config.go
++++ b/src/cmd/compile/internal/ssa/config.go
+@@ -333,8 +333,8 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize bool) *Config
+ 	c.useSSE = true
+ 	c.UseFMA = true
+ 
+-	c.ABI0 = abi.NewABIConfig(0, 0)
+-	c.ABI1 = abi.NewABIConfig(len(c.intParamRegs), len(c.floatParamRegs))
++	c.ABI0 = abi.NewABIConfig(0, 0, ctxt.FixedFrameSize())
++	c.ABI1 = abi.NewABIConfig(len(c.intParamRegs), len(c.floatParamRegs), ctxt.FixedFrameSize())
+ 
+ 	// On Plan 9, floating point operations are not allowed in note handler.
+ 	if objabi.GOOS == "plan9" {
+diff --git a/src/cmd/compile/internal/ssa/op.go b/src/cmd/compile/internal/ssa/op.go
+index ece274b083..6d2ca96293 100644
+--- a/src/cmd/compile/internal/ssa/op.go
++++ b/src/cmd/compile/internal/ssa/op.go
+@@ -104,13 +104,23 @@ func (a *AuxCall) ResultForOffsetAndType(offset int64, t *types.Type) int64 {
+ 
+ // OffsetOfResult returns the SP offset of result which (indexed 0, 1, etc).
+ func (a *AuxCall) OffsetOfResult(which int64) int64 {
+-	return int64(a.results[which].Offset)
++	o := int64(a.results[which].Offset)
++	n := int64(a.abiInfo.OutParam(int(which)).Offset())
++	if o != n {
++		panic(fmt.Errorf("Result old=%d, new=%d, auxcall=%s, oparams=%v", o, n, a, a.abiInfo.OutParams()))
++	}
++	return int64(a.abiInfo.OutParam(int(which)).Offset())
+ }
+ 
+ // OffsetOfArg returns the SP offset of argument which (indexed 0, 1, etc).
+ // If the call is to a method, the receiver is the first argument (i.e., index 0)
+ func (a *AuxCall) OffsetOfArg(which int64) int64 {
+-	return int64(a.args[which].Offset)
++	o := int64(a.args[which].Offset)
++	n := int64(a.abiInfo.InParam(int(which)).Offset())
++	if o != n {
++		panic(fmt.Errorf("Arg old=%d, new=%d, auxcall=%s, iparams=%v", o, n, a, a.abiInfo.InParams()))
++	}
++	return int64(a.abiInfo.InParam(int(which)).Offset())
+ }
+ 
+ // RegsOfResult returns the register(s) used for result which (indexed 0, 1, etc).
+@@ -206,6 +216,9 @@ func (a *AuxCall) String() string {
+ 	return fn + "}"
+ }
+ 
++// ACParamsToTypes translates a slice of Param into a slice of *types.Type
++// This is a helper call for ssagen/ssa.go.
++// TODO remove this, as part of replacing fields of AuxCall with abi.ABIParamResultInfo.
+ func ACParamsToTypes(ps []Param) (ts []*types.Type) {
+ 	for _, p := range ps {
+ 		ts = append(ts, p.Type)
+@@ -215,7 +228,6 @@ func ACParamsToTypes(ps []Param) (ts []*types.Type) {
+ 
+ // StaticAuxCall returns an AuxCall for a static call.
+ func StaticAuxCall(sym *obj.LSym, args []Param, results []Param, paramResultInfo *abi.ABIParamResultInfo) *AuxCall {
+-	// TODO Create regInfo for AuxCall
+ 	if paramResultInfo == nil {
+ 		panic(fmt.Errorf("Nil paramResultInfo, sym=%v", sym))
+ 	}
+@@ -223,15 +235,13 @@ func StaticAuxCall(sym *obj.LSym, args []Param, results []Param, paramResultInfo
+ }
+ 
+ // InterfaceAuxCall returns an AuxCall for an interface call.
+-func InterfaceAuxCall(args []Param, results []Param) *AuxCall {
+-	// TODO Create regInfo for AuxCall
+-	return &AuxCall{Fn: nil, args: args, results: results}
++func InterfaceAuxCall(args []Param, results []Param, paramResultInfo *abi.ABIParamResultInfo) *AuxCall {
++	return &AuxCall{Fn: nil, args: args, results: results, abiInfo: paramResultInfo}
+ }
+ 
+ // ClosureAuxCall returns an AuxCall for a closure call.
+-func ClosureAuxCall(args []Param, results []Param) *AuxCall {
+-	// TODO Create regInfo for AuxCall
+-	return &AuxCall{Fn: nil, args: args, results: results}
++func ClosureAuxCall(args []Param, results []Param, paramResultInfo *abi.ABIParamResultInfo) *AuxCall {
++	return &AuxCall{Fn: nil, args: args, results: results, abiInfo: paramResultInfo}
+ }
+ 
+ func (*AuxCall) CanBeAnSSAAux() {}
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 865630dd3e..938c1e8b62 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -7,6 +7,7 @@ package ssagen
+ import (
+ 	"bufio"
+ 	"bytes"
++	"cmd/compile/internal/abi"
+ 	"encoding/binary"
+ 	"fmt"
+ 	"go/constant"
+@@ -208,6 +209,32 @@ func InitConfig() {
+ 	ir.Syms.SigPanic = typecheck.LookupRuntimeFunc("sigpanic")
+ }
+ 
++// AbiForFunc returns the ABI for a function, used to figure out arg/result mapping for rtcall and bodyless functions.
++// This follows policy for GOEXPERIMENT=regabi, //go:registerparams, and currently defined ABIInternal.
++// Policy is subject to change....
++// This always returns a freshly copied ABI.
++func AbiForFunc(fn *ir.Func) *abi.ABIConfig {
++	return abiForFunc(fn, ssaConfig.ABI0, ssaConfig.ABI1).Copy() // No idea what races will result, be safe
++}
++
++// abiForFunc implements ABI policy for a function, but does not return a copy of the ABI.
++// Passing a nil function returns ABIInternal.
++func abiForFunc(fn *ir.Func, abi0, abi1 *abi.ABIConfig) *abi.ABIConfig {
++	a := abi1
++	if true || objabi.Regabi_enabled == 0 {
++		a = abi0
++	}
++	if fn != nil && fn.Pragma&ir.RegisterParams != 0 { // TODO(register args) remove after register abi is working
++		name := ir.FuncName(fn)
++		if strings.Contains(name, ".") {
++			base.ErrorfAt(fn.Pos(), "Calls to //go:registerparams method %s won't work, remove the pragma from the declaration.", name)
++		}
++		a = abi1
++		base.WarnfAt(fn.Pos(), "declared function %v has register params", fn)
++	}
++	return a
++}
++
+ // getParam returns the Field of ith param of node n (which is a
+ // function/method/interface call), where the receiver of a method call is
+ // considered as the 0th parameter. This does not include the receiver of an
+@@ -357,25 +384,10 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
+ 	if fn.Pragma&ir.Nosplit != 0 {
+ 		s.f.NoSplit = true
+ 	}
+-	s.f.ABI0 = ssaConfig.ABI0.Copy() // Make a copy to avoid racy map operations in type-width cache.
++	s.f.ABI0 = ssaConfig.ABI0.Copy() // Make a copy to avoid racy map operations in type-register-width cache.
+ 	s.f.ABI1 = ssaConfig.ABI1.Copy()
+-
+-	s.f.ABIDefault = s.f.ABI1 // Default ABI for function calls with no parsed signature for a pragma, e.g. rtcall
+-	// TODO(register args) -- remove "true ||"; in the short run, turning on the register ABI experiment still leaves the compiler defaulting to ABI0.
+-	// TODO(register args) -- remove this conditional entirely when register ABI is not an experiment.
+-	if true || objabi.Regabi_enabled == 0 {
+-		s.f.ABIDefault = s.f.ABI0 // reset
+-	}
+-
+-	s.f.ABISelf = s.f.ABIDefault
+-
+-	if fn.Pragma&ir.RegisterParams != 0 { // TODO(register args) remove after register abi is working
+-		s.f.ABISelf = s.f.ABI1
+-		if strings.Contains(name, ".") {
+-			base.ErrorfAt(fn.Pos(), "Calls to //go:registerparams method %s won't work, remove the pragma from the declaration.", name)
+-		}
+-		s.f.Warnl(fn.Pos(), "declared function %v has register params", fn)
+-	}
++	s.f.ABIDefault = abiForFunc(nil, s.f.ABI0, s.f.ABI1)
++	s.f.ABISelf = abiForFunc(fn, s.f.ABI0, s.f.ABI1)
+ 
+ 	s.panics = map[funcLine]*ssa.Block{}
+ 	s.softFloat = s.config.SoftFloat
+@@ -4731,7 +4743,7 @@ func (s *state) openDeferExit() {
+ 			v := s.load(r.closure.Type.Elem(), r.closure)
+ 			s.maybeNilCheckClosure(v, callDefer)
+ 			codeptr := s.rawLoad(types.Types[types.TUINTPTR], v)
+-			aux := ssa.ClosureAuxCall(ACArgs, ACResults)
++			aux := ssa.ClosureAuxCall(ACArgs, ACResults, s.f.ABIDefault.ABIAnalyzeTypes(nil, ssa.ACParamsToTypes(ACArgs), ssa.ACParamsToTypes(ACResults)))
+ 			call = s.newValue2A(ssa.OpClosureLECall, aux.LateExpansionResultType(), aux, codeptr, v)
+ 		} else {
+ 			aux := ssa.StaticAuxCall(fn.(*ir.Name).Linksym(), ACArgs, ACResults,
+@@ -4842,7 +4854,7 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
+ 			} else {
+ 				o = p.SpillOffset() + int32(params.SpillAreaOffset())
+ 			}
+-			ACResults = append(ACResults, ssa.Param{Type: p.Type, Offset: o + int32(base.Ctxt.FixedFrameSize()), Reg: r})
++			ACResults = append(ACResults, ssa.Param{Type: p.Type, Offset: o, Reg: r})
+ 		}
+ 	}
+ 
+@@ -4913,21 +4925,23 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
+ 		// Store arguments to stack, including defer/go arguments and receiver for method calls.
+ 		// These are written in SP-offset order.
+ 		argStart := base.Ctxt.FixedFrameSize()
++		// argExtra is for combining with ABI-derived offsets; argStart is for old ABI0 code (defer, go).
++		argExtra := int32(0) // TODO(register args) untangle this mess when fully transition to abiutils, defer/go sanitized.
+ 		// Defer/go args.
+ 		if k != callNormal {
+ 			// Write argsize and closure (args to newproc/deferproc).
+ 			argsize := s.constInt32(types.Types[types.TUINT32], int32(stksize))
+-			ACArgs = append(ACArgs, ssa.Param{Type: types.Types[types.TUINT32], Offset: int32(argStart)})
++			ACArgs = append(ACArgs, ssa.Param{Type: types.Types[types.TUINT32], Offset: int32(argStart)}) // not argExtra
+ 			callArgs = append(callArgs, argsize)
+ 			ACArgs = append(ACArgs, ssa.Param{Type: types.Types[types.TUINTPTR], Offset: int32(argStart) + int32(types.PtrSize)})
+ 			callArgs = append(callArgs, closure)
+ 			stksize += 2 * int64(types.PtrSize)
+ 			argStart += 2 * int64(types.PtrSize)
++			argExtra = 2 * int32(types.PtrSize)
+ 		}
+ 
+ 		// Set receiver (for interface calls).
+ 		if rcvr != nil {
+-			// ACArgs = append(ACArgs, ssa.Param{Type: types.Types[types.TUINTPTR], Offset: int32(argStart)})
+ 			callArgs = append(callArgs, rcvr)
+ 		}
+ 
+@@ -4938,7 +4952,7 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
+ 			base.Fatalf("OCALLMETH missed by walkCall")
+ 		}
+ 
+-		for _, p := range params.InParams() {
++		for _, p := range params.InParams() { // includes receiver for interface calls
+ 			r := p.Registers
+ 			var o int32
+ 			if len(r) == 0 {
+@@ -4946,7 +4960,7 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
+ 			} else {
+ 				o = p.SpillOffset() + int32(params.SpillAreaOffset())
+ 			}
+-			ACArg := ssa.Param{Type: p.Type, Offset: int32(argStart) + o, Reg: r}
++			ACArg := ssa.Param{Type: p.Type, Offset: argExtra + o, Reg: r} // o from ABI includes any architecture-dependent offsets.
+ 			ACArgs = append(ACArgs, ACArg)
+ 		}
+ 		for i, n := range args {
+@@ -4972,10 +4986,11 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
+ 			// critical that we not clobber any arguments already
+ 			// stored onto the stack.
+ 			codeptr = s.rawLoad(types.Types[types.TUINTPTR], closure)
+-			aux := ssa.ClosureAuxCall(ACArgs, ACResults)
++			aux := ssa.ClosureAuxCall(ACArgs, ACResults, s.f.ABIDefault.ABIAnalyzeTypes(nil, ssa.ACParamsToTypes(ACArgs), ssa.ACParamsToTypes(ACResults)))
+ 			call = s.newValue2A(ssa.OpClosureLECall, aux.LateExpansionResultType(), aux, codeptr, closure)
+ 		case codeptr != nil:
+-			aux := ssa.InterfaceAuxCall(ACArgs, ACResults)
++			// Note that the "receiver" parameter is nil because the actual receiver is the first input parameter.
++			aux := ssa.InterfaceAuxCall(ACArgs, ACResults, s.f.ABIDefault.ABIAnalyzeTypes(nil, ssa.ACParamsToTypes(ACArgs), ssa.ACParamsToTypes(ACResults)))
+ 			call = s.newValue1A(ssa.OpInterLECall, aux.LateExpansionResultType(), aux, codeptr)
+ 		case callee != nil:
+ 			aux := ssa.StaticAuxCall(callTargetLSym(callee, s.curfn.LSym), ACArgs, ACResults, params)
+diff --git a/src/cmd/compile/internal/test/abiutils_test.go b/src/cmd/compile/internal/test/abiutils_test.go
+index a0a11671e1..9a7d6d138c 100644
+--- a/src/cmd/compile/internal/test/abiutils_test.go
++++ b/src/cmd/compile/internal/test/abiutils_test.go
+@@ -21,7 +21,7 @@ import (
+ // AMD64 registers available:
+ // - integer: RAX, RBX, RCX, RDI, RSI, R8, R9, r10, R11
+ // - floating point: X0 - X14
+-var configAMD64 = abi.NewABIConfig(9, 15)
++var configAMD64 = abi.NewABIConfig(9, 15, 0)
+ 
+ func TestMain(m *testing.M) {
+ 	ssagen.Arch.LinkArch = &x86.Linkamd64
+diff --git a/src/cmd/compile/internal/test/abiutilsaux_test.go b/src/cmd/compile/internal/test/abiutilsaux_test.go
+index bac0c7639d..7eb273273d 100644
+--- a/src/cmd/compile/internal/test/abiutilsaux_test.go
++++ b/src/cmd/compile/internal/test/abiutilsaux_test.go
+@@ -129,36 +129,4 @@ func abitest(t *testing.T, ft *types.Type, exp expectedDump) {
+ 			strings.TrimSpace(exp.dump), regResString, reason)
+ 	}
+ 
+-	// Analyze again with empty register set.
+-	empty := abi.NewABIConfig(0, 0)
+-	emptyRes := empty.ABIAnalyze(ft)
+-	emptyResString := emptyRes.String()
+-
+-	// Walk the results and make sure the offsets assigned match
+-	// up with those assiged by CalcSize. This checks to make sure that
+-	// when we have no available registers the ABI assignment degenerates
+-	// back to the original ABI0.
+-
+-	// receiver
+-	failed := 0
+-	rfsl := ft.Recvs().Fields().Slice()
+-	poff := 0
+-	if len(rfsl) != 0 {
+-		failed |= verifyParamResultOffset(t, rfsl[0], emptyRes.InParams()[0], "receiver", 0)
+-		poff = 1
+-	}
+-	// params
+-	pfsl := ft.Params().Fields().Slice()
+-	for k, f := range pfsl {
+-		verifyParamResultOffset(t, f, emptyRes.InParams()[k+poff], "param", k)
+-	}
+-	// results
+-	ofsl := ft.Results().Fields().Slice()
+-	for k, f := range ofsl {
+-		failed |= verifyParamResultOffset(t, f, emptyRes.OutParams()[k], "result", k)
+-	}
+-
+-	if failed != 0 {
+-		t.Logf("emptyres:\n%s\n", emptyResString)
+-	}
+ }

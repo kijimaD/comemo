@@ -12,6 +12,21 @@ Date:   Tue Jun 1 17:00:22 2021 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/runtime/internal/atomic/atomic_arm64.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/internal/atomic/atomic_arm64.go b/src/runtime/internal/atomic/atomic_arm64.go
+index 3c8736997f..dbb1796ec0 100644
+--- a/src/runtime/internal/atomic/atomic_arm64.go
++++ b/src/runtime/internal/atomic/atomic_arm64.go
+@@ -8,8 +8,8 @@
+ package atomic
+ 
+ import (
+-	"unsafe"
+ 	"internal/cpu"
++	"unsafe"
+ )
+ 
+ const (

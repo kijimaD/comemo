@@ -19,8 +19,140 @@ Date:   Thu Nov 21 16:05:43 2024 -0500
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
-
+---
  .../internal/fips140test/acvp_capabilities.json    |  4 +-
  .../internal/fips140test/acvp_test.config.json     |  4 +-
  src/crypto/internal/fips140test/acvp_test.go       | 65 +++++++++++++++++++++-
  3 files changed, 69 insertions(+), 4 deletions(-)
+
+diff --git a/src/crypto/internal/fips140test/acvp_capabilities.json b/src/crypto/internal/fips140test/acvp_capabilities.json
+index 305a2ffca8..6502a98db1 100644
+--- a/src/crypto/internal/fips140test/acvp_capabilities.json
++++ b/src/crypto/internal/fips140test/acvp_capabilities.json
+@@ -21,5 +21,7 @@
+   {"algorithm":"HMAC-SHA3-224","keyLen":[{"increment":8,"max":524288,"min":8}],"macLen":[{"increment":8,"max":224,"min":32}],"revision":"1.0"},
+   {"algorithm":"HMAC-SHA3-256","keyLen":[{"increment":8,"max":524288,"min":8}],"macLen":[{"increment":8,"max":256,"min":32}],"revision":"1.0"},
+   {"algorithm":"HMAC-SHA3-384","keyLen":[{"increment":8,"max":524288,"min":8}],"macLen":[{"increment":8,"max":384,"min":32}],"revision":"1.0"},
+-  {"algorithm":"HMAC-SHA3-512","keyLen":[{"increment":8,"max":524288,"min":8}],"macLen":[{"increment":8,"max":512,"min":32}],"revision":"1.0"}
++  {"algorithm":"HMAC-SHA3-512","keyLen":[{"increment":8,"max":524288,"min":8}],"macLen":[{"increment":8,"max":512,"min":32}],"revision":"1.0"},
++
++  {"algorithm":"PBKDF","capabilities":[{"iterationCount":[{"min":1,"max":10000,"increment":1}],"keyLen":[{"min":112,"max":4096,"increment":8}],"passwordLen":[{"min":8,"max":64,"increment":1}],"saltLen":[{"min":128,"max":512,"increment":8}],"hmacAlg":["SHA2-224","SHA2-256","SHA2-384","SHA2-512","SHA2-512/224","SHA2-512/256","SHA3-224","SHA3-256","SHA3-384","SHA3-512"]}],"revision":"1.0"}
+ ]
+\ No newline at end of file
+diff --git a/src/crypto/internal/fips140test/acvp_test.config.json b/src/crypto/internal/fips140test/acvp_test.config.json
+index cb0497e629..49ab51d0d2 100644
+--- a/src/crypto/internal/fips140test/acvp_test.config.json
++++ b/src/crypto/internal/fips140test/acvp_test.config.json
+@@ -21,5 +21,7 @@
+   {"Wrapper": "go", "In": "vectors/HMAC-SHA3-224.bz2", "Out": "expected/HMAC-SHA3-224.bz2"},
+   {"Wrapper": "go", "In": "vectors/HMAC-SHA3-256.bz2", "Out": "expected/HMAC-SHA3-256.bz2"},
+   {"Wrapper": "go", "In": "vectors/HMAC-SHA3-384.bz2", "Out": "expected/HMAC-SHA3-384.bz2"},
+-  {"Wrapper": "go", "In": "vectors/HMAC-SHA3-512.bz2", "Out": "expected/HMAC-SHA3-512.bz2"}
++  {"Wrapper": "go", "In": "vectors/HMAC-SHA3-512.bz2", "Out": "expected/HMAC-SHA3-512.bz2"},
++
++  {"Wrapper": "go", "In": "vectors/PBKDF.bz2", "Out": "expected/PBKDF.bz2"}
+ ]
+\ No newline at end of file
+diff --git a/src/crypto/internal/fips140test/acvp_test.go b/src/crypto/internal/fips140test/acvp_test.go
+index a5fa38fd60..139655ecf6 100644
+--- a/src/crypto/internal/fips140test/acvp_test.go
++++ b/src/crypto/internal/fips140test/acvp_test.go
+@@ -24,6 +24,7 @@ import (
+ 	"crypto/internal/cryptotest"
+ 	"crypto/internal/fips140"
+ 	"crypto/internal/fips140/hmac"
++	"crypto/internal/fips140/pbkdf2"
+ 	"crypto/internal/fips140/sha256"
+ 	"crypto/internal/fips140/sha3"
+ 	"crypto/internal/fips140/sha512"
+@@ -72,6 +73,8 @@ var (
+ 	//   https://pages.nist.gov/ACVP/draft-celi-acvp-sha.html#section-7.2
+ 	// HMAC algorithm capabilities:
+ 	//   https://pages.nist.gov/ACVP/draft-fussell-acvp-mac.html#section-7
++	// PBKDF2 algorithm capabilities:
++	//   https://pages.nist.gov/ACVP/draft-celi-acvp-pbkdf.html#section-7.3
+ 	//go:embed acvp_capabilities.json
+ 	capabilitiesJson []byte
+ 
+@@ -113,6 +116,8 @@ var (
+ 		"HMAC-SHA3-256":     cmdHmacAft(func() fips140.Hash { return sha3.New256() }),
+ 		"HMAC-SHA3-384":     cmdHmacAft(func() fips140.Hash { return sha3.New384() }),
+ 		"HMAC-SHA3-512":     cmdHmacAft(func() fips140.Hash { return sha3.New512() }),
++
++		"PBKDF": cmdPbkdf(),
+ 	}
+ )
+ 
+@@ -343,14 +348,70 @@ func cmdHmacAft(h func() fips140.Hash) command {
+ 	}
+ }
+ 
++func cmdPbkdf() command {
++	return command{
++		// Hash name, key length, salt, password, iteration count
++		requiredArgs: 5,
++		handler: func(args [][]byte) ([][]byte, error) {
++			h, err := lookupHash(string(args[0]))
++			if err != nil {
++				return nil, fmt.Errorf("PBKDF2 failed: %w", err)
++			}
++
++			keyLen := binary.LittleEndian.Uint32(args[1]) / 8
++			salt := args[2]
++			password := args[3]
++			iterationCount := binary.LittleEndian.Uint32(args[4])
++
++			derivedKey, err := pbkdf2.Key(h, string(password), salt, int(iterationCount), int(keyLen))
++			if err != nil {
++				return nil, fmt.Errorf("PBKDF2 failed: %w", err)
++			}
++
++			return [][]byte{derivedKey}, nil
++		},
++	}
++}
++
++func lookupHash(name string) (func() fips140.Hash, error) {
++	var h func() fips140.Hash
++
++	switch name {
++	case "SHA2-224":
++		h = func() fips140.Hash { return sha256.New224() }
++	case "SHA2-256":
++		h = func() fips140.Hash { return sha256.New() }
++	case "SHA2-384":
++		h = func() fips140.Hash { return sha512.New384() }
++	case "SHA2-512":
++		h = func() fips140.Hash { return sha512.New() }
++	case "SHA2-512/224":
++		h = func() fips140.Hash { return sha512.New512_224() }
++	case "SHA2-512/256":
++		h = func() fips140.Hash { return sha512.New512_256() }
++	case "SHA3-224":
++		h = func() fips140.Hash { return sha3.New224() }
++	case "SHA3-256":
++		h = func() fips140.Hash { return sha3.New256() }
++	case "SHA3-384":
++		h = func() fips140.Hash { return sha3.New384() }
++	case "SHA3-512":
++		h = func() fips140.Hash { return sha3.New512() }
++	default:
++		return nil, fmt.Errorf("unknown hash name: %q", name)
++	}
++
++	return h, nil
++}
++
+ func TestACVP(t *testing.T) {
+ 	testenv.SkipIfShortAndSlow(t)
+ 
+ 	const (
+ 		bsslModule    = "boringssl.googlesource.com/boringssl.git"
+-		bsslVersion   = "v0.0.0-20241009223352-905c3903fd42"
++		bsslVersion   = "v0.0.0-20241015160643-2587c4974dbe"
+ 		goAcvpModule  = "github.com/cpu/go-acvp"
+-		goAcvpVersion = "v0.0.0-20241009200939-159f4c69a90d"
++		goAcvpVersion = "v0.0.0-20241011151719-6e0509dcb7ce"
+ 	)
+ 
+ 	// In crypto/tls/bogo_shim_test.go the test is skipped if run on a builder with runtime.GOOS == "windows"

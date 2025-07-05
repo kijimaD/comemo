@@ -14,6 +14,20 @@ Date:   Sat May 1 04:47:00 2021 +1000
     Trust: Joel Sing <joel@sing.id.au>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Run-TryBot: Joel Sing <joel@sing.id.au>
-
+---
  src/runtime/sys_openbsd_386.s | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/runtime/sys_openbsd_386.s b/src/runtime/sys_openbsd_386.s
+index f1911a588d..2701097c64 100644
+--- a/src/runtime/sys_openbsd_386.s
++++ b/src/runtime/sys_openbsd_386.s
+@@ -22,6 +22,8 @@ TEXT runtime·setldt(SB),NOSPLIT,$0
+ // It just does some low-level setup and then calls mstart.
+ // Note: called with the C calling convention.
+ TEXT runtime·mstart_stub(SB),NOSPLIT,$28
++	NOP	SP	// tell vet SP changed - stop checking offsets
++
+ 	// We are already on m's g0 stack.
+ 
+ 	// Save callee-save registers.

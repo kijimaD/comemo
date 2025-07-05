@@ -9,8 +9,141 @@ Date:   Fri Dec 17 10:23:46 2010 -0800
     R=rsc, gri
     CC=golang-dev
     https://golang.org/cl/3731041
-
+---
  src/pkg/regexp/all_test.go  | 35 ++++++++++++++++++++---------------
  src/pkg/regexp/find_test.go |  4 ++--
  src/pkg/regexp/regexp.go    | 34 ++++++++++++++++++++--------------
  3 files changed, 42 insertions(+), 31 deletions(-)
+
+diff --git a/src/pkg/regexp/all_test.go b/src/pkg/regexp/all_test.go
+index 5b614de163..8f115aa49c 100644
+--- a/src/pkg/regexp/all_test.go
++++ b/src/pkg/regexp/all_test.go
+@@ -229,18 +229,21 @@ func TestReplaceAllFunc(t *testing.T) {
+ 	}
+ }
+ 
+-type QuoteMetaTest struct {
+-	pattern, output string
++type MetaTest struct {
++	pattern, output, literal string
++	isLiteral                bool
+ }
+ 
+-var quoteMetaTests = []QuoteMetaTest{
+-	{``, ``},
+-	{`foo`, `foo`},
+-	{`!@#$%^&*()_+-=[{]}\|,<.>/?~`, `!@#\$%\^&\*\(\)_\+-=\[{\]}\\\|,<\.>/\?~`},
++var metaTests = []MetaTest{
++	{``, ``, ``, true},
++	{`foo`, `foo`, `foo`, true},
++	{`foo\.\$`, `foo\\\.\\\$`, `foo.$`, true}, // has meta but no operator
++	{`foo.\$`, `foo\.\\\$`, `foo`, false},     // has escaped operators and real operators
++	{`!@#$%^&*()_+-=[{]}\|,<.>/?~`, `!@#\$%\^&\*\(\)_\+-=\[{\]}\\\|,<\.>/\?~`, `!@#`, false},
+ }
+ 
+ func TestQuoteMeta(t *testing.T) {
+-	for _, tc := range quoteMetaTests {
++	for _, tc := range metaTests {
+ 		// Verify that QuoteMeta returns the expected string.
+ 		quoted := QuoteMeta(tc.pattern)
+ 		if quoted != tc.output {
+@@ -269,14 +272,16 @@ func TestQuoteMeta(t *testing.T) {
+ 	}
+ }
+ 
+-func TestHasMeta(t *testing.T) {
+-	for _, tc := range quoteMetaTests {
+-		// HasMeta should be false if QuoteMeta returns the original string;
+-		// true otherwise.
+-		quoted := QuoteMeta(tc.pattern)
+-		if HasMeta(tc.pattern) != (quoted != tc.pattern) {
+-			t.Errorf("HasMeta(`%s`) = %t; want %t",
+-				tc.pattern, HasMeta(tc.pattern), quoted != tc.pattern)
++func TestLiteralPrefix(t *testing.T) {
++	for _, tc := range metaTests {
++		// Literal method needs to scan the pattern.
++		re := MustCompile(tc.pattern)
++		str, complete := re.LiteralPrefix()
++		if complete != tc.isLiteral {
++			t.Errorf("LiteralPrefix(`%s`) = %t; want %t", tc.pattern, complete, tc.isLiteral)
++		}
++		if str != tc.literal {
++			t.Errorf("LiteralPrefix(`%s`) = `%s`; want `%s`", tc.pattern, str, tc.literal)
+ 		}
+ 	}
+ }
+diff --git a/src/pkg/regexp/find_test.go b/src/pkg/regexp/find_test.go
+index 27c5a54f79..34a7986731 100644
+--- a/src/pkg/regexp/find_test.go
++++ b/src/pkg/regexp/find_test.go
+@@ -120,8 +120,8 @@ func build(n int, x ...int) [][]int {
+ func TestFind(t *testing.T) {
+ 	for _, test := range findTests {
+ 		re := MustCompile(test.pat)
+-		if re.Expr() != test.pat {
+-			t.Errorf("Expr() = `%s`; should be `%s`", re.Expr(), test.pat)
++		if re.String() != test.pat {
++			t.Errorf("String() = `%s`; should be `%s`", re.String(), test.pat)
+ 		}
+ 		result := re.Find([]byte(test.text))
+ 		switch {
+diff --git a/src/pkg/regexp/regexp.go b/src/pkg/regexp/regexp.go
+index 74572383c8..ef6a8aa0ba 100644
+--- a/src/pkg/regexp/regexp.go
++++ b/src/pkg/regexp/regexp.go
+@@ -599,8 +599,8 @@ Loop:
+ 	re.prefix = string(b)
+ }
+ 
+-// Expr returns the source text used to compile the regular expression.
+-func (re *Regexp) Expr() string {
++// String returns the source text used to compile the regular expression.
++func (re *Regexp) String() string {
+ 	return re.expr
+ }
+ 
+@@ -849,6 +849,24 @@ func (re *Regexp) doExecute(str string, bytestr []byte, pos int) []int {
+ 	return final.match.m
+ }
+ 
++// LiteralPrefix returns a literal string that must begin any match
++// of the regular expression re.  It returns the boolean true if the
++// literal string comprises the entire regular expression.
++func (re *Regexp) LiteralPrefix() (prefix string, complete bool) {
++	c := make([]int, len(re.inst)-2) // minus start and end.
++	// First instruction is start; skip that.
++	i := 0
++	for inst := re.inst[0].next; inst.kind != iEnd; inst = inst.next {
++		// stop if this is not a char
++		if inst.kind != iChar {
++			return string(c[:i]), false
++		}
++		c[i] = inst.char
++		i++
++	}
++	return string(c[:i]), true
++}
++
+ // MatchString returns whether the Regexp matches the string s.
+ // The return value is a boolean: true for match, false for no match.
+ func (re *Regexp) MatchString(s string) bool { return len(re.doExecute(s, nil, 0)) > 0 }
+@@ -1003,18 +1021,6 @@ func QuoteMeta(s string) string {
+ 	return string(b[0:j])
+ }
+ 
+-// HasMeta returns a boolean indicating whether the string contains
+-// any regular expression metacharacters.
+-func HasMeta(s string) bool {
+-	// A byte loop is correct because all metacharacters are ASCII.
+-	for i := 0; i < len(s); i++ {
+-		if special(int(s[i])) {
+-			return true
+-		}
+-	}
+-	return false
+-}
+-
+ // Find matches in slice b if b is non-nil, otherwise find matches in string s.
+ func (re *Regexp) allMatches(s string, b []byte, n int, deliver func([]int)) {
+ 	var end int

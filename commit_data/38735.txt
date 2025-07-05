@@ -9,6 +9,24 @@ Date:   Mon Nov 19 11:24:12 2018 +0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/link/internal/ld/pcln.go | 6 ++----
  1 file changed, 2 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/pcln.go b/src/cmd/link/internal/ld/pcln.go
+index 3eb3d05882..ba098611c0 100644
+--- a/src/cmd/link/internal/ld/pcln.go
++++ b/src/cmd/link/internal/ld/pcln.go
+@@ -520,10 +520,8 @@ func (ctxt *Link) findfunctab() {
+ 
+ 	// find min and max address
+ 	min := ctxt.Textp[0].Value
+-	max := int64(0)
+-	for _, s := range ctxt.Textp {
+-		max = s.Value + s.Size
+-	}
++	lastp := ctxt.Textp[len(ctxt.Textp)-1]
++	max := lastp.Value + lastp.Size
+ 
+ 	// for each subbucket, compute the minimum of all symbol indexes
+ 	// that map to that subbucket.

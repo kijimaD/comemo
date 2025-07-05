@@ -11,8 +11,123 @@ Date:   Tue Aug 23 22:59:27 2016 +0900
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/path/filepath/match_test.go        | 11 ++---------
  src/path/filepath/path_test.go         | 19 +++----------------
  src/path/filepath/path_windows_test.go | 20 --------------------
  3 files changed, 5 insertions(+), 45 deletions(-)
+
+diff --git a/src/path/filepath/match_test.go b/src/path/filepath/match_test.go
+index 6b068c778e..3bd5598ed9 100644
+--- a/src/path/filepath/match_test.go
++++ b/src/path/filepath/match_test.go
+@@ -6,6 +6,7 @@ package filepath_test
+ 
+ import (
+ 	"fmt"
++	"internal/testenv"
+ 	"io/ioutil"
+ 	"os"
+ 	. "path/filepath"
+@@ -174,15 +175,7 @@ var globSymlinkTests = []struct {
+ }
+ 
+ func TestGlobSymlink(t *testing.T) {
+-	switch runtime.GOOS {
+-	case "android", "nacl", "plan9":
+-		t.Skipf("skipping on %s", runtime.GOOS)
+-	case "windows":
+-		if !supportsSymlinks {
+-			t.Skipf("skipping on %s", runtime.GOOS)
+-		}
+-
+-	}
++	testenv.MustHaveSymlink(t)
+ 
+ 	tmpDir, err := ioutil.TempDir("", "globsymlink")
+ 	if err != nil {
+diff --git a/src/path/filepath/path_test.go b/src/path/filepath/path_test.go
+index 1a4a9d2a1a..1be5b469f2 100644
+--- a/src/path/filepath/path_test.go
++++ b/src/path/filepath/path_test.go
+@@ -6,6 +6,7 @@ package filepath_test
+ 
+ import (
+ 	"errors"
++	"internal/testenv"
+ 	"io/ioutil"
+ 	"os"
+ 	"path/filepath"
+@@ -15,8 +16,6 @@ import (
+ 	"testing"
+ )
+ 
+-var supportsSymlinks = true
+-
+ type PathTest struct {
+ 	path, result string
+ }
+@@ -776,13 +775,7 @@ func simpleJoin(dir, path string) string {
+ }
+ 
+ func TestEvalSymlinks(t *testing.T) {
+-	switch runtime.GOOS {
+-	case "android", "nacl", "plan9":
+-		t.Skipf("skipping on %s", runtime.GOOS)
+-	}
+-	if !supportsSymlinks {
+-		t.Skip("skipping because symlinks are not supported")
+-	}
++	testenv.MustHaveSymlink(t)
+ 
+ 	tmpDir, err := ioutil.TempDir("", "evalsymlink")
+ 	if err != nil {
+@@ -896,13 +889,7 @@ func TestEvalSymlinks(t *testing.T) {
+ }
+ 
+ func TestIssue13582(t *testing.T) {
+-	switch runtime.GOOS {
+-	case "android", "nacl", "plan9":
+-		t.Skipf("skipping on %s", runtime.GOOS)
+-	}
+-	if !supportsSymlinks {
+-		t.Skip("skipping because symlinks are not supported")
+-	}
++	testenv.MustHaveSymlink(t)
+ 
+ 	tmpDir, err := ioutil.TempDir("", "issue13582")
+ 	if err != nil {
+diff --git a/src/path/filepath/path_windows_test.go b/src/path/filepath/path_windows_test.go
+index b47cdfdb96..180c2e90af 100644
+--- a/src/path/filepath/path_windows_test.go
++++ b/src/path/filepath/path_windows_test.go
+@@ -13,29 +13,9 @@ import (
+ 	"path/filepath"
+ 	"reflect"
+ 	"strings"
+-	"syscall"
+ 	"testing"
+ )
+ 
+-func init() {
+-	tmpdir, err := ioutil.TempDir("", "symtest")
+-	if err != nil {
+-		panic("failed to create temp directory: " + err.Error())
+-	}
+-	defer os.RemoveAll(tmpdir)
+-
+-	err = os.Symlink("target", filepath.Join(tmpdir, "symlink"))
+-	if err == nil {
+-		return
+-	}
+-
+-	err = err.(*os.LinkError).Err
+-	switch err {
+-	case syscall.EWINDOWS, syscall.ERROR_PRIVILEGE_NOT_HELD:
+-		supportsSymlinks = false
+-	}
+-}
+-
+ func TestWinSplitListTestsAreValid(t *testing.T) {
+ 	comspec := os.Getenv("ComSpec")
+ 	if comspec == "" {

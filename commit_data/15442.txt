@@ -10,9 +10,138 @@ Date:   Tue Feb 26 09:25:46 2013 -0800
     R=seed, rminnich, r
     CC=golang-dev
     https://golang.org/cl/7389049
-
+---
  src/all.rc           |  2 ++
  src/cmd/dist/plan9.c |  6 ------
  src/make.rc          | 20 +++++++++++++-------
  src/run.rc           | 19 ++++++++++++++++---
  4 files changed, 31 insertions(+), 16 deletions(-)
+
+diff --git a/src/all.rc b/src/all.rc
+index b9d4c32eb9..14e2f5565a 100755
+--- a/src/all.rc
++++ b/src/all.rc
+@@ -3,6 +3,8 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
++rfork n
++
+ if(! test -f make.rc){
+ 	echo 'all.rc must be run from $GOROOT/src' >[1=2]
+ 	exit wrongdir
+diff --git a/src/cmd/dist/plan9.c b/src/cmd/dist/plan9.c
+index f289f5213c..8a7c0ab1c3 100644
+--- a/src/cmd/dist/plan9.c
++++ b/src/cmd/dist/plan9.c
+@@ -700,12 +700,6 @@ main(int argc, char **argv)
+ 		fatal("$objtype is unset");
+ 	gohostarch = btake(&b);
+ 
+-	xgetenv(&b, "GOBIN");
+-	if(b.len == 0){
+-		bpathf(&b, "/%s/bin", gohostarch);
+-		xsetenv("GOBIN", bstr(&b));
+-	}
+-
+ 	srand(time(0)+getpid());
+ 	init();
+ 	xmain(argc, argv);
+diff --git a/src/make.rc b/src/make.rc
+index 986ce85460..83d16c0455 100755
+--- a/src/make.rc
++++ b/src/make.rc
+@@ -23,17 +23,21 @@
+ # GO_LDFLAGS: Additional 5l/6l/8l arguments to use when
+ # building the commands.
+ #
+-# CGO_ENABLED: Setting this to 0 disables the use of cgo
+-# in the built and installed packages and tools.
++# GO_CCFLAGS: Additional 5c/6c/8c arguments to use when
++# building.
++#
++# CGO_ENABLED: Controls cgo usage during the build. Set it to 1
++# to include all cgo related files, .c and .go file with "cgo"
++# build directive, in the build. Set it to 0 to ignore them.
+ 
+ rfork e
+-if(! test -f run.bash){
++if(! test -f run.rc){
+ 	echo 'make.rc must be run from $GOROOT/src' >[1=2]
+ 	exit wrongdir
+ }
+ 
+ # Clean old generated file that will cause problems in the build.
+-rm -rf ./pkg/runtime/runtime_defs.go
++rm -f ./pkg/runtime/runtime_defs.go
+ 
+ # Determine the host compiler toolchain.
+ eval `{grep '^(CC|LD|O)=' /$objtype/mkfile}
+@@ -72,17 +76,19 @@ mv cmd/dist/dist $GOTOOLDIR/dist
+ $GOTOOLDIR/go_bootstrap clean -i std
+ echo
+ 
+-# TODO(ality): remove the -p flag once the exec/await/RFNOTEG race is fixed.
++# Run only one process at a time on 9vx.
++if(~ $sysname vx32)
++	pflag = (-p 1)
+ 
+ if(! ~ $GOHOSTARCH $GOARCH || ! ~ $GOHOSTOS $GOOS){
+ 	echo '# Building packages and commands for host,' $GOHOSTOS/$GOHOSTARCH^.
+ 	GOOS=$GOHOSTOS GOARCH=$GOHOSTARCH \
+-		$GOTOOLDIR/go_bootstrap install -gcflags $"GO_GCFLAGS -ldflags $"GO_LDFLAGS -v -p 1 std
++		$GOTOOLDIR/go_bootstrap install -ccflags $"GO_CCFLAGS -gcflags $"GO_GCFLAGS -ldflags $"GO_LDFLAGS -v $pflag std
+ 	echo
+ }
+ 
+ echo '# Building packages and commands for' $GOOS/$GOARCH^.
+-$GOTOOLDIR/go_bootstrap install -gcflags $"GO_GCFLAGS -ldflags $"GO_LDFLAGS -v -p 1 std
++$GOTOOLDIR/go_bootstrap install -ccflags $"GO_CCFLAGS -gcflags $"GO_GCFLAGS -ldflags $"GO_LDFLAGS -v $pflag std
+ echo
+ 
+ rm -f $GOTOOLDIR/go_bootstrap
+diff --git a/src/run.rc b/src/run.rc
+index 7e5d8ce379..e493eae36b 100755
+--- a/src/run.rc
++++ b/src/run.rc
+@@ -3,24 +3,37 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-eval `{go tool dist env -9}
++rfork e
++
++eval `{go env}
++
++GOPATH = () # we disallow local import for non-local packges, if $GOROOT happens
++            # to be under $GOPATH, then some tests below will fail
+ 
+ # allow all.rc to avoid double-build of everything
+ rebuild = true
+ if(~ $1 --no-rebuild)
+ 	shift
+ if not {
++	# Run only one process at a time on 9vx.
++	if(~ $sysname vx32)
++		pflag = (-p 1)
+ 	echo '# Building packages and commands.'
+-	time go install -a -v -p 1 std
++	time go install -a -v $pflag std
+ 	echo
+ }
+ 
++# we must unset GOROOT_FINAL before tests, because runtime/debug requires
++# correct access to source code, so if we have GOROOT_FINAL in effect,
++# at least runtime/debug test will fail.
++GOROOT_FINAL = ()
++
+ echo '# Testing packages.'
+ time go test std -short -timeout 120s
+ echo
+ 
+ echo '# GOMAXPROCS=2 runtime -cpu=1,2,4'
+-GOMAXPROCS=2 go test runtime -short -timeout 120s -cpu 1,2,4
++GOMAXPROCS=2 go test runtime -short -timeout 240s -cpu 1,2,4
+ echo
+ 
+ echo '# sync -cpu=10'

@@ -9,6 +9,22 @@ Date:   Sat Feb 23 11:39:01 2013 -0800
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/7403048
-
+---
  src/pkg/archive/tar/tar_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/archive/tar/tar_test.go b/src/pkg/archive/tar/tar_test.go
+index b55cc2c613..dd6310313a 100644
+--- a/src/pkg/archive/tar/tar_test.go
++++ b/src/pkg/archive/tar/tar_test.go
+@@ -48,8 +48,8 @@ func TestFileInfoHeaderDir(t *testing.T) {
+ 	if g, e := h.Name, "testdata/"; g != e {
+ 		t.Errorf("Name = %q; want %q", g, e)
+ 	}
+-	const setsid = 02000 // see golang.org/issue/4867
+-	if g, e := h.Mode&^setsid, int64(fi.Mode().Perm())|c_ISDIR; g != e {
++	// Ignoring c_ISGID for golang.org/issue/4867
++	if g, e := h.Mode&^c_ISGID, int64(fi.Mode().Perm())|c_ISDIR; g != e {
+ 		t.Errorf("Mode = %#o; want %#o", g, e)
+ 	}
+ 	if g, e := h.Size, int64(0); g != e {

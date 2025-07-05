@@ -12,7 +12,7 @@ Date:   Wed Sep 28 00:28:49 2022 +0800
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: xie cui <523516579@qq.com>
-
+---
  src/crypto/cipher/cbc.go                         | 3 ++-
  src/crypto/cipher/cipher.go                      | 8 --------
  src/crypto/cipher/ctr.go                         | 3 ++-
@@ -22,3 +22,166 @@ Date:   Wed Sep 28 00:28:49 2022 +0800
  src/crypto/x509/internal/macos/corefoundation.go | 5 ++---
  src/crypto/x509/root_windows.go                  | 4 ++--
  8 files changed, 13 insertions(+), 22 deletions(-)
+
+diff --git a/src/crypto/cipher/cbc.go b/src/crypto/cipher/cbc.go
+index fe774c116e..51a142071f 100644
+--- a/src/crypto/cipher/cbc.go
++++ b/src/crypto/cipher/cbc.go
+@@ -12,6 +12,7 @@
+ package cipher
+ 
+ import (
++	"bytes"
+ 	"crypto/internal/alias"
+ 	"crypto/subtle"
+ )
+@@ -27,7 +28,7 @@ func newCBC(b Block, iv []byte) *cbc {
+ 	return &cbc{
+ 		b:         b,
+ 		blockSize: b.BlockSize(),
+-		iv:        dup(iv),
++		iv:        bytes.Clone(iv),
+ 		tmp:       make([]byte, b.BlockSize()),
+ 	}
+ }
+diff --git a/src/crypto/cipher/cipher.go b/src/crypto/cipher/cipher.go
+index 7e1a4de9a3..df6f596b4d 100644
+--- a/src/crypto/cipher/cipher.go
++++ b/src/crypto/cipher/cipher.go
+@@ -59,11 +59,3 @@ type BlockMode interface {
+ 	// maintains state and does not reset at each CryptBlocks call.
+ 	CryptBlocks(dst, src []byte)
+ }
+-
+-// Utility routines
+-
+-func dup(p []byte) []byte {
+-	q := make([]byte, len(p))
+-	copy(q, p)
+-	return q
+-}
+diff --git a/src/crypto/cipher/ctr.go b/src/crypto/cipher/ctr.go
+index 2b434ef832..3ac0ff74d0 100644
+--- a/src/crypto/cipher/ctr.go
++++ b/src/crypto/cipher/ctr.go
+@@ -13,6 +13,7 @@
+ package cipher
+ 
+ import (
++	"bytes"
+ 	"crypto/internal/alias"
+ 	"crypto/subtle"
+ )
+@@ -48,7 +49,7 @@ func NewCTR(block Block, iv []byte) Stream {
+ 	}
+ 	return &ctr{
+ 		b:       block,
+-		ctr:     dup(iv),
++		ctr:     bytes.Clone(iv),
+ 		out:     make([]byte, 0, bufSize),
+ 		outUsed: 0,
+ 	}
+diff --git a/src/crypto/ed25519/ed25519.go b/src/crypto/ed25519/ed25519.go
+index d43dd12d08..601da50a1a 100644
+--- a/src/crypto/ed25519/ed25519.go
++++ b/src/crypto/ed25519/ed25519.go
+@@ -72,9 +72,7 @@ func (priv PrivateKey) Equal(x crypto.PrivateKey) bool {
+ // interoperability with RFC 8032. RFC 8032's private keys correspond to seeds
+ // in this package.
+ func (priv PrivateKey) Seed() []byte {
+-	seed := make([]byte, SeedSize)
+-	copy(seed, priv[:32])
+-	return seed
++	return bytes.Clone(priv[:SeedSize])
+ }
+ 
+ // Sign signs the given message with priv.
+diff --git a/src/crypto/internal/boring/aes.go b/src/crypto/internal/boring/aes.go
+index f52dc68b46..6fae1d54f8 100644
+--- a/src/crypto/internal/boring/aes.go
++++ b/src/crypto/internal/boring/aes.go
+@@ -44,6 +44,7 @@ int EVP_AEAD_CTX_open_wrapper(const GO_EVP_AEAD_CTX *ctx, uint8_t *out,
+ */
+ import "C"
+ import (
++	"bytes"
+ 	"crypto/cipher"
+ 	"errors"
+ 	"runtime"
+@@ -76,8 +77,7 @@ type extraModes interface {
+ var _ extraModes = (*aesCipher)(nil)
+ 
+ func NewAESCipher(key []byte) (cipher.Block, error) {
+-	c := &aesCipher{key: make([]byte, len(key))}
+-	copy(c.key, key)
++	c := &aesCipher{key: bytes.Clone(key)}
+ 	// Note: 0 is success, contradicting the usual BoringCrypto convention.
+ 	if C._goboringcrypto_AES_set_decrypt_key((*C.uint8_t)(unsafe.Pointer(&c.key[0])), C.uint(8*len(c.key)), &c.dec) != 0 ||
+ 		C._goboringcrypto_AES_set_encrypt_key((*C.uint8_t)(unsafe.Pointer(&c.key[0])), C.uint(8*len(c.key)), &c.enc) != 0 {
+diff --git a/src/crypto/internal/boring/hmac.go b/src/crypto/internal/boring/hmac.go
+index 7833bc1938..6241a65f5f 100644
+--- a/src/crypto/internal/boring/hmac.go
++++ b/src/crypto/internal/boring/hmac.go
+@@ -9,6 +9,7 @@ package boring
+ // #include "goboringcrypto.h"
+ import "C"
+ import (
++	"bytes"
+ 	"crypto"
+ 	"hash"
+ 	"runtime"
+@@ -67,8 +68,7 @@ func NewHMAC(h func() hash.Hash, key []byte) hash.Hash {
+ 	}
+ 
+ 	// Note: Could hash down long keys here using EVP_Digest.
+-	hkey := make([]byte, len(key))
+-	copy(hkey, key)
++	hkey := bytes.Clone(key)
+ 	hmac := &boringHMAC{
+ 		md:        md,
+ 		size:      ch.Size(),
+diff --git a/src/crypto/x509/internal/macos/corefoundation.go b/src/crypto/x509/internal/macos/corefoundation.go
+index b27a9172e1..352eb8eecc 100644
+--- a/src/crypto/x509/internal/macos/corefoundation.go
++++ b/src/crypto/x509/internal/macos/corefoundation.go
+@@ -10,6 +10,7 @@
+ package macOS
+ 
+ import (
++	"bytes"
+ 	"errors"
+ 	"internal/abi"
+ 	"runtime"
+@@ -31,9 +32,7 @@ func CFDataToSlice(data CFRef) []byte {
+ 	length := CFDataGetLength(data)
+ 	ptr := CFDataGetBytePtr(data)
+ 	src := unsafe.Slice((*byte)(unsafe.Pointer(ptr)), length)
+-	out := make([]byte, length)
+-	copy(out, src)
+-	return out
++	return bytes.Clone(src)
+ }
+ 
+ // CFStringToString returns a Go string representation of the passed
+diff --git a/src/crypto/x509/root_windows.go b/src/crypto/x509/root_windows.go
+index 5515c439c7..76d6e6ac70 100644
+--- a/src/crypto/x509/root_windows.go
++++ b/src/crypto/x509/root_windows.go
+@@ -5,6 +5,7 @@
+ package x509
+ 
+ import (
++	"bytes"
+ 	"errors"
+ 	"syscall"
+ 	"unsafe"
+@@ -76,8 +77,7 @@ func extractSimpleChain(simpleChain **syscall.CertSimpleChain, count int) (chain
+ 		// Copy the buf, since ParseCertificate does not create its own copy.
+ 		cert := elements[i].CertContext
+ 		encodedCert := unsafe.Slice(cert.EncodedCert, cert.Length)
+-		buf := make([]byte, cert.Length)
+-		copy(buf, encodedCert)
++		buf := bytes.Clone(encodedCert)
+ 		parsedCert, err := ParseCertificate(buf)
+ 		if err != nil {
+ 			return nil, err

@@ -7,6 +7,20 @@ Date:   Thu May 12 22:00:14 2011 -0700
     R=golang-dev
     CC=golang-dev
     https://golang.org/cl/4543044
-
+---
  src/cmd/gotest/gotest.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/gotest/gotest.go b/src/cmd/gotest/gotest.go
+index 263ada921b..8c81baf976 100644
+--- a/src/cmd/gotest/gotest.go
++++ b/src/cmd/gotest/gotest.go
+@@ -52,7 +52,7 @@ var (
+ 	xFlag bool
+ )
+ 
+-// elapsed returns  time elapsed since gotest started.
++// elapsed returns the number of seconds since gotest started.
+ func elapsed() float64 {
+ 	return float64(time.Nanoseconds()-start) / 1e9
+ }

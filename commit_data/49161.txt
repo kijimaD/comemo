@@ -19,7 +19,60 @@ Date:   Fri Jul 23 10:00:10 2021 -0400
     Trust: Robert Findley <rfindley@google.com>
     Run-TryBot: Robert Findley <rfindley@google.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/types2/universe.go | 8 ++++++--
  src/go/types/universe.go                    | 8 ++++++--
  2 files changed, 12 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/universe.go b/src/cmd/compile/internal/types2/universe.go
+index e2dd0df69e..0f711a6b68 100644
+--- a/src/cmd/compile/internal/types2/universe.go
++++ b/src/cmd/compile/internal/types2/universe.go
+@@ -88,7 +88,9 @@ func defPredeclaredTypes() {
+ 		res := NewVar(nopos, nil, "", Typ[String])
+ 		sig := NewSignature(nil, nil, NewTuple(res), false)
+ 		err := NewFunc(nopos, nil, "Error", sig)
+-		typ := NewNamed(obj, NewInterfaceType([]*Func{err}, nil), nil)
++		ityp := NewInterfaceType([]*Func{err}, nil)
++		computeTypeSet(nil, nopos, ityp) // prevent races due to lazy computation of tset
++		typ := NewNamed(obj, ityp, nil)
+ 		sig.recv = NewVar(nopos, nil, "", typ)
+ 		def(obj)
+ 	}
+@@ -99,7 +101,9 @@ func defPredeclaredTypes() {
+ 		obj.setColor(black)
+ 		sig := NewSignature(nil, nil, nil, false)
+ 		eql := NewFunc(nopos, nil, "==", sig)
+-		typ := NewNamed(obj, NewInterfaceType([]*Func{eql}, nil), nil)
++		ityp := NewInterfaceType([]*Func{eql}, nil)
++		computeTypeSet(nil, nopos, ityp) // prevent races due to lazy computation of tset
++		typ := NewNamed(obj, ityp, nil)
+ 		sig.recv = NewVar(nopos, nil, "", typ)
+ 		def(obj)
+ 	}
+diff --git a/src/go/types/universe.go b/src/go/types/universe.go
+index 59952bc642..489587f393 100644
+--- a/src/go/types/universe.go
++++ b/src/go/types/universe.go
+@@ -89,7 +89,9 @@ func defPredeclaredTypes() {
+ 		res := NewVar(token.NoPos, nil, "", Typ[String])
+ 		sig := NewSignature(nil, nil, NewTuple(res), false)
+ 		err := NewFunc(token.NoPos, nil, "Error", sig)
+-		typ := NewNamed(obj, NewInterfaceType([]*Func{err}, nil), nil)
++		ityp := NewInterfaceType([]*Func{err}, nil)
++		computeTypeSet(nil, token.NoPos, ityp) // prevent races due to lazy computation of tset
++		typ := NewNamed(obj, ityp, nil)
+ 		sig.recv = NewVar(token.NoPos, nil, "", typ)
+ 		def(obj)
+ 	}
+@@ -100,7 +102,9 @@ func defPredeclaredTypes() {
+ 		obj.setColor(black)
+ 		sig := NewSignature(nil, nil, nil, false)
+ 		eql := NewFunc(token.NoPos, nil, "==", sig)
+-		typ := NewNamed(obj, NewInterfaceType([]*Func{eql}, nil), nil)
++		ityp := NewInterfaceType([]*Func{eql}, nil)
++		computeTypeSet(nil, token.NoPos, ityp) // prevent races due to lazy computation of tset
++		typ := NewNamed(obj, ityp, nil)
+ 		sig.recv = NewVar(token.NoPos, nil, "", typ)
+ 		def(obj)
+ 	}

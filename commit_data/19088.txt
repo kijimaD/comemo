@@ -21,7 +21,100 @@ Date:   Wed Apr 9 18:23:53 2014 -0700
     R=r, adg
     CC=golang-codereviews
     https://golang.org/cl/85550045
-
+---
  src/pkg/bufio/bufio.go      | 26 ++++++++------------------
  src/pkg/bufio/bufio_test.go | 29 -----------------------------
  2 files changed, 8 insertions(+), 47 deletions(-)
+
+diff --git a/src/pkg/bufio/bufio.go b/src/pkg/bufio/bufio.go
+index 2f51badc9c..1e0cdae38e 100644
+--- a/src/pkg/bufio/bufio.go
++++ b/src/pkg/bufio/bufio.go
+@@ -88,22 +88,15 @@ func (b *Reader) fill() {
+ 		b.r = 0
+ 	}
+ 
+-	// Read new data: try a limited number of times.
+-	for i := maxConsecutiveEmptyReads; i > 0; i-- {
+-		n, err := b.rd.Read(b.buf[b.w:])
+-		if n < 0 {
+-			panic(errNegativeRead)
+-		}
+-		b.w += n
+-		if err != nil {
+-			b.err = err
+-			return
+-		}
+-		if n > 0 {
+-			return
+-		}
++	// Read new data.
++	n, err := b.rd.Read(b.buf[b.w:])
++	if n < 0 {
++		panic(errNegativeRead)
++	}
++	b.w += n
++	if err != nil {
++		b.err = err
+ 	}
+-	b.err = io.ErrNoProgress
+ }
+ 
+ func (b *Reader) readErr() error {
+@@ -158,9 +151,6 @@ func (b *Reader) Read(p []byte) (n int, err error) {
+ 			// Large read, empty buffer.
+ 			// Read directly into p to avoid copy.
+ 			n, b.err = b.rd.Read(p)
+-			if n < 0 {
+-				panic(errNegativeRead)
+-			}
+ 			if n > 0 {
+ 				b.lastByte = int(p[n-1])
+ 				b.lastRuneSize = -1
+diff --git a/src/pkg/bufio/bufio_test.go b/src/pkg/bufio/bufio_test.go
+index 406eb153ba..32ca86161f 100644
+--- a/src/pkg/bufio/bufio_test.go
++++ b/src/pkg/bufio/bufio_test.go
+@@ -14,7 +14,6 @@ import (
+ 	"strings"
+ 	"testing"
+ 	"testing/iotest"
+-	"time"
+ 	"unicode/utf8"
+ )
+ 
+@@ -175,34 +174,6 @@ func TestReader(t *testing.T) {
+ 	}
+ }
+ 
+-type zeroReader struct{}
+-
+-func (zeroReader) Read(p []byte) (int, error) {
+-	return 0, nil
+-}
+-
+-func TestZeroReader(t *testing.T) {
+-	var z zeroReader
+-	r := NewReader(z)
+-
+-	c := make(chan error)
+-	go func() {
+-		_, err := r.ReadByte()
+-		c <- err
+-	}()
+-
+-	select {
+-	case err := <-c:
+-		if err == nil {
+-			t.Error("error expected")
+-		} else if err != io.ErrNoProgress {
+-			t.Error("unexpected error:", err)
+-		}
+-	case <-time.After(time.Second):
+-		t.Error("test timed out (endless loop in ReadByte?)")
+-	}
+-}
+-
+ // A StringReader delivers its data one string segment at a time via Read.
+ type StringReader struct {
+ 	data []string

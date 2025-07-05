@@ -19,6 +19,20 @@ Date:   Thu Nov 19 22:14:13 2015 +1300
     Change-Id: I9fbfc890ec7fe191f80a595b6cf8e2a1fcbe3034
     Reviewed-on: https://go-review.googlesource.com/17049
     Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
-
+---
  src/cmd/internal/obj/x86/asm6.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index 04ef3b343f..ed728aa727 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -2536,7 +2536,7 @@ func vaddr(ctxt *obj.Link, p *obj.Prog, a *obj.Addr, r *obj.Reloc) int64 {
+ 			log.Fatalf("reloc")
+ 		}
+ 
+-		if ctxt.Flag_shared == 0 {
++		if ctxt.Flag_shared == 0 || isAndroid {
+ 			r.Type = obj.R_TLS_LE
+ 			r.Siz = 4
+ 			r.Off = -1 // caller must fill in

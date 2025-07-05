@@ -24,8 +24,117 @@ Date:   Thu Apr 20 10:26:10 2017 -0600
     Reviewed-by: Marcel van Lohuizen <mpvl@golang.org>
     Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/internal/test/test.go     |  8 +++++++-
  src/cmd/go/internal/test/testflag.go |  3 +++
  src/testing/testing.go               | 29 +++++++++++++++++++++++++++++
  3 files changed, 39 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index 62a1ed1ee4..aae3af4080 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -184,6 +184,11 @@ const testFlag2 = `
+ 	    benchmarks should be executed.  The default is the current value
+ 	    of GOMAXPROCS.
+ 
++	-list regexp
++	    List tests, benchmarks, or examples matching the regular expression.
++	    No tests, benchmarks or examples will be run. This will only
++	    list top-level tests. No subtest or subbenchmarks will be shown.
++
+ 	-parallel n
+ 	    Allow parallel execution of test functions that call t.Parallel.
+ 	    The value of this flag is the maximum number of tests to run
+@@ -400,6 +405,7 @@ var (
+ 	testTimeout      string          // -timeout flag
+ 	testArgs         []string
+ 	testBench        bool
++	testList         bool
+ 	testStreamOutput bool // show output as it is generated
+ 	testShowPass     bool // show passing output
+ 
+@@ -447,7 +453,7 @@ func runTest(cmd *base.Command, args []string) {
+ 	// show passing test output (after buffering) with -v flag.
+ 	// must buffer because tests are running in parallel, and
+ 	// otherwise the output will get mixed.
+-	testShowPass = testV
++	testShowPass = testV || testList
+ 
+ 	// stream test output (no buffering) when no package has
+ 	// been given on the command line (implicit current directory)
+diff --git a/src/cmd/go/internal/test/testflag.go b/src/cmd/go/internal/test/testflag.go
+index 288156c819..fb76a34a77 100644
+--- a/src/cmd/go/internal/test/testflag.go
++++ b/src/cmd/go/internal/test/testflag.go
+@@ -42,6 +42,7 @@ var testFlagDefn = []*cmdflag.Defn{
+ 	{Name: "coverprofile", PassToTest: true},
+ 	{Name: "cpu", PassToTest: true},
+ 	{Name: "cpuprofile", PassToTest: true},
++	{Name: "list", PassToTest: true},
+ 	{Name: "memprofile", PassToTest: true},
+ 	{Name: "memprofilerate", PassToTest: true},
+ 	{Name: "blockprofile", PassToTest: true},
+@@ -145,6 +146,8 @@ func testFlags(args []string) (packageNames, passToTest []string) {
+ 			case "bench":
+ 				// record that we saw the flag; don't care about the value
+ 				testBench = true
++			case "list":
++				testList = true
+ 			case "timeout":
+ 				testTimeout = value
+ 			case "blockprofile", "cpuprofile", "memprofile", "mutexprofile":
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index 99e9af43b6..aa620f42b8 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -252,6 +252,7 @@ var (
+ 	chatty               = flag.Bool("test.v", false, "verbose: print additional output")
+ 	count                = flag.Uint("test.count", 1, "run tests and benchmarks `n` times")
+ 	coverProfile         = flag.String("test.coverprofile", "", "write a coverage profile to `file`")
++	matchList            = flag.String("test.list", "", "list tests, examples, and benchmarch maching `regexp` then exit")
+ 	match                = flag.String("test.run", "", "run only tests and examples matching `regexp`")
+ 	memProfile           = flag.String("test.memprofile", "", "write a memory profile to `file`")
+ 	memProfileRate       = flag.Int("test.memprofilerate", 0, "set memory profiling `rate` (see runtime.MemProfileRate)")
+@@ -907,6 +908,11 @@ func (m *M) Run() int {
+ 		flag.Parse()
+ 	}
+ 
++	if len(*matchList) != 0 {
++		listTests(m.deps.MatchString, m.tests, m.benchmarks, m.examples)
++		return 0
++	}
++
+ 	parseCpuList()
+ 
+ 	m.before()
+@@ -946,6 +952,29 @@ func (t *T) report() {
+ 	}
+ }
+ 
++func listTests(matchString func(pat, str string) (bool, error), tests []InternalTest, benchmarks []InternalBenchmark, examples []InternalExample) {
++	if _, err := matchString(*matchList, "non-empty"); err != nil {
++		fmt.Fprintf(os.Stderr, "testing: invalid regexp in -test.list (%q): %s\n", *matchList, err)
++		os.Exit(1)
++	}
++
++	for _, test := range tests {
++		if ok, _ := matchString(*matchList, test.Name); ok {
++			fmt.Println(test.Name)
++		}
++	}
++	for _, bench := range benchmarks {
++		if ok, _ := matchString(*matchList, bench.Name); ok {
++			fmt.Println(bench.Name)
++		}
++	}
++	for _, example := range examples {
++		if ok, _ := matchString(*matchList, example.Name); ok && example.Output != "" {
++			fmt.Println(example.Name)
++		}
++	}
++}
++
+ // An internal function but exported because it is cross-package; part of the implementation
+ // of the "go test" command.
+ func RunTests(matchString func(pat, str string) (bool, error), tests []InternalTest) (ok bool) {

@@ -11,6 +11,20 @@ Date:   Thu Oct 26 23:11:32 2017 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/cgo/testshared/shared_test.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/misc/cgo/testshared/shared_test.go b/misc/cgo/testshared/shared_test.go
+index ef240c6aba..6c802684e6 100644
+--- a/misc/cgo/testshared/shared_test.go
++++ b/misc/cgo/testshared/shared_test.go
+@@ -647,6 +647,8 @@ func TestGoPathShlibGccgo(t *testing.T) {
+ // library with gccgo, another GOPATH package that depends on the first and an
+ // executable that links the second library.
+ func TestTwoGopathShlibsGccgo(t *testing.T) {
++	t.Skip("golang.org/issue/22224")
++
+ 	gccgoContext := prepGccgo(t)
+ 
+ 	libgoRE := regexp.MustCompile("libgo.so.[0-9]+")

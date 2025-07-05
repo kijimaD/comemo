@@ -7,7 +7,7 @@ Date:   Wed Sep 17 13:49:23 2008 -0700
     R=r,presotto
     OCL=15410
     CL=15440
-
+---
  src/lib/io.go                     |  20 ++---
  src/lib/make.bash                 |   7 ++
  src/lib/net/ip.go                 |  12 ++-
@@ -19,3 +19,697 @@ Date:   Wed Sep 17 13:49:23 2008 -0700
  test/dialgoogle.go                |  96 +++++++++++++++++++++++
  test/tcpserver.go                 |  99 ++++++++++++++++++++++++
  10 files changed, 381 insertions(+), 43 deletions(-)
+
+diff --git a/src/lib/io.go b/src/lib/io.go
+index d7770ebe7d..266d948fc4 100644
+--- a/src/lib/io.go
++++ b/src/lib/io.go
+@@ -4,17 +4,7 @@
+ 
+ package io
+ import os "os"
+-
+-export func StringToBytes(b *[]byte, s string) bool {
+-	if len(s) >= len(b) {
+-		return false
+-	}
+-	for i := 0; i < len(s); i++ {
+-		b[i] = s[i]
+-	}
+-	b[len(s)] = '\000';	// not necessary - memory is zeroed - but be explicit
+-	return true
+-}
++import syscall "syscall"
+ 
+ export type Read interface {
+ 	Read(p *[]byte) (n int, err *os.Error);
+@@ -24,13 +14,17 @@ export type Write interface {
+ 	Write(p *[]byte) (n int, err *os.Error);
+ }
+ 
++export type ReadWrite interface {
++	Read(p *[]byte) (n int, err *os.Error);
++	Write(p *[]byte) (n int, err *os.Error);
++}
++
+ export func WriteString(w Write, s string) (n int, err *os.Error) {
+ 	b := new([]byte, len(s)+1)
+-	if !StringToBytes(b, s) {
++	if !syscall.StringToBytes(b, s) {
+ 		return -1, os.EINVAL
+ 	}
+ 	// BUG return w.Write(b[0:len(s)])
+ 	r, e := w.Write(b[0:len(s)])
+ 	return r, e
+ }
+-
+diff --git a/src/lib/make.bash b/src/lib/make.bash
+index 3786f7fa4f..f2e23247dd 100755
+--- a/src/lib/make.bash
++++ b/src/lib/make.bash
+@@ -22,3 +22,10 @@ do
+ 	6g -o $GOROOT/pkg/$base.6 $i
+ done
+ 
++for i in net
++do
++	echo; echo; echo %%%% making lib/$i %%%%; echo
++	cd $i
++	make install
++	cd ..
++done
+diff --git a/src/lib/net/ip.go b/src/lib/net/ip.go
+index ddb5114c50..a96ae6709b 100644
+--- a/src/lib/net/ip.go
++++ b/src/lib/net/ip.go
+@@ -336,6 +336,10 @@ func ParseIPv6(s string) *[]byte {
+ 	if len(s) >= 2 && s[0] == ':' && s[1] == ':' {
+ 		ellipsis = 0;
+ 		i = 2
++		// Might be only ellipsis
++		if i == len(s) {
++			return p
++		}
+ 	}
+ 
+ 	// Loop, parsing hex numbers followed by colon.
+@@ -343,12 +347,12 @@ func ParseIPv6(s string) *[]byte {
+ L:	for j < IPv6len {
+ 		// Hex number.
+ 		n, i1, ok := xtoi(s, i)
+-		if !ok || n >= 0xFFFF {
++		if !ok || n > 0xFFFF {
+ 			return nil
+ 		}
+ 
+ 		// If followed by dot, might be in trailing IPv4.
+-		if s[i1] == '.' {
++		if i1 < len(s) && s[i1] == '.' {
+ 			if ellipsis < 0 && j != IPv6len - IPv4len {
+ 				// Not the right place.
+ 				return nil
+@@ -389,7 +393,7 @@ L:	for j < IPv6len {
+ 		i++
+ 
+ 		// Look for ellipsis.
+-		if s[i+1] == ':' {
++		if s[i] == ':' {
+ 			if ellipsis >= 0 {	// already have one
+ 				return nil
+ 			}
+@@ -411,7 +415,7 @@ L:	for j < IPv6len {
+ 			return nil
+ 		}
+ 		n := IPv6len - j
+-		for k := j; k >= ellipsis; k-- {
++		for k := j-1; k >= ellipsis; k-- {
+ 			p[k+n] = p[k]
+ 		}
+ 		for k := ellipsis+n-1; k>=ellipsis; k-- {
+diff --git a/src/lib/net/net.go b/src/lib/net/net.go
+index d44f2d3050..cfd34bbab0 100644
+--- a/src/lib/net/net.go
++++ b/src/lib/net/net.go
+@@ -19,7 +19,8 @@ func NewError(s string) *os.Error {
+ }
+ 
+ export var (
+-	BadAddress = NewError("malformed addres");
++	BadAddress = NewError("malformed address");
++	MissingAddress = NewError("missing address");
+ 	UnknownNetwork = NewError("unknown network");
+ 	UnknownHost = NewError("unknown host");
+ 	UnknownPort = NewError("unknown port");
+@@ -39,10 +40,10 @@ func SplitHostPort(hostport string) (host, port string, err *os.Error) {
+ 	if i < 0 {
+ 		return "", "", BadAddress
+ 	}
+-	
++
+ 	host = hostport[0:i];
+ 	port = hostport[i+1:len(hostport)];
+-	
++
+ 	// Can put brackets around host ...
+ 	if host[0] == '[' && host[len(host)-1] == ']' {
+ 		host = host[1:len(host)-1]
+@@ -69,6 +70,20 @@ func JoinHostPort(host, port string) string {
+ 	return host + ":" + port
+ }
+ 
++func dtoi(s string) (n int, ok bool) {
++	if s == "" || s[0] < '0' || s[0] > '9' {
++		return 0, false
++	}
++	n = 0;
++	for i := 0; i < len(s) && '0' <= s[i] && s[i] <= '9'; i++ {
++		n = n*10 + int(s[i] - '0')
++		if n >= 1000000 {	// bigger than we need
++			return 0, false
++		}
++	}
++	return n, true
++}
++
+ // Convert "host:port" into IP address and port.
+ // For now, host and port must be numeric literals.
+ // Eventually, we'll have name resolution.
+@@ -78,22 +93,21 @@ func HostPortToIP(net string, hostport string) (ip *[]byte, iport int, err *os.E
+ 	if err != nil {
+ 		return nil, 0, err
+ 	}
+-	
++
+ 	// TODO: Resolve host.
+-	
++
+ 	addr := ip.ParseIP(host);
+ 	if addr == nil {
+-print("Failed to parse: ", host, "\n");
+ 		return nil, 0, UnknownHost
+ 	}
+-	
++
+ 	// TODO: Resolve port.
+-	
+-	p, ok := strings.atoi(port);
++
++	p, ok := dtoi(port);
+ 	if !ok || p < 0 || p > 0xFFFF {
+ 		return nil, 0, UnknownPort
+ 	}
+-	
++
+ 	return addr, p, nil
+ }
+ 
+@@ -117,7 +131,7 @@ func SockaddrToHostPort(sa *socket.Sockaddr) (hostport string, err *os.Error) {
+ func boolint(b bool) int {
+ 	if b {
+ 		return 1
+-	} 
++	}
+ 	return 0
+ }
+ 
+@@ -127,7 +141,10 @@ func Socket(f, p, t int64, la, ra *socket.Sockaddr) (fd int64, err *os.Error) {
+ 	if e != nil {
+ 		return -1, e
+ 	}
+-	
++
++	// Allow reuse of recently-used addresses.
++	socket.setsockopt_int(s, socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
++
+ 	var r int64
+ 	if la != nil {
+ 		r, e = socket.bind(s, la)
+@@ -136,7 +153,7 @@ func Socket(f, p, t int64, la, ra *socket.Sockaddr) (fd int64, err *os.Error) {
+ 			return -1, e
+ 		}
+ 	}
+-	
++
+ 	if ra != nil {
+ 		r, e = socket.connect(s, ra)
+ 		if e != nil {
+@@ -144,7 +161,7 @@ func Socket(f, p, t int64, la, ra *socket.Sockaddr) (fd int64, err *os.Error) {
+ 			return -1, e
+ 		}
+ 	}
+-	
++
+ 	return s, nil
+ }
+ 
+@@ -256,11 +273,18 @@ func (c *ConnBase) SetLinger(sec int) *os.Error {
+ // PreferIPv4 here should fall back to the IPv4 socket interface when possible.
+ const PreferIPv4 = false
+ 
+-func DialInternet(net, laddr, raddr string, proto int64) (fd int64, err *os.Error) {
++func InternetSocket(net, laddr, raddr string, proto int64) (fd int64, err *os.Error) {
+ 	// Parse addresses (unless they are empty).
+ 	var lip, rip *[]byte
+ 	var lport, rport int
+ 	var lerr, rerr *os.Error
++// BUG 6g doesn't zero var lists
++lip = nil;
++rip = nil;
++lport = 0;
++rport = 0;
++lerr = nil;
++rerr = nil
+ 	if laddr != "" {
+ 		lip, lport, lerr = HostPortToIP(net, laddr)
+ 		if lerr != nil {
+@@ -274,7 +298,7 @@ func DialInternet(net, laddr, raddr string, proto int64) (fd int64, err *os.Erro
+ 		}
+ 	}
+ 
+-	// Figure out IP version.  
++	// Figure out IP version.
+ 	// If network has a suffix like "tcp4", obey it.
+ 	vers := 0;
+ 	switch net[len(net)-1] {
+@@ -303,8 +327,11 @@ func DialInternet(net, laddr, raddr string, proto int64) (fd int64, err *os.Erro
+ 		cvt = &socket.IPv6ToSockaddr;
+ 		family = socket.AF_INET6
+ 	}
+-	
++
+ 	var la, ra *socket.Sockaddr;
++// BUG
++la = nil;
++ra = nil
+ 	if lip != nil {
+ 		la, lerr = cvt(lip, lport);
+ 		if lerr != nil {
+@@ -388,15 +415,23 @@ func (c *ConnTCP) SetKeepAlive(keepalive bool) *os.Error {
+ 	return (&c.base).SetKeepAlive(keepalive)
+ }
+ 
++func NewConnTCP(fd int64, raddr string) *ConnTCP {
++	c := new(ConnTCP);
++	c.base.fd = os.NewFD(fd);
++	c.base.raddr = raddr;
++	c.SetNoDelay(true);
++	return c
++}
++
+ export func DialTCP(net, laddr, raddr string) (c *ConnTCP, err *os.Error) {
+-	fd, e := DialInternet(net, laddr, raddr, socket.SOCK_STREAM)
++	if raddr == "" {
++		return nil, MissingAddress
++	}
++	fd, e := InternetSocket(net, laddr, raddr, socket.SOCK_STREAM)
+ 	if e != nil {
+ 		return nil, e
+ 	}
+-	c = new(ConnTCP);
+-	c.base.fd = os.NewFD(fd);
+-	c.SetNoDelay(true)
+-	return c, nil
++	return NewConnTCP(fd, raddr), nil
+ }
+ 
+ 
+@@ -481,3 +516,83 @@ export func Dial(net, laddr, raddr string) (c Conn, err *os.Error) {
+ 	return nil, UnknownNetwork
+ }
+ 
++
++export type Listener interface {
++	Accept() (c Conn, raddr string, err *os.Error);
++	Close() *os.Error;
++}
++
++type NoListener struct { unused int }
++func (l *NoListener) Accept() (c Conn, raddr string, err *os.Error) {
++	return &noconn, "", os.EINVAL
++}
++func (l *NoListener) Close() *os.Error { return os.EINVAL }
++
++var nolistener NoListener
++
++export type ListenerTCP struct {
++	fd *os.FD;
++	laddr string
++}
++
++export func ListenTCP(net, laddr string) (l *ListenerTCP, err *os.Error) {
++	fd, e := InternetSocket(net, laddr, "", socket.SOCK_STREAM)
++	if e != nil {
++		return nil, e
++	}
++	r, e1 := socket.listen(fd, socket.ListenBacklog())
++	if e1 != nil {
++		syscall.close(fd)
++		return nil, e1
++	}
++	l = new(ListenerTCP);
++	l.fd = os.NewFD(fd);
++	return l, nil
++}
++
++func (l *ListenerTCP) AcceptTCP() (c *ConnTCP, raddr string, err *os.Error) {
++	if l == nil || l.fd == nil || l.fd.fd < 0 {
++		return nil, "", os.EINVAL
++	}
++	var sa socket.Sockaddr;
++	fd, e := socket.accept(l.fd.fd, &sa)
++	if e != nil {
++		return nil, "", e
++	}
++	raddr, e = SockaddrToHostPort(&sa)
++	if e != nil {
++		syscall.close(fd)
++		return nil, "", e
++	}
++	return NewConnTCP(fd, raddr), raddr, nil
++}
++
++func (l *ListenerTCP) Accept() (c Conn, raddr string, err *os.Error) {
++	c1, r1, e1 := l.AcceptTCP()
++	if e1 != nil {
++		return &noconn, "", e1
++	}
++	return c1, r1, nil
++}
++
++func (l *ListenerTCP) Close() *os.Error {
++	if l == nil || l.fd == nil {
++		return os.EINVAL
++	}
++	return l.fd.Close()
++}
++
++export func Listen(net, laddr string) (l Listener, err *os.Error) {
++	switch net {
++	case "tcp", "tcp4", "tcp6":
++		l, err := ListenTCP(net, laddr)
++		if err != nil {
++			return &nolistener, err
++		}
++		return l, nil
++/*
++	more here
++*/
++	}
++	return nil, UnknownNetwork
++}
+diff --git a/src/lib/net/socket_darwin.go b/src/lib/net/socket_darwin.go
+index a114002eab..815fc6fa37 100644
+--- a/src/lib/net/socket_darwin.go
++++ b/src/lib/net/socket_darwin.go
+@@ -53,6 +53,8 @@ export const (
+ 	IPPROTO_UDP = 17;
+ 
+ 	TCP_NODELAY = 0x01;
++
++	SOMAXCONN = 128;
+ )
+ 
+ export type SockaddrUnix struct {
+@@ -127,7 +129,7 @@ export func listen(fd, n int64) (ret int64, err *os.Error) {
+ }
+ 
+ export func accept(fd int64, sa *Sockaddr) (ret int64, err *os.Error) {
+-	n := int32(sa.len);
++	n := SizeofSockaddr;
+ 	r1, r2, e := syscall.Syscall(ACCEPT, fd, SockaddrPtr(sa), Int32Ptr(&n));
+ 	return r1, os.ErrnoToError(e)
+ }
+@@ -229,3 +231,6 @@ export func SockaddrToIP(sa1 *Sockaddr) (p *[]byte, port int, err *os.Error) {
+ 	return nil, 0, nil	// not reached
+ }
+ 
++export func ListenBacklog() int64 {
++	return SOMAXCONN
++}
+diff --git a/src/lib/net/socket_linux.go b/src/lib/net/socket_linux.go
+index 5dacaf58e5..650a753f16 100644
+--- a/src/lib/net/socket_linux.go
++++ b/src/lib/net/socket_linux.go
+@@ -63,6 +63,8 @@ export const (
+ 	IPPROTO_UDP = 17;
+ 
+ 	TCP_NODELAY = 0x01;
++
++	SOMAXCONN = 128;
+ )
+ 
+ export type SockaddrUnix struct {
+@@ -145,7 +147,7 @@ export func listen(fd, n int64) (ret int64, err *os.Error) {
+ }
+ 
+ export func accept(fd int64, sa *Sockaddr) (ret int64, err *os.Error) {
+-	n := int32(sa.Len());
++	n := SizeofSockaddr;
+ 	r1, r2, e := syscall.Syscall(ACCEPT, fd, SockaddrPtr(sa), Int32Ptr(&n));
+ 	return r1, os.ErrnoToError(e)
+ }
+@@ -208,11 +210,21 @@ export func IPv4ToSockaddr(p *[]byte, port int) (sa1 *Sockaddr, err *os.Error) {
+ 	return SockaddrInet4ToSockaddr(sa), nil
+ }
+ 
++var IPv6zero [ip.IPv6len]byte;
++
+ export func IPv6ToSockaddr(p *[]byte, port int) (sa1 *Sockaddr, err *os.Error) {
+ 	p = ip.ToIPv6(p)
+ 	if p == nil || port < 0 || port > 0xFFFF {
+ 		return nil, os.EINVAL
+ 	}
++
++	// IPv4 callers use 0.0.0.0 to mean "announce on any available address".
++	// In IPv6 mode, Linux treats that as meaning "announce on 0.0.0.0",
++	// which it refuses to do.  Rewrite to the IPv6 all zeros.
++	if p4 := ip.ToIPv4(p); p4 != nil && p4[0] == 0 && p4[1] == 0 && p4[2] == 0 && p4[3] == 0 {
++		p = &IPv6zero;
++	}
++
+ 	sa := new(SockaddrInet6);
+ 	sa.family = AF_INET6;
+ 	sa.port[0] = byte(port>>8);
+@@ -245,3 +257,10 @@ export func SockaddrToIP(sa1 *Sockaddr) (p *[]byte, port int, err *os.Error) {
+ 	return nil, 0, nil	// not reached
+ }
+ 
++export func ListenBacklog() int64 {
++	// TODO: maybe /proc/sys/net/core/somaxconn
++	// and read the limit out of there, to take advantage of kernels
++	// that have increased the limit
++
++	return SOMAXCONN
++}
+diff --git a/src/runtime/proc.c b/src/runtime/proc.c
+index 6a741f8822..62efd45691 100644
+--- a/src/runtime/proc.c
++++ b/src/runtime/proc.c
+@@ -78,7 +78,7 @@ schedinit(void)
+ 	byte *p;
+ 
+ 	sched.mmax = 1;
+-	p = getenv("gomaxprocs");
++	p = getenv("GOMAXPROCS");
+ 	if(p != nil && (n = atoi(p)) != 0)
+ 		sched.mmax = n;
+ 	sched.mcount = 1;
+diff --git a/src/syscall/syscall_amd64_linux.s b/src/syscall/syscall_amd64_linux.s
+index a0b72ceedb..c279ff8bf4 100644
+--- a/src/syscall/syscall_amd64_linux.s
++++ b/src/syscall/syscall_amd64_linux.s
+@@ -37,7 +37,6 @@ TEXT syscall·Syscall6(SB),7,$-8
+ 	MOVQ	48(SP), R8
+ 	MOVQ	56(SP), R9
+ 	MOVQ	8(SP), AX	// syscall entry
+-	ADDQ	$0x2000000, AX
+ 	SYSCALL
+ 	JLS	6(PC)
+ 	MOVQ	$-1, 64(SP)	// r1
+diff --git a/test/dialgoogle.go b/test/dialgoogle.go
+new file mode 100644
+index 0000000000..56ef2dea08
+--- /dev/null
++++ b/test/dialgoogle.go
+@@ -0,0 +1,96 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// $G $F.go && $L $F.$A && ./$A.out
++
++package main
++
++import (
++	"net";
++	"flag";
++	"os";
++	"syscall"
++)
++
++// If an IPv6 tunnel is running (see go/stubl), we can try dialing a real IPv6 address.
++var ipv6 = false
++var ipv6_flag = flag.Bool("ipv6", false, &ipv6, "assume ipv6 tunnel is present")
++
++func StringToBuf(s string) *[]byte
++{
++	l := len(s);
++	b := new([]byte, l);
++	for i := 0; i < l; i++ {
++		b[i] = s[i];
++	}
++	return b;
++}
++
++
++// fd is already connected to www.google.com port 80.
++// Run an HTTP request to fetch the main page.
++func FetchGoogle(fd net.Conn) {
++	req := StringToBuf("GET / HTTP/1.0\r\nHost: www.google.com\r\n\r\n");
++	n, errno := fd.Write(req);
++
++	buf := new([1000]byte);
++	n, errno = fd.Read(buf);
++
++	fd.Close();
++	if n < 1000 {
++		panic("short http read");
++	}
++}
++
++func TestDial(network, addr string) {
++	fd, err := net.Dial(network, "", addr)
++	if err != nil {
++		panic("net.Dial ", network, " ", addr, ": ", err.String())
++	}
++	FetchGoogle(fd)
++}
++
++func TestDialTCP(network, addr string) {
++	fd, err := net.DialTCP(network, "", addr)
++	if err != nil {
++		panic("net.DialTCP ", network, " ", addr, ": ", err.String())
++	}
++	FetchGoogle(fd)
++}
++
++var addrs = []string {
++	"74.125.19.99:80",
++	"074.125.019.099:0080",
++	"[::ffff:74.125.19.99]:80",
++	"[::ffff:4a7d:1363]:80",
++	"[0:0:0:0:0000:ffff:74.125.19.99]:80",
++	"[0:0:0:0:000000:ffff:74.125.19.99]:80",
++	"[0:0:0:0:0:ffff::74.125.19.99]:80",
++	"[2001:4860:0:2001::68]:80"	// ipv6.google.com; removed if ipv6 flag not set
++}
++
++func main()
++{
++	flag.Parse()
++	// If no ipv6 tunnel, don't try the last address.
++	if !ipv6 {
++		addrs[len(addrs)-1] = ""
++	}
++
++	for i := 0; i < len(addrs); i++ {
++		addr := addrs[i]
++		if addr == "" {
++			continue
++		}
++	//	print(addr, "\n");
++		TestDial("tcp", addr);
++		TestDialTCP("tcp", addr)
++		if addr[0] != '[' {
++			TestDial("tcp4", addr);
++			TestDialTCP("tcp4", addr)
++		}
++		TestDial("tcp6", addr);
++		TestDialTCP("tcp6", addr)
++	}
++}
+diff --git a/test/tcpserver.go b/test/tcpserver.go
+new file mode 100644
+index 0000000000..b4de505029
+--- /dev/null
++++ b/test/tcpserver.go
+@@ -0,0 +1,99 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// $G $F.go && $L $F.$A && GOMAXPROCS=3 ./$A.out
++// # TODO(rsc): GOMAXPROCS will go away eventually.
++// # 3 is one for Echo, one for Serve, one for Connect.
++
++package main
++import (
++	"os";
++	"io";
++	"net";
++	"syscall"
++)
++
++func StringToBuf(s string) *[]byte  {
++	l := len(s);
++	b := new([]byte, l);
++	for i := 0; i < l; i++ {
++		b[i] = s[i];
++	}
++	return b;
++}
++
++func Echo(fd io.ReadWrite, done *chan<- int) {
++	var buf [1024]byte;
++
++	for {
++		n, err := fd.Read(&buf);
++		if err != nil || n == 0 {
++			break;
++		}
++		fd.Write((&buf)[0:n])
++	}
++	done <- 1
++}
++
++func Serve(network, addr string, listening, done *chan<- int) {
++	l, err := net.Listen(network, addr);
++	if err != nil {
++		panic("listen: "+err.String());
++	}
++	listening <- 1;
++
++	for {
++		fd, addr, err := l.Accept();
++		if err != nil {
++			break;
++		}
++		echodone := new(chan int)
++		go Echo(fd, echodone);
++		<-echodone;	// make sure Echo stops
++		l.Close();
++	}
++	done <- 1
++}
++
++func Connect(network, addr string) {
++	fd, err := net.Dial(network, "", addr);
++	if err != nil {
++		panic("connect: "+err.String());
++	}
++
++	b := StringToBuf("hello, world\n");
++	var b1 [100]byte;
++
++	n, errno := fd.Write(b);
++	if n != len(b) {
++		panic("syscall.write in connect");
++	}
++
++	n, errno = fd.Read(&b1);
++	if n != len(b) {
++		panic("syscall.read in connect");
++	}
++
++//	os.Stdout.Write((&b1)[0:n]);
++	fd.Close();
++}
++
++func Test(network, listenaddr, dialaddr string) {
++//	print("Test ", network, " ", listenaddr, " ", dialaddr, "\n");
++	listening := new(chan int);
++	done := new(chan int);
++	go Serve(network, listenaddr, listening, done);
++	<-listening;	// wait for server to start
++	Connect(network, dialaddr);
++	<-done;	// make sure server stopped
++}
++
++func main() {
++	Test("tcp", "0.0.0.0:9999", "127.0.0.1:9999");
++	Test("tcp", "[::]:9999", "[::ffff:127.0.0.1]:9999");
++	Test("tcp", "[::]:9999", "127.0.0.1:9999");
++	Test("tcp", "0.0.0.0:9999", "[::ffff:127.0.0.1]:9999");
++	sys.exit(0);	// supposed to happen on return, doesn't
++}
++

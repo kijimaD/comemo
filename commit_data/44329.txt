@@ -79,3 +79,4 @@ Date:   Thu Jun 11 16:49:19 2020 -0400
  test/fixedbugs/issue39472.go                       |  12 +
  test/winbatch.go                                   |  54 +++-
  71 files changed, 1541 insertions(+), 832 deletions(-)
+

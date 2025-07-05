@@ -9,6 +9,35 @@ Date:   Sun Feb 12 23:19:50 2012 -0500
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/5645089
-
+---
  src/pkg/net/http/transport.go | 14 +++++++-------
  1 file changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/src/pkg/net/http/transport.go b/src/pkg/net/http/transport.go
+index 693215edd4..510e55b058 100644
+--- a/src/pkg/net/http/transport.go
++++ b/src/pkg/net/http/transport.go
+@@ -85,16 +85,16 @@ func ProxyFromEnvironment(req *Request) (*url.URL, error) {
+ 	if !useProxy(canonicalAddr(req.URL)) {
+ 		return nil, nil
+ 	}
+-	proxyURL, err := url.ParseRequest(proxy)
++	proxyURL, err := url.Parse(proxy)
+ 	if err != nil {
+-		return nil, errors.New("invalid proxy address")
+-	}
+-	if proxyURL.Host == "" {
+-		proxyURL, err = url.ParseRequest("http://" + proxy)
+-		if err != nil {
+-			return nil, errors.New("invalid proxy address")
++		if u, err := url.Parse("http://" + proxy); err == nil {
++			proxyURL = u
++			err = nil
+ 		}
+ 	}
++	if err != nil {
++		return nil, fmt.Errorf("invalid proxy address %q: %v", proxy, err)
++	}
+ 	return proxyURL, nil
+ }
+ 

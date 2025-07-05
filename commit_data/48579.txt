@@ -13,6 +13,20 @@ Date:   Sun May 23 14:05:15 2021 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/319273
     Reviewed-by: Heschi Kreinick <heschi@google.com>
     Trust: Robert Findley <rfindley@google.com>
-
+---
  doc/go1.17.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go1.17.html b/doc/go1.17.html
+index ee498f7603..6ddef3d47e 100644
+--- a/doc/go1.17.html
++++ b/doc/go1.17.html
+@@ -434,7 +434,7 @@ Do not send CLs removing the interior tags from such phrases.
+ <dl id="flag"><dt><a href="/pkg/flag/">flag</a></dt>
+   <dd>
+     <p><!-- CL 271788 -->
+-      TODO: <a href="https://golang.org/cl/271788">https://golang.org/cl/271788</a>: panic if flag name begins with - or contains =
++      Flag declarations now panic if an invalid name is specified.
+     </p>
+   </dd>
+ </dl><!-- flag -->

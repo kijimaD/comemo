@@ -15,6 +15,35 @@ Date:   Fri May 18 16:54:30 2018 +0200
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/example_test.go | 20 ++++++++++++++++++++
  1 file changed, 20 insertions(+)
+
+diff --git a/src/net/example_test.go b/src/net/example_test.go
+index 289d84f7c7..c6eb75d0a4 100644
+--- a/src/net/example_test.go
++++ b/src/net/example_test.go
+@@ -119,3 +119,23 @@ func ExampleIPv4Mask() {
+ 	// Output:
+ 	// ffffff00
+ }
++
++func ExampleUDPConn_WriteTo() {
++	// Create connection in non-pre-connected state
++	conn, err := net.ListenPacket("udp", ":0")
++	if err != nil {
++		log.Fatal(err)
++	}
++	defer conn.Close()
++
++	dst, err := net.ResolveIPAddr("udp", "192.0.2.1:2000")
++	if err != nil {
++		log.Fatal(err)
++	}
++
++	// Write data to the desired address
++	_, err = conn.WriteTo([]byte("data"), dst)
++	if err != nil {
++		log.Fatal(err)
++	}
++}

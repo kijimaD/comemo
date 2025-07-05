@@ -13,6 +13,28 @@ Date:   Tue May 5 13:12:01 2020 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/iimport.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/iimport.go b/src/cmd/compile/internal/gc/iimport.go
+index f3e65ff736..104b5fb79a 100644
+--- a/src/cmd/compile/internal/gc/iimport.go
++++ b/src/cmd/compile/internal/gc/iimport.go
+@@ -15,6 +15,7 @@ import (
+ 	"cmd/internal/src"
+ 	"encoding/binary"
+ 	"fmt"
++	"io"
+ 	"math/big"
+ 	"os"
+ 	"strings"
+@@ -191,7 +192,7 @@ func iimport(pkg *types.Pkg, in *bio.Reader) (fingerprint goobj2.FingerprintType
+ 	}
+ 
+ 	// Fingerprint
+-	n, err := in.Read(fingerprint[:])
++	n, err := io.ReadFull(in, fingerprint[:])
+ 	if err != nil || n != len(fingerprint) {
+ 		yyerror("import %s: error reading fingerprint", pkg.Path)
+ 		errorexit()

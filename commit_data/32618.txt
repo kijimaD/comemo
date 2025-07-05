@@ -39,7 +39,57 @@ Date:   Mon May 8 12:49:04 2017 +1000
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/os/dir_windows.go   |  3 ++-
  src/os/types_windows.go | 17 ++++++++++++-----
  2 files changed, 14 insertions(+), 6 deletions(-)
+
+diff --git a/src/os/dir_windows.go b/src/os/dir_windows.go
+index 2e3046d736..a738af2764 100644
+--- a/src/os/dir_windows.go
++++ b/src/os/dir_windows.go
+@@ -56,7 +56,8 @@ func (file *File) readdir(n int) (fi []FileInfo, err error) {
+ 				FileSizeHigh:   d.FileSizeHigh,
+ 				FileSizeLow:    d.FileSizeLow,
+ 			},
+-			path: file.dirinfo.path + `\` + name,
++			path:             file.dirinfo.path,
++			appendNameToPath: true,
+ 		}
+ 		n--
+ 		fi = append(fi, f)
+diff --git a/src/os/types_windows.go b/src/os/types_windows.go
+index a0d6fa4e76..01d6b62a16 100644
+--- a/src/os/types_windows.go
++++ b/src/os/types_windows.go
+@@ -18,10 +18,11 @@ type fileStat struct {
+ 
+ 	// used to implement SameFile
+ 	sync.Mutex
+-	path  string
+-	vol   uint32
+-	idxhi uint32
+-	idxlo uint32
++	path             string
++	vol              uint32
++	idxhi            uint32
++	idxlo            uint32
++	appendNameToPath bool
+ }
+ 
+ func (fs *fileStat) Size() int64 {
+@@ -66,7 +67,13 @@ func (fs *fileStat) loadFileId() error {
+ 		// already done
+ 		return nil
+ 	}
+-	pathp, err := syscall.UTF16PtrFromString(fs.path)
++	var path string
++	if fs.appendNameToPath {
++		path = fs.path + `\` + fs.name
++	} else {
++		path = fs.path
++	}
++	pathp, err := syscall.UTF16PtrFromString(path)
+ 	if err != nil {
+ 		return err
+ 	}

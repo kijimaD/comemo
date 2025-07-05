@@ -13,7 +13,49 @@ Date:   Wed Oct 16 18:02:35 2019 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/syscall/sockcmsg_linux.go |  2 +-
  src/syscall/sockcmsg_unix.go  | 10 ++++------
  2 files changed, 5 insertions(+), 7 deletions(-)
+
+diff --git a/src/syscall/sockcmsg_linux.go b/src/syscall/sockcmsg_linux.go
+index 4cb9075ba8..d97667cf7e 100644
+--- a/src/syscall/sockcmsg_linux.go
++++ b/src/syscall/sockcmsg_linux.go
+@@ -17,7 +17,7 @@ func UnixCredentials(ucred *Ucred) []byte {
+ 	h.Level = SOL_SOCKET
+ 	h.Type = SCM_CREDENTIALS
+ 	h.SetLen(CmsgLen(SizeofUcred))
+-	*((*Ucred)(cmsgData(h))) = *ucred
++	*(*Ucred)(h.data(0)) = *ucred
+ 	return b
+ }
+ 
+diff --git a/src/syscall/sockcmsg_unix.go b/src/syscall/sockcmsg_unix.go
+index 71efd46470..4eb0c0b748 100644
+--- a/src/syscall/sockcmsg_unix.go
++++ b/src/syscall/sockcmsg_unix.go
+@@ -50,8 +50,8 @@ func CmsgSpace(datalen int) int {
+ 	return cmsgAlignOf(SizeofCmsghdr) + cmsgAlignOf(datalen)
+ }
+ 
+-func cmsgData(h *Cmsghdr) unsafe.Pointer {
+-	return unsafe.Pointer(uintptr(unsafe.Pointer(h)) + uintptr(cmsgAlignOf(SizeofCmsghdr)))
++func (h *Cmsghdr) data(offset uintptr) unsafe.Pointer {
++	return unsafe.Pointer(uintptr(unsafe.Pointer(h)) + uintptr(cmsgAlignOf(SizeofCmsghdr)) + offset)
+ }
+ 
+ // SocketControlMessage represents a socket control message.
+@@ -94,10 +94,8 @@ func UnixRights(fds ...int) []byte {
+ 	h.Level = SOL_SOCKET
+ 	h.Type = SCM_RIGHTS
+ 	h.SetLen(CmsgLen(datalen))
+-	data := cmsgData(h)
+-	for _, fd := range fds {
+-		*(*int32)(data) = int32(fd)
+-		data = unsafe.Pointer(uintptr(data) + 4)
++	for i, fd := range fds {
++		*(*int32)(h.data(4 * uintptr(i))) = int32(fd)
+ 	}
+ 	return b
+ }

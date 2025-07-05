@@ -29,7 +29,145 @@ Date:   Tue Apr 11 20:31:41 2017 +0100
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/checkcfg.go | 22 ++++++++++++++++------
  test/label1.go                          | 28 ++++++++++++++++++++--------
  2 files changed, 36 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/checkcfg.go b/src/cmd/compile/internal/gc/checkcfg.go
+index 1b2fa65645..d55d91ffd2 100644
+--- a/src/cmd/compile/internal/gc/checkcfg.go
++++ b/src/cmd/compile/internal/gc/checkcfg.go
+@@ -53,8 +53,10 @@ type controlflow struct {
+ 	// Gotos that jump forward; required for deferred checkgoto calls.
+ 	fwdGotos []*Node
+ 
+-	// Unlabeled break and continue statement tracking.
+-	innerloop *Node
++	// Breaks are allowed in loops, switches, and selects.
++	allowBreak bool
++	// Continues are allowed only in loops.
++	allowContinue bool
+ 
+ 	// Position stack. The current position is top of stack.
+ 	pos []src.XPos
+@@ -131,8 +133,10 @@ func (c *controlflow) stmt(n *Node) {
+ 	case OCONTINUE, OBREAK:
+ 		if n.Left == nil {
+ 			// plain break/continue
+-			if c.innerloop == nil {
++			if n.Op == OCONTINUE && !c.allowContinue {
+ 				c.err("%v is not in a loop", n.Op)
++			} else if !c.allowBreak {
++				c.err("%v is not in a loop, switch, or select", n.Op)
+ 			}
+ 			break
+ 		}
+@@ -166,8 +170,13 @@ func (c *controlflow) stmt(n *Node) {
+ 
+ 	case OFOR, OFORUNTIL, OSWITCH, OSELECT:
+ 		// set up for continue/break in body
+-		innerloop := c.innerloop
+-		c.innerloop = n
++		allowBreak := c.allowBreak
++		allowContinue := c.allowContinue
++		c.allowBreak = true
++		switch n.Op {
++		case OFOR, OFORUNTIL:
++			c.allowContinue = true
++		}
+ 		lab := c.labeledNodes[n]
+ 		if lab != nil {
+ 			// labeled for loop
+@@ -179,7 +188,8 @@ func (c *controlflow) stmt(n *Node) {
+ 		checkedNbody = true
+ 
+ 		// tear down continue/break
+-		c.innerloop = innerloop
++		c.allowBreak = allowBreak
++		c.allowContinue = allowContinue
+ 		if lab != nil {
+ 			lab.ctlNode = nil
+ 		}
+diff --git a/test/label1.go b/test/label1.go
+index bdd489f177..b2e0ef09b8 100644
+--- a/test/label1.go
++++ b/test/label1.go
+@@ -12,7 +12,19 @@ package main
+ 
+ var x int
+ 
+-func f() {
++func f1() {
++	switch x {
++	case 1:
++		continue // ERROR "continue is not in a loop$"
++	}
++	select {
++	default:
++		continue // ERROR "continue is not in a loop$"
++	}
++
++}
++
++func f2() {
+ L1:
+ 	for {
+ 		if x == 0 {
+@@ -31,7 +43,7 @@ L2:
+ 			break L2
+ 		}
+ 		if x == 1 {
+-			continue L2 // ERROR "invalid continue label .*L2|continue is not in a loop"
++			continue L2 // ERROR "invalid continue label .*L2|continue is not in a loop$"
+ 		}
+ 		goto L2
+ 	}
+@@ -49,7 +61,7 @@ L3:
+ 			break L3
+ 		}
+ 		if x == 12 {
+-			continue L3 // ERROR "invalid continue label .*L3|continue is not in a loop"
++			continue L3 // ERROR "invalid continue label .*L3|continue is not in a loop$"
+ 		}
+ 		goto L3
+ 	}
+@@ -60,7 +72,7 @@ L4:
+ 			break L4 // ERROR "invalid break label .*L4"
+ 		}
+ 		if x == 14 {
+-			continue L4 // ERROR "invalid continue label .*L4|continue is not in a loop"
++			continue L4 // ERROR "invalid continue label .*L4|continue is not in a loop$"
+ 		}
+ 		if x == 15 {
+ 			goto L4
+@@ -68,12 +80,12 @@ L4:
+ 	}
+ 
+ L5:
+-	f()
++	f2()
+ 	if x == 16 {
+ 		break L5 // ERROR "invalid break label .*L5"
+ 	}
+ 	if x == 17 {
+-		continue L5 // ERROR "invalid continue label .*L5|continue is not in a loop"
++		continue L5 // ERROR "invalid continue label .*L5|continue is not in a loop$"
+ 	}
+ 	if x == 18 {
+ 		goto L5
+@@ -91,12 +103,12 @@ L5:
+ 		}
+ 	}
+ 
+-	continue // ERROR "continue is not in a loop"
++	continue // ERROR "continue is not in a loop$"
+ 	for {
+ 		continue on // ERROR "continue label not defined: on"
+ 	}
+ 
+-	break // ERROR "break is not in a loop"
++	break // ERROR "break is not in a loop, switch, or select"
+ 	for {
+ 		break dance // ERROR "break label not defined: dance"
+ 	}

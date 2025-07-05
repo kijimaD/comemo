@@ -9,6 +9,23 @@ Date:   Sun Jan 22 19:36:34 2012 -0800
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/5571044
-
+---
  src/cmd/godoc/godoc.go | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index 06da96b0fb..86983fbe17 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -378,7 +378,10 @@ func writeNode(w io.Writer, fset *token.FileSet, x interface{}) {
+ 	//           with an another printer mode (which is more efficiently
+ 	//           implemented in the printer than here with another layer)
+ 	mode := printer.TabIndent | printer.UseSpaces
+-	(&printer.Config{mode, *tabwidth}).Fprint(&tconv{output: w}, fset, x)
++	err := (&printer.Config{mode, *tabwidth}).Fprint(&tconv{output: w}, fset, x)
++	if err != nil {
++		log.Print(err)
++	}
+ }
+ 
+ func filenameFunc(path string) string {

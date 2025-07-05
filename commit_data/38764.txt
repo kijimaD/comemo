@@ -23,6 +23,28 @@ Date:   Sat Nov 24 16:54:01 2018 +1100
     Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/debug/pe/file_test.go | 9 +++------
  1 file changed, 3 insertions(+), 6 deletions(-)
+
+diff --git a/src/debug/pe/file_test.go b/src/debug/pe/file_test.go
+index 4f0510200f..79c2241eb7 100644
+--- a/src/debug/pe/file_test.go
++++ b/src/debug/pe/file_test.go
+@@ -602,13 +602,10 @@ func TestImportTableInUnknownSection(t *testing.T) {
+ 	if runtime.GOOS != "windows" {
+ 		t.Skip("skipping Windows-only test")
+ 	}
+-	if runtime.GOARCH == "arm" {
+-		// Issue 27904
+-		t.Skip("skipping test on arm; no atmfd.dll available")
+-	}
+ 
+-	// first we need to find this font driver
+-	path, err := exec.LookPath("atmfd.dll")
++	// kernel32.dll import table is located in ".rdata" section,
++	// so it is good enough to test issue #16103.
++	path, err := exec.LookPath("kernel32.dll")
+ 	if err != nil {
+ 		t.Fatalf("unable to locate required file %q in search path: %s", "atmfd.dll", err)
+ 	}

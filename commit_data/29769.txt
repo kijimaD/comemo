@@ -23,8 +23,72 @@ Date:   Thu Sep 29 11:46:53 2016 -0400
     Change-Id: I4f366e4451f8892a4908da7b2b6086bdc67ca9a9
     Reviewed-on: https://go-review.googlesource.com/30016
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/mgc.go    | 9 +++++++++
  src/runtime/mstats.go | 2 +-
  src/runtime/trace.go  | 7 ++++++-
  3 files changed, 16 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 69e0ea6b8c..e076c89c21 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -187,6 +187,9 @@ func gcinit() {
+ 	//   goal = marked * (1 + GOGC/100)
+ 	//        = trigger / (1 + triggerRatio) * (1 + GOGC/100)
+ 	memstats.next_gc = uint64(float64(memstats.gc_trigger) / (1 + gcController.triggerRatio) * (1 + float64(gcpercent)/100))
++	if gcpercent < 0 {
++		memstats.next_gc = ^uint64(0)
++	}
+ 	work.startSema = 1
+ 	work.markDoneSema = 1
+ }
+@@ -434,6 +437,9 @@ func (c *gcControllerState) startCycle() {
+ 	// Re-compute the heap goal for this cycle in case something
+ 	// changed. This is the same calculation we use elsewhere.
+ 	memstats.next_gc = memstats.heap_marked + memstats.heap_marked*uint64(gcpercent)/100
++	if gcpercent < 0 {
++		memstats.next_gc = ^uint64(0)
++	}
+ 
+ 	// Ensure that the heap goal is at least a little larger than
+ 	// the current live heap size. This may not be the case if GC
+@@ -1658,6 +1664,9 @@ func gcMark(start_time int64) {
+ 	// The next GC cycle should finish before the allocated heap
+ 	// has grown by GOGC/100.
+ 	memstats.next_gc = memstats.heap_marked + memstats.heap_marked*uint64(gcpercent)/100
++	if gcpercent < 0 {
++		memstats.next_gc = ^uint64(0)
++	}
+ 	if memstats.next_gc < memstats.gc_trigger {
+ 		memstats.next_gc = memstats.gc_trigger
+ 	}
+diff --git a/src/runtime/mstats.go b/src/runtime/mstats.go
+index 69e7660cc6..75c4da4cbf 100644
+--- a/src/runtime/mstats.go
++++ b/src/runtime/mstats.go
+@@ -71,7 +71,7 @@ type mstats struct {
+ 
+ 	// Statistics about garbage collector.
+ 	// Protected by mheap or stopping the world during GC.
+-	next_gc         uint64 // goal heap_live for when next GC ends
++	next_gc         uint64 // goal heap_live for when next GC ends; ^0 if disabled
+ 	last_gc         uint64 // last gc (in absolute time)
+ 	pause_total_ns  uint64
+ 	pause_ns        [256]uint64 // circular buffer of recent gc pause lengths
+diff --git a/src/runtime/trace.go b/src/runtime/trace.go
+index 0b3741fa70..707e4c617b 100644
+--- a/src/runtime/trace.go
++++ b/src/runtime/trace.go
+@@ -1006,5 +1006,10 @@ func traceHeapAlloc() {
+ }
+ 
+ func traceNextGC() {
+-	traceEvent(traceEvNextGC, -1, memstats.next_gc)
++	if memstats.next_gc == ^uint64(0) {
++		// Heap-based triggering is disabled.
++		traceEvent(traceEvNextGC, -1, 0)
++	} else {
++		traceEvent(traceEvNextGC, -1, memstats.next_gc)
++	}
+ }

@@ -24,7 +24,7 @@ Date:   Tue Feb 16 19:56:38 2021 -0500
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/ast/ast.go                    |  47 +++++---
  src/go/ast/example_test.go           |  33 +++---
  src/go/parser/parser.go              |  15 +--
@@ -40,3 +40,799 @@ Date:   Tue Feb 16 19:56:38 2021 -0500
  src/go/types/testdata/typeparams.go2 |  12 +-
  src/go/types/typexpr.go              |  42 ++++---
  14 files changed, 232 insertions(+), 225 deletions(-)
+
+diff --git a/src/go/ast/ast.go b/src/go/ast/ast.go
+index 2456020c5e..6eb4d13f4d 100644
+--- a/src/go/ast/ast.go
++++ b/src/go/ast/ast.go
+@@ -372,9 +372,13 @@ type (
+ 		Args     []Expr    // function arguments; or nil
+ 		Ellipsis token.Pos // position of "..." (token.NoPos if there is no "...")
+ 		Rparen   token.Pos // position of ")"
+-		// TODO(rFindley) use a new ListExpr type rather than overloading CallExpr
+-		//                via Brackets, as is done in the syntax package
+-		Brackets bool // if set, "[" and "]" are used instead of "(" and ")"
++	}
++
++	// A ListExpr node represents a list of expressions separated by commas.
++	// ListExpr nodes are used as index in IndexExpr nodes representing type
++	// or function instantiations with more than one type argument.
++	ListExpr struct {
++		ElemList []Expr
+ 	}
+ 
+ 	// A StarExpr node represents an expression of the form "*" Expression.
+@@ -493,12 +497,18 @@ func (x *IndexExpr) Pos() token.Pos      { return x.X.Pos() }
+ func (x *SliceExpr) Pos() token.Pos      { return x.X.Pos() }
+ func (x *TypeAssertExpr) Pos() token.Pos { return x.X.Pos() }
+ func (x *CallExpr) Pos() token.Pos       { return x.Fun.Pos() }
+-func (x *StarExpr) Pos() token.Pos       { return x.Star }
+-func (x *UnaryExpr) Pos() token.Pos      { return x.OpPos }
+-func (x *BinaryExpr) Pos() token.Pos     { return x.X.Pos() }
+-func (x *KeyValueExpr) Pos() token.Pos   { return x.Key.Pos() }
+-func (x *ArrayType) Pos() token.Pos      { return x.Lbrack }
+-func (x *StructType) Pos() token.Pos     { return x.Struct }
++func (x *ListExpr) Pos() token.Pos {
++	if len(x.ElemList) > 0 {
++		return x.ElemList[0].Pos()
++	}
++	return token.NoPos
++}
++func (x *StarExpr) Pos() token.Pos     { return x.Star }
++func (x *UnaryExpr) Pos() token.Pos    { return x.OpPos }
++func (x *BinaryExpr) Pos() token.Pos   { return x.X.Pos() }
++func (x *KeyValueExpr) Pos() token.Pos { return x.Key.Pos() }
++func (x *ArrayType) Pos() token.Pos    { return x.Lbrack }
++func (x *StructType) Pos() token.Pos   { return x.Struct }
+ func (x *FuncType) Pos() token.Pos {
+ 	if x.Func.IsValid() || x.Params == nil { // see issue 3870
+ 		return x.Func
+@@ -526,12 +536,18 @@ func (x *IndexExpr) End() token.Pos      { return x.Rbrack + 1 }
+ func (x *SliceExpr) End() token.Pos      { return x.Rbrack + 1 }
+ func (x *TypeAssertExpr) End() token.Pos { return x.Rparen + 1 }
+ func (x *CallExpr) End() token.Pos       { return x.Rparen + 1 }
+-func (x *StarExpr) End() token.Pos       { return x.X.End() }
+-func (x *UnaryExpr) End() token.Pos      { return x.X.End() }
+-func (x *BinaryExpr) End() token.Pos     { return x.Y.End() }
+-func (x *KeyValueExpr) End() token.Pos   { return x.Value.End() }
+-func (x *ArrayType) End() token.Pos      { return x.Elt.End() }
+-func (x *StructType) End() token.Pos     { return x.Fields.End() }
++func (x *ListExpr) End() token.Pos {
++	if len(x.ElemList) > 0 {
++		return x.ElemList[len(x.ElemList)-1].End()
++	}
++	return token.NoPos
++}
++func (x *StarExpr) End() token.Pos     { return x.X.End() }
++func (x *UnaryExpr) End() token.Pos    { return x.X.End() }
++func (x *BinaryExpr) End() token.Pos   { return x.Y.End() }
++func (x *KeyValueExpr) End() token.Pos { return x.Value.End() }
++func (x *ArrayType) End() token.Pos    { return x.Elt.End() }
++func (x *StructType) End() token.Pos   { return x.Fields.End() }
+ func (x *FuncType) End() token.Pos {
+ 	if x.Results != nil {
+ 		return x.Results.End()
+@@ -557,6 +573,7 @@ func (*IndexExpr) exprNode()      {}
+ func (*SliceExpr) exprNode()      {}
+ func (*TypeAssertExpr) exprNode() {}
+ func (*CallExpr) exprNode()       {}
++func (*ListExpr) exprNode()       {}
+ func (*StarExpr) exprNode()       {}
+ func (*UnaryExpr) exprNode()      {}
+ func (*BinaryExpr) exprNode()     {}
+diff --git a/src/go/ast/example_test.go b/src/go/ast/example_test.go
+index c2b35205bb..e3013f64be 100644
+--- a/src/go/ast/example_test.go
++++ b/src/go/ast/example_test.go
+@@ -119,23 +119,22 @@ func main() {
+ 	//     40  .  .  .  .  .  .  .  }
+ 	//     41  .  .  .  .  .  .  .  Ellipsis: -
+ 	//     42  .  .  .  .  .  .  .  Rparen: 4:25
+-	//     43  .  .  .  .  .  .  .  Brackets: false
+-	//     44  .  .  .  .  .  .  }
+-	//     45  .  .  .  .  .  }
+-	//     46  .  .  .  .  }
+-	//     47  .  .  .  .  Rbrace: 5:1
+-	//     48  .  .  .  }
+-	//     49  .  .  }
+-	//     50  .  }
+-	//     51  .  Scope: *ast.Scope {
+-	//     52  .  .  Objects: map[string]*ast.Object (len = 1) {
+-	//     53  .  .  .  "main": *(obj @ 11)
+-	//     54  .  .  }
+-	//     55  .  }
+-	//     56  .  Unresolved: []*ast.Ident (len = 1) {
+-	//     57  .  .  0: *(obj @ 29)
+-	//     58  .  }
+-	//     59  }
++	//     43  .  .  .  .  .  .  }
++	//     44  .  .  .  .  .  }
++	//     45  .  .  .  .  }
++	//     46  .  .  .  .  Rbrace: 5:1
++	//     47  .  .  .  }
++	//     48  .  .  }
++	//     49  .  }
++	//     50  .  Scope: *ast.Scope {
++	//     51  .  .  Objects: map[string]*ast.Object (len = 1) {
++	//     52  .  .  .  "main": *(obj @ 11)
++	//     53  .  .  }
++	//     54  .  }
++	//     55  .  Unresolved: []*ast.Ident (len = 1) {
++	//     56  .  .  0: *(obj @ 29)
++	//     57  .  }
++	//     58  }
+ }
+ 
+ // This example illustrates how to remove a variable declaration
+diff --git a/src/go/parser/parser.go b/src/go/parser/parser.go
+index ccbcef8f26..e12eee79bf 100644
+--- a/src/go/parser/parser.go
++++ b/src/go/parser/parser.go
+@@ -754,7 +754,7 @@ func (p *parser) parseArrayFieldOrTypeInstance(x *ast.Ident) (*ast.Ident, ast.Ex
+ 	}
+ 
+ 	// x[P], x[P1, P2], ...
+-	return nil, &ast.CallExpr{Fun: x, Lparen: lbrack, Args: args, Rparen: rbrack, Brackets: true}
++	return nil, &ast.IndexExpr{X: x, Lbrack: lbrack, Index: &ast.ListExpr{ElemList: args}, Rbrack: rbrack}
+ }
+ 
+ func (p *parser) parseFieldDecl(scope *ast.Scope) *ast.Field {
+@@ -1153,7 +1153,7 @@ func (p *parser) parseMethodSpec(scope *ast.Scope) *ast.Field {
+ 					p.exprLev--
+ 				}
+ 				rbrack := p.expectClosing(token.RBRACK, "type argument list")
+-				typ = &ast.CallExpr{Fun: ident, Lparen: lbrack, Args: list, Rparen: rbrack, Brackets: true}
++				typ = &ast.IndexExpr{X: ident, Lbrack: lbrack, Index: &ast.ListExpr{ElemList: list}, Rbrack: rbrack}
+ 			}
+ 		case p.tok == token.LPAREN:
+ 			// ordinary method
+@@ -1281,7 +1281,7 @@ func (p *parser) parseTypeInstance(typ ast.Expr) ast.Expr {
+ 
+ 	closing := p.expectClosing(token.RBRACK, "type argument list")
+ 
+-	return &ast.CallExpr{Fun: typ, Lparen: opening, Args: list, Rparen: closing, Brackets: true}
++	return &ast.IndexExpr{X: typ, Lbrack: opening, Index: &ast.ListExpr{ElemList: list}, Rbrack: closing}
+ }
+ 
+ // If the result is an identifier, it is not resolved.
+@@ -1557,7 +1557,7 @@ func (p *parser) parseIndexOrSliceOrInstance(x ast.Expr) ast.Expr {
+ 	}
+ 
+ 	// instance expression
+-	return &ast.CallExpr{Fun: x, Lparen: lbrack, Args: args, Rparen: rbrack, Brackets: true}
++	return &ast.IndexExpr{X: x, Lbrack: lbrack, Index: &ast.ListExpr{ElemList: args}, Rbrack: rbrack}
+ }
+ 
+ func (p *parser) parseCallOrConversion(fun ast.Expr) *ast.CallExpr {
+@@ -1773,17 +1773,12 @@ func (p *parser) parsePrimaryExpr(lhs bool) (x ast.Expr) {
+ 			// type; accept it but complain if we have a complit
+ 			t := unparen(x)
+ 			// determine if '{' belongs to a composite literal or a block statement
+-			switch t := t.(type) {
++			switch t.(type) {
+ 			case *ast.BadExpr, *ast.Ident, *ast.SelectorExpr:
+ 				if p.exprLev < 0 {
+ 					return
+ 				}
+ 				// x is possibly a composite literal type
+-			case *ast.CallExpr:
+-				if !t.Brackets || p.exprLev < 0 {
+-					return
+-				}
+-				// x is possibly a composite literal type
+ 			case *ast.IndexExpr:
+ 				if p.exprLev < 0 {
+ 					return
+diff --git a/src/go/printer/nodes.go b/src/go/printer/nodes.go
+index cc795532b0..1c0a14ec15 100644
+--- a/src/go/printer/nodes.go
++++ b/src/go/printer/nodes.go
+@@ -870,7 +870,11 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int) {
+ 		// TODO(gri): should treat[] like parentheses and undo one level of depth
+ 		p.expr1(x.X, token.HighestPrec, 1)
+ 		p.print(x.Lbrack, token.LBRACK)
+-		p.expr0(x.Index, depth+1)
++		if e, _ := x.Index.(*ast.ListExpr); e != nil {
++			p.exprList(x.Lbrack, e.ElemList, depth+1, commaTerm, x.Rbrack, false)
++		} else {
++			p.expr0(x.Index, depth+1)
++		}
+ 		p.print(x.Rbrack, token.RBRACK)
+ 
+ 	case *ast.SliceExpr:
+@@ -919,32 +923,25 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int) {
+ 			depth++
+ 		}
+ 		var wasIndented bool
+-		if x.Brackets {
++		if _, ok := x.Fun.(*ast.FuncType); ok {
++			// conversions to literal function types require parentheses around the type
++			p.print(token.LPAREN)
+ 			wasIndented = p.possibleSelectorExpr(x.Fun, token.HighestPrec, depth)
+-			p.print(x.Lparen, token.LBRACK)
+-			p.exprList(x.Lparen, x.Args, depth, commaTerm, x.Rparen, false)
+-			p.print(x.Rparen, token.RBRACK)
++			p.print(token.RPAREN)
+ 		} else {
+-			if _, ok := x.Fun.(*ast.FuncType); ok {
+-				// conversions to literal function types require parentheses around the type
+-				p.print(token.LPAREN)
+-				wasIndented = p.possibleSelectorExpr(x.Fun, token.HighestPrec, depth)
+-				p.print(token.RPAREN)
+-			} else {
+-				wasIndented = p.possibleSelectorExpr(x.Fun, token.HighestPrec, depth)
+-			}
+-			p.print(x.Lparen, token.LPAREN)
+-			if x.Ellipsis.IsValid() {
+-				p.exprList(x.Lparen, x.Args, depth, 0, x.Ellipsis, false)
+-				p.print(x.Ellipsis, token.ELLIPSIS)
+-				if x.Rparen.IsValid() && p.lineFor(x.Ellipsis) < p.lineFor(x.Rparen) {
+-					p.print(token.COMMA, formfeed)
+-				}
+-			} else {
+-				p.exprList(x.Lparen, x.Args, depth, commaTerm, x.Rparen, false)
++			wasIndented = p.possibleSelectorExpr(x.Fun, token.HighestPrec, depth)
++		}
++		p.print(x.Lparen, token.LPAREN)
++		if x.Ellipsis.IsValid() {
++			p.exprList(x.Lparen, x.Args, depth, 0, x.Ellipsis, false)
++			p.print(x.Ellipsis, token.ELLIPSIS)
++			if x.Rparen.IsValid() && p.lineFor(x.Ellipsis) < p.lineFor(x.Rparen) {
++				p.print(token.COMMA, formfeed)
+ 			}
+-			p.print(x.Rparen, token.RPAREN)
++		} else {
++			p.exprList(x.Lparen, x.Args, depth, commaTerm, x.Rparen, false)
+ 		}
++		p.print(x.Rparen, token.RPAREN)
+ 		if wasIndented {
+ 			p.print(unindent)
+ 		}
+diff --git a/src/go/types/api_test.go b/src/go/types/api_test.go
+index eca11358ef..20648f1cf6 100644
+--- a/src/go/types/api_test.go
++++ b/src/go/types/api_test.go
+@@ -325,8 +325,8 @@ func TestTypesInfo(t *testing.T) {
+ 		{broken + `x5; func _() { var x map[string][...]int; x = map[string][...]int{"": {1,2,3}} }`, `x`, `map[string][-1]int`},
+ 
+ 		// parameterized functions
+-		{genericPkg + `p0; func f[T any](T); var _ = f(int)`, `f`, `func[T₁ interface{}](T₁)`},
+-		{genericPkg + `p1; func f[T any](T); var _ = f(int)`, `f(int)`, `func(int)`},
++		{genericPkg + `p0; func f[T any](T); var _ = f[int]`, `f`, `func[T₁ interface{}](T₁)`},
++		{genericPkg + `p1; func f[T any](T); var _ = f[int]`, `f[int]`, `func(int)`},
+ 		{genericPkg + `p2; func f[T any](T); func _() { f(42) }`, `f`, `func[T₁ interface{}](T₁)`},
+ 		{genericPkg + `p3; func f[T any](T); func _() { f(42) }`, `f(42)`, `()`},
+ 
+diff --git a/src/go/types/assignments.go b/src/go/types/assignments.go
+index 3aa06e8939..f223cb7574 100644
+--- a/src/go/types/assignments.go
++++ b/src/go/types/assignments.go
+@@ -303,6 +303,20 @@ func (check *Checker) assignVars(lhs, origRHS []ast.Expr) {
+ 	}
+ }
+ 
++// unpack unpacks an *ast.ListExpr into a list of ast.Expr.
++// TODO(gri) Should find a more efficient solution that doesn't
++//           require introduction of a new slice for simple
++//           expressions.
++func unpackExpr(x ast.Expr) []ast.Expr {
++	if x, _ := x.(*ast.ListExpr); x != nil {
++		return x.ElemList
++	}
++	if x != nil {
++		return []ast.Expr{x}
++	}
++	return nil
++}
++
+ func (check *Checker) shortVarDecl(pos positioner, lhs, rhs []ast.Expr) {
+ 	top := len(check.delayed)
+ 	scope := check.scope
+diff --git a/src/go/types/call.go b/src/go/types/call.go
+index d9a7b440ec..b502122a26 100644
+--- a/src/go/types/call.go
++++ b/src/go/types/call.go
+@@ -14,25 +14,103 @@ import (
+ 	"unicode"
+ )
+ 
+-// TODO(rFindley) this has diverged a bit from types2. Bring it up to date.
+-// If call == nil, the "call" was an index expression, and orig is of type *ast.IndexExpr.
+-func (check *Checker) call(x *operand, call *ast.CallExpr, orig ast.Expr) exprKind {
+-	assert(orig != nil)
+-	if call != nil {
+-		assert(call == orig)
+-		check.exprOrType(x, call.Fun)
+-	} else {
+-		// We must have an index expression.
+-		// x has already been set up (evaluation of orig.X).
+-		// Set up fake call so we can use its fields below.
+-		expr := orig.(*ast.IndexExpr)
+-		call = &ast.CallExpr{Fun: expr.X, Lparen: expr.Lbrack, Args: []ast.Expr{expr.Index}, Rparen: expr.Rbrack, Brackets: true}
++// funcInst type-checks a function instantiaton inst and returns the result in x.
++// The operand x must be the evaluation of inst.X and its type must be a signature.
++func (check *Checker) funcInst(x *operand, inst *ast.IndexExpr) {
++	args, ok := check.exprOrTypeList(unpackExpr(inst.Index))
++	if !ok {
++		x.mode = invalid
++		x.expr = inst
++		return
++	}
++	if len(args) > 0 && args[0].mode != typexpr {
++		check.errorf(args[0], _NotAType, "%s is not a type", args[0])
++		ok = false
++	}
++
++	// check number of type arguments
++	n := len(args)
++	sig := x.typ.(*Signature)
++	if n > len(sig.tparams) {
++		check.errorf(args[n-1], _Todo, "got %d type arguments but want %d", n, len(sig.tparams))
++		x.mode = invalid
++		x.expr = inst
++		return
++	}
++
++	// collect types
++	targs := make([]Type, n)
++	// TODO(rFindley) use a positioner here? instantiate would need to be
++	//                updated accordingly.
++	poslist := make([]token.Pos, n)
++	for i, a := range args {
++		if a.mode != typexpr {
++			// error was reported earlier
++			x.mode = invalid
++			x.expr = inst
++			return
++		}
++		targs[i] = a.typ
++		poslist[i] = a.Pos()
++	}
++
++	// if we don't have enough type arguments, use constraint type inference
++	var inferred bool
++	if n < len(sig.tparams) {
++		var failed int
++		targs, failed = check.inferB(sig.tparams, targs)
++		if targs == nil {
++			// error was already reported
++			x.mode = invalid
++			x.expr = inst
++			return
++		}
++		if failed >= 0 {
++			// at least one type argument couldn't be inferred
++			assert(targs[failed] == nil)
++			tpar := sig.tparams[failed]
++			check.errorf(inNode(inst, inst.Rbrack), 0, "cannot infer %s (%v) (%s)", tpar.name, tpar.pos, targs)
++			x.mode = invalid
++			x.expr = inst
++			return
++		}
++		// all type arguments were inferred sucessfully
++		if debug {
++			for _, targ := range targs {
++				assert(targ != nil)
++			}
++		}
++		n = len(targs)
++		inferred = true
+ 	}
++	assert(n == len(sig.tparams))
++
++	// instantiate function signature
++	for i, typ := range targs {
++		// some positions may be missing if types are inferred
++		var pos token.Pos
++		if i < len(poslist) {
++			pos = poslist[i]
++		}
++		check.ordinaryType(atPos(pos), typ)
++	}
++	res := check.instantiate(x.Pos(), sig, targs, poslist).(*Signature)
++	assert(res.tparams == nil) // signature is not generic anymore
++	if inferred {
++		check.recordInferred(inst, targs, res)
++	}
++	x.typ = res
++	x.mode = value
++	x.expr = inst
++}
++
++func (check *Checker) call(x *operand, call *ast.CallExpr) exprKind {
++	check.exprOrType(x, call.Fun)
+ 
+ 	switch x.mode {
+ 	case invalid:
+ 		check.use(call.Args...)
+-		x.expr = orig
++		x.expr = call
+ 		return statement
+ 
+ 	case typexpr:
+@@ -72,7 +150,7 @@ func (check *Checker) call(x *operand, call *ast.CallExpr, orig ast.Expr) exprKi
+ 			check.use(call.Args...)
+ 			check.errorf(call.Args[n-1], _WrongArgCount, "too many arguments in conversion to %s", T)
+ 		}
+-		x.expr = orig
++		x.expr = call
+ 		return conversion
+ 
+ 	case builtin:
+@@ -80,7 +158,7 @@ func (check *Checker) call(x *operand, call *ast.CallExpr, orig ast.Expr) exprKi
+ 		if !check.builtin(x, call, id) {
+ 			x.mode = invalid
+ 		}
+-		x.expr = orig
++		x.expr = call
+ 		// a non-constant result implies a function call
+ 		if x.mode != invalid && x.mode != constant_ {
+ 			check.hasCallOrRecv = true
+@@ -95,109 +173,18 @@ func (check *Checker) call(x *operand, call *ast.CallExpr, orig ast.Expr) exprKi
+ 		if sig == nil {
+ 			check.invalidOp(x, _InvalidCall, "cannot call non-function %s", x)
+ 			x.mode = invalid
+-			x.expr = orig
++			x.expr = call
+ 			return statement
+ 		}
+ 
+ 		// evaluate arguments
+ 		args, ok := check.exprOrTypeList(call.Args)
+-		if ok && call.Brackets && len(args) > 0 && args[0].mode != typexpr {
+-			check.errorf(args[0], _NotAType, "%s is not a type", args[0])
+-			ok = false
+-		}
+ 		if !ok {
+ 			x.mode = invalid
+-			x.expr = orig
+-			return expression
+-		}
+-
+-		// instantiate function if needed
+-		if n := len(args); n > 0 && len(sig.tparams) > 0 && args[0].mode == typexpr {
+-			// If the first argument is a type, assume we have explicit type arguments.
+-
+-			// check number of type arguments
+-			if n > len(sig.tparams) {
+-				check.errorf(args[n-1], _Todo, "got %d type arguments but want %d", n, len(sig.tparams))
+-				x.mode = invalid
+-				x.expr = orig
+-				return expression
+-			}
+-
+-			// collect types
+-			targs := make([]Type, n)
+-			// TODO(rFindley) use a positioner here? instantiate would need to be
+-			//                updated accordingly.
+-			poslist := make([]token.Pos, n)
+-			for i, a := range args {
+-				if a.mode != typexpr {
+-					// error was reported earlier
+-					x.mode = invalid
+-					x.expr = orig
+-					return expression
+-				}
+-				targs[i] = a.typ
+-				poslist[i] = a.Pos()
+-			}
+-
+-			// if we don't have enough type arguments, use constraint type inference
+-			var inferred bool
+-			if n < len(sig.tparams) {
+-				var failed int
+-				targs, failed = check.inferB(sig.tparams, targs)
+-				if targs == nil {
+-					// error was already reported
+-					x.mode = invalid
+-					x.expr = orig
+-					return expression
+-				}
+-				if failed >= 0 {
+-					// at least one type argument couldn't be inferred
+-					assert(targs[failed] == nil)
+-					tpar := sig.tparams[failed]
+-					ppos := check.fset.Position(tpar.pos).String()
+-					check.errorf(inNode(call, call.Rparen), 0, "cannot infer %s (%s) (%s)", tpar.name, ppos, targs)
+-					x.mode = invalid
+-					x.expr = orig
+-					return expression
+-				}
+-				// all type arguments were inferred sucessfully
+-				if debug {
+-					for _, targ := range targs {
+-						assert(targ != nil)
+-					}
+-				}
+-				n = len(targs)
+-				inferred = true
+-			}
+-			assert(n == len(sig.tparams))
+-
+-			// instantiate function signature
+-			for i, typ := range targs {
+-				// some positions may be missing if types are inferred
+-				var pos token.Pos
+-				if i < len(poslist) {
+-					pos = poslist[i]
+-				}
+-				check.ordinaryType(atPos(pos), typ)
+-			}
+-			res := check.instantiate(x.Pos(), sig, targs, poslist).(*Signature)
+-			assert(res.tparams == nil) // signature is not generic anymore
+-			if inferred {
+-				check.recordInferred(orig, targs, res)
+-			}
+-			x.typ = res
+-			x.mode = value
+-			x.expr = orig
++			x.expr = call
+ 			return expression
+ 		}
+ 
+-		// If we reach here, orig must have been a regular call, not an index
+-		// expression.
+-		// TODO(rFindley) with a manually constructed AST it is possible to reach
+-		//                this assertion. We should return an invalidAST error here
+-		//                rather than panicking.
+-		assert(!call.Brackets)
+-
+ 		sig = check.arguments(call, sig, args)
+ 
+ 		// determine result
+diff --git a/src/go/types/examples/functions.go2 b/src/go/types/examples/functions.go2
+index c6ad511bd6..fb74ae7ae2 100644
+--- a/src/go/types/examples/functions.go2
++++ b/src/go/types/examples/functions.go2
+@@ -50,7 +50,7 @@ func new[T any]() *T {
+ // result type from the assignment to keep things simple and
+ // easy to understand.
+ var _ = new[int]()
+-var _ *float64 = new(float64)() // the result type is indeed *float64
++var _ *float64 = new[float64]() // the result type is indeed *float64
+ 
+ // A function may have multiple type parameters, of course.
+ func foo[A, B, C any](a A, b []B, c *C) B {
+@@ -59,7 +59,7 @@ func foo[A, B, C any](a A, b []B, c *C) B {
+ }
+ 
+ // As before, we can pass type parameters explicitly.
+-var s = foo[int, string, float64](1, []string{"first"}, new(float64)())
++var s = foo[int, string, float64](1, []string{"first"}, new[float64]())
+ 
+ // Or we can use type inference.
+ var _ float64 = foo(42, []float64{1.0}, &s)
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index 45cf8c6b41..77807e3b5b 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -1459,7 +1459,8 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
+ 
+ 		if x.mode == value {
+ 			if sig := asSignature(x.typ); sig != nil && len(sig.tparams) > 0 {
+-				return check.call(x, nil, e)
++				check.funcInst(x, e)
++				return expression
+ 			}
+ 		}
+ 
+@@ -1739,7 +1740,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
+ 		x.typ = T
+ 
+ 	case *ast.CallExpr:
+-		return check.call(x, e, e)
++		return check.call(x, e)
+ 
+ 	case *ast.StarExpr:
+ 		check.exprOrType(x, e.X)
+diff --git a/src/go/types/exprstring.go b/src/go/types/exprstring.go
+index 0d9ae58dfc..9e073b1de0 100644
+--- a/src/go/types/exprstring.go
++++ b/src/go/types/exprstring.go
+@@ -72,6 +72,14 @@ func WriteExpr(buf *bytes.Buffer, x ast.Expr) {
+ 		WriteExpr(buf, x.Index)
+ 		buf.WriteByte(']')
+ 
++	case *ast.ListExpr:
++		for i, e := range x.ElemList {
++			if i > 0 {
++				buf.WriteString(", ")
++			}
++			WriteExpr(buf, e)
++		}
++
+ 	case *ast.SliceExpr:
+ 		WriteExpr(buf, x.X)
+ 		buf.WriteByte('[')
+@@ -98,16 +106,12 @@ func WriteExpr(buf *bytes.Buffer, x ast.Expr) {
+ 
+ 	case *ast.CallExpr:
+ 		WriteExpr(buf, x.Fun)
+-		var l, r byte = '(', ')'
+-		if x.Brackets {
+-			l, r = '[', ']'
+-		}
+-		buf.WriteByte(l)
++		buf.WriteByte('(')
+ 		writeExprList(buf, x.Args)
+ 		if x.Ellipsis.IsValid() {
+ 			buf.WriteString("...")
+ 		}
+-		buf.WriteByte(r)
++		buf.WriteByte(')')
+ 
+ 	case *ast.StarExpr:
+ 		buf.WriteByte('*')
+diff --git a/src/go/types/resolver.go b/src/go/types/resolver.go
+index 36f9a45cca..763ea48d38 100644
+--- a/src/go/types/resolver.go
++++ b/src/go/types/resolver.go
+@@ -494,13 +494,10 @@ L: // unpack receiver type
+ 	}
+ 
+ 	// unpack type parameters, if any
+-	switch ptyp := rtyp.(type) {
+-	case *ast.IndexExpr:
+-		panic("unimplemented")
+-	case *ast.CallExpr:
+-		rtyp = ptyp.Fun
++	if ptyp, _ := rtyp.(*ast.IndexExpr); ptyp != nil {
++		rtyp = ptyp.X
+ 		if unpackParams {
+-			for _, arg := range ptyp.Args {
++			for _, arg := range unpackExpr(ptyp.Index) {
+ 				var par *ast.Ident
+ 				switch arg := arg.(type) {
+ 				case *ast.Ident:
+diff --git a/src/go/types/testdata/issues.go2 b/src/go/types/testdata/issues.go2
+index ac2dee36cb..2d4bb32c4b 100644
+--- a/src/go/types/testdata/issues.go2
++++ b/src/go/types/testdata/issues.go2
+@@ -21,7 +21,7 @@ func _() {
+ 	eql(x, x)
+ 	eql(y, y)
+ 	eql(y, nil)
+-	eql(io.Reader)(nil, nil)
++	eql[io.Reader](nil, nil)
+ }
+ 
+ // If we have a receiver of pointer type (below: *T) we must ignore
+@@ -55,8 +55,8 @@ func (T) m1()
+ func (*T) m2()
+ 
+ func _() {
+-	f2(T /* ERROR wrong method signature */ )()
+-	f2(*T)()
++	f2[T /* ERROR wrong method signature */]()
++	f2[*T]()
+ }
+ 
+ // When a type parameter is used as an argument to instantiate a parameterized
+@@ -244,7 +244,7 @@ func append[T interface{}, S sliceOf[T], T2 interface{ type T }](s S, t ...T2) S
+ 
+ var f           func()
+ var cancelSlice []context.CancelFunc
+-var _ = append(context.CancelFunc, []context.CancelFunc, context.CancelFunc)(cancelSlice, f)
++var _ = append[context.CancelFunc, []context.CancelFunc, context.CancelFunc](cancelSlice, f)
+ 
+ // A generic function must be instantiated with a type, not a value.
+ 
+diff --git a/src/go/types/testdata/typeparams.go2 b/src/go/types/testdata/typeparams.go2
+index bdf6d56082..2dd8f64dc0 100644
+--- a/src/go/types/testdata/typeparams.go2
++++ b/src/go/types/testdata/typeparams.go2
+@@ -38,7 +38,7 @@ var _ = f(0 /* ERROR cannot use 0 .* as \[\]chan int */ )
+ func swap[A, B any](a A, b B) (B, A) { return b, a }
+ 
+ var _ = swap /* ERROR single value is expected */ [int, float32](1, 2)
+-var f32, i = swap[int, float32](swap(float32, int)(1, 2))
++var f32, i = swap[int, float32](swap[float32, int](1, 2))
+ var _ float32 = f32
+ var _ int = i
+ 
+@@ -76,11 +76,11 @@ var _ *int = new[int]()
+ func _[T any](map[T /* ERROR incomparable map key type T \(missing comparable constraint\) */]int) // w/o constraint we don't know if T is comparable
+ 
+ func f1[T1 any](struct{T1}) int
+-var _ = f1(int)(struct{T1}{})
++var _ = f1[int](struct{T1}{})
+ type T1 = int
+ 
+ func f2[t1 any](struct{t1; x float32}) int
+-var _ = f2(t1)(struct{t1; x float32}{})
++var _ = f2[t1](struct{t1; x float32}{})
+ type t1 = int
+ 
+ 
+@@ -216,9 +216,9 @@ var _ = f8(1) /* ERROR not enough arguments */
+ var _ = f8(1, 2.3)
+ var _ = f8(1, 2.3, 3.4, 4.5)
+ var _ = f8(1, 2.3, 3.4, 4 /* ERROR does not match */ )
+-var _ = f8(int, float64)(1, 2.3, 3.4, 4)
++var _ = f8[int, float64](1, 2.3, 3.4, 4)
+ 
+-var _ = f8(int, float64)(0, 0, nil...) // test case for #18268
++var _ = f8[int, float64](0, 0, nil...) // test case for #18268
+ 
+ // init functions cannot have type parameters
+ 
+@@ -271,7 +271,7 @@ type A[T any] T
+ func (a A[T]) m() A[T]
+ 
+ func _[T any]() {
+-	f12(A[T])()
++	f12[A[T]]()
+ }
+ 
+ // method expressions
+diff --git a/src/go/types/typexpr.go b/src/go/types/typexpr.go
+index 503f9c71ac..53c87f20d5 100644
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@ -208,21 +208,28 @@ func isubst(x ast.Expr, smap map[*ast.Ident]*ast.Ident) ast.Expr {
+ 			new.X = X
+ 			return &new
+ 		}
+-	case *ast.CallExpr:
+-		var args []ast.Expr
+-		for i, arg := range n.Args {
+-			new := isubst(arg, smap)
+-			if new != arg {
+-				if args == nil {
+-					args = make([]ast.Expr, len(n.Args))
+-					copy(args, n.Args)
++	case *ast.IndexExpr:
++		index := isubst(n.Index, smap)
++		if index != n.Index {
++			new := *n
++			new.Index = index
++			return &new
++		}
++	case *ast.ListExpr:
++		var elems []ast.Expr
++		for i, elem := range n.ElemList {
++			new := isubst(elem, smap)
++			if new != elem {
++				if elems == nil {
++					elems = make([]ast.Expr, len(n.ElemList))
++					copy(elems, n.ElemList)
+ 				}
+-				args[i] = new
++				elems[i] = new
+ 			}
+ 		}
+-		if args != nil {
++		if elems != nil {
+ 			new := *n
+-			new.Args = args
++			new.ElemList = elems
+ 			return &new
+ 		}
+ 	case *ast.ParenExpr:
+@@ -460,14 +467,7 @@ func (check *Checker) typInternal(e0 ast.Expr, def *Named) (T Type) {
+ 		}
+ 
+ 	case *ast.IndexExpr:
+-		return check.instantiatedType(e.X, []ast.Expr{e.Index}, def)
+-
+-	case *ast.CallExpr:
+-		if e.Brackets {
+-			return check.instantiatedType(e.Fun, e.Args, def)
+-		} else {
+-			check.errorf(e0, _NotAType, "%s is not a type", e0)
+-		}
++		return check.instantiatedType(e.X, unpackExpr(e.Index), def)
+ 
+ 	case *ast.ParenExpr:
+ 		// Generic types must be instantiated before they can be used in any form.
+@@ -1158,10 +1158,6 @@ func embeddedFieldIdent(e ast.Expr) *ast.Ident {
+ 		return e.Sel
+ 	case *ast.IndexExpr:
+ 		return embeddedFieldIdent(e.X)
+-	case *ast.CallExpr:
+-		if e.Brackets {
+-			return embeddedFieldIdent(e.Fun)
+-		}
+ 	}
+ 	return nil // invalid embedded field
+ }

@@ -10,7 +10,7 @@ Date:   Thu Apr 22 14:01:33 2010 -0700
     R=rsc, cw
     CC=golang-dev
     https://golang.org/cl/968042
-
+---
  src/pkg/archive/tar/common.go    |  4 ++--
  src/pkg/archive/tar/reader.go    |  4 ++--
  src/pkg/archive/tar/writer.go    |  4 ++--
@@ -23,3 +23,277 @@ Date:   Thu Apr 22 14:01:33 2010 -0700
  src/pkg/os/stat_mingw.go         |  2 +-
  src/pkg/os/types.go              | 16 ++++++++--------
  11 files changed, 50 insertions(+), 50 deletions(-)
+
+diff --git a/src/pkg/archive/tar/common.go b/src/pkg/archive/tar/common.go
+index 4d399e5fe9..5b781ff3d7 100644
+--- a/src/pkg/archive/tar/common.go
++++ b/src/pkg/archive/tar/common.go
+@@ -33,8 +33,8 @@ const (
+ type Header struct {
+ 	Name     string
+ 	Mode     int64
+-	Uid      int64
+-	Gid      int64
++	Uid      int
++	Gid      int
+ 	Size     int64
+ 	Mtime    int64
+ 	Typeflag byte
+diff --git a/src/pkg/archive/tar/reader.go b/src/pkg/archive/tar/reader.go
+index 7de559d337..35a15f74bb 100644
+--- a/src/pkg/archive/tar/reader.go
++++ b/src/pkg/archive/tar/reader.go
+@@ -142,8 +142,8 @@ func (tr *Reader) readHeader() *Header {
+ 
+ 	hdr.Name = cString(s.next(100))
+ 	hdr.Mode = tr.octal(s.next(8))
+-	hdr.Uid = tr.octal(s.next(8))
+-	hdr.Gid = tr.octal(s.next(8))
++	hdr.Uid = int(tr.octal(s.next(8)))
++	hdr.Gid = int(tr.octal(s.next(8)))
+ 	hdr.Size = tr.octal(s.next(12))
+ 	hdr.Mtime = tr.octal(s.next(12))
+ 	s.next(8) // chksum
+diff --git a/src/pkg/archive/tar/writer.go b/src/pkg/archive/tar/writer.go
+index 7f200c440b..1f2656d324 100644
+--- a/src/pkg/archive/tar/writer.go
++++ b/src/pkg/archive/tar/writer.go
+@@ -130,8 +130,8 @@ func (tw *Writer) WriteHeader(hdr *Header) os.Error {
+ 	copy(s.next(100), []byte(hdr.Name))
+ 
+ 	tw.octal(s.next(8), hdr.Mode)          // 100:108
+-	tw.numeric(s.next(8), hdr.Uid)         // 108:116
+-	tw.numeric(s.next(8), hdr.Gid)         // 116:124
++	tw.numeric(s.next(8), int64(hdr.Uid))  // 108:116
++	tw.numeric(s.next(8), int64(hdr.Gid))  // 116:124
+ 	tw.numeric(s.next(12), hdr.Size)       // 124:136
+ 	tw.numeric(s.next(12), hdr.Mtime)      // 136:148
+ 	s.next(8)                              // chksum (148:156)
+diff --git a/src/pkg/io/ioutil/ioutil.go b/src/pkg/io/ioutil/ioutil.go
+index 0f5a3a20ef..d338693807 100644
+--- a/src/pkg/io/ioutil/ioutil.go
++++ b/src/pkg/io/ioutil/ioutil.go
+@@ -30,7 +30,7 @@ func ReadFile(filename string) ([]byte, os.Error) {
+ 	// It's a good but not certain bet that FileInfo will tell us exactly how much to
+ 	// read, so let's try it but be prepared for the answer to be wrong.
+ 	fi, err := f.Stat()
+-	var n uint64
++	var n int64
+ 	if err == nil && fi.Size < 2e9 { // Don't preallocate a huge buffer, just in case.
+ 		n = fi.Size
+ 	}
+diff --git a/src/pkg/io/ioutil/ioutil_test.go b/src/pkg/io/ioutil/ioutil_test.go
+index cc6075f9e6..ecbf41ca66 100644
+--- a/src/pkg/io/ioutil/ioutil_test.go
++++ b/src/pkg/io/ioutil/ioutil_test.go
+@@ -10,7 +10,7 @@ import (
+ 	"testing"
+ )
+ 
+-func checkSize(t *testing.T, path string, size uint64) {
++func checkSize(t *testing.T, path string, size int64) {
+ 	dir, err := os.Stat(path)
+ 	if err != nil {
+ 		t.Fatalf("Stat %q (looking for size %d): %s", path, size, err)
+@@ -33,7 +33,7 @@ func TestReadFile(t *testing.T) {
+ 		t.Fatalf("ReadFile %s: %v", filename, err)
+ 	}
+ 
+-	checkSize(t, filename, uint64(len(contents)))
++	checkSize(t, filename, int64(len(contents)))
+ }
+ 
+ func TestWriteFile(t *testing.T) {
+diff --git a/src/pkg/os/os_test.go b/src/pkg/os/os_test.go
+index d8208bfe41..f4ccb524c1 100644
+--- a/src/pkg/os/os_test.go
++++ b/src/pkg/os/os_test.go
+@@ -33,7 +33,7 @@ var etc = []string{
+ 	"passwd",
+ }
+ 
+-func size(name string, t *testing.T) uint64 {
++func size(name string, t *testing.T) int64 {
+ 	file, err := Open(name, O_RDONLY, 0)
+ 	defer file.Close()
+ 	if err != nil {
+@@ -51,7 +51,7 @@ func size(name string, t *testing.T) uint64 {
+ 			t.Fatal("read failed:", err)
+ 		}
+ 	}
+-	return uint64(len)
++	return int64(len)
+ }
+ 
+ func TestStat(t *testing.T) {
+@@ -394,10 +394,10 @@ func checkUidGid(t *testing.T, path string, uid, gid int) {
+ 	if err != nil {
+ 		t.Fatalf("Stat %q (looking for uid/gid %d/%d): %s", path, uid, gid, err)
+ 	}
+-	if dir.Uid != uint32(uid) {
++	if dir.Uid != uid {
+ 		t.Errorf("Stat %q: uid %d want %d", path, dir.Uid, uid)
+ 	}
+-	if dir.Gid != uint32(gid) {
++	if dir.Gid != gid {
+ 		t.Errorf("Stat %q: gid %d want %d", path, dir.Gid, gid)
+ 	}
+ }
+@@ -427,7 +427,7 @@ func TestChown(t *testing.T) {
+ 	if err = Chown(Path, -1, gid); err != nil {
+ 		t.Fatalf("chown %s -1 %d: %s", Path, gid, err)
+ 	}
+-	checkUidGid(t, Path, int(dir.Uid), gid)
++	checkUidGid(t, Path, dir.Uid, gid)
+ 
+ 	// Then try all the auxiliary groups.
+ 	groups, err := Getgroups()
+@@ -439,17 +439,17 @@ func TestChown(t *testing.T) {
+ 		if err = Chown(Path, -1, g); err != nil {
+ 			t.Fatalf("chown %s -1 %d: %s", Path, g, err)
+ 		}
+-		checkUidGid(t, Path, int(dir.Uid), g)
++		checkUidGid(t, Path, dir.Uid, g)
+ 
+ 		// change back to gid to test fd.Chown
+ 		if err = fd.Chown(-1, gid); err != nil {
+ 			t.Fatalf("fchown %s -1 %d: %s", Path, gid, err)
+ 		}
+-		checkUidGid(t, Path, int(dir.Uid), gid)
++		checkUidGid(t, Path, dir.Uid, gid)
+ 	}
+ }
+ 
+-func checkSize(t *testing.T, path string, size uint64) {
++func checkSize(t *testing.T, path string, size int64) {
+ 	dir, err := Stat(path)
+ 	if err != nil {
+ 		t.Fatalf("Stat %q (looking for size %d): %s", path, size, err)
+diff --git a/src/pkg/os/stat_darwin.go b/src/pkg/os/stat_darwin.go
+index 5ab2c39dfc..8f4e6bafae 100644
+--- a/src/pkg/os/stat_darwin.go
++++ b/src/pkg/os/stat_darwin.go
+@@ -15,15 +15,15 @@ func fileInfoFromStat(name string, fi *FileInfo, lstat, stat *syscall.Stat_t) *F
+ 	fi.Ino = stat.Ino
+ 	fi.Nlink = uint64(stat.Nlink)
+ 	fi.Mode = uint32(stat.Mode)
+-	fi.Uid = stat.Uid
+-	fi.Gid = stat.Gid
++	fi.Uid = int(stat.Uid)
++	fi.Gid = int(stat.Gid)
+ 	fi.Rdev = uint64(stat.Rdev)
+-	fi.Size = uint64(stat.Size)
+-	fi.Blksize = uint64(stat.Blksize)
+-	fi.Blocks = uint64(stat.Blocks)
+-	fi.Atime_ns = uint64(syscall.TimespecToNsec(stat.Atimespec))
+-	fi.Mtime_ns = uint64(syscall.TimespecToNsec(stat.Mtimespec))
+-	fi.Ctime_ns = uint64(syscall.TimespecToNsec(stat.Ctimespec))
++	fi.Size = stat.Size
++	fi.Blksize = int64(stat.Blksize)
++	fi.Blocks = stat.Blocks
++	fi.Atime_ns = syscall.TimespecToNsec(stat.Atimespec)
++	fi.Mtime_ns = syscall.TimespecToNsec(stat.Mtimespec)
++	fi.Ctime_ns = syscall.TimespecToNsec(stat.Ctimespec)
+ 	for i := len(name) - 1; i >= 0; i-- {
+ 		if name[i] == '/' {
+ 			name = name[i+1:]
+diff --git a/src/pkg/os/stat_freebsd.go b/src/pkg/os/stat_freebsd.go
+index dd33d8cc6e..0646b29c56 100644
+--- a/src/pkg/os/stat_freebsd.go
++++ b/src/pkg/os/stat_freebsd.go
+@@ -15,15 +15,15 @@ func fileInfoFromStat(name string, fi *FileInfo, lstat, stat *syscall.Stat_t) *F
+ 	fi.Ino = uint64(stat.Ino)
+ 	fi.Nlink = uint64(stat.Nlink)
+ 	fi.Mode = uint32(stat.Mode)
+-	fi.Uid = stat.Uid
+-	fi.Gid = stat.Gid
++	fi.Uid = int(stat.Uid)
++	fi.Gid = int(stat.Gid)
+ 	fi.Rdev = uint64(stat.Rdev)
+ 	fi.Size = uint64(stat.Size)
+-	fi.Blksize = uint64(stat.Blksize)
+-	fi.Blocks = uint64(stat.Blocks)
+-	fi.Atime_ns = uint64(syscall.TimespecToNsec(stat.Atimespec))
+-	fi.Mtime_ns = uint64(syscall.TimespecToNsec(stat.Mtimespec))
+-	fi.Ctime_ns = uint64(syscall.TimespecToNsec(stat.Ctimespec))
++	fi.Blksize = int64(stat.Blksize)
++	fi.Blocks = stat.Blocks
++	fi.Atime_ns = syscall.TimespecToNsec(stat.Atimespec)
++	fi.Mtime_ns = syscall.TimespecToNsec(stat.Mtimespec)
++	fi.Ctime_ns = syscall.TimespecToNsec(stat.Ctimespec)
+ 	for i := len(name) - 1; i >= 0; i-- {
+ 		if name[i] == '/' {
+ 			name = name[i+1:]
+diff --git a/src/pkg/os/stat_linux.go b/src/pkg/os/stat_linux.go
+index 5d3b9ee99c..ebfa1721c0 100644
+--- a/src/pkg/os/stat_linux.go
++++ b/src/pkg/os/stat_linux.go
+@@ -12,18 +12,18 @@ func isSymlink(stat *syscall.Stat_t) bool {
+ 
+ func fileInfoFromStat(name string, fi *FileInfo, lstat, stat *syscall.Stat_t) *FileInfo {
+ 	fi.Dev = stat.Dev
+-	fi.Ino = uint64(stat.Ino)
++	fi.Ino = stat.Ino
+ 	fi.Nlink = uint64(stat.Nlink)
+ 	fi.Mode = stat.Mode
+-	fi.Uid = stat.Uid
+-	fi.Gid = stat.Gid
++	fi.Uid = int(stat.Uid)
++	fi.Gid = int(stat.Gid)
+ 	fi.Rdev = stat.Rdev
+-	fi.Size = uint64(stat.Size)
+-	fi.Blksize = uint64(stat.Blksize)
+-	fi.Blocks = uint64(stat.Blocks)
+-	fi.Atime_ns = uint64(syscall.TimespecToNsec(stat.Atim))
+-	fi.Mtime_ns = uint64(syscall.TimespecToNsec(stat.Mtim))
+-	fi.Ctime_ns = uint64(syscall.TimespecToNsec(stat.Ctim))
++	fi.Size = stat.Size
++	fi.Blksize = int64(stat.Blksize)
++	fi.Blocks = stat.Blocks
++	fi.Atime_ns = syscall.TimespecToNsec(stat.Atim)
++	fi.Mtime_ns = syscall.TimespecToNsec(stat.Mtim)
++	fi.Ctime_ns = syscall.TimespecToNsec(stat.Ctim)
+ 	for i := len(name) - 1; i >= 0; i-- {
+ 		if name[i] == '/' {
+ 			name = name[i+1:]
+diff --git a/src/pkg/os/stat_mingw.go b/src/pkg/os/stat_mingw.go
+index f2112759b4..1d8d9b9d74 100644
+--- a/src/pkg/os/stat_mingw.go
++++ b/src/pkg/os/stat_mingw.go
+@@ -18,7 +18,7 @@ func fileInfoFromStat(name string, fi *FileInfo, lstat, stat *syscall.Stat_t) *F
+ 	} else {
+ 		fi.Mode = fi.Mode | 0666
+ 	}
+-	fi.Size = uint64(stat.Windata.FileSizeHigh)<<32 + uint64(stat.Windata.FileSizeLow)
++	fi.Size = int64(stat.Windata.FileSizeHigh)<<32 + uint64(stat.Windata.FileSizeLow)
+ 	fi.Name = string(syscall.UTF16ToString(stat.Windata.FileName[0:]))
+ 	fi.FollowedSymlink = false
+ 	// TODO(brainman): use CreationTime LastAccessTime LastWriteTime to prime following Dir fields
+diff --git a/src/pkg/os/types.go b/src/pkg/os/types.go
+index 4194ea1772..0e76e90be0 100644
+--- a/src/pkg/os/types.go
++++ b/src/pkg/os/types.go
+@@ -18,15 +18,15 @@ type FileInfo struct {
+ 	Ino             uint64 // inode number.
+ 	Nlink           uint64 // number of hard links.
+ 	Mode            uint32 // permission and mode bits.
+-	Uid             uint32 // user id of owner.
+-	Gid             uint32 // group id of owner.
++	Uid             int    // user id of owner.
++	Gid             int    // group id of owner.
+ 	Rdev            uint64 // device type for special file.
+-	Size            uint64 // length in bytes.
+-	Blksize         uint64 // size of blocks, in bytes.
+-	Blocks          uint64 // number of blocks allocated for file.
+-	Atime_ns        uint64 // access time; nanoseconds since epoch.
+-	Mtime_ns        uint64 // modified time; nanoseconds since epoch.
+-	Ctime_ns        uint64 // status change time; nanoseconds since epoch.
++	Size            int64  // length in bytes.
++	Blksize         int64  // size of blocks, in bytes.
++	Blocks          int64  // number of blocks allocated for file.
++	Atime_ns        int64  // access time; nanoseconds since epoch.
++	Mtime_ns        int64  // modified time; nanoseconds since epoch.
++	Ctime_ns        int64  // status change time; nanoseconds since epoch.
+ 	Name            string // name of file as presented to Open.
+ 	FollowedSymlink bool   // followed a symlink to get this information
+ }

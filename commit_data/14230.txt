@@ -10,9 +10,80 @@ Date:   Mon Oct 29 22:10:59 2012 +1100
     R=golang-dev, dsymonds, minux.ma
     CC=golang-dev
     https://golang.org/cl/6823044
-
+---
  misc/vim/ftplugin/go/fmt.vim    |  5 +++++
  misc/vim/ftplugin/go/godoc.vim  | 13 -------------
  misc/vim/ftplugin/go/import.vim |  4 +++-
  misc/vim/readme.txt             |  1 -
  4 files changed, 8 insertions(+), 15 deletions(-)
+
+diff --git a/misc/vim/ftplugin/go/fmt.vim b/misc/vim/ftplugin/go/fmt.vim
+index 0ee44cd59e..30814fdfda 100644
+--- a/misc/vim/ftplugin/go/fmt.vim
++++ b/misc/vim/ftplugin/go/fmt.vim
+@@ -12,6 +12,9 @@
+ "       It tries to preserve cursor position and avoids
+ "       replacing the buffer with stderr output.
+ "
++if exists("b:did_ftplugin_go_fmt")
++    finish
++endif
+ 
+ command! -buffer Fmt call s:GoFormat()
+ 
+@@ -41,4 +44,6 @@ function! s:GoFormat()
+     call winrestview(view)
+ endfunction
+ 
++let b:did_ftplugin_go_fmt = 1
++
+ " vim:ts=4:sw=4:et
+diff --git a/misc/vim/ftplugin/go/godoc.vim b/misc/vim/ftplugin/go/godoc.vim
+deleted file mode 100644
+index 55195a674d..0000000000
+--- a/misc/vim/ftplugin/go/godoc.vim
++++ /dev/null
+@@ -1,13 +0,0 @@
+-" Copyright 2011 The Go Authors. All rights reserved.
+-" Use of this source code is governed by a BSD-style
+-" license that can be found in the LICENSE file.
+-"
+-" godoc.vim: Vim command to see godoc.
+-
+-if exists("b:did_ftplugin")
+-    finish
+-endif
+-
+-silent! nmap <buffer> <silent> K <Plug>(godoc-keyword)
+-
+-" vim:ts=4:sw=4:et
+diff --git a/misc/vim/ftplugin/go/import.vim b/misc/vim/ftplugin/go/import.vim
+index 8cf89291e5..1d969e4602 100644
+--- a/misc/vim/ftplugin/go/import.vim
++++ b/misc/vim/ftplugin/go/import.vim
+@@ -32,7 +32,7 @@
+ " The backslash is the default maplocalleader, so it is possible that
+ " your vim is set to use a different character (:help maplocalleader).
+ "
+-if exists("b:did_ftplugin")
++if exists("b:did_ftplugin_go_import")
+     finish
+ endif
+ 
+@@ -228,4 +228,6 @@ function! s:Error(s)
+     echohl Error | echo a:s | echohl None
+ endfunction
+ 
++let b:did_ftplugin_go_import = 1
++
+ " vim:ts=4:sw=4:et
+diff --git a/misc/vim/readme.txt b/misc/vim/readme.txt
+index fe15da9935..1e0aa4883d 100644
+--- a/misc/vim/readme.txt
++++ b/misc/vim/readme.txt
+@@ -72,5 +72,4 @@ To install godoc plugin:
+   1. Same as 1 above.
+   2. Copy or link plugin/godoc.vim to $HOME/.vim/plugin/godoc,
+      syntax/godoc.vim to $HOME/.vim/syntax/godoc.vim,
+-     ftplugin/go/godoc.vim to $HOME/.vim/ftplugin/go/godoc.vim.
+      and autoload/go/complete.vim to $HOME/.vim/autoload/go/complete.vim.

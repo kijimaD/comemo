@@ -20,8 +20,114 @@ Date:   Thu Feb 25 22:10:48 2016 -0800
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/lex.go    | 30 +++++++++++++++---------------
  src/cmd/compile/internal/gc/parser.go | 16 +++++++++-------
  test/fixedbugs/issue14520.go          | 14 ++++++++++++++
  3 files changed, 38 insertions(+), 22 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/lex.go b/src/cmd/compile/internal/gc/lex.go
+index 0142300063..502859c8fc 100644
+--- a/src/cmd/compile/internal/gc/lex.go
++++ b/src/cmd/compile/internal/gc/lex.go
+@@ -1000,31 +1000,31 @@ l0:
+ 	case '/':
+ 		c1 = l.getr()
+ 		if c1 == '*' {
+-			nl := false
++			c = l.getr()
+ 			for {
+-				c = l.getr()
+-				if c == '\n' {
+-					nl = true
+-				}
+-				for c == '*' {
++				if c == '*' {
+ 					c = l.getr()
+ 					if c == '/' {
+-						if nl {
+-							l.ungetr('\n')
+-						}
+-						goto l0
+-					}
+-
+-					if c == '\n' {
+-						nl = true
++						break
+ 					}
++					continue
+ 				}
+-
+ 				if c == EOF {
+ 					Yyerror("eof in comment")
+ 					errorexit()
+ 				}
++				c = l.getr()
+ 			}
++
++			// A comment containing newlines acts like a newline.
++			if lexlineno > lineno && nlsemi {
++				if Debug['x'] != 0 {
++					fmt.Printf("lex: implicit semi\n")
++				}
++				l.tok = ';'
++				return
++			}
++			goto l0
+ 		}
+ 
+ 		if c1 == '/' {
+diff --git a/src/cmd/compile/internal/gc/parser.go b/src/cmd/compile/internal/gc/parser.go
+index 88d45118da..5a67a3fa3a 100644
+--- a/src/cmd/compile/internal/gc/parser.go
++++ b/src/cmd/compile/internal/gc/parser.go
+@@ -333,20 +333,22 @@ func (p *parser) importdcl() {
+ 	}
+ 
+ 	line := int32(parserline())
+-	path := p.val
+-	p.next()
+ 
+-	importfile(&path, p.indent)
+-	if importpkg == nil {
++	// We need to clear importpkg before calling p.next(),
++	// otherwise it will affect lexlineno.
++	// TODO(mdempsky): Fix this clumsy API.
++	importfile(&p.val, p.indent)
++	ipkg := importpkg
++	importpkg = nil
++
++	p.next()
++	if ipkg == nil {
+ 		if nerrors == 0 {
+ 			Fatalf("phase error in import")
+ 		}
+ 		return
+ 	}
+ 
+-	ipkg := importpkg
+-	importpkg = nil
+-
+ 	ipkg.Direct = true
+ 
+ 	if my == nil {
+diff --git a/test/fixedbugs/issue14520.go b/test/fixedbugs/issue14520.go
+new file mode 100644
+index 0000000000..43c48b5c27
+--- /dev/null
++++ b/test/fixedbugs/issue14520.go
+@@ -0,0 +1,14 @@
++// errorcheck
++
++// Copyright 2016 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package f
++
++import /* // ERROR "import path" */ `
++bogus`
++
++func f(x int /* // ERROR "unexpected semicolon"
++
++*/)

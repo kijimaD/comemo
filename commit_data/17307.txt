@@ -12,6 +12,30 @@ Date:   Sat Aug 17 13:40:55 2013 +0900
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/13050043
-
+---
  src/pkg/net/unicast_posix_test.go | 8 ++++++--
  1 file changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/net/unicast_posix_test.go b/src/pkg/net/unicast_posix_test.go
+index cc63d1c4e1..5deb8f47c6 100644
+--- a/src/pkg/net/unicast_posix_test.go
++++ b/src/pkg/net/unicast_posix_test.go
+@@ -349,12 +349,16 @@ func checkDualStackSecondListener(t *testing.T, net, laddr string, xerr, err err
+ 		if xerr == nil && err != nil || xerr != nil && err == nil {
+ 			t.Fatalf("Second Listen(%q, %q) returns %v, expected %v", net, laddr, err, xerr)
+ 		}
+-		l.(*TCPListener).Close()
++		if err == nil {
++			l.(*TCPListener).Close()
++		}
+ 	case "udp", "udp4", "udp6":
+ 		if xerr == nil && err != nil || xerr != nil && err == nil {
+ 			t.Fatalf("Second ListenPacket(%q, %q) returns %v, expected %v", net, laddr, err, xerr)
+ 		}
+-		l.(*UDPConn).Close()
++		if err == nil {
++			l.(*UDPConn).Close()
++		}
+ 	default:
+ 		t.Fatalf("Unexpected network: %q", net)
+ 	}

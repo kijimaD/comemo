@@ -19,7 +19,7 @@ Date:   Mon Sep 9 15:07:23 2013 -0400
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/13334049
-
+---
  include/bio.h         |  2 +-
  src/cmd/cc/com.c      |  6 +++---
  src/cmd/cc/lex.c      |  2 +-
@@ -37,3 +37,309 @@ Date:   Mon Sep 9 15:07:23 2013 -0400
  src/libmach/8obj.c    |  2 +-
  src/libmach/obj.c     |  2 +-
  16 files changed, 29 insertions(+), 39 deletions(-)
+
+diff --git a/include/bio.h b/include/bio.h
+index be4d8d80ee..5506c7c328 100644
+--- a/include/bio.h
++++ b/include/bio.h
+@@ -79,7 +79,7 @@ struct	Biobuf
+ #define	BGETLE2(bp)\
+ 	((bp)->icount<=-2?((bp)->icount+=2,((bp)->ebuf[(bp)->icount-2])|((bp)->ebuf[(bp)->icount-1]<<8)):Bgetle2((bp)))
+ #define	BGETLE4(bp)\
+-	((bp)->icount<=-4?((bp)->icount+=4,((bp)->ebuf[(bp)->icount-4])|((bp)->ebuf[(bp)->icount-3]<<8)|((bp)->ebuf[(bp)->icount-2]<<16)|((bp)->ebuf[(bp)->icount-1]<<24)):Bgetle4((bp)))
++	(int)((bp)->icount<=-4?((bp)->icount+=4,((bp)->ebuf[(bp)->icount-4])|((bp)->ebuf[(bp)->icount-3]<<8)|((bp)->ebuf[(bp)->icount-2]<<16)|((uint32)(bp)->ebuf[(bp)->icount-1]<<24)):Bgetle4((bp)))
+ 
+ /*
+  * These macros put 1-, 2-, and 4-byte integer values by writing the
+diff --git a/src/cmd/cc/com.c b/src/cmd/cc/com.c
+index c7ca91d1e7..4886b73eb3 100644
+--- a/src/cmd/cc/com.c
++++ b/src/cmd/cc/com.c
+@@ -1325,10 +1325,10 @@ compar(Node *n, int reverse)
+ 		if(lt->width == 8)
+ 			hi = big(0, ~0ULL);
+ 		else
+-			hi = big(0, (1LL<<(l->type->width*8))-1);
++			hi = big(0, (1ULL<<(l->type->width*8))-1);
+ 	}else{
+-		lo = big(~0ULL, -(1LL<<(l->type->width*8-1)));
+-		hi = big(0, (1LL<<(l->type->width*8-1))-1);
++		lo = big(~0ULL, -(1ULL<<(l->type->width*8-1)));
++		hi = big(0, (1ULL<<(l->type->width*8-1))-1);
+ 	}
+ 
+ 	switch(op){
+diff --git a/src/cmd/cc/lex.c b/src/cmd/cc/lex.c
+index d1aa2e483b..049dc5196e 100644
+--- a/src/cmd/cc/lex.c
++++ b/src/cmd/cc/lex.c
+@@ -1019,7 +1019,7 @@ hex:
+ 			c += 10-'A';
+ 		else
+ 			goto bad;
+-		nn = n*16 + c;
++		nn = (uvlong)n*16 + c;
+ 		if(n < 0 && nn >= 0)
+ 			goto bad;
+ 		n = nn;
+diff --git a/src/cmd/cc/lexbody b/src/cmd/cc/lexbody
+index ccc0c405d0..9d293b0898 100644
+--- a/src/cmd/cc/lexbody
++++ b/src/cmd/cc/lexbody
+@@ -224,7 +224,7 @@ Sym*
+ lookup(void)
+ {
+ 	Sym *s;
+-	int32 h;
++	uint32 h;
+ 	char *p;
+ 	int c, l;
+ 	char *r, *w;
+@@ -400,7 +400,7 @@ l1:
+ 			if(c >= '0' && c <= '9') {
+ 				if(c > '7' && c1 == 3)
+ 					break;
+-				yylval.lval <<= c1;
++				yylval.lval = (uvlong)yylval.lval << c1;
+ 				yylval.lval += c - '0';
+ 				c = GETC();
+ 				continue;
+@@ -410,7 +410,7 @@ l1:
+ 			if(c >= 'A' && c <= 'F')
+ 				c += 'a' - 'A';
+ 			if(c >= 'a' && c <= 'f') {
+-				yylval.lval <<= c1;
++				yylval.lval = (uvlong)yylval.lval << c1;
+ 				yylval.lval += c - 'a' + 10;
+ 				c = GETC();
+ 				continue;
+@@ -770,6 +770,6 @@ ieeedtod(Ieee *ieee, double native)
+ 	f = 65536L;
+ 	fr = modf(fr*f, &ho);
+ 	ieee->l = ho;
+-	ieee->l <<= 16;
++	ieee->l = (uint32)ieee->l << 16;
+ 	ieee->l |= (int32)(fr*f);
+ }
+diff --git a/src/cmd/gc/bv.c b/src/cmd/gc/bv.c
+index e3edd720af..92834a97b9 100644
+--- a/src/cmd/gc/bv.c
++++ b/src/cmd/gc/bv.c
+@@ -41,7 +41,7 @@ bvset(Bvec *bv, int32 i)
+ 
+ 	if(i < 0 || i >= bv->n)
+ 		fatal("bvset: index %d is out of bounds with length %d\n", i, bv->n);
+-	mask = 1 << (i % WORDBITS);
++	mask = 1U << (i % WORDBITS);
+ 	bv->b[i / WORDBITS] |= mask;
+ }
+ 
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 51f8fe67f8..d7d626be46 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -78,7 +78,7 @@ typedef	struct	Strlit	Strlit;
+ struct	Strlit
+ {
+ 	int32	len;
+-	char	s[3];	// variable
++	char	s[1]; // variable
+ };
+ 
+ enum
+diff --git a/src/cmd/gc/md5.c b/src/cmd/gc/md5.c
+index 5856aab511..bbd4e298f0 100644
+--- a/src/cmd/gc/md5.c
++++ b/src/cmd/gc/md5.c
+@@ -196,7 +196,7 @@ md5block(MD5 *dig, uchar *p, int nn)
+ 
+ 		for(i=0; i<16; i++) {
+ 			j = i*4;
+-			X[i] = p[j] | (p[j+1]<<8) | (p[j+2]<<16) | (p[j+3]<<24);
++			X[i] = p[j] | (p[j+1]<<8) | (p[j+2]<<16) | ((uint32)p[j+3]<<24);
+ 		}
+ 
+ 		// Round 1.
+diff --git a/src/cmd/gc/mparith2.c b/src/cmd/gc/mparith2.c
+index 8e52ff2162..9b2f664f7b 100644
+--- a/src/cmd/gc/mparith2.c
++++ b/src/cmd/gc/mparith2.c
+@@ -565,11 +565,11 @@ mpgetfix(Mpint *a)
+ 		return 0;
+ 	}
+ 
+-	v = (vlong)a->a[0];
+-	v |= (vlong)a->a[1] << Mpscale;
+-	v |= (vlong)a->a[2] << (Mpscale+Mpscale);
++	v = (uvlong)a->a[0];
++	v |= (uvlong)a->a[1] << Mpscale;
++	v |= (uvlong)a->a[2] << (Mpscale+Mpscale);
+ 	if(a->neg)
+-		v = -v;
++		v = -(uvlong)v;
+ 	return v;
+ }
+ 
+@@ -586,7 +586,7 @@ mpmovecfix(Mpint *a, vlong c)
+ 	x = c;
+ 	if(x < 0) {
+ 		a->neg = 1;
+-		x = -x;
++		x = -(uvlong)x;
+ 	}
+ 
+ 	a1 = &a->a[0];
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 079ca305d5..54fddbb909 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -322,7 +322,7 @@ setlineno(Node *n)
+ uint32
+ stringhash(char *p)
+ {
+-	int32 h;
++	uint32 h;
+ 	int c;
+ 
+ 	h = 0;
+@@ -333,9 +333,9 @@ stringhash(char *p)
+ 		h = h*PRIME1 + c;
+ 	}
+ 
+-	if(h < 0) {
++	if((int32)h < 0) {
+ 		h = -h;
+-		if(h < 0)
++		if((int32)h < 0)
+ 			h = 0;
+ 	}
+ 	return h;
+diff --git a/src/cmd/ld/go.c b/src/cmd/ld/go.c
+index 85f9d48b39..39ffa3d873 100644
+--- a/src/cmd/ld/go.c
++++ b/src/cmd/ld/go.c
+@@ -37,13 +37,12 @@ static void imported(char *pkg, char *import);
+ static int
+ hashstr(char *name)
+ {
+-	int h;
++	uint32 h;
+ 	char *cp;
+ 
+ 	h = 0;
+ 	for(cp = name; *cp; h += *cp++)
+ 		h *= 1119;
+-	// not if(h < 0) h = ~h, because gcc 4.3 -O2 miscompiles it.
+ 	h &= 0xffffff;
+ 	return h;
+ }
+diff --git a/src/cmd/ld/lib.c b/src/cmd/ld/lib.c
+index 0d67ae999b..b3c3713e2d 100644
+--- a/src/cmd/ld/lib.c
++++ b/src/cmd/ld/lib.c
+@@ -951,7 +951,7 @@ _lookup(char *symb, int v, int creat)
+ {
+ 	Sym *s;
+ 	char *p;
+-	int32 h;
++	uint32 h;
+ 	int c;
+ 
+ 	h = v;
+@@ -1613,7 +1613,7 @@ le16(uchar *b)
+ uint32
+ le32(uchar *b)
+ {
+-	return b[0] | b[1]<<8 | b[2]<<16 | b[3]<<24;
++	return b[0] | b[1]<<8 | b[2]<<16 | (uint32)b[3]<<24;
+ }
+ 
+ uint64
+@@ -1631,7 +1631,7 @@ be16(uchar *b)
+ uint32
+ be32(uchar *b)
+ {
+-	return b[0]<<24 | b[1]<<16 | b[2]<<8 | b[3];
++	return (uint32)b[0]<<24 | b[1]<<16 | b[2]<<8 | b[3];
+ }
+ 
+ uint64
+diff --git a/src/cmd/pack/ar.c b/src/cmd/pack/ar.c
+index aff5f37eb9..5b300dbb96 100644
+--- a/src/cmd/pack/ar.c
++++ b/src/cmd/pack/ar.c
+@@ -937,21 +937,12 @@ objsym(Sym *s, void *p)
+ int
+ hashstr(char *name)
+ {
+-	int h;
++	uint32 h;
+ 	char *cp;
+ 
+ 	h = 0;
+ 	for(cp = name; *cp; h += *cp++)
+ 		h *= 1119;
+-	
+-	// the code used to say
+-	//	if(h < 0)
+-	//		h = ~h;
+-	// but on gcc 4.3 with -O2 on some systems,
+-	// the if(h < 0) gets compiled away as not possible.
+-	// use a mask instead, leaving plenty of bits but
+-	// definitely not the sign bit.
+-
+ 	return h & 0xfffffff;
+ }
+ 
+diff --git a/src/libmach/5obj.c b/src/libmach/5obj.c
+index c2a7931e1a..48fc49fd34 100644
+--- a/src/libmach/5obj.c
++++ b/src/libmach/5obj.c
+@@ -130,7 +130,7 @@ addr(Biobuf *bp)
+ 		BGETC(bp);
+ 		break;
+ 	case D_CONST2:
+-		BGETLE4(bp);	// fall through
++		Bgetle4(bp); // fall through
+ 	case D_OREG:
+ 	case D_CONST:
+ 	case D_BRANCH:
+diff --git a/src/libmach/6obj.c b/src/libmach/6obj.c
+index 9971ccfcad..9a7c9ac21d 100644
+--- a/src/libmach/6obj.c
++++ b/src/libmach/6obj.c
+@@ -134,7 +134,7 @@ addr(Biobuf *bp)
+ 			off = ((vlong)l << 32) | (off & 0xFFFFFFFF);
+ 		}
+ 		if(off < 0)
+-			off = -off;
++			off = -(uvlong)off;
+ 	}
+ 	if(a.flags & T_SYM)
+ 		a.sym = BGETC(bp);
+diff --git a/src/libmach/8obj.c b/src/libmach/8obj.c
+index efa61252e1..e11a7dfd14 100644
+--- a/src/libmach/8obj.c
++++ b/src/libmach/8obj.c
+@@ -131,7 +131,7 @@ addr(Biobuf *bp)
+ 			off = -off;
+ 	}
+ 	if(a.flags & T_OFFSET2){
+-		BGETLE4(bp);
++		Bgetle4(bp);
+ 	}
+ 	if(a.flags & T_SYM)
+ 		a.sym = BGETC(bp);
+diff --git a/src/libmach/obj.c b/src/libmach/obj.c
+index 0e1421d859..729a3eab80 100644
+--- a/src/libmach/obj.c
++++ b/src/libmach/obj.c
+@@ -244,7 +244,7 @@ processprog(Prog *p, int doautos)
+ static void
+ objlookup(int id, char *name, int type, uint sig)
+ {
+-	int32 h;
++	uint32 h;
+ 	char *cp;
+ 	Sym *s;
+ 	Symtab *sp;

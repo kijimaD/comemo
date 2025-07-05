@@ -13,6 +13,21 @@ Date:   Thu Dec 2 13:26:51 2021 -0500
     Trust: Jeremy Faller <jeremy@golang.org>
     Run-TryBot: Jeremy Faller <jeremy@golang.org>
     Reviewed-by: Joe Tsai <joetsai@digital-static.net>
-
+---
  doc/go1.18.html | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/doc/go1.18.html b/doc/go1.18.html
+index 818f7c7dcb..7a4869cf6a 100644
+--- a/doc/go1.18.html
++++ b/doc/go1.18.html
+@@ -705,7 +705,8 @@ Do not send CLs removing the interior tags from such phrases.
+ <dl id="strconv"><dt><a href="/pkg/strconv/">strconv</a></dt>
+   <dd>
+     <p><!-- CL 343877 -->
+-      TODO: <a href="https://golang.org/cl/343877">https://golang.org/cl/343877</a>: reject surrogate halves in Unquote
++      <a href="/pkg/strconv/#strconv.Unquote"><code>strconv.Unquote</code></a>
++      now rejects Unicode surrogate halves.
+     </p>
+   </dd>
+ </dl><!-- strconv -->

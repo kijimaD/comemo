@@ -14,6 +14,24 @@ Date:   Tue Mar 7 19:34:17 2023 +0800
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Andy Pan <panjf2000@gmail.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
-
+---
  src/net/tcpsock.go | 6 ++++--
  1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/tcpsock.go b/src/net/tcpsock.go
+index 672170e681..f736f5a878 100644
+--- a/src/net/tcpsock.go
++++ b/src/net/tcpsock.go
+@@ -167,8 +167,10 @@ func (c *TCPConn) CloseWrite() error {
+ // If sec == 0, the operating system discards any unsent or
+ // unacknowledged data.
+ //
+-// If sec > 0, the data is sent in the background as with sec < 0. On
+-// some operating systems after sec seconds have elapsed any remaining
++// If sec > 0, the data is sent in the background as with sec < 0.
++// On some operating systems including Linux, this may cause Close to block
++// until all data has been sent or discarded.
++// On some operating systems after sec seconds have elapsed any remaining
+ // unsent data may be discarded.
+ func (c *TCPConn) SetLinger(sec int) error {
+ 	if !c.ok() {

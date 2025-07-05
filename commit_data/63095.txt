@@ -12,9 +12,55 @@ Date:   Fri May 9 19:45:25 2025 +0000
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Carlos Amedee <carlos@golang.org>
-
+---
  doc/next/6-stdlib/99-minor/runtime/71825.md | 5 +++++
  doc/next/6-stdlib/99-minor/runtime/72949.md | 8 ++++++++
  doc/next/6-stdlib/99-minor/unique/71772.md  | 4 ++++
  doc/next/6-stdlib/99-minor/unique/71846.md  | 4 ++++
  4 files changed, 21 insertions(+)
+
+diff --git a/doc/next/6-stdlib/99-minor/runtime/71825.md b/doc/next/6-stdlib/99-minor/runtime/71825.md
+new file mode 100644
+index 0000000000..156d244643
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/runtime/71825.md
+@@ -0,0 +1,5 @@
++Cleanup functions scheduled by [AddCleanup] are now executed
++concurrently and in parallel, making cleanups more viable for heavy
++use like the [unique] package. Note that individual cleanups should
++still shunt their work to a new goroutine if they must execute or
++block for a long time to avoid blocking the cleanup queue.
+diff --git a/doc/next/6-stdlib/99-minor/runtime/72949.md b/doc/next/6-stdlib/99-minor/runtime/72949.md
+new file mode 100644
+index 0000000000..6bab38d94c
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/runtime/72949.md
+@@ -0,0 +1,8 @@
++When `GODEBUG=checkfinalizers=1` is set, the runtime will run
++diagnostics on each garbage collection cycle to find common issues
++with how the program might use finalizers and cleanups, such as those
++described [in the GC
++guide](/doc/gc-guide#Finalizers_cleanups_and_weak_pointers). In this
++mode, the runtime will also regularly report the finalizer and
++cleanup queue lengths to stderr to help identify issues with
++long-running finalizers and/or cleanups.
+diff --git a/doc/next/6-stdlib/99-minor/unique/71772.md b/doc/next/6-stdlib/99-minor/unique/71772.md
+new file mode 100644
+index 0000000000..5b789446ae
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/unique/71772.md
+@@ -0,0 +1,4 @@
++The [unique] package now reclaims interned values more eagerly,
++more efficiently, and in parallel. As a consequence, applications using
++[Make] are now less likely to experience memory blow-up when lots of
++truly unique values are interned.
+diff --git a/doc/next/6-stdlib/99-minor/unique/71846.md b/doc/next/6-stdlib/99-minor/unique/71846.md
+new file mode 100644
+index 0000000000..b1f86f0739
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/unique/71846.md
+@@ -0,0 +1,4 @@
++Values passed to [Make] containing [Handle]s previously required multiple
++garbage collection cycles to collect, proportional to the depth of the chain
++of [Handle] values. Now, they are collected promptly in a single cycle, once
++unused.

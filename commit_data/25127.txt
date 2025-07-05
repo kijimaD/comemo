@@ -11,7 +11,192 @@ Date:   Mon Sep 28 11:31:53 2015 -0700
     Change-Id: I37b1e367c01fc8bae1e06adbdb72dd366c08d5ce
     Reviewed-on: https://go-review.googlesource.com/15110
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/math/big/intmarsh.go      |   4 ++
  src/math/big/intmarsh_test.go | 136 +++++++++++++++++-------------------------
  2 files changed, 58 insertions(+), 82 deletions(-)
+
+diff --git a/src/math/big/intmarsh.go b/src/math/big/intmarsh.go
+index e6eed1309b..4ff57b6464 100644
+--- a/src/math/big/intmarsh.go
++++ b/src/math/big/intmarsh.go
+@@ -59,6 +59,10 @@ func (z *Int) UnmarshalText(text []byte) error {
+ 	return nil
+ }
+ 
++// The JSON marshallers are only here for API backward compatibility
++// (programs that explicitly look for these two methods). JSON works
++// fine with the TextMarshaler only.
++
+ // MarshalJSON implements the json.Marshaler interface.
+ func (x *Int) MarshalJSON() ([]byte, error) {
+ 	return x.MarshalText()
+diff --git a/src/math/big/intmarsh_test.go b/src/math/big/intmarsh_test.go
+index 20ce273323..f82956ceaf 100644
+--- a/src/math/big/intmarsh_test.go
++++ b/src/math/big/intmarsh_test.go
+@@ -13,16 +13,11 @@ import (
+ )
+ 
+ var encodingTests = []string{
+-	"-539345864568634858364538753846587364875430589374589",
+-	"-678645873",
+-	"-100",
+-	"-2",
+-	"-1",
+ 	"0",
+ 	"1",
+ 	"2",
+ 	"10",
+-	"42",
++	"1000",
+ 	"1234567890",
+ 	"298472983472983471903246121093472394872319615612417471234712061",
+ }
+@@ -32,20 +27,23 @@ func TestIntGobEncoding(t *testing.T) {
+ 	enc := gob.NewEncoder(&medium)
+ 	dec := gob.NewDecoder(&medium)
+ 	for _, test := range encodingTests {
+-		medium.Reset() // empty buffer for each test case (in case of failures)
+-		var tx Int
+-		tx.SetString(test, 10)
+-		if err := enc.Encode(&tx); err != nil {
+-			t.Errorf("encoding of %s failed: %s", &tx, err)
+-			continue
+-		}
+-		var rx Int
+-		if err := dec.Decode(&rx); err != nil {
+-			t.Errorf("decoding of %s failed: %s", &tx, err)
+-			continue
+-		}
+-		if rx.Cmp(&tx) != 0 {
+-			t.Errorf("transmission of %s failed: got %s want %s", &tx, &rx, &tx)
++		for _, sign := range []string{"", "+", "-"} {
++			x := sign + test
++			medium.Reset() // empty buffer for each test case (in case of failures)
++			var tx Int
++			tx.SetString(x, 10)
++			if err := enc.Encode(&tx); err != nil {
++				t.Errorf("encoding of %s failed: %s", &tx, err)
++				continue
++			}
++			var rx Int
++			if err := dec.Decode(&rx); err != nil {
++				t.Errorf("decoding of %s failed: %s", &tx, err)
++				continue
++			}
++			if rx.Cmp(&tx) != 0 {
++				t.Errorf("transmission of %s failed: got %s want %s", &tx, &rx, &tx)
++			}
+ 		}
+ 	}
+ }
+@@ -78,72 +76,46 @@ func TestGobEncodingNilIntInSlice(t *testing.T) {
+ 
+ func TestIntJSONEncoding(t *testing.T) {
+ 	for _, test := range encodingTests {
+-		var tx Int
+-		tx.SetString(test, 10)
+-		b, err := json.Marshal(&tx)
+-		if err != nil {
+-			t.Errorf("marshaling of %s failed: %s", &tx, err)
+-			continue
+-		}
+-		var rx Int
+-		if err := json.Unmarshal(b, &rx); err != nil {
+-			t.Errorf("unmarshaling of %s failed: %s", &tx, err)
+-			continue
+-		}
+-		if rx.Cmp(&tx) != 0 {
+-			t.Errorf("JSON encoding of %s failed: got %s want %s", &tx, &rx, &tx)
++		for _, sign := range []string{"", "+", "-"} {
++			x := sign + test
++			var tx Int
++			tx.SetString(x, 10)
++			b, err := json.Marshal(&tx)
++			if err != nil {
++				t.Errorf("marshaling of %s failed: %s", &tx, err)
++				continue
++			}
++			var rx Int
++			if err := json.Unmarshal(b, &rx); err != nil {
++				t.Errorf("unmarshaling of %s failed: %s", &tx, err)
++				continue
++			}
++			if rx.Cmp(&tx) != 0 {
++				t.Errorf("JSON encoding of %s failed: got %s want %s", &tx, &rx, &tx)
++			}
+ 		}
+ 	}
+ }
+ 
+-var intVals = []string{
+-	"-141592653589793238462643383279502884197169399375105820974944592307816406286",
+-	"-1415926535897932384626433832795028841971",
+-	"-141592653589793",
+-	"-1",
+-	"0",
+-	"1",
+-	"141592653589793",
+-	"1415926535897932384626433832795028841971",
+-	"141592653589793238462643383279502884197169399375105820974944592307816406286",
+-}
+-
+-func TestIntJSONEncodingTextMarshaller(t *testing.T) {
+-	for _, num := range intVals {
+-		var tx Int
+-		tx.SetString(num, 0)
+-		b, err := json.Marshal(&tx)
+-		if err != nil {
+-			t.Errorf("marshaling of %s failed: %s", &tx, err)
+-			continue
+-		}
+-		var rx Int
+-		if err := json.Unmarshal(b, &rx); err != nil {
+-			t.Errorf("unmarshaling of %s failed: %s", &tx, err)
+-			continue
+-		}
+-		if rx.Cmp(&tx) != 0 {
+-			t.Errorf("JSON encoding of %s failed: got %s want %s", &tx, &rx, &tx)
+-		}
+-	}
+-}
+-
+-func TestIntXMLEncodingTextMarshaller(t *testing.T) {
+-	for _, num := range intVals {
+-		var tx Int
+-		tx.SetString(num, 0)
+-		b, err := xml.Marshal(&tx)
+-		if err != nil {
+-			t.Errorf("marshaling of %s failed: %s", &tx, err)
+-			continue
+-		}
+-		var rx Int
+-		if err := xml.Unmarshal(b, &rx); err != nil {
+-			t.Errorf("unmarshaling of %s failed: %s", &tx, err)
+-			continue
+-		}
+-		if rx.Cmp(&tx) != 0 {
+-			t.Errorf("XML encoding of %s failed: got %s want %s", &tx, &rx, &tx)
++func TestIntXMLEncoding(t *testing.T) {
++	for _, test := range encodingTests {
++		for _, sign := range []string{"", "+", "-"} {
++			x := sign + test
++			var tx Int
++			tx.SetString(x, 0)
++			b, err := xml.Marshal(&tx)
++			if err != nil {
++				t.Errorf("marshaling of %s failed: %s", &tx, err)
++				continue
++			}
++			var rx Int
++			if err := xml.Unmarshal(b, &rx); err != nil {
++				t.Errorf("unmarshaling of %s failed: %s", &tx, err)
++				continue
++			}
++			if rx.Cmp(&tx) != 0 {
++				t.Errorf("XML encoding of %s failed: got %s want %s", &tx, &rx, &tx)
++			}
+ 		}
+ 	}
+ }

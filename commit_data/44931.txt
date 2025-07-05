@@ -12,7 +12,7 @@ Date:   Fri Jun 19 15:29:51 2020 -0400
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/gc/ssa.go                | 53 ++++++++++++++++++-----
  src/cmd/compile/internal/ssa/gen/generic.rules    |  4 +-
  src/cmd/compile/internal/ssa/loopreschedchecks.go |  2 +-
@@ -21,3 +21,381 @@ Date:   Fri Jun 19 15:29:51 2020 -0400
  src/cmd/compile/internal/ssa/rewritegeneric.go    | 11 ++---
  src/cmd/compile/internal/ssa/writebarrier.go      |  6 ++-
  7 files changed, 102 insertions(+), 29 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 542b1b51c2..6c0b027c17 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -4280,16 +4280,20 @@ func (s *state) openDeferExit() {
+ 		argStart := Ctxt.FixedFrameSize()
+ 		fn := r.n.Left
+ 		stksize := fn.Type.ArgWidth()
++		var ACArgs []ssa.Param
++		var ACResults []ssa.Param
+ 		if r.rcvr != nil {
+ 			// rcvr in case of OCALLINTER
+ 			v := s.load(r.rcvr.Type.Elem(), r.rcvr)
+ 			addr := s.constOffPtrSP(s.f.Config.Types.UintptrPtr, argStart)
++			ACArgs = append(ACArgs, ssa.Param{Type: types.Types[TUINTPTR], Offset: int32(argStart)})
+ 			s.store(types.Types[TUINTPTR], addr, v)
+ 		}
+ 		for j, argAddrVal := range r.argVals {
+ 			f := getParam(r.n, j)
+ 			pt := types.NewPtr(f.Type)
+ 			addr := s.constOffPtrSP(pt, argStart+f.Offset)
++			ACArgs = append(ACArgs, ssa.Param{Type: types.Types[TUINTPTR], Offset: int32(argStart + f.Offset)})
+ 			if !canSSAType(f.Type) {
+ 				s.move(f.Type, addr, argAddrVal)
+ 			} else {
+@@ -4305,7 +4309,7 @@ func (s *state) openDeferExit() {
+ 			call = s.newValue3A(ssa.OpClosureCall, types.TypeMem, ssa.ClosureAuxCall(), codeptr, v, s.mem())
+ 		} else {
+ 			// Do a static call if the original call was a static function or method
+-			call = s.newValue1A(ssa.OpStaticCall, types.TypeMem, ssa.StaticAuxCall(fn.Sym.Linksym()), s.mem())
++			call = s.newValue1A(ssa.OpStaticCall, types.TypeMem, ssa.StaticAuxCall(fn.Sym.Linksym(), ACArgs, ACResults), s.mem())
+ 		}
+ 		call.AuxInt = stksize
+ 		s.vars[&memVar] = call
+@@ -4340,6 +4344,17 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
+ 	var codeptr *ssa.Value // ptr to target code (if dynamic)
+ 	var rcvr *ssa.Value    // receiver to set
+ 	fn := n.Left
++	var ACArgs []ssa.Param
++	var ACResults []ssa.Param
++	res := n.Left.Type.Results()
++	if k == callNormal {
++		nf := res.NumFields()
++		for i := 0; i < nf; i++ {
++			fp := res.Field(i)
++			ACResults = append(ACResults, ssa.Param{Type: fp.Type, Offset: int32(fp.Offset + Ctxt.FixedFrameSize())})
++		}
++	}
++
+ 	switch n.Op {
+ 	case OCALLFUNC:
+ 		if k == callNormal && fn.Op == ONAME && fn.Class() == PFUNC {
+@@ -4437,10 +4452,12 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
+ 		// Call runtime.deferprocStack with pointer to _defer record.
+ 		arg0 := s.constOffPtrSP(types.Types[TUINTPTR], Ctxt.FixedFrameSize())
+ 		s.store(types.Types[TUINTPTR], arg0, addr)
+-		call = s.newValue1A(ssa.OpStaticCall, types.TypeMem, ssa.StaticAuxCall(deferprocStack), s.mem())
++		ACArgs = append(ACArgs, ssa.Param{Type: types.Types[TUINTPTR], Offset: int32(Ctxt.FixedFrameSize())})
++		call = s.newValue1A(ssa.OpStaticCall, types.TypeMem, ssa.StaticAuxCall(deferprocStack, ACArgs, ACResults), s.mem())
+ 		if stksize < int64(Widthptr) {
+ 			// We need room for both the call to deferprocStack and the call to
+ 			// the deferred function.
++			// TODO Revisit this if/when we pass args in registers.
+ 			stksize = int64(Widthptr)
+ 		}
+ 		call.AuxInt = stksize
+@@ -4453,8 +4470,10 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
+ 			// Write argsize and closure (args to newproc/deferproc).
+ 			argsize := s.constInt32(types.Types[TUINT32], int32(stksize))
+ 			addr := s.constOffPtrSP(s.f.Config.Types.UInt32Ptr, argStart)
++			ACArgs = append(ACArgs, ssa.Param{Type: types.Types[TUINT32], Offset: int32(argStart)})
+ 			s.store(types.Types[TUINT32], addr, argsize)
+ 			addr = s.constOffPtrSP(s.f.Config.Types.UintptrPtr, argStart+int64(Widthptr))
++			ACArgs = append(ACArgs, ssa.Param{Type: types.Types[TUINTPTR], Offset: int32(argStart) + int32(Widthptr)})
+ 			s.store(types.Types[TUINTPTR], addr, closure)
+ 			stksize += 2 * int64(Widthptr)
+ 			argStart += 2 * int64(Widthptr)
+@@ -4463,6 +4482,7 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
+ 		// Set receiver (for interface calls).
+ 		if rcvr != nil {
+ 			addr := s.constOffPtrSP(s.f.Config.Types.UintptrPtr, argStart)
++			ACArgs = append(ACArgs, ssa.Param{Type: types.Types[TUINTPTR], Offset: int32(argStart)})
+ 			s.store(types.Types[TUINTPTR], addr, rcvr)
+ 		}
+ 
+@@ -4471,20 +4491,20 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
+ 		args := n.Rlist.Slice()
+ 		if n.Op == OCALLMETH {
+ 			f := t.Recv()
+-			s.storeArg(args[0], f.Type, argStart+f.Offset)
++			ACArgs = append(ACArgs, s.storeArg(args[0], f.Type, argStart+f.Offset))
+ 			args = args[1:]
+ 		}
+ 		for i, n := range args {
+ 			f := t.Params().Field(i)
+-			s.storeArg(n, f.Type, argStart+f.Offset)
++			ACArgs = append(ACArgs, s.storeArg(n, f.Type, argStart+f.Offset))
+ 		}
+ 
+ 		// call target
+ 		switch {
+ 		case k == callDefer:
+-			call = s.newValue1A(ssa.OpStaticCall, types.TypeMem, ssa.StaticAuxCall(deferproc), s.mem())
++			call = s.newValue1A(ssa.OpStaticCall, types.TypeMem, ssa.StaticAuxCall(deferproc, ACArgs, ACResults), s.mem())
+ 		case k == callGo:
+-			call = s.newValue1A(ssa.OpStaticCall, types.TypeMem, ssa.StaticAuxCall(newproc), s.mem())
++			call = s.newValue1A(ssa.OpStaticCall, types.TypeMem, ssa.StaticAuxCall(newproc, ACArgs, ACResults), s.mem())
+ 		case closure != nil:
+ 			// rawLoad because loading the code pointer from a
+ 			// closure is always safe, but IsSanitizerSafeAddr
+@@ -4494,9 +4514,9 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
+ 			codeptr = s.rawLoad(types.Types[TUINTPTR], closure)
+ 			call = s.newValue3A(ssa.OpClosureCall, types.TypeMem, ssa.ClosureAuxCall(), codeptr, closure, s.mem())
+ 		case codeptr != nil:
+-			call = s.newValue2A(ssa.OpInterCall, types.TypeMem, ssa.InterfaceAuxCall(), codeptr, s.mem())
++			call = s.newValue2A(ssa.OpInterCall, types.TypeMem, ssa.InterfaceAuxCall(ACArgs, ACResults), codeptr, s.mem())
+ 		case sym != nil:
+-			call = s.newValue1A(ssa.OpStaticCall, types.TypeMem, ssa.StaticAuxCall(sym.Linksym()), s.mem())
++			call = s.newValue1A(ssa.OpStaticCall, types.TypeMem, ssa.StaticAuxCall(sym.Linksym(), ACArgs, ACResults), s.mem())
+ 		default:
+ 			s.Fatalf("bad call type %v %v", n.Op, n)
+ 		}
+@@ -4522,7 +4542,6 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
+ 		s.startBlock(bNext)
+ 	}
+ 
+-	res := n.Left.Type.Results()
+ 	if res.NumFields() == 0 || k != callNormal {
+ 		// call has no return value. Continue with the next statement.
+ 		return nil
+@@ -4918,18 +4937,29 @@ func (s *state) intDivide(n *Node, a, b *ssa.Value) *ssa.Value {
+ func (s *state) rtcall(fn *obj.LSym, returns bool, results []*types.Type, args ...*ssa.Value) []*ssa.Value {
+ 	// Write args to the stack
+ 	off := Ctxt.FixedFrameSize()
++	var ACArgs []ssa.Param
++	var ACResults []ssa.Param
+ 	for _, arg := range args {
+ 		t := arg.Type
+ 		off = Rnd(off, t.Alignment())
+ 		ptr := s.constOffPtrSP(t.PtrTo(), off)
+ 		size := t.Size()
++		ACArgs = append(ACArgs, ssa.Param{Type: t, Offset: int32(off)})
+ 		s.store(t, ptr, arg)
+ 		off += size
+ 	}
+ 	off = Rnd(off, int64(Widthreg))
+ 
++	// Accumulate results types and offsets
++	offR := off
++	for _, t := range results {
++		offR = Rnd(offR, t.Alignment())
++		ACResults = append(ACResults, ssa.Param{Type: t, Offset: int32(offR)})
++		offR += t.Size()
++	}
++
+ 	// Issue call
+-	call := s.newValue1A(ssa.OpStaticCall, types.TypeMem, ssa.StaticAuxCall(fn), s.mem())
++	call := s.newValue1A(ssa.OpStaticCall, types.TypeMem, ssa.StaticAuxCall(fn, ACArgs, ACResults), s.mem())
+ 	s.vars[&memVar] = call
+ 
+ 	if !returns {
+@@ -5064,8 +5094,9 @@ func (s *state) storeTypePtrs(t *types.Type, left, right *ssa.Value) {
+ 	}
+ }
+ 
+-func (s *state) storeArg(n *Node, t *types.Type, off int64) {
++func (s *state) storeArg(n *Node, t *types.Type, off int64) ssa.Param {
+ 	s.storeArgWithBase(n, t, s.sp, off)
++	return ssa.Param{Type: t, Offset: int32(off)}
+ }
+ 
+ func (s *state) storeArgWithBase(n *Node, t *types.Type, base *ssa.Value, off int64) {
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index df70838aa9..39f8cc8889 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -2021,8 +2021,8 @@
+ // Note that (ITab (IMake)) doesn't get
+ // rewritten until after the first opt pass,
+ // so this rule should trigger reliably.
+-(InterCall [argsize] (Load (OffPtr [off] (ITab (IMake (Addr {itab} (SB)) _))) _) mem) && devirt(v, itab, off) != nil =>
+-	(StaticCall [int32(argsize)] {devirt(v, itab, off)} mem)
++(InterCall [argsize] {auxCall} (Load (OffPtr [off] (ITab (IMake (Addr {itab} (SB)) _))) _) mem) && devirt(v, auxCall, itab, off) != nil =>
++	(StaticCall [int32(argsize)] {devirt(v, auxCall, itab, off)} mem)
+ 
+ // Move and Zero optimizations.
+ // Move source and destination may overlap.
+diff --git a/src/cmd/compile/internal/ssa/loopreschedchecks.go b/src/cmd/compile/internal/ssa/loopreschedchecks.go
+index ebd23b34c7..9c73bcff26 100644
+--- a/src/cmd/compile/internal/ssa/loopreschedchecks.go
++++ b/src/cmd/compile/internal/ssa/loopreschedchecks.go
+@@ -246,7 +246,7 @@ func insertLoopReschedChecks(f *Func) {
+ 		//    mem1 := call resched (mem0)
+ 		//    goto header
+ 		resched := f.fe.Syslook("goschedguarded")
+-		mem1 := sched.NewValue1A(bb.Pos, OpStaticCall, types.TypeMem, StaticAuxCall(resched), mem0)
++		mem1 := sched.NewValue1A(bb.Pos, OpStaticCall, types.TypeMem, StaticAuxCall(resched, nil, nil), mem0)
+ 		sched.AddEdgeTo(h)
+ 		headerMemPhi.AddArg(mem1)
+ 
+diff --git a/src/cmd/compile/internal/ssa/op.go b/src/cmd/compile/internal/ssa/op.go
+index c498a288a1..f94399028a 100644
+--- a/src/cmd/compile/internal/ssa/op.go
++++ b/src/cmd/compile/internal/ssa/op.go
+@@ -5,6 +5,7 @@
+ package ssa
+ 
+ import (
++	"cmd/compile/internal/types"
+ 	"cmd/internal/obj"
+ 	"fmt"
+ )
+@@ -67,25 +68,60 @@ type regInfo struct {
+ 
+ type auxType int8
+ 
++type Param struct {
++	Type   *types.Type
++	Offset int32 // TODO someday this will be a register
++}
++
+ type AuxCall struct {
+-	Fn *obj.LSym
++	Fn      *obj.LSym
++	args    []Param // Includes receiver for method calls.  Does NOT include hidden closure pointer.
++	results []Param
+ }
+ 
+ func (a *AuxCall) String() string {
++	var fn string
+ 	if a.Fn == nil {
+-		return "AuxCall(nil)"
++		fn = "AuxCall{nil" // could be interface/closure etc.
++	} else {
++		fn = fmt.Sprintf("AuxCall{%v", a.Fn)
++	}
++
++	if len(a.args) == 0 {
++		fn += "()"
++	} else {
++		s := "("
++		for _, arg := range a.args {
++			fn += fmt.Sprintf("%s[%v,%v]", s, arg.Type, arg.Offset)
++			s = ","
++		}
++		fn += ")"
+ 	}
+-	return fmt.Sprintf("AuxCall(%v)", a.Fn)
++
++	if len(a.results) > 0 { // usual is zero or one; only some RT calls have more than one.
++		if len(a.results) == 1 {
++			fn += fmt.Sprintf("[%v,%v]", a.results[0].Type, a.results[0].Offset)
++		} else {
++			s := "("
++			for _, result := range a.results {
++				fn += fmt.Sprintf("%s[%v,%v]", s, result.Type, result.Offset)
++				s = ","
++			}
++			fn += ")"
++		}
++	}
++
++	return fn + "}"
+ }
+ 
+ // StaticAuxCall returns an AuxCall for a static call.
+-func StaticAuxCall(sym *obj.LSym) *AuxCall {
+-	return &AuxCall{Fn: sym}
++func StaticAuxCall(sym *obj.LSym, args []Param, results []Param) *AuxCall {
++	return &AuxCall{Fn: sym, args: args, results: results}
+ }
+ 
+ // InterfaceAuxCall returns an AuxCall for an interface call.
+-func InterfaceAuxCall() *AuxCall {
+-	return &AuxCall{}
++func InterfaceAuxCall(args []Param, results []Param) *AuxCall {
++	return &AuxCall{Fn: nil, args: args, results: results}
+ }
+ 
+ // ClosureAuxCall returns an AuxCall for a closure call.
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index eb371ce38b..2ab310ad85 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -743,7 +743,7 @@ func uaddOvf(a, b int64) bool {
+ 
+ // de-virtualize an InterCall
+ // 'sym' is the symbol for the itab
+-func devirt(v *Value, sym Sym, offset int64) *AuxCall {
++func devirt(v *Value, aux interface{}, sym Sym, offset int64) *AuxCall {
+ 	f := v.Block.Func
+ 	n, ok := sym.(*obj.LSym)
+ 	if !ok {
+@@ -760,7 +760,8 @@ func devirt(v *Value, sym Sym, offset int64) *AuxCall {
+ 	if lsym == nil {
+ 		return nil
+ 	}
+-	return StaticAuxCall(lsym)
++	va := aux.(*AuxCall)
++	return StaticAuxCall(lsym, va.args, va.results)
+ }
+ 
+ // isSamePtr reports whether p1 and p2 point to the same address.
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index 1ecfabf7cb..925ff53fd1 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -8479,11 +8479,12 @@ func rewriteValuegeneric_OpIMake(v *Value) bool {
+ func rewriteValuegeneric_OpInterCall(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+-	// match: (InterCall [argsize] (Load (OffPtr [off] (ITab (IMake (Addr {itab} (SB)) _))) _) mem)
+-	// cond: devirt(v, itab, off) != nil
+-	// result: (StaticCall [int32(argsize)] {devirt(v, itab, off)} mem)
++	// match: (InterCall [argsize] {auxCall} (Load (OffPtr [off] (ITab (IMake (Addr {itab} (SB)) _))) _) mem)
++	// cond: devirt(v, auxCall, itab, off) != nil
++	// result: (StaticCall [int32(argsize)] {devirt(v, auxCall, itab, off)} mem)
+ 	for {
+ 		argsize := auxIntToInt32(v.AuxInt)
++		auxCall := auxToCall(v.Aux)
+ 		if v_0.Op != OpLoad {
+ 			break
+ 		}
+@@ -8510,12 +8511,12 @@ func rewriteValuegeneric_OpInterCall(v *Value) bool {
+ 			break
+ 		}
+ 		mem := v_1
+-		if !(devirt(v, itab, off) != nil) {
++		if !(devirt(v, auxCall, itab, off) != nil) {
+ 			break
+ 		}
+ 		v.reset(OpStaticCall)
+ 		v.AuxInt = int32ToAuxInt(int32(argsize))
+-		v.Aux = callToAux(devirt(v, itab, off))
++		v.Aux = callToAux(devirt(v, auxCall, itab, off))
+ 		v.AddArg(mem)
+ 		return true
+ 	}
+diff --git a/src/cmd/compile/internal/ssa/writebarrier.go b/src/cmd/compile/internal/ssa/writebarrier.go
+index 4322a85c90..7cc8bf7af9 100644
+--- a/src/cmd/compile/internal/ssa/writebarrier.go
++++ b/src/cmd/compile/internal/ssa/writebarrier.go
+@@ -501,29 +501,33 @@ func wbcall(pos src.XPos, b *Block, fn, typ *obj.LSym, ptr, val, mem, sp, sb *Va
+ 	// put arguments on stack
+ 	off := config.ctxt.FixedFrameSize()
+ 
++	var ACArgs []Param
+ 	if typ != nil { // for typedmemmove
+ 		taddr := b.NewValue1A(pos, OpAddr, b.Func.Config.Types.Uintptr, typ, sb)
+ 		off = round(off, taddr.Type.Alignment())
+ 		arg := b.NewValue1I(pos, OpOffPtr, taddr.Type.PtrTo(), off, sp)
+ 		mem = b.NewValue3A(pos, OpStore, types.TypeMem, ptr.Type, arg, taddr, mem)
++		ACArgs = append(ACArgs, Param{Type: b.Func.Config.Types.Uintptr, Offset: int32(off)})
+ 		off += taddr.Type.Size()
+ 	}
+ 
+ 	off = round(off, ptr.Type.Alignment())
+ 	arg := b.NewValue1I(pos, OpOffPtr, ptr.Type.PtrTo(), off, sp)
+ 	mem = b.NewValue3A(pos, OpStore, types.TypeMem, ptr.Type, arg, ptr, mem)
++	ACArgs = append(ACArgs, Param{Type: ptr.Type, Offset: int32(off)})
+ 	off += ptr.Type.Size()
+ 
+ 	if val != nil {
+ 		off = round(off, val.Type.Alignment())
+ 		arg = b.NewValue1I(pos, OpOffPtr, val.Type.PtrTo(), off, sp)
+ 		mem = b.NewValue3A(pos, OpStore, types.TypeMem, val.Type, arg, val, mem)
++		ACArgs = append(ACArgs, Param{Type: val.Type, Offset: int32(off)})
+ 		off += val.Type.Size()
+ 	}
+ 	off = round(off, config.PtrSize)
+ 
+ 	// issue call
+-	mem = b.NewValue1A(pos, OpStaticCall, types.TypeMem, StaticAuxCall(fn), mem)
++	mem = b.NewValue1A(pos, OpStaticCall, types.TypeMem, StaticAuxCall(fn, ACArgs, nil), mem)
+ 	mem.AuxInt = off - config.ctxt.FixedFrameSize()
+ 	return mem
+ }

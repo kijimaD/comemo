@@ -9,7 +9,60 @@ Date:   Sun May 3 17:53:19 2015 -0400
     Change-Id: I3e691479d3659ed1b3ff8ebbb71b4fc03f2e67af
     Reviewed-on: https://go-review.googlesource.com/9680
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/hash/crc32/crc32.go        |  7 -------
  src/hash/crc32/example_test.go | 28 ++++++++++++++++++++++++++++
  2 files changed, 28 insertions(+), 7 deletions(-)
+
+diff --git a/src/hash/crc32/crc32.go b/src/hash/crc32/crc32.go
+index 4b13c12d32..10867a79a8 100644
+--- a/src/hash/crc32/crc32.go
++++ b/src/hash/crc32/crc32.go
+@@ -8,13 +8,6 @@
+ //
+ // Polynomials are represented in LSB-first form also known as reversed representation.
+ //
+-// LSB-first representation is a hexadecimal number with n bits, the most
+-// significant bit represents the coefficient of x^0 and the least significant
+-// bit represents the coefficient of x^(n-1).
+-//
+-// For example, x^5 + x^2 + x^0 is (binary:10100, hexadecimal:0x14) in 5-bit LSB-first form,
+-// as opposed to (binary:00101, hexadecimal:0x05) in MSB-first (normal) form.
+-//
+ // See http://en.wikipedia.org/wiki/Mathematics_of_cyclic_redundancy_checks#Reversed_representations_and_reciprocal_polynomials
+ // for information.
+ package crc32
+diff --git a/src/hash/crc32/example_test.go b/src/hash/crc32/example_test.go
+new file mode 100644
+index 0000000000..621bf83830
+--- /dev/null
++++ b/src/hash/crc32/example_test.go
+@@ -0,0 +1,28 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package crc32_test
++
++import (
++	"fmt"
++	"hash/crc32"
++)
++
++func ExampleMakeTable() {
++	// In this package, the CRC polynomial is represented in reversed notation,
++	// or LSB-first representation.
++	//
++	// LSB-first representation is a hexadecimal number with n bits, in which the
++	// most significant bit represents the coefficient of x⁰ and the least significant
++	// bit represents the coefficient of xⁿ⁻¹ (the coefficient for xⁿ is implicit).
++	//
++	// For example, CRC32-Q, as defined by the following polynomial,
++	//	x³²+ x³¹+ x²⁴+ x²²+ x¹⁶+ x¹⁴+ x⁸+ x⁷+ x⁵+ x³+ x¹+ x⁰
++	// has the reversed notation 0b11010101100000101000001010000001, so the value
++	// that should be passed to MakeTable is 0xD5828281.
++	crc32q := crc32.MakeTable(0xD5828281)
++	fmt.Printf("%08x\n", crc32.Checksum([]byte("Hello world"), crc32q))
++	// Output:
++	// 2964d064
++}

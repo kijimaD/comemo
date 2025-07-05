@@ -7,10 +7,149 @@ Date:   Thu Feb 9 20:47:12 2012 -0200
     R=rsc, gustavo
     CC=golang-dev
     https://golang.org/cl/5642045
-
+---
  src/cmd/dist/a.h            |  2 +-
  src/cmd/dist/build.c        | 21 +++++----------------
  src/cmd/dist/buildruntime.c |  2 +-
  src/make.bash               |  4 +++-
  src/make.bat                | 10 ++++++----
  5 files changed, 16 insertions(+), 23 deletions(-)
+
+diff --git a/src/cmd/dist/a.h b/src/cmd/dist/a.h
+index 39048e37d7..e90f7fe65d 100644
+--- a/src/cmd/dist/a.h
++++ b/src/cmd/dist/a.h
+@@ -62,7 +62,6 @@ void	splitlines(Vec*, char*);
+ void	splitfields(Vec*, char*);
+ 
+ // build.c
+-extern char *default_goroot;
+ extern char *goarch;
+ extern char *gobin;
+ extern char *gochar;
+@@ -70,6 +69,7 @@ extern char *gohostarch;
+ extern char *gohostos;
+ extern char *goos;
+ extern char *goroot;
++extern char *goroot_final;
+ extern char *goversion;
+ extern char *workdir;
+ extern char *slash;
+diff --git a/src/cmd/dist/build.c b/src/cmd/dist/build.c
+index c84a7ec7f6..1067ce16e8 100644
+--- a/src/cmd/dist/build.c
++++ b/src/cmd/dist/build.c
+@@ -15,13 +15,12 @@ char *gobin;
+ char *gohostarch;
+ char *gohostos;
+ char *goos;
+-char *goroot;
++char *goroot = GOROOT_FINAL;
++char *goroot_final = GOROOT_FINAL;
+ char *workdir;
+ char *gochar;
+-char *goroot_final;
+ char *goversion;
+ char *slash;	// / for unix, \ for windows
+-char *default_goroot = DEFAULT_GOROOT;
+ 
+ static bool shouldbuild(char*, char*);
+ static void copy(char*, char*);
+@@ -74,12 +73,8 @@ init(void)
+ 	binit(&b);
+ 
+ 	xgetenv(&b, "GOROOT");
+-	if(b.len == 0) {
+-		if(default_goroot == nil)
+-			fatal("$GOROOT not set and not available");
+-		bwritestr(&b, default_goroot);
+-	}
+-	goroot = btake(&b);
++	if(b.len > 0)
++		goroot = btake(&b);
+ 
+ 	xgetenv(&b, "GOBIN");
+ 	if(b.len == 0)
+@@ -116,12 +111,6 @@ init(void)
+ 	bprintf(&b, "%c", gochars[i]);
+ 	gochar = btake(&b);
+ 
+-	xgetenv(&b, "GOROOT_FINAL");
+-	if(b.len > 0)
+-		goroot_final = btake(&b);
+-	else
+-		goroot_final = goroot;
+-	
+ 	xsetenv("GOROOT", goroot);
+ 	xsetenv("GOARCH", goarch);
+ 	xsetenv("GOOS", goos);
+@@ -777,7 +766,7 @@ install(char *dir)
+ 			if(streq(name, "goos.c")) {
+ 				vadd(&compile, bprintf(&b, "-DGOOS=\"%s\"", goos));
+ 				vadd(&compile, bprintf(&b, "-DGOARCH=\"%s\"", goarch));
+-				bprintf(&b1, "%s", goroot);
++				bprintf(&b1, "%s", goroot_final);
+ 				bsubst(&b1, "\\", "\\\\");  // turn into C string
+ 				vadd(&compile, bprintf(&b, "-DGOROOT=\"%s\"", bstr(&b1)));
+ 				vadd(&compile, bprintf(&b, "-DGOVERSION=\"%s\"", goversion));
+diff --git a/src/cmd/dist/buildruntime.c b/src/cmd/dist/buildruntime.c
+index 7cbff3fb87..dfecc2be0d 100644
+--- a/src/cmd/dist/buildruntime.c
++++ b/src/cmd/dist/buildruntime.c
+@@ -29,7 +29,7 @@ mkzversion(char *dir, char *file)
+ 		"package runtime\n"
+ 		"\n"
+ 		"const defaultGoroot = `%s`\n"
+-		"const theVersion = `%s`\n", goroot, goversion));
++		"const theVersion = `%s`\n", goroot_final, goversion));
+ 
+ 	writefile(&out, file);
+ 	
+diff --git a/src/make.bash b/src/make.bash
+index 32a91a2fc9..55a292eba4 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -47,7 +47,9 @@ done
+ 
+ echo '# Building C bootstrap tool.'
+ mkdir -p ../bin/tool
+-DEFGOROOT='-DDEFAULT_GOROOT="'"$(cd .. && pwd)"'"'
++export GOROOT="$(cd .. && pwd)"
++GOROOT_FINAL="${GOROOT_FINAL:-$GOROOT}"
++DEFGOROOT='-DGOROOT_FINAL="'"$GOROOT_FINAL"'"'
+ gcc -O2 -Wall -Werror -o ../bin/tool/dist -Icmd/dist "$DEFGOROOT" cmd/dist/*.c
+ echo
+ 
+diff --git a/src/make.bat b/src/make.bat
+index 34f4361506..804c35ad04 100644
+--- a/src/make.bat
++++ b/src/make.bat
+@@ -10,14 +10,16 @@ echo Must run make.bat from Go src directory.
+ goto fail 
+ :ok
+ 
+-:: Grab default $GOROOT, escape \ for C string.
+-:: The expression %CD:\=\\% means to take %CD%
++:: Grab default GOROOT_FINAL and set GOROOT for build.
++:: The expression %VAR:\=\\% means to take %VAR%
+ :: and apply the substitution \ = \\, escaping the
+ :: backslashes.  Then we wrap that in quotes to create
+ :: a C string.
+ cd ..
+-set DEFGOROOT=-DDEFAULT_GOROOT="\"%CD:\=\\%\""
++set GOROOT="%CD%"
+ cd src
++if "x%GOROOT_FINAL%"=="x" set GOROOT_FINAL="%GOROOT%"
++set DEFGOROOT=-DGOROOT_FINAL="\"%GOROOT_FINAL:\=\\%\""
+ 
+ echo # Building C bootstrap tool.
+ if not exist ..\bin\tool mkdir ..\bin\tool
+@@ -40,7 +42,7 @@ if errorlevel 1 goto fail
+ del ..\bin\tool\go_bootstrap.exe
+ echo .
+ 
+-if x%1==x--no-banner goto nobanner
++if "x%1"=="x--no-banner" goto nobanner
+ ..\bin\tool\dist banner
+ :nobanner
+ 

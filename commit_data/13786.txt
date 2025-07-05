@@ -11,10 +11,895 @@ Date:   Mon Sep 10 14:54:52 2012 -0700
     R=rsc, adonovan, r, rogpeppe
     CC=golang-dev
     https://golang.org/cl/6490089
-
+---
  src/pkg/exp/types/staging/exprstring.go |  98 +++++++++++++
  src/pkg/exp/types/staging/predicates.go | 210 ++++++++++++++++++++++++++++
  src/pkg/exp/types/staging/types.go      | 239 ++++++++++++++++++++++++++++++++
  src/pkg/exp/types/staging/typestring.go | 148 ++++++++++++++++++++
  src/pkg/exp/types/staging/universe.go   | 159 +++++++++++++++++++++
  5 files changed, 854 insertions(+)
+
+diff --git a/src/pkg/exp/types/staging/exprstring.go b/src/pkg/exp/types/staging/exprstring.go
+new file mode 100644
+index 0000000000..d3638d83f4
+--- /dev/null
++++ b/src/pkg/exp/types/staging/exprstring.go
+@@ -0,0 +1,98 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package types
++
++import (
++	"bytes"
++	"fmt"
++	"go/ast"
++)
++
++// exprString returns a (simplified) string representation for an expression.
++func exprString(expr ast.Expr) string {
++	var buf bytes.Buffer
++	writeExpr(&buf, expr)
++	return buf.String()
++}
++
++// TODO(gri) Need to merge with typeString since some expressions are types (try: ([]int)(a))
++func writeExpr(buf *bytes.Buffer, expr ast.Expr) {
++	switch x := expr.(type) {
++	case *ast.Ident:
++		buf.WriteString(x.Name)
++
++	case *ast.BasicLit:
++		buf.WriteString(x.Value)
++
++	case *ast.FuncLit:
++		buf.WriteString("(func literal)")
++
++	case *ast.CompositeLit:
++		buf.WriteString("(composite literal)")
++
++	case *ast.ParenExpr:
++		buf.WriteByte('(')
++		writeExpr(buf, x.X)
++		buf.WriteByte(')')
++
++	case *ast.SelectorExpr:
++		writeExpr(buf, x.X)
++		buf.WriteByte('.')
++		buf.WriteString(x.Sel.Name)
++
++	case *ast.IndexExpr:
++		writeExpr(buf, x.X)
++		buf.WriteByte('[')
++		writeExpr(buf, x.Index)
++		buf.WriteByte(']')
++
++	case *ast.SliceExpr:
++		writeExpr(buf, x.X)
++		buf.WriteByte('[')
++		if x.Low != nil {
++			writeExpr(buf, x.Low)
++		}
++		buf.WriteByte(':')
++		if x.High != nil {
++			writeExpr(buf, x.High)
++		}
++		buf.WriteByte(']')
++
++	case *ast.TypeAssertExpr:
++		writeExpr(buf, x.X)
++		buf.WriteString(".(...)")
++
++	case *ast.CallExpr:
++		writeExpr(buf, x.Fun)
++		buf.WriteByte('(')
++		for i, arg := range x.Args {
++			if i > 0 {
++				buf.WriteString(", ")
++			}
++			writeExpr(buf, arg)
++		}
++		buf.WriteByte(')')
++
++	case *ast.StarExpr:
++		buf.WriteByte('*')
++		writeExpr(buf, x.X)
++
++	case *ast.UnaryExpr:
++		buf.WriteString(x.Op.String())
++		writeExpr(buf, x.X)
++
++	case *ast.BinaryExpr:
++		// The AST preserves source-level parentheses so there is
++		// no need to introduce parentheses here for correctness.
++		writeExpr(buf, x.X)
++		buf.WriteByte(' ')
++		buf.WriteString(x.Op.String())
++		buf.WriteByte(' ')
++		writeExpr(buf, x.Y)
++
++	default:
++		fmt.Fprintf(buf, "<expr %T>", x)
++	}
++}
+diff --git a/src/pkg/exp/types/staging/predicates.go b/src/pkg/exp/types/staging/predicates.go
+new file mode 100644
+index 0000000000..7f0c2da68c
+--- /dev/null
++++ b/src/pkg/exp/types/staging/predicates.go
+@@ -0,0 +1,210 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This file implements commonly used type predicates.
++
++package types
++
++func isNamed(typ Type) bool {
++	if _, ok := typ.(*Basic); ok {
++		return ok
++	}
++	_, ok := typ.(*NamedType)
++	return ok
++}
++
++func isBoolean(typ Type) bool {
++	t, ok := underlying(typ).(*Basic)
++	return ok && t.Info&IsBoolean != 0
++}
++
++func isInteger(typ Type) bool {
++	t, ok := underlying(typ).(*Basic)
++	return ok && t.Info&IsInteger != 0
++}
++
++func isUnsigned(typ Type) bool {
++	t, ok := underlying(typ).(*Basic)
++	return ok && t.Info&IsUnsigned != 0
++}
++
++func isFloat(typ Type) bool {
++	t, ok := underlying(typ).(*Basic)
++	return ok && t.Info&IsFloat != 0
++}
++
++func isComplex(typ Type) bool {
++	t, ok := underlying(typ).(*Basic)
++	return ok && t.Info&IsComplex != 0
++}
++
++func isNumeric(typ Type) bool {
++	t, ok := underlying(typ).(*Basic)
++	return ok && t.Info&IsNumeric != 0
++}
++
++func isString(typ Type) bool {
++	t, ok := underlying(typ).(*Basic)
++	return ok && t.Info&IsString != 0
++}
++
++func isUntyped(typ Type) bool {
++	t, ok := underlying(typ).(*Basic)
++	return ok && t.Info&IsUntyped != 0
++}
++
++func isOrdered(typ Type) bool {
++	t, ok := underlying(typ).(*Basic)
++	return ok && t.Info&IsOrdered != 0
++}
++
++func isComparable(typ Type) bool {
++	switch t := underlying(typ).(type) {
++	case *Basic:
++		return t.Kind != Invalid
++	case *Pointer, *Chan, *Interface:
++		// assumes types are equal for pointers and channels
++		return true
++	case *Struct:
++		for _, f := range t.Fields {
++			if !isComparable(f.Type) {
++				return false
++			}
++		}
++		return true
++	case *Array:
++		return isComparable(t.Elt)
++	}
++	return false
++}
++
++// underlying returns the underlying type of typ.
++func underlying(typ Type) Type {
++	// Basic types are representing themselves directly even though they are named.
++	if typ, ok := typ.(*NamedType); ok {
++		return typ.Underlying // underlying types are never NamedTypes
++	}
++	return typ
++}
++
++// deref returns a pointer's base type; otherwise it returns typ.
++func deref(typ Type) Type {
++	if typ, ok := underlying(typ).(*Pointer); ok {
++		return typ.Base
++	}
++	return typ
++}
++
++// identical returns true if x and y are identical.
++func isIdentical(x, y Type) bool {
++	if x == y {
++		return true
++	}
++
++	switch x := x.(type) {
++	case *Basic:
++		// Basic types are singletons except for the rune and byte
++		// aliases, thus we cannot solely rely on the x == y check
++		// above.
++		if y, ok := y.(*Basic); ok {
++			return x.Kind == y.Kind
++		}
++
++	case *Array:
++		// Two array types are identical if they have identical element types
++		// and the same array length.
++		if y, ok := y.(*Array); ok {
++			return x.Len == y.Len && isIdentical(x.Elt, y.Elt)
++		}
++
++	case *Slice:
++		// Two slice types are identical if they have identical element types.
++		if y, ok := y.(*Slice); ok {
++			return isIdentical(x.Elt, y.Elt)
++		}
++
++	case *Struct:
++		// Two struct types are identical if they have the same sequence of fields,
++		// and if corresponding fields have the same names, and identical types,
++		// and identical tags. Two anonymous fields are considered to have the same
++		// name. Lower-case field names from different packages are always different.
++		if y, ok := y.(*Struct); ok {
++			// TODO(gri) handle structs from different packages
++			if len(x.Fields) == len(y.Fields) {
++				for i, f := range x.Fields {
++					g := y.Fields[i]
++					if f.Name != g.Name ||
++						!isIdentical(f.Type, g.Type) ||
++						f.Tag != g.Tag ||
++						f.IsAnonymous != g.IsAnonymous {
++						return false
++					}
++				}
++				return true
++			}
++		}
++
++	case *Pointer:
++		// Two pointer types are identical if they have identical base types.
++		if y, ok := y.(*Pointer); ok {
++			return isIdentical(x.Base, y.Base)
++		}
++
++	case *Signature:
++		// Two function types are identical if they have the same number of parameters
++		// and result values, corresponding parameter and result types are identical,
++		// and either both functions are variadic or neither is. Parameter and result
++		// names are not required to match.
++		if y, ok := y.(*Signature); ok {
++			return identicalTypes(x.Params, y.Params) &&
++				identicalTypes(x.Results, y.Results) &&
++				x.IsVariadic == y.IsVariadic
++		}
++
++	case *Interface:
++		// Two interface types are identical if they have the same set of methods with
++		// the same names and identical function types. Lower-case method names from
++		// different packages are always different. The order of the methods is irrelevant.
++		if y, ok := y.(*Interface); ok {
++			return identicalTypes(x.Methods, y.Methods) // methods are sorted
++		}
++
++	case *Map:
++		// Two map types are identical if they have identical key and value types.
++		if y, ok := y.(*Map); ok {
++			return isIdentical(x.Key, y.Key) && isIdentical(x.Elt, y.Elt)
++		}
++
++	case *Chan:
++		// Two channel types are identical if they have identical value types
++		// and the same direction.
++		if y, ok := y.(*Chan); ok {
++			return x.Dir == y.Dir && isIdentical(x.Elt, y.Elt)
++		}
++
++	case *NamedType:
++		// Two named types are identical if their type names originate
++		// in the same type declaration.
++		if y, ok := y.(*NamedType); ok {
++			return x.Obj == y.Obj
++		}
++	}
++
++	return false
++}
++
++// identicalTypes returns true if both lists a and b have the
++// same length and corresponding objects have identical types.
++func identicalTypes(a, b ObjList) bool {
++	if len(a) == len(b) {
++		for i, x := range a {
++			y := b[i]
++			if !isIdentical(x.Type.(Type), y.Type.(Type)) {
++				return false
++			}
++		}
++		return true
++	}
++	return false
++}
+diff --git a/src/pkg/exp/types/staging/types.go b/src/pkg/exp/types/staging/types.go
+new file mode 100644
+index 0000000000..2185d0c464
+--- /dev/null
++++ b/src/pkg/exp/types/staging/types.go
+@@ -0,0 +1,239 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package types declares the data structures for representing
++// Go types and implements typechecking of an *ast.Package.
++//
++// PACKAGE UNDER CONSTRUCTION. ANY AND ALL PARTS MAY CHANGE.
++//
++package types
++
++import (
++	"go/ast"
++	"go/token"
++	"sort"
++)
++
++// Check typechecks the given package pkg and augments the AST by
++// assigning types to all ast.Objects. Check can be used in two
++// different modes:
++//
++// 1) If a nil types map is provided, Check typechecks the entire
++// package. If no error is returned, the package source code has
++// no type errors. 
++//
++// 2) If a non-nil types map is provided, Check operates like in
++// mode 1) but also records the types for all expressions in the
++// map. Pre-existing expression types in the map are replaced if
++// the expression appears in the AST.
++//
++func Check(fset *token.FileSet, pkg *ast.Package, types map[ast.Expr]Type) error {
++	// return check(fset, pkg, types) // commented out for now to make it compile
++	return nil
++}
++
++// All types implement the Type interface.
++// TODO(gri) Eventually determine what common Type functionality should be exported.
++type Type interface {
++	aType()
++}
++
++// BasicKind describes the kind of basic type.
++type BasicKind int
++
++const (
++	Invalid BasicKind = iota // type is invalid
++
++	// predeclared types
++	Bool
++	Int
++	Int8
++	Int16
++	Int32
++	Int64
++	Uint
++	Uint8
++	Uint16
++	Uint32
++	Uint64
++	Uintptr
++	Float32
++	Float64
++	Complex64
++	Complex128
++	String
++	UnsafePointer
++
++	// types for untyped values
++	UntypedBool
++	UntypedInt
++	UntypedRune
++	UntypedFloat
++	UntypedComplex
++	UntypedString
++	UntypedNil
++
++	// aliases
++	Byte = Uint8
++	Rune = Int32
++)
++
++// BasicInfo is a set of flags describing properties of a basic type.
++type BasicInfo int
++
++// Properties of basic types.
++const (
++	IsBoolean BasicInfo = 1 << iota
++	IsInteger
++	IsUnsigned
++	IsFloat
++	IsComplex
++	IsString
++	IsUntyped
++
++	IsOrdered = IsInteger | IsFloat | IsString
++	IsNumeric = IsInteger | IsFloat | IsComplex
++)
++
++// A Basic represents a basic type.
++type Basic struct {
++	implementsType
++	Kind BasicKind
++	Info BasicInfo
++	Name string
++}
++
++// An Array represents an array type [Len]Elt.
++type Array struct {
++	implementsType
++	Len int64
++	Elt Type
++}
++
++// A Slice represents a slice type []Elt.
++type Slice struct {
++	implementsType
++	Elt Type
++}
++
++type StructField struct {
++	Name        string // unqualified type name for anonymous fields
++	Type        Type
++	Tag         string
++	IsAnonymous bool
++}
++
++// A Struct represents a struct type struct{...}.
++type Struct struct {
++	implementsType
++	Fields []*StructField
++}
++
++// A Pointer represents a pointer type *Base.
++type Pointer struct {
++	implementsType
++	Base Type
++}
++
++// A tuple represents a multi-value function return.
++// TODO(gri) use better name to avoid confusion (Go doesn't have tuples).
++type tuple struct {
++	implementsType
++	list []Type
++}
++
++// A Signature represents a user-defined function type func(...) (...).
++// TODO(gri) consider using "tuples" to represent parameters and results (see comment on tuples).
++type Signature struct {
++	implementsType
++	Recv       *ast.Object // nil if not a method
++	Params     ObjList     // (incoming) parameters from left to right; or nil
++	Results    ObjList     // (outgoing) results from left to right; or nil
++	IsVariadic bool        // true if the last parameter's type is of the form ...T
++}
++
++// builtinId is an id of a builtin function.
++type builtinId int
++
++// Predeclared builtin functions.
++const (
++	// Universe scope
++	_Append builtinId = iota
++	_Cap
++	_Close
++	_Complex
++	_Copy
++	_Delete
++	_Imag
++	_Len
++	_Make
++	_New
++	_Panic
++	_Print
++	_Println
++	_Real
++	_Recover
++
++	// Unsafe package
++	_Alignof
++	_Offsetof
++	_Sizeof
++
++	// Testing support
++	_Assert
++	_Trace
++)
++
++// A builtin represents the type of a built-in function.
++type builtin struct {
++	implementsType
++	id         builtinId
++	name       string
++	nargs      int // number of arguments (minimum if variadic)
++	isVariadic bool
++}
++
++// An Interface represents an interface type interface{...}.
++type Interface struct {
++	implementsType
++	Methods ObjList // interface methods sorted by name; or nil
++}
++
++// A Map represents a map type map[Key]Elt.
++type Map struct {
++	implementsType
++	Key, Elt Type
++}
++
++// A Chan represents a channel type chan Elt, <-chan Elt, or chan<-Elt.
++type Chan struct {
++	implementsType
++	Dir ast.ChanDir
++	Elt Type
++}
++
++// A NamedType represents a named type as declared in a type declaration.
++type NamedType struct {
++	implementsType
++	Obj        *ast.Object // corresponding declared object
++	Underlying Type        // nil if not fully declared yet, never a *NamedType
++	Methods    ObjList     // associated methods; or nil
++}
++
++// An ObjList represents an ordered (in some fashion) list of objects.
++type ObjList []*ast.Object
++
++// ObjList implements sort.Interface.
++func (list ObjList) Len() int           { return len(list) }
++func (list ObjList) Less(i, j int) bool { return list[i].Name < list[j].Name }
++func (list ObjList) Swap(i, j int)      { list[i], list[j] = list[j], list[i] }
++
++// Sort sorts an object list by object name.
++func (list ObjList) Sort() { sort.Sort(list) }
++
++// All concrete types embed implementsType which
++// ensures that all types implement the Type interface.
++type implementsType struct{}
++
++func (*implementsType) aType() {}
+diff --git a/src/pkg/exp/types/staging/typestring.go b/src/pkg/exp/types/staging/typestring.go
+new file mode 100644
+index 0000000000..6a79165aa9
+--- /dev/null
++++ b/src/pkg/exp/types/staging/typestring.go
+@@ -0,0 +1,148 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This file implements the TypeString function.
++
++package types
++
++import (
++	"bytes"
++	"fmt"
++	"go/ast"
++)
++
++// typeString returns a string representation for typ.
++func typeString(typ Type) string {
++	var buf bytes.Buffer
++	writeType(&buf, typ)
++	return buf.String()
++}
++
++func writeParams(buf *bytes.Buffer, params ObjList, isVariadic bool) {
++	buf.WriteByte('(')
++	for i, par := range params {
++		if i > 0 {
++			buf.WriteString(", ")
++		}
++		if par.Name != "" {
++			buf.WriteString(par.Name)
++			buf.WriteByte(' ')
++		}
++		if isVariadic && i == len(params)-1 {
++			buf.WriteString("...")
++		}
++		writeType(buf, par.Type.(Type))
++	}
++	buf.WriteByte(')')
++}
++
++func writeSignature(buf *bytes.Buffer, sig *Signature) {
++	writeParams(buf, sig.Params, sig.IsVariadic)
++	if len(sig.Results) == 0 {
++		// no result
++		return
++	}
++
++	buf.WriteByte(' ')
++	if len(sig.Results) == 1 && sig.Results[0].Name == "" {
++		// single unnamed result
++		writeType(buf, sig.Results[0].Type.(Type))
++		return
++	}
++
++	// multiple or named result(s)
++	writeParams(buf, sig.Results, false)
++}
++
++func writeType(buf *bytes.Buffer, typ Type) {
++	switch t := typ.(type) {
++	case nil:
++		buf.WriteString("<nil>")
++
++	case *Basic:
++		buf.WriteString(t.Name)
++
++	case *Array:
++		fmt.Fprintf(buf, "[%d]", t.Len)
++		writeType(buf, t.Elt)
++
++	case *Slice:
++		buf.WriteString("[]")
++		writeType(buf, t.Elt)
++
++	case *Struct:
++		buf.WriteString("struct{")
++		for i, f := range t.Fields {
++			if i > 0 {
++				buf.WriteString("; ")
++			}
++			if !f.IsAnonymous {
++				buf.WriteString(f.Name)
++				buf.WriteByte(' ')
++			}
++			writeType(buf, f.Type)
++			if f.Tag != "" {
++				fmt.Fprintf(buf, " %q", f.Tag)
++			}
++		}
++		buf.WriteByte('}')
++
++	case *Pointer:
++		buf.WriteByte('*')
++		writeType(buf, t.Base)
++
++	case *tuple:
++		buf.WriteByte('(')
++		for i, typ := range t.list {
++			if i > 0 {
++				buf.WriteString("; ")
++			}
++			writeType(buf, typ)
++		}
++		buf.WriteByte(')')
++
++	case *Signature:
++		buf.WriteString("func")
++		writeSignature(buf, t)
++
++	case *builtin:
++		fmt.Fprintf(buf, "<type of %s>", t.name)
++
++	case *Interface:
++		buf.WriteString("interface{")
++		for i, m := range t.Methods {
++			if i > 0 {
++				buf.WriteString("; ")
++			}
++			buf.WriteString(m.Name)
++			writeSignature(buf, m.Type.(*Signature))
++		}
++		buf.WriteByte('}')
++
++	case *Map:
++		buf.WriteString("map[")
++		writeType(buf, t.Key)
++		buf.WriteByte(']')
++		writeType(buf, t.Elt)
++
++	case *Chan:
++		var s string
++		switch t.Dir {
++		case ast.SEND:
++			s = "chan<- "
++		case ast.RECV:
++			s = "<-chan "
++		default:
++			s = "chan "
++		}
++		buf.WriteString(s)
++		writeType(buf, t.Elt)
++
++	case *NamedType:
++		buf.WriteString(t.Obj.Name)
++
++	default:
++		fmt.Fprintf(buf, "<type %T>", t)
++	}
++}
+diff --git a/src/pkg/exp/types/staging/universe.go b/src/pkg/exp/types/staging/universe.go
+new file mode 100644
+index 0000000000..64ccfefe6b
+--- /dev/null
++++ b/src/pkg/exp/types/staging/universe.go
+@@ -0,0 +1,159 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This file implements the universe and unsafe package scopes.
++
++package types
++
++import (
++	"go/ast"
++	"strings"
++)
++
++var (
++	aType            implementsType
++	Universe, unsafe *ast.Scope
++	Unsafe           *ast.Object // package unsafe
++)
++
++// Predeclared types, indexed by BasicKind.
++var Typ = [...]*Basic{
++	Invalid: {aType, Invalid, 0, "invalid type"},
++
++	Bool:          {aType, Bool, IsBoolean, "bool"},
++	Int:           {aType, Int, IsInteger, "int"},
++	Int8:          {aType, Int8, IsInteger, "int8"},
++	Int16:         {aType, Int16, IsInteger, "int16"},
++	Int32:         {aType, Int32, IsInteger, "int32"},
++	Int64:         {aType, Int64, IsInteger, "int64"},
++	Uint:          {aType, Uint, IsInteger | IsUnsigned, "uint"},
++	Uint8:         {aType, Uint8, IsInteger | IsUnsigned, "uint8"},
++	Uint16:        {aType, Uint16, IsInteger | IsUnsigned, "uint16"},
++	Uint32:        {aType, Uint32, IsInteger | IsUnsigned, "uint32"},
++	Uint64:        {aType, Uint64, IsInteger | IsUnsigned, "uint64"},
++	Uintptr:       {aType, Uintptr, IsInteger | IsUnsigned, "uintptr"},
++	Float32:       {aType, Float32, IsFloat, "float32"},
++	Float64:       {aType, Float64, IsFloat, "float64"},
++	Complex64:     {aType, Complex64, IsComplex, "complex64"},
++	Complex128:    {aType, Complex128, IsComplex, "complex128"},
++	String:        {aType, String, IsString, "string"},
++	UnsafePointer: {aType, UnsafePointer, 0, "Pointer"},
++
++	UntypedBool:    {aType, UntypedBool, IsBoolean | IsUntyped, "untyped boolean"},
++	UntypedInt:     {aType, UntypedInt, IsInteger | IsUntyped, "untyped integer"},
++	UntypedRune:    {aType, UntypedRune, IsInteger | IsUntyped, "untyped rune"},
++	UntypedFloat:   {aType, UntypedFloat, IsFloat | IsUntyped, "untyped float"},
++	UntypedComplex: {aType, UntypedComplex, IsComplex | IsUntyped, "untyped complex"},
++	UntypedString:  {aType, UntypedString, IsString | IsUntyped, "untyped string"},
++	UntypedNil:     {aType, UntypedNil, IsUntyped, "untyped nil"},
++}
++
++var aliases = [...]*Basic{
++	{aType, Uint8, IsInteger | IsUnsigned, "byte"},
++	{aType, Rune, IsInteger, "rune"},
++}
++
++var predeclaredConstants = [...]*struct {
++	kind BasicKind
++	name string
++	val  interface{}
++}{
++	{UntypedBool, "true", true},
++	{UntypedBool, "false", false},
++	{UntypedInt, "iota", int64(0)},
++	{UntypedNil, "nil", nil},
++}
++
++var predeclaredFunctions = [...]*builtin{
++	{aType, _Append, "append", 1, true},
++	{aType, _Cap, "cap", 1, false},
++	{aType, _Close, "close", 1, false},
++	{aType, _Complex, "complex", 2, false},
++	{aType, _Copy, "copy", 2, false},
++	{aType, _Delete, "delete", 2, false},
++	{aType, _Imag, "imag", 1, false},
++	{aType, _Len, "len", 1, false},
++	{aType, _Make, "make", 1, true},
++	{aType, _New, "new", 1, false},
++	{aType, _Panic, "panic", 1, false},
++	{aType, _Print, "print", 1, true},
++	{aType, _Println, "println", 1, true},
++	{aType, _Real, "real", 1, false},
++	{aType, _Recover, "recover", 0, false},
++
++	{aType, _Alignof, "Alignof", 1, false},
++	{aType, _Offsetof, "Offsetof", 1, false},
++	{aType, _Sizeof, "Sizeof", 1, false},
++}
++
++// commonly used types
++var (
++	emptyInterface = new(Interface)
++)
++
++// commonly used constants
++var (
++	universeIota *ast.Object
++)
++
++func init() {
++	// Universe scope
++	Universe = ast.NewScope(nil)
++
++	// unsafe package and its scope
++	unsafe = ast.NewScope(nil)
++	Unsafe = ast.NewObj(ast.Pkg, "unsafe")
++	Unsafe.Data = unsafe
++
++	// predeclared types
++	for _, t := range Typ {
++		def(ast.Typ, t.Name).Type = t
++	}
++	for _, t := range aliases {
++		def(ast.Typ, t.Name).Type = t
++	}
++
++	// error type
++	{
++		obj := def(ast.Typ, "error")
++		// TODO(gri) set up correct interface type
++		typ := &NamedType{Underlying: &Interface{}, Obj: obj}
++		obj.Type = typ
++	}
++
++	// predeclared constants
++	for _, t := range predeclaredConstants {
++		obj := def(ast.Con, t.name)
++		obj.Type = Typ[t.kind]
++		obj.Data = t.val
++	}
++
++	// predeclared functions
++	for _, f := range predeclaredFunctions {
++		def(ast.Fun, f.name).Type = f
++	}
++
++	universeIota = Universe.Lookup("iota")
++}
++
++// Objects with names containing blanks are internal and not entered into
++// a scope. Objects with exported names are inserted in the unsafe package
++// scope; other objects are inserted in the universe scope.
++//
++func def(kind ast.ObjKind, name string) *ast.Object {
++	obj := ast.NewObj(kind, name)
++	// insert non-internal objects into respective scope
++	if strings.Index(name, " ") < 0 {
++		scope := Universe
++		// exported identifiers go into package unsafe
++		if ast.IsExported(name) {
++			scope = unsafe
++		}
++		if scope.Insert(obj) != nil {
++			panic("internal error: double declaration")
++		}
++		obj.Decl = scope
++	}
++	return obj
++}

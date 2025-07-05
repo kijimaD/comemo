@@ -9,7 +9,7 @@ Date:   Fri Sep 10 11:53:27 2010 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/2124044
-
+---
  src/cmd/gc/go.h        |  4 ++--
  src/cmd/gc/print.c     |  7 ++++---
  src/cmd/gc/sinit.c     | 22 ++++++++++++++++------
@@ -17,3 +17,247 @@ Date:   Fri Sep 10 11:53:27 2010 -0400
  src/cmd/gc/typecheck.c | 11 ++++-------
  src/cmd/gc/walk.c      | 25 +++++++++----------------
  6 files changed, 35 insertions(+), 41 deletions(-)
+
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 12541029f5..cadaf0aafb 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -262,7 +262,7 @@ struct	Node
+ 	Sym*	sym;		// various
+ 	int32	vargen;		// unique name for OTYPE/ONAME
+ 	int32	lineno;
+-	int32   endlineno;
++	int32	endlineno;
+ 	vlong	xoffset;
+ 	int32	ostk;
+ 	int32	iota;
+@@ -358,7 +358,7 @@ enum
+ 	OCLOSURE,
+ 	OCMPIFACE, OCMPSTR,
+ 	OCOMPLIT, OMAPLIT, OSTRUCTLIT, OARRAYLIT,
+-	OCONV, OCONVIFACE, OCONVNOP, OCONVSLICE,
++	OCONV, OCONVIFACE, OCONVNOP,
+ 	OCOPY,
+ 	ODCL, ODCLFUNC, ODCLFIELD, ODCLCONST, ODCLTYPE,
+ 	ODOT, ODOTPTR, ODOTMETH, ODOTINTER, OXDOT,
+diff --git a/src/cmd/gc/print.c b/src/cmd/gc/print.c
+index 7c65d5a7a1..bb6ebfe36b 100644
+--- a/src/cmd/gc/print.c
++++ b/src/cmd/gc/print.c
+@@ -55,7 +55,6 @@ exprfmt(Fmt *f, Node *n, int prec)
+ 	case OCALL:
+ 	case OCONV:
+ 	case OCONVNOP:
+-	case OCONVSLICE:
+ 	case OMAKESLICE:
+ 	case ORUNESTR:
+ 	case OADDR:
+@@ -319,9 +318,12 @@ exprfmt(Fmt *f, Node *n, int prec)
+ 		break;
+ 
+ 	case OSLICE:
++	case OSLICESTR:
++	case OSLICEARR:
+ 		exprfmt(f, n->left, 7);
+ 		fmtprint(f, "[");
+-		exprfmt(f, n->right->left, 0);
++		if(n->right->left != N)
++			exprfmt(f, n->right->left, 0);
+ 		fmtprint(f, ":");
+ 		if(n->right->right != N)
+ 			exprfmt(f, n->right->right, 0);
+@@ -361,7 +363,6 @@ exprfmt(Fmt *f, Node *n, int prec)
+ 	case OCONV:
+ 	case OCONVIFACE:
+ 	case OCONVNOP:
+-	case OCONVSLICE:
+ 	case OARRAYBYTESTR:
+ 	case ORUNESTR:
+ 		if(n->type == T || n->type->sym == S)
+diff --git a/src/cmd/gc/sinit.c b/src/cmd/gc/sinit.c
+index e984e99c3e..fa0f5dcdc5 100644
+--- a/src/cmd/gc/sinit.c
++++ b/src/cmd/gc/sinit.c
+@@ -401,7 +401,7 @@ slicelit(int ctxt, Node *n, Node *var, NodeList **init)
+ 		arraylit(ctxt, 2, n, vstat, init);
+ 
+ 		// copy static to slice
+-		a = nod(OADDR, vstat, N);
++		a = nod(OSLICE, vstat, nod(OKEY, N, N));
+ 		a = nod(OAS, var, a);
+ 		typecheck(&a, Etop);
+ 		a->dodata = 2;
+@@ -459,7 +459,7 @@ slicelit(int ctxt, Node *n, Node *var, NodeList **init)
+ 	}
+ 
+ 	// make slice out of heap (5)
+-	a = nod(OAS, var, vauto);
++	a = nod(OAS, var, nod(OSLICE, vauto, nod(OKEY, N, N)));
+ 	typecheck(&a, Etop);
+ 	walkexpr(&a, init);
+ 	*init = list(*init, a);
+@@ -864,8 +864,18 @@ gen_as_init(Node *n)
+ 	default:
+ 		goto no;
+ 
+-	case OCONVSLICE:
+-		goto slice;
++	case OCONVNOP:
++		nr = nr->left;
++		if(nr == N || nr->op != OSLICEARR)
++			goto no;
++		// fall through
++	
++	case OSLICEARR:
++		if(nr->right->op == OKEY && nr->right->left == N && nr->right->right == N) {
++			nr = nr->left;
++			goto slice;
++		}
++		goto no;
+ 
+ 	case OLITERAL:
+ 		break;
+@@ -914,7 +924,7 @@ yes:
+ 
+ slice:
+ 	gused(N); // in case the data is the dest of a goto
+-	nr = n->right->left;
++	nl = nr;
+ 	if(nr == N || nr->op != OADDR)
+ 		goto no;
+ 	nr = nr->left;
+@@ -926,7 +936,7 @@ slice:
+ 		goto no;
+ 
+ 	nam.xoffset += Array_array;
+-	gdata(&nam, n->right->left, types[tptr]->width);
++	gdata(&nam, nl, types[tptr]->width);
+ 
+ 	nam.xoffset += Array_nel-Array_array;
+ 	nodconst(&nod1, types[TINT32], nr->type->bound);
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index a84f04e2af..277c252013 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -1924,13 +1924,6 @@ assignop(Type *src, Type *dst, char **why)
+ 	// 7. Any typed value can be assigned to the blank identifier.
+ 	if(dst->etype == TBLANK)
+ 		return OCONVNOP;
+-	
+-	// 8. Array to slice.
+-	// TODO(rsc): Not for long.
+-	if(!src->sym || !dst->sym)
+-	if(isptr[src->etype] && isfixedarray(src->type) && isslice(dst))
+-	if(eqtype(src->type->type, dst->type))
+-		return OCONVSLICE;
+ 
+ 	return 0;
+ }
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index dcf862a0fe..ea2cf49973 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -648,19 +648,16 @@ reswitch:
+ 		defaultlit(&n->right->left, T);
+ 		defaultlit(&n->right->right, T);
+ 		if(isfixedarray(n->left->type)) {
+-			// Insert explicit & before fixed array
+-			// so that back end knows to move to heap.
+ 			n->left = nod(OADDR, n->left, N);
+ 			typecheck(&n->left, top);
+ 		}
+-		implicitstar(&n->left);
+ 		if(n->right->left != N) {
+ 			if((t = n->right->left->type) == T)
+ 				goto error;
+ 			if(!isint[t->etype]) {
+ 				yyerror("invalid slice index %#N (type %T)", n->right->left, t);
+ 				goto error;
+-		}
++			}
+ 		}
+ 		if(n->right->right != N) {
+ 			if((t = n->right->right->type) == T)
+@@ -678,9 +675,9 @@ reswitch:
+ 			n->op = OSLICESTR;
+ 			goto ret;
+ 		}
+-		if(isfixedarray(t)) {
++		if(isptr[t->etype] && isfixedarray(t->type)) {
+ 			n->type = typ(TARRAY);
+-			n->type->type = t->type;
++			n->type->type = t->type->type;
+ 			n->type->bound = -1;
+ 			dowidth(n->type);
+ 			n->op = OSLICEARR;
+@@ -1269,7 +1266,7 @@ implicitstar(Node **nn)
+ 	Type *t;
+ 	Node *n;
+ 
+-	// insert implicit * if needed
++	// insert implicit * if needed for fixed array
+ 	n = *nn;
+ 	t = n->type;
+ 	if(t == T || !isptr[t->etype])
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index c22781c426..e51b750b6c 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -1124,35 +1124,23 @@ walkexpr(Node **np, NodeList **init)
+ 		// slicearray(old *any, uint64 nel, lb uint64, hb uint64, width uint64) (ary []any)
+ 		t = n->type;
+ 		fn = syslook("slicearray", 1);
+-		argtype(fn, n->left->type);	// any-1
++		argtype(fn, n->left->type->type);	// any-1
+ 		argtype(fn, t->type);			// any-2
+ 		if(n->right->left == N)
+ 			l = nodintconst(0);
+ 		else
+ 			l = conv(n->right->left, types[TUINT64]);
+ 		if(n->right->right == N)
+-			r = nodintconst(n->left->type->bound);
++			r = nodintconst(n->left->type->type->bound);
+ 		else
+ 			r = conv(n->right->right, types[TUINT64]);
+ 		n = mkcall1(fn, t, init,
+-			nod(OADDR, n->left, N), nodintconst(n->left->type->bound),
++			n->left, nodintconst(n->left->type->type->bound),
+ 			l,
+ 			r,
+ 			nodintconst(t->type->width));
+ 		goto ret;
+ 
+-	case OCONVSLICE:
+-		// slicearray(old *any, uint64 nel, lb uint64, hb uint64, width uint64) (ary []any)
+-		fn = syslook("slicearray", 1);
+-		argtype(fn, n->left->type->type);		// any-1
+-		argtype(fn, n->type->type);			// any-2
+-		n = mkcall1(fn, n->type, init, n->left,
+-			nodintconst(n->left->type->type->bound),
+-			nodintconst(0),
+-			nodintconst(n->left->type->type->bound),
+-			nodintconst(n->type->type->width));
+-		goto ret;
+-
+ 	case OADDR:;
+ 		Node *nvar, *nstar;
+ 
+@@ -2140,12 +2128,17 @@ static void
+ heapmoves(void)
+ {
+ 	NodeList *nn;
+-
++	int32 lno;
++	
++	lno = lineno;
++	lineno = curfn->lineno;
+ 	nn = paramstoheap(getthis(curfn->type), 0);
+ 	nn = concat(nn, paramstoheap(getinarg(curfn->type), 0));
+ 	nn = concat(nn, paramstoheap(getoutarg(curfn->type), 1));
+ 	curfn->enter = concat(curfn->enter, nn);
++	lineno = curfn->endlineno;
+ 	curfn->exit = returnsfromheap(getoutarg(curfn->type));
++	lineno = lno;
+ }
+ 
+ static Node*

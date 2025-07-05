@@ -12,6 +12,20 @@ Date:   Fri Dec 11 16:29:08 2020 -0500
     Run-TryBot: Robert Findley <rfindley@google.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/types2/call.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/types2/call.go b/src/cmd/compile/internal/types2/call.go
+index 5ecd54ab0b..5a7ae221e6 100644
+--- a/src/cmd/compile/internal/types2/call.go
++++ b/src/cmd/compile/internal/types2/call.go
+@@ -129,7 +129,7 @@ func (check *Checker) call(x *operand, call *syntax.CallExpr) exprKind {
+ 					}
+ 				}
+ 				if call.HasDots {
+-					check.errorf(call.ArgList[0], "invalid use of ... in type conversion to %s)", T)
++					check.errorf(call.ArgList[0], "invalid use of ... in type conversion to %s", T)
+ 					break
+ 				}
+ 				check.conversion(x, T)

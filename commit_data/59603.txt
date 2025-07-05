@@ -17,7 +17,7 @@ Date:   Sun Sep 17 21:46:35 2023 +0100
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: qiulaidongfeng <2645477756@qq.com>
     Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
-
+---
  src/crypto/tls/handshake_client.go       | 5 +----
  src/crypto/tls/handshake_client_tls13.go | 6 +-----
  src/crypto/tls/handshake_server.go       | 6 ++----
@@ -25,3 +25,146 @@ Date:   Sun Sep 17 21:46:35 2023 +0100
  src/crypto/tls/ticket.go                 | 4 ++--
  src/regexp/syntax/parse.go               | 8 ++------
  6 files changed, 11 insertions(+), 27 deletions(-)
+
+diff --git a/src/crypto/tls/handshake_client.go b/src/crypto/tls/handshake_client.go
+index f016e01b4b..0b35deefa1 100644
+--- a/src/crypto/tls/handshake_client.go
++++ b/src/crypto/tls/handshake_client.go
+@@ -915,10 +915,7 @@ func (hs *clientHandshakeState) saveSessionTicket() error {
+ 		return nil
+ 	}
+ 
+-	session, err := c.sessionState()
+-	if err != nil {
+-		return err
+-	}
++	session := c.sessionState()
+ 	session.secret = hs.masterSecret
+ 
+ 	cs := &ClientSessionState{ticket: hs.ticket, session: session}
+diff --git a/src/crypto/tls/handshake_client_tls13.go b/src/crypto/tls/handshake_client_tls13.go
+index 2f59f6888c..a0fc413f8f 100644
+--- a/src/crypto/tls/handshake_client_tls13.go
++++ b/src/crypto/tls/handshake_client_tls13.go
+@@ -753,11 +753,7 @@ func (c *Conn) handleNewSessionTicket(msg *newSessionTicketMsgTLS13) error {
+ 	psk := cipherSuite.expandLabel(c.resumptionSecret, "resumption",
+ 		msg.nonce, cipherSuite.hash.Size())
+ 
+-	session, err := c.sessionState()
+-	if err != nil {
+-		c.sendAlert(alertInternalError)
+-		return err
+-	}
++	session := c.sessionState()
+ 	session.secret = psk
+ 	session.useBy = uint64(c.config.time().Add(lifetime).Unix())
+ 	session.ageAdd = msg.ageAdd
+diff --git a/src/crypto/tls/handshake_server.go b/src/crypto/tls/handshake_server.go
+index 8129e9c616..eb87ee038c 100644
+--- a/src/crypto/tls/handshake_server.go
++++ b/src/crypto/tls/handshake_server.go
+@@ -810,10 +810,7 @@ func (hs *serverHandshakeState) sendSessionTicket() error {
+ 	c := hs.c
+ 	m := new(newSessionTicketMsg)
+ 
+-	state, err := c.sessionState()
+-	if err != nil {
+-		return err
+-	}
++	state := c.sessionState()
+ 	state.secret = hs.masterSecret
+ 	if hs.sessionState != nil {
+ 		// If this is re-wrapping an old key, then keep
+@@ -821,6 +818,7 @@ func (hs *serverHandshakeState) sendSessionTicket() error {
+ 		state.createdAt = hs.sessionState.createdAt
+ 	}
+ 	if c.config.WrapSession != nil {
++		var err error
+ 		m.ticket, err = c.config.WrapSession(c.connectionStateLocked(), state)
+ 		if err != nil {
+ 			return err
+diff --git a/src/crypto/tls/handshake_server_tls13.go b/src/crypto/tls/handshake_server_tls13.go
+index 21d798de37..60a3883023 100644
+--- a/src/crypto/tls/handshake_server_tls13.go
++++ b/src/crypto/tls/handshake_server_tls13.go
+@@ -837,13 +837,11 @@ func (c *Conn) sendSessionTicket(earlyData bool) error {
+ 
+ 	m := new(newSessionTicketMsgTLS13)
+ 
+-	state, err := c.sessionState()
+-	if err != nil {
+-		return err
+-	}
++	state := c.sessionState()
+ 	state.secret = psk
+ 	state.EarlyData = earlyData
+ 	if c.config.WrapSession != nil {
++		var err error
+ 		m.label, err = c.config.WrapSession(c.connectionStateLocked(), state)
+ 		if err != nil {
+ 			return err
+@@ -865,8 +863,7 @@ func (c *Conn) sendSessionTicket(earlyData bool) error {
+ 	// The value is not stored anywhere; we never need to check the ticket age
+ 	// because 0-RTT is not supported.
+ 	ageAdd := make([]byte, 4)
+-	_, err = c.config.rand().Read(ageAdd)
+-	if err != nil {
++	if _, err := c.config.rand().Read(ageAdd); err != nil {
+ 		return err
+ 	}
+ 	m.ageAdd = binary.LittleEndian.Uint32(ageAdd)
+diff --git a/src/crypto/tls/ticket.go b/src/crypto/tls/ticket.go
+index b71e3afdb2..04e1dd6685 100644
+--- a/src/crypto/tls/ticket.go
++++ b/src/crypto/tls/ticket.go
+@@ -289,7 +289,7 @@ func ParseSessionState(data []byte) (*SessionState, error) {
+ 
+ // sessionState returns a partially filled-out [SessionState] with information
+ // from the current connection.
+-func (c *Conn) sessionState() (*SessionState, error) {
++func (c *Conn) sessionState() *SessionState {
+ 	return &SessionState{
+ 		version:           c.vers,
+ 		cipherSuite:       c.cipherSuite,
+@@ -302,7 +302,7 @@ func (c *Conn) sessionState() (*SessionState, error) {
+ 		isClient:          c.isClient,
+ 		extMasterSecret:   c.extMasterSecret,
+ 		verifiedChains:    c.verifiedChains,
+-	}, nil
++	}
+ }
+ 
+ // EncryptTicket encrypts a ticket with the [Config]'s configured (or default)
+diff --git a/src/regexp/syntax/parse.go b/src/regexp/syntax/parse.go
+index 6ed6491c80..8f16f6308f 100644
+--- a/src/regexp/syntax/parse.go
++++ b/src/regexp/syntax/parse.go
+@@ -941,9 +941,7 @@ func parse(s string, flags Flags) (_ *Regexp, err error) {
+ 			p.op(opLeftParen).Cap = p.numCap
+ 			t = t[1:]
+ 		case '|':
+-			if err = p.parseVerticalBar(); err != nil {
+-				return nil, err
+-			}
++			p.parseVerticalBar()
+ 			t = t[1:]
+ 		case ')':
+ 			if err = p.parseRightParen(); err != nil {
+@@ -1328,7 +1326,7 @@ func matchRune(re *Regexp, r rune) bool {
+ }
+ 
+ // parseVerticalBar handles a | in the input.
+-func (p *parser) parseVerticalBar() error {
++func (p *parser) parseVerticalBar() {
+ 	p.concat()
+ 
+ 	// The concatenation we just parsed is on top of the stack.
+@@ -1338,8 +1336,6 @@ func (p *parser) parseVerticalBar() error {
+ 	if !p.swapVerticalBar() {
+ 		p.op(opVerticalBar)
+ 	}
+-
+-	return nil
+ }
+ 
+ // mergeCharClass makes dst = dst|src.

@@ -25,7 +25,7 @@ Date:   Tue Feb 27 13:46:03 2018 -0800
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/gc/plive.go           | 15 +++++++++++++--
  src/cmd/compile/internal/gc/reflect.go         |  3 ++-
  src/cmd/compile/internal/gc/ssa.go             |  7 ++++---
@@ -38,3 +38,263 @@ Date:   Tue Feb 27 13:46:03 2018 -0800
  src/runtime/gcinfo_test.go                     |  4 ++--
  test/live.go                                   |  2 +-
  11 files changed, 39 insertions(+), 25 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/plive.go b/src/cmd/compile/internal/gc/plive.go
+index 7d856cc59e..60c726ff58 100644
+--- a/src/cmd/compile/internal/gc/plive.go
++++ b/src/cmd/compile/internal/gc/plive.go
+@@ -385,7 +385,18 @@ func onebitwalktype1(t *types.Type, off int64, bv bvec) {
+ 		if off&int64(Widthptr-1) != 0 {
+ 			Fatalf("onebitwalktype1: invalid alignment, %v", t)
+ 		}
+-		bv.Set(int32(off / int64(Widthptr)))   // pointer in first slot
++		// The first word of an interface is a pointer, but we don't
++		// treat it as such.
++		// 1. If it is a non-empty interface, the pointer points to an itab
++		//    which is always in persistentalloc space.
++		// 2. If it is an empty interface, the pointer points to a _type.
++		//   a. If it is a compile-time-allocated type, it points into
++		//      the read-only data section.
++		//   b. If it is a reflect-allocated type, it points into the Go heap.
++		//      Reflect is responsible for keeping a reference to
++		//      the underlying type so it won't be GCd.
++		// If we ever have a moving GC, we need to change this for 2b (as
++		// well as scan itabs to update their itab._type fields).
+ 		bv.Set(int32(off/int64(Widthptr) + 1)) // pointer in second slot
+ 
+ 	case TSLICE:
+@@ -870,7 +881,7 @@ func clobberWalk(b *ssa.Block, v *Node, offset int64, t *types.Type) {
+ 		// struct { Itab *tab; void *data; }
+ 		// or, when isnilinter(t)==true:
+ 		// struct { Type *type; void *data; }
+-		clobberPtr(b, v, offset)
++		// Note: the first word isn't a pointer. See comment in plive.go:onebitwalktype1.
+ 		clobberPtr(b, v, offset+int64(Widthptr))
+ 
+ 	case TSLICE:
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index e556409d4b..08d87a7f5d 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -794,6 +794,7 @@ func typeptrdata(t *types.Type) int64 {
+ 	case TINTER:
+ 		// struct { Itab *tab;	void *data; } or
+ 		// struct { Type *type; void *data; }
++		// Note: see comment in plive.go:onebitwalktype1.
+ 		return 2 * int64(Widthptr)
+ 
+ 	case TSLICE:
+@@ -1858,7 +1859,7 @@ func (p *GCProg) emit(t *types.Type, offset int64) {
+ 		p.w.Ptr(offset / int64(Widthptr))
+ 
+ 	case TINTER:
+-		p.w.Ptr(offset / int64(Widthptr))
++		// Note: the first word isn't a pointer. See comment in plive.go:onebitwalktype1.
+ 		p.w.Ptr(offset/int64(Widthptr) + 1)
+ 
+ 	case TSLICE:
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index a9342aedf4..192e13eeb5 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -5177,6 +5177,7 @@ func (e *ssafn) SplitString(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot) {
+ 
+ func (e *ssafn) SplitInterface(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot) {
+ 	n := name.N.(*Node)
++	u := types.Types[TUINTPTR]
+ 	t := types.NewPtr(types.Types[TUINT8])
+ 	if n.Class() == PAUTO && !n.Addrtaken() {
+ 		// Split this interface up into two separate variables.
+@@ -5184,12 +5185,12 @@ func (e *ssafn) SplitInterface(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot
+ 		if n.Type.IsEmptyInterface() {
+ 			f = ".type"
+ 		}
+-		c := e.splitSlot(&name, f, 0, t)
+-		d := e.splitSlot(&name, ".data", t.Size(), t)
++		c := e.splitSlot(&name, f, 0, u) // see comment in plive.go:onebitwalktype1.
++		d := e.splitSlot(&name, ".data", u.Size(), t)
+ 		return c, d
+ 	}
+ 	// Return the two parts of the larger variable.
+-	return ssa.LocalSlot{N: n, Type: t, Off: name.Off}, ssa.LocalSlot{N: n, Type: t, Off: name.Off + int64(Widthptr)}
++	return ssa.LocalSlot{N: n, Type: u, Off: name.Off}, ssa.LocalSlot{N: n, Type: t, Off: name.Off + int64(Widthptr)}
+ }
+ 
+ func (e *ssafn) SplitSlice(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot, ssa.LocalSlot) {
+diff --git a/src/cmd/compile/internal/ssa/decompose.go b/src/cmd/compile/internal/ssa/decompose.go
+index 0cabfb61e7..af85090248 100644
+--- a/src/cmd/compile/internal/ssa/decompose.go
++++ b/src/cmd/compile/internal/ssa/decompose.go
+@@ -200,12 +200,13 @@ func decomposeComplexPhi(v *Value) {
+ }
+ 
+ func decomposeInterfacePhi(v *Value) {
++	uintptrType := v.Block.Func.Config.Types.Uintptr
+ 	ptrType := v.Block.Func.Config.Types.BytePtr
+ 
+-	itab := v.Block.NewValue0(v.Pos, OpPhi, ptrType)
++	itab := v.Block.NewValue0(v.Pos, OpPhi, uintptrType)
+ 	data := v.Block.NewValue0(v.Pos, OpPhi, ptrType)
+ 	for _, a := range v.Args {
+-		itab.AddArg(a.Block.NewValue1(v.Pos, OpITab, ptrType, a))
++		itab.AddArg(a.Block.NewValue1(v.Pos, OpITab, uintptrType, a))
+ 		data.AddArg(a.Block.NewValue1(v.Pos, OpIData, ptrType, a))
+ 	}
+ 	v.reset(OpIMake)
+diff --git a/src/cmd/compile/internal/ssa/gen/dec.rules b/src/cmd/compile/internal/ssa/gen/dec.rules
+index a475a2d26a..b56db78a56 100644
+--- a/src/cmd/compile/internal/ssa/gen/dec.rules
++++ b/src/cmd/compile/internal/ssa/gen/dec.rules
+@@ -81,7 +81,7 @@
+ 
+ (Load <t> ptr mem) && t.IsInterface() ->
+   (IMake
+-    (Load <typ.BytePtr> ptr mem)
++    (Load <typ.Uintptr> ptr mem)
+     (Load <typ.BytePtr>
+       (OffPtr <typ.BytePtrPtr> [config.PtrSize] ptr)
+       mem))
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index 0e9109b799..8d39443881 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -752,7 +752,7 @@
+ // interface ops
+ (ConstInterface) ->
+   (IMake
+-    (ConstNil <typ.BytePtr>)
++    (ConstNil <typ.Uintptr>)
+     (ConstNil <typ.BytePtr>))
+ 
+ (NilCheck (GetG mem) mem) -> mem
+@@ -779,7 +779,7 @@
+ 
+ (Arg {n} [off]) && v.Type.IsInterface() ->
+   (IMake
+-    (Arg <typ.BytePtr> {n} [off])
++    (Arg <typ.Uintptr> {n} [off])
+     (Arg <typ.BytePtr> {n} [off+config.PtrSize]))
+ 
+ (Arg {n} [off]) && v.Type.IsComplex() && v.Type.Size() == 16 ->
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index 6cfa9d2e71..17080fbb3d 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -422,7 +422,7 @@ var genericOps = []opData{
+ 
+ 	// Interfaces
+ 	{name: "IMake", argLength: 2},                // arg0=itab, arg1=data
+-	{name: "ITab", argLength: 1, typ: "BytePtr"}, // arg0=interface, returns itable field
++	{name: "ITab", argLength: 1, typ: "Uintptr"}, // arg0=interface, returns itable field
+ 	{name: "IData", argLength: 1},                // arg0=interface, returns data field
+ 
+ 	// Structs
+diff --git a/src/cmd/compile/internal/ssa/rewritedec.go b/src/cmd/compile/internal/ssa/rewritedec.go
+index f0e837aef5..36729a553d 100644
+--- a/src/cmd/compile/internal/ssa/rewritedec.go
++++ b/src/cmd/compile/internal/ssa/rewritedec.go
+@@ -230,7 +230,7 @@ func rewriteValuedec_OpLoad_0(v *Value) bool {
+ 	}
+ 	// match: (Load <t> ptr mem)
+ 	// cond: t.IsInterface()
+-	// result: (IMake (Load <typ.BytePtr> ptr mem) (Load <typ.BytePtr> (OffPtr <typ.BytePtrPtr> [config.PtrSize] ptr) mem))
++	// result: (IMake (Load <typ.Uintptr> ptr mem) (Load <typ.BytePtr> (OffPtr <typ.BytePtrPtr> [config.PtrSize] ptr) mem))
+ 	for {
+ 		t := v.Type
+ 		_ = v.Args[1]
+@@ -240,7 +240,7 @@ func rewriteValuedec_OpLoad_0(v *Value) bool {
+ 			break
+ 		}
+ 		v.reset(OpIMake)
+-		v0 := b.NewValue0(v.Pos, OpLoad, typ.BytePtr)
++		v0 := b.NewValue0(v.Pos, OpLoad, typ.Uintptr)
+ 		v0.AddArg(ptr)
+ 		v0.AddArg(mem)
+ 		v.AddArg(v0)
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index 6f7e658440..414514c5ac 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -6940,7 +6940,7 @@ func rewriteValuegeneric_OpArg_0(v *Value) bool {
+ 	}
+ 	// match: (Arg {n} [off])
+ 	// cond: v.Type.IsInterface()
+-	// result: (IMake (Arg <typ.BytePtr> {n} [off]) (Arg <typ.BytePtr> {n} [off+config.PtrSize]))
++	// result: (IMake (Arg <typ.Uintptr> {n} [off]) (Arg <typ.BytePtr> {n} [off+config.PtrSize]))
+ 	for {
+ 		off := v.AuxInt
+ 		n := v.Aux
+@@ -6948,7 +6948,7 @@ func rewriteValuegeneric_OpArg_0(v *Value) bool {
+ 			break
+ 		}
+ 		v.reset(OpIMake)
+-		v0 := b.NewValue0(v.Pos, OpArg, typ.BytePtr)
++		v0 := b.NewValue0(v.Pos, OpArg, typ.Uintptr)
+ 		v0.AuxInt = off
+ 		v0.Aux = n
+ 		v.AddArg(v0)
+@@ -7298,10 +7298,10 @@ func rewriteValuegeneric_OpConstInterface_0(v *Value) bool {
+ 	_ = typ
+ 	// match: (ConstInterface)
+ 	// cond:
+-	// result: (IMake (ConstNil <typ.BytePtr>) (ConstNil <typ.BytePtr>))
++	// result: (IMake (ConstNil <typ.Uintptr>) (ConstNil <typ.BytePtr>))
+ 	for {
+ 		v.reset(OpIMake)
+-		v0 := b.NewValue0(v.Pos, OpConstNil, typ.BytePtr)
++		v0 := b.NewValue0(v.Pos, OpConstNil, typ.Uintptr)
+ 		v.AddArg(v0)
+ 		v1 := b.NewValue0(v.Pos, OpConstNil, typ.BytePtr)
+ 		v.AddArg(v1)
+@@ -10209,10 +10209,10 @@ func rewriteValuegeneric_OpEqInter_0(v *Value) bool {
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+ 		v.reset(OpEqPtr)
+-		v0 := b.NewValue0(v.Pos, OpITab, typ.BytePtr)
++		v0 := b.NewValue0(v.Pos, OpITab, typ.Uintptr)
+ 		v0.AddArg(x)
+ 		v.AddArg(v0)
+-		v1 := b.NewValue0(v.Pos, OpITab, typ.BytePtr)
++		v1 := b.NewValue0(v.Pos, OpITab, typ.Uintptr)
+ 		v1.AddArg(y)
+ 		v.AddArg(v1)
+ 		return true
+@@ -18008,10 +18008,10 @@ func rewriteValuegeneric_OpNeqInter_0(v *Value) bool {
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+ 		v.reset(OpNeqPtr)
+-		v0 := b.NewValue0(v.Pos, OpITab, typ.BytePtr)
++		v0 := b.NewValue0(v.Pos, OpITab, typ.Uintptr)
+ 		v0.AddArg(x)
+ 		v.AddArg(v0)
+-		v1 := b.NewValue0(v.Pos, OpITab, typ.BytePtr)
++		v1 := b.NewValue0(v.Pos, OpITab, typ.Uintptr)
+ 		v1.AddArg(y)
+ 		v.AddArg(v1)
+ 		return true
+diff --git a/src/runtime/gcinfo_test.go b/src/runtime/gcinfo_test.go
+index 14f514f96a..767e08d540 100644
+--- a/src/runtime/gcinfo_test.go
++++ b/src/runtime/gcinfo_test.go
+@@ -200,6 +200,6 @@ var (
+ 
+ 	infoString = []byte{typePointer, typeScalar}
+ 	infoSlice  = []byte{typePointer, typeScalar, typeScalar}
+-	infoEface  = []byte{typePointer, typePointer}
+-	infoIface  = []byte{typePointer, typePointer}
++	infoEface  = []byte{typeScalar, typePointer}
++	infoIface  = []byte{typeScalar, typePointer}
+ )
+diff --git a/test/live.go b/test/live.go
+index e54336ead7..ecab83e276 100644
+--- a/test/live.go
++++ b/test/live.go
+@@ -141,7 +141,7 @@ var i9 interface{}
+ func f9() bool {
+ 	g8()
+ 	x := i9
+-	y := interface{}(str()) // ERROR "live at call to convT2Estring: .autotmp_[0-9]+ x.data x.type$" "live at call to str: x.data x.type$"
++	y := interface{}(str()) // ERROR "live at call to convT2Estring: .autotmp_[0-9]+ x.data$" "live at call to str: x.data$"
+ 	i9 = y                  // make y escape so the line above has to call convT2E
+ 	return x != y
+ }

@@ -20,7 +20,7 @@ Date:   Thu Jan 13 13:20:19 2022 -0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/typecheck/crawler.go |  1 +
  test/typeparam/issue50598.dir/a0.go           | 23 +++++++++++++++++++++++
  test/typeparam/issue50598.dir/a1.go           | 11 +++++++++++
@@ -28,3 +28,120 @@ Date:   Thu Jan 13 13:20:19 2022 -0800
  test/typeparam/issue50598.dir/main.go         | 22 ++++++++++++++++++++++
  test/typeparam/issue50598.go                  |  7 +++++++
  6 files changed, 75 insertions(+)
+
+diff --git a/src/cmd/compile/internal/typecheck/crawler.go b/src/cmd/compile/internal/typecheck/crawler.go
+index 11c8056df5..a25c741488 100644
+--- a/src/cmd/compile/internal/typecheck/crawler.go
++++ b/src/cmd/compile/internal/typecheck/crawler.go
+@@ -252,6 +252,7 @@ func (p *crawler) checkForFullyInst(t *types.Type) {
+ 			if HaveInlineBody(methNode.Func) {
+ 				// Export the body as well if
+ 				// instantiation is inlineable.
++				ImportedBody(methNode.Func)
+ 				methNode.Func.SetExportInline(true)
+ 			}
+ 		}
+diff --git a/test/typeparam/issue50598.dir/a0.go b/test/typeparam/issue50598.dir/a0.go
+new file mode 100644
+index 0000000000..61d353e462
+--- /dev/null
++++ b/test/typeparam/issue50598.dir/a0.go
+@@ -0,0 +1,23 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a0
++
++type Builder[T any] struct{}
++
++func (r Builder[T]) New1() T {
++	var v T
++	return v
++}
++
++func (r Builder[T]) New2() T {
++	var v T
++	return v
++}
++
++type IntBuilder struct{}
++
++func (b IntBuilder) New() int {
++	return Builder[int]{}.New2()
++}
+diff --git a/test/typeparam/issue50598.dir/a1.go b/test/typeparam/issue50598.dir/a1.go
+new file mode 100644
+index 0000000000..0e63fac016
+--- /dev/null
++++ b/test/typeparam/issue50598.dir/a1.go
+@@ -0,0 +1,11 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a1
++
++import "a0"
++
++func New() int {
++	return a0.IntBuilder{}.New()
++}
+diff --git a/test/typeparam/issue50598.dir/a2.go b/test/typeparam/issue50598.dir/a2.go
+new file mode 100644
+index 0000000000..3eb5200253
+--- /dev/null
++++ b/test/typeparam/issue50598.dir/a2.go
+@@ -0,0 +1,11 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a2
++
++import "a0"
++
++func New() int {
++	return a0.Builder[int]{}.New1()
++}
+diff --git a/test/typeparam/issue50598.dir/main.go b/test/typeparam/issue50598.dir/main.go
+new file mode 100644
+index 0000000000..0fab8b665c
+--- /dev/null
++++ b/test/typeparam/issue50598.dir/main.go
+@@ -0,0 +1,22 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"fmt"
++
++	"a1"
++	"a2"
++)
++
++func New() int {
++	return a1.New() + a2.New()
++}
++
++func main() {
++	if got, want := New(), 0; got != want {
++		panic(fmt.Sprintf("got %d, want %d", got, want))
++	}
++}
+diff --git a/test/typeparam/issue50598.go b/test/typeparam/issue50598.go
+new file mode 100644
+index 0000000000..642f4bf49f
+--- /dev/null
++++ b/test/typeparam/issue50598.go
+@@ -0,0 +1,7 @@
++// rundir -G=3
++
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ignored

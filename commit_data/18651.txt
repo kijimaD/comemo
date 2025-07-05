@@ -193,7 +193,7 @@ Date:   Tue Feb 25 17:00:08 2014 -0500
     R=dave, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/68730043
-
+---
  src/cmd/gc/go.h                                    |    1 +
  src/cmd/gc/lex.c                                   |    3 +-
  src/pkg/math/abs_amd64p32.s                        |    5 +
@@ -233,3 +233,3261 @@ Date:   Tue Feb 25 17:00:08 2014 -0500
  src/pkg/runtime/sys_nacl_amd64p32.s                |  413 ++++++++
  src/pkg/syscall/net_nacl.go                        |  888 +++++++++++++++++
  38 files changed, 2983 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 68ec37bee3..89cda3c3b1 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -861,6 +861,7 @@ EXTERN	int	nerrors;
+ EXTERN	int	nsavederrors;
+ EXTERN	int	nsyntaxerrors;
+ EXTERN	int	safemode;
++EXTERN	int	nolocalimports;
+ EXTERN	char	namebuf[NSYMB];
+ EXTERN	char	lexbuf[NSYMB];
+ EXTERN	char	litbuf[NSYMB];
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 90def10b82..430abae5b1 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -301,6 +301,7 @@ main(int argc, char *argv[])
+ 	flagcount("l", "disable inlining", &debug['l']);
+ 	flagcount("live", "debug liveness analysis", &debuglive);
+ 	flagcount("m", "print optimization decisions", &debug['m']);
++	flagcount("nolocalimports", "reject local (relative) imports", &nolocalimports);
+ 	flagstr("o", "obj: set output file", &outfile);
+ 	flagstr("p", "path: set expected package import path", &myimportpath);
+ 	flagcount("pack", "write package file instead of object file", &writearchive);
+@@ -610,7 +611,7 @@ findpkg(Strlit *name)
+ 	char *q, *suffix, *suffixsep;
+ 
+ 	if(islocalname(name)) {
+-		if(safemode)
++		if(safemode || nolocalimports)
+ 			return 0;
+ 		// try .a before .6.  important for building libraries:
+ 		// if there is an array.6 in the array.a library,
+diff --git a/src/pkg/math/abs_amd64p32.s b/src/pkg/math/abs_amd64p32.s
+new file mode 100644
+index 0000000000..08c8c6b336
+--- /dev/null
++++ b/src/pkg/math/abs_amd64p32.s
+@@ -0,0 +1,5 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "abs_amd64.s"
+diff --git a/src/pkg/math/asin_amd64p32.s b/src/pkg/math/asin_amd64p32.s
+new file mode 100644
+index 0000000000..2751c475f9
+--- /dev/null
++++ b/src/pkg/math/asin_amd64p32.s
+@@ -0,0 +1,5 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "asin_amd64.s"
+diff --git a/src/pkg/math/atan2_amd64p32.s b/src/pkg/math/atan2_amd64p32.s
+new file mode 100644
+index 0000000000..3fdc03ca8f
+--- /dev/null
++++ b/src/pkg/math/atan2_amd64p32.s
+@@ -0,0 +1,5 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "atan2_amd64.s"
+diff --git a/src/pkg/math/atan_amd64p32.s b/src/pkg/math/atan_amd64p32.s
+new file mode 100644
+index 0000000000..1c1f6cedac
+--- /dev/null
++++ b/src/pkg/math/atan_amd64p32.s
+@@ -0,0 +1,5 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "atan_amd64.s"
+diff --git a/src/pkg/math/big/arith_amd64p32.s b/src/pkg/math/big/arith_amd64p32.s
+new file mode 100644
+index 0000000000..227870a005
+--- /dev/null
++++ b/src/pkg/math/big/arith_amd64p32.s
+@@ -0,0 +1,41 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "../../../cmd/ld/textflag.h"
++
++TEXT ·mulWW(SB),NOSPLIT,$0
++	JMP ·mulWW_g(SB)
++
++TEXT ·divWW(SB),NOSPLIT,$0
++	JMP ·divWW_g(SB)
++
++TEXT ·addVV(SB),NOSPLIT,$0
++	JMP ·addVV_g(SB)
++
++TEXT ·subVV(SB),NOSPLIT,$0
++	JMP ·subVV_g(SB)
++
++TEXT ·addVW(SB),NOSPLIT,$0
++	JMP ·addVW_g(SB)
++
++TEXT ·subVW(SB),NOSPLIT,$0
++	JMP ·subVW_g(SB)
++
++TEXT ·shlVU(SB),NOSPLIT,$0
++	JMP ·shlVU_g(SB)
++
++TEXT ·shrVU(SB),NOSPLIT,$0
++	JMP ·shrVU_g(SB)
++
++TEXT ·mulAddVWW(SB),NOSPLIT,$0
++	JMP ·mulAddVWW_g(SB)
++
++TEXT ·addMulVVW(SB),NOSPLIT,$0
++	JMP ·addMulVVW_g(SB)
++
++TEXT ·divWVW(SB),NOSPLIT,$0
++	JMP ·divWVW_g(SB)
++
++TEXT ·bitLen(SB),NOSPLIT,$0
++	JMP ·bitLen_g(SB)
+diff --git a/src/pkg/math/dim_amd64p32.s b/src/pkg/math/dim_amd64p32.s
+new file mode 100644
+index 0000000000..e5e34479dd
+--- /dev/null
++++ b/src/pkg/math/dim_amd64p32.s
+@@ -0,0 +1,5 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "dim_amd64.s"
+diff --git a/src/pkg/math/exp2_amd64p32.s b/src/pkg/math/exp2_amd64p32.s
+new file mode 100644
+index 0000000000..4d3830914c
+--- /dev/null
++++ b/src/pkg/math/exp2_amd64p32.s
+@@ -0,0 +1,5 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "exp2_amd64.s"
+diff --git a/src/pkg/math/exp_amd64p32.s b/src/pkg/math/exp_amd64p32.s
+new file mode 100644
+index 0000000000..98ac2e91e2
+--- /dev/null
++++ b/src/pkg/math/exp_amd64p32.s
+@@ -0,0 +1,5 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "exp_amd64.s"
+diff --git a/src/pkg/math/expm1_amd64p32.s b/src/pkg/math/expm1_amd64p32.s
+new file mode 100644
+index 0000000000..709ebefcbf
+--- /dev/null
++++ b/src/pkg/math/expm1_amd64p32.s
+@@ -0,0 +1,5 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "expm1_amd64.s"
+diff --git a/src/pkg/math/floor_amd64p32.s b/src/pkg/math/floor_amd64p32.s
+new file mode 100644
+index 0000000000..5b87d7a408
+--- /dev/null
++++ b/src/pkg/math/floor_amd64p32.s
+@@ -0,0 +1,5 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "floor_amd64.s"
+diff --git a/src/pkg/math/frexp_amd64p32.s b/src/pkg/math/frexp_amd64p32.s
+new file mode 100644
+index 0000000000..fbb564539c
+--- /dev/null
++++ b/src/pkg/math/frexp_amd64p32.s
+@@ -0,0 +1,5 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "frexp_amd64.s"
+diff --git a/src/pkg/math/hypot_amd64p32.s b/src/pkg/math/hypot_amd64p32.s
+new file mode 100644
+index 0000000000..b84542ae35
+--- /dev/null
++++ b/src/pkg/math/hypot_amd64p32.s
+@@ -0,0 +1,5 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "hypot_amd64.s"
+diff --git a/src/pkg/math/ldexp_amd64p32.s b/src/pkg/math/ldexp_amd64p32.s
+new file mode 100644
+index 0000000000..9aa9d9da38
+--- /dev/null
++++ b/src/pkg/math/ldexp_amd64p32.s
+@@ -0,0 +1,5 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "ldexp_amd64.s"
+diff --git a/src/pkg/math/log10_amd64p32.s b/src/pkg/math/log10_amd64p32.s
+new file mode 100644
+index 0000000000..bf43841e2c
+--- /dev/null
++++ b/src/pkg/math/log10_amd64p32.s
+@@ -0,0 +1,5 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "log10_amd64.s"
+diff --git a/src/pkg/math/log1p_amd64p32.s b/src/pkg/math/log1p_amd64p32.s
+new file mode 100644
+index 0000000000..a14b5e38a8
+--- /dev/null
++++ b/src/pkg/math/log1p_amd64p32.s
+@@ -0,0 +1,5 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "log1p_amd64.s"
+diff --git a/src/pkg/math/log_amd64p32.s b/src/pkg/math/log_amd64p32.s
+new file mode 100644
+index 0000000000..5058d607ee
+--- /dev/null
++++ b/src/pkg/math/log_amd64p32.s
+@@ -0,0 +1,5 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "log_amd64.s"
+diff --git a/src/pkg/math/mod_amd64p32.s b/src/pkg/math/mod_amd64p32.s
+new file mode 100644
+index 0000000000..c1b2311245
+--- /dev/null
++++ b/src/pkg/math/mod_amd64p32.s
+@@ -0,0 +1,5 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "mod_amd64.s"
+diff --git a/src/pkg/math/modf_amd64p32.s b/src/pkg/math/modf_amd64p32.s
+new file mode 100644
+index 0000000000..5508c25471
+--- /dev/null
++++ b/src/pkg/math/modf_amd64p32.s
+@@ -0,0 +1,5 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "modf_amd64.s"
+diff --git a/src/pkg/math/remainder_amd64p32.s b/src/pkg/math/remainder_amd64p32.s
+new file mode 100644
+index 0000000000..cd5cf55ffb
+--- /dev/null
++++ b/src/pkg/math/remainder_amd64p32.s
+@@ -0,0 +1,5 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "remainder_amd64.s"
+diff --git a/src/pkg/math/sin_amd64p32.s b/src/pkg/math/sin_amd64p32.s
+new file mode 100644
+index 0000000000..9f93eba20d
+--- /dev/null
++++ b/src/pkg/math/sin_amd64p32.s
+@@ -0,0 +1,5 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "sin_amd64.s"
+diff --git a/src/pkg/math/sincos_amd64p32.s b/src/pkg/math/sincos_amd64p32.s
+new file mode 100644
+index 0000000000..360e94d099
+--- /dev/null
++++ b/src/pkg/math/sincos_amd64p32.s
+@@ -0,0 +1,5 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "sincos_amd64.s"
+diff --git a/src/pkg/math/sqrt_amd64p32.s b/src/pkg/math/sqrt_amd64p32.s
+new file mode 100644
+index 0000000000..d83a286c2a
+--- /dev/null
++++ b/src/pkg/math/sqrt_amd64p32.s
+@@ -0,0 +1,5 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "sqrt_amd64.s"
+diff --git a/src/pkg/math/tan_amd64p32.s b/src/pkg/math/tan_amd64p32.s
+new file mode 100644
+index 0000000000..9b3f70de7d
+--- /dev/null
++++ b/src/pkg/math/tan_amd64p32.s
+@@ -0,0 +1,5 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "tan_amd64.s"
+diff --git a/src/pkg/runtime/asm_386.s b/src/pkg/runtime/asm_386.s
+index 8a945c2d50..708d24a725 100644
+--- a/src/pkg/runtime/asm_386.s
++++ b/src/pkg/runtime/asm_386.s
+@@ -340,7 +340,7 @@ TEXT reflect·call(SB), NOSPLIT, $0-12
+ 	JMP	AX
+ 
+ #define CALLFN(NAME,MAXSIZE)			\
+-TEXT runtime·NAME(SB), WRAPPER, $MAXSIZE-12;		\
++TEXT runtime·NAME(SB), WRAPPER, $MAXSIZE-12;	\
+ 	/* copy arguments to stack */		\
+ 	MOVL	argptr+4(FP), SI;		\
+ 	MOVL	argsize+8(FP), CX;		\
+@@ -348,7 +348,8 @@ TEXT runtime·NAME(SB), WRAPPER, $MAXSIZE-12;		\
+ 	REP;MOVSB;				\
+ 	/* call function */			\
+ 	MOVL	f+0(FP), DX;			\
+-	CALL	(DX);				\
++	MOVL	(DX), AX; 			\
++	CALL	AX;				\
+ 	/* copy return values back */		\
+ 	MOVL	argptr+4(FP), DI;		\
+ 	MOVL	argsize+8(FP), CX;		\
+diff --git a/src/pkg/runtime/asm_amd64p32.s b/src/pkg/runtime/asm_amd64p32.s
+new file mode 100644
+index 0000000000..efa894bae0
+--- /dev/null
++++ b/src/pkg/runtime/asm_amd64p32.s
+@@ -0,0 +1,1026 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "zasm_GOOS_GOARCH.h"
++#include "funcdata.h"
++#include "../../cmd/ld/textflag.h"
++
++TEXT _rt0_go(SB),NOSPLIT,$0
++	// copy arguments forward on an even stack
++	MOVL	argc+0(FP), AX
++	MOVL	argv+4(FP), BX
++	MOVL	SP, CX
++	SUBL	$128, SP		// plenty of scratch
++	ANDL	$~15, CX
++	MOVL	CX, SP
++
++	MOVL	AX, 16(SP)
++	MOVL	BX, 24(SP)
++	
++	// create istack out of the given (operating system) stack.
++	MOVL	$runtime·g0(SB), DI
++	LEAL	(-64*1024+104)(SP), DI
++	MOVL	BX, g_stackguard(DI)
++	MOVL	BX, g_stackguard0(DI)
++	MOVL	SP, g_stackbase(DI)
++
++	// find out information about the processor we're on
++	MOVQ	$0, AX
++	CPUID
++	CMPQ	AX, $0
++	JE	nocpuinfo
++	MOVQ	$1, AX
++	CPUID
++	MOVL	CX, runtime·cpuid_ecx(SB)
++	MOVL	DX, runtime·cpuid_edx(SB)
++nocpuinfo:	
++	
++needtls:
++	LEAL	runtime·tls0(SB), DI
++	CALL	runtime·settls(SB)
++
++	// store through it, to make sure it works
++	get_tls(BX)
++	MOVQ	$0x123, g(BX)
++	MOVQ	runtime·tls0(SB), AX
++	CMPQ	AX, $0x123
++	JEQ 2(PC)
++	MOVL	AX, 0	// abort
++ok:
++	// set the per-goroutine and per-mach "registers"
++	get_tls(BX)
++	LEAL	runtime·g0(SB), CX
++	MOVL	CX, g(BX)
++	LEAL	runtime·m0(SB), AX
++	MOVL	AX, m(BX)
++
++	// save m->g0 = g0
++	MOVL	CX, m_g0(AX)
++
++	CLD				// convention is D is always left cleared
++	CALL	runtime·check(SB)
++
++	MOVL	16(SP), AX		// copy argc
++	MOVL	AX, 0(SP)
++	MOVL	24(SP), AX		// copy argv
++	MOVL	AX, 4(SP)
++	CALL	runtime·args(SB)
++	CALL	runtime·osinit(SB)
++	CALL	runtime·hashinit(SB)
++	CALL	runtime·schedinit(SB)
++
++	// create a new goroutine to start program
++	MOVL	$runtime·main·f(SB), AX	// entry
++	MOVL	$0, 0(SP)
++	MOVL	AX, 4(SP)
++	ARGSIZE(8)
++	CALL	runtime·newproc(SB)
++	ARGSIZE(-1)
++
++	// start this M
++	CALL	runtime·mstart(SB)
++
++	MOVL	$0xf1, 0xf1  // crash
++	RET
++
++DATA	runtime·main·f+0(SB)/4,$runtime·main(SB)
++GLOBL	runtime·main·f(SB),RODATA,$4
++
++TEXT runtime·breakpoint(SB),NOSPLIT,$0-0
++	INT $3
++	RET
++
++TEXT runtime·asminit(SB),NOSPLIT,$0-0
++	// No per-thread init.
++	RET
++
++/*
++ *  go-routine
++ */
++
++// void gosave(Gobuf*)
++// save state in Gobuf; setjmp
++TEXT runtime·gosave(SB), NOSPLIT, $0-4
++	MOVL	b+0(FP), AX	// gobuf
++	LEAL	b+0(FP), BX	// caller's SP
++	MOVL	BX, gobuf_sp(AX)
++	MOVL	0(SP), BX		// caller's PC
++	MOVL	BX, gobuf_pc(AX)
++	MOVL	$0, gobuf_ctxt(AX)
++	MOVQ	$0, gobuf_ret(AX)
++	get_tls(CX)
++	MOVL	g(CX), BX
++	MOVL	BX, gobuf_g(AX)
++	RET
++
++// void gogo(Gobuf*)
++// restore state from Gobuf; longjmp
++TEXT runtime·gogo(SB), NOSPLIT, $0-4
++	MOVL	b+0(FP), BX		// gobuf
++	MOVL	gobuf_g(BX), DX
++	MOVL	0(DX), CX		// make sure g != nil
++	get_tls(CX)
++	MOVL	DX, g(CX)
++	MOVL	gobuf_sp(BX), SP	// restore SP
++	MOVL	gobuf_ctxt(BX), DX
++	MOVQ	gobuf_ret(BX), AX
++	MOVL	$0, gobuf_sp(BX)	// clear to help garbage collector
++	MOVQ	$0, gobuf_ret(BX)
++	MOVL	$0, gobuf_ctxt(BX)
++	MOVL	gobuf_pc(BX), BX
++	JMP	BX
++
++// void mcall(void (*fn)(G*))
++// Switch to m->g0's stack, call fn(g).
++// Fn must never return.  It should gogo(&g->sched)
++// to keep running g.
++TEXT runtime·mcall(SB), NOSPLIT, $0-4
++	MOVL	fn+0(FP), DI
++	
++	get_tls(CX)
++	MOVL	g(CX), AX	// save state in g->sched
++	MOVL	0(SP), BX	// caller's PC
++	MOVL	BX, (g_sched+gobuf_pc)(AX)
++	LEAL	fn+0(FP), BX	// caller's SP
++	MOVL	BX, (g_sched+gobuf_sp)(AX)
++	MOVL	AX, (g_sched+gobuf_g)(AX)
++
++	// switch to m->g0 & its stack, call fn
++	MOVL	m(CX), BX
++	MOVL	m_g0(BX), SI
++	CMPL	SI, AX	// if g == m->g0 call badmcall
++	JNE	3(PC)
++	MOVL	$runtime·badmcall(SB), AX
++	JMP	AX
++	MOVL	SI, g(CX)	// g = m->g0
++	MOVL	(g_sched+gobuf_sp)(SI), SP	// sp = m->g0->sched.sp
++	PUSHQ	AX
++	ARGSIZE(8)
++	CALL	DI
++	POPQ	AX
++	MOVL	$runtime·badmcall2(SB), AX
++	JMP	AX
++	RET
++
++/*
++ * support for morestack
++ */
++
++// Called during function prolog when more stack is needed.
++// Caller has already done get_tls(CX); MOVQ m(CX), BX.
++//
++// The traceback routines see morestack on a g0 as being
++// the top of a stack (for example, morestack calling newstack
++// calling the scheduler calling newm calling gc), so we must
++// record an argument size. For that purpose, it has no arguments.
++TEXT runtime·morestack(SB),NOSPLIT,$0-0
++	// Cannot grow scheduler stack (m->g0).
++	MOVL	m_g0(BX), SI
++	CMPL	g(CX), SI
++	JNE	2(PC)
++	MOVL	0, AX
++
++	// Called from f.
++	// Set m->morebuf to f's caller.
++	MOVL	8(SP), AX	// f's caller's PC
++	MOVL	AX, (m_morebuf+gobuf_pc)(BX)
++	LEAL	16(SP), AX	// f's caller's SP
++	MOVL	AX, (m_morebuf+gobuf_sp)(BX)
++	MOVL	AX, m_moreargp(BX)
++	get_tls(CX)
++	MOVL	g(CX), SI
++	MOVL	SI, (m_morebuf+gobuf_g)(BX)
++
++	// Set g->sched to context in f.
++	MOVL	0(SP), AX // f's PC
++	MOVL	AX, (g_sched+gobuf_pc)(SI)
++	MOVL	SI, (g_sched+gobuf_g)(SI)
++	LEAL	8(SP), AX // f's SP
++	MOVL	AX, (g_sched+gobuf_sp)(SI)
++	MOVL	DX, (g_sched+gobuf_ctxt)(SI)
++
++	// Call newstack on m->g0's stack.
++	MOVL	m_g0(BX), BX
++	MOVL	BX, g(CX)
++	MOVL	(g_sched+gobuf_sp)(BX), SP
++	CALL	runtime·newstack(SB)
++	MOVL	$0, 0x1003	// crash if newstack returns
++	RET
++
++// Called from panic.  Mimics morestack,
++// reuses stack growth code to create a frame
++// with the desired args running the desired function.
++//
++// func call(fn *byte, arg *byte, argsize uint32).
++TEXT runtime·newstackcall(SB), NOSPLIT, $0-20
++	get_tls(CX)
++	MOVL	m(CX), BX
++
++	// Save our caller's state as the PC and SP to
++	// restore when returning from f.
++	MOVL	0(SP), AX	// our caller's PC
++	MOVL	AX, (m_morebuf+gobuf_pc)(BX)
++	LEAL	8(SP), AX	// our caller's SP
++	MOVL	AX, (m_morebuf+gobuf_sp)(BX)
++	MOVL	g(CX), AX
++	MOVL	AX, (m_morebuf+gobuf_g)(BX)
++	
++	// Save our own state as the PC and SP to restore
++	// if this goroutine needs to be restarted.
++	MOVL	$runtime·newstackcall(SB), DI
++	MOVL	DI, (g_sched+gobuf_pc)(AX)
++	MOVL	SP, (g_sched+gobuf_sp)(AX)
++
++	// Set up morestack arguments to call f on a new stack.
++	// We set f's frame size to 1, as a hint to newstack
++	// that this is a call from runtime·newstackcall.
++	// If it turns out that f needs a larger frame than
++	// the default stack, f's usual stack growth prolog will
++	// allocate a new segment (and recopy the arguments).
++	MOVL	8(SP), AX	// fn
++	MOVL	12(SP), DX	// arg frame
++	MOVL	16(SP), CX	// arg size
++
++	MOVQ	AX, m_cret(BX)	// f's PC
++	MOVL	DX, m_moreargp(BX)	// argument frame pointer
++	MOVL	CX, m_moreargsize(BX)	// f's argument size
++	MOVL	$1, m_moreframesize(BX)	// f's frame size
++
++	// Call newstack on m->g0's stack.
++	MOVL	m_g0(BX), BX
++	get_tls(CX)
++	MOVL	BX, g(CX)
++	MOVL	(g_sched+gobuf_sp)(BX), SP
++	CALL	runtime·newstack(SB)
++	MOVL	$0, 0x1103	// crash if newstack returns
++	RET
++
++// reflect·call: call a function with the given argument list
++// func call(f *FuncVal, arg *byte, argsize uint32).
++// we don't have variable-sized frames, so we use a small number
++// of constant-sized-frame functions to encode a few bits of size in the pc.
++// Caution: ugly multiline assembly macros in your future!
++
++#define DISPATCH(NAME,MAXSIZE)		\
++	CMPL	CX, $MAXSIZE;		\
++	JA	3(PC);			\
++	MOVL	$runtime·NAME(SB), AX;	\
++	JMP	AX
++// Note: can't just "JMP runtime·NAME(SB)" - bad inlining results.
++
++TEXT reflect·call(SB), NOSPLIT, $0-20
++	MOVLQZX argsize+8(FP), CX
++	DISPATCH(call16, 16)
++	DISPATCH(call32, 32)
++	DISPATCH(call64, 64)
++	DISPATCH(call128, 128)
++	DISPATCH(call256, 256)
++	DISPATCH(call512, 512)
++	DISPATCH(call1024, 1024)
++	DISPATCH(call2048, 2048)
++	DISPATCH(call4096, 4096)
++	DISPATCH(call8192, 8192)
++	DISPATCH(call16384, 16384)
++	DISPATCH(call32768, 32768)
++	DISPATCH(call65536, 65536)
++	DISPATCH(call131072, 131072)
++	DISPATCH(call262144, 262144)
++	DISPATCH(call524288, 524288)
++	DISPATCH(call1048576, 1048576)
++	DISPATCH(call2097152, 2097152)
++	DISPATCH(call4194304, 4194304)
++	DISPATCH(call8388608, 8388608)
++	DISPATCH(call16777216, 16777216)
++	DISPATCH(call33554432, 33554432)
++	DISPATCH(call67108864, 67108864)
++	DISPATCH(call134217728, 134217728)
++	DISPATCH(call268435456, 268435456)
++	DISPATCH(call536870912, 536870912)
++	DISPATCH(call1073741824, 1073741824)
++	MOVL	$runtime·badreflectcall(SB), AX
++	JMP	AX
++
++#define CALLFN(NAME,MAXSIZE)			\
++TEXT runtime·NAME(SB), WRAPPER, $MAXSIZE-12;		\
++	/* copy arguments to stack */		\
++	MOVL	argptr+4(FP), SI;		\
++	MOVL	argsize+8(FP), CX;		\
++	MOVL	SP, DI;				\
++	REP;MOVSB;				\
++	/* call function */			\
++	MOVL	f+0(FP), DX;			\
++	MOVL	(DX), AX;				\
++	CALL	AX; \
++	/* copy return values back */		\
++	MOVL	argptr+4(FP), DI;		\
++	MOVL	argsize+8(FP), CX;		\
++	MOVL	SP, SI;				\
++	REP;MOVSB;				\
++	RET
++
++CALLFN(call16, 16)
++CALLFN(call32, 32)
++CALLFN(call64, 64)
++CALLFN(call128, 128)
++CALLFN(call256, 256)
++CALLFN(call512, 512)
++CALLFN(call1024, 1024)
++CALLFN(call2048, 2048)
++CALLFN(call4096, 4096)
++CALLFN(call8192, 8192)
++CALLFN(call16384, 16384)
++CALLFN(call32768, 32768)
++CALLFN(call65536, 65536)
++CALLFN(call131072, 131072)
++CALLFN(call262144, 262144)
++CALLFN(call524288, 524288)
++CALLFN(call1048576, 1048576)
++CALLFN(call2097152, 2097152)
++CALLFN(call4194304, 4194304)
++CALLFN(call8388608, 8388608)
++CALLFN(call16777216, 16777216)
++CALLFN(call33554432, 33554432)
++CALLFN(call67108864, 67108864)
++CALLFN(call134217728, 134217728)
++CALLFN(call268435456, 268435456)
++CALLFN(call536870912, 536870912)
++CALLFN(call1073741824, 1073741824)
++
++// Return point when leaving stack.
++//
++// Lessstack can appear in stack traces for the same reason
++// as morestack; in that context, it has 0 arguments.
++TEXT runtime·lessstack(SB), NOSPLIT, $0-0
++	// Save return value in m->cret
++	get_tls(CX)
++	MOVL	m(CX), BX
++	MOVQ	AX, m_cret(BX)	// MOVQ, to save all 64 bits
++
++	// Call oldstack on m->g0's stack.
++	MOVL	m_g0(BX), BX
++	MOVL	BX, g(CX)
++	MOVL	(g_sched+gobuf_sp)(BX), SP
++	CALL	runtime·oldstack(SB)
++	MOVL	$0, 0x1004	// crash if oldstack returns
++	RET
++
++// morestack trampolines
++TEXT runtime·morestack00(SB),NOSPLIT,$0
++	get_tls(CX)
++	MOVL	m(CX), BX
++	MOVQ	$0, AX
++	MOVQ	AX, m_moreframesize(BX)
++	MOVL	$runtime·morestack(SB), AX
++	JMP	AX
++
++TEXT runtime·morestack01(SB),NOSPLIT,$0
++	get_tls(CX)
++	MOVL	m(CX), BX
++	SHLQ	$32, AX
++	MOVQ	AX, m_moreframesize(BX)
++	MOVL	$runtime·morestack(SB), AX
++	JMP	AX
++
++TEXT runtime·morestack10(SB),NOSPLIT,$0
++	get_tls(CX)
++	MOVL	m(CX), BX
++	MOVLQZX	AX, AX
++	MOVQ	AX, m_moreframesize(BX)
++	MOVL	$runtime·morestack(SB), AX
++	JMP	AX
++
++TEXT runtime·morestack11(SB),NOSPLIT,$0
++	get_tls(CX)
++	MOVL	m(CX), BX
++	MOVQ	AX, m_moreframesize(BX)
++	MOVL	$runtime·morestack(SB), AX
++	JMP	AX
++
++// subcases of morestack01
++// with const of 8,16,...48
++TEXT runtime·morestack8(SB),NOSPLIT,$0
++	MOVQ	$1, R8
++	MOVL	$morestack<>(SB), AX
++	JMP	AX
++
++TEXT runtime·morestack16(SB),NOSPLIT,$0
++	MOVQ	$2, R8
++	MOVL	$morestack<>(SB), AX
++	JMP	AX
++
++TEXT runtime·morestack24(SB),NOSPLIT,$0
++	MOVQ	$3, R8
++	MOVL	$morestack<>(SB), AX
++	JMP	AX
++
++TEXT runtime·morestack32(SB),NOSPLIT,$0
++	MOVQ	$4, R8
++	MOVL	$morestack<>(SB), AX
++	JMP	AX
++
++TEXT runtime·morestack40(SB),NOSPLIT,$0
++	MOVQ	$5, R8
++	MOVL	$morestack<>(SB), AX
++	JMP	AX
++
++TEXT runtime·morestack48(SB),NOSPLIT,$0
++	MOVQ	$6, R8
++	MOVL	$morestack<>(SB), AX
++	JMP	AX
++
++TEXT morestack<>(SB),NOSPLIT,$0
++	get_tls(CX)
++	MOVL	m(CX), BX
++	SHLQ	$35, R8
++	MOVQ	R8, m_moreframesize(BX)
++	MOVL	$runtime·morestack(SB), AX
++	JMP	AX
++
++// bool cas(int32 *val, int32 old, int32 new)
++// Atomically:
++//	if(*val == old){
++//		*val = new;
++//		return 1;
++//	} else
++//		return 0;
++TEXT runtime·cas(SB), NOSPLIT, $0-12
++	MOVL	val+0(FP), BX
++	MOVL	old+4(FP), AX
++	MOVL	new+8(FP), CX
++	LOCK
++	CMPXCHGL	CX, 0(BX)
++	JZ 3(PC)
++	MOVL	$0, AX
++	RET
++	MOVL	$1, AX
++	RET
++
++// bool	runtime·cas64(uint64 *val, uint64 old, uint64 new)
++// Atomically:
++//	if(*val == *old){
++//		*val = new;
++//		return 1;
++//	} else {
++//		return 0;
++//	}
++TEXT runtime·cas64(SB), NOSPLIT, $0-24
++	MOVL	val+0(FP), BX
++	MOVQ	old+8(FP), AX
++	MOVQ	new+16(FP), CX
++	LOCK
++	CMPXCHGQ	CX, 0(BX)
++	JNZ	cas64_fail
++	MOVL	$1, AX
++	RET
++cas64_fail:
++	MOVL	$0, AX
++	RET
++
++// bool casp(void **val, void *old, void *new)
++// Atomically:
++//	if(*val == old){
++//		*val = new;
++//		return 1;
++//	} else
++//		return 0;
++TEXT runtime·casp(SB), NOSPLIT, $0-12
++	MOVL	val+0(FP), BX
++	MOVL	old+4(FP), AX
++	MOVL	new+8(FP), CX
++	LOCK
++	CMPXCHGL	CX, 0(BX)
++	JZ 3(PC)
++	MOVL	$0, AX
++	RET
++	MOVL	$1, AX
++	RET
++
++// uint32 xadd(uint32 volatile *val, int32 delta)
++// Atomically:
++//	*val += delta;
++//	return *val;
++TEXT runtime·xadd(SB), NOSPLIT, $0-8
++	MOVL	val+0(FP), BX
++	MOVL	delta+4(FP), AX
++	MOVL	AX, CX
++	LOCK
++	XADDL	AX, 0(BX)
++	ADDL	CX, AX
++	RET
++
++TEXT runtime·xadd64(SB), NOSPLIT, $0-16
++	MOVL	val+0(FP), BX
++	MOVQ	delta+8(FP), AX
++	MOVQ	AX, CX
++	LOCK
++	XADDQ	AX, 0(BX)
++	ADDQ	CX, AX
++	RET
++
++TEXT runtime·xchg(SB), NOSPLIT, $0-8
++	MOVL	val+0(FP), BX
++	MOVL	new+4(FP), AX
++	XCHGL	AX, 0(BX)
++	RET
++
++TEXT runtime·xchg64(SB), NOSPLIT, $0-16
++	MOVL	val+0(FP), BX
++	MOVQ	new+8(FP), AX
++	XCHGQ	AX, 0(BX)
++	RET
++
++TEXT runtime·procyield(SB),NOSPLIT,$0-0
++	MOVL	val+0(FP), AX
++again:
++	PAUSE
++	SUBL	$1, AX
++	JNZ	again
++	RET
++
++TEXT runtime·atomicstorep(SB), NOSPLIT, $0-8
++	MOVL	ptr+0(FP), BX
++	MOVL	val+4(FP), AX
++	XCHGL	AX, 0(BX)
++	RET
++
++TEXT runtime·atomicstore(SB), NOSPLIT, $0-8
++	MOVL	ptr+0(FP), BX
++	MOVL	val+4(FP), AX
++	XCHGL	AX, 0(BX)
++	RET
++
++TEXT runtime·atomicstore64(SB), NOSPLIT, $0-16
++	MOVL	ptr+0(FP), BX
++	MOVQ	val+8(FP), AX
++	XCHGQ	AX, 0(BX)
++	RET
++
++// void jmpdefer(fn, sp);
++// called from deferreturn.
++// 1. pop the caller
++// 2. sub 5 bytes from the callers return
++// 3. jmp to the argument
++TEXT runtime·jmpdefer(SB), NOSPLIT, $0-16
++	MOVL	fn+0(FP), DX
++	MOVL	callersp+4(FP), BX
++	LEAL	-8(BX), SP	// caller sp after CALL
++	SUBL	$5, (SP)	// return to CALL again
++	MOVL	0(DX), BX
++	JMP	BX	// but first run the deferred function
++
++// asmcgocall(void(*fn)(void*), void *arg)
++// Not implemented.
++TEXT runtime·asmcgocall(SB),NOSPLIT,$0-8
++	MOVL	0, AX
++	RET
++
++// cgocallback(void (*fn)(void*), void *frame, uintptr framesize)
++// Not implemented.
++TEXT runtime·cgocallback(SB),NOSPLIT,$12-12
++	MOVL	0, AX
++	RET
++
++// void setmg(M*, G*); set m and g. for use by needm.
++// Not implemented.
++TEXT runtime·setmg(SB), NOSPLIT, $0-8
++	MOVL	0, AX
++	RET
++
++// check that SP is in range [g->stackbase, g->stackguard)
++TEXT runtime·stackcheck(SB), NOSPLIT, $0-0
++	get_tls(CX)
++	MOVL	g(CX), AX
++	CMPL	g_stackbase(AX), SP
++	JHI	2(PC)
++	MOVL	0, AX
++	CMPL	SP, g_stackguard(AX)
++	JHI	2(PC)
++	MOVL	0, AX
++	RET
++
++TEXT runtime·memclr(SB),NOSPLIT,$0-8
++	MOVL	addr+0(FP), DI
++	MOVL	count+4(FP), CX
++	MOVQ	CX, BX
++	ANDQ	$7, BX
++	SHRQ	$3, CX
++	MOVQ	$0, AX
++	CLD
++	REP
++	STOSQ
++	MOVQ	BX, CX
++	REP
++	STOSB
++	RET
++
++TEXT runtime·getcallerpc(SB),NOSPLIT,$0-8
++	MOVL	x+0(FP),AX		// addr of first arg
++	MOVL	-8(AX),AX		// get calling pc
++	RET
++
++TEXT runtime·setcallerpc(SB),NOSPLIT,$0-16
++	MOVL	x+0(FP),AX		// addr of first arg
++	MOVL	pc+4(FP), BX		// pc to set
++	MOVQ	BX, -8(AX)		// set calling pc
++	RET
++
++TEXT runtime·getcallersp(SB),NOSPLIT,$0-8
++	MOVL	sp+0(FP), AX
++	RET
++
++// int64 runtime·cputicks(void)
++TEXT runtime·cputicks(SB),NOSPLIT,$0-0
++	RDTSC
++	SHLQ	$32, DX
++	ADDQ	DX, AX
++	RET
++
++TEXT runtime·stackguard(SB),NOSPLIT,$0-16
++	MOVL	SP, DX
++	MOVL	DX, sp+0(FP)
++	get_tls(CX)
++	MOVL	g(CX), BX
++	MOVL	g_stackguard(BX), DX
++	MOVL	DX, limit+4(FP)
++	RET
++
++GLOBL runtime·tls0(SB), $64
++
++// hash function using AES hardware instructions
++// For now, our one amd64p32 system (NaCl) does not
++// support using AES instructions, so have not bothered to
++// write the implementations. Can copy and adjust the ones
++// in asm_amd64.s when the time comes.
++
++TEXT runtime·aeshash(SB),NOSPLIT,$0-24
++	RET
++
++TEXT runtime·aeshashstr(SB),NOSPLIT,$0-24
++	RET
++
++TEXT runtime·aeshash32(SB),NOSPLIT,$0-24
++	RET
++
++TEXT runtime·aeshash64(SB),NOSPLIT,$0-24
++	RET
++
++TEXT runtime·memeq(SB),NOSPLIT,$0-12
++	MOVL	a+0(FP), SI
++	MOVL	b+4(FP), DI
++	MOVL	count+8(FP), BX
++	JMP	runtime·memeqbody(SB)
++
++// a in SI
++// b in DI
++// count in BX
++TEXT runtime·memeqbody(SB),NOSPLIT,$0-0
++	XORQ	AX, AX
++
++	CMPQ	BX, $8
++	JB	small
++	
++	// 64 bytes at a time using xmm registers
++hugeloop:
++	CMPQ	BX, $64
++	JB	bigloop
++	MOVOU	(SI), X0
++	MOVOU	(DI), X1
++	MOVOU	16(SI), X2
++	MOVOU	16(DI), X3
++	MOVOU	32(SI), X4
++	MOVOU	32(DI), X5
++	MOVOU	48(SI), X6
++	MOVOU	48(DI), X7
++	PCMPEQB	X1, X0
++	PCMPEQB	X3, X2
++	PCMPEQB	X5, X4
++	PCMPEQB	X7, X6
++	PAND	X2, X0
++	PAND	X6, X4
++	PAND	X4, X0
++	PMOVMSKB X0, DX
++	ADDQ	$64, SI
++	ADDQ	$64, DI
++	SUBQ	$64, BX
++	CMPL	DX, $0xffff
++	JEQ	hugeloop
++	RET
++
++	// 8 bytes at a time using 64-bit register
++bigloop:
++	CMPQ	BX, $8
++	JBE	leftover
++	MOVQ	(SI), CX
++	MOVQ	(DI), DX
++	ADDQ	$8, SI
++	ADDQ	$8, DI
++	SUBQ	$8, BX
++	CMPQ	CX, DX
++	JEQ	bigloop
++	RET
++
++	// remaining 0-8 bytes
++leftover:
++	ADDQ	BX, SI
++	ADDQ	BX, DI
++	MOVQ	-8(SI), CX
++	MOVQ	-8(DI), DX
++	CMPQ	CX, DX
++	SETEQ	AX
++	RET
++
++small:
++	CMPQ	BX, $0
++	JEQ	equal
++
++	LEAQ	0(BX*8), CX
++	NEGQ	CX
++
++	CMPB	SI, $0xf8
++	JA	si_high
++
++	// load at SI won't cross a page boundary.
++	MOVQ	(SI), SI
++	JMP	si_finish
++si_high:
++	// address ends in 11111xxx.  Load up to bytes we want, move to correct position.
++	MOVQ	BX, DX
++	ADDQ	SI, DX
++	MOVQ	-8(DX), SI
++	SHRQ	CX, SI
++si_finish:
++
++	// same for DI.
++	CMPB	DI, $0xf8
++	JA	di_high
++	MOVQ	(DI), DI
++	JMP	di_finish
++di_high:
++	MOVQ	BX, DX
++	ADDQ	DI, DX
++	MOVQ	-8(DX), DI
++	SHRQ	CX, DI
++di_finish:
++
++	SUBQ	SI, DI
++	SHLQ	CX, DI
++equal:
++	SETEQ	AX
++	RET
++
++TEXT runtime·cmpstring(SB),NOSPLIT,$0-20
++	MOVL	s1+0(FP), SI
++	MOVL	s1+4(FP), BX
++	MOVL	s2+8(FP), DI
++	MOVL	s2+12(FP), DX
++	CALL	runtime·cmpbody(SB)
++	MOVL	AX, res+16(FP)
++	RET
++
++TEXT bytes·Compare(SB),NOSPLIT,$0-28
++	MOVL	s1+0(FP), SI
++	MOVL	s1+4(FP), BX
++	MOVL	s2+12(FP), DI
++	MOVL	s2+16(FP), DX
++	CALL	runtime·cmpbody(SB)
++	MOVQ	AX, res+24(FP)
++	RET
++
++// input:
++//   SI = a
++//   DI = b
++//   BX = alen
++//   DX = blen
++// output:
++//   AX = 1/0/-1
++TEXT runtime·cmpbody(SB),NOSPLIT,$0-0
++	CMPQ	SI, DI
++	JEQ	cmp_allsame
++	CMPQ	BX, DX
++	MOVQ	DX, R8
++	CMOVQLT	BX, R8 // R8 = min(alen, blen) = # of bytes to compare
++	CMPQ	R8, $8
++	JB	cmp_small
++
++cmp_loop:
++	CMPQ	R8, $16
++	JBE	cmp_0through16
++	MOVOU	(SI), X0
++	MOVOU	(DI), X1
++	PCMPEQB X0, X1
++	PMOVMSKB X1, AX
++	XORQ	$0xffff, AX	// convert EQ to NE
++	JNE	cmp_diff16	// branch if at least one byte is not equal
++	ADDQ	$16, SI
++	ADDQ	$16, DI
++	SUBQ	$16, R8
++	JMP	cmp_loop
++	
++	// AX = bit mask of differences
++cmp_diff16:
++	BSFQ	AX, BX	// index of first byte that differs
++	XORQ	AX, AX
++	ADDQ	BX, SI
++	MOVB	(SI), CX
++	ADDQ	BX, DI
++	CMPB	CX, (DI)
++	SETHI	AX
++	LEAQ	-1(AX*2), AX	// convert 1/0 to +1/-1
++	RET
++
++	// 0 through 16 bytes left, alen>=8, blen>=8
++cmp_0through16:
++	CMPQ	R8, $8
++	JBE	cmp_0through8
++	MOVQ	(SI), AX
++	MOVQ	(DI), CX
++	CMPQ	AX, CX
++	JNE	cmp_diff8
++cmp_0through8:
++	ADDQ	R8, SI
++	ADDQ	R8, DI
++	MOVQ	-8(SI), AX
++	MOVQ	-8(DI), CX
++	CMPQ	AX, CX
++	JEQ	cmp_allsame
++
++	// AX and CX contain parts of a and b that differ.
++cmp_diff8:
++	BSWAPQ	AX	// reverse order of bytes
++	BSWAPQ	CX
++	XORQ	AX, CX
++	BSRQ	CX, CX	// index of highest bit difference
++	SHRQ	CX, AX	// move a's bit to bottom
++	ANDQ	$1, AX	// mask bit
++	LEAQ	-1(AX*2), AX // 1/0 => +1/-1
++	RET
++
++	// 0-7 bytes in common
++cmp_small:
++	LEAQ	(R8*8), CX	// bytes left -> bits left
++	NEGQ	CX		//  - bits lift (== 64 - bits left mod 64)
++	JEQ	cmp_allsame
++
++	// load bytes of a into high bytes of AX
++	CMPB	SI, $0xf8
++	JA	cmp_si_high
++	MOVQ	(SI), SI
++	JMP	cmp_si_finish
++cmp_si_high:
++	ADDQ	R8, SI
++	MOVQ	-8(SI), SI
++	SHRQ	CX, SI
++cmp_si_finish:
++	SHLQ	CX, SI
++
++	// load bytes of b in to high bytes of BX
++	CMPB	DI, $0xf8
++	JA	cmp_di_high
++	MOVQ	(DI), DI
++	JMP	cmp_di_finish
++cmp_di_high:
++	ADDQ	R8, DI
++	MOVQ	-8(DI), DI
++	SHRQ	CX, DI
++cmp_di_finish:
++	SHLQ	CX, DI
++
++	BSWAPQ	SI	// reverse order of bytes
++	BSWAPQ	DI
++	XORQ	SI, DI	// find bit differences
++	JEQ	cmp_allsame
++	BSRQ	DI, CX	// index of highest bit difference
++	SHRQ	CX, SI	// move a's bit to bottom
++	ANDQ	$1, SI	// mask bit
++	LEAQ	-1(SI*2), AX // 1/0 => +1/-1
++	RET
++
++cmp_allsame:
++	XORQ	AX, AX
++	XORQ	CX, CX
++	CMPQ	BX, DX
++	SETGT	AX	// 1 if alen > blen
++	SETEQ	CX	// 1 if alen == blen
++	LEAQ	-1(CX)(AX*2), AX	// 1,0,-1 result
++	RET
++
++TEXT bytes·IndexByte(SB),NOSPLIT,$0
++	MOVL s+0(FP), SI
++	MOVL s_len+4(FP), BX
++	MOVB c+12(FP), AL
++	CALL runtime·indexbytebody(SB)
++	MOVL AX, ret+16(FP)
++	RET
++
++TEXT strings·IndexByte(SB),NOSPLIT,$0
++	MOVL s+0(FP), SI
++	MOVL s_len+4(FP), BX
++	MOVB c+8(FP), AL
++	CALL runtime·indexbytebody(SB)
++	MOVL AX, ret+16(FP)
++	RET
++
++// input:
++//   SI: data
++//   BX: data len
++//   AL: byte sought
++// output:
++//   AX
++TEXT runtime·indexbytebody(SB),NOSPLIT,$0
++	MOVL SI, DI
++
++	CMPL BX, $16
++	JLT indexbyte_small
++
++	// round up to first 16-byte boundary
++	TESTL $15, SI
++	JZ aligned
++	MOVL SI, CX
++	ANDL $~15, CX
++	ADDL $16, CX
++
++	// search the beginning
++	SUBL SI, CX
++	REPN; SCASB
++	JZ success
++
++// DI is 16-byte aligned; get ready to search using SSE instructions
++aligned:
++	// round down to last 16-byte boundary
++	MOVL BX, R11
++	ADDL SI, R11
++	ANDL $~15, R11
++
++	// shuffle X0 around so that each byte contains c
++	MOVD AX, X0
++	PUNPCKLBW X0, X0
++	PUNPCKLBW X0, X0
++	PSHUFL $0, X0, X0
++	JMP condition
++
++sse:
++	// move the next 16-byte chunk of the buffer into X1
++	MOVO (DI), X1
++	// compare bytes in X0 to X1
++	PCMPEQB X0, X1
++	// take the top bit of each byte in X1 and put the result in DX
++	PMOVMSKB X1, DX
++	TESTL DX, DX
++	JNZ ssesuccess
++	ADDL $16, DI
++
++condition:
++	CMPL DI, R11
++	JLT sse
++
++	// search the end
++	MOVL SI, CX
++	ADDL BX, CX
++	SUBL R11, CX
++	// if CX == 0, the zero flag will be set and we'll end up
++	// returning a false success
++	JZ failure
++	REPN; SCASB
++	JZ success
++
++failure:
++	MOVL $-1, AX
++	RET
++
++// handle for lengths < 16
++indexbyte_small:
++	MOVL BX, CX
++	REPN; SCASB
++	JZ success
++	MOVL $-1, AX
++	RET
++
++// we've found the chunk containing the byte
++// now just figure out which specific byte it is
++ssesuccess:
++	// get the index of the least significant set bit
++	BSFW DX, DX
++	SUBL SI, DI
++	ADDL DI, DX
++	MOVL DX, AX
++	RET
++
++success:
++	SUBL SI, DI
++	SUBL $1, DI
++	MOVL DI, AX
++	RET
++
++TEXT bytes·Equal(SB),NOSPLIT,$0-25
++	MOVL	a_len+4(FP), BX
++	MOVL	b_len+16(FP), CX
++	XORL	AX, AX
++	CMPL	BX, CX
++	JNE	eqret
++	MOVL	a+0(FP), SI
++	MOVL	b+12(FP), DI
++	CALL	runtime·memeqbody(SB)
++eqret:
++	MOVB	AX, ret+24(FP)
++	RET
+diff --git a/src/pkg/runtime/atomic_amd64.c b/src/pkg/runtime/atomic_amd64x.c
+similarity index 95%
+rename from src/pkg/runtime/atomic_amd64.c
+rename to src/pkg/runtime/atomic_amd64x.c
+index 0bd4d906b6..11b5789363 100644
+--- a/src/pkg/runtime/atomic_amd64.c
++++ b/src/pkg/runtime/atomic_amd64x.c
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build amd64 amd64p32
++
+ #include "runtime.h"
+ #include "../../cmd/ld/textflag.h"
+ 
+diff --git a/src/pkg/runtime/cgo/asm_nacl_amd64p32.s b/src/pkg/runtime/cgo/asm_nacl_amd64p32.s
+new file mode 100644
+index 0000000000..377cf72a3a
+--- /dev/null
++++ b/src/pkg/runtime/cgo/asm_nacl_amd64p32.s
+@@ -0,0 +1,13 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "../../../cmd/ld/textflag.h"
++
++/*
++ * void crosscall2(void (*fn)(void*, int32), void*, int32)
++ * Save registers and call fn with two arguments.
++ */
++TEXT crosscall2(SB),NOSPLIT,$0
++	INT $3
++	RET
+diff --git a/src/pkg/runtime/defs_nacl_386.h b/src/pkg/runtime/defs_nacl_386.h
+new file mode 100644
+index 0000000000..e8fbb38e18
+--- /dev/null
++++ b/src/pkg/runtime/defs_nacl_386.h
+@@ -0,0 +1,63 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Created by hand, not machine generated.
++
++enum
++{
++	// These values are referred to in the source code
++	// but really don't matter. Even so, use the standard numbers.
++	SIGSEGV = 11,
++	SIGPROF = 27,
++};
++
++typedef struct Siginfo Siginfo;
++
++// native_client/src/trusted/service_runtime/include/machine/_types.h
++typedef struct Timespec Timespec;
++
++struct Timespec
++{
++	int64 tv_sec;
++	int32 tv_nsec;
++};
++
++// native_client/src/trusted/service_runtime/nacl_exception.h
++// native_client/src/include/nacl/nacl_exception.h
++
++typedef struct ExcContext ExcContext;
++typedef struct ExcPortable ExcPortable;
++typedef struct ExcRegs386 ExcRegs386;
++
++struct ExcRegs386
++{
++	uint32	eax;
++	uint32	ecx;
++	uint32	edx;
++	uint32	ebx;
++	uint32	esp;
++	uint32	ebp;
++	uint32	esi;
++	uint32	edi;
++	uint32	eip;
++	uint32	eflags;
++};
++
++struct ExcContext
++{
++	uint32	size;
++	uint32	portable_context_offset;
++	uint32	portable_context_size;
++	uint32	arch;
++	uint32	regs_size;
++	uint32	reserved[11];
++	ExcRegs386	regs;
++};
++
++struct ExcPortableContext
++{
++	uint32	pc;
++	uint32	sp;
++	uint32	fp;
++};
+diff --git a/src/pkg/runtime/defs_nacl_amd64p32.h b/src/pkg/runtime/defs_nacl_amd64p32.h
+new file mode 100644
+index 0000000000..8d3068bf87
+--- /dev/null
++++ b/src/pkg/runtime/defs_nacl_amd64p32.h
+@@ -0,0 +1,90 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Created by hand, not machine generated.
++
++enum
++{
++	// These values are referred to in the source code
++	// but really don't matter. Even so, use the standard numbers.
++	SIGSEGV = 11,
++	SIGPROF = 27,
++};
++
++typedef struct Siginfo Siginfo;
++
++
++// native_client/src/trusted/service_runtime/include/machine/_types.h
++typedef struct Timespec Timespec;
++
++struct Timespec
++{
++	int64 tv_sec;
++	int32 tv_nsec;
++};
++
++// native_client/src/trusted/service_runtime/nacl_exception.h
++// native_client/src/include/nacl/nacl_exception.h
++
++typedef struct ExcContext ExcContext;
++typedef struct ExcPortable ExcPortable;
++typedef struct ExcRegs386 ExcRegs386;
++typedef struct ExcRegsAmd64 ExcRegsAmd64;
++
++struct ExcRegs386
++{
++	uint32	eax;
++	uint32	ecx;
++	uint32	edx;
++	uint32	ebx;
++	uint32	esp;
++	uint32	ebp;
++	uint32	esi;
++	uint32	edi;
++	uint32	eip;
++	uint32	eflags;
++};
++
++struct ExcRegsAmd64
++{
++	uint64	rax;
++	uint64	rcx;
++	uint64	rdx;
++	uint64	rbx;
++	uint64	rsp;
++	uint64	rbp;
++	uint64	rsi;
++	uint64	rdi;
++	uint64	r8;
++	uint64	r9;
++	uint64	r10;
++	uint64	r11;
++	uint64	r12;
++	uint64	r13;
++	uint64	r14;
++	uint64	r15;
++	uint64	rip;
++	uint32	rflags;
++};
++
++struct ExcContext
++{
++	uint32	size;
++	uint32	portable_context_offset;
++	uint32	portable_context_size;
++	uint32	arch;
++	uint32	regs_size;
++	uint32	reserved[11];
++	union {
++		ExcRegs386	regs;
++		ExcRegsAmd64	regs64;
++	};
++};
++
++struct ExcPortableContext
++{
++	uint32	pc;
++	uint32	sp;
++	uint32	fp;
++};
+diff --git a/src/pkg/runtime/memmove_nacl_amd64p32.s b/src/pkg/runtime/memmove_nacl_amd64p32.s
+new file mode 100644
+index 0000000000..1b5733112c
+--- /dev/null
++++ b/src/pkg/runtime/memmove_nacl_amd64p32.s
+@@ -0,0 +1,46 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "../../cmd/ld/textflag.h"
++
++TEXT runtime·memmove(SB), NOSPLIT, $0-12
++	MOVL	to+0(FP), DI
++	MOVL	fr+4(FP), SI
++	MOVL	n+8(FP), BX
++
++	CMPL	SI, DI
++	JLS back
++
++forward:
++	MOVL	BX, CX
++	SHRL	$3, CX
++	ANDL	$7, BX
++	REP; MOVSQ
++	MOVL	BX, CX
++	REP; MOVSB
++	RET
++
++back:
++	MOVL	SI, CX
++	ADDL	BX, CX
++	CMPL	CX, DI
++	JLS forward
++
++	ADDL	BX, DI
++	ADDL	BX, SI
++	STD
++	
++	MOVL	BX, CX
++	SHRL	$3, CX
++	ANDL	$7, BX
++	SUBL	$8, DI
++	SUBL	$8, SI
++	REP; MOVSQ
++	ADDL	$7, DI
++	ADDL	$7, SI
++	MOVL	BX, CX
++	REP; MOVSB
++	CLD
++
++	RET
+diff --git a/src/pkg/runtime/rt0_nacl_386.s b/src/pkg/runtime/rt0_nacl_386.s
+new file mode 100644
+index 0000000000..8b713548fe
+--- /dev/null
++++ b/src/pkg/runtime/rt0_nacl_386.s
+@@ -0,0 +1,22 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "../../cmd/ld/textflag.h"
++
++// NaCl entry has:
++//	0(FP) - arg block == SP+8
++//	4(FP) - cleanup function pointer, always 0
++//	8(FP) - envc
++//	12(FP) - argc
++//	16(FP) - argv, then 0, then envv, then 0, then auxv
++TEXT _rt0_386_nacl(SB),NOSPLIT,$8
++	MOVL	argc+12(FP), AX
++	LEAL	argv+16(FP), BX
++	MOVL	AX, 0(SP)
++	MOVL	BX, 4(SP)
++	CALL	main(SB)
++	INT	$3
++
++TEXT main(SB),NOSPLIT,$0
++	JMP	_rt0_go(SB)
+diff --git a/src/pkg/runtime/rt0_nacl_amd64p32.s b/src/pkg/runtime/rt0_nacl_amd64p32.s
+new file mode 100644
+index 0000000000..502d2e2bfc
+--- /dev/null
++++ b/src/pkg/runtime/rt0_nacl_amd64p32.s
+@@ -0,0 +1,30 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "../../cmd/ld/textflag.h"
++
++// NaCl entry on 32-bit x86 has DI pointing at the arg block, which contains:
++//
++//	0(DI) - cleanup function pointer, always 0
++//	4(DI) - envc
++//	8(DI) - argc
++//	12(DI) - argv, then 0, then envv, then 0, then auxv
++// NaCl entry here is almost the same, except that there
++// is no saved caller PC, so 0(FP) is -8(FP) and so on. 
++TEXT _rt0_amd64p32_nacl(SB),NOSPLIT,$16
++	MOVL	DI, 0(SP)
++	CALL	runtime·nacl_sysinfo(SB)
++	MOVL	0(SP), DI
++	MOVL	8(DI), AX
++	LEAL	12(DI), BX
++	MOVL	AX, 0(SP)
++	MOVL	BX, 4(SP)
++	CALL	main(SB)
++	INT	$3
++
++TEXT main(SB),NOSPLIT,$0
++	// Uncomment for fake time like on Go Playground.
++	//MOVQ	$1257894000000000000, AX
++	//MOVQ	AX, runtime·timens(SB)
++	JMP	_rt0_go(SB)
+diff --git a/src/pkg/runtime/sys_linux_amd64.s b/src/pkg/runtime/sys_linux_amd64.s
+index 74dc871db7..b340c4f2cc 100644
+--- a/src/pkg/runtime/sys_linux_amd64.s
++++ b/src/pkg/runtime/sys_linux_amd64.s
+@@ -76,7 +76,7 @@ TEXT runtime·usleep(SB),NOSPLIT,$16
+ 	SYSCALL
+ 	RET
+ 
+-TEXT runtime·raise(SB),NOSPLIT,$12
++TEXT runtime·raise(SB),NOSPLIT,$0
+ 	MOVL	$186, AX	// syscall - gettid
+ 	SYSCALL
+ 	MOVL	AX, DI	// arg 1 tid
+diff --git a/src/pkg/runtime/sys_nacl_386.s b/src/pkg/runtime/sys_nacl_386.s
+new file mode 100644
+index 0000000000..a261cac28b
+--- /dev/null
++++ b/src/pkg/runtime/sys_nacl_386.s
+@@ -0,0 +1,232 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "zasm_GOOS_GOARCH.h"
++#include "../../cmd/ld/textflag.h"
++#include "syscall_nacl.h"
++
++#define NACL_SYSCALL(code) \
++	MOVL $(0x10000 + ((code)<<5)), AX; CALL AX
++
++#define NACL_SYSJMP(code) \
++	MOVL $(0x10000 + ((code)<<5)), AX; JMP AX
++
++TEXT runtime·exit(SB),NOSPLIT,$0
++	NACL_SYSJMP(SYS_exit)
++
++TEXT runtime·exit1(SB),NOSPLIT,$0
++	NACL_SYSJMP(SYS_thread_exit)
++
++TEXT runtime·open(SB),NOSPLIT,$0
++	NACL_SYSJMP(SYS_open)
++
++TEXT runtime·close(SB),NOSPLIT,$0
++	NACL_SYSJMP(SYS_close)
++
++TEXT runtime·read(SB),NOSPLIT,$0
++	NACL_SYSJMP(SYS_read)
++
++TEXT runtime·write(SB),NOSPLIT,$0
++	NACL_SYSJMP(SYS_write)
++
++TEXT runtime·nacl_exception_stack(SB),NOSPLIT,$0
++	NACL_SYSJMP(SYS_exception_stack)
++
++TEXT runtime·nacl_exception_handler(SB),NOSPLIT,$0
++	NACL_SYSJMP(SYS_exception_handler)
++
++TEXT runtime·nacl_sem_create(SB),NOSPLIT,$0
++	NACL_SYSJMP(SYS_sem_create)
++
++TEXT runtime·nacl_sem_wait(SB),NOSPLIT,$0
++	NACL_SYSJMP(SYS_sem_wait)
++
++TEXT runtime·nacl_sem_post(SB),NOSPLIT,$0
++	NACL_SYSJMP(SYS_sem_post)
++
++TEXT runtime·nacl_mutex_create(SB),NOSPLIT,$0
++	NACL_SYSJMP(SYS_mutex_create)
++
++TEXT runtime·nacl_mutex_lock(SB),NOSPLIT,$0
++	NACL_SYSJMP(SYS_mutex_lock)
++
++TEXT runtime·nacl_mutex_trylock(SB),NOSPLIT,$0
++	NACL_SYSJMP(SYS_mutex_trylock)
++
++TEXT runtime·nacl_mutex_unlock(SB),NOSPLIT,$0
++	NACL_SYSJMP(SYS_mutex_unlock)
++
++TEXT runtime·nacl_cond_create(SB),NOSPLIT,$0
++	NACL_SYSJMP(SYS_cond_create)
++
++TEXT runtime·nacl_cond_wait(SB),NOSPLIT,$0
++	NACL_SYSJMP(SYS_cond_wait)
++
++TEXT runtime·nacl_cond_signal(SB),NOSPLIT,$0
++	NACL_SYSJMP(SYS_cond_signal)
++
++TEXT runtime·nacl_cond_broadcast(SB),NOSPLIT,$0
++	NACL_SYSJMP(SYS_cond_broadcast)
++
++TEXT runtime·nacl_cond_timed_wait_abs(SB),NOSPLIT,$0
++	NACL_SYSJMP(SYS_cond_timed_wait_abs)
++
++TEXT runtime·nacl_thread_create(SB),NOSPLIT,$0
++	NACL_SYSJMP(SYS_thread_create)
++
++TEXT runtime·mstart_nacl(SB),NOSPLIT,$0
++	JMP runtime·mstart(SB)
++
++TEXT runtime·nacl_nanosleep(SB),NOSPLIT,$0
++	NACL_SYSJMP(SYS_nanosleep)
++
++TEXT runtime·osyield(SB),NOSPLIT,$0
++	NACL_SYSJMP(SYS_sched_yield)
++
++TEXT runtime·mmap(SB),NOSPLIT,$32
++	MOVL	arg1+0(FP), AX
++	MOVL	AX, 0(SP)
++	MOVL	arg2+4(FP), AX
++	MOVL	AX, 4(SP)
++	MOVL	arg3+8(FP), AX
++	MOVL	AX, 8(SP)
++	MOVL	arg4+12(FP), AX
++	MOVL	AX, 12(SP)
++	MOVL	arg5+16(FP), AX
++	MOVL	AX, 16(SP)
++	MOVL	arg6+20(FP), AX
++	MOVL	AX, 24(SP)
++	MOVL	$0, 28(SP)
++	LEAL	24(SP), AX
++	MOVL	AX, 20(SP)
++	NACL_SYSCALL(SYS_mmap)
++	RET
++
++TEXT time·now(SB),NOSPLIT,$20
++	MOVL $0, 0(SP) // real time clock
++	LEAL 8(SP), AX
++	MOVL AX, 4(SP) // timespec
++	NACL_SYSCALL(SYS_clock_gettime)
++	MOVL 8(SP), AX // low 32 sec
++	MOVL 12(SP), CX // high 32 sec
++	MOVL 16(SP), BX // nsec
++
++	// sec is in AX, nsec in BX
++	MOVL	AX, sec+0(FP)
++	MOVL	CX, sec+4(FP)
++	MOVL	BX, nsec+8(FP)
++	RET
++
++TEXT syscall·now(SB),NOSPLIT,$0
++	JMP time·now(SB)
++
++TEXT runtime·nacl_clock_gettime(SB),NOSPLIT,$0
++	NACL_SYSJMP(SYS_clock_gettime)
++	
++TEXT runtime·nanotime(SB),NOSPLIT,$20
++	MOVL $0, 0(SP) // real time clock
++	LEAL 8(SP), AX
++	MOVL AX, 4(SP) // timespec
++	NACL_SYSCALL(SYS_clock_gettime)
++	MOVL 8(SP), AX // low 32 sec
++	MOVL 16(SP), BX // nsec
++
++	// sec is in AX, nsec in BX
++	// convert to DX:AX nsec
++	MOVL	$1000000000, CX
++	MULL	CX
++	ADDL	BX, AX
++	ADCL	$0, DX
++
++	MOVL	ret+0(FP), DI
++	MOVL	AX, 0(DI)
++	MOVL	DX, 4(DI)
++	RET
++
++TEXT runtime·setldt(SB),NOSPLIT,$8
++	MOVL	addr+4(FP), BX // aka base
++	ADDL	$0x8, BX
++	MOVL	BX, 0(SP)
++	NACL_SYSCALL(SYS_tls_init)
++	RET
++
++TEXT runtime·sigtramp(SB),NOSPLIT,$0
++	get_tls(CX)
++
++	// check that m exists
++	MOVL	m(CX), BX
++	CMPL	BX, $0
++	JNE	6(PC)
++	MOVL	$11, BX
++	MOVL	BX, 0(SP)
++	MOVL	$runtime·badsignal(SB), AX
++	CALL	AX
++	JMP 	sigtramp_ret
++
++	// save g
++	MOVL	g(CX), DI
++	MOVL	DI, 20(SP)
++	
++	// g = m->gsignal
++	MOVL	m_gsignal(BX), BX
++	MOVL	BX, g(CX)
++	
++	// copy arguments for sighandler
++	MOVL	$11, 0(SP) // signal
++	MOVL	$0, 4(SP) // siginfo
++	LEAL	ctxt+4(FP), AX
++	MOVL	AX, 8(SP) // context
++	MOVL	DI, 12(SP) // g
++
++	CALL	runtime·sighandler(SB)
++
++	// restore g
++	get_tls(CX)
++	MOVL	20(SP), BX
++	MOVL	BX, g(CX)
++
++sigtramp_ret:
++	// Enable exceptions again.
++	NACL_SYSCALL(SYS_exception_clear_flag)
++
++	// NaCl has abidcated its traditional operating system responsibility
++	// and declined to implement 'sigreturn'. Instead the only way to return
++	// to the execution of our program is to restore the registers ourselves.
++	// Unfortunately, that is impossible to do with strict fidelity, because
++	// there is no way to do the final update of PC that ends the sequence
++	// without either (1) jumping to a register, in which case the register ends
++	// holding the PC value instead of its intended value or (2) storing the PC
++	// on the stack and using RET, which imposes the requirement that SP is
++	// valid and that is okay to smash the word below it. The second would
++	// normally be the lesser of the two evils, except that on NaCl, the linker
++	// must rewrite RET into "POP reg; AND $~31, reg; JMP reg", so either way
++	// we are going to lose a register as a result of the incoming signal.
++	// Similarly, there is no way to restore EFLAGS; the usual way is to use
++	// POPFL, but NaCl rejects that instruction. We could inspect the bits and
++	// execute a sequence of instructions designed to recreate those flag
++	// settings, but that's a lot of work.
++	//
++	// Thankfully, Go's signal handlers never try to return directly to the
++	// executing code, so all the registers and EFLAGS are dead and can be
++	// smashed. The only registers that matter are the ones that are setting
++	// up for the simulated call that the signal handler has created.
++	// Today those registers are just PC and SP, but in case additional registers
++	// are relevant in the future (for example DX is the Go func context register)
++	// we restore as many registers as possible.
++	// 
++	// We smash BP, because that's what the linker smashes during RET.
++	//
++	LEAL	ctxt+4(FP), BP
++	ADDL	$64, BP
++	MOVL	0(BP), AX
++	MOVL	4(BP), CX
++	MOVL	8(BP), DX
++	MOVL	12(BP), BX
++	MOVL	16(BP), SP
++	// 20(BP) is saved BP, never to be seen again
++	MOVL	24(BP), SI
++	MOVL	28(BP), DI
++	// 36(BP) is saved EFLAGS, never to be seen again
++	MOVL	32(BP), BP // saved PC
++	JMP	BP
+diff --git a/src/pkg/runtime/sys_nacl_amd64p32.s b/src/pkg/runtime/sys_nacl_amd64p32.s
+new file mode 100644
+index 0000000000..377e1653f0
+--- /dev/null
++++ b/src/pkg/runtime/sys_nacl_amd64p32.s
+@@ -0,0 +1,413 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "zasm_GOOS_GOARCH.h"
++#include "../../cmd/ld/textflag.h"
++#include "syscall_nacl.h"
++
++#define NACL_SYSCALL(code) \
++	MOVL $(0x10000 + ((code)<<5)), AX; CALL AX
++
++#define NACL_SYSJMP(code) \
++	MOVL $(0x10000 + ((code)<<5)), AX; JMP AX
++
++TEXT runtime·settls(SB),NOSPLIT,$0
++	MOVL	DI, GS // really BP
++	RET
++
++TEXT runtime·exit(SB),NOSPLIT,$0
++	MOVL arg1+0(FP), DI
++	NACL_SYSJMP(SYS_exit)
++
++TEXT runtime·exit1(SB),NOSPLIT,$0
++	MOVL arg1+0(FP), DI
++	NACL_SYSJMP(SYS_thread_exit)
++
++TEXT runtime·open(SB),NOSPLIT,$0
++	MOVL arg1+0(FP), DI
++	MOVL arg2+4(FP), SI
++	MOVL arg3+8(FP), DX
++	NACL_SYSJMP(SYS_open)
++
++TEXT runtime·close(SB),NOSPLIT,$0
++	MOVL arg1+0(FP), DI
++	NACL_SYSJMP(SYS_close)
++
++TEXT runtime·read(SB),NOSPLIT,$0
++	MOVL arg1+0(FP), DI
++	MOVL arg2+4(FP), SI
++	MOVL arg3+8(FP), DX
++	NACL_SYSJMP(SYS_read)
++
++TEXT syscall·naclWrite(SB), NOSPLIT, $16-20
++	MOVL arg1+0(FP), DI
++	MOVL arg2+4(FP), SI
++	MOVL arg3+8(FP), DX
++	MOVL DI, 0(SP)
++	MOVL SI, 4(SP)
++	MOVL DX, 8(SP)
++	CALL runtime·write(SB)
++	MOVL AX, ret+16(FP)
++	RET
++
++TEXT runtime·write(SB),NOSPLIT,$16-12
++	// If using fake time and writing to stdout or stderr,
++	// emit playback header before actual data.
++	MOVQ runtime·timens(SB), AX
++	CMPQ AX, $0
++	JEQ write
++	MOVL arg1+0(FP), DI
++	CMPL DI, $1
++	JEQ playback
++	CMPL DI, $2
++	JEQ playback
++
++write:
++	// Ordinary write.
++	MOVL arg1+0(FP), DI
++	MOVL arg2+4(FP), SI
++	MOVL arg3+8(FP), DX
++	NACL_SYSCALL(SYS_write)
++	RET
++
++	// Write with playback header.
++	// First, lock to avoid interleaving writes.
++playback:
++	MOVL $1, BX
++	XCHGL	runtime·writelock(SB), BX
++	CMPL BX, $0
++	JNE playback
++
++	// Playback header: 0 0 P B <8-byte time> <4-byte data length>
++	MOVL $(('B'<<24) | ('P'<<16)), 0(SP)
++	BSWAPQ AX
++	MOVQ AX, 4(SP)
++	MOVL arg3+8(FP), DX
++	BSWAPL DX
++	MOVL DX, 12(SP)
++	MOVL $1, DI // standard output
++	MOVL SP, SI
++	MOVL $16, DX
++	NACL_SYSCALL(SYS_write)
++
++	// Write actual data.
++	MOVL $1, DI // standard output
++	MOVL arg2+4(FP), SI
++	MOVL arg3+8(FP), DX
++	NACL_SYSCALL(SYS_write)
++
++	// Unlock.
++	MOVL	$0, runtime·writelock(SB)
++
++	RET
++
++TEXT runtime·nacl_exception_stack(SB),NOSPLIT,$0
++	MOVL arg1+0(FP), DI
++	MOVL arg2+4(FP), SI
++	NACL_SYSJMP(SYS_exception_stack)
++
++TEXT runtime·nacl_exception_handler(SB),NOSPLIT,$0
++	MOVL arg1+0(FP), DI
++	MOVL arg2+4(FP), SI
++	NACL_SYSJMP(SYS_exception_handler)
++
++TEXT runtime·nacl_sem_create(SB),NOSPLIT,$0
++	MOVL arg1+0(FP), DI
++	NACL_SYSJMP(SYS_sem_create)
++
++TEXT runtime·nacl_sem_wait(SB),NOSPLIT,$0
++	MOVL arg1+0(FP), DI
++	NACL_SYSJMP(SYS_sem_wait)
++
++TEXT runtime·nacl_sem_post(SB),NOSPLIT,$0
++	MOVL arg1+0(FP), DI
++	NACL_SYSJMP(SYS_sem_post)
++
++TEXT runtime·nacl_mutex_create(SB),NOSPLIT,$0
++	MOVL arg1+0(FP), DI
++	NACL_SYSJMP(SYS_mutex_create)
++
++TEXT runtime·nacl_mutex_lock(SB),NOSPLIT,$0
++	MOVL arg1+0(FP), DI
++	NACL_SYSJMP(SYS_mutex_lock)
++
++TEXT runtime·nacl_mutex_trylock(SB),NOSPLIT,$0
++	MOVL arg1+0(FP), DI
++	NACL_SYSJMP(SYS_mutex_trylock)
++
++TEXT runtime·nacl_mutex_unlock(SB),NOSPLIT,$0
++	MOVL arg1+0(FP), DI
++	NACL_SYSJMP(SYS_mutex_unlock)
++
++TEXT runtime·nacl_cond_create(SB),NOSPLIT,$0
++	MOVL arg1+0(FP), DI
++	NACL_SYSJMP(SYS_cond_create)
++
++TEXT runtime·nacl_cond_wait(SB),NOSPLIT,$0
++	MOVL arg1+0(FP), DI
++	MOVL arg2+4(FP), SI
++	NACL_SYSJMP(SYS_cond_wait)
++
++TEXT runtime·nacl_cond_signal(SB),NOSPLIT,$0
++	MOVL arg1+0(FP), DI
++	NACL_SYSJMP(SYS_cond_signal)
++
++TEXT runtime·nacl_cond_broadcast(SB),NOSPLIT,$0
++	MOVL arg1+0(FP), DI
++	NACL_SYSJMP(SYS_cond_broadcast)
++
++TEXT runtime·nacl_cond_timed_wait_abs(SB),NOSPLIT,$0
++	MOVL arg1+0(FP), DI
++	MOVL arg2+4(FP), SI
++	MOVL arg3+8(FP), DX
++	NACL_SYSJMP(SYS_cond_timed_wait_abs)
++
++TEXT runtime·nacl_thread_create(SB),NOSPLIT,$0
++	MOVL arg1+0(FP), DI
++	MOVL arg2+4(FP), SI
++	MOVL arg3+8(FP), DX
++	MOVL arg4+12(FP), CX
++	NACL_SYSJMP(SYS_thread_create)
++
++TEXT runtime·mstart_nacl(SB),NOSPLIT,$0
++	NACL_SYSCALL(SYS_tls_get)
++	SUBL	$8, AX
++	MOVL	AX, GS
++	JMP runtime·mstart(SB)
++
++TEXT runtime·nacl_nanosleep(SB),NOSPLIT,$0
++	MOVL arg1+0(FP), DI
++	MOVL arg2+4(FP), SI
++	NACL_SYSJMP(SYS_nanosleep)
++
++TEXT runtime·osyield(SB),NOSPLIT,$0
++	NACL_SYSJMP(SYS_sched_yield)
++
++TEXT runtime·mmap(SB),NOSPLIT,$8
++	MOVL arg1+0(FP), DI
++	MOVL arg2+4(FP), SI
++	MOVL arg3+8(FP), DX
++	MOVL arg4+12(FP), CX
++	MOVL arg5+16(FP), R8
++	MOVL arg6+20(FP), AX
++	MOVQ AX, 0(SP)
++	MOVL SP, R9
++	NACL_SYSCALL(SYS_mmap)
++	CMPL AX, $-4095
++	JNA 2(PC)
++	NEGL AX
++	RET
++
++TEXT time·now(SB),NOSPLIT,$16
++	MOVQ runtime·timens(SB), AX
++	CMPQ AX, $0
++	JEQ realtime
++	MOVQ $0, DX
++	MOVQ $1000000000, CX
++	DIVQ CX
++	MOVQ AX, sec+0(FP)
++	MOVL DX, nsec+8(FP)
++	RET
++realtime:
++	MOVL $0, DI // real time clock
++	LEAL 0(SP), AX
++	MOVL AX, SI // timespec
++	NACL_SYSCALL(SYS_clock_gettime)
++	MOVL 0(SP), AX // low 32 sec
++	MOVL 4(SP), CX // high 32 sec
++	MOVL 8(SP), BX // nsec
++
++	// sec is in AX, nsec in BX
++	MOVL	AX, sec+0(FP)
++	MOVL	CX, sec+4(FP)
++	MOVL	BX, nsec+8(FP)
++	RET
++
++TEXT syscall·now(SB),NOSPLIT,$0
++	JMP time·now(SB)
++
++TEXT runtime·nacl_clock_gettime(SB),NOSPLIT,$0
++	MOVL arg1+0(FP), DI
++	MOVL arg2+4(FP), SI
++	NACL_SYSJMP(SYS_clock_gettime)
++
++TEXT runtime·nanotime(SB),NOSPLIT,$16
++	MOVQ runtime·timens(SB), AX
++	CMPQ AX, $0
++	JEQ 2(PC)
++	RET
++	MOVL $0, DI // real time clock
++	LEAL 0(SP), AX
++	MOVL AX, SI // timespec
++	NACL_SYSCALL(SYS_clock_gettime)
++	MOVQ 0(SP), AX // sec
++	MOVL 8(SP), DX // nsec
++
++	// sec is in AX, nsec in DX
++	// return nsec in AX
++	IMULQ	$1000000000, AX
++	ADDQ	DX, AX
++	RET
++
++TEXT runtime·sigtramp(SB),NOSPLIT,$80
++	// restore TLS register at time of execution,
++	// in case it's been smashed.
++	// the TLS register is really BP, but for consistency
++	// with non-NaCl systems it is referred to here as GS.
++	// NOTE: Cannot use SYS_tls_get here (like we do in mstart_nacl),
++	// because the main thread never calls tls_set.
++	LEAL ctxt+0(FP), AX
++	MOVL (16*4+5*8)(AX), AX
++	MOVL	AX, GS
++
++	// check that m exists
++	get_tls(CX)
++	MOVL	m(CX), BX
++	
++	CMPL	BX, $0
++	JEQ	nom
++
++	// save g
++	MOVL	g(CX), DI
++	MOVL	DI, 20(SP)
++	
++	// g = m->gsignal
++	MOVL	m_gsignal(BX), BX
++	MOVL	BX, g(CX)
++
++//JMP debughandler
++
++	// copy arguments for sighandler
++	MOVL	$11, 0(SP) // signal
++	MOVL	$0, 4(SP) // siginfo
++	LEAL	ctxt+0(FP), AX
++	MOVL	AX, 8(SP) // context
++	MOVL	DI, 12(SP) // g
++
++	CALL	runtime·sighandler(SB)
++
++	// restore g
++	get_tls(CX)
++	MOVL	20(SP), BX
++	MOVL	BX, g(CX)
++
++sigtramp_ret:
++	// Enable exceptions again.
++	NACL_SYSCALL(SYS_exception_clear_flag)
++
++	// Restore registers as best we can. Impossible to do perfectly.
++	// See comment in sys_nacl_386.s for extended rationale.
++	LEAL	ctxt+0(FP), SI
++	ADDL	$64, SI
++	MOVQ	0(SI), AX
++	MOVQ	8(SI), CX
++	MOVQ	16(SI), DX
++	MOVQ	24(SI), BX
++	MOVL	32(SI), SP	// MOVL for SP sandboxing
++	// 40(SI) is saved BP aka GS, already restored above
++	// 48(SI) is saved SI, never to be seen again
++	MOVQ	56(SI), DI
++	MOVQ	64(SI), R8
++	MOVQ	72(SI), R9
++	MOVQ	80(SI), R10
++	MOVQ	88(SI), R11
++	MOVQ	96(SI), R12
++	MOVQ	104(SI), R13
++	MOVQ	112(SI), R14
++	// 120(SI) is R15, which is owned by Native Client and must not be modified
++	MOVQ	128(SI), SI // saved PC
++	// 136(SI) is saved EFLAGS, never to be seen again
++	JMP	SI
++
++debughandler:
++	// print basic information
++	LEAL	ctxt+0(FP), DI
++	MOVL	$runtime·sigtrampf(SB), AX
++	MOVL	AX, 0(SP)
++	MOVQ	(16*4+16*8)(DI), BX // rip
++	MOVQ	BX, 8(SP)
++	MOVQ	(16*4+0*8)(DI), BX // rax
++	MOVQ	BX, 16(SP)
++	MOVQ	(16*4+1*8)(DI), BX // rcx
++	MOVQ	BX, 24(SP)
++	MOVQ	(16*4+2*8)(DI), BX // rdx
++	MOVQ	BX, 32(SP)
++	MOVQ	(16*4+3*8)(DI), BX // rbx
++	MOVQ	BX, 40(SP)
++	MOVQ	(16*4+7*8)(DI), BX // rdi
++	MOVQ	BX, 48(SP)
++	MOVQ	(16*4+15*8)(DI), BX // r15
++	MOVQ	BX, 56(SP)
++	MOVQ	(16*4+4*8)(DI), BX // rsp
++	MOVQ	0(BX), BX
++	MOVQ	BX, 64(SP)
++	CALL	runtime·printf(SB)
++	
++	LEAL	ctxt+0(FP), DI
++	MOVQ	(16*4+16*8)(DI), BX // rip
++	MOVL	BX, 0(SP)
++	MOVQ	(16*4+4*8)(DI), BX // rsp
++	MOVL	BX, 4(SP)
++	MOVL	$0, 8(SP)	// lr
++	get_tls(CX)
++	MOVL	g(CX), BX
++	MOVL	BX, 12(SP)	// gp
++	CALL	runtime·traceback(SB)
++
++notls:
++	MOVL	0, AX
++	RET
++
++nom:
++	MOVL	0, AX
++	RET
++
++// cannot do real signal handling yet, because gsignal has not been allocated.
++MOVL $1, DI; NACL_SYSCALL(SYS_exit)
++
++TEXT runtime·nacl_sysinfo(SB),NOSPLIT,$16
++/*
++	MOVL	di+0(FP), DI
++	LEAL	12(DI), BX
++	MOVL	8(DI), AX
++	ADDL	4(DI), AX
++	ADDL	$2, AX
++	LEAL	(BX)(AX*4), BX
++	MOVL	BX, runtime·nacl_irt_query(SB)
++auxloop:
++	MOVL	0(BX), DX
++	CMPL	DX, $0
++	JNE	2(PC)
++	RET
++	CMPL	DX, $32
++	JEQ	auxfound
++	ADDL	$8, BX
++	JMP	auxloop
++auxfound:
++	MOVL	4(BX), BX
++	MOVL	BX, runtime·nacl_irt_query(SB)
++
++	LEAL	runtime·nacl_irt_basic_v0_1_str(SB), DI
++	LEAL	runtime·nacl_irt_basic_v0_1(SB), SI
++	MOVL	runtime·nacl_irt_basic_v0_1_size(SB), DX
++	MOVL	runtime·nacl_irt_query(SB), BX
++	CALL	BX
++
++	LEAL	runtime·nacl_irt_memory_v0_3_str(SB), DI
++	LEAL	runtime·nacl_irt_memory_v0_3(SB), SI
++	MOVL	runtime·nacl_irt_memory_v0_3_size(SB), DX
++	MOVL	runtime·nacl_irt_query(SB), BX
++	CALL	BX
++
++	LEAL	runtime·nacl_irt_thread_v0_1_str(SB), DI
++	LEAL	runtime·nacl_irt_thread_v0_1(SB), SI
++	MOVL	runtime·nacl_irt_thread_v0_1_size(SB), DX
++	MOVL	runtime·nacl_irt_query(SB), BX
++	CALL	BX
++
++	// TODO: Once we have a NaCl SDK with futex syscall support,
++	// try switching to futex syscalls and here load the
++	// nacl-irt-futex-0.1 table.
++*/
++	RET
+diff --git a/src/pkg/syscall/net_nacl.go b/src/pkg/syscall/net_nacl.go
+new file mode 100644
+index 0000000000..f6d9e20f64
+--- /dev/null
++++ b/src/pkg/syscall/net_nacl.go
+@@ -0,0 +1,888 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// A simulated network for use within NaCl.
++// The simulation is not particularly tied to NaCl,
++// but other systems have real networks.
++
++package syscall
++
++import (
++	"sync"
++	"sync/atomic"
++)
++
++// Interface to timers implemented in package runtime.
++// Must be in sync with ../runtime/runtime.h:/^struct.Timer$
++// Really for use by package time, but we cannot import time here.
++
++type runtimeTimer struct {
++	i      int32
++	when   int64
++	period int64
++	f      func(int64, interface{}) // NOTE: must not be closure
++	arg    interface{}
++}
++
++func startTimer(*runtimeTimer)
++func stopTimer(*runtimeTimer) bool
++
++type timer struct {
++	expired bool
++	q       *queue
++	r       runtimeTimer
++}
++
++func (t *timer) start(q *queue, deadline int64) {
++	if deadline == 0 {
++		return
++	}
++	t.q = q
++	t.r.when = deadline
++	t.r.f = timerExpired
++	t.r.arg = t
++	startTimer(&t.r)
++}
++
++func (t *timer) stop() {
++	stopTimer(&t.r)
++}
++
++func timerExpired(now int64, i interface{}) {
++	t := i.(*timer)
++	go func() {
++		t.q.Lock()
++		defer t.q.Unlock()
++		t.expired = true
++		t.q.canRead.Broadcast()
++		t.q.canWrite.Broadcast()
++	}()
++}
++
++// Network constants and data structures. These match the traditional values.
++
++const (
++	AF_UNSPEC = iota
++	AF_UNIX
++	AF_INET
++	AF_INET6
++)
++
++const (
++	SHUT_RD = iota
++	SHUT_WR
++	SHUT_RDWR
++)
++
++const (
++	SOCK_STREAM = 1 + iota
++	SOCK_DGRAM
++	SOCK_RAW
++	SOCK_SEQPACKET
++)
++
++const (
++	IPPROTO_IP   = 0
++	IPPROTO_IPV4 = 4
++	IPPROTO_IPV6 = 0x29
++	IPPROTO_TCP  = 6
++	IPPROTO_UDP  = 0x11
++)
++
++// Misc constants expected by package net but not supported.
++const (
++	_ = iota
++	SOL_SOCKET
++	SO_TYPE
++	NET_RT_IFLIST
++	IFNAMSIZ
++	IFF_UP
++	IFF_BROADCAST
++	IFF_LOOPBACK
++	IFF_POINTOPOINT
++	IFF_MULTICAST
++	IPV6_V6ONLY
++	SOMAXCONN
++	F_DUPFD_CLOEXEC
++	SO_BROADCAST
++	SO_REUSEADDR
++	SO_REUSEPORT
++	SO_RCVBUF
++	SO_SNDBUF
++	SO_KEEPALIVE
++	SO_LINGER
++	IP_MULTICAST_IF
++	IP_MULTICAST_LOOP
++	IP_ADD_MEMBERSHIP
++	IPV6_MULTICAST_IF
++	IPV6_MULTICAST_LOOP
++	IPV6_JOIN_GROUP
++	TCP_NODELAY
++	TCP_KEEPINTVL
++	TCP_KEEPIDLE
++
++	SYS_FCNTL = 500 // unsupported
++)
++
++var SocketDisableIPv6 bool
++
++// A Sockaddr is one of the SockaddrXxx structs.
++type Sockaddr interface {
++	// copy returns a copy of the underlying data.
++	copy() Sockaddr
++
++	// key returns the value of the underlying data,
++	// for comparison as a map key.
++	key() interface{}
++}
++
++type SockaddrInet4 struct {
++	Port int
++	Addr [4]byte
++}
++
++func (sa *SockaddrInet4) copy() Sockaddr {
++	sa1 := *sa
++	return &sa1
++}
++
++func (sa *SockaddrInet4) key() interface{} { return *sa }
++
++type SockaddrInet6 struct {
++	Port   int
++	ZoneId uint32
++	Addr   [16]byte
++}
++
++func (sa *SockaddrInet6) copy() Sockaddr {
++	sa1 := *sa
++	return &sa1
++}
++
++func (sa *SockaddrInet6) key() interface{} { return *sa }
++
++type SockaddrUnix struct {
++	Name string
++}
++
++func (sa *SockaddrUnix) copy() Sockaddr {
++	sa1 := *sa
++	return &sa1
++}
++
++func (sa *SockaddrUnix) key() interface{} { return *sa }
++
++type SockaddrDatalink struct {
++	Len    uint8
++	Family uint8
++	Index  uint16
++	Type   uint8
++	Nlen   uint8
++	Alen   uint8
++	Slen   uint8
++	Data   [12]int8
++}
++
++func (sa *SockaddrDatalink) copy() Sockaddr {
++	sa1 := *sa
++	return &sa1
++}
++
++func (sa *SockaddrDatalink) key() interface{} { return *sa }
++
++// RoutingMessage represents a routing message.
++type RoutingMessage interface {
++	unimplemented()
++}
++
++type IPMreq struct {
++	Multiaddr [4]byte /* in_addr */
++	Interface [4]byte /* in_addr */
++}
++
++type IPv6Mreq struct {
++	Multiaddr [16]byte /* in6_addr */
++	Interface uint32
++}
++
++type Linger struct {
++	Onoff  int32
++	Linger int32
++}
++
++type ICMPv6Filter struct {
++	Filt [8]uint32
++}
++
++// A queue is the bookkeeping for a synchronized buffered queue.
++// We do not use channels because we need to be able to handle
++// writes after and during close, and because a chan byte would
++// require too many send and receive operations in real use.
++type queue struct {
++	sync.Mutex
++	canRead  sync.Cond
++	canWrite sync.Cond
++	r        int // total read index
++	w        int // total write index
++	m        int // index mask
++	closed   bool
++}
++
++func (q *queue) init(size int) {
++	if size&(size-1) != 0 {
++		panic("invalid queue size - must be power of two")
++	}
++	q.canRead.L = &q.Mutex
++	q.canWrite.L = &q.Mutex
++	q.m = size - 1
++}
++
++func past(deadline int64) bool {
++	sec, nsec := now()
++	return deadline > 0 && deadline < sec*1e9+int64(nsec)
++}
++
++func (q *queue) waitRead(n int, deadline int64) (int, error) {
++	if past(deadline) {
++		return 0, EAGAIN
++	}
++	var t timer
++	t.start(q, deadline)
++	for q.w-q.r == 0 && !q.closed && !t.expired {
++		q.canRead.Wait()
++	}
++	t.stop()
++	m := q.w - q.r
++	if m == 0 && t.expired {
++		return 0, EAGAIN
++	}
++	if m > n {
++		m = n
++		q.canRead.Signal() // wake up next reader too
++	}
++	q.canWrite.Signal()
++	return m, nil
++}
++
++func (q *queue) waitWrite(n int, deadline int64) (int, error) {
++	if past(deadline) {
++		return 0, EAGAIN
++	}
++	var t timer
++	t.start(q, deadline)
++	for q.w-q.r > q.m && !q.closed && !t.expired {
++		q.canWrite.Wait()
++	}
++	t.stop()
++	m := q.m + 1 - (q.w - q.r)
++	if m == 0 && t.expired {
++		return 0, EAGAIN
++	}
++	if m == 0 {
++		return 0, EAGAIN
++	}
++	if m > n {
++		m = n
++		q.canWrite.Signal() // wake up next writer too
++	}
++	q.canRead.Signal()
++	return m, nil
++}
++
++func (q *queue) close() {
++	q.Lock()
++	defer q.Unlock()
++	q.closed = true
++	q.canRead.Broadcast()
++	q.canWrite.Broadcast()
++}
++
++// A byteq is a byte queue.
++type byteq struct {
++	queue
++	data []byte
++}
++
++func newByteq() *byteq {
++	q := &byteq{
++		data: make([]byte, 4096),
++	}
++	q.init(len(q.data))
++	return q
++}
++
++func (q *byteq) read(b []byte, deadline int64) (int, error) {
++	q.Lock()
++	defer q.Unlock()
++	n, err := q.waitRead(len(b), deadline)
++	if err != nil {
++		return 0, err
++	}
++	b = b[:n]
++	for len(b) > 0 {
++		m := copy(b, q.data[q.r&q.m:])
++		q.r += m
++		b = b[m:]
++	}
++	return n, nil
++}
++
++func (q *byteq) write(b []byte, deadline int64) (n int, err error) {
++	q.Lock()
++	defer q.Unlock()
++	for n < len(b) {
++		nn, err := q.waitWrite(len(b[n:]), deadline)
++		if err != nil {
++			return n, err
++		}
++		bb := b[n : n+nn]
++		n += nn
++		for len(bb) > 0 {
++			m := copy(q.data[q.w&q.m:], bb)
++			q.w += m
++			bb = bb[m:]
++		}
++	}
++	return n, nil
++}
++
++// A msgq is a queue of messages.
++type msgq struct {
++	queue
++	data []interface{}
++}
++
++func newMsgq() *msgq {
++	q := &msgq{
++		data: make([]interface{}, 32),
++	}
++	q.init(len(q.data))
++	return q
++}
++
++func (q *msgq) read(deadline int64) (interface{}, error) {
++	q.Lock()
++	defer q.Unlock()
++	n, err := q.waitRead(1, deadline)
++	if err != nil {
++		return nil, err
++	}
++	if n == 0 {
++		return nil, nil
++	}
++	m := q.data[q.r&q.m]
++	q.r++
++	return m, nil
++}
++
++func (q *msgq) write(m interface{}, deadline int64) error {
++	q.Lock()
++	defer q.Unlock()
++	_, err := q.waitWrite(1, deadline)
++	if err != nil {
++		return err
++	}
++	q.data[q.w&q.m] = m
++	q.w++
++	return nil
++}
++
++// An addr is a sequence of bytes uniquely identifying a network address.
++// It is not human-readable.
++type addr string
++
++// A conn is one side of a stream-based network connection.
++// That is, a stream-based network connection is a pair of cross-connected conns.
++type conn struct {
++	rd     *byteq
++	wr     *byteq
++	local  addr
++	remote addr
++}
++
++// A pktconn is one side of a packet-based network connection.
++// That is, a packet-based network connection is a pair of cross-connected pktconns.
++type pktconn struct {
++	rd     *msgq
++	wr     *msgq
++	local  addr
++	remote addr
++}
++
++// A listener accepts incoming stream-based network connections.
++type listener struct {
++	rd    *msgq
++	local addr
++}
++
++// A netFile is an open network file.
++type netFile struct {
++	defaultFileImpl
++	proto      *netproto
++	sotype     int
++	listener   *msgq
++	packet     *msgq
++	rd         *byteq
++	wr         *byteq
++	rddeadline int64
++	wrdeadline int64
++	addr       Sockaddr
++	raddr      Sockaddr
++}
++
++// A netAddr is a network address in the global listener map.
++// All the fields must have defined == operations.
++type netAddr struct {
++	proto  *netproto
++	sotype int
++	addr   interface{}
++}
++
++// net records the state of the network.
++// It maps a network address to the listener on that address.
++var net = struct {
++	sync.Mutex
++	listener map[netAddr]*netFile
++}{
++	listener: make(map[netAddr]*netFile),
++}
++
++// TODO(rsc): Some day, do a better job with port allocation.
++// For playground programs, incrementing is fine.
++var nextport = 2
++
++// A netproto contains protocol-specific functionality
++// (one for AF_INET, one for AF_INET6 and so on).
++// It is a struct instead of an interface because the
++// implementation needs no state, and I expect to
++// add some data fields at some point.
++type netproto struct {
++	bind func(*netFile, Sockaddr) error
++}
++
++var netprotoAF_INET = &netproto{
++	bind: func(f *netFile, sa Sockaddr) error {
++		if sa == nil {
++			f.addr = &SockaddrInet4{
++				Port: nextport,
++				Addr: [4]byte{127, 0, 0, 1},
++			}
++			nextport++
++			return nil
++		}
++		addr, ok := sa.(*SockaddrInet4)
++		if !ok {
++			return EINVAL
++		}
++		addr = addr.copy().(*SockaddrInet4)
++		if addr.Port == 0 {
++			addr.Port = nextport
++			nextport++
++		}
++		f.addr = addr
++		return nil
++	},
++}
++
++var netprotos = map[int]*netproto{
++	AF_INET: netprotoAF_INET,
++}
++
++// These functions implement the usual BSD socket operations.
++
++func (f *netFile) bind(sa Sockaddr) error {
++	if f.addr != nil {
++		return EISCONN
++	}
++	if err := f.proto.bind(f, sa); err != nil {
++		return err
++	}
++	if f.sotype == SOCK_DGRAM {
++		_, ok := net.listener[netAddr{f.proto, f.sotype, f.addr.key()}]
++		if ok {
++			f.addr = nil
++			return EADDRINUSE
++		}
++		net.listener[netAddr{f.proto, f.sotype, f.addr.key()}] = f
++		f.packet = newMsgq()
++	}
++	return nil
++}
++
++func (f *netFile) listen(backlog int) error {
++	net.Lock()
++	defer net.Unlock()
++	if f.listener != nil {
++		return EINVAL
++	}
++	_, ok := net.listener[netAddr{f.proto, f.sotype, f.addr.key()}]
++	if ok {
++		return EADDRINUSE
++	}
++	net.listener[netAddr{f.proto, f.sotype, f.addr.key()}] = f
++	f.listener = newMsgq()
++	return nil
++}
++
++func (f *netFile) accept() (fd int, sa Sockaddr, err error) {
++	msg, err := f.listener.read(f.readDeadline())
++	if err != nil {
++		return -1, nil, err
++	}
++	newf, ok := msg.(*netFile)
++	if !ok {
++		// must be eof
++		return -1, nil, EAGAIN
++	}
++	return newFD(newf), newf.raddr.copy(), nil
++}
++
++func (f *netFile) connect(sa Sockaddr) error {
++	if past(f.writeDeadline()) {
++		return EAGAIN
++	}
++	if f.addr == nil {
++		if err := f.bind(nil); err != nil {
++			return err
++		}
++	}
++	net.Lock()
++	if sa == nil {
++		net.Unlock()
++		return EINVAL
++	}
++	sa = sa.copy()
++	if f.raddr != nil {
++		net.Unlock()
++		return EISCONN
++	}
++	if f.sotype == SOCK_DGRAM {
++		net.Unlock()
++		f.raddr = sa
++		return nil
++	}
++	if f.listener != nil {
++		net.Unlock()
++		return EISCONN
++	}
++	l, ok := net.listener[netAddr{f.proto, f.sotype, sa.key()}]
++	if !ok {
++		net.Unlock()
++		return ECONNREFUSED
++	}
++	f.raddr = sa
++	f.rd = newByteq()
++	f.wr = newByteq()
++	newf := &netFile{
++		proto:  f.proto,
++		sotype: f.sotype,
++		addr:   f.raddr,
++		raddr:  f.addr,
++		rd:     f.wr,
++		wr:     f.rd,
++	}
++	net.Unlock()
++	l.listener.write(newf, f.writeDeadline())
++	return nil
++}
++
++func (f *netFile) read(b []byte) (int, error) {
++	if f.rd == nil {
++		if f.raddr != nil {
++			n, _, err := f.recvfrom(b, 0)
++			return n, err
++		}
++		return 0, ENOTCONN
++	}
++	return f.rd.read(b, f.readDeadline())
++}
++
++func (f *netFile) write(b []byte) (int, error) {
++	if f.wr == nil {
++		if f.raddr != nil {
++			err := f.sendto(b, 0, f.raddr)
++			var n int
++			if err == nil {
++				n = len(b)
++			}
++			return n, err
++		}
++		return 0, ENOTCONN
++	}
++	return f.wr.write(b, f.writeDeadline())
++}
++
++type pktmsg struct {
++	buf  []byte
++	addr Sockaddr
++}
++
++func (f *netFile) recvfrom(p []byte, flags int) (n int, from Sockaddr, err error) {
++	if f.sotype != SOCK_DGRAM {
++		return 0, nil, EINVAL
++	}
++	if f.packet == nil {
++		return 0, nil, ENOTCONN
++	}
++	msg1, err := f.packet.read(f.readDeadline())
++	if err != nil {
++		return 0, nil, err
++	}
++	msg, ok := msg1.(*pktmsg)
++	if !ok {
++		return 0, nil, EAGAIN
++	}
++	return copy(p, msg.buf), msg.addr, nil
++}
++
++func (f *netFile) sendto(p []byte, flags int, to Sockaddr) error {
++	if f.sotype != SOCK_DGRAM {
++		return EINVAL
++	}
++	if f.packet == nil {
++		if err := f.bind(nil); err != nil {
++			return err
++		}
++	}
++	net.Lock()
++	if to == nil {
++		net.Unlock()
++		return EINVAL
++	}
++	to = to.copy()
++	l, ok := net.listener[netAddr{f.proto, f.sotype, to.key()}]
++	if !ok || l.packet == nil {
++		net.Unlock()
++		return ECONNREFUSED
++	}
++	net.Unlock()
++	msg := &pktmsg{
++		buf:  make([]byte, len(p)),
++		addr: f.addr,
++	}
++	copy(msg.buf, p)
++	l.packet.write(msg, f.writeDeadline())
++	return nil
++}
++
++func (f *netFile) close() error {
++	if f.listener != nil {
++		f.listener.close()
++	}
++	if f.packet != nil {
++		f.packet.close()
++	}
++	if f.rd != nil {
++		f.rd.close()
++	}
++	if f.wr != nil {
++		f.wr.close()
++	}
++	return nil
++}
++
++func fdToNetFile(fd int) (*netFile, error) {
++	f, err := fdToFile(fd)
++	if err != nil {
++		return nil, err
++	}
++	impl := f.impl
++	netf, ok := impl.(*netFile)
++	if !ok {
++		return nil, EINVAL
++	}
++	return netf, nil
++}
++
++func Socket(proto, sotype, unused int) (fd int, err error) {
++	p := netprotos[proto]
++	if p == nil {
++		return -1, EPROTONOSUPPORT
++	}
++	if sotype != SOCK_STREAM && sotype != SOCK_DGRAM {
++		return -1, ESOCKTNOSUPPORT
++	}
++	f := &netFile{
++		proto:  p,
++		sotype: sotype,
++	}
++	return newFD(f), nil
++}
++
++func Bind(fd int, sa Sockaddr) error {
++	f, err := fdToNetFile(fd)
++	if err != nil {
++		return err
++	}
++	return f.bind(sa)
++}
++
++func StopIO(fd int) error {
++	f, err := fdToNetFile(fd)
++	if err != nil {
++		return err
++	}
++	f.close()
++	return nil
++}
++
++func Listen(fd int, backlog int) error {
++	f, err := fdToNetFile(fd)
++	if err != nil {
++		return err
++	}
++	return f.listen(backlog)
++}
++
++func Accept(fd int) (newfd int, sa Sockaddr, err error) {
++	f, err := fdToNetFile(fd)
++	if err != nil {
++		return 0, nil, err
++	}
++	return f.accept()
++}
++
++func Getsockname(fd int) (sa Sockaddr, err error) {
++	f, err := fdToNetFile(fd)
++	if err != nil {
++		return nil, err
++	}
++	if f.addr == nil {
++		return nil, ENOTCONN
++	}
++	return f.addr.copy(), nil
++}
++
++func Getpeername(fd int) (sa Sockaddr, err error) {
++	f, err := fdToNetFile(fd)
++	if err != nil {
++		return nil, err
++	}
++	if f.raddr == nil {
++		return nil, ENOTCONN
++	}
++	return f.raddr.copy(), nil
++}
++
++func Connect(fd int, sa Sockaddr) error {
++	f, err := fdToNetFile(fd)
++	if err != nil {
++		return err
++	}
++	return f.connect(sa)
++}
++
++func Recvfrom(fd int, p []byte, flags int) (n int, from Sockaddr, err error) {
++	f, err := fdToNetFile(fd)
++	if err != nil {
++		return 0, nil, err
++	}
++	return f.recvfrom(p, flags)
++}
++
++func Sendto(fd int, p []byte, flags int, to Sockaddr) error {
++	f, err := fdToNetFile(fd)
++	if err != nil {
++		return err
++	}
++	return f.sendto(p, flags, to)
++}
++
++func Recvmsg(fd int, p, oob []byte, flags int) (n, oobn, recvflags int, from Sockaddr, err error) {
++	f, err := fdToNetFile(fd)
++	if err != nil {
++		return
++	}
++	n, from, err = f.recvfrom(p, flags)
++	return
++}
++
++func Sendmsg(fd int, p, oob []byte, to Sockaddr, flags int) error {
++	f, err := fdToNetFile(fd)
++	if err != nil {
++		return err
++	}
++	return f.sendto(p, flags, to)
++}
++
++func GetsockoptInt(fd, level, opt int) (value int, err error) {
++	f, err := fdToNetFile(fd)
++	if err != nil {
++		return 0, err
++	}
++	switch {
++	case level == SOL_SOCKET && opt == SO_TYPE:
++		return f.sotype, nil
++	}
++	return 0, ENOTSUP
++}
++
++func SetsockoptInt(fd, level, opt int, value int) error {
++	return nil
++}
++
++func SetsockoptByte(fd, level, opt int, value byte) error {
++	_, err := fdToNetFile(fd)
++	if err != nil {
++		return err
++	}
++	return ENOTSUP
++}
++
++func SetsockoptLinger(fd, level, opt int, l *Linger) error {
++	return nil
++}
++
++func SetReadDeadline(fd int, t int64) error {
++	f, err := fdToNetFile(fd)
++	if err != nil {
++		return err
++	}
++	atomic.StoreInt64(&f.rddeadline, t)
++	return nil
++}
++
++func (f *netFile) readDeadline() int64 {
++	return atomic.LoadInt64(&f.rddeadline)
++}
++
++func SetWriteDeadline(fd int, t int64) error {
++	f, err := fdToNetFile(fd)
++	if err != nil {
++		return err
++	}
++	atomic.StoreInt64(&f.wrdeadline, t)
++	return nil
++}
++
++func (f *netFile) writeDeadline() int64 {
++	return atomic.LoadInt64(&f.wrdeadline)
++}
++
++func Shutdown(fd int, how int) error {
++	f, err := fdToNetFile(fd)
++	if err != nil {
++		return err
++	}
++	switch how {
++	case SHUT_RD:
++		f.rd.close()
++	case SHUT_WR:
++		f.wr.close()
++	case SHUT_RDWR:
++		f.rd.close()
++		f.wr.close()
++	}
++	return nil
++}
++
++func SetsockoptICMPv6Filter(fd, level, opt int, filter *ICMPv6Filter) error { panic("SetsockoptICMPv") }
++func SetsockoptIPMreq(fd, level, opt int, mreq *IPMreq) error               { panic("SetsockoptIPMreq") }
++func SetsockoptIPv6Mreq(fd, level, opt int, mreq *IPv6Mreq) error           { panic("SetsockoptIPv") }
++func SetsockoptInet4Addr(fd, level, opt int, value [4]byte) error           { panic("SetsockoptInet") }
++func SetsockoptString(fd, level, opt int, s string) error                   { panic("SetsockoptString") }
++func SetsockoptTimeval(fd, level, opt int, tv *Timeval) error               { panic("SetsockoptTimeval") }
++func Socketpair(domain, typ, proto int) (fd [2]int, err error)              { panic("Socketpair") }
++
++func SetNonblock(fd int, nonblocking bool) error { return nil }

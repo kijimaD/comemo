@@ -26,9 +26,152 @@ Date:   Thu Sep 4 00:01:55 2014 -0400
     TBR=iant
     CC=golang-codereviews
     https://golang.org/cl/134390043
-
+---
  misc/cgo/test/callback.go   |  9 +++++++--
  src/pkg/runtime/asm_386.s   | 13 ++++++++-----
  src/pkg/runtime/asm_amd64.s | 13 ++++++++-----
  src/pkg/runtime/asm_arm.s   | 15 +++++++++------
  4 files changed, 32 insertions(+), 18 deletions(-)
+
+diff --git a/misc/cgo/test/callback.go b/misc/cgo/test/callback.go
+index 67d271404a..98f653ef77 100644
+--- a/misc/cgo/test/callback.go
++++ b/misc/cgo/test/callback.go
+@@ -156,6 +156,7 @@ func testCallbackCallers(t *testing.T) {
+ 		"runtime.cgocallbackg1",
+ 		"runtime.cgocallbackg",
+ 		"runtime.cgocallback_gofunc",
++		"asmcgocall",
+ 		"runtime.asmcgocall_errno",
+ 		"runtime.cgocall_errno",
+ 		"test._Cfunc_callback",
+@@ -182,8 +183,12 @@ func testCallbackCallers(t *testing.T) {
+ 		if strings.HasPrefix(fname, "_") {
+ 			fname = path.Base(f.Name()[1:])
+ 		}
+-		if fname != name[i] {
+-			t.Errorf("expected function name %s, got %s", name[i], fname)
++		namei := ""
++		if i < len(name) {
++			namei = name[i]
++		}
++		if fname != namei {
++			t.Errorf("stk[%d] = %q, want %q", i, fname, namei)
+ 		}
+ 	}
+ }
+diff --git a/src/pkg/runtime/asm_386.s b/src/pkg/runtime/asm_386.s
+index 2477726f51..aafe960ce3 100644
+--- a/src/pkg/runtime/asm_386.s
++++ b/src/pkg/runtime/asm_386.s
+@@ -680,17 +680,21 @@ TEXT gosave<>(SB),NOSPLIT,$0
+ // Call fn(arg) on the scheduler stack,
+ // aligned appropriately for the gcc ABI.
+ // See cgocall.c for more details.
+-TEXT runtime·asmcgocall(SB),NOSPLIT,$12-8
++TEXT runtime·asmcgocall(SB),NOSPLIT,$0-8
+ 	MOVL	fn+0(FP), AX
+ 	MOVL	arg+4(FP), BX
+-	MOVL	AX, 0(SP)
+-	MOVL	BX, 4(SP)
+-	CALL	runtime·asmcgocall_errno(SB)
++	CALL	asmcgocall<>(SB)
+ 	RET
+ 
+ TEXT runtime·asmcgocall_errno(SB),NOSPLIT,$0-12
+ 	MOVL	fn+0(FP), AX
+ 	MOVL	arg+4(FP), BX
++	CALL	asmcgocall<>(SB)
++	MOVL	AX, ret+8(FP)
++	RET
++
++TEXT asmcgocall<>(SB),NOSPLIT,$0-12
++	// fn in AX, arg in BX
+ 	MOVL	SP, DX
+ 
+ 	// Figure out if we need to switch to m->g0 stack.
+@@ -720,7 +724,6 @@ TEXT runtime·asmcgocall_errno(SB),NOSPLIT,$0-12
+ 	MOVL	8(SP), DI
+ 	MOVL	DI, g(CX)
+ 	MOVL	4(SP), SP
+-	MOVL	AX, ret+8(FP)
+ 	RET
+ 
+ // cgocallback(void (*fn)(void*), void *frame, uintptr framesize)
+diff --git a/src/pkg/runtime/asm_amd64.s b/src/pkg/runtime/asm_amd64.s
+index d7e30de7b4..5840b56c81 100644
+--- a/src/pkg/runtime/asm_amd64.s
++++ b/src/pkg/runtime/asm_amd64.s
+@@ -764,17 +764,21 @@ TEXT gosave<>(SB),NOSPLIT,$0
+ // Call fn(arg) on the scheduler stack,
+ // aligned appropriately for the gcc ABI.
+ // See cgocall.c for more details.
+-TEXT runtime·asmcgocall(SB),NOSPLIT,$24-16
++TEXT runtime·asmcgocall(SB),NOSPLIT,$0-16
+ 	MOVQ	fn+0(FP), AX
+ 	MOVQ	arg+8(FP), BX
+-	MOVQ	AX, 0(SP)
+-	MOVQ	BX, 8(SP)
+-	CALL	runtime·asmcgocall_errno(SB)
++	CALL	asmcgocall<>(SB)
+ 	RET
+ 
+ TEXT runtime·asmcgocall_errno(SB),NOSPLIT,$0-20
+ 	MOVQ	fn+0(FP), AX
+ 	MOVQ	arg+8(FP), BX
++	CALL	asmcgocall<>(SB)
++	MOVL	AX, ret+16(FP)
++	RET
++
++// asmcgocall common code. fn in AX, arg in BX. returns errno in AX.
++TEXT asmcgocall<>(SB),NOSPLIT,$0-0
+ 	MOVQ	SP, DX
+ 
+ 	// Figure out if we need to switch to m->g0 stack.
+@@ -813,7 +817,6 @@ nosave:
+ 	MOVQ	48(SP), DI
+ 	MOVQ	DI, g(CX)
+ 	MOVQ	40(SP), SP
+-	MOVL	AX, ret+16(FP)
+ 	RET
+ 
+ // cgocallback(void (*fn)(void*), void *frame, uintptr framesize)
+diff --git a/src/pkg/runtime/asm_arm.s b/src/pkg/runtime/asm_arm.s
+index 26b58cfb17..49a863258c 100644
+--- a/src/pkg/runtime/asm_arm.s
++++ b/src/pkg/runtime/asm_arm.s
+@@ -493,17 +493,21 @@ TEXT gosave<>(SB),NOSPLIT,$0
+ // Call fn(arg) on the scheduler stack,
+ // aligned appropriately for the gcc ABI.
+ // See cgocall.c for more details.
+-TEXT	runtime·asmcgocall(SB),NOSPLIT,$12-8
++TEXT	runtime·asmcgocall(SB),NOSPLIT,$0-8
+ 	MOVW	fn+0(FP), R1
+-	MOVW	arg+4(FP), R2
+-	MOVW	R1, 0(R13)
+-	MOVW	R2, 4(R13)
+-	BL	runtime·asmcgocall_errno(SB)
++	MOVW	arg+4(FP), R0
++	BL	asmcgocall<>(SB)
+ 	RET
+ 
+ TEXT runtime·asmcgocall_errno(SB),NOSPLIT,$0-12
+ 	MOVW	fn+0(FP), R1
+ 	MOVW	arg+4(FP), R0
++	BL	asmcgocall<>(SB)
++	MOVW	R0, ret+8(FP)
++	RET
++
++TEXT asmcgocall<>(SB),NOSPLIT,$0-0
++	// fn in R1, arg in R0.
+ 	MOVW	R13, R2
+ 	MOVW	g, R5
+ 
+@@ -529,7 +533,6 @@ TEXT runtime·asmcgocall_errno(SB),NOSPLIT,$0-12
+ 	// Restore registers, g, stack pointer.
+ 	MOVW	20(R13), g
+ 	MOVW	16(R13), R13
+-	MOVW	R0, ret+8(FP)
+ 	RET
+ 
+ // cgocallback(void (*fn)(void*), void *frame, uintptr framesize)

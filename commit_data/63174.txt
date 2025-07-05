@@ -15,6 +15,21 @@ Date:   Wed May 21 16:14:19 2025 -0400
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Auto-Submit: Michael Pratt <mpratt@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/runtime/crash_test.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/runtime/crash_test.go b/src/runtime/crash_test.go
+index 63c4426806..221a9a95cc 100644
+--- a/src/runtime/crash_test.go
++++ b/src/runtime/crash_test.go
+@@ -854,6 +854,9 @@ func TestTimePprof(t *testing.T) {
+ 	case "aix", "darwin", "illumos", "openbsd", "solaris":
+ 		t.Skipf("skipping on %s because nanotime calls libc", runtime.GOOS)
+ 	}
++	if race.Enabled || asan.Enabled || msan.Enabled {
++		t.Skip("skipping on sanitizers because the sanitizer runtime is external code")
++	}
+ 
+ 	// Pass GOTRACEBACK for issue #41120 to try to get more
+ 	// information on timeout.

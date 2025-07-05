@@ -11,6 +11,28 @@ Date:   Mon Jun 24 11:54:15 2019 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/bufio/example_test.go | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/bufio/example_test.go b/src/bufio/example_test.go
+index e220e0768f..8885d40549 100644
+--- a/src/bufio/example_test.go
++++ b/src/bufio/example_test.go
+@@ -31,12 +31,15 @@ func ExampleScanner_lines() {
+ 	}
+ }
+ 
+-// Use return the most recent call to Scan as a []byte
++// Return the most recent call to Scan as a []byte.
+ func ExampleScanner_Bytes() {
+ 	scanner := bufio.NewScanner(strings.NewReader("gopher"))
+ 	for scanner.Scan() {
+ 		fmt.Println(len(scanner.Bytes()) == 6)
+ 	}
++	if err := scanner.Err(); err != nil {
++		fmt.Fprintln(os.Stderr, "shouldn't see an error scanning a string")
++	}
+ 	// Output:
+ 	// true
+ }

@@ -18,7 +18,7 @@ Date:   Wed Jan 18 13:36:46 2017 -0500
     Change-Id: I2f349150659b6ddf6be4c675abba38dfe57ff652
     Reviewed-on: https://go-review.googlesource.com/36201
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/cmd/go/bug.go                          |  7 ++++---
  src/cmd/go/get.go                          | 16 ++++++++-------
  src/cmd/go/{ => internal/web}/bootstrap.go | 20 ++++++++----------
@@ -27,3 +27,384 @@ Date:   Wed Jan 18 13:36:46 2017 -0500
  src/cmd/go/vcs.go                          | 33 +++++++++++-------------------
  src/cmd/go/vcs_test.go                     |  4 +++-
  7 files changed, 69 insertions(+), 60 deletions(-)
+
+diff --git a/src/cmd/go/bug.go b/src/cmd/go/bug.go
+index 8ceb2ac1f9..f19d8c78ab 100644
+--- a/src/cmd/go/bug.go
++++ b/src/cmd/go/bug.go
+@@ -19,6 +19,7 @@ import (
+ 	"cmd/go/internal/base"
+ 	"cmd/go/internal/cfg"
+ 	envcmd "cmd/go/internal/env"
++	"cmd/go/internal/web"
+ )
+ 
+ var cmdBug = &base.Command{
+@@ -57,8 +58,8 @@ func runBug(cmd *base.Command, args []string) {
+ 	fmt.Fprintln(&buf, "```")
+ 
+ 	body := buf.String()
+-	url := "https://github.com/golang/go/issues/new?body=" + queryEscape(body)
+-	if !openBrowser(url) {
++	url := "https://github.com/golang/go/issues/new?body=" + web.QueryEscape(body)
++	if !web.OpenBrowser(url) {
+ 		fmt.Print("Please file a new issue at golang.org/issue/new using this template:\n\n")
+ 		fmt.Print(body)
+ 	}
+@@ -125,7 +126,7 @@ func printCDetails(w io.Writer) {
+ }
+ 
+ func inspectGoVersion(w io.Writer) {
+-	data, err := httpGET("https://golang.org/VERSION?m=text")
++	data, err := web.Get("https://golang.org/VERSION?m=text")
+ 	if err != nil {
+ 		if cfg.BuildV {
+ 			fmt.Printf("failed to read from golang.org/VERSION: %v\n", err)
+diff --git a/src/cmd/go/get.go b/src/cmd/go/get.go
+index 4e491b2f36..ddbab68540 100644
+--- a/src/cmd/go/get.go
++++ b/src/cmd/go/get.go
+@@ -5,11 +5,6 @@
+ package main
+ 
+ import (
+-	"cmd/go/internal/base"
+-	"cmd/go/internal/cfg"
+-	"cmd/go/internal/load"
+-	"cmd/go/internal/str"
+-	"cmd/go/internal/work"
+ 	"fmt"
+ 	"go/build"
+ 	"os"
+@@ -18,6 +13,13 @@ import (
+ 	"runtime"
+ 	"strconv"
+ 	"strings"
++
++	"cmd/go/internal/base"
++	"cmd/go/internal/cfg"
++	"cmd/go/internal/load"
++	"cmd/go/internal/str"
++	"cmd/go/internal/web"
++	"cmd/go/internal/work"
+ )
+ 
+ var cmdGet = &base.Command{
+@@ -367,9 +369,9 @@ func downloadPackage(p *load.Package) error {
+ 		err            error
+ 	)
+ 
+-	security := secure
++	security := web.Secure
+ 	if *getInsecure {
+-		security = insecure
++		security = web.Insecure
+ 	}
+ 
+ 	if p.Internal.Build.SrcRoot != "" {
+diff --git a/src/cmd/go/bootstrap.go b/src/cmd/go/internal/web/bootstrap.go
+similarity index 55%
+rename from src/cmd/go/bootstrap.go
+rename to src/cmd/go/internal/web/bootstrap.go
+index 2148d12685..d1d4621a44 100644
+--- a/src/cmd/go/bootstrap.go
++++ b/src/cmd/go/internal/web/bootstrap.go
+@@ -8,7 +8,7 @@
+ // These stubs avoid importing packages with large dependency
+ // trees, like the use of "net/http" in vcs.go.
+ 
+-package main
++package web
+ 
+ import (
+ 	"errors"
+@@ -17,25 +17,21 @@ import (
+ 
+ var errHTTP = errors.New("no http in bootstrap go command")
+ 
+-type httpError struct {
+-	statusCode int
++type HTTPError struct {
++	StatusCode int
+ }
+ 
+-func (e *httpError) Error() string {
++func (e *HTTPError) Error() string {
+ 	panic("unreachable")
+ }
+ 
+-func httpGET(url string) ([]byte, error) {
++func Get(url string) ([]byte, error) {
+ 	return nil, errHTTP
+ }
+ 
+-func httpsOrHTTP(importPath string, security securityMode) (string, io.ReadCloser, error) {
++func GetMaybeInsecure(importPath string, security SecurityMode) (string, io.ReadCloser, error) {
+ 	return "", nil, errHTTP
+ }
+ 
+-func parseMetaGoImports(r io.Reader) ([]metaImport, error) {
+-	panic("unreachable")
+-}
+-
+-func queryEscape(s string) string { panic("unreachable") }
+-func openBrowser(url string) bool { panic("unreachable") }
++func QueryEscape(s string) string { panic("unreachable") }
++func OpenBrowser(url string) bool { panic("unreachable") }
+diff --git a/src/cmd/go/http.go b/src/cmd/go/internal/web/http.go
+similarity index 76%
+rename from src/cmd/go/http.go
+rename to src/cmd/go/internal/web/http.go
+index f9b966c67a..6e347fbf86 100644
+--- a/src/cmd/go/http.go
++++ b/src/cmd/go/internal/web/http.go
+@@ -9,11 +9,9 @@
+ // to avoid needing to build net (and thus use cgo) during the
+ // bootstrap process.
+ 
+-package main
++package web
+ 
+ import (
+-	"cmd/go/internal/cfg"
+-	"cmd/internal/browser"
+ 	"crypto/tls"
+ 	"fmt"
+ 	"io"
+@@ -22,6 +20,9 @@ import (
+ 	"net/http"
+ 	"net/url"
+ 	"time"
++
++	"cmd/go/internal/cfg"
++	"cmd/internal/browser"
+ )
+ 
+ // httpClient is the default HTTP client, but a variable so it can be
+@@ -41,25 +42,25 @@ var impatientInsecureHTTPClient = &http.Client{
+ 	},
+ }
+ 
+-type httpError struct {
++type HTTPError struct {
+ 	status     string
+-	statusCode int
++	StatusCode int
+ 	url        string
+ }
+ 
+-func (e *httpError) Error() string {
++func (e *HTTPError) Error() string {
+ 	return fmt.Sprintf("%s: %s", e.url, e.status)
+ }
+ 
+-// httpGET returns the data from an HTTP GET request for the given URL.
+-func httpGET(url string) ([]byte, error) {
++// Get returns the data from an HTTP GET request for the given URL.
++func Get(url string) ([]byte, error) {
+ 	resp, err := httpClient.Get(url)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+ 	defer resp.Body.Close()
+ 	if resp.StatusCode != 200 {
+-		err := &httpError{status: resp.Status, statusCode: resp.StatusCode, url: url}
++		err := &HTTPError{status: resp.Status, StatusCode: resp.StatusCode, url: url}
+ 
+ 		return nil, err
+ 	}
+@@ -70,9 +71,9 @@ func httpGET(url string) ([]byte, error) {
+ 	return b, nil
+ }
+ 
+-// httpsOrHTTP returns the body of either the importPath's
+-// https resource or, if unavailable, the http resource.
+-func httpsOrHTTP(importPath string, security securityMode) (urlStr string, body io.ReadCloser, err error) {
++// GetMaybeInsecure returns the body of either the importPath's
++// https resource or, if unavailable and permitted by the security mode, the http resource.
++func GetMaybeInsecure(importPath string, security SecurityMode) (urlStr string, body io.ReadCloser, err error) {
+ 	fetch := func(scheme string) (urlStr string, res *http.Response, err error) {
+ 		u, err := url.Parse(scheme + "://" + importPath)
+ 		if err != nil {
+@@ -83,7 +84,7 @@ func httpsOrHTTP(importPath string, security securityMode) (urlStr string, body
+ 		if cfg.BuildV {
+ 			log.Printf("Fetching %s", urlStr)
+ 		}
+-		if security == insecure && scheme == "https" { // fail earlier
++		if security == Insecure && scheme == "https" { // fail earlier
+ 			res, err = impatientInsecureHTTPClient.Get(urlStr)
+ 		} else {
+ 			res, err = httpClient.Get(urlStr)
+@@ -100,7 +101,7 @@ func httpsOrHTTP(importPath string, security securityMode) (urlStr string, body
+ 		if cfg.BuildV {
+ 			log.Printf("https fetch failed: %v", err)
+ 		}
+-		if security == insecure {
++		if security == Insecure {
+ 			closeBody(res)
+ 			urlStr, res, err = fetch("http")
+ 		}
+@@ -117,5 +118,5 @@ func httpsOrHTTP(importPath string, security securityMode) (urlStr string, body
+ 	return urlStr, res.Body, nil
+ }
+ 
+-func queryEscape(s string) string { return url.QueryEscape(s) }
+-func openBrowser(url string) bool { return browser.Open(url) }
++func QueryEscape(s string) string { return url.QueryEscape(s) }
++func OpenBrowser(url string) bool { return browser.Open(url) }
+diff --git a/src/cmd/go/internal/web/security.go b/src/cmd/go/internal/web/security.go
+new file mode 100644
+index 0000000000..1dc6f1b076
+--- /dev/null
++++ b/src/cmd/go/internal/web/security.go
+@@ -0,0 +1,16 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package web defines helper routines for accessing HTTP/HTTPS resources.
++package web
++
++// SecurityMode specifies whether a function should make network
++// calls using insecure transports (eg, plain text HTTP).
++// The zero value is "secure".
++type SecurityMode int
++
++const (
++	Secure SecurityMode = iota
++	Insecure
++)
+diff --git a/src/cmd/go/vcs.go b/src/cmd/go/vcs.go
+index bb82deb379..e6797ad19e 100644
+--- a/src/cmd/go/vcs.go
++++ b/src/cmd/go/vcs.go
+@@ -21,6 +21,7 @@ import (
+ 
+ 	"cmd/go/internal/base"
+ 	"cmd/go/internal/cfg"
++	"cmd/go/internal/web"
+ )
+ 
+ // A vcsCmd describes how to use a version control system
+@@ -538,19 +539,9 @@ type repoRoot struct {
+ 
+ var httpPrefixRE = regexp.MustCompile(`^https?:`)
+ 
+-// securityMode specifies whether a function should make network
+-// calls using insecure transports (eg, plain text HTTP).
+-// The zero value is "secure".
+-type securityMode int
+-
+-const (
+-	secure securityMode = iota
+-	insecure
+-)
+-
+ // repoRootForImportPath analyzes importPath to determine the
+ // version control system, and code repository to use.
+-func repoRootForImportPath(importPath string, security securityMode) (*repoRoot, error) {
++func repoRootForImportPath(importPath string, security web.SecurityMode) (*repoRoot, error) {
+ 	rr, err := repoRootFromVCSPaths(importPath, "", security, vcsPaths)
+ 	if err == errUnknownSite {
+ 		// If there are wildcards, look up the thing before the wildcard,
+@@ -586,7 +577,7 @@ var errUnknownSite = errors.New("dynamic lookup required to find mapping")
+ // repoRootFromVCSPaths attempts to map importPath to a repoRoot
+ // using the mappings defined in vcsPaths.
+ // If scheme is non-empty, that scheme is forced.
+-func repoRootFromVCSPaths(importPath, scheme string, security securityMode, vcsPaths []*vcsPath) (*repoRoot, error) {
++func repoRootFromVCSPaths(importPath, scheme string, security web.SecurityMode, vcsPaths []*vcsPath) (*repoRoot, error) {
+ 	// A common error is to use https://packagepath because that's what
+ 	// hg and git require. Diagnose this helpfully.
+ 	if loc := httpPrefixRE.FindStringIndex(importPath); loc != nil {
+@@ -636,7 +627,7 @@ func repoRootFromVCSPaths(importPath, scheme string, security securityMode, vcsP
+ 				match["repo"] = scheme + "://" + match["repo"]
+ 			} else {
+ 				for _, scheme := range vcs.scheme {
+-					if security == secure && !vcs.isSecureScheme(scheme) {
++					if security == web.Secure && !vcs.isSecureScheme(scheme) {
+ 						continue
+ 					}
+ 					if vcs.ping(scheme, match["repo"]) == nil {
+@@ -660,7 +651,7 @@ func repoRootFromVCSPaths(importPath, scheme string, security securityMode, vcsP
+ // statically known by repoRootForImportPathStatic.
+ //
+ // This handles custom import paths like "name.tld/pkg/foo" or just "name.tld".
+-func repoRootForImportDynamic(importPath string, security securityMode) (*repoRoot, error) {
++func repoRootForImportDynamic(importPath string, security web.SecurityMode) (*repoRoot, error) {
+ 	slash := strings.Index(importPath, "/")
+ 	if slash < 0 {
+ 		slash = len(importPath)
+@@ -669,10 +660,10 @@ func repoRootForImportDynamic(importPath string, security securityMode) (*repoRo
+ 	if !strings.Contains(host, ".") {
+ 		return nil, errors.New("import path does not begin with hostname")
+ 	}
+-	urlStr, body, err := httpsOrHTTP(importPath, security)
++	urlStr, body, err := web.GetMaybeInsecure(importPath, security)
+ 	if err != nil {
+ 		msg := "https fetch: %v"
+-		if security == insecure {
++		if security == web.Insecure {
+ 			msg = "http/" + msg
+ 		}
+ 		return nil, fmt.Errorf(msg, err)
+@@ -744,7 +735,7 @@ var (
+ // It is an error if no imports are found.
+ // urlStr will still be valid if err != nil.
+ // The returned urlStr will be of the form "https://golang.org/x/tools?go-get=1"
+-func metaImportsForPrefix(importPrefix string, security securityMode) (urlStr string, imports []metaImport, err error) {
++func metaImportsForPrefix(importPrefix string, security web.SecurityMode) (urlStr string, imports []metaImport, err error) {
+ 	setCache := func(res fetchResult) (fetchResult, error) {
+ 		fetchCacheMu.Lock()
+ 		defer fetchCacheMu.Unlock()
+@@ -760,7 +751,7 @@ func metaImportsForPrefix(importPrefix string, security securityMode) (urlStr st
+ 		}
+ 		fetchCacheMu.Unlock()
+ 
+-		urlStr, body, err := httpsOrHTTP(importPrefix, security)
++		urlStr, body, err := web.GetMaybeInsecure(importPrefix, security)
+ 		if err != nil {
+ 			return setCache(fetchResult{urlStr: urlStr, err: fmt.Errorf("fetch %s: %v", urlStr, err)})
+ 		}
+@@ -958,9 +949,9 @@ func bitbucketVCS(match map[string]string) error {
+ 		SCM string `json:"scm"`
+ 	}
+ 	url := expand(match, "https://api.bitbucket.org/1.0/repositories/{bitname}")
+-	data, err := httpGET(url)
++	data, err := web.Get(url)
+ 	if err != nil {
+-		if httpErr, ok := err.(*httpError); ok && httpErr.statusCode == 403 {
++		if httpErr, ok := err.(*web.HTTPError); ok && httpErr.StatusCode == 403 {
+ 			// this may be a private repository. If so, attempt to determine which
+ 			// VCS it uses. See issue 5375.
+ 			root := match["root"]
+@@ -1000,7 +991,7 @@ func launchpadVCS(match map[string]string) error {
+ 	if match["project"] == "" || match["series"] == "" {
+ 		return nil
+ 	}
+-	_, err := httpGET(expand(match, "https://code.launchpad.net/{project}{series}/.bzr/branch-format"))
++	_, err := web.Get(expand(match, "https://code.launchpad.net/{project}{series}/.bzr/branch-format"))
+ 	if err != nil {
+ 		match["root"] = expand(match, "launchpad.net/{project}")
+ 		match["repo"] = expand(match, "https://{root}")
+diff --git a/src/cmd/go/vcs_test.go b/src/cmd/go/vcs_test.go
+index c73f5d0e85..e3a6b762e9 100644
+--- a/src/cmd/go/vcs_test.go
++++ b/src/cmd/go/vcs_test.go
+@@ -12,6 +12,8 @@ import (
+ 	"path"
+ 	"path/filepath"
+ 	"testing"
++
++	"cmd/go/internal/web"
+ )
+ 
+ // Test that RepoRootForImportPath creates the correct RepoRoot for a given importPath.
+@@ -147,7 +149,7 @@ func TestRepoRootForImportPath(t *testing.T) {
+ 	}
+ 
+ 	for _, test := range tests {
+-		got, err := repoRootForImportPath(test.path, secure)
++		got, err := repoRootForImportPath(test.path, web.Secure)
+ 		want := test.want
+ 
+ 		if want == nil {

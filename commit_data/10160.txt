@@ -10,8 +10,53 @@ Date:   Mon Oct 31 17:53:39 2011 -0400
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/5302075
-
+---
  src/pkg/archive/zip/struct.go | 6 +++---
  src/pkg/big/int_test.go       | 2 +-
  src/pkg/big/rat_test.go       | 2 +-
  3 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/archive/zip/struct.go b/src/pkg/archive/zip/struct.go
+index a32de5a9e0..4f9f599a14 100644
+--- a/src/pkg/archive/zip/struct.go
++++ b/src/pkg/archive/zip/struct.go
+@@ -60,10 +60,10 @@ type directoryEnd struct {
+ 	comment            string
+ }
+ 
+-func recoverError(err *os.Error) {
++func recoverError(errp *os.Error) {
+ 	if e := recover(); e != nil {
+-		if osErr, ok := e.(os.Error); ok {
+-			*err = osErr
++		if err, ok := e.(os.Error); ok {
++			*errp = err
+ 			return
+ 		}
+ 		panic(e)
+diff --git a/src/pkg/big/int_test.go b/src/pkg/big/int_test.go
+index fde19c23b7..d66bb5fa05 100644
+--- a/src/pkg/big/int_test.go
++++ b/src/pkg/big/int_test.go
+@@ -536,7 +536,7 @@ func TestScan(t *testing.T) {
+ 		buf.Reset()
+ 		buf.WriteString(test.input)
+ 		if _, err := fmt.Fscanf(&buf, test.format, x); err != nil {
+-			t.Errorf("#%d error: %s", i, err.String())
++			t.Errorf("#%d error: %s", i, err)
+ 		}
+ 		if x.String() != test.output {
+ 			t.Errorf("#%d got %s; want %s", i, x.String(), test.output)
+diff --git a/src/pkg/big/rat_test.go b/src/pkg/big/rat_test.go
+index a95e5fea3a..2443450411 100644
+--- a/src/pkg/big/rat_test.go
++++ b/src/pkg/big/rat_test.go
+@@ -112,7 +112,7 @@ func TestRatScan(t *testing.T) {
+ 		_, err := fmt.Fscanf(&buf, "%v", x)
+ 		if err == nil != test.ok {
+ 			if test.ok {
+-				t.Errorf("#%d error: %s", i, err.String())
++				t.Errorf("#%d error: %s", i, err)
+ 			} else {
+ 				t.Errorf("#%d expected error", i)
+ 			}

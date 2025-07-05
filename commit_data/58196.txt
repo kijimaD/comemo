@@ -27,7 +27,77 @@ Date:   Fri Oct 6 12:20:19 2023 -0700
     Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/cmd/compile/internal/ppc64/ssa.go       | 22 ++++++++++++----------
  src/runtime/internal/atomic/atomic_ppc64x.s |  2 ++
  2 files changed, 14 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ppc64/ssa.go b/src/cmd/compile/internal/ppc64/ssa.go
+index 7745352c98..9ba66b35f3 100644
+--- a/src/cmd/compile/internal/ppc64/ssa.go
++++ b/src/cmd/compile/internal/ppc64/ssa.go
+@@ -347,9 +347,9 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		// BNE         end
+ 		// STDCCC      Rarg2, (Rarg0)
+ 		// BNE         loop
+-		// LWSYNC      // Only for sequential consistency; not required in CasRel.
+ 		// MOVD        $1, Rout
+ 		// end:
++		// LWSYNC      // Only for sequential consistency; not required in CasRel.
+ 		ld := ppc64.ALDAR
+ 		st := ppc64.ASTDCCC
+ 		cmp := ppc64.ACMP
+@@ -402,22 +402,24 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p4 := s.Prog(ppc64.ABNE)
+ 		p4.To.Type = obj.TYPE_BRANCH
+ 		p4.To.SetTarget(p0)
++		// return value true
++		p5 := s.Prog(ppc64.AMOVD)
++		p5.From.Type = obj.TYPE_CONST
++		p5.From.Offset = 1
++		p5.To.Type = obj.TYPE_REG
++		p5.To.Reg = out
+ 		// LWSYNC - Assuming shared data not write-through-required nor
+ 		// caching-inhibited. See Appendix B.2.1.1 in the ISA 2.07b.
+ 		// If the operation is a CAS-Release, then synchronization is not necessary.
+ 		if v.AuxInt != 0 {
+ 			plwsync2 := s.Prog(ppc64.ALWSYNC)
+ 			plwsync2.To.Type = obj.TYPE_NONE
++			p2.To.SetTarget(plwsync2)
++		} else {
++			// done (label)
++			p6 := s.Prog(obj.ANOP)
++			p2.To.SetTarget(p6)
+ 		}
+-		// return value true
+-		p5 := s.Prog(ppc64.AMOVD)
+-		p5.From.Type = obj.TYPE_CONST
+-		p5.From.Offset = 1
+-		p5.To.Type = obj.TYPE_REG
+-		p5.To.Reg = out
+-		// done (label)
+-		p6 := s.Prog(obj.ANOP)
+-		p2.To.SetTarget(p6)
+ 
+ 	case ssa.OpPPC64LoweredPubBarrier:
+ 		// LWSYNC
+diff --git a/src/runtime/internal/atomic/atomic_ppc64x.s b/src/runtime/internal/atomic/atomic_ppc64x.s
+index 144439ec23..75635b933d 100644
+--- a/src/runtime/internal/atomic/atomic_ppc64x.s
++++ b/src/runtime/internal/atomic/atomic_ppc64x.s
+@@ -101,6 +101,7 @@ cas_again:
+ 	MOVB	R3, ret+16(FP)
+ 	RET
+ cas_fail:
++	LWSYNC
+ 	MOVB	R0, ret+16(FP)
+ 	RET
+ 
+@@ -128,6 +129,7 @@ cas64_again:
+ 	MOVB	R3, ret+24(FP)
+ 	RET
+ cas64_fail:
++	LWSYNC
+ 	MOVB	R0, ret+24(FP)
+ 	RET
+ 

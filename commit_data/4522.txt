@@ -7,6 +7,21 @@ Date:   Mon Jan 4 17:28:02 2010 -0800
     R=rsc, r
     CC=golang-dev
     https://golang.org/cl/183113
-
+---
  doc/go_spec.html | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 8a11e49f9d..1ca5fe7c1e 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -179,7 +179,8 @@ into the token stream at the end of a non-blank line if the line's final
+ token is
+ </p>
+ <ul>
+-	<li>an identifier or basic literal
++	<li>an identifier
++	<li>an integer, floating-point, character, or string literal
+ 	<li>one of the keywords
+ 	    <code>break</code>, <code>continue</code>, <code>fallthrough</code>,
+ 	    or <code>return</code>

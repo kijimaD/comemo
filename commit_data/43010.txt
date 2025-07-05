@@ -18,6 +18,26 @@ Date:   Fri Feb 14 08:34:31 2020 +1100
     Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/crash_cgo_test.go | 8 +++++++-
  1 file changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/crash_cgo_test.go b/src/runtime/crash_cgo_test.go
+index 56cfb0856e..a09ecd8e42 100644
+--- a/src/runtime/crash_cgo_test.go
++++ b/src/runtime/crash_cgo_test.go
+@@ -275,7 +275,13 @@ func testCgoPprof(t *testing.T, buildArg, runArg, top, bottom string) {
+ 		t.Fatal(err)
+ 	}
+ 
+-	got, err := testenv.CleanCmdEnv(exec.Command(exe, runArg)).CombinedOutput()
++	// pprofCgoTraceback is called whenever CGO code is executing and a signal
++	// is received. Disable signal preemption to increase the likelihood at
++	// least one SIGPROF signal fired to capture a sample. See issue #37201.
++	cmd := testenv.CleanCmdEnv(exec.Command(exe, runArg))
++	cmd.Env = append(cmd.Env, "GODEBUG=asyncpreemptoff=1")
++
++	got, err := cmd.CombinedOutput()
+ 	if err != nil {
+ 		if testenv.Builder() == "linux-amd64-alpine" {
+ 			// See Issue 18243 and Issue 19938.

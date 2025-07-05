@@ -9,7 +9,63 @@ Date:   Sat May 28 21:26:03 2011 +1000
     R=golang-dev, rsc
     CC=devon.odell, golang-dev, iant
     https://golang.org/cl/4515147
-
+---
  src/cmd/gotest/gotest.go  | 4 ++--
  src/pkg/exec/exec_test.go | 8 ++++----
  2 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/gotest/gotest.go b/src/cmd/gotest/gotest.go
+index 8c81baf976..4cb3da23c8 100644
+--- a/src/cmd/gotest/gotest.go
++++ b/src/cmd/gotest/gotest.go
+@@ -285,8 +285,8 @@ func doRun(argv []string, returnStdout bool) string {
+ 			}
+ 			cmd += `"` + v + `"`
+ 		}
+-		command = "sh"
+-		argv = []string{"sh", "-c", cmd}
++		command = "bash"
++		argv = []string{"bash", "-c", cmd}
+ 	}
+ 	var err os.Error
+ 	argv[0], err = exec.LookPath(argv[0])
+diff --git a/src/pkg/exec/exec_test.go b/src/pkg/exec/exec_test.go
+index eb8cd5fec9..362b41c013 100644
+--- a/src/pkg/exec/exec_test.go
++++ b/src/pkg/exec/exec_test.go
+@@ -39,7 +39,7 @@ func TestRunCat(t *testing.T) {
+ }
+ 
+ func TestRunEcho(t *testing.T) {
+-	cmd, err := run([]string{"sh", "-c", "echo hello world"},
++	cmd, err := run([]string{"bash", "-c", "echo hello world"},
+ 		DevNull, Pipe, DevNull)
+ 	if err != nil {
+ 		t.Fatal("run:", err)
+@@ -57,7 +57,7 @@ func TestRunEcho(t *testing.T) {
+ }
+ 
+ func TestStderr(t *testing.T) {
+-	cmd, err := run([]string{"sh", "-c", "echo hello world 1>&2"},
++	cmd, err := run([]string{"bash", "-c", "echo hello world 1>&2"},
+ 		DevNull, DevNull, Pipe)
+ 	if err != nil {
+ 		t.Fatal("run:", err)
+@@ -75,7 +75,7 @@ func TestStderr(t *testing.T) {
+ }
+ 
+ func TestMergeWithStdout(t *testing.T) {
+-	cmd, err := run([]string{"sh", "-c", "echo hello world 1>&2"},
++	cmd, err := run([]string{"bash", "-c", "echo hello world 1>&2"},
+ 		DevNull, Pipe, MergeWithStdout)
+ 	if err != nil {
+ 		t.Fatal("run:", err)
+@@ -97,7 +97,7 @@ func TestAddEnvVar(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatal("setenv:", err)
+ 	}
+-	cmd, err := run([]string{"sh", "-c", "echo $NEWVAR"},
++	cmd, err := run([]string{"bash", "-c", "echo $NEWVAR"},
+ 		DevNull, Pipe, DevNull)
+ 	if err != nil {
+ 		t.Fatal("run:", err)

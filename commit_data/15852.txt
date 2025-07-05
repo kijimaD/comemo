@@ -16,7 +16,7 @@ Date:   Wed Mar 20 13:51:29 2013 -0700
     R=r, rsc, m3b, dave, bradfitz, khr, ugorji, remyoudompheng
     CC=golang-dev
     https://golang.org/cl/7504044
-
+---
  src/cmd/gc/builtin.c             |    6 +
  src/cmd/gc/range.c               |    4 +-
  src/cmd/gc/walk.c                |   72 +-
@@ -29,3 +29,3398 @@ Date:   Wed Mar 20 13:51:29 2013 -0700
  src/pkg/runtime/runtime.c        |    4 +-
  src/pkg/runtime/runtime.h        |    3 +-
  11 files changed, 1482 insertions(+), 1166 deletions(-)
+
+diff --git a/src/cmd/gc/builtin.c b/src/cmd/gc/builtin.c
+index 7de448d1e1..f1d0931d4e 100644
+--- a/src/cmd/gc/builtin.c
++++ b/src/cmd/gc/builtin.c
+@@ -63,7 +63,13 @@ char *runtimeimport =
+ 	"func @\"\".equal (@\"\".typ·2 *byte, @\"\".x1·3 any, @\"\".x2·4 any) (@\"\".ret·1 bool)\n"
+ 	"func @\"\".makemap (@\"\".mapType·2 *byte, @\"\".hint·3 int64) (@\"\".hmap·1 map[any]any)\n"
+ 	"func @\"\".mapaccess1 (@\"\".mapType·2 *byte, @\"\".hmap·3 map[any]any, @\"\".key·4 any) (@\"\".val·1 any)\n"
++	"func @\"\".mapaccess1_fast32 (@\"\".mapType·2 *byte, @\"\".hmap·3 map[any]any, @\"\".key·4 any) (@\"\".val·1 *any)\n"
++	"func @\"\".mapaccess1_fast64 (@\"\".mapType·2 *byte, @\"\".hmap·3 map[any]any, @\"\".key·4 any) (@\"\".val·1 *any)\n"
++	"func @\"\".mapaccess1_faststr (@\"\".mapType·2 *byte, @\"\".hmap·3 map[any]any, @\"\".key·4 any) (@\"\".val·1 *any)\n"
+ 	"func @\"\".mapaccess2 (@\"\".mapType·3 *byte, @\"\".hmap·4 map[any]any, @\"\".key·5 any) (@\"\".val·1 any, @\"\".pres·2 bool)\n"
++	"func @\"\".mapaccess2_fast32 (@\"\".mapType·3 *byte, @\"\".hmap·4 map[any]any, @\"\".key·5 any) (@\"\".val·1 *any, @\"\".pres·2 bool)\n"
++	"func @\"\".mapaccess2_fast64 (@\"\".mapType·3 *byte, @\"\".hmap·4 map[any]any, @\"\".key·5 any) (@\"\".val·1 *any, @\"\".pres·2 bool)\n"
++	"func @\"\".mapaccess2_faststr (@\"\".mapType·3 *byte, @\"\".hmap·4 map[any]any, @\"\".key·5 any) (@\"\".val·1 *any, @\"\".pres·2 bool)\n"
+ 	"func @\"\".mapassign1 (@\"\".mapType·1 *byte, @\"\".hmap·2 map[any]any, @\"\".key·3 any, @\"\".val·4 any)\n"
+ 	"func @\"\".mapiterinit (@\"\".mapType·1 *byte, @\"\".hmap·2 map[any]any, @\"\".hiter·3 *any)\n"
+ 	"func @\"\".mapdelete (@\"\".mapType·1 *byte, @\"\".hmap·2 map[any]any, @\"\".key·3 any)\n"
+diff --git a/src/cmd/gc/range.c b/src/cmd/gc/range.c
+index 50c4617c06..e80a8c723b 100644
+--- a/src/cmd/gc/range.c
++++ b/src/cmd/gc/range.c
+@@ -182,8 +182,8 @@ walkrange(Node *n)
+ 		th = typ(TARRAY);
+ 		th->type = ptrto(types[TUINT8]);
+ 		// see ../../pkg/runtime/hashmap.h:/hash_iter
+-		// Size in words.
+-		th->bound = 5 + 4*3 + 4*4/widthptr;
++		// Size of hash_iter in # of pointers.
++		th->bound = 10;
+ 		hit = temp(th);
+ 
+ 		fn = syslook("mapiterinit", 1);
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 831917f149..6e152136f7 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -636,8 +636,48 @@ walkexpr(Node **np, NodeList **init)
+ 		r = n->rlist->n;
+ 		walkexprlistsafe(n->list, init);
+ 		walkexpr(&r->left, init);
+-		fn = mapfn("mapaccess2", r->left->type);
+-		r = mkcall1(fn, getoutargx(fn->type), init, typename(r->left->type), r->left, r->right);
++		t = r->left->type;
++		p = nil;
++		if(t->type->width <= 128) { // Check ../../pkg/runtime/hashmap.c:MAXVALUESIZE before changing.
++			switch(simsimtype(t->down)) {
++			case TINT32:
++			case TUINT32:
++				p = "mapaccess2_fast32";
++				break;
++			case TINT64:
++			case TUINT64:
++				p = "mapaccess2_fast64";
++				break;
++			case TSTRING:
++				p = "mapaccess2_faststr";
++				break;
++			}
++		}
++		if(p != nil) {
++			// from:
++			//   a,b = m[i]
++			// to:
++			//   var,b = mapaccess2_fast*(t, m, i)
++			//   a = *var
++			a = n->list->n;
++			var = temp(ptrto(t->type));
++			var->typecheck = 1;
++
++			fn = mapfn(p, t);
++			r = mkcall1(fn, getoutargx(fn->type), init, typename(t), r->left, r->right);
++			n->rlist = list1(r);
++			n->op = OAS2FUNC;
++			n->list->n = var;
++			walkexpr(&n, init);
++			*init = list(*init, n);
++
++			n = nod(OAS, a, nod(OIND, var, N));
++			typecheck(&n, Etop);
++			walkexpr(&n, init);
++			goto ret;
++		}
++		fn = mapfn("mapaccess2", t);
++		r = mkcall1(fn, getoutargx(fn->type), init, typename(t), r->left, r->right);
+ 		n->rlist = list1(r);
+ 		n->op = OAS2FUNC;
+ 		goto as2func;
+@@ -1004,7 +1044,33 @@ walkexpr(Node **np, NodeList **init)
+ 			goto ret;
+ 
+ 		t = n->left->type;
+-		n = mkcall1(mapfn("mapaccess1", t), t->type, init, typename(t), n->left, n->right);
++		p = nil;
++		if(t->type->width <= 128) {  // Check ../../pkg/runtime/hashmap.c:MAXVALUESIZE before changing.
++			switch(simsimtype(t->down)) {
++			case TINT32:
++			case TUINT32:
++				p = "mapaccess1_fast32";
++				break;
++			case TINT64:
++			case TUINT64:
++				p = "mapaccess1_fast64";
++				break;
++			case TSTRING:
++				p = "mapaccess1_faststr";
++				break;
++			}
++		}
++		if(p != nil) {
++			// use fast version.  The fast versions return a pointer to the value - we need
++			// to dereference it to get the result.
++			n = mkcall1(mapfn(p, t), ptrto(t->type), init, typename(t), n->left, n->right);
++			n = nod(OIND, n, N);
++			n->type = t->type;
++			n->typecheck = 1;
++		} else {
++			// no fast version for this key
++			n = mkcall1(mapfn("mapaccess1", t), t->type, init, typename(t), n->left, n->right);
++		}
+ 		goto ret;
+ 
+ 	case ORECV:
+diff --git a/src/cmd/ld/dwarf.c b/src/cmd/ld/dwarf.c
+index 1fc8891d01..a90f8691af 100644
+--- a/src/cmd/ld/dwarf.c
++++ b/src/cmd/ld/dwarf.c
+@@ -41,13 +41,9 @@ static vlong arangeso;
+ static vlong arangessize;
+ static vlong gdbscripto;
+ static vlong gdbscriptsize;
+-static vlong inforeloco;
+-static vlong inforelocsize;
+ 
+ static char  gdbscript[1024];
+ 
+-static Sym *dsym;
+-
+ /*
+  *  Basic I/O
+  */
+@@ -489,43 +485,26 @@ mkindex(DWDie *die)
+ 	die->hash = mal(HASHSIZE * sizeof(DWDie*));
+ }
+ 
+-static DWDie*
+-walktypedef(DWDie *die)
+-{
+-	DWAttr *attr;
+-
+-	// Resolve typedef if present.
+-	if (die->abbrev == DW_ABRV_TYPEDECL) {
+-		for (attr = die->attr; attr; attr = attr->link) {
+-			if (attr->atr == DW_AT_type && attr->cls == DW_CLS_REFERENCE && attr->data != nil) {
+-				return (DWDie*)attr->data;
+-			}
+-		}
+-	}
+-	return die;
+-}
+-
+ // Find child by AT_name using hashtable if available or linear scan
+ // if not.
+ static DWDie*
+ find(DWDie *die, char* name)
+ {
+-	DWDie *a, *b, *die2;
++	DWDie *a, *b;
+ 	int h;
+ 
+-top:
+ 	if (die->hash == nil) {
+ 		for (a = die->child; a != nil; a = a->link)
+ 			if (strcmp(name, getattr(a, DW_AT_name)->data) == 0)
+ 				return a;
+-		goto notfound;
++		return nil;
+ 	}
+ 
+ 	h = hashstr(name);
+ 	a = die->hash[h];
+ 
+ 	if (a == nil)
+-		goto notfound;
++		return nil;
+ 
+ 
+ 	if (strcmp(name, getattr(a, DW_AT_name)->data) == 0)
+@@ -543,14 +522,6 @@ top:
+ 		a = b;
+ 		b = b->hlink;
+ 	}
+-
+-notfound:
+-	die2 = walktypedef(die);
+-	if(die2 != die) {
+-		die = die2;
+-		goto top;
+-	}
+-
+ 	return nil;
+ }
+ 
+@@ -560,7 +531,7 @@ find_or_diag(DWDie *die, char* name)
+ 	DWDie *r;
+ 	r = find(die, name);
+ 	if (r == nil) {
+-		diag("dwarf find: %s %p has no %s", getattr(die, DW_AT_name)->data, die, name);
++		diag("dwarf find: %s has no %s", getattr(die, DW_AT_name)->data, name);
+ 		errorexit();
+ 	}
+ 	return r;
+@@ -577,33 +548,14 @@ newrefattr(DWDie *die, uint8 attr, DWDie* ref)
+ static int fwdcount;
+ 
+ static void
+-putattr(int abbrev, int form, int cls, vlong value, char *data)
++putattr(int form, int cls, vlong value, char *data)
+ {
+-	Reloc *r;
+-
+ 	switch(form) {
+ 	case DW_FORM_addr:	// address
+ 		addrput(value);
+ 		break;
+ 
+ 	case DW_FORM_block1:	// block
+-		if(cls == DW_CLS_ADDRESS) {
+-			cput(1+PtrSize);
+-			cput(DW_OP_addr);
+-			if(linkmode == LinkExternal) {
+-				r = addrel(dsym);
+-				r->sym = (Sym*)data;
+-				r->xsym = r->sym;
+-				r->off = cpos() - infoo;
+-				r->siz = PtrSize;
+-				r->type = D_ADDR;
+-				r->add = value - r->sym->value;
+-				r->xadd = r->add;
+-				value = r->add;
+-			}
+-			addrput(value);
+-			break;
+-		}
+ 		value &= 0xff;
+ 		cput(value);
+ 		while(value--)
+@@ -663,23 +615,13 @@ putattr(int abbrev, int form, int cls, vlong value, char *data)
+ 		break;
+ 
+ 	case DW_FORM_ref_addr:	// reference to a DIE in the .info section
+-		// In DWARF 2 (which is what we claim to generate),
+-		// the ref_addr is the same size as a normal address.
+-		// In DWARF 3 it is always 32 bits, unless emitting a large
+-		// (> 4 GB of debug info aka "64-bit") unit, which we don't implement.
+ 		if (data == nil) {
+-			diag("dwarf: null reference in %d", abbrev);
+-			if(PtrSize == 8)
+-				VPUT(0); // invalid dwarf, gdb will complain.
+-			else
+-				LPUT(0); // invalid dwarf, gdb will complain.
++			diag("dwarf: null reference");
++			LPUT(0);  // invalid dwarf, gdb will complain.
+ 		} else {
+ 			if (((DWDie*)data)->offs == 0)
+ 				fwdcount++;
+-			if(PtrSize == 8)
+-				VPUT(((DWDie*)data)->offs);
+-			else
+-				LPUT(((DWDie*)data)->offs);
++			LPUT(((DWDie*)data)->offs);
+ 		}
+ 		break;
+ 
+@@ -712,12 +654,12 @@ putattrs(int abbrev, DWAttr* attr)
+ 
+ 	for(af = abbrevs[abbrev].attr; af->attr; af++)
+ 		if (attrs[af->attr])
+-			putattr(abbrev, af->form,
++			putattr(af->form,
+ 				attrs[af->attr]->cls,
+ 				attrs[af->attr]->value,
+ 				attrs[af->attr]->data);
+ 		else
+-			putattr(abbrev, af->form, 0, 0, 0);
++			putattr(af->form, 0, 0, 0);
+ }
+ 
+ static void putdie(DWDie* die);
+@@ -787,9 +729,16 @@ newmemberoffsetattr(DWDie *die, int32 offs)
+ // GDB doesn't like DW_FORM_addr for DW_AT_location, so emit a
+ // location expression that evals to a const.
+ static void
+-newabslocexprattr(DWDie *die, vlong addr, Sym *sym)
++newabslocexprattr(DWDie *die, vlong addr)
+ {
+-	newattr(die, DW_AT_location, DW_CLS_ADDRESS, addr, (char*)sym);
++	char block[10];
++	int i;
++
++	i = 0;
++	block[i++] = DW_OP_constu;
++	i += uleb128enc(addr, block+i);
++	newattr(die, DW_AT_location, DW_CLS_BLOCK, i, mal(i));
++	memmove(die->attr->data, block, i);
+ }
+ 
+ 
+@@ -817,31 +766,6 @@ lookup_or_diag(char *n)
+ 	return s;
+ }
+ 
+-static void
+-dotypedef(DWDie *parent, char *name, DWDie *def)
+-{
+-	DWDie *die;
+-
+-	// Only emit typedefs for real names.
+-	if(strncmp(name, "map[", 4) == 0)
+-		return;
+-	if(strncmp(name, "struct {", 8) == 0)
+-		return;
+-	if(strncmp(name, "chan ", 5) == 0)
+-		return;
+-	if(*name == '[' || *name == '*')
+-		return;
+-	if(def == nil)
+-		diag("dwarf: bad def in dotypedef");
+-
+-	// The typedef entry must be created after the def,
+-	// so that future lookups will find the typedef instead
+-	// of the real definition. This hooks the typedef into any
+-	// circular definition loops, so that gdb can understand them.
+-	die = newdie(parent, DW_ABRV_TYPEDECL, name);
+-	newrefattr(die, DW_AT_type, def);
+-}
+-
+ // Define gotype, for composite ones recurse into constituents.
+ static DWDie*
+ defgotype(Sym *gotype)
+@@ -916,7 +840,6 @@ defgotype(Sym *gotype)
+ 
+ 	case KindArray:
+ 		die = newdie(&dwtypes, DW_ABRV_ARRAYTYPE, name);
+-		dotypedef(&dwtypes, name, die);
+ 		newattr(die, DW_AT_byte_size, DW_CLS_CONSTANT, bytesize, 0);
+ 		s = decodetype_arrayelem(gotype);
+ 		newrefattr(die, DW_AT_type, defgotype(s));
+@@ -934,7 +857,6 @@ defgotype(Sym *gotype)
+ 
+ 	case KindFunc:
+ 		die = newdie(&dwtypes, DW_ABRV_FUNCTYPE, name);
+-		dotypedef(&dwtypes, name, die);
+ 		newrefattr(die, DW_AT_type, find_or_diag(&dwtypes, "void"));
+ 		nfields = decodetype_funcincount(gotype);
+ 		for (i = 0; i < nfields; i++) {
+@@ -954,7 +876,6 @@ defgotype(Sym *gotype)
+ 
+ 	case KindInterface:
+ 		die = newdie(&dwtypes, DW_ABRV_IFACETYPE, name);
+-		dotypedef(&dwtypes, name, die);
+ 		newattr(die, DW_AT_byte_size, DW_CLS_CONSTANT, bytesize, 0);
+ 		nfields = decodetype_ifacemethodcount(gotype);
+ 		if (nfields == 0)
+@@ -974,14 +895,12 @@ defgotype(Sym *gotype)
+ 
+ 	case KindPtr:
+ 		die = newdie(&dwtypes, DW_ABRV_PTRTYPE, name);
+-		dotypedef(&dwtypes, name, die);
+ 		s = decodetype_ptrelem(gotype);
+ 		newrefattr(die, DW_AT_type, defgotype(s));
+ 		break;
+ 
+ 	case KindSlice:
+ 		die = newdie(&dwtypes, DW_ABRV_SLICETYPE, name);
+-		dotypedef(&dwtypes, name, die);
+ 		newattr(die, DW_AT_byte_size, DW_CLS_CONSTANT, bytesize, 0);
+ 		s = decodetype_arrayelem(gotype);
+ 		newrefattr(die, DW_AT_internal_elem_type, defgotype(s));
+@@ -994,7 +913,6 @@ defgotype(Sym *gotype)
+ 
+ 	case KindStruct:
+ 		die = newdie(&dwtypes, DW_ABRV_STRUCTTYPE, name);
+-		dotypedef(&dwtypes, name, die);
+ 		newattr(die, DW_AT_byte_size, DW_CLS_CONSTANT, bytesize, 0);
+ 		nfields = decodetype_structfieldcount(gotype);
+ 		for (i = 0; i < nfields; i++) {
+@@ -1080,7 +998,7 @@ synthesizestringtypes(DWDie* die)
+ {
+ 	DWDie *prototype;
+ 
+-	prototype = walktypedef(defgotype(lookup_or_diag("type.runtime._string")));
++	prototype = defgotype(lookup_or_diag("type.runtime._string"));
+ 	if (prototype == nil)
+ 		return;
+ 
+@@ -1096,7 +1014,7 @@ synthesizeslicetypes(DWDie *die)
+ {
+ 	DWDie *prototype, *elem;
+ 
+-	prototype = walktypedef(defgotype(lookup_or_diag("type.runtime.slice")));
++	prototype = defgotype(lookup_or_diag("type.runtime.slice"));
+ 	if (prototype == nil)
+ 		return;
+ 
+@@ -1125,33 +1043,17 @@ mkinternaltypename(char *base, char *arg1, char *arg2)
+ }
+ 
+ 
+-// synthesizemaptypes is way too closely married to runtime/hashmap.c
+-enum {
+-	MaxValsize = 256 - 64
+-};
+-
+ static void
+ synthesizemaptypes(DWDie *die)
+ {
+ 
+-	DWDie *hash, *hash_subtable, *hash_entry,
+-		*dwh, *dwhs, *dwhe, *dwhash, *keytype, *valtype, *fld;
+-	int hashsize, keysize, valsize, datsize, valsize_in_hash, datavo;
+-	DWAttr *a;
+-
+-	hash		= walktypedef(defgotype(lookup_or_diag("type.runtime.hmap")));
+-	hash_subtable	= walktypedef(defgotype(lookup_or_diag("type.runtime.hash_subtable")));
+-	hash_entry	= walktypedef(defgotype(lookup_or_diag("type.runtime.hash_entry")));
++	DWDie *hash, *dwh, *keytype, *valtype;
+ 
+-	if (hash == nil || hash_subtable == nil || hash_entry == nil)
+-		return;
++	hash		= defgotype(lookup_or_diag("type.runtime.hmap"));
+ 
+-	dwhash = (DWDie*)getattr(find_or_diag(hash_entry, "hash"), DW_AT_type)->data;
+-	if (dwhash == nil)
++	if (hash == nil)
+ 		return;
+ 
+-	hashsize = getattr(dwhash, DW_AT_byte_size)->value;
+-
+ 	for (; die != nil; die = die->link) {
+ 		if (die->abbrev != DW_ABRV_MAPTYPE)
+ 			continue;
+@@ -1159,63 +1061,12 @@ synthesizemaptypes(DWDie *die)
+ 		keytype = (DWDie*) getattr(die, DW_AT_internal_key_type)->data;
+ 		valtype = (DWDie*) getattr(die, DW_AT_internal_val_type)->data;
+ 
+-		a = getattr(keytype, DW_AT_byte_size);
+-		keysize = a ? a->value : PtrSize;  // We don't store size with Pointers
+-
+-		a = getattr(valtype, DW_AT_byte_size);
+-		valsize = a ? a->value : PtrSize;
+-
+-		// This is what happens in hash_init and makemap_c
+-		valsize_in_hash = valsize;
+-		if (valsize > MaxValsize)
+-			valsize_in_hash = PtrSize;
+-		datavo = keysize;
+-		if (valsize_in_hash >= PtrSize)
+-			datavo = rnd(keysize, PtrSize);
+-		datsize = datavo + valsize_in_hash;
+-		if (datsize < PtrSize)
+-			datsize = PtrSize;
+-		datsize = rnd(datsize, PtrSize);
+-
+-		// Construct struct hash_entry<K,V>
+-		dwhe = newdie(&dwtypes, DW_ABRV_STRUCTTYPE,
+-			mkinternaltypename("hash_entry",
+-				getattr(keytype, DW_AT_name)->data,
+-				getattr(valtype, DW_AT_name)->data));
+-
+-		fld = newdie(dwhe, DW_ABRV_STRUCTFIELD, "hash");
+-		newrefattr(fld, DW_AT_type, dwhash);
+-		newmemberoffsetattr(fld, 0);
+-
+-		fld = newdie(dwhe, DW_ABRV_STRUCTFIELD, "key");
+-		newrefattr(fld, DW_AT_type, keytype);
+-		newmemberoffsetattr(fld, hashsize);
+-
+-		fld = newdie(dwhe, DW_ABRV_STRUCTFIELD, "val");
+-		if (valsize > MaxValsize)
+-			valtype = defptrto(valtype);
+-		newrefattr(fld, DW_AT_type, valtype);
+-		newmemberoffsetattr(fld, hashsize + datavo);
+-		newattr(dwhe, DW_AT_byte_size, DW_CLS_CONSTANT, hashsize + datsize, nil);
+-
+-		// Construct hash_subtable<hash_entry<K,V>>
+-		dwhs = newdie(&dwtypes, DW_ABRV_STRUCTTYPE,
+-			mkinternaltypename("hash_subtable",
+-				getattr(keytype, DW_AT_name)->data,
+-				getattr(valtype, DW_AT_name)->data));
+-		copychildren(dwhs, hash_subtable);
+-		substitutetype(dwhs, "last", defptrto(dwhe));
+-		substitutetype(dwhs, "entry", dwhe);  // todo: []hash_entry with dynamic size
+-		newattr(dwhs, DW_AT_byte_size, DW_CLS_CONSTANT,
+-			getattr(hash_subtable, DW_AT_byte_size)->value, nil);
+-
+ 		// Construct hash<K,V>
+ 		dwh = newdie(&dwtypes, DW_ABRV_STRUCTTYPE,
+ 			mkinternaltypename("hash",
+ 				getattr(keytype, DW_AT_name)->data,
+ 				getattr(valtype, DW_AT_name)->data));
+ 		copychildren(dwh, hash);
+-		substitutetype(dwh, "st", defptrto(dwhs));
+ 		newattr(dwh, DW_AT_byte_size, DW_CLS_CONSTANT,
+ 			getattr(hash, DW_AT_byte_size)->value, nil);
+ 
+@@ -1231,9 +1082,9 @@ synthesizechantypes(DWDie *die)
+ 	DWAttr *a;
+ 	int elemsize, sudogsize;
+ 
+-	sudog = walktypedef(defgotype(lookup_or_diag("type.runtime.sudog")));
+-	waitq = walktypedef(defgotype(lookup_or_diag("type.runtime.waitq")));
+-	hchan = walktypedef(defgotype(lookup_or_diag("type.runtime.hchan")));
++	sudog = defgotype(lookup_or_diag("type.runtime.sudog"));
++	waitq = defgotype(lookup_or_diag("type.runtime.waitq"));
++	hchan = defgotype(lookup_or_diag("type.runtime.hchan"));
+ 	if (sudog == nil || waitq == nil || hchan == nil)
+ 		return;
+ 
+@@ -1302,7 +1153,7 @@ defdwsymb(Sym* sym, char *s, int t, vlong v, vlong size, int ver, Sym *gotype)
+ 	case 'D':
+ 	case 'B':
+ 		dv = newdie(&dwglobals, DW_ABRV_VARIABLE, s);
+-		newabslocexprattr(dv, v, sym);
++		newabslocexprattr(dv, v);
+ 		if (ver == 0)
+ 			newattr(dv, DW_AT_external, DW_CLS_FLAG, 1, 0);
+ 		// fallthrough
+@@ -1663,12 +1514,12 @@ mkvarname(char* name, int da)
+ 
+ // flush previous compilation unit.
+ static void
+-flushunit(DWDie *dwinfo, vlong pc, Sym *pcsym, vlong unitstart, int32 header_length)
++flushunit(DWDie *dwinfo, vlong pc, vlong unitstart, int32 header_length)
+ {
+ 	vlong here;
+ 
+ 	if (dwinfo != nil && pc != 0) {
+-		newattr(dwinfo, DW_AT_high_pc, DW_CLS_ADDRESS, pc+1, (char*)pcsym);
++		newattr(dwinfo, DW_AT_high_pc, DW_CLS_ADDRESS, pc+1, 0);
+ 	}
+ 
+ 	if (unitstart >= 0) {
+@@ -1679,7 +1530,7 @@ flushunit(DWDie *dwinfo, vlong pc, Sym *pcsym, vlong unitstart, int32 header_len
+ 		here = cpos();
+ 		cseek(unitstart);
+ 		LPUT(here - unitstart - sizeof(int32));	 // unit_length
+-		WPUT(2);  // dwarf version
++		WPUT(3);  // dwarf version
+ 		LPUT(header_length); // header length starting here
+ 		cseek(here);
+ 	}
+@@ -1689,7 +1540,7 @@ static void
+ writelines(void)
+ {
+ 	Prog *q;
+-	Sym *s, *epcs;
++	Sym *s;
+ 	Auto *a;
+ 	vlong unitstart, headerend, offs;
+ 	vlong pc, epc, lc, llc, lline;
+@@ -1704,7 +1555,6 @@ writelines(void)
+ 	headerend = -1;
+ 	pc = 0;
+ 	epc = 0;
+-	epcs = S;
+ 	lc = 1;
+ 	llc = 1;
+ 	currfile = -1;
+@@ -1720,7 +1570,7 @@ writelines(void)
+ 		// we're entering a new compilation unit
+ 
+ 		if (inithist(s->autom)) {
+-			flushunit(dwinfo, epc, epcs, unitstart, headerend - unitstart - 10);
++			flushunit(dwinfo, epc, unitstart, headerend - unitstart - 10);
+ 			unitstart = cpos();
+ 
+ 			if(debug['v'] > 1) {
+@@ -1737,12 +1587,12 @@ writelines(void)
+ 			dwinfo = newdie(&dwroot, DW_ABRV_COMPUNIT, estrdup(histfile[1]));
+ 			newattr(dwinfo, DW_AT_language, DW_CLS_CONSTANT,lang, 0);
+ 			newattr(dwinfo, DW_AT_stmt_list, DW_CLS_PTR, unitstart - lineo, 0);
+-			newattr(dwinfo, DW_AT_low_pc, DW_CLS_ADDRESS, s->text->pc, (char*)s);
++			newattr(dwinfo, DW_AT_low_pc, DW_CLS_ADDRESS, s->text->pc, 0);
+ 
+ 			// Write .debug_line Line Number Program Header (sec 6.2.4)
+ 			// Fields marked with (*) must be changed for 64-bit dwarf
+ 			LPUT(0);   // unit_length (*), will be filled in by flushunit.
+-			WPUT(2);   // dwarf version (appendix F)
++			WPUT(3);   // dwarf version (appendix F)
+ 			LPUT(0);   // header_length (*), filled in by flushunit.
+ 			// cpos == unitstart + 4 + 2 + 4
+ 			cput(1);   // minimum_instruction_length
+@@ -1766,7 +1616,6 @@ writelines(void)
+ 
+ 			pc = s->text->pc;
+ 			epc = pc;
+-			epcs = s;
+ 			currfile = 1;
+ 			lc = 1;
+ 			llc = 1;
+@@ -1785,9 +1634,9 @@ writelines(void)
+ 		}
+ 
+ 		dwfunc = newdie(dwinfo, DW_ABRV_FUNCTION, s->name);
+-		newattr(dwfunc, DW_AT_low_pc, DW_CLS_ADDRESS, s->value, (char*)s);
++		newattr(dwfunc, DW_AT_low_pc, DW_CLS_ADDRESS, s->value, 0);
+ 		epc = s->value + s->size;
+-		newattr(dwfunc, DW_AT_high_pc, DW_CLS_ADDRESS, epc, (char*)s);
++		newattr(dwfunc, DW_AT_high_pc, DW_CLS_ADDRESS, epc, 0);
+ 		if (s->version == 0)
+ 			newattr(dwfunc, DW_AT_external, DW_CLS_FLAG, 1, 0);
+ 
+@@ -1869,7 +1718,7 @@ writelines(void)
+ 		dwfunc->hash = nil;
+ 	}
+ 
+-	flushunit(dwinfo, epc, epcs, unitstart, headerend - unitstart - 10);
++	flushunit(dwinfo, epc, unitstart, headerend - unitstart - 10);
+ 	linesize = cpos() - lineo;
+ }
+ 
+@@ -1993,9 +1842,6 @@ writeinfo(void)
+ 	vlong unitstart, here;
+ 
+ 	fwdcount = 0;
+-	if (dsym == S)
+-		dsym = lookup(".dwarfinfo", 0);
+-	dsym->nr = 0;
+ 
+ 	for (compunit = dwroot.child; compunit; compunit = compunit->link) {
+ 		unitstart = cpos();
+@@ -2004,7 +1850,7 @@ writeinfo(void)
+ 		// Fields marked with (*) must be changed for 64-bit dwarf
+ 		// This must match COMPUNITHEADERSIZE above.
+ 		LPUT(0);	// unit_length (*), will be filled in later.
+-		WPUT(2);	// dwarf version (appendix F)
++		WPUT(3);	// dwarf version (appendix F)
+ 		LPUT(0);	// debug_abbrev_offset (*)
+ 		cput(PtrSize);	// address_size
+ 
+@@ -2144,27 +1990,6 @@ align(vlong size)
+ 		strnput("", rnd(size, PEFILEALIGN) - size);
+ }
+ 
+-static vlong
+-writeinforeloc(void)
+-{
+-	int i;
+-	vlong start;
+-	Reloc *r;
+-	
+-	start = cpos();
+-	for(r = dsym->r; r < dsym->r+dsym->nr; r++) {
+-		if(iself)
+-			i = elfreloc1(r, r->off);
+-		else if(HEADTYPE == Hdarwin)
+-			i = machoreloc1(r, r->off);
+-		else
+-			i = -1;
+-		if(i < 0)
+-			diag("unsupported obj reloc %d/%d to %s", r->type, r->siz, r->sym->name);
+-	}
+-	return start;
+-}
+-
+ /*
+  * This is the main entry point for generating dwarf.  After emitting
+  * the mandatory debug_abbrev section, it calls writelines() to set up
+@@ -2265,10 +2090,6 @@ dwarfemitdebugsections(void)
+ 	gdbscripto = writegdbscript();
+ 	gdbscriptsize = cpos() - gdbscripto;
+ 	align(gdbscriptsize);
+-	
+-	inforeloco = writeinforeloc();
+-	inforelocsize = cpos() - inforeloco;
+-	align(inforelocsize);
+ }
+ 
+ /*
+@@ -2428,8 +2249,6 @@ dwarfaddmachoheaders(void)
+ 	msect = newMachoSect(ms, "__debug_info", "__DWARF");
+ 	msect->off = infoo;
+ 	msect->size = infosize;
+-	msect->reloc = inforeloco;
+-	msect->nreloc = inforelocsize / 8;
+ 	ms->filesize += msect->size;
+ 
+ 	if (pubnamessize > 0) {
+diff --git a/src/pkg/runtime/hashmap.c b/src/pkg/runtime/hashmap.c
+index dc5dfb82f5..e6871fd8f2 100644
+--- a/src/pkg/runtime/hashmap.c
++++ b/src/pkg/runtime/hashmap.c
+@@ -8,704 +8,794 @@
+ #include "hashmap.h"
+ #include "type.h"
+ #include "race.h"
++#include "typekind.h" // TODO: remove
+ 
+-/* Hmap flag values */
+-#define IndirectVal  (1<<0)	/* storing pointers to values */
+-#define IndirectKey (1<<1)	/* storing pointers to keys */
+-#define CanFreeTable (1<<2)	/* okay to free subtables */
+-#define CanFreeKey (1<<3)	/* okay to free pointers to keys */
+-
+-struct Hmap {	   /* a hash table; initialize with hash_init() */
+-	uintgo count;	  /* elements in table - must be first */
+-	uint8 datasize;   /* amount of data to store in entry */
+-	uint8 flag;
+-	uint8 valoff;	/* offset of value in key+value data block */
+-	int32 changes;	      /* inc'ed whenever a subtable is created/grown */
+-	uintptr hash0;      /* hash seed */
+-	struct hash_subtable *st;    /* first-level table */
++// This file contains the implementation of Go's map type.
++//
++// The map is just a hash table.  The data is arranged
++// into an array of buckets.  Each bucket contains up to
++// 8 key/value pairs.  The low-order bits of the hash are
++// used to select a bucket.  Each bucket contains a few
++// high-order bits of each hash to distinguish the entries
++// within a single bucket.
++//
++// If more than 8 keys hash to a bucket, we chain on
++// extra buckets.
++//
++// When the hashtable grows, we allocate a new array
++// of buckets twice as big.  Buckets are incrementally
++// copied from the old bucket array to the new bucket array.
++//
++// Map iterators walk through the array of buckets and
++// return the keys in walk order (bucket #, then overflow
++// chain order, then bucket index).  To maintain iteration
++// semantics, we never move keys within their bucket (if
++// we did, keys might be returned 0 or 2 times).  When
++// growing the table, iterators remain iterating through the
++// old table and must check the new table if the bucket
++// they are iterating through has been moved ("evacuated")
++// to the new table.
++
++// Maximum number of key/value pairs a bucket can hold.
++#define BUCKETSIZE 8
++
++// Maximum average load of a bucket that triggers growth.
++#define LOAD 6.5
++
++// Picking LOAD: too large and we have lots of overflow
++// buckets, too small and we waste a lot of space.  I wrote
++// a simple program to check some stats for different loads:
++// (64-bit, 8 byte keys and values)
++//        LOAD    %overflow  bytes/entry     hitprobe    missprobe
++//        4.00         2.13        20.77         3.00         4.00
++//        4.50         4.05        17.30         3.25         4.50
++//        5.00         6.85        14.77         3.50         5.00
++//        5.50        10.55        12.94         3.75         5.50
++//        6.00        15.27        11.67         4.00         6.00
++//        6.50        20.90        10.79         4.25         6.50
++//        7.00        27.14        10.15         4.50         7.00
++//        7.50        34.03         9.73         4.75         7.50
++//        8.00        41.10         9.40         5.00         8.00
++//
++// %overflow   = percentage of buckets which have an overflow bucket
++// bytes/entry = overhead bytes used per key/value pair
++// hitprobe    = # of entries to check when looking up a present key
++// missprobe   = # of entries to check when looking up an absent key
++//
++// Keep in mind this data is for maximally loaded tables, i.e. just
++// before the table grows.  Typical tables will be somewhat less loaded.
++
++// Maximum key or value size to keep inline (instead of mallocing per element).
++// Must fit in a uint8.
++// Fast versions cannot handle big values - the cutoff size for
++// fast versions in ../../cmd/gc/walk.c must be at most this value.
++#define MAXKEYSIZE 128
++#define MAXVALUESIZE 128
++
++typedef struct Bucket Bucket;
++struct Bucket
++{
++	uint8 tophash[BUCKETSIZE];  // top 8 bits of hash of each entry (0 = empty)
++	Bucket *overflow;           // overflow bucket, if any
++	byte data[1];               // BUCKETSIZE keys followed by BUCKETSIZE values
+ };
++// NOTE: packing all the keys together and then all the values together makes the
++// code a bit more complicated than alternating key/value/key/value/... but it allows
++// us to eliminate padding which would be needed for, e.g., map[int64]int8.
+ 
+-#define MaxData 255
++// Low-order bit of overflow field is used to mark a bucket as already evacuated
++// without destroying the overflow pointer.
++// Only buckets in oldbuckets will be marked as evacuated.
++// Evacuated bit will be set identically on the base bucket and any overflow buckets.
++#define evacuated(b) (((uintptr)(b)->overflow & 1) != 0)
++#define overflowptr(b) ((Bucket*)((uintptr)(b)->overflow & ~(uintptr)1))
+ 
+-struct hash_entry {
+-	hash_hash_t hash;     /* hash value of data */
+-	byte data[1];	 /* user data has "datasize" bytes */
+-};
++// Initialize bucket to the empty state.  This only works if BUCKETSIZE==8!
++#define clearbucket(b) { *(uint64*)((b)->tophash) = 0; (b)->overflow = nil; }
+ 
+-struct hash_subtable {
+-	uint8 power;	 /* bits used to index this table */
+-	uint8 used;	  /* bits in hash used before reaching this table */
+-	uint8 datasize;      /* bytes of client data in an entry */
+-	uint8 max_probes;    /* max number of probes when searching */
+-	int16 limit_bytes;	   /* max_probes * (datasize+sizeof (hash_hash_t)) */
+-	struct hash_entry *last;      /* points to last element of entry[] */
+-	struct hash_entry entry[1];  /* 2**power+max_probes-1 elements of elemsize bytes */
++struct Hmap
++{
++	uintgo  count;        // # live cells == size of map.  Must be first (used by len() builtin)
++	uint8   B;            // log_2 of # of buckets (can hold up to LOAD * 2^B items)
++	uint8   flags;
++	uint8   keysize;      // key size in bytes
++	uint8   valuesize;    // value size in bytes
++	uint16  bucketsize;   // bucket size in bytes
++
++	uintptr hash0;        // hash seed
++	byte    *buckets;     // array of 2^B Buckets
++	byte    *oldbuckets;  // previous bucket array of half the size, non-nil only when growing
++	uintptr nevacuate;    // progress counter for evacuation (buckets less than this have been evacuated)
+ };
+ 
+-#define HASH_DATA_EQ(eq, t, h,x,y) ((eq)=0, (*t->key->alg->equal) (&(eq), t->key->size, (x), (y)), (eq))
+-
+-#define HASH_REHASH 0x2       /* an internal flag */
+-/* the number of bits used is stored in the flags word too */
+-#define HASH_USED(x)      ((x) >> 2)
+-#define HASH_MAKE_USED(x) ((x) << 2)
++// possible flags
++enum
++{
++	IndirectKey = 1,    // storing pointers to keys
++	IndirectValue = 2,  // storing pointers to values
++	Iterator = 4,       // there may be an iterator using buckets  TODO: use
++	OldIterator = 8,    // there may be an iterator using oldbuckets  TODO: use
++	CanFreeBucket = 16, // ok to free buckets  TODO: use
++	CanFreeKey = 32,    // ok to free pointers to keys  TODO: use
++};
+ 
+-#define HASH_LOW	6
+-#define HASH_ONE	(((hash_hash_t)1) << HASH_LOW)
+-#define HASH_MASK       (HASH_ONE - 1)
+-#define HASH_ADJUST(x)  (((x) < HASH_ONE) << HASH_LOW)
++// Macros for dereferencing indirect keys
++#define IK(h, p) (((h)->flags & IndirectKey) != 0 ? *(byte**)(p) : (p))
++#define IV(h, p) (((h)->flags & IndirectValue) != 0 ? *(byte**)(p) : (p))
+ 
+-#define HASH_BITS       (sizeof (hash_hash_t) * 8)
++enum
++{
++	docheck = 0,  // check invariants before and after every op.  Slow!!!
++	debug = 0,    // print every operation
++};
++static void
++check(MapType *t, Hmap *h)
++{
++	uintptr bucket, oldbucket;
++	Bucket *b;
++	uintptr i;
++	uintptr hash;
++	uintgo cnt;
++	uint8 top;
++	bool eq;
++	byte *k, *v;
+ 
+-#define HASH_SUBHASH    HASH_MASK
+-#define HASH_NIL	0
+-#define HASH_NIL_MEMSET 0
++	cnt = 0;
+ 
+-#define HASH_OFFSET(base, byte_offset) \
+-	  ((struct hash_entry *) (((byte *) (base)) + (byte_offset)))
++	// check buckets
++	for(bucket = 0; bucket < (uintptr)1 << h->B; bucket++) {
++		if(h->oldbuckets != nil) {
++			oldbucket = bucket & (((uintptr)1 << (h->B - 1)) - 1);
++			b = (Bucket*)(h->oldbuckets + oldbucket * h->bucketsize);
++			if(!evacuated(b))
++				continue; // b is still uninitialized
++		}
++		for(b = (Bucket*)(h->buckets + bucket * h->bucketsize); b != nil; b = b->overflow) {
++			for(i = 0, k = b->data, v = k + h->keysize * BUCKETSIZE; i < BUCKETSIZE; i++, k += h->keysize, v += h->valuesize) {
++				if(b->tophash[i] == 0)
++					continue;
++				cnt++;
++				t->key->alg->equal(&eq, t->key->size, IK(h, k), IK(h, k));
++				if(!eq)
++					continue; // NaN!
++				hash = h->hash0;
++				t->key->alg->hash(&hash, t->key->size, IK(h, k));
++				top = hash >> (8*sizeof(uintptr) - 8);
++				if(top == 0)
++					top = 1;
++				if(top != b->tophash[i])
++					runtime·throw("bad hash");
++			}
++		}
++	}
+ 
+-#define HASH_MAX_PROBES	15 /* max entries to probe before rehashing */
+-#define HASH_MAX_POWER	12 /* max power of 2 to create sub-tables */
++	// check oldbuckets
++	if(h->oldbuckets != nil) {
++		for(oldbucket = 0; oldbucket < (uintptr)1 << (h->B - 1); oldbucket++) {
++			b = (Bucket*)(h->oldbuckets + oldbucket * h->bucketsize);
++			if(evacuated(b))
++				continue;
++			if(oldbucket < h->nevacuate)
++				runtime·throw("bucket became unevacuated");
++			for(; b != nil; b = overflowptr(b)) {
++				for(i = 0, k = b->data, v = k + h->keysize * BUCKETSIZE; i < BUCKETSIZE; i++, k += h->keysize, v += h->valuesize) {
++					if(b->tophash[i] == 0)
++						continue;
++					cnt++;
++					t->key->alg->equal(&eq, t->key->size, IK(h, k), IK(h, k));
++					if(!eq)
++						continue; // NaN!
++					hash = h->hash0;
++					t->key->alg->hash(&hash, t->key->size, IK(h, k));
++					top = hash >> (8*sizeof(uintptr) - 8);
++					if(top == 0)
++						top = 1;
++					if(top != b->tophash[i])
++						runtime·throw("bad hash (old)");
++				}
++			}
++		}
++	}
+ 
+-/* return a hash layer with 2**power empty entries */
+-static struct hash_subtable *
+-hash_subtable_new (Hmap *h, int32 power, int32 used)
+-{
+-	int32 elemsize = h->datasize + offsetof (struct hash_entry, data[0]);
+-	int32 bytes = elemsize << power;
+-	struct hash_subtable *st;
+-	int32 limit_bytes = HASH_MAX_PROBES * elemsize;
+-	int32 max_probes = HASH_MAX_PROBES;
+-
+-	if (bytes < limit_bytes) {
+-		limit_bytes = bytes;
+-		max_probes = 1 << power;
++	if(cnt != h->count) {
++		runtime·printf("%D %D\n", (uint64)cnt, (uint64)h->count);
++		runtime·throw("entries missing");
+ 	}
+-	bytes += limit_bytes - elemsize;
+-	st = runtime·mallocgc(offsetof (struct hash_subtable, entry[0]) + bytes, UseSpanType ? FlagNoPointers : 0, 1, 1);
+-	st->power = power;
+-	st->used = used;
+-	st->datasize = h->datasize;
+-	st->max_probes = max_probes;
+-	st->limit_bytes = limit_bytes;
+-	st->last = HASH_OFFSET (st->entry, bytes) - 1;
+-	memset (st->entry, HASH_NIL_MEMSET, bytes);
+-	return (st);
+ }
+ 
+ static void
+-init_sizes (int64 hint, int32 *init_power)
++hash_init(MapType *t, Hmap *h, uint32 hint)
+ {
+-	int32 log = 0;
+-	int32 i;
+-
+-	for (i = 32; i != 0; i >>= 1) {
+-		if ((hint >> (log + i)) != 0) {
+-			log += i;
+-		}
++	uint8 B;
++	byte *buckets;
++	uintptr i;
++	uintptr keysize, valuesize, bucketsize;
++	uint8 flags;
++	Bucket *b;
++
++	flags = CanFreeBucket | CanFreeKey;
++
++	// figure out how big we have to make everything
++	keysize = t->key->size;
++	if(keysize > MAXKEYSIZE) {
++		flags |= IndirectKey;
++		keysize = sizeof(byte*);
+ 	}
+-	log += 1 + (((hint << 3) >> log) >= 11);  /* round up for utilization */
+-	if (log <= 14) {
+-		*init_power = log;
+-	} else {
+-		*init_power = 12;
++	valuesize = t->elem->size;
++	if(valuesize >= MAXVALUESIZE) {
++		flags |= IndirectValue;
++		valuesize = sizeof(byte*);
++	}
++	bucketsize = offsetof(Bucket, data[0]) + (keysize + valuesize) * BUCKETSIZE;
++
++	// invariants we depend on.  We should probably check these at compile time
++	// somewhere, but for now we'll do it here.
++	if(t->key->align > BUCKETSIZE)
++		runtime·throw("key align too big");
++	if(t->elem->align > BUCKETSIZE)
++		runtime·throw("value align too big");
++	if(t->key->size % t->key->align != 0)
++		runtime·throw("key size not a multiple of key align");
++	if(t->elem->size % t->elem->align != 0)
++		runtime·throw("value size not a multiple of value align");
++	if(BUCKETSIZE < 8)
++		runtime·throw("bucketsize too small for proper alignment");
++	if(BUCKETSIZE != 8)
++		runtime·throw("must redo clearbucket");
++	if(sizeof(void*) == 4 && t->key->align > 4)
++		runtime·throw("need padding in bucket (key)");
++	if(sizeof(void*) == 4 && t->elem->align > 4)
++		runtime·throw("need padding in bucket (value)");
++
++	// find size parameter which will hold the requested # of elements
++	B = 0;
++	while(hint > BUCKETSIZE && hint > LOAD * ((uintptr)1 << B))
++		B++;
++
++	// allocate initial hash table
++	// If hint is large zeroing this memory could take a while.
++	buckets = runtime·mallocgc(bucketsize << B, 0, 1, 0);
++	for(i = 0; i < (uintptr)1 << B; i++) {
++		b = (Bucket*)(buckets + i * bucketsize);
++		clearbucket(b);
+ 	}
+-}
+ 
+-static void
+-hash_init (Hmap *h, int32 datasize, int64 hint)
+-{
+-	int32 init_power;
+-
+-	if(datasize < sizeof (void *))
+-		datasize = sizeof (void *);
+-	datasize = ROUND(datasize, sizeof (void *));
+-	init_sizes (hint, &init_power);
+-	h->datasize = datasize;
+-	assert (h->datasize == datasize);
+-	assert (sizeof (void *) <= h->datasize);
++	// initialize Hmap
++	// Note: we save all these stores to the end so gciter doesn't see
++	// a partially initialized map.
+ 	h->count = 0;
+-	h->changes = 0;
+-	h->st = hash_subtable_new (h, init_power, 0);
++	h->B = B;
++	h->flags = flags;
++	h->keysize = keysize;
++	h->valuesize = valuesize;
++	h->bucketsize = bucketsize;
+ 	h->hash0 = runtime·fastrand1();
++	h->buckets = buckets;
++	h->oldbuckets = nil;
++	h->nevacuate = 0;
++	if(docheck)
++		check(t, h);
+ }
+ 
++// Moves entries in oldbuckets[i] to buckets[i] and buckets[i+2^k].
++// We leave the original bucket intact, except for the evacuated marks, so that
++// iterators can still iterate through the old buckets.
+ static void
+-hash_remove_n (struct hash_subtable *st, struct hash_entry *dst_e, int32 n)
++evacuate(MapType *t, Hmap *h, uintptr oldbucket)
+ {
+-	int32 elemsize = st->datasize + offsetof (struct hash_entry, data[0]);
+-	struct hash_entry *src_e = HASH_OFFSET (dst_e, n * elemsize);
+-	struct hash_entry *last_e = st->last;
+-	int32 shift = HASH_BITS - (st->power + st->used);
+-	int32 index_mask = (((hash_hash_t)1) << st->power) - 1;
+-	int32 dst_i = (((byte *) dst_e) - ((byte *) st->entry)) / elemsize;
+-	int32 src_i = dst_i + n;
+-	hash_hash_t hash;
+-	int32 skip;
+-	int32 bytes;
+-
+-	while (dst_e != src_e) {
+-		if (src_e <= last_e) {
+-			struct hash_entry *cp_e = src_e;
+-			int32 save_dst_i = dst_i;
+-			while (cp_e <= last_e && (hash = cp_e->hash) != HASH_NIL &&
+-			     ((hash >> shift) & index_mask) <= dst_i) {
+-				cp_e = HASH_OFFSET (cp_e, elemsize);
+-				dst_i++;
+-			}
+-			bytes = ((byte *) cp_e) - (byte *) src_e;
+-			memmove (dst_e, src_e, bytes);
+-			dst_e = HASH_OFFSET (dst_e, bytes);
+-			src_e = cp_e;
+-			src_i += dst_i - save_dst_i;
+-			if (src_e <= last_e && (hash = src_e->hash) != HASH_NIL) {
+-				skip = ((hash >> shift) & index_mask) - dst_i;
+-			} else {
+-				skip = src_i - dst_i;
++	Bucket *b;
++	Bucket *nextb;
++	Bucket *x, *y;
++	Bucket *newx, *newy;
++	uintptr xi, yi;
++	uintptr newbit;
++	uintptr hash;
++	uintptr i;
++	byte *k, *v;
++	byte *xk, *yk, *xv, *yv;
++
++	b = (Bucket*)(h->oldbuckets + oldbucket * h->bucketsize);
++	newbit = (uintptr)1 << (h->B - 1);
++
++	if(!evacuated(b)) {
++		// TODO: reuse overflow buckets instead of using new ones, if there
++		// is no iterator using the old buckets.  (If CanFreeBuckets and !OldIterator.)
++
++		x = (Bucket*)(h->buckets + oldbucket * h->bucketsize);
++		y = (Bucket*)(h->buckets + (oldbucket + newbit) * h->bucketsize);
++		clearbucket(x);
++		clearbucket(y);
++		xi = 0;
++		yi = 0;
++		xk = x->data;
++		yk = y->data;
++		xv = xk + h->keysize * BUCKETSIZE;
++		yv = yk + h->keysize * BUCKETSIZE;
++		do {
++			for(i = 0, k = b->data, v = k + h->keysize * BUCKETSIZE; i < BUCKETSIZE; i++, k += h->keysize, v += h->valuesize) {
++				if(b->tophash[i] == 0)
++					continue;
++				hash = h->hash0;
++				t->key->alg->hash(&hash, t->key->size, IK(h, k));
++				// NOTE: if key != key, then this hash could be (and probably will be)
++				// entirely different from the old hash.  We effectively only update
++				// the B'th bit of the hash in this case.
++				if((hash & newbit) == 0) {
++					if(xi == BUCKETSIZE) {
++						newx = runtime·mallocgc(h->bucketsize, 0, 1, 0);
++						clearbucket(newx);
++						x->overflow = newx;
++						x = newx;
++						xi = 0;
++						xk = x->data;
++						xv = xk + h->keysize * BUCKETSIZE;
++					}
++					x->tophash[xi] = b->tophash[i];
++					if((h->flags & IndirectKey) != 0) {
++						*(byte**)xk = *(byte**)k;               // copy pointer
++					} else {
++						t->key->alg->copy(t->key->size, xk, k); // copy value
++					}
++					if((h->flags & IndirectValue) != 0) {
++						*(byte**)xv = *(byte**)v;
++					} else {
++						t->elem->alg->copy(t->elem->size, xv, v);
++					}
++					xi++;
++					xk += h->keysize;
++					xv += h->valuesize;
++				} else {
++					if(yi == BUCKETSIZE) {
++						newy = runtime·mallocgc(h->bucketsize, 0, 1, 0);
++						clearbucket(newy);
++						y->overflow = newy;
++						y = newy;
++						yi = 0;
++						yk = y->data;
++						yv = yk + h->keysize * BUCKETSIZE;
++					}
++					y->tophash[yi] = b->tophash[i];
++					if((h->flags & IndirectKey) != 0) {
++						*(byte**)yk = *(byte**)k;
++					} else {
++						t->key->alg->copy(t->key->size, yk, k);
++					}
++					if((h->flags & IndirectValue) != 0) {
++						*(byte**)yv = *(byte**)v;
++					} else {
++						t->elem->alg->copy(t->elem->size, yv, v);
++					}
++					yi++;
++					yk += h->keysize;
++					yv += h->valuesize;
++				}
+ 			}
+-		} else {
+-			skip = src_i - dst_i;
++
++			// mark as evacuated so we don't do it again.
++			// this also tells any iterators that this data isn't golden anymore.
++			nextb = b->overflow;
++			b->overflow = (Bucket*)((uintptr)nextb + 1);
++
++			b = nextb;
++		} while(b != nil);
++	}
++
++	// advance evacuation mark
++	if(oldbucket == h->nevacuate) {
++		h->nevacuate = oldbucket + 1;
++		if(oldbucket + 1 == newbit) { // newbit == # of oldbuckets
++			h->oldbuckets = nil;
+ 		}
+-		bytes = skip * elemsize;
+-		memset (dst_e, HASH_NIL_MEMSET, bytes);
+-		dst_e = HASH_OFFSET (dst_e, bytes);
+-		dst_i += skip;
+ 	}
++	if(docheck)
++		check(t, h);
+ }
+ 
+-static int32
+-hash_insert_internal (MapType*, struct hash_subtable **pst, int32 flags, hash_hash_t hash,
+-		Hmap *h, void *data, void **pres);
+-
+ static void
+-hash_conv (MapType *t, Hmap *h,
+-		struct hash_subtable *st, int32 flags,
+-		hash_hash_t hash,
+-		struct hash_entry *e)
++grow_work(MapType *t, Hmap *h, uintptr bucket)
+ {
+-	int32 new_flags = (flags + HASH_MAKE_USED (st->power)) | HASH_REHASH;
+-	int32 shift = HASH_BITS - HASH_USED (new_flags);
+-	hash_hash_t prefix_mask = (-(hash_hash_t)1) << shift;
+-	int32 elemsize = h->datasize + offsetof (struct hash_entry, data[0]);
+-	void *dummy_result;
+-	struct hash_entry *de;
+-	int32 index_mask = (1 << st->power) - 1;
+-	hash_hash_t e_hash;
+-	struct hash_entry *pe = HASH_OFFSET (e, -elemsize);
+-
+-	while (e != st->entry && (e_hash = pe->hash) != HASH_NIL && (e_hash & HASH_MASK) != HASH_SUBHASH) {
+-		e = pe;
+-		pe = HASH_OFFSET (pe, -elemsize);
+-	}
++	uintptr noldbuckets;
+ 
+-	de = e;
+-	while (e <= st->last &&
+-	    (e_hash = e->hash) != HASH_NIL &&
+-	    (e_hash & HASH_MASK) != HASH_SUBHASH) {
+-		struct hash_entry *target_e = HASH_OFFSET (st->entry, ((e_hash >> shift) & index_mask) * elemsize);
+-		struct hash_entry *ne = HASH_OFFSET (e, elemsize);
+-		hash_hash_t current = e_hash & prefix_mask;
+-		if (de < target_e) {
+-			memset (de, HASH_NIL_MEMSET, ((byte *) target_e) - (byte *) de);
+-			de = target_e;
+-		}
+-		if ((hash & prefix_mask) == current ||
+-		   (ne <= st->last && (e_hash = ne->hash) != HASH_NIL &&
+-		   (e_hash & prefix_mask) == current)) {
+-			struct hash_subtable *new_st = hash_subtable_new (h, 1, HASH_USED (new_flags));
+-			int32 rc = hash_insert_internal (t, &new_st, new_flags, e->hash, h, e->data, &dummy_result);
+-			assert (rc == 0);
+-			memcpy(dummy_result, e->data, h->datasize);
+-			e = ne;
+-			while (e <= st->last && (e_hash = e->hash) != HASH_NIL && (e_hash & prefix_mask) == current) {
+-				assert ((e_hash & HASH_MASK) != HASH_SUBHASH);
+-				rc = hash_insert_internal (t, &new_st, new_flags, e_hash, h, e->data, &dummy_result);
+-				assert (rc == 0);
+-				memcpy(dummy_result, e->data, h->datasize);
+-				e = HASH_OFFSET (e, elemsize);
+-			}
+-			memset (de->data, HASH_NIL_MEMSET, h->datasize);
+-			*(struct hash_subtable **)de->data = new_st;
+-			de->hash = current | HASH_SUBHASH;
+-		} else {
+-			if (e != de) {
+-				memcpy (de, e, elemsize);
+-			}
+-			e = HASH_OFFSET (e, elemsize);
+-		}
+-		de = HASH_OFFSET (de, elemsize);
+-	}
+-	if (e != de) {
+-		hash_remove_n (st, de, (((byte *) e) - (byte *) de) / elemsize);
+-	}
++	noldbuckets = (uintptr)1 << (h->B - 1);
++
++	// make sure we evacuate the oldbucket corresponding
++	// to the bucket we're about to use
++	evacuate(t, h, bucket & (noldbuckets - 1));
++
++	// evacuate one more oldbucket to make progress on growing
++	if(h->oldbuckets != nil)
++		evacuate(t, h, h->nevacuate);
+ }
+ 
+ static void
+-hash_grow (MapType *t, Hmap *h, struct hash_subtable **pst, int32 flags)
++hash_grow(MapType *t, Hmap *h)
+ {
+-	struct hash_subtable *old_st = *pst;
+-	int32 elemsize = h->datasize + offsetof (struct hash_entry, data[0]);
+-	*pst = hash_subtable_new (h, old_st->power + 1, HASH_USED (flags));
+-	struct hash_entry *last_e = old_st->last;
+-	struct hash_entry *e;
+-	void *dummy_result;
+-	int32 used = 0;
+-
+-	flags |= HASH_REHASH;
+-	for (e = old_st->entry; e <= last_e; e = HASH_OFFSET (e, elemsize)) {
+-		hash_hash_t hash = e->hash;
+-		if (hash != HASH_NIL) {
+-			int32 rc = hash_insert_internal (t, pst, flags, e->hash, h, e->data, &dummy_result);
+-			assert (rc == 0);
+-			memcpy(dummy_result, e->data, h->datasize);
+-			used++;
+-		}
+-	}
+-	if (h->flag & CanFreeTable)
+-		free (old_st);
++	byte *old_buckets;
++	byte *new_buckets;
++	uint8 flags;
++
++	// allocate a bigger hash table
++	if(h->oldbuckets != nil)
++		runtime·throw("evacuation not done in time");
++	old_buckets = h->buckets;
++	// NOTE: this could be a big malloc, but since we don't need zeroing it is probably fast.
++	new_buckets = runtime·mallocgc(h->bucketsize << (h->B + 1), 0, 1, 0);
++	flags = (h->flags & ~(Iterator | OldIterator));
++	if((h->flags & Iterator) != 0)
++		flags |= OldIterator;
++
++	// commit the grow (atomic wrt gc)
++	h->B++;
++	h->flags = flags;
++	h->oldbuckets = old_buckets;
++	h->buckets = new_buckets;
++	h->nevacuate = 0;
++
++	// the actual copying of the hash table data is done incrementally
++	// by grow_work() and evacuate().
++	if(docheck)
++		check(t, h);
+ }
+ 
+-static int32
+-hash_lookup (MapType *t, Hmap *h, void *data, void **pres)
++// returns ptr to value associated with key *keyp, or nil if none.
++// if it returns non-nil, updates *keyp to point to the currently stored key.
++static byte*
++hash_lookup(MapType *t, Hmap *h, byte **keyp)
+ {
+-	int32 elemsize = h->datasize + offsetof (struct hash_entry, data[0]);
+-	hash_hash_t hash;
+-	struct hash_subtable *st = h->st;
+-	int32 used = 0;
+-	hash_hash_t e_hash;
+-	struct hash_entry *e;
+-	struct hash_entry *end_e;
+ 	void *key;
++	uintptr hash;
++	uintptr bucket;
++	Bucket *b;
++	uint8 top;
++	uintptr i;
+ 	bool eq;
++	byte *k, *k2, *v;
+ 
++	key = *keyp;
++	if(docheck)
++		check(t, h);
+ 	hash = h->hash0;
+-	(*t->key->alg->hash) (&hash, t->key->size, data);
+-	hash &= ~HASH_MASK;
+-	hash += HASH_ADJUST (hash);
+-	for (;;) {
+-		int32 shift = HASH_BITS - (st->power + used);
+-		int32 index_mask = (1 << st->power) - 1;
+-		int32 i = (hash >> shift) & index_mask;	   /* i is the natural position of hash */
+-
+-		e = HASH_OFFSET (st->entry, i * elemsize); /* e points to element i */
+-		e_hash = e->hash;
+-		if ((e_hash & HASH_MASK) != HASH_SUBHASH) {      /* a subtable */
+-			break;
+-		}
+-		used += st->power;
+-		st = *(struct hash_subtable **)e->data;
+-	}
+-	end_e = HASH_OFFSET (e, st->limit_bytes);
+-	while (e != end_e && (e_hash = e->hash) != HASH_NIL && e_hash < hash) {
+-		e = HASH_OFFSET (e, elemsize);
+-	}
+-	while (e != end_e && ((e_hash = e->hash) ^ hash) < HASH_SUBHASH) {
+-		key = e->data;
+-		if (h->flag & IndirectKey)
+-			key = *(void**)e->data;
+-		if (HASH_DATA_EQ (eq, t, h, data, key)) {    /* a match */
+-			*pres = e->data;
+-			return (1);
++	t->key->alg->hash(&hash, t->key->size, key);
++	bucket = hash & (((uintptr)1 << h->B) - 1);
++	if(h->oldbuckets != nil)
++		grow_work(t, h, bucket);
++	b = (Bucket*)(h->buckets + bucket * h->bucketsize);
++	top = hash >> (sizeof(uintptr)*8 - 8);
++	if(top == 0)
++		top = 1;
++	do {
++		for(i = 0, k = b->data, v = k + h->keysize * BUCKETSIZE; i < BUCKETSIZE; i++, k += h->keysize, v += h->valuesize) {
++			if(b->tophash[i] == top) {
++				k2 = IK(h, k);
++				t->key->alg->equal(&eq, t->key->size, key, k2);
++				if(eq) {
++					*keyp = k2;
++					return IV(h, v);
++				}
++			}
+ 		}
+-		e = HASH_OFFSET (e, elemsize);
+-	}
+-	USED(e_hash);
+-	*pres = 0;
+-	return (0);
++		b = b->overflow;
++	} while(b != nil);
++	return nil;
+ }
+ 
+-static int32
+-hash_remove (MapType *t, Hmap *h, void *data)
++// When an item is not found, fast versions return a pointer to this zeroed memory.
++static uint8 empty_value[MAXVALUESIZE];
++
++// Specialized versions of mapaccess1 for specific types.
++// See ./hashmap_fast and ../../cmd/gc/walk.c.
++#define HASH_LOOKUP1 runtime·mapaccess1_fast32
++#define HASH_LOOKUP2 runtime·mapaccess2_fast32
++#define KEYTYPE uint32
++#define HASHFUNC runtime·algarray[AMEM32].hash
++#define EQFUNC(x,y) ((x) == (y))
++#define QUICKEQ(x) true
++#include "hashmap_fast.c"
++
++#undef HASH_LOOKUP1
++#undef HASH_LOOKUP2
++#undef KEYTYPE
++#undef HASHFUNC
++#undef EQFUNC
++#undef QUICKEQ
++
++#define HASH_LOOKUP1 runtime·mapaccess1_fast64
++#define HASH_LOOKUP2 runtime·mapaccess2_fast64
++#define KEYTYPE uint64
++#define HASHFUNC runtime·algarray[AMEM64].hash
++#define EQFUNC(x,y) ((x) == (y))
++#define QUICKEQ(x) true
++#include "hashmap_fast.c"
++
++#undef HASH_LOOKUP1
++#undef HASH_LOOKUP2
++#undef KEYTYPE
++#undef HASHFUNC
++#undef EQFUNC
++#undef QUICKEQ
++
++#define HASH_LOOKUP1 runtime·mapaccess1_faststr
++#define HASH_LOOKUP2 runtime·mapaccess2_faststr
++#define KEYTYPE String
++#define HASHFUNC runtime·algarray[ASTRING].hash
++#define EQFUNC(x,y) ((x).len == (y).len && ((x).str == (y).str || runtime·mcmp((x).str, (y).str, (x).len) == 0))
++#define QUICKEQ(x) ((x).len < 32)
++#include "hashmap_fast.c"
++
++static void
++hash_insert(MapType *t, Hmap *h, void *key, void *value)
+ {
+-	int32 elemsize = h->datasize + offsetof (struct hash_entry, data[0]);
+-	hash_hash_t hash;
+-	struct hash_subtable *st = h->st;
+-	int32 used = 0;
+-	hash_hash_t e_hash;
+-	struct hash_entry *e;
+-	struct hash_entry *end_e;
++	uintptr hash;
++	uintptr bucket;
++	uintptr i;
+ 	bool eq;
+-	void *key;
+-
++	Bucket *b;
++	Bucket *newb;
++	uint8 *inserti;
++	byte *insertk, *insertv;
++	uint8 top;
++	byte *k, *v;
++	byte *kmem, *vmem;
++
++	if(docheck)
++		check(t, h);
+ 	hash = h->hash0;
+-	(*t->key->alg->hash) (&hash, t->key->size, data);
+-	hash &= ~HASH_MASK;
+-	hash += HASH_ADJUST (hash);
+-	for (;;) {
+-		int32 shift = HASH_BITS - (st->power + used);
+-		int32 index_mask = (1 << st->power) - 1;
+-		int32 i = (hash >> shift) & index_mask;	   /* i is the natural position of hash */
+-
+-		e = HASH_OFFSET (st->entry, i * elemsize); /* e points to element i */
+-		e_hash = e->hash;
+-		if ((e_hash & HASH_MASK) != HASH_SUBHASH) {      /* a subtable */
+-			break;
++	t->key->alg->hash(&hash, t->key->size, key);
++ again:
++	bucket = hash & (((uintptr)1 << h->B) - 1);
++	if(h->oldbuckets != nil)
++		grow_work(t, h, bucket);
++	b = (Bucket*)(h->buckets + bucket * h->bucketsize);
++	top = hash >> (sizeof(uintptr)*8 - 8);
++	if(top == 0)
++		top = 1;
++	inserti = 0;
++	insertk = nil;
++	insertv = nil;
++	while(true) {
++		for(i = 0, k = b->data, v = k + h->keysize * BUCKETSIZE; i < BUCKETSIZE; i++, k += h->keysize, v += h->valuesize) {
++			if(b->tophash[i] != top) {
++				if(b->tophash[i] == 0 && inserti == nil) {
++					inserti = &b->tophash[i];
++					insertk = k;
++					insertv = v;
++				}
++				continue;
++			}
++			t->key->alg->equal(&eq, t->key->size, key, IK(h, k));
++			if(!eq)
++				continue;
++			// already have a mapping for key.  Update it.
++			t->key->alg->copy(t->key->size, IK(h, k), key); // Need to update key for keys which are distinct but equal (e.g. +0.0 and -0.0)
++			t->elem->alg->copy(t->elem->size, IV(h, v), value);
++			if(docheck)
++				check(t, h);
++			return;
+ 		}
+-		used += st->power;
+-		st = *(struct hash_subtable **)e->data;
+-	}
+-	end_e = HASH_OFFSET (e, st->limit_bytes);
+-	while (e != end_e && (e_hash = e->hash) != HASH_NIL && e_hash < hash) {
+-		e = HASH_OFFSET (e, elemsize);
++		if(b->overflow == nil)
++			break;
++		b = b->overflow;
+ 	}
+-	while (e != end_e && ((e_hash = e->hash) ^ hash) < HASH_SUBHASH) {
+-		key = e->data;
+-		if (h->flag & IndirectKey)
+-			key = *(void**)e->data;
+-		if (HASH_DATA_EQ (eq, t, h, data, key)) {    /* a match */
+-			// Free key if indirect, but only if reflect can't be
+-			// holding a pointer to it.  Deletions are rare,
+-			// indirect (large) keys are rare, reflect on maps
+-			// is rare.  So in the rare, rare, rare case of deleting
+-			// an indirect key from a map that has been reflected on,
+-			// we leave the key for garbage collection instead of
+-			// freeing it here.
+-			if (h->flag & CanFreeKey)
+-				free (key);
+-			if (h->flag & IndirectVal)
+-				free (*(void**)((byte*)e->data + h->valoff));
+-			hash_remove_n (st, e, 1);
+-			h->count--;
+-			return (1);
+-		}
+-		e = HASH_OFFSET (e, elemsize);
++
++	// did not find mapping for key.  Allocate new cell & add entry.
++	if(h->count >= LOAD * ((uintptr)1 << h->B) && h->count >= BUCKETSIZE) {
++		hash_grow(t, h);
++		goto again; // Growing the table invalidates everything, so try again
+ 	}
+-	USED(e_hash);
+-	return (0);
+-}
+ 
+-static int32
+-hash_insert_internal (MapType *t, struct hash_subtable **pst, int32 flags, hash_hash_t hash,
+-				 Hmap *h, void *data, void **pres)
+-{
+-	int32 elemsize = h->datasize + offsetof (struct hash_entry, data[0]);
+-	bool eq;
++	if(inserti == nil) {
++		// all current buckets are full, allocate a new one.
++		newb = runtime·mallocgc(h->bucketsize, 0, 1, 0);
++		clearbucket(newb);
++		b->overflow = newb;
++		inserti = newb->tophash;
++		insertk = newb->data;
++		insertv = insertk + h->keysize * BUCKETSIZE;
++	}
+ 
+-	if ((flags & HASH_REHASH) == 0) {
+-		hash += HASH_ADJUST (hash);
+-		hash &= ~HASH_MASK;
++	// store new key/value at insert position
++	if((h->flags & IndirectKey) != 0) {
++		kmem = runtime·mallocgc(t->key->size, 0, 1, 0);
++		*(byte**)insertk = kmem;
++		insertk = kmem;
+ 	}
+-	for (;;) {
+-		struct hash_subtable *st = *pst;
+-		int32 shift = HASH_BITS - (st->power + HASH_USED (flags));
+-		int32 index_mask = (1 << st->power) - 1;
+-		int32 i = (hash >> shift) & index_mask;	   /* i is the natural position of hash */
+-		struct hash_entry *start_e =
+-			HASH_OFFSET (st->entry, i * elemsize);    /* start_e is the pointer to element i */
+-		struct hash_entry *e = start_e;		   /* e is going to range over [start_e, end_e) */
+-		struct hash_entry *end_e;
+-		hash_hash_t e_hash = e->hash;
+-
+-		if ((e_hash & HASH_MASK) == HASH_SUBHASH) {      /* a subtable */
+-			pst = (struct hash_subtable **) e->data;
+-			flags += HASH_MAKE_USED (st->power);
+-			continue;
+-		}
+-		end_e = HASH_OFFSET (start_e, st->limit_bytes);
+-		while (e != end_e && (e_hash = e->hash) != HASH_NIL && e_hash < hash) {
+-			e = HASH_OFFSET (e, elemsize);
+-			i++;
+-		}
+-		if (e != end_e && e_hash != HASH_NIL) {
+-			/* ins_e ranges over the elements that may match */
+-			struct hash_entry *ins_e = e;
+-			int32 ins_i = i;
+-			hash_hash_t ins_e_hash;
+-			void *key;
+-			while (ins_e != end_e && ((e_hash = ins_e->hash) ^ hash) < HASH_SUBHASH) {
+-				key = ins_e->data;
+-				if (h->flag & IndirectKey)
+-					key = *(void**)key;
+-				if (HASH_DATA_EQ (eq, t, h, data, key)) {    /* a match */
+-					*pres = ins_e->data;
+-					return (1);
+-				}
+-				if (e_hash == hash) {	   /* adjust hash if it collides */
+-					assert ((flags & HASH_REHASH) == 0);
+-					hash++;
+-					if ((hash & HASH_MASK) == HASH_SUBHASH)
+-						runtime·throw("runtime: map hash collision overflow");
+-				}
+-				ins_e = HASH_OFFSET (ins_e, elemsize);
+-				ins_i++;
+-				if (e_hash <= hash) {	       /* set e to insertion point */
+-					e = ins_e;
+-					i = ins_i;
+-				}
+-			}
+-			/* set ins_e to the insertion point for the new element */
+-			ins_e = e;
+-			ins_i = i;
+-			ins_e_hash = 0;
+-			/* move ins_e to point at the end of the contiguous block, but
+-			   stop if any element can't be moved by one up */
+-			while (ins_e <= st->last && (ins_e_hash = ins_e->hash) != HASH_NIL &&
+-			       ins_i + 1 - ((ins_e_hash >> shift) & index_mask) < st->max_probes &&
+-			       (ins_e_hash & HASH_MASK) != HASH_SUBHASH) {
+-				ins_e = HASH_OFFSET (ins_e, elemsize);
+-				ins_i++;
+-			}
+-			if (e == end_e || ins_e > st->last || ins_e_hash != HASH_NIL) {
+-				e = end_e;    /* can't insert; must grow or convert to subtable */
+-			} else {	      /* make space for element */
+-				memmove (HASH_OFFSET (e, elemsize), e, ((byte *) ins_e) - (byte *) e);
+-			}
+-		}
+-		if (e != end_e) {
+-			e->hash = hash;
+-			*pres = e->data;
+-			return (0);
+-		}
+-		h->changes++;
+-		if (st->power < HASH_MAX_POWER) {
+-			hash_grow (t, h, pst, flags);
+-		} else {
+-			hash_conv (t, h, st, flags, hash, start_e);
+-		}
++	if((h->flags & IndirectValue) != 0) {
++		vmem = runtime·mallocgc(t->elem->size, 0, 1, 0);
++		*(byte**)insertv = vmem;
++		insertv = vmem;
+ 	}
++	t->key->alg->copy(t->key->size, insertk, key);
++	t->elem->alg->copy(t->elem->size, insertv, value);
++	*inserti = top;
++	h->count++;
++	if(docheck)
++		check(t, h);
+ }
+ 
+-static int32
+-hash_insert (MapType *t, Hmap *h, void *data, void **pres)
++static void
++hash_remove(MapType *t, Hmap *h, void *key)
+ {
+ 	uintptr hash;
+-	int32 rc;
+-
++	uintptr bucket;
++	Bucket *b;
++	uint8 top;
++	uintptr i;
++	byte *k, *v;
++	bool eq;
++	
++	if(docheck)
++		check(t, h);
+ 	hash = h->hash0;
+-	(*t->key->alg->hash) (&hash, t->key->size, data);
+-	rc = hash_insert_internal (t, &h->st, 0, hash, h, data, pres);
+-
+-	h->count += (rc == 0);    /* increment count if element didn't previously exist */
+-	return (rc);
++	t->key->alg->hash(&hash, t->key->size, key);
++	bucket = hash & (((uintptr)1 << h->B) - 1);
++	if(h->oldbuckets != nil)
++		grow_work(t, h, bucket);
++	b = (Bucket*)(h->buckets + bucket * h->bucketsize);
++	top = hash >> (sizeof(uintptr)*8 - 8);
++	if(top == 0)
++		top = 1;
++	do {
++		for(i = 0, k = b->data, v = k + h->keysize * BUCKETSIZE; i < BUCKETSIZE; i++, k += h->keysize, v += h->valuesize) {
++			if(b->tophash[i] != top)
++				continue;
++			t->key->alg->equal(&eq, t->key->size, key, IK(h, k));
++			if(!eq)
++				continue;
++
++			b->tophash[i] = 0;
++			h->count--;
++			// TODO: free key if indirect.  Can't do it if
++			// there's any iterator ever, as indirect keys are aliased across
++			// buckets.
++			// TODO: consolidate buckets if they are mostly empty
++			// can only consolidate if there are no live iterators at this size.
++			if(docheck)
++				check(t, h);
++			return;
++		}
++		b = b->overflow;
++	} while(b != nil);
+ }
+ 
+-static uint32
+-hash_count (Hmap *h)
+-{
+-	return (h->count);
+-}
++// TODO: shrink the map, the same way we grow it.
+ 
+-static void
+-iter_restart (struct hash_iter *it, struct hash_subtable *st, int32 used)
++// If you modify hash_iter, also change cmd/gc/range.c to indicate
++// the size of this structure.
++struct hash_iter
+ {
+-	int32 elemsize = it->elemsize;
+-	hash_hash_t last_hash = it->last_hash;
+-	struct hash_entry *e;
+-	hash_hash_t e_hash;
+-	struct hash_iter_sub *sub = &it->subtable_state[it->i];
+-	struct hash_entry *last;
+-
+-	for (;;) {
+-		int32 shift = HASH_BITS - (st->power + used);
+-		int32 index_mask = (1 << st->power) - 1;
+-		int32 i = (last_hash >> shift) & index_mask;
+-
+-		last = st->last;
+-		e = HASH_OFFSET (st->entry, i * elemsize);
+-		sub->start = st->entry;
+-		sub->last = last;
+-
+-		if ((e->hash & HASH_MASK) != HASH_SUBHASH) {
+-			break;
+-		}
+-		sub->e = HASH_OFFSET (e, elemsize);
+-		sub = &it->subtable_state[++(it->i)];
+-		used += st->power;
+-		st = *(struct hash_subtable **)e->data;
+-	}
+-	while (e <= last && ((e_hash = e->hash) == HASH_NIL || e_hash <= last_hash)) {
+-		e = HASH_OFFSET (e, elemsize);
+-	}
+-	sub->e = e;
+-}
++	uint8* key; // Must be in first position.  Write nil to indicate iteration end (see cmd/gc/range.c).
++	uint8* value;
+ 
+-static void *
+-hash_next (struct hash_iter *it)
+-{
+-	int32 elemsize;
+-	struct hash_iter_sub *sub;
+-	struct hash_entry *e;
+-	struct hash_entry *last;
+-	hash_hash_t e_hash;
+-
+-	if (it->changes != it->h->changes) {    /* hash table's structure changed; recompute */
+-		if (~it->last_hash == 0)
+-			return (0);
+-		it->changes = it->h->changes;
+-		it->i = 0;
+-		iter_restart (it, it->h->st, 0);
+-	}
+-	elemsize = it->elemsize;
+-
+-Again:
+-	e_hash = 0;
+-	sub = &it->subtable_state[it->i];
+-	e = sub->e;
+-	last = sub->last;
+-
+-	if (e != sub->start && it->last_hash != HASH_OFFSET (e, -elemsize)->hash) {
+-		struct hash_entry *start = HASH_OFFSET (e, -(elemsize * HASH_MAX_PROBES));
+-		struct hash_entry *pe = HASH_OFFSET (e, -elemsize);
+-		hash_hash_t last_hash = it->last_hash;
+-		if (start < sub->start) {
+-			start = sub->start;
+-		}
+-		while (e != start && ((e_hash = pe->hash) == HASH_NIL || last_hash < e_hash)) {
+-			e = pe;
+-			pe = HASH_OFFSET (pe, -elemsize);
+-		}
+-		while (e <= last && ((e_hash = e->hash) == HASH_NIL || e_hash <= last_hash)) {
+-			e = HASH_OFFSET (e, elemsize);
+-		}
+-	}
++	MapType *t;
++	Hmap *h;
+ 
+-	for (;;) {
+-		while (e <= last && (e_hash = e->hash) == HASH_NIL) {
+-			e = HASH_OFFSET (e, elemsize);
+-		}
+-		if (e > last) {
+-			if (it->i == 0) {
+-				if(!it->cycled) {
+-					// Wrap to zero and iterate up until it->cycle.
+-					it->cycled = true;
+-					it->last_hash = 0;
+-					it->subtable_state[0].e = it->h->st->entry;
+-					it->subtable_state[0].start = it->h->st->entry;
+-					it->subtable_state[0].last = it->h->st->last;
+-					goto Again;
+-				}
+-				// Set last_hash to impossible value and
+-				// break it->changes, so that check at top of
+-				// hash_next will be used if we get called again.
+-				it->last_hash = ~(uintptr_t)0;
+-				it->changes--;
+-				return (0);
+-			} else {
+-				it->i--;
+-				sub = &it->subtable_state[it->i];
+-				e = sub->e;
+-				last = sub->last;
+-			}
+-		} else if ((e_hash & HASH_MASK) != HASH_SUBHASH) {
+-			if(it->cycled && e->hash > it->cycle) {
+-				// Already returned this.
+-				// Set last_hash to impossible value and
+-				// break it->changes, so that check at top of
+-				// hash_next will be used if we get called again.
+-				it->last_hash = ~(uintptr_t)0;
+-				it->changes--;
+-				return (0);
+-			}
+-			it->last_hash = e->hash;
+-			sub->e = HASH_OFFSET (e, elemsize);
+-			return (e->data);
+-		} else {
+-			struct hash_subtable *st =
+-				*(struct hash_subtable **)e->data;
+-			sub->e = HASH_OFFSET (e, elemsize);
+-			it->i++;
+-			assert (it->i < sizeof (it->subtable_state) /
+-					sizeof (it->subtable_state[0]));
+-			sub = &it->subtable_state[it->i];
+-			sub->e = e = st->entry;
+-			sub->start = st->entry;
+-			sub->last = last = st->last;
+-		}
+-	}
+-}
++	// end point for iteration
++	uintptr endbucket;
++	bool wrapped;
+ 
++	// state of table at time iterator is initialized
++	uint8 B;
++	byte *buckets;
++
++	// iter state
++	uintptr bucket;
++	struct Bucket *bptr;
++	uintptr i;
++};
++
++// iterator state:
++// bucket: the current bucket ID
++// b: the current Bucket in the chain
++// i: the next offset to check in the current bucket
+ static void
+-hash_iter_init (MapType *t, Hmap *h, struct hash_iter *it)
++hash_iter_init(MapType *t, Hmap *h, struct hash_iter *it)
+ {
+-	it->elemsize = h->datasize + offsetof (struct hash_entry, data[0]);
+-	it->changes = h->changes;
+-	it->i = 0;
+-	it->h = h;
+ 	it->t = t;
+-	it->last_hash = 0;
+-	it->subtable_state[0].e = h->st->entry;
+-	it->subtable_state[0].start = h->st->entry;
+-	it->subtable_state[0].last = h->st->last;
+-
+-	// fastrand1 returns 31 useful bits.
+-	// We don't care about not having a bottom bit but we
+-	// do want top bits.
+-	if(sizeof(void*) == 8)
+-		it->cycle = (uint64)runtime·fastrand1()<<33 | (uint64)runtime·fastrand1()<<2;
+-	else
+-		it->cycle = runtime·fastrand1()<<1;
+-	it->cycled = false;
+-	it->last_hash = it->cycle;
+-	iter_restart(it, it->h->st, 0);
+-}
++	it->h = h;
+ 
+-static void
+-clean_st (Hmap *h, struct hash_subtable *st, int32 *slots, int32 *used)
+-{
+-	int32 elemsize = st->datasize + offsetof (struct hash_entry, data[0]);
+-	struct hash_entry *e = st->entry;
+-	struct hash_entry *last = st->last;
+-	int32 lslots = (((byte *) (last+1)) - (byte *) e) / elemsize;
+-	int32 lused = 0;
+-
+-	while (e <= last) {
+-		hash_hash_t hash = e->hash;
+-		if ((hash & HASH_MASK) == HASH_SUBHASH) {
+-			clean_st (h, *(struct hash_subtable **)e->data, slots, used);
+-		} else {
+-			lused += (hash != HASH_NIL);
+-		}
+-		e = HASH_OFFSET (e, elemsize);
+-	}
+-	if (h->flag & CanFreeTable)
+-		free (st);
+-	*slots += lslots;
+-	*used += lused;
+-}
++	// grab snapshot of bucket state
++	it->B = h->B;
++	it->buckets = h->buckets;
+ 
+-static void
+-hash_destroy (Hmap *h)
+-{
+-	int32 slots = 0;
+-	int32 used = 0;
++	// iterator state
++	it->bucket = it->endbucket = runtime·fastrand1() & (((uintptr)1 << h->B) - 1);
++	it->wrapped = false;
++	it->bptr = nil;
+ 
+-	clean_st (h, h->st, &slots, &used);
+-	free (h);
++	h->flags |= Iterator;
+ }
+ 
++// initializes it->key and it->value to the next key/value pair
++// in the iteration, or nil if we've reached the end.
+ static void
+-hash_visit_internal (struct hash_subtable *st,
+-		int32 used, int32 level,
+-		void (*data_visit) (void *arg, int32 level, void *data),
+-		void *arg)
++hash_next(struct hash_iter *it)
+ {
+-	int32 elemsize = st->datasize + offsetof (struct hash_entry, data[0]);
+-	struct hash_entry *e = st->entry;
+-	int32 shift = HASH_BITS - (used + st->power);
+-	int32 i = 0;
+-
+-	while (e <= st->last) {
+-		int32 index = ((e->hash >> (shift - 1)) >> 1) & ((1 << st->power) - 1);
+-		if ((e->hash & HASH_MASK) == HASH_SUBHASH) {
+-			  (*data_visit) (arg, level, e->data);
+-			  hash_visit_internal (*(struct hash_subtable **)e->data,
+-				used + st->power, level + 1, data_visit, arg);
+-		} else {
+-			  (*data_visit) (arg, level, e->data);
++	Hmap *h;
++	MapType *t;
++	uintptr bucket;
++	Bucket *b;
++	uintptr i;
++	bool eq;
++	byte *k, *v;
++	byte *rk, *rv;
++
++	h = it->h;
++	t = it->t;
++	bucket = it->bucket;
++	b = it->bptr;
++	i = it->i;
++
++next:
++	if(b == nil) {
++		if(bucket == it->endbucket && it->wrapped) {
++			// end of iteration
++			it->key = nil;
++			it->value = nil;
++			return;
++		}
++		if(h->oldbuckets != nil && it->B == h->B) {
++			// Iterator was started in the middle of a grow, and the grow isn't done yet.
++			// Make sure the bucket we're about to read is valid.
++			grow_work(t, h, bucket);
+ 		}
+-		if (e->hash != HASH_NIL) {
+-			  assert (i < index + st->max_probes);
+-			  assert (index <= i);
++		b = (Bucket*)(it->buckets + bucket * h->bucketsize);
++		bucket++;
++		if(bucket == ((uintptr)1 << it->B)) {
++			bucket = 0;
++			it->wrapped = true;
++		}
++		i = 0;
++	}
++	k = b->data + h->keysize * i;
++	v = b->data + h->keysize * BUCKETSIZE + h->valuesize * i;
++	for(; i < BUCKETSIZE; i++, k += h->keysize, v += h->valuesize) {
++		if(b->tophash[i] != 0) {
++			if(!evacuated(b)) {
++				// this is the golden data, we can return it.
++				it->key = IK(h, k);
++				it->value = IV(h, v);
++			} else {
++				// The hash table has grown since the iterator was started.
++				// The golden data for this key is now somewhere else.
++				t->key->alg->equal(&eq, t->key->size, IK(h, k), IK(h, k));
++				if(eq) {
++					// Check the current hash table for the data.
++					// This code handles the case where the key
++					// has been deleted, updated, or deleted and reinserted.
++					// NOTE: we need to regrab the key as it has potentially been
++					// updated to an equal() but not identical key (e.g. +0.0 vs -0.0).
++					rk = IK(h, k);
++					rv = hash_lookup(t, it->h, &rk);
++					if(rv == nil)
++						continue; // key has been deleted
++					it->key = rk;
++					it->value = rv;
++				} else {
++					// if key!=key then the entry can't be deleted or
++					// updated, so we can just return it.  That's lucky for
++					// us because when key!=key we can't look it up
++					// successfully in the current table.
++					it->key = IK(h, k);
++					it->value = IV(h, v);
++				}
++			}
++			it->bucket = bucket;
++			it->bptr = b;
++			it->i = i + 1;
++			return;
+ 		}
+-		e = HASH_OFFSET (e, elemsize);
+-		i++;
+ 	}
++	b = overflowptr(b);
++	i = 0;
++	goto next;
+ }
+ 
+-static void
+-hash_visit (Hmap *h, void (*data_visit) (void *arg, int32 level, void *data), void *arg)
+-{
+-	hash_visit_internal (h->st, 0, 0, data_visit, arg);
+-}
++
++#define PHASE_BUCKETS      0
++#define PHASE_OLD_BUCKETS  1
++#define PHASE_TABLE        2
++#define PHASE_OLD_TABLE    3
++#define PHASE_DONE         4
+ 
+ // Initialize the iterator.
+ // Returns false if Hmap contains no pointers (in which case the iterator is not initialized).
+@@ -713,73 +803,141 @@ bool
+ hash_gciter_init (Hmap *h, struct hash_gciter *it)
+ {
+ 	// GC during map initialization
+-	if(h->st == nil)
++	if(h->buckets == nil)
+ 		return false;
+ 
+-	it->elemsize = h->datasize + offsetof (struct hash_entry, data[0]);
+-	it->flag = h->flag;
+-	it->valoff = h->valoff;
+-	it->i = 0;
+-	it->st = h->st;
+-	it->subtable_state[it->i].e = h->st->entry;
+-	it->subtable_state[it->i].last = h->st->last;
++	it->h = h;
++	it->phase = PHASE_BUCKETS;
++	it->bucket = 0;
++	it->b = nil;
++
++	// TODO: finish evacuating oldbuckets so that we can collect
++	// oldbuckets?  We don't want to keep a partially evacuated
++	// table around forever, so each gc could make at least some
++	// evacuation progress.  Need to be careful about concurrent
++	// access if we do concurrent gc.  Even if not, we don't want
++	// to make the gc pause any longer than it has to be.
++
+ 	return true;
+ }
+ 
+-// Returns true and fills *data with subtable/key/value data,
++// Returns true and fills *data with internal structure/key/value data,
+ // or returns false if the iterator has terminated.
++// Ugh, this interface is really annoying.  I want a callback fn!
+ bool
+-hash_gciter_next (struct hash_gciter *it, struct hash_gciter_data *data)
++hash_gciter_next(struct hash_gciter *it, struct hash_gciter_data *data)
+ {
+-	struct hash_entry *e;
+-	struct hash_gciter_sub *sub;
++	Hmap *h;
++	uintptr bucket, oldbucket;
++	Bucket *b, *oldb;
++	uintptr i;
++	byte *k, *v;
++
++	h = it->h;
++	bucket = it->bucket;
++	b = it->b;
++	i = it->i;
+ 
+ 	data->st = nil;
+ 	data->key_data = nil;
+ 	data->val_data = nil;
+-
+-	// pointer to the first-level table
+-	if(it->st != nil) {
+-		data->st = it->st;
+-		it->st = nil;
+-		return true;
+-	}
+-
+-popped:
+-	sub = &it->subtable_state[it->i];
+-	e = sub->e;
+-	while (e <= sub->last) {
+-		if ((e->hash & HASH_MASK) == HASH_SUBHASH) {
+-			struct hash_subtable *st = *(struct hash_subtable **)e->data;
+-			data->st = st;
+-			sub->e = HASH_OFFSET (e, it->elemsize);
+-
+-			// push
+-			it->i++;
+-			assert (it->i < nelem(it->subtable_state));
+-			sub++;
+-			sub->e = st->entry;
+-			sub->last = st->last;
+-
+-			return true;
++	data->indirectkey = (h->flags & IndirectKey) != 0;
++	data->indirectval = (h->flags & IndirectValue) != 0;
++
++next:
++	switch (it->phase) {
++	case PHASE_BUCKETS:
++		if(b != nil) {
++			k = b->data + h->keysize * i;
++			v = b->data + h->keysize * BUCKETSIZE + h->valuesize * i;
++			for(; i < BUCKETSIZE; i++, k += h->keysize, v += h->valuesize) {
++				if(b->tophash[i] != 0) {
++					data->key_data = k;
++					data->val_data = v;
++					it->bucket = bucket;
++					it->b = b;
++					it->i = i + 1;
++					return true;
++				}
++			}
++			b = b->overflow;
++			if(b != nil) {
++				data->st = (byte*)b;
++				it->bucket = bucket;
++				it->b = b;
++				it->i = 0;
++				return true;
++			}
++		}
++		while(bucket < ((uintptr)1 << h->B)) {
++			if(h->oldbuckets != nil) {
++				oldbucket = bucket & (((uintptr)1 << (h->B - 1)) - 1);
++				oldb = (Bucket*)(h->oldbuckets + oldbucket * h->bucketsize);
++				if(!evacuated(oldb)) {
++					// new bucket isn't valid yet
++					bucket++;
++					continue;
++				}
++			}
++			b = (Bucket*)(h->buckets + bucket * h->bucketsize);
++			i = 0;
++			bucket++;
++			goto next;
++		}
++		it->phase = PHASE_OLD_BUCKETS;
++		bucket = 0;
++		b = nil;
++		goto next;
++	case PHASE_OLD_BUCKETS:
++		if(h->oldbuckets == nil) {
++			it->phase = PHASE_TABLE;
++			goto next;
++		}
++		if(b != nil) {
++			k = b->data + h->keysize * i;
++			v = b->data + h->keysize * BUCKETSIZE + h->valuesize * i;
++			for(; i < BUCKETSIZE; i++, k += h->keysize, v += h->valuesize) {
++				if(b->tophash[i] != 0) {
++					data->key_data = k;
++					data->val_data = v;
++					it->bucket = bucket;
++					it->b = b;
++					it->i = i + 1;
++					return true;
++				}
++			}
++			b = overflowptr(b);
++			if(b != nil) {
++				data->st = (byte*)b;
++				it->bucket = bucket;
++				it->b = b;
++				it->i = 0;
++				return true;
++			}
+ 		}
+-		if(e->hash != HASH_NIL) {
+-			void *key_data = e->data;
+-			void *val_data = (byte*)e->data + it->valoff;
+-			data->key_data = key_data;
+-			data->val_data = val_data;
+-			data->indirectkey = (it->flag & IndirectKey) != 0;
+-			data->indirectval = (it->flag & IndirectVal) != 0;
+-			sub->e = HASH_OFFSET (e, it->elemsize);
++		if(bucket < ((uintptr)1 << (h->B - 1))) {
++			b = (Bucket*)(h->oldbuckets + bucket * h->bucketsize);
++			bucket++;
++			i = 0;
++			goto next;
++		}
++		it->phase = PHASE_TABLE;
++		goto next;
++	case PHASE_TABLE:
++		it->phase = PHASE_OLD_TABLE;
++		data->st = h->buckets;
++		return true;
++	case PHASE_OLD_TABLE:
++		it->phase = PHASE_DONE;
++		if(h->oldbuckets != nil) {
++			data->st = h->oldbuckets;
+ 			return true;
++		} else {
++			goto next;
+ 		}
+-		e = HASH_OFFSET (e, it->elemsize);
+-	}
+-	if(it->i != 0) {
+-		// pop
+-		it->i--;
+-		goto popped;
+ 	}
++	if(it->phase != PHASE_DONE)
++		runtime·throw("bad phase at done");
+ 	return false;
+ }
+ 
+@@ -787,35 +945,13 @@ popped:
+ /// interfaces to go runtime
+ //
+ 
+-static void**
+-hash_valptr(Hmap *h, void *p)
+-{
+-	p = (byte*)p + h->valoff;
+-	if(h->flag & IndirectVal)
+-		p = *(void**)p;
+-	return p;
+-}
+-
+-
+-static void**
+-hash_keyptr(Hmap *h, void *p)
+-{
+-	if(h->flag & IndirectKey)
+-		p = *(void**)p;
+-	return p;
+-}
+-
+-static	int32	debug	= 0;
+-
+ Hmap*
+ runtime·makemap_c(MapType *typ, int64 hint)
+ {
+ 	Hmap *h;
+-	Type *key, *val;
+-	uintptr ksize, vsize;
++	Type *key;
+ 
+ 	key = typ->key;
+-	val = typ->elem;
+ 
+ 	if(hint < 0 || (int32)hint != hint)
+ 		runtime·panicstring("makemap: size out of range");
+@@ -824,7 +960,6 @@ runtime·makemap_c(MapType *typ, int64 hint)
+ 		runtime·throw("runtime.makemap: unsupported map key type");
+ 
+ 	h = runtime·mal(sizeof(*h));
+-	h->flag |= CanFreeTable;  /* until reflect gets involved, free is okay */
+ 
+ 	if(UseSpanType) {
+ 		if(false) {
+@@ -833,34 +968,14 @@ runtime·makemap_c(MapType *typ, int64 hint)
+ 		runtime·settype(h, (uintptr)typ | TypeInfo_Map);
+ 	}
+ 
+-	ksize = ROUND(key->size, sizeof(void*));
+-	vsize = ROUND(val->size, sizeof(void*));
+-	if(ksize > MaxData || vsize > MaxData || ksize+vsize > MaxData) {
+-		// Either key is too big, or value is, or combined they are.
+-		// Prefer to keep the key if possible, because we look at
+-		// keys more often than values.
+-		if(ksize > MaxData - sizeof(void*)) {
+-			// No choice but to indirect the key.
+-			h->flag |= IndirectKey;
+-			h->flag |= CanFreeKey;  /* until reflect gets involved, free is okay */
+-			ksize = sizeof(void*);
+-		}
+-		if(vsize > MaxData - ksize) {
+-			// Have to indirect the value.
+-			h->flag |= IndirectVal;
+-			vsize = sizeof(void*);
+-		}
+-	}
+-
+-	h->valoff = ksize;
+-	hash_init(h, ksize+vsize, hint);
++	hash_init(typ, h, hint);
+ 
+ 	// these calculations are compiler dependent.
+ 	// figure out offsets of map call arguments.
+ 
+ 	if(debug) {
+ 		runtime·printf("makemap: map=%p; keysize=%p; valsize=%p; keyalg=%p; valalg=%p\n",
+-			h, key->size, val->size, key->alg, val->alg);
++			       h, key->size, typ->elem->size, key->alg, typ->elem->alg);
+ 	}
+ 
+ 	return h;
+@@ -890,7 +1005,7 @@ runtime·mapaccess(MapType *t, Hmap *h, byte *ak, byte *av, bool *pres)
+ 	Type *elem;
+ 
+ 	elem = t->elem;
+-	if(h == nil) {
++	if(h == nil || h->count == 0) {
+ 		elem->alg->copy(elem->size, av, nil);
+ 		*pres = false;
+ 		return;
+@@ -899,10 +1014,11 @@ runtime·mapaccess(MapType *t, Hmap *h, byte *ak, byte *av, bool *pres)
+ 	if(runtime·gcwaiting)
+ 		runtime·gosched();
+ 
+-	res = nil;
+-	if(hash_lookup(t, h, ak, (void**)&res)) {
++	res = hash_lookup(t, h, &ak);
++
++	if(res != nil) {
+ 		*pres = true;
+-		elem->alg->copy(elem->size, av, hash_valptr(h, res));
++		elem->alg->copy(elem->size, av, res);
+ 	} else {
+ 		*pres = false;
+ 		elem->alg->copy(elem->size, av, nil);
+@@ -915,7 +1031,7 @@ void
+ runtime·mapaccess1(MapType *t, Hmap *h, ...)
+ {
+ 	byte *ak, *av;
+-	bool pres;
++	byte *res;
+ 
+ 	if(raceenabled && h != nil)
+ 		runtime·racereadpc(h, runtime·getcallerpc(&t), runtime·mapaccess1);
+@@ -923,7 +1039,12 @@ runtime·mapaccess1(MapType *t, Hmap *h, ...)
+ 	ak = (byte*)(&h + 1);
+ 	av = ak + ROUND(t->key->size, Structrnd);
+ 
+-	runtime·mapaccess(t, h, ak, av, &pres);
++	if(h == nil || h->count == 0) {
++		t->elem->alg->copy(t->elem->size, av, nil);
++	} else {
++		res = hash_lookup(t, h, &ak);
++		t->elem->alg->copy(t->elem->size, av, res);
++	}
+ 
+ 	if(debug) {
+ 		runtime·prints("runtime.mapaccess1: map=");
+@@ -932,8 +1053,6 @@ runtime·mapaccess1(MapType *t, Hmap *h, ...)
+ 		t->key->alg->print(t->key->size, ak);
+ 		runtime·prints("; val=");
+ 		t->elem->alg->print(t->elem->size, av);
+-		runtime·prints("; pres=");
+-		runtime·printbool(pres);
+ 		runtime·prints("\n");
+ 	}
+ }
+@@ -960,7 +1079,7 @@ runtime·mapaccess2(MapType *t, Hmap *h, ...)
+ 		runtime·prints("; key=");
+ 		t->key->alg->print(t->key->size, ak);
+ 		runtime·prints("; val=");
+-		t->elem->alg->print(t->key->size, av);
++		t->elem->alg->print(t->elem->size, av);
+ 		runtime·prints("; pres=");
+ 		runtime·printbool(*ap);
+ 		runtime·prints("\n");
+@@ -999,9 +1118,6 @@ reflect·mapaccess(MapType *t, Hmap *h, uintptr key, uintptr val, bool pres)
+ void
+ runtime·mapassign(MapType *t, Hmap *h, byte *ak, byte *av)
+ {
+-	byte *res;
+-	int32 hit;
+-
+ 	if(h == nil)
+ 		runtime·panicstring("assignment to entry in nil map");
+ 
+@@ -1010,21 +1126,9 @@ runtime·mapassign(MapType *t, Hmap *h, byte *ak, byte *av)
+ 
+ 	if(av == nil) {
+ 		hash_remove(t, h, ak);
+-		return;
+-	}
+-
+-	res = nil;
+-	hit = hash_insert(t, h, ak, (void**)&res);
+-	if(!hit) {
+-		// Need to pass dogc=0 to runtime·mallocgc because the garbage collector
+-		// is assuming that all hashmaps are in a consistent state.
+-		if(h->flag & IndirectKey)
+-			*(void**)res = runtime·mallocgc(t->key->size, 0, 0, 1);
+-		if(h->flag & IndirectVal)
+-			*(void**)(res+h->valoff) = runtime·mallocgc(t->elem->size, 0, 0, 1);
++	} else {
++		hash_insert(t, h, ak, av);
+ 	}
+-	t->key->alg->copy(t->key->size, hash_keyptr(h, res), ak);
+-	t->elem->alg->copy(t->elem->size, hash_valptr(h, res), av);
+ 
+ 	if(debug) {
+ 		runtime·prints("mapassign: map=");
+@@ -1033,10 +1137,6 @@ runtime·mapassign(MapType *t, Hmap *h, byte *ak, byte *av)
+ 		t->key->alg->print(t->key->size, ak);
+ 		runtime·prints("; val=");
+ 		t->elem->alg->print(t->elem->size, av);
+-		runtime·prints("; hit=");
+-		runtime·printint(hit);
+-		runtime·prints("; res=");
+-		runtime·printpointer(res);
+ 		runtime·prints("\n");
+ 	}
+ }
+@@ -1114,20 +1214,20 @@ void
+ runtime·mapiterinit(MapType *t, Hmap *h, struct hash_iter *it)
+ {
+ 	if(h == nil) {
+-		it->data = nil;
++		it->key = nil;
+ 		return;
+ 	}
+ 	if(raceenabled)
+ 		runtime·racereadpc(h, runtime·getcallerpc(&t), runtime·mapiterinit);
+ 	hash_iter_init(t, h, it);
+-	it->data = hash_next(it);
++	hash_next(it);
+ 	if(debug) {
+ 		runtime·prints("runtime.mapiterinit: map=");
+ 		runtime·printpointer(h);
+ 		runtime·prints("; iter=");
+ 		runtime·printpointer(it);
+-		runtime·prints("; data=");
+-		runtime·printpointer(it->data);
++		runtime·prints("; key=");
++		runtime·printpointer(it->key);
+ 		runtime·prints("\n");
+ 	}
+ }
+@@ -1137,20 +1237,18 @@ runtime·mapiterinit(MapType *t, Hmap *h, struct hash_iter *it)
+ void
+ reflect·mapiterinit(MapType *t, Hmap *h, struct hash_iter *it)
+ {
+-	uint8 flag;
++	uint8 flags;
+ 
+ 	if(h != nil && t->key->size > sizeof(void*)) {
+ 		// reflect·mapiterkey returns pointers to key data,
+ 		// and reflect holds them, so we cannot free key data
+-		// eagerly anymore.  Updating h->flag now is racy,
+-		// but it's okay because this is the only possible store
+-		// after creation.
+-		flag = h->flag;
+-		if(flag & IndirectKey)
+-			flag &= ~CanFreeKey;
++		// eagerly anymore.
++		flags = h->flags;
++		if(flags & IndirectKey)
++			flags &= ~CanFreeKey;
+ 		else
+-			flag &= ~CanFreeTable;
+-		h->flag = flag;
++			flags &= ~CanFreeBucket;
++		h->flags = flags;
+ 	}
+ 
+ 	it = runtime·mal(sizeof *it);
+@@ -1167,12 +1265,12 @@ runtime·mapiternext(struct hash_iter *it)
+ 	if(runtime·gcwaiting)
+ 		runtime·gosched();
+ 
+-	it->data = hash_next(it);
++	hash_next(it);
+ 	if(debug) {
+ 		runtime·prints("runtime.mapiternext: iter=");
+ 		runtime·printpointer(it);
+-		runtime·prints("; data=");
+-		runtime·printpointer(it->data);
++		runtime·prints("; key=");
++		runtime·printpointer(it->key);
+ 		runtime·prints("\n");
+ 	}
+ }
+@@ -1190,25 +1288,23 @@ reflect·mapiternext(struct hash_iter *it)
+ void
+ runtime·mapiter1(struct hash_iter *it, ...)
+ {
+-	Hmap *h;
+ 	byte *ak, *res;
+ 	Type *key;
+ 
+-	h = it->h;
+ 	ak = (byte*)(&it + 1);
+ 
+-	res = it->data;
++	res = it->key;
+ 	if(res == nil)
+ 		runtime·throw("runtime.mapiter1: key:val nil pointer");
+ 
+ 	key = it->t->key;
+-	key->alg->copy(key->size, ak, hash_keyptr(h, res));
++	key->alg->copy(key->size, ak, res);
+ 
+ 	if(debug) {
+-		runtime·prints("mapiter2: iter=");
++		runtime·prints("mapiter1: iter=");
+ 		runtime·printpointer(it);
+ 		runtime·prints("; map=");
+-		runtime·printpointer(h);
++		runtime·printpointer(it->h);
+ 		runtime·prints("\n");
+ 	}
+ }
+@@ -1219,11 +1315,11 @@ runtime·mapiterkey(struct hash_iter *it, void *ak)
+ 	byte *res;
+ 	Type *key;
+ 
+-	res = it->data;
++	res = it->key;
+ 	if(res == nil)
+ 		return false;
+ 	key = it->t->key;
+-	key->alg->copy(key->size, ak, hash_keyptr(it->h, res));
++	key->alg->copy(key->size, ak, res);
+ 	return true;
+ }
+ 
+@@ -1239,14 +1335,13 @@ reflect·mapiterkey(struct hash_iter *it, uintptr key, bool ok)
+ 
+ 	key = 0;
+ 	ok = false;
+-	res = it->data;
++	res = it->key;
+ 	if(res == nil) {
+ 		key = 0;
+ 		ok = false;
+ 	} else {
+ 		tkey = it->t->key;
+ 		key = 0;
+-		res = (byte*)hash_keyptr(it->h, res);
+ 		if(tkey->size <= sizeof(key))
+ 			tkey->alg->copy(tkey->size, (byte*)&key, res);
+ 		else
+@@ -1278,7 +1373,6 @@ reflect·maplen(Hmap *h, intgo len)
+ void
+ runtime·mapiter2(struct hash_iter *it, ...)
+ {
+-	Hmap *h;
+ 	byte *ak, *av, *res;
+ 	MapType *t;
+ 
+@@ -1286,19 +1380,18 @@ runtime·mapiter2(struct hash_iter *it, ...)
+ 	ak = (byte*)(&it + 1);
+ 	av = ak + ROUND(t->key->size, t->elem->align);
+ 
+-	res = it->data;
++	res = it->key;
+ 	if(res == nil)
+ 		runtime·throw("runtime.mapiter2: key:val nil pointer");
+ 
+-	h = it->h;
+-	t->key->alg->copy(t->key->size, ak, hash_keyptr(h, res));
+-	t->elem->alg->copy(t->elem->size, av, hash_valptr(h, res));
++	t->key->alg->copy(t->key->size, ak, res);
++	t->elem->alg->copy(t->elem->size, av, it->value);
+ 
+ 	if(debug) {
+ 		runtime·prints("mapiter2: iter=");
+ 		runtime·printpointer(it);
+ 		runtime·prints("; map=");
+-		runtime·printpointer(h);
++		runtime·printpointer(it->h);
+ 		runtime·prints("\n");
+ 	}
+ }
+diff --git a/src/pkg/runtime/hashmap.h b/src/pkg/runtime/hashmap.h
+index 9b82f299e0..2988417f68 100644
+--- a/src/pkg/runtime/hashmap.h
++++ b/src/pkg/runtime/hashmap.h
+@@ -2,180 +2,28 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-/* A hash table.
+-   Example, hashing nul-terminated char*s:
+-	hash_hash_t str_hash (void *v) {
+-		char *s;
+-		hash_hash_t hash = 0;
+-		for (s = *(char **)v; *s != 0; s++) {
+-			hash = (hash ^ *s) * 2654435769U;
+-		}
+-		return (hash);
+-	}
+-	int str_eq (void *a, void *b) {
+-		return (strcmp (*(char **)a, *(char **)b) == 0);
+-	}
+-	void str_del (void *arg, void *data) {
+-		*(char **)arg = *(char **)data;
+-	}
+-
+-	struct hash *h = hash_new (sizeof (char *), &str_hash, &str_eq, &str_del, 3, 12, 15);
+-	...  3=> 2**3  entries initial size
+-	... 12=> 2**12 entries before sprouting sub-tables
+-	... 15=> number of adjacent probes to attempt before growing
+-
+-  Example lookup:
+-	char *key = "foobar";
+-	char **result_ptr;
+-	if (hash_lookup (h, &key, (void **) &result_ptr)) {
+-	      printf ("found in table: %s\n", *result_ptr);
+-	} else {
+-	      printf ("not found in table\n");
+-	}
+-
+-  Example insertion:
+-	char *key = strdup ("foobar");
+-	char **result_ptr;
+-	if (hash_lookup (h, &key, (void **) &result_ptr)) {
+-	      printf ("found in table: %s\n", *result_ptr);
+-	      printf ("to overwrite, do   *result_ptr = key\n");
+-	} else {
+-	      printf ("not found in table; inserted as %s\n", *result_ptr);
+-	      assert (*result_ptr == key);
+-	}
+-
+-  Example deletion:
+-	char *key = "foobar";
+-	char *result;
+-	if (hash_remove (h, &key, &result)) {
+-	      printf ("key found and deleted from table\n");
+-	      printf ("called str_del (&result, data) to copy data to result: %s\n", result);
+-	} else {
+-	      printf ("not found in table\n");
+-	}
+-
+-  Example iteration over the elements of *h:
+-	char **data;
+-	struct hash_iter it;
+-	hash_iter_init (h, &it);
+-	for (data = hash_next (&it); data != 0; data = hash_next (&it)) {
+-	    printf ("%s\n", *data);
+-	}
+- */
+-
+-#define	memset(a,b,c)	runtime·memclr((byte*)(a), (uint32)(c))
+-#define	memcpy(a,b,c)	runtime·memmove((byte*)(a),(byte*)(b),(uint32)(c))
+-#define	assert(a)	if(!(a)) runtime·throw("hashmap assert")
+-#define free(x)	runtime·free(x)
+-#define memmove(a,b,c)	runtime·memmove(a, b, c)
+-
+ struct Hmap;		/* opaque */
+-struct hash_subtable;	/* opaque */
+-struct hash_entry;	/* opaque */
+-
+-typedef uintptr uintptr_t;
+-typedef uintptr_t hash_hash_t;
+-
+-struct hash_iter {
+-	uint8*	data;		/* returned from next */
+-	int32	elemsize;	/* size of elements in table */
+-	int32	changes;	/* number of changes observed last time */
+-	int32	i;		/* stack pointer in subtable_state */
+-	bool cycled;		/* have reached the end and wrapped to 0 */
+-	hash_hash_t last_hash;	/* last hash value returned */
+-	hash_hash_t cycle;	/* hash value where we started */
+-	struct Hmap *h;		/* the hash table */
+-	MapType *t;			/* the map type */
+-	struct hash_iter_sub {
+-		struct hash_entry *e;		/* pointer into subtable */
+-		struct hash_entry *start;	/* start of subtable */
+-		struct hash_entry *last;		/* last entry in subtable */
+-	} subtable_state[4];	/* Should be large enough unless the hashing is
+-				   so bad that many distinct data values hash
+-				   to the same hash value.  */
+-};
+-
+-/* Return a hashtable h 2**init_power empty entries, each with
+-   "datasize" data bytes.
+-   (*data_hash)(a) should return the hash value of data element *a.
+-   (*data_eq)(a,b) should return whether the data at "a" and the data at "b"
+-   are equal.
+-   (*data_del)(arg, a) will be invoked when data element *a is about to be removed
+-   from the table.  "arg" is the argument passed to "hash_remove()".
+-
+-   Growing is accomplished by resizing if the current tables size is less than
+-   a threshold, and by adding subtables otherwise.  hint should be set
+-   the expected maximum size of the table.
+-   "datasize" should be in [sizeof (void*), ..., 255].  If you need a
+-   bigger "datasize", store a pointer to another piece of memory. */
+-
+-//struct hash *hash_new (int32 datasize,
+-//		hash_hash_t (*data_hash) (void *),
+-//		int32 (*data_eq) (void *, void *),
+-//		void (*data_del) (void *, void *),
+-//		int64 hint);
+-
+-/* Lookup *data in *h.   If the data is found, return 1 and place a pointer to
+-   the found element in *pres.   Otherwise return 0 and place 0 in *pres. */
+-// int32 hash_lookup (struct hash *h, void *data, void **pres);
+-
+-/* Lookup *data in *h.  If the data is found, execute (*data_del) (arg, p)
+-   where p points to the data in the table, then remove it from *h and return
+-   1.  Otherwise return 0.  */
+-// int32 hash_remove (struct hash *h, void *data, void *arg);
+-
+-/* Lookup *data in *h.   If the data is found, return 1, and place a pointer
+-   to the found element in *pres.   Otherwise, return 0, allocate a region
+-   for the data to be inserted, and place a pointer to the inserted element
+-   in *pres; it is the caller's responsibility to copy the data to be
+-   inserted to the pointer returned in *pres in this case.
+-
+-   If using garbage collection, it is the caller's responsibility to
+-   add references for **pres if HASH_ADDED is returned. */
+-// int32 hash_insert (struct hash *h, void *data, void **pres);
+-
+-/* Return the number of elements in the table. */
+-// uint32 hash_count (struct hash *h);
+-
+-/* The following call is useful only if not using garbage collection on the
+-   table.
+-   Remove all sub-tables associated with *h.
+-   This undoes the effects of hash_init().
+-   If other memory pointed to by user data must be freed, the caller is
+-   responsible for doing so by iterating over *h first; see
+-   hash_iter_init()/hash_next().  */
+-// void hash_destroy (struct hash *h);
+-
+-/*----- iteration -----*/
+-
+-/* Initialize *it from *h. */
+-// void hash_iter_init (struct hash *h, struct hash_iter *it);
+-
+-/* Return the next used entry in the table with which *it was initialized. */
+-// void *hash_next (struct hash_iter *it);
+-
+-/*---- test interface ----*/
+-/* Call (*data_visit) (arg, level, data) for every data entry in the table,
+-   whether used or not.   "level" is the subtable level, 0 means first level. */
+-/* TESTING ONLY: DO NOT USE THIS ROUTINE IN NORMAL CODE */
+-// void hash_visit (struct hash *h, void (*data_visit) (void *arg, int32 level, void *data), void *arg);
+ 
+ /* Used by the garbage collector */
+ struct hash_gciter
+ {
+-	int32	elemsize;
+-	uint8	flag;
+-	uint8	valoff;
+-	uint32	i;		/* stack pointer in subtable_state */
+-	struct hash_subtable *st;
+-	struct hash_gciter_sub {
+-		struct hash_entry *e;		/* pointer into subtable */
+-		struct hash_entry *last;	/* last entry in subtable */
+-	} subtable_state[4];
++	Hmap *h;
++	int32 phase;
++	uintptr bucket;
++	struct Bucket *b;
++	uintptr i;
+ };
++
++// this data is used by the garbage collector to keep the map's
++// internal structures from being reclaimed.  The iterator must
++// return in st every live object (ones returned by mallocgc) so
++// that those objects won't be collected, and it must return
++// every key & value in key_data/val_data so they can get scanned
++// for pointers they point to.  Note that if you malloc storage
++// for keys and values, you need to do both.
+ struct hash_gciter_data
+ {
+-	struct hash_subtable *st;	/* subtable pointer, or nil */
++	uint8 *st;			/* internal structure, or nil */
+ 	uint8 *key_data;		/* key data, or nil */
+ 	uint8 *val_data;		/* value data, or nil */
+ 	bool indirectkey;		/* storing pointers to keys */
+diff --git a/src/pkg/runtime/hashmap_fast.c b/src/pkg/runtime/hashmap_fast.c
+new file mode 100644
+index 0000000000..2169f4c300
+--- /dev/null
++++ b/src/pkg/runtime/hashmap_fast.c
+@@ -0,0 +1,149 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Fast hashmap lookup specialized to a specific key type.
++// Included by hashmap.c once for each specialized type.
++
++// Note that this code differs from hash_lookup in that
++// it returns a pointer to the result, not the result itself.
++// The returned pointer is only valid until the next GC
++// point, so the caller must dereference it before then.
++
++// +build ignore
++
++#pragma textflag 7
++void
++HASH_LOOKUP1(MapType *t, Hmap *h, KEYTYPE key, byte *value)
++{
++	uintptr hash;
++	uintptr bucket;
++	Bucket *b;
++	uint8 top;
++	uintptr i;
++	KEYTYPE *k;
++	byte *v;
++
++	if(debug) {
++		runtime·prints("runtime.mapaccess1_fastXXX: map=");
++		runtime·printpointer(h);
++		runtime·prints("; key=");
++		t->key->alg->print(t->key->size, &key);
++		runtime·prints("\n");
++	}
++	if(h == nil || h->count == 0) {
++		value = empty_value;
++		FLUSH(&value);
++		return;
++	}
++	if(raceenabled)
++		runtime·racereadpc(h, runtime·getcallerpc(&t), HASH_LOOKUP1);
++	if(docheck)
++		check(t, h);
++
++	if(h->B == 0 && (h->count == 1 || QUICKEQ(key))) {
++		// One-bucket table.  Don't hash, just check each bucket entry.
++		b = (Bucket*)h->buckets;
++		for(i = 0, k = (KEYTYPE*)b->data, v = (byte*)(k + BUCKETSIZE); i < BUCKETSIZE; i++, k++, v += h->valuesize) {
++			if(b->tophash[i] != 0 && EQFUNC(key, *k)) {
++				value = v;
++				FLUSH(&value);
++				return;
++			}
++		}
++	} else {
++		hash = h->hash0;
++		HASHFUNC(&hash, sizeof(KEYTYPE), &key);
++		bucket = hash & (((uintptr)1 << h->B) - 1);
++		if(h->oldbuckets != nil)
++			grow_work(t, h, bucket);
++		b = (Bucket*)(h->buckets + bucket * (offsetof(Bucket, data[0]) + BUCKETSIZE * sizeof(KEYTYPE) + BUCKETSIZE * h->valuesize));
++		top = hash >> (sizeof(uintptr)*8 - 8);
++		if(top == 0)
++			top = 1;
++		do {
++			for(i = 0, k = (KEYTYPE*)b->data, v = (byte*)(k + BUCKETSIZE); i < BUCKETSIZE; i++, k++, v += h->valuesize) {
++				if(b->tophash[i] == top && EQFUNC(key, *k)) {
++					value = v;
++					FLUSH(&value);
++					return;
++				}
++			}
++			b = b->overflow;
++		} while(b != nil);
++	}
++	value = empty_value;
++	FLUSH(&value);
++}
++
++#pragma textflag 7
++void
++HASH_LOOKUP2(MapType *t, Hmap *h, KEYTYPE key, byte *value, bool res)
++{
++	uintptr hash;
++	uintptr bucket;
++	Bucket *b;
++	uint8 top;
++	uintptr i;
++	KEYTYPE *k;
++	byte *v;
++
++	if(debug) {
++		runtime·prints("runtime.mapaccess2_fastXXX: map=");
++		runtime·printpointer(h);
++		runtime·prints("; key=");
++		t->key->alg->print(t->key->size, &key);
++		runtime·prints("\n");
++	}
++	if(h == nil || h->count == 0) {
++		value = empty_value;
++		res = false;
++		FLUSH(&value);
++		FLUSH(&res);
++		return;
++	}
++	if(raceenabled)
++		runtime·racereadpc(h, runtime·getcallerpc(&t), HASH_LOOKUP2);
++	if(docheck)
++		check(t, h);
++
++	if(h->B == 0 && (h->count == 1 || QUICKEQ(key))) {
++		// One-bucket table.  Don't hash, just check each bucket entry.
++		b = (Bucket*)h->buckets;
++		for(i = 0, k = (KEYTYPE*)b->data, v = (byte*)(k + BUCKETSIZE); i < BUCKETSIZE; i++, k++, v += h->valuesize) {
++			if(b->tophash[i] != 0 && EQFUNC(key, *k)) {
++				value = v;
++				res = true;
++				FLUSH(&value);
++				FLUSH(&res);
++				return;
++			}
++		}
++	} else {
++		hash = h->hash0;
++		HASHFUNC(&hash, sizeof(KEYTYPE), &key);
++		bucket = hash & (((uintptr)1 << h->B) - 1);
++		if(h->oldbuckets != nil)
++			grow_work(t, h, bucket);
++		b = (Bucket*)(h->buckets + bucket * (offsetof(Bucket, data[0]) + BUCKETSIZE * sizeof(KEYTYPE) + BUCKETSIZE * h->valuesize));
++		top = hash >> (sizeof(uintptr)*8 - 8);
++		if(top == 0)
++			top = 1;
++		do {
++			for(i = 0, k = (KEYTYPE*)b->data, v = (byte*)(k + BUCKETSIZE); i < BUCKETSIZE; i++, k++, v += h->valuesize) {
++				if(b->tophash[i] == top && EQFUNC(key, *k)) {
++					value = v;
++					res = true;
++					FLUSH(&value);
++					FLUSH(&res);
++					return;
++				}
++			}
++			b = b->overflow;
++		} while(b != nil);
++	}
++	value = empty_value;
++	res = false;
++	FLUSH(&value);
++	FLUSH(&res);
++}
+diff --git a/src/pkg/runtime/map_test.go b/src/pkg/runtime/map_test.go
+new file mode 100644
+index 0000000000..29e19db2c6
+--- /dev/null
++++ b/src/pkg/runtime/map_test.go
+@@ -0,0 +1,282 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime_test
++
++import (
++	"fmt"
++	"math"
++	"runtime"
++	"sort"
++	"testing"
++)
++
++// negative zero is a good test because:
++//  1) 0 and -0 are equal, yet have distinct representations.
++//  2) 0 is represented as all zeros, -0 isn't.
++// I'm not sure the language spec actually requires this behavior,
++// but it's what the current map implementation does.
++func TestNegativeZero(t *testing.T) {
++	m := make(map[float64]bool, 0)
++
++	m[+0.0] = true
++	m[math.Copysign(0.0, -1.0)] = true // should overwrite +0 entry
++
++	if len(m) != 1 {
++		t.Error("length wrong")
++	}
++
++	for k, _ := range m {
++		if math.Copysign(1.0, k) > 0 {
++			t.Error("wrong sign")
++		}
++	}
++
++	m = make(map[float64]bool, 0)
++	m[math.Copysign(0.0, -1.0)] = true
++	m[+0.0] = true // should overwrite -0.0 entry
++
++	if len(m) != 1 {
++		t.Error("length wrong")
++	}
++
++	for k, _ := range m {
++		if math.Copysign(1.0, k) < 0 {
++			t.Error("wrong sign")
++		}
++	}
++}
++
++// nan is a good test because nan != nan, and nan has
++// a randomized hash value.
++func TestNan(t *testing.T) {
++	m := make(map[float64]int, 0)
++	nan := math.NaN()
++	m[nan] = 1
++	m[nan] = 2
++	m[nan] = 4
++	if len(m) != 3 {
++		t.Error("length wrong")
++	}
++	s := 0
++	for k, v := range m {
++		if k == k {
++			t.Error("nan disappeared")
++		}
++		if (v & (v - 1)) != 0 {
++			t.Error("value wrong")
++		}
++		s |= v
++	}
++	if s != 7 {
++		t.Error("values wrong")
++	}
++}
++
++// Maps aren't actually copied on assignment.
++func TestAlias(t *testing.T) {
++	m := make(map[int]int, 0)
++	m[0] = 5
++	n := m
++	n[0] = 6
++	if m[0] != 6 {
++		t.Error("alias didn't work")
++	}
++}
++
++func TestGrowWithNaN(t *testing.T) {
++	m := make(map[float64]int, 4)
++	nan := math.NaN()
++	m[nan] = 1
++	m[nan] = 2
++	m[nan] = 4
++	cnt := 0
++	s := 0
++	growflag := true
++	for k, v := range m {
++		if growflag {
++			// force a hashtable resize
++			for i := 0; i < 100; i++ {
++				m[float64(i)] = i
++			}
++			growflag = false
++		}
++		if k != k {
++			cnt++
++			s |= v
++		}
++	}
++	if cnt != 3 {
++		t.Error("NaN keys lost during grow")
++	}
++	if s != 7 {
++		t.Error("NaN values lost during grow")
++	}
++}
++
++type FloatInt struct {
++	x float64
++	y int
++}
++
++func TestGrowWithNegativeZero(t *testing.T) {
++	negzero := math.Copysign(0.0, -1.0)
++	m := make(map[FloatInt]int, 4)
++	m[FloatInt{0.0, 0}] = 1
++	m[FloatInt{0.0, 1}] = 2
++	m[FloatInt{0.0, 2}] = 4
++	m[FloatInt{0.0, 3}] = 8
++	growflag := true
++	s := 0
++	cnt := 0
++	negcnt := 0
++	// The first iteration should return the +0 key.
++	// The subsequent iterations should return the -0 key.
++	// I'm not really sure this is required by the spec,
++	// but it makes sense.
++	// TODO: are we allowed to get the first entry returned again???
++	for k, v := range m {
++		if v == 0 {
++			continue
++		} // ignore entries added to grow table
++		cnt++
++		if math.Copysign(1.0, k.x) < 0 {
++			if v&16 == 0 {
++				t.Error("key/value not updated together 1")
++			}
++			negcnt++
++			s |= v & 15
++		} else {
++			if v&16 == 16 {
++				t.Error("key/value not updated together 2", k, v)
++			}
++			s |= v
++		}
++		if growflag {
++			// force a hashtable resize
++			for i := 0; i < 100; i++ {
++				m[FloatInt{3.0, i}] = 0
++			}
++			// then change all the entries
++			// to negative zero
++			m[FloatInt{negzero, 0}] = 1 | 16
++			m[FloatInt{negzero, 1}] = 2 | 16
++			m[FloatInt{negzero, 2}] = 4 | 16
++			m[FloatInt{negzero, 3}] = 8 | 16
++			growflag = false
++		}
++	}
++	if s != 15 {
++		t.Error("entry missing", s)
++	}
++	if cnt != 4 {
++		t.Error("wrong number of entries returned by iterator", cnt)
++	}
++	if negcnt != 3 {
++		t.Error("update to negzero missed by iteration", negcnt)
++	}
++}
++
++func TestIterGrowAndDelete(t *testing.T) {
++	m := make(map[int]int, 4)
++	for i := 0; i < 100; i++ {
++		m[i] = i
++	}
++	growflag := true
++	for k := range m {
++		if growflag {
++			// grow the table
++			for i := 100; i < 1000; i++ {
++				m[i] = i
++			}
++			// delete all odd keys
++			for i := 1; i < 1000; i += 2 {
++				delete(m, i)
++			}
++			growflag = false
++		} else {
++			if k&1 == 1 {
++				t.Error("odd value returned")
++			}
++		}
++	}
++}
++
++// make sure old bucket arrays don't get GCd while
++// an iterator is still using them.
++func TestIterGrowWithGC(t *testing.T) {
++	m := make(map[int]int, 4)
++	for i := 0; i < 16; i++ {
++		m[i] = i
++	}
++	growflag := true
++	bitmask := 0
++	for k := range m {
++		if k < 16 {
++			bitmask |= 1 << uint(k)
++		}
++		if growflag {
++			// grow the table
++			for i := 100; i < 1000; i++ {
++				m[i] = i
++			}
++			// trigger a gc
++			runtime.GC()
++			growflag = false
++		}
++	}
++	if bitmask != 1<<16-1 {
++		t.Error("missing key", bitmask)
++	}
++}
++
++func TestBigItems(t *testing.T) {
++	var key [256]string
++	for i := 0; i < 256; i++ {
++		key[i] = "foo"
++	}
++	m := make(map[[256]string][256]string, 4)
++	for i := 0; i < 100; i++ {
++		key[37] = fmt.Sprintf("string%02d", i)
++		m[key] = key
++	}
++	var keys [100]string
++	var values [100]string
++	i := 0
++	for k, v := range m {
++		keys[i] = k[37]
++		values[i] = v[37]
++		i++
++	}
++	sort.Strings(keys[:])
++	sort.Strings(values[:])
++	for i := 0; i < 100; i++ {
++		if keys[i] != fmt.Sprintf("string%02d", i) {
++			t.Errorf("#%d: missing key: %v", i, keys[i])
++		}
++		if values[i] != fmt.Sprintf("string%02d", i) {
++			t.Errorf("#%d: missing value: %v", i, values[i])
++		}
++	}
++}
++
++type empty struct {
++}
++
++func TestEmptyKeyAndValue(t *testing.T) {
++	a := make(map[int]empty, 4)
++	b := make(map[empty]int, 4)
++	c := make(map[empty]empty, 4)
++	a[0] = empty{}
++	b[empty{}] = 0
++	b[empty{}] = 1
++	c[empty{}] = empty{}
++
++	if len(a) != 1 {
++		t.Errorf("empty value insert problem")
++	}
++	if b[empty{}] != 1 {
++		t.Errorf("empty key returned wrong value")
++	}
++}
+diff --git a/src/pkg/runtime/mapspeed_test.go b/src/pkg/runtime/mapspeed_test.go
+index c6a83113a6..a379740606 100644
+--- a/src/pkg/runtime/mapspeed_test.go
++++ b/src/pkg/runtime/mapspeed_test.go
+@@ -5,6 +5,7 @@ package runtime_test
+ 
+ import (
+ 	"fmt"
++	"strings"
+ 	"testing"
+ )
+ 
+@@ -94,3 +95,56 @@ func BenchmarkHashStringArraySpeed(b *testing.B) {
+ 		}
+ 	}
+ }
++
++func BenchmarkMegMap(b *testing.B) {
++	m := make(map[string]bool)
++	for suffix := 'A'; suffix <= 'G'; suffix++ {
++		m[strings.Repeat("X", 1<<20-1)+fmt.Sprint(suffix)] = true
++	}
++	key := strings.Repeat("X", 1<<20-1) + "k"
++	b.ResetTimer()
++	for i := 0; i < b.N; i++ {
++		_, _ = m[key]
++	}
++}
++
++func BenchmarkMegOneMap(b *testing.B) {
++	m := make(map[string]bool)
++	m[strings.Repeat("X", 1<<20)] = true
++	key := strings.Repeat("Y", 1<<20)
++	b.ResetTimer()
++	for i := 0; i < b.N; i++ {
++		_, _ = m[key]
++	}
++}
++
++func BenchmarkMegEmptyMap(b *testing.B) {
++	m := make(map[string]bool)
++	key := strings.Repeat("X", 1<<20)
++	b.ResetTimer()
++	for i := 0; i < b.N; i++ {
++		_, _ = m[key]
++	}
++}
++
++func BenchmarkSmallStrMap(b *testing.B) {
++	m := make(map[string]bool)
++	for suffix := 'A'; suffix <= 'G'; suffix++ {
++		m[fmt.Sprint(suffix)] = true
++	}
++	key := "k"
++	b.ResetTimer()
++	for i := 0; i < b.N; i++ {
++		_, _ = m[key]
++	}
++}
++func BenchmarkIntMap(b *testing.B) {
++	m := make(map[int]bool)
++	for i := 0; i < 8; i++ {
++		m[i] = true
++	}
++	b.ResetTimer()
++	for i := 0; i < b.N; i++ {
++		_, _ = m[7]
++	}
++}
+diff --git a/src/pkg/runtime/runtime.c b/src/pkg/runtime/runtime.c
+index ef39a2d55f..d62408118b 100644
+--- a/src/pkg/runtime/runtime.c
++++ b/src/pkg/runtime/runtime.c
+@@ -42,9 +42,9 @@ runtime·gotraceback(bool *crash)
+ }
+ 
+ int32
+-runtime·mcmp(byte *s1, byte *s2, uint32 n)
++runtime·mcmp(byte *s1, byte *s2, uintptr n)
+ {
+-	uint32 i;
++	uintptr i;
+ 	byte c1, c2;
+ 
+ 	for(i=0; i<n; i++) {
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 9828a9c558..d209a4dfca 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -687,7 +687,7 @@ void	runtime·panicstring(int8*);
+ void	runtime·prints(int8*);
+ void	runtime·printf(int8*, ...);
+ byte*	runtime·mchr(byte*, byte, byte*);
+-int32	runtime·mcmp(byte*, byte*, uint32);
++int32	runtime·mcmp(byte*, byte*, uintptr);
+ void	runtime·memmove(void*, void*, uintptr);
+ void*	runtime·mal(uintptr);
+ String	runtime·catstring(String, String);
+@@ -962,7 +962,6 @@ void	runtime·mapassign(MapType*, Hmap*, byte*, byte*);
+ void	runtime·mapaccess(MapType*, Hmap*, byte*, byte*, bool*);
+ void	runtime·mapiternext(struct hash_iter*);
+ bool	runtime·mapiterkey(struct hash_iter*, void*);
+-void	runtime·mapiterkeyvalue(struct hash_iter*, void*, void*);
+ Hmap*	runtime·makemap_c(MapType*, int64);
+ 
+ Hchan*	runtime·makechan_c(ChanType*, int64);

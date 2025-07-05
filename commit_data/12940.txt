@@ -7,7 +7,32 @@ Date:   Tue Apr 24 01:27:19 2012 +0200
     R=golang-dev, dave, rsc
     CC=golang-dev, remy
     https://golang.org/cl/6097044
-
+---
  src/pkg/net/tcpsock_posix.go  | 2 +-
  src/pkg/net/unixsock_posix.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/net/tcpsock_posix.go b/src/pkg/net/tcpsock_posix.go
+index f886a6b5c5..e6b1937fb2 100644
+--- a/src/pkg/net/tcpsock_posix.go
++++ b/src/pkg/net/tcpsock_posix.go
+@@ -357,5 +357,5 @@ func (l *TCPListener) SetDeadline(t time.Time) error {
+ 
+ // File returns a copy of the underlying os.File, set to blocking mode.
+ // It is the caller's responsibility to close f when finished.
+-// Closing c does not affect f, and closing f does not affect c.
++// Closing l does not affect f, and closing f does not affect l.
+ func (l *TCPListener) File() (f *os.File, err error) { return l.fd.dup() }
+diff --git a/src/pkg/net/unixsock_posix.go b/src/pkg/net/unixsock_posix.go
+index ea411a65f0..57d784c71c 100644
+--- a/src/pkg/net/unixsock_posix.go
++++ b/src/pkg/net/unixsock_posix.go
+@@ -404,7 +404,7 @@ func (l *UnixListener) SetDeadline(t time.Time) (err error) {
+ 
+ // File returns a copy of the underlying os.File, set to blocking mode.
+ // It is the caller's responsibility to close f when finished.
+-// Closing c does not affect f, and closing f does not affect c.
++// Closing l does not affect f, and closing f does not affect l.
+ func (l *UnixListener) File() (f *os.File, err error) { return l.fd.dup() }
+ 
+ // ListenUnixgram listens for incoming Unix datagram packets addressed to the

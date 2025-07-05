@@ -35,9 +35,230 @@ Date:   Thu Oct 19 18:50:21 2023 +0800
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/internal/poll/sendfile_bsd.go     | 16 ++++---
  src/internal/poll/sendfile_solaris.go | 16 ++++---
  src/net/sendfile_test.go              | 86 +++++++++++++++++++++++++++++++++++
  src/net/sendfile_unix_alt.go          | 10 ++--
  4 files changed, 111 insertions(+), 17 deletions(-)
+
+diff --git a/src/internal/poll/sendfile_bsd.go b/src/internal/poll/sendfile_bsd.go
+index 89315a8c67..0f55cad73d 100644
+--- a/src/internal/poll/sendfile_bsd.go
++++ b/src/internal/poll/sendfile_bsd.go
+@@ -13,18 +13,21 @@ import "syscall"
+ const maxSendfileSize int = 4 << 20
+ 
+ // SendFile wraps the sendfile system call.
+-func SendFile(dstFD *FD, src int, pos, remain int64) (int64, error) {
++func SendFile(dstFD *FD, src int, pos, remain int64) (int64, error, bool) {
+ 	if err := dstFD.writeLock(); err != nil {
+-		return 0, err
++		return 0, err, false
+ 	}
+ 	defer dstFD.writeUnlock()
+ 	if err := dstFD.pd.prepareWrite(dstFD.isFile); err != nil {
+-		return 0, err
++		return 0, err, false
+ 	}
+ 
+ 	dst := dstFD.Sysfd
+-	var written int64
+-	var err error
++	var (
++		written int64
++		err     error
++		handled = true
++	)
+ 	for remain > 0 {
+ 		n := maxSendfileSize
+ 		if int64(n) > remain {
+@@ -52,8 +55,9 @@ func SendFile(dstFD *FD, src int, pos, remain int64) (int64, error) {
+ 			// support) and syscall.EINVAL (fd types which
+ 			// don't implement sendfile)
+ 			err = err1
++			handled = false
+ 			break
+ 		}
+ 	}
+-	return written, err
++	return written, err, handled
+ }
+diff --git a/src/internal/poll/sendfile_solaris.go b/src/internal/poll/sendfile_solaris.go
+index 7ae18f4b1a..f9f685c64a 100644
+--- a/src/internal/poll/sendfile_solaris.go
++++ b/src/internal/poll/sendfile_solaris.go
+@@ -16,18 +16,21 @@ import "syscall"
+ const maxSendfileSize int = 4 << 20
+ 
+ // SendFile wraps the sendfile system call.
+-func SendFile(dstFD *FD, src int, pos, remain int64) (int64, error) {
++func SendFile(dstFD *FD, src int, pos, remain int64) (int64, error, bool) {
+ 	if err := dstFD.writeLock(); err != nil {
+-		return 0, err
++		return 0, err, false
+ 	}
+ 	defer dstFD.writeUnlock()
+ 	if err := dstFD.pd.prepareWrite(dstFD.isFile); err != nil {
+-		return 0, err
++		return 0, err, false
+ 	}
+ 
+ 	dst := dstFD.Sysfd
+-	var written int64
+-	var err error
++	var (
++		written int64
++		err     error
++		handled = true
++	)
+ 	for remain > 0 {
+ 		n := maxSendfileSize
+ 		if int64(n) > remain {
+@@ -59,8 +62,9 @@ func SendFile(dstFD *FD, src int, pos, remain int64) (int64, error) {
+ 			// support) and syscall.EINVAL (fd types which
+ 			// don't implement sendfile)
+ 			err = err1
++			handled = false
+ 			break
+ 		}
+ 	}
+-	return written, err
++	return written, err, handled
+ }
+diff --git a/src/net/sendfile_test.go b/src/net/sendfile_test.go
+index 997a0ed01f..4cba1ed2b1 100644
+--- a/src/net/sendfile_test.go
++++ b/src/net/sendfile_test.go
+@@ -6,6 +6,7 @@ package net
+ 
+ import (
+ 	"bytes"
++	"context"
+ 	"crypto/sha256"
+ 	"encoding/hex"
+ 	"errors"
+@@ -360,3 +361,88 @@ func TestSendfileOnWriteTimeoutExceeded(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ }
++
++func BenchmarkSendfileZeroBytes(b *testing.B) {
++	var (
++		wg          sync.WaitGroup
++		ctx, cancel = context.WithCancel(context.Background())
++	)
++
++	defer wg.Wait()
++
++	ln := newLocalListener(b, "tcp")
++	defer ln.Close()
++
++	tempFile, err := os.CreateTemp(b.TempDir(), "test.txt")
++	if err != nil {
++		b.Fatalf("failed to create temp file: %v", err)
++	}
++	defer tempFile.Close()
++
++	fileName := tempFile.Name()
++
++	dataSize := b.N
++	wg.Add(1)
++	go func(f *os.File) {
++		defer wg.Done()
++
++		for i := 0; i < dataSize; i++ {
++			if _, err := f.Write([]byte{1}); err != nil {
++				b.Errorf("failed to write: %v", err)
++				return
++			}
++			if i%1000 == 0 {
++				f.Sync()
++			}
++		}
++	}(tempFile)
++
++	b.ResetTimer()
++	b.ReportAllocs()
++
++	wg.Add(1)
++	go func(ln Listener, fileName string) {
++		defer wg.Done()
++
++		conn, err := ln.Accept()
++		if err != nil {
++			b.Errorf("failed to accept: %v", err)
++			return
++		}
++		defer conn.Close()
++
++		f, err := os.OpenFile(fileName, os.O_RDONLY, 0660)
++		if err != nil {
++			b.Errorf("failed to open file: %v", err)
++			return
++		}
++		defer f.Close()
++
++		for {
++			if ctx.Err() != nil {
++				return
++			}
++
++			if _, err := io.Copy(conn, f); err != nil {
++				b.Errorf("failed to copy: %v", err)
++				return
++			}
++		}
++	}(ln, fileName)
++
++	conn, err := Dial("tcp", ln.Addr().String())
++	if err != nil {
++		b.Fatalf("failed to dial: %v", err)
++	}
++	defer conn.Close()
++
++	n, err := io.CopyN(io.Discard, conn, int64(dataSize))
++	if err != nil {
++		b.Fatalf("failed to copy: %v", err)
++	}
++	if n != int64(dataSize) {
++		b.Fatalf("expected %d copied bytes, but got %d", dataSize, n)
++	}
++
++	cancel()
++}
+diff --git a/src/net/sendfile_unix_alt.go b/src/net/sendfile_unix_alt.go
+index b86771721e..5cb65ee767 100644
+--- a/src/net/sendfile_unix_alt.go
++++ b/src/net/sendfile_unix_alt.go
+@@ -15,8 +15,8 @@ import (
+ // sendFile copies the contents of r to c using the sendfile
+ // system call to minimize copies.
+ //
+-// if handled == true, sendFile returns the number of bytes copied and any
+-// non-EOF error.
++// if handled == true, sendFile returns the number (potentially zero) of bytes
++// copied and any non-EOF error.
+ //
+ // if handled == false, sendFile performed no work.
+ func sendFile(c *netFD, r io.Reader) (written int64, err error, handled bool) {
+@@ -65,7 +65,7 @@ func sendFile(c *netFD, r io.Reader) (written int64, err error, handled bool) {
+ 
+ 	var werr error
+ 	err = sc.Read(func(fd uintptr) bool {
+-		written, werr = poll.SendFile(&c.pfd, int(fd), pos, remain)
++		written, werr, handled = poll.SendFile(&c.pfd, int(fd), pos, remain)
+ 		return true
+ 	})
+ 	if err == nil {
+@@ -78,8 +78,8 @@ func sendFile(c *netFD, r io.Reader) (written int64, err error, handled bool) {
+ 
+ 	_, err1 := f.Seek(written, io.SeekCurrent)
+ 	if err1 != nil && err == nil {
+-		return written, err1, written > 0
++		return written, err1, handled
+ 	}
+ 
+-	return written, wrapSyscallError("sendfile", err), written > 0
++	return written, wrapSyscallError("sendfile", err), handled
+ }

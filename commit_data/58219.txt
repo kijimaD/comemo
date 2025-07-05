@@ -14,10 +14,88 @@ Date:   Fri Oct 13 11:28:53 2023 +0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/compress/bzip2/bit_reader.go | 2 +-
  src/compress/flate/inflate.go    | 2 +-
  src/compress/gzip/gunzip.go      | 2 +-
  src/compress/lzw/writer.go       | 2 +-
  src/compress/zlib/reader.go      | 6 +++---
  5 files changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/src/compress/bzip2/bit_reader.go b/src/compress/bzip2/bit_reader.go
+index 094422d1d3..8c40777850 100644
+--- a/src/compress/bzip2/bit_reader.go
++++ b/src/compress/bzip2/bit_reader.go
+@@ -32,7 +32,7 @@ func newBitReader(r io.Reader) bitReader {
+ 
+ // ReadBits64 reads the given number of bits and returns them in the
+ // least-significant part of a uint64. In the event of an error, it returns 0
+-// and the error can be obtained by calling [bitReader.Err]().
++// and the error can be obtained by calling bitReader.Err().
+ func (br *bitReader) ReadBits64(bits uint) (n uint64) {
+ 	for bits > br.bits {
+ 		b, err := br.r.ReadByte()
+diff --git a/src/compress/flate/inflate.go b/src/compress/flate/inflate.go
+index b5e238c2fb..3c04445dda 100644
+--- a/src/compress/flate/inflate.go
++++ b/src/compress/flate/inflate.go
+@@ -803,7 +803,7 @@ func (f *decompressor) Reset(r io.Reader, dict []byte) error {
+ // The reader returns [io.EOF] after the final block in the DEFLATE stream has
+ // been encountered. Any trailing data after the final block is ignored.
+ //
+-// The ReadCloser returned by NewReader also implements [Resetter].
++// The [io.ReadCloser] returned by NewReader also implements [Resetter].
+ func NewReader(r io.Reader) io.ReadCloser {
+ 	fixedHuffmanDecoderInit()
+ 
+diff --git a/src/compress/gzip/gunzip.go b/src/compress/gzip/gunzip.go
+index 47797db40c..6ca05526ed 100644
+--- a/src/compress/gzip/gunzip.go
++++ b/src/compress/gzip/gunzip.go
+@@ -88,7 +88,7 @@ type Reader struct {
+ //
+ // It is the caller's responsibility to call Close on the [Reader] when done.
+ //
+-// The Reader.Header fields will be valid in the [Reader] returned.
++// The [Reader.Header] fields will be valid in the [Reader] returned.
+ func NewReader(r io.Reader) (*Reader, error) {
+ 	z := new(Reader)
+ 	if err := z.Reset(r); err != nil {
+diff --git a/src/compress/lzw/writer.go b/src/compress/lzw/writer.go
+index 6072a40c68..99ad3501c5 100644
+--- a/src/compress/lzw/writer.go
++++ b/src/compress/lzw/writer.go
+@@ -238,7 +238,7 @@ func (w *Writer) Close() error {
+ 	return w.w.Flush()
+ }
+ 
+-// Reset clears the[ Writer]'s state and allows it to be reused again
++// Reset clears the [Writer]'s state and allows it to be reused again
+ // as a new [Writer].
+ func (w *Writer) Reset(dst io.Writer, order Order, litWidth int) {
+ 	*w = Writer{}
+diff --git a/src/compress/zlib/reader.go b/src/compress/zlib/reader.go
+index 51d984aa3a..b4ba580307 100644
+--- a/src/compress/zlib/reader.go
++++ b/src/compress/zlib/reader.go
+@@ -70,7 +70,7 @@ type Resetter interface {
+ // data than necessary from r.
+ // It is the caller's responsibility to call Close on the ReadCloser when done.
+ //
+-// The ReadCloser returned by NewReader also implements [Resetter].
++// The [io.ReadCloser] returned by NewReader also implements [Resetter].
+ func NewReader(r io.Reader) (io.ReadCloser, error) {
+ 	return NewReaderDict(r, nil)
+ }
+@@ -119,9 +119,9 @@ func (z *reader) Read(p []byte) (int, error) {
+ 	return n, io.EOF
+ }
+ 
+-// Calling Close does not close the wrapped io.Reader originally passed to [NewReader].
++// Calling Close does not close the wrapped [io.Reader] originally passed to [NewReader].
+ // In order for the ZLIB checksum to be verified, the reader must be
+-// fully consumed until the io.EOF.
++// fully consumed until the [io.EOF].
+ func (z *reader) Close() error {
+ 	if z.err != nil && z.err != io.EOF {
+ 		return z.err

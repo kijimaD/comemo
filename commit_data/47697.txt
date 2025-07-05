@@ -31,8 +31,392 @@ Date:   Fri Mar 26 00:44:30 2021 -0400
     Trust: Bryan C. Mills <bcmills@google.com>
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/go/internal/modload/buildlist.go         | 149 ++++++-----------------
  src/cmd/go/internal/modload/edit.go              | 106 +++++++++-------
  src/cmd/go/testdata/script/mod_get_downgrade.txt |   2 +-
  3 files changed, 105 insertions(+), 152 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/buildlist.go b/src/cmd/go/internal/modload/buildlist.go
+index 62e01d2fd4..551e817cd2 100644
+--- a/src/cmd/go/internal/modload/buildlist.go
++++ b/src/cmd/go/internal/modload/buildlist.go
+@@ -441,128 +441,57 @@ func editRequirements(ctx context.Context, rs *Requirements, add, mustSelect []m
+ 		return nil, false, err
+ 	}
+ 
+-	selected := make(map[string]module.Version, len(final))
+-	for _, m := range final {
+-		selected[m.Path] = m
++	if !reflect.DeepEqual(final, buildList) {
++		changed = true
++	} else if len(mustSelect) == 0 {
++		// No change to the build list and no explicit roots to promote, so we're done.
++		return rs, false, nil
+ 	}
+-	inconsistent := false
++
++	var rootPaths []string
+ 	for _, m := range mustSelect {
+-		s, ok := selected[m.Path]
+-		if !ok && m.Version == "none" {
+-			continue
+-		}
+-		if s.Version != m.Version {
+-			inconsistent = true
+-			break
++		if m.Version != "none" && m.Path != Target.Path {
++			rootPaths = append(rootPaths, m.Path)
+ 		}
+ 	}
+-
+-	if !inconsistent {
+-		changed := false
+-		if !reflect.DeepEqual(final, buildList) {
+-			changed = true
+-		} else if len(mustSelect) == 0 {
+-			// No change to the build list and no explicit roots to promote, so we're done.
+-			return rs, false, nil
+-		}
+-
+-		var rootPaths []string
+-		for _, m := range mustSelect {
+-			if m.Version != "none" && m.Path != Target.Path {
+-				rootPaths = append(rootPaths, m.Path)
+-			}
+-		}
+-		for _, m := range final[1:] {
+-			if v, ok := rs.rootSelected(m.Path); ok && (v == m.Version || rs.direct[m.Path]) {
+-				// m.Path was formerly a root, and either its version hasn't changed or
+-				// we believe that it provides a package directly imported by a package
+-				// or test in the main module. For now we'll assume that it is still
+-				// relevant. If we actually load all of the packages and tests in the
+-				// main module (which we are not doing here), we can revise the explicit
+-				// roots at that point.
+-				rootPaths = append(rootPaths, m.Path)
+-			}
+-		}
+-
+-		if go117LazyTODO {
+-			// mvs.Req is not lazy, and in a lazily-loaded module we don't want
+-			// to minimize the roots anyway. (Instead, we want to retain explicit
+-			// root paths so that they remain explicit: only 'go mod tidy' should
+-			// remove roots.)
+-		}
+-
+-		min, err := mvs.Req(Target, rootPaths, &mvsReqs{buildList: final})
+-		if err != nil {
+-			return nil, false, err
+-		}
+-
+-		// A module that is not even in the build list necessarily cannot provide
+-		// any imported packages. Mark as direct only the direct modules that are
+-		// still in the build list.
+-		//
+-		// TODO(bcmills): Would it make more sense to leave the direct map as-is
+-		// but allow it to refer to modules that are no longer in the build list?
+-		// That might complicate updateRoots, but it may be cleaner in other ways.
+-		direct := make(map[string]bool, len(rs.direct))
+-		for _, m := range final {
+-			if rs.direct[m.Path] {
+-				direct[m.Path] = true
+-			}
++	for _, m := range final[1:] {
++		if v, ok := rs.rootSelected(m.Path); ok && (v == m.Version || rs.direct[m.Path]) {
++			// m.Path was formerly a root, and either its version hasn't changed or
++			// we believe that it provides a package directly imported by a package
++			// or test in the main module. For now we'll assume that it is still
++			// relevant. If we actually load all of the packages and tests in the
++			// main module (which we are not doing here), we can revise the explicit
++			// roots at that point.
++			rootPaths = append(rootPaths, m.Path)
+ 		}
+-		return newRequirements(min, direct), changed, nil
+ 	}
+ 
+-	// We overshot one or more of the modules in mustSelect, which means that
+-	// Downgrade removed something in mustSelect because it conflicted with
+-	// something else in mustSelect.
+-	//
+-	// Walk the requirement graph to find the conflict.
+-	//
+-	// TODO(bcmills): Ideally, mvs.Downgrade (or a replacement for it) would do
+-	// this directly.
+-
+-	reqs := &mvsReqs{buildList: final}
+-	reason := map[module.Version]module.Version{}
+-	for _, m := range mustSelect {
+-		reason[m] = m
+-	}
+-	queue := mustSelect[:len(mustSelect):len(mustSelect)]
+-	for len(queue) > 0 {
+-		var m module.Version
+-		m, queue = queue[0], queue[1:]
+-		required, err := reqs.Required(m)
+-		if err != nil {
+-			return nil, false, err
+-		}
+-		for _, r := range required {
+-			if _, ok := reason[r]; !ok {
+-				reason[r] = reason[m]
+-				queue = append(queue, r)
+-			}
+-		}
++	if go117LazyTODO {
++		// mvs.Req is not lazy, and in a lazily-loaded module we don't want
++		// to minimize the roots anyway. (Instead, we want to retain explicit
++		// root paths so that they remain explicit: only 'go mod tidy' should
++		// remove roots.)
+ 	}
+ 
+-	var conflicts []Conflict
+-	for _, m := range mustSelect {
+-		s, ok := selected[m.Path]
+-		if !ok {
+-			if m.Version != "none" {
+-				panic(fmt.Sprintf("internal error: editBuildList lost %v", m))
+-			}
+-			continue
+-		}
+-		if s.Version != m.Version {
+-			conflicts = append(conflicts, Conflict{
+-				Source:     reason[s],
+-				Dep:        s,
+-				Constraint: m,
+-			})
+-		}
++	min, err := mvs.Req(Target, rootPaths, &mvsReqs{buildList: final})
++	if err != nil {
++		return nil, false, err
+ 	}
+ 
+-	return nil, false, &ConstraintError{
+-		Conflicts: conflicts,
++	// A module that is not even in the build list necessarily cannot provide
++	// any imported packages. Mark as direct only the direct modules that are
++	// still in the build list.
++	//
++	// TODO(bcmills): Would it make more sense to leave the direct map as-is
++	// but allow it to refer to modules that are no longer in the build list?
++	// That might complicate updateRoots, but it may be cleaner in other ways.
++	direct := make(map[string]bool, len(rs.direct))
++	for _, m := range final {
++		if rs.direct[m.Path] {
++			direct[m.Path] = true
++		}
+ 	}
++	return newRequirements(min, direct), changed, nil
+ }
+ 
+ // A ConstraintError describes inconsistent constraints in EditBuildList
+diff --git a/src/cmd/go/internal/modload/edit.go b/src/cmd/go/internal/modload/edit.go
+index 4d1f3c7826..0d7811a3cd 100644
+--- a/src/cmd/go/internal/modload/edit.go
++++ b/src/cmd/go/internal/modload/edit.go
+@@ -16,8 +16,7 @@ import (
+ 
+ // editBuildList returns an edited version of initial such that:
+ //
+-// 	1. Each module version in mustSelect is selected, unless it is upgraded
+-// 	   by the transitive requirements of another version in mustSelect.
++// 	1. Each module version in mustSelect is selected.
+ //
+ // 	2. Each module version in tryUpgrade is upgraded toward the indicated
+ // 	   version as far as can be done without violating (1).
+@@ -66,13 +65,27 @@ func editBuildList(ctx context.Context, initial, tryUpgrade, mustSelect []module
+ 
+ 	limiter := newVersionLimiter(max)
+ 
+-	// Force the selected versions in mustSelect, even if they conflict.
+-	//
+-	// TODO(bcmills): Instead of forcing these versions, record conflicts
+-	// so that the caller doesn't have to recompute them.
++	var conflicts []Conflict
+ 	for _, m := range mustSelect {
++		dq := limiter.check(m)
++		switch {
++		case dq.err != nil:
++			return nil, err
++		case dq.conflict != module.Version{}:
++			conflicts = append(conflicts, Conflict{
++				Source: m,
++				Dep:    dq.conflict,
++				Constraint: module.Version{
++					Path:    dq.conflict.Path,
++					Version: limiter.max[dq.conflict.Path],
++				},
++			})
++		}
+ 		limiter.selected[m.Path] = m.Version
+ 	}
++	if len(conflicts) > 0 {
++		return nil, &ConstraintError{Conflicts: conflicts}
++	}
+ 
+ 	// For each module, we want to get as close as we can to either the upgrade
+ 	// version or the previously-selected version in the build list, whichever is
+@@ -145,24 +158,37 @@ type versionLimiter struct {
+ 	// version, so paths at version "none" are omitted.
+ 	selected map[string]string
+ 
+-	// disqualified maps each encountered version to either true (if that version
+-	// is known to be disqualified due to a conflict with a max version) or false
+-	// (if that version is not known to be disqualified, either because it is ok
+-	// or because we are currently traversing a cycle that includes it).
+-	disqualified map[module.Version]bool
++	// dqReason records whether and why each each encountered version is
++	// disqualified.
++	dqReason map[module.Version]dqState
+ 
+-	// requiredBy maps each not-yet-disqualified module version to the versions
++	// requiring maps each not-yet-disqualified module version to the versions
+ 	// that directly require it. If that version becomes disqualified, the
+ 	// disqualification will be propagated to all of the versions in the list.
+-	requiredBy map[module.Version][]module.Version
++	requiring map[module.Version][]module.Version
++}
++
++// A dqState indicates whether and why a module version is “disqualified” from
++// being used in a way that would incorporate its requirements.
++//
++// The zero dqState indicates that the module version is not known to be
++// disqualified, either because it is ok or because we are currently traversing
++// a cycle that includes it.
++type dqState struct {
++	err      error          // if non-nil, disqualified because the requirements of the module could not be read
++	conflict module.Version // disqualified because the module (transitively) requires dep, which exceeds the maximum version constraint for its path
++}
++
++func (dq dqState) isDisqualified() bool {
++	return dq != dqState{}
+ }
+ 
+ func newVersionLimiter(max map[string]string) *versionLimiter {
+ 	return &versionLimiter{
+-		selected:     map[string]string{Target.Path: Target.Version},
+-		max:          max,
+-		disqualified: map[module.Version]bool{Target: false},
+-		requiredBy:   map[module.Version][]module.Version{},
++		selected:  map[string]string{Target.Path: Target.Version},
++		max:       max,
++		dqReason:  map[module.Version]dqState{},
++		requiring: map[module.Version][]module.Version{},
+ 	}
+ }
+ 
+@@ -179,7 +205,7 @@ func (l *versionLimiter) upgradeToward(ctx context.Context, m module.Version) er
+ 		selected = "none"
+ 	}
+ 
+-	if l.isDisqualified(m) {
++	if l.check(m).isDisqualified() {
+ 		candidates, err := versions(ctx, m.Path, CheckAllowed)
+ 		if err != nil {
+ 			// This is likely a transient error reaching the repository,
+@@ -196,7 +222,7 @@ func (l *versionLimiter) upgradeToward(ctx context.Context, m module.Version) er
+ 		})
+ 		candidates = candidates[:i]
+ 
+-		for l.isDisqualified(m) {
++		for l.check(m).isDisqualified() {
+ 			n := len(candidates)
+ 			if n == 0 || cmpVersion(selected, candidates[n-1]) >= 0 {
+ 				// We couldn't find a suitable candidate above the already-selected version.
+@@ -211,23 +237,22 @@ func (l *versionLimiter) upgradeToward(ctx context.Context, m module.Version) er
+ 	return nil
+ }
+ 
+-// isDisqualified reports whether m (or its transitive dependencies) would
+-// violate l's maximum version limits if added to the module requirement graph.
+-func (l *versionLimiter) isDisqualified(m module.Version) bool {
++// check determines whether m (or its transitive dependencies) would violate l's
++// maximum version limits if added to the module requirement graph.
++func (l *versionLimiter) check(m module.Version) dqState {
+ 	if m.Version == "none" || m == Target {
+ 		// version "none" has no requirements, and the dependencies of Target are
+ 		// tautological.
+-		return false
++		return dqState{}
+ 	}
+ 
+-	if dq, seen := l.disqualified[m]; seen {
++	if dq, seen := l.dqReason[m]; seen {
+ 		return dq
+ 	}
+-	l.disqualified[m] = false
++	l.dqReason[m] = dqState{}
+ 
+ 	if max, ok := l.max[m.Path]; ok && cmpVersion(m.Version, max) > 0 {
+-		l.disqualify(m)
+-		return true
++		return l.disqualify(m, dqState{conflict: m})
+ 	}
+ 
+ 	summary, err := goModSummary(m)
+@@ -242,14 +267,12 @@ func (l *versionLimiter) isDisqualified(m module.Version) bool {
+ 		// TODO(golang.org/issue/31730, golang.org/issue/30134): if the error
+ 		// is transient (we couldn't download go.mod), return the error from
+ 		// Downgrade. Currently, we can't tell what kind of error it is.
+-		l.disqualify(m)
+-		return true
++		return l.disqualify(m, dqState{err: err})
+ 	}
+ 
+ 	for _, r := range summary.require {
+-		if l.isDisqualified(r) {
+-			l.disqualify(m)
+-			return true
++		if dq := l.check(r); dq.isDisqualified() {
++			return l.disqualify(m, dq)
+ 		}
+ 
+ 		// r and its dependencies are (perhaps provisionally) ok.
+@@ -258,24 +281,25 @@ func (l *versionLimiter) isDisqualified(m module.Version) bool {
+ 		// checked a portion of the requirement graph so far, and r (and thus m) may
+ 		// yet be disqualified by some path we have not yet visited. Remember this edge
+ 		// so that we can disqualify m and its dependents if that occurs.
+-		l.requiredBy[r] = append(l.requiredBy[r], m)
++		l.requiring[r] = append(l.requiring[r], m)
+ 	}
+ 
+-	return false
++	return dqState{}
+ }
+ 
+ // disqualify records that m (or one of its transitive dependencies)
+ // violates l's maximum version limits.
+-func (l *versionLimiter) disqualify(m module.Version) {
+-	if l.disqualified[m] {
+-		return
++func (l *versionLimiter) disqualify(m module.Version, dq dqState) dqState {
++	if dq := l.dqReason[m]; dq.isDisqualified() {
++		return dq
+ 	}
+-	l.disqualified[m] = true
++	l.dqReason[m] = dq
+ 
+-	for _, p := range l.requiredBy[m] {
+-		l.disqualify(p)
++	for _, p := range l.requiring[m] {
++		l.disqualify(p, dqState{conflict: m})
+ 	}
+ 	// Now that we have disqualified the modules that depend on m, we can forget
+ 	// about them — we won't need to disqualify them again.
+-	delete(l.requiredBy, m)
++	delete(l.requiring, m)
++	return dq
+ }
+diff --git a/src/cmd/go/testdata/script/mod_get_downgrade.txt b/src/cmd/go/testdata/script/mod_get_downgrade.txt
+index a954c10344..c26c5e1c21 100644
+--- a/src/cmd/go/testdata/script/mod_get_downgrade.txt
++++ b/src/cmd/go/testdata/script/mod_get_downgrade.txt
+@@ -20,8 +20,8 @@ stdout 'rsc.io/quote v1.5.1'
+ stdout 'rsc.io/sampler v1.3.0'
+ 
+ ! go get -d rsc.io/sampler@v1.0.0 rsc.io/quote@v1.5.2 golang.org/x/text@none
++stderr -count=1 '^go get:'
+ stderr '^go get: rsc.io/quote@v1.5.2 requires rsc.io/sampler@v1.3.0, not rsc.io/sampler@v1.0.0$'
+-stderr '^go get: rsc.io/quote@v1.5.2 requires golang.org/x/text@v0.0.0-20170915032832-14c0d48ead0c, not golang.org/x/text@none$'
+ 
+ go list -m all
+ stdout 'rsc.io/quote v1.5.1'

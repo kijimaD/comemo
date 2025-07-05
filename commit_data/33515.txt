@@ -16,6 +16,29 @@ Date:   Mon Jul 24 09:53:26 2017 -0700
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     Reviewed-by: Avelino <t@avelino.xxx>
-
+---
  .github/ISSUE_TEMPLATE | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/.github/ISSUE_TEMPLATE b/.github/ISSUE_TEMPLATE
+index f626ddbf0b..d3c3a2d262 100644
+--- a/.github/ISSUE_TEMPLATE
++++ b/.github/ISSUE_TEMPLATE
+@@ -1,8 +1,12 @@
+ Please answer these questions before submitting your issue. Thanks!
+ 
++
+ ### What version of Go are you using (`go version`)?
+ 
+ 
++### Does this issue reproduce with the latest release?
++
++
+ ### What operating system and processor architecture are you using (`go env`)?
+ 
+ 
+@@ -18,4 +22,3 @@ A link on play.golang.org is best.
+ 
+ ### What did you see instead?
+ 
+-

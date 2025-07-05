@@ -18,7 +18,62 @@ Date:   Tue Jun 13 10:16:41 2017 +0000
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/asm/internal/asm/testdata/arm64enc.s |  6 +++---
  src/cmd/internal/obj/arm64/asm7.go           | 23 ++++++++++-------------
  2 files changed, 13 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/arm64enc.s b/src/cmd/asm/internal/asm/testdata/arm64enc.s
+index 52663e2b52..5c218b50a2 100644
+--- a/src/cmd/asm/internal/asm/testdata/arm64enc.s
++++ b/src/cmd/asm/internal/asm/testdata/arm64enc.s
+@@ -242,9 +242,9 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
+    ORRW $16252928, ZR, R21                    // f5130d32
+    MOVD $-4260607558625, R11                  // eb6b16b2
+    MOVD R30, R7                               // e7031eaa
+-   // MOVKW $(3905<<0), R21                   // MOVKW $3905, R21              // 35e88172
+-   // MOVKW $(3905<<16), R21                  // MOVKW $255918080, R21         // 35e8a172
+-   // MOVK $(3905<<32), R21                   // MOVK $16771847290880, R21     // 35e8c1f2
++   MOVKW $(3905<<0), R21                      // MOVKW $3905, R21              // 35e88172
++   MOVKW $(3905<<16), R21                     // MOVKW $255918080, R21         // 35e8a172
++   MOVK $(3905<<32), R21                      // MOVK $16771847290880, R21     // 35e8c1f2
+    MOVD $0, R5                                // 050080d2
+    // MRS $4567, R16                          // f03a32d5
+    // MRS $32345, R6                          // 26cb3fd5
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index 4419909f69..f05150c87a 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -2597,22 +2597,19 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		o1 = c.opirr(p, p.As)
+ 
+ 		d := p.From.Offset
+-		if (d >> 16) != 0 {
+-			c.ctxt.Diag("requires uimm16\n%v", p)
++		s := movcon(d)
++		if s < 0 || s >= 4 {
++			c.ctxt.Diag("bad constant for MOVK: %#x\n%v", uint64(d), p)
+ 		}
+-		s := 0
+-		if p.From3Type() != obj.TYPE_NONE {
+-			if p.From3.Type != obj.TYPE_CONST {
+-				c.ctxt.Diag("missing bit position\n%v", p)
+-			}
+-			s = int(p.From3.Offset / 16)
+-			if (s*16&0xF) != 0 || s >= 4 || (o1&S64) == 0 && s >= 2 {
+-				c.ctxt.Diag("illegal bit position\n%v", p)
+-			}
++		if (o1&S64) == 0 && s >= 2 {
++			c.ctxt.Diag("illegal bit position\n%v", p)
++		}
++		if ((d >> uint(s*16)) >> 16) != 0 {
++			c.ctxt.Diag("requires uimm16\n%v",p)
+ 		}
+-
+ 		rt := int(p.To.Reg)
+-		o1 |= uint32(((d & 0xFFFF) << 5) | int64((uint32(s)&3)<<21) | int64(rt&31))
++
++		o1 |= uint32((((d >> uint(s*16)) & 0xFFFF) << 5) | int64((uint32(s)&3)<<21) | int64(rt&31))
+ 
+ 	case 34: /* mov $lacon,R */
+ 		o1 = c.omovlit(AMOVD, p, &p.From, REGTMP)

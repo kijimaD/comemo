@@ -11,6 +11,21 @@ Date:   Mon Jan 14 13:43:11 2019 +0530
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/bufio/example_test.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/bufio/example_test.go b/src/bufio/example_test.go
+index 4666e6d985..bb57139918 100644
+--- a/src/bufio/example_test.go
++++ b/src/bufio/example_test.go
+@@ -94,6 +94,9 @@ func ExampleScanner_emptyFinalToken() {
+ 				return i + 1, data[:i], nil
+ 			}
+ 		}
++		if !atEOF {
++			return 0, nil, nil
++		}
+ 		// There is one final token to be delivered, which may be the empty string.
+ 		// Returning bufio.ErrFinalToken here tells Scan there are no more tokens after this
+ 		// but does not trigger an error to be returned from Scan itself.

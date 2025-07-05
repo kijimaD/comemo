@@ -14,9 +14,110 @@ Date:   Thu Aug 21 11:46:53 2014 +0400
     R=golang-codereviews, rsc, khr
     CC=golang-codereviews, rlh
     https://golang.org/cl/124670043
-
+---
  src/pkg/runtime/heapdump.c | 2 +-
  src/pkg/runtime/malloc.go  | 6 ++++++
  src/pkg/runtime/mheap.c    | 8 ++++----
  src/pkg/runtime/proc.c     | 8 ++++++++
  4 files changed, 19 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/runtime/heapdump.c b/src/pkg/runtime/heapdump.c
+index 63d80b8d0e..a2d12ad603 100644
+--- a/src/pkg/runtime/heapdump.c
++++ b/src/pkg/runtime/heapdump.c
+@@ -748,7 +748,6 @@ runtime∕debug·WriteHeapDump(uintptr fd)
+ 	// Stop the world.
+ 	runtime·semacquire(&runtime·worldsema, false);
+ 	g->m->gcing = 1;
+-	g->m->locks++;
+ 	runtime·stoptheworld();
+ 
+ 	// Update stats so we can dump them.
+@@ -774,6 +773,7 @@ runtime∕debug·WriteHeapDump(uintptr fd)
+ 
+ 	// Start up the world again.
+ 	g->m->gcing = 0;
++	g->m->locks++;
+ 	runtime·semrelease(&runtime·worldsema);
+ 	runtime·starttheworld();
+ 	g->m->locks--;
+diff --git a/src/pkg/runtime/malloc.go b/src/pkg/runtime/malloc.go
+index 8ee460755f..578fbd1c2d 100644
+--- a/src/pkg/runtime/malloc.go
++++ b/src/pkg/runtime/malloc.go
+@@ -413,6 +413,7 @@ func gogc(force int32) {
+ 		return
+ 	}
+ 	releasem(mp)
++	mp = nil
+ 
+ 	if panicking != 0 {
+ 		return
+@@ -441,7 +442,11 @@ func gogc(force int32) {
+ 	startTime := gonanotime()
+ 	mp = acquirem()
+ 	mp.gcing = 1
++	releasem(mp)
+ 	stoptheworld()
++	if mp != acquirem() {
++		gothrow("gogc: rescheduled")
++	}
+ 
+ 	clearpools()
+ 
+@@ -474,6 +479,7 @@ func gogc(force int32) {
+ 	semrelease(&worldsema)
+ 	starttheworld()
+ 	releasem(mp)
++	mp = nil
+ 
+ 	// now that gc is done, kick off finalizer thread if needed
+ 	if !concurrentSweep {
+diff --git a/src/pkg/runtime/mheap.c b/src/pkg/runtime/mheap.c
+index 599872423a..8e6190ce1a 100644
+--- a/src/pkg/runtime/mheap.c
++++ b/src/pkg/runtime/mheap.c
+@@ -608,7 +608,6 @@ scavenge(int32 k, uint64 now, uint64 limit)
+ {
+ 	uint32 i;
+ 	uintptr sumreleased;
+-	MStats stats;
+ 	MHeap *h;
+ 	
+ 	h = &runtime·mheap;
+@@ -618,12 +617,13 @@ scavenge(int32 k, uint64 now, uint64 limit)
+ 	sumreleased += scavengelist(&h->freelarge, now, limit);
+ 
+ 	if(runtime·debug.gctrace > 0) {
+-		runtime·ReadMemStats(&stats);
+ 		if(sumreleased > 0)
+ 			runtime·printf("scvg%d: %D MB released\n", k, (uint64)sumreleased>>20);
++		// TODO(dvyukov): these stats are incorrect as we don't subtract stack usage from heap.
++		// But we can't call ReadMemStats on g0 holding locks.
+ 		runtime·printf("scvg%d: inuse: %D, idle: %D, sys: %D, released: %D, consumed: %D (MB)\n",
+-			k, stats.heap_inuse>>20, stats.heap_idle>>20, stats.heap_sys>>20,
+-			stats.heap_released>>20, (stats.heap_sys - stats.heap_released)>>20);
++			k, mstats.heap_inuse>>20, mstats.heap_idle>>20, mstats.heap_sys>>20,
++			mstats.heap_released>>20, (mstats.heap_sys - mstats.heap_released)>>20);
+ 	}
+ }
+ 
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 2510a421a8..8584cb6f6a 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -498,6 +498,14 @@ runtime·stoptheworld(void)
+ 	P *p;
+ 	bool wait;
+ 
++	// If we hold a lock, then we won't be able to stop another M
++	// that is blocked trying to acquire the lock.
++	if(g->m->locks > 0)
++		runtime·throw("stoptheworld: holding locks");
++	// There is no evidence that stoptheworld on g0 does not work,
++	// we just don't do it today.
++	if(g == g->m->g0)
++		runtime·throw("stoptheworld: on g0");
+ 	runtime·lock(&runtime·sched.lock);
+ 	runtime·sched.stopwait = runtime·gomaxprocs;
+ 	runtime·atomicstore((uint32*)&runtime·sched.gcwaiting, 1);

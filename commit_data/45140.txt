@@ -14,7 +14,7 @@ Date:   Tue Oct 6 14:42:15 2020 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/compile/internal/x86/galign.go | 15 +++++++++++++++
  src/cmd/dist/build.go                  | 11 +++++++++++
  src/cmd/dist/buildruntime.go           |  2 ++
@@ -29,3 +29,369 @@ Date:   Tue Oct 6 14:42:15 2020 -0700
  test/codegen/memops.go                 | 32 ++++++++++++++++----------------
  test/run.go                            | 12 ++++++------
  13 files changed, 69 insertions(+), 38 deletions(-)
+
+diff --git a/src/cmd/compile/internal/x86/galign.go b/src/cmd/compile/internal/x86/galign.go
+index 2d20b6a6d0..e137daa3fc 100644
+--- a/src/cmd/compile/internal/x86/galign.go
++++ b/src/cmd/compile/internal/x86/galign.go
+@@ -7,6 +7,9 @@ package x86
+ import (
+ 	"cmd/compile/internal/gc"
+ 	"cmd/internal/obj/x86"
++	"cmd/internal/objabi"
++	"fmt"
++	"os"
+ )
+ 
+ func Init(arch *gc.Arch) {
+@@ -15,6 +18,18 @@ func Init(arch *gc.Arch) {
+ 	arch.SSAGenValue = ssaGenValue
+ 	arch.SSAGenBlock = ssaGenBlock
+ 	arch.MAXWIDTH = (1 << 32) - 1
++	switch v := objabi.GO386; v {
++	case "sse2":
++	case "softfloat":
++		arch.SoftFloat = true
++	case "387":
++		fmt.Fprintf(os.Stderr, "unsupported setting GO386=387. Consider using GO386=softfloat instead.\n")
++		gc.Exit(1)
++	default:
++		fmt.Fprintf(os.Stderr, "unsupported setting GO386=%s\n", v)
++		gc.Exit(1)
++
++	}
+ 
+ 	arch.ZeroRange = zerorange
+ 	arch.Ginsnop = ginsnop
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index 3b3eb113b1..69a66abd2d 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -30,6 +30,7 @@ var (
+ 	gohostos         string
+ 	goos             string
+ 	goarm            string
++	go386            string
+ 	gomips           string
+ 	gomips64         string
+ 	goppc64          string
+@@ -141,6 +142,12 @@ func xinit() {
+ 	}
+ 	goarm = b
+ 
++	b = os.Getenv("GO386")
++	if b == "" {
++		b = "sse2"
++	}
++	go386 = b
++
+ 	b = os.Getenv("GOMIPS")
+ 	if b == "" {
+ 		b = "hardfloat"
+@@ -212,6 +219,7 @@ func xinit() {
+ 	defaultldso = os.Getenv("GO_LDSO")
+ 
+ 	// For tools being invoked but also for os.ExpandEnv.
++	os.Setenv("GO386", go386)
+ 	os.Setenv("GOARCH", goarch)
+ 	os.Setenv("GOARM", goarm)
+ 	os.Setenv("GOHOSTARCH", gohostarch)
+@@ -1153,6 +1161,9 @@ func cmdenv() {
+ 	if goarch == "arm" {
+ 		xprintf(format, "GOARM", goarm)
+ 	}
++	if goarch == "386" {
++		xprintf(format, "GO386", go386)
++	}
+ 	if goarch == "mips" || goarch == "mipsle" {
+ 		xprintf(format, "GOMIPS", gomips)
+ 	}
+diff --git a/src/cmd/dist/buildruntime.go b/src/cmd/dist/buildruntime.go
+index 67d1d72db4..2744951597 100644
+--- a/src/cmd/dist/buildruntime.go
++++ b/src/cmd/dist/buildruntime.go
+@@ -41,6 +41,7 @@ func mkzversion(dir, file string) {
+ //	package objabi
+ //
+ //	const defaultGOROOT = <goroot>
++//	const defaultGO386 = <go386>
+ //	const defaultGOARM = <goarm>
+ //	const defaultGOMIPS = <gomips>
+ //	const defaultGOMIPS64 = <gomips64>
+@@ -69,6 +70,7 @@ func mkzbootstrap(file string) {
+ 	fmt.Fprintln(&buf)
+ 	fmt.Fprintf(&buf, "import \"runtime\"\n")
+ 	fmt.Fprintln(&buf)
++	fmt.Fprintf(&buf, "const defaultGO386 = `%s`\n", go386)
+ 	fmt.Fprintf(&buf, "const defaultGOARM = `%s`\n", goarm)
+ 	fmt.Fprintf(&buf, "const defaultGOMIPS = `%s`\n", gomips)
+ 	fmt.Fprintf(&buf, "const defaultGOMIPS64 = `%s`\n", gomips64)
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 14840efb22..5cb32c80e9 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -1852,6 +1852,9 @@
+ // 	GOARM
+ // 		For GOARCH=arm, the ARM architecture for which to compile.
+ // 		Valid values are 5, 6, 7.
++// 	GO386
++// 		For GOARCH=386, how to implement floating point instructions.
++// 		Valid values are sse2 (default), softfloat.
+ // 	GOMIPS
+ // 		For GOARCH=mips{,le}, whether to use floating point instructions.
+ // 		Valid values are hardfloat (default), softfloat.
+diff --git a/src/cmd/go/internal/cfg/cfg.go b/src/cmd/go/internal/cfg/cfg.go
+index 9169c12d8f..67d581f6e6 100644
+--- a/src/cmd/go/internal/cfg/cfg.go
++++ b/src/cmd/go/internal/cfg/cfg.go
+@@ -256,6 +256,7 @@ var (
+ 
+ 	// Used in envcmd.MkEnv and build ID computations.
+ 	GOARM    = envOr("GOARM", fmt.Sprint(objabi.GOARM))
++	GO386    = envOr("GO386", objabi.GO386)
+ 	GOMIPS   = envOr("GOMIPS", objabi.GOMIPS)
+ 	GOMIPS64 = envOr("GOMIPS64", objabi.GOMIPS64)
+ 	GOPPC64  = envOr("GOPPC64", fmt.Sprintf("%s%d", "power", objabi.GOPPC64))
+@@ -279,6 +280,8 @@ func GetArchEnv() (key, val string) {
+ 	switch Goarch {
+ 	case "arm":
+ 		return "GOARM", GOARM
++	case "386":
++		return "GO386", GO386
+ 	case "mips", "mipsle":
+ 		return "GOMIPS", GOMIPS
+ 	case "mips64", "mips64le":
+diff --git a/src/cmd/go/internal/help/helpdoc.go b/src/cmd/go/internal/help/helpdoc.go
+index befa10a0e4..8dfabbaa4a 100644
+--- a/src/cmd/go/internal/help/helpdoc.go
++++ b/src/cmd/go/internal/help/helpdoc.go
+@@ -581,6 +581,9 @@ Architecture-specific environment variables:
+ 	GOARM
+ 		For GOARCH=arm, the ARM architecture for which to compile.
+ 		Valid values are 5, 6, 7.
++	GO386
++		For GOARCH=386, how to implement floating point instructions.
++		Valid values are sse2 (default), softfloat.
+ 	GOMIPS
+ 		For GOARCH=mips{,le}, whether to use floating point instructions.
+ 		Valid values are hardfloat (default), softfloat.
+diff --git a/src/cmd/internal/objabi/util.go b/src/cmd/internal/objabi/util.go
+index cedb2d0a26..b81b73a022 100644
+--- a/src/cmd/internal/objabi/util.go
++++ b/src/cmd/internal/objabi/util.go
+@@ -24,6 +24,7 @@ var (
+ 	GOROOT   = envOr("GOROOT", defaultGOROOT)
+ 	GOARCH   = envOr("GOARCH", defaultGOARCH)
+ 	GOOS     = envOr("GOOS", defaultGOOS)
++	GO386    = envOr("GO386", defaultGO386)
+ 	GOAMD64  = goamd64()
+ 	GOARM    = goarm()
+ 	GOMIPS   = gomips()
+@@ -135,14 +136,6 @@ func init() {
+ 	if GOARCH != "amd64" {
+ 		Regabi_enabled = 0
+ 	}
+-
+-	if v := os.Getenv("GO386"); v != "" && v != "sse2" {
+-		msg := fmt.Sprintf("unsupported setting GO386=%s", v)
+-		if v == "387" {
+-			msg += ". 387 support was dropped in Go 1.16. Consider using gccgo instead."
+-		}
+-		log.Fatal(msg)
+-	}
+ }
+ 
+ // Note: must agree with runtime.framepointer_enabled.
+diff --git a/src/internal/cfg/cfg.go b/src/internal/cfg/cfg.go
+index 023429e441..bdbe9df3e7 100644
+--- a/src/internal/cfg/cfg.go
++++ b/src/internal/cfg/cfg.go
+@@ -32,6 +32,7 @@ const KnownEnv = `
+ 	FC
+ 	GCCGO
+ 	GO111MODULE
++	GO386
+ 	GOARCH
+ 	GOARM
+ 	GOBIN
+diff --git a/test/codegen/arithmetic.go b/test/codegen/arithmetic.go
+index 30f39a8da1..0bdb66a376 100644
+--- a/test/codegen/arithmetic.go
++++ b/test/codegen/arithmetic.go
+@@ -125,7 +125,7 @@ func Mul_n120(n int) int {
+ func MulMemSrc(a []uint32, b []float32) {
+ 	// 386:`IMULL\s4\([A-Z]+\),\s[A-Z]+`
+ 	a[0] *= a[1]
+-	// 386:`MULSS\s4\([A-Z]+\),\sX[0-9]+`
++	// 386/sse2:`MULSS\s4\([A-Z]+\),\sX[0-9]+`
+ 	// amd64:`MULSS\s4\([A-Z]+\),\sX[0-9]+`
+ 	b[0] *= b[1]
+ }
+@@ -167,7 +167,7 @@ func MergeMuls5(a, n int) int {
+ // -------------- //
+ 
+ func DivMemSrc(a []float64) {
+-	// 386:`DIVSD\s8\([A-Z]+\),\sX[0-9]+`
++	// 386/sse2:`DIVSD\s8\([A-Z]+\),\sX[0-9]+`
+ 	// amd64:`DIVSD\s8\([A-Z]+\),\sX[0-9]+`
+ 	a[0] /= a[1]
+ }
+@@ -211,7 +211,7 @@ func ConstDivs(n1 uint, n2 int) (uint, int) {
+ 
+ func FloatDivs(a []float32) float32 {
+ 	// amd64:`DIVSS\s8\([A-Z]+\),\sX[0-9]+`
+-	// 386:`DIVSS\s8\([A-Z]+\),\sX[0-9]+`
++	// 386/sse2:`DIVSS\s8\([A-Z]+\),\sX[0-9]+`
+ 	return a[1] / a[2]
+ }
+ 
+diff --git a/test/codegen/floats.go b/test/codegen/floats.go
+index d115800a67..83b4a358a5 100644
+--- a/test/codegen/floats.go
++++ b/test/codegen/floats.go
+@@ -15,7 +15,7 @@ package codegen
+ // --------------------- //
+ 
+ func Mul2(f float64) float64 {
+-	// 386:"ADDSD",-"MULSD"
++	// 386/sse2:"ADDSD",-"MULSD"
+ 	// amd64:"ADDSD",-"MULSD"
+ 	// arm/7:"ADDD",-"MULD"
+ 	// arm64:"FADDD",-"FMULD"
+@@ -25,7 +25,7 @@ func Mul2(f float64) float64 {
+ }
+ 
+ func DivPow2(f1, f2, f3 float64) (float64, float64, float64) {
+-	// 386:"MULSD",-"DIVSD"
++	// 386/sse2:"MULSD",-"DIVSD"
+ 	// amd64:"MULSD",-"DIVSD"
+ 	// arm/7:"MULD",-"DIVD"
+ 	// arm64:"FMULD",-"FDIVD"
+@@ -33,7 +33,7 @@ func DivPow2(f1, f2, f3 float64) (float64, float64, float64) {
+ 	// ppc64le:"FMUL",-"FDIV"
+ 	x := f1 / 16.0
+ 
+-	// 386:"MULSD",-"DIVSD"
++	// 386/sse2:"MULSD",-"DIVSD"
+ 	// amd64:"MULSD",-"DIVSD"
+ 	// arm/7:"MULD",-"DIVD"
+ 	// arm64:"FMULD",-"FDIVD"
+@@ -41,7 +41,7 @@ func DivPow2(f1, f2, f3 float64) (float64, float64, float64) {
+ 	// ppc64le:"FMUL",-"FDIVD"
+ 	y := f2 / 0.125
+ 
+-	// 386:"ADDSD",-"DIVSD",-"MULSD"
++	// 386/sse2:"ADDSD",-"DIVSD",-"MULSD"
+ 	// amd64:"ADDSD",-"DIVSD",-"MULSD"
+ 	// arm/7:"ADDD",-"MULD",-"DIVD"
+ 	// arm64:"FADDD",-"FMULD",-"FDIVD"
+diff --git a/test/codegen/math.go b/test/codegen/math.go
+index fe678eea23..ac8071400e 100644
+--- a/test/codegen/math.go
++++ b/test/codegen/math.go
+@@ -46,7 +46,7 @@ func approx(x float64) {
+ 
+ func sqrt(x float64) float64 {
+ 	// amd64:"SQRTSD"
+-	// 386:"SQRTSD"
++	// 386/sse2:"SQRTSD" 386/softfloat:-"SQRTD"
+ 	// arm64:"FSQRTD"
+ 	// arm/7:"SQRTD"
+ 	// mips/hardfloat:"SQRTD" mips/softfloat:-"SQRTD"
+diff --git a/test/codegen/memops.go b/test/codegen/memops.go
+index 4b003ad861..a234283146 100644
+--- a/test/codegen/memops.go
++++ b/test/codegen/memops.go
+@@ -175,33 +175,33 @@ func idxInt64(x, y []int64, i int) {
+ 
+ func idxFloat32(x, y []float32, i int) {
+ 	var t float32
+-	// amd64: `MOVSS\t4\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*4\), X[0-9]+`
+-	//   386: `MOVSS\t4\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*4\), X[0-9]+`
++	//    amd64: `MOVSS\t4\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*4\), X[0-9]+`
++	// 386/sse2: `MOVSS\t4\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*4\), X[0-9]+`
+ 	t = x[i+1]
+-	// amd64: `MOVSS\tX[0-9]+, 4\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*4\)`
+-	//   386: `MOVSS\tX[0-9]+, 4\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*4\)`
++	//    amd64: `MOVSS\tX[0-9]+, 4\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*4\)`
++	// 386/sse2: `MOVSS\tX[0-9]+, 4\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*4\)`
+ 	y[i+1] = t
+-	// amd64: `MOVSS\t4\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*[14]\), X[0-9]+`
+-	//   386: `MOVSS\t4\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*[14]\), X[0-9]+`
++	//    amd64: `MOVSS\t4\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*[14]\), X[0-9]+`
++	// 386/sse2: `MOVSS\t4\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*[14]\), X[0-9]+`
+ 	t = x[16*i+1]
+-	// amd64: `MOVSS\tX[0-9]+, 4\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*[14]\)`
+-	//   386: `MOVSS\tX[0-9]+, 4\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*[14]\)`
++	//    amd64: `MOVSS\tX[0-9]+, 4\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*[14]\)`
++	// 386/sse2: `MOVSS\tX[0-9]+, 4\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*[14]\)`
+ 	y[16*i+1] = t
+ }
+ 
+ func idxFloat64(x, y []float64, i int) {
+ 	var t float64
+-	// amd64: `MOVSD\t8\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*8\), X[0-9]+`
+-	//   386: `MOVSD\t8\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*8\), X[0-9]+`
++	//    amd64: `MOVSD\t8\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*8\), X[0-9]+`
++	// 386/sse2: `MOVSD\t8\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*8\), X[0-9]+`
+ 	t = x[i+1]
+-	// amd64: `MOVSD\tX[0-9]+, 8\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*8\)`
+-	//   386: `MOVSD\tX[0-9]+, 8\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*8\)`
++	//    amd64: `MOVSD\tX[0-9]+, 8\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*8\)`
++	// 386/sse2: `MOVSD\tX[0-9]+, 8\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*8\)`
+ 	y[i+1] = t
+-	// amd64: `MOVSD\t8\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*[18]\), X[0-9]+`
+-	//   386: `MOVSD\t8\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*[18]\), X[0-9]+`
++	//    amd64: `MOVSD\t8\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*[18]\), X[0-9]+`
++	// 386/sse2: `MOVSD\t8\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*[18]\), X[0-9]+`
+ 	t = x[16*i+1]
+-	// amd64: `MOVSD\tX[0-9]+, 8\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*[18]\)`
+-	//   386: `MOVSD\tX[0-9]+, 8\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*[18]\)`
++	//    amd64: `MOVSD\tX[0-9]+, 8\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*[18]\)`
++	// 386/sse2: `MOVSD\tX[0-9]+, 8\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*[18]\)`
+ 	y[16*i+1] = t
+ }
+ 
+diff --git a/test/run.go b/test/run.go
+index 77710fd89a..672861c8d7 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -1489,7 +1489,7 @@ var (
+ 	// value[0] is the variant-changing environment variable, and values[1:]
+ 	// are the supported variants.
+ 	archVariants = map[string][]string{
+-		"386":     {},
++		"386":     {"GO386", "sse2", "softfloat"},
+ 		"amd64":   {},
+ 		"arm":     {"GOARM", "5", "6", "7"},
+ 		"arm64":   {},
+@@ -1511,12 +1511,12 @@ type wantedAsmOpcode struct {
+ 	found    bool           // true if the opcode check matched at least one in the output
+ }
+ 
+-// A build environment triplet separated by slashes (eg: linux/arm/7).
++// A build environment triplet separated by slashes (eg: linux/386/sse2).
+ // The third field can be empty if the arch does not support variants (eg: "plan9/amd64/")
+ type buildEnv string
+ 
+ // Environ returns the environment it represents in cmd.Environ() "key=val" format
+-// For instance, "linux/arm/7".Environ() returns {"GOOS=linux", "GOARCH=arm", "GOARM=7"}
++// For instance, "linux/386/sse2".Environ() returns {"GOOS=linux", "GOARCH=386", "GO386=sse2"}
+ func (b buildEnv) Environ() []string {
+ 	fields := strings.Split(string(b), "/")
+ 	if len(fields) != 3 {
+@@ -1571,11 +1571,11 @@ func (t *test) wantedAsmOpcodes(fn string) asmChecks {
+ 
+ 			var arch, subarch, os string
+ 			switch {
+-			case archspec[2] != "": // 3 components: "linux/arm/7"
++			case archspec[2] != "": // 3 components: "linux/386/sse2"
+ 				os, arch, subarch = archspec[0], archspec[1][1:], archspec[2][1:]
+-			case archspec[1] != "": // 2 components: "arm/7"
++			case archspec[1] != "": // 2 components: "386/sse2"
+ 				os, arch, subarch = "linux", archspec[0], archspec[1][1:]
+-			default: // 1 component: "arm"
++			default: // 1 component: "386"
+ 				os, arch, subarch = "linux", archspec[0], ""
+ 				if arch == "wasm" {
+ 					os = "js"

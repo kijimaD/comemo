@@ -11,7 +11,46 @@ Date:   Wed Apr 29 20:15:59 2009 -0700
     DELTA=17  (17 added, 0 deleted, 0 changed)
     OCL=28033
     CL=28067
-
+---
  test/bugs/bug146.go | 14 ++++++++++++++
  test/golden.out     |  7 +++++++
  2 files changed, 21 insertions(+)
+
+diff --git a/test/bugs/bug146.go b/test/bugs/bug146.go
+new file mode 100644
+index 0000000000..3095d2691b
+--- /dev/null
++++ b/test/bugs/bug146.go
+@@ -0,0 +1,14 @@
++// errchk $G $D/$F.go
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func main() {
++	type Slice []byte;
++	a := [...]byte{ 0 };
++	b := Slice(&a);		// This should be OK.
++	c := Slice(a);		// ERROR "invalid"
++}
+diff --git a/test/golden.out b/test/golden.out
+index a3ab91b213..36217cac37 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -111,6 +111,13 @@ bugs/bug140.go:6: syntax error near L1
+ bugs/bug140.go:7: syntax error near L2
+ BUG should compile
+ 
++=========== bugs/bug146.go
++BUG: errchk: bugs/bug146.go:9: missing expected error: 'invalid'
++errchk: bugs/bug146.go: unmatched error messages:
++==================================================
++bugs/bug146.go:8: invalid conversion: *[1]uint8 to Slice
++==================================================
++
+ =========== fixedbugs/bug016.go
+ fixedbugs/bug016.go:7: constant -3 overflows uint
+ 

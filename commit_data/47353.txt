@@ -14,7 +14,7 @@ Date:   Fri Mar 5 01:53:00 2021 +0000
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Emmanuel Odeke <emmanuel@orijtech.com>
-
+---
  misc/trace/trace_viewer_full.html    | 16 ++++++++--------
  src/cmd/compile/internal/ssa/html.go |  2 +-
  src/cmd/trace/mmu.go                 | 22 +++++++++++-----------
@@ -22,3 +22,141 @@ Date:   Fri Mar 5 01:53:00 2021 +0000
  src/encoding/xml/xml_test.go         |  2 +-
  src/net/http/pprof/pprof.go          |  2 +-
  6 files changed, 23 insertions(+), 23 deletions(-)
+
+diff --git a/misc/trace/trace_viewer_full.html b/misc/trace/trace_viewer_full.html
+index ef2e0ea573..ae6e35fca2 100644
+--- a/misc/trace/trace_viewer_full.html
++++ b/misc/trace/trace_viewer_full.html
+@@ -993,13 +993,13 @@
+     </style>
+     <div style="padding-right: 200px">
+       <div style="float:right;  border-style: solid; border-width: 1px; padding:20px">
+-        X no feedback<br/>
+-        0 uninitialized<br/>
+-        . premonomorphic<br/>
+-        1 monomorphic<br/>
+-        ^ recompute handler<br/>
+-        P polymorphic<br/>
+-        N megamorphic<br/>
++        X no feedback<br>
++        0 uninitialized<br>
++        . premonomorphic<br>
++        1 monomorphic<br>
++        ^ recompute handler<br>
++        P polymorphic<br>
++        N megamorphic<br>
+         G generic
+       </div>
+     </div>
+@@ -3596,7 +3596,7 @@
+     <div id="pipeline_per_frame_container">
+       <div class="subtitle">Graphics Pipeline and Raster Tasks</div>
+       <div class="description">
+-        When raster tasks are completed in comparison to the rest of the graphics pipeline.<br/>
++        When raster tasks are completed in comparison to the rest of the graphics pipeline.<br>
+         Only pages where raster tasks are completed after beginFrame is issued are included.
+       </div>
+       <tr-v-ui-raster-visualization id="rasterVisualization">
+diff --git a/src/cmd/compile/internal/ssa/html.go b/src/cmd/compile/internal/ssa/html.go
+index c06b5808e1..4d191199fb 100644
+--- a/src/cmd/compile/internal/ssa/html.go
++++ b/src/cmd/compile/internal/ssa/html.go
+@@ -1064,7 +1064,7 @@ func (f *Func) HTML(phase string, dot *dotWriter) string {
+ 	p := htmlFuncPrinter{w: buf}
+ 	fprintFunc(p, f)
+ 
+-	// fprintFunc(&buf, f) // TODO: HTML, not text, <br /> for line breaks, etc.
++	// fprintFunc(&buf, f) // TODO: HTML, not text, <br> for line breaks, etc.
+ 	fmt.Fprint(buf, "</code>")
+ 	return buf.String()
+ }
+diff --git a/src/cmd/trace/mmu.go b/src/cmd/trace/mmu.go
+index b92fac652c..1d1fd2ea94 100644
+--- a/src/cmd/trace/mmu.go
++++ b/src/cmd/trace/mmu.go
+@@ -283,7 +283,7 @@ var templMMU = `<!doctype html>
+          .done(function(worst) {
+             details.text('Lowest mutator utilization in ' + niceDuration(windowNS) + ' windows:');
+             for (var i = 0; i < worst.length; i++) {
+-              details.append($('<br/>'));
++              details.append($('<br>'));
+               var text = worst[i].MutatorUtil.toFixed(3) + ' at time ' + niceDuration(worst[i].Time);
+               details.append($('<a/>').text(text).attr('href', worst[i].URL));
+             }
+@@ -328,27 +328,27 @@ var templMMU = `<!doctype html>
+       <div id="mmu_chart" style="width: 900px; height: 500px; display: inline-block; vertical-align: top">Loading plot...</div>
+       <div id="options" style="display: inline-block; vertical-align: top">
+         <p>
+-          <b>View</b><br/>
++          <b>View</b><br>
+           <input type="radio" name="view" id="system" checked><label for="system">System</label>
+-          <span class="help">?<span>Consider whole system utilization. For example, if one of four procs is available to the mutator, mutator utilization will be 0.25. This is the standard definition of an MMU.</span></span><br/>
++          <span class="help">?<span>Consider whole system utilization. For example, if one of four procs is available to the mutator, mutator utilization will be 0.25. This is the standard definition of an MMU.</span></span><br>
+           <input type="radio" name="view" id="perProc"><label for="perProc">Per-goroutine</label>
+-          <span class="help">?<span>Consider per-goroutine utilization. When even one goroutine is interrupted by GC, mutator utilization is 0.</span></span><br/>
++          <span class="help">?<span>Consider per-goroutine utilization. When even one goroutine is interrupted by GC, mutator utilization is 0.</span></span><br>
+         </p>
+         <p>
+-          <b>Include</b><br/>
++          <b>Include</b><br>
+           <input type="checkbox" id="stw" checked><label for="stw">STW</label>
+-          <span class="help">?<span>Stop-the-world stops all goroutines simultaneously.</span></span><br/>
++          <span class="help">?<span>Stop-the-world stops all goroutines simultaneously.</span></span><br>
+           <input type="checkbox" id="background" checked><label for="background">Background workers</label>
+-          <span class="help">?<span>Background workers are GC-specific goroutines. 25% of the CPU is dedicated to background workers during GC.</span></span><br/>
++          <span class="help">?<span>Background workers are GC-specific goroutines. 25% of the CPU is dedicated to background workers during GC.</span></span><br>
+           <input type="checkbox" id="assist" checked><label for="assist">Mark assist</label>
+-          <span class="help">?<span>Mark assists are performed by allocation to prevent the mutator from outpacing GC.</span></span><br/>
++          <span class="help">?<span>Mark assists are performed by allocation to prevent the mutator from outpacing GC.</span></span><br>
+           <input type="checkbox" id="sweep"><label for="sweep">Sweep</label>
+-          <span class="help">?<span>Sweep reclaims unused memory between GCs. (Enabling this may be very slow.).</span></span><br/>
++          <span class="help">?<span>Sweep reclaims unused memory between GCs. (Enabling this may be very slow.).</span></span><br>
+         </p>
+         <p>
+-          <b>Display</b><br/>
++          <b>Display</b><br>
+           <input type="checkbox" id="mut"><label for="mut">Show percentiles</label>
+-          <span class="help">?<span>Display percentile mutator utilization in addition to minimum. E.g., p99 MU drops the worst 1% of windows.</span></span><br/>
++          <span class="help">?<span>Display percentile mutator utilization in addition to minimum. E.g., p99 MU drops the worst 1% of windows.</span></span><br>
+         </p>
+       </div>
+     </div>
+diff --git a/src/encoding/xml/xml.go b/src/encoding/xml/xml.go
+index 6f9594d7ba..384d6ad4b8 100644
+--- a/src/encoding/xml/xml.go
++++ b/src/encoding/xml/xml.go
+@@ -261,7 +261,7 @@ func NewTokenDecoder(t TokenReader) *Decoder {
+ // call to Token. To acquire a copy of the bytes, call CopyToken
+ // or the token's Copy method.
+ //
+-// Token expands self-closing elements such as <br/>
++// Token expands self-closing elements such as <br>
+ // into separate start and end elements returned by successive calls.
+ //
+ // Token guarantees that the StartElement and EndElement
+diff --git a/src/encoding/xml/xml_test.go b/src/encoding/xml/xml_test.go
+index 5672ebb375..5a10f5309d 100644
+--- a/src/encoding/xml/xml_test.go
++++ b/src/encoding/xml/xml_test.go
+@@ -940,7 +940,7 @@ func (m mapper) Token() (Token, error) {
+ }
+ 
+ func TestNewTokenDecoderIdempotent(t *testing.T) {
+-	d := NewDecoder(strings.NewReader(`<br/>`))
++	d := NewDecoder(strings.NewReader(`<br>`))
+ 	d2 := NewTokenDecoder(d)
+ 	if d != d2 {
+ 		t.Error("NewTokenDecoder did not detect underlying Decoder")
+diff --git a/src/net/http/pprof/pprof.go b/src/net/http/pprof/pprof.go
+index 5389a388c1..a854fef5d3 100644
+--- a/src/net/http/pprof/pprof.go
++++ b/src/net/http/pprof/pprof.go
+@@ -431,7 +431,7 @@ Types of profiles available:
+ 
+ 	b.WriteString(`</table>
+ <a href="goroutine?debug=2">full goroutine stack dump</a>
+-<br/>
++<br>
+ <p>
+ Profile Descriptions:
+ <ul>

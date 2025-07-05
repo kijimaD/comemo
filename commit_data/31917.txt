@@ -9,6 +9,41 @@ Date:   Thu Mar 23 10:59:41 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/align.go | 9 ++++-----
  1 file changed, 4 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/align.go b/src/cmd/compile/internal/gc/align.go
+index db5edee451..10d86f5fdb 100644
+--- a/src/cmd/compile/internal/gc/align.go
++++ b/src/cmd/compile/internal/gc/align.go
+@@ -79,7 +79,6 @@ func widstruct(errtype *Type, t *Type, o int64, flag int) int64 {
+ 		maxalign = 1
+ 	}
+ 	lastzero := int64(0)
+-	var w int64
+ 	for _, f := range t.Fields().Slice() {
+ 		if f.Type == nil {
+ 			// broken field, just skip it so that other valid fields
+@@ -91,10 +90,6 @@ func widstruct(errtype *Type, t *Type, o int64, flag int) int64 {
+ 		if int32(f.Type.Align) > maxalign {
+ 			maxalign = int32(f.Type.Align)
+ 		}
+-		if f.Type.Width < 0 {
+-			Fatalf("invalid width %d", f.Type.Width)
+-		}
+-		w = f.Type.Width
+ 		if f.Type.Align > 0 {
+ 			o = Rnd(o, int64(f.Type.Align))
+ 		}
+@@ -115,6 +110,10 @@ func widstruct(errtype *Type, t *Type, o int64, flag int) int64 {
+ 			}
+ 		}
+ 
++		w := f.Type.Width
++		if w < 0 {
++			Fatalf("invalid width %d", f.Type.Width)
++		}
+ 		if w == 0 {
+ 			lastzero = o
+ 		}

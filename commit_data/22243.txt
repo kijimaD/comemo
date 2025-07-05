@@ -16,7 +16,57 @@ Date:   Mon Mar 2 10:30:47 2015 -0500
     Change-Id: I710ecaafd7a5c8cad85ccd595ea9cb6058f553b3
     Reviewed-on: https://go-review.googlesource.com/6471
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/dist/build.go | 7 ++++---
  src/cmd/go/build.go   | 4 ++--
  2 files changed, 6 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index 0b5519696b..0d15a36982 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -613,10 +613,11 @@ func install(dir string) {
+ 
+ 	// For package runtime, copy some files into the work space.
+ 	if dir == "runtime" {
++		xmkdirall(pathf("%s/pkg/include", goroot))
+ 		// For use by assembly and C files.
+-		copyfile(pathf("%s/pkg/%s_%s/textflag.h", goroot, goos, goarch),
++		copyfile(pathf("%s/pkg/include/textflag.h", goroot),
+ 			pathf("%s/src/runtime/textflag.h", goroot), 0)
+-		copyfile(pathf("%s/pkg/%s_%s/funcdata.h", goroot, goos, goarch),
++		copyfile(pathf("%s/pkg/include/funcdata.h", goroot),
+ 			pathf("%s/src/runtime/funcdata.h", goroot), 0)
+ 	}
+ 
+@@ -691,7 +692,7 @@ func install(dir string) {
+ 		compile = []string{
+ 			pathf("%s/asm", tooldir),
+ 			"-I", workdir,
+-			"-I", pathf("%s/pkg/%s_%s", goroot, goos, goarch),
++			"-I", pathf("%s/pkg/include", goroot),
+ 			"-D", "GOOS_" + goos,
+ 			"-D", "GOARCH_" + goarch,
+ 			"-D", "GOOS_GOARCH_" + goos + "_" + goarch,
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 5e4d4886ad..a4c97d9640 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -1709,7 +1709,7 @@ const verifyAsm = true
+ 
+ func (gcToolchain) asm(b *builder, p *Package, obj, ofile, sfile string) error {
+ 	// Add -I pkg/GOOS_GOARCH so #include "textflag.h" works in .s files.
+-	inc := filepath.Join(goroot, "pkg", fmt.Sprintf("%s_%s", goos, goarch))
++	inc := filepath.Join(goroot, "pkg", "include")
+ 	sfile = mkAbs(p.Dir, sfile)
+ 	args := []interface{}{buildToolExec, tool("asm"), "-o", ofile, "-trimpath", b.work, "-I", obj, "-I", inc, "-D", "GOOS_" + goos, "-D", "GOARCH_" + goarch, sfile}
+ 	if err := b.run(p.Dir, p.ImportPath, nil, args...); err != nil {
+@@ -2030,7 +2030,7 @@ func (tools gccgoToolchain) ld(b *builder, p *Package, out string, allactions []
+ }
+ 
+ func (gccgoToolchain) cc(b *builder, p *Package, objdir, ofile, cfile string) error {
+-	inc := filepath.Join(goroot, "pkg", fmt.Sprintf("%s_%s", goos, goarch))
++	inc := filepath.Join(goroot, "pkg", "include")
+ 	cfile = mkAbs(p.Dir, cfile)
+ 	defs := []string{"-D", "GOOS_" + goos, "-D", "GOARCH_" + goarch}
+ 	defs = append(defs, b.gccArchArgs()...)

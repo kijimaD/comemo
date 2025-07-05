@@ -7,7 +7,46 @@ Date:   Wed May 19 13:10:00 2010 -0700
     R=r, ken2
     CC=golang-dev
     https://golang.org/cl/1260041
-
+---
  test/bugs/bug275.go | 20 ++++++++++++++++++++
  test/golden.out     |  4 ++++
  2 files changed, 24 insertions(+)
+
+diff --git a/test/bugs/bug275.go b/test/bugs/bug275.go
+new file mode 100644
+index 0000000000..2bbc807c59
+--- /dev/null
++++ b/test/bugs/bug275.go
+@@ -0,0 +1,20 @@
++// $G $D/$F.go || echo BUG should compile
++
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This is a test case for issue 788.
++
++package main
++
++func main() {
++	var a [1]complex64
++
++	t := a[0]
++	_ = real(t) // this works
++
++	_ = real(a[0]) // this doesn't
++}
++
++// bug275.go:17: internal compiler error: subnode not addable
+diff --git a/test/golden.out b/test/golden.out
+index 1bed6599a8..22f2f98a61 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -180,3 +180,7 @@ BUG: bug260 failed
+ 
+ =========== bugs/bug274.go
+ BUG: errchk: command succeeded unexpectedly
++
++=========== bugs/bug275.go
++bugs/bug275.go:17: internal compiler error: subnode not addable
++BUG should compile

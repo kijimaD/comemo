@@ -14,7 +14,37 @@ Date:   Mon Aug 15 10:52:48 2022 +0200
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/mmap/{mmap_other.go => mmap_plan9.go} | 2 --
  src/cmd/go/internal/mmap/mmap_unix.go                     | 2 +-
  2 files changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/internal/mmap/mmap_other.go b/src/cmd/go/internal/mmap/mmap_plan9.go
+similarity index 93%
+rename from src/cmd/go/internal/mmap/mmap_other.go
+rename to src/cmd/go/internal/mmap/mmap_plan9.go
+index 269fe8d60a..faa5d5fc66 100644
+--- a/src/cmd/go/internal/mmap/mmap_other.go
++++ b/src/cmd/go/internal/mmap/mmap_plan9.go
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build plan9 || solaris
+-
+ package mmap
+ 
+ import (
+diff --git a/src/cmd/go/internal/mmap/mmap_unix.go b/src/cmd/go/internal/mmap/mmap_unix.go
+index 33e839c217..53bcbb92a8 100644
+--- a/src/cmd/go/internal/mmap/mmap_unix.go
++++ b/src/cmd/go/internal/mmap/mmap_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build unix && !solaris
++//go:build unix
+ 
+ package mmap
+ 

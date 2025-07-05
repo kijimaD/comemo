@@ -7,6 +7,20 @@ Date:   Thu Apr 8 10:25:57 2010 +1000
     R=rsc, adg
     CC=golang-dev
     https://golang.org/cl/881047
-
+---
  doc/go_spec.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index d34653f262..5c62d38429 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -4570,7 +4570,7 @@ If the function defined here,
+ func f(hideErrors bool) {
+ 	defer func() {
+ 		if x := recover(); x != nil {
+-			println("panicking with value", v)
++			println("panicking with value", x)
+ 			if !hideErrors {
+ 				panic(x)  // go back to panicking
+ 			}

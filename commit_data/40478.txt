@@ -23,8 +23,69 @@ Date:   Sun May 5 03:35:37 2019 +0000
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Run-TryBot: Ben Shi <powerman1st@163.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/ARM64.rules | 4 ++--
  src/cmd/compile/internal/ssa/rewriteARM64.go | 8 ++++----
  test/codegen/floats.go                       | 5 +++++
  3 files changed, 11 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64.rules b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+index f3f006905c..d4b47bfb0b 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+@@ -630,8 +630,8 @@
+ (NZ (GreaterEqualU cc) yes no) -> (UGE cc yes no)
+ (NZ (LessThanF cc) yes no) -> (FLT cc yes no)
+ (NZ (LessEqualF cc) yes no) -> (FLE cc yes no)
+-(NZ (GreaterThan cc) yes no) -> (FGT cc yes no)
+-(NZ (GreaterEqual cc) yes no) -> (FGE cc yes no)
++(NZ (GreaterThanF cc) yes no) -> (FGT cc yes no)
++(NZ (GreaterEqualF cc) yes no) -> (FGE cc yes no)
+ 
+ (EQ (CMPWconst [0] x:(ANDconst [c] y)) yes no) && x.Uses == 1 -> (EQ (TSTWconst [c] y) yes no)
+ (NE (CMPWconst [0] x:(ANDconst [c] y)) yes no) && x.Uses == 1 -> (NE (TSTWconst [c] y) yes no)
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM64.go b/src/cmd/compile/internal/ssa/rewriteARM64.go
+index 7c3f3b9e0c..9dfd848bc4 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM64.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM64.go
+@@ -41214,20 +41214,20 @@ func rewriteBlockARM64(b *Block) bool {
+ 			b.Aux = nil
+ 			return true
+ 		}
+-		// match: (NZ (GreaterThan cc) yes no)
++		// match: (NZ (GreaterThanF cc) yes no)
+ 		// cond:
+ 		// result: (FGT cc yes no)
+-		for v.Op == OpARM64GreaterThan {
++		for v.Op == OpARM64GreaterThanF {
+ 			cc := v.Args[0]
+ 			b.Kind = BlockARM64FGT
+ 			b.SetControl(cc)
+ 			b.Aux = nil
+ 			return true
+ 		}
+-		// match: (NZ (GreaterEqual cc) yes no)
++		// match: (NZ (GreaterEqualF cc) yes no)
+ 		// cond:
+ 		// result: (FGE cc yes no)
+-		for v.Op == OpARM64GreaterEqual {
++		for v.Op == OpARM64GreaterEqualF {
+ 			cc := v.Args[0]
+ 			b.Kind = BlockARM64FGE
+ 			b.SetControl(cc)
+diff --git a/test/codegen/floats.go b/test/codegen/floats.go
+index 5e1f60b08b..7ec3654981 100644
+--- a/test/codegen/floats.go
++++ b/test/codegen/floats.go
+@@ -117,6 +117,11 @@ func FusedSub64_b(x, y, z float64) float64 {
+ 	return z - x*y
+ }
+ 
++func Cmp(f float64) bool {
++	// arm64:"FCMPD","BLE",-"CSET\tGT",-"CBZ"
++	return f > 4 || f < -4
++}
++
+ // ---------------- //
+ //    Non-floats    //
+ // ---------------- //

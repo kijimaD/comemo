@@ -17,7 +17,48 @@ Date:   Mon Apr 25 15:40:00 2022 +0930
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Dan Kortschak <dan@kortschak.io>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/internal/fuzz/encoding.go      | 6 ++++--
  src/internal/fuzz/encoding_test.go | 5 +++++
  2 files changed, 9 insertions(+), 2 deletions(-)
+
+diff --git a/src/internal/fuzz/encoding.go b/src/internal/fuzz/encoding.go
+index c95d9e088b..c2eed7045e 100644
+--- a/src/internal/fuzz/encoding.go
++++ b/src/internal/fuzz/encoding.go
+@@ -12,6 +12,7 @@ import (
+ 	"go/token"
+ 	"math"
+ 	"strconv"
++	"strings"
+ 	"unicode/utf8"
+ )
+ 
+@@ -106,8 +107,9 @@ func unmarshalCorpusFile(b []byte) ([]any, error) {
+ 	if len(lines) < 2 {
+ 		return nil, fmt.Errorf("must include version and at least one value")
+ 	}
+-	if string(lines[0]) != encVersion1 {
+-		return nil, fmt.Errorf("unknown encoding version: %s", lines[0])
++	version := strings.TrimSuffix(string(lines[0]), "\r")
++	if version != encVersion1 {
++		return nil, fmt.Errorf("unknown encoding version: %s", version)
+ 	}
+ 	var vals []any
+ 	for _, line := range lines[1:] {
+diff --git a/src/internal/fuzz/encoding_test.go b/src/internal/fuzz/encoding_test.go
+index 8e3800eb77..6f6173d7e0 100644
+--- a/src/internal/fuzz/encoding_test.go
++++ b/src/internal/fuzz/encoding_test.go
+@@ -214,6 +214,11 @@ uint(18446744073709551615)`
+ 				}
+ 			}(),
+ 		},
++		{
++			desc: "windows new line",
++			in:   "go test fuzz v1\r\nint(0)\r\n",
++			want: "go test fuzz v1\nint(0)",
++		},
+ 	}
+ 	for _, test := range tests {
+ 		t.Run(test.desc, func(t *testing.T) {

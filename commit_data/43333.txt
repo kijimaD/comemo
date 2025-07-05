@@ -9,7 +9,64 @@ Date:   Thu Mar 26 12:54:21 2020 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
-
+---
  src/cmd/link/internal/ld/data.go | 17 +++++++++--------
  src/cmd/link/internal/ld/main.go |  6 ++++--
  2 files changed, 13 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 8c240f4d90..c2ccb2790b 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -2011,18 +2011,19 @@ func (ctxt *Link) textbuildid() {
+ 		return
+ 	}
+ 
+-	s := ctxt.Syms.Lookup("go.buildid", 0)
+-	s.Attr |= sym.AttrReachable
++	ldr := ctxt.loader
++	s := ldr.CreateSymForUpdate("go.buildid", 0)
++	s.SetReachable(true)
+ 	// The \xff is invalid UTF-8, meant to make it less likely
+ 	// to find one of these accidentally.
+ 	data := "\xff Go build ID: " + strconv.Quote(*flagBuildid) + "\n \xff"
+-	s.Type = sym.STEXT
+-	s.P = []byte(data)
+-	s.Size = int64(len(s.P))
++	s.SetType(sym.STEXT)
++	s.SetData([]byte(data))
++	s.SetSize(int64(len(data)))
+ 
+-	ctxt.Textp = append(ctxt.Textp, nil)
+-	copy(ctxt.Textp[1:], ctxt.Textp)
+-	ctxt.Textp[0] = s
++	ctxt.Textp2 = append(ctxt.Textp2, 0)
++	copy(ctxt.Textp2[1:], ctxt.Textp2)
++	ctxt.Textp2[0] = s.Sym()
+ }
+ 
+ func (ctxt *Link) buildinfo() {
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index a94280dc0b..82862d274e 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -276,6 +276,10 @@ func Main(arch *sys.Arch, theArch Arch) {
+ 		bench.Start("doxcoff")
+ 		ctxt.doxcoff()
+ 	}
++
++	bench.Start("textbuildid")
++	ctxt.textbuildid()
++
+ 	bench.Start("loadlibfull")
+ 	setupdynexp(ctxt)
+ 	ctxt.loadlibfull() // XXX do it here for now
+@@ -289,8 +293,6 @@ func Main(arch *sys.Arch, theArch Arch) {
+ 	ctxt.addexport()
+ 	bench.Start("Gentext")
+ 	thearch.Gentext(ctxt) // trampolines, call stubs, etc.
+-	bench.Start("textbuildid")
+-	ctxt.textbuildid()
+ 	bench.Start("textaddress")
+ 	ctxt.textaddress()
+ 	bench.Start("pclntab")

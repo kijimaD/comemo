@@ -16,7 +16,7 @@ Date:   Fri Oct 16 17:07:14 2020 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Michael Pratt <mpratt@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/gc/ssa.go           |  4 ++--
  src/cmd/compile/internal/ppc64/ssa.go        | 22 +++++++++++++++++-----
  src/cmd/compile/internal/ssa/gen/PPC64.rules |  6 ++++--
@@ -24,3 +24,230 @@ Date:   Fri Oct 16 17:07:14 2020 -0400
  src/cmd/compile/internal/ssa/opGen.go        | 28 ++++++++++++++++++++++++++++
  src/cmd/compile/internal/ssa/rewritePPC64.go |  6 ++++++
  6 files changed, 64 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 1561fe2106..2b64b358ed 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -3546,7 +3546,7 @@ func init() {
+ 			s.vars[&memVar] = s.newValue3(ssa.OpAtomicAnd32, types.TypeMem, args[0], args[1], s.mem())
+ 			return nil
+ 		},
+-		sys.AMD64, sys.ARM64) // TODO: same arches as And8.
++		sys.AMD64, sys.ARM64, sys.PPC64) // TODO: same arches as And8.
+ 	addF("runtime/internal/atomic", "Or8",
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			s.vars[&memVar] = s.newValue3(ssa.OpAtomicOr8, types.TypeMem, args[0], args[1], s.mem())
+@@ -3558,7 +3558,7 @@ func init() {
+ 			s.vars[&memVar] = s.newValue3(ssa.OpAtomicOr32, types.TypeMem, args[0], args[1], s.mem())
+ 			return nil
+ 		},
+-		sys.AMD64, sys.ARM64) // TODO: same arches as Or8.
++		sys.AMD64, sys.ARM64, sys.PPC64) // TODO: same arches as And8.
+ 
+ 	alias("runtime/internal/atomic", "Loadint64", "runtime/internal/atomic", "Load64", all...)
+ 	alias("runtime/internal/atomic", "Xaddint64", "runtime/internal/atomic", "Xadd64", all...)
+diff --git a/src/cmd/compile/internal/ppc64/ssa.go b/src/cmd/compile/internal/ppc64/ssa.go
+index 1ece4d999f..79f18bfebb 100644
+--- a/src/cmd/compile/internal/ppc64/ssa.go
++++ b/src/cmd/compile/internal/ppc64/ssa.go
+@@ -166,34 +166,46 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p2.To.Reg = v.Reg1()
+ 
+ 	case ssa.OpPPC64LoweredAtomicAnd8,
+-		ssa.OpPPC64LoweredAtomicOr8:
++		ssa.OpPPC64LoweredAtomicAnd32,
++		ssa.OpPPC64LoweredAtomicOr8,
++		ssa.OpPPC64LoweredAtomicOr32:
+ 		// LWSYNC
+-		// LBAR		(Rarg0), Rtmp
++		// LBAR/LWAR	(Rarg0), Rtmp
+ 		// AND/OR	Rarg1, Rtmp
+-		// STBCCC	Rtmp, (Rarg0)
++		// STBCCC/STWCCC Rtmp, (Rarg0)
+ 		// BNE		-3(PC)
++		ld := ppc64.ALBAR
++		st := ppc64.ASTBCCC
++		if v.Op == ssa.OpPPC64LoweredAtomicAnd32 || v.Op == ssa.OpPPC64LoweredAtomicOr32 {
++			ld = ppc64.ALWAR
++			st = ppc64.ASTWCCC
++		}
+ 		r0 := v.Args[0].Reg()
+ 		r1 := v.Args[1].Reg()
+ 		// LWSYNC - Assuming shared data not write-through-required nor
+ 		// caching-inhibited. See Appendix B.2.2.2 in the ISA 2.07b.
+ 		plwsync := s.Prog(ppc64.ALWSYNC)
+ 		plwsync.To.Type = obj.TYPE_NONE
+-		p := s.Prog(ppc64.ALBAR)
++		// LBAR or LWAR
++		p := s.Prog(ld)
+ 		p.From.Type = obj.TYPE_MEM
+ 		p.From.Reg = r0
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = ppc64.REGTMP
++		// AND/OR reg1,out
+ 		p1 := s.Prog(v.Op.Asm())
+ 		p1.From.Type = obj.TYPE_REG
+ 		p1.From.Reg = r1
+ 		p1.To.Type = obj.TYPE_REG
+ 		p1.To.Reg = ppc64.REGTMP
+-		p2 := s.Prog(ppc64.ASTBCCC)
++		// STBCCC or STWCCC
++		p2 := s.Prog(st)
+ 		p2.From.Type = obj.TYPE_REG
+ 		p2.From.Reg = ppc64.REGTMP
+ 		p2.To.Type = obj.TYPE_MEM
+ 		p2.To.Reg = r0
+ 		p2.RegTo2 = ppc64.REGTMP
++		// BNE retry
+ 		p3 := s.Prog(ppc64.ABNE)
+ 		p3.To.Type = obj.TYPE_BRANCH
+ 		gc.Patch(p3, p)
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64.rules b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+index 11b1a318fe..6175b42b89 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64.rules
++++ b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+@@ -980,8 +980,10 @@
+ (AtomicCompareAndSwap(32|64) ptr old new_ mem) => (LoweredAtomicCas(32|64) [1] ptr old new_ mem)
+ (AtomicCompareAndSwapRel32   ptr old new_ mem) => (LoweredAtomicCas32 [0] ptr old new_ mem)
+ 
+-(AtomicAnd8 ...) => (LoweredAtomicAnd8 ...)
+-(AtomicOr8  ...) => (LoweredAtomicOr8  ...)
++(AtomicAnd8  ...) => (LoweredAtomicAnd8  ...)
++(AtomicAnd32 ...) => (LoweredAtomicAnd32 ...)
++(AtomicOr8   ...) => (LoweredAtomicOr8   ...)
++(AtomicOr32  ...) => (LoweredAtomicOr32  ...)
+ 
+ (Slicemask <t> x) => (SRADconst (NEG <t> x) [63])
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64Ops.go b/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
+index 5885660597..f4a53262f0 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
+@@ -602,25 +602,22 @@ func init() {
+ 		{name: "LoweredAtomicLoadPtr", argLength: 2, reg: gpload, typ: "Int64", aux: "Int64", clobberFlags: true, faultOnNilArg0: true},
+ 
+ 		// atomic add32, 64
+-		// SYNC
++		// LWSYNC
+ 		// LDAR         (Rarg0), Rout
+ 		// ADD		Rarg1, Rout
+ 		// STDCCC       Rout, (Rarg0)
+ 		// BNE          -3(PC)
+-		// ISYNC
+ 		// return new sum
+-
+ 		{name: "LoweredAtomicAdd32", argLength: 3, reg: gpxchg, resultNotInArgs: true, clobberFlags: true, faultOnNilArg0: true, hasSideEffects: true},
+ 		{name: "LoweredAtomicAdd64", argLength: 3, reg: gpxchg, resultNotInArgs: true, clobberFlags: true, faultOnNilArg0: true, hasSideEffects: true},
+ 
+ 		// atomic exchange32, 64
+-		// SYNC
++		// LWSYNC
+ 		// LDAR         (Rarg0), Rout
+ 		// STDCCC       Rarg1, (Rarg0)
+ 		// BNE          -2(PC)
+ 		// ISYNC
+ 		// return old val
+-
+ 		{name: "LoweredAtomicExchange32", argLength: 3, reg: gpxchg, resultNotInArgs: true, clobberFlags: true, faultOnNilArg0: true, hasSideEffects: true},
+ 		{name: "LoweredAtomicExchange64", argLength: 3, reg: gpxchg, resultNotInArgs: true, clobberFlags: true, faultOnNilArg0: true, hasSideEffects: true},
+ 
+@@ -643,15 +640,16 @@ func init() {
+ 		{name: "LoweredAtomicCas64", argLength: 4, reg: gpcas, resultNotInArgs: true, aux: "Int64", clobberFlags: true, faultOnNilArg0: true, hasSideEffects: true},
+ 		{name: "LoweredAtomicCas32", argLength: 4, reg: gpcas, resultNotInArgs: true, aux: "Int64", clobberFlags: true, faultOnNilArg0: true, hasSideEffects: true},
+ 
+-		// atomic 8 and/or.
++		// atomic 8/32 and/or.
+ 		// *arg0 &= (|=) arg1. arg2=mem. returns memory. auxint must be zero.
+-		// LBAR		(Rarg0), Rtmp
++		// LBAR/LWAT	(Rarg0), Rtmp
+ 		// AND/OR	Rarg1, Rtmp
+-		// STBCCC	Rtmp, (Rarg0), Rtmp
++		// STBCCC/STWCCC Rtmp, (Rarg0), Rtmp
+ 		// BNE		Rtmp, -3(PC)
+-
+ 		{name: "LoweredAtomicAnd8", argLength: 3, reg: gpstore, asm: "AND", faultOnNilArg0: true, hasSideEffects: true},
++		{name: "LoweredAtomicAnd32", argLength: 3, reg: gpstore, asm: "AND", faultOnNilArg0: true, hasSideEffects: true},
+ 		{name: "LoweredAtomicOr8", argLength: 3, reg: gpstore, asm: "OR", faultOnNilArg0: true, hasSideEffects: true},
++		{name: "LoweredAtomicOr32", argLength: 3, reg: gpstore, asm: "OR", faultOnNilArg0: true, hasSideEffects: true},
+ 
+ 		// LoweredWB invokes runtime.gcWriteBarrier. arg0=destptr, arg1=srcptr, arg2=mem, aux=runtime.gcWriteBarrier
+ 		// It preserves R0 through R17 (except special registers R1, R2, R11, R12, R13), g, and its arguments R20 and R21,
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index f86210e631..5afb4abf5c 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -2026,7 +2026,9 @@ const (
+ 	OpPPC64LoweredAtomicCas64
+ 	OpPPC64LoweredAtomicCas32
+ 	OpPPC64LoweredAtomicAnd8
++	OpPPC64LoweredAtomicAnd32
+ 	OpPPC64LoweredAtomicOr8
++	OpPPC64LoweredAtomicOr32
+ 	OpPPC64LoweredWB
+ 	OpPPC64LoweredPanicBoundsA
+ 	OpPPC64LoweredPanicBoundsB
+@@ -27022,6 +27024,19 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:           "LoweredAtomicAnd32",
++		argLen:         3,
++		faultOnNilArg0: true,
++		hasSideEffects: true,
++		asm:            ppc64.AAND,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{1, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
+ 	{
+ 		name:           "LoweredAtomicOr8",
+ 		argLen:         3,
+@@ -27035,6 +27050,19 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:           "LoweredAtomicOr32",
++		argLen:         3,
++		faultOnNilArg0: true,
++		hasSideEffects: true,
++		asm:            ppc64.AOR,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{1, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
+ 	{
+ 		name:         "LoweredWB",
+ 		auxType:      auxSym,
+diff --git a/src/cmd/compile/internal/ssa/rewritePPC64.go b/src/cmd/compile/internal/ssa/rewritePPC64.go
+index a820bc0c4e..84938fe27a 100644
+--- a/src/cmd/compile/internal/ssa/rewritePPC64.go
++++ b/src/cmd/compile/internal/ssa/rewritePPC64.go
+@@ -59,6 +59,9 @@ func rewriteValuePPC64(v *Value) bool {
+ 	case OpAtomicAdd64:
+ 		v.Op = OpPPC64LoweredAtomicAdd64
+ 		return true
++	case OpAtomicAnd32:
++		v.Op = OpPPC64LoweredAtomicAnd32
++		return true
+ 	case OpAtomicAnd8:
+ 		v.Op = OpPPC64LoweredAtomicAnd8
+ 		return true
+@@ -86,6 +89,9 @@ func rewriteValuePPC64(v *Value) bool {
+ 		return rewriteValuePPC64_OpAtomicLoadAcq64(v)
+ 	case OpAtomicLoadPtr:
+ 		return rewriteValuePPC64_OpAtomicLoadPtr(v)
++	case OpAtomicOr32:
++		v.Op = OpPPC64LoweredAtomicOr32
++		return true
+ 	case OpAtomicOr8:
+ 		v.Op = OpPPC64LoweredAtomicOr8
+ 		return true

@@ -7,7 +7,7 @@ Date:   Tue Nov 1 21:49:08 2011 -0400
     R=r
     CC=golang-dev
     https://golang.org/cl/5298073
-
+---
  src/pkg/os/dir_plan9.go    | 19 +++++-----
  src/pkg/os/dir_unix.go     |  5 +--
  src/pkg/os/dir_windows.go  |  2 +-
@@ -39,3 +39,1606 @@ Date:   Tue Nov 1 21:49:08 2011 -0400
  src/pkg/os/sys_windows.go  |  2 +-
  src/pkg/os/time.go         |  4 +--
  30 files changed, 233 insertions(+), 253 deletions(-)
+
+diff --git a/src/pkg/os/dir_plan9.go b/src/pkg/os/dir_plan9.go
+index bf17005dd5..05a6e0d832 100644
+--- a/src/pkg/os/dir_plan9.go
++++ b/src/pkg/os/dir_plan9.go
+@@ -5,6 +5,7 @@
+ package os
+ 
+ import (
++	"io"
+ 	"syscall"
+ )
+ 
+@@ -15,7 +16,7 @@ import (
+ //
+ // If n > 0, Readdir returns at most n FileInfo structures. In this case, if
+ // Readdirnames returns an empty slice, it will return a non-nil error
+-// explaining why. At the end of a directory, the error is os.EOF.
++// explaining why. At the end of a directory, the error is io.EOF.
+ //
+ // If n <= 0, Readdir returns all the FileInfo from the directory in
+ // a single slice. In this case, if Readdir succeeds (reads all
+@@ -23,7 +24,7 @@ import (
+ // nil os.Error. If it encounters an error before the end of the
+ // directory, Readdir returns the FileInfo read until that point
+ // and a non-nil error.
+-func (file *File) Readdir(n int) (fi []FileInfo, err Error) {
++func (file *File) Readdir(n int) (fi []FileInfo, err error) {
+ 	// If this file has no dirinfo, create one.
+ 	if file.dirinfo == nil {
+ 		file.dirinfo = new(dirInfo)
+@@ -39,12 +40,12 @@ func (file *File) Readdir(n int) (fi []FileInfo, err Error) {
+ 		// Refill the buffer if necessary
+ 		if d.bufp >= d.nbuf {
+ 			d.bufp = 0
+-			var e Error
++			var e error
+ 			d.nbuf, e = file.Read(d.buf[:])
+-			if e != nil && e != EOF {
++			if e != nil && e != io.EOF {
+ 				return result, &PathError{"readdir", file.name, e}
+ 			}
+-			if e == EOF {
++			if e == io.EOF {
+ 				break
+ 			}
+ 			if d.nbuf < syscall.STATFIXLEN {
+@@ -71,7 +72,7 @@ func (file *File) Readdir(n int) (fi []FileInfo, err Error) {
+ 	}
+ 
+ 	if n >= 0 && len(result) == 0 {
+-		return result, EOF
++		return result, io.EOF
+ 	}
+ 	return result, nil
+ }
+@@ -80,7 +81,7 @@ func (file *File) Readdir(n int) (fi []FileInfo, err Error) {
+ //
+ // If n > 0, Readdirnames returns at most n names. In this case, if
+ // Readdirnames returns an empty slice, it will return a non-nil error
+-// explaining why. At the end of a directory, the error is os.EOF.
++// explaining why. At the end of a directory, the error is io.EOF.
+ //
+ // If n <= 0, Readdirnames returns all the names from the directory in
+ // a single slice. In this case, if Readdirnames succeeds (reads all
+@@ -88,7 +89,7 @@ func (file *File) Readdir(n int) (fi []FileInfo, err Error) {
+ // nil os.Error. If it encounters an error before the end of the
+ // directory, Readdirnames returns the names read until that point and
+ // a non-nil error.
+-func (file *File) Readdirnames(n int) (names []string, err Error) {
++func (file *File) Readdirnames(n int) (names []string, err error) {
+ 	fi, err := file.Readdir(n)
+ 	names = make([]string, len(fi))
+ 	for i := range fi {
+@@ -160,7 +161,7 @@ func pdir(b []byte, d *Dir) []byte {
+ 
+ // UnmarshalDir reads a 9P Stat message from a 9P protocol message stored in b,
+ // returning the corresponding Dir struct.
+-func UnmarshalDir(b []byte) (d *Dir, err Error) {
++func UnmarshalDir(b []byte) (d *Dir, err error) {
+ 	n := uint16(0)
+ 	n, b = gbit16(b)
+ 
+diff --git a/src/pkg/os/dir_unix.go b/src/pkg/os/dir_unix.go
+index 5295933951..df89a0e82e 100644
+--- a/src/pkg/os/dir_unix.go
++++ b/src/pkg/os/dir_unix.go
+@@ -7,6 +7,7 @@
+ package os
+ 
+ import (
++	"io"
+ 	"syscall"
+ )
+ 
+@@ -26,7 +27,7 @@ const (
+ // nil os.Error. If it encounters an error before the end of the
+ // directory, Readdirnames returns the names read until that point and
+ // a non-nil error.
+-func (f *File) Readdirnames(n int) (names []string, err Error) {
++func (f *File) Readdirnames(n int) (names []string, err error) {
+ 	// If this file has no dirinfo, create one.
+ 	if f.dirinfo == nil {
+ 		f.dirinfo = new(dirInfo)
+@@ -63,7 +64,7 @@ func (f *File) Readdirnames(n int) (names []string, err Error) {
+ 		n -= nc
+ 	}
+ 	if n >= 0 && len(names) == 0 {
+-		return names, EOF
++		return names, io.EOF
+ 	}
+ 	return names, nil
+ }
+diff --git a/src/pkg/os/dir_windows.go b/src/pkg/os/dir_windows.go
+index d76e88fdb7..ec06d24168 100644
+--- a/src/pkg/os/dir_windows.go
++++ b/src/pkg/os/dir_windows.go
+@@ -4,7 +4,7 @@
+ 
+ package os
+ 
+-func (file *File) Readdirnames(n int) (names []string, err Error) {
++func (file *File) Readdirnames(n int) (names []string, err error) {
+ 	fis, err := file.Readdir(n)
+ 	names = make([]string, len(fis))
+ 	for i, fi := range fis {
+diff --git a/src/pkg/os/env_plan9.go b/src/pkg/os/env_plan9.go
+index 1fed89f927..52212f2eb5 100644
+--- a/src/pkg/os/env_plan9.go
++++ b/src/pkg/os/env_plan9.go
+@@ -8,12 +8,12 @@ package os
+ 
+ import "syscall"
+ 
+-// ENOENV is the Error indicating that an environment variable does not exist.
++// ENOENV is the error indicating that an environment variable does not exist.
+ var ENOENV = NewError("no such environment variable")
+ 
+ // Getenverror retrieves the value of the environment variable named by the key.
+ // It returns the value and an error, if any.
+-func Getenverror(key string) (value string, err Error) {
++func Getenverror(key string) (value string, err error) {
+ 	if len(key) == 0 {
+ 		return "", EINVAL
+ 	}
+@@ -45,8 +45,8 @@ func Getenv(key string) string {
+ }
+ 
+ // Setenv sets the value of the environment variable named by the key.
+-// It returns an Error, if any.
+-func Setenv(key, value string) Error {
++// It returns an error, if any.
++func Setenv(key, value string) error {
+ 	if len(key) == 0 {
+ 		return EINVAL
+ 	}
+diff --git a/src/pkg/os/env_unix.go b/src/pkg/os/env_unix.go
+index 8dd84ae4f3..01fd9d449f 100644
+--- a/src/pkg/os/env_unix.go
++++ b/src/pkg/os/env_unix.go
+@@ -9,11 +9,12 @@
+ package os
+ 
+ import (
++	"errors"
+ 	"sync"
+ )
+ 
+-// ENOENV is the Error indicating that an environment variable does not exist.
+-var ENOENV = NewError("no such environment variable")
++// ENOENV is the error indicating that an environment variable does not exist.
++var ENOENV = errors.New("no such environment variable")
+ 
+ var env map[string]string
+ var once sync.Once
+@@ -34,7 +35,7 @@ var envLock sync.RWMutex
+ 
+ // Getenverror retrieves the value of the environment variable named by the key.
+ // It returns the value and an error, if any.
+-func Getenverror(key string) (value string, err Error) {
++func Getenverror(key string) (value string, err error) {
+ 	once.Do(copyenv)
+ 
+ 	if len(key) == 0 {
+@@ -59,8 +60,8 @@ func Getenv(key string) string {
+ }
+ 
+ // Setenv sets the value of the environment variable named by the key.
+-// It returns an Error, if any.
+-func Setenv(key, value string) Error {
++// It returns an error, if any.
++func Setenv(key, value string) error {
+ 	once.Do(copyenv)
+ 	if len(key) == 0 {
+ 		return EINVAL
+diff --git a/src/pkg/os/env_windows.go b/src/pkg/os/env_windows.go
+index e6ddc4065f..9fc61974c4 100644
+--- a/src/pkg/os/env_windows.go
++++ b/src/pkg/os/env_windows.go
+@@ -12,12 +12,12 @@ import (
+ 	"unsafe"
+ )
+ 
+-// ENOENV is the Error indicating that an environment variable does not exist.
++// ENOENV is the error indicating that an environment variable does not exist.
+ var ENOENV = NewError("no such environment variable")
+ 
+ // Getenverror retrieves the value of the environment variable named by the key.
+ // It returns the value and an error, if any.
+-func Getenverror(key string) (value string, err Error) {
++func Getenverror(key string) (value string, err error) {
+ 	b := make([]uint16, 100)
+ 	n, e := syscall.GetEnvironmentVariable(syscall.StringToUTF16Ptr(key), &b[0], uint32(len(b)))
+ 	if n == 0 && e == syscall.ERROR_ENVVAR_NOT_FOUND {
+@@ -44,8 +44,8 @@ func Getenv(key string) string {
+ }
+ 
+ // Setenv sets the value of the environment variable named by the key.
+-// It returns an Error, if any.
+-func Setenv(key, value string) Error {
++// It returns an error, if any.
++func Setenv(key, value string) error {
+ 	var v *uint16
+ 	if len(value) > 0 {
+ 		v = syscall.StringToUTF16Ptr(value)
+diff --git a/src/pkg/os/error.go b/src/pkg/os/error.go
+index b4511dd2f4..c3dd06feb7 100644
+--- a/src/pkg/os/error.go
++++ b/src/pkg/os/error.go
+@@ -4,28 +4,11 @@
+ 
+ package os
+ 
+-// An Error can represent any printable error condition.
+-type Error interface {
+-	String() string
+-}
+-
+-// // errorString is a helper type used by NewError.
+-type errorString string
+-
+-func (e errorString) String() string { return string(e) }
+-
+-// Note: If the name of the function NewError changes,
+-// pkg/go/doc/doc.go should be adjusted since it hardwires
+-// this name in a heuristic.
+-
+-// // NewError returns a new error with error.String() == s.
+-func NewError(s string) Error { return errorString(s) }
+-
+ // PathError records an error and the operation and file path that caused it.
+ type PathError struct {
+-	Op    string
+-	Path  string
+-	Error Error
++	Op   string
++	Path string
++	Err  error
+ }
+ 
+-func (e *PathError) String() string { return e.Op + " " + e.Path + ": " + e.Error.String() }
++func (e *PathError) Error() string { return e.Op + " " + e.Path + ": " + e.Err.Error() }
+diff --git a/src/pkg/os/error_plan9.go b/src/pkg/os/error_plan9.go
+index 91ace6d97a..0fcbc50096 100644
+--- a/src/pkg/os/error_plan9.go
++++ b/src/pkg/os/error_plan9.go
+@@ -12,16 +12,16 @@ type SyscallError struct {
+ 	Err     string
+ }
+ 
+-func (e *SyscallError) String() string { return e.Syscall + ": " + e.Err }
++func (e *SyscallError) Error() string { return e.Syscall + ": " + e.Err }
+ 
+ // Note: If the name of the function NewSyscallError changes,
+ // pkg/go/doc/doc.go should be adjusted since it hardwires
+ // this name in a heuristic.
+ 
+-// NewSyscallError returns, as an Error, a new SyscallError
++// NewSyscallError returns, as an error, a new SyscallError
+ // with the given system call name and error details.
+ // As a convenience, if err is nil, NewSyscallError returns nil.
+-func NewSyscallError(syscall string, err syscall.Error) Error {
++func NewSyscallError(syscall string, err syscall.Error) error {
+ 	if err == nil {
+ 		return nil
+ 	}
+diff --git a/src/pkg/os/error_posix.go b/src/pkg/os/error_posix.go
+index 9dc258a796..c3d7942506 100644
+--- a/src/pkg/os/error_posix.go
++++ b/src/pkg/os/error_posix.go
+@@ -9,10 +9,10 @@ package os
+ import syscall "syscall"
+ 
+ // Errno is the Unix error number.  Names such as EINVAL are simple
+-// wrappers to convert the error number into an Error.
++// wrappers to convert the error number into an error.
+ type Errno int64
+ 
+-func (e Errno) String() string { return syscall.Errstr(int(e)) }
++func (e Errno) Error() string { return syscall.Errstr(int(e)) }
+ 
+ func (e Errno) Temporary() bool {
+ 	return e == Errno(syscall.EINTR) || e == Errno(syscall.EMFILE) || e.Timeout()
+@@ -24,45 +24,45 @@ func (e Errno) Timeout() bool {
+ 
+ // Commonly known Unix errors.
+ var (
+-	EPERM        Error = Errno(syscall.EPERM)
+-	ENOENT       Error = Errno(syscall.ENOENT)
+-	ESRCH        Error = Errno(syscall.ESRCH)
+-	EINTR        Error = Errno(syscall.EINTR)
+-	EIO          Error = Errno(syscall.EIO)
+-	ENXIO        Error = Errno(syscall.ENXIO)
+-	E2BIG        Error = Errno(syscall.E2BIG)
+-	ENOEXEC      Error = Errno(syscall.ENOEXEC)
+-	EBADF        Error = Errno(syscall.EBADF)
+-	ECHILD       Error = Errno(syscall.ECHILD)
+-	EDEADLK      Error = Errno(syscall.EDEADLK)
+-	ENOMEM       Error = Errno(syscall.ENOMEM)
+-	EACCES       Error = Errno(syscall.EACCES)
+-	EFAULT       Error = Errno(syscall.EFAULT)
+-	EBUSY        Error = Errno(syscall.EBUSY)
+-	EEXIST       Error = Errno(syscall.EEXIST)
+-	EXDEV        Error = Errno(syscall.EXDEV)
+-	ENODEV       Error = Errno(syscall.ENODEV)
+-	ENOTDIR      Error = Errno(syscall.ENOTDIR)
+-	EISDIR       Error = Errno(syscall.EISDIR)
+-	EINVAL       Error = Errno(syscall.EINVAL)
+-	ENFILE       Error = Errno(syscall.ENFILE)
+-	EMFILE       Error = Errno(syscall.EMFILE)
+-	ENOTTY       Error = Errno(syscall.ENOTTY)
+-	EFBIG        Error = Errno(syscall.EFBIG)
+-	ENOSPC       Error = Errno(syscall.ENOSPC)
+-	ESPIPE       Error = Errno(syscall.ESPIPE)
+-	EROFS        Error = Errno(syscall.EROFS)
+-	EMLINK       Error = Errno(syscall.EMLINK)
+-	EPIPE        Error = Errno(syscall.EPIPE)
+-	EAGAIN       Error = Errno(syscall.EAGAIN)
+-	EDOM         Error = Errno(syscall.EDOM)
+-	ERANGE       Error = Errno(syscall.ERANGE)
+-	EADDRINUSE   Error = Errno(syscall.EADDRINUSE)
+-	ECONNREFUSED Error = Errno(syscall.ECONNREFUSED)
+-	ENAMETOOLONG Error = Errno(syscall.ENAMETOOLONG)
+-	EAFNOSUPPORT Error = Errno(syscall.EAFNOSUPPORT)
+-	ETIMEDOUT    Error = Errno(syscall.ETIMEDOUT)
+-	ENOTCONN     Error = Errno(syscall.ENOTCONN)
++	EPERM        error = Errno(syscall.EPERM)
++	ENOENT       error = Errno(syscall.ENOENT)
++	ESRCH        error = Errno(syscall.ESRCH)
++	EINTR        error = Errno(syscall.EINTR)
++	EIO          error = Errno(syscall.EIO)
++	ENXIO        error = Errno(syscall.ENXIO)
++	E2BIG        error = Errno(syscall.E2BIG)
++	ENOEXEC      error = Errno(syscall.ENOEXEC)
++	EBADF        error = Errno(syscall.EBADF)
++	ECHILD       error = Errno(syscall.ECHILD)
++	EDEADLK      error = Errno(syscall.EDEADLK)
++	ENOMEM       error = Errno(syscall.ENOMEM)
++	EACCES       error = Errno(syscall.EACCES)
++	EFAULT       error = Errno(syscall.EFAULT)
++	EBUSY        error = Errno(syscall.EBUSY)
++	EEXIST       error = Errno(syscall.EEXIST)
++	EXDEV        error = Errno(syscall.EXDEV)
++	ENODEV       error = Errno(syscall.ENODEV)
++	ENOTDIR      error = Errno(syscall.ENOTDIR)
++	EISDIR       error = Errno(syscall.EISDIR)
++	EINVAL       error = Errno(syscall.EINVAL)
++	ENFILE       error = Errno(syscall.ENFILE)
++	EMFILE       error = Errno(syscall.EMFILE)
++	ENOTTY       error = Errno(syscall.ENOTTY)
++	EFBIG        error = Errno(syscall.EFBIG)
++	ENOSPC       error = Errno(syscall.ENOSPC)
++	ESPIPE       error = Errno(syscall.ESPIPE)
++	EROFS        error = Errno(syscall.EROFS)
++	EMLINK       error = Errno(syscall.EMLINK)
++	EPIPE        error = Errno(syscall.EPIPE)
++	EAGAIN       error = Errno(syscall.EAGAIN)
++	EDOM         error = Errno(syscall.EDOM)
++	ERANGE       error = Errno(syscall.ERANGE)
++	EADDRINUSE   error = Errno(syscall.EADDRINUSE)
++	ECONNREFUSED error = Errno(syscall.ECONNREFUSED)
++	ENAMETOOLONG error = Errno(syscall.ENAMETOOLONG)
++	EAFNOSUPPORT error = Errno(syscall.EAFNOSUPPORT)
++	ETIMEDOUT    error = Errno(syscall.ETIMEDOUT)
++	ENOTCONN     error = Errno(syscall.ENOTCONN)
+ )
+ 
+ // SyscallError records an error from a specific system call.
+@@ -71,16 +71,16 @@ type SyscallError struct {
+ 	Errno   Errno
+ }
+ 
+-func (e *SyscallError) String() string { return e.Syscall + ": " + e.Errno.String() }
++func (e *SyscallError) Error() string { return e.Syscall + ": " + e.Errno.Error() }
+ 
+ // Note: If the name of the function NewSyscallError changes,
+ // pkg/go/doc/doc.go should be adjusted since it hardwires
+ // this name in a heuristic.
+ 
+-// NewSyscallError returns, as an Error, a new SyscallError
++// NewSyscallError returns, as an error, a new SyscallError
+ // with the given system call name and error details.
+ // As a convenience, if errno is 0, NewSyscallError returns nil.
+-func NewSyscallError(syscall string, errno int) Error {
++func NewSyscallError(syscall string, errno int) error {
+ 	if errno == 0 {
+ 		return nil
+ 	}
+diff --git a/src/pkg/os/exec_plan9.go b/src/pkg/os/exec_plan9.go
+index 6f0722a222..a815c99d68 100644
+--- a/src/pkg/os/exec_plan9.go
++++ b/src/pkg/os/exec_plan9.go
+@@ -11,7 +11,7 @@ import (
+ 
+ // StartProcess starts a new process with the program, arguments and attributes
+ // specified by name, argv and attr.
+-func StartProcess(name string, argv []string, attr *ProcAttr) (p *Process, err Error) {
++func StartProcess(name string, argv []string, attr *ProcAttr) (p *Process, err error) {
+ 	sysattr := &syscall.ProcAttr{
+ 		Dir: attr.Dir,
+ 		Env: attr.Env,
+@@ -45,7 +45,7 @@ func (note Plan9Note) String() string {
+ 	return string(note)
+ }
+ 
+-func (p *Process) Signal(sig Signal) Error {
++func (p *Process) Signal(sig Signal) error {
+ 	if p.done {
+ 		return NewError("os: process already finished")
+ 	}
+@@ -60,7 +60,7 @@ func (p *Process) Signal(sig Signal) Error {
+ }
+ 
+ // Kill causes the Process to exit immediately.
+-func (p *Process) Kill() Error {
++func (p *Process) Kill() error {
+ 	f, e := OpenFile("/proc/"+itoa(p.Pid)+"/ctl", O_WRONLY, 0)
+ 	if iserror(e) {
+ 		return NewSyscallError("kill", e)
+@@ -72,9 +72,9 @@ func (p *Process) Kill() Error {
+ 
+ // Exec replaces the current process with an execution of the
+ // named binary, with arguments argv and environment envv.
+-// If successful, Exec never returns.  If it fails, it returns an Error.
++// If successful, Exec never returns.  If it fails, it returns an error.
+ // ForkExec is almost always a better way to execute a program.
+-func Exec(name string, argv []string, envv []string) Error {
++func Exec(name string, argv []string, envv []string) error {
+ 	e := syscall.Exec(name, argv, envv)
+ 	if iserror(e) {
+ 		return &PathError{"exec", name, e}
+@@ -89,9 +89,9 @@ type Waitmsg struct {
+ }
+ 
+ // Wait waits for the Process to exit or stop, and then returns a
+-// Waitmsg describing its status and an Error, if any. The options
++// Waitmsg describing its status and an error, if any. The options
+ // (WNOHANG etc.) affect the behavior of the Wait call.
+-func (p *Process) Wait(options int) (w *Waitmsg, err Error) {
++func (p *Process) Wait(options int) (w *Waitmsg, err error) {
+ 	var waitmsg syscall.Waitmsg
+ 
+ 	if p.Pid == -1 {
+@@ -115,11 +115,11 @@ func (p *Process) Wait(options int) (w *Waitmsg, err Error) {
+ }
+ 
+ // Wait waits for process pid to exit or stop, and then returns a
+-// Waitmsg describing its status and an Error, if any. The options
++// Waitmsg describing its status and an error, if any. The options
+ // (WNOHANG etc.) affect the behavior of the Wait call.
+ // Wait is equivalent to calling FindProcess and then Wait
+ // and Release on the result.
+-func Wait(pid int, options int) (w *Waitmsg, err Error) {
++func Wait(pid int, options int) (w *Waitmsg, err error) {
+ 	p, e := FindProcess(pid)
+ 	if e != nil {
+ 		return nil, e
+@@ -129,7 +129,7 @@ func Wait(pid int, options int) (w *Waitmsg, err Error) {
+ }
+ 
+ // Release releases any resources associated with the Process.
+-func (p *Process) Release() Error {
++func (p *Process) Release() error {
+ 	// NOOP for Plan 9.
+ 	p.Pid = -1
+ 	// no need for a finalizer anymore
+@@ -140,7 +140,7 @@ func (p *Process) Release() Error {
+ // FindProcess looks for a running process by its pid.
+ // The Process it returns can be used to obtain information
+ // about the underlying operating system process.
+-func FindProcess(pid int) (p *Process, err Error) {
++func FindProcess(pid int) (p *Process, err error) {
+ 	// NOOP for Plan 9.
+ 	return newProcess(pid, 0), nil
+ }
+diff --git a/src/pkg/os/exec_posix.go b/src/pkg/os/exec_posix.go
+index 035b156cbd..12b44e5f33 100644
+--- a/src/pkg/os/exec_posix.go
++++ b/src/pkg/os/exec_posix.go
+@@ -26,7 +26,7 @@ func (sig UnixSignal) String() string {
+ //
+ // StartProcess is a low-level interface. The exec package provides
+ // higher-level interfaces.
+-func StartProcess(name string, argv []string, attr *ProcAttr) (p *Process, err Error) {
++func StartProcess(name string, argv []string, attr *ProcAttr) (p *Process, err error) {
+ 	sysattr := &syscall.ProcAttr{
+ 		Dir: attr.Dir,
+ 		Env: attr.Env,
+@@ -47,17 +47,17 @@ func StartProcess(name string, argv []string, attr *ProcAttr) (p *Process, err E
+ }
+ 
+ // Kill causes the Process to exit immediately.
+-func (p *Process) Kill() Error {
++func (p *Process) Kill() error {
+ 	return p.Signal(SIGKILL)
+ }
+ 
+ // Exec replaces the current process with an execution of the
+ // named binary, with arguments argv and environment envv.
+-// If successful, Exec never returns.  If it fails, it returns an Error.
++// If successful, Exec never returns.  If it fails, it returns an error.
+ //
+ // To run a child process, see StartProcess (for a low-level interface)
+ // or the exec package (for higher-level interfaces).
+-func Exec(name string, argv []string, envv []string) Error {
++func Exec(name string, argv []string, envv []string) error {
+ 	if envv == nil {
+ 		envv = Environ()
+ 	}
+@@ -83,11 +83,11 @@ type Waitmsg struct {
+ }
+ 
+ // Wait waits for process pid to exit or stop, and then returns a
+-// Waitmsg describing its status and an Error, if any. The options
++// Waitmsg describing its status and an error, if any. The options
+ // (WNOHANG etc.) affect the behavior of the Wait call.
+ // Wait is equivalent to calling FindProcess and then Wait
+ // and Release on the result.
+-func Wait(pid int, options int) (w *Waitmsg, err Error) {
++func Wait(pid int, options int) (w *Waitmsg, err error) {
+ 	p, e := FindProcess(pid)
+ 	if e != nil {
+ 		return nil, e
+diff --git a/src/pkg/os/exec_unix.go b/src/pkg/os/exec_unix.go
+index e1adb203e0..242bda702c 100644
+--- a/src/pkg/os/exec_unix.go
++++ b/src/pkg/os/exec_unix.go
+@@ -7,6 +7,7 @@
+ package os
+ 
+ import (
++	"errors"
+ 	"runtime"
+ 	"syscall"
+ )
+@@ -24,9 +25,9 @@ const (
+ // the options
+ 
+ // Wait waits for the Process to exit or stop, and then returns a
+-// Waitmsg describing its status and an Error, if any. The options
++// Waitmsg describing its status and an error, if any. The options
+ // (WNOHANG etc.) affect the behavior of the Wait call.
+-func (p *Process) Wait(options int) (w *Waitmsg, err Error) {
++func (p *Process) Wait(options int) (w *Waitmsg, err error) {
+ 	if p.Pid == -1 {
+ 		return nil, EINVAL
+ 	}
+@@ -52,9 +53,9 @@ func (p *Process) Wait(options int) (w *Waitmsg, err Error) {
+ }
+ 
+ // Signal sends a signal to the Process.
+-func (p *Process) Signal(sig Signal) Error {
++func (p *Process) Signal(sig Signal) error {
+ 	if p.done {
+-		return NewError("os: process already finished")
++		return errors.New("os: process already finished")
+ 	}
+ 	if e := syscall.Kill(p.Pid, int(sig.(UnixSignal))); e != 0 {
+ 		return Errno(e)
+@@ -63,7 +64,7 @@ func (p *Process) Signal(sig Signal) Error {
+ }
+ 
+ // Release releases any resources associated with the Process.
+-func (p *Process) Release() Error {
++func (p *Process) Release() error {
+ 	// NOOP for unix.
+ 	p.Pid = -1
+ 	// no need for a finalizer anymore
+@@ -74,7 +75,7 @@ func (p *Process) Release() Error {
+ // FindProcess looks for a running process by its pid.
+ // The Process it returns can be used to obtain information
+ // about the underlying operating system process.
+-func FindProcess(pid int) (p *Process, err Error) {
++func FindProcess(pid int) (p *Process, err error) {
+ 	// NOOP for unix.
+ 	return newProcess(pid, 0), nil
+ }
+diff --git a/src/pkg/os/exec_windows.go b/src/pkg/os/exec_windows.go
+index 65e94ac4ac..b2b640c871 100644
+--- a/src/pkg/os/exec_windows.go
++++ b/src/pkg/os/exec_windows.go
+@@ -9,7 +9,7 @@ import (
+ 	"syscall"
+ )
+ 
+-func (p *Process) Wait(options int) (w *Waitmsg, err Error) {
++func (p *Process) Wait(options int) (w *Waitmsg, err error) {
+ 	s, e := syscall.WaitForSingleObject(syscall.Handle(p.handle), syscall.INFINITE)
+ 	switch s {
+ 	case syscall.WAIT_OBJECT_0:
+@@ -29,7 +29,7 @@ func (p *Process) Wait(options int) (w *Waitmsg, err Error) {
+ }
+ 
+ // Signal sends a signal to the Process.
+-func (p *Process) Signal(sig Signal) Error {
++func (p *Process) Signal(sig Signal) error {
+ 	if p.done {
+ 		return NewError("os: process already finished")
+ 	}
+@@ -41,7 +41,7 @@ func (p *Process) Signal(sig Signal) Error {
+ 	return Errno(syscall.EWINDOWS)
+ }
+ 
+-func (p *Process) Release() Error {
++func (p *Process) Release() error {
+ 	if p.handle == -1 {
+ 		return EINVAL
+ 	}
+@@ -55,7 +55,7 @@ func (p *Process) Release() Error {
+ 	return nil
+ }
+ 
+-func FindProcess(pid int) (p *Process, err Error) {
++func FindProcess(pid int) (p *Process, err error) {
+ 	const da = syscall.STANDARD_RIGHTS_READ |
+ 		syscall.PROCESS_QUERY_INFORMATION | syscall.SYNCHRONIZE
+ 	h, e := syscall.OpenProcess(da, false, uint32(pid))
+diff --git a/src/pkg/os/file.go b/src/pkg/os/file.go
+index 9f982e183a..0f3b2db7ea 100644
+--- a/src/pkg/os/file.go
++++ b/src/pkg/os/file.go
+@@ -9,6 +9,7 @@
+ package os
+ 
+ import (
++	"io"
+ 	"syscall"
+ )
+ 
+@@ -47,21 +48,10 @@ const (
+ 	SEEK_END int = 2 // seek relative to the end
+ )
+ 
+-type eofError int
+-
+-func (eofError) String() string { return "EOF" }
+-
+-// EOF is the Error returned by Read when no more input is available.
+-// Functions should return EOF only to signal a graceful end of input.
+-// If the EOF occurs unexpectedly in a structured data stream,
+-// the appropriate error is either io.ErrUnexpectedEOF or some other error
+-// giving more detail.
+-var EOF Error = eofError(0)
+-
+ // Read reads up to len(b) bytes from the File.
+-// It returns the number of bytes read and an Error, if any.
+-// EOF is signaled by a zero count with err set to EOF.
+-func (file *File) Read(b []byte) (n int, err Error) {
++// It returns the number of bytes read and an error, if any.
++// EOF is signaled by a zero count with err set to io.EOF.
++func (file *File) Read(b []byte) (n int, err error) {
+ 	if file == nil {
+ 		return 0, EINVAL
+ 	}
+@@ -70,7 +60,7 @@ func (file *File) Read(b []byte) (n int, err Error) {
+ 		n = 0
+ 	}
+ 	if n == 0 && len(b) > 0 && !iserror(e) {
+-		return 0, EOF
++		return 0, io.EOF
+ 	}
+ 	if iserror(e) {
+ 		err = &PathError{"read", file.name, Errno(e)}
+@@ -79,17 +69,17 @@ func (file *File) Read(b []byte) (n int, err Error) {
+ }
+ 
+ // ReadAt reads len(b) bytes from the File starting at byte offset off.
+-// It returns the number of bytes read and the Error, if any.
+-// EOF is signaled by a zero count with err set to EOF.
+-// ReadAt always returns a non-nil Error when n != len(b).
+-func (file *File) ReadAt(b []byte, off int64) (n int, err Error) {
++// It returns the number of bytes read and the error, if any.
++// EOF is signaled by a zero count with err set to io.EOF.
++// ReadAt always returns a non-nil error when n != len(b).
++func (file *File) ReadAt(b []byte, off int64) (n int, err error) {
+ 	if file == nil {
+ 		return 0, EINVAL
+ 	}
+ 	for len(b) > 0 {
+ 		m, e := file.pread(b, off)
+ 		if m == 0 && !iserror(e) {
+-			return n, EOF
++			return n, io.EOF
+ 		}
+ 		if iserror(e) {
+ 			err = &PathError{"read", file.name, Errno(e)}
+@@ -103,9 +93,9 @@ func (file *File) ReadAt(b []byte, off int64) (n int, err Error) {
+ }
+ 
+ // Write writes len(b) bytes to the File.
+-// It returns the number of bytes written and an Error, if any.
+-// Write returns a non-nil Error when n != len(b).
+-func (file *File) Write(b []byte) (n int, err Error) {
++// It returns the number of bytes written and an error, if any.
++// Write returns a non-nil error when n != len(b).
++func (file *File) Write(b []byte) (n int, err error) {
+ 	if file == nil {
+ 		return 0, EINVAL
+ 	}
+@@ -123,9 +113,9 @@ func (file *File) Write(b []byte) (n int, err Error) {
+ }
+ 
+ // WriteAt writes len(b) bytes to the File starting at byte offset off.
+-// It returns the number of bytes written and an Error, if any.
+-// WriteAt returns a non-nil Error when n != len(b).
+-func (file *File) WriteAt(b []byte, off int64) (n int, err Error) {
++// It returns the number of bytes written and an error, if any.
++// WriteAt returns a non-nil error when n != len(b).
++func (file *File) WriteAt(b []byte, off int64) (n int, err error) {
+ 	if file == nil {
+ 		return 0, EINVAL
+ 	}
+@@ -145,8 +135,8 @@ func (file *File) WriteAt(b []byte, off int64) (n int, err Error) {
+ // Seek sets the offset for the next Read or Write on file to offset, interpreted
+ // according to whence: 0 means relative to the origin of the file, 1 means
+ // relative to the current offset, and 2 means relative to the end.
+-// It returns the new offset and an Error, if any.
+-func (file *File) Seek(offset int64, whence int) (ret int64, err Error) {
++// It returns the new offset and an error, if any.
++func (file *File) Seek(offset int64, whence int) (ret int64, err error) {
+ 	r, e := file.seek(offset, whence)
+ 	if !iserror(e) && file.dirinfo != nil && r != 0 {
+ 		e = syscall.EISDIR
+@@ -159,7 +149,7 @@ func (file *File) Seek(offset int64, whence int) (ret int64, err Error) {
+ 
+ // WriteString is like Write, but writes the contents of string s rather than
+ // an array of bytes.
+-func (file *File) WriteString(s string) (ret int, err Error) {
++func (file *File) WriteString(s string) (ret int, err error) {
+ 	if file == nil {
+ 		return 0, EINVAL
+ 	}
+@@ -168,7 +158,7 @@ func (file *File) WriteString(s string) (ret int, err Error) {
+ 
+ // Mkdir creates a new directory with the specified name and permission bits.
+ // It returns an error, if any.
+-func Mkdir(name string, perm uint32) Error {
++func Mkdir(name string, perm uint32) error {
+ 	e := syscall.Mkdir(name, perm)
+ 	if iserror(e) {
+ 		return &PathError{"mkdir", name, Errno(e)}
+@@ -177,7 +167,7 @@ func Mkdir(name string, perm uint32) Error {
+ }
+ 
+ // Chdir changes the current working directory to the named directory.
+-func Chdir(dir string) Error {
++func Chdir(dir string) error {
+ 	if e := syscall.Chdir(dir); iserror(e) {
+ 		return &PathError{"chdir", dir, Errno(e)}
+ 	}
+@@ -186,7 +176,7 @@ func Chdir(dir string) Error {
+ 
+ // Chdir changes the current working directory to the file,
+ // which must be a directory.
+-func (f *File) Chdir() Error {
++func (f *File) Chdir() error {
+ 	if e := syscall.Fchdir(f.fd); iserror(e) {
+ 		return &PathError{"chdir", f.name, Errno(e)}
+ 	}
+@@ -196,8 +186,8 @@ func (f *File) Chdir() Error {
+ // Open opens the named file for reading.  If successful, methods on
+ // the returned file can be used for reading; the associated file
+ // descriptor has mode O_RDONLY.
+-// It returns the File and an Error, if any.
+-func Open(name string) (file *File, err Error) {
++// It returns the File and an error, if any.
++func Open(name string) (file *File, err error) {
+ 	return OpenFile(name, O_RDONLY, 0)
+ }
+ 
+@@ -205,7 +195,7 @@ func Open(name string) (file *File, err Error) {
+ // it if it already exists.  If successful, methods on the returned
+ // File can be used for I/O; the associated file descriptor has mode
+ // O_RDWR.
+-// It returns the File and an Error, if any.
+-func Create(name string) (file *File, err Error) {
++// It returns the File and an error, if any.
++func Create(name string) (file *File, err error) {
+ 	return OpenFile(name, O_RDWR|O_CREATE|O_TRUNC, 0666)
+ }
+diff --git a/src/pkg/os/file_plan9.go b/src/pkg/os/file_plan9.go
+index 1e94fb715b..42332e157e 100644
+--- a/src/pkg/os/file_plan9.go
++++ b/src/pkg/os/file_plan9.go
+@@ -52,8 +52,8 @@ const DevNull = "/dev/null"
+ // or Create instead.  It opens the named file with specified flag
+ // (O_RDONLY etc.) and perm, (0666 etc.) if applicable.  If successful,
+ // methods on the returned File can be used for I/O.
+-// It returns the File and an Error, if any.
+-func OpenFile(name string, flag int, perm uint32) (file *File, err Error) {
++// It returns the File and an error, if any.
++func OpenFile(name string, flag int, perm uint32) (file *File, err error) {
+ 	var (
+ 		fd     int
+ 		e      syscall.Error
+@@ -108,12 +108,12 @@ func OpenFile(name string, flag int, perm uint32) (file *File, err Error) {
+ }
+ 
+ // Close closes the File, rendering it unusable for I/O.
+-// It returns an Error, if any.
+-func (file *File) Close() Error {
++// It returns an error, if any.
++func (file *File) Close() error {
+ 	if file == nil || file.fd < 0 {
+ 		return Ebadfd
+ 	}
+-	var err Error
++	var err error
+ 	syscall.ForkLock.RLock()
+ 	if e := syscall.Close(file.fd); e != nil {
+ 		err = &PathError{"close", file.name, e}
+@@ -128,7 +128,7 @@ func (file *File) Close() Error {
+ 
+ // Stat returns the FileInfo structure describing file.
+ // It returns the FileInfo and an error, if any.
+-func (f *File) Stat() (fi *FileInfo, err Error) {
++func (f *File) Stat() (fi *FileInfo, err error) {
+ 	d, err := dirstat(f)
+ 	if iserror(err) {
+ 		return nil, err
+@@ -138,7 +138,7 @@ func (f *File) Stat() (fi *FileInfo, err Error) {
+ 
+ // Truncate changes the size of the file.
+ // It does not change the I/O offset.
+-func (f *File) Truncate(size int64) Error {
++func (f *File) Truncate(size int64) error {
+ 	var d Dir
+ 	d.Null()
+ 
+@@ -151,7 +151,7 @@ func (f *File) Truncate(size int64) Error {
+ }
+ 
+ // Chmod changes the mode of the file to mode.
+-func (f *File) Chmod(mode uint32) Error {
++func (f *File) Chmod(mode uint32) error {
+ 	var d Dir
+ 	var mask = ^uint32(0777)
+ 
+@@ -171,7 +171,7 @@ func (f *File) Chmod(mode uint32) Error {
+ // Sync commits the current contents of the file to stable storage.
+ // Typically, this means flushing the file system's in-memory copy
+ // of recently written data to disk.
+-func (f *File) Sync() (err Error) {
++func (f *File) Sync() (err error) {
+ 	if f == nil {
+ 		return EINVAL
+ 	}
+@@ -220,7 +220,7 @@ func (f *File) seek(offset int64, whence int) (ret int64, err syscall.Error) {
+ 
+ // Truncate changes the size of the named file.
+ // If the file is a symbolic link, it changes the size of the link's target.
+-func Truncate(name string, size int64) Error {
++func Truncate(name string, size int64) error {
+ 	var d Dir
+ 	d.Null()
+ 
+@@ -233,7 +233,7 @@ func Truncate(name string, size int64) Error {
+ }
+ 
+ // Remove removes the named file or directory.
+-func Remove(name string) Error {
++func Remove(name string) error {
+ 	if e := syscall.Remove(name); iserror(e) {
+ 		return &PathError{"remove", name, e}
+ 	}
+@@ -241,7 +241,7 @@ func Remove(name string) Error {
+ }
+ 
+ // Rename renames a file.
+-func Rename(oldname, newname string) Error {
++func Rename(oldname, newname string) error {
+ 	var d Dir
+ 	d.Null()
+ 
+@@ -254,7 +254,7 @@ func Rename(oldname, newname string) Error {
+ }
+ 
+ // Chmod changes the mode of the named file to mode.
+-func Chmod(name string, mode uint32) Error {
++func Chmod(name string, mode uint32) error {
+ 	var d Dir
+ 	var mask = ^uint32(0777)
+ 
+@@ -277,7 +277,7 @@ func Chmod(name string, mode uint32) Error {
+ // The argument times are in nanoseconds, although the underlying
+ // filesystem may truncate or round the values to a more
+ // coarse time unit.
+-func Chtimes(name string, atimeNs int64, mtimeNs int64) Error {
++func Chtimes(name string, atimeNs int64, mtimeNs int64) error {
+ 	var d Dir
+ 	d.Null()
+ 
+@@ -290,7 +290,7 @@ func Chtimes(name string, atimeNs int64, mtimeNs int64) Error {
+ 	return nil
+ }
+ 
+-func Pipe() (r *File, w *File, err Error) {
++func Pipe() (r *File, w *File, err error) {
+ 	var p [2]int
+ 
+ 	syscall.ForkLock.RLock()
+@@ -306,26 +306,26 @@ func Pipe() (r *File, w *File, err Error) {
+ // not supported on Plan 9
+ 
+ // Link creates a hard link.
+-func Link(oldname, newname string) Error {
++func Link(oldname, newname string) error {
+ 	return EPLAN9
+ }
+ 
+-func Symlink(oldname, newname string) Error {
++func Symlink(oldname, newname string) error {
+ 	return EPLAN9
+ }
+ 
+-func Readlink(name string) (string, Error) {
++func Readlink(name string) (string, error) {
+ 	return "", EPLAN9
+ }
+ 
+-func Chown(name string, uid, gid int) Error {
++func Chown(name string, uid, gid int) error {
+ 	return EPLAN9
+ }
+ 
+-func Lchown(name string, uid, gid int) Error {
++func Lchown(name string, uid, gid int) error {
+ 	return EPLAN9
+ }
+ 
+-func (f *File) Chown(uid, gid int) Error {
++func (f *File) Chown(uid, gid int) error {
+ 	return EPLAN9
+ }
+diff --git a/src/pkg/os/file_posix.go b/src/pkg/os/file_posix.go
+index 5269149565..c937b6d626 100644
+--- a/src/pkg/os/file_posix.go
++++ b/src/pkg/os/file_posix.go
+@@ -24,7 +24,7 @@ func epipecheck(file *File, e int) {
+ }
+ 
+ // Remove removes the named file or directory.
+-func Remove(name string) Error {
++func Remove(name string) error {
+ 	// System call interface forces us to know
+ 	// whether name is a file or directory.
+ 	// Try both: it is cheaper on average than
+@@ -59,18 +59,18 @@ func Remove(name string) Error {
+ // LinkError records an error during a link or symlink or rename
+ // system call and the paths that caused it.
+ type LinkError struct {
+-	Op    string
+-	Old   string
+-	New   string
+-	Error Error
++	Op  string
++	Old string
++	New string
++	Err error
+ }
+ 
+-func (e *LinkError) String() string {
+-	return e.Op + " " + e.Old + " " + e.New + ": " + e.Error.String()
++func (e *LinkError) Error() string {
++	return e.Op + " " + e.Old + " " + e.New + ": " + e.Err.Error()
+ }
+ 
+ // Link creates a hard link.
+-func Link(oldname, newname string) Error {
++func Link(oldname, newname string) error {
+ 	e := syscall.Link(oldname, newname)
+ 	if iserror(e) {
+ 		return &LinkError{"link", oldname, newname, Errno(e)}
+@@ -79,7 +79,7 @@ func Link(oldname, newname string) Error {
+ }
+ 
+ // Symlink creates a symbolic link.
+-func Symlink(oldname, newname string) Error {
++func Symlink(oldname, newname string) error {
+ 	e := syscall.Symlink(oldname, newname)
+ 	if iserror(e) {
+ 		return &LinkError{"symlink", oldname, newname, Errno(e)}
+@@ -88,8 +88,8 @@ func Symlink(oldname, newname string) Error {
+ }
+ 
+ // Readlink reads the contents of a symbolic link: the destination of
+-// the link.  It returns the contents and an Error, if any.
+-func Readlink(name string) (string, Error) {
++// the link.  It returns the contents and an error, if any.
++func Readlink(name string) (string, error) {
+ 	for len := 128; ; len *= 2 {
+ 		b := make([]byte, len)
+ 		n, e := syscall.Readlink(name, b)
+@@ -105,7 +105,7 @@ func Readlink(name string) (string, Error) {
+ }
+ 
+ // Rename renames a file.
+-func Rename(oldname, newname string) Error {
++func Rename(oldname, newname string) error {
+ 	e := syscall.Rename(oldname, newname)
+ 	if iserror(e) {
+ 		return &LinkError{"rename", oldname, newname, Errno(e)}
+@@ -115,7 +115,7 @@ func Rename(oldname, newname string) Error {
+ 
+ // Chmod changes the mode of the named file to mode.
+ // If the file is a symbolic link, it changes the mode of the link's target.
+-func Chmod(name string, mode uint32) Error {
++func Chmod(name string, mode uint32) error {
+ 	if e := syscall.Chmod(name, mode); iserror(e) {
+ 		return &PathError{"chmod", name, Errno(e)}
+ 	}
+@@ -123,7 +123,7 @@ func Chmod(name string, mode uint32) Error {
+ }
+ 
+ // Chmod changes the mode of the file to mode.
+-func (f *File) Chmod(mode uint32) Error {
++func (f *File) Chmod(mode uint32) error {
+ 	if e := syscall.Fchmod(f.fd, mode); iserror(e) {
+ 		return &PathError{"chmod", f.name, Errno(e)}
+ 	}
+@@ -132,7 +132,7 @@ func (f *File) Chmod(mode uint32) Error {
+ 
+ // Chown changes the numeric uid and gid of the named file.
+ // If the file is a symbolic link, it changes the uid and gid of the link's target.
+-func Chown(name string, uid, gid int) Error {
++func Chown(name string, uid, gid int) error {
+ 	if e := syscall.Chown(name, uid, gid); iserror(e) {
+ 		return &PathError{"chown", name, Errno(e)}
+ 	}
+@@ -141,7 +141,7 @@ func Chown(name string, uid, gid int) Error {
+ 
+ // Lchown changes the numeric uid and gid of the named file.
+ // If the file is a symbolic link, it changes the uid and gid of the link itself.
+-func Lchown(name string, uid, gid int) Error {
++func Lchown(name string, uid, gid int) error {
+ 	if e := syscall.Lchown(name, uid, gid); iserror(e) {
+ 		return &PathError{"lchown", name, Errno(e)}
+ 	}
+@@ -149,7 +149,7 @@ func Lchown(name string, uid, gid int) Error {
+ }
+ 
+ // Chown changes the numeric uid and gid of the named file.
+-func (f *File) Chown(uid, gid int) Error {
++func (f *File) Chown(uid, gid int) error {
+ 	if e := syscall.Fchown(f.fd, uid, gid); iserror(e) {
+ 		return &PathError{"chown", f.name, Errno(e)}
+ 	}
+@@ -158,7 +158,7 @@ func (f *File) Chown(uid, gid int) Error {
+ 
+ // Truncate changes the size of the file.
+ // It does not change the I/O offset.
+-func (f *File) Truncate(size int64) Error {
++func (f *File) Truncate(size int64) error {
+ 	if e := syscall.Ftruncate(f.fd, size); iserror(e) {
+ 		return &PathError{"truncate", f.name, Errno(e)}
+ 	}
+@@ -168,7 +168,7 @@ func (f *File) Truncate(size int64) Error {
+ // Sync commits the current contents of the file to stable storage.
+ // Typically, this means flushing the file system's in-memory copy
+ // of recently written data to disk.
+-func (file *File) Sync() (err Error) {
++func (file *File) Sync() (err error) {
+ 	if file == nil {
+ 		return EINVAL
+ 	}
+@@ -184,7 +184,7 @@ func (file *File) Sync() (err Error) {
+ // The argument times are in nanoseconds, although the underlying
+ // filesystem may truncate or round the values to a more
+ // coarse time unit.
+-func Chtimes(name string, atime_ns int64, mtime_ns int64) Error {
++func Chtimes(name string, atime_ns int64, mtime_ns int64) error {
+ 	var utimes [2]syscall.Timeval
+ 	utimes[0] = syscall.NsecToTimeval(atime_ns)
+ 	utimes[1] = syscall.NsecToTimeval(mtime_ns)
+diff --git a/src/pkg/os/file_unix.go b/src/pkg/os/file_unix.go
+index a4470f1b42..dc8e6f0034 100644
+--- a/src/pkg/os/file_unix.go
++++ b/src/pkg/os/file_unix.go
+@@ -52,8 +52,8 @@ const DevNull = "/dev/null"
+ // or Create instead.  It opens the named file with specified flag
+ // (O_RDONLY etc.) and perm, (0666 etc.) if applicable.  If successful,
+ // methods on the returned File can be used for I/O.
+-// It returns the File and an Error, if any.
+-func OpenFile(name string, flag int, perm uint32) (file *File, err Error) {
++// It returns the File and an error, if any.
++func OpenFile(name string, flag int, perm uint32) (file *File, err error) {
+ 	r, e := syscall.Open(name, flag|syscall.O_CLOEXEC, perm)
+ 	if e != 0 {
+ 		return nil, &PathError{"open", name, Errno(e)}
+@@ -69,12 +69,12 @@ func OpenFile(name string, flag int, perm uint32) (file *File, err Error) {
+ }
+ 
+ // Close closes the File, rendering it unusable for I/O.
+-// It returns an Error, if any.
+-func (file *File) Close() Error {
++// It returns an error, if any.
++func (file *File) Close() error {
+ 	if file == nil || file.fd < 0 {
+ 		return EINVAL
+ 	}
+-	var err Error
++	var err error
+ 	if e := syscall.Close(file.fd); e != 0 {
+ 		err = &PathError{"close", file.name, Errno(e)}
+ 	}
+@@ -87,7 +87,7 @@ func (file *File) Close() Error {
+ 
+ // Stat returns the FileInfo structure describing file.
+ // It returns the FileInfo and an error, if any.
+-func (file *File) Stat() (fi *FileInfo, err Error) {
++func (file *File) Stat() (fi *FileInfo, err error) {
+ 	var stat syscall.Stat_t
+ 	e := syscall.Fstat(file.fd, &stat)
+ 	if e != 0 {
+@@ -101,7 +101,7 @@ func (file *File) Stat() (fi *FileInfo, err Error) {
+ // the file pointed at by the link and has fi.FollowedSymlink set to true.
+ // If name names an invalid symbolic link, the returned FileInfo describes
+ // the link itself and has fi.FollowedSymlink set to false.
+-func Stat(name string) (fi *FileInfo, err Error) {
++func Stat(name string) (fi *FileInfo, err error) {
+ 	var lstat, stat syscall.Stat_t
+ 	e := syscall.Lstat(name, &lstat)
+ 	if iserror(e) {
+@@ -120,7 +120,7 @@ func Stat(name string) (fi *FileInfo, err Error) {
+ // Lstat returns the FileInfo structure describing the named file and an
+ // error, if any.  If the file is a symbolic link, the returned FileInfo
+ // describes the symbolic link.  Lstat makes no attempt to follow the link.
+-func Lstat(name string) (fi *FileInfo, err Error) {
++func Lstat(name string) (fi *FileInfo, err error) {
+ 	var stat syscall.Stat_t
+ 	e := syscall.Lstat(name, &stat)
+ 	if iserror(e) {
+@@ -144,7 +144,7 @@ func Lstat(name string) (fi *FileInfo, err Error) {
+ // nil os.Error. If it encounters an error before the end of the
+ // directory, Readdir returns the FileInfo read until that point
+ // and a non-nil error.
+-func (file *File) Readdir(n int) (fi []FileInfo, err Error) {
++func (file *File) Readdir(n int) (fi []FileInfo, err error) {
+ 	dirname := file.name
+ 	if dirname == "" {
+ 		dirname = "."
+@@ -198,7 +198,7 @@ func (f *File) seek(offset int64, whence int) (ret int64, err int) {
+ 
+ // Truncate changes the size of the named file.
+ // If the file is a symbolic link, it changes the size of the link's target.
+-func Truncate(name string, size int64) Error {
++func Truncate(name string, size int64) error {
+ 	if e := syscall.Truncate(name, size); e != 0 {
+ 		return &PathError{"truncate", name, Errno(e)}
+ 	}
+@@ -224,8 +224,8 @@ func basename(name string) string {
+ }
+ 
+ // Pipe returns a connected pair of Files; reads from r return bytes written to w.
+-// It returns the files and an Error, if any.
+-func Pipe() (r *File, w *File, err Error) {
++// It returns the files and an error, if any.
++func Pipe() (r *File, w *File, err error) {
+ 	var p [2]int
+ 
+ 	// See ../syscall/exec.go for description of lock.
+diff --git a/src/pkg/os/file_windows.go b/src/pkg/os/file_windows.go
+index a3f5b44597..96cadce4d8 100644
+--- a/src/pkg/os/file_windows.go
++++ b/src/pkg/os/file_windows.go
+@@ -5,6 +5,7 @@
+ package os
+ 
+ import (
++	"io"
+ 	"runtime"
+ 	"sync"
+ 	"syscall"
+@@ -47,7 +48,7 @@ const DevNull = "NUL"
+ 
+ func (file *File) isdir() bool { return file != nil && file.dirinfo != nil }
+ 
+-func openFile(name string, flag int, perm uint32) (file *File, err Error) {
++func openFile(name string, flag int, perm uint32) (file *File, err error) {
+ 	r, e := syscall.Open(name, flag|syscall.O_CLOEXEC, perm)
+ 	if e != 0 {
+ 		return nil, &PathError{"open", name, Errno(e)}
+@@ -62,7 +63,7 @@ func openFile(name string, flag int, perm uint32) (file *File, err Error) {
+ 	return NewFile(r, name), nil
+ }
+ 
+-func openDir(name string) (file *File, err Error) {
++func openDir(name string) (file *File, err error) {
+ 	d := new(dirInfo)
+ 	r, e := syscall.FindFirstFile(syscall.StringToUTF16Ptr(name+`\*`), &d.data)
+ 	if e != 0 {
+@@ -77,8 +78,8 @@ func openDir(name string) (file *File, err Error) {
+ // or Create instead.  It opens the named file with specified flag
+ // (O_RDONLY etc.) and perm, (0666 etc.) if applicable.  If successful,
+ // methods on the returned File can be used for I/O.
+-// It returns the File and an Error, if any.
+-func OpenFile(name string, flag int, perm uint32) (file *File, err Error) {
++// It returns the File and an error, if any.
++func OpenFile(name string, flag int, perm uint32) (file *File, err error) {
+ 	// TODO(brainman): not sure about my logic of assuming it is dir first, then fall back to file
+ 	r, e := openDir(name)
+ 	if e == nil {
+@@ -96,8 +97,8 @@ func OpenFile(name string, flag int, perm uint32) (file *File, err Error) {
+ }
+ 
+ // Close closes the File, rendering it unusable for I/O.
+-// It returns an Error, if any.
+-func (file *File) Close() Error {
++// It returns an error, if any.
++func (file *File) Close() error {
+ 	if file == nil || file.fd < 0 {
+ 		return EINVAL
+ 	}
+@@ -107,7 +108,7 @@ func (file *File) Close() Error {
+ 	} else {
+ 		e = syscall.CloseHandle(syscall.Handle(file.fd))
+ 	}
+-	var err Error
++	var err error
+ 	if e != 0 {
+ 		err = &PathError{"close", file.name, Errno(e)}
+ 	}
+@@ -133,7 +134,7 @@ func (file *File) Close() Error {
+ // nil os.Error. If it encounters an error before the end of the
+ // directory, Readdir returns the FileInfo read until that point
+ // and a non-nil error.
+-func (file *File) Readdir(n int) (fi []FileInfo, err Error) {
++func (file *File) Readdir(n int) (fi []FileInfo, err error) {
+ 	if file == nil || file.fd < 0 {
+ 		return nil, EINVAL
+ 	}
+@@ -173,7 +174,7 @@ func (file *File) Readdir(n int) (fi []FileInfo, err Error) {
+ 		fi = append(fi, f)
+ 	}
+ 	if !wantAll && len(fi) == 0 {
+-		return fi, EOF
++		return fi, io.EOF
+ 	}
+ 	return fi, nil
+ }
+@@ -251,7 +252,7 @@ func (f *File) seek(offset int64, whence int) (ret int64, err int) {
+ 
+ // Truncate changes the size of the named file.
+ // If the file is a symbolic link, it changes the size of the link's target.
+-func Truncate(name string, size int64) Error {
++func Truncate(name string, size int64) error {
+ 	f, e := OpenFile(name, O_WRONLY|O_CREATE, 0666)
+ 	if e != nil {
+ 		return e
+@@ -265,8 +266,8 @@ func Truncate(name string, size int64) Error {
+ }
+ 
+ // Pipe returns a connected pair of Files; reads from r return bytes written to w.
+-// It returns the files and an Error, if any.
+-func Pipe() (r *File, w *File, err Error) {
++// It returns the files and an error, if any.
++func Pipe() (r *File, w *File, err error) {
+ 	var p [2]syscall.Handle
+ 
+ 	// See ../syscall/exec.go for description of lock.
+diff --git a/src/pkg/os/getwd.go b/src/pkg/os/getwd.go
+index 4c142ad3ab..d5f5ae6bed 100644
+--- a/src/pkg/os/getwd.go
++++ b/src/pkg/os/getwd.go
+@@ -12,7 +12,7 @@ import (
+ // current directory.  If the current directory can be
+ // reached via multiple paths (due to symbolic links),
+ // Getwd may return any one of them.
+-func Getwd() (string, Error) {
++func Getwd() (string, error) {
+ 	// If the operating system provides a Getwd call, use it.
+ 	if syscall.ImplementsGetwd {
+ 		s, e := syscall.Getwd()
+diff --git a/src/pkg/os/os_test.go b/src/pkg/os/os_test.go
+index 1547ce0dbf..16b41f7b66 100644
+--- a/src/pkg/os/os_test.go
++++ b/src/pkg/os/os_test.go
+@@ -77,7 +77,7 @@ func size(name string, t *testing.T) int64 {
+ 	for {
+ 		n, e := file.Read(buf[0:])
+ 		len += n
+-		if e == EOF {
++		if e == io.EOF {
+ 			break
+ 		}
+ 		if e != nil {
+@@ -257,7 +257,7 @@ func smallReaddirnames(file *File, length int, t *testing.T) []string {
+ 	count := 0
+ 	for {
+ 		d, err := file.Readdirnames(1)
+-		if err == EOF {
++		if err == io.EOF {
+ 			break
+ 		}
+ 		if err != nil {
+@@ -328,14 +328,14 @@ func TestReaddirNValues(t *testing.T) {
+ 
+ 	var d *File
+ 	openDir := func() {
+-		var err Error
++		var err error
+ 		d, err = Open(dir)
+ 		if err != nil {
+ 			t.Fatalf("Open directory: %v", err)
+ 		}
+ 	}
+ 
+-	readDirExpect := func(n, want int, wantErr Error) {
++	readDirExpect := func(n, want int, wantErr error) {
+ 		fi, err := d.Readdir(n)
+ 		if err != wantErr {
+ 			t.Fatalf("Readdir of %d got error %v, want %v", n, err, wantErr)
+@@ -345,7 +345,7 @@ func TestReaddirNValues(t *testing.T) {
+ 		}
+ 	}
+ 
+-	readDirNamesExpect := func(n, want int, wantErr Error) {
++	readDirNamesExpect := func(n, want int, wantErr error) {
+ 		fi, err := d.Readdirnames(n)
+ 		if err != wantErr {
+ 			t.Fatalf("Readdirnames of %d got error %v, want %v", n, err, wantErr)
+@@ -355,7 +355,7 @@ func TestReaddirNValues(t *testing.T) {
+ 		}
+ 	}
+ 
+-	for _, fn := range []func(int, int, Error){readDirExpect, readDirNamesExpect} {
++	for _, fn := range []func(int, int, error){readDirExpect, readDirNamesExpect} {
+ 		// Test the slurp case
+ 		openDir()
+ 		fn(0, 105, nil)
+@@ -374,7 +374,7 @@ func TestReaddirNValues(t *testing.T) {
+ 		fn(1, 1, nil)
+ 		fn(2, 2, nil)
+ 		fn(105, 102, nil) // and tests buffer >100 case
+-		fn(3, 0, EOF)
++		fn(3, 0, io.EOF)
+ 		d.Close()
+ 	}
+ }
+@@ -841,7 +841,7 @@ func TestSeek(t *testing.T) {
+ 	for i, tt := range tests {
+ 		off, err := f.Seek(tt.in, tt.whence)
+ 		if off != tt.out || err != nil {
+-			if e, ok := err.(*PathError); ok && e.Error == EINVAL && tt.out > 1<<32 {
++			if e, ok := err.(*PathError); ok && e.Err == EINVAL && tt.out > 1<<32 {
+ 				// Reiserfs rejects the big seeks.
+ 				// http://code.google.com/p/go/issues/detail?id=91
+ 				break
+@@ -854,7 +854,7 @@ func TestSeek(t *testing.T) {
+ type openErrorTest struct {
+ 	path  string
+ 	mode  int
+-	error Error
++	error error
+ }
+ 
+ var openErrorTests = []openErrorTest{
+@@ -887,15 +887,15 @@ func TestOpenError(t *testing.T) {
+ 		if !ok {
+ 			t.Errorf("Open(%q, %d) returns error of %T type; want *os.PathError", tt.path, tt.mode, err)
+ 		}
+-		if perr.Error != tt.error {
++		if perr.Err != tt.error {
+ 			if syscall.OS == "plan9" {
+-				syscallErrStr := perr.Error.String()
+-				expectedErrStr := strings.Replace(tt.error.String(), "file ", "", 1)
++				syscallErrStr := perr.Err.Error()
++				expectedErrStr := strings.Replace(tt.error.Error(), "file ", "", 1)
+ 				if !strings.HasSuffix(syscallErrStr, expectedErrStr) {
+ 					t.Errorf("Open(%q, %d) = _, %q; want suffix %q", tt.path, tt.mode, syscallErrStr, expectedErrStr)
+ 				}
+ 			} else {
+-				t.Errorf("Open(%q, %d) = _, %q; want %q", tt.path, tt.mode, perr.Error.String(), tt.error.String())
++				t.Errorf("Open(%q, %d) = _, %q; want %q", tt.path, tt.mode, perr.Err.Error(), tt.error.Error())
+ 			}
+ 		}
+ 	}
+diff --git a/src/pkg/os/path.go b/src/pkg/os/path.go
+index b190c51e6d..82fade63ae 100644
+--- a/src/pkg/os/path.go
++++ b/src/pkg/os/path.go
+@@ -4,6 +4,8 @@
+ 
+ package os
+ 
++import "io"
++
+ // MkdirAll creates a directory named path,
+ // along with any necessary parents, and returns nil,
+ // or else returns an error.
+@@ -11,7 +13,7 @@ package os
+ // directories that MkdirAll creates.
+ // If path is already a directory, MkdirAll does nothing
+ // and returns nil.
+-func MkdirAll(path string, perm uint32) Error {
++func MkdirAll(path string, perm uint32) error {
+ 	// If path exists, stop with success or error.
+ 	dir, err := Stat(path)
+ 	if err == nil {
+@@ -58,7 +60,7 @@ func MkdirAll(path string, perm uint32) Error {
+ // It removes everything it can but returns the first error
+ // it encounters.  If the path does not exist, RemoveAll
+ // returns nil (no error).
+-func RemoveAll(path string) Error {
++func RemoveAll(path string) error {
+ 	// Simple case: if Remove works, we're done.
+ 	err := Remove(path)
+ 	if err == nil {
+@@ -68,7 +70,7 @@ func RemoveAll(path string) Error {
+ 	// Otherwise, is this a directory we need to recurse into?
+ 	dir, serr := Lstat(path)
+ 	if serr != nil {
+-		if serr, ok := serr.(*PathError); ok && (serr.Error == ENOENT || serr.Error == ENOTDIR) {
++		if serr, ok := serr.(*PathError); ok && (serr.Err == ENOENT || serr.Err == ENOTDIR) {
+ 			return nil
+ 		}
+ 		return serr
+@@ -94,7 +96,7 @@ func RemoveAll(path string) Error {
+ 				err = err1
+ 			}
+ 		}
+-		if err1 == EOF {
++		if err1 == io.EOF {
+ 			break
+ 		}
+ 		// If Readdirnames returned an error, use it.
+diff --git a/src/pkg/os/path_test.go b/src/pkg/os/path_test.go
+index 31acbaa435..f0da186ac9 100644
+--- a/src/pkg/os/path_test.go
++++ b/src/pkg/os/path_test.go
+@@ -199,7 +199,7 @@ func TestMkdirAllAtSlash(t *testing.T) {
+ 	if err != nil {
+ 		pathErr, ok := err.(*PathError)
+ 		// common for users not to be able to write to /
+-		if ok && pathErr.Error == EACCES {
++		if ok && pathErr.Err == EACCES {
+ 			return
+ 		}
+ 		t.Fatalf(`MkdirAll "/_go_os_test/dir": %v`, err)
+diff --git a/src/pkg/os/proc.go b/src/pkg/os/proc.go
+index dfe388f250..d21f849f21 100644
+--- a/src/pkg/os/proc.go
++++ b/src/pkg/os/proc.go
+@@ -24,7 +24,7 @@ func Getgid() int { return syscall.Getgid() }
+ func Getegid() int { return syscall.Getegid() }
+ 
+ // Getgroups returns a list of the numeric ids of groups that the caller belongs to.
+-func Getgroups() ([]int, Error) {
++func Getgroups() ([]int, error) {
+ 	gids, e := syscall.Getgroups()
+ 	return gids, NewSyscallError("getgroups", e)
+ }
+diff --git a/src/pkg/os/stat_plan9.go b/src/pkg/os/stat_plan9.go
+index 173a23f8bd..8df9e580cc 100644
+--- a/src/pkg/os/stat_plan9.go
++++ b/src/pkg/os/stat_plan9.go
+@@ -26,7 +26,7 @@ func fileInfoFromStat(fi *FileInfo, d *Dir) *FileInfo {
+ }
+ 
+ // arg is an open *File or a path string. 
+-func dirstat(arg interface{}) (d *Dir, err Error) {
++func dirstat(arg interface{}) (d *Dir, err error) {
+ 	var name string
+ 	nd := syscall.STATFIXLEN + 16*4
+ 
+@@ -70,7 +70,7 @@ func dirstat(arg interface{}) (d *Dir, err Error) {
+ }
+ 
+ // Stat returns a FileInfo structure describing the named file and an error, if any.
+-func Stat(name string) (fi *FileInfo, err Error) {
++func Stat(name string) (fi *FileInfo, err error) {
+ 	d, err := dirstat(name)
+ 	if iserror(err) {
+ 		return nil, err
+@@ -81,7 +81,7 @@ func Stat(name string) (fi *FileInfo, err Error) {
+ // Lstat returns the FileInfo structure describing the named file and an
+ // error, if any.  If the file is a symbolic link (though Plan 9 does not have symbolic links), 
+ // the returned FileInfo describes the symbolic link.  Lstat makes no attempt to follow the link.
+-func Lstat(name string) (fi *FileInfo, err Error) {
++func Lstat(name string) (fi *FileInfo, err error) {
+ 	d, err := dirstat(name)
+ 	if iserror(err) {
+ 		return nil, err
+diff --git a/src/pkg/os/stat_windows.go b/src/pkg/os/stat_windows.go
+index 2009d1f1b5..c9f1c4e650 100644
+--- a/src/pkg/os/stat_windows.go
++++ b/src/pkg/os/stat_windows.go
+@@ -11,7 +11,7 @@ import (
+ 
+ // Stat returns the FileInfo structure describing file.
+ // It returns the FileInfo and an error, if any.
+-func (file *File) Stat() (fi *FileInfo, err Error) {
++func (file *File) Stat() (fi *FileInfo, err error) {
+ 	if file == nil || file.fd < 0 {
+ 		return nil, EINVAL
+ 	}
+@@ -32,7 +32,7 @@ func (file *File) Stat() (fi *FileInfo, err Error) {
+ // the file pointed at by the link and has fi.FollowedSymlink set to true.
+ // If name names an invalid symbolic link, the returned FileInfo describes
+ // the link itself and has fi.FollowedSymlink set to false.
+-func Stat(name string) (fi *FileInfo, err Error) {
++func Stat(name string) (fi *FileInfo, err error) {
+ 	if len(name) == 0 {
+ 		return nil, &PathError{"Stat", name, Errno(syscall.ERROR_PATH_NOT_FOUND)}
+ 	}
+@@ -47,7 +47,7 @@ func Stat(name string) (fi *FileInfo, err Error) {
+ // Lstat returns the FileInfo structure describing the named file and an
+ // error, if any.  If the file is a symbolic link, the returned FileInfo
+ // describes the symbolic link.  Lstat makes no attempt to follow the link.
+-func Lstat(name string) (fi *FileInfo, err Error) {
++func Lstat(name string) (fi *FileInfo, err error) {
+ 	// No links on Windows
+ 	return Stat(name)
+ }
+diff --git a/src/pkg/os/sys_bsd.go b/src/pkg/os/sys_bsd.go
+index b0d097a22a..67133a1898 100644
+--- a/src/pkg/os/sys_bsd.go
++++ b/src/pkg/os/sys_bsd.go
+@@ -11,7 +11,7 @@ package os
+ 
+ import "syscall"
+ 
+-func Hostname() (name string, err Error) {
++func Hostname() (name string, err error) {
+ 	var errno int
+ 	name, errno = syscall.Sysctl("kern.hostname")
+ 	if errno != 0 {
+diff --git a/src/pkg/os/sys_linux.go b/src/pkg/os/sys_linux.go
+index 2accd6c1f0..d322a63c2d 100644
+--- a/src/pkg/os/sys_linux.go
++++ b/src/pkg/os/sys_linux.go
+@@ -7,7 +7,7 @@
+ package os
+ 
+ // Hostname returns the host name reported by the kernel.
+-func Hostname() (name string, err Error) {
++func Hostname() (name string, err error) {
+ 	f, err := Open("/proc/sys/kernel/hostname")
+ 	if err != nil {
+ 		return "", err
+diff --git a/src/pkg/os/sys_plan9.go b/src/pkg/os/sys_plan9.go
+index c24cde05ec..8ad89fbc73 100644
+--- a/src/pkg/os/sys_plan9.go
++++ b/src/pkg/os/sys_plan9.go
+@@ -6,7 +6,7 @@
+ 
+ package os
+ 
+-func Hostname() (name string, err Error) {
++func Hostname() (name string, err error) {
+ 	f, err := Open("#c/sysname")
+ 	if err != nil {
+ 		return "", err
+diff --git a/src/pkg/os/sys_windows.go b/src/pkg/os/sys_windows.go
+index a787984589..c1e97a2cfd 100644
+--- a/src/pkg/os/sys_windows.go
++++ b/src/pkg/os/sys_windows.go
+@@ -6,7 +6,7 @@ package os
+ 
+ import "syscall"
+ 
+-func Hostname() (name string, err Error) {
++func Hostname() (name string, err error) {
+ 	s, e := syscall.ComputerName()
+ 	if e != 0 {
+ 		return "", NewSyscallError("ComputerName", e)
+diff --git a/src/pkg/os/time.go b/src/pkg/os/time.go
+index 949574d19a..a4678ee2a1 100644
+--- a/src/pkg/os/time.go
++++ b/src/pkg/os/time.go
+@@ -7,10 +7,10 @@ package os
+ import "syscall"
+ 
+ // Time returns the current time, in whole seconds and
+-// fractional nanoseconds, plus an Error if any. The current
++// fractional nanoseconds, plus an error if any. The current
+ // time is thus 1e9*sec+nsec, in nanoseconds.  The zero of
+ // time is the Unix epoch.
+-func Time() (sec int64, nsec int64, err Error) {
++func Time() (sec int64, nsec int64, err error) {
+ 	var tv syscall.Timeval
+ 	if e := syscall.Gettimeofday(&tv); iserror(e) {
+ 		return 0, 0, NewSyscallError("gettimeofday", e)

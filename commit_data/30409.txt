@@ -16,6 +16,22 @@ Date:   Thu Nov 3 11:50:14 2016 -0400
     Run-TryBot: David Chase <drchase@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/cgo/gcc_libinit_windows.c | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/cgo/gcc_libinit_windows.c b/src/runtime/cgo/gcc_libinit_windows.c
+index 0824e20ad8..b6f51b3e4d 100644
+--- a/src/runtime/cgo/gcc_libinit_windows.c
++++ b/src/runtime/cgo/gcc_libinit_windows.c
+@@ -12,8 +12,8 @@
+ 
+ #include "libcgo.h"
+ 
+-static volatile long runtime_init_once_gate = 0;
+-static volatile long runtime_init_once_done = 0;
++static volatile LONG runtime_init_once_gate = 0;
++static volatile LONG runtime_init_once_done = 0;
+ 
+ static CRITICAL_SECTION runtime_init_cs;
+ 

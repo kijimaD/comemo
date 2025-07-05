@@ -7,6 +7,20 @@ Date:   Tue Oct 9 11:16:35 2012 -0700
     R=golang-dev, minux.ma
     CC=golang-dev
     https://golang.org/cl/6632053
-
+---
  src/pkg/net/http/client.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/http/client.go b/src/pkg/net/http/client.go
+index ad06fde035..02891db9ad 100644
+--- a/src/pkg/net/http/client.go
++++ b/src/pkg/net/http/client.go
+@@ -96,7 +96,7 @@ type readClose struct {
+ //
+ // When err is nil, resp always contains a non-nil resp.Body.
+ //
+-// Callers should close res.Body when done reading from it. If
++// Callers should close resp.Body when done reading from it. If
+ // resp.Body is not closed, the Client's underlying RoundTripper
+ // (typically Transport) may not be able to re-use a persistent TCP
+ // connection to the server for a subsequent "keep-alive" request.

@@ -20,7 +20,50 @@ Date:   Fri Mar 24 16:15:10 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/subr.go | 6 +++++-
  src/cmd/compile/internal/gc/walk.go | 7 +++++--
  2 files changed, 10 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 3885ca32be..f98076ac05 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -1181,7 +1181,11 @@ func updateHasCall(n *Node) {
+ 	}
+ 
+ 	switch n.Op {
+-	case OLITERAL, ONAME:
++	case OLITERAL, ONAME, OTYPE:
++		if b || n.HasCall() {
++			Fatalf("OLITERAL/ONAME/OTYPE should never have calls: %+v", n)
++		}
++		return
+ 	case OAS:
+ 		if needwritebarrier(n.Left) {
+ 			b = true
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 0528949081..c7e35097b8 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -498,7 +498,10 @@ opswitch:
+ 		Dump("walk", n)
+ 		Fatalf("walkexpr: switch 1 unknown op %+S", n)
+ 
+-	case OTYPE, ONONAME, OINDREGSP, OEMPTY, OGETG:
++	case ONONAME, OINDREGSP, OEMPTY, OGETG:
++
++	case OTYPE, ONAME, OLITERAL:
++		// TODO(mdempsky): Just return n; see discussion on CL 38655.
+ 
+ 	case ONOT, OMINUS, OPLUS, OCOM, OREAL, OIMAG, ODOTMETH, ODOTINTER,
+ 		OIND, OSPTR, OITAB, OIDATA, ODOTTYPE, ODOTTYPE2, OADDR:
+@@ -593,7 +596,7 @@ opswitch:
+ 	case ORECOVER:
+ 		n = mkcall("gorecover", n.Type, init, nod(OADDR, nodfp, nil))
+ 
+-	case OLITERAL, OCLOSUREVAR, OCFUNC, ONAME:
++	case OCLOSUREVAR, OCFUNC:
+ 		n.SetAddable(true)
+ 
+ 	case OCALLINTER:

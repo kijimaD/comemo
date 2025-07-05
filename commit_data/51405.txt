@@ -39,7 +39,7 @@ Date:   Thu Jan 20 18:56:57 2022 -0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/types2/check.go           | 23 +++++++++++++
  src/cmd/compile/internal/types2/decl.go            | 11 ++++--
  .../internal/types2/testdata/check/cycles5.src     |  4 +--
@@ -56,3 +56,454 @@ Date:   Thu Jan 20 18:56:57 2022 -0800
  src/go/types/typexpr.go                            |  4 +++
  test/typeparam/issue50259.go                       | 13 ++++++++
  15 files changed, 251 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/check.go b/src/cmd/compile/internal/types2/check.go
+index cce324633e..bfed16993b 100644
+--- a/src/cmd/compile/internal/types2/check.go
++++ b/src/cmd/compile/internal/types2/check.go
+@@ -130,6 +130,7 @@ type Checker struct {
+ 	imports       []*PkgName                  // list of imported packages
+ 	dotImportMap  map[dotImportKey]*PkgName   // maps dot-imported objects to the package they were dot-imported through
+ 	recvTParamMap map[*syntax.Name]*TypeParam // maps blank receiver type parameters to their type
++	brokenAliases map[*TypeName]bool          // set of aliases with broken (not yet determined) types
+ 	unionTypeSets map[*Union]*_TypeSet        // computed type sets for union types
+ 	mono          monoGraph                   // graph for detecting non-monomorphizable instantiation loops
+ 
+@@ -160,6 +161,27 @@ func (check *Checker) addDeclDep(to Object) {
+ 	from.addDep(to)
+ }
+ 
++// brokenAlias records that alias doesn't have a determined type yet.
++// It also sets alias.typ to Typ[Invalid].
++func (check *Checker) brokenAlias(alias *TypeName) {
++	if check.brokenAliases == nil {
++		check.brokenAliases = make(map[*TypeName]bool)
++	}
++	check.brokenAliases[alias] = true
++	alias.typ = Typ[Invalid]
++}
++
++// validAlias records that alias has the valid type typ (possibly Typ[Invalid]).
++func (check *Checker) validAlias(alias *TypeName, typ Type) {
++	delete(check.brokenAliases, alias)
++	alias.typ = typ
++}
++
++// isBrokenAlias reports whether alias doesn't have a determined type yet.
++func (check *Checker) isBrokenAlias(alias *TypeName) bool {
++	return alias.typ == Typ[Invalid] && check.brokenAliases[alias]
++}
++
+ func (check *Checker) rememberUntyped(e syntax.Expr, lhs bool, mode operandMode, typ *Basic, val constant.Value) {
+ 	m := check.untyped
+ 	if m == nil {
+@@ -333,6 +355,7 @@ func (check *Checker) checkFiles(files []*syntax.File) (err error) {
+ 	check.pkgPathMap = nil
+ 	check.seenPkgMap = nil
+ 	check.recvTParamMap = nil
++	check.brokenAliases = nil
+ 	check.unionTypeSets = nil
+ 	check.defTypes = nil
+ 	check.ctxt = nil
+diff --git a/src/cmd/compile/internal/types2/decl.go b/src/cmd/compile/internal/types2/decl.go
+index 710ae5f9c8..d9e926b856 100644
+--- a/src/cmd/compile/internal/types2/decl.go
++++ b/src/cmd/compile/internal/types2/decl.go
+@@ -314,8 +314,13 @@ func (check *Checker) cycleError(cycle []Object) {
+ 	//           cycle? That would be more consistent with other error messages.
+ 	i := firstInSrc(cycle)
+ 	obj := cycle[i]
++	// If obj is a type alias, mark it as valid (not broken) in order to avoid follow-on errors.
++	tname, _ := obj.(*TypeName)
++	if tname != nil && tname.IsAlias() {
++		check.validAlias(tname, Typ[Invalid])
++	}
+ 	var err error_
+-	if check.conf.CompilerErrorMessages {
++	if tname != nil && check.conf.CompilerErrorMessages {
+ 		err.errorf(obj, "invalid recursive type %s", obj.Name())
+ 	} else {
+ 		err.errorf(obj, "illegal cycle in declaration of %s", obj.Name())
+@@ -502,9 +507,9 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *syntax.TypeDecl, def *Named
+ 			check.versionErrorf(tdecl, "go1.9", "type aliases")
+ 		}
+ 
+-		obj.typ = Typ[Invalid]
++		check.brokenAlias(obj)
+ 		rhs = check.varType(tdecl.Type)
+-		obj.typ = rhs
++		check.validAlias(obj, rhs)
+ 		return
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/types2/testdata/check/cycles5.src b/src/cmd/compile/internal/types2/testdata/check/cycles5.src
+index 397adcce01..c932ef92d0 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/cycles5.src
++++ b/src/cmd/compile/internal/types2/testdata/check/cycles5.src
+@@ -135,7 +135,7 @@ type (
+ type (
+ 	a struct{ *b }
+ 	b = c
+-	c struct{ *b }
++	c struct{ *b /* ERROR invalid use of type alias */ }
+ )
+ 
+ // issue #24939
+@@ -145,7 +145,7 @@ type (
+ 	}
+ 
+ 	M interface {
+-		F() P
++		F() P // ERROR invalid use of type alias
+ 	}
+ 
+ 	P = interface {
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50259.go2 b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50259.go2
+new file mode 100644
+index 0000000000..a2e65c4c15
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50259.go2
+@@ -0,0 +1,18 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++var x T[B]
++
++type T[_ any] struct{}
++type A T[B /* ERROR invalid use of type alias */ ]
++type B = T[A]
++
++// test case from issue
++
++var v Box[Step]
++type Box[T any] struct{}
++type Step = Box[StepBox]
++type StepBox Box[Step /* ERROR invalid use of type alias */ ]
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50276.go2 b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50276.go2
+new file mode 100644
+index 0000000000..38a419d361
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50276.go2
+@@ -0,0 +1,39 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++// simplified test case
++
++type transform[T any] struct{}
++type pair[S any] struct {}
++
++var _ transform[step]
++
++type box transform[step /* ERROR invalid use of type alias */ ]
++type step = pair[box]
++
++// test case from issue
++
++type Transform[T any] struct{ hold T }
++type Pair[S, T any] struct {
++	First  S
++	Second T
++}
++
++var first Transform[Step]
++
++// This line doesn't use the Step alias, and it compiles fine if you uncomment it.
++var second Transform[Pair[Box, interface{}]]
++
++type Box *Transform[Step /* ERROR invalid use of type alias */ ]
++
++// This line is the same as the `first` line, but it comes after the Box declaration and
++// does not break the compile.
++var third Transform[Step]
++
++type Step = Pair[Box, interface{}]
++
++// This line also does not break the compile
++var fourth Transform[Step]
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50779.go2 b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50779.go2
+new file mode 100644
+index 0000000000..fe68c28bba
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50779.go2
+@@ -0,0 +1,23 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type AC interface {
++	C
++}
++
++type ST []int
++
++type R[S any, P any] struct{}
++
++type SR = R[SS, ST]
++
++type SS interface {
++	NSR(any) *SR // ERROR invalid use of type alias SR in recursive type
++}
++
++type C interface {
++	NSR(any) *SR
++}
+diff --git a/src/cmd/compile/internal/types2/typexpr.go b/src/cmd/compile/internal/types2/typexpr.go
+index 991df9a082..92c3e642fe 100644
+--- a/src/cmd/compile/internal/types2/typexpr.go
++++ b/src/cmd/compile/internal/types2/typexpr.go
+@@ -99,6 +99,10 @@ func (check *Checker) ident(x *operand, e *syntax.Name, def *Named, wantType boo
+ 		x.mode = constant_
+ 
+ 	case *TypeName:
++		if check.isBrokenAlias(obj) {
++			check.errorf(e, "invalid use of type alias %s in recursive type (see issue #50729)", obj.name)
++			return
++		}
+ 		x.mode = typexpr
+ 
+ 	case *Var:
+diff --git a/src/go/types/check.go b/src/go/types/check.go
+index 90b46b8075..a0c3700254 100644
+--- a/src/go/types/check.go
++++ b/src/go/types/check.go
+@@ -137,6 +137,7 @@ type Checker struct {
+ 	imports       []*PkgName                // list of imported packages
+ 	dotImportMap  map[dotImportKey]*PkgName // maps dot-imported objects to the package they were dot-imported through
+ 	recvTParamMap map[*ast.Ident]*TypeParam // maps blank receiver type parameters to their type
++	brokenAliases map[*TypeName]bool        // set of aliases with broken (not yet determined) types
+ 	unionTypeSets map[*Union]*_TypeSet      // computed type sets for union types
+ 	mono          monoGraph                 // graph for detecting non-monomorphizable instantiation loops
+ 
+@@ -167,6 +168,27 @@ func (check *Checker) addDeclDep(to Object) {
+ 	from.addDep(to)
+ }
+ 
++// brokenAlias records that alias doesn't have a determined type yet.
++// It also sets alias.typ to Typ[Invalid].
++func (check *Checker) brokenAlias(alias *TypeName) {
++	if check.brokenAliases == nil {
++		check.brokenAliases = make(map[*TypeName]bool)
++	}
++	check.brokenAliases[alias] = true
++	alias.typ = Typ[Invalid]
++}
++
++// validAlias records that alias has the valid type typ (possibly Typ[Invalid]).
++func (check *Checker) validAlias(alias *TypeName, typ Type) {
++	delete(check.brokenAliases, alias)
++	alias.typ = typ
++}
++
++// isBrokenAlias reports whether alias doesn't have a determined type yet.
++func (check *Checker) isBrokenAlias(alias *TypeName) bool {
++	return alias.typ == Typ[Invalid] && check.brokenAliases[alias]
++}
++
+ func (check *Checker) rememberUntyped(e ast.Expr, lhs bool, mode operandMode, typ *Basic, val constant.Value) {
+ 	m := check.untyped
+ 	if m == nil {
+@@ -326,6 +348,7 @@ func (check *Checker) checkFiles(files []*ast.File) (err error) {
+ 	check.pkgPathMap = nil
+ 	check.seenPkgMap = nil
+ 	check.recvTParamMap = nil
++	check.brokenAliases = nil
+ 	check.unionTypeSets = nil
+ 	check.defTypes = nil
+ 	check.ctxt = nil
+diff --git a/src/go/types/decl.go b/src/go/types/decl.go
+index 279220bec0..3fc4487309 100644
+--- a/src/go/types/decl.go
++++ b/src/go/types/decl.go
+@@ -313,7 +313,16 @@ func (check *Checker) cycleError(cycle []Object) {
+ 	//           cycle? That would be more consistent with other error messages.
+ 	i := firstInSrc(cycle)
+ 	obj := cycle[i]
+-	check.errorf(obj, _InvalidDeclCycle, "illegal cycle in declaration of %s", obj.Name())
++	// If obj is a type alias, mark it as valid (not broken) in order to avoid follow-on errors.
++	tname, _ := obj.(*TypeName)
++	if tname != nil && tname.IsAlias() {
++		check.validAlias(tname, Typ[Invalid])
++	}
++	if tname != nil && compilerErrorMessages {
++		check.errorf(obj, _InvalidDeclCycle, "invalid recursive type %s", obj.Name())
++	} else {
++		check.errorf(obj, _InvalidDeclCycle, "illegal cycle in declaration of %s", obj.Name())
++	}
+ 	for range cycle {
+ 		check.errorf(obj, _InvalidDeclCycle, "\t%s refers to", obj.Name()) // secondary error, \t indented
+ 		i++
+@@ -555,9 +564,9 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *ast.TypeSpec, def *Named) {
+ 			check.errorf(atPos(tdecl.Assign), _BadDecl, "type aliases requires go1.9 or later")
+ 		}
+ 
+-		obj.typ = Typ[Invalid]
++		check.brokenAlias(obj)
+ 		rhs = check.varType(tdecl.Type)
+-		obj.typ = rhs
++		check.validAlias(obj, rhs)
+ 		return
+ 	}
+ 
+diff --git a/src/go/types/testdata/check/cycles5.src b/src/go/types/testdata/check/cycles5.src
+index 397adcce01..c932ef92d0 100644
+--- a/src/go/types/testdata/check/cycles5.src
++++ b/src/go/types/testdata/check/cycles5.src
+@@ -135,7 +135,7 @@ type (
+ type (
+ 	a struct{ *b }
+ 	b = c
+-	c struct{ *b }
++	c struct{ *b /* ERROR invalid use of type alias */ }
+ )
+ 
+ // issue #24939
+@@ -145,7 +145,7 @@ type (
+ 	}
+ 
+ 	M interface {
+-		F() P
++		F() P // ERROR invalid use of type alias
+ 	}
+ 
+ 	P = interface {
+diff --git a/src/go/types/testdata/fixedbugs/issue50259.go2 b/src/go/types/testdata/fixedbugs/issue50259.go2
+new file mode 100644
+index 0000000000..a2e65c4c15
+--- /dev/null
++++ b/src/go/types/testdata/fixedbugs/issue50259.go2
+@@ -0,0 +1,18 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++var x T[B]
++
++type T[_ any] struct{}
++type A T[B /* ERROR invalid use of type alias */ ]
++type B = T[A]
++
++// test case from issue
++
++var v Box[Step]
++type Box[T any] struct{}
++type Step = Box[StepBox]
++type StepBox Box[Step /* ERROR invalid use of type alias */ ]
+diff --git a/src/go/types/testdata/fixedbugs/issue50276.go2 b/src/go/types/testdata/fixedbugs/issue50276.go2
+new file mode 100644
+index 0000000000..38a419d361
+--- /dev/null
++++ b/src/go/types/testdata/fixedbugs/issue50276.go2
+@@ -0,0 +1,39 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++// simplified test case
++
++type transform[T any] struct{}
++type pair[S any] struct {}
++
++var _ transform[step]
++
++type box transform[step /* ERROR invalid use of type alias */ ]
++type step = pair[box]
++
++// test case from issue
++
++type Transform[T any] struct{ hold T }
++type Pair[S, T any] struct {
++	First  S
++	Second T
++}
++
++var first Transform[Step]
++
++// This line doesn't use the Step alias, and it compiles fine if you uncomment it.
++var second Transform[Pair[Box, interface{}]]
++
++type Box *Transform[Step /* ERROR invalid use of type alias */ ]
++
++// This line is the same as the `first` line, but it comes after the Box declaration and
++// does not break the compile.
++var third Transform[Step]
++
++type Step = Pair[Box, interface{}]
++
++// This line also does not break the compile
++var fourth Transform[Step]
+diff --git a/src/go/types/testdata/fixedbugs/issue50779.go2 b/src/go/types/testdata/fixedbugs/issue50779.go2
+new file mode 100644
+index 0000000000..fe68c28bba
+--- /dev/null
++++ b/src/go/types/testdata/fixedbugs/issue50779.go2
+@@ -0,0 +1,23 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type AC interface {
++	C
++}
++
++type ST []int
++
++type R[S any, P any] struct{}
++
++type SR = R[SS, ST]
++
++type SS interface {
++	NSR(any) *SR // ERROR invalid use of type alias SR in recursive type
++}
++
++type C interface {
++	NSR(any) *SR
++}
+diff --git a/src/go/types/typexpr.go b/src/go/types/typexpr.go
+index 451662e598..52966bb047 100644
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@ -96,6 +96,10 @@ func (check *Checker) ident(x *operand, e *ast.Ident, def *Named, wantType bool)
+ 		x.mode = constant_
+ 
+ 	case *TypeName:
++		if check.isBrokenAlias(obj) {
++			check.errorf(e, _InvalidDeclCycle, "invalid use of type alias %s in recursive type (see issue #50729)", obj.name)
++			return
++		}
+ 		x.mode = typexpr
+ 
+ 	case *Var:
+diff --git a/test/typeparam/issue50259.go b/test/typeparam/issue50259.go
+new file mode 100644
+index 0000000000..6987ebf790
+--- /dev/null
++++ b/test/typeparam/issue50259.go
+@@ -0,0 +1,13 @@
++// errorcheck -G=3
++
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++var x T[B]
++
++type T[_ any] struct{}
++type A T[B] // ERROR "invalid use of type alias B in recursive type"
++type B = T[A]

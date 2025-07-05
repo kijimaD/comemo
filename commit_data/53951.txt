@@ -49,7 +49,166 @@ Date:   Fri Aug 19 12:00:01 2022 +0100
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@google.com>
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/go/printer/performance_test.go | 47 +++++++++++++++++++++++++++--------
  src/go/printer/printer.go          | 51 +++++++++++++++++++++++++++++---------
  2 files changed, 76 insertions(+), 22 deletions(-)
+
+diff --git a/src/go/printer/performance_test.go b/src/go/printer/performance_test.go
+index ea6a98caa4..c58f6d4706 100644
+--- a/src/go/printer/performance_test.go
++++ b/src/go/printer/performance_test.go
+@@ -11,6 +11,7 @@ import (
+ 	"bytes"
+ 	"go/ast"
+ 	"go/parser"
++	"go/token"
+ 	"io"
+ 	"log"
+ 	"os"
+@@ -18,12 +19,15 @@ import (
+ )
+ 
+ var (
+-	testfile *ast.File
+-	testsize int64
++	fileNode *ast.File
++	fileSize int64
++
++	declNode ast.Decl
++	declSize int64
+ )
+ 
+-func testprint(out io.Writer, file *ast.File) {
+-	if err := (&Config{TabIndent | UseSpaces | normalizeNumbers, 8, 0}).Fprint(out, fset, file); err != nil {
++func testprint(out io.Writer, node ast.Node) {
++	if err := (&Config{TabIndent | UseSpaces | normalizeNumbers, 8, 0}).Fprint(out, fset, node); err != nil {
+ 		log.Fatalf("print error: %s", err)
+ 	}
+ }
+@@ -48,17 +52,40 @@ func initialize() {
+ 		log.Fatalf("print error: %s not idempotent", filename)
+ 	}
+ 
+-	testfile = file
+-	testsize = int64(len(src))
++	fileNode = file
++	fileSize = int64(len(src))
++
++	for _, decl := range file.Decls {
++		// The first global variable, which is pretty short:
++		//
++		//	var unresolved = new(ast.Object)
++		if decl, ok := decl.(*ast.GenDecl); ok && decl.Tok == token.VAR {
++			declNode = decl
++			declSize = int64(fset.Position(decl.End()).Offset - fset.Position(decl.Pos()).Offset)
++			break
++		}
++
++	}
++}
++
++func BenchmarkPrintFile(b *testing.B) {
++	if fileNode == nil {
++		initialize()
++	}
++	b.ReportAllocs()
++	b.SetBytes(fileSize)
++	for i := 0; i < b.N; i++ {
++		testprint(io.Discard, fileNode)
++	}
+ }
+ 
+-func BenchmarkPrint(b *testing.B) {
+-	if testfile == nil {
++func BenchmarkPrintDecl(b *testing.B) {
++	if declNode == nil {
+ 		initialize()
+ 	}
+ 	b.ReportAllocs()
+-	b.SetBytes(testsize)
++	b.SetBytes(declSize)
+ 	for i := 0; i < b.N; i++ {
+-		testprint(io.Discard, testfile)
++		testprint(io.Discard, declNode)
+ 	}
+ }
+diff --git a/src/go/printer/printer.go b/src/go/printer/printer.go
+index 2cb1193941..7f96c226dc 100644
+--- a/src/go/printer/printer.go
++++ b/src/go/printer/printer.go
+@@ -13,6 +13,7 @@ import (
+ 	"io"
+ 	"os"
+ 	"strings"
++	"sync"
+ 	"text/tabwriter"
+ 	"unicode"
+ )
+@@ -94,16 +95,6 @@ type printer struct {
+ 	cachedLine int // line corresponding to cachedPos
+ }
+ 
+-func (p *printer) init(cfg *Config, fset *token.FileSet, nodeSizes map[ast.Node]int) {
+-	p.Config = *cfg
+-	p.fset = fset
+-	p.pos = token.Position{Line: 1, Column: 1}
+-	p.out = token.Position{Line: 1, Column: 1}
+-	p.wsbuf = make([]whiteSpace, 0, 16) // whitespace sequences are short
+-	p.nodeSizes = nodeSizes
+-	p.cachedPos = -1
+-}
+-
+ func (p *printer) internalError(msg ...any) {
+ 	if debug {
+ 		fmt.Print(p.pos.String() + ": ")
+@@ -1324,11 +1315,47 @@ type Config struct {
+ 	Indent   int  // default: 0 (all code is indented at least by this much)
+ }
+ 
++var printerPool = sync.Pool{
++	New: func() any {
++		return &printer{
++			// Whitespace sequences are short.
++			wsbuf: make([]whiteSpace, 0, 16),
++			// We start the printer with a 16K output buffer, which is currently
++			// larger than about 80% of Go files in the standard library.
++			output: make([]byte, 0, 16<<10),
++		}
++	},
++}
++
++func newPrinter(cfg *Config, fset *token.FileSet, nodeSizes map[ast.Node]int) *printer {
++	p := printerPool.Get().(*printer)
++	*p = printer{
++		Config:    *cfg,
++		fset:      fset,
++		pos:       token.Position{Line: 1, Column: 1},
++		out:       token.Position{Line: 1, Column: 1},
++		wsbuf:     p.wsbuf[:0],
++		nodeSizes: nodeSizes,
++		cachedPos: -1,
++		output:    p.output[:0],
++	}
++	return p
++}
++
++func (p *printer) free() {
++	// Hard limit on buffer size; see https://golang.org/issue/23199.
++	if cap(p.output) > 64<<10 {
++		return
++	}
++
++	printerPool.Put(p)
++}
++
+ // fprint implements Fprint and takes a nodesSizes map for setting up the printer state.
+ func (cfg *Config) fprint(output io.Writer, fset *token.FileSet, node any, nodeSizes map[ast.Node]int) (err error) {
+ 	// print node
+-	var p printer
+-	p.init(cfg, fset, nodeSizes)
++	p := newPrinter(cfg, fset, nodeSizes)
++	defer p.free()
+ 	if err = p.printNode(node); err != nil {
+ 		return
+ 	}

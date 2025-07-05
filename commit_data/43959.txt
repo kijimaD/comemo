@@ -14,7 +14,37 @@ Date:   Thu Apr 30 01:39:18 2020 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
-
+---
  src/cmd/link/internal/ld/data.go       | 4 +---
  src/cmd/link/internal/loader/loader.go | 3 +++
  2 files changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 4852a18049..84b5b494b2 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -161,9 +161,7 @@ func relocsym(target *Target, ldr *loader.Loader, err *ErrorReporter, syms *Arch
+ 		off := r.Off()
+ 		siz := int32(r.Siz())
+ 		rs := r.Sym()
+-		if rs != 0 {
+-			rs = ldr.ResolveABIAlias(rs)
+-		}
++		rs = ldr.ResolveABIAlias(rs)
+ 		rt := r.Type()
+ 		if off < 0 || off+siz > int32(len(P)) {
+ 			rname := ""
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index 7736ba9771..a7b65e3580 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -2161,6 +2161,9 @@ func (l *Loader) LoadFull(arch *sys.Arch, syms *sym.Symbols, needReloc bool) {
+ // symbol. If the sym in question is not an alias, the sym itself is
+ // returned.
+ func (l *Loader) ResolveABIAlias(s Sym) Sym {
++	if s == 0 {
++		return 0
++	}
+ 	if l.SymType(s) != sym.SABIALIAS {
+ 		return s
+ 	}

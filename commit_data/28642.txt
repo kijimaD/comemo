@@ -7,6 +7,20 @@ Date:   Mon Jun 20 10:40:07 2016 +0900
     Change-Id: Ia978c10a97e4c24fd7cf1fa4a7c3bd886d20bbf8
     Reviewed-on: https://go-review.googlesource.com/24241
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  doc/go1.7.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go1.7.html b/doc/go1.7.html
+index 105e3b4eab..5f6b6a6934 100644
+--- a/doc/go1.7.html
++++ b/doc/go1.7.html
+@@ -857,7 +857,7 @@ status <code>005</code>, not just <code>5</code>.
+ 
+ <p>
+ The server implementation now correctly sends only one "Transfer-Encoding" header when "chunked"
+-is set explicitly, following <a href="https://tools.ietf.org/html/rfc2616#section-3.6">RFC 2616</a>.
++is set explicitly, following <a href="https://tools.ietf.org/html/rfc7230#section-3.3.1">RFC 7230</a>.
+ </p>
+ 
+ <p>

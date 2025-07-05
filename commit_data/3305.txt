@@ -8,7 +8,7 @@ Date:   Thu Sep 17 19:15:54 2009 -0700
     R=ken
     OCL=34768
     CL=34768
-
+---
  src/cmd/5g/ggen.c  |  50 ----------------
  src/cmd/5g/gobj.c  |  38 ++++++++++++
  src/cmd/6g/ggen.c  | 168 -----------------------------------------------------
@@ -18,3 +18,613 @@ Date:   Thu Sep 17 19:15:54 2009 -0700
  src/cmd/gc/go.h    |   3 +
  src/cmd/gc/sinit.c | 153 ++++++++++++++++++++++++++++++++++++++++++++++++
  8 files changed, 261 insertions(+), 267 deletions(-)
+
+diff --git a/src/cmd/5g/ggen.c b/src/cmd/5g/ggen.c
+index abd44e51b8..46c335f92e 100644
+--- a/src/cmd/5g/ggen.c
++++ b/src/cmd/5g/ggen.c
+@@ -490,53 +490,3 @@ clearfat(Node *nl)
+ 	regfree(&nz);
+ }
+ 
+-int
+-getlit(Node *lit)
+-{
+-	if(smallintconst(lit))
+-		return mpgetfix(lit->val.u.xval);
+-	return -1;
+-}
+-
+-int
+-stataddr(Node *nam, Node *n)
+-{
+-	int l;
+-
+-	if(n == N)
+-		goto no;
+-
+-	switch(n->op) {
+-	case ONAME:
+-		*nam = *n;
+-		return n->addable;
+-
+-	case ODOT:
+-		if(!stataddr(nam, n->left))
+-			break;
+-		nam->xoffset += n->xoffset;
+-		nam->type = n->type;
+-		return 1;
+-
+-	case OINDEX:
+-		if(n->left->type->bound < 0)
+-			break;
+-		if(!stataddr(nam, n->left))
+-			break;
+-		l = getlit(n->right);
+-		if(l < 0)
+-			break;
+-		nam->xoffset += l*n->type->width;
+-		nam->type = n->type;
+-		return 1;
+-	}
+-
+-no:
+-	return 0;
+-}
+-
+-int
+-gen_as_init(Node *n)
+-{
+-	return 0;
+-}
+diff --git a/src/cmd/5g/gobj.c b/src/cmd/5g/gobj.c
+index 99855c0da6..2a336a288e 100644
+--- a/src/cmd/5g/gobj.c
++++ b/src/cmd/5g/gobj.c
+@@ -477,6 +477,44 @@ datagostring(Strlit *sval, Addr *a)
+ 	text();
+ }
+ 
++void
++gdata(Node *nam, Node *nr, int wid)
++{
++	Prog *p;
++	vlong v;
++
++	if(wid == 8 && is64(nr->type)) {
++		v = mpgetfix(nr->val.u.xval);
++		p = gins(ADATA, nam, nodintconst(v));
++		p->reg = 4;
++		p = gins(ADATA, nam, nodintconst(v>>32));
++		p->reg = 4;
++		p->from.offset += 4;
++		return;
++	}
++	p = gins(ADATA, nam, nr);
++	p->reg = wid;
++}
++
++void
++gdatastring(Node *nam, Strlit *sval)
++{
++	Prog *p;
++	Node nod1;
++
++	p = gins(ADATA, nam, N);
++	datastring(sval->s, sval->len, &p->to);
++	p->reg = types[tptr]->width;
++	p->to.type = D_CONST;
++	p->to.etype = TINT32;
++//print("%P\n", p);
++
++	nodconst(&nod1, types[TINT32], sval->len);
++	p = gins(ADATA, nam, &nod1);
++	p->reg = types[TINT32]->width;
++	p->from.offset += types[tptr]->width;
++}
++
+ int
+ dstringptr(Sym *s, int off, char *str)
+ {
+diff --git a/src/cmd/6g/ggen.c b/src/cmd/6g/ggen.c
+index ba6199f6db..82e2010514 100644
+--- a/src/cmd/6g/ggen.c
++++ b/src/cmd/6g/ggen.c
+@@ -1029,174 +1029,6 @@ clearfat(Node *nl)
+ 	restx(&ax, &oldax);
+ }
+ 
+-int
+-getlit(Node *lit)
+-{
+-	if(smallintconst(lit))
+-		return mpgetfix(lit->val.u.xval);
+-	return -1;
+-}
+-
+-int
+-stataddr(Node *nam, Node *n)
+-{
+-	int l;
+-
+-	if(n == N)
+-		goto no;
+-
+-	switch(n->op) {
+-
+-	case ONAME:
+-		*nam = *n;
+-		return n->addable;
+-
+-	case ODOT:
+-		if(!stataddr(nam, n->left))
+-			break;
+-		nam->xoffset += n->xoffset;
+-		nam->type = n->type;
+-		return 1;
+-
+-	case OINDEX:
+-		if(n->left->type->bound < 0)
+-			break;
+-		if(!stataddr(nam, n->left))
+-			break;
+-		l = getlit(n->right);
+-		if(l < 0)
+-			break;
+-		nam->xoffset += l*n->type->width;
+-		nam->type = n->type;
+-		return 1;
+-	}
+-
+-no:
+-	return 0;
+-}
+-
+-int
+-gen_as_init(Node *n)
+-{
+-	Node *nr, *nl;
+-	Node nam, nod1;
+-	Prog *p;
+-
+-	if(n->dodata == 0)
+-		goto no;
+-
+-	nr = n->right;
+-	nl = n->left;
+-	if(nr == N) {
+-		if(!stataddr(&nam, nl))
+-			goto no;
+-		if(nam.class != PEXTERN)
+-			goto no;
+-		goto yes;
+-	}
+-
+-	if(nr->type == T || !eqtype(nl->type, nr->type))
+-		goto no;
+-
+-	if(!stataddr(&nam, nl))
+-		goto no;
+-
+-	if(nam.class != PEXTERN)
+-		goto no;
+-
+-	switch(nr->op) {
+-	default:
+-		goto no;
+-
+-	case OCONVSLICE:
+-		goto slice;
+-
+-	case OLITERAL:
+-		break;
+-	}
+-
+-	switch(nr->type->etype) {
+-	default:
+-		goto no;
+-
+-	case TBOOL:
+-	case TINT8:
+-	case TUINT8:
+-	case TINT16:
+-	case TUINT16:
+-	case TINT32:
+-	case TUINT32:
+-	case TINT64:
+-	case TUINT64:
+-	case TINT:
+-	case TUINT:
+-	case TUINTPTR:
+-	case TPTR32:
+-	case TPTR64:
+-	case TFLOAT32:
+-	case TFLOAT64:
+-	case TFLOAT:
+-		p = gins(ANOP, N, N); // in case the data is the dest of a goto
+-		p = gins(ADATA, &nam, nr);
+-		p->from.scale = nr->type->width;
+-		break;
+-
+-	case TSTRING:
+-		gins(ANOP, N, N); // in case the data is the dest of a goto
+-		p = gins(ADATA, &nam, N);
+-		datastring(nr->val.u.sval->s, nr->val.u.sval->len, &p->to);
+-		p->from.scale = types[tptr]->width;
+-		p->to.index = p->to.type;
+-		p->to.type = D_ADDR;
+-//print("%P\n", p);
+-
+-		nodconst(&nod1, types[TINT32], nr->val.u.sval->len);
+-		p = gins(ADATA, &nam, &nod1);
+-		p->from.scale = types[TINT32]->width;
+-		p->from.offset += types[tptr]->width;
+-//print("%P\n", p);
+-		break;
+-	}
+-
+-yes:
+-	return 1;
+-
+-slice:
+-	p = gins(ANOP, N, N); // in case the data is the dest of a goto
+-	nr = n->right->left;
+-	if(nr == N || nr->op != OADDR)
+-		goto no;
+-	nr = nr->left;
+-	if(nr == N || nr->op != ONAME)
+-		goto no;
+-
+-	// nr is the array being converted to a slice
+-	if(nr->type == T || nr->type->etype != TARRAY || nr->type->bound < 0)
+-		goto no;
+-
+-	nam.xoffset += Array_array;
+-	p = gins(ADATA, &nam, n->right->left);
+-	p->from.scale = types[tptr]->width;
+-
+-	nam.xoffset += Array_nel-Array_array;
+-	nodconst(&nod1, types[TINT32], nr->type->bound);
+-	p = gins(ADATA, &nam, &nod1);
+-	p->from.scale = types[TINT32]->width;
+-
+-	nam.xoffset += Array_cap-Array_nel;
+-	p = gins(ADATA, &nam, &nod1);
+-	p->from.scale = types[TINT32]->width;
+-
+-	goto yes;
+-
+-no:
+-	if(n->dodata == 2) {
+-		dump("\ngen_as_init", n);
+-		fatal("gen_as_init couldnt make data statement");
+-	}
+-	return 0;
+-}
+-
+ static int
+ regcmp(const void *va, const void *vb)
+ {
+diff --git a/src/cmd/6g/gobj.c b/src/cmd/6g/gobj.c
+index e4f0a550d7..337cbb9566 100644
+--- a/src/cmd/6g/gobj.c
++++ b/src/cmd/6g/gobj.c
+@@ -485,6 +485,35 @@ datagostring(Strlit *sval, Addr *a)
+ 	text();
+ }
+ 
++void
++gdata(Node *nam, Node *nr, int wid)
++{
++	Prog *p;
++
++	p = gins(ADATA, nam, nr);
++	p->from.scale = wid;
++}
++
++void
++gdatastring(Node *nam, Strlit *sval)
++{
++	Prog *p;
++	Node nod1;
++
++	p = gins(ADATA, nam, N);
++	datastring(sval->s, sval->len, &p->to);
++	p->from.scale = types[tptr]->width;
++	p->to.index = p->to.type;
++	p->to.type = D_ADDR;
++//print("%P\n", p);
++
++	nodconst(&nod1, types[TINT32], sval->len);
++	p = gins(ADATA, nam, &nod1);
++	p->from.scale = types[TINT32]->width;
++	p->from.offset += types[tptr]->width;
++}
++
++
+ int
+ dstringptr(Sym *s, int off, char *str)
+ {
+diff --git a/src/cmd/8g/ggen.c b/src/cmd/8g/ggen.c
+index c6abe174e0..e0cd8f394c 100644
+--- a/src/cmd/8g/ggen.c
++++ b/src/cmd/8g/ggen.c
+@@ -739,53 +739,4 @@ cgen_bmul(int op, Node *nl, Node *nr, Node *res)
+ 	regfree(&n2b);
+ }
+ 
+-int
+-getlit(Node *lit)
+-{
+-	if(smallintconst(lit))
+-		return mpgetfix(lit->val.u.xval);
+-	return -1;
+-}
+-
+-int
+-stataddr(Node *nam, Node *n)
+-{
+-	int l;
+-
+-	if(n == N)
+-		goto no;
+-
+-	switch(n->op) {
+-	case ONAME:
+-		*nam = *n;
+-		return n->addable;
+-
+-	case ODOT:
+-		if(!stataddr(nam, n->left))
+-			break;
+-		nam->xoffset += n->xoffset;
+-		nam->type = n->type;
+-		return 1;
+-
+-	case OINDEX:
+-		if(n->left->type->bound < 0)
+-			break;
+-		if(!stataddr(nam, n->left))
+-			break;
+-		l = getlit(n->right);
+-		if(l < 0)
+-			break;
+-		nam->xoffset += l*n->type->width;
+-		nam->type = n->type;
+-		return 1;
+-	}
+-
+-no:
+-	return 0;
+-}
+ 
+-int
+-gen_as_init(Node *n)
+-{
+-	return 0;
+-}
+diff --git a/src/cmd/8g/gobj.c b/src/cmd/8g/gobj.c
+index 3172ddcdc7..2a96d96fe2 100644
+--- a/src/cmd/8g/gobj.c
++++ b/src/cmd/8g/gobj.c
+@@ -483,6 +483,44 @@ datagostring(Strlit *sval, Addr *a)
+ 	text();
+ }
+ 
++void
++gdata(Node *nam, Node *nr, int wid)
++{
++	Prog *p;
++	vlong v;
++
++	if(wid == 8 && is64(nr->type)) {
++		v = mpgetfix(nr->val.u.xval);
++		p = gins(ADATA, nam, nodintconst(v));
++		p->from.scale = 4;
++		p = gins(ADATA, nam, nodintconst(v>>32));
++		p->from.scale = 4;
++		p->from.offset += 4;
++		return;
++	}
++	p = gins(ADATA, nam, nr);
++	p->from.scale = wid;
++}
++
++void
++gdatastring(Node *nam, Strlit *sval)
++{
++	Prog *p;
++	Node nod1;
++
++	p = gins(ADATA, nam, N);
++	datastring(sval->s, sval->len, &p->to);
++	p->from.scale = types[tptr]->width;
++	p->to.index = p->to.type;
++	p->to.type = D_ADDR;
++//print("%P\n", p);
++
++	nodconst(&nod1, types[TINT32], sval->len);
++	p = gins(ADATA, nam, &nod1);
++	p->from.scale = types[TINT32]->width;
++	p->from.offset += types[tptr]->width;
++}
++
+ int
+ dstringptr(Sym *s, int off, char *str)
+ {
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 2c5e2242fc..dadc3bf830 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -1160,7 +1160,10 @@ void	cgen_ret(Node *n);
+ int	isfat(Type*);
+ void	clearfat(Node *n);
+ void	cgen(Node*, Node*);
++struct Prog;
+ void	gused(Node*);
++void	gdata(Node*, Node*, int);
++void	gdatastring(Node*, Strlit*);
+ void	dumptypestructs(void);
+ void	dumpfuncs(void);
+ void	dumpdata(void);
+diff --git a/src/cmd/gc/sinit.c b/src/cmd/gc/sinit.c
+index 4ae82ba2ce..c22a582e16 100644
+--- a/src/cmd/gc/sinit.c
++++ b/src/cmd/gc/sinit.c
+@@ -634,3 +634,156 @@ initctxt:
+ 	n->op = OEMPTY;
+ 	return 1;
+ }
++
++int
++getlit(Node *lit)
++{
++	if(smallintconst(lit))
++		return mpgetfix(lit->val.u.xval);
++	return -1;
++}
++
++int
++stataddr(Node *nam, Node *n)
++{
++	int l;
++
++	if(n == N)
++		goto no;
++
++	switch(n->op) {
++
++	case ONAME:
++		*nam = *n;
++		return n->addable;
++
++	case ODOT:
++		if(!stataddr(nam, n->left))
++			break;
++		nam->xoffset += n->xoffset;
++		nam->type = n->type;
++		return 1;
++
++	case OINDEX:
++		if(n->left->type->bound < 0)
++			break;
++		if(!stataddr(nam, n->left))
++			break;
++		l = getlit(n->right);
++		if(l < 0)
++			break;
++		nam->xoffset += l*n->type->width;
++		nam->type = n->type;
++		return 1;
++	}
++
++no:
++	return 0;
++}
++
++int
++gen_as_init(Node *n)
++{
++	Node *nr, *nl;
++	Node nam, nod1;
++
++	if(n->dodata == 0)
++		goto no;
++
++	nr = n->right;
++	nl = n->left;
++	if(nr == N) {
++		if(!stataddr(&nam, nl))
++			goto no;
++		if(nam.class != PEXTERN)
++			goto no;
++		goto yes;
++	}
++
++	if(nr->type == T || !eqtype(nl->type, nr->type))
++		goto no;
++
++	if(!stataddr(&nam, nl))
++		goto no;
++
++	if(nam.class != PEXTERN)
++		goto no;
++
++	switch(nr->op) {
++	default:
++		goto no;
++
++	case OCONVSLICE:
++		goto slice;
++
++	case OLITERAL:
++		break;
++	}
++
++	switch(nr->type->etype) {
++	default:
++		goto no;
++
++	case TBOOL:
++	case TINT8:
++	case TUINT8:
++	case TINT16:
++	case TUINT16:
++	case TINT32:
++	case TUINT32:
++	case TINT64:
++	case TUINT64:
++	case TINT:
++	case TUINT:
++	case TUINTPTR:
++	case TPTR32:
++	case TPTR64:
++	case TFLOAT32:
++	case TFLOAT64:
++	case TFLOAT:
++		gused(N); // in case the data is the dest of a goto
++		gdata(&nam, nr, nr->type->width);
++		break;
++
++	case TSTRING:
++		gused(N); // in case the data is the dest of a goto
++		gdatastring(&nam, nr->val.u.sval);
++		break;
++	}
++
++yes:
++	return 1;
++
++slice:
++	gused(N); // in case the data is the dest of a goto
++	nr = n->right->left;
++	if(nr == N || nr->op != OADDR)
++		goto no;
++	nr = nr->left;
++	if(nr == N || nr->op != ONAME)
++		goto no;
++
++	// nr is the array being converted to a slice
++	if(nr->type == T || nr->type->etype != TARRAY || nr->type->bound < 0)
++		goto no;
++
++	nam.xoffset += Array_array;
++	gdata(&nam, n->right->left, types[tptr]->width);
++
++	nam.xoffset += Array_nel-Array_array;
++	nodconst(&nod1, types[TINT32], nr->type->bound);
++	gdata(&nam, &nod1, types[TINT32]->width);
++
++	nam.xoffset += Array_cap-Array_nel;
++	gdata(&nam, &nod1, types[TINT32]->width);
++
++	goto yes;
++
++no:
++	if(n->dodata == 2) {
++		dump("\ngen_as_init", n);
++		fatal("gen_as_init couldnt make data statement");
++	}
++	return 0;
++}
++

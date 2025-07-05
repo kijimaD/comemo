@@ -19,7 +19,39 @@ Date:   Thu Jun 1 16:23:40 2017 +0900
     Reviewed-by: Avelino <t@avelino.xxx>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/link/internal/ld/go.go    | 2 +-
  src/cmd/link/internal/ld/macho.go | 7 ++++++-
  2 files changed, 7 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/go.go b/src/cmd/link/internal/ld/go.go
+index 2930a6b24f..56d2f3f42e 100644
+--- a/src/cmd/link/internal/ld/go.go
++++ b/src/cmd/link/internal/ld/go.go
+@@ -175,7 +175,7 @@ func loadcgo(ctxt *Link, file string, pkg string, p string) {
+ 				havedynamic = 1
+ 
+ 				if Headtype == objabi.Hdarwin {
+-					Machoadddynlib(lib)
++					machoadddynlib(lib)
+ 				} else {
+ 					dynlib = append(dynlib, lib)
+ 				}
+diff --git a/src/cmd/link/internal/ld/macho.go b/src/cmd/link/internal/ld/macho.go
+index ef4d1552f6..161833f357 100644
+--- a/src/cmd/link/internal/ld/macho.go
++++ b/src/cmd/link/internal/ld/macho.go
+@@ -380,7 +380,12 @@ func (ctxt *Link) domacho() {
+ 	}
+ }
+ 
+-func Machoadddynlib(lib string) {
++func machoadddynlib(lib string) {
++	if seenlib[lib] || Linkmode == LinkExternal {
++		return
++	}
++	seenlib[lib] = true
++
+ 	// Will need to store the library name rounded up
+ 	// and 24 bytes of header metadata. If not enough
+ 	// space, grab another page of initial space at the

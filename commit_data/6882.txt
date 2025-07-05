@@ -7,9 +7,573 @@ Date:   Wed Dec 8 13:53:19 2010 -0500
     R=r, iant
     CC=golang-dev
     https://golang.org/cl/3470044
-
+---
  src/pkg/debug/elf/elf.go     |   9 ++-
  src/pkg/debug/elf/file.go    | 161 ++++++++++++++++++++++++++++++++++++++-----
  src/pkg/debug/macho/file.go  | 157 +++++++++++++++++++++++++++++++++++++++++
  src/pkg/debug/macho/macho.go |  80 ++++++++++++++++++++-
  4 files changed, 384 insertions(+), 23 deletions(-)
+
+diff --git a/src/pkg/debug/elf/elf.go b/src/pkg/debug/elf/elf.go
+index 46d618ce69..74e9799863 100644
+--- a/src/pkg/debug/elf/elf.go
++++ b/src/pkg/debug/elf/elf.go
+@@ -1356,9 +1356,12 @@ type Sym32 struct {
+ 
+ const Sym32Size = 16
+ 
+-func ST_BIND(info uint8) SymBind              { return SymBind(info >> 4) }
+-func ST_TYPE(bind SymBind, typ SymType) uint8 { return uint8(bind)<<4 | uint8(typ)&0xf }
+-func ST_VISIBILITY(other uint8) SymVis        { return SymVis(other & 3) }
++func ST_BIND(info uint8) SymBind { return SymBind(info >> 4) }
++func ST_TYPE(info uint8) SymType { return SymType(info & 0xF) }
++func ST_INFO(bind SymBind, typ SymType) uint8 {
++	return uint8(bind)<<4 | uint8(typ)&0xf
++}
++func ST_VISIBILITY(other uint8) SymVis { return SymVis(other & 3) }
+ 
+ /*
+  * ELF64
+diff --git a/src/pkg/debug/elf/file.go b/src/pkg/debug/elf/file.go
+index 568370b857..e69317a75f 100644
+--- a/src/pkg/debug/elf/file.go
++++ b/src/pkg/debug/elf/file.go
+@@ -75,6 +75,15 @@ func (s *Section) Data() ([]byte, os.Error) {
+ 	return dat[0:n], err
+ }
+ 
++// stringTable reads and returns the string table given by the
++// specified link value.
++func (f *File) stringTable(link uint32) ([]byte, os.Error) {
++	if link <= 0 || link >= uint32(len(f.Sections)) {
++		return nil, os.ErrorString("section has invalid string table link")
++	}
++	return f.Sections[link].Data()
++}
++
+ // Open returns a new ReadSeeker reading the ELF section.
+ func (s *Section) Open() io.ReadSeeker { return io.NewSectionReader(s.sr, 0, 1<<63-1) }
+ 
+@@ -108,9 +117,9 @@ func (p *Prog) Open() io.ReadSeeker { return io.NewSectionReader(p.sr, 0, 1<<63-
+ 
+ // A Symbol represents an entry in an ELF symbol table section.
+ type Symbol struct {
+-	Name        uint32
++	Name        string
+ 	Info, Other byte
+-	Section     uint32
++	Section     SectionIndex
+ 	Value, Size uint64
+ }
+ 
+@@ -160,6 +169,17 @@ func (f *File) Close() os.Error {
+ 	return err
+ }
+ 
++// SectionByType returns the first section in f with the
++// given type, or nil if there is no such section.
++func (f *File) SectionByType(typ SectionType) *Section {
++	for _, s := range f.Sections {
++		if s.Type == typ {
++			return s
++		}
++	}
++	return nil
++}
++
+ // NewFile creates a new File for accessing an ELF binary in an underlying reader.
+ // The ELF binary is expected to start at position 0 in the ReaderAt.
+ func NewFile(r io.ReaderAt) (*File, os.Error) {
+@@ -293,9 +313,8 @@ func NewFile(r io.ReaderAt) (*File, os.Error) {
+ 	}
+ 
+ 	// Load section header string table.
+-	s := f.Sections[shstrndx]
+-	shstrtab := make([]byte, s.Size)
+-	if _, err := r.ReadAt(shstrtab, int64(s.Offset)); err != nil {
++	shstrtab, err := f.Sections[shstrndx].Data()
++	if err != nil {
+ 		return nil, err
+ 	}
+ 	for i, s := range f.Sections {
+@@ -309,25 +328,65 @@ func NewFile(r io.ReaderAt) (*File, os.Error) {
+ 	return f, nil
+ }
+ 
+-func (f *File) getSymbols() ([]Symbol, os.Error) {
++// getSymbols returns a slice of Symbols from parsing the symbol table
++// with the given type.
++func (f *File) getSymbols(typ SectionType) ([]Symbol, os.Error) {
+ 	switch f.Class {
+ 	case ELFCLASS64:
+-		return f.getSymbols64()
++		return f.getSymbols64(typ)
++
++	case ELFCLASS32:
++		return f.getSymbols32(typ)
+ 	}
+ 
+ 	return nil, os.ErrorString("not implemented")
+ }
+ 
+-// GetSymbols returns a slice of Symbols from parsing the symbol table.
+-func (f *File) getSymbols64() ([]Symbol, os.Error) {
+-	var symtabSection *Section
+-	for _, section := range f.Sections {
+-		if section.Type == SHT_SYMTAB {
+-			symtabSection = section
+-			break
+-		}
++func (f *File) getSymbols32(typ SectionType) ([]Symbol, os.Error) {
++	symtabSection := f.SectionByType(typ)
++	if symtabSection == nil {
++		return nil, os.ErrorString("no symbol section")
++	}
++
++	data, err := symtabSection.Data()
++	if err != nil {
++		return nil, os.ErrorString("cannot load symbol section")
++	}
++	symtab := bytes.NewBuffer(data)
++	if symtab.Len()%Sym32Size != 0 {
++		return nil, os.ErrorString("length of symbol section is not a multiple of SymSize")
++	}
++
++	strdata, err := f.stringTable(symtabSection.Link)
++	if err != nil {
++		return nil, os.ErrorString("cannot load string table section")
++	}
++
++	// The first entry is all zeros.
++	var skip [Sym32Size]byte
++	symtab.Read(skip[0:])
++
++	symbols := make([]Symbol, symtab.Len()/Sym32Size)
++
++	i := 0
++	var sym Sym32
++	for symtab.Len() > 0 {
++		binary.Read(symtab, f.ByteOrder, &sym)
++		str, _ := getString(strdata, int(sym.Name))
++		symbols[i].Name = str
++		symbols[i].Info = sym.Info
++		symbols[i].Other = sym.Other
++		symbols[i].Section = SectionIndex(sym.Shndx)
++		symbols[i].Value = uint64(sym.Value)
++		symbols[i].Size = uint64(sym.Size)
++		i++
+ 	}
+ 
++	return symbols, nil
++}
++
++func (f *File) getSymbols64(typ SectionType) ([]Symbol, os.Error) {
++	symtabSection := f.SectionByType(typ)
+ 	if symtabSection == nil {
+ 		return nil, os.ErrorString("no symbol section")
+ 	}
+@@ -341,6 +400,11 @@ func (f *File) getSymbols64() ([]Symbol, os.Error) {
+ 		return nil, os.ErrorString("length of symbol section is not a multiple of Sym64Size")
+ 	}
+ 
++	strdata, err := f.stringTable(symtabSection.Link)
++	if err != nil {
++		return nil, os.ErrorString("cannot load string table section")
++	}
++
+ 	// The first entry is all zeros.
+ 	var skip [Sym64Size]byte
+ 	symtab.Read(skip[0:])
+@@ -351,10 +415,11 @@ func (f *File) getSymbols64() ([]Symbol, os.Error) {
+ 	var sym Sym64
+ 	for symtab.Len() > 0 {
+ 		binary.Read(symtab, f.ByteOrder, &sym)
+-		symbols[i].Name = sym.Name
++		str, _ := getString(strdata, int(sym.Name))
++		symbols[i].Name = str
+ 		symbols[i].Info = sym.Info
+ 		symbols[i].Other = sym.Other
+-		symbols[i].Section = uint32(sym.Shndx)
++		symbols[i].Section = SectionIndex(sym.Shndx)
+ 		symbols[i].Value = sym.Value
+ 		symbols[i].Size = sym.Size
+ 		i++
+@@ -403,7 +468,7 @@ func (f *File) applyRelocationsAMD64(dst []byte, rels []byte) os.Error {
+ 		return os.ErrorString("length of relocation section is not a multiple of Sym64Size")
+ 	}
+ 
+-	symbols, err := f.getSymbols()
++	symbols, err := f.getSymbols(SHT_SYMTAB)
+ 	if err != nil {
+ 		return err
+ 	}
+@@ -478,3 +543,63 @@ func (f *File) DWARF() (*dwarf.Data, os.Error) {
+ 	abbrev, info, str := dat[0], dat[1], dat[2]
+ 	return dwarf.New(abbrev, nil, nil, info, nil, nil, nil, str)
+ }
++
++// ImportedSymbols returns the names of all symbols
++// referred to by the binary f that are expected to be
++// satisfied by other libraries at dynamic load time.
++// It does not return weak symbols.
++func (f *File) ImportedSymbols() ([]string, os.Error) {
++	sym, err := f.getSymbols(SHT_DYNSYM)
++	if err != nil {
++		return nil, err
++	}
++	var all []string
++	for _, s := range sym {
++		if ST_BIND(s.Info) == STB_GLOBAL && s.Section == SHN_UNDEF {
++			all = append(all, s.Name)
++		}
++	}
++	return all, nil
++}
++
++// ImportedLibraries returns the names of all libraries
++// referred to by the binary f that are expected to be
++// linked with the binary at dynamic link time.
++func (f *File) ImportedLibraries() ([]string, os.Error) {
++	ds := f.SectionByType(SHT_DYNAMIC)
++	if ds == nil {
++		// not dynamic, so no libraries
++		return nil, nil
++	}
++	d, err := ds.Data()
++	if err != nil {
++		return nil, err
++	}
++	str, err := f.stringTable(ds.Link)
++	if err != nil {
++		return nil, err
++	}
++	var all []string
++	for len(d) > 0 {
++		var tag DynTag
++		var value uint64
++		switch f.Class {
++		case ELFCLASS32:
++			tag = DynTag(f.ByteOrder.Uint32(d[0:4]))
++			value = uint64(f.ByteOrder.Uint32(d[4:8]))
++			d = d[8:]
++		case ELFCLASS64:
++			tag = DynTag(f.ByteOrder.Uint64(d[0:8]))
++			value = f.ByteOrder.Uint64(d[8:16])
++			d = d[16:]
++		}
++		if tag == DT_NEEDED {
++			s, ok := getString(str, int(value))
++			if ok {
++				all = append(all, s)
++			}
++		}
++	}
++
++	return all, nil
++}
+diff --git a/src/pkg/debug/macho/file.go b/src/pkg/debug/macho/file.go
+index d2802266ef..fd8da9449a 100644
+--- a/src/pkg/debug/macho/file.go
++++ b/src/pkg/debug/macho/file.go
+@@ -24,6 +24,9 @@ type File struct {
+ 	Loads     []Load
+ 	Sections  []*Section
+ 
++	Symtab   *Symtab
++	Dysymtab *Dysymtab
++
+ 	closer io.Closer
+ }
+ 
+@@ -112,6 +115,28 @@ func (s *Section) Data() ([]byte, os.Error) {
+ // Open returns a new ReadSeeker reading the Mach-O section.
+ func (s *Section) Open() io.ReadSeeker { return io.NewSectionReader(s.sr, 0, 1<<63-1) }
+ 
++// A Dylib represents a Mach-O load dynamic library command.
++type Dylib struct {
++	LoadBytes
++	Name           string
++	Time           uint32
++	CurrentVersion uint32
++	CompatVersion  uint32
++}
++
++// A Symtab represents a Mach-O symbol table command.
++type Symtab struct {
++	LoadBytes
++	SymtabCmd
++	Syms []Symbol
++}
++
++// A Dysymtab represents a Mach-O dynamic symbol table command.
++type Dysymtab struct {
++	LoadBytes
++	DysymtabCmd
++	IndirectSyms []uint32 // indices into Symtab.Syms
++}
+ 
+ /*
+  * Mach-O reader
+@@ -217,6 +242,71 @@ func NewFile(r io.ReaderAt) (*File, os.Error) {
+ 		default:
+ 			f.Loads[i] = LoadBytes(cmddat)
+ 
++		case LoadCmdDylib:
++			var hdr DylibCmd
++			b := bytes.NewBuffer(cmddat)
++			if err := binary.Read(b, bo, &hdr); err != nil {
++				return nil, err
++			}
++			l := new(Dylib)
++			if hdr.Name >= uint32(len(cmddat)) {
++				return nil, &FormatError{offset, "invalid name in dynamic library command", hdr.Name}
++			}
++			l.Name = cstring(cmddat[hdr.Name:])
++			l.Time = hdr.Time
++			l.CurrentVersion = hdr.CurrentVersion
++			l.CompatVersion = hdr.CompatVersion
++			l.LoadBytes = LoadBytes(cmddat)
++			f.Loads[i] = l
++
++		case LoadCmdSymtab:
++			var hdr SymtabCmd
++			b := bytes.NewBuffer(cmddat)
++			if err := binary.Read(b, bo, &hdr); err != nil {
++				return nil, err
++			}
++			strtab := make([]byte, hdr.Strsize)
++			if _, err := r.ReadAt(strtab, int64(hdr.Stroff)); err != nil {
++				return nil, err
++			}
++			var symsz int
++			if f.Magic == Magic64 {
++				symsz = 16
++			} else {
++				symsz = 12
++			}
++			symdat := make([]byte, int(hdr.Nsyms)*symsz)
++			if _, err := r.ReadAt(symdat, int64(hdr.Symoff)); err != nil {
++				return nil, err
++			}
++			st, err := f.parseSymtab(symdat, strtab, cmddat, &hdr, offset)
++			if err != nil {
++				return nil, err
++			}
++			f.Loads[i] = st
++			f.Symtab = st
++
++		case LoadCmdDysymtab:
++			var hdr DysymtabCmd
++			b := bytes.NewBuffer(cmddat)
++			if err := binary.Read(b, bo, &hdr); err != nil {
++				return nil, err
++			}
++			dat := make([]byte, hdr.Nindirectsyms*4)
++			if _, err := r.ReadAt(dat, int64(hdr.Indirectsymoff)); err != nil {
++				return nil, err
++			}
++			x := make([]uint32, hdr.Nindirectsyms)
++			if err := binary.Read(bytes.NewBuffer(dat), bo, x); err != nil {
++				return nil, err
++			}
++			st := new(Dysymtab)
++			st.LoadBytes = LoadBytes(cmddat)
++			st.DysymtabCmd = hdr
++			st.IndirectSyms = x
++			f.Loads[i] = st
++			f.Dysymtab = st
++
+ 		case LoadCmdSegment:
+ 			var seg32 Segment32
+ 			b := bytes.NewBuffer(cmddat)
+@@ -301,6 +391,43 @@ func NewFile(r io.ReaderAt) (*File, os.Error) {
+ 	return f, nil
+ }
+ 
++func (f *File) parseSymtab(symdat, strtab, cmddat []byte, hdr *SymtabCmd, offset int64) (*Symtab, os.Error) {
++	bo := f.ByteOrder
++	symtab := make([]Symbol, hdr.Nsyms)
++	b := bytes.NewBuffer(symdat)
++	for i := range symtab {
++		var n Nlist64
++		if f.Magic == Magic64 {
++			if err := binary.Read(b, bo, &n); err != nil {
++				return nil, err
++			}
++		} else {
++			var n32 Nlist32
++			if err := binary.Read(b, bo, &n32); err != nil {
++				return nil, err
++			}
++			n.Name = n32.Name
++			n.Type = n32.Type
++			n.Sect = n32.Sect
++			n.Desc = n32.Desc
++			n.Value = uint64(n32.Value)
++		}
++		sym := &symtab[i]
++		if n.Name >= uint32(len(strtab)) {
++			return nil, &FormatError{offset, "invalid name in symbol table", n.Name}
++		}
++		sym.Name = cstring(strtab[n.Name:])
++		sym.Type = n.Type
++		sym.Sect = n.Sect
++		sym.Desc = n.Desc
++		sym.Value = n.Value
++	}
++	st := new(Symtab)
++	st.LoadBytes = LoadBytes(cmddat)
++	st.Syms = symtab
++	return st, nil
++}
++
+ func (f *File) pushSection(sh *Section, r io.ReaderAt) {
+ 	f.Sections = append(f.Sections, sh)
+ 	sh.sr = io.NewSectionReader(r, int64(sh.Offset), int64(sh.Size))
+@@ -358,3 +485,33 @@ func (f *File) DWARF() (*dwarf.Data, os.Error) {
+ 	abbrev, info, str := dat[0], dat[1], dat[2]
+ 	return dwarf.New(abbrev, nil, nil, info, nil, nil, nil, str)
+ }
++
++// ImportedSymbols returns the names of all symbols
++// referred to by the binary f that are expected to be
++// satisfied by other libraries at dynamic load time.
++func (f *File) ImportedSymbols() ([]string, os.Error) {
++	if f.Dysymtab == nil || f.Symtab == nil {
++		return nil, &FormatError{0, "missing symbol table", nil}
++	}
++
++	st := f.Symtab
++	dt := f.Dysymtab
++	var all []string
++	for _, s := range st.Syms[dt.Iundefsym : dt.Iundefsym+dt.Nundefsym] {
++		all = append(all, s.Name)
++	}
++	return all, nil
++}
++
++// ImportedLibraries returns the paths of all libraries
++// referred to by the binary f that are expected to be
++// linked with the binary at dynamic link time.
++func (f *File) ImportedLibraries() ([]string, os.Error) {
++	var all []string
++	for _, l := range f.Loads {
++		if lib, ok := l.(*Dylib); ok {
++			all = append(all, lib.Name)
++		}
++	}
++	return all, nil
++}
+diff --git a/src/pkg/debug/macho/macho.go b/src/pkg/debug/macho/macho.go
+index a45d7820c5..1386f5acf5 100644
+--- a/src/pkg/debug/macho/macho.go
++++ b/src/pkg/debug/macho/macho.go
+@@ -59,16 +59,21 @@ type LoadCmd uint32
+ 
+ const (
+ 	LoadCmdSegment    LoadCmd = 1
+-	LoadCmdSegment64  LoadCmd = 25
++	LoadCmdSymtab     LoadCmd = 2
+ 	LoadCmdThread     LoadCmd = 4
+ 	LoadCmdUnixThread LoadCmd = 5 // thread+stack
++	LoadCmdDysymtab   LoadCmd = 11
++	LoadCmdDylib      LoadCmd = 12
++	LoadCmdDylinker   LoadCmd = 15
++	LoadCmdSegment64  LoadCmd = 25
+ )
+ 
+ var cmdStrings = []intName{
+ 	{uint32(LoadCmdSegment), "LoadCmdSegment"},
+-	{uint32(LoadCmdSegment64), "LoadCmdSegment64"},
+ 	{uint32(LoadCmdThread), "LoadCmdThread"},
+ 	{uint32(LoadCmdUnixThread), "LoadCmdUnixThread"},
++	{uint32(LoadCmdDylib), "LoadCmdDylib"},
++	{uint32(LoadCmdSegment64), "LoadCmdSegment64"},
+ }
+ 
+ func (i LoadCmd) String() string   { return stringName(uint32(i), cmdStrings, false) }
+@@ -104,6 +109,16 @@ type Segment32 struct {
+ 	Flag    uint32
+ }
+ 
++// A DylibCmd is a Mach-O load dynamic library command.
++type DylibCmd struct {
++	Cmd            LoadCmd
++	Len            uint32
++	Name           uint32
++	Time           uint32
++	CurrentVersion uint32
++	CompatVersion  uint32
++}
++
+ // A Section32 is a 32-bit Mach-O section header.
+ type Section32 struct {
+ 	Name     [16]byte
+@@ -135,6 +150,67 @@ type Section64 struct {
+ 	Reserve3 uint32
+ }
+ 
++// A SymtabCmd is a Mach-O symbol table command.
++type SymtabCmd struct {
++	Cmd     LoadCmd
++	Len     uint32
++	Symoff  uint32
++	Nsyms   uint32
++	Stroff  uint32
++	Strsize uint32
++}
++
++// A DysymtabCmd is a Mach-O dynamic symbol table command.
++type DysymtabCmd struct {
++	Cmd            LoadCmd
++	Len            uint32
++	Ilocalsym      uint32
++	Nlocalsym      uint32
++	Iextdefsym     uint32
++	Nextdefsym     uint32
++	Iundefsym      uint32
++	Nundefsym      uint32
++	Tocoffset      uint32
++	Ntoc           uint32
++	Modtaboff      uint32
++	Nmodtab        uint32
++	Extrefsymoff   uint32
++	Nextrefsyms    uint32
++	Indirectsymoff uint32
++	Nindirectsyms  uint32
++	Extreloff      uint32
++	Nextrel        uint32
++	Locreloff      uint32
++	Nlocrel        uint32
++}
++
++// An Nlist32 is a Mach-O 32-bit symbol table entry.
++type Nlist32 struct {
++	Name  uint32
++	Type  uint8
++	Sect  uint8
++	Desc  uint16
++	Value uint32
++}
++
++// An Nlist64 is a Mach-O 64-bit symbol table entry.
++type Nlist64 struct {
++	Name  uint32
++	Type  uint8
++	Sect  uint8
++	Desc  uint16
++	Value uint64
++}
++
++// A Symbol is a Mach-O 32-bit or 64-bit symbol table entry.
++type Symbol struct {
++	Name  string
++	Type  uint8
++	Sect  uint8
++	Desc  uint16
++	Value uint64
++}
++
+ // A Thread is a Mach-O thread state command.
+ type Thread struct {
+ 	Cmd  LoadCmd

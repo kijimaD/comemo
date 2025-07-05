@@ -16,6 +16,21 @@ Date:   Mon Dec 19 14:41:09 2022 +0100
     Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
     Reviewed-by: Roland Shoemaker <roland@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/os/os_test.go | 3 ---
  1 file changed, 3 deletions(-)
+
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index bc27b2db49..277b2455e6 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -2608,9 +2608,6 @@ func TestReaddirSmallSeek(t *testing.T) {
+ 	// See issue 37161. Read only one entry from a directory,
+ 	// seek to the beginning, and read again. We should not see
+ 	// duplicate entries.
+-	if runtime.GOOS == "windows" {
+-		testenv.SkipFlaky(t, 36019)
+-	}
+ 	wd, err := Getwd()
+ 	if err != nil {
+ 		t.Fatal(err)

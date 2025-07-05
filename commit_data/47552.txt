@@ -12,7 +12,79 @@ Date:   Fri Mar 26 23:29:25 2021 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/runtime/map_faststr.go   |  3 +++
  test/fixedbugs/issue45045.go | 51 ++++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 54 insertions(+)
+
+diff --git a/src/runtime/map_faststr.go b/src/runtime/map_faststr.go
+index 2d1ac762a8..0673dd39c8 100644
+--- a/src/runtime/map_faststr.go
++++ b/src/runtime/map_faststr.go
+@@ -255,6 +255,9 @@ bucketloop:
+ 			// already have a mapping for key. Update it.
+ 			inserti = i
+ 			insertb = b
++			// Overwrite existing key, so it can be garbage collected.
++			// The size is already guaranteed to be set correctly.
++			k.str = key.str
+ 			goto done
+ 		}
+ 		ovf := b.overflow(t)
+diff --git a/test/fixedbugs/issue45045.go b/test/fixedbugs/issue45045.go
+new file mode 100644
+index 0000000000..6e6db64839
+--- /dev/null
++++ b/test/fixedbugs/issue45045.go
+@@ -0,0 +1,51 @@
++// run
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"reflect"
++	"runtime"
++	"unsafe"
++)
++
++func k(c chan string, val string) string {
++	b := make([]byte, 1000)
++	runtime.SetFinalizer(&b[0], func(*byte) {
++		c <- val
++	})
++	var s string
++	h := (*reflect.StringHeader)(unsafe.Pointer(&s))
++	h.Data = uintptr(unsafe.Pointer(&b[0]))
++	h.Len = len(b)
++	return s
++}
++
++func main() {
++	{
++		c := make(chan string, 2)
++		m := make(map[string]int)
++		m[k(c, "first")] = 0
++		m[k(c, "second")] = 0
++		runtime.GC()
++		if s := <-c; s != "first" {
++			panic("map[string], second key did not retain.")
++		}
++		runtime.KeepAlive(m)
++	}
++
++	{
++		c := make(chan string, 2)
++		m := make(map[[2]string]int)
++		m[[2]string{k(c, "first")}] = 0
++		m[[2]string{k(c, "second")}] = 0
++		runtime.GC()
++		if s := <-c; s != "first" {
++			panic("map[[2]string], second key did not retain.")
++		}
++		runtime.KeepAlive(m)
++	}
++}

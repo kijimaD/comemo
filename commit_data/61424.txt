@@ -44,7 +44,7 @@ Date:   Mon Apr 3 12:11:46 2023 +0800
     Reviewed-by: WANG Xuerui <git@xen0n.name>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Qiqi Huang <huangqiqi@loongson.cn>
-
+---
  src/cmd/compile/internal/loong64/ssa.go         | 95 +++++--------------------
  src/cmd/compile/internal/ssa/_gen/LOONG64.rules |  3 -
  src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go | 14 +---
@@ -52,3 +52,353 @@ Date:   Mon Apr 3 12:11:46 2023 +0800
  src/cmd/compile/internal/ssa/rewriteLOONG64.go  | 52 --------------
  src/internal/runtime/atomic/atomic_loong64.s    | 28 +++-----
  6 files changed, 29 insertions(+), 201 deletions(-)
+
+diff --git a/src/cmd/compile/internal/loong64/ssa.go b/src/cmd/compile/internal/loong64/ssa.go
+index 7cdaa30ffe..bec7684378 100644
+--- a/src/cmd/compile/internal/loong64/ssa.go
++++ b/src/cmd/compile/internal/loong64/ssa.go
+@@ -694,92 +694,29 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p3.To.Type = obj.TYPE_BRANCH
+ 		p3.To.SetTarget(p)
+ 		s.Prog(loong64.ADBAR)
++
+ 	case ssa.OpLOONG64LoweredAtomicAdd32, ssa.OpLOONG64LoweredAtomicAdd64:
+-		// DBAR
+-		// LL	(Rarg0), Rout
+-		// ADDV Rarg1, Rout, Rtmp
+-		// SC	Rtmp, (Rarg0)
+-		// BEQ	Rtmp, -3(PC)
+-		// DBAR
+-		// ADDV Rarg1, Rout
+-		ll := loong64.ALLV
+-		sc := loong64.ASCV
++		// AMADDx  Rarg1, (Rarg0), Rout
++		// ADDV    Rarg1, Rout, Rout
++		amaddx := loong64.AAMADDDBV
++		addx := loong64.AADDV
+ 		if v.Op == ssa.OpLOONG64LoweredAtomicAdd32 {
+-			ll = loong64.ALL
+-			sc = loong64.ASC
++			amaddx = loong64.AAMADDDBW
+ 		}
+-		s.Prog(loong64.ADBAR)
+-		p := s.Prog(ll)
+-		p.From.Type = obj.TYPE_MEM
+-		p.From.Reg = v.Args[0].Reg()
+-		p.To.Type = obj.TYPE_REG
+-		p.To.Reg = v.Reg0()
+-		p1 := s.Prog(loong64.AADDVU)
++		p := s.Prog(amaddx)
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = v.Args[1].Reg()
++		p.To.Type = obj.TYPE_MEM
++		p.To.Reg = v.Args[0].Reg()
++		p.RegTo2 = v.Reg0()
++
++		p1 := s.Prog(addx)
+ 		p1.From.Type = obj.TYPE_REG
+ 		p1.From.Reg = v.Args[1].Reg()
+ 		p1.Reg = v.Reg0()
+ 		p1.To.Type = obj.TYPE_REG
+-		p1.To.Reg = loong64.REGTMP
+-		p2 := s.Prog(sc)
+-		p2.From.Type = obj.TYPE_REG
+-		p2.From.Reg = loong64.REGTMP
+-		p2.To.Type = obj.TYPE_MEM
+-		p2.To.Reg = v.Args[0].Reg()
+-		p3 := s.Prog(loong64.ABEQ)
+-		p3.From.Type = obj.TYPE_REG
+-		p3.From.Reg = loong64.REGTMP
+-		p3.To.Type = obj.TYPE_BRANCH
+-		p3.To.SetTarget(p)
+-		s.Prog(loong64.ADBAR)
+-		p4 := s.Prog(loong64.AADDVU)
+-		p4.From.Type = obj.TYPE_REG
+-		p4.From.Reg = v.Args[1].Reg()
+-		p4.Reg = v.Reg0()
+-		p4.To.Type = obj.TYPE_REG
+-		p4.To.Reg = v.Reg0()
+-	case ssa.OpLOONG64LoweredAtomicAddconst32, ssa.OpLOONG64LoweredAtomicAddconst64:
+-		// DBAR
+-		// LL	(Rarg0), Rout
+-		// ADDV $auxint, Rout, Rtmp
+-		// SC	Rtmp, (Rarg0)
+-		// BEQ	Rtmp, -3(PC)
+-		// DBAR
+-		// ADDV $auxint, Rout
+-		ll := loong64.ALLV
+-		sc := loong64.ASCV
+-		if v.Op == ssa.OpLOONG64LoweredAtomicAddconst32 {
+-			ll = loong64.ALL
+-			sc = loong64.ASC
+-		}
+-		s.Prog(loong64.ADBAR)
+-		p := s.Prog(ll)
+-		p.From.Type = obj.TYPE_MEM
+-		p.From.Reg = v.Args[0].Reg()
+-		p.To.Type = obj.TYPE_REG
+-		p.To.Reg = v.Reg0()
+-		p1 := s.Prog(loong64.AADDVU)
+-		p1.From.Type = obj.TYPE_CONST
+-		p1.From.Offset = v.AuxInt
+-		p1.Reg = v.Reg0()
+-		p1.To.Type = obj.TYPE_REG
+-		p1.To.Reg = loong64.REGTMP
+-		p2 := s.Prog(sc)
+-		p2.From.Type = obj.TYPE_REG
+-		p2.From.Reg = loong64.REGTMP
+-		p2.To.Type = obj.TYPE_MEM
+-		p2.To.Reg = v.Args[0].Reg()
+-		p3 := s.Prog(loong64.ABEQ)
+-		p3.From.Type = obj.TYPE_REG
+-		p3.From.Reg = loong64.REGTMP
+-		p3.To.Type = obj.TYPE_BRANCH
+-		p3.To.SetTarget(p)
+-		s.Prog(loong64.ADBAR)
+-		p4 := s.Prog(loong64.AADDVU)
+-		p4.From.Type = obj.TYPE_CONST
+-		p4.From.Offset = v.AuxInt
+-		p4.Reg = v.Reg0()
+-		p4.To.Type = obj.TYPE_REG
+-		p4.To.Reg = v.Reg0()
++		p1.To.Reg = v.Reg0()
++
+ 	case ssa.OpLOONG64LoweredAtomicCas32, ssa.OpLOONG64LoweredAtomicCas64:
+ 		// MOVV $0, Rout
+ 		// DBAR
+diff --git a/src/cmd/compile/internal/ssa/_gen/LOONG64.rules b/src/cmd/compile/internal/ssa/_gen/LOONG64.rules
+index e351c2d402..383cac40ab 100644
+--- a/src/cmd/compile/internal/ssa/_gen/LOONG64.rules
++++ b/src/cmd/compile/internal/ssa/_gen/LOONG64.rules
+@@ -506,9 +506,6 @@
+ 	&& is32Bit(int64(off1)+int64(off2)) && (ptr.Op != OpSB || !config.ctxt.Flag_dynlink) =>
+ 	(MOV(B|H|W|V)storezero [off1+int32(off2)] {mergeSym(sym1,sym2)} ptr mem)
+ 
+-(LoweredAtomicAdd32 ptr (MOVVconst [c]) mem) && is32Bit(c) => (LoweredAtomicAddconst32 [int32(c)] ptr mem)
+-(LoweredAtomicAdd64 ptr (MOVVconst [c]) mem) && is32Bit(c) => (LoweredAtomicAddconst64 [c] ptr mem)
+-
+ // don't extend after proper load
+ (MOVBreg x:(MOVBload _ _)) => (MOVVreg x)
+ (MOVBUreg x:(MOVBUload _ _)) => (MOVVreg x)
+diff --git a/src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go b/src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go
+index a460882dca..2d8d87fa4a 100644
+--- a/src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go
++++ b/src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go
+@@ -448,18 +448,8 @@ func init() {
+ 
+ 		// atomic add.
+ 		// *arg0 += arg1. arg2=mem. returns <new content of *arg0, memory>.
+-		// DBAR
+-		// LL	(Rarg0), Rout
+-		// ADDV Rarg1, Rout, Rtmp
+-		// SC	Rtmp, (Rarg0)
+-		// BEQ	Rtmp, -3(PC)
+-		// DBAR
+-		// ADDV Rarg1, Rout
+-		{name: "LoweredAtomicAdd32", argLength: 3, reg: gpxchg, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true, unsafePoint: true},
+-		{name: "LoweredAtomicAdd64", argLength: 3, reg: gpxchg, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true, unsafePoint: true},
+-		// *arg0 += auxint. arg1=mem. returns <new content of *arg0, memory>. auxint is 32-bit.
+-		{name: "LoweredAtomicAddconst32", argLength: 2, reg: regInfo{inputs: []regMask{gpspsbg}, outputs: []regMask{gp}}, aux: "Int32", resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true, unsafePoint: true},
+-		{name: "LoweredAtomicAddconst64", argLength: 2, reg: regInfo{inputs: []regMask{gpspsbg}, outputs: []regMask{gp}}, aux: "Int64", resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true, unsafePoint: true},
++		{name: "LoweredAtomicAdd32", argLength: 3, reg: gpxchg, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true},
++		{name: "LoweredAtomicAdd64", argLength: 3, reg: gpxchg, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true},
+ 
+ 		// atomic compare and swap.
+ 		// arg0 = pointer, arg1 = old value, arg2 = new value, arg3 = memory.
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index ac50769dff..61d3b0462f 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -1908,8 +1908,6 @@ const (
+ 	OpLOONG64LoweredAtomicExchange64
+ 	OpLOONG64LoweredAtomicAdd32
+ 	OpLOONG64LoweredAtomicAdd64
+-	OpLOONG64LoweredAtomicAddconst32
+-	OpLOONG64LoweredAtomicAddconst64
+ 	OpLOONG64LoweredAtomicCas32
+ 	OpLOONG64LoweredAtomicCas64
+ 	OpLOONG64LoweredNilCheck
+@@ -25580,7 +25578,6 @@ var opcodeTable = [...]opInfo{
+ 		resultNotInArgs: true,
+ 		faultOnNilArg0:  true,
+ 		hasSideEffects:  true,
+-		unsafePoint:     true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 1073741816},          // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31
+@@ -25597,7 +25594,6 @@ var opcodeTable = [...]opInfo{
+ 		resultNotInArgs: true,
+ 		faultOnNilArg0:  true,
+ 		hasSideEffects:  true,
+-		unsafePoint:     true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 1073741816},          // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31
+@@ -25608,40 +25604,6 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
+-	{
+-		name:            "LoweredAtomicAddconst32",
+-		auxType:         auxInt32,
+-		argLen:          2,
+-		resultNotInArgs: true,
+-		faultOnNilArg0:  true,
+-		hasSideEffects:  true,
+-		unsafePoint:     true,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 4611686019501129724}, // SP R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31 SB
+-			},
+-			outputs: []outputInfo{
+-				{0, 1071644664}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R23 R24 R25 R26 R27 R28 R29 R31
+-			},
+-		},
+-	},
+-	{
+-		name:            "LoweredAtomicAddconst64",
+-		auxType:         auxInt64,
+-		argLen:          2,
+-		resultNotInArgs: true,
+-		faultOnNilArg0:  true,
+-		hasSideEffects:  true,
+-		unsafePoint:     true,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 4611686019501129724}, // SP R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31 SB
+-			},
+-			outputs: []outputInfo{
+-				{0, 1071644664}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R23 R24 R25 R26 R27 R28 R29 R31
+-			},
+-		},
+-	},
+ 	{
+ 		name:            "LoweredAtomicCas32",
+ 		argLen:          4,
+diff --git a/src/cmd/compile/internal/ssa/rewriteLOONG64.go b/src/cmd/compile/internal/ssa/rewriteLOONG64.go
+index 3eaba1871e..14cbd25ee2 100644
+--- a/src/cmd/compile/internal/ssa/rewriteLOONG64.go
++++ b/src/cmd/compile/internal/ssa/rewriteLOONG64.go
+@@ -256,10 +256,6 @@ func rewriteValueLOONG64(v *Value) bool {
+ 		return rewriteValueLOONG64_OpLOONG64DIVV(v)
+ 	case OpLOONG64DIVVU:
+ 		return rewriteValueLOONG64_OpLOONG64DIVVU(v)
+-	case OpLOONG64LoweredAtomicAdd32:
+-		return rewriteValueLOONG64_OpLOONG64LoweredAtomicAdd32(v)
+-	case OpLOONG64LoweredAtomicAdd64:
+-		return rewriteValueLOONG64_OpLOONG64LoweredAtomicAdd64(v)
+ 	case OpLOONG64MASKEQZ:
+ 		return rewriteValueLOONG64_OpLOONG64MASKEQZ(v)
+ 	case OpLOONG64MASKNEZ:
+@@ -1694,54 +1690,6 @@ func rewriteValueLOONG64_OpLOONG64DIVVU(v *Value) bool {
+ 	}
+ 	return false
+ }
+-func rewriteValueLOONG64_OpLOONG64LoweredAtomicAdd32(v *Value) bool {
+-	v_2 := v.Args[2]
+-	v_1 := v.Args[1]
+-	v_0 := v.Args[0]
+-	// match: (LoweredAtomicAdd32 ptr (MOVVconst [c]) mem)
+-	// cond: is32Bit(c)
+-	// result: (LoweredAtomicAddconst32 [int32(c)] ptr mem)
+-	for {
+-		ptr := v_0
+-		if v_1.Op != OpLOONG64MOVVconst {
+-			break
+-		}
+-		c := auxIntToInt64(v_1.AuxInt)
+-		mem := v_2
+-		if !(is32Bit(c)) {
+-			break
+-		}
+-		v.reset(OpLOONG64LoweredAtomicAddconst32)
+-		v.AuxInt = int32ToAuxInt(int32(c))
+-		v.AddArg2(ptr, mem)
+-		return true
+-	}
+-	return false
+-}
+-func rewriteValueLOONG64_OpLOONG64LoweredAtomicAdd64(v *Value) bool {
+-	v_2 := v.Args[2]
+-	v_1 := v.Args[1]
+-	v_0 := v.Args[0]
+-	// match: (LoweredAtomicAdd64 ptr (MOVVconst [c]) mem)
+-	// cond: is32Bit(c)
+-	// result: (LoweredAtomicAddconst64 [c] ptr mem)
+-	for {
+-		ptr := v_0
+-		if v_1.Op != OpLOONG64MOVVconst {
+-			break
+-		}
+-		c := auxIntToInt64(v_1.AuxInt)
+-		mem := v_2
+-		if !(is32Bit(c)) {
+-			break
+-		}
+-		v.reset(OpLOONG64LoweredAtomicAddconst64)
+-		v.AuxInt = int64ToAuxInt(c)
+-		v.AddArg2(ptr, mem)
+-		return true
+-	}
+-	return false
+-}
+ func rewriteValueLOONG64_OpLOONG64MASKEQZ(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+diff --git a/src/internal/runtime/atomic/atomic_loong64.s b/src/internal/runtime/atomic/atomic_loong64.s
+index 1fe4e99dec..07d0f584b1 100644
+--- a/src/internal/runtime/atomic/atomic_loong64.s
++++ b/src/internal/runtime/atomic/atomic_loong64.s
+@@ -79,6 +79,9 @@ TEXT ·Xadduintptr(SB), NOSPLIT, $0-24
+ TEXT ·Loadint64(SB), NOSPLIT, $0-16
+ 	JMP	·Load64(SB)
+ 
++TEXT ·Xaddint32(SB),NOSPLIT,$0-20
++	JMP	·Xadd(SB)
++
+ TEXT ·Xaddint64(SB), NOSPLIT, $0-24
+ 	JMP	·Xadd64(SB)
+ 
+@@ -92,34 +95,25 @@ TEXT ·Xaddint64(SB), NOSPLIT, $0-24
+ TEXT ·Casp1(SB), NOSPLIT, $0-25
+ 	JMP	·Cas64(SB)
+ 
+-// uint32 xadd(uint32 volatile *ptr, int32 delta)
++// uint32 Xadd(uint32 volatile *ptr, int32 delta)
+ // Atomically:
+ //	*val += delta;
+ //	return *val;
+ TEXT ·Xadd(SB), NOSPLIT, $0-20
+ 	MOVV	ptr+0(FP), R4
+ 	MOVW	delta+8(FP), R5
+-	DBAR
+-	LL	(R4), R6
+-	ADDU	R6, R5, R7
+-	MOVV	R7, R6
+-	SC	R7, (R4)
+-	BEQ	R7, -4(PC)
+-	MOVW	R6, ret+16(FP)
+-	DBAR
++	AMADDDBW	R5, (R4), R6
++	ADDV	R6, R5, R4
++	MOVW	R4, ret+16(FP)
+ 	RET
+ 
++// func Xadd64(ptr *uint64, delta int64) uint64
+ TEXT ·Xadd64(SB), NOSPLIT, $0-24
+ 	MOVV	ptr+0(FP), R4
+ 	MOVV	delta+8(FP), R5
+-	DBAR
+-	LLV	(R4), R6
+-	ADDVU	R6, R5, R7
+-	MOVV	R7, R6
+-	SCV	R7, (R4)
+-	BEQ	R7, -4(PC)
+-	MOVV	R6, ret+16(FP)
+-	DBAR
++	AMADDDBV	R5, (R4), R6
++	ADDV	R6, R5, R4
++	MOVV	R4, ret+16(FP)
+ 	RET
+ 
+ TEXT ·Xchg(SB), NOSPLIT, $0-20

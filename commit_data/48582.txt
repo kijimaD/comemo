@@ -12,6 +12,26 @@ Date:   Fri May 28 17:28:12 2021 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/323489
     Trust: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-
+---
  doc/go1.17.html | 8 ++++++++
  1 file changed, 8 insertions(+)
+
+diff --git a/doc/go1.17.html b/doc/go1.17.html
+index b287d41309..d80e68d434 100644
+--- a/doc/go1.17.html
++++ b/doc/go1.17.html
+@@ -651,6 +651,14 @@ Do not send CLs removing the interior tags from such phrases.
+       DragonFly and all OpenBSD systems (it was already defined on
+       some OpenBSD systems and all FreeBSD, NetBSD, and Linux systems).
+     </p>
++
++    <p><!-- CL 315281 -->
++      The constants <code>SYS_WAIT6</code> and <code>WEXITED</code>
++      are now defined on NetBSD systems (<code>SYS_WAIT6</code> was
++      already defined on DragonFly and FreeBSD systems;
++      <code>WEXITED</code> was already defined on Darwin, DragonFly,
++      FreeBSD, Linux, and Solaris systems).
++    </p>
+   </dd>
+ </dl><!-- syscall -->
+ 

@@ -13,6 +13,22 @@ Date:   Thu Oct 7 03:33:42 2010 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/2330042
-
+---
  src/cmd/gc/typecheck.c | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index bb4571d9ff..f139ee8210 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -644,6 +644,10 @@ reswitch:
+ 		l = n->left;
+ 		if((t = l->type) == T)
+ 			goto error;
++		if(t->etype != TCHAN) {
++			yyerror("invalid operation: %#N (send to non-chan type %T)", n, t);
++			goto error;
++		}
+ 		if(!(t->chan & Csend)) {
+ 			yyerror("invalid operation: %#N (send to receive-only type %T)", n, t);
+ 			goto error;

@@ -19,9 +19,135 @@ Date:   Mon Apr 13 19:31:39 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/8897
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: David Crawshaw <crawshaw@golang.org>
-
+---
  misc/cgo/testcarchive/main.c             |  8 ++++----
  misc/cgo/testcarchive/src/libgo/libgo.go | 32 +++++++++++++++++++++++++-------
  src/runtime/cgocall.go                   |  8 ++++++++
  src/runtime/proc.go                      |  8 ++++++++
  4 files changed, 45 insertions(+), 11 deletions(-)
+
+diff --git a/misc/cgo/testcarchive/main.c b/misc/cgo/testcarchive/main.c
+index 3ce12682b8..f4d59f7636 100644
+--- a/misc/cgo/testcarchive/main.c
++++ b/misc/cgo/testcarchive/main.c
+@@ -12,13 +12,13 @@ extern int32_t FromPkg();
+ int main(void) {
+ 	int32_t res;
+ 
+-	if (DidMainRun()) {
+-		fprintf(stderr, "ERROR: buildmode=c-archive should not run main\n");
++	if (!DidInitRun()) {
++		fprintf(stderr, "ERROR: buildmode=c-archive init should run\n");
+ 		return 2;
+ 	}
+ 
+-	if (!DidInitRun()) {
+-		fprintf(stderr, "ERROR: buildmode=c-archive init should run\n");
++	if (DidMainRun()) {
++		fprintf(stderr, "ERROR: buildmode=c-archive should not run main\n");
+ 		return 2;
+ 	}
+ 
+diff --git a/misc/cgo/testcarchive/src/libgo/libgo.go b/misc/cgo/testcarchive/src/libgo/libgo.go
+index 25ddda3f76..87cb79cabe 100644
+--- a/misc/cgo/testcarchive/src/libgo/libgo.go
++++ b/misc/cgo/testcarchive/src/libgo/libgo.go
+@@ -4,21 +4,39 @@
+ 
+ package main
+ 
+-import _ "p"
++import (
++	_ "p"
++	"syscall"
++	"time"
++)
+ 
+ import "C"
+ 
+-var (
+-	ranInit bool
+-	ranMain bool
+-)
++var initCh = make(chan int, 1)
++var ranMain bool
+ 
+-func init() { ranInit = true }
++func init() {
++	// emulate an exceedingly slow package initialization function
++	time.Sleep(100 * time.Millisecond)
++	initCh <- 42
++}
+ 
+ func main() { ranMain = true }
+ 
+ //export DidInitRun
+-func DidInitRun() bool { return ranInit }
++func DidInitRun() bool {
++	select {
++	case x := <-initCh:
++		if x != 42 {
++			// Just in case initCh was not correctly made.
++			println("want init value of 42, got: ", x)
++			syscall.Exit(2)
++		}
++		return true
++	default:
++		return false
++	}
++}
+ 
+ //export DidMainRun
+ func DidMainRun() bool { return ranMain }
+diff --git a/src/runtime/cgocall.go b/src/runtime/cgocall.go
+index 5b24304c1d..d4d0cf47c3 100644
+--- a/src/runtime/cgocall.go
++++ b/src/runtime/cgocall.go
+@@ -193,6 +193,14 @@ func cgocallbackg1() {
+ 		systemstack(newextram)
+ 	}
+ 
++	if gp.m.ncgo == 0 {
++		// The C call to Go came from a thread not currently running
++		// any Go. In the case of -buildmode=c-archive or c-shared,
++		// this call may be coming in before package initialization
++		// is complete. Wait until it is.
++		<-main_init_done
++	}
++
+ 	// Add entry to defer stack in case of panic.
+ 	restore := true
+ 	defer unwindm(&restore)
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 7b6183d905..50f9dd7f52 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -12,6 +12,12 @@ func runtime_init()
+ //go:linkname main_init main.init
+ func main_init()
+ 
++// main_init_done is a signal used by cgocallbackg that initialization
++// has been completed. It is made before _cgo_notify_runtime_init_done,
++// so all cgo calls can rely on it existing. When main_init is complete,
++// it is closed, meaning cgocallbackg can reliably receive from it.
++var main_init_done chan bool
++
+ //go:linkname main_main main.main
+ func main_main()
+ 
+@@ -70,6 +76,7 @@ func main() {
+ 		// Allocate new M as main_main() is expected to block forever.
+ 		systemstack(newextram)
+ 	}
++	main_init_done = make(chan bool)
+ 	if iscgo {
+ 		if _cgo_thread_start == nil {
+ 			throw("_cgo_thread_start missing")
+@@ -95,6 +102,7 @@ func main() {
+ 	}
+ 
+ 	main_init()
++	close(main_init_done)
+ 
+ 	needUnlock = false
+ 	unlockOSThread()

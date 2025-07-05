@@ -11,6 +11,20 @@ Date:   Wed Oct 28 07:44:35 2015 +0100
     Reviewed-on: https://go-review.googlesource.com/16420
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/asm/internal/lex/input.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/asm/internal/lex/input.go b/src/cmd/asm/internal/lex/input.go
+index e5a33013e1..33b9d8adea 100644
+--- a/src/cmd/asm/internal/lex/input.go
++++ b/src/cmd/asm/internal/lex/input.go
+@@ -261,7 +261,7 @@ func (in *Input) macroDefinition(name string) ([]string, []Token) {
+ 	// Scan to newline. Backslashes escape newlines.
+ 	for tok != '\n' {
+ 		if tok == scanner.EOF {
+-			in.Error("missing newline in macro definition for %q\n", name)
++			in.Error("missing newline in definition for macro:", name)
+ 		}
+ 		if tok == '\\' {
+ 			tok = in.Stack.Next()

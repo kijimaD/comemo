@@ -10,8 +10,110 @@ Date:   Wed May 29 11:49:45 2013 +0400
     R=golang-dev, remyoudompheng, iant
     CC=golang-dev
     https://golang.org/cl/9375043
-
+---
  src/pkg/runtime/lock_futex.c |  7 ++++---
  src/pkg/runtime/lock_sema.c  | 12 ++++++------
  src/pkg/runtime/runtime.h    |  2 +-
  3 files changed, 11 insertions(+), 10 deletions(-)
+
+diff --git a/src/pkg/runtime/lock_futex.c b/src/pkg/runtime/lock_futex.c
+index d20b63c329..5309a21a13 100644
+--- a/src/pkg/runtime/lock_futex.c
++++ b/src/pkg/runtime/lock_futex.c
+@@ -127,18 +127,18 @@ runtime·notesleep(Note *n)
+ 		runtime·setprof(true);
+ }
+ 
+-void
++bool
+ runtime·notetsleep(Note *n, int64 ns)
+ {
+ 	int64 deadline, now;
+ 
+ 	if(ns < 0) {
+ 		runtime·notesleep(n);
+-		return;
++		return true;
+ 	}
+ 
+ 	if(runtime·atomicload((uint32*)&n->key) != 0)
+-		return;
++		return true;
+ 
+ 	if(m->profilehz > 0)
+ 		runtime·setprof(false);
+@@ -154,4 +154,5 @@ runtime·notetsleep(Note *n, int64 ns)
+ 	}
+ 	if(m->profilehz > 0)
+ 		runtime·setprof(true);
++	return runtime·atomicload((uint32*)&n->key) != 0;
+ }
+diff --git a/src/pkg/runtime/lock_sema.c b/src/pkg/runtime/lock_sema.c
+index 80674e8a5e..be4d306d1f 100644
+--- a/src/pkg/runtime/lock_sema.c
++++ b/src/pkg/runtime/lock_sema.c
+@@ -161,7 +161,7 @@ runtime·notesleep(Note *n)
+ 		runtime·setprof(true);
+ }
+ 
+-void
++bool
+ runtime·notetsleep(Note *n, int64 ns)
+ {
+ 	M *mp;
+@@ -169,7 +169,7 @@ runtime·notetsleep(Note *n, int64 ns)
+ 
+ 	if(ns < 0) {
+ 		runtime·notesleep(n);
+-		return;
++		return true;
+ 	}
+ 
+ 	if(m->waitsema == 0)
+@@ -179,7 +179,7 @@ runtime·notetsleep(Note *n, int64 ns)
+ 	if(!runtime·casp((void**)&n->key, nil, m)) {  // must be LOCKED (got wakeup already)
+ 		if(n->key != LOCKED)
+ 			runtime·throw("notetsleep - waitm out of sync");
+-		return;
++		return true;
+ 	}
+ 
+ 	if(m->profilehz > 0)
+@@ -192,7 +192,7 @@ runtime·notetsleep(Note *n, int64 ns)
+ 			// Done.
+ 			if(m->profilehz > 0)
+ 				runtime·setprof(true);
+-			return;
++			return true;
+ 		}
+ 
+ 		// Interrupted or timed out.  Still registered.  Semaphore not acquired.
+@@ -216,13 +216,13 @@ runtime·notetsleep(Note *n, int64 ns)
+ 		if(mp == m) {
+ 			// No wakeup yet; unregister if possible.
+ 			if(runtime·casp((void**)&n->key, mp, nil))
+-				return;
++				return false;
+ 		} else if(mp == (M*)LOCKED) {
+ 			// Wakeup happened so semaphore is available.
+ 			// Grab it to avoid getting out of sync.
+ 			if(runtime·semasleep(-1) < 0)
+ 				runtime·throw("runtime: unable to acquire - semaphore out of sync");
+-			return;
++			return true;
+ 		} else {
+ 			runtime·throw("runtime: unexpected waitm - semaphore out of sync");
+ 		}
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index c7ade2beb5..2d918f4cff 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -862,7 +862,7 @@ void	runtime·unlock(Lock*);
+ void	runtime·noteclear(Note*);
+ void	runtime·notesleep(Note*);
+ void	runtime·notewakeup(Note*);
+-void	runtime·notetsleep(Note*, int64);
++bool	runtime·notetsleep(Note*, int64);  // false - timeout
+ 
+ /*
+  * low-level synchronization for implementing the above

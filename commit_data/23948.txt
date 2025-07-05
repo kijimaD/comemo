@@ -9,6 +9,30 @@ Date:   Thu Jun 25 14:36:49 2015 +1000
     Change-Id: Ia4dc27777b96b1e898d9873e7d38e6e795057698
     Reviewed-on: https://go-review.googlesource.com/11474
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/{go1.5.txt => go1.5.html} | 8 ++++++++
  1 file changed, 8 insertions(+)
+
+diff --git a/doc/go1.5.txt b/doc/go1.5.html
+similarity index 98%
+rename from doc/go1.5.txt
+rename to doc/go1.5.html
+index 8c9860dffc..09c0075a30 100644
+--- a/doc/go1.5.txt
++++ b/doc/go1.5.html
+@@ -1,3 +1,10 @@
++<!--{
++	"Title": "Go 1.5 Release Notes",
++	"Path":  "/doc/go1.5",
++	"Template": true
++}-->
++
++<pre>
+ Overall:
+ - toolchain in Go
+ - new GC
+@@ -159,3 +166,4 @@ Standard library hardening
+ were fixed in fmt, archive/zip, archive/tar, encoding/gob, image/jpeg, image/png,
+ image/gif, compress/flate, text/template, html/template. The fixes harden implementation
+ against incorrect and malicious inputs.
++</pre>

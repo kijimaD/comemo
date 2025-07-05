@@ -12,6 +12,25 @@ Date:   Sun May 5 15:49:47 2019 +0200
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/syscall/syscall_unix.go | 7 ++-----
  1 file changed, 2 insertions(+), 5 deletions(-)
+
+diff --git a/src/syscall/syscall_unix.go b/src/syscall/syscall_unix.go
+index faaa432136..1b66e3bb11 100644
+--- a/src/syscall/syscall_unix.go
++++ b/src/syscall/syscall_unix.go
+@@ -21,11 +21,8 @@ var (
+ )
+ 
+ const (
+-	darwin64Bit    = runtime.GOOS == "darwin" && sizeofPtr == 8
+-	dragonfly64Bit = runtime.GOOS == "dragonfly" && sizeofPtr == 8
+-	netbsd32Bit    = runtime.GOOS == "netbsd" && sizeofPtr == 4
+-	solaris64Bit   = runtime.GOOS == "solaris" && sizeofPtr == 8
+-	illumos64Bit   = runtime.GOOS == "illumos" && sizeofPtr == 8
++	darwin64Bit = runtime.GOOS == "darwin" && sizeofPtr == 8
++	netbsd32Bit = runtime.GOOS == "netbsd" && sizeofPtr == 4
+ )
+ 
+ func Syscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)

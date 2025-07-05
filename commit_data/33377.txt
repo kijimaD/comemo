@@ -32,9 +32,143 @@ Date:   Mon Aug 14 15:24:31 2017 -0700
     Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/archive/tar/common.go       |  3 +--
  src/archive/tar/strconv.go      | 19 ++++++++++++++++-
  src/archive/tar/strconv_test.go | 45 +++++++++++++++++++++++++++++++++++++++++
  src/archive/tar/writer.go       | 12 ++++-------
  4 files changed, 68 insertions(+), 11 deletions(-)
+
+diff --git a/src/archive/tar/common.go b/src/archive/tar/common.go
+index 5b7bbe5a1e..5b921486f1 100644
+--- a/src/archive/tar/common.go
++++ b/src/archive/tar/common.go
+@@ -124,8 +124,7 @@ func (h *Header) allowedFormats() (format int, paxHdrs map[string]string) {
+ 			if paxKey == paxNone {
+ 				format &^= formatPAX // No PAX
+ 			} else {
+-				// TODO(dsnet): Support PAX time here.
+-				// paxHdrs[paxKey] = formatPAXTime(ts)
++				paxHdrs[paxKey] = formatPAXTime(ts)
+ 			}
+ 		}
+ 	}
+diff --git a/src/archive/tar/strconv.go b/src/archive/tar/strconv.go
+index 6aad6805aa..a93fc4ac7a 100644
+--- a/src/archive/tar/strconv.go
++++ b/src/archive/tar/strconv.go
+@@ -6,6 +6,7 @@ package tar
+ 
+ import (
+ 	"bytes"
++	"fmt"
+ 	"strconv"
+ 	"strings"
+ 	"time"
+@@ -218,7 +219,23 @@ func parsePAXTime(s string) (time.Time, error) {
+ 	return time.Unix(secs, int64(nsecs)), nil
+ }
+ 
+-// TODO(dsnet): Implement formatPAXTime.
++// formatPAXTime converts ts into a time of the form %d.%d as described in the
++// PAX specification. This function is capable of negative timestamps.
++func formatPAXTime(ts time.Time) (s string) {
++	secs, nsecs := ts.Unix(), ts.Nanosecond()
++	if nsecs == 0 {
++		return strconv.FormatInt(secs, 10)
++	}
++
++	// If seconds is negative, then perform correction.
++	sign := ""
++	if secs < 0 {
++		sign = "-"             // Remember sign
++		secs = -(secs + 1)     // Add a second to secs
++		nsecs = -(nsecs - 1E9) // Take that second away from nsecs
++	}
++	return strings.TrimRight(fmt.Sprintf("%s%d.%09d", sign, secs, nsecs), "0")
++}
+ 
+ // parsePAXRecord parses the input PAX record string into a key-value pair.
+ // If parsing is successful, it will slice off the currently read record and
+diff --git a/src/archive/tar/strconv_test.go b/src/archive/tar/strconv_test.go
+index e2527dc61f..7156368ede 100644
+--- a/src/archive/tar/strconv_test.go
++++ b/src/archive/tar/strconv_test.go
+@@ -294,6 +294,51 @@ func TestParsePAXTime(t *testing.T) {
+ 	}
+ }
+ 
++func TestFormatPAXTime(t *testing.T) {
++	vectors := []struct {
++		sec, nsec int64
++		want      string
++	}{
++		{1350244992, 0, "1350244992"},
++		{1350244992, 300000000, "1350244992.3"},
++		{1350244992, 23960100, "1350244992.0239601"},
++		{1350244992, 23960108, "1350244992.023960108"},
++		{+1, +1E9 - 1E0, "1.999999999"},
++		{+1, +1E9 - 1E3, "1.999999"},
++		{+1, +1E9 - 1E6, "1.999"},
++		{+1, +0E0 - 0E0, "1"},
++		{+1, +1E6 - 0E0, "1.001"},
++		{+1, +1E3 - 0E0, "1.000001"},
++		{+1, +1E0 - 0E0, "1.000000001"},
++		{0, 1E9 - 1E0, "0.999999999"},
++		{0, 1E9 - 1E3, "0.999999"},
++		{0, 1E9 - 1E6, "0.999"},
++		{0, 0E0, "0"},
++		{0, 1E6 + 0E0, "0.001"},
++		{0, 1E3 + 0E0, "0.000001"},
++		{0, 1E0 + 0E0, "0.000000001"},
++		{-1, -1E9 + 1E0, "-1.999999999"},
++		{-1, -1E9 + 1E3, "-1.999999"},
++		{-1, -1E9 + 1E6, "-1.999"},
++		{-1, -0E0 + 0E0, "-1"},
++		{-1, -1E6 + 0E0, "-1.001"},
++		{-1, -1E3 + 0E0, "-1.000001"},
++		{-1, -1E0 + 0E0, "-1.000000001"},
++		{-1350244992, 0, "-1350244992"},
++		{-1350244992, -300000000, "-1350244992.3"},
++		{-1350244992, -23960100, "-1350244992.0239601"},
++		{-1350244992, -23960108, "-1350244992.023960108"},
++	}
++
++	for _, v := range vectors {
++		got := formatPAXTime(time.Unix(v.sec, v.nsec))
++		if got != v.want {
++			t.Errorf("formatPAXTime(%ds, %dns): got %q, want %q",
++				v.sec, v.nsec, got, v.want)
++		}
++	}
++}
++
+ func TestParsePAXRecord(t *testing.T) {
+ 	medName := strings.Repeat("CD", 50)
+ 	longName := strings.Repeat("AB", 100)
+diff --git a/src/archive/tar/writer.go b/src/archive/tar/writer.go
+index d88e5ef340..7d393b46df 100644
+--- a/src/archive/tar/writer.go
++++ b/src/archive/tar/writer.go
+@@ -67,17 +67,13 @@ func (tw *Writer) WriteHeader(hdr *Header) error {
+ 		return err
+ 	}
+ 
+-	// TODO(dsnet): Add PAX timestamps with nanosecond support.
+-	hdrCpy := *hdr
+-	hdrCpy.ModTime = hdrCpy.ModTime.Truncate(time.Second)
+-
+-	switch allowedFormats, paxHdrs := hdrCpy.allowedFormats(); {
++	switch allowedFormats, paxHdrs := hdr.allowedFormats(); {
+ 	case allowedFormats&formatUSTAR != 0:
+-		return tw.writeUSTARHeader(&hdrCpy)
++		return tw.writeUSTARHeader(hdr)
+ 	case allowedFormats&formatPAX != 0:
+-		return tw.writePAXHeader(&hdrCpy, paxHdrs)
++		return tw.writePAXHeader(hdr, paxHdrs)
+ 	case allowedFormats&formatGNU != 0:
+-		return tw.writeGNUHeader(&hdrCpy)
++		return tw.writeGNUHeader(hdr)
+ 	default:
+ 		return ErrHeader
+ 	}

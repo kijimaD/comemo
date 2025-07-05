@@ -8,7 +8,7 @@ Date:   Thu May 21 20:20:26 2020 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/234891
     Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/link/internal/amd64/asm.go | 35 ----------------------------
  src/cmd/link/internal/amd64/obj.go |  4 +++-
  src/cmd/link/internal/arm/asm.go   | 29 -----------------------
@@ -18,3 +18,278 @@ Date:   Thu May 21 20:20:26 2020 -0400
  src/cmd/link/internal/x86/asm.go   | 25 --------------------
  src/cmd/link/internal/x86/obj.go   |  3 ++-
  8 files changed, 44 insertions(+), 106 deletions(-)
+
+diff --git a/src/cmd/link/internal/amd64/asm.go b/src/cmd/link/internal/amd64/asm.go
+index 849095d07d..e111c164a1 100644
+--- a/src/cmd/link/internal/amd64/asm.go
++++ b/src/cmd/link/internal/amd64/asm.go
+@@ -679,41 +679,6 @@ func addgotsym(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
+ 	}
+ }
+ 
+-func asmb2(ctxt *ld.Link, _ *loader.Loader) {
+-	if ctxt.IsDarwin() {
+-		panic("darwin should be generic")
+-	}
+-	if ctxt.IsElf() {
+-		panic("elf should be generic")
+-	}
+-	if ctxt.IsWindows() {
+-		panic("pe should be generic")
+-	}
+-
+-	switch ctxt.HeadType {
+-	default:
+-		ld.Errorf(nil, "unknown header type %v", ctxt.HeadType)
+-		fallthrough
+-
+-	case objabi.Hplan9:
+-		break
+-	}
+-
+-	ld.Symsize = 0
+-	ld.Spsize = 0
+-	ld.Lcsize = 0
+-	if !*ld.FlagS {
+-		*ld.FlagS = true
+-		symo := int64(ld.Segdata.Fileoff + ld.Segdata.Filelen)
+-		ctxt.Out.SeekSet(symo)
+-		ld.Asmplan9sym(ctxt)
+-	}
+-
+-	ctxt.Out.SeekSet(0)
+-	magic := uint32(4*26*26 + 7)
+-	ld.WritePlan9Header(ctxt.Out, magic, ld.Entryvalue(ctxt), true)
+-}
+-
+ func tlsIEtoLE(P []byte, off, size int) {
+ 	// Transform the PC-relative instruction into a constant load.
+ 	// That is,
+diff --git a/src/cmd/link/internal/amd64/obj.go b/src/cmd/link/internal/amd64/obj.go
+index 90de67d086..924ce58aa3 100644
+--- a/src/cmd/link/internal/amd64/obj.go
++++ b/src/cmd/link/internal/amd64/obj.go
+@@ -53,11 +53,13 @@ func Init() (*sys.Arch, ld.Arch) {
+ 		// 0xCC is INT $3 - breakpoint instruction
+ 		CodePad: []byte{0xCC},
+ 
++		Plan9Magic:  uint32(4*26*26 + 7),
++		Plan9_64Bit: true,
++
+ 		Adddynrel:        adddynrel,
+ 		Archinit:         archinit,
+ 		Archreloc:        archreloc,
+ 		Archrelocvariant: archrelocvariant,
+-		Asmb2:            asmb2,
+ 		Elfreloc1:        elfreloc1,
+ 		Elfsetupplt:      elfsetupplt,
+ 		Gentext:          gentext,
+diff --git a/src/cmd/link/internal/arm/asm.go b/src/cmd/link/internal/arm/asm.go
+index 3515a60ea7..3212268fab 100644
+--- a/src/cmd/link/internal/arm/asm.go
++++ b/src/cmd/link/internal/arm/asm.go
+@@ -670,32 +670,3 @@ func addgotsym(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
+ 		ldr.Errorf(s, "addgotsym: unsupported binary format")
+ 	}
+ }
+-
+-func asmb2(ctxt *ld.Link, _ *loader.Loader) {
+-	if ctxt.IsElf() {
+-		panic("elf should be generic")
+-	}
+-	if ctxt.IsWindows() {
+-		panic("pe should be generic")
+-	}
+-	/* output symbol table */
+-	ld.Symsize = 0
+-
+-	ld.Lcsize = 0
+-	if !*ld.FlagS {
+-		symo := uint32(ld.Segdata.Fileoff + ld.Segdata.Filelen)
+-		ctxt.Out.SeekSet(int64(symo))
+-		ld.Asmplan9sym(ctxt)
+-	}
+-
+-	ld.WritePlan9Header(ctxt.Out, 0x647, ld.Entryvalue(ctxt), false)
+-
+-	if *ld.FlagC {
+-		fmt.Printf("textsize=%d\n", ld.Segtext.Filelen)
+-		fmt.Printf("datsize=%d\n", ld.Segdata.Filelen)
+-		fmt.Printf("bsssize=%d\n", ld.Segdata.Length-ld.Segdata.Filelen)
+-		fmt.Printf("symsize=%d\n", ld.Symsize)
+-		fmt.Printf("lcsize=%d\n", ld.Lcsize)
+-		fmt.Printf("total=%d\n", ld.Segtext.Filelen+ld.Segdata.Length+uint64(ld.Symsize)+uint64(ld.Lcsize))
+-	}
+-}
+diff --git a/src/cmd/link/internal/arm/obj.go b/src/cmd/link/internal/arm/obj.go
+index c70b10e75d..151445ecda 100644
+--- a/src/cmd/link/internal/arm/obj.go
++++ b/src/cmd/link/internal/arm/obj.go
+@@ -46,12 +46,13 @@ func Init() (*sys.Arch, ld.Arch) {
+ 		Dwarfregsp: dwarfRegSP,
+ 		Dwarfreglr: dwarfRegLR,
+ 
++		Plan9Magic: 0x647,
++
+ 		Adddynrel:        adddynrel,
+ 		Archinit:         archinit,
+ 		Archreloc:        archreloc,
+ 		Archrelocvariant: archrelocvariant,
+ 		Trampoline:       trampoline,
+-		Asmb2:            asmb2,
+ 		Elfreloc1:        elfreloc1,
+ 		Elfsetupplt:      elfsetupplt,
+ 		Gentext:          gentext,
+diff --git a/src/cmd/link/internal/ld/asmb.go b/src/cmd/link/internal/ld/asmb.go
+index aebd1d2ceb..b6237d35c3 100644
+--- a/src/cmd/link/internal/ld/asmb.go
++++ b/src/cmd/link/internal/ld/asmb.go
+@@ -6,6 +6,7 @@ package ld
+ 
+ import (
+ 	"cmd/link/internal/loader"
++	"fmt"
+ 	"sync"
+ )
+ 
+@@ -74,12 +75,16 @@ func asmb(ctxt *Link, ldr *loader.Loader) {
+ //  - writing out the architecture specific pieces.
+ // This function handles the second part.
+ func asmb2(ctxt *Link) bool {
+-	// TODO: Spsize is only used for plan9
++	if ctxt.IsAIX() || ctxt.IsWasm() {
++		return false
++	}
++
++	Symsize = 0
++	Spsize = 0
++	Lcsize = 0
++
+ 	if ctxt.IsDarwin() {
+ 		machlink := Domacholink(ctxt)
+-		Symsize = 0
+-		Spsize = 0
+-		Lcsize = 0
+ 		if !*FlagS && ctxt.IsExternal() {
+ 			symo := int64(Segdwarf.Fileoff + uint64(Rnd(int64(Segdwarf.Filelen), int64(*FlagRound))) + uint64(machlink))
+ 			ctxt.Out.SeekSet(symo)
+@@ -87,12 +92,9 @@ func asmb2(ctxt *Link) bool {
+ 		}
+ 		ctxt.Out.SeekSet(0)
+ 		Asmbmacho(ctxt)
+-		return true
+ 	}
++
+ 	if ctxt.IsElf() {
+-		Symsize = 0
+-		Spsize = 0
+-		Lcsize = 0
+ 		var symo int64
+ 		if !*FlagS {
+ 			symo = int64(Segdwarf.Fileoff + Segdwarf.Filelen)
+@@ -106,16 +108,33 @@ func asmb2(ctxt *Link) bool {
+ 		}
+ 		ctxt.Out.SeekSet(0)
+ 		Asmbelf(ctxt, symo)
+-		return true
+ 	}
++
+ 	if ctxt.IsWindows() {
+-		Symsize = 0
+-		Spsize = 0
+-		Lcsize = 0
+ 		Asmbpe(ctxt)
+-		return true
+ 	}
+-	return false
++
++	if ctxt.IsPlan9() {
++		if !*FlagS {
++			*FlagS = true
++			symo := int64(Segdata.Fileoff + Segdata.Filelen)
++			ctxt.Out.SeekSet(symo)
++			Asmplan9sym(ctxt)
++		}
++		ctxt.Out.SeekSet(0)
++		WritePlan9Header(ctxt.Out, thearch.Plan9Magic, Entryvalue(ctxt), thearch.Plan9_64Bit)
++	}
++
++	if *FlagC {
++		fmt.Printf("textsize=%d\n", Segtext.Filelen)
++		fmt.Printf("datsize=%d\n", Segdata.Filelen)
++		fmt.Printf("bsssize=%d\n", Segdata.Length-Segdata.Filelen)
++		fmt.Printf("symsize=%d\n", Symsize)
++		fmt.Printf("lcsize=%d\n", Lcsize)
++		fmt.Printf("total=%d\n", Segtext.Filelen+Segdata.Length+uint64(Symsize)+uint64(Lcsize))
++	}
++
++	return true
+ }
+ 
+ // WritePlan9Header writes out the plan9 header at the present position in the OutBuf.
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index d8621c7db1..5c047c84ee 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -195,6 +195,10 @@ type Arch struct {
+ 	// Set to true to write all text blocks in with CodeBlkWrite
+ 	WriteTextBlocks bool
+ 
++	// Plan 9 variables.
++	Plan9Magic  uint32
++	Plan9_64Bit bool
++
+ 	Adddynrel func(*Target, *loader.Loader, *ArchSyms, loader.Sym, loader.Reloc2, int) bool
+ 	Archinit  func(*Link)
+ 	// Archreloc is an arch-specific hook that assists in relocation processing
+diff --git a/src/cmd/link/internal/x86/asm.go b/src/cmd/link/internal/x86/asm.go
+index 746661a028..d5ac40c583 100644
+--- a/src/cmd/link/internal/x86/asm.go
++++ b/src/cmd/link/internal/x86/asm.go
+@@ -509,28 +509,3 @@ func addgotsym(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
+ 		ldr.Errorf(s, "addgotsym: unsupported binary format")
+ 	}
+ }
+-
+-func asmb2(ctxt *ld.Link, _ *loader.Loader) {
+-	if ctxt.IsDarwin() {
+-		panic("darwin should be generic")
+-	}
+-	if ctxt.IsElf() {
+-		panic("elf should be generic")
+-	}
+-	if ctxt.IsWindows() {
+-		panic("pe should be generic")
+-	}
+-
+-	ld.Symsize = 0
+-	ld.Spsize = 0
+-	ld.Lcsize = 0
+-	if !*ld.FlagS {
+-		symo := uint32(ld.Segdata.Fileoff + ld.Segdata.Filelen)
+-		ctxt.Out.SeekSet(int64(symo))
+-		ld.Asmplan9sym(ctxt)
+-	}
+-
+-	ctxt.Out.SeekSet(0)
+-	magic := uint32(4*11*11 + 7)
+-	ld.WritePlan9Header(ctxt.Out, magic, ld.Entryvalue(ctxt), false)
+-}
+diff --git a/src/cmd/link/internal/x86/obj.go b/src/cmd/link/internal/x86/obj.go
+index b604c1f8c2..9239e71032 100644
+--- a/src/cmd/link/internal/x86/obj.go
++++ b/src/cmd/link/internal/x86/obj.go
+@@ -48,11 +48,12 @@ func Init() (*sys.Arch, ld.Arch) {
+ 		// 0xCC is INT $3 - breakpoint instruction
+ 		CodePad: []byte{0xCC},
+ 
++		Plan9Magic: uint32(4*11*11 + 7),
++
+ 		Adddynrel:        adddynrel,
+ 		Archinit:         archinit,
+ 		Archreloc:        archreloc,
+ 		Archrelocvariant: archrelocvariant,
+-		Asmb2:            asmb2,
+ 		Elfreloc1:        elfreloc1,
+ 		Elfsetupplt:      elfsetupplt,
+ 		Gentext:          gentext,

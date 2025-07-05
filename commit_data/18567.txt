@@ -19,10 +19,75 @@ Date:   Wed Feb 19 10:01:15 2014 -0500
     R=r, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/65890043
-
+---
  src/cmd/go/build.go | 4 ++++
  src/cmd/go/pkg.go   | 1 +
  src/cmd/go/run.go   | 1 +
  src/cmd/go/test.go  | 1 +
  test/run.go         | 2 +-
  5 files changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 824351b7e6..dcc24d99c4 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -1714,6 +1714,10 @@ func (gcToolchain) ld(b *builder, p *Package, out string, allactions []*action,
+ 	if buildContext.InstallSuffix != "" {
+ 		ldflags = append(ldflags, "-installsuffix", buildContext.InstallSuffix)
+ 	}
++	if p.omitDWARF {
++		ldflags = append(ldflags, "-w")
++	}
++
+ 	// If the user has not specified the -extld option, then specify the
+ 	// appropriate linker. In case of C++ code, use the compiler named
+ 	// by the CXX environment variable or defaultCXX if CXX is not set.
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index 0190b6784f..3ff3862700 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -89,6 +89,7 @@ type Package struct {
+ 	exeName      string               // desired name for temporary executable
+ 	coverMode    string               // preprocess Go source files with the coverage tool in this mode
+ 	coverVars    map[string]*CoverVar // variables created by coverage analysis
++	omitDWARF    bool                 // tell linker not to write DWARF information
+ }
+ 
+ // CoverVar holds the name of the generated coverage variables targeting the named file.
+diff --git a/src/cmd/go/run.go b/src/cmd/go/run.go
+index e6dadd2296..8d42622b86 100644
+--- a/src/cmd/go/run.go
++++ b/src/cmd/go/run.go
+@@ -58,6 +58,7 @@ func runRun(cmd *Command, args []string) {
+ 	if p.Error != nil {
+ 		fatalf("%s", p.Error)
+ 	}
++	p.omitDWARF = true
+ 	for _, err := range p.DepsErrors {
+ 		errorf("%s", err)
+ 	}
+diff --git a/src/cmd/go/test.go b/src/cmd/go/test.go
+index dcba12e11c..26b7f87f48 100644
+--- a/src/cmd/go/test.go
++++ b/src/cmd/go/test.go
+@@ -654,6 +654,7 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
+ 		pkgdir:     testDir,
+ 		fake:       true,
+ 		Stale:      true,
++		omitDWARF:  !testC && !testNeedBinary,
+ 	}
+ 	if pxtest != nil {
+ 		pmain.imports = append(pmain.imports, pxtest)
+diff --git a/test/run.go b/test/run.go
+index e5190e4e79..9a4d794ad2 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -200,7 +200,7 @@ func compileInDir(runcmd runCmd, dir string, names ...string) (out []byte, err e
+ 
+ func linkFile(runcmd runCmd, goname string) (err error) {
+ 	pfile := strings.Replace(goname, ".go", "."+letter, -1)
+-	_, err = runcmd("go", "tool", ld, "-o", "a.exe", "-L", ".", pfile)
++	_, err = runcmd("go", "tool", ld, "-w", "-o", "a.exe", "-L", ".", pfile)
+ 	return
+ }
+ 

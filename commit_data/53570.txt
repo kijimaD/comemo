@@ -16,6 +16,19 @@ Date:   Sun Aug 21 20:33:42 2022 +0000
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/net/dnsclient_unix.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/net/dnsclient_unix.go b/src/net/dnsclient_unix.go
+index cc0bf244ea..bf522e6b28 100644
+--- a/src/net/dnsclient_unix.go
++++ b/src/net/dnsclient_unix.go
+@@ -54,7 +54,6 @@ var (
+ func newRequest(q dnsmessage.Question) (id uint16, udpReq, tcpReq []byte, err error) {
+ 	id = uint16(randInt())
+ 	b := dnsmessage.NewBuilder(make([]byte, 2, 514), dnsmessage.Header{ID: id, RecursionDesired: true})
+-	b.EnableCompression()
+ 	if err := b.StartQuestions(); err != nil {
+ 		return 0, nil, nil, err
+ 	}

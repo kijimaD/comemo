@@ -17,9 +17,118 @@ Date:   Wed Sep 6 10:15:37 2023 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/526115
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/cgo/internal/testplugin/plugin_test.go     |  7 +++++
  .../testplugin/testdata/issue62430/main.go         | 35 ++++++++++++++++++++++
  .../testplugin/testdata/issue62430/plugin.go       | 11 +++++++
  src/cmd/link/internal/ld/deadcode.go               | 24 ++++++++++++---
  4 files changed, 73 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/cgo/internal/testplugin/plugin_test.go b/src/cmd/cgo/internal/testplugin/plugin_test.go
+index 2950b6c970..1e32ff8a06 100644
+--- a/src/cmd/cgo/internal/testplugin/plugin_test.go
++++ b/src/cmd/cgo/internal/testplugin/plugin_test.go
+@@ -388,3 +388,10 @@ func TestSymbolNameMangle(t *testing.T) {
+ 	globalSkip(t)
+ 	goCmd(t, "build", "-buildmode=plugin", "-o", "mangle.so", "./mangle/plugin.go")
+ }
++
++func TestIssue62430(t *testing.T) {
++	globalSkip(t)
++	goCmd(t, "build", "-buildmode=plugin", "-o", "issue62430.so", "./issue62430/plugin.go")
++	goCmd(t, "build", "-o", "issue62430.exe", "./issue62430/main.go")
++	run(t, "./issue62430.exe")
++}
+diff --git a/src/cmd/cgo/internal/testplugin/testdata/issue62430/main.go b/src/cmd/cgo/internal/testplugin/testdata/issue62430/main.go
+new file mode 100644
+index 0000000000..80108407c2
+--- /dev/null
++++ b/src/cmd/cgo/internal/testplugin/testdata/issue62430/main.go
+@@ -0,0 +1,35 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 62430: a program that uses plugins may appear
++// to have no references to an initialized global map variable defined
++// in some stdlib package (ex: unicode), however there
++// may be references to that map var from a plugin that
++// gets loaded.
++
++package main
++
++import (
++	"fmt"
++	"plugin"
++	"unicode"
++)
++
++func main() {
++	p, err := plugin.Open("issue62430.so")
++	if err != nil {
++		panic(err)
++	}
++	s, err := p.Lookup("F")
++	if err != nil {
++		panic(err)
++	}
++
++	f := s.(func(string) *unicode.RangeTable)
++	if f("C") == nil {
++		panic("unicode.Categories not properly initialized")
++	} else {
++		fmt.Println("unicode.Categories properly initialized")
++	}
++}
+diff --git a/src/cmd/cgo/internal/testplugin/testdata/issue62430/plugin.go b/src/cmd/cgo/internal/testplugin/testdata/issue62430/plugin.go
+new file mode 100644
+index 0000000000..e42cd8bb77
+--- /dev/null
++++ b/src/cmd/cgo/internal/testplugin/testdata/issue62430/plugin.go
+@@ -0,0 +1,11 @@
++package main
++
++import (
++	"unicode"
++)
++
++func F(s string) *unicode.RangeTable {
++	return unicode.Categories[s]
++}
++
++func main() {}
+diff --git a/src/cmd/link/internal/ld/deadcode.go b/src/cmd/link/internal/ld/deadcode.go
+index b365a3b39e..a051e43401 100644
+--- a/src/cmd/link/internal/ld/deadcode.go
++++ b/src/cmd/link/internal/ld/deadcode.go
+@@ -143,10 +143,26 @@ func (d *deadcodePass) flood() {
+ 		methods = methods[:0]
+ 		for i := 0; i < relocs.Count(); i++ {
+ 			r := relocs.At(i)
+-			// When build with "-linkshared", we can't tell if the interface
+-			// method in itab will be used or not. Ignore the weak attribute.
+-			if r.Weak() && !(d.ctxt.linkShared && d.ldr.IsItab(symIdx)) {
+-				continue
++			if r.Weak() {
++				convertWeakToStrong := false
++				// When build with "-linkshared", we can't tell if the
++				// interface method in itab will be used or not.
++				// Ignore the weak attribute.
++				if d.ctxt.linkShared && d.ldr.IsItab(symIdx) {
++					convertWeakToStrong = true
++				}
++				// If the program uses plugins, we can no longer treat
++				// relocs from pkg init functions to outlined map init
++				// fragments as weak, since doing so can cause package
++				// init clashes between the main program and the
++				// plugin. See #62430 for more details.
++				if d.ctxt.canUsePlugins && r.Type().IsDirectCall() {
++					convertWeakToStrong = true
++				}
++				if !convertWeakToStrong {
++					// skip this reloc
++					continue
++				}
+ 			}
+ 			t := r.Type()
+ 			switch t {

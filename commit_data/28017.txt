@@ -24,7 +24,42 @@ Date:   Tue Apr 26 10:53:25 2016 -0400
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/link/internal/ld/decodesym.go | 2 +-
  src/reflect/all_test.go               | 3 +++
  2 files changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/ld/decodesym.go b/src/cmd/link/internal/ld/decodesym.go
+index 3ec488bbe8..551ff802d7 100644
+--- a/src/cmd/link/internal/ld/decodesym.go
++++ b/src/cmd/link/internal/ld/decodesym.go
+@@ -239,7 +239,7 @@ func decodetype_name(s *LSym, off int) string {
+ 	}
+ 
+ 	data := r.Sym.P
+-	namelen := int(uint16(data[1]<<8) | uint16(data[2]))
++	namelen := int(uint16(data[1])<<8 | uint16(data[2]))
+ 	return string(data[3 : 3+namelen])
+ }
+ 
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index e88bc880e2..aff8ea253b 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -5651,6 +5651,8 @@ func TestChanAlloc(t *testing.T) {
+ 	// allocs < 0.5 condition will trigger and this test should be fixed.
+ }
+ 
++type TheNameOfThisTypeIsExactly255BytesLongSoWhenTheCompilerPrependsTheReflectTestPackageNameAndExtraStarTheLinkerRuntimeAndReflectPackagesWillHaveToCorrectlyDecodeTheSecondLengthByte0123456789_0123456789_0123456789_0123456789_0123456789_012345678 int
++
+ type nameTest struct {
+ 	v    interface{}
+ 	want string
+@@ -5664,6 +5666,7 @@ var nameTests = []nameTest{
+ 	{(func() D1)(nil), ""},
+ 	{(<-chan D1)(nil), ""},
+ 	{(chan<- D1)(nil), ""},
++	{TheNameOfThisTypeIsExactly255BytesLongSoWhenTheCompilerPrependsTheReflectTestPackageNameAndExtraStarTheLinkerRuntimeAndReflectPackagesWillHaveToCorrectlyDecodeTheSecondLengthByte0123456789_0123456789_0123456789_0123456789_0123456789_012345678(0), "TheNameOfThisTypeIsExactly255BytesLongSoWhenTheCompilerPrependsTheReflectTestPackageNameAndExtraStarTheLinkerRuntimeAndReflectPackagesWillHaveToCorrectlyDecodeTheSecondLengthByte0123456789_0123456789_0123456789_0123456789_0123456789_012345678"},
+ }
+ 
+ func TestNames(t *testing.T) {

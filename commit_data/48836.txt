@@ -14,6 +14,29 @@ Date:   Thu Jun 17 17:34:18 2021 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/329290
     Trust: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/runtime/signal_unix.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/signal_unix.go b/src/runtime/signal_unix.go
+index f2e526973d..03e2a40ce6 100644
+--- a/src/runtime/signal_unix.go
++++ b/src/runtime/signal_unix.go
+@@ -280,6 +280,8 @@ func setProcessCPUProfiler(hz int32) {
+ 		it.it_value = it.it_interval
+ 		setitimer(_ITIMER_PROF, &it, nil)
+ 	} else {
++		setitimer(_ITIMER_PROF, &itimerval{}, nil)
++
+ 		// If the Go signal handler should be disabled by default,
+ 		// switch back to the signal handler that was installed
+ 		// when we enabled profiling. We don't try to handle the case
+@@ -303,8 +305,6 @@ func setProcessCPUProfiler(hz int32) {
+ 				setsig(_SIGPROF, h)
+ 			}
+ 		}
+-
+-		setitimer(_ITIMER_PROF, &itimerval{}, nil)
+ 	}
+ }
+ 

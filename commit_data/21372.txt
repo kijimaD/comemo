@@ -9,6 +9,28 @@ Date:   Fri Dec 26 02:50:33 2014 -0500
     Change-Id: If7abd4d4d41cdfd5cf677f03533c930c8b965a01
     Reviewed-on: https://go-review.googlesource.com/2128
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/go_spec.html | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index fc8242ca53..5a1b291433 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1,6 +1,6 @@
+ <!--{
+ 	"Title": "The Go Programming Language Specification",
+-	"Subtitle": "Version of December 22, 2014",
++	"Subtitle": "Version of December 26, 2014",
+ 	"Path": "/ref/spec"
+ }-->
+ 
+@@ -5455,7 +5455,7 @@ const (
+ 	c2 = len([10]float64{2})         // [10]float64{2} contains no function calls
+ 	c3 = len([10]float64{c1})        // [10]float64{c1} contains no function calls
+ 	c4 = len([10]float64{imag(2i)})  // imag(2i) is a constant and no function call is issued
+-	c5 = len([10]float64{imag(z)})   // invalid: imag(x) is a (non-constant) function call
++	c5 = len([10]float64{imag(z)})   // invalid: imag(z) is a (non-constant) function call
+ )
+ var z complex128
+ </pre>

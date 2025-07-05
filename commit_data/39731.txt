@@ -19,9 +19,171 @@ Date:   Fri Jan 18 15:16:11 2019 -0500
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/debug/dwarf/testdata/cppunsuptypes.cc  |  34 ++++++++++++++++
  src/debug/dwarf/testdata/cppunsuptypes.elf | Bin 0 -> 3920 bytes
  src/debug/dwarf/type.go                    |  24 ++++++++++++
  src/debug/dwarf/type_test.go               |  60 +++++++++++++++++++++++++++++
  4 files changed, 118 insertions(+)
+
+diff --git a/src/debug/dwarf/testdata/cppunsuptypes.cc b/src/debug/dwarf/testdata/cppunsuptypes.cc
+new file mode 100644
+index 0000000000..e9281c7dec
+--- /dev/null
++++ b/src/debug/dwarf/testdata/cppunsuptypes.cc
+@@ -0,0 +1,34 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// cppunsuptypes.elf built with g++ 7.3
++//    g++ -g -c -o cppunsuptypes.elf cppunsuptypes.cc
++
++int i = 3;
++double d = 3;
++
++// anonymous reference type
++int &culprit = i;
++
++// named reference type
++typedef double &dref;
++dref dr = d;
++
++// incorporated into another type
++typedef struct {
++  dref q;
++  int &r;
++} hasrefs;
++
++hasrefs hr = { d, i };
++
++// This code is intended to trigger a DWARF "pointer to member" type DIE
++struct CS { int dm; };
++
++int foo()
++{
++  int CS::* pdm = &CS::dm;
++  CS cs = {42};
++  return cs.*pdm;
++}
+diff --git a/src/debug/dwarf/testdata/cppunsuptypes.elf b/src/debug/dwarf/testdata/cppunsuptypes.elf
+new file mode 100644
+index 0000000000..e955512ecd
+Binary files /dev/null and b/src/debug/dwarf/testdata/cppunsuptypes.elf differ
+diff --git a/src/debug/dwarf/type.go b/src/debug/dwarf/type.go
+index 4352092ed0..316db258f6 100644
+--- a/src/debug/dwarf/type.go
++++ b/src/debug/dwarf/type.go
+@@ -261,6 +261,20 @@ func (t *TypedefType) String() string { return t.Name }
+ 
+ func (t *TypedefType) Size() int64 { return t.Type.Size() }
+ 
++// An UnsupportedType is a placeholder returned in situations where we
++// encounter a type that isn't supported.
++type UnsupportedType struct {
++	CommonType
++	Tag Tag
++}
++
++func (t *UnsupportedType) String() string {
++	if t.Name != "" {
++		return t.Name
++	}
++	return t.Name + "(unsupported type " + t.Tag.String() + ")"
++}
++
+ // typeReader is used to read from either the info section or the
+ // types section.
+ type typeReader interface {
+@@ -680,6 +694,16 @@ func (d *Data) readType(name string, r typeReader, off Offset, typeCache map[Off
+ 		typ = t
+ 		typeCache[off] = t
+ 		t.Name, _ = e.Val(AttrName).(string)
++
++	default:
++		// This is some other type DIE that we're currently not
++		// equipped to handle. Return an abstract "unsupported type"
++		// object in such cases.
++		t := new(UnsupportedType)
++		typ = t
++		typeCache[off] = t
++		t.Tag = e.Tag
++		t.Name, _ = e.Val(AttrName).(string)
+ 	}
+ 
+ 	if err != nil {
+diff --git a/src/debug/dwarf/type_test.go b/src/debug/dwarf/type_test.go
+index 6c06731ea1..aa2fbeca0b 100644
+--- a/src/debug/dwarf/type_test.go
++++ b/src/debug/dwarf/type_test.go
+@@ -9,6 +9,8 @@ import (
+ 	"debug/elf"
+ 	"debug/macho"
+ 	"debug/pe"
++	"fmt"
++	"strconv"
+ 	"testing"
+ )
+ 
+@@ -168,3 +170,61 @@ func TestTypedefCycle(t *testing.T) {
+ 		}
+ 	}
+ }
++
++var unsupportedTypeTests = []string{
++	// varname:typename:string:size
++	"culprit::(unsupported type ReferenceType):8",
++	"pdm::(unsupported type PtrToMemberType):-1",
++}
++
++func TestUnsupportedTypes(t *testing.T) {
++	// Issue 29601:
++	// When reading DWARF from C++ load modules, we can encounter
++	// oddball type DIEs. These will be returned as "UnsupportedType"
++	// objects; check to make sure this works properly.
++	d := elfData(t, "testdata/cppunsuptypes.elf")
++	r := d.Reader()
++	seen := make(map[string]bool)
++	for {
++		e, err := r.Next()
++		if err != nil {
++			t.Fatal("r.Next:", err)
++		}
++		if e == nil {
++			break
++		}
++		if e.Tag == TagVariable {
++			vname, _ := e.Val(AttrName).(string)
++			tAttr := e.Val(AttrType)
++			typOff, ok := tAttr.(Offset)
++			if !ok {
++				t.Errorf("variable at offset %v has no type", e.Offset)
++				continue
++			}
++			typ, err := d.Type(typOff)
++			if err != nil {
++				t.Errorf("err in type decode: %v\n", err)
++				continue
++			}
++			unsup, isok := typ.(*UnsupportedType)
++			if !isok {
++				continue
++			}
++			tag := vname + ":" + unsup.Name + ":" + unsup.String() +
++				":" + strconv.FormatInt(unsup.Size(), 10)
++			seen[tag] = true
++		}
++	}
++	dumpseen := false
++	for _, v := range unsupportedTypeTests {
++		if !seen[v] {
++			t.Errorf("missing %s", v)
++			dumpseen = true
++		}
++	}
++	if dumpseen {
++		for k, _ := range seen {
++			fmt.Printf("seen: %s\n", k)
++		}
++	}
++}

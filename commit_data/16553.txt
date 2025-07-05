@@ -7,6 +7,20 @@ Date:   Wed Jun 12 09:06:28 2013 -0400
     TBR=dvyukov
     CC=golang-dev
     https://golang.org/cl/10227044
-
+---
  src/pkg/runtime/traceback_x86.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/traceback_x86.c b/src/pkg/runtime/traceback_x86.c
+index b9a6b07383..e6e132e253 100644
+--- a/src/pkg/runtime/traceback_x86.c
++++ b/src/pkg/runtime/traceback_x86.c
+@@ -112,7 +112,7 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip,
+ 		}
+ 
+ 		// Derive location and size of local variables.
+-		if(frame.fp == frame.sp) {
++		if(frame.fp == frame.sp + sizeof(uintptr)) {
+ 			// Function has not created a frame for itself yet.
+ 			frame.varp = nil;
+ 			frame.varlen = 0;

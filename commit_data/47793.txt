@@ -11,7 +11,41 @@ Date:   Sun Apr 11 14:33:16 2021 +0200
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/ipsock_plan9.go | 2 +-
  src/net/ipsock_posix.go | 4 ++--
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/net/ipsock_plan9.go b/src/net/ipsock_plan9.go
+index 8e984d5e5f..43287431c8 100644
+--- a/src/net/ipsock_plan9.go
++++ b/src/net/ipsock_plan9.go
+@@ -13,7 +13,7 @@ import (
+ 	"syscall"
+ )
+ 
+-// Probe probes IPv4, IPv6 and IPv4-mapped IPv6 communication
++// probe probes IPv4, IPv6 and IPv4-mapped IPv6 communication
+ // capabilities.
+ //
+ // Plan 9 uses IPv6 natively, see ip(3).
+diff --git a/src/net/ipsock_posix.go b/src/net/ipsock_posix.go
+index 8d8a896501..c51c227401 100644
+--- a/src/net/ipsock_posix.go
++++ b/src/net/ipsock_posix.go
+@@ -14,13 +14,13 @@ import (
+ 	"syscall"
+ )
+ 
+-// Probe probes IPv4, IPv6 and IPv4-mapped IPv6 communication
++// probe probes IPv4, IPv6 and IPv4-mapped IPv6 communication
+ // capabilities which are controlled by the IPV6_V6ONLY socket option
+ // and kernel configuration.
+ //
+ // Should we try to use the IPv4 socket interface if we're only
+ // dealing with IPv4 sockets? As long as the host system understands
+-// IPv4-mapped IPv6, it's okay to pass IPv4-mapeed IPv6 addresses to
++// IPv4-mapped IPv6, it's okay to pass IPv4-mapped IPv6 addresses to
+ // the IPv6 interface. That simplifies our code and is most
+ // general. Unfortunately, we need to run on kernels built without
+ // IPv6 support too. So probe the kernel to figure it out.

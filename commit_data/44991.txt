@@ -17,7 +17,7 @@ Date:   Fri Sep 18 10:23:58 2020 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Matloob <matloob@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  doc/go1.16.html                      |  7 +++
  src/cmd/go/alldocs.go                | 10 +++-
  src/cmd/go/internal/load/pkg.go      |  2 +-
@@ -28,3 +28,355 @@ Date:   Fri Sep 18 10:23:58 2020 -0400
  src/cmd/go/internal/modload/load.go  | 31 +++++++++----
  src/cmd/go/testdata/script/mod_e.txt | 89 ++++++++++++++++++++++++++++++++++++
  9 files changed, 150 insertions(+), 21 deletions(-)
+
+diff --git a/doc/go1.16.html b/doc/go1.16.html
+index 63ce61b452..09717dac85 100644
+--- a/doc/go1.16.html
++++ b/doc/go1.16.html
+@@ -66,6 +66,13 @@ Do not send CLs removing the interior tags from such phrases.
+   TODO: write and link to tutorial or blog post
+ </p>
+ 
++<p><!-- golang.org/issue/26603 -->
++  The <code>go</code> <code>mod</code> <code>vendor</code>
++  and <code>go</code> <code>mod</code> <code>tidy</code> subcommands now accept
++  the <code>-e</code> flag, which instructs them to proceed despite errors in
++  resolving missing packages.
++</p>
++
+ <h4 id="go-test"><code>go</code> <code>test</code></h4>
+ 
+ <p><!-- golang.org/issue/29062 -->
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index a0e93d822e..804ca9e5a5 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -1231,7 +1231,7 @@
+ //
+ // Usage:
+ //
+-// 	go mod tidy [-v]
++// 	go mod tidy [-e] [-v]
+ //
+ // Tidy makes sure go.mod matches the source code in the module.
+ // It adds any missing modules necessary to build the current module's
+@@ -1242,12 +1242,15 @@
+ // The -v flag causes tidy to print information about removed modules
+ // to standard error.
+ //
++// The -e flag causes tidy to attempt to proceed despite errors
++// encountered while loading packages.
++//
+ //
+ // Make vendored copy of dependencies
+ //
+ // Usage:
+ //
+-// 	go mod vendor [-v]
++// 	go mod vendor [-e] [-v]
+ //
+ // Vendor resets the main module's vendor directory to include all packages
+ // needed to build and test all the main module's packages.
+@@ -1256,6 +1259,9 @@
+ // The -v flag causes vendor to print the names of vendored
+ // modules and packages to standard error.
+ //
++// The -e flag causes vendor to attempt to proceed despite errors
++// encountered while loading packages.
++//
+ //
+ // Verify dependencies have expected content
+ //
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index df9d9964e6..1cbd7962e7 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -2164,7 +2164,7 @@ func PackagesAndErrors(ctx context.Context, patterns []string) []*Package {
+ 		loadOpts := modload.PackageOpts{
+ 			ResolveMissingImports: true,
+ 			LoadTests:             ModResolveTests,
+-			AllowErrors:           true,
++			SilenceErrors:         true,
+ 		}
+ 		matches, _ = modload.LoadPackages(ctx, loadOpts, patterns...)
+ 	} else {
+diff --git a/src/cmd/go/internal/modcmd/tidy.go b/src/cmd/go/internal/modcmd/tidy.go
+index 6cba26cc71..fb43e33ec5 100644
+--- a/src/cmd/go/internal/modcmd/tidy.go
++++ b/src/cmd/go/internal/modcmd/tidy.go
+@@ -15,7 +15,7 @@ import (
+ )
+ 
+ var cmdTidy = &base.Command{
+-	UsageLine: "go mod tidy [-v]",
++	UsageLine: "go mod tidy [-e] [-v]",
+ 	Short:     "add missing and remove unused modules",
+ 	Long: `
+ Tidy makes sure go.mod matches the source code in the module.
+@@ -26,12 +26,18 @@ to go.sum and removes any unnecessary ones.
+ 
+ The -v flag causes tidy to print information about removed modules
+ to standard error.
++
++The -e flag causes tidy to attempt to proceed despite errors
++encountered while loading packages.
+ 	`,
++	Run: runTidy,
+ }
+ 
++var tidyE bool // if true, report errors but proceed anyway.
++
+ func init() {
+-	cmdTidy.Run = runTidy // break init cycle
+ 	cmdTidy.Flag.BoolVar(&cfg.BuildV, "v", false, "")
++	cmdTidy.Flag.BoolVar(&tidyE, "e", false, "")
+ 	base.AddModCommonFlags(&cmdTidy.Flag)
+ }
+ 
+@@ -57,8 +63,9 @@ func runTidy(ctx context.Context, cmd *base.Command, args []string) {
+ 		Tags:                  imports.AnyTags(),
+ 		ResolveMissingImports: true,
+ 		LoadTests:             true,
+-		AllowErrors:           false, // TODO(#26603): Make this a flag.
++		AllowErrors:           tidyE,
+ 	}, "all")
++
+ 	modload.TidyBuildList()
+ 	modload.TrimGoSum()
+ 	modload.WriteGoMod()
+diff --git a/src/cmd/go/internal/modcmd/vendor.go b/src/cmd/go/internal/modcmd/vendor.go
+index ddc27deb78..1bc4ab3def 100644
+--- a/src/cmd/go/internal/modcmd/vendor.go
++++ b/src/cmd/go/internal/modcmd/vendor.go
+@@ -25,7 +25,7 @@ import (
+ )
+ 
+ var cmdVendor = &base.Command{
+-	UsageLine: "go mod vendor [-v]",
++	UsageLine: "go mod vendor [-e] [-v]",
+ 	Short:     "make vendored copy of dependencies",
+ 	Long: `
+ Vendor resets the main module's vendor directory to include all packages
+@@ -34,12 +34,18 @@ It does not include test code for vendored packages.
+ 
+ The -v flag causes vendor to print the names of vendored
+ modules and packages to standard error.
++
++The -e flag causes vendor to attempt to proceed despite errors
++encountered while loading packages.
+ 	`,
+ 	Run: runVendor,
+ }
+ 
++var vendorE bool // if true, report errors but proceed anyway
++
+ func init() {
+ 	cmdVendor.Flag.BoolVar(&cfg.BuildV, "v", false, "")
++	cmdVendor.Flag.BoolVar(&vendorE, "e", false, "")
+ 	base.AddModCommonFlags(&cmdVendor.Flag)
+ }
+ 
+@@ -54,6 +60,7 @@ func runVendor(ctx context.Context, cmd *base.Command, args []string) {
+ 		Tags:                  imports.AnyTags(),
+ 		ResolveMissingImports: true,
+ 		UseVendorAll:          true,
++		AllowErrors:           vendorE,
+ 	}
+ 	_, pkgs := modload.LoadPackages(ctx, loadOpts, "all")
+ 
+diff --git a/src/cmd/go/internal/modcmd/why.go b/src/cmd/go/internal/modcmd/why.go
+index 5a6d535700..e287c88060 100644
+--- a/src/cmd/go/internal/modcmd/why.go
++++ b/src/cmd/go/internal/modcmd/why.go
+@@ -66,10 +66,10 @@ func runWhy(ctx context.Context, cmd *base.Command, args []string) {
+ 	modload.RootMode = modload.NeedRoot
+ 
+ 	loadOpts := modload.PackageOpts{
+-		Tags:         imports.AnyTags(),
+-		LoadTests:    !*whyVendor,
+-		AllowErrors:  true,
+-		UseVendorAll: *whyVendor,
++		Tags:          imports.AnyTags(),
++		LoadTests:     !*whyVendor,
++		SilenceErrors: true,
++		UseVendorAll:  *whyVendor,
+ 	}
+ 
+ 	if *whyM {
+diff --git a/src/cmd/go/internal/modget/get.go b/src/cmd/go/internal/modget/get.go
+index 371ba8b690..52e3ec84fb 100644
+--- a/src/cmd/go/internal/modget/get.go
++++ b/src/cmd/go/internal/modget/get.go
+@@ -406,7 +406,7 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
+ 				Tags:                     imports.AnyTags(),
+ 				ResolveMissingImports:    true, // dubious; see https://golang.org/issue/32567
+ 				LoadTests:                *getT,
+-				AllowErrors:              true, // Errors may be fixed by subsequent upgrades or downgrades.
++				SilenceErrors:            true, // Errors may be fixed by subsequent upgrades or downgrades.
+ 				SilenceUnmatchedWarnings: true, // We will warn after iterating below.
+ 			}
+ 			matches, _ = modload.LoadPackages(ctx, loadOpts, pkgPatterns...)
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index f268144709..ee5596d16c 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -151,11 +151,14 @@ type PackageOpts struct {
+ 	// declare 'go 1.16' or higher.
+ 	UseVendorAll bool
+ 
+-	// AllowErrors indicates that LoadPackages should not log errors in resolving
+-	// patterns or imports, and should not terminate the process if such an error
+-	// occurs.
++	// AllowErrors indicates that LoadPackages should not terminate the process if
++	// an error occurs.
+ 	AllowErrors bool
+ 
++	// SilenceErrors indicates that LoadPackages should not print errors
++	// that occur while loading packages. SilenceErrors implies AllowErrors.
++	SilenceErrors bool
++
+ 	// SilenceUnmatchedWarnings suppresses the warnings normally emitted for
+ 	// patterns that did not match any packages.
+ 	SilenceUnmatchedWarnings bool
+@@ -263,23 +266,31 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
+ 
+ 	// One last pass to finalize wildcards.
+ 	updateMatches(loaded)
+-	checkMultiplePaths()
+-	WriteGoMod()
+ 
++	// Report errors, if any.
++	checkMultiplePaths()
+ 	for _, pkg := range loaded.pkgs {
+-		if pkg.err != nil && !opts.AllowErrors {
+-			base.Errorf("%s: %v", pkg.stackText(), pkg.err)
++		if pkg.err != nil && !opts.SilenceErrors {
++			if opts.AllowErrors {
++				fmt.Fprintf(os.Stderr, "%s: %v\n", pkg.stackText(), pkg.err)
++			} else {
++				base.Errorf("%s: %v", pkg.stackText(), pkg.err)
++			}
+ 		}
+ 		if !pkg.isTest() {
+ 			loadedPackages = append(loadedPackages, pkg.path)
+ 		}
+ 	}
+-	if !opts.AllowErrors {
++	if !opts.SilenceErrors {
+ 		// Also list errors in matching patterns (such as directory permission
+ 		// errors for wildcard patterns).
+ 		for _, match := range matches {
+ 			for _, err := range match.Errs {
+-				base.Errorf("%v", err)
++				if opts.AllowErrors {
++					fmt.Fprintf(os.Stderr, "%v\n", err)
++				} else {
++					base.Errorf("%v", err)
++				}
+ 			}
+ 		}
+ 	}
+@@ -289,6 +300,8 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
+ 		search.WarnUnmatched(matches)
+ 	}
+ 
++	// Success! Update go.mod (if needed) and return the results.
++	WriteGoMod()
+ 	sort.Strings(loadedPackages)
+ 	return matches, loadedPackages
+ }
+diff --git a/src/cmd/go/testdata/script/mod_e.txt b/src/cmd/go/testdata/script/mod_e.txt
+new file mode 100644
+index 0000000000..3a0d18dabc
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_e.txt
+@@ -0,0 +1,89 @@
++cp go.mod go.mod.orig
++
++
++# If a dependency cannot be resolved, 'go mod tidy' fails with an error message
++# explaining the problem and does not update the go.mod file.
++# TODO(bcmills): Ideally, with less redundancy than these error messages!
++
++! go mod tidy
++
++stderr '^example.com/untidy imports\n\texample.net/directnotfound: cannot find module providing package example.net/directnotfound: module example.net/directnotfound: reading http://.*: 404 Not Found$'
++
++stderr '^example.com/untidy imports\n\texample.net/m imports\n\texample.net/indirectnotfound: cannot find module providing package example.net/indirectnotfound: module example.net/indirectnotfound: reading http://.*: 404 Not Found$'
++
++stderr '^example.com/untidy tested by\n\texample.com/untidy.test imports\n\texample.net/directtestnotfound: cannot find module providing package example.net/directtestnotfound: module example.net/directtestnotfound: reading http://.*: 404 Not Found$'
++
++stderr '^example.com/untidy imports\n\texample.net/m tested by\n\texample.net/m.test imports\n\texample.net/indirecttestnotfound: cannot find module providing package example.net/indirecttestnotfound: module example.net/indirecttestnotfound: reading http://.*: 404 Not Found$'
++
++cmp go.mod.orig go.mod
++
++
++# If a dependency cannot be resolved, 'go mod vendor' fails with an error message
++# explaining the problem, does not update the go.mod file, and does not create
++# the vendor directory.
++
++! go mod vendor
++
++stderr '^example.com/untidy imports\n\texample.net/directnotfound: cannot find module providing package example.net/directnotfound: module example.net/directnotfound: reading http://.*: 404 Not Found$'
++
++stderr '^example.com/untidy imports\n\texample.net/m imports\n\texample.net/indirectnotfound: cannot find module providing package example.net/indirectnotfound: module example.net/indirectnotfound: reading http://.*: 404 Not Found$'
++
++stderr '^example.com/untidy tested by\n\texample.com/untidy.test imports\n\texample.net/directtestnotfound: cannot find module providing package example.net/directtestnotfound: module example.net/directtestnotfound: reading http://.*: 404 Not Found$'
++
++! stderr 'indirecttestnotfound'  # Vendor prunes test dependencies.
++
++cmp go.mod.orig go.mod
++! exists vendor
++
++
++# 'go mod tidy' still logs the errors, but succeeds and updates go.mod.
++
++go mod tidy -e
++stderr -count=4 'cannot find module providing package'
++cmp go.mod.final go.mod
++
++
++# 'go mod vendor -e' still logs the errors, but succeeds and updates go.mod.
++
++cp go.mod.orig go.mod
++go mod vendor -e
++stderr -count=3 'cannot find module providing package'
++cmp go.mod.final go.mod
++exists vendor/modules.txt
++exists vendor/example.net/m/m.go
++
++
++-- go.mod --
++module example.com/untidy
++go 1.16
++replace example.net/m v0.1.0 => ./m
++-- go.mod.final --
++module example.com/untidy
++
++go 1.16
++
++replace example.net/m v0.1.0 => ./m
++
++require example.net/m v0.1.0
++-- untidy.go --
++package untidy
++
++import (
++	_ "example.net/m"
++	_ "example.net/directnotfound"
++)
++-- untidy_test.go --
++package untidy_test
++
++import _ "example.net/directtestnotfound"
++-- m/go.mod --
++module example.net/m
++go 1.16
++-- m/m.go --
++package m
++
++import _ "example.net/indirectnotfound"
++-- m/m_test.go --
++package m_test
++
++import _ "example.net/indirecttestnotfound"

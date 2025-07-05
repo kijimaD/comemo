@@ -10,10 +10,124 @@ Date:   Thu Mar 23 16:39:04 2017 -0700
     Reviewed-on: https://go-review.googlesource.com/38591
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/gsubr.go | 12 +++++++-----
  src/cmd/compile/internal/gc/pgen.go  |  7 ++++---
  src/cmd/internal/obj/link.go         |  2 +-
  src/cmd/internal/obj/objfile.go      |  4 ++--
  src/cmd/internal/obj/plist.go        |  3 ++-
  5 files changed, 16 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/gsubr.go b/src/cmd/compile/internal/gc/gsubr.go
+index 20a52f35d2..8b41569430 100644
+--- a/src/cmd/compile/internal/gc/gsubr.go
++++ b/src/cmd/compile/internal/gc/gsubr.go
+@@ -37,15 +37,17 @@ import (
+ 
+ // Progs accumulates Progs for a function and converts them into machine code.
+ type Progs struct {
+-	Text *obj.Prog // ATEXT Prog for this function
+-	next *obj.Prog // next Prog
+-	pc   int64     // virtual PC; count of Progs
+-	pos  src.XPos  // position to use for new Progs
++	Text  *obj.Prog // ATEXT Prog for this function
++	next  *obj.Prog // next Prog
++	pc    int64     // virtual PC; count of Progs
++	pos   src.XPos  // position to use for new Progs
++	curfn *Node     // fn these Progs are for
+ }
+ 
+ // newProgs returns a new Progs for fn.
+ func newProgs(fn *Node) *Progs {
+ 	pp := new(Progs)
++	pp.curfn = fn
+ 
+ 	// prime the pump
+ 	pp.next = Ctxt.NewProg()
+@@ -58,7 +60,7 @@ func newProgs(fn *Node) *Progs {
+ 
+ // Flush converts from pp to machine code.
+ func (pp *Progs) Flush() {
+-	plist := &obj.Plist{Firstpc: pp.Text}
++	plist := &obj.Plist{Firstpc: pp.Text, Curfn: pp.curfn}
+ 	obj.Flushplist(Ctxt, plist)
+ 	// Clear pp to enable GC and avoid abuse.
+ 	*pp = Progs{}
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index 6f005237ca..be7d44a42f 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -310,13 +310,14 @@ func compile(fn *Node) {
+ 	pp.Flush()
+ }
+ 
+-func debuginfo(fnsym *obj.LSym) []*dwarf.Var {
+-	if expect := Linksym(Curfn.Func.Nname.Sym); fnsym != expect {
++func debuginfo(fnsym *obj.LSym, curfn interface{}) []*dwarf.Var {
++	fn := curfn.(*Node)
++	if expect := Linksym(fn.Func.Nname.Sym); fnsym != expect {
+ 		Fatalf("unexpected fnsym: %v != %v", fnsym, expect)
+ 	}
+ 
+ 	var vars []*dwarf.Var
+-	for _, n := range Curfn.Func.Dcl {
++	for _, n := range fn.Func.Dcl {
+ 		if n.Op != ONAME { // might be OTYPE or OLITERAL
+ 			continue
+ 		}
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index 640716c171..e7a4301c7d 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -746,7 +746,7 @@ type Link struct {
+ 	Armsize       int32
+ 	Pc            int64
+ 	DiagFunc      func(string, ...interface{})
+-	DebugInfo     func(fn *LSym) []*dwarf.Var
++	DebugInfo     func(fn *LSym, curfn interface{}) []*dwarf.Var // if non-nil, curfn is a *gc.Node
+ 	Cursym        *LSym
+ 	Version       int
+ 	Errors        int
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index 150c46752c..5bef20ad37 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -553,7 +553,7 @@ func (c dwCtxt) AddSectionOffset(s dwarf.Sym, size int, t interface{}, ofs int64
+ 
+ // makeFuncDebugEntry makes a DWARF Debugging Information Entry
+ // for TEXT symbol s.
+-func makeFuncDebugEntry(ctxt *Link, s *LSym) {
++func makeFuncDebugEntry(ctxt *Link, curfn interface{}, s *LSym) {
+ 	dsym := Linklookup(ctxt, dwarf.InfoPrefix+s.Name, int(s.Version))
+ 	if dsym.Size != 0 {
+ 		return
+@@ -562,7 +562,7 @@ func makeFuncDebugEntry(ctxt *Link, s *LSym) {
+ 	dsym.Set(AttrDuplicateOK, s.DuplicateOK())
+ 	var vars []*dwarf.Var
+ 	if ctxt.DebugInfo != nil {
+-		vars = ctxt.DebugInfo(s)
++		vars = ctxt.DebugInfo(s, curfn)
+ 	}
+ 	dwarf.PutFunc(dwCtxt{ctxt}, dsym, s.Name, s.Version == 0, s, s.Size, vars)
+ 	ctxt.Data = append(ctxt.Data, dsym)
+diff --git a/src/cmd/internal/obj/plist.go b/src/cmd/internal/obj/plist.go
+index 6b2ae8bb9e..36583c3f42 100644
+--- a/src/cmd/internal/obj/plist.go
++++ b/src/cmd/internal/obj/plist.go
+@@ -12,6 +12,7 @@ import (
+ 
+ type Plist struct {
+ 	Firstpc *Prog
++	Curfn   interface{} // holds a *gc.Node, if non-nil
+ }
+ 
+ func Flushplist(ctxt *Link, plist *Plist) {
+@@ -127,7 +128,7 @@ func flushplist(ctxt *Link, plist *Plist, freeProgs bool) {
+ 		ctxt.Arch.Preprocess(ctxt, s)
+ 		ctxt.Arch.Assemble(ctxt, s)
+ 		linkpcln(ctxt, s)
+-		makeFuncDebugEntry(ctxt, s)
++		makeFuncDebugEntry(ctxt, plist.Curfn, s)
+ 		if freeProgs {
+ 			s.Text = nil
+ 		}

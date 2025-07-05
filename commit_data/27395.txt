@@ -19,7 +19,54 @@ Date:   Fri Mar 25 01:27:34 2016 +0100
     Run-TryBot: Elias Naur <elias.naur@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  misc/cgo/testcarchive/carchive_test.go | 12 ++++++------
  src/cmd/dist/test.go                   |  1 +
  2 files changed, 7 insertions(+), 6 deletions(-)
+
+diff --git a/misc/cgo/testcarchive/carchive_test.go b/misc/cgo/testcarchive/carchive_test.go
+index a853cba32b..6771ad3be1 100644
+--- a/misc/cgo/testcarchive/carchive_test.go
++++ b/misc/cgo/testcarchive/carchive_test.go
+@@ -227,11 +227,11 @@ func TestEarlySignalHandler(t *testing.T) {
+ }
+ 
+ func TestSignalForwarding(t *testing.T) {
+-	switch runtime.GOOS {
++	switch GOOS {
+ 	case "darwin":
+-		switch runtime.GOARCH {
++		switch GOARCH {
+ 		case "arm", "arm64":
+-			t.Skipf("skipping on %s/%s; see https://golang.org/issue/13701", runtime.GOOS, runtime.GOARCH)
++			t.Skipf("skipping on %s/%s; see https://golang.org/issue/13701", GOOS, GOARCH)
+ 		}
+ 	case "windows":
+ 		t.Skip("skipping signal test on Windows")
+@@ -277,11 +277,11 @@ func TestSignalForwarding(t *testing.T) {
+ }
+ 
+ func TestSignalForwardingExternal(t *testing.T) {
+-	switch runtime.GOOS {
++	switch GOOS {
+ 	case "darwin":
+-		switch runtime.GOARCH {
++		switch GOARCH {
+ 		case "arm", "arm64":
+-			t.Skipf("skipping on %s/%s; see https://golang.org/issue/13701", runtime.GOOS, runtime.GOARCH)
++			t.Skipf("skipping on %s/%s; see https://golang.org/issue/13701", GOOS, GOARCH)
+ 		}
+ 	case "windows":
+ 		t.Skip("skipping signal test on Windows")
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index d5bb1362fb..23d8c3939c 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -696,6 +696,7 @@ func (t *tester) registerHostTest(name, dirBanner, pkg string) {
+ 		name:    name,
+ 		heading: dirBanner,
+ 		fn: func(dt *distTest) error {
++			t.runPending(dt)
+ 			return t.runHostTest(dirBanner, pkg)
+ 		},
+ 	})

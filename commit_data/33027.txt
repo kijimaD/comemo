@@ -13,6 +13,20 @@ Date:   Tue Jun 27 16:21:48 2017 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Andrew Bonventre <andybons@google.com>
-
+---
  src/cmd/go/go_test.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index d047596369..f36432cf34 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -4072,6 +4072,8 @@ func TestExecutableGOROOT(t *testing.T) {
+ 	newRoot := tg.path("new")
+ 
+ 	t.Run("RelocatedExe", func(t *testing.T) {
++		t.Skip("TODO: skipping known broken test; see golang.org/issue/20284")
++
+ 		// Should fall back to default location in binary.
+ 		// No way to dig out other than look at source code.
+ 		data, err := ioutil.ReadFile("../../runtime/internal/sys/zversion.go")

@@ -20,7 +20,110 @@ Date:   Thu Mar 24 17:42:01 2016 +0100
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/append_test.go | 24 ++++++++++++++++++++++--
  src/runtime/slice.go       | 32 ++++++++++++++++++++------------
  2 files changed, 42 insertions(+), 14 deletions(-)
+
+diff --git a/src/runtime/append_test.go b/src/runtime/append_test.go
+index 4b647f70a0..3170870b0e 100644
+--- a/src/runtime/append_test.go
++++ b/src/runtime/append_test.go
+@@ -9,7 +9,7 @@ const N = 20
+ 
+ func BenchmarkGrowSliceBytes(b *testing.B) {
+ 	b.StopTimer()
+-	var x = make([]byte, 8)
++	var x = make([]byte, 9)
+ 	b.StartTimer()
+ 	for i := 0; i < b.N; i++ {
+ 		_ = append([]byte(nil), x...)
+@@ -18,13 +18,33 @@ func BenchmarkGrowSliceBytes(b *testing.B) {
+ 
+ func BenchmarkGrowSliceInts(b *testing.B) {
+ 	b.StopTimer()
+-	var x = make([]int, 8)
++	var x = make([]int, 9)
+ 	b.StartTimer()
+ 	for i := 0; i < b.N; i++ {
+ 		_ = append([]int(nil), x...)
+ 	}
+ }
+ 
++func BenchmarkGrowSlicePtr(b *testing.B) {
++	b.StopTimer()
++	var x = make([]*byte, 9)
++	b.StartTimer()
++	for i := 0; i < b.N; i++ {
++		_ = append([]*byte(nil), x...)
++	}
++}
++
++type struct24 struct{ a, b, c int64 }
++
++func BenchmarkGrowSliceStruct24Bytes(b *testing.B) {
++	b.StopTimer()
++	var x = make([]struct24, 9)
++	b.StartTimer()
++	for i := 0; i < b.N; i++ {
++		_ = append([]struct24(nil), x...)
++	}
++}
++
+ func BenchmarkAppend(b *testing.B) {
+ 	b.StopTimer()
+ 	x := make([]int, 0, N)
+diff --git a/src/runtime/slice.go b/src/runtime/slice.go
+index d35ecadb16..0bc0299f72 100644
+--- a/src/runtime/slice.go
++++ b/src/runtime/slice.go
+@@ -56,11 +56,6 @@ func growslice(t *slicetype, old slice, cap int) slice {
+ 		return slice{unsafe.Pointer(&zerobase), old.len, cap}
+ 	}
+ 
+-	maxcap := _MaxMem / et.size
+-	if cap < old.cap || uintptr(cap) > maxcap {
+-		panic(errorString("growslice: cap out of range"))
+-	}
+-
+ 	newcap := old.cap
+ 	doublecap := newcap + newcap
+ 	if cap > doublecap {
+@@ -73,17 +68,30 @@ func growslice(t *slicetype, old slice, cap int) slice {
+ 				newcap += newcap / 4
+ 			}
+ 		}
+-		if uintptr(newcap) > maxcap {
+-			panic(errorString("growslice: cap out of range"))
+-		}
+ 	}
+ 
+-	lenmem := uintptr(old.len) * et.size
+-	capmem := roundupsize(uintptr(newcap) * et.size)
+-	if et.size == 1 {
++	var lenmem, capmem, maxcap uintptr
++	const ptrSize = unsafe.Sizeof((*byte)(nil))
++	switch et.size {
++	case 1:
++		lenmem = uintptr(old.len)
++		capmem = roundupsize(uintptr(newcap))
+ 		newcap = int(capmem)
+-	} else {
++		maxcap = _MaxMem
++	case ptrSize:
++		lenmem = uintptr(old.len) * ptrSize
++		capmem = roundupsize(uintptr(newcap) * ptrSize)
++		newcap = int(capmem / ptrSize)
++		maxcap = _MaxMem / ptrSize
++	default:
++		lenmem = uintptr(old.len) * et.size
++		capmem = roundupsize(uintptr(newcap) * et.size)
+ 		newcap = int(capmem / et.size)
++		maxcap = _MaxMem / et.size
++	}
++
++	if cap < old.cap || uintptr(newcap) > maxcap {
++		panic(errorString("growslice: cap out of range"))
+ 	}
+ 
+ 	var p unsafe.Pointer

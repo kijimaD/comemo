@@ -26,7 +26,7 @@ Date:   Mon Jan 30 17:27:42 2023 +0000
     Run-TryBot: roger peppe <rogpeppe@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/cmd/go/internal/load/pkg.go              | 76 +++++++++++---------------
  src/cmd/go/internal/modfetch/cache.go        | 82 ++++++++++++----------------
  src/cmd/go/internal/modfetch/codehost/git.go | 39 +++++--------
@@ -45,3 +45,1329 @@ Date:   Mon Jan 30 17:27:42 2023 +0000
  src/cmd/go/internal/par/work_test.go         | 10 ++--
  src/cmd/go/proxy_test.go                     | 32 +++++------
  17 files changed, 241 insertions(+), 322 deletions(-)
+
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 9e6b3ebcbd..7c0c104883 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -612,11 +612,11 @@ func ClearPackageCachePartial(args []string) {
+ 			delete(packageCache, arg)
+ 		}
+ 	}
+-	resolvedImportCache.DeleteIf(func(key any) bool {
+-		return shouldDelete[key.(importSpec).path]
++	resolvedImportCache.DeleteIf(func(key importSpec) bool {
++		return shouldDelete[key.path]
+ 	})
+-	packageDataCache.DeleteIf(func(key any) bool {
+-		return shouldDelete[key.(string)]
++	packageDataCache.DeleteIf(func(key string) bool {
++		return shouldDelete[key]
+ 	})
+ }
+ 
+@@ -628,8 +628,8 @@ func ReloadPackageNoFlags(arg string, stk *ImportStack) *Package {
+ 	p := packageCache[arg]
+ 	if p != nil {
+ 		delete(packageCache, arg)
+-		resolvedImportCache.DeleteIf(func(key any) bool {
+-			return key.(importSpec).path == p.ImportPath
++		resolvedImportCache.DeleteIf(func(key importSpec) bool {
++			return key.path == p.ImportPath
+ 		})
+ 		packageDataCache.Delete(p.ImportPath)
+ 	}
+@@ -846,7 +846,7 @@ func loadPackageData(ctx context.Context, path, parentPath, parentDir, parentRoo
+ 		parentIsStd: parentIsStd,
+ 		mode:        mode,
+ 	}
+-	r := resolvedImportCache.Do(importKey, func() any {
++	r := resolvedImportCache.Do(importKey, func() resolvedImport {
+ 		var r resolvedImport
+ 		if cfg.ModulesEnabled {
+ 			r.dir, r.path, r.err = modload.Lookup(parentPath, parentIsStd, path)
+@@ -866,16 +866,19 @@ func loadPackageData(ctx context.Context, path, parentPath, parentDir, parentRoo
+ 			r.path = path
+ 		}
+ 		return r
+-	}).(resolvedImport)
++	})
+ 	// Invariant: r.path is set to the resolved import path. If the path cannot
+ 	// be resolved, r.path is set to path, the source import path.
+ 	// r.path is never empty.
+ 
+ 	// Load the package from its directory. If we already found the package's
+ 	// directory when resolving its import path, use that.
+-	data := packageDataCache.Do(r.path, func() any {
++	p, err := packageDataCache.Do(r.path, func() (*build.Package, error) {
+ 		loaded = true
+-		var data packageData
++		var data struct {
++			p   *build.Package
++			err error
++		}
+ 		if r.dir != "" {
+ 			var buildMode build.ImportMode
+ 			buildContext := cfg.BuildContext
+@@ -961,10 +964,10 @@ func loadPackageData(ctx context.Context, path, parentPath, parentDir, parentRoo
+ 			!strings.Contains(path, "/vendor/") && !strings.HasPrefix(path, "vendor/") {
+ 			data.err = fmt.Errorf("code in directory %s expects import %q", data.p.Dir, data.p.ImportComment)
+ 		}
+-		return data
+-	}).(packageData)
++		return data.p, data.err
++	})
+ 
+-	return data.p, loaded, data.err
++	return p, loaded, err
+ }
+ 
+ // importSpec describes an import declaration in source code. It is used as a
+@@ -984,20 +987,11 @@ type resolvedImport struct {
+ 	err       error
+ }
+ 
+-// packageData holds information loaded from a package. It is the value type
+-// in packageDataCache.
+-type packageData struct {
+-	p   *build.Package
+-	err error
+-}
+-
+-// resolvedImportCache maps import strings (importSpec) to canonical package names
+-// (resolvedImport).
+-var resolvedImportCache par.Cache
++// resolvedImportCache maps import strings to canonical package names.
++var resolvedImportCache par.Cache[importSpec, resolvedImport]
+ 
+-// packageDataCache maps canonical package names (string) to package metadata
+-// (packageData).
+-var packageDataCache par.Cache
++// packageDataCache maps canonical package names (string) to package metadata.
++var packageDataCache par.ErrCache[string, *build.Package]
+ 
+ // preloadWorkerCount is the number of concurrent goroutines that can load
+ // packages. Experimentally, there are diminishing returns with more than
+@@ -1109,13 +1103,13 @@ func cleanImport(path string) string {
+ 	return path
+ }
+ 
+-var isDirCache par.Cache
++var isDirCache par.Cache[string, bool]
+ 
+ func isDir(path string) bool {
+-	return isDirCache.Do(path, func() any {
++	return isDirCache.Do(path, func() bool {
+ 		fi, err := fsys.Stat(path)
+ 		return err == nil && fi.IsDir()
+-	}).(bool)
++	})
+ }
+ 
+ // ResolveImportPath returns the true meaning of path when it appears in parent.
+@@ -1236,12 +1230,12 @@ func vendoredImportPath(path, parentPath, parentDir, parentRoot string) (found s
+ 
+ var (
+ 	modulePrefix   = []byte("\nmodule ")
+-	goModPathCache par.Cache
++	goModPathCache par.Cache[string, string]
+ )
+ 
+ // goModPath returns the module path in the go.mod in dir, if any.
+ func goModPath(dir string) (path string) {
+-	return goModPathCache.Do(dir, func() any {
++	return goModPathCache.Do(dir, func() string {
+ 		data, err := os.ReadFile(filepath.Join(dir, "go.mod"))
+ 		if err != nil {
+ 			return ""
+@@ -1277,7 +1271,7 @@ func goModPath(dir string) (path string) {
+ 			path = s
+ 		}
+ 		return path
+-	}).(string)
++	})
+ }
+ 
+ // findVersionElement returns the slice indices of the final version element /vN in path.
+@@ -2264,8 +2258,8 @@ func (p *Package) collectDeps() {
+ }
+ 
+ // vcsStatusCache maps repository directories (string)
+-// to their VCS information (vcsStatusError).
+-var vcsStatusCache par.Cache
++// to their VCS information.
++var vcsStatusCache par.ErrCache[string, vcs.Status]
+ 
+ // setBuildInfo gathers build information, formats it as a string to be
+ // embedded in the binary, then sets p.Internal.BuildInfo to that string.
+@@ -2517,19 +2511,13 @@ func (p *Package) setBuildInfo(autoVCS bool) {
+ 			goto omitVCS
+ 		}
+ 
+-		type vcsStatusError struct {
+-			Status vcs.Status
+-			Err    error
+-		}
+-		cached := vcsStatusCache.Do(repoDir, func() any {
+-			st, err := vcsCmd.Status(vcsCmd, repoDir)
+-			return vcsStatusError{st, err}
+-		}).(vcsStatusError)
+-		if err := cached.Err; err != nil {
++		st, err := vcsStatusCache.Do(repoDir, func() (vcs.Status, error) {
++			return vcsCmd.Status(vcsCmd, repoDir)
++		})
++		if err != nil {
+ 			setVCSError(err)
+ 			return
+ 		}
+-		st := cached.Status
+ 
+ 		appendSetting("vcs", vcsCmd.Cmd)
+ 		if st.Revision != "" {
+diff --git a/src/cmd/go/internal/modfetch/cache.go b/src/cmd/go/internal/modfetch/cache.go
+index 928eb1f70e..8217450b57 100644
+--- a/src/cmd/go/internal/modfetch/cache.go
++++ b/src/cmd/go/internal/modfetch/cache.go
+@@ -169,8 +169,11 @@ func SideLock() (unlock func(), err error) {
+ // (so that it can be returned from Lookup multiple times).
+ // It serializes calls to the underlying Repo.
+ type cachingRepo struct {
+-	path  string
+-	cache par.Cache // cache for all operations
++	path          string
++	versionsCache par.ErrCache[string, *Versions]
++	statCache     par.ErrCache[string, *RevInfo]
++	latestCache   par.ErrCache[struct{}, *RevInfo]
++	gomodCache    par.ErrCache[string, []byte]
+ 
+ 	once     sync.Once
+ 	initRepo func() (Repo, error)
+@@ -204,23 +207,17 @@ func (r *cachingRepo) ModulePath() string {
+ }
+ 
+ func (r *cachingRepo) Versions(prefix string) (*Versions, error) {
+-	type cached struct {
+-		v   *Versions
+-		err error
+-	}
+-	c := r.cache.Do("versions:"+prefix, func() any {
+-		v, err := r.repo().Versions(prefix)
+-		return cached{v, err}
+-	}).(cached)
++	v, err := r.versionsCache.Do(prefix, func() (*Versions, error) {
++		return r.repo().Versions(prefix)
++	})
+ 
+-	if c.err != nil {
+-		return nil, c.err
+-	}
+-	v := &Versions{
+-		Origin: c.v.Origin,
+-		List:   append([]string(nil), c.v.List...),
++	if err != nil {
++		return nil, err
+ 	}
+-	return v, nil
++	return &Versions{
++		Origin: v.Origin,
++		List:   append([]string(nil), v.List...),
++	}, nil
+ }
+ 
+ type cachedInfo struct {
+@@ -229,10 +226,10 @@ type cachedInfo struct {
+ }
+ 
+ func (r *cachingRepo) Stat(rev string) (*RevInfo, error) {
+-	c := r.cache.Do("stat:"+rev, func() any {
++	info, err := r.statCache.Do(rev, func() (*RevInfo, error) {
+ 		file, info, err := readDiskStat(r.path, rev)
+ 		if err == nil {
+-			return cachedInfo{info, nil}
++			return info, err
+ 		}
+ 
+ 		info, err = r.repo().Stat(rev)
+@@ -241,8 +238,8 @@ func (r *cachingRepo) Stat(rev string) (*RevInfo, error) {
+ 			// then save the information under the proper version, for future use.
+ 			if info.Version != rev {
+ 				file, _ = CachePath(module.Version{Path: r.path, Version: info.Version}, "info")
+-				r.cache.Do("stat:"+info.Version, func() any {
+-					return cachedInfo{info, err}
++				r.statCache.Do(info.Version, func() (*RevInfo, error) {
++					return info, nil
+ 				})
+ 			}
+ 
+@@ -250,70 +247,61 @@ func (r *cachingRepo) Stat(rev string) (*RevInfo, error) {
+ 				fmt.Fprintf(os.Stderr, "go: writing stat cache: %v\n", err)
+ 			}
+ 		}
+-		return cachedInfo{info, err}
+-	}).(cachedInfo)
+-
+-	info := c.info
++		return info, err
++	})
+ 	if info != nil {
+ 		copy := *info
+ 		info = &copy
+ 	}
+-	return info, c.err
++	return info, err
+ }
+ 
+ func (r *cachingRepo) Latest() (*RevInfo, error) {
+-	c := r.cache.Do("latest:", func() any {
++	info, err := r.latestCache.Do(struct{}{}, func() (*RevInfo, error) {
+ 		info, err := r.repo().Latest()
+ 
+ 		// Save info for likely future Stat call.
+ 		if err == nil {
+-			r.cache.Do("stat:"+info.Version, func() any {
+-				return cachedInfo{info, err}
++			r.statCache.Do(info.Version, func() (*RevInfo, error) {
++				return info, nil
+ 			})
+ 			if file, _, err := readDiskStat(r.path, info.Version); err != nil {
+ 				writeDiskStat(file, info)
+ 			}
+ 		}
+ 
+-		return cachedInfo{info, err}
+-	}).(cachedInfo)
+-
+-	info := c.info
++		return info, err
++	})
+ 	if info != nil {
+ 		copy := *info
+ 		info = &copy
+ 	}
+-	return info, c.err
++	return info, err
+ }
+ 
+ func (r *cachingRepo) GoMod(version string) ([]byte, error) {
+-	type cached struct {
+-		text []byte
+-		err  error
+-	}
+-	c := r.cache.Do("gomod:"+version, func() any {
++	text, err := r.gomodCache.Do(version, func() ([]byte, error) {
+ 		file, text, err := readDiskGoMod(r.path, version)
+ 		if err == nil {
+ 			// Note: readDiskGoMod already called checkGoMod.
+-			return cached{text, nil}
++			return text, nil
+ 		}
+ 
+ 		text, err = r.repo().GoMod(version)
+ 		if err == nil {
+ 			if err := checkGoMod(r.path, version, text); err != nil {
+-				return cached{text, err}
++				return text, err
+ 			}
+ 			if err := writeDiskGoMod(file, text); err != nil {
+ 				fmt.Fprintf(os.Stderr, "go: writing go.mod cache: %v\n", err)
+ 			}
+ 		}
+-		return cached{text, err}
+-	}).(cached)
+-
+-	if c.err != nil {
+-		return nil, c.err
++		return text, err
++	})
++	if err != nil {
++		return nil, err
+ 	}
+-	return append([]byte(nil), c.text...), nil
++	return append([]byte(nil), text...), nil
+ }
+ 
+ func (r *cachingRepo) Zip(dst io.Writer, version string) error {
+diff --git a/src/cmd/go/internal/modfetch/codehost/git.go b/src/cmd/go/internal/modfetch/codehost/git.go
+index 127ad264af..93c39cf3da 100644
+--- a/src/cmd/go/internal/modfetch/codehost/git.go
++++ b/src/cmd/go/internal/modfetch/codehost/git.go
+@@ -46,24 +46,17 @@ func (notExistError) Is(err error) bool { return err == fs.ErrNotExist }
+ 
+ const gitWorkDirType = "git3"
+ 
+-var gitRepoCache par.Cache
++var gitRepoCache par.ErrCache[gitCacheKey, Repo]
+ 
+-func newGitRepoCached(remote string, localOK bool) (Repo, error) {
+-	type key struct {
+-		remote  string
+-		localOK bool
+-	}
+-	type cached struct {
+-		repo Repo
+-		err  error
+-	}
+-
+-	c := gitRepoCache.Do(key{remote, localOK}, func() any {
+-		repo, err := newGitRepo(remote, localOK)
+-		return cached{repo, err}
+-	}).(cached)
++type gitCacheKey struct {
++	remote  string
++	localOK bool
++}
+ 
+-	return c.repo, c.err
++func newGitRepoCached(remote string, localOK bool) (Repo, error) {
++	return gitRepoCache.Do(gitCacheKey{remote, localOK}, func() (Repo, error) {
++		return newGitRepo(remote, localOK)
++	})
+ }
+ 
+ func newGitRepo(remote string, localOK bool) (Repo, error) {
+@@ -132,7 +125,7 @@ type gitRepo struct {
+ 
+ 	fetchLevel int
+ 
+-	statCache par.Cache
++	statCache par.ErrCache[string, *RevInfo]
+ 
+ 	refsOnce sync.Once
+ 	// refs maps branch and tag refs (e.g., "HEAD", "refs/heads/master")
+@@ -637,15 +630,9 @@ func (r *gitRepo) Stat(rev string) (*RevInfo, error) {
+ 	if rev == "latest" {
+ 		return r.Latest()
+ 	}
+-	type cached struct {
+-		info *RevInfo
+-		err  error
+-	}
+-	c := r.statCache.Do(rev, func() any {
+-		info, err := r.stat(rev)
+-		return cached{info, err}
+-	}).(cached)
+-	return c.info, c.err
++	return r.statCache.Do(rev, func() (*RevInfo, error) {
++		return r.stat(rev)
++	})
+ }
+ 
+ func (r *gitRepo) ReadFile(rev, file string, maxSize int64) ([]byte, error) {
+diff --git a/src/cmd/go/internal/modfetch/codehost/vcs.go b/src/cmd/go/internal/modfetch/codehost/vcs.go
+index 300a23c6ac..9628a8c7af 100644
+--- a/src/cmd/go/internal/modfetch/codehost/vcs.go
++++ b/src/cmd/go/internal/modfetch/codehost/vcs.go
+@@ -44,27 +44,22 @@ func vcsErrorf(format string, a ...any) error {
+ 	return &VCSError{Err: fmt.Errorf(format, a...)}
+ }
+ 
++type vcsCacheKey struct {
++	vcs    string
++	remote string
++}
++
+ func NewRepo(vcs, remote string) (Repo, error) {
+-	type key struct {
+-		vcs    string
+-		remote string
+-	}
+-	type cached struct {
+-		repo Repo
+-		err  error
+-	}
+-	c := vcsRepoCache.Do(key{vcs, remote}, func() any {
++	return vcsRepoCache.Do(vcsCacheKey{vcs, remote}, func() (Repo, error) {
+ 		repo, err := newVCSRepo(vcs, remote)
+ 		if err != nil {
+-			err = &VCSError{err}
++			return nil, &VCSError{err}
+ 		}
+-		return cached{repo, err}
+-	}).(cached)
+-
+-	return c.repo, c.err
++		return repo, nil
++	})
+ }
+ 
+-var vcsRepoCache par.Cache
++var vcsRepoCache par.ErrCache[vcsCacheKey, Repo]
+ 
+ type vcsRepo struct {
+ 	mu lockedfile.Mutex // protects all commands, so we don't have to decide which are safe on a per-VCS basis
+diff --git a/src/cmd/go/internal/modfetch/fetch.go b/src/cmd/go/internal/modfetch/fetch.go
+index dfe5da677e..c9502ca432 100644
+--- a/src/cmd/go/internal/modfetch/fetch.go
++++ b/src/cmd/go/internal/modfetch/fetch.go
+@@ -34,7 +34,7 @@ import (
+ 	modzip "golang.org/x/mod/zip"
+ )
+ 
+-var downloadCache par.Cache
++var downloadCache par.ErrCache[module.Version, string] // version → directory
+ 
+ // Download downloads the specific module version to the
+ // local download cache and returns the name of the directory
+@@ -45,19 +45,14 @@ func Download(ctx context.Context, mod module.Version) (dir string, err error) {
+ 	}
+ 
+ 	// The par.Cache here avoids duplicate work.
+-	type cached struct {
+-		dir string
+-		err error
+-	}
+-	c := downloadCache.Do(mod, func() any {
++	return downloadCache.Do(mod, func() (string, error) {
+ 		dir, err := download(ctx, mod)
+ 		if err != nil {
+-			return cached{"", err}
++			return "", err
+ 		}
+ 		checkMod(mod)
+-		return cached{dir, nil}
+-	}).(cached)
+-	return c.dir, c.err
++		return dir, nil
++	})
+ }
+ 
+ func download(ctx context.Context, mod module.Version) (dir string, err error) {
+@@ -156,27 +151,23 @@ func download(ctx context.Context, mod module.Version) (dir string, err error) {
+ 	return dir, nil
+ }
+ 
+-var downloadZipCache par.Cache
++var downloadZipCache par.ErrCache[module.Version, string]
+ 
+ // DownloadZip downloads the specific module version to the
+ // local zip cache and returns the name of the zip file.
+ func DownloadZip(ctx context.Context, mod module.Version) (zipfile string, err error) {
+ 	// The par.Cache here avoids duplicate work.
+-	type cached struct {
+-		zipfile string
+-		err     error
+-	}
+-	c := downloadZipCache.Do(mod, func() any {
++	return downloadZipCache.Do(mod, func() (string, error) {
+ 		zipfile, err := CachePath(mod, "zip")
+ 		if err != nil {
+-			return cached{"", err}
++			return "", err
+ 		}
+ 		ziphashfile := zipfile + "hash"
+ 
+ 		// Return without locking if the zip and ziphash files exist.
+ 		if _, err := os.Stat(zipfile); err == nil {
+ 			if _, err := os.Stat(ziphashfile); err == nil {
+-				return cached{zipfile, nil}
++				return zipfile, nil
+ 			}
+ 		}
+ 
+@@ -186,16 +177,15 @@ func DownloadZip(ctx context.Context, mod module.Version) (zipfile string, err e
+ 		}
+ 		unlock, err := lockVersion(mod)
+ 		if err != nil {
+-			return cached{"", err}
++			return "", err
+ 		}
+ 		defer unlock()
+ 
+ 		if err := downloadZip(ctx, mod, zipfile); err != nil {
+-			return cached{"", err}
++			return "", err
+ 		}
+-		return cached{zipfile, nil}
+-	}).(cached)
+-	return c.zipfile, c.err
++		return zipfile, nil
++	})
+ }
+ 
+ func downloadZip(ctx context.Context, mod module.Version, zipfile string) (err error) {
+@@ -416,8 +406,8 @@ func Reset() {
+ 	// Uses of lookupCache and downloadCache both can call checkModSum,
+ 	// which in turn sets the used bit on goSum.status for modules.
+ 	// Reset them so used can be computed properly.
+-	lookupCache = par.Cache{}
+-	downloadCache = par.Cache{}
++	lookupCache = par.Cache[lookupCacheKey, Repo]{}
++	downloadCache = par.ErrCache[module.Version, string]{}
+ 
+ 	// Clear all fields on goSum. It will be initialized later
+ 	goSum.mu.Lock()
+diff --git a/src/cmd/go/internal/modfetch/repo.go b/src/cmd/go/internal/modfetch/repo.go
+index d4c57bb300..68993c4ce4 100644
+--- a/src/cmd/go/internal/modfetch/repo.go
++++ b/src/cmd/go/internal/modfetch/repo.go
+@@ -185,7 +185,7 @@ type RevInfo struct {
+ // To avoid version control access except when absolutely necessary,
+ // Lookup does not attempt to connect to the repository itself.
+ 
+-var lookupCache par.Cache
++var lookupCache par.Cache[lookupCacheKey, Repo]
+ 
+ type lookupCacheKey struct {
+ 	proxy, path string
+@@ -208,21 +208,15 @@ func Lookup(proxy, path string) Repo {
+ 		defer logCall("Lookup(%q, %q)", proxy, path)()
+ 	}
+ 
+-	type cached struct {
+-		r Repo
+-	}
+-	c := lookupCache.Do(lookupCacheKey{proxy, path}, func() any {
+-		r := newCachingRepo(path, func() (Repo, error) {
++	return lookupCache.Do(lookupCacheKey{proxy, path}, func() Repo {
++		return newCachingRepo(path, func() (Repo, error) {
+ 			r, err := lookup(proxy, path)
+ 			if err == nil && traceRepo {
+ 				r = newLoggingRepo(r)
+ 			}
+ 			return r, err
+ 		})
+-		return cached{r}
+-	}).(cached)
+-
+-	return c.r
++	})
+ }
+ 
+ // lookup returns the module with the given module path.
+diff --git a/src/cmd/go/internal/modget/get.go b/src/cmd/go/internal/modget/get.go
+index d0beff5485..da4d004af2 100644
+--- a/src/cmd/go/internal/modget/get.go
++++ b/src/cmd/go/internal/modget/get.go
+@@ -447,7 +447,7 @@ type resolver struct {
+ 
+ 	work *par.Queue
+ 
+-	matchInModuleCache par.Cache
++	matchInModuleCache par.ErrCache[matchInModuleKey, []string]
+ }
+ 
+ type versionReason struct {
+@@ -455,6 +455,11 @@ type versionReason struct {
+ 	reason  *query
+ }
+ 
++type matchInModuleKey struct {
++	pattern string
++	m       module.Version
++}
++
+ func newResolver(ctx context.Context, queries []*query) *resolver {
+ 	// LoadModGraph also sets modload.Target, which is needed by various resolver
+ 	// methods.
+@@ -592,24 +597,13 @@ func (r *resolver) checkAllowedOr(requested string, selected func(string) string
+ 
+ // matchInModule is a caching wrapper around modload.MatchInModule.
+ func (r *resolver) matchInModule(ctx context.Context, pattern string, m module.Version) (packages []string, err error) {
+-	type key struct {
+-		pattern string
+-		m       module.Version
+-	}
+-	type entry struct {
+-		packages []string
+-		err      error
+-	}
+-
+-	e := r.matchInModuleCache.Do(key{pattern, m}, func() any {
++	return r.matchInModuleCache.Do(matchInModuleKey{pattern, m}, func() ([]string, error) {
+ 		match := modload.MatchInModule(ctx, pattern, m, imports.AnyTags())
+ 		if len(match.Errs) > 0 {
+-			return entry{match.Pkgs, match.Errs[0]}
++			return match.Pkgs, match.Errs[0]
+ 		}
+-		return entry{match.Pkgs, nil}
+-	}).(entry)
+-
+-	return e.packages, e.err
++		return match.Pkgs, nil
++	})
+ }
+ 
+ // queryNone adds a candidate set to q for each module matching q.pattern.
+diff --git a/src/cmd/go/internal/modindex/read.go b/src/cmd/go/internal/modindex/read.go
+index 54567bee41..314b84d492 100644
+--- a/src/cmd/go/internal/modindex/read.go
++++ b/src/cmd/go/internal/modindex/read.go
+@@ -117,8 +117,6 @@ func dirHash(modroot, pkgdir string) (cache.ActionID, error) {
+ 	return h.Sum(), nil
+ }
+ 
+-var modrootCache par.Cache
+-
+ var ErrNotIndexed = errors.New("not in module index")
+ 
+ var (
+@@ -168,21 +166,17 @@ func GetModule(modroot string) (*Module, error) {
+ 	return openIndexModule(modroot, true)
+ }
+ 
+-var mcache par.Cache
++var mcache par.ErrCache[string, *Module]
+ 
+ // openIndexModule returns the module index for modPath.
+ // It will return ErrNotIndexed if the module can not be read
+ // using the index because it contains symlinks.
+ func openIndexModule(modroot string, ismodcache bool) (*Module, error) {
+-	type result struct {
+-		mi  *Module
+-		err error
+-	}
+-	r := mcache.Do(modroot, func() any {
++	return mcache.Do(modroot, func() (*Module, error) {
+ 		fsys.Trace("openIndexModule", modroot)
+ 		id, err := moduleHash(modroot, ismodcache)
+ 		if err != nil {
+-			return result{nil, err}
++			return nil, err
+ 		}
+ 		data, _, err := cache.Default().GetMmap(id)
+ 		if err != nil {
+@@ -190,33 +184,28 @@ func openIndexModule(modroot string, ismodcache bool) (*Module, error) {
+ 			// the index because the module hasn't been indexed yet.
+ 			data, err = indexModule(modroot)
+ 			if err != nil {
+-				return result{nil, err}
++				return nil, err
+ 			}
+ 			if err = cache.Default().PutBytes(id, data); err != nil {
+-				return result{nil, err}
++				return nil, err
+ 			}
+ 		}
+ 		mi, err := fromBytes(modroot, data)
+ 		if err != nil {
+-			return result{nil, err}
++			return nil, err
+ 		}
+-		return result{mi, nil}
+-	}).(result)
+-	return r.mi, r.err
++		return mi, nil
++	})
+ }
+ 
+-var pcache par.Cache
++var pcache par.ErrCache[[2]string, *IndexPackage]
+ 
+ func openIndexPackage(modroot, pkgdir string) (*IndexPackage, error) {
+-	type result struct {
+-		pkg *IndexPackage
+-		err error
+-	}
+-	r := pcache.Do([2]string{modroot, pkgdir}, func() any {
++	return pcache.Do([2]string{modroot, pkgdir}, func() (*IndexPackage, error) {
+ 		fsys.Trace("openIndexPackage", pkgdir)
+ 		id, err := dirHash(modroot, pkgdir)
+ 		if err != nil {
+-			return result{nil, err}
++			return nil, err
+ 		}
+ 		data, _, err := cache.Default().GetMmap(id)
+ 		if err != nil {
+@@ -224,16 +213,15 @@ func openIndexPackage(modroot, pkgdir string) (*IndexPackage, error) {
+ 			// the index because the package hasn't been indexed yet.
+ 			data = indexPackage(modroot, pkgdir)
+ 			if err = cache.Default().PutBytes(id, data); err != nil {
+-				return result{nil, err}
++				return nil, err
+ 			}
+ 		}
+ 		pkg, err := packageFromBytes(modroot, data)
+ 		if err != nil {
+-			return result{nil, err}
++			return nil, err
+ 		}
+-		return result{pkg, nil}
+-	}).(result)
+-	return r.pkg, r.err
++		return pkg, nil
++	})
+ }
+ 
+ var errCorrupt = errors.New("corrupt index")
+diff --git a/src/cmd/go/internal/modindex/scan.go b/src/cmd/go/internal/modindex/scan.go
+index 60197898a0..0c9a23c645 100644
+--- a/src/cmd/go/internal/modindex/scan.go
++++ b/src/cmd/go/internal/modindex/scan.go
+@@ -7,7 +7,6 @@ package modindex
+ import (
+ 	"cmd/go/internal/base"
+ 	"cmd/go/internal/fsys"
+-	"cmd/go/internal/par"
+ 	"cmd/go/internal/str"
+ 	"encoding/json"
+ 	"errors"
+@@ -172,8 +171,6 @@ type embed struct {
+ 	position token.Position
+ }
+ 
+-var pkgcache par.Cache // for packages not in modcache
+-
+ // importRaw fills the rawPackage from the package files in srcDir.
+ // dir is the package's path relative to the modroot.
+ func importRaw(modroot, reldir string) *rawPackage {
+diff --git a/src/cmd/go/internal/modload/build.go b/src/cmd/go/internal/modload/build.go
+index 30b248e65a..d1149a5483 100644
+--- a/src/cmd/go/internal/modload/build.go
++++ b/src/cmd/go/internal/modload/build.go
+@@ -417,7 +417,7 @@ func moduleInfo(ctx context.Context, rs *Requirements, m module.Version, mode Li
+ // If the package was loaded, its containing module and true are returned.
+ // Otherwise, module.Version{} and false are returned.
+ func findModule(ld *loader, path string) (module.Version, bool) {
+-	if pkg, ok := ld.pkgCache.Get(path).(*loadPkg); ok {
++	if pkg, ok := ld.pkgCache.Get(path); ok {
+ 		return pkg.mod, pkg.mod != module.Version{}
+ 	}
+ 	return module.Version{}, false
+diff --git a/src/cmd/go/internal/modload/buildlist.go b/src/cmd/go/internal/modload/buildlist.go
+index fddcdb6b5d..005f306ff4 100644
+--- a/src/cmd/go/internal/modload/buildlist.go
++++ b/src/cmd/go/internal/modload/buildlist.go
+@@ -255,19 +255,12 @@ func (rs *Requirements) IsDirect(path string) bool {
+ // transitive dependencies of non-root (implicit) dependencies.
+ type ModuleGraph struct {
+ 	g         *mvs.Graph
+-	loadCache par.Cache // module.Version → summaryError
++	loadCache par.ErrCache[module.Version, *modFileSummary]
+ 
+ 	buildListOnce sync.Once
+ 	buildList     []module.Version
+ }
+ 
+-// A summaryError is either a non-nil modFileSummary or a non-nil error
+-// encountered while reading or parsing that summary.
+-type summaryError struct {
+-	summary *modFileSummary
+-	err     error
+-}
+-
+ var readModGraphDebugOnce sync.Once
+ 
+ // readModGraph reads and returns the module dependency graph starting at the
+@@ -322,7 +315,7 @@ func readModGraph(ctx context.Context, pruning modPruning, roots []module.Versio
+ 	// It does not load the transitive requirements of m even if the go version in
+ 	// m's go.mod file indicates that it supports graph pruning.
+ 	loadOne := func(m module.Version) (*modFileSummary, error) {
+-		cached := mg.loadCache.Do(m, func() any {
++		return mg.loadCache.Do(m, func() (*modFileSummary, error) {
+ 			summary, err := goModSummary(m)
+ 
+ 			mu.Lock()
+@@ -333,10 +326,8 @@ func readModGraph(ctx context.Context, pruning modPruning, roots []module.Versio
+ 			}
+ 			mu.Unlock()
+ 
+-			return summaryError{summary, err}
+-		}).(summaryError)
+-
+-		return cached.summary, cached.err
++			return summary, err
++		})
+ 	}
+ 
+ 	var enqueue func(m module.Version, pruning modPruning)
+@@ -473,11 +464,11 @@ func (mg *ModuleGraph) BuildList() []module.Version {
+ 
+ func (mg *ModuleGraph) findError() error {
+ 	errStack := mg.g.FindPath(func(m module.Version) bool {
+-		cached := mg.loadCache.Get(m)
+-		return cached != nil && cached.(summaryError).err != nil
++		_, err := mg.loadCache.Get(m)
++		return err != nil && err != par.ErrCacheEntryNotFound
+ 	})
+ 	if len(errStack) > 0 {
+-		err := mg.loadCache.Get(errStack[len(errStack)-1]).(summaryError).err
++		_, err := mg.loadCache.Get(errStack[len(errStack)-1])
+ 		var noUpgrade func(from, to module.Version) bool
+ 		return mvs.NewBuildListError(err, errStack, noUpgrade)
+ 	}
+diff --git a/src/cmd/go/internal/modload/import.go b/src/cmd/go/internal/modload/import.go
+index 2815ba9176..90f2a7401a 100644
+--- a/src/cmd/go/internal/modload/import.go
++++ b/src/cmd/go/internal/modload/import.go
+@@ -614,15 +614,10 @@ func maybeInModule(path, mpath string) bool {
+ }
+ 
+ var (
+-	haveGoModCache   par.Cache // dir → bool
+-	haveGoFilesCache par.Cache // dir → goFilesEntry
++	haveGoModCache   par.Cache[string, bool]    // dir → bool
++	haveGoFilesCache par.ErrCache[string, bool] // dir → haveGoFiles
+ )
+ 
+-type goFilesEntry struct {
+-	haveGoFiles bool
+-	err         error
+-}
+-
+ // dirInModule locates the directory that would hold the package named by the given path,
+ // if it were in the module with module path mpath and root mdir.
+ // If path is syntactically not within mpath,
+@@ -655,10 +650,10 @@ func dirInModule(path, mpath, mdir string, isLocal bool) (dir string, haveGoFile
+ 	// (the main module, and any directory trees pointed at by replace directives).
+ 	if isLocal {
+ 		for d := dir; d != mdir && len(d) > len(mdir); {
+-			haveGoMod := haveGoModCache.Do(d, func() any {
++			haveGoMod := haveGoModCache.Do(d, func() bool {
+ 				fi, err := fsys.Stat(filepath.Join(d, "go.mod"))
+ 				return err == nil && !fi.IsDir()
+-			}).(bool)
++			})
+ 
+ 			if haveGoMod {
+ 				return "", false, nil
+@@ -678,21 +673,19 @@ func dirInModule(path, mpath, mdir string, isLocal bool) (dir string, haveGoFile
+ 	// Are there Go source files in the directory?
+ 	// We don't care about build tags, not even "+build ignore".
+ 	// We're just looking for a plausible directory.
+-	res := haveGoFilesCache.Do(dir, func() any {
++	haveGoFiles, err = haveGoFilesCache.Do(dir, func() (bool, error) {
+ 		// modindex.GetPackage will return ErrNotIndexed for any directories which
+ 		// are reached through a symlink, so that they will be handled by
+ 		// fsys.IsDirWithGoFiles below.
+ 		if ip, err := modindex.GetPackage(mdir, dir); err == nil {
+-			isDirWithGoFiles, err := ip.IsDirWithGoFiles()
+-			return goFilesEntry{isDirWithGoFiles, err}
++			return ip.IsDirWithGoFiles()
+ 		} else if !errors.Is(err, modindex.ErrNotIndexed) {
+-			return goFilesEntry{err: err}
++			return false, err
+ 		}
+-		ok, err := fsys.IsDirWithGoFiles(dir)
+-		return goFilesEntry{haveGoFiles: ok, err: err}
+-	}).(goFilesEntry)
++		return fsys.IsDirWithGoFiles(dir)
++	})
+ 
+-	return dir, res.haveGoFiles, res.err
++	return dir, haveGoFiles, err
+ }
+ 
+ // fetch downloads the given module (or its replacement)
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index f450ced299..405b7935e0 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -772,7 +772,7 @@ func (mms *MainModuleSet) DirImportPath(ctx context.Context, dir string) (path s
+ 
+ // PackageModule returns the module providing the package named by the import path.
+ func PackageModule(path string) module.Version {
+-	pkg, ok := loaded.pkgCache.Get(path).(*loadPkg)
++	pkg, ok := loaded.pkgCache.Get(path)
+ 	if !ok {
+ 		return module.Version{}
+ 	}
+@@ -791,7 +791,7 @@ func Lookup(parentPath string, parentIsStd bool, path string) (dir, realPath str
+ 	if parentIsStd {
+ 		path = loaded.stdVendor(parentPath, path)
+ 	}
+-	pkg, ok := loaded.pkgCache.Get(path).(*loadPkg)
++	pkg, ok := loaded.pkgCache.Get(path)
+ 	if !ok {
+ 		// The loader should have found all the relevant paths.
+ 		// There are a few exceptions, though:
+@@ -827,7 +827,7 @@ type loader struct {
+ 
+ 	// reset on each iteration
+ 	roots    []*loadPkg
+-	pkgCache *par.Cache // package path (string) → *loadPkg
++	pkgCache *par.Cache[string, *loadPkg]
+ 	pkgs     []*loadPkg // transitive closure of loaded packages and tests; populated in buildStacks
+ }
+ 
+@@ -850,7 +850,7 @@ func (ld *loader) reset() {
+ 	}
+ 
+ 	ld.roots = nil
+-	ld.pkgCache = new(par.Cache)
++	ld.pkgCache = new(par.Cache[string, *loadPkg])
+ 	ld.pkgs = nil
+ }
+ 
+@@ -1504,7 +1504,7 @@ func (ld *loader) pkg(ctx context.Context, path string, flags loadPkgFlags) *loa
+ 		panic("internal error: (*loader).pkg called with pkgImportsLoaded flag set")
+ 	}
+ 
+-	pkg := ld.pkgCache.Do(path, func() any {
++	pkg := ld.pkgCache.Do(path, func() *loadPkg {
+ 		pkg := &loadPkg{
+ 			path: path,
+ 		}
+@@ -1512,7 +1512,7 @@ func (ld *loader) pkg(ctx context.Context, path string, flags loadPkgFlags) *loa
+ 
+ 		ld.work.Add(func() { ld.load(ctx, pkg) })
+ 		return pkg
+-	}).(*loadPkg)
++	})
+ 
+ 	ld.applyPkgFlags(ctx, pkg, flags)
+ 	return pkg
+@@ -2214,7 +2214,7 @@ func (pkg *loadPkg) why() string {
+ // If there is no reason for the package to be in the current build,
+ // Why returns an empty string.
+ func Why(path string) string {
+-	pkg, ok := loaded.pkgCache.Get(path).(*loadPkg)
++	pkg, ok := loaded.pkgCache.Get(path)
+ 	if !ok {
+ 		return ""
+ 	}
+@@ -2226,7 +2226,7 @@ func Why(path string) string {
+ // WhyDepth returns 0.
+ func WhyDepth(path string) int {
+ 	n := 0
+-	pkg, _ := loaded.pkgCache.Get(path).(*loadPkg)
++	pkg, _ := loaded.pkgCache.Get(path)
+ 	for p := pkg; p != nil; p = p.stack {
+ 		n++
+ 	}
+diff --git a/src/cmd/go/internal/modload/modfile.go b/src/cmd/go/internal/modload/modfile.go
+index 75c278a7df..0e42292c01 100644
+--- a/src/cmd/go/internal/modload/modfile.go
++++ b/src/cmd/go/internal/modload/modfile.go
+@@ -659,23 +659,15 @@ func rawGoModSummary(m module.Version) (*modFileSummary, error) {
+ 	if m.Path == "" && MainModules.Contains(m.Path) {
+ 		panic("internal error: rawGoModSummary called on the Target module")
+ 	}
+-
+-	type key struct {
+-		m module.Version
+-	}
+-	type cached struct {
+-		summary *modFileSummary
+-		err     error
+-	}
+-	c := rawGoModSummaryCache.Do(key{m}, func() any {
++	return rawGoModSummaryCache.Do(m, func() (*modFileSummary, error) {
+ 		summary := new(modFileSummary)
+ 		name, data, err := rawGoModData(m)
+ 		if err != nil {
+-			return cached{nil, err}
++			return nil, err
+ 		}
+ 		f, err := modfile.ParseLax(name, data, nil)
+ 		if err != nil {
+-			return cached{nil, module.VersionError(m, fmt.Errorf("parsing %s: %v", base.ShortPath(name), err))}
++			return nil, module.VersionError(m, fmt.Errorf("parsing %s: %v", base.ShortPath(name), err))
+ 		}
+ 		if f.Module != nil {
+ 			summary.module = f.Module.Mod
+@@ -704,13 +696,11 @@ func rawGoModSummary(m module.Version) (*modFileSummary, error) {
+ 			}
+ 		}
+ 
+-		return cached{summary, nil}
+-	}).(cached)
+-
+-	return c.summary, c.err
++		return summary, nil
++	})
+ }
+ 
+-var rawGoModSummaryCache par.Cache // module.Version → rawGoModSummary result
++var rawGoModSummaryCache par.ErrCache[module.Version, *modFileSummary]
+ 
+ // rawGoModData returns the content of the go.mod file for module m, ignoring
+ // all replacements that may apply to m.
+@@ -765,18 +755,14 @@ func rawGoModData(m module.Version) (name string, data []byte, err error) {
+ // If the queried latest version is replaced,
+ // queryLatestVersionIgnoringRetractions returns the replacement.
+ func queryLatestVersionIgnoringRetractions(ctx context.Context, path string) (latest module.Version, err error) {
+-	type entry struct {
+-		latest module.Version
+-		err    error
+-	}
+-	e := latestVersionIgnoringRetractionsCache.Do(path, func() any {
++	return latestVersionIgnoringRetractionsCache.Do(path, func() (module.Version, error) {
+ 		ctx, span := trace.StartSpan(ctx, "queryLatestVersionIgnoringRetractions "+path)
+ 		defer span.Done()
+ 
+ 		if repl := Replacement(module.Version{Path: path}); repl.Path != "" {
+ 			// All versions of the module were replaced.
+ 			// No need to query.
+-			return &entry{latest: repl}
++			return repl, nil
+ 		}
+ 
+ 		// Find the latest version of the module.
+@@ -785,18 +771,17 @@ func queryLatestVersionIgnoringRetractions(ctx context.Context, path string) (la
+ 		var allowAll AllowedFunc
+ 		rev, err := Query(ctx, path, "latest", ignoreSelected, allowAll)
+ 		if err != nil {
+-			return &entry{err: err}
++			return module.Version{}, err
+ 		}
+ 		latest := module.Version{Path: path, Version: rev.Version}
+ 		if repl := resolveReplacement(latest); repl.Path != "" {
+ 			latest = repl
+ 		}
+-		return &entry{latest: latest}
+-	}).(*entry)
+-	return e.latest, e.err
++		return latest, nil
++	})
+ }
+ 
+-var latestVersionIgnoringRetractionsCache par.Cache // path → queryLatestVersionIgnoringRetractions result
++var latestVersionIgnoringRetractionsCache par.ErrCache[string, module.Version] // path → queryLatestVersionIgnoringRetractions result
+ 
+ // ToDirectoryPath adds a prefix if necessary so that path in unambiguously
+ // an absolute path or a relative path starting with a '.' or '..'
+diff --git a/src/cmd/go/internal/par/work.go b/src/cmd/go/internal/par/work.go
+index 8912a3aa7d..5b6de9425a 100644
+--- a/src/cmd/go/internal/par/work.go
++++ b/src/cmd/go/internal/par/work.go
+@@ -6,6 +6,7 @@
+ package par
+ 
+ import (
++	"errors"
+ 	"math/rand"
+ 	"sync"
+ 	"sync/atomic"
+@@ -102,26 +103,57 @@ func (w *Work[T]) runner() {
+ 	}
+ }
+ 
++// ErrCache is like Cache except that it also stores
++// an error value alongside the cached value V.
++type ErrCache[K comparable, V any] struct {
++	Cache[K, errValue[V]]
++}
++
++type errValue[V any] struct {
++	v   V
++	err error
++}
++
++func (c *ErrCache[K, V]) Do(key K, f func() (V, error)) (V, error) {
++	v := c.Cache.Do(key, func() errValue[V] {
++		v, err := f()
++		return errValue[V]{v, err}
++	})
++	return v.v, v.err
++}
++
++var ErrCacheEntryNotFound = errors.New("cache entry not found")
++
++// Get returns the cached result associated with key.
++// It returns ErrCacheEntryNotFound if there is no such result.
++func (c *ErrCache[K, V]) Get(key K) (V, error) {
++	v, ok := c.Cache.Get(key)
++	if !ok {
++		v.err = ErrCacheEntryNotFound
++	}
++	return v.v, v.err
++}
++
+ // Cache runs an action once per key and caches the result.
+-type Cache struct {
++type Cache[K comparable, V any] struct {
+ 	m sync.Map
+ }
+ 
+-type cacheEntry struct {
++type cacheEntry[V any] struct {
+ 	done   atomic.Bool
+ 	mu     sync.Mutex
+-	result any
++	result V
+ }
+ 
+ // Do calls the function f if and only if Do is being called for the first time with this key.
+ // No call to Do with a given key returns until the one call to f returns.
+ // Do returns the value returned by the one call to f.
+-func (c *Cache) Do(key any, f func() any) any {
++func (c *Cache[K, V]) Do(key K, f func() V) V {
+ 	entryIface, ok := c.m.Load(key)
+ 	if !ok {
+-		entryIface, _ = c.m.LoadOrStore(key, new(cacheEntry))
++		entryIface, _ = c.m.LoadOrStore(key, new(cacheEntry[V]))
+ 	}
+-	e := entryIface.(*cacheEntry)
++	e := entryIface.(*cacheEntry[V])
+ 	if !e.done.Load() {
+ 		e.mu.Lock()
+ 		if !e.done.Load() {
+@@ -133,19 +165,20 @@ func (c *Cache) Do(key any, f func() any) any {
+ 	return e.result
+ }
+ 
+-// Get returns the cached result associated with key.
+-// It returns nil if there is no such result.
++// Get returns the cached result associated with key
++// and reports whether there is such a result.
++//
+ // If the result for key is being computed, Get does not wait for the computation to finish.
+-func (c *Cache) Get(key any) any {
++func (c *Cache[K, V]) Get(key K) (V, bool) {
+ 	entryIface, ok := c.m.Load(key)
+ 	if !ok {
+-		return nil
++		return *new(V), false
+ 	}
+-	e := entryIface.(*cacheEntry)
++	e := entryIface.(*cacheEntry[V])
+ 	if !e.done.Load() {
+-		return nil
++		return *new(V), false
+ 	}
+-	return e.result
++	return e.result, true
+ }
+ 
+ // Clear removes all entries in the cache.
+@@ -155,7 +188,7 @@ func (c *Cache) Get(key any) any {
+ //
+ // TODO(jayconrod): Delete this after the package cache clearing functions
+ // in internal/load have been removed.
+-func (c *Cache) Clear() {
++func (c *Cache[K, V]) Clear() {
+ 	c.m.Range(func(key, value any) bool {
+ 		c.m.Delete(key)
+ 		return true
+@@ -169,7 +202,7 @@ func (c *Cache) Clear() {
+ //
+ // TODO(jayconrod): Delete this after the package cache clearing functions
+ // in internal/load have been removed.
+-func (c *Cache) Delete(key any) {
++func (c *Cache[K, V]) Delete(key K) {
+ 	c.m.Delete(key)
+ }
+ 
+@@ -180,9 +213,9 @@ func (c *Cache) Delete(key any) {
+ //
+ // TODO(jayconrod): Delete this after the package cache clearing functions
+ // in internal/load have been removed.
+-func (c *Cache) DeleteIf(pred func(key any) bool) {
++func (c *Cache[K, V]) DeleteIf(pred func(key K) bool) {
+ 	c.m.Range(func(key, _ any) bool {
+-		if pred(key) {
++		if key := key.(K); pred(key) {
+ 			c.Delete(key)
+ 		}
+ 		return true
+diff --git a/src/cmd/go/internal/par/work_test.go b/src/cmd/go/internal/par/work_test.go
+index 4283e0d08a..9d96ffae50 100644
+--- a/src/cmd/go/internal/par/work_test.go
++++ b/src/cmd/go/internal/par/work_test.go
+@@ -54,22 +54,22 @@ func TestWorkParallel(t *testing.T) {
+ }
+ 
+ func TestCache(t *testing.T) {
+-	var cache Cache
++	var cache Cache[int, int]
+ 
+ 	n := 1
+-	v := cache.Do(1, func() any { n++; return n })
++	v := cache.Do(1, func() int { n++; return n })
+ 	if v != 2 {
+ 		t.Fatalf("cache.Do(1) did not run f")
+ 	}
+-	v = cache.Do(1, func() any { n++; return n })
++	v = cache.Do(1, func() int { n++; return n })
+ 	if v != 2 {
+ 		t.Fatalf("cache.Do(1) ran f again!")
+ 	}
+-	v = cache.Do(2, func() any { n++; return n })
++	v = cache.Do(2, func() int { n++; return n })
+ 	if v != 3 {
+ 		t.Fatalf("cache.Do(2) did not run f")
+ 	}
+-	v = cache.Do(1, func() any { n++; return n })
++	v = cache.Do(1, func() int { n++; return n })
+ 	if v != 2 {
+ 		t.Fatalf("cache.Do(1) did not returned saved value from original cache.Do(1)")
+ 	}
+diff --git a/src/cmd/go/proxy_test.go b/src/cmd/go/proxy_test.go
+index fc256968b7..cb3d9f92f1 100644
+--- a/src/cmd/go/proxy_test.go
++++ b/src/cmd/go/proxy_test.go
+@@ -105,7 +105,7 @@ func readModList() {
+ 	}
+ }
+ 
+-var zipCache par.Cache
++var zipCache par.ErrCache[*txtar.Archive, []byte]
+ 
+ const (
+ 	testSumDBName        = "localhost.localdev/sumdb"
+@@ -353,11 +353,7 @@ func proxyHandler(w http.ResponseWriter, r *http.Request) {
+ 		}
+ 
+ 	case "zip":
+-		type cached struct {
+-			zip []byte
+-			err error
+-		}
+-		c := zipCache.Do(a, func() any {
++		zipBytes, err := zipCache.Do(a, func() ([]byte, error) {
+ 			var buf bytes.Buffer
+ 			z := zip.NewWriter(&buf)
+ 			for _, f := range a.Files {
+@@ -372,26 +368,26 @@ func proxyHandler(w http.ResponseWriter, r *http.Request) {
+ 				}
+ 				zf, err := z.Create(zipName)
+ 				if err != nil {
+-					return cached{nil, err}
++					return nil, err
+ 				}
+ 				if _, err := zf.Write(f.Data); err != nil {
+-					return cached{nil, err}
++					return nil, err
+ 				}
+ 			}
+ 			if err := z.Close(); err != nil {
+-				return cached{nil, err}
++				return nil, err
+ 			}
+-			return cached{buf.Bytes(), nil}
+-		}).(cached)
++			return buf.Bytes(), nil
++		})
+ 
+-		if c.err != nil {
++		if err != nil {
+ 			if testing.Verbose() {
+-				fmt.Fprintf(os.Stderr, "go proxy: %v\n", c.err)
++				fmt.Fprintf(os.Stderr, "go proxy: %v\n", err)
+ 			}
+-			http.Error(w, c.err.Error(), 500)
++			http.Error(w, err.Error(), 500)
+ 			return
+ 		}
+-		w.Write(c.zip)
++		w.Write(zipBytes)
+ 		return
+ 
+ 	}
+@@ -415,7 +411,7 @@ func findHash(m module.Version) string {
+ 	return info.Short
+ }
+ 
+-var archiveCache par.Cache
++var archiveCache par.Cache[string, *txtar.Archive]
+ 
+ var cmdGoDir, _ = os.Getwd()
+ 
+@@ -431,7 +427,7 @@ func readArchive(path, vers string) (*txtar.Archive, error) {
+ 
+ 	prefix := strings.ReplaceAll(enc, "/", "_")
+ 	name := filepath.Join(cmdGoDir, "testdata/mod", prefix+"_"+encVers+".txt")
+-	a := archiveCache.Do(name, func() any {
++	a := archiveCache.Do(name, func() *txtar.Archive {
+ 		a, err := txtar.ParseFile(name)
+ 		if err != nil {
+ 			if testing.Verbose() || !os.IsNotExist(err) {
+@@ -440,7 +436,7 @@ func readArchive(path, vers string) (*txtar.Archive, error) {
+ 			a = nil
+ 		}
+ 		return a
+-	}).(*txtar.Archive)
++	})
+ 	if a == nil {
+ 		return nil, fs.ErrNotExist
+ 	}

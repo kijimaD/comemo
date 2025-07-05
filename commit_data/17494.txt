@@ -9,7 +9,47 @@ Date:   Fri Sep 6 16:55:30 2013 -0400
     R=golang-dev, daniel.morsing, rsc
     CC=golang-dev
     https://golang.org/cl/12800045
-
+---
  src/cmd/gc/walk.c           |  2 ++
  test/fixedbugs/issue6131.go | 20 ++++++++++++++++++++
  2 files changed, 22 insertions(+)
+
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 98a5a8968e..ff7d772570 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -1387,6 +1387,8 @@ ret:
+ 	// walk of y%1 may have replaced it by 0.
+ 	// Check whether n with its updated args is itself now a constant.
+ 	evconst(n);
++	if(n->op == OLITERAL)
++		typecheck(&n, Erv);
+ 
+ 	ullmancalc(n);
+ 
+diff --git a/test/fixedbugs/issue6131.go b/test/fixedbugs/issue6131.go
+new file mode 100644
+index 0000000000..817e4a877c
+--- /dev/null
++++ b/test/fixedbugs/issue6131.go
+@@ -0,0 +1,20 @@
++// compile
++
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 6131: missing typecheck after reducing
++// n%1 == 0 to a constant value.
++
++package main
++
++func isGood(n int) bool {
++	return n%1 == 0
++}
++
++func main() {
++	if !isGood(256) {
++		panic("!isGood")
++	}
++}

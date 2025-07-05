@@ -22,7 +22,7 @@ Date:   Thu Oct 12 16:01:34 2023 -0400
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/compile/internal/devirtualize/pgo.go       | 454 ++++++++++++++++-----
  src/cmd/compile/internal/devirtualize/pgo_test.go  | 186 ++++++---
  .../compile/internal/test/pgo_devirtualize_test.go |  58 ++-
@@ -31,3 +31,1273 @@ Date:   Thu Oct 12 16:01:34 2023 -0400
  .../test/testdata/pgo/devirtualize/devirt_test.go  |  48 ++-
  .../testdata/pgo/devirtualize/mult.pkg/mult.go     |  28 ++
  7 files changed, 814 insertions(+), 174 deletions(-)
+
+diff --git a/src/cmd/compile/internal/devirtualize/pgo.go b/src/cmd/compile/internal/devirtualize/pgo.go
+index 9aed38dc95..0a34e7eb8d 100644
+--- a/src/cmd/compile/internal/devirtualize/pgo.go
++++ b/src/cmd/compile/internal/devirtualize/pgo.go
+@@ -12,6 +12,8 @@ import (
+ 	"cmd/compile/internal/pgo"
+ 	"cmd/compile/internal/typecheck"
+ 	"cmd/compile/internal/types"
++	"cmd/internal/obj"
++	"cmd/internal/src"
+ 	"encoding/json"
+ 	"fmt"
+ 	"os"
+@@ -53,8 +55,10 @@ type CallStat struct {
+ // ProfileGuided performs call devirtualization of indirect calls based on
+ // profile information.
+ //
+-// Specifically, it performs conditional devirtualization of interface calls
+-// for the hottest callee. That is, it performs a transformation like:
++// Specifically, it performs conditional devirtualization of interface calls or
++// function value calls for the hottest callee.
++//
++// That is, for interface calls it performs a transformation like:
+ //
+ //	type Iface interface {
+ //		Foo()
+@@ -78,6 +82,24 @@ type CallStat struct {
+ //		}
+ //	}
+ //
++// For function value calls it performs a transformation like:
++//
++//	func Concrete() {}
++//
++//	func foo(fn func()) {
++//		fn()
++//	}
++//
++// to:
++//
++//	func foo(fn func()) {
++//		if internal/abi.FuncPCABIInternal(fn) == internal/abi.FuncPCABIInternal(Concrete) {
++//			Concrete()
++//		} else {
++//			fn()
++//		}
++//	}
++//
+ // The primary benefit of this transformation is enabling inlining of the
+ // direct call.
+ func ProfileGuided(fn *ir.Func, p *pgo.Profile) {
+@@ -125,7 +147,8 @@ func ProfileGuided(fn *ir.Func, p *pgo.Profile) {
+ 			}
+ 		}
+ 
+-		if call.Op() != ir.OCALLINTER {
++		op := call.Op()
++		if op != ir.OCALLFUNC && op != ir.OCALLINTER {
+ 			return n
+ 		}
+ 
+@@ -140,23 +163,19 @@ func ProfileGuided(fn *ir.Func, p *pgo.Profile) {
+ 			return n
+ 		}
+ 
+-		// Bail if we do not have a hot callee.
+-		callee, weight := findHotConcreteCallee(p, fn, call)
+-		if callee == nil {
+-			return n
+-		}
+-		// Bail if we do not have a Type node for the hot callee.
+-		ctyp := methodRecvType(callee)
+-		if ctyp == nil {
+-			return n
+-		}
+-		// Bail if we know for sure it won't inline.
+-		if !shouldPGODevirt(callee) {
+-			return n
++		var newNode ir.Node
++		var callee *ir.Func
++		var weight int64
++		switch op {
++		case ir.OCALLFUNC:
++			newNode, callee, weight = maybeDevirtualizeFunctionCall(p, fn, call)
++		case ir.OCALLINTER:
++			newNode, callee, weight = maybeDevirtualizeInterfaceCall(p, fn, call)
++		default:
++			panic("unreachable")
+ 		}
+ 
+-		if !base.PGOHash.MatchPosWithInfo(n.Pos(), "devirt", nil) {
+-			// De-selected by PGO Hash.
++		if newNode == nil {
+ 			return n
+ 		}
+ 
+@@ -165,12 +184,109 @@ func ProfileGuided(fn *ir.Func, p *pgo.Profile) {
+ 			stat.DevirtualizedWeight = weight
+ 		}
+ 
+-		return rewriteCondCall(call, fn, callee, ctyp)
++		return newNode
+ 	}
+ 
+ 	ir.EditChildren(fn, edit)
+ }
+ 
++// Devirtualize interface call if possible and eligible. Returns the new
++// ir.Node if call was devirtualized, and if so also the callee and weight of
++// the devirtualized edge.
++func maybeDevirtualizeInterfaceCall(p *pgo.Profile, fn *ir.Func, call *ir.CallExpr) (ir.Node, *ir.Func, int64) {
++	// Bail if we do not have a hot callee.
++	callee, weight := findHotConcreteInterfaceCallee(p, fn, call)
++	if callee == nil {
++		return nil, nil, 0
++	}
++	// Bail if we do not have a Type node for the hot callee.
++	ctyp := methodRecvType(callee)
++	if ctyp == nil {
++		return nil, nil, 0
++	}
++	// Bail if we know for sure it won't inline.
++	if !shouldPGODevirt(callee) {
++		return nil, nil, 0
++	}
++	// Bail if de-selected by PGO Hash.
++	if !base.PGOHash.MatchPosWithInfo(call.Pos(), "devirt", nil) {
++		return nil, nil, 0
++	}
++
++	return rewriteInterfaceCall(call, fn, callee, ctyp), callee, weight
++}
++
++// Devirtualize an indirect function call if possible and eligible. Returns the new
++// ir.Node if call was devirtualized, and if so also the callee and weight of
++// the devirtualized edge.
++func maybeDevirtualizeFunctionCall(p *pgo.Profile, fn *ir.Func, call *ir.CallExpr) (ir.Node, *ir.Func, int64) {
++	// Bail if this is a direct call; no devirtualization necessary.
++	callee := pgo.DirectCallee(call.Fun)
++	if callee != nil {
++		return nil, nil, 0
++	}
++
++	// Bail if we do not have a hot callee.
++	callee, weight := findHotConcreteFunctionCallee(p, fn, call)
++	if callee == nil {
++		return nil, nil, 0
++	}
++
++	// TODO(go.dev/issue/61577): Closures need the closure context passed
++	// via the context register. That requires extra plumbing that we
++	// haven't done yet.
++	if callee.OClosure != nil {
++		if base.Debug.PGODebug >= 3 {
++			fmt.Printf("callee %s is a closure, skipping\n", ir.FuncName(callee))
++		}
++		return nil, nil, 0
++	}
++	// TODO(prattmic): We don't properly handle methods as callees in two
++	// different dimensions:
++	//
++	// 1. Method expressions. e.g.,
++	//
++	//      var fn func(*os.File, []byte) (int, error) = (*os.File).Read
++	//
++	// In this case, typ will report *os.File as the receiver while
++	// ctyp reports it as the first argument. types.Identical ignores
++	// receiver parameters, so it treats these as different, even though
++	// they are still call compatible.
++	//
++	// 2. Method values. e.g.,
++	//
++	//      var f *os.File
++	//      var fn func([]byte) (int, error) = f.Read
++	//
++	// types.Identical will treat these as compatible (since receiver
++	// parameters are ignored). However, in this case, we do not call
++	// (*os.File).Read directly. Instead, f is stored in closure context
++	// and we call the wrapper (*os.File).Read-fm. However, runtime/pprof
++	// hides wrappers from profiles, making it appear that there is a call
++	// directly to the method. We could recognize this pattern return the
++	// wrapper rather than the method.
++	//
++	// N.B. perf profiles will report wrapper symbols directly, so
++	// ideally we should support direct wrapper references as well.
++	if callee.Type().Recv() != nil {
++		if base.Debug.PGODebug >= 3 {
++			fmt.Printf("callee %s is a method, skipping\n", ir.FuncName(callee))
++		}
++		return nil, nil, 0
++	}
++
++	// Bail if we know for sure it won't inline.
++	if !shouldPGODevirt(callee) {
++		return nil, nil, 0
++	}
++	// Bail if de-selected by PGO Hash.
++	if !base.PGOHash.MatchPosWithInfo(call.Pos(), "devirt", nil) {
++		return nil, nil, 0
++	}
++
++	return rewriteFunctionCall(call, fn, callee), callee, weight
++}
++
+ // shouldPGODevirt checks if we should perform PGO devirtualization to the
+ // target function.
+ //
+@@ -279,11 +395,90 @@ func constructCallStat(p *pgo.Profile, fn *ir.Func, name string, call *ir.CallEx
+ 	return &stat
+ }
+ 
+-// rewriteCondCall devirtualizes the given call using a direct method call to
+-// concretetyp.
+-func rewriteCondCall(call *ir.CallExpr, curfn, callee *ir.Func, concretetyp *types.Type) ir.Node {
++// copyInputs copies the inputs to a call: the receiver (for interface calls)
++// or function value (for function value calls) and the arguments. These
++// expressions are evaluated once and assigned to temporaries.
++//
++// The assignment statement is added to init and the copied receiver/fn
++// expression and copied arguments expressions are returned.
++func copyInputs(curfn *ir.Func, pos src.XPos, recvOrFn ir.Node, args []ir.Node, init *ir.Nodes) (ir.Node, []ir.Node) {
++	// Evaluate receiver/fn and argument expressions. The receiver/fn is
++	// used twice but we don't want to cause side effects twice. The
++	// arguments are used in two different calls and we can't trivially
++	// copy them.
++	//
++	// recvOrFn must be first in the assignment list as its side effects
++	// must be ordered before argument side effects.
++	var lhs, rhs []ir.Node
++	newRecvOrFn := typecheck.TempAt(pos, curfn, recvOrFn.Type())
++	lhs = append(lhs, newRecvOrFn)
++	rhs = append(rhs, recvOrFn)
++
++	for _, arg := range args {
++		argvar := typecheck.TempAt(pos, curfn, arg.Type())
++
++		lhs = append(lhs, argvar)
++		rhs = append(rhs, arg)
++	}
++
++	asList := ir.NewAssignListStmt(pos, ir.OAS2, lhs, rhs)
++	init.Append(typecheck.Stmt(asList))
++
++	return newRecvOrFn, lhs[1:]
++}
++
++// retTemps returns a slice of temporaries to be used for storing result values from call.
++func retTemps(curfn *ir.Func, pos src.XPos, call *ir.CallExpr) []ir.Node {
++	sig := call.Fun.Type()
++	var retvars []ir.Node
++	for _, ret := range sig.Results() {
++		retvars = append(retvars, typecheck.TempAt(pos, curfn, ret.Type))
++	}
++	return retvars
++}
++
++// condCall returns an ir.InlinedCallExpr that performs a call to thenCall if
++// cond is true and elseCall if cond is false. The return variables of the
++// InlinedCallExpr evaluate to the return values from the call.
++func condCall(curfn *ir.Func, pos src.XPos, cond ir.Node, thenCall, elseCall *ir.CallExpr, init ir.Nodes) *ir.InlinedCallExpr {
++	// Doesn't matter whether we use thenCall or elseCall, they must have
++	// the same return types.
++	retvars := retTemps(curfn, pos, thenCall)
++
++	var thenBlock, elseBlock ir.Nodes
++	if len(retvars) == 0 {
++		thenBlock.Append(thenCall)
++		elseBlock.Append(elseCall)
++	} else {
++		// Copy slice so edits in one location don't affect another.
++		thenRet := append([]ir.Node(nil), retvars...)
++		thenAsList := ir.NewAssignListStmt(pos, ir.OAS2, thenRet, []ir.Node{thenCall})
++		thenBlock.Append(typecheck.Stmt(thenAsList))
++
++		elseRet := append([]ir.Node(nil), retvars...)
++		elseAsList := ir.NewAssignListStmt(pos, ir.OAS2, elseRet, []ir.Node{elseCall})
++		elseBlock.Append(typecheck.Stmt(elseAsList))
++	}
++
++	nif := ir.NewIfStmt(pos, cond, thenBlock, elseBlock)
++	nif.SetInit(init)
++	nif.Likely = true
++
++	body := []ir.Node{typecheck.Stmt(nif)}
++
++	// This isn't really an inlined call of course, but InlinedCallExpr
++	// makes handling reassignment of return values easier.
++	res := ir.NewInlinedCallExpr(pos, body, retvars)
++	res.SetType(thenCall.Type())
++	res.SetTypecheck(1)
++	return res
++}
++
++// rewriteInterfaceCall devirtualizes the given interface call using a direct
++// method call to concretetyp.
++func rewriteInterfaceCall(call *ir.CallExpr, curfn, callee *ir.Func, concretetyp *types.Type) ir.Node {
+ 	if base.Flag.LowerM != 0 {
+-		fmt.Printf("%v: PGO devirtualizing %v to %v\n", ir.Line(call), call.Fun, callee)
++		fmt.Printf("%v: PGO devirtualizing interface call %v to %v\n", ir.Line(call), call.Fun, callee)
+ 	}
+ 
+ 	// We generate an OINCALL of:
+@@ -314,46 +509,15 @@ func rewriteCondCall(call *ir.CallExpr, curfn, callee *ir.Func, concretetyp *typ
+ 	// making it less like to inline. We may want to compensate for this
+ 	// somehow.
+ 
+-	var retvars []ir.Node
+-
+-	sig := call.Fun.Type()
+-
+-	for _, ret := range sig.Results() {
+-		retvars = append(retvars, typecheck.TempAt(base.Pos, curfn, ret.Type))
+-	}
+-
+ 	sel := call.Fun.(*ir.SelectorExpr)
+ 	method := sel.Sel
+ 	pos := call.Pos()
+ 	init := ir.TakeInit(call)
+ 
+-	// Evaluate receiver and argument expressions. The receiver is used
+-	// twice but we don't want to cause side effects twice. The arguments
+-	// are used in two different calls and we can't trivially copy them.
+-	//
+-	// recv must be first in the assignment list as its side effects must
+-	// be ordered before argument side effects.
+-	var lhs, rhs []ir.Node
+-	recv := typecheck.TempAt(base.Pos, curfn, sel.X.Type())
+-	lhs = append(lhs, recv)
+-	rhs = append(rhs, sel.X)
+-
+-	// Move arguments to assignments prior to the if statement. We cannot
+-	// simply copy the args' IR, as some IR constructs cannot be copied,
+-	// such as labels (possible in InlinedCall nodes).
+-	args := call.Args.Take()
+-	for _, arg := range args {
+-		argvar := typecheck.TempAt(base.Pos, curfn, arg.Type())
+-
+-		lhs = append(lhs, argvar)
+-		rhs = append(rhs, arg)
+-	}
+-
+-	asList := ir.NewAssignListStmt(pos, ir.OAS2, lhs, rhs)
+-	init.Append(typecheck.Stmt(asList))
++	recv, args := copyInputs(curfn, pos, sel.X, call.Args.Take(), &init)
+ 
+ 	// Copy slice so edits in one location don't affect another.
+-	argvars := append([]ir.Node(nil), lhs[1:]...)
++	argvars := append([]ir.Node(nil), args...)
+ 	call.Args = argvars
+ 
+ 	tmpnode := typecheck.TempAt(base.Pos, curfn, concretetyp)
+@@ -367,38 +531,84 @@ func rewriteCondCall(call *ir.CallExpr, curfn, callee *ir.Func, concretetyp *typ
+ 	concreteCallee := typecheck.XDotMethod(pos, tmpnode, method, true)
+ 	// Copy slice so edits in one location don't affect another.
+ 	argvars = append([]ir.Node(nil), argvars...)
+-	concreteCall := typecheck.Call(pos, concreteCallee, argvars, call.IsDDD)
++	concreteCall := typecheck.Call(pos, concreteCallee, argvars, call.IsDDD).(*ir.CallExpr)
+ 
+-	var thenBlock, elseBlock ir.Nodes
+-	if len(retvars) == 0 {
+-		thenBlock.Append(concreteCall)
+-		elseBlock.Append(call)
+-	} else {
+-		// Copy slice so edits in one location don't affect another.
+-		thenRet := append([]ir.Node(nil), retvars...)
+-		thenAsList := ir.NewAssignListStmt(pos, ir.OAS2, thenRet, []ir.Node{concreteCall})
+-		thenBlock.Append(typecheck.Stmt(thenAsList))
++	res := condCall(curfn, pos, tmpok, concreteCall, call, init)
+ 
+-		elseRet := append([]ir.Node(nil), retvars...)
+-		elseAsList := ir.NewAssignListStmt(pos, ir.OAS2, elseRet, []ir.Node{call})
+-		elseBlock.Append(typecheck.Stmt(elseAsList))
++	if base.Debug.PGODebug >= 3 {
++		fmt.Printf("PGO devirtualizing interface call to %+v. After: %+v\n", concretetyp, res)
+ 	}
+ 
+-	cond := ir.NewIfStmt(pos, nil, nil, nil)
+-	cond.SetInit(init)
+-	cond.Cond = tmpok
+-	cond.Body = thenBlock
+-	cond.Else = elseBlock
+-	cond.Likely = true
++	return res
++}
+ 
+-	body := []ir.Node{typecheck.Stmt(cond)}
++// rewriteFunctionCall devirtualizes the given OCALLFUNC using a direct
++// function call to callee.
++func rewriteFunctionCall(call *ir.CallExpr, curfn, callee *ir.Func) ir.Node {
++	if base.Flag.LowerM != 0 {
++		fmt.Printf("%v: PGO devirtualizing function call %v to %v\n", ir.Line(call), call.Fun, callee)
++	}
+ 
+-	res := ir.NewInlinedCallExpr(pos, body, retvars)
+-	res.SetType(call.Type())
+-	res.SetTypecheck(1)
++	// We generate an OINCALL of:
++	//
++	// var fn FuncType
++	//
++	// var arg1 A1
++	// var argN AN
++	//
++	// var ret1 R1
++	// var retN RN
++	//
++	// fn, arg1, argN = fn expr, arg1 expr, argN expr
++	//
++	// fnPC := internal/abi.FuncPCABIInternal(fn)
++	// concretePC := internal/abi.FuncPCABIInternal(concrete)
++	//
++	// if fnPC == concretePC {
++	//   ret1, retN = concrete(arg1, ... argN) // Same closure context passed (TODO)
++	// } else {
++	//   ret1, retN = fn(arg1, ... argN)
++	// }
++	//
++	// OINCALL retvars: ret1, ... retN
++	//
++	// This isn't really an inlined call of course, but InlinedCallExpr
++	// makes handling reassignment of return values easier.
++
++	pos := call.Pos()
++	init := ir.TakeInit(call)
++
++	fn, args := copyInputs(curfn, pos, call.Fun, call.Args.Take(), &init)
++
++	// Copy slice so edits in one location don't affect another.
++	argvars := append([]ir.Node(nil), args...)
++	call.Args = argvars
++
++	// FuncPCABIInternal takes an interface{}, emulate that. This is needed
++	// for to ensure we get the MAKEFACE we need for SSA.
++	fnIface := typecheck.Expr(ir.NewConvExpr(pos, ir.OCONV, types.Types[types.TINTER], fn))
++	calleeIface := typecheck.Expr(ir.NewConvExpr(pos, ir.OCONV, types.Types[types.TINTER], callee.Nname))
++
++	fnPC := ir.FuncPC(pos, fnIface, obj.ABIInternal)
++	concretePC := ir.FuncPC(pos, calleeIface, obj.ABIInternal)
++
++	pcEq := typecheck.Expr(ir.NewBinaryExpr(base.Pos, ir.OEQ, fnPC, concretePC))
++
++	// TODO(go.dev/issue/61577): Handle callees that a closures and need a
++	// copy of the closure context from call. For now, we skip callees that
++	// are closures in maybeDevirtualizeFunctionCall.
++	if callee.OClosure != nil {
++		base.Fatalf("Callee is a closure: %+v", callee)
++	}
++
++	// Copy slice so edits in one location don't affect another.
++	argvars = append([]ir.Node(nil), argvars...)
++	concreteCall := typecheck.Call(pos, callee.Nname, argvars, call.IsDDD).(*ir.CallExpr)
++
++	res := condCall(curfn, pos, pcEq, concreteCall, call, init)
+ 
+ 	if base.Debug.PGODebug >= 3 {
+-		fmt.Printf("PGO devirtualizing call to %+v. After: %+v\n", concretetyp, res)
++		fmt.Printf("PGO devirtualizing function call to %+v. After: %+v\n", ir.FuncName(callee), res)
+ 	}
+ 
+ 	return res
+@@ -429,15 +639,15 @@ func interfaceCallRecvTypeAndMethod(call *ir.CallExpr) (*types.Type, *types.Sym)
+ 	return sel.X.Type(), sel.Sel
+ }
+ 
+-// findHotConcreteCallee returns the *ir.Func of the hottest callee of an
+-// indirect call, if available, and its edge weight.
+-func findHotConcreteCallee(p *pgo.Profile, caller *ir.Func, call *ir.CallExpr) (*ir.Func, int64) {
++// findHotConcreteCallee returns the *ir.Func of the hottest callee of a call,
++// if available, and its edge weight. extraFn can perform additional
++// applicability checks on each candidate edge. If extraFn returns false,
++// candidate will not be considered a valid callee candidate.
++func findHotConcreteCallee(p *pgo.Profile, caller *ir.Func, call *ir.CallExpr, extraFn func(callerName string, callOffset int, candidate *pgo.IREdge) bool) (*ir.Func, int64) {
+ 	callerName := ir.LinkFuncName(caller)
+ 	callerNode := p.WeightedCG.IRNodes[callerName]
+ 	callOffset := pgo.NodeLineOffset(call, caller)
+ 
+-	inter, method := interfaceCallRecvTypeAndMethod(call)
+-
+ 	var hottest *pgo.IREdge
+ 
+ 	// Returns true if e is hotter than hottest.
+@@ -504,6 +714,35 @@ func findHotConcreteCallee(p *pgo.Profile, caller *ir.Func, call *ir.CallExpr) (
+ 			continue
+ 		}
+ 
++		if extraFn != nil && !extraFn(callerName, callOffset, e) {
++			continue
++		}
++
++		if base.Debug.PGODebug >= 2 {
++			fmt.Printf("%v: edge %s:%d -> %s (weight %d): hottest so far\n", ir.Line(call), callerName, callOffset, e.Dst.Name(), e.Weight)
++		}
++		hottest = e
++	}
++
++	if hottest == nil {
++		if base.Debug.PGODebug >= 2 {
++			fmt.Printf("%v: call %s:%d: no hot callee\n", ir.Line(call), callerName, callOffset)
++		}
++		return nil, 0
++	}
++
++	if base.Debug.PGODebug >= 2 {
++		fmt.Printf("%v call %s:%d: hottest callee %s (weight %d)\n", ir.Line(call), callerName, callOffset, hottest.Dst.Name(), hottest.Weight)
++	}
++	return hottest.Dst.AST, hottest.Weight
++}
++
++// findHotConcreteInterfaceCallee returns the *ir.Func of the hottest callee of an
++// interface call, if available, and its edge weight.
++func findHotConcreteInterfaceCallee(p *pgo.Profile, caller *ir.Func, call *ir.CallExpr) (*ir.Func, int64) {
++	inter, method := interfaceCallRecvTypeAndMethod(call)
++
++	return findHotConcreteCallee(p, caller, call, func(callerName string, callOffset int, e *pgo.IREdge) bool {
+ 		ctyp := methodRecvType(e.Dst.AST)
+ 		if ctyp == nil {
+ 			// Not a method.
+@@ -511,7 +750,7 @@ func findHotConcreteCallee(p *pgo.Profile, caller *ir.Func, call *ir.CallExpr) (
+ 			if base.Debug.PGODebug >= 2 {
+ 				fmt.Printf("%v: edge %s:%d -> %s (weight %d): callee not a method\n", ir.Line(call), callerName, callOffset, e.Dst.Name(), e.Weight)
+ 			}
+-			continue
++			return false
+ 		}
+ 
+ 		// If ctyp doesn't implement inter it is most likely from a
+@@ -530,7 +769,7 @@ func findHotConcreteCallee(p *pgo.Profile, caller *ir.Func, call *ir.CallExpr) (
+ 				why := typecheck.ImplementsExplain(ctyp, inter)
+ 				fmt.Printf("%v: edge %s:%d -> %s (weight %d): %v doesn't implement %v (%s)\n", ir.Line(call), callerName, callOffset, e.Dst.Name(), e.Weight, ctyp, inter, why)
+ 			}
+-			continue
++			return false
+ 		}
+ 
+ 		// If the method name is different it is most likely from a
+@@ -539,24 +778,35 @@ func findHotConcreteCallee(p *pgo.Profile, caller *ir.Func, call *ir.CallExpr) (
+ 			if base.Debug.PGODebug >= 2 {
+ 				fmt.Printf("%v: edge %s:%d -> %s (weight %d): callee is a different method\n", ir.Line(call), callerName, callOffset, e.Dst.Name(), e.Weight)
+ 			}
+-			continue
++			return false
+ 		}
+ 
+-		if base.Debug.PGODebug >= 2 {
+-			fmt.Printf("%v: edge %s:%d -> %s (weight %d): hottest so far\n", ir.Line(call), callerName, callOffset, e.Dst.Name(), e.Weight)
+-		}
+-		hottest = e
+-	}
++		return true
++	})
++}
+ 
+-	if hottest == nil {
+-		if base.Debug.PGODebug >= 2 {
+-			fmt.Printf("%v: call %s:%d: no hot callee\n", ir.Line(call), callerName, callOffset)
++// findHotConcreteFunctionCallee returns the *ir.Func of the hottest callee of an
++// indirect function call, if available, and its edge weight.
++func findHotConcreteFunctionCallee(p *pgo.Profile, caller *ir.Func, call *ir.CallExpr) (*ir.Func, int64) {
++	typ := call.Fun.Type().Underlying()
++
++	return findHotConcreteCallee(p, caller, call, func(callerName string, callOffset int, e *pgo.IREdge) bool {
++		ctyp := e.Dst.AST.Type().Underlying()
++
++		// If ctyp doesn't match typ it is most likely from a different
++		// call on the same line.
++		//
++		// Note that we are comparing underlying types, as different
++		// defined types are OK. e.g., a call to a value of type
++		// net/http.HandlerFunc can be devirtualized to a function with
++		// the same underlying type.
++		if !types.Identical(typ, ctyp) {
++			if base.Debug.PGODebug >= 2 {
++				fmt.Printf("%v: edge %s:%d -> %s (weight %d): %v doesn't match %v\n", ir.Line(call), callerName, callOffset, e.Dst.Name(), e.Weight, ctyp, typ)
++			}
++			return false
+ 		}
+-		return nil, 0
+-	}
+ 
+-	if base.Debug.PGODebug >= 2 {
+-		fmt.Printf("%v call %s:%d: hottest callee %s (weight %d)\n", ir.Line(call), callerName, callOffset, hottest.Dst.Name(), hottest.Weight)
+-	}
+-	return hottest.Dst.AST, hottest.Weight
++		return true
++	})
+ }
+diff --git a/src/cmd/compile/internal/devirtualize/pgo_test.go b/src/cmd/compile/internal/devirtualize/pgo_test.go
+index 8383da56cb..84c96df122 100644
+--- a/src/cmd/compile/internal/devirtualize/pgo_test.go
++++ b/src/cmd/compile/internal/devirtualize/pgo_test.go
+@@ -8,8 +8,8 @@ import (
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/ir"
+ 	"cmd/compile/internal/pgo"
+-	"cmd/compile/internal/types"
+ 	"cmd/compile/internal/typecheck"
++	"cmd/compile/internal/types"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/src"
+ 	"testing"
+@@ -31,66 +31,81 @@ func makePos(b *src.PosBase, line, col uint) src.XPos {
+ 	return base.Ctxt.PosTable.XPos(src.MakePos(b, line, col))
+ }
+ 
+-func TestFindHotConcreteCallee(t *testing.T) {
++type profileBuilder struct {
++	p *pgo.Profile
++}
++
++func newProfileBuilder() *profileBuilder {
+ 	// findHotConcreteCallee only uses pgo.Profile.WeightedCG, so we're
+ 	// going to take a shortcut and only construct that.
+-	p := &pgo.Profile{
+-		WeightedCG: &pgo.IRGraph{
+-			IRNodes: make(map[string]*pgo.IRNode),
++	return &profileBuilder{
++		p: &pgo.Profile{
++			WeightedCG: &pgo.IRGraph{
++				IRNodes: make(map[string]*pgo.IRNode),
++			},
+ 		},
+ 	}
++}
+ 
+-	// Create a new IRNode and add it to p.
+-	//
+-	// fn may be nil, in which case the node will set LinkerSymbolName.
+-	newNode := func(name string, fn *ir.Func) *pgo.IRNode {
+-		n := &pgo.IRNode{
+-			OutEdges: make(map[pgo.NamedCallEdge]*pgo.IREdge),
+-		}
+-		if fn != nil {
+-			n.AST = fn
+-		} else {
+-			n.LinkerSymbolName = name
+-		}
+-		p.WeightedCG.IRNodes[name] = n
+-		return n
++// Profile returns the constructed profile.
++func (p *profileBuilder) Profile() *pgo.Profile {
++	return p.p
++}
++
++// NewNode creates a new IRNode and adds it to the profile.
++//
++// fn may be nil, in which case the node will set LinkerSymbolName.
++func (p *profileBuilder) NewNode(name string, fn *ir.Func) *pgo.IRNode {
++	n := &pgo.IRNode{
++		OutEdges: make(map[pgo.NamedCallEdge]*pgo.IREdge),
++	}
++	if fn != nil {
++		n.AST = fn
++	} else {
++		n.LinkerSymbolName = name
+ 	}
++	p.p.WeightedCG.IRNodes[name] = n
++	return n
++}
+ 
+-	// Add a new call edge from caller to callee.
+-	addEdge := func(caller, callee *pgo.IRNode, offset int, weight int64) {
+-		namedEdge := pgo.NamedCallEdge{
+-			CallerName:     caller.Name(),
+-			CalleeName:     callee.Name(),
+-			CallSiteOffset: offset,
+-		}
+-		irEdge := &pgo.IREdge{
+-			Src:            caller,
+-			Dst:            callee,
+-			CallSiteOffset: offset,
+-			Weight:         weight,
+-		}
+-		caller.OutEdges[namedEdge] = irEdge
++// Add a new call edge from caller to callee.
++func addEdge(caller, callee *pgo.IRNode, offset int, weight int64) {
++	namedEdge := pgo.NamedCallEdge{
++		CallerName:     caller.Name(),
++		CalleeName:     callee.Name(),
++		CallSiteOffset: offset,
++	}
++	irEdge := &pgo.IREdge{
++		Src:            caller,
++		Dst:            callee,
++		CallSiteOffset: offset,
++		Weight:         weight,
+ 	}
++	caller.OutEdges[namedEdge] = irEdge
++}
+ 
+-	pkgFoo := types.NewPkg("example.com/foo", "foo")
+-	basePos := src.NewFileBase("foo.go", "/foo.go")
++// Create a new struct type named structName with a method named methName and
++// return the method.
++func makeStructWithMethod(pkg *types.Pkg, structName, methName string) *ir.Func {
++	// type structName struct{}
++	structType := types.NewStruct(nil)
++
++	// func (structName) methodName()
++	recv := types.NewField(src.NoXPos, typecheck.Lookup(structName), structType)
++	sig := types.NewSignature(recv, nil, nil)
++	fn := ir.NewFunc(src.NoXPos, src.NoXPos, pkg.Lookup(structName+"."+methName), sig)
+ 
+-	// Create a new struct type named structName with a method named methName and
+-	// return the method.
+-	makeStructWithMethod := func(structName, methName string) *ir.Func {
+-		// type structName struct{}
+-		structType := types.NewStruct(nil)
++	// Add the method to the struct.
++	structType.SetMethods([]*types.Field{types.NewField(src.NoXPos, typecheck.Lookup(methName), sig)})
+ 
+-		// func (structName) methodName()
+-		recv := types.NewField(src.NoXPos, typecheck.Lookup(structName), structType)
+-		sig := types.NewSignature(recv, nil, nil)
+-		fn := ir.NewFunc(src.NoXPos, src.NoXPos, pkgFoo.Lookup(structName + "." + methName), sig)
++	return fn
++}
+ 
+-		// Add the method to the struct.
+-		structType.SetMethods([]*types.Field{types.NewField(src.NoXPos, typecheck.Lookup(methName), sig)})
++func TestFindHotConcreteInterfaceCallee(t *testing.T) {
++	p := newProfileBuilder()
+ 
+-		return fn
+-	}
++	pkgFoo := types.NewPkg("example.com/foo", "foo")
++	basePos := src.NewFileBase("foo.go", "/foo.go")
+ 
+ 	const (
+ 		// Caller start line.
+@@ -112,21 +127,21 @@ func TestFindHotConcreteCallee(t *testing.T) {
+ 
+ 	callerFn := ir.NewFunc(makePos(basePos, callerStart, 1), src.NoXPos, pkgFoo.Lookup("Caller"), types.NewSignature(nil, nil, nil))
+ 
+-	hotCalleeFn := makeStructWithMethod("HotCallee", "Foo")
+-	coldCalleeFn := makeStructWithMethod("ColdCallee", "Foo")
+-	wrongLineCalleeFn := makeStructWithMethod("WrongLineCallee", "Foo")
+-	wrongMethodCalleeFn := makeStructWithMethod("WrongMethodCallee", "Bar")
++	hotCalleeFn := makeStructWithMethod(pkgFoo, "HotCallee", "Foo")
++	coldCalleeFn := makeStructWithMethod(pkgFoo, "ColdCallee", "Foo")
++	wrongLineCalleeFn := makeStructWithMethod(pkgFoo, "WrongLineCallee", "Foo")
++	wrongMethodCalleeFn := makeStructWithMethod(pkgFoo, "WrongMethodCallee", "Bar")
+ 
+-	callerNode := newNode("example.com/foo.Caller", callerFn)
+-	hotCalleeNode := newNode("example.com/foo.HotCallee.Foo", hotCalleeFn)
+-	coldCalleeNode := newNode("example.com/foo.ColdCallee.Foo", coldCalleeFn)
+-	wrongLineCalleeNode := newNode("example.com/foo.WrongCalleeLine.Foo", wrongLineCalleeFn)
+-	wrongMethodCalleeNode := newNode("example.com/foo.WrongCalleeMethod.Foo", wrongMethodCalleeFn)
++	callerNode := p.NewNode("example.com/foo.Caller", callerFn)
++	hotCalleeNode := p.NewNode("example.com/foo.HotCallee.Foo", hotCalleeFn)
++	coldCalleeNode := p.NewNode("example.com/foo.ColdCallee.Foo", coldCalleeFn)
++	wrongLineCalleeNode := p.NewNode("example.com/foo.WrongCalleeLine.Foo", wrongLineCalleeFn)
++	wrongMethodCalleeNode := p.NewNode("example.com/foo.WrongCalleeMethod.Foo", wrongMethodCalleeFn)
+ 
+-	hotMissingCalleeNode := newNode("example.com/bar.HotMissingCallee.Foo", nil)
++	hotMissingCalleeNode := p.NewNode("example.com/bar.HotMissingCallee.Foo", nil)
+ 
+ 	addEdge(callerNode, wrongLineCalleeNode, wrongCallOffset, 100) // Really hot, but wrong line.
+-	addEdge(callerNode, wrongMethodCalleeNode, callOffset, 100) // Really hot, but wrong method type.
++	addEdge(callerNode, wrongMethodCalleeNode, callOffset, 100)    // Really hot, but wrong method type.
+ 	addEdge(callerNode, hotCalleeNode, callOffset, 10)
+ 	addEdge(callerNode, coldCalleeNode, callOffset, 1)
+ 
+@@ -141,7 +156,7 @@ func TestFindHotConcreteCallee(t *testing.T) {
+ 	sel := typecheck.NewMethodExpr(src.NoXPos, iface, typecheck.Lookup("Foo"))
+ 	call := ir.NewCallExpr(makePos(basePos, callerStart+callOffset, 1), ir.OCALLINTER, sel, nil)
+ 
+-	gotFn, gotWeight := findHotConcreteCallee(p, callerFn, call)
++	gotFn, gotWeight := findHotConcreteInterfaceCallee(p.Profile(), callerFn, call)
+ 	if gotFn != hotCalleeFn {
+ 		t.Errorf("findHotConcreteInterfaceCallee func got %v want %v", gotFn, hotCalleeFn)
+ 	}
+@@ -149,3 +164,54 @@ func TestFindHotConcreteCallee(t *testing.T) {
+ 		t.Errorf("findHotConcreteInterfaceCallee weight got %v want 10", gotWeight)
+ 	}
+ }
++
++func TestFindHotConcreteFunctionCallee(t *testing.T) {
++	// TestFindHotConcreteInterfaceCallee already covered basic weight
++	// comparisons, which is shared logic. Here we just test type signature
++	// disambiguation.
++
++	p := newProfileBuilder()
++
++	pkgFoo := types.NewPkg("example.com/foo", "foo")
++	basePos := src.NewFileBase("foo.go", "/foo.go")
++
++	const (
++		// Caller start line.
++		callerStart = 42
++
++		// The line offset of the call we care about.
++		callOffset = 1
++	)
++
++	callerFn := ir.NewFunc(makePos(basePos, callerStart, 1), src.NoXPos, pkgFoo.Lookup("Caller"), types.NewSignature(nil, nil, nil))
++
++	// func HotCallee()
++	hotCalleeFn := ir.NewFunc(src.NoXPos, src.NoXPos, pkgFoo.Lookup("HotCallee"), types.NewSignature(nil, nil, nil))
++
++	// func WrongCallee() bool
++	wrongCalleeFn := ir.NewFunc(src.NoXPos, src.NoXPos, pkgFoo.Lookup("WrongCallee"), types.NewSignature(nil, nil,
++		[]*types.Field{
++			types.NewField(src.NoXPos, nil, types.Types[types.TBOOL]),
++		},
++	))
++
++	callerNode := p.NewNode("example.com/foo.Caller", callerFn)
++	hotCalleeNode := p.NewNode("example.com/foo.HotCallee", hotCalleeFn)
++	wrongCalleeNode := p.NewNode("example.com/foo.WrongCallee", wrongCalleeFn)
++
++	addEdge(callerNode, wrongCalleeNode, callOffset, 100) // Really hot, but wrong function type.
++	addEdge(callerNode, hotCalleeNode, callOffset, 10)
++
++	// var fn func()
++	name := ir.NewNameAt(src.NoXPos, typecheck.Lookup("fn"), types.NewSignature(nil, nil, nil))
++	// fn()
++	call := ir.NewCallExpr(makePos(basePos, callerStart+callOffset, 1), ir.OCALL, name, nil)
++
++	gotFn, gotWeight := findHotConcreteFunctionCallee(p.Profile(), callerFn, call)
++	if gotFn != hotCalleeFn {
++		t.Errorf("findHotConcreteFunctionCallee func got %v want %v", gotFn, hotCalleeFn)
++	}
++	if gotWeight != 10 {
++		t.Errorf("findHotConcreteFunctionCallee weight got %v want 10", gotWeight)
++	}
++}
+diff --git a/src/cmd/compile/internal/test/pgo_devirtualize_test.go b/src/cmd/compile/internal/test/pgo_devirtualize_test.go
+index fbee8dedfd..3e264a3f41 100644
+--- a/src/cmd/compile/internal/test/pgo_devirtualize_test.go
++++ b/src/cmd/compile/internal/test/pgo_devirtualize_test.go
+@@ -29,11 +29,21 @@ go 1.19
+ 		t.Fatalf("error writing go.mod: %v", err)
+ 	}
+ 
++	// Run the test without PGO to ensure that the test assertions are
++	// correct even in the non-optimized version.
++	cmd := testenv.CleanCmdEnv(testenv.Command(t, testenv.GoToolPath(t), "test", "."))
++	cmd.Dir = dir
++	b, err := cmd.CombinedOutput()
++	t.Logf("Test without PGO:\n%s", b)
++	if err != nil {
++		t.Fatalf("Test failed without PGO: %v", err)
++	}
++
+ 	// Build the test with the profile.
+ 	pprof := filepath.Join(dir, "devirt.pprof")
+ 	gcflag := fmt.Sprintf("-gcflags=-m=2 -pgoprofile=%s -d=pgodebug=3", pprof)
+ 	out := filepath.Join(dir, "test.exe")
+-	cmd := testenv.CleanCmdEnv(testenv.Command(t, testenv.GoToolPath(t), "build", "-o", out, gcflag, "."))
++	cmd = testenv.CleanCmdEnv(testenv.Command(t, testenv.GoToolPath(t), "test", "-o", out, gcflag, "."))
+ 	cmd.Dir = dir
+ 
+ 	pr, pw, err := os.Pipe()
+@@ -56,19 +66,50 @@ go 1.19
+ 	}
+ 
+ 	want := []devirtualization{
++		// ExerciseIface
+ 		{
+-			pos:    "./devirt.go:66:21",
++			pos:    "./devirt.go:101:20",
+ 			callee: "mult.Mult.Multiply",
+ 		},
+ 		{
+-			pos:    "./devirt.go:66:31",
++			pos:    "./devirt.go:101:39",
+ 			callee: "Add.Add",
+ 		},
++		// ExerciseFuncConcrete
++		{
++			pos:    "./devirt.go:178:18",
++			callee: "AddFn",
++		},
++		// TODO(prattmic): Export data lookup for function value callees not implemented.
++		//{
++		//	pos:    "./devirt.go:179:15",
++		//	callee: "mult.MultFn",
++		//},
++		// ExerciseFuncField
++		{
++			pos:    "./devirt.go:218:13",
++			callee: "AddFn",
++		},
++		// TODO(prattmic): Export data lookup for function value callees not implemented.
++		//{
++		//	pos:    "./devirt.go:219:19",
++		//	callee: "mult.MultFn",
++		//},
++		// ExerciseFuncClosure
++		// TODO(prattmic): Closure callees not implemented.
++		//{
++		//	pos:    "./devirt.go:266:9",
++		//	callee: "AddClosure.func1",
++		//},
++		//{
++		//	pos:    "./devirt.go:267:15",
++		//	callee: "mult.MultClosure.func1",
++		//},
+ 	}
+ 
+ 	got := make(map[devirtualization]struct{})
+ 
+-	devirtualizedLine := regexp.MustCompile(`(.*): PGO devirtualizing .* to (.*)`)
++	devirtualizedLine := regexp.MustCompile(`(.*): PGO devirtualizing \w+ call .* to (.*)`)
+ 
+ 	scanner := bufio.NewScanner(pr)
+ 	for scanner.Scan() {
+@@ -102,6 +143,15 @@ go 1.19
+ 		}
+ 		t.Errorf("devirtualization %v missing; got %v", w, got)
+ 	}
++
++	// Run test with PGO to ensure the assertions are still true.
++	cmd = testenv.CleanCmdEnv(testenv.Command(t, out))
++	cmd.Dir = dir
++	b, err = cmd.CombinedOutput()
++	t.Logf("Test with PGO:\n%s", b)
++	if err != nil {
++		t.Fatalf("Test failed without PGO: %v", err)
++	}
+ }
+ 
+ // TestPGODevirtualize tests that specific functions are devirtualized when PGO
+diff --git a/src/cmd/compile/internal/test/testdata/pgo/devirtualize/devirt.go b/src/cmd/compile/internal/test/testdata/pgo/devirtualize/devirt.go
+index 4748e19e10..63de3d3c3f 100644
+--- a/src/cmd/compile/internal/test/testdata/pgo/devirtualize/devirt.go
++++ b/src/cmd/compile/internal/test/testdata/pgo/devirtualize/devirt.go
+@@ -16,7 +16,11 @@ package devirt
+ //
+ // Dots in the last package path component are escaped in symbol names. Use one
+ // to ensure the escaping doesn't break lookup.
+-import "example.com/pgo/devirtualize/mult.pkg"
++import (
++	"fmt"
++
++	"example.com/pgo/devirtualize/mult.pkg"
++)
+ 
+ var sink int
+ 
+@@ -42,15 +46,46 @@ func (Sub) Add(a, b int) int {
+ 	return a - b
+ }
+ 
+-// Exercise calls mostly a1 and m1.
++// ExerciseIface calls mostly a1 and m1.
+ //
+ //go:noinline
+-func Exercise(iter int, a1, a2 Adder, m1, m2 mult.Multiplier) {
++func ExerciseIface(iter int, a1, a2 Adder, m1, m2 mult.Multiplier) int {
++	// The call below must evaluate selectA() to determine the receiver to
++	// use. This should happen exactly once per iteration. Assert that is
++	// the case to ensure the IR manipulation does not result in over- or
++	// under-evaluation.
++	selectI := 0
++	selectA := func(gotI int) Adder {
++		if gotI != selectI {
++			panic(fmt.Sprintf("selectA not called once per iteration; got i %d want %d", gotI, selectI))
++		}
++		selectI++
++
++		if gotI%10 == 0 {
++			return a2
++		}
++		return a1
++	}
++	oneI := 0
++	one := func(gotI int) int {
++		if gotI != oneI {
++			panic(fmt.Sprintf("one not called once per iteration; got i %d want %d", gotI, oneI))
++		}
++		oneI++
++
++		// The function value must be evaluated before arguments, so
++		// selectI must have been incremented already.
++		if selectI != oneI {
++			panic(fmt.Sprintf("selectA not called before not called before one; got i %d want %d", selectI, oneI))
++		}
++
++		return 1
++	}
++
++	val := 0
+ 	for i := 0; i < iter; i++ {
+-		a := a1
+ 		m := m1
+ 		if i%10 == 0 {
+-			a = a2
+ 			m = m2
+ 		}
+ 
+@@ -63,6 +98,173 @@ func Exercise(iter int, a1, a2 Adder, m1, m2 mult.Multiplier) {
+ 		// If they were not mutually exclusive (for example, two Add
+ 		// calls), then we could not definitively select the correct
+ 		// callee.
+-		sink += m.Multiply(42, a.Add(1, 2))
++		val += m.Multiply(42, selectA(i).Add(one(i), 2))
++	}
++	return val
++}
++
++type AddFunc func(int, int) int
++
++func AddFn(a, b int) int {
++	for i := 0; i < 1000; i++ {
++		sink++
++	}
++	return a + b
++}
++
++func SubFn(a, b int) int {
++	for i := 0; i < 1000; i++ {
++		sink++
++	}
++	return a - b
++}
++
++// ExerciseFuncConcrete calls mostly a1 and m1.
++//
++//go:noinline
++func ExerciseFuncConcrete(iter int, a1, a2 AddFunc, m1, m2 mult.MultFunc) int {
++	// The call below must evaluate selectA() to determine the function to
++	// call. This should happen exactly once per iteration. Assert that is
++	// the case to ensure the IR manipulation does not result in over- or
++	// under-evaluation.
++	selectI := 0
++	selectA := func(gotI int) AddFunc {
++		if gotI != selectI {
++			panic(fmt.Sprintf("selectA not called once per iteration; got i %d want %d", gotI, selectI))
++		}
++		selectI++
++
++		if gotI%10 == 0 {
++			return a2
++		}
++		return a1
++	}
++	oneI := 0
++	one := func(gotI int) int {
++		if gotI != oneI {
++			panic(fmt.Sprintf("one not called once per iteration; got i %d want %d", gotI, oneI))
++		}
++		oneI++
++
++		// The function value must be evaluated before arguments, so
++		// selectI must have been incremented already.
++		if selectI != oneI {
++			panic(fmt.Sprintf("selectA not called before not called before one; got i %d want %d", selectI, oneI))
++		}
++
++		return 1
++	}
++
++	val := 0
++	for i := 0; i < iter; i++ {
++		m := m1
++		if i%10 == 0 {
++			m = m2
++		}
++
++		// N.B. Profiles only distinguish calls on a per-line level,
++		// making the two calls ambiguous. However because the
++		// function types are mutually exclusive, devirtualization can
++		// still select the correct callee for each.
++		//
++		// If they were not mutually exclusive (for example, two
++		// AddFunc calls), then we could not definitively select the
++		// correct callee.
++		//
++		// TODO(prattmic): Export data lookup for function value
++		// callees not implemented, meaning the type is unavailable.
++		//sink += int(m(42, int64(a(1, 2))))
++
++		v := selectA(i)(one(i), 2)
++		val += int(m(42, int64(v)))
++	}
++	return val
++}
++
++// ExerciseFuncField calls mostly a1 and m1.
++//
++// This is a simplified version of ExerciseFuncConcrete, but accessing the
++// function values via a struct field.
++//
++//go:noinline
++func ExerciseFuncField(iter int, a1, a2 AddFunc, m1, m2 mult.MultFunc) int {
++	ops := struct {
++		a AddFunc
++		m mult.MultFunc
++	}{}
++
++	val := 0
++	for i := 0; i < iter; i++ {
++		ops.a = a1
++		ops.m = m1
++		if i%10 == 0 {
++			ops.a = a2
++			ops.m = m2
++		}
++
++		// N.B. Profiles only distinguish calls on a per-line level,
++		// making the two calls ambiguous. However because the
++		// function types are mutually exclusive, devirtualization can
++		// still select the correct callee for each.
++		//
++		// If they were not mutually exclusive (for example, two
++		// AddFunc calls), then we could not definitively select the
++		// correct callee.
++		//
++		// TODO(prattmic): Export data lookup for function value
++		// callees not implemented, meaning the type is unavailable.
++		//sink += int(ops.m(42, int64(ops.a(1, 2))))
++
++		v := ops.a(1, 2)
++		val += int(ops.m(42, int64(v)))
++	}
++	return val
++}
++
++//go:noinline
++func AddClosure() AddFunc {
++	// Implicit closure by capturing the receiver.
++	var a Add
++	return a.Add
++}
++
++//go:noinline
++func SubClosure() AddFunc {
++	var s Sub
++	return s.Add
++}
++
++// ExerciseFuncClosure calls mostly a1 and m1.
++//
++// This is a simplified version of ExerciseFuncConcrete, but we need two
++// distinct call sites to test two different types of function values.
++//
++//go:noinline
++func ExerciseFuncClosure(iter int, a1, a2 AddFunc, m1, m2 mult.MultFunc) int {
++	val := 0
++	for i := 0; i < iter; i++ {
++		a := a1
++		m := m1
++		if i%10 == 0 {
++			a = a2
++			m = m2
++		}
++
++		// N.B. Profiles only distinguish calls on a per-line level,
++		// making the two calls ambiguous. However because the
++		// function types are mutually exclusive, devirtualization can
++		// still select the correct callee for each.
++		//
++		// If they were not mutually exclusive (for example, two
++		// AddFunc calls), then we could not definitively select the
++		// correct callee.
++		//
++		// TODO(prattmic): Export data lookup for function value
++		// callees not implemented, meaning the type is unavailable.
++		//sink += int(m(42, int64(a(1, 2))))
++
++		v := a(1, 2)
++		val += int(m(42, int64(v)))
+ 	}
++	return val
+ }
+diff --git a/src/cmd/compile/internal/test/testdata/pgo/devirtualize/devirt.pprof b/src/cmd/compile/internal/test/testdata/pgo/devirtualize/devirt.pprof
+index 87e7b62736..de064582ff 100644
+Binary files a/src/cmd/compile/internal/test/testdata/pgo/devirtualize/devirt.pprof and b/src/cmd/compile/internal/test/testdata/pgo/devirtualize/devirt.pprof differ
+diff --git a/src/cmd/compile/internal/test/testdata/pgo/devirtualize/devirt_test.go b/src/cmd/compile/internal/test/testdata/pgo/devirtualize/devirt_test.go
+index ef637a876b..59b565d77f 100644
+--- a/src/cmd/compile/internal/test/testdata/pgo/devirtualize/devirt_test.go
++++ b/src/cmd/compile/internal/test/testdata/pgo/devirtualize/devirt_test.go
+@@ -17,7 +17,7 @@ import (
+ 	"example.com/pgo/devirtualize/mult.pkg"
+ )
+ 
+-func BenchmarkDevirt(b *testing.B) {
++func BenchmarkDevirtIface(b *testing.B) {
+ 	var (
+ 		a1 Add
+ 		a2 Sub
+@@ -25,5 +25,49 @@ func BenchmarkDevirt(b *testing.B) {
+ 		m2 mult.NegMult
+ 	)
+ 
+-	Exercise(b.N, a1, a2, m1, m2)
++	ExerciseIface(b.N, a1, a2, m1, m2)
++}
++
++// Verify that devirtualization doesn't result in calls or side effects applying more than once.
++func TestDevirtIface(t *testing.T) {
++	var (
++		a1 Add
++		a2 Sub
++		m1 mult.Mult
++		m2 mult.NegMult
++	)
++
++	if v := ExerciseIface(10, a1, a2, m1, m2); v != 1176 {
++		t.Errorf("ExerciseIface(10) got %d want 1176", v)
++	}
++}
++
++func BenchmarkDevirtFuncConcrete(b *testing.B) {
++	ExerciseFuncConcrete(b.N, AddFn, SubFn, mult.MultFn, mult.NegMultFn)
++}
++
++func TestDevirtFuncConcrete(t *testing.T) {
++	if v := ExerciseFuncConcrete(10, AddFn, SubFn, mult.MultFn, mult.NegMultFn); v != 1176 {
++		t.Errorf("ExerciseFuncConcrete(10) got %d want 1176", v)
++	}
++}
++
++func BenchmarkDevirtFuncField(b *testing.B) {
++	ExerciseFuncField(b.N, AddFn, SubFn, mult.MultFn, mult.NegMultFn)
++}
++
++func TestDevirtFuncField(t *testing.T) {
++	if v := ExerciseFuncField(10, AddFn, SubFn, mult.MultFn, mult.NegMultFn); v != 1176 {
++		t.Errorf("ExerciseFuncField(10) got %d want 1176", v)
++	}
++}
++
++func BenchmarkDevirtFuncClosure(b *testing.B) {
++	ExerciseFuncClosure(b.N, AddClosure(), SubClosure(), mult.MultClosure(), mult.NegMultClosure())
++}
++
++func TestDevirtFuncClosure(t *testing.T) {
++	if v := ExerciseFuncClosure(10, AddClosure(), SubClosure(), mult.MultClosure(), mult.NegMultClosure()); v != 1176 {
++		t.Errorf("ExerciseFuncClosure(10) got %d want 1176", v)
++	}
+ }
+diff --git a/src/cmd/compile/internal/test/testdata/pgo/devirtualize/mult.pkg/mult.go b/src/cmd/compile/internal/test/testdata/pgo/devirtualize/mult.pkg/mult.go
+index 8a026a52f5..64f405ff9e 100644
+--- a/src/cmd/compile/internal/test/testdata/pgo/devirtualize/mult.pkg/mult.go
++++ b/src/cmd/compile/internal/test/testdata/pgo/devirtualize/mult.pkg/mult.go
+@@ -30,3 +30,31 @@ func (NegMult) Multiply(a, b int) int {
+ 	}
+ 	return -1 * a * b
+ }
++
++// N.B. Different types than AddFunc to test intra-line disambiguation.
++type MultFunc func(int64, int64) int64
++
++func MultFn(a, b int64) int64 {
++	return a * b
++}
++
++func NegMultFn(a, b int64) int64 {
++	return -1 * a * b
++}
++
++//go:noinline
++func MultClosure() MultFunc {
++	// Explicit closure to differentiate from AddClosure.
++	c := 1
++	return func(a, b int64) int64 {
++		return a * b * int64(c)
++	}
++}
++
++//go:noinline
++func NegMultClosure() MultFunc {
++	c := 1
++	return func(a, b int64) int64 {
++		return -1 * a * b * int64(c)
++	}
++}

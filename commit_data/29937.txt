@@ -11,7 +11,187 @@ Date:   Mon Oct 17 22:40:32 2016 -0400
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/url/url.go      | 23 ++++++++++++-
  src/net/url/url_test.go | 87 +++++++++++++++++++++++++++++++++++++++++++++++--
  2 files changed, 106 insertions(+), 4 deletions(-)
+
+diff --git a/src/net/url/url.go b/src/net/url/url.go
+index 2991d3e18e..525dbeee33 100644
+--- a/src/net/url/url.go
++++ b/src/net/url/url.go
+@@ -74,6 +74,7 @@ type encoding int
+ 
+ const (
+ 	encodePath encoding = 1 + iota
++	encodePathSegment
+ 	encodeHost
+ 	encodeZone
+ 	encodeUserPassword
+@@ -132,9 +133,14 @@ func shouldEscape(c byte, mode encoding) bool {
+ 			// The RFC allows : @ & = + $ but saves / ; , for assigning
+ 			// meaning to individual path segments. This package
+ 			// only manipulates the path as a whole, so we allow those
+-			// last two as well. That leaves only ? to escape.
++			// last three as well. That leaves only ? to escape.
+ 			return c == '?'
+ 
++		case encodePathSegment: // §3.3
++			// The RFC allows : @ & = + $ but saves / ; , for assigning
++			// meaning to individual path segments.
++			return c == '/' || c == ';' || c == ',' || c == '?'
++
+ 		case encodeUserPassword: // §3.2.1
+ 			// The RFC allows ';', ':', '&', '=', '+', '$', and ',' in
+ 			// userinfo, so we must escape only '@', '/', and '?'.
+@@ -164,6 +170,15 @@ func QueryUnescape(s string) (string, error) {
+ 	return unescape(s, encodeQueryComponent)
+ }
+ 
++// PathUnescape does the inverse transformation of PathEscape, converting
++// %AB into the byte 0xAB. It returns an error if any % is not followed by
++// two hexadecimal digits.
++//
++// PathUnescape is identical to QueryUnescape except that it does not unescape '+' to ' ' (space).
++func PathUnescape(s string) (string, error) {
++	return unescape(s, encodePathSegment)
++}
++
+ // unescape unescapes a string; the mode specifies
+ // which section of the URL string is being unescaped.
+ func unescape(s string, mode encoding) (string, error) {
+@@ -250,6 +265,12 @@ func QueryEscape(s string) string {
+ 	return escape(s, encodeQueryComponent)
+ }
+ 
++// PathEscape escapes the string so it can be safely placed
++// inside a URL path segment.
++func PathEscape(s string) string {
++	return escape(s, encodePathSegment)
++}
++
+ func escape(s string, mode encoding) string {
+ 	spaceCount, hexCount := 0, 0
+ 	for i := 0; i < len(s); i++ {
+diff --git a/src/net/url/url_test.go b/src/net/url/url_test.go
+index 6eac198448..344ecdcee4 100644
+--- a/src/net/url/url_test.go
++++ b/src/net/url/url_test.go
+@@ -800,6 +800,16 @@ var unescapeTests = []EscapeTest{
+ 		"",
+ 		EscapeError("%zz"),
+ 	},
++	{
++		"a+b",
++		"a b",
++		nil,
++	},
++	{
++		"a%20b",
++		"a b",
++		nil,
++	},
+ }
+ 
+ func TestUnescape(t *testing.T) {
+@@ -808,10 +818,33 @@ func TestUnescape(t *testing.T) {
+ 		if actual != tt.out || (err != nil) != (tt.err != nil) {
+ 			t.Errorf("QueryUnescape(%q) = %q, %s; want %q, %s", tt.in, actual, err, tt.out, tt.err)
+ 		}
++
++		in := tt.in
++		out := tt.out
++		if strings.Contains(tt.in, "+") {
++			in = strings.Replace(tt.in, "+", "%20", -1)
++			actual, err := PathUnescape(in)
++			if actual != tt.out || (err != nil) != (tt.err != nil) {
++				t.Errorf("PathUnescape(%q) = %q, %s; want %q, %s", in, actual, err, tt.out, tt.err)
++			}
++			if tt.err == nil {
++				s, err := QueryUnescape(strings.Replace(tt.in, "+", "XXX", -1))
++				if err != nil {
++					continue
++				}
++				in = tt.in
++				out = strings.Replace(s, "XXX", "+", -1)
++			}
++		}
++
++		actual, err = PathUnescape(in)
++		if actual != out || (err != nil) != (tt.err != nil) {
++			t.Errorf("PathUnescape(%q) = %q, %s; want %q, %s", in, actual, err, out, tt.err)
++		}
+ 	}
+ }
+ 
+-var escapeTests = []EscapeTest{
++var queryEscapeTests = []EscapeTest{
+ 	{
+ 		"",
+ 		"",
+@@ -839,8 +872,8 @@ var escapeTests = []EscapeTest{
+ 	},
+ }
+ 
+-func TestEscape(t *testing.T) {
+-	for _, tt := range escapeTests {
++func TestQueryEscape(t *testing.T) {
++	for _, tt := range queryEscapeTests {
+ 		actual := QueryEscape(tt.in)
+ 		if tt.out != actual {
+ 			t.Errorf("QueryEscape(%q) = %q, want %q", tt.in, actual, tt.out)
+@@ -854,6 +887,54 @@ func TestEscape(t *testing.T) {
+ 	}
+ }
+ 
++var pathEscapeTests = []EscapeTest{
++	{
++		"",
++		"",
++		nil,
++	},
++	{
++		"abc",
++		"abc",
++		nil,
++	},
++	{
++		"abc+def",
++		"abc+def",
++		nil,
++	},
++	{
++		"one two",
++		"one%20two",
++		nil,
++	},
++	{
++		"10%",
++		"10%25",
++		nil,
++	},
++	{
++		" ?&=#+%!<>#\"{}|\\^[]`☺\t:/@$'()*,;",
++		"%20%3F&=%23+%25%21%3C%3E%23%22%7B%7D%7C%5C%5E%5B%5D%60%E2%98%BA%09:%2F@$%27%28%29%2A%2C%3B",
++		nil,
++	},
++}
++
++func TestPathEscape(t *testing.T) {
++	for _, tt := range pathEscapeTests {
++		actual := PathEscape(tt.in)
++		if tt.out != actual {
++			t.Errorf("PathEscape(%q) = %q, want %q", tt.in, actual, tt.out)
++		}
++
++		// for bonus points, verify that escape:unescape is an identity.
++		roundtrip, err := PathUnescape(actual)
++		if roundtrip != tt.in || err != nil {
++			t.Errorf("PathUnescape(%q) = %q, %s; want %q, %s", actual, roundtrip, err, tt.in, "[no error]")
++		}
++	}
++}
++
+ //var userinfoTests = []UserinfoTest{
+ //	{"user", "password", "user:password"},
+ //	{"foo:bar", "~!@#$%^&*()_+{}|[]\\-=`:;'\"<>?,./",

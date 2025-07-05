@@ -7,7 +7,37 @@ Date:   Fri Dec 9 11:00:49 2011 +1100
     R=golang-dev, dvyukov
     CC=golang-dev
     https://golang.org/cl/5461044
-
+---
  misc/cgo/testso/test.bash | 9 +++++++++
  src/run.bash              | 3 +--
  2 files changed, 10 insertions(+), 2 deletions(-)
+
+diff --git a/misc/cgo/testso/test.bash b/misc/cgo/testso/test.bash
+new file mode 100755
+index 0000000000..f275eb5723
+--- /dev/null
++++ b/misc/cgo/testso/test.bash
+@@ -0,0 +1,9 @@
++#!/bin/sh
++# Copyright 2011 The Go Authors.  All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++set -e
++gomake out
++LD_LIBRARY_PATH=. ./out
++gomake clean
+diff --git a/src/run.bash b/src/run.bash
+index 74ad72e9e3..64514bce62 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -78,8 +78,7 @@ gotest
+ [ "$GOHOSTOS" == darwin ] ||
+ (xcd ../misc/cgo/testso
+ gomake clean
+-gomake out
+-LD_LIBRARY_PATH=. ./out
++./test.bash
+ ) || exit $?
+ 
+ (xcd ../doc/progs

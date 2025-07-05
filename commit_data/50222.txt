@@ -13,10 +13,136 @@ Date:   Fri Oct 8 12:19:57 2021 -0700
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
     Trust: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/asm/internal/arch/arch.go            |  4 +++
  src/cmd/asm/internal/asm/testdata/amd64enc.s | 48 ++++++++++++++--------------
  src/cmd/internal/obj/x86/aenum.go            |  6 ++--
  src/cmd/internal/obj/x86/anames.go           |  6 ++--
  src/cmd/internal/obj/x86/asm6.go             |  6 ++--
  5 files changed, 37 insertions(+), 33 deletions(-)
+
+diff --git a/src/cmd/asm/internal/arch/arch.go b/src/cmd/asm/internal/arch/arch.go
+index 026d8abf81..cffa9a26a4 100644
+--- a/src/cmd/asm/internal/arch/arch.go
++++ b/src/cmd/asm/internal/arch/arch.go
+@@ -178,6 +178,10 @@ func archX86(linkArch *obj.LinkArch) *Arch {
+ 	instructions["PSLLDQ"] = x86.APSLLO
+ 	instructions["PSRLDQ"] = x86.APSRLO
+ 	instructions["PADDD"] = x86.APADDL
++	// Spellings originally used in CL 97235.
++	instructions["MOVBELL"] = x86.AMOVBEL
++	instructions["MOVBEQQ"] = x86.AMOVBEQ
++	instructions["MOVBEWW"] = x86.AMOVBEW
+ 
+ 	return &Arch{
+ 		LinkArch:       linkArch,
+diff --git a/src/cmd/asm/internal/asm/testdata/amd64enc.s b/src/cmd/asm/internal/asm/testdata/amd64enc.s
+index c02f51d125..5bba292dee 100644
+--- a/src/cmd/asm/internal/asm/testdata/amd64enc.s
++++ b/src/cmd/asm/internal/asm/testdata/amd64enc.s
+@@ -2495,30 +2495,30 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
+ 	MOVAPS X11, (BX)                        // 440f291b
+ 	MOVAPS X2, (R11)                        // 410f2913
+ 	MOVAPS X11, (R11)                       // 450f291b
+-	MOVBEWW DX, (BX)                        // 660f38f113
+-	MOVBEWW R11, (BX)                       // 66440f38f11b
+-	MOVBEWW DX, (R11)                       // 66410f38f113
+-	MOVBEWW R11, (R11)                      // 66450f38f11b
+-	MOVBEWW (BX), DX                        // 660f38f013
+-	MOVBEWW (R11), DX                       // 66410f38f013
+-	MOVBEWW (BX), R11                       // 66440f38f01b
+-	MOVBEWW (R11), R11                      // 66450f38f01b
+-	MOVBELL DX, (BX)                        // 0f38f113
+-	MOVBELL R11, (BX)                       // 440f38f11b
+-	MOVBELL DX, (R11)                       // 410f38f113
+-	MOVBELL R11, (R11)                      // 450f38f11b
+-	MOVBELL (BX), DX                        // 0f38f013
+-	MOVBELL (R11), DX                       // 410f38f013
+-	MOVBELL (BX), R11                       // 440f38f01b
+-	MOVBELL (R11), R11                      // 450f38f01b
+-	MOVBEQQ DX, (BX)                        // 480f38f113
+-	MOVBEQQ R11, (BX)                       // 4c0f38f11b
+-	MOVBEQQ DX, (R11)                       // 490f38f113
+-	MOVBEQQ R11, (R11)                      // 4d0f38f11b
+-	MOVBEQQ (BX), DX                        // 480f38f013
+-	MOVBEQQ (R11), DX                       // 490f38f013
+-	MOVBEQQ (BX), R11                       // 4c0f38f01b
+-	MOVBEQQ (R11), R11                      // 4d0f38f01b
++	MOVBEW DX, (BX)                         // 660f38f113
++	MOVBEW R11, (BX)                        // 66440f38f11b
++	MOVBEW DX, (R11)                        // 66410f38f113
++	MOVBEW R11, (R11)                       // 66450f38f11b
++	MOVBEW (BX), DX                         // 660f38f013
++	MOVBEW (R11), DX                        // 66410f38f013
++	MOVBEW (BX), R11                        // 66440f38f01b
++	MOVBEW (R11), R11                       // 66450f38f01b
++	MOVBEL DX, (BX)                         // 0f38f113
++	MOVBEL R11, (BX)                        // 440f38f11b
++	MOVBEL DX, (R11)                        // 410f38f113
++	MOVBEL R11, (R11)                       // 450f38f11b
++	MOVBEL (BX), DX                         // 0f38f013
++	MOVBEL (R11), DX                        // 410f38f013
++	MOVBEL (BX), R11                        // 440f38f01b
++	MOVBEL (R11), R11                       // 450f38f01b
++	MOVBEQ DX, (BX)                         // 480f38f113
++	MOVBEQ R11, (BX)                        // 4c0f38f11b
++	MOVBEQ DX, (R11)                        // 490f38f113
++	MOVBEQ R11, (R11)                       // 4d0f38f11b
++	MOVBEQ (BX), DX                         // 480f38f013
++	MOVBEQ (R11), DX                        // 490f38f013
++	MOVBEQ (BX), R11                        // 4c0f38f01b
++	MOVBEQ (R11), R11                       // 4d0f38f01b
+ 	MOVQ (BX), M2                           // 0f6e13 or 0f6f13 or 480f6e13
+ 	MOVQ (R11), M2                          // 410f6e13 or 410f6f13 or 490f6e13
+ 	MOVQ DX, M2                             // 0f6ed2 or 480f6ed2
+diff --git a/src/cmd/internal/obj/x86/aenum.go b/src/cmd/internal/obj/x86/aenum.go
+index 2c035641f5..f0913d7c55 100644
+--- a/src/cmd/internal/obj/x86/aenum.go
++++ b/src/cmd/internal/obj/x86/aenum.go
+@@ -496,9 +496,9 @@ const (
+ 	AMOVAPD
+ 	AMOVAPS
+ 	AMOVB
+-	AMOVBELL
+-	AMOVBEQQ
+-	AMOVBEWW
++	AMOVBEL
++	AMOVBEQ
++	AMOVBEW
+ 	AMOVBLSX
+ 	AMOVBLZX
+ 	AMOVBQSX
+diff --git a/src/cmd/internal/obj/x86/anames.go b/src/cmd/internal/obj/x86/anames.go
+index e6c00bdbe0..7869e366f9 100644
+--- a/src/cmd/internal/obj/x86/anames.go
++++ b/src/cmd/internal/obj/x86/anames.go
+@@ -494,9 +494,9 @@ var Anames = []string{
+ 	"MOVAPD",
+ 	"MOVAPS",
+ 	"MOVB",
+-	"MOVBELL",
+-	"MOVBEQQ",
+-	"MOVBEWW",
++	"MOVBEL",
++	"MOVBEQ",
++	"MOVBEW",
+ 	"MOVBLSX",
+ 	"MOVBLZX",
+ 	"MOVBQSX",
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index 331a98dfef..43ce832b17 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -1735,9 +1735,9 @@ var optab =
+ 	{ASTRL, yincq, Px, opBytes{0x0f, 0x00, 01}},
+ 	{ASTRQ, yincq, Pw, opBytes{0x0f, 0x00, 01}},
+ 	{AXSETBV, ynone, Pm, opBytes{0x01, 0xd1, 0}},
+-	{AMOVBEWW, ymovbe, Pq, opBytes{0x38, 0xf0, 0, 0x38, 0xf1, 0}},
+-	{AMOVBELL, ymovbe, Pm, opBytes{0x38, 0xf0, 0, 0x38, 0xf1, 0}},
+-	{AMOVBEQQ, ymovbe, Pw, opBytes{0x0f, 0x38, 0xf0, 0, 0x0f, 0x38, 0xf1, 0}},
++	{AMOVBEW, ymovbe, Pq, opBytes{0x38, 0xf0, 0, 0x38, 0xf1, 0}},
++	{AMOVBEL, ymovbe, Pm, opBytes{0x38, 0xf0, 0, 0x38, 0xf1, 0}},
++	{AMOVBEQ, ymovbe, Pw, opBytes{0x0f, 0x38, 0xf0, 0, 0x0f, 0x38, 0xf1, 0}},
+ 	{ANOPW, ydivl, Pe, opBytes{0x0f, 0x1f, 00}},
+ 	{ANOPL, ydivl, Px, opBytes{0x0f, 0x1f, 00}},
+ 	{ASLDTW, yincq, Pe, opBytes{0x0f, 0x00, 00}},

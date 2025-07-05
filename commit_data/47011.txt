@@ -20,7 +20,59 @@ Date:   Wed Feb 17 15:51:05 2021 -0500
     Reviewed-by: Russ Cox <rsc@golang.org>
     Trust: Than McIntosh <thanm@google.com>
     Run-TryBot: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/compile/internal/dwarfgen/scope.go |  4 +++-
  test/fixedbugs/issue44344.go               | 30 ++++++++++++++++++++++++++++++
  2 files changed, 33 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/dwarfgen/scope.go b/src/cmd/compile/internal/dwarfgen/scope.go
+index 1c040edc28..4957e24e44 100644
+--- a/src/cmd/compile/internal/dwarfgen/scope.go
++++ b/src/cmd/compile/internal/dwarfgen/scope.go
+@@ -37,7 +37,9 @@ func assembleScopes(fnsym *obj.LSym, fn *ir.Func, dwarfVars []*dwarf.Var, varSco
+ 	}
+ 
+ 	scopeVariables(dwarfVars, varScopes, dwarfScopes)
+-	scopePCs(fnsym, fn.Marks, dwarfScopes)
++	if fnsym.Func().Text != nil {
++		scopePCs(fnsym, fn.Marks, dwarfScopes)
++	}
+ 	return compactScopes(dwarfScopes)
+ }
+ 
+diff --git a/test/fixedbugs/issue44344.go b/test/fixedbugs/issue44344.go
+new file mode 100644
+index 0000000000..06c4cb6cb8
+--- /dev/null
++++ b/test/fixedbugs/issue44344.go
+@@ -0,0 +1,30 @@
++// compile
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue #44344: a crash in DWARF scope generation (trying to
++// scope the PCs of a function that was inlined away).
++
++package main
++
++func main() {
++	pv := []int{3, 4, 5}
++	if pv[1] != 9 {
++		pv = append(pv, 9)
++	}
++	tryit := func() bool {
++		lpv := len(pv)
++		if lpv == 101 {
++			return false
++		}
++		if worst := pv[pv[1]&1]; worst != 101 {
++			return true
++		}
++		return false
++	}()
++	if tryit {
++		println(pv[0])
++	}
++}

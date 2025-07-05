@@ -12,6 +12,20 @@ Date:   Mon Dec 20 00:36:55 2021 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/373334
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-
+---
  src/reflect/type.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index 4e03dc3382..8ba63bcad0 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -229,7 +229,7 @@ type Type interface {
+ // See https://golang.org/issue/4876 for more details.
+ 
+ /*
+- * These data structures are known to the compiler (../../cmd/internal/reflectdata/reflect.go).
++ * These data structures are known to the compiler (../cmd/compile/internal/reflectdata/reflect.go).
+  * A few are known to ../runtime/type.go to convey to debuggers.
+  * They are also known to ../runtime/type.go.
+  */

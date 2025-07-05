@@ -9,8 +9,51 @@ Date:   Mon Jun 4 17:10:43 2018 +0530
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/internal/poll/sendfile_bsd.go     | 3 +--
  src/internal/poll/sendfile_linux.go   | 3 +--
  src/internal/poll/sendfile_solaris.go | 3 +--
  3 files changed, 3 insertions(+), 6 deletions(-)
+
+diff --git a/src/internal/poll/sendfile_bsd.go b/src/internal/poll/sendfile_bsd.go
+index 980a75afa7..40ae3468b0 100644
+--- a/src/internal/poll/sendfile_bsd.go
++++ b/src/internal/poll/sendfile_bsd.go
+@@ -32,8 +32,7 @@ func SendFile(dstFD *FD, src int, pos, remain int64) (int64, error) {
+ 			pos += int64(n)
+ 			written += int64(n)
+ 			remain -= int64(n)
+-		}
+-		if n == 0 && err1 == nil {
++		} else if n == 0 && err1 == nil {
+ 			break
+ 		}
+ 		if err1 == syscall.EAGAIN {
+diff --git a/src/internal/poll/sendfile_linux.go b/src/internal/poll/sendfile_linux.go
+index 52955a19d0..8e938065f1 100644
+--- a/src/internal/poll/sendfile_linux.go
++++ b/src/internal/poll/sendfile_linux.go
+@@ -29,8 +29,7 @@ func SendFile(dstFD *FD, src int, remain int64) (int64, error) {
+ 		if n > 0 {
+ 			written += int64(n)
+ 			remain -= int64(n)
+-		}
+-		if n == 0 && err1 == nil {
++		} else if n == 0 && err1 == nil {
+ 			break
+ 		}
+ 		if err1 == syscall.EAGAIN {
+diff --git a/src/internal/poll/sendfile_solaris.go b/src/internal/poll/sendfile_solaris.go
+index 9093d46483..762992e9eb 100644
+--- a/src/internal/poll/sendfile_solaris.go
++++ b/src/internal/poll/sendfile_solaris.go
+@@ -39,8 +39,7 @@ func SendFile(dstFD *FD, src int, pos, remain int64) (int64, error) {
+ 			pos += int64(n)
+ 			written += int64(n)
+ 			remain -= int64(n)
+-		}
+-		if n == 0 && err1 == nil {
++		} else if n == 0 && err1 == nil {
+ 			break
+ 		}
+ 		if err1 == syscall.EAGAIN {

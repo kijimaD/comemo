@@ -9,9 +9,167 @@ Date:   Mon Dec 19 15:52:15 2011 -0500
     R=ken2
     CC=golang-dev
     https://golang.org/cl/5495094
-
+---
  src/cmd/gc/builtin.c.boot | 13 ++++++-------
  src/cmd/gc/runtime.go     | 14 ++++++--------
  src/cmd/gc/subr.c         | 21 +++++++++++++++------
  src/cmd/gc/walk.c         | 16 ++++++++++------
  4 files changed, 37 insertions(+), 27 deletions(-)
+
+diff --git a/src/cmd/gc/builtin.c.boot b/src/cmd/gc/builtin.c.boot
+index f2c81b71e5..23d36964a9 100644
+--- a/src/cmd/gc/builtin.c.boot
++++ b/src/cmd/gc/builtin.c.boot
+@@ -1,7 +1,6 @@
+ char *runtimeimport =
+ 	"package runtime\n"
+ 	"import runtime \"runtime\"\n"
+-	"import unsafe \"unsafe\"\n"
+ 	"func @\"\".new(@\"\".typ *byte) *any\n"
+ 	"func @\"\".panicindex()\n"
+ 	"func @\"\".panicslice()\n"
+@@ -91,12 +90,12 @@ char *runtimeimport =
+ 	"func @\"\".sliceslice(@\"\".old []any, @\"\".lb uint64, @\"\".hb uint64, @\"\".width uint64) []any\n"
+ 	"func @\"\".slicearray(@\"\".old *any, @\"\".nel uint64, @\"\".lb uint64, @\"\".hb uint64, @\"\".width uint64) []any\n"
+ 	"func @\"\".closure()\n"
+-	"func @\"\".memequal(@\"\".eq *bool, @\"\".size uintptr, @\"\".x @\"unsafe\".Pointer, @\"\".y @\"unsafe\".Pointer)\n"
+-	"func @\"\".memequal8(@\"\".eq *bool, @\"\".size uintptr, @\"\".x @\"unsafe\".Pointer, @\"\".y @\"unsafe\".Pointer)\n"
+-	"func @\"\".memequal16(@\"\".eq *bool, @\"\".size uintptr, @\"\".x @\"unsafe\".Pointer, @\"\".y @\"unsafe\".Pointer)\n"
+-	"func @\"\".memequal32(@\"\".eq *bool, @\"\".size uintptr, @\"\".x @\"unsafe\".Pointer, @\"\".y @\"unsafe\".Pointer)\n"
+-	"func @\"\".memequal64(@\"\".eq *bool, @\"\".size uintptr, @\"\".x @\"unsafe\".Pointer, @\"\".y @\"unsafe\".Pointer)\n"
+-	"func @\"\".memequal128(@\"\".eq *bool, @\"\".size uintptr, @\"\".x @\"unsafe\".Pointer, @\"\".y @\"unsafe\".Pointer)\n"
++	"func @\"\".memequal(@\"\".eq *bool, @\"\".size uintptr, @\"\".x *any, @\"\".y *any)\n"
++	"func @\"\".memequal8(@\"\".eq *bool, @\"\".size uintptr, @\"\".x *any, @\"\".y *any)\n"
++	"func @\"\".memequal16(@\"\".eq *bool, @\"\".size uintptr, @\"\".x *any, @\"\".y *any)\n"
++	"func @\"\".memequal32(@\"\".eq *bool, @\"\".size uintptr, @\"\".x *any, @\"\".y *any)\n"
++	"func @\"\".memequal64(@\"\".eq *bool, @\"\".size uintptr, @\"\".x *any, @\"\".y *any)\n"
++	"func @\"\".memequal128(@\"\".eq *bool, @\"\".size uintptr, @\"\".x *any, @\"\".y *any)\n"
+ 	"func @\"\".int64div(? int64, ? int64) int64\n"
+ 	"func @\"\".uint64div(? uint64, ? uint64) uint64\n"
+ 	"func @\"\".int64mod(? int64, ? int64) int64\n"
+diff --git a/src/cmd/gc/runtime.go b/src/cmd/gc/runtime.go
+index b53c124981..2d9e423214 100644
+--- a/src/cmd/gc/runtime.go
++++ b/src/cmd/gc/runtime.go
+@@ -8,8 +8,6 @@
+ 
+ package PACKAGE
+ 
+-import "unsafe"
+-
+ // emitted by compiler, not referred to by go programs
+ 
+ func new(typ *byte) *any
+@@ -123,12 +121,12 @@ func slicearray(old *any, nel uint64, lb uint64, hb uint64, width uint64) (ary [
+ 
+ func closure() // has args, but compiler fills in
+ 
+-func memequal(eq *bool, size uintptr, x, y unsafe.Pointer)
+-func memequal8(eq *bool, size uintptr, x, y unsafe.Pointer)
+-func memequal16(eq *bool, size uintptr, x, y unsafe.Pointer)
+-func memequal32(eq *bool, size uintptr, x, y unsafe.Pointer)
+-func memequal64(eq *bool, size uintptr, x, y unsafe.Pointer)
+-func memequal128(eq *bool, size uintptr, x, y unsafe.Pointer)
++func memequal(eq *bool, size uintptr, x, y *any)
++func memequal8(eq *bool, size uintptr, x, y *any)
++func memequal16(eq *bool, size uintptr, x, y *any)
++func memequal32(eq *bool, size uintptr, x, y *any)
++func memequal64(eq *bool, size uintptr, x, y *any)
++func memequal128(eq *bool, size uintptr, x, y *any)
+ 
+ // only used on 32-bit
+ func int64div(int64, int64) int64
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index d95036204b..07f97da2de 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -2636,20 +2636,27 @@ eqfield(Node *p, Node *q, Node *field, Node *eq)
+ }
+ 
+ static Node*
+-eqmemfunc(vlong size)
++eqmemfunc(vlong size, Type *type)
+ {
+ 	char buf[30];
++	Node *fn;
+ 
+ 	switch(size) {
++	default:
++		fn = syslook("memequal", 1);
++		break;
+ 	case 1:
+ 	case 2:
+ 	case 4:
+ 	case 8:
+ 	case 16:
+ 		snprint(buf, sizeof buf, "memequal%d", (int)size*8);
+-		return syslook(buf, 0);
++		fn = syslook(buf, 1);
++		break;
+ 	}
+-	return syslook("memequal", 0);
++	argtype(fn, type);
++	argtype(fn, type);
++	return fn;
+ }
+ 
+ // Return node for
+@@ -2663,12 +2670,14 @@ eqmem(Node *p, Node *q, Node *field, vlong size, Node *eq)
+ 	nx->etype = 1;  // does not escape
+ 	ny = nod(OADDR, nod(OXDOT, q, field), N);
+ 	ny->etype = 1;  // does not escape
++	typecheck(&nx, Erv);
++	typecheck(&ny, Erv);
+ 
+-	call = nod(OCALL, eqmemfunc(size), N);
++	call = nod(OCALL, eqmemfunc(size, nx->type->type), N);
+ 	call->list = list(call->list, eq);
+ 	call->list = list(call->list, nodintconst(size));
+-	call->list = list(call->list, conv(nx, types[TUNSAFEPTR]));
+-	call->list = list(call->list, conv(ny, types[TUNSAFEPTR]));
++	call->list = list(call->list, nx);
++	call->list = list(call->list, ny);
+ 
+ 	nif = nod(OIF, N, N);
+ 	nif->ninit = list(nif->ninit, call);
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index f94a937b11..68bd01cda0 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -2408,8 +2408,12 @@ eqfor(Type *t)
+ 	if(a != AMEM && a != -1)
+ 		fatal("eqfor %T", t);
+ 
+-	if(a == AMEM)
+-		return syslook("memequal", 0);
++	if(a == AMEM) {
++		n = syslook("memequal", 1);
++		argtype(n, t);
++		argtype(n, t);
++		return n;
++	}
+ 
+ 	sym = typesymprefix(".eq", t);
+ 	n = newname(sym);
+@@ -2417,8 +2421,8 @@ eqfor(Type *t)
+ 	ntype = nod(OTFUNC, N, N);
+ 	ntype->list = list(ntype->list, nod(ODCLFIELD, N, typenod(ptrto(types[TBOOL]))));
+ 	ntype->list = list(ntype->list, nod(ODCLFIELD, N, typenod(types[TUINTPTR])));
+-	ntype->list = list(ntype->list, nod(ODCLFIELD, N, typenod(types[TUNSAFEPTR])));
+-	ntype->list = list(ntype->list, nod(ODCLFIELD, N, typenod(types[TUNSAFEPTR])));
++	ntype->list = list(ntype->list, nod(ODCLFIELD, N, typenod(ptrto(t))));
++	ntype->list = list(ntype->list, nod(ODCLFIELD, N, typenod(ptrto(t))));
+ 	typecheck(&ntype, Etype);
+ 	n->type = ntype->type;
+ 	return n;
+@@ -2536,8 +2540,8 @@ walkcompare(Node **np, NodeList **init)
+ 	a->etype = 1;  // does not escape
+ 	call->list = list(call->list, a);
+ 	call->list = list(call->list, nodintconst(t->width));
+-	call->list = list(call->list, conv(l, types[TUNSAFEPTR]));
+-	call->list = list(call->list, conv(r, types[TUNSAFEPTR]));
++	call->list = list(call->list, l);
++	call->list = list(call->list, r);
+ 	typecheck(&call, Etop);
+ 	walkstmt(&call);
+ 	*init = list(*init, call);

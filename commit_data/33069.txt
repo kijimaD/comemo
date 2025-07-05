@@ -16,6 +16,23 @@ Date:   Fri Jun 30 10:57:04 2017 -0700
     Run-TryBot: Shawn Walker-Salas <shawn.walker@oracle.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/internal/poll/sendfile_solaris.go | 5 +----
  1 file changed, 1 insertion(+), 4 deletions(-)
+
+diff --git a/src/internal/poll/sendfile_solaris.go b/src/internal/poll/sendfile_solaris.go
+index 2ce5323208..9093d46483 100644
+--- a/src/internal/poll/sendfile_solaris.go
++++ b/src/internal/poll/sendfile_solaris.go
+@@ -33,10 +33,7 @@ func SendFile(dstFD *FD, src int, pos, remain int64) (int64, error) {
+ 		n, err1 := syscall.Sendfile(dst, src, &pos1, n)
+ 		if err1 == syscall.EAGAIN || err1 == syscall.EINTR {
+ 			// partial write may have occurred
+-			if n = int(pos1 - pos); n == 0 {
+-				// nothing more to write
+-				err1 = nil
+-			}
++			n = int(pos1 - pos)
+ 		}
+ 		if n > 0 {
+ 			pos += int64(n)

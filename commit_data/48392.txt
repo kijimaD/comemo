@@ -20,7 +20,71 @@ Date:   Mon May 10 17:19:50 2021 -0400
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/modget/get.go                   |  8 ++++----
  .../testdata/script/mod_get_deprecate_install.txt   | 21 +++++++++++++++++++--
  2 files changed, 23 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/go/internal/modget/get.go b/src/cmd/go/internal/modget/get.go
+index 3a24b6a2f7..2a7fe5226f 100644
+--- a/src/cmd/go/internal/modget/get.go
++++ b/src/cmd/go/internal/modget/get.go
+@@ -386,14 +386,14 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
+ 		}
+ 		load.CheckPackageErrors(pkgs)
+ 
+-		haveExe := false
++		haveExternalExe := false
+ 		for _, pkg := range pkgs {
+-			if pkg.Name == "main" {
+-				haveExe = true
++			if pkg.Name == "main" && pkg.Module != nil && pkg.Module.Path != modload.Target.Path {
++				haveExternalExe = true
+ 				break
+ 			}
+ 		}
+-		if haveExe {
++		if haveExternalExe {
+ 			fmt.Fprint(os.Stderr, "go get: installing executables with 'go get' in module mode is deprecated.")
+ 			var altMsg string
+ 			if modload.HasModRoot() {
+diff --git a/src/cmd/go/testdata/script/mod_get_deprecate_install.txt b/src/cmd/go/testdata/script/mod_get_deprecate_install.txt
+index d832b5f2e8..63cd27a42d 100644
+--- a/src/cmd/go/testdata/script/mod_get_deprecate_install.txt
++++ b/src/cmd/go/testdata/script/mod_get_deprecate_install.txt
+@@ -7,16 +7,33 @@ go get example.com/cmd/a
+ stderr '^go get: installing executables with ''go get'' in module mode is deprecated.$'
+ stderr 'Use ''go install pkg@version'' instead.'
+ 
+-
+-go mod init m
++cp go.mod.orig go.mod
+ 
+ # 'go get' inside a module with a non-main package does not print a message.
+ # This will stop building in the future, but it's the command we want to use.
+ go get rsc.io/quote
+ ! stderr deprecated
++cp go.mod.orig go.mod
+ 
+ # 'go get' inside a module with an executable prints a different
+ # deprecation message.
+ go get example.com/cmd/a
+ stderr '^go get: installing executables with ''go get'' in module mode is deprecated.$'
+ stderr 'To adjust and download dependencies of the current module, use ''go get -d'''
++cp go.mod.orig go.mod
++
++# 'go get' should not print a warning for a main package inside the main module.
++# The intent is most likely to update the dependencies of that package.
++# 'go install' would be used otherwise.
++go get m
++! stderr .
++cp go.mod.orig go.mod
++
++-- go.mod.orig --
++module m
++
++go 1.17
++-- main.go --
++package main
++
++func main() {}

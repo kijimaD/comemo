@@ -14,6 +14,20 @@ Date:   Fri Feb 19 13:54:28 2021 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/typecheck/typecheck.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/typecheck/typecheck.go b/src/cmd/compile/internal/typecheck/typecheck.go
+index 5a3446b358..278e64fc61 100644
+--- a/src/cmd/compile/internal/typecheck/typecheck.go
++++ b/src/cmd/compile/internal/typecheck/typecheck.go
+@@ -528,7 +528,7 @@ func typecheck1(n ir.Node, top int) ir.Node {
+ 	case ir.OPACK:
+ 		n := n.(*ir.PkgName)
+ 		base.Errorf("use of package %v without selector", n.Sym())
+-		n.SetType(nil)
++		n.SetDiag(true)
+ 		return n
+ 
+ 	// types (ODEREF is with exprs)

@@ -9,6 +9,28 @@ Date:   Tue Mar 3 10:47:15 2015 -0500
     Change-Id: Ifa2d3e1427036a606a069f356cd9b586ef22ec84
     Reviewed-on: https://go-review.googlesource.com/6610
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/internal/ld/ldmacho.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/internal/ld/ldmacho.go b/src/cmd/internal/ld/ldmacho.go
+index 58f065a306..14e9923325 100644
+--- a/src/cmd/internal/ld/ldmacho.go
++++ b/src/cmd/internal/ld/ldmacho.go
+@@ -719,6 +719,7 @@ func ldmacho(f *Biobuf, pkg string, length int64, pn string) {
+ 		}
+ 		r = make([]Reloc, sect.nreloc)
+ 		rpi = 0
++	Reloc:
+ 		for j = 0; uint32(j) < sect.nreloc; j++ {
+ 			rp = &r[rpi]
+ 			rel = &sect.rel[j]
+@@ -806,7 +807,7 @@ func ldmacho(f *Biobuf, pkg string, length int64, pn string) {
+ 						// skip #1 of 2 rel; continue skips #2 of 2.
+ 						j++
+ 
+-						continue
++						continue Reloc
+ 					}
+ 				}
+ 

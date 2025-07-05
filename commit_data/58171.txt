@@ -13,8 +13,81 @@ Date:   Fri Sep 8 08:21:58 2023 +0900
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Auto-Submit: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  api/next/61870.txt |  1 +
  src/io/io.go       | 17 +++++++++++++----
  src/io/io_test.go  |  6 ++++++
  3 files changed, 20 insertions(+), 4 deletions(-)
+
+diff --git a/api/next/61870.txt b/api/next/61870.txt
+new file mode 100644
+index 0000000000..27bb9f6425
+--- /dev/null
++++ b/api/next/61870.txt
+@@ -0,0 +1 @@
++pkg io, method (*SectionReader) Outer() (ReaderAt, int64, int64) #61870
+diff --git a/src/io/io.go b/src/io/io.go
+index c2e1fa0cb0..a383f2f309 100644
+--- a/src/io/io.go
++++ b/src/io/io.go
+@@ -493,16 +493,17 @@ func NewSectionReader(r ReaderAt, off int64, n int64) *SectionReader {
+ 		// Assume we can read up to an offset of 1<<63 - 1.
+ 		remaining = maxint64
+ 	}
+-	return &SectionReader{r, off, off, remaining}
++	return &SectionReader{r, off, off, remaining, n}
+ }
+ 
+ // SectionReader implements Read, Seek, and ReadAt on a section
+ // of an underlying [ReaderAt].
+ type SectionReader struct {
+-	r     ReaderAt
+-	base  int64
++	r     ReaderAt // constant after creation
++	base  int64    // constant after creation
+ 	off   int64
+-	limit int64
++	limit int64 // constant after creation
++	n     int64 // constant after creation
+ }
+ 
+ func (s *SectionReader) Read(p []byte) (n int, err error) {
+@@ -557,6 +558,14 @@ func (s *SectionReader) ReadAt(p []byte, off int64) (n int, err error) {
+ // Size returns the size of the section in bytes.
+ func (s *SectionReader) Size() int64 { return s.limit - s.base }
+ 
++// Outer returns the underlying ReaderAt and offsets for the section.
++//
++// The returned values are the same that were passed to NewSectionReader
++// when the SectionReader was created.
++func (s *SectionReader) Outer() (r ReaderAt, off int64, n int64) {
++	return s.r, s.base, s.n
++}
++
+ // An OffsetWriter maps writes at offset base to offset base+off in the underlying writer.
+ type OffsetWriter struct {
+ 	w    WriterAt
+diff --git a/src/io/io_test.go b/src/io/io_test.go
+index c09b5e34d2..9491ffae61 100644
+--- a/src/io/io_test.go
++++ b/src/io/io_test.go
+@@ -384,6 +384,9 @@ func TestSectionReader_ReadAt(t *testing.T) {
+ 		if n, err := s.ReadAt(buf, int64(tt.at)); n != len(tt.exp) || string(buf[:n]) != tt.exp || err != tt.err {
+ 			t.Fatalf("%d: ReadAt(%d) = %q, %v; expected %q, %v", i, tt.at, buf[:n], err, tt.exp, tt.err)
+ 		}
++		if _r, off, n := s.Outer(); _r != r || off != int64(tt.off) || n != int64(tt.n) {
++			t.Fatalf("%d: Outer() = %v, %d, %d; expected %v, %d, %d", i, _r, off, n, r, tt.off, tt.n)
++		}
+ 	}
+ }
+ 
+@@ -445,6 +448,9 @@ func TestSectionReader_Max(t *testing.T) {
+ 	if n != 0 || err != EOF {
+ 		t.Errorf("Read = %v, %v, want 0, EOF", n, err)
+ 	}
++	if _r, off, n := sr.Outer(); _r != r || off != 3 || n != maxint64 {
++		t.Fatalf("Outer = %v, %d, %d; expected %v, %d, %d", _r, off, n, r, 3, int64(maxint64))
++	}
+ }
+ 
+ // largeWriter returns an invalid count that is larger than the number

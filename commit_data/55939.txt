@@ -21,7 +21,7 @@ Date:   Wed Mar 22 11:59:39 2023 -0700
     Reviewed-by: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/assignments.go | 30 ++----------
  src/cmd/compile/internal/types2/call.go        | 68 +++++++++++++++++++-------
  src/go/types/assignments.go                    |  6 +--
@@ -33,3 +33,343 @@ Date:   Wed Mar 22 11:59:39 2023 -0700
  test/fixedbugs/issue9083.go                    |  1 +
  test/interface/pointer.go                      |  4 +-
  10 files changed, 111 insertions(+), 66 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/assignments.go b/src/cmd/compile/internal/types2/assignments.go
+index c774658a23..afbb1186b5 100644
+--- a/src/cmd/compile/internal/types2/assignments.go
++++ b/src/cmd/compile/internal/types2/assignments.go
+@@ -134,9 +134,6 @@ func (check *Checker) initVar(lhs *Var, x *operand, context string) Type {
+ 		if lhs.typ == nil {
+ 			lhs.typ = Typ[Invalid]
+ 		}
+-		// Note: This was reverted in go/types (https://golang.org/cl/292751).
+-		// TODO(gri): decide what to do (also affects test/run.go exclusion list)
+-		lhs.used = true // avoid follow-on "declared and not used" errors
+ 		return nil
+ 	}
+ 
+@@ -157,7 +154,6 @@ func (check *Checker) initVar(lhs *Var, x *operand, context string) Type {
+ 
+ 	check.assignment(x, lhs.typ, context)
+ 	if x.mode == invalid {
+-		lhs.used = true // avoid follow-on "declared and not used" errors
+ 		return nil
+ 	}
+ 
+@@ -233,7 +229,7 @@ func (check *Checker) lhsVar(lhs syntax.Expr) Type {
+ // If the assignment is invalid, the result is nil.
+ func (check *Checker) assignVar(lhs syntax.Expr, x *operand) Type {
+ 	if x.mode == invalid || x.typ == Typ[Invalid] {
+-		check.use(lhs)
++		check.useLHS(lhs)
+ 		return nil
+ 	}
+ 
+@@ -398,7 +394,7 @@ func (check *Checker) assignVars(lhs, orig_rhs []syntax.Expr) {
+ 	rhs, commaOk := check.exprList(orig_rhs, len(lhs) == 2)
+ 
+ 	if len(lhs) != len(rhs) {
+-		check.use(lhs...)
++		check.useLHS(lhs...)
+ 		// don't report an error if we already reported one
+ 		for _, x := range rhs {
+ 			if x.mode == invalid {
+@@ -416,26 +412,8 @@ func (check *Checker) assignVars(lhs, orig_rhs []syntax.Expr) {
+ 		return
+ 	}
+ 
+-	ok := true
+ 	for i, lhs := range lhs {
+-		if check.assignVar(lhs, rhs[i]) == nil {
+-			ok = false
+-		}
+-	}
+-
+-	// avoid follow-on "declared and not used" errors if any assignment failed
+-	if !ok {
+-		// don't call check.use to avoid re-evaluation of the lhs expressions
+-		for _, lhs := range lhs {
+-			if name, _ := unparen(lhs).(*syntax.Name); name != nil {
+-				if obj := check.lookup(name.Value); obj != nil {
+-					// see comment in assignVar
+-					if v, _ := obj.(*Var); v != nil && v.pkg == check.pkg {
+-						v.used = true
+-					}
+-				}
+-			}
+-		}
++		check.assignVar(lhs, rhs[i])
+ 	}
+ }
+ 
+@@ -466,7 +444,7 @@ func (check *Checker) shortVarDecl(pos syntax.Pos, lhs, rhs []syntax.Expr) {
+ 	for i, lhs := range lhs {
+ 		ident, _ := lhs.(*syntax.Name)
+ 		if ident == nil {
+-			check.use(lhs)
++			check.useLHS(lhs)
+ 			check.errorf(lhs, BadDecl, "non-name %s on left side of :=", lhs)
+ 			hasErr = true
+ 			continue
+diff --git a/src/cmd/compile/internal/types2/call.go b/src/cmd/compile/internal/types2/call.go
+index 4a4c77decf..517befe5dd 100644
+--- a/src/cmd/compile/internal/types2/call.go
++++ b/src/cmd/compile/internal/types2/call.go
+@@ -697,26 +697,58 @@ Error:
+ 
+ // use type-checks each argument.
+ // Useful to make sure expressions are evaluated
+-// (and variables are "used") in the presence of other errors.
+-// The arguments may be nil.
+-// TODO(gri) make this accept a []syntax.Expr and use an unpack function when we have a ListExpr?
+-func (check *Checker) use(arg ...syntax.Expr) {
++// (and variables are "used") in the presence of
++// other errors. Arguments may be nil.
++func (check *Checker) use(args ...syntax.Expr) {
++	for _, e := range args {
++		check.use1(e, false)
++	}
++}
++
++// useLHS is like use, but doesn't "use" top-level identifiers.
++// It should be called instead of use if the arguments are
++// expressions on the lhs of an assignment.
++func (check *Checker) useLHS(args ...syntax.Expr) {
++	for _, e := range args {
++		check.use1(e, true)
++	}
++}
++
++func (check *Checker) use1(e syntax.Expr, lhs bool) {
+ 	var x operand
+-	for _, e := range arg {
+-		switch n := e.(type) {
+-		case nil:
+-			// some AST fields may be nil (e.g., elements of syntax.SliceExpr.Index)
+-			// TODO(gri) can those fields really make it here?
+-			continue
+-		case *syntax.Name:
+-			// don't report an error evaluating blank
+-			if n.Value == "_" {
+-				continue
++	switch n := unparen(e).(type) {
++	case nil:
++		// nothing to do
++	case *syntax.Name:
++		// don't report an error evaluating blank
++		if n.Value == "_" {
++			break
++		}
++		// If the lhs is an identifier denoting a variable v, this assignment
++		// is not a 'use' of v. Remember current value of v.used and restore
++		// after evaluating the lhs via check.rawExpr.
++		var v *Var
++		var v_used bool
++		if lhs {
++			if _, obj := check.scope.LookupParent(n.Value, nopos); obj != nil {
++				// It's ok to mark non-local variables, but ignore variables
++				// from other packages to avoid potential race conditions with
++				// dot-imported variables.
++				if w, _ := obj.(*Var); w != nil && w.pkg == check.pkg {
++					v = w
++					v_used = v.used
++				}
+ 			}
+-		case *syntax.ListExpr:
+-			check.use(n.ElemList...)
+-			continue
+ 		}
+-		check.rawExpr(&x, e, nil, false)
++		check.rawExpr(&x, n, nil, true)
++		if v != nil {
++			v.used = v_used // restore v.used
++		}
++	case *syntax.ListExpr:
++		for _, e := range n.ElemList {
++			check.use1(e, lhs)
++		}
++	default:
++		check.rawExpr(&x, e, nil, true)
+ 	}
+ }
+diff --git a/src/go/types/assignments.go b/src/go/types/assignments.go
+index 373b8ec231..e1b22d16ad 100644
+--- a/src/go/types/assignments.go
++++ b/src/go/types/assignments.go
+@@ -227,7 +227,7 @@ func (check *Checker) lhsVar(lhs ast.Expr) Type {
+ // If the assignment is invalid, the result is nil.
+ func (check *Checker) assignVar(lhs ast.Expr, x *operand) Type {
+ 	if x.mode == invalid || x.typ == Typ[Invalid] {
+-		check.use(lhs)
++		check.useLHS(lhs)
+ 		return nil
+ 	}
+ 
+@@ -380,7 +380,7 @@ func (check *Checker) assignVars(lhs, origRHS []ast.Expr) {
+ 	rhs, commaOk := check.exprList(origRHS, len(lhs) == 2)
+ 
+ 	if len(lhs) != len(rhs) {
+-		check.use(lhs...)
++		check.useLHS(lhs...)
+ 		// don't report an error if we already reported one
+ 		for _, x := range rhs {
+ 			if x.mode == invalid {
+@@ -415,7 +415,7 @@ func (check *Checker) shortVarDecl(pos positioner, lhs, rhs []ast.Expr) {
+ 	for i, lhs := range lhs {
+ 		ident, _ := lhs.(*ast.Ident)
+ 		if ident == nil {
+-			check.use(lhs)
++			check.useLHS(lhs)
+ 			// TODO(rFindley) this is redundant with a parser error. Consider omitting?
+ 			check.errorf(lhs, BadDecl, "non-name %s on left side of :=", lhs)
+ 			hasErr = true
+diff --git a/src/go/types/call.go b/src/go/types/call.go
+index dce05eb4d4..47734e872b 100644
+--- a/src/go/types/call.go
++++ b/src/go/types/call.go
+@@ -744,22 +744,54 @@ Error:
+ 
+ // use type-checks each argument.
+ // Useful to make sure expressions are evaluated
+-// (and variables are "used") in the presence of other errors.
+-// The arguments may be nil.
+-func (check *Checker) use(arg ...ast.Expr) {
++// (and variables are "used") in the presence of
++// other errors. Arguments may be nil.
++func (check *Checker) use(args ...ast.Expr) {
++	for _, e := range args {
++		check.use1(e, false)
++	}
++}
++
++// useLHS is like use, but doesn't "use" top-level identifiers.
++// It should be called instead of use if the arguments are
++// expressions on the lhs of an assignment.
++func (check *Checker) useLHS(args ...ast.Expr) {
++	for _, e := range args {
++		check.use1(e, true)
++	}
++}
++
++func (check *Checker) use1(e ast.Expr, lhs bool) {
+ 	var x operand
+-	for _, e := range arg {
+-		switch n := e.(type) {
+-		case nil:
+-			// some AST fields may be nil (e.g., the ast.SliceExpr.High field)
+-			// TODO(gri) can those fields really make it here?
+-			continue
+-		case *ast.Ident:
+-			// don't report an error evaluating blank
+-			if n.Name == "_" {
+-				continue
++	switch n := unparen(e).(type) {
++	case nil:
++		// nothing to do
++	case *ast.Ident:
++		// don't report an error evaluating blank
++		if n.Name == "_" {
++			break
++		}
++		// If the lhs is an identifier denoting a variable v, this assignment
++		// is not a 'use' of v. Remember current value of v.used and restore
++		// after evaluating the lhs via check.rawExpr.
++		var v *Var
++		var v_used bool
++		if lhs {
++			if _, obj := check.scope.LookupParent(n.Name, nopos); obj != nil {
++				// It's ok to mark non-local variables, but ignore variables
++				// from other packages to avoid potential race conditions with
++				// dot-imported variables.
++				if w, _ := obj.(*Var); w != nil && w.pkg == check.pkg {
++					v = w
++					v_used = v.used
++				}
+ 			}
+ 		}
+-		check.rawExpr(&x, e, nil, false)
++		check.rawExpr(&x, n, nil, true)
++		if v != nil {
++			v.used = v_used // restore v.used
++		}
++	default:
++		check.rawExpr(&x, e, nil, true)
+ 	}
+ }
+diff --git a/test/fixedbugs/bug062.go b/test/fixedbugs/bug062.go
+index 1008f1af9c..ef9ed5cf28 100644
+--- a/test/fixedbugs/bug062.go
++++ b/test/fixedbugs/bug062.go
+@@ -7,5 +7,5 @@
+ package main
+ 
+ func main() {
+-	var s string = nil // ERROR "illegal|invalid|incompatible|cannot"
++	var _ string = nil // ERROR "illegal|invalid|incompatible|cannot"
+ }
+diff --git a/test/fixedbugs/bug131.go b/test/fixedbugs/bug131.go
+index de606da167..511928ffe5 100644
+--- a/test/fixedbugs/bug131.go
++++ b/test/fixedbugs/bug131.go
+@@ -8,5 +8,5 @@ package main
+ 
+ func main() {
+ 	const a uint64 = 10
+-	var b int64 = a // ERROR "convert|cannot|incompatible"
++	var _ int64 = a // ERROR "convert|cannot|incompatible"
+ }
+diff --git a/test/fixedbugs/bug289.go b/test/fixedbugs/bug289.go
+index 7e8346ee0f..868029a115 100644
+--- a/test/fixedbugs/bug289.go
++++ b/test/fixedbugs/bug289.go
+@@ -10,11 +10,13 @@ package main
+ 
+ func f1() {
+ 	a, b := f() // ERROR "assignment mismatch|does not match|cannot initialize"
++	_, _ = a, b
+ }
+ 
+ func f2() {
+ 	var a, b int
+ 	a, b = f() // ERROR "assignment mismatch|does not match|cannot assign"
++	_, _ = a, b
+ }
+ 
+ func f() int {
+diff --git a/test/fixedbugs/issue48471.go b/test/fixedbugs/issue48471.go
+index 062cb5ab95..75875c4004 100644
+--- a/test/fixedbugs/issue48471.go
++++ b/test/fixedbugs/issue48471.go
+@@ -52,5 +52,5 @@ func g() {
+ 
+ 	var t *T4
+ 	t = i // ERROR "cannot use i \(variable of type I\) as \*T4 value in assignment: need type assertion"
+-	_ = i
++	_ = t
+ }
+diff --git a/test/fixedbugs/issue9083.go b/test/fixedbugs/issue9083.go
+index ea53e7a69a..26d4d0f765 100644
+--- a/test/fixedbugs/issue9083.go
++++ b/test/fixedbugs/issue9083.go
+@@ -13,6 +13,7 @@ const zero = 0
+ 
+ func main() {
+ 	var x int
++	_ = x
+ 	x = make(map[int]int)       // ERROR "cannot use make\(map\[int\]int\)|incompatible"
+ 	x = make(map[int]int, 0)    // ERROR "cannot use make\(map\[int\]int, 0\)|incompatible"
+ 	x = make(map[int]int, zero) // ERROR "cannot use make\(map\[int\]int, zero\)|incompatible"
+diff --git a/test/interface/pointer.go b/test/interface/pointer.go
+index a71b3f4bf8..c9651d2ce6 100644
+--- a/test/interface/pointer.go
++++ b/test/interface/pointer.go
+@@ -31,7 +31,7 @@ func AddInst(Inst) *Inst {
+ 
+ func main() {
+ 	print("call addinst\n")
+-	var x Inst = AddInst(new(Start)) // ERROR "pointer to interface|incompatible type"
++	var _ Inst = AddInst(new(Start)) // ERROR "pointer to interface|incompatible type"
+ 	print("return from  addinst\n")
+-	var y *Inst = new(Start) // ERROR "pointer to interface|incompatible type"
++	var _ *Inst = new(Start) // ERROR "pointer to interface|incompatible type"
+ }

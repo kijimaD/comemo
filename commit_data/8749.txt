@@ -7,6 +7,16 @@ Date:   Thu Jun 16 02:06:27 2011 -0400
     R=adg
     CC=golang-dev
     https://golang.org/cl/4637042
-
+---
  .hgtags | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/.hgtags b/.hgtags
+index 06195ae6c3..bfd83353a5 100644
+--- a/.hgtags
++++ b/.hgtags
+@@ -67,3 +67,4 @@ c98449d685d2b6aa1df9bfd2e1cce9307efb6e00 weekly.2011-05-22
+ 3418f22c39eb8299053ae681199ee90f8cd29c6d weekly.2011-06-02
+ c81944152e973a917797679055b8fcdc70fbc802 weekly.2011-06-09
+ c81944152e973a917797679055b8fcdc70fbc802 weekly
++9d7967223815ef6415ff01aa0fe6ad38cdbc7810 release.r57.2

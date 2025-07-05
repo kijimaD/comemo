@@ -17,7 +17,7 @@ Date:   Thu Apr 30 09:04:08 2020 -0400
     Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/link/internal/arm/asm.go       |  4 +---
  src/cmd/link/internal/arm64/asm.go     |  8 +-------
  src/cmd/link/internal/ld/data.go       | 16 ++++++++++++++--
@@ -28,3 +28,210 @@ Date:   Thu Apr 30 09:04:08 2020 -0400
  src/cmd/link/internal/mips64/asm.go    |  8 +-------
  src/cmd/link/internal/ppc64/asm.go     |  8 +-------
  9 files changed, 32 insertions(+), 50 deletions(-)
+
+diff --git a/src/cmd/link/internal/arm/asm.go b/src/cmd/link/internal/arm/asm.go
+index a2024bcede..793c2d3a2c 100644
+--- a/src/cmd/link/internal/arm/asm.go
++++ b/src/cmd/link/internal/arm/asm.go
+@@ -530,14 +530,12 @@ func archreloc(target *ld.Target, syms *ld.ArchSyms, r *sym.Reloc, s *sym.Symbol
+ 
+ 			// set up addend for eventual relocation via outer symbol.
+ 			rs := r.Sym
+-
+ 			r.Xadd = int64(signext24(r.Add & 0xffffff))
+ 			r.Xadd *= 4
+-			for rs.Outer != nil {
++			if rs.Outer != nil {
+ 				r.Xadd += ld.Symaddr(rs) - ld.Symaddr(rs.Outer)
+ 				rs = rs.Outer
+ 			}
+-
+ 			if rs.Type != sym.SHOSTOBJ && rs.Type != sym.SDYNIMPORT && rs.Type != sym.SUNDEFEXT && rs.Sect == nil {
+ 				ld.Errorf(s, "missing section for %s", rs.Name)
+ 			}
+diff --git a/src/cmd/link/internal/arm64/asm.go b/src/cmd/link/internal/arm64/asm.go
+index dc3e45d6c0..7fedb04bc8 100644
+--- a/src/cmd/link/internal/arm64/asm.go
++++ b/src/cmd/link/internal/arm64/asm.go
+@@ -479,13 +479,7 @@ func archreloc(target *ld.Target, syms *ld.ArchSyms, r *sym.Reloc, s *sym.Symbol
+ 			r.Done = false
+ 
+ 			// set up addend for eventual relocation via outer symbol.
+-			rs := r.Sym
+-			r.Xadd = r.Add
+-			for rs.Outer != nil {
+-				r.Xadd += ld.Symaddr(rs) - ld.Symaddr(rs.Outer)
+-				rs = rs.Outer
+-			}
+-
++			rs := ld.ApplyOuterToXAdd(r)
+ 			if rs.Type != sym.SHOSTOBJ && rs.Type != sym.SDYNIMPORT && rs.Sect == nil {
+ 				ld.Errorf(s, "missing section for %s", rs.Name)
+ 			}
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 162ef9ba4e..3083669465 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -126,14 +126,26 @@ func trampoline(ctxt *Link, s loader.Sym) {
+ func foldSubSymbolOffset(ldr *loader.Loader, s loader.Sym) (loader.Sym, int64) {
+ 	outer := ldr.OuterSym(s)
+ 	off := int64(0)
+-	for outer != 0 {
++	if outer != 0 {
+ 		off += ldr.SymValue(s) - ldr.SymValue(outer)
+ 		s = outer
+-		outer = ldr.OuterSym(s)
+ 	}
+ 	return s, off
+ }
+ 
++// applyOuterToXAdd takes a relocation and updates the relocation's
++// XAdd field to take into account the target syms's outer symbol (if
++// applicable).
++func ApplyOuterToXAdd(r *sym.Reloc) *sym.Symbol {
++	rs := r.Sym
++	r.Xadd = r.Add
++	if rs.Outer != nil {
++		r.Xadd += Symaddr(rs) - Symaddr(rs.Outer)
++		rs = rs.Outer
++	}
++	return rs
++}
++
+ // relocsym resolve relocations in "s", updating the symbol's content
+ // in "P".
+ // The main loop walks through the list of relocations attached to "s"
+diff --git a/src/cmd/link/internal/ld/data2.go b/src/cmd/link/internal/ld/data2.go
+index d4503a4b0a..80fe79c15a 100644
+--- a/src/cmd/link/internal/ld/data2.go
++++ b/src/cmd/link/internal/ld/data2.go
+@@ -213,14 +213,7 @@ func relocsym2(target *Target, ldr *loader.Loader, err *ErrorReporter, syms *Arc
+ 				r.Done = false
+ 
+ 				// set up addend for eventual relocation via outer symbol.
+-				rs := r.Sym
+-
+-				r.Xadd = r.Add
+-				for rs.Outer != nil {
+-					r.Xadd += Symaddr(rs) - Symaddr(rs.Outer)
+-					rs = rs.Outer
+-				}
+-
++				rs := ApplyOuterToXAdd(r)
+ 				if rs.Type != sym.SHOSTOBJ && rs.Type != sym.SDYNIMPORT && rs.Type != sym.SUNDEFEXT && rs.Sect == nil {
+ 					Errorf(s, "missing section for relocation target %s", rs.Name)
+ 				}
+@@ -357,14 +350,7 @@ func relocsym2(target *Target, ldr *loader.Loader, err *ErrorReporter, syms *Arc
+ 				r.Done = false
+ 
+ 				// set up addend for eventual relocation via outer symbol.
+-				rs := r.Sym
+-
+-				r.Xadd = r.Add
+-				for rs.Outer != nil {
+-					r.Xadd += Symaddr(rs) - Symaddr(rs.Outer)
+-					rs = rs.Outer
+-				}
+-
++				rs := ApplyOuterToXAdd(r)
+ 				r.Xadd -= int64(r.Siz) // relative to address after the relocated chunk
+ 				if rs.Type != sym.SHOSTOBJ && rs.Type != sym.SDYNIMPORT && rs.Sect == nil {
+ 					Errorf(s, "missing section for relocation target %s", rs.Name)
+diff --git a/src/cmd/link/internal/ld/symtab.go b/src/cmd/link/internal/ld/symtab.go
+index f9eb05146f..7ddd3eb6f6 100644
+--- a/src/cmd/link/internal/ld/symtab.go
++++ b/src/cmd/link/internal/ld/symtab.go
+@@ -102,7 +102,7 @@ func putelfsym(ctxt *Link, x *sym.Symbol, s string, t SymbolType, addr int64) {
+ 	}
+ 
+ 	xo := x
+-	for xo.Outer != nil {
++	if xo.Outer != nil {
+ 		xo = xo.Outer
+ 	}
+ 
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index 2627218ced..1b62d05197 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -1596,6 +1596,11 @@ func (l *Loader) SubSym(i Sym) Sym {
+ func (l *Loader) SetOuterSym(i Sym, o Sym) {
+ 	if o != 0 {
+ 		l.outer[i] = o
++		// relocsym's foldSubSymbolOffset requires that we only
++		// have a single level of containment-- enforce here.
++		if l.outer[o] != 0 {
++			panic("multiply nested outer sym")
++		}
+ 	} else {
+ 		delete(l.outer, i)
+ 	}
+@@ -2662,6 +2667,11 @@ func (l *Loader) migrateAttributes(src Sym, dst *sym.Symbol) {
+ 	// Convert outer relationship
+ 	if outer, ok := l.outer[src]; ok {
+ 		dst.Outer = l.Syms[outer]
++		// relocsym's foldSubSymbolOffset requires that we only
++		// have a single level of containment-- enforce here.
++		if l.outer[outer] != 0 {
++			panic("multiply nested outer syms")
++		}
+ 	}
+ 
+ 	// Set sub-symbol attribute. See the comment on the AttrSubSymbol
+diff --git a/src/cmd/link/internal/mips/asm.go b/src/cmd/link/internal/mips/asm.go
+index a366e80ea3..73c578475c 100644
+--- a/src/cmd/link/internal/mips/asm.go
++++ b/src/cmd/link/internal/mips/asm.go
+@@ -107,13 +107,7 @@ func archreloc(target *ld.Target, syms *ld.ArchSyms, r *sym.Reloc, s *sym.Symbol
+ 			r.Done = false
+ 
+ 			// set up addend for eventual relocation via outer symbol.
+-			rs := r.Sym
+-			r.Xadd = r.Add
+-			for rs.Outer != nil {
+-				r.Xadd += ld.Symaddr(rs) - ld.Symaddr(rs.Outer)
+-				rs = rs.Outer
+-			}
+-
++			rs := ld.ApplyOuterToXAdd(r)
+ 			if rs.Type != sym.SHOSTOBJ && rs.Type != sym.SDYNIMPORT && rs.Sect == nil {
+ 				ld.Errorf(s, "missing section for %s", rs.Name)
+ 			}
+diff --git a/src/cmd/link/internal/mips64/asm.go b/src/cmd/link/internal/mips64/asm.go
+index e69db29809..58011a9d6f 100644
+--- a/src/cmd/link/internal/mips64/asm.go
++++ b/src/cmd/link/internal/mips64/asm.go
+@@ -111,13 +111,7 @@ func archreloc(target *ld.Target, syms *ld.ArchSyms, r *sym.Reloc, s *sym.Symbol
+ 			r.Done = false
+ 
+ 			// set up addend for eventual relocation via outer symbol.
+-			rs := r.Sym
+-			r.Xadd = r.Add
+-			for rs.Outer != nil {
+-				r.Xadd += ld.Symaddr(rs) - ld.Symaddr(rs.Outer)
+-				rs = rs.Outer
+-			}
+-
++			rs := ld.ApplyOuterToXAdd(r)
+ 			if rs.Type != sym.SHOSTOBJ && rs.Type != sym.SDYNIMPORT && rs.Sect == nil {
+ 				ld.Errorf(s, "missing section for %s", rs.Name)
+ 			}
+diff --git a/src/cmd/link/internal/ppc64/asm.go b/src/cmd/link/internal/ppc64/asm.go
+index 4dc50eab79..dae1a07590 100644
+--- a/src/cmd/link/internal/ppc64/asm.go
++++ b/src/cmd/link/internal/ppc64/asm.go
+@@ -819,13 +819,7 @@ func archreloc(target *ld.Target, syms *ld.ArchSyms, r *sym.Reloc, s *sym.Symbol
+ 			r.Done = false
+ 
+ 			// set up addend for eventual relocation via outer symbol.
+-			rs := r.Sym
+-			r.Xadd = r.Add
+-			for rs.Outer != nil {
+-				r.Xadd += ld.Symaddr(rs) - ld.Symaddr(rs.Outer)
+-				rs = rs.Outer
+-			}
+-
++			rs := ld.ApplyOuterToXAdd(r)
+ 			if rs.Type != sym.SHOSTOBJ && rs.Type != sym.SDYNIMPORT && rs.Type != sym.SUNDEFEXT && rs.Sect == nil {
+ 				ld.Errorf(s, "missing section for %s", rs.Name)
+ 			}

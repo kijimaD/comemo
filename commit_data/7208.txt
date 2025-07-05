@@ -9,7 +9,42 @@ Date:   Thu Jan 20 10:43:55 2011 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4060043
-
+---
  doc/all.css             | 4 ++++
  src/cmd/godoc/format.go | 4 ++--
  2 files changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/doc/all.css b/doc/all.css
+index f70ef15997..b1d55cf25a 100644
+--- a/doc/all.css
++++ b/doc/all.css
+@@ -157,6 +157,10 @@ h1#title {
+ pre.ebnf, pre.grammar {
+   background: #FFFFE0;
+ }
++span.ln {
++  font-size: 80%;
++  color: #777777;
++}
+ span.comment {
+   color: #002090;
+ }
+diff --git a/src/cmd/godoc/format.go b/src/cmd/godoc/format.go
+index d789ed55bf..66b01aa646 100644
+--- a/src/cmd/godoc/format.go
++++ b/src/cmd/godoc/format.go
+@@ -360,12 +360,12 @@ func FormatText(text []byte, line int, goSource bool, pattern string, selection
+ 	if pattern != "" {
+ 		highlights = regexpSelection(text, pattern)
+ 	}
+-	if comments != nil || highlights != nil || selection != nil {
++	if line >= 0 || comments != nil || highlights != nil || selection != nil {
+ 		var lineTag LinkWriter
+ 		if line >= 0 {
+ 			lineTag = func(w io.Writer, _ int, start bool) {
+ 				if start {
+-					fmt.Fprintf(w, "<a id=\"L%d\"></a>%5d\t", line, line)
++					fmt.Fprintf(w, "<a id=\"L%d\"></a><span class=\"ln\">%6d</span>\t", line, line)
+ 					line++
+ 				}
+ 			}

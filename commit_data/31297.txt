@@ -15,6 +15,28 @@ Date:   Wed Feb 8 21:38:51 2017 -0800
     Change-Id: I9d4dc680e3fdcf63d79d212174a5b8b313f363f1
     Reviewed-on: https://go-review.googlesource.com/36641
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/database/sql/sql.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/database/sql/sql.go b/src/database/sql/sql.go
+index cf3334ad85..adf964992d 100644
+--- a/src/database/sql/sql.go
++++ b/src/database/sql/sql.go
+@@ -939,14 +939,14 @@ func (db *DB) conn(ctx context.Context, strategy connReuseStrategy) (*driverConn
+ 			// on it after removing.
+ 			db.mu.Lock()
+ 			delete(db.connRequests, reqKey)
++			db.mu.Unlock()
+ 			select {
+ 			default:
+ 			case ret, ok := <-req:
+ 				if ok {
+-					db.putConnDBLocked(ret.conn, ret.err)
++					db.putConn(ret.conn, ret.err)
+ 				}
+ 			}
+-			db.mu.Unlock()
+ 			return nil, ctx.Err()
+ 		case ret, ok := <-req:
+ 			if !ok {

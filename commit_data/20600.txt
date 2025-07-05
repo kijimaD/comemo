@@ -8,6 +8,19 @@ Date:   Mon Sep 22 19:51:53 2014 -0700
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/145970043
-
+---
  src/runtime/mgc0.c | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/runtime/mgc0.c b/src/runtime/mgc0.c
+index 03ca288496..54728d5ada 100644
+--- a/src/runtime/mgc0.c
++++ b/src/runtime/mgc0.c
+@@ -1263,7 +1263,6 @@ struct gc_args
+ };
+ 
+ static void gc(struct gc_args *args);
+-static void mgc(G *gp);
+ 
+ int32
+ runtime·readgogc(void)

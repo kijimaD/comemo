@@ -14,6 +14,27 @@ Date:   Wed Mar 9 16:16:05 2016 +0000
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/os1_plan9.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/runtime/os1_plan9.go b/src/runtime/os1_plan9.go
+index c114b1db62..b0b05bb7d7 100644
+--- a/src/runtime/os1_plan9.go
++++ b/src/runtime/os1_plan9.go
+@@ -151,6 +151,7 @@ var goexits = []byte("go: exit ")
+ 
+ func goexitsall(status *byte) {
+ 	var buf [_ERRMAX]byte
++	getg().m.locks++
+ 	n := copy(buf[:], goexits)
+ 	n = copy(buf[n:], gostringnocopy(status))
+ 	pid := getpid()
+@@ -159,6 +160,7 @@ func goexitsall(status *byte) {
+ 			postnote(mp.procid, buf[:])
+ 		}
+ 	}
++	getg().m.locks--
+ }
+ 
+ var procdir = []byte("/proc/")

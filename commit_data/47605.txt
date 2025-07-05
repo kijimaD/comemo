@@ -17,7 +17,65 @@ Date:   Fri Mar 26 08:58:11 2021 -0700
     Trust: Jay Conrod <jayconrod@google.com>
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/go/internal/load/test.go            |  9 ++++++++-
  src/cmd/go/testdata/script/test_overlay.txt | 24 ++++++++++++++++++++++++
  2 files changed, 32 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/load/test.go b/src/cmd/go/internal/load/test.go
+index 7bc16abcb6..fc89bd0250 100644
+--- a/src/cmd/go/internal/load/test.go
++++ b/src/cmd/go/internal/load/test.go
+@@ -21,6 +21,7 @@ import (
+ 	"unicode"
+ 	"unicode/utf8"
+ 
++	"cmd/go/internal/fsys"
+ 	"cmd/go/internal/str"
+ 	"cmd/go/internal/trace"
+ )
+@@ -578,7 +579,13 @@ type testFunc struct {
+ var testFileSet = token.NewFileSet()
+ 
+ func (t *testFuncs) load(filename, pkg string, doImport, seen *bool) error {
+-	f, err := parser.ParseFile(testFileSet, filename, nil, parser.ParseComments)
++	// Pass in the overlaid source if we have an overlay for this file.
++	src, err := fsys.Open(filename)
++	if err != nil {
++		return err
++	}
++	defer src.Close()
++	f, err := parser.ParseFile(testFileSet, filename, src, parser.ParseComments)
+ 	if err != nil {
+ 		return err
+ 	}
+diff --git a/src/cmd/go/testdata/script/test_overlay.txt b/src/cmd/go/testdata/script/test_overlay.txt
+new file mode 100644
+index 0000000000..b6bdc116e6
+--- /dev/null
++++ b/src/cmd/go/testdata/script/test_overlay.txt
+@@ -0,0 +1,24 @@
++[short] skip
++
++cd $WORK/gopath/src/foo
++go test -list=. -overlay=overlay.json .
++stdout 'TestBar'
++
++-- go.mod --
++module test.pkg
++-- foo/foo_test.go --
++package foo
++
++import "testing"
++
++func TestFoo(t *testing.T) { }
++-- tmp/bar_test.go --
++package foo
++
++import "testing"
++
++func TestBar(t *testing.T) {
++	t.Fatal("dummy failure")
++}
++-- foo/overlay.json --
++{"Replace": {"foo_test.go": "../tmp/bar_test.go"}}

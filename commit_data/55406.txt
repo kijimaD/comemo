@@ -16,8 +16,50 @@ Date:   Wed Feb 1 14:15:41 2023 -0500
     Run-TryBot: Alan Donovan <adonovan@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Alan Donovan <adonovan@google.com>
-
+---
  api/next/57708.txt            | 1 +
  src/go/token/position.go      | 9 +++++++++
  src/go/token/position_test.go | 3 +++
  3 files changed, 13 insertions(+)
+
+diff --git a/api/next/57708.txt b/api/next/57708.txt
+new file mode 100644
+index 0000000000..c7389adbd0
+--- /dev/null
++++ b/api/next/57708.txt
+@@ -0,0 +1 @@
++pkg go/token, method (*File) Lines() []int #57708
+diff --git a/src/go/token/position.go b/src/go/token/position.go
+index cbc2ddb5eb..4d129d938f 100644
+--- a/src/go/token/position.go
++++ b/src/go/token/position.go
+@@ -159,6 +159,15 @@ func (f *File) MergeLine(line int) {
+ 	f.lines = f.lines[:len(f.lines)-1]
+ }
+ 
++// Lines returns the effective line offset table of the form described by SetLines.
++// Callers must not mutate the result.
++func (f *File) Lines() []int {
++	f.mutex.Lock()
++	lines := f.lines
++	f.mutex.Unlock()
++	return lines
++}
++
+ // SetLines sets the line offsets for a file and reports whether it succeeded.
+ // The line offsets are the offsets of the first character of each line;
+ // for instance for the content "ab\nc\n" the line offsets are {0, 3}.
+diff --git a/src/go/token/position_test.go b/src/go/token/position_test.go
+index 65cb242808..19774a97ba 100644
+--- a/src/go/token/position_test.go
++++ b/src/go/token/position_test.go
+@@ -130,6 +130,9 @@ func TestPositions(t *testing.T) {
+ 		if f.LineCount() != len(test.lines) {
+ 			t.Errorf("%s, SetLines: got line count %d; want %d", f.Name(), f.LineCount(), len(test.lines))
+ 		}
++		if !reflect.DeepEqual(f.Lines(), test.lines) {
++			t.Errorf("%s, Lines after SetLines(v): got %v; want %v", f.Name(), f.Lines(), test.lines)
++		}
+ 		verifyPositions(t, fset, f, test.lines)
+ 
+ 		// add lines with SetLinesForContent and verify all positions

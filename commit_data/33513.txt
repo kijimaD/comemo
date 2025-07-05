@@ -9,7 +9,7 @@ Date:   Thu Aug 3 16:46:15 2017 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Adam Langley <agl@golang.org>
-
+---
  src/crypto/internal/boring/boring.go        |  17 ++
  src/crypto/internal/boring/goboringcrypto.h |   4 +-
  src/crypto/internal/boring/hmac.go          |  23 +++
@@ -23,3 +23,1125 @@ Date:   Thu Aug 3 16:46:15 2017 -0400
  src/crypto/rsa/rsa.go                       |  77 ++++++-
  src/crypto/rsa/rsa_test.go                  |  86 ++++++--
  12 files changed, 755 insertions(+), 31 deletions(-)
+
+diff --git a/src/crypto/internal/boring/boring.go b/src/crypto/internal/boring/boring.go
+index bf1509122d..b2d47c036f 100644
+--- a/src/crypto/internal/boring/boring.go
++++ b/src/crypto/internal/boring/boring.go
+@@ -53,3 +53,20 @@ func bnToBig(bn *C.GO_BIGNUM) *big.Int {
+ 	n := C._goboringcrypto_BN_bn2bin(bn, base(raw))
+ 	return new(big.Int).SetBytes(raw[:n])
+ }
++
++func bigToBn(bnp **C.GO_BIGNUM, b *big.Int) bool {
++	if *bnp != nil {
++		C._goboringcrypto_BN_free(*bnp)
++		*bnp = nil
++	}
++	if b == nil {
++		return true
++	}
++	raw := b.Bytes()
++	bn := C._goboringcrypto_BN_bin2bn(base(raw), C.size_t(len(raw)), nil)
++	if bn == nil {
++		return false
++	}
++	*bnp = bn
++	return true
++}
+diff --git a/src/crypto/internal/boring/goboringcrypto.h b/src/crypto/internal/boring/goboringcrypto.h
+index 1a25da9f35..2cc327f16c 100644
+--- a/src/crypto/internal/boring/goboringcrypto.h
++++ b/src/crypto/internal/boring/goboringcrypto.h
+@@ -177,7 +177,9 @@ size_t _goboringcrypto_ECDSA_size(const GO_EC_KEY*);
+ int _goboringcrypto_ECDSA_verify(int, const uint8_t*, size_t, const uint8_t*, size_t, const GO_EC_KEY*);
+ 
+ // #include <openssl/rsa.h>
+-/*unchecked (opaque)*/ typedef struct GO_RSA { char data[1]; } GO_RSA;
++
++// Note: order of struct fields here is unchecked.
++typedef struct GO_RSA { void *meth; GO_BIGNUM *n, *e, *d, *p, *q, *dmp1, *dmq1, *iqmp; char data[120]; } GO_RSA;
+ /*unchecked (opaque)*/ typedef struct GO_BN_GENCB { char data[1]; } GO_BN_GENCB;
+ GO_RSA* _goboringcrypto_RSA_new(void);
+ void _goboringcrypto_RSA_free(GO_RSA*);
+diff --git a/src/crypto/internal/boring/hmac.go b/src/crypto/internal/boring/hmac.go
+index a70bc5ee8b..f4497e91f6 100644
+--- a/src/crypto/internal/boring/hmac.go
++++ b/src/crypto/internal/boring/hmac.go
+@@ -10,6 +10,7 @@ package boring
+ // #include "goboringcrypto.h"
+ import "C"
+ import (
++	"crypto"
+ 	"hash"
+ 	"runtime"
+ 	"unsafe"
+@@ -33,6 +34,28 @@ func hashToMD(h hash.Hash) *C.GO_EVP_MD {
+ 	return nil
+ }
+ 
++// cryptoHashToMD converts a crypto.Hash
++// to a BoringCrypto *C.GO_EVP_MD.
++func cryptoHashToMD(ch crypto.Hash) *C.GO_EVP_MD {
++	switch ch {
++	case crypto.MD5:
++		return C._goboringcrypto_EVP_md5()
++	case crypto.MD5SHA1:
++		return C._goboringcrypto_EVP_md5_sha1()
++	case crypto.SHA1:
++		return C._goboringcrypto_EVP_sha1()
++	case crypto.SHA224:
++		return C._goboringcrypto_EVP_sha224()
++	case crypto.SHA256:
++		return C._goboringcrypto_EVP_sha256()
++	case crypto.SHA384:
++		return C._goboringcrypto_EVP_sha384()
++	case crypto.SHA512:
++		return C._goboringcrypto_EVP_sha512()
++	}
++	return nil
++}
++
+ // NewHMAC returns a new HMAC using BoringCrypto.
+ // The function h must return a hash implemented by
+ // BoringCrypto (for example, h could be boring.NewSHA256).
+diff --git a/src/crypto/internal/boring/notboring.go b/src/crypto/internal/boring/notboring.go
+index 5ef2f8477e..c8bcf66fc6 100644
+--- a/src/crypto/internal/boring/notboring.go
++++ b/src/crypto/internal/boring/notboring.go
+@@ -7,6 +7,7 @@
+ package boring
+ 
+ import (
++	"crypto"
+ 	"crypto/cipher"
+ 	"hash"
+ 	"math/big"
+@@ -59,3 +60,44 @@ func SignMarshalECDSA(priv *PrivateKeyECDSA, hash []byte) ([]byte, error) {
+ func VerifyECDSA(pub *PublicKeyECDSA, hash []byte, r, s *big.Int) bool {
+ 	panic("boringcrypto: not available")
+ }
++
++type PublicKeyRSA struct{ _ int }
++type PrivateKeyRSA struct{ _ int }
++
++func DecryptRSAOAEP(h hash.Hash, priv *PrivateKeyRSA, ciphertext, label []byte) ([]byte, error) {
++	panic("boringcrypto: not available")
++}
++func DecryptRSAPKCS1(priv *PrivateKeyRSA, ciphertext []byte) ([]byte, error) {
++	panic("boringcrypto: not available")
++}
++func DecryptRSANoPadding(priv *PrivateKeyRSA, ciphertext []byte) ([]byte, error) {
++	panic("boringcrypto: not available")
++}
++func EncryptRSAOAEP(h hash.Hash, pub *PublicKeyRSA, msg, label []byte) ([]byte, error) {
++	panic("boringcrypto: not available")
++}
++func EncryptRSAPKCS1(pub *PublicKeyRSA, msg []byte) ([]byte, error) {
++	panic("boringcrypto: not available")
++}
++func EncryptRSANoPadding(pub *PublicKeyRSA, msg []byte) ([]byte, error) {
++	panic("boringcrypto: not available")
++}
++func GenerateKeyRSA(bits int) (N, E, D, P, Q, Dp, Dq, Qinv *big.Int, err error) {
++	panic("boringcrypto: not available")
++}
++func NewPrivateKeyRSA(N, E, D, P, Q, Dp, Dq, Qinv *big.Int) (*PrivateKeyRSA, error) {
++	panic("boringcrypto: not available")
++}
++func NewPublicKeyRSA(N, E *big.Int) (*PublicKeyRSA, error) { panic("boringcrypto: not available") }
++func SignRSAPKCS1v15(priv *PrivateKeyRSA, h crypto.Hash, hashed []byte) ([]byte, error) {
++	panic("boringcrypto: not available")
++}
++func SignRSAPSS(priv *PrivateKeyRSA, h crypto.Hash, hashed []byte, saltLen int) ([]byte, error) {
++	panic("boringcrypto: not available")
++}
++func VerifyRSAPKCS1v15(pub *PublicKeyRSA, h crypto.Hash, hashed, sig []byte) error {
++	panic("boringcrypto: not available")
++}
++func VerifyRSAPSS(pub *PublicKeyRSA, h crypto.Hash, hashed, sig []byte, saltLen int) error {
++	panic("boringcrypto: not available")
++}
+diff --git a/src/crypto/internal/boring/rsa.go b/src/crypto/internal/boring/rsa.go
+new file mode 100644
+index 0000000000..241560980f
+--- /dev/null
++++ b/src/crypto/internal/boring/rsa.go
+@@ -0,0 +1,305 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build linux,amd64
++// +build !cmd_go_bootstrap
++
++package boring
++
++// #include "goboringcrypto.h"
++import "C"
++import (
++	"crypto"
++	"crypto/subtle"
++	"errors"
++	"hash"
++	"math/big"
++	"runtime"
++	"strconv"
++	"unsafe"
++)
++
++func GenerateKeyRSA(bits int) (N, E, D, P, Q, Dp, Dq, Qinv *big.Int, err error) {
++	bad := func(e error) (N, E, D, P, Q, Dp, Dq, Qinv *big.Int, err error) {
++		return nil, nil, nil, nil, nil, nil, nil, nil, e
++	}
++
++	key := C._goboringcrypto_RSA_new()
++	if key == nil {
++		return bad(fail("RSA_new"))
++	}
++	defer C._goboringcrypto_RSA_free(key)
++
++	if C._goboringcrypto_RSA_generate_key_fips(key, C.int(bits), nil) == 0 {
++		return bad(fail("RSA_generate_key_fips"))
++	}
++
++	var n, e, d, p, q, dp, dq, qinv *C.GO_BIGNUM
++	C._goboringcrypto_RSA_get0_key(key, &n, &e, &d)
++	C._goboringcrypto_RSA_get0_factors(key, &p, &q)
++	C._goboringcrypto_RSA_get0_crt_params(key, &dp, &dq, &qinv)
++	return bnToBig(n), bnToBig(e), bnToBig(d), bnToBig(p), bnToBig(q), bnToBig(dp), bnToBig(dq), bnToBig(qinv), nil
++}
++
++type PublicKeyRSA struct {
++	key *C.GO_RSA
++}
++
++func NewPublicKeyRSA(N, E *big.Int) (*PublicKeyRSA, error) {
++	key := C._goboringcrypto_RSA_new()
++	if key == nil {
++		return nil, fail("RSA_new")
++	}
++	if !bigToBn(&key.n, N) ||
++		!bigToBn(&key.e, E) {
++		return nil, fail("BN_bin2bn")
++	}
++	k := &PublicKeyRSA{key: key}
++	runtime.SetFinalizer(k, (*PublicKeyRSA).finalize)
++	return k, nil
++}
++
++func (k *PublicKeyRSA) finalize() {
++	C._goboringcrypto_RSA_free(k.key)
++}
++
++type PrivateKeyRSA struct {
++	key *C.GO_RSA
++}
++
++func NewPrivateKeyRSA(N, E, D, P, Q, Dp, Dq, Qinv *big.Int) (*PrivateKeyRSA, error) {
++	key := C._goboringcrypto_RSA_new()
++	if key == nil {
++		return nil, fail("RSA_new")
++	}
++	if !bigToBn(&key.n, N) ||
++		!bigToBn(&key.e, E) ||
++		!bigToBn(&key.d, D) ||
++		!bigToBn(&key.p, P) ||
++		!bigToBn(&key.q, Q) ||
++		!bigToBn(&key.dmp1, Dp) ||
++		!bigToBn(&key.dmq1, Dq) ||
++		!bigToBn(&key.iqmp, Qinv) {
++		return nil, fail("BN_bin2bn")
++	}
++	k := &PrivateKeyRSA{key: key}
++	runtime.SetFinalizer(k, (*PrivateKeyRSA).finalize)
++	return k, nil
++}
++
++func (k *PrivateKeyRSA) finalize() {
++	C._goboringcrypto_RSA_free(k.key)
++}
++
++func setupRSA(key *C.GO_RSA,
++	padding C.int, h hash.Hash, label []byte, saltLen int, ch crypto.Hash,
++	init func(*C.GO_EVP_PKEY_CTX) C.int) (pkey *C.GO_EVP_PKEY, ctx *C.GO_EVP_PKEY_CTX, err error) {
++	defer func() {
++		if err != nil {
++			if pkey != nil {
++				C._goboringcrypto_EVP_PKEY_free(pkey)
++				pkey = nil
++			}
++			if ctx != nil {
++				C._goboringcrypto_EVP_PKEY_CTX_free(ctx)
++				ctx = nil
++			}
++		}
++	}()
++
++	pkey = C._goboringcrypto_EVP_PKEY_new()
++	if pkey == nil {
++		return nil, nil, fail("EVP_PKEY_new")
++	}
++	if C._goboringcrypto_EVP_PKEY_set1_RSA(pkey, key) == 0 {
++		return nil, nil, fail("EVP_PKEY_set1_RSA")
++	}
++	ctx = C._goboringcrypto_EVP_PKEY_CTX_new(pkey, nil)
++	if ctx == nil {
++		return nil, nil, fail("EVP_PKEY_CTX_new")
++	}
++	if init(ctx) == 0 {
++		return nil, nil, fail("EVP_PKEY_operation_init")
++	}
++	if C._goboringcrypto_EVP_PKEY_CTX_set_rsa_padding(ctx, padding) == 0 {
++		return nil, nil, fail("EVP_PKEY_CTX_set_rsa_padding")
++	}
++	if padding == C.GO_RSA_PKCS1_OAEP_PADDING {
++		md := hashToMD(h)
++		if md == nil {
++			return nil, nil, errors.New("crypto/rsa: unsupported hash function")
++		}
++		if C._goboringcrypto_EVP_PKEY_CTX_set_rsa_oaep_md(ctx, md) == 0 {
++			return nil, nil, fail("EVP_PKEY_set_rsa_oaep_md")
++		}
++		// ctx takes ownership of label, so malloc a copy for BoringCrypto to free.
++		clabel := (*C.uint8_t)(C.malloc(C.size_t(len(label))))
++		if clabel == nil {
++			return nil, nil, fail("malloc")
++		}
++		copy((*[1 << 30]byte)(unsafe.Pointer(clabel))[:len(label)], label)
++		if C._goboringcrypto_EVP_PKEY_CTX_set0_rsa_oaep_label(ctx, clabel, C.size_t(len(label))) == 0 {
++			return nil, nil, fail("EVP_PKEY_CTX_set0_rsa_oaep_label")
++		}
++	}
++	if padding == C.GO_RSA_PKCS1_PSS_PADDING {
++		if saltLen != 0 {
++			if C._goboringcrypto_EVP_PKEY_CTX_set_rsa_pss_saltlen(ctx, C.int(saltLen)) == 0 {
++				return nil, nil, fail("EVP_PKEY_set_rsa_pss_saltlen")
++			}
++		}
++		md := cryptoHashToMD(ch)
++		if md == nil {
++			return nil, nil, errors.New("crypto/rsa: unsupported hash function")
++		}
++		if C._goboringcrypto_EVP_PKEY_CTX_set_rsa_mgf1_md(ctx, md) == 0 {
++			return nil, nil, fail("EVP_PKEY_set_rsa_mgf1_md")
++		}
++	}
++
++	return pkey, ctx, nil
++}
++
++func cryptRSA(key *C.GO_RSA,
++	padding C.int, h hash.Hash, label []byte, saltLen int, ch crypto.Hash,
++	init func(*C.GO_EVP_PKEY_CTX) C.int,
++	crypt func(*C.GO_EVP_PKEY_CTX, *C.uint8_t, *C.size_t, *C.uint8_t, C.size_t) C.int,
++	in []byte) ([]byte, error) {
++
++	pkey, ctx, err := setupRSA(key, padding, h, label, saltLen, ch, init)
++	if err != nil {
++		return nil, err
++	}
++	defer C._goboringcrypto_EVP_PKEY_free(pkey)
++	defer C._goboringcrypto_EVP_PKEY_CTX_free(ctx)
++
++	var outLen C.size_t
++	if crypt(ctx, nil, &outLen, base(in), C.size_t(len(in))) == 0 {
++		return nil, fail("EVP_PKEY_decrypt/encrypt")
++	}
++	out := make([]byte, outLen)
++	if crypt(ctx, base(out), &outLen, base(in), C.size_t(len(in))) == 0 {
++		return nil, fail("EVP_PKEY_decrypt/encrypt")
++	}
++	return out[:outLen], nil
++}
++
++func DecryptRSAOAEP(h hash.Hash, priv *PrivateKeyRSA, ciphertext, label []byte) ([]byte, error) {
++	return cryptRSA(priv.key, C.GO_RSA_PKCS1_OAEP_PADDING, h, label, 0, 0, decryptInit, decrypt, ciphertext)
++}
++
++func EncryptRSAOAEP(h hash.Hash, pub *PublicKeyRSA, msg, label []byte) ([]byte, error) {
++	return cryptRSA(pub.key, C.GO_RSA_PKCS1_OAEP_PADDING, h, label, 0, 0, encryptInit, encrypt, msg)
++}
++
++func DecryptRSAPKCS1(priv *PrivateKeyRSA, ciphertext []byte) ([]byte, error) {
++	return cryptRSA(priv.key, C.GO_RSA_PKCS1_PADDING, nil, nil, 0, 0, decryptInit, decrypt, ciphertext)
++}
++
++func EncryptRSAPKCS1(pub *PublicKeyRSA, msg []byte) ([]byte, error) {
++	return cryptRSA(pub.key, C.GO_RSA_PKCS1_PADDING, nil, nil, 0, 0, encryptInit, encrypt, msg)
++}
++
++func DecryptRSANoPadding(priv *PrivateKeyRSA, ciphertext []byte) ([]byte, error) {
++	return cryptRSA(priv.key, C.GO_RSA_NO_PADDING, nil, nil, 0, 0, decryptInit, decrypt, ciphertext)
++}
++
++func EncryptRSANoPadding(pub *PublicKeyRSA, msg []byte) ([]byte, error) {
++	return cryptRSA(pub.key, C.GO_RSA_NO_PADDING, nil, nil, 0, 0, encryptInit, encrypt, msg)
++}
++
++// These dumb wrappers work around the fact that cgo functions cannot be used as values directly.
++
++func decryptInit(ctx *C.GO_EVP_PKEY_CTX) C.int {
++	return C._goboringcrypto_EVP_PKEY_decrypt_init(ctx)
++}
++
++func decrypt(ctx *C.GO_EVP_PKEY_CTX, out *C.uint8_t, outLen *C.size_t, in *C.uint8_t, inLen C.size_t) C.int {
++	return C._goboringcrypto_EVP_PKEY_decrypt(ctx, out, outLen, in, inLen)
++}
++
++func encryptInit(ctx *C.GO_EVP_PKEY_CTX) C.int {
++	return C._goboringcrypto_EVP_PKEY_encrypt_init(ctx)
++}
++
++func encrypt(ctx *C.GO_EVP_PKEY_CTX, out *C.uint8_t, outLen *C.size_t, in *C.uint8_t, inLen C.size_t) C.int {
++	return C._goboringcrypto_EVP_PKEY_encrypt(ctx, out, outLen, in, inLen)
++}
++
++func SignRSAPSS(priv *PrivateKeyRSA, h crypto.Hash, hashed []byte, saltLen int) ([]byte, error) {
++	md := cryptoHashToMD(h)
++	if md == nil {
++		return nil, errors.New("crypto/rsa: unsupported hash function")
++	}
++	if saltLen == 0 {
++		saltLen = -1
++	}
++	out := make([]byte, C._goboringcrypto_RSA_size(priv.key))
++	var outLen C.size_t
++	if C._goboringcrypto_RSA_sign_pss_mgf1(priv.key, &outLen, base(out), C.size_t(len(out)), base(hashed), C.size_t(len(hashed)), md, nil, C.int(saltLen)) == 0 {
++		return nil, fail("RSA_sign_pss_mgf1")
++	}
++
++	return out[:outLen], nil
++}
++
++func VerifyRSAPSS(pub *PublicKeyRSA, h crypto.Hash, hashed, sig []byte, saltLen int) error {
++	md := cryptoHashToMD(h)
++	if md == nil {
++		return errors.New("crypto/rsa: unsupported hash function")
++	}
++	if saltLen == 0 {
++		saltLen = -2 // auto-recover
++	}
++	if C._goboringcrypto_RSA_verify_pss_mgf1(pub.key, base(hashed), C.size_t(len(hashed)), md, nil, C.int(saltLen), base(sig), C.size_t(len(sig))) == 0 {
++		return fail("RSA_verify_pss_mgf1")
++	}
++	return nil
++}
++
++func SignRSAPKCS1v15(priv *PrivateKeyRSA, h crypto.Hash, hashed []byte) ([]byte, error) {
++	out := make([]byte, C._goboringcrypto_RSA_size(priv.key))
++	if h == 0 {
++		// No hashing.
++		var outLen C.size_t
++		if C._goboringcrypto_RSA_sign_raw(priv.key, &outLen, base(out), C.size_t(len(out)), base(hashed), C.size_t(len(hashed)), C.GO_RSA_PKCS1_PADDING) == 0 {
++			return nil, fail("RSA_sign_raw")
++		}
++		return out[:outLen], nil
++	}
++
++	md := cryptoHashToMD(h)
++	if md == nil {
++		return nil, errors.New("crypto/rsa: unsupported hash function: " + strconv.Itoa(int(h)))
++	}
++	nid := C._goboringcrypto_EVP_MD_type(md)
++	var outLen C.uint
++	if C._goboringcrypto_RSA_sign(nid, base(hashed), C.uint(len(hashed)), base(out), &outLen, priv.key) == 0 {
++		return nil, fail("RSA_sign")
++	}
++	return out[:outLen], nil
++}
++
++func VerifyRSAPKCS1v15(pub *PublicKeyRSA, h crypto.Hash, hashed, sig []byte) error {
++	if h == 0 {
++		var outLen C.size_t
++		out := make([]byte, C._goboringcrypto_RSA_size(pub.key))
++		if C._goboringcrypto_RSA_verify_raw(pub.key, &outLen, base(out), C.size_t(len(out)), base(sig), C.size_t(len(sig)), C.GO_RSA_PKCS1_PADDING) == 0 {
++			return fail("RSA_verify")
++		}
++		if subtle.ConstantTimeCompare(hashed, out[:outLen]) != 1 {
++			return fail("RSA_verify")
++		}
++		return nil
++	}
++	md := cryptoHashToMD(h)
++	if md == nil {
++		return errors.New("crypto/rsa: unsupported hash function")
++	}
++	nid := C._goboringcrypto_EVP_MD_type(md)
++	if C._goboringcrypto_RSA_verify(nid, base(hashed), C.size_t(len(hashed)), base(sig), C.size_t(len(sig)), pub.key) == 0 {
++		return fail("RSA_verify")
++	}
++	return nil
++}
+diff --git a/src/crypto/rsa/boring.go b/src/crypto/rsa/boring.go
+new file mode 100644
+index 0000000000..0f362a2f16
+--- /dev/null
++++ b/src/crypto/rsa/boring.go
+@@ -0,0 +1,124 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package rsa
++
++import (
++	"crypto/internal/boring"
++	"math/big"
++	"sync/atomic"
++	"unsafe"
++)
++
++// Cached conversions from Go PublicKey/PrivateKey to BoringCrypto.
++//
++// A new 'boring atomic.Value' field in both PublicKey and PrivateKey
++// serves as a cache for the most recent conversion. The cache is an
++// atomic.Value because code might reasonably set up a key and then
++// (thinking it immutable) use it from multiple goroutines simultaneously.
++// The first operation initializes the cache; if there are multiple simultaneous
++// first operations, they will do redundant work but not step on each other.
++//
++// We could just assume that once used in a sign/verify/encrypt/decrypt operation,
++// a particular key is never again modified, but that has not been a
++// stated assumption before. Just in case there is any existing code that
++// does modify the key between operations, we save the original values
++// alongside the cached BoringCrypto key and check that the real key
++// still matches before using the cached key. The theory is that the real
++// operations are significantly more expensive than the comparison.
++
++type boringPub struct {
++	key  *boring.PublicKeyRSA
++	orig PublicKey
++}
++
++func boringPublicKey(pub *PublicKey) (*boring.PublicKeyRSA, error) {
++	b := (*boringPub)(atomic.LoadPointer(&pub.boring))
++	if b != nil && publicKeyEqual(&b.orig, pub) {
++		return b.key, nil
++	}
++
++	b = new(boringPub)
++	b.orig = copyPublicKey(pub)
++	key, err := boring.NewPublicKeyRSA(b.orig.N, big.NewInt(int64(b.orig.E)))
++	if err != nil {
++		return nil, err
++	}
++	b.key = key
++	atomic.StorePointer(&pub.boring, unsafe.Pointer(b))
++	return key, nil
++}
++
++type boringPriv struct {
++	key  *boring.PrivateKeyRSA
++	orig PrivateKey
++}
++
++func boringPrivateKey(priv *PrivateKey) (*boring.PrivateKeyRSA, error) {
++	b := (*boringPriv)(atomic.LoadPointer(&priv.boring))
++	if b != nil && privateKeyEqual(&b.orig, priv) {
++		return b.key, nil
++	}
++
++	b = new(boringPriv)
++	b.orig = copyPrivateKey(priv)
++
++	var N, E, D, P, Q, Dp, Dq, Qinv *big.Int
++	N = b.orig.N
++	E = big.NewInt(int64(b.orig.E))
++	D = b.orig.D
++	if len(b.orig.Primes) == 2 {
++		P = b.orig.Primes[0]
++		Q = b.orig.Primes[1]
++		Dp = b.orig.Precomputed.Dp
++		Dq = b.orig.Precomputed.Dq
++		Qinv = b.orig.Precomputed.Qinv
++	}
++	key, err := boring.NewPrivateKeyRSA(N, E, D, P, Q, Dp, Dq, Qinv)
++	if err != nil {
++		return nil, err
++	}
++	b.key = key
++	atomic.StorePointer(&priv.boring, unsafe.Pointer(b))
++	return key, nil
++}
++
++func publicKeyEqual(k1, k2 *PublicKey) bool {
++	return k1.N != nil &&
++		k1.N.Cmp(k2.N) == 0 &&
++		k1.E == k2.E
++}
++
++func copyPublicKey(k *PublicKey) PublicKey {
++	return PublicKey{
++		N: new(big.Int).Set(k.N),
++		E: k.E,
++	}
++}
++
++func privateKeyEqual(k1, k2 *PrivateKey) bool {
++	return publicKeyEqual(&k1.PublicKey, &k2.PublicKey) &&
++		k1.D.Cmp(k2.D) == 0
++}
++
++func copyPrivateKey(k *PrivateKey) PrivateKey {
++	dst := PrivateKey{
++		PublicKey: copyPublicKey(&k.PublicKey),
++		D:         new(big.Int).Set(k.D),
++	}
++	dst.Primes = make([]*big.Int, len(k.Primes))
++	for i, p := range k.Primes {
++		dst.Primes[i] = new(big.Int).Set(p)
++	}
++	if x := k.Precomputed.Dp; x != nil {
++		dst.Precomputed.Dp = new(big.Int).Set(x)
++	}
++	if x := k.Precomputed.Dq; x != nil {
++		dst.Precomputed.Dq = new(big.Int).Set(x)
++	}
++	if x := k.Precomputed.Qinv; x != nil {
++		dst.Precomputed.Qinv = new(big.Int).Set(x)
++	}
++	return dst
++}
+diff --git a/src/crypto/rsa/pkcs1v15.go b/src/crypto/rsa/pkcs1v15.go
+index 3517a8c776..22475d7569 100644
+--- a/src/crypto/rsa/pkcs1v15.go
++++ b/src/crypto/rsa/pkcs1v15.go
+@@ -6,6 +6,7 @@ package rsa
+ 
+ import (
+ 	"crypto"
++	"crypto/internal/boring"
+ 	"crypto/subtle"
+ 	"errors"
+ 	"io"
+@@ -34,7 +35,7 @@ type PKCS1v15DecryptOptions struct {
+ //
+ // WARNING: use of this function to encrypt plaintexts other than
+ // session keys is dangerous. Use RSA OAEP in new protocols.
+-func EncryptPKCS1v15(rand io.Reader, pub *PublicKey, msg []byte) ([]byte, error) {
++func EncryptPKCS1v15(random io.Reader, pub *PublicKey, msg []byte) ([]byte, error) {
+ 	if err := checkPub(pub); err != nil {
+ 		return nil, err
+ 	}
+@@ -43,20 +44,37 @@ func EncryptPKCS1v15(rand io.Reader, pub *PublicKey, msg []byte) ([]byte, error)
+ 		return nil, ErrMessageTooLong
+ 	}
+ 
++	if boring.Enabled && random == boring.RandReader {
++		bkey, err := boringPublicKey(pub)
++		if err != nil {
++			return nil, err
++		}
++		return boring.EncryptRSAPKCS1(bkey, msg)
++	}
++	boring.UnreachableExceptTests()
++
+ 	// EM = 0x00 || 0x02 || PS || 0x00 || M
+ 	em := make([]byte, k)
+ 	em[1] = 2
+ 	ps, mm := em[2:len(em)-len(msg)-1], em[len(em)-len(msg):]
+-	err := nonZeroRandomBytes(ps, rand)
++	err := nonZeroRandomBytes(ps, random)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+ 	em[len(em)-len(msg)-1] = 0
+ 	copy(mm, msg)
+ 
++	if boring.Enabled {
++		var bkey *boring.PublicKeyRSA
++		bkey, err = boringPublicKey(pub)
++		if err != nil {
++			return nil, err
++		}
++		return boring.EncryptRSANoPadding(bkey, em)
++	}
++
+ 	m := new(big.Int).SetBytes(em)
+ 	c := encrypt(new(big.Int), pub, m)
+-
+ 	copyWithLeftPad(em, c.Bytes())
+ 	return em, nil
+ }
+@@ -73,6 +91,19 @@ func DecryptPKCS1v15(rand io.Reader, priv *PrivateKey, ciphertext []byte) ([]byt
+ 	if err := checkPub(&priv.PublicKey); err != nil {
+ 		return nil, err
+ 	}
++
++	if boring.Enabled {
++		bkey, err := boringPrivateKey(priv)
++		if err != nil {
++			return nil, err
++		}
++		out, err := boring.DecryptRSAPKCS1(bkey, ciphertext)
++		if err != nil {
++			return nil, ErrDecryption
++		}
++		return out, nil
++	}
++
+ 	valid, out, index, err := decryptPKCS1v15(rand, priv, ciphertext)
+ 	if err != nil {
+ 		return nil, err
+@@ -140,13 +171,26 @@ func decryptPKCS1v15(rand io.Reader, priv *PrivateKey, ciphertext []byte) (valid
+ 		return
+ 	}
+ 
+-	c := new(big.Int).SetBytes(ciphertext)
+-	m, err := decrypt(rand, priv, c)
+-	if err != nil {
+-		return
++	if boring.Enabled {
++		var bkey *boring.PrivateKeyRSA
++		bkey, err = boringPrivateKey(priv)
++		if err != nil {
++			return
++		}
++		em, err = boring.DecryptRSANoPadding(bkey, ciphertext)
++		if err != nil {
++			return
++		}
++	} else {
++		c := new(big.Int).SetBytes(ciphertext)
++		var m *big.Int
++		m, err = decrypt(rand, priv, c)
++		if err != nil {
++			return
++		}
++		em = leftPad(m.Bytes(), k)
+ 	}
+ 
+-	em = leftPad(m.Bytes(), k)
+ 	firstByteIsZero := subtle.ConstantTimeByteEq(em[0], 0)
+ 	secondByteIsTwo := subtle.ConstantTimeByteEq(em[1], 2)
+ 
+@@ -225,7 +269,7 @@ var hashPrefixes = map[crypto.Hash][]byte{
+ // messages is small, an attacker may be able to build a map from
+ // messages to signatures and identify the signed messages. As ever,
+ // signatures provide authenticity, not confidentiality.
+-func SignPKCS1v15(rand io.Reader, priv *PrivateKey, hash crypto.Hash, hashed []byte) ([]byte, error) {
++func SignPKCS1v15(random io.Reader, priv *PrivateKey, hash crypto.Hash, hashed []byte) ([]byte, error) {
+ 	hashLen, prefix, err := pkcs1v15HashInfo(hash, len(hashed))
+ 	if err != nil {
+ 		return nil, err
+@@ -237,6 +281,15 @@ func SignPKCS1v15(rand io.Reader, priv *PrivateKey, hash crypto.Hash, hashed []b
+ 		return nil, ErrMessageTooLong
+ 	}
+ 
++	if boring.Enabled {
++		bkey, err := boringPrivateKey(priv)
++		if err != nil {
++			println("X0")
++			return nil, err
++		}
++		return boring.SignRSAPKCS1v15(bkey, hash, hashed)
++	}
++
+ 	// EM = 0x00 || 0x01 || PS || 0x00 || T
+ 	em := make([]byte, k)
+ 	em[1] = 1
+@@ -247,7 +300,7 @@ func SignPKCS1v15(rand io.Reader, priv *PrivateKey, hash crypto.Hash, hashed []b
+ 	copy(em[k-hashLen:k], hashed)
+ 
+ 	m := new(big.Int).SetBytes(em)
+-	c, err := decryptAndCheck(rand, priv, m)
++	c, err := decryptAndCheck(random, priv, m)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+@@ -262,6 +315,17 @@ func SignPKCS1v15(rand io.Reader, priv *PrivateKey, hash crypto.Hash, hashed []b
+ // returning a nil error. If hash is zero then hashed is used directly. This
+ // isn't advisable except for interoperability.
+ func VerifyPKCS1v15(pub *PublicKey, hash crypto.Hash, hashed []byte, sig []byte) error {
++	if boring.Enabled {
++		bkey, err := boringPublicKey(pub)
++		if err != nil {
++			return err
++		}
++		if err := boring.VerifyRSAPKCS1v15(bkey, hash, hashed, sig); err != nil {
++			return ErrVerification
++		}
++		return nil
++	}
++
+ 	hashLen, prefix, err := pkcs1v15HashInfo(hash, len(hashed))
+ 	if err != nil {
+ 		return err
+diff --git a/src/crypto/rsa/pkcs1v15_test.go b/src/crypto/rsa/pkcs1v15_test.go
+index 47444f311c..7f380b6ec4 100644
+--- a/src/crypto/rsa/pkcs1v15_test.go
++++ b/src/crypto/rsa/pkcs1v15_test.go
+@@ -64,7 +64,7 @@ func TestDecryptPKCS1v15(t *testing.T) {
+ 		for i, test := range decryptPKCS1v15Tests {
+ 			out, err := decryptFunc(decodeBase64(test.in))
+ 			if err != nil {
+-				t.Errorf("#%d error decrypting", i)
++				t.Errorf("#%d error decrypting: %v", i, err)
+ 			}
+ 			want := []byte(test.out)
+ 			if !bytes.Equal(out, want) {
+diff --git a/src/crypto/rsa/pss.go b/src/crypto/rsa/pss.go
+index 1ba194a4ad..393ef16325 100644
+--- a/src/crypto/rsa/pss.go
++++ b/src/crypto/rsa/pss.go
+@@ -11,6 +11,7 @@ package rsa
+ import (
+ 	"bytes"
+ 	"crypto"
++	"crypto/internal/boring"
+ 	"errors"
+ 	"hash"
+ 	"io"
+@@ -259,6 +260,14 @@ func SignPSS(rand io.Reader, priv *PrivateKey, hash crypto.Hash, hashed []byte,
+ 		hash = opts.Hash
+ 	}
+ 
++	if boring.Enabled {
++		bkey, err := boringPrivateKey(priv)
++		if err != nil {
++			return nil, err
++		}
++		return boring.SignRSAPSS(bkey, hash, hashed, saltLength)
++	}
++
+ 	salt := make([]byte, saltLength)
+ 	if _, err := io.ReadFull(rand, salt); err != nil {
+ 		return nil, err
+@@ -277,6 +286,16 @@ func VerifyPSS(pub *PublicKey, hash crypto.Hash, hashed []byte, sig []byte, opts
+ 
+ // verifyPSS verifies a PSS signature with the given salt length.
+ func verifyPSS(pub *PublicKey, hash crypto.Hash, hashed []byte, sig []byte, saltLen int) error {
++	if boring.Enabled {
++		bkey, err := boringPublicKey(pub)
++		if err != nil {
++			return err
++		}
++		if err := boring.VerifyRSAPSS(bkey, hash, hashed, sig, saltLen); err != nil {
++			return ErrVerification
++		}
++		return nil
++	}
+ 	nBits := pub.N.BitLen()
+ 	if len(sig) != (nBits+7)/8 {
+ 		return ErrVerification
+diff --git a/src/crypto/rsa/pss_test.go b/src/crypto/rsa/pss_test.go
+index cae24e58c6..4ce5ad8684 100644
+--- a/src/crypto/rsa/pss_test.go
++++ b/src/crypto/rsa/pss_test.go
+@@ -9,7 +9,6 @@ import (
+ 	"bytes"
+ 	"compress/bzip2"
+ 	"crypto"
+-	_ "crypto/md5"
+ 	"crypto/rand"
+ 	"crypto/sha1"
+ 	_ "crypto/sha256"
+@@ -211,7 +210,7 @@ func TestPSSSigning(t *testing.T) {
+ 		{8, 8, true},
+ 	}
+ 
+-	hash := crypto.MD5
++	hash := crypto.SHA1
+ 	h := hash.New()
+ 	h.Write([]byte("testing"))
+ 	hashed := h.Sum(nil)
+diff --git a/src/crypto/rsa/rsa.go b/src/crypto/rsa/rsa.go
+index 1de4fcb473..8a074e6869 100644
+--- a/src/crypto/rsa/rsa.go
++++ b/src/crypto/rsa/rsa.go
+@@ -24,6 +24,7 @@ package rsa
+ 
+ import (
+ 	"crypto"
++	"crypto/internal/boring"
+ 	"crypto/rand"
+ 	"crypto/subtle"
+ 	"errors"
+@@ -31,6 +32,7 @@ import (
+ 	"io"
+ 	"math"
+ 	"math/big"
++	"unsafe"
+ )
+ 
+ var bigZero = big.NewInt(0)
+@@ -40,6 +42,8 @@ var bigOne = big.NewInt(1)
+ type PublicKey struct {
+ 	N *big.Int // modulus
+ 	E int      // public exponent
++
++	boring unsafe.Pointer
+ }
+ 
+ // OAEPOptions is an interface for passing options to OAEP decryption using the
+@@ -85,6 +89,8 @@ type PrivateKey struct {
+ 	// Precomputed contains precomputed values that speed up private
+ 	// operations, if available.
+ 	Precomputed PrecomputedValues
++
++	boring unsafe.Pointer
+ }
+ 
+ // Public returns the public key corresponding to priv.
+@@ -195,6 +201,31 @@ func (priv *PrivateKey) Validate() error {
+ // GenerateKey generates an RSA keypair of the given bit size using the
+ // random source random (for example, crypto/rand.Reader).
+ func GenerateKey(random io.Reader, bits int) (*PrivateKey, error) {
++	if boring.Enabled && (bits == 2048 || bits == 3072) {
++		N, E, D, P, Q, Dp, Dq, Qinv, err := boring.GenerateKeyRSA(bits)
++		if err != nil {
++			return nil, err
++		}
++		e64 := E.Int64()
++		if !E.IsInt64() || int64(int(e64)) != e64 {
++			return nil, errors.New("crypto/rsa: generated key exponent too large")
++		}
++		key := &PrivateKey{
++			PublicKey: PublicKey{
++				N: N,
++				E: int(e64),
++			},
++			D:      D,
++			Primes: []*big.Int{P, Q},
++			Precomputed: PrecomputedValues{
++				Dp:   Dp,
++				Dq:   Dq,
++				Qinv: Qinv,
++			},
++		}
++		return key, nil
++	}
++
+ 	return GenerateMultiPrimeKey(random, 2, bits)
+ }
+ 
+@@ -344,6 +375,7 @@ func mgf1XOR(out []byte, hash hash.Hash, seed []byte) {
+ var ErrMessageTooLong = errors.New("crypto/rsa: message too long for RSA public key size")
+ 
+ func encrypt(c *big.Int, pub *PublicKey, m *big.Int) *big.Int {
++	boring.Unreachable()
+ 	e := big.NewInt(int64(pub.E))
+ 	c.Exp(m, e, pub.N)
+ 	return c
+@@ -376,6 +408,15 @@ func EncryptOAEP(hash hash.Hash, random io.Reader, pub *PublicKey, msg []byte, l
+ 		return nil, ErrMessageTooLong
+ 	}
+ 
++	if boring.Enabled && random == boring.RandReader {
++		bkey, err := boringPublicKey(pub)
++		if err != nil {
++			return nil, err
++		}
++		return boring.EncryptRSAOAEP(hash, bkey, msg, label)
++	}
++	boring.UnreachableExceptTests()
++
+ 	hash.Write(label)
+ 	lHash := hash.Sum(nil)
+ 	hash.Reset()
+@@ -396,10 +437,24 @@ func EncryptOAEP(hash hash.Hash, random io.Reader, pub *PublicKey, msg []byte, l
+ 	mgf1XOR(db, hash, seed)
+ 	mgf1XOR(seed, hash, db)
+ 
+-	m := new(big.Int)
+-	m.SetBytes(em)
+-	c := encrypt(new(big.Int), pub, m)
+-	out := c.Bytes()
++	var out []byte
++	if boring.Enabled {
++		var bkey *boring.PublicKeyRSA
++		bkey, err = boringPublicKey(pub)
++		if err != nil {
++			return nil, err
++		}
++		c, err := boring.EncryptRSANoPadding(bkey, em)
++		if err != nil {
++			return nil, err
++		}
++		out = c
++	} else {
++		m := new(big.Int)
++		m.SetBytes(em)
++		c := encrypt(new(big.Int), pub, m)
++		out = c.Bytes()
++	}
+ 
+ 	if len(out) < k {
+ 		// If the output is too small, we need to left-pad with zeros.
+@@ -477,6 +532,9 @@ func (priv *PrivateKey) Precompute() {
+ // decrypt performs an RSA decryption, resulting in a plaintext integer. If a
+ // random source is given, RSA blinding is used.
+ func decrypt(random io.Reader, priv *PrivateKey, c *big.Int) (m *big.Int, err error) {
++	if len(priv.Primes) <= 2 {
++		boring.Unreachable()
++	}
+ 	// TODO(agl): can we get away with reusing blinds?
+ 	if c.Cmp(priv.N) > 0 {
+ 		err = ErrDecryption
+@@ -592,6 +650,17 @@ func DecryptOAEP(hash hash.Hash, random io.Reader, priv *PrivateKey, ciphertext
+ 		return nil, ErrDecryption
+ 	}
+ 
++	if boring.Enabled {
++		bkey, err := boringPrivateKey(priv)
++		if err != nil {
++			return nil, err
++		}
++		out, err := boring.DecryptRSAOAEP(hash, bkey, ciphertext, label)
++		if err != nil {
++			return nil, ErrDecryption
++		}
++		return out, nil
++	}
+ 	c := new(big.Int).SetBytes(ciphertext)
+ 
+ 	m, err := decrypt(random, priv, c)
+diff --git a/src/crypto/rsa/rsa_test.go b/src/crypto/rsa/rsa_test.go
+index 84b167455f..3abe88a27d 100644
+--- a/src/crypto/rsa/rsa_test.go
++++ b/src/crypto/rsa/rsa_test.go
+@@ -7,26 +7,29 @@ package rsa
+ import (
+ 	"bytes"
+ 	"crypto"
++	"crypto/internal/boring"
+ 	"crypto/rand"
+ 	"crypto/sha1"
+ 	"crypto/sha256"
++	"fmt"
+ 	"math/big"
+ 	"testing"
+ )
+ 
+ func TestKeyGeneration(t *testing.T) {
+-	size := 1024
+-	if testing.Short() {
+-		size = 128
+-	}
+-	priv, err := GenerateKey(rand.Reader, size)
+-	if err != nil {
+-		t.Errorf("failed to generate key")
+-	}
+-	if bits := priv.N.BitLen(); bits != size {
+-		t.Errorf("key too short (%d vs %d)", bits, size)
++	for _, size := range []int{128, 1024, 2048, 3072} {
++		priv, err := GenerateKey(rand.Reader, size)
++		if err != nil {
++			t.Errorf("GenerateKey(%d): %v", size, err)
++		}
++		if bits := priv.N.BitLen(); bits != size {
++			t.Errorf("key too short (%d vs %d)", bits, size)
++		}
++		testKeyBasics(t, priv)
++		if testing.Short() {
++			break
++		}
+ 	}
+-	testKeyBasics(t, priv)
+ }
+ 
+ func Test3PrimeKeyGeneration(t *testing.T) {
+@@ -110,6 +113,25 @@ func testKeyBasics(t *testing.T, priv *PrivateKey) {
+ 		t.Errorf("private exponent too large")
+ 	}
+ 
++	if boring.Enabled {
++		// Cannot call encrypt/decrypt directly. Test via PKCS1v15.
++		msg := []byte("hi!")
++		enc, err := EncryptPKCS1v15(rand.Reader, &priv.PublicKey, msg)
++		if err != nil {
++			t.Errorf("EncryptPKCS1v15: %v", err)
++			return
++		}
++		dec, err := DecryptPKCS1v15(rand.Reader, priv, enc)
++		if err != nil {
++			t.Errorf("DecryptPKCS1v15: %v", err)
++			return
++		}
++		if !bytes.Equal(dec, msg) {
++			t.Errorf("got:%x want:%x (%+v)", dec, msg, priv)
++		}
++		return
++	}
++
+ 	pub := &priv.PublicKey
+ 	m := big.NewInt(42)
+ 	c := encrypt(new(big.Int), pub, m)
+@@ -158,6 +180,10 @@ func init() {
+ }
+ 
+ func BenchmarkRSA2048Decrypt(b *testing.B) {
++	if boring.Enabled {
++		b.Skip("no raw decrypt in BoringCrypto")
++	}
++
+ 	b.StopTimer()
+ 
+ 	c := fromBase10("8472002792838218989464636159316973636630013835787202418124758118372358261975764365740026024610403138425986214991379012696600761514742817632790916315594342398720903716529235119816755589383377471752116975374952783629225022962092351886861518911824745188989071172097120352727368980275252089141512321893536744324822590480751098257559766328893767334861211872318961900897793874075248286439689249972315699410830094164386544311554704755110361048571142336148077772023880664786019636334369759624917224888206329520528064315309519262325023881707530002540634660750469137117568199824615333883758410040459705787022909848740188613313")
+@@ -180,6 +206,10 @@ func BenchmarkRSA2048Sign(b *testing.B) {
+ }
+ 
+ func Benchmark3PrimeRSA2048Decrypt(b *testing.B) {
++	if boring.Enabled {
++		b.Skip("no raw decrypt in BoringCrypto")
++	}
++
+ 	b.StopTimer()
+ 	priv := &PrivateKey{
+ 		PublicKey: PublicKey{
+@@ -222,7 +252,7 @@ func TestEncryptOAEP(t *testing.T) {
+ 	n := new(big.Int)
+ 	for i, test := range testEncryptOAEPData {
+ 		n.SetString(test.modulus, 16)
+-		public := PublicKey{n, test.e}
++		public := PublicKey{N: n, E: test.e}
+ 
+ 		for j, message := range test.msgs {
+ 			randomSource := bytes.NewReader(message.seed)
+@@ -247,7 +277,7 @@ func TestDecryptOAEP(t *testing.T) {
+ 		n.SetString(test.modulus, 16)
+ 		d.SetString(test.d, 16)
+ 		private := new(PrivateKey)
+-		private.PublicKey = PublicKey{n, test.e}
++		private.PublicKey = PublicKey{N: n, E: test.e}
+ 		private.D = d
+ 
+ 		for j, message := range test.msgs {
+@@ -272,6 +302,36 @@ func TestDecryptOAEP(t *testing.T) {
+ 	}
+ }
+ 
++func TestEncryptDecryptOAEP(t *testing.T) {
++	sha256 := sha256.New()
++	n := new(big.Int)
++	d := new(big.Int)
++	for i, test := range testEncryptOAEPData {
++		n.SetString(test.modulus, 16)
++		d.SetString(test.d, 16)
++		priv := new(PrivateKey)
++		priv.PublicKey = PublicKey{N: n, E: test.e}
++		priv.D = d
++
++		for j, message := range test.msgs {
++			label := []byte(fmt.Sprintf("hi#%d", j))
++			enc, err := EncryptOAEP(sha256, rand.Reader, &priv.PublicKey, message.in, label)
++			if err != nil {
++				t.Errorf("#%d,%d: EncryptOAEP: %v", i, j, err)
++				continue
++			}
++			dec, err := DecryptOAEP(sha256, rand.Reader, priv, enc, label)
++			if err != nil {
++				t.Errorf("#%d,%d: DecryptOAEP: %v", i, j, err)
++				continue
++			}
++			if !bytes.Equal(dec, message.in) {
++				t.Errorf("#%d,%d: round trip %q -> %q", i, j, message.in, dec)
++			}
++		}
++	}
++}
++
+ // testEncryptOAEPData contains a subset of the vectors from RSA's "Test vectors for RSA-OAEP".
+ var testEncryptOAEPData = []testEncryptOAEPStruct{
+ 	// Key 1

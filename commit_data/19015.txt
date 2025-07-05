@@ -10,6 +10,22 @@ Date:   Thu Apr 3 11:34:31 2014 +1100
     R=golang-codereviews, aram, iant
     CC=golang-codereviews
     https://golang.org/cl/83090050
-
+---
  src/cmd/gc/plive.c | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/gc/plive.c b/src/cmd/gc/plive.c
+index 83bd0fc49d..d68ed15e20 100644
+--- a/src/cmd/gc/plive.c
++++ b/src/cmd/gc/plive.c
+@@ -1633,8 +1633,8 @@ livenessepilogue(Liveness *lv)
+ }
+ 
+ // FNV-1 hash function constants.
+-#define H0 2166136261
+-#define Hp 16777619
++#define H0 2166136261UL
++#define Hp 16777619UL
+ 
+ static uint32
+ hashbitmap(uint32 h, Bvec *bv)

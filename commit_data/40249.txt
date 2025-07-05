@@ -22,7 +22,7 @@ Date:   Wed Apr 24 12:06:43 2019 -0700
     Change-Id: Ib7e02459e693c26ae1ba71bbae7d455a91118ee3
     Reviewed-on: https://go-review.googlesource.com/c/go/+/173722
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/go_test.go                              |  6 ++
  .../go/testdata/standalone_testmain_flag_test.go   | 29 +++++++
  src/testing/benchmark.go                           | 18 +++--
@@ -30,3 +30,251 @@ Date:   Wed Apr 24 12:06:43 2019 -0700
  src/testing/testing.go                             | 88 +++++++++++++++++-----
  test/fixedbugs/bug369.dir/main.go                  |  1 +
  6 files changed, 118 insertions(+), 26 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 337dfd7ca8..94417be0f2 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -3176,6 +3176,12 @@ func TestGoTestFooTestWorks(t *testing.T) {
+ 	tg.run("test", "testdata/standalone_test.go")
+ }
+ 
++func TestGoTestTestMainSeesTestingFlags(t *testing.T) {
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.run("test", "testdata/standalone_testmain_flag_test.go")
++}
++
+ // Issue 22388
+ func TestGoTestMainWithWrongSignature(t *testing.T) {
+ 	tg := testgo(t)
+diff --git a/src/cmd/go/testdata/standalone_testmain_flag_test.go b/src/cmd/go/testdata/standalone_testmain_flag_test.go
+new file mode 100644
+index 0000000000..a59555bb61
+--- /dev/null
++++ b/src/cmd/go/testdata/standalone_testmain_flag_test.go
+@@ -0,0 +1,29 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package standalone_testmain_flag_test
++
++import (
++	"flag"
++	"fmt"
++	"os"
++	"testing"
++)
++
++func TestMain(m *testing.M) {
++	// A TestMain should be able to access testing flags if it calls
++	// flag.Parse without needing to use testing.Init.
++	flag.Parse()
++	found := false
++	flag.VisitAll(func(f *flag.Flag) {
++		if f.Name == "test.count" {
++			found = true
++		}
++	})
++	if !found {
++		fmt.Println("testing flags not registered")
++		os.Exit(1)
++	}
++	os.Exit(m.Run())
++}
+diff --git a/src/testing/benchmark.go b/src/testing/benchmark.go
+index cc22bdd2b5..0e348be358 100644
+--- a/src/testing/benchmark.go
++++ b/src/testing/benchmark.go
+@@ -21,14 +21,19 @@ import (
+ 	"unicode"
+ )
+ 
+-var matchBenchmarks = flag.String("test.bench", "", "run only benchmarks matching `regexp`")
+-var benchTime = benchTimeFlag{d: 1 * time.Second}
+-var benchmarkMemory = flag.Bool("test.benchmem", false, "print memory allocations for benchmarks")
+-
+-func init() {
++func initBenchmarkFlags() {
++	matchBenchmarks = flag.String("test.bench", "", "run only benchmarks matching `regexp`")
++	benchmarkMemory = flag.Bool("test.benchmem", false, "print memory allocations for benchmarks")
+ 	flag.Var(&benchTime, "test.benchtime", "run each benchmark for duration `d`")
+ }
+ 
++var (
++	matchBenchmarks *string
++	benchmarkMemory *bool
++
++	benchTime = benchTimeFlag{d: 1 * time.Second} // changed during test of testing package
++)
++
+ type benchTimeFlag struct {
+ 	d time.Duration
+ 	n int
+@@ -755,6 +760,9 @@ func (b *B) SetParallelism(p int) {
+ // Benchmark benchmarks a single function. It is useful for creating
+ // custom benchmarks that do not use the "go test" command.
+ //
++// If f depends on testing flags, then Init must be used to register
++// those flags before calling Benchmark and before calling flag.Parse.
++//
+ // If f calls Run, the result will be an estimate of running all its
+ // subbenchmarks that don't call Run in sequence in a single benchmark.
+ func Benchmark(f func(b *B)) BenchmarkResult {
+diff --git a/src/testing/sub_test.go b/src/testing/sub_test.go
+index 5a6d51be59..884b0a3b12 100644
+--- a/src/testing/sub_test.go
++++ b/src/testing/sub_test.go
+@@ -16,7 +16,7 @@ import (
+ )
+ 
+ func init() {
+-	// Make benchmark tests run 10* faster.
++	// Make benchmark tests run 10x faster.
+ 	benchTime.d = 100 * time.Millisecond
+ }
+ 
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index a4681ab95a..7db7c630c2 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -249,7 +249,18 @@ import (
+ 	"time"
+ )
+ 
+-var (
++var initRan bool
++
++// Init registers testing flags. These flags are automatically registered by
++// the "go test" command before running test functions, so Init is only needed
++// when calling functions such as Benchmark without using "go test".
++//
++// Init has no effect if it was already called.
++func Init() {
++	if initRan {
++		return
++	}
++	initRan = true
+ 	// The short flag requests that tests run more quickly, but its functionality
+ 	// is provided by test writers themselves. The testing package is just its
+ 	// home. The all.bash installation script sets it to make installation more
+@@ -265,25 +276,50 @@ var (
+ 	// this flag lets "go test" tell the binary to write the files in the directory where
+ 	// the "go test" command is run.
+ 	outputDir = flag.String("test.outputdir", "", "write profiles to `dir`")
+-
+ 	// Report as tests are run; default is silent for success.
+-	chatty               = flag.Bool("test.v", false, "verbose: print additional output")
+-	count                = flag.Uint("test.count", 1, "run tests and benchmarks `n` times")
+-	coverProfile         = flag.String("test.coverprofile", "", "write a coverage profile to `file`")
+-	matchList            = flag.String("test.list", "", "list tests, examples, and benchmarks matching `regexp` then exit")
+-	match                = flag.String("test.run", "", "run only tests and examples matching `regexp`")
+-	memProfile           = flag.String("test.memprofile", "", "write an allocation profile to `file`")
+-	memProfileRate       = flag.Int("test.memprofilerate", 0, "set memory allocation profiling `rate` (see runtime.MemProfileRate)")
+-	cpuProfile           = flag.String("test.cpuprofile", "", "write a cpu profile to `file`")
+-	blockProfile         = flag.String("test.blockprofile", "", "write a goroutine blocking profile to `file`")
+-	blockProfileRate     = flag.Int("test.blockprofilerate", 1, "set blocking profile `rate` (see runtime.SetBlockProfileRate)")
+-	mutexProfile         = flag.String("test.mutexprofile", "", "write a mutex contention profile to the named file after execution")
++	chatty = flag.Bool("test.v", false, "verbose: print additional output")
++	count = flag.Uint("test.count", 1, "run tests and benchmarks `n` times")
++	coverProfile = flag.String("test.coverprofile", "", "write a coverage profile to `file`")
++	matchList = flag.String("test.list", "", "list tests, examples, and benchmarks matching `regexp` then exit")
++	match = flag.String("test.run", "", "run only tests and examples matching `regexp`")
++	memProfile = flag.String("test.memprofile", "", "write an allocation profile to `file`")
++	memProfileRate = flag.Int("test.memprofilerate", 0, "set memory allocation profiling `rate` (see runtime.MemProfileRate)")
++	cpuProfile = flag.String("test.cpuprofile", "", "write a cpu profile to `file`")
++	blockProfile = flag.String("test.blockprofile", "", "write a goroutine blocking profile to `file`")
++	blockProfileRate = flag.Int("test.blockprofilerate", 1, "set blocking profile `rate` (see runtime.SetBlockProfileRate)")
++	mutexProfile = flag.String("test.mutexprofile", "", "write a mutex contention profile to the named file after execution")
+ 	mutexProfileFraction = flag.Int("test.mutexprofilefraction", 1, "if >= 0, calls runtime.SetMutexProfileFraction()")
+-	traceFile            = flag.String("test.trace", "", "write an execution trace to `file`")
+-	timeout              = flag.Duration("test.timeout", 0, "panic test binary after duration `d` (default 0, timeout disabled)")
+-	cpuListStr           = flag.String("test.cpu", "", "comma-separated `list` of cpu counts to run each test with")
+-	parallel             = flag.Int("test.parallel", runtime.GOMAXPROCS(0), "run at most `n` tests in parallel")
+-	testlog              = flag.String("test.testlogfile", "", "write test action log to `file` (for use only by cmd/go)")
++	traceFile = flag.String("test.trace", "", "write an execution trace to `file`")
++	timeout = flag.Duration("test.timeout", 0, "panic test binary after duration `d` (default 0, timeout disabled)")
++	cpuListStr = flag.String("test.cpu", "", "comma-separated `list` of cpu counts to run each test with")
++	parallel = flag.Int("test.parallel", runtime.GOMAXPROCS(0), "run at most `n` tests in parallel")
++	testlog = flag.String("test.testlogfile", "", "write test action log to `file` (for use only by cmd/go)")
++
++	initBenchmarkFlags()
++}
++
++var (
++	// Flags, registered during Init.
++	short                *bool
++	failFast             *bool
++	outputDir            *string
++	chatty               *bool
++	count                *uint
++	coverProfile         *string
++	matchList            *string
++	match                *string
++	memProfile           *string
++	memProfileRate       *int
++	cpuProfile           *string
++	blockProfile         *string
++	blockProfileRate     *int
++	mutexProfile         *string
++	mutexProfileFraction *int
++	traceFile            *string
++	timeout              *time.Duration
++	cpuListStr           *string
++	parallel             *int
++	testlog              *string
+ 
+ 	haveExamples bool // are there examples?
+ 
+@@ -328,10 +364,13 @@ type common struct {
+ 
+ // Short reports whether the -test.short flag is set.
+ func Short() bool {
++	if short == nil {
++		panic("testing: Short called before Init")
++	}
+ 	// Catch code that calls this from TestMain without first
+-	// calling flag.Parse. This shouldn't really be a panic
++	// calling flag.Parse. This shouldn't really be a panic.
+ 	if !flag.Parsed() {
+-		fmt.Fprintf(os.Stderr, "testing: testing.Short called before flag.Parse\n")
++		fmt.Fprintf(os.Stderr, "testing: Short called before flag.Parse\n")
+ 		os.Exit(2)
+ 	}
+ 
+@@ -347,6 +386,14 @@ func CoverMode() string {
+ 
+ // Verbose reports whether the -test.v flag is set.
+ func Verbose() bool {
++	if chatty == nil {
++		panic("testing: Verbose called before Init")
++	}
++	// Same as in Short.
++	if !flag.Parsed() {
++		fmt.Fprintf(os.Stderr, "testing: Verbose called before flag.Parse\n")
++		os.Exit(2)
++	}
+ 	return *chatty
+ }
+ 
+@@ -1031,6 +1078,7 @@ type testDeps interface {
+ // It is not meant to be called directly and is not subject to the Go 1 compatibility document.
+ // It may change signature from release to release.
+ func MainStart(deps testDeps, tests []InternalTest, benchmarks []InternalBenchmark, examples []InternalExample) *M {
++	Init()
+ 	return &M{
+ 		deps:       deps,
+ 		tests:      tests,
+diff --git a/test/fixedbugs/bug369.dir/main.go b/test/fixedbugs/bug369.dir/main.go
+index 4812602c67..03b53a5b90 100644
+--- a/test/fixedbugs/bug369.dir/main.go
++++ b/test/fixedbugs/bug369.dir/main.go
+@@ -29,6 +29,7 @@ func BenchmarkSlowNonASCII(b *testing.B) {
+ }
+ 
+ func main() {
++	testing.Init()
+ 	os.Args = []string{os.Args[0], "-test.benchtime=100ms"}
+ 	flag.Parse()
+ 

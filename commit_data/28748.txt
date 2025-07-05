@@ -16,7 +16,7 @@ Date:   Mon Jul 11 16:15:03 2016 -0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/runtime/cgocall.go         | 2 +-
  src/runtime/os_nacl.go         | 2 +-
  src/runtime/signal1_unix.go    | 2 +-
@@ -26,3 +26,141 @@ Date:   Mon Jul 11 16:15:03 2016 -0700
  src/runtime/signal_sigtramp.go | 4 ++--
  src/runtime/stubs.go           | 4 ++--
  8 files changed, 13 insertions(+), 13 deletions(-)
+
+diff --git a/src/runtime/cgocall.go b/src/runtime/cgocall.go
+index 0f8386b10f..d7e20ebc1d 100644
+--- a/src/runtime/cgocall.go
++++ b/src/runtime/cgocall.go
+@@ -44,7 +44,7 @@
+ // call arbitrary Go code directly and must be careful not to allocate
+ // memory or use up m->g0's stack.
+ //
+-// _cgoexp_GoF calls runtime.cgocallback(p.GoF, frame, framesize).
++// _cgoexp_GoF calls runtime.cgocallback(p.GoF, frame, framesize, ctxt).
+ // (The reason for having _cgoexp_GoF instead of writing a crosscall3
+ // to make this call directly is that _cgoexp_GoF, because it is compiled
+ // with 6c instead of gcc, can refer to dotted names like
+diff --git a/src/runtime/os_nacl.go b/src/runtime/os_nacl.go
+index 6cbd16de15..1dacc1a49c 100644
+--- a/src/runtime/os_nacl.go
++++ b/src/runtime/os_nacl.go
+@@ -246,7 +246,7 @@ func memlimit() uintptr {
+ //go:norace
+ //go:nowritebarrierrec
+ func badsignal(sig uintptr) {
+-	cgocallback(unsafe.Pointer(funcPC(badsignalgo)), noescape(unsafe.Pointer(&sig)), unsafe.Sizeof(sig))
++	cgocallback(unsafe.Pointer(funcPC(badsignalgo)), noescape(unsafe.Pointer(&sig)), unsafe.Sizeof(sig), 0)
+ }
+ 
+ func badsignalgo(sig uintptr) {
+diff --git a/src/runtime/signal1_unix.go b/src/runtime/signal1_unix.go
+index 5080202833..101d16dc8e 100644
+--- a/src/runtime/signal1_unix.go
++++ b/src/runtime/signal1_unix.go
+@@ -338,7 +338,7 @@ func sigNotOnStack(sig uint32) {
+ //go:norace
+ //go:nowritebarrierrec
+ func badsignal(sig uintptr, c *sigctxt) {
+-	cgocallback(unsafe.Pointer(funcPC(badsignalgo)), noescape(unsafe.Pointer(&sig)), unsafe.Sizeof(sig)+unsafe.Sizeof(c))
++	cgocallback(unsafe.Pointer(funcPC(badsignalgo)), noescape(unsafe.Pointer(&sig)), unsafe.Sizeof(sig)+unsafe.Sizeof(c), 0)
+ }
+ 
+ func badsignalgo(sig uintptr, c *sigctxt) {
+diff --git a/src/runtime/signal_darwin.go b/src/runtime/signal_darwin.go
+index c8534ff09b..fb06de5509 100644
+--- a/src/runtime/signal_darwin.go
++++ b/src/runtime/signal_darwin.go
+@@ -70,12 +70,12 @@ func sigtrampgo(fn uintptr, infostyle, sig uint32, info *siginfo, ctx unsafe.Poi
+ 		sigaltstack(nil, &st)
+ 		if st.ss_flags&_SS_DISABLE != 0 {
+ 			setg(nil)
+-			cgocallback(unsafe.Pointer(funcPC(noSignalStack)), noescape(unsafe.Pointer(&sig)), unsafe.Sizeof(sig))
++			cgocallback(unsafe.Pointer(funcPC(noSignalStack)), noescape(unsafe.Pointer(&sig)), unsafe.Sizeof(sig), 0)
+ 		}
+ 		stsp := uintptr(unsafe.Pointer(st.ss_sp))
+ 		if sp < stsp || sp >= stsp+st.ss_size {
+ 			setg(nil)
+-			cgocallback(unsafe.Pointer(funcPC(sigNotOnStack)), noescape(unsafe.Pointer(&sig)), unsafe.Sizeof(sig))
++			cgocallback(unsafe.Pointer(funcPC(sigNotOnStack)), noescape(unsafe.Pointer(&sig)), unsafe.Sizeof(sig), 0)
+ 		}
+ 		g.m.gsignal.stack.lo = stsp
+ 		g.m.gsignal.stack.hi = stsp + st.ss_size
+diff --git a/src/runtime/signal_freebsd.go b/src/runtime/signal_freebsd.go
+index c4cb68720e..c6c126983d 100644
+--- a/src/runtime/signal_freebsd.go
++++ b/src/runtime/signal_freebsd.go
+@@ -66,12 +66,12 @@ func sigtrampgo(sig uint32, info *siginfo, ctx unsafe.Pointer) {
+ 		sigaltstack(nil, &st)
+ 		if st.ss_flags&_SS_DISABLE != 0 {
+ 			setg(nil)
+-			cgocallback(unsafe.Pointer(funcPC(noSignalStack)), noescape(unsafe.Pointer(&sig)), unsafe.Sizeof(sig))
++			cgocallback(unsafe.Pointer(funcPC(noSignalStack)), noescape(unsafe.Pointer(&sig)), unsafe.Sizeof(sig), 0)
+ 		}
+ 		stsp := uintptr(unsafe.Pointer(st.ss_sp))
+ 		if sp < stsp || sp >= stsp+st.ss_size {
+ 			setg(nil)
+-			cgocallback(unsafe.Pointer(funcPC(sigNotOnStack)), noescape(unsafe.Pointer(&sig)), unsafe.Sizeof(sig))
++			cgocallback(unsafe.Pointer(funcPC(sigNotOnStack)), noescape(unsafe.Pointer(&sig)), unsafe.Sizeof(sig), 0)
+ 		}
+ 		g.m.gsignal.stack.lo = stsp
+ 		g.m.gsignal.stack.hi = stsp + st.ss_size
+diff --git a/src/runtime/signal_openbsd.go b/src/runtime/signal_openbsd.go
+index 9275279860..efe30da5d9 100644
+--- a/src/runtime/signal_openbsd.go
++++ b/src/runtime/signal_openbsd.go
+@@ -66,12 +66,12 @@ func sigtrampgo(sig uint32, info *siginfo, ctx unsafe.Pointer) {
+ 		sigaltstack(nil, &st)
+ 		if st.ss_flags&_SS_DISABLE != 0 {
+ 			setg(nil)
+-			cgocallback(unsafe.Pointer(funcPC(noSignalStack)), noescape(unsafe.Pointer(&sig)), unsafe.Sizeof(sig))
++			cgocallback(unsafe.Pointer(funcPC(noSignalStack)), noescape(unsafe.Pointer(&sig)), unsafe.Sizeof(sig), 0)
+ 		}
+ 		stsp := uintptr(unsafe.Pointer(st.ss_sp))
+ 		if sp < stsp || sp >= stsp+st.ss_size {
+ 			setg(nil)
+-			cgocallback(unsafe.Pointer(funcPC(sigNotOnStack)), noescape(unsafe.Pointer(&sig)), unsafe.Sizeof(sig))
++			cgocallback(unsafe.Pointer(funcPC(sigNotOnStack)), noescape(unsafe.Pointer(&sig)), unsafe.Sizeof(sig), 0)
+ 		}
+ 		g.m.gsignal.stack.lo = stsp
+ 		g.m.gsignal.stack.hi = stsp + st.ss_size
+diff --git a/src/runtime/signal_sigtramp.go b/src/runtime/signal_sigtramp.go
+index 3e0b104578..dbbbcd0392 100644
+--- a/src/runtime/signal_sigtramp.go
++++ b/src/runtime/signal_sigtramp.go
+@@ -37,12 +37,12 @@ func sigtrampgo(sig uint32, info *siginfo, ctx unsafe.Pointer) {
+ 		sigaltstack(nil, &st)
+ 		if st.ss_flags&_SS_DISABLE != 0 {
+ 			setg(nil)
+-			cgocallback(unsafe.Pointer(funcPC(noSignalStack)), noescape(unsafe.Pointer(&sig)), unsafe.Sizeof(sig))
++			cgocallback(unsafe.Pointer(funcPC(noSignalStack)), noescape(unsafe.Pointer(&sig)), unsafe.Sizeof(sig), 0)
+ 		}
+ 		stsp := uintptr(unsafe.Pointer(st.ss_sp))
+ 		if sp < stsp || sp >= stsp+st.ss_size {
+ 			setg(nil)
+-			cgocallback(unsafe.Pointer(funcPC(sigNotOnStack)), noescape(unsafe.Pointer(&sig)), unsafe.Sizeof(sig))
++			cgocallback(unsafe.Pointer(funcPC(sigNotOnStack)), noescape(unsafe.Pointer(&sig)), unsafe.Sizeof(sig), 0)
+ 		}
+ 		g.m.gsignal.stack.lo = stsp
+ 		g.m.gsignal.stack.hi = stsp + st.ss_size
+diff --git a/src/runtime/stubs.go b/src/runtime/stubs.go
+index 6c28fd2e78..a594c1b791 100644
+--- a/src/runtime/stubs.go
++++ b/src/runtime/stubs.go
+@@ -98,7 +98,7 @@ func noescape(p unsafe.Pointer) unsafe.Pointer {
+ 	return unsafe.Pointer(x ^ 0)
+ }
+ 
+-func cgocallback(fn, frame unsafe.Pointer, framesize uintptr)
++func cgocallback(fn, frame unsafe.Pointer, framesize, ctxt uintptr)
+ func gogo(buf *gobuf)
+ func gosave(buf *gobuf)
+ func mincore(addr unsafe.Pointer, n uintptr, dst *byte) int32
+@@ -143,7 +143,7 @@ func goexit(neverCallThisFunction)
+ // cgocallback_gofunc is not called from go, only from cgocallback,
+ // so the arguments will be found via cgocallback's pointer-declared arguments.
+ // See the assembly implementations for more details.
+-func cgocallback_gofunc(fv uintptr, frame uintptr, framesize uintptr)
++func cgocallback_gofunc(fv uintptr, frame uintptr, framesize, ctxt uintptr)
+ 
+ // publicationBarrier performs a store/store barrier (a "publication"
+ // or "export" barrier). Some form of synchronization is required

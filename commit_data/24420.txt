@@ -14,6 +14,22 @@ Date:   Tue Jul 28 08:33:24 2015 -0700
     Change-Id: I9cdfefa23dc7cda3849f14814b3ce531f1d39e93
     Reviewed-on: https://go-review.googlesource.com/12777
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  test/fixedbugs/issue11656.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/test/fixedbugs/issue11656.go b/test/fixedbugs/issue11656.go
+index ef0f469530..c4cfe1d259 100644
+--- a/test/fixedbugs/issue11656.go
++++ b/test/fixedbugs/issue11656.go
+@@ -8,8 +8,9 @@
+ // it manages to invoke the signal handler, so this test fails there.
+ // +build !darwin !386
+ //
+-// openbsd/386 and plan9/386 don't work, not sure why.
++// openbsd/386, netbsd/386, and plan9/386 don't work, not sure why.
+ // +build !openbsd !386
++// +build !netbsd !386
+ // +build !plan9 !386
+ //
+ // windows doesn't work, because Windows exception handling

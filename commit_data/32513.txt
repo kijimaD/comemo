@@ -26,7 +26,68 @@ Date:   Sun Apr 23 22:19:35 2017 -0700
     Run-TryBot: Kevin Burke <kev@inburke.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/regexp/all_test.go | 10 +++++++++-
  src/regexp/regexp.go   | 12 ++++++++++--
  2 files changed, 19 insertions(+), 3 deletions(-)
+
+diff --git a/src/regexp/all_test.go b/src/regexp/all_test.go
+index beb46e7099..28fe20c15d 100644
+--- a/src/regexp/all_test.go
++++ b/src/regexp/all_test.go
+@@ -9,6 +9,7 @@ import (
+ 	"regexp/syntax"
+ 	"strings"
+ 	"testing"
++	"unicode/utf8"
+ )
+ 
+ var goodRe = []string{
+@@ -354,6 +355,7 @@ type MetaTest struct {
+ var metaTests = []MetaTest{
+ 	{``, ``, ``, true},
+ 	{`foo`, `foo`, `foo`, true},
++	{`日本語+`, `日本語\+`, `日本語`, false},
+ 	{`foo\.\$`, `foo\\\.\\\$`, `foo.$`, true}, // has meta but no operator
+ 	{`foo.\$`, `foo\.\\\$`, `foo`, false},     // has escaped operators and real operators
+ 	{`!@#$%^&*()_+-=[{]}\|,<.>/?~`, `!@#\$%\^&\*\(\)_\+-=\[\{\]\}\\\|,<\.>/\?~`, `!@#`, false},
+@@ -822,7 +824,13 @@ func BenchmarkMatchParallelCopied(b *testing.B) {
+ var sink string
+ 
+ func BenchmarkQuoteMetaAll(b *testing.B) {
+-	s := string(specialBytes)
++	specials := make([]byte, 0)
++	for i := byte(0); i < utf8.RuneSelf; i++ {
++		if special(i) {
++			specials = append(specials, i)
++		}
++	}
++	s := string(specials)
+ 	b.SetBytes(int64(len(s)))
+ 	b.ResetTimer()
+ 	for i := 0; i < b.N; i++ {
+diff --git a/src/regexp/regexp.go b/src/regexp/regexp.go
+index 924b011991..b1af23e850 100644
+--- a/src/regexp/regexp.go
++++ b/src/regexp/regexp.go
+@@ -609,10 +609,18 @@ func (re *Regexp) ReplaceAllFunc(src []byte, repl func([]byte) []byte) []byte {
+ 	})
+ }
+ 
+-var specialBytes = []byte(`\.+*?()|[]{}^$`)
++// Bitmap used by func special to check whether a character needs to be escaped.
++var specialBytes [16]byte
+ 
++// special reports whether byte b needs to be escaped by QuoteMeta.
+ func special(b byte) bool {
+-	return bytes.IndexByte(specialBytes, b) >= 0
++	return b < utf8.RuneSelf && specialBytes[b%16]&(1<<(b/16)) != 0
++}
++
++func init() {
++	for _, b := range []byte(`\.+*?()|[]{}^$`) {
++		specialBytes[b%16] |= 1 << (b / 16)
++	}
+ }
+ 
+ // QuoteMeta returns a string that quotes all regular expression metacharacters

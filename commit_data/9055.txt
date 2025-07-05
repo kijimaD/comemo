@@ -10,7 +10,167 @@ Date:   Wed Jul 13 12:34:29 2011 -0700
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/4628062
-
+---
  src/pkg/debug/elf/file.go      | 51 +++++++++++++++++++++++++++++++++++++++++-
  src/pkg/debug/elf/file_test.go | 32 ++++++++++++++++++++++++++
  2 files changed, 82 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/debug/elf/file.go b/src/pkg/debug/elf/file.go
+index 346fe2a783..a0ddb1fc7a 100644
+--- a/src/pkg/debug/elf/file.go
++++ b/src/pkg/debug/elf/file.go
+@@ -93,6 +93,7 @@ func (s *Section) Open() io.ReadSeeker { return io.NewSectionReader(s.sr, 0, 1<<
+ type ProgHeader struct {
+ 	Type   ProgType
+ 	Flags  ProgFlag
++	Off    uint64
+ 	Vaddr  uint64
+ 	Paddr  uint64
+ 	Filesz uint64
+@@ -224,6 +225,8 @@ func NewFile(r io.ReaderAt) (*File, os.Error) {
+ 	f.ABIVersion = ident[EI_ABIVERSION]
+ 
+ 	// Read ELF file header
++	var phoff int64
++	var phentsize, phnum int
+ 	var shoff int64
+ 	var shentsize, shnum, shstrndx int
+ 	shstrndx = -1
+@@ -239,6 +242,9 @@ func NewFile(r io.ReaderAt) (*File, os.Error) {
+ 		if v := Version(hdr.Version); v != f.Version {
+ 			return nil, &FormatError{0, "mismatched ELF version", v}
+ 		}
++		phoff = int64(hdr.Phoff)
++		phentsize = int(hdr.Phentsize)
++		phnum = int(hdr.Phnum)
+ 		shoff = int64(hdr.Shoff)
+ 		shentsize = int(hdr.Shentsize)
+ 		shnum = int(hdr.Shnum)
+@@ -254,6 +260,9 @@ func NewFile(r io.ReaderAt) (*File, os.Error) {
+ 		if v := Version(hdr.Version); v != f.Version {
+ 			return nil, &FormatError{0, "mismatched ELF version", v}
+ 		}
++		phoff = int64(hdr.Phoff)
++		phentsize = int(hdr.Phentsize)
++		phnum = int(hdr.Phnum)
+ 		shoff = int64(hdr.Shoff)
+ 		shentsize = int(hdr.Shentsize)
+ 		shnum = int(hdr.Shnum)
+@@ -264,7 +273,47 @@ func NewFile(r io.ReaderAt) (*File, os.Error) {
+ 	}
+ 
+ 	// Read program headers
+-	// TODO
++	f.Progs = make([]*Prog, phnum)
++	for i := 0; i < phnum; i++ {
++		off := phoff + int64(i)*int64(phentsize)
++		sr.Seek(off, os.SEEK_SET)
++		p := new(Prog)
++		switch f.Class {
++		case ELFCLASS32:
++			ph := new(Prog32)
++			if err := binary.Read(sr, f.ByteOrder, ph); err != nil {
++				return nil, err
++			}
++			p.ProgHeader = ProgHeader{
++				Type:   ProgType(ph.Type),
++				Flags:  ProgFlag(ph.Flags),
++				Off:    uint64(ph.Off),
++				Vaddr:  uint64(ph.Vaddr),
++				Paddr:  uint64(ph.Paddr),
++				Filesz: uint64(ph.Filesz),
++				Memsz:  uint64(ph.Memsz),
++				Align:  uint64(ph.Align),
++			}
++		case ELFCLASS64:
++			ph := new(Prog64)
++			if err := binary.Read(sr, f.ByteOrder, ph); err != nil {
++				return nil, err
++			}
++			p.ProgHeader = ProgHeader{
++				Type:   ProgType(ph.Type),
++				Flags:  ProgFlag(ph.Flags),
++				Off:    uint64(ph.Off),
++				Vaddr:  uint64(ph.Vaddr),
++				Paddr:  uint64(ph.Paddr),
++				Filesz: uint64(ph.Filesz),
++				Memsz:  uint64(ph.Memsz),
++				Align:  uint64(ph.Align),
++			}
++		}
++		p.sr = io.NewSectionReader(r, int64(p.Off), int64(p.Filesz))
++		p.ReaderAt = p.sr
++		f.Progs[i] = p
++	}
+ 
+ 	// Read section headers
+ 	f.Sections = make([]*Section, shnum)
+diff --git a/src/pkg/debug/elf/file_test.go b/src/pkg/debug/elf/file_test.go
+index 37f62796e7..62e2f3b2df 100644
+--- a/src/pkg/debug/elf/file_test.go
++++ b/src/pkg/debug/elf/file_test.go
+@@ -15,6 +15,7 @@ type fileTest struct {
+ 	file     string
+ 	hdr      FileHeader
+ 	sections []SectionHeader
++	progs    []ProgHeader
+ }
+ 
+ var fileTests = []fileTest{
+@@ -53,6 +54,13 @@ var fileTests = []fileTest{
+ 			{".symtab", SHT_SYMTAB, 0x0, 0x0, 0xfb8, 0x4b0, 0x1d, 0x38, 0x4, 0x10},
+ 			{".strtab", SHT_STRTAB, 0x0, 0x0, 0x1468, 0x206, 0x0, 0x0, 0x1, 0x0},
+ 		},
++		[]ProgHeader{
++			{PT_PHDR, PF_R + PF_X, 0x34, 0x8048034, 0x8048034, 0xa0, 0xa0, 0x4},
++			{PT_INTERP, PF_R, 0xd4, 0x80480d4, 0x80480d4, 0x15, 0x15, 0x1},
++			{PT_LOAD, PF_R + PF_X, 0x0, 0x8048000, 0x8048000, 0x5fb, 0x5fb, 0x1000},
++			{PT_LOAD, PF_R + PF_W, 0x5fc, 0x80495fc, 0x80495fc, 0xd8, 0xf8, 0x1000},
++			{PT_DYNAMIC, PF_R + PF_W, 0x60c, 0x804960c, 0x804960c, 0x98, 0x98, 0x4},
++		},
+ 	},
+ 	{
+ 		"testdata/gcc-amd64-linux-exec",
+@@ -96,6 +104,16 @@ var fileTests = []fileTest{
+ 			{".symtab", SHT_SYMTAB, 0x0, 0x0, 0x19a0, 0x6f0, 0x24, 0x39, 0x8, 0x18},
+ 			{".strtab", SHT_STRTAB, 0x0, 0x0, 0x2090, 0x1fc, 0x0, 0x0, 0x1, 0x0},
+ 		},
++		[]ProgHeader{
++			{PT_PHDR, PF_R + PF_X, 0x40, 0x400040, 0x400040, 0x1c0, 0x1c0, 0x8},
++			{PT_INTERP, PF_R, 0x200, 0x400200, 0x400200, 0x1c, 0x1c, 1},
++			{PT_LOAD, PF_R + PF_X, 0x0, 0x400000, 0x400000, 0x684, 0x684, 0x200000},
++			{PT_LOAD, PF_R + PF_W, 0x688, 0x600688, 0x600688, 0x210, 0x218, 0x200000},
++			{PT_DYNAMIC, PF_R + PF_W, 0x6b0, 0x6006b0, 0x6006b0, 0x1a0, 0x1a0, 0x8},
++			{PT_NOTE, PF_R, 0x21c, 0x40021c, 0x40021c, 0x20, 0x20, 0x4},
++			{PT_LOOS + 0x474E550, PF_R, 0x5b8, 0x4005b8, 0x4005b8, 0x24, 0x24, 0x4},
++			{PT_LOOS + 0x474E551, PF_R + PF_W, 0x0, 0x0, 0x0, 0x0, 0x0, 0x8},
++		},
+ 	},
+ }
+ 
+@@ -121,11 +139,25 @@ func TestOpen(t *testing.T) {
+ 				t.Errorf("open %s, section %d:\n\thave %#v\n\twant %#v\n", tt.file, i, &s.SectionHeader, sh)
+ 			}
+ 		}
++		for i, p := range f.Progs {
++			if i >= len(tt.progs) {
++				break
++			}
++			ph := &tt.progs[i]
++			if !reflect.DeepEqual(&p.ProgHeader, ph) {
++				t.Errorf("open %s, program %d:\n\thave %#v\n\twant %#v\n", tt.file, i, &p.ProgHeader, ph)
++			}
++		}
+ 		tn := len(tt.sections)
+ 		fn := len(f.Sections)
+ 		if tn != fn {
+ 			t.Errorf("open %s: len(Sections) = %d, want %d", tt.file, fn, tn)
+ 		}
++		tn = len(tt.progs)
++		fn = len(f.Progs)
++		if tn != fn {
++			t.Errorf("open %s: len(Progs) = %d, want %d", tt.file, fn, tn)
++		}
+ 	}
+ }
+ 

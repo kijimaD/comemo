@@ -16,9 +16,195 @@ Date:   Wed Jan 17 10:25:26 2018 +0000
     Reviewed-on: https://go-review.googlesource.com/88876
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/asm/internal/arch/arm64.go             |  7 +++-
  src/cmd/asm/internal/asm/testdata/arm64.s      | 16 +++++++--
  src/cmd/asm/internal/asm/testdata/arm64error.s |  2 ++
  src/cmd/internal/obj/arm64/asm7.go             | 48 +++++++++++++++++---------
  4 files changed, 54 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/asm/internal/arch/arm64.go b/src/cmd/asm/internal/arch/arm64.go
+index 2fd21b58b8..63664d663c 100644
+--- a/src/cmd/asm/internal/arch/arm64.go
++++ b/src/cmd/asm/internal/arch/arm64.go
+@@ -123,6 +123,11 @@ func arm64RegisterNumber(name string, n int16) (int16, bool) {
+ // ARM64RegisterExtension parses an ARM64 register with extension or arrangment.
+ func ARM64RegisterExtension(a *obj.Addr, ext string, reg, num int16, isAmount, isIndex bool) error {
+ 	rm := uint32(reg)
++	if isAmount {
++		if num < 0 || num > 7 {
++			return errors.New("shift amount out of range")
++		}
++	}
+ 	switch ext {
+ 	case "UXTB":
+ 		if !isAmount {
+@@ -134,7 +139,7 @@ func ARM64RegisterExtension(a *obj.Addr, ext string, reg, num int16, isAmount, i
+ 		if !isAmount {
+ 			return errors.New("invalid register extension")
+ 		}
+-		a.Reg = arm64.REG_UXTH + (num & 31) + int16(num<<5)
++		a.Reg = arm64.REG_UXTH + (reg & 31) + int16(num<<5)
+ 		a.Offset = int64(((rm & 31) << 16) | (1 << 13) | (uint32(num) << 10))
+ 	case "UXTW":
+ 		if !isAmount {
+diff --git a/src/cmd/asm/internal/asm/testdata/arm64.s b/src/cmd/asm/internal/asm/testdata/arm64.s
+index ab6ad5bcb7..cb563bb996 100644
+--- a/src/cmd/asm/internal/asm/testdata/arm64.s
++++ b/src/cmd/asm/internal/asm/testdata/arm64.s
+@@ -29,8 +29,20 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
+ 	ADD	R1<<22, R2, R3
+ 	ADD	R1->33, R2, R3
+ 	AND	R1@>33, R2, R3
+-	ADD	R1.UXTB, R2, R3                 // 4360218b
+-	ADD	R1.UXTB<<4, R2, R3              // 4370218b
++	ADD	R1.UXTB, R2, R3                 // 4300218b
++	ADD	R1.UXTB<<4, R2, R3              // 4310218b
++	ADDW	R2.SXTW, R10, R12               // 4cc1220b
++	ADD	R18.UXTX, R14, R17              // d161328b
++	ADDSW	R18.UXTW, R14, R17              // d141322b
++	ADDS	R12.SXTX, R3, R1                // 61e02cab
++	SUB	R19.UXTH<<4, R2, R21            // 553033cb
++	SUBW	R1.UXTX<<1, R3, R2              // 6264214b
++	SUBS	R3.UXTX, R8, R9                 // 096123eb
++	SUBSW	R17.UXTH, R15, R21              // f521316b
++	CMP	R2.SXTH, R13                    // bfa122eb
++	CMN	R1.SXTX<<2, R10                 // 5fe921ab
++	CMPW	R2.UXTH<<3, R11                 // 7f2d226b
++	CMNW	R1.SXTB, R9                     // 3f81212b
+ 	VADDP	V1.B16, V2.B16, V3.B16          // 43bc214e
+ 	VADDP	V1.S4, V2.S4, V3.S4             // 43bca14e
+ 	VADDP	V1.D2, V2.D2, V3.D2             // 43bce14e
+diff --git a/src/cmd/asm/internal/asm/testdata/arm64error.s b/src/cmd/asm/internal/asm/testdata/arm64error.s
+index 97af09c4dd..e4fad9c741 100644
+--- a/src/cmd/asm/internal/asm/testdata/arm64error.s
++++ b/src/cmd/asm/internal/asm/testdata/arm64error.s
+@@ -10,4 +10,6 @@ TEXT errors(SB),$0
+ 	VST1	[V1.B16], (R8)(R13)    // ERROR "illegal combination"
+ 	VST1	[V1.B16], 9(R2)        // ERROR "illegal combination"
+ 	VLD1	8(R8)(R13), [V2.B16]   // ERROR "illegal combination"
++	ADD	R1.UXTB<<5, R2, R3     // ERROR "shift amount out of range 0 to 4"
++	ADDS	R1.UXTX<<7, R2, R3     // ERROR "shift amount out of range 0 to 4"
+ 	RET
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index fdf1fb565d..ca81238c93 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -2362,7 +2362,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 			r = rt
+ 		}
+ 		if p.To.Type != obj.TYPE_NONE && (p.To.Reg == REGSP || r == REGSP) {
+-			o2 = c.opxrrr(p, p.As)
++			o2 = c.opxrrr(p, p.As, false)
+ 			o2 |= REGTMP & 31 << 16
+ 			o2 |= LSL0_64
+ 		} else {
+@@ -2591,11 +2591,16 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		o1 |= (REGZERO & 31 << 5) | uint32(rt&31)
+ 
+ 	case 27: /* op Rm<<n[,Rn],Rd (extended register) */
+-		o1 = c.opxrrr(p, p.As)
+ 
+ 		if (p.From.Reg-obj.RBaseARM64)&REG_EXT != 0 {
++			amount := (p.From.Reg >> 5) & 7
++			if amount > 4 {
++				c.ctxt.Diag("shift amount out of range 0 to 4: %v", p)
++			}
++			o1 = c.opxrrr(p, p.As, true)
+ 			o1 |= uint32(p.From.Offset) /* includes reg, op, etc */
+ 		} else {
++			o1 = c.opxrrr(p, p.As, false)
+ 			o1 |= uint32(p.From.Reg&31) << 16
+ 		}
+ 		rt := int(p.To.Reg)
+@@ -2755,7 +2760,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		if !(o1 != 0) {
+ 			break
+ 		}
+-		o2 = c.opxrrr(p, AADD)
++		o2 = c.opxrrr(p, AADD, false)
+ 		o2 |= REGTMP & 31 << 16
+ 		o2 |= LSL0_64
+ 		r := int(p.From.Reg)
+@@ -3122,7 +3127,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 			r = rt
+ 		}
+ 		if p.To.Type != obj.TYPE_NONE && (p.To.Reg == REGSP || r == REGSP) {
+-			o2 = c.opxrrr(p, p.As)
++			o2 = c.opxrrr(p, p.As, false)
+ 			o2 |= REGTMP & 31 << 16
+ 			o2 |= LSL0_64
+ 		} else {
+@@ -3373,7 +3378,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		}
+ 
+ 		o1 = c.omovlit(AMOVD, p, &p.From, REGTMP)
+-		o2 = c.opxrrr(p, AADD)
++		o2 = c.opxrrr(p, AADD, false)
+ 		o2 |= (REGTMP & 31) << 16
+ 		o2 |= uint32(r&31) << 5
+ 		o2 |= uint32(REGTMP & 31)
+@@ -3426,7 +3431,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 			o3 |= 2 << 23
+ 		}
+ 		o1 = c.omovlit(AMOVD, p, &p.To, REGTMP)
+-		o2 = c.opxrrr(p, AADD)
++		o2 = c.opxrrr(p, AADD, false)
+ 		o2 |= REGTMP & 31 << 16
+ 		o2 |= uint32(r&31) << 5
+ 		o2 |= uint32(REGTMP & 31)
+@@ -4518,33 +4523,44 @@ func (c *ctxt7) opbit(p *obj.Prog, a obj.As) uint32 {
+ }
+ 
+ /*
+- * add/subtract extended register
++ * add/subtract sign or zero-extended register
+  */
+-func (c *ctxt7) opxrrr(p *obj.Prog, a obj.As) uint32 {
++func (c *ctxt7) opxrrr(p *obj.Prog, a obj.As, extend bool) uint32 {
++	extension := uint32(0)
++	if !extend {
++		switch a {
++		case AADD, ACMN, AADDS, ASUB, ACMP, ASUBS:
++			extension = LSL0_64
++
++		case AADDW, ACMNW, AADDSW, ASUBW, ACMPW, ASUBSW:
++			extension = LSL0_32
++		}
++	}
++
+ 	switch a {
+ 	case AADD:
+-		return S64 | 0<<30 | 0<<29 | 0x0b<<24 | 0<<22 | 1<<21 | LSL0_64
++		return S64 | 0<<30 | 0<<29 | 0x0b<<24 | 0<<22 | 1<<21 | extension
+ 
+ 	case AADDW:
+-		return S32 | 0<<30 | 0<<29 | 0x0b<<24 | 0<<22 | 1<<21 | LSL0_32
++		return S32 | 0<<30 | 0<<29 | 0x0b<<24 | 0<<22 | 1<<21 | extension
+ 
+ 	case ACMN, AADDS:
+-		return S64 | 0<<30 | 1<<29 | 0x0b<<24 | 0<<22 | 1<<21 | LSL0_64
++		return S64 | 0<<30 | 1<<29 | 0x0b<<24 | 0<<22 | 1<<21 | extension
+ 
+ 	case ACMNW, AADDSW:
+-		return S32 | 0<<30 | 1<<29 | 0x0b<<24 | 0<<22 | 1<<21 | LSL0_32
++		return S32 | 0<<30 | 1<<29 | 0x0b<<24 | 0<<22 | 1<<21 | extension
+ 
+ 	case ASUB:
+-		return S64 | 1<<30 | 0<<29 | 0x0b<<24 | 0<<22 | 1<<21 | LSL0_64
++		return S64 | 1<<30 | 0<<29 | 0x0b<<24 | 0<<22 | 1<<21 | extension
+ 
+ 	case ASUBW:
+-		return S32 | 1<<30 | 0<<29 | 0x0b<<24 | 0<<22 | 1<<21 | LSL0_32
++		return S32 | 1<<30 | 0<<29 | 0x0b<<24 | 0<<22 | 1<<21 | extension
+ 
+ 	case ACMP, ASUBS:
+-		return S64 | 1<<30 | 1<<29 | 0x0b<<24 | 0<<22 | 1<<21 | LSL0_64
++		return S64 | 1<<30 | 1<<29 | 0x0b<<24 | 0<<22 | 1<<21 | extension
+ 
+ 	case ACMPW, ASUBSW:
+-		return S32 | 1<<30 | 1<<29 | 0x0b<<24 | 0<<22 | 1<<21 | LSL0_32
++		return S32 | 1<<30 | 1<<29 | 0x0b<<24 | 0<<22 | 1<<21 | extension
+ 	}
+ 
+ 	c.ctxt.Diag("bad opxrrr %v\n%v", a, p)

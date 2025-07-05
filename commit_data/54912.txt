@@ -16,7 +16,34 @@ Date:   Mon Nov 21 13:56:19 2022 +0100
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/go/go_test.go              | 2 +-
  src/internal/platform/supported.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 004edd76a4..d162dc8e2c 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -2136,7 +2136,7 @@ func TestBuildmodePIE(t *testing.T) {
+ 	case "linux/386", "linux/amd64", "linux/arm", "linux/arm64", "linux/ppc64le", "linux/riscv64", "linux/s390x",
+ 		"android/amd64", "android/arm", "android/arm64", "android/386",
+ 		"freebsd/amd64",
+-		"windows/386", "windows/amd64", "windows/arm":
++		"windows/386", "windows/amd64", "windows/arm", "windows/arm64":
+ 	case "darwin/amd64":
+ 	default:
+ 		t.Skipf("skipping test because buildmode=pie is not supported on %s", platform)
+diff --git a/src/internal/platform/supported.go b/src/internal/platform/supported.go
+index fddc544123..86c9f07ade 100644
+--- a/src/internal/platform/supported.go
++++ b/src/internal/platform/supported.go
+@@ -129,7 +129,7 @@ func BuildModeSupported(compiler, buildmode, goos, goarch string) bool {
+ 			"darwin/amd64", "darwin/arm64",
+ 			"ios/amd64", "ios/arm64",
+ 			"aix/ppc64",
+-			"windows/386", "windows/amd64", "windows/arm":
++			"windows/386", "windows/amd64", "windows/arm", "windows/arm64":
+ 			return true
+ 		}
+ 		return false

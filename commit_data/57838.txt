@@ -13,6 +13,26 @@ Date:   Wed Sep 6 11:18:07 2023 -0700
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/work/gccgo.go | 8 ++------
  1 file changed, 2 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/go/internal/work/gccgo.go b/src/cmd/go/internal/work/gccgo.go
+index dcc779ee97..edf136df92 100644
+--- a/src/cmd/go/internal/work/gccgo.go
++++ b/src/cmd/go/internal/work/gccgo.go
+@@ -45,12 +45,8 @@ func (gccgoToolchain) linker() string {
+ 	return GccgoBin
+ }
+ 
+-func (gccgoToolchain) ar() string {
+-	ar := cfg.Getenv("AR")
+-	if ar == "" {
+-		ar = "ar"
+-	}
+-	return ar
++func (gccgoToolchain) ar() []string {
++	return envList("AR", "ar")
+ }
+ 
+ func checkGccgoBin() {

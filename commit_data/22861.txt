@@ -7,7 +7,34 @@ Date:   Sun Apr 12 12:08:06 2015 -0400
     Change-Id: Ic453da17817f66e1073f6ba740b830b8daf2fc38
     Reviewed-on: https://go-review.googlesource.com/8829
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/build.go | 2 +-
  src/cmd/go/doc.go   | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 1b86c9a69d..6b1cd921f7 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -76,7 +76,7 @@ and test commands:
+ 		print the commands.
+ 
+ 	-buildmode mode
+-		build mode to use. See 'go help buildmodes' for more.
++		build mode to use. See 'go help buildmode' for more.
+ 	-linkshared
+ 		link against shared libraries previously created with
+ 		-buildmode=shared
+diff --git a/src/cmd/go/doc.go b/src/cmd/go/doc.go
+index 9d10d4f3fb..e880a238c8 100644
+--- a/src/cmd/go/doc.go
++++ b/src/cmd/go/doc.go
+@@ -96,7 +96,7 @@ and test commands:
+ 		print the commands.
+ 
+ 	-buildmode mode
+-		build mode to use. See 'go help buildmodes' for more.
++		build mode to use. See 'go help buildmode' for more.
+ 	-linkshared
+ 		link against shared libraries previously created with
+ 		-buildmode=shared

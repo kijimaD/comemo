@@ -18,7 +18,7 @@ Date:   Sat Mar 18 22:00:28 2017 -0700
     Reviewed-on: https://go-review.googlesource.com/38346
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/ssa/copyelim_test.go     |  2 +-
  src/cmd/compile/internal/ssa/cse_test.go          |  4 +--
  src/cmd/compile/internal/ssa/deadcode_test.go     | 10 +++---
@@ -37,3 +37,780 @@ Date:   Sat Mar 18 22:00:28 2017 -0700
  src/cmd/compile/internal/ssa/shortcircuit_test.go |  2 +-
  src/cmd/compile/internal/ssa/writebarrier_test.go |  4 +--
  17 files changed, 117 insertions(+), 89 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/copyelim_test.go b/src/cmd/compile/internal/ssa/copyelim_test.go
+index 3250445fec..5de147297a 100644
+--- a/src/cmd/compile/internal/ssa/copyelim_test.go
++++ b/src/cmd/compile/internal/ssa/copyelim_test.go
+@@ -34,7 +34,7 @@ func benchmarkCopyElim(b *testing.B, n int) {
+ 	}
+ 
+ 	for i := 0; i < b.N; i++ {
+-		fun := Fun(c, DummyFrontend{b}, "entry", Bloc("entry", values...))
++		fun := c.Fun("entry", Bloc("entry", values...))
+ 		Copyelim(fun.f)
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/ssa/cse_test.go b/src/cmd/compile/internal/ssa/cse_test.go
+index 16d301506a..dcb081332e 100644
+--- a/src/cmd/compile/internal/ssa/cse_test.go
++++ b/src/cmd/compile/internal/ssa/cse_test.go
+@@ -19,7 +19,7 @@ func TestCSEAuxPartitionBug(t *testing.T) {
+ 
+ 	// construct lots of values with args that have aux values and place
+ 	// them in an order that triggers the bug
+-	fun := Fun(c, DummyFrontend{t}, "entry",
++	fun := c.Fun("entry",
+ 		Bloc("entry",
+ 			Valu("start", OpInitMem, TypeMem, 0, nil),
+ 			Valu("sp", OpSP, TypeBytePtr, 0, nil),
+@@ -87,7 +87,7 @@ func TestCSEAuxPartitionBug(t *testing.T) {
+ func TestZCSE(t *testing.T) {
+ 	c := testConfig(t)
+ 
+-	fun := Fun(c, DummyFrontend{t}, "entry",
++	fun := c.Fun("entry",
+ 		Bloc("entry",
+ 			Valu("start", OpInitMem, TypeMem, 0, nil),
+ 			Valu("sp", OpSP, TypeBytePtr, 0, nil),
+diff --git a/src/cmd/compile/internal/ssa/deadcode_test.go b/src/cmd/compile/internal/ssa/deadcode_test.go
+index 156a1d746e..0f93bbf3fa 100644
+--- a/src/cmd/compile/internal/ssa/deadcode_test.go
++++ b/src/cmd/compile/internal/ssa/deadcode_test.go
+@@ -12,7 +12,7 @@ import (
+ 
+ func TestDeadLoop(t *testing.T) {
+ 	c := testConfig(t)
+-	fun := Fun(c, DummyFrontend{t}, "entry",
++	fun := c.Fun("entry",
+ 		Bloc("entry",
+ 			Valu("mem", OpInitMem, TypeMem, 0, nil),
+ 			Goto("exit")),
+@@ -42,7 +42,7 @@ func TestDeadLoop(t *testing.T) {
+ 
+ func TestDeadValue(t *testing.T) {
+ 	c := testConfig(t)
+-	fun := Fun(c, DummyFrontend{t}, "entry",
++	fun := c.Fun("entry",
+ 		Bloc("entry",
+ 			Valu("mem", OpInitMem, TypeMem, 0, nil),
+ 			Valu("deadval", OpConst64, TypeInt64, 37, nil),
+@@ -65,7 +65,7 @@ func TestDeadValue(t *testing.T) {
+ 
+ func TestNeverTaken(t *testing.T) {
+ 	c := testConfig(t)
+-	fun := Fun(c, DummyFrontend{t}, "entry",
++	fun := c.Fun("entry",
+ 		Bloc("entry",
+ 			Valu("cond", OpConstBool, TypeBool, 0, nil),
+ 			Valu("mem", OpInitMem, TypeMem, 0, nil),
+@@ -100,7 +100,7 @@ func TestNeverTaken(t *testing.T) {
+ 
+ func TestNestedDeadBlocks(t *testing.T) {
+ 	c := testConfig(t)
+-	fun := Fun(c, DummyFrontend{t}, "entry",
++	fun := c.Fun("entry",
+ 		Bloc("entry",
+ 			Valu("mem", OpInitMem, TypeMem, 0, nil),
+ 			Valu("cond", OpConstBool, TypeBool, 0, nil),
+@@ -152,7 +152,7 @@ func BenchmarkDeadCode(b *testing.B) {
+ 			}
+ 			b.ResetTimer()
+ 			for i := 0; i < b.N; i++ {
+-				fun := Fun(c, DummyFrontend{b}, "entry", blocks...)
++				fun := c.Fun("entry", blocks...)
+ 				Deadcode(fun.f)
+ 			}
+ 		})
+diff --git a/src/cmd/compile/internal/ssa/deadstore_test.go b/src/cmd/compile/internal/ssa/deadstore_test.go
+index 82cda3327e..3e38fe8efa 100644
+--- a/src/cmd/compile/internal/ssa/deadstore_test.go
++++ b/src/cmd/compile/internal/ssa/deadstore_test.go
+@@ -10,7 +10,7 @@ func TestDeadStore(t *testing.T) {
+ 	c := testConfig(t)
+ 	elemType := &TypeImpl{Size_: 1, Name: "testtype"}
+ 	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr", Elem_: elemType} // dummy for testing
+-	fun := Fun(c, DummyFrontend{t}, "entry",
++	fun := c.Fun("entry",
+ 		Bloc("entry",
+ 			Valu("start", OpInitMem, TypeMem, 0, nil),
+ 			Valu("sb", OpSB, TypeInvalid, 0, nil),
+@@ -45,7 +45,7 @@ func TestDeadStorePhi(t *testing.T) {
+ 	// make sure we don't get into an infinite loop with phi values.
+ 	c := testConfig(t)
+ 	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr"} // dummy for testing
+-	fun := Fun(c, DummyFrontend{t}, "entry",
++	fun := c.Fun("entry",
+ 		Bloc("entry",
+ 			Valu("start", OpInitMem, TypeMem, 0, nil),
+ 			Valu("sb", OpSB, TypeInvalid, 0, nil),
+@@ -72,7 +72,7 @@ func TestDeadStoreTypes(t *testing.T) {
+ 	c := testConfig(t)
+ 	t1 := &TypeImpl{Size_: 8, Ptr: true, Name: "t1"}
+ 	t2 := &TypeImpl{Size_: 4, Ptr: true, Name: "t2"}
+-	fun := Fun(c, DummyFrontend{t}, "entry",
++	fun := c.Fun("entry",
+ 		Bloc("entry",
+ 			Valu("start", OpInitMem, TypeMem, 0, nil),
+ 			Valu("sb", OpSB, TypeInvalid, 0, nil),
+@@ -102,7 +102,7 @@ func TestDeadStoreUnsafe(t *testing.T) {
+ 	// can get to a point where the size is changed but type unchanged.
+ 	c := testConfig(t)
+ 	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr"} // dummy for testing
+-	fun := Fun(c, DummyFrontend{t}, "entry",
++	fun := c.Fun("entry",
+ 		Bloc("entry",
+ 			Valu("start", OpInitMem, TypeMem, 0, nil),
+ 			Valu("sb", OpSB, TypeInvalid, 0, nil),
+diff --git a/src/cmd/compile/internal/ssa/dom_test.go b/src/cmd/compile/internal/ssa/dom_test.go
+index 91758f24db..40f2b35b39 100644
+--- a/src/cmd/compile/internal/ssa/dom_test.go
++++ b/src/cmd/compile/internal/ssa/dom_test.go
+@@ -161,7 +161,7 @@ var domBenchRes []*Block
+ 
+ func benchmarkDominators(b *testing.B, size int, bg blockGen) {
+ 	c := testConfig(b)
+-	fun := Fun(c, DummyFrontend{b}, "entry", bg(size)...)
++	fun := c.Fun("entry", bg(size)...)
+ 
+ 	CheckFunc(fun.f)
+ 	b.SetBytes(int64(size))
+@@ -221,7 +221,7 @@ func verifyDominators(t *testing.T, fut fun, domFn domFunc, doms map[string]stri
+ 
+ func TestDominatorsSingleBlock(t *testing.T) {
+ 	c := testConfig(t)
+-	fun := Fun(c, DummyFrontend{t}, "entry",
++	fun := c.Fun("entry",
+ 		Bloc("entry",
+ 			Valu("mem", OpInitMem, TypeMem, 0, nil),
+ 			Exit("mem")))
+@@ -236,7 +236,7 @@ func TestDominatorsSingleBlock(t *testing.T) {
+ 
+ func TestDominatorsSimple(t *testing.T) {
+ 	c := testConfig(t)
+-	fun := Fun(c, DummyFrontend{t}, "entry",
++	fun := c.Fun("entry",
+ 		Bloc("entry",
+ 			Valu("mem", OpInitMem, TypeMem, 0, nil),
+ 			Goto("a")),
+@@ -264,7 +264,7 @@ func TestDominatorsSimple(t *testing.T) {
+ 
+ func TestDominatorsMultPredFwd(t *testing.T) {
+ 	c := testConfig(t)
+-	fun := Fun(c, DummyFrontend{t}, "entry",
++	fun := c.Fun("entry",
+ 		Bloc("entry",
+ 			Valu("mem", OpInitMem, TypeMem, 0, nil),
+ 			Valu("p", OpConstBool, TypeBool, 1, nil),
+@@ -292,7 +292,7 @@ func TestDominatorsMultPredFwd(t *testing.T) {
+ 
+ func TestDominatorsDeadCode(t *testing.T) {
+ 	c := testConfig(t)
+-	fun := Fun(c, DummyFrontend{t}, "entry",
++	fun := c.Fun("entry",
+ 		Bloc("entry",
+ 			Valu("mem", OpInitMem, TypeMem, 0, nil),
+ 			Valu("p", OpConstBool, TypeBool, 0, nil),
+@@ -315,7 +315,7 @@ func TestDominatorsDeadCode(t *testing.T) {
+ 
+ func TestDominatorsMultPredRev(t *testing.T) {
+ 	c := testConfig(t)
+-	fun := Fun(c, DummyFrontend{t}, "entry",
++	fun := c.Fun("entry",
+ 		Bloc("entry",
+ 			Goto("first")),
+ 		Bloc("first",
+@@ -346,7 +346,7 @@ func TestDominatorsMultPredRev(t *testing.T) {
+ 
+ func TestDominatorsMultPred(t *testing.T) {
+ 	c := testConfig(t)
+-	fun := Fun(c, DummyFrontend{t}, "entry",
++	fun := c.Fun("entry",
+ 		Bloc("entry",
+ 			Valu("mem", OpInitMem, TypeMem, 0, nil),
+ 			Valu("p", OpConstBool, TypeBool, 1, nil),
+@@ -375,7 +375,7 @@ func TestDominatorsMultPred(t *testing.T) {
+ func TestInfiniteLoop(t *testing.T) {
+ 	c := testConfig(t)
+ 	// note lack of an exit block
+-	fun := Fun(c, DummyFrontend{t}, "entry",
++	fun := c.Fun("entry",
+ 		Bloc("entry",
+ 			Valu("mem", OpInitMem, TypeMem, 0, nil),
+ 			Valu("p", OpConstBool, TypeBool, 1, nil),
+@@ -411,7 +411,8 @@ func TestDomTricky(t *testing.T) {
+ 		b := 1 & i >> 1
+ 		c := 1 & i >> 2
+ 
+-		fun := Fun(testConfig(t), DummyFrontend{t}, "1",
++		cfg := testConfig(t)
++		fun := cfg.Fun("1",
+ 			Bloc("1",
+ 				Valu("mem", OpInitMem, TypeMem, 0, nil),
+ 				Valu("p", OpConstBool, TypeBool, 1, nil),
+@@ -455,7 +456,7 @@ func generateDominatorMap(fut fun) map[string]string {
+ 
+ func TestDominatorsPostTricky(t *testing.T) {
+ 	c := testConfig(t)
+-	fun := Fun(c, DummyFrontend{t}, "b1",
++	fun := c.Fun("b1",
+ 		Bloc("b1",
+ 			Valu("mem", OpInitMem, TypeMem, 0, nil),
+ 			Valu("p", OpConstBool, TypeBool, 1, nil),
+diff --git a/src/cmd/compile/internal/ssa/export_test.go b/src/cmd/compile/internal/ssa/export_test.go
+index 33e0ffb416..fd8d3617f2 100644
+--- a/src/cmd/compile/internal/ssa/export_test.go
++++ b/src/cmd/compile/internal/ssa/export_test.go
+@@ -16,20 +16,48 @@ var CheckFunc = checkFunc
+ var Opt = opt
+ var Deadcode = deadcode
+ var Copyelim = copyelim
+-var TestCtxt = obj.Linknew(&x86.Linkamd64)
+ 
+-func testConfig(t testing.TB) *Config {
+-	return NewConfig("amd64", dummyTypes, TestCtxt, true)
++var testCtxts = map[string]*obj.Link{
++	"amd64": obj.Linknew(&x86.Linkamd64),
++	"s390x": obj.Linknew(&s390x.Links390x),
+ }
+ 
+-func testConfigS390X(t testing.TB) *Config {
+-	return NewConfig("s390x", dummyTypes, obj.Linknew(&s390x.Links390x), true)
++func testConfig(tb testing.TB) *Conf      { return testConfigArch(tb, "amd64") }
++func testConfigS390X(tb testing.TB) *Conf { return testConfigArch(tb, "s390x") }
++
++func testConfigArch(tb testing.TB, arch string) *Conf {
++	ctxt, ok := testCtxts[arch]
++	if !ok {
++		tb.Fatalf("unknown arch %s", arch)
++	}
++	if ctxt.Arch.IntSize != 8 {
++		tb.Fatal("dummyTypes is 64-bit only")
++	}
++	c := &Conf{
++		config: NewConfig(arch, dummyTypes, ctxt, true),
++		tb:     tb,
++	}
++	return c
++}
++
++type Conf struct {
++	config *Config
++	tb     testing.TB
++	fe     Frontend
++}
++
++func (c *Conf) Frontend() Frontend {
++	if c.fe == nil {
++		c.fe = DummyFrontend{t: c.tb, ctxt: c.config.ctxt}
++	}
++	return c.fe
+ }
+ 
+ // DummyFrontend is a test-only frontend.
+ // It assumes 64 bit integers and pointers.
+ type DummyFrontend struct {
+-	t testing.TB
++	t    testing.TB
++	ctxt *obj.Link
+ }
+ 
+ type DummyAuto struct {
+@@ -85,8 +113,8 @@ func (DummyFrontend) Line(_ src.XPos) string {
+ }
+ func (DummyFrontend) AllocFrame(f *Func) {
+ }
+-func (DummyFrontend) Syslook(s string) *obj.LSym {
+-	return obj.Linklookup(TestCtxt, s, 0)
++func (d DummyFrontend) Syslook(s string) *obj.LSym {
++	return obj.Linklookup(d.ctxt, s, 0)
+ }
+ func (DummyFrontend) UseWriteBarrier() bool {
+ 	return true // only writebarrier_test cares
+diff --git a/src/cmd/compile/internal/ssa/func_test.go b/src/cmd/compile/internal/ssa/func_test.go
+index eaeb8268c1..3c81f0876e 100644
+--- a/src/cmd/compile/internal/ssa/func_test.go
++++ b/src/cmd/compile/internal/ssa/func_test.go
+@@ -143,9 +143,9 @@ var emptyPass pass = pass{
+ // returns a fun containing the composed Func. entry must be a name
+ // supplied to one of the Bloc functions. Each of the bloc names and
+ // valu names should be unique across the Fun.
+-func Fun(c *Config, fe Frontend, entry string, blocs ...bloc) fun {
+-	f := NewFunc(fe)
+-	f.Config = c
++func (c *Conf) Fun(entry string, blocs ...bloc) fun {
++	f := NewFunc(c.Frontend())
++	f.Config = c.config
+ 	// TODO: Either mark some SSA tests as t.Parallel,
+ 	// or set up a shared Cache and Reset it between tests.
+ 	// But not both.
+@@ -274,7 +274,7 @@ type valu struct {
+ 
+ func TestArgs(t *testing.T) {
+ 	c := testConfig(t)
+-	fun := Fun(c, DummyFrontend{t}, "entry",
++	fun := c.Fun("entry",
+ 		Bloc("entry",
+ 			Valu("a", OpConst64, TypeInt64, 14, nil),
+ 			Valu("b", OpConst64, TypeInt64, 26, nil),
+@@ -293,10 +293,11 @@ func TestArgs(t *testing.T) {
+ }
+ 
+ func TestEquiv(t *testing.T) {
++	cfg := testConfig(t)
+ 	equivalentCases := []struct{ f, g fun }{
+ 		// simple case
+ 		{
+-			Fun(testConfig(t), DummyFrontend{t}, "entry",
++			cfg.Fun("entry",
+ 				Bloc("entry",
+ 					Valu("a", OpConst64, TypeInt64, 14, nil),
+ 					Valu("b", OpConst64, TypeInt64, 26, nil),
+@@ -305,7 +306,7 @@ func TestEquiv(t *testing.T) {
+ 					Goto("exit")),
+ 				Bloc("exit",
+ 					Exit("mem"))),
+-			Fun(testConfig(t), DummyFrontend{t}, "entry",
++			cfg.Fun("entry",
+ 				Bloc("entry",
+ 					Valu("a", OpConst64, TypeInt64, 14, nil),
+ 					Valu("b", OpConst64, TypeInt64, 26, nil),
+@@ -317,7 +318,7 @@ func TestEquiv(t *testing.T) {
+ 		},
+ 		// block order changed
+ 		{
+-			Fun(testConfig(t), DummyFrontend{t}, "entry",
++			cfg.Fun("entry",
+ 				Bloc("entry",
+ 					Valu("a", OpConst64, TypeInt64, 14, nil),
+ 					Valu("b", OpConst64, TypeInt64, 26, nil),
+@@ -326,7 +327,7 @@ func TestEquiv(t *testing.T) {
+ 					Goto("exit")),
+ 				Bloc("exit",
+ 					Exit("mem"))),
+-			Fun(testConfig(t), DummyFrontend{t}, "entry",
++			cfg.Fun("entry",
+ 				Bloc("exit",
+ 					Exit("mem")),
+ 				Bloc("entry",
+@@ -348,26 +349,26 @@ func TestEquiv(t *testing.T) {
+ 	differentCases := []struct{ f, g fun }{
+ 		// different shape
+ 		{
+-			Fun(testConfig(t), DummyFrontend{t}, "entry",
++			cfg.Fun("entry",
+ 				Bloc("entry",
+ 					Valu("mem", OpInitMem, TypeMem, 0, nil),
+ 					Goto("exit")),
+ 				Bloc("exit",
+ 					Exit("mem"))),
+-			Fun(testConfig(t), DummyFrontend{t}, "entry",
++			cfg.Fun("entry",
+ 				Bloc("entry",
+ 					Valu("mem", OpInitMem, TypeMem, 0, nil),
+ 					Exit("mem"))),
+ 		},
+ 		// value order changed
+ 		{
+-			Fun(testConfig(t), DummyFrontend{t}, "entry",
++			cfg.Fun("entry",
+ 				Bloc("entry",
+ 					Valu("mem", OpInitMem, TypeMem, 0, nil),
+ 					Valu("b", OpConst64, TypeInt64, 26, nil),
+ 					Valu("a", OpConst64, TypeInt64, 14, nil),
+ 					Exit("mem"))),
+-			Fun(testConfig(t), DummyFrontend{t}, "entry",
++			cfg.Fun("entry",
+ 				Bloc("entry",
+ 					Valu("mem", OpInitMem, TypeMem, 0, nil),
+ 					Valu("a", OpConst64, TypeInt64, 14, nil),
+@@ -376,12 +377,12 @@ func TestEquiv(t *testing.T) {
+ 		},
+ 		// value auxint different
+ 		{
+-			Fun(testConfig(t), DummyFrontend{t}, "entry",
++			cfg.Fun("entry",
+ 				Bloc("entry",
+ 					Valu("mem", OpInitMem, TypeMem, 0, nil),
+ 					Valu("a", OpConst64, TypeInt64, 14, nil),
+ 					Exit("mem"))),
+-			Fun(testConfig(t), DummyFrontend{t}, "entry",
++			cfg.Fun("entry",
+ 				Bloc("entry",
+ 					Valu("mem", OpInitMem, TypeMem, 0, nil),
+ 					Valu("a", OpConst64, TypeInt64, 26, nil),
+@@ -389,12 +390,12 @@ func TestEquiv(t *testing.T) {
+ 		},
+ 		// value aux different
+ 		{
+-			Fun(testConfig(t), DummyFrontend{t}, "entry",
++			cfg.Fun("entry",
+ 				Bloc("entry",
+ 					Valu("mem", OpInitMem, TypeMem, 0, nil),
+ 					Valu("a", OpConst64, TypeInt64, 0, 14),
+ 					Exit("mem"))),
+-			Fun(testConfig(t), DummyFrontend{t}, "entry",
++			cfg.Fun("entry",
+ 				Bloc("entry",
+ 					Valu("mem", OpInitMem, TypeMem, 0, nil),
+ 					Valu("a", OpConst64, TypeInt64, 0, 26),
+@@ -402,14 +403,14 @@ func TestEquiv(t *testing.T) {
+ 		},
+ 		// value args different
+ 		{
+-			Fun(testConfig(t), DummyFrontend{t}, "entry",
++			cfg.Fun("entry",
+ 				Bloc("entry",
+ 					Valu("mem", OpInitMem, TypeMem, 0, nil),
+ 					Valu("a", OpConst64, TypeInt64, 14, nil),
+ 					Valu("b", OpConst64, TypeInt64, 26, nil),
+ 					Valu("sum", OpAdd64, TypeInt64, 0, nil, "a", "b"),
+ 					Exit("mem"))),
+-			Fun(testConfig(t), DummyFrontend{t}, "entry",
++			cfg.Fun("entry",
+ 				Bloc("entry",
+ 					Valu("mem", OpInitMem, TypeMem, 0, nil),
+ 					Valu("a", OpConst64, TypeInt64, 0, nil),
+@@ -430,7 +431,8 @@ func TestEquiv(t *testing.T) {
+ // TestConstCache ensures that the cache will not return
+ // reused free'd values with a non-matching AuxInt
+ func TestConstCache(t *testing.T) {
+-	f := Fun(testConfig(t), DummyFrontend{t}, "entry",
++	c := testConfig(t)
++	f := c.Fun("entry",
+ 		Bloc("entry",
+ 			Valu("mem", OpInitMem, TypeMem, 0, nil),
+ 			Exit("mem")))
+diff --git a/src/cmd/compile/internal/ssa/fuse_test.go b/src/cmd/compile/internal/ssa/fuse_test.go
+index ec340ee7c5..3a0aecc21c 100644
+--- a/src/cmd/compile/internal/ssa/fuse_test.go
++++ b/src/cmd/compile/internal/ssa/fuse_test.go
+@@ -9,7 +9,7 @@ import (
+ func TestFuseEliminatesOneBranch(t *testing.T) {
+ 	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr"} // dummy for testing
+ 	c := testConfig(t)
+-	fun := Fun(c, DummyFrontend{t}, "entry",
++	fun := c.Fun("entry",
+ 		Bloc("entry",
+ 			Valu("mem", OpInitMem, TypeMem, 0, nil),
+ 			Valu("sb", OpSB, TypeInvalid, 0, nil),
+@@ -37,7 +37,7 @@ func TestFuseEliminatesOneBranch(t *testing.T) {
+ func TestFuseEliminatesBothBranches(t *testing.T) {
+ 	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr"} // dummy for testing
+ 	c := testConfig(t)
+-	fun := Fun(c, DummyFrontend{t}, "entry",
++	fun := c.Fun("entry",
+ 		Bloc("entry",
+ 			Valu("mem", OpInitMem, TypeMem, 0, nil),
+ 			Valu("sb", OpSB, TypeInvalid, 0, nil),
+@@ -70,7 +70,7 @@ func TestFuseEliminatesBothBranches(t *testing.T) {
+ func TestFuseHandlesPhis(t *testing.T) {
+ 	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr"} // dummy for testing
+ 	c := testConfig(t)
+-	fun := Fun(c, DummyFrontend{t}, "entry",
++	fun := c.Fun("entry",
+ 		Bloc("entry",
+ 			Valu("mem", OpInitMem, TypeMem, 0, nil),
+ 			Valu("sb", OpSB, TypeInvalid, 0, nil),
+@@ -103,7 +103,7 @@ func TestFuseHandlesPhis(t *testing.T) {
+ 
+ func TestFuseEliminatesEmptyBlocks(t *testing.T) {
+ 	c := testConfig(t)
+-	fun := Fun(c, DummyFrontend{t}, "entry",
++	fun := c.Fun("entry",
+ 		Bloc("entry",
+ 			Valu("mem", OpInitMem, TypeMem, 0, nil),
+ 			Valu("sb", OpSB, TypeInvalid, 0, nil),
+@@ -160,7 +160,7 @@ func BenchmarkFuse(b *testing.B) {
+ 
+ 			b.ResetTimer()
+ 			for i := 0; i < b.N; i++ {
+-				fun := Fun(c, DummyFrontend{b}, "entry", blocks...)
++				fun := c.Fun("entry", blocks...)
+ 				fuse(fun.f)
+ 			}
+ 		})
+diff --git a/src/cmd/compile/internal/ssa/lca_test.go b/src/cmd/compile/internal/ssa/lca_test.go
+index 74128ae6e1..8221dc466d 100644
+--- a/src/cmd/compile/internal/ssa/lca_test.go
++++ b/src/cmd/compile/internal/ssa/lca_test.go
+@@ -23,7 +23,7 @@ func lcaEqual(f *Func, lca1, lca2 lca) bool {
+ 
+ func testLCAgen(t *testing.T, bg blockGen, size int) {
+ 	c := testConfig(t)
+-	fun := Fun(c, DummyFrontend{t}, "entry", bg(size)...)
++	fun := c.Fun("entry", bg(size)...)
+ 	CheckFunc(fun.f)
+ 	if size == 4 {
+ 		t.Logf(fun.f.String())
+diff --git a/src/cmd/compile/internal/ssa/loop_test.go b/src/cmd/compile/internal/ssa/loop_test.go
+index db1069e823..b0f20be3ea 100644
+--- a/src/cmd/compile/internal/ssa/loop_test.go
++++ b/src/cmd/compile/internal/ssa/loop_test.go
+@@ -44,13 +44,12 @@ func TestLoopConditionS390X(t *testing.T) {
+ 	//   done:
+ 	//
+ 	c := testConfigS390X(t)
+-	fe := DummyFrontend{t}
+-	fun := Fun(c, fe, "entry",
++	fun := c.Fun("entry",
+ 		Bloc("entry",
+ 			Valu("mem", OpInitMem, TypeMem, 0, nil),
+ 			Valu("SP", OpSP, TypeUInt64, 0, nil),
+ 			Valu("ret", OpAddr, TypeInt64Ptr, 0, nil, "SP"),
+-			Valu("N", OpArg, TypeInt64, 0, fe.Auto(TypeInt64)),
++			Valu("N", OpArg, TypeInt64, 0, c.Frontend().Auto(TypeInt64)),
+ 			Valu("starti", OpConst64, TypeInt64, 0, nil),
+ 			Valu("startsum", OpConst64, TypeInt64, 0, nil),
+ 			Goto("b1")),
+diff --git a/src/cmd/compile/internal/ssa/nilcheck_test.go b/src/cmd/compile/internal/ssa/nilcheck_test.go
+index 0c9daf0008..06edb033e3 100644
+--- a/src/cmd/compile/internal/ssa/nilcheck_test.go
++++ b/src/cmd/compile/internal/ssa/nilcheck_test.go
+@@ -41,7 +41,7 @@ func benchmarkNilCheckDeep(b *testing.B, depth int) {
+ 	)
+ 
+ 	c := testConfig(b)
+-	fun := Fun(c, DummyFrontend{b}, "entry", blocs...)
++	fun := c.Fun("entry", blocs...)
+ 
+ 	CheckFunc(fun.f)
+ 	b.SetBytes(int64(depth)) // helps for eyeballing linearity
+@@ -65,7 +65,7 @@ func isNilCheck(b *Block) bool {
+ func TestNilcheckSimple(t *testing.T) {
+ 	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr"} // dummy for testing
+ 	c := testConfig(t)
+-	fun := Fun(c, DummyFrontend{t}, "entry",
++	fun := c.Fun("entry",
+ 		Bloc("entry",
+ 			Valu("mem", OpInitMem, TypeMem, 0, nil),
+ 			Valu("sb", OpSB, TypeInvalid, 0, nil),
+@@ -102,7 +102,7 @@ func TestNilcheckSimple(t *testing.T) {
+ func TestNilcheckDomOrder(t *testing.T) {
+ 	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr"} // dummy for testing
+ 	c := testConfig(t)
+-	fun := Fun(c, DummyFrontend{t}, "entry",
++	fun := c.Fun("entry",
+ 		Bloc("entry",
+ 			Valu("mem", OpInitMem, TypeMem, 0, nil),
+ 			Valu("sb", OpSB, TypeInvalid, 0, nil),
+@@ -138,7 +138,7 @@ func TestNilcheckDomOrder(t *testing.T) {
+ func TestNilcheckAddr(t *testing.T) {
+ 	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr"} // dummy for testing
+ 	c := testConfig(t)
+-	fun := Fun(c, DummyFrontend{t}, "entry",
++	fun := c.Fun("entry",
+ 		Bloc("entry",
+ 			Valu("mem", OpInitMem, TypeMem, 0, nil),
+ 			Valu("sb", OpSB, TypeInvalid, 0, nil),
+@@ -171,7 +171,7 @@ func TestNilcheckAddr(t *testing.T) {
+ func TestNilcheckAddPtr(t *testing.T) {
+ 	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr"} // dummy for testing
+ 	c := testConfig(t)
+-	fun := Fun(c, DummyFrontend{t}, "entry",
++	fun := c.Fun("entry",
+ 		Bloc("entry",
+ 			Valu("mem", OpInitMem, TypeMem, 0, nil),
+ 			Valu("sb", OpSB, TypeInvalid, 0, nil),
+@@ -206,7 +206,7 @@ func TestNilcheckAddPtr(t *testing.T) {
+ func TestNilcheckPhi(t *testing.T) {
+ 	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr"} // dummy for testing
+ 	c := testConfig(t)
+-	fun := Fun(c, DummyFrontend{t}, "entry",
++	fun := c.Fun("entry",
+ 		Bloc("entry",
+ 			Valu("mem", OpInitMem, TypeMem, 0, nil),
+ 			Valu("sb", OpSB, TypeInvalid, 0, nil),
+@@ -250,7 +250,7 @@ func TestNilcheckPhi(t *testing.T) {
+ func TestNilcheckKeepRemove(t *testing.T) {
+ 	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr"} // dummy for testing
+ 	c := testConfig(t)
+-	fun := Fun(c, DummyFrontend{t}, "entry",
++	fun := c.Fun("entry",
+ 		Bloc("entry",
+ 			Valu("mem", OpInitMem, TypeMem, 0, nil),
+ 			Valu("sb", OpSB, TypeInvalid, 0, nil),
+@@ -298,7 +298,7 @@ func TestNilcheckKeepRemove(t *testing.T) {
+ func TestNilcheckInFalseBranch(t *testing.T) {
+ 	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr"} // dummy for testing
+ 	c := testConfig(t)
+-	fun := Fun(c, DummyFrontend{t}, "entry",
++	fun := c.Fun("entry",
+ 		Bloc("entry",
+ 			Valu("mem", OpInitMem, TypeMem, 0, nil),
+ 			Valu("sb", OpSB, TypeInvalid, 0, nil),
+@@ -349,7 +349,7 @@ func TestNilcheckInFalseBranch(t *testing.T) {
+ func TestNilcheckUser(t *testing.T) {
+ 	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr"} // dummy for testing
+ 	c := testConfig(t)
+-	fun := Fun(c, DummyFrontend{t}, "entry",
++	fun := c.Fun("entry",
+ 		Bloc("entry",
+ 			Valu("mem", OpInitMem, TypeMem, 0, nil),
+ 			Valu("sb", OpSB, TypeInvalid, 0, nil),
+@@ -388,7 +388,7 @@ func TestNilcheckUser(t *testing.T) {
+ func TestNilcheckBug(t *testing.T) {
+ 	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr"} // dummy for testing
+ 	c := testConfig(t)
+-	fun := Fun(c, DummyFrontend{t}, "entry",
++	fun := c.Fun("entry",
+ 		Bloc("entry",
+ 			Valu("mem", OpInitMem, TypeMem, 0, nil),
+ 			Valu("sb", OpSB, TypeInvalid, 0, nil),
+diff --git a/src/cmd/compile/internal/ssa/passbm_test.go b/src/cmd/compile/internal/ssa/passbm_test.go
+index f628a02806..c316e9b67d 100644
+--- a/src/cmd/compile/internal/ssa/passbm_test.go
++++ b/src/cmd/compile/internal/ssa/passbm_test.go
+@@ -34,7 +34,7 @@ func BenchmarkMultiPassBlock(b *testing.B) { benchFnBlock(b, multi, genFunction)
+ func benchFnPass(b *testing.B, fn passFunc, size int, bg blockGen) {
+ 	b.ReportAllocs()
+ 	c := testConfig(b)
+-	fun := Fun(c, DummyFrontend{b}, "entry", bg(size)...)
++	fun := c.Fun("entry", bg(size)...)
+ 	CheckFunc(fun.f)
+ 	b.ResetTimer()
+ 	for i := 0; i < b.N; i++ {
+@@ -49,7 +49,7 @@ func benchFnPass(b *testing.B, fn passFunc, size int, bg blockGen) {
+ func benchFnBlock(b *testing.B, fn passFunc, bg blockGen) {
+ 	b.ReportAllocs()
+ 	c := testConfig(b)
+-	fun := Fun(c, DummyFrontend{b}, "entry", bg(b.N)...)
++	fun := c.Fun("entry", bg(b.N)...)
+ 	CheckFunc(fun.f)
+ 	b.ResetTimer()
+ 	for i := 0; i < passCount; i++ {
+diff --git a/src/cmd/compile/internal/ssa/regalloc_test.go b/src/cmd/compile/internal/ssa/regalloc_test.go
+index 55ed6d769e..e52c6c1b27 100644
+--- a/src/cmd/compile/internal/ssa/regalloc_test.go
++++ b/src/cmd/compile/internal/ssa/regalloc_test.go
+@@ -8,7 +8,7 @@ import "testing"
+ 
+ func TestLiveControlOps(t *testing.T) {
+ 	c := testConfig(t)
+-	f := Fun(c, DummyFrontend{t}, "entry",
++	f := c.Fun("entry",
+ 		Bloc("entry",
+ 			Valu("mem", OpInitMem, TypeMem, 0, nil),
+ 			Valu("x", OpAMD64MOVLconst, TypeInt8, 1, nil),
+diff --git a/src/cmd/compile/internal/ssa/schedule_test.go b/src/cmd/compile/internal/ssa/schedule_test.go
+index fc4409ad25..eceaafc088 100644
+--- a/src/cmd/compile/internal/ssa/schedule_test.go
++++ b/src/cmd/compile/internal/ssa/schedule_test.go
+@@ -9,7 +9,7 @@ import "testing"
+ func TestSchedule(t *testing.T) {
+ 	c := testConfig(t)
+ 	cases := []fun{
+-		Fun(c, DummyFrontend{t}, "entry",
++		c.Fun("entry",
+ 			Bloc("entry",
+ 				Valu("mem0", OpInitMem, TypeMem, 0, nil),
+ 				Valu("ptr", OpConst64, TypeInt64, 0xABCD, nil),
+@@ -60,7 +60,7 @@ func TestStoreOrder(t *testing.T) {
+ 	// In the function below, v2 depends on v3 and v4, v4 depends on v3, and v3 depends on store v5.
+ 	// storeOrder did not handle this case correctly.
+ 	c := testConfig(t)
+-	fun := Fun(c, DummyFrontend{t}, "entry",
++	fun := c.Fun("entry",
+ 		Bloc("entry",
+ 			Valu("mem0", OpInitMem, TypeMem, 0, nil),
+ 			Valu("a", OpAdd64, TypeInt64, 0, nil, "b", "c"),                  // v2
+diff --git a/src/cmd/compile/internal/ssa/shift_test.go b/src/cmd/compile/internal/ssa/shift_test.go
+index 2102612cdb..1c39f50389 100644
+--- a/src/cmd/compile/internal/ssa/shift_test.go
++++ b/src/cmd/compile/internal/ssa/shift_test.go
+@@ -10,29 +10,28 @@ import (
+ 
+ func TestShiftConstAMD64(t *testing.T) {
+ 	c := testConfig(t)
+-	fe := DummyFrontend{t}
+-	fun := makeConstShiftFunc(c, fe, 18, OpLsh64x64, TypeUInt64)
++	fun := makeConstShiftFunc(c, 18, OpLsh64x64, TypeUInt64)
+ 	checkOpcodeCounts(t, fun.f, map[Op]int{OpAMD64SHLQconst: 1, OpAMD64CMPQconst: 0, OpAMD64ANDQconst: 0})
+ 
+-	fun = makeConstShiftFunc(c, fe, 66, OpLsh64x64, TypeUInt64)
++	fun = makeConstShiftFunc(c, 66, OpLsh64x64, TypeUInt64)
+ 	checkOpcodeCounts(t, fun.f, map[Op]int{OpAMD64SHLQconst: 0, OpAMD64CMPQconst: 0, OpAMD64ANDQconst: 0})
+ 
+-	fun = makeConstShiftFunc(c, fe, 18, OpRsh64Ux64, TypeUInt64)
++	fun = makeConstShiftFunc(c, 18, OpRsh64Ux64, TypeUInt64)
+ 	checkOpcodeCounts(t, fun.f, map[Op]int{OpAMD64SHRQconst: 1, OpAMD64CMPQconst: 0, OpAMD64ANDQconst: 0})
+ 
+-	fun = makeConstShiftFunc(c, fe, 66, OpRsh64Ux64, TypeUInt64)
++	fun = makeConstShiftFunc(c, 66, OpRsh64Ux64, TypeUInt64)
+ 	checkOpcodeCounts(t, fun.f, map[Op]int{OpAMD64SHRQconst: 0, OpAMD64CMPQconst: 0, OpAMD64ANDQconst: 0})
+ 
+-	fun = makeConstShiftFunc(c, fe, 18, OpRsh64x64, TypeInt64)
++	fun = makeConstShiftFunc(c, 18, OpRsh64x64, TypeInt64)
+ 	checkOpcodeCounts(t, fun.f, map[Op]int{OpAMD64SARQconst: 1, OpAMD64CMPQconst: 0})
+ 
+-	fun = makeConstShiftFunc(c, fe, 66, OpRsh64x64, TypeInt64)
++	fun = makeConstShiftFunc(c, 66, OpRsh64x64, TypeInt64)
+ 	checkOpcodeCounts(t, fun.f, map[Op]int{OpAMD64SARQconst: 1, OpAMD64CMPQconst: 0})
+ }
+ 
+-func makeConstShiftFunc(c *Config, fe Frontend, amount int64, op Op, typ Type) fun {
++func makeConstShiftFunc(c *Conf, amount int64, op Op, typ Type) fun {
+ 	ptyp := &TypeImpl{Size_: 8, Ptr: true, Name: "ptr"}
+-	fun := Fun(c, fe, "entry",
++	fun := c.Fun("entry",
+ 		Bloc("entry",
+ 			Valu("mem", OpInitMem, TypeMem, 0, nil),
+ 			Valu("SP", OpSP, TypeUInt64, 0, nil),
+@@ -77,9 +76,8 @@ func TestShiftToExtensionAMD64(t *testing.T) {
+ 		{8, OpLsh16x64, OpRsh16x64, TypeInt16},
+ 	}
+ 	c := testConfig(t)
+-	fe := DummyFrontend{t}
+ 	for _, tc := range tests {
+-		fun := makeShiftExtensionFunc(c, fe, tc.amount, tc.left, tc.right, tc.typ)
++		fun := makeShiftExtensionFunc(c, tc.amount, tc.left, tc.right, tc.typ)
+ 		checkOpcodeCounts(t, fun.f, ops)
+ 	}
+ }
+@@ -89,9 +87,9 @@ func TestShiftToExtensionAMD64(t *testing.T) {
+ //   (rshift (lshift (Const64 [amount])) (Const64 [amount]))
+ //
+ // This may be equivalent to a sign or zero extension.
+-func makeShiftExtensionFunc(c *Config, fe Frontend, amount int64, lshift, rshift Op, typ Type) fun {
++func makeShiftExtensionFunc(c *Conf, amount int64, lshift, rshift Op, typ Type) fun {
+ 	ptyp := &TypeImpl{Size_: 8, Ptr: true, Name: "ptr"}
+-	fun := Fun(c, fe, "entry",
++	fun := c.Fun("entry",
+ 		Bloc("entry",
+ 			Valu("mem", OpInitMem, TypeMem, 0, nil),
+ 			Valu("SP", OpSP, TypeUInt64, 0, nil),
+diff --git a/src/cmd/compile/internal/ssa/shortcircuit_test.go b/src/cmd/compile/internal/ssa/shortcircuit_test.go
+index 93033df469..e70159d746 100644
+--- a/src/cmd/compile/internal/ssa/shortcircuit_test.go
++++ b/src/cmd/compile/internal/ssa/shortcircuit_test.go
+@@ -9,7 +9,7 @@ import "testing"
+ func TestShortCircuit(t *testing.T) {
+ 	c := testConfig(t)
+ 
+-	fun := Fun(c, DummyFrontend{t}, "entry",
++	fun := c.Fun("entry",
+ 		Bloc("entry",
+ 			Valu("mem", OpInitMem, TypeMem, 0, nil),
+ 			Valu("arg1", OpArg, TypeInt64, 0, nil),
+diff --git a/src/cmd/compile/internal/ssa/writebarrier_test.go b/src/cmd/compile/internal/ssa/writebarrier_test.go
+index 41d6de9c13..e26346de3c 100644
+--- a/src/cmd/compile/internal/ssa/writebarrier_test.go
++++ b/src/cmd/compile/internal/ssa/writebarrier_test.go
+@@ -10,7 +10,7 @@ func TestWriteBarrierStoreOrder(t *testing.T) {
+ 	// Make sure writebarrier phase works even StoreWB ops are not in dependency order
+ 	c := testConfig(t)
+ 	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr"} // dummy for testing
+-	fun := Fun(c, DummyFrontend{t}, "entry",
++	fun := c.Fun("entry",
+ 		Bloc("entry",
+ 			Valu("start", OpInitMem, TypeMem, 0, nil),
+ 			Valu("sb", OpSB, TypeInvalid, 0, nil),
+@@ -34,7 +34,7 @@ func TestWriteBarrierPhi(t *testing.T) {
+ 	// See issue #19067.
+ 	c := testConfig(t)
+ 	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr"} // dummy for testing
+-	fun := Fun(c, DummyFrontend{t}, "entry",
++	fun := c.Fun("entry",
+ 		Bloc("entry",
+ 			Valu("start", OpInitMem, TypeMem, 0, nil),
+ 			Valu("sb", OpSB, TypeInvalid, 0, nil),

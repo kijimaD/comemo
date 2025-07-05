@@ -14,8 +14,48 @@ Date:   Wed Apr 13 12:58:29 2022 +0000
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-
+---
  src/crypto/tls/handshake_client.go | 2 +-
  src/crypto/tls/handshake_server.go | 2 +-
  src/crypto/tls/prf.go              | 2 +-
  3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/crypto/tls/handshake_client.go b/src/crypto/tls/handshake_client.go
+index f5e24cbc6d..721143cb75 100644
+--- a/src/crypto/tls/handshake_client.go
++++ b/src/crypto/tls/handshake_client.go
+@@ -629,7 +629,7 @@ func (hs *clientHandshakeState) doFullHandshake() error {
+ 			}
+ 		}
+ 
+-		signed := hs.finishedHash.hashForClientCertificate(sigType, sigHash, hs.masterSecret)
++		signed := hs.finishedHash.hashForClientCertificate(sigType, sigHash)
+ 		signOpts := crypto.SignerOpts(sigHash)
+ 		if sigType == signatureRSAPSS {
+ 			signOpts = &rsa.PSSOptions{SaltLength: rsa.PSSSaltLengthEqualsHash, Hash: sigHash}
+diff --git a/src/crypto/tls/handshake_server.go b/src/crypto/tls/handshake_server.go
+index 844e887af3..cf6dfad3a7 100644
+--- a/src/crypto/tls/handshake_server.go
++++ b/src/crypto/tls/handshake_server.go
+@@ -660,7 +660,7 @@ func (hs *serverHandshakeState) doFullHandshake() error {
+ 			}
+ 		}
+ 
+-		signed := hs.finishedHash.hashForClientCertificate(sigType, sigHash, hs.masterSecret)
++		signed := hs.finishedHash.hashForClientCertificate(sigType, sigHash)
+ 		if err := verifyHandshakeSignature(sigType, pub, sigHash, signed, certVerify.signature); err != nil {
+ 			c.sendAlert(alertDecryptError)
+ 			return errors.New("tls: invalid signature by the client certificate: " + err.Error())
+diff --git a/src/crypto/tls/prf.go b/src/crypto/tls/prf.go
+index 13bfa009ca..b60166dee3 100644
+--- a/src/crypto/tls/prf.go
++++ b/src/crypto/tls/prf.go
+@@ -215,7 +215,7 @@ func (h finishedHash) serverSum(masterSecret []byte) []byte {
+ 
+ // hashForClientCertificate returns the handshake messages so far, pre-hashed if
+ // necessary, suitable for signing by a TLS client certificate.
+-func (h finishedHash) hashForClientCertificate(sigType uint8, hashAlg crypto.Hash, masterSecret []byte) []byte {
++func (h finishedHash) hashForClientCertificate(sigType uint8, hashAlg crypto.Hash) []byte {
+ 	if (h.version >= VersionTLS12 || sigType == signatureEd25519) && h.buffer == nil {
+ 		panic("tls: handshake hash for a client certificate requested after discarding the handshake buffer")
+ 	}

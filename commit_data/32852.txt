@@ -19,7 +19,82 @@ Date:   Wed Jun 7 10:30:49 2017 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/runtime-gdb.py      | 33 +++++++++++++++++++++++++++++++--
  src/runtime/runtime-gdb_test.go | 12 ++++++++++--
  2 files changed, 41 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/runtime-gdb.py b/src/runtime/runtime-gdb.py
+index 5c9b2a08e8..26f36b5119 100644
+--- a/src/runtime/runtime-gdb.py
++++ b/src/runtime/runtime-gdb.py
+@@ -416,8 +416,37 @@ def find_goroutine(goid):
+ 		if ptr['atomicstatus'] == 6:  # 'gdead'
+ 			continue
+ 		if ptr['goid'] == goid:
+-			return (ptr['sched'][x].cast(vp) for x in ('pc', 'sp'))
+-	return None, None
++			break
++	else:
++		return None, None
++	# Get the goroutine's saved state.
++	pc, sp = ptr['sched']['pc'], ptr['sched']['sp']
++	# If the goroutine is stopped, sched.sp will be non-0.
++	if sp != 0:
++		return pc.cast(vp), sp.cast(vp)
++	# If the goroutine is in a syscall, use syscallpc/sp.
++	pc, sp = ptr['syscallpc'], ptr['syscallsp']
++	if sp != 0:
++		return pc.cast(vp), sp.cast(vp)
++	# Otherwise, the goroutine is running, so it doesn't have
++	# saved scheduler state. Find G's OS thread.
++	m = ptr['m']
++	if m == 0:
++		return None, None
++	for thr in gdb.selected_inferior().threads():
++		if thr.ptid[1] == m['procid']:
++			break
++        else:
++		return None, None
++	# Get scheduler state from the G's OS thread state.
++	curthr = gdb.selected_thread()
++	try:
++		thr.switch()
++		pc = gdb.parse_and_eval('$pc')
++		sp = gdb.parse_and_eval('$sp')
++	finally:
++		curthr.switch()
++	return pc.cast(vp), sp.cast(vp)
+ 
+ 
+ class GoroutineCmd(gdb.Command):
+diff --git a/src/runtime/runtime-gdb_test.go b/src/runtime/runtime-gdb_test.go
+index 3cc41e0b7f..b025e189f0 100644
+--- a/src/runtime/runtime-gdb_test.go
++++ b/src/runtime/runtime-gdb_test.go
+@@ -157,6 +157,9 @@ func testGdbPython(t *testing.T, cgo bool) {
+ 		"-ex", "info locals",
+ 		"-ex", "echo END\n",
+ 		"-ex", "down", // back to fmt.Println (goroutine 2 below only works at bottom of stack.  TODO: fix that)
++		"-ex", "echo BEGIN goroutine 1 bt\n",
++		"-ex", "goroutine 1 bt",
++		"-ex", "echo END\n",
+ 		"-ex", "echo BEGIN goroutine 2 bt\n",
+ 		"-ex", "goroutine 2 bt",
+ 		"-ex", "echo END\n",
+@@ -213,8 +216,13 @@ func testGdbPython(t *testing.T, cgo bool) {
+ 		t.Fatalf("info locals failed: %s", bl)
+ 	}
+ 
+-	btGoroutineRe := regexp.MustCompile(`^#0\s+(0x[0-9a-f]+\s+in\s+)?runtime.+at`)
+-	if bl := blocks["goroutine 2 bt"]; !btGoroutineRe.MatchString(bl) {
++	btGoroutine1Re := regexp.MustCompile(`(?m)^#0\s+(0x[0-9a-f]+\s+in\s+)?fmt\.Println.+at`)
++	if bl := blocks["goroutine 1 bt"]; !btGoroutine1Re.MatchString(bl) {
++		t.Fatalf("goroutine 1 bt failed: %s", bl)
++	}
++
++	btGoroutine2Re := regexp.MustCompile(`(?m)^#0\s+(0x[0-9a-f]+\s+in\s+)?runtime.+at`)
++	if bl := blocks["goroutine 2 bt"]; !btGoroutine2Re.MatchString(bl) {
+ 		t.Fatalf("goroutine 2 bt failed: %s", bl)
+ 	}
+ }

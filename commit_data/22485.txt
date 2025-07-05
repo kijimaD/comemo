@@ -7,6 +7,19 @@ Date:   Tue Mar 17 15:48:06 2015 -0400
     Change-Id: I19e6542e7d79d60e39d62339da51a827c5aa6d3b
     Reviewed-on: https://go-review.googlesource.com/7668
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/internal/gc/esc.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/internal/gc/esc.go b/src/cmd/internal/gc/esc.go
+index 40125888ca..76ce87d513 100644
+--- a/src/cmd/internal/gc/esc.go
++++ b/src/cmd/internal/gc/esc.go
+@@ -231,6 +231,7 @@ type EscState struct {
+ 
+ var tags [16]*string
+ 
++// mktag returns the string representation for an escape analysis tag.
+ func mktag(mask int) *string {
+ 	switch mask & EscMask {
+ 	case EscNone,

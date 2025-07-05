@@ -19,7 +19,7 @@ Date:   Wed Aug 31 17:06:29 2022 -0700
     Reviewed-by: Robert Griesemer <gri@google.com>
     Run-TryBot: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/check_test.go      |   8 +-
  .../types2/testdata/fixedbugs/issue20583.go        |  14 --
  .../types2/testdata/fixedbugs/issue23203a.go       |  14 --
@@ -181,3 +181,5153 @@ Date:   Wed Aug 31 17:06:29 2022 -0700
  .../types2/testdata/fixedbugs/issue54405.go        |  16 --
  .../types2/testdata/fixedbugs/issue6977.go         |  82 -----------
  160 files changed, 5 insertions(+), 4175 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/check_test.go b/src/cmd/compile/internal/types2/check_test.go
+index d902b358c9..8099b8b8d3 100644
+--- a/src/cmd/compile/internal/types2/check_test.go
++++ b/src/cmd/compile/internal/types2/check_test.go
+@@ -301,9 +301,11 @@ func TestCheck(t *testing.T) {
+ 	DefPredeclaredTestFuncs()
+ 	testDirFiles(t, "../../../../go/types/testdata/check", 55, false) // TODO(gri) narrow column tolerance
+ }
+-func TestSpec(t *testing.T)      { testDirFiles(t, "../../../../go/types/testdata/spec", 0, false) }
+-func TestExamples(t *testing.T)  { testDirFiles(t, "../../../../go/types/testdata/examples", 45, false) } // TODO(gri) narrow column tolerance
+-func TestFixedbugs(t *testing.T) { testDirFiles(t, "testdata/fixedbugs", 100, false) }                    // TODO(gri) narrow column tolerance
++func TestSpec(t *testing.T)     { testDirFiles(t, "../../../../go/types/testdata/spec", 0, false) }
++func TestExamples(t *testing.T) { testDirFiles(t, "../../../../go/types/testdata/examples", 45, false) } // TODO(gri) narrow column tolerance
++func TestFixedbugs(t *testing.T) {
++	testDirFiles(t, "../../../../go/types/testdata/fixedbugs", 100, false)
++} // TODO(gri) narrow column tolerance
+ 
+ func testDirFiles(t *testing.T, dir string, colDelta uint, manual bool) {
+ 	testenv.MustHaveGoBuild(t)
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue20583.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue20583.go
+deleted file mode 100644
+index d26dbada4f..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue20583.go
++++ /dev/null
+@@ -1,14 +0,0 @@
+-// Copyright 2020 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package issue20583
+-
+-const (
+-	_ = 6e886451608 /* ERROR malformed constant */ /2
+-	_ = 6e886451608i /* ERROR malformed constant */ /2
+-	_ = 0 * 1e+1000000000 // ERROR malformed constant
+-
+-	x = 1e100000000
+-	_ = x*x*x*x*x*x* /* ERROR not representable */ x
+-)
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue23203a.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue23203a.go
+deleted file mode 100644
+index 48cb5889cd..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue23203a.go
++++ /dev/null
+@@ -1,14 +0,0 @@
+-// Copyright 2018 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-import "unsafe"
+-
+-type T struct{}
+-
+-func (T) m1()                         {}
+-func (T) m2([unsafe.Sizeof(T.m1)]int) {}
+-
+-func main() {}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue23203b.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue23203b.go
+deleted file mode 100644
+index 638ec6c5ce..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue23203b.go
++++ /dev/null
+@@ -1,14 +0,0 @@
+-// Copyright 2018 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-import "unsafe"
+-
+-type T struct{}
+-
+-func (T) m2([unsafe.Sizeof(T.m1)]int) {}
+-func (T) m1()                         {}
+-
+-func main() {}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue25838.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue25838.go
+deleted file mode 100644
+index adbd138f16..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue25838.go
++++ /dev/null
+@@ -1,26 +0,0 @@
+-// Copyright 2022 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-// examples from the issue
+-
+-type (
+-	e = f
+-	f = g
+-	g = []h
+-	h i
+-	i = j
+-	j = e
+-)
+-
+-type (
+-	e1 = []h1
+-	h1 e1
+-)
+-
+-type (
+-	P = *T
+-	T P
+-)
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue26390.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue26390.go
+deleted file mode 100644
+index 9e0101f581..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue26390.go
++++ /dev/null
+@@ -1,13 +0,0 @@
+-// Copyright 2018 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// stand-alone test to ensure case is triggered
+-
+-package issue26390
+-
+-type A = T
+-
+-func (t *T) m() *A { return t }
+-
+-type T struct{}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue28251.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue28251.go
+deleted file mode 100644
+index ef5e61df47..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue28251.go
++++ /dev/null
+@@ -1,65 +0,0 @@
+-// Copyright 2018 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// This file contains test cases for various forms of
+-// method receiver declarations, per the spec clarification
+-// https://golang.org/cl/142757.
+-
+-package issue28251
+-
+-// test case from issue28251
+-type T struct{}
+-
+-type T0 = *T
+-
+-func (T0) m() {}
+-
+-func _() { (&T{}).m() }
+-
+-// various alternative forms
+-type (
+-        T1 = (((T)))
+-)
+-
+-func ((*(T1))) m1() {}
+-func _() { (T{}).m2() }
+-func _() { (&T{}).m2() }
+-
+-type (
+-        T2 = (((T3)))
+-        T3 = T
+-)
+-
+-func (T2) m2() {}
+-func _() { (T{}).m2() }
+-func _() { (&T{}).m2() }
+-
+-type (
+-        T4 = ((*(T5)))
+-        T5 = T
+-)
+-
+-func (T4) m4() {}
+-func _() { (T{}).m4 /* ERROR "cannot call pointer method m4 on T" */ () }
+-func _() { (&T{}).m4() }
+-
+-type (
+-        T6 = (((T7)))
+-        T7 = (*(T8))
+-        T8 = T
+-)
+-
+-func (T6) m6() {}
+-func _() { (T{}).m6 /* ERROR "cannot call pointer method m6 on T" */ () }
+-func _() { (&T{}).m6() }
+-
+-type (
+-        T9 = *T10
+-        T10 = *T11
+-        T11 = T
+-)
+-
+-func (T9 /* ERROR invalid receiver type \*\*T */ ) m9() {}
+-func _() { (T{}).m9 /* ERROR has no field or method m9 */ () }
+-func _() { (&T{}).m9 /* ERROR has no field or method m9 */ () }
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39634.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39634.go
+deleted file mode 100644
+index 9df72f990e..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39634.go
++++ /dev/null
+@@ -1,90 +0,0 @@
+-// Copyright 2020 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Examples adjusted to match new [T any] syntax for type parameters.
+-// Also, previously permitted empty type parameter lists and instantiations
+-// are now syntax errors.
+-
+-package p
+-
+-// crash 1
+-type nt1[_ any]interface{g /* ERROR undeclared name */ }
+-type ph1[e nt1[e],g(d /* ERROR undeclared name */ )]s /* ERROR undeclared name */
+-func(*ph1[e,e /* ERROR redeclared */ ])h(d /* ERROR undeclared name */ )
+-
+-// crash 2
+-// Disabled: empty []'s are now syntax errors. This example leads to too many follow-on errors.
+-// type Numeric2 interface{t2 /* ERROR not a type */ }
+-// func t2[T Numeric2](s[]T){0 /* ERROR not a type */ []{s /* ERROR cannot index */ [0][0]}}
+-
+-// crash 3
+-type t3 *interface{ t3.p /* ERROR no field or method p */ }
+-
+-// crash 4
+-type Numeric4 interface{t4 /* ERROR not a type */ }
+-func t4[T Numeric4](s[]T){if( /* ERROR non-boolean */ 0){*s /* ERROR cannot indirect */ [0]}}
+-
+-// crash 7
+-type foo7 interface { bar() }
+-type x7[A any] struct{ foo7 }
+-func main7() { var _ foo7 = x7[int]{} }
+-
+-// crash 8
+-type foo8[A any] interface { ~A /* ERROR cannot be a type parameter */ }
+-func bar8[A foo8[A]](a A) {}
+-
+-// crash 9
+-type foo9[A any] interface { foo9 /* ERROR illegal cycle */ [A] }
+-func _() { var _ = new(foo9[int]) }
+-
+-// crash 12
+-var u /* ERROR cycle */ , i [func /* ERROR used as value */ /* ERROR used as value */ (u, c /* ERROR undeclared */ /* ERROR undeclared */ ) {}(0, len /* ERROR must be called */ /* ERROR must be called */ )]c /* ERROR undeclared */ /* ERROR undeclared */
+-
+-// crash 15
+-func y15() { var a /* ERROR declared but not used */ interface{ p() } = G15[string]{} }
+-type G15[X any] s /* ERROR undeclared name */
+-func (G15 /* ERROR generic type .* without instantiation */ ) p()
+-
+-// crash 16
+-type Foo16[T any] r16 /* ERROR not a type */
+-func r16[T any]() Foo16[Foo16[T]] { panic(0) }
+-
+-// crash 17
+-type Y17 interface{ c() }
+-type Z17 interface {
+-	c() Y17
+-	Y17 /* ERROR duplicate method */
+-}
+-func F17[T Z17](T) {}
+-
+-// crash 18
+-type o18[T any] []func(_ o18[[]_ /* ERROR cannot use _ */ ])
+-
+-// crash 19
+-type Z19 [][[]Z19{}[0][0]]c19 /* ERROR undeclared */
+-
+-// crash 20
+-type Z20 /* ERROR illegal cycle */ interface{ Z20 }
+-func F20[t Z20]() { F20(t /* ERROR invalid composite literal type */ {}) }
+-
+-// crash 21
+-type Z21 /* ERROR illegal cycle */ interface{ Z21 }
+-func F21[T Z21]() { ( /* ERROR not used */ F21[Z21]) }
+-
+-// crash 24
+-type T24[P any] P // ERROR cannot use a type parameter as RHS in type declaration
+-func (r T24[P]) m() { T24 /* ERROR without instantiation */ .m() }
+-
+-// crash 25
+-type T25[A any] int
+-func (t T25[A]) m1() {}
+-var x T25 /* ERROR without instantiation */ .m1
+-
+-// crash 26
+-type T26 = interface{ F26[ /* ERROR interface method must have no type parameters */ Z any]() }
+-func F26[Z any]() T26 { return F26[] /* ERROR operand */ }
+-
+-// crash 27
+-func e27[T any]() interface{ x27 /* ERROR not a type */ } { panic(0) }
+-func x27() { e27 /* ERROR cannot infer T */ () }
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39664.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39664.go
+deleted file mode 100644
+index 3b3ec56980..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39664.go
++++ /dev/null
+@@ -1,15 +0,0 @@
+-// Copyright 2020 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-type T[_ any] struct {}
+-
+-func (T /* ERROR instantiation */ ) m()
+-
+-func _() {
+-	var x interface { m() }
+-	x = T[int]{}
+-	_ = x
+-}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39680.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39680.go
+deleted file mode 100644
+index e56bc35475..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39680.go
++++ /dev/null
+@@ -1,31 +0,0 @@
+-// Copyright 2020 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-// Embedding stand-alone type parameters is not permitted for now. Disabled.
+-
+-/*
+-import "fmt"
+-
+-// Minimal test case.
+-func _[T interface{~T}](x T) T{
+-	return x
+-}
+-
+-// Test case from issue.
+-type constr[T any] interface {
+-	~T
+-}
+-
+-func Print[T constr[T]](s []T) {
+-	for _, v := range s {
+-		fmt.Print(v)
+-	}
+-}
+-
+-func f() {
+-	Print([]string{"Hello, ", "playground\n"})
+-}
+-*/
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39693.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39693.go
+deleted file mode 100644
+index 496754d972..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39693.go
++++ /dev/null
+@@ -1,23 +0,0 @@
+-// Copyright 2020 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-type Number1 interface {
+-	// embedding non-interface types is permitted
+-	int
+-	float64
+-}
+-
+-func Add1[T Number1](a, b T) T {
+-	return a /* ERROR not defined */ + b
+-}
+-
+-type Number2 interface {
+-	int | float64
+-}
+-
+-func Add2[T Number2](a, b T) T {
+-	return a + b
+-}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39699.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39699.go
+deleted file mode 100644
+index 72f83997c2..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39699.go
++++ /dev/null
+@@ -1,29 +0,0 @@
+-// Copyright 2020 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-type T0 interface{
+-}
+-
+-type T1 interface{
+-	~int
+-}
+-
+-type T2 interface{
+-	comparable
+-}
+-
+-type T3 interface {
+-	T0
+-	T1
+-	T2
+-}
+-
+-func _() {
+-	_ = T0(0)
+-	_ = T1 /* ERROR cannot use interface T1 in conversion */ (1)
+-	_ = T2 /* ERROR cannot use interface T2 in conversion */ (2)
+-	_ = T3 /* ERROR cannot use interface T3 in conversion */ (3)
+-}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39711.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39711.go
+deleted file mode 100644
+index d85fa03fc4..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39711.go
++++ /dev/null
+@@ -1,13 +0,0 @@
+-// Copyright 2020 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-// Do not report a duplicate type error for this term list.
+-// (Check types after interfaces have been completed.)
+-type _ interface {
+-	// TODO(rfindley) Once we have full type sets we can enable this again.
+-	// Fow now we don't permit interfaces in term lists.
+-	// type interface{ Error() string }, interface{ String() string }
+-}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39723.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39723.go
+deleted file mode 100644
+index 00885238e6..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39723.go
++++ /dev/null
+@@ -1,9 +0,0 @@
+-// Copyright 2020 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-// A constraint must be an interface; it cannot
+-// be a type parameter, for instance.
+-func _[A interface{ ~int }, B A /* ERROR cannot use a type parameter as constraint */ ]() {}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39725.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39725.go
+deleted file mode 100644
+index 62dc45a596..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39725.go
++++ /dev/null
+@@ -1,16 +0,0 @@
+-// Copyright 2020 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-func f1[T1, T2 any](T1, T2, struct{a T1; b T2}) {}
+-func _() {
+-	f1(42, string("foo"), struct /* ERROR does not match inferred type struct\{a int; b string\} */ {a, b int}{})
+-}
+-
+-// simplified test case from issue
+-func f2[T any](_ []T, _ func(T)) {}
+-func _() {
+-	f2([]string{}, func /* ERROR does not match inferred type func\(string\) */ (f []byte) {})
+-}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39754.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39754.go
+deleted file mode 100644
+index 9edd239d7d..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39754.go
++++ /dev/null
+@@ -1,21 +0,0 @@
+-// Copyright 2020 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-type Optional[T any] struct {}
+-
+-func (_ Optional[T]) Val() (T, bool)
+-
+-type Box[T any] interface {
+-	Val() (T, bool)
+-}
+-
+-func f[V interface{}, A, B Box[V]]() {}
+-
+-func _() {
+-	f[int, Optional[int], Optional[int]]()
+-	_ = f[int, Optional[int], Optional /* ERROR does not implement Box */ [string]]
+-	_ = f[int, Optional[int], Optional /* ERROR Optional.* does not implement Box.* */ [string]]
+-}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39755.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39755.go
+deleted file mode 100644
+index 257b73a2fb..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39755.go
++++ /dev/null
+@@ -1,23 +0,0 @@
+-// Copyright 2020 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-func _[T interface{~map[string]int}](x T) {
+-	_ = x == nil
+-}
+-
+-// simplified test case from issue
+-
+-type PathParamsConstraint interface {
+-        ~map[string]string | ~[]struct{key, value string}
+-}
+-
+-type PathParams[T PathParamsConstraint] struct {
+-	t T
+-}
+-
+-func (pp *PathParams[T]) IsNil() bool {
+-	return pp.t == nil // this must succeed
+-}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39768.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39768.go
+deleted file mode 100644
+index 696d9d9bee..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39768.go
++++ /dev/null
+@@ -1,21 +0,0 @@
+-// Copyright 2020 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-// For now, a lone type parameter is not permitted as RHS in a type declaration (issue #45639).
+-// type T[P any] P
+-// type A = T  // ERROR cannot use generic type
+-// var x A[int]
+-// var _ A
+-//
+-// type B = T[int]
+-// var y B = x
+-// var _ B /* ERROR not a generic type */ [int]
+-
+-// test case from issue
+-
+-type Vector[T any] []T
+-type VectorAlias = Vector // ERROR cannot use generic type
+-var v Vector[int]
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39938.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39938.go
+deleted file mode 100644
+index 6bc9284849..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39938.go
++++ /dev/null
+@@ -1,54 +0,0 @@
+-// Copyright 2020 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-// All but E2 and E5 provide an "indirection" and break infinite expansion of a type.
+-type E0[P any] []P
+-type E1[P any] *P
+-type E2[P any] struct{ _ P }
+-type E3[P any] struct{ _ *P }
+-type E5[P any] struct{ _ [10]P }
+-
+-type T0 struct {
+-        _ E0[T0]
+-}
+-
+-type T0_ struct {
+-        E0[T0_]
+-}
+-
+-type T1 struct {
+-        _ E1[T1]
+-}
+-
+-type T2 /* ERROR illegal cycle */ struct {
+-        _ E2[T2]
+-}
+-
+-type T3 struct {
+-        _ E3[T3]
+-}
+-
+-type T4 /* ERROR illegal cycle */ [10]E5[T4]
+-
+-type T5 struct {
+-	_ E0[E2[T5]]
+-}
+-
+-type T6 struct {
+-	_ E0[E2[E0[E1[E2[[10]T6]]]]]
+-}
+-
+-type T7 struct {
+-	_ E0[[10]E2[E0[E2[E2[T7]]]]]
+-}
+-
+-type T8 struct {
+-	_ E0[[]E2[E0[E2[E2[T8]]]]]
+-}
+-
+-type T9 /* ERROR illegal cycle */ [10]E2[E5[E2[T9]]]
+-
+-type T10 [10]E2[E5[E2[func(T10)]]]
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39948.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39948.go
+deleted file mode 100644
+index c893cc049e..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39948.go
++++ /dev/null
+@@ -1,9 +0,0 @@
+-// Copyright 2020 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-type T[P any] interface{
+-	P // ERROR term cannot be a type parameter
+-}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39976.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39976.go
+deleted file mode 100644
+index d703da90a2..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39976.go
++++ /dev/null
+@@ -1,16 +0,0 @@
+-// Copyright 2020 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-type policy[K, V any] interface{}
+-type LRU[K, V any] struct{}
+-
+-func NewCache[K, V any](p policy[K, V]) {}
+-
+-func _() {
+-	var lru LRU[int, string]
+-	NewCache[int, string](&lru)
+-	NewCache(& /* ERROR does not match policy\[K, V\] \(cannot infer K and V\) */ lru)
+-}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39982.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39982.go
+deleted file mode 100644
+index 9810b6386a..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39982.go
++++ /dev/null
+@@ -1,36 +0,0 @@
+-// Copyright 2020 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-type (
+-	T[_ any] struct{}
+-	S[_ any] struct {
+-		data T[*T[int]]
+-	}
+-)
+-
+-func _() {
+-	_ = S[int]{
+-		data: T[*T[int]]{},
+-	}
+-}
+-
+-// full test case from issue
+-
+-type (
+-	Element[TElem any] struct{}
+-
+-	entry[K comparable] struct{}
+-
+-	Cache[K comparable] struct {
+-		data map[K]*Element[*entry[K]]
+-	}
+-)
+-
+-func _() {
+-	_ = Cache[int]{
+-		data: make(map[int](*Element[*entry[int]])),
+-	}
+-}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue40038.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue40038.go
+deleted file mode 100644
+index 5f81fcbfaa..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue40038.go
++++ /dev/null
+@@ -1,15 +0,0 @@
+-// Copyright 2020 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-type A[T any] int
+-
+-func (A[T]) m(A[T])
+-
+-func f[P interface{m(P)}]() {}
+-
+-func _() {
+-	_ = f[A[int]]
+-}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue40056.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue40056.go
+deleted file mode 100644
+index 66130c0a55..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue40056.go
++++ /dev/null
+@@ -1,15 +0,0 @@
+-// Copyright 2020 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-func _() {
+-	NewS /* ERROR cannot infer T */ ().M()
+-}
+-
+-type S struct {}
+-
+-func NewS[T any]() *S { panic(0) }
+-
+-func (_ *S /* ERROR S is not a generic type */ [T]) M()
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue40057.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue40057.go
+deleted file mode 100644
+index fdc8fb1c00..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue40057.go
++++ /dev/null
+@@ -1,17 +0,0 @@
+-// Copyright 2020 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-func _() {
+-	var x interface{}
+-	switch t := x.(type) {
+-	case S /* ERROR cannot use generic type */ :
+-		t.m()
+-	}
+-}
+-
+-type S[T any] struct {}
+-
+-func (_ S[T]) m()
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue40301.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue40301.go
+deleted file mode 100644
+index c78f9a1fa0..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue40301.go
++++ /dev/null
+@@ -1,12 +0,0 @@
+-// Copyright 2020 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-import "unsafe"
+-
+-func _[T any](x T) {
+-	_ = unsafe.Alignof(x)
+-	_ = unsafe.Sizeof(x)
+-}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue40350.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue40350.go
+deleted file mode 100644
+index 7ffd551c2e..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue40350.go
++++ /dev/null
+@@ -1,16 +0,0 @@
+-// Copyright 2022 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-type number interface {
+-	~float64 | ~int | ~int32
+-	float64 | ~int32
+-}
+-
+-func f[T number]() {}
+-
+-func _() {
+-	_ = f[int /* ERROR int does not implement number \(int missing in float64 | ~int32\)*/]
+-}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue40684.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue40684.go
+deleted file mode 100644
+index 63a058d039..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue40684.go
++++ /dev/null
+@@ -1,15 +0,0 @@
+-// Copyright 2020 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-type T[_ any] int
+-
+-func f[_ any]() {}
+-func g[_, _ any]() {}
+-
+-func _() {
+-	_ = f[T /* ERROR without instantiation */ ]
+-	_ = g[T /* ERROR without instantiation */ , T /* ERROR without instantiation */ ]
+-}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue40789.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue40789.go
+deleted file mode 100644
+index 9eea4ad60a..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue40789.go
++++ /dev/null
+@@ -1,37 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-import "fmt"
+-
+-func main() {
+-	m := map[string]int{
+-		"a": 6,
+-		"b": 7,
+-	}
+-	fmt.Println(copyMap[map[string]int, string, int](m))
+-}
+-
+-type Map[K comparable, V any] interface {
+-	map[K] V
+-}
+-
+-func copyMap[M Map[K, V], K comparable, V any](m M) M {
+-	m1 := make(M)
+-	for k, v := range m {
+-		m1[k] = v
+-	}
+-	return m1
+-}
+-
+-// simpler test case from the same issue
+-
+-type A[X comparable] interface {
+-	[]X
+-}
+-
+-func f[B A[X], X comparable]() B {
+-	return nil
+-}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue41124.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue41124.go
+deleted file mode 100644
+index 4550dd732c..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue41124.go
++++ /dev/null
+@@ -1,91 +0,0 @@
+-// Copyright 2020 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-// Test case from issue.
+-
+-type Nat /* ERROR cycle */ interface {
+-	Zero|Succ
+-}
+-
+-type Zero struct{}
+-type Succ struct{
+-	Nat // Nat contains type constraints but is invalid, so no error
+-}
+-
+-// Struct tests.
+-
+-type I1 interface {
+-	comparable
+-}
+-
+-type I2 interface {
+-	~int
+-}
+-
+-type I3 interface {
+-	I1
+-	I2
+-}
+-
+-type _ struct {
+-	f I1 // ERROR interface is .* comparable
+-}
+-
+-type _ struct {
+-	comparable // ERROR interface is .* comparable
+-}
+-
+-type _ struct{
+-	I1 // ERROR interface is .* comparable
+-}
+-
+-type _ struct{
+-	I2 // ERROR interface contains type constraints
+-}
+-
+-type _ struct{
+-	I3 // ERROR interface contains type constraints
+-}
+-
+-// General composite types.
+-
+-type (
+-	_ [10]I1 // ERROR interface is .* comparable
+-	_ [10]I2 // ERROR interface contains type constraints
+-
+-	_ []I1 // ERROR interface is .* comparable
+-	_ []I2 // ERROR interface contains type constraints
+-
+-	_ *I3 // ERROR interface contains type constraints
+-	_ map[I1 /* ERROR interface is .* comparable */ ]I2 // ERROR interface contains type constraints
+-	_ chan I3 // ERROR interface contains type constraints
+-	_ func(I1 /* ERROR interface is .* comparable */ )
+-	_ func() I2 // ERROR interface contains type constraints
+-)
+-
+-// Other cases.
+-
+-var _ = [...]I3 /* ERROR interface contains type constraints */ {}
+-
+-func _(x interface{}) {
+-	_ = x.(I3 /* ERROR interface contains type constraints */ )
+-}
+-
+-type T1[_ any] struct{}
+-type T3[_, _, _ any] struct{}
+-var _ T1[I2 /* ERROR interface contains type constraints */ ]
+-var _ T3[int, I2 /* ERROR interface contains type constraints */ , float32]
+-
+-func f1[_ any]() int { panic(0) }
+-var _ = f1[I2 /* ERROR interface contains type constraints */ ]()
+-func f3[_, _, _ any]() int { panic(0) }
+-var _ = f3[int, I2 /* ERROR interface contains type constraints */ , float32]()
+-
+-func _(x interface{}) {
+-	switch x.(type) {
+-	case I2 /* ERROR interface contains type constraints */ :
+-	}
+-}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue42695.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue42695.go
+deleted file mode 100644
+index d0d6200969..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue42695.go
++++ /dev/null
+@@ -1,17 +0,0 @@
+-// Copyright 2020 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package issue42695
+-
+-const _ = 6e5518446744 // ERROR malformed constant
+-const _ uint8 = 6e5518446744 // ERROR malformed constant
+-
+-var _ = 6e5518446744 // ERROR malformed constant
+-var _ uint8 = 6e5518446744 // ERROR malformed constant
+-
+-func f(x int) int {
+-        return x + 6e5518446744 // ERROR malformed constant
+-}
+-
+-var _ = f(6e5518446744 /* ERROR malformed constant */ )
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue42758.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue42758.go
+deleted file mode 100644
+index 6d75b106d4..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue42758.go
++++ /dev/null
+@@ -1,33 +0,0 @@
+-// Copyright 2020 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-func _[T any](x interface{}){
+-	switch x.(type) {
+-	case T: // ok to use a type parameter
+-	case int:
+-	}
+-
+-	switch x.(type) {
+-	case T:
+-	case T /* ERROR duplicate case */ :
+-	}
+-}
+-
+-type constraint interface {
+-	~int
+-}
+-
+-func _[T constraint](x interface{}){
+-	switch x.(type) {
+-	case T: // ok to use a type parameter even if type set contains int
+-	case int:
+-	}
+-}
+-
+-func _(x constraint /* ERROR contains type constraints */ ) {
+-	switch x.(type) { // no need to report another error
+-	}
+-}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue42881.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue42881.go
+deleted file mode 100644
+index 7122d1c787..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue42881.go
++++ /dev/null
+@@ -1,16 +0,0 @@
+-// Copyright 2022 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-type (
+-	T1 interface{ comparable }
+-	T2 interface{ int }
+-)
+-
+-var (
+-	_ comparable // ERROR cannot use type comparable outside a type constraint: interface is \(or embeds\) comparable
+-	_ T1         // ERROR cannot use type T1 outside a type constraint: interface is \(or embeds\) comparable
+-	_ T2         // ERROR cannot use type T2 outside a type constraint: interface contains type constraints
+-)
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue42987.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue42987.go
+deleted file mode 100644
+index f58c63f8a3..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue42987.go
++++ /dev/null
+@@ -1,8 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Check that there is only one error (no follow-on errors).
+-
+-package p
+-var _ = [ ... /* ERROR invalid use of \[...\] array */ ]byte("foo")
+\ No newline at end of file
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue43056.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue43056.go
+deleted file mode 100644
+index 8ff4e7f9b4..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue43056.go
++++ /dev/null
+@@ -1,31 +0,0 @@
+-// Copyright 2022 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-// simplified example
+-func f[T ~func(T)](a, b T) {}
+-
+-type F func(F)
+-
+-func _() {
+-	var i F
+-	var j func(F)
+-
+-	f(i, j)
+-	f(j, i)
+-}
+-
+-// example from issue
+-func g[T interface{ Equal(T) bool }](a, b T) {}
+-
+-type I interface{ Equal(I) bool }
+-
+-func _() {
+-	var i I
+-	var j interface{ Equal(I) bool }
+-
+-	g(i, j)
+-	g(j, i)
+-}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue43087.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue43087.go
+deleted file mode 100644
+index 85d4450139..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue43087.go
++++ /dev/null
+@@ -1,43 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-func _() {
+-	a, b, b /* ERROR b repeated on left side of := */ := 1, 2, 3
+-	_ = a
+-	_ = b
+-}
+-
+-func _() {
+-	a, _, _ := 1, 2, 3 // multiple _'s ok
+-	_ = a
+-}
+-
+-func _() {
+-	var b int
+-	a, b, b /* ERROR b repeated on left side of := */ := 1, 2, 3
+-	_ = a
+-	_ = b
+-}
+-
+-func _() {
+-	var a []int
+-	a /* ERROR non-name .* on left side of := */ [0], b := 1, 2
+-	_ = a
+-	_ = b
+-}
+-
+-func _() {
+-	var a int
+-	a, a /* ERROR a repeated on left side of := */ := 1, 2
+-	_ = a
+-}
+-
+-func _() {
+-	var a, b int
+-	a, b := /* ERROR no new variables on left side of := */ 1, 2
+-	_ = a
+-	_ = b
+-}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue43109.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue43109.go
+deleted file mode 100644
+index a4533c9bf7..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue43109.go
++++ /dev/null
+@@ -1,10 +0,0 @@
+-// Copyright 2022 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Ensure there is no "imported but not used" error
+-// if a package wasn't imported in the first place.
+-
+-package p
+-
+-import . "/foo" // ERROR could not import \/foo
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue43110.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue43110.go
+deleted file mode 100644
+index 8d5c983fd5..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue43110.go
++++ /dev/null
+@@ -1,43 +0,0 @@
+-// Copyright 2020 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-type P *struct{}
+-
+-func _() {
+-	// want an error even if the switch is empty
+-	var a struct{ _ func() }
+-	switch a /* ERROR cannot switch on a */ {
+-	}
+-
+-	switch a /* ERROR cannot switch on a */ {
+-	case a: // no follow-on error here
+-	}
+-
+-	// this is ok because f can be compared to nil
+-	var f func()
+-	switch f {
+-	}
+-
+-	switch f {
+-	case nil:
+-	}
+-
+-	switch (func())(nil) {
+-	case nil:
+-	}
+-
+-	switch (func())(nil) {
+-	case f /* ERROR invalid case f in switch on .* \(func can only be compared to nil\) */ :
+-	}
+-
+-	switch nil /* ERROR use of untyped nil in switch expression */ {
+-	}
+-
+-	// this is ok
+-	switch P(nil) {
+-	case P(nil):
+-	}
+-}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue43124.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue43124.go
+deleted file mode 100644
+index f429f74a74..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue43124.go
++++ /dev/null
+@@ -1,16 +0,0 @@
+-// Copyright 2020 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-var _ = int(0 /* ERROR invalid use of \.\.\. in conversion to int */ ...)
+-
+-// test case from issue
+-
+-type M []string
+-
+-var (
+-	x = []string{"a", "b"}
+-	_ = M(x /* ERROR invalid use of \.\.\. in conversion to M */ ...)
+-)
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue43125.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue43125.go
+deleted file mode 100644
+index 456888de6b..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue43125.go
++++ /dev/null
+@@ -1,8 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-var _ = new(- /* ERROR not a type */ 1)
+-var _ = new(1 /* ERROR not a type */ + 1)
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue43190.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue43190.go
+deleted file mode 100644
+index 898ad0b7d0..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue43190.go
++++ /dev/null
+@@ -1,30 +0,0 @@
+-// Copyright 2020 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// The errors below are produced by the parser, but we check
+-// them here for consistency with the types2 tests.
+-
+-package p
+-
+-import ; // ERROR missing import path
+-import
+-var /* ERROR missing import path */ _ int
+-import .; //  ERROR missing import path
+-import 'x' // ERROR import path must be a string
+-var _ int
+-import /* ERROR imports must appear before other declarations */ _ "math"
+-
+-// Don't repeat previous error for each immediately following import ...
+-import ()
+-import (.) // ERROR missing import path
+-import (
+-	"fmt"
+-	.
+-) // ERROR missing import path
+-
+-// ... but remind with error again if we start a new import section after
+-// other declarations
+-var _ = fmt.Println
+-import /* ERROR imports must appear before other declarations */ _ "math"
+-import _ "math"
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue43527.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue43527.go
+deleted file mode 100644
+index 2955c261f9..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue43527.go
++++ /dev/null
+@@ -1,16 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-const L = 10
+-
+-type (
+-	_        [L]struct{}
+-	_        [A /* ERROR undeclared name A for array length */ ]struct{}
+-	_        [B /* ERROR invalid array length B */ ]struct{}
+-	_[A any] struct{}
+-
+-	B int
+-)
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue43671.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue43671.go
+deleted file mode 100644
+index 3c78f85aa4..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue43671.go
++++ /dev/null
+@@ -1,58 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-type C0 interface{ int }
+-type C1 interface{ chan int }
+-type C2 interface{ chan int | <-chan int }
+-type C3 interface{ chan int | chan float32 }
+-type C4 interface{ chan int | chan<- int }
+-type C5[T any] interface{ ~chan T | <-chan T }
+-
+-func _[T any](ch T) {
+-	<-ch // ERROR cannot receive from ch .* no core type
+-}
+-
+-func _[T C0](ch T) {
+-	<-ch // ERROR cannot receive from non-channel ch
+-}
+-
+-func _[T C1](ch T) {
+-	<-ch
+-}
+-
+-func _[T C2](ch T) {
+-	<-ch
+-}
+-
+-func _[T C3](ch T) {
+-	<-ch // ERROR cannot receive from ch .* no core type
+-}
+-
+-func _[T C4](ch T) {
+-	<-ch // ERROR cannot receive from send-only channel
+-}
+-
+-func _[T C5[X], X any](ch T, x X) {
+-	x = <-ch
+-}
+-
+-// test case from issue, slightly modified
+-type RecvChan[T any] interface {
+-	~chan T | ~<-chan T
+-}
+-
+-func _[T any, C RecvChan[T]](ch C) T {
+-	return <-ch
+-}
+-
+-func f[T any, C interface{ chan T }](ch C) T {
+-	return <-ch
+-}
+-
+-func _(ch chan int) {
+-	var x int = f(ch) // test constraint type inference for this case
+-	_ = x
+-}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue44688.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue44688.go
+deleted file mode 100644
+index 512bfcc922..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue44688.go
++++ /dev/null
+@@ -1,83 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package P
+-
+-type A1[T any] struct{}
+-
+-func (*A1[T]) m1(T) {}
+-
+-type A2[T any] interface {
+-	m2(T)
+-}
+-
+-type B1[T any] struct {
+-	filler int
+-	*A1[T]
+-	A2[T]
+-}
+-
+-type B2[T any] interface {
+-	A2[T]
+-}
+-
+-type C[T any] struct {
+-	filler1 int
+-	filler2 int
+-	B1[T]
+-}
+-
+-type D[T any] struct {
+-	filler1 int
+-	filler2 int
+-	filler3 int
+-	C[T]
+-}
+-
+-func _() {
+-	// calling embedded methods
+-	var b1 B1[string]
+-
+-	b1.A1.m1("")
+-	b1.m1("")
+-
+-	b1.A2.m2("")
+-	b1.m2("")
+-
+-	var b2 B2[string]
+-	b2.m2("")
+-
+-	// a deeper nesting
+-	var d D[string]
+-	d.m1("")
+-	d.m2("")
+-
+-	// calling method expressions
+-	m1x := B1[string].m1
+-	m1x(b1, "")
+-	m2x := B2[string].m2
+-	m2x(b2, "")
+-
+-	// calling method values
+-	m1v := b1.m1
+-	m1v("")
+-	m2v := b1.m2
+-	m2v("")
+-	b2v := b2.m2
+-	b2v("")
+-}
+-
+-// actual test case from issue
+-
+-type A[T any] struct{}
+-
+-func (*A[T]) f(T) {}
+-
+-type B[T any] struct{ A[T] }
+-
+-func _() {
+-	var b B[string]
+-	b.A.f("")
+-	b.f("")
+-}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue44799.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue44799.go
+deleted file mode 100644
+index 9e528a7475..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue44799.go
++++ /dev/null
+@@ -1,19 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-func Map[F, T any](s []F, f func(F) T) []T { return nil }
+-
+-func Reduce[Elem1, Elem2 any](s []Elem1, initializer Elem2, f func(Elem2, Elem1) Elem2) Elem2 { var x Elem2; return x }
+-
+-func main() {
+-	var s []int
+-	var f1 func(int) float64
+-	var f2 func(float64, int) float64
+-	_ = Map[int](s, f1)
+-	_ = Map(s, f1)
+-	_ = Reduce[int](s, 0, f2)
+-	_ = Reduce(s, 0, f2)
+-}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue45114.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue45114.go
+deleted file mode 100644
+index 009366010e..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue45114.go
++++ /dev/null
+@@ -1,8 +0,0 @@
+-// Copyright 2022 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-var s uint
+-var _ = string(1 /* ERROR shifted operand 1 .* must be integer */ << s)
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue45548.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue45548.go
+deleted file mode 100644
+index 01c9672745..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue45548.go
++++ /dev/null
+@@ -1,13 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-func f[F interface{*Q}, G interface{*R}, Q, R any](q Q, r R) {}
+-
+-func _() {
+-	f[*float64, *int](1, 2)
+-	f[*float64](1, 2)
+-	f(1, 2)
+-}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue45550.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue45550.go
+deleted file mode 100644
+index 3eeaca0957..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue45550.go
++++ /dev/null
+@@ -1,10 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-type Builder /* ERROR illegal cycle */ [T interface{ struct{ Builder[T] } }] struct{}
+-type myBuilder struct {
+-	Builder[myBuilder]
+-}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue45635.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue45635.go
+deleted file mode 100644
+index fc50797b17..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue45635.go
++++ /dev/null
+@@ -1,31 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-func main() {
+-	some /* ERROR "undeclared name" */ [int, int]()
+-}
+-
+-type N[T any] struct{}
+-
+-var _ N [] // ERROR expected type argument list
+-
+-type I interface {
+-	~[]int
+-}
+-
+-func _[T I](i, j int) {
+-	var m map[int]int
+-	_ = m[i, j /* ERROR "more than one index" */ ]
+-
+-	var a [3]int
+-	_ = a[i, j /* ERROR "more than one index" */ ]
+-
+-	var s []int
+-	_ = s[i, j /* ERROR "more than one index" */ ]
+-
+-	var t T
+-	_ = t[i, j /* ERROR "more than one index" */ ]
+-}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue45639.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue45639.go
+deleted file mode 100644
+index 80148fe481..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue45639.go
++++ /dev/null
+@@ -1,13 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package P
+-
+-// For now, a lone type parameter is not permitted as RHS in a type declaration (issue #45639).
+-// // It is not permitted to declare a local type whose underlying
+-// // type is a type parameters not declared by that type declaration.
+-// func _[T any]() {
+-// 	type _ T         // ERROR cannot use function type parameter T as RHS in type declaration
+-// 	type _ [_ any] T // ERROR cannot use function type parameter T as RHS in type declaration
+-// }
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue45920.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue45920.go
+deleted file mode 100644
+index a0e2d0c970..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue45920.go
++++ /dev/null
+@@ -1,17 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-func f1[T any, C chan T | <-chan T](ch C) {}
+-
+-func _(ch chan int)   { f1(ch) }
+-func _(ch <-chan int) { f1(ch) }
+-func _(ch chan<- int) { f1 /* ERROR chan<- int does not implement chan int\|<-chan int */ (ch) }
+-
+-func f2[T any, C chan T | chan<- T](ch C) {}
+-
+-func _(ch chan int)   { f2(ch) }
+-func _(ch <-chan int) { f2 /* ERROR <-chan int does not implement chan int\|chan<- int */ (ch) }
+-func _(ch chan<- int) { f2(ch) }
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue45985.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue45985.go
+deleted file mode 100644
+index 9a0f5e3697..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue45985.go
++++ /dev/null
+@@ -1,13 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package issue45985
+-
+-func app[S interface{ ~[]T }, T any](s S, e T) S {
+-    return append(s, e)
+-}
+-
+-func _() {
+-	_ = app/* ERROR "S does not match" */[int]
+-}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue46090.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue46090.go
+deleted file mode 100644
+index 07f0101acb..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue46090.go
++++ /dev/null
+@@ -1,11 +0,0 @@
+-// -lang=go1.17
+-
+-// Copyright 2020 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// The predeclared type comparable is not visible before Go 1.18.
+-
+-package p
+-
+-type _ comparable // ERROR predeclared comparable
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue46275.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue46275.go
+deleted file mode 100644
+index 0862d5bb5a..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue46275.go
++++ /dev/null
+@@ -1,26 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package issue46275
+-
+-type N[T any] struct {
+-	*N[T]
+-	t T
+-}
+-
+-func (n *N[T]) Elem() T {
+-	return n.t
+-}
+-
+-type I interface {
+-	Elem() string
+-}
+-
+-func _() {
+-	var n1 *N[string]
+-	var _ I = n1
+-	type NS N[string]
+-	var n2 *NS
+-	var _ I = n2
+-}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue46403.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue46403.go
+deleted file mode 100644
+index 9d475222ad..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue46403.go
++++ /dev/null
+@@ -1,11 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package issue46403
+-
+-func _() {
+-	// a should be used, despite the parser error below.
+-	var a []int
+-	var _ = a[] // ERROR expected operand
+-}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue46404.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue46404.go
+deleted file mode 100644
+index e3c93f66a8..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue46404.go
++++ /dev/null
+@@ -1,10 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package issue46404
+-
+-// TODO(gri) re-enable this test with matching errors
+-//           between go/types and types2
+-// Check that we don't type check t[_] as an instantiation.
+-// type t [t /* type parameters must be named */ /* not a generic type */ [_]]_ // cannot use
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue46461.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue46461.go
+deleted file mode 100644
+index 4432402a30..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue46461.go
++++ /dev/null
+@@ -1,20 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-// test case 1
+-type T /* ERROR illegal cycle */ [U interface{ M() T[U] }] int
+-
+-type X int
+-
+-func (X) M() T[X] { return 0 }
+-
+-// test case 2
+-type A /* ERROR illegal cycle */ [T interface{ A[T] }] interface{}
+-
+-// test case 3
+-type A2 /* ERROR illegal cycle */ [U interface{ A2[U] }] interface{ M() A2[U] }
+-
+-type I interface{ A2[I]; M() A2[I] }
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue46583.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue46583.go
+deleted file mode 100644
+index da1f1ffbba..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue46583.go
++++ /dev/null
+@@ -1,28 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-type T1 struct{}
+-func (t T1) m(int) {}
+-var f1 func(T1)
+-
+-type T2 struct{}
+-func (t T2) m(x int) {}
+-var f2 func(T2)
+-
+-type T3 struct{}
+-func (T3) m(int) {}
+-var f3 func(T3)
+-
+-type T4 struct{}
+-func (T4) m(x int) {}
+-var f4 func(T4)
+-
+-func _() {
+-	f1 = T1 /* ERROR func\(T1, int\) */ .m
+-	f2 = T2 /* ERROR func\(t T2, x int\) */ .m
+-	f3 = T3 /* ERROR func\(T3, int\) */ .m
+-	f4 = T4 /* ERROR func\(_ T4, x int\) */ .m
+-}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue47031.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue47031.go
+deleted file mode 100644
+index b184f9b5b7..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue47031.go
++++ /dev/null
+@@ -1,20 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-type Mer interface { M() }
+-
+-func F[T Mer](p *T) {
+-	p.M /* ERROR p\.M undefined */ ()
+-}
+-
+-type MyMer int
+-
+-func (MyMer) M() {}
+-
+-func _() {
+-	F(new(MyMer))
+-	F[Mer](nil)
+-}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue47115.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue47115.go
+deleted file mode 100644
+index a0bfe38de8..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue47115.go
++++ /dev/null
+@@ -1,40 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-type C0 interface{ int }
+-type C1 interface{ chan int }
+-type C2 interface{ chan int | <-chan int }
+-type C3 interface{ chan int | chan float32 }
+-type C4 interface{ chan int | chan<- int }
+-type C5[T any] interface{ ~chan T | chan<- T }
+-
+-func _[T any](ch T) {
+-	ch <- /* ERROR cannot send to ch .* no core type */ 0
+-}
+-
+-func _[T C0](ch T) {
+-	ch <- /* ERROR cannot send to non-channel */ 0
+-}
+-
+-func _[T C1](ch T) {
+-	ch <- 0
+-}
+-
+-func _[T C2](ch T) {
+-	ch  <-/* ERROR cannot send to receive-only channel */ 0
+-}
+-
+-func _[T C3](ch T) {
+-	ch <- /* ERROR cannot send to ch .* no core type */ 0
+-}
+-
+-func _[T C4](ch T) {
+-	ch <- 0
+-}
+-
+-func _[T C5[X], X any](ch T, x X) {
+-	ch <- x
+-}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue47127.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue47127.go
+deleted file mode 100644
+index bb4b487eb2..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue47127.go
++++ /dev/null
+@@ -1,37 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Embedding of stand-alone type parameters is not permitted.
+-
+-package p
+-
+-type (
+-        _[P any] interface{ *P | []P | chan P | map[string]P }
+-        _[P any] interface{ P /* ERROR term cannot be a type parameter */ }
+-        _[P any] interface{ ~P /* ERROR type in term ~P cannot be a type parameter */ }
+-        _[P any] interface{ int | P /* ERROR term cannot be a type parameter */ }
+-        _[P any] interface{ int | ~P /* ERROR type in term ~P cannot be a type parameter */ }
+-)
+-
+-func _[P any]() {
+-        type (
+-                _[P any] interface{ *P | []P | chan P | map[string]P }
+-                _[P any] interface{ P /* ERROR term cannot be a type parameter */ }
+-                _[P any] interface{ ~P /* ERROR type in term ~P cannot be a type parameter */ }
+-                _[P any] interface{ int | P /* ERROR term cannot be a type parameter */ }
+-                _[P any] interface{ int | ~P /* ERROR type in term ~P cannot be a type parameter */ }
+-
+-                _ interface{ *P | []P | chan P | map[string]P }
+-                _ interface{ P /* ERROR term cannot be a type parameter */ }
+-                _ interface{ ~P /* ERROR type in term ~P cannot be a type parameter */ }
+-                _ interface{ int | P /* ERROR term cannot be a type parameter */ }
+-                _ interface{ int | ~P /* ERROR type in term ~P cannot be a type parameter */ }
+-        )
+-}
+-
+-func _[P any, Q interface{ *P | []P | chan P | map[string]P }]() {}
+-func _[P any, Q interface{ P /* ERROR term cannot be a type parameter */ }]() {}
+-func _[P any, Q interface{ ~P /* ERROR type in term ~P cannot be a type parameter */ }]() {}
+-func _[P any, Q interface{ int | P /* ERROR term cannot be a type parameter */ }]() {}
+-func _[P any, Q interface{ int | ~P /* ERROR type in term ~P cannot be a type parameter */ }]() {}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue47411.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue47411.go
+deleted file mode 100644
+index db5fb32483..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue47411.go
++++ /dev/null
+@@ -1,26 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-func f[_ comparable]() {}
+-func g[_ interface{interface{comparable; ~int|~string}}]() {}
+-
+-func _[P comparable,
+-        Q interface{ comparable; ~int|~string },
+-        R any,                               // not comparable
+-        S interface{ comparable; ~func() },  // not comparable
+-]() {
+-        _ = f[int]
+-        _ = f[P]
+-        _ = f[Q]
+-        _ = f[func /* ERROR does not implement comparable */ ()]
+-        _ = f[R /* ERROR R does not implement comparable */ ]
+-
+-        _ = g[int]
+-        _ = g[P /* ERROR P does not implement interface{interface{comparable; ~int\|~string} */ ]
+-        _ = g[Q]
+-        _ = g[func /* ERROR func\(\) does not implement interface{interface{comparable; ~int\|~string}} */ ()]
+-        _ = g[R /* ERROR R does not implement interface{interface{comparable; ~int\|~string} */ ]
+-}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue47747.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue47747.go
+deleted file mode 100644
+index 6f09fc2f57..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue47747.go
++++ /dev/null
+@@ -1,71 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-// For now, a lone type parameter is not permitted as RHS in a type declaration (issue #45639).
+-// type T1[P any] P
+-// 
+-// func (T1[_]) m() {}
+-// 
+-// func _[P any](x *T1[P]) {
+-//         // x.m exists because x is of type *T1 where T1 is a defined type
+-//         // (even though under(T1) is a type parameter)
+-//         x.m()
+-// }
+-
+-
+-func _[P interface{ m() }](x P) {
+-        x.m()
+-        // (&x).m doesn't exist because &x is of type *P
+-        // and pointers to type parameters don't have methods
+-        (&x).m /* ERROR type \*P is pointer to type parameter, not type parameter */ ()
+-}
+-
+-
+-type T2 interface{ m() }
+-
+-func _(x *T2) {
+-        // x.m doesn't exists because x is of type *T2
+-        // and pointers to interfaces don't have methods
+-        x.m /* ERROR type \*T2 is pointer to interface, not interface */()
+-}
+-
+-// Test case 1 from issue
+-
+-type Fooer1[t any] interface {
+-	Foo(Barer[t])
+-}
+-type Barer[t any] interface {
+-	Bar(t)
+-}
+-
+-// For now, a lone type parameter is not permitted as RHS in a type declaration (issue #45639).
+-// type Foo1[t any] t
+-// type Bar[t any] t
+-// 
+-// func (l Foo1[t]) Foo(v Barer[t]) { v.Bar(t(l)) }
+-// func (b *Bar[t]) Bar(l t)        { *b = Bar[t](l) }
+-// 
+-// func _[t any](f Fooer1[t]) t {
+-// 	var b Bar[t]
+-// 	f.Foo(&b)
+-// 	return t(b)
+-// }
+-
+-// Test case 2 from issue
+-
+-// For now, a lone type parameter is not permitted as RHS in a type declaration (issue #45639).
+-// type Fooer2[t any] interface {
+-// 	Foo()
+-// }
+-// 
+-// type Foo2[t any] t
+-// 
+-// func (f *Foo2[t]) Foo() {}
+-// 
+-// func _[t any](v t) {
+-// 	var f = Foo2[t](v)
+-// 	_ = Fooer2[t](&f)
+-// }
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue47796.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue47796.go
+deleted file mode 100644
+index 6667ba4fec..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue47796.go
++++ /dev/null
+@@ -1,33 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-// parameterized types with self-recursive constraints
+-type (
+-	T1 /* ERROR illegal cycle */ [P T1[P]]                            interface{}
+-	T2 /* ERROR illegal cycle */ [P, Q T2[P, Q]]                      interface{}
+-	T3[P T2[P, Q], Q interface{ ~string }] interface{}
+-
+-	T4a /* ERROR illegal cycle */ [P T4a[P]]                                                        interface{ ~int }
+-	T4b /* ERROR illegal cycle */ [P T4b[int]]                                                      interface{ ~int }
+-	T4c /* ERROR illegal cycle */ [P T4c[string]] interface{ ~int }
+-
+-	// mutually recursive constraints
+-	T5 /* ERROR illegal cycle */ [P T6[P]] interface{ int }
+-	T6[P T5[P]] interface{ int }
+-)
+-
+-// verify that constraints are checked as expected
+-var (
+-	_ T1[int]
+-	_ T2[int, string]
+-	_ T3[int, string]
+-)
+-
+-// test case from issue
+-
+-type Eq /* ERROR illegal cycle */ [a Eq[a]] interface {
+-	Equal(that a) bool
+-}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue47818.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue47818.go
+deleted file mode 100644
+index 5aa3b82a8d..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue47818.go
++++ /dev/null
+@@ -1,61 +0,0 @@
+-// -lang=go1.17
+-
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Parser accepts type parameters but the type checker
+-// needs to report any operations that are not permitted
+-// before Go 1.18.
+-
+-package p
+-
+-type T[P /* ERROR type parameter requires go1\.18 or later */ any /* ERROR predeclared any requires go1\.18 or later */] struct{}
+-
+-// for init (and main, but we're not in package main) we should only get one error
+-func init[P /* ERROR func init must have no type parameters */ any /* ERROR predeclared any requires go1\.18 or later */]() {
+-}
+-func main[P /* ERROR type parameter requires go1\.18 or later */ any /* ERROR predeclared any requires go1\.18 or later */]() {
+-}
+-
+-func f[P /* ERROR type parameter requires go1\.18 or later */ any /* ERROR predeclared any requires go1\.18 or later */](x P) {
+-	var _ T[ /* ERROR type instantiation requires go1\.18 or later */ int]
+-	var _ (T[ /* ERROR type instantiation requires go1\.18 or later */ int])
+-	_ = T[ /* ERROR type instantiation requires go1\.18 or later */ int]{}
+-	_ = T[ /* ERROR type instantiation requires go1\.18 or later */ int](struct{}{})
+-}
+-
+-func (T[ /* ERROR type instantiation requires go1\.18 or later */ P]) g(x int) {
+-	f[ /* ERROR function instantiation requires go1\.18 or later */ int](0)     // explicit instantiation
+-	(f[ /* ERROR function instantiation requires go1\.18 or later */ int])(0)   // parentheses (different code path)
+-	f( /* ERROR implicit function instantiation requires go1\.18 or later */ x) // implicit instantiation
+-}
+-
+-type C1 interface {
+-	comparable // ERROR predeclared comparable requires go1\.18 or later
+-}
+-
+-type C2 interface {
+-	comparable // ERROR predeclared comparable requires go1\.18 or later
+-	int        // ERROR embedding non-interface type int requires go1\.18 or later
+-	~ /* ERROR embedding interface element ~int requires go1\.18 or later */ int
+-	int /* ERROR embedding interface element int\|~string requires go1\.18 or later */ | ~string
+-}
+-
+-type _ interface {
+-	// errors for these were reported with their declaration
+-	C1
+-	C2
+-}
+-
+-type (
+-	_ comparable // ERROR predeclared comparable requires go1\.18 or later
+-	// errors for these were reported with their declaration
+-	_ C1
+-	_ C2
+-
+-	_ = comparable // ERROR predeclared comparable requires go1\.18 or later
+-	// errors for these were reported with their declaration
+-	_ = C1
+-	_ = C2
+-)
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue47887.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue47887.go
+deleted file mode 100644
+index 4c4fc2fda8..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue47887.go
++++ /dev/null
+@@ -1,28 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-type Fooer[t any] interface {
+-	foo(Barer[t])
+-}
+-type Barer[t any] interface {
+-	bar(Bazer[t])
+-}
+-type Bazer[t any] interface {
+-	Fooer[t]
+-	baz(t)
+-}
+-
+-type Int int
+-
+-func (n Int) baz(int) {}
+-func (n Int) foo(b Barer[int]) { b.bar(n) }
+-
+-type F[t any] interface { f(G[t]) }
+-type G[t any] interface { g(H[t]) }
+-type H[t any] interface { F[t] }
+-
+-type T struct{}
+-func (n T) f(b G[T]) { b.g(n) }
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue47968.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue47968.go
+deleted file mode 100644
+index 3dd303957c..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue47968.go
++++ /dev/null
+@@ -1,21 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-type T[P any] struct{}
+-
+-func (T[P]) m1()
+-
+-type A1 = T // ERROR cannot use generic type
+-
+-func (A1[P]) m2() {}
+-
+-type A2 = T[int]
+-
+-func (A2 /* ERROR cannot define new methods on instantiated type T\[int\] */) m3()   {}
+-func (_ /* ERROR cannot define new methods on instantiated type T\[int\] */ A2) m4() {}
+-
+-func (T[int]) m5()                                     {} // int is the type parameter name, not an instantiation
+-func (T[* /* ERROR must be an identifier */ int]) m6() {} // syntax error
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48008.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48008.go
+deleted file mode 100644
+index 6c14c78e4c..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48008.go
++++ /dev/null
+@@ -1,60 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-type T[P any] struct{}
+-
+-func _(x interface{}) {
+-	switch x.(type) {
+-	case nil:
+-	case int:
+-
+-	case T[int]:
+-	case []T[int]:
+-	case [10]T[int]:
+-	case struct{T[int]}:
+-	case *T[int]:
+-	case func(T[int]):
+-	case interface{m(T[int])}:
+-	case map[T[int]] string:
+-	case chan T[int]:
+-
+-	case T /* ERROR cannot use generic type T\[P any\] without instantiation */ :
+-	case []T /* ERROR cannot use generic type */ :
+-	case [10]T /* ERROR cannot use generic type */ :
+-	case struct{T /* ERROR cannot use generic type */ }:
+-	case *T /* ERROR cannot use generic type */ :
+-	case func(T /* ERROR cannot use generic type */ ):
+-	case interface{m(T /* ERROR cannot use generic type */ )}:
+-	case map[T /* ERROR cannot use generic type */ ] string:
+-	case chan T /* ERROR cannot use generic type */ :
+-
+-	case T /* ERROR cannot use generic type */ , *T /* ERROR cannot use generic type */ :
+-	}
+-}
+-
+-// Make sure a parenthesized nil is ok.
+-
+-func _(x interface{}) {
+-	switch x.(type) {
+-	case ((nil)), int:
+-	}
+-}
+-
+-// Make sure we look for the predeclared nil.
+-
+-func _(x interface{}) {
+-	type nil int
+-	switch x.(type) {
+-	case nil: // ok - this is the type nil
+-	}
+-}
+-
+-func _(x interface{}) {
+-	var nil int
+-	switch x.(type) {
+-	case nil /* ERROR not a type */ : // not ok - this is the variable nil
+-	}
+-}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48018.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48018.go
+deleted file mode 100644
+index e6ccc6b9be..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48018.go
++++ /dev/null
+@@ -1,20 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-type Box[A any] struct {
+-	value A
+-}
+-
+-func Nest[A /* ERROR instantiation cycle */ any](b Box[A], n int) interface{} {
+-	if n == 0 {
+-		return b
+-	}
+-	return Nest(Box[Box[A]]{b}, n-1)
+-}
+-
+-func main() {
+-	Nest(Box[int]{0}, 10)
+-}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48048.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48048.go
+deleted file mode 100644
+index f401330621..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48048.go
++++ /dev/null
+@@ -1,15 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-type T[P any] struct{}
+-
+-func (T[_]) A() {}
+-
+-var _ = (T[int]).A
+-var _ = (*T[int]).A
+-
+-var _ = (T /* ERROR cannot use generic type */).A
+-var _ = (*T /* ERROR cannot use generic type */).A
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48082.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48082.go
+deleted file mode 100644
+index 5395154978..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48082.go
++++ /dev/null
+@@ -1,7 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package issue48082
+-
+-import "init" /* ERROR init must be a func */ /* ERROR could not import init */
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48083.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48083.go
+deleted file mode 100644
+index 3dae51415d..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48083.go
++++ /dev/null
+@@ -1,9 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-type T[P any] struct{}
+-
+-type _ interface{ int | T /* ERROR cannot use generic type */ }
+\ No newline at end of file
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48136.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48136.go
+deleted file mode 100644
+index b87f84ae64..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48136.go
++++ /dev/null
+@@ -1,36 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-func f1[P interface{ *P }]() {}
+-func f2[P interface{ func(P) }]() {}
+-func f3[P, Q interface{ func(Q) P }]() {}
+-func f4[P interface{ *Q }, Q interface{ func(P) }]() {}
+-func f5[P interface{ func(P) }]() {}
+-func f6[P interface { *Tree[P] }, Q any ]() {}
+-
+-func _() {
+-        f1 /* ERROR cannot infer P */ ()
+-        f2 /* ERROR cannot infer P */ ()
+-        f3 /* ERROR cannot infer P */ ()
+-        f4 /* ERROR cannot infer P */ ()
+-        f5 /* ERROR cannot infer P */ ()
+-        f6 /* ERROR cannot infer P */ ()
+-}
+-
+-type Tree[P any] struct {
+-        left, right *Tree[P]
+-        data P
+-}
+-
+-// test case from issue
+-
+-func foo[Src interface { func() Src }]() Src {
+-        return foo[Src]
+-}
+-
+-func _() {
+-        foo /* ERROR cannot infer Src */ ()
+-}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48234.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48234.go
+deleted file mode 100644
+index e069930c42..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48234.go
++++ /dev/null
+@@ -1,10 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-var _ = interface{
+-	m()
+-	m /* ERROR "duplicate method" */ ()
+-}(nil)
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48312.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48312.go
+deleted file mode 100644
+index 2fdb7cad94..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48312.go
++++ /dev/null
+@@ -1,20 +0,0 @@
+-// Copyright 2022 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-type T interface{ m() }
+-type P *T
+-
+-func _(p *T) {
+-	p.m /* ERROR type \*T is pointer to interface, not interface */ ()
+-}
+-
+-func _(p P) {
+-	p.m /* ERROR type P is pointer to interface, not interface */ ()
+-}
+-
+-func _[P T](p *P) {
+-	p.m /* ERROR type \*P is pointer to type parameter, not type parameter */ ()
+-}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48472.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48472.go
+deleted file mode 100644
+index 2d908f4c8b..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48472.go
++++ /dev/null
+@@ -1,16 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-func g() {
+-	var s string
+-	var i int
+-	_ = s /* ERROR invalid operation: s \+ i \(mismatched types string and int\) */ + i
+-}
+-
+-func f(i int) int {
+-        i /* ERROR invalid operation: i \+= "1" \(mismatched types int and untyped string\) */ += "1"
+-        return i
+-}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48529.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48529.go
+deleted file mode 100644
+index a3653fa19c..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48529.go
++++ /dev/null
+@@ -1,11 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-type T /* ERROR illegal cycle */ [U interface{ M() T[U, int] }] int
+-
+-type X int
+-
+-func (X) M() T[X] { return 0 }
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48582.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48582.go
+deleted file mode 100644
+index c12091be79..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48582.go
++++ /dev/null
+@@ -1,29 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-type N /* ERROR cycle */ interface {
+-	int | N
+-}
+-
+-type A /* ERROR cycle */ interface {
+-	int | B
+-}
+-
+-type B interface {
+-	int | A
+-}
+-
+-type S /* ERROR cycle */ struct {
+-	I // ERROR interface contains type constraints
+-}
+-
+-type I interface {
+-	int | S
+-}
+-
+-type P interface {
+-	*P // ERROR interface contains type constraints
+-}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48619.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48619.go
+deleted file mode 100644
+index 72eea1ef59..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48619.go
++++ /dev/null
+@@ -1,22 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-func f[P any](a, _ P) {
+-	var x int
+-	// TODO(gri) these error messages, while correct, could be better
+-	f(a, x /* ERROR type int of x does not match inferred type P for P */)
+-	f(x, a /* ERROR type P of a does not match inferred type int for P */)
+-}
+-
+-func g[P any](a, b P) {
+-	g(a, b)
+-	g(&a, &b)
+-	g([]P{}, []P{})
+-
+-	// work-around: provide type argument explicitly
+-	g[*P](&a, &b)
+-	g[[]P]([]P{}, []P{})
+-}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48656.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48656.go
+deleted file mode 100644
+index 0f60f47120..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48656.go
++++ /dev/null
+@@ -1,13 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-func f[P *Q, Q any](P, Q) {
+-	_ = f[P]
+-}
+-
+-func f2[P /* ERROR instantiation cycle */ *Q, Q any](P, Q) {
+-	_ = f2[*P]
+-}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48695.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48695.go
+deleted file mode 100644
+index 9f4a76851d..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48695.go
++++ /dev/null
+@@ -1,14 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-func g[P ~func(T) P, T any](P) {}
+-
+-func _() {
+-	type F func(int) F
+-	var f F
+-	g(f)
+-	_ = g[F]
+-}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48703.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48703.go
+deleted file mode 100644
+index 8a32c1ecf2..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48703.go
++++ /dev/null
+@@ -1,27 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-import "unsafe"
+-
+-// The actual example from the issue.
+-type List[P any] struct{}
+-
+-func (_ List[P]) m() (_ List[List[P]]) { return }
+-
+-// Other types of recursion through methods.
+-type R[P any] int
+-
+-func (*R[R /* ERROR must be an identifier */ [int]]) m0() {}
+-func (R[P]) m1(R[R[P]])                                   {}
+-func (R[P]) m2(R[*P])                                     {}
+-func (R[P]) m3([unsafe.Sizeof(new(R[P]))]int)             {}
+-func (R[P]) m4([unsafe.Sizeof(new(R[R[P]]))]int)          {}
+-
+-// Mutual recursion
+-type M[P any] int
+-
+-func (R[P]) m5(M[M[P]]) {}
+-func (M[P]) m(R[R[P]])  {}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48712.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48712.go
+deleted file mode 100644
+index 63ce7bc510..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48712.go
++++ /dev/null
+@@ -1,41 +0,0 @@
+-// Copyright 2022 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-func _[P comparable](x, y P) {
+-	_ = x == x
+-	_ = x == y
+-	_ = y == x
+-	_ = y == y
+-
+-	_ = x /* ERROR type parameter P is not comparable with < */ < y
+-}
+-
+-func _[P comparable](x P, y any) {
+-	_ = x == x
+-	_ = x == y
+-	_ = y == x
+-	_ = y == y
+-
+-	_ = x /* ERROR type parameter P is not comparable with < */ < y
+-}
+-
+-func _[P any](x, y P) {
+-	_ = x /* ERROR incomparable types in type set */ == x
+-	_ = x /* ERROR incomparable types in type set */ == y
+-	_ = y /* ERROR incomparable types in type set */ == x
+-	_ = y /* ERROR incomparable types in type set */ == y
+-
+-	_ = x /* ERROR type parameter P is not comparable with < */ < y
+-}
+-
+-func _[P any](x P, y any) {
+-	_ = x /* ERROR incomparable types in type set */ == x
+-	_ = x /* ERROR incomparable types in type set */ == y
+-	_ = y == x // ERROR incomparable types in type set
+-	_ = y == y
+-
+-	_ = x /* ERROR type parameter P is not comparable with < */ < y
+-}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48819.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48819.go
+deleted file mode 100644
+index 9262110ea0..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48819.go
++++ /dev/null
+@@ -1,15 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-import "unsafe"
+-
+-type T /* ERROR illegal cycle in declaration of T */ struct {
+-	T
+-}
+-
+-func _(t T) {
+-	_ = unsafe.Sizeof(t) // should not go into infinite recursion here
+-}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48827.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48827.go
+deleted file mode 100644
+index aa1d12aaf5..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48827.go
++++ /dev/null
+@@ -1,19 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-type G[P any] int
+-
+-type (
+-	_ G[int]
+-	_ G[G /* ERROR "cannot use.*without instantiation" */]
+-	_ bool /* ERROR "invalid operation: bool\[int\] \(bool is not a generic type\)" */ [int]
+-	_ bool /* ERROR "invalid operation: bool\[G\] \(bool is not a generic type\)" */[G]
+-)
+-
+-// The example from the issue.
+-func _() {
+-	_ = &([10]bool /* ERROR "invalid operation.*bool is not a generic type" */ [1 /* ERROR "expected type" */ ]{})
+-}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48951.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48951.go
+deleted file mode 100644
+index a9365281ee..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48951.go
++++ /dev/null
+@@ -1,21 +0,0 @@
+-// Copyright 2020 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-type (
+-        A1[P any] [10]A1 /* ERROR illegal cycle */ [P]
+-        A2[P any] [10]A2 /* ERROR illegal cycle */ [*P]
+-        A3[P any] [10]*A3[P]
+-
+-        L1[P any] []L1[P]
+-
+-        S1[P any] struct{ f S1 /* ERROR illegal cycle */ [P] }
+-        S2[P any] struct{ f S2 /* ERROR illegal cycle */ [*P] } // like example in issue
+-        S3[P any] struct{ f *S3[P] }
+-
+-        I1[P any] interface{ I1 /* ERROR illegal cycle */ [P] }
+-        I2[P any] interface{ I2 /* ERROR illegal cycle */ [*P] }
+-        I3[P any] interface{ *I3 /* ERROR interface contains type constraints */ [P] }
+-)
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48962.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48962.go
+deleted file mode 100644
+index 4270da1c73..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48962.go
++++ /dev/null
+@@ -1,13 +0,0 @@
+-// Copyright 2022 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-type T0[P any] struct {
+-	f P
+-}
+-
+-type T1 /* ERROR illegal cycle */ struct {
+-	_ T0[T1]
+-}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48974.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48974.go
+deleted file mode 100644
+index d8ff7c8cf4..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48974.go
++++ /dev/null
+@@ -1,22 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-type Fooer interface {
+-	Foo()
+-}
+-
+-type Fooable[F /* ERROR instantiation cycle */ Fooer] struct {
+-	ptr F
+-}
+-
+-func (f *Fooable[F]) Adapter() *Fooable[*FooerImpl[F]] {
+-	return &Fooable[*FooerImpl[F]]{&FooerImpl[F]{}}
+-}
+-
+-type FooerImpl[F Fooer] struct {
+-}
+-
+-func (fi *FooerImpl[F]) Foo() {}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49003.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49003.go
+deleted file mode 100644
+index ece1a27bb9..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49003.go
++++ /dev/null
+@@ -1,10 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-func f(s string) int {
+-	for range s {
+-	}
+-} // ERROR missing return
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49005.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49005.go
+deleted file mode 100644
+index 7083dc9eef..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49005.go
++++ /dev/null
+@@ -1,31 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-type T1 interface{ M() }
+-
+-func F1() T1
+-
+-var _ = F1().(*X1 /* ERROR undeclared name: X1 */)
+-
+-func _() {
+-	switch F1().(type) {
+-	case *X1 /* ERROR undeclared name: X1 */ :
+-	}
+-}
+-
+-type T2 interface{ M() }
+-
+-func F2() T2
+-
+-var _ = F2 /* ERROR impossible type assertion: F2\(\)\.\(\*X2\)\n\t\*X2 does not implement T2 \(missing method M\) */ ().(*X2)
+-
+-type X2 struct{}
+-
+-func _() {
+-	switch F2().(type) {
+-	case * /* ERROR impossible type switch case: \*X2\n\tF2\(\) \(value of type T2\) cannot have dynamic type \*X2 \(missing method M\) */ X2:
+-	}
+-}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49043.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49043.go
+deleted file mode 100644
+index a360457d9f..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49043.go
++++ /dev/null
+@@ -1,24 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-// The example from the issue.
+-type (
+-	N[P any] M /* ERROR illegal cycle */ [P]
+-	M[P any] N /* ERROR illegal cycle */ [P]
+-)
+-
+-// A slightly more complicated case.
+-type (
+-	A[P any] B /* ERROR illegal cycle */ [P]
+-	B[P any] C[P]
+-	C[P any] A[P]
+-)
+-
+-// Confusing but valid (note that `type T *T` is valid).
+-type (
+-	N1[P any] *M1[P]
+-	M1[P any] *N1[P]
+-)
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49112.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49112.go
+deleted file mode 100644
+index 61b757ccb2..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49112.go
++++ /dev/null
+@@ -1,15 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-func f[P int](P) {}
+-
+-func _() {
+-        _ = f[int]
+-        _ = f[[ /* ERROR \[\]int does not implement int */ ]int]
+-
+-        f(0)
+-        f/* ERROR \[\]int does not implement int */ ([]int{})
+-}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49179.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49179.go
+deleted file mode 100644
+index d4c8a897c6..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49179.go
++++ /dev/null
+@@ -1,37 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-func f1[P int | string]()            {}
+-func f2[P ~int | string | float64]() {}
+-func f3[P int](x P)                  {}
+-
+-type myInt int
+-type myFloat float64
+-
+-func _() {
+-	_ = f1[int]
+-	_ = f1[myInt /* ERROR possibly missing ~ for int in constraint int\|string */]
+-	_ = f2[myInt]
+-	_ = f2[myFloat /* ERROR possibly missing ~ for float64 in constraint int\|string|float64 */]
+-	var x myInt
+-	f3 /* ERROR myInt does not implement int \(possibly missing ~ for int in constraint int\) */ (x)
+-}
+-
+-// test case from the issue
+-
+-type SliceConstraint[T any] interface {
+-	[]T
+-}
+-
+-func Map[S SliceConstraint[E], E any](s S, f func(E) E) S {
+-	return s
+-}
+-
+-type MySlice []int
+-
+-func f(s MySlice) {
+-	Map[MySlice /* ERROR MySlice does not implement SliceConstraint\[int\] \(possibly missing ~ for \[\]int in constraint SliceConstraint\[int\]\) */, int](s, nil)
+-}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49242.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49242.go
+deleted file mode 100644
+index 524a0cbae3..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49242.go
++++ /dev/null
+@@ -1,27 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-func _[P int](x P) int {
+-	return x // ERROR cannot use x .* as int value in return statement
+-}
+-
+-func _[P int]() int {
+-	return P /* ERROR cannot use P\(1\) .* as int value in return statement */ (1)
+-}
+-
+-func _[P int](x int) P {
+-        return x // ERROR cannot use x .* as P value in return statement
+-}
+-
+-func _[P, Q any](x P) Q {
+-        return x // ERROR cannot use x .* as Q value in return statement
+-}
+-
+-// test case from issue
+-func F[G interface{ uint }]() int {
+-	f := func(uint) int { return 0 }
+-	return f(G /* ERROR cannot use G\(1\) .* as uint value in argument to f */ (1))
+-}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49247.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49247.go
+deleted file mode 100644
+index 3f25e0ee35..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49247.go
++++ /dev/null
+@@ -1,20 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-type integer interface {
+-	~int | ~int8 | ~int16 | ~int32 | ~int64 |
+-		~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr
+-}
+-
+-func Add1024[T integer](s []T) {
+-	for i, v := range s {
+-		s[i] = v + 1024 // ERROR cannot convert 1024 \(untyped int constant\) to T
+-	}
+-}
+-
+-func f[T interface{ int8 }]() {
+-	println(T(1024 /* ERROR cannot convert 1024 \(untyped int value\) to T */))
+-}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49276.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49276.go
+deleted file mode 100644
+index 8839087b50..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49276.go
++++ /dev/null
+@@ -1,46 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-import "unsafe"
+-
+-type S /* ERROR illegal cycle in declaration of S */ struct {
+-	_ [unsafe.Sizeof(s)]byte
+-}
+-
+-var s S
+-
+-// Since f is a pointer, this case could be valid.
+-// But it's pathological and not worth the expense.
+-type T struct {
+-	f *[unsafe.Sizeof(T /* ERROR illegal cycle in type declaration */ {})]int
+-}
+-
+-// a mutually recursive case using unsafe.Sizeof
+-type (
+-	A1 struct {
+-		_ [unsafe.Sizeof(B1{})]int
+-	}
+-
+-	B1 struct {
+-		_ [unsafe.Sizeof(A1 /* ERROR illegal cycle in type declaration */ {})]int
+-	}
+-)
+-
+-// a mutually recursive case using len
+-type (
+-	A2 struct {
+-		f [len(B2{}.f)]int
+-	}
+-
+-	B2 struct {
+-		f [len(A2 /* ERROR illegal cycle in type declaration */ {}.f)]int
+-	}
+-)
+-
+-// test case from issue
+-type a struct {
+-	_ [42 - unsafe.Sizeof(a /* ERROR illegal cycle in type declaration */ {})]byte
+-}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49296.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49296.go
+deleted file mode 100644
+index eaa8e4dc7d..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49296.go
++++ /dev/null
+@@ -1,20 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-func _[
+-        T0 any,
+-        T1 []int,
+-        T2 ~float64 | ~complex128 | chan int,
+-]() {
+-        _ = T0(nil /* ERROR cannot convert nil to T0 */ )
+-        _ = T1(1 /* ERROR cannot convert 1 .* to T1 */ )
+-        _ = T2(2 /* ERROR cannot convert 2 .* to T2 */ )
+-}
+-
+-// test case from issue
+-func f[T interface{[]int}]() {
+-	_ = T(1 /* ERROR cannot convert */ )
+-}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49439.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49439.go
+deleted file mode 100644
+index 6cc838b3b3..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49439.go
++++ /dev/null
+@@ -1,26 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-import "unsafe"
+-
+-type T0 /* ERROR illegal cycle */ [P T0[P]] struct{}
+-
+-type T1 /* ERROR illegal cycle */ [P T2[P]] struct{}
+-type T2[P T1[P]] struct{}
+-
+-type T3 /* ERROR illegal cycle */ [P interface{ ~struct{ f T3[int] } }] struct{}
+-
+-// valid cycle in M
+-type N[P M[P]] struct{}
+-type M[Q any] struct { F *M[Q] }
+-
+-// "crazy" case
+-type TC[P [unsafe.Sizeof(func() {
+-        type T [P [unsafe.Sizeof(func(){})]byte] struct{}
+-})]byte] struct{}
+-
+-// test case from issue
+-type X /* ERROR illegal cycle */ [T any, PT X[T]] interface{}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49482.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49482.go
+deleted file mode 100644
+index d5c52dc288..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49482.go
++++ /dev/null
+@@ -1,26 +0,0 @@
+-// Copyright 2022 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-// The following is OK, per the special handling for type literals discussed in issue #49482.
+-type _[P *struct{}] struct{}
+-type _[P *int,] int
+-type _[P (*int),] int
+-
+-const P = 2 // declare P to avoid noisy 'undeclared name' errors below.
+-
+-// The following parse as invalid array types due to parsing ambiguitiues.
+-type _ [P *int /* ERROR "int \(type\) is not an expression" */ ]int
+-type _ [P /* ERROR non-function P */ (*int)]int
+-
+-// Adding a trailing comma or an enclosing interface resolves the ambiguity.
+-type _[P *int,] int
+-type _[P (*int),] int
+-type _[P interface{*int}] int
+-type _[P interface{(*int)}] int
+-
+-// The following parse correctly as valid generic types.
+-type _[P *struct{} | int] struct{}
+-type _[P *struct{} | ~int] struct{}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49541.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49541.go
+deleted file mode 100644
+index c8499c1b61..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49541.go
++++ /dev/null
+@@ -1,45 +0,0 @@
+-// Copyright 2022 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-type S[A, B any] struct {
+-	f int
+-}
+-
+-func (S[A, B]) m() {}
+-
+-// TODO(gri): with type-type inference enabled we should only report one error
+-// below. See issue #50588.
+-
+-func _[A any](s S /* ERROR got 1 arguments but 2 type parameters */ [A]) {
+-	// we should see no follow-on errors below
+-	s.f = 1
+-	s.m()
+-}
+-
+-// another test case from the issue
+-
+-func _() {
+-	X(Interface[*F /* ERROR got 1 arguments but 2 type parameters */ [string]](Impl{}))
+-}
+-
+-func X[Q Qer](fs Interface[Q]) {
+-}
+-
+-type Impl struct{}
+-
+-func (Impl) M() {}
+-
+-type Interface[Q Qer] interface {
+-	M()
+-}
+-
+-type Qer interface {
+-	Q()
+-}
+-
+-type F[A, B any] struct{}
+-
+-func (f *F[A, B]) Q() {}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49579.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49579.go
+deleted file mode 100644
+index ee2d94ab89..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49579.go
++++ /dev/null
+@@ -1,17 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-type I[F any] interface {
+-	Q(*F)
+-}
+-
+-func G[F any]() I[any] {
+-	return g /* ERROR cannot use g\[F\]{} .* as I\[any\] value in return statement: g\[F\] does not implement I\[any\] \(method Q has pointer receiver\) */ [F]{}
+-}
+-
+-type g[F any] struct{}
+-
+-func (*g[F]) Q(*any) {}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49592.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49592.go
+deleted file mode 100644
+index 846deaa89a..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49592.go
++++ /dev/null
+@@ -1,11 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-func _() {
+-	var x *interface{}
+-	var y interface{}
+-	_ = x == y
+-}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49602.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49602.go
+deleted file mode 100644
+index 208501fafd..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49602.go
++++ /dev/null
+@@ -1,19 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-type M interface {
+-	m()
+-}
+-
+-type C interface {
+-	comparable
+-}
+-
+-type _ interface {
+-	int | M          // ERROR cannot use p\.M in union \(p\.M contains methods\)
+-	int | comparable // ERROR cannot use comparable in union
+-	int | C          // ERROR cannot use p\.C in union \(p\.C embeds comparable\)
+-}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49705.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49705.go
+deleted file mode 100644
+index 5b5fba2a1d..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49705.go
++++ /dev/null
+@@ -1,14 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-type Integer interface {
+-	~int | ~int8 | ~int16 | ~int32 | ~int64 |
+-	~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr
+-}
+-
+-func shl[I Integer](n int) I {
+-	return 1 << n
+-}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49735.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49735.go
+deleted file mode 100644
+index 50870226e4..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49735.go
++++ /dev/null
+@@ -1,11 +0,0 @@
+-// Copyright 2022 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-func _[P1 any, P2 ~byte](s1 P1, s2 P2) {
+-        _ = append(nil /* ERROR first argument to append must be a slice; have untyped nil */ , 0)
+-        _ = append(s1 /* ERROR s1 .* has no core type */ , 0)
+-        _ = append(s2 /* ERROR s2 .* has core type byte */ , 0)
+-}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49739.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49739.go
+deleted file mode 100644
+index 46b1e71a3b..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49739.go
++++ /dev/null
+@@ -1,23 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Verify that we get an empty type set (not just an error)
+-// when using an invalid ~A.
+-
+-package p
+-
+-type A int
+-type C interface {
+-	~ /* ERROR invalid use of ~ */ A
+-}
+-
+-func f[_ C]()              {}
+-func g[_ interface{ C }]() {}
+-func h[_ C | int]()        {}
+-
+-func _() {
+-	_ = f[int /* ERROR cannot implement C \(empty type set\) */]
+-	_ = g[int /* ERROR cannot implement interface{C} \(empty type set\) */]
+-	_ = h[int]
+-}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49864.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49864.go
+deleted file mode 100644
+index 0437e74a64..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49864.go
++++ /dev/null
+@@ -1,9 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-func _[P ~int, Q any](p P) {
+-	_ = Q(p /* ERROR cannot convert */ )
+-}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50259.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50259.go
+deleted file mode 100644
+index 6df8c64524..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50259.go
++++ /dev/null
+@@ -1,18 +0,0 @@
+-// Copyright 2022 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-var x T[B]
+-
+-type T[_ any] struct{}
+-type A T[B]
+-type B = T[A]
+-
+-// test case from issue
+-
+-var v Box[Step]
+-type Box[T any] struct{}
+-type Step = Box[StepBox]
+-type StepBox Box[Step]
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50276.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50276.go
+deleted file mode 100644
+index 97e477e6fa..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50276.go
++++ /dev/null
+@@ -1,39 +0,0 @@
+-// Copyright 2022 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-// simplified test case
+-
+-type transform[T any] struct{}
+-type pair[S any] struct {}
+-
+-var _ transform[step]
+-
+-type box transform[step]
+-type step = pair[box]
+-
+-// test case from issue
+-
+-type Transform[T any] struct{ hold T }
+-type Pair[S, T any] struct {
+-	First  S
+-	Second T
+-}
+-
+-var first Transform[Step]
+-
+-// This line doesn't use the Step alias, and it compiles fine if you uncomment it.
+-var second Transform[Pair[Box, interface{}]]
+-
+-type Box *Transform[Step]
+-
+-// This line is the same as the `first` line, but it comes after the Box declaration and
+-// does not break the compile.
+-var third Transform[Step]
+-
+-type Step = Pair[Box, interface{}]
+-
+-// This line also does not break the compile
+-var fourth Transform[Step]
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50281.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50281.go
+deleted file mode 100644
+index f333e81a70..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50281.go
++++ /dev/null
+@@ -1,26 +0,0 @@
+-// Copyright 2022 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-func _[S string | []byte](s S) {
+-	var buf []byte
+-	_ = append(buf, s...)
+-}
+-
+-func _[S ~string | ~[]byte](s S) {
+-	var buf []byte
+-	_ = append(buf, s...)
+-}
+-
+-// test case from issue
+-
+-type byteseq interface {
+-	string | []byte
+-}
+-
+-// This should allow to eliminate the two functions above.
+-func AppendByteString[source byteseq](buf []byte, s source) []byte {
+-	return append(buf, s[1:6]...)
+-}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50321.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50321.go
+deleted file mode 100644
+index 199e66eb6c..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50321.go
++++ /dev/null
+@@ -1,8 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-func Ln[A A /* ERROR cannot use a type parameter as constraint */ ](p A) {
+-}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50372.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50372.go
+deleted file mode 100644
+index 4c9b65a72f..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50372.go
++++ /dev/null
+@@ -1,27 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-func _(s []int) {
+-        var i, j, k, l int
+-        _, _, _, _ = i, j, k, l
+-
+-        for range s {}
+-        for i = range s {}
+-        for i, j = range s {}
+-        for i, j, k /* ERROR range clause permits at most two iteration variables|at most 2 expressions */ = range s {}
+-        for i, j, k, l /* ERROR range clause permits at most two iteration variables|at most 2 expressions */ = range s {}
+-}
+-
+-func _(s chan int) {
+-        var i, j, k, l int
+-        _, _, _, _ = i, j, k, l
+-
+-        for range s {}
+-        for i = range s {}
+-        for i, j /* ERROR range over .* permits only one iteration variable */ = range s {}
+-        for i, j, k /* ERROR range over .* permits only one iteration variable|at most 2 expressions */ = range s {}
+-        for i, j, k, l /* ERROR range over .* permits only one iteration variable|at most 2 expressions */ = range s {}
+-}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50417.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50417.go
+deleted file mode 100644
+index 2caef1b986..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50417.go
++++ /dev/null
+@@ -1,68 +0,0 @@
+-// Copyright 2022 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Field accesses through type parameters are disabled
+-// until we have a more thorough understanding of the
+-// implications on the spec. See issue #51576.
+-
+-package p
+-
+-type Sf struct {
+-        f int
+-}
+-
+-func f0[P Sf](p P) {
+-        _ = p.f // ERROR p\.f undefined
+-        p.f /* ERROR p\.f undefined */ = 0
+-}
+-
+-func f0t[P ~struct{f int}](p P) {
+-        _ = p.f // ERROR p\.f undefined
+-        p.f /* ERROR p\.f undefined */ = 0
+-}
+-
+-var _ = f0[Sf]
+-var _ = f0t[Sf]
+-
+-var _ = f0[Sm /* ERROR does not implement */ ]
+-var _ = f0t[Sm /* ERROR does not implement */ ]
+-
+-func f1[P interface{ Sf; m() }](p P) {
+-        _ = p.f // ERROR p\.f undefined
+-        p.f /* ERROR p\.f undefined */ = 0
+-        p.m()
+-}
+-
+-var _ = f1[Sf /* ERROR missing method m */ ]
+-var _ = f1[Sm /* ERROR does not implement */ ]
+-
+-type Sm struct {}
+-
+-func (Sm) m() {}
+-
+-type Sfm struct {
+-        f int
+-}
+-
+-func (Sfm) m() {}
+-
+-func f2[P interface{ Sfm; m() }](p P) {
+-        _ = p.f // ERROR p\.f undefined
+-        p.f /* ERROR p\.f undefined */ = 0
+-        p.m()
+-}
+-
+-var _ = f2[Sfm]
+-
+-// special case: core type is a named pointer type
+-
+-type PSfm *Sfm
+-
+-func f3[P interface{ PSfm }](p P) {
+-        _ = p.f // ERROR p\.f undefined
+-        p.f /* ERROR p\.f undefined */ = 0
+-        p.m /* ERROR type P has no field or method m */ ()
+-}
+-
+-var _ = f3[PSfm]
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50426.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50426.go
+deleted file mode 100644
+index 17ec0ce529..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50426.go
++++ /dev/null
+@@ -1,44 +0,0 @@
+-// Copyright 2022 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-type A1 [2]uint64
+-type A2 [2]uint64
+-
+-func (a A1) m() A1 { return a }
+-func (a A2) m() A2 { return a }
+-
+-func f[B any, T interface {
+-	A1 | A2
+-	m() T
+-}](v T) {
+-}
+-
+-func _() {
+-	var v A2
+-	// Use function type inference to infer type A2 for T.
+-	// Don't use constraint type inference before function
+-	// type inference for typed arguments, otherwise it would
+-	// infer type [2]uint64 for T which doesn't have method m
+-	// (was the bug).
+-	f[int](v)
+-}
+-
+-// Keep using constraint type inference before function type
+-// inference for untyped arguments so we infer type float64
+-// for E below, and not int (which would not work).
+-func g[S ~[]E, E any](S, E) {}
+-
+-func _() {
+-	var s []float64
+-	g[[]float64](s, 0)
+-}
+-
+-// Keep using constraint type inference after function
+-// type inference for untyped arguments so we infer
+-// missing type arguments for which we only have the
+-// untyped arguments as starting point.
+-func h[E any, R []E](v E) R { return R{v} }
+-func _() []int              { return h(0) }
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50427.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50427.go
+deleted file mode 100644
+index d89d63e308..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50427.go
++++ /dev/null
+@@ -1,23 +0,0 @@
+-// Copyright 2022 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-// The parser no longer parses type parameters for methods.
+-// In the past, type checking the code below led to a crash (#50427).
+-
+-type T interface{ m[ /* ERROR "must have no type parameters" */ P any]() }
+-
+-func _(t T) {
+-	var _ interface{ m[ /* ERROR "must have no type parameters" */ P any](); n() } = t /* ERROR "does not implement" */
+-}
+-
+-type S struct{}
+-
+-func (S) m[ /* ERROR "must have no type parameters" */ P any]() {}
+-
+-func _(s S) {
+-	var _ interface{ m[ /* ERROR "must have no type parameters" */ P any](); n() } = s /* ERROR "does not implement" */
+-
+-}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50450.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50450.go
+deleted file mode 100644
+index bae3111578..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50450.go
++++ /dev/null
+@@ -1,11 +0,0 @@
+-// Copyright 2022 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-type S struct{}
+-
+-func f[P S]() {}
+-
+-var _ = f[S]
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50516.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50516.go
+deleted file mode 100644
+index f73015e2be..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50516.go
++++ /dev/null
+@@ -1,13 +0,0 @@
+-// Copyright 2022 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-func _[P struct{ f int }](x P) {
+-	_ = x.g // ERROR type P has no field or method g
+-}
+-
+-func _[P struct{ f int } | struct{ g int }](x P) {
+-	_ = x.g // ERROR type P has no field or method g
+-}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50646.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50646.go
+deleted file mode 100644
+index 3bdba1113a..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50646.go
++++ /dev/null
+@@ -1,26 +0,0 @@
+-// Copyright 2022 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-func f1[_ comparable]()              {}
+-func f2[_ interface{ comparable }]() {}
+-
+-type T interface{ m() }
+-
+-func _[P comparable, Q ~int, R any]() {
+-	_ = f1[int]
+-	_ = f1[T /* ERROR T does not implement comparable */ ]
+-	_ = f1[any /* ERROR any does not implement comparable */ ]
+-	_ = f1[P]
+-	_ = f1[Q]
+-	_ = f1[R /* ERROR R does not implement comparable */]
+-
+-	_ = f2[int]
+-	_ = f2[T /* ERROR T does not implement comparable */ ]
+-	_ = f2[any /* ERROR any does not implement comparable */ ]
+-	_ = f2[P]
+-	_ = f2[Q]
+-	_ = f2[R /* ERROR R does not implement comparable */]
+-}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50729.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50729.go
+deleted file mode 100644
+index fe19fdfa68..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50729.go
++++ /dev/null
+@@ -1,19 +0,0 @@
+-// Copyright 2022 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-// version 1
+-var x1 T1[B1]
+-
+-type T1[_ any] struct{}
+-type A1 T1[B1]
+-type B1 = T1[A1]
+-
+-// version 2
+-type T2[_ any] struct{}
+-type A2 T2[B2]
+-type B2 = T2[A2]
+-
+-var x2 T2[B2]
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50755.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50755.go
+deleted file mode 100644
+index afc7b2414c..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50755.go
++++ /dev/null
+@@ -1,47 +0,0 @@
+-// Copyright 2022 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-// The core type of M2 unifies with the type of m1
+-// during function argument type inference.
+-// M2's constraint is unnamed.
+-func f1[K1 comparable, E1 any](m1 map[K1]E1) {}
+-
+-func f2[M2 map[string]int](m2 M2) {
+-	f1(m2)
+-}
+-
+-// The core type of M3 unifies with the type of m1
+-// during function argument type inference.
+-// M3's constraint is named.
+-type Map3 map[string]int
+-
+-func f3[M3 Map3](m3 M3) {
+-	f1(m3)
+-}
+-
+-// The core type of M5 unifies with the core type of M4
+-// during constraint type inference.
+-func f4[M4 map[K4]int, K4 comparable](m4 M4) {}
+-
+-func f5[M5 map[K5]int, K5 comparable](m5 M5) {
+-	f4(m5)
+-}
+-
+-// test case from issue
+-
+-func Copy[MC ~map[KC]VC, KC comparable, VC any](dst, src MC) {
+-	for k, v := range src {
+-		dst[k] = v
+-	}
+-}
+-
+-func Merge[MM ~map[KM]VM, KM comparable, VM any](ms ...MM) MM {
+-	result := MM{}
+-	for _, m := range ms {
+-		Copy(result, m)
+-	}
+-	return result
+-}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50779.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50779.go
+deleted file mode 100644
+index fe68c28bba..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50779.go
++++ /dev/null
+@@ -1,23 +0,0 @@
+-// Copyright 2022 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-type AC interface {
+-	C
+-}
+-
+-type ST []int
+-
+-type R[S any, P any] struct{}
+-
+-type SR = R[SS, ST]
+-
+-type SS interface {
+-	NSR(any) *SR // ERROR invalid use of type alias SR in recursive type
+-}
+-
+-type C interface {
+-	NSR(any) *SR
+-}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50782.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50782.go
+deleted file mode 100644
+index fd1ab11b8c..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50782.go
++++ /dev/null
+@@ -1,47 +0,0 @@
+-// Copyright 2022 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Field accesses through type parameters are disabled
+-// until we have a more thorough understanding of the
+-// implications on the spec. See issue #51576.
+-
+-package p
+-
+-// The first example from the issue.
+-type Numeric interface {
+-	~int | ~int8 | ~int16 | ~int32 | ~int64
+-}
+-
+-// numericAbs matches numeric types with an Abs method.
+-type numericAbs[T Numeric] interface {
+-	~struct{ Value T }
+-	Abs() T
+-}
+-
+-// AbsDifference computes the absolute value of the difference of
+-// a and b, where the absolute value is determined by the Abs method.
+-func absDifference[T numericAbs[T /* ERROR T does not implement Numeric */]](a, b T) T {
+-	// Field accesses are not permitted for now. Keep an error so
+-	// we can find and fix this code once the situation changes.
+-	return a.Value // ERROR a\.Value undefined
+-	// TODO: The error below should probably be positioned on the '-'.
+-	// d := a /* ERROR "invalid operation: operator - not defined" */ .Value - b.Value
+-	// return d.Abs()
+-}
+-
+-// The second example from the issue.
+-type T[P int] struct{ f P }
+-
+-func _[P T[P /* ERROR "P does not implement int" */ ]]() {}
+-
+-// Additional tests
+-func _[P T[T /* ERROR "T\[P\] does not implement int" */ [P /* ERROR "P does not implement int" */ ]]]() {}
+-func _[P T[Q /* ERROR "Q does not implement int" */ ], Q T[P /* ERROR "P does not implement int" */ ]]() {}
+-func _[P T[Q], Q int]() {}
+-
+-type C[P comparable] struct{ f P }
+-func _[P C[C[P]]]() {}
+-func _[P C[C /* ERROR "C\[Q\] does not implement comparable" */ [Q /* ERROR "Q does not implement comparable" */]], Q func()]() {}
+-func _[P [10]C[P]]() {}
+-func _[P struct{ f C[C[P]]}]() {}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50816.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50816.go
+deleted file mode 100644
+index e7e31d9192..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50816.go
++++ /dev/null
+@@ -1,23 +0,0 @@
+-// Copyright 2022 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package pkg
+-
+-type I interface {
+-	Foo()
+-}
+-
+-type T1 struct{}
+-
+-func (T1) foo() {}
+-
+-type T2 struct{}
+-
+-func (T2) foo() string { return "" }
+-
+-func _() {
+-	var i I
+-	_ = i /* ERROR impossible type assertion: i\.\(T1\)\n\tT1 does not implement I \(missing method Foo\)\n\t\thave foo\(\)\n\t\twant Foo\(\) */ .(T1)
+-	_ = i /* ERROR impossible type assertion: i\.\(T2\)\n\tT2 does not implement I \(missing method Foo\)\n\t\thave foo\(\) string\n\t\twant Foo\(\) */ .(T2)
+-}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50833.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50833.go
+deleted file mode 100644
+index e912e4d67d..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50833.go
++++ /dev/null
+@@ -1,16 +0,0 @@
+-// Copyright 2022 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-type (
+-	S  struct{ f int }
+-	PS *S
+-)
+-
+-func a() []*S { return []*S{{f: 1}} }
+-func b() []PS { return []PS{{f: 1}} }
+-
+-func c[P *S]() []P { return []P{{f: 1}} }
+-func d[P PS]() []P { return []P{{f: 1}} }
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50912.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50912.go
+deleted file mode 100644
+index f161925049..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50912.go
++++ /dev/null
+@@ -1,19 +0,0 @@
+-// Copyright 2022 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-func Real[P ~complex128](x P) {
+-	_ = real(x /* ERROR not supported */ )
+-}
+-
+-func Imag[P ~complex128](x P) {
+-	_ = imag(x /* ERROR not supported */ )
+-}
+-
+-func Complex[P ~float64](x P) {
+-	_ = complex(x /* ERROR not supported */ , 0)
+-	_ = complex(0 /* ERROR not supported */ , x)
+-	_ = complex(x /* ERROR not supported */ , x)
+-}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50918.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50918.go
+deleted file mode 100644
+index 41604b8bad..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50918.go
++++ /dev/null
+@@ -1,21 +0,0 @@
+-// Copyright 2022 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-type thing1 struct {
+-	things []string
+-}
+-
+-type thing2 struct {
+-	things []thing1
+-}
+-
+-func _() {
+-	var a1, b1 thing1
+-	_ = a1 /* ERROR struct containing \[\]string cannot be compared */ == b1
+-
+-	var a2, b2 thing2
+-	_ = a2 /* ERROR struct containing \[\]thing1 cannot be compared */ == b2
+-}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50929.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50929.go
+deleted file mode 100644
+index 3629ecf104..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50929.go
++++ /dev/null
+@@ -1,68 +0,0 @@
+-// Copyright 2022 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// This file is tested when running "go test -run Manual"
+-// without source arguments. Use for one-off debugging.
+-
+-package p
+-
+-import "fmt"
+-
+-type F[A, B any] int
+-
+-func G[A, B any](F[A, B]) {
+-}
+-
+-func _() {
+-	// TODO(gri) only report one error below (issue #50932)
+-	var x F /* ERROR got 1 arguments but 2 type parameters */ [int]
+-	G(x /* ERROR does not match */)
+-}
+-
+-// test case from issue
+-// (lots of errors but doesn't crash anymore)
+-
+-type RC[G any, RG any] interface {
+-	~[]RG
+-}
+-
+-type RG[G any] struct{}
+-
+-type RSC[G any] []*RG[G]
+-
+-type M[Rc RC[G, RG], G any, RG any] struct {
+-	Fn func(Rc)
+-}
+-
+-type NFn[Rc RC[G, RG], G any, RG any] func(Rc)
+-
+-func NC[Rc RC[G, RG], G any, RG any](nFn NFn[Rc, G, RG]) {
+-	var empty Rc
+-	nFn(empty)
+-}
+-
+-func NSG[G any](c RSC[G]) {
+-	fmt.Println(c)
+-}
+-
+-func MMD[Rc RC /* ERROR got 1 arguments */ [RG], RG any, G any]() M /* ERROR got 2 arguments */ [Rc, RG] {
+-
+-	var nFn NFn /* ERROR got 2 arguments */ [Rc, RG]
+-
+-	var empty Rc
+-	switch any(empty).(type) {
+-	case BC /* ERROR undeclared name: BC */ :
+-
+-	case RSC[G]:
+-		nFn = NSG /* ERROR cannot use NSG\[G\] */ [G]
+-	}
+-
+-	return M /* ERROR got 2 arguments */ [Rc, RG]{
+-		Fn: func(rc Rc) {
+-			NC(nFn /* ERROR does not match */ )
+-		},
+-	}
+-
+-	return M /* ERROR got 2 arguments */ [Rc, RG]{}
+-}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50965.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50965.go
+deleted file mode 100644
+index bf2dcc93d0..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50965.go
++++ /dev/null
+@@ -1,17 +0,0 @@
+-// Copyright 2022 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-func _(x int, c string) {
+-	switch x {
+-	case c /* ERROR invalid case c in switch on x \(mismatched types string and int\) */ :
+-	}
+-}
+-
+-func _(x, c []int) {
+-	switch x {
+-	case c /* ERROR invalid case c in switch on x \(slice can only be compared to nil\) */ :
+-	}
+-}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51048.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51048.go
+deleted file mode 100644
+index 58308370ea..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51048.go
++++ /dev/null
+@@ -1,11 +0,0 @@
+-// Copyright 2022 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-func _[P int]() {
+-	_ = f[P]
+-}
+-
+-func f[T int]() {}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51145.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51145.go
+deleted file mode 100644
+index b84391df19..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51145.go
++++ /dev/null
+@@ -1,18 +0,0 @@
+-// Copyright 2022 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-import "fmt"
+-
+-type (
+-	_ [fmt /* ERROR invalid array length fmt */ ]int
+-	_ [float64 /* ERROR invalid array length float64 */ ]int
+-	_ [f /* ERROR invalid array length f */ ]int
+-	_ [nil /* ERROR invalid array length nil */ ]int
+-)
+-
+-func f()
+-
+-var _ fmt.Stringer // use fmt
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51158.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51158.go
+deleted file mode 100644
+index 3edc505382..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51158.go
++++ /dev/null
+@@ -1,18 +0,0 @@
+-// Copyright 2022 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-// Type checking the following code should not cause an infinite recursion.
+-func f[M map[K]int, K comparable](m M) {
+-        f(m)
+-}
+-
+-// Equivalent code using mutual recursion.
+-func f1[M map[K]int, K comparable](m M) {
+-        f2(m)
+-}
+-func f2[M map[K]int, K comparable](m M) {
+-        f1(m)
+-}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51229.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51229.go
+deleted file mode 100644
+index 808b6471f6..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51229.go
++++ /dev/null
+@@ -1,164 +0,0 @@
+-// Copyright 2022 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-// Constraint type inference should be independent of the
+-// ordering of the type parameter declarations. Try all
+-// permutations in the test case below.
+-// Permutations produced by https://go.dev/play/p/PHcZNGJTEBZ.
+-
+-func f00[S1 ~[]E1, S2 ~[]E2, E1 ~byte, E2 ~byte](S1, S2) {}
+-func f01[S2 ~[]E2, S1 ~[]E1, E1 ~byte, E2 ~byte](S1, S2) {}
+-func f02[E1 ~byte, S1 ~[]E1, S2 ~[]E2, E2 ~byte](S1, S2) {}
+-func f03[S1 ~[]E1, E1 ~byte, S2 ~[]E2, E2 ~byte](S1, S2) {}
+-func f04[S2 ~[]E2, E1 ~byte, S1 ~[]E1, E2 ~byte](S1, S2) {}
+-func f05[E1 ~byte, S2 ~[]E2, S1 ~[]E1, E2 ~byte](S1, S2) {}
+-func f06[E2 ~byte, S2 ~[]E2, S1 ~[]E1, E1 ~byte](S1, S2) {}
+-func f07[S2 ~[]E2, E2 ~byte, S1 ~[]E1, E1 ~byte](S1, S2) {}
+-func f08[S1 ~[]E1, E2 ~byte, S2 ~[]E2, E1 ~byte](S1, S2) {}
+-func f09[E2 ~byte, S1 ~[]E1, S2 ~[]E2, E1 ~byte](S1, S2) {}
+-func f10[S2 ~[]E2, S1 ~[]E1, E2 ~byte, E1 ~byte](S1, S2) {}
+-func f11[S1 ~[]E1, S2 ~[]E2, E2 ~byte, E1 ~byte](S1, S2) {}
+-func f12[S1 ~[]E1, E1 ~byte, E2 ~byte, S2 ~[]E2](S1, S2) {}
+-func f13[E1 ~byte, S1 ~[]E1, E2 ~byte, S2 ~[]E2](S1, S2) {}
+-func f14[E2 ~byte, S1 ~[]E1, E1 ~byte, S2 ~[]E2](S1, S2) {}
+-func f15[S1 ~[]E1, E2 ~byte, E1 ~byte, S2 ~[]E2](S1, S2) {}
+-func f16[E1 ~byte, E2 ~byte, S1 ~[]E1, S2 ~[]E2](S1, S2) {}
+-func f17[E2 ~byte, E1 ~byte, S1 ~[]E1, S2 ~[]E2](S1, S2) {}
+-func f18[E2 ~byte, E1 ~byte, S2 ~[]E2, S1 ~[]E1](S1, S2) {}
+-func f19[E1 ~byte, E2 ~byte, S2 ~[]E2, S1 ~[]E1](S1, S2) {}
+-func f20[S2 ~[]E2, E2 ~byte, E1 ~byte, S1 ~[]E1](S1, S2) {}
+-func f21[E2 ~byte, S2 ~[]E2, E1 ~byte, S1 ~[]E1](S1, S2) {}
+-func f22[E1 ~byte, S2 ~[]E2, E2 ~byte, S1 ~[]E1](S1, S2) {}
+-func f23[S2 ~[]E2, E1 ~byte, E2 ~byte, S1 ~[]E1](S1, S2) {}
+-
+-type myByte byte
+-
+-func _(a []byte, b []myByte) {
+-	f00(a, b)
+-	f01(a, b)
+-	f02(a, b)
+-	f03(a, b)
+-	f04(a, b)
+-	f05(a, b)
+-	f06(a, b)
+-	f07(a, b)
+-	f08(a, b)
+-	f09(a, b)
+-	f10(a, b)
+-	f11(a, b)
+-	f12(a, b)
+-	f13(a, b)
+-	f14(a, b)
+-	f15(a, b)
+-	f16(a, b)
+-	f17(a, b)
+-	f18(a, b)
+-	f19(a, b)
+-	f20(a, b)
+-	f21(a, b)
+-	f22(a, b)
+-	f23(a, b)
+-}
+-
+-// Constraint type inference may have to iterate.
+-// Again, the order of the type parameters shouldn't matter.
+-
+-func g0[S ~[]E, M ~map[string]S, E any](m M) {}
+-func g1[M ~map[string]S, S ~[]E, E any](m M) {}
+-func g2[E any, S ~[]E, M ~map[string]S](m M) {}
+-func g3[S ~[]E, E any, M ~map[string]S](m M) {}
+-func g4[M ~map[string]S, E any, S ~[]E](m M) {}
+-func g5[E any, M ~map[string]S, S ~[]E](m M) {}
+-
+-func _(m map[string][]byte) {
+-	g0(m)
+-	g1(m)
+-	g2(m)
+-	g3(m)
+-	g4(m)
+-	g5(m)
+-}
+-
+-// Worst-case scenario.
+-// There are 10 unknown type parameters. In each iteration of
+-// constraint type inference we infer one more, from right to left.
+-// Each iteration looks repeatedly at all 11 type parameters,
+-// requiring a total of 10*11 = 110 iterations with the current
+-// implementation. Pathological case.
+-
+-func h[K any, J ~*K, I ~*J, H ~*I, G ~*H, F ~*G, E ~*F, D ~*E, C ~*D, B ~*C, A ~*B](x A) {}
+-
+-func _(x **********int) {
+-	h(x)
+-}
+-
+-// Examples with channel constraints and tilde.
+-
+-func ch1[P chan<- int]() (_ P)           { return } // core(P) == chan<- int   (single type, no tilde)
+-func ch2[P ~chan int]()                  { return } // core(P) == ~chan<- int  (tilde)
+-func ch3[P chan E, E any](E)             { return } // core(P) == chan<- E     (single type, no tilde)
+-func ch4[P chan E | ~chan<- E, E any](E) { return } // core(P) == ~chan<- E    (tilde)
+-func ch5[P chan int | chan<- int]()      { return } // core(P) == chan<- int   (not a single type)
+-
+-func _() {
+-	// P can be inferred as there's a single specific type and no tilde.
+-	var _ chan int = ch1 /* ERROR cannot use ch1.*value of type chan<- int */ ()
+-	var _ chan<- int = ch1()
+-
+-	// P cannot be inferred as there's a tilde.
+-	ch2 /* ERROR cannot infer P */ ()
+-	type myChan chan int
+-	ch2[myChan]()
+-
+-	// P can be inferred as there's a single specific type and no tilde.
+-	var e int
+-	ch3(e)
+-
+-	// P cannot be inferred as there's more than one specific type and a tilde.
+-	ch4 /* ERROR cannot infer P */ (e)
+-	_ = ch4[chan int]
+-
+-	// P cannot be inferred as there's more than one specific type.
+-	ch5 /* ERROR cannot infer P */ ()
+-	ch5[chan<- int]()
+-}
+-
+-// test case from issue
+-
+-func equal[M1 ~map[K1]V1, M2 ~map[K2]V2, K1, K2 ~uint32, V1, V2 ~string](m1 M1, m2 M2) bool {
+-	if len(m1) != len(m2) {
+-		return false
+-	}
+-	for k, v1 := range m1 {
+-		if v2, ok := m2[K2(k)]; !ok || V2(v1) != v2 {
+-			return false
+-		}
+-	}
+-	return true
+-}
+-
+-func equalFixed[K1, K2 ~uint32, V1, V2 ~string](m1 map[K1]V1, m2 map[K2]V2) bool {
+-	if len(m1) != len(m2) {
+-		return false
+-	}
+-	for k, v1 := range m1 {
+-		if v2, ok := m2[K2(k)]; !ok || v1 != V1(v2) {
+-			return false
+-		}
+-	}
+-	return true
+-}
+-
+-type (
+-	someNumericID uint32
+-	someStringID  string
+-)
+-
+-func _() {
+-	foo := map[uint32]string{10: "bar"}
+-	bar := map[someNumericID]someStringID{10: "bar"}
+-	equal(foo, bar)
+-}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51232.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51232.go
+deleted file mode 100644
+index 3fa6a05732..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51232.go
++++ /dev/null
+@@ -1,30 +0,0 @@
+-// Copyright 2022 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-type RC[RG any] interface {
+-	~[]RG
+-}
+-
+-type Fn[RCT RC[RG], RG any] func(RCT)
+-
+-type F[RCT RC[RG], RG any] interface {
+-	Fn() Fn /* ERROR got 1 arguments */ [RCT]
+-}
+-
+-type concreteF[RCT RC[RG], RG any] struct {
+-	makeFn func() Fn /* ERROR got 1 arguments */ [RCT]
+-}
+-
+-func (c *concreteF[RCT, RG]) Fn() Fn /* ERROR got 1 arguments */ [RCT] {
+-	return c.makeFn()
+-}
+-
+-func NewConcrete[RCT RC[RG], RG any](Rc RCT) F /* ERROR got 1 arguments */ [RCT] {
+-	// TODO(rfindley): eliminate the duplicate error below.
+-	return & /* ERROR cannot use .* as F\[RCT\] */ concreteF /* ERROR got 1 arguments */ [RCT]{
+-		makeFn: nil,
+-	}
+-}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51233.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51233.go
+deleted file mode 100644
+index 9c15028c91..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51233.go
++++ /dev/null
+@@ -1,27 +0,0 @@
+-// Copyright 2022 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-// As of issue #51527, type-type inference has been disabled.
+-
+-type RC[RG any] interface {
+-	~[]RG
+-}
+-
+-type Fn[RCT RC[RG], RG any] func(RCT)
+-
+-type FFn[RCT RC[RG], RG any] func() Fn /* ERROR got 1 arguments */ [RCT]
+-
+-type F[RCT RC[RG], RG any] interface {
+-	Fn() Fn /* ERROR got 1 arguments */ [RCT]
+-}
+-
+-type concreteF[RCT RC[RG], RG any] struct {
+-	makeFn FFn /* ERROR got 1 arguments */ [RCT]
+-}
+-
+-func (c *concreteF[RCT, RG]) Fn() Fn /* ERROR got 1 arguments */ [RCT] {
+-	return c.makeFn()
+-}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51257.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51257.go
+deleted file mode 100644
+index 8a3eb3278d..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51257.go
++++ /dev/null
+@@ -1,46 +0,0 @@
+-// Copyright 2022 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-func f[_ comparable]() {}
+-
+-type S1 struct{ x int }
+-type S2 struct{ x any }
+-type S3 struct{ x [10]interface{ m() } }
+-
+-func _[P1 comparable, P2 S2]() {
+-	_ = f[S1]
+-	_ = f[S2 /* ERROR S2 does not implement comparable */ ]
+-	_ = f[S3 /* ERROR S3 does not implement comparable */ ]
+-
+-	type L1 struct { x P1 }
+-	type L2 struct { x P2 }
+-	_ = f[L1]
+-	_ = f[L2 /* ERROR L2 does not implement comparable */ ]
+-}
+-
+-
+-// example from issue
+-
+-type Set[T comparable] map[T]struct{}
+-
+-func NewSetFromSlice[T comparable](items []T) *Set[T] {
+-	s := Set[T]{}
+-
+-	for _, item := range items {
+-		s[item] = struct{}{}
+-	}
+-
+-	return &s
+-}
+-
+-type T struct{ x any }
+-
+-func main() {
+-	NewSetFromSlice /* ERROR T does not implement comparable */ ([]T{
+-		{"foo"},
+-		{5},
+-	})
+-}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51335.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51335.go
+deleted file mode 100644
+index 0b5a1af082..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51335.go
++++ /dev/null
+@@ -1,16 +0,0 @@
+-// Copyright 2022 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-type S1 struct{}
+-type S2 struct{}
+-
+-func _[P *S1|*S2]() {
+-	_= []P{{ /* ERROR invalid composite literal element type P: no core type */ }}
+-}
+-
+-func _[P *S1|S1]() {
+-	_= []P{{ /* ERROR invalid composite literal element type P: no core type */ }}
+-}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51339.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51339.go
+deleted file mode 100644
+index 38f86109e3..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51339.go
++++ /dev/null
+@@ -1,18 +0,0 @@
+-// Copyright 2022 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// This file is tested when running "go test -run Manual"
+-// without source arguments. Use for one-off debugging.
+-
+-package p
+-
+-type T[P any, B *P] struct{}
+-
+-func (T /* ERROR cannot use generic type */ ) m0() {}
+-
+-// TODO(rfindley): eliminate the duplicate errors here.
+-func (/* ERROR got 1 type parameter, but receiver base type declares 2 */ T /* ERROR got 1 arguments but 2 type parameters */ [_]) m1() {}
+-func (T[_, _]) m2() {}
+-// TODO(gri) this error is unfortunate (issue #51343)
+-func (T /* ERROR got 3 arguments but 2 type parameters */ [_, _, _]) m3() {}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51360.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51360.go
+deleted file mode 100644
+index fe3de04dbf..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51360.go
++++ /dev/null
+@@ -1,13 +0,0 @@
+-// Copyright 2022 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-func _() {
+-	len.Println /* ERROR cannot select on len */
+-	len.Println /* ERROR cannot select on len */ ()
+-	_ = len.Println /* ERROR cannot select on len */
+-	_ = len /* ERROR cannot index len */ [0]
+-	_ = *len /* ERROR cannot indirect len */
+-}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51376.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51376.go
+deleted file mode 100644
+index d51607b7ab..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51376.go
++++ /dev/null
+@@ -1,24 +0,0 @@
+-// Copyright 2022 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-type Map map[string]int
+-
+-func f[M ~map[K]V, K comparable, V any](M) {}
+-func g[M map[K]V, K comparable, V any](M) {}
+-
+-func _[M1 ~map[K]V, M2 map[K]V, K comparable, V any]() {
+-        var m1 M1
+-        f(m1)
+-        g /* ERROR M1 does not implement map\[K\]V */ (m1) // M1 has tilde
+-
+-        var m2 M2
+-        f(m2)
+-        g(m2) // M1 does not have tilde
+-
+-        var m3 Map
+-        f(m3)
+-        g /* ERROR Map does not implement map\[string\]int */ (m3) // M in g does not have tilde
+-}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51386.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51386.go
+deleted file mode 100644
+index ef6223927a..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51386.go
++++ /dev/null
+@@ -1,17 +0,0 @@
+-// Copyright 2022 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-type myString string
+-
+-func _[P ~string | ~[]byte | ~[]rune]() {
+-	_ = P("")
+-	const s myString = ""
+-	_ = P(s)
+-}
+-
+-func _[P myString]() {
+-	_ = P("")
+-}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51437.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51437.go
+deleted file mode 100644
+index 376261516e..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51437.go
++++ /dev/null
+@@ -1,17 +0,0 @@
+-// Copyright 2022 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-type T struct{}
+-
+-func (T) m() []int { return nil }
+-
+-func f(x T) {
+-	for _, x := range func() []int {
+-		return x.m() // x declared in parameter list of f
+-	}() {
+-		_ = x // x declared by range clause
+-	}
+-}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51472.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51472.go
+deleted file mode 100644
+index 3126770829..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51472.go
++++ /dev/null
+@@ -1,54 +0,0 @@
+-// Copyright 2022 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-func _[T comparable](x T) {
+-        _ = x == x
+-}
+-
+-func _[T interface{interface{comparable}}](x T) {
+-        _ = x == x
+-}
+-
+-func _[T interface{comparable; interface{comparable}}](x T) {
+-        _ = x == x
+-}
+-
+-func _[T interface{comparable; ~int}](x T) {
+-        _ = x == x
+-}
+-
+-func _[T interface{comparable; ~[]byte}](x T) {
+-        _ = x /* ERROR cannot compare */ == x
+-}
+-
+-// TODO(gri) The error message here should be better. See issue #51525.
+-func _[T interface{comparable; ~int; ~string}](x T) {
+-        _ = x /* ERROR cannot compare */ == x
+-}
+-
+-// TODO(gri) The error message here should be better. See issue #51525.
+-func _[T interface{~int; ~string}](x T) {
+-        _ = x /* ERROR cannot compare */ == x
+-}
+-
+-func _[T interface{comparable; interface{~int}; interface{int|float64}}](x T) {
+-        _ = x == x
+-}
+-
+-func _[T interface{interface{comparable; ~int}; interface{~float64; comparable; m()}}](x T) {
+-        _ = x /* ERROR cannot compare */ == x
+-}
+-
+-// test case from issue
+-
+-func f[T interface{comparable; []byte|string}](x T) {
+-        _ = x == x
+-}
+-
+-func _(s []byte) {
+-	f /* ERROR \[\]byte does not implement interface{comparable; \[\]byte\|string} */ (s)
+-        _ = f[[ /* ERROR does not implement */ ]byte]
+-}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51509.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51509.go
+deleted file mode 100644
+index 5ae47176d0..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51509.go
++++ /dev/null
+@@ -1,7 +0,0 @@
+-// Copyright 2022 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-type T /* ERROR illegal cycle */ T.x
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51525.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51525.go
+deleted file mode 100644
+index af1d1e6063..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51525.go
++++ /dev/null
+@@ -1,16 +0,0 @@
+-// Copyright 2022 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-func _[T interface {
+-	int
+-	string
+-}](x T) {
+-	_ = x /* ERROR empty type set */ == x
+-}
+-
+-func _[T interface{ int | []byte }](x T) {
+-	_ = x /* ERROR incomparable types in type set */ == x
+-}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51533.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51533.go
+deleted file mode 100644
+index bf46f755f9..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51533.go
++++ /dev/null
+@@ -1,20 +0,0 @@
+-// Copyright 2022 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-func _(x any) {
+-	switch x {
+-	case 0:
+-		fallthrough // ERROR fallthrough statement out of place
+-		_ = x
+-	default:
+-	}
+-
+-	switch x.(type) {
+-	case int:
+-		fallthrough // ERROR cannot fallthrough in type switch
+-	default:
+-	}
+-}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51578.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51578.go
+deleted file mode 100644
+index 5c204bae20..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51578.go
++++ /dev/null
+@@ -1,17 +0,0 @@
+-// Copyright 2022 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-var _ = (*interface /* ERROR interface contains type constraints */ {int})(nil)
+-
+-// abbreviated test case from issue
+-
+-type TypeSet interface{ int | string }
+-
+-func _() {
+-	f((*TypeSet /* ERROR interface contains type constraints */)(nil))
+-}
+-
+-func f(any) {}
+\ No newline at end of file
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51593.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51593.go
+deleted file mode 100644
+index e06c39fac0..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51593.go
++++ /dev/null
+@@ -1,13 +0,0 @@
+-// Copyright 2022 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-func f[P interface{ m(R) }, R any]() {}
+-
+-type T = interface { m(int) }
+-
+-func _() {
+-	_ = f /* ERROR cannot infer R */ [T] // don't crash in type inference
+-}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51607.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51607.go
+deleted file mode 100644
+index d8df143627..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51607.go
++++ /dev/null
+@@ -1,65 +0,0 @@
+-// Copyright 2022 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-// Interface types must be ignored during overlap test.
+-
+-type (
+-	T1 interface{int}
+-	T2 interface{~int}
+-	T3 interface{T1 | bool | string}
+-	T4 interface{T2 | ~bool | ~string}
+-)
+-
+-type (
+-	// overlap errors for non-interface terms
+-	// (like the interface terms, but explicitly inlined)
+-	_ interface{int | int /* ERROR overlapping terms int and int */ }
+-	_ interface{int | ~ /* ERROR overlapping terms ~int and int */ int}
+-	_ interface{~int | int /* ERROR overlapping terms int and ~int */ }
+-	_ interface{~int | ~ /* ERROR overlapping terms ~int and ~int */ int}
+-
+-	_ interface{T1 | bool | string | T1 | bool /* ERROR overlapping terms bool and bool */ | string /* ERROR overlapping terms string and string */ }
+-	_ interface{T1 | bool | string | T2 | ~ /* ERROR overlapping terms ~bool and bool */ bool | ~ /* ERROR overlapping terms ~string and string */ string}
+-
+-	// no errors for interface terms
+-	_ interface{T1 | T1}
+-	_ interface{T1 | T2}
+-	_ interface{T2 | T1}
+-	_ interface{T2 | T2}
+-
+-	_ interface{T3 | T3 | int}
+-	_ interface{T3 | T4 | bool }
+-	_ interface{T4 | T3 | string }
+-	_ interface{T4 | T4 | float64 }
+-)
+-
+-func _[_ T1 | bool | string | T1 | bool /* ERROR overlapping terms */ ]() {}
+-func _[_ T1 | bool | string | T2 | ~ /* ERROR overlapping terms */ bool ]() {}
+-func _[_ T2 | ~bool | ~string | T1 | bool /* ERROR overlapping terms */ ]() {}
+-func _[_ T2 | ~bool | ~string | T2 | ~ /* ERROR overlapping terms */ bool ]() {}
+-
+-func _[_ T3 | T3 | int]() {}
+-func _[_ T3 | T4 | bool]() {}
+-func _[_ T4 | T3 | string]() {}
+-func _[_ T4 | T4 | float64]() {}
+-
+-// test cases from issue
+-
+-type _ interface {
+-	interface {bool | int} | interface {bool | string}
+-}
+-
+-type _ interface {
+-	interface {bool | int} ; interface {bool | string}
+-}
+-
+-type _ interface {
+-	interface {bool; int} ; interface {bool; string}
+-}
+-
+-type _ interface {
+-	interface {bool; int} | interface {bool; string}
+-}
+\ No newline at end of file
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51610.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51610.go
+deleted file mode 100644
+index d10c788503..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51610.go
++++ /dev/null
+@@ -1,9 +0,0 @@
+-// Copyright 2022 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-func _[P int | float64 | complex128]() {
+-	_ = map[P]int{1: 1, 1.0 /* ERROR duplicate key 1 */ : 2, 1 /* ERROR duplicate key \(1 \+ 0i\) */ + 0i: 3}
+-}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51616.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51616.go
+deleted file mode 100644
+index e0efc9e620..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51616.go
++++ /dev/null
+@@ -1,19 +0,0 @@
+-// Copyright 2022 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-type (
+-        C[T any] interface{~int; M() T}
+-
+-        _ C[bool]
+-        _ comparable
+-        _ interface {~[]byte | ~string}
+-
+-        // Alias type declarations may refer to "constraint" types
+-        // like ordinary type declarations.
+-        _ = C[bool]
+-        _ = comparable
+-        _ = interface {~[]byte | ~string}
+-)
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51658.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51658.go
+deleted file mode 100644
+index f32051caec..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51658.go
++++ /dev/null
+@@ -1,43 +0,0 @@
+-// Copyright 2022 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// This test checks syntax errors which differ between
+-// go/parser and the syntax package.
+-// TODO: consolidate eventually
+-
+-package p
+-
+-type F { // ERROR expected type|type declaration
+-	float64
+-} // ERROR expected declaration|non-declaration statement
+-
+-func _[T F | int](x T) {
+-	_ = x == 0 // don't crash when recording type of 0
+-}
+-
+-// test case from issue
+-
+-type FloatType { // ERROR expected type|type declaration
+-	float32 | float64
+-} // ERROR expected declaration|non-declaration statement
+-
+-type IntegerType interface {
+-	int8 | int16 | int32 | int64 | int |
+-		uint8 | uint16 | uint32 | uint64 | uint
+-}
+-
+-type ComplexType interface {
+-	complex64 | complex128
+-}
+-
+-type Number interface {
+-	FloatType | IntegerType | ComplexType
+-}
+-
+-func GetDefaultNumber[T Number](value, defaultValue T) T {
+-	if value == 0 {
+-		return defaultValue
+-	}
+-	return value
+-}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51877.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51877.go
+deleted file mode 100644
+index 06f054b257..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51877.go
++++ /dev/null
+@@ -1,18 +0,0 @@
+-// Copyright 2013 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-type S struct {
+-	f1 int
+-	f2 bool
+-}
+-
+-var (
+-	_ = S{0}                    /* ERROR too few values in S{…} */
+-	_ = struct{ f1, f2 int }{0} /* ERROR too few values in struct{f1 int; f2 int}{…} */
+-
+-	_ = S{0, true, "foo" /* ERROR too many values in S{…} */}
+-	_ = struct{ f1, f2 int }{0, 1, 2 /* ERROR too many values in struct{f1 int; f2 int}{…} */}
+-)
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue52031.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue52031.go
+deleted file mode 100644
+index 448a550b25..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue52031.go
++++ /dev/null
+@@ -1,33 +0,0 @@
+-// -lang=go1.12
+-
+-// Copyright 2022 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-type resultFlags uint
+-
+-// Example from #52031.
+-//
+-// The following shifts should not produce errors on Go < 1.13, as their
+-// untyped constant operands are representable by type uint.
+-const (
+-	_ resultFlags = (1 << iota) / 2
+-
+-	reportEqual
+-	reportUnequal
+-	reportByIgnore
+-	reportByMethod
+-	reportByFunc
+-	reportByCycle
+-)
+-
+-// Invalid cases.
+-var x int = 1
+-var _ = (8 << x /* ERROR "signed shift count .* requires go1.13 or later" */)
+-
+-const _ = (1 << 1.2 /* ERROR "truncated to uint" */)
+-
+-var y float64
+-var _ = (1 << y /* ERROR "must be integer" */)
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue52401.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue52401.go
+deleted file mode 100644
+index c7efd8c718..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue52401.go
++++ /dev/null
+@@ -1,11 +0,0 @@
+-// Copyright 2022 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-func _() {
+-	const x = 0
+-	x /* ERROR cannot assign to x */ += 1
+-	x /* ERROR cannot assign to x */ ++
+-}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue52529.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue52529.go
+deleted file mode 100644
+index de7b2964b0..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue52529.go
++++ /dev/null
+@@ -1,15 +0,0 @@
+-// Copyright 2022 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-type Foo[P any] struct {
+-	_ *Bar[P]
+-}
+-
+-type Bar[Q any] Foo[Q]
+-
+-func (v *Bar[R]) M() {
+-	_ = (*Foo[R])(v)
+-}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue52698.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue52698.go
+deleted file mode 100644
+index d1b06a210d..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue52698.go
++++ /dev/null
+@@ -1,62 +0,0 @@
+-// Copyright 2022 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-// correctness check: ensure that cycles through generic instantiations are detected
+-type T[P any] struct {
+-	_ P
+-}
+-
+-type S /* ERROR illegal cycle */ struct {
+-	_ T[S]
+-}
+-
+-// simplified test 1
+-
+-var _ A1[A1[string]]
+-
+-type A1[P any] struct {
+-	_ B1[P]
+-}
+-
+-type B1[P any] struct {
+-	_ P
+-}
+-
+-// simplified test 2
+-var _ B2[A2]
+-
+-type A2 struct {
+-	_ B2[string]
+-}
+-
+-type B2[P any] struct {
+-	_ C2[P]
+-}
+-
+-type C2[P any] struct {
+-	_ P
+-}
+-
+-// test case from issue
+-type T23 interface {
+-	~struct {
+-		Field0 T13[T15]
+-	}
+-}
+-
+-type T1[P1 interface {
+-}] struct {
+-	Field2 P1
+-}
+-
+-type T13[P2 interface {
+-}] struct {
+-	Field2 T1[P2]
+-}
+-
+-type T15 struct {
+-	Field0 T13[string]
+-}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue52915.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue52915.go
+deleted file mode 100644
+index 2c38e5bcca..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue52915.go
++++ /dev/null
+@@ -1,23 +0,0 @@
+-// Copyright 2022 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-import "unsafe"
+-
+-type T[P any] struct {
+-	T /* ERROR illegal cycle */ [P]
+-}
+-
+-func _[P any]() {
+-	_ = unsafe.Sizeof(T[int]{})
+-	_ = unsafe.Sizeof(struct{ T[int] }{})
+-
+-	_ = unsafe.Sizeof(T[P]{})
+-	_ = unsafe.Sizeof(struct{ T[P] }{})
+-}
+-
+-// TODO(gri) This is a follow-on error due to T[int] being invalid.
+-//           We should try to avoid it.
+-const _ = unsafe /* ERROR not constant */ .Sizeof(T[int]{})
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue54280.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue54280.go
+deleted file mode 100644
+index e83e1a140a..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue54280.go
++++ /dev/null
+@@ -1,7 +0,0 @@
+-// Copyright 2022 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-const C = 912_345_678_901_234_567_890_123_456_789_012_345_678_901_234_567_890_912_345_678_901_234_567_890_123_456_789_012_345_678_901_234_567_890_912_345_678_901_234_567_890_123_456_789_012_345_678_901_234_567_890_912 // ERROR constant overflow
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue54405.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue54405.go
+deleted file mode 100644
+index e89d5e1b80..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue54405.go
++++ /dev/null
+@@ -1,16 +0,0 @@
+-// Copyright 2022 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Test that we don't see spurious errors for ==
+-// for values with invalid types due to prior errors.
+-
+-package p
+-
+-var x struct {
+-	f *NotAType /* ERROR undeclared name */
+-}
+-var _ = x.f == nil // no error expected here
+-
+-var y *NotAType  /* ERROR undeclared name */
+-var _ = y == nil // no error expected here
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue6977.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue6977.go
+deleted file mode 100644
+index 8f4e9ba2b2..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue6977.go
++++ /dev/null
+@@ -1,82 +0,0 @@
+-// Copyright 2019 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-import "io"
+-
+-// Alan's initial report.
+-
+-type I interface { f(); String() string }
+-type J interface { g(); String() string }
+-
+-type IJ1 = interface { I; J }
+-type IJ2 = interface { f(); g(); String() string }
+-
+-var _ = (*IJ1)(nil) == (*IJ2)(nil) // static assert that IJ1 and IJ2 are identical types
+-
+-// The canonical example.
+-
+-type ReadWriteCloser interface { io.ReadCloser; io.WriteCloser }
+-
+-// Some more cases.
+-
+-type M interface { m() }
+-type M32 interface { m() int32 }
+-type M64 interface { m() int64 }
+-
+-type U1 interface { m() }
+-type U2 interface { m(); M }
+-type U3 interface { M; m() }
+-type U4 interface { M; M; M }
+-type U5 interface { U1; U2; U3; U4 }
+-
+-type U6 interface { m(); m /* ERROR duplicate method */ () }
+-type U7 interface { M32 /* ERROR duplicate method */ ; m() }
+-type U8 interface { m(); M32 /* ERROR duplicate method */ }
+-type U9 interface { M32; M64 /* ERROR duplicate method */ }
+-
+-// Verify that repeated embedding of the same interface(s)
+-// eliminates duplicate methods early (rather than at the
+-// end) to prevent exponential memory and time use.
+-// Without early elimination, computing T29 may take dozens
+-// of minutes.
+-type (
+-        T0 interface { m() }
+-        T1 interface { T0; T0 }
+-        T2 interface { T1; T1 }
+-        T3 interface { T2; T2 }
+-        T4 interface { T3; T3 }
+-        T5 interface { T4; T4 }
+-        T6 interface { T5; T5 }
+-        T7 interface { T6; T6 }
+-        T8 interface { T7; T7 }
+-        T9 interface { T8; T8 }
+-
+-        T10 interface { T9; T9 }
+-        T11 interface { T10; T10 }
+-        T12 interface { T11; T11 }
+-        T13 interface { T12; T12 }
+-        T14 interface { T13; T13 }
+-        T15 interface { T14; T14 }
+-        T16 interface { T15; T15 }
+-        T17 interface { T16; T16 }
+-        T18 interface { T17; T17 }
+-        T19 interface { T18; T18 }
+-
+-        T20 interface { T19; T19 }
+-        T21 interface { T20; T20 }
+-        T22 interface { T21; T21 }
+-        T23 interface { T22; T22 }
+-        T24 interface { T23; T23 }
+-        T25 interface { T24; T24 }
+-        T26 interface { T25; T25 }
+-        T27 interface { T26; T26 }
+-        T28 interface { T27; T27 }
+-        T29 interface { T28; T28 }
+-)
+-
+-// Verify that m is present.
+-var x T29
+-var _ = x.m

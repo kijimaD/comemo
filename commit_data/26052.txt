@@ -8,6 +8,22 @@ Date:   Fri Dec 11 17:50:02 2015 -0500
     Reviewed-on: https://go-review.googlesource.com/17746
     Run-TryBot: Austin Clements <austin@google.com>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/mgcsweep.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/mgcsweep.go b/src/runtime/mgcsweep.go
+index 22f51dbc1a..2cf6def338 100644
+--- a/src/runtime/mgcsweep.go
++++ b/src/runtime/mgcsweep.go
+@@ -393,7 +393,9 @@ func reimburseSweepCredit(unusableBytes uintptr) {
+ 		// Nobody cares about the credit. Avoid the atomic.
+ 		return
+ 	}
+-	atomic.Xadd64(&mheap_.spanBytesAlloc, -int64(unusableBytes))
++	if int64(atomic.Xadd64(&mheap_.spanBytesAlloc, -int64(unusableBytes))) < 0 {
++		throw("spanBytesAlloc underflow")
++	}
+ }
+ 
+ func dumpFreeList(s *mspan) {

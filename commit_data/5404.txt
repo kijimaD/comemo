@@ -10,10 +10,207 @@ Date:   Fri Apr 30 09:29:11 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1040041
-
+---
  src/pkg/big/arith.go      | 22 +++++++++++++++++++++
  src/pkg/big/arith_386.s   | 14 +++++++++++++
  src/pkg/big/arith_amd64.s | 50 +++++++++++++++++++++++++++++++++++++++++++++++
  src/pkg/big/arith_arm.s   |  6 ++++++
  src/pkg/big/arith_test.go | 42 +++++++++++++++++++++++++++++++++++++++
  5 files changed, 134 insertions(+)
+
+diff --git a/src/pkg/big/arith.go b/src/pkg/big/arith.go
+index 4f18ed37b3..1c481caabc 100644
+--- a/src/pkg/big/arith.go
++++ b/src/pkg/big/arith.go
+@@ -310,6 +310,28 @@ func subVW_g(z, x *Word, y Word, n int) (c Word) {
+ }
+ 
+ 
++func shlVW(z, x *Word, s Word, n int) (c Word)
++func shlVW_g(z, x *Word, s Word, n int) (c Word) {
++	ŝ := _W - s
++	for i := 0; i < n; i++ {
++		w := *x.at(i)
++		c, *z.at(i) = w>>ŝ, w<<s|c
++	}
++	return
++}
++
++
++func shrVW(z, x *Word, s Word, n int) (c Word)
++func shrVW_g(z, x *Word, s Word, n int) (c Word) {
++	ŝ := _W - s
++	for i := n - 1; i >= 0; i-- {
++		w := *x.at(i)
++		c, *z.at(i) = w<<ŝ, w>>s|c
++	}
++	return
++}
++
++
+ func mulAddVWW(z, x *Word, y, r Word, n int) (c Word)
+ func mulAddVWW_g(z, x *Word, y, r Word, n int) (c Word) {
+ 	c = r
+diff --git a/src/pkg/big/arith_386.s b/src/pkg/big/arith_386.s
+index 75fcd7c200..83398db944 100644
+--- a/src/pkg/big/arith_386.s
++++ b/src/pkg/big/arith_386.s
+@@ -99,6 +99,20 @@ E4:	CMPL BX, BP         // i < n
+ 	RET
+ 
+ 
++// func shlVW(z, x *Word, s Word, n int) (c Word)
++// TODO(gri) implement this routine
++TEXT ·shlVW(SB),7,$0
++	NOP			// work around bug in linker
++	JMP ·shlVW_g(SB)
++
++
++// func shrVW(z, x *Word, s Word, n int) (c Word)
++// TODO(gri) implement this routine
++TEXT ·shrVW(SB),7,$0
++	NOP			// work around bug in linker
++	JMP ·shrVW_g(SB)
++
++
+ // func mulAddVWW(z, x *Word, y, r Word, n int) (c Word)
+ TEXT ·mulAddVWW(SB),7,$0
+ 	MOVL z+0(FP), DI
+diff --git a/src/pkg/big/arith_amd64.s b/src/pkg/big/arith_amd64.s
+index da53b76a8b..5f9b4782da 100644
+--- a/src/pkg/big/arith_amd64.s
++++ b/src/pkg/big/arith_amd64.s
+@@ -101,6 +101,56 @@ E4:	CMPQ BX, R11         // i < n
+ 	RET
+ 
+ 
++// func shlVW(z, x *Word, s Word, n int) (c Word)
++TEXT ·shlVW(SB),7,$0
++	MOVQ z+0(FP), R10
++	MOVQ x+8(FP), R8
++	MOVQ s+16(FP), CX
++	MOVL n+24(FP), R11
++	MOVQ $0, AX         // c = 0
++	MOVQ $0, BX         // i = 0
++	JMP E8
++
++L8:	MOVQ (R8)(BX*8), DX
++	MOVQ DX, R12
++	SHLQ CX, DX:AX
++	MOVQ DX, (R10)(BX*8)
++	MOVQ R12, AX
++	ADDL $1, BX          // i++
++
++E8:	CMPQ BX, R11         // i < n
++	JL L8
++
++	MOVQ $0, DX
++	SHLQ CX, DX:AX
++	MOVQ DX, c+32(FP)
++	RET
++
++
++// func shrVW(z, x *Word, s Word, n int) (c Word)
++TEXT ·shrVW(SB),7,$0
++	MOVQ z+0(FP), R10
++	MOVQ x+8(FP), R8
++	MOVQ s+16(FP), CX
++	MOVL n+24(FP), BX   // i = n
++	MOVQ $0, AX         // c = 0
++	JMP E9
++
++L9:	MOVQ (R8)(BX*8), DX
++	MOVQ DX, R12
++	SHRQ CX, DX:AX
++	MOVQ DX, (R10)(BX*8)
++	MOVQ R12, AX
++
++E9:	SUBL $1, BX         // i--
++	JGE L9
++
++	MOVQ $0, DX
++	SHRQ CX, DX:AX
++	MOVQ DX, c+32(FP)
++	RET
++
++
+ // func mulAddVWW(z, x *Word, y, r Word, n int) (c Word)
+ TEXT ·mulAddVWW(SB),7,$0
+ 	MOVQ z+0(FP), R10
+diff --git a/src/pkg/big/arith_arm.s b/src/pkg/big/arith_arm.s
+index 0e78a82f64..c8a45efc49 100644
+--- a/src/pkg/big/arith_arm.s
++++ b/src/pkg/big/arith_arm.s
+@@ -18,6 +18,12 @@ TEXT ·addVW(SB),7,$0
+ TEXT ·subVW(SB),7,$0
+ 	B ·subVW_g(SB)
+ 
++TEXT ·shlVW(SB),7,$0
++	B ·shlVW_g(SB)
++
++TEXT ·shrVW(SB),7,$0
++	B ·shrVW_g(SB)
++
+ TEXT ·mulAddVWW(SB),7,$0
+ 	B ·mulAddVWW_g(SB)
+ 
+diff --git a/src/pkg/big/arith_test.go b/src/pkg/big/arith_test.go
+index 49908e342d..6ee1459c68 100644
+--- a/src/pkg/big/arith_test.go
++++ b/src/pkg/big/arith_test.go
+@@ -147,6 +147,36 @@ var prodVW = []argVW{
+ 	argVW{nat{_M << 7 & _M, _M, _M, _M}, nat{_M, _M, _M, _M}, 1 << 7, _M >> (_W - 7)},
+ }
+ 
++var lshVW = []argVW{
++	argVW{},
++	argVW{nat{0}, nat{0}, 0, 0},
++	argVW{nat{0}, nat{0}, 1, 0},
++	argVW{nat{0}, nat{0}, 20, 0},
++
++	argVW{nat{_M}, nat{_M}, 0, 0},
++	argVW{nat{_M << 1 & _M}, nat{_M}, 1, 1},
++	argVW{nat{_M << 20 & _M}, nat{_M}, 20, _M >> (_W - 20)},
++
++	argVW{nat{_M, _M, _M}, nat{_M, _M, _M}, 0, 0},
++	argVW{nat{_M << 1 & _M, _M, _M}, nat{_M, _M, _M}, 1, 1},
++	argVW{nat{_M << 20 & _M, _M, _M}, nat{_M, _M, _M}, 20, _M >> (_W - 20)},
++}
++
++var rshVW = []argVW{
++	argVW{},
++	argVW{nat{0}, nat{0}, 0, 0},
++	argVW{nat{0}, nat{0}, 1, 0},
++	argVW{nat{0}, nat{0}, 20, 0},
++
++	argVW{nat{_M}, nat{_M}, 0, 0},
++	argVW{nat{_M >> 1}, nat{_M}, 1, _M << (_W - 1) & _M},
++	argVW{nat{_M >> 20}, nat{_M}, 20, _M << (_W - 20) & _M},
++
++	argVW{nat{_M, _M, _M}, nat{_M, _M, _M}, 0, 0},
++	argVW{nat{_M, _M, _M >> 1}, nat{_M, _M, _M}, 1, _M << (_W - 1) & _M},
++	argVW{nat{_M, _M, _M >> 20}, nat{_M, _M, _M}, 20, _M << (_W - 20) & _M},
++}
++
+ 
+ func testFunVW(t *testing.T, msg string, f funVW, a argVW) {
+ 	n := len(a.z)
+@@ -174,6 +204,18 @@ func TestFunVW(t *testing.T) {
+ 		testFunVW(t, "subVW_g", subVW_g, arg)
+ 		testFunVW(t, "subVW", subVW, arg)
+ 	}
++
++	for _, a := range lshVW {
++		arg := a
++		testFunVW(t, "shlVW_g", shlVW_g, arg)
++		testFunVW(t, "shlVW", shlVW, arg)
++	}
++
++	for _, a := range rshVW {
++		arg := a
++		testFunVW(t, "shrVW_g", shrVW_g, arg)
++		testFunVW(t, "shrVW", shrVW, arg)
++	}
+ }
+ 
+ 

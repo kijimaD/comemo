@@ -9,6 +9,37 @@ Date:   Wed Apr 29 18:51:12 2009 -0700
     DELTA=9  (8 added, 0 deleted, 1 changed)
     OCL=28059
     CL=28062
-
+---
  src/lib/reflect/type.go | 10 +++++++++-
  1 file changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/src/lib/reflect/type.go b/src/lib/reflect/type.go
+index 107fd78779..b073afc22e 100644
+--- a/src/lib/reflect/type.go
++++ b/src/lib/reflect/type.go
+@@ -80,9 +80,13 @@ type allTypes struct {
+ 	xuintptr	uintptr;
+ }
+ 
+-var x allTypes
++var (
++	x allTypes;
++	minStruct struct { uint8 };
++)
+ 
+ const (
++	minStructAlign = unsafe.Sizeof(minStruct) - 1;
+ 	ptrsize = unsafe.Sizeof(&x);
+ 	interfacesize = unsafe.Sizeof(x.xinterface);
+ )
+@@ -394,6 +398,10 @@ func (t *structTypeStruct) Size() int {
+ 		size += elemsize;
+ 	}
+ 	if (structalign > 0) {
++		// 6g etc. always aligns structs to a minimum size, typically int64
++		if structalign < minStructAlign {
++			structalign = minStructAlign
++		}
+ 		// TODO: In the PPC64 ELF ABI, floating point fields
+ 		// in a struct are aligned to a 4-byte boundary, but
+ 		// if the first field in the struct is a 64-bit float,

@@ -12,10 +12,78 @@ Date:   Mon Jun 28 17:10:56 2021 +0000
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/internal/atomic/atomic_amd64.s   | 2 +-
  src/runtime/internal/atomic/atomic_arm64.s   | 2 +-
  src/runtime/internal/atomic/atomic_mips64x.s | 2 +-
  src/runtime/internal/atomic/atomic_ppc64x.s  | 2 +-
  src/runtime/internal/atomic/atomic_riscv64.s | 3 ++-
  5 files changed, 6 insertions(+), 5 deletions(-)
+
+diff --git a/src/runtime/internal/atomic/atomic_amd64.s b/src/runtime/internal/atomic/atomic_amd64.s
+index 57cd59dd8c..d21514b36b 100644
+--- a/src/runtime/internal/atomic/atomic_amd64.s
++++ b/src/runtime/internal/atomic/atomic_amd64.s
+@@ -37,7 +37,7 @@ TEXT ·Cas(SB),NOSPLIT,$0-17
+ 
+ // bool	·Cas64(uint64 *val, uint64 old, uint64 new)
+ // Atomically:
+-//	if(*val == *old){
++//	if(*val == old){
+ //		*val = new;
+ //		return 1;
+ //	} else {
+diff --git a/src/runtime/internal/atomic/atomic_arm64.s b/src/runtime/internal/atomic/atomic_arm64.s
+index e9467afecd..5f77d92deb 100644
+--- a/src/runtime/internal/atomic/atomic_arm64.s
++++ b/src/runtime/internal/atomic/atomic_arm64.s
+@@ -192,7 +192,7 @@ ok:
+ 
+ // bool ·Cas64(uint64 *ptr, uint64 old, uint64 new)
+ // Atomically:
+-//      if(*val == *old){
++//      if(*val == old){
+ //              *val = new;
+ //              return 1;
+ //      } else {
+diff --git a/src/runtime/internal/atomic/atomic_mips64x.s b/src/runtime/internal/atomic/atomic_mips64x.s
+index fba668f94a..fedfc4a175 100644
+--- a/src/runtime/internal/atomic/atomic_mips64x.s
++++ b/src/runtime/internal/atomic/atomic_mips64x.s
+@@ -37,7 +37,7 @@ cas_fail:
+ 
+ // bool	cas64(uint64 *ptr, uint64 old, uint64 new)
+ // Atomically:
+-//	if(*val == *old){
++//	if(*val == old){
+ //		*val = new;
+ //		return 1;
+ //	} else {
+diff --git a/src/runtime/internal/atomic/atomic_ppc64x.s b/src/runtime/internal/atomic/atomic_ppc64x.s
+index dca26cb334..226b3b6216 100644
+--- a/src/runtime/internal/atomic/atomic_ppc64x.s
++++ b/src/runtime/internal/atomic/atomic_ppc64x.s
+@@ -107,7 +107,7 @@ cas_fail:
+ 
+ // bool	·Cas64(uint64 *ptr, uint64 old, uint64 new)
+ // Atomically:
+-//	if(*val == *old){
++//	if(*val == old){
+ //		*val = new;
+ //		return 1;
+ //	} else {
+diff --git a/src/runtime/internal/atomic/atomic_riscv64.s b/src/runtime/internal/atomic/atomic_riscv64.s
+index ec05302a78..21d5adcdbc 100644
+--- a/src/runtime/internal/atomic/atomic_riscv64.s
++++ b/src/runtime/internal/atomic/atomic_riscv64.s
+@@ -30,8 +30,9 @@
+ 
+ #include "textflag.h"
+ 
++// func Cas(ptr *uint64, old, new uint64) bool
+ // Atomically:
+-//      if(*val == *old){
++//      if(*val == old){
+ //              *val = new;
+ //              return 1;
+ //      } else {

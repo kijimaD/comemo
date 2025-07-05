@@ -10,7 +10,146 @@ Date:   Fri May 20 20:42:21 2016 +0000
     Reviewed-on: https://go-review.googlesource.com/23300
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/os/exec/exec.go      | 38 +++++++++++++++++++-------------------
  src/os/exec/exec_test.go | 18 +++++++++++++-----
  2 files changed, 32 insertions(+), 24 deletions(-)
+
+diff --git a/src/os/exec/exec.go b/src/os/exec/exec.go
+index 5121b9b2cc..10300ce234 100644
+--- a/src/os/exec/exec.go
++++ b/src/os/exec/exec.go
+@@ -103,8 +103,9 @@ type Cmd struct {
+ 	// available after a call to Wait or Run.
+ 	ProcessState *os.ProcessState
+ 
+-	lookPathErr     error // LookPath error, if any.
+-	finished        bool  // when Wait was called
++	ctx             context.Context // nil means none
++	lookPathErr     error           // LookPath error, if any.
++	finished        bool            // when Wait was called
+ 	childFiles      []*os.File
+ 	closeAfterStart []io.Closer
+ 	closeAfterWait  []io.Closer
+@@ -139,6 +140,20 @@ func Command(name string, arg ...string) *Cmd {
+ 	return cmd
+ }
+ 
++// CommandContext is like Command but includes a context.
++//
++// The provided context is used to kill the process (by calling
++// os.Process.Kill) if the context becomes done before the command
++// completes on its own.
++func CommandContext(ctx context.Context, name string, arg ...string) *Cmd {
++	if ctx == nil {
++		panic("nil Context")
++	}
++	cmd := Command(name, arg...)
++	cmd.ctx = ctx
++	return cmd
++}
++
+ // interfaceEqual protects against panics from doing equality tests on
+ // two interfaces with non-comparable underlying types.
+ func interfaceEqual(a, b interface{}) bool {
+@@ -263,15 +278,6 @@ func (c *Cmd) Run() error {
+ 	return c.Wait()
+ }
+ 
+-// RunContext is like Run, but kills the process (by calling os.Process.Kill)
+-// if ctx is done before the process ends on its own.
+-func (c *Cmd) RunContext(ctx context.Context) error {
+-	if err := c.Start(); err != nil {
+-		return err
+-	}
+-	return c.WaitContext(ctx)
+-}
+-
+ // lookExtensions finds windows executable by its dir and path.
+ // It uses LookPath to try appropriate extensions.
+ // lookExtensions does not search PATH, instead it converts `prog` into `.\prog`.
+@@ -396,12 +402,6 @@ func (e *ExitError) Error() string {
+ //
+ // Wait releases any resources associated with the Cmd.
+ func (c *Cmd) Wait() error {
+-	return c.WaitContext(nil)
+-}
+-
+-// WaitContext is like Wait, but kills the process (by calling os.Process.Kill)
+-// if ctx is done before the process ends on its own.
+-func (c *Cmd) WaitContext(ctx context.Context) error {
+ 	if c.Process == nil {
+ 		return errors.New("exec: not started")
+ 	}
+@@ -411,11 +411,11 @@ func (c *Cmd) WaitContext(ctx context.Context) error {
+ 	c.finished = true
+ 
+ 	var waitDone chan struct{}
+-	if ctx != nil {
++	if c.ctx != nil {
+ 		waitDone = make(chan struct{})
+ 		go func() {
+ 			select {
+-			case <-ctx.Done():
++			case <-c.ctx.Done():
+ 				c.Process.Kill()
+ 			case <-waitDone:
+ 			}
+diff --git a/src/os/exec/exec_test.go b/src/os/exec/exec_test.go
+index 0cff3bb926..41f9dfe1c6 100644
+--- a/src/os/exec/exec_test.go
++++ b/src/os/exec/exec_test.go
+@@ -29,16 +29,24 @@ import (
+ 	"time"
+ )
+ 
+-func helperCommand(t *testing.T, s ...string) *exec.Cmd {
++func helperCommandContext(t *testing.T, ctx context.Context, s ...string) (cmd *exec.Cmd) {
+ 	testenv.MustHaveExec(t)
+ 
+ 	cs := []string{"-test.run=TestHelperProcess", "--"}
+ 	cs = append(cs, s...)
+-	cmd := exec.Command(os.Args[0], cs...)
++	if ctx != nil {
++		cmd = exec.CommandContext(ctx, os.Args[0], cs...)
++	} else {
++		cmd = exec.Command(os.Args[0], cs...)
++	}
+ 	cmd.Env = []string{"GO_WANT_HELPER_PROCESS=1"}
+ 	return cmd
+ }
+ 
++func helperCommand(t *testing.T, s ...string) *exec.Cmd {
++	return helperCommandContext(t, nil, s...)
++}
++
+ func TestEcho(t *testing.T) {
+ 	bs, err := helperCommand(t, "echo", "foo bar", "baz").Output()
+ 	if err != nil {
+@@ -834,7 +842,8 @@ func TestOutputStderrCapture(t *testing.T) {
+ }
+ 
+ func TestContext(t *testing.T) {
+-	c := helperCommand(t, "pipetest")
++	ctx, cancel := context.WithCancel(context.Background())
++	c := helperCommandContext(t, ctx, "pipetest")
+ 	stdin, err := c.StdinPipe()
+ 	if err != nil {
+ 		t.Fatal(err)
+@@ -843,7 +852,6 @@ func TestContext(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+-	ctx, cancel := context.WithCancel(context.Background())
+ 	if err := c.Start(); err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -858,7 +866,7 @@ func TestContext(t *testing.T) {
+ 	}
+ 	waitErr := make(chan error, 1)
+ 	go func() {
+-		waitErr <- c.WaitContext(ctx)
++		waitErr <- c.Wait()
+ 	}()
+ 	cancel()
+ 	select {

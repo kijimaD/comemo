@@ -7,6 +7,20 @@ Date:   Fri Jan 6 14:11:51 2012 -0800
     R=gri
     CC=golang-dev
     https://golang.org/cl/5515052
-
+---
  CONTRIBUTORS | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 0e67669f49..e6edba802d 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -231,7 +231,7 @@ Ross Light <rlight2@gmail.com>
+ Russ Cox <rsc@golang.org>
+ Ryan Hitchman <hitchmanr@gmail.com>
+ Sam Thorogood <thorogood@google.com> <sam.thorogood@gmail.com>
+-Sameer Ajmani <ajmani@gmail.com>
++Sameer Ajmani <sameer@golang.org> <ajmani@gmail.com>
+ Sanjay Menakuru <balasanjay@gmail.com>
+ Scott Lawrence <bytbox@gmail.com>
+ Scott Schwartz <scotts@golang.org>

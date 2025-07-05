@@ -15,8 +15,129 @@ Date:   Mon Jun 20 14:00:58 2016 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/cmd/pprof/pprof.go                   |  6 ++--
  src/runtime/crash_test.go                | 40 ++++++++++++++++++++++++++
  src/runtime/testdata/testprog/memprof.go | 49 ++++++++++++++++++++++++++++++++
  3 files changed, 93 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/pprof/pprof.go b/src/cmd/pprof/pprof.go
+index 0187045b4a..5c243d2a58 100644
+--- a/src/cmd/pprof/pprof.go
++++ b/src/cmd/pprof/pprof.go
+@@ -117,8 +117,10 @@ func (*objTool) Open(name string, start uint64) (plugin.ObjFile, error) {
+ 		name: name,
+ 		file: of,
+ 	}
+-	if load, err := of.LoadAddress(); err == nil {
+-		f.offset = start - load
++	if start != 0 {
++		if load, err := of.LoadAddress(); err == nil {
++			f.offset = start - load
++		}
+ 	}
+ 	return f, nil
+ }
+diff --git a/src/runtime/crash_test.go b/src/runtime/crash_test.go
+index 0b4a1f538a..a2f7ff7dec 100644
+--- a/src/runtime/crash_test.go
++++ b/src/runtime/crash_test.go
+@@ -442,3 +442,43 @@ func TestPanicDeadlockGosched(t *testing.T) {
+ func TestPanicDeadlockSyscall(t *testing.T) {
+ 	testPanicDeadlock(t, "SyscallInPanic", "1\n2\npanic: 3\n\n")
+ }
++
++func TestMemPprof(t *testing.T) {
++	testenv.MustHaveGoRun(t)
++
++	exe, err := buildTestProg(t, "testprog")
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	got, err := testEnv(exec.Command(exe, "MemProf")).CombinedOutput()
++	if err != nil {
++		t.Fatal(err)
++	}
++	fn := strings.TrimSpace(string(got))
++	defer os.Remove(fn)
++
++	cmd := testEnv(exec.Command("go", "tool", "pprof", "-alloc_space", "-top", exe, fn))
++
++	found := false
++	for i, e := range cmd.Env {
++		if strings.HasPrefix(e, "PPROF_TMPDIR=") {
++			cmd.Env[i] = "PPROF_TMPDIR=" + os.TempDir()
++			found = true
++			break
++		}
++	}
++	if !found {
++		cmd.Env = append(cmd.Env, "PPROF_TMPDIR="+os.TempDir())
++	}
++
++	top, err := cmd.CombinedOutput()
++	t.Logf("%s", top)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	if !bytes.Contains(top, []byte("MemProf")) {
++		t.Error("missing MemProf in pprof output")
++	}
++}
+diff --git a/src/runtime/testdata/testprog/memprof.go b/src/runtime/testdata/testprog/memprof.go
+new file mode 100644
+index 0000000000..a22fee61d7
+--- /dev/null
++++ b/src/runtime/testdata/testprog/memprof.go
+@@ -0,0 +1,49 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"bytes"
++	"fmt"
++	"io/ioutil"
++	"os"
++	"runtime"
++	"runtime/pprof"
++)
++
++func init() {
++	register("MemProf", MemProf)
++}
++
++var memProfBuf bytes.Buffer
++var memProfStr string
++
++func MemProf() {
++	for i := 0; i < 1000; i++ {
++		fmt.Fprintf(&memProfBuf, "%*d\n", i, i)
++	}
++	memProfStr = memProfBuf.String()
++
++	runtime.GC()
++
++	f, err := ioutil.TempFile("", "memprof")
++	if err != nil {
++		fmt.Fprintln(os.Stderr, err)
++		os.Exit(2)
++	}
++
++	if err := pprof.WriteHeapProfile(f); err != nil {
++		fmt.Fprintln(os.Stderr, err)
++		os.Exit(2)
++	}
++
++	name := f.Name()
++	if err := f.Close(); err != nil {
++		fmt.Fprintln(os.Stderr, err)
++		os.Exit(2)
++	}
++
++	fmt.Println(name)
++}

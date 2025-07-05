@@ -12,6 +12,20 @@ Date:   Tue Apr 1 17:04:29 2025 -0400
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Neal Patel <nealpatel@google.com>
     Reviewed-by: Damien Neil <dneil@google.com>
-
+---
  src/net/http/roundtrip.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/net/http/roundtrip.go b/src/net/http/roundtrip.go
+index 6674b8419f..d2e29a33d9 100644
+--- a/src/net/http/roundtrip.go
++++ b/src/net/http/roundtrip.go
+@@ -27,5 +27,8 @@ func badRoundTrip(*Transport, *Request) (*Response, error)
+ // Like the RoundTripper interface, the error types returned
+ // by RoundTrip are unspecified.
+ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
++	if t == nil {
++		panic("transport is nil")
++	}
+ 	return t.roundTrip(req)
+ }

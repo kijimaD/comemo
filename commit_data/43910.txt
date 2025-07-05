@@ -19,9 +19,356 @@ Date:   Tue Apr 28 09:32:00 2020 +1000
     Change-Id: I011feb2d53515fc3f0fe72bb6c23b3953772c577
     Reviewed-on: https://go-review.googlesource.com/c/go/+/230220
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/image/geom.go       | 35 ++++++++++++++++++
  src/image/image.go      | 96 +++++++++++++++++++++++++++++++++----------------
  src/image/image_test.go | 72 +++++++++++++++++++++++++++++++++++++
  src/image/ycbcr.go      | 20 +++++++++++
  4 files changed, 193 insertions(+), 30 deletions(-)
+
+diff --git a/src/image/geom.go b/src/image/geom.go
+index 8bb249c1e0..78e9e49d4f 100644
+--- a/src/image/geom.go
++++ b/src/image/geom.go
+@@ -6,6 +6,7 @@ package image
+ 
+ import (
+ 	"image/color"
++	"math/bits"
+ 	"strconv"
+ )
+ 
+@@ -272,3 +273,37 @@ func Rect(x0, y0, x1, y1 int) Rectangle {
+ 	}
+ 	return Rectangle{Point{x0, y0}, Point{x1, y1}}
+ }
++
++// mul3NonNeg returns (x * y * z), unless at least one argument is negative or
++// if the computation overflows the int type, in which case it returns -1.
++func mul3NonNeg(x int, y int, z int) int {
++	if (x < 0) || (y < 0) || (z < 0) {
++		return -1
++	}
++	hi, lo := bits.Mul64(uint64(x), uint64(y))
++	if hi != 0 {
++		return -1
++	}
++	hi, lo = bits.Mul64(lo, uint64(z))
++	if hi != 0 {
++		return -1
++	}
++	a := int(lo)
++	if (a < 0) || (uint64(a) != lo) {
++		return -1
++	}
++	return a
++}
++
++// add2NonNeg returns (x + y), unless at least one argument is negative or if
++// the computation overflows the int type, in which case it returns -1.
++func add2NonNeg(x int, y int) int {
++	if (x < 0) || (y < 0) {
++		return -1
++	}
++	a := x + y
++	if a < 0 {
++		return -1
++	}
++	return a
++}
+diff --git a/src/image/image.go b/src/image/image.go
+index ffd6de7383..8adba96ab6 100644
+--- a/src/image/image.go
++++ b/src/image/image.go
+@@ -56,6 +56,21 @@ type PalettedImage interface {
+ 	Image
+ }
+ 
++// pixelBufferLength returns the length of the []uint8 typed Pix slice field
++// for the NewXxx functions. Conceptually, this is just (bpp * width * height),
++// but this function panics if at least one of those is negative or if the
++// computation would overflow the int type.
++//
++// This panics instead of returning an error because of backwards
++// compatibility. The NewXxx functions do not return an error.
++func pixelBufferLength(bytesPerPixel int, r Rectangle, imageTypeName string) int {
++	totalLength := mul3NonNeg(bytesPerPixel, r.Dx(), r.Dy())
++	if totalLength < 0 {
++		panic("image: New" + imageTypeName + " Rectangle has huge or negative dimensions")
++	}
++	return totalLength
++}
++
+ // RGBA is an in-memory image whose At method returns color.RGBA values.
+ type RGBA struct {
+ 	// Pix holds the image's pixels, in R, G, B, A order. The pixel at
+@@ -153,9 +168,11 @@ func (p *RGBA) Opaque() bool {
+ 
+ // NewRGBA returns a new RGBA image with the given bounds.
+ func NewRGBA(r Rectangle) *RGBA {
+-	w, h := r.Dx(), r.Dy()
+-	buf := make([]uint8, 4*w*h)
+-	return &RGBA{buf, 4 * w, r}
++	return &RGBA{
++		Pix:    make([]uint8, pixelBufferLength(4, r, "RGBA")),
++		Stride: 4 * r.Dx(),
++		Rect:   r,
++	}
+ }
+ 
+ // RGBA64 is an in-memory image whose At method returns color.RGBA64 values.
+@@ -268,9 +285,11 @@ func (p *RGBA64) Opaque() bool {
+ 
+ // NewRGBA64 returns a new RGBA64 image with the given bounds.
+ func NewRGBA64(r Rectangle) *RGBA64 {
+-	w, h := r.Dx(), r.Dy()
+-	pix := make([]uint8, 8*w*h)
+-	return &RGBA64{pix, 8 * w, r}
++	return &RGBA64{
++		Pix:    make([]uint8, pixelBufferLength(8, r, "RGBA64")),
++		Stride: 8 * r.Dx(),
++		Rect:   r,
++	}
+ }
+ 
+ // NRGBA is an in-memory image whose At method returns color.NRGBA values.
+@@ -370,9 +389,11 @@ func (p *NRGBA) Opaque() bool {
+ 
+ // NewNRGBA returns a new NRGBA image with the given bounds.
+ func NewNRGBA(r Rectangle) *NRGBA {
+-	w, h := r.Dx(), r.Dy()
+-	pix := make([]uint8, 4*w*h)
+-	return &NRGBA{pix, 4 * w, r}
++	return &NRGBA{
++		Pix:    make([]uint8, pixelBufferLength(4, r, "NRGBA")),
++		Stride: 4 * r.Dx(),
++		Rect:   r,
++	}
+ }
+ 
+ // NRGBA64 is an in-memory image whose At method returns color.NRGBA64 values.
+@@ -485,9 +506,11 @@ func (p *NRGBA64) Opaque() bool {
+ 
+ // NewNRGBA64 returns a new NRGBA64 image with the given bounds.
+ func NewNRGBA64(r Rectangle) *NRGBA64 {
+-	w, h := r.Dx(), r.Dy()
+-	pix := make([]uint8, 8*w*h)
+-	return &NRGBA64{pix, 8 * w, r}
++	return &NRGBA64{
++		Pix:    make([]uint8, pixelBufferLength(8, r, "NRGBA64")),
++		Stride: 8 * r.Dx(),
++		Rect:   r,
++	}
+ }
+ 
+ // Alpha is an in-memory image whose At method returns color.Alpha values.
+@@ -577,9 +600,11 @@ func (p *Alpha) Opaque() bool {
+ 
+ // NewAlpha returns a new Alpha image with the given bounds.
+ func NewAlpha(r Rectangle) *Alpha {
+-	w, h := r.Dx(), r.Dy()
+-	pix := make([]uint8, 1*w*h)
+-	return &Alpha{pix, 1 * w, r}
++	return &Alpha{
++		Pix:    make([]uint8, pixelBufferLength(1, r, "Alpha")),
++		Stride: 1 * r.Dx(),
++		Rect:   r,
++	}
+ }
+ 
+ // Alpha16 is an in-memory image whose At method returns color.Alpha16 values.
+@@ -672,9 +697,11 @@ func (p *Alpha16) Opaque() bool {
+ 
+ // NewAlpha16 returns a new Alpha16 image with the given bounds.
+ func NewAlpha16(r Rectangle) *Alpha16 {
+-	w, h := r.Dx(), r.Dy()
+-	pix := make([]uint8, 2*w*h)
+-	return &Alpha16{pix, 2 * w, r}
++	return &Alpha16{
++		Pix:    make([]uint8, pixelBufferLength(2, r, "Alpha16")),
++		Stride: 2 * r.Dx(),
++		Rect:   r,
++	}
+ }
+ 
+ // Gray is an in-memory image whose At method returns color.Gray values.
+@@ -751,9 +778,11 @@ func (p *Gray) Opaque() bool {
+ 
+ // NewGray returns a new Gray image with the given bounds.
+ func NewGray(r Rectangle) *Gray {
+-	w, h := r.Dx(), r.Dy()
+-	pix := make([]uint8, 1*w*h)
+-	return &Gray{pix, 1 * w, r}
++	return &Gray{
++		Pix:    make([]uint8, pixelBufferLength(1, r, "Gray")),
++		Stride: 1 * r.Dx(),
++		Rect:   r,
++	}
+ }
+ 
+ // Gray16 is an in-memory image whose At method returns color.Gray16 values.
+@@ -833,9 +862,11 @@ func (p *Gray16) Opaque() bool {
+ 
+ // NewGray16 returns a new Gray16 image with the given bounds.
+ func NewGray16(r Rectangle) *Gray16 {
+-	w, h := r.Dx(), r.Dy()
+-	pix := make([]uint8, 2*w*h)
+-	return &Gray16{pix, 2 * w, r}
++	return &Gray16{
++		Pix:    make([]uint8, pixelBufferLength(2, r, "Gray16")),
++		Stride: 2 * r.Dx(),
++		Rect:   r,
++	}
+ }
+ 
+ // CMYK is an in-memory image whose At method returns color.CMYK values.
+@@ -922,9 +953,11 @@ func (p *CMYK) Opaque() bool {
+ 
+ // NewCMYK returns a new CMYK image with the given bounds.
+ func NewCMYK(r Rectangle) *CMYK {
+-	w, h := r.Dx(), r.Dy()
+-	buf := make([]uint8, 4*w*h)
+-	return &CMYK{buf, 4 * w, r}
++	return &CMYK{
++		Pix:    make([]uint8, pixelBufferLength(4, r, "CMYK")),
++		Stride: 4 * r.Dx(),
++		Rect:   r,
++	}
+ }
+ 
+ // Paletted is an in-memory image of uint8 indices into a given palette.
+@@ -1032,7 +1065,10 @@ func (p *Paletted) Opaque() bool {
+ // NewPaletted returns a new Paletted image with the given width, height and
+ // palette.
+ func NewPaletted(r Rectangle, p color.Palette) *Paletted {
+-	w, h := r.Dx(), r.Dy()
+-	pix := make([]uint8, 1*w*h)
+-	return &Paletted{pix, 1 * w, r, p}
++	return &Paletted{
++		Pix:     make([]uint8, pixelBufferLength(1, r, "Paletted")),
++		Stride:  1 * r.Dx(),
++		Rect:    r,
++		Palette: p,
++	}
+ }
+diff --git a/src/image/image_test.go b/src/image/image_test.go
+index dfd8eb35a8..b9b9bfaa28 100644
+--- a/src/image/image_test.go
++++ b/src/image/image_test.go
+@@ -88,6 +88,78 @@ func TestImage(t *testing.T) {
+ 	}
+ }
+ 
++func TestNewXxxBadRectangle(t *testing.T) {
++	// call calls f(r) and reports whether it ran without panicking.
++	call := func(f func(Rectangle), r Rectangle) (ok bool) {
++		defer func() {
++			if recover() != nil {
++				ok = false
++			}
++		}()
++		f(r)
++		return true
++	}
++
++	testCases := []struct {
++		name string
++		f    func(Rectangle)
++	}{
++		{"RGBA", func(r Rectangle) { NewRGBA(r) }},
++		{"RGBA64", func(r Rectangle) { NewRGBA64(r) }},
++		{"NRGBA", func(r Rectangle) { NewNRGBA(r) }},
++		{"NRGBA64", func(r Rectangle) { NewNRGBA64(r) }},
++		{"Alpha", func(r Rectangle) { NewAlpha(r) }},
++		{"Alpha16", func(r Rectangle) { NewAlpha16(r) }},
++		{"Gray", func(r Rectangle) { NewGray(r) }},
++		{"Gray16", func(r Rectangle) { NewGray16(r) }},
++		{"CMYK", func(r Rectangle) { NewCMYK(r) }},
++		{"Paletted", func(r Rectangle) { NewPaletted(r, color.Palette{color.Black, color.White}) }},
++		{"YCbCr", func(r Rectangle) { NewYCbCr(r, YCbCrSubsampleRatio422) }},
++		{"NYCbCrA", func(r Rectangle) { NewNYCbCrA(r, YCbCrSubsampleRatio444) }},
++	}
++
++	for _, tc := range testCases {
++		// Calling NewXxx(r) should fail (panic, since NewXxx doesn't return an
++		// error) unless r's width and height are both non-negative.
++		for _, negDx := range []bool{false, true} {
++			for _, negDy := range []bool{false, true} {
++				r := Rectangle{
++					Min: Point{15, 28},
++					Max: Point{16, 29},
++				}
++				if negDx {
++					r.Max.X = 14
++				}
++				if negDy {
++					r.Max.Y = 27
++				}
++
++				got := call(tc.f, r)
++				want := !negDx && !negDy
++				if got != want {
++					t.Errorf("New%s: negDx=%t, negDy=%t: got %t, want %t",
++						tc.name, negDx, negDy, got, want)
++				}
++			}
++		}
++
++		// Passing a Rectangle whose width and height is MaxInt should also fail
++		// (panic), due to overflow.
++		{
++			zeroAsUint := uint(0)
++			maxUint := zeroAsUint - 1
++			maxInt := int(maxUint / 2)
++			got := call(tc.f, Rectangle{
++				Min: Point{0, 0},
++				Max: Point{maxInt, maxInt},
++			})
++			if got {
++				t.Errorf("New%s: overflow: got ok, want !ok", tc.name)
++			}
++		}
++	}
++}
++
+ func Test16BitsPerColorChannel(t *testing.T) {
+ 	testColorModel := []color.Model{
+ 		color.RGBA64Model,
+diff --git a/src/image/ycbcr.go b/src/image/ycbcr.go
+index 71c0518a81..fbdffe1bd1 100644
+--- a/src/image/ycbcr.go
++++ b/src/image/ycbcr.go
+@@ -168,6 +168,16 @@ func yCbCrSize(r Rectangle, subsampleRatio YCbCrSubsampleRatio) (w, h, cw, ch in
+ // ratio.
+ func NewYCbCr(r Rectangle, subsampleRatio YCbCrSubsampleRatio) *YCbCr {
+ 	w, h, cw, ch := yCbCrSize(r, subsampleRatio)
++
++	// totalLength should be the same as i2, below, for a valid Rectangle r.
++	totalLength := add2NonNeg(
++		mul3NonNeg(1, w, h),
++		mul3NonNeg(2, cw, ch),
++	)
++	if totalLength < 0 {
++		panic("image: NewYCbCr Rectangle has huge or negative dimensions")
++	}
++
+ 	i0 := w*h + 0*cw*ch
+ 	i1 := w*h + 1*cw*ch
+ 	i2 := w*h + 2*cw*ch
+@@ -277,6 +287,16 @@ func (p *NYCbCrA) Opaque() bool {
+ // ratio.
+ func NewNYCbCrA(r Rectangle, subsampleRatio YCbCrSubsampleRatio) *NYCbCrA {
+ 	w, h, cw, ch := yCbCrSize(r, subsampleRatio)
++
++	// totalLength should be the same as i3, below, for a valid Rectangle r.
++	totalLength := add2NonNeg(
++		mul3NonNeg(2, w, h),
++		mul3NonNeg(2, cw, ch),
++	)
++	if totalLength < 0 {
++		panic("image: NewNYCbCrA Rectangle has huge or negative dimension")
++	}
++
+ 	i0 := 1*w*h + 0*cw*ch
+ 	i1 := 1*w*h + 1*cw*ch
+ 	i2 := 1*w*h + 2*cw*ch

@@ -18,8 +18,66 @@ Date:   Sat Apr 16 20:23:28 2022 -0700
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/test/inl_test.go |  1 +
  src/reflect/all_test.go                   |  8 +++++---
  src/reflect/value.go                      | 12 +++++++++++-
  3 files changed, 17 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/test/inl_test.go b/src/cmd/compile/internal/test/inl_test.go
+index b10d37a17c..211068e1dc 100644
+--- a/src/cmd/compile/internal/test/inl_test.go
++++ b/src/cmd/compile/internal/test/inl_test.go
+@@ -136,6 +136,7 @@ func TestIntendedInlining(t *testing.T) {
+ 			"Value.CanSet",
+ 			"Value.CanInterface",
+ 			"Value.IsValid",
++			"Value.MapRange",
+ 			"Value.pointer",
+ 			"add",
+ 			"align",
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index 5a35d98b51..f7adf2fa1a 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -370,9 +370,11 @@ func TestMapIterSet(t *testing.T) {
+ 			e.SetIterValue(iter)
+ 		}
+ 	}))
+-	// Making a *MapIter allocates. This should be the only allocation.
+-	if got != 1 {
+-		t.Errorf("wanted 1 alloc, got %d", got)
++	// Calling MapRange should not allocate even though it returns a *MapIter.
++	// The function is inlineable, so if the local usage does not escape
++	// the *MapIter, it can remain stack allocated.
++	if got != 0 {
++		t.Errorf("wanted 0 alloc, got %d", got)
+ 	}
+ }
+ 
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index 06f0469ede..6fe3cee017 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -1833,10 +1833,20 @@ func (iter *MapIter) Reset(v Value) {
+ //		...
+ //	}
+ func (v Value) MapRange() *MapIter {
+-	v.mustBe(Map)
++	// This is inlinable to take advantage of "function outlining".
++	// The allocation of MapIter can be stack allocated if the caller
++	// does not allow it to escape.
++	// See https://blog.filippo.io/efficient-go-apis-with-the-inliner/
++	if v.kind() != Map {
++		v.panicNotMap()
++	}
+ 	return &MapIter{m: v}
+ }
+ 
++func (f flag) panicNotMap() {
++	f.mustBe(Map)
++}
++
+ // copyVal returns a Value containing the map key or value at ptr,
+ // allocating a new variable as needed.
+ func copyVal(typ *rtype, fl flag, ptr unsafe.Pointer) Value {

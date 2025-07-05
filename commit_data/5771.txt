@@ -7,7 +7,32 @@ Date:   Thu Jul 8 12:47:16 2010 +1000
     R=nigeltao
     CC=golang-dev
     https://golang.org/cl/1682052
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index b41da7dc96..5421cdff8c 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -53,6 +53,7 @@ Kei Son <hey.calmdown@gmail.com>
+ Ken Friedenbach <kenliz@cruzio.com>
+ Kevin Ballard <kevin@sb.org>
+ Kyle Consalus <consalus@gmail.com>
++Markus Duft <markus.duft@salomon.at>
+ Micah Stetson <micah.stetson@gmail.com>
+ Michael Elkins <michael.elkins@gmail.com>
+ Michael Hoisie <hoisie@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index caa4fb3583..abd92bce64 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -90,6 +90,7 @@ Kirklin McDonald <kirklin.mcdonald@gmail.com>
+ Kyle Consalus <consalus@gmail.com>
+ Larry Hosken <lahosken@golang.org>
+ Mark Zavislak <zavislak@google.com>
++Markus Duft <markus.duft@salomon.at>
+ Maxim Ushakov <ushakov@google.com>
+ Micah Stetson <micah.stetson@gmail.com>
+ Michael Elkins <michael.elkins@gmail.com>

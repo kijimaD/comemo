@@ -13,6 +13,16 @@ Date:   Tue Mar 23 15:07:32 2021 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/304252
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/importer_test.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/types2/importer_test.go b/src/cmd/compile/internal/types2/importer_test.go
+index 90476c4269..6b9b500918 100644
+--- a/src/cmd/compile/internal/types2/importer_test.go
++++ b/src/cmd/compile/internal/types2/importer_test.go
+@@ -1,4 +1,3 @@
+-// UNREVIEWED
+ // Copyright 2020 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.

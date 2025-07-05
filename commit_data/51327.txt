@@ -26,9 +26,107 @@ Date:   Mon Jan 10 23:04:22 2022 -0800
     Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/types2/lookup.go                 | 14 +++++++-------
  src/cmd/compile/internal/types2/testdata/check/issues.src |  2 +-
  src/go/types/lookup.go                                    | 15 ++++++++-------
  test/fixedbugs/issue48471.go                              |  8 ++++----
  4 files changed, 20 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/lookup.go b/src/cmd/compile/internal/types2/lookup.go
+index 5428b667a5..2b710040a4 100644
+--- a/src/cmd/compile/internal/types2/lookup.go
++++ b/src/cmd/compile/internal/types2/lookup.go
+@@ -428,18 +428,18 @@ func (check *Checker) missingMethodReason(V, T Type, m, wrongType *Func) string
+ 	if wrongType != nil {
+ 		if Identical(m.typ, wrongType.typ) {
+ 			if m.Name() == wrongType.Name() {
+-				r = check.sprintf("(%s has pointer receiver)", mname)
++				r = check.sprintf("(%s has pointer receiver) at %s", mname, wrongType.Pos())
+ 			} else {
+-				r = check.sprintf("(missing %s)\n\t\thave %s^^%s\n\t\twant %s^^%s",
+-					mname, wrongType.Name(), wrongType.typ, m.Name(), m.typ)
++				r = check.sprintf("(missing %s)\n\t\thave %s^^%s at %s\n\t\twant %s^^%s",
++					mname, wrongType.Name(), wrongType.typ, wrongType.Pos(), m.Name(), m.typ)
+ 			}
+ 		} else {
+ 			if check.conf.CompilerErrorMessages {
+-				r = check.sprintf("(wrong type for %s)\n\t\thave %s^^%s\n\t\twant %s^^%s",
+-					mname, wrongType.Name(), wrongType.typ, m.Name(), m.typ)
++				r = check.sprintf("(wrong type for %s)\n\t\thave %s^^%s at %s\n\t\twant %s^^%s",
++					mname, wrongType.Name(), wrongType.typ, wrongType.Pos(), m.Name(), m.typ)
+ 			} else {
+-				r = check.sprintf("(wrong type for %s: have %s, want %s)",
+-					mname, wrongType.typ, m.typ)
++				r = check.sprintf("(wrong type for %s)\n\thave %s at %s\n\twant %s",
++					mname, wrongType.typ, wrongType.Pos(), m.typ)
+ 			}
+ 		}
+ 		// This is a hack to print the function type without the leading
+diff --git a/src/cmd/compile/internal/types2/testdata/check/issues.src b/src/cmd/compile/internal/types2/testdata/check/issues.src
+index f4b6199b82..868df46bd9 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/issues.src
++++ b/src/cmd/compile/internal/types2/testdata/check/issues.src
+@@ -137,7 +137,7 @@ func issue10260() {
+ 	T1{}.foo /* ERROR cannot call pointer method foo on T1 */ ()
+ 	x.Foo /* ERROR "x.Foo undefined \(type I1 has no field or method Foo, but does have foo\)" */ ()
+ 
+-	_ = i2. /* ERROR impossible type assertion: i2.\(\*T1\)\n\t\*T1 does not implement I2 \(wrong type for method foo: have func\(\), want func\(x int\)\) */ (*T1)
++	_ = i2. /* ERROR impossible type assertion: i2.\(\*T1\)\n\t\*T1 does not implement I2 \(wrong type for method foo\)\n\thave func\(\) at \w+.+\d+.\d+\n\twant func\(x int\) */ (*T1)
+ 
+ 	i1 = i0 /* ERROR cannot use .* missing method foo */
+ 	i1 = t0 /* ERROR cannot use .* missing method foo */
+diff --git a/src/go/types/lookup.go b/src/go/types/lookup.go
+index 598f615247..b9c5048b5d 100644
+--- a/src/go/types/lookup.go
++++ b/src/go/types/lookup.go
+@@ -400,20 +400,21 @@ func (check *Checker) missingMethodReason(V, T Type, m, wrongType *Func) string
+ 		mname = "method " + m.Name()
+ 	}
+ 	if wrongType != nil {
++		pos := check.fset.Position(wrongType.Pos())
+ 		if Identical(m.typ, wrongType.typ) {
+ 			if m.Name() == wrongType.Name() {
+-				r = check.sprintf("(%s has pointer receiver)", mname)
++				r = check.sprintf("(%s has pointer receiver) at %s", mname, pos)
+ 			} else {
+-				r = check.sprintf("(missing %s)\n\t\thave %s^^%s\n\t\twant %s^^%s",
+-					mname, wrongType.Name(), wrongType.typ, m.Name(), m.typ)
++				r = check.sprintf("(missing %s)\n\t\thave %s^^%s at %s\n\t\twant %s^^%s",
++					mname, wrongType.Name(), wrongType.typ, pos, m.Name(), m.typ)
+ 			}
+ 		} else {
+ 			if compilerErrorMessages {
+-				r = check.sprintf("(wrong type for %s)\n\t\thave %s^^%s\n\t\twant %s^^%s",
+-					mname, wrongType.Name(), wrongType.typ, m.Name(), m.typ)
++				r = check.sprintf("(wrong type for %s)\n\t\thave %s^^%s at %s\n\t\twant %s^^%s",
++					mname, wrongType.Name(), wrongType.typ, pos, m.Name(), m.typ)
+ 			} else {
+-				r = check.sprintf("(wrong type for %s: have %s, want %s)",
+-					mname, wrongType.typ, m.typ)
++				r = check.sprintf("(wrong type for %s)\n\thave %s at %s\nwant %s",
++					mname, wrongType.typ, pos, m.typ)
+ 			}
+ 		}
+ 		// This is a hack to print the function type without the leading
+diff --git a/test/fixedbugs/issue48471.go b/test/fixedbugs/issue48471.go
+index ba6245ab41..8c5d3d4efa 100644
+--- a/test/fixedbugs/issue48471.go
++++ b/test/fixedbugs/issue48471.go
+@@ -29,12 +29,12 @@ func g() {
+ 	var i I
+ 	i = new(T)    // ERROR "cannot use new\(T\) \(.*type \*T\) as type I in assignment:\n\t\*T does not implement I \(missing M method\)"
+ 	i = I(new(T)) // ERROR "cannot convert new\(T\) \(.*type \*T\) to type I:\n\t\*T does not implement I \(missing M method\)"
+-	i = new(T2)   // ERROR "cannot use new\(T2\) \(.*type \*T2\) as type I in assignment:\n\t\*T2 does not implement I \(missing M method\)\n\t\thave m\(int\)\n\t\twant M\(int\)"
+-	i = new(T3)   // ERROR "cannot use new\(T3\) \(.*type \*T3\) as type I in assignment:\n\t\*T3 does not implement I \(wrong type for M method\)\n\t\thave M\(string\)\n\t\twant M\(int\)"
++	i = new(T2)   // ERROR "cannot use new\(T2\) \(.*type \*T2\) as type I in assignment:\n\t\*T2 does not implement I \(missing M method\)\n\t\thave m\(int\) at \w+.+\d.\d+\n\t\twant M\(int\)"
++	i = new(T3)   // ERROR "cannot use new\(T3\) \(.*type \*T3\) as type I in assignment:\n\t\*T3 does not implement I \(wrong type for M method\)\n\t\thave M\(string\) at \w+.+\d.\d+\n\t\twant M\(int\)"
+ 	i = T4{}      // ERROR "cannot use T4\{\} \(.*type T4\) as type I in assignment:\n\tT4 does not implement I \(M method has pointer receiver\)"
+ 	i = new(I)    // ERROR "cannot use new\(I\) \(.*type \*I\) as type I in assignment:\n\t\*I does not implement I \(type \*I is pointer to interface, not interface\)"
+-	_ = i.(*T2)   // ERROR "impossible type assertion: i.\(\*T2\)\n\t\*T2 does not implement I \(missing M method\)\n\t\thave m\(int\)\n\t\twant M\(int\)"
+-	_ = i.(*T3)   // ERROR "impossible type assertion: i.\(\*T3\)\n\t\*T3 does not implement I \(wrong type for M method\)\n\t\thave M\(string\)\n\t\twant M\(int\)"
++	_ = i.(*T2)   // ERROR "impossible type assertion: i.\(\*T2\)\n\t\*T2 does not implement I \(missing M method\)\n\t\thave m\(int\) at \w+.+\d.\d+\n\t\twant M\(int\)"
++	_ = i.(*T3)   // ERROR "impossible type assertion: i.\(\*T3\)\n\t\*T3 does not implement I \(wrong type for M method\)\n\t\thave M\(string\) at \w+.+\d.\d+\n\t\twant M\(int\)"
+ 	var t *T4
+ 	t = i // ERROR "cannot use i \(variable of type I\) as type \*T4 in assignment:\n\tneed type assertion"
+ 	_ = i

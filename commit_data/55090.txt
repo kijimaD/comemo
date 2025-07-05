@@ -14,6 +14,27 @@ Date:   Wed Dec 21 23:31:48 2022 -0500
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Tim Scharfenort <timscharfenort89@googlemail.com>
     Run-TryBot: Cherry Mui <cherryyz@google.com>
-
+---
  misc/cgo/testshared/shared_test.go | 12 ++++++++++++
  1 file changed, 12 insertions(+)
+
+diff --git a/misc/cgo/testshared/shared_test.go b/misc/cgo/testshared/shared_test.go
+index cd8a144d73..b14fb1cb3a 100644
+--- a/misc/cgo/testshared/shared_test.go
++++ b/misc/cgo/testshared/shared_test.go
+@@ -1105,3 +1105,15 @@ func TestIssue47873(t *testing.T) {
+ 	goCmd(t, "install", "-buildmode=shared", "-linkshared", "./issue47837/a")
+ 	goCmd(t, "run", "-linkshared", "./issue47837/main")
+ }
++
++// Test that we can build std in shared mode.
++func TestStd(t *testing.T) {
++	if testing.Short() {
++		t.Skip("skip in short mode")
++	}
++	t.Parallel()
++	// Use a temporary pkgdir to not interfere with other tests, and not write to GOROOT.
++	// Cannot use goCmd as it runs with cloned GOROOT which is incomplete.
++	runWithEnv(t, "building std", []string{"GOROOT=" + oldGOROOT},
++		filepath.Join(oldGOROOT, "bin", "go"), "install", "-buildmode=shared", "-pkgdir="+t.TempDir(), "std")
++}

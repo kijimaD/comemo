@@ -34,7 +34,182 @@ Date:   Tue Jul 11 10:52:42 2023 -0400
     Run-TryBot: Bryan Mills <bcmills@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/net/http/fcgi/fcgi.go      | 13 +++++++---
  src/net/http/fcgi/fcgi_test.go | 57 +++++++++++++++++++++---------------------
  2 files changed, 38 insertions(+), 32 deletions(-)
+
+diff --git a/src/net/http/fcgi/fcgi.go b/src/net/http/fcgi/fcgi.go
+index fb822f8a6d..56f7d40789 100644
+--- a/src/net/http/fcgi/fcgi.go
++++ b/src/net/http/fcgi/fcgi.go
+@@ -99,8 +99,10 @@ func (h *header) init(recType recType, reqId uint16, contentLength int) {
+ 
+ // conn sends records over rwc
+ type conn struct {
+-	mutex sync.Mutex
+-	rwc   io.ReadWriteCloser
++	mutex    sync.Mutex
++	rwc      io.ReadWriteCloser
++	closeErr error
++	closed   bool
+ 
+ 	// to avoid allocations
+ 	buf bytes.Buffer
+@@ -111,10 +113,15 @@ func newConn(rwc io.ReadWriteCloser) *conn {
+ 	return &conn{rwc: rwc}
+ }
+ 
++// Close closes the conn if it is not already closed.
+ func (c *conn) Close() error {
+ 	c.mutex.Lock()
+ 	defer c.mutex.Unlock()
+-	return c.rwc.Close()
++	if !c.closed {
++		c.closeErr = c.rwc.Close()
++		c.closed = true
++	}
++	return c.closeErr
+ }
+ 
+ type record struct {
+diff --git a/src/net/http/fcgi/fcgi_test.go b/src/net/http/fcgi/fcgi_test.go
+index 7a344ff31d..03c422420f 100644
+--- a/src/net/http/fcgi/fcgi_test.go
++++ b/src/net/http/fcgi/fcgi_test.go
+@@ -241,7 +241,7 @@ func TestChildServeCleansUp(t *testing.T) {
+ 		input := make([]byte, len(tt.input))
+ 		copy(input, tt.input)
+ 		rc := nopWriteCloser{bytes.NewReader(input)}
+-		done := make(chan bool)
++		done := make(chan struct{})
+ 		c := newChild(rc, http.HandlerFunc(func(
+ 			w http.ResponseWriter,
+ 			r *http.Request,
+@@ -252,9 +252,9 @@ func TestChildServeCleansUp(t *testing.T) {
+ 				t.Errorf("Expected %#v, got %#v", tt.err, err)
+ 			}
+ 			// not reached if body of request isn't closed
+-			done <- true
++			close(done)
+ 		}))
+-		go c.serve()
++		c.serve()
+ 		// wait for body of request to be closed or all goroutines to block
+ 		<-done
+ 	}
+@@ -331,7 +331,7 @@ func TestChildServeReadsEnvVars(t *testing.T) {
+ 		input := make([]byte, len(tt.input))
+ 		copy(input, tt.input)
+ 		rc := nopWriteCloser{bytes.NewReader(input)}
+-		done := make(chan bool)
++		done := make(chan struct{})
+ 		c := newChild(rc, http.HandlerFunc(func(
+ 			w http.ResponseWriter,
+ 			r *http.Request,
+@@ -343,9 +343,9 @@ func TestChildServeReadsEnvVars(t *testing.T) {
+ 			} else if env[tt.envVar] != tt.expectedVal {
+ 				t.Errorf("Expected %s, got %s", tt.expectedVal, env[tt.envVar])
+ 			}
+-			done <- true
++			close(done)
+ 		}))
+-		go c.serve()
++		c.serve()
+ 		<-done
+ 	}
+ }
+@@ -381,7 +381,7 @@ func TestResponseWriterSniffsContentType(t *testing.T) {
+ 			input := make([]byte, len(streamFullRequestStdin))
+ 			copy(input, streamFullRequestStdin)
+ 			rc := nopWriteCloser{bytes.NewReader(input)}
+-			done := make(chan bool)
++			done := make(chan struct{})
+ 			var resp *response
+ 			c := newChild(rc, http.HandlerFunc(func(
+ 				w http.ResponseWriter,
+@@ -389,10 +389,9 @@ func TestResponseWriterSniffsContentType(t *testing.T) {
+ 			) {
+ 				io.WriteString(w, tt.body)
+ 				resp = w.(*response)
+-				done <- true
++				close(done)
+ 			}))
+-			defer c.cleanUp()
+-			go c.serve()
++			c.serve()
+ 			<-done
+ 			if got := resp.Header().Get("Content-Type"); got != tt.wantCT {
+ 				t.Errorf("got a Content-Type of %q; expected it to start with %q", got, tt.wantCT)
+@@ -401,25 +400,27 @@ func TestResponseWriterSniffsContentType(t *testing.T) {
+ 	}
+ }
+ 
+-type signalingNopCloser struct {
+-	io.Reader
++type signalingNopWriteCloser struct {
++	io.ReadCloser
+ 	closed chan bool
+ }
+ 
+-func (*signalingNopCloser) Write(buf []byte) (int, error) {
++func (*signalingNopWriteCloser) Write(buf []byte) (int, error) {
+ 	return len(buf), nil
+ }
+ 
+-func (rc *signalingNopCloser) Close() error {
++func (rc *signalingNopWriteCloser) Close() error {
+ 	close(rc.closed)
+-	return nil
++	return rc.ReadCloser.Close()
+ }
+ 
+ // Test whether server properly closes connection when processing slow
+ // requests
+ func TestSlowRequest(t *testing.T) {
+ 	pr, pw := io.Pipe()
+-	go func(w io.Writer) {
++
++	writerDone := make(chan struct{})
++	go func() {
+ 		for _, buf := range [][]byte{
+ 			streamBeginTypeStdin,
+ 			makeRecord(typeStdin, 1, nil),
+@@ -427,9 +428,14 @@ func TestSlowRequest(t *testing.T) {
+ 			pw.Write(buf)
+ 			time.Sleep(100 * time.Millisecond)
+ 		}
+-	}(pw)
+-
+-	rc := &signalingNopCloser{pr, make(chan bool)}
++		close(writerDone)
++	}()
++	defer func() {
++		<-writerDone
++		pw.Close()
++	}()
++
++	rc := &signalingNopWriteCloser{pr, make(chan bool)}
+ 	handlerDone := make(chan bool)
+ 
+ 	c := newChild(rc, http.HandlerFunc(func(
+@@ -439,16 +445,9 @@ func TestSlowRequest(t *testing.T) {
+ 		w.WriteHeader(200)
+ 		close(handlerDone)
+ 	}))
+-	go c.serve()
+-	defer c.cleanUp()
+-
+-	timeout := time.After(2 * time.Second)
++	c.serve()
+ 
+ 	<-handlerDone
+-	select {
+-	case <-rc.closed:
+-		t.Log("FastCGI child closed connection")
+-	case <-timeout:
+-		t.Error("FastCGI child did not close socket after handling request")
+-	}
++	<-rc.closed
++	t.Log("FastCGI child closed connection")
+ }

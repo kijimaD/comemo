@@ -7,6 +7,30 @@ Date:   Fri Sep 9 11:14:41 2016 -0400
     Change-Id: Ieb3d605f03a7185a707621bef7160090c9bdb51f
     Reviewed-on: https://go-review.googlesource.com/28873
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  test/fixedbugs/issue17039.go | 17 +++++++++++++++++
  1 file changed, 17 insertions(+)
+
+diff --git a/test/fixedbugs/issue17039.go b/test/fixedbugs/issue17039.go
+new file mode 100644
+index 0000000000..1298e2bcc6
+--- /dev/null
++++ b/test/fixedbugs/issue17039.go
+@@ -0,0 +1,17 @@
++// run
++
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++type S []S
++
++func main() {
++	var s S
++	s = append(s, s) // append a nil value to s
++	if s[0] != nil {
++		println("BUG: s[0] != nil")
++	}
++}

@@ -9,7 +9,47 @@ Date:   Mon Jul 19 14:05:27 2010 +1000
     R=adg, rsc
     CC=golang-dev
     https://golang.org/cl/1846043
-
+---
  src/pkg/http/responsewrite_test.go | 15 +++++++++++++++
  src/pkg/http/transfer.go           |  2 ++
  2 files changed, 17 insertions(+)
+
+diff --git a/src/pkg/http/responsewrite_test.go b/src/pkg/http/responsewrite_test.go
+index 7680643032..ba9ad4bebb 100644
+--- a/src/pkg/http/responsewrite_test.go
++++ b/src/pkg/http/responsewrite_test.go
+@@ -31,6 +31,21 @@ var respWriteTests = []respWriteTest{
+ 			"Content-Length: 6\r\n\r\n" +
+ 			"abcdef",
+ 	},
++	// Unchunked response without Content-Length.
++	respWriteTest{
++		Response{
++			StatusCode:    200,
++			ProtoMajor:    1,
++			ProtoMinor:    0,
++			RequestMethod: "GET",
++			Header:        map[string]string{},
++			Body:          nopCloser{bytes.NewBufferString("abcdef")},
++			ContentLength: -1,
++		},
++		"HTTP/1.0 200 OK\r\n" +
++			"\r\n" +
++			"abcdef",
++	},
+ 	// HTTP/1.1, chunked coding; empty trailer; close
+ 	respWriteTest{
+ 		Response{
+diff --git a/src/pkg/http/transfer.go b/src/pkg/http/transfer.go
+index 5e190d74c6..50c1b86978 100644
+--- a/src/pkg/http/transfer.go
++++ b/src/pkg/http/transfer.go
+@@ -135,6 +135,8 @@ func (t *transferWriter) WriteBody(w io.Writer) (err os.Error) {
+ 			if err == nil {
+ 				err = cw.Close()
+ 			}
++		} else if t.ContentLength == -1 {
++			_, err = io.Copy(w, t.Body)
+ 		} else {
+ 			_, err = io.Copy(w, io.LimitReader(t.Body, t.ContentLength))
+ 		}

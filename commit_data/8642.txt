@@ -9,6 +9,25 @@ Date:   Tue Jun 7 09:38:04 2011 -0700
     R=golang-dev, gri
     CC=golang-dev
     https://golang.org/cl/4590041
-
+---
  src/cmd/gofmt/gofmt.go | 9 ++++++++-
  1 file changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gofmt/gofmt.go b/src/cmd/gofmt/gofmt.go
+index 16bcd3c4df..ea1c1b00ff 100644
+--- a/src/cmd/gofmt/gofmt.go
++++ b/src/cmd/gofmt/gofmt.go
+@@ -260,5 +260,12 @@ func diff(b1, b2 []byte) (data []byte, err os.Error) {
+ 	f1.Write(b1)
+ 	f2.Write(b2)
+ 
+-	return exec.Command("diff", "-u", f1.Name(), f2.Name()).CombinedOutput()
++	data, err = exec.Command("diff", "-u", f1.Name(), f2.Name()).CombinedOutput()
++	if len(data) > 0 {
++		// diff exits with a non-zero status when the files don't match.
++		// Ignore that failure as long as we get output.
++		err = nil
++	}
++	return
++
+ }

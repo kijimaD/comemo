@@ -11,9 +11,159 @@ Date:   Fri Apr 17 10:27:05 2015 -0700
     Change-Id: Idcf7c4479e97bb7cd732f0d058012321b6057628
     Reviewed-on: https://go-review.googlesource.com/9005
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/doc.go                     |  7 ++++---
  src/cmd/go/generate.go                | 25 +++++++++++++++++++++----
  src/cmd/go/test.bash                  | 24 ++++++++++++++++++------
  src/cmd/go/testdata/generate/test4.go | 10 ++++++++++
  4 files changed, 53 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/go/doc.go b/src/cmd/go/doc.go
+index acb56abf52..f327330e98 100644
+--- a/src/cmd/go/doc.go
++++ b/src/cmd/go/doc.go
+@@ -322,9 +322,10 @@ The generator is run in the package's source directory.
+ Go generate accepts one specific flag:
+ 
+ 	-run=""
+-		TODO: This flag is unimplemented.
+-		if non-empty, specifies a regular expression to
+-		select directives whose command matches the expression.
++		if non-empty, specifies a regular expression to select
++		directives whose full original source text (excluding
++		any trailing spaces and final newline) matches the
++		expression.
+ 
+ It also accepts the standard build flags -v, -n, and -x.
+ The -v flag prints the names of packages and files as they are
+diff --git a/src/cmd/go/generate.go b/src/cmd/go/generate.go
+index 8e9ad384ae..1877acdeb6 100644
+--- a/src/cmd/go/generate.go
++++ b/src/cmd/go/generate.go
+@@ -13,6 +13,7 @@ import (
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
++	"regexp"
+ 	"runtime"
+ 	"strconv"
+ 	"strings"
+@@ -108,9 +109,10 @@ The generator is run in the package's source directory.
+ Go generate accepts one specific flag:
+ 
+ 	-run=""
+-		TODO: This flag is unimplemented.
+-		if non-empty, specifies a regular expression to
+-		select directives whose command matches the expression.
++		if non-empty, specifies a regular expression to select
++		directives whose full original source text (excluding
++		any trailing spaces and final newline) matches the
++		expression.
+ 
+ It also accepts the standard build flags -v, -n, and -x.
+ The -v flag prints the names of packages and files as they are
+@@ -122,7 +124,10 @@ For more about specifying packages, see 'go help packages'.
+ 	`,
+ }
+ 
+-var generateRunFlag string // generate -run flag
++var (
++	generateRunFlag string         // generate -run flag
++	generateRunRE   *regexp.Regexp // compiled expression for -run
++)
+ 
+ func init() {
+ 	addBuildFlags(cmdGenerate)
+@@ -130,6 +135,13 @@ func init() {
+ }
+ 
+ func runGenerate(cmd *Command, args []string) {
++	if generateRunFlag != "" {
++		var err error
++		generateRunRE, err = regexp.Compile(generateRunFlag)
++		if err != nil {
++			log.Fatalf("generate: %s", err)
++		}
++	}
+ 	// Even if the arguments are .go files, this loop suffices.
+ 	for _, pkg := range packages(args) {
+ 		for _, file := range pkg.gofiles {
+@@ -223,6 +235,11 @@ func (g *Generator) run() (ok bool) {
+ 		if !isGoGenerate(buf) {
+ 			continue
+ 		}
++		if generateRunFlag != "" {
++			if !generateRunRE.Match(bytes.TrimSpace(buf)) {
++				continue
++			}
++		}
+ 
+ 		words := g.split(string(buf))
+ 		if len(words) == 0 {
+diff --git a/src/cmd/go/test.bash b/src/cmd/go/test.bash
+index 39071e976f..ca3c9241da 100755
+--- a/src/cmd/go/test.bash
++++ b/src/cmd/go/test.bash
+@@ -1069,28 +1069,40 @@ fi
+ 
+ TEST 'go generate handles simple command'
+ if ! ./testgo generate ./testdata/generate/test1.go > testdata/std.out; then
+-	echo "go test ./testdata/generate/test1.go failed to run"
++	echo "go generate ./testdata/generate/test1.go failed to run"
+ 	ok=false
+ elif ! grep 'Success' testdata/std.out > /dev/null; then
+-	echo "go test ./testdata/generate/test1.go generated wrong output"
++	echo "go generate ./testdata/generate/test1.go generated wrong output"
+ 	ok=false
+ fi
+ 
+ TEST 'go generate handles command alias'
+ if ! ./testgo generate ./testdata/generate/test2.go > testdata/std.out; then
+-	echo "go test ./testdata/generate/test2.go failed to run"
++	echo "go generate ./testdata/generate/test2.go failed to run"
+ 	ok=false
+ elif ! grep 'Now is the time for all good men' testdata/std.out > /dev/null; then
+-	echo "go test ./testdata/generate/test2.go generated wrong output"
++	echo "go generate ./testdata/generate/test2.go generated wrong output"
+ 	ok=false
+ fi
+ 
+ TEST 'go generate variable substitution'
+ if ! ./testgo generate ./testdata/generate/test3.go > testdata/std.out; then
+-	echo "go test ./testdata/generate/test3.go failed to run"
++	echo "go generate ./testdata/generate/test3.go failed to run"
+ 	ok=false
+ elif ! grep "$GOARCH test3.go p xyzp/test3.go/123" testdata/std.out > /dev/null; then
+-	echo "go test ./testdata/generate/test3.go generated wrong output"
++	echo "go generate ./testdata/generate/test3.go generated wrong output"
++	ok=false
++fi
++
++TEST 'go generate run flag'
++if ! ./testgo generate -run y.s ./testdata/generate/test4.go > testdata/std.out; then
++	echo "go test -run y.s ./testdata/generate/test4.go failed to run"
++	ok=false
++elif ! grep "yes" testdata/std.out > /dev/null; then
++	echo "go generate -run y.s ./testdata/generate/test4.go did not select yes"
++	ok=false
++elif grep "no" testdata/std.out > /dev/null; then
++	echo "go generate -run y.s ./testdata/generate/test4.go selected no"
+ 	ok=false
+ fi
+ 
+diff --git a/src/cmd/go/testdata/generate/test4.go b/src/cmd/go/testdata/generate/test4.go
+new file mode 100644
+index 0000000000..a7631c4a45
+--- /dev/null
++++ b/src/cmd/go/testdata/generate/test4.go
+@@ -0,0 +1,10 @@
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test -run flag
++
++//go:generate echo oh yes my man
++//go:generate echo no, no, a thousand times no
++
++package p

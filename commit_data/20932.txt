@@ -7,6 +7,20 @@ Date:   Tue Oct 28 15:34:50 2014 -0400
     TBR=crawshaw
     CC=golang-codereviews
     https://golang.org/cl/162390043
-
+---
  src/os/file_unix.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/os/file_unix.go b/src/os/file_unix.go
+index 4e413fbe84..f59d563e69 100644
+--- a/src/os/file_unix.go
++++ b/src/os/file_unix.go
+@@ -242,7 +242,7 @@ func (f *File) pwrite(b []byte, off int64) (n int, err error) {
+ // relative to the current offset, and 2 means relative to the end.
+ // It returns the new offset and an error, if any.
+ func (f *File) seek(offset int64, whence int) (ret int64, err error) {
+-	return fixCount(syscall.Seek(f.fd, offset, whence))
++	return syscall.Seek(f.fd, offset, whence)
+ }
+ 
+ // Truncate changes the size of the named file.

@@ -28,9 +28,65 @@ Date:   Wed May 30 16:26:38 2012 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/6244066
-
+---
  src/cmd/5l/l.h    | 3 ++-
  src/cmd/6l/l.h    | 3 ++-
  src/cmd/8l/l.h    | 3 ++-
  src/cmd/ld/data.c | 2 ++
  4 files changed, 8 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/5l/l.h b/src/cmd/5l/l.h
+index 911f63e12f..9c0c4ff348 100644
+--- a/src/cmd/5l/l.h
++++ b/src/cmd/5l/l.h
+@@ -36,7 +36,8 @@
+ enum
+ {
+ 	thechar = '5',
+-	PtrSize = 4
++	PtrSize = 4,
++	FuncAlign = 4  // single-instruction alignment
+ };
+ 
+ #ifndef	EXTERN
+diff --git a/src/cmd/6l/l.h b/src/cmd/6l/l.h
+index 5f62239a1e..b1611e016a 100644
+--- a/src/cmd/6l/l.h
++++ b/src/cmd/6l/l.h
+@@ -40,7 +40,8 @@
+ enum
+ {
+ 	thechar = '6',
+-	PtrSize = 8
++	PtrSize = 8,
++	FuncAlign = 16
+ };
+ 
+ #define	P		((Prog*)0)
+diff --git a/src/cmd/8l/l.h b/src/cmd/8l/l.h
+index b974f464bf..75f1c070ea 100644
+--- a/src/cmd/8l/l.h
++++ b/src/cmd/8l/l.h
+@@ -40,7 +40,8 @@
+ enum
+ {
+ 	thechar = '8',
+-	PtrSize = 4
++	PtrSize = 4,
++	FuncAlign = 16
+ };
+ 
+ #define	P		((Prog*)0)
+diff --git a/src/cmd/ld/data.c b/src/cmd/ld/data.c
+index 1f64a84708..865f282114 100644
+--- a/src/cmd/ld/data.c
++++ b/src/cmd/ld/data.c
+@@ -1012,6 +1012,8 @@ textaddress(void)
+ 			continue;
+ 		if(sym->align != 0)
+ 			va = rnd(va, sym->align);
++		else if(sym->text != P)
++			va = rnd(va, FuncAlign);
+ 		sym->value = 0;
+ 		for(sub = sym; sub != S; sub = sub->sub) {
+ 			sub->value += va;

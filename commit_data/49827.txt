@@ -22,7 +22,186 @@ Date:   Fri Aug 20 16:55:04 2021 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/time.go    | 30 ++++++++++++++--------
  src/time/sleep_test.go | 67 ++++++++++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 87 insertions(+), 10 deletions(-)
+
+diff --git a/src/runtime/time.go b/src/runtime/time.go
+index ad267c3365..46e9a8c2ab 100644
+--- a/src/runtime/time.go
++++ b/src/runtime/time.go
+@@ -367,9 +367,9 @@ func deltimer(t *timer) bool {
+ 
+ // dodeltimer removes timer i from the current P's heap.
+ // We are locked on the P when this is called.
+-// It reports whether it saw no problems due to races.
++// It returns the smallest changed index in pp.timers.
+ // The caller must have locked the timers for pp.
+-func dodeltimer(pp *p, i int) {
++func dodeltimer(pp *p, i int) int {
+ 	if t := pp.timers[i]; t.pp.ptr() != pp {
+ 		throw("dodeltimer: wrong P")
+ 	} else {
+@@ -381,16 +381,18 @@ func dodeltimer(pp *p, i int) {
+ 	}
+ 	pp.timers[last] = nil
+ 	pp.timers = pp.timers[:last]
++	smallestChanged := i
+ 	if i != last {
+ 		// Moving to i may have moved the last timer to a new parent,
+ 		// so sift up to preserve the heap guarantee.
+-		siftupTimer(pp.timers, i)
++		smallestChanged = siftupTimer(pp.timers, i)
+ 		siftdownTimer(pp.timers, i)
+ 	}
+ 	if i == 0 {
+ 		updateTimer0When(pp)
+ 	}
+ 	atomic.Xadd(&pp.numTimers, -1)
++	return smallestChanged
+ }
+ 
+ // dodeltimer0 removes timer 0 from the current P's heap.
+@@ -675,13 +677,14 @@ func adjusttimers(pp *p, now int64) {
+ 		switch s := atomic.Load(&t.status); s {
+ 		case timerDeleted:
+ 			if atomic.Cas(&t.status, s, timerRemoving) {
+-				dodeltimer(pp, i)
++				changed := dodeltimer(pp, i)
+ 				if !atomic.Cas(&t.status, timerRemoving, timerRemoved) {
+ 					badTimer()
+ 				}
+ 				atomic.Xadd(&pp.deletedTimers, -1)
+-				// Look at this heap position again.
+-				i--
++				// Go back to the earliest changed heap entry.
++				// "- 1" because the loop will add 1.
++				i = changed - 1
+ 			}
+ 		case timerModifiedEarlier, timerModifiedLater:
+ 			if atomic.Cas(&t.status, s, timerMoving) {
+@@ -691,10 +694,11 @@ func adjusttimers(pp *p, now int64) {
+ 				// We don't add it back yet because the
+ 				// heap manipulation could cause our
+ 				// loop to skip some other timer.
+-				dodeltimer(pp, i)
++				changed := dodeltimer(pp, i)
+ 				moved = append(moved, t)
+-				// Look at this heap position again.
+-				i--
++				// Go back to the earliest changed heap entry.
++				// "- 1" because the loop will add 1.
++				i = changed - 1
+ 			}
+ 		case timerNoStatus, timerRunning, timerRemoving, timerRemoved, timerMoving:
+ 			badTimer()
+@@ -1044,7 +1048,10 @@ func timeSleepUntil() (int64, *p) {
+ // "panic holding locks" message. Instead, we panic while not
+ // holding a lock.
+ 
+-func siftupTimer(t []*timer, i int) {
++// siftupTimer puts the timer at position i in the right place
++// in the heap by moving it up toward the top of the heap.
++// It returns the smallest changed index.
++func siftupTimer(t []*timer, i int) int {
+ 	if i >= len(t) {
+ 		badTimer()
+ 	}
+@@ -1064,8 +1071,11 @@ func siftupTimer(t []*timer, i int) {
+ 	if tmp != t[i] {
+ 		t[i] = tmp
+ 	}
++	return i
+ }
+ 
++// siftdownTimer puts the timer at position i in the right place
++// in the heap by moving it down toward the bottom of the heap.
+ func siftdownTimer(t []*timer, i int) {
+ 	n := len(t)
+ 	if i >= n {
+diff --git a/src/time/sleep_test.go b/src/time/sleep_test.go
+index e0172bf5e0..c48e704eb7 100644
+--- a/src/time/sleep_test.go
++++ b/src/time/sleep_test.go
+@@ -7,6 +7,7 @@ package time_test
+ import (
+ 	"errors"
+ 	"fmt"
++	"math/rand"
+ 	"runtime"
+ 	"strings"
+ 	"sync"
+@@ -561,6 +562,72 @@ func TestTimerModifiedEarlier(t *testing.T) {
+ 	}
+ }
+ 
++// Test that rapidly moving timers earlier and later doesn't cause
++// some of the sleep times to be lost.
++// Issue 47762
++func TestAdjustTimers(t *testing.T) {
++	var rnd = rand.New(rand.NewSource(Now().UnixNano()))
++
++	timers := make([]*Timer, 100)
++	states := make([]int, len(timers))
++	indices := rnd.Perm(len(timers))
++
++	for len(indices) != 0 {
++		var ii = rnd.Intn(len(indices))
++		var i = indices[ii]
++
++		var timer = timers[i]
++		var state = states[i]
++		states[i]++
++
++		switch state {
++		case 0:
++			timers[i] = NewTimer(0)
++		case 1:
++			<-timer.C // Timer is now idle.
++
++		// Reset to various long durations, which we'll cancel.
++		case 2:
++			if timer.Reset(1 * Minute) {
++				panic("shouldn't be active (1)")
++			}
++		case 4:
++			if timer.Reset(3 * Minute) {
++				panic("shouldn't be active (3)")
++			}
++		case 6:
++			if timer.Reset(2 * Minute) {
++				panic("shouldn't be active (2)")
++			}
++
++		// Stop and drain a long-duration timer.
++		case 3, 5, 7:
++			if !timer.Stop() {
++				t.Logf("timer %d state %d Stop returned false", i, state)
++				<-timer.C
++			}
++
++		// Start a short-duration timer we expect to select without blocking.
++		case 8:
++			if timer.Reset(0) {
++				t.Fatal("timer.Reset returned true")
++			}
++		case 9:
++			now := Now()
++			<-timer.C
++			dur := Since(now)
++			if dur > 750*Millisecond {
++				t.Errorf("timer %d took %v to complete", i, dur)
++			}
++
++		// Timer is done. Swap with tail and remove.
++		case 10:
++			indices[ii] = indices[len(indices)-1]
++			indices = indices[:len(indices)-1]
++		}
++	}
++}
++
+ // Benchmark timer latency when the thread that creates the timer is busy with
+ // other work and the timers must be serviced by other threads.
+ // https://golang.org/issue/38860

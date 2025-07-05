@@ -10,6 +10,24 @@ Date:   Mon Jan 6 10:00:20 2014 -0800
     R=bradfitz, nigeltao
     CC=golang-codereviews
     https://golang.org/cl/47560044
-
+---
  src/pkg/net/http/cookiejar/jar.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/net/http/cookiejar/jar.go b/src/pkg/net/http/cookiejar/jar.go
+index 389ab58e41..82f18a1784 100644
+--- a/src/pkg/net/http/cookiejar/jar.go
++++ b/src/pkg/net/http/cookiejar/jar.go
+@@ -34,9 +34,9 @@ import (
+ type PublicSuffixList interface {
+ 	// PublicSuffix returns the public suffix of domain.
+ 	//
+-	// TODO: specify which of the caller and callee is responsible for IP
+-	// addresses, for leading and trailing dots, for case sensitivity, and
+-	// for IDN/Punycode.
++	// Domain is a lowercase punycoded domain name (not an IP address)
++	// without leading or trailing dots. The returned value is in the
++	// same form.
+ 	PublicSuffix(domain string) string
+ 
+ 	// String returns a description of the source of this public suffix

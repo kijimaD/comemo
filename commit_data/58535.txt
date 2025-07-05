@@ -42,6 +42,19 @@ Date:   Sun Nov 5 22:13:30 2023 +0300
     Reviewed-by: Keith Randall <khr@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/runtime/asm_amd64.s | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index 1abf4075e0..1071d270c1 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -1486,6 +1486,7 @@ aes129plus:
+ 	DECQ	CX
+ 	SHRQ	$7, CX
+ 
++	PCALIGN $16
+ aesloop:
+ 	// scramble state
+ 	AESENC	X8, X8

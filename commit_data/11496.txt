@@ -12,7 +12,7 @@ Date:   Mon Jan 30 23:42:41 2012 -0500
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5600048
-
+---
  src/cmd/go/build.go    |  41 ++++++-----
  src/cmd/go/clean.go    | 195 +++++++++++++++++++++++++++++++++++++++++++++++++
  src/cmd/go/doc.go      |  80 +++++++++++++++++---
@@ -21,3 +21,677 @@ Date:   Mon Jan 30 23:42:41 2012 -0500
  src/cmd/go/test.go     |  26 +++++--
  src/cmd/go/testflag.go |   2 +-
  7 files changed, 316 insertions(+), 37 deletions(-)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 4df050c9b8..1e27b3da0d 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -14,6 +14,7 @@ import (
+ 	"io/ioutil"
+ 	"os"
+ 	"os/exec"
++	"path"
+ 	"path/filepath"
+ 	"regexp"
+ 	"runtime"
+@@ -113,7 +114,10 @@ func runBuild(cmd *Command, args []string) {
+ 	}
+ 
+ 	if len(pkgs) == 1 && pkgs[0].Name == "main" && *buildO == "" {
+-		*buildO = "a.out"
++		_, *buildO = path.Split(pkgs[0].ImportPath)
++		if b.goos == "windows" {
++			*buildO += ".exe"
++		}
+ 	}
+ 
+ 	if *buildO != "" {
+@@ -174,10 +178,8 @@ func runInstall(cmd *Command, args []string) {
+ type builder struct {
+ 	work        string               // the temporary work directory (ends in filepath.Separator)
+ 	arch        string               // e.g., "6"
+-	goroot      string               // the $GOROOT
+ 	goarch      string               // the $GOARCH
+ 	goos        string               // the $GOOS
+-	gobin       string               // the $GOBIN
+ 	exe         string               // the executable suffix - "" or ".exe"
+ 	gcflags     []string             // additional flags for Go compiler
+ 	actionCache map[cacheKey]*action // a cache of already-constructed actions
+@@ -231,14 +233,17 @@ const (
+ 	modeInstall
+ )
+ 
++var (
++	gobin  = build.Path[0].BinDir()
++	goroot = build.Path[0].Path
++)
++
+ func (b *builder) init() {
+ 	var err error
+ 	b.actionCache = make(map[cacheKey]*action)
+ 	b.mkdirCache = make(map[string]bool)
+ 	b.goarch = buildContext.GOARCH
+ 	b.goos = buildContext.GOOS
+-	b.goroot = build.Path[0].Path
+-	b.gobin = build.Path[0].BinDir()
+ 	if b.goos == "windows" {
+ 		b.exe = ".exe"
+ 	}
+@@ -367,8 +372,6 @@ func (b *builder) action(mode buildMode, depMode buildMode, p *Package) *action
+ 		a.target = a.objpkg
+ 		if a.link {
+ 			// An executable file.
+-			// Have to use something other than .a for the suffix.
+-			// It is easier on Windows if we use .exe, so use .exe everywhere.
+ 			// (This is the name of a temporary file.)
+ 			a.target = a.objdir + "a.out" + b.exe
+ 		}
+@@ -762,7 +765,7 @@ func (b *builder) copyFile(dst, src string, perm os.FileMode) error {
+ //	fmtcmd inserts "cd dir\n" before the command.
+ //
+ //	fmtcmd replaces the value of b.work with $WORK.
+-//	fmtcmd replaces the value of b.goroot with $GOROOT.
++//	fmtcmd replaces the value of goroot with $GOROOT.
+ //	fmtcmd replaces the value of b.gobin with $GOBIN.
+ //
+ //	fmtcmd replaces the name of the current directory with dot (.)
+@@ -777,9 +780,11 @@ func (b *builder) fmtcmd(dir string, format string, args ...interface{}) string
+ 			cmd = "cd " + dir + "\n" + cmd
+ 		}
+ 	}
+-	cmd = strings.Replace(cmd, b.work, "$WORK", -1)
+-	cmd = strings.Replace(cmd, b.gobin, "$GOBIN", -1)
+-	cmd = strings.Replace(cmd, b.goroot, "$GOROOT", -1)
++	if b.work != "" {
++		cmd = strings.Replace(cmd, b.work, "$WORK", -1)
++	}
++	cmd = strings.Replace(cmd, gobin, "$GOBIN", -1)
++	cmd = strings.Replace(cmd, goroot, "$GOROOT", -1)
+ 	return cmd
+ }
+ 
+@@ -976,7 +981,7 @@ func (goToolchain) gc(b *builder, p *Package, obj string, importArgs []string, g
+ 		gcargs = append(gcargs, "-+")
+ 	}
+ 
+-	binary := filepath.Join(b.goroot, "bin/go-tool/", b.arch+"g")
++	binary := filepath.Join(goroot, "bin/go-tool/", b.arch+"g")
+ 	args := stringList(binary, "-o", ofile, b.gcflags, gcargs, importArgs)
+ 	for _, f := range gofiles {
+ 		args = append(args, mkAbs(p.Dir, f))
+@@ -986,7 +991,7 @@ func (goToolchain) gc(b *builder, p *Package, obj string, importArgs []string, g
+ 
+ func (goToolchain) asm(b *builder, p *Package, obj, ofile, sfile string) error {
+ 	sfile = mkAbs(p.Dir, sfile)
+-	binary := filepath.Join(b.goroot, "bin/go-tool/", b.arch+"a")
++	binary := filepath.Join(goroot, "bin/go-tool/", b.arch+"a")
+ 	return b.run(p.Dir, p.ImportPath, binary, "-I", obj, "-o", ofile, "-DGOOS_"+b.goos, "-DGOARCH_"+b.goarch, sfile)
+ }
+ 
+@@ -999,19 +1004,19 @@ func (goToolchain) pack(b *builder, p *Package, objDir, afile string, ofiles []s
+ 	for _, f := range ofiles {
+ 		absOfiles = append(absOfiles, mkAbs(objDir, f))
+ 	}
+-	return b.run(p.Dir, p.ImportPath, filepath.Join(b.goroot, "bin/go-tool/pack"), "grc", mkAbs(objDir, afile), absOfiles)
++	return b.run(p.Dir, p.ImportPath, filepath.Join(goroot, "bin/go-tool/pack"), "grc", mkAbs(objDir, afile), absOfiles)
+ }
+ 
+ func (goToolchain) ld(b *builder, p *Package, out string, allactions []*action, mainpkg string, ofiles []string) error {
+ 	importArgs := b.includeArgs("-L", allactions)
+-	binary := filepath.Join(b.goroot, "bin/go-tool/", b.arch+"l")
++	binary := filepath.Join(goroot, "bin/go-tool/", b.arch+"l")
+ 	return b.run(p.Dir, p.ImportPath, binary, "-o", out, importArgs, mainpkg)
+ }
+ 
+ func (goToolchain) cc(b *builder, p *Package, objdir, ofile, cfile string) error {
+-	inc := filepath.Join(b.goroot, "pkg", fmt.Sprintf("%s_%s", b.goos, b.goarch))
++	inc := filepath.Join(goroot, "pkg", fmt.Sprintf("%s_%s", b.goos, b.goarch))
+ 	cfile = mkAbs(p.Dir, cfile)
+-	binary := filepath.Join(b.goroot, "bin/go-tool/", b.arch+"c")
++	binary := filepath.Join(goroot, "bin/go-tool/", b.arch+"c")
+ 	return b.run(p.Dir, p.ImportPath, binary, "-FVw",
+ 		"-I", objdir, "-I", inc, "-o", ofile,
+ 		"-DGOOS_"+b.goos, "-DGOARCH_"+b.goarch, cfile)
+@@ -1075,7 +1080,7 @@ func (tools gccgoToolchain) ld(b *builder, p *Package, out string, allactions []
+ }
+ 
+ func (gccgoToolchain) cc(b *builder, p *Package, objdir, ofile, cfile string) error {
+-	inc := filepath.Join(b.goroot, "pkg", fmt.Sprintf("%s_%s", b.goos, b.goarch))
++	inc := filepath.Join(goroot, "pkg", fmt.Sprintf("%s_%s", b.goos, b.goarch))
+ 	cfile = mkAbs(p.Dir, cfile)
+ 	return b.run(p.Dir, p.ImportPath, "gcc", "-Wall", "-g",
+ 		"-I", objdir, "-I", inc, "-o", ofile,
+diff --git a/src/cmd/go/clean.go b/src/cmd/go/clean.go
+new file mode 100644
+index 0000000000..48ddc0ab60
+--- /dev/null
++++ b/src/cmd/go/clean.go
+@@ -0,0 +1,195 @@
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"io/ioutil"
++	"os"
++	"path/filepath"
++	"strings"
++)
++
++var cmdClean = &Command{
++	UsageLine: "clean [-i] [-r] [-n] [-x] [importpath...]",
++	Short:     "remove object files",
++	Long: `
++Clean removes object files from package source directories.
++The go command builds most objects in a temporary directory,
++so go clean is mainly concerned with object files left by other
++tools or by manual invocations of go build.
++
++Specifically, clean removes the following files from each of the
++source directories corresponding to the import paths:
++
++	_obj/            old object directory, left from Makefiles
++	_test/           old test directory, left from Makefiles
++	_testmain.go     old gotest file, left from Makefiles
++	test.out         old test log, left from Makefiles
++	build.out        old test log, left from Makefiles
++	*.[568ao]        object files, left from Makefiles
++
++	DIR(.exe)        from go build
++	DIR.test(.exe)   from go test -c
++	MAINFILE(.exe)   from go build MAINFILE.go
++
++In the list, DIR represents the final path element of the
++directory, and MAINFILE is the base name of any Go source
++file in the directory that is not included when building
++the package.
++
++The -i flag causes clean to remove the corresponding installed
++archive or binary (what 'go install' would create).
++
++The -n flag causes clean to print the remove commands it would execute,
++but not run them.
++
++The -r flag causes clean to be applied recursively to all the
++dependencies of the packages named by the import paths.
++
++The -x flag causes clean to print remove commands as it executes them.
++	`,
++}
++
++var cleanI bool // clean -i flag
++var cleanN bool // clean -n flag
++var cleanR bool // clean -r flag
++var cleanX bool // clean -x flag
++
++func init() {
++	// break init cycle
++	cmdClean.Run = runClean
++
++	cmdClean.Flag.BoolVar(&cleanI, "i", false, "")
++	cmdClean.Flag.BoolVar(&cleanN, "n", false, "")
++	cmdClean.Flag.BoolVar(&cleanR, "r", false, "")
++	cmdClean.Flag.BoolVar(&cleanX, "x", false, "")
++}
++
++func runClean(cmd *Command, args []string) {
++	for _, pkg := range packagesAndErrors(args) {
++		clean(pkg)
++	}
++}
++
++var cleaned = map[*Package]bool{}
++
++// TODO: These are dregs left by Makefile-based builds.
++// Eventually, can stop deleting these.
++var cleanDir = map[string]bool{
++	"_test": true,
++	"_obj":  true,
++}
++
++var cleanFile = map[string]bool{
++	"_testmain.go": true,
++	"test.out":     true,
++	"build.out":    true,
++	"a.out":        true,
++}
++
++var cleanExt = map[string]bool{
++	".5": true,
++	".6": true,
++	".8": true,
++	".a": true,
++	".o": true,
++}
++
++func clean(p *Package) {
++	if cleaned[p] {
++		return
++	}
++	if p.Dir == "" {
++		errorf("can't load package: %v", p.Error)
++		return
++	}
++	dirs, err := ioutil.ReadDir(p.Dir)
++	if err != nil {
++		errorf("%v", err)
++		return
++	}
++
++	var b builder
++
++	packageFile := map[string]bool{}
++	if p.Name != "main" {
++		// Record which files are not in package main.
++		// The others are.
++		keep := func(list []string) {
++			for _, f := range list {
++				packageFile[f] = true
++			}
++		}
++		keep(p.GoFiles)
++		keep(p.CgoFiles)
++		keep(p.TestGoFiles)
++		keep(p.XTestGoFiles)
++	}
++
++	_, elem := filepath.Split(p.Dir)
++	allRemove := []string{
++		elem,
++		elem + ".exe",
++		elem + ".test",
++		elem + ".test.exe",
++	}
++	for _, dir := range dirs {
++		name := dir.Name()
++		if packageFile[name] {
++			continue
++		}
++		if !dir.IsDir() && strings.HasSuffix(name, ".go") {
++			base := name[:len(name)-len(".go")]
++			allRemove = append(allRemove, base, base+".exe")
++		}
++	}
++	if cleanN || cleanX {
++		b.showcmd(p.Dir, "rm %s", strings.Join(allRemove, " "))
++	}
++
++	toRemove := map[string]bool{}
++	for _, name := range allRemove {
++		toRemove[name] = true
++	}
++	for _, dir := range dirs {
++		name := dir.Name()
++		if dir.IsDir() {
++			// TODO: Remove once Makefiles are forgotten.
++			if cleanDir[name] {
++				if cleanN || cleanX {
++					b.showcmd(p.Dir, "rm -r %s", name)
++					if cleanN {
++						continue
++					}
++				}
++				os.RemoveAll(filepath.Join(p.Dir, name))
++			}
++			continue
++		}
++
++		if cleanN {
++			continue
++		}
++
++		if cleanFile[name] || cleanExt[filepath.Ext(name)] || toRemove[name] {
++			os.Remove(filepath.Join(p.Dir, name))
++		}
++	}
++
++	if cleanI && p.target != "" {
++		if cleanN || cleanX {
++			b.showcmd("", "rm %s", p.target)
++		}
++		if !cleanN {
++			os.Remove(p.target)
++		}
++	}
++
++	if cleanR {
++		for _, p1 := range p.imports {
++			clean(p1)
++		}
++	}
++}
+diff --git a/src/cmd/go/doc.go b/src/cmd/go/doc.go
+index 27be32bf32..55eb4f7275 100644
+--- a/src/cmd/go/doc.go
++++ b/src/cmd/go/doc.go
+@@ -10,6 +10,7 @@ Usage: go command [arguments]
+ The commands are:
+ 
+     build       compile packages and dependencies
++    clean       remove object files
+     doc         run godoc on package sources
+     fix         run gofix on packages
+     fmt         run gofmt on package sources
+@@ -18,6 +19,7 @@ The commands are:
+     list        list packages
+     run         compile and run Go program
+     test        test packages
++    tool        run specified go tool
+     version     print Go version
+     vet         run govet on packages
+ 
+@@ -67,6 +69,48 @@ For more about import paths, see 'go help importpath'.
+ See also: go install, go get, go clean.
+ 
+ 
++Remove object files
++
++Usage:
++
++	go clean [-i] [-r] [-n] [-x] [importpath...]
++
++Clean removes object files from package source directories.
++The go command builds most objects in a temporary directory,
++so go clean is mainly concerned with object files left by other
++tools or by manual invocations of go build.
++
++Specifically, clean removes the following files from each of the
++source directories corresponding to the import paths:
++
++	_obj/            old object directory, left from Makefiles
++	_test/           old test directory, left from Makefiles
++	_testmain.go     old gotest file, left from Makefiles
++	test.out         old test log, left from Makefiles
++	build.out        old test log, left from Makefiles
++	*.[568ao]        object files, left from Makefiles
++
++	DIR(.exe)        from go build
++	DIR.test(.exe)   from go test -c
++	MAINFILE(.exe)   from go build MAINFILE.go
++
++In the list, DIR represents the final path element of the
++directory, and MAINFILE is the base name of any Go source
++file in the directory that is not included when building
++the package.
++
++The -i flag causes clean to remove the corresponding installed
++archive or binary (what 'go install' would create).
++
++The -n flag causes clean to print the remove commands it would execute,
++but not run them.
++
++The -r flag causes clean to be applied recursively to all the
++dependencies of the packages named by the import paths.
++
++The -x flag causes clean to print remove commands as it executes them.
++
++
+ Run godoc on package sources
+ 
+ Usage:
+@@ -90,12 +134,12 @@ Usage:
+ 
+ 	go fix [importpath...]
+ 
+-Fix runs the gofix command on the packages named by the import paths.
++Fix runs the Go fix command on the packages named by the import paths.
+ 
+-For more about gofix, see 'godoc gofix'.
++For more about fix, see 'godoc fix'.
+ For more about import paths, see 'go help importpath'.
+ 
+-To run gofix with specific options, run gofix itself.
++To run fix with specific options, run 'go tool fix'.
+ 
+ See also: go fmt, go vet.
+ 
+@@ -252,7 +296,7 @@ Test packages
+ 
+ Usage:
+ 
+-	go test [-c] [-file a.go -file b.go ...] [-p n] [-x] [importpath...] [flags for test binary]
++	go test [-c] [-file a.go -file b.go ...] [-i] [-p n] [-x] [importpath...] [flags for test binary]
+ 
+ 'Go test' automates testing the packages named by the import paths.
+ It prints a summary of the test results in the format:
+@@ -285,6 +329,18 @@ See 'go help importpath' for more about import paths.
+ See also: go build, go vet.
+ 
+ 
++Run specified go tool
++
++Usage:
++
++	go tool command [args...]
++
++Tool runs the go tool command identified by the arguments.
++With no arguments it prints the list of known tools.
++
++For more about each tool command, see 'go tool command -h'.
++
++
+ Print Go version
+ 
+ Usage:
+@@ -300,12 +356,12 @@ Usage:
+ 
+ 	go vet [importpath...]
+ 
+-Vet runs the govet command on the packages named by the import paths.
++Vet runs the Go vet command on the packages named by the import paths.
+ 
+-For more about govet, see 'godoc govet'.
++For more about vet, see 'godoc vet'.
+ For more about import paths, see 'go help importpath'.
+ 
+-To run govet with specific options, run govet itself.
++To run govet with specific options, run 'go tool vet'.
+ 
+ See also: go fmt, go fix.
+ 
+@@ -487,19 +543,23 @@ and flags that apply to the resulting test binary.
+ 
+ The flags handled by 'go test' are:
+ 
+-	-c  Compile the test binary to test.out but do not run it.
++	-c  Compile the test binary to pkg.test but do not run it.
+ 
+ 	-file a.go
+ 	    Use only the tests in the source file a.go.
+ 	    Multiple -file flags may be provided.
+ 
++	-i
++	    Install packages that are dependencies of the test.
++
+ 	-p n
+ 	    Compile and test up to n packages in parallel.
+ 	    The default value is the number of CPUs available.
+ 
+ 	-x  Print each subcommand go test executes.
+ 
+-The resulting test binary, called test.out, has its own flags:
++The resulting test binary, called pkg.test, where pkg is the name of the
++directory containing the package sources, has its own flags:
+ 
+ 	-test.v
+ 	    Verbose output: log all tests as they are run.
+@@ -557,7 +617,7 @@ here are passed through unaltered.  For instance, the command
+ 
+ will compile the test binary using x_test.go and then run it as
+ 
+-	test.out -test.v -test.cpuprofile=prof.out -dir=testdata -update
++	pkg.test -test.v -test.cpuprofile=prof.out -dir=testdata -update
+ 
+ 
+ Description of testing functions
+diff --git a/src/cmd/go/main.go b/src/cmd/go/main.go
+index b69c66d3eb..2857acab04 100644
+--- a/src/cmd/go/main.go
++++ b/src/cmd/go/main.go
+@@ -67,6 +67,7 @@ func (c *Command) Usage() {
+ // The order here is the order in which they are printed by 'go help'.
+ var commands = []*Command{
+ 	cmdBuild,
++	cmdClean,
+ 	cmdDoc,
+ 	cmdFix,
+ 	cmdFmt,
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index 940d31a2b6..d1bc8d5ce5 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -8,6 +8,7 @@ import (
+ 	"go/build"
+ 	"os"
+ 	"path/filepath"
++	"runtime"
+ 	"sort"
+ 	"strings"
+ 	"time"
+@@ -22,6 +23,7 @@ type Package struct {
+ 	Name       string        `json:",omitempty"` // package name
+ 	Doc        string        `json:",omitempty"` // package documentation string
+ 	Dir        string        `json:",omitempty"` // directory containing package sources
++	Target     string        `json:",omitempty"` // install path
+ 	Version    string        `json:",omitempty"` // version of installed package (TODO)
+ 	Standard   bool          `json:",omitempty"` // is this package part of the standard Go library?
+ 	Stale      bool          `json:",omitempty"` // would 'go install' do anything for this package?
+@@ -273,6 +275,10 @@ func scanPackage(ctxt *build.Context, t *build.Tree, arg, importPath, dir string
+ 		if t.Goroot && isGoTool[p.ImportPath] {
+ 			p.target = filepath.Join(t.Path, "bin/go-tool", elem)
+ 		} else {
++			if ctxt.GOOS != runtime.GOOS || ctxt.GOARCH != runtime.GOARCH {
++				// Install cross-compiled binaries to subdirectories of bin.
++				elem = ctxt.GOOS + "_" + ctxt.GOARCH + "/" + elem
++			}
+ 			p.target = filepath.Join(t.BinDir(), elem)
+ 		}
+ 		if ctxt.GOOS == "windows" {
+@@ -404,6 +410,8 @@ Stale:
+ 		p.target = ""
+ 	}
+ 
++	p.Target = p.target
++
+ 	return p
+ }
+ 
+diff --git a/src/cmd/go/test.go b/src/cmd/go/test.go
+index 95fe62d35a..5a7f321d23 100644
+--- a/src/cmd/go/test.go
++++ b/src/cmd/go/test.go
+@@ -13,6 +13,7 @@ import (
+ 	"go/token"
+ 	"os"
+ 	"os/exec"
++	"path"
+ 	"path/filepath"
+ 	"strings"
+ 	"text/template"
+@@ -28,7 +29,7 @@ func init() {
+ 
+ var cmdTest = &Command{
+ 	CustomFlags: true,
+-	UsageLine:   "test [-c] [-file a.go -file b.go ...] [-p n] [-x] [importpath...] [flags for test binary]",
++	UsageLine:   "test [-c] [-file a.go -file b.go ...] [-i] [-p n] [-x] [importpath...] [flags for test binary]",
+ 	Short:       "test packages",
+ 	Long: `
+ 'Go test' automates testing the packages named by the import paths.
+@@ -72,19 +73,23 @@ and flags that apply to the resulting test binary.
+ 
+ The flags handled by 'go test' are:
+ 
+-	-c  Compile the test binary to test.out but do not run it.
++	-c  Compile the test binary to pkg.test but do not run it.
+ 
+ 	-file a.go
+ 	    Use only the tests in the source file a.go.
+ 	    Multiple -file flags may be provided.
+ 
++	-i
++	    Install packages that are dependencies of the test.
++
+ 	-p n
+ 	    Compile and test up to n packages in parallel.
+ 	    The default value is the number of CPUs available.
+ 
+ 	-x  Print each subcommand go test executes.
+ 
+-The resulting test binary, called test.out, has its own flags:
++The resulting test binary, called pkg.test, where pkg is the name of the
++directory containing the package sources, has its own flags:
+ 
+ 	-test.v
+ 	    Verbose output: log all tests as they are run.
+@@ -142,7 +147,7 @@ here are passed through unaltered.  For instance, the command
+ 
+ will compile the test binary using x_test.go and then run it as
+ 
+-	test.out -test.v -test.cpuprofile=prof.out -dir=testdata -update
++	pkg.test -test.v -test.cpuprofile=prof.out -dir=testdata -update
+ 	`,
+ }
+ 
+@@ -296,7 +301,7 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
+ 	// Build Package structs describing:
+ 	//	ptest - package + test files
+ 	//	pxtest - package of external test files
+-	//	pmain - test.out binary
++	//	pmain - pkg.test binary
+ 	var ptest, pxtest, pmain *Package
+ 
+ 	// go/build does not distinguish the dependencies used
+@@ -315,6 +320,11 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
+ 	}
+ 	stk.pop()
+ 
++	// Use last element of import path, not package name.
++	// They differ when package name is "main".
++	_, elem := path.Split(p.ImportPath)
++	testBinary := elem + ".test"
++
+ 	// The ptest package needs to be importable under the
+ 	// same import path that p has, but we cannot put it in
+ 	// the usual place in the temporary tree, because then
+@@ -383,7 +393,7 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
+ 		a.target = a.objpkg
+ 	}
+ 
+-	// Action for building test.out.
++	// Action for building pkg.test.
+ 	pmain = &Package{
+ 		Name:    "main",
+ 		Dir:     testDir,
+@@ -412,7 +422,7 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
+ 	a := b.action(modeBuild, modeBuild, pmain)
+ 	a.objdir = testDir + string(filepath.Separator)
+ 	a.objpkg = filepath.Join(testDir, "main.a")
+-	a.target = filepath.Join(testDir, "test.out") + b.exe
++	a.target = filepath.Join(testDir, testBinary) + b.exe
+ 	pmainAction := a
+ 
+ 	if testC {
+@@ -421,7 +431,7 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
+ 			f:      (*builder).install,
+ 			deps:   []*action{pmainAction},
+ 			p:      pmain,
+-			target: "test.out" + b.exe,
++			target: testBinary + b.exe,
+ 		}
+ 		printAction = &action{p: p, deps: []*action{runAction}} // nop
+ 	} else {
+diff --git a/src/cmd/go/testflag.go b/src/cmd/go/testflag.go
+index a3cacd6574..a6b5937daf 100644
+--- a/src/cmd/go/testflag.go
++++ b/src/cmd/go/testflag.go
+@@ -79,7 +79,7 @@ var testFlagDefn = []*testFlagSpec{
+ // to have "test" before them, and reading the command line for the 6.out.
+ // Unfortunately for us, we need to do our own flag processing because go test
+ // grabs some flags but otherwise its command line is just a holding place for
+-// test.out's arguments.
++// pkg.test's arguments.
+ // We allow known flags both before and after the package name list,
+ // to allow both
+ //	go test fmt -custom-flag-for-fmt-test

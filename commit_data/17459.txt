@@ -11,6 +11,22 @@ Date:   Mon Sep 2 16:44:51 2013 +0900
     R=golang-dev, bradfitz, dave
     CC=golang-dev
     https://golang.org/cl/13465043
-
+---
  src/pkg/net/ipsock_test.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/pkg/net/ipsock_test.go b/src/pkg/net/ipsock_test.go
+index 522266f4ab..3deacaaa72 100644
+--- a/src/pkg/net/ipsock_test.go
++++ b/src/pkg/net/ipsock_test.go
+@@ -177,6 +177,10 @@ var firstFavoriteAddrTests = []struct {
+ }
+ 
+ func TestFirstFavoriteAddr(t *testing.T) {
++	if !supportsIPv4 || !supportsIPv6 {
++		t.Skip("ipv4 or ipv6 is not supported")
++	}
++
+ 	for i, tt := range firstFavoriteAddrTests {
+ 		addr, err := firstFavoriteAddr(tt.filter, tt.ips, tt.inetaddr)
+ 		if err != tt.err {

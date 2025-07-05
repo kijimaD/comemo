@@ -14,7 +14,76 @@ Date:   Thu Jan 1 13:19:12 2015 +0100
     Change-Id: I6d57a7feebf90f303be5952767107302eccf4631
     Reviewed-on: https://go-review.googlesource.com/2215
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/log/log.go      | 21 +++++++++------------
  src/log/log_test.go | 24 ++++++++++++++++++++++++
  2 files changed, 33 insertions(+), 12 deletions(-)
+
+diff --git a/src/log/log.go b/src/log/log.go
+index cb5c76ba20..5ff2bc21e3 100644
+--- a/src/log/log.go
++++ b/src/log/log.go
+@@ -63,22 +63,19 @@ func New(out io.Writer, prefix string, flag int) *Logger {
+ var std = New(os.Stderr, "", LstdFlags)
+ 
+ // Cheap integer to fixed-width decimal ASCII.  Give a negative width to avoid zero-padding.
+-// Knows the buffer has capacity.
+ func itoa(buf *[]byte, i int, wid int) {
+-	var u uint = uint(i)
+-	if u == 0 && wid <= 1 {
+-		*buf = append(*buf, '0')
+-		return
+-	}
+-
+ 	// Assemble decimal in reverse order.
+-	var b [32]byte
+-	bp := len(b)
+-	for ; u > 0 || wid > 0; u /= 10 {
+-		bp--
++	var b [20]byte
++	bp := len(b) - 1
++	for i >= 10 || wid > 1 {
+ 		wid--
+-		b[bp] = byte(u%10) + '0'
++		q := i / 10
++		b[bp] = byte('0' + i - q*10)
++		bp--
++		i = q
+ 	}
++	// i < 10
++	b[bp] = byte('0' + i)
+ 	*buf = append(*buf, b[bp:]...)
+ }
+ 
+diff --git a/src/log/log_test.go b/src/log/log_test.go
+index 158c3d93c7..14e0b29263 100644
+--- a/src/log/log_test.go
++++ b/src/log/log_test.go
+@@ -117,3 +117,27 @@ func TestFlagAndPrefixSetting(t *testing.T) {
+ 		t.Error("message did not match pattern")
+ 	}
+ }
++
++func BenchmarkItoa(b *testing.B) {
++	dst := make([]byte, 0, 64)
++	for i := 0; i < b.N; i++ {
++		dst = dst[0:0]
++		itoa(&dst, 2015, 4)   // year
++		itoa(&dst, 1, 2)      // month
++		itoa(&dst, 30, 2)     // day
++		itoa(&dst, 12, 2)     // hour
++		itoa(&dst, 56, 2)     // minute
++		itoa(&dst, 0, 2)      // second
++		itoa(&dst, 987654, 6) // microsecond
++	}
++}
++
++func BenchmarkPrintln(b *testing.B) {
++	const testString = "test"
++	var buf bytes.Buffer
++	l := New(&buf, "", LstdFlags)
++	for i := 0; i < b.N; i++ {
++		buf.Reset()
++		l.Println(testString)
++	}
++}

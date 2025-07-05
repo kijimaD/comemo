@@ -7,6 +7,27 @@ Date:   Tue May 10 18:40:40 2011 -0700
     R=rsc, dsymonds
     CC=golang-dev
     https://golang.org/cl/4528053
-
+---
  doc/devel/roadmap.html | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/devel/roadmap.html b/doc/devel/roadmap.html
+index 343203cdbf..d3c4947152 100644
+--- a/doc/devel/roadmap.html
++++ b/doc/devel/roadmap.html
+@@ -43,8 +43,6 @@ Improved garbage collector.
+ <li>
+ Debugger.
+ <li>
+-App Engine support.
+-<li>
+ Improved implementation documentation.
+ </ul>
+ 
+@@ -132,4 +130,6 @@ A means of recovering from a panic (recover).
+ Improved CGO including some mechanism for calling back from C to Go.
+ <li>
+ Faster, allocation-light reflection.
++<li>
++App Engine support.
+ </ul>

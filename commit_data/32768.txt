@@ -14,7 +14,36 @@ Date:   Wed May 24 15:01:49 2017 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/dist/test.go            | 3 ++-
  src/runtime/rt0_linux_ppc64le.s | 3 +++
  2 files changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index fc2b58a082..b56495e723 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -772,7 +772,8 @@ func (t *tester) supportedBuildmode(mode string) bool {
+ 		}
+ 		switch pair {
+ 		case "darwin-386", "darwin-amd64", "darwin-arm", "darwin-arm64",
+-			"linux-amd64", "linux-386", "windows-amd64", "windows-386":
++			"linux-amd64", "linux-386", "linux-ppc64le",
++			"windows-amd64", "windows-386":
+ 			return true
+ 		}
+ 		return false
+diff --git a/src/runtime/rt0_linux_ppc64le.s b/src/runtime/rt0_linux_ppc64le.s
+index 2c5541357f..bcbc9c7b31 100644
+--- a/src/runtime/rt0_linux_ppc64le.s
++++ b/src/runtime/rt0_linux_ppc64le.s
+@@ -53,6 +53,9 @@ TEXT _rt0_ppc64le_linux_lib(SB),NOSPLIT,$-8
+ 	MOVD	R4, _rt0_ppc64le_linux_lib_argv<>(SB)
+ 
+ 	// Synchronous initialization.
++	MOVD	$runtime·reginit(SB), R12
++	MOVD	R12, CTR
++	BL	(CTR)
+ 	MOVD	$runtime·libpreinit(SB), R12
+ 	MOVD	R12, CTR
+ 	BL	(CTR)

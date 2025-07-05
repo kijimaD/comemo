@@ -7,7 +7,7 @@ Date:   Sat Mar 5 23:51:25 2016 -0500
     Change-Id: Iadb4aa016a7b361d01827787dbc59164d5d147f2
     Reviewed-on: https://go-review.googlesource.com/20291
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/yacc/doc.go                | 2 +-
  src/debug/gosym/symtab.go          | 2 +-
  src/image/color/palette/gen.go     | 2 +-
@@ -15,3 +15,82 @@ Date:   Sat Mar 5 23:51:25 2016 -0500
  src/path/filepath/path.go          | 2 +-
  src/path/path.go                   | 2 +-
  6 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/yacc/doc.go b/src/cmd/yacc/doc.go
+index 328d87b9da..c9bb573e00 100644
+--- a/src/cmd/yacc/doc.go
++++ b/src/cmd/yacc/doc.go
+@@ -15,7 +15,7 @@ It is largely transliterated from the Inferno version written in Limbo
+ which in turn was largely transliterated from the Plan 9 version
+ written in C and documented at
+ 
+-	http://plan9.bell-labs.com/magic/man2html/1/yacc
++	https://9p.io/magic/man2html/1/yacc
+ 
+ Adepts of the original yacc will have no trouble adapting to this
+ form of the tool.
+diff --git a/src/debug/gosym/symtab.go b/src/debug/gosym/symtab.go
+index bde4cc7ac5..49e154fd8e 100644
+--- a/src/debug/gosym/symtab.go
++++ b/src/debug/gosym/symtab.go
+@@ -8,7 +8,7 @@
+ package gosym
+ 
+ // The table format is a variant of the format used in Plan 9's a.out
+-// format, documented at http://plan9.bell-labs.com/magic/man2html/6/a.out.
++// format, documented at https://9p.io/magic/man2html/6/a.out.
+ // The best reference for the differences between the Plan 9 format
+ // and the Go format is the runtime source, specifically ../../runtime/symtab.c.
+ 
+diff --git a/src/image/color/palette/gen.go b/src/image/color/palette/gen.go
+index 2b5fdaaf2b..57718e6a0c 100644
+--- a/src/image/color/palette/gen.go
++++ b/src/image/color/palette/gen.go
+@@ -89,7 +89,7 @@ func printPlan9(w io.Writer) {
+ 	fmt.Fprintln(w, "// of continuous tones.")
+ 	fmt.Fprintln(w, "//")
+ 	fmt.Fprintln(w, "// This palette was used in the Plan 9 Operating System, described at")
+-	fmt.Fprintln(w, "// http://plan9.bell-labs.com/magic/man2html/6/color")
++	fmt.Fprintln(w, "// https://9p.io/magic/man2html/6/color")
+ 	fmt.Fprintln(w, "var Plan9 = []color.Color{")
+ 	for _, line := range lines {
+ 		fmt.Fprintln(w, line)
+diff --git a/src/image/color/palette/palette.go b/src/image/color/palette/palette.go
+index 0bf2c8e1aa..b695414520 100644
+--- a/src/image/color/palette/palette.go
++++ b/src/image/color/palette/palette.go
+@@ -19,7 +19,7 @@ import "image/color"
+ // of continuous tones.
+ //
+ // This palette was used in the Plan 9 Operating System, described at
+-// http://plan9.bell-labs.com/magic/man2html/6/color
++// https://9p.io/magic/man2html/6/color
+ var Plan9 = []color.Color{
+ 	color.RGBA{0x00, 0x00, 0x00, 0xff},
+ 	color.RGBA{0x00, 0x00, 0x44, 0xff},
+diff --git a/src/path/filepath/path.go b/src/path/filepath/path.go
+index 4b70bf8824..b2cf6c9801 100644
+--- a/src/path/filepath/path.go
++++ b/src/path/filepath/path.go
+@@ -80,7 +80,7 @@ const (
+ //
+ // See also Rob Pike, ``Lexical File Names in Plan 9 or
+ // Getting Dot-Dot Right,''
+-// http://plan9.bell-labs.com/sys/doc/lexnames.html
++// https://9p.io/sys/doc/lexnames.html
+ func Clean(path string) string {
+ 	originalPath := path
+ 	volLen := volumeNameLen(path)
+diff --git a/src/path/path.go b/src/path/path.go
+index 990fa3fcc5..c1d4d8aced 100644
+--- a/src/path/path.go
++++ b/src/path/path.go
+@@ -65,7 +65,7 @@ func (b *lazybuf) string() string {
+ //
+ // See also Rob Pike, ``Lexical File Names in Plan 9 or
+ // Getting Dot-Dot Right,''
+-// http://plan9.bell-labs.com/sys/doc/lexnames.html
++// https://9p.io/sys/doc/lexnames.html
+ func Clean(path string) string {
+ 	if path == "" {
+ 		return "."

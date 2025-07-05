@@ -9,7 +9,7 @@ Date:   Fri May 8 14:40:20 2009 -0700
     DELTA=110  (25 added, 46 deleted, 39 changed)
     OCL=28382
     CL=28561
-
+---
  src/lib/bufio/bufio.go   | 14 +++++++++-----
  src/lib/http/request.go  | 15 +++++++++------
  src/lib/http/url.go      | 12 ++++++------
@@ -22,3 +22,330 @@ Date:   Fri May 8 14:40:20 2009 -0700
  src/lib/net/port.go      |  2 +-
  src/lib/os/error.go      | 50 +++++-------------------------------------------
  11 files changed, 64 insertions(+), 85 deletions(-)
+
+diff --git a/src/lib/bufio/bufio.go b/src/lib/bufio/bufio.go
+index 4c700eef43..f0e12931da 100644
+--- a/src/lib/bufio/bufio.go
++++ b/src/lib/bufio/bufio.go
+@@ -25,12 +25,16 @@ const (
+ )
+ 
+ // Errors introduced by this package.
++type Error struct {
++	os.ErrorString;
++}
++
+ var (
+-	PhaseError = os.NewError("phase error");
+-	BufferFull = os.NewError("buffer full");
+-	InternalError = os.NewError("bufio internal error");
+-	BadBufSize = os.NewError("bad bufio size");
+-	ShortWrite = os.NewError("short write");
++	PhaseError os.Error = &Error{"phase error"};
++	BufferFull os.Error = &Error{"buffer full"};
++	InternalError os.Error = &Error{"bufio internal error"};
++	BadBufSize os.Error = &Error{"bad bufio size"};
++	ShortWrite os.Error = &Error{"short write"};
+ )
+ 
+ func copySlice(dst []byte, src []byte) {
+diff --git a/src/lib/http/request.go b/src/lib/http/request.go
+index 3edaa4207f..1173dd2a2d 100644
+--- a/src/lib/http/request.go
++++ b/src/lib/http/request.go
+@@ -26,13 +26,16 @@ const (
+ )
+ 
+ // HTTP request parsing errors.
++type ProtocolError struct {
++	os.ErrorString
++}
+ var (
+-	LineTooLong = os.NewError("http header line too long");
+-	ValueTooLong = os.NewError("http header value too long");
+-	HeaderTooLong = os.NewError("http header too long");
+-	BadHeader = os.NewError("malformed http header");
+-	BadRequest = os.NewError("invalid http request");
+-	BadHTTPVersion = os.NewError("unsupported http version");
++	LineTooLong = &ProtocolError{"http header line too long"};
++	ValueTooLong = &ProtocolError{"http header value too long"};
++	HeaderTooLong = &ProtocolError{"http header too long"};
++	BadHeader = &ProtocolError{"malformed http header"};
++	BadRequest = &ProtocolError{"invalid http request"};
++	BadHTTPVersion = &ProtocolError{"unsupported http version"};
+ )
+ 
+ // A Request represents a parsed HTTP request header.
+diff --git a/src/lib/http/url.go b/src/lib/http/url.go
+index 62699c13d7..db51d99aa2 100644
+--- a/src/lib/http/url.go
++++ b/src/lib/http/url.go
+@@ -13,9 +13,9 @@ import (
+ )
+ 
+ // Errors introduced by ParseURL.
+-var (
+-	BadURL = os.NewError("bad url syntax")
+-)
++type BadURL struct {
++	os.ErrorString
++}
+ 
+ func ishex(c byte) bool {
+ 	switch {
+@@ -52,7 +52,7 @@ func URLUnescape(s string) (string, os.Error) {
+ 		if s[i] == '%' {
+ 			n++;
+ 			if !ishex(s[i+1]) || !ishex(s[i+2]) {
+-				return "", BadURL;
++				return "", BadURL{"invalid hexadecimal escape"}
+ 			}
+ 			i += 3
+ 		} else {
+@@ -110,7 +110,7 @@ func getscheme(rawurl string) (scheme, path string, err os.Error) {
+ 			}
+ 		case c == ':':
+ 			if i == 0 {
+-				return "", "", BadURL
++				return "", "", BadURL{"missing protocol scheme"}
+ 			}
+ 			return rawurl[0:i], rawurl[i+1:len(rawurl)], nil
+ 		}
+@@ -141,7 +141,7 @@ func split(s string, c byte, cutc bool) (string, string) {
+ // (Web browsers strip #fragment before sending the URL to a web server.)
+ func ParseURL(rawurl string) (url *URL, err os.Error) {
+ 	if rawurl == "" {
+-		return nil, BadURL
++		return nil, BadURL{"empty url"}
+ 	}
+ 	url = new(URL);
+ 	url.Raw = rawurl;
+diff --git a/src/lib/io/io.go b/src/lib/io/io.go
+index bb6381099c..b283593596 100644
+--- a/src/lib/io/io.go
++++ b/src/lib/io/io.go
+@@ -14,7 +14,10 @@ import (
+ )
+ 
+ // ErrEOF is the error returned by FullRead and Copyn when they encounter EOF.
+-var ErrEOF = os.NewError("EOF")
++type Error struct {
++	os.ErrorString
++}
++var ErrEOF os.Error = &Error{"EOF"}
+ 
+ // Reader is the interface that wraps the basic Read method.
+ type Reader interface {
+diff --git a/src/lib/net/Makefile b/src/lib/net/Makefile
+index 3b6803740b..efd6b3ef11 100644
+--- a/src/lib/net/Makefile
++++ b/src/lib/net/Makefile
+@@ -41,16 +41,16 @@ coverage: packages
+ 
+ O1=\
+ 	dnsmsg.$O\
+-	fd_$(GOOS).$O\
+ 	parse.$O\
+ 
+ O2=\
+-	fd.$O\
++	fd_$(GOOS).$O\
+ 	ip.$O\
+ 	port.$O\
+ 
+ O3=\
+ 	dnsconfig.$O\
++	fd.$O\
+ 	net_$(GOOS).$O\
+ 
+ O4=\
+@@ -64,15 +64,15 @@ phases: a1 a2 a3 a4 a5
+ _obj$D/net.a: phases
+ 
+ a1: $(O1)
+-	$(AR) grc _obj$D/net.a dnsmsg.$O fd_$(GOOS).$O parse.$O
++	$(AR) grc _obj$D/net.a dnsmsg.$O parse.$O
+ 	rm -f $(O1)
+ 
+ a2: $(O2)
+-	$(AR) grc _obj$D/net.a fd.$O ip.$O port.$O
++	$(AR) grc _obj$D/net.a fd_$(GOOS).$O ip.$O port.$O
+ 	rm -f $(O2)
+ 
+ a3: $(O3)
+-	$(AR) grc _obj$D/net.a dnsconfig.$O net_$(GOOS).$O
++	$(AR) grc _obj$D/net.a dnsconfig.$O fd.$O net_$(GOOS).$O
+ 	rm -f $(O3)
+ 
+ a4: $(O4)
+diff --git a/src/lib/net/dnsclient.go b/src/lib/net/dnsclient.go
+index afae7cfb40..cfd67eabee 100644
+--- a/src/lib/net/dnsclient.go
++++ b/src/lib/net/dnsclient.go
+@@ -26,17 +26,20 @@ import (
+ )
+ 
+ // DNS errors returned by LookupHost.
++type DNSError struct {
++	os.ErrorString
++}
+ var (
+-	DNS_InternalError = os.NewError("internal dns error");
+-	DNS_MissingConfig = os.NewError("no dns configuration");
+-	DNS_No_Answer = os.NewError("dns got no answer");
+-	DNS_BadRequest = os.NewError("malformed dns request");
+-	DNS_BadReply = os.NewError("malformed dns reply");
+-	DNS_ServerFailure = os.NewError("dns server failure");
+-	DNS_NoServers = os.NewError("no dns servers");
+-	DNS_NameTooLong = os.NewError("dns name too long");
+-	DNS_RedirectLoop = os.NewError("dns redirect loop");
+-	DNS_NameNotFound = os.NewError("dns name not found");
++	DNS_InternalError os.Error = &DNSError{"internal dns error"};
++	DNS_MissingConfig os.Error = &DNSError{"no dns configuration"};
++	DNS_No_Answer os.Error = &DNSError{"dns got no answer"};
++	DNS_BadRequest os.Error = &DNSError{"malformed dns request"};
++	DNS_BadReply os.Error = &DNSError{"malformed dns reply"};
++	DNS_ServerFailure os.Error = &DNSError{"dns server failure"};
++	DNS_NoServers os.Error = &DNSError{"no dns servers"};
++	DNS_NameTooLong os.Error = &DNSError{"dns name too long"};
++	DNS_RedirectLoop os.Error = &DNSError{"dns redirect loop"};
++	DNS_NameNotFound os.Error = &DNSError{"dns name not found"};
+ )
+ 
+ // Send a request on the connection and hope for a reply.
+diff --git a/src/lib/net/fd_darwin.go b/src/lib/net/fd_darwin.go
+index b4392d00e1..cfc873fc91 100644
+--- a/src/lib/net/fd_darwin.go
++++ b/src/lib/net/fd_darwin.go
+@@ -12,6 +12,8 @@ import (
+ 	"syscall";
+ )
+ 
++var kqueuePhaseError = &Error{"kqueue phase error"}
++
+ type pollster struct {
+ 	kq int64;
+ 	eventbuf [10]syscall.Kevent_t;
+@@ -54,7 +56,7 @@ func (p *pollster) AddFD(fd int64, mode int, repeat bool) os.Error {
+ 		return os.ErrnoToError(e)
+ 	}
+ 	if n != 1 || (ev.Flags & syscall.EV_ERROR) == 0 || ev.Ident != fd || ev.Filter != kmode {
+-		return os.NewError("kqueue phase error")
++		return kqueuePhaseError
+ 	}
+ 	if ev.Data != 0 {
+ 		return os.ErrnoToError(ev.Data)
+diff --git a/src/lib/net/net.go b/src/lib/net/net.go
+index a95907e7ff..cd2828592e 100644
+--- a/src/lib/net/net.go
++++ b/src/lib/net/net.go
+@@ -12,11 +12,11 @@ import (
+ )
+ 
+ var (
+-	BadAddress = os.NewError("malformed address");
+-	MissingAddress = os.NewError("missing address");
+-	UnknownNetwork = os.NewError("unknown network");
+-	UnknownHost = os.NewError("unknown host");
+-	UnknownSocketFamily = os.NewError("unknown socket family");
++	BadAddress os.Error = &Error{"malformed address"};
++	MissingAddress os.Error = &Error{"missing address"};
++	UnknownNetwork os.Error = &Error{"unknown network"};
++	UnknownHost os.Error = &Error{"unknown host"};
++	UnknownSocketFamily os.Error = &Error{"unknown socket family"};
+ )
+ 
+ 
+diff --git a/src/lib/net/parse.go b/src/lib/net/parse.go
+index 78eff5f471..de47cb812d 100644
+--- a/src/lib/net/parse.go
++++ b/src/lib/net/parse.go
+@@ -12,6 +12,10 @@ import (
+ 	"os";
+ )
+ 
++type Error struct {
++	os.ErrorString
++}
++
+ type file struct {
+ 	file *os.File;
+ 	data []byte;
+diff --git a/src/lib/net/port.go b/src/lib/net/port.go
+index 073af658a4..21e3b48aa0 100644
+--- a/src/lib/net/port.go
++++ b/src/lib/net/port.go
+@@ -16,7 +16,7 @@ import (
+ 
+ // The error returned by LookupPort when a network service
+ // is not listed in the database.
+-var ErrNoService = os.NewError("unknown network service");
++var ErrNoService = &Error{"unknown network service"};
+ 
+ var services map[string] map[string] int
+ var servicesError os.Error
+diff --git a/src/lib/os/error.go b/src/lib/os/error.go
+index 5acefd2adb..3861f0167e 100644
+--- a/src/lib/os/error.go
++++ b/src/lib/os/error.go
+@@ -18,6 +18,11 @@ func (e ErrorString) String() string {
+ 	return e
+ }
+ 
++// NewError converts s to an ErrorString, which satisfies the Error interface.
++func NewError(s string) Error {
++	return ErrorString(s)
++}
++
+ // Errno is the Unix error number.  Names such as EINVAL are simple
+ // wrappers to convert the error number into an Error.
+ type Errno int64
+@@ -74,48 +79,3 @@ var (
+ 	ERANGE Error = Errno(syscall.ERANGE);
+ )
+ 
+-// -----------------------
+-// Everything below here is deprecated.
+-// Delete when all callers of NewError are gone and their uses converted
+-// to the new error scheme (for an example, see template).
+-
+-// _Error is a structure wrapping a string describing an error.
+-// Errors are singleton structures, created by NewError, so their addresses can
+-// be compared to test for equality. A nil Error pointer means ``no error''.
+-// Use the String() method to get the contents; it handles the nil case.
+-// The Error type is intended for use by any package that wishes to define
+-// error strings.
+-type _Error struct {
+-	s string
+-}
+-
+-// Table of all known errors in system.  Use the same error string twice,
+-// get the same *os._Error.
+-var errorStringTab = make(map[string] Error);
+-
+-// These functions contain a race if two goroutines add identical
+-// errors simultaneously but the consequences are unimportant.
+-
+-// NewError allocates an Error object, but if s has been seen before,
+-// shares the _Error associated with that message.
+-func NewError(s string) Error {
+-	if s == "" {
+-		return nil
+-	}
+-	err, ok := errorStringTab[s];
+-	if ok {
+-		return err
+-	}
+-	err = &_Error{s};
+-	errorStringTab[s] = err;
+-	return err;
+-}
+-
+-
+-// String returns the string associated with the _Error.
+-func (e *_Error) String() string {
+-	if e == nil {
+-		return "No _Error"
+-	}
+-	return e.s
+-}

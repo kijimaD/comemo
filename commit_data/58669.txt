@@ -19,8 +19,95 @@ Date:   Mon Nov 27 17:21:08 2023 -0800
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/ssa/expand_calls.go |  6 +++---
  src/cmd/compile/internal/ssagen/ssa.go       |  2 +-
  src/runtime/traceback_test.go                | 24 ++++++++++++++++++++++++
  3 files changed, 28 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/expand_calls.go b/src/cmd/compile/internal/ssa/expand_calls.go
+index 298e29ec56..b0788f1db4 100644
+--- a/src/cmd/compile/internal/ssa/expand_calls.go
++++ b/src/cmd/compile/internal/ssa/expand_calls.go
+@@ -411,7 +411,7 @@ func (x *expandState) decomposeAsNecessary(pos src.XPos, b *Block, a, m0 *Value,
+ 		return mem
+ 
+ 	case types.TSLICE:
+-		mem = x.decomposeOne(pos, b, a, mem, x.typs.BytePtr, OpSlicePtr, &rc)
++		mem = x.decomposeOne(pos, b, a, mem, at.Elem().PtrTo(), OpSlicePtr, &rc)
+ 		pos = pos.WithNotStmt()
+ 		mem = x.decomposeOne(pos, b, a, mem, x.typs.Int, OpSliceLen, &rc)
+ 		return x.decomposeOne(pos, b, a, mem, x.typs.Int, OpSliceCap, &rc)
+@@ -564,7 +564,7 @@ func (x *expandState) rewriteSelectOrArg(pos src.XPos, b *Block, container, a, m
+ 		return a
+ 
+ 	case types.TSLICE:
+-		addArg(x.rewriteSelectOrArg(pos, b, container, nil, m0, x.typs.BytePtr, rc.next(x.typs.BytePtr)))
++		addArg(x.rewriteSelectOrArg(pos, b, container, nil, m0, at.Elem().PtrTo(), rc.next(x.typs.BytePtr)))
+ 		pos = pos.WithNotStmt()
+ 		addArg(x.rewriteSelectOrArg(pos, b, container, nil, m0, x.typs.Int, rc.next(x.typs.Int)))
+ 		addArg(x.rewriteSelectOrArg(pos, b, container, nil, m0, x.typs.Int, rc.next(x.typs.Int)))
+@@ -721,7 +721,7 @@ func (x *expandState) rewriteWideSelectToStores(pos src.XPos, b *Block, containe
+ 		return m0
+ 
+ 	case types.TSLICE:
+-		m0 = x.rewriteWideSelectToStores(pos, b, container, m0, x.typs.BytePtr, rc.next(x.typs.BytePtr))
++		m0 = x.rewriteWideSelectToStores(pos, b, container, m0, at.Elem().PtrTo(), rc.next(x.typs.BytePtr))
+ 		pos = pos.WithNotStmt()
+ 		m0 = x.rewriteWideSelectToStores(pos, b, container, m0, x.typs.Int, rc.next(x.typs.Int))
+ 		m0 = x.rewriteWideSelectToStores(pos, b, container, m0, x.typs.Int, rc.next(x.typs.Int))
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 45bf0e6dc4..c794d6ffd9 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -7133,7 +7133,7 @@ func EmitArgInfo(f *ir.Func, abiInfo *abi.ABIParamResultInfo) *obj.LSym {
+ 	n := 0
+ 	writebyte := func(o uint8) { wOff = objw.Uint8(x, wOff, o) }
+ 
+-	// Write one non-aggrgate arg/field/element.
++	// Write one non-aggregate arg/field/element.
+ 	write1 := func(sz, offset int64) {
+ 		if offset >= _special {
+ 			writebyte(_offsetTooLarge)
+diff --git a/src/runtime/traceback_test.go b/src/runtime/traceback_test.go
+index 204b4f5316..88318782da 100644
+--- a/src/runtime/traceback_test.go
++++ b/src/runtime/traceback_test.go
+@@ -419,6 +419,17 @@ func TestTracebackArgs(t *testing.T) {
+ 				"testTracebackArgs11b(0xffffffff?, 0xffffffff?, 0x3?, 0x4)",
+ 				"testTracebackArgs11b(0x1, 0x2, 0x3, 0x4)"),
+ 		},
++		// Make sure spilled slice data pointers are spilled to the right location
++		// to ensure we see it listed without a ?.
++		// See issue 64414.
++		{
++			func() int {
++				poisonStack()
++				return testTracebackArgsSlice(testTracebackArgsSliceBackingStore[:])
++			},
++			// Note: capacity of the slice might be junk, as it is not used.
++			fmt.Sprintf("testTracebackArgsSlice({%p, 0x2, ", &testTracebackArgsSliceBackingStore[0]),
++		},
+ 	}
+ 	for _, test := range tests {
+ 		n := test.fn()
+@@ -667,6 +678,19 @@ func testTracebackArgs11b(a, b, c, d int32) int {
+ 	return runtime.Stack(testTracebackArgsBuf[:], false)
+ }
+ 
++// norace to avoid race instrumentation changing spill locations.
++// nosplit to avoid preemption or morestack spilling registers.
++//
++//go:norace
++//go:nosplit
++//go:noinline
++func testTracebackArgsSlice(a []int) int {
++	n := runtime.Stack(testTracebackArgsBuf[:], false)
++	return a[1] + n
++}
++
++var testTracebackArgsSliceBackingStore [2]int
++
+ // Poison the arg area with deterministic values.
+ //
+ //go:noinline

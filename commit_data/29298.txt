@@ -10,6 +10,20 @@ Date:   Wed Sep 7 12:06:43 2016 -0400
     Change-Id: If7bcb41d993919d0038d2a09e16188c79dfbd858
     Reviewed-on: https://go-review.googlesource.com/28831
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/rulegen.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/rulegen.go b/src/cmd/compile/internal/ssa/gen/rulegen.go
+index afe17469ae..f255f6ba3f 100644
+--- a/src/cmd/compile/internal/ssa/gen/rulegen.go
++++ b/src/cmd/compile/internal/ssa/gen/rulegen.go
+@@ -616,7 +616,7 @@ func parseValue(val string, arch arch, loc string) (op opData, oparch string, ty
+ 			if strict {
+ 				return false
+ 			} else {
+-				log.Printf("%s: op %s (%s) should have %d args, has %d", loc, s[0], archname, op.argLength, len(args))
++				log.Printf("%s: op %s (%s) should have %d args, has %d", loc, s[0], archname, x.argLength, len(args))
+ 			}
+ 		}
+ 		return true

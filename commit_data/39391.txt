@@ -13,6 +13,20 @@ Date:   Tue Feb 26 15:52:59 2019 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ssa/writebarrier.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/writebarrier.go b/src/cmd/compile/internal/ssa/writebarrier.go
+index 1f40927951..49770018f8 100644
+--- a/src/cmd/compile/internal/ssa/writebarrier.go
++++ b/src/cmd/compile/internal/ssa/writebarrier.go
+@@ -384,7 +384,7 @@ func IsReadOnlyGlobalAddr(v *Value) bool {
+ 		return false
+ 	}
+ 	// See TODO in OpAddr case in IsSanitizerSafeAddr below.
+-	return strings.HasPrefix(v.Aux.(*obj.LSym).Name, `"".statictmp_`)
++	return strings.HasPrefix(v.Aux.(*obj.LSym).Name, `""..stmp_`)
+ }
+ 
+ // IsNewObject reports whether v is a pointer to a freshly allocated & zeroed object at memory state mem.

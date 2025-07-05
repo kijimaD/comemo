@@ -7,6 +7,29 @@ Date:   Sun Mar 3 09:12:36 2013 -0800
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/7423050
-
+---
  doc/go1.1.html | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go1.1.html b/doc/go1.1.html
+index e4f5202bc0..ae0a099395 100644
+--- a/doc/go1.1.html
++++ b/doc/go1.1.html
+@@ -193,7 +193,7 @@ for example, run
+ </p>
+ 
+ <pre>
+-$ go get code.google.com/go.exp/ssa
++$ go get code.google.com/p/go.exp/ssa
+ </pre>
+ 
+ <p>
+@@ -201,7 +201,7 @@ and then in Go source,
+ </p>
+ 
+ <pre>
+-import "code.google.com/go.exp/ssa"
++import "code.google.com/p/go.exp/ssa"
+ </pre>
+ 
+ <h3 id="TODO">TODO</h3>

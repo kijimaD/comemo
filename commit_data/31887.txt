@@ -10,6 +10,24 @@ Date:   Wed Mar 22 12:38:09 2017 -0400
     Reviewed-on: https://go-review.googlesource.com/38405
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/vet/lostcancel.go | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/vet/lostcancel.go b/src/cmd/vet/lostcancel.go
+index d049a3e888..ee0342035f 100644
+--- a/src/cmd/vet/lostcancel.go
++++ b/src/cmd/vet/lostcancel.go
+@@ -104,7 +104,11 @@ func checkLostCancel(f *File, node ast.Node) {
+ 	var sig *types.Signature
+ 	switch node := node.(type) {
+ 	case *ast.FuncDecl:
+-		sig, _ = f.pkg.defs[node.Name].Type().(*types.Signature)
++		obj := f.pkg.defs[node.Name]
++		if obj == nil {
++			return // type error (e.g. duplicate function declaration)
++		}
++		sig, _ = obj.Type().(*types.Signature)
+ 		g = cfg.New(node.Body, mayReturn)
+ 	case *ast.FuncLit:
+ 		sig, _ = f.pkg.types[node.Type].Type.(*types.Signature)

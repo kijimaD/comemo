@@ -7,7 +7,7 @@ Date:   Tue Nov 1 22:06:05 2011 -0400
     R=golang-dev, iant, r, r
     CC=golang-dev
     https://golang.org/cl/5307066
-
+---
  doc/codelab/wiki/final-noclosure.go     | 18 ++++++++---------
  doc/codelab/wiki/final-noerror.go       |  5 ++---
  doc/codelab/wiki/final-parsetemplate.go | 11 +++++------
@@ -72,3 +72,2765 @@ Date:   Tue Nov 1 22:06:05 2011 -0400
  test/recover3.go                        |  2 +-
  test/zerodivide.go                      |  6 +++---
  63 files changed, 300 insertions(+), 320 deletions(-)
+
+diff --git a/doc/codelab/wiki/final-noclosure.go b/doc/codelab/wiki/final-noclosure.go
+index 067f502c6b..47f84a7d45 100644
+--- a/doc/codelab/wiki/final-noclosure.go
++++ b/doc/codelab/wiki/final-noclosure.go
+@@ -1,9 +1,9 @@
+ package main
+ 
+ import (
++	"errors"
+ 	"http"
+ 	"io/ioutil"
+-	"os"
+ 	"regexp"
+ 	"template"
+ )
+@@ -13,12 +13,12 @@ type Page struct {
+ 	Body  []byte
+ }
+ 
+-func (p *Page) save() os.Error {
++func (p *Page) save() error {
+ 	filename := p.Title + ".txt"
+ 	return ioutil.WriteFile(filename, p.Body, 0600)
+ }
+ 
+-func loadPage(title string) (*Page, os.Error) {
++func loadPage(title string) (*Page, error) {
+ 	filename := title + ".txt"
+ 	body, err := ioutil.ReadFile(filename)
+ 	if err != nil {
+@@ -61,21 +61,21 @@ func saveHandler(w http.ResponseWriter, r *http.Request) {
+ 	p := &Page{Title: title, Body: []byte(body)}
+ 	err = p.save()
+ 	if err != nil {
+-		http.Error(w, err.String(), http.StatusInternalServerError)
++		http.Error(w, err.Error(), http.StatusInternalServerError)
+ 		return
+ 	}
+ 	http.Redirect(w, r, "/view/"+title, http.StatusFound)
+ }
+ 
+ func renderTemplate(w http.ResponseWriter, tmpl string, p *Page) {
+-	t, err := template.ParseFile(tmpl+".html")
++	t, err := template.ParseFile(tmpl + ".html")
+ 	if err != nil {
+-		http.Error(w, err.String(), http.StatusInternalServerError)
++		http.Error(w, err.Error(), http.StatusInternalServerError)
+ 		return
+ 	}
+ 	err = t.Execute(w, p)
+ 	if err != nil {
+-		http.Error(w, err.String(), http.StatusInternalServerError)
++		http.Error(w, err.Error(), http.StatusInternalServerError)
+ 	}
+ }
+ 
+@@ -83,11 +83,11 @@ const lenPath = len("/view/")
+ 
+ var titleValidator = regexp.MustCompile("^[a-zA-Z0-9]+$")
+ 
+-func getTitle(w http.ResponseWriter, r *http.Request) (title string, err os.Error) {
++func getTitle(w http.ResponseWriter, r *http.Request) (title string, err error) {
+ 	title = r.URL.Path[lenPath:]
+ 	if !titleValidator.MatchString(title) {
+ 		http.NotFound(w, r)
+-		err = os.NewError("Invalid Page Title")
++		err = errors.New("Invalid Page Title")
+ 	}
+ 	return
+ }
+diff --git a/doc/codelab/wiki/final-noerror.go b/doc/codelab/wiki/final-noerror.go
+index b8edbee9bd..69e191292f 100644
+--- a/doc/codelab/wiki/final-noerror.go
++++ b/doc/codelab/wiki/final-noerror.go
+@@ -3,7 +3,6 @@ package main
+ import (
+ 	"http"
+ 	"io/ioutil"
+-	"os"
+ 	"template"
+ )
+ 
+@@ -12,12 +11,12 @@ type Page struct {
+ 	Body  []byte
+ }
+ 
+-func (p *Page) save() os.Error {
++func (p *Page) save() error {
+ 	filename := p.Title + ".txt"
+ 	return ioutil.WriteFile(filename, p.Body, 0600)
+ }
+ 
+-func loadPage(title string) (*Page, os.Error) {
++func loadPage(title string) (*Page, error) {
+ 	filename := title + ".txt"
+ 	body, err := ioutil.ReadFile(filename)
+ 	if err != nil {
+diff --git a/doc/codelab/wiki/final-parsetemplate.go b/doc/codelab/wiki/final-parsetemplate.go
+index f25012eed1..d3675a0e19 100644
+--- a/doc/codelab/wiki/final-parsetemplate.go
++++ b/doc/codelab/wiki/final-parsetemplate.go
+@@ -3,7 +3,6 @@ package main
+ import (
+ 	"http"
+ 	"io/ioutil"
+-	"os"
+ 	"regexp"
+ 	"template"
+ )
+@@ -13,12 +12,12 @@ type Page struct {
+ 	Body  []byte
+ }
+ 
+-func (p *Page) save() os.Error {
++func (p *Page) save() error {
+ 	filename := p.Title + ".txt"
+ 	return ioutil.WriteFile(filename, p.Body, 0600)
+ }
+ 
+-func loadPage(title string) (*Page, os.Error) {
++func loadPage(title string) (*Page, error) {
+ 	filename := title + ".txt"
+ 	body, err := ioutil.ReadFile(filename)
+ 	if err != nil {
+@@ -49,7 +48,7 @@ func saveHandler(w http.ResponseWriter, r *http.Request, title string) {
+ 	p := &Page{Title: title, Body: []byte(body)}
+ 	err := p.save()
+ 	if err != nil {
+-		http.Error(w, err.String(), http.StatusInternalServerError)
++		http.Error(w, err.Error(), http.StatusInternalServerError)
+ 		return
+ 	}
+ 	http.Redirect(w, r, "/view/"+title, http.StatusFound)
+@@ -58,12 +57,12 @@ func saveHandler(w http.ResponseWriter, r *http.Request, title string) {
+ func renderTemplate(w http.ResponseWriter, tmpl string, p *Page) {
+ 	t, err := template.ParseFile(tmpl+".html", nil)
+ 	if err != nil {
+-		http.Error(w, err.String(), http.StatusInternalServerError)
++		http.Error(w, err.Error(), http.StatusInternalServerError)
+ 		return
+ 	}
+ 	err = t.Execute(w, p)
+ 	if err != nil {
+-		http.Error(w, err.String(), http.StatusInternalServerError)
++		http.Error(w, err.Error(), http.StatusInternalServerError)
+ 	}
+ }
+ 
+diff --git a/doc/codelab/wiki/final-template.go b/doc/codelab/wiki/final-template.go
+index aab536ee1a..4b5c44e090 100644
+--- a/doc/codelab/wiki/final-template.go
++++ b/doc/codelab/wiki/final-template.go
+@@ -3,7 +3,6 @@ package main
+ import (
+ 	"http"
+ 	"io/ioutil"
+-	"os"
+ 	"template"
+ )
+ 
+@@ -12,12 +11,12 @@ type Page struct {
+ 	Body  []byte
+ }
+ 
+-func (p *Page) save() os.Error {
++func (p *Page) save() error {
+ 	filename := p.Title + ".txt"
+ 	return ioutil.WriteFile(filename, p.Body, 0600)
+ }
+ 
+-func loadPage(title string) (*Page, os.Error) {
++func loadPage(title string) (*Page, error) {
+ 	filename := title + ".txt"
+ 	body, err := ioutil.ReadFile(filename)
+ 	if err != nil {
+diff --git a/doc/codelab/wiki/final.go b/doc/codelab/wiki/final.go
+index 47a4c3473e..11620af3ed 100644
+--- a/doc/codelab/wiki/final.go
++++ b/doc/codelab/wiki/final.go
+@@ -3,7 +3,6 @@ package main
+ import (
+ 	"http"
+ 	"io/ioutil"
+-	"os"
+ 	"regexp"
+ 	"template"
+ )
+@@ -13,12 +12,12 @@ type Page struct {
+ 	Body  []byte
+ }
+ 
+-func (p *Page) save() os.Error {
++func (p *Page) save() error {
+ 	filename := p.Title + ".txt"
+ 	return ioutil.WriteFile(filename, p.Body, 0600)
+ }
+ 
+-func loadPage(title string) (*Page, os.Error) {
++func loadPage(title string) (*Page, error) {
+ 	filename := title + ".txt"
+ 	body, err := ioutil.ReadFile(filename)
+ 	if err != nil {
+@@ -49,7 +48,7 @@ func saveHandler(w http.ResponseWriter, r *http.Request, title string) {
+ 	p := &Page{Title: title, Body: []byte(body)}
+ 	err := p.save()
+ 	if err != nil {
+-		http.Error(w, err.String(), http.StatusInternalServerError)
++		http.Error(w, err.Error(), http.StatusInternalServerError)
+ 		return
+ 	}
+ 	http.Redirect(w, r, "/view/"+title, http.StatusFound)
+@@ -59,7 +58,7 @@ var templates = make(map[string]*template.Template)
+ 
+ func init() {
+ 	for _, tmpl := range []string{"edit", "view"} {
+-		t := template.Must(template.ParseFile(tmpl+".html"))
++		t := template.Must(template.ParseFile(tmpl + ".html"))
+ 		templates[tmpl] = t
+ 	}
+ }
+@@ -67,7 +66,7 @@ func init() {
+ func renderTemplate(w http.ResponseWriter, tmpl string, p *Page) {
+ 	err := templates[tmpl].Execute(w, p)
+ 	if err != nil {
+-		http.Error(w, err.String(), http.StatusInternalServerError)
++		http.Error(w, err.Error(), http.StatusInternalServerError)
+ 	}
+ }
+ 
+diff --git a/doc/codelab/wiki/get.go b/doc/codelab/wiki/get.go
+index c36684e3e4..723484dec9 100644
+--- a/doc/codelab/wiki/get.go
++++ b/doc/codelab/wiki/get.go
+@@ -32,7 +32,7 @@ func main() {
+ 		log.Fatal("no url supplied")
+ 	}
+ 	var r *http.Response
+-	var err os.Error
++	var err error
+ 	if *post != "" {
+ 		b := strings.NewReader(*post)
+ 		r, err = http.Post(url, "application/x-www-form-urlencoded", b)
+diff --git a/doc/codelab/wiki/index.html b/doc/codelab/wiki/index.html
+index 50e9db5e99..21248c1861 100644
+--- a/doc/codelab/wiki/index.html
++++ b/doc/codelab/wiki/index.html
+@@ -98,7 +98,7 @@ But what about persistent storage? We can address that by creating a
+ </p>
+ 
+ <pre>
+-func (p *Page) save() os.Error {
++func (p *Page) save() error {
+ 	filename := p.Title + &#34;.txt&#34;
+ 	return ioutil.WriteFile(filename, p.Body, 0600)
+ }
+@@ -165,7 +165,7 @@ function to return <code>*Page</code> and <code>os.Error</code>.
+ </p>
+ 
+ <pre>
+-func loadPage(title string) (*Page, os.Error) {
++func loadPage(title string) (*Page, error) {
+ 	filename := title + &#34;.txt&#34;
+ 	body, err := ioutil.ReadFile(filename)
+ 	if err != nil {
+@@ -645,12 +645,12 @@ First, let's handle the errors in <code>renderTemplate</code>:
+ func renderTemplate(w http.ResponseWriter, tmpl string, p *Page) {
+ 	t, err := template.ParseFile(tmpl+&#34;.html&#34;, nil)
+ 	if err != nil {
+-		http.Error(w, err.String(), http.StatusInternalServerError)
++		http.Error(w, err.Error(), http.StatusInternalServerError)
+ 		return
+ 	}
+ 	err = t.Execute(w, p)
+ 	if err != nil {
+-		http.Error(w, err.String(), http.StatusInternalServerError)
++		http.Error(w, err.Error(), http.StatusInternalServerError)
+ 	}
+ }
+ </pre>
+@@ -675,7 +675,7 @@ func saveHandler(w http.ResponseWriter, r *http.Request) {
+ 	p := &amp;Page{Title: title, Body: []byte(body)}
+ 	err = p.save()
+ 	if err != nil {
+-		http.Error(w, err.String(), http.StatusInternalServerError)
++		http.Error(w, err.Error(), http.StatusInternalServerError)
+ 		return
+ 	}
+ 	http.Redirect(w, r, &#34;/view/&#34;+title, http.StatusFound)
+@@ -741,7 +741,7 @@ the <code>Execute</code> method on the appropriate <code>Template</code> from
+ func renderTemplate(w http.ResponseWriter, tmpl string, p *Page) {
+ 	err := templates[tmpl].Execute(w, p)
+ 	if err != nil {
+-		http.Error(w, err.String(), http.StatusInternalServerError)
++		http.Error(w, err.Error(), http.StatusInternalServerError)
+ 	}
+ }
+ </pre>
+@@ -777,11 +777,11 @@ URL, and tests it against our <code>TitleValidator</code> expression:
+ </p>
+ 
+ <pre>
+-func getTitle(w http.ResponseWriter, r *http.Request) (title string, err os.Error) {
++func getTitle(w http.ResponseWriter, r *http.Request) (title string, err error) {
+ 	title = r.URL.Path[lenPath:]
+ 	if !titleValidator.MatchString(title) {
+ 		http.NotFound(w, r)
+-		err = os.NewError(&#34;Invalid Page Title&#34;)
++		err = errors.New(&#34;Invalid Page Title&#34;)
+ 	}
+ 	return
+ }
+@@ -833,7 +833,7 @@ func saveHandler(w http.ResponseWriter, r *http.Request) {
+ 	p := &amp;Page{Title: title, Body: []byte(body)}
+ 	err = p.save()
+ 	if err != nil {
+-		http.Error(w, err.String(), http.StatusInternalServerError)
++		http.Error(w, err.Error(), http.StatusInternalServerError)
+ 		return
+ 	}
+ 	http.Redirect(w, r, &#34;/view/&#34;+title, http.StatusFound)
+@@ -958,7 +958,7 @@ func saveHandler(w http.ResponseWriter, r *http.Request, title string) {
+ 	p := &amp;Page{Title: title, Body: []byte(body)}
+ 	err := p.save()
+ 	if err != nil {
+-		http.Error(w, err.String(), http.StatusInternalServerError)
++		http.Error(w, err.Error(), http.StatusInternalServerError)
+ 		return
+ 	}
+ 	http.Redirect(w, r, &#34;/view/&#34;+title, http.StatusFound)
+diff --git a/doc/codelab/wiki/notemplate.go b/doc/codelab/wiki/notemplate.go
+index 9cbe9ad768..d2deec11e5 100644
+--- a/doc/codelab/wiki/notemplate.go
++++ b/doc/codelab/wiki/notemplate.go
+@@ -4,7 +4,6 @@ import (
+ 	"fmt"
+ 	"http"
+ 	"io/ioutil"
+-	"os"
+ )
+ 
+ type Page struct {
+@@ -12,12 +11,12 @@ type Page struct {
+ 	Body  []byte
+ }
+ 
+-func (p *Page) save() os.Error {
++func (p *Page) save() error {
+ 	filename := p.Title + ".txt"
+ 	return ioutil.WriteFile(filename, p.Body, 0600)
+ }
+ 
+-func loadPage(title string) (*Page, os.Error) {
++func loadPage(title string) (*Page, error) {
+ 	filename := title + ".txt"
+ 	body, err := ioutil.ReadFile(filename)
+ 	if err != nil {
+diff --git a/doc/codelab/wiki/part1-noerror.go b/doc/codelab/wiki/part1-noerror.go
+index 14cfc321a7..c70318a8b5 100644
+--- a/doc/codelab/wiki/part1-noerror.go
++++ b/doc/codelab/wiki/part1-noerror.go
+@@ -3,7 +3,6 @@ package main
+ import (
+ 	"fmt"
+ 	"io/ioutil"
+-	"os"
+ )
+ 
+ type Page struct {
+@@ -11,7 +10,7 @@ type Page struct {
+ 	Body  []byte
+ }
+ 
+-func (p *Page) save() os.Error {
++func (p *Page) save() error {
+ 	filename := p.Title + ".txt"
+ 	return ioutil.WriteFile(filename, p.Body, 0600)
+ }
+diff --git a/doc/codelab/wiki/part1.go b/doc/codelab/wiki/part1.go
+index 4b0654f8b1..b3fb750f1f 100644
+--- a/doc/codelab/wiki/part1.go
++++ b/doc/codelab/wiki/part1.go
+@@ -3,7 +3,6 @@ package main
+ import (
+ 	"fmt"
+ 	"io/ioutil"
+-	"os"
+ )
+ 
+ type Page struct {
+@@ -11,12 +10,12 @@ type Page struct {
+ 	Body  []byte
+ }
+ 
+-func (p *Page) save() os.Error {
++func (p *Page) save() error {
+ 	filename := p.Title + ".txt"
+ 	return ioutil.WriteFile(filename, p.Body, 0600)
+ }
+ 
+-func loadPage(title string) (*Page, os.Error) {
++func loadPage(title string) (*Page, error) {
+ 	filename := title + ".txt"
+ 	body, err := ioutil.ReadFile(filename)
+ 	if err != nil {
+diff --git a/doc/codelab/wiki/part2.go b/doc/codelab/wiki/part2.go
+index d57c3a01f1..a192089deb 100644
+--- a/doc/codelab/wiki/part2.go
++++ b/doc/codelab/wiki/part2.go
+@@ -4,7 +4,6 @@ import (
+ 	"fmt"
+ 	"http"
+ 	"io/ioutil"
+-	"os"
+ )
+ 
+ type Page struct {
+@@ -12,12 +11,12 @@ type Page struct {
+ 	Body  []byte
+ }
+ 
+-func (p *Page) save() os.Error {
++func (p *Page) save() error {
+ 	filename := p.Title + ".txt"
+ 	return ioutil.WriteFile(filename, p.Body, 0600)
+ }
+ 
+-func loadPage(title string) (*Page, os.Error) {
++func loadPage(title string) (*Page, error) {
+ 	filename := title + ".txt"
+ 	body, err := ioutil.ReadFile(filename)
+ 	if err != nil {
+diff --git a/doc/codewalk/urlpoll.go b/doc/codewalk/urlpoll.go
+index b51be9502c..b320eb1837 100644
+--- a/doc/codewalk/urlpoll.go
++++ b/doc/codewalk/urlpoll.go
+@@ -71,7 +71,7 @@ func (r *Resource) Poll() string {
+ 	if err != nil {
+ 		log.Println("Error", r.url, err)
+ 		r.errCount++
+-		return err.String()
++		return err.Error()
+ 	}
+ 	r.errCount = 0
+ 	return resp.Status
+diff --git a/doc/go_tutorial.html b/doc/go_tutorial.html
+index aa8db870d3..0127783a74 100644
+--- a/doc/go_tutorial.html
++++ b/doc/go_tutorial.html
+@@ -556,7 +556,7 @@ The <code>newFile</code> function was not exported because it's internal. The pr
+ exported factory to use is <code>OpenFile</code> (we'll explain that name in a moment):
+ <p>
+ <pre><!--{{code "progs/file.go" `/func.OpenFile/` `/^}/`}}
+--->func OpenFile(name string, mode int, perm uint32) (file *File, err os.Error) {
++-->func OpenFile(name string, mode int, perm uint32) (file *File, err error) {
+     r, e := syscall.Open(name, mode, perm)
+     if e != 0 {
+         err = os.Errno(e)
+@@ -603,13 +603,13 @@ the tricky standard arguments to open and, especially, to create a file:
+     O_TRUNC  = syscall.O_TRUNC
+ )
+ 
+-func Open(name string) (file *File, err os.Error) {
++func Open(name string) (file *File, err error) {
+     return OpenFile(name, O_RDONLY, 0)
+ }
+ </pre>
+ <p>
+ <pre><!--{{code "progs/file.go" `/func.Create/` `/^}/`}}
+--->func Create(name string) (file *File, err os.Error) {
++-->func Create(name string) (file *File, err error) {
+     return OpenFile(name, O_RDWR|O_CREATE|O_TRUNC, 0666)
+ }
+ </pre>
+@@ -622,7 +622,7 @@ in parentheses before the function name. Here are some methods for <code>*File</
+ each of which declares a receiver variable <code>file</code>.
+ <p>
+ <pre><!--{{code "progs/file.go" `/Close/` "$"}}
+--->func (file *File) Close() os.Error {
++-->func (file *File) Close() error {
+     if file == nil {
+         return os.EINVAL
+     }
+@@ -634,7 +634,7 @@ each of which declares a receiver variable <code>file</code>.
+     return nil
+ }
+ 
+-func (file *File) Read(b []byte) (ret int, err os.Error) {
++func (file *File) Read(b []byte) (ret int, err error) {
+     if file == nil {
+         return -1, os.EINVAL
+     }
+@@ -645,7 +645,7 @@ func (file *File) Read(b []byte) (ret int, err os.Error) {
+     return int(r), err
+ }
+ 
+-func (file *File) Write(b []byte) (ret int, err os.Error) {
++func (file *File) Write(b []byte) (ret int, err error) {
+     if file == nil {
+         return -1, os.EINVAL
+     }
+@@ -690,7 +690,7 @@ func main() {
+     file.Stdout.Write(hello)
+     f, err := file.Open(&#34;/does/not/exist&#34;)
+     if f == nil {
+-        fmt.Printf(&#34;can&#39;t open file; err=%s\n&#34;, err.String())
++        fmt.Printf(&#34;can&#39;t open file; err=%s\n&#34;, err.Error())
+         os.Exit(1)
+     }
+ }
+@@ -793,7 +793,7 @@ Here is code from <code>progs/cat_rot13.go</code>:
+ <p>
+ <pre><!--{{code "progs/cat_rot13.go" `/type.reader/` `/^}/`}}
+ -->type reader interface {
+-    Read(b []byte) (ret int, err os.Error)
++    Read(b []byte) (ret int, err error)
+     String() string
+ }
+ </pre>
+@@ -817,7 +817,7 @@ func newRotate13(source reader) *rotate13 {
+     return &amp;rotate13{source}
+ }
+ 
+-func (r13 *rotate13) Read(b []byte) (ret int, err os.Error) {
++func (r13 *rotate13) Read(b []byte) (ret int, err error) {
+     r, e := r13.source.Read(b)
+     for i := 0; i &lt; r; i++ {
+         b[i] = rot13(b[i])
+diff --git a/doc/progs/cat_rot13.go b/doc/progs/cat_rot13.go
+index 5df5972020..ec2521ce50 100644
+--- a/doc/progs/cat_rot13.go
++++ b/doc/progs/cat_rot13.go
+@@ -24,7 +24,7 @@ func rot13(b byte) byte {
+ }
+ 
+ type reader interface {
+-	Read(b []byte) (ret int, err os.Error)
++	Read(b []byte) (ret int, err error)
+ 	String() string
+ }
+ 
+@@ -36,7 +36,7 @@ func newRotate13(source reader) *rotate13 {
+ 	return &rotate13{source}
+ }
+ 
+-func (r13 *rotate13) Read(b []byte) (ret int, err os.Error) {
++func (r13 *rotate13) Read(b []byte) (ret int, err error) {
+ 	r, e := r13.source.Read(b)
+ 	for i := 0; i < r; i++ {
+ 		b[i] = rot13(b[i])
+diff --git a/doc/progs/file.go b/doc/progs/file.go
+index 2875ce73a6..7806b65c77 100644
+--- a/doc/progs/file.go
++++ b/doc/progs/file.go
+@@ -27,7 +27,7 @@ var (
+ 	Stderr = newFile(syscall.Stderr, "/dev/stderr")
+ )
+ 
+-func OpenFile(name string, mode int, perm uint32) (file *File, err os.Error) {
++func OpenFile(name string, mode int, perm uint32) (file *File, err error) {
+ 	r, e := syscall.Open(name, mode, perm)
+ 	if e != 0 {
+ 		err = os.Errno(e)
+@@ -42,15 +42,15 @@ const (
+ 	O_TRUNC  = syscall.O_TRUNC
+ )
+ 
+-func Open(name string) (file *File, err os.Error) {
++func Open(name string) (file *File, err error) {
+ 	return OpenFile(name, O_RDONLY, 0)
+ }
+ 
+-func Create(name string) (file *File, err os.Error) {
++func Create(name string) (file *File, err error) {
+ 	return OpenFile(name, O_RDWR|O_CREATE|O_TRUNC, 0666)
+ }
+ 
+-func (file *File) Close() os.Error {
++func (file *File) Close() error {
+ 	if file == nil {
+ 		return os.EINVAL
+ 	}
+@@ -62,7 +62,7 @@ func (file *File) Close() os.Error {
+ 	return nil
+ }
+ 
+-func (file *File) Read(b []byte) (ret int, err os.Error) {
++func (file *File) Read(b []byte) (ret int, err error) {
+ 	if file == nil {
+ 		return -1, os.EINVAL
+ 	}
+@@ -73,7 +73,7 @@ func (file *File) Read(b []byte) (ret int, err os.Error) {
+ 	return int(r), err
+ }
+ 
+-func (file *File) Write(b []byte) (ret int, err os.Error) {
++func (file *File) Write(b []byte) (ret int, err error) {
+ 	if file == nil {
+ 		return -1, os.EINVAL
+ 	}
+diff --git a/doc/progs/file_windows.go b/doc/progs/file_windows.go
+index bfbac75ad0..ce3ad5248d 100644
+--- a/doc/progs/file_windows.go
++++ b/doc/progs/file_windows.go
+@@ -27,7 +27,7 @@ var (
+ 	Stderr = newFile(syscall.Stderr, "/dev/stderr")
+ )
+ 
+-func OpenFile(name string, mode int, perm uint32) (file *File, err os.Error) {
++func OpenFile(name string, mode int, perm uint32) (file *File, err error) {
+ 	r, e := syscall.Open(name, mode, perm)
+ 	if e != 0 {
+ 		err = os.Errno(e)
+@@ -42,15 +42,15 @@ const (
+ 	O_TRUNC  = syscall.O_TRUNC
+ )
+ 
+-func Open(name string) (file *File, err os.Error) {
++func Open(name string) (file *File, err error) {
+ 	return OpenFile(name, O_RDONLY, 0)
+ }
+ 
+-func Create(name string) (file *File, err os.Error) {
++func Create(name string) (file *File, err error) {
+ 	return OpenFile(name, O_RDWR|O_CREATE|O_TRUNC, 0666)
+ }
+ 
+-func (file *File) Close() os.Error {
++func (file *File) Close() error {
+ 	if file == nil {
+ 		return os.EINVAL
+ 	}
+@@ -62,7 +62,7 @@ func (file *File) Close() os.Error {
+ 	return nil
+ }
+ 
+-func (file *File) Read(b []byte) (ret int, err os.Error) {
++func (file *File) Read(b []byte) (ret int, err error) {
+ 	if file == nil {
+ 		return -1, os.EINVAL
+ 	}
+@@ -73,7 +73,7 @@ func (file *File) Read(b []byte) (ret int, err os.Error) {
+ 	return int(r), err
+ }
+ 
+-func (file *File) Write(b []byte) (ret int, err os.Error) {
++func (file *File) Write(b []byte) (ret int, err error) {
+ 	if file == nil {
+ 		return -1, os.EINVAL
+ 	}
+diff --git a/doc/progs/helloworld3.go b/doc/progs/helloworld3.go
+index 2011513b73..05d26df1c0 100644
+--- a/doc/progs/helloworld3.go
++++ b/doc/progs/helloworld3.go
+@@ -15,7 +15,7 @@ func main() {
+ 	file.Stdout.Write(hello)
+ 	f, err := file.Open("/does/not/exist")
+ 	if f == nil {
+-		fmt.Printf("can't open file; err=%s\n", err.String())
++		fmt.Printf("can't open file; err=%s\n", err.Error())
+ 		os.Exit(1)
+ 	}
+ }
+diff --git a/doc/talks/io2010/decrypt.go b/doc/talks/io2010/decrypt.go
+index 0a6c006e24..e63418b1ae 100644
+--- a/doc/talks/io2010/decrypt.go
++++ b/doc/talks/io2010/decrypt.go
+@@ -15,7 +15,7 @@ import (
+ 	"os"
+ )
+ 
+-func EncryptAndGzip(dstfile, srcfile string, key, iv []byte) os.Error {
++func EncryptAndGzip(dstfile, srcfile string, key, iv []byte) error {
+ 	r, err := os.Open(srcfile)
+ 	if err != nil {
+ 		return err
+@@ -39,7 +39,7 @@ func EncryptAndGzip(dstfile, srcfile string, key, iv []byte) os.Error {
+ 	return err
+ }
+ 
+-func DecryptAndGunzip(dstfile, srcfile string, key, iv []byte) os.Error {
++func DecryptAndGunzip(dstfile, srcfile string, key, iv []byte) error {
+ 	f, err := os.Open(srcfile)
+ 	if err != nil {
+ 		return err
+diff --git a/doc/talks/io2010/encrypt.go b/doc/talks/io2010/encrypt.go
+index c6508bba15..57c888c741 100644
+--- a/doc/talks/io2010/encrypt.go
++++ b/doc/talks/io2010/encrypt.go
+@@ -15,7 +15,7 @@ import (
+ 	"os"
+ )
+ 
+-func EncryptAndGzip(dstfile, srcfile string, key, iv []byte) os.Error {
++func EncryptAndGzip(dstfile, srcfile string, key, iv []byte) error {
+ 	r, err := os.Open(srcfile)
+ 	if err != nil {
+ 		return err
+diff --git a/doc/tmpltohtml.go b/doc/tmpltohtml.go
+index 4a8d0265fc..25bc3a4dbe 100644
+--- a/doc/tmpltohtml.go
++++ b/doc/tmpltohtml.go
+@@ -2,7 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-
+ // The template uses the function "code" to inject program
+ // source into the output by extracting code from files and
+ // injecting them as HTML-escaped <pre> blocks.
+@@ -81,7 +80,7 @@ func format(arg interface{}) string {
+ 	return ""
+ }
+ 
+-func code(file string, arg ...interface{}) (string, os.Error) {
++func code(file string, arg ...interface{}) (string, error) {
+ 	text := contents(file)
+ 	var command string
+ 	switch len(arg) {
+diff --git a/misc/cgo/gmp/gmp.go b/misc/cgo/gmp/gmp.go
+index 3dbc022ce5..9325d8bfde 100644
+--- a/misc/cgo/gmp/gmp.go
++++ b/misc/cgo/gmp/gmp.go
+@@ -179,7 +179,7 @@ func (z *Int) SetInt64(x int64) *Int {
+ // SetString interprets s as a number in the given base
+ // and sets z to that value.  The base must be in the range [2,36].
+ // SetString returns an error if s cannot be parsed or the base is invalid.
+-func (z *Int) SetString(s string, base int) os.Error {
++func (z *Int) SetString(s string, base int) error {
+ 	z.doinit()
+ 	if base < 2 || base > 36 {
+ 		return os.EINVAL
+diff --git a/misc/cgo/test/basic.go b/misc/cgo/test/basic.go
+index 626e0e91bd..5fb2d07d5c 100644
+--- a/misc/cgo/test/basic.go
++++ b/misc/cgo/test/basic.go
+@@ -69,7 +69,7 @@ func uuidgen() {
+ 	C.uuid_generate(&uuid[0])
+ }
+ 
+-func Size(name string) (int64, os.Error) {
++func Size(name string) (int64, error) {
+ 	var st C.struct_stat
+ 	p := C.CString(name)
+ 	_, err := C.stat(p, &st)
+@@ -80,7 +80,7 @@ func Size(name string) (int64, os.Error) {
+ 	return int64(C.ulong(st.st_size)), nil
+ }
+ 
+-func Strtol(s string, base int) (int, os.Error) {
++func Strtol(s string, base int) (int, error) {
+ 	p := C.CString(s)
+ 	n, err := C.strtol(p, nil, C.int(base))
+ 	C.free(unsafe.Pointer(p))
+diff --git a/misc/dashboard/builder/exec.go b/misc/dashboard/builder/exec.go
+index a042c56994..b034aa38cf 100644
+--- a/misc/dashboard/builder/exec.go
++++ b/misc/dashboard/builder/exec.go
+@@ -14,7 +14,7 @@ import (
+ )
+ 
+ // run is a simple wrapper for exec.Run/Close
+-func run(envv []string, dir string, argv ...string) os.Error {
++func run(envv []string, dir string, argv ...string) error {
+ 	if *verbose {
+ 		log.Println("run", argv)
+ 	}
+@@ -31,7 +31,7 @@ func run(envv []string, dir string, argv ...string) os.Error {
+ // process combined stdout and stderr output, exit status and error.
+ // The error returned is nil, if process is started successfully,
+ // even if exit status is not 0.
+-func runLog(envv []string, logfile, dir string, argv ...string) (string, int, os.Error) {
++func runLog(envv []string, logfile, dir string, argv ...string) (string, int, error) {
+ 	if *verbose {
+ 		log.Println("runLog", argv)
+ 	}
+@@ -56,7 +56,7 @@ func runLog(envv []string, logfile, dir string, argv ...string) (string, int, os
+ 
+ 	err := cmd.Run()
+ 	if err != nil {
+-		if ws, ok := err.(*os.Waitmsg); ok {
++		if ws, ok := err.(*exec.ExitError); ok {
+ 			return b.String(), ws.ExitStatus(), nil
+ 		}
+ 	}
+diff --git a/misc/dashboard/builder/http.go b/misc/dashboard/builder/http.go
+index abef8faa48..3bc2f194d2 100644
+--- a/misc/dashboard/builder/http.go
++++ b/misc/dashboard/builder/http.go
+@@ -6,11 +6,11 @@ package main
+ 
+ import (
+ 	"bytes"
++	"errors"
+ 	"fmt"
+ 	"http"
+ 	"json"
+ 	"log"
+-	"os"
+ 	"strconv"
+ 	"url"
+ )
+@@ -20,9 +20,9 @@ type param map[string]string
+ // dash runs the given method and command on the dashboard.
+ // If args is not nil, it is the query or post parameters.
+ // If resp is not nil, dash unmarshals the body as JSON into resp.
+-func dash(meth, cmd string, resp interface{}, args param) os.Error {
++func dash(meth, cmd string, resp interface{}, args param) error {
+ 	var r *http.Response
+-	var err os.Error
++	var err error
+ 	if *verbose {
+ 		log.Println("dash", cmd, args)
+ 	}
+@@ -57,7 +57,7 @@ func dash(meth, cmd string, resp interface{}, args param) os.Error {
+ 	return nil
+ }
+ 
+-func dashStatus(meth, cmd string, args param) os.Error {
++func dashStatus(meth, cmd string, args param) error {
+ 	var resp struct {
+ 		Status string
+ 		Error  string
+@@ -67,13 +67,13 @@ func dashStatus(meth, cmd string, args param) os.Error {
+ 		return err
+ 	}
+ 	if resp.Status != "OK" {
+-		return os.NewError("/build: " + resp.Error)
++		return errors.New("/build: " + resp.Error)
+ 	}
+ 	return nil
+ }
+ 
+ // todo returns the next hash to build.
+-func (b *Builder) todo() (rev string, err os.Error) {
++func (b *Builder) todo() (rev string, err error) {
+ 	var resp []struct {
+ 		Hash string
+ 	}
+@@ -87,7 +87,7 @@ func (b *Builder) todo() (rev string, err os.Error) {
+ }
+ 
+ // recordResult sends build results to the dashboard
+-func (b *Builder) recordResult(buildLog string, hash string) os.Error {
++func (b *Builder) recordResult(buildLog string, hash string) error {
+ 	return dash("POST", "build", nil, param{
+ 		"builder": b.name,
+ 		"key":     b.key,
+@@ -97,7 +97,7 @@ func (b *Builder) recordResult(buildLog string, hash string) os.Error {
+ }
+ 
+ // packages fetches a list of package paths from the dashboard
+-func packages() (pkgs []string, err os.Error) {
++func packages() (pkgs []string, err error) {
+ 	var resp struct {
+ 		Packages []struct {
+ 			Path string
+@@ -114,7 +114,7 @@ func packages() (pkgs []string, err os.Error) {
+ }
+ 
+ // updatePackage sends package build results and info dashboard
+-func (b *Builder) updatePackage(pkg string, ok bool, buildLog, info string) os.Error {
++func (b *Builder) updatePackage(pkg string, ok bool, buildLog, info string) error {
+ 	return dash("POST", "package", nil, param{
+ 		"builder": b.name,
+ 		"key":     b.key,
+@@ -126,7 +126,7 @@ func (b *Builder) updatePackage(pkg string, ok bool, buildLog, info string) os.E
+ }
+ 
+ // postCommit informs the dashboard of a new commit
+-func postCommit(key string, l *HgLog) os.Error {
++func postCommit(key string, l *HgLog) error {
+ 	return dashStatus("POST", "commit", param{
+ 		"key":    key,
+ 		"node":   l.Hash,
+diff --git a/misc/dashboard/builder/main.go b/misc/dashboard/builder/main.go
+index a5479846db..abc866a7a4 100644
+--- a/misc/dashboard/builder/main.go
++++ b/misc/dashboard/builder/main.go
+@@ -5,6 +5,7 @@
+ package main
+ 
+ import (
++	"errors"
+ 	"flag"
+ 	"fmt"
+ 	"io/ioutil"
+@@ -158,7 +159,7 @@ func main() {
+ 	}
+ }
+ 
+-func NewBuilder(builder string) (*Builder, os.Error) {
++func NewBuilder(builder string) (*Builder, error) {
+ 	b := &Builder{name: builder}
+ 
+ 	// get goos/goarch from builder string
+@@ -259,7 +260,7 @@ func (b *Builder) build() bool {
+ 	return true
+ }
+ 
+-func (b *Builder) buildHash(hash string) (err os.Error) {
++func (b *Builder) buildHash(hash string) (err error) {
+ 	defer func() {
+ 		if err != nil {
+ 			err = fmt.Errorf("%s build: %s: %s", b.name, hash, err)
+@@ -301,7 +302,7 @@ func (b *Builder) buildHash(hash string) (err os.Error) {
+ 	// if we're in external mode, build all packages and return
+ 	if *external {
+ 		if status != 0 {
+-			return os.NewError("go build failed")
++			return errors.New("go build failed")
+ 		}
+ 		return b.buildPackages(workpath, hash)
+ 	}
+@@ -572,7 +573,7 @@ func addCommit(hash, key string) bool {
+ }
+ 
+ // fullHash returns the full hash for the given Mercurial revision.
+-func fullHash(rev string) (hash string, err os.Error) {
++func fullHash(rev string) (hash string, err error) {
+ 	defer func() {
+ 		if err != nil {
+ 			err = fmt.Errorf("fullHash: %s: %s", rev, err)
+@@ -601,7 +602,7 @@ func fullHash(rev string) (hash string, err os.Error) {
+ var revisionRe = regexp.MustCompile(`^([^ ]+) +[0-9]+:([0-9a-f]+)$`)
+ 
+ // firstTag returns the hash and tag of the most recent tag matching re.
+-func firstTag(re *regexp.Regexp) (hash string, tag string, err os.Error) {
++func firstTag(re *regexp.Regexp) (hash string, tag string, err error) {
+ 	o, _, err := runLog(nil, "", goroot, "hg", "tags")
+ 	for _, l := range strings.Split(o, "\n") {
+ 		if l == "" {
+@@ -609,7 +610,7 @@ func firstTag(re *regexp.Regexp) (hash string, tag string, err os.Error) {
+ 		}
+ 		s := revisionRe.FindStringSubmatch(l)
+ 		if s == nil {
+-			err = os.NewError("couldn't find revision number")
++			err = errors.New("couldn't find revision number")
+ 			return
+ 		}
+ 		if !re.MatchString(s[1]) {
+@@ -619,6 +620,6 @@ func firstTag(re *regexp.Regexp) (hash string, tag string, err os.Error) {
+ 		hash, err = fullHash(s[2])
+ 		return
+ 	}
+-	err = os.NewError("no matching tag found")
++	err = errors.New("no matching tag found")
+ 	return
+ }
+diff --git a/misc/dashboard/builder/package.go b/misc/dashboard/builder/package.go
+index ebf4dd3c9a..565fec614e 100644
+--- a/misc/dashboard/builder/package.go
++++ b/misc/dashboard/builder/package.go
+@@ -5,6 +5,7 @@
+ package main
+ 
+ import (
++	"errors"
+ 	"fmt"
+ 	"go/doc"
+ 	"go/parser"
+@@ -17,7 +18,7 @@ import (
+ 
+ const MaxCommentLength = 500 // App Engine won't store more in a StringProperty.
+ 
+-func (b *Builder) buildPackages(workpath string, hash string) os.Error {
++func (b *Builder) buildPackages(workpath string, hash string) error {
+ 	logdir := filepath.Join(*buildroot, "log")
+ 	if err := os.Mkdir(logdir, 0755); err != nil {
+ 		return err
+@@ -87,7 +88,7 @@ func isGoFile(fi *os.FileInfo) bool {
+ 		filepath.Ext(fi.Name) == ".go"
+ }
+ 
+-func packageComment(pkg, pkgpath string) (info string, err os.Error) {
++func packageComment(pkg, pkgpath string) (info string, err error) {
+ 	fset := token.NewFileSet()
+ 	pkgs, err := parser.ParseDir(fset, pkgpath, isGoFile, parser.PackageClauseOnly|parser.ParseComments)
+ 	if err != nil {
+@@ -102,7 +103,7 @@ func packageComment(pkg, pkgpath string) (info string, err os.Error) {
+ 			continue
+ 		}
+ 		if info != "" {
+-			return "", os.NewError("multiple packages with docs")
++			return "", errors.New("multiple packages with docs")
+ 		}
+ 		info = pdoc.Doc
+ 	}
+diff --git a/misc/goplay/goplay.go b/misc/goplay/goplay.go
+index a1eb61795f..47dc323f4d 100644
+--- a/misc/goplay/goplay.go
++++ b/misc/goplay/goplay.go
+@@ -84,14 +84,14 @@ func Compile(w http.ResponseWriter, req *http.Request) {
+ 	// write request Body to x.go
+ 	f, err := os.Create(src)
+ 	if err != nil {
+-		error(w, nil, err)
++		error_(w, nil, err)
+ 		return
+ 	}
+ 	defer os.Remove(src)
+ 	defer f.Close()
+ 	_, err = io.Copy(f, req.Body)
+ 	if err != nil {
+-		error(w, nil, err)
++		error_(w, nil, err)
+ 		return
+ 	}
+ 	f.Close()
+@@ -100,7 +100,7 @@ func Compile(w http.ResponseWriter, req *http.Request) {
+ 	out, err := run(archChar+"g", "-o", obj, src)
+ 	defer os.Remove(obj)
+ 	if err != nil {
+-		error(w, out, err)
++		error_(w, out, err)
+ 		return
+ 	}
+ 
+@@ -108,14 +108,14 @@ func Compile(w http.ResponseWriter, req *http.Request) {
+ 	out, err = run(archChar+"l", "-o", bin, obj)
+ 	defer os.Remove(bin)
+ 	if err != nil {
+-		error(w, out, err)
++		error_(w, out, err)
+ 		return
+ 	}
+ 
+ 	// run x
+ 	out, err = run(bin)
+ 	if err != nil {
+-		error(w, out, err)
++		error_(w, out, err)
+ 	}
+ 
+ 	// write the output of x as the http response
+@@ -128,17 +128,17 @@ func Compile(w http.ResponseWriter, req *http.Request) {
+ 
+ // error writes compile, link, or runtime errors to the HTTP connection.
+ // The JavaScript interface uses the 404 status code to identify the error.
+-func error(w http.ResponseWriter, out []byte, err os.Error) {
++func error_(w http.ResponseWriter, out []byte, err error) {
+ 	w.WriteHeader(404)
+ 	if out != nil {
+ 		output.Execute(w, out)
+ 	} else {
+-		output.Execute(w, err.String())
++		output.Execute(w, err.Error())
+ 	}
+ }
+ 
+ // run executes the specified command and returns its output and an error.
+-func run(cmd ...string) ([]byte, os.Error) {
++func run(cmd ...string) ([]byte, error) {
+ 	return exec.Command(cmd[0], cmd[1:]...).CombinedOutput()
+ }
+ 
+diff --git a/src/cmd/cgo/ast.go b/src/cmd/cgo/ast.go
+index 73b7313d67..d2336ef6d5 100644
+--- a/src/cmd/cgo/ast.go
++++ b/src/cmd/cgo/ast.go
+@@ -71,7 +71,7 @@ func (f *File) ReadGo(name string) {
+ 			}
+ 			sawC = true
+ 			if s.Name != nil {
+-				error(s.Path.Pos(), `cannot rename import "C"`)
++				error_(s.Path.Pos(), `cannot rename import "C"`)
+ 			}
+ 			cg := s.Doc
+ 			if cg == nil && len(d.Specs) == 1 {
+@@ -84,7 +84,7 @@ func (f *File) ReadGo(name string) {
+ 		}
+ 	}
+ 	if !sawC {
+-		error(token.NoPos, `cannot find import "C"`)
++		error_(token.NoPos, `cannot find import "C"`)
+ 	}
+ 
+ 	// In ast2, strip the import "C" line.
+@@ -149,7 +149,7 @@ func (f *File) saveRef(x interface{}, context string) {
+ 			}
+ 			goname := sel.Sel.Name
+ 			if goname == "errno" {
+-				error(sel.Pos(), "cannot refer to errno directly; see documentation")
++				error_(sel.Pos(), "cannot refer to errno directly; see documentation")
+ 				return
+ 			}
+ 			name := f.Name[goname]
+@@ -186,11 +186,11 @@ func (f *File) saveExport(x interface{}, context string) {
+ 
+ 		name := strings.TrimSpace(string(c.Text[9:]))
+ 		if name == "" {
+-			error(c.Pos(), "export missing name")
++			error_(c.Pos(), "export missing name")
+ 		}
+ 
+ 		if name != n.Name.Name {
+-			error(c.Pos(), "export comment has wrong name %q, want %q", name, n.Name.Name)
++			error_(c.Pos(), "export comment has wrong name %q, want %q", name, n.Name.Name)
+ 		}
+ 
+ 		f.ExpFunc = append(f.ExpFunc, &ExpFunc{
+@@ -225,7 +225,7 @@ func (f *File) walk(x interface{}, context string, visit func(*File, interface{}
+ 
+ 	// everything else just recurs
+ 	default:
+-		error(token.NoPos, "unexpected type %T in walk", x, visit)
++		error_(token.NoPos, "unexpected type %T in walk", x, visit)
+ 		panic("unexpected type")
+ 
+ 	case nil:
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 97297a8604..67744dd0d9 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -14,6 +14,7 @@ import (
+ 	"debug/macho"
+ 	"debug/pe"
+ 	"encoding/binary"
++	"errors"
+ 	"flag"
+ 	"fmt"
+ 	"go/ast"
+@@ -147,10 +148,10 @@ func (p *Package) addToFlag(flag string, args []string) {
+ 
+ // pkgConfig runs pkg-config and extracts --libs and --cflags information
+ // for packages.
+-func pkgConfig(packages []string) (cflags, ldflags []string, err os.Error) {
++func pkgConfig(packages []string) (cflags, ldflags []string, err error) {
+ 	for _, name := range packages {
+ 		if len(name) == 0 || name[0] == '-' {
+-			return nil, nil, os.NewError(fmt.Sprintf("invalid name: %q", name))
++			return nil, nil, errors.New(fmt.Sprintf("invalid name: %q", name))
+ 		}
+ 	}
+ 
+@@ -158,7 +159,7 @@ func pkgConfig(packages []string) (cflags, ldflags []string, err os.Error) {
+ 	stdout, stderr, ok := run(nil, args)
+ 	if !ok {
+ 		os.Stderr.Write(stderr)
+-		return nil, nil, os.NewError("pkg-config failed")
++		return nil, nil, errors.New("pkg-config failed")
+ 	}
+ 	cflags, err = splitQuoted(string(stdout))
+ 	if err != nil {
+@@ -169,7 +170,7 @@ func pkgConfig(packages []string) (cflags, ldflags []string, err os.Error) {
+ 	stdout, stderr, ok = run(nil, args)
+ 	if !ok {
+ 		os.Stderr.Write(stderr)
+-		return nil, nil, os.NewError("pkg-config failed")
++		return nil, nil, errors.New("pkg-config failed")
+ 	}
+ 	ldflags, err = splitQuoted(string(stdout))
+ 	return
+@@ -191,7 +192,7 @@ func pkgConfig(packages []string) (cflags, ldflags []string, err os.Error) {
+ //
+ //     []string{"a", "b:c d", "ef", `g"`}
+ //
+-func splitQuoted(s string) (r []string, err os.Error) {
++func splitQuoted(s string) (r []string, err error) {
+ 	var args []string
+ 	arg := make([]rune, len(s))
+ 	escaped := false
+@@ -229,9 +230,9 @@ func splitQuoted(s string) (r []string, err os.Error) {
+ 		args = append(args, string(arg[:i]))
+ 	}
+ 	if quote != 0 {
+-		err = os.NewError("unclosed quote")
++		err = errors.New("unclosed quote")
+ 	} else if escaped {
+-		err = os.NewError("unfinished escaping")
++		err = errors.New("unfinished escaping")
+ 	}
+ 	return args, err
+ }
+@@ -420,7 +421,7 @@ func (p *Package) guessKinds(f *File) []*Name {
+ 		case strings.Contains(line, ": statement with no effect"):
+ 			what = "not-type" // const or func or var
+ 		case strings.Contains(line, "undeclared"):
+-			error(token.NoPos, "%s", strings.TrimSpace(line[colon+1:]))
++			error_(token.NoPos, "%s", strings.TrimSpace(line[colon+1:]))
+ 		case strings.Contains(line, "is not an integer constant"):
+ 			isConst[i] = false
+ 			continue
+@@ -448,7 +449,7 @@ func (p *Package) guessKinds(f *File) []*Name {
+ 		if n.Kind != "" {
+ 			continue
+ 		}
+-		error(token.NoPos, "could not determine kind of name for C.%s", n.Go)
++		error_(token.NoPos, "could not determine kind of name for C.%s", n.Go)
+ 	}
+ 	if nerrors > 0 {
+ 		fatalf("unresolved names")
+@@ -617,7 +618,7 @@ func (p *Package) rewriteRef(f *File) {
+ 	// functions are only used in calls.
+ 	for _, r := range f.Ref {
+ 		if r.Name.Kind == "const" && r.Name.Const == "" {
+-			error(r.Pos(), "unable to find value of constant C.%s", r.Name.Go)
++			error_(r.Pos(), "unable to find value of constant C.%s", r.Name.Go)
+ 		}
+ 		var expr ast.Expr = ast.NewIdent(r.Name.Mangle) // default
+ 		switch r.Context {
+@@ -628,12 +629,12 @@ func (p *Package) rewriteRef(f *File) {
+ 					expr = r.Name.Type.Go
+ 					break
+ 				}
+-				error(r.Pos(), "call of non-function C.%s", r.Name.Go)
++				error_(r.Pos(), "call of non-function C.%s", r.Name.Go)
+ 				break
+ 			}
+ 			if r.Context == "call2" {
+ 				if r.Name.FuncType.Result == nil {
+-					error(r.Pos(), "assignment count mismatch: 2 = 0")
++					error_(r.Pos(), "assignment count mismatch: 2 = 0")
+ 				}
+ 				// Invent new Name for the two-result function.
+ 				n := f.Name["2"+r.Name.Go]
+@@ -650,7 +651,7 @@ func (p *Package) rewriteRef(f *File) {
+ 			}
+ 		case "expr":
+ 			if r.Name.Kind == "func" {
+-				error(r.Pos(), "must call C.%s", r.Name.Go)
++				error_(r.Pos(), "must call C.%s", r.Name.Go)
+ 			}
+ 			if r.Name.Kind == "type" {
+ 				// Okay - might be new(T)
+@@ -662,13 +663,13 @@ func (p *Package) rewriteRef(f *File) {
+ 
+ 		case "type":
+ 			if r.Name.Kind != "type" {
+-				error(r.Pos(), "expression C.%s used as type", r.Name.Go)
++				error_(r.Pos(), "expression C.%s used as type", r.Name.Go)
+ 			} else {
+ 				expr = r.Name.Type.Go
+ 			}
+ 		default:
+ 			if r.Name.Kind == "func" {
+-				error(r.Pos(), "must call C.%s", r.Name.Go)
++				error_(r.Pos(), "must call C.%s", r.Name.Go)
+ 			}
+ 		}
+ 		*r.Expr = expr
+diff --git a/src/cmd/cgo/main.go b/src/cmd/cgo/main.go
+index 1066981145..7cc0795b03 100644
+--- a/src/cmd/cgo/main.go
++++ b/src/cmd/cgo/main.go
+@@ -255,7 +255,7 @@ func (p *Package) Record(f *File) {
+ 	if p.PackageName == "" {
+ 		p.PackageName = f.Package
+ 	} else if p.PackageName != f.Package {
+-		error(token.NoPos, "inconsistent package names: %s, %s", p.PackageName, f.Package)
++		error_(token.NoPos, "inconsistent package names: %s, %s", p.PackageName, f.Package)
+ 	}
+ 
+ 	if p.Name == nil {
+@@ -265,7 +265,7 @@ func (p *Package) Record(f *File) {
+ 			if p.Name[k] == nil {
+ 				p.Name[k] = v
+ 			} else if !reflect.DeepEqual(p.Name[k], v) {
+-				error(token.NoPos, "inconsistent definitions for C.%s", k)
++				error_(token.NoPos, "inconsistent definitions for C.%s", k)
+ 			}
+ 		}
+ 	}
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index 7f65f0644c..25f4f3e663 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -650,7 +650,7 @@ func (p *Package) cgoType(e ast.Expr) *Type {
+ 			}
+ 			return r
+ 		}
+-		error(e.Pos(), "unrecognized Go type %s", t.Name)
++		error_(e.Pos(), "unrecognized Go type %s", t.Name)
+ 		return &Type{Size: 4, Align: 4, C: c("int")}
+ 	case *ast.SelectorExpr:
+ 		id, ok := t.X.(*ast.Ident)
+@@ -658,7 +658,7 @@ func (p *Package) cgoType(e ast.Expr) *Type {
+ 			return &Type{Size: p.PtrSize, Align: p.PtrSize, C: c("void*")}
+ 		}
+ 	}
+-	error(e.Pos(), "unrecognized Go type %T", e)
++	error_(e.Pos(), "unrecognized Go type %T", e)
+ 	return &Type{Size: 4, Align: 4, C: c("int")}
+ }
+ 
+diff --git a/src/cmd/cgo/util.go b/src/cmd/cgo/util.go
+index a9c4e8fde7..b4a83bf12a 100644
+--- a/src/cmd/cgo/util.go
++++ b/src/cmd/cgo/util.go
+@@ -72,7 +72,7 @@ func fatalf(msg string, args ...interface{}) {
+ 
+ var nerrors int
+ 
+-func error(pos token.Pos, msg string, args ...interface{}) {
++func error_(pos token.Pos, msg string, args ...interface{}) {
+ 	nerrors++
+ 	if pos.IsValid() {
+ 		fmt.Fprintf(os.Stderr, "%s: ", fset.Position(pos).String())
+diff --git a/src/cmd/godoc/appinit.go b/src/cmd/godoc/appinit.go
+index 355d638b0d..37c55451a2 100644
+--- a/src/cmd/godoc/appinit.go
++++ b/src/cmd/godoc/appinit.go
+@@ -11,11 +11,10 @@ import (
+ 	"archive/zip"
+ 	"http"
+ 	"log"
+-	"os"
+ 	"path"
+ )
+ 
+-func serveError(w http.ResponseWriter, r *http.Request, relpath string, err os.Error) {
++func serveError(w http.ResponseWriter, r *http.Request, relpath string, err error) {
+ 	contents := applyTemplate(errorHTML, "errorHTML", err) // err may contain an absolute path!
+ 	w.WriteHeader(http.StatusNotFound)
+ 	servePage(w, "File "+relpath, "", "", contents)
+diff --git a/src/cmd/godoc/codewalk.go b/src/cmd/godoc/codewalk.go
+index 39f1fd5cbf..6f25769a3c 100644
+--- a/src/cmd/godoc/codewalk.go
++++ b/src/cmd/godoc/codewalk.go
+@@ -13,6 +13,7 @@
+ package main
+ 
+ import (
++	"errors"
+ 	"fmt"
+ 	"http"
+ 	"io"
+@@ -84,7 +85,7 @@ type Codestep struct {
+ 	XML   string `xml:"innerxml"`
+ 
+ 	// Derived from Src; not in XML.
+-	Err    os.Error
++	Err    error
+ 	File   string
+ 	Lo     int
+ 	LoByte int
+@@ -107,7 +108,7 @@ func (st *Codestep) String() string {
+ }
+ 
+ // loadCodewalk reads a codewalk from the named XML file.
+-func loadCodewalk(filename string) (*Codewalk, os.Error) {
++func loadCodewalk(filename string) (*Codewalk, error) {
+ 	f, err := fs.Open(filename)
+ 	if err != nil {
+ 		return nil, err
+@@ -252,7 +253,7 @@ func codewalkFileprint(w http.ResponseWriter, r *http.Request, f string) {
+ // It returns the lo and hi byte offset of the matched region within data.
+ // See http://plan9.bell-labs.com/sys/doc/sam/sam.html Table II
+ // for details on the syntax.
+-func addrToByteRange(addr string, start int, data []byte) (lo, hi int, err os.Error) {
++func addrToByteRange(addr string, start int, data []byte) (lo, hi int, err error) {
+ 	var (
+ 		dir        byte
+ 		prevc      byte
+@@ -264,7 +265,7 @@ func addrToByteRange(addr string, start int, data []byte) (lo, hi int, err os.Er
+ 		c := addr[0]
+ 		switch c {
+ 		default:
+-			err = os.NewError("invalid address syntax near " + string(c))
++			err = errors.New("invalid address syntax near " + string(c))
+ 		case ',':
+ 			if len(addr) == 1 {
+ 				hi = len(data)
+@@ -348,7 +349,7 @@ func addrToByteRange(addr string, start int, data []byte) (lo, hi int, err os.Er
+ // (or characters) after hi.  Applying -n (or -#n) means to back up n lines
+ // (or characters) before lo.
+ // The return value is the new lo, hi.
+-func addrNumber(data []byte, lo, hi int, dir byte, n int, charOffset bool) (int, int, os.Error) {
++func addrNumber(data []byte, lo, hi int, dir byte, n int, charOffset bool) (int, int, error) {
+ 	switch dir {
+ 	case 0:
+ 		lo = 0
+@@ -424,13 +425,13 @@ func addrNumber(data []byte, lo, hi int, dir byte, n int, charOffset bool) (int,
+ 		}
+ 	}
+ 
+-	return 0, 0, os.NewError("address out of range")
++	return 0, 0, errors.New("address out of range")
+ }
+ 
+ // addrRegexp searches for pattern in the given direction starting at lo, hi.
+ // The direction dir is '+' (search forward from hi) or '-' (search backward from lo).
+ // Backward searches are unimplemented.
+-func addrRegexp(data []byte, lo, hi int, dir byte, pattern string) (int, int, os.Error) {
++func addrRegexp(data []byte, lo, hi int, dir byte, pattern string) (int, int, error) {
+ 	re, err := regexp.Compile(pattern)
+ 	if err != nil {
+ 		return 0, 0, err
+@@ -438,7 +439,7 @@ func addrRegexp(data []byte, lo, hi int, dir byte, pattern string) (int, int, os
+ 	if dir == '-' {
+ 		// Could implement reverse search using binary search
+ 		// through file, but that seems like overkill.
+-		return 0, 0, os.NewError("reverse search not implemented")
++		return 0, 0, errors.New("reverse search not implemented")
+ 	}
+ 	m := re.FindIndex(data[hi:])
+ 	if len(m) > 0 {
+@@ -449,7 +450,7 @@ func addrRegexp(data []byte, lo, hi int, dir byte, pattern string) (int, int, os
+ 		m = re.FindIndex(data)
+ 	}
+ 	if len(m) == 0 {
+-		return 0, 0, os.NewError("no match for " + pattern)
++		return 0, 0, errors.New("no match for " + pattern)
+ 	}
+ 	return m[0], m[1], nil
+ }
+diff --git a/src/cmd/godoc/filesystem.go b/src/cmd/godoc/filesystem.go
+index 011977af90..ece9ebbf3e 100644
+--- a/src/cmd/godoc/filesystem.go
++++ b/src/cmd/godoc/filesystem.go
+@@ -27,14 +27,14 @@ type FileInfo interface {
+ // The FileSystem interface specifies the methods godoc is using
+ // to access the file system for which it serves documentation.
+ type FileSystem interface {
+-	Open(path string) (io.ReadCloser, os.Error)
+-	Lstat(path string) (FileInfo, os.Error)
+-	Stat(path string) (FileInfo, os.Error)
+-	ReadDir(path string) ([]FileInfo, os.Error)
++	Open(path string) (io.ReadCloser, error)
++	Lstat(path string) (FileInfo, error)
++	Stat(path string) (FileInfo, error)
++	ReadDir(path string) ([]FileInfo, error)
+ }
+ 
+ // ReadFile reads the file named by path from fs and returns the contents.
+-func ReadFile(fs FileSystem, path string) ([]byte, os.Error) {
++func ReadFile(fs FileSystem, path string) ([]byte, error) {
+ 	rc, err := fs.Open(path)
+ 	if err != nil {
+ 		return nil, err
+@@ -71,7 +71,7 @@ func (fi osFI) Mtime_ns() int64 {
+ // osFS is the OS-specific implementation of FileSystem
+ type osFS struct{}
+ 
+-func (osFS) Open(path string) (io.ReadCloser, os.Error) {
++func (osFS) Open(path string) (io.ReadCloser, error) {
+ 	f, err := os.Open(path)
+ 	if err != nil {
+ 		return nil, err
+@@ -86,17 +86,17 @@ func (osFS) Open(path string) (io.ReadCloser, os.Error) {
+ 	return f, nil
+ }
+ 
+-func (osFS) Lstat(path string) (FileInfo, os.Error) {
++func (osFS) Lstat(path string) (FileInfo, error) {
+ 	fi, err := os.Lstat(path)
+ 	return osFI{fi}, err
+ }
+ 
+-func (osFS) Stat(path string) (FileInfo, os.Error) {
++func (osFS) Stat(path string) (FileInfo, error) {
+ 	fi, err := os.Stat(path)
+ 	return osFI{fi}, err
+ }
+ 
+-func (osFS) ReadDir(path string) ([]FileInfo, os.Error) {
++func (osFS) ReadDir(path string) ([]FileInfo, error) {
+ 	l0, err := ioutil.ReadDir(path) // l0 is sorted
+ 	if err != nil {
+ 		return nil, err
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index d436898a2c..0d82a1504c 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -148,7 +148,7 @@ func getPathFilter() func(string) bool {
+ 
+ // readDirList reads a file containing a newline-separated list
+ // of directory paths and returns the list of paths.
+-func readDirList(filename string) ([]string, os.Error) {
++func readDirList(filename string) ([]string, error) {
+ 	contents, err := ReadFile(fs, filename)
+ 	if err != nil {
+ 		return nil, err
+@@ -299,7 +299,7 @@ type tconv struct {
+ 	indent int // valid if state == indenting
+ }
+ 
+-func (p *tconv) writeIndent() (err os.Error) {
++func (p *tconv) writeIndent() (err error) {
+ 	i := p.indent
+ 	for i >= len(spaces) {
+ 		i -= len(spaces)
+@@ -314,7 +314,7 @@ func (p *tconv) writeIndent() (err os.Error) {
+ 	return
+ }
+ 
+-func (p *tconv) Write(data []byte) (n int, err os.Error) {
++func (p *tconv) Write(data []byte) (n int, err error) {
+ 	if len(data) == 0 {
+ 		return
+ 	}
+@@ -855,7 +855,7 @@ type PageInfo struct {
+ 	Dirs     *DirList        // nil if no directory information
+ 	DirTime  int64           // directory time stamp in seconds since epoch
+ 	IsPkg    bool            // false if this is not documenting a real package
+-	Err      os.Error        // directory read error or nil
++	Err      error           // directory read error or nil
+ }
+ 
+ func (info *PageInfo) IsEmpty() bool {
+@@ -869,7 +869,7 @@ type httpHandler struct {
+ }
+ 
+ // fsReadDir implements ReadDir for the go/build package.
+-func fsReadDir(dir string) ([]*os.FileInfo, os.Error) {
++func fsReadDir(dir string) ([]*os.FileInfo, error) {
+ 	fi, err := fs.ReadDir(dir)
+ 	if err != nil {
+ 		return nil, err
+@@ -888,7 +888,7 @@ func fsReadDir(dir string) ([]*os.FileInfo, os.Error) {
+ }
+ 
+ // fsReadFile implements ReadFile for the go/build package.
+-func fsReadFile(dir, name string) (path string, data []byte, err os.Error) {
++func fsReadFile(dir, name string) (path string, data []byte, err error) {
+ 	path = filepath.Join(dir, name)
+ 	data, err = ReadFile(fs, path)
+ 	return
+@@ -1172,12 +1172,12 @@ func lookup(query string) (result SearchResult) {
+ 		index := index.(*Index)
+ 
+ 		// identifier search
+-		var err os.Error
++		var err error
+ 		result.Pak, result.Hit, result.Alt, err = index.Lookup(query)
+ 		if err != nil && *maxResults <= 0 {
+ 			// ignore the error if full text search is enabled
+ 			// since the query may be a valid regular expression
+-			result.Alert = "Error in query string: " + err.String()
++			result.Alert = "Error in query string: " + err.Error()
+ 			return
+ 		}
+ 
+@@ -1185,7 +1185,7 @@ func lookup(query string) (result SearchResult) {
+ 		if *maxResults > 0 && query != "" {
+ 			rx, err := regexp.Compile(query)
+ 			if err != nil {
+-				result.Alert = "Error in query regular expression: " + err.String()
++				result.Alert = "Error in query regular expression: " + err.Error()
+ 				return
+ 			}
+ 			// If we get maxResults+1 results we know that there are more than
+@@ -1280,7 +1280,7 @@ func fsDirnames() <-chan string {
+ 	return c
+ }
+ 
+-func readIndex(filenames string) os.Error {
++func readIndex(filenames string) error {
+ 	matches, err := filepath.Glob(filenames)
+ 	if err != nil {
+ 		return err
+diff --git a/src/cmd/godoc/httpzip.go b/src/cmd/godoc/httpzip.go
+index cb8322ee46..3e25b6473d 100644
+--- a/src/cmd/godoc/httpzip.go
++++ b/src/cmd/godoc/httpzip.go
+@@ -50,7 +50,7 @@ type httpZipFile struct {
+ 	list          zipList
+ }
+ 
+-func (f *httpZipFile) Close() os.Error {
++func (f *httpZipFile) Close() error {
+ 	if f.info.IsRegular() {
+ 		return f.ReadCloser.Close()
+ 	}
+@@ -58,11 +58,11 @@ func (f *httpZipFile) Close() os.Error {
+ 	return nil
+ }
+ 
+-func (f *httpZipFile) Stat() (*os.FileInfo, os.Error) {
++func (f *httpZipFile) Stat() (*os.FileInfo, error) {
+ 	return &f.info, nil
+ }
+ 
+-func (f *httpZipFile) Readdir(count int) ([]os.FileInfo, os.Error) {
++func (f *httpZipFile) Readdir(count int) ([]os.FileInfo, error) {
+ 	var list []os.FileInfo
+ 	dirname := f.path + "/"
+ 	prevname := ""
+@@ -106,13 +106,13 @@ func (f *httpZipFile) Readdir(count int) ([]os.FileInfo, os.Error) {
+ 	}
+ 
+ 	if count >= 0 && len(list) == 0 {
+-		return nil, os.EOF
++		return nil, io.EOF
+ 	}
+ 
+ 	return list, nil
+ }
+ 
+-func (f *httpZipFile) Seek(offset int64, whence int) (int64, os.Error) {
++func (f *httpZipFile) Seek(offset int64, whence int) (int64, error) {
+ 	return 0, fmt.Errorf("Seek not implemented for zip file entry: %s", f.info.Name)
+ }
+ 
+@@ -123,7 +123,7 @@ type httpZipFS struct {
+ 	root string
+ }
+ 
+-func (fs *httpZipFS) Open(name string) (http.File, os.Error) {
++func (fs *httpZipFS) Open(name string) (http.File, error) {
+ 	// fs.root does not start with '/'.
+ 	path := path.Join(fs.root, name) // path is clean
+ 	index, exact := fs.list.lookup(path)
+@@ -165,7 +165,7 @@ func (fs *httpZipFS) Open(name string) (http.File, os.Error) {
+ 	}, nil
+ }
+ 
+-func (fs *httpZipFS) Close() os.Error {
++func (fs *httpZipFS) Close() error {
+ 	fs.list = nil
+ 	return fs.ReadCloser.Close()
+ }
+diff --git a/src/cmd/godoc/index.go b/src/cmd/godoc/index.go
+index 4f687ea831..68d1abe643 100644
+--- a/src/cmd/godoc/index.go
++++ b/src/cmd/godoc/index.go
+@@ -40,6 +40,7 @@ package main
+ import (
+ 	"bufio"
+ 	"bytes"
++	"errors"
+ 	"go/ast"
+ 	"go/parser"
+ 	"go/token"
+@@ -47,7 +48,6 @@ import (
+ 	"gob"
+ 	"index/suffixarray"
+ 	"io"
+-	"os"
+ 	"path/filepath"
+ 	"regexp"
+ 	"sort"
+@@ -841,16 +841,16 @@ type fileIndex struct {
+ 	Fulltext bool
+ }
+ 
+-func (x *fileIndex) Write(w io.Writer) os.Error {
++func (x *fileIndex) Write(w io.Writer) error {
+ 	return gob.NewEncoder(w).Encode(x)
+ }
+ 
+-func (x *fileIndex) Read(r io.Reader) os.Error {
++func (x *fileIndex) Read(r io.Reader) error {
+ 	return gob.NewDecoder(r).Decode(x)
+ }
+ 
+ // Write writes the index x to w.
+-func (x *Index) Write(w io.Writer) os.Error {
++func (x *Index) Write(w io.Writer) error {
+ 	fulltext := false
+ 	if x.suffixes != nil {
+ 		fulltext = true
+@@ -877,7 +877,7 @@ func (x *Index) Write(w io.Writer) os.Error {
+ 
+ // Read reads the index from r into x; x must not be nil.
+ // If r does not also implement io.ByteReader, it will be wrapped in a bufio.Reader.
+-func (x *Index) Read(r io.Reader) os.Error {
++func (x *Index) Read(r io.Reader) error {
+ 	// We use the ability to read bytes as a plausible surrogate for buffering.
+ 	if _, ok := r.(io.ByteReader); !ok {
+ 		r = bufio.NewReader(r)
+@@ -934,13 +934,13 @@ func isIdentifier(s string) bool {
+ // identifier, Lookup returns a list of packages, a LookupResult, and a
+ // list of alternative spellings, if any. Any and all results may be nil.
+ // If the query syntax is wrong, an error is reported.
+-func (x *Index) Lookup(query string) (paks HitList, match *LookupResult, alt *AltWords, err os.Error) {
++func (x *Index) Lookup(query string) (paks HitList, match *LookupResult, alt *AltWords, err error) {
+ 	ss := strings.Split(query, ".")
+ 
+ 	// check query syntax
+ 	for _, s := range ss {
+ 		if !isIdentifier(s) {
+-			err = os.NewError("all query parts must be identifiers")
++			err = errors.New("all query parts must be identifiers")
+ 			return
+ 		}
+ 	}
+@@ -968,7 +968,7 @@ func (x *Index) Lookup(query string) (paks HitList, match *LookupResult, alt *Al
+ 		}
+ 
+ 	default:
+-		err = os.NewError("query is not a (qualified) identifier")
++		err = errors.New("query is not a (qualified) identifier")
+ 	}
+ 
+ 	return
+diff --git a/src/cmd/godoc/main.go b/src/cmd/godoc/main.go
+index d05e03e0b3..1a8db4708c 100644
+--- a/src/cmd/godoc/main.go
++++ b/src/cmd/godoc/main.go
+@@ -28,6 +28,7 @@ package main
+ import (
+ 	"archive/zip"
+ 	"bytes"
++	"errors"
+ 	_ "expvar" // to serve /debug/vars
+ 	"flag"
+ 	"fmt"
+@@ -74,7 +75,7 @@ var (
+ 	query = flag.Bool("q", false, "arguments are considered search queries")
+ )
+ 
+-func serveError(w http.ResponseWriter, r *http.Request, relpath string, err os.Error) {
++func serveError(w http.ResponseWriter, r *http.Request, relpath string, err error) {
+ 	contents := applyTemplate(errorHTML, "errorHTML", err) // err may contain an absolute path!
+ 	w.WriteHeader(http.StatusNotFound)
+ 	servePage(w, "File "+relpath, "", "", contents)
+@@ -163,7 +164,7 @@ func loggingHandler(h http.Handler) http.Handler {
+ 	})
+ }
+ 
+-func remoteSearch(query string) (res *http.Response, err os.Error) {
++func remoteSearch(query string) (res *http.Response, err error) {
+ 	search := "/search?f=text&q=" + url.QueryEscape(query)
+ 
+ 	// list of addresses to try
+@@ -188,7 +189,7 @@ func remoteSearch(query string) (res *http.Response, err os.Error) {
+ 	}
+ 
+ 	if err == nil && res.StatusCode != http.StatusOK {
+-		err = os.NewError(res.Status)
++		err = errors.New(res.Status)
+ 	}
+ 
+ 	return
+diff --git a/src/cmd/godoc/parser.go b/src/cmd/godoc/parser.go
+index a2920539f2..7597a00e79 100644
+--- a/src/cmd/godoc/parser.go
++++ b/src/cmd/godoc/parser.go
+@@ -13,11 +13,10 @@ import (
+ 	"go/ast"
+ 	"go/parser"
+ 	"go/token"
+-	"os"
+ 	"path/filepath"
+ )
+ 
+-func parseFile(fset *token.FileSet, filename string, mode uint) (*ast.File, os.Error) {
++func parseFile(fset *token.FileSet, filename string, mode uint) (*ast.File, error) {
+ 	src, err := ReadFile(fs, filename)
+ 	if err != nil {
+ 		return nil, err
+@@ -25,7 +24,7 @@ func parseFile(fset *token.FileSet, filename string, mode uint) (*ast.File, os.E
+ 	return parser.ParseFile(fset, filename, src, mode)
+ }
+ 
+-func parseFiles(fset *token.FileSet, filenames []string) (pkgs map[string]*ast.Package, first os.Error) {
++func parseFiles(fset *token.FileSet, filenames []string) (pkgs map[string]*ast.Package, first error) {
+ 	pkgs = make(map[string]*ast.Package)
+ 	for _, filename := range filenames {
+ 		file, err := parseFile(fset, filename, parser.ParseComments)
+@@ -48,7 +47,7 @@ func parseFiles(fset *token.FileSet, filenames []string) (pkgs map[string]*ast.P
+ 	return
+ }
+ 
+-func parseDir(fset *token.FileSet, path string, filter func(FileInfo) bool) (map[string]*ast.Package, os.Error) {
++func parseDir(fset *token.FileSet, path string, filter func(FileInfo) bool) (map[string]*ast.Package, error) {
+ 	list, err := fs.ReadDir(path)
+ 	if err != nil {
+ 		return nil, err
+diff --git a/src/cmd/godoc/utils.go b/src/cmd/godoc/utils.go
+index 11e46aee50..9ab5f83353 100644
+--- a/src/cmd/godoc/utils.go
++++ b/src/cmd/godoc/utils.go
+@@ -93,7 +93,7 @@ func canonicalizePaths(list []string, filter func(path string) bool) []string {
+ // writeFileAtomically writes data to a temporary file and then
+ // atomically renames that file to the file named by filename.
+ //
+-func writeFileAtomically(filename string, data []byte) os.Error {
++func writeFileAtomically(filename string, data []byte) error {
+ 	// TODO(gri) this won't work on appengine
+ 	f, err := ioutil.TempFile(filepath.Split(filename))
+ 	if err != nil {
+diff --git a/src/cmd/godoc/zip.go b/src/cmd/godoc/zip.go
+index 86cd79b17b..2012142228 100644
+--- a/src/cmd/godoc/zip.go
++++ b/src/cmd/godoc/zip.go
+@@ -22,7 +22,6 @@ import (
+ 	"archive/zip"
+ 	"fmt"
+ 	"io"
+-	"os"
+ 	"path"
+ 	"sort"
+ 	"strings"
+@@ -66,7 +65,7 @@ type zipFS struct {
+ 	list zipList
+ }
+ 
+-func (fs *zipFS) Close() os.Error {
++func (fs *zipFS) Close() error {
+ 	fs.list = nil
+ 	return fs.ReadCloser.Close()
+ }
+@@ -79,7 +78,7 @@ func zipPath(name string) string {
+ 	return name[1:] // strip leading '/'
+ }
+ 
+-func (fs *zipFS) stat(abspath string) (int, zipFI, os.Error) {
++func (fs *zipFS) stat(abspath string) (int, zipFI, error) {
+ 	i, exact := fs.list.lookup(abspath)
+ 	if i < 0 {
+ 		// abspath has leading '/' stripped - print it explicitly
+@@ -93,7 +92,7 @@ func (fs *zipFS) stat(abspath string) (int, zipFI, os.Error) {
+ 	return i, zipFI{name, file}, nil
+ }
+ 
+-func (fs *zipFS) Open(abspath string) (io.ReadCloser, os.Error) {
++func (fs *zipFS) Open(abspath string) (io.ReadCloser, error) {
+ 	_, fi, err := fs.stat(zipPath(abspath))
+ 	if err != nil {
+ 		return nil, err
+@@ -104,17 +103,17 @@ func (fs *zipFS) Open(abspath string) (io.ReadCloser, os.Error) {
+ 	return fi.file.Open()
+ }
+ 
+-func (fs *zipFS) Lstat(abspath string) (FileInfo, os.Error) {
++func (fs *zipFS) Lstat(abspath string) (FileInfo, error) {
+ 	_, fi, err := fs.stat(zipPath(abspath))
+ 	return fi, err
+ }
+ 
+-func (fs *zipFS) Stat(abspath string) (FileInfo, os.Error) {
++func (fs *zipFS) Stat(abspath string) (FileInfo, error) {
+ 	_, fi, err := fs.stat(zipPath(abspath))
+ 	return fi, err
+ }
+ 
+-func (fs *zipFS) ReadDir(abspath string) ([]FileInfo, os.Error) {
++func (fs *zipFS) ReadDir(abspath string) ([]FileInfo, error) {
+ 	path := zipPath(abspath)
+ 	i, fi, err := fs.stat(path)
+ 	if err != nil {
+diff --git a/src/cmd/gofix/main.go b/src/cmd/gofix/main.go
+index 56232d708a..f462c3dfb3 100644
+--- a/src/cmd/gofix/main.go
++++ b/src/cmd/gofix/main.go
+@@ -102,9 +102,9 @@ var printConfig = &printer.Config{
+ 	tabWidth,
+ }
+ 
+-func processFile(filename string, useStdin bool) os.Error {
++func processFile(filename string, useStdin bool) error {
+ 	var f *os.File
+-	var err os.Error
++	var err error
+ 	var fixlog bytes.Buffer
+ 	var buf bytes.Buffer
+ 
+@@ -196,12 +196,12 @@ func gofmt(n interface{}) string {
+ 	gofmtBuf.Reset()
+ 	_, err := printConfig.Fprint(&gofmtBuf, fset, n)
+ 	if err != nil {
+-		return "<" + err.String() + ">"
++		return "<" + err.Error() + ">"
+ 	}
+ 	return gofmtBuf.String()
+ }
+ 
+-func report(err os.Error) {
++func report(err error) {
+ 	scanner.PrintError(os.Stderr, err)
+ 	exitCode = 2
+ }
+@@ -210,7 +210,7 @@ func walkDir(path string) {
+ 	filepath.Walk(path, visitFile)
+ }
+ 
+-func visitFile(path string, f *os.FileInfo, err os.Error) os.Error {
++func visitFile(path string, f *os.FileInfo, err error) error {
+ 	if err == nil && isGoFile(f) {
+ 		err = processFile(path, false)
+ 	}
+@@ -225,7 +225,7 @@ func isGoFile(f *os.FileInfo) bool {
+ 	return f.IsRegular() && !strings.HasPrefix(f.Name, ".") && strings.HasSuffix(f.Name, ".go")
+ }
+ 
+-func diff(b1, b2 []byte) (data []byte, err os.Error) {
++func diff(b1, b2 []byte) (data []byte, err error) {
+ 	f1, err := ioutil.TempFile("", "gofix")
+ 	if err != nil {
+ 		return nil, err
+diff --git a/src/cmd/gofmt/gofmt.go b/src/cmd/gofmt/gofmt.go
+index 6ce99113ed..f5afa6f91b 100644
+--- a/src/cmd/gofmt/gofmt.go
++++ b/src/cmd/gofmt/gofmt.go
+@@ -49,7 +49,7 @@ var (
+ 	printerMode uint
+ )
+ 
+-func report(err os.Error) {
++func report(err error) {
+ 	scanner.PrintError(os.Stderr, err)
+ 	exitCode = 2
+ }
+@@ -86,7 +86,7 @@ func isGoFile(f *os.FileInfo) bool {
+ }
+ 
+ // If in == nil, the source is the contents of the file with the given filename.
+-func processFile(filename string, in io.Reader, out io.Writer, stdin bool) os.Error {
++func processFile(filename string, in io.Reader, out io.Writer, stdin bool) error {
+ 	if in == nil {
+ 		f, err := os.Open(filename)
+ 		if err != nil {
+@@ -156,7 +156,7 @@ func processFile(filename string, in io.Reader, out io.Writer, stdin bool) os.Er
+ 	return err
+ }
+ 
+-func visitFile(path string, f *os.FileInfo, err os.Error) os.Error {
++func visitFile(path string, f *os.FileInfo, err error) error {
+ 	if err == nil && isGoFile(f) {
+ 		err = processFile(path, nil, os.Stdout, false)
+ 	}
+@@ -225,7 +225,7 @@ func gofmtMain() {
+ 	}
+ }
+ 
+-func diff(b1, b2 []byte) (data []byte, err os.Error) {
++func diff(b1, b2 []byte) (data []byte, err error) {
+ 	f1, err := ioutil.TempFile("", "gofmt")
+ 	if err != nil {
+ 		return
+@@ -255,7 +255,7 @@ func diff(b1, b2 []byte) (data []byte, err os.Error) {
+ 
+ // parse parses src, which was read from filename,
+ // as a Go source file or statement list.
+-func parse(filename string, src []byte, stdin bool) (*ast.File, func(orig, src []byte) []byte, os.Error) {
++func parse(filename string, src []byte, stdin bool) (*ast.File, func(orig, src []byte) []byte, error) {
+ 	// Try as whole source file.
+ 	file, err := parser.ParseFile(fset, filename, src, parserMode)
+ 	if err == nil {
+@@ -264,7 +264,7 @@ func parse(filename string, src []byte, stdin bool) (*ast.File, func(orig, src [
+ 	// If the error is that the source file didn't begin with a
+ 	// package line and this is standard input, fall through to
+ 	// try as a source fragment.  Stop and return on any other error.
+-	if !stdin || !strings.Contains(err.String(), "expected 'package'") {
++	if !stdin || !strings.Contains(err.Error(), "expected 'package'") {
+ 		return nil, nil, err
+ 	}
+ 
+@@ -286,7 +286,7 @@ func parse(filename string, src []byte, stdin bool) (*ast.File, func(orig, src [
+ 	// If the error is that the source file didn't begin with a
+ 	// declaration, fall through to try as a statement list.
+ 	// Stop and return on any other error.
+-	if !strings.Contains(err.String(), "expected declaration") {
++	if !strings.Contains(err.Error(), "expected declaration") {
+ 		return nil, nil, err
+ 	}
+ 
+diff --git a/src/cmd/goinstall/download.go b/src/cmd/goinstall/download.go
+index 28924c70e4..927970a45b 100644
+--- a/src/cmd/goinstall/download.go
++++ b/src/cmd/goinstall/download.go
+@@ -8,6 +8,7 @@ package main
+ 
+ import (
+ 	"bytes"
++	"errors"
+ 	"exec"
+ 	"fmt"
+ 	"http"
+@@ -120,7 +121,7 @@ var vcsList = []*vcs{&git, &hg, &bzr, &svn}
+ 
+ type host struct {
+ 	pattern *regexp.Regexp
+-	getVcs  func(repo, path string) (*vcsMatch, os.Error)
++	getVcs  func(repo, path string) (*vcsMatch, error)
+ }
+ 
+ var knownHosts = []host{
+@@ -147,7 +148,7 @@ type vcsMatch struct {
+ 	prefix, repo string
+ }
+ 
+-func googleVcs(repo, path string) (*vcsMatch, os.Error) {
++func googleVcs(repo, path string) (*vcsMatch, error) {
+ 	parts := strings.SplitN(repo, "/", 2)
+ 	url := "https://" + repo
+ 	switch parts[1] {
+@@ -158,21 +159,21 @@ func googleVcs(repo, path string) (*vcsMatch, os.Error) {
+ 	case "hg":
+ 		return &vcsMatch{&hg, repo, url}, nil
+ 	}
+-	return nil, os.NewError("unsupported googlecode vcs: " + parts[1])
++	return nil, errors.New("unsupported googlecode vcs: " + parts[1])
+ }
+ 
+-func githubVcs(repo, path string) (*vcsMatch, os.Error) {
++func githubVcs(repo, path string) (*vcsMatch, error) {
+ 	if strings.HasSuffix(repo, ".git") {
+-		return nil, os.NewError("path must not include .git suffix")
++		return nil, errors.New("path must not include .git suffix")
+ 	}
+ 	return &vcsMatch{&git, repo, "http://" + repo + ".git"}, nil
+ }
+ 
+-func bitbucketVcs(repo, path string) (*vcsMatch, os.Error) {
++func bitbucketVcs(repo, path string) (*vcsMatch, error) {
+ 	const bitbucketApiUrl = "https://api.bitbucket.org/1.0/repositories/"
+ 
+ 	if strings.HasSuffix(repo, ".git") {
+-		return nil, os.NewError("path must not include .git suffix")
++		return nil, errors.New("path must not include .git suffix")
+ 	}
+ 
+ 	parts := strings.SplitN(repo, "/", 2)
+@@ -205,16 +206,16 @@ func bitbucketVcs(repo, path string) (*vcsMatch, os.Error) {
+ 		return &vcsMatch{&hg, repo, "http://" + repo}, nil
+ 	}
+ 
+-	return nil, os.NewError("unsupported bitbucket vcs: " + response.Vcs)
++	return nil, errors.New("unsupported bitbucket vcs: " + response.Vcs)
+ }
+ 
+-func launchpadVcs(repo, path string) (*vcsMatch, os.Error) {
++func launchpadVcs(repo, path string) (*vcsMatch, error) {
+ 	return &vcsMatch{&bzr, repo, "https://" + repo}, nil
+ }
+ 
+ // findPublicRepo checks whether pkg is located at one of
+ // the supported code hosting sites and, if so, returns a match.
+-func findPublicRepo(pkg string) (*vcsMatch, os.Error) {
++func findPublicRepo(pkg string) (*vcsMatch, error) {
+ 	for _, host := range knownHosts {
+ 		if hm := host.pattern.FindStringSubmatch(pkg); hm != nil {
+ 			return host.getVcs(hm[1], hm[2])
+@@ -224,7 +225,7 @@ func findPublicRepo(pkg string) (*vcsMatch, os.Error) {
+ }
+ 
+ // findAnyRepo looks for a vcs suffix in pkg (.git, etc) and returns a match.
+-func findAnyRepo(pkg string) (*vcsMatch, os.Error) {
++func findAnyRepo(pkg string) (*vcsMatch, error) {
+ 	for _, v := range vcsList {
+ 		i := strings.Index(pkg+"/", v.suffix+"/")
+ 		if i < 0 {
+@@ -272,9 +273,9 @@ func isRemote(pkg string) bool {
+ }
+ 
+ // download checks out or updates pkg from the remote server.
+-func download(pkg, srcDir string) (public bool, err os.Error) {
++func download(pkg, srcDir string) (public bool, err error) {
+ 	if strings.Contains(pkg, "..") {
+-		err = os.NewError("invalid path (contains ..)")
++		err = errors.New("invalid path (contains ..)")
+ 		return
+ 	}
+ 	m, err := findPublicRepo(pkg)
+@@ -290,7 +291,7 @@ func download(pkg, srcDir string) (public bool, err os.Error) {
+ 		}
+ 	}
+ 	if m == nil {
+-		err = os.NewError("cannot download: " + pkg)
++		err = errors.New("cannot download: " + pkg)
+ 		return
+ 	}
+ 	err = m.checkoutRepo(srcDir, m.prefix, m.repo)
+@@ -300,7 +301,7 @@ func download(pkg, srcDir string) (public bool, err os.Error) {
+ // updateRepo gets a list of tags in the repository and
+ // checks out the tag closest to the current runtime.Version.
+ // If no matching tag is found, it just updates to tip.
+-func (v *vcs) updateRepo(dst string) os.Error {
++func (v *vcs) updateRepo(dst string) error {
+ 	if v.tagList == "" || v.tagListRe == nil {
+ 		// TODO(adg): fix for svn
+ 		return run(dst, nil, v.cmd, v.update)
+@@ -382,11 +383,11 @@ func selectTag(goVersion string, tags []string) (match string) {
+ // exists and -u was specified on the command line)
+ // the repository at tag/branch "release".  If there is no
+ // such tag or branch, it falls back to the repository tip.
+-func (vcs *vcs) checkoutRepo(srcDir, pkgprefix, repo string) os.Error {
++func (vcs *vcs) checkoutRepo(srcDir, pkgprefix, repo string) error {
+ 	dst := filepath.Join(srcDir, filepath.FromSlash(pkgprefix))
+ 	dir, err := os.Stat(filepath.Join(dst, vcs.metadir))
+ 	if err == nil && !dir.IsDirectory() {
+-		return os.NewError("not a directory: " + dst)
++		return errors.New("not a directory: " + dst)
+ 	}
+ 	if err != nil {
+ 		parent, _ := filepath.Split(dst)
+diff --git a/src/cmd/goinstall/main.go b/src/cmd/goinstall/main.go
+index 91c8ad4f76..431a535f9b 100644
+--- a/src/cmd/goinstall/main.go
++++ b/src/cmd/goinstall/main.go
+@@ -6,6 +6,7 @@ package main
+ 
+ import (
+ 	"bytes"
++	"errors"
+ 	"exec"
+ 	"flag"
+ 	"fmt"
+@@ -31,7 +32,7 @@ const logfile = "goinstall.log"
+ var (
+ 	fset          = token.NewFileSet()
+ 	argv0         = os.Args[0]
+-	errors        = false
++	errors_       = false
+ 	parents       = make(map[string]string)
+ 	visit         = make(map[string]status)
+ 	installedPkgs = make(map[string]map[string]bool)
+@@ -67,7 +68,7 @@ func printf(format string, args ...interface{}) {
+ }
+ 
+ func errorf(format string, args ...interface{}) {
+-	errors = true
++	errors_ = true
+ 	logf(format, args...)
+ }
+ 
+@@ -119,7 +120,7 @@ func main() {
+ 
+ 		install(path, "")
+ 	}
+-	if errors {
++	if errors_ {
+ 		os.Exit(1)
+ 	}
+ }
+@@ -243,7 +244,7 @@ func install(pkg, parent string) {
+ 			install(p, pkg)
+ 		}
+ 	}
+-	if errors {
++	if errors_ {
+ 		return
+ 	}
+ 
+@@ -304,17 +305,17 @@ func isStandardPath(s string) bool {
+ // run runs the command cmd in directory dir with standard input stdin.
+ // If the command fails, run prints the command and output on standard error
+ // in addition to returning a non-nil os.Error.
+-func run(dir string, stdin []byte, cmd ...string) os.Error {
++func run(dir string, stdin []byte, cmd ...string) error {
+ 	return genRun(dir, stdin, cmd, false)
+ }
+ 
+ // quietRun is like run but prints nothing on failure unless -v is used.
+-func quietRun(dir string, stdin []byte, cmd ...string) os.Error {
++func quietRun(dir string, stdin []byte, cmd ...string) error {
+ 	return genRun(dir, stdin, cmd, true)
+ }
+ 
+ // genRun implements run and quietRun.
+-func genRun(dir string, stdin []byte, arg []string, quiet bool) os.Error {
++func genRun(dir string, stdin []byte, arg []string, quiet bool) error {
+ 	cmd := exec.Command(arg[0], arg[1:]...)
+ 	cmd.Stdin = bytes.NewBuffer(stdin)
+ 	cmd.Dir = dir
+@@ -329,7 +330,7 @@ func genRun(dir string, stdin []byte, arg []string, quiet bool) os.Error {
+ 			os.Stderr.Write(out)
+ 			fmt.Fprintf(os.Stderr, "--- %s\n", err)
+ 		}
+-		return os.NewError("running " + arg[0] + ": " + err.String())
++		return errors.New("running " + arg[0] + ": " + err.Error())
+ 	}
+ 	return nil
+ }
+diff --git a/src/cmd/goinstall/make.go b/src/cmd/goinstall/make.go
+index 7f41a913f8..c724cda47b 100644
+--- a/src/cmd/goinstall/make.go
++++ b/src/cmd/goinstall/make.go
+@@ -8,8 +8,8 @@ package main
+ 
+ import (
+ 	"bytes"
++	"errors"
+ 	"go/build"
+-	"os"
+ 	"path" // use for import paths
+ 	"strings"
+ 	"template"
+@@ -18,7 +18,7 @@ import (
+ // domake builds the package in dir.
+ // domake generates a standard Makefile and passes it
+ // to make on standard input.
+-func domake(dir, pkg string, tree *build.Tree, isCmd bool) (err os.Error) {
++func domake(dir, pkg string, tree *build.Tree, isCmd bool) (err error) {
+ 	makefile, err := makeMakefile(dir, pkg, tree, isCmd)
+ 	if err != nil {
+ 		return err
+@@ -36,9 +36,9 @@ func domake(dir, pkg string, tree *build.Tree, isCmd bool) (err os.Error) {
+ // makeMakefile computes the standard Makefile for the directory dir
+ // installing as package pkg.  It includes all *.go files in the directory
+ // except those in package main and those ending in _test.go.
+-func makeMakefile(dir, pkg string, tree *build.Tree, isCmd bool) ([]byte, os.Error) {
++func makeMakefile(dir, pkg string, tree *build.Tree, isCmd bool) ([]byte, error) {
+ 	if !safeName(pkg) {
+-		return nil, os.NewError("unsafe name: " + pkg)
++		return nil, errors.New("unsafe name: " + pkg)
+ 	}
+ 	targ := pkg
+ 	targDir := tree.PkgDir()
+@@ -56,7 +56,7 @@ func makeMakefile(dir, pkg string, tree *build.Tree, isCmd bool) ([]byte, os.Err
+ 	isCgo := make(map[string]bool, len(cgoFiles))
+ 	for _, file := range cgoFiles {
+ 		if !safeName(file) {
+-			return nil, os.NewError("bad name: " + file)
++			return nil, errors.New("bad name: " + file)
+ 		}
+ 		isCgo[file] = true
+ 	}
+@@ -64,7 +64,7 @@ func makeMakefile(dir, pkg string, tree *build.Tree, isCmd bool) ([]byte, os.Err
+ 	goFiles := make([]string, 0, len(dirInfo.GoFiles))
+ 	for _, file := range dirInfo.GoFiles {
+ 		if !safeName(file) {
+-			return nil, os.NewError("unsafe name: " + file)
++			return nil, errors.New("unsafe name: " + file)
+ 		}
+ 		if !isCgo[file] {
+ 			goFiles = append(goFiles, file)
+@@ -75,7 +75,7 @@ func makeMakefile(dir, pkg string, tree *build.Tree, isCmd bool) ([]byte, os.Err
+ 	cgoOFiles := make([]string, 0, len(dirInfo.CFiles))
+ 	for _, file := range dirInfo.CFiles {
+ 		if !safeName(file) {
+-			return nil, os.NewError("unsafe name: " + file)
++			return nil, errors.New("unsafe name: " + file)
+ 		}
+ 		// When cgo is in use, C files are compiled with gcc,
+ 		// otherwise they're compiled with gc.
+@@ -88,7 +88,7 @@ func makeMakefile(dir, pkg string, tree *build.Tree, isCmd bool) ([]byte, os.Err
+ 
+ 	for _, file := range dirInfo.SFiles {
+ 		if !safeName(file) {
+-			return nil, os.NewError("unsafe name: " + file)
++			return nil, errors.New("unsafe name: " + file)
+ 		}
+ 		oFiles = append(oFiles, file[:len(file)-2]+".$O")
+ 	}
+diff --git a/src/cmd/gotest/gotest.go b/src/cmd/gotest/gotest.go
+index ad350dbf0d..9a4d2e916d 100644
+--- a/src/cmd/gotest/gotest.go
++++ b/src/cmd/gotest/gotest.go
+@@ -307,7 +307,7 @@ func doRun(argv []string, returnStdout bool) string {
+ 		command = "bash"
+ 		argv = []string{"bash", "-c", cmd}
+ 	}
+-	var err os.Error
++	var err error
+ 	argv[0], err = exec.LookPath(argv[0])
+ 	if err != nil {
+ 		Fatalf("can't find %s: %s", command, err)
+diff --git a/src/cmd/govet/govet.go b/src/cmd/govet/govet.go
+index 98c7fc89b2..08b9845b37 100644
+--- a/src/cmd/govet/govet.go
++++ b/src/cmd/govet/govet.go
+@@ -61,7 +61,7 @@ func main() {
+ 			}
+ 			skip := 0
+ 			if colon := strings.LastIndex(name, ":"); colon > 0 {
+-				var err os.Error
++				var err error
+ 				skip, err = strconv.Atoi(name[colon+1:])
+ 				if err != nil {
+ 					errorf(`illegal format for "Func:N" argument %q; %s`, name, err)
+@@ -105,7 +105,7 @@ func doFile(name string, reader io.Reader) {
+ 	file.checkFile(name, parsedFile)
+ }
+ 
+-func visit(path string, f *os.FileInfo, err os.Error) os.Error {
++func visit(path string, f *os.FileInfo, err error) error {
+ 	if err != nil {
+ 		errorf("walk error: %s", err)
+ 		return nil
+diff --git a/src/cmd/hgpatch/main.go b/src/cmd/hgpatch/main.go
+index e072a80d9b..ec69340c39 100644
+--- a/src/cmd/hgpatch/main.go
++++ b/src/cmd/hgpatch/main.go
+@@ -31,7 +31,7 @@ func main() {
+ 
+ 	args := flag.Args()
+ 	var data []byte
+-	var err os.Error
++	var err error
+ 	switch len(args) {
+ 	case 0:
+ 		data, err = ioutil.ReadAll(os.Stdin)
+@@ -189,7 +189,7 @@ func makeParent(name string) {
+ 
+ // Copy of os.MkdirAll but adds to undo log after
+ // creating a directory.
+-func mkdirAll(path string, perm uint32) os.Error {
++func mkdirAll(path string, perm uint32) error {
+ 	dir, err := os.Lstat(path)
+ 	if err == nil {
+ 		if dir.IsDirectory() {
+@@ -230,7 +230,7 @@ func mkdirAll(path string, perm uint32) os.Error {
+ }
+ 
+ // If err != nil, process the undo log and exit.
+-func chk(err os.Error) {
++func chk(err error) {
+ 	if err != nil {
+ 		fmt.Fprintf(os.Stderr, "%s\n", err)
+ 		runUndo()
+@@ -239,15 +239,15 @@ func chk(err os.Error) {
+ }
+ 
+ // Undo log
+-type undo func() os.Error
++type undo func() error
+ 
+ var undoLog []undo
+ 
+ func undoRevert(name string) {
+-	undoLog = append(undoLog, undo(func() os.Error { return hgRevert(name) }))
++	undoLog = append(undoLog, undo(func() error { return hgRevert(name) }))
+ }
+ 
+-func undoRm(name string) { undoLog = append(undoLog, undo(func() os.Error { return os.Remove(name) })) }
++func undoRm(name string) { undoLog = append(undoLog, undo(func() error { return os.Remove(name) })) }
+ 
+ func runUndo() {
+ 	for i := len(undoLog) - 1; i >= 0; i-- {
+@@ -258,7 +258,7 @@ func runUndo() {
+ }
+ 
+ // hgRoot returns the root directory of the repository.
+-func hgRoot() (string, os.Error) {
++func hgRoot() (string, error) {
+ 	out, err := run([]string{"hg", "root"}, nil)
+ 	if err != nil {
+ 		return "", err
+@@ -276,7 +276,7 @@ func hgIncoming() bool {
+ 
+ // hgModified returns a list of the modified files in the
+ // repository.
+-func hgModified() ([]string, os.Error) {
++func hgModified() ([]string, error) {
+ 	out, err := run([]string{"hg", "status", "-n"}, nil)
+ 	if err != nil {
+ 		return nil, err
+@@ -285,33 +285,33 @@ func hgModified() ([]string, os.Error) {
+ }
+ 
+ // hgAdd adds name to the repository.
+-func hgAdd(name string) os.Error {
++func hgAdd(name string) error {
+ 	_, err := run([]string{"hg", "add", name}, nil)
+ 	return err
+ }
+ 
+ // hgRemove removes name from the repository.
+-func hgRemove(name string) os.Error {
++func hgRemove(name string) error {
+ 	_, err := run([]string{"hg", "rm", name}, nil)
+ 	return err
+ }
+ 
+ // hgRevert reverts name.
+-func hgRevert(name string) os.Error {
++func hgRevert(name string) error {
+ 	_, err := run([]string{"hg", "revert", name}, nil)
+ 	return err
+ }
+ 
+ // hgCopy copies src to dst in the repository.
+ // Note that the argument order matches io.Copy, not "hg cp".
+-func hgCopy(dst, src string) os.Error {
++func hgCopy(dst, src string) error {
+ 	_, err := run([]string{"hg", "cp", src, dst}, nil)
+ 	return err
+ }
+ 
+ // hgRename renames src to dst in the repository.
+ // Note that the argument order matches io.Copy, not "hg mv".
+-func hgRename(dst, src string) os.Error {
++func hgRename(dst, src string) error {
+ 	_, err := run([]string{"hg", "mv", src, dst}, nil)
+ 	return err
+ }
+@@ -326,7 +326,7 @@ var lookPathCache = make(map[string]string)
+ 
+ // run runs the command argv, resolving argv[0] if necessary by searching $PATH.
+ // It provides input on standard input to the command.
+-func run(argv []string, input []byte) (out string, err os.Error) {
++func run(argv []string, input []byte) (out string, err error) {
+ 	if len(argv) < 1 {
+ 		return "", &runError{dup(argv), os.EINVAL}
+ 	}
+@@ -354,7 +354,7 @@ func run(argv []string, input []byte) (out string, err os.Error) {
+ // A runError represents an error that occurred while running a command.
+ type runError struct {
+ 	cmd []string
+-	err os.Error
++	err error
+ }
+ 
+-func (e *runError) String() string { return strings.Join(e.cmd, " ") + ": " + e.err.String() }
++func (e *runError) Error() string { return strings.Join(e.cmd, " ") + ": " + e.err.Error() }
+diff --git a/test/chan/goroutines.go b/test/chan/goroutines.go
+index d8f8803dfe..371a173876 100644
+--- a/test/chan/goroutines.go
++++ b/test/chan/goroutines.go
+@@ -21,7 +21,7 @@ func f(left, right chan int) {
+ func main() {
+ 	var n = 10000
+ 	if len(os.Args) > 1 {
+-		var err os.Error
++		var err error
+ 		n, err = strconv.Atoi(os.Args[1])
+ 		if err != nil {
+ 			print("bad arg\n")
+diff --git a/test/env.go b/test/env.go
+index 28113bcb06..a4b9d05d87 100644
+--- a/test/env.go
++++ b/test/env.go
+@@ -14,7 +14,7 @@ import (
+ func main() {
+ 	ga, e0 := os.Getenverror("GOARCH")
+ 	if e0 != nil {
+-		print("$GOARCH: ", e0.String(), "\n")
++		print("$GOARCH: ", e0.Error(), "\n")
+ 		os.Exit(1)
+ 	}
+ 	if ga != runtime.GOARCH {
+@@ -23,7 +23,7 @@ func main() {
+ 	}
+ 	xxx, e1 := os.Getenverror("DOES_NOT_EXIST")
+ 	if e1 != os.ENOENV {
+-		print("$DOES_NOT_EXIST=", xxx, "; err = ", e1.String(), "\n")
++		print("$DOES_NOT_EXIST=", xxx, "; err = ", e1.Error(), "\n")
+ 		os.Exit(1)
+ 	}
+ }
+diff --git a/test/fixedbugs/bug243.go b/test/fixedbugs/bug243.go
+index 95514cfd65..e3ddf0e774 100644
+--- a/test/fixedbugs/bug243.go
++++ b/test/fixedbugs/bug243.go
+@@ -6,7 +6,7 @@
+ 
+ package main
+ 
+-import "os"
++import "errors"
+ 
+ // Issue 481: closures and var declarations
+ // with multiple variables assigned from one
+@@ -22,7 +22,7 @@ func main() {
+ 		}
+ 	}()
+ 
+-	var conn, _ = Dial("tcp", "", listen.Addr().String())
++	var conn, _ = Dial("tcp", "", listen.Addr().Error())
+ 	_ = conn
+ }
+ 
+@@ -37,8 +37,8 @@ func Listen(x, y string) (T, string) {
+ 	return global, y
+ }
+ 
+-func (t T) Addr() os.Error {
+-	return os.NewError("stringer")
++func (t T) Addr() error {
++	return errors.New("stringer")
+ }
+ 
+ func (t T) Accept() (int, string) {
+diff --git a/test/fixedbugs/bug262.go b/test/fixedbugs/bug262.go
+index 66f580bd1c..f5f2c35532 100644
+--- a/test/fixedbugs/bug262.go
++++ b/test/fixedbugs/bug262.go
+@@ -18,9 +18,9 @@ func f() string {
+ 	return "abc"
+ }
+ 
+-func g() *os.Error {
++func g() *error {
+ 	trace += "g"
+-	var x os.Error
++	var x error
+ 	return &x
+ }
+ 
+@@ -35,7 +35,6 @@ func i() *int {
+ 	return &i
+ }
+ 
+-
+ func main() {
+ 	m := make(map[string]int)
+ 	m[f()], *g() = strconv.Atoi(h())
+@@ -43,7 +42,7 @@ func main() {
+ 		println("BUG", m["abc"], trace)
+ 		panic("fail")
+ 	}
+-	mm := make(map[string]os.Error)
++	mm := make(map[string]error)
+ 	trace = ""
+ 	mm["abc"] = os.EINVAL
+ 	*i(), mm[f()] = strconv.Atoi(h())
+diff --git a/test/fixedbugs/bug286.go b/test/fixedbugs/bug286.go
+index 94423be817..eb67838561 100644
+--- a/test/fixedbugs/bug286.go
++++ b/test/fixedbugs/bug286.go
+@@ -12,16 +12,14 @@ type I interface {
+ 	f()
+ }
+ 
+-
+ var callee string
+-var error bool
++var error_ bool
+ 
+ type T int
+ 
+ func (t *T) f() { callee = "f" }
+ func (i *T) g() { callee = "g" }
+ 
+-
+ // test1 and test2 are the same except that in the interface J
+ // the entries are swapped. test2 and test3 are the same except
+ // that in test3 the interface J is declared outside the function.
+@@ -36,11 +34,10 @@ func test1(x I) {
+ 	x.(J).f()
+ 	if callee != "f" {
+ 		println("test1 called", callee)
+-		error = true
++		error_ = true
+ 	}
+ }
+ 
+-
+ func test2(x I) {
+ 	type J interface {
+ 		g()
+@@ -49,11 +46,10 @@ func test2(x I) {
+ 	x.(J).f()
+ 	if callee != "f" {
+ 		println("test2 called", callee)
+-		error = true
++		error_ = true
+ 	}
+ }
+ 
+-
+ type J interface {
+ 	g()
+ 	I
+@@ -63,7 +59,7 @@ func test3(x I) {
+ 	x.(J).f()
+ 	if callee != "f" {
+ 		println("test3 called", callee)
+-		error = true
++		error_ = true
+ 	}
+ }
+ 
+@@ -72,7 +68,7 @@ func main() {
+ 	test1(x)
+ 	test2(x)
+ 	test3(x)
+-	if error {
++	if error_ {
+ 		panic("wrong method called")
+ 	}
+ }
+diff --git a/test/fixedbugs/bug326.go b/test/fixedbugs/bug326.go
+index efdd0ef713..7e123e3a39 100644
+--- a/test/fixedbugs/bug326.go
++++ b/test/fixedbugs/bug326.go
+@@ -6,36 +6,34 @@
+ 
+ package p
+ 
+-import "os"
+-
+-func f() (_ int, err os.Error) {
++func f() (_ int, err error) {
+ 	return
+ }
+ 
+-func g() (x int, _ os.Error) {
++func g() (x int, _ error) {
+ 	return
+ }
+ 
+-func h() (_ int, _ os.Error) {
++func h() (_ int, _ error) {
+ 	return
+ }
+ 
+-func i() (int, os.Error) {
+-	return	// ERROR "not enough arguments to return"
++func i() (int, error) {
++	return // ERROR "not enough arguments to return"
+ }
+ 
+-func f1() (_ int, err os.Error) {
++func f1() (_ int, err error) {
+ 	return 1, nil
+ }
+ 
+-func g1() (x int, _ os.Error) {
++func g1() (x int, _ error) {
+ 	return 1, nil
+ }
+ 
+-func h1() (_ int, _ os.Error) {
++func h1() (_ int, _ error) {
+ 	return 1, nil
+ }
+ 
+-func ii() (int, os.Error) {
++func ii() (int, error) {
+ 	return 1, nil
+ }
+diff --git a/test/fixedbugs/bug331.go b/test/fixedbugs/bug331.go
+index 28aee1da07..6c5acd1f4d 100644
+--- a/test/fixedbugs/bug331.go
++++ b/test/fixedbugs/bug331.go
+@@ -6,22 +6,22 @@
+ 
+ package main
+ 
+-import "os"
++import "io"
+ 
+-func f() (_ string, x float64, err os.Error) {
++func f() (_ string, x float64, err error) {
+ 	return
+ }
+ 
+-func g() (_ string, x float64, err os.Error) {
+-	return "hello", 3.14, os.EOF
++func g() (_ string, x float64, err error) {
++	return "hello", 3.14, io.EOF
+ }
+ 
+-var _ func() (string, float64, os.Error) = f
+-var _ func() (string, float64, os.Error) = g
++var _ func() (string, float64, error) = f
++var _ func() (string, float64, error) = g
+ 
+ func main() {
+ 	x, y, z := g()
+-	if x != "hello" || y != 3.14 || z != os.EOF {
++	if x != "hello" || y != 3.14 || z != io.EOF {
+ 		println("wrong", x, len(x), y, z)
+ 	}
+ }
+diff --git a/test/fixedbugs/bug354.go b/test/fixedbugs/bug354.go
+index 1f6a6dc9f7..a95256e272 100644
+--- a/test/fixedbugs/bug354.go
++++ b/test/fixedbugs/bug354.go
+@@ -9,12 +9,8 @@
+ 
+ package main
+ 
+-import (
+-	"os"
+-)
+-
+ type Inner struct {
+-	F func() os.Error
++	F func() error
+ }
+ 
+ type Outer struct {
+@@ -23,4 +19,4 @@ type Outer struct {
+ 
+ // calls makeclosure twice on same closure
+ 
+-var Foo = Outer{[]Inner{Inner{func() os.Error{ return nil }}}}
++var Foo = Outer{[]Inner{Inner{func() error { return nil }}}}
+diff --git a/test/func2.go b/test/func2.go
+index 5a6d7d0e10..87e78194ef 100644
+--- a/test/func2.go
++++ b/test/func2.go
+@@ -5,7 +5,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ package main
+-import os "os"
+ 
+ type t1 int
+ type t2 int
+@@ -23,7 +22,7 @@ func f8(os int) int
+ func f9(os int) int {
+ 	return os
+ }
+-func f10(err os.Error) os.Error {
++func f10(err error) error {
+ 	return err
+ }
+ func f11(t1 string) string {
+diff --git a/test/garbage/parser.go b/test/garbage/parser.go
+index 06cc48384a..1d7257521c 100644
+--- a/test/garbage/parser.go
++++ b/test/garbage/parser.go
+@@ -66,7 +66,7 @@ func parseDir(dirpath string) map[string]*ast.Package {
+ 	// get package AST
+ 	pkgs, err := parser.ParseDir(token.NewFileSet(), dirpath, filter, parser.ParseComments)
+ 	if err != nil {
+-		println("parse", dirpath, err.String())
++		println("parse", dirpath, err.Error())
+ 		panic("fail")
+ 	}
+ 	return pkgs
+diff --git a/test/recover2.go b/test/recover2.go
+index 9affe25d47..ccaf8ced16 100644
+--- a/test/recover2.go
++++ b/test/recover2.go
+@@ -11,10 +11,7 @@
+ 
+ package main
+ 
+-import (
+-	"os"
+-	"strings"
+-)
++import "strings"
+ 
+ var x = make([]byte, 10)
+ 
+@@ -33,7 +30,7 @@ func mustRecover(s string) {
+ 	if v == nil {
+ 		panic("expected panic")
+ 	}
+-	if e := v.(os.Error).String(); strings.Index(e, s) < 0 {
++	if e := v.(error).Error(); strings.Index(e, s) < 0 {
+ 		panic("want: " + s + "; have: " + e)
+ 	}
+ }
+diff --git a/test/recover3.go b/test/recover3.go
+index 2aa1df616d..60ade9b61c 100644
+--- a/test/recover3.go
++++ b/test/recover3.go
+@@ -35,7 +35,7 @@ func check(name string, f func(), err string) {
+ 			println(name, "panicked but not with runtime.Error")
+ 			return
+ 		}
+-		s := runt.String()
++		s := runt.Error()
+ 		if strings.Index(s, err) < 0 {
+ 			bug()
+ 			println(name, "panicked with", s, "not", err)
+diff --git a/test/zerodivide.go b/test/zerodivide.go
+index 3a1ff15051..3b08e774cc 100644
+--- a/test/zerodivide.go
++++ b/test/zerodivide.go
+@@ -158,10 +158,10 @@ var errorTests = []ErrorTest{
+ 	ErrorTest{"complex128 1/0", func() { use(e128 / d128) }, ""},
+ }
+ 
+-func error(fn func()) (error string) {
++func error_(fn func()) (error string) {
+ 	defer func() {
+ 		if e := recover(); e != nil {
+-			error = e.(runtime.Error).String()
++			error = e.(runtime.Error).Error()
+ 		}
+ 	}()
+ 	fn()
+@@ -196,7 +196,7 @@ func main() {
+ 		if t.err != "" {
+ 			continue
+ 		}
+-		err := error(t.fn)
++		err := error_(t.fn)
+ 		switch {
+ 		case t.err == "" && err == "":
+ 			// fine

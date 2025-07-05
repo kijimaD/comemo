@@ -7,6 +7,19 @@ Date:   Wed Aug 18 10:22:57 2010 -0400
     R=adg
     CC=golang-dev
     https://golang.org/cl/2012041
-
+---
  src/run.bash | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/run.bash b/src/run.bash
+index 4eb4a476b5..dc66202983 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -6,6 +6,7 @@
+ set -e
+ . ./env.bash
+ 
++unset MAKEFLAGS  # single-threaded make
+ unset CDPATH	# in case user has it set
+ 
+ # no core files, please

@@ -15,7 +15,7 @@ Date:   Fri Aug 30 14:54:21 2019 -0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/align.go     | 32 +++++++++++---------------------
  src/cmd/compile/internal/gc/iimport.go   | 15 ++-------------
  src/cmd/compile/internal/gc/main.go      |  4 ----
@@ -23,3 +23,188 @@ Date:   Fri Aug 30 14:54:21 2019 -0700
  test/fixedbugs/bug195.go                 |  4 ++--
  test/fixedbugs/issue23823.go             |  4 ++--
  6 files changed, 19 insertions(+), 48 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/align.go b/src/cmd/compile/internal/gc/align.go
+index 34e69676f7..d6251adc7a 100644
+--- a/src/cmd/compile/internal/gc/align.go
++++ b/src/cmd/compile/internal/gc/align.go
+@@ -217,7 +217,7 @@ func dowidth(t *types.Type) {
+ 	}
+ 
+ 	// defer checkwidth calls until after we're done
+-	defercalc++
++	defercheckwidth()
+ 
+ 	lno := lineno
+ 	if asNode(t.Nod) != nil {
+@@ -391,11 +391,7 @@ func dowidth(t *types.Type) {
+ 
+ 	lineno = lno
+ 
+-	if defercalc == 1 {
+-		resumecheckwidth()
+-	} else {
+-		defercalc--
+-	}
++	resumecheckwidth()
+ }
+ 
+ // when a type's width should be known, we call checkwidth
+@@ -440,24 +436,18 @@ func checkwidth(t *types.Type) {
+ }
+ 
+ func defercheckwidth() {
+-	// we get out of sync on syntax errors, so don't be pedantic.
+-	if defercalc != 0 && nerrors == 0 {
+-		Fatalf("defercheckwidth")
+-	}
+-	defercalc = 1
++	defercalc++
+ }
+ 
+ func resumecheckwidth() {
+-	if defercalc == 0 {
+-		Fatalf("resumecheckwidth")
+-	}
+-
+-	for len(deferredTypeStack) > 0 {
+-		t := deferredTypeStack[len(deferredTypeStack)-1]
+-		deferredTypeStack = deferredTypeStack[:len(deferredTypeStack)-1]
+-		t.SetDeferwidth(false)
+-		dowidth(t)
++	if defercalc == 1 {
++		for len(deferredTypeStack) > 0 {
++			t := deferredTypeStack[len(deferredTypeStack)-1]
++			deferredTypeStack = deferredTypeStack[:len(deferredTypeStack)-1]
++			t.SetDeferwidth(false)
++			dowidth(t)
++		}
+ 	}
+ 
+-	defercalc = 0
++	defercalc--
+ }
+diff --git a/src/cmd/compile/internal/gc/iimport.go b/src/cmd/compile/internal/gc/iimport.go
+index 38a7201a63..4f44c54868 100644
+--- a/src/cmd/compile/internal/gc/iimport.go
++++ b/src/cmd/compile/internal/gc/iimport.go
+@@ -298,21 +298,10 @@ func (r *importReader) doDecl(n *Node) {
+ 
+ 		// We also need to defer width calculations until
+ 		// after the underlying type has been assigned.
+-		//
+-		// TODO(mdempsky): Add nesting support directly to
+-		// {defer,resume}checkwidth? Width calculations are
+-		// already deferred during initial typechecking, but
+-		// not when we're expanding inline function bodies, so
+-		// we currently need to handle both cases here.
+-		deferring := defercalc != 0
+-		if !deferring {
+-			defercheckwidth()
+-		}
++		defercheckwidth()
+ 		underlying := r.typ()
+ 		copytype(typenod(t), underlying)
+-		if !deferring {
+-			resumecheckwidth()
+-		}
++		resumecheckwidth()
+ 
+ 		if underlying.IsInterface() {
+ 			break
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index db1f9d20e4..12ebfb871b 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -527,7 +527,6 @@ func Main(archInit func(*Arch)) {
+ 	//   We also defer type alias declarations until phase 2
+ 	//   to avoid cycles like #18640.
+ 	//   TODO(gri) Remove this again once we have a fix for #25838.
+-	defercheckwidth()
+ 
+ 	// Don't use range--typecheck can add closures to xtop.
+ 	timings.Start("fe", "typecheck", "top1")
+@@ -549,7 +548,6 @@ func Main(archInit func(*Arch)) {
+ 			xtop[i] = typecheck(n, ctxStmt)
+ 		}
+ 	}
+-	resumecheckwidth()
+ 
+ 	// Phase 3: Type check function bodies.
+ 	// Don't use range--typecheck can add closures to xtop.
+@@ -1035,7 +1033,6 @@ func loadsys() {
+ 
+ 	inimport = true
+ 	typecheckok = true
+-	defercheckwidth()
+ 
+ 	typs := runtimeTypes()
+ 	for _, d := range runtimeDecls {
+@@ -1052,7 +1049,6 @@ func loadsys() {
+ 	}
+ 
+ 	typecheckok = false
+-	resumecheckwidth()
+ 	inimport = false
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index b50f23da82..610c9066b8 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -3669,9 +3669,7 @@ func typecheckdef(n *Node) {
+ 		}
+ 
+ 		// regular type declaration
+-		if Curfn != nil {
+-			defercheckwidth()
+-		}
++		defercheckwidth()
+ 		n.SetWalkdef(1)
+ 		setTypeNode(n, types.New(TFORW))
+ 		n.Type.Sym = n.Sym
+@@ -3682,9 +3680,7 @@ func typecheckdef(n *Node) {
+ 			// but it was reported. Silence future errors.
+ 			n.Type.SetBroke(true)
+ 		}
+-		if Curfn != nil {
+-			resumecheckwidth()
+-		}
++		resumecheckwidth()
+ 	}
+ 
+ ret:
+diff --git a/test/fixedbugs/bug195.go b/test/fixedbugs/bug195.go
+index 8d392bda71..496c0be610 100644
+--- a/test/fixedbugs/bug195.go
++++ b/test/fixedbugs/bug195.go
+@@ -18,10 +18,10 @@ type I4 interface { // GC_ERROR "invalid recursive type"
+ 	I4	// GCCGO_ERROR "interface"
+ }
+ 
+-type I5 interface {
++type I5 interface { // GC_ERROR "invalid recursive type"
+ 	I6	// GCCGO_ERROR "interface"
+ }
+ 
+-type I6 interface { // GC_ERROR "invalid recursive type"
++type I6 interface {
+ 	I5	// GCCGO_ERROR "interface"
+ }
+diff --git a/test/fixedbugs/issue23823.go b/test/fixedbugs/issue23823.go
+index 707cbd3624..2f802d0988 100644
+--- a/test/fixedbugs/issue23823.go
++++ b/test/fixedbugs/issue23823.go
+@@ -6,10 +6,10 @@
+ 
+ package p
+ 
+-type I1 = interface { // ERROR "invalid recursive type"
++type I1 = interface {
+ 	I2
+ }
+ 
+-type I2 interface {
++type I2 interface { // ERROR "invalid recursive type"
+ 	I1
+ }

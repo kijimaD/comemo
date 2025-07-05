@@ -23,9 +23,88 @@ Date:   Thu Aug 5 23:26:21 2021 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/340258
     Trust: Dan Scales <danscales@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/noder/decl.go  |  4 ++++
  src/cmd/compile/internal/noder/expr.go  |  9 ++++++++-
  src/cmd/compile/internal/noder/irgen.go |  5 +++++
  test/typeparam/issue47514.go            | 20 ++++++++++++++++++++
  4 files changed, 37 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/noder/decl.go b/src/cmd/compile/internal/noder/decl.go
+index 2416d1a49e..429c8a14c8 100644
+--- a/src/cmd/compile/internal/noder/decl.go
++++ b/src/cmd/compile/internal/noder/decl.go
+@@ -102,7 +102,11 @@ func (g *irgen) funcDecl(out *ir.Nodes, decl *syntax.FuncDecl) {
+ 		g.target.Inits = append(g.target.Inits, fn)
+ 	}
+ 
++	if fn.Type().HasTParam() {
++		g.topFuncIsGeneric = true
++	}
+ 	g.funcBody(fn, decl.Recv, decl.Type, decl.Body)
++	g.topFuncIsGeneric = false
+ 	if fn.Type().HasTParam() && fn.Body != nil {
+ 		// Set pointers to the dcls/body of a generic function/method in
+ 		// the Inl struct, so it is marked for export, is available for
+diff --git a/src/cmd/compile/internal/noder/expr.go b/src/cmd/compile/internal/noder/expr.go
+index a0d3cad699..6e2b1a839b 100644
+--- a/src/cmd/compile/internal/noder/expr.go
++++ b/src/cmd/compile/internal/noder/expr.go
+@@ -465,7 +465,14 @@ func (g *irgen) funcLit(typ2 types2.Type, expr *syntax.FuncLit) ir.Node {
+ 		cv.SetWalkdef(1)
+ 	}
+ 
+-	return ir.UseClosure(fn.OClosure, g.target)
++	if g.topFuncIsGeneric {
++		// Don't add any closure inside a generic function/method to the
++		// g.target.Decls list, even though it may not be generic itself.
++		// See issue #47514.
++		return ir.UseClosure(fn.OClosure, nil)
++	} else {
++		return ir.UseClosure(fn.OClosure, g.target)
++	}
+ }
+ 
+ func (g *irgen) typeExpr(typ syntax.Expr) *types.Type {
+diff --git a/src/cmd/compile/internal/noder/irgen.go b/src/cmd/compile/internal/noder/irgen.go
+index 6a8763c908..571e294416 100644
+--- a/src/cmd/compile/internal/noder/irgen.go
++++ b/src/cmd/compile/internal/noder/irgen.go
+@@ -154,6 +154,11 @@ type irgen struct {
+ 	// dictionary syms which we need to finish, by writing out any itabconv
+ 	// entries.
+ 	dictSymsToFinalize []*delayInfo
++
++	// True when we are compiling a top-level generic function or method. Use to
++	// avoid adding closures of generic functions/methods to the target.Decls
++	// list.
++	topFuncIsGeneric bool
+ }
+ 
+ type delayInfo struct {
+diff --git a/test/typeparam/issue47514.go b/test/typeparam/issue47514.go
+new file mode 100644
+index 0000000000..947f254003
+--- /dev/null
++++ b/test/typeparam/issue47514.go
+@@ -0,0 +1,20 @@
++// run -gcflags=-G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test that closures inside a generic function are not exported,
++// even though not themselves generic.
++
++package main
++
++func Do[T any]() {
++	_ = func() string {
++		return ""
++	}
++}
++
++func main() {
++	Do[int]()
++}

@@ -23,6 +23,37 @@ Date:   Tue Jan 17 21:58:10 2017 -0500
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/mgc.go | 12 ++++++++++--
  1 file changed, 10 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 64a2f3abef..0b996d8950 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -1129,8 +1129,6 @@ top:
+ 		// sitting in the per-P work caches.
+ 		// Flush and disable work caches.
+ 
+-		gcMarkRootCheck()
+-
+ 		// Disallow caching workbufs and indicate that we're in mark 2.
+ 		gcBlackenPromptly = true
+ 
+@@ -1153,6 +1151,16 @@ top:
+ 			})
+ 		})
+ 
++		// Check that roots are marked. We should be able to
++		// do this before the forEachP, but based on issue
++		// #16083 there may be a (harmless) race where we can
++		// enter mark 2 while some workers are still scanning
++		// stacks. The forEachP ensures these scans are done.
++		//
++		// TODO(austin): Figure out the race and fix this
++		// properly.
++		gcMarkRootCheck()
++
+ 		// Now we can start up mark 2 workers.
+ 		atomic.Xaddint64(&gcController.dedicatedMarkWorkersNeeded, 0xffffffff)
+ 		atomic.Xaddint64(&gcController.fractionalMarkWorkersNeeded, 0xffffffff)

@@ -8,6 +8,20 @@ Date:   Tue Jan 13 10:24:06 2009 -0800
     DELTA=2  (2 added, 0 deleted, 0 changed)
     OCL=22640
     CL=22642
-
+---
  src/runtime/malloc.c | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/runtime/malloc.c b/src/runtime/malloc.c
+index 52ae3b04c6..6a494eeafb 100644
+--- a/src/runtime/malloc.c
++++ b/src/runtime/malloc.c
+@@ -170,6 +170,8 @@ SysAlloc(uintptr n)
+ void
+ SysUnused(void *v, uintptr n)
+ {
++	USED(v);
++	USED(n);
+ 	// TODO(rsc): call madvise MADV_DONTNEED
+ }
+ 

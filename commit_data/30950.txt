@@ -14,7 +14,52 @@ Date:   Mon Dec 19 19:28:17 2016 +0200
     Reviewed-by: Rob Pike <r@golang.org>
     Run-TryBot: Rob Pike <r@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/vet/copylock.go          |  8 +++++---
  src/cmd/vet/testdata/copylock.go | 14 ++++++++++++++
  2 files changed, 19 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/vet/copylock.go b/src/cmd/vet/copylock.go
+index 31c1257a47..f3ab8e2e05 100644
+--- a/src/cmd/vet/copylock.go
++++ b/src/cmd/vet/copylock.go
+@@ -93,9 +93,11 @@ func checkCopyLocksReturnStmt(f *File, rs *ast.ReturnStmt) {
+ 
+ // checkCopyLocksCallExpr detects lock copy in the arguments to a function call
+ func checkCopyLocksCallExpr(f *File, ce *ast.CallExpr) {
+-	if id, ok := ce.Fun.(*ast.Ident); ok && id.Name == "new" && f.pkg.types[id].IsBuiltin() {
+-		// Skip 'new(Type)' for built-in 'new'
+-		return
++	if id, ok := ce.Fun.(*ast.Ident); ok && f.pkg.types[id].IsBuiltin() {
++		switch id.Name {
++		case "new", "len", "cap":
++			return
++		}
+ 	}
+ 	for _, x := range ce.Args {
+ 		if path := lockPathRhs(f, x); path != nil {
+diff --git a/src/cmd/vet/testdata/copylock.go b/src/cmd/vet/testdata/copylock.go
+index 35ed766f1d..3ce06f88d4 100644
+--- a/src/cmd/vet/testdata/copylock.go
++++ b/src/cmd/vet/testdata/copylock.go
+@@ -88,6 +88,20 @@ func BadFunc() {
+ 	fmuSlice := fmuA[:] // OK
+ }
+ 
++func LenAndCapOnLockArrays() {
++	var a [5]sync.Mutex
++	aLen := len(a) // OK
++	aCap := cap(a) // OK
++
++	// override 'len' and 'cap' keywords
++
++	len := func(interface{}) {}
++	len(a) // ERROR "function call copies lock value: sync.Mutex"
++
++	cap := func(interface{}) {}
++	cap(a) // ERROR "function call copies lock value: sync.Mutex"
++}
++
+ // SyncTypesCheck checks copying of sync.* types except sync.Mutex
+ func SyncTypesCheck() {
+ 	// sync.RWMutex copying

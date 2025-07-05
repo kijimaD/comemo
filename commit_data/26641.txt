@@ -16,8 +16,274 @@ Date:   Tue Dec 1 12:15:25 2015 -0800
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/go.go     |   2 -
  src/cmd/compile/internal/gc/lex.go    |  24 +++---
  src/cmd/compile/internal/gc/parser.go | 134 +++++++++++++++-------------------
  3 files changed, 70 insertions(+), 90 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index 8053aaffe9..ebc6a5171b 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -492,8 +492,6 @@ var debugstr string
+ var Debug_checknil int
+ var Debug_typeassert int
+ 
+-var importmyname *Sym // my name for package
+-
+ var localpkg *Pkg // package being compiled
+ 
+ var importpkg *Pkg // package being imported
+diff --git a/src/cmd/compile/internal/gc/lex.go b/src/cmd/compile/internal/gc/lex.go
+index 8161cad568..83f25a5e2a 100644
+--- a/src/cmd/compile/internal/gc/lex.go
++++ b/src/cmd/compile/internal/gc/lex.go
+@@ -687,21 +687,21 @@ func fakeimport() {
+ 	cannedimports("fake.o", "$$\n")
+ }
+ 
+-// TODO(gri) line argument doesn't appear to be used
+-func importfile(f *Val, line int) {
+-	if _, ok := f.U.(string); !ok {
++func importfile(f *Val) {
++	path_, ok := f.U.(string)
++	if !ok {
+ 		Yyerror("import statement not a string")
+ 		fakeimport()
+ 		return
+ 	}
+ 
+-	if len(f.U.(string)) == 0 {
++	if len(path_) == 0 {
+ 		Yyerror("import path is empty")
+ 		fakeimport()
+ 		return
+ 	}
+ 
+-	if isbadimport(f.U.(string)) {
++	if isbadimport(path_) {
+ 		fakeimport()
+ 		return
+ 	}
+@@ -710,18 +710,16 @@ func importfile(f *Val, line int) {
+ 	// but we reserve the import path "main" to identify
+ 	// the main package, just as we reserve the import
+ 	// path "math" to identify the standard math package.
+-	if f.U.(string) == "main" {
++	if path_ == "main" {
+ 		Yyerror("cannot import \"main\"")
+ 		errorexit()
+ 	}
+ 
+-	if myimportpath != "" && f.U.(string) == myimportpath {
+-		Yyerror("import %q while compiling that package (import cycle)", f.U.(string))
++	if myimportpath != "" && path_ == myimportpath {
++		Yyerror("import %q while compiling that package (import cycle)", path_)
+ 		errorexit()
+ 	}
+ 
+-	path_ := f.U.(string)
+-
+ 	if mapped, ok := importMap[path_]; ok {
+ 		path_ = mapped
+ 	}
+@@ -763,7 +761,7 @@ func importfile(f *Val, line int) {
+ 
+ 	file, found := findpkg(path_)
+ 	if !found {
+-		Yyerror("can't find import: %q", f.U.(string))
++		Yyerror("can't find import: %q", path_)
+ 		errorexit()
+ 	}
+ 
+@@ -788,7 +786,7 @@ func importfile(f *Val, line int) {
+ 	var imp *obj.Biobuf
+ 	imp, err = obj.Bopenr(file)
+ 	if err != nil {
+-		Yyerror("can't open import: %q: %v", f.U.(string), err)
++		Yyerror("can't open import: %q: %v", path_, err)
+ 		errorexit()
+ 	}
+ 
+@@ -878,7 +876,7 @@ func importfile(f *Val, line int) {
+ 		incannedimport = 0
+ 
+ 	default:
+-		Yyerror("no import in %q", f.U.(string))
++		Yyerror("no import in %q", path_)
+ 	}
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/parser.go b/src/cmd/compile/internal/gc/parser.go
+index 7e521d1f7d..6081383918 100644
+--- a/src/cmd/compile/internal/gc/parser.go
++++ b/src/cmd/compile/internal/gc/parser.go
+@@ -323,108 +323,92 @@ func (p *parser) import_() {
+ 	p.want(LIMPORT)
+ 	if p.got('(') {
+ 		for p.tok != EOF && p.tok != ')' {
+-			p.import_stmt()
++			p.importdcl()
+ 			if !p.osemi(')') {
+ 				break
+ 			}
+ 		}
+ 		p.want(')')
+ 	} else {
+-		p.import_stmt()
+-	}
+-}
+-
+-func (p *parser) import_stmt() {
+-	if trace && Debug['x'] != 0 {
+-		defer p.trace("import_stmt")()
+-	}
+-
+-	line := int32(p.import_here())
+-	if p.tok == LPACKAGE {
+-		p.import_package()
+-		p.import_there()
+-
+-		ipkg := importpkg
+-		my := importmyname
+-		importpkg = nil
+-		importmyname = nil
+-
+-		if my == nil {
+-			my = Lookup(ipkg.Name)
+-		}
+-
+-		pack := Nod(OPACK, nil, nil)
+-		pack.Sym = my
+-		pack.Name.Pkg = ipkg
+-		pack.Lineno = line
+-
+-		if strings.HasPrefix(my.Name, ".") {
+-			importdot(ipkg, pack)
+-			return
+-		}
+-		if my.Name == "init" {
+-			lineno = line
+-			Yyerror("cannot import package as init - init must be a func")
+-			return
+-		}
+-		if my.Name == "_" {
+-			return
+-		}
+-		if my.Def != nil {
+-			lineno = line
+-			redeclare(my, "as imported package name")
+-		}
+-		my.Def = pack
+-		my.Lastlineno = line
+-		my.Block = 1 // at top level
+-
+-		return
+-	}
+-
+-	p.import_there()
+-	// When an invalid import path is passed to importfile,
+-	// it calls Yyerror and then sets up a fake import with
+-	// no package statement. This allows us to test more
+-	// than one invalid import statement in a single file.
+-	if nerrors == 0 {
+-		Fatalf("phase error in import")
++		p.importdcl()
+ 	}
+ }
+ 
+ // ImportSpec = [ "." | PackageName ] ImportPath .
+ // ImportPath = string_lit .
+-//
+-// import_here switches the underlying lexed source to the export data
+-// of the imported package.
+-func (p *parser) import_here() int {
++func (p *parser) importdcl() {
+ 	if trace && Debug['x'] != 0 {
+-		defer p.trace("import_here")()
++		defer p.trace("importdcl")()
+ 	}
+ 
+-	importmyname = nil
++	var my *Sym
+ 	switch p.tok {
+ 	case LNAME, '@', '?':
+ 		// import with given name
+-		importmyname = p.sym()
++		my = p.sym()
+ 
+ 	case '.':
+ 		// import into my name space
+-		importmyname = Lookup(".")
++		my = Lookup(".")
+ 		p.next()
+ 	}
+ 
+-	var path Val
+-	if p.tok == LLITERAL {
+-		path = p.val
+-		p.next()
+-	} else {
++	if p.tok != LLITERAL {
+ 		p.syntax_error("missing import path; require quoted string")
+ 		p.advance(';', ')')
++		return
++	}
++
++	line := int32(parserline())
++	path := p.val
++	p.next()
++
++	importfile(&path)
++	if p.tok != LPACKAGE {
++		// When an invalid import path is passed to importfile,
++		// it calls Yyerror and then sets up a fake import with
++		// no package statement. This allows us to test more
++		// than one invalid import statement in a single file.
++		p.import_there()
++		if nerrors == 0 {
++			Fatalf("phase error in import")
++		}
++		return
+ 	}
++	p.import_package()
++	p.import_there()
++
++	ipkg := importpkg
++	importpkg = nil
++
++	if my == nil {
++		my = Lookup(ipkg.Name)
++	}
++
++	pack := Nod(OPACK, nil, nil)
++	pack.Sym = my
++	pack.Name.Pkg = ipkg
++	pack.Lineno = line
+ 
+-	line := parserline()
+-	importfile(&path, line)
+-	return line
++	if strings.HasPrefix(my.Name, ".") {
++		importdot(ipkg, pack)
++		return
++	}
++	if my.Name == "init" {
++		lineno = line
++		Yyerror("cannot import package as init - init must be a func")
++		return
++	}
++	if my.Name == "_" {
++		return
++	}
++	if my.Def != nil {
++		lineno = line
++		redeclare(my, "as imported package name")
++	}
++	my.Def = pack
++	my.Lastlineno = line
++	my.Block = 1 // at top level
+ }
+ 
+ // import_package parses the header of an imported package as exported

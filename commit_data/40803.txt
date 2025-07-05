@@ -19,7 +19,51 @@ Date:   Sun Jul 7 23:08:20 2019 +0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/escape.go |  7 ++++++-
  test/fixedbugs/issue32959.go          | 17 +++++++++++++++++
  2 files changed, 23 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/escape.go b/src/cmd/compile/internal/gc/escape.go
+index 47ce853858..f92f4a7a6c 100644
+--- a/src/cmd/compile/internal/gc/escape.go
++++ b/src/cmd/compile/internal/gc/escape.go
+@@ -614,9 +614,14 @@ func (e *Escape) unsafeValue(k EscHole, n *Node) {
+ 		}
+ 	case OPLUS, ONEG, OBITNOT:
+ 		e.unsafeValue(k, n.Left)
+-	case OADD, OSUB, OOR, OXOR, OMUL, ODIV, OMOD, OLSH, ORSH, OAND, OANDNOT:
++	case OADD, OSUB, OOR, OXOR, OMUL, ODIV, OMOD, OAND, OANDNOT:
+ 		e.unsafeValue(k, n.Left)
+ 		e.unsafeValue(k, n.Right)
++	case OLSH, ORSH:
++		e.unsafeValue(k, n.Left)
++		// RHS need not be uintptr-typed (#32959) and can't meaningfully
++		// flow pointers anyway.
++		e.discard(n.Right)
+ 	default:
+ 		e.exprSkipInit(e.discardHole(), n)
+ 	}
+diff --git a/test/fixedbugs/issue32959.go b/test/fixedbugs/issue32959.go
+new file mode 100644
+index 0000000000..a0dc789a04
+--- /dev/null
++++ b/test/fixedbugs/issue32959.go
+@@ -0,0 +1,17 @@
++// compile
++
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test escape analysis with shifting constant
++
++package main
++
++import "unsafe"
++
++func main() {
++	var l uint64
++	var p unsafe.Pointer
++	_ = unsafe.Pointer(uintptr(p) + (uintptr(l) >> 1))
++}

@@ -9,6 +9,22 @@ Date:   Mon Jan 6 16:30:48 2020 +0000
     Change-Id: I9fea2c3c5138e2233290979e4724f6e7b91da652
     Reviewed-on: https://go-review.googlesource.com/c/go/+/213439
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/os/file.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/os/file.go b/src/os/file.go
+index 7995de79bf..9f8c82718b 100644
+--- a/src/os/file.go
++++ b/src/os/file.go
+@@ -204,6 +204,10 @@ func (f *File) WriteAt(b []byte, off int64) (n int, err error) {
+ // relative to the current offset, and 2 means relative to the end.
+ // It returns the new offset and an error, if any.
+ // The behavior of Seek on a file opened with O_APPEND is not specified.
++//
++// If f is a directory, the behavior of Seek varies by operating
++// system; you can seek to the beginning of the directory on Unix-like
++// operating systems, but not on Windows.
+ func (f *File) Seek(offset int64, whence int) (ret int64, err error) {
+ 	if err := f.checkValid("seek"); err != nil {
+ 		return 0, err

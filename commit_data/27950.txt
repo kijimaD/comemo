@@ -16,7 +16,51 @@ Date:   Sun Apr 17 11:42:37 2016 -0400
     Reviewed-by: Rick Hudson <rlh@golang.org>
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/malloc.go  |  4 +---
  src/runtime/mgcmark.go | 11 ++++++++---
  2 files changed, 9 insertions(+), 6 deletions(-)
+
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index 3f437bc02f..9e1f47e1e6 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -695,9 +695,7 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+ 	// This may be racing with GC so do it atomically if there can be
+ 	// a race marking the bit.
+ 	if gcphase == _GCmarktermination || gcBlackenPromptly {
+-		systemstack(func() {
+-			gcmarknewobject_m(uintptr(x), size, scanSize)
+-		})
++		gcmarknewobject(uintptr(x), size, scanSize)
+ 	}
+ 
+ 	if raceenabled {
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 0d05838987..ad64b735a5 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -1132,15 +1132,20 @@ func gcDumpObject(label string, obj, off uintptr) {
+ 	}
+ }
+ 
+-// If gcBlackenPromptly is true we are in the second mark phase phase so we allocate black.
++// gcmarknewobject marks a newly allocated object black. obj must
++// not contain any non-nil pointers.
++//
++// This is nosplit so it can manipulate a gcWork without preemption.
++//
+ //go:nowritebarrier
+-func gcmarknewobject_m(obj, size, scanSize uintptr) {
++//go:nosplit
++func gcmarknewobject(obj, size, scanSize uintptr) {
+ 	if useCheckmark && !gcBlackenPromptly { // The world should be stopped so this should not happen.
+ 		throw("gcmarknewobject called while doing checkmark")
+ 	}
+ 	heapBitsForAddr(obj).setMarked()
+-	atomic.Xadd64(&work.bytesMarked, int64(size))
+ 	gcw := &getg().m.p.ptr().gcw
++	gcw.bytesMarked += uint64(size)
+ 	gcw.scanWork += int64(scanSize)
+ }
+ 

@@ -18,6 +18,20 @@ Date:   Tue Jun 13 16:19:16 2017 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/runtime/runtime2.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index da57235b02..2df1fefe7c 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -518,7 +518,7 @@ type p struct {
+ const (
+ 	// The max value of GOMAXPROCS.
+ 	// There are no fundamental restrictions on the value.
+-	_MaxGomaxprocs = 1 << 8
++	_MaxGomaxprocs = 1 << 10
+ )
+ 
+ type schedt struct {

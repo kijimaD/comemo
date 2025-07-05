@@ -7,6 +7,21 @@ Date:   Mon Feb 23 10:44:39 2015 +1100
     Change-Id: I05cdf357249166a45105703e9317793aa2088844
     Reviewed-on: https://go-review.googlesource.com/5560
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/net/http/request.go | 3 ---
  1 file changed, 3 deletions(-)
+
+diff --git a/src/net/http/request.go b/src/net/http/request.go
+index f7a7f19b9b..639a579bdf 100644
+--- a/src/net/http/request.go
++++ b/src/net/http/request.go
+@@ -25,9 +25,6 @@ import (
+ )
+ 
+ const (
+-	maxValueLength   = 4096
+-	maxHeaderLines   = 1024
+-	chunkSize        = 4 << 10  // 4 KB chunks
+ 	defaultMaxMemory = 32 << 20 // 32 MB
+ )
+ 

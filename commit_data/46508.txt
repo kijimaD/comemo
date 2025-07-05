@@ -12,6 +12,20 @@ Date:   Wed Jan 6 18:22:17 2021 +0000
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/metrics/value.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/metrics/value.go b/src/runtime/metrics/value.go
+index 0b056b4ea8..61e8a192a3 100644
+--- a/src/runtime/metrics/value.go
++++ b/src/runtime/metrics/value.go
+@@ -63,7 +63,7 @@ func (v Value) Float64() float64 {
+ // If v.Kind() != KindFloat64Histogram, this method panics.
+ func (v Value) Float64Histogram() *Float64Histogram {
+ 	if v.kind != KindFloat64Histogram {
+-		panic("called Float64 on non-float64 metric value")
++		panic("called Float64Histogram on non-Float64Histogram metric value")
+ 	}
+ 	return (*Float64Histogram)(v.pointer)
+ }

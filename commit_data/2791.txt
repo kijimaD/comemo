@@ -8,7 +8,7 @@ Date:   Mon Jul 27 15:55:27 2009 -0700
     R=ken
     OCL=32249
     CL=32249
-
+---
  src/cmd/5g/cgen.c  | 14 +++++++++++
  src/cmd/5g/gsubr.c | 70 ++++++++++++++++++++++++++++++++----------------------
  src/cmd/6g/cgen.c  | 14 +++++++++++
@@ -16,3 +16,243 @@ Date:   Mon Jul 27 15:55:27 2009 -0700
  src/cmd/8g/cgen.c  | 14 +++++++++++
  src/cmd/8g/gsubr.c | 14 +++++++++++
  6 files changed, 111 insertions(+), 29 deletions(-)
+
+diff --git a/src/cmd/5g/cgen.c b/src/cmd/5g/cgen.c
+index 46fb048ff6..327bb1aebc 100644
+--- a/src/cmd/5g/cgen.c
++++ b/src/cmd/5g/cgen.c
+@@ -91,6 +91,20 @@ cgen(Node *n, Node *res)
+ 		goto ret;
+ 	}
+ 
++	// update addressability for string, slice
++	// can't do in walk because n->left->addable
++	// changes if n->left is an escaping local variable.
++	switch(n->op) {
++	case OLEN:
++		if(isslice(n->left->type) || istype(n->left->type, TSTRING))
++			n->addable = n->left->addable;
++		break;
++	case OCAP:
++		if(isslice(n->left->type))
++			n->addable = n->left->addable;
++		break;
++	}
++
+ 	if(n->addable) {
+ 		gmove(n, res);
+ 		goto ret;
+diff --git a/src/cmd/5g/gsubr.c b/src/cmd/5g/gsubr.c
+index 999592bf20..5d94604466 100644
+--- a/src/cmd/5g/gsubr.c
++++ b/src/cmd/5g/gsubr.c
+@@ -628,23 +628,23 @@ gmove(Node *f, Node *t)
+ //	case CASE(TINT32, TINT64):	// sign extend int32
+ //	case CASE(TINT32, TUINT64):
+ //		fatal("gmove TINT32,INT64 not implemented");
+-//// 		split64(t, &tlo, &thi);
+-//// 		nodreg(&flo, tlo.type, D_AX);
+-//// 		nodreg(&fhi, thi.type, D_DX);
+-//// 		gmove(f, &flo);
+-//// 		gins(ACDQ, N, N);
+-//// 		gins(AMOVL, &flo, &tlo);
+-//// 		gins(AMOVL, &fhi, &thi);
+-//// 		splitclean();
++////		split64(t, &tlo, &thi);
++////		nodreg(&flo, tlo.type, D_AX);
++////		nodreg(&fhi, thi.type, D_DX);
++////		gmove(f, &flo);
++////		gins(ACDQ, N, N);
++////		gins(AMOVL, &flo, &tlo);
++////		gins(AMOVL, &fhi, &thi);
++////		splitclean();
+ //		return;
+ 
+ //	case CASE(TUINT32, TINT64):	// zero extend uint32
+ //	case CASE(TUINT32, TUINT64):
+ //		fatal("gmove TUINT32,INT64 not implemented");
+-//// 		split64(t, &tlo, &thi);
+-//// 		gmove(f, &tlo);
+-//// 		gins(AMOVL, ncon(0), &thi);
+-//// 		splitclean();
++////		split64(t, &tlo, &thi);
++////		gmove(f, &tlo);
++////		gins(AMOVL, ncon(0), &thi);
++////		splitclean();
+ //		return;
+ 
+ //	/*
+@@ -813,23 +813,23 @@ gmove(Node *f, Node *t)
+ //	case CASE(TINT64, TFLOAT32):
+ //	case CASE(TINT64, TFLOAT64):
+ //		fatal("gmove TINT,TFLOAT not implemented");
+-//// 		if(t->op != OREGISTER)
+-//// 			goto hard;
+-//// 		if(f->op == OREGISTER) {
+-//// 			cvt = f->type;
+-//// 			goto hardmem;
+-//// 		}
+-//// 		switch(ft) {
+-//// 		case TINT16:
+-//// 			a = AFMOVW;
+-//// 			break;
+-//// 		case TINT32:
+-//// 			a = AFMOVL;
+-//// 			break;
+-//// 		default:
+-//// 			a = AFMOVV;
+-//// 			break;
+-//// 		}
++////		if(t->op != OREGISTER)
++////			goto hard;
++////		if(f->op == OREGISTER) {
++////			cvt = f->type;
++////			goto hardmem;
++////		}
++////		switch(ft) {
++////		case TINT16:
++////			a = AFMOVW;
++////			break;
++////		case TINT32:
++////			a = AFMOVL;
++////			break;
++////		default:
++////			a = AFMOVV;
++////			break;
++////		}
+ //		break;
+ 
+ //	case CASE(TINT8, TFLOAT32):
+@@ -1186,6 +1186,18 @@ naddr(Node *n, Addr *a)
+ 		}
+ 		break;
+ 
++	case OLEN:
++		// len of string or slice
++		naddr(n->left, a);
++		a->offset += Array_nel;
++		break;
++
++	case OCAP:
++		// cap of string or slice
++		naddr(n->left, a);
++		a->offset += Array_cap;
++		break;
++
+ 	case OADDR:
+ 		naddr(n->left, a);
+ 		if(a->type == D_OREG) {
+diff --git a/src/cmd/6g/cgen.c b/src/cmd/6g/cgen.c
+index b10ac8ef75..27ad4fdbe6 100644
+--- a/src/cmd/6g/cgen.c
++++ b/src/cmd/6g/cgen.c
+@@ -102,6 +102,20 @@ cgen(Node *n, Node *res)
+ 		goto ret;
+ 	}
+ 
++	// update addressability for string, slice
++	// can't do in walk because n->left->addable
++	// changes if n->left is an escaping local variable.
++	switch(n->op) {
++	case OLEN:
++		if(isslice(n->left->type) || istype(n->left->type, TSTRING))
++			n->addable = n->left->addable;
++		break;
++	case OCAP:
++		if(isslice(n->left->type))
++			n->addable = n->left->addable;
++		break;
++	}
++
+ 	if(n->addable) {
+ 		gmove(n, res);
+ 		goto ret;
+diff --git a/src/cmd/6g/gsubr.c b/src/cmd/6g/gsubr.c
+index 0c5141d9b1..5ed0a81059 100644
+--- a/src/cmd/6g/gsubr.c
++++ b/src/cmd/6g/gsubr.c
+@@ -417,6 +417,8 @@ int
+ ismem(Node *n)
+ {
+ 	switch(n->op) {
++	case OLEN:
++	case OCAP:
+ 	case OINDREG:
+ 	case ONAME:
+ 	case OPARAM:
+@@ -1012,6 +1014,18 @@ naddr(Node *n, Addr *a)
+ 			}
+ 		fatal("naddr: OADDR\n");
+ 
++	case OLEN:
++		// len of string or slice
++		naddr(n->left, a);
++		a->offset += Array_nel;
++		break;
++
++	case OCAP:
++		// cap of string or slice
++		naddr(n->left, a);
++		a->offset += Array_cap;
++		break;
++
+ //	case OADD:
+ //		if(n->right->op == OLITERAL) {
+ //			v = n->right->vconst;
+diff --git a/src/cmd/8g/cgen.c b/src/cmd/8g/cgen.c
+index 474d0713f4..e37eb52952 100644
+--- a/src/cmd/8g/cgen.c
++++ b/src/cmd/8g/cgen.c
+@@ -83,6 +83,20 @@ cgen(Node *n, Node *res)
+ 		return;
+ 	}
+ 
++	// update addressability for string, slice
++	// can't do in walk because n->left->addable
++	// changes if n->left is an escaping local variable.
++	switch(n->op) {
++	case OLEN:
++		if(isslice(n->left->type) || istype(n->left->type, TSTRING))
++			n->addable = n->left->addable;
++		break;
++	case OCAP:
++		if(isslice(n->left->type))
++			n->addable = n->left->addable;
++		break;
++	}
++
+ 	// if both are addressable, move
+ 	if(n->addable && res->addable) {
+ 		gmove(n, res);
+diff --git a/src/cmd/8g/gsubr.c b/src/cmd/8g/gsubr.c
+index f5fbc17feb..77a4532f03 100755
+--- a/src/cmd/8g/gsubr.c
++++ b/src/cmd/8g/gsubr.c
+@@ -959,6 +959,8 @@ int
+ ismem(Node *n)
+ {
+ 	switch(n->op) {
++	case OLEN:
++	case OCAP:
+ 	case OINDREG:
+ 	case ONAME:
+ 	case OPARAM:
+@@ -1762,6 +1764,18 @@ naddr(Node *n, Addr *a)
+ 			}
+ 		fatal("naddr: OADDR\n");
+ 
++	case OLEN:
++		// len of string or slice
++		naddr(n->left, a);
++		a->offset += Array_nel;
++		break;
++
++	case OCAP:
++		// cap of string or slice
++		naddr(n->left, a);
++		a->offset += Array_cap;
++		break;
++
+ //	case OADD:
+ //		if(n->right->op == OLITERAL) {
+ //			v = n->right->vconst;

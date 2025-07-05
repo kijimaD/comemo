@@ -11,6 +11,29 @@ Date:   Sun Mar 5 13:54:16 2017 +0100
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/go/doc/exports.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/go/doc/exports.go b/src/go/doc/exports.go
+index 4a12b1e55f..da9ea1f027 100644
+--- a/src/go/doc/exports.go
++++ b/src/go/doc/exports.go
+@@ -150,7 +150,7 @@ func (r *reader) filterType(parent *namedType, typ ast.Expr) {
+ 	}
+ }
+ 
+-func (r *reader) filterSpec(spec ast.Spec, tok token.Token) bool {
++func (r *reader) filterSpec(spec ast.Spec) bool {
+ 	switch s := spec.(type) {
+ 	case *ast.ImportSpec:
+ 		// always keep imports so we can collect them
+@@ -215,7 +215,7 @@ func (r *reader) filterSpecList(list []ast.Spec, tok token.Token) []ast.Spec {
+ 
+ 	j := 0
+ 	for _, s := range list {
+-		if r.filterSpec(s, tok) {
++		if r.filterSpec(s) {
+ 			list[j] = s
+ 			j++
+ 		}

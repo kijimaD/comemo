@@ -23,7 +23,7 @@ Date:   Sat Oct 21 12:45:23 2017 +0200
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
     Reviewed-by: Heschi Kreinick <heschi@google.com>
-
+---
  src/cmd/internal/dwarf/dwarf.go             | 18 +++++++++++-------
  src/cmd/internal/obj/data.go                | 20 ++++++++++++++++----
  src/cmd/internal/obj/objfile.go             |  5 +++++
@@ -34,3 +34,259 @@ Date:   Sat Oct 21 12:45:23 2017 +0200
  src/cmd/link/internal/ld/dwarf.go           | 17 +++++++++++------
  src/cmd/link/internal/sym/symbol.go         | 12 ++++++++++--
  9 files changed, 70 insertions(+), 21 deletions(-)
+
+diff --git a/src/cmd/internal/dwarf/dwarf.go b/src/cmd/internal/dwarf/dwarf.go
+index 8f7049df09..ce1f9795e6 100644
+--- a/src/cmd/internal/dwarf/dwarf.go
++++ b/src/cmd/internal/dwarf/dwarf.go
+@@ -121,6 +121,7 @@ type Context interface {
+ 	AddInt(s Sym, size int, i int64)
+ 	AddBytes(s Sym, b []byte)
+ 	AddAddress(s Sym, t interface{}, ofs int64)
++	AddCURelativeAddress(s Sym, t interface{}, ofs int64)
+ 	AddSectionOffset(s Sym, size int, t interface{}, ofs int64)
+ 	AddString(s Sym, v string)
+ 	AddFileRef(s Sym, f interface{})
+@@ -773,15 +774,18 @@ func PutIntConst(ctxt Context, info, typ Sym, name string, val int64) {
+ // attribute).
+ func PutRanges(ctxt Context, sym Sym, base Sym, ranges []Range) {
+ 	ps := ctxt.PtrSize()
+-	// Write base address entry.
+-	if base != nil {
+-		ctxt.AddInt(sym, ps, -1)
+-		ctxt.AddAddress(sym, base, 0)
+-	}
+ 	// Write ranges.
++	// We do not emit base address entries here, even though they would reduce
++	// the number of relocations, because dsymutil (which is used on macOS when
++	// linking externally) does not support them.
+ 	for _, r := range ranges {
+-		ctxt.AddInt(sym, ps, r.Start)
+-		ctxt.AddInt(sym, ps, r.End)
++		if base == nil {
++			ctxt.AddInt(sym, ps, r.Start)
++			ctxt.AddInt(sym, ps, r.End)
++		} else {
++			ctxt.AddCURelativeAddress(sym, base, r.Start)
++			ctxt.AddCURelativeAddress(sym, base, r.End)
++		}
+ 	}
+ 	// Write trailer.
+ 	ctxt.AddInt(sym, ps, 0)
+diff --git a/src/cmd/internal/obj/data.go b/src/cmd/internal/obj/data.go
+index 23d1809e0c..ce0dd09a4f 100644
+--- a/src/cmd/internal/obj/data.go
++++ b/src/cmd/internal/obj/data.go
+@@ -117,9 +117,7 @@ func (s *LSym) WriteInt(ctxt *Link, off int64, siz int, i int64) {
+ 	}
+ }
+ 
+-// WriteAddr writes an address of size siz into s at offset off.
+-// rsym and roff specify the relocation for the address.
+-func (s *LSym) WriteAddr(ctxt *Link, off int64, siz int, rsym *LSym, roff int64) {
++func (s *LSym) writeAddr(ctxt *Link, off int64, siz int, rsym *LSym, roff int64, rtype objabi.RelocType) {
+ 	// Allow 4-byte addresses for DWARF.
+ 	if siz != ctxt.Arch.PtrSize && siz != 4 {
+ 		ctxt.Diag("WriteAddr: bad address size %d in %s", siz, s.Name)
+@@ -132,10 +130,24 @@ func (s *LSym) WriteAddr(ctxt *Link, off int64, siz int, rsym *LSym, roff int64)
+ 	}
+ 	r.Siz = uint8(siz)
+ 	r.Sym = rsym
+-	r.Type = objabi.R_ADDR
++	r.Type = rtype
+ 	r.Add = roff
+ }
+ 
++// WriteAddr writes an address of size siz into s at offset off.
++// rsym and roff specify the relocation for the address.
++func (s *LSym) WriteAddr(ctxt *Link, off int64, siz int, rsym *LSym, roff int64) {
++	s.writeAddr(ctxt, off, siz, rsym, roff, objabi.R_ADDR)
++}
++
++// WriteCURelativeAddr writes a pointer-sized address into s at offset off.
++// rsym and roff specify the relocation for the address which will be
++// resolved by the linker to an offset from the DW_AT_low_pc attribute of
++// the DWARF Compile Unit of rsym.
++func (s *LSym) WriteCURelativeAddr(ctxt *Link, off int64, rsym *LSym, roff int64) {
++	s.writeAddr(ctxt, off, ctxt.Arch.PtrSize, rsym, roff, objabi.R_ADDRCUOFF)
++}
++
+ // WriteOff writes a 4 byte offset to rsym+roff into s at offset off.
+ // After linking the 4 bytes stored at s+off will be
+ // rsym+roff-(start of section that s is in).
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index 7098d203dd..9372fb34da 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -453,6 +453,11 @@ func (c dwCtxt) AddAddress(s dwarf.Sym, data interface{}, value int64) {
+ 		ls.WriteInt(c.Link, ls.Size, size, value)
+ 	}
+ }
++func (c dwCtxt) AddCURelativeAddress(s dwarf.Sym, data interface{}, value int64) {
++	ls := s.(*LSym)
++	rsym := data.(*LSym)
++	ls.WriteCURelativeAddr(c.Link, ls.Size, rsym, value)
++}
+ func (c dwCtxt) AddSectionOffset(s dwarf.Sym, size int, t interface{}, ofs int64) {
+ 	ls := s.(*LSym)
+ 	rsym := t.(*LSym)
+diff --git a/src/cmd/internal/objabi/reloctype.go b/src/cmd/internal/objabi/reloctype.go
+index 82e3161cf4..2e0b916f7c 100644
+--- a/src/cmd/internal/objabi/reloctype.go
++++ b/src/cmd/internal/objabi/reloctype.go
+@@ -190,6 +190,9 @@ const (
+ 	// R_ADDRMIPSTLS (only used on mips64) resolves to the low 16 bits of a TLS
+ 	// address (offset from thread pointer), by encoding it into the instruction.
+ 	R_ADDRMIPSTLS
++	// R_ADDRCUOFF resolves to a pointer-sized offset from the start of the
++	// symbol's DWARF compile unit.
++	R_ADDRCUOFF
+ )
+ 
+ // IsDirectJump returns whether r is a relocation for a direct jump.
+diff --git a/src/cmd/internal/objabi/reloctype_string.go b/src/cmd/internal/objabi/reloctype_string.go
+index 792d631486..a6efe9cad0 100644
+--- a/src/cmd/internal/objabi/reloctype_string.go
++++ b/src/cmd/internal/objabi/reloctype_string.go
+@@ -4,9 +4,9 @@ package objabi
+ 
+ import "fmt"
+ 
+-const _RelocType_name = "R_ADDRR_ADDRPOWERR_ADDRARM64R_ADDRMIPSR_ADDROFFR_WEAKADDROFFR_SIZER_CALLR_CALLARMR_CALLARM64R_CALLINDR_CALLPOWERR_CALLMIPSR_CONSTR_PCRELR_TLS_LER_TLS_IER_GOTOFFR_PLT0R_PLT1R_PLT2R_USEFIELDR_USETYPER_METHODOFFR_POWER_TOCR_GOTPCRELR_JMPMIPSR_DWARFSECREFR_DWARFFILEREFR_ARM64_TLS_LER_ARM64_TLS_IER_ARM64_GOTPCRELR_POWER_TLS_LER_POWER_TLS_IER_POWER_TLSR_ADDRPOWER_DSR_ADDRPOWER_GOTR_ADDRPOWER_PCRELR_ADDRPOWER_TOCRELR_ADDRPOWER_TOCREL_DSR_PCRELDBLR_ADDRMIPSUR_ADDRMIPSTLS"
++const _RelocType_name = "R_ADDRR_ADDRPOWERR_ADDRARM64R_ADDRMIPSR_ADDROFFR_WEAKADDROFFR_SIZER_CALLR_CALLARMR_CALLARM64R_CALLINDR_CALLPOWERR_CALLMIPSR_CONSTR_PCRELR_TLS_LER_TLS_IER_GOTOFFR_PLT0R_PLT1R_PLT2R_USEFIELDR_USETYPER_METHODOFFR_POWER_TOCR_GOTPCRELR_JMPMIPSR_DWARFSECREFR_DWARFFILEREFR_ARM64_TLS_LER_ARM64_TLS_IER_ARM64_GOTPCRELR_POWER_TLS_LER_POWER_TLS_IER_POWER_TLSR_ADDRPOWER_DSR_ADDRPOWER_GOTR_ADDRPOWER_PCRELR_ADDRPOWER_TOCRELR_ADDRPOWER_TOCREL_DSR_PCRELDBLR_ADDRMIPSUR_ADDRMIPSTLSR_ADDRCUOFF"
+ 
+-var _RelocType_index = [...]uint16{0, 6, 17, 28, 38, 47, 60, 66, 72, 81, 92, 101, 112, 122, 129, 136, 144, 152, 160, 166, 172, 178, 188, 197, 208, 219, 229, 238, 251, 265, 279, 293, 309, 323, 337, 348, 362, 377, 394, 412, 433, 443, 454, 467}
++var _RelocType_index = [...]uint16{0, 6, 17, 28, 38, 47, 60, 66, 72, 81, 92, 101, 112, 122, 129, 136, 144, 152, 160, 166, 172, 178, 188, 197, 208, 219, 229, 238, 251, 265, 279, 293, 309, 323, 337, 348, 362, 377, 394, 412, 433, 443, 454, 467, 478}
+ 
+ func (i RelocType) String() string {
+ 	i -= 1
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index d3884f3515..79b9ae1013 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -367,6 +367,11 @@ func relocsym(ctxt *Link, s *sym.Symbol) {
+ 				o = Symaddr(r.Sym) - int64(r.Sym.Sect.Vaddr) + r.Add
+ 			}
+ 
++		case objabi.R_ADDRCUOFF:
++			// debug_range and debug_loc elements use this relocation type to get an
++			// offset from the start of the compile unit.
++			o = Symaddr(r.Sym) + r.Add - Symaddr(r.Sym.Lib.Textp[0])
++
+ 			// r->sym can be null when CALL $(constant) is transformed from absolute PC to relative PC call.
+ 		case objabi.R_GOTPCREL:
+ 			if ctxt.DynlinkingGo() && ctxt.HeadType == objabi.Hdarwin && r.Sym != nil && r.Sym.Type != sym.SCONST {
+diff --git a/src/cmd/link/internal/ld/deadcode.go b/src/cmd/link/internal/ld/deadcode.go
+index 600c49aa12..c5c48e5c85 100644
+--- a/src/cmd/link/internal/ld/deadcode.go
++++ b/src/cmd/link/internal/ld/deadcode.go
+@@ -118,10 +118,17 @@ func deadcode(ctxt *Link) {
+ 		}
+ 	}
+ 
++	for _, lib := range ctxt.Library {
++		lib.Textp = lib.Textp[:0]
++	}
++
+ 	// Remove dead text but keep file information (z symbols).
+ 	textp := make([]*sym.Symbol, 0, len(ctxt.Textp))
+ 	for _, s := range ctxt.Textp {
+ 		if s.Attr.Reachable() {
++			if s.Lib != nil {
++				s.Lib.Textp = append(s.Lib.Textp, s)
++			}
+ 			textp = append(textp, s)
+ 		}
+ 	}
+diff --git a/src/cmd/link/internal/ld/dwarf.go b/src/cmd/link/internal/ld/dwarf.go
+index d0fae2c79f..03facbcd58 100644
+--- a/src/cmd/link/internal/ld/dwarf.go
++++ b/src/cmd/link/internal/ld/dwarf.go
+@@ -49,6 +49,13 @@ func (c dwctxt) AddAddress(s dwarf.Sym, data interface{}, value int64) {
+ 	s.(*sym.Symbol).AddAddrPlus(c.linkctxt.Arch, data.(*sym.Symbol), value)
+ }
+ 
++func (c dwctxt) AddCURelativeAddress(s dwarf.Sym, data interface{}, value int64) {
++	if value != 0 {
++		value -= (data.(*sym.Symbol)).Value
++	}
++	s.(*sym.Symbol).AddCURelativeAddrPlus(c.linkctxt.Arch, data.(*sym.Symbol), value)
++}
++
+ func (c dwctxt) AddSectionOffset(s dwarf.Sym, size int, t interface{}, ofs int64) {
+ 	ls := s.(*sym.Symbol)
+ 	switch size {
+@@ -843,7 +850,6 @@ func defdwsymb(ctxt *Link, s *sym.Symbol, str string, t SymbolType, v int64, got
+ // debug-related data.
+ type compilationUnit struct {
+ 	lib      *sym.Library
+-	textp    []*sym.Symbol // Function symbols in this package
+ 	consts   *sym.Symbol   // Package constants DIEs
+ 	pcs      []dwarf.Range // PC ranges, relative to textp[0]
+ 	dwinfo   *dwarf.DWDie  // CU root DIE
+@@ -869,7 +875,6 @@ func getCompilationUnits(ctxt *Link) []*compilationUnit {
+ 			units = append(units, unit)
+ 			index[s.Lib] = unit
+ 		}
+-		unit.textp = append(unit.textp, s)
+ 
+ 		// Update PC ranges.
+ 		//
+@@ -879,10 +884,10 @@ func getCompilationUnits(ctxt *Link) []*compilationUnit {
+ 		// only create boundaries between symbols from
+ 		// different units.
+ 		if prevUnit != unit {
+-			unit.pcs = append(unit.pcs, dwarf.Range{Start: s.Value - unit.textp[0].Value})
++			unit.pcs = append(unit.pcs, dwarf.Range{Start: s.Value - unit.lib.Textp[0].Value})
+ 			prevUnit = unit
+ 		}
+-		unit.pcs[len(unit.pcs)-1].End = s.Value - unit.textp[0].Value + s.Size
++		unit.pcs[len(unit.pcs)-1].End = s.Value - unit.lib.Textp[0].Value + s.Size
+ 	}
+ 	return units
+ }
+@@ -1612,8 +1617,8 @@ func dwarfgeneratedebugsyms(ctxt *Link) {
+ 	debugRanges.Attr |= sym.AttrReachable
+ 	syms = append(syms, debugLine)
+ 	for _, u := range units {
+-		u.dwinfo, u.funcDIEs = writelines(ctxt, u.lib, u.textp, debugLine)
+-		writepcranges(ctxt, u.dwinfo, u.textp[0], u.pcs, debugRanges)
++		u.dwinfo, u.funcDIEs = writelines(ctxt, u.lib, u.lib.Textp, debugLine)
++		writepcranges(ctxt, u.dwinfo, u.lib.Textp[0], u.pcs, debugRanges)
+ 	}
+ 
+ 	synthesizestringtypes(ctxt, dwtypes.Child)
+diff --git a/src/cmd/link/internal/sym/symbol.go b/src/cmd/link/internal/sym/symbol.go
+index b3ff6c4e19..6faedf4fe2 100644
+--- a/src/cmd/link/internal/sym/symbol.go
++++ b/src/cmd/link/internal/sym/symbol.go
+@@ -133,7 +133,7 @@ func (s *Symbol) SetUint(arch *sys.Arch, r int64, v uint64) int64 {
+ 	return s.setUintXX(arch, r, v, int64(arch.PtrSize))
+ }
+ 
+-func (s *Symbol) AddAddrPlus(arch *sys.Arch, t *Symbol, add int64) int64 {
++func (s *Symbol) addAddrPlus(arch *sys.Arch, t *Symbol, add int64, typ objabi.RelocType) int64 {
+ 	if s.Type == 0 {
+ 		s.Type = SDATA
+ 	}
+@@ -145,11 +145,19 @@ func (s *Symbol) AddAddrPlus(arch *sys.Arch, t *Symbol, add int64) int64 {
+ 	r.Sym = t
+ 	r.Off = int32(i)
+ 	r.Siz = uint8(arch.PtrSize)
+-	r.Type = objabi.R_ADDR
++	r.Type = typ
+ 	r.Add = add
+ 	return i + int64(r.Siz)
+ }
+ 
++func (s *Symbol) AddAddrPlus(arch *sys.Arch, t *Symbol, add int64) int64 {
++	return s.addAddrPlus(arch, t, add, objabi.R_ADDR)
++}
++
++func (s *Symbol) AddCURelativeAddrPlus(arch *sys.Arch, t *Symbol, add int64) int64 {
++	return s.addAddrPlus(arch, t, add, objabi.R_ADDRCUOFF)
++}
++
+ func (s *Symbol) AddPCRelPlus(arch *sys.Arch, t *Symbol, add int64) int64 {
+ 	if s.Type == 0 {
+ 		s.Type = SDATA

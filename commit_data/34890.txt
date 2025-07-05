@@ -7,6 +7,20 @@ Date:   Thu Nov 23 14:32:03 2017 +1300
     Change-Id: I3bfe1b11265f0def4701faf2cfc1ad10a666a473
     Reviewed-on: https://go-review.googlesource.com/79596
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/effective_go.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/effective_go.html b/doc/effective_go.html
+index 6d53eefbc3..61de824fcd 100644
+--- a/doc/effective_go.html
++++ b/doc/effective_go.html
+@@ -2790,7 +2790,7 @@ job := &amp;Job{command, log.New(os.Stderr, "Job: ", log.Ldate)}
+ <p>
+ If we need to refer to an embedded field directly, the type name of the field,
+ ignoring the package qualifier, serves as a field name, as it did
+-in the <code>Read</code> method of our <code>ReaderWriter</code> struct.
++in the <code>Read</code> method of our <code>ReadWriter</code> struct.
+ Here, if we needed to access the
+ <code>*log.Logger</code> of a <code>Job</code> variable <code>job</code>,
+ we would write <code>job.Logger</code>,

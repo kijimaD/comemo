@@ -18,7 +18,7 @@ Date:   Mon Feb 25 22:06:58 2013 -0800
     R=adonovan, axwalk
     CC=golang-dev
     https://golang.org/cl/7363054
-
+---
  src/pkg/exp/ssa/importer.go            |   2 +-
  src/pkg/go/types/api.go                |  23 +++--
  src/pkg/go/types/builtins.go           | 103 ++-------------------
@@ -36,3 +36,1152 @@ Date:   Mon Feb 25 22:06:58 2013 -0800
  src/pkg/go/types/testdata/expr3.src    |  10 ++
  src/pkg/go/types/types.go              |  10 +-
  16 files changed, 339 insertions(+), 250 deletions(-)
+
+diff --git a/src/pkg/exp/ssa/importer.go b/src/pkg/exp/ssa/importer.go
+index bb7691a293..ce73323d44 100644
+--- a/src/pkg/exp/ssa/importer.go
++++ b/src/pkg/exp/ssa/importer.go
+@@ -45,7 +45,7 @@ func (b *Builder) doImport(imports map[string]*types.Package, path string) (typk
+ 	}
+ 	var files []*ast.File
+ 	if b.mode&UseGCImporter != 0 {
+-		typkg, err = types.GcImport(&b.typechecker, imports, path)
++		typkg, err = types.GcImport(imports, path)
+ 	} else {
+ 		files, err = b.loader(b.Prog.Files, path)
+ 		if err == nil {
+diff --git a/src/pkg/go/types/api.go b/src/pkg/go/types/api.go
+index 5782c6df30..b38b9a50d6 100644
+--- a/src/pkg/go/types/api.go
++++ b/src/pkg/go/types/api.go
+@@ -54,18 +54,21 @@ type Context struct {
+ 	// Otherwise, GcImporter is called.
+ 	Import Importer
+ 
+-	// If Alignof != nil, it is called to determine alignment.
+-	// Otherwise DefaultAlignmentof is called.
+-	// Alignof must return a size > 0, in bytes. It is not called
+-	// for arrays and structs (those alignments are based on the
+-	// alignment of the array elements or struct fields, respectively).
++	// If Alignof != nil, it is called to determine the alignment
++	// of the given type. Otherwise DefaultAlignmentof is called.
++	// Alignof must implement the alignment guarantees required by
++	// the spec.
+ 	Alignof func(Type) int64
+ 
+-	// If Sizeof != nil, it is called to determine sizes of types.
+-	// Otherwise, DefaultSizeof is called.
+-	// Sizeof must return a size >= 0, in bytes. It is not called
+-	// for arrays and structs (those sizes are based on the sizes
+-	// of the array elements or struct fields, respectively).
++	// If Offsetsof != nil, it is called to determine the offsets
++	// of the given struct fields, in bytes. Otherwise DefaultOffsetsof
++	// is called. Offsetsof must implement the offset guarantees
++	// required by the spec.
++	Offsetsof func(fields []*Field) []int64
++
++	// If Sizeof != nil, it is called to determine the size of the
++	// given type. Otherwise, DefaultSizeof is called. Sizeof must
++	// implement the size guarantees required by the spec.
+ 	Sizeof func(Type) int64
+ }
+ 
+diff --git a/src/pkg/go/types/builtins.go b/src/pkg/go/types/builtins.go
+index 53e6e49f5d..fd796ee75d 100644
+--- a/src/pkg/go/types/builtins.go
++++ b/src/pkg/go/types/builtins.go
+@@ -213,7 +213,7 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *builtin, iota
+ 		if x.mode == invalid {
+ 			goto Error
+ 		}
+-		if !x.isAssignable(m.Key) {
++		if !x.isAssignable(check.ctxt, m.Key) {
+ 			check.invalidArg(x.pos(), "%s is not assignable to %s", x, m.Key)
+ 			goto Error
+ 		}
+@@ -272,7 +272,7 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *builtin, iota
+ 		var sizes []interface{} // constant integer arguments, if any
+ 		for _, arg := range args[1:] {
+ 			check.expr(x, arg, nil, iota)
+-			if x.isInteger() {
++			if x.isInteger(check.ctxt) {
+ 				if x.mode == constant {
+ 					if isNegConst(x.val) {
+ 						check.invalidArg(x.pos(), "%s must not be negative", x)
+@@ -334,12 +334,17 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *builtin, iota
+ 		}
+ 		sel := arg.Sel.Name
+ 		res := lookupField(x.typ, QualifiedName{check.pkg, arg.Sel.Name})
+-		if res.mode != variable {
++		if res.index == nil {
+ 			check.invalidArg(x.pos(), "%s has no single field %s", x, sel)
+ 			goto Error
+ 		}
++		offs := check.ctxt.offsetof(x.typ, res.index)
++		if offs < 0 {
++			check.invalidArg(x.pos(), "field %s is embedded via a pointer in %s", sel, x)
++			goto Error
++		}
+ 		x.mode = constant
+-		x.val = res.offset
++		x.val = offs
+ 		x.typ = Typ[Uintptr]
+ 
+ 	case _Sizeof:
+@@ -448,93 +453,3 @@ func (check *checker) complexArg(x *operand) bool {
+ 	check.invalidArg(x.pos(), "%s must be a float32, float64, or an untyped non-complex numeric constant", x)
+ 	return false
+ }
+-
+-func (ctxt *Context) alignof(typ Type) int64 {
+-	// For arrays and structs, alignment is defined in terms
+-	// of alignment of the elements and fields, respectively.
+-	switch typ := underlying(typ).(type) {
+-	case *Array:
+-		// spec: "For a variable x of array type: unsafe.Alignof(x)
+-		// is the same as unsafe.Alignof(x[0]), but at least 1."
+-		return ctxt.alignof(typ.Elt)
+-	case *Struct:
+-		// spec: "For a variable x of struct type: unsafe.Alignof(x)
+-		// is the largest of of the values unsafe.Alignof(x.f) for
+-		// each field f of x, but at least 1."
+-		return typ.Alignment
+-	}
+-	// externally defined Alignof
+-	if f := ctxt.Alignof; f != nil {
+-		if a := f(typ); a > 0 {
+-			return a
+-		}
+-		panic("Context.Alignof returned value < 1")
+-	}
+-	// all other cases
+-	return DefaultAlignof(typ)
+-}
+-
+-// DefaultMaxAlign is the default maximum alignment, in bytes,
+-// used by DefaultAlignof.
+-const DefaultMaxAlign = 8
+-
+-// DefaultAlignof implements the default alignment computation
+-// for unsafe.Alignof. It is used if Context.Alignof == nil.
+-func DefaultAlignof(typ Type) int64 {
+-	a := DefaultSizeof(typ) // may be 0
+-	// spec: "For a variable x of any type: unsafe.Alignof(x) is at least 1."
+-	if a < 1 {
+-		return 1
+-	}
+-	if a > DefaultMaxAlign {
+-		return DefaultMaxAlign
+-	}
+-	return a
+-}
+-
+-func (ctxt *Context) sizeof(typ Type) int64 {
+-	// For arrays and structs, size is defined in terms
+-	// of size of the elements and fields, respectively.
+-	switch typ := underlying(typ).(type) {
+-	case *Array:
+-		return ctxt.sizeof(typ.Elt) * typ.Len // may be 0
+-	case *Struct:
+-		return typ.Size
+-	}
+-	// externally defined Sizeof
+-	if f := ctxt.Sizeof; f != nil {
+-		if s := f(typ); s >= 0 {
+-			return s
+-		}
+-		panic("Context.Sizeof returned value < 0")
+-	}
+-	// all other cases
+-	return DefaultSizeof(typ)
+-}
+-
+-// DefaultPtrSize is the default size of pointers, in bytes,
+-// used by DefaultSizeof.
+-const DefaultPtrSize = 8
+-
+-// DefaultSizeof implements the default size computation
+-// for unsafe.Sizeof. It is used if Context.Sizeof == nil.
+-func DefaultSizeof(typ Type) int64 {
+-	switch typ := underlying(typ).(type) {
+-	case *Basic:
+-		if s := typ.size; s > 0 {
+-			return s
+-		}
+-		if typ.Kind == String {
+-			return DefaultPtrSize * 2
+-		}
+-	case *Array:
+-		return DefaultSizeof(typ.Elt) * typ.Len // may be 0
+-	case *Slice:
+-		return DefaultPtrSize * 3
+-	case *Struct:
+-		return typ.Size // may be 0
+-	case *Signature:
+-		return DefaultPtrSize * 2
+-	}
+-	return DefaultPtrSize // catch-all
+-}
+diff --git a/src/pkg/go/types/check.go b/src/pkg/go/types/check.go
+index becf0b17df..1a0fb04ae2 100644
+--- a/src/pkg/go/types/check.go
++++ b/src/pkg/go/types/check.go
+@@ -421,9 +421,7 @@ func check(ctxt *Context, fset *token.FileSet, files []*ast.File) (pkg *Package,
+ 	// resolve identifiers
+ 	imp := ctxt.Import
+ 	if imp == nil {
+-		imp = func(imports map[string]*Package, path string) (pkg *Package, err error) {
+-			return GcImport(ctxt, imports, path)
+-		}
++		imp = GcImport
+ 	}
+ 	methods := check.resolve(imp)
+ 
+diff --git a/src/pkg/go/types/const.go b/src/pkg/go/types/const.go
+index b953485cb6..503652e75a 100644
+--- a/src/pkg/go/types/const.go
++++ b/src/pkg/go/types/const.go
+@@ -14,8 +14,8 @@ import (
+ )
+ 
+ // TODO(gri) At the moment, constants are different types
+-// passed around as interface{} values. Consider introducing
+-// a Const type and use methods instead of xConst functions.
++// passed around as interface{} values. Introduce a Const
++// interface and use methods instead of xConst functions.
+ 
+ // Representation of constant values.
+ //
+@@ -49,13 +49,6 @@ func (NilType) String() string {
+ 	return "nil"
+ }
+ 
+-// Implementation-specific constants.
+-// TODO(gri) These need to go elsewhere.
+-const (
+-	intBits = 32
+-	ptrBits = 64
+-)
+-
+ // Frequently used values.
+ var (
+ 	nilConst  = NilType{}
+@@ -206,7 +199,7 @@ func isNegConst(x interface{}) bool {
+ // be represented as a value of the basic type Typ[as] without loss
+ // of precision.
+ //
+-func isRepresentableConst(x interface{}, as BasicKind) bool {
++func isRepresentableConst(x interface{}, ctxt *Context, as BasicKind) bool {
+ 	switch x := x.(type) {
+ 	case bool:
+ 		return as == Bool || as == UntypedBool
+@@ -214,28 +207,33 @@ func isRepresentableConst(x interface{}, as BasicKind) bool {
+ 	case int64:
+ 		switch as {
+ 		case Int:
+-			return -1<<(intBits-1) <= x && x <= 1<<(intBits-1)-1
++			var s = uint(ctxt.sizeof(Typ[as])) * 8
++			return int64(-1)<<(s-1) <= x && x <= int64(1)<<(s-1)-1
+ 		case Int8:
+-			return -1<<(8-1) <= x && x <= 1<<(8-1)-1
++			const s = 8
++			return -1<<(s-1) <= x && x <= 1<<(s-1)-1
+ 		case Int16:
+-			return -1<<(16-1) <= x && x <= 1<<(16-1)-1
+-		case Int32, UntypedRune:
+-			return -1<<(32-1) <= x && x <= 1<<(32-1)-1
++			const s = 16
++			return -1<<(s-1) <= x && x <= 1<<(s-1)-1
++		case Int32:
++			const s = 32
++			return -1<<(s-1) <= x && x <= 1<<(s-1)-1
+ 		case Int64:
+ 			return true
+-		case Uint:
+-			return 0 <= x && x <= 1<<intBits-1
++		case Uint, Uintptr:
++			var s = uint(ctxt.sizeof(Typ[as])) * 8
++			return 0 <= x && x <= int64(1)<<(s-1)-1
+ 		case Uint8:
+-			return 0 <= x && x <= 1<<8-1
++			const s = 8
++			return 0 <= x && x <= 1<<s-1
+ 		case Uint16:
+-			return 0 <= x && x <= 1<<16-1
++			const s = 16
++			return 0 <= x && x <= 1<<s-1
+ 		case Uint32:
+-			return 0 <= x && x <= 1<<32-1
++			const s = 32
++			return 0 <= x && x <= 1<<s-1
+ 		case Uint64:
+ 			return 0 <= x
+-		case Uintptr:
+-			assert(ptrBits == 64)
+-			return 0 <= x
+ 		case Float32:
+ 			return true // TODO(gri) fix this
+ 		case Float64:
+@@ -250,12 +248,11 @@ func isRepresentableConst(x interface{}, as BasicKind) bool {
+ 
+ 	case *big.Int:
+ 		switch as {
+-		case Uint:
+-			return x.Sign() >= 0 && x.BitLen() <= intBits
++		case Uint, Uintptr:
++			var s = uint(ctxt.sizeof(Typ[as])) * 8
++			return x.Sign() >= 0 && x.BitLen() <= int(s)
+ 		case Uint64:
+ 			return x.Sign() >= 0 && x.BitLen() <= 64
+-		case Uintptr:
+-			return x.Sign() >= 0 && x.BitLen() <= ptrBits
+ 		case Float32:
+ 			return true // TODO(gri) fix this
+ 		case Float64:
+@@ -389,7 +386,7 @@ func is63bit(x int64) bool {
+ }
+ 
+ // unaryOpConst returns the result of the constant evaluation op x where x is of the given type.
+-func unaryOpConst(x interface{}, op token.Token, typ *Basic) interface{} {
++func unaryOpConst(x interface{}, ctxt *Context, op token.Token, typ *Basic) interface{} {
+ 	switch op {
+ 	case token.ADD:
+ 		return x // nothing to do
+@@ -422,21 +419,8 @@ func unaryOpConst(x interface{}, op token.Token, typ *Basic) interface{} {
+ 		// thus "too large": We must limit the result size to
+ 		// the type's size.
+ 		if typ.Info&IsUnsigned != 0 {
+-			s := uint(typ.size) * 8
+-			if s == 0 {
+-				// platform-specific type
+-				// TODO(gri) this needs to be factored out
+-				switch typ.Kind {
+-				case Uint:
+-					s = intBits
+-				case Uintptr:
+-					s = ptrBits
+-				default:
+-					unreachable()
+-				}
+-			}
+-			// z &^= (-1)<<s
+-			z.AndNot(&z, new(big.Int).Lsh(big.NewInt(-1), s))
++			s := uint(ctxt.sizeof(typ)) * 8
++			z.AndNot(&z, new(big.Int).Lsh(big.NewInt(-1), s)) // z &^= (-1)<<s
+ 		}
+ 		return normalizeIntConst(&z)
+ 	case token.NOT:
+diff --git a/src/pkg/go/types/conversions.go b/src/pkg/go/types/conversions.go
+index 36661bea5f..fcbaf7717e 100644
+--- a/src/pkg/go/types/conversions.go
++++ b/src/pkg/go/types/conversions.go
+@@ -33,7 +33,7 @@ func (check *checker) conversion(x *operand, conv *ast.CallExpr, typ Type, iota
+ 		// TODO(gri) implement this
+ 	} else {
+ 		// non-constant conversion
+-		if !x.isConvertible(typ) {
++		if !x.isConvertible(check.ctxt, typ) {
+ 			check.invalidOp(conv.Pos(), "cannot convert %s to %s", x, typ)
+ 			goto Error
+ 		}
+@@ -49,9 +49,9 @@ Error:
+ 	x.mode = invalid
+ }
+ 
+-func (x *operand) isConvertible(T Type) bool {
++func (x *operand) isConvertible(ctxt *Context, T Type) bool {
+ 	// "x is assignable to T"
+-	if x.isAssignable(T) {
++	if x.isAssignable(ctxt, T) {
+ 		return true
+ 	}
+ 
+diff --git a/src/pkg/go/types/expr.go b/src/pkg/go/types/expr.go
+index c1eddda77b..5aacb02f86 100644
+--- a/src/pkg/go/types/expr.go
++++ b/src/pkg/go/types/expr.go
+@@ -135,7 +135,7 @@ func (check *checker) collectFields(list *ast.FieldList, cycleOk bool) (fields [
+ 	var typ Type   // current field typ
+ 	var tag string // current field tag
+ 	add := func(name string, isAnonymous bool) {
+-		fields = append(fields, &Field{QualifiedName{check.pkg, name}, typ, tag, 0, isAnonymous})
++		fields = append(fields, &Field{QualifiedName{check.pkg, name}, typ, tag, isAnonymous})
+ 	}
+ 
+ 	for _, f := range list.List {
+@@ -164,29 +164,6 @@ func (check *checker) collectFields(list *ast.FieldList, cycleOk bool) (fields [
+ 	return
+ }
+ 
+-// align returns the smallest y >= x such that y % a == 0.
+-func align(x, a int64) int64 {
+-	y := x + a - 1
+-	return y - y%a
+-}
+-
+-func (ctxt *Context) newStruct(fields []*Field) *Struct {
+-	// spec: "For a variable x of struct type: unsafe.Alignof(x) is the largest of
+-	// of the values unsafe.Alignof(x.f) for each field f of x, but at least 1."
+-	maxAlign := int64(1)
+-	var offset int64
+-	for _, f := range fields {
+-		a := ctxt.alignof(f.Type)
+-		if a > maxAlign {
+-			maxAlign = a
+-		}
+-		offset = align(offset, a)
+-		f.Offset = offset
+-		offset += ctxt.sizeof(f.Type)
+-	}
+-	return &Struct{fields, maxAlign, offset}
+-}
+-
+ type opPredicates map[token.Token]func(Type) bool
+ 
+ var unaryOpPredicates = opPredicates{
+@@ -245,7 +222,7 @@ func (check *checker) unary(x *operand, op token.Token) {
+ 
+ 	if x.mode == constant {
+ 		typ := underlying(x.typ).(*Basic)
+-		x.val = unaryOpConst(x.val, op, typ)
++		x.val = unaryOpConst(x.val, check.ctxt, op, typ)
+ 		// Typed constants must be representable in
+ 		// their type after each constant operation.
+ 		check.isRepresentable(x, typ)
+@@ -279,7 +256,7 @@ func (check *checker) isRepresentable(x *operand, typ *Basic) {
+ 		return
+ 	}
+ 
+-	if !isRepresentableConst(x.val, typ.Kind) {
++	if !isRepresentableConst(x.val, check.ctxt, typ.Kind) {
+ 		var msg string
+ 		if isNumeric(x.typ) && isNumeric(typ) {
+ 			msg = "%s overflows %s"
+@@ -342,7 +319,7 @@ func (check *checker) comparison(x, y *operand, op token.Token) {
+ 	// TODO(gri) deal with interface vs non-interface comparison
+ 
+ 	valid := false
+-	if x.isAssignable(y.typ) || y.isAssignable(x.typ) {
++	if x.isAssignable(check.ctxt, y.typ) || y.isAssignable(check.ctxt, x.typ) {
+ 		switch op {
+ 		case token.EQL, token.NEQ:
+ 			valid = isComparable(x.typ) ||
+@@ -378,7 +355,7 @@ func (check *checker) shift(x, y *operand, op token.Token, hint Type) {
+ 	switch {
+ 	case isInteger(y.typ) && isUnsigned(y.typ):
+ 		// nothing to do
+-	case y.mode == constant && isUntyped(y.typ) && isRepresentableConst(y.val, UntypedInt):
++	case y.mode == constant && isUntyped(y.typ) && isRepresentableConst(y.val, check.ctxt, UntypedInt):
+ 		y.typ = Typ[UntypedInt]
+ 	default:
+ 		check.invalidOp(y.pos(), "shift count %s must be unsigned integer", y)
+@@ -397,7 +374,7 @@ func (check *checker) shift(x, y *operand, op token.Token, hint Type) {
+ 			// constant shift - accept values of any (untyped) type
+ 			// as long as the value is representable as an integer
+ 			if x.mode == constant && isUntyped(x.typ) {
+-				if isRepresentableConst(x.val, UntypedInt) {
++				if isRepresentableConst(x.val, check.ctxt, UntypedInt) {
+ 					x.typ = Typ[UntypedInt]
+ 				}
+ 			}
+@@ -512,7 +489,7 @@ func (check *checker) index(index ast.Expr, length int64, iota int) int64 {
+ 	var x operand
+ 
+ 	check.expr(&x, index, nil, iota)
+-	if !x.isInteger() {
++	if !x.isInteger(check.ctxt) {
+ 		check.errorf(x.pos(), "index %s must be integer", &x)
+ 		return -1
+ 	}
+@@ -591,7 +568,7 @@ func (check *checker) indexedElts(elts []ast.Expr, typ Type, length int64, iota
+ 		// check element against composite literal element type
+ 		var x operand
+ 		check.expr(&x, eval, typ, iota)
+-		if !x.isAssignable(typ) {
++		if !x.isAssignable(check.ctxt, typ) {
+ 			check.errorf(x.pos(), "cannot use %s as %s value in array or slice literal", &x, typ)
+ 		}
+ 	}
+@@ -799,7 +776,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
+ 						check.errorf(kv.Pos(), "invalid field name %s in struct literal", kv.Key)
+ 						continue
+ 					}
+-					i := utyp.fieldIndex(key.Name)
++					i := utyp.fieldIndex(QualifiedName{check.pkg, key.Name})
+ 					if i < 0 {
+ 						check.errorf(kv.Pos(), "unknown field %s in struct literal", key.Name)
+ 						continue
+@@ -812,7 +789,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
+ 					visited[i] = true
+ 					check.expr(x, kv.Value, nil, iota)
+ 					etyp := fields[i].Type
+-					if !x.isAssignable(etyp) {
++					if !x.isAssignable(check.ctxt, etyp) {
+ 						check.errorf(x.pos(), "cannot use %s as %s value in struct literal", x, etyp)
+ 						continue
+ 					}
+@@ -831,7 +808,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
+ 					}
+ 					// i < len(fields)
+ 					etyp := fields[i].Type
+-					if !x.isAssignable(etyp) {
++					if !x.isAssignable(check.ctxt, etyp) {
+ 						check.errorf(x.pos(), "cannot use %s as %s value in struct literal", x, etyp)
+ 						continue
+ 					}
+@@ -862,7 +839,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
+ 				}
+ 				check.compositeLitKey(kv.Key)
+ 				check.expr(x, kv.Key, nil, iota)
+-				if !x.isAssignable(utyp.Key) {
++				if !x.isAssignable(check.ctxt, utyp.Key) {
+ 					check.errorf(x.pos(), "cannot use %s as %s key in map literal", x, utyp.Key)
+ 					continue
+ 				}
+@@ -874,7 +851,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
+ 					visited[x.val] = true
+ 				}
+ 				check.expr(x, kv.Value, utyp.Elt, iota)
+-				if !x.isAssignable(utyp.Elt) {
++				if !x.isAssignable(check.ctxt, utyp.Elt) {
+ 					check.errorf(x.pos(), "cannot use %s as %s value in map literal", x, utyp.Elt)
+ 					continue
+ 				}
+@@ -1009,7 +986,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
+ 		case *Map:
+ 			var key operand
+ 			check.expr(&key, e.Index, nil, iota)
+-			if key.mode == invalid || !key.isAssignable(typ.Key) {
++			if key.mode == invalid || !key.isAssignable(check.ctxt, typ.Key) {
+ 				check.invalidOp(x.pos(), "cannot use %s as map index of type %s", &key, typ.Key)
+ 				goto Error
+ 			}
+@@ -1049,7 +1026,11 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
+ 				// a constant) even if the string and the indices
+ 				// are constant
+ 				x.mode = value
+-				// x.typ doesn't change
++				// x.typ doesn't change, but if it is an untyped
++				// string it becomes string (see also issue 4913).
++				if typ.Kind == UntypedString {
++					x.typ = Typ[String]
++				}
+ 			}
+ 
+ 		case *Array:
+@@ -1278,7 +1259,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
+ 
+ 	case *ast.StructType:
+ 		x.mode = typexpr
+-		x.typ = check.ctxt.newStruct(check.collectFields(e.Fields, cycleOk))
++		x.typ = &Struct{Fields: check.collectFields(e.Fields, cycleOk)}
+ 
+ 	case *ast.FuncType:
+ 		params, isVariadic := check.collectParams(e.Params, true)
+diff --git a/src/pkg/go/types/gcimporter.go b/src/pkg/go/types/gcimporter.go
+index d795f41d99..7f968eb8d0 100644
+--- a/src/pkg/go/types/gcimporter.go
++++ b/src/pkg/go/types/gcimporter.go
+@@ -82,7 +82,7 @@ func FindPkg(path, srcDir string) (filename, id string) {
+ // can be used directly, and there is no need to call this function (but
+ // there is also no harm but for extra time used).
+ //
+-func GcImportData(ctxt *Context, imports map[string]*Package, filename, id string, data *bufio.Reader) (pkg *Package, err error) {
++func GcImportData(imports map[string]*Package, filename, id string, data *bufio.Reader) (pkg *Package, err error) {
+ 	// support for gcParser error handling
+ 	defer func() {
+ 		if r := recover(); r != nil {
+@@ -91,7 +91,7 @@ func GcImportData(ctxt *Context, imports map[string]*Package, filename, id strin
+ 	}()
+ 
+ 	var p gcParser
+-	p.init(ctxt, filename, id, data, imports)
++	p.init(filename, id, data, imports)
+ 	pkg = p.parseExport()
+ 
+ 	return
+@@ -103,7 +103,7 @@ func GcImportData(ctxt *Context, imports map[string]*Package, filename, id strin
+ // The imports map must contains all packages already imported.
+ // GcImport satisfies the ast.Importer signature.
+ //
+-func GcImport(ctxt *Context, imports map[string]*Package, path string) (pkg *Package, err error) {
++func GcImport(imports map[string]*Package, path string) (pkg *Package, err error) {
+ 	if path == "unsafe" {
+ 		return Unsafe, nil
+ 	}
+@@ -145,7 +145,7 @@ func GcImport(ctxt *Context, imports map[string]*Package, path string) (pkg *Pac
+ 		return
+ 	}
+ 
+-	pkg, err = GcImportData(ctxt, imports, filename, id, buf)
++	pkg, err = GcImportData(imports, filename, id, buf)
+ 
+ 	return
+ }
+@@ -156,7 +156,6 @@ func GcImport(ctxt *Context, imports map[string]*Package, path string) (pkg *Pac
+ // gcParser parses the exports inside a gc compiler-produced
+ // object/archive file and populates its scope with the results.
+ type gcParser struct {
+-	ctxt    *Context
+ 	scanner scanner.Scanner
+ 	tok     rune                // current token
+ 	lit     string              // literal string; only valid for Ident, Int, String tokens
+@@ -164,8 +163,7 @@ type gcParser struct {
+ 	imports map[string]*Package // package id -> package object
+ }
+ 
+-func (p *gcParser) init(ctxt *Context, filename, id string, src io.Reader, imports map[string]*Package) {
+-	p.ctxt = ctxt
++func (p *gcParser) init(filename, id string, src io.Reader, imports map[string]*Package) {
+ 	p.scanner.Init(src)
+ 	p.scanner.Error = func(_ *scanner.Scanner, msg string) { p.error(msg) }
+ 	p.scanner.Mode = scanner.ScanIdents | scanner.ScanInts | scanner.ScanChars | scanner.ScanStrings | scanner.ScanComments | scanner.SkipComments
+@@ -494,7 +492,7 @@ func (p *gcParser) parseStructType() Type {
+ 	}
+ 	p.expect('}')
+ 
+-	return p.ctxt.newStruct(fields)
++	return &Struct{Fields: fields}
+ }
+ 
+ // Parameter = ( identifier | "?" ) [ "..." ] Type [ string_lit ] .
+diff --git a/src/pkg/go/types/gcimporter_test.go b/src/pkg/go/types/gcimporter_test.go
+index c902b6a3c0..b793eb4cb3 100644
+--- a/src/pkg/go/types/gcimporter_test.go
++++ b/src/pkg/go/types/gcimporter_test.go
+@@ -55,7 +55,7 @@ var imports = make(map[string]*Package)
+ 
+ func testPath(t *testing.T, path string) bool {
+ 	t0 := time.Now()
+-	_, err := GcImport(&Context{}, imports, path)
++	_, err := GcImport(imports, path)
+ 	if err != nil {
+ 		t.Errorf("testPath(%s): %s", path, err)
+ 		return false
+@@ -140,7 +140,7 @@ func TestGcImportedTypes(t *testing.T) {
+ 		importPath := s[0]
+ 		objName := s[1]
+ 
+-		pkg, err := GcImport(&Context{}, imports, importPath)
++		pkg, err := GcImport(imports, importPath)
+ 		if err != nil {
+ 			t.Error(err)
+ 			continue
+diff --git a/src/pkg/go/types/operand.go b/src/pkg/go/types/operand.go
+index c4c32b2f4d..982ffef8d8 100644
+--- a/src/pkg/go/types/operand.go
++++ b/src/pkg/go/types/operand.go
+@@ -129,7 +129,7 @@ func (x *operand) isNil() bool {
+ //           overlapping in functionality. Need to simplify and clean up.
+ 
+ // isAssignable reports whether x is assignable to a variable of type T.
+-func (x *operand) isAssignable(T Type) bool {
++func (x *operand) isAssignable(ctxt *Context, T Type) bool {
+ 	if x.mode == invalid || T == Typ[Invalid] {
+ 		return true // avoid spurious errors
+ 	}
+@@ -187,7 +187,7 @@ func (x *operand) isAssignable(T Type) bool {
+ 		switch t := Tu.(type) {
+ 		case *Basic:
+ 			if x.mode == constant {
+-				return isRepresentableConst(x.val, t.Kind)
++				return isRepresentableConst(x.val, ctxt, t.Kind)
+ 			}
+ 			// The result of a comparison is an untyped boolean,
+ 			// but may not be a constant.
+@@ -205,24 +205,23 @@ func (x *operand) isAssignable(T Type) bool {
+ }
+ 
+ // isInteger reports whether x is a (typed or untyped) integer value.
+-func (x *operand) isInteger() bool {
++func (x *operand) isInteger(ctxt *Context) bool {
+ 	return x.mode == invalid ||
+ 		isInteger(x.typ) ||
+-		x.mode == constant && isRepresentableConst(x.val, UntypedInt)
++		x.mode == constant && isRepresentableConst(x.val, ctxt, UntypedInt)
+ }
+ 
+ // lookupResult represents the result of a struct field/method lookup.
+-// TODO(gri) mode (variable for fields vs value for methods) and offset
+-//           (>= 0 vs <0) provide redundant data - simplify!
+ type lookupResult struct {
+-	mode   operandMode
+-	typ    Type
+-	offset int64 // byte offset for struct fields, <0 for methods
++	mode  operandMode
++	typ   Type
++	index []int // field index sequence; nil for methods
+ }
+ 
+ type embeddedType struct {
+ 	typ       *NamedType
+-	multiples bool // if set, typ is embedded multiple times at the same level
++	index     []int // field index sequence
++	multiples bool  // if set, typ is embedded multiple times at the same level
+ }
+ 
+ // lookupFieldBreadthFirst searches all types in list for a single entry (field
+@@ -238,7 +237,7 @@ func lookupFieldBreadthFirst(list []embeddedType, name QualifiedName) (res looku
+ 	var next []embeddedType
+ 
+ 	// potentialMatch is invoked every time a match is found.
+-	potentialMatch := func(multiples bool, mode operandMode, typ Type, offset int64) bool {
++	potentialMatch := func(multiples bool, mode operandMode, typ Type) bool {
+ 		if multiples || res.mode != invalid {
+ 			// name appeared already at this level - annihilate
+ 			res.mode = invalid
+@@ -247,7 +246,7 @@ func lookupFieldBreadthFirst(list []embeddedType, name QualifiedName) (res looku
+ 		// first appearance of name
+ 		res.mode = mode
+ 		res.typ = typ
+-		res.offset = offset
++		res.index = nil
+ 		return true
+ 	}
+ 
+@@ -273,7 +272,7 @@ func lookupFieldBreadthFirst(list []embeddedType, name QualifiedName) (res looku
+ 			for _, m := range typ.Methods {
+ 				if name.IsSame(m.QualifiedName) {
+ 					assert(m.Type != nil)
+-					if !potentialMatch(e.multiples, value, m.Type, -1) {
++					if !potentialMatch(e.multiples, value, m.Type) {
+ 						return // name collision
+ 					}
+ 				}
+@@ -282,12 +281,16 @@ func lookupFieldBreadthFirst(list []embeddedType, name QualifiedName) (res looku
+ 			switch t := typ.Underlying.(type) {
+ 			case *Struct:
+ 				// look for a matching field and collect embedded types
+-				for _, f := range t.Fields {
++				for i, f := range t.Fields {
+ 					if name.IsSame(f.QualifiedName) {
+ 						assert(f.Type != nil)
+-						if !potentialMatch(e.multiples, variable, f.Type, f.Offset) {
++						if !potentialMatch(e.multiples, variable, f.Type) {
+ 							return // name collision
+ 						}
++						var index []int
++						index = append(index, e.index...) // copy e.index
++						index = append(index, i)
++						res.index = index
+ 						continue
+ 					}
+ 					// Collect embedded struct fields for searching the next
+@@ -303,7 +306,10 @@ func lookupFieldBreadthFirst(list []embeddedType, name QualifiedName) (res looku
+ 						// Ignore embedded basic types - only user-defined
+ 						// named types can have methods or have struct fields.
+ 						if t, _ := deref(f.Type).(*NamedType); t != nil {
+-							next = append(next, embeddedType{t, e.multiples})
++							var index []int
++							index = append(index, e.index...) // copy e.index
++							index = append(index, i)
++							next = append(next, embeddedType{t, index, e.multiples})
+ 						}
+ 					}
+ 				}
+@@ -313,7 +319,7 @@ func lookupFieldBreadthFirst(list []embeddedType, name QualifiedName) (res looku
+ 				for _, m := range t.Methods {
+ 					if name.IsSame(m.QualifiedName) {
+ 						assert(m.Type != nil)
+-						if !potentialMatch(e.multiples, value, m.Type, -1) {
++						if !potentialMatch(e.multiples, value, m.Type) {
+ 							return // name collision
+ 						}
+ 					}
+@@ -364,7 +370,7 @@ func lookupField(typ Type, name QualifiedName) lookupResult {
+ 		for _, m := range t.Methods {
+ 			if name.IsSame(m.QualifiedName) {
+ 				assert(m.Type != nil)
+-				return lookupResult{value, m.Type, -1}
++				return lookupResult{value, m.Type, nil}
+ 			}
+ 		}
+ 		typ = t.Underlying
+@@ -373,9 +379,9 @@ func lookupField(typ Type, name QualifiedName) lookupResult {
+ 	switch t := typ.(type) {
+ 	case *Struct:
+ 		var next []embeddedType
+-		for _, f := range t.Fields {
++		for i, f := range t.Fields {
+ 			if name.IsSame(f.QualifiedName) {
+-				return lookupResult{variable, f.Type, f.Offset}
++				return lookupResult{variable, f.Type, []int{i}}
+ 			}
+ 			if f.IsAnonymous {
+ 				// Possible optimization: If the embedded type
+@@ -384,7 +390,7 @@ func lookupField(typ Type, name QualifiedName) lookupResult {
+ 				// Ignore embedded basic types - only user-defined
+ 				// named types can have methods or have struct fields.
+ 				if t, _ := deref(f.Type).(*NamedType); t != nil {
+-					next = append(next, embeddedType{typ: t})
++					next = append(next, embeddedType{t, []int{i}, false})
+ 				}
+ 			}
+ 		}
+@@ -395,7 +401,7 @@ func lookupField(typ Type, name QualifiedName) lookupResult {
+ 	case *Interface:
+ 		for _, m := range t.Methods {
+ 			if name.IsSame(m.QualifiedName) {
+-				return lookupResult{value, m.Type, -1}
++				return lookupResult{value, m.Type, nil}
+ 			}
+ 		}
+ 	}
+diff --git a/src/pkg/go/types/sizes.go b/src/pkg/go/types/sizes.go
+new file mode 100644
+index 0000000000..ef6499ba43
+--- /dev/null
++++ b/src/pkg/go/types/sizes.go
+@@ -0,0 +1,162 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This file implements support for (unsafe) Alignof, Offsetof, and Sizeof.
++
++package types
++
++func (ctxt *Context) alignof(typ Type) int64 {
++	if f := ctxt.Alignof; f != nil {
++		if a := f(typ); a >= 1 {
++			return a
++		}
++		panic("Context.Alignof returned an alignment < 1")
++	}
++	return DefaultAlignof(typ)
++}
++
++func (ctxt *Context) offsetsof(s *Struct) []int64 {
++	offsets := s.offsets
++	if offsets == nil {
++		// compute offsets on demand
++		if f := ctxt.Offsetsof; f != nil {
++			offsets = f(s.Fields)
++			// sanity checks
++			if len(offsets) != len(s.Fields) {
++				panic("Context.Offsetsof returned the wrong number of offsets")
++			}
++			for _, o := range offsets {
++				if o < 0 {
++					panic("Context.Offsetsof returned an offset < 0")
++				}
++			}
++		} else {
++			offsets = DefaultOffsetsof(s.Fields)
++		}
++		s.offsets = offsets
++	}
++	return offsets
++}
++
++// offsetof returns the offset of the field specified via
++// the index sequence relative to typ. It returns a value
++// < 0 if the field is in an embedded pointer type.
++func (ctxt *Context) offsetof(typ Type, index []int) int64 {
++	var o int64
++	for _, i := range index {
++		s, _ := underlying(typ).(*Struct)
++		if s == nil {
++			return -1
++		}
++		o += ctxt.offsetsof(s)[i]
++		typ = s.Fields[i].Type
++	}
++	return o
++}
++
++func (ctxt *Context) sizeof(typ Type) int64 {
++	if f := ctxt.Sizeof; f != nil {
++		if s := f(typ); s >= 0 {
++			return s
++		}
++		panic("Context.Sizeof returned a size < 0")
++	}
++	return DefaultSizeof(typ)
++}
++
++// DefaultMaxAlign is the default maximum alignment, in bytes,
++// used by DefaultAlignof.
++const DefaultMaxAlign = 8
++
++// DefaultAlignof implements the default alignment computation
++// for unsafe.Alignof. It is used if Context.Alignof == nil.
++func DefaultAlignof(typ Type) int64 {
++	// For arrays and structs, alignment is defined in terms
++	// of alignment of the elements and fields, respectively.
++	switch t := underlying(typ).(type) {
++	case *Array:
++		// spec: "For a variable x of array type: unsafe.Alignof(x)
++		// is the same as unsafe.Alignof(x[0]), but at least 1."
++		return DefaultAlignof(t.Elt)
++	case *Struct:
++		// spec: "For a variable x of struct type: unsafe.Alignof(x)
++		// is the largest of the values unsafe.Alignof(x.f) for each
++		// field f of x, but at least 1."
++		max := int64(1)
++		for _, f := range t.Fields {
++			if a := DefaultAlignof(f.Type); a > max {
++				max = a
++			}
++		}
++		return max
++	}
++	a := DefaultSizeof(typ) // may be 0
++	// spec: "For a variable x of any type: unsafe.Alignof(x) is at least 1."
++	if a < 1 {
++		return 1
++	}
++	if a > DefaultMaxAlign {
++		return DefaultMaxAlign
++	}
++	return a
++}
++
++// align returns the smallest y >= x such that y % a == 0.
++func align(x, a int64) int64 {
++	y := x + a - 1
++	return y - y%a
++}
++
++// DefaultOffsetsof implements the default field offset computation
++// for unsafe.Offsetof. It is used if Context.Offsetsof == nil.
++func DefaultOffsetsof(fields []*Field) []int64 {
++	offsets := make([]int64, len(fields))
++	var o int64
++	for i, f := range fields {
++		a := DefaultAlignof(f.Type)
++		o = align(o, a)
++		offsets[i] = o
++		o += DefaultSizeof(f.Type)
++	}
++	return offsets
++}
++
++// DefaultPtrSize is the default size of ints, uint, and pointers, in bytes,
++// used by DefaultSizeof.
++const DefaultPtrSize = 8
++
++// DefaultSizeof implements the default size computation
++// for unsafe.Sizeof. It is used if Context.Sizeof == nil.
++func DefaultSizeof(typ Type) int64 {
++	switch t := underlying(typ).(type) {
++	case *Basic:
++		if s := t.size; s > 0 {
++			return s
++		}
++		if t.Kind == String {
++			return DefaultPtrSize * 2
++		}
++	case *Array:
++		a := DefaultAlignof(t.Elt)
++		s := DefaultSizeof(t.Elt)
++		return align(s, a) * t.Len // may be 0
++	case *Slice:
++		return DefaultPtrSize * 3
++	case *Struct:
++		n := len(t.Fields)
++		if n == 0 {
++			return 0
++		}
++		offsets := t.offsets
++		if t.offsets == nil {
++			// compute offsets on demand
++			offsets = DefaultOffsetsof(t.Fields)
++			t.offsets = offsets
++		}
++		return offsets[n-1] + DefaultSizeof(t.Fields[n-1].Type)
++	case *Signature:
++		return DefaultPtrSize * 2
++	}
++	return DefaultPtrSize // catch-all
++}
+diff --git a/src/pkg/go/types/stmt.go b/src/pkg/go/types/stmt.go
+index 2da798e4ca..a8fe61fcf9 100644
+--- a/src/pkg/go/types/stmt.go
++++ b/src/pkg/go/types/stmt.go
+@@ -21,7 +21,7 @@ func (check *checker) assignOperand(z, x *operand) {
+ 
+ 	check.convertUntyped(x, z.typ)
+ 
+-	if !x.isAssignable(z.typ) {
++	if !x.isAssignable(check.ctxt, z.typ) {
+ 		check.errorf(x.pos(), "cannot assign %s to %s", x, z)
+ 		x.mode = invalid
+ 	}
+@@ -338,7 +338,7 @@ func (check *checker) stmt(s ast.Stmt) {
+ 		if ch.mode == invalid || x.mode == invalid {
+ 			return
+ 		}
+-		if tch, ok := underlying(ch.typ).(*Chan); !ok || tch.Dir&ast.SEND == 0 || !x.isAssignable(tch.Elt) {
++		if tch, ok := underlying(ch.typ).(*Chan); !ok || tch.Dir&ast.SEND == 0 || !x.isAssignable(check.ctxt, tch.Elt) {
+ 			check.invalidOp(ch.pos(), "cannot send %s to channel %s", &x, &ch)
+ 		}
+ 
+diff --git a/src/pkg/go/types/testdata/builtins.src b/src/pkg/go/types/testdata/builtins.src
+index 535b99aac2..c08c442ce3 100644
+--- a/src/pkg/go/types/testdata/builtins.src
++++ b/src/pkg/go/types/testdata/builtins.src
+@@ -270,7 +270,7 @@ func _recover() {
+ }
+ 
+ // assuming types.DefaultPtrSize == 8
+-type S struct{       // offset
++type S0 struct{      // offset
+ 	a bool       //  0
+ 	b rune       //  4
+ 	c *int       //  8
+@@ -278,6 +278,17 @@ type S struct{       // offset
+ 	e complex128 // 24
+ }                    // 40
+ 
++type S1 struct{   // offset
++	x float32 //  0
++	y string  //  8
++	z *S1     // 24
++	S0        // 32
++}                 // 72
++
++type S2 struct{ // offset
++	*S1     //  0
++}               //  8
++
+ func _Alignof() {
+ 	var x int
+ 	_ = unsafe /* ERROR "argument" */ .Alignof()
+@@ -287,7 +298,7 @@ func _Alignof() {
+ 	_ = unsafe.Alignof(new(struct{}))
+ 	unsafe /* ERROR "not used" */ .Alignof(x)
+ 
+-	var y S
++	var y S0
+ 	assert(unsafe.Alignof(y.a) == 1)
+ 	assert(unsafe.Alignof(y.b) == 4)
+ 	assert(unsafe.Alignof(y.c) == 8)
+@@ -306,12 +317,29 @@ func _Offsetof() {
+ 	_ = unsafe.Offsetof((((((((x))).f)))))
+ 	unsafe /* ERROR "not used" */ .Offsetof(x.f)
+ 
+-	var y S
+-	assert(unsafe.Offsetof(y.a) == 0)
+-	assert(unsafe.Offsetof(y.b) == 4)
+-	assert(unsafe.Offsetof(y.c) == 8)
+-	assert(unsafe.Offsetof(y.d) == 16)
+-	assert(unsafe.Offsetof(y.e) == 24)
++	var y0 S0
++	assert(unsafe.Offsetof(y0.a) == 0)
++	assert(unsafe.Offsetof(y0.b) == 4)
++	assert(unsafe.Offsetof(y0.c) == 8)
++	assert(unsafe.Offsetof(y0.d) == 16)
++	assert(unsafe.Offsetof(y0.e) == 24)
++
++	var y1 S1
++	assert(unsafe.Offsetof(y1.x) == 0)
++	assert(unsafe.Offsetof(y1.y) == 8)
++	assert(unsafe.Offsetof(y1.z) == 24)
++	assert(unsafe.Offsetof(y1.S0) == 32)
++
++	assert(unsafe.Offsetof(y1.S0.a) == 0) // relative to S0
++	assert(unsafe.Offsetof(y1.a) == 32)   // relative to S1
++	assert(unsafe.Offsetof(y1.b) == 36)   // relative to S1
++	assert(unsafe.Offsetof(y1.c) == 40)   // relative to S1
++	assert(unsafe.Offsetof(y1.d) == 48)   // relative to S1
++	assert(unsafe.Offsetof(y1.e) == 56)   // relative to S1
++
++	var y2 S2
++	assert(unsafe.Offsetof(y2.S1) == 0)
++	_ = unsafe.Offsetof(y2 /* ERROR "embedded via pointer" */ .x)
+ }
+ 
+ func _Sizeof() {
+@@ -338,13 +366,19 @@ func _Sizeof() {
+ 	assert(unsafe.Sizeof(complex64(0)) == 8)
+ 	assert(unsafe.Sizeof(complex128(0)) == 16)
+ 
+-	var y S
+-	assert(unsafe.Sizeof(y.a) == 1)
+-	assert(unsafe.Sizeof(y.b) == 4)
+-	assert(unsafe.Sizeof(y.c) == 8)
+-	assert(unsafe.Sizeof(y.d) == 1)
+-	assert(unsafe.Sizeof(y.e) == 16)
+-	assert(unsafe.Sizeof(y) == 40)
++	var y0 S0
++	assert(unsafe.Sizeof(y0.a) == 1)
++	assert(unsafe.Sizeof(y0.b) == 4)
++	assert(unsafe.Sizeof(y0.c) == 8)
++	assert(unsafe.Sizeof(y0.d) == 1)
++	assert(unsafe.Sizeof(y0.e) == 16)
++	assert(unsafe.Sizeof(y0) == 40)
++
++	var y1 S1
++	assert(unsafe.Sizeof(y1) == 72)
++
++	var y2 S2
++	assert(unsafe.Sizeof(y2) == 8)
+ }
+ 
+ // self-testing only
+diff --git a/src/pkg/go/types/testdata/decls1.src b/src/pkg/go/types/testdata/decls1.src
+index f59d676e2e..2251f457f3 100644
+--- a/src/pkg/go/types/testdata/decls1.src
++++ b/src/pkg/go/types/testdata/decls1.src
+@@ -88,8 +88,8 @@ var (
+ 	v4 = r + 2147483647
+ 	v5 = r + 2147483648 /* ERROR "overflows" */
+ 	v6 = 42
+-	v7 = v6 + 2147483647
+-	v8 = v6 + 2147483648 /* ERROR "overflows" */
++	v7 = v6 + 9223372036854775807
++	v8 = v6 + 9223372036854775808 /* ERROR "overflows" */
+ 	v9 = i + 1 << 10
+ 	v10 byte = 1024 /* ERROR "overflows" */
+ 	v11 = xx/yy*yy - xx
+diff --git a/src/pkg/go/types/testdata/expr3.src b/src/pkg/go/types/testdata/expr3.src
+index 9dc95b4af3..1fae2640ba 100644
+--- a/src/pkg/go/types/testdata/expr3.src
++++ b/src/pkg/go/types/testdata/expr3.src
+@@ -128,6 +128,16 @@ func indexes() {
+ 	_ = ""[0 /* ERROR "index .* out of bounds" */ ]
+ 
+ 	_ = s[1<<30] // no compile-time error here
++
++	// issue 4913
++	type mystring string
++	var ss string
++	var ms mystring
++	var i, j int
++	ss = "foo"[1:2]
++	ss = "foo"[i:j]
++	ms = "foo" /* ERROR "cannot assign" */ [1:2]
++	ms = "foo" /* ERROR "cannot assign" */ [i:j]
+ }
+ 
+ type T struct {
+diff --git a/src/pkg/go/types/types.go b/src/pkg/go/types/types.go
+index 0cb803376f..2f2e579bdf 100644
+--- a/src/pkg/go/types/types.go
++++ b/src/pkg/go/types/types.go
+@@ -116,20 +116,18 @@ type Field struct {
+ 	QualifiedName
+ 	Type        Type
+ 	Tag         string
+-	Offset      int64 // offset within struct, in bytes
+ 	IsAnonymous bool
+ }
+ 
+ // A Struct represents a struct type struct{...}.
+ type Struct struct {
+-	Fields    []*Field
+-	Alignment int64 // struct alignment in bytes
+-	Size      int64 // struct size in bytes
++	Fields  []*Field
++	offsets []int64 // field offsets in bytes, lazily computed
+ }
+ 
+-func (typ *Struct) fieldIndex(name string) int {
++func (typ *Struct) fieldIndex(name QualifiedName) int {
+ 	for i, f := range typ.Fields {
+-		if f.Name == name {
++		if f.QualifiedName.IsSame(name) {
+ 			return i
+ 		}
+ 	}

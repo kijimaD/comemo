@@ -9,7 +9,7 @@ Date:   Wed Dec 1 11:59:13 2010 -0800
     R=golang-dev, r, r2
     CC=golang-dev
     https://golang.org/cl/3302042
-
+---
  doc/effective_go.html           |  2 +-
  src/pkg/bytes/bytes.go          | 42 ------------------------------------
  src/pkg/bytes/bytes_test.go     | 39 ----------------------------------
@@ -21,3 +21,311 @@ Date:   Wed Dec 1 11:59:13 2010 -0800
  src/pkg/xml/read.go             |  4 ++--
  test/bench/fasta.go             | 47 +++++++++++++++++++----------------------
  10 files changed, 31 insertions(+), 118 deletions(-)
+
+diff --git a/doc/effective_go.html b/doc/effective_go.html
+index 8bb04e9176..ab21edfbba 100644
+--- a/doc/effective_go.html
++++ b/doc/effective_go.html
+@@ -794,7 +794,7 @@ func Contents(filename string) (string, os.Error) {
+     buf := make([]byte, 100)
+     for {
+         n, err := f.Read(buf[0:])
+-        result = bytes.Add(result, buf[0:n])
++        result = append(result, buf[0:n]...) // append is discussed later.
+         if err != nil {
+             if err == os.EOF {
+                 break
+diff --git a/src/pkg/bytes/bytes.go b/src/pkg/bytes/bytes.go
+index d0749870eb..c0937ca300 100644
+--- a/src/pkg/bytes/bytes.go
++++ b/src/pkg/bytes/bytes.go
+@@ -552,48 +552,6 @@ func TrimSpace(s []byte) []byte {
+ 	return TrimFunc(s, unicode.IsSpace)
+ }
+ 
+-// How big to make a byte array when growing.
+-// Heuristic: Scale by 50% to give n log n time.
+-func resize(n int) int {
+-	if n < 16 {
+-		n = 16
+-	}
+-	return n + n/2
+-}
+-
+-// Add appends the contents of t to the end of s and returns the result.
+-// If s has enough capacity, it is extended in place; otherwise a
+-// new array is allocated and returned.
+-func Add(s, t []byte) []byte { // TODO
+-	lens := len(s)
+-	lent := len(t)
+-	if lens+lent <= cap(s) {
+-		s = s[0 : lens+lent]
+-	} else {
+-		news := make([]byte, lens+lent, resize(lens+lent))
+-		copy(news, s)
+-		s = news
+-	}
+-	copy(s[lens:lens+lent], t)
+-	return s
+-}
+-
+-// AddByte appends byte t to the end of s and returns the result.
+-// If s has enough capacity, it is extended in place; otherwise a
+-// new array is allocated and returned.
+-func AddByte(s []byte, t byte) []byte { // TODO
+-	lens := len(s)
+-	if lens+1 <= cap(s) {
+-		s = s[0 : lens+1]
+-	} else {
+-		news := make([]byte, lens+1, resize(lens+1))
+-		copy(news, s)
+-		s = news
+-	}
+-	s[lens] = t
+-	return s
+-}
+-
+ // Runes returns a slice of runes (Unicode code points) equivalent to s.
+ func Runes(s []byte) []int {
+ 	t := make([]int, utf8.RuneCount(s))
+diff --git a/src/pkg/bytes/bytes_test.go b/src/pkg/bytes/bytes_test.go
+index 28e7086529..063686ec5d 100644
+--- a/src/pkg/bytes/bytes_test.go
++++ b/src/pkg/bytes/bytes_test.go
+@@ -573,45 +573,6 @@ func TestToLower(t *testing.T) { runStringTests(t, ToLower, "ToLower", lowerTest
+ 
+ func TestTrimSpace(t *testing.T) { runStringTests(t, TrimSpace, "TrimSpace", trimSpaceTests) }
+ 
+-type AddTest struct {
+-	s, t string
+-	cap  int
+-}
+-
+-var addtests = []AddTest{
+-	{"", "", 0},
+-	{"a", "", 1},
+-	{"a", "b", 1},
+-	{"abc", "def", 100},
+-}
+-
+-func TestAdd(t *testing.T) {
+-	for _, test := range addtests {
+-		b := make([]byte, len(test.s), test.cap)
+-		copy(b, test.s)
+-		b = Add(b, []byte(test.t))
+-		if string(b) != test.s+test.t {
+-			t.Errorf("Add(%q,%q) = %q", test.s, test.t, string(b))
+-		}
+-	}
+-}
+-
+-func TestAddByte(t *testing.T) {
+-	const N = 2e5
+-	b := make([]byte, 0)
+-	for i := 0; i < N; i++ {
+-		b = AddByte(b, byte(i))
+-	}
+-	if len(b) != N {
+-		t.Errorf("AddByte: too small; expected %d got %d", N, len(b))
+-	}
+-	for i, c := range b {
+-		if c != byte(i) {
+-			t.Fatalf("AddByte: b[%d] should be %d is %d", i, c, byte(i))
+-		}
+-	}
+-}
+-
+ type RepeatTest struct {
+ 	in, out string
+ 	count   int
+diff --git a/src/pkg/crypto/tls/conn.go b/src/pkg/crypto/tls/conn.go
+index b18cda7bba..125d0a9086 100644
+--- a/src/pkg/crypto/tls/conn.go
++++ b/src/pkg/crypto/tls/conn.go
+@@ -560,7 +560,7 @@ func (c *Conn) readHandshake() (interface{}, os.Error) {
+ 	// The handshake message unmarshallers
+ 	// expect to be able to keep references to data,
+ 	// so pass in a fresh copy that won't be overwritten.
+-	data = bytes.Add(nil, data)
++	data = append([]byte(nil), data...)
+ 
+ 	if !m.unmarshal(data) {
+ 		c.sendAlert(alertUnexpectedMessage)
+diff --git a/src/pkg/json/scanner_test.go b/src/pkg/json/scanner_test.go
+index 82d520b633..b90f5811b7 100644
+--- a/src/pkg/json/scanner_test.go
++++ b/src/pkg/json/scanner_test.go
+@@ -147,7 +147,7 @@ func TestNextValueBig(t *testing.T) {
+ 		t.Errorf("invalid rest: %d", len(rest))
+ 	}
+ 
+-	item, rest, err = nextValue(bytes.Add(jsonBig, []byte("HELLO WORLD")), &scan)
++	item, rest, err = nextValue(append(jsonBig, []byte("HELLO WORLD")...), &scan)
+ 	if err != nil {
+ 		t.Fatalf("nextValue extra: ", err)
+ 	}
+diff --git a/src/pkg/json/stream.go b/src/pkg/json/stream.go
+index d4fb346607..cb9b16559e 100644
+--- a/src/pkg/json/stream.go
++++ b/src/pkg/json/stream.go
+@@ -5,7 +5,6 @@
+ package json
+ 
+ import (
+-	"bytes"
+ 	"io"
+ 	"os"
+ )
+@@ -177,7 +176,7 @@ func (m *RawMessage) UnmarshalJSON(data []byte) os.Error {
+ 	if m == nil {
+ 		return os.NewError("json.RawMessage: UnmarshalJSON on nil pointer")
+ 	}
+-	*m = bytes.Add((*m)[0:0], data)
++	*m = append((*m)[0:0], data...)
+ 	return nil
+ }
+ 
+diff --git a/src/pkg/net/textproto/reader.go b/src/pkg/net/textproto/reader.go
+index aad25539d4..c8e34b7589 100644
+--- a/src/pkg/net/textproto/reader.go
++++ b/src/pkg/net/textproto/reader.go
+@@ -51,8 +51,6 @@ func (r *Reader) ReadLineBytes() ([]byte, os.Error) {
+ 	return line[0:n], err
+ }
+ 
+-var space = []byte{' '}
+-
+ // ReadContinuedLine reads a possibly continued line from r,
+ // eliding the final trailing ASCII white space.
+ // Lines after the first are considered continuations if they
+@@ -132,8 +130,8 @@ func (r *Reader) ReadContinuedLineBytes() ([]byte, os.Error) {
+ 		var cont []byte
+ 		cont, err = r.ReadLineBytes()
+ 		cont = trim(cont)
+-		line = bytes.Add(line, space)
+-		line = bytes.Add(line, cont)
++		line = append(line, ' ')
++		line = append(line, cont...)
+ 		if err != nil {
+ 			break
+ 		}
+diff --git a/src/pkg/regexp/regexp.go b/src/pkg/regexp/regexp.go
+index 80bcb46a9f..2d43437783 100644
+--- a/src/pkg/regexp/regexp.go
++++ b/src/pkg/regexp/regexp.go
+@@ -675,7 +675,7 @@ Loop:
+ 			break Loop
+ 		}
+ 		n := utf8.EncodeRune(utf, inst.(*_Char).char)
+-		b = bytes.Add(b, utf[0:n])
++		b = append(b, utf[0:n]...)
+ 		i = inst.next().index()
+ 	}
+ 	// point prefixStart instruction to first non-CHAR after prefix
+diff --git a/src/pkg/xml/read.go b/src/pkg/xml/read.go
+index bbceda6b49..1999ebcb88 100644
+--- a/src/pkg/xml/read.go
++++ b/src/pkg/xml/read.go
+@@ -389,12 +389,12 @@ Loop:
+ 
+ 		case CharData:
+ 			if saveData != nil {
+-				data = bytes.Add(data, t)
++				data = append(data, t...)
+ 			}
+ 
+ 		case Comment:
+ 			if saveComment != nil {
+-				comment = bytes.Add(comment, t)
++				comment = append(comment, t...)
+ 			}
+ 		}
+ 	}
+diff --git a/test/bench/fasta.go b/test/bench/fasta.go
+index 470bdb3285..d13edd5dcf 100644
+--- a/test/bench/fasta.go
++++ b/test/bench/fasta.go
+@@ -37,7 +37,6 @@ POSSIBILITY OF SUCH DAMAGE.
+ package main
+ 
+ import (
+-	"bytes"
+ 	"flag"
+ 	"os"
+ )
+@@ -49,7 +48,7 @@ var n = flag.Int("n", 1000, "length of result")
+ const Line = 60
+ 
+ func Repeat(alu []byte, n int) {
+-	buf := bytes.Add(alu, alu)
++	buf := append(alu, alu...)
+ 	off := 0
+ 	for n > 0 {
+ 		m := n
+@@ -138,28 +137,28 @@ func main() {
+ 	flag.Parse()
+ 
+ 	iub := []Acid{
+-		Acid{prob: 0.27, sym: 'a'},
+-		Acid{prob: 0.12, sym: 'c'},
+-		Acid{prob: 0.12, sym: 'g'},
+-		Acid{prob: 0.27, sym: 't'},
+-		Acid{prob: 0.02, sym: 'B'},
+-		Acid{prob: 0.02, sym: 'D'},
+-		Acid{prob: 0.02, sym: 'H'},
+-		Acid{prob: 0.02, sym: 'K'},
+-		Acid{prob: 0.02, sym: 'M'},
+-		Acid{prob: 0.02, sym: 'N'},
+-		Acid{prob: 0.02, sym: 'R'},
+-		Acid{prob: 0.02, sym: 'S'},
+-		Acid{prob: 0.02, sym: 'V'},
+-		Acid{prob: 0.02, sym: 'W'},
+-		Acid{prob: 0.02, sym: 'Y'},
++		{prob: 0.27, sym: 'a'},
++		{prob: 0.12, sym: 'c'},
++		{prob: 0.12, sym: 'g'},
++		{prob: 0.27, sym: 't'},
++		{prob: 0.02, sym: 'B'},
++		{prob: 0.02, sym: 'D'},
++		{prob: 0.02, sym: 'H'},
++		{prob: 0.02, sym: 'K'},
++		{prob: 0.02, sym: 'M'},
++		{prob: 0.02, sym: 'N'},
++		{prob: 0.02, sym: 'R'},
++		{prob: 0.02, sym: 'S'},
++		{prob: 0.02, sym: 'V'},
++		{prob: 0.02, sym: 'W'},
++		{prob: 0.02, sym: 'Y'},
+ 	}
+ 
+ 	homosapiens := []Acid{
+-		Acid{prob: 0.3029549426680, sym: 'a'},
+-		Acid{prob: 0.1979883004921, sym: 'c'},
+-		Acid{prob: 0.1975473066391, sym: 'g'},
+-		Acid{prob: 0.3015094502008, sym: 't'},
++		{prob: 0.3029549426680, sym: 'a'},
++		{prob: 0.1979883004921, sym: 'c'},
++		{prob: 0.1975473066391, sym: 'g'},
++		{prob: 0.3015094502008, sym: 't'},
+ 	}
+ 
+ 	alu := []byte(
+@@ -192,9 +191,7 @@ func (b *buffer) Flush() {
+ 
+ func (b *buffer) WriteString(s string) {
+ 	p := b.NextWrite(len(s))
+-	for i := 0; i < len(s); i++ {
+-		p[i] = s[i]
+-	}
++	copy(p, s)
+ }
+ 
+ func (b *buffer) NextWrite(n int) []byte {
+@@ -204,6 +201,6 @@ func (b *buffer) NextWrite(n int) []byte {
+ 		p = *b
+ 	}
+ 	out := p[len(p) : len(p)+n]
+-	*b = p[0 : len(p)+n]
++	*b = p[:len(p)+n]
+ 	return out
+ }

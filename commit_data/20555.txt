@@ -13,7 +13,71 @@ Date:   Thu Sep 18 12:43:01 2014 +1000
     R=r
     CC=dbathgate, golang-codereviews
     https://golang.org/cl/147730043
-
+---
  src/image/gif/writer.go      | 18 ++++++++++++++----
  src/image/gif/writer_test.go | 23 +++++++++++++++++++++++
  2 files changed, 37 insertions(+), 4 deletions(-)
+
+diff --git a/src/image/gif/writer.go b/src/image/gif/writer.go
+index 15cd40fadf..49abde704c 100644
+--- a/src/image/gif/writer.go
++++ b/src/image/gif/writer.go
+@@ -233,10 +233,20 @@ func (e *encoder) writeImageBlock(pm *image.Paletted, delay int) {
+ 	e.writeByte(uint8(litWidth)) // LZW Minimum Code Size.
+ 
+ 	lzww := lzw.NewWriter(blockWriter{e: e}, lzw.LSB, litWidth)
+-	_, e.err = lzww.Write(pm.Pix)
+-	if e.err != nil {
+-		lzww.Close()
+-		return
++	if dx := b.Dx(); dx == pm.Stride {
++		_, e.err = lzww.Write(pm.Pix)
++		if e.err != nil {
++			lzww.Close()
++			return
++		}
++	} else {
++		for i, y := 0, b.Min.Y; y < b.Max.Y; i, y = i+pm.Stride, y+1 {
++			_, e.err = lzww.Write(pm.Pix[i : i+dx])
++			if e.err != nil {
++				lzww.Close()
++				return
++			}
++		}
+ 	}
+ 	lzww.Close()
+ 	e.writeByte(0x00) // Block Terminator.
+diff --git a/src/image/gif/writer_test.go b/src/image/gif/writer_test.go
+index bc5d37845b..93306ffdb3 100644
+--- a/src/image/gif/writer_test.go
++++ b/src/image/gif/writer_test.go
+@@ -102,6 +102,29 @@ func TestWriter(t *testing.T) {
+ 	}
+ }
+ 
++func TestSubImage(t *testing.T) {
++	m0, err := readImg("../testdata/video-001.gif")
++	if err != nil {
++		t.Fatalf("readImg: %v", err)
++	}
++	m0 = m0.(*image.Paletted).SubImage(image.Rect(0, 0, 50, 30))
++	var buf bytes.Buffer
++	err = Encode(&buf, m0, nil)
++	if err != nil {
++		t.Fatalf("Encode: %v", err)
++	}
++	m1, err := Decode(&buf)
++	if err != nil {
++		t.Fatalf("Decode: %v", err)
++	}
++	if m0.Bounds() != m1.Bounds() {
++		t.Fatalf("bounds differ: %v and %v", m0.Bounds(), m1.Bounds())
++	}
++	if averageDelta(m0, m1) != 0 {
++		t.Fatalf("images differ")
++	}
++}
++
+ var frames = []string{
+ 	"../testdata/video-001.gif",
+ 	"../testdata/video-005.gray.gif",

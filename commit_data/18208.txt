@@ -33,8 +33,141 @@ Date:   Thu Jan 9 15:00:00 2014 -0800
     R=golang-codereviews, rsc
     CC=golang-codereviews
     https://golang.org/cl/49460043
-
+---
  src/pkg/runtime/malloc.goc |  3 +--
  src/pkg/runtime/mgc0.c     | 12 ++++--------
  src/pkg/runtime/mheap.c    | 21 +++++++--------------
  3 files changed, 12 insertions(+), 24 deletions(-)
+
+diff --git a/src/pkg/runtime/malloc.goc b/src/pkg/runtime/malloc.goc
+index 9a25029586..f83e498293 100644
+--- a/src/pkg/runtime/malloc.goc
++++ b/src/pkg/runtime/malloc.goc
+@@ -593,8 +593,7 @@ runtime·settype_flush(M *mp)
+ 
+ 		// (Manually inlined copy of runtime·MHeap_Lookup)
+ 		p = (uintptr)v>>PageShift;
+-		if(sizeof(void*) == 8)
+-			p -= (uintptr)runtime·mheap.arena_start >> PageShift;
++		p -= (uintptr)runtime·mheap.arena_start >> PageShift;
+ 		s = runtime·mheap.spans[p];
+ 
+ 		if(s->sizeclass == 0) {
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index 8014fe4689..9b7d013700 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -292,8 +292,7 @@ markonly(void *obj)
+ 	// (Manually inlined copy of MHeap_LookupMaybe.)
+ 	k = (uintptr)obj>>PageShift;
+ 	x = k;
+-	if(sizeof(void*) == 8)
+-		x -= (uintptr)runtime·mheap.arena_start>>PageShift;
++	x -= (uintptr)runtime·mheap.arena_start>>PageShift;
+ 	s = runtime·mheap.spans[x];
+ 	if(s == nil || k < s->start || obj >= s->limit || s->state != MSpanInUse)
+ 		return false;
+@@ -492,8 +491,7 @@ flushptrbuf(Scanbuf *sbuf)
+ 		// (Manually inlined copy of MHeap_LookupMaybe.)
+ 		k = (uintptr)obj>>PageShift;
+ 		x = k;
+-		if(sizeof(void*) == 8)
+-			x -= (uintptr)arena_start>>PageShift;
++		x -= (uintptr)arena_start>>PageShift;
+ 		s = runtime·mheap.spans[x];
+ 		if(s == nil || k < s->start || obj >= s->limit || s->state != MSpanInUse)
+ 			continue;
+@@ -540,8 +538,7 @@ flushptrbuf(Scanbuf *sbuf)
+ 		// Ask span about size class.
+ 		// (Manually inlined copy of MHeap_Lookup.)
+ 		x = (uintptr)obj >> PageShift;
+-		if(sizeof(void*) == 8)
+-			x -= (uintptr)arena_start>>PageShift;
++		x -= (uintptr)arena_start>>PageShift;
+ 		s = runtime·mheap.spans[x];
+ 
+ 		PREFETCH(obj);
+@@ -658,8 +655,7 @@ checkptr(void *obj, uintptr objti)
+ 	if(t == nil)
+ 		return;
+ 	x = (uintptr)obj >> PageShift;
+-	if(sizeof(void*) == 8)
+-		x -= (uintptr)(runtime·mheap.arena_start)>>PageShift;
++	x -= (uintptr)(runtime·mheap.arena_start)>>PageShift;
+ 	s = runtime·mheap.spans[x];
+ 	objstart = (byte*)((uintptr)s->start<<PageShift);
+ 	if(s->sizeclass != 0) {
+diff --git a/src/pkg/runtime/mheap.c b/src/pkg/runtime/mheap.c
+index 1a926a413b..c77772afbe 100644
+--- a/src/pkg/runtime/mheap.c
++++ b/src/pkg/runtime/mheap.c
+@@ -74,8 +74,7 @@ runtime·MHeap_MapSpans(MHeap *h)
+ 
+ 	// Map spans array, PageSize at a time.
+ 	n = (uintptr)h->arena_used;
+-	if(sizeof(void*) == 8)
+-		n -= (uintptr)h->arena_start;
++	n -= (uintptr)h->arena_start;
+ 	n = n / PageSize * sizeof(h->spans[0]);
+ 	n = ROUND(n, PageSize);
+ 	if(h->spans_mapped >= n)
+@@ -169,8 +168,7 @@ HaveSpan:
+ 		runtime·MSpan_Init(t, s->start + npage, s->npages - npage);
+ 		s->npages = npage;
+ 		p = t->start;
+-		if(sizeof(void*) == 8)
+-			p -= ((uintptr)h->arena_start>>PageShift);
++		p -= ((uintptr)h->arena_start>>PageShift);
+ 		if(p > 0)
+ 			h->spans[p-1] = s;
+ 		h->spans[p] = t;
+@@ -188,8 +186,7 @@ HaveSpan:
+ 	s->elemsize = (sizeclass==0 ? s->npages<<PageShift : runtime·class_to_size[sizeclass]);
+ 	s->types.compression = MTypes_Empty;
+ 	p = s->start;
+-	if(sizeof(void*) == 8)
+-		p -= ((uintptr)h->arena_start>>PageShift);
++	p -= ((uintptr)h->arena_start>>PageShift);
+ 	for(n=0; n<npage; n++)
+ 		h->spans[p+n] = s;
+ 	return s;
+@@ -257,8 +254,7 @@ MHeap_Grow(MHeap *h, uintptr npage)
+ 	s = runtime·FixAlloc_Alloc(&h->spanalloc);
+ 	runtime·MSpan_Init(s, (uintptr)v>>PageShift, ask>>PageShift);
+ 	p = s->start;
+-	if(sizeof(void*) == 8)
+-		p -= ((uintptr)h->arena_start>>PageShift);
++	p -= ((uintptr)h->arena_start>>PageShift);
+ 	h->spans[p] = s;
+ 	h->spans[p + s->npages - 1] = s;
+ 	s->state = MSpanInUse;
+@@ -275,8 +271,7 @@ runtime·MHeap_Lookup(MHeap *h, void *v)
+ 	uintptr p;
+ 	
+ 	p = (uintptr)v;
+-	if(sizeof(void*) == 8)
+-		p -= (uintptr)h->arena_start;
++	p -= (uintptr)h->arena_start;
+ 	return h->spans[p >> PageShift];
+ }
+ 
+@@ -297,8 +292,7 @@ runtime·MHeap_LookupMaybe(MHeap *h, void *v)
+ 		return nil;
+ 	p = (uintptr)v>>PageShift;
+ 	q = p;
+-	if(sizeof(void*) == 8)
+-		q -= (uintptr)h->arena_start >> PageShift;
++	q -= (uintptr)h->arena_start >> PageShift;
+ 	s = h->spans[q];
+ 	if(s == nil || p < s->start || v >= s->limit || s->state != MSpanInUse)
+ 		return nil;
+@@ -345,8 +339,7 @@ MHeap_FreeLocked(MHeap *h, MSpan *s)
+ 
+ 	// Coalesce with earlier, later spans.
+ 	p = s->start;
+-	if(sizeof(void*) == 8)
+-		p -= (uintptr)h->arena_start >> PageShift;
++	p -= (uintptr)h->arena_start >> PageShift;
+ 	if(p > 0 && (t = h->spans[p-1]) != nil && t->state != MSpanInUse) {
+ 		if(t->npreleased == 0) {  // cant't touch this otherwise
+ 			tp = (uintptr*)(t->start<<PageShift);

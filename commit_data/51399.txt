@@ -15,7 +15,7 @@ Date:   Wed Jan 12 15:54:15 2022 -0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/types2/check.go       |  2 ++
  src/cmd/compile/internal/types2/decl.go        |  2 +-
  src/cmd/compile/internal/types2/named.go       |  1 -
@@ -29,3 +29,332 @@ Date:   Wed Jan 12 15:54:15 2022 -0800
  src/go/types/typexpr.go                        |  2 +-
  src/go/types/validtype.go                      | 32 +++++++++++++++-----------
  12 files changed, 46 insertions(+), 36 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/check.go b/src/cmd/compile/internal/types2/check.go
+index 22a921d0d7..cce324633e 100644
+--- a/src/cmd/compile/internal/types2/check.go
++++ b/src/cmd/compile/internal/types2/check.go
+@@ -111,6 +111,7 @@ type Checker struct {
+ 	nextID  uint64                 // unique Id for type parameters (first valid Id is 1)
+ 	objMap  map[Object]*declInfo   // maps package-level objects and (non-interface) methods to declaration info
+ 	impMap  map[importKey]*Package // maps (import path, source directory) to (complete or fake) package
++	infoMap map[*Named]typeInfo    // maps named types to their associated type info (for cycle detection)
+ 
+ 	// pkgPathMap maps package names to the set of distinct import paths we've
+ 	// seen for that name, anywhere in the import graph. It is used for
+@@ -221,6 +222,7 @@ func NewChecker(conf *Config, pkg *Package, info *Info) *Checker {
+ 		version: version,
+ 		objMap:  make(map[Object]*declInfo),
+ 		impMap:  make(map[importKey]*Package),
++		infoMap: make(map[*Named]typeInfo),
+ 	}
+ }
+ 
+diff --git a/src/cmd/compile/internal/types2/decl.go b/src/cmd/compile/internal/types2/decl.go
+index 22cea584d4..ab2983c80f 100644
+--- a/src/cmd/compile/internal/types2/decl.go
++++ b/src/cmd/compile/internal/types2/decl.go
+@@ -477,7 +477,7 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *syntax.TypeDecl, def *Named
+ 
+ 	var rhs Type
+ 	check.later(func() {
+-		check.validType(obj.typ, nil)
++		check.validType(obj.typ)
+ 		// If typ is local, an error was already reported where typ is specified/defined.
+ 		if check.isImportedConstraint(rhs) && !check.allowVersion(check.pkg, 1, 18) {
+ 			check.versionErrorf(tdecl.Type, "go1.18", "using type constraint %s", rhs)
+diff --git a/src/cmd/compile/internal/types2/named.go b/src/cmd/compile/internal/types2/named.go
+index c4217fa508..834a25066b 100644
+--- a/src/cmd/compile/internal/types2/named.go
++++ b/src/cmd/compile/internal/types2/named.go
+@@ -12,7 +12,6 @@ import (
+ // A Named represents a named (defined) type.
+ type Named struct {
+ 	check      *Checker
+-	info       typeInfo       // for cycle detection
+ 	obj        *TypeName      // corresponding declared object for declared types; placeholder for instantiated types
+ 	orig       *Named         // original, uninstantiated type
+ 	fromRHS    Type           // type (on RHS of declaration) this *Named type is derived from (for cycle reporting)
+diff --git a/src/cmd/compile/internal/types2/sizeof_test.go b/src/cmd/compile/internal/types2/sizeof_test.go
+index 8db2d60e80..52a1df1aa4 100644
+--- a/src/cmd/compile/internal/types2/sizeof_test.go
++++ b/src/cmd/compile/internal/types2/sizeof_test.go
+@@ -31,7 +31,7 @@ func TestSizeof(t *testing.T) {
+ 		{Interface{}, 44, 88},
+ 		{Map{}, 16, 32},
+ 		{Chan{}, 12, 24},
+-		{Named{}, 68, 128},
++		{Named{}, 64, 120},
+ 		{TypeParam{}, 28, 48},
+ 		{term{}, 12, 24},
+ 
+diff --git a/src/cmd/compile/internal/types2/typexpr.go b/src/cmd/compile/internal/types2/typexpr.go
+index 9121c2c1f6..580b53d3c7 100644
+--- a/src/cmd/compile/internal/types2/typexpr.go
++++ b/src/cmd/compile/internal/types2/typexpr.go
+@@ -487,7 +487,7 @@ func (check *Checker) instantiatedType(x syntax.Expr, xlist []syntax.Expr, def *
+ 			}
+ 		}
+ 
+-		check.validType(inst, nil)
++		check.validType(inst)
+ 	})
+ 
+ 	return inst
+diff --git a/src/cmd/compile/internal/types2/validtype.go b/src/cmd/compile/internal/types2/validtype.go
+index 24d65e2c24..9cb427b44d 100644
+--- a/src/cmd/compile/internal/types2/validtype.go
++++ b/src/cmd/compile/internal/types2/validtype.go
+@@ -4,14 +4,18 @@
+ 
+ package types2
+ 
+-type typeInfo uint
+-
+-// validType verifies that the given type does not "expand" infinitely
++// validType verifies that the given type does not "expand" indefinitely
+ // producing a cycle in the type graph. Cycles are detected by marking
+ // defined types.
+ // (Cycles involving alias types, as in "type A = [10]A" are detected
+ // earlier, via the objDecl cycle detection mechanism.)
+-func (check *Checker) validType(typ Type, path []Object) typeInfo {
++func (check *Checker) validType(typ Type) {
++	check.validType0(typ, nil)
++}
++
++type typeInfo uint
++
++func (check *Checker) validType0(typ Type, path []Object) typeInfo {
+ 	const (
+ 		unknown typeInfo = iota
+ 		marked
+@@ -21,25 +25,25 @@ func (check *Checker) validType(typ Type, path []Object) typeInfo {
+ 
+ 	switch t := typ.(type) {
+ 	case *Array:
+-		return check.validType(t.elem, path)
++		return check.validType0(t.elem, path)
+ 
+ 	case *Struct:
+ 		for _, f := range t.fields {
+-			if check.validType(f.typ, path) == invalid {
++			if check.validType0(f.typ, path) == invalid {
+ 				return invalid
+ 			}
+ 		}
+ 
+ 	case *Union:
+ 		for _, t := range t.terms {
+-			if check.validType(t.typ, path) == invalid {
++			if check.validType0(t.typ, path) == invalid {
+ 				return invalid
+ 			}
+ 		}
+ 
+ 	case *Interface:
+ 		for _, etyp := range t.embeddeds {
+-			if check.validType(etyp, path) == invalid {
++			if check.validType0(etyp, path) == invalid {
+ 				return invalid
+ 			}
+ 		}
+@@ -65,14 +69,14 @@ func (check *Checker) validType(typ Type, path []Object) typeInfo {
+ 		// don't report a 2nd error if we already know the type is invalid
+ 		// (e.g., if a cycle was detected earlier, via under).
+ 		if t.underlying == Typ[Invalid] {
+-			t.info = invalid
++			check.infoMap[t] = invalid
+ 			return invalid
+ 		}
+ 
+-		switch t.info {
++		switch check.infoMap[t] {
+ 		case unknown:
+-			t.info = marked
+-			t.info = check.validType(t.fromRHS, append(path, t.obj)) // only types of current package added to path
++			check.infoMap[t] = marked
++			check.infoMap[t] = check.validType0(t.fromRHS, append(path, t.obj)) // only types of current package added to path
+ 		case marked:
+ 			// cycle detected
+ 			for i, tn := range path {
+@@ -81,14 +85,14 @@ func (check *Checker) validType(typ Type, path []Object) typeInfo {
+ 				}
+ 				if tn == t.obj {
+ 					check.cycleError(path[i:])
+-					t.info = invalid
++					check.infoMap[t] = invalid
+ 					t.underlying = Typ[Invalid]
+ 					return invalid
+ 				}
+ 			}
+ 			panic("cycle start not found")
+ 		}
+-		return t.info
++		return check.infoMap[t]
+ 	}
+ 
+ 	return valid
+diff --git a/src/go/types/check.go b/src/go/types/check.go
+index bad4d5c9cd..90b46b8075 100644
+--- a/src/go/types/check.go
++++ b/src/go/types/check.go
+@@ -118,6 +118,7 @@ type Checker struct {
+ 	nextID  uint64                 // unique Id for type parameters (first valid Id is 1)
+ 	objMap  map[Object]*declInfo   // maps package-level objects and (non-interface) methods to declaration info
+ 	impMap  map[importKey]*Package // maps (import path, source directory) to (complete or fake) package
++	infoMap map[*Named]typeInfo    // maps named types to their associated type info (for cycle detection)
+ 
+ 	// pkgPathMap maps package names to the set of distinct import paths we've
+ 	// seen for that name, anywhere in the import graph. It is used for
+@@ -229,6 +230,7 @@ func NewChecker(conf *Config, fset *token.FileSet, pkg *Package, info *Info) *Ch
+ 		version: version,
+ 		objMap:  make(map[Object]*declInfo),
+ 		impMap:  make(map[importKey]*Package),
++		infoMap: make(map[*Named]typeInfo),
+ 	}
+ }
+ 
+diff --git a/src/go/types/decl.go b/src/go/types/decl.go
+index 5b54465f18..a9e89464f6 100644
+--- a/src/go/types/decl.go
++++ b/src/go/types/decl.go
+@@ -530,7 +530,7 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *ast.TypeSpec, def *Named) {
+ 
+ 	var rhs Type
+ 	check.later(func() {
+-		check.validType(obj.typ, nil)
++		check.validType(obj.typ)
+ 		// If typ is local, an error was already reported where typ is specified/defined.
+ 		if check.isImportedConstraint(rhs) && !check.allowVersion(check.pkg, 1, 18) {
+ 			check.errorf(tdecl.Type, _UnsupportedFeature, "using type constraint %s requires go1.18 or later", rhs)
+diff --git a/src/go/types/named.go b/src/go/types/named.go
+index a44686bc36..6c77146485 100644
+--- a/src/go/types/named.go
++++ b/src/go/types/named.go
+@@ -12,7 +12,6 @@ import (
+ // A Named represents a named (defined) type.
+ type Named struct {
+ 	check      *Checker
+-	info       typeInfo       // for cycle detection
+ 	obj        *TypeName      // corresponding declared object for declared types; placeholder for instantiated types
+ 	orig       *Named         // original, uninstantiated type
+ 	fromRHS    Type           // type (on RHS of declaration) this *Named type is derived of (for cycle reporting)
+diff --git a/src/go/types/sizeof_test.go b/src/go/types/sizeof_test.go
+index 24cbc22839..b78099d0d0 100644
+--- a/src/go/types/sizeof_test.go
++++ b/src/go/types/sizeof_test.go
+@@ -30,7 +30,7 @@ func TestSizeof(t *testing.T) {
+ 		{Interface{}, 44, 88},
+ 		{Map{}, 16, 32},
+ 		{Chan{}, 12, 24},
+-		{Named{}, 68, 128},
++		{Named{}, 64, 120},
+ 		{TypeParam{}, 28, 48},
+ 		{term{}, 12, 24},
+ 
+diff --git a/src/go/types/typexpr.go b/src/go/types/typexpr.go
+index b961f7c47f..82de90b67a 100644
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@ -472,7 +472,7 @@ func (check *Checker) instantiatedType(ix *typeparams.IndexExpr, def *Named) (re
+ 			}
+ 		}
+ 
+-		check.validType(inst, nil)
++		check.validType(inst)
+ 	})
+ 
+ 	return inst
+diff --git a/src/go/types/validtype.go b/src/go/types/validtype.go
+index 8972a7ad85..d20a2b5bfa 100644
+--- a/src/go/types/validtype.go
++++ b/src/go/types/validtype.go
+@@ -4,14 +4,18 @@
+ 
+ package types
+ 
+-type typeInfo uint
+-
+-// validType verifies that the given type does not "expand" infinitely
++// validType verifies that the given type does not "expand" indefinitely
+ // producing a cycle in the type graph. Cycles are detected by marking
+ // defined types.
+ // (Cycles involving alias types, as in "type A = [10]A" are detected
+ // earlier, via the objDecl cycle detection mechanism.)
+-func (check *Checker) validType(typ Type, path []Object) typeInfo {
++func (check *Checker) validType(typ Type) {
++	check.validType0(typ, nil)
++}
++
++type typeInfo uint
++
++func (check *Checker) validType0(typ Type, path []Object) typeInfo {
+ 	const (
+ 		unknown typeInfo = iota
+ 		marked
+@@ -21,25 +25,25 @@ func (check *Checker) validType(typ Type, path []Object) typeInfo {
+ 
+ 	switch t := typ.(type) {
+ 	case *Array:
+-		return check.validType(t.elem, path)
++		return check.validType0(t.elem, path)
+ 
+ 	case *Struct:
+ 		for _, f := range t.fields {
+-			if check.validType(f.typ, path) == invalid {
++			if check.validType0(f.typ, path) == invalid {
+ 				return invalid
+ 			}
+ 		}
+ 
+ 	case *Union:
+ 		for _, t := range t.terms {
+-			if check.validType(t.typ, path) == invalid {
++			if check.validType0(t.typ, path) == invalid {
+ 				return invalid
+ 			}
+ 		}
+ 
+ 	case *Interface:
+ 		for _, etyp := range t.embeddeds {
+-			if check.validType(etyp, path) == invalid {
++			if check.validType0(etyp, path) == invalid {
+ 				return invalid
+ 			}
+ 		}
+@@ -65,14 +69,14 @@ func (check *Checker) validType(typ Type, path []Object) typeInfo {
+ 		// don't report a 2nd error if we already know the type is invalid
+ 		// (e.g., if a cycle was detected earlier, via under).
+ 		if t.underlying == Typ[Invalid] {
+-			t.info = invalid
++			check.infoMap[t] = invalid
+ 			return invalid
+ 		}
+ 
+-		switch t.info {
++		switch check.infoMap[t] {
+ 		case unknown:
+-			t.info = marked
+-			t.info = check.validType(t.fromRHS, append(path, t.obj)) // only types of current package added to path
++			check.infoMap[t] = marked
++			check.infoMap[t] = check.validType0(t.fromRHS, append(path, t.obj)) // only types of current package added to path
+ 		case marked:
+ 			// cycle detected
+ 			for i, tn := range path {
+@@ -81,14 +85,14 @@ func (check *Checker) validType(typ Type, path []Object) typeInfo {
+ 				}
+ 				if tn == t.obj {
+ 					check.cycleError(path[i:])
+-					t.info = invalid
++					check.infoMap[t] = invalid
+ 					t.underlying = Typ[Invalid]
+ 					return invalid
+ 				}
+ 			}
+ 			panic("cycle start not found")
+ 		}
+-		return t.info
++		return check.infoMap[t]
+ 	}
+ 
+ 	return valid

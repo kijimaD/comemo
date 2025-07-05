@@ -11,7 +11,158 @@ Date:   Wed Aug 31 13:36:10 2016 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/ssa/gen/AMD64.rules |   4 ++
  src/cmd/compile/internal/ssa/rewriteAMD64.go | 100 +++++++++++++++++++++++++++
  2 files changed, 104 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index d61164ffc0..bac3d70513 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -938,9 +938,13 @@
+ (MOVWloadidx1 [c] {sym} ptr (SHLQconst [1] idx) mem) -> (MOVWloadidx2 [c] {sym} ptr idx mem)
+ (MOVLloadidx1 [c] {sym} ptr (SHLQconst [2] idx) mem) -> (MOVLloadidx4 [c] {sym} ptr idx mem)
+ (MOVQloadidx1 [c] {sym} ptr (SHLQconst [3] idx) mem) -> (MOVQloadidx8 [c] {sym} ptr idx mem)
++(MOVSSloadidx1 [c] {sym} ptr (SHLQconst [2] idx) mem) -> (MOVSSloadidx4 [c] {sym} ptr idx mem)
++(MOVSDloadidx1 [c] {sym} ptr (SHLQconst [3] idx) mem) -> (MOVSDloadidx8 [c] {sym} ptr idx mem)
+ (MOVWstoreidx1 [c] {sym} ptr (SHLQconst [1] idx) val mem) -> (MOVWstoreidx2 [c] {sym} ptr idx val mem)
+ (MOVLstoreidx1 [c] {sym} ptr (SHLQconst [2] idx) val mem) -> (MOVLstoreidx4 [c] {sym} ptr idx val mem)
+ (MOVQstoreidx1 [c] {sym} ptr (SHLQconst [3] idx) val mem) -> (MOVQstoreidx8 [c] {sym} ptr idx val mem)
++(MOVSSstoreidx1 [c] {sym} ptr (SHLQconst [2] idx) val mem) -> (MOVSSstoreidx4 [c] {sym} ptr idx val mem)
++(MOVSDstoreidx1 [c] {sym} ptr (SHLQconst [3] idx) val mem) -> (MOVSDstoreidx8 [c] {sym} ptr idx val mem)
+ (MOVWstoreconstidx1 [c] {sym} ptr (SHLQconst [1] idx) mem) -> (MOVWstoreconstidx2 [c] {sym} ptr idx mem)
+ (MOVLstoreconstidx1 [c] {sym} ptr (SHLQconst [2] idx) mem) -> (MOVLstoreconstidx4 [c] {sym} ptr idx mem)
+ (MOVQstoreconstidx1 [c] {sym} ptr (SHLQconst [3] idx) mem) -> (MOVQstoreconstidx8 [c] {sym} ptr idx mem)
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 2b685618f9..fcc2f37ff3 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -7189,6 +7189,30 @@ func rewriteValueAMD64_OpAMD64MOVSDload(v *Value, config *Config) bool {
+ func rewriteValueAMD64_OpAMD64MOVSDloadidx1(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
++	// match: (MOVSDloadidx1 [c] {sym} ptr (SHLQconst [3] idx) mem)
++	// cond:
++	// result: (MOVSDloadidx8 [c] {sym} ptr idx mem)
++	for {
++		c := v.AuxInt
++		sym := v.Aux
++		ptr := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpAMD64SHLQconst {
++			break
++		}
++		if v_1.AuxInt != 3 {
++			break
++		}
++		idx := v_1.Args[0]
++		mem := v.Args[2]
++		v.reset(OpAMD64MOVSDloadidx8)
++		v.AuxInt = c
++		v.Aux = sym
++		v.AddArg(ptr)
++		v.AddArg(idx)
++		v.AddArg(mem)
++		return true
++	}
+ 	// match: (MOVSDloadidx1 [c] {sym} (ADDQconst [d] ptr) idx mem)
+ 	// cond:
+ 	// result: (MOVSDloadidx1 [c+d] {sym} ptr idx mem)
+@@ -7425,6 +7449,32 @@ func rewriteValueAMD64_OpAMD64MOVSDstore(v *Value, config *Config) bool {
+ func rewriteValueAMD64_OpAMD64MOVSDstoreidx1(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
++	// match: (MOVSDstoreidx1 [c] {sym} ptr (SHLQconst [3] idx) val mem)
++	// cond:
++	// result: (MOVSDstoreidx8 [c] {sym} ptr idx val mem)
++	for {
++		c := v.AuxInt
++		sym := v.Aux
++		ptr := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpAMD64SHLQconst {
++			break
++		}
++		if v_1.AuxInt != 3 {
++			break
++		}
++		idx := v_1.Args[0]
++		val := v.Args[2]
++		mem := v.Args[3]
++		v.reset(OpAMD64MOVSDstoreidx8)
++		v.AuxInt = c
++		v.Aux = sym
++		v.AddArg(ptr)
++		v.AddArg(idx)
++		v.AddArg(val)
++		v.AddArg(mem)
++		return true
++	}
+ 	// match: (MOVSDstoreidx1 [c] {sym} (ADDQconst [d] ptr) idx val mem)
+ 	// cond:
+ 	// result: (MOVSDstoreidx1 [c+d] {sym} ptr idx val mem)
+@@ -7659,6 +7709,30 @@ func rewriteValueAMD64_OpAMD64MOVSSload(v *Value, config *Config) bool {
+ func rewriteValueAMD64_OpAMD64MOVSSloadidx1(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
++	// match: (MOVSSloadidx1 [c] {sym} ptr (SHLQconst [2] idx) mem)
++	// cond:
++	// result: (MOVSSloadidx4 [c] {sym} ptr idx mem)
++	for {
++		c := v.AuxInt
++		sym := v.Aux
++		ptr := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpAMD64SHLQconst {
++			break
++		}
++		if v_1.AuxInt != 2 {
++			break
++		}
++		idx := v_1.Args[0]
++		mem := v.Args[2]
++		v.reset(OpAMD64MOVSSloadidx4)
++		v.AuxInt = c
++		v.Aux = sym
++		v.AddArg(ptr)
++		v.AddArg(idx)
++		v.AddArg(mem)
++		return true
++	}
+ 	// match: (MOVSSloadidx1 [c] {sym} (ADDQconst [d] ptr) idx mem)
+ 	// cond:
+ 	// result: (MOVSSloadidx1 [c+d] {sym} ptr idx mem)
+@@ -7895,6 +7969,32 @@ func rewriteValueAMD64_OpAMD64MOVSSstore(v *Value, config *Config) bool {
+ func rewriteValueAMD64_OpAMD64MOVSSstoreidx1(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
++	// match: (MOVSSstoreidx1 [c] {sym} ptr (SHLQconst [2] idx) val mem)
++	// cond:
++	// result: (MOVSSstoreidx4 [c] {sym} ptr idx val mem)
++	for {
++		c := v.AuxInt
++		sym := v.Aux
++		ptr := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpAMD64SHLQconst {
++			break
++		}
++		if v_1.AuxInt != 2 {
++			break
++		}
++		idx := v_1.Args[0]
++		val := v.Args[2]
++		mem := v.Args[3]
++		v.reset(OpAMD64MOVSSstoreidx4)
++		v.AuxInt = c
++		v.Aux = sym
++		v.AddArg(ptr)
++		v.AddArg(idx)
++		v.AddArg(val)
++		v.AddArg(mem)
++		return true
++	}
+ 	// match: (MOVSSstoreidx1 [c] {sym} (ADDQconst [d] ptr) idx val mem)
+ 	// cond:
+ 	// result: (MOVSSstoreidx1 [c+d] {sym} ptr idx val mem)

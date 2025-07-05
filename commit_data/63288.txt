@@ -31,7 +31,92 @@ Date:   Thu Jun 5 14:21:47 2025 -0700
     Auto-Submit: Damien Neil <dneil@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/runtime2.go  | 28 ++++++++++++++--------------
  src/runtime/traceback.go | 13 ++++++++-----
  2 files changed, 22 insertions(+), 19 deletions(-)
+
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 589642efc6..d1b31be172 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -1093,10 +1093,10 @@ const (
+ 	waitReasonGCWeakToStrongWait                      // "GC weak to strong wait"
+ 	waitReasonSynctestRun                             // "synctest.Run"
+ 	waitReasonSynctestWait                            // "synctest.Wait"
+-	waitReasonSynctestChanReceive                     // "chan receive (synctest)"
+-	waitReasonSynctestChanSend                        // "chan send (synctest)"
+-	waitReasonSynctestSelect                          // "select (synctest)"
+-	waitReasonSynctestWaitGroupWait                   // "sync.WaitGroup.Wait (synctest)"
++	waitReasonSynctestChanReceive                     // "chan receive (durable)"
++	waitReasonSynctestChanSend                        // "chan send (durable)"
++	waitReasonSynctestSelect                          // "select (durable)"
++	waitReasonSynctestWaitGroupWait                   // "sync.WaitGroup.Wait (durable)"
+ 	waitReasonCleanupWait                             // "cleanup wait"
+ )
+ 
+@@ -1143,10 +1143,10 @@ var waitReasonStrings = [...]string{
+ 	waitReasonGCWeakToStrongWait:    "GC weak to strong wait",
+ 	waitReasonSynctestRun:           "synctest.Run",
+ 	waitReasonSynctestWait:          "synctest.Wait",
+-	waitReasonSynctestChanReceive:   "chan receive (synctest)",
+-	waitReasonSynctestChanSend:      "chan send (synctest)",
+-	waitReasonSynctestSelect:        "select (synctest)",
+-	waitReasonSynctestWaitGroupWait: "sync.WaitGroup.Wait (synctest)",
++	waitReasonSynctestChanReceive:   "chan receive (durable)",
++	waitReasonSynctestChanSend:      "chan send (durable)",
++	waitReasonSynctestSelect:        "select (durable)",
++	waitReasonSynctestWaitGroupWait: "sync.WaitGroup.Wait (durable)",
+ 	waitReasonCleanupWait:           "cleanup wait",
+ }
+ 
+@@ -1207,12 +1207,12 @@ var isIdleInSynctest = [len(waitReasonStrings)]bool{
+ }
+ 
+ var (
+-	allm           *m
+-	gomaxprocs     int32
+-	numCPUStartup  int32
+-	forcegc        forcegcstate
+-	sched          schedt
+-	newprocs       int32
++	allm          *m
++	gomaxprocs    int32
++	numCPUStartup int32
++	forcegc       forcegcstate
++	sched         schedt
++	newprocs      int32
+ )
+ 
+ var (
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index b3baa3b4ed..00c0f08e55 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -1248,6 +1248,13 @@ func goroutineheader(gp *g) {
+ 	if isScan {
+ 		print(" (scan)")
+ 	}
++	if bubble := gp.bubble; bubble != nil &&
++		gp.waitreason.isIdleInSynctest() &&
++		!stringslite.HasSuffix(status, "(durable)") {
++		// If this isn't a status where the name includes a (durable)
++		// suffix to distinguish it from the non-durable form, add it here.
++		print(" (durable)")
++	}
+ 	if waitfor >= 1 {
+ 		print(", ", waitfor, " minutes")
+ 	}
+@@ -1255,11 +1262,7 @@ func goroutineheader(gp *g) {
+ 		print(", locked to thread")
+ 	}
+ 	if bubble := gp.bubble; bubble != nil {
+-		print(", synctest bubble ", bubble.root.goid, ", ")
+-		if !gp.waitreason.isIdleInSynctest() {
+-			print("not ")
+-		}
+-		print("durably blocked")
++		print(", synctest bubble ", bubble.id)
+ 	}
+ 	print("]:\n")
+ }

@@ -17,7 +17,7 @@ Date:   Mon Jun 28 22:41:50 2021 -0700
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Trust: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/noder/linker.go  |  32 ++--
  src/cmd/compile/internal/noder/reader.go  | 184 +++++++++++++----------
  src/cmd/compile/internal/noder/reader2.go | 142 ++++++++++++------
@@ -25,3 +25,1110 @@ Date:   Mon Jun 28 22:41:50 2021 -0700
  src/cmd/compile/internal/noder/unified.go |   2 +-
  src/cmd/compile/internal/noder/writer.go  | 237 +++++++++++++++++++-----------
  6 files changed, 378 insertions(+), 220 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/linker.go b/src/cmd/compile/internal/noder/linker.go
+index 23e9446759..ed47a355d8 100644
+--- a/src/cmd/compile/internal/noder/linker.go
++++ b/src/cmd/compile/internal/noder/linker.go
+@@ -134,11 +134,15 @@ func (l *linker) relocObj(pr *pkgReader, idx int) int {
+ 	}
+ 
+ 	w := l.pw.newEncoderRaw(relocObj)
+-	bside := l.pw.newEncoderRaw(relocObjExt)
+-	assert(bside.idx == w.idx)
++	wext := l.pw.newEncoderRaw(relocObjExt)
++	wdict := l.pw.newEncoderRaw(relocObjDict)
++
+ 	l.decls[sym] = w.idx
++	assert(wext.idx == w.idx)
++	assert(wdict.idx == w.idx)
+ 
+ 	l.relocCommon(pr, &w, relocObj, idx)
++	l.relocCommon(pr, &wdict, relocObjDict, idx)
+ 
+ 	var obj *ir.Name
+ 	if path == "" {
+@@ -153,18 +157,18 @@ func (l *linker) relocObj(pr *pkgReader, idx int) int {
+ 	}
+ 
+ 	if obj != nil {
+-		bside.sync(syncObject1)
++		wext.sync(syncObject1)
+ 		switch tag {
+ 		case objFunc:
+-			l.relocFuncExt(&bside, obj)
++			l.relocFuncExt(&wext, obj)
+ 		case objType:
+-			l.relocTypeExt(&bside, obj)
++			l.relocTypeExt(&wext, obj)
+ 		case objVar:
+-			l.relocVarExt(&bside, obj)
++			l.relocVarExt(&wext, obj)
+ 		}
+-		bside.flush()
++		wext.flush()
+ 	} else {
+-		l.relocCommon(pr, &bside, relocObjExt, idx)
++		l.relocCommon(pr, &wext, relocObjExt, idx)
+ 	}
+ 
+ 	return w.idx
+@@ -286,7 +290,17 @@ func (pr *pkgDecoder) peekObj(idx int) (string, string, codeObj, []int) {
+ 	bounds := make([]int, r.len())
+ 	for i := range bounds {
+ 		r.sync(syncType)
+-		bounds[i] = r.reloc(relocType)
++		if r.bool() {
++			r.len()
++		} else {
++			r.reloc(relocType)
++		}
++
++		// TODO(mdempsky): This result now needs to include the 'derived'
++		// bool too, but none of the callers currently depend on it
++		// anyway. Either fix it to be meaningful, or just get rid of it
++		// altogether.
++		bounds[i] = -1
+ 	}
+ 
+ 	tag := codeObj(r.code(syncCodeObj))
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index 66c0e99d11..4b42ae1ec3 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -54,14 +54,14 @@ func newPkgReader(pr pkgDecoder) *pkgReader {
+ }
+ 
+ type pkgReaderIndex struct {
+-	pr        *pkgReader
+-	idx       int
+-	implicits []*types.Type
++	pr   *pkgReader
++	idx  int
++	dict *readerDict
+ }
+ 
+ func (pri pkgReaderIndex) asReader(k reloc, marker syncMarker) *reader {
+ 	r := pri.pr.newReader(k, pri.idx, marker)
+-	r.implicits = pri.implicits
++	r.dict = pri.dict
+ 	return r
+ }
+ 
+@@ -77,29 +77,10 @@ type reader struct {
+ 
+ 	p *pkgReader
+ 
+-	// Implicit and explicit type arguments in use for reading the
+-	// current object. For example:
+-	//
+-	//	func F[T any]() {
+-	//		type X[U any] struct { t T; u U }
+-	//		var _ X[string]
+-	//	}
+-	//
+-	//	var _ = F[int]
+-	//
+-	// While instantiating F[int], we need to in turn instantiate
+-	// X[string]. [int] and [string] are explicit type arguments for F
+-	// and X, respectively; but [int] is also the implicit type
+-	// arguments for X.
+-	//
+-	// (As an analogy to function literals, explicits are the function
+-	// literal's formal parameters, while implicits are variables
+-	// captured by the function literal.)
+-	implicits []*types.Type
+-	explicits []*types.Type
+-
+ 	ext *reader
+ 
++	dict *readerDict
++
+ 	// TODO(mdempsky): The state below is all specific to reading
+ 	// function bodies. It probably makes sense to split it out
+ 	// separately so that it doesn't take up space in every reader
+@@ -135,6 +116,35 @@ type reader struct {
+ 	inlvars, retvars ir.Nodes
+ }
+ 
++type readerDict struct {
++	// targs holds the implicit and explicit type arguments in use for
++	// reading the current object. For example:
++	//
++	//	func F[T any]() {
++	//		type X[U any] struct { t T; u U }
++	//		var _ X[string]
++	//	}
++	//
++	//	var _ = F[int]
++	//
++	// While instantiating F[int], we need to in turn instantiate
++	// X[string]. [int] and [string] are explicit type arguments for F
++	// and X, respectively; but [int] is also the implicit type
++	// arguments for X.
++	//
++	// (As an analogy to function literals, explicits are the function
++	// literal's formal parameters, while implicits are variables
++	// captured by the function literal.)
++	targs []*types.Type
++
++	// implicits counts how many of types within targs are implicit type
++	// arguments; the rest are explicit.
++	implicits int
++
++	derivedReloc []int         // reloc index of the derived type's descriptor
++	derived      []*types.Type // slice of previously computed derived types
++}
++
+ func (r *reader) setType(n ir.Node, typ *types.Type) {
+ 	n.SetType(typ)
+ 	n.SetTypecheck(1)
+@@ -283,17 +293,28 @@ func (r *reader) doPkg() *types.Pkg {
+ 
+ func (r *reader) typ() *types.Type {
+ 	r.sync(syncType)
+-	return r.p.typIdx(r.reloc(relocType), r.implicits, r.explicits)
++	if r.bool() {
++		return r.p.typIdx(r.len(), r.dict)
++	}
++	return r.p.typIdx(r.reloc(relocType), nil)
+ }
+ 
+-func (pr *pkgReader) typIdx(idx int, implicits, explicits []*types.Type) *types.Type {
+-	if typ := pr.typs[idx]; typ != nil {
++func (pr *pkgReader) typIdx(idx int, dict *readerDict) *types.Type {
++	var where **types.Type
++	if dict != nil {
++		where = &dict.derived[idx]
++		idx = dict.derivedReloc[idx]
++	} else {
++		where = &pr.typs[idx]
++	}
++
++	if typ := *where; typ != nil {
+ 		return typ
+ 	}
+ 
+ 	r := pr.newReader(relocType, idx, syncTypeIdx)
+-	r.implicits = implicits
+-	r.explicits = explicits
++	r.dict = dict
++
+ 	typ := r.doTyp()
+ 	assert(typ != nil)
+ 
+@@ -336,21 +357,13 @@ func (pr *pkgReader) typIdx(idx int, implicits, explicits []*types.Type) *types.
+ 	//
+ 	// The idx 1, corresponding with type I was resolved successfully
+ 	// after r.doTyp() call.
+-	if typ := pr.typs[idx]; typ != nil {
+-		return typ
+-	}
+ 
+-	// If we have type parameters, the type might refer to them, and it
+-	// wouldn't be safe to reuse those in other contexts. So we
+-	// conservatively avoid caching them in that case.
+-	//
+-	// TODO(mdempsky): If we're clever, we should be able to still cache
+-	// types by tracking which type parameters are used. However, in my
+-	// attempts so far, I haven't yet succeeded in being clever enough.
+-	if !r.hasTypeParams() {
+-		pr.typs[idx] = typ
++	if prev := *where; prev != nil {
++		return prev
+ 	}
+ 
++	*where = typ
++
+ 	if !typ.IsUntyped() {
+ 		types.CheckSize(typ)
+ 	}
+@@ -372,11 +385,7 @@ func (r *reader) doTyp() *types.Type {
+ 		return obj.Type()
+ 
+ 	case typeTypeParam:
+-		idx := r.len()
+-		if idx < len(r.implicits) {
+-			return r.implicits[idx]
+-		}
+-		return r.explicits[idx-len(r.implicits)]
++		return r.dict.targs[r.len()]
+ 
+ 	case typeArray:
+ 		len := int64(r.uint64())
+@@ -490,7 +499,12 @@ func (r *reader) obj() ir.Node {
+ 		explicits[i] = r.typ()
+ 	}
+ 
+-	return r.p.objIdx(idx, r.implicits, explicits)
++	var implicits []*types.Type
++	if r.dict != nil {
++		implicits = r.dict.targs
++	}
++
++	return r.p.objIdx(idx, implicits, explicits)
+ }
+ 
+ func (pr *pkgReader) objIdx(idx int, implicits, explicits []*types.Type) ir.Node {
+@@ -499,14 +513,11 @@ func (pr *pkgReader) objIdx(idx int, implicits, explicits []*types.Type) ir.Node
+ 
+ 	_, sym := r.qualifiedIdent()
+ 
+-	// Middle dot indicates local defined type; see writer.sym.
+-	// TODO(mdempsky): Come up with a better way to handle this.
+-	if strings.Contains(sym.Name, "·") {
+-		r.implicits = implicits
+-		r.ext.implicits = implicits
+-	}
+-	r.explicits = explicits
+-	r.ext.explicits = explicits
++	dict := &readerDict{}
++	r.dict = dict
++	r.ext.dict = dict
++
++	r.typeParamBounds(sym, implicits, explicits)
+ 
+ 	origSym := sym
+ 
+@@ -515,9 +526,17 @@ func (pr *pkgReader) objIdx(idx int, implicits, explicits []*types.Type) ir.Node
+ 		return sym.Def.(ir.Node)
+ 	}
+ 
+-	r.typeParamBounds(origSym)
+ 	tag := codeObj(r.code(syncCodeObj))
+ 
++	{
++		rdict := pr.newReader(relocObjDict, idx, syncObject1)
++		r.dict.derivedReloc = make([]int, rdict.len())
++		r.dict.derived = make([]*types.Type, len(r.dict.derivedReloc))
++		for i := range r.dict.derived {
++			r.dict.derivedReloc[i] = rdict.reloc(relocType)
++		}
++	}
++
+ 	do := func(op ir.Op, hasTParams bool) *ir.Name {
+ 		pos := r.pos()
+ 		if hasTParams {
+@@ -542,7 +561,7 @@ func (pr *pkgReader) objIdx(idx int, implicits, explicits []*types.Type) ir.Node
+ 
+ 	case objStub:
+ 		if pri, ok := objReader[origSym]; ok {
+-			return pri.pr.objIdx(pri.idx, pri.implicits, r.explicits)
++			return pri.pr.objIdx(pri.idx, nil, explicits)
+ 		}
+ 		if haveLegacyImports {
+ 			assert(!r.hasTypeParams())
+@@ -621,46 +640,50 @@ func (r *reader) mangle(sym *types.Sym) *types.Sym {
+ 	var buf bytes.Buffer
+ 	buf.WriteString(sym.Name)
+ 	buf.WriteByte('[')
+-	for i, targs := range [2][]*types.Type{r.implicits, r.explicits} {
+-		if i > 0 && len(r.implicits) != 0 && len(r.explicits) != 0 {
+-			buf.WriteByte(';')
+-		}
+-		for j, targ := range targs {
+-			if j > 0 {
++	for i, targ := range r.dict.targs {
++		if i > 0 {
++			if i == r.dict.implicits {
++				buf.WriteByte(';')
++			} else {
+ 				buf.WriteByte(',')
+ 			}
+-			// TODO(mdempsky): We need the linker to replace "" in the symbol
+-			// names here.
+-			buf.WriteString(targ.LinkString())
+ 		}
++		buf.WriteString(targ.LinkString())
+ 	}
+ 	buf.WriteByte(']')
+ 	return sym.Pkg.Lookup(buf.String())
+ }
+ 
+-func (r *reader) typeParamBounds(sym *types.Sym) {
++func (r *reader) typeParamBounds(sym *types.Sym, implicits, explicits []*types.Type) {
+ 	r.sync(syncTypeParamBounds)
+ 
+ 	nimplicits := r.len()
+ 	nexplicits := r.len()
+ 
+-	if len(r.implicits) != nimplicits || len(r.explicits) != nexplicits {
+-		base.Fatalf("%v has %v+%v params, but instantiated with %v+%v args", sym, nimplicits, nexplicits, len(r.implicits), len(r.explicits))
++	if nimplicits > len(implicits) || nexplicits != len(explicits) {
++		base.Fatalf("%v has %v+%v params, but instantiated with %v+%v args", sym, nimplicits, nexplicits, len(implicits), len(explicits))
+ 	}
+ 
++	r.dict.targs = append(implicits[:nimplicits:nimplicits], explicits...)
++	r.dict.implicits = nimplicits
++
+ 	// For stenciling, we can just skip over the type parameters.
+ 
+-	for range r.explicits {
++	for range r.dict.targs[r.dict.implicits:] {
+ 		// Skip past bounds without actually evaluating them.
+ 		r.sync(syncType)
+-		r.reloc(relocType)
++		if r.bool() {
++			r.len()
++		} else {
++			r.reloc(relocType)
++		}
+ 	}
+ }
+ 
+ func (r *reader) typeParamNames() {
+ 	r.sync(syncTypeParamNames)
+ 
+-	for range r.explicits {
++	for range r.dict.targs[r.dict.implicits:] {
+ 		r.pos()
+ 		r.localIdent()
+ 	}
+@@ -729,7 +752,7 @@ func (r *reader) selector() (origPkg *types.Pkg, sym *types.Sym) {
+ }
+ 
+ func (r *reader) hasTypeParams() bool {
+-	return len(r.implicits)+len(r.explicits) != 0
++	return r.dict != nil && len(r.dict.targs) != 0
+ }
+ 
+ // @@@ Compiler extensions
+@@ -776,10 +799,10 @@ func (r *reader) funcExt(name *ir.Name) {
+ 				Cost:            int32(r.len()),
+ 				CanDelayResults: r.bool(),
+ 			}
+-			r.addBody(name.Func, r.explicits)
++			r.addBody(name.Func)
+ 		}
+ 	} else {
+-		r.addBody(name.Func, r.explicits)
++		r.addBody(name.Func)
+ 	}
+ 	r.sync(syncEOF)
+ }
+@@ -795,8 +818,7 @@ func (r *reader) typeExt(name *ir.Name) {
+ 		// type descriptor is written out as DUPOK and method wrappers are
+ 		// generated even for imported types.
+ 		var targs []*types.Type
+-		targs = append(targs, r.implicits...)
+-		targs = append(targs, r.explicits...)
++		targs = append(targs, r.dict.targs...)
+ 		typ.SetRParams(targs)
+ 	}
+ 
+@@ -841,8 +863,8 @@ var bodyReader = map[*ir.Func]pkgReaderIndex{}
+ // constructed.
+ var todoBodies []*ir.Func
+ 
+-func (r *reader) addBody(fn *ir.Func, implicits []*types.Type) {
+-	pri := pkgReaderIndex{r.p, r.reloc(relocBody), implicits}
++func (r *reader) addBody(fn *ir.Func) {
++	pri := pkgReaderIndex{r.p, r.reloc(relocBody), r.dict}
+ 	bodyReader[fn] = pri
+ 
+ 	if r.curfn == nil {
+@@ -1565,7 +1587,7 @@ func (r *reader) funcLit() ir.Node {
+ 		r.setType(cv, outer.Type())
+ 	}
+ 
+-	r.addBody(fn, r.implicits)
++	r.addBody(fn)
+ 
+ 	return fn.OClosure
+ }
+diff --git a/src/cmd/compile/internal/noder/reader2.go b/src/cmd/compile/internal/noder/reader2.go
+index 174bd3f5bd..89f224d389 100644
+--- a/src/cmd/compile/internal/noder/reader2.go
++++ b/src/cmd/compile/internal/noder/reader2.go
+@@ -57,7 +57,21 @@ type reader2 struct {
+ 
+ 	p *pkgReader2
+ 
+-	tparams []*types2.TypeName
++	dict *reader2Dict
++}
++
++type reader2Dict struct {
++	bounds []reader2TypeBound
++
++	tparams []*types2.TypeParam
++
++	derivedReloc []int
++	derived      []types2.Type
++}
++
++type reader2TypeBound struct {
++	derived  bool
++	boundIdx int
+ }
+ 
+ func (pr *pkgReader2) newReader(k reloc, idx int, marker syncMarker) *reader2 {
+@@ -163,28 +177,37 @@ func (r *reader2) doPkg() *types2.Package {
+ 
+ func (r *reader2) typ() types2.Type {
+ 	r.sync(syncType)
+-	return r.p.typIdx(r.reloc(relocType), r.tparams)
++	if r.bool() {
++		return r.p.typIdx(r.len(), r.dict)
++	}
++	return r.p.typIdx(r.reloc(relocType), nil)
+ }
+ 
+-func (pr *pkgReader2) typIdx(idx int, tparams []*types2.TypeName) types2.Type {
+-	if typ := pr.typs[idx]; typ != nil {
++func (pr *pkgReader2) typIdx(idx int, dict *reader2Dict) types2.Type {
++	var where *types2.Type
++	if dict != nil {
++		where = &dict.derived[idx]
++		idx = dict.derivedReloc[idx]
++	} else {
++		where = &pr.typs[idx]
++	}
++
++	if typ := *where; typ != nil {
+ 		return typ
+ 	}
+ 
+ 	r := pr.newReader(relocType, idx, syncTypeIdx)
+-	r.tparams = tparams
++	r.dict = dict
++
+ 	typ := r.doTyp()
+ 	assert(typ != nil)
+ 
+-	if pr.typs[idx] != nil {
+-		// See comment in pkgReader.typIdx.
+-		return pr.typs[idx]
+-	}
+-
+-	if len(tparams) == 0 {
+-		pr.typs[idx] = typ
++	// See comment in pkgReader.typIdx explaining how this happens.
++	if prev := *where; prev != nil {
++		return prev
+ 	}
+ 
++	*where = typ
+ 	return typ
+ }
+ 
+@@ -206,8 +229,7 @@ func (r *reader2) doTyp() (res types2.Type) {
+ 		return name.Type()
+ 
+ 	case typeTypeParam:
+-		idx := r.len()
+-		return r.tparams[idx].Type().(*types2.TypeParam)
++		return r.dict.tparams[r.len()]
+ 
+ 	case typeArray:
+ 		len := int64(r.uint64())
+@@ -330,10 +352,12 @@ func (r *reader2) obj() (types2.Object, []types2.Type) {
+ 
+ func (pr *pkgReader2) objIdx(idx int) (*types2.Package, string) {
+ 	r := pr.newReader(relocObj, idx, syncObject1)
++	r.dict = &reader2Dict{}
++
+ 	objPkg, objName := r.qualifiedIdent()
+ 	assert(objName != "")
+ 
+-	bounds := r.typeParamBounds()
++	r.typeParamBounds()
+ 	tag := codeObj(r.code(syncCodeObj))
+ 
+ 	if tag == objStub {
+@@ -341,6 +365,15 @@ func (pr *pkgReader2) objIdx(idx int) (*types2.Package, string) {
+ 		return objPkg, objName
+ 	}
+ 
++	{
++		rdict := r.p.newReader(relocObjDict, idx, syncObject1)
++		r.dict.derivedReloc = make([]int, rdict.len())
++		r.dict.derived = make([]types2.Type, len(r.dict.derivedReloc))
++		for i := range r.dict.derived {
++			r.dict.derivedReloc[i] = rdict.reloc(relocType)
++		}
++	}
++
+ 	objPkg.Scope().InsertLazy(objName, func() types2.Object {
+ 		switch tag {
+ 		default:
+@@ -358,21 +391,16 @@ func (pr *pkgReader2) objIdx(idx int) (*types2.Package, string) {
+ 
+ 		case objFunc:
+ 			pos := r.pos()
+-			r.typeParamNames(bounds)
++			tparams := r.typeParamNames()
+ 			sig := r.signature(nil)
+-			if len(r.tparams) != 0 {
+-				sig.SetTParams(r.tparams)
+-			}
++			sig.SetTParams(tparams)
+ 			return types2.NewFunc(pos, objPkg, objName, sig)
+ 
+ 		case objType:
+ 			pos := r.pos()
+ 
+ 			return types2.NewTypeNameLazy(pos, objPkg, objName, func(named *types2.Named) (tparams []*types2.TypeName, underlying types2.Type, methods []*types2.Func) {
+-				r.typeParamNames(bounds)
+-				if len(r.tparams) != 0 {
+-					tparams = r.tparams
+-				}
++				tparams = r.typeParamNames()
+ 
+ 				// TODO(mdempsky): Rewrite receiver types to underlying is an
+ 				// Interface? The go/types importer does this (I think because
+@@ -382,7 +410,7 @@ func (pr *pkgReader2) objIdx(idx int) (*types2.Package, string) {
+ 
+ 				methods = make([]*types2.Func, r.len())
+ 				for i := range methods {
+-					methods[i] = r.method(bounds)
++					methods[i] = r.method()
+ 				}
+ 
+ 				return
+@@ -403,51 +431,73 @@ func (r *reader2) value() (types2.Type, constant.Value) {
+ 	return r.typ(), r.rawValue()
+ }
+ 
+-func (r *reader2) typeParamBounds() []int {
++func (r *reader2) typeParamBounds() {
+ 	r.sync(syncTypeParamBounds)
+ 
+-	// exported types never have implicit type parameters
+-	// TODO(mdempsky): Hide this from public importer.
+-	assert(r.len() == 0)
++	if implicits := r.len(); implicits != 0 {
++		base.Fatalf("unexpected object with %v implicit type parameter(s)", implicits)
++	}
+ 
+-	bounds := make([]int, r.len())
+-	for i := range bounds {
++	r.dict.bounds = make([]reader2TypeBound, r.len())
++	for i := range r.dict.bounds {
++		b := &r.dict.bounds[i]
+ 		r.sync(syncType)
+-		bounds[i] = r.reloc(relocType)
++		b.derived = r.bool()
++		if b.derived {
++			b.boundIdx = r.len()
++		} else {
++			b.boundIdx = r.reloc(relocType)
++		}
+ 	}
+-	return bounds
+ }
+ 
+-func (r *reader2) typeParamNames(bounds []int) {
++func (r *reader2) typeParamNames() []*types2.TypeName {
+ 	r.sync(syncTypeParamNames)
+ 
+-	r.tparams = make([]*types2.TypeName, len(bounds))
++	// Note: This code assumes it only processes objects without
++	// implement type parameters. This is currently fine, because
++	// reader2 is only used to read in exported declarations, which are
++	// always package scoped.
++
++	if len(r.dict.bounds) == 0 {
++		return nil
++	}
++
++	// Careful: Type parameter lists may have cycles. To allow for this,
++	// we construct the type parameter list in two passes: first we
++	// create all the TypeNames and TypeParams, then we construct and
++	// set the bound type.
+ 
+-	for i := range r.tparams {
++	names := make([]*types2.TypeName, len(r.dict.bounds))
++	r.dict.tparams = make([]*types2.TypeParam, len(r.dict.bounds))
++	for i := range r.dict.bounds {
+ 		pos := r.pos()
+ 		pkg, name := r.localIdent()
+ 
+-		obj := types2.NewTypeName(pos, pkg, name, nil)
+-		r.p.check.NewTypeParam(obj, i, nil)
+-		r.tparams[i] = obj
++		names[i] = types2.NewTypeName(pos, pkg, name, nil)
++		r.dict.tparams[i] = r.p.check.NewTypeParam(names[i], i, nil)
+ 	}
+ 
+-	for i, tparam := range r.tparams {
+-		bound := r.p.typIdx(bounds[i], r.tparams)
+-		tparam.Type().(*types2.TypeParam).SetBound(bound)
++	for i, bound := range r.dict.bounds {
++		var dict *reader2Dict
++		if bound.derived {
++			dict = r.dict
++		}
++		boundType := r.p.typIdx(bound.boundIdx, dict)
++		r.dict.tparams[i].SetBound(boundType)
+ 	}
++
++	return names
+ }
+ 
+-func (r *reader2) method(bounds []int) *types2.Func {
++func (r *reader2) method() *types2.Func {
+ 	r.sync(syncMethod)
+ 	pos := r.pos()
+ 	pkg, name := r.selector()
+ 
+-	r.typeParamNames(bounds)
++	rparams := r.typeParamNames()
+ 	sig := r.signature(r.param())
+-	if len(r.tparams) != 0 {
+-		sig.SetRParams(r.tparams)
+-	}
++	sig.SetRParams(rparams)
+ 
+ 	_ = r.pos() // TODO(mdempsky): Remove; this is a hacker for linker.go.
+ 	return types2.NewFunc(pos, pkg, name, sig)
+diff --git a/src/cmd/compile/internal/noder/reloc.go b/src/cmd/compile/internal/noder/reloc.go
+index 961de49419..4eb6bcdb1c 100644
+--- a/src/cmd/compile/internal/noder/reloc.go
++++ b/src/cmd/compile/internal/noder/reloc.go
+@@ -34,6 +34,7 @@ const (
+ 	relocType
+ 	relocObj
+ 	relocObjExt
++	relocObjDict
+ 	relocBody
+ 
+ 	numRelocs = iota
+diff --git a/src/cmd/compile/internal/noder/unified.go b/src/cmd/compile/internal/noder/unified.go
+index 292fd13c67..8397f14be8 100644
+--- a/src/cmd/compile/internal/noder/unified.go
++++ b/src/cmd/compile/internal/noder/unified.go
+@@ -122,7 +122,7 @@ func unified(noders []*noder) {
+ 
+ 		// Instantiated generic function: add to Decls for typechecking
+ 		// and compilation.
+-		if len(pri.implicits) != 0 && fn.OClosure == nil {
++		if pri.dict != nil && len(pri.dict.targs) != 0 && fn.OClosure == nil {
+ 			target.Decls = append(target.Decls, fn)
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/noder/writer.go b/src/cmd/compile/internal/noder/writer.go
+index 04969100f0..6348a56741 100644
+--- a/src/cmd/compile/internal/noder/writer.go
++++ b/src/cmd/compile/internal/noder/writer.go
+@@ -87,20 +87,27 @@ type writer struct {
+ 	// scope closes, and then maybe we can just use the same map for
+ 	// storing the TypeParams too (as their TypeName instead).
+ 
+-	// type parameters. explicitIdx has the type parameters declared on
+-	// the current object, while implicitIdx has the type parameters
+-	// declared on the enclosing object (if any).
+-	//
+-	// TODO(mdempsky): Merge these back together, now that I've got them
+-	// working.
+-	implicitIdx map[*types2.TypeParam]int
+-	explicitIdx map[*types2.TypeParam]int
+-
+ 	// variables declared within this function
+ 	localsIdx map[*types2.Var]int
+ 
+ 	closureVars    []posObj
+ 	closureVarsIdx map[*types2.Var]int
++
++	dict    *writerDict
++	derived bool
++}
++
++// A writerDict tracks types and objects that are used by a declaration.
++type writerDict struct {
++	implicits []*types2.TypeName
++
++	// derived is a slice of type indices for computing derived types
++	// (i.e., types that depend on the declaration's type parameters).
++	derived []int
++
++	// derivedIdx maps a Type to its corresponding index within the
++	// derived slice, if present.
++	derivedIdx map[types2.Type]int
+ }
+ 
+ func (pw *pkgWriter) newWriter(k reloc, marker syncMarker) *writer {
+@@ -193,30 +200,39 @@ func (pw *pkgWriter) pkgIdx(pkg *types2.Package) int {
+ // @@@ Types
+ 
+ func (w *writer) typ(typ types2.Type) {
++	idx, derived := w.p.typIdx(typ, w.dict)
++
+ 	w.sync(syncType)
++	if w.bool(derived) {
++		w.len(idx)
++		w.derived = true
++	} else {
++		w.reloc(relocType, idx)
++	}
++}
+ 
++// typIdx returns the index where the export data description of type
++// can be read back in. If no such index exists yet, it's created.
++//
++// typIdx also reports whether typ is a derived type; that is, whether
++// its identity depends on type parameters.
++func (pw *pkgWriter) typIdx(typ types2.Type, dict *writerDict) (int, bool) {
+ 	if quirksMode() {
+-		typ = w.p.dups.orig(typ)
++		typ = pw.dups.orig(typ)
+ 	}
+ 
+-	w.reloc(relocType, w.p.typIdx(typ, w.implicitIdx, w.explicitIdx))
+-}
+-
+-func (pw *pkgWriter) typIdx(typ types2.Type, implicitIdx, explicitIdx map[*types2.TypeParam]int) int {
+ 	if idx, ok := pw.typsIdx[typ]; ok {
+-		return idx
++		return idx, false
++	}
++	if dict != nil {
++		if idx, ok := dict.derivedIdx[typ]; ok {
++			return idx, true
++		}
+ 	}
+ 
+ 	w := pw.newWriter(relocType, syncTypeIdx)
+-	w.implicitIdx = implicitIdx
+-	w.explicitIdx = explicitIdx
+-
+-	pw.typsIdx[typ] = w.idx // handle cycles
+-	w.doTyp(typ)
+-	return w.flush()
+-}
++	w.dict = dict
+ 
+-func (w *writer) doTyp(typ types2.Type) {
+ 	switch typ := typ.(type) {
+ 	default:
+ 		base.Fatalf("unexpected type: %v (%T)", typ, typ)
+@@ -251,14 +267,19 @@ func (w *writer) doTyp(typ types2.Type) {
+ 		w.obj(orig.Obj(), typ.TArgs())
+ 
+ 	case *types2.TypeParam:
++		index := func() int {
++			for idx, name := range w.dict.implicits {
++				if name.Type().(*types2.TypeParam) == typ {
++					return idx
++				}
++			}
++
++			return len(w.dict.implicits) + typ.Index()
++		}()
++
++		w.derived = true
+ 		w.code(typeTypeParam)
+-		if idx, ok := w.implicitIdx[typ]; ok {
+-			w.len(idx)
+-		} else if idx, ok := w.explicitIdx[typ]; ok {
+-			w.len(len(w.implicitIdx) + idx)
+-		} else {
+-			w.p.fatalf(typ.Obj(), "%v not in %v or %v", typ, w.implicitIdx, w.explicitIdx)
+-		}
++		w.len(index)
+ 
+ 	case *types2.Array:
+ 		w.code(typeArray)
+@@ -300,6 +321,16 @@ func (w *writer) doTyp(typ types2.Type) {
+ 		w.code(typeUnion)
+ 		w.unionType(typ)
+ 	}
++
++	if w.derived {
++		idx := len(dict.derived)
++		dict.derived = append(dict.derived, w.flush())
++		dict.derivedIdx[typ] = idx
++		return idx, true
++	}
++
++	pw.typsIdx[typ] = w.idx
++	return w.flush(), false
+ }
+ 
+ func (w *writer) structType(typ *types2.Struct) {
+@@ -367,13 +398,16 @@ func (w *writer) param(param *types2.Var) {
+ // @@@ Objects
+ 
+ func (w *writer) obj(obj types2.Object, explicits []types2.Type) {
+-	w.sync(syncObject)
+-
+-	var implicitIdx map[*types2.TypeParam]int
+-	if isDefinedType(obj) && !isGlobal(obj) {
+-		implicitIdx = w.implicitIdx
++	if isDefinedType(obj) && obj.Pkg() == w.p.curpkg {
++		decl, ok := w.p.typDecls[obj.(*types2.TypeName)]
++		assert(ok)
++		if len(decl.implicits) != 0 {
++			w.derived = true
++		}
+ 	}
+-	w.reloc(relocObj, w.p.objIdx(obj, implicitIdx))
++
++	w.sync(syncObject)
++	w.reloc(relocObj, w.p.objIdx(obj))
+ 
+ 	w.len(len(explicits))
+ 	for _, explicit := range explicits {
+@@ -381,37 +415,61 @@ func (w *writer) obj(obj types2.Object, explicits []types2.Type) {
+ 	}
+ }
+ 
+-func (pw *pkgWriter) objIdx(obj types2.Object, implicitIdx map[*types2.TypeParam]int) int {
++func (pw *pkgWriter) objIdx(obj types2.Object) int {
+ 	if idx, ok := pw.globalsIdx[obj]; ok {
+ 		return idx
+ 	}
+ 
++	dict := &writerDict{
++		derivedIdx: make(map[types2.Type]int),
++	}
++
++	if isDefinedType(obj) && obj.Pkg() == pw.curpkg {
++		decl, ok := pw.typDecls[obj.(*types2.TypeName)]
++		assert(ok)
++		dict.implicits = decl.implicits
++	}
++
+ 	w := pw.newWriter(relocObj, syncObject1)
+ 	w.ext = pw.newWriter(relocObjExt, syncObject1)
++	wdict := pw.newWriter(relocObjDict, syncObject1)
++
++	pw.globalsIdx[obj] = w.idx // break cycles
+ 	assert(w.ext.idx == w.idx)
++	assert(wdict.idx == w.idx)
++
++	w.dict = dict
++	w.ext.dict = dict
+ 
+-	pw.globalsIdx[obj] = w.idx
++	// Ident goes first so importer can avoid unnecessary work if
++	// they've already resolved this object.
++	w.qualifiedIdent(obj)
+ 
+-	w.implicitIdx = implicitIdx
+-	w.ext.implicitIdx = implicitIdx
++	w.typeParamBounds(objTypeParams(obj))
+ 
+ 	w.doObj(obj)
+ 
+ 	w.flush()
+ 	w.ext.flush()
+ 
++	// Done writing out the object description; write out the list of
++	// derived types that we found along the way.
++	//
++	// TODO(mdempsky): Record details about how derived types are
++	// actually used so reader can optimize its runtime dictionaries.
++	//
++	// TODO(mdempsky): Record details about which instantiated functions
++	// are used too.
++	wdict.len(len(dict.derived))
++	for _, typ := range dict.derived {
++		wdict.reloc(relocType, typ)
++	}
++	wdict.flush()
++
+ 	return w.idx
+ }
+ 
+ func (w *writer) doObj(obj types2.Object) {
+-	// Ident goes first so importer can avoid unnecessary work if
+-	// they've already resolved this object.
+-	w.qualifiedIdent(obj)
+-
+-	tparams := objTypeParams(obj)
+-	w.setTypeParams(tparams)
+-	w.typeParamBounds(tparams)
+-
+ 	if obj.Pkg() != w.p.curpkg {
+ 		w.code(objStub)
+ 		return
+@@ -504,29 +562,12 @@ func (w *writer) value(typ types2.Type, val constant.Value) {
+ 	w.rawValue(val)
+ }
+ 
+-func (w *writer) setTypeParams(tparams []*types2.TypeName) {
+-	if len(tparams) == 0 {
+-		return
+-	}
+-
+-	explicitIdx := make(map[*types2.TypeParam]int)
+-	for _, tparam := range tparams {
+-		explicitIdx[tparam.Type().(*types2.TypeParam)] = len(explicitIdx)
+-	}
+-
+-	w.explicitIdx = explicitIdx
+-	w.ext.explicitIdx = explicitIdx
+-}
+-
+ func (w *writer) typeParamBounds(tparams []*types2.TypeName) {
+ 	w.sync(syncTypeParamBounds)
+ 
+-	// TODO(mdempsky): Remove. It's useful for debugging at the moment,
+-	// but it doesn't belong here.
+-	w.len(len(w.implicitIdx))
+-	w.len(len(w.explicitIdx))
+-	assert(len(w.explicitIdx) == len(tparams))
++	w.len(len(w.dict.implicits))
+ 
++	w.len(len(tparams))
+ 	for _, tparam := range tparams {
+ 		w.typ(tparam.Type().(*types2.TypeParam).Bound())
+ 	}
+@@ -546,9 +587,6 @@ func (w *writer) method(meth *types2.Func) {
+ 	assert(ok)
+ 	sig := meth.Type().(*types2.Signature)
+ 
+-	assert(len(w.explicitIdx) == len(sig.RParams()))
+-	w.setTypeParams(sig.RParams())
+-
+ 	w.sync(syncMethod)
+ 	w.pos(meth)
+ 	w.selector(meth)
+@@ -566,11 +604,14 @@ func (w *writer) qualifiedIdent(obj types2.Object) {
+ 	w.sync(syncSym)
+ 
+ 	name := obj.Name()
+-	if isDefinedType(obj) && !isGlobal(obj) {
+-		// TODO(mdempsky): Find a better solution, this is terrible.
++	if isDefinedType(obj) && obj.Pkg() == w.p.curpkg {
+ 		decl, ok := w.p.typDecls[obj.(*types2.TypeName)]
+ 		assert(ok)
+-		name = fmt.Sprintf("%s·%v", name, decl.gen)
++		if decl.gen != 0 {
++			// TODO(mdempsky): Find a better solution than embedding middle
++			// dot in the symbol name; this is terrible.
++			name = fmt.Sprintf("%s·%v", name, decl.gen)
++		}
+ 	}
+ 
+ 	w.pkg(obj.Pkg())
+@@ -630,7 +671,7 @@ func (w *writer) funcExt(obj *types2.Func) {
+ 	}
+ 
+ 	sig, block := obj.Type().(*types2.Signature), decl.Body
+-	body, closureVars := w.p.bodyIdx(w.p.curpkg, sig, block, w.explicitIdx)
++	body, closureVars := w.p.bodyIdx(w.p.curpkg, sig, block, w.dict)
+ 	assert(len(closureVars) == 0)
+ 
+ 	w.sync(syncFuncExt)
+@@ -672,9 +713,9 @@ func (w *writer) pragmaFlag(p ir.PragmaFlag) {
+ 
+ // @@@ Function bodies
+ 
+-func (pw *pkgWriter) bodyIdx(pkg *types2.Package, sig *types2.Signature, block *syntax.BlockStmt, implicitIdx map[*types2.TypeParam]int) (idx int, closureVars []posObj) {
++func (pw *pkgWriter) bodyIdx(pkg *types2.Package, sig *types2.Signature, block *syntax.BlockStmt, dict *writerDict) (idx int, closureVars []posObj) {
+ 	w := pw.newWriter(relocBody, syncFuncBody)
+-	w.implicitIdx = implicitIdx
++	w.dict = dict
+ 
+ 	w.funcargs(sig)
+ 	if w.bool(block != nil) {
+@@ -1238,14 +1279,13 @@ func (w *writer) funcLit(expr *syntax.FuncLit) {
+ 	assert(ok)
+ 	sig := tv.Type.(*types2.Signature)
+ 
++	body, closureVars := w.p.bodyIdx(w.p.curpkg, sig, expr.Body, w.dict)
++
+ 	w.sync(syncFuncLit)
+ 	w.pos(expr)
+ 	w.pos(expr.Type) // for QuirksMode
+ 	w.signature(sig)
+ 
+-	block := expr.Body
+-	body, closureVars := w.p.bodyIdx(w.p.curpkg, sig, block, w.implicitIdx)
+-
+ 	w.len(len(closureVars))
+ 	for _, cv := range closureVars {
+ 		w.pos(cv.pos)
+@@ -1297,6 +1337,9 @@ func (w *writer) op(op ir.Op) {
+ type typeDeclGen struct {
+ 	*syntax.TypeDecl
+ 	gen int
++
++	// Implicit type parameters in scope at this type declaration.
++	implicits []*types2.TypeName
+ }
+ 
+ type fileImports struct {
+@@ -1308,6 +1351,19 @@ type declCollector struct {
+ 	typegen    *int
+ 	file       *fileImports
+ 	withinFunc bool
++	implicits  []*types2.TypeName
++}
++
++func (c *declCollector) withTParams(obj types2.Object) *declCollector {
++	tparams := objTypeParams(obj)
++	if len(tparams) == 0 {
++		return c
++	}
++
++	copy := *c
++	copy.implicits = copy.implicits[:len(copy.implicits):len(copy.implicits)]
++	copy.implicits = append(copy.implicits, objTypeParams(obj)...)
++	return &copy
+ }
+ 
+ func (c *declCollector) Visit(n syntax.Node) syntax.Visitor {
+@@ -1336,9 +1392,11 @@ func (c *declCollector) Visit(n syntax.Node) syntax.Visitor {
+ 		obj := pw.info.Defs[n.Name].(*types2.Func)
+ 		pw.funDecls[obj] = n
+ 
++		return c.withTParams(obj)
++
+ 	case *syntax.TypeDecl:
+ 		obj := pw.info.Defs[n.Name].(*types2.TypeName)
+-		d := typeDeclGen{TypeDecl: n}
++		d := typeDeclGen{TypeDecl: n, implicits: c.implicits}
+ 
+ 		if n.Alias {
+ 			pw.checkPragmas(n.Pragma, 0, false)
+@@ -1346,7 +1404,7 @@ func (c *declCollector) Visit(n syntax.Node) syntax.Visitor {
+ 			pw.checkPragmas(n.Pragma, typePragmas, false)
+ 
+ 			// Assign a unique ID to function-scoped defined types.
+-			if !isGlobal(obj) {
++			if c.withinFunc {
+ 				*c.typegen++
+ 				d.gen = *c.typegen
+ 			}
+@@ -1354,6 +1412,12 @@ func (c *declCollector) Visit(n syntax.Node) syntax.Visitor {
+ 
+ 		pw.typDecls[obj] = d
+ 
++		// TODO(mdempsky): Omit? Not strictly necessary; only matters for
++		// type declarations within function literals within parameterized
++		// type declarations, but types2 the function literals will be
++		// constant folded away.
++		return c.withTParams(obj)
++
+ 	case *syntax.VarDecl:
+ 		pw.checkPragmas(n.Pragma, 0, true)
+ 
+@@ -1510,8 +1574,11 @@ func (w *writer) pkgDecl(decl syntax.Decl) {
+ 			break // skip generic type decls
+ 		}
+ 
+-		name := w.p.info.Defs[decl.Name].(*types2.TypeName)
++		if decl.Name.Value == "_" {
++			break // skip blank type decls
++		}
+ 
++		name := w.p.info.Defs[decl.Name].(*types2.TypeName)
+ 		// Skip type declarations for interfaces that are only usable as
+ 		// type parameter bounds.
+ 		if iface, ok := name.Type().Underlying().(*types2.Interface); ok && iface.IsConstraint() {
+@@ -1671,7 +1738,11 @@ func fieldIndex(info *types2.Info, str *types2.Struct, key *syntax.Name) int {
+ func objTypeParams(obj types2.Object) []*types2.TypeName {
+ 	switch obj := obj.(type) {
+ 	case *types2.Func:
+-		return obj.Type().(*types2.Signature).TParams()
++		sig := obj.Type().(*types2.Signature)
++		if sig.Recv() != nil {
++			return sig.RParams()
++		}
++		return sig.TParams()
+ 	case *types2.TypeName:
+ 		if !obj.IsAlias() {
+ 			return obj.Type().(*types2.Named).TParams()

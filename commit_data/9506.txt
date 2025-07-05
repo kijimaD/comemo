@@ -9,7 +9,301 @@ Date:   Fri Aug 26 12:29:52 2011 -0300
     R=m.n.summerfield, adg, kevlar, rsc, gustavo, n13m3y3r
     CC=golang-dev
     https://golang.org/cl/4941042
-
+---
  src/pkg/xml/marshal.go      |  93 ++++++++++++++++++++++++++++++---
  src/pkg/xml/marshal_test.go | 123 ++++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 208 insertions(+), 8 deletions(-)
+
+diff --git a/src/pkg/xml/marshal.go b/src/pkg/xml/marshal.go
+index ea421c1b17..8396dba27e 100644
+--- a/src/pkg/xml/marshal.go
++++ b/src/pkg/xml/marshal.go
+@@ -39,10 +39,10 @@ type printer struct {
+ // Marshal handles a pointer by marshalling the value it points at or, if the
+ // pointer is nil, by writing nothing.  Marshal handles an interface value by
+ // marshalling the value it contains or, if the interface value is nil, by
+-// writing nothing.  Marshal handles all other data by writing a single XML
+-// element containing the data.
++// writing nothing.  Marshal handles all other data by writing one or more XML
++// elements containing the data.
+ //
+-// The name of that XML element is taken from, in order of preference:
++// The name for the XML elements is taken from, in order of preference:
+ //     - the tag on an XMLName field, if the data is a struct
+ //     - the value of an XMLName field of type xml.Name
+ //     - the tag of the struct field used to obtain the data
+@@ -58,6 +58,31 @@ type printer struct {
+ //     - a field with tag "innerxml" is written verbatim,
+ //        not subject to the usual marshalling procedure.
+ //
++// If a field uses a tag "a>b>c", then the element c will be nested inside
++// parent elements a and b.  Fields that appear next to each other that name
++// the same parent will be enclosed in one XML element.  For example:
++//
++//	type Result struct {
++//		XMLName   xml.Name `xml:"result"`
++//		FirstName string   `xml:"person>name>first"`
++//		LastName  string   `xml:"person>name>last"`
++//		Age       int      `xml:"person>age"`
++//	}
++//
++//	xml.Marshal(w, &Result{FirstName: "John", LastName: "Doe", Age: 42})
++//
++// would be marshalled as:
++//
++//	<result>
++//		<person>
++//			<name>
++//				<first>John</first>
++//				<last>Doe</last>
++//			</name>
++//			<age>42</age>
++//		</person>
++//	</result>
++//
+ // Marshal will return an error if asked to marshal a channel, function, or map.
+ func Marshal(w io.Writer, v interface{}) (err os.Error) {
+ 	p := &printer{bufio.NewWriter(w)}
+@@ -170,22 +195,25 @@ func (p *printer) marshalValue(val reflect.Value, name string) os.Error {
+ 		bytes := val.Interface().([]byte)
+ 		Escape(p, bytes)
+ 	case reflect.Struct:
++		s := parentStack{printer: p}
+ 		for i, n := 0, val.NumField(); i < n; i++ {
+ 			if f := typ.Field(i); f.Name != "XMLName" && f.PkgPath == "" {
+ 				name := f.Name
++				vf := val.Field(i)
+ 				switch tag := f.Tag.Get("xml"); tag {
+ 				case "":
++					s.trim(nil)
+ 				case "chardata":
+ 					if tk := f.Type.Kind(); tk == reflect.String {
+-						Escape(p, []byte(val.Field(i).String()))
++						Escape(p, []byte(vf.String()))
+ 					} else if tk == reflect.Slice {
+-						if elem, ok := val.Field(i).Interface().([]byte); ok {
++						if elem, ok := vf.Interface().([]byte); ok {
+ 							Escape(p, elem)
+ 						}
+ 					}
+ 					continue
+ 				case "innerxml":
+-					iface := val.Field(i).Interface()
++					iface := vf.Interface()
+ 					switch raw := iface.(type) {
+ 					case []byte:
+ 						p.Write(raw)
+@@ -197,14 +225,28 @@ func (p *printer) marshalValue(val reflect.Value, name string) os.Error {
+ 				case "attr":
+ 					continue
+ 				default:
+-					name = tag
++					parents := strings.Split(tag, ">")
++					if len(parents) == 1 {
++						parents, name = nil, tag
++					} else {
++						parents, name = parents[:len(parents)-1], parents[len(parents)-1]
++						if parents[0] == "" {
++							parents[0] = f.Name
++						}
++					}
++
++					s.trim(parents)
++					if !(vf.Kind() == reflect.Ptr || vf.Kind() == reflect.Interface) || !vf.IsNil() {
++						s.push(parents[len(s.stack):])
++					}
+ 				}
+ 
+-				if err := p.marshalValue(val.Field(i), name); err != nil {
++				if err := p.marshalValue(vf, name); err != nil {
+ 					return err
+ 				}
+ 			}
+ 		}
++		s.trim(nil)
+ 	default:
+ 		return &UnsupportedTypeError{typ}
+ 	}
+@@ -217,6 +259,41 @@ func (p *printer) marshalValue(val reflect.Value, name string) os.Error {
+ 	return nil
+ }
+ 
++type parentStack struct {
++	*printer
++	stack []string
++}
++
++// trim updates the XML context to match the longest common prefix of the stack
++// and the given parents.  A closing tag will be written for every parent
++// popped.  Passing a zero slice or nil will close all the elements.
++func (s *parentStack) trim(parents []string) {
++	split := 0
++	for ; split < len(parents) && split < len(s.stack); split++ {
++		if parents[split] != s.stack[split] {
++			break
++		}
++	}
++
++	for i := len(s.stack) - 1; i >= split; i-- {
++		s.WriteString("</")
++		s.WriteString(s.stack[i])
++		s.WriteByte('>')
++	}
++
++	s.stack = parents[:split]
++}
++
++// push adds parent elements to the stack and writes open tags.
++func (s *parentStack) push(parents []string) {
++	for i := 0; i < len(parents); i++ {
++		s.WriteString("<")
++		s.WriteString(parents[i])
++		s.WriteByte('>')
++	}
++	s.stack = append(s.stack, parents...)
++}
++
+ // A MarshalXMLError is returned when Marshal or MarshalIndent encounter a type
+ // that cannot be converted into XML.
+ type UnsupportedTypeError struct {
+diff --git a/src/pkg/xml/marshal_test.go b/src/pkg/xml/marshal_test.go
+index 5b972fafe6..ad3aa97e25 100644
+--- a/src/pkg/xml/marshal_test.go
++++ b/src/pkg/xml/marshal_test.go
+@@ -69,6 +69,41 @@ type SecretAgent struct {
+ 	Obfuscate string `xml:"innerxml"`
+ }
+ 
++type NestedItems struct {
++	XMLName Name     `xml:"result"`
++	Items   []string `xml:">item"`
++	Item1   []string `xml:"Items>item1"`
++}
++
++type NestedOrder struct {
++	XMLName Name   `xml:"result"`
++	Field1  string `xml:"parent>c"`
++	Field2  string `xml:"parent>b"`
++	Field3  string `xml:"parent>a"`
++}
++
++type MixedNested struct {
++	XMLName Name   `xml:"result"`
++	A       string `xml:"parent1>a"`
++	B       string `xml:"b"`
++	C       string `xml:"parent1>parent2>c"`
++	D       string `xml:"parent1>d"`
++}
++
++type NilTest struct {
++	A interface{} `xml:"parent1>parent2>a"`
++	B interface{} `xml:"parent1>b"`
++	C interface{} `xml:"parent1>parent2>c"`
++}
++
++type Service struct {
++	XMLName Name    `xml:"service"`
++	Domain  *Domain `xml:"host>domain"`
++	Port    *Port   `xml:"host>port"`
++	Extra1  interface{}
++	Extra2  interface{} `xml:"host>extra2"`
++}
++
+ var nilStruct *Ship
+ 
+ var marshalTests = []struct {
+@@ -170,6 +205,94 @@ var marshalTests = []struct {
+ 			`</passenger>` +
+ 			`</spaceship>`,
+ 	},
++	// Test a>b
++	{
++		Value: NestedItems{Items: []string{}, Item1: []string{}},
++		ExpectXML: `<result>` +
++			`<Items>` +
++			`</Items>` +
++			`</result>`,
++	},
++	{
++		Value: NestedItems{Items: []string{}, Item1: []string{"A"}},
++		ExpectXML: `<result>` +
++			`<Items>` +
++			`<item1>A</item1>` +
++			`</Items>` +
++			`</result>`,
++	},
++	{
++		Value: NestedItems{Items: []string{"A", "B"}, Item1: []string{}},
++		ExpectXML: `<result>` +
++			`<Items>` +
++			`<item>A</item>` +
++			`<item>B</item>` +
++			`</Items>` +
++			`</result>`,
++	},
++	{
++		Value: NestedItems{Items: []string{"A", "B"}, Item1: []string{"C"}},
++		ExpectXML: `<result>` +
++			`<Items>` +
++			`<item>A</item>` +
++			`<item>B</item>` +
++			`<item1>C</item1>` +
++			`</Items>` +
++			`</result>`,
++	},
++	{
++		Value: NestedOrder{Field1: "C", Field2: "B", Field3: "A"},
++		ExpectXML: `<result>` +
++			`<parent>` +
++			`<c>C</c>` +
++			`<b>B</b>` +
++			`<a>A</a>` +
++			`</parent>` +
++			`</result>`,
++	},
++	{
++		Value: NilTest{A: "A", B: nil, C: "C"},
++		ExpectXML: `<???>` +
++			`<parent1>` +
++			`<parent2><a>A</a></parent2>` +
++			`<parent2><c>C</c></parent2>` +
++			`</parent1>` +
++			`</???>`,
++	},
++	{
++		Value: MixedNested{A: "A", B: "B", C: "C", D: "D"},
++		ExpectXML: `<result>` +
++			`<parent1><a>A</a></parent1>` +
++			`<b>B</b>` +
++			`<parent1>` +
++			`<parent2><c>C</c></parent2>` +
++			`<d>D</d>` +
++			`</parent1>` +
++			`</result>`,
++	},
++	{
++		Value:     Service{Port: &Port{Number: "80"}},
++		ExpectXML: `<service><host><port>80</port></host></service>`,
++	},
++	{
++		Value:     Service{},
++		ExpectXML: `<service></service>`,
++	},
++	{
++		Value: Service{Port: &Port{Number: "80"}, Extra1: "A", Extra2: "B"},
++		ExpectXML: `<service>` +
++			`<host><port>80</port></host>` +
++			`<Extra1>A</Extra1>` +
++			`<host><extra2>B</extra2></host>` +
++			`</service>`,
++	},
++	{
++		Value: Service{Port: &Port{Number: "80"}, Extra2: "example"},
++		ExpectXML: `<service>` +
++			`<host><port>80</port></host>` +
++			`<host><extra2>example</extra2></host>` +
++			`</service>`,
++	},
+ }
+ 
+ func TestMarshal(t *testing.T) {

@@ -19,8 +19,83 @@ Date:   Sun Oct 21 14:57:58 2018 +1100
     Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/testdata/script/test_devnull.txt | 13 +++++++++++++
  src/path/filepath/path_test.go              |  5 +++++
  src/path/filepath/path_windows.go           | 26 ++++++++++++++++++++++++++
  3 files changed, 44 insertions(+)
+
+diff --git a/src/cmd/go/testdata/script/test_devnull.txt b/src/cmd/go/testdata/script/test_devnull.txt
+new file mode 100644
+index 0000000000..c414e59ba3
+--- /dev/null
++++ b/src/cmd/go/testdata/script/test_devnull.txt
+@@ -0,0 +1,13 @@
++# go test -c -o NUL
++# should work (see golang.org/issue/28035).
++cd x
++go test -o=$devnull -c
++! exists x.test$exe
++
++-- x/x_test.go --
++package x_test
++import (
++    "testing"
++)
++func TestNUL(t *testing.T) {
++}
+diff --git a/src/path/filepath/path_test.go b/src/path/filepath/path_test.go
+index eddae4755b..3434ea2e6e 100644
+--- a/src/path/filepath/path_test.go
++++ b/src/path/filepath/path_test.go
+@@ -751,6 +751,11 @@ func TestIsAbs(t *testing.T) {
+ 		for _, test := range isabstests {
+ 			tests = append(tests, IsAbsTest{"c:" + test.path, test.isAbs})
+ 		}
++		// Test reserved names.
++		tests = append(tests, IsAbsTest{os.DevNull, true})
++		tests = append(tests, IsAbsTest{"NUL", true})
++		tests = append(tests, IsAbsTest{"nul", true})
++		tests = append(tests, IsAbsTest{"CON", true})
+ 	} else {
+ 		tests = isabstests
+ 	}
+diff --git a/src/path/filepath/path_windows.go b/src/path/filepath/path_windows.go
+index 6a144d9e0b..445c868e41 100644
+--- a/src/path/filepath/path_windows.go
++++ b/src/path/filepath/path_windows.go
+@@ -13,8 +13,34 @@ func isSlash(c uint8) bool {
+ 	return c == '\\' || c == '/'
+ }
+ 
++// reservedNames lists reserved Windows names. Search for PRN in
++// https://docs.microsoft.com/en-us/windows/desktop/fileio/naming-a-file
++// for details.
++var reservedNames = []string{
++	"CON", "PRN", "AUX", "NUL",
++	"COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9",
++	"LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9",
++}
++
++// isReservedName returns true, if path is Windows reserved name.
++// See reservedNames for the full list.
++func isReservedName(path string) bool {
++	if len(path) == 0 {
++		return false
++	}
++	for _, reserved := range reservedNames {
++		if strings.EqualFold(path, reserved) {
++			return true
++		}
++	}
++	return false
++}
++
+ // IsAbs reports whether the path is absolute.
+ func IsAbs(path string) (b bool) {
++	if isReservedName(path) {
++		return true
++	}
+ 	l := volumeNameLen(path)
+ 	if l == 0 {
+ 		return false

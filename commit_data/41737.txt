@@ -19,7 +19,7 @@ Date:   Tue Oct 22 14:45:31 2019 -0400
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/cfg/cfg.go              |  3 ++-
  src/cmd/go/internal/get/get.go              |  2 +-
  src/cmd/go/internal/modcmd/download.go      |  3 +++
@@ -35,3 +35,308 @@ Date:   Tue Oct 22 14:45:31 2019 -0400
  src/cmd/go/internal/work/init.go            |  7 ++++++-
  src/cmd/go/testdata/script/mod_cache_rw.txt | 10 ++++++++++
  14 files changed, 57 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/go/internal/cfg/cfg.go b/src/cmd/go/internal/cfg/cfg.go
+index ea909b5b37..36b2348888 100644
+--- a/src/cmd/go/internal/cfg/cfg.go
++++ b/src/cmd/go/internal/cfg/cfg.go
+@@ -33,7 +33,6 @@ var (
+ 	BuildN                 bool               // -n flag
+ 	BuildO                 string             // -o flag
+ 	BuildP                 = runtime.NumCPU() // -p flag
+-	BuildModcacheRW        bool               // -modcacherw flag
+ 	BuildPkgdir            string             // -pkgdir flag
+ 	BuildRace              bool               // -race flag
+ 	BuildToolexec          []string           // -toolexec flag
+@@ -45,6 +44,8 @@ var (
+ 	BuildWork              bool // -work flag
+ 	BuildX                 bool // -x flag
+ 
++	ModCacheRW bool // -modcacherw flag
++
+ 	CmdName string // "build", "install", "list", "mod tidy", etc.
+ 
+ 	DebugActiongraph string // -debug-actiongraph flag (undocumented, unstable)
+diff --git a/src/cmd/go/internal/get/get.go b/src/cmd/go/internal/get/get.go
+index 421f1bab75..500e3e0da6 100644
+--- a/src/cmd/go/internal/get/get.go
++++ b/src/cmd/go/internal/get/get.go
+@@ -108,7 +108,7 @@ var (
+ )
+ 
+ func init() {
+-	work.AddBuildFlags(CmdGet, work.OmitModFlag)
++	work.AddBuildFlags(CmdGet, work.OmitModFlag|work.OmitModCommonFlags)
+ 	CmdGet.Run = runGet // break init loop
+ 	CmdGet.Flag.BoolVar(&Insecure, "insecure", Insecure, "")
+ }
+diff --git a/src/cmd/go/internal/modcmd/download.go b/src/cmd/go/internal/modcmd/download.go
+index 0d432e9549..3a86d8ac06 100644
+--- a/src/cmd/go/internal/modcmd/download.go
++++ b/src/cmd/go/internal/modcmd/download.go
+@@ -14,6 +14,7 @@ import (
+ 	"cmd/go/internal/modload"
+ 	"cmd/go/internal/module"
+ 	"cmd/go/internal/par"
++	"cmd/go/internal/work"
+ )
+ 
+ var cmdDownload = &base.Command{
+@@ -53,6 +54,8 @@ var downloadJSON = cmdDownload.Flag.Bool("json", false, "")
+ 
+ func init() {
+ 	cmdDownload.Run = runDownload // break init cycle
++
++	work.AddModCommonFlags(cmdDownload)
+ }
+ 
+ type moduleJSON struct {
+diff --git a/src/cmd/go/internal/modcmd/edit.go b/src/cmd/go/internal/modcmd/edit.go
+index 1be8b7cb2f..239f88bdc2 100644
+--- a/src/cmd/go/internal/modcmd/edit.go
++++ b/src/cmd/go/internal/modcmd/edit.go
+@@ -20,6 +20,7 @@ import (
+ 	"cmd/go/internal/modfile"
+ 	"cmd/go/internal/modload"
+ 	"cmd/go/internal/module"
++	"cmd/go/internal/work"
+ )
+ 
+ var cmdEdit = &base.Command{
+@@ -130,6 +131,7 @@ func init() {
+ 	cmdEdit.Flag.Var(flagFunc(flagReplace), "replace", "")
+ 	cmdEdit.Flag.Var(flagFunc(flagDropExclude), "dropexclude", "")
+ 
++	work.AddModCommonFlags(cmdEdit)
+ 	base.AddBuildFlagsNX(&cmdEdit.Flag)
+ }
+ 
+diff --git a/src/cmd/go/internal/modcmd/graph.go b/src/cmd/go/internal/modcmd/graph.go
+index 8fcb84f280..5dbbf332fb 100644
+--- a/src/cmd/go/internal/modcmd/graph.go
++++ b/src/cmd/go/internal/modcmd/graph.go
+@@ -16,6 +16,7 @@ import (
+ 	"cmd/go/internal/modload"
+ 	"cmd/go/internal/module"
+ 	"cmd/go/internal/par"
++	"cmd/go/internal/work"
+ )
+ 
+ var cmdGraph = &base.Command{
+@@ -30,6 +31,10 @@ path@version, except for the main module, which has no @version suffix.
+ 	Run: runGraph,
+ }
+ 
++func init() {
++	work.AddModCommonFlags(cmdGraph)
++}
++
+ func runGraph(cmd *base.Command, args []string) {
+ 	if len(args) > 0 {
+ 		base.Fatalf("go mod graph: graph takes no arguments")
+diff --git a/src/cmd/go/internal/modcmd/init.go b/src/cmd/go/internal/modcmd/init.go
+index b94453bab0..2858a46c4e 100644
+--- a/src/cmd/go/internal/modcmd/init.go
++++ b/src/cmd/go/internal/modcmd/init.go
+@@ -9,6 +9,7 @@ package modcmd
+ import (
+ 	"cmd/go/internal/base"
+ 	"cmd/go/internal/modload"
++	"cmd/go/internal/work"
+ 	"os"
+ 	"strings"
+ )
+@@ -27,6 +28,10 @@ To override this guess, supply the module path as an argument.
+ 	Run: runInit,
+ }
+ 
++func init() {
++	work.AddModCommonFlags(cmdInit)
++}
++
+ func runInit(cmd *base.Command, args []string) {
+ 	modload.CmdModInit = true
+ 	if len(args) > 1 {
+diff --git a/src/cmd/go/internal/modcmd/tidy.go b/src/cmd/go/internal/modcmd/tidy.go
+index 789e936608..1f5a18e05e 100644
+--- a/src/cmd/go/internal/modcmd/tidy.go
++++ b/src/cmd/go/internal/modcmd/tidy.go
+@@ -15,6 +15,7 @@ import (
+ 	"cmd/go/internal/modfetch"
+ 	"cmd/go/internal/modload"
+ 	"cmd/go/internal/module"
++	"cmd/go/internal/work"
+ )
+ 
+ var cmdTidy = &base.Command{
+@@ -35,6 +36,7 @@ to standard error.
+ func init() {
+ 	cmdTidy.Run = runTidy // break init cycle
+ 	cmdTidy.Flag.BoolVar(&cfg.BuildV, "v", false, "")
++	work.AddModCommonFlags(cmdTidy)
+ }
+ 
+ func runTidy(cmd *base.Command, args []string) {
+diff --git a/src/cmd/go/internal/modcmd/vendor.go b/src/cmd/go/internal/modcmd/vendor.go
+index bb1cecdbf5..71246b2f68 100644
+--- a/src/cmd/go/internal/modcmd/vendor.go
++++ b/src/cmd/go/internal/modcmd/vendor.go
+@@ -20,6 +20,7 @@ import (
+ 	"cmd/go/internal/modload"
+ 	"cmd/go/internal/module"
+ 	"cmd/go/internal/semver"
++	"cmd/go/internal/work"
+ )
+ 
+ var cmdVendor = &base.Command{
+@@ -38,6 +39,7 @@ modules and packages to standard error.
+ 
+ func init() {
+ 	cmdVendor.Flag.BoolVar(&cfg.BuildV, "v", false, "")
++	work.AddModCommonFlags(cmdVendor)
+ }
+ 
+ func runVendor(cmd *base.Command, args []string) {
+diff --git a/src/cmd/go/internal/modcmd/verify.go b/src/cmd/go/internal/modcmd/verify.go
+index 81fc44dc97..9155fcb358 100644
+--- a/src/cmd/go/internal/modcmd/verify.go
++++ b/src/cmd/go/internal/modcmd/verify.go
+@@ -16,6 +16,7 @@ import (
+ 	"cmd/go/internal/modfetch"
+ 	"cmd/go/internal/modload"
+ 	"cmd/go/internal/module"
++	"cmd/go/internal/work"
+ )
+ 
+ var cmdVerify = &base.Command{
+@@ -32,6 +33,10 @@ non-zero status.
+ 	Run: runVerify,
+ }
+ 
++func init() {
++	work.AddModCommonFlags(cmdVerify)
++}
++
+ func runVerify(cmd *base.Command, args []string) {
+ 	if len(args) != 0 {
+ 		// NOTE(rsc): Could take a module pattern.
+diff --git a/src/cmd/go/internal/modcmd/why.go b/src/cmd/go/internal/modcmd/why.go
+index 03e0a039bc..93d64dcb59 100644
+--- a/src/cmd/go/internal/modcmd/why.go
++++ b/src/cmd/go/internal/modcmd/why.go
+@@ -8,6 +8,7 @@ import (
+ 	"cmd/go/internal/base"
+ 	"cmd/go/internal/modload"
+ 	"cmd/go/internal/module"
++	"cmd/go/internal/work"
+ 	"fmt"
+ 	"strings"
+ )
+@@ -54,6 +55,7 @@ var (
+ 
+ func init() {
+ 	cmdWhy.Run = runWhy // break init cycle
++	work.AddModCommonFlags(cmdWhy)
+ }
+ 
+ func runWhy(cmd *base.Command, args []string) {
+diff --git a/src/cmd/go/internal/modfetch/fetch.go b/src/cmd/go/internal/modfetch/fetch.go
+index 438c6212b5..7d20f66041 100644
+--- a/src/cmd/go/internal/modfetch/fetch.go
++++ b/src/cmd/go/internal/modfetch/fetch.go
+@@ -125,7 +125,7 @@ func download(mod module.Version, dir string) (err error) {
+ 		return err
+ 	}
+ 
+-	if !cfg.BuildModcacheRW {
++	if !cfg.ModCacheRW {
+ 		// Make dir read-only only *after* renaming it.
+ 		// os.Rename was observed to fail for read-only directories on macOS.
+ 		makeDirsReadOnly(dir)
+diff --git a/src/cmd/go/internal/work/build.go b/src/cmd/go/internal/work/build.go
+index 9b74963f43..d2b4bd3c65 100644
+--- a/src/cmd/go/internal/work/build.go
++++ b/src/cmd/go/internal/work/build.go
+@@ -224,9 +224,10 @@ type BuildFlagMask int
+ const (
+ 	DefaultBuildFlags BuildFlagMask = 0
+ 	OmitModFlag       BuildFlagMask = 1 << iota
++	OmitModCommonFlags
+ )
+ 
+-// addBuildFlags adds the flags common to the build, clean, get,
++// AddBuildFlags adds the flags common to the build, clean, get,
+ // install, list, run, and test commands.
+ func AddBuildFlags(cmd *base.Command, mask BuildFlagMask) {
+ 	cmd.Flag.BoolVar(&cfg.BuildA, "a", false, "")
+@@ -243,10 +244,12 @@ func AddBuildFlags(cmd *base.Command, mask BuildFlagMask) {
+ 	if mask&OmitModFlag == 0 {
+ 		cmd.Flag.StringVar(&cfg.BuildMod, "mod", "", "")
+ 	}
++	if mask&OmitModCommonFlags == 0 {
++		AddModCommonFlags(cmd)
++	}
+ 	cmd.Flag.StringVar(&cfg.BuildContext.InstallSuffix, "installsuffix", "", "")
+ 	cmd.Flag.Var(&load.BuildLdflags, "ldflags", "")
+ 	cmd.Flag.BoolVar(&cfg.BuildLinkshared, "linkshared", false, "")
+-	cmd.Flag.BoolVar(&cfg.BuildModcacheRW, "modcacherw", false, "")
+ 	cmd.Flag.StringVar(&cfg.BuildPkgdir, "pkgdir", "", "")
+ 	cmd.Flag.BoolVar(&cfg.BuildRace, "race", false, "")
+ 	cmd.Flag.BoolVar(&cfg.BuildMSan, "msan", false, "")
+@@ -259,6 +262,12 @@ func AddBuildFlags(cmd *base.Command, mask BuildFlagMask) {
+ 	cmd.Flag.StringVar(&cfg.DebugActiongraph, "debug-actiongraph", "", "")
+ }
+ 
++// AddModCommonFlags adds the module-related flags common to build commands
++// and 'go mod' subcommands.
++func AddModCommonFlags(cmd *base.Command) {
++	cmd.Flag.BoolVar(&cfg.ModCacheRW, "modcacherw", false, "")
++}
++
+ // tagsFlag is the implementation of the -tags flag.
+ type tagsFlag []string
+ 
+diff --git a/src/cmd/go/internal/work/init.go b/src/cmd/go/internal/work/init.go
+index f3055b6293..2f9fde4cb8 100644
+--- a/src/cmd/go/internal/work/init.go
++++ b/src/cmd/go/internal/work/init.go
+@@ -248,12 +248,17 @@ func buildModeInit() {
+ 	case "":
+ 		// ok
+ 	case "readonly", "vendor", "mod":
+-		if load.ModLookup == nil && !inGOFLAGS("-mod") {
++		if !cfg.ModulesEnabled && !inGOFLAGS("-mod") {
+ 			base.Fatalf("build flag -mod=%s only valid when using modules", cfg.BuildMod)
+ 		}
+ 	default:
+ 		base.Fatalf("-mod=%s not supported (can be '', 'mod', 'readonly', or 'vendor')", cfg.BuildMod)
+ 	}
++	if !cfg.ModulesEnabled {
++		if cfg.ModCacheRW && !inGOFLAGS("-modcacherw") {
++			base.Fatalf("build flag -modcacherw only valid when using modules")
++		}
++	}
+ }
+ 
+ func inGOFLAGS(flag string) bool {
+diff --git a/src/cmd/go/testdata/script/mod_cache_rw.txt b/src/cmd/go/testdata/script/mod_cache_rw.txt
+index 9c19494214..b4a3a456e8 100644
+--- a/src/cmd/go/testdata/script/mod_cache_rw.txt
++++ b/src/cmd/go/testdata/script/mod_cache_rw.txt
+@@ -33,6 +33,16 @@ go get -d rsc.io/quote@latest
+ [!windows] [!root] ! cp $WORK/extraneous.txt $GOPATH/pkg/mod/rsc.io/quote@v1.5.2/extraneous_file.go
+ ! exists $GOPATH/pkg/mod/rsc.io/quote@v1.5.2/extraneous_file.go
+ 
++
++# Repeat part of the test with 'go mod download' instead of 'go get' to verify
++# -modcacherw is supported on 'go mod' subcommands.
++go clean -modcache
++go mod download -modcacherw rsc.io/quote
++cp $WORK/extraneous.txt $GOPATH/pkg/mod/rsc.io/quote@v1.5.2/extraneous_file.go
++! go mod verify
++[!root] ! cp $WORK/extraneous.txt $GOPATH/pkg/mod/rsc.io/quote@v1.5.2/go.mod
++
++
+ -- $WORK/extraneous.txt --
+ module oops
+ -- go.mod --

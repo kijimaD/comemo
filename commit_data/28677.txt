@@ -21,6 +21,20 @@ Date:   Mon Jun 27 13:37:01 2016 +0800
     Run-TryBot: Rob Pike <r@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/vet/tests.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/vet/tests.go b/src/cmd/vet/tests.go
+index 52ad334098..076835b980 100644
+--- a/src/cmd/vet/tests.go
++++ b/src/cmd/vet/tests.go
+@@ -63,7 +63,7 @@ func extendedScope(pkg *Package) []*types.Scope {
+ 	scopes := []*types.Scope{pkg.typesPkg.Scope()}
+ 
+ 	pkgName := pkg.typesPkg.Name()
+-	if strings.HasPrefix(pkgName, "_test") {
++	if strings.HasSuffix(pkgName, "_test") {
+ 		basePkg := strings.TrimSuffix(pkgName, "_test")
+ 		for _, p := range pkg.typesPkg.Imports() {
+ 			if p.Name() == basePkg {

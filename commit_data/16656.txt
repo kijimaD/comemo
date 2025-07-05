@@ -7,6 +7,19 @@ Date:   Wed Jun 26 22:02:32 2013 -0700
     R=golang-dev, dave, r
     CC=golang-dev
     https://golang.org/cl/10660044
-
+---
  src/pkg/runtime/runtime.h | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index f5da54a2a8..5422258a69 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -53,7 +53,6 @@ typedef	struct	Gobuf		Gobuf;
+ typedef	struct	Lock		Lock;
+ typedef	struct	M		M;
+ typedef	struct	P		P;
+-typedef	struct	Mem		Mem;
+ typedef	struct	Note		Note;
+ typedef	struct	Slice		Slice;
+ typedef	struct	Stktop		Stktop;

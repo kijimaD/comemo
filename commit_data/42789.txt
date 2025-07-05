@@ -13,6 +13,39 @@ Date:   Sun Feb 16 23:37:47 2020 -0500
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/internal/ld/deadcode2.go | 10 ++++++++--
  1 file changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/deadcode2.go b/src/cmd/link/internal/ld/deadcode2.go
+index 06cc6d0daf..4733f47446 100644
+--- a/src/cmd/link/internal/ld/deadcode2.go
++++ b/src/cmd/link/internal/ld/deadcode2.go
+@@ -86,7 +86,7 @@ func (d *deadcodePass2) init() {
+ 			// but we do keep the symbols it refers to.
+ 			exportsIdx := d.ldr.Lookup("go.plugin.exports", 0)
+ 			if exportsIdx != 0 {
+-				d.ReadRelocs(exportsIdx)
++				d.ReadRelocSyms(exportsIdx)
+ 				for i := 0; i < len(d.rtmp); i++ {
+ 					d.mark(d.rtmp[i].Sym, 0)
+ 				}
+@@ -227,7 +227,7 @@ func (d *deadcodePass2) mark(symIdx, parent loader.Sym) {
+ }
+ 
+ func (d *deadcodePass2) markMethod(m methodref2) {
+-	d.ReadRelocs(m.src)
++	d.ReadRelocSyms(m.src)
+ 	d.mark(d.rtmp[m.r].Sym, m.src)
+ 	d.mark(d.rtmp[m.r+1].Sym, m.src)
+ 	d.mark(d.rtmp[m.r+2].Sym, m.src)
+@@ -410,3 +410,9 @@ func (d *deadcodePass2) ReadRelocs(symIdx loader.Sym) {
+ 	relocs := d.ldr.Relocs(symIdx)
+ 	d.rtmp = relocs.ReadAll(d.rtmp)
+ }
++
++// Like ReadRelocs, but only reads target symbols.
++func (d *deadcodePass2) ReadRelocSyms(symIdx loader.Sym) {
++	relocs := d.ldr.Relocs(symIdx)
++	d.rtmp = relocs.ReadSyms(d.rtmp)
++}

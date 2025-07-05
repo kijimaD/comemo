@@ -47,9 +47,73 @@ Date:   Wed Apr 21 16:21:30 2021 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/amd64/ssa.go       | 1 +
  src/cmd/compile/internal/ssa/numberlines.go | 5 +++--
  src/cmd/compile/internal/ssa/rewrite.go     | 2 +-
  src/cmd/compile/internal/ssagen/ssa.go      | 4 +++-
  4 files changed, 8 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/ssa.go b/src/cmd/compile/internal/amd64/ssa.go
+index 38d2d43e27..6a478de2a0 100644
+--- a/src/cmd/compile/internal/amd64/ssa.go
++++ b/src/cmd/compile/internal/amd64/ssa.go
+@@ -1370,5 +1370,6 @@ func spillArgReg(pp *objw.Progs, p *obj.Prog, f *ssa.Func, t *types.Type, reg in
+ 	p = pp.Append(p, storeByType(t), obj.TYPE_REG, reg, 0, obj.TYPE_MEM, 0, n.FrameOffset()+off)
+ 	p.To.Name = obj.NAME_PARAM
+ 	p.To.Sym = n.Linksym()
++	p.Pos = p.Pos.WithNotStmt()
+ 	return p
+ }
+diff --git a/src/cmd/compile/internal/ssa/numberlines.go b/src/cmd/compile/internal/ssa/numberlines.go
+index 54a158ff87..9d6aeca9c0 100644
+--- a/src/cmd/compile/internal/ssa/numberlines.go
++++ b/src/cmd/compile/internal/ssa/numberlines.go
+@@ -16,7 +16,8 @@ func isPoorStatementOp(op Op) bool {
+ 	// so that a debugger-user sees the stop before the panic, and can examine the value.
+ 	case OpAddr, OpLocalAddr, OpOffPtr, OpStructSelect, OpPhi, OpITab, OpIData,
+ 		OpIMake, OpStringMake, OpSliceMake, OpStructMake0, OpStructMake1, OpStructMake2, OpStructMake3, OpStructMake4,
+-		OpConstBool, OpConst8, OpConst16, OpConst32, OpConst64, OpConst32F, OpConst64F, OpSB, OpSP:
++		OpConstBool, OpConst8, OpConst16, OpConst32, OpConst64, OpConst32F, OpConst64F, OpSB, OpSP,
++		OpArgIntReg, OpArgFloatReg:
+ 		return true
+ 	}
+ 	return false
+@@ -61,7 +62,7 @@ func nextGoodStatementIndex(v *Value, i int, b *Block) int {
+ // statement boundary.
+ func notStmtBoundary(op Op) bool {
+ 	switch op {
+-	case OpCopy, OpPhi, OpVarKill, OpVarDef, OpVarLive, OpUnknown, OpFwdRef, OpArg:
++	case OpCopy, OpPhi, OpVarKill, OpVarDef, OpVarLive, OpUnknown, OpFwdRef, OpArg, OpArgIntReg, OpArgFloatReg:
+ 		return true
+ 	}
+ 	return false
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index bdc4f799aa..375c4d5a56 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -159,7 +159,7 @@ func applyRewrite(f *Func, rb blockRewriter, rv valueRewriter, deadcode deadValu
+ 				f.freeValue(v)
+ 				continue
+ 			}
+-			if v.Pos.IsStmt() != src.PosNotStmt && pendingLines.get(vl) == int32(b.ID) {
++			if v.Pos.IsStmt() != src.PosNotStmt && !notStmtBoundary(v.Op) && pendingLines.get(vl) == int32(b.ID) {
+ 				pendingLines.remove(vl)
+ 				v.Pos = v.Pos.WithIsStmt()
+ 			}
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 800d6a0b63..891047f56d 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -7071,8 +7071,10 @@ func defframe(s *State, e *ssafn, f *ssa.Func) {
+ 	// slot. This can only happen with aggregate-typed arguments that are SSA-able
+ 	// and not address-taken (for non-SSA-able or address-taken arguments we always
+ 	// spill upfront).
++	// Note: spilling is unnecessary in the -N/no-optimize case, since all values
++	// will be considered non-SSAable and spilled up front.
+ 	// TODO(register args) Make liveness more fine-grained to that partial spilling is okay.
+-	if f.OwnAux.ABIInfo().InRegistersUsed() != 0 {
++	if f.OwnAux.ABIInfo().InRegistersUsed() != 0 && base.Flag.N == 0 {
+ 		// First, see if it is already spilled before it may be live. Look for a spill
+ 		// in the entry block up to the first safepoint.
+ 		type nameOff struct {

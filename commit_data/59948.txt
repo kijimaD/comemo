@@ -14,9 +14,83 @@ Date:   Wed Jan 24 19:02:32 2024 +0100
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/asm_amd64.s  |  3 ++-
  src/runtime/asm_arm64.s  |  3 ++-
  src/runtime/asm_ppc64x.s |  3 ++-
  src/runtime/debug.go     | 19 +++++++++++++++++++
  4 files changed, 25 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index cb21629a84..cdf9874a7f 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -371,8 +371,9 @@ bad_cpu: // show that the program requires a certain microarchitecture level.
+ 	CALL	runtime·abort(SB)
+ 	RET
+ 
+-	// Prevent dead-code elimination of debugCallV2, which is
++	// Prevent dead-code elimination of debugCallV2 and debugPinnerV1, which are
+ 	// intended to be called by debuggers.
++	MOVQ	$runtime·debugPinnerV1<ABIInternal>(SB), AX
+ 	MOVQ	$runtime·debugCallV2<ABIInternal>(SB), AX
+ 	RET
+ 
+diff --git a/src/runtime/asm_arm64.s b/src/runtime/asm_arm64.s
+index 6d77b08a1b..64a1880589 100644
+--- a/src/runtime/asm_arm64.s
++++ b/src/runtime/asm_arm64.s
+@@ -96,8 +96,9 @@ nocgo:
+ 	// start this M
+ 	BL	runtime·mstart(SB)
+ 
+-	// Prevent dead-code elimination of debugCallV2, which is
++	// Prevent dead-code elimination of debugCallV2 and debugPinnerV1, which are
+ 	// intended to be called by debuggers.
++	MOVD	$runtime·debugPinnerV1<ABIInternal>(SB), R0
+ 	MOVD	$runtime·debugCallV2<ABIInternal>(SB), R0
+ 
+ 	MOVD	$0, R0
+diff --git a/src/runtime/asm_ppc64x.s b/src/runtime/asm_ppc64x.s
+index 97c2a370bd..98002bccf6 100644
+--- a/src/runtime/asm_ppc64x.s
++++ b/src/runtime/asm_ppc64x.s
+@@ -98,9 +98,10 @@ nocgo:
+ 
+ 	// start this M
+ 	BL	runtime·mstart(SB)
+-	// Prevent dead-code elimination of debugCallV2, which is
++	// Prevent dead-code elimination of debugCallV2 and debugPinnerV1, which are
+ 	// intended to be called by debuggers.
+ #ifdef GOARCH_ppc64le
++	MOVD	$runtime·debugPinnerV1<ABIInternal>(SB), R31
+ 	MOVD	$runtime·debugCallV2<ABIInternal>(SB), R31
+ #endif
+ 	MOVD	R0, 0(R0)
+diff --git a/src/runtime/debug.go b/src/runtime/debug.go
+index 184e4127c3..c477e2b9f6 100644
+--- a/src/runtime/debug.go
++++ b/src/runtime/debug.go
+@@ -124,3 +124,22 @@ func mayMoreStackMove() {
+ 		gp.stackguard0 = stackForceMove
+ 	}
+ }
++
++// debugPinnerKeepUnpin is used to make runtime.(*Pinner).Unpin reachable.
++var debugPinnerKeepUnpin bool = false
++
++// debugPinnerV1 returns a new Pinner that pins itself. This function can be
++// used by debuggers to easily obtain a Pinner that will not be garbage
++// collected (or moved in memory) even if no references to it exist in the
++// target program. This pinner in turn can be used to extend this property
++// to other objects, which debuggers can use to simplify the evaluation of
++// expressions involving multiple call injections.
++func debugPinnerV1() *Pinner {
++	p := new(Pinner)
++	p.Pin(unsafe.Pointer(p))
++	if debugPinnerKeepUnpin {
++		// Make Unpin reachable.
++		p.Unpin()
++	}
++	return p
++}

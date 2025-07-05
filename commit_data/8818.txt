@@ -7,6 +7,20 @@ Date:   Wed Jun 22 11:33:30 2011 -0700
     R=golang-dev, gri
     CC=golang-dev
     https://golang.org/cl/4634080
-
+---
  src/pkg/os/exec_windows.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/os/exec_windows.go b/src/pkg/os/exec_windows.go
+index bac33b908b..991099d4f4 100644
+--- a/src/pkg/os/exec_windows.go
++++ b/src/pkg/os/exec_windows.go
+@@ -17,7 +17,7 @@ func (p *Process) Wait(options int) (w *Waitmsg, err Error) {
+ 	case syscall.WAIT_FAILED:
+ 		return nil, NewSyscallError("WaitForSingleObject", e)
+ 	default:
+-		return nil, ErrorString("os: unexpected result from WaitForSingleObject")
++		return nil, NewError("os: unexpected result from WaitForSingleObject")
+ 	}
+ 	var ec uint32
+ 	e = syscall.GetExitCodeProcess(int32(p.handle), &ec)

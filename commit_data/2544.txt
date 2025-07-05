@@ -10,7 +10,41 @@ Date:   Mon Jun 29 12:52:08 2009 -0700
     DELTA=11  (11 added, 0 deleted, 0 changed)
     OCL=30844
     CL=30852
-
+---
  test/bugs/bug166.go | 13 +++++++++++++
  test/golden.out     |  3 +++
  2 files changed, 16 insertions(+)
+
+diff --git a/test/bugs/bug166.go b/test/bugs/bug166.go
+new file mode 100644
+index 0000000000..81fe0808c5
+--- /dev/null
++++ b/test/bugs/bug166.go
+@@ -0,0 +1,13 @@
++// errchk $G $D/$F.go
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++import "os"
++func fn() {
++	var e os.Error
++	if e == nil {		// ERROR "syntax error|expected ';'"
++	}
++}
+diff --git a/test/golden.out b/test/golden.out
+index 695a68cd41..2bf920c25e 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -111,6 +111,9 @@ BUG: should not compile
+ =========== bugs/bug164.go
+ BUG: should not compile
+ 
++=========== bugs/bug166.go
++BUG: errchk: command succeeded unexpectedly:  6g bugs/bug166.go
++
+ =========== fixedbugs/bug016.go
+ fixedbugs/bug016.go:7: constant -3 overflows uint
+ 

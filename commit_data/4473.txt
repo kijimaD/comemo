@@ -7,6 +7,20 @@ Date:   Mon Dec 21 15:05:50 2009 -0800
     R=r
     CC=golang-dev
     https://golang.org/cl/179120
-
+---
  src/cmd/gofmt/test.sh | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/gofmt/test.sh b/src/cmd/gofmt/test.sh
+index 346bae06c5..d76d89becc 100755
+--- a/src/cmd/gofmt/test.sh
++++ b/src/cmd/gofmt/test.sh
+@@ -41,7 +41,7 @@ apply1() {
+ 	bug014.go | bug050.go |  bug068.go |  bug083.go | bug088.go | \
+ 	bug106.go | bug121.go | bug125.go | bug133.go | bug160.go | \
+ 	bug163.go | bug166.go | bug169.go | bug217.go | bug222.go | \
+-	bug226.go ) ;;
++	bug226.go | bug228.go ) ;;
+ 	* ) "$1" "$2"; count "$F";;
+ 	esac
+ }

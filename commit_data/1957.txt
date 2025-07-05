@@ -8,6 +8,19 @@ Date:   Thu Apr 2 22:59:57 2009 -0700
     DELTA=1  (1 added, 0 deleted, 0 changed)
     OCL=27057
     CL=27059
-
+---
  src/lib/go/parser.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/lib/go/parser.go b/src/lib/go/parser.go
+index 038b27266b..6cabaa7fe7 100644
+--- a/src/lib/go/parser.go
++++ b/src/lib/go/parser.go
+@@ -824,6 +824,7 @@ func (p *parser) parseFuncLit() ast.Expr {
+ 	typ := p.parseFuncType();
+ 	p.expr_lev++;
+ 	body := p.parseBlockStmt();
++	p.opt_semi = false;  // function body requires separating ";"
+ 	p.expr_lev--;
+ 
+ 	return &ast.FuncLit{typ, body};

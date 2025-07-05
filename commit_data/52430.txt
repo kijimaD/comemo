@@ -15,8 +15,117 @@ Date:   Mon Feb 14 12:16:22 2022 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/385660
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/mprof.go            |  4 +++
  src/runtime/pprof/pprof_test.go | 59 ++++++++++++++++++++++++++++++++++++++++-
  src/runtime/proc.go             |  5 ++++
  3 files changed, 67 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/mprof.go b/src/runtime/mprof.go
+index 569c17f0a7..1edb5d6967 100644
+--- a/src/runtime/mprof.go
++++ b/src/runtime/mprof.go
+@@ -818,6 +818,10 @@ func goroutineProfileWithLabels(p []StackRecord, labels []unsafe.Pointer) (n int
+ 		})
+ 	}
+ 
++	if raceenabled {
++		raceacquire(unsafe.Pointer(&labelSync))
++	}
++
+ 	startTheWorld()
+ 	return n, ok
+ }
+diff --git a/src/runtime/pprof/pprof_test.go b/src/runtime/pprof/pprof_test.go
+index 1742dc0cdc..1cc69a395e 100644
+--- a/src/runtime/pprof/pprof_test.go
++++ b/src/runtime/pprof/pprof_test.go
+@@ -1442,7 +1442,7 @@ func TestCPUProfileLabel(t *testing.T) {
+ 
+ func TestLabelRace(t *testing.T) {
+ 	// Test the race detector annotations for synchronization
+-	// between settings labels and consuming them from the
++	// between setting labels and consuming them from the
+ 	// profile.
+ 	matches := matchAndAvoidStacks(stackContainsLabeled, []string{"runtime/pprof.cpuHogger;key=value"}, nil)
+ 	testCPUProfile(t, matches, func(dur time.Duration) {
+@@ -1464,6 +1464,63 @@ func TestLabelRace(t *testing.T) {
+ 	})
+ }
+ 
++func TestGoroutineProfileLabelRace(t *testing.T) {
++	// Test the race detector annotations for synchronization
++	// between setting labels and consuming them from the
++	// goroutine profile. See issue #50292.
++
++	t.Run("reset", func(t *testing.T) {
++		ctx := context.Background()
++		ctx, cancel := context.WithCancel(ctx)
++		defer cancel()
++
++		go func() {
++			goroutineProf := Lookup("goroutine")
++			for ctx.Err() == nil {
++				var w bytes.Buffer
++				goroutineProf.WriteTo(&w, 1)
++				prof := w.String()
++				if strings.Contains(prof, "loop-i") {
++					cancel()
++				}
++			}
++		}()
++
++		for i := 0; ctx.Err() == nil; i++ {
++			Do(ctx, Labels("loop-i", fmt.Sprint(i)), func(ctx context.Context) {
++			})
++		}
++	})
++
++	t.Run("churn", func(t *testing.T) {
++		ctx := context.Background()
++		ctx, cancel := context.WithCancel(ctx)
++		defer cancel()
++
++		var ready sync.WaitGroup
++		ready.Add(1)
++		var churn func(i int)
++		churn = func(i int) {
++			SetGoroutineLabels(WithLabels(ctx, Labels("churn-i", fmt.Sprint(i))))
++			if i == 0 {
++				ready.Done()
++			}
++			if ctx.Err() == nil {
++				go churn(i + 1)
++			}
++		}
++		go func() {
++			churn(0)
++		}()
++		ready.Wait()
++
++		goroutineProf := Lookup("goroutine")
++		for i := 0; i < 10; i++ {
++			goroutineProf.WriteTo(io.Discard, 1)
++		}
++	})
++}
++
+ // TestLabelSystemstack makes sure CPU profiler samples of goroutines running
+ // on systemstack include the correct pprof labels. See issue #48577
+ func TestLabelSystemstack(t *testing.T) {
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index f29cc800f7..34b09f2a35 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -4155,6 +4155,11 @@ func newproc1(fn *funcval, callergp *g, callerpc uintptr) *g {
+ 	_p_.goidcache++
+ 	if raceenabled {
+ 		newg.racectx = racegostart(callerpc)
++		if newg.labels != nil {
++			// See note in proflabel.go on labelSync's role in synchronizing
++			// with the reads in the signal handler.
++			racereleasemergeg(newg, unsafe.Pointer(&labelSync))
++		}
+ 	}
+ 	if trace.enabled {
+ 		traceGoCreate(newg, newg.startpc)

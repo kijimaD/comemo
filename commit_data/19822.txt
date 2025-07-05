@@ -8,6 +8,24 @@ Date:   Sat Jul 26 17:45:24 2014 -0400
     R=rsc, bradfitz, dave
     CC=golang-codereviews
     https://golang.org/cl/115070043
-
+---
  src/cmd/5g/cgen.c | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/cmd/5g/cgen.c b/src/cmd/5g/cgen.c
+index 1ddeec051e..a42e67bafb 100644
+--- a/src/cmd/5g/cgen.c
++++ b/src/cmd/5g/cgen.c
+@@ -1107,11 +1107,10 @@ bgen(Node *n, int true, int likely, Prog *to)
+ {
+ 	int et, a;
+ 	Node *nl, *nr, *r;
+-	Node n1, n2, n3, n4, tmp;
++	Node n1, n2, n3, tmp;
+ 	NodeList *ll;
+ 	Prog *p1, *p2;
+ 
+-	USED(n4);			// in unreachable code below
+ 	if(debug['g']) {
+ 		dump("\nbgen", n);
+ 	}

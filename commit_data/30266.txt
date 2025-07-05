@@ -19,7 +19,7 @@ Date:   Wed Oct 19 15:49:31 2016 -0400
     Change-Id: I9d75e27c75a1b7f8b715ad112fc5d45ffa856d30
     Reviewed-on: https://go-review.googlesource.com/31764
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/runtime/asm_386.s      | 26 +++++++++++++++++++++++---
  src/runtime/asm_amd64.s    | 26 +++++++++++++++++++++++---
  src/runtime/asm_amd64p32.s | 20 ++++++++++++++++++--
@@ -30,3 +30,431 @@ Date:   Wed Oct 19 15:49:31 2016 -0400
  src/runtime/asm_s390x.s    | 25 +++++++++++++++++++++----
  src/runtime/runtime2.go    |  9 +++++++++
  9 files changed, 186 insertions(+), 25 deletions(-)
+
+diff --git a/src/runtime/asm_386.s b/src/runtime/asm_386.s
+index 68d1e51265..3d0b74ce92 100644
+--- a/src/runtime/asm_386.s
++++ b/src/runtime/asm_386.s
+@@ -209,7 +209,11 @@ TEXT runtime·gosave(SB), NOSPLIT, $0-4
+ 	MOVL	0(SP), BX		// caller's PC
+ 	MOVL	BX, gobuf_pc(AX)
+ 	MOVL	$0, gobuf_ret(AX)
+-	MOVL	$0, gobuf_ctxt(AX)
++	// Assert ctxt is zero. See func save.
++	MOVL	gobuf_ctxt(AX), BX
++	TESTL	BX, BX
++	JZ	2(PC)
++	CALL	runtime·badctxt(SB)
+ 	get_tls(CX)
+ 	MOVL	g(CX), BX
+ 	MOVL	BX, gobuf_g(AX)
+@@ -217,8 +221,20 @@ TEXT runtime·gosave(SB), NOSPLIT, $0-4
+ 
+ // void gogo(Gobuf*)
+ // restore state from Gobuf; longjmp
+-TEXT runtime·gogo(SB), NOSPLIT, $0-4
++TEXT runtime·gogo(SB), NOSPLIT, $8-4
+ 	MOVL	buf+0(FP), BX		// gobuf
++
++	// If ctxt is not nil, invoke deletion barrier before overwriting.
++	MOVL	gobuf_ctxt(BX), DX
++	TESTL	DX, DX
++	JZ	nilctxt
++	LEAL	gobuf_ctxt(BX), AX
++	MOVL	AX, 0(SP)
++	MOVL	$0, 4(SP)
++	CALL	runtime·writebarrierptr_prewrite(SB)
++	MOVL	buf+0(FP), BX
++
++nilctxt:
+ 	MOVL	gobuf_g(BX), DX
+ 	MOVL	0(DX), CX		// make sure g != nil
+ 	get_tls(CX)
+@@ -572,7 +588,11 @@ TEXT gosave<>(SB),NOSPLIT,$0
+ 	MOVL	-4(AX), AX
+ 	MOVL	AX, (g_sched+gobuf_pc)(BX)
+ 	MOVL	$0, (g_sched+gobuf_ret)(BX)
+-	MOVL	$0, (g_sched+gobuf_ctxt)(BX)
++	// Assert ctxt is zero. See func save.
++	MOVL	(g_sched+gobuf_ctxt)(BX), AX
++	TESTL	AX, AX
++	JZ	2(PC)
++	CALL	runtime·badctxt(SB)
+ 	POPL	BX
+ 	POPL	AX
+ 	RET
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index bcc9cad655..9ffd297d84 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -182,8 +182,12 @@ TEXT runtime·gosave(SB), NOSPLIT, $0-8
+ 	MOVQ	0(SP), BX		// caller's PC
+ 	MOVQ	BX, gobuf_pc(AX)
+ 	MOVQ	$0, gobuf_ret(AX)
+-	MOVQ	$0, gobuf_ctxt(AX)
+ 	MOVQ	BP, gobuf_bp(AX)
++	// Assert ctxt is zero. See func save.
++	MOVQ	gobuf_ctxt(AX), BX
++	TESTQ	BX, BX
++	JZ	2(PC)
++	CALL	runtime·badctxt(SB)
+ 	get_tls(CX)
+ 	MOVQ	g(CX), BX
+ 	MOVQ	BX, gobuf_g(AX)
+@@ -191,8 +195,20 @@ TEXT runtime·gosave(SB), NOSPLIT, $0-8
+ 
+ // void gogo(Gobuf*)
+ // restore state from Gobuf; longjmp
+-TEXT runtime·gogo(SB), NOSPLIT, $0-8
++TEXT runtime·gogo(SB), NOSPLIT, $16-8
+ 	MOVQ	buf+0(FP), BX		// gobuf
++
++	// If ctxt is not nil, invoke deletion barrier before overwriting.
++	MOVQ	gobuf_ctxt(BX), AX
++	TESTQ	AX, AX
++	JZ	nilctxt
++	LEAQ	gobuf_ctxt(BX), AX
++	MOVQ	AX, 0(SP)
++	MOVQ	$0, 8(SP)
++	CALL	runtime·writebarrierptr_prewrite(SB)
++	MOVQ	buf+0(FP), BX
++
++nilctxt:
+ 	MOVQ	gobuf_g(BX), DX
+ 	MOVQ	0(DX), CX		// make sure g != nil
+ 	get_tls(CX)
+@@ -546,8 +562,12 @@ TEXT gosave<>(SB),NOSPLIT,$0
+ 	LEAQ	8(SP), R9
+ 	MOVQ	R9, (g_sched+gobuf_sp)(R8)
+ 	MOVQ	$0, (g_sched+gobuf_ret)(R8)
+-	MOVQ	$0, (g_sched+gobuf_ctxt)(R8)
+ 	MOVQ	BP, (g_sched+gobuf_bp)(R8)
++	// Assert ctxt is zero. See func save.
++	MOVQ	(g_sched+gobuf_ctxt)(R8), R9
++	TESTQ	R9, R9
++	JZ	2(PC)
++	CALL	runtime·badctxt(SB)
+ 	RET
+ 
+ // func asmcgocall(fn, arg unsafe.Pointer) int32
+diff --git a/src/runtime/asm_amd64p32.s b/src/runtime/asm_amd64p32.s
+index ab73508a59..3081ca7b12 100644
+--- a/src/runtime/asm_amd64p32.s
++++ b/src/runtime/asm_amd64p32.s
+@@ -107,8 +107,12 @@ TEXT runtime·gosave(SB), NOSPLIT, $0-4
+ 	MOVL	BX, gobuf_sp(AX)
+ 	MOVL	0(SP), BX		// caller's PC
+ 	MOVL	BX, gobuf_pc(AX)
+-	MOVL	$0, gobuf_ctxt(AX)
+ 	MOVQ	$0, gobuf_ret(AX)
++	// Assert ctxt is zero. See func save.
++	MOVL	gobuf_ctxt(AX), BX
++	TESTL	BX, BX
++	JZ	2(PC)
++	CALL	runtime·badctxt(SB)
+ 	get_tls(CX)
+ 	MOVL	g(CX), BX
+ 	MOVL	BX, gobuf_g(AX)
+@@ -116,8 +120,20 @@ TEXT runtime·gosave(SB), NOSPLIT, $0-4
+ 
+ // void gogo(Gobuf*)
+ // restore state from Gobuf; longjmp
+-TEXT runtime·gogo(SB), NOSPLIT, $0-4
++TEXT runtime·gogo(SB), NOSPLIT, $8-4
+ 	MOVL	buf+0(FP), BX		// gobuf
++
++	// If ctxt is not nil, invoke deletion barrier before overwriting.
++	MOVL	gobuf_ctxt(BX), DX
++	TESTL	DX, DX
++	JZ	nilctxt
++	LEAL	gobuf_ctxt(BX), AX
++	MOVL	AX, 0(SP)
++	MOVL	$0, 4(SP)
++	CALL	runtime·writebarrierptr_prewrite(SB)
++	MOVL	buf+0(FP), BX
++
++nilctxt:
+ 	MOVL	gobuf_g(BX), DX
+ 	MOVL	0(DX), CX		// make sure g != nil
+ 	get_tls(CX)
+diff --git a/src/runtime/asm_arm.s b/src/runtime/asm_arm.s
+index aa7b74827a..79c28a8178 100644
+--- a/src/runtime/asm_arm.s
++++ b/src/runtime/asm_arm.s
+@@ -118,13 +118,30 @@ TEXT runtime·gosave(SB),NOSPLIT,$-4-4
+ 	MOVW	$0, R11
+ 	MOVW	R11, gobuf_lr(R0)
+ 	MOVW	R11, gobuf_ret(R0)
+-	MOVW	R11, gobuf_ctxt(R0)
++	// Assert ctxt is zero. See func save.
++	MOVW	gobuf_ctxt(R0), R0
++	CMP	R0, R11
++	B.EQ	2(PC)
++	CALL	runtime·badctxt(SB)
+ 	RET
+ 
+ // void gogo(Gobuf*)
+ // restore state from Gobuf; longjmp
+-TEXT runtime·gogo(SB),NOSPLIT,$-4-4
++TEXT runtime·gogo(SB),NOSPLIT,$8-4
++	MOVW	buf+0(FP), R1
++
++	// If ctxt is not nil, invoke deletion barrier before overwriting.
++	MOVW	gobuf_ctxt(R1), R0
++	CMP	$0, R0
++	B.EQ	nilctxt
++	MOVW	$gobuf_ctxt(R1), R0
++	MOVW	R0, 4(R13)
++	MOVW	$0, R0
++	MOVW	R0, 8(R13)
++	BL	runtime·writebarrierptr_prewrite(SB)
+ 	MOVW	buf+0(FP), R1
++
++nilctxt:
+ 	MOVW	gobuf_g(R1), R0
+ 	BL	setg<>(SB)
+ 
+@@ -476,13 +493,18 @@ TEXT runtime·jmpdefer(SB),NOSPLIT,$0-8
+ 	B	(R1)
+ 
+ // Save state of caller into g->sched. Smashes R11.
+-TEXT gosave<>(SB),NOSPLIT,$0
++TEXT gosave<>(SB),NOSPLIT,$-4
+ 	MOVW	LR, (g_sched+gobuf_pc)(g)
+ 	MOVW	R13, (g_sched+gobuf_sp)(g)
+ 	MOVW	$0, R11
+ 	MOVW	R11, (g_sched+gobuf_lr)(g)
+ 	MOVW	R11, (g_sched+gobuf_ret)(g)
+ 	MOVW	R11, (g_sched+gobuf_ctxt)(g)
++	// Assert ctxt is zero. See func save.
++	MOVW	(g_sched+gobuf_ctxt)(g), R11
++	CMP	$0, R11
++	B.EQ	2(PC)
++	CALL	runtime·badctxt(SB)
+ 	RET
+ 
+ // func asmcgocall(fn, arg unsafe.Pointer) int32
+diff --git a/src/runtime/asm_arm64.s b/src/runtime/asm_arm64.s
+index 675abb51d3..0e286d484f 100644
+--- a/src/runtime/asm_arm64.s
++++ b/src/runtime/asm_arm64.s
+@@ -111,13 +111,29 @@ TEXT runtime·gosave(SB), NOSPLIT, $-8-8
+ 	MOVD	g, gobuf_g(R3)
+ 	MOVD	ZR, gobuf_lr(R3)
+ 	MOVD	ZR, gobuf_ret(R3)
+-	MOVD	ZR, gobuf_ctxt(R3)
++	// Assert ctxt is zero. See func save.
++	MOVD	gobuf_ctxt(R3), R0
++	CMP	$0, R0
++	BEQ	2(PC)
++	CALL	runtime·badctxt(SB)
+ 	RET
+ 
+ // void gogo(Gobuf*)
+ // restore state from Gobuf; longjmp
+-TEXT runtime·gogo(SB), NOSPLIT, $-8-8
++TEXT runtime·gogo(SB), NOSPLIT, $24-8
+ 	MOVD	buf+0(FP), R5
++
++	// If ctxt is not nil, invoke deletion barrier before overwriting.
++	MOVD	gobuf_ctxt(R5), R0
++	CMP	$0, R0
++	BEQ	nilctxt
++	MOVD	$gobuf_ctxt(R5), R0
++	MOVD	R0, 8(RSP)
++	MOVD	ZR, 16(RSP)
++	BL	runtime·writebarrierptr_prewrite(SB)
++	MOVD	buf+0(FP), R5
++
++nilctxt:
+ 	MOVD	gobuf_g(R5), g
+ 	BL	runtime·save_g(SB)
+ 
+@@ -483,7 +499,11 @@ TEXT gosave<>(SB),NOSPLIT,$-8
+ 	MOVD	R0, (g_sched+gobuf_sp)(g)
+ 	MOVD	$0, (g_sched+gobuf_lr)(g)
+ 	MOVD	$0, (g_sched+gobuf_ret)(g)
+-	MOVD	$0, (g_sched+gobuf_ctxt)(g)
++	// Assert ctxt is zero. See func save.
++	MOVD	(g_sched+gobuf_ctxt)(g), R0
++	CMP	$0, R0
++	BEQ	2(PC)
++	CALL	runtime·badctxt(SB)
+ 	RET
+ 
+ // func asmcgocall(fn, arg unsafe.Pointer) int32
+diff --git a/src/runtime/asm_mips64x.s b/src/runtime/asm_mips64x.s
+index 4666741f28..c2d991d36d 100644
+--- a/src/runtime/asm_mips64x.s
++++ b/src/runtime/asm_mips64x.s
+@@ -98,13 +98,27 @@ TEXT runtime·gosave(SB), NOSPLIT, $-8-8
+ 	MOVV	g, gobuf_g(R1)
+ 	MOVV	R0, gobuf_lr(R1)
+ 	MOVV	R0, gobuf_ret(R1)
+-	MOVV	R0, gobuf_ctxt(R1)
++	// Assert ctxt is zero. See func save.
++	MOVV	gobuf_ctxt(R1), R1
++	BEQ	R1, 2(PC)
++	JAL	runtime·badctxt(SB)
+ 	RET
+ 
+ // void gogo(Gobuf*)
+ // restore state from Gobuf; longjmp
+-TEXT runtime·gogo(SB), NOSPLIT, $-8-8
++TEXT runtime·gogo(SB), NOSPLIT, $16-8
+ 	MOVV	buf+0(FP), R3
++
++	// If ctxt is not nil, invoke deletion barrier before overwriting.
++	MOVV	gobuf_ctxt(R3), R1
++	BEQ	R1, nilctxt
++	MOVV	$gobuf_ctxt(R3), R1
++	MOVV	R1, 8(R29)
++	MOVV	R0, 16(R29)
++	JAL	runtime·writebarrierptr_prewrite(SB)
++	MOVV	buf+0(FP), R3
++
++nilctxt:
+ 	MOVV	gobuf_g(R3), g	// make sure g is not nil
+ 	JAL	runtime·save_g(SB)
+ 
+@@ -429,13 +443,16 @@ TEXT runtime·jmpdefer(SB), NOSPLIT, $-8-16
+ 	MOVV	0(REGCTXT), R4
+ 	JMP	(R4)
+ 
+-// Save state of caller into g->sched. Smashes R31.
++// Save state of caller into g->sched. Smashes R1.
+ TEXT gosave<>(SB),NOSPLIT,$-8
+ 	MOVV	R31, (g_sched+gobuf_pc)(g)
+ 	MOVV	R29, (g_sched+gobuf_sp)(g)
+ 	MOVV	R0, (g_sched+gobuf_lr)(g)
+ 	MOVV	R0, (g_sched+gobuf_ret)(g)
+-	MOVV	R0, (g_sched+gobuf_ctxt)(g)
++	// Assert ctxt is zero. See func save.
++	MOVV	(g_sched+gobuf_ctxt)(g), R1
++	BEQ	R1, 2(PC)
++	JAL	runtime·badctxt(SB)
+ 	RET
+ 
+ // func asmcgocall(fn, arg unsafe.Pointer) int32
+diff --git a/src/runtime/asm_ppc64x.s b/src/runtime/asm_ppc64x.s
+index 7571116957..1d6adcc553 100644
+--- a/src/runtime/asm_ppc64x.s
++++ b/src/runtime/asm_ppc64x.s
+@@ -122,13 +122,29 @@ TEXT runtime·gosave(SB), NOSPLIT|NOFRAME, $0-8
+ 	MOVD	g, gobuf_g(R3)
+ 	MOVD	R0, gobuf_lr(R3)
+ 	MOVD	R0, gobuf_ret(R3)
+-	MOVD	R0, gobuf_ctxt(R3)
++	// Assert ctxt is zero. See func save.
++	MOVD	gobuf_ctxt(R3), R3
++	CMP	R0, R3
++	BEQ	2(PC)
++	BL	runtime·badctxt(SB)
+ 	RET
+ 
+ // void gogo(Gobuf*)
+ // restore state from Gobuf; longjmp
+-TEXT runtime·gogo(SB), NOSPLIT|NOFRAME, $0-8
++TEXT runtime·gogo(SB), NOSPLIT, $16-8
+ 	MOVD	buf+0(FP), R5
++
++	// If ctxt is not nil, invoke deletion barrier before overwriting.
++	MOVD	gobuf_ctxt(R5), R3
++	CMP	R0, R3
++	BEQ	nilctxt
++	MOVD	$gobuf_ctxt(R5), R3
++	MOVD	R3, FIXED_FRAME+0(R1)
++	MOVD	R0, FIXED_FRAME+8(R1)
++	BL	runtime·writebarrierptr_prewrite(SB)
++	MOVD	buf+0(FP), R5
++
++nilctxt:
+ 	MOVD	gobuf_g(R5), g	// make sure g is not nil
+ 	BL	runtime·save_g(SB)
+ 
+@@ -497,7 +513,11 @@ TEXT gosave<>(SB),NOSPLIT|NOFRAME,$0
+ 	MOVD	R1, (g_sched+gobuf_sp)(g)
+ 	MOVD	R0, (g_sched+gobuf_lr)(g)
+ 	MOVD	R0, (g_sched+gobuf_ret)(g)
+-	MOVD	R0, (g_sched+gobuf_ctxt)(g)
++	// Assert ctxt is zero. See func save.
++	MOVD	(g_sched+gobuf_ctxt)(g), R31
++	CMP	R0, R31
++	BEQ	2(PC)
++	BL	runtime·badctxt(SB)
+ 	RET
+ 
+ // func asmcgocall(fn, arg unsafe.Pointer) int32
+diff --git a/src/runtime/asm_s390x.s b/src/runtime/asm_s390x.s
+index 1dcee7cf4e..614a799432 100644
+--- a/src/runtime/asm_s390x.s
++++ b/src/runtime/asm_s390x.s
+@@ -106,13 +106,27 @@ TEXT runtime·gosave(SB), NOSPLIT, $-8-8
+ 	MOVD	g, gobuf_g(R3)
+ 	MOVD	$0, gobuf_lr(R3)
+ 	MOVD	$0, gobuf_ret(R3)
+-	MOVD	$0, gobuf_ctxt(R3)
++	// Assert ctxt is zero. See func save.
++	MOVD	gobuf_ctxt(R3), R3
++	CMPBEQ	R3, $0, 2(PC)
++	BL	runtime·badctxt(SB)
+ 	RET
+ 
+ // void gogo(Gobuf*)
+ // restore state from Gobuf; longjmp
+-TEXT runtime·gogo(SB), NOSPLIT, $-8-8
++TEXT runtime·gogo(SB), NOSPLIT, $16-8
+ 	MOVD	buf+0(FP), R5
++
++	// If ctxt is not nil, invoke deletion barrier before overwriting.
++	MOVD	gobuf_ctxt(R5), R1
++	CMPBEQ	R1, $0, nilctxt
++	MOVD	$gobuf_ctxt(R5), R1
++	MOVD	R1, 8(R15)
++	MOVD	R0, 16(R15)
++	BL	runtime·writebarrierptr_prewrite(SB)
++	MOVD	buf+0(FP), R5
++
++nilctxt:
+ 	MOVD	gobuf_g(R5), g	// make sure g is not nil
+ 	BL	runtime·save_g(SB)
+ 
+@@ -447,13 +461,16 @@ TEXT runtime·jmpdefer(SB),NOSPLIT|NOFRAME,$0-16
+ 	MOVD	0(R12), R3
+ 	BR	(R3)
+ 
+-// Save state of caller into g->sched. Smashes R31.
++// Save state of caller into g->sched. Smashes R1.
+ TEXT gosave<>(SB),NOSPLIT|NOFRAME,$0
+ 	MOVD	LR, (g_sched+gobuf_pc)(g)
+ 	MOVD	R15, (g_sched+gobuf_sp)(g)
+ 	MOVD	$0, (g_sched+gobuf_lr)(g)
+ 	MOVD	$0, (g_sched+gobuf_ret)(g)
+-	MOVD	$0, (g_sched+gobuf_ctxt)(g)
++	// Assert ctxt is zero. See func save.
++	MOVD	(g_sched+gobuf_ctxt)(g), R1
++	CMPBEQ	R1, $0, 2(PC)
++	BL	runtime·badctxt(SB)
+ 	RET
+ 
+ // func asmcgocall(fn, arg unsafe.Pointer) int32
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 49f6e6f649..696ea81e00 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -239,6 +239,15 @@ func setMNoWB(mp **m, new *m) {
+ 
+ type gobuf struct {
+ 	// The offsets of sp, pc, and g are known to (hard-coded in) libmach.
++	//
++	// ctxt is unusual with respect to GC: it may be a
++	// heap-allocated funcval so write require a write barrier,
++	// but gobuf needs to be cleared from assembly. We take
++	// advantage of the fact that the only path that uses a
++	// non-nil ctxt is morestack. As a result, gogo is the only
++	// place where it may not already be nil, so gogo uses an
++	// explicit write barrier. Everywhere else that resets the
++	// gobuf asserts that ctxt is already nil.
+ 	sp   uintptr
+ 	pc   uintptr
+ 	g    guintptr

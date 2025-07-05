@@ -20,7 +20,43 @@ Date:   Sat May 9 17:21:42 2015 +0000
     Reviewed-on: https://go-review.googlesource.com/9902
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/internal/gc/fmt.go  |  2 +-
  test/fixedbugs/issue9521.go | 16 ++++++++++++++++
  2 files changed, 17 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/internal/gc/fmt.go b/src/cmd/internal/gc/fmt.go
+index 1a991a0a65..4e3045a929 100644
+--- a/src/cmd/internal/gc/fmt.go
++++ b/src/cmd/internal/gc/fmt.go
+@@ -1127,7 +1127,7 @@ func exprfmt(n *Node, prec int) string {
+ 		// Special case: name used as local variable in export.
+ 	// _ becomes ~b%d internally; print as _ for export
+ 	case ONAME:
+-		if fmtmode == FExp && n.Sym != nil && n.Sym.Name[0] == '~' && n.Sym.Name[1] == 'b' {
++		if (fmtmode == FExp || fmtmode == FErr) && n.Sym != nil && n.Sym.Name[0] == '~' && n.Sym.Name[1] == 'b' {
+ 			return "_"
+ 		}
+ 		if fmtmode == FExp && n.Sym != nil && !isblank(n) && n.Vargen > 0 {
+diff --git a/test/fixedbugs/issue9521.go b/test/fixedbugs/issue9521.go
+new file mode 100644
+index 0000000000..51b5204e7a
+--- /dev/null
++++ b/test/fixedbugs/issue9521.go
+@@ -0,0 +1,16 @@
++// errorcheck
++
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test that an incorrect use of the blank identifer is caught.
++// Does not compile.
++
++package main
++
++func f() (_, _ []int) { return }
++
++func main() {
++	_ = append(f()) // ERROR "cannot use _"
++}

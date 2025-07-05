@@ -23,8 +23,80 @@ Date:   Wed Feb 14 14:51:39 2018 -0500
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/internal/atomic/bench_test.go   | 16 ++++++++++++++++
  src/runtime/internal/atomic/sys_linux_arm.s |  9 ++++++++-
  src/runtime/sys_linux_arm.s                 | 13 +++++++++----
  3 files changed, 33 insertions(+), 5 deletions(-)
+
+diff --git a/src/runtime/internal/atomic/bench_test.go b/src/runtime/internal/atomic/bench_test.go
+index 47010e32d5..2a22e88fb8 100644
+--- a/src/runtime/internal/atomic/bench_test.go
++++ b/src/runtime/internal/atomic/bench_test.go
+@@ -26,3 +26,19 @@ func BenchmarkAtomicStore64(b *testing.B) {
+ 		atomic.Store64(&x, 0)
+ 	}
+ }
++
++func BenchmarkAtomicLoad(b *testing.B) {
++	var x uint32
++	sink = &x
++	for i := 0; i < b.N; i++ {
++		_ = atomic.Load(&x)
++	}
++}
++
++func BenchmarkAtomicStore(b *testing.B) {
++	var x uint32
++	sink = &x
++	for i := 0; i < b.N; i++ {
++		atomic.Store(&x, 0)
++	}
++}
+diff --git a/src/runtime/internal/atomic/sys_linux_arm.s b/src/runtime/internal/atomic/sys_linux_arm.s
+index 60f28e7216..7e234d8f26 100644
+--- a/src/runtime/internal/atomic/sys_linux_arm.s
++++ b/src/runtime/internal/atomic/sys_linux_arm.s
+@@ -24,7 +24,14 @@
+ TEXT cas<>(SB),NOSPLIT,$0
+ 	MOVW	$0xffff0fc0, R15 // R15 is hardware PC.
+ 
+-TEXT runtime∕internal∕atomic·Cas(SB),NOSPLIT,$0
++TEXT runtime∕internal∕atomic·Cas(SB),NOSPLIT|NOFRAME,$0
++	MOVB	runtime·goarm(SB), R11
++	CMP	$7, R11
++	BLT	2(PC)
++	JMP	·armcas(SB)
++	JMP	·kernelcas<>(SB)
++
++TEXT runtime∕internal∕atomic·kernelcas<>(SB),NOSPLIT,$0
+ 	MOVW	ptr+0(FP), R2
+ 	// trigger potential paging fault here,
+ 	// because we don't know how to traceback through __kuser_cmpxchg
+diff --git a/src/runtime/sys_linux_arm.s b/src/runtime/sys_linux_arm.s
+index fc9dc9bbb8..aa39732cfb 100644
+--- a/src/runtime/sys_linux_arm.s
++++ b/src/runtime/sys_linux_arm.s
+@@ -489,13 +489,18 @@ TEXT runtime·usleep(SB),NOSPLIT,$12
+ // even on single-core devices. The kernel helper takes care of all of
+ // this for us.
+ 
+-TEXT publicationBarrier<>(SB),NOSPLIT,$0
++TEXT kernelPublicationBarrier<>(SB),NOSPLIT,$0
+ 	// void __kuser_memory_barrier(void);
+-	MOVW	$0xffff0fa0, R15 // R15 is hardware PC.
++	MOVW	$0xffff0fa0, R11
++	CALL	(R11)
++	RET
+ 
+ TEXT ·publicationBarrier(SB),NOSPLIT,$0
+-	BL	publicationBarrier<>(SB)
+-	RET
++	MOVB	·goarm(SB), R11
++	CMP	$7, R11
++	BLT	2(PC)
++	JMP	·armPublicationBarrier(SB)
++	JMP	kernelPublicationBarrier<>(SB) // extra layer so this function is leaf and no SP adjustment on GOARM=7
+ 
+ TEXT runtime·osyield(SB),NOSPLIT,$0
+ 	MOVW	$SYS_sched_yield, R7

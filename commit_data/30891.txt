@@ -7,6 +7,20 @@ Date:   Wed Dec 14 20:20:42 2016 -0800
     Change-Id: Icef8a21654a248666c684d5b10d0337c544ddb25
     Reviewed-on: https://go-review.googlesource.com/34388
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/dial.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/dial.go b/src/net/dial.go
+index e30f636fb3..b73426fa44 100644
+--- a/src/net/dial.go
++++ b/src/net/dial.go
+@@ -305,7 +305,7 @@ func (d *Dialer) Dial(network, address string) (Conn, error) {
+ // When using TCP, and the host in the address parameter resolves to multiple
+ // network addresses, any dial timeout (from d.Timeout or ctx) is spread
+ // over each consecutive dial, such that each is given an appropriate
+-// faction of the time to connect.
++// fraction of the time to connect.
+ // For example, if a host has 4 IP addresses and the timeout is 1 minute,
+ // the connect to each single address will be given 15 seconds to complete
+ // before trying the next one.

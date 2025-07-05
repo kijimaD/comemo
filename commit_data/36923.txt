@@ -13,6 +13,20 @@ Date:   Sun Jun 10 12:27:47 2018 +0300
     Change-Id: Id32dbf75300a86b21cb9f35e54526184fe5df6cb
     Reviewed-on: https://go-review.googlesource.com/117696
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/README.md | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/README.md b/src/cmd/compile/README.md
+index c8369c7c8c..b78786e5f2 100644
+--- a/src/cmd/compile/README.md
++++ b/src/cmd/compile/README.md
+@@ -26,7 +26,7 @@ little to do with uppercase GC, which stands for garbage collection.
+ * `cmd/compile/internal/syntax` (lexer, parser, syntax tree)
+ 
+ In the first phase of compilation, source code is tokenized (lexical analysis),
+-parsed (syntactic analyses), and a syntax tree is constructed for each source
++parsed (syntax analysis), and a syntax tree is constructed for each source
+ file.
+ 
+ Each syntax tree is an exact representation of the respective source file, with

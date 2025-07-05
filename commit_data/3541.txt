@@ -7,7 +7,7 @@ Date:   Wed Oct 14 18:10:43 2009 -0700
     R=r
     OCL=35736
     CL=35746
-
+---
  {usr/austin => src/pkg/exp}/eval/Makefile     |  2 +-
  {usr/austin => src/pkg/exp}/eval/abort.go     |  0
  {usr/austin => src/pkg/exp}/eval/bridge.go    |  0
@@ -43,3 +43,313 @@ Date:   Wed Oct 14 18:10:43 2009 -0700
  {usr/austin => src/pkg/exp}/ogle/vars.go      |  2 +-
  src/run.bash                                  | 15 ++++++++++++---
  34 files changed, 26 insertions(+), 13 deletions(-)
+
+diff --git a/usr/austin/eval/Makefile b/src/pkg/exp/eval/Makefile
+similarity index 96%
+rename from usr/austin/eval/Makefile
+rename to src/pkg/exp/eval/Makefile
+index 37f7c02a71..65bedf7baa 100644
+--- a/usr/austin/eval/Makefile
++++ b/src/pkg/exp/eval/Makefile
+@@ -4,7 +4,7 @@
+ 
+ include $(GOROOT)/src/Make.$(GOARCH)
+ 
+-TARG=eval
++TARG=exp/eval
+ GOFILES=\
+ 	abort.go\
+ 	bridge.go\
+diff --git a/usr/austin/eval/abort.go b/src/pkg/exp/eval/abort.go
+similarity index 100%
+rename from usr/austin/eval/abort.go
+rename to src/pkg/exp/eval/abort.go
+diff --git a/usr/austin/eval/bridge.go b/src/pkg/exp/eval/bridge.go
+similarity index 100%
+rename from usr/austin/eval/bridge.go
+rename to src/pkg/exp/eval/bridge.go
+diff --git a/usr/austin/eval/compiler.go b/src/pkg/exp/eval/compiler.go
+similarity index 100%
+rename from usr/austin/eval/compiler.go
+rename to src/pkg/exp/eval/compiler.go
+diff --git a/usr/austin/eval/eval_test.go b/src/pkg/exp/eval/eval_test.go
+similarity index 100%
+rename from usr/austin/eval/eval_test.go
+rename to src/pkg/exp/eval/eval_test.go
+diff --git a/usr/austin/eval/expr.go b/src/pkg/exp/eval/expr.go
+similarity index 100%
+rename from usr/austin/eval/expr.go
+rename to src/pkg/exp/eval/expr.go
+diff --git a/usr/austin/eval/expr1.go b/src/pkg/exp/eval/expr1.go
+similarity index 100%
+rename from usr/austin/eval/expr1.go
+rename to src/pkg/exp/eval/expr1.go
+diff --git a/usr/austin/eval/expr_test.go b/src/pkg/exp/eval/expr_test.go
+similarity index 100%
+rename from usr/austin/eval/expr_test.go
+rename to src/pkg/exp/eval/expr_test.go
+diff --git a/usr/austin/eval/func.go b/src/pkg/exp/eval/func.go
+similarity index 100%
+rename from usr/austin/eval/func.go
+rename to src/pkg/exp/eval/func.go
+diff --git a/usr/austin/eval/gen.go b/src/pkg/exp/eval/gen.go
+similarity index 100%
+rename from usr/austin/eval/gen.go
+rename to src/pkg/exp/eval/gen.go
+diff --git a/usr/austin/eval/main.go b/src/pkg/exp/eval/main.go
+similarity index 100%
+rename from usr/austin/eval/main.go
+rename to src/pkg/exp/eval/main.go
+diff --git a/usr/austin/eval/scope.go b/src/pkg/exp/eval/scope.go
+similarity index 100%
+rename from usr/austin/eval/scope.go
+rename to src/pkg/exp/eval/scope.go
+diff --git a/usr/austin/eval/stmt.go b/src/pkg/exp/eval/stmt.go
+similarity index 100%
+rename from usr/austin/eval/stmt.go
+rename to src/pkg/exp/eval/stmt.go
+diff --git a/usr/austin/eval/stmt_test.go b/src/pkg/exp/eval/stmt_test.go
+similarity index 100%
+rename from usr/austin/eval/stmt_test.go
+rename to src/pkg/exp/eval/stmt_test.go
+diff --git a/usr/austin/eval/test.bash b/src/pkg/exp/eval/test.bash
+similarity index 100%
+rename from usr/austin/eval/test.bash
+rename to src/pkg/exp/eval/test.bash
+diff --git a/usr/austin/eval/type.go b/src/pkg/exp/eval/type.go
+similarity index 100%
+rename from usr/austin/eval/type.go
+rename to src/pkg/exp/eval/type.go
+diff --git a/usr/austin/eval/typec.go b/src/pkg/exp/eval/typec.go
+similarity index 100%
+rename from usr/austin/eval/typec.go
+rename to src/pkg/exp/eval/typec.go
+diff --git a/usr/austin/eval/util.go b/src/pkg/exp/eval/util.go
+similarity index 100%
+rename from usr/austin/eval/util.go
+rename to src/pkg/exp/eval/util.go
+diff --git a/usr/austin/eval/value.go b/src/pkg/exp/eval/value.go
+similarity index 100%
+rename from usr/austin/eval/value.go
+rename to src/pkg/exp/eval/value.go
+diff --git a/usr/austin/eval/world.go b/src/pkg/exp/eval/world.go
+similarity index 96%
+rename from usr/austin/eval/world.go
+rename to src/pkg/exp/eval/world.go
+index 6d547f6e83..a5e4e6092b 100644
+--- a/usr/austin/eval/world.go
++++ b/src/pkg/exp/eval/world.go
+@@ -2,6 +2,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// This package is the beginning of an interpreter for Go.
++// It can run simple Go programs but does not implement
++// interface values or packages.
+ package eval
+ 
+ import (
+diff --git a/usr/austin/ogle/Makefile b/src/pkg/exp/ogle/Makefile
+similarity index 97%
+rename from usr/austin/ogle/Makefile
+rename to src/pkg/exp/ogle/Makefile
+index 9ea9beabe9..31bb9df5c9 100644
+--- a/usr/austin/ogle/Makefile
++++ b/src/pkg/exp/ogle/Makefile
+@@ -4,7 +4,7 @@
+ 
+ include $(GOROOT)/src/Make.$(GOARCH)
+ 
+-TARG=ogle
++TARG=exp/ogle
+ GOFILES=\
+ 	abort.go\
+ 	arch.go\
+diff --git a/usr/austin/ogle/abort.go b/src/pkg/exp/ogle/abort.go
+similarity index 100%
+rename from usr/austin/ogle/abort.go
+rename to src/pkg/exp/ogle/abort.go
+diff --git a/usr/austin/ogle/arch.go b/src/pkg/exp/ogle/arch.go
+similarity index 100%
+rename from usr/austin/ogle/arch.go
+rename to src/pkg/exp/ogle/arch.go
+diff --git a/usr/austin/ogle/cmd.go b/src/pkg/exp/ogle/cmd.go
+similarity index 99%
+rename from usr/austin/ogle/cmd.go
+rename to src/pkg/exp/ogle/cmd.go
+index 09767e72f9..f60621343b 100644
+--- a/usr/austin/ogle/cmd.go
++++ b/src/pkg/exp/ogle/cmd.go
+@@ -2,13 +2,14 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Ogle is the beginning of a debugger for Go.
+ package ogle
+ 
+ import (
+ 	"bufio";
+ 	"debug/elf";
+ 	"debug/proc";
+-	"eval";
++	"exp/eval";
+ 	"fmt";
+ 	"go/scanner";
+ 	"go/token";
+diff --git a/usr/austin/ogle/event.go b/src/pkg/exp/ogle/event.go
+similarity index 100%
+rename from usr/austin/ogle/event.go
+rename to src/pkg/exp/ogle/event.go
+diff --git a/usr/austin/ogle/frame.go b/src/pkg/exp/ogle/frame.go
+similarity index 100%
+rename from usr/austin/ogle/frame.go
+rename to src/pkg/exp/ogle/frame.go
+diff --git a/usr/austin/ogle/goroutine.go b/src/pkg/exp/ogle/goroutine.go
+similarity index 99%
+rename from usr/austin/ogle/goroutine.go
+rename to src/pkg/exp/ogle/goroutine.go
+index de80c604ec..4d458c5611 100644
+--- a/usr/austin/ogle/goroutine.go
++++ b/src/pkg/exp/ogle/goroutine.go
+@@ -6,7 +6,7 @@ package ogle
+ 
+ import (
+ 	"debug/proc";
+-	"eval";
++	"exp/eval";
+ 	"fmt";
+ 	"os";
+ )
+diff --git a/usr/austin/ogle/main.go b/src/pkg/exp/ogle/main.go
+similarity index 91%
+rename from usr/austin/ogle/main.go
+rename to src/pkg/exp/ogle/main.go
+index 7d94d38ccd..88265624a6 100644
+--- a/usr/austin/ogle/main.go
++++ b/src/pkg/exp/ogle/main.go
+@@ -4,7 +4,7 @@
+ 
+ package main
+ 
+-import "ogle"
++import "exp/ogle"
+ 
+ func main() {
+ 	ogle.Main();
+diff --git a/usr/austin/ogle/process.go b/src/pkg/exp/ogle/process.go
+similarity index 99%
+rename from usr/austin/ogle/process.go
+rename to src/pkg/exp/ogle/process.go
+index 0a3e9b2916..984364f239 100644
+--- a/usr/austin/ogle/process.go
++++ b/src/pkg/exp/ogle/process.go
+@@ -8,7 +8,7 @@ import (
+ 	"debug/elf";
+ 	"debug/gosym";
+ 	"debug/proc";
+-	"eval";
++	"exp/eval";
+ 	"fmt";
+ 	"log";
+ 	"os";
+diff --git a/usr/austin/ogle/rruntime.go b/src/pkg/exp/ogle/rruntime.go
+similarity index 99%
+rename from usr/austin/ogle/rruntime.go
+rename to src/pkg/exp/ogle/rruntime.go
+index 03d1c79803..2af636926f 100644
+--- a/usr/austin/ogle/rruntime.go
++++ b/src/pkg/exp/ogle/rruntime.go
+@@ -6,7 +6,7 @@ package ogle
+ 
+ import (
+ 	"debug/proc";
+-	"eval";
++	"exp/eval";
+ 	"reflect";
+ )
+ 
+diff --git a/usr/austin/ogle/rtype.go b/src/pkg/exp/ogle/rtype.go
+similarity index 99%
+rename from usr/austin/ogle/rtype.go
+rename to src/pkg/exp/ogle/rtype.go
+index 26040f6b8c..f70b918c0d 100644
+--- a/usr/austin/ogle/rtype.go
++++ b/src/pkg/exp/ogle/rtype.go
+@@ -6,7 +6,7 @@ package ogle
+ 
+ import (
+ 	"debug/proc";
+-	"eval";
++	"exp/eval";
+ 	"fmt";
+ 	"log";
+ )
+diff --git a/usr/austin/ogle/rvalue.go b/src/pkg/exp/ogle/rvalue.go
+similarity index 99%
+rename from usr/austin/ogle/rvalue.go
+rename to src/pkg/exp/ogle/rvalue.go
+index 47a54a9343..9077e238b5 100644
+--- a/usr/austin/ogle/rvalue.go
++++ b/src/pkg/exp/ogle/rvalue.go
+@@ -6,7 +6,7 @@ package ogle
+ 
+ import (
+ 	"debug/proc";
+-	"eval";
++	"exp/eval";
+ 	"fmt";
+ )
+ 
+diff --git a/usr/austin/ogle/vars.go b/src/pkg/exp/ogle/vars.go
+similarity index 99%
+rename from usr/austin/ogle/vars.go
+rename to src/pkg/exp/ogle/vars.go
+index ddfdb0fd82..539b5b3453 100644
+--- a/usr/austin/ogle/vars.go
++++ b/src/pkg/exp/ogle/vars.go
+@@ -7,7 +7,7 @@ package ogle
+ import (
+ 	"debug/gosym";
+ 	"debug/proc";
+-	"eval";
++	"exp/eval";
+ 	"log";
+ 	"os";
+ )
+diff --git a/src/run.bash b/src/run.bash
+index 07f2774a15..619ba9b7d8 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -26,12 +26,10 @@ maketest() {
+ 
+ maketest \
+ 	pkg \
+-	../usr/austin/eval \
+ 
+ # all of these are subtly different
+ # from what maketest does.
+ 
+-
+ (xcd pkg/sync;
+ make clean;
+ time make
+@@ -55,7 +53,18 @@ make clean
+ ./test.bash
+ ) || exit $?
+ 
+-(xcd ../usr/austin/ogle
++(xcd ../usr/r/rpc
++make clean
++time make
++./chanrun
++) || exit $?
++
++(xcd ../usr/dsymonds/iterable
++make clean
++time make test
++) || exit $?
++
++(xcd pkg/exp/ogle
+ make clean
+ time make ogle
+ ) || exit $?

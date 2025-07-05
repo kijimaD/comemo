@@ -58,7 +58,7 @@ Date:   Tue Aug 25 16:33:50 2020 +0800
     Run-TryBot: Giovanni Bajo <rasky@develer.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go |  5 ---
  src/math/big/arith.go              | 89 ++++++++++++++++++++++++++++++++++----
  src/math/big/arith_386.s           | 27 ------------
@@ -76,3 +76,579 @@ Date:   Tue Aug 25 16:33:50 2020 +0800
  src/math/big/arith_wasm.s          |  5 ---
  src/math/big/nat.go                |  3 +-
  16 files changed, 136 insertions(+), 191 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index d0b3e8df94..815ff7f99f 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -4022,11 +4022,6 @@ func init() {
+ 			return s.newValue2(ssa.OpMul64uhilo, types.NewTuple(types.Types[TUINT64], types.Types[TUINT64]), args[0], args[1])
+ 		},
+ 		sys.ArchAMD64, sys.ArchARM64, sys.ArchPPC64LE, sys.ArchPPC64, sys.ArchS390X)
+-	add("math/big", "divWW",
+-		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+-			return s.newValue3(ssa.OpDiv128u, types.NewTuple(types.Types[TUINT64], types.Types[TUINT64]), args[0], args[1], args[2])
+-		},
+-		sys.ArchAMD64)
+ }
+ 
+ // findIntrinsic returns a function which builds the SSA equivalent of the
+diff --git a/src/math/big/arith.go b/src/math/big/arith.go
+index b0885f261f..750ce8aa39 100644
+--- a/src/math/big/arith.go
++++ b/src/math/big/arith.go
+@@ -60,12 +60,6 @@ func nlz(x Word) uint {
+ 	return uint(bits.LeadingZeros(uint(x)))
+ }
+ 
+-// q = (u1<<_W + u0 - r)/v
+-func divWW_g(u1, u0, v Word) (q, r Word) {
+-	qq, rr := bits.Div(uint(u1), uint(u0), uint(v))
+-	return Word(qq), Word(rr)
+-}
+-
+ // The resulting carry c is either 0 or 1.
+ func addVV_g(z, x, y []Word) (c Word) {
+ 	// The comment near the top of this file discusses this for loop condition.
+@@ -207,10 +201,87 @@ func addMulVVW_g(z, x []Word, y Word) (c Word) {
+ 	return
+ }
+ 
+-func divWVW_g(z []Word, xn Word, x []Word, y Word) (r Word) {
++// q = ( x1 << _W + x0 - r)/y. m = floor(( _B^2 - 1 ) / d - _B). Requiring x1<y.
++// An approximate reciprocal with a reference to "Improved Division by Invariant Integers
++// (IEEE Transactions on Computers, 11 Jun. 2010)"
++func divWW(x1, x0, y, m Word) (q, r Word) {
++	s := nlz(y)
++	if s != 0 {
++		x1 = x1<<s | x0>>(_W-s)
++		x0 <<= s
++		y <<= s
++	}
++	d := uint(y)
++	// We know that
++	//   m = ⎣(B^2-1)/d⎦-B
++	//   ⎣(B^2-1)/d⎦ = m+B
++	//   (B^2-1)/d = m+B+delta1    0 <= delta1 <= (d-1)/d
++	//   B^2/d = m+B+delta2        0 <= delta2 <= 1
++	// The quotient we're trying to compute is
++	//   quotient = ⎣(x1*B+x0)/d⎦
++	//            = ⎣(x1*B*(B^2/d)+x0*(B^2/d))/B^2⎦
++	//            = ⎣(x1*B*(m+B+delta2)+x0*(m+B+delta2))/B^2⎦
++	//            = ⎣(x1*m+x1*B+x0)/B + x0*m/B^2 + delta2*(x1*B+x0)/B^2⎦
++	// The latter two terms of this three-term sum are between 0 and 1.
++	// So we can compute just the first term, and we will be low by at most 2.
++	t1, t0 := bits.Mul(uint(m), uint(x1))
++	_, c := bits.Add(t0, uint(x0), 0)
++	t1, _ = bits.Add(t1, uint(x1), c)
++	// The quotient is either t1, t1+1, or t1+2.
++	// We'll try t1 and adjust if needed.
++	qq := t1
++	// compute remainder r=x-d*q.
++	dq1, dq0 := bits.Mul(d, qq)
++	r0, b := bits.Sub(uint(x0), dq0, 0)
++	r1, _ := bits.Sub(uint(x1), dq1, b)
++	// The remainder we just computed is bounded above by B+d:
++	// r = x1*B + x0 - d*q.
++	//   = x1*B + x0 - d*⎣(x1*m+x1*B+x0)/B⎦
++	//   = x1*B + x0 - d*((x1*m+x1*B+x0)/B-alpha)                                   0 <= alpha < 1
++	//   = x1*B + x0 - x1*d/B*m                         - x1*d - x0*d/B + d*alpha
++	//   = x1*B + x0 - x1*d/B*⎣(B^2-1)/d-B⎦             - x1*d - x0*d/B + d*alpha
++	//   = x1*B + x0 - x1*d/B*⎣(B^2-1)/d-B⎦             - x1*d - x0*d/B + d*alpha
++	//   = x1*B + x0 - x1*d/B*((B^2-1)/d-B-beta)        - x1*d - x0*d/B + d*alpha   0 <= beta < 1
++	//   = x1*B + x0 - x1*B + x1/B + x1*d + x1*d/B*beta - x1*d - x0*d/B + d*alpha
++	//   =        x0        + x1/B        + x1*d/B*beta        - x0*d/B + d*alpha
++	//   = x0*(1-d/B) + x1*(1+d*beta)/B + d*alpha
++	//   <  B*(1-d/B) +  d*B/B          + d          because x0<B (and 1-d/B>0), x1<d, 1+d*beta<=B, alpha<1
++	//   =  B - d     +  d              + d
++	//   = B+d
++	// So r1 can only be 0 or 1. If r1 is 1, then we know q was too small.
++	// Add 1 to q and subtract d from r. That guarantees that r is <B, so
++	// we no longer need to keep track of r1.
++	if r1 != 0 {
++		qq++
++		r0 -= d
++	}
++	// If the remainder is still too large, increment q one more time.
++	if r0 >= d {
++		qq++
++		r0 -= d
++	}
++	return Word(qq), Word(r0 >> s)
++}
++
++func divWVW(z []Word, xn Word, x []Word, y Word) (r Word) {
+ 	r = xn
++	if len(x) == 1 {
++		qq, rr := bits.Div(uint(r), uint(x[0]), uint(y))
++		z[0] = Word(qq)
++		return Word(rr)
++	}
++	rec := reciprocalWord(y)
+ 	for i := len(z) - 1; i >= 0; i-- {
+-		z[i], r = divWW_g(r, x[i], y)
++		z[i], r = divWW(r, x[i], y, rec)
+ 	}
+-	return
++	return r
++}
++
++// reciprocalWord return the reciprocal of the divisor. rec = floor(( _B^2 - 1 ) / u - _B). u = d1 << nlz(d1).
++func reciprocalWord(d1 Word) Word {
++	u := uint(d1 << nlz(d1))
++	x1 := ^u
++	x0 := uint(_M)
++	rec, _ := bits.Div(x1, x0, u) // (_B^2-1)/U-_B = (_B*(_M-C)+_M)/U
++	return Word(rec)
+ }
+diff --git a/src/math/big/arith_386.s b/src/math/big/arith_386.s
+index f61da2aba7..d0ea949fe6 100644
+--- a/src/math/big/arith_386.s
++++ b/src/math/big/arith_386.s
+@@ -18,16 +18,6 @@ TEXT ·mulWW(SB),NOSPLIT,$0
+ 	RET
+ 
+ 
+-// func divWW(x1, x0, y Word) (q, r Word)
+-TEXT ·divWW(SB),NOSPLIT,$0
+-	MOVL x1+0(FP), DX
+-	MOVL x0+4(FP), AX
+-	DIVL y+8(FP)
+-	MOVL AX, q+12(FP)
+-	MOVL DX, r+16(FP)
+-	RET
+-
+-
+ // func addVV(z, x, y []Word) (c Word)
+ TEXT ·addVV(SB),NOSPLIT,$0
+ 	MOVL z+0(FP), DI
+@@ -251,21 +241,4 @@ E6:	CMPL BX, $0		// i < 0
+ 	RET
+ 
+ 
+-// func divWVW(z* Word, xn Word, x []Word, y Word) (r Word)
+-TEXT ·divWVW(SB),NOSPLIT,$0
+-	MOVL z+0(FP), DI
+-	MOVL xn+12(FP), DX	// r = xn
+-	MOVL x+16(FP), SI
+-	MOVL y+28(FP), CX
+-	MOVL z_len+4(FP), BX	// i = z
+-	JMP E7
+ 
+-L7:	MOVL (SI)(BX*4), AX
+-	DIVL CX
+-	MOVL AX, (DI)(BX*4)
+-
+-E7:	SUBL $1, BX		// i--
+-	JGE L7			// i >= 0
+-
+-	MOVL DX, r+32(FP)
+-	RET
+diff --git a/src/math/big/arith_amd64.s b/src/math/big/arith_amd64.s
+index b75639f540..61043ca2d9 100644
+--- a/src/math/big/arith_amd64.s
++++ b/src/math/big/arith_amd64.s
+@@ -18,14 +18,6 @@ TEXT ·mulWW(SB),NOSPLIT,$0
+ 	RET
+ 
+ 
+-// func divWW(x1, x0, y Word) (q, r Word)
+-TEXT ·divWW(SB),NOSPLIT,$0
+-	MOVQ x1+0(FP), DX
+-	MOVQ x0+8(FP), AX
+-	DIVQ y+16(FP)
+-	MOVQ AX, q+24(FP)
+-	MOVQ DX, r+32(FP)
+-	RET
+ 
+ // The carry bit is saved with SBBQ Rx, Rx: if the carry was set, Rx is -1, otherwise it is 0.
+ // It is restored with ADDQ Rx, Rx: if Rx was -1 the carry is set, otherwise it is cleared.
+@@ -531,21 +523,3 @@ adx_short:
+ 
+ 
+ 
+-// func divWVW(z []Word, xn Word, x []Word, y Word) (r Word)
+-TEXT ·divWVW(SB),NOSPLIT,$0
+-	MOVQ z+0(FP), R10
+-	MOVQ xn+24(FP), DX	// r = xn
+-	MOVQ x+32(FP), R8
+-	MOVQ y+56(FP), R9
+-	MOVQ z_len+8(FP), BX	// i = z
+-	JMP E7
+-
+-L7:	MOVQ (R8)(BX*8), AX
+-	DIVQ R9
+-	MOVQ AX, (R10)(BX*8)
+-
+-E7:	SUBQ $1, BX		// i--
+-	JGE L7			// i >= 0
+-
+-	MOVQ DX, r+64(FP)
+-	RET
+diff --git a/src/math/big/arith_arm.s b/src/math/big/arith_arm.s
+index 33aa36f709..cbf7445e7a 100644
+--- a/src/math/big/arith_arm.s
++++ b/src/math/big/arith_arm.s
+@@ -272,17 +272,6 @@ E9:
+ 	RET
+ 
+ 
+-// func divWVW(z* Word, xn Word, x []Word, y Word) (r Word)
+-TEXT ·divWVW(SB),NOSPLIT,$0
+-	// ARM has no multiword division, so use portable code.
+-	B ·divWVW_g(SB)
+-
+-
+-// func divWW(x1, x0, y Word) (q, r Word)
+-TEXT ·divWW(SB),NOSPLIT,$0
+-	// ARM has no multiword division, so use portable code.
+-	B ·divWW_g(SB)
+-
+ 
+ // func mulWW(x, y Word) (z1, z0 Word)
+ TEXT ·mulWW(SB),NOSPLIT,$0
+diff --git a/src/math/big/arith_arm64.s b/src/math/big/arith_arm64.s
+index da6e408e19..22357d088e 100644
+--- a/src/math/big/arith_arm64.s
++++ b/src/math/big/arith_arm64.s
+@@ -23,11 +23,6 @@ TEXT ·mulWW(SB),NOSPLIT,$0
+ 	RET
+ 
+ 
+-// func divWW(x1, x0, y Word) (q, r Word)
+-TEXT ·divWW(SB),NOSPLIT,$0
+-	B	·divWW_g(SB) // ARM64 has no multiword division
+-
+-
+ // func addVV(z, x, y []Word) (c Word)
+ TEXT ·addVV(SB),NOSPLIT,$0
+ 	MOVD	z_len+8(FP), R0
+@@ -585,6 +580,4 @@ done:
+ 	MOVD	R4, c+56(FP)
+ 	RET
+ 
+-// func divWVW(z []Word, xn Word, x []Word, y Word) (r Word)
+-TEXT ·divWVW(SB),NOSPLIT,$0
+-	B ·divWVW_g(SB)
++
+diff --git a/src/math/big/arith_decl.go b/src/math/big/arith_decl.go
+index 41e592334c..d519bdc87b 100644
+--- a/src/math/big/arith_decl.go
++++ b/src/math/big/arith_decl.go
+@@ -8,7 +8,6 @@ package big
+ 
+ // implemented in arith_$GOARCH.s
+ func mulWW(x, y Word) (z1, z0 Word)
+-func divWW(x1, x0, y Word) (q, r Word)
+ func addVV(z, x, y []Word) (c Word)
+ func subVV(z, x, y []Word) (c Word)
+ func addVW(z, x []Word, y Word) (c Word)
+@@ -17,4 +16,3 @@ func shlVU(z, x []Word, s uint) (c Word)
+ func shrVU(z, x []Word, s uint) (c Word)
+ func mulAddVWW(z, x []Word, y, r Word) (c Word)
+ func addMulVVW(z, x []Word, y Word) (c Word)
+-func divWVW(z []Word, xn Word, x []Word, y Word) (r Word)
+diff --git a/src/math/big/arith_decl_pure.go b/src/math/big/arith_decl_pure.go
+index 305f7ee03b..5faa3bd281 100644
+--- a/src/math/big/arith_decl_pure.go
++++ b/src/math/big/arith_decl_pure.go
+@@ -10,10 +10,6 @@ func mulWW(x, y Word) (z1, z0 Word) {
+ 	return mulWW_g(x, y)
+ }
+ 
+-func divWW(x1, x0, y Word) (q, r Word) {
+-	return divWW_g(x1, x0, y)
+-}
+-
+ func addVV(z, x, y []Word) (c Word) {
+ 	return addVV_g(z, x, y)
+ }
+@@ -55,7 +51,3 @@ func mulAddVWW(z, x []Word, y, r Word) (c Word) {
+ func addMulVVW(z, x []Word, y Word) (c Word) {
+ 	return addMulVVW_g(z, x, y)
+ }
+-
+-func divWVW(z []Word, xn Word, x []Word, y Word) (r Word) {
+-	return divWVW_g(z, xn, x, y)
+-}
+diff --git a/src/math/big/arith_mips64x.s b/src/math/big/arith_mips64x.s
+index 983510ee3d..804b9fe06e 100644
+--- a/src/math/big/arith_mips64x.s
++++ b/src/math/big/arith_mips64x.s
+@@ -12,9 +12,6 @@
+ TEXT ·mulWW(SB),NOSPLIT,$0
+ 	JMP ·mulWW_g(SB)
+ 
+-TEXT ·divWW(SB),NOSPLIT,$0
+-	JMP ·divWW_g(SB)
+-
+ TEXT ·addVV(SB),NOSPLIT,$0
+ 	JMP ·addVV_g(SB)
+ 
+@@ -39,5 +36,3 @@ TEXT ·mulAddVWW(SB),NOSPLIT,$0
+ TEXT ·addMulVVW(SB),NOSPLIT,$0
+ 	JMP ·addMulVVW_g(SB)
+ 
+-TEXT ·divWVW(SB),NOSPLIT,$0
+-	JMP ·divWVW_g(SB)
+diff --git a/src/math/big/arith_mipsx.s b/src/math/big/arith_mipsx.s
+index 54cafbd9c0..efdecb80f3 100644
+--- a/src/math/big/arith_mipsx.s
++++ b/src/math/big/arith_mipsx.s
+@@ -12,9 +12,6 @@
+ TEXT ·mulWW(SB),NOSPLIT,$0
+ 	JMP	·mulWW_g(SB)
+ 
+-TEXT ·divWW(SB),NOSPLIT,$0
+-	JMP	·divWW_g(SB)
+-
+ TEXT ·addVV(SB),NOSPLIT,$0
+ 	JMP	·addVV_g(SB)
+ 
+@@ -39,5 +36,3 @@ TEXT ·mulAddVWW(SB),NOSPLIT,$0
+ TEXT ·addMulVVW(SB),NOSPLIT,$0
+ 	JMP	·addMulVVW_g(SB)
+ 
+-TEXT ·divWVW(SB),NOSPLIT,$0
+-	JMP	·divWVW_g(SB)
+diff --git a/src/math/big/arith_ppc64x.s b/src/math/big/arith_ppc64x.s
+index 409e10ab48..b299ccc2fb 100644
+--- a/src/math/big/arith_ppc64x.s
++++ b/src/math/big/arith_ppc64x.s
+@@ -478,44 +478,4 @@ done:
+ 	MOVD R4, c+56(FP)
+ 	RET
+ 
+-// func divWW(x1, x0, y Word) (q, r Word)
+-TEXT ·divWW(SB), NOSPLIT, $0
+-	MOVD x1+0(FP), R4
+-	MOVD x0+8(FP), R5
+-	MOVD y+16(FP), R6
+-
+-	CMPU R4, R6
+-	BGE  divbigger
+-
+-	// from the programmer's note in ch. 3 of the ISA manual, p.74
+-	DIVDEU R6, R4, R3
+-	DIVDU  R6, R5, R7
+-	MULLD  R6, R3, R8
+-	MULLD  R6, R7, R20
+-	SUB    R20, R5, R10
+-	ADD    R7, R3, R3
+-	SUB    R8, R10, R4
+-	CMPU   R4, R10
+-	BLT    adjust
+-	CMPU   R4, R6
+-	BLT    end
+-
+-adjust:
+-	MOVD $1, R21
+-	ADD  R21, R3, R3
+-	SUB  R6, R4, R4
+-
+-end:
+-	MOVD R3, q+24(FP)
+-	MOVD R4, r+32(FP)
+ 
+-	RET
+-
+-divbigger:
+-	MOVD $-1, R7
+-	MOVD R7, q+24(FP)
+-	MOVD R7, r+32(FP)
+-	RET
+-
+-TEXT ·divWVW(SB), NOSPLIT, $0
+-	BR ·divWVW_g(SB)
+diff --git a/src/math/big/arith_riscv64.s b/src/math/big/arith_riscv64.s
+index 59065c3f7b..a2f7666c7b 100644
+--- a/src/math/big/arith_riscv64.s
++++ b/src/math/big/arith_riscv64.s
+@@ -19,9 +19,6 @@ TEXT ·mulWW(SB),NOSPLIT,$0
+ 	MOV	X8, z0+24(FP)
+ 	RET
+ 
+-// func divWW(x1, x0, y Word) (q, r Word)
+-TEXT ·divWW(SB),NOSPLIT,$0
+-	JMP ·divWW_g(SB)		// riscv64 has no multiword division
+ 
+ TEXT ·addVV(SB),NOSPLIT,$0
+ 	JMP ·addVV_g(SB)
+@@ -47,5 +44,3 @@ TEXT ·mulAddVWW(SB),NOSPLIT,$0
+ TEXT ·addMulVVW(SB),NOSPLIT,$0
+ 	JMP ·addMulVVW_g(SB)
+ 
+-TEXT ·divWVW(SB),NOSPLIT,$0
+-	JMP ·divWVW_g(SB)
+diff --git a/src/math/big/arith_s390x.s b/src/math/big/arith_s390x.s
+index 4891768111..242aca7434 100644
+--- a/src/math/big/arith_s390x.s
++++ b/src/math/big/arith_s390x.s
+@@ -17,15 +17,6 @@ TEXT ·mulWW(SB), NOSPLIT, $0
+ 	MOVD   R11, z0+24(FP)
+ 	RET
+ 
+-// func divWW(x1, x0, y Word) (q, r Word)
+-TEXT ·divWW(SB), NOSPLIT, $0
+-	MOVD x1+0(FP), R10
+-	MOVD x0+8(FP), R11
+-	MOVD y+16(FP), R5
+-	WORD $0xb98700a5   // dlgr r10,r5
+-	MOVD R11, q+24(FP)
+-	MOVD R10, r+32(FP)
+-	RET
+ 
+ // DI = R3, CX = R4, SI = r10, r8 = r8, r9=r9, r10 = r2 , r11 = r5, r12 = r6, r13 = r7, r14 = r1 (R0 set to 0) + use R11
+ // func addVV(z, x, y []Word) (c Word)
+@@ -990,27 +981,3 @@ E6:
+ 	MOVD R4, c+56(FP)
+ 	RET
+ 
+-// func divWVW(z []Word, xn Word, x []Word, y Word) (r Word)
+-// CX = R4, r8 = r8, r9=r9, r10 = r2 , r11 = r5, AX = r11, DX = R6, r12=r12, BX = R1(*8) , (R0 set to 0) + use R11 + use R7 for i
+-TEXT ·divWVW(SB), NOSPLIT, $0
+-	MOVD z+0(FP), R2
+-	MOVD xn+24(FP), R10  // r = xn
+-	MOVD x+32(FP), R8
+-	MOVD y+56(FP), R9
+-	MOVD z_len+8(FP), R7 // i = z
+-	SLD  $3, R7, R1      // i*8
+-	MOVD $0, R0          // make sure it's zero
+-	BR   E7
+-
+-L7:
+-	MOVD (R8)(R1*1), R11
+-	WORD $0xB98700A9     // DLGR R10,R9
+-	MOVD R11, (R2)(R1*1)
+-
+-E7:
+-	SUB $1, R7 // i--
+-	SUB $8, R1
+-	BGE L7     // i >= 0
+-
+-	MOVD R10, r+64(FP)
+-	RET
+diff --git a/src/math/big/arith_test.go b/src/math/big/arith_test.go
+index fc205934c5..808d178459 100644
+--- a/src/math/big/arith_test.go
++++ b/src/math/big/arith_test.go
+@@ -7,6 +7,7 @@ package big
+ import (
+ 	"fmt"
+ 	"internal/testenv"
++	"math/bits"
+ 	"math/rand"
+ 	"strings"
+ 	"testing"
+@@ -493,7 +494,6 @@ func TestFunVWW(t *testing.T) {
+ 
+ 		if a.y != 0 && a.r < a.y {
+ 			arg := argWVW{a.x, a.c, a.z, a.y, a.r}
+-			testFunWVW(t, "divWVW_g", divWVW_g, arg)
+ 			testFunWVW(t, "divWVW", divWVW, arg)
+ 		}
+ 	}
+@@ -536,6 +536,42 @@ func TestMulAddWWW(t *testing.T) {
+ 	}
+ }
+ 
++var divWWTests = []struct {
++	x1, x0, y Word
++	q, r      Word
++}{
++	{_M >> 1, 0, _M, _M >> 1, _M >> 1},
++	{_M - (1 << (_W - 2)), _M, 3 << (_W - 2), _M, _M - (1 << (_W - 2))},
++}
++
++const testsNumber = 1 << 16
++
++func TestDivWW(t *testing.T) {
++	i := 0
++	for i, test := range divWWTests {
++		rec := reciprocalWord(test.y)
++		q, r := divWW(test.x1, test.x0, test.y, rec)
++		if q != test.q || r != test.r {
++			t.Errorf("#%d got (%x, %x) want (%x, %x)", i, q, r, test.q, test.r)
++		}
++	}
++	//random tests
++	for ; i < testsNumber; i++ {
++		x1 := rndW()
++		x0 := rndW()
++		y := rndW()
++		if x1 >= y {
++			continue
++		}
++		rec := reciprocalWord(y)
++		qGot, rGot := divWW(x1, x0, y, rec)
++		qWant, rWant := bits.Div(uint(x1), uint(x0), uint(y))
++		if uint(qGot) != qWant || uint(rGot) != rWant {
++			t.Errorf("#%d got (%x, %x) want (%x, %x)", i, qGot, rGot, qWant, rWant)
++		}
++	}
++}
++
+ func BenchmarkMulAddVWW(b *testing.B) {
+ 	for _, n := range benchSizes {
+ 		if isRaceBuilder && n > 1e3 {
+@@ -570,3 +606,19 @@ func BenchmarkAddMulVVW(b *testing.B) {
+ 		})
+ 	}
+ }
++func BenchmarkDivWVW(b *testing.B) {
++	for _, n := range benchSizes {
++		if isRaceBuilder && n > 1e3 {
++			continue
++		}
++		x := rndV(n)
++		y := rndW()
++		z := make([]Word, n)
++		b.Run(fmt.Sprint(n), func(b *testing.B) {
++			b.SetBytes(int64(n * _W))
++			for i := 0; i < b.N; i++ {
++				divWVW(z, 0, x, y)
++			}
++		})
++	}
++}
+diff --git a/src/math/big/arith_wasm.s b/src/math/big/arith_wasm.s
+index 382597c694..add1064469 100644
+--- a/src/math/big/arith_wasm.s
++++ b/src/math/big/arith_wasm.s
+@@ -9,9 +9,6 @@
+ TEXT ·mulWW(SB),NOSPLIT,$0
+ 	JMP ·mulWW_g(SB)
+ 
+-TEXT ·divWW(SB),NOSPLIT,$0
+-	JMP ·divWW_g(SB)
+-
+ TEXT ·addVV(SB),NOSPLIT,$0
+ 	JMP ·addVV_g(SB)
+ 
+@@ -36,5 +33,3 @@ TEXT ·mulAddVWW(SB),NOSPLIT,$0
+ TEXT ·addMulVVW(SB),NOSPLIT,$0
+ 	JMP ·addMulVVW_g(SB)
+ 
+-TEXT ·divWVW(SB),NOSPLIT,$0
+-	JMP ·divWVW_g(SB)
+diff --git a/src/math/big/nat.go b/src/math/big/nat.go
+index 6a3989bf9d..c2f3787848 100644
+--- a/src/math/big/nat.go
++++ b/src/math/big/nat.go
+@@ -751,6 +751,7 @@ func (q nat) divBasic(u, v nat) {
+ 
+ 	// D2.
+ 	vn1 := v[n-1]
++	rec := reciprocalWord(vn1)
+ 	for j := m; j >= 0; j-- {
+ 		// D3.
+ 		qhat := Word(_M)
+@@ -760,7 +761,7 @@ func (q nat) divBasic(u, v nat) {
+ 		}
+ 		if ujn != vn1 {
+ 			var rhat Word
+-			qhat, rhat = divWW(ujn, u[j+n-1], vn1)
++			qhat, rhat = divWW(ujn, u[j+n-1], vn1, rec)
+ 
+ 			// x1 | x2 = q̂v_{n-2}
+ 			vn2 := v[n-2]

@@ -7,6 +7,47 @@ Date:   Thu Nov 17 11:20:42 2011 +1100
     R=golang-dev, rsc
     CC=dave, golang-dev
     https://golang.org/cl/5364061
-
+---
  src/pkg/exp/ssh/client_auth_test.go | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/exp/ssh/client_auth_test.go b/src/pkg/exp/ssh/client_auth_test.go
+index cfd6a39d70..6467f57835 100644
+--- a/src/pkg/exp/ssh/client_auth_test.go
++++ b/src/pkg/exp/ssh/client_auth_test.go
+@@ -161,7 +161,7 @@ func TestClientAuthPassword(t *testing.T) {
+ 	}
+ 	serverConfig.PubKeyCallback = nil
+ 
+-	l, err := Listen("tcp", "0.0.0.0:0", serverConfig)
++	l, err := Listen("tcp", "127.0.0.1:0", serverConfig)
+ 	if err != nil {
+ 		t.Fatalf("unable to listen: %s", err)
+ 	}
+@@ -189,7 +189,7 @@ func TestClientAuthPassword(t *testing.T) {
+ 
+ 	c, err := Dial("tcp", l.Addr().String(), config)
+ 	if err != nil {
+-		t.Errorf("unable to dial remote side: %s", err)
++		t.Fatalf("unable to dial remote side: %s", err)
+ 	}
+ 	defer c.Close()
+ 	<-done
+@@ -211,7 +211,7 @@ func TestClientAuthPasswordAndPublickey(t *testing.T) {
+ 		return user == "testuser" && algo == algoname && bytes.Equal(pubkey, expected)
+ 	}
+ 
+-	l, err := Listen("tcp", "0.0.0.0:0", serverConfig)
++	l, err := Listen("tcp", "127.0.0.1:0", serverConfig)
+ 	if err != nil {
+ 		t.Fatalf("unable to listen: %s", err)
+ 	}
+@@ -241,7 +241,7 @@ func TestClientAuthPasswordAndPublickey(t *testing.T) {
+ 
+ 	c, err := Dial("tcp", l.Addr().String(), config)
+ 	if err != nil {
+-		t.Errorf("unable to dial remote side: %s", err)
++		t.Fatalf("unable to dial remote side: %s", err)
+ 	}
+ 	defer c.Close()
+ 	<-done

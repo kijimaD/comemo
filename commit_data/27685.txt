@@ -7,6 +7,31 @@ Date:   Fri Apr 8 15:09:45 2016 +1000
     Change-Id: I3276a118ced78f3efd8f1bc5fb8b8fa2fde52496
     Reviewed-on: https://go-review.googlesource.com/21704
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/go_test.go | 6 ++----
  1 file changed, 2 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 3e595d187f..8a0416089c 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -2320,8 +2320,7 @@ func TestGoVetWithExternalTests(t *testing.T) {
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+ 	tg.makeTempdir()
+-	tg.setenv("GOPATH", tg.path("."))
+-	tg.run("get", "golang.org/x/tools/cmd/vet")
++	tg.run("install", "cmd/vet")
+ 	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
+ 	tg.runFail("vet", "vetpkg")
+ 	tg.grepBoth("missing argument for Printf", "go vet vetpkg did not find missing argument for Printf")
+@@ -2333,8 +2332,7 @@ func TestGoVetWithTags(t *testing.T) {
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+ 	tg.makeTempdir()
+-	tg.setenv("GOPATH", tg.path("."))
+-	tg.run("get", "golang.org/x/tools/cmd/vet")
++	tg.run("install", "cmd/vet")
+ 	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
+ 	tg.runFail("vet", "-tags", "tagtest", "vetpkg")
+ 	tg.grepBoth(`c\.go.*wrong number of args for format`, "go get vetpkg did not run scan tagged file")

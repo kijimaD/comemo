@@ -15,6 +15,26 @@ Date:   Wed Aug 10 22:52:58 2022 +0700
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/go/internal/cfg/cfg.go | 7 +++++--
  1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/internal/cfg/cfg.go b/src/cmd/go/internal/cfg/cfg.go
+index 7fb75db5f7..2a1475ef2e 100644
+--- a/src/cmd/go/internal/cfg/cfg.go
++++ b/src/cmd/go/internal/cfg/cfg.go
+@@ -237,9 +237,12 @@ func init() {
+ 	CleanGOEXPERIMENT = Experiment.String()
+ 
+ 	// Add build tags based on the experiments in effect.
+-	for _, exp := range Experiment.Enabled() {
+-		BuildContext.ToolTags = append(BuildContext.ToolTags, "goexperiment."+exp)
++	exps := Experiment.Enabled()
++	expTags := make([]string, 0, len(exps)+len(BuildContext.ToolTags))
++	for _, exp := range exps {
++		expTags = append(expTags, "goexperiment."+exp)
+ 	}
++	BuildContext.ToolTags = append(expTags, BuildContext.ToolTags...)
+ }
+ 
+ // An EnvVar is an environment variable Name=Value.

@@ -15,6 +15,23 @@ Date:   Sat Sep 28 20:29:11 2019 +0200
     Change-Id: I16f8bb8657041a23ed272eacf9adbc5637e8e34a
     Reviewed-on: https://go-review.googlesource.com/c/go/+/197839
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  doc/code.html | 5 -----
  1 file changed, 5 deletions(-)
+
+diff --git a/doc/code.html b/doc/code.html
+index 1e380001e0..a2adc82ae0 100644
+--- a/doc/code.html
++++ b/doc/code.html
+@@ -166,11 +166,6 @@ To learn more about the <code>GOPATH</code> environment variable, see
+ <a href="/cmd/go/#hdr-GOPATH_environment_variable"><code>'go help gopath'</code></a>.
+ </p>
+ 
+-<p>
+-To use a custom workspace location,
+-<a href="https://golang.org/wiki/SettingGOPATH">set the <code>GOPATH</code> environment variable</a>.
+-</p>
+-
+ <h3 id="ImportPaths">Import paths</h3>
+ 
+ <p>

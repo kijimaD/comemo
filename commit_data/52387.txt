@@ -14,6 +14,19 @@ Date:   Mon Dec 20 14:02:00 2021 +0800
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Carlos Amedee <carlos@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/internal/poll/fd.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/internal/poll/fd.go b/src/internal/poll/fd.go
+index 69a90054d3..ef61d0cb3f 100644
+--- a/src/internal/poll/fd.go
++++ b/src/internal/poll/fd.go
+@@ -74,6 +74,7 @@ func consume(v *[][]byte, n int64) {
+ 			return
+ 		}
+ 		n -= ln0
++		(*v)[0] = nil
+ 		*v = (*v)[1:]
+ 	}
+ }

@@ -20,7 +20,38 @@ Date:   Tue Nov 15 15:31:22 2011 +1100
     R=nigeltao
     CC=golang-dev
     https://golang.org/cl/5369114
-
+---
  src/pkg/html/parse.go      | 6 ++++++
  src/pkg/html/parse_test.go | 2 +-
  2 files changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/html/parse.go b/src/pkg/html/parse.go
+index b92b25c7b0..5b91204240 100644
+--- a/src/pkg/html/parse.go
++++ b/src/pkg/html/parse.go
+@@ -619,6 +619,12 @@ func inBodyIM(p *parser) bool {
+ 			// TODO: detect <select> inside a table.
+ 			p.im = inSelectIM
+ 			return true
++		case "form":
++			if p.form == nil {
++				p.popUntil(buttonScopeStopTags, "p")
++				p.addElement(p.tok.Data, p.tok.Attr)
++				p.form = p.top()
++			}
+ 		case "li":
+ 			p.framesetOK = false
+ 			for i := len(p.oe) - 1; i >= 0; i-- {
+diff --git a/src/pkg/html/parse_test.go b/src/pkg/html/parse_test.go
+index 3c278b3145..0fd2dc82b3 100644
+--- a/src/pkg/html/parse_test.go
++++ b/src/pkg/html/parse_test.go
+@@ -134,7 +134,7 @@ func TestParser(t *testing.T) {
+ 	}{
+ 		// TODO(nigeltao): Process all the test cases from all the .dat files.
+ 		{"tests1.dat", -1},
+-		{"tests2.dat", 26},
++		{"tests2.dat", 33},
+ 		{"tests3.dat", 0},
+ 	}
+ 	for _, tf := range testFiles {

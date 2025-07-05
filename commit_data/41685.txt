@@ -15,7 +15,7 @@ Date:   Fri Oct 18 16:52:12 2019 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  doc/go1.14.html                             | 11 +++++++++
  src/cmd/go/alldocs.go                       |  3 +++
  src/cmd/go/internal/cfg/cfg.go              |  1 +
@@ -25,3 +25,180 @@ Date:   Fri Oct 18 16:52:12 2019 -0400
  src/cmd/go/testdata/script/README           |  2 +-
  src/cmd/go/testdata/script/mod_cache_rw.txt | 38 +++++++++++++++++++++++++++++
  8 files changed, 71 insertions(+), 8 deletions(-)
+
+diff --git a/doc/go1.14.html b/doc/go1.14.html
+index 363f57bb4d..79efb2b0ba 100644
+--- a/doc/go1.14.html
++++ b/doc/go1.14.html
+@@ -112,6 +112,17 @@ TODO
+   graphic characters and spaces.
+ </p>
+ 
++<p><!-- golang.org/issue/31481 -->
++  The <code>go</code> command now accepts a new flag, <code>-modcacherw</code>,
++  which leaves newly-created directories in the module cache at their default
++  permissions rather than making them read-only.
++  The use of this flag makes it more likely that tests or other tools will
++  accidentally add files not included in the module's verified checksum.
++  However, it allows the use of <code>rm</code> <code>-rf</code>
++  (instead of <code>go</code> <code>clean</code> <code>-modcache</code>)
++  to remove the module cache.
++</p>
++
+ <h2 id="runtime">Runtime</h2>
+ 
+ <p>
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 51b8fccb45..c5ceec8009 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -150,6 +150,9 @@
+ // 	-mod mode
+ // 		module download mode to use: readonly or vendor.
+ // 		See 'go help modules' for more.
++// 	-modcacherw
++// 		leave newly-created directories in the module cache read-write
++// 		instead of making them read-only.
+ // 	-pkgdir dir
+ // 		install and load all packages from dir instead of the usual locations.
+ // 		For example, when building with a non-standard configuration,
+diff --git a/src/cmd/go/internal/cfg/cfg.go b/src/cmd/go/internal/cfg/cfg.go
+index a3277a6c3f..ea909b5b37 100644
+--- a/src/cmd/go/internal/cfg/cfg.go
++++ b/src/cmd/go/internal/cfg/cfg.go
+@@ -33,6 +33,7 @@ var (
+ 	BuildN                 bool               // -n flag
+ 	BuildO                 string             // -o flag
+ 	BuildP                 = runtime.NumCPU() // -p flag
++	BuildModcacheRW        bool               // -modcacherw flag
+ 	BuildPkgdir            string             // -pkgdir flag
+ 	BuildRace              bool               // -race flag
+ 	BuildToolexec          []string           // -toolexec flag
+diff --git a/src/cmd/go/internal/modfetch/fetch.go b/src/cmd/go/internal/modfetch/fetch.go
+index 8f792a7768..438c6212b5 100644
+--- a/src/cmd/go/internal/modfetch/fetch.go
++++ b/src/cmd/go/internal/modfetch/fetch.go
+@@ -125,9 +125,11 @@ func download(mod module.Version, dir string) (err error) {
+ 		return err
+ 	}
+ 
+-	// Make dir read-only only *after* renaming it.
+-	// os.Rename was observed to fail for read-only directories on macOS.
+-	makeDirsReadOnly(dir)
++	if !cfg.BuildModcacheRW {
++		// Make dir read-only only *after* renaming it.
++		// os.Rename was observed to fail for read-only directories on macOS.
++		makeDirsReadOnly(dir)
++	}
+ 	return nil
+ }
+ 
+diff --git a/src/cmd/go/internal/work/build.go b/src/cmd/go/internal/work/build.go
+index 54b049b68f..9b74963f43 100644
+--- a/src/cmd/go/internal/work/build.go
++++ b/src/cmd/go/internal/work/build.go
+@@ -102,6 +102,9 @@ and test commands:
+ 	-mod mode
+ 		module download mode to use: readonly or vendor.
+ 		See 'go help modules' for more.
++	-modcacherw
++		leave newly-created directories in the module cache read-write
++		instead of making them read-only.
+ 	-pkgdir dir
+ 		install and load all packages from dir instead of the usual locations.
+ 		For example, when building with a non-standard configuration,
+@@ -243,6 +246,7 @@ func AddBuildFlags(cmd *base.Command, mask BuildFlagMask) {
+ 	cmd.Flag.StringVar(&cfg.BuildContext.InstallSuffix, "installsuffix", "", "")
+ 	cmd.Flag.Var(&load.BuildLdflags, "ldflags", "")
+ 	cmd.Flag.BoolVar(&cfg.BuildLinkshared, "linkshared", false, "")
++	cmd.Flag.BoolVar(&cfg.BuildModcacheRW, "modcacherw", false, "")
+ 	cmd.Flag.StringVar(&cfg.BuildPkgdir, "pkgdir", "", "")
+ 	cmd.Flag.BoolVar(&cfg.BuildRace, "race", false, "")
+ 	cmd.Flag.BoolVar(&cfg.BuildMSan, "msan", false, "")
+diff --git a/src/cmd/go/script_test.go b/src/cmd/go/script_test.go
+index 5e50dd14c7..31e527fd40 100644
+--- a/src/cmd/go/script_test.go
++++ b/src/cmd/go/script_test.go
+@@ -502,9 +502,6 @@ func (ts *testScript) doCmdCmp(args []string, env, quiet bool) {
+ 
+ // cp copies files, maybe eventually directories.
+ func (ts *testScript) cmdCp(neg bool, args []string) {
+-	if neg {
+-		ts.fatalf("unsupported: ! cp")
+-	}
+ 	if len(args) < 2 {
+ 		ts.fatalf("usage: cp src... dst")
+ 	}
+@@ -543,7 +540,14 @@ func (ts *testScript) cmdCp(neg bool, args []string) {
+ 		if dstDir {
+ 			targ = filepath.Join(dst, filepath.Base(src))
+ 		}
+-		ts.check(ioutil.WriteFile(targ, data, mode))
++		err := ioutil.WriteFile(targ, data, mode)
++		if neg {
++			if err == nil {
++				ts.fatalf("unexpected command success")
++			}
++		} else {
++			ts.check(err)
++		}
+ 	}
+ }
+ 
+diff --git a/src/cmd/go/testdata/script/README b/src/cmd/go/testdata/script/README
+index 46444d84d8..ec886b18a1 100644
+--- a/src/cmd/go/testdata/script/README
++++ b/src/cmd/go/testdata/script/README
+@@ -107,7 +107,7 @@ The commands are:
+   Like cmp, but environment variables are substituted in the file contents
+   before the comparison. For example, $GOOS is replaced by the target GOOS.
+ 
+-- cp src... dst
++- [!] cp src... dst
+   Copy the listed files to the target file or existing directory.
+   src can include "stdout" or "stderr" to use the standard output or standard error
+   from the most recent exec or go command.
+diff --git a/src/cmd/go/testdata/script/mod_cache_rw.txt b/src/cmd/go/testdata/script/mod_cache_rw.txt
+new file mode 100644
+index 0000000000..ef91c7e2d5
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_cache_rw.txt
+@@ -0,0 +1,38 @@
++# Regression test for golang.org/issue/31481.
++
++env GO111MODULE=on
++
++# golang.org/issue/31481: an explicit flag should make directories in the module
++# cache writable in order to work around the historical inability of 'rm -rf' to
++# forcibly remove files in unwritable directories.
++go get -modcacherw -d rsc.io/quote@v1.5.2
++cp $WORK/extraneous.txt $GOPATH/pkg/mod/rsc.io/quote@v1.5.2/extraneous_file.go
++
++# After adding an extraneous file, 'go mod verify' should fail.
++! go mod verify
++
++# However, files within those directories should still be read-only to avoid
++# accidental mutations.
++# TODO: Today, this does not seem to be effective on Windows.
++# (https://golang.org/issue/35033)
++[!windows] [!root] ! cp $WORK/extraneous.txt $GOPATH/pkg/mod/rsc.io/quote@v1.5.2/go.mod
++
++# If all 'go' commands ran with the flag, the system's 'rm' binary
++# should be able to remove the module cache if the '-rf' flags are set.
++[!windows] [exec:rm] exec rm -rf $GOPATH/pkg/mod
++[!windows] [!exec:rm] go clean -modcache
++[windows] [exec:rmdir] exec rmdir /s /q $GOPATH\pkg\mod
++[windows] [!exec:rmdir] go clean -modcache
++! exists $GOPATH/pkg/mod
++
++# The directories in the module cache should by default be unwritable,
++# so that tests and tools will not accidentally add extraneous files to them.
++go get -d rsc.io/quote@latest
++[!windows] [!root] ! cp $WORK/extraneous.txt $GOPATH/pkg/mod/rsc.io/quote@v1.5.2/go.mod
++[!windows] [!root] ! cp $WORK/extraneous.txt $GOPATH/pkg/mod/rsc.io/quote@v1.5.2/extraneous_file.go
++! exists $GOPATH/pkg/mod/rsc.io/quote@v1.5.2/extraneous_file.go
++
++-- $WORK/extraneous.txt --
++module oops
++-- go.mod --
++module golang.org/issue/31481

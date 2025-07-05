@@ -17,7 +17,7 @@ Date:   Thu Jan 6 10:58:30 2022 -0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/syntax/parser.go                 | 12 +++++++++---
  src/cmd/compile/internal/syntax/parser_test.go            |  2 +-
  src/cmd/compile/internal/syntax/syntax.go                 |  1 +
@@ -33,3 +33,261 @@ Date:   Thu Jan 6 10:58:30 2022 -0800
  src/cmd/compile/internal/types2/types_test.go             |  9 ---------
  test/typeparam/issue50317.go                              | 15 +++++++++++++++
  14 files changed, 43 insertions(+), 45 deletions(-)
+
+diff --git a/src/cmd/compile/internal/syntax/parser.go b/src/cmd/compile/internal/syntax/parser.go
+index 40c5eca408..a75a3b1a2e 100644
+--- a/src/cmd/compile/internal/syntax/parser.go
++++ b/src/cmd/compile/internal/syntax/parser.go
+@@ -760,7 +760,13 @@ func (p *parser) funcDeclOrNil() *FuncDecl {
+ 	}
+ 
+ 	f.Name = p.name()
+-	f.TParamList, f.Type = p.funcType("")
++
++	context := ""
++	if f.Recv != nil && p.mode&AllowMethodTypeParams == 0 {
++		context = "method" // don't permit (method) type parameters in funcType
++	}
++	f.TParamList, f.Type = p.funcType(context)
++
+ 	if p.tok == _Lbrace {
+ 		f.Body = p.funcBody()
+ 	}
+@@ -1415,7 +1421,7 @@ func (p *parser) funcType(context string) ([]*Field, *FuncType) {
+ 	if p.allowGenerics() && p.got(_Lbrack) {
+ 		if context != "" {
+ 			// accept but complain
+-			p.syntaxErrorAt(typ.pos, context+" cannot have type parameters")
++			p.syntaxErrorAt(typ.pos, context+" must have no type parameters")
+ 		}
+ 		if p.tok == _Rbrack {
+ 			p.syntaxError("empty type parameter list")
+@@ -1823,7 +1829,7 @@ func (p *parser) methodDecl() *Field {
+ 				// TODO(gri) Record list as type parameter list with f.Type
+ 				//           if we want to type-check the generic method.
+ 				//           For now, report an error so this is not a silent event.
+-				p.errorAt(pos, "interface method cannot have type parameters")
++				p.errorAt(pos, "interface method must have no type parameters")
+ 				break
+ 			}
+ 
+diff --git a/src/cmd/compile/internal/syntax/parser_test.go b/src/cmd/compile/internal/syntax/parser_test.go
+index 68f3c376c9..e258a17c38 100644
+--- a/src/cmd/compile/internal/syntax/parser_test.go
++++ b/src/cmd/compile/internal/syntax/parser_test.go
+@@ -46,7 +46,7 @@ func TestParseGo2(t *testing.T) {
+ 	for _, fi := range list {
+ 		name := fi.Name()
+ 		if !fi.IsDir() && !strings.HasPrefix(name, ".") {
+-			ParseFile(filepath.Join(dir, name), func(err error) { t.Error(err) }, nil, AllowGenerics)
++			ParseFile(filepath.Join(dir, name), func(err error) { t.Error(err) }, nil, AllowGenerics|AllowMethodTypeParams)
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/syntax/syntax.go b/src/cmd/compile/internal/syntax/syntax.go
+index f3d4c09ed5..25c8116206 100644
+--- a/src/cmd/compile/internal/syntax/syntax.go
++++ b/src/cmd/compile/internal/syntax/syntax.go
+@@ -17,6 +17,7 @@ type Mode uint
+ const (
+ 	CheckBranches Mode = 1 << iota // check correct use of labels, break, continue, and goto statements
+ 	AllowGenerics
++	AllowMethodTypeParams // does not support interface methods yet; ignored if AllowGenerics is not set
+ )
+ 
+ // Error describes a syntax error. Error implements the error interface.
+diff --git a/src/cmd/compile/internal/syntax/testdata/issue48382.go2 b/src/cmd/compile/internal/syntax/testdata/issue48382.go2
+index 1e8f4b0ec6..c00fee6f82 100644
+--- a/src/cmd/compile/internal/syntax/testdata/issue48382.go2
++++ b/src/cmd/compile/internal/syntax/testdata/issue48382.go2
+@@ -4,12 +4,12 @@
+ 
+ package p
+ 
+-type _ func /* ERROR function type cannot have type parameters */ [ /* ERROR empty type parameter list */ ]()
+-type _ func /* ERROR function type cannot have type parameters */ [ x /* ERROR missing type constraint */ ]()
+-type _ func /* ERROR function type cannot have type parameters */ [P any]()
++type _ func /* ERROR function type must have no type parameters */ [ /* ERROR empty type parameter list */ ]()
++type _ func /* ERROR function type must have no type parameters */ [ x /* ERROR missing type constraint */ ]()
++type _ func /* ERROR function type must have no type parameters */ [P any]()
+ 
+-var _ = func /* ERROR function literal cannot have type parameters */ [P any]() {}
++var _ = func /* ERROR function literal must have no type parameters */ [P any]() {}
+ 
+ type _ interface{
+-        m /* ERROR interface method cannot have type parameters */ [P any]()
++        m /* ERROR interface method must have no type parameters */ [P any]()
+ }
+diff --git a/src/cmd/compile/internal/syntax/testdata/tparams.go2 b/src/cmd/compile/internal/syntax/testdata/tparams.go2
+index 80e155bfe0..a9bd72cf2d 100644
+--- a/src/cmd/compile/internal/syntax/testdata/tparams.go2
++++ b/src/cmd/compile/internal/syntax/testdata/tparams.go2
+@@ -13,7 +13,7 @@ type t struct {
+ }
+ type t interface {
+ 	t[a]
+-	m /* ERROR method cannot have type parameters */ [_ _, /* ERROR mixed */ _]()
++	m /* ERROR method must have no type parameters */ [_ _, /* ERROR mixed */ _]()
+ 	t[a, b]
+ }
+ 
+diff --git a/src/cmd/compile/internal/types2/api_test.go b/src/cmd/compile/internal/types2/api_test.go
+index dee7ffbaf7..28c1f97e87 100644
+--- a/src/cmd/compile/internal/types2/api_test.go
++++ b/src/cmd/compile/internal/types2/api_test.go
+@@ -25,7 +25,7 @@ const brokenPkg = "package broken_"
+ 
+ func parseSrc(path, src string) (*syntax.File, error) {
+ 	errh := func(error) {} // dummy error handler so that parsing continues in presence of errors
+-	return syntax.Parse(syntax.NewFileBase(path), strings.NewReader(src), errh, nil, syntax.AllowGenerics)
++	return syntax.Parse(syntax.NewFileBase(path), strings.NewReader(src), errh, nil, syntax.AllowGenerics|syntax.AllowMethodTypeParams)
+ }
+ 
+ func pkgFor(path, source string, info *Info) (*Package, error) {
+diff --git a/src/cmd/compile/internal/types2/check_test.go b/src/cmd/compile/internal/types2/check_test.go
+index f13679d1e3..1868ad0c6e 100644
+--- a/src/cmd/compile/internal/types2/check_test.go
++++ b/src/cmd/compile/internal/types2/check_test.go
+@@ -118,7 +118,7 @@ func testFiles(t *testing.T, filenames []string, colDelta uint, manual bool) {
+ 
+ 	var mode syntax.Mode
+ 	if strings.HasSuffix(filenames[0], ".go2") || manual {
+-		mode |= syntax.AllowGenerics
++		mode |= syntax.AllowGenerics | syntax.AllowMethodTypeParams
+ 	}
+ 	// parse files and collect parser errors
+ 	files, errlist := parseFiles(t, filenames, mode)
+diff --git a/src/cmd/compile/internal/types2/interface.go b/src/cmd/compile/internal/types2/interface.go
+index b048fdd9e2..4ce75c476c 100644
+--- a/src/cmd/compile/internal/types2/interface.go
++++ b/src/cmd/compile/internal/types2/interface.go
+@@ -136,13 +136,6 @@ func (check *Checker) interfaceType(ityp *Interface, iface *syntax.InterfaceType
+ 			continue // ignore
+ 		}
+ 
+-		// Always type-check method type parameters but complain if they are not enabled.
+-		// (This extra check is needed here because interface method signatures don't have
+-		// a receiver specification.)
+-		if sig.tparams != nil && !acceptMethodTypeParams {
+-			check.error(f.Type, "methods cannot have type parameters")
+-		}
+-
+ 		// use named receiver type if available (for better error messages)
+ 		var recvTyp Type = ityp
+ 		if def != nil {
+diff --git a/src/cmd/compile/internal/types2/lookup.go b/src/cmd/compile/internal/types2/lookup.go
+index 77a70a0510..0cce3fdc3f 100644
+--- a/src/cmd/compile/internal/types2/lookup.go
++++ b/src/cmd/compile/internal/types2/lookup.go
+@@ -282,6 +282,11 @@ func MissingMethod(V Type, T *Interface, static bool) (method *Func, wrongType b
+ 	return m, typ != nil
+ }
+ 
++// If we accept type parameters for methods, (at least) the code
++// guarded with this constant will need to be adjusted when such
++// methods are used (not just parsed).
++const acceptMethodTypeParams = false
++
+ // missingMethod is like MissingMethod but accepts a *Checker as
+ // receiver and an addressable flag.
+ // The receiver may be nil if missingMethod is invoked through
+diff --git a/src/cmd/compile/internal/types2/resolver.go b/src/cmd/compile/internal/types2/resolver.go
+index a8cb244c55..a0cad40429 100644
+--- a/src/cmd/compile/internal/types2/resolver.go
++++ b/src/cmd/compile/internal/types2/resolver.go
+@@ -448,15 +448,10 @@ func (check *Checker) collectObjects() {
+ 				} else {
+ 					// method
+ 					// d.Recv != nil
+-					if !acceptMethodTypeParams && len(s.TParamList) != 0 {
+-						//check.error(d.TParamList.Pos(), invalidAST + "method must have no type parameters")
+-						check.error(s.TParamList[0], invalidAST+"method must have no type parameters")
+-						hasTParamError = true
+-					}
+ 					ptr, recv, _ := check.unpackRecv(s.Recv.Type, false)
+-					// (Methods with invalid receiver cannot be associated to a type, and
++					// Methods with invalid receiver cannot be associated to a type, and
+ 					// methods with blank _ names are never found; no need to collect any
+-					// of them. They will still be type-checked with all the other functions.)
++					// of them. They will still be type-checked with all the other functions.
+ 					if recv != nil && name != "_" {
+ 						methods = append(methods, methodInfo{obj, ptr, recv})
+ 					}
+diff --git a/src/cmd/compile/internal/types2/signature.go b/src/cmd/compile/internal/types2/signature.go
+index 06dcd9131a..39161fcdf5 100644
+--- a/src/cmd/compile/internal/types2/signature.go
++++ b/src/cmd/compile/internal/types2/signature.go
+@@ -91,9 +91,6 @@ func (s *Signature) String() string   { return TypeString(s, nil) }
+ // ----------------------------------------------------------------------------
+ // Implementation
+ 
+-// Disabled by default, but enabled when running tests (via types_test.go).
+-var acceptMethodTypeParams bool
+-
+ // funcType type-checks a function or method type.
+ func (check *Checker) funcType(sig *Signature, recvPar *syntax.Field, tparams []*syntax.Field, ftyp *syntax.FuncType) {
+ 	check.openScope(ftyp, "function")
+@@ -163,13 +160,8 @@ func (check *Checker) funcType(sig *Signature, recvPar *syntax.Field, tparams []
+ 	}
+ 
+ 	if tparams != nil {
++		// The parser will complain about invalid type parameters for methods.
+ 		check.collectTypeParams(&sig.tparams, tparams)
+-		// Always type-check method type parameters but complain if they are not enabled.
+-		// (A separate check is needed when type-checking interface method signatures because
+-		// they don't have a receiver specification.)
+-		if recvPar != nil && !acceptMethodTypeParams {
+-			check.error(ftyp, "methods cannot have type parameters")
+-		}
+ 	}
+ 
+ 	// Value (non-type) parameters' scope starts in the function body. Use a temporary scope for their
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39634.go2 b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39634.go2
+index 9a98f7f955..c56f23918d 100644
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39634.go2
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39634.go2
+@@ -85,7 +85,7 @@ func (t T25[A]) m1() {}
+ var x T25 /* ERROR without instantiation */ .m1
+ 
+ // crash 26
+-type T26 = interface{ F26[ /* ERROR cannot have type parameters */ Z any]() }
++type T26 = interface{ F26[ /* ERROR interface method must have no type parameters */ Z any]() }
+ func F26[Z any]() T26 { return F26 /* ERROR without instantiation */ [] /* ERROR operand */ }
+ 
+ // crash 27
+diff --git a/src/cmd/compile/internal/types2/types_test.go b/src/cmd/compile/internal/types2/types_test.go
+deleted file mode 100644
+index 11dca0b53d..0000000000
+--- a/src/cmd/compile/internal/types2/types_test.go
++++ /dev/null
+@@ -1,9 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package types2
+-
+-func init() {
+-	acceptMethodTypeParams = true
+-}
+diff --git a/test/typeparam/issue50317.go b/test/typeparam/issue50317.go
+new file mode 100644
+index 0000000000..c33c4f061c
+--- /dev/null
++++ b/test/typeparam/issue50317.go
+@@ -0,0 +1,15 @@
++// errorcheck
++
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type S struct{}
++
++func (S) _[_ any]() {} // ERROR "method must have no type parameters"
++
++type _ interface {
++	m[_ any]() // ERROR "method must have no type parameters"
++}

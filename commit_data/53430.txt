@@ -12,10 +12,192 @@ Date:   Thu May 19 11:57:50 2022 +0200
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Changkun Ou <mail@changkun.de>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  api/next/42537.txt          |  4 ++++
  src/bytes/bytes.go          | 26 ++++++++++++++++++++++++++
  src/bytes/bytes_test.go     | 42 ++++++++++++++++++++++++++++++++++++++++++
  src/strings/strings.go      | 22 ++++++++++++++++++++++
  src/strings/strings_test.go | 42 ++++++++++++++++++++++++++++++++++++++++++
  5 files changed, 136 insertions(+)
+
+diff --git a/api/next/42537.txt b/api/next/42537.txt
+new file mode 100644
+index 0000000000..4f2446aaf3
+--- /dev/null
++++ b/api/next/42537.txt
+@@ -0,0 +1,4 @@
++pkg bytes, func CutPrefix([]uint8, []uint8) ([]uint8, bool) #42537
++pkg bytes, func CutSuffix([]uint8, []uint8) ([]uint8, bool) #42537
++pkg strings, func CutPrefix(string, string) (string, bool) #42537
++pkg strings, func CutSuffix(string, string) (string, bool) #42537
+\ No newline at end of file
+diff --git a/src/bytes/bytes.go b/src/bytes/bytes.go
+index 27834fc6db..c0cd704180 100644
+--- a/src/bytes/bytes.go
++++ b/src/bytes/bytes.go
+@@ -1309,3 +1309,29 @@ func Clone(b []byte) []byte {
+ 	}
+ 	return append([]byte{}, b...)
+ }
++
++// CutPrefix returns s without the provided leading prefix byte slice
++// and reports whether it found the prefix.
++// If s doesn't start with prefix, CutPrefix returns s, false.
++// If prefix is the empty byte slice, CutPrefix returns s, true.
++//
++// CutPrefix returns slices of the original slice s, not copies.
++func CutPrefix(s, prefix []byte) (after []byte, found bool) {
++	if !HasPrefix(s, prefix) {
++		return s, false
++	}
++	return s[len(prefix):], true
++}
++
++// CutSuffix returns s without the provided ending suffix byte slice
++// and reports whether it found the suffix.
++// If s doesn't end with suffix, CutSuffix returns s, false.
++// If suffix is the empty byte slice, CutSuffix returns s, true.
++//
++// CutSuffix returns slices of the original slice s, not copies.
++func CutSuffix(s, suffix []byte) (after []byte, found bool) {
++	if !HasSuffix(s, suffix) {
++		return s, false
++	}
++	return s[:len(s)-len(suffix)], true
++}
+diff --git a/src/bytes/bytes_test.go b/src/bytes/bytes_test.go
+index 392657d1fa..05c7ccc50a 100644
+--- a/src/bytes/bytes_test.go
++++ b/src/bytes/bytes_test.go
+@@ -1700,6 +1700,48 @@ func TestCut(t *testing.T) {
+ 	}
+ }
+ 
++var cutPrefixTests = []struct {
++	s, sep string
++	after  string
++	found  bool
++}{
++	{"abc", "a", "bc", true},
++	{"abc", "abc", "", true},
++	{"abc", "", "abc", true},
++	{"abc", "d", "abc", false},
++	{"", "d", "", false},
++	{"", "", "", true},
++}
++
++func TestCutPrefix(t *testing.T) {
++	for _, tt := range cutPrefixTests {
++		if after, found := CutPrefix([]byte(tt.s), []byte(tt.sep)); string(after) != tt.after || found != tt.found {
++			t.Errorf("CutPrefix(%q, %q) = %q, %v, want %q, %v", tt.s, tt.sep, after, found, tt.after, tt.found)
++		}
++	}
++}
++
++var cutSuffixTests = []struct {
++	s, sep string
++	after  string
++	found  bool
++}{
++	{"abc", "bc", "a", true},
++	{"abc", "abc", "", true},
++	{"abc", "", "abc", true},
++	{"abc", "d", "abc", false},
++	{"", "d", "", false},
++	{"", "", "", true},
++}
++
++func TestCutSuffix(t *testing.T) {
++	for _, tt := range cutSuffixTests {
++		if after, found := CutSuffix([]byte(tt.s), []byte(tt.sep)); string(after) != tt.after || found != tt.found {
++			t.Errorf("CutSuffix(%q, %q) = %q, %v, want %q, %v", tt.s, tt.sep, after, found, tt.after, tt.found)
++		}
++	}
++}
++
+ func TestBufferGrowNegative(t *testing.T) {
+ 	defer func() {
+ 		if err := recover(); err == nil {
+diff --git a/src/strings/strings.go b/src/strings/strings.go
+index 013d718426..4ab78c326b 100644
+--- a/src/strings/strings.go
++++ b/src/strings/strings.go
+@@ -1187,3 +1187,25 @@ func Cut(s, sep string) (before, after string, found bool) {
+ 	}
+ 	return s, "", false
+ }
++
++// CutPrefix returns s without the provided leading prefix string
++// and reports whether it found the prefix.
++// If s doesn't start with prefix, CutPrefix returns s, false.
++// If prefix is the empty string, CutPrefix returns s, true.
++func CutPrefix(s, prefix string) (after string, found bool) {
++	if !HasPrefix(s, prefix) {
++		return s, false
++	}
++	return s[len(prefix):], true
++}
++
++// CutSuffix returns s without the provided ending suffix string
++// and reports whether it found the suffix.
++// If s doesn't end with suffix, CutSuffix returns s, false.
++// If suffix is the empty string, CutSuffix returns s, true.
++func CutSuffix(s, suffix string) (after string, found bool) {
++	if !HasSuffix(s, suffix) {
++		return s, false
++	}
++	return s[:len(s)-len(suffix)], true
++}
+diff --git a/src/strings/strings_test.go b/src/strings/strings_test.go
+index a1604c2c47..d6153aa226 100644
+--- a/src/strings/strings_test.go
++++ b/src/strings/strings_test.go
+@@ -1611,6 +1611,48 @@ func TestCut(t *testing.T) {
+ 	}
+ }
+ 
++var cutPrefixTests = []struct {
++	s, sep string
++	after  string
++	found  bool
++}{
++	{"abc", "a", "bc", true},
++	{"abc", "abc", "", true},
++	{"abc", "", "abc", true},
++	{"abc", "d", "abc", false},
++	{"", "d", "", false},
++	{"", "", "", true},
++}
++
++func TestCutPrefix(t *testing.T) {
++	for _, tt := range cutPrefixTests {
++		if after, found := CutPrefix(tt.s, tt.sep); after != tt.after || found != tt.found {
++			t.Errorf("CutPrefix(%q, %q) = %q, %v, want %q, %v", tt.s, tt.sep, after, found, tt.after, tt.found)
++		}
++	}
++}
++
++var cutSuffixTests = []struct {
++	s, sep string
++	after  string
++	found  bool
++}{
++	{"abc", "bc", "a", true},
++	{"abc", "abc", "", true},
++	{"abc", "", "abc", true},
++	{"abc", "d", "abc", false},
++	{"", "d", "", false},
++	{"", "", "", true},
++}
++
++func TestCutSuffix(t *testing.T) {
++	for _, tt := range cutSuffixTests {
++		if after, found := CutSuffix(tt.s, tt.sep); after != tt.after || found != tt.found {
++			t.Errorf("CutSuffix(%q, %q) = %q, %v, want %q, %v", tt.s, tt.sep, after, found, tt.after, tt.found)
++		}
++	}
++}
++
+ func makeBenchInputHard() string {
+ 	tokens := [...]string{
+ 		"<a>", "<p>", "<b>", "<strong>",

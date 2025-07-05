@@ -15,6 +15,27 @@ Date:   Tue Jan 10 15:22:11 2023 -0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Benny Siegert <bsiegert@gmail.com>
-
+---
  test/fixedbugs/issue20250.go | 8 +++-----
  1 file changed, 3 insertions(+), 5 deletions(-)
+
+diff --git a/test/fixedbugs/issue20250.go b/test/fixedbugs/issue20250.go
+index 7c6e796e8e..a6283c7595 100644
+--- a/test/fixedbugs/issue20250.go
++++ b/test/fixedbugs/issue20250.go
+@@ -14,12 +14,10 @@ type T struct {
+ 	s [2]string
+ }
+ 
+-func f(a T) { // ERROR "live at entry to f: a"
++func f(a T) { // ERROR "live at entry to f: a$"
+ 	var e interface{} // ERROR "stack object e interface \{\}$"
+-	// TODO(go.dev/issue/54402): Investigate why "live at entry to
+-	// f.func1" is sensitive to regabi.
+-	func() { // ERROR "live at entry to f.func1: (a &e|&e a)"
+-		e = a.s // ERROR "live at call to convT: &e" "stack object a T$"
++	func() { // ERROR "live at entry to f.func1: &e a$"
++		e = a.s // ERROR "live at call to convT: &e$" "stack object a T$"
+ 	}()
+ 	// Before the fix, both a and e were live at the previous line.
+ 	_ = e

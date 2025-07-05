@@ -34,7 +34,107 @@ Date:   Sat Feb 9 17:50:02 2019 +0000
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-
+---
  src/text/template/exec.go      |  7 ++++++
  src/text/template/exec_test.go | 49 +++++++++++++++++++++++++-----------------
  2 files changed, 36 insertions(+), 20 deletions(-)
+
+diff --git a/src/text/template/exec.go b/src/text/template/exec.go
+index 964bb87cda..62cf19d30c 100644
+--- a/src/text/template/exec.go
++++ b/src/text/template/exec.go
+@@ -576,6 +576,13 @@ func (s *state) evalField(dot reflect.Value, fieldName string, node parse.Node,
+ 	}
+ 	typ := receiver.Type()
+ 	receiver, isNil := indirect(receiver)
++	if receiver.Kind() == reflect.Interface && isNil {
++		// Calling a method on a nil interface can't work. The
++		// MethodByName method call below would panic.
++		s.errorf("nil pointer evaluating %s.%s", typ, fieldName)
++		return zero
++	}
++
+ 	// Unless it's an interface, need to get to a value of type *T to guarantee
+ 	// we see all methods of T and *T.
+ 	ptr := receiver
+diff --git a/src/text/template/exec_test.go b/src/text/template/exec_test.go
+index 5947e3ec63..a95631718c 100644
+--- a/src/text/template/exec_test.go
++++ b/src/text/template/exec_test.go
+@@ -58,8 +58,10 @@ type T struct {
+ 	Empty3 interface{}
+ 	Empty4 interface{}
+ 	// Non-empty interfaces.
+-	NonEmptyInterface    I
+-	NonEmptyInterfacePtS *I
++	NonEmptyInterface         I
++	NonEmptyInterfacePtS      *I
++	NonEmptyInterfaceNil      I
++	NonEmptyInterfaceTypedNil I
+ 	// Stringer.
+ 	Str fmt.Stringer
+ 	Err error
+@@ -141,24 +143,25 @@ var tVal = &T{
+ 		{"one": 1, "two": 2},
+ 		{"eleven": 11, "twelve": 12},
+ 	},
+-	Empty1:               3,
+-	Empty2:               "empty2",
+-	Empty3:               []int{7, 8},
+-	Empty4:               &U{"UinEmpty"},
+-	NonEmptyInterface:    &T{X: "x"},
+-	NonEmptyInterfacePtS: &siVal,
+-	Str:                  bytes.NewBuffer([]byte("foozle")),
+-	Err:                  errors.New("erroozle"),
+-	PI:                   newInt(23),
+-	PS:                   newString("a string"),
+-	PSI:                  newIntSlice(21, 22, 23),
+-	BinaryFunc:           func(a, b string) string { return fmt.Sprintf("[%s=%s]", a, b) },
+-	VariadicFunc:         func(s ...string) string { return fmt.Sprint("<", strings.Join(s, "+"), ">") },
+-	VariadicFuncInt:      func(a int, s ...string) string { return fmt.Sprint(a, "=<", strings.Join(s, "+"), ">") },
+-	NilOKFunc:            func(s *int) bool { return s == nil },
+-	ErrFunc:              func() (string, error) { return "bla", nil },
+-	PanicFunc:            func() string { panic("test panic") },
+-	Tmpl:                 Must(New("x").Parse("test template")), // "x" is the value of .X
++	Empty1:                    3,
++	Empty2:                    "empty2",
++	Empty3:                    []int{7, 8},
++	Empty4:                    &U{"UinEmpty"},
++	NonEmptyInterface:         &T{X: "x"},
++	NonEmptyInterfacePtS:      &siVal,
++	NonEmptyInterfaceTypedNil: (*T)(nil),
++	Str:                       bytes.NewBuffer([]byte("foozle")),
++	Err:                       errors.New("erroozle"),
++	PI:                        newInt(23),
++	PS:                        newString("a string"),
++	PSI:                       newIntSlice(21, 22, 23),
++	BinaryFunc:                func(a, b string) string { return fmt.Sprintf("[%s=%s]", a, b) },
++	VariadicFunc:              func(s ...string) string { return fmt.Sprint("<", strings.Join(s, "+"), ">") },
++	VariadicFuncInt:           func(a int, s ...string) string { return fmt.Sprint(a, "=<", strings.Join(s, "+"), ">") },
++	NilOKFunc:                 func(s *int) bool { return s == nil },
++	ErrFunc:                   func() (string, error) { return "bla", nil },
++	PanicFunc:                 func() string { panic("test panic") },
++	Tmpl:                      Must(New("x").Parse("test template")), // "x" is the value of .X
+ }
+ 
+ var tSliceOfNil = []*T{nil}
+@@ -365,6 +368,7 @@ var execTests = []execTest{
+ 	{".NilOKFunc not nil", "{{call .NilOKFunc .PI}}", "false", tVal, true},
+ 	{".NilOKFunc nil", "{{call .NilOKFunc nil}}", "true", tVal, true},
+ 	{"method on nil value from slice", "-{{range .}}{{.Method1 1234}}{{end}}-", "-1234-", tSliceOfNil, true},
++	{"method on typed nil interface value", "{{.NonEmptyInterfaceTypedNil.Method0}}", "M0", tVal, true},
+ 
+ 	// Function call builtin.
+ 	{".BinaryFunc", "{{call .BinaryFunc `1` `2`}}", "[1=2]", tVal, true},
+@@ -1557,6 +1561,11 @@ func TestExecutePanicDuringCall(t *testing.T) {
+ 			"{{call .PanicFunc}}", tVal,
+ 			`template: t:1:2: executing "t" at <call .PanicFunc>: error calling call: test panic`,
+ 		},
++		{
++			"method call on nil interface",
++			"{{.NonEmptyInterfaceNil.Method0}}", tVal,
++			`template: t:1:23: executing "t" at <.NonEmptyInterfaceNil.Method0>: nil pointer evaluating template.I.Method0`,
++		},
+ 	}
+ 	for _, tc := range tests {
+ 		b := new(bytes.Buffer)

@@ -7,6 +7,20 @@ Date:   Thu Apr 5 18:59:50 2012 +0400
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5985048
-
+---
  src/pkg/runtime/asm_386.s | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/asm_386.s b/src/pkg/runtime/asm_386.s
+index 124fd2766b..3ab34d34cb 100644
+--- a/src/pkg/runtime/asm_386.s
++++ b/src/pkg/runtime/asm_386.s
+@@ -323,7 +323,7 @@ TEXT runtime·cas64(SB), 7, $0
+ cas64_fail:
+ 	MOVL	AX, 0(SI)
+ 	MOVL	DX, 4(SI)
+-	XORL	AX, AX
++	MOVL	$0, AX
+ 	RET
+ 
+ // bool casp(void **p, void *old, void *new)

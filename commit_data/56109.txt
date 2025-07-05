@@ -12,6 +12,20 @@ Date:   Sun Apr 9 22:51:47 2023 +0800
     TryBot-Bypass: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
-
+---
  doc/go_spec.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index cbcaf3a338..8aea636c6b 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1885,7 +1885,7 @@ interface{ ~[]byte | myString }           // bytestring
+ 
+ <p>
+ Note that <code>bytestring</code> is not a real type; it cannot be used to declare
+-variables are compose other types. It exists solely to describe the behavior of some
++variables or compose other types. It exists solely to describe the behavior of some
+ operations that read from a sequence of bytes, which may be a byte slice or a string.
+ </p>
+ 

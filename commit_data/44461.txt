@@ -13,7 +13,7 @@ Date:   Tue Jul 7 14:04:18 2020 -0400
     Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  .../internal/{macOS => macos}/corefoundation.go    |  0
  .../internal/{macOS => macos}/corefoundation.s     |  0
  .../x509/internal/{macOS => macos}/security.go     |  0
@@ -22,3 +22,101 @@ Date:   Tue Jul 7 14:04:18 2020 -0400
  src/go/build/deps_test.go                          | 26 +++++++++++++++++++---
  src/runtime/sys_darwin.go                          |  2 +-
  7 files changed, 25 insertions(+), 5 deletions(-)
+
+diff --git a/src/crypto/x509/internal/macOS/corefoundation.go b/src/crypto/x509/internal/macos/corefoundation.go
+similarity index 100%
+rename from src/crypto/x509/internal/macOS/corefoundation.go
+rename to src/crypto/x509/internal/macos/corefoundation.go
+diff --git a/src/crypto/x509/internal/macOS/corefoundation.s b/src/crypto/x509/internal/macos/corefoundation.s
+similarity index 100%
+rename from src/crypto/x509/internal/macOS/corefoundation.s
+rename to src/crypto/x509/internal/macos/corefoundation.s
+diff --git a/src/crypto/x509/internal/macOS/security.go b/src/crypto/x509/internal/macos/security.go
+similarity index 100%
+rename from src/crypto/x509/internal/macOS/security.go
+rename to src/crypto/x509/internal/macos/security.go
+diff --git a/src/crypto/x509/internal/macOS/security.s b/src/crypto/x509/internal/macos/security.s
+similarity index 100%
+rename from src/crypto/x509/internal/macOS/security.s
+rename to src/crypto/x509/internal/macos/security.s
+diff --git a/src/crypto/x509/root_darwin_amd64.go b/src/crypto/x509/root_darwin_amd64.go
+index ccc37b8ec5..ce88de025e 100644
+--- a/src/crypto/x509/root_darwin_amd64.go
++++ b/src/crypto/x509/root_darwin_amd64.go
+@@ -8,7 +8,7 @@ package x509
+ 
+ import (
+ 	"bytes"
+-	"crypto/x509/internal/macOS"
++	macOS "crypto/x509/internal/macos"
+ 	"fmt"
+ 	"os"
+ 	"strings"
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index bd0ebce1c7..fa8ecf10f4 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -10,6 +10,7 @@ package build
+ import (
+ 	"bytes"
+ 	"fmt"
++	"internal/testenv"
+ 	"io/ioutil"
+ 	"os"
+ 	"path/filepath"
+@@ -387,7 +388,7 @@ var depsRules = `
+ 	< golang.org/x/crypto/poly1305
+ 	< golang.org/x/crypto/chacha20poly1305
+ 	< golang.org/x/crypto/hkdf
+-	< crypto/x509/internal/macOS
++	< crypto/x509/internal/macos
+ 	< crypto/x509/pkix
+ 	< crypto/x509
+ 	< crypto/tls;
+@@ -516,8 +517,7 @@ func listStdPkgs(goroot string) ([]string, error) {
+ }
+ 
+ func TestDependencies(t *testing.T) {
+-	iOS := runtime.GOOS == "darwin" && runtime.GOARCH == "arm64"
+-	if iOS {
++	if !testenv.HasSrc() {
+ 		// Tests run in a limited file system and we do not
+ 		// provide access to every source file.
+ 		t.Skipf("skipping on %s/%s, missing full GOROOT", runtime.GOOS, runtime.GOARCH)
+@@ -805,3 +805,23 @@ func (p *depsParser) nextToken() string {
+ 		}
+ 	}
+ }
++
++// TestStdlibLowercase tests that all standard library package names are
++// lowercase. See Issue 40065.
++func TestStdlibLowercase(t *testing.T) {
++	if !testenv.HasSrc() {
++		t.Skipf("skipping on %s/%s, missing full GOROOT", runtime.GOOS, runtime.GOARCH)
++	}
++
++	ctxt := Default
++	all, err := listStdPkgs(ctxt.GOROOT)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	for _, pkgname := range all {
++		if strings.ToLower(pkgname) != pkgname {
++			t.Errorf("package %q should not use upper-case path", pkgname)
++		}
++	}
++}
+diff --git a/src/runtime/sys_darwin.go b/src/runtime/sys_darwin.go
+index 28c500a710..06474434c9 100644
+--- a/src/runtime/sys_darwin.go
++++ b/src/runtime/sys_darwin.go
+@@ -129,7 +129,7 @@ func syscall_rawSyscall6(fn, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintpt
+ 
+ // syscallNoErr is used in crypto/x509 to call into Security.framework and CF.
+ 
+-//go:linkname crypto_x509_syscall crypto/x509/internal/macOS.syscall
++//go:linkname crypto_x509_syscall crypto/x509/internal/macos.syscall
+ //go:nosplit
+ //go:cgo_unsafe_args
+ func crypto_x509_syscall(fn, a1, a2, a3, a4, a5, a6 uintptr) (r1 uintptr) {

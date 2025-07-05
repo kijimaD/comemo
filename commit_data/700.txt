@@ -11,7 +11,7 @@ Date:   Mon Sep 22 13:47:53 2008 -0700
     DELTA=70  (22 added, 30 deleted, 18 changed)
     OCL=15618
     CL=15642
-
+---
  src/runtime/rt1_amd64_darwin.c |  8 +++++---
  src/runtime/rt1_amd64_linux.c  | 16 +++++++++-------
  src/runtime/runtime.c          | 17 +++++++++++++++--
@@ -19,3 +19,202 @@ Date:   Mon Sep 22 13:47:53 2008 -0700
  test/golden.out                | 40 +++++-----------------------------------
  test/run                       |  4 ++++
  6 files changed, 39 insertions(+), 47 deletions(-)
+
+diff --git a/src/runtime/rt1_amd64_darwin.c b/src/runtime/rt1_amd64_darwin.c
+index cf4f3bcdad..02f03cdf72 100644
+--- a/src/runtime/rt1_amd64_darwin.c
++++ b/src/runtime/rt1_amd64_darwin.c
+@@ -150,9 +150,11 @@ sighandler(int32 sig, siginfo *info, void *context)
+ 	prints("\npc: 0x");  sys·printpointer((void *)ss->__rip);
+ 	prints("\n\n");
+ 
+-	traceback((void *)ss->__rip, (void *)ss->__rsp, (void*)ss->__r15);
+-	tracebackothers((void*)ss->__r15);
+-	print_thread_state(ss);
++	if(gotraceback()){
++		traceback((void *)ss->__rip, (void *)ss->__rsp, (void*)ss->__r15);
++		tracebackothers((void*)ss->__r15);
++		print_thread_state(ss);
++	}
+ 
+ 	sys·exit(2);
+ }
+diff --git a/src/runtime/rt1_amd64_linux.c b/src/runtime/rt1_amd64_linux.c
+index c62db5ce95..98a53f18e8 100644
+--- a/src/runtime/rt1_amd64_linux.c
++++ b/src/runtime/rt1_amd64_linux.c
+@@ -140,7 +140,7 @@ sighandler(int32 sig, siginfo* info, void** context)
+ 	if(panicking)	// traceback already printed
+ 		sys·exit(2);
+ 
+-        struct sigcontext *sc = &(((struct ucontext *)context)->uc_mcontext);
++	struct sigcontext *sc = &(((struct ucontext *)context)->uc_mcontext);
+ 
+ 	if(sig < 0 || sig >= NSIG){
+ 		prints("Signal ");
+@@ -149,13 +149,15 @@ sighandler(int32 sig, siginfo* info, void** context)
+ 		prints(sigtab[sig].name);
+ 	}
+ 
+-        prints("\nFaulting address: 0x");  sys·printpointer(info->si_addr);
+-        prints("\npc: 0x");  sys·printpointer((void *)sc->rip);
+-        prints("\n\n");
++	prints("\nFaulting address: 0x");  sys·printpointer(info->si_addr);
++	prints("\npc: 0x");  sys·printpointer((void *)sc->rip);
++	prints("\n\n");
+ 
+-	traceback((void *)sc->rip, (void *)sc->rsp, (void *)sc->r15);
+-	tracebackothers((void*)sc->r15);
+-	print_sigcontext(sc);
++	if(gotraceback()){
++		traceback((void *)sc->rip, (void *)sc->rsp, (void *)sc->r15);
++		tracebackothers((void*)sc->r15);
++		print_sigcontext(sc);
++	}
+ 
+ 	sys·breakpoint();
+ 	sys·exit(2);
+diff --git a/src/runtime/runtime.c b/src/runtime/runtime.c
+index 2cbebda219..5fde296700 100644
+--- a/src/runtime/runtime.c
++++ b/src/runtime/runtime.c
+@@ -6,6 +6,17 @@
+ 
+ int32	panicking = 0;
+ 
++int32
++gotraceback(void)
++{
++	byte *p;
++
++	p = getenv("GOTRACEBACK");
++	if(p == nil || p[0] == '\0')
++		return 1;	// default is on
++	return atoi(p);
++}
++
+ void
+ sys·panicl(int32 lno)
+ {
+@@ -17,8 +28,10 @@ sys·panicl(int32 lno)
+ 	sys·printpc(&lno);
+ 	prints("\n");
+ 	sp = (uint8*)&lno;
+-	traceback(sys·getcallerpc(&lno), sp, g);
+-	tracebackothers(g);
++	if(gotraceback()){
++		traceback(sys·getcallerpc(&lno), sp, g);
++		tracebackothers(g);
++	}
+ 	panicking = 1;
+ 	sys·breakpoint();  // so we can grab it in a debugger
+ 	sys·exit(2);
+diff --git a/src/runtime/runtime.h b/src/runtime/runtime.h
+index 04f1737dd0..3d439ca452 100644
+--- a/src/runtime/runtime.h
++++ b/src/runtime/runtime.h
+@@ -212,6 +212,7 @@ void	mcpy(byte*, byte*, uint32);
+ void*	mal(uint32);
+ uint32	cmpstring(string, string);
+ void	initsig(void);
++int32	gotraceback(void);
+ void	traceback(uint8 *pc, uint8 *sp, G* gp);
+ void	tracebackothers(G*);
+ int32	open(byte*, int32, ...);
+diff --git a/test/golden.out b/test/golden.out
+index 758e5b5959..ceac2404f6 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -128,17 +128,7 @@ BUG: compilation succeeds incorrectly
+ throw: ifaces2i: nil pointer
+ SIGSEGV: segmentation violation
+ Faulting address: 0x0
+-pc: 0x1c11
+-
+-0x1c11?zi
+-	throw(30465, 0, 0, ...)
+-	throw(0x7701, 0x0, 0x0, ...)
+-0x2113?zi
+-	sys·ifaces2i(31496, 0, 31536, ...)
+-	sys·ifaces2i(0x7b08, 0x7b30, 0x0, ...)
+-0x136f?zi
+-	main·main(1, 0, 1606414952, ...)
+-	main·main(0x1, 0x7fff5fbff268, 0x0, ...)
++pc: xxx
+ 
+ BUG: fails incorrectly
+ 
+@@ -152,18 +142,12 @@ BUG: fails incorrectly
+ =========== bugs/bug095.go
+ found 2, expected 1
+ 
+-panic on line 352 PC=0x139e
+-0x139e?zi
+-	main·main(1, 0, 1606414952, ...)
+-	main·main(0x1, 0x7fff5fbff268, 0x0, ...)
++panic on line 352 PC=xxx
+ BUG wrong result
+ 
+ =========== bugs/bug097.go
+ 
+-panic on line 354 PC=0x13bc
+-0x13bc?zi
+-	main·main(1, 0, 1606414952, ...)
+-	main·main(0x1, 0x7fff5fbff268, 0x0, ...)
++panic on line 354 PC=xxx
+ BUG wrong result
+ 
+ =========== bugs/bug098.go
+@@ -176,28 +160,14 @@ BUG should compile
+ done1
+ SIGSEGV: segmentation violation
+ Faulting address: 0x0
+-pc: 0x0
+-
+-0x0?zi
+-	panic(5070, 0, 45192, ...)
+-	panic(0x13ce, 0xb088, 0xb088, ...)
++pc: xxx
+ 
+ 
+ =========== bugs/bug102.go
+ throw: index out of range
+ SIGSEGV: segmentation violation
+ Faulting address: 0x0
+-pc: 0x2615
+-
+-0x2615?zi
+-	throw(31052, 0, 0, ...)
+-	throw(0x794c, 0x0, 0x1315, ...)
+-0x2569?zi
+-	sys·throwindex(45096, 0, 0, ...)
+-	sys·throwindex(0xb028, 0x0, 0x0, ...)
+-0x1315?zi
+-	main·main(1, 0, 1606414952, ...)
+-	main·main(0x1, 0x7fff5fbff268, 0x0, ...)
++pc: xxx
+ 
+ 
+ =========== fixedbugs/bug016.go
+diff --git a/test/run b/test/run
+index dc429dd67b..3617301c29 100755
+--- a/test/run
++++ b/test/run
+@@ -15,6 +15,7 @@ esac
+ 
+ export G=${A}g
+ export L=${A}l
++export GOTRACEBACK=0
+ 
+ failed=0
+ 
+@@ -55,6 +56,9 @@ done | # clean up some stack noise
+ 	egrep -v '^(r[0-9a-z]+|[cfg]s)  +0x'  |
+ 	sed '/tmp.*Bus error/s/.*Bus/Bus/; /tmp.*Trace.BPT/s/.*Trace/Trace/
+ 		s!'$RUNFILE'!$RUNFILE!g
++		s/ PC=0x[0-9a-f]*/ PC=xxx/
++		s/^pc: 0x[0-9a-f]*/pc: xxx/
++		/^Trace\/breakpoint trap/d
+ 		/RUNFILE/ s/line 1: *[0-9]*/line 1: PID/' > run.out
+ 
+ case $failed in

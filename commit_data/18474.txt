@@ -14,7 +14,7 @@ Date:   Wed Feb 12 14:29:11 2014 -0500
     R=golang-codereviews, gobot, rsc, dave, iant, remyoudompheng
     CC=golang-codereviews
     https://golang.org/cl/49170043
-
+---
  include/link.h       |  11 +-
  include/plan9/link.h |  12 --
  src/cmd/5a/lex.c     |   7 +
@@ -61,3 +61,3586 @@ Date:   Wed Feb 12 14:29:11 2014 -0500
  src/liblink/list6.c  |  34 +++--
  src/liblink/list8.c  |  34 +++--
  45 files changed, 216 insertions(+), 2477 deletions(-)
+
+diff --git a/include/link.h b/include/link.h
+index e040e203f8..3ddda7ae12 100644
+--- a/include/link.h
++++ b/include/link.h
+@@ -95,7 +95,6 @@ struct	Prog
+ 	Addr	to;
+ 	
+ 	// for 5g, 6g, 8g internal use
+-	uint32	loc;	// TODO: merge with pc?
+ 	void*	opt;
+ 
+ 	// for 5l, 6l, 8l internal use
+@@ -565,3 +564,13 @@ extern	char*	anames8[];
+ extern	LinkArch	link386;
+ extern	LinkArch	linkamd64;
+ extern	LinkArch	linkarm;
++
++#pragma	varargck	type	"A"	int
++#pragma	varargck	type	"D"	Addr*
++#pragma	varargck	type	"lD"	Addr*
++#pragma	varargck	type	"P"	Prog*
++#pragma	varargck	type	"R"	int
++
++// TODO(ality): remove this workaround.
++//   It's here because Pconv in liblink/list?.c references %L.
++#pragma	varargck	type	"L"	int32
+diff --git a/include/plan9/link.h b/include/plan9/link.h
+index b499260274..f65971efce 100644
+--- a/include/plan9/link.h
++++ b/include/plan9/link.h
+@@ -3,15 +3,3 @@
+ // license that can be found in the LICENSE file.
+ 
+ #include "../link.h"
+-
+-#pragma	varargck	type	"@"	Addr*
+-#pragma	varargck	type	"A"	int
+-#pragma	varargck	type	"$"	char*
+-#pragma	varargck	type	"D"	Addr*
+-#pragma	varargck	type	"lD"	Addr*
+-#pragma	varargck	type	"L"	int
+-#pragma	varargck	type	"lS"	LSym*
+-#pragma	varargck	type	"M"	Addr*
+-#pragma	varargck	type	"P"	Prog*
+-#pragma	varargck	type	"R"	int
+-#pragma	varargck	type	"S"	char*
+diff --git a/src/cmd/5a/lex.c b/src/cmd/5a/lex.c
+index df5ecc6489..13ad1128c3 100644
+--- a/src/cmd/5a/lex.c
++++ b/src/cmd/5a/lex.c
+@@ -51,6 +51,12 @@ systemtype(int sys)
+ #endif
+ }
+ 
++int
++Lconv(Fmt *fp)
++{
++	return linklinefmt(ctxt, fp);
++}
++
+ void
+ main(int argc, char *argv[])
+ {
+@@ -65,6 +71,7 @@ main(int argc, char *argv[])
+ 	ctxt->bso = &bstdout;
+ 	Binit(&bstdout, 1, OWRITE);
+ 	listinit5();
++	fmtinstall('L', Lconv);
+ 
+ 	ensuresymb(NSYMB);
+ 	memset(debug, 0, sizeof(debug));
+diff --git a/src/cmd/5c/gc.h b/src/cmd/5c/gc.h
+index 3b9ca4b2a0..40d3a2b070 100644
+--- a/src/cmd/5c/gc.h
++++ b/src/cmd/5c/gc.h
+@@ -50,7 +50,6 @@ typedef	struct	Case	Case;
+ typedef	struct	C1	C1;
+ typedef	struct	Multab	Multab;
+ typedef	struct	Hintab	Hintab;
+-typedef	struct	Var	Var;
+ typedef	struct	Reg	Reg;
+ typedef	struct	Rgn	Rgn;
+ 
+@@ -90,14 +89,6 @@ struct	Hintab
+ 	char	hint[10];
+ };
+ 
+-struct	Var
+-{
+-	int32	offset;
+-	LSym*	sym;
+-	char	name;
+-	char	etype;
+-};
+-
+ struct	Reg
+ {
+ 	int32	pc;
+@@ -203,7 +194,6 @@ EXTERN	Reg*	firstr;
+ EXTERN	Reg*	lastr;
+ EXTERN	Reg	zreg;
+ EXTERN	Reg*	freer;
+-EXTERN	Var	var[NVAR];
+ EXTERN	int32*	idom;
+ EXTERN	Reg**	rpo2r;
+ EXTERN	int32	maxnr;
+@@ -292,13 +282,6 @@ void	outcode(void);
+  * list
+  */
+ void	listinit(void);
+-int	Pconv(Fmt*);
+-int	Aconv(Fmt*);
+-int	Dconv(Fmt*);
+-int	Sconv(Fmt*);
+-int	Nconv(Fmt*);
+-int	Bconv(Fmt*);
+-int	Rconv(Fmt*);
+ 
+ /*
+  * reg.c
+@@ -349,11 +332,3 @@ void	predicate(void);
+ int	isbranch(Prog *);
+ int	predicable(Prog *p);
+ int	modifiescpsr(Prog *p);
+-
+-#pragma	varargck	type	"A"	int
+-#pragma	varargck	type	"B"	Bits
+-#pragma	varargck	type	"D"	Addr*
+-#pragma	varargck	type	"N"	Addr*
+-#pragma	varargck	type	"R"	Addr*
+-#pragma	varargck	type	"P"	Prog*
+-#pragma	varargck	type	"S"	char*
+diff --git a/src/cmd/5c/list.c b/src/cmd/5c/list.c
+index 8b3ddf249b..98da424dea 100644
+--- a/src/cmd/5c/list.c
++++ b/src/cmd/5c/list.c
+@@ -35,32 +35,5 @@
+ void
+ listinit(void)
+ {
+-	fmtinstall('B', Bconv);
+ 	listinit5();
+ }
+-
+-int
+-Bconv(Fmt *fp)
+-{
+-	char str[STRINGSZ], ss[STRINGSZ], *s;
+-	Bits bits;
+-	int i;
+-
+-	str[0] = 0;
+-	bits = va_arg(fp->args, Bits);
+-	while(bany(&bits)) {
+-		i = bnum(bits);
+-		if(str[0])
+-			strcat(str, " ");
+-		if(var[i].sym == nil) {
+-			sprint(ss, "$%d", var[i].offset);
+-			s = ss;
+-		} else
+-			s = var[i].sym->name;
+-		if(strlen(str) + strlen(s) + 1 >= STRINGSZ)
+-			break;
+-		strcat(str, s);
+-		bits.b[i/32] &= ~(1L << (i%32));
+-	}
+-	return fmtstrcpy(fp, str);
+-}
+diff --git a/src/cmd/5g/galign.c b/src/cmd/5g/galign.c
+index d96591e9dd..62f435e0e3 100644
+--- a/src/cmd/5g/galign.c
++++ b/src/cmd/5g/galign.c
+@@ -39,5 +39,5 @@ betypeinit(void)
+ 	zprog.from.reg = NREG;
+ 	zprog.to = zprog.from;
+ 
+-	listinit();
++	listinit5();
+ }
+diff --git a/src/cmd/5g/gg.h b/src/cmd/5g/gg.h
+index c204e67f80..a67a50080a 100644
+--- a/src/cmd/5g/gg.h
++++ b/src/cmd/5g/gg.h
+@@ -117,16 +117,6 @@ void	datastring(char*, int, Addr*);
+ /*
+  * list.c
+  */
+-int	Aconv(Fmt*);
+-int	Cconv(Fmt*);
+-int	Dconv(Fmt*);
+-int	Mconv(Fmt*);
+-int	Pconv(Fmt*);
+-int	Rconv(Fmt*);
+-int	Yconv(Fmt*);
+ void	listinit(void);
+ 
+ void	zaddr(Biobuf*, Addr*, int, int);
+-
+-#pragma	varargck	type	"D"	Addr*
+-#pragma	varargck	type	"M"	Addr*
+diff --git a/src/cmd/5g/ggen.c b/src/cmd/5g/ggen.c
+index 7f079cfc84..9073841b41 100644
+--- a/src/cmd/5g/ggen.c
++++ b/src/cmd/5g/ggen.c
+@@ -846,7 +846,7 @@ expandchecks(Prog *firstp)
+ 		p1->link = p->link;
+ 		p->link = p1;
+ 		p1->lineno = p->lineno;
+-		p1->loc = 9999;
++		p1->pc = 9999;
+ 		p1->as = AMOVW;
+ 		p1->from.type = D_REG;
+ 		p1->from.reg = reg;
+diff --git a/src/cmd/5g/gsubr.c b/src/cmd/5g/gsubr.c
+index 15206d59ef..0daf40fa8d 100644
+--- a/src/cmd/5g/gsubr.c
++++ b/src/cmd/5g/gsubr.c
+@@ -50,7 +50,7 @@ clearp(Prog *p)
+ 	p->to.type = D_NONE;
+ 	p->to.name = D_NONE;
+ 	p->to.reg = NREG;
+-	p->loc = pcloc;
++	p->pc = pcloc;
+ 	pcloc++;
+ }
+ 
+@@ -138,7 +138,7 @@ patch(Prog *p, Prog *to)
+ 	if(p->to.type != D_BRANCH)
+ 		fatal("patch: not a branch");
+ 	p->to.u.branch = to;
+-	p->to.offset = to->loc;
++	p->to.offset = to->pc;
+ }
+ 
+ Prog*
+diff --git a/src/cmd/5g/list.c b/src/cmd/5g/list.c
+deleted file mode 100644
+index 190402988f..0000000000
+--- a/src/cmd/5g/list.c
++++ /dev/null
+@@ -1,342 +0,0 @@
+-// Derived from Inferno utils/5c/list.c
+-// http://code.google.com/p/inferno-os/source/browse/utils/5c/list.c
+-//
+-//	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+-//	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+-//	Portions Copyright © 1997-1999 Vita Nuova Limited
+-//	Portions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com)
+-//	Portions Copyright © 2004,2006 Bruce Ellis
+-//	Portions Copyright © 2005-2007 C H Forsyth (forsyth@terzarima.net)
+-//	Revisions Copyright © 2000-2007 Lucent Technologies Inc. and others
+-//	Portions Copyright © 2009 The Go Authors.  All rights reserved.
+-//
+-// Permission is hereby granted, free of charge, to any person obtaining a copy
+-// of this software and associated documentation files (the "Software"), to deal
+-// in the Software without restriction, including without limitation the rights
+-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+-// copies of the Software, and to permit persons to whom the Software is
+-// furnished to do so, subject to the following conditions:
+-//
+-// The above copyright notice and this permission notice shall be included in
+-// all copies or substantial portions of the Software.
+-//
+-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
+-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+-// THE SOFTWARE.
+-
+-#include <u.h>
+-#include <libc.h>
+-#include "gg.h"
+-
+-// TODO(kaib): make 5g/list.c congruent with 5l/list.c
+-
+-static	int	sconsize;
+-void
+-listinit(void)
+-{
+-
+-	fmtinstall('A', Aconv);		// as
+-	fmtinstall('C', Cconv);		// conditional execution bit
+-	fmtinstall('P', Pconv);			// Prog*
+-	fmtinstall('D', Dconv);		// Addr*
+-	fmtinstall('Y', Yconv);		// sconst
+-	fmtinstall('R', Rconv);		// register
+-	fmtinstall('M', Mconv);		// names
+-}
+-
+-int
+-Pconv(Fmt *fp)
+-{
+-	char str[STRINGSZ], str1[STRINGSZ];
+-	Prog *p;
+-
+-	p = va_arg(fp->args, Prog*);
+-	sconsize = 8;
+-	switch(p->as) {
+-	default:
+-		snprint(str1, sizeof(str1), "%A%C", p->as, p->scond);
+-		if(p->reg == NREG && p->as != AGLOBL)
+-			snprint(str, sizeof(str), "%.4d (%L) %-7s	%D,%D", 
+-				p->loc, p->lineno, str1, &p->from, &p->to);
+-		else
+-		if (p->from.type != D_FREG) {
+-			snprint(str, sizeof(str), "%.4d (%L) %-7s	%D,R%d,%D", 
+-				p->loc, p->lineno, str1, &p->from, p->reg, &p->to);
+-		} else
+-			snprint(str, sizeof(str), "%.4d (%L) %-7A%C	%D,F%d,%D",
+-				p->loc, p->lineno, p->as, p->scond, &p->from, p->reg, &p->to);
+-		break;
+-
+-	case ADATA:
+-		snprint(str, sizeof(str), "%.4d (%L) %-7A	%D/%d,%D",
+-			p->loc, p->lineno, p->as, &p->from, p->reg, &p->to);
+-		break;
+-	}
+-	return fmtstrcpy(fp, str);
+-}
+-
+-int
+-Dconv(Fmt *fp)
+-{
+-	char str[STRINGSZ];
+-	const char *op;
+-	Addr *a;
+-	int i;
+-	int32 v;
+-
+-	a = va_arg(fp->args, Addr*);
+-	if(a == nil) {
+-		sprint(str, "<nil>");
+-		goto conv;
+-	}
+-	i = a->type;
+-	switch(i) {
+-
+-	default:
+-		sprint(str, "GOK-type(%d)", a->type);
+-		break;
+-
+-	case D_NONE:
+-		str[0] = 0;
+-		if(a->name != D_NONE || a->reg != NREG || a->sym != nil)
+-			sprint(str, "%M(R%d)(NONE)", a, a->reg);
+-		break;
+-
+-	case D_CONST:
+-		if(a->reg != NREG)
+-			sprint(str, "$%M(R%d)", a, a->reg);
+-		else
+-			sprint(str, "$%M", a);
+-		break;
+-
+-	case D_CONST2:
+-		sprint(str, "$%d-%d", a->offset, a->offset2);
+-		break;
+-
+-	case D_SHIFT:
+-		v = a->offset;
+-		op = &"<<>>->@>"[(((v>>5) & 3) << 1)];
+-		if(v & (1<<4))
+-			sprint(str, "R%d%c%cR%d", v&15, op[0], op[1], (v>>8)&15);
+-		else
+-			sprint(str, "R%d%c%c%d", v&15, op[0], op[1], (v>>7)&31);
+-		if(a->reg != NREG)
+-			sprint(str+strlen(str), "(R%d)", a->reg);
+-		break;
+-
+-	case D_OCONST:
+-		sprint(str, "$*$%M", a);
+-		if(a->reg != NREG)
+-			sprint(str, "%M(R%d)(CONST)", a, a->reg);
+-		break;
+-
+-	case D_OREG:
+-		if(a->reg != NREG)
+-			sprint(str, "%M(R%d)", a, a->reg);
+-		else
+-			sprint(str, "%M", a);
+-		break;
+-
+-	case D_REG:
+-		sprint(str, "R%d", a->reg);
+-		if(a->name != D_NONE || a->sym != nil)
+-			sprint(str, "%M(R%d)(REG)", a, a->reg);
+-		break;
+-
+-	case D_REGREG:
+-		sprint(str, "(R%d,R%d)", a->reg, (int)a->offset);
+-		if(a->name != D_NONE || a->sym != nil)
+-			sprint(str, "%M(R%d)(REG)", a, a->reg);
+-		break;
+-
+-	case D_REGREG2:
+-		sprint(str, "R%d,R%d", a->reg, (int)a->offset);
+-		if(a->name != D_NONE || a->sym != nil)
+-			sprint(str, "%M(R%d)(REG)", a, a->reg);
+-		break;
+-
+-	case D_FREG:
+-		sprint(str, "F%d", a->reg);
+-		if(a->name != D_NONE || a->sym != nil)
+-			sprint(str, "%M(R%d)(REG)", a, a->reg);
+-		break;
+-
+-	case D_BRANCH:
+-		if(a->u.branch == P || a->u.branch->loc == 0) {
+-			if(a->sym != nil)
+-				sprint(str, "%s+%d(APC)", a->sym->name, a->offset);
+-			else
+-				sprint(str, "%d(APC)", a->offset);
+-		} else
+-			if(a->sym != nil)
+-				sprint(str, "%s+%d(APC)", a->sym->name, a->u.branch->loc);
+-			else
+-				sprint(str, "%d(APC)", a->u.branch->loc);
+-		break;
+-
+-	case D_FCONST:
+-		snprint(str, sizeof(str), "$(%.17e)", a->u.dval);
+-		break;
+-
+-	case D_SCONST:
+-		snprint(str, sizeof(str), "$\"%Y\"", a->u.sval);
+-		break;
+-
+-		// TODO(kaib): Add back
+-//	case D_ADDR:
+-//		a->type = a->index;
+-//		a->index = D_NONE;
+-//		snprint(str, sizeof(str), "$%D", a);
+-//		a->index = a->type;
+-//		a->type = D_ADDR;
+-//		goto conv;
+-	}
+-conv:
+-	fmtstrcpy(fp, str);
+-	if(a->gotype)
+-		fmtprint(fp, "{%s}", a->gotype->name);
+-	return 0;
+-}
+-
+-int
+-Aconv(Fmt *fp)
+-{
+-	int i;
+-
+-	i = va_arg(fp->args, int);
+-	return fmtstrcpy(fp, anames5[i]);
+-}
+-
+-char*	strcond[16] =
+-{
+-	".EQ",
+-	".NE",
+-	".HS",
+-	".LO",
+-	".MI",
+-	".PL",
+-	".VS",
+-	".VC",
+-	".HI",
+-	".LS",
+-	".GE",
+-	".LT",
+-	".GT",
+-	".LE",
+-	"",
+-	".NV"
+-};
+-
+-int
+-Cconv(Fmt *fp)
+-{
+-	char s[STRINGSZ];
+-	int c;
+-
+-	c = va_arg(fp->args, int);
+-	strcpy(s, strcond[c & C_SCOND]);
+-	if(c & C_SBIT)
+-		strcat(s, ".S");
+-	if(c & C_PBIT)
+-		strcat(s, ".P");
+-	if(c & C_WBIT)
+-		strcat(s, ".W");
+-	if(c & C_UBIT)		/* ambiguous with FBIT */
+-		strcat(s, ".U");
+-	return fmtstrcpy(fp, s);
+-}
+-
+-int
+-Yconv(Fmt *fp)
+-{
+-	int i, c;
+-	char str[STRINGSZ], *p, *a;
+-
+-	a = va_arg(fp->args, char*);
+-	p = str;
+-	for(i=0; i<sconsize; i++) {
+-		c = a[i] & 0xff;
+-		if((c >= 'a' && c <= 'z') ||
+-		   (c >= 'A' && c <= 'Z') ||
+-		   (c >= '0' && c <= '9')) {
+-			*p++ = c;
+-			continue;
+-		}
+-		*p++ = '\\';
+-		switch(c) {
+-		default:
+-			if(c < 040 || c >= 0177)
+-				break;	/* not portable */
+-			p[-1] = c;
+-			continue;
+-		case 0:
+-			*p++ = 'z';
+-			continue;
+-		case '\\':
+-		case '"':
+-			*p++ = c;
+-			continue;
+-		case '\n':
+-			*p++ = 'n';
+-			continue;
+-		case '\t':
+-			*p++ = 't';
+-			continue;
+-		}
+-		*p++ = (c>>6) + '0';
+-		*p++ = ((c>>3) & 7) + '0';
+-		*p++ = (c & 7) + '0';
+-	}
+-	*p = 0;
+-	return fmtstrcpy(fp, str);
+-}
+-
+-int
+-Rconv(Fmt *fp)
+-{
+-	int r;
+-	char str[STRINGSZ];
+-
+-	r = va_arg(fp->args, int);
+-	snprint(str, sizeof(str), "R%d", r);
+-	return fmtstrcpy(fp, str);
+-}
+-
+-int
+-Mconv(Fmt *fp)
+-{
+-	char str[STRINGSZ];
+-	Addr *a;
+-
+-	a = va_arg(fp->args, Addr*);
+-	switch(a->name) {
+-	default:
+-		snprint(str, sizeof(str),  "GOK-name(%d)", a->name);
+-		break;
+-
+-	case D_NONE:
+-		snprint(str, sizeof(str), "%d", a->offset);
+-		break;
+-
+-	case D_EXTERN:
+-		snprint(str, sizeof(str), "%lS+%d(SB)", a->sym, a->offset);
+-		break;
+-
+-	case D_STATIC:
+-		snprint(str, sizeof(str), "%lS<>+%d(SB)", a->sym, a->offset);
+-		break;
+-
+-	case D_AUTO:
+-		snprint(str, sizeof(str), "%lS+%d(SP)", a->sym, a->offset);
+-		break;
+-
+-	case D_PARAM:
+-		snprint(str, sizeof(str), "%lS+%d(FP)", a->sym, a->offset);
+-		break;
+-	}
+-	return fmtstrcpy(fp, str);
+-}
+diff --git a/src/cmd/5g/reg.c b/src/cmd/5g/reg.c
+index 6fae22accd..b73722e6a1 100644
+--- a/src/cmd/5g/reg.c
++++ b/src/cmd/5g/reg.c
+@@ -1291,9 +1291,9 @@ dumpit(char *str, Flow *r0, int isreg)
+ 		if(r1 != nil) {
+ 			print("	pred:");
+ 			for(; r1 != nil; r1 = r1->p2link)
+-				print(" %.4ud", r1->prog->loc);
++				print(" %.4ud", r1->prog->pc);
+ 			if(r->p1 != nil)
+-				print(" (and %.4ud)", r->p1->prog->loc);
++				print(" (and %.4ud)", r->p1->prog->pc);
+ 			else
+ 				print(" (only)");
+ 			print("\n");
+@@ -1302,7 +1302,7 @@ dumpit(char *str, Flow *r0, int isreg)
+ //		if(r1 != nil) {
+ //			print("	succ:");
+ //			for(; r1 != R; r1 = r1->s1)
+-//				print(" %.4ud", r1->prog->loc);
++//				print(" %.4ud", r1->prog->pc);
+ //			print("\n");
+ //		}
+ 	}
+diff --git a/src/cmd/5l/l.h b/src/cmd/5l/l.h
+index 25f5810478..66a7abc9f3 100644
+--- a/src/cmd/5l/l.h
++++ b/src/cmd/5l/l.h
+@@ -142,24 +142,9 @@ EXTERN	uint32	stroffset;
+ EXTERN	int32	symsize;
+ EXTERN	int	armsize;
+ 
+-#pragma	varargck	type	"A"	int
+-#pragma	varargck	type	"C"	int
+-#pragma	varargck	type	"D"	Addr*
+-#pragma	varargck	type	"I"	uchar*
+-#pragma	varargck	type	"N"	Addr*
+-#pragma	varargck	type	"P"	Prog*
+-#pragma	varargck	type	"S"	char*
+-#pragma	varargck	type	"Z"	char*
+-#pragma	varargck	type	"i"	char*
+-
+-int	Aconv(Fmt *fp);
+-int	Cconv(Fmt *fp);
+-int	Dconv(Fmt *fp);
++#pragma	varargck	type	"I"	uint32*
++
+ int	Iconv(Fmt *fp);
+-int	Nconv(Fmt *fp);
+-int	Oconv(Fmt *fp);
+-int	Pconv(Fmt *fp);
+-int	Sconv(Fmt *fp);
+ void	adddynlib(char *lib);
+ void	adddynrel(LSym *s, Reloc *r);
+ void	adddynrela(LSym *rel, LSym *s, Reloc *r);
+@@ -167,7 +152,6 @@ void	adddynsym(Link *ctxt, LSym *s);
+ int	archreloc(Reloc *r, LSym *s, vlong *val);
+ void	asmb(void);
+ void	cput(int32 c);
+-void	diag(char *fmt, ...);
+ int	elfreloc1(Reloc *r, vlong sectoff);
+ void	elfsetupplt(void);
+ void	hput(int32 l);
+diff --git a/src/cmd/5l/list.c b/src/cmd/5l/list.c
+index 02a9575793..875fc3e6b2 100644
+--- a/src/cmd/5l/list.c
++++ b/src/cmd/5l/list.c
+@@ -36,351 +36,10 @@
+ void
+ listinit(void)
+ {
+-
+-	fmtinstall('A', Aconv);
+-	fmtinstall('C', Cconv);
+-	fmtinstall('D', Dconv);
+-	fmtinstall('P', Pconv);
+-	fmtinstall('S', Sconv);
+-	fmtinstall('N', Nconv);
+-	fmtinstall('O', Oconv);		// C_type constants
++	listinit5();
+ 	fmtinstall('I', Iconv);
+ }
+ 
+-static Prog *curp;
+-
+-int
+-Pconv(Fmt *fp)
+-{
+-	Prog *p;
+-	int a;
+-
+-	p = va_arg(fp->args, Prog*);
+-	curp = p;
+-	a = p->as;
+-	switch(a) {
+-	default:
+-		fmtprint(fp, "(%d)", p->lineno);
+-		if(p->reg == NREG && p->as != AGLOBL)
+-			fmtprint(fp, "	%A%C	%D,%D",
+-				a, p->scond, &p->from, &p->to);
+-		else
+-		if(p->from.type != D_FREG)
+-			fmtprint(fp, "	%A%C	%D,R%d,%D",
+-				a, p->scond, &p->from, p->reg, &p->to);
+-		else
+-			fmtprint(fp, "	%A%C	%D,F%d,%D",
+-				a, p->scond, &p->from, p->reg, &p->to);
+-		break;
+-
+-	case ASWPW:
+-	case ASWPBU:
+-		fmtprint(fp, "(%d)	%A%C	R%d,%D,%D",
+-			p->lineno, a, p->scond, p->reg, &p->from, &p->to);
+-		break;
+-
+-	case ADATA:
+-	case AINIT_:
+-	case ADYNT_:
+-		fmtprint(fp, "(%d)	%A%C	%D/%d,%D",
+-			p->lineno, a, p->scond, &p->from, p->reg, &p->to);
+-		break;
+-
+-	case AWORD:
+-		fmtprint(fp, "(%d)	WORD	%D", p->lineno, &p->to);
+-		break;
+-
+-	case ADWORD:
+-		fmtprint(fp, "(%d)	DWORD	%D %D", p->lineno, &p->from, &p->to);
+-		break;
+-	}
+-	
+-	if(p->spadj)
+-		fmtprint(fp, "  (spadj%+d)", p->spadj);
+-
+-	return 0;
+-}
+-
+-int
+-Aconv(Fmt *fp)
+-{
+-	char *s;
+-	int a;
+-
+-	a = va_arg(fp->args, int);
+-	s = "???";
+-	if(a >= AXXX && a < ALAST)
+-		s = anames5[a];
+-	return fmtstrcpy(fp, s);
+-}
+-
+-char*	strcond[16] =
+-{
+-	".EQ",
+-	".NE",
+-	".HS",
+-	".LO",
+-	".MI",
+-	".PL",
+-	".VS",
+-	".VC",
+-	".HI",
+-	".LS",
+-	".GE",
+-	".LT",
+-	".GT",
+-	".LE",
+-	"",
+-	".NV"
+-};
+-
+-int
+-Cconv(Fmt *fp)
+-{
+-	char s[20];
+-	int c;
+-
+-	c = va_arg(fp->args, int);
+-	strcpy(s, strcond[c & C_SCOND]);
+-	if(c & C_SBIT)
+-		strcat(s, ".S");
+-	if(c & C_PBIT)
+-		strcat(s, ".P");
+-	if(c & C_WBIT)
+-		strcat(s, ".W");
+-	if(c & C_UBIT)		/* ambiguous with FBIT */
+-		strcat(s, ".U");
+-	return fmtstrcpy(fp, s);
+-}
+-
+-int
+-Dconv(Fmt *fp)
+-{
+-	char str[STRINGSZ];
+-	const char *op;
+-	Addr *a;
+-	int32 v;
+-
+-	a = va_arg(fp->args, Addr*);
+-	switch(a->type) {
+-
+-	default:
+-		snprint(str, sizeof str, "GOK-type(%d)", a->type);
+-		break;
+-
+-	case D_NONE:
+-		str[0] = 0;
+-		if(a->name != D_NONE || a->reg != NREG || a->sym != S)
+-			snprint(str, sizeof str, "%N(R%d)(NONE)", a, a->reg);
+-		break;
+-
+-	case D_CONST:
+-		if(a->reg == NREG)
+-			snprint(str, sizeof str, "$%N", a);
+-		else
+-			snprint(str, sizeof str, "$%N(R%d)", a, a->reg);
+-		break;
+-
+-	case D_CONST2:
+-		snprint(str, sizeof str, "$%d-%d", a->offset, a->offset2);
+-		break;
+-
+-	case D_SHIFT:
+-		v = a->offset;
+-		op = &"<<>>->@>"[(((v>>5) & 3) << 1)];
+-		if(v & (1<<4))
+-			snprint(str, sizeof str, "R%d%c%cR%d", v&15, op[0], op[1], (v>>8)&15);
+-		else
+-			snprint(str, sizeof str, "R%d%c%c%d", v&15, op[0], op[1], (v>>7)&31);
+-		if(a->reg != NREG)
+-			seprint(str+strlen(str), str+sizeof str, "(R%d)", a->reg);
+-		break;
+-
+-	case D_OCONST:
+-		snprint(str, sizeof str, "$*$%N", a);
+-		if(a->reg != NREG)
+-			snprint(str, sizeof str, "%N(R%d)(CONST)", a, a->reg);
+-		break;
+-
+-	case D_OREG:
+-		if(a->reg != NREG)
+-			snprint(str, sizeof str, "%N(R%d)", a, a->reg);
+-		else
+-			snprint(str, sizeof str, "%N", a);
+-		break;
+-
+-	case D_REG:
+-		snprint(str, sizeof str, "R%d", a->reg);
+-		if(a->name != D_NONE || a->sym != S)
+-			snprint(str, sizeof str, "%N(R%d)(REG)", a, a->reg);
+-		break;
+-
+-	case D_REGREG:
+-		snprint(str, sizeof str, "(R%d,R%d)", a->reg, (int)a->offset);
+-		if(a->name != D_NONE || a->sym != S)
+-			snprint(str, sizeof str, "%N(R%d)(REG)", a, a->reg);
+-		break;
+-
+-	case D_REGREG2:
+-		snprint(str, sizeof str, "R%d,R%d", a->reg, (int)a->offset);
+-		if(a->name != D_NONE || a->sym != S)
+-			snprint(str, sizeof str, "%N(R%d)(REG)", a, a->reg);
+-		break;
+-
+-	case D_FREG:
+-		snprint(str, sizeof str, "F%d", a->reg);
+-		if(a->name != D_NONE || a->sym != S)
+-			snprint(str, sizeof str, "%N(R%d)(REG)", a, a->reg);
+-		break;
+-
+-	case D_PSR:
+-		switch(a->reg) {
+-		case 0:
+-			snprint(str, sizeof str, "CPSR");
+-			break;
+-		case 1:
+-			snprint(str, sizeof str, "SPSR");
+-			break;
+-		default:
+-			snprint(str, sizeof str, "PSR%d", a->reg);
+-			break;
+-		}
+-		if(a->name != D_NONE || a->sym != S)
+-			snprint(str, sizeof str, "%N(PSR%d)(REG)", a, a->reg);
+-		break;
+-
+-	case D_FPCR:
+-		switch(a->reg){
+-		case 0:
+-			snprint(str, sizeof str, "FPSR");
+-			break;
+-		case 1:
+-			snprint(str, sizeof str, "FPCR");
+-			break;
+-		default:
+-			snprint(str, sizeof str, "FCR%d", a->reg);
+-			break;
+-		}
+-		if(a->name != D_NONE || a->sym != S)
+-			snprint(str, sizeof str, "%N(FCR%d)(REG)", a, a->reg);
+-
+-		break;
+-
+-	case D_BRANCH:	/* botch */
+-		if(curp->pcond != P) {
+-			v = curp->pcond->pc;
+-			if(a->sym != S)
+-				snprint(str, sizeof str, "%s+%.5ux(BRANCH)", a->sym->name, v);
+-			else
+-				snprint(str, sizeof str, "%.5ux(BRANCH)", v);
+-		} else
+-			if(a->sym != S)
+-				snprint(str, sizeof str, "%s+%d(APC)", a->sym->name, a->offset);
+-			else
+-				snprint(str, sizeof str, "%d(APC)", a->offset);
+-		break;
+-
+-	case D_FCONST:
+-		snprint(str, sizeof str, "$%.17g", a->u.dval);
+-		break;
+-
+-	case D_SCONST:
+-		snprint(str, sizeof str, "$\"%S\"", a->u.sval);
+-		break;
+-	}
+-	return fmtstrcpy(fp, str);
+-}
+-
+-int
+-Nconv(Fmt *fp)
+-{
+-	char str[STRINGSZ];
+-	Addr *a;
+-	LSym *s;
+-
+-	a = va_arg(fp->args, Addr*);
+-	s = a->sym;
+-	switch(a->name) {
+-	default:
+-		sprint(str, "GOK-name(%d)", a->name);
+-		break;
+-
+-	case D_NONE:
+-		sprint(str, "%d", a->offset);
+-		break;
+-
+-	case D_EXTERN:
+-		if(s == S)
+-			sprint(str, "%d(SB)", a->offset);
+-		else
+-			sprint(str, "%s+%d(SB)", s->name, a->offset);
+-		break;
+-
+-	case D_STATIC:
+-		if(s == S)
+-			sprint(str, "<>+%d(SB)", a->offset);
+-		else
+-			sprint(str, "%s<>+%d(SB)", s->name, a->offset);
+-		break;
+-
+-	case D_AUTO:
+-		if(s == S)
+-			sprint(str, "%d(SP)", a->offset);
+-		else
+-			sprint(str, "%s-%d(SP)", s->name, -a->offset);
+-		break;
+-
+-	case D_PARAM:
+-		if(s == S)
+-			sprint(str, "%d(FP)", a->offset);
+-		else
+-			sprint(str, "%s+%d(FP)", s->name, a->offset);
+-		break;
+-	}
+-	return fmtstrcpy(fp, str);
+-}
+-
+-int
+-Sconv(Fmt *fp)
+-{
+-	int i, c;
+-	char str[STRINGSZ], *p, *a;
+-
+-	a = va_arg(fp->args, char*);
+-	p = str;
+-	for(i=0; i<sizeof(int32); i++) {
+-		c = a[i] & 0xff;
+-		if(c >= 'a' && c <= 'z' ||
+-		   c >= 'A' && c <= 'Z' ||
+-		   c >= '0' && c <= '9' ||
+-		   c == ' ' || c == '%') {
+-			*p++ = c;
+-			continue;
+-		}
+-		*p++ = '\\';
+-		switch(c) {
+-		case 0:
+-			*p++ = 'z';
+-			continue;
+-		case '\\':
+-		case '"':
+-			*p++ = c;
+-			continue;
+-		case '\n':
+-			*p++ = 'n';
+-			continue;
+-		case '\t':
+-			*p++ = 't';
+-			continue;
+-		}
+-		*p++ = (c>>6) + '0';
+-		*p++ = ((c>>3) & 7) + '0';
+-		*p++ = (c & 7) + '0';
+-	}
+-	*p = 0;
+-	return fmtstrcpy(fp, str);
+-}
+-
+ int
+ Iconv(Fmt *fp)
+ {
+@@ -409,83 +68,3 @@ Iconv(Fmt *fp)
+ 	free(s);
+ 	return 0;
+ }
+-
+-static char*
+-cnames[] =
+-{
+-	[C_ADDR]	= "C_ADDR",
+-	[C_FAUTO]	= "C_FAUTO",
+-	[C_ZFCON]	= "C_SFCON",
+-	[C_SFCON]	= "C_SFCON",
+-	[C_LFCON]	= "C_LFCON",
+-	[C_FCR]		= "C_FCR",
+-	[C_FOREG]	= "C_FOREG",
+-	[C_FREG]	= "C_FREG",
+-	[C_GOK]		= "C_GOK",
+-	[C_HAUTO]	= "C_HAUTO",
+-	[C_HFAUTO]	= "C_HFAUTO",
+-	[C_HFOREG]	= "C_HFOREG",
+-	[C_HOREG]	= "C_HOREG",
+-	[C_HREG]	= "C_HREG",
+-	[C_LACON]	= "C_LACON",
+-	[C_LAUTO]	= "C_LAUTO",
+-	[C_LBRA]	= "C_LBRA",
+-	[C_LCON]	= "C_LCON",
+-	[C_LCONADDR]	= "C_LCONADDR",
+-	[C_LOREG]	= "C_LOREG",
+-	[C_NCON]	= "C_NCON",
+-	[C_NONE]	= "C_NONE",
+-	[C_PC]		= "C_PC",
+-	[C_PSR]		= "C_PSR",
+-	[C_RACON]	= "C_RACON",
+-	[C_RCON]	= "C_RCON",
+-	[C_REG]		= "C_REG",
+-	[C_REGREG]	= "C_REGREG",
+-	[C_REGREG2]	= "C_REGREG2",
+-	[C_ROREG]	= "C_ROREG",
+-	[C_SAUTO]	= "C_SAUTO",
+-	[C_SBRA]	= "C_SBRA",
+-	[C_SCON]	= "C_SCON",
+-	[C_SHIFT]	= "C_SHIFT",
+-	[C_SOREG]	= "C_SOREG",
+-	[C_SP]		= "C_SP",
+-	[C_SROREG]	= "C_SROREG"
+-};
+-
+-int
+-Oconv(Fmt *fp)
+-{
+-	char buf[500];
+-	int o;
+-
+-	o = va_arg(fp->args, int);
+-	if(o < 0 || o >= nelem(cnames) || cnames[o] == nil) {
+-		snprint(buf, sizeof(buf), "C_%d", o);
+-		return fmtstrcpy(fp, buf);
+-	}
+-	return fmtstrcpy(fp, cnames[o]);
+-}
+-
+-void
+-diag(char *fmt, ...)
+-{
+-	char buf[1024], *tn, *sep;
+-	va_list arg;
+-
+-	tn = "";
+-	sep = "";
+-	if(ctxt->cursym != S) {
+-		tn = ctxt->cursym->name;
+-		sep = ": ";
+-	}
+-	va_start(arg, fmt);
+-	vseprint(buf, buf+sizeof(buf), fmt, arg);
+-	va_end(arg);
+-	print("%s%s%s\n", tn, sep, buf);
+-
+-	nerrors++;
+-	if(nerrors > 20) {
+-		print("too many errors\n");
+-		errorexit();
+-	}
+-}
+diff --git a/src/cmd/6a/lex.c b/src/cmd/6a/lex.c
+index 4319e6435f..d81d3be50a 100644
+--- a/src/cmd/6a/lex.c
++++ b/src/cmd/6a/lex.c
+@@ -57,6 +57,12 @@ pathchar(void)
+ 	return '/';
+ }
+ 
++int
++Lconv(Fmt *fp)
++{
++	return linklinefmt(ctxt, fp);
++}
++
+ void
+ main(int argc, char *argv[])
+ {
+@@ -71,6 +77,7 @@ main(int argc, char *argv[])
+ 	ctxt->bso = &bstdout;
+ 	Binit(&bstdout, 1, OWRITE);
+ 	listinit6();
++	fmtinstall('L', Lconv);
+ 
+ 	ensuresymb(NSYMB);
+ 	memset(debug, 0, sizeof(debug));
+diff --git a/src/cmd/6c/gc.h b/src/cmd/6c/gc.h
+index 2b23a37955..a196e55a80 100644
+--- a/src/cmd/6c/gc.h
++++ b/src/cmd/6c/gc.h
+@@ -48,7 +48,6 @@
+ 
+ typedef	struct	Case	Case;
+ typedef	struct	C1	C1;
+-typedef	struct	Var	Var;
+ typedef	struct	Reg	Reg;
+ typedef	struct	Rgn	Rgn;
+ typedef	struct	Renv	Renv;
+@@ -83,14 +82,6 @@ struct	C1
+ 	int32	label;
+ };
+ 
+-struct	Var
+-{
+-	vlong	offset;
+-	LSym*	sym;
+-	char	name;
+-	char	etype;
+-};
+-
+ struct	Reg
+ {
+ 	int32	pc;
+@@ -203,7 +194,6 @@ EXTERN	Reg*	firstr;
+ EXTERN	Reg*	lastr;
+ EXTERN	Reg	zreg;
+ EXTERN	Reg*	freer;
+-EXTERN	Var	var[NVAR];
+ EXTERN	int32*	idom;
+ EXTERN	Reg**	rpo2r;
+ EXTERN	int32	maxnr;
+@@ -292,13 +282,6 @@ void	outcode(void);
+  * list
+  */
+ void	listinit(void);
+-int	Pconv(Fmt*);
+-int	Aconv(Fmt*);
+-int	Dconv(Fmt*);
+-int	Sconv(Fmt*);
+-int	Rconv(Fmt*);
+-int	Xconv(Fmt*);
+-int	Bconv(Fmt*);
+ 
+ /*
+  * reg.c
+@@ -372,14 +355,6 @@ void	mulgen(Type*, Node*, Node*);
+ void	genmuladd(Node*, Node*, int, Node*);
+ void	shiftit(Type*, Node*, Node*);
+ 
+-#pragma	varargck	type	"A"	int
+-#pragma	varargck	type	"B"	Bits
+-#pragma	varargck	type	"D"	Addr*
+-#pragma	varargck	type	"lD"	Addr*
+-#pragma	varargck	type	"P"	Prog*
+-#pragma	varargck	type	"R"	int
+-#pragma	varargck	type	"S"	char*
+-
+ #define	D_X7	(D_X0+7)
+ 
+ void	fgopcode(int, Node*, Node*, int, int);
+diff --git a/src/cmd/6c/list.c b/src/cmd/6c/list.c
+index 79cfb1f00f..28f5b8df76 100644
+--- a/src/cmd/6c/list.c
++++ b/src/cmd/6c/list.c
+@@ -34,32 +34,5 @@
+ void
+ listinit(void)
+ {
+-	fmtinstall('B', Bconv);
+ 	listinit6();
+ }
+-
+-int
+-Bconv(Fmt *fp)
+-{
+-	char str[STRINGSZ], ss[STRINGSZ], *s;
+-	Bits bits;
+-	int i;
+-
+-	str[0] = 0;
+-	bits = va_arg(fp->args, Bits);
+-	while(bany(&bits)) {
+-		i = bnum(bits);
+-		if(str[0])
+-			strcat(str, " ");
+-		if(var[i].sym == nil) {
+-			sprint(ss, "$%lld", var[i].offset);
+-			s = ss;
+-		} else
+-			s = var[i].sym->name;
+-		if(strlen(str) + strlen(s) + 1 >= STRINGSZ)
+-			break;
+-		strcat(str, s);
+-		bits.b[i/32] &= ~(1L << (i%32));
+-	}
+-	return fmtstrcpy(fp, str);
+-}
+diff --git a/src/cmd/6g/galign.c b/src/cmd/6g/galign.c
+index c1f26a4bc7..3ea57d7616 100644
+--- a/src/cmd/6g/galign.c
++++ b/src/cmd/6g/galign.c
+@@ -37,5 +37,5 @@ betypeinit(void)
+ 	zprog.from.scale = 0;
+ 	zprog.to = zprog.from;
+ 
+-	listinit();
++	listinit6();
+ }
+diff --git a/src/cmd/6g/gg.h b/src/cmd/6g/gg.h
+index 134da36823..a3c5faf6c4 100644
+--- a/src/cmd/6g/gg.h
++++ b/src/cmd/6g/gg.h
+@@ -114,14 +114,6 @@ void	datagostring(Strlit*, Addr*);
+ /*
+  * list.c
+  */
+-int	Aconv(Fmt*);
+-int	Dconv(Fmt*);
+-int	Pconv(Fmt*);
+-int	Rconv(Fmt*);
+-int	Yconv(Fmt*);
+ void	listinit(void);
+ 
+ void	zaddr(Biobuf*, Addr*, int, int);
+-
+-#pragma	varargck	type	"D"	Addr*
+-#pragma	varargck	type	"lD"	Addr*
+diff --git a/src/cmd/6g/ggen.c b/src/cmd/6g/ggen.c
+index 1b8bf7e400..62c58d4ea0 100644
+--- a/src/cmd/6g/ggen.c
++++ b/src/cmd/6g/ggen.c
+@@ -1101,8 +1101,8 @@ expandchecks(Prog *firstp)
+ 		p->link = p1;
+ 		p1->lineno = p->lineno;
+ 		p2->lineno = p->lineno;
+-		p1->loc = 9999;
+-		p2->loc = 9999;
++		p1->pc = 9999;
++		p2->pc = 9999;
+ 		p->as = ACMPQ;
+ 		p->to.type = D_CONST;
+ 		p->to.offset = 0;
+diff --git a/src/cmd/6g/gsubr.c b/src/cmd/6g/gsubr.c
+index df9cc49cae..f4861ceecf 100644
+--- a/src/cmd/6g/gsubr.c
++++ b/src/cmd/6g/gsubr.c
+@@ -46,7 +46,7 @@ clearp(Prog *p)
+ 	p->from.index = D_NONE;
+ 	p->to.type = D_NONE;
+ 	p->to.index = D_NONE;
+-	p->loc = pcloc;
++	p->pc = pcloc;
+ 	pcloc++;
+ }
+ 
+@@ -136,7 +136,7 @@ patch(Prog *p, Prog *to)
+ 	if(p->to.type != D_BRANCH)
+ 		fatal("patch: not a branch");
+ 	p->to.u.branch = to;
+-	p->to.offset = to->loc;
++	p->to.offset = to->pc;
+ }
+ 
+ Prog*
+diff --git a/src/cmd/6g/list.c b/src/cmd/6g/list.c
+deleted file mode 100644
+index 5bd2f5bcfb..0000000000
+--- a/src/cmd/6g/list.c
++++ /dev/null
+@@ -1,364 +0,0 @@
+-// Derived from Inferno utils/6c/list.c
+-// http://code.google.com/p/inferno-os/source/browse/utils/6c/list.c
+-//
+-//	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+-//	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+-//	Portions Copyright © 1997-1999 Vita Nuova Limited
+-//	Portions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com)
+-//	Portions Copyright © 2004,2006 Bruce Ellis
+-//	Portions Copyright © 2005-2007 C H Forsyth (forsyth@terzarima.net)
+-//	Revisions Copyright © 2000-2007 Lucent Technologies Inc. and others
+-//	Portions Copyright © 2009 The Go Authors.  All rights reserved.
+-//
+-// Permission is hereby granted, free of charge, to any person obtaining a copy
+-// of this software and associated documentation files (the "Software"), to deal
+-// in the Software without restriction, including without limitation the rights
+-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+-// copies of the Software, and to permit persons to whom the Software is
+-// furnished to do so, subject to the following conditions:
+-//
+-// The above copyright notice and this permission notice shall be included in
+-// all copies or substantial portions of the Software.
+-//
+-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
+-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+-// THE SOFTWARE.
+-
+-#include <u.h>
+-#include <libc.h>
+-#include "gg.h"
+-
+-static	int	sconsize;
+-void
+-listinit(void)
+-{
+-
+-	fmtinstall('A', Aconv);		// as
+-	fmtinstall('P', Pconv);		// Prog*
+-	fmtinstall('D', Dconv);		// Addr*
+-	fmtinstall('R', Rconv);		// reg
+-	fmtinstall('Y', Yconv);		// sconst
+-}
+-
+-int
+-Pconv(Fmt *fp)
+-{
+-	char str[STRINGSZ];
+-	Prog *p;
+-	char scale[40];
+-
+-	p = va_arg(fp->args, Prog*);
+-	sconsize = 8;
+-	scale[0] = '\0';
+-	if(p->from.scale != 0 && (p->as == AGLOBL || p->as == ATEXT))
+-		snprint(scale, sizeof scale, "%d,", p->from.scale);
+-	switch(p->as) {
+-	default:
+-		snprint(str, sizeof(str), "%.4d (%L) %-7A %D,%s%D",
+-			p->loc, p->lineno, p->as, &p->from, scale, &p->to);
+-		break;
+-
+-	case ADATA:
+-		sconsize = p->from.scale;
+-		snprint(str, sizeof(str), "%.4d (%L) %-7A %D/%d,%D",
+-			p->loc, p->lineno, p->as, &p->from, sconsize, &p->to);
+-		break;
+-
+-	case ATEXT:
+-		snprint(str, sizeof(str), "%.4d (%L) %-7A %D,%s%lD",
+-			p->loc, p->lineno, p->as, &p->from, scale, &p->to);
+-		break;
+-	}
+-	return fmtstrcpy(fp, str);
+-}
+-
+-int
+-Dconv(Fmt *fp)
+-{
+-	char str[STRINGSZ], s[STRINGSZ];
+-	Addr *a;
+-	int i;
+-	uint32 d1, d2;
+-
+-	a = va_arg(fp->args, Addr*);
+-	i = a->type;
+-	if(i >= D_INDIR) {
+-		if(a->offset)
+-			snprint(str, sizeof(str), "%lld(%R)", a->offset, i-D_INDIR);
+-		else
+-			snprint(str, sizeof(str), "(%R)", i-D_INDIR);
+-		goto brk;
+-	}
+-	switch(i) {
+-
+-	default:
+-		if(a->offset)
+-			snprint(str, sizeof(str), "$%lld,%R", a->offset, i);
+-		else
+-			snprint(str, sizeof(str), "%R", i);
+-		break;
+-
+-	case D_NONE:
+-		str[0] = 0;
+-		break;
+-
+-	case D_BRANCH:
+-		if(a->u.branch == nil)
+-			snprint(str, sizeof(str), "<nil>");
+-		else
+-			snprint(str, sizeof(str), "%d", a->u.branch->loc);
+-		break;
+-
+-	case D_EXTERN:
+-		snprint(str, sizeof(str), "%lS+%lld(SB)", a->sym, a->offset);
+-		break;
+-
+-	case D_STATIC:
+-		snprint(str, sizeof(str), "%lS<>+%lld(SB)", a->sym, a->offset);
+-		break;
+-
+-	case D_AUTO:
+-		snprint(str, sizeof(str), "%lS+%lld(SP)", a->sym, a->offset);
+-		break;
+-
+-	case D_PARAM:
+-		snprint(str, sizeof(str), "%lS+%lld(FP)", a->sym, a->offset);
+-		break;
+-
+-	case D_CONST:
+-		if(fp->flags & FmtLong) {
+-			d1 = a->offset & 0xffffffffLL;
+-			d2 = (a->offset>>32) & 0xffffffffLL;
+-			snprint(str, sizeof(str), "$%lud-%lud", (ulong)d1, (ulong)d2);
+-			break;
+-		}
+-		snprint(str, sizeof(str), "$%lld", a->offset);
+-		break;
+-
+-	case D_FCONST:
+-		snprint(str, sizeof(str), "$(%.17e)", a->u.dval);
+-		break;
+-
+-	case D_SCONST:
+-		snprint(str, sizeof(str), "$\"%Y\"", a->u.sval);
+-		break;
+-
+-	case D_ADDR:
+-		a->type = a->index;
+-		a->index = D_NONE;
+-		snprint(str, sizeof(str), "$%D", a);
+-		a->index = a->type;
+-		a->type = D_ADDR;
+-		goto conv;
+-	}
+-brk:
+-	if(a->index != D_NONE) {
+-		snprint(s, sizeof(s), "(%R*%d)", (int)a->index, (int)a->scale);
+-		strcat(str, s);
+-	}
+-conv:
+-	fmtstrcpy(fp, str);
+-	if(a->gotype)
+-		fmtprint(fp, "{%s}", a->gotype->name);
+-	return 0;
+-}
+-
+-static	char*	regstr[] =
+-{
+-	"AL",		/* [D_AL] */
+-	"CL",
+-	"DL",
+-	"BL",
+-	"SPB",
+-	"BPB",
+-	"SIB",
+-	"DIB",
+-	"R8B",
+-	"R9B",
+-	"R10B",
+-	"R11B",
+-	"R12B",
+-	"R13B",
+-	"R14B",
+-	"R15B",
+-
+-	"AX",		/* [D_AX] */
+-	"CX",
+-	"DX",
+-	"BX",
+-	"SP",
+-	"BP",
+-	"SI",
+-	"DI",
+-	"R8",
+-	"R9",
+-	"R10",
+-	"R11",
+-	"R12",
+-	"R13",
+-	"R14",
+-	"R15",
+-
+-	"AH",
+-	"CH",
+-	"DH",
+-	"BH",
+-
+-	"F0",		/* [D_F0] */
+-	"F1",
+-	"F2",
+-	"F3",
+-	"F4",
+-	"F5",
+-	"F6",
+-	"F7",
+-
+-	"M0",
+-	"M1",
+-	"M2",
+-	"M3",
+-	"M4",
+-	"M5",
+-	"M6",
+-	"M7",
+-
+-	"X0",
+-	"X1",
+-	"X2",
+-	"X3",
+-	"X4",
+-	"X5",
+-	"X6",
+-	"X7",
+-	"X8",
+-	"X9",
+-	"X10",
+-	"X11",
+-	"X12",
+-	"X13",
+-	"X14",
+-	"X15",
+-
+-	"CS",		/* [D_CS] */
+-	"SS",
+-	"DS",
+-	"ES",
+-	"FS",
+-	"GS",
+-
+-	"GDTR",		/* [D_GDTR] */
+-	"IDTR",		/* [D_IDTR] */
+-	"LDTR",		/* [D_LDTR] */
+-	"MSW",		/* [D_MSW] */
+-	"TASK",		/* [D_TASK] */
+-
+-	"CR0",		/* [D_CR] */
+-	"CR1",
+-	"CR2",
+-	"CR3",
+-	"CR4",
+-	"CR5",
+-	"CR6",
+-	"CR7",
+-	"CR8",
+-	"CR9",
+-	"CR10",
+-	"CR11",
+-	"CR12",
+-	"CR13",
+-	"CR14",
+-	"CR15",
+-
+-	"DR0",		/* [D_DR] */
+-	"DR1",
+-	"DR2",
+-	"DR3",
+-	"DR4",
+-	"DR5",
+-	"DR6",
+-	"DR7",
+-
+-	"TR0",		/* [D_TR] */
+-	"TR1",
+-	"TR2",
+-	"TR3",
+-	"TR4",
+-	"TR5",
+-	"TR6",
+-	"TR7",
+-
+-	"NONE",		/* [D_NONE] */
+-};
+-
+-int
+-Rconv(Fmt *fp)
+-{
+-	char str[STRINGSZ];
+-	int r;
+-
+-	r = va_arg(fp->args, int);
+-	if(r < 0 || r >= nelem(regstr) || regstr[r] == nil) {
+-		snprint(str, sizeof(str), "BAD_R(%d)", r);
+-		return fmtstrcpy(fp, str);
+-	}
+-	return fmtstrcpy(fp, regstr[r]);
+-}
+-
+-int
+-Aconv(Fmt *fp)
+-{
+-	int i;
+-
+-	i = va_arg(fp->args, int);
+-	return fmtstrcpy(fp, anames6[i]);
+-}
+-
+-
+-int
+-Yconv(Fmt *fp)
+-{
+-	int i, c;
+-	char str[STRINGSZ], *p, *a;
+-
+-	a = va_arg(fp->args, char*);
+-	p = str;
+-	for(i=0; i<sconsize; i++) {
+-		c = a[i] & 0xff;
+-		if((c >= 'a' && c <= 'z') ||
+-		   (c >= 'A' && c <= 'Z') ||
+-		   (c >= '0' && c <= '9')) {
+-			*p++ = c;
+-			continue;
+-		}
+-		*p++ = '\\';
+-		switch(c) {
+-		default:
+-			if(c < 040 || c >= 0177)
+-				break;	/* not portable */
+-			p[-1] = c;
+-			continue;
+-		case 0:
+-			*p++ = 'z';
+-			continue;
+-		case '\\':
+-		case '"':
+-			*p++ = c;
+-			continue;
+-		case '\n':
+-			*p++ = 'n';
+-			continue;
+-		case '\t':
+-			*p++ = 't';
+-			continue;
+-		}
+-		*p++ = (c>>6) + '0';
+-		*p++ = ((c>>3) & 7) + '0';
+-		*p++ = (c & 7) + '0';
+-	}
+-	*p = 0;
+-	return fmtstrcpy(fp, str);
+-}
+diff --git a/src/cmd/6g/reg.c b/src/cmd/6g/reg.c
+index 320600b357..4b2656cdf0 100644
+--- a/src/cmd/6g/reg.c
++++ b/src/cmd/6g/reg.c
+@@ -466,7 +466,7 @@ addmove(Reg *r, int bn, int rn, int f)
+ 
+ 	p1 = mal(sizeof(*p1));
+ 	clearp(p1);
+-	p1->loc = 9999;
++	p1->pc = 9999;
+ 
+ 	p = r->f.prog;
+ 	p1->link = p->link;
+@@ -1174,14 +1174,14 @@ dumpit(char *str, Flow *r0, int isreg)
+ 		if(r1 != nil) {
+ 			print("	pred:");
+ 			for(; r1 != nil; r1 = r1->p2link)
+-				print(" %.4ud", r1->prog->loc);
++				print(" %.4ud", r1->prog->pc);
+ 			print("\n");
+ 		}
+ //		r1 = r->s1;
+ //		if(r1 != R) {
+ //			print("	succ:");
+ //			for(; r1 != R; r1 = r1->s1)
+-//				print(" %.4ud", r1->prog->loc);
++//				print(" %.4ud", r1->prog->pc);
+ //			print("\n");
+ //		}
+ 	}
+diff --git a/src/cmd/6l/l.h b/src/cmd/6l/l.h
+index d2a8d94b1e..5db70159d0 100644
+--- a/src/cmd/6l/l.h
++++ b/src/cmd/6l/l.h
+@@ -76,13 +76,7 @@ enum
+ 	MAXHIST		= 40,				/* limit of path elements for history symbols */
+ };
+ 
+-#pragma	varargck	type	"A"	uint
+-#pragma	varargck	type	"D"	Addr*
+ #pragma	varargck	type	"I"	uchar*
+-#pragma	varargck	type	"P"	Prog*
+-#pragma	varargck	type	"R"	int
+-#pragma	varargck	type	"S"	char*
+-#pragma	varargck	type	"i"	char*
+ 
+ EXTERN	LSym*	datap;
+ EXTERN	int	debug[128];
+@@ -96,19 +90,13 @@ EXTERN	int32	symsize;
+ EXTERN	vlong	textstksiz;
+ EXTERN	vlong	textarg;
+ 
+-int	Aconv(Fmt *fp);
+-int	Dconv(Fmt *fp);
+ int	Iconv(Fmt *fp);
+-int	Pconv(Fmt *fp);
+-int	Rconv(Fmt *fp);
+-int	Sconv(Fmt *fp);
+ void	adddynlib(char *lib);
+ void	adddynrel(LSym *s, Reloc *r);
+ void	adddynrela(LSym *rela, LSym *s, Reloc *r);
+ void	adddynsym(Link *ctxt, LSym *s);
+ int	archreloc(Reloc *r, LSym *s, vlong *val);
+ void	asmb(void);
+-void	diag(char *fmt, ...);
+ int	elfreloc1(Reloc *r, vlong sectoff);
+ void	elfsetupplt(void);
+ void	listinit(void);
+@@ -122,13 +110,6 @@ vlong	rnd(vlong v, vlong r);
+ #define	WPUT(a)	wputl(a)
+ #define	VPUT(a)	vputl(a)
+ 
+-#pragma	varargck	type	"D"	Addr*
+-#pragma	varargck	type	"P"	Prog*
+-#pragma	varargck	type	"R"	int
+-#pragma	varargck	type	"Z"	char*
+-#pragma	varargck	type	"A"	int
+-#pragma	varargck	argpos	diag 1
+-
+ /* Used by ../ld/dwarf.c */
+ enum
+ {
+diff --git a/src/cmd/6l/list.c b/src/cmd/6l/list.c
+index 4a7b0d04ac..d960fcc915 100644
+--- a/src/cmd/6l/list.c
++++ b/src/cmd/6l/list.c
+@@ -33,370 +33,13 @@
+ #include	"l.h"
+ #include	"../ld/lib.h"
+ 
+-static	Prog*	bigP;
+-
+ void
+ listinit(void)
+ {
+-
+-	fmtinstall('R', Rconv);
+-	fmtinstall('A', Aconv);
+-	fmtinstall('D', Dconv);
+-	fmtinstall('S', Sconv);
+-	fmtinstall('P', Pconv);
++	listinit6();
+ 	fmtinstall('I', Iconv);
+ }
+ 
+-int
+-Pconv(Fmt *fp)
+-{
+-	Prog *p;
+-
+-	p = va_arg(fp->args, Prog*);
+-	bigP = p;
+-	switch(p->as) {
+-	case ATEXT:
+-		if(p->from.scale) {
+-			fmtprint(fp, "(%d)	%A	%D,%d,%lD",
+-				p->lineno, p->as, &p->from, p->from.scale, &p->to);
+-			break;
+-		}
+-		fmtprint(fp, "(%d)	%A	%D,%lD",
+-			p->lineno, p->as, &p->from, &p->to);
+-		break;
+-	default:
+-		fmtprint(fp, "(%d)	%A	%D,%D",
+-			p->lineno, p->as, &p->from, &p->to);
+-		break;
+-	case ADATA:
+-	case AINIT_:
+-	case ADYNT_:
+-		fmtprint(fp, "(%d)	%A	%D/%d,%D",
+-			p->lineno, p->as, &p->from, p->from.scale, &p->to);
+-		break;
+-	}
+-	bigP = P;
+-	return 0;
+-}
+-
+-int
+-Aconv(Fmt *fp)
+-{
+-	int i;
+-
+-	i = va_arg(fp->args, int);
+-	return fmtstrcpy(fp, anames6[i]);
+-}
+-
+-int
+-Dconv(Fmt *fp)
+-{
+-	char str[STRINGSZ], s[STRINGSZ];
+-	Addr *a;
+-	int i;
+-
+-	a = va_arg(fp->args, Addr*);
+-	i = a->type;
+-
+-	if(fp->flags & FmtLong) {
+-		if(i != D_CONST) {
+-			// ATEXT dst is not constant
+-			snprint(str, sizeof(str), "!!%D", a);
+-			goto brk;
+-		}
+-		parsetextconst(a->offset);
+-		if(textarg == 0) {
+-			snprint(str, sizeof(str), "$%lld", textstksiz);
+-			goto brk;
+-		}
+-		snprint(str, sizeof(str), "$%lld-%lld", textstksiz, textarg);
+-		goto brk;
+-	}
+-
+-	if(i >= D_INDIR) {
+-		if(a->offset)
+-			snprint(str, sizeof(str), "%lld(%R)", a->offset, i-D_INDIR);
+-		else
+-			snprint(str, sizeof(str), "(%R)", i-D_INDIR);
+-		goto brk;
+-	}
+-	switch(i) {
+-
+-	default:
+-		if(a->offset)
+-			snprint(str, sizeof(str), "$%lld,%R", a->offset, i);
+-		else
+-			snprint(str, sizeof(str), "%R", i);
+-		break;
+-
+-	case D_NONE:
+-		str[0] = 0;
+-		break;
+-
+-	case D_BRANCH:
+-		if(bigP != P && bigP->pcond != P)
+-			if(a->sym != S)
+-				snprint(str, sizeof(str), "%llux+%s", bigP->pcond->pc,
+-					a->sym->name);
+-			else
+-				snprint(str, sizeof(str), "%llux", bigP->pcond->pc);
+-		else
+-			snprint(str, sizeof(str), "%lld(PC)", a->offset);
+-		break;
+-
+-	case D_EXTERN:
+-		if(a->sym) {
+-			snprint(str, sizeof(str), "%s+%lld(SB)", a->sym->name, a->offset);
+-			break;
+-		}
+-		snprint(str, sizeof(str), "!!noname!!+%lld(SB)", a->offset);
+-		break;
+-
+-	case D_STATIC:
+-		if(a->sym) {
+-			snprint(str, sizeof(str), "%s<%d>+%lld(SB)", a->sym->name,
+-				a->sym->version, a->offset);
+-			break;
+-		}
+-		snprint(str, sizeof(str), "!!noname!!<999>+%lld(SB)", a->offset);
+-		break;
+-
+-	case D_AUTO:
+-		if(a->sym) {
+-			snprint(str, sizeof(str), "%s+%lld(SP)", a->sym->name, a->offset);
+-			break;
+-		}
+-		snprint(str, sizeof(str), "!!noname!!+%lld(SP)", a->offset);
+-		break;
+-
+-	case D_PARAM:
+-		if(a->sym) {
+-			snprint(str, sizeof(str), "%s+%lld(%s)", a->sym->name, a->offset, paramspace);
+-			break;
+-		}
+-		snprint(str, sizeof(str), "!!noname!!+%lld(%s)", a->offset, paramspace);
+-		break;
+-
+-	case D_CONST:
+-		snprint(str, sizeof(str), "$%lld", a->offset);
+-		break;
+-
+-	case D_FCONST:
+-		snprint(str, sizeof(str), "$(%.17g)", a->u.dval);
+-		break;
+-
+-	case D_SCONST:
+-		snprint(str, sizeof(str), "$\"%S\"", a->u.sval);
+-		break;
+-
+-	case D_ADDR:
+-		a->type = a->index;
+-		a->index = D_NONE;
+-		snprint(str, sizeof(str), "$%D", a);
+-		a->index = a->type;
+-		a->type = D_ADDR;
+-		goto conv;
+-	}
+-brk:
+-	if(a->index != D_NONE) {
+-		snprint(s, sizeof(s), "(%R*%d)", a->index, a->scale);
+-		strcat(str, s);
+-	}
+-conv:
+-	fmtstrcpy(fp, str);
+-//	if(a->gotype)
+-//		fmtprint(fp, "«%s»", a->gotype->name);
+-	return 0;
+-
+-}
+-
+-char*	regstr[] =
+-{
+-	"AL",		/* [D_AL] */
+-	"CL",
+-	"DL",
+-	"BL",
+-	"SPB",
+-	"BPB",
+-	"SIB",
+-	"DIB",
+-	"R8B",
+-	"R9B",
+-	"R10B",
+-	"R11B",
+-	"R12B",
+-	"R13B",
+-	"R14B",
+-	"R15B",
+-
+-	"AX",		/* [D_AX] */
+-	"CX",
+-	"DX",
+-	"BX",
+-	"SP",
+-	"BP",
+-	"SI",
+-	"DI",
+-	"R8",
+-	"R9",
+-	"R10",
+-	"R11",
+-	"R12",
+-	"R13",
+-	"R14",
+-	"R15",
+-
+-	"AH",
+-	"CH",
+-	"DH",
+-	"BH",
+-
+-	"F0",		/* [D_F0] */
+-	"F1",
+-	"F2",
+-	"F3",
+-	"F4",
+-	"F5",
+-	"F6",
+-	"F7",
+-
+-	"M0",
+-	"M1",
+-	"M2",
+-	"M3",
+-	"M4",
+-	"M5",
+-	"M6",
+-	"M7",
+-
+-	"X0",
+-	"X1",
+-	"X2",
+-	"X3",
+-	"X4",
+-	"X5",
+-	"X6",
+-	"X7",
+-	"X8",
+-	"X9",
+-	"X10",
+-	"X11",
+-	"X12",
+-	"X13",
+-	"X14",
+-	"X15",
+-
+-	"CS",		/* [D_CS] */
+-	"SS",
+-	"DS",
+-	"ES",
+-	"FS",
+-	"GS",
+-
+-	"GDTR",		/* [D_GDTR] */
+-	"IDTR",		/* [D_IDTR] */
+-	"LDTR",		/* [D_LDTR] */
+-	"MSW",		/* [D_MSW] */
+-	"TASK",		/* [D_TASK] */
+-
+-	"CR0",		/* [D_CR] */
+-	"CR1",
+-	"CR2",
+-	"CR3",
+-	"CR4",
+-	"CR5",
+-	"CR6",
+-	"CR7",
+-	"CR8",
+-	"CR9",
+-	"CR10",
+-	"CR11",
+-	"CR12",
+-	"CR13",
+-	"CR14",
+-	"CR15",
+-
+-	"DR0",		/* [D_DR] */
+-	"DR1",
+-	"DR2",
+-	"DR3",
+-	"DR4",
+-	"DR5",
+-	"DR6",
+-	"DR7",
+-
+-	"TR0",		/* [D_TR] */
+-	"TR1",
+-	"TR2",
+-	"TR3",
+-	"TR4",
+-	"TR5",
+-	"TR6",
+-	"TR7",
+-
+-	"NONE",		/* [D_NONE] */
+-};
+-
+-int
+-Rconv(Fmt *fp)
+-{
+-	char str[STRINGSZ];
+-	int r;
+-
+-	r = va_arg(fp->args, int);
+-	if(r >= D_AL && r <= D_NONE)
+-		snprint(str, sizeof(str), "%s", regstr[r-D_AL]);
+-	else
+-		snprint(str, sizeof(str), "gok(%d)", r);
+-
+-	return fmtstrcpy(fp, str);
+-}
+-
+-int
+-Sconv(Fmt *fp)
+-{
+-	int i, c;
+-	char str[STRINGSZ], *p, *a;
+-
+-	a = va_arg(fp->args, char*);
+-	p = str;
+-	for(i=0; i<sizeof(double); i++) {
+-		c = a[i] & 0xff;
+-		if(c >= 'a' && c <= 'z' ||
+-		   c >= 'A' && c <= 'Z' ||
+-		   c >= '0' && c <= '9') {
+-			*p++ = c;
+-			continue;
+-		}
+-		*p++ = '\\';
+-		switch(c) {
+-		default:
+-			if(c < 040 || c >= 0177)
+-				break;	/* not portable */
+-			p[-1] = c;
+-			continue;
+-		case 0:
+-			*p++ = 'z';
+-			continue;
+-		case '\\':
+-		case '"':
+-			*p++ = c;
+-			continue;
+-		case '\n':
+-			*p++ = 'n';
+-			continue;
+-		case '\t':
+-			*p++ = 't';
+-			continue;
+-		}
+-		*p++ = (c>>6) + '0';
+-		*p++ = ((c>>3) & 7) + '0';
+-		*p++ = (c & 7) + '0';
+-	}
+-	*p = 0;
+-	return fmtstrcpy(fp, str);
+-}
+-
+ int
+ Iconv(Fmt *fp)
+ {
+@@ -422,40 +65,3 @@ Iconv(Fmt *fp)
+ 	free(s);
+ 	return 0;
+ }
+-
+-void
+-diag(char *fmt, ...)
+-{
+-	char buf[1024], *tn, *sep;
+-	va_list arg;
+-
+-	tn = "";
+-	sep = "";
+-	if(ctxt->cursym != S) {
+-		tn = ctxt->cursym->name;
+-		sep = ": ";
+-	}
+-	va_start(arg, fmt);
+-	vseprint(buf, buf+sizeof(buf), fmt, arg);
+-	va_end(arg);
+-	print("%s%s%s\n", tn, sep, buf);
+-
+-	nerrors++;
+-	if(nerrors > 20) {
+-		print("too many errors\n");
+-		errorexit();
+-	}
+-}
+-
+-void
+-parsetextconst(vlong arg)
+-{
+-	textstksiz = arg & 0xffffffffLL;
+-	if(textstksiz & 0x80000000LL)
+-		textstksiz = -(-textstksiz & 0xffffffffLL);
+-
+-	textarg = (arg >> 32) & 0xffffffffLL;
+-	if(textarg & 0x80000000LL)
+-		textarg = 0;
+-	textarg = (textarg+7) & ~7LL;
+-}
+diff --git a/src/cmd/8a/lex.c b/src/cmd/8a/lex.c
+index af816a00cc..b48b900b1f 100644
+--- a/src/cmd/8a/lex.c
++++ b/src/cmd/8a/lex.c
+@@ -57,6 +57,12 @@ pathchar(void)
+ 	return '/';
+ }
+ 
++int
++Lconv(Fmt *fp)
++{
++	return linklinefmt(ctxt, fp);
++}
++
+ void
+ main(int argc, char *argv[])
+ {
+@@ -71,6 +77,7 @@ main(int argc, char *argv[])
+ 	ctxt->bso = &bstdout;
+ 	Binit(&bstdout, 1, OWRITE);
+ 	listinit8();
++	fmtinstall('L', Lconv);
+ 
+ 	ensuresymb(NSYMB);
+ 	memset(debug, 0, sizeof(debug));
+diff --git a/src/cmd/8c/gc.h b/src/cmd/8c/gc.h
+index f662ad9c36..87b8e22bcf 100644
+--- a/src/cmd/8c/gc.h
++++ b/src/cmd/8c/gc.h
+@@ -48,7 +48,6 @@
+ 
+ typedef	struct	Case	Case;
+ typedef	struct	C1	C1;
+-typedef	struct	Var	Var;
+ typedef	struct	Reg	Reg;
+ typedef	struct	Rgn	Rgn;
+ typedef	struct	Renv	Renv;
+@@ -84,14 +83,6 @@ struct	C1
+ 	int32	label;
+ };
+ 
+-struct	Var
+-{
+-	int32	offset;
+-	LSym*	sym;
+-	char	name;
+-	char	etype;
+-};
+-
+ struct	Reg
+ {
+ 	int32	pc;
+@@ -203,7 +194,6 @@ EXTERN	Reg*	firstr;
+ EXTERN	Reg*	lastr;
+ EXTERN	Reg	zreg;
+ EXTERN	Reg*	freer;
+-EXTERN	Var	var[NVAR];
+ EXTERN	int32*	idom;
+ EXTERN	Reg**	rpo2r;
+ EXTERN	int32	maxnr;
+@@ -297,13 +287,6 @@ void	outcode(void);
+  * list
+  */
+ void	listinit(void);
+-int	Pconv(Fmt*);
+-int	Aconv(Fmt*);
+-int	Dconv(Fmt*);
+-int	Sconv(Fmt*);
+-int	Rconv(Fmt*);
+-int	Xconv(Fmt*);
+-int	Bconv(Fmt*);
+ 
+ /*
+  * reg.c
+@@ -377,14 +360,6 @@ void	mulgen(Type*, Node*, Node*);
+ void	genmuladd(Node*, Node*, int, Node*);
+ void	shiftit(Type*, Node*, Node*);
+ 
+-#pragma	varargck	type	"A"	int
+-#pragma	varargck	type	"B"	Bits
+-#pragma	varargck	type	"D"	Addr*
+-#pragma	varargck	type	"lD"	Addr*
+-#pragma	varargck	type	"P"	Prog*
+-#pragma	varargck	type	"R"	int
+-#pragma	varargck	type	"S"	char*
+-
+ /* wrecklessly steal a field */
+ 
+ #define	rplink	label
+diff --git a/src/cmd/8c/list.c b/src/cmd/8c/list.c
+index 160e24ccd0..1730eccd00 100644
+--- a/src/cmd/8c/list.c
++++ b/src/cmd/8c/list.c
+@@ -35,31 +35,4 @@ void
+ listinit(void)
+ {
+ 	listinit8();
+-	fmtinstall('B', Bconv);
+-}
+-
+-int
+-Bconv(Fmt *fp)
+-{
+-	char str[STRINGSZ], ss[STRINGSZ], *s;
+-	Bits bits;
+-	int i;
+-
+-	str[0] = 0;
+-	bits = va_arg(fp->args, Bits);
+-	while(bany(&bits)) {
+-		i = bnum(bits);
+-		if(str[0])
+-			strcat(str, " ");
+-		if(var[i].sym == nil) {
+-			sprint(ss, "$%d", var[i].offset);
+-			s = ss;
+-		} else
+-			s = var[i].sym->name;
+-		if(strlen(str) + strlen(s) + 1 >= STRINGSZ)
+-			break;
+-		strcat(str, s);
+-		bits.b[i/32] &= ~(1L << (i%32));
+-	}
+-	return fmtstrcpy(fp, str);
+ }
+diff --git a/src/cmd/8g/galign.c b/src/cmd/8g/galign.c
+index d4b4db6834..f8197c895f 100644
+--- a/src/cmd/8g/galign.c
++++ b/src/cmd/8g/galign.c
+@@ -37,5 +37,5 @@ betypeinit(void)
+ 	zprog.from.scale = 0;
+ 	zprog.to = zprog.from;
+ 
+-	listinit();
++	listinit8();
+ }
+diff --git a/src/cmd/8g/gg.h b/src/cmd/8g/gg.h
+index 53da9e8be6..3830f31d93 100644
+--- a/src/cmd/8g/gg.h
++++ b/src/cmd/8g/gg.h
+@@ -131,14 +131,6 @@ void	datagostring(Strlit*, Addr*);
+ /*
+  * list.c
+  */
+-int	Aconv(Fmt*);
+-int	Dconv(Fmt*);
+-int	Pconv(Fmt*);
+-int	Rconv(Fmt*);
+-int	Yconv(Fmt*);
+ void	listinit(void);
+ 
+ void	zaddr(Biobuf*, Addr*, int, int);
+-
+-#pragma	varargck	type	"D"	Addr*
+-#pragma	varargck	type	"lD"	Addr*
+diff --git a/src/cmd/8g/ggen.c b/src/cmd/8g/ggen.c
+index 73cb690edb..c6dbe16f03 100644
+--- a/src/cmd/8g/ggen.c
++++ b/src/cmd/8g/ggen.c
+@@ -1207,8 +1207,8 @@ expandchecks(Prog *firstp)
+ 		p->link = p1;
+ 		p1->lineno = p->lineno;
+ 		p2->lineno = p->lineno;
+-		p1->loc = 9999;
+-		p2->loc = 9999;
++		p1->pc = 9999;
++		p2->pc = 9999;
+ 		p->as = ACMPL;
+ 		p->to.type = D_CONST;
+ 		p->to.offset = 0;
+diff --git a/src/cmd/8g/gsubr.c b/src/cmd/8g/gsubr.c
+index 34dfa2382b..ebc3fa81c9 100644
+--- a/src/cmd/8g/gsubr.c
++++ b/src/cmd/8g/gsubr.c
+@@ -48,7 +48,7 @@ clearp(Prog *p)
+ 	p->from.index = D_NONE;
+ 	p->to.type = D_NONE;
+ 	p->to.index = D_NONE;
+-	p->loc = pcloc;
++	p->pc = pcloc;
+ 	pcloc++;
+ }
+ 
+@@ -137,7 +137,7 @@ patch(Prog *p, Prog *to)
+ 	if(p->to.type != D_BRANCH)
+ 		fatal("patch: not a branch");
+ 	p->to.u.branch = to;
+-	p->to.offset = to->loc;
++	p->to.offset = to->pc;
+ }
+ 
+ Prog*
+diff --git a/src/cmd/8g/list.c b/src/cmd/8g/list.c
+deleted file mode 100644
+index 558d9c690d..0000000000
+--- a/src/cmd/8g/list.c
++++ /dev/null
+@@ -1,319 +0,0 @@
+-// Derived from Inferno utils/8c/list.c
+-// http://code.google.com/p/inferno-os/source/browse/utils/8c/list.c
+-//
+-//	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+-//	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+-//	Portions Copyright © 1997-1999 Vita Nuova Limited
+-//	Portions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com)
+-//	Portions Copyright © 2004,2006 Bruce Ellis
+-//	Portions Copyright © 2005-2007 C H Forsyth (forsyth@terzarima.net)
+-//	Revisions Copyright © 2000-2007 Lucent Technologies Inc. and others
+-//	Portions Copyright © 2009 The Go Authors.  All rights reserved.
+-//
+-// Permission is hereby granted, free of charge, to any person obtaining a copy
+-// of this software and associated documentation files (the "Software"), to deal
+-// in the Software without restriction, including without limitation the rights
+-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+-// copies of the Software, and to permit persons to whom the Software is
+-// furnished to do so, subject to the following conditions:
+-//
+-// The above copyright notice and this permission notice shall be included in
+-// all copies or substantial portions of the Software.
+-//
+-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
+-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+-// THE SOFTWARE.
+-
+-#include <u.h>
+-#include <libc.h>
+-#include "gg.h"
+-
+-static	int	sconsize;
+-void
+-listinit(void)
+-{
+-
+-	fmtinstall('A', Aconv);		// as
+-	fmtinstall('P', Pconv);		// Prog*
+-	fmtinstall('D', Dconv);		// Addr*
+-	fmtinstall('R', Rconv);		// reg
+-	fmtinstall('Y', Yconv);		// sconst
+-}
+-
+-int
+-Pconv(Fmt *fp)
+-{
+-	char str[STRINGSZ];
+-	Prog *p;
+-	char scale[40];
+-
+-	p = va_arg(fp->args, Prog*);
+-	sconsize = 8;
+-	scale[0] = '\0';
+-	if(p->from.scale != 0 && (p->as == AGLOBL || p->as == ATEXT))
+-		snprint(scale, sizeof scale, "%d,", p->from.scale);
+-	switch(p->as) {
+-	default:
+-		snprint(str, sizeof(str), "%.4d (%L) %-7A %D,%s%D",
+-			p->loc, p->lineno, p->as, &p->from, scale, &p->to);
+-		break;
+-
+-	case ADATA:
+-		sconsize = p->from.scale;
+-		snprint(str, sizeof(str), "%.4d (%L) %-7A %D/%d,%D",
+-			p->loc, p->lineno, p->as, &p->from, sconsize, &p->to);
+-		break;
+-
+-	case ATEXT:
+-		snprint(str, sizeof(str), "%.4d (%L) %-7A %D,%s%lD",
+-			p->loc, p->lineno, p->as, &p->from, scale, &p->to);
+-		break;
+-	}
+-	return fmtstrcpy(fp, str);
+-}
+-
+-int
+-Dconv(Fmt *fp)
+-{
+-	char str[STRINGSZ], s[STRINGSZ];
+-	Addr *a;
+-	int i;
+-	uint32 d1, d2;
+-
+-	a = va_arg(fp->args, Addr*);
+-	i = a->type;
+-	if(i >= D_INDIR) {
+-		if(a->offset)
+-			snprint(str, sizeof(str), "%lld(%R)", a->offset, i-D_INDIR);
+-		else
+-			snprint(str, sizeof(str), "(%R)", i-D_INDIR);
+-		goto brk;
+-	}
+-	switch(i) {
+-
+-	default:
+-		if(a->offset)
+-			snprint(str, sizeof(str), "$%lld,%R", a->offset, i);
+-		else
+-			snprint(str, sizeof(str), "%R", i);
+-		break;
+-
+-	case D_NONE:
+-		str[0] = 0;
+-		break;
+-
+-	case D_BRANCH:
+-		if(a->u.branch == nil)
+-			snprint(str, sizeof(str), "<nil>");
+-		else
+-			snprint(str, sizeof(str), "%d", a->u.branch->loc);
+-		break;
+-
+-	case D_EXTERN:
+-		snprint(str, sizeof(str), "%lS+%lld(SB)", a->sym, a->offset);
+-		break;
+-
+-	case D_STATIC:
+-		snprint(str, sizeof(str), "%lS<>+%lld(SB)", a->sym, a->offset);
+-		break;
+-
+-	case D_AUTO:
+-		snprint(str, sizeof(str), "%lS+%lld(SP)", a->sym, a->offset);
+-		break;
+-
+-	case D_PARAM:
+-		snprint(str, sizeof(str), "%lS+%lld(FP)", a->sym, a->offset);
+-		break;
+-
+-	case D_CONST:
+-		if(fp->flags & FmtLong) {
+-			d1 = a->offset;
+-			d2 = a->offset2;
+-			snprint(str, sizeof(str), "$%lud-%lud", (ulong)d1, (ulong)d2);
+-			break;
+-		}
+-		snprint(str, sizeof(str), "$%lld", a->offset);
+-		break;
+-
+-	case D_FCONST:
+-		snprint(str, sizeof(str), "$(%.17e)", a->u.dval);
+-		break;
+-
+-	case D_SCONST:
+-		snprint(str, sizeof(str), "$\"%Y\"", a->u.sval);
+-		break;
+-
+-	case D_ADDR:
+-		a->type = a->index;
+-		a->index = D_NONE;
+-		snprint(str, sizeof(str), "$%D", a);
+-		a->index = a->type;
+-		a->type = D_ADDR;
+-		goto conv;
+-	}
+-brk:
+-	if(a->index != D_NONE) {
+-		snprint(s, sizeof(s), "(%R*%d)", (int)a->index, (int)a->scale);
+-		strcat(str, s);
+-	}
+-conv:
+-	fmtstrcpy(fp, str);
+-	if(a->gotype)
+-		fmtprint(fp, "{%s}", a->gotype->name);
+-	return 0;
+-}
+-
+-static	char*	regstr[] =
+-{
+-	"AL",		/* [D_AL] */
+-	"CL",
+-	"DL",
+-	"BL",
+-
+-	"AH",	/* [D_AH] */
+-	"CH",
+-	"DH",
+-	"BH",
+-
+-	"AX",		/* [D_AX] */
+-	"CX",
+-	"DX",
+-	"BX",
+-	"SP",
+-	"BP",
+-	"SI",
+-	"DI",
+-
+-	"F0",		/* [D_F0] */
+-	"F1",
+-	"F2",
+-	"F3",
+-	"F4",
+-	"F5",
+-	"F6",
+-	"F7",
+-
+-	"CS",		/* [D_CS] */
+-	"SS",
+-	"DS",
+-	"ES",
+-	"FS",
+-	"GS",
+-
+-	"GDTR",		/* [D_GDTR] */
+-	"IDTR",		/* [D_IDTR] */
+-	"LDTR",		/* [D_LDTR] */
+-	"MSW",		/* [D_MSW] */
+-	"TASK",		/* [D_TASK] */
+-
+-	"CR0",		/* [D_CR] */
+-	"CR1",
+-	"CR2",
+-	"CR3",
+-	"CR4",
+-	"CR5",
+-	"CR6",
+-	"CR7",
+-
+-	"DR0",		/* [D_DR] */
+-	"DR1",
+-	"DR2",
+-	"DR3",
+-	"DR4",
+-	"DR5",
+-	"DR6",
+-	"DR7",
+-
+-	"TR0",		/* [D_TR] */
+-	"TR1",
+-	"TR2",
+-	"TR3",
+-	"TR4",
+-	"TR5",
+-	"TR6",
+-	"TR7",
+-
+-	"X0",		/* [D_X0] */
+-	"X1",
+-	"X2",
+-	"X3",
+-	"X4",
+-	"X5",
+-	"X6",
+-	"X7",
+-
+-	"NONE",		/* [D_NONE] */
+-};
+-
+-int
+-Rconv(Fmt *fp)
+-{
+-	char str[STRINGSZ];
+-	int r;
+-
+-	r = va_arg(fp->args, int);
+-	if(r < 0 || r >= nelem(regstr) || regstr[r] == nil) {
+-		snprint(str, sizeof(str), "BAD_R(%d)", r);
+-		return fmtstrcpy(fp, str);
+-	}
+-	return fmtstrcpy(fp, regstr[r]);
+-}
+-
+-int
+-Aconv(Fmt *fp)
+-{
+-	int i;
+-
+-	i = va_arg(fp->args, int);
+-	return fmtstrcpy(fp, anames8[i]);
+-}
+-
+-
+-int
+-Yconv(Fmt *fp)
+-{
+-	int i, c;
+-	char str[STRINGSZ], *p, *a;
+-
+-	a = va_arg(fp->args, char*);
+-	p = str;
+-	for(i=0; i<sconsize; i++) {
+-		c = a[i] & 0xff;
+-		if((c >= 'a' && c <= 'z') ||
+-		   (c >= 'A' && c <= 'Z') ||
+-		   (c >= '0' && c <= '9')) {
+-			*p++ = c;
+-			continue;
+-		}
+-		*p++ = '\\';
+-		switch(c) {
+-		default:
+-			if(c < 040 || c >= 0177)
+-				break;	/* not portable */
+-			p[-1] = c;
+-			continue;
+-		case 0:
+-			*p++ = 'z';
+-			continue;
+-		case '\\':
+-		case '"':
+-			*p++ = c;
+-			continue;
+-		case '\n':
+-			*p++ = 'n';
+-			continue;
+-		case '\t':
+-			*p++ = 't';
+-			continue;
+-		}
+-		*p++ = (c>>6) + '0';
+-		*p++ = ((c>>3) & 7) + '0';
+-		*p++ = (c & 7) + '0';
+-	}
+-	*p = 0;
+-	return fmtstrcpy(fp, str);
+-}
+diff --git a/src/cmd/8g/opt.h b/src/cmd/8g/opt.h
+index 0d99bdb972..b8f1875d80 100644
+--- a/src/cmd/8g/opt.h
++++ b/src/cmd/8g/opt.h
+@@ -155,8 +155,6 @@ int32	FtoB(int);
+ int	BtoR(int32);
+ int	BtoF(int32);
+ 
+-#pragma	varargck	type	"D"	Adr*
+-
+ /*
+  * prog.c
+  */
+diff --git a/src/cmd/8g/reg.c b/src/cmd/8g/reg.c
+index 2240fcc284..271fbd8019 100644
+--- a/src/cmd/8g/reg.c
++++ b/src/cmd/8g/reg.c
+@@ -435,7 +435,7 @@ addmove(Reg *r, int bn, int rn, int f)
+ 
+ 	p1 = mal(sizeof(*p1));
+ 	clearp(p1);
+-	p1->loc = 9999;
++	p1->pc = 9999;
+ 
+ 	p = r->f.prog;
+ 	p1->link = p->link;
+@@ -1139,14 +1139,14 @@ dumpit(char *str, Flow *r0, int isreg)
+ 		if(r1 != nil) {
+ 			print("	pred:");
+ 			for(; r1 != nil; r1 = r->p2link)
+-				print(" %.4ud", r1->prog->loc);
++				print(" %.4ud", r1->prog->pc);
+ 			print("\n");
+ 		}
+ //		r1 = r->s1;
+ //		if(r1 != nil) {
+ //			print("	succ:");
+ //			for(; r1 != R; r1 = r1->s1)
+-//				print(" %.4ud", r1->prog->loc);
++//				print(" %.4ud", r1->prog->pc);
+ //			print("\n");
+ //		}
+ 	}
+diff --git a/src/cmd/8l/l.h b/src/cmd/8l/l.h
+index 928e2e49ab..f19c570c8b 100644
+--- a/src/cmd/8l/l.h
++++ b/src/cmd/8l/l.h
+@@ -60,15 +60,7 @@ enum
+ 	MAXHIST		= 40,				/* limit of path elements for history symbols */
+ };
+ 
+-#pragma	varargck	type	"A"	int
+-#pragma	varargck	type	"D"	Addr*
+ #pragma	varargck	type	"I"	uchar*
+-#pragma	varargck	type	"P"	Prog*
+-#pragma	varargck	type	"R"	int
+-#pragma	varargck	type	"S"	char*
+-#pragma	varargck	type	"Y"	LSym*
+-#pragma	varargck	type	"Z"	char*
+-#pragma	varargck	type	"i"	char*
+ 
+ EXTERN	LSym*	datap;
+ EXTERN	int	debug[128];
+@@ -81,19 +73,13 @@ EXTERN	LSym*	symlist;
+ EXTERN	int32	symsize;
+ EXTERN	int32	textsize;
+ 
+-int	Aconv(Fmt *fp);
+-int	Dconv(Fmt *fp);
+ int	Iconv(Fmt *fp);
+-int	Pconv(Fmt *fp);
+-int	Rconv(Fmt *fp);
+-int	Sconv(Fmt *fp);
+ void	adddynlib(char *lib);
+ void	adddynrel(LSym *s, Reloc *r);
+ void	adddynrela(LSym *rela, LSym *s, Reloc *r);
+ void	adddynsym(Link *ctxt, LSym *s);
+ int	archreloc(Reloc *r, LSym *s, vlong *val);
+ void	asmb(void);
+-void	diag(char *fmt, ...);
+ int	elfreloc1(Reloc *r, vlong sectoff);
+ void	elfsetupplt(void);
+ void	listinit(void);
+diff --git a/src/cmd/8l/list.c b/src/cmd/8l/list.c
+index b6df665e35..0a75340603 100644
+--- a/src/cmd/8l/list.c
++++ b/src/cmd/8l/list.c
+@@ -36,297 +36,10 @@
+ void
+ listinit(void)
+ {
+-
+-	fmtinstall('R', Rconv);
+-	fmtinstall('A', Aconv);
+-	fmtinstall('D', Dconv);
+-	fmtinstall('S', Sconv);
+-	fmtinstall('P', Pconv);
++	listinit8();
+ 	fmtinstall('I', Iconv);
+ }
+ 
+-static	Prog	*bigP;
+-
+-int
+-Pconv(Fmt *fp)
+-{
+-	Prog *p;
+-
+-	p = va_arg(fp->args, Prog*);
+-	bigP = p;
+-	switch(p->as) {
+-	case ATEXT:
+-		if(p->from.scale) {
+-			fmtprint(fp, "(%d)	%A	%D,%d,%D",
+-				p->lineno, p->as, &p->from, p->from.scale, &p->to);
+-			break;
+-		}
+-	default:
+-		fmtprint(fp, "(%d)	%A	%D,%D",
+-			p->lineno, p->as, &p->from, &p->to);
+-		break;
+-	case ADATA:
+-	case AINIT_:
+-	case ADYNT_:
+-		fmtprint(fp, "(%d)	%A	%D/%d,%D",
+-			p->lineno, p->as, &p->from, p->from.scale, &p->to);
+-		break;
+-	}
+-	bigP = P;
+-	return 0;
+-}
+-
+-int
+-Aconv(Fmt *fp)
+-{
+-	int i;
+-
+-	i = va_arg(fp->args, int);
+-	return fmtstrcpy(fp, anames8[i]);
+-}
+-
+-char*
+-xsymname(LSym *s)
+-{
+-	if(s == nil)
+-		return "!!noname!!";
+-	return s->name;
+-}
+-
+-int
+-Dconv(Fmt *fp)
+-{
+-	char str[STRINGSZ], s[STRINGSZ];
+-	Addr *a;
+-	int i;
+-
+-	a = va_arg(fp->args, Addr*);
+-	i = a->type;
+-	if(i >= D_INDIR && i < 2*D_INDIR) {
+-		if(a->offset)
+-			snprint(str, sizeof str, "%lld(%R)", a->offset, i-D_INDIR);
+-		else
+-			snprint(str, sizeof str, "(%R)", i-D_INDIR);
+-		goto brk;
+-	}
+-	switch(i) {
+-
+-	default:
+-		snprint(str, sizeof str, "%R", i);
+-		break;
+-
+-	case D_NONE:
+-		str[0] = 0;
+-		break;
+-
+-	case D_BRANCH:
+-		if(bigP != P && bigP->pcond != P)
+-			if(a->sym != S)
+-				snprint(str, sizeof str, "%llux+%s", bigP->pcond->pc,
+-					a->sym->name);
+-			else
+-				snprint(str, sizeof str, "%llux", bigP->pcond->pc);
+-		else
+-			snprint(str, sizeof str, "%lld(PC)", a->offset);
+-		break;
+-
+-	case D_EXTERN:
+-		snprint(str, sizeof str, "%s+%lld(SB)", xsymname(a->sym), a->offset);
+-		break;
+-
+-	case D_STATIC:
+-		snprint(str, sizeof str, "%s<%d>+%lld(SB)", xsymname(a->sym),
+-			a->sym->version, a->offset);
+-		break;
+-
+-	case D_AUTO:
+-		snprint(str, sizeof str, "%s+%lld(SP)", xsymname(a->sym), a->offset);
+-		break;
+-
+-	case D_PARAM:
+-		if(a->sym)
+-			snprint(str, sizeof str, "%s+%lld(FP)", a->sym->name, a->offset);
+-		else
+-			snprint(str, sizeof str, "%lld(FP)", a->offset);
+-		break;
+-
+-	case D_CONST:
+-		snprint(str, sizeof str, "$%lld", a->offset);
+-		break;
+-
+-	case D_CONST2:
+-		snprint(str, sizeof str, "$%lld-%d", a->offset, a->offset2);
+-		break;
+-
+-	case D_FCONST:
+-		snprint(str, sizeof str, "$(%.17g)", a->u.dval);
+-		break;
+-
+-	case D_SCONST:
+-		snprint(str, sizeof str, "$\"%S\"", a->u.sval);
+-		break;
+-
+-	case D_ADDR:
+-		a->type = a->index;
+-		a->index = D_NONE;
+-		snprint(str, sizeof str, "$%D", a);
+-		a->index = a->type;
+-		a->type = D_ADDR;
+-		goto conv;
+-	}
+-brk:
+-	if(a->index != D_NONE) {
+-		sprint(s, "(%R*%d)", (int)a->index, a->scale);
+-		strcat(str, s);
+-	}
+-conv:
+-	fmtstrcpy(fp, str);
+-//	if(a->gotype)
+-//		fmtprint(fp, "«%s»", a->gotype->name);
+-	return 0;
+-}
+-
+-char*	regstr[] =
+-{
+-	"AL",		/* [D_AL] */
+-	"CL",
+-	"DL",
+-	"BL",
+-	"AH",
+-	"CH",
+-	"DH",
+-	"BH",
+-
+-	"AX",		/* [D_AX] */
+-	"CX",
+-	"DX",
+-	"BX",
+-	"SP",
+-	"BP",
+-	"SI",
+-	"DI",
+-
+-	"F0",		/* [D_F0] */
+-	"F1",
+-	"F2",
+-	"F3",
+-	"F4",
+-	"F5",
+-	"F6",
+-	"F7",
+-
+-	"CS",		/* [D_CS] */
+-	"SS",
+-	"DS",
+-	"ES",
+-	"FS",
+-	"GS",
+-
+-	"GDTR",		/* [D_GDTR] */
+-	"IDTR",		/* [D_IDTR] */
+-	"LDTR",		/* [D_LDTR] */
+-	"MSW",		/* [D_MSW] */
+-	"TASK",		/* [D_TASK] */
+-
+-	"CR0",		/* [D_CR] */
+-	"CR1",
+-	"CR2",
+-	"CR3",
+-	"CR4",
+-	"CR5",
+-	"CR6",
+-	"CR7",
+-
+-	"DR0",		/* [D_DR] */
+-	"DR1",
+-	"DR2",
+-	"DR3",
+-	"DR4",
+-	"DR5",
+-	"DR6",
+-	"DR7",
+-
+-	"TR0",		/* [D_TR] */
+-	"TR1",
+-	"TR2",
+-	"TR3",
+-	"TR4",
+-	"TR5",
+-	"TR6",
+-	"TR7",
+-	
+-	"X0",
+-	"X1",
+-	"X2",
+-	"X3",
+-	"X4",
+-	"X5",
+-	"X6",
+-	"X7",
+-
+-	"NONE",		/* [D_NONE] */
+-};
+-
+-int
+-Rconv(Fmt *fp)
+-{
+-	char str[STRINGSZ];
+-	int r;
+-
+-	r = va_arg(fp->args, int);
+-	if(r >= D_AL && r <= D_NONE)
+-		sprint(str, "%s", regstr[r-D_AL]);
+-	else
+-		sprint(str, "gok(%d)", r);
+-
+-	return fmtstrcpy(fp, str);
+-}
+-
+-int
+-Sconv(Fmt *fp)
+-{
+-	int i, c;
+-	char str[STRINGSZ], *p, *a;
+-
+-	a = va_arg(fp->args, char*);
+-	p = str;
+-	for(i=0; i<sizeof(double); i++) {
+-		c = a[i] & 0xff;
+-		if(c >= 'a' && c <= 'z' ||
+-		   c >= 'A' && c <= 'Z' ||
+-		   c >= '0' && c <= '9') {
+-			*p++ = c;
+-			continue;
+-		}
+-		*p++ = '\\';
+-		switch(c) {
+-		default:
+-			if(c < 040 || c >= 0177)
+-				break;	/* not portable */
+-			p[-1] = c;
+-			continue;
+-		case 0:
+-			*p++ = 'z';
+-			continue;
+-		case '\\':
+-		case '"':
+-			*p++ = c;
+-			continue;
+-		case '\n':
+-			*p++ = 'n';
+-			continue;
+-		case '\t':
+-			*p++ = 't';
+-			continue;
+-		}
+-		*p++ = (c>>6) + '0';
+-		*p++ = ((c>>3) & 7) + '0';
+-		*p++ = (c & 7) + '0';
+-	}
+-	*p = 0;
+-	return fmtstrcpy(fp, str);
+-}
+-
+ int
+ Iconv(Fmt *fp)
+ {
+@@ -352,27 +65,3 @@ Iconv(Fmt *fp)
+ 	free(s);
+ 	return 0;
+ }
+-
+-void
+-diag(char *fmt, ...)
+-{
+-	char buf[1024], *tn, *sep;
+-	va_list arg;
+-
+-	tn = "";
+-	sep = "";
+-	if(ctxt->cursym != S) {
+-		tn = ctxt->cursym->name;
+-		sep = ": ";
+-	}
+-	va_start(arg, fmt);
+-	vseprint(buf, buf+sizeof(buf), fmt, arg);
+-	va_end(arg);
+-	print("%s%s%s\n", tn, sep, buf);
+-
+-	nerrors++;
+-	if(nerrors > 20) {
+-		print("too many errors\n");
+-		errorexit();
+-	}
+-}
+diff --git a/src/cmd/cc/cc.h b/src/cmd/cc/cc.h
+index c8100730b8..ad0034a623 100644
+--- a/src/cmd/cc/cc.h
++++ b/src/cmd/cc/cc.h
+@@ -55,6 +55,7 @@ typedef	struct	Bits	Bits;
+ typedef	struct	Bvec	Bvec;
+ typedef	struct	Dynimp	Dynimp;
+ typedef	struct	Dynexp	Dynexp;
++typedef	struct	Var	Var;
+ 
+ typedef	Rune	TRune;	/* target system type */
+ 
+@@ -83,6 +84,14 @@ struct Bvec
+ 	uint32	b[];
+ };
+ 
++struct	Var
++{
++	vlong	offset;
++	LSym*	sym;
++	char	name;
++	char	etype;
++};
++
+ struct	Node
+ {
+ 	Node*	left;
+@@ -518,6 +527,7 @@ EXTERN	int	warnreach;
+ EXTERN	Bits	zbits;
+ EXTERN	Fmt	pragcgobuf;
+ EXTERN	Biobuf	bstdout;
++EXTERN	Var	var[NVAR];
+ 
+ extern	char	*onames[], *tnames[], *gnames[];
+ extern	char	*cnames[], *qnames[], *bnames[];
+@@ -595,6 +605,7 @@ int	FNconv(Fmt*);
+ int	Oconv(Fmt*);
+ int	Qconv(Fmt*);
+ int	VBconv(Fmt*);
++int	Bconv(Fmt*);
+ void	setinclude(char*);
+ 
+ /*
+@@ -806,6 +817,7 @@ int	machcap(Node*);
+ #pragma	varargck	argpos	diag	2
+ #pragma	varargck	argpos	yyerror	1
+ 
++#pragma	varargck	type	"B"	Bits
+ #pragma	varargck	type	"F"	Node*
+ #pragma	varargck	type	"L"	int32
+ #pragma	varargck	type	"Q"	int32
+diff --git a/src/cmd/cc/lex.c b/src/cmd/cc/lex.c
+index f5502866ac..163bb0f0aa 100644
+--- a/src/cmd/cc/lex.c
++++ b/src/cmd/cc/lex.c
+@@ -1316,6 +1316,7 @@ cinit(void)
+ 	fmtinstall('Q', Qconv);
+ 	fmtinstall('|', VBconv);
+ 	fmtinstall('U', Uconv);
++	fmtinstall('B', Bconv);
+ }
+ 
+ int
+@@ -1487,6 +1488,32 @@ VBconv(Fmt *fp)
+ 	return fmtstrcpy(fp, str);
+ }
+ 
++int
++Bconv(Fmt *fp)
++{
++	char str[STRINGSZ], ss[STRINGSZ], *s;
++	Bits bits;
++	int i;
++
++	str[0] = 0;
++	bits = va_arg(fp->args, Bits);
++	while(bany(&bits)) {
++		i = bnum(bits);
++		if(str[0])
++			strcat(str, " ");
++		if(var[i].sym == nil) {
++			sprint(ss, "$%lld", var[i].offset);
++			s = ss;
++		} else
++			s = var[i].sym->name;
++		if(strlen(str) + strlen(s) + 1 >= STRINGSZ)
++			break;
++		strcat(str, s);
++		bits.b[i/32] &= ~(1L << (i%32));
++	}
++	return fmtstrcpy(fp, str);
++}
++
+ void
+ setinclude(char *p)
+ {
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 7c4da85bac..b95173a5d0 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -1507,31 +1507,24 @@ void	nopout(Prog*);
+ void	patch(Prog*, Prog*);
+ Prog*	unpatch(Prog*);
+ 
+-#pragma	varargck	type	"A"	int
+ #pragma	varargck	type	"B"	Mpint*
+-#pragma	varargck	type	"D"	Addr*
+-#pragma	varargck	type	"lD"	Addr*
+ #pragma	varargck	type	"E"	int
+ #pragma	varargck	type	"E"	uint
+ #pragma	varargck	type	"F"	Mpflt*
+ #pragma	varargck	type	"H"	NodeList*
+ #pragma	varargck	type	"J"	Node*
+-#pragma	varargck	type	"lL"	int
+-#pragma	varargck	type	"lL"	uint
+-#pragma	varargck	type	"L"	int
+-#pragma	varargck	type	"L"	uint
++#pragma	varargck	type	"lL"	int32
++#pragma	varargck	type	"L"	int32
+ #pragma	varargck	type	"N"	Node*
+ #pragma	varargck	type	"lN"	Node*
++#pragma	varargck	type	"O"	int
+ #pragma	varargck	type	"O"	uint
+-#pragma	varargck	type	"P"	Prog*
+ #pragma	varargck	type	"Q"	Bits
+-#pragma	varargck	type	"R"	int
+ #pragma	varargck	type	"S"	Sym*
+-#pragma	varargck	type	"lS"	Sym*
++#pragma	varargck	type	"lS"	LSym*
+ #pragma	varargck	type	"T"	Type*
+ #pragma	varargck	type	"lT"	Type*
+ #pragma	varargck	type	"V"	Val*
+-#pragma	varargck	type	"Y"	char*
+ #pragma	varargck	type	"Z"	Strlit*
+ 
+ /*
+diff --git a/src/cmd/gc/popt.c b/src/cmd/gc/popt.c
+index 741ab3619d..3fa1cf9a71 100644
+--- a/src/cmd/gc/popt.c
++++ b/src/cmd/gc/popt.c
+@@ -491,8 +491,8 @@ struct TempVar
+ 	TempFlow *use; // use list, chained through TempFlow.uselink
+ 	TempVar *freelink; // next free temp in Type.opt list
+ 	TempVar *merge; // merge var with this one
+-	uint32 start; // smallest Prog.loc in live range
+-	uint32 end; // largest Prog.loc in live range
++	vlong start; // smallest Prog.pc in live range
++	vlong end; // largest Prog.pc in live range
+ 	uchar addr; // address taken - no accurate end
+ 	uchar removed; // removed from program
+ };
+@@ -754,10 +754,10 @@ mergewalk(TempVar *v, TempFlow *r0, uint32 gen)
+ 			break;
+ 		r1->f.active = gen;
+ 		p = r1->f.prog;
+-		if(v->end < p->loc)
+-			v->end = p->loc;
++		if(v->end < p->pc)
++			v->end = p->pc;
+ 		if(r1 == v->def) {
+-			v->start = p->loc;
++			v->start = p->pc;
+ 			break;
+ 		}
+ 	}
+diff --git a/src/cmd/ld/lib.c b/src/cmd/ld/lib.c
+index eb02ae5e8c..f91cb6a6c7 100644
+--- a/src/cmd/ld/lib.c
++++ b/src/cmd/ld/lib.c
+@@ -1443,3 +1443,27 @@ undef(void)
+ 	if(nerrors > 0)
+ 		errorexit();
+ }
++
++void
++diag(char *fmt, ...)
++{
++	char buf[1024], *tn, *sep;
++	va_list arg;
++
++	tn = "";
++	sep = "";
++	if(ctxt->cursym != S) {
++		tn = ctxt->cursym->name;
++		sep = ": ";
++	}
++	va_start(arg, fmt);
++	vseprint(buf, buf+sizeof(buf), fmt, arg);
++	va_end(arg);
++	print("%s%s%s\n", tn, sep, buf);
++
++	nerrors++;
++	if(nerrors > 20) {
++		print("too many errors\n");
++		errorexit();
++	}
++}
+diff --git a/src/cmd/ld/lib.h b/src/cmd/ld/lib.h
+index 99023f0ae2..2d90807d2c 100644
+--- a/src/cmd/ld/lib.h
++++ b/src/cmd/ld/lib.h
+@@ -141,8 +141,9 @@ struct Header {
+ EXTERN	char*	headstring;
+ extern	Header	headers[];
+ 
+-#pragma	varargck	type	"O"	int
+ #pragma	varargck	type	"Y"	LSym*
++#pragma	varargck	type	"Z"	char*
++#pragma	varargck	type	"i"	char*
+ 
+ // buffered output
+ 
+@@ -271,3 +272,6 @@ void	wputl(ushort w);
+ void	xdefine(char *p, int t, vlong v);
+ void	zerosig(char *sp);
+ void	archinit(void);
++void	diag(char *fmt, ...);
++
++#pragma	varargck	argpos	diag	1
+diff --git a/src/liblink/list5.c b/src/liblink/list5.c
+index 69650e5ff3..4a4e8c71f0 100644
+--- a/src/liblink/list5.c
++++ b/src/liblink/list5.c
+@@ -43,17 +43,25 @@ static int	Aconv(Fmt *fp);
+ static int	Dconv(Fmt *fp);
+ static int	Mconv(Fmt *fp);
+ static int	Pconv(Fmt *fp);
++static int	Rconv(Fmt *fp);
+ static int	RAconv(Fmt *fp);
+ static int	DSconv(Fmt *fp);
+ 
++#pragma	varargck	type	"$"	char*
++#pragma	varargck	type	"M"	Addr*
++#pragma	varargck	type	"@"	Addr*
++
+ void
+ listinit5(void)
+ {
+ 	fmtinstall('A', Aconv);
++	fmtinstall('D', Dconv);
+ 	fmtinstall('P', Pconv);
++	fmtinstall('R', Rconv);
++
++	// for internal use
+ 	fmtinstall('$', DSconv);
+ 	fmtinstall('M', Mconv);
+-	fmtinstall('D', Dconv);
+ 	fmtinstall('@', RAconv);
+ }
+ 
+@@ -64,6 +72,8 @@ static char *extra [] = {
+ 	".GT", ".LE", "", ".NV",
+ };
+ 
++static	Prog*	bigP;
++
+ static int
+ Pconv(Fmt *fp)
+ {
+@@ -72,6 +82,7 @@ Pconv(Fmt *fp)
+ 	int a, s;
+ 
+ 	p = va_arg(fp->args, Prog*);
++	bigP = p;
+ 	a = p->as;
+ 	s = p->scond;
+ 	strcpy(sc, extra[s & C_SCOND]);
+@@ -85,26 +96,27 @@ Pconv(Fmt *fp)
+ 		strcat(sc, ".U");
+ 	if(a == AMOVM) {
+ 		if(p->from.type == D_CONST)
+-			sprint(str, "	%A%s	%@,%D", a, sc, &p->from, &p->to);
++			sprint(str, "%.5lld (%L)	%A%s	%@,%D", p->pc, p->lineno, a, sc, &p->from, &p->to);
+ 		else
+ 		if(p->to.type == D_CONST)
+-			sprint(str, "	%A%s	%D,%@", a, sc, &p->from, &p->to);
++			sprint(str, "%.5lld (%L)	%A%s	%D,%@", p->pc, p->lineno, a, sc, &p->from, &p->to);
+ 		else
+-			sprint(str, "	%A%s	%D,%D", a, sc, &p->from, &p->to);
++			sprint(str, "%.5lld (%L)	%A%s	%D,%D", p->pc, p->lineno, a, sc, &p->from, &p->to);
+ 	} else
+ 	if(a == ADATA)
+-		sprint(str, "	%A	%D/%d,%D", a, &p->from, p->reg, &p->to);
++		sprint(str, "%.5lld (%L)	%A	%D/%d,%D", p->pc, p->lineno, a, &p->from, p->reg, &p->to);
+ 	else
+ 	if(p->as == ATEXT)
+-		sprint(str, "	%A	%D,%d,%D", a, &p->from, p->reg, &p->to);
++		sprint(str, "%.5lld (%L)	%A	%D,%d,%D", p->pc, p->lineno, a, &p->from, p->reg, &p->to);
+ 	else
+ 	if(p->reg == NREG)
+-		sprint(str, "	%A%s	%D,%D", a, sc, &p->from, &p->to);
++		sprint(str, "%.5lld (%L)	%A%s	%D,%D", p->pc, p->lineno, a, sc, &p->from, &p->to);
+ 	else
+ 	if(p->from.type != D_FREG)
+-		sprint(str, "	%A%s	%D,R%d,%D", a, sc, &p->from, p->reg, &p->to);
++		sprint(str, "%.5lld (%L)	%A%s	%D,R%d,%D", p->pc, p->lineno, a, sc, &p->from, p->reg, &p->to);
+ 	else
+-		sprint(str, "	%A%s	%D,F%d,%D", a, sc, &p->from, p->reg, &p->to);
++		sprint(str, "%.5lld (%L)	%A%s	%D,F%d,%D", p->pc, p->lineno, a, sc, &p->from, p->reg, &p->to);
++	bigP = nil;
+ 	return fmtstrcpy(fp, str);
+ }
+ 
+@@ -192,10 +204,12 @@ Dconv(Fmt *fp)
+ 	case D_BRANCH:
+ 		if(a->sym != nil)
+ 			sprint(str, "%s(SB)", a->sym->name);
++		else if(bigP != nil && bigP->pcond != nil)
++			sprint(str, "%lld", bigP->pcond->pc);
+ 		else if(a->u.branch != nil)
+-			sprint(str, "%#llx", a->u.branch->pc);
++			sprint(str, "%lld", a->u.branch->pc);
+ 		else
+-			sprint(str, "%d(PC)", (int)(a->offset/*-pc*/));
++			sprint(str, "%lld(PC)", a->offset/*-pc*/);
+ 		break;
+ 
+ 	case D_FCONST:
+@@ -288,6 +302,17 @@ DSconv(Fmt *fp)
+ 	return fmtstrcpy(fp, str);
+ }
+ 
++static int
++Rconv(Fmt *fp)
++{
++	int r;
++	char str[STRINGSZ];
++
++	r = va_arg(fp->args, int);
++	sprint(str, "R%d", r);
++	return fmtstrcpy(fp, str);
++}
++
+ static int
+ Mconv(Fmt *fp)
+ {
+diff --git a/src/liblink/list6.c b/src/liblink/list6.c
+index 34a877e4ea..eaf52f2e73 100644
+--- a/src/liblink/list6.c
++++ b/src/liblink/list6.c
+@@ -58,16 +58,22 @@ enum
+ 	STRINGSZ = 1000
+ };
+ 
++#pragma	varargck	type	"$"	char*
++
+ void
+ listinit6(void)
+ {
+ 	fmtinstall('A', Aconv);
+-	fmtinstall('P', Pconv);
+-	fmtinstall('$', DSconv);
+ 	fmtinstall('D', Dconv);
++	fmtinstall('P', Pconv);
+ 	fmtinstall('R', Rconv);
++
++	// for internal use
++	fmtinstall('$', DSconv);
+ }
+ 
++static	Prog*	bigP;
++
+ static int
+ Pconv(Fmt *fp)
+ {
+@@ -75,27 +81,29 @@ Pconv(Fmt *fp)
+ 	Prog *p;
+ 
+ 	p = va_arg(fp->args, Prog*);
++	bigP = p;
+ 	switch(p->as) {
+ 	case ADATA:
+-		sprint(str, "(%L)	%A	%D/%d,%D",
+-			p->lineno, p->as, &p->from, p->from.scale, &p->to);
++		sprint(str, "%.5lld (%L)	%A	%D/%d,%D",
++			p->pc, p->lineno, p->as, &p->from, p->from.scale, &p->to);
+ 		break;
+ 
+ 	case ATEXT:
+ 		if(p->from.scale) {
+-			sprint(str, "(%L)	%A	%D,%d,%lD",
+-				p->lineno, p->as, &p->from, p->from.scale, &p->to);
++			sprint(str, "%.5lld (%L)	%A	%D,%d,%lD",
++				p->pc, p->lineno, p->as, &p->from, p->from.scale, &p->to);
+ 			break;
+ 		}
+-		sprint(str, "(%L)	%A	%D,%lD",
+-			p->lineno, p->as, &p->from, &p->to);
++		sprint(str, "%.5lld (%L)	%A	%D,%lD",
++			p->pc, p->lineno, p->as, &p->from, &p->to);
+ 		break;
+ 
+ 	default:
+-		sprint(str, "(%L)	%A	%D,%D",
+-			p->lineno, p->as, &p->from, &p->to);
++		sprint(str, "%.5lld (%L)	%A	%D,%D",
++			p->pc, p->lineno, p->as, &p->from, &p->to);
+ 		break;
+ 	}
++	bigP = nil;
+ 	return fmtstrcpy(fp, str);
+ }
+ 
+@@ -150,10 +158,12 @@ Dconv(Fmt *fp)
+ 	case D_BRANCH:
+ 		if(a->sym != nil)
+ 			sprint(str, "%s(SB)", a->sym->name);
++		else if(bigP != nil && bigP->pcond != nil)
++			sprint(str, "%lld", bigP->pcond->pc);
+ 		else if(a->u.branch != nil)
+-			sprint(str, "%#llx", a->u.branch->pc);
++			sprint(str, "%lld", a->u.branch->pc);
+ 		else
+-			sprint(str, "%lld", a->offset);
++			sprint(str, "%lld(PC)", a->offset);
+ 		break;
+ 
+ 	case D_EXTERN:
+diff --git a/src/liblink/list8.c b/src/liblink/list8.c
+index 3d78d781d0..c000ce25b0 100644
+--- a/src/liblink/list8.c
++++ b/src/liblink/list8.c
+@@ -45,16 +45,22 @@ enum
+ 	STRINGSZ = 1000
+ };
+ 
++#pragma	varargck	type	"$"	char*
++
+ void
+ listinit8(void)
+ {
+ 	fmtinstall('A', Aconv);
+-	fmtinstall('P', Pconv);
+-	fmtinstall('$', DSconv);
+ 	fmtinstall('D', Dconv);
++	fmtinstall('P', Pconv);
+ 	fmtinstall('R', Rconv);
++
++	// for internal use
++	fmtinstall('$', DSconv);
+ }
+ 
++static	Prog*	bigP;
++
+ static int
+ Pconv(Fmt *fp)
+ {
+@@ -62,27 +68,29 @@ Pconv(Fmt *fp)
+ 	Prog *p;
+ 
+ 	p = va_arg(fp->args, Prog*);
++	bigP = p;
+ 	switch(p->as) {
+ 	case ADATA:
+-		sprint(str, "(%L)	%A	%D/%d,%D",
+-			p->lineno, p->as, &p->from, p->from.scale, &p->to);
++		sprint(str, "%.5lld (%L)	%A	%D/%d,%D",
++			p->pc, p->lineno, p->as, &p->from, p->from.scale, &p->to);
+ 		break;
+ 
+ 	case ATEXT:
+ 		if(p->from.scale) {
+-			sprint(str, "(%L)	%A	%D,%d,%lD",
+-				p->lineno, p->as, &p->from, p->from.scale, &p->to);
++			sprint(str, "%.5lld (%L)	%A	%D,%d,%lD",
++				p->pc, p->lineno, p->as, &p->from, p->from.scale, &p->to);
+ 			break;
+ 		}
+-		sprint(str, "(%L)	%A	%D,%lD",
+-			p->lineno, p->as, &p->from, &p->to);
++		sprint(str, "%.5lld (%L)	%A	%D,%lD",
++			p->pc, p->lineno, p->as, &p->from, &p->to);
+ 		break;
+ 
+ 	default:
+-		sprint(str, "(%L)	%A	%D,%D",
+-			p->lineno, p->as, &p->from, &p->to);
++		sprint(str, "%.5lld (%L)	%A	%D,%D",
++			p->pc, p->lineno, p->as, &p->from, &p->to);
+ 		break;
+ 	}
++	bigP = nil;
+ 	return fmtstrcpy(fp, str);
+ }
+ 
+@@ -137,10 +145,12 @@ Dconv(Fmt *fp)
+ 	case D_BRANCH:
+ 		if(a->sym != nil)
+ 			sprint(str, "%s(SB)", a->sym->name);
++		else if(bigP != nil && bigP->pcond != nil)
++			sprint(str, "%lld", bigP->pcond->pc);
+ 		else if(a->u.branch != nil)
+-			sprint(str, "%#llx", a->u.branch->pc);
++			sprint(str, "%lld", a->u.branch->pc);
+ 		else
+-			sprint(str, "%lld", a->offset);
++			sprint(str, "%lld(PC)", a->offset);
+ 		break;
+ 
+ 	case D_EXTERN:

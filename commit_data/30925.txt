@@ -11,6 +11,20 @@ Date:   Mon Dec 19 19:46:54 2016 -0800
     Change-Id: If9a6da1cf32d0321302d244ee24fb3f80e54489d
     Reviewed-on: https://go-review.googlesource.com/34653
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  misc/cgo/testcshared/main2.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/misc/cgo/testcshared/main2.c b/misc/cgo/testcshared/main2.c
+index 9752006f79..6e8bf141ca 100644
+--- a/misc/cgo/testcshared/main2.c
++++ b/misc/cgo/testcshared/main2.c
+@@ -21,7 +21,7 @@ int main(void) {
+ 
+   // The descriptor will be initialized in a thread, so we have to
+   // give a chance to get opened.
+-  for (i = 0; i < 100; i++) {
++  for (i = 0; i < 1000; i++) {
+     n = read(fd, buf, sizeof buf);
+     if (n >= 0)
+       break;

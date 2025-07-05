@@ -9,9 +9,168 @@ Date:   Wed Nov 15 21:14:21 2017 -0500
     Change-Id: I172d106a68cfc746a1058f5a4bcf6761bab88912
     Reviewed-on: https://go-review.googlesource.com/78175
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/swig/stdio/file.go          | 15 +++++++++++++++
  misc/swig/stdio/file_test.go     |  6 ++++++
  src/cmd/dist/test.go             | 20 ++++++++++++++++++++
  src/cmd/go/internal/work/exec.go | 39 +++++++++++++++++++--------------------
  4 files changed, 60 insertions(+), 20 deletions(-)
+
+diff --git a/misc/swig/stdio/file.go b/misc/swig/stdio/file.go
+new file mode 100644
+index 0000000000..a582f776f6
+--- /dev/null
++++ b/misc/swig/stdio/file.go
+@@ -0,0 +1,15 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This file is here just to cause problems.
++// file.swig turns into a file also named file.go.
++// Make sure cmd/go keeps them separate
++// when both are passed to cgo.
++
++package file
++
++//int F(void) { return 1; }
++import "C"
++
++func F() int { return int(C.F()) }
+diff --git a/misc/swig/stdio/file_test.go b/misc/swig/stdio/file_test.go
+index b1a520e6bc..aea92aafd5 100644
+--- a/misc/swig/stdio/file_test.go
++++ b/misc/swig/stdio/file_test.go
+@@ -20,3 +20,9 @@ func TestRead(t *testing.T) {
+ 		t.Error("fclose failed")
+ 	}
+ }
++
++func TestF(t *testing.T) {
++	if x := F(); x != 1 {
++		t.Fatalf("x = %d, want 1", x)
++	}
++}
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 9b4cd819c1..69c85f046e 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -573,6 +573,26 @@ func (t *tester) registerTests() {
+ 				},
+ 			})
+ 		}
++		if swig, _ := exec.LookPath("swig"); swig != "" {
++			t.tests = append(t.tests, distTest{
++				name:    "swig_stdio",
++				heading: "../misc/swig/stdio",
++				fn: func(dt *distTest) error {
++					t.addCmd(dt, "misc/swig/stdio", "go", "test")
++					return nil
++				},
++			})
++			if cxx, _ := exec.LookPath(compilerEnvLookup(defaultcxx, goos, goarch)); cxx != "" {
++				t.tests = append(t.tests, distTest{
++					name:    "swig_callback",
++					heading: "../misc/swig/callback",
++					fn: func(dt *distTest) error {
++						t.addCmd(dt, "misc/swig/callback", "go", "test")
++						return nil
++					},
++				})
++			}
++		}
+ 	}
+ 	if t.cgoEnabled {
+ 		t.tests = append(t.tests, distTest{
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 43dbf40e51..1ffa14249e 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -363,7 +363,7 @@ func (b *Builder) build(a *Action) (err error) {
+ 		}
+ 	}
+ 
+-	var gofiles, cgofiles, objdirCgofiles, cfiles, sfiles, cxxfiles, objects, cgoObjects, pcCFLAGS, pcLDFLAGS []string
++	var gofiles, cgofiles, cfiles, sfiles, cxxfiles, objects, cgoObjects, pcCFLAGS, pcLDFLAGS []string
+ 
+ 	gofiles = append(gofiles, a.Package.GoFiles...)
+ 	cgofiles = append(cgofiles, a.Package.CgoFiles...)
+@@ -385,7 +385,7 @@ func (b *Builder) build(a *Action) (err error) {
+ 		if err != nil {
+ 			return err
+ 		}
+-		objdirCgofiles = append(objdirCgofiles, outGo...)
++		cgofiles = append(cgofiles, outGo...)
+ 		cfiles = append(cfiles, outC...)
+ 		cxxfiles = append(cxxfiles, outCXX...)
+ 	}
+@@ -460,7 +460,7 @@ func (b *Builder) build(a *Action) (err error) {
+ 			sfiles = nil
+ 		}
+ 
+-		outGo, outObj, err := b.cgo(a, base.Tool("cgo"), objdir, pcCFLAGS, pcLDFLAGS, mkAbsFiles(a.Package.Dir, cgofiles), objdirCgofiles, gccfiles, cxxfiles, a.Package.MFiles, a.Package.FFiles)
++		outGo, outObj, err := b.cgo(a, base.Tool("cgo"), objdir, pcCFLAGS, pcLDFLAGS, mkAbsFiles(a.Package.Dir, cgofiles), gccfiles, cxxfiles, a.Package.MFiles, a.Package.FFiles)
+ 		if err != nil {
+ 			return err
+ 		}
+@@ -1843,7 +1843,7 @@ func (b *Builder) CFlags(p *load.Package) (cppflags, cflags, cxxflags, fflags, l
+ 
+ var cgoRe = regexp.MustCompile(`[/\\:]`)
+ 
+-func (b *Builder) cgo(a *Action, cgoExe, objdir string, pcCFLAGS, pcLDFLAGS, cgofiles, objdirCgofiles, gccfiles, gxxfiles, mfiles, ffiles []string) (outGo, outObj []string, err error) {
++func (b *Builder) cgo(a *Action, cgoExe, objdir string, pcCFLAGS, pcLDFLAGS, cgofiles, gccfiles, gxxfiles, mfiles, ffiles []string) (outGo, outObj []string, err error) {
+ 	p := a.Package
+ 	cgoCPPFLAGS, cgoCFLAGS, cgoCXXFLAGS, cgoFFLAGS, cgoLDFLAGS := b.CFlags(p)
+ 	cgoCPPFLAGS = append(cgoCPPFLAGS, pcCFLAGS...)
+@@ -1874,20 +1874,6 @@ func (b *Builder) cgo(a *Action, cgoExe, objdir string, pcCFLAGS, pcLDFLAGS, cgo
+ 	// Allows including _cgo_export.h from .[ch] files in the package.
+ 	cgoCPPFLAGS = append(cgoCPPFLAGS, "-I", objdir)
+ 
+-	// If we have cgo files in the object directory, then copy any
+-	// other cgo files into the object directory, and pass a
+-	// -srcdir option to cgo.
+-	var srcdirarg []string
+-	if len(objdirCgofiles) > 0 {
+-		for _, fn := range cgofiles {
+-			if err := b.copyFile(a, objdir+filepath.Base(fn), filepath.Join(p.Dir, fn), 0666, false); err != nil {
+-				return nil, nil, err
+-			}
+-		}
+-		cgofiles = append(cgofiles, objdirCgofiles...)
+-		srcdirarg = []string{"-srcdir", objdir}
+-	}
+-
+ 	// cgo
+ 	// TODO: CGO_FLAGS?
+ 	gofiles := []string{objdir + "_cgo_gotypes.go"}
+@@ -1937,7 +1923,7 @@ func (b *Builder) cgo(a *Action, cgoExe, objdir string, pcCFLAGS, pcLDFLAGS, cgo
+ 		cgoflags = append(cgoflags, "-exportheader="+objdir+"_cgo_install.h")
+ 	}
+ 
+-	if err := b.run(a, p.Dir, p.ImportPath, cgoenv, cfg.BuildToolexec, cgoExe, srcdirarg, "-objdir", objdir, "-importpath", p.ImportPath, cgoflags, "--", cgoCPPFLAGS, cgoCFLAGS, cgofiles); err != nil {
++	if err := b.run(a, p.Dir, p.ImportPath, cgoenv, cfg.BuildToolexec, cgoExe, "-objdir", objdir, "-importpath", p.ImportPath, cgoflags, "--", cgoCPPFLAGS, cgoCFLAGS, cgofiles); err != nil {
+ 		return nil, nil, err
+ 	}
+ 	outGo = append(outGo, gofiles...)
+@@ -2264,7 +2250,20 @@ func (b *Builder) swigOne(a *Action, p *load.Package, file, objdir string, pcCFL
+ 		b.showOutput(a, p.Dir, p.ImportPath, b.processOutput(out)) // swig warning
+ 	}
+ 
+-	return goFile, objdir + gccBase + gccExt, nil
++	// If the input was x.swig, the output is x.go in the objdir.
++	// But there might be an x.go in the original dir too, and if it
++	// uses cgo as well, cgo will be processing both and will
++	// translate both into x.cgo1.go in the objdir, overwriting one.
++	// Rename x.go to _x_swig.go to avoid this problem.
++	// We ignore files in the original dir that begin with underscore
++	// so _x_swig.go cannot conflict with an original file we were
++	// going to compile.
++	goFile = objdir + goFile
++	newGoFile := objdir + "_" + base + "_swig.go"
++	if err := os.Rename(goFile, newGoFile); err != nil {
++		return "", "", err
++	}
++	return newGoFile, objdir + gccBase + gccExt, nil
+ }
+ 
+ // disableBuildID adjusts a linker command line to avoid creating a

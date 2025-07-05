@@ -11,6 +11,21 @@ Date:   Tue Mar 21 13:14:35 2017 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/plive.go | 3 ---
  1 file changed, 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/plive.go b/src/cmd/compile/internal/gc/plive.go
+index bd54e6a34a..03243e9d6b 100644
+--- a/src/cmd/compile/internal/gc/plive.go
++++ b/src/cmd/compile/internal/gc/plive.go
+@@ -74,9 +74,6 @@ type progeffectscache struct {
+ 	textavarinit []int32
+ 	retuevar     []int32
+ 	tailuevar    []int32
+-	uevar        [3]int32
+-	varkill      [3]int32
+-	avarinit     [3]int32
+ 	initialized  bool
+ }
+ 

@@ -8,7 +8,47 @@ Date:   Fri Dec 2 00:02:24 2011 -0800
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/5440079
-
+---
  src/pkg/encoding/gob/encoder.go      |  4 +++-
  src/pkg/encoding/gob/encoder_test.go | 16 ++++++++++++++++
  2 files changed, 19 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/encoding/gob/encoder.go b/src/pkg/encoding/gob/encoder.go
+index e4a48dfc4f..a15b5a1f9a 100644
+--- a/src/pkg/encoding/gob/encoder.go
++++ b/src/pkg/encoding/gob/encoder.go
+@@ -119,7 +119,9 @@ func (enc *Encoder) sendActualType(w io.Writer, state *encoderState, ut *userTyp
+ 	switch st := actual; st.Kind() {
+ 	case reflect.Struct:
+ 		for i := 0; i < st.NumField(); i++ {
+-			enc.sendType(w, state, st.Field(i).Type)
++			if isExported(st.Field(i).Name) {
++				enc.sendType(w, state, st.Field(i).Type)
++			}
+ 		}
+ 	case reflect.Array, reflect.Slice:
+ 		enc.sendType(w, state, st.Elem())
+diff --git a/src/pkg/encoding/gob/encoder_test.go b/src/pkg/encoding/gob/encoder_test.go
+index bc5af120af..5bc957bb37 100644
+--- a/src/pkg/encoding/gob/encoder_test.go
++++ b/src/pkg/encoding/gob/encoder_test.go
+@@ -662,3 +662,19 @@ func TestSequentialDecoder(t *testing.T) {
+ 		}
+ 	}
+ }
++
++// Should be able to have unrepresentable fields (chan, func) as long as they
++// are unexported.
++type Bug2 struct {
++	A int
++	b chan int
++}
++
++func TestUnexportedChan(t *testing.T) {
++	b := Bug2{23, make(chan int)}
++	var stream bytes.Buffer
++	enc := NewEncoder(&stream)
++	if err := enc.Encode(b); err != nil {
++		t.Fatalf("error encoding unexported channel: %s", err)
++	}
++}

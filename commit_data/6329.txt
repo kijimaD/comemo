@@ -15,9 +15,273 @@ Date:   Wed Sep 22 10:43:01 2010 +1000
     R=gri, r
     CC=golang-dev
     https://golang.org/cl/2229041
-
+---
  doc/all.css          | 114 ++++++++++++++++++++++++++++++---------------------
  doc/frontpage.css    |  16 +++++++-
  doc/root.html        |   6 ++-
  lib/godoc/godoc.html |   3 +-
  4 files changed, 88 insertions(+), 51 deletions(-)
+
+diff --git a/doc/all.css b/doc/all.css
+index dc632ef973..a0af424fa2 100644
+--- a/doc/all.css
++++ b/doc/all.css
+@@ -1,9 +1,12 @@
++/* General Styles */
+ body {
+   font-family: "Bitstream Vera Sans", Verdana, sans-serif;
+   font-size: 81.25%;
+   line-height: 1.23em;
+   padding: 0;
+   margin: 1.23em;
++  background: white;
++  color: black;
+ }
+ a {
+   color: #04a;
+@@ -19,33 +22,34 @@ a:hover {
+ a:active {
+   color: #c00;
+ }
++code, pre {
++  font-size: 1.2em; 
++}
++pre {
++  background: #F0F0F0;
++  padding: 0.5em 1em;
++}
++
++/* Top bar */
+ #container {
+-  width: 76em;
++  width: 100%;
+   margin: auto;
+ }
+ #topnav {
+   height: 55px;
++  background: url(/doc/logo.png) no-repeat top left;
+ }
+-#branding-logo {
+-  width: 50%;
+-  margin: 0;
+-  padding: 0;
+-  height: 55px;
+-  background: url(/doc/logo.png) no-repeat;
+-}
+-#branding-logo a {
++a#logo-box {
+   display: block;
+-  width: 100%;
+   height: 55px;
+ }
+-#branding-logo span {
++h1#title {
+   display: none;
+ }
+ #nav-main {
+-  position: relative;
+-  top: -60px;
+-  width: 50%;
+-  margin-left: 50%;
++  float: right;
++  width: 500px;
++  margin-top: -5px;
+   text-align: center;
+ }
+ #nav-main ul {
+@@ -85,7 +89,9 @@ a:active {
+   -moz-border-bottom-right-radius: 4px;
+   border-bottom-right-radius: 4px;
+ }
+-#nav-main .quickref { color: #444; }
++#nav-main .quickref {
++  color: #444;
++}
+ #search {
+   width: 100px;
+   margin-left: 0.5em;
+@@ -95,7 +101,18 @@ a:active {
+   color: #444;
+ }
+ 
++/* Footer */
++#site-info {
++  position: relative;
++  text-align: center;
++}
++#site-info, #site-info a:link, #site-info a:visited {
++  color: #aaa;
++}
++
++/* Content */
+ #content {
++  clear: both;
+   padding: 0;
+   position: relative;
+   margin-top: 1.5em;
+@@ -103,49 +120,54 @@ a:active {
+   border-top: solid 1px #aaa;
+   border-bottom: solid 1px #aaa;
+ }
+-#site-info {
+-  position: relative;
+-  text-align: center;
++.left-column {
++  width: 49%;
++  float: left;
+ }
+-#site-info, #site-info a:link, #site-info a:visited {
+-  color: #aaa;
++.right-column {
++  width: 49%;
++  float: right;
+ }
+-#nav table {
+-  width: 100%;
++.end-columns {
++  clear: both;
+ }
+-
+ #content h1 {
+-	margin-bottom: -0em;
+-	padding: 0;
++  margin-bottom: -0em;
++  padding: 0;
+ }
+ #content h2 {
+-	border-top: 1px solid #ddd;
+-	background: #E2E7F0;
+-	padding: 2px 5px 5px;
+-	margin: 1.5em 0 0;
++  border-top: 1px solid #ddd;
++  background: #E2E7F0;
++  padding: 5px;
++  margin: 1.5em 0 0;
++}
++#content .subtitle {
++  margin-top: 1em;
++  display: block;
+ }
+-#content .subtitle { margin-top: 1em; display: block; }
+-
+ .navtop a {
+   font-weight: normal; font-size: 7pt; 
+   float: right; color: #999;
+ }
+ 
+-code, pre { font-size: 1.2em; }
+-pre { background: #F0F0F0; padding: 0.5em 1em; }
+-pre.ebnf, pre.grammar { background: #FFFFE0; }
+-
++/* Content and Code Highlighting */
++pre.ebnf, pre.grammar {
++  background: #FFFFE0;
++}
++span.comment {
++  color: #002090;
++}
++span.highlight {
++  background: #FFFF90;
++  font-weight: bold;
++}
++span.alert {
++  color: #D00000;
++}
++#nav table {
++  width: 100%;
++}
+ .detail {
+   padding: 0.25em 1em;
+   background: #F4F4F4;
+ }
+-
+-.left-column {
+-	width: 48%;
+-	float: left;
+-}
+-.right-column {
+-	width: 48%;
+-	float: right;
+-}
+-.end-columns { clear: both; }
+diff --git a/doc/frontpage.css b/doc/frontpage.css
+index bc29f48881..debc9aa44d 100644
+--- a/doc/frontpage.css
++++ b/doc/frontpage.css
+@@ -1,3 +1,9 @@
++/* Overloads to all.css */
++#container { width: 76em }
++.left-column { width: 48%; }
++.right-column { width: 48%; }
++
++/* Frontpage styles */
+ #content-introductory code {
+   font-family: "Bitstream Vera Sans Mono", "Andale Mono", monospace;
+ }
+@@ -117,9 +123,15 @@ span.keyword {
+ #content-blog li a:active .title {
+   color: #c00;
+ }
+-
+ .navtop {
+   display: none !important;
+ }
++.how {
++  float: right;
++  font-size: 75%;
++}
++.unsupported {
++  font-weight: bold;
++  color: red;
++}
+ 
+-.unsupported { font-weight: bold; color: red; }
+diff --git a/doc/root.html b/doc/root.html
+index abfdc1dafa..c4e43b7721 100644
+--- a/doc/root.html
++++ b/doc/root.html
+@@ -1,3 +1,5 @@
++<link rel="stylesheet" type="text/css" href="/doc/frontpage.css">
++
+ <script src="http://www.google.com/jsapi" type="text/javascript"></script>
+ <script type="text/javascript">
+ function loadFeed() {
+@@ -34,7 +36,6 @@ google.load("feeds", "1");
+ google.setOnLoadCallback(loadFeed);
+ </script>
+ 
+-  <link rel="stylesheet" type="text/css" href="/doc/frontpage.css">
+   <div id="frontpage">
+     <div class="left-column">
+       <p style="margin-top: 0;">
+@@ -50,7 +51,8 @@ google.setOnLoadCallback(loadFeed);
+       </p>
+       <h2>Check it out!</h2>
+       <p>
+-      <a href="/doc/install.html">Install Go now</a>, or try it right here in your browser: <small>[<a href="/doc/playground.html">How does it work?</a>]</small></p>
++      <div class="how">[<a href="/doc/playground.html">How does it work?</a>]</div>
++      <a href="/doc/install.html">Install Go now</a>, or try it right here in your browser:</p>
+       <div id="playground" class="small"></div>
+       <script src="/doc/play/playground.js"></script>
+     </div>
+diff --git a/lib/godoc/godoc.html b/lib/godoc/godoc.html
+index ebe9b35bbb..2b598dc7a3 100644
+--- a/lib/godoc/godoc.html
++++ b/lib/godoc/godoc.html
+@@ -12,7 +12,7 @@
+ <body>
+ <div id="container">
+   <div id="topnav">
+-    <h1 id="branding-logo"><a href="/"><span>The Go Programming Language</span></a></h1>
++    <h1 id="title">The Go Programming Language</h1>
+     <div id="nav-main">
+       <ul>
+       <li><a href="/">Home</a></li><li><a href="/doc/install.html">Getting Started</a></li><li><a href="/doc/docs.html">Documentation</a></li><li><a href="/doc/contrib.html">Contributing</a></li><li><a href="/doc/community.html">Community</a></li>
+@@ -33,6 +33,7 @@
+         </form>
+       </div>
+     </div>
++    <a id="logo-box" href="/"></a>
+   </div>
+   <div id="content">
+   <!-- Menu is HTML-escaped elsewhere -->

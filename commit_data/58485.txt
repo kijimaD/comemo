@@ -14,6 +14,39 @@ Date:   Tue Nov 14 15:36:39 2023 +0000
     Auto-Submit: Michael Knyszek <mknyszek@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/internal/trace/v2/testdata/testprog/gc-stress.go | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/internal/trace/v2/testdata/testprog/gc-stress.go b/src/internal/trace/v2/testdata/testprog/gc-stress.go
+index 7a1fdfdfe1..70d3a246c3 100644
+--- a/src/internal/trace/v2/testdata/testprog/gc-stress.go
++++ b/src/internal/trace/v2/testdata/testprog/gc-stress.go
+@@ -37,15 +37,15 @@ func makeTree(depth int) *node {
+ 	}
+ }
+ 
+-var trees [32]*node
+-var ballast *[32]*[8192]*node
++var trees [16]*node
++var ballast *[16]*[8192]*node
+ var sink []byte
+ 
+ func main() {
+ 	for i := range trees {
+ 		trees[i] = makeTree(6)
+ 	}
+-	ballast = new([32]*[8192]*node)
++	ballast = new([16]*[8192]*node)
+ 	for i := range ballast {
+ 		ballast[i] = new([8192]*node)
+ 		for j := range ballast[i] {
+@@ -57,7 +57,7 @@ func main() {
+ 	for i := 0; i < runtime.GOMAXPROCS(-1); i++ {
+ 		go func() {
+ 			for {
+-				sink = make([]byte, rand.Intn(65536))
++				sink = make([]byte, rand.Intn(32<<10))
+ 			}
+ 		}()
+ 	}

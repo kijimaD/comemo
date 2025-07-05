@@ -12,7 +12,7 @@ Date:   Wed Apr 20 11:17:41 2016 -0700
     Change-Id: Ie545fcc5990c8c7d62d40d9a0a55885f941eb645
     Reviewed-on: https://go-review.googlesource.com/22320
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/ssa/check.go          |   8 ++
  src/cmd/compile/internal/ssa/gen/AMD64.rules   |  28 +++---
  src/cmd/compile/internal/ssa/gen/AMD64Ops.go   |   2 +-
@@ -23,3 +23,824 @@ Date:   Wed Apr 20 11:17:41 2016 -0700
  src/cmd/compile/internal/ssa/rewriteAMD64.go   | 126 ++++++++++++++++++++++---
  src/cmd/compile/internal/ssa/rewritegeneric.go |  42 ---------
  9 files changed, 236 insertions(+), 118 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/check.go b/src/cmd/compile/internal/ssa/check.go
+index f1d3857f88..4a10606d3c 100644
+--- a/src/cmd/compile/internal/ssa/check.go
++++ b/src/cmd/compile/internal/ssa/check.go
+@@ -193,6 +193,8 @@ func checkFunc(f *Func) {
+ 				canHaveAuxInt = true
+ 			case auxInt64, auxFloat64:
+ 				canHaveAuxInt = true
++			case auxInt128:
++				// AuxInt must be zero, so leave canHaveAuxInt set to false.
+ 			case auxFloat32:
+ 				canHaveAuxInt = true
+ 				if !isExactFloat32(v) {
+@@ -203,6 +205,12 @@ func checkFunc(f *Func) {
+ 			case auxSymOff, auxSymValAndOff:
+ 				canHaveAuxInt = true
+ 				canHaveAux = true
++			case auxSymInt32:
++				if v.AuxInt != int64(int32(v.AuxInt)) {
++					f.Fatalf("bad int32 AuxInt value for %v", v)
++				}
++				canHaveAuxInt = true
++				canHaveAux = true
+ 			default:
+ 				f.Fatalf("unknown aux type for %s", v.Op)
+ 			}
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index 9d405131c0..86123ac5c5 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -408,22 +408,22 @@
+ 
+ (If cond yes no) -> (NE (TESTB cond cond) yes no)
+ 
+-(NE (TESTB (SETL  cmp)) yes no) -> (LT  cmp yes no)
+-(NE (TESTB (SETLE cmp)) yes no) -> (LE  cmp yes no)
+-(NE (TESTB (SETG  cmp)) yes no) -> (GT  cmp yes no)
+-(NE (TESTB (SETGE cmp)) yes no) -> (GE  cmp yes no)
+-(NE (TESTB (SETEQ cmp)) yes no) -> (EQ  cmp yes no)
+-(NE (TESTB (SETNE cmp)) yes no) -> (NE  cmp yes no)
+-(NE (TESTB (SETB  cmp)) yes no) -> (ULT cmp yes no)
+-(NE (TESTB (SETBE cmp)) yes no) -> (ULE cmp yes no)
+-(NE (TESTB (SETA  cmp)) yes no) -> (UGT cmp yes no)
+-(NE (TESTB (SETAE cmp)) yes no) -> (UGE cmp yes no)
++(NE (TESTB (SETL  cmp) (SETL  cmp)) yes no) -> (LT  cmp yes no)
++(NE (TESTB (SETLE cmp) (SETLE cmp)) yes no) -> (LE  cmp yes no)
++(NE (TESTB (SETG  cmp) (SETG  cmp)) yes no) -> (GT  cmp yes no)
++(NE (TESTB (SETGE cmp) (SETGE cmp)) yes no) -> (GE  cmp yes no)
++(NE (TESTB (SETEQ cmp) (SETEQ cmp)) yes no) -> (EQ  cmp yes no)
++(NE (TESTB (SETNE cmp) (SETNE cmp)) yes no) -> (NE  cmp yes no)
++(NE (TESTB (SETB  cmp) (SETB  cmp)) yes no) -> (ULT cmp yes no)
++(NE (TESTB (SETBE cmp) (SETBE cmp)) yes no) -> (ULE cmp yes no)
++(NE (TESTB (SETA  cmp) (SETA  cmp)) yes no) -> (UGT cmp yes no)
++(NE (TESTB (SETAE cmp) (SETAE cmp)) yes no) -> (UGE cmp yes no)
+ 
+ // Special case for floating point - LF/LEF not generated
+-(NE (TESTB (SETGF  cmp)) yes no) -> (UGT  cmp yes no)
+-(NE (TESTB (SETGEF cmp)) yes no) -> (UGE  cmp yes no)
+-(NE (TESTB (SETEQF cmp)) yes no) -> (EQF  cmp yes no)
+-(NE (TESTB (SETNEF cmp)) yes no) -> (NEF  cmp yes no)
++(NE (TESTB (SETGF  cmp) (SETGF  cmp)) yes no) -> (UGT  cmp yes no)
++(NE (TESTB (SETGEF cmp) (SETGEF cmp)) yes no) -> (UGE  cmp yes no)
++(NE (TESTB (SETEQF cmp) (SETEQF cmp)) yes no) -> (EQF  cmp yes no)
++(NE (TESTB (SETNEF cmp) (SETNEF cmp)) yes no) -> (NEF  cmp yes no)
+ 
+ // Disabled because it interferes with the pattern match above and makes worse code.
+ // (SETNEF x) -> (ORQ (SETNE <config.Frontend().TypeInt8()> x) (SETNAN <config.Frontend().TypeInt8()> x))
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+index 35eeb61941..b684b9ccdf 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+@@ -439,7 +439,7 @@ func init() {
+ 				clobbers: buildReg("DI FLAGS"),
+ 			},
+ 		},
+-		{name: "MOVOconst", reg: regInfo{nil, 0, []regMask{fp}}, typ: "Int128", rematerializeable: true},
++		{name: "MOVOconst", reg: regInfo{nil, 0, []regMask{fp}}, typ: "Int128", aux: "Int128", rematerializeable: true},
+ 
+ 		// arg0 = address of memory to zero
+ 		// arg1 = # of 8-byte words to zero
+diff --git a/src/cmd/compile/internal/ssa/gen/ARMOps.go b/src/cmd/compile/internal/ssa/gen/ARMOps.go
+index a4f7b17e87..23e8f63471 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARMOps.go
++++ b/src/cmd/compile/internal/ssa/gen/ARMOps.go
+@@ -25,13 +25,13 @@ func init() {
+ 
+ 		{name: "CMP", argLength: 2, reg: gp2flags, asm: "CMP", typ: "Flags"}, // arg0 compare to arg1
+ 
+-		{name: "MOVWload", argLength: 2, reg: gpload, asm: "MOVW"},   // load from arg0 + auxInt + aux.  arg1=mem.
+-		{name: "MOVWstore", argLength: 3, reg: gpstore, asm: "MOVW"}, // store 4 bytes of arg1 to arg0 + auxInt + aux.  arg2=mem.
++		{name: "MOVWload", argLength: 2, reg: gpload, aux: "SymOff", asm: "MOVW"},   // load from arg0 + auxInt + aux.  arg1=mem.
++		{name: "MOVWstore", argLength: 3, reg: gpstore, aux: "SymOff", asm: "MOVW"}, // store 4 bytes of arg1 to arg0 + auxInt + aux.  arg2=mem.
+ 
+ 		{name: "CALLstatic", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "SymOff"}, // call static function aux.(*gc.Sym).  arg0=mem, auxint=argsize, returns mem
+ 
+ 		// pseudo-ops
+-		{name: "LessThan", argLength: 2, reg: flagsgp}, // bool, 1 flags encode x<y 0 otherwise.
++		{name: "LessThan", argLength: 1, reg: flagsgp}, // bool, 1 flags encode x<y 0 otherwise.
+ 	}
+ 
+ 	blocks := []blockData{
+diff --git a/src/cmd/compile/internal/ssa/gen/rulegen.go b/src/cmd/compile/internal/ssa/gen/rulegen.go
+index b40f480f3e..02a5da2a5a 100644
+--- a/src/cmd/compile/internal/ssa/gen/rulegen.go
++++ b/src/cmd/compile/internal/ssa/gen/rulegen.go
+@@ -52,12 +52,12 @@ var (
+ )
+ 
+ type Rule struct {
+-	rule   string
+-	lineno int
++	rule string
++	loc  string // file name & line number
+ }
+ 
+ func (r Rule) String() string {
+-	return fmt.Sprintf("rule %q at line %d", r.rule, r.lineno)
++	return fmt.Sprintf("rule %q at %s", r.rule, r.loc)
+ }
+ 
+ // parse returns the matching part of the rule, additional conditions, and the result.
+@@ -117,10 +117,11 @@ func genRules(arch arch) {
+ 		if op[len(op)-1] == ')' {
+ 			op = op[:len(op)-1] // rule has only opcode, e.g. (ConstNil) -> ...
+ 		}
++		loc := fmt.Sprintf("%s.rules:%d", arch.name, lineno)
+ 		if isBlock(op, arch) {
+-			blockrules[op] = append(blockrules[op], Rule{rule: rule, lineno: lineno})
++			blockrules[op] = append(blockrules[op], Rule{rule: rule, loc: loc})
+ 		} else {
+-			oprules[op] = append(oprules[op], Rule{rule: rule, lineno: lineno})
++			oprules[op] = append(oprules[op], Rule{rule: rule, loc: loc})
+ 		}
+ 		rule = ""
+ 	}
+@@ -128,7 +129,7 @@ func genRules(arch arch) {
+ 		log.Fatalf("scanner failed: %v\n", err)
+ 	}
+ 	if unbalanced(rule) {
+-		log.Fatalf("unbalanced rule at line %d: %v\n", lineno, rule)
++		log.Fatalf("%s.rules:%d: unbalanced rule: %v\n", arch.name, lineno, rule)
+ 	}
+ 
+ 	// Order all the ops.
+@@ -174,15 +175,15 @@ func genRules(arch arch) {
+ 			fmt.Fprintf(w, "// result: %s\n", result)
+ 
+ 			fmt.Fprintf(w, "for {\n")
+-			genMatch(w, arch, match)
++			genMatch(w, arch, match, rule.loc)
+ 
+ 			if cond != "" {
+ 				fmt.Fprintf(w, "if !(%s) {\nbreak\n}\n", cond)
+ 			}
+ 
+-			genResult(w, arch, result)
++			genResult(w, arch, result, rule.loc)
+ 			if *genLog {
+-				fmt.Fprintf(w, "fmt.Println(\"rewrite %s.rules:%d\")\n", arch.name, rule.lineno)
++				fmt.Fprintf(w, "fmt.Println(\"rewrite %s\")\n", rule.loc)
+ 			}
+ 			fmt.Fprintf(w, "return true\n")
+ 
+@@ -217,7 +218,7 @@ func genRules(arch arch) {
+ 			if s[1] != "nil" {
+ 				fmt.Fprintf(w, "v := b.Control\n")
+ 				if strings.Contains(s[1], "(") {
+-					genMatch0(w, arch, s[1], "v", map[string]struct{}{}, false)
++					genMatch0(w, arch, s[1], "v", map[string]struct{}{}, false, rule.loc)
+ 				} else {
+ 					fmt.Fprintf(w, "%s := b.Control\n", s[1])
+ 				}
+@@ -266,7 +267,7 @@ func genRules(arch arch) {
+ 			if t[1] == "nil" {
+ 				fmt.Fprintf(w, "b.SetControl(nil)\n")
+ 			} else {
+-				fmt.Fprintf(w, "b.SetControl(%s)\n", genResult0(w, arch, t[1], new(int), false, false))
++				fmt.Fprintf(w, "b.SetControl(%s)\n", genResult0(w, arch, t[1], new(int), false, false, rule.loc))
+ 			}
+ 			if len(newsuccs) < len(succs) {
+ 				fmt.Fprintf(w, "b.Succs = b.Succs[:%d]\n", len(newsuccs))
+@@ -289,7 +290,7 @@ func genRules(arch arch) {
+ 			}
+ 
+ 			if *genLog {
+-				fmt.Fprintf(w, "fmt.Println(\"rewrite %s.rules:%d\")\n", arch.name, rule.lineno)
++				fmt.Fprintf(w, "fmt.Println(\"rewrite %s\")\n", rule.loc)
+ 			}
+ 			fmt.Fprintf(w, "return true\n")
+ 
+@@ -315,11 +316,11 @@ func genRules(arch arch) {
+ 	}
+ }
+ 
+-func genMatch(w io.Writer, arch arch, match string) {
+-	genMatch0(w, arch, match, "v", map[string]struct{}{}, true)
++func genMatch(w io.Writer, arch arch, match string, loc string) {
++	genMatch0(w, arch, match, "v", map[string]struct{}{}, true, loc)
+ }
+ 
+-func genMatch0(w io.Writer, arch arch, match, v string, m map[string]struct{}, top bool) {
++func genMatch0(w io.Writer, arch arch, match, v string, m map[string]struct{}, top bool, loc string) {
+ 	if match[0] != '(' || match[len(match)-1] != ')' {
+ 		panic("non-compound expr in genMatch0: " + match)
+ 	}
+@@ -328,6 +329,24 @@ func genMatch0(w io.Writer, arch arch, match, v string, m map[string]struct{}, t
+ 	// contained in () or {}.
+ 	s := split(match[1 : len(match)-1]) // remove parens, then split
+ 
++	// Find op record
++	var op opData
++	for _, x := range genericOps {
++		if x.name == s[0] {
++			op = x
++			break
++		}
++	}
++	for _, x := range arch.ops {
++		if x.name == s[0] {
++			op = x
++			break
++		}
++	}
++	if op.name == "" {
++		log.Fatalf("%s: unknown op %s", loc, s[0])
++	}
++
+ 	// check op
+ 	if !top {
+ 		fmt.Fprintf(w, "if %s.Op != %s {\nbreak\n}\n", v, opName(s[0], arch))
+@@ -354,6 +373,11 @@ func genMatch0(w io.Writer, arch arch, match, v string, m map[string]struct{}, t
+ 			}
+ 		} else if a[0] == '[' {
+ 			// auxint restriction
++			switch op.aux {
++			case "Bool", "Int8", "Int16", "Int32", "Int64", "Int128", "Float32", "Float64", "SymOff", "SymValAndOff", "SymInt32":
++			default:
++				log.Fatalf("%s: op %s %s can't have auxint", loc, op.name, op.aux)
++			}
+ 			x := a[1 : len(a)-1] // remove []
+ 			if !isVariable(x) {
+ 				// code
+@@ -368,7 +392,12 @@ func genMatch0(w io.Writer, arch arch, match, v string, m map[string]struct{}, t
+ 				}
+ 			}
+ 		} else if a[0] == '{' {
+-			// auxint restriction
++			// aux restriction
++			switch op.aux {
++			case "String", "Sym", "SymOff", "SymValAndOff", "SymInt32":
++			default:
++				log.Fatalf("%s: op %s %s can't have aux", loc, op.name, op.aux)
++			}
+ 			x := a[1 : len(a)-1] // remove {}
+ 			if !isVariable(x) {
+ 				// code
+@@ -412,30 +441,18 @@ func genMatch0(w io.Writer, arch arch, match, v string, m map[string]struct{}, t
+ 				argname = fmt.Sprintf("%s_%d", v, argnum)
+ 			}
+ 			fmt.Fprintf(w, "%s := %s.Args[%d]\n", argname, v, argnum)
+-			genMatch0(w, arch, a, argname, m, false)
++			genMatch0(w, arch, a, argname, m, false, loc)
+ 			argnum++
+ 		}
+ 	}
+-
+-	variableLength := false
+-	for _, op := range genericOps {
+-		if op.name == s[0] && op.argLength == -1 {
+-			variableLength = true
+-			break
+-		}
+-	}
+-	for _, op := range arch.ops {
+-		if op.name == s[0] && op.argLength == -1 {
+-			variableLength = true
+-			break
+-		}
+-	}
+-	if variableLength {
++	if op.argLength == -1 {
+ 		fmt.Fprintf(w, "if len(%s.Args) != %d {\nbreak\n}\n", v, argnum)
++	} else if int(op.argLength) != argnum {
++		log.Fatalf("%s: op %s should have %d args, has %d", loc, op.name, op.argLength, argnum)
+ 	}
+ }
+ 
+-func genResult(w io.Writer, arch arch, result string) {
++func genResult(w io.Writer, arch arch, result string, loc string) {
+ 	move := false
+ 	if result[0] == '@' {
+ 		// parse @block directive
+@@ -444,9 +461,9 @@ func genResult(w io.Writer, arch arch, result string) {
+ 		result = s[1]
+ 		move = true
+ 	}
+-	genResult0(w, arch, result, new(int), true, move)
++	genResult0(w, arch, result, new(int), true, move, loc)
+ }
+-func genResult0(w io.Writer, arch arch, result string, alloc *int, top, move bool) string {
++func genResult0(w io.Writer, arch arch, result string, alloc *int, top, move bool, loc string) string {
+ 	// TODO: when generating a constant result, use f.constVal to avoid
+ 	// introducing copies just to clean them up again.
+ 	if result[0] != '(' {
+@@ -464,6 +481,24 @@ func genResult0(w io.Writer, arch arch, result string, alloc *int, top, move boo
+ 
+ 	s := split(result[1 : len(result)-1]) // remove parens, then split
+ 
++	// Find op record
++	var op opData
++	for _, x := range genericOps {
++		if x.name == s[0] {
++			op = x
++			break
++		}
++	}
++	for _, x := range arch.ops {
++		if x.name == s[0] {
++			op = x
++			break
++		}
++	}
++	if op.name == "" {
++		log.Fatalf("%s: unknown op %s", loc, s[0])
++	}
++
+ 	// Find the type of the variable.
+ 	var opType string
+ 	var typeOverride bool
+@@ -512,23 +547,38 @@ func genResult0(w io.Writer, arch arch, result string, alloc *int, top, move boo
+ 			fmt.Fprintf(w, "v.AddArg(%s)\n", v)
+ 		}
+ 	}
++	argnum := 0
+ 	for _, a := range s[1:] {
+ 		if a[0] == '<' {
+ 			// type restriction, handled above
+ 		} else if a[0] == '[' {
+ 			// auxint restriction
++			switch op.aux {
++			case "Bool", "Int8", "Int16", "Int32", "Int64", "Int128", "Float32", "Float64", "SymOff", "SymValAndOff", "SymInt32":
++			default:
++				log.Fatalf("%s: op %s %s can't have auxint", loc, op.name, op.aux)
++			}
+ 			x := a[1 : len(a)-1] // remove []
+ 			fmt.Fprintf(w, "%s.AuxInt = %s\n", v, x)
+ 		} else if a[0] == '{' {
+ 			// aux restriction
++			switch op.aux {
++			case "String", "Sym", "SymOff", "SymValAndOff", "SymInt32":
++			default:
++				log.Fatalf("%s: op %s %s can't have aux", loc, op.name, op.aux)
++			}
+ 			x := a[1 : len(a)-1] // remove {}
+ 			fmt.Fprintf(w, "%s.Aux = %s\n", v, x)
+ 		} else {
+ 			// regular argument (sexpr or variable)
+-			x := genResult0(w, arch, a, alloc, false, move)
++			x := genResult0(w, arch, a, alloc, false, move, loc)
+ 			fmt.Fprintf(w, "%s.AddArg(%s)\n", v, x)
++			argnum++
+ 		}
+ 	}
++	if op.argLength != -1 && int(op.argLength) != argnum {
++		log.Fatalf("%s: op %s should have %d args, has %d", loc, op.name, op.argLength, argnum)
++	}
+ 
+ 	return v
+ }
+diff --git a/src/cmd/compile/internal/ssa/op.go b/src/cmd/compile/internal/ssa/op.go
+index 64807ec106..cadbc7cd7a 100644
+--- a/src/cmd/compile/internal/ssa/op.go
++++ b/src/cmd/compile/internal/ssa/op.go
+@@ -49,9 +49,10 @@ const (
+ 	auxInt16                // auxInt is a 16-bit integer
+ 	auxInt32                // auxInt is a 32-bit integer
+ 	auxInt64                // auxInt is a 64-bit integer
++	auxInt128               // auxInt represents a 128-bit integer.  Always 0.
+ 	auxFloat32              // auxInt is a float32 (encoded with math.Float64bits)
+ 	auxFloat64              // auxInt is a float64 (encoded with math.Float64bits)
+-	auxString               // auxInt is a string
++	auxString               // aux is a string
+ 	auxSym                  // aux is a symbol
+ 	auxSymOff               // aux is a symbol, auxInt is an offset
+ 	auxSymValAndOff         // aux is a symbol, auxInt is a ValAndOff
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index a53899ec52..9ab9be769c 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -3635,6 +3635,7 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name:              "MOVOconst",
++		auxType:           auxInt128,
+ 		argLen:            0,
+ 		rematerializeable: true,
+ 		reg: regInfo{
+@@ -3854,9 +3855,10 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "MOVWload",
+-		argLen: 2,
+-		asm:    arm.AMOVW,
++		name:    "MOVWload",
++		auxType: auxSymOff,
++		argLen:  2,
++		asm:     arm.AMOVW,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 31}, // R0 R1 R2 R3 SP
+@@ -3867,9 +3869,10 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "MOVWstore",
+-		argLen: 3,
+-		asm:    arm.AMOVW,
++		name:    "MOVWstore",
++		auxType: auxSymOff,
++		argLen:  3,
++		asm:     arm.AMOVW,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 31}, // R0 R1 R2 R3 SP
+@@ -3887,7 +3890,7 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name:   "LessThan",
+-		argLen: 2,
++		argLen: 1,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 32}, // FLAGS
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index f8cefb7eab..c26aeb0bd0 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -18326,7 +18326,7 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			return true
+ 		}
+ 	case BlockAMD64NE:
+-		// match: (NE (TESTB (SETL  cmp)) yes no)
++		// match: (NE (TESTB (SETL  cmp) (SETL  cmp)) yes no)
+ 		// cond:
+ 		// result: (LT  cmp yes no)
+ 		for {
+@@ -18339,6 +18339,13 @@ func rewriteBlockAMD64(b *Block) bool {
+ 				break
+ 			}
+ 			cmp := v_0.Args[0]
++			v_1 := v.Args[1]
++			if v_1.Op != OpAMD64SETL {
++				break
++			}
++			if cmp != v_1.Args[0] {
++				break
++			}
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockAMD64LT
+@@ -18347,7 +18354,7 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			b.Succs[1] = no
+ 			return true
+ 		}
+-		// match: (NE (TESTB (SETLE cmp)) yes no)
++		// match: (NE (TESTB (SETLE cmp) (SETLE cmp)) yes no)
+ 		// cond:
+ 		// result: (LE  cmp yes no)
+ 		for {
+@@ -18360,6 +18367,13 @@ func rewriteBlockAMD64(b *Block) bool {
+ 				break
+ 			}
+ 			cmp := v_0.Args[0]
++			v_1 := v.Args[1]
++			if v_1.Op != OpAMD64SETLE {
++				break
++			}
++			if cmp != v_1.Args[0] {
++				break
++			}
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockAMD64LE
+@@ -18368,7 +18382,7 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			b.Succs[1] = no
+ 			return true
+ 		}
+-		// match: (NE (TESTB (SETG  cmp)) yes no)
++		// match: (NE (TESTB (SETG  cmp) (SETG  cmp)) yes no)
+ 		// cond:
+ 		// result: (GT  cmp yes no)
+ 		for {
+@@ -18381,6 +18395,13 @@ func rewriteBlockAMD64(b *Block) bool {
+ 				break
+ 			}
+ 			cmp := v_0.Args[0]
++			v_1 := v.Args[1]
++			if v_1.Op != OpAMD64SETG {
++				break
++			}
++			if cmp != v_1.Args[0] {
++				break
++			}
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockAMD64GT
+@@ -18389,7 +18410,7 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			b.Succs[1] = no
+ 			return true
+ 		}
+-		// match: (NE (TESTB (SETGE cmp)) yes no)
++		// match: (NE (TESTB (SETGE cmp) (SETGE cmp)) yes no)
+ 		// cond:
+ 		// result: (GE  cmp yes no)
+ 		for {
+@@ -18402,6 +18423,13 @@ func rewriteBlockAMD64(b *Block) bool {
+ 				break
+ 			}
+ 			cmp := v_0.Args[0]
++			v_1 := v.Args[1]
++			if v_1.Op != OpAMD64SETGE {
++				break
++			}
++			if cmp != v_1.Args[0] {
++				break
++			}
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockAMD64GE
+@@ -18410,7 +18438,7 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			b.Succs[1] = no
+ 			return true
+ 		}
+-		// match: (NE (TESTB (SETEQ cmp)) yes no)
++		// match: (NE (TESTB (SETEQ cmp) (SETEQ cmp)) yes no)
+ 		// cond:
+ 		// result: (EQ  cmp yes no)
+ 		for {
+@@ -18423,6 +18451,13 @@ func rewriteBlockAMD64(b *Block) bool {
+ 				break
+ 			}
+ 			cmp := v_0.Args[0]
++			v_1 := v.Args[1]
++			if v_1.Op != OpAMD64SETEQ {
++				break
++			}
++			if cmp != v_1.Args[0] {
++				break
++			}
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockAMD64EQ
+@@ -18431,7 +18466,7 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			b.Succs[1] = no
+ 			return true
+ 		}
+-		// match: (NE (TESTB (SETNE cmp)) yes no)
++		// match: (NE (TESTB (SETNE cmp) (SETNE cmp)) yes no)
+ 		// cond:
+ 		// result: (NE  cmp yes no)
+ 		for {
+@@ -18444,6 +18479,13 @@ func rewriteBlockAMD64(b *Block) bool {
+ 				break
+ 			}
+ 			cmp := v_0.Args[0]
++			v_1 := v.Args[1]
++			if v_1.Op != OpAMD64SETNE {
++				break
++			}
++			if cmp != v_1.Args[0] {
++				break
++			}
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockAMD64NE
+@@ -18452,7 +18494,7 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			b.Succs[1] = no
+ 			return true
+ 		}
+-		// match: (NE (TESTB (SETB  cmp)) yes no)
++		// match: (NE (TESTB (SETB  cmp) (SETB  cmp)) yes no)
+ 		// cond:
+ 		// result: (ULT cmp yes no)
+ 		for {
+@@ -18465,6 +18507,13 @@ func rewriteBlockAMD64(b *Block) bool {
+ 				break
+ 			}
+ 			cmp := v_0.Args[0]
++			v_1 := v.Args[1]
++			if v_1.Op != OpAMD64SETB {
++				break
++			}
++			if cmp != v_1.Args[0] {
++				break
++			}
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockAMD64ULT
+@@ -18473,7 +18522,7 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			b.Succs[1] = no
+ 			return true
+ 		}
+-		// match: (NE (TESTB (SETBE cmp)) yes no)
++		// match: (NE (TESTB (SETBE cmp) (SETBE cmp)) yes no)
+ 		// cond:
+ 		// result: (ULE cmp yes no)
+ 		for {
+@@ -18486,6 +18535,13 @@ func rewriteBlockAMD64(b *Block) bool {
+ 				break
+ 			}
+ 			cmp := v_0.Args[0]
++			v_1 := v.Args[1]
++			if v_1.Op != OpAMD64SETBE {
++				break
++			}
++			if cmp != v_1.Args[0] {
++				break
++			}
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockAMD64ULE
+@@ -18494,7 +18550,7 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			b.Succs[1] = no
+ 			return true
+ 		}
+-		// match: (NE (TESTB (SETA  cmp)) yes no)
++		// match: (NE (TESTB (SETA  cmp) (SETA  cmp)) yes no)
+ 		// cond:
+ 		// result: (UGT cmp yes no)
+ 		for {
+@@ -18507,6 +18563,13 @@ func rewriteBlockAMD64(b *Block) bool {
+ 				break
+ 			}
+ 			cmp := v_0.Args[0]
++			v_1 := v.Args[1]
++			if v_1.Op != OpAMD64SETA {
++				break
++			}
++			if cmp != v_1.Args[0] {
++				break
++			}
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockAMD64UGT
+@@ -18515,7 +18578,7 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			b.Succs[1] = no
+ 			return true
+ 		}
+-		// match: (NE (TESTB (SETAE cmp)) yes no)
++		// match: (NE (TESTB (SETAE cmp) (SETAE cmp)) yes no)
+ 		// cond:
+ 		// result: (UGE cmp yes no)
+ 		for {
+@@ -18528,6 +18591,13 @@ func rewriteBlockAMD64(b *Block) bool {
+ 				break
+ 			}
+ 			cmp := v_0.Args[0]
++			v_1 := v.Args[1]
++			if v_1.Op != OpAMD64SETAE {
++				break
++			}
++			if cmp != v_1.Args[0] {
++				break
++			}
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockAMD64UGE
+@@ -18536,7 +18606,7 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			b.Succs[1] = no
+ 			return true
+ 		}
+-		// match: (NE (TESTB (SETGF  cmp)) yes no)
++		// match: (NE (TESTB (SETGF  cmp) (SETGF  cmp)) yes no)
+ 		// cond:
+ 		// result: (UGT  cmp yes no)
+ 		for {
+@@ -18549,6 +18619,13 @@ func rewriteBlockAMD64(b *Block) bool {
+ 				break
+ 			}
+ 			cmp := v_0.Args[0]
++			v_1 := v.Args[1]
++			if v_1.Op != OpAMD64SETGF {
++				break
++			}
++			if cmp != v_1.Args[0] {
++				break
++			}
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockAMD64UGT
+@@ -18557,7 +18634,7 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			b.Succs[1] = no
+ 			return true
+ 		}
+-		// match: (NE (TESTB (SETGEF cmp)) yes no)
++		// match: (NE (TESTB (SETGEF cmp) (SETGEF cmp)) yes no)
+ 		// cond:
+ 		// result: (UGE  cmp yes no)
+ 		for {
+@@ -18570,6 +18647,13 @@ func rewriteBlockAMD64(b *Block) bool {
+ 				break
+ 			}
+ 			cmp := v_0.Args[0]
++			v_1 := v.Args[1]
++			if v_1.Op != OpAMD64SETGEF {
++				break
++			}
++			if cmp != v_1.Args[0] {
++				break
++			}
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockAMD64UGE
+@@ -18578,7 +18662,7 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			b.Succs[1] = no
+ 			return true
+ 		}
+-		// match: (NE (TESTB (SETEQF cmp)) yes no)
++		// match: (NE (TESTB (SETEQF cmp) (SETEQF cmp)) yes no)
+ 		// cond:
+ 		// result: (EQF  cmp yes no)
+ 		for {
+@@ -18591,6 +18675,13 @@ func rewriteBlockAMD64(b *Block) bool {
+ 				break
+ 			}
+ 			cmp := v_0.Args[0]
++			v_1 := v.Args[1]
++			if v_1.Op != OpAMD64SETEQF {
++				break
++			}
++			if cmp != v_1.Args[0] {
++				break
++			}
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockAMD64EQF
+@@ -18599,7 +18690,7 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			b.Succs[1] = no
+ 			return true
+ 		}
+-		// match: (NE (TESTB (SETNEF cmp)) yes no)
++		// match: (NE (TESTB (SETNEF cmp) (SETNEF cmp)) yes no)
+ 		// cond:
+ 		// result: (NEF  cmp yes no)
+ 		for {
+@@ -18612,6 +18703,13 @@ func rewriteBlockAMD64(b *Block) bool {
+ 				break
+ 			}
+ 			cmp := v_0.Args[0]
++			v_1 := v.Args[1]
++			if v_1.Op != OpAMD64SETNEF {
++				break
++			}
++			if cmp != v_1.Args[0] {
++				break
++			}
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockAMD64NEF
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index eb8f704124..43e87c3bf6 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -2403,27 +2403,6 @@ func rewriteValuegeneric_OpEq8(v *Value, config *Config) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
+-	// match: (Eq8 x (ConstBool <t> [c]))
+-	// cond: x.Op != OpConstBool
+-	// result: (Eq8 (ConstBool <t> [c]) x)
+-	for {
+-		x := v.Args[0]
+-		v_1 := v.Args[1]
+-		if v_1.Op != OpConstBool {
+-			break
+-		}
+-		t := v_1.Type
+-		c := v_1.AuxInt
+-		if !(x.Op != OpConstBool) {
+-			break
+-		}
+-		v.reset(OpEq8)
+-		v0 := b.NewValue0(v.Line, OpConstBool, t)
+-		v0.AuxInt = c
+-		v.AddArg(v0)
+-		v.AddArg(x)
+-		return true
+-	}
+ 	// match: (Eq8  (Const8  [c]) (Const8  [d]))
+ 	// cond:
+ 	// result: (ConstBool [b2i(c == d)])
+@@ -5767,27 +5746,6 @@ func rewriteValuegeneric_OpNeq8(v *Value, config *Config) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
+-	// match: (Neq8 x (ConstBool <t> [c]))
+-	// cond: x.Op != OpConstBool
+-	// result: (Neq8 (ConstBool <t> [c]) x)
+-	for {
+-		x := v.Args[0]
+-		v_1 := v.Args[1]
+-		if v_1.Op != OpConstBool {
+-			break
+-		}
+-		t := v_1.Type
+-		c := v_1.AuxInt
+-		if !(x.Op != OpConstBool) {
+-			break
+-		}
+-		v.reset(OpNeq8)
+-		v0 := b.NewValue0(v.Line, OpConstBool, t)
+-		v0.AuxInt = c
+-		v.AddArg(v0)
+-		v.AddArg(x)
+-		return true
+-	}
+ 	// match: (Neq8  (Const8  [c]) (Const8  [d]))
+ 	// cond:
+ 	// result: (ConstBool [b2i(c != d)])

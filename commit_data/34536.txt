@@ -15,7 +15,7 @@ Date:   Mon Oct 30 09:02:44 2017 -0400
     Run-TryBot: Michael Munday <mike.munday@ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/asm_test.go        |  8 ++++++++
  src/cmd/compile/internal/gc/ssa.go             |  5 +++++
  src/cmd/compile/internal/ssa/gen/S390X.rules   | 11 ++++++-----
@@ -23,3 +23,137 @@ Date:   Mon Oct 30 09:02:44 2017 -0400
  src/cmd/compile/internal/ssa/opGen.go          |  6 ++++++
  src/cmd/compile/internal/ssa/rewriteS390X.go   | 14 ++++++++++++++
  6 files changed, 44 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/asm_test.go b/src/cmd/compile/internal/gc/asm_test.go
+index 4320628f63..c609e0088f 100644
+--- a/src/cmd/compile/internal/gc/asm_test.go
++++ b/src/cmd/compile/internal/gc/asm_test.go
+@@ -1633,6 +1633,14 @@ var linuxS390XTests = []*asmTest{
+ 		`,
+ 		pos: []string{"\tFIDBR\t[$]5"},
+ 	},
++	{
++		fn: `
++		func roundToEven(x float64) float64 {
++			return math.RoundToEven(x)
++		}
++		`,
++		pos: []string{"\tFIDBR\t[$]4"},
++	},
+ 	{
+ 		// check that stack store is optimized away
+ 		fn: `
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 9eeeb35599..233c639ba0 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -2807,6 +2807,11 @@ func init() {
+ 			return s.newValue1(ssa.OpRound, types.Types[TFLOAT64], args[0])
+ 		},
+ 		sys.S390X)
++	addF("math", "RoundToEven",
++		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
++			return s.newValue1(ssa.OpRoundToEven, types.Types[TFLOAT64], args[0])
++		},
++		sys.S390X)
+ 	addF("math", "Abs",
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue1(ssa.OpAbs, types.Types[TFLOAT64], args[0])
+diff --git a/src/cmd/compile/internal/ssa/gen/S390X.rules b/src/cmd/compile/internal/ssa/gen/S390X.rules
+index 21bd728508..a3908e7a87 100644
+--- a/src/cmd/compile/internal/ssa/gen/S390X.rules
++++ b/src/cmd/compile/internal/ssa/gen/S390X.rules
+@@ -108,11 +108,12 @@
+ (Bswap32 x) -> (MOVWBR x)
+ 
+ // math package intrinsics
+-(Sqrt  x) -> (FSQRT x)
+-(Floor x) -> (FIDBR [7] x)
+-(Ceil  x) -> (FIDBR [6] x)
+-(Trunc x) -> (FIDBR [5] x)
+-(Round x) -> (FIDBR [1] x)
++(Sqrt        x) -> (FSQRT x)
++(Floor       x) -> (FIDBR [7] x)
++(Ceil        x) -> (FIDBR [6] x)
++(Trunc       x) -> (FIDBR [5] x)
++(RoundToEven x) -> (FIDBR [4] x)
++(Round       x) -> (FIDBR [1] x)
+ 
+ // Atomic loads.
+ (AtomicLoad32 ptr mem) -> (MOVWZatomicload ptr mem)
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index 0ad582b046..d36910e7da 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -268,10 +268,11 @@ var genericOps = []opData{
+ 	//   ±∞  → ±∞ (sign preserved)
+ 	//   ±0  → ±0 (sign preserved)
+ 	//   NaN → NaN
+-	{name: "Floor", argLength: 1}, // round arg0 toward -∞
+-	{name: "Ceil", argLength: 1},  // round arg0 toward +∞
+-	{name: "Trunc", argLength: 1}, // round arg0 toward 0
+-	{name: "Round", argLength: 1}, // round arg0 to nearest, ties away from 0
++	{name: "Floor", argLength: 1},       // round arg0 toward -∞
++	{name: "Ceil", argLength: 1},        // round arg0 toward +∞
++	{name: "Trunc", argLength: 1},       // round arg0 toward 0
++	{name: "Round", argLength: 1},       // round arg0 to nearest, ties away from 0
++	{name: "RoundToEven", argLength: 1}, // round arg0 to nearest, ties to even
+ 
+ 	// Modify the sign bit
+ 	{name: "Abs", argLength: 1},      // absolute value arg0
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index a18cf78e88..9d44e1ab84 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -1901,6 +1901,7 @@ const (
+ 	OpCeil
+ 	OpTrunc
+ 	OpRound
++	OpRoundToEven
+ 	OpAbs
+ 	OpCopysign
+ 	OpPhi
+@@ -23318,6 +23319,11 @@ var opcodeTable = [...]opInfo{
+ 		argLen:  1,
+ 		generic: true,
+ 	},
++	{
++		name:    "RoundToEven",
++		argLen:  1,
++		generic: true,
++	},
+ 	{
+ 		name:    "Abs",
+ 		argLen:  1,
+diff --git a/src/cmd/compile/internal/ssa/rewriteS390X.go b/src/cmd/compile/internal/ssa/rewriteS390X.go
+index 9237bfc4fc..0c7dd17f4a 100644
+--- a/src/cmd/compile/internal/ssa/rewriteS390X.go
++++ b/src/cmd/compile/internal/ssa/rewriteS390X.go
+@@ -383,6 +383,8 @@ func rewriteValueS390X(v *Value) bool {
+ 		return rewriteValueS390X_OpRound32F_0(v)
+ 	case OpRound64F:
+ 		return rewriteValueS390X_OpRound64F_0(v)
++	case OpRoundToEven:
++		return rewriteValueS390X_OpRoundToEven_0(v)
+ 	case OpRsh16Ux16:
+ 		return rewriteValueS390X_OpRsh16Ux16_0(v)
+ 	case OpRsh16Ux32:
+@@ -5028,6 +5030,18 @@ func rewriteValueS390X_OpRound64F_0(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueS390X_OpRoundToEven_0(v *Value) bool {
++	// match: (RoundToEven x)
++	// cond:
++	// result: (FIDBR [4] x)
++	for {
++		x := v.Args[0]
++		v.reset(OpS390XFIDBR)
++		v.AuxInt = 4
++		v.AddArg(x)
++		return true
++	}
++}
+ func rewriteValueS390X_OpRsh16Ux16_0(v *Value) bool {
+ 	b := v.Block
+ 	_ = b

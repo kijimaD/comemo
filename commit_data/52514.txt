@@ -30,7 +30,54 @@ Date:   Fri Apr 15 13:58:08 2022 +0900
     Auto-Submit: Bryan Mills <bcmills@google.com>
     Run-TryBot: Bryan Mills <bcmills@google.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/go/internal/modload/load.go          |  3 +--
  src/cmd/go/testdata/script/mod_tidy_temp.txt | 26 ++++++++++++++++++++++++++
  2 files changed, 27 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index 29c0a4280a..5214a9e2d1 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -421,8 +421,7 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
+ 		}
+ 
+ 		// Update the go.mod file's Go version if necessary.
+-		modFile := MainModules.ModFile(MainModules.mustGetSingleMainModule())
+-		if ld.GoVersion != "" {
++		if modFile := ModFile(); modFile != nil && ld.GoVersion != "" {
+ 			modFile.AddGoStmt(ld.GoVersion)
+ 		}
+ 	}
+diff --git a/src/cmd/go/testdata/script/mod_tidy_temp.txt b/src/cmd/go/testdata/script/mod_tidy_temp.txt
+new file mode 100644
+index 0000000000..635a336bca
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_tidy_temp.txt
+@@ -0,0 +1,26 @@
++# Regression test for https://go.dev/issue/51992
++
++# 'go mod tidy' should error instead of throwing panic in the situation below.
++# 1. /tmp/go.mod exists
++# 2. run 'go mod tidy' in /tmp or in the child directory not having go.mod.
++
++[plan9] stop  # Plan 9 has no $TMPDIR variable to set.
++
++env GOROOT=$TESTGO_GOROOT
++env TMP=$WORK
++env TMPDIR=$WORK
++mkdir $WORK/child
++
++! go mod tidy
++! stdout .
++stderr 'go: go.mod file not found in current directory or any parent directory'
++
++cd $WORK/child
++! go mod tidy
++! stdout .
++stderr 'go: go.mod file not found in current directory or any parent directory'
++
++-- $WORK/go.mod --
++module issue51992
++
++go 1.18

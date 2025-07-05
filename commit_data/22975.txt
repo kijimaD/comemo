@@ -19,6 +19,27 @@ Date:   Thu Apr 16 22:01:20 2015 -0400
     Change-Id: I61c6a92243240ed229342362231b1bfc7ca526ba
     Reviewed-on: https://go-review.googlesource.com/9015
     Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
-
+---
  src/runtime/os_android_arm.go | 10 +++++-----
  1 file changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/runtime/os_android_arm.go b/src/runtime/os_android_arm.go
+index be7c3c000b..52c8c86ee8 100644
+--- a/src/runtime/os_android_arm.go
++++ b/src/runtime/os_android_arm.go
+@@ -6,10 +6,10 @@ package runtime
+ 
+ import _ "unsafe" // for go:cgo_export_static and go:cgo_export_dynamic
+ 
+-// Export the runtime entry point symbol.
++// Export the main function.
+ //
+-// Used by the app package to start the Go runtime after loading
+-// a shared library via JNI. See golang.org/x/mobile/app.
++// Used by the app package to start all-Go Android apps that are
++// loaded via JNI. See golang.org/x/mobile/app.
+ 
+-//go:cgo_export_static _rt0_arm_linux1
+-//go:cgo_export_dynamic _rt0_arm_linux1
++//go:cgo_export_static main.main
++//go:cgo_export_dynamic main.main

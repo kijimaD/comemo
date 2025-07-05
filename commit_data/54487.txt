@@ -15,8 +15,49 @@ Date:   Wed Oct 12 11:04:50 2022 -0500
     Reviewed-by: David Chase <drchase@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/compile/internal/ssa/_gen/PPC64latelower.rules |  5 +++++
  src/cmd/compile/internal/ssa/config.go                 |  1 +
  src/cmd/compile/internal/ssa/rewritePPC64latelower.go  | 11 +++++++++++
  3 files changed, 17 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/_gen/PPC64latelower.rules b/src/cmd/compile/internal/ssa/_gen/PPC64latelower.rules
+new file mode 100644
+index 0000000000..c43e10a809
+--- /dev/null
++++ b/src/cmd/compile/internal/ssa/_gen/PPC64latelower.rules
+@@ -0,0 +1,5 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This file contains rules used by the laterLower pass.
+diff --git a/src/cmd/compile/internal/ssa/config.go b/src/cmd/compile/internal/ssa/config.go
+index df168e6f03..15dae9b711 100644
+--- a/src/cmd/compile/internal/ssa/config.go
++++ b/src/cmd/compile/internal/ssa/config.go
+@@ -244,6 +244,7 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize, softfloat boo
+ 		c.RegSize = 8
+ 		c.lowerBlock = rewriteBlockPPC64
+ 		c.lowerValue = rewriteValuePPC64
++		c.lateLowerValue = rewriteValuePPC64latelower
+ 		c.registers = registersPPC64[:]
+ 		c.gpRegMask = gpRegMaskPPC64
+ 		c.fpRegMask = fpRegMaskPPC64
+diff --git a/src/cmd/compile/internal/ssa/rewritePPC64latelower.go b/src/cmd/compile/internal/ssa/rewritePPC64latelower.go
+new file mode 100644
+index 0000000000..95a5f927b1
+--- /dev/null
++++ b/src/cmd/compile/internal/ssa/rewritePPC64latelower.go
+@@ -0,0 +1,11 @@
++// Code generated from gen/PPC64latelower.rules; DO NOT EDIT.
++// generated with: cd gen; go run *.go
++
++package ssa
++
++func rewriteValuePPC64latelower(v *Value) bool {
++	return false
++}
++func rewriteBlockPPC64latelower(b *Block) bool {
++	return false
++}

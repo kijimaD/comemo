@@ -20,7 +20,7 @@ Date:   Mon Apr 26 22:15:25 2010 -0700
     R=r
     CC=golang-dev, msolo
     https://golang.org/cl/957045
-
+---
  src/pkg/net/dnsclient.go    |  79 +++++++--------
  src/pkg/net/dnsconfig.go    |  22 ++++-
  src/pkg/net/dnsmsg.go       | 234 ++++++++++++++++++++++----------------------
@@ -34,3 +34,1502 @@ Date:   Mon Apr 26 22:15:25 2010 -0700
  src/pkg/net/unixsock.go     |  69 +++++--------
  src/pkg/os/error.go         |  12 ++-
  12 files changed, 350 insertions(+), 318 deletions(-)
+
+diff --git a/src/pkg/net/dnsclient.go b/src/pkg/net/dnsclient.go
+index 387a9bbf9c..337c5544aa 100644
+--- a/src/pkg/net/dnsclient.go
++++ b/src/pkg/net/dnsclient.go
+@@ -23,9 +23,10 @@ import (
+ 
+ // DNSError represents a DNS lookup error.
+ type DNSError struct {
+-	Error  string // description of the error
+-	Name   string // name looked for
+-	Server string // server used
++	Error     string // description of the error
++	Name      string // name looked for
++	Server    string // server used
++	IsTimeout bool
+ }
+ 
+ func (e *DNSError) String() string {
+@@ -37,23 +38,26 @@ func (e *DNSError) String() string {
+ 	return s
+ }
+ 
++func (e *DNSError) Timeout() bool   { return e.IsTimeout }
++func (e *DNSError) Temporary() bool { return e.IsTimeout }
++
+ const noSuchHost = "no such host"
+ 
+ // Send a request on the connection and hope for a reply.
+ // Up to cfg.attempts attempts.
+-func _Exchange(cfg *_DNS_Config, c Conn, name string) (m *_DNS_Msg, err os.Error) {
++func exchange(cfg *dnsConfig, c Conn, name string) (*dnsMsg, os.Error) {
+ 	if len(name) >= 256 {
+-		return nil, &DNSError{"name too long", name, ""}
++		return nil, &DNSError{Error: "name too long", Name: name}
+ 	}
+-	out := new(_DNS_Msg)
++	out := new(dnsMsg)
+ 	out.id = uint16(rand.Int()) ^ uint16(time.Nanoseconds())
+-	out.question = []_DNS_Question{
+-		_DNS_Question{name, _DNS_TypeA, _DNS_ClassINET},
++	out.question = []dnsQuestion{
++		dnsQuestion{name, dnsTypeA, dnsClassINET},
+ 	}
+ 	out.recursion_desired = true
+ 	msg, ok := out.Pack()
+ 	if !ok {
+-		return nil, &DNSError{"internal error - cannot pack message", name, ""}
++		return nil, &DNSError{Error: "internal error - cannot pack message", Name: name}
+ 	}
+ 
+ 	for attempt := 0; attempt < cfg.attempts; attempt++ {
+@@ -66,15 +70,14 @@ func _Exchange(cfg *_DNS_Config, c Conn, name string) (m *_DNS_Msg, err os.Error
+ 
+ 		buf := make([]byte, 2000) // More than enough.
+ 		n, err = c.Read(buf)
+-		if isEAGAIN(err) {
+-			err = nil
+-			continue
+-		}
+ 		if err != nil {
++			if e, ok := err.(Error); ok && e.Timeout() {
++				continue
++			}
+ 			return nil, err
+ 		}
+ 		buf = buf[0:n]
+-		in := new(_DNS_Msg)
++		in := new(dnsMsg)
+ 		if !in.Unpack(buf) || in.id != out.id {
+ 			continue
+ 		}
+@@ -84,24 +87,24 @@ func _Exchange(cfg *_DNS_Config, c Conn, name string) (m *_DNS_Msg, err os.Error
+ 	if a := c.RemoteAddr(); a != nil {
+ 		server = a.String()
+ 	}
+-	return nil, &DNSError{"no answer from server", name, server}
++	return nil, &DNSError{Error: "no answer from server", Name: name, Server: server, IsTimeout: true}
+ }
+ 
+ 
+ // Find answer for name in dns message.
+ // On return, if err == nil, addrs != nil.
+-func answer(name, server string, dns *_DNS_Msg) (addrs []string, err *DNSError) {
++func answer(name, server string, dns *dnsMsg) (addrs []string, err os.Error) {
+ 	addrs = make([]string, 0, len(dns.answer))
+ 
+-	if dns.rcode == _DNS_RcodeNameError && dns.recursion_available {
+-		return nil, &DNSError{noSuchHost, name, ""}
++	if dns.rcode == dnsRcodeNameError && dns.recursion_available {
++		return nil, &DNSError{Error: noSuchHost, Name: name}
+ 	}
+-	if dns.rcode != _DNS_RcodeSuccess {
++	if dns.rcode != dnsRcodeSuccess {
+ 		// None of the error codes make sense
+ 		// for the query we sent.  If we didn't get
+ 		// a name error and we didn't get success,
+ 		// the server is behaving incorrectly.
+-		return nil, &DNSError{"server misbehaving", name, server}
++		return nil, &DNSError{Error: "server misbehaving", Name: name, Server: server}
+ 	}
+ 
+ 	// Look for the name.
+@@ -115,34 +118,34 @@ Cname:
+ 		for i := 0; i < len(dns.answer); i++ {
+ 			rr := dns.answer[i]
+ 			h := rr.Header()
+-			if h.Class == _DNS_ClassINET && h.Name == name {
++			if h.Class == dnsClassINET && h.Name == name {
+ 				switch h.Rrtype {
+-				case _DNS_TypeA:
++				case dnsTypeA:
+ 					n := len(addrs)
+-					a := rr.(*_DNS_RR_A).A
++					a := rr.(*dnsRR_A).A
+ 					addrs = addrs[0 : n+1]
+ 					addrs[n] = IPv4(byte(a>>24), byte(a>>16), byte(a>>8), byte(a)).String()
+-				case _DNS_TypeCNAME:
++				case dnsTypeCNAME:
+ 					// redirect to cname
+-					name = rr.(*_DNS_RR_CNAME).Cname
++					name = rr.(*dnsRR_CNAME).Cname
+ 					continue Cname
+ 				}
+ 			}
+ 		}
+ 		if len(addrs) == 0 {
+-			return nil, &DNSError{noSuchHost, name, server}
++			return nil, &DNSError{Error: noSuchHost, Name: name, Server: server}
+ 		}
+ 		return addrs, nil
+ 	}
+ 
+-	return nil, &DNSError{"too many redirects", name, server}
++	return nil, &DNSError{Error: "too many redirects", Name: name, Server: server}
+ }
+ 
+ // Do a lookup for a single name, which must be rooted
+ // (otherwise answer will not find the answers).
+-func tryOneName(cfg *_DNS_Config, name string) (addrs []string, err os.Error) {
++func tryOneName(cfg *dnsConfig, name string) (addrs []string, err os.Error) {
+ 	if len(cfg.servers) == 0 {
+-		return nil, &DNSError{"no DNS servers", name, ""}
++		return nil, &DNSError{Error: "no DNS servers", Name: name}
+ 	}
+ 	for i := 0; i < len(cfg.servers); i++ {
+ 		// Calling Dial here is scary -- we have to be sure
+@@ -157,30 +160,24 @@ func tryOneName(cfg *_DNS_Config, name string) (addrs []string, err os.Error) {
+ 			err = cerr
+ 			continue
+ 		}
+-		msg, merr := _Exchange(cfg, c, name)
++		msg, merr := exchange(cfg, c, name)
+ 		c.Close()
+ 		if merr != nil {
+ 			err = merr
+ 			continue
+ 		}
+-		var dnserr *DNSError
+-		addrs, dnserr = answer(name, server, msg)
+-		if dnserr != nil {
+-			err = dnserr
+-		} else {
+-			err = nil // nil os.Error, not nil *DNSError
+-		}
+-		if dnserr == nil || dnserr.Error == noSuchHost {
++		addrs, err = answer(name, server, msg)
++		if err == nil || err.(*DNSError).Error == noSuchHost {
+ 			break
+ 		}
+ 	}
+ 	return
+ }
+ 
+-var cfg *_DNS_Config
++var cfg *dnsConfig
+ var dnserr os.Error
+ 
+-func loadConfig() { cfg, dnserr = _DNS_ReadConfig() }
++func loadConfig() { cfg, dnserr = dnsReadConfig() }
+ 
+ func isDomainName(s string) bool {
+ 	// Requirements on DNS name:
+@@ -231,7 +228,7 @@ func isDomainName(s string) bool {
+ // host's addresses.
+ func LookupHost(name string) (cname string, addrs []string, err os.Error) {
+ 	if !isDomainName(name) {
+-		return name, nil, &DNSError{"invalid domain name", name, ""}
++		return name, nil, &DNSError{Error: "invalid domain name", Name: name}
+ 	}
+ 	once.Do(loadConfig)
+ 	if dnserr != nil || cfg == nil {
+diff --git a/src/pkg/net/dnsconfig.go b/src/pkg/net/dnsconfig.go
+index 4be207603c..26f0e04e90 100644
+--- a/src/pkg/net/dnsconfig.go
++++ b/src/pkg/net/dnsconfig.go
+@@ -8,7 +8,7 @@ package net
+ 
+ import "os"
+ 
+-type _DNS_Config struct {
++type dnsConfig struct {
+ 	servers  []string // servers to use
+ 	search   []string // suffixes to append to local name
+ 	ndots    int      // number of dots in name to trigger absolute lookup
+@@ -17,18 +17,30 @@ type _DNS_Config struct {
+ 	rotate   bool     // round robin among servers
+ }
+ 
+-var _DNS_configError os.Error
++var dnsconfigError os.Error
++
++type DNSConfigError struct {
++	Error os.Error
++}
++
++func (e *DNSConfigError) String() string {
++	return "error reading DNS config: " + e.Error.String()
++}
++
++func (e *DNSConfigError) Timeout() bool   { return false }
++func (e *DNSConfigError) Temporary() bool { return false }
++
+ 
+ // See resolv.conf(5) on a Linux machine.
+ // TODO(rsc): Supposed to call uname() and chop the beginning
+ // of the host name to get the default search domain.
+ // We assume it's in resolv.conf anyway.
+-func _DNS_ReadConfig() (*_DNS_Config, os.Error) {
++func dnsReadConfig() (*dnsConfig, os.Error) {
+ 	file, err := open("/etc/resolv.conf")
+ 	if err != nil {
+-		return nil, err
++		return nil, &DNSConfigError{err}
+ 	}
+-	conf := new(_DNS_Config)
++	conf := new(dnsConfig)
+ 	conf.servers = make([]string, 3)[0:0] // small, but the standard limit
+ 	conf.search = make([]string, 0)
+ 	conf.ndots = 1
+diff --git a/src/pkg/net/dnsmsg.go b/src/pkg/net/dnsmsg.go
+index 5091896392..630dbd1e91 100644
+--- a/src/pkg/net/dnsmsg.go
++++ b/src/pkg/net/dnsmsg.go
+@@ -18,8 +18,8 @@
+ // A few of the structure elements have string tags to aid the
+ // generic pack/unpack routines.
+ //
+-// TODO(rsc)  There are enough names defined in this file that they're all
+-// prefixed with _DNS_.  Perhaps put this in its own package later.
++// TODO(rsc):  There are enough names defined in this file that they're all
++// prefixed with dns.  Perhaps put this in its own package later.
+ 
+ package net
+ 
+@@ -33,55 +33,55 @@ import (
+ 
+ // Wire constants.
+ const (
+-	// valid _DNS_RR_Header.Rrtype and _DNS_Question.qtype
+-	_DNS_TypeA     = 1
+-	_DNS_TypeNS    = 2
+-	_DNS_TypeMD    = 3
+-	_DNS_TypeMF    = 4
+-	_DNS_TypeCNAME = 5
+-	_DNS_TypeSOA   = 6
+-	_DNS_TypeMB    = 7
+-	_DNS_TypeMG    = 8
+-	_DNS_TypeMR    = 9
+-	_DNS_TypeNULL  = 10
+-	_DNS_TypeWKS   = 11
+-	_DNS_TypePTR   = 12
+-	_DNS_TypeHINFO = 13
+-	_DNS_TypeMINFO = 14
+-	_DNS_TypeMX    = 15
+-	_DNS_TypeTXT   = 16
+-
+-	// valid _DNS_Question.qtype only
+-	_DNS_TypeAXFR  = 252
+-	_DNS_TypeMAILB = 253
+-	_DNS_TypeMAILA = 254
+-	_DNS_TypeALL   = 255
+-
+-	// valid _DNS_Question.qclass
+-	_DNS_ClassINET   = 1
+-	_DNS_ClassCSNET  = 2
+-	_DNS_ClassCHAOS  = 3
+-	_DNS_ClassHESIOD = 4
+-	_DNS_ClassANY    = 255
+-
+-	// _DNS_Msg.rcode
+-	_DNS_RcodeSuccess        = 0
+-	_DNS_RcodeFormatError    = 1
+-	_DNS_RcodeServerFailure  = 2
+-	_DNS_RcodeNameError      = 3
+-	_DNS_RcodeNotImplemented = 4
+-	_DNS_RcodeRefused        = 5
++	// valid dnsRR_Header.Rrtype and dnsQuestion.qtype
++	dnsTypeA     = 1
++	dnsTypeNS    = 2
++	dnsTypeMD    = 3
++	dnsTypeMF    = 4
++	dnsTypeCNAME = 5
++	dnsTypeSOA   = 6
++	dnsTypeMB    = 7
++	dnsTypeMG    = 8
++	dnsTypeMR    = 9
++	dnsTypeNULL  = 10
++	dnsTypeWKS   = 11
++	dnsTypePTR   = 12
++	dnsTypeHINFO = 13
++	dnsTypeMINFO = 14
++	dnsTypeMX    = 15
++	dnsTypeTXT   = 16
++
++	// valid dnsQuestion.qtype only
++	dnsTypeAXFR  = 252
++	dnsTypeMAILB = 253
++	dnsTypeMAILA = 254
++	dnsTypeALL   = 255
++
++	// valid dnsQuestion.qclass
++	dnsClassINET   = 1
++	dnsClassCSNET  = 2
++	dnsClassCHAOS  = 3
++	dnsClassHESIOD = 4
++	dnsClassANY    = 255
++
++	// dnsMsg.rcode
++	dnsRcodeSuccess        = 0
++	dnsRcodeFormatError    = 1
++	dnsRcodeServerFailure  = 2
++	dnsRcodeNameError      = 3
++	dnsRcodeNotImplemented = 4
++	dnsRcodeRefused        = 5
+ )
+ 
+ // The wire format for the DNS packet header.
+-type __DNS_Header struct {
++type dnsHeader struct {
+ 	Id                                 uint16
+ 	Bits                               uint16
+ 	Qdcount, Ancount, Nscount, Arcount uint16
+ }
+ 
+ const (
+-	// __DNS_Header.Bits
++	// dnsHeader.Bits
+ 	_QR = 1 << 15 // query/response (response=1)
+ 	_AA = 1 << 10 // authoritative
+ 	_TC = 1 << 9  // truncated
+@@ -90,7 +90,7 @@ const (
+ )
+ 
+ // DNS queries.
+-type _DNS_Question struct {
++type dnsQuestion struct {
+ 	Name   string "domain-name" // "domain-name" specifies encoding; see packers below
+ 	Qtype  uint16
+ 	Qclass uint16
+@@ -99,7 +99,7 @@ type _DNS_Question struct {
+ // DNS responses (resource records).
+ // There are many types of messages,
+ // but they all share the same header.
+-type _DNS_RR_Header struct {
++type dnsRR_Header struct {
+ 	Name     string "domain-name"
+ 	Rrtype   uint16
+ 	Class    uint16
+@@ -107,103 +107,103 @@ type _DNS_RR_Header struct {
+ 	Rdlength uint16 // length of data after header
+ }
+ 
+-func (h *_DNS_RR_Header) Header() *_DNS_RR_Header {
++func (h *dnsRR_Header) Header() *dnsRR_Header {
+ 	return h
+ }
+ 
+-type _DNS_RR interface {
+-	Header() *_DNS_RR_Header
++type dnsRR interface {
++	Header() *dnsRR_Header
+ }
+ 
+ 
+ // Specific DNS RR formats for each query type.
+ 
+-type _DNS_RR_CNAME struct {
+-	Hdr   _DNS_RR_Header
++type dnsRR_CNAME struct {
++	Hdr   dnsRR_Header
+ 	Cname string "domain-name"
+ }
+ 
+-func (rr *_DNS_RR_CNAME) Header() *_DNS_RR_Header {
++func (rr *dnsRR_CNAME) Header() *dnsRR_Header {
+ 	return &rr.Hdr
+ }
+ 
+-type _DNS_RR_HINFO struct {
+-	Hdr _DNS_RR_Header
++type dnsRR_HINFO struct {
++	Hdr dnsRR_Header
+ 	Cpu string
+ 	Os  string
+ }
+ 
+-func (rr *_DNS_RR_HINFO) Header() *_DNS_RR_Header {
++func (rr *dnsRR_HINFO) Header() *dnsRR_Header {
+ 	return &rr.Hdr
+ }
+ 
+-type _DNS_RR_MB struct {
+-	Hdr _DNS_RR_Header
++type dnsRR_MB struct {
++	Hdr dnsRR_Header
+ 	Mb  string "domain-name"
+ }
+ 
+-func (rr *_DNS_RR_MB) Header() *_DNS_RR_Header {
++func (rr *dnsRR_MB) Header() *dnsRR_Header {
+ 	return &rr.Hdr
+ }
+ 
+-type _DNS_RR_MG struct {
+-	Hdr _DNS_RR_Header
++type dnsRR_MG struct {
++	Hdr dnsRR_Header
+ 	Mg  string "domain-name"
+ }
+ 
+-func (rr *_DNS_RR_MG) Header() *_DNS_RR_Header {
++func (rr *dnsRR_MG) Header() *dnsRR_Header {
+ 	return &rr.Hdr
+ }
+ 
+-type _DNS_RR_MINFO struct {
+-	Hdr   _DNS_RR_Header
++type dnsRR_MINFO struct {
++	Hdr   dnsRR_Header
+ 	Rmail string "domain-name"
+ 	Email string "domain-name"
+ }
+ 
+-func (rr *_DNS_RR_MINFO) Header() *_DNS_RR_Header {
++func (rr *dnsRR_MINFO) Header() *dnsRR_Header {
+ 	return &rr.Hdr
+ }
+ 
+-type _DNS_RR_MR struct {
+-	Hdr _DNS_RR_Header
++type dnsRR_MR struct {
++	Hdr dnsRR_Header
+ 	Mr  string "domain-name"
+ }
+ 
+-func (rr *_DNS_RR_MR) Header() *_DNS_RR_Header {
++func (rr *dnsRR_MR) Header() *dnsRR_Header {
+ 	return &rr.Hdr
+ }
+ 
+-type _DNS_RR_MX struct {
+-	Hdr  _DNS_RR_Header
++type dnsRR_MX struct {
++	Hdr  dnsRR_Header
+ 	Pref uint16
+ 	Mx   string "domain-name"
+ }
+ 
+-func (rr *_DNS_RR_MX) Header() *_DNS_RR_Header {
++func (rr *dnsRR_MX) Header() *dnsRR_Header {
+ 	return &rr.Hdr
+ }
+ 
+-type _DNS_RR_NS struct {
+-	Hdr _DNS_RR_Header
++type dnsRR_NS struct {
++	Hdr dnsRR_Header
+ 	Ns  string "domain-name"
+ }
+ 
+-func (rr *_DNS_RR_NS) Header() *_DNS_RR_Header {
++func (rr *dnsRR_NS) Header() *dnsRR_Header {
+ 	return &rr.Hdr
+ }
+ 
+-type _DNS_RR_PTR struct {
+-	Hdr _DNS_RR_Header
++type dnsRR_PTR struct {
++	Hdr dnsRR_Header
+ 	Ptr string "domain-name"
+ }
+ 
+-func (rr *_DNS_RR_PTR) Header() *_DNS_RR_Header {
++func (rr *dnsRR_PTR) Header() *dnsRR_Header {
+ 	return &rr.Hdr
+ }
+ 
+-type _DNS_RR_SOA struct {
+-	Hdr     _DNS_RR_Header
++type dnsRR_SOA struct {
++	Hdr     dnsRR_Header
+ 	Ns      string "domain-name"
+ 	Mbox    string "domain-name"
+ 	Serial  uint32
+@@ -213,25 +213,25 @@ type _DNS_RR_SOA struct {
+ 	Minttl  uint32
+ }
+ 
+-func (rr *_DNS_RR_SOA) Header() *_DNS_RR_Header {
++func (rr *dnsRR_SOA) Header() *dnsRR_Header {
+ 	return &rr.Hdr
+ }
+ 
+-type _DNS_RR_TXT struct {
+-	Hdr _DNS_RR_Header
++type dnsRR_TXT struct {
++	Hdr dnsRR_Header
+ 	Txt string // not domain name
+ }
+ 
+-func (rr *_DNS_RR_TXT) Header() *_DNS_RR_Header {
++func (rr *dnsRR_TXT) Header() *dnsRR_Header {
+ 	return &rr.Hdr
+ }
+ 
+-type _DNS_RR_A struct {
+-	Hdr _DNS_RR_Header
++type dnsRR_A struct {
++	Hdr dnsRR_Header
+ 	A   uint32 "ipv4"
+ }
+ 
+-func (rr *_DNS_RR_A) Header() *_DNS_RR_Header { return &rr.Hdr }
++func (rr *dnsRR_A) Header() *dnsRR_Header { return &rr.Hdr }
+ 
+ 
+ // Packing and unpacking.
+@@ -243,19 +243,19 @@ func (rr *_DNS_RR_A) Header() *_DNS_RR_Header { return &rr.Hdr }
+ // packing sequence.
+ 
+ // Map of constructors for each RR wire type.
+-var rr_mk = map[int]func() _DNS_RR{
+-	_DNS_TypeCNAME: func() _DNS_RR { return new(_DNS_RR_CNAME) },
+-	_DNS_TypeHINFO: func() _DNS_RR { return new(_DNS_RR_HINFO) },
+-	_DNS_TypeMB:    func() _DNS_RR { return new(_DNS_RR_MB) },
+-	_DNS_TypeMG:    func() _DNS_RR { return new(_DNS_RR_MG) },
+-	_DNS_TypeMINFO: func() _DNS_RR { return new(_DNS_RR_MINFO) },
+-	_DNS_TypeMR:    func() _DNS_RR { return new(_DNS_RR_MR) },
+-	_DNS_TypeMX:    func() _DNS_RR { return new(_DNS_RR_MX) },
+-	_DNS_TypeNS:    func() _DNS_RR { return new(_DNS_RR_NS) },
+-	_DNS_TypePTR:   func() _DNS_RR { return new(_DNS_RR_PTR) },
+-	_DNS_TypeSOA:   func() _DNS_RR { return new(_DNS_RR_SOA) },
+-	_DNS_TypeTXT:   func() _DNS_RR { return new(_DNS_RR_TXT) },
+-	_DNS_TypeA:     func() _DNS_RR { return new(_DNS_RR_A) },
++var rr_mk = map[int]func() dnsRR{
++	dnsTypeCNAME: func() dnsRR { return new(dnsRR_CNAME) },
++	dnsTypeHINFO: func() dnsRR { return new(dnsRR_HINFO) },
++	dnsTypeMB:    func() dnsRR { return new(dnsRR_MB) },
++	dnsTypeMG:    func() dnsRR { return new(dnsRR_MG) },
++	dnsTypeMINFO: func() dnsRR { return new(dnsRR_MINFO) },
++	dnsTypeMR:    func() dnsRR { return new(dnsRR_MR) },
++	dnsTypeMX:    func() dnsRR { return new(dnsRR_MX) },
++	dnsTypeNS:    func() dnsRR { return new(dnsRR_NS) },
++	dnsTypePTR:   func() dnsRR { return new(dnsRR_PTR) },
++	dnsTypeSOA:   func() dnsRR { return new(dnsRR_SOA) },
++	dnsTypeTXT:   func() dnsRR { return new(dnsRR_TXT) },
++	dnsTypeA:     func() dnsRR { return new(dnsRR_A) },
+ }
+ 
+ // Pack a domain name s into msg[off:].
+@@ -522,7 +522,7 @@ func printStructValue(val *reflect.StructValue) string {
+ func printStruct(any interface{}) string { return printStructValue(structValue(any)) }
+ 
+ // Resource record packer.
+-func packRR(rr _DNS_RR, msg []byte, off int) (off2 int, ok bool) {
++func packRR(rr dnsRR, msg []byte, off int) (off2 int, ok bool) {
+ 	var off1 int
+ 	// pack twice, once to find end of header
+ 	// and again to find end of packet.
+@@ -541,9 +541,9 @@ func packRR(rr _DNS_RR, msg []byte, off int) (off2 int, ok bool) {
+ }
+ 
+ // Resource record unpacker.
+-func unpackRR(msg []byte, off int) (rr _DNS_RR, off1 int, ok bool) {
++func unpackRR(msg []byte, off int) (rr dnsRR, off1 int, ok bool) {
+ 	// unpack just the header, to find the rr type and length
+-	var h _DNS_RR_Header
++	var h dnsRR_Header
+ 	off0 := off
+ 	if off, ok = unpackStruct(&h, msg, off); !ok {
+ 		return nil, len(msg), false
+@@ -568,7 +568,7 @@ func unpackRR(msg []byte, off int) (rr _DNS_RR, off1 int, ok bool) {
+ 
+ // A manually-unpacked version of (id, bits).
+ // This is in its own struct for easy printing.
+-type __DNS_Msg_Top struct {
++type dnsMsgHdr struct {
+ 	id                  uint16
+ 	response            bool
+ 	opcode              int
+@@ -579,19 +579,19 @@ type __DNS_Msg_Top struct {
+ 	rcode               int
+ }
+ 
+-type _DNS_Msg struct {
+-	__DNS_Msg_Top
+-	question []_DNS_Question
+-	answer   []_DNS_RR
+-	ns       []_DNS_RR
+-	extra    []_DNS_RR
++type dnsMsg struct {
++	dnsMsgHdr
++	question []dnsQuestion
++	answer   []dnsRR
++	ns       []dnsRR
++	extra    []dnsRR
+ }
+ 
+ 
+-func (dns *_DNS_Msg) Pack() (msg []byte, ok bool) {
+-	var dh __DNS_Header
++func (dns *dnsMsg) Pack() (msg []byte, ok bool) {
++	var dh dnsHeader
+ 
+-	// Convert convenient _DNS_Msg into wire-like __DNS_Header.
++	// Convert convenient dnsMsg into wire-like dnsHeader.
+ 	dh.Id = dns.id
+ 	dh.Bits = uint16(dns.opcode)<<11 | uint16(dns.rcode)
+ 	if dns.recursion_available {
+@@ -647,9 +647,9 @@ func (dns *_DNS_Msg) Pack() (msg []byte, ok bool) {
+ 	return msg[0:off], true
+ }
+ 
+-func (dns *_DNS_Msg) Unpack(msg []byte) bool {
++func (dns *dnsMsg) Unpack(msg []byte) bool {
+ 	// Header.
+-	var dh __DNS_Header
++	var dh dnsHeader
+ 	off := 0
+ 	var ok bool
+ 	if off, ok = unpackStruct(&dh, msg, off); !ok {
+@@ -665,10 +665,10 @@ func (dns *_DNS_Msg) Unpack(msg []byte) bool {
+ 	dns.rcode = int(dh.Bits & 0xF)
+ 
+ 	// Arrays.
+-	dns.question = make([]_DNS_Question, dh.Qdcount)
+-	dns.answer = make([]_DNS_RR, dh.Ancount)
+-	dns.ns = make([]_DNS_RR, dh.Nscount)
+-	dns.extra = make([]_DNS_RR, dh.Arcount)
++	dns.question = make([]dnsQuestion, dh.Qdcount)
++	dns.answer = make([]dnsRR, dh.Ancount)
++	dns.ns = make([]dnsRR, dh.Nscount)
++	dns.extra = make([]dnsRR, dh.Arcount)
+ 
+ 	for i := 0; i < len(dns.question); i++ {
+ 		off, ok = unpackStruct(&dns.question[i], msg, off)
+@@ -691,8 +691,8 @@ func (dns *_DNS_Msg) Unpack(msg []byte) bool {
+ 	return true
+ }
+ 
+-func (dns *_DNS_Msg) String() string {
+-	s := "DNS: " + printStruct(&dns.__DNS_Msg_Top) + "\n"
++func (dns *dnsMsg) String() string {
++	s := "DNS: " + printStruct(&dns.dnsMsgHdr) + "\n"
+ 	if len(dns.question) > 0 {
+ 		s += "-- Questions\n"
+ 		for i := 0; i < len(dns.question); i++ {
+diff --git a/src/pkg/net/fd.go b/src/pkg/net/fd.go
+index 02f7319cbf..1fa537cccd 100644
+--- a/src/pkg/net/fd.go
++++ b/src/pkg/net/fd.go
+@@ -7,6 +7,7 @@
+ package net
+ 
+ import (
++	"io"
+ 	"once"
+ 	"os"
+ 	"sync"
+@@ -44,6 +45,12 @@ type netFD struct {
+ 	ncr, ncw int
+ }
+ 
++type InvalidConnError struct{}
++
++func (e *InvalidConnError) String() string  { return "invalid net.Conn" }
++func (e *InvalidConnError) Temporary() bool { return false }
++func (e *InvalidConnError) Timeout() bool   { return false }
++
+ // A pollServer helps FDs determine when to retry a non-blocking
+ // read or write after they get EAGAIN.  When an FD needs to wait,
+ // send the fd on s.cr (for a read) or s.cw (for a write) to pass the
+@@ -342,13 +349,6 @@ func (fd *netFD) decref() {
+ 	fd.sysmu.Unlock()
+ }
+ 
+-func isEAGAIN(e os.Error) bool {
+-	if e1, ok := e.(*os.PathError); ok {
+-		return e1.Error == os.EAGAIN
+-	}
+-	return e == os.EAGAIN
+-}
+-
+ func (fd *netFD) Close() os.Error {
+ 	if fd == nil || fd.sysfile == nil {
+ 		return os.EINVAL
+@@ -374,17 +374,24 @@ func (fd *netFD) Read(p []byte) (n int, err os.Error) {
+ 	} else {
+ 		fd.rdeadline = 0
+ 	}
++	var oserr os.Error
+ 	for {
+-		n, err = fd.sysfile.Read(p)
+-		if isEAGAIN(err) && fd.rdeadline >= 0 {
++		var errno int
++		n, errno = syscall.Read(fd.sysfile.Fd(), p)
++		if errno == syscall.EAGAIN && fd.rdeadline >= 0 {
+ 			pollserver.WaitRead(fd)
+ 			continue
+ 		}
++		if errno != 0 {
++			n = 0
++			oserr = os.Errno(errno)
++		} else if n == 0 && errno == 0 && fd.proto != syscall.SOCK_DGRAM {
++			err = os.EOF
++		}
+ 		break
+ 	}
+-	if fd.proto == syscall.SOCK_DGRAM && err == os.EOF {
+-		// 0 in datagram protocol just means 0-length packet
+-		err = nil
++	if oserr != nil {
++		err = &OpError{"read", fd.net, fd.raddr, oserr}
+ 	}
+ 	return
+ }
+@@ -402,6 +409,7 @@ func (fd *netFD) ReadFrom(p []byte) (n int, sa syscall.Sockaddr, err os.Error) {
+ 	} else {
+ 		fd.rdeadline = 0
+ 	}
++	var oserr os.Error
+ 	for {
+ 		var errno int
+ 		n, sa, errno = syscall.Recvfrom(fd.sysfd, p, 0)
+@@ -411,10 +419,13 @@ func (fd *netFD) ReadFrom(p []byte) (n int, sa syscall.Sockaddr, err os.Error) {
+ 		}
+ 		if errno != 0 {
+ 			n = 0
+-			err = &os.PathError{"recvfrom", fd.sysfile.Name(), os.Errno(errno)}
++			oserr = os.Errno(errno)
+ 		}
+ 		break
+ 	}
++	if oserr != nil {
++		err = &OpError{"read", fd.net, fd.laddr, oserr}
++	}
+ 	return
+ }
+ 
+@@ -431,26 +442,33 @@ func (fd *netFD) Write(p []byte) (n int, err os.Error) {
+ 	} else {
+ 		fd.wdeadline = 0
+ 	}
+-	err = nil
+ 	nn := 0
+-	first := true // force at least one Write, to send 0-length datagram packets
+-	for nn < len(p) || first {
+-		first = false
+-		n, err = fd.sysfile.Write(p[nn:])
++	var oserr os.Error
++	for {
++		n, errno := syscall.Write(fd.sysfile.Fd(), p[nn:])
+ 		if n > 0 {
+ 			nn += n
+ 		}
+ 		if nn == len(p) {
+ 			break
+ 		}
+-		if isEAGAIN(err) && fd.wdeadline >= 0 {
++		if errno == syscall.EAGAIN && fd.wdeadline >= 0 {
+ 			pollserver.WaitWrite(fd)
+ 			continue
+ 		}
+-		if n == 0 || err != nil {
++		if errno != 0 {
++			n = 0
++			oserr = os.Errno(errno)
++			break
++		}
++		if n == 0 {
++			oserr = io.ErrUnexpectedEOF
+ 			break
+ 		}
+ 	}
++	if oserr != nil {
++		err = &OpError{"write", fd.net, fd.raddr, oserr}
++	}
+ 	return nn, err
+ }
+ 
+@@ -467,7 +485,7 @@ func (fd *netFD) WriteTo(p []byte, sa syscall.Sockaddr) (n int, err os.Error) {
+ 	} else {
+ 		fd.wdeadline = 0
+ 	}
+-	err = nil
++	var oserr os.Error
+ 	for {
+ 		errno := syscall.Sendto(fd.sysfd, p, 0, sa)
+ 		if errno == syscall.EAGAIN && fd.wdeadline >= 0 {
+@@ -475,12 +493,14 @@ func (fd *netFD) WriteTo(p []byte, sa syscall.Sockaddr) (n int, err os.Error) {
+ 			continue
+ 		}
+ 		if errno != 0 {
+-			err = &os.PathError{"sendto", fd.sysfile.Name(), os.Errno(errno)}
++			oserr = os.Errno(errno)
+ 		}
+ 		break
+ 	}
+-	if err == nil {
++	if oserr == nil {
+ 		n = len(p)
++	} else {
++		err = &OpError{"write", fd.net, fd.raddr, oserr}
+ 	}
+ 	return
+ }
+diff --git a/src/pkg/net/ipsock.go b/src/pkg/net/ipsock.go
+index 879bae33e2..fcbd5079f7 100644
+--- a/src/pkg/net/ipsock.go
++++ b/src/pkg/net/ipsock.go
+@@ -49,6 +49,7 @@ type sockaddr interface {
+ func internetSocket(net string, laddr, raddr sockaddr, proto int, mode string, toAddr func(syscall.Sockaddr) Addr) (fd *netFD, err os.Error) {
+ 	// Figure out IP version.
+ 	// If network has a suffix like "tcp4", obey it.
++	var oserr os.Error
+ 	family := syscall.AF_INET6
+ 	switch net[len(net)-1] {
+ 	case '4':
+@@ -67,16 +68,16 @@ func internetSocket(net string, laddr, raddr sockaddr, proto int, mode string, t
+ 
+ 	var la, ra syscall.Sockaddr
+ 	if laddr != nil {
+-		if la, err = laddr.sockaddr(family); err != nil {
++		if la, oserr = laddr.sockaddr(family); err != nil {
+ 			goto Error
+ 		}
+ 	}
+ 	if raddr != nil {
+-		if ra, err = raddr.sockaddr(family); err != nil {
++		if ra, oserr = raddr.sockaddr(family); err != nil {
+ 			goto Error
+ 		}
+ 	}
+-	fd, err = socket(net, family, proto, 0, la, ra, toAddr)
++	fd, oserr = socket(net, family, proto, 0, la, ra, toAddr)
+ 	if err != nil {
+ 		goto Error
+ 	}
+@@ -87,7 +88,7 @@ Error:
+ 	if mode == "listen" {
+ 		addr = laddr
+ 	}
+-	return nil, &OpError{mode, net, addr, err}
++	return nil, &OpError{mode, net, addr, oserr}
+ }
+ 
+ func getip(fd int, remote bool) (ip []byte, port int, ok bool) {
+@@ -109,6 +110,13 @@ func getip(fd int, remote bool) (ip []byte, port int, ok bool) {
+ 	return
+ }
+ 
++type InvalidAddrError string
++
++func (e InvalidAddrError) String() string  { return string(e) }
++func (e InvalidAddrError) Timeout() bool   { return false }
++func (e InvalidAddrError) Temporary() bool { return false }
++
++
+ func ipToSockaddr(family int, ip IP, port int) (syscall.Sockaddr, os.Error) {
+ 	switch family {
+ 	case syscall.AF_INET:
+@@ -116,7 +124,7 @@ func ipToSockaddr(family int, ip IP, port int) (syscall.Sockaddr, os.Error) {
+ 			ip = IPv4zero
+ 		}
+ 		if ip = ip.To4(); ip == nil {
+-			return nil, os.EINVAL
++			return nil, InvalidAddrError("non-IPv4 address")
+ 		}
+ 		s := new(syscall.SockaddrInet4)
+ 		for i := 0; i < IPv4len; i++ {
+@@ -135,7 +143,7 @@ func ipToSockaddr(family int, ip IP, port int) (syscall.Sockaddr, os.Error) {
+ 			ip = IPzero
+ 		}
+ 		if ip = ip.To16(); ip == nil {
+-			return nil, os.EINVAL
++			return nil, InvalidAddrError("non-IPv6 address")
+ 		}
+ 		s := new(syscall.SockaddrInet6)
+ 		for i := 0; i < IPv6len; i++ {
+@@ -144,7 +152,7 @@ func ipToSockaddr(family int, ip IP, port int) (syscall.Sockaddr, os.Error) {
+ 		s.Port = port
+ 		return s, nil
+ 	}
+-	return nil, os.EINVAL
++	return nil, InvalidAddrError("unexpected socket family")
+ }
+ 
+ // Split "host:port" into "host" and "port".
+diff --git a/src/pkg/net/net.go b/src/pkg/net/net.go
+index 2f145a72cb..3f0b834c24 100644
+--- a/src/pkg/net/net.go
++++ b/src/pkg/net/net.go
+@@ -22,16 +22,17 @@ type Addr interface {
+ // Conn is a generic stream-oriented network connection.
+ type Conn interface {
+ 	// Read reads data from the connection.
+-	// Read can be made to time out and return err == os.EAGAIN
++	// Read can be made to time out and return a net.Error with Timeout() == true
+ 	// after a fixed time limit; see SetTimeout and SetReadTimeout.
+ 	Read(b []byte) (n int, err os.Error)
+ 
+ 	// Write writes data to the connection.
+-	// Write can be made to time out and return err == os.EAGAIN
+-	// after a fixed time limit; see SetTimeout and SetReadTimeout.
++	// Write can be made to time out and return a net.Error with Timeout() == true
++	// after a fixed time limit; see SetTimeout and SetWriteTimeout.
+ 	Write(b []byte) (n int, err os.Error)
+ 
+ 	// Close closes the connection.
++	// The error returned is an os.Error to satisfy io.Closer;
+ 	Close() os.Error
+ 
+ 	// LocalAddr returns the local network address.
+@@ -45,35 +46,45 @@ type Conn interface {
+ 	SetTimeout(nsec int64) os.Error
+ 
+ 	// SetReadTimeout sets the time (in nanoseconds) that
+-	// Read will wait for data before returning os.EAGAIN.
++	// Read will wait for data before returning an error with Timeout() == true.
+ 	// Setting nsec == 0 (the default) disables the deadline.
+ 	SetReadTimeout(nsec int64) os.Error
+ 
+ 	// SetWriteTimeout sets the time (in nanoseconds) that
+-	// Write will wait to send its data before returning os.EAGAIN.
++	// Write will wait to send its data before returning an error with Timeout() == true.
+ 	// Setting nsec == 0 (the default) disables the deadline.
+ 	// Even if write times out, it may return n > 0, indicating that
+ 	// some of the data was successfully written.
+ 	SetWriteTimeout(nsec int64) os.Error
+ }
+ 
++// An Error represents a network error.
++type Error interface {
++	os.Error
++	Timeout() bool   // Is the error a timeout?
++	Temporary() bool // Is the error temporary?
++}
++
+ // PacketConn is a generic packet-oriented network connection.
+ type PacketConn interface {
+ 	// ReadFrom reads a packet from the connection,
+ 	// copying the payload into b.  It returns the number of
+ 	// bytes copied into b and the return address that
+ 	// was on the packet.
+-	// ReadFrom can be made to time out and return err == os.EAGAIN
+-	// after a fixed time limit; see SetTimeout and SetReadTimeout.
++	// ReadFrom can be made to time out and return
++	// an error with Timeout() == true after a fixed time limit;
++	// see SetTimeout and SetReadTimeout.
+ 	ReadFrom(b []byte) (n int, addr Addr, err os.Error)
+ 
+ 	// WriteTo writes a packet with payload b to addr.
+-	// WriteTo can be made to time out and return err == os.EAGAIN
+-	// after a fixed time limit; see SetTimeout and SetWriteTimeout.
++	// WriteTo can be made to time out and return
++	// an error with Timeout() == true after a fixed time limit;
++	// see SetTimeout and SetWriteTimeout.
+ 	// On packet-oriented connections, write timeouts are rare.
+ 	WriteTo(b []byte, addr Addr) (n int, err os.Error)
+ 
+ 	// Close closes the connection.
++	// The error returned is an os.Error to satisfy io.Closer;
+ 	Close() os.Error
+ 
+ 	// LocalAddr returns the local network address.
+@@ -84,12 +95,12 @@ type PacketConn interface {
+ 	SetTimeout(nsec int64) os.Error
+ 
+ 	// SetReadTimeout sets the time (in nanoseconds) that
+-	// Read will wait for data before returning os.EAGAIN.
++	// Read will wait for data before returning an error with Timeout() == true.
+ 	// Setting nsec == 0 (the default) disables the deadline.
+ 	SetReadTimeout(nsec int64) os.Error
+ 
+ 	// SetWriteTimeout sets the time (in nanoseconds) that
+-	// Write will wait to send its data before returning os.EAGAIN.
++	// Write will wait to send its data before returning an error with Timeout() == true.
+ 	// Setting nsec == 0 (the default) disables the deadline.
+ 	// Even if write times out, it may return n > 0, indicating that
+ 	// some of the data was successfully written.
+@@ -97,11 +108,16 @@ type PacketConn interface {
+ }
+ 
+ // A Listener is a generic network listener for stream-oriented protocols.
+-// Accept waits for the next connection and Close closes the connection.
+ type Listener interface {
++	// Accept waits for and returns the next connection to the listener.
+ 	Accept() (c Conn, err os.Error)
++
++	// Close closes the listener.
++	// The error returned is an os.Error to satisfy io.Closer;
+ 	Close() os.Error
+-	Addr() Addr // Listener's network address
++
++	// Addr returns the listener's network address.
++	Addr() Addr
+ }
+ 
+ // Dial connects to the remote address raddr on the network net.
+@@ -266,6 +282,24 @@ func (e *OpError) String() string {
+ 	return s
+ }
+ 
++type temporary interface {
++	Temporary() bool
++}
++
++func (e *OpError) Temporary() bool {
++	t, ok := e.Error.(temporary)
++	return ok && t.Temporary()
++}
++
++type timeout interface {
++	Timeout() bool
++}
++
++func (e *OpError) Timeout() bool {
++	t, ok := e.Error.(timeout)
++	return ok && t.Timeout()
++}
++
+ type AddrError struct {
+ 	Error string
+ 	Addr  string
+@@ -279,6 +313,16 @@ func (e *AddrError) String() string {
+ 	return s
+ }
+ 
++func (e *AddrError) Temporary() bool {
++	return false
++}
++
++func (e *AddrError) Timeout() bool {
++	return false
++}
++
+ type UnknownNetworkError string
+ 
+-func (e UnknownNetworkError) String() string { return "unknown network " + string(e) }
++func (e UnknownNetworkError) String() string  { return "unknown network " + string(e) }
++func (e UnknownNetworkError) Temporary() bool { return false }
++func (e UnknownNetworkError) Timeout() bool   { return false }
+diff --git a/src/pkg/net/server_test.go b/src/pkg/net/server_test.go
+index 8e34945881..d6b3276ba7 100644
+--- a/src/pkg/net/server_test.go
++++ b/src/pkg/net/server_test.go
+@@ -69,14 +69,14 @@ func connect(t *testing.T, network, addr string, isEmpty bool) {
+ 	}
+ 	var b1 [100]byte
+ 
+-	n, err := fd.Write(b)
++	n, err1 := fd.Write(b)
+ 	if n != len(b) {
+-		t.Fatalf("fd.Write(%q) = %d, %v", b, n, err)
++		t.Fatalf("fd.Write(%q) = %d, %v", b, n, err1)
+ 	}
+ 
+-	n, err = fd.Read(&b1)
+-	if n != len(b) || err != nil {
+-		t.Fatalf("fd.Read() = %d, %v (want %d, nil)", n, err, len(b))
++	n, err1 = fd.Read(&b1)
++	if n != len(b) || err1 != nil {
++		t.Fatalf("fd.Read() = %d, %v (want %d, nil)", n, err1, len(b))
+ 	}
+ 	fd.Close()
+ }
+@@ -127,7 +127,7 @@ func runPacket(t *testing.T, network, addr string, listening chan<- string, done
+ 	var buf [1000]byte
+ 	for {
+ 		n, addr, err := c.ReadFrom(&buf)
+-		if isEAGAIN(err) {
++		if e, ok := err.(Error); ok && e.Timeout() {
+ 			if done <- 1 {
+ 				break
+ 			}
+diff --git a/src/pkg/net/tcpsock.go b/src/pkg/net/tcpsock.go
+index cb9e29afc9..5b09f2d8c0 100644
+--- a/src/pkg/net/tcpsock.go
++++ b/src/pkg/net/tcpsock.go
+@@ -81,10 +81,7 @@ func (c *TCPConn) ok() bool { return c != nil && c.fd != nil }
+ 
+ // Implementation of the Conn interface - see Conn for documentation.
+ 
+-// Read reads data from the TCP connection.
+-//
+-// Read can be made to time out and return err == os.EAGAIN
+-// after a fixed time limit; see SetTimeout and SetReadTimeout.
++// Read implements the net.Conn Read method.
+ func (c *TCPConn) Read(b []byte) (n int, err os.Error) {
+ 	if !c.ok() {
+ 		return 0, os.EINVAL
+@@ -92,10 +89,7 @@ func (c *TCPConn) Read(b []byte) (n int, err os.Error) {
+ 	return c.fd.Read(b)
+ }
+ 
+-// Write writes data to the TCP connection.
+-//
+-// Write can be made to time out and return err == os.EAGAIN
+-// after a fixed time limit; see SetTimeout and SetReadTimeout.
++// Write implements the net.Conn Write method.
+ func (c *TCPConn) Write(b []byte) (n int, err os.Error) {
+ 	if !c.ok() {
+ 		return 0, os.EINVAL
+@@ -129,8 +123,7 @@ func (c *TCPConn) RemoteAddr() Addr {
+ 	return c.fd.raddr
+ }
+ 
+-// SetTimeout sets the read and write deadlines associated
+-// with the connection.
++// SetTimeout implements the net.Conn SetTimeout method.
+ func (c *TCPConn) SetTimeout(nsec int64) os.Error {
+ 	if !c.ok() {
+ 		return os.EINVAL
+@@ -138,9 +131,7 @@ func (c *TCPConn) SetTimeout(nsec int64) os.Error {
+ 	return setTimeout(c.fd, nsec)
+ }
+ 
+-// SetReadTimeout sets the time (in nanoseconds) that
+-// Read will wait for data before returning os.EAGAIN.
+-// Setting nsec == 0 (the default) disables the deadline.
++// SetReadTimeout implements the net.Conn SetReadTimeout method.
+ func (c *TCPConn) SetReadTimeout(nsec int64) os.Error {
+ 	if !c.ok() {
+ 		return os.EINVAL
+@@ -148,11 +139,7 @@ func (c *TCPConn) SetReadTimeout(nsec int64) os.Error {
+ 	return setReadTimeout(c.fd, nsec)
+ }
+ 
+-// SetWriteTimeout sets the time (in nanoseconds) that
+-// Write will wait to send its data before returning os.EAGAIN.
+-// Setting nsec == 0 (the default) disables the deadline.
+-// Even if write times out, it may return n > 0, indicating that
+-// some of the data was successfully written.
++// SetWriteTimeout implements the net.Conn SetWriteTimeout method.
+ func (c *TCPConn) SetWriteTimeout(nsec int64) os.Error {
+ 	if !c.ok() {
+ 		return os.EINVAL
+diff --git a/src/pkg/net/timeout_test.go b/src/pkg/net/timeout_test.go
+index be36bcb41f..9a7a2685e4 100644
+--- a/src/pkg/net/timeout_test.go
++++ b/src/pkg/net/timeout_test.go
+@@ -32,8 +32,8 @@ func testTimeout(t *testing.T, network, addr string, readFrom bool) {
+ 	if readFrom {
+ 		what = "ReadFrom"
+ 	}
+-	if n != 0 || !isEAGAIN(err1) {
+-		t.Errorf("fd.%s on %s %s did not return 0, EAGAIN: %v, %v", what, network, addr, n, err1)
++	if n != 0 || err1 == nil || !err1.(Error).Timeout() {
++		t.Errorf("fd.%s on %s %s did not return 0, timeout: %v, %v", what, network, addr, n, err1)
+ 	}
+ 	if t1-t0 < 0.5e8 || t1-t0 > 1.5e8 {
+ 		t.Errorf("fd.%s on %s %s took %f seconds, expected 0.1", what, network, addr, float64(t1-t0)/1e9)
+diff --git a/src/pkg/net/udpsock.go b/src/pkg/net/udpsock.go
+index f5ad3c88f8..f38f52f272 100644
+--- a/src/pkg/net/udpsock.go
++++ b/src/pkg/net/udpsock.go
+@@ -77,12 +77,7 @@ func (c *UDPConn) ok() bool { return c != nil && c.fd != nil }
+ 
+ // Implementation of the Conn interface - see Conn for documentation.
+ 
+-// Read reads data from a single UDP packet on the connection.
+-// If the slice b is smaller than the arriving packet,
+-// the excess packet data may be discarded.
+-//
+-// Read can be made to time out and return err == os.EAGAIN
+-// after a fixed time limit; see SetTimeout and SetReadTimeout.
++// Read implements the net.Conn Read method.
+ func (c *UDPConn) Read(b []byte) (n int, err os.Error) {
+ 	if !c.ok() {
+ 		return 0, os.EINVAL
+@@ -90,10 +85,7 @@ func (c *UDPConn) Read(b []byte) (n int, err os.Error) {
+ 	return c.fd.Read(b)
+ }
+ 
+-// Write writes data to the connection as a single UDP packet.
+-//
+-// Write can be made to time out and return err == os.EAGAIN
+-// after a fixed time limit; see SetTimeout and SetReadTimeout.
++// Write implements the net.Conn Write method.
+ func (c *UDPConn) Write(b []byte) (n int, err os.Error) {
+ 	if !c.ok() {
+ 		return 0, os.EINVAL
+@@ -127,8 +119,7 @@ func (c *UDPConn) RemoteAddr() Addr {
+ 	return c.fd.raddr
+ }
+ 
+-// SetTimeout sets the read and write deadlines associated
+-// with the connection.
++// SetTimeout implements the net.Conn SetTimeout method.
+ func (c *UDPConn) SetTimeout(nsec int64) os.Error {
+ 	if !c.ok() {
+ 		return os.EINVAL
+@@ -136,9 +127,7 @@ func (c *UDPConn) SetTimeout(nsec int64) os.Error {
+ 	return setTimeout(c.fd, nsec)
+ }
+ 
+-// SetReadTimeout sets the time (in nanoseconds) that
+-// Read will wait for data before returning os.EAGAIN.
+-// Setting nsec == 0 (the default) disables the deadline.
++// SetReadTimeout implements the net.Conn SetReadTimeout method.
+ func (c *UDPConn) SetReadTimeout(nsec int64) os.Error {
+ 	if !c.ok() {
+ 		return os.EINVAL
+@@ -146,11 +135,7 @@ func (c *UDPConn) SetReadTimeout(nsec int64) os.Error {
+ 	return setReadTimeout(c.fd, nsec)
+ }
+ 
+-// SetWriteTimeout sets the time (in nanoseconds) that
+-// Write will wait to send its data before returning os.EAGAIN.
+-// Setting nsec == 0 (the default) disables the deadline.
+-// Even if write times out, it may return n > 0, indicating that
+-// some of the data was successfully written.
++// SetWriteTimeout implements the net.Conn SetWriteTimeout method.
+ func (c *UDPConn) SetWriteTimeout(nsec int64) os.Error {
+ 	if !c.ok() {
+ 		return os.EINVAL
+@@ -182,7 +167,7 @@ func (c *UDPConn) SetWriteBuffer(bytes int) os.Error {
+ // It returns the number of bytes copied into b and the return address
+ // that was on the packet.
+ //
+-// ReadFromUDP can be made to time out and return err == os.EAGAIN
++// ReadFromUDP can be made to time out and return an error with Timeout() == true
+ // after a fixed time limit; see SetTimeout and SetReadTimeout.
+ func (c *UDPConn) ReadFromUDP(b []byte) (n int, addr *UDPAddr, err os.Error) {
+ 	if !c.ok() {
+@@ -198,12 +183,7 @@ func (c *UDPConn) ReadFromUDP(b []byte) (n int, addr *UDPAddr, err os.Error) {
+ 	return
+ }
+ 
+-// ReadFrom reads a UDP packet from c, copying the payload into b.
+-// It returns the number of bytes copied into b and the return address
+-// that was on the packet.
+-//
+-// ReadFrom can be made to time out and return err == os.EAGAIN
+-// after a fixed time limit; see SetTimeout and SetReadTimeout.
++// ReadFrom implements the net.PacketConn ReadFrom method.
+ func (c *UDPConn) ReadFrom(b []byte) (n int, addr Addr, err os.Error) {
+ 	if !c.ok() {
+ 		return 0, nil, os.EINVAL
+@@ -214,25 +194,22 @@ func (c *UDPConn) ReadFrom(b []byte) (n int, addr Addr, err os.Error) {
+ 
+ // WriteToUDP writes a UDP packet to addr via c, copying the payload from b.
+ //
+-// WriteToUDP can be made to time out and return err == os.EAGAIN
+-// after a fixed time limit; see SetTimeout and SetWriteTimeout.
+-// On packet-oriented connections such as UDP, write timeouts are rare.
++// WriteToUDP can be made to time out and return
++// an error with Timeout() == true after a fixed time limit;
++// see SetTimeout and SetWriteTimeout.
++// On packet-oriented connections, write timeouts are rare.
+ func (c *UDPConn) WriteToUDP(b []byte, addr *UDPAddr) (n int, err os.Error) {
+ 	if !c.ok() {
+ 		return 0, os.EINVAL
+ 	}
+-	sa, err := addr.sockaddr(c.fd.family)
+-	if err != nil {
+-		return 0, err
++	sa, err1 := addr.sockaddr(c.fd.family)
++	if err1 != nil {
++		return 0, &OpError{Op: "write", Net: "udp", Addr: addr, Error: err1}
+ 	}
+ 	return c.fd.WriteTo(b, sa)
+ }
+ 
+-// WriteTo writes a UDP packet with payload b to addr via c.
+-//
+-// WriteTo can be made to time out and return err == os.EAGAIN
+-// after a fixed time limit; see SetTimeout and SetWriteTimeout.
+-// On packet-oriented connections such as UDP, write timeouts are rare.
++// WriteTo implements the net.PacketConn WriteTo method.
+ func (c *UDPConn) WriteTo(b []byte, addr Addr) (n int, err os.Error) {
+ 	if !c.ok() {
+ 		return 0, os.EINVAL
+diff --git a/src/pkg/net/unixsock.go b/src/pkg/net/unixsock.go
+index daf71c0066..7c0ae1ee62 100644
+--- a/src/pkg/net/unixsock.go
++++ b/src/pkg/net/unixsock.go
+@@ -34,7 +34,7 @@ func unixSocket(net string, laddr, raddr *UnixAddr, mode string) (fd *netFD, err
+ 		if raddr != nil {
+ 			ra = &syscall.SockaddrUnix{Name: raddr.Name}
+ 		} else if proto != syscall.SOCK_DGRAM || laddr == nil {
+-			return nil, &OpError{mode, net, nil, errMissingAddress}
++			return nil, &OpError{Op: mode, Net: net, Error: errMissingAddress}
+ 		}
+ 
+ 	case "listen":
+@@ -43,7 +43,7 @@ func unixSocket(net string, laddr, raddr *UnixAddr, mode string) (fd *netFD, err
+ 		}
+ 		la = &syscall.SockaddrUnix{Name: laddr.Name}
+ 		if raddr != nil {
+-			return nil, &OpError{mode, net, raddr, &AddrError{"unexpected remote address", raddr.String()}}
++			return nil, &OpError{Op: mode, Net: net, Addr: raddr, Error: &AddrError{Error: "unexpected remote address", Addr: raddr.String()}}
+ 		}
+ 	}
+ 
+@@ -51,8 +51,8 @@ func unixSocket(net string, laddr, raddr *UnixAddr, mode string) (fd *netFD, err
+ 	if proto != syscall.SOCK_STREAM {
+ 		f = sockaddrToUnixgram
+ 	}
+-	fd, err = socket(net, syscall.AF_UNIX, proto, 0, la, ra, f)
+-	if err != nil {
++	fd, oserr := socket(net, syscall.AF_UNIX, proto, 0, la, ra, f)
++	if oserr != nil {
+ 		goto Error
+ 	}
+ 	return fd, nil
+@@ -62,7 +62,7 @@ Error:
+ 	if mode == "listen" {
+ 		addr = laddr
+ 	}
+-	return nil, &OpError{mode, net, addr, err}
++	return nil, &OpError{Op: mode, Net: net, Addr: addr, Error: oserr}
+ }
+ 
+ // UnixAddr represents the address of a Unix domain socket end point.
+@@ -133,10 +133,7 @@ func (c *UnixConn) ok() bool { return c != nil && c.fd != nil }
+ 
+ // Implementation of the Conn interface - see Conn for documentation.
+ 
+-// Read reads data from the Unix domain connection.
+-//
+-// Read can be made to time out and return err == os.EAGAIN
+-// after a fixed time limit; see SetTimeout and SetReadTimeout.
++// Read implements the net.Conn Read method.
+ func (c *UnixConn) Read(b []byte) (n int, err os.Error) {
+ 	if !c.ok() {
+ 		return 0, os.EINVAL
+@@ -144,10 +141,7 @@ func (c *UnixConn) Read(b []byte) (n int, err os.Error) {
+ 	return c.fd.Read(b)
+ }
+ 
+-// Write writes data to the Unix domain connection.
+-//
+-// Write can be made to time out and return err == os.EAGAIN
+-// after a fixed time limit; see SetTimeout and SetReadTimeout.
++// Write implements the net.Conn Write method.
+ func (c *UnixConn) Write(b []byte) (n int, err os.Error) {
+ 	if !c.ok() {
+ 		return 0, os.EINVAL
+@@ -184,8 +178,7 @@ func (c *UnixConn) RemoteAddr() Addr {
+ 	return c.fd.raddr
+ }
+ 
+-// SetTimeout sets the read and write deadlines associated
+-// with the connection.
++// SetTimeout implements the net.Conn SetTimeout method.
+ func (c *UnixConn) SetTimeout(nsec int64) os.Error {
+ 	if !c.ok() {
+ 		return os.EINVAL
+@@ -193,9 +186,7 @@ func (c *UnixConn) SetTimeout(nsec int64) os.Error {
+ 	return setTimeout(c.fd, nsec)
+ }
+ 
+-// SetReadTimeout sets the time (in nanoseconds) that
+-// Read will wait for data before returning os.EAGAIN.
+-// Setting nsec == 0 (the default) disables the deadline.
++// SetReadTimeout implements the net.Conn SetReadTimeout method.
+ func (c *UnixConn) SetReadTimeout(nsec int64) os.Error {
+ 	if !c.ok() {
+ 		return os.EINVAL
+@@ -203,11 +194,7 @@ func (c *UnixConn) SetReadTimeout(nsec int64) os.Error {
+ 	return setReadTimeout(c.fd, nsec)
+ }
+ 
+-// SetWriteTimeout sets the time (in nanoseconds) that
+-// Write will wait to send its data before returning os.EAGAIN.
+-// Setting nsec == 0 (the default) disables the deadline.
+-// Even if write times out, it may return n > 0, indicating that
+-// some of the data was successfully written.
++// SetWriteTimeout implements the net.Conn SetWriteTimeout method.
+ func (c *UnixConn) SetWriteTimeout(nsec int64) os.Error {
+ 	if !c.ok() {
+ 		return os.EINVAL
+@@ -237,8 +224,9 @@ func (c *UnixConn) SetWriteBuffer(bytes int) os.Error {
+ // It returns the number of bytes copied into b and the return address
+ // that was on the packet.
+ //
+-// ReadFromUnix can be made to time out and return err == os.EAGAIN
+-// after a fixed time limit; see SetTimeout and SetReadTimeout.
++// ReadFromUnix can be made to time out and return
++// an error with Timeout() == true after a fixed time limit;
++// see SetTimeout and SetReadTimeout.
+ func (c *UnixConn) ReadFromUnix(b []byte) (n int, addr *UnixAddr, err os.Error) {
+ 	if !c.ok() {
+ 		return 0, nil, os.EINVAL
+@@ -251,12 +239,7 @@ func (c *UnixConn) ReadFromUnix(b []byte) (n int, addr *UnixAddr, err os.Error)
+ 	return
+ }
+ 
+-// ReadFrom reads a packet from c, copying the payload into b.
+-// It returns the number of bytes copied into b and the return address
+-// that was on the packet.
+-//
+-// ReadFrom can be made to time out and return err == os.EAGAIN
+-// after a fixed time limit; see SetTimeout and SetReadTimeout.
++// ReadFrom implements the net.PacketConn ReadFrom method.
+ func (c *UnixConn) ReadFrom(b []byte) (n int, addr Addr, err os.Error) {
+ 	if !c.ok() {
+ 		return 0, nil, os.EINVAL
+@@ -267,9 +250,10 @@ func (c *UnixConn) ReadFrom(b []byte) (n int, addr Addr, err os.Error) {
+ 
+ // WriteToUnix writes a packet to addr via c, copying the payload from b.
+ //
+-// WriteToUnix can be made to time out and return err == os.EAGAIN
+-// after a fixed time limit; see SetTimeout and SetWriteTimeout.
+-// On packet-oriented connections such as UDP, write timeouts are rare.
++// WriteToUnix can be made to time out and return
++// an error with Timeout() == true after a fixed time limit;
++// see SetTimeout and SetWriteTimeout.
++// On packet-oriented connections, write timeouts are rare.
+ func (c *UnixConn) WriteToUnix(b []byte, addr *UnixAddr) (n int, err os.Error) {
+ 	if !c.ok() {
+ 		return 0, os.EINVAL
+@@ -281,11 +265,7 @@ func (c *UnixConn) WriteToUnix(b []byte, addr *UnixAddr) (n int, err os.Error) {
+ 	return c.fd.WriteTo(b, sa)
+ }
+ 
+-// WriteTo writes a packet to addr via c, copying the payload from b.
+-//
+-// WriteTo can be made to time out and return err == os.EAGAIN
+-// after a fixed time limit; see SetTimeout and SetWriteTimeout.
+-// On packet-oriented connections such as UDP, write timeouts are rare.
++// WriteTo implements the net.PacketConn WriteTo method.
+ func (c *UnixConn) WriteTo(b []byte, addr Addr) (n int, err os.Error) {
+ 	if !c.ok() {
+ 		return 0, os.EINVAL
+@@ -325,17 +305,14 @@ func ListenUnix(net string, laddr *UnixAddr) (l *UnixListener, err os.Error) {
+ 	if laddr != nil {
+ 		laddr = &UnixAddr{laddr.Name, net == "unixgram"} // make our own copy
+ 	}
+-	fd, e := unixSocket(net, laddr, nil, "listen")
+-	if e != nil {
+-		if pe, ok := e.(*os.PathError); ok {
+-			e = pe.Error
+-		}
+-		return nil, e
++	fd, err := unixSocket(net, laddr, nil, "listen")
++	if err != nil {
++		return nil, err
+ 	}
+ 	e1 := syscall.Listen(fd.sysfd, 8) // listenBacklog());
+ 	if e1 != 0 {
+ 		syscall.Close(fd.sysfd)
+-		return nil, &OpError{"listen", "unix", laddr, os.Errno(e1)}
++		return nil, &OpError{Op: "listen", Net: "unix", Addr: laddr, Error: os.Errno(e1)}
+ 	}
+ 	return &UnixListener{fd, laddr.Name}, nil
+ }
+diff --git a/src/pkg/os/error.go b/src/pkg/os/error.go
+index 8c53f645ae..8cdf532548 100644
+--- a/src/pkg/os/error.go
++++ b/src/pkg/os/error.go
+@@ -15,7 +15,9 @@ type Error interface {
+ // Error.
+ type ErrorString string
+ 
+-func (e ErrorString) String() string { return string(e) }
++func (e ErrorString) String() string  { return string(e) }
++func (e ErrorString) Temporary() bool { return false }
++func (e ErrorString) Timeout() bool   { return false }
+ 
+ // Note: If the name of the function NewError changes,
+ // pkg/go/doc/doc.go should be adjusted since it hardwires
+@@ -30,6 +32,14 @@ type Errno int64
+ 
+ func (e Errno) String() string { return syscall.Errstr(int(e)) }
+ 
++func (e Errno) Temporary() bool {
++	return e == Errno(syscall.EINTR) || e.Timeout()
++}
++
++func (e Errno) Timeout() bool {
++	return e == Errno(syscall.EAGAIN) || e == Errno(syscall.EWOULDBLOCK)
++}
++
+ // Commonly known Unix errors.
+ var (
+ 	EPERM        Error = Errno(syscall.EPERM)

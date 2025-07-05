@@ -15,10 +15,223 @@ Date:   Sat Jan 16 18:25:00 2021 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/walk/builtin.go | 13 ++-------
  src/cmd/compile/internal/walk/complit.go | 31 +++++----------------
  src/cmd/compile/internal/walk/convert.go | 14 ++++------
  src/cmd/compile/internal/walk/expr.go    |  3 +-
  src/cmd/compile/internal/walk/temp.go    | 47 ++++++++++++++++++++++++++++++++
  5 files changed, 63 insertions(+), 45 deletions(-)
+
+diff --git a/src/cmd/compile/internal/walk/builtin.go b/src/cmd/compile/internal/walk/builtin.go
+index 283c85629b..97f9de9c1d 100644
+--- a/src/cmd/compile/internal/walk/builtin.go
++++ b/src/cmd/compile/internal/walk/builtin.go
+@@ -277,10 +277,8 @@ func walkMakeMap(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
+ 		// Allocate hmap on stack.
+ 
+ 		// var hv hmap
+-		hv := typecheck.Temp(hmapType)
+-		init.Append(typecheck.Stmt(ir.NewAssignStmt(base.Pos, hv, nil)))
+ 		// h = &hv
+-		h = typecheck.NodAddr(hv)
++		h = stackTempAddr(init, hmapType)
+ 
+ 		// Allocate one bucket pointed to by hmap.buckets on stack if hint
+ 		// is not larger than BUCKETSIZE. In case hint is larger than
+@@ -303,11 +301,8 @@ func walkMakeMap(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
+ 			nif.Likely = true
+ 
+ 			// var bv bmap
+-			bv := typecheck.Temp(reflectdata.MapBucketType(t))
+-			nif.Body.Append(ir.NewAssignStmt(base.Pos, bv, nil))
+-
+ 			// b = &bv
+-			b := typecheck.NodAddr(bv)
++			b := stackTempAddr(&nif.Body, reflectdata.MapBucketType(t))
+ 
+ 			// h.buckets = b
+ 			bsym := hmapType.Field(5).Sym // hmap.buckets see reflect.go:hmap
+@@ -509,9 +504,7 @@ func walkNew(n *ir.UnaryExpr, init *ir.Nodes) ir.Node {
+ 		if t.Size() >= ir.MaxImplicitStackVarSize {
+ 			base.Fatalf("large ONEW with EscNone: %v", n)
+ 		}
+-		r := typecheck.Temp(t)
+-		init.Append(typecheck.Stmt(ir.NewAssignStmt(base.Pos, r, nil))) // zero temp
+-		return typecheck.Expr(typecheck.NodAddr(r))
++		return stackTempAddr(init, t)
+ 	}
+ 	types.CalcSize(t)
+ 	n.MarkNonNil()
+diff --git a/src/cmd/compile/internal/walk/complit.go b/src/cmd/compile/internal/walk/complit.go
+index f82ef69ca9..a7db453550 100644
+--- a/src/cmd/compile/internal/walk/complit.go
++++ b/src/cmd/compile/internal/walk/complit.go
+@@ -344,30 +344,14 @@ func slicelit(ctxt initContext, n *ir.CompLitExpr, var_ ir.Node, init *ir.Nodes)
+ 		if !types.Identical(t, x.Type()) {
+ 			panic("dotdotdot base type does not match order's assigned type")
+ 		}
+-
+-		if vstat == nil {
+-			a = ir.NewAssignStmt(base.Pos, x, nil)
+-			a = typecheck.Stmt(a)
+-			init.Append(a) // zero new temp
+-		} else {
+-			// Declare that we're about to initialize all of x.
+-			// (Which happens at the *vauto = vstat below.)
+-			init.Append(ir.NewUnaryExpr(base.Pos, ir.OVARDEF, x))
+-		}
+-
+-		a = typecheck.NodAddr(x)
++		a = initStackTemp(init, x, vstat != nil)
+ 	} else if n.Esc() == ir.EscNone {
+-		a = typecheck.Temp(t)
+ 		if vstat == nil {
+-			a = ir.NewAssignStmt(base.Pos, typecheck.Temp(t), nil)
+-			a = typecheck.Stmt(a)
+-			init.Append(a) // zero new temp
+-			a = a.(*ir.AssignStmt).X
+-		} else {
+-			init.Append(ir.NewUnaryExpr(base.Pos, ir.OVARDEF, a))
++			// TODO(mdempsky): Remove this useless temporary.
++			// It's only needed to keep toolstash happy.
++			typecheck.Temp(t)
+ 		}
+-
+-		a = typecheck.NodAddr(a)
++		a = initStackTemp(init, typecheck.Temp(t), vstat != nil)
+ 	} else {
+ 		a = ir.NewUnaryExpr(base.Pos, ir.ONEW, ir.TypeNode(t))
+ 	}
+@@ -550,9 +534,8 @@ func anylit(n ir.Node, var_ ir.Node, init *ir.Nodes) {
+ 
+ 		var r ir.Node
+ 		if n.Prealloc != nil {
+-			// n.Right is stack temporary used as backing store.
+-			appendWalkStmt(init, ir.NewAssignStmt(base.Pos, n.Prealloc, nil)) // zero backing store, just in case (#18410)
+-			r = typecheck.NodAddr(n.Prealloc)
++			// n.Prealloc is stack temporary used as backing store.
++			r = initStackTemp(init, n.Prealloc, false)
+ 		} else {
+ 			r = ir.NewUnaryExpr(base.Pos, ir.ONEW, ir.TypeNode(n.X.Type()))
+ 			r.SetEsc(n.Esc())
+diff --git a/src/cmd/compile/internal/walk/convert.go b/src/cmd/compile/internal/walk/convert.go
+index b47bb917c3..d143c1084f 100644
+--- a/src/cmd/compile/internal/walk/convert.go
++++ b/src/cmd/compile/internal/walk/convert.go
+@@ -198,8 +198,7 @@ func walkBytesRunesToString(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
+ 	a := typecheck.NodNil()
+ 	if n.Esc() == ir.EscNone {
+ 		// Create temporary buffer for string on stack.
+-		t := types.NewArray(types.Types[types.TUINT8], tmpstringbufsize)
+-		a = typecheck.NodAddr(typecheck.Temp(t))
++		a = stackBufAddr(tmpstringbufsize, types.Types[types.TUINT8])
+ 	}
+ 	if n.Op() == ir.ORUNES2STR {
+ 		// slicerunetostring(*[32]byte, []rune) string
+@@ -229,8 +228,7 @@ func walkBytesToStringTemp(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
+ func walkRuneToString(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
+ 	a := typecheck.NodNil()
+ 	if n.Esc() == ir.EscNone {
+-		t := types.NewArray(types.Types[types.TUINT8], 4)
+-		a = typecheck.NodAddr(typecheck.Temp(t))
++		a = stackBufAddr(4, types.Types[types.TUINT8])
+ 	}
+ 	// intstring(*[4]byte, rune)
+ 	return mkcall("intstring", n.Type(), init, a, typecheck.Conv(n.X, types.Types[types.TINT64]))
+@@ -246,7 +244,7 @@ func walkStringToBytes(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
+ 		t := types.NewArray(types.Types[types.TUINT8], int64(len(sc)))
+ 		var a ir.Node
+ 		if n.Esc() == ir.EscNone && len(sc) <= int(ir.MaxImplicitStackVarSize) {
+-			a = typecheck.NodAddr(typecheck.Temp(t))
++			a = stackBufAddr(t.NumElem(), t.Elem())
+ 		} else {
+ 			types.CalcSize(t)
+ 			a = ir.NewUnaryExpr(base.Pos, ir.ONEW, nil)
+@@ -273,8 +271,7 @@ func walkStringToBytes(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
+ 	a := typecheck.NodNil()
+ 	if n.Esc() == ir.EscNone {
+ 		// Create temporary buffer for slice on stack.
+-		t := types.NewArray(types.Types[types.TUINT8], tmpstringbufsize)
+-		a = typecheck.NodAddr(typecheck.Temp(t))
++		a = stackBufAddr(tmpstringbufsize, types.Types[types.TUINT8])
+ 	}
+ 	// stringtoslicebyte(*32[byte], string) []byte
+ 	return mkcall("stringtoslicebyte", n.Type(), init, a, typecheck.Conv(s, types.Types[types.TSTRING]))
+@@ -298,8 +295,7 @@ func walkStringToRunes(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
+ 	a := typecheck.NodNil()
+ 	if n.Esc() == ir.EscNone {
+ 		// Create temporary buffer for slice on stack.
+-		t := types.NewArray(types.Types[types.TINT32], tmpstringbufsize)
+-		a = typecheck.NodAddr(typecheck.Temp(t))
++		a = stackBufAddr(tmpstringbufsize, types.Types[types.TINT32])
+ 	}
+ 	// stringtoslicerune(*[32]rune, string) []rune
+ 	return mkcall("stringtoslicerune", n.Type(), init, a, typecheck.Conv(n.X, types.Types[types.TSTRING]))
+diff --git a/src/cmd/compile/internal/walk/expr.go b/src/cmd/compile/internal/walk/expr.go
+index a1e8e63785..8a13f6a923 100644
+--- a/src/cmd/compile/internal/walk/expr.go
++++ b/src/cmd/compile/internal/walk/expr.go
+@@ -441,8 +441,7 @@ func walkAddString(n *ir.AddStringExpr, init *ir.Nodes) ir.Node {
+ 		// Don't allocate the buffer if the result won't fit.
+ 		if sz < tmpstringbufsize {
+ 			// Create temporary buffer for result string on stack.
+-			t := types.NewArray(types.Types[types.TUINT8], tmpstringbufsize)
+-			buf = typecheck.NodAddr(typecheck.Temp(t))
++			buf = stackBufAddr(tmpstringbufsize, types.Types[types.TUINT8])
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/walk/temp.go b/src/cmd/compile/internal/walk/temp.go
+new file mode 100644
+index 0000000000..901cb770f3
+--- /dev/null
++++ b/src/cmd/compile/internal/walk/temp.go
+@@ -0,0 +1,47 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package walk
++
++import (
++	"cmd/compile/internal/base"
++	"cmd/compile/internal/ir"
++	"cmd/compile/internal/typecheck"
++	"cmd/compile/internal/types"
++)
++
++// initStackTemp appends statements to init to initialize the given
++// temporary variable, and then returns the expression &tmp. If vardef
++// is true, then the variable is initialized with OVARDEF, and the
++// caller must ensure the variable is later assigned before use;
++// otherwise, it's zero initialized.
++//
++// TODO(mdempsky): Change callers to provide tmp's initial value,
++// rather than just vardef, to make this safer/easier to use.
++func initStackTemp(init *ir.Nodes, tmp *ir.Name, vardef bool) *ir.AddrExpr {
++	if vardef {
++		init.Append(ir.NewUnaryExpr(base.Pos, ir.OVARDEF, tmp))
++	} else {
++		appendWalkStmt(init, ir.NewAssignStmt(base.Pos, tmp, nil))
++	}
++	return typecheck.Expr(typecheck.NodAddr(tmp)).(*ir.AddrExpr)
++}
++
++// stackTempAddr returns the expression &tmp, where tmp is a newly
++// allocated temporary variable of the given type. Statements to
++// zero-initialize tmp are appended to init.
++func stackTempAddr(init *ir.Nodes, typ *types.Type) *ir.AddrExpr {
++	return initStackTemp(init, typecheck.Temp(typ), false)
++}
++
++// stackBufAddr returns thte expression &tmp, where tmp is a newly
++// allocated temporary variable of type [len]elem. This variable is
++// initialized, and elem must not contain pointers.
++func stackBufAddr(len int64, elem *types.Type) *ir.AddrExpr {
++	if elem.HasPointers() {
++		base.FatalfAt(base.Pos, "%v has pointers", elem)
++	}
++	tmp := typecheck.Temp(types.NewArray(elem, len))
++	return typecheck.Expr(typecheck.NodAddr(tmp)).(*ir.AddrExpr)
++}

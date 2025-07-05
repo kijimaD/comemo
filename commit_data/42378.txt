@@ -10,6 +10,38 @@ Date:   Sun Dec 8 20:54:10 2019 +0000
     Change-Id: I57e96dcbdc571dc21e24096779f2f756ec81103e
     Reviewed-on: https://go-review.googlesource.com/c/go/+/210124
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/ast/ast.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/go/ast/ast.go b/src/go/ast/ast.go
+index 9e1da35287..aca510f6a5 100644
+--- a/src/go/ast/ast.go
++++ b/src/go/ast/ast.go
+@@ -292,7 +292,7 @@ type (
+ 		Rbrack token.Pos // position of "]"
+ 	}
+ 
+-	// An SliceExpr node represents an expression followed by slice indices.
++	// A SliceExpr node represents an expression followed by slice indices.
+ 	SliceExpr struct {
+ 		X      Expr      // expression
+ 		Lbrack token.Pos // position of "["
+@@ -662,7 +662,7 @@ type (
+ 		Body   *BlockStmt // CaseClauses only
+ 	}
+ 
+-	// An TypeSwitchStmt node represents a type switch statement.
++	// A TypeSwitchStmt node represents a type switch statement.
+ 	TypeSwitchStmt struct {
+ 		Switch token.Pos  // position of "switch" keyword
+ 		Init   Stmt       // initialization statement; or nil
+@@ -678,7 +678,7 @@ type (
+ 		Body  []Stmt    // statement list; or nil
+ 	}
+ 
+-	// An SelectStmt node represents a select statement.
++	// A SelectStmt node represents a select statement.
+ 	SelectStmt struct {
+ 		Select token.Pos  // position of "select" keyword
+ 		Body   *BlockStmt // CommClauses only

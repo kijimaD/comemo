@@ -16,9 +16,163 @@ Date:   Sat Apr 14 12:17:09 2018 +0300
     Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/asm/internal/asm/testdata/386enc.s         | 10 ++++
  src/cmd/asm/internal/asm/testdata/amd64enc_extra.s | 10 ++++
  src/cmd/asm/internal/asm/testdata/amd64error.s     | 21 +++++++
  src/cmd/internal/obj/x86/asm6.go                   | 68 +++++++++++-----------
  4 files changed, 75 insertions(+), 34 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/386enc.s b/src/cmd/asm/internal/asm/testdata/386enc.s
+index 8fe20511d1..1eff8c781a 100644
+--- a/src/cmd/asm/internal/asm/testdata/386enc.s
++++ b/src/cmd/asm/internal/asm/testdata/386enc.s
+@@ -18,5 +18,15 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
+ 	MOVL -2147483648(AX), AX // 8b8000000080
+ 	ADDL 2147483648(AX), AX  // 038000000080
+ 	ADDL -2147483648(AX), AX // 038000000080
++	// Make sure MOV CR/DR continues to work after changing it's movtabs.
++	MOVL CR0, AX // 0f20c0
++	MOVL CR0, DX // 0f20c2
++	MOVL CR4, DI // 0f20e7
++	MOVL AX, CR0 // 0f22c0
++	MOVL DX, CR0 // 0f22c2
++	MOVL DI, CR4 // 0f22e7
++	MOVL DR0, AX // 0f21c0
++	MOVL DR6, DX // 0f21f2
++	MOVL DR7, SI // 0f21fe
+ 	// End of tests.
+ 	RET
+diff --git a/src/cmd/asm/internal/asm/testdata/amd64enc_extra.s b/src/cmd/asm/internal/asm/testdata/amd64enc_extra.s
+index d5aad5fe28..ca1a2cab68 100644
+--- a/src/cmd/asm/internal/asm/testdata/amd64enc_extra.s
++++ b/src/cmd/asm/internal/asm/testdata/amd64enc_extra.s
+@@ -299,5 +299,15 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
+ 	// Check that LEAL is permitted to use overflowing offset.
+ 	LEAL 2400959708(BP)(R10*1), BP // 428dac15dcbc1b8f
+ 	LEAL 3395469782(AX)(R10*1), AX // 428d8410d6c162ca
++	// Make sure MOV CR/DR continues to work after changing it's movtabs.
++	MOVQ CR0, AX // 0f20c0
++	MOVQ CR0, DX // 0f20c2
++	MOVQ CR4, DI // 0f20e7
++	MOVQ AX, CR0 // 0f22c0
++	MOVQ DX, CR0 // 0f22c2
++	MOVQ DI, CR4 // 0f22e7
++	MOVQ DR0, AX // 0f21c0
++	MOVQ DR6, DX // 0f21f2
++	MOVQ DR7, SI // 0f21fe
+ 	// End of tests.
+ 	RET
+diff --git a/src/cmd/asm/internal/asm/testdata/amd64error.s b/src/cmd/asm/internal/asm/testdata/amd64error.s
+index d5499aa13e..87f6ecf7e9 100644
+--- a/src/cmd/asm/internal/asm/testdata/amd64error.s
++++ b/src/cmd/asm/internal/asm/testdata/amd64error.s
+@@ -49,4 +49,25 @@ TEXT errors(SB),$0
+ 	CALL (AX)(PC*1)                 // ERROR "invalid instruction"
+ 	CALL (AX)(SB*1)                 // ERROR "invalid instruction"
+ 	CALL (AX)(FP*1)                 // ERROR "invalid instruction"
++	// Forbid memory operands for MOV CR/DR. See #24981.
++	MOVQ CR0, (AX)                  // ERROR "invalid instruction"
++	MOVQ CR2, (AX)                  // ERROR "invalid instruction"
++	MOVQ CR3, (AX)                  // ERROR "invalid instruction"
++	MOVQ CR4, (AX)                  // ERROR "invalid instruction"
++	MOVQ CR8, (AX)                  // ERROR "invalid instruction"
++	MOVQ (AX), CR0                  // ERROR "invalid instruction"
++	MOVQ (AX), CR2                  // ERROR "invalid instruction"
++	MOVQ (AX), CR3                  // ERROR "invalid instruction"
++	MOVQ (AX), CR4                  // ERROR "invalid instruction"
++	MOVQ (AX), CR8                  // ERROR "invalid instruction"
++	MOVQ DR0, (AX)                  // ERROR "invalid instruction"
++	MOVQ DR2, (AX)                  // ERROR "invalid instruction"
++	MOVQ DR3, (AX)                  // ERROR "invalid instruction"
++	MOVQ DR6, (AX)                  // ERROR "invalid instruction"
++	MOVQ DR7, (AX)                  // ERROR "invalid instruction"
++	MOVQ (AX), DR0                  // ERROR "invalid instruction"
++	MOVQ (AX), DR2                  // ERROR "invalid instruction"
++	MOVQ (AX), DR3                  // ERROR "invalid instruction"
++	MOVQ (AX), DR6                  // ERROR "invalid instruction"
++	MOVQ (AX), DR7                  // ERROR "invalid instruction"
+ 	RET
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index 3dd46eb259..f486aeb3ec 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -3528,44 +3528,44 @@ var ymovtab = []Movtab{
+ 	{AMOVW, Yml, Ynone, Ygs, 2, [4]uint8{0x8e, 5, 0, 0}},
+ 
+ 	// mov cr
+-	{AMOVL, Ycr0, Ynone, Yml, 3, [4]uint8{0x0f, 0x20, 0, 0}},
+-	{AMOVL, Ycr2, Ynone, Yml, 3, [4]uint8{0x0f, 0x20, 2, 0}},
+-	{AMOVL, Ycr3, Ynone, Yml, 3, [4]uint8{0x0f, 0x20, 3, 0}},
+-	{AMOVL, Ycr4, Ynone, Yml, 3, [4]uint8{0x0f, 0x20, 4, 0}},
+-	{AMOVL, Ycr8, Ynone, Yml, 3, [4]uint8{0x0f, 0x20, 8, 0}},
+-	{AMOVQ, Ycr0, Ynone, Yml, 3, [4]uint8{0x0f, 0x20, 0, 0}},
+-	{AMOVQ, Ycr2, Ynone, Yml, 3, [4]uint8{0x0f, 0x20, 2, 0}},
+-	{AMOVQ, Ycr3, Ynone, Yml, 3, [4]uint8{0x0f, 0x20, 3, 0}},
+-	{AMOVQ, Ycr4, Ynone, Yml, 3, [4]uint8{0x0f, 0x20, 4, 0}},
+-	{AMOVQ, Ycr8, Ynone, Yml, 3, [4]uint8{0x0f, 0x20, 8, 0}},
+-	{AMOVL, Yml, Ynone, Ycr0, 4, [4]uint8{0x0f, 0x22, 0, 0}},
+-	{AMOVL, Yml, Ynone, Ycr2, 4, [4]uint8{0x0f, 0x22, 2, 0}},
+-	{AMOVL, Yml, Ynone, Ycr3, 4, [4]uint8{0x0f, 0x22, 3, 0}},
+-	{AMOVL, Yml, Ynone, Ycr4, 4, [4]uint8{0x0f, 0x22, 4, 0}},
+-	{AMOVL, Yml, Ynone, Ycr8, 4, [4]uint8{0x0f, 0x22, 8, 0}},
+-	{AMOVQ, Yml, Ynone, Ycr0, 4, [4]uint8{0x0f, 0x22, 0, 0}},
+-	{AMOVQ, Yml, Ynone, Ycr2, 4, [4]uint8{0x0f, 0x22, 2, 0}},
+-	{AMOVQ, Yml, Ynone, Ycr3, 4, [4]uint8{0x0f, 0x22, 3, 0}},
+-	{AMOVQ, Yml, Ynone, Ycr4, 4, [4]uint8{0x0f, 0x22, 4, 0}},
+-	{AMOVQ, Yml, Ynone, Ycr8, 4, [4]uint8{0x0f, 0x22, 8, 0}},
++	{AMOVL, Ycr0, Ynone, Yrl, 3, [4]uint8{0x0f, 0x20, 0, 0}},
++	{AMOVL, Ycr2, Ynone, Yrl, 3, [4]uint8{0x0f, 0x20, 2, 0}},
++	{AMOVL, Ycr3, Ynone, Yrl, 3, [4]uint8{0x0f, 0x20, 3, 0}},
++	{AMOVL, Ycr4, Ynone, Yrl, 3, [4]uint8{0x0f, 0x20, 4, 0}},
++	{AMOVL, Ycr8, Ynone, Yrl, 3, [4]uint8{0x0f, 0x20, 8, 0}},
++	{AMOVQ, Ycr0, Ynone, Yrl, 3, [4]uint8{0x0f, 0x20, 0, 0}},
++	{AMOVQ, Ycr2, Ynone, Yrl, 3, [4]uint8{0x0f, 0x20, 2, 0}},
++	{AMOVQ, Ycr3, Ynone, Yrl, 3, [4]uint8{0x0f, 0x20, 3, 0}},
++	{AMOVQ, Ycr4, Ynone, Yrl, 3, [4]uint8{0x0f, 0x20, 4, 0}},
++	{AMOVQ, Ycr8, Ynone, Yrl, 3, [4]uint8{0x0f, 0x20, 8, 0}},
++	{AMOVL, Yrl, Ynone, Ycr0, 4, [4]uint8{0x0f, 0x22, 0, 0}},
++	{AMOVL, Yrl, Ynone, Ycr2, 4, [4]uint8{0x0f, 0x22, 2, 0}},
++	{AMOVL, Yrl, Ynone, Ycr3, 4, [4]uint8{0x0f, 0x22, 3, 0}},
++	{AMOVL, Yrl, Ynone, Ycr4, 4, [4]uint8{0x0f, 0x22, 4, 0}},
++	{AMOVL, Yrl, Ynone, Ycr8, 4, [4]uint8{0x0f, 0x22, 8, 0}},
++	{AMOVQ, Yrl, Ynone, Ycr0, 4, [4]uint8{0x0f, 0x22, 0, 0}},
++	{AMOVQ, Yrl, Ynone, Ycr2, 4, [4]uint8{0x0f, 0x22, 2, 0}},
++	{AMOVQ, Yrl, Ynone, Ycr3, 4, [4]uint8{0x0f, 0x22, 3, 0}},
++	{AMOVQ, Yrl, Ynone, Ycr4, 4, [4]uint8{0x0f, 0x22, 4, 0}},
++	{AMOVQ, Yrl, Ynone, Ycr8, 4, [4]uint8{0x0f, 0x22, 8, 0}},
+ 
+ 	// mov dr
+-	{AMOVL, Ydr0, Ynone, Yml, 3, [4]uint8{0x0f, 0x21, 0, 0}},
+-	{AMOVL, Ydr6, Ynone, Yml, 3, [4]uint8{0x0f, 0x21, 6, 0}},
+-	{AMOVL, Ydr7, Ynone, Yml, 3, [4]uint8{0x0f, 0x21, 7, 0}},
+-	{AMOVQ, Ydr0, Ynone, Yml, 3, [4]uint8{0x0f, 0x21, 0, 0}},
++	{AMOVL, Ydr0, Ynone, Yrl, 3, [4]uint8{0x0f, 0x21, 0, 0}},
++	{AMOVL, Ydr6, Ynone, Yrl, 3, [4]uint8{0x0f, 0x21, 6, 0}},
++	{AMOVL, Ydr7, Ynone, Yrl, 3, [4]uint8{0x0f, 0x21, 7, 0}},
++	{AMOVQ, Ydr0, Ynone, Yrl, 3, [4]uint8{0x0f, 0x21, 0, 0}},
+ 	{AMOVQ, Ydr2, Ynone, Yrl, 3, [4]uint8{0x0f, 0x21, 2, 0}},
+ 	{AMOVQ, Ydr3, Ynone, Yrl, 3, [4]uint8{0x0f, 0x21, 3, 0}},
+-	{AMOVQ, Ydr6, Ynone, Yml, 3, [4]uint8{0x0f, 0x21, 6, 0}},
+-	{AMOVQ, Ydr7, Ynone, Yml, 3, [4]uint8{0x0f, 0x21, 7, 0}},
+-	{AMOVL, Yml, Ynone, Ydr0, 4, [4]uint8{0x0f, 0x23, 0, 0}},
+-	{AMOVL, Yml, Ynone, Ydr6, 4, [4]uint8{0x0f, 0x23, 6, 0}},
+-	{AMOVL, Yml, Ynone, Ydr7, 4, [4]uint8{0x0f, 0x23, 7, 0}},
+-	{AMOVQ, Yml, Ynone, Ydr0, 4, [4]uint8{0x0f, 0x23, 0, 0}},
+-	{AMOVQ, Yml, Ynone, Ydr2, 4, [4]uint8{0x0f, 0x23, 2, 0}},
+-	{AMOVQ, Yml, Ynone, Ydr3, 4, [4]uint8{0x0f, 0x23, 3, 0}},
+-	{AMOVQ, Yml, Ynone, Ydr6, 4, [4]uint8{0x0f, 0x23, 6, 0}},
+-	{AMOVQ, Yml, Ynone, Ydr7, 4, [4]uint8{0x0f, 0x23, 7, 0}},
++	{AMOVQ, Ydr6, Ynone, Yrl, 3, [4]uint8{0x0f, 0x21, 6, 0}},
++	{AMOVQ, Ydr7, Ynone, Yrl, 3, [4]uint8{0x0f, 0x21, 7, 0}},
++	{AMOVL, Yrl, Ynone, Ydr0, 4, [4]uint8{0x0f, 0x23, 0, 0}},
++	{AMOVL, Yrl, Ynone, Ydr6, 4, [4]uint8{0x0f, 0x23, 6, 0}},
++	{AMOVL, Yrl, Ynone, Ydr7, 4, [4]uint8{0x0f, 0x23, 7, 0}},
++	{AMOVQ, Yrl, Ynone, Ydr0, 4, [4]uint8{0x0f, 0x23, 0, 0}},
++	{AMOVQ, Yrl, Ynone, Ydr2, 4, [4]uint8{0x0f, 0x23, 2, 0}},
++	{AMOVQ, Yrl, Ynone, Ydr3, 4, [4]uint8{0x0f, 0x23, 3, 0}},
++	{AMOVQ, Yrl, Ynone, Ydr6, 4, [4]uint8{0x0f, 0x23, 6, 0}},
++	{AMOVQ, Yrl, Ynone, Ydr7, 4, [4]uint8{0x0f, 0x23, 7, 0}},
+ 
+ 	// mov tr
+ 	{AMOVL, Ytr6, Ynone, Yml, 3, [4]uint8{0x0f, 0x24, 6, 0}},

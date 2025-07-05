@@ -13,6 +13,42 @@ Date:   Thu Feb 16 15:53:42 2023 -0800
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Auto-Submit: Matthew Dempsky <mdempsky@google.com>
-
+---
  test/fixedbugs/issue58572.go | 29 +++++++++++++++++++++++++++++
  1 file changed, 29 insertions(+)
+
+diff --git a/test/fixedbugs/issue58572.go b/test/fixedbugs/issue58572.go
+new file mode 100644
+index 0000000000..7461d593af
+--- /dev/null
++++ b/test/fixedbugs/issue58572.go
+@@ -0,0 +1,29 @@
++// compile
++
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func New() resource {
++	return &Client{}
++}
++
++type resource interface {
++	table()
++}
++
++type Client struct {
++	m map[Key1]int
++}
++
++func (c *Client) table() {}
++
++type Key1 struct {
++	K Key2
++}
++
++type Key2 struct {
++	f [2]any
++}

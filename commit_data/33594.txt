@@ -13,8 +13,58 @@ Date:   Thu Aug 24 16:11:44 2017 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/ssa/func.go     | 5 ++++-
  src/cmd/compile/internal/ssa/nilcheck.go | 2 +-
  src/cmd/compile/internal/ssa/regalloc.go | 2 +-
  3 files changed, 6 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/func.go b/src/cmd/compile/internal/ssa/func.go
+index 7ec596372a..559f1d70e6 100644
+--- a/src/cmd/compile/internal/ssa/func.go
++++ b/src/cmd/compile/internal/ssa/func.go
+@@ -175,7 +175,7 @@ func (f *Func) LogStat(key string, args ...interface{}) {
+ 	f.Warnl(f.Entry.Pos, "\t%s\t%s%s\t%s", n, key, value, f.Name)
+ }
+ 
+-// freeValue frees a value. It must no longer be referenced.
++// freeValue frees a value. It must no longer be referenced or have any args.
+ func (f *Func) freeValue(v *Value) {
+ 	if v.Block == nil {
+ 		f.Fatalf("trying to free an already freed value")
+@@ -183,6 +183,9 @@ func (f *Func) freeValue(v *Value) {
+ 	if v.Uses != 0 {
+ 		f.Fatalf("value %s still has %d uses", v, v.Uses)
+ 	}
++	if len(v.Args) != 0 {
++		f.Fatalf("value %s still has %d args", v, len(v.Args))
++	}
+ 	// Clear everything but ID (which we reuse).
+ 	id := v.ID
+ 
+diff --git a/src/cmd/compile/internal/ssa/nilcheck.go b/src/cmd/compile/internal/ssa/nilcheck.go
+index d01edcc77d..f8c7a5019c 100644
+--- a/src/cmd/compile/internal/ssa/nilcheck.go
++++ b/src/cmd/compile/internal/ssa/nilcheck.go
+@@ -126,7 +126,7 @@ func nilcheckelim(f *Func) {
+ 							f.Warnl(v.Pos, "removed nil check")
+ 						}
+ 						v.reset(OpUnknown)
+-						// TODO: f.freeValue(v)
++						f.freeValue(v)
+ 						i--
+ 						continue
+ 					}
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index 35d1d6ea9e..d509c6c0d3 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -1569,7 +1569,7 @@ func (s *regAllocState) regalloc(f *Func) {
+ 				if s.f.pass.debug > regDebug {
+ 					fmt.Printf("delete copied value %s\n", c.LongString())
+ 				}
+-				c.Args[0].Uses--
++				c.RemoveArg(0)
+ 				f.freeValue(c)
+ 				delete(s.copies, c)
+ 				progress = true

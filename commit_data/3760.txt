@@ -6,6 +6,20 @@ Date:   Wed Nov 4 10:58:30 2009 -0800
     
     R=rsc
     http://go/go-review/1018038
-
+---
  src/pkg/bufio/bufio_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/bufio/bufio_test.go b/src/pkg/bufio/bufio_test.go
+index 32312fde5a..129e214d53 100644
+--- a/src/pkg/bufio/bufio_test.go
++++ b/src/pkg/bufio/bufio_test.go
+@@ -211,7 +211,7 @@ var segmentList = [][]string {
+ 	[]string{""},
+ 	[]string{"日", "本語"},
+ 	[]string{"\u65e5", "\u672c", "\u8a9e"},
+-	[]string{"\U000065e5, "", \U0000672c", "\U00008a9e"},
++	[]string{"\U000065e5", "\U0000672c", "\U00008a9e"},
+ 	[]string{"\xe6", "\x97\xa5\xe6", "\x9c\xac\xe8\xaa\x9e"},
+ 	[]string{"Hello", ", ", "World", "!"},
+ 	[]string{"Hello", ", ", "", "World", "!"},

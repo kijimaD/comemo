@@ -22,6 +22,30 @@ Date:   Tue Dec 13 17:08:18 2011 -0500
     R=bradfitz
     CC=golang-dev
     https://golang.org/cl/5482061
-
+---
  src/pkg/net/http/server.go | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/net/http/server.go b/src/pkg/net/http/server.go
+index 56f56cb044..fa9009517d 100644
+--- a/src/pkg/net/http/server.go
++++ b/src/pkg/net/http/server.go
+@@ -569,14 +569,14 @@ func (c *conn) serve() {
+ 		if err == nil {
+ 			return
+ 		}
++		if c.rwc != nil { // may be nil if connection hijacked
++			c.rwc.Close()
++		}
++
+ 		var buf bytes.Buffer
+ 		fmt.Fprintf(&buf, "http: panic serving %v: %v\n", c.remoteAddr, err)
+ 		buf.Write(debug.Stack())
+ 		log.Print(buf.String())
+-
+-		if c.rwc != nil { // may be nil if connection hijacked
+-			c.rwc.Close()
+-		}
+ 	}()
+ 
+ 	if tlsConn, ok := c.rwc.(*tls.Conn); ok {

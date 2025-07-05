@@ -19,8 +19,219 @@ Date:   Tue Jan 30 17:16:12 2024 -0800
     TryBot-Bypass: Robert Griesemer <gri@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
-
+---
  src/go/parser/parser_test.go  | 21 ++++++++++++++
  src/go/token/position.go      | 67 ++++++++++++++++++++++++++++++++-----------
  src/go/token/position_test.go | 59 +++++++++++++++++++++++++++++++++++++
  3 files changed, 130 insertions(+), 17 deletions(-)
+
+diff --git a/src/go/parser/parser_test.go b/src/go/parser/parser_test.go
+index 43b3416b27..eea743c2b5 100644
+--- a/src/go/parser/parser_test.go
++++ b/src/go/parser/parser_test.go
+@@ -800,3 +800,24 @@ func TestGoVersion(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestIssue57490(t *testing.T) {
++	src := `package p; func f() { var x struct` // program not correctly terminated
++	fset := token.NewFileSet()
++	file, err := ParseFile(fset, "", src, 0)
++	if err == nil {
++		t.Fatalf("syntax error expected, but no error reported")
++	}
++
++	// Because of the syntax error, the end position of the function declaration
++	// is past the end of the file's position range.
++	funcEnd := file.Decls[0].End()
++
++	// Offset(funcEnd) must not panic (to test panic, set debug=true in token package)
++	// (panic: offset 35 out of bounds [0, 34] (position 36 out of bounds [1, 35]))
++	tokFile := fset.File(file.Pos())
++	offset := tokFile.Offset(funcEnd)
++	if offset != tokFile.Size() {
++		t.Fatalf("offset = %d, want %d", offset, tokFile.Size())
++	}
++}
+diff --git a/src/go/token/position.go b/src/go/token/position.go
+index 0b2ace0b69..25fa945453 100644
+--- a/src/go/token/position.go
++++ b/src/go/token/position.go
+@@ -12,6 +12,10 @@ import (
+ 	"sync/atomic"
+ )
+ 
++// If debug is set, invalid offset and position values cause a panic
++// (go.dev/issue/57490).
++const debug = false
++
+ // -----------------------------------------------------------------------------
+ // Positions
+ 
+@@ -261,24 +265,54 @@ func (f *File) AddLineColumnInfo(offset int, filename string, line, column int)
+ 	f.mutex.Unlock()
+ }
+ 
+-// Pos returns the Pos value for the given file offset;
+-// the offset must be <= f.Size().
++// fixOffset fixes an out-of-bounds offset such that 0 <= offset <= f.size.
++func (f *File) fixOffset(offset int) int {
++	switch {
++	case offset < 0:
++		if !debug {
++			return 0
++		}
++	case offset > f.size:
++		if !debug {
++			return f.size
++		}
++	default:
++		return offset
++	}
++
++	// only generate this code if needed
++	if debug {
++		panic(fmt.Sprintf("offset %d out of bounds [%d, %d] (position %d out of bounds [%d, %d])",
++			0 /* for symmetry */, offset, f.size,
++			f.base+offset, f.base, f.base+f.size))
++	}
++	return 0
++}
++
++// Pos returns the Pos value for the given file offset.
++//
++// If offset is negative, the result is the file's start
++// position; if the offset is too large, the result is
++// the file's end position (see also go.dev/issue/57490).
++//
++// The following invariant, though not true for Pos values
++// in general, holds for the result p:
+ // f.Pos(f.Offset(p)) == p.
+ func (f *File) Pos(offset int) Pos {
+-	if offset > f.size {
+-		panic(fmt.Sprintf("invalid file offset %d (should be <= %d)", offset, f.size))
+-	}
+-	return Pos(f.base + offset)
++	return Pos(f.base + f.fixOffset(offset))
+ }
+ 
+-// Offset returns the offset for the given file position p;
+-// p must be a valid [Pos] value in that file.
+-// f.Offset(f.Pos(offset)) == offset.
++// Offset returns the offset for the given file position p.
++//
++// If p is before the file's start position (or if p is NoPos),
++// the result is 0; if p is past the file's end position, the
++// the result is the file size (see also go.dev/issue/57490).
++//
++// The following invariant, though not true for offset values
++// in general, holds for the result offset:
++// f.Offset(f.Pos(offset)) == offset
+ func (f *File) Offset(p Pos) int {
+-	if int(p) < f.base || int(p) > f.base+f.size {
+-		panic(fmt.Sprintf("invalid Pos value %d (should be in [%d, %d])", p, f.base, f.base+f.size))
+-	}
+-	return int(p) - f.base
++	return f.fixOffset(int(p) - f.base)
+ }
+ 
+ // Line returns the line number for the given file position p;
+@@ -330,27 +364,26 @@ func (f *File) unpack(offset int, adjusted bool) (filename string, line, column
+ }
+ 
+ func (f *File) position(p Pos, adjusted bool) (pos Position) {
+-	offset := int(p) - f.base
++	offset := f.fixOffset(int(p) - f.base)
+ 	pos.Offset = offset
+ 	pos.Filename, pos.Line, pos.Column = f.unpack(offset, adjusted)
+ 	return
+ }
+ 
+ // PositionFor returns the Position value for the given file position p.
++// If p is out of bounds, it is adjusted to match the File.Offset behavior.
+ // If adjusted is set, the position may be adjusted by position-altering
+ // //line comments; otherwise those comments are ignored.
+ // p must be a Pos value in f or NoPos.
+ func (f *File) PositionFor(p Pos, adjusted bool) (pos Position) {
+ 	if p != NoPos {
+-		if int(p) < f.base || int(p) > f.base+f.size {
+-			panic(fmt.Sprintf("invalid Pos value %d (should be in [%d, %d])", p, f.base, f.base+f.size))
+-		}
+ 		pos = f.position(p, adjusted)
+ 	}
+ 	return
+ }
+ 
+ // Position returns the Position value for the given file position p.
++// If p is out of bounds, it is adjusted to match the File.Offset behavior.
+ // Calling f.Position(p) is equivalent to calling f.PositionFor(p, true).
+ func (f *File) Position(p Pos) (pos Position) {
+ 	return f.PositionFor(p, true)
+diff --git a/src/go/token/position_test.go b/src/go/token/position_test.go
+index 19774a97ba..685bf61380 100644
+--- a/src/go/token/position_test.go
++++ b/src/go/token/position_test.go
+@@ -478,3 +478,62 @@ func TestFileAddLineColumnInfo(t *testing.T) {
+ 		})
+ 	}
+ }
++
++func TestIssue57490(t *testing.T) {
++	// If debug is set, this test is expected to panic.
++	if debug {
++		defer func() {
++			if recover() == nil {
++				t.Errorf("got no panic")
++			}
++		}()
++	}
++
++	const fsize = 5
++	fset := NewFileSet()
++	base := fset.Base()
++	f := fset.AddFile("f", base, fsize)
++
++	// out-of-bounds positions must not lead to a panic when calling f.Offset
++	if got := f.Offset(NoPos); got != 0 {
++		t.Errorf("offset = %d, want %d", got, 0)
++	}
++	if got := f.Offset(Pos(-1)); got != 0 {
++		t.Errorf("offset = %d, want %d", got, 0)
++	}
++	if got := f.Offset(Pos(base + fsize + 1)); got != fsize {
++		t.Errorf("offset = %d, want %d", got, fsize)
++	}
++
++	// out-of-bounds offsets must not lead to a panic when calling f.Pos
++	if got := f.Pos(-1); got != Pos(base) {
++		t.Errorf("pos = %d, want %d", got, base)
++	}
++	if got := f.Pos(fsize + 1); got != Pos(base+fsize) {
++		t.Errorf("pos = %d, want %d", got, base+fsize)
++	}
++
++	// out-of-bounds Pos values must not lead to a panic when calling f.Position
++	want := fmt.Sprintf("%s:1:1", f.Name())
++	if got := f.Position(Pos(-1)).String(); got != want {
++		t.Errorf("position = %s, want %s", got, want)
++	}
++	want = fmt.Sprintf("%s:1:%d", f.Name(), fsize+1)
++	if got := f.Position(Pos(fsize + 1)).String(); got != want {
++		t.Errorf("position = %s, want %s", got, want)
++	}
++
++	// check invariants
++	const xsize = fsize + 5
++	for offset := -xsize; offset < xsize; offset++ {
++		want1 := f.Offset(Pos(f.base + offset))
++		if got := f.Offset(f.Pos(offset)); got != want1 {
++			t.Errorf("offset = %d, want %d", got, want1)
++		}
++
++		want2 := f.Pos(offset)
++		if got := f.Pos(f.Offset(want2)); got != want2 {
++			t.Errorf("pos = %d, want %d", got, want2)
++		}
++	}
++}

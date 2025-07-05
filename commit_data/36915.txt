@@ -25,7 +25,33 @@ Date:   Wed May 16 19:29:41 2018 +0530
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/sniff.go      | 2 ++
  src/net/http/sniff_test.go | 1 +
  2 files changed, 3 insertions(+)
+
+diff --git a/src/net/http/sniff.go b/src/net/http/sniff.go
+index ff934ff357..c1494abb4c 100644
+--- a/src/net/http/sniff.go
++++ b/src/net/http/sniff.go
+@@ -147,6 +147,8 @@ var sniffSignatures = []sniffSig{
+ 	&exactSig{[]byte("\x50\x4B\x03\x04"), "application/zip"},
+ 	&exactSig{[]byte("\x1F\x8B\x08"), "application/x-gzip"},
+ 
++	&exactSig{[]byte("\x00\x61\x73\x6D"), "application/wasm"},
++
+ 	mp4Sig{},
+ 
+ 	textSig{}, // should be last
+diff --git a/src/net/http/sniff_test.go b/src/net/http/sniff_test.go
+index b9e9488610..b4d3c9f0cc 100644
+--- a/src/net/http/sniff_test.go
++++ b/src/net/http/sniff_test.go
+@@ -65,6 +65,7 @@ var sniffTests = []struct {
+ 
+ 	{"woff sample  I", []byte("\x77\x4f\x46\x46\x00\x01\x00\x00\x00\x00\x30\x54\x00\x0d\x00\x00"), "font/woff"},
+ 	{"woff2 sample", []byte("\x77\x4f\x46\x32\x00\x01\x00\x00\x00"), "font/woff2"},
++	{"wasm sample", []byte("\x00\x61\x73\x6d\x01\x00"), "application/wasm"},
+ }
+ 
+ func TestDetectContentType(t *testing.T) {

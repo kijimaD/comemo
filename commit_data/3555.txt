@@ -10,7 +10,32 @@ Date:   Thu Oct 15 11:05:23 2009 -0700
     TBR=r
     OCL=35777
     CL=35777
-
+---
  src/pkg/Make.deps | 1 +
  src/pkg/Makefile  | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/src/pkg/Make.deps b/src/pkg/Make.deps
+index 4a8096bbf6..21e412ba38 100644
+--- a/src/pkg/Make.deps
++++ b/src/pkg/Make.deps
+@@ -27,6 +27,7 @@ debug/proc.install: container/vector.install fmt.install io.install os.install r
+ ebnf.install: container/vector.install go/scanner.install go/token.install os.install strconv.install unicode.install utf8.install
+ exec.install: os.install strings.install
+ exp/datafmt.install: bytes.install container/vector.install fmt.install go/scanner.install go/token.install io.install os.install reflect.install runtime.install strconv.install strings.install
++exp/eval.install: bignum.install fmt.install go/ast.install go/parser.install go/scanner.install go/token.install log.install os.install reflect.install runtime.install strconv.install strings.install
+ expvar.install: bytes.install fmt.install http.install log.install strconv.install sync.install
+ flag.install: fmt.install os.install strconv.install
+ fmt.install: io.install os.install reflect.install strconv.install utf8.install
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index abe293ce28..bbc4536dea 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -41,6 +41,7 @@ DIRS=\
+ 	ebnf\
+ 	exec\
+ 	exp/datafmt\
++	exp/eval\
+ 	expvar\
+ 	flag\
+ 	fmt\

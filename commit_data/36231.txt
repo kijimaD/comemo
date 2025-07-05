@@ -32,6 +32,37 @@ Date:   Thu Apr 12 12:15:58 2018 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/os/env.go | 8 +++++++-
  1 file changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/src/os/env.go b/src/os/env.go
+index b3b615cb33..544c03446f 100644
+--- a/src/os/env.go
++++ b/src/os/env.go
+@@ -14,11 +14,14 @@ import (
+ // Expand replaces ${var} or $var in the string based on the mapping function.
+ // For example, os.ExpandEnv(s) is equivalent to os.Expand(s, os.Getenv).
+ func Expand(s string, mapping func(string) string) string {
+-	buf := make([]byte, 0, 2*len(s))
++	var buf []byte
+ 	// ${} is all ASCII, so bytes are fine for this operation.
+ 	i := 0
+ 	for j := 0; j < len(s); j++ {
+ 		if s[j] == '$' && j+1 < len(s) {
++			if buf == nil {
++				buf = make([]byte, 0, 2*len(s))
++			}
+ 			buf = append(buf, s[i:j]...)
+ 			name, w := getShellName(s[j+1:])
+ 			// If the name is empty, keep the $.
+@@ -31,6 +34,9 @@ func Expand(s string, mapping func(string) string) string {
+ 			i = j + 1
+ 		}
+ 	}
++	if buf == nil {
++		return s
++	}
+ 	return string(buf) + s[i:]
+ }
+ 

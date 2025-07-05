@@ -23,7 +23,41 @@ Date:   Tue Aug 22 17:10:46 2017 +1200
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/sort/example_keys_test.go  | 2 +-
  src/sort/example_multi_test.go | 9 +++++----
  2 files changed, 6 insertions(+), 5 deletions(-)
+
+diff --git a/src/sort/example_keys_test.go b/src/sort/example_keys_test.go
+index a8e47e4926..648f919e68 100644
+--- a/src/sort/example_keys_test.go
++++ b/src/sort/example_keys_test.go
+@@ -73,7 +73,7 @@ func Example_sortKeys() {
+ 		return p1.distance < p2.distance
+ 	}
+ 	decreasingDistance := func(p1, p2 *Planet) bool {
+-		return !distance(p1, p2)
++		return distance(p2, p1)
+ 	}
+ 
+ 	// Sort the planets by the various criteria.
+diff --git a/src/sort/example_multi_test.go b/src/sort/example_multi_test.go
+index 40d12152ce..de6ec142d1 100644
+--- a/src/sort/example_multi_test.go
++++ b/src/sort/example_multi_test.go
+@@ -49,10 +49,11 @@ func (ms *multiSorter) Swap(i, j int) {
+ }
+ 
+ // Less is part of sort.Interface. It is implemented by looping along the
+-// less functions until it finds a comparison that is either Less or
+-// !Less. Note that it can call the less functions twice per call. We
+-// could change the functions to return -1, 0, 1 and reduce the
+-// number of calls for greater efficiency: an exercise for the reader.
++// less functions until it finds a comparison that discriminates between
++// the two items (one is less than the other). Note that it can call the
++// less functions twice per call. We could change the functions to return
++// -1, 0, 1 and reduce the number of calls for greater efficiency: an
++// exercise for the reader.
+ func (ms *multiSorter) Less(i, j int) bool {
+ 	p, q := &ms.changes[i], &ms.changes[j]
+ 	// Try all but the last comparison.

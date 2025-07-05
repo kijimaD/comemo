@@ -10,10 +10,146 @@ Date:   Sun Sep 4 18:10:07 2022 +0800
     Run-TryBot: xie cui <523516579@qq.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@google.com>
-
+---
  src/mime/multipart/formdata_test.go     |  3 +--
  src/mime/multipart/multipart_test.go    | 10 +++++-----
  src/mime/multipart/writer_test.go       |  4 ++--
  src/mime/quotedprintable/reader_test.go |  5 ++---
  src/mime/quotedprintable/writer_test.go |  2 +-
  5 files changed, 11 insertions(+), 13 deletions(-)
+
+diff --git a/src/mime/multipart/formdata_test.go b/src/mime/multipart/formdata_test.go
+index e3a3a3eae8..8a4eabcee0 100644
+--- a/src/mime/multipart/formdata_test.go
++++ b/src/mime/multipart/formdata_test.go
+@@ -5,7 +5,6 @@
+ package multipart
+ 
+ import (
+-	"bytes"
+ 	"io"
+ 	"math"
+ 	"os"
+@@ -92,7 +91,7 @@ func testFile(t *testing.T, fh *FileHeader, efn, econtent string) File {
+ 	if err != nil {
+ 		t.Fatal("opening file:", err)
+ 	}
+-	b := new(bytes.Buffer)
++	b := new(strings.Builder)
+ 	_, err = io.Copy(b, f)
+ 	if err != nil {
+ 		t.Fatal("copying contents:", err)
+diff --git a/src/mime/multipart/multipart_test.go b/src/mime/multipart/multipart_test.go
+index e043e36ef7..e0cb768c69 100644
+--- a/src/mime/multipart/multipart_test.go
++++ b/src/mime/multipart/multipart_test.go
+@@ -126,7 +126,7 @@ func TestMultipartSlowInput(t *testing.T) {
+ func testMultipart(t *testing.T, r io.Reader, onlyNewlines bool) {
+ 	t.Parallel()
+ 	reader := NewReader(r, "MyBoundary")
+-	buf := new(bytes.Buffer)
++	buf := new(strings.Builder)
+ 
+ 	// Part1
+ 	part, err := reader.NextPart()
+@@ -416,7 +416,7 @@ func TestLineContinuation(t *testing.T) {
+ 		if err != nil {
+ 			t.Fatalf("didn't get a part")
+ 		}
+-		var buf bytes.Buffer
++		var buf strings.Builder
+ 		n, err := io.Copy(&buf, part)
+ 		if err != nil {
+ 			t.Errorf("error reading part: %v\nread so far: %q", err, buf.String())
+@@ -446,7 +446,7 @@ func testQuotedPrintableEncoding(t *testing.T, cte string) {
+ 	if te, ok := part.Header["Content-Transfer-Encoding"]; ok {
+ 		t.Errorf("unexpected Content-Transfer-Encoding of %q", te)
+ 	}
+-	var buf bytes.Buffer
++	var buf strings.Builder
+ 	_, err = io.Copy(&buf, part)
+ 	if err != nil {
+ 		t.Error(err)
+@@ -484,7 +484,7 @@ Content-Transfer-Encoding: quoted-printable
+ 	if _, ok := part.Header["Content-Transfer-Encoding"]; !ok {
+ 		t.Errorf("missing Content-Transfer-Encoding")
+ 	}
+-	var buf bytes.Buffer
++	var buf strings.Builder
+ 	_, err = io.Copy(&buf, part)
+ 	if err != nil {
+ 		t.Error(err)
+@@ -993,7 +993,7 @@ func roundTripParseTest() parseTest {
+ 			formData("foo", "bar"),
+ 		},
+ 	}
+-	var buf bytes.Buffer
++	var buf strings.Builder
+ 	w := NewWriter(&buf)
+ 	for _, p := range t.want {
+ 		pw, err := w.CreatePart(p.header)
+diff --git a/src/mime/multipart/writer_test.go b/src/mime/multipart/writer_test.go
+index cfc0f09f37..9e0f1314c9 100644
+--- a/src/mime/multipart/writer_test.go
++++ b/src/mime/multipart/writer_test.go
+@@ -98,7 +98,7 @@ func TestWriterSetBoundary(t *testing.T) {
+ 		{"(boundary)", true},
+ 	}
+ 	for i, tt := range tests {
+-		var b bytes.Buffer
++		var b strings.Builder
+ 		w := NewWriter(&b)
+ 		err := w.SetBoundary(tt.b)
+ 		got := err == nil
+@@ -145,7 +145,7 @@ func TestWriterBoundaryGoroutines(t *testing.T) {
+ }
+ 
+ func TestSortedHeader(t *testing.T) {
+-	var buf bytes.Buffer
++	var buf strings.Builder
+ 	w := NewWriter(&buf)
+ 	if err := w.SetBoundary("MIMEBOUNDARY"); err != nil {
+ 		t.Fatalf("Error setting mime boundary: %v", err)
+diff --git a/src/mime/quotedprintable/reader_test.go b/src/mime/quotedprintable/reader_test.go
+index 19e9fea19b..0af1e5f0f7 100644
+--- a/src/mime/quotedprintable/reader_test.go
++++ b/src/mime/quotedprintable/reader_test.go
+@@ -6,7 +6,6 @@ package quotedprintable
+ 
+ import (
+ 	"bufio"
+-	"bytes"
+ 	"errors"
+ 	"flag"
+ 	"fmt"
+@@ -69,7 +68,7 @@ func TestReader(t *testing.T) {
+ 			want: "accept UTF-8 right quotation mark: ’"},
+ 	}
+ 	for _, tt := range tests {
+-		var buf bytes.Buffer
++		var buf strings.Builder
+ 		_, err := io.Copy(&buf, NewReader(strings.NewReader(tt.in)))
+ 		if got := buf.String(); got != tt.want {
+ 			t.Errorf("for %q, got %q; want %q", tt.in, got, tt.want)
+@@ -114,7 +113,7 @@ func TestExhaustive(t *testing.T) {
+ 		}
+ 	}
+ 
+-	var buf bytes.Buffer
++	var buf strings.Builder
+ 	res := make(map[string]int)
+ 	n := 6
+ 	if testing.Short() {
+diff --git a/src/mime/quotedprintable/writer_test.go b/src/mime/quotedprintable/writer_test.go
+index 42de0f3d6e..07411fe269 100644
+--- a/src/mime/quotedprintable/writer_test.go
++++ b/src/mime/quotedprintable/writer_test.go
+@@ -91,7 +91,7 @@ func testWriter(t *testing.T, binary bool) {
+ 	}
+ 
+ 	for _, tt := range tests {
+-		buf := new(bytes.Buffer)
++		buf := new(strings.Builder)
+ 		w := NewWriter(buf)
+ 
+ 		want := tt.want

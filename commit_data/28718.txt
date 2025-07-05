@@ -16,7 +16,7 @@ Date:   Mon Jun 27 16:54:57 2016 -0400
     Reviewed-by: Keith Randall <khr@golang.org>
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/arm/ssa.go            |  32 +-
  src/cmd/compile/internal/gc/ssa.go             |  15 +-
  src/cmd/compile/internal/ssa/deadstore.go      |   2 +-
@@ -32,3 +32,2444 @@ Date:   Mon Jun 27 16:54:57 2016 -0400
  src/cmd/compile/internal/ssa/rewritePPC64.go   | 223 +++++++++----
  src/cmd/compile/internal/ssa/rewritegeneric.go |   8 +-
  14 files changed, 957 insertions(+), 456 deletions(-)
+
+diff --git a/src/cmd/compile/internal/arm/ssa.go b/src/cmd/compile/internal/arm/ssa.go
+index ae7dbc8620..0bdeba9203 100644
+--- a/src/cmd/compile/internal/arm/ssa.go
++++ b/src/cmd/compile/internal/arm/ssa.go
+@@ -547,7 +547,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 					}
+ 					return
+ 				}
+-			case ssa.OpARMDUFFZERO, ssa.OpARMLoweredZero:
++			case ssa.OpARMDUFFZERO, ssa.OpARMLoweredZero, ssa.OpARMLoweredZeroU:
+ 				// arg0 is ptr
+ 				if w.Args[0] == v.Args[0] {
+ 					if gc.Debug_checknil != 0 && int(v.Line) > 1 {
+@@ -555,7 +555,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 					}
+ 					return
+ 				}
+-			case ssa.OpARMDUFFCOPY, ssa.OpARMLoweredMove:
++			case ssa.OpARMDUFFCOPY, ssa.OpARMLoweredMove, ssa.OpARMLoweredMoveU:
+ 				// arg0 is dst ptr, arg1 is src ptr
+ 				if w.Args[0] == v.Args[0] || w.Args[1] == v.Args[0] {
+ 					if gc.Debug_checknil != 0 && int(v.Line) > 1 {
+@@ -585,19 +585,25 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		if gc.Debug_checknil != 0 && v.Line > 1 { // v.Line==1 in generated wrappers
+ 			gc.Warnl(v.Line, "generated nil check")
+ 		}
+-	case ssa.OpARMLoweredZero:
++	case ssa.OpARMLoweredZero, ssa.OpARMLoweredZeroU:
+ 		// MOVW.P	Rarg2, 4(R1)
+ 		// CMP	Rarg1, R1
+ 		// BLT	-2(PC)
+ 		// arg1 is the end of memory to zero
+ 		// arg2 is known to be zero
+-		p := gc.Prog(arm.AMOVW)
++		var sz int64 = 4
++		mov := arm.AMOVW
++		if v.Op == ssa.OpARMLoweredZeroU { // unaligned
++			sz = 1
++			mov = arm.AMOVB
++		}
++		p := gc.Prog(mov)
+ 		p.Scond = arm.C_PBIT
+ 		p.From.Type = obj.TYPE_REG
+ 		p.From.Reg = gc.SSARegNum(v.Args[2])
+ 		p.To.Type = obj.TYPE_MEM
+ 		p.To.Reg = arm.REG_R1
+-		p.To.Offset = 4
++		p.To.Offset = sz
+ 		p2 := gc.Prog(arm.ACMP)
+ 		p2.From.Type = obj.TYPE_REG
+ 		p2.From.Reg = gc.SSARegNum(v.Args[1])
+@@ -605,26 +611,32 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p3 := gc.Prog(arm.ABLT)
+ 		p3.To.Type = obj.TYPE_BRANCH
+ 		gc.Patch(p3, p)
+-	case ssa.OpARMLoweredMove:
++	case ssa.OpARMLoweredMove, ssa.OpARMLoweredMoveU:
+ 		// MOVW.P	4(R1), Rtmp
+ 		// MOVW.P	Rtmp, 4(R2)
+ 		// CMP	Rarg2, R1
+ 		// BLT	-3(PC)
+ 		// arg2 is the end of src
+-		p := gc.Prog(arm.AMOVW)
++		var sz int64 = 4
++		mov := arm.AMOVW
++		if v.Op == ssa.OpARMLoweredMoveU { // unaligned
++			sz = 1
++			mov = arm.AMOVB
++		}
++		p := gc.Prog(mov)
+ 		p.Scond = arm.C_PBIT
+ 		p.From.Type = obj.TYPE_MEM
+ 		p.From.Reg = arm.REG_R1
+-		p.From.Offset = 4
++		p.From.Offset = sz
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = arm.REGTMP
+-		p2 := gc.Prog(arm.AMOVW)
++		p2 := gc.Prog(mov)
+ 		p2.Scond = arm.C_PBIT
+ 		p2.From.Type = obj.TYPE_REG
+ 		p2.From.Reg = arm.REGTMP
+ 		p2.To.Type = obj.TYPE_MEM
+ 		p2.To.Reg = arm.REG_R2
+-		p2.To.Offset = 4
++		p2.To.Offset = sz
+ 		p3 := gc.Prog(arm.ACMP)
+ 		p3.From.Type = obj.TYPE_REG
+ 		p3.From.Reg = gc.SSARegNum(v.Args[2])
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 33cd2e9c0b..b384136fab 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -2254,7 +2254,7 @@ func (s *state) append(n *Node, inplace bool) *ssa.Value {
+ 			if haspointers(et) {
+ 				s.insertWBmove(et, addr, arg.v, n.Lineno, arg.isVolatile)
+ 			} else {
+-				s.vars[&memVar] = s.newValue3I(ssa.OpMove, ssa.TypeMem, et.Size(), addr, arg.v, s.mem())
++				s.vars[&memVar] = s.newValue3I(ssa.OpMove, ssa.TypeMem, SizeAlignAuxInt(et), addr, arg.v, s.mem())
+ 			}
+ 		}
+ 	}
+@@ -2387,14 +2387,14 @@ func (s *state) assign(left *Node, right *ssa.Value, wb, deref bool, line int32,
+ 	if deref {
+ 		// Treat as a mem->mem move.
+ 		if right == nil {
+-			s.vars[&memVar] = s.newValue2I(ssa.OpZero, ssa.TypeMem, t.Size(), addr, s.mem())
++			s.vars[&memVar] = s.newValue2I(ssa.OpZero, ssa.TypeMem, SizeAlignAuxInt(t), addr, s.mem())
+ 			return
+ 		}
+ 		if wb {
+ 			s.insertWBmove(t, addr, right, line, rightIsVolatile)
+ 			return
+ 		}
+-		s.vars[&memVar] = s.newValue3I(ssa.OpMove, ssa.TypeMem, t.Size(), addr, right, s.mem())
++		s.vars[&memVar] = s.newValue3I(ssa.OpMove, ssa.TypeMem, SizeAlignAuxInt(t), addr, right, s.mem())
+ 		return
+ 	}
+ 	// Treat as a store.
+@@ -3080,7 +3080,7 @@ func (s *state) insertWBmove(t *Type, left, right *ssa.Value, line int32, rightI
+ 		tmp := temp(t)
+ 		s.vars[&memVar] = s.newValue1A(ssa.OpVarDef, ssa.TypeMem, tmp, s.mem())
+ 		tmpaddr, _ := s.addr(tmp, true)
+-		s.vars[&memVar] = s.newValue3I(ssa.OpMove, ssa.TypeMem, t.Size(), tmpaddr, right, s.mem())
++		s.vars[&memVar] = s.newValue3I(ssa.OpMove, ssa.TypeMem, SizeAlignAuxInt(t), tmpaddr, right, s.mem())
+ 		// Issue typedmemmove call.
+ 		taddr := s.newValue1A(ssa.OpAddr, Types[TUINTPTR], &ssa.ExternSymbol{Typ: Types[TUINTPTR], Sym: typenamesym(t)}, s.sb)
+ 		s.rtcall(typedmemmove, true, nil, taddr, left, tmpaddr)
+@@ -3090,7 +3090,7 @@ func (s *state) insertWBmove(t *Type, left, right *ssa.Value, line int32, rightI
+ 	s.endBlock().AddEdgeTo(bEnd)
+ 
+ 	s.startBlock(bElse)
+-	s.vars[&memVar] = s.newValue3I(ssa.OpMove, ssa.TypeMem, t.Size(), left, right, s.mem())
++	s.vars[&memVar] = s.newValue3I(ssa.OpMove, ssa.TypeMem, SizeAlignAuxInt(t), left, right, s.mem())
+ 	s.endBlock().AddEdgeTo(bEnd)
+ 
+ 	s.startBlock(bEnd)
+@@ -4190,6 +4190,11 @@ func AddAux2(a *obj.Addr, v *ssa.Value, offset int64) {
+ 	}
+ }
+ 
++// SizeAlignAuxInt returns an AuxInt encoding the size and alignment of type t.
++func SizeAlignAuxInt(t *Type) int64 {
++	return ssa.MakeSizeAndAlign(t.Size(), t.Alignment()).Int64()
++}
++
+ // extendIndex extends v to a full int width.
+ // panic using the given function if v does not fit in an int (only on 32-bit archs).
+ func (s *state) extendIndex(v *ssa.Value, panicfn *Node) *ssa.Value {
+diff --git a/src/cmd/compile/internal/ssa/deadstore.go b/src/cmd/compile/internal/ssa/deadstore.go
+index 5129c171bb..a1fc5fd0bb 100644
+--- a/src/cmd/compile/internal/ssa/deadstore.go
++++ b/src/cmd/compile/internal/ssa/deadstore.go
+@@ -89,7 +89,7 @@ func dse(f *Func) {
+ 				} else {
+ 					// zero addr mem
+ 					sz := v.Args[0].Type.ElemType().Size()
+-					if v.AuxInt != sz {
++					if SizeAndAlign(v.AuxInt).Size() != sz {
+ 						f.Fatalf("mismatched zero/store sizes: %d and %d [%s]",
+ 							v.AuxInt, sz, v.LongString())
+ 					}
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index db274d7eb9..c38d61c9e2 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -302,39 +302,47 @@
+ (Store [1] ptr val mem) -> (MOVBstore ptr val mem)
+ 
+ // Lowering moves
+-(Move [0] _ _ mem) -> mem
+-(Move [1] dst src mem) -> (MOVBstore dst (MOVBload src mem) mem)
+-(Move [2] dst src mem) -> (MOVWstore dst (MOVWload src mem) mem)
+-(Move [4] dst src mem) -> (MOVLstore dst (MOVLload src mem) mem)
+-(Move [8] dst src mem) -> (MOVQstore dst (MOVQload src mem) mem)
+-(Move [16] dst src mem) -> (MOVOstore dst (MOVOload src mem) mem)
+-(Move [3] dst src mem) ->
++(Move [s] _ _ mem) && SizeAndAlign(s).Size() == 0 -> mem
++(Move [s] dst src mem) && SizeAndAlign(s).Size() == 1 -> (MOVBstore dst (MOVBload src mem) mem)
++(Move [s] dst src mem) && SizeAndAlign(s).Size() == 2 -> (MOVWstore dst (MOVWload src mem) mem)
++(Move [s] dst src mem) && SizeAndAlign(s).Size() == 4 -> (MOVLstore dst (MOVLload src mem) mem)
++(Move [s] dst src mem) && SizeAndAlign(s).Size() == 8 -> (MOVQstore dst (MOVQload src mem) mem)
++(Move [s] dst src mem) && SizeAndAlign(s).Size() == 16 -> (MOVOstore dst (MOVOload src mem) mem)
++(Move [s] dst src mem) && SizeAndAlign(s).Size() == 3 ->
+ 	(MOVBstore [2] dst (MOVBload [2] src mem)
+ 		(MOVWstore dst (MOVWload src mem) mem))
+-(Move [5] dst src mem) ->
++(Move [s] dst src mem) && SizeAndAlign(s).Size() == 5 ->
+ 	(MOVBstore [4] dst (MOVBload [4] src mem)
+ 		(MOVLstore dst (MOVLload src mem) mem))
+-(Move [6] dst src mem) ->
++(Move [s] dst src mem) && SizeAndAlign(s).Size() == 6 ->
+ 	(MOVWstore [4] dst (MOVWload [4] src mem)
+ 		(MOVLstore dst (MOVLload src mem) mem))
+-(Move [7] dst src mem) ->
++(Move [s] dst src mem) && SizeAndAlign(s).Size() == 7 ->
+ 	(MOVLstore [3] dst (MOVLload [3] src mem)
+ 		(MOVLstore dst (MOVLload src mem) mem))
+-(Move [size] dst src mem) && size > 8 && size < 16 ->
+-	(MOVQstore [size-8] dst (MOVQload [size-8] src mem)
++(Move [s] dst src mem) && SizeAndAlign(s).Size() > 8 && SizeAndAlign(s).Size() < 16 ->
++	(MOVQstore [SizeAndAlign(s).Size()-8] dst (MOVQload [SizeAndAlign(s).Size()-8] src mem)
+ 		(MOVQstore dst (MOVQload src mem) mem))
+ 
+ // Adjust moves to be a multiple of 16 bytes.
+-(Move [size] dst src mem) && size > 16 && size%16 != 0 && size%16 <= 8 ->
+-	(Move [size-size%16] (ADDQconst <dst.Type> dst [size%16]) (ADDQconst <src.Type> src [size%16])
++(Move [s] dst src mem)
++	&& SizeAndAlign(s).Size() > 16 && SizeAndAlign(s).Size()%16 != 0 && SizeAndAlign(s).Size()%16 <= 8 ->
++	(Move [SizeAndAlign(s).Size()-SizeAndAlign(s).Size()%16]
++		(ADDQconst <dst.Type> dst [SizeAndAlign(s).Size()%16])
++		(ADDQconst <src.Type> src [SizeAndAlign(s).Size()%16])
+ 		(MOVQstore dst (MOVQload src mem) mem))
+-(Move [size] dst src mem) && size > 16 && size%16 != 0 && size%16 > 8 ->
+-	(Move [size-size%16] (ADDQconst <dst.Type> dst [size%16]) (ADDQconst <src.Type> src [size%16])
++(Move [s] dst src mem)
++	&& SizeAndAlign(s).Size() > 16 && SizeAndAlign(s).Size()%16 != 0 && SizeAndAlign(s).Size()%16 > 8 ->
++	(Move [SizeAndAlign(s).Size()-SizeAndAlign(s).Size()%16]
++		(ADDQconst <dst.Type> dst [SizeAndAlign(s).Size()%16])
++		(ADDQconst <src.Type> src [SizeAndAlign(s).Size()%16])
+ 		(MOVOstore dst (MOVOload src mem) mem))
+ 
+ // Medium copying uses a duff device.
+-(Move [size] dst src mem) && size >= 32 && size <= 16*64 && size%16 == 0 && !config.noDuffDevice ->
+-	(DUFFCOPY [14*(64-size/16)] dst src mem)
++(Move [s] dst src mem)
++	&& SizeAndAlign(s).Size() >= 32 && SizeAndAlign(s).Size() <= 16*64 && SizeAndAlign(s).Size()%16 == 0
++	&& !config.noDuffDevice ->
++	(DUFFCOPY [14*(64-SizeAndAlign(s).Size()/16)] dst src mem)
+ // 14 and 64 are magic constants.  14 is the number of bytes to encode:
+ //	MOVUPS	(SI), X0
+ //	ADDQ	$16, SI
+@@ -343,57 +351,64 @@
+ // and 64 is the number of such blocks. See src/runtime/duff_amd64.s:duffcopy.
+ 
+ // Large copying uses REP MOVSQ.
+-(Move [size] dst src mem) && (size > 16*64 || config.noDuffDevice) && size%8 == 0 ->
+-	(REPMOVSQ dst src (MOVQconst [size/8]) mem)
++(Move [s] dst src mem) && (SizeAndAlign(s).Size() > 16*64 || config.noDuffDevice) && SizeAndAlign(s).Size()%8 == 0 ->
++	(REPMOVSQ dst src (MOVQconst [SizeAndAlign(s).Size()/8]) mem)
+ 
+ // Lowering Zero instructions
+-(Zero [0] _ mem) -> mem
+-(Zero [1] destptr mem) -> (MOVBstoreconst [0] destptr mem)
+-(Zero [2] destptr mem) -> (MOVWstoreconst [0] destptr mem)
+-(Zero [4] destptr mem) -> (MOVLstoreconst [0] destptr mem)
+-(Zero [8] destptr mem) -> (MOVQstoreconst [0] destptr mem)
++(Zero [s] _ mem) && SizeAndAlign(s).Size() == 0 -> mem
++(Zero [s] destptr mem) && SizeAndAlign(s).Size() == 1 -> (MOVBstoreconst [0] destptr mem)
++(Zero [s] destptr mem) && SizeAndAlign(s).Size() == 2 -> (MOVWstoreconst [0] destptr mem)
++(Zero [s] destptr mem) && SizeAndAlign(s).Size() == 4 -> (MOVLstoreconst [0] destptr mem)
++(Zero [s] destptr mem) && SizeAndAlign(s).Size() == 8 -> (MOVQstoreconst [0] destptr mem)
+ 
+-(Zero [3] destptr mem) ->
++(Zero [s] destptr mem) && SizeAndAlign(s).Size() == 3 ->
+ 	(MOVBstoreconst [makeValAndOff(0,2)] destptr
+ 		(MOVWstoreconst [0] destptr mem))
+-(Zero [5] destptr mem) ->
++(Zero [s] destptr mem) && SizeAndAlign(s).Size() == 5 ->
+ 	(MOVBstoreconst [makeValAndOff(0,4)] destptr
+ 		(MOVLstoreconst [0] destptr mem))
+-(Zero [6] destptr mem) ->
++(Zero [s] destptr mem) && SizeAndAlign(s).Size() == 6 ->
+ 	(MOVWstoreconst [makeValAndOff(0,4)] destptr
+ 		(MOVLstoreconst [0] destptr mem))
+-(Zero [7] destptr mem) ->
++(Zero [s] destptr mem) && SizeAndAlign(s).Size() == 7 ->
+ 	(MOVLstoreconst [makeValAndOff(0,3)] destptr
+ 		(MOVLstoreconst [0] destptr mem))
+ 
+ // Strip off any fractional word zeroing.
+-(Zero [size] destptr mem) && size%8 != 0 && size > 8 ->
+-	(Zero [size-size%8] (ADDQconst destptr [size%8])
++(Zero [s] destptr mem) && SizeAndAlign(s).Size()%8 != 0 && SizeAndAlign(s).Size() > 8 ->
++	(Zero [SizeAndAlign(s).Size()-SizeAndAlign(s).Size()%8] (ADDQconst destptr [SizeAndAlign(s).Size()%8])
+ 		(MOVQstoreconst [0] destptr mem))
+ 
+ // Zero small numbers of words directly.
+-(Zero [16] destptr mem) ->
++(Zero [s] destptr mem) && SizeAndAlign(s).Size() == 16 ->
+ 	(MOVQstoreconst [makeValAndOff(0,8)] destptr
+ 		(MOVQstoreconst [0] destptr mem))
+-(Zero [24] destptr mem) ->
++(Zero [s] destptr mem) && SizeAndAlign(s).Size() == 24 ->
+ 	(MOVQstoreconst [makeValAndOff(0,16)] destptr
+ 		(MOVQstoreconst [makeValAndOff(0,8)] destptr
+ 			(MOVQstoreconst [0] destptr mem)))
+-(Zero [32] destptr mem) ->
++(Zero [s] destptr mem) && SizeAndAlign(s).Size() == 32 ->
+ 	(MOVQstoreconst [makeValAndOff(0,24)] destptr
+ 		(MOVQstoreconst [makeValAndOff(0,16)] destptr
+ 			(MOVQstoreconst [makeValAndOff(0,8)] destptr
+ 				(MOVQstoreconst [0] destptr mem))))
+ 
+ // Medium zeroing uses a duff device.
+-(Zero [size] destptr mem) && size <= 1024 && size%8 == 0 && size%16 != 0 && !config.noDuffDevice ->
+-	(Zero [size-8] (ADDQconst [8] destptr) (MOVQstore destptr (MOVQconst [0]) mem))
+-(Zero [size] destptr mem) && size <= 1024 && size%16 == 0 && !config.noDuffDevice ->
+-	(DUFFZERO [duffStart(size)] (ADDQconst [duffAdj(size)] destptr) (MOVOconst [0]) mem)
++(Zero [s] destptr mem)
++	&& SizeAndAlign(s).Size() <= 1024 && SizeAndAlign(s).Size()%8 == 0 && SizeAndAlign(s).Size()%16 != 0
++	&& !config.noDuffDevice ->
++	(Zero [SizeAndAlign(s).Size()-8] (ADDQconst [8] destptr) (MOVQstore destptr (MOVQconst [0]) mem))
++(Zero [s] destptr mem)
++	&& SizeAndAlign(s).Size() <= 1024 && SizeAndAlign(s).Size()%16 == 0 && !config.noDuffDevice ->
++	(DUFFZERO [duffStart(SizeAndAlign(s).Size())]
++		(ADDQconst [duffAdj(SizeAndAlign(s).Size())] destptr) (MOVOconst [0])
++		mem)
+ 
+ // Large zeroing uses REP STOSQ.
+-(Zero [size] destptr mem) && (size > 1024 || (config.noDuffDevice && size > 32)) && size%8 == 0 ->
+-	(REPSTOSQ destptr (MOVQconst [size/8]) (MOVQconst [0]) mem)
++(Zero [s] destptr mem)
++	&& (SizeAndAlign(s).Size() > 1024 || (config.noDuffDevice && SizeAndAlign(s).Size() > 32))
++	&& SizeAndAlign(s).Size()%8 == 0 ->
++	(REPSTOSQ destptr (MOVQconst [SizeAndAlign(s).Size()/8]) (MOVQconst [0]) mem)
+ 
+ // Lowering constants
+ (Const8   [val]) -> (MOVLconst [val])
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM.rules b/src/cmd/compile/internal/ssa/gen/ARM.rules
+index 460c99d292..f869c738b8 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM.rules
+@@ -269,54 +269,86 @@
+ (Store [8] ptr val mem) && is64BitFloat(val.Type) -> (MOVDstore ptr val mem)
+ 
+ // zero instructions
+-//TODO: check alignment?
+-(Zero [0] _ mem) -> mem
+-(Zero [1] ptr mem) -> (MOVBstore ptr (MOVWconst [0]) mem)
+-(Zero [2] ptr mem) -> (MOVHstore ptr (MOVWconst [0]) mem)
+-(Zero [4] ptr mem) -> (MOVWstore ptr (MOVWconst [0]) mem)
+-
+-(Zero [3] ptr mem) ->
+-	(MOVBstore [2] ptr (MOVWconst [0])
++(Zero [s] _ mem) && SizeAndAlign(s).Size() == 0 -> mem
++(Zero [s] ptr mem) && SizeAndAlign(s).Size() == 1 -> (MOVBstore ptr (MOVWconst [0]) mem)
++(Zero [s] ptr mem) && SizeAndAlign(s).Size() == 2 && SizeAndAlign(s).Align()%2 == 0 ->
++	(MOVHstore ptr (MOVWconst [0]) mem)
++(Zero [s] ptr mem) && SizeAndAlign(s).Size() == 2 ->
++	(MOVBstore [1] ptr (MOVWconst [0])
++		(MOVBstore [0] ptr (MOVWconst [0]) mem))
++(Zero [s] ptr mem) && SizeAndAlign(s).Size() == 4 && SizeAndAlign(s).Align()%4 == 0 ->
++	(MOVWstore ptr (MOVWconst [0]) mem)
++(Zero [s] ptr mem) && SizeAndAlign(s).Size() == 4 && SizeAndAlign(s).Align()%2 == 0 ->
++	(MOVHstore [2] ptr (MOVWconst [0])
+ 		(MOVHstore [0] ptr (MOVWconst [0]) mem))
++(Zero [s] ptr mem) && SizeAndAlign(s).Size() == 4 ->
++	(MOVBstore [3] ptr (MOVWconst [0])
++		(MOVBstore [2] ptr (MOVWconst [0])
++			(MOVBstore [1] ptr (MOVWconst [0])
++				(MOVBstore [0] ptr (MOVWconst [0]) mem))))
+ 
+-// Strip off fractional word zeroing.
+-(Zero [size] ptr mem) && size%4 != 0 && size > 4 ->
+-	(Zero [size%4] (ADDconst <ptr.Type> ptr [size-size%4])
+-		(Zero <TypeMem> [size-size%4] ptr mem))
++(Zero [s] ptr mem) && SizeAndAlign(s).Size() == 3 ->
++	(MOVBstore [2] ptr (MOVWconst [0])
++		(MOVBstore [1] ptr (MOVWconst [0])
++			(MOVBstore [0] ptr (MOVWconst [0]) mem)))
+ 
+ // Medium zeroing uses a duff device
+ // 4 and 128 are magic constants, see runtime/mkduff.go
+-(Zero [size] ptr mem) && size%4 == 0 && size > 4 && size <= 512 ->
+-	(DUFFZERO [4 * (128 - int64(size/4))] ptr (MOVWconst [0]) mem)
++(Zero [s] ptr mem)
++	&& SizeAndAlign(s).Size()%4 == 0 && SizeAndAlign(s).Size() > 4 && SizeAndAlign(s).Size() <= 512
++	&& SizeAndAlign(s).Align()%4 == 0 ->
++	(DUFFZERO [4 * (128 - int64(SizeAndAlign(s).Size()/4))] ptr (MOVWconst [0]) mem)
+ 
+ // Large zeroing uses a loop
+-(Zero [size] ptr mem) && size%4 == 0 && size > 512 ->
+-	(LoweredZero ptr (ADDconst <ptr.Type> ptr [size]) (MOVWconst [0]) mem)
++(Zero [s] ptr mem)
++	&& SizeAndAlign(s).Size()%4 == 0 && SizeAndAlign(s).Size() > 512
++	&& SizeAndAlign(s).Align()%4 == 0 ->
++	(LoweredZero ptr (ADDconst <ptr.Type> ptr [SizeAndAlign(s).Size()]) (MOVWconst [0]) mem)
+ 
+-// moves
+-//TODO: check alignment?
+-(Move [0] _ _ mem) -> mem
+-(Move [1] dst src mem) -> (MOVBstore dst (MOVBUload src mem) mem)
+-(Move [2] dst src mem) -> (MOVHstore dst (MOVHUload src mem) mem)
+-(Move [4] dst src mem) -> (MOVWstore dst (MOVWload src mem) mem)
++// Unaligned zeroing uses a loop
++(Zero [s] ptr mem) && SizeAndAlign(s).Size() > 4 && SizeAndAlign(s).Align()%4 != 0 ->
++	(LoweredZeroU ptr (ADDconst <ptr.Type> ptr [SizeAndAlign(s).Size()]) (MOVWconst [0]) mem)
+ 
+-(Move [3] dst src mem) ->
+-	(MOVBstore [2] dst (MOVBUload [2] src mem)
++// moves
++(Move [s] _ _ mem) && SizeAndAlign(s).Size() == 0 -> mem
++(Move [s] dst src mem) && SizeAndAlign(s).Size() == 1 -> (MOVBstore dst (MOVBUload src mem) mem)
++(Move [s] dst src mem) && SizeAndAlign(s).Size() == 2 && SizeAndAlign(s).Align()%2 == 0 ->
++	(MOVHstore dst (MOVHUload src mem) mem)
++(Move [s] dst src mem) && SizeAndAlign(s).Size() == 2 ->
++	(MOVBstore [1] dst (MOVBUload [1] src mem)
++		(MOVBstore dst (MOVBUload src mem) mem))
++(Move [s] dst src mem) && SizeAndAlign(s).Size() == 4 && SizeAndAlign(s).Align()%4 == 0 ->
++	(MOVWstore dst (MOVWload src mem) mem)
++(Move [s] dst src mem) && SizeAndAlign(s).Size() == 4 && SizeAndAlign(s).Align()%2 == 0 ->
++	(MOVHstore [2] dst (MOVHUload [2] src mem)
+ 		(MOVHstore dst (MOVHUload src mem) mem))
++(Move [s] dst src mem) && SizeAndAlign(s).Size() == 4 ->
++	(MOVBstore [3] dst (MOVBUload [3] src mem)
++		(MOVBstore [2] dst (MOVBUload [2] src mem)
++			(MOVBstore [1] dst (MOVBUload [1] src mem)
++				(MOVBstore dst (MOVBUload src mem) mem))))
+ 
+-// Strip off fractional word move
+-(Move [size] dst src mem) && size%4!=0 && size > 4 ->
+-	(Move [size%4] (ADDconst <dst.Type> dst [size-size%4]) (ADDconst <src.Type> src [size-size%4])
+-		(Move <TypeMem> [size-size%4] dst src mem))
++(Move [s] dst src mem) && SizeAndAlign(s).Size() == 3 ->
++	(MOVBstore [2] dst (MOVBUload [2] src mem)
++		(MOVBstore [1] dst (MOVBUload [1] src mem)
++			(MOVBstore dst (MOVBUload src mem) mem)))
+ 
+ // Medium move uses a duff device
+ // 8 and 128 are magic constants, see runtime/mkduff.go
+-(Move [size] dst src mem) && size%4 == 0 && size > 4 && size <= 512 ->
+-	(DUFFCOPY [8 * (128 - int64(size/4))] dst src mem)
++(Move [s] dst src mem)
++	&& SizeAndAlign(s).Size()%4 == 0 && SizeAndAlign(s).Size() > 4 && SizeAndAlign(s).Size() <= 512
++	&& SizeAndAlign(s).Align()%4 == 0 ->
++	(DUFFCOPY [8 * (128 - int64(SizeAndAlign(s).Size()/4))] dst src mem)
+ 
+ // Large move uses a loop
+-(Move [size] dst src mem) && size%4 == 0 && size > 512 ->
+-	(LoweredMove dst src (ADDconst <src.Type> src [size]) mem)
++(Move [s] dst src mem)
++	&& SizeAndAlign(s).Size()%4 == 0 && SizeAndAlign(s).Size() > 512
++	&& SizeAndAlign(s).Align()%4 == 0 ->
++	(LoweredMove dst src (ADDconst <src.Type> src [SizeAndAlign(s).Size()]) mem)
++
++// Unaligned move uses a loop
++(Move [s] dst src mem) && SizeAndAlign(s).Size() > 4 && SizeAndAlign(s).Align()%4 != 0 ->
++	(LoweredMoveU dst src (ADDconst <src.Type> src [SizeAndAlign(s).Size()]) mem)
+ 
+ // calls
+ (StaticCall [argwid] {target} mem) -> (CALLstatic [argwid] {target} mem)
+diff --git a/src/cmd/compile/internal/ssa/gen/ARMOps.go b/src/cmd/compile/internal/ssa/gen/ARMOps.go
+index 6e1bea1d55..0a7bae4e9d 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARMOps.go
++++ b/src/cmd/compile/internal/ssa/gen/ARMOps.go
+@@ -249,7 +249,7 @@ func init() {
+ 
+ 		{name: "LoweredZeromask", argLength: 1, reg: gp11}, // 0 if arg0 == 1, 0xffffffff if arg0 != 0
+ 
+-		// duffzero
++		// duffzero (must be 4-byte aligned)
+ 		// arg0 = address of memory to zero (in R1, changed as side effect)
+ 		// arg1 = value to store (always zero)
+ 		// arg2 = mem
+@@ -265,7 +265,7 @@ func init() {
+ 			},
+ 		},
+ 
+-		// duffcopy
++		// duffcopy (must be 4-byte aligned)
+ 		// arg0 = address of dst memory (in R2, changed as side effect)
+ 		// arg1 = address of src memory (in R1, changed as side effect)
+ 		// arg2 = mem
+@@ -281,7 +281,7 @@ func init() {
+ 			},
+ 		},
+ 
+-		// large zeroing
++		// large zeroing (must be 4-byte aligned)
+ 		// arg0 = address of memory to zero (in R1, changed as side effect)
+ 		// arg1 = address of the end of the memory to zero
+ 		// arg2 = value to store (always zero)
+@@ -299,7 +299,7 @@ func init() {
+ 			},
+ 		},
+ 
+-		// large move
++		// large move (must be 4-byte aligned)
+ 		// arg0 = address of dst memory (in R2, changed as side effect)
+ 		// arg1 = address of src memory (in R1, changed as side effect)
+ 		// arg2 = address of the end of src memory
+@@ -318,6 +318,43 @@ func init() {
+ 			},
+ 		},
+ 
++		// unaligned zeroing
++		// arg0 = address of memory to zero (in R1, changed as side effect)
++		// arg1 = address of the end of the memory to zero
++		// arg2 = value to store (always zero)
++		// arg3 = mem
++		// returns mem
++		//	MOVB.P	Rarg2, 1(R1)
++		//	CMP	R1, Rarg1
++		//	BLT	-2(PC)
++		{
++			name:      "LoweredZeroU",
++			argLength: 4,
++			reg: regInfo{
++				inputs:   []regMask{buildReg("R1"), gp, gp},
++				clobbers: buildReg("R1 FLAGS"),
++			},
++		},
++
++		// unaligned move
++		// arg0 = address of dst memory (in R2, changed as side effect)
++		// arg1 = address of src memory (in R1, changed as side effect)
++		// arg2 = address of the end of src memory
++		// arg3 = mem
++		// returns mem
++		//	MOVB.P	1(R1), Rtmp
++		//	MOVB.P	Rtmp, 1(R2)
++		//	CMP	R1, Rarg2
++		//	BLT	-3(PC)
++		{
++			name:      "LoweredMoveU",
++			argLength: 4,
++			reg: regInfo{
++				inputs:   []regMask{buildReg("R2"), buildReg("R1"), gp},
++				clobbers: buildReg("R1 R2 FLAGS"),
++			},
++		},
++
+ 		// Scheduler ensures LoweredGetClosurePtr occurs only in entry block,
+ 		// and sorts it to the very beginning of the block to prevent other
+ 		// use of R7 (arm.REGCTXT, the closure pointer)
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64.rules b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+index 5a249f9b62..01e4afecb2 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64.rules
++++ b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+@@ -158,31 +158,48 @@
+ (Store [2] ptr val mem) -> (MOVHstore ptr val mem)
+ (Store [1] ptr val mem) -> (MOVBstore ptr val mem)
+ 
+-(Zero [0] _ mem) -> mem
+-(Zero [1] destptr mem) -> (MOVBstoreconst [0] destptr mem)
+-(Zero [2] destptr mem) -> (MOVHstoreconst [0] destptr mem)
+-(Zero [4] destptr mem) -> (MOVWstoreconst [0] destptr mem)
+-(Zero [8] destptr mem) -> (MOVDstoreconst [0] destptr mem)
+-
+-(Zero [3] destptr mem) ->
+-        (MOVBstoreconst [makeValAndOff(0,2)] destptr
+-                (MOVHstoreconst [0] destptr mem))
+-(Zero [5] destptr mem) ->
+-        (MOVBstoreconst [makeValAndOff(0,4)] destptr
+-                (MOVWstoreconst [0] destptr mem))
+-(Zero [6] destptr mem) ->
+-        (MOVHstoreconst [makeValAndOff(0,4)] destptr
+-                (MOVWstoreconst [0] destptr mem))
++(Zero [s] _ mem) && SizeAndAlign(s).Size() == 0 -> mem
++(Zero [s] destptr mem) && SizeAndAlign(s).Size() == 1 -> (MOVBstoreconst [0] destptr mem)
++(Zero [s] destptr mem) && SizeAndAlign(s).Size() == 2 && SizeAndAlign(s).Align()%2 == 0 ->
++	(MOVHstoreconst [0] destptr mem)
++(Zero [s] destptr mem) && SizeAndAlign(s).Size() == 2 ->
++	(MOVBstoreconst [makeValAndOff(0,1)] destptr
++		(MOVBstoreconst [0] destptr mem))
++(Zero [s] destptr mem) && SizeAndAlign(s).Size() == 4 && SizeAndAlign(s).Align()%4 == 0 ->
++	(MOVWstoreconst [0] destptr mem)
++(Zero [s] destptr mem) && SizeAndAlign(s).Size() == 4 && SizeAndAlign(s).Align()%2 == 0 ->
++	(MOVHstoreconst [makeValAndOff(0,2)] destptr
++		(MOVHstoreconst [0] destptr mem))
++(Zero [s] destptr mem) && SizeAndAlign(s).Size() == 4 ->
++	(MOVBstoreconst [makeValAndOff(0,3)] destptr
++		(MOVBstoreconst [makeValAndOff(0,2)] destptr
++			(MOVBstoreconst [makeValAndOff(0,1)] destptr
++				(MOVBstoreconst [0] destptr mem))))
++(Zero [s] destptr mem) && SizeAndAlign(s).Size() == 8 && SizeAndAlign(s).Align()%8 == 0 ->
++	(MOVDstoreconst [0] destptr mem)
++(Zero [s] destptr mem) && SizeAndAlign(s).Size() == 8 && SizeAndAlign(s).Align()%4 == 0 ->
++	(MOVWstoreconst [makeValAndOff(0,4)] destptr
++		(MOVWstoreconst [0] destptr mem))
++(Zero [s] destptr mem) && SizeAndAlign(s).Size() == 8 && SizeAndAlign(s).Align()%2 == 0 ->
++	(MOVHstoreconst [makeValAndOff(0,6)] destptr
++		(MOVHstoreconst [makeValAndOff(0,4)] destptr
++			(MOVHstoreconst [makeValAndOff(0,2)] destptr
++				(MOVHstoreconst [0] destptr mem))))
++
++(Zero [s] destptr mem) && SizeAndAlign(s).Size() == 3 ->
++	(MOVBstoreconst [makeValAndOff(0,2)] destptr
++		(MOVBstoreconst [makeValAndOff(0,1)] destptr
++			(MOVBstoreconst [0] destptr mem)))
+ 
+ // Zero small numbers of words directly.
+-(Zero [16] destptr mem) ->
++(Zero [s] destptr mem) && SizeAndAlign(s).Size() == 16 && SizeAndAlign(s).Align()%8 == 0 ->
+ 	(MOVDstoreconst [makeValAndOff(0,8)] destptr
+                 (MOVDstoreconst [0] destptr mem))
+-(Zero [24] destptr mem) ->
++(Zero [s] destptr mem) && SizeAndAlign(s).Size() == 24 && SizeAndAlign(s).Align()%8 == 0 ->
+ 	(MOVDstoreconst [makeValAndOff(0,16)] destptr
+ 		(MOVDstoreconst [makeValAndOff(0,8)] destptr
+ 			(MOVDstoreconst [0] destptr mem)))
+-(Zero [32] destptr mem) ->
++(Zero [s] destptr mem) && SizeAndAlign(s).Size() == 32 && SizeAndAlign(s).Align()%8 == 0 ->
+ 	(MOVDstoreconst [makeValAndOff(0,24)] destptr
+ 		(MOVDstoreconst [makeValAndOff(0,16)] destptr
+ 			(MOVDstoreconst [makeValAndOff(0,8)] destptr
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index f5d1c98a83..864399bed4 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -625,8 +625,10 @@
+         (Store [t.FieldType(0).Size()] dst f0 mem))))
+ 
+ // un-SSAable values use mem->mem copies
+-(Store [size] dst (Load <t> src mem) mem) && !config.fe.CanSSA(t) -> (Move [size] dst src mem)
+-(Store [size] dst (Load <t> src mem) (VarDef {x} mem)) && !config.fe.CanSSA(t) -> (Move [size] dst src (VarDef {x} mem))
++(Store [size] dst (Load <t> src mem) mem) && !config.fe.CanSSA(t) ->
++	(Move [MakeSizeAndAlign(size, t.Alignment()).Int64()] dst src mem)
++(Store [size] dst (Load <t> src mem) (VarDef {x} mem)) && !config.fe.CanSSA(t) ->
++	(Move [MakeSizeAndAlign(size, t.Alignment()).Int64()] dst src (VarDef {x} mem))
+ 
+ // string ops
+ // Decomposing StringMake and lowering of StringPtr and StringLen
+diff --git a/src/cmd/compile/internal/ssa/op.go b/src/cmd/compile/internal/ssa/op.go
+index 788a8397b3..5e819240c5 100644
+--- a/src/cmd/compile/internal/ssa/op.go
++++ b/src/cmd/compile/internal/ssa/op.go
+@@ -125,6 +125,34 @@ func (x ValAndOff) add(off int64) int64 {
+ 	return makeValAndOff(x.Val(), x.Off()+off)
+ }
+ 
++// SizeAndAlign holds both the size and the alignment of a type,
++// used in Zero and Move ops.
++// The high 8 bits hold the alignment.
++// The low 56 bits hold the size.
++type SizeAndAlign int64
++
++func (x SizeAndAlign) Size() int64 {
++	return int64(x) & (1<<56 - 1)
++}
++func (x SizeAndAlign) Align() int64 {
++	return int64(uint64(x) >> 56)
++}
++func (x SizeAndAlign) Int64() int64 {
++	return int64(x)
++}
++func (x SizeAndAlign) String() string {
++	return fmt.Sprintf("size=%d,align=%d", x.Size(), x.Align())
++}
++func MakeSizeAndAlign(size, align int64) SizeAndAlign {
++	if size&^(1<<56-1) != 0 {
++		panic("size too big in SizeAndAlign")
++	}
++	if align >= 1<<8 {
++		panic("alignment too big in SizeAndAlign")
++	}
++	return SizeAndAlign(size | align<<56)
++}
++
+ func (op Op) isTupleGenerator() bool {
+ 	switch op {
+ 	case OpAdd32carry, OpSub32carry, OpMul32uhilo,
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index e4dca03dd2..053ba435ea 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -454,6 +454,8 @@ const (
+ 	OpARMDUFFCOPY
+ 	OpARMLoweredZero
+ 	OpARMLoweredMove
++	OpARMLoweredZeroU
++	OpARMLoweredMoveU
+ 	OpARMLoweredGetClosurePtr
+ 	OpARMMOVWconvert
+ 
+@@ -5444,6 +5446,30 @@ var opcodeTable = [...]opInfo{
+ 			clobbers: 4294967302, // R1 R2 FLAGS
+ 		},
+ 	},
++	{
++		name:   "LoweredZeroU",
++		argLen: 4,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 2},    // R1
++				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
++				{2, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
++			},
++			clobbers: 4294967298, // R1 FLAGS
++		},
++	},
++	{
++		name:   "LoweredMoveU",
++		argLen: 4,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4},    // R2
++				{1, 2},    // R1
++				{2, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
++			},
++			clobbers: 4294967302, // R1 R2 FLAGS
++		},
++	},
+ 	{
+ 		name:   "LoweredGetClosurePtr",
+ 		argLen: 0,
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index cefd50ca56..8085f323fc 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -12000,29 +12000,31 @@ func rewriteValueAMD64_OpMod8u(v *Value, config *Config) bool {
+ func rewriteValueAMD64_OpMove(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+-	// match: (Move [0] _ _ mem)
+-	// cond:
++	// match: (Move [s] _ _ mem)
++	// cond: SizeAndAlign(s).Size() == 0
+ 	// result: mem
+ 	for {
+-		if v.AuxInt != 0 {
++		s := v.AuxInt
++		mem := v.Args[2]
++		if !(SizeAndAlign(s).Size() == 0) {
+ 			break
+ 		}
+-		mem := v.Args[2]
+ 		v.reset(OpCopy)
+ 		v.Type = mem.Type
+ 		v.AddArg(mem)
+ 		return true
+ 	}
+-	// match: (Move [1] dst src mem)
+-	// cond:
++	// match: (Move [s] dst src mem)
++	// cond: SizeAndAlign(s).Size() == 1
+ 	// result: (MOVBstore dst (MOVBload src mem) mem)
+ 	for {
+-		if v.AuxInt != 1 {
+-			break
+-		}
++		s := v.AuxInt
+ 		dst := v.Args[0]
+ 		src := v.Args[1]
+ 		mem := v.Args[2]
++		if !(SizeAndAlign(s).Size() == 1) {
++			break
++		}
+ 		v.reset(OpAMD64MOVBstore)
+ 		v.AddArg(dst)
+ 		v0 := b.NewValue0(v.Line, OpAMD64MOVBload, config.fe.TypeUInt8())
+@@ -12032,16 +12034,17 @@ func rewriteValueAMD64_OpMove(v *Value, config *Config) bool {
+ 		v.AddArg(mem)
+ 		return true
+ 	}
+-	// match: (Move [2] dst src mem)
+-	// cond:
++	// match: (Move [s] dst src mem)
++	// cond: SizeAndAlign(s).Size() == 2
+ 	// result: (MOVWstore dst (MOVWload src mem) mem)
+ 	for {
+-		if v.AuxInt != 2 {
+-			break
+-		}
++		s := v.AuxInt
+ 		dst := v.Args[0]
+ 		src := v.Args[1]
+ 		mem := v.Args[2]
++		if !(SizeAndAlign(s).Size() == 2) {
++			break
++		}
+ 		v.reset(OpAMD64MOVWstore)
+ 		v.AddArg(dst)
+ 		v0 := b.NewValue0(v.Line, OpAMD64MOVWload, config.fe.TypeUInt16())
+@@ -12051,16 +12054,17 @@ func rewriteValueAMD64_OpMove(v *Value, config *Config) bool {
+ 		v.AddArg(mem)
+ 		return true
+ 	}
+-	// match: (Move [4] dst src mem)
+-	// cond:
++	// match: (Move [s] dst src mem)
++	// cond: SizeAndAlign(s).Size() == 4
+ 	// result: (MOVLstore dst (MOVLload src mem) mem)
+ 	for {
+-		if v.AuxInt != 4 {
+-			break
+-		}
++		s := v.AuxInt
+ 		dst := v.Args[0]
+ 		src := v.Args[1]
+ 		mem := v.Args[2]
++		if !(SizeAndAlign(s).Size() == 4) {
++			break
++		}
+ 		v.reset(OpAMD64MOVLstore)
+ 		v.AddArg(dst)
+ 		v0 := b.NewValue0(v.Line, OpAMD64MOVLload, config.fe.TypeUInt32())
+@@ -12070,16 +12074,17 @@ func rewriteValueAMD64_OpMove(v *Value, config *Config) bool {
+ 		v.AddArg(mem)
+ 		return true
+ 	}
+-	// match: (Move [8] dst src mem)
+-	// cond:
++	// match: (Move [s] dst src mem)
++	// cond: SizeAndAlign(s).Size() == 8
+ 	// result: (MOVQstore dst (MOVQload src mem) mem)
+ 	for {
+-		if v.AuxInt != 8 {
+-			break
+-		}
++		s := v.AuxInt
+ 		dst := v.Args[0]
+ 		src := v.Args[1]
+ 		mem := v.Args[2]
++		if !(SizeAndAlign(s).Size() == 8) {
++			break
++		}
+ 		v.reset(OpAMD64MOVQstore)
+ 		v.AddArg(dst)
+ 		v0 := b.NewValue0(v.Line, OpAMD64MOVQload, config.fe.TypeUInt64())
+@@ -12089,16 +12094,17 @@ func rewriteValueAMD64_OpMove(v *Value, config *Config) bool {
+ 		v.AddArg(mem)
+ 		return true
+ 	}
+-	// match: (Move [16] dst src mem)
+-	// cond:
++	// match: (Move [s] dst src mem)
++	// cond: SizeAndAlign(s).Size() == 16
+ 	// result: (MOVOstore dst (MOVOload src mem) mem)
+ 	for {
+-		if v.AuxInt != 16 {
+-			break
+-		}
++		s := v.AuxInt
+ 		dst := v.Args[0]
+ 		src := v.Args[1]
+ 		mem := v.Args[2]
++		if !(SizeAndAlign(s).Size() == 16) {
++			break
++		}
+ 		v.reset(OpAMD64MOVOstore)
+ 		v.AddArg(dst)
+ 		v0 := b.NewValue0(v.Line, OpAMD64MOVOload, TypeInt128)
+@@ -12108,16 +12114,17 @@ func rewriteValueAMD64_OpMove(v *Value, config *Config) bool {
+ 		v.AddArg(mem)
+ 		return true
+ 	}
+-	// match: (Move [3] dst src mem)
+-	// cond:
++	// match: (Move [s] dst src mem)
++	// cond: SizeAndAlign(s).Size() == 3
+ 	// result: (MOVBstore [2] dst (MOVBload [2] src mem) 		(MOVWstore dst (MOVWload src mem) mem))
+ 	for {
+-		if v.AuxInt != 3 {
+-			break
+-		}
++		s := v.AuxInt
+ 		dst := v.Args[0]
+ 		src := v.Args[1]
+ 		mem := v.Args[2]
++		if !(SizeAndAlign(s).Size() == 3) {
++			break
++		}
+ 		v.reset(OpAMD64MOVBstore)
+ 		v.AuxInt = 2
+ 		v.AddArg(dst)
+@@ -12136,16 +12143,17 @@ func rewriteValueAMD64_OpMove(v *Value, config *Config) bool {
+ 		v.AddArg(v1)
+ 		return true
+ 	}
+-	// match: (Move [5] dst src mem)
+-	// cond:
++	// match: (Move [s] dst src mem)
++	// cond: SizeAndAlign(s).Size() == 5
+ 	// result: (MOVBstore [4] dst (MOVBload [4] src mem) 		(MOVLstore dst (MOVLload src mem) mem))
+ 	for {
+-		if v.AuxInt != 5 {
+-			break
+-		}
++		s := v.AuxInt
+ 		dst := v.Args[0]
+ 		src := v.Args[1]
+ 		mem := v.Args[2]
++		if !(SizeAndAlign(s).Size() == 5) {
++			break
++		}
+ 		v.reset(OpAMD64MOVBstore)
+ 		v.AuxInt = 4
+ 		v.AddArg(dst)
+@@ -12164,16 +12172,17 @@ func rewriteValueAMD64_OpMove(v *Value, config *Config) bool {
+ 		v.AddArg(v1)
+ 		return true
+ 	}
+-	// match: (Move [6] dst src mem)
+-	// cond:
++	// match: (Move [s] dst src mem)
++	// cond: SizeAndAlign(s).Size() == 6
+ 	// result: (MOVWstore [4] dst (MOVWload [4] src mem) 		(MOVLstore dst (MOVLload src mem) mem))
+ 	for {
+-		if v.AuxInt != 6 {
+-			break
+-		}
++		s := v.AuxInt
+ 		dst := v.Args[0]
+ 		src := v.Args[1]
+ 		mem := v.Args[2]
++		if !(SizeAndAlign(s).Size() == 6) {
++			break
++		}
+ 		v.reset(OpAMD64MOVWstore)
+ 		v.AuxInt = 4
+ 		v.AddArg(dst)
+@@ -12192,16 +12201,17 @@ func rewriteValueAMD64_OpMove(v *Value, config *Config) bool {
+ 		v.AddArg(v1)
+ 		return true
+ 	}
+-	// match: (Move [7] dst src mem)
+-	// cond:
++	// match: (Move [s] dst src mem)
++	// cond: SizeAndAlign(s).Size() == 7
+ 	// result: (MOVLstore [3] dst (MOVLload [3] src mem) 		(MOVLstore dst (MOVLload src mem) mem))
+ 	for {
+-		if v.AuxInt != 7 {
+-			break
+-		}
++		s := v.AuxInt
+ 		dst := v.Args[0]
+ 		src := v.Args[1]
+ 		mem := v.Args[2]
++		if !(SizeAndAlign(s).Size() == 7) {
++			break
++		}
+ 		v.reset(OpAMD64MOVLstore)
+ 		v.AuxInt = 3
+ 		v.AddArg(dst)
+@@ -12220,22 +12230,22 @@ func rewriteValueAMD64_OpMove(v *Value, config *Config) bool {
+ 		v.AddArg(v1)
+ 		return true
+ 	}
+-	// match: (Move [size] dst src mem)
+-	// cond: size > 8 && size < 16
+-	// result: (MOVQstore [size-8] dst (MOVQload [size-8] src mem) 		(MOVQstore dst (MOVQload src mem) mem))
++	// match: (Move [s] dst src mem)
++	// cond: SizeAndAlign(s).Size() > 8 && SizeAndAlign(s).Size() < 16
++	// result: (MOVQstore [SizeAndAlign(s).Size()-8] dst (MOVQload [SizeAndAlign(s).Size()-8] src mem) 		(MOVQstore dst (MOVQload src mem) mem))
+ 	for {
+-		size := v.AuxInt
++		s := v.AuxInt
+ 		dst := v.Args[0]
+ 		src := v.Args[1]
+ 		mem := v.Args[2]
+-		if !(size > 8 && size < 16) {
++		if !(SizeAndAlign(s).Size() > 8 && SizeAndAlign(s).Size() < 16) {
+ 			break
+ 		}
+ 		v.reset(OpAMD64MOVQstore)
+-		v.AuxInt = size - 8
++		v.AuxInt = SizeAndAlign(s).Size() - 8
+ 		v.AddArg(dst)
+ 		v0 := b.NewValue0(v.Line, OpAMD64MOVQload, config.fe.TypeUInt64())
+-		v0.AuxInt = size - 8
++		v0.AuxInt = SizeAndAlign(s).Size() - 8
+ 		v0.AddArg(src)
+ 		v0.AddArg(mem)
+ 		v.AddArg(v0)
+@@ -12249,26 +12259,26 @@ func rewriteValueAMD64_OpMove(v *Value, config *Config) bool {
+ 		v.AddArg(v1)
+ 		return true
+ 	}
+-	// match: (Move [size] dst src mem)
+-	// cond: size > 16 && size%16 != 0 && size%16 <= 8
+-	// result: (Move [size-size%16] (ADDQconst <dst.Type> dst [size%16]) (ADDQconst <src.Type> src [size%16]) 		(MOVQstore dst (MOVQload src mem) mem))
++	// match: (Move [s] dst src mem)
++	// cond: SizeAndAlign(s).Size() > 16 && SizeAndAlign(s).Size()%16 != 0 && SizeAndAlign(s).Size()%16 <= 8
++	// result: (Move [SizeAndAlign(s).Size()-SizeAndAlign(s).Size()%16] 		(ADDQconst <dst.Type> dst [SizeAndAlign(s).Size()%16]) 		(ADDQconst <src.Type> src [SizeAndAlign(s).Size()%16]) 		(MOVQstore dst (MOVQload src mem) mem))
+ 	for {
+-		size := v.AuxInt
++		s := v.AuxInt
+ 		dst := v.Args[0]
+ 		src := v.Args[1]
+ 		mem := v.Args[2]
+-		if !(size > 16 && size%16 != 0 && size%16 <= 8) {
++		if !(SizeAndAlign(s).Size() > 16 && SizeAndAlign(s).Size()%16 != 0 && SizeAndAlign(s).Size()%16 <= 8) {
+ 			break
+ 		}
+ 		v.reset(OpMove)
+-		v.AuxInt = size - size%16
++		v.AuxInt = SizeAndAlign(s).Size() - SizeAndAlign(s).Size()%16
+ 		v0 := b.NewValue0(v.Line, OpAMD64ADDQconst, dst.Type)
+ 		v0.AddArg(dst)
+-		v0.AuxInt = size % 16
++		v0.AuxInt = SizeAndAlign(s).Size() % 16
+ 		v.AddArg(v0)
+ 		v1 := b.NewValue0(v.Line, OpAMD64ADDQconst, src.Type)
+ 		v1.AddArg(src)
+-		v1.AuxInt = size % 16
++		v1.AuxInt = SizeAndAlign(s).Size() % 16
+ 		v.AddArg(v1)
+ 		v2 := b.NewValue0(v.Line, OpAMD64MOVQstore, TypeMem)
+ 		v2.AddArg(dst)
+@@ -12280,26 +12290,26 @@ func rewriteValueAMD64_OpMove(v *Value, config *Config) bool {
+ 		v.AddArg(v2)
+ 		return true
+ 	}
+-	// match: (Move [size] dst src mem)
+-	// cond: size > 16 && size%16 != 0 && size%16 > 8
+-	// result: (Move [size-size%16] (ADDQconst <dst.Type> dst [size%16]) (ADDQconst <src.Type> src [size%16]) 		(MOVOstore dst (MOVOload src mem) mem))
++	// match: (Move [s] dst src mem)
++	// cond: SizeAndAlign(s).Size() > 16 && SizeAndAlign(s).Size()%16 != 0 && SizeAndAlign(s).Size()%16 > 8
++	// result: (Move [SizeAndAlign(s).Size()-SizeAndAlign(s).Size()%16] 		(ADDQconst <dst.Type> dst [SizeAndAlign(s).Size()%16]) 		(ADDQconst <src.Type> src [SizeAndAlign(s).Size()%16]) 		(MOVOstore dst (MOVOload src mem) mem))
+ 	for {
+-		size := v.AuxInt
++		s := v.AuxInt
+ 		dst := v.Args[0]
+ 		src := v.Args[1]
+ 		mem := v.Args[2]
+-		if !(size > 16 && size%16 != 0 && size%16 > 8) {
++		if !(SizeAndAlign(s).Size() > 16 && SizeAndAlign(s).Size()%16 != 0 && SizeAndAlign(s).Size()%16 > 8) {
+ 			break
+ 		}
+ 		v.reset(OpMove)
+-		v.AuxInt = size - size%16
++		v.AuxInt = SizeAndAlign(s).Size() - SizeAndAlign(s).Size()%16
+ 		v0 := b.NewValue0(v.Line, OpAMD64ADDQconst, dst.Type)
+ 		v0.AddArg(dst)
+-		v0.AuxInt = size % 16
++		v0.AuxInt = SizeAndAlign(s).Size() % 16
+ 		v.AddArg(v0)
+ 		v1 := b.NewValue0(v.Line, OpAMD64ADDQconst, src.Type)
+ 		v1.AddArg(src)
+-		v1.AuxInt = size % 16
++		v1.AuxInt = SizeAndAlign(s).Size() % 16
+ 		v.AddArg(v1)
+ 		v2 := b.NewValue0(v.Line, OpAMD64MOVOstore, TypeMem)
+ 		v2.AddArg(dst)
+@@ -12311,40 +12321,40 @@ func rewriteValueAMD64_OpMove(v *Value, config *Config) bool {
+ 		v.AddArg(v2)
+ 		return true
+ 	}
+-	// match: (Move [size] dst src mem)
+-	// cond: size >= 32 && size <= 16*64 && size%16 == 0 && !config.noDuffDevice
+-	// result: (DUFFCOPY [14*(64-size/16)] dst src mem)
++	// match: (Move [s] dst src mem)
++	// cond: SizeAndAlign(s).Size() >= 32 && SizeAndAlign(s).Size() <= 16*64 && SizeAndAlign(s).Size()%16 == 0 	&& !config.noDuffDevice
++	// result: (DUFFCOPY [14*(64-SizeAndAlign(s).Size()/16)] dst src mem)
+ 	for {
+-		size := v.AuxInt
++		s := v.AuxInt
+ 		dst := v.Args[0]
+ 		src := v.Args[1]
+ 		mem := v.Args[2]
+-		if !(size >= 32 && size <= 16*64 && size%16 == 0 && !config.noDuffDevice) {
++		if !(SizeAndAlign(s).Size() >= 32 && SizeAndAlign(s).Size() <= 16*64 && SizeAndAlign(s).Size()%16 == 0 && !config.noDuffDevice) {
+ 			break
+ 		}
+ 		v.reset(OpAMD64DUFFCOPY)
+-		v.AuxInt = 14 * (64 - size/16)
++		v.AuxInt = 14 * (64 - SizeAndAlign(s).Size()/16)
+ 		v.AddArg(dst)
+ 		v.AddArg(src)
+ 		v.AddArg(mem)
+ 		return true
+ 	}
+-	// match: (Move [size] dst src mem)
+-	// cond: (size > 16*64 || config.noDuffDevice) && size%8 == 0
+-	// result: (REPMOVSQ dst src (MOVQconst [size/8]) mem)
++	// match: (Move [s] dst src mem)
++	// cond: (SizeAndAlign(s).Size() > 16*64 || config.noDuffDevice) && SizeAndAlign(s).Size()%8 == 0
++	// result: (REPMOVSQ dst src (MOVQconst [SizeAndAlign(s).Size()/8]) mem)
+ 	for {
+-		size := v.AuxInt
++		s := v.AuxInt
+ 		dst := v.Args[0]
+ 		src := v.Args[1]
+ 		mem := v.Args[2]
+-		if !((size > 16*64 || config.noDuffDevice) && size%8 == 0) {
++		if !((SizeAndAlign(s).Size() > 16*64 || config.noDuffDevice) && SizeAndAlign(s).Size()%8 == 0) {
+ 			break
+ 		}
+ 		v.reset(OpAMD64REPMOVSQ)
+ 		v.AddArg(dst)
+ 		v.AddArg(src)
+ 		v0 := b.NewValue0(v.Line, OpAMD64MOVQconst, config.fe.TypeUInt64())
+-		v0.AuxInt = size / 8
++		v0.AuxInt = SizeAndAlign(s).Size() / 8
+ 		v.AddArg(v0)
+ 		v.AddArg(mem)
+ 		return true
+@@ -16907,88 +16917,94 @@ func rewriteValueAMD64_OpXor8(v *Value, config *Config) bool {
+ func rewriteValueAMD64_OpZero(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+-	// match: (Zero [0] _ mem)
+-	// cond:
++	// match: (Zero [s] _ mem)
++	// cond: SizeAndAlign(s).Size() == 0
+ 	// result: mem
+ 	for {
+-		if v.AuxInt != 0 {
++		s := v.AuxInt
++		mem := v.Args[1]
++		if !(SizeAndAlign(s).Size() == 0) {
+ 			break
+ 		}
+-		mem := v.Args[1]
+ 		v.reset(OpCopy)
+ 		v.Type = mem.Type
+ 		v.AddArg(mem)
+ 		return true
+ 	}
+-	// match: (Zero [1] destptr mem)
+-	// cond:
++	// match: (Zero [s] destptr mem)
++	// cond: SizeAndAlign(s).Size() == 1
+ 	// result: (MOVBstoreconst [0] destptr mem)
+ 	for {
+-		if v.AuxInt != 1 {
+-			break
+-		}
++		s := v.AuxInt
+ 		destptr := v.Args[0]
+ 		mem := v.Args[1]
++		if !(SizeAndAlign(s).Size() == 1) {
++			break
++		}
+ 		v.reset(OpAMD64MOVBstoreconst)
+ 		v.AuxInt = 0
+ 		v.AddArg(destptr)
+ 		v.AddArg(mem)
+ 		return true
+ 	}
+-	// match: (Zero [2] destptr mem)
+-	// cond:
++	// match: (Zero [s] destptr mem)
++	// cond: SizeAndAlign(s).Size() == 2
+ 	// result: (MOVWstoreconst [0] destptr mem)
+ 	for {
+-		if v.AuxInt != 2 {
+-			break
+-		}
++		s := v.AuxInt
+ 		destptr := v.Args[0]
+ 		mem := v.Args[1]
++		if !(SizeAndAlign(s).Size() == 2) {
++			break
++		}
+ 		v.reset(OpAMD64MOVWstoreconst)
+ 		v.AuxInt = 0
+ 		v.AddArg(destptr)
+ 		v.AddArg(mem)
+ 		return true
+ 	}
+-	// match: (Zero [4] destptr mem)
+-	// cond:
++	// match: (Zero [s] destptr mem)
++	// cond: SizeAndAlign(s).Size() == 4
+ 	// result: (MOVLstoreconst [0] destptr mem)
+ 	for {
+-		if v.AuxInt != 4 {
+-			break
+-		}
++		s := v.AuxInt
+ 		destptr := v.Args[0]
+ 		mem := v.Args[1]
++		if !(SizeAndAlign(s).Size() == 4) {
++			break
++		}
+ 		v.reset(OpAMD64MOVLstoreconst)
+ 		v.AuxInt = 0
+ 		v.AddArg(destptr)
+ 		v.AddArg(mem)
+ 		return true
+ 	}
+-	// match: (Zero [8] destptr mem)
+-	// cond:
++	// match: (Zero [s] destptr mem)
++	// cond: SizeAndAlign(s).Size() == 8
+ 	// result: (MOVQstoreconst [0] destptr mem)
+ 	for {
+-		if v.AuxInt != 8 {
+-			break
+-		}
++		s := v.AuxInt
+ 		destptr := v.Args[0]
+ 		mem := v.Args[1]
++		if !(SizeAndAlign(s).Size() == 8) {
++			break
++		}
+ 		v.reset(OpAMD64MOVQstoreconst)
+ 		v.AuxInt = 0
+ 		v.AddArg(destptr)
+ 		v.AddArg(mem)
+ 		return true
+ 	}
+-	// match: (Zero [3] destptr mem)
+-	// cond:
++	// match: (Zero [s] destptr mem)
++	// cond: SizeAndAlign(s).Size() == 3
+ 	// result: (MOVBstoreconst [makeValAndOff(0,2)] destptr 		(MOVWstoreconst [0] destptr mem))
+ 	for {
+-		if v.AuxInt != 3 {
+-			break
+-		}
++		s := v.AuxInt
+ 		destptr := v.Args[0]
+ 		mem := v.Args[1]
++		if !(SizeAndAlign(s).Size() == 3) {
++			break
++		}
+ 		v.reset(OpAMD64MOVBstoreconst)
+ 		v.AuxInt = makeValAndOff(0, 2)
+ 		v.AddArg(destptr)
+@@ -16999,15 +17015,16 @@ func rewriteValueAMD64_OpZero(v *Value, config *Config) bool {
+ 		v.AddArg(v0)
+ 		return true
+ 	}
+-	// match: (Zero [5] destptr mem)
+-	// cond:
++	// match: (Zero [s] destptr mem)
++	// cond: SizeAndAlign(s).Size() == 5
+ 	// result: (MOVBstoreconst [makeValAndOff(0,4)] destptr 		(MOVLstoreconst [0] destptr mem))
+ 	for {
+-		if v.AuxInt != 5 {
+-			break
+-		}
++		s := v.AuxInt
+ 		destptr := v.Args[0]
+ 		mem := v.Args[1]
++		if !(SizeAndAlign(s).Size() == 5) {
++			break
++		}
+ 		v.reset(OpAMD64MOVBstoreconst)
+ 		v.AuxInt = makeValAndOff(0, 4)
+ 		v.AddArg(destptr)
+@@ -17018,15 +17035,16 @@ func rewriteValueAMD64_OpZero(v *Value, config *Config) bool {
+ 		v.AddArg(v0)
+ 		return true
+ 	}
+-	// match: (Zero [6] destptr mem)
+-	// cond:
++	// match: (Zero [s] destptr mem)
++	// cond: SizeAndAlign(s).Size() == 6
+ 	// result: (MOVWstoreconst [makeValAndOff(0,4)] destptr 		(MOVLstoreconst [0] destptr mem))
+ 	for {
+-		if v.AuxInt != 6 {
+-			break
+-		}
++		s := v.AuxInt
+ 		destptr := v.Args[0]
+ 		mem := v.Args[1]
++		if !(SizeAndAlign(s).Size() == 6) {
++			break
++		}
+ 		v.reset(OpAMD64MOVWstoreconst)
+ 		v.AuxInt = makeValAndOff(0, 4)
+ 		v.AddArg(destptr)
+@@ -17037,15 +17055,16 @@ func rewriteValueAMD64_OpZero(v *Value, config *Config) bool {
+ 		v.AddArg(v0)
+ 		return true
+ 	}
+-	// match: (Zero [7] destptr mem)
+-	// cond:
++	// match: (Zero [s] destptr mem)
++	// cond: SizeAndAlign(s).Size() == 7
+ 	// result: (MOVLstoreconst [makeValAndOff(0,3)] destptr 		(MOVLstoreconst [0] destptr mem))
+ 	for {
+-		if v.AuxInt != 7 {
+-			break
+-		}
++		s := v.AuxInt
+ 		destptr := v.Args[0]
+ 		mem := v.Args[1]
++		if !(SizeAndAlign(s).Size() == 7) {
++			break
++		}
+ 		v.reset(OpAMD64MOVLstoreconst)
+ 		v.AuxInt = makeValAndOff(0, 3)
+ 		v.AddArg(destptr)
+@@ -17056,21 +17075,21 @@ func rewriteValueAMD64_OpZero(v *Value, config *Config) bool {
+ 		v.AddArg(v0)
+ 		return true
+ 	}
+-	// match: (Zero [size] destptr mem)
+-	// cond: size%8 != 0 && size > 8
+-	// result: (Zero [size-size%8] (ADDQconst destptr [size%8]) 		(MOVQstoreconst [0] destptr mem))
++	// match: (Zero [s] destptr mem)
++	// cond: SizeAndAlign(s).Size()%8 != 0 && SizeAndAlign(s).Size() > 8
++	// result: (Zero [SizeAndAlign(s).Size()-SizeAndAlign(s).Size()%8] (ADDQconst destptr [SizeAndAlign(s).Size()%8]) 		(MOVQstoreconst [0] destptr mem))
+ 	for {
+-		size := v.AuxInt
++		s := v.AuxInt
+ 		destptr := v.Args[0]
+ 		mem := v.Args[1]
+-		if !(size%8 != 0 && size > 8) {
++		if !(SizeAndAlign(s).Size()%8 != 0 && SizeAndAlign(s).Size() > 8) {
+ 			break
+ 		}
+ 		v.reset(OpZero)
+-		v.AuxInt = size - size%8
++		v.AuxInt = SizeAndAlign(s).Size() - SizeAndAlign(s).Size()%8
+ 		v0 := b.NewValue0(v.Line, OpAMD64ADDQconst, config.fe.TypeUInt64())
+ 		v0.AddArg(destptr)
+-		v0.AuxInt = size % 8
++		v0.AuxInt = SizeAndAlign(s).Size() % 8
+ 		v.AddArg(v0)
+ 		v1 := b.NewValue0(v.Line, OpAMD64MOVQstoreconst, TypeMem)
+ 		v1.AuxInt = 0
+@@ -17079,15 +17098,16 @@ func rewriteValueAMD64_OpZero(v *Value, config *Config) bool {
+ 		v.AddArg(v1)
+ 		return true
+ 	}
+-	// match: (Zero [16] destptr mem)
+-	// cond:
++	// match: (Zero [s] destptr mem)
++	// cond: SizeAndAlign(s).Size() == 16
+ 	// result: (MOVQstoreconst [makeValAndOff(0,8)] destptr 		(MOVQstoreconst [0] destptr mem))
+ 	for {
+-		if v.AuxInt != 16 {
+-			break
+-		}
++		s := v.AuxInt
+ 		destptr := v.Args[0]
+ 		mem := v.Args[1]
++		if !(SizeAndAlign(s).Size() == 16) {
++			break
++		}
+ 		v.reset(OpAMD64MOVQstoreconst)
+ 		v.AuxInt = makeValAndOff(0, 8)
+ 		v.AddArg(destptr)
+@@ -17098,15 +17118,16 @@ func rewriteValueAMD64_OpZero(v *Value, config *Config) bool {
+ 		v.AddArg(v0)
+ 		return true
+ 	}
+-	// match: (Zero [24] destptr mem)
+-	// cond:
++	// match: (Zero [s] destptr mem)
++	// cond: SizeAndAlign(s).Size() == 24
+ 	// result: (MOVQstoreconst [makeValAndOff(0,16)] destptr 		(MOVQstoreconst [makeValAndOff(0,8)] destptr 			(MOVQstoreconst [0] destptr mem)))
+ 	for {
+-		if v.AuxInt != 24 {
+-			break
+-		}
++		s := v.AuxInt
+ 		destptr := v.Args[0]
+ 		mem := v.Args[1]
++		if !(SizeAndAlign(s).Size() == 24) {
++			break
++		}
+ 		v.reset(OpAMD64MOVQstoreconst)
+ 		v.AuxInt = makeValAndOff(0, 16)
+ 		v.AddArg(destptr)
+@@ -17121,15 +17142,16 @@ func rewriteValueAMD64_OpZero(v *Value, config *Config) bool {
+ 		v.AddArg(v0)
+ 		return true
+ 	}
+-	// match: (Zero [32] destptr mem)
+-	// cond:
++	// match: (Zero [s] destptr mem)
++	// cond: SizeAndAlign(s).Size() == 32
+ 	// result: (MOVQstoreconst [makeValAndOff(0,24)] destptr 		(MOVQstoreconst [makeValAndOff(0,16)] destptr 			(MOVQstoreconst [makeValAndOff(0,8)] destptr 				(MOVQstoreconst [0] destptr mem))))
+ 	for {
+-		if v.AuxInt != 32 {
+-			break
+-		}
++		s := v.AuxInt
+ 		destptr := v.Args[0]
+ 		mem := v.Args[1]
++		if !(SizeAndAlign(s).Size() == 32) {
++			break
++		}
+ 		v.reset(OpAMD64MOVQstoreconst)
+ 		v.AuxInt = makeValAndOff(0, 24)
+ 		v.AddArg(destptr)
+@@ -17148,18 +17170,18 @@ func rewriteValueAMD64_OpZero(v *Value, config *Config) bool {
+ 		v.AddArg(v0)
+ 		return true
+ 	}
+-	// match: (Zero [size] destptr mem)
+-	// cond: size <= 1024 && size%8 == 0 && size%16 != 0 && !config.noDuffDevice
+-	// result: (Zero [size-8] (ADDQconst [8] destptr) (MOVQstore destptr (MOVQconst [0]) mem))
++	// match: (Zero [s] destptr mem)
++	// cond: SizeAndAlign(s).Size() <= 1024 && SizeAndAlign(s).Size()%8 == 0 && SizeAndAlign(s).Size()%16 != 0 	&& !config.noDuffDevice
++	// result: (Zero [SizeAndAlign(s).Size()-8] (ADDQconst [8] destptr) (MOVQstore destptr (MOVQconst [0]) mem))
+ 	for {
+-		size := v.AuxInt
++		s := v.AuxInt
+ 		destptr := v.Args[0]
+ 		mem := v.Args[1]
+-		if !(size <= 1024 && size%8 == 0 && size%16 != 0 && !config.noDuffDevice) {
++		if !(SizeAndAlign(s).Size() <= 1024 && SizeAndAlign(s).Size()%8 == 0 && SizeAndAlign(s).Size()%16 != 0 && !config.noDuffDevice) {
+ 			break
+ 		}
+ 		v.reset(OpZero)
+-		v.AuxInt = size - 8
++		v.AuxInt = SizeAndAlign(s).Size() - 8
+ 		v0 := b.NewValue0(v.Line, OpAMD64ADDQconst, config.fe.TypeUInt64())
+ 		v0.AuxInt = 8
+ 		v0.AddArg(destptr)
+@@ -17173,20 +17195,20 @@ func rewriteValueAMD64_OpZero(v *Value, config *Config) bool {
+ 		v.AddArg(v1)
+ 		return true
+ 	}
+-	// match: (Zero [size] destptr mem)
+-	// cond: size <= 1024 && size%16 == 0 && !config.noDuffDevice
+-	// result: (DUFFZERO [duffStart(size)] (ADDQconst [duffAdj(size)] destptr) (MOVOconst [0]) mem)
++	// match: (Zero [s] destptr mem)
++	// cond: SizeAndAlign(s).Size() <= 1024 && SizeAndAlign(s).Size()%16 == 0 && !config.noDuffDevice
++	// result: (DUFFZERO [duffStart(SizeAndAlign(s).Size())] 		(ADDQconst [duffAdj(SizeAndAlign(s).Size())] destptr) (MOVOconst [0]) 		mem)
+ 	for {
+-		size := v.AuxInt
++		s := v.AuxInt
+ 		destptr := v.Args[0]
+ 		mem := v.Args[1]
+-		if !(size <= 1024 && size%16 == 0 && !config.noDuffDevice) {
++		if !(SizeAndAlign(s).Size() <= 1024 && SizeAndAlign(s).Size()%16 == 0 && !config.noDuffDevice) {
+ 			break
+ 		}
+ 		v.reset(OpAMD64DUFFZERO)
+-		v.AuxInt = duffStart(size)
++		v.AuxInt = duffStart(SizeAndAlign(s).Size())
+ 		v0 := b.NewValue0(v.Line, OpAMD64ADDQconst, config.fe.TypeUInt64())
+-		v0.AuxInt = duffAdj(size)
++		v0.AuxInt = duffAdj(SizeAndAlign(s).Size())
+ 		v0.AddArg(destptr)
+ 		v.AddArg(v0)
+ 		v1 := b.NewValue0(v.Line, OpAMD64MOVOconst, TypeInt128)
+@@ -17195,20 +17217,20 @@ func rewriteValueAMD64_OpZero(v *Value, config *Config) bool {
+ 		v.AddArg(mem)
+ 		return true
+ 	}
+-	// match: (Zero [size] destptr mem)
+-	// cond: (size > 1024 || (config.noDuffDevice && size > 32)) && size%8 == 0
+-	// result: (REPSTOSQ destptr (MOVQconst [size/8]) (MOVQconst [0]) mem)
++	// match: (Zero [s] destptr mem)
++	// cond: (SizeAndAlign(s).Size() > 1024 || (config.noDuffDevice && SizeAndAlign(s).Size() > 32)) 	&& SizeAndAlign(s).Size()%8 == 0
++	// result: (REPSTOSQ destptr (MOVQconst [SizeAndAlign(s).Size()/8]) (MOVQconst [0]) mem)
+ 	for {
+-		size := v.AuxInt
++		s := v.AuxInt
+ 		destptr := v.Args[0]
+ 		mem := v.Args[1]
+-		if !((size > 1024 || (config.noDuffDevice && size > 32)) && size%8 == 0) {
++		if !((SizeAndAlign(s).Size() > 1024 || (config.noDuffDevice && SizeAndAlign(s).Size() > 32)) && SizeAndAlign(s).Size()%8 == 0) {
+ 			break
+ 		}
+ 		v.reset(OpAMD64REPSTOSQ)
+ 		v.AddArg(destptr)
+ 		v0 := b.NewValue0(v.Line, OpAMD64MOVQconst, config.fe.TypeUInt64())
+-		v0.AuxInt = size / 8
++		v0.AuxInt = SizeAndAlign(s).Size() / 8
+ 		v.AddArg(v0)
+ 		v1 := b.NewValue0(v.Line, OpAMD64MOVQconst, config.fe.TypeUInt64())
+ 		v1.AuxInt = 0
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM.go b/src/cmd/compile/internal/ssa/rewriteARM.go
+index 9c3a3b1435..f8165f9473 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM.go
+@@ -3274,29 +3274,31 @@ func rewriteValueARM_OpMod8u(v *Value, config *Config) bool {
+ func rewriteValueARM_OpMove(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+-	// match: (Move [0] _ _ mem)
+-	// cond:
++	// match: (Move [s] _ _ mem)
++	// cond: SizeAndAlign(s).Size() == 0
+ 	// result: mem
+ 	for {
+-		if v.AuxInt != 0 {
++		s := v.AuxInt
++		mem := v.Args[2]
++		if !(SizeAndAlign(s).Size() == 0) {
+ 			break
+ 		}
+-		mem := v.Args[2]
+ 		v.reset(OpCopy)
+ 		v.Type = mem.Type
+ 		v.AddArg(mem)
+ 		return true
+ 	}
+-	// match: (Move [1] dst src mem)
+-	// cond:
++	// match: (Move [s] dst src mem)
++	// cond: SizeAndAlign(s).Size() == 1
+ 	// result: (MOVBstore dst (MOVBUload src mem) mem)
+ 	for {
+-		if v.AuxInt != 1 {
+-			break
+-		}
++		s := v.AuxInt
+ 		dst := v.Args[0]
+ 		src := v.Args[1]
+ 		mem := v.Args[2]
++		if !(SizeAndAlign(s).Size() == 1) {
++			break
++		}
+ 		v.reset(OpARMMOVBstore)
+ 		v.AddArg(dst)
+ 		v0 := b.NewValue0(v.Line, OpARMMOVBUload, config.fe.TypeUInt8())
+@@ -3306,16 +3308,17 @@ func rewriteValueARM_OpMove(v *Value, config *Config) bool {
+ 		v.AddArg(mem)
+ 		return true
+ 	}
+-	// match: (Move [2] dst src mem)
+-	// cond:
++	// match: (Move [s] dst src mem)
++	// cond: SizeAndAlign(s).Size() == 2 && SizeAndAlign(s).Align()%2 == 0
+ 	// result: (MOVHstore dst (MOVHUload src mem) mem)
+ 	for {
+-		if v.AuxInt != 2 {
+-			break
+-		}
++		s := v.AuxInt
+ 		dst := v.Args[0]
+ 		src := v.Args[1]
+ 		mem := v.Args[2]
++		if !(SizeAndAlign(s).Size() == 2 && SizeAndAlign(s).Align()%2 == 0) {
++			break
++		}
+ 		v.reset(OpARMMOVHstore)
+ 		v.AddArg(dst)
+ 		v0 := b.NewValue0(v.Line, OpARMMOVHUload, config.fe.TypeUInt16())
+@@ -3325,16 +3328,46 @@ func rewriteValueARM_OpMove(v *Value, config *Config) bool {
+ 		v.AddArg(mem)
+ 		return true
+ 	}
+-	// match: (Move [4] dst src mem)
+-	// cond:
+-	// result: (MOVWstore dst (MOVWload src mem) mem)
++	// match: (Move [s] dst src mem)
++	// cond: SizeAndAlign(s).Size() == 2
++	// result: (MOVBstore [1] dst (MOVBUload [1] src mem) 		(MOVBstore dst (MOVBUload src mem) mem))
+ 	for {
+-		if v.AuxInt != 4 {
++		s := v.AuxInt
++		dst := v.Args[0]
++		src := v.Args[1]
++		mem := v.Args[2]
++		if !(SizeAndAlign(s).Size() == 2) {
+ 			break
+ 		}
++		v.reset(OpARMMOVBstore)
++		v.AuxInt = 1
++		v.AddArg(dst)
++		v0 := b.NewValue0(v.Line, OpARMMOVBUload, config.fe.TypeUInt8())
++		v0.AuxInt = 1
++		v0.AddArg(src)
++		v0.AddArg(mem)
++		v.AddArg(v0)
++		v1 := b.NewValue0(v.Line, OpARMMOVBstore, TypeMem)
++		v1.AddArg(dst)
++		v2 := b.NewValue0(v.Line, OpARMMOVBUload, config.fe.TypeUInt8())
++		v2.AddArg(src)
++		v2.AddArg(mem)
++		v1.AddArg(v2)
++		v1.AddArg(mem)
++		v.AddArg(v1)
++		return true
++	}
++	// match: (Move [s] dst src mem)
++	// cond: SizeAndAlign(s).Size() == 4 && SizeAndAlign(s).Align()%4 == 0
++	// result: (MOVWstore dst (MOVWload src mem) mem)
++	for {
++		s := v.AuxInt
+ 		dst := v.Args[0]
+ 		src := v.Args[1]
+ 		mem := v.Args[2]
++		if !(SizeAndAlign(s).Size() == 4 && SizeAndAlign(s).Align()%4 == 0) {
++			break
++		}
+ 		v.reset(OpARMMOVWstore)
+ 		v.AddArg(dst)
+ 		v0 := b.NewValue0(v.Line, OpARMMOVWload, config.fe.TypeUInt32())
+@@ -3344,20 +3377,21 @@ func rewriteValueARM_OpMove(v *Value, config *Config) bool {
+ 		v.AddArg(mem)
+ 		return true
+ 	}
+-	// match: (Move [3] dst src mem)
+-	// cond:
+-	// result: (MOVBstore [2] dst (MOVBUload [2] src mem) 		(MOVHstore dst (MOVHUload src mem) mem))
++	// match: (Move [s] dst src mem)
++	// cond: SizeAndAlign(s).Size() == 4 && SizeAndAlign(s).Align()%2 == 0
++	// result: (MOVHstore [2] dst (MOVHUload [2] src mem) 		(MOVHstore dst (MOVHUload src mem) mem))
+ 	for {
+-		if v.AuxInt != 3 {
+-			break
+-		}
++		s := v.AuxInt
+ 		dst := v.Args[0]
+ 		src := v.Args[1]
+ 		mem := v.Args[2]
+-		v.reset(OpARMMOVBstore)
++		if !(SizeAndAlign(s).Size() == 4 && SizeAndAlign(s).Align()%2 == 0) {
++			break
++		}
++		v.reset(OpARMMOVHstore)
+ 		v.AuxInt = 2
+ 		v.AddArg(dst)
+-		v0 := b.NewValue0(v.Line, OpARMMOVBUload, config.fe.TypeUInt8())
++		v0 := b.NewValue0(v.Line, OpARMMOVHUload, config.fe.TypeUInt16())
+ 		v0.AuxInt = 2
+ 		v0.AddArg(src)
+ 		v0.AddArg(mem)
+@@ -3372,62 +3406,118 @@ func rewriteValueARM_OpMove(v *Value, config *Config) bool {
+ 		v.AddArg(v1)
+ 		return true
+ 	}
+-	// match: (Move [size] dst src mem)
+-	// cond: size%4!=0 && size > 4
+-	// result: (Move [size%4] (ADDconst <dst.Type> dst [size-size%4]) (ADDconst <src.Type> src [size-size%4]) 		(Move <TypeMem> [size-size%4] dst src mem))
++	// match: (Move [s] dst src mem)
++	// cond: SizeAndAlign(s).Size() == 4
++	// result: (MOVBstore [3] dst (MOVBUload [3] src mem) 		(MOVBstore [2] dst (MOVBUload [2] src mem) 			(MOVBstore [1] dst (MOVBUload [1] src mem) 				(MOVBstore dst (MOVBUload src mem) mem))))
+ 	for {
+-		size := v.AuxInt
++		s := v.AuxInt
+ 		dst := v.Args[0]
+ 		src := v.Args[1]
+ 		mem := v.Args[2]
+-		if !(size%4 != 0 && size > 4) {
++		if !(SizeAndAlign(s).Size() == 4) {
+ 			break
+ 		}
+-		v.reset(OpMove)
+-		v.AuxInt = size % 4
+-		v0 := b.NewValue0(v.Line, OpARMADDconst, dst.Type)
+-		v0.AddArg(dst)
+-		v0.AuxInt = size - size%4
++		v.reset(OpARMMOVBstore)
++		v.AuxInt = 3
++		v.AddArg(dst)
++		v0 := b.NewValue0(v.Line, OpARMMOVBUload, config.fe.TypeUInt8())
++		v0.AuxInt = 3
++		v0.AddArg(src)
++		v0.AddArg(mem)
+ 		v.AddArg(v0)
+-		v1 := b.NewValue0(v.Line, OpARMADDconst, src.Type)
+-		v1.AddArg(src)
+-		v1.AuxInt = size - size%4
++		v1 := b.NewValue0(v.Line, OpARMMOVBstore, TypeMem)
++		v1.AuxInt = 2
++		v1.AddArg(dst)
++		v2 := b.NewValue0(v.Line, OpARMMOVBUload, config.fe.TypeUInt8())
++		v2.AuxInt = 2
++		v2.AddArg(src)
++		v2.AddArg(mem)
++		v1.AddArg(v2)
++		v3 := b.NewValue0(v.Line, OpARMMOVBstore, TypeMem)
++		v3.AuxInt = 1
++		v3.AddArg(dst)
++		v4 := b.NewValue0(v.Line, OpARMMOVBUload, config.fe.TypeUInt8())
++		v4.AuxInt = 1
++		v4.AddArg(src)
++		v4.AddArg(mem)
++		v3.AddArg(v4)
++		v5 := b.NewValue0(v.Line, OpARMMOVBstore, TypeMem)
++		v5.AddArg(dst)
++		v6 := b.NewValue0(v.Line, OpARMMOVBUload, config.fe.TypeUInt8())
++		v6.AddArg(src)
++		v6.AddArg(mem)
++		v5.AddArg(v6)
++		v5.AddArg(mem)
++		v3.AddArg(v5)
++		v1.AddArg(v3)
+ 		v.AddArg(v1)
+-		v2 := b.NewValue0(v.Line, OpMove, TypeMem)
+-		v2.AuxInt = size - size%4
+-		v2.AddArg(dst)
++		return true
++	}
++	// match: (Move [s] dst src mem)
++	// cond: SizeAndAlign(s).Size() == 3
++	// result: (MOVBstore [2] dst (MOVBUload [2] src mem) 		(MOVBstore [1] dst (MOVBUload [1] src mem) 			(MOVBstore dst (MOVBUload src mem) mem)))
++	for {
++		s := v.AuxInt
++		dst := v.Args[0]
++		src := v.Args[1]
++		mem := v.Args[2]
++		if !(SizeAndAlign(s).Size() == 3) {
++			break
++		}
++		v.reset(OpARMMOVBstore)
++		v.AuxInt = 2
++		v.AddArg(dst)
++		v0 := b.NewValue0(v.Line, OpARMMOVBUload, config.fe.TypeUInt8())
++		v0.AuxInt = 2
++		v0.AddArg(src)
++		v0.AddArg(mem)
++		v.AddArg(v0)
++		v1 := b.NewValue0(v.Line, OpARMMOVBstore, TypeMem)
++		v1.AuxInt = 1
++		v1.AddArg(dst)
++		v2 := b.NewValue0(v.Line, OpARMMOVBUload, config.fe.TypeUInt8())
++		v2.AuxInt = 1
+ 		v2.AddArg(src)
+ 		v2.AddArg(mem)
+-		v.AddArg(v2)
++		v1.AddArg(v2)
++		v3 := b.NewValue0(v.Line, OpARMMOVBstore, TypeMem)
++		v3.AddArg(dst)
++		v4 := b.NewValue0(v.Line, OpARMMOVBUload, config.fe.TypeUInt8())
++		v4.AddArg(src)
++		v4.AddArg(mem)
++		v3.AddArg(v4)
++		v3.AddArg(mem)
++		v1.AddArg(v3)
++		v.AddArg(v1)
+ 		return true
+ 	}
+-	// match: (Move [size] dst src mem)
+-	// cond: size%4 == 0 && size > 4 && size <= 512
+-	// result: (DUFFCOPY [8 * (128 - int64(size/4))] dst src mem)
++	// match: (Move [s] dst src mem)
++	// cond: SizeAndAlign(s).Size()%4 == 0 && SizeAndAlign(s).Size() > 4 && SizeAndAlign(s).Size() <= 512 	&& SizeAndAlign(s).Align()%4 == 0
++	// result: (DUFFCOPY [8 * (128 - int64(SizeAndAlign(s).Size()/4))] dst src mem)
+ 	for {
+-		size := v.AuxInt
++		s := v.AuxInt
+ 		dst := v.Args[0]
+ 		src := v.Args[1]
+ 		mem := v.Args[2]
+-		if !(size%4 == 0 && size > 4 && size <= 512) {
++		if !(SizeAndAlign(s).Size()%4 == 0 && SizeAndAlign(s).Size() > 4 && SizeAndAlign(s).Size() <= 512 && SizeAndAlign(s).Align()%4 == 0) {
+ 			break
+ 		}
+ 		v.reset(OpARMDUFFCOPY)
+-		v.AuxInt = 8 * (128 - int64(size/4))
++		v.AuxInt = 8 * (128 - int64(SizeAndAlign(s).Size()/4))
+ 		v.AddArg(dst)
+ 		v.AddArg(src)
+ 		v.AddArg(mem)
+ 		return true
+ 	}
+-	// match: (Move [size] dst src mem)
+-	// cond: size%4 == 0 && size > 512
+-	// result: (LoweredMove dst src (ADDconst <src.Type> src [size]) mem)
++	// match: (Move [s] dst src mem)
++	// cond: SizeAndAlign(s).Size()%4 == 0 && SizeAndAlign(s).Size() > 512 	&& SizeAndAlign(s).Align()%4 == 0
++	// result: (LoweredMove dst src (ADDconst <src.Type> src [SizeAndAlign(s).Size()]) mem)
+ 	for {
+-		size := v.AuxInt
++		s := v.AuxInt
+ 		dst := v.Args[0]
+ 		src := v.Args[1]
+ 		mem := v.Args[2]
+-		if !(size%4 == 0 && size > 512) {
++		if !(SizeAndAlign(s).Size()%4 == 0 && SizeAndAlign(s).Size() > 512 && SizeAndAlign(s).Align()%4 == 0) {
+ 			break
+ 		}
+ 		v.reset(OpARMLoweredMove)
+@@ -3435,7 +3525,28 @@ func rewriteValueARM_OpMove(v *Value, config *Config) bool {
+ 		v.AddArg(src)
+ 		v0 := b.NewValue0(v.Line, OpARMADDconst, src.Type)
+ 		v0.AddArg(src)
+-		v0.AuxInt = size
++		v0.AuxInt = SizeAndAlign(s).Size()
++		v.AddArg(v0)
++		v.AddArg(mem)
++		return true
++	}
++	// match: (Move [s] dst src mem)
++	// cond: SizeAndAlign(s).Size() > 4 && SizeAndAlign(s).Align()%4 != 0
++	// result: (LoweredMoveU dst src (ADDconst <src.Type> src [SizeAndAlign(s).Size()]) mem)
++	for {
++		s := v.AuxInt
++		dst := v.Args[0]
++		src := v.Args[1]
++		mem := v.Args[2]
++		if !(SizeAndAlign(s).Size() > 4 && SizeAndAlign(s).Align()%4 != 0) {
++			break
++		}
++		v.reset(OpARMLoweredMoveU)
++		v.AddArg(dst)
++		v.AddArg(src)
++		v0 := b.NewValue0(v.Line, OpARMADDconst, src.Type)
++		v0.AddArg(src)
++		v0.AuxInt = SizeAndAlign(s).Size()
+ 		v.AddArg(v0)
+ 		v.AddArg(mem)
+ 		return true
+@@ -4858,28 +4969,30 @@ func rewriteValueARM_OpXor8(v *Value, config *Config) bool {
+ func rewriteValueARM_OpZero(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+-	// match: (Zero [0] _ mem)
+-	// cond:
++	// match: (Zero [s] _ mem)
++	// cond: SizeAndAlign(s).Size() == 0
+ 	// result: mem
+ 	for {
+-		if v.AuxInt != 0 {
++		s := v.AuxInt
++		mem := v.Args[1]
++		if !(SizeAndAlign(s).Size() == 0) {
+ 			break
+ 		}
+-		mem := v.Args[1]
+ 		v.reset(OpCopy)
+ 		v.Type = mem.Type
+ 		v.AddArg(mem)
+ 		return true
+ 	}
+-	// match: (Zero [1] ptr mem)
+-	// cond:
++	// match: (Zero [s] ptr mem)
++	// cond: SizeAndAlign(s).Size() == 1
+ 	// result: (MOVBstore ptr (MOVWconst [0]) mem)
+ 	for {
+-		if v.AuxInt != 1 {
+-			break
+-		}
++		s := v.AuxInt
+ 		ptr := v.Args[0]
+ 		mem := v.Args[1]
++		if !(SizeAndAlign(s).Size() == 1) {
++			break
++		}
+ 		v.reset(OpARMMOVBstore)
+ 		v.AddArg(ptr)
+ 		v0 := b.NewValue0(v.Line, OpARMMOVWconst, config.fe.TypeUInt32())
+@@ -4888,15 +5001,16 @@ func rewriteValueARM_OpZero(v *Value, config *Config) bool {
+ 		v.AddArg(mem)
+ 		return true
+ 	}
+-	// match: (Zero [2] ptr mem)
+-	// cond:
++	// match: (Zero [s] ptr mem)
++	// cond: SizeAndAlign(s).Size() == 2 && SizeAndAlign(s).Align()%2 == 0
+ 	// result: (MOVHstore ptr (MOVWconst [0]) mem)
+ 	for {
+-		if v.AuxInt != 2 {
+-			break
+-		}
++		s := v.AuxInt
+ 		ptr := v.Args[0]
+ 		mem := v.Args[1]
++		if !(SizeAndAlign(s).Size() == 2 && SizeAndAlign(s).Align()%2 == 0) {
++			break
++		}
+ 		v.reset(OpARMMOVHstore)
+ 		v.AddArg(ptr)
+ 		v0 := b.NewValue0(v.Line, OpARMMOVWconst, config.fe.TypeUInt32())
+@@ -4905,15 +5019,42 @@ func rewriteValueARM_OpZero(v *Value, config *Config) bool {
+ 		v.AddArg(mem)
+ 		return true
+ 	}
+-	// match: (Zero [4] ptr mem)
+-	// cond:
+-	// result: (MOVWstore ptr (MOVWconst [0]) mem)
++	// match: (Zero [s] ptr mem)
++	// cond: SizeAndAlign(s).Size() == 2
++	// result: (MOVBstore [1] ptr (MOVWconst [0]) 		(MOVBstore [0] ptr (MOVWconst [0]) mem))
+ 	for {
+-		if v.AuxInt != 4 {
++		s := v.AuxInt
++		ptr := v.Args[0]
++		mem := v.Args[1]
++		if !(SizeAndAlign(s).Size() == 2) {
+ 			break
+ 		}
++		v.reset(OpARMMOVBstore)
++		v.AuxInt = 1
++		v.AddArg(ptr)
++		v0 := b.NewValue0(v.Line, OpARMMOVWconst, config.fe.TypeUInt32())
++		v0.AuxInt = 0
++		v.AddArg(v0)
++		v1 := b.NewValue0(v.Line, OpARMMOVBstore, TypeMem)
++		v1.AuxInt = 0
++		v1.AddArg(ptr)
++		v2 := b.NewValue0(v.Line, OpARMMOVWconst, config.fe.TypeUInt32())
++		v2.AuxInt = 0
++		v1.AddArg(v2)
++		v1.AddArg(mem)
++		v.AddArg(v1)
++		return true
++	}
++	// match: (Zero [s] ptr mem)
++	// cond: SizeAndAlign(s).Size() == 4 && SizeAndAlign(s).Align()%4 == 0
++	// result: (MOVWstore ptr (MOVWconst [0]) mem)
++	for {
++		s := v.AuxInt
+ 		ptr := v.Args[0]
+ 		mem := v.Args[1]
++		if !(SizeAndAlign(s).Size() == 4 && SizeAndAlign(s).Align()%4 == 0) {
++			break
++		}
+ 		v.reset(OpARMMOVWstore)
+ 		v.AddArg(ptr)
+ 		v0 := b.NewValue0(v.Line, OpARMMOVWconst, config.fe.TypeUInt32())
+@@ -4922,16 +5063,17 @@ func rewriteValueARM_OpZero(v *Value, config *Config) bool {
+ 		v.AddArg(mem)
+ 		return true
+ 	}
+-	// match: (Zero [3] ptr mem)
+-	// cond:
+-	// result: (MOVBstore [2] ptr (MOVWconst [0]) 		(MOVHstore [0] ptr (MOVWconst [0]) mem))
++	// match: (Zero [s] ptr mem)
++	// cond: SizeAndAlign(s).Size() == 4 && SizeAndAlign(s).Align()%2 == 0
++	// result: (MOVHstore [2] ptr (MOVWconst [0]) 		(MOVHstore [0] ptr (MOVWconst [0]) mem))
+ 	for {
+-		if v.AuxInt != 3 {
+-			break
+-		}
++		s := v.AuxInt
+ 		ptr := v.Args[0]
+ 		mem := v.Args[1]
+-		v.reset(OpARMMOVBstore)
++		if !(SizeAndAlign(s).Size() == 4 && SizeAndAlign(s).Align()%2 == 0) {
++			break
++		}
++		v.reset(OpARMMOVHstore)
+ 		v.AuxInt = 2
+ 		v.AddArg(ptr)
+ 		v0 := b.NewValue0(v.Line, OpARMMOVWconst, config.fe.TypeUInt32())
+@@ -4947,41 +5089,91 @@ func rewriteValueARM_OpZero(v *Value, config *Config) bool {
+ 		v.AddArg(v1)
+ 		return true
+ 	}
+-	// match: (Zero [size] ptr mem)
+-	// cond: size%4 != 0 && size > 4
+-	// result: (Zero [size%4] (ADDconst <ptr.Type> ptr [size-size%4]) 		(Zero <TypeMem> [size-size%4] ptr mem))
++	// match: (Zero [s] ptr mem)
++	// cond: SizeAndAlign(s).Size() == 4
++	// result: (MOVBstore [3] ptr (MOVWconst [0]) 		(MOVBstore [2] ptr (MOVWconst [0]) 			(MOVBstore [1] ptr (MOVWconst [0]) 				(MOVBstore [0] ptr (MOVWconst [0]) mem))))
+ 	for {
+-		size := v.AuxInt
++		s := v.AuxInt
+ 		ptr := v.Args[0]
+ 		mem := v.Args[1]
+-		if !(size%4 != 0 && size > 4) {
++		if !(SizeAndAlign(s).Size() == 4) {
+ 			break
+ 		}
+-		v.reset(OpZero)
+-		v.AuxInt = size % 4
+-		v0 := b.NewValue0(v.Line, OpARMADDconst, ptr.Type)
+-		v0.AddArg(ptr)
+-		v0.AuxInt = size - size%4
++		v.reset(OpARMMOVBstore)
++		v.AuxInt = 3
++		v.AddArg(ptr)
++		v0 := b.NewValue0(v.Line, OpARMMOVWconst, config.fe.TypeUInt32())
++		v0.AuxInt = 0
+ 		v.AddArg(v0)
+-		v1 := b.NewValue0(v.Line, OpZero, TypeMem)
+-		v1.AuxInt = size - size%4
++		v1 := b.NewValue0(v.Line, OpARMMOVBstore, TypeMem)
++		v1.AuxInt = 2
+ 		v1.AddArg(ptr)
+-		v1.AddArg(mem)
++		v2 := b.NewValue0(v.Line, OpARMMOVWconst, config.fe.TypeUInt32())
++		v2.AuxInt = 0
++		v1.AddArg(v2)
++		v3 := b.NewValue0(v.Line, OpARMMOVBstore, TypeMem)
++		v3.AuxInt = 1
++		v3.AddArg(ptr)
++		v4 := b.NewValue0(v.Line, OpARMMOVWconst, config.fe.TypeUInt32())
++		v4.AuxInt = 0
++		v3.AddArg(v4)
++		v5 := b.NewValue0(v.Line, OpARMMOVBstore, TypeMem)
++		v5.AuxInt = 0
++		v5.AddArg(ptr)
++		v6 := b.NewValue0(v.Line, OpARMMOVWconst, config.fe.TypeUInt32())
++		v6.AuxInt = 0
++		v5.AddArg(v6)
++		v5.AddArg(mem)
++		v3.AddArg(v5)
++		v1.AddArg(v3)
+ 		v.AddArg(v1)
+ 		return true
+ 	}
+-	// match: (Zero [size] ptr mem)
+-	// cond: size%4 == 0 && size > 4 && size <= 512
+-	// result: (DUFFZERO [4 * (128 - int64(size/4))] ptr (MOVWconst [0]) mem)
++	// match: (Zero [s] ptr mem)
++	// cond: SizeAndAlign(s).Size() == 3
++	// result: (MOVBstore [2] ptr (MOVWconst [0]) 		(MOVBstore [1] ptr (MOVWconst [0]) 			(MOVBstore [0] ptr (MOVWconst [0]) mem)))
+ 	for {
+-		size := v.AuxInt
++		s := v.AuxInt
+ 		ptr := v.Args[0]
+ 		mem := v.Args[1]
+-		if !(size%4 == 0 && size > 4 && size <= 512) {
++		if !(SizeAndAlign(s).Size() == 3) {
++			break
++		}
++		v.reset(OpARMMOVBstore)
++		v.AuxInt = 2
++		v.AddArg(ptr)
++		v0 := b.NewValue0(v.Line, OpARMMOVWconst, config.fe.TypeUInt32())
++		v0.AuxInt = 0
++		v.AddArg(v0)
++		v1 := b.NewValue0(v.Line, OpARMMOVBstore, TypeMem)
++		v1.AuxInt = 1
++		v1.AddArg(ptr)
++		v2 := b.NewValue0(v.Line, OpARMMOVWconst, config.fe.TypeUInt32())
++		v2.AuxInt = 0
++		v1.AddArg(v2)
++		v3 := b.NewValue0(v.Line, OpARMMOVBstore, TypeMem)
++		v3.AuxInt = 0
++		v3.AddArg(ptr)
++		v4 := b.NewValue0(v.Line, OpARMMOVWconst, config.fe.TypeUInt32())
++		v4.AuxInt = 0
++		v3.AddArg(v4)
++		v3.AddArg(mem)
++		v1.AddArg(v3)
++		v.AddArg(v1)
++		return true
++	}
++	// match: (Zero [s] ptr mem)
++	// cond: SizeAndAlign(s).Size()%4 == 0 && SizeAndAlign(s).Size() > 4 && SizeAndAlign(s).Size() <= 512 	&& SizeAndAlign(s).Align()%4 == 0
++	// result: (DUFFZERO [4 * (128 - int64(SizeAndAlign(s).Size()/4))] ptr (MOVWconst [0]) mem)
++	for {
++		s := v.AuxInt
++		ptr := v.Args[0]
++		mem := v.Args[1]
++		if !(SizeAndAlign(s).Size()%4 == 0 && SizeAndAlign(s).Size() > 4 && SizeAndAlign(s).Size() <= 512 && SizeAndAlign(s).Align()%4 == 0) {
+ 			break
+ 		}
+ 		v.reset(OpARMDUFFZERO)
+-		v.AuxInt = 4 * (128 - int64(size/4))
++		v.AuxInt = 4 * (128 - int64(SizeAndAlign(s).Size()/4))
+ 		v.AddArg(ptr)
+ 		v0 := b.NewValue0(v.Line, OpARMMOVWconst, config.fe.TypeUInt32())
+ 		v0.AuxInt = 0
+@@ -4989,21 +5181,43 @@ func rewriteValueARM_OpZero(v *Value, config *Config) bool {
+ 		v.AddArg(mem)
+ 		return true
+ 	}
+-	// match: (Zero [size] ptr mem)
+-	// cond: size%4 == 0 && size > 512
+-	// result: (LoweredZero ptr (ADDconst <ptr.Type> ptr [size]) (MOVWconst [0]) mem)
++	// match: (Zero [s] ptr mem)
++	// cond: SizeAndAlign(s).Size()%4 == 0 && SizeAndAlign(s).Size() > 512 	&& SizeAndAlign(s).Align()%4 == 0
++	// result: (LoweredZero ptr (ADDconst <ptr.Type> ptr [SizeAndAlign(s).Size()]) (MOVWconst [0]) mem)
+ 	for {
+-		size := v.AuxInt
++		s := v.AuxInt
+ 		ptr := v.Args[0]
+ 		mem := v.Args[1]
+-		if !(size%4 == 0 && size > 512) {
++		if !(SizeAndAlign(s).Size()%4 == 0 && SizeAndAlign(s).Size() > 512 && SizeAndAlign(s).Align()%4 == 0) {
+ 			break
+ 		}
+ 		v.reset(OpARMLoweredZero)
+ 		v.AddArg(ptr)
+ 		v0 := b.NewValue0(v.Line, OpARMADDconst, ptr.Type)
+ 		v0.AddArg(ptr)
+-		v0.AuxInt = size
++		v0.AuxInt = SizeAndAlign(s).Size()
++		v.AddArg(v0)
++		v1 := b.NewValue0(v.Line, OpARMMOVWconst, config.fe.TypeUInt32())
++		v1.AuxInt = 0
++		v.AddArg(v1)
++		v.AddArg(mem)
++		return true
++	}
++	// match: (Zero [s] ptr mem)
++	// cond: SizeAndAlign(s).Size() > 4 && SizeAndAlign(s).Align()%4 != 0
++	// result: (LoweredZeroU ptr (ADDconst <ptr.Type> ptr [SizeAndAlign(s).Size()]) (MOVWconst [0]) mem)
++	for {
++		s := v.AuxInt
++		ptr := v.Args[0]
++		mem := v.Args[1]
++		if !(SizeAndAlign(s).Size() > 4 && SizeAndAlign(s).Align()%4 != 0) {
++			break
++		}
++		v.reset(OpARMLoweredZeroU)
++		v.AddArg(ptr)
++		v0 := b.NewValue0(v.Line, OpARMADDconst, ptr.Type)
++		v0.AddArg(ptr)
++		v0.AuxInt = SizeAndAlign(s).Size()
+ 		v.AddArg(v0)
+ 		v1 := b.NewValue0(v.Line, OpARMMOVWconst, config.fe.TypeUInt32())
+ 		v1.AuxInt = 0
+diff --git a/src/cmd/compile/internal/ssa/rewritePPC64.go b/src/cmd/compile/internal/ssa/rewritePPC64.go
+index a83dbdf9d0..1451631ca0 100644
+--- a/src/cmd/compile/internal/ssa/rewritePPC64.go
++++ b/src/cmd/compile/internal/ssa/rewritePPC64.go
+@@ -2294,89 +2294,99 @@ func rewriteValuePPC64_OpXor8(v *Value, config *Config) bool {
+ func rewriteValuePPC64_OpZero(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+-	// match: (Zero [0] _ mem)
+-	// cond:
++	// match: (Zero [s] _ mem)
++	// cond: SizeAndAlign(s).Size() == 0
+ 	// result: mem
+ 	for {
+-		if v.AuxInt != 0 {
++		s := v.AuxInt
++		mem := v.Args[1]
++		if !(SizeAndAlign(s).Size() == 0) {
+ 			break
+ 		}
+-		mem := v.Args[1]
+ 		v.reset(OpCopy)
+ 		v.Type = mem.Type
+ 		v.AddArg(mem)
+ 		return true
+ 	}
+-	// match: (Zero [1] destptr mem)
+-	// cond:
++	// match: (Zero [s] destptr mem)
++	// cond: SizeAndAlign(s).Size() == 1
+ 	// result: (MOVBstoreconst [0] destptr mem)
+ 	for {
+-		if v.AuxInt != 1 {
+-			break
+-		}
++		s := v.AuxInt
+ 		destptr := v.Args[0]
+ 		mem := v.Args[1]
++		if !(SizeAndAlign(s).Size() == 1) {
++			break
++		}
+ 		v.reset(OpPPC64MOVBstoreconst)
+ 		v.AuxInt = 0
+ 		v.AddArg(destptr)
+ 		v.AddArg(mem)
+ 		return true
+ 	}
+-	// match: (Zero [2] destptr mem)
+-	// cond:
++	// match: (Zero [s] destptr mem)
++	// cond: SizeAndAlign(s).Size() == 2 && SizeAndAlign(s).Align()%2 == 0
+ 	// result: (MOVHstoreconst [0] destptr mem)
+ 	for {
+-		if v.AuxInt != 2 {
+-			break
+-		}
++		s := v.AuxInt
+ 		destptr := v.Args[0]
+ 		mem := v.Args[1]
++		if !(SizeAndAlign(s).Size() == 2 && SizeAndAlign(s).Align()%2 == 0) {
++			break
++		}
+ 		v.reset(OpPPC64MOVHstoreconst)
+ 		v.AuxInt = 0
+ 		v.AddArg(destptr)
+ 		v.AddArg(mem)
+ 		return true
+ 	}
+-	// match: (Zero [4] destptr mem)
+-	// cond:
+-	// result: (MOVWstoreconst [0] destptr mem)
++	// match: (Zero [s] destptr mem)
++	// cond: SizeAndAlign(s).Size() == 2
++	// result: (MOVBstoreconst [makeValAndOff(0,1)] destptr 		(MOVBstoreconst [0] destptr mem))
+ 	for {
+-		if v.AuxInt != 4 {
+-			break
+-		}
++		s := v.AuxInt
+ 		destptr := v.Args[0]
+ 		mem := v.Args[1]
+-		v.reset(OpPPC64MOVWstoreconst)
+-		v.AuxInt = 0
++		if !(SizeAndAlign(s).Size() == 2) {
++			break
++		}
++		v.reset(OpPPC64MOVBstoreconst)
++		v.AuxInt = makeValAndOff(0, 1)
+ 		v.AddArg(destptr)
+-		v.AddArg(mem)
++		v0 := b.NewValue0(v.Line, OpPPC64MOVBstoreconst, TypeMem)
++		v0.AuxInt = 0
++		v0.AddArg(destptr)
++		v0.AddArg(mem)
++		v.AddArg(v0)
+ 		return true
+ 	}
+-	// match: (Zero [8] destptr mem)
+-	// cond:
+-	// result: (MOVDstoreconst [0] destptr mem)
++	// match: (Zero [s] destptr mem)
++	// cond: SizeAndAlign(s).Size() == 4 && SizeAndAlign(s).Align()%4 == 0
++	// result: (MOVWstoreconst [0] destptr mem)
+ 	for {
+-		if v.AuxInt != 8 {
+-			break
+-		}
++		s := v.AuxInt
+ 		destptr := v.Args[0]
+ 		mem := v.Args[1]
+-		v.reset(OpPPC64MOVDstoreconst)
++		if !(SizeAndAlign(s).Size() == 4 && SizeAndAlign(s).Align()%4 == 0) {
++			break
++		}
++		v.reset(OpPPC64MOVWstoreconst)
+ 		v.AuxInt = 0
+ 		v.AddArg(destptr)
+ 		v.AddArg(mem)
+ 		return true
+ 	}
+-	// match: (Zero [3] destptr mem)
+-	// cond:
+-	// result: (MOVBstoreconst [makeValAndOff(0,2)] destptr                 (MOVHstoreconst [0] destptr mem))
++	// match: (Zero [s] destptr mem)
++	// cond: SizeAndAlign(s).Size() == 4 && SizeAndAlign(s).Align()%2 == 0
++	// result: (MOVHstoreconst [makeValAndOff(0,2)] destptr 		(MOVHstoreconst [0] destptr mem))
+ 	for {
+-		if v.AuxInt != 3 {
+-			break
+-		}
++		s := v.AuxInt
+ 		destptr := v.Args[0]
+ 		mem := v.Args[1]
+-		v.reset(OpPPC64MOVBstoreconst)
++		if !(SizeAndAlign(s).Size() == 4 && SizeAndAlign(s).Align()%2 == 0) {
++			break
++		}
++		v.reset(OpPPC64MOVHstoreconst)
+ 		v.AuxInt = makeValAndOff(0, 2)
+ 		v.AddArg(destptr)
+ 		v0 := b.NewValue0(v.Line, OpPPC64MOVHstoreconst, TypeMem)
+@@ -2386,35 +2396,61 @@ func rewriteValuePPC64_OpZero(v *Value, config *Config) bool {
+ 		v.AddArg(v0)
+ 		return true
+ 	}
+-	// match: (Zero [5] destptr mem)
+-	// cond:
+-	// result: (MOVBstoreconst [makeValAndOff(0,4)] destptr                 (MOVWstoreconst [0] destptr mem))
++	// match: (Zero [s] destptr mem)
++	// cond: SizeAndAlign(s).Size() == 4
++	// result: (MOVBstoreconst [makeValAndOff(0,3)] destptr 		(MOVBstoreconst [makeValAndOff(0,2)] destptr 			(MOVBstoreconst [makeValAndOff(0,1)] destptr 				(MOVBstoreconst [0] destptr mem))))
+ 	for {
+-		if v.AuxInt != 5 {
+-			break
+-		}
++		s := v.AuxInt
+ 		destptr := v.Args[0]
+ 		mem := v.Args[1]
++		if !(SizeAndAlign(s).Size() == 4) {
++			break
++		}
+ 		v.reset(OpPPC64MOVBstoreconst)
+-		v.AuxInt = makeValAndOff(0, 4)
++		v.AuxInt = makeValAndOff(0, 3)
+ 		v.AddArg(destptr)
+-		v0 := b.NewValue0(v.Line, OpPPC64MOVWstoreconst, TypeMem)
+-		v0.AuxInt = 0
++		v0 := b.NewValue0(v.Line, OpPPC64MOVBstoreconst, TypeMem)
++		v0.AuxInt = makeValAndOff(0, 2)
+ 		v0.AddArg(destptr)
+-		v0.AddArg(mem)
++		v1 := b.NewValue0(v.Line, OpPPC64MOVBstoreconst, TypeMem)
++		v1.AuxInt = makeValAndOff(0, 1)
++		v1.AddArg(destptr)
++		v2 := b.NewValue0(v.Line, OpPPC64MOVBstoreconst, TypeMem)
++		v2.AuxInt = 0
++		v2.AddArg(destptr)
++		v2.AddArg(mem)
++		v1.AddArg(v2)
++		v0.AddArg(v1)
+ 		v.AddArg(v0)
+ 		return true
+ 	}
+-	// match: (Zero [6] destptr mem)
+-	// cond:
+-	// result: (MOVHstoreconst [makeValAndOff(0,4)] destptr                 (MOVWstoreconst [0] destptr mem))
++	// match: (Zero [s] destptr mem)
++	// cond: SizeAndAlign(s).Size() == 8 && SizeAndAlign(s).Align()%8 == 0
++	// result: (MOVDstoreconst [0] destptr mem)
+ 	for {
+-		if v.AuxInt != 6 {
++		s := v.AuxInt
++		destptr := v.Args[0]
++		mem := v.Args[1]
++		if !(SizeAndAlign(s).Size() == 8 && SizeAndAlign(s).Align()%8 == 0) {
+ 			break
+ 		}
++		v.reset(OpPPC64MOVDstoreconst)
++		v.AuxInt = 0
++		v.AddArg(destptr)
++		v.AddArg(mem)
++		return true
++	}
++	// match: (Zero [s] destptr mem)
++	// cond: SizeAndAlign(s).Size() == 8 && SizeAndAlign(s).Align()%4 == 0
++	// result: (MOVWstoreconst [makeValAndOff(0,4)] destptr 		(MOVWstoreconst [0] destptr mem))
++	for {
++		s := v.AuxInt
+ 		destptr := v.Args[0]
+ 		mem := v.Args[1]
+-		v.reset(OpPPC64MOVHstoreconst)
++		if !(SizeAndAlign(s).Size() == 8 && SizeAndAlign(s).Align()%4 == 0) {
++			break
++		}
++		v.reset(OpPPC64MOVWstoreconst)
+ 		v.AuxInt = makeValAndOff(0, 4)
+ 		v.AddArg(destptr)
+ 		v0 := b.NewValue0(v.Line, OpPPC64MOVWstoreconst, TypeMem)
+@@ -2424,15 +2460,68 @@ func rewriteValuePPC64_OpZero(v *Value, config *Config) bool {
+ 		v.AddArg(v0)
+ 		return true
+ 	}
+-	// match: (Zero [16] destptr mem)
+-	// cond:
+-	// result: (MOVDstoreconst [makeValAndOff(0,8)] destptr                 (MOVDstoreconst [0] destptr mem))
++	// match: (Zero [s] destptr mem)
++	// cond: SizeAndAlign(s).Size() == 8 && SizeAndAlign(s).Align()%2 == 0
++	// result: (MOVHstoreconst [makeValAndOff(0,6)] destptr 		(MOVHstoreconst [makeValAndOff(0,4)] destptr 			(MOVHstoreconst [makeValAndOff(0,2)] destptr 				(MOVHstoreconst [0] destptr mem))))
++	for {
++		s := v.AuxInt
++		destptr := v.Args[0]
++		mem := v.Args[1]
++		if !(SizeAndAlign(s).Size() == 8 && SizeAndAlign(s).Align()%2 == 0) {
++			break
++		}
++		v.reset(OpPPC64MOVHstoreconst)
++		v.AuxInt = makeValAndOff(0, 6)
++		v.AddArg(destptr)
++		v0 := b.NewValue0(v.Line, OpPPC64MOVHstoreconst, TypeMem)
++		v0.AuxInt = makeValAndOff(0, 4)
++		v0.AddArg(destptr)
++		v1 := b.NewValue0(v.Line, OpPPC64MOVHstoreconst, TypeMem)
++		v1.AuxInt = makeValAndOff(0, 2)
++		v1.AddArg(destptr)
++		v2 := b.NewValue0(v.Line, OpPPC64MOVHstoreconst, TypeMem)
++		v2.AuxInt = 0
++		v2.AddArg(destptr)
++		v2.AddArg(mem)
++		v1.AddArg(v2)
++		v0.AddArg(v1)
++		v.AddArg(v0)
++		return true
++	}
++	// match: (Zero [s] destptr mem)
++	// cond: SizeAndAlign(s).Size() == 3
++	// result: (MOVBstoreconst [makeValAndOff(0,2)] destptr 		(MOVBstoreconst [makeValAndOff(0,1)] destptr 			(MOVBstoreconst [0] destptr mem)))
+ 	for {
+-		if v.AuxInt != 16 {
++		s := v.AuxInt
++		destptr := v.Args[0]
++		mem := v.Args[1]
++		if !(SizeAndAlign(s).Size() == 3) {
+ 			break
+ 		}
++		v.reset(OpPPC64MOVBstoreconst)
++		v.AuxInt = makeValAndOff(0, 2)
++		v.AddArg(destptr)
++		v0 := b.NewValue0(v.Line, OpPPC64MOVBstoreconst, TypeMem)
++		v0.AuxInt = makeValAndOff(0, 1)
++		v0.AddArg(destptr)
++		v1 := b.NewValue0(v.Line, OpPPC64MOVBstoreconst, TypeMem)
++		v1.AuxInt = 0
++		v1.AddArg(destptr)
++		v1.AddArg(mem)
++		v0.AddArg(v1)
++		v.AddArg(v0)
++		return true
++	}
++	// match: (Zero [s] destptr mem)
++	// cond: SizeAndAlign(s).Size() == 16 && SizeAndAlign(s).Align()%8 == 0
++	// result: (MOVDstoreconst [makeValAndOff(0,8)] destptr                 (MOVDstoreconst [0] destptr mem))
++	for {
++		s := v.AuxInt
+ 		destptr := v.Args[0]
+ 		mem := v.Args[1]
++		if !(SizeAndAlign(s).Size() == 16 && SizeAndAlign(s).Align()%8 == 0) {
++			break
++		}
+ 		v.reset(OpPPC64MOVDstoreconst)
+ 		v.AuxInt = makeValAndOff(0, 8)
+ 		v.AddArg(destptr)
+@@ -2443,15 +2532,16 @@ func rewriteValuePPC64_OpZero(v *Value, config *Config) bool {
+ 		v.AddArg(v0)
+ 		return true
+ 	}
+-	// match: (Zero [24] destptr mem)
+-	// cond:
++	// match: (Zero [s] destptr mem)
++	// cond: SizeAndAlign(s).Size() == 24 && SizeAndAlign(s).Align()%8 == 0
+ 	// result: (MOVDstoreconst [makeValAndOff(0,16)] destptr 		(MOVDstoreconst [makeValAndOff(0,8)] destptr 			(MOVDstoreconst [0] destptr mem)))
+ 	for {
+-		if v.AuxInt != 24 {
+-			break
+-		}
++		s := v.AuxInt
+ 		destptr := v.Args[0]
+ 		mem := v.Args[1]
++		if !(SizeAndAlign(s).Size() == 24 && SizeAndAlign(s).Align()%8 == 0) {
++			break
++		}
+ 		v.reset(OpPPC64MOVDstoreconst)
+ 		v.AuxInt = makeValAndOff(0, 16)
+ 		v.AddArg(destptr)
+@@ -2466,15 +2556,16 @@ func rewriteValuePPC64_OpZero(v *Value, config *Config) bool {
+ 		v.AddArg(v0)
+ 		return true
+ 	}
+-	// match: (Zero [32] destptr mem)
+-	// cond:
++	// match: (Zero [s] destptr mem)
++	// cond: SizeAndAlign(s).Size() == 32 && SizeAndAlign(s).Align()%8 == 0
+ 	// result: (MOVDstoreconst [makeValAndOff(0,24)] destptr 		(MOVDstoreconst [makeValAndOff(0,16)] destptr 			(MOVDstoreconst [makeValAndOff(0,8)] destptr 				(MOVDstoreconst [0] destptr mem))))
+ 	for {
+-		if v.AuxInt != 32 {
+-			break
+-		}
++		s := v.AuxInt
+ 		destptr := v.Args[0]
+ 		mem := v.Args[1]
++		if !(SizeAndAlign(s).Size() == 32 && SizeAndAlign(s).Align()%8 == 0) {
++			break
++		}
+ 		v.reset(OpPPC64MOVDstoreconst)
+ 		v.AuxInt = makeValAndOff(0, 24)
+ 		v.AddArg(destptr)
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index 9f08b3c4eb..581ce03de2 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -8837,7 +8837,7 @@ func rewriteValuegeneric_OpStore(v *Value, config *Config) bool {
+ 	}
+ 	// match: (Store [size] dst (Load <t> src mem) mem)
+ 	// cond: !config.fe.CanSSA(t)
+-	// result: (Move [size] dst src mem)
++	// result: (Move [MakeSizeAndAlign(size, t.Alignment()).Int64()] dst src mem)
+ 	for {
+ 		size := v.AuxInt
+ 		dst := v.Args[0]
+@@ -8855,7 +8855,7 @@ func rewriteValuegeneric_OpStore(v *Value, config *Config) bool {
+ 			break
+ 		}
+ 		v.reset(OpMove)
+-		v.AuxInt = size
++		v.AuxInt = MakeSizeAndAlign(size, t.Alignment()).Int64()
+ 		v.AddArg(dst)
+ 		v.AddArg(src)
+ 		v.AddArg(mem)
+@@ -8863,7 +8863,7 @@ func rewriteValuegeneric_OpStore(v *Value, config *Config) bool {
+ 	}
+ 	// match: (Store [size] dst (Load <t> src mem) (VarDef {x} mem))
+ 	// cond: !config.fe.CanSSA(t)
+-	// result: (Move [size] dst src (VarDef {x} mem))
++	// result: (Move [MakeSizeAndAlign(size, t.Alignment()).Int64()] dst src (VarDef {x} mem))
+ 	for {
+ 		size := v.AuxInt
+ 		dst := v.Args[0]
+@@ -8886,7 +8886,7 @@ func rewriteValuegeneric_OpStore(v *Value, config *Config) bool {
+ 			break
+ 		}
+ 		v.reset(OpMove)
+-		v.AuxInt = size
++		v.AuxInt = MakeSizeAndAlign(size, t.Alignment()).Int64()
+ 		v.AddArg(dst)
+ 		v.AddArg(src)
+ 		v0 := b.NewValue0(v.Line, OpVarDef, TypeMem)

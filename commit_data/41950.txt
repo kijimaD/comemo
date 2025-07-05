@@ -7,6 +7,39 @@ Date:   Sat Nov 2 10:24:33 2019 -0400
     Change-Id: I2e52206a95c9463df5661664726a8b3bbf3ad1fc
     Reviewed-on: https://go-review.googlesource.com/c/go/+/204825
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/internal/ld/deadcode2.go | 14 ++++++++++----
  1 file changed, 10 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/deadcode2.go b/src/cmd/link/internal/ld/deadcode2.go
+index a138bc97fa..cb6bb05492 100644
+--- a/src/cmd/link/internal/ld/deadcode2.go
++++ b/src/cmd/link/internal/ld/deadcode2.go
+@@ -18,10 +18,6 @@ import (
+ 
+ var _ = fmt.Print
+ 
+-// TODO:
+-// - Debug output:
+-//   Emit messages about which symbols are kept or deleted.
+-
+ type workQueue []loader.Sym
+ 
+ // Implement container/heap.Interface.
+@@ -205,6 +201,16 @@ func (d *deadcodePass2) mark(symIdx, parent loader.Sym) {
+ 		if d.ctxt.Reachparent != nil {
+ 			d.ldr.Reachparent[symIdx] = parent
+ 		}
++		if *flagDumpDep {
++			to := d.ldr.SymName(symIdx)
++			if to != "" {
++				from := "_"
++				if parent != 0 {
++					from = d.ldr.SymName(parent)
++				}
++				fmt.Printf("%s -> %s\n", from, to)
++			}
++		}
+ 	}
+ }
+ 

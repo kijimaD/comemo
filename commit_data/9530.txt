@@ -18,7 +18,7 @@ Date:   Mon Aug 29 09:34:59 2011 -0400
     R=golang-dev
     CC=golang-dev, rsc
     https://golang.org/cl/4953049
-
+---
  src/cmd/6g/cgen.c | 4 ----
  src/cmd/6g/gg.h   | 2 ++
  src/cmd/6g/gobj.c | 1 -
@@ -26,3 +26,85 @@ Date:   Mon Aug 29 09:34:59 2011 -0400
  src/cmd/6g/peep.c | 1 -
  src/cmd/6g/reg.c  | 1 -
  6 files changed, 3 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/6g/cgen.c b/src/cmd/6g/cgen.c
+index a4820cf2e3..6448d9c069 100644
+--- a/src/cmd/6g/cgen.c
++++ b/src/cmd/6g/cgen.c
+@@ -729,9 +729,6 @@ bgen(Node *n, int true, Prog *to)
+ 	if(n->ninit != nil)
+ 		genlist(n->ninit);
+ 
+-	nl = n->left;
+-	nr = n->right;
+-
+ 	if(n->type == T) {
+ 		convlit(&n, types[TBOOL]);
+ 		if(n->type == T)
+@@ -744,7 +741,6 @@ bgen(Node *n, int true, Prog *to)
+ 		patch(gins(AEND, N, N), to);
+ 		goto ret;
+ 	}
+-	nl = N;
+ 	nr = N;
+ 
+ 	switch(n->op) {
+diff --git a/src/cmd/6g/gg.h b/src/cmd/6g/gg.h
+index 47a92ad649..8a80ee9fb5 100644
+--- a/src/cmd/6g/gg.h
++++ b/src/cmd/6g/gg.h
+@@ -153,3 +153,5 @@ void	listinit(void);
+ 
+ void	zaddr(Biobuf*, Addr*, int, int);
+ 
++#pragma	varargck	type	"D"	Addr*
++#pragma	varargck	type	"lD"	Addr*
+diff --git a/src/cmd/6g/gobj.c b/src/cmd/6g/gobj.c
+index 5e704ce01f..e94759b71b 100644
+--- a/src/cmd/6g/gobj.c
++++ b/src/cmd/6g/gobj.c
+@@ -623,7 +623,6 @@ out:
+ 		// but 6l has a bug, and it can't handle
+ 		// JMP instructions too close to the top of
+ 		// a new function.
+-		p = pc;
+ 		gins(ANOP, N, N);
+ 	}
+ 
+diff --git a/src/cmd/6g/list.c b/src/cmd/6g/list.c
+index 4381a178a8..ad63f7d29e 100644
+--- a/src/cmd/6g/list.c
++++ b/src/cmd/6g/list.c
+@@ -133,7 +133,7 @@ Dconv(Fmt *fp)
+ 		if(fp->flags & FmtLong) {
+ 			d1 = a->offset & 0xffffffffLL;
+ 			d2 = (a->offset>>32) & 0xffffffffLL;
+-			snprint(str, sizeof(str), "$%ud-%ud", (ulong)d1, (ulong)d2);
++			snprint(str, sizeof(str), "$%lud-%lud", (ulong)d1, (ulong)d2);
+ 			break;
+ 		}
+ 		snprint(str, sizeof(str), "$%lld", a->offset);
+diff --git a/src/cmd/6g/peep.c b/src/cmd/6g/peep.c
+index 3fac3b7d16..63ef3f78f0 100644
+--- a/src/cmd/6g/peep.c
++++ b/src/cmd/6g/peep.c
+@@ -993,7 +993,6 @@ loop:
+ 		if(p->from.dval == p0->from.dval)
+ 		if(p->from.index == p0->from.index) {
+ 			excise(r);
+-			t++;
+ 			goto loop;
+ 		}
+ 		break;
+diff --git a/src/cmd/6g/reg.c b/src/cmd/6g/reg.c
+index 9006cf2b66..72c4b38736 100644
+--- a/src/cmd/6g/reg.c
++++ b/src/cmd/6g/reg.c
+@@ -179,7 +179,6 @@ regopt(Prog *firstp)
+ 	r1 = R;
+ 	firstr = R;
+ 	lastr = R;
+-	nvar = 0;
+ 
+ 	/*
+ 	 * control flow is more complicated in generated go code

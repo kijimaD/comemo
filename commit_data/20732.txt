@@ -6,6 +6,19 @@ Date:   Fri Oct 3 20:30:06 2014 -0700
     
     CC=golang-codereviews
     https://golang.org/cl/152160043
-
+---
  doc/go1.4.txt | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/doc/go1.4.txt b/doc/go1.4.txt
+index 75354643d5..0f79389a56 100644
+--- a/doc/go1.4.txt
++++ b/doc/go1.4.txt
+@@ -21,6 +21,7 @@ cmd/go: compile and link all _test.go files during 'go test', even in packages w
+ asm: make textflag.h available outside of cmd/ld (CL 128050043)
+ crypto/tls: add support for ALPN (RFC 7301) (CL 108710046)
+ crypto/tls: support programmatic selection of server certificates (CL 107400043)
++fmt: print type *map[T]T as &map[k:v] (CL 154870043)
+ encoding/gob: remove unsafe (CL 102680045)
+ misc: deleted editor support; refer to https://code.google.com/p/go-wiki/wiki/IDEsAndTextEditorPlugins instead (CL 105470043)
+ net/http: add Request.BasicAuth method (CL 76540043)

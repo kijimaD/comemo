@@ -14,6 +14,30 @@ Date:   Fri May 21 22:21:09 2021 +0200
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-
+---
  src/cmd/dist/build.go | 5 -----
  1 file changed, 5 deletions(-)
+
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index bec17696f3..33a329e48b 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -48,8 +48,6 @@ var (
+ 	exe              string
+ 	defaultcc        map[string]string
+ 	defaultcxx       map[string]string
+-	defaultcflags    string
+-	defaultldflags   string
+ 	defaultpkgconfig string
+ 	defaultldso      string
+ 
+@@ -209,9 +207,6 @@ func xinit() {
+ 	defaultcc = compilerEnv("CC", cc)
+ 	defaultcxx = compilerEnv("CXX", cxx)
+ 
+-	defaultcflags = os.Getenv("CFLAGS")
+-	defaultldflags = os.Getenv("LDFLAGS")
+-
+ 	b = os.Getenv("PKG_CONFIG")
+ 	if b == "" {
+ 		b = "pkg-config"

@@ -16,7 +16,47 @@ Date:   Tue Dec 7 09:22:33 2021 -0800
     Trust: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
-
+---
  src/runtime/proc.go              |  2 +-
  src/runtime/proc_runtime_test.go | 17 +++++++++++++++++
  2 files changed, 18 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index b997a467ba..df16e0f9b6 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -6138,7 +6138,7 @@ func (ord *randomOrder) start(i uint32) randomEnum {
+ 	return randomEnum{
+ 		count: ord.count,
+ 		pos:   i % ord.count,
+-		inc:   ord.coprimes[i%uint32(len(ord.coprimes))],
++		inc:   ord.coprimes[i/ord.count%uint32(len(ord.coprimes))],
+ 	}
+ }
+ 
+diff --git a/src/runtime/proc_runtime_test.go b/src/runtime/proc_runtime_test.go
+index a7bde2c6df..90aed83d46 100644
+--- a/src/runtime/proc_runtime_test.go
++++ b/src/runtime/proc_runtime_test.go
+@@ -30,4 +30,21 @@ func RunStealOrderTest() {
+ 			}
+ 		}
+ 	}
++	// Make sure that different arguments to ord.start don't generate the
++	// same pos+inc twice.
++	for procs := 2; procs <= 64; procs++ {
++		ord.reset(uint32(procs))
++		checked := make([]bool, procs*procs)
++		// We want at least procs*len(ord.coprimes) different pos+inc values
++		// before we start repeating.
++		for i := 0; i < procs*len(ord.coprimes); i++ {
++			enum := ord.start(uint32(i))
++			j := enum.pos*uint32(procs) + enum.inc
++			if checked[j] {
++				println("procs:", procs, "pos:", enum.pos, "inc:", enum.inc)
++				panic("duplicate pos+inc during enumeration")
++			}
++			checked[j] = true
++		}
++	}
+ }

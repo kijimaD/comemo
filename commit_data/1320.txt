@@ -7,6 +7,21 @@ Date:   Wed Dec 10 16:23:29 2008 -0800
     R=r
     OCL=20940
     CL=20940
-
+---
  src/cmd/6g/obj.c | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/cmd/6g/obj.c b/src/cmd/6g/obj.c
+index 38ba1ad582..b04a440c0d 100644
+--- a/src/cmd/6g/obj.c
++++ b/src/cmd/6g/obj.c
+@@ -540,6 +540,9 @@ gentramp(Type *t, Sig *b)
+ 	fatal("gentramp");
+ 
+ out:
++	if(d == 0)
++		return;
++
+ //	print("gentramp %d\n", d);
+ //	print("	t    = %lT\n", t);
+ //	print("	name = %s\n", b->name);

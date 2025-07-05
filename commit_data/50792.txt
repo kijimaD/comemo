@@ -13,6 +13,19 @@ Date:   Thu Oct 21 18:01:10 2021 +0900
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Katie Hockman <katie@golang.org>
-
+---
  src/cmd/go/internal/cache/default.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/go/internal/cache/default.go b/src/cmd/go/internal/cache/default.go
+index 0b1c1e0c20..426dddfb97 100644
+--- a/src/cmd/go/internal/cache/default.go
++++ b/src/cmd/go/internal/cache/default.go
+@@ -30,6 +30,7 @@ var (
+ // README as a courtesy to explain where it came from.
+ const cacheREADME = `This directory holds cached build artifacts from the Go build system.
+ Run "go clean -cache" if the directory is getting too large.
++Run "go clean -fuzzcache" to delete the fuzz cache.
+ See golang.org to learn more about Go.
+ `
+ 

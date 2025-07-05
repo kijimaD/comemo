@@ -18,6 +18,20 @@ Date:   Wed Jul 22 16:40:50 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/12643
     Reviewed-by: Rick Hudson <rlh@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/mgcmark.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index c7d175b1f8..9212b2edc6 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -182,7 +182,7 @@ func gcAssistAlloc(size uintptr, allowAssist bool) {
+ 		} else {
+ 			stolen = scanWork
+ 		}
+-		xaddint64(&gcController.bgScanCredit, -scanWork)
++		xaddint64(&gcController.bgScanCredit, -stolen)
+ 
+ 		scanWork -= stolen
+ 		gp.gcscanwork += stolen

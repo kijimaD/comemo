@@ -7,6 +7,19 @@ Date:   Tue Jun 7 10:07:50 2011 -0700
     R=bradfitz
     CC=golang-dev
     https://golang.org/cl/4528126
-
+---
  CONTRIBUTORS | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 14788f34e4..5a65b64b67 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -152,6 +152,7 @@ Maxim Ushakov <ushakov@google.com>
+ Micah Stetson <micah.stetson@gmail.com>
+ Michael Elkins <michael.elkins@gmail.com>
+ Michael Hoisie <hoisie@gmail.com>
++Michael T. Jones <mtj@google.com>
+ Miek Gieben <miek@miek.nl> <remigius.gieben@gmail.com>
+ Mikael Tillenius <mikti42@gmail.com>
+ Mikio Hara <mikioh.mikioh@gmail.com>

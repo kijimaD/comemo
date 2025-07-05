@@ -37,7 +37,7 @@ Date:   Sat Mar 2 19:22:07 2024 -0800
     Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/compile/internal/ssa/_gen/AMD64.rules      |   4 -
  .../compile/internal/ssa/_gen/AMD64latelower.rules |   5 +
  src/cmd/compile/internal/ssa/_gen/ARM64.rules      |  62 --
@@ -49,3 +49,1948 @@ Date:   Sat Mar 2 19:22:07 2024 -0800
  .../compile/internal/ssa/rewriteARM64latelower.go  | 748 +++++++++++++++++++++
  test/fixedbugs/issue66066.go                       |  41 ++
  10 files changed, 914 insertions(+), 828 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/_gen/AMD64.rules b/src/cmd/compile/internal/ssa/_gen/AMD64.rules
+index aac6873d28..2a4c59ebfc 100644
+--- a/src/cmd/compile/internal/ssa/_gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/_gen/AMD64.rules
+@@ -1020,10 +1020,6 @@
+ (MOVLQZX x:(MOVLload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) => @x.Block (MOVLload <v.Type> [off] {sym} ptr mem)
+ (MOVLQZX x:(MOVQload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) => @x.Block (MOVLload <v.Type> [off] {sym} ptr mem)
+ 
+-(MOVLQZX x) && zeroUpper32Bits(x,3) => x
+-(MOVWQZX x) && zeroUpper48Bits(x,3) => x
+-(MOVBQZX x) && zeroUpper56Bits(x,3) => x
+-
+ // replace load from same location as preceding store with zero/sign extension (or copy in case of full width)
+ (MOVBload [off] {sym} ptr (MOVBstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) => (MOVBQZX x)
+ (MOVWload [off] {sym} ptr (MOVWstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) => (MOVWQZX x)
+diff --git a/src/cmd/compile/internal/ssa/_gen/AMD64latelower.rules b/src/cmd/compile/internal/ssa/_gen/AMD64latelower.rules
+index a1e63d6249..1dd804577a 100644
+--- a/src/cmd/compile/internal/ssa/_gen/AMD64latelower.rules
++++ b/src/cmd/compile/internal/ssa/_gen/AMD64latelower.rules
+@@ -6,3 +6,8 @@
+ (SAR(Q|L) x y) && buildcfg.GOAMD64 >= 3 => (SARX(Q|L) x y)
+ (SHL(Q|L) x y) && buildcfg.GOAMD64 >= 3 => (SHLX(Q|L) x y)
+ (SHR(Q|L) x y) && buildcfg.GOAMD64 >= 3 => (SHRX(Q|L) x y)
++
++// See comments in ARM64latelower.rules for why these are here.
++(MOVLQZX x) && zeroUpper32Bits(x,3) => x
++(MOVWQZX x) && zeroUpper48Bits(x,3) => x
++(MOVBQZX x) && zeroUpper56Bits(x,3) => x
+diff --git a/src/cmd/compile/internal/ssa/_gen/ARM64.rules b/src/cmd/compile/internal/ssa/_gen/ARM64.rules
+index c5ee0285d9..18a6586fb0 100644
+--- a/src/cmd/compile/internal/ssa/_gen/ARM64.rules
++++ b/src/cmd/compile/internal/ssa/_gen/ARM64.rules
+@@ -1054,61 +1054,6 @@
+ (MOVWUloadidx4 ptr idx (MOVWstorezeroidx4 ptr2 idx2 _)) && isSamePtr(ptr, ptr2) && isSamePtr(idx, idx2) => (MOVDconst [0])
+ (MOVDloadidx8  ptr idx (MOVDstorezeroidx8 ptr2 idx2 _)) && isSamePtr(ptr, ptr2) && isSamePtr(idx, idx2) => (MOVDconst [0])
+ 
+-// don't extend after proper load
+-(MOVBreg  x:(MOVBload  _ _)) => (MOVDreg x)
+-(MOVBUreg x:(MOVBUload _ _)) => (MOVDreg x)
+-(MOVHreg  x:(MOVBload  _ _)) => (MOVDreg x)
+-(MOVHreg  x:(MOVBUload _ _)) => (MOVDreg x)
+-(MOVHreg  x:(MOVHload  _ _)) => (MOVDreg x)
+-(MOVHUreg x:(MOVBUload _ _)) => (MOVDreg x)
+-(MOVHUreg x:(MOVHUload _ _)) => (MOVDreg x)
+-(MOVWreg  x:(MOVBload  _ _)) => (MOVDreg x)
+-(MOVWreg  x:(MOVBUload _ _)) => (MOVDreg x)
+-(MOVWreg  x:(MOVHload  _ _)) => (MOVDreg x)
+-(MOVWreg  x:(MOVHUload _ _)) => (MOVDreg x)
+-(MOVWreg  x:(MOVWload  _ _)) => (MOVDreg x)
+-(MOVWUreg x:(MOVBUload _ _)) => (MOVDreg x)
+-(MOVWUreg x:(MOVHUload _ _)) => (MOVDreg x)
+-(MOVWUreg x:(MOVWUload _ _)) => (MOVDreg x)
+-(MOVBreg  x:(MOVBloadidx  _  _ _)) => (MOVDreg x)
+-(MOVBUreg x:(MOVBUloadidx  _ _ _)) => (MOVDreg x)
+-(MOVHreg  x:(MOVBloadidx   _ _ _)) => (MOVDreg x)
+-(MOVHreg  x:(MOVBUloadidx  _ _ _)) => (MOVDreg x)
+-(MOVHreg  x:(MOVHloadidx   _ _ _)) => (MOVDreg x)
+-(MOVHUreg x:(MOVBUloadidx  _ _ _)) => (MOVDreg x)
+-(MOVHUreg x:(MOVHUloadidx  _ _ _)) => (MOVDreg x)
+-(MOVWreg  x:(MOVBloadidx   _ _ _)) => (MOVDreg x)
+-(MOVWreg  x:(MOVBUloadidx  _ _ _)) => (MOVDreg x)
+-(MOVWreg  x:(MOVHloadidx   _ _ _)) => (MOVDreg x)
+-(MOVWreg  x:(MOVHUloadidx  _ _ _)) => (MOVDreg x)
+-(MOVWreg  x:(MOVWloadidx   _ _ _)) => (MOVDreg x)
+-(MOVWUreg x:(MOVBUloadidx  _ _ _)) => (MOVDreg x)
+-(MOVWUreg x:(MOVHUloadidx  _ _ _)) => (MOVDreg x)
+-(MOVWUreg x:(MOVWUloadidx  _ _ _)) => (MOVDreg x)
+-(MOVHreg  x:(MOVHloadidx2  _ _ _)) => (MOVDreg x)
+-(MOVHUreg x:(MOVHUloadidx2 _ _ _)) => (MOVDreg x)
+-(MOVWreg  x:(MOVHloadidx2  _ _ _)) => (MOVDreg x)
+-(MOVWreg  x:(MOVHUloadidx2 _ _ _)) => (MOVDreg x)
+-(MOVWreg  x:(MOVWloadidx4  _ _ _)) => (MOVDreg x)
+-(MOVWUreg x:(MOVHUloadidx2 _ _ _)) => (MOVDreg x)
+-(MOVWUreg x:(MOVWUloadidx4 _ _ _)) => (MOVDreg x)
+-
+-// fold double extensions
+-(MOVBreg  x:(MOVBreg  _)) => (MOVDreg x)
+-(MOVBUreg x:(MOVBUreg _)) => (MOVDreg x)
+-(MOVHreg  x:(MOVBreg  _)) => (MOVDreg x)
+-(MOVHreg  x:(MOVBUreg _)) => (MOVDreg x)
+-(MOVHreg  x:(MOVHreg  _)) => (MOVDreg x)
+-(MOVHUreg x:(MOVBUreg _)) => (MOVDreg x)
+-(MOVHUreg x:(MOVHUreg _)) => (MOVDreg x)
+-(MOVWreg  x:(MOVBreg  _)) => (MOVDreg x)
+-(MOVWreg  x:(MOVBUreg _)) => (MOVDreg x)
+-(MOVWreg  x:(MOVHreg  _)) => (MOVDreg x)
+-(MOVWreg  x:(MOVWreg  _)) => (MOVDreg x)
+-(MOVWUreg x:(MOVBUreg _)) => (MOVDreg x)
+-(MOVWUreg x:(MOVHUreg _)) => (MOVDreg x)
+-(MOVWUreg x:(MOVWUreg _)) => (MOVDreg x)
+-
+ // don't extend before store
+ (MOVBstore [off] {sym} ptr (MOVBreg  x) mem) => (MOVBstore [off] {sym} ptr x mem)
+ (MOVBstore [off] {sym} ptr (MOVBUreg x) mem) => (MOVBstore [off] {sym} ptr x mem)
+@@ -1572,18 +1517,11 @@
+ (LessThanNoov     (InvertFlags x)) => (CSEL0 [OpARM64NotEqual] (GreaterEqualNoov <typ.Bool> x) x)
+ (GreaterEqualNoov (InvertFlags x)) => (CSINC [OpARM64NotEqual] (LessThanNoov <typ.Bool> x) (MOVDconst [0]) x)
+ 
+-// Boolean-generating instructions (NOTE: NOT all boolean Values) always
+-// zero upper bit of the register; no need to zero-extend
+-(MOVBUreg x:((Equal|NotEqual|LessThan|LessThanU|LessThanF|LessEqual|LessEqualU|LessEqualF|GreaterThan|GreaterThanU|GreaterThanF|GreaterEqual|GreaterEqualU|GreaterEqualF) _)) => (MOVDreg x)
+-
+ // Don't bother extending if we're not using the higher bits.
+ (MOV(B|BU)reg x) && v.Type.Size() <= 1 => x
+ (MOV(H|HU)reg x) && v.Type.Size() <= 2 => x
+ (MOV(W|WU)reg x) && v.Type.Size() <= 4 => x
+ 
+-// omit unsign extension
+-(MOVWUreg x) && zeroUpper32Bits(x, 3) => x
+-
+ // omit sign extension
+ (MOVWreg <t> (ANDconst x [c])) && uint64(c) & uint64(0xffffffff80000000) == 0 => (ANDconst <t> x [c])
+ (MOVHreg <t> (ANDconst x [c])) && uint64(c) & uint64(0xffffffffffff8000) == 0 => (ANDconst <t> x [c])
+diff --git a/src/cmd/compile/internal/ssa/_gen/ARM64latelower.rules b/src/cmd/compile/internal/ssa/_gen/ARM64latelower.rules
+index d0c2099da9..e50d985aa0 100644
+--- a/src/cmd/compile/internal/ssa/_gen/ARM64latelower.rules
++++ b/src/cmd/compile/internal/ssa/_gen/ARM64latelower.rules
+@@ -19,3 +19,69 @@
+ (CMNWconst [c] x) && !isARM64addcon(int64(c))  => (CMNW x (MOVDconst [int64(c)]))
+ 
+ (ADDSconstflags [c] x) && !isARM64addcon(c)  => (ADDSflags x (MOVDconst [c]))
++
++// These rules remove unneeded sign/zero extensions.
++// They occur in late lower because they rely on the fact
++// that their arguments don't get rewritten to a non-extended opcode instead.
++
++// Boolean-generating instructions (NOTE: NOT all boolean Values) always
++// zero upper bit of the register; no need to zero-extend
++(MOVBUreg x:((Equal|NotEqual|LessThan|LessThanU|LessThanF|LessEqual|LessEqualU|LessEqualF|GreaterThan|GreaterThanU|GreaterThanF|GreaterEqual|GreaterEqualU|GreaterEqualF) _)) => x
++
++// omit unsigned extension
++(MOVWUreg x) && zeroUpper32Bits(x, 3) => x
++
++// don't extend after proper load
++(MOVBreg  x:(MOVBload  _ _)) => (MOVDreg x)
++(MOVBUreg x:(MOVBUload _ _)) => (MOVDreg x)
++(MOVHreg  x:(MOVBload  _ _)) => (MOVDreg x)
++(MOVHreg  x:(MOVBUload _ _)) => (MOVDreg x)
++(MOVHreg  x:(MOVHload  _ _)) => (MOVDreg x)
++(MOVHUreg x:(MOVBUload _ _)) => (MOVDreg x)
++(MOVHUreg x:(MOVHUload _ _)) => (MOVDreg x)
++(MOVWreg  x:(MOVBload  _ _)) => (MOVDreg x)
++(MOVWreg  x:(MOVBUload _ _)) => (MOVDreg x)
++(MOVWreg  x:(MOVHload  _ _)) => (MOVDreg x)
++(MOVWreg  x:(MOVHUload _ _)) => (MOVDreg x)
++(MOVWreg  x:(MOVWload  _ _)) => (MOVDreg x)
++(MOVWUreg x:(MOVBUload _ _)) => (MOVDreg x)
++(MOVWUreg x:(MOVHUload _ _)) => (MOVDreg x)
++(MOVWUreg x:(MOVWUload _ _)) => (MOVDreg x)
++(MOVBreg  x:(MOVBloadidx  _  _ _)) => (MOVDreg x)
++(MOVBUreg x:(MOVBUloadidx  _ _ _)) => (MOVDreg x)
++(MOVHreg  x:(MOVBloadidx   _ _ _)) => (MOVDreg x)
++(MOVHreg  x:(MOVBUloadidx  _ _ _)) => (MOVDreg x)
++(MOVHreg  x:(MOVHloadidx   _ _ _)) => (MOVDreg x)
++(MOVHUreg x:(MOVBUloadidx  _ _ _)) => (MOVDreg x)
++(MOVHUreg x:(MOVHUloadidx  _ _ _)) => (MOVDreg x)
++(MOVWreg  x:(MOVBloadidx   _ _ _)) => (MOVDreg x)
++(MOVWreg  x:(MOVBUloadidx  _ _ _)) => (MOVDreg x)
++(MOVWreg  x:(MOVHloadidx   _ _ _)) => (MOVDreg x)
++(MOVWreg  x:(MOVHUloadidx  _ _ _)) => (MOVDreg x)
++(MOVWreg  x:(MOVWloadidx   _ _ _)) => (MOVDreg x)
++(MOVWUreg x:(MOVBUloadidx  _ _ _)) => (MOVDreg x)
++(MOVWUreg x:(MOVHUloadidx  _ _ _)) => (MOVDreg x)
++(MOVWUreg x:(MOVWUloadidx  _ _ _)) => (MOVDreg x)
++(MOVHreg  x:(MOVHloadidx2  _ _ _)) => (MOVDreg x)
++(MOVHUreg x:(MOVHUloadidx2 _ _ _)) => (MOVDreg x)
++(MOVWreg  x:(MOVHloadidx2  _ _ _)) => (MOVDreg x)
++(MOVWreg  x:(MOVHUloadidx2 _ _ _)) => (MOVDreg x)
++(MOVWreg  x:(MOVWloadidx4  _ _ _)) => (MOVDreg x)
++(MOVWUreg x:(MOVHUloadidx2 _ _ _)) => (MOVDreg x)
++(MOVWUreg x:(MOVWUloadidx4 _ _ _)) => (MOVDreg x)
++
++// fold double extensions
++(MOVBreg  x:(MOVBreg  _)) => (MOVDreg x)
++(MOVBUreg x:(MOVBUreg _)) => (MOVDreg x)
++(MOVHreg  x:(MOVBreg  _)) => (MOVDreg x)
++(MOVHreg  x:(MOVBUreg _)) => (MOVDreg x)
++(MOVHreg  x:(MOVHreg  _)) => (MOVDreg x)
++(MOVHUreg x:(MOVBUreg _)) => (MOVDreg x)
++(MOVHUreg x:(MOVHUreg _)) => (MOVDreg x)
++(MOVWreg  x:(MOVBreg  _)) => (MOVDreg x)
++(MOVWreg  x:(MOVBUreg _)) => (MOVDreg x)
++(MOVWreg  x:(MOVHreg  _)) => (MOVDreg x)
++(MOVWreg  x:(MOVWreg  _)) => (MOVDreg x)
++(MOVWUreg x:(MOVBUreg _)) => (MOVDreg x)
++(MOVWUreg x:(MOVHUreg _)) => (MOVDreg x)
++(MOVWUreg x:(MOVWUreg _)) => (MOVDreg x)
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index d3ddfbfab2..bfc0004ff8 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -1294,7 +1294,7 @@ func zeroUpper32Bits(x *Value, depth int) bool {
+ 		OpARM64MULW, OpARM64MNEGW, OpARM64UDIVW, OpARM64DIVW, OpARM64UMODW,
+ 		OpARM64MADDW, OpARM64MSUBW, OpARM64RORW, OpARM64RORWconst:
+ 		return true
+-	case OpArg:
++	case OpArg: // note: but not ArgIntReg
+ 		return x.Type.Size() == 4
+ 	case OpPhi, OpSelect0, OpSelect1:
+ 		// Phis can use each-other as an arguments, instead of tracking visited values,
+@@ -1318,7 +1318,7 @@ func zeroUpper48Bits(x *Value, depth int) bool {
+ 	switch x.Op {
+ 	case OpAMD64MOVWQZX, OpAMD64MOVWload, OpAMD64MOVWloadidx1, OpAMD64MOVWloadidx2:
+ 		return true
+-	case OpArg:
++	case OpArg: // note: but not ArgIntReg
+ 		return x.Type.Size() == 2
+ 	case OpPhi, OpSelect0, OpSelect1:
+ 		// Phis can use each-other as an arguments, instead of tracking visited values,
+@@ -1342,7 +1342,7 @@ func zeroUpper56Bits(x *Value, depth int) bool {
+ 	switch x.Op {
+ 	case OpAMD64MOVBQZX, OpAMD64MOVBload, OpAMD64MOVBloadidx1:
+ 		return true
+-	case OpArg:
++	case OpArg: // note: but not ArgIntReg
+ 		return x.Type.Size() == 1
+ 	case OpPhi, OpSelect0, OpSelect1:
+ 		// Phis can use each-other as an arguments, instead of tracking visited values,
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 5332512f2a..ba71189703 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -9640,17 +9640,6 @@ func rewriteValueAMD64_OpAMD64MOVBQZX(v *Value) bool {
+ 		v0.AddArg2(ptr, mem)
+ 		return true
+ 	}
+-	// match: (MOVBQZX x)
+-	// cond: zeroUpper56Bits(x,3)
+-	// result: x
+-	for {
+-		x := v_0
+-		if !(zeroUpper56Bits(x, 3)) {
+-			break
+-		}
+-		v.copyOf(x)
+-		return true
+-	}
+ 	// match: (MOVBQZX (ANDLconst [c] x))
+ 	// result: (ANDLconst [c & 0xff] x)
+ 	for {
+@@ -10392,17 +10381,6 @@ func rewriteValueAMD64_OpAMD64MOVLQZX(v *Value) bool {
+ 		v0.AddArg2(ptr, mem)
+ 		return true
+ 	}
+-	// match: (MOVLQZX x)
+-	// cond: zeroUpper32Bits(x,3)
+-	// result: x
+-	for {
+-		x := v_0
+-		if !(zeroUpper32Bits(x, 3)) {
+-			break
+-		}
+-		v.copyOf(x)
+-		return true
+-	}
+ 	// match: (MOVLQZX (ANDLconst [c] x))
+ 	// result: (ANDLconst [c] x)
+ 	for {
+@@ -12756,17 +12734,6 @@ func rewriteValueAMD64_OpAMD64MOVWQZX(v *Value) bool {
+ 		v0.AddArg2(ptr, mem)
+ 		return true
+ 	}
+-	// match: (MOVWQZX x)
+-	// cond: zeroUpper48Bits(x,3)
+-	// result: x
+-	for {
+-		x := v_0
+-		if !(zeroUpper48Bits(x, 3)) {
+-			break
+-		}
+-		v.copyOf(x)
+-		return true
+-	}
+ 	// match: (MOVWQZX (ANDLconst [c] x))
+ 	// result: (ANDLconst [c & 0xffff] x)
+ 	for {
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64latelower.go b/src/cmd/compile/internal/ssa/rewriteAMD64latelower.go
+index d3dd2633d1..11ecb0b285 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64latelower.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64latelower.go
+@@ -6,6 +6,12 @@ import "internal/buildcfg"
+ 
+ func rewriteValueAMD64latelower(v *Value) bool {
+ 	switch v.Op {
++	case OpAMD64MOVBQZX:
++		return rewriteValueAMD64latelower_OpAMD64MOVBQZX(v)
++	case OpAMD64MOVLQZX:
++		return rewriteValueAMD64latelower_OpAMD64MOVLQZX(v)
++	case OpAMD64MOVWQZX:
++		return rewriteValueAMD64latelower_OpAMD64MOVWQZX(v)
+ 	case OpAMD64SARL:
+ 		return rewriteValueAMD64latelower_OpAMD64SARL(v)
+ 	case OpAMD64SARQ:
+@@ -21,6 +27,51 @@ func rewriteValueAMD64latelower(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueAMD64latelower_OpAMD64MOVBQZX(v *Value) bool {
++	v_0 := v.Args[0]
++	// match: (MOVBQZX x)
++	// cond: zeroUpper56Bits(x,3)
++	// result: x
++	for {
++		x := v_0
++		if !(zeroUpper56Bits(x, 3)) {
++			break
++		}
++		v.copyOf(x)
++		return true
++	}
++	return false
++}
++func rewriteValueAMD64latelower_OpAMD64MOVLQZX(v *Value) bool {
++	v_0 := v.Args[0]
++	// match: (MOVLQZX x)
++	// cond: zeroUpper32Bits(x,3)
++	// result: x
++	for {
++		x := v_0
++		if !(zeroUpper32Bits(x, 3)) {
++			break
++		}
++		v.copyOf(x)
++		return true
++	}
++	return false
++}
++func rewriteValueAMD64latelower_OpAMD64MOVWQZX(v *Value) bool {
++	v_0 := v.Args[0]
++	// match: (MOVWQZX x)
++	// cond: zeroUpper48Bits(x,3)
++	// result: x
++	for {
++		x := v_0
++		if !(zeroUpper48Bits(x, 3)) {
++			break
++		}
++		v.copyOf(x)
++		return true
++	}
++	return false
++}
+ func rewriteValueAMD64latelower_OpAMD64SARL(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM64.go b/src/cmd/compile/internal/ssa/rewriteARM64.go
+index f0a4425502..8f60f023b1 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM64.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM64.go
+@@ -8307,39 +8307,6 @@ func rewriteValueARM64_OpARM64MOVBUloadidx(v *Value) bool {
+ }
+ func rewriteValueARM64_OpARM64MOVBUreg(v *Value) bool {
+ 	v_0 := v.Args[0]
+-	// match: (MOVBUreg x:(MOVBUload _ _))
+-	// result: (MOVDreg x)
+-	for {
+-		x := v_0
+-		if x.Op != OpARM64MOVBUload {
+-			break
+-		}
+-		v.reset(OpARM64MOVDreg)
+-		v.AddArg(x)
+-		return true
+-	}
+-	// match: (MOVBUreg x:(MOVBUloadidx _ _ _))
+-	// result: (MOVDreg x)
+-	for {
+-		x := v_0
+-		if x.Op != OpARM64MOVBUloadidx {
+-			break
+-		}
+-		v.reset(OpARM64MOVDreg)
+-		v.AddArg(x)
+-		return true
+-	}
+-	// match: (MOVBUreg x:(MOVBUreg _))
+-	// result: (MOVDreg x)
+-	for {
+-		x := v_0
+-		if x.Op != OpARM64MOVBUreg {
+-			break
+-		}
+-		v.reset(OpARM64MOVDreg)
+-		v.AddArg(x)
+-		return true
+-	}
+ 	// match: (MOVBUreg (ANDconst [c] x))
+ 	// result: (ANDconst [c&(1<<8-1)] x)
+ 	for {
+@@ -8364,160 +8331,6 @@ func rewriteValueARM64_OpARM64MOVBUreg(v *Value) bool {
+ 		v.AuxInt = int64ToAuxInt(int64(uint8(c)))
+ 		return true
+ 	}
+-	// match: (MOVBUreg x:(Equal _))
+-	// result: (MOVDreg x)
+-	for {
+-		x := v_0
+-		if x.Op != OpARM64Equal {
+-			break
+-		}
+-		v.reset(OpARM64MOVDreg)
+-		v.AddArg(x)
+-		return true
+-	}
+-	// match: (MOVBUreg x:(NotEqual _))
+-	// result: (MOVDreg x)
+-	for {
+-		x := v_0
+-		if x.Op != OpARM64NotEqual {
+-			break
+-		}
+-		v.reset(OpARM64MOVDreg)
+-		v.AddArg(x)
+-		return true
+-	}
+-	// match: (MOVBUreg x:(LessThan _))
+-	// result: (MOVDreg x)
+-	for {
+-		x := v_0
+-		if x.Op != OpARM64LessThan {
+-			break
+-		}
+-		v.reset(OpARM64MOVDreg)
+-		v.AddArg(x)
+-		return true
+-	}
+-	// match: (MOVBUreg x:(LessThanU _))
+-	// result: (MOVDreg x)
+-	for {
+-		x := v_0
+-		if x.Op != OpARM64LessThanU {
+-			break
+-		}
+-		v.reset(OpARM64MOVDreg)
+-		v.AddArg(x)
+-		return true
+-	}
+-	// match: (MOVBUreg x:(LessThanF _))
+-	// result: (MOVDreg x)
+-	for {
+-		x := v_0
+-		if x.Op != OpARM64LessThanF {
+-			break
+-		}
+-		v.reset(OpARM64MOVDreg)
+-		v.AddArg(x)
+-		return true
+-	}
+-	// match: (MOVBUreg x:(LessEqual _))
+-	// result: (MOVDreg x)
+-	for {
+-		x := v_0
+-		if x.Op != OpARM64LessEqual {
+-			break
+-		}
+-		v.reset(OpARM64MOVDreg)
+-		v.AddArg(x)
+-		return true
+-	}
+-	// match: (MOVBUreg x:(LessEqualU _))
+-	// result: (MOVDreg x)
+-	for {
+-		x := v_0
+-		if x.Op != OpARM64LessEqualU {
+-			break
+-		}
+-		v.reset(OpARM64MOVDreg)
+-		v.AddArg(x)
+-		return true
+-	}
+-	// match: (MOVBUreg x:(LessEqualF _))
+-	// result: (MOVDreg x)
+-	for {
+-		x := v_0
+-		if x.Op != OpARM64LessEqualF {
+-			break
+-		}
+-		v.reset(OpARM64MOVDreg)
+-		v.AddArg(x)
+-		return true
+-	}
+-	// match: (MOVBUreg x:(GreaterThan _))
+-	// result: (MOVDreg x)
+-	for {
+-		x := v_0
+-		if x.Op != OpARM64GreaterThan {
+-			break
+-		}
+-		v.reset(OpARM64MOVDreg)
+-		v.AddArg(x)
+-		return true
+-	}
+-	// match: (MOVBUreg x:(GreaterThanU _))
+-	// result: (MOVDreg x)
+-	for {
+-		x := v_0
+-		if x.Op != OpARM64GreaterThanU {
+-			break
+-		}
+-		v.reset(OpARM64MOVDreg)
+-		v.AddArg(x)
+-		return true
+-	}
+-	// match: (MOVBUreg x:(GreaterThanF _))
+-	// result: (MOVDreg x)
+-	for {
+-		x := v_0
+-		if x.Op != OpARM64GreaterThanF {
+-			break
+-		}
+-		v.reset(OpARM64MOVDreg)
+-		v.AddArg(x)
+-		return true
+-	}
+-	// match: (MOVBUreg x:(GreaterEqual _))
+-	// result: (MOVDreg x)
+-	for {
+-		x := v_0
+-		if x.Op != OpARM64GreaterEqual {
+-			break
+-		}
+-		v.reset(OpARM64MOVDreg)
+-		v.AddArg(x)
+-		return true
+-	}
+-	// match: (MOVBUreg x:(GreaterEqualU _))
+-	// result: (MOVDreg x)
+-	for {
+-		x := v_0
+-		if x.Op != OpARM64GreaterEqualU {
+-			break
+-		}
+-		v.reset(OpARM64MOVDreg)
+-		v.AddArg(x)
+-		return true
+-	}
+-	// match: (MOVBUreg x:(GreaterEqualF _))
+-	// result: (MOVDreg x)
+-	for {
+-		x := v_0
+-		if x.Op != OpARM64GreaterEqualF {
+-			break
+-		}
+-		v.reset(OpARM64MOVDreg)
+-		v.AddArg(x)
+-		return true
+-	}
+ 	// match: (MOVBUreg x)
+ 	// cond: v.Type.Size() <= 1
+ 	// result: x
+@@ -8748,39 +8561,6 @@ func rewriteValueARM64_OpARM64MOVBloadidx(v *Value) bool {
+ }
+ func rewriteValueARM64_OpARM64MOVBreg(v *Value) bool {
+ 	v_0 := v.Args[0]
+-	// match: (MOVBreg x:(MOVBload _ _))
+-	// result: (MOVDreg x)
+-	for {
+-		x := v_0
+-		if x.Op != OpARM64MOVBload {
+-			break
+-		}
+-		v.reset(OpARM64MOVDreg)
+-		v.AddArg(x)
+-		return true
+-	}
+-	// match: (MOVBreg x:(MOVBloadidx _ _ _))
+-	// result: (MOVDreg x)
+-	for {
+-		x := v_0
+-		if x.Op != OpARM64MOVBloadidx {
+-			break
+-		}
+-		v.reset(OpARM64MOVDreg)
+-		v.AddArg(x)
+-		return true
+-	}
+-	// match: (MOVBreg x:(MOVBreg _))
+-	// result: (MOVDreg x)
+-	for {
+-		x := v_0
+-		if x.Op != OpARM64MOVBreg {
+-			break
+-		}
+-		v.reset(OpARM64MOVDreg)
+-		v.AddArg(x)
+-		return true
+-	}
+ 	// match: (MOVBreg (MOVDconst [c]))
+ 	// result: (MOVDconst [int64(int8(c))])
+ 	for {
+@@ -10353,83 +10133,6 @@ func rewriteValueARM64_OpARM64MOVHUloadidx2(v *Value) bool {
+ }
+ func rewriteValueARM64_OpARM64MOVHUreg(v *Value) bool {
+ 	v_0 := v.Args[0]
+-	// match: (MOVHUreg x:(MOVBUload _ _))
+-	// result: (MOVDreg x)
+-	for {
+-		x := v_0
+-		if x.Op != OpARM64MOVBUload {
+-			break
+-		}
+-		v.reset(OpARM64MOVDreg)
+-		v.AddArg(x)
+-		return true
+-	}
+-	// match: (MOVHUreg x:(MOVHUload _ _))
+-	// result: (MOVDreg x)
+-	for {
+-		x := v_0
+-		if x.Op != OpARM64MOVHUload {
+-			break
+-		}
+-		v.reset(OpARM64MOVDreg)
+-		v.AddArg(x)
+-		return true
+-	}
+-	// match: (MOVHUreg x:(MOVBUloadidx _ _ _))
+-	// result: (MOVDreg x)
+-	for {
+-		x := v_0
+-		if x.Op != OpARM64MOVBUloadidx {
+-			break
+-		}
+-		v.reset(OpARM64MOVDreg)
+-		v.AddArg(x)
+-		return true
+-	}
+-	// match: (MOVHUreg x:(MOVHUloadidx _ _ _))
+-	// result: (MOVDreg x)
+-	for {
+-		x := v_0
+-		if x.Op != OpARM64MOVHUloadidx {
+-			break
+-		}
+-		v.reset(OpARM64MOVDreg)
+-		v.AddArg(x)
+-		return true
+-	}
+-	// match: (MOVHUreg x:(MOVHUloadidx2 _ _ _))
+-	// result: (MOVDreg x)
+-	for {
+-		x := v_0
+-		if x.Op != OpARM64MOVHUloadidx2 {
+-			break
+-		}
+-		v.reset(OpARM64MOVDreg)
+-		v.AddArg(x)
+-		return true
+-	}
+-	// match: (MOVHUreg x:(MOVBUreg _))
+-	// result: (MOVDreg x)
+-	for {
+-		x := v_0
+-		if x.Op != OpARM64MOVBUreg {
+-			break
+-		}
+-		v.reset(OpARM64MOVDreg)
+-		v.AddArg(x)
+-		return true
+-	}
+-	// match: (MOVHUreg x:(MOVHUreg _))
+-	// result: (MOVDreg x)
+-	for {
+-		x := v_0
+-		if x.Op != OpARM64MOVHUreg {
+-			break
+-		}
+-		v.reset(OpARM64MOVDreg)
+-		v.AddArg(x)
+-		return true
+-	}
+ 	// match: (MOVHUreg (ANDconst [c] x))
+ 	// result: (ANDconst [c&(1<<16-1)] x)
+ 	for {
+@@ -10790,116 +10493,6 @@ func rewriteValueARM64_OpARM64MOVHloadidx2(v *Value) bool {
+ }
+ func rewriteValueARM64_OpARM64MOVHreg(v *Value) bool {
+ 	v_0 := v.Args[0]
+-	// match: (MOVHreg x:(MOVBload _ _))
+-	// result: (MOVDreg x)
+-	for {
+-		x := v_0
+-		if x.Op != OpARM64MOVBload {
+-			break
+-		}
+-		v.reset(OpARM64MOVDreg)
+-		v.AddArg(x)
+-		return true
+-	}
+-	// match: (MOVHreg x:(MOVBUload _ _))
+-	// result: (MOVDreg x)
+-	for {
+-		x := v_0
+-		if x.Op != OpARM64MOVBUload {
+-			break
+-		}
+-		v.reset(OpARM64MOVDreg)
+-		v.AddArg(x)
+-		return true
+-	}
+-	// match: (MOVHreg x:(MOVHload _ _))
+-	// result: (MOVDreg x)
+-	for {
+-		x := v_0
+-		if x.Op != OpARM64MOVHload {
+-			break
+-		}
+-		v.reset(OpARM64MOVDreg)
+-		v.AddArg(x)
+-		return true
+-	}
+-	// match: (MOVHreg x:(MOVBloadidx _ _ _))
+-	// result: (MOVDreg x)
+-	for {
+-		x := v_0
+-		if x.Op != OpARM64MOVBloadidx {
+-			break
+-		}
+-		v.reset(OpARM64MOVDreg)
+-		v.AddArg(x)
+-		return true
+-	}
+-	// match: (MOVHreg x:(MOVBUloadidx _ _ _))
+-	// result: (MOVDreg x)
+-	for {
+-		x := v_0
+-		if x.Op != OpARM64MOVBUloadidx {
+-			break
+-		}
+-		v.reset(OpARM64MOVDreg)
+-		v.AddArg(x)
+-		return true
+-	}
+-	// match: (MOVHreg x:(MOVHloadidx _ _ _))
+-	// result: (MOVDreg x)
+-	for {
+-		x := v_0
+-		if x.Op != OpARM64MOVHloadidx {
+-			break
+-		}
+-		v.reset(OpARM64MOVDreg)
+-		v.AddArg(x)
+-		return true
+-	}
+-	// match: (MOVHreg x:(MOVHloadidx2 _ _ _))
+-	// result: (MOVDreg x)
+-	for {
+-		x := v_0
+-		if x.Op != OpARM64MOVHloadidx2 {
+-			break
+-		}
+-		v.reset(OpARM64MOVDreg)
+-		v.AddArg(x)
+-		return true
+-	}
+-	// match: (MOVHreg x:(MOVBreg _))
+-	// result: (MOVDreg x)
+-	for {
+-		x := v_0
+-		if x.Op != OpARM64MOVBreg {
+-			break
+-		}
+-		v.reset(OpARM64MOVDreg)
+-		v.AddArg(x)
+-		return true
+-	}
+-	// match: (MOVHreg x:(MOVBUreg _))
+-	// result: (MOVDreg x)
+-	for {
+-		x := v_0
+-		if x.Op != OpARM64MOVBUreg {
+-			break
+-		}
+-		v.reset(OpARM64MOVDreg)
+-		v.AddArg(x)
+-		return true
+-	}
+-	// match: (MOVHreg x:(MOVHreg _))
+-	// result: (MOVDreg x)
+-	for {
+-		x := v_0
+-		if x.Op != OpARM64MOVHreg {
+-			break
+-		}
+-		v.reset(OpARM64MOVDreg)
+-		v.AddArg(x)
+-		return true
+-	}
+ 	// match: (MOVHreg (MOVDconst [c]))
+ 	// result: (MOVDconst [int64(int16(c))])
+ 	for {
+@@ -11955,127 +11548,6 @@ func rewriteValueARM64_OpARM64MOVWUloadidx4(v *Value) bool {
+ }
+ func rewriteValueARM64_OpARM64MOVWUreg(v *Value) bool {
+ 	v_0 := v.Args[0]
+-	// match: (MOVWUreg x:(MOVBUload _ _))
+-	// result: (MOVDreg x)
+-	for {
+-		x := v_0
+-		if x.Op != OpARM64MOVBUload {
+-			break
+-		}
+-		v.reset(OpARM64MOVDreg)
+-		v.AddArg(x)
+-		return true
+-	}
+-	// match: (MOVWUreg x:(MOVHUload _ _))
+-	// result: (MOVDreg x)
+-	for {
+-		x := v_0
+-		if x.Op != OpARM64MOVHUload {
+-			break
+-		}
+-		v.reset(OpARM64MOVDreg)
+-		v.AddArg(x)
+-		return true
+-	}
+-	// match: (MOVWUreg x:(MOVWUload _ _))
+-	// result: (MOVDreg x)
+-	for {
+-		x := v_0
+-		if x.Op != OpARM64MOVWUload {
+-			break
+-		}
+-		v.reset(OpARM64MOVDreg)
+-		v.AddArg(x)
+-		return true
+-	}
+-	// match: (MOVWUreg x:(MOVBUloadidx _ _ _))
+-	// result: (MOVDreg x)
+-	for {
+-		x := v_0
+-		if x.Op != OpARM64MOVBUloadidx {
+-			break
+-		}
+-		v.reset(OpARM64MOVDreg)
+-		v.AddArg(x)
+-		return true
+-	}
+-	// match: (MOVWUreg x:(MOVHUloadidx _ _ _))
+-	// result: (MOVDreg x)
+-	for {
+-		x := v_0
+-		if x.Op != OpARM64MOVHUloadidx {
+-			break
+-		}
+-		v.reset(OpARM64MOVDreg)
+-		v.AddArg(x)
+-		return true
+-	}
+-	// match: (MOVWUreg x:(MOVWUloadidx _ _ _))
+-	// result: (MOVDreg x)
+-	for {
+-		x := v_0
+-		if x.Op != OpARM64MOVWUloadidx {
+-			break
+-		}
+-		v.reset(OpARM64MOVDreg)
+-		v.AddArg(x)
+-		return true
+-	}
+-	// match: (MOVWUreg x:(MOVHUloadidx2 _ _ _))
+-	// result: (MOVDreg x)
+-	for {
+-		x := v_0
+-		if x.Op != OpARM64MOVHUloadidx2 {
+-			break
+-		}
+-		v.reset(OpARM64MOVDreg)
+-		v.AddArg(x)
+-		return true
+-	}
+-	// match: (MOVWUreg x:(MOVWUloadidx4 _ _ _))
+-	// result: (MOVDreg x)
+-	for {
+-		x := v_0
+-		if x.Op != OpARM64MOVWUloadidx4 {
+-			break
+-		}
+-		v.reset(OpARM64MOVDreg)
+-		v.AddArg(x)
+-		return true
+-	}
+-	// match: (MOVWUreg x:(MOVBUreg _))
+-	// result: (MOVDreg x)
+-	for {
+-		x := v_0
+-		if x.Op != OpARM64MOVBUreg {
+-			break
+-		}
+-		v.reset(OpARM64MOVDreg)
+-		v.AddArg(x)
+-		return true
+-	}
+-	// match: (MOVWUreg x:(MOVHUreg _))
+-	// result: (MOVDreg x)
+-	for {
+-		x := v_0
+-		if x.Op != OpARM64MOVHUreg {
+-			break
+-		}
+-		v.reset(OpARM64MOVDreg)
+-		v.AddArg(x)
+-		return true
+-	}
+-	// match: (MOVWUreg x:(MOVWUreg _))
+-	// result: (MOVDreg x)
+-	for {
+-		x := v_0
+-		if x.Op != OpARM64MOVWUreg {
+-			break
+-		}
+-		v.reset(OpARM64MOVDreg)
+-		v.AddArg(x)
+-		return true
+-	}
+ 	// match: (MOVWUreg (ANDconst [c] x))
+ 	// result: (ANDconst [c&(1<<32-1)] x)
+ 	for {
+@@ -12111,17 +11583,6 @@ func rewriteValueARM64_OpARM64MOVWUreg(v *Value) bool {
+ 		v.copyOf(x)
+ 		return true
+ 	}
+-	// match: (MOVWUreg x)
+-	// cond: zeroUpper32Bits(x, 3)
+-	// result: x
+-	for {
+-		x := v_0
+-		if !(zeroUpper32Bits(x, 3)) {
+-			break
+-		}
+-		v.copyOf(x)
+-		return true
+-	}
+ 	// match: (MOVWUreg (SLLconst [lc] x))
+ 	// cond: lc >= 32
+ 	// result: (MOVDconst [0])
+@@ -12428,193 +11889,6 @@ func rewriteValueARM64_OpARM64MOVWloadidx4(v *Value) bool {
+ }
+ func rewriteValueARM64_OpARM64MOVWreg(v *Value) bool {
+ 	v_0 := v.Args[0]
+-	// match: (MOVWreg x:(MOVBload _ _))
+-	// result: (MOVDreg x)
+-	for {
+-		x := v_0
+-		if x.Op != OpARM64MOVBload {
+-			break
+-		}
+-		v.reset(OpARM64MOVDreg)
+-		v.AddArg(x)
+-		return true
+-	}
+-	// match: (MOVWreg x:(MOVBUload _ _))
+-	// result: (MOVDreg x)
+-	for {
+-		x := v_0
+-		if x.Op != OpARM64MOVBUload {
+-			break
+-		}
+-		v.reset(OpARM64MOVDreg)
+-		v.AddArg(x)
+-		return true
+-	}
+-	// match: (MOVWreg x:(MOVHload _ _))
+-	// result: (MOVDreg x)
+-	for {
+-		x := v_0
+-		if x.Op != OpARM64MOVHload {
+-			break
+-		}
+-		v.reset(OpARM64MOVDreg)
+-		v.AddArg(x)
+-		return true
+-	}
+-	// match: (MOVWreg x:(MOVHUload _ _))
+-	// result: (MOVDreg x)
+-	for {
+-		x := v_0
+-		if x.Op != OpARM64MOVHUload {
+-			break
+-		}
+-		v.reset(OpARM64MOVDreg)
+-		v.AddArg(x)
+-		return true
+-	}
+-	// match: (MOVWreg x:(MOVWload _ _))
+-	// result: (MOVDreg x)
+-	for {
+-		x := v_0
+-		if x.Op != OpARM64MOVWload {
+-			break
+-		}
+-		v.reset(OpARM64MOVDreg)
+-		v.AddArg(x)
+-		return true
+-	}
+-	// match: (MOVWreg x:(MOVBloadidx _ _ _))
+-	// result: (MOVDreg x)
+-	for {
+-		x := v_0
+-		if x.Op != OpARM64MOVBloadidx {
+-			break
+-		}
+-		v.reset(OpARM64MOVDreg)
+-		v.AddArg(x)
+-		return true
+-	}
+-	// match: (MOVWreg x:(MOVBUloadidx _ _ _))
+-	// result: (MOVDreg x)
+-	for {
+-		x := v_0
+-		if x.Op != OpARM64MOVBUloadidx {
+-			break
+-		}
+-		v.reset(OpARM64MOVDreg)
+-		v.AddArg(x)
+-		return true
+-	}
+-	// match: (MOVWreg x:(MOVHloadidx _ _ _))
+-	// result: (MOVDreg x)
+-	for {
+-		x := v_0
+-		if x.Op != OpARM64MOVHloadidx {
+-			break
+-		}
+-		v.reset(OpARM64MOVDreg)
+-		v.AddArg(x)
+-		return true
+-	}
+-	// match: (MOVWreg x:(MOVHUloadidx _ _ _))
+-	// result: (MOVDreg x)
+-	for {
+-		x := v_0
+-		if x.Op != OpARM64MOVHUloadidx {
+-			break
+-		}
+-		v.reset(OpARM64MOVDreg)
+-		v.AddArg(x)
+-		return true
+-	}
+-	// match: (MOVWreg x:(MOVWloadidx _ _ _))
+-	// result: (MOVDreg x)
+-	for {
+-		x := v_0
+-		if x.Op != OpARM64MOVWloadidx {
+-			break
+-		}
+-		v.reset(OpARM64MOVDreg)
+-		v.AddArg(x)
+-		return true
+-	}
+-	// match: (MOVWreg x:(MOVHloadidx2 _ _ _))
+-	// result: (MOVDreg x)
+-	for {
+-		x := v_0
+-		if x.Op != OpARM64MOVHloadidx2 {
+-			break
+-		}
+-		v.reset(OpARM64MOVDreg)
+-		v.AddArg(x)
+-		return true
+-	}
+-	// match: (MOVWreg x:(MOVHUloadidx2 _ _ _))
+-	// result: (MOVDreg x)
+-	for {
+-		x := v_0
+-		if x.Op != OpARM64MOVHUloadidx2 {
+-			break
+-		}
+-		v.reset(OpARM64MOVDreg)
+-		v.AddArg(x)
+-		return true
+-	}
+-	// match: (MOVWreg x:(MOVWloadidx4 _ _ _))
+-	// result: (MOVDreg x)
+-	for {
+-		x := v_0
+-		if x.Op != OpARM64MOVWloadidx4 {
+-			break
+-		}
+-		v.reset(OpARM64MOVDreg)
+-		v.AddArg(x)
+-		return true
+-	}
+-	// match: (MOVWreg x:(MOVBreg _))
+-	// result: (MOVDreg x)
+-	for {
+-		x := v_0
+-		if x.Op != OpARM64MOVBreg {
+-			break
+-		}
+-		v.reset(OpARM64MOVDreg)
+-		v.AddArg(x)
+-		return true
+-	}
+-	// match: (MOVWreg x:(MOVBUreg _))
+-	// result: (MOVDreg x)
+-	for {
+-		x := v_0
+-		if x.Op != OpARM64MOVBUreg {
+-			break
+-		}
+-		v.reset(OpARM64MOVDreg)
+-		v.AddArg(x)
+-		return true
+-	}
+-	// match: (MOVWreg x:(MOVHreg _))
+-	// result: (MOVDreg x)
+-	for {
+-		x := v_0
+-		if x.Op != OpARM64MOVHreg {
+-			break
+-		}
+-		v.reset(OpARM64MOVDreg)
+-		v.AddArg(x)
+-		return true
+-	}
+-	// match: (MOVWreg x:(MOVWreg _))
+-	// result: (MOVDreg x)
+-	for {
+-		x := v_0
+-		if x.Op != OpARM64MOVWreg {
+-			break
+-		}
+-		v.reset(OpARM64MOVDreg)
+-		v.AddArg(x)
+-		return true
+-	}
+ 	// match: (MOVWreg (MOVDconst [c]))
+ 	// result: (MOVDconst [int64(int32(c))])
+ 	for {
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM64latelower.go b/src/cmd/compile/internal/ssa/rewriteARM64latelower.go
+index 0998757185..6873fd7996 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM64latelower.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM64latelower.go
+@@ -18,6 +18,18 @@ func rewriteValueARM64latelower(v *Value) bool {
+ 		return rewriteValueARM64latelower_OpARM64CMPWconst(v)
+ 	case OpARM64CMPconst:
+ 		return rewriteValueARM64latelower_OpARM64CMPconst(v)
++	case OpARM64MOVBUreg:
++		return rewriteValueARM64latelower_OpARM64MOVBUreg(v)
++	case OpARM64MOVBreg:
++		return rewriteValueARM64latelower_OpARM64MOVBreg(v)
++	case OpARM64MOVHUreg:
++		return rewriteValueARM64latelower_OpARM64MOVHUreg(v)
++	case OpARM64MOVHreg:
++		return rewriteValueARM64latelower_OpARM64MOVHreg(v)
++	case OpARM64MOVWUreg:
++		return rewriteValueARM64latelower_OpARM64MOVWUreg(v)
++	case OpARM64MOVWreg:
++		return rewriteValueARM64latelower_OpARM64MOVWreg(v)
+ 	case OpARM64ORconst:
+ 		return rewriteValueARM64latelower_OpARM64ORconst(v)
+ 	case OpARM64SUBconst:
+@@ -178,6 +190,742 @@ func rewriteValueARM64latelower_OpARM64CMPconst(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueARM64latelower_OpARM64MOVBUreg(v *Value) bool {
++	v_0 := v.Args[0]
++	// match: (MOVBUreg x:(Equal _))
++	// result: x
++	for {
++		x := v_0
++		if x.Op != OpARM64Equal {
++			break
++		}
++		v.copyOf(x)
++		return true
++	}
++	// match: (MOVBUreg x:(NotEqual _))
++	// result: x
++	for {
++		x := v_0
++		if x.Op != OpARM64NotEqual {
++			break
++		}
++		v.copyOf(x)
++		return true
++	}
++	// match: (MOVBUreg x:(LessThan _))
++	// result: x
++	for {
++		x := v_0
++		if x.Op != OpARM64LessThan {
++			break
++		}
++		v.copyOf(x)
++		return true
++	}
++	// match: (MOVBUreg x:(LessThanU _))
++	// result: x
++	for {
++		x := v_0
++		if x.Op != OpARM64LessThanU {
++			break
++		}
++		v.copyOf(x)
++		return true
++	}
++	// match: (MOVBUreg x:(LessThanF _))
++	// result: x
++	for {
++		x := v_0
++		if x.Op != OpARM64LessThanF {
++			break
++		}
++		v.copyOf(x)
++		return true
++	}
++	// match: (MOVBUreg x:(LessEqual _))
++	// result: x
++	for {
++		x := v_0
++		if x.Op != OpARM64LessEqual {
++			break
++		}
++		v.copyOf(x)
++		return true
++	}
++	// match: (MOVBUreg x:(LessEqualU _))
++	// result: x
++	for {
++		x := v_0
++		if x.Op != OpARM64LessEqualU {
++			break
++		}
++		v.copyOf(x)
++		return true
++	}
++	// match: (MOVBUreg x:(LessEqualF _))
++	// result: x
++	for {
++		x := v_0
++		if x.Op != OpARM64LessEqualF {
++			break
++		}
++		v.copyOf(x)
++		return true
++	}
++	// match: (MOVBUreg x:(GreaterThan _))
++	// result: x
++	for {
++		x := v_0
++		if x.Op != OpARM64GreaterThan {
++			break
++		}
++		v.copyOf(x)
++		return true
++	}
++	// match: (MOVBUreg x:(GreaterThanU _))
++	// result: x
++	for {
++		x := v_0
++		if x.Op != OpARM64GreaterThanU {
++			break
++		}
++		v.copyOf(x)
++		return true
++	}
++	// match: (MOVBUreg x:(GreaterThanF _))
++	// result: x
++	for {
++		x := v_0
++		if x.Op != OpARM64GreaterThanF {
++			break
++		}
++		v.copyOf(x)
++		return true
++	}
++	// match: (MOVBUreg x:(GreaterEqual _))
++	// result: x
++	for {
++		x := v_0
++		if x.Op != OpARM64GreaterEqual {
++			break
++		}
++		v.copyOf(x)
++		return true
++	}
++	// match: (MOVBUreg x:(GreaterEqualU _))
++	// result: x
++	for {
++		x := v_0
++		if x.Op != OpARM64GreaterEqualU {
++			break
++		}
++		v.copyOf(x)
++		return true
++	}
++	// match: (MOVBUreg x:(GreaterEqualF _))
++	// result: x
++	for {
++		x := v_0
++		if x.Op != OpARM64GreaterEqualF {
++			break
++		}
++		v.copyOf(x)
++		return true
++	}
++	// match: (MOVBUreg x:(MOVBUload _ _))
++	// result: (MOVDreg x)
++	for {
++		x := v_0
++		if x.Op != OpARM64MOVBUload {
++			break
++		}
++		v.reset(OpARM64MOVDreg)
++		v.AddArg(x)
++		return true
++	}
++	// match: (MOVBUreg x:(MOVBUloadidx _ _ _))
++	// result: (MOVDreg x)
++	for {
++		x := v_0
++		if x.Op != OpARM64MOVBUloadidx {
++			break
++		}
++		v.reset(OpARM64MOVDreg)
++		v.AddArg(x)
++		return true
++	}
++	// match: (MOVBUreg x:(MOVBUreg _))
++	// result: (MOVDreg x)
++	for {
++		x := v_0
++		if x.Op != OpARM64MOVBUreg {
++			break
++		}
++		v.reset(OpARM64MOVDreg)
++		v.AddArg(x)
++		return true
++	}
++	return false
++}
++func rewriteValueARM64latelower_OpARM64MOVBreg(v *Value) bool {
++	v_0 := v.Args[0]
++	// match: (MOVBreg x:(MOVBload _ _))
++	// result: (MOVDreg x)
++	for {
++		x := v_0
++		if x.Op != OpARM64MOVBload {
++			break
++		}
++		v.reset(OpARM64MOVDreg)
++		v.AddArg(x)
++		return true
++	}
++	// match: (MOVBreg x:(MOVBloadidx _ _ _))
++	// result: (MOVDreg x)
++	for {
++		x := v_0
++		if x.Op != OpARM64MOVBloadidx {
++			break
++		}
++		v.reset(OpARM64MOVDreg)
++		v.AddArg(x)
++		return true
++	}
++	// match: (MOVBreg x:(MOVBreg _))
++	// result: (MOVDreg x)
++	for {
++		x := v_0
++		if x.Op != OpARM64MOVBreg {
++			break
++		}
++		v.reset(OpARM64MOVDreg)
++		v.AddArg(x)
++		return true
++	}
++	return false
++}
++func rewriteValueARM64latelower_OpARM64MOVHUreg(v *Value) bool {
++	v_0 := v.Args[0]
++	// match: (MOVHUreg x:(MOVBUload _ _))
++	// result: (MOVDreg x)
++	for {
++		x := v_0
++		if x.Op != OpARM64MOVBUload {
++			break
++		}
++		v.reset(OpARM64MOVDreg)
++		v.AddArg(x)
++		return true
++	}
++	// match: (MOVHUreg x:(MOVHUload _ _))
++	// result: (MOVDreg x)
++	for {
++		x := v_0
++		if x.Op != OpARM64MOVHUload {
++			break
++		}
++		v.reset(OpARM64MOVDreg)
++		v.AddArg(x)
++		return true
++	}
++	// match: (MOVHUreg x:(MOVBUloadidx _ _ _))
++	// result: (MOVDreg x)
++	for {
++		x := v_0
++		if x.Op != OpARM64MOVBUloadidx {
++			break
++		}
++		v.reset(OpARM64MOVDreg)
++		v.AddArg(x)
++		return true
++	}
++	// match: (MOVHUreg x:(MOVHUloadidx _ _ _))
++	// result: (MOVDreg x)
++	for {
++		x := v_0
++		if x.Op != OpARM64MOVHUloadidx {
++			break
++		}
++		v.reset(OpARM64MOVDreg)
++		v.AddArg(x)
++		return true
++	}
++	// match: (MOVHUreg x:(MOVHUloadidx2 _ _ _))
++	// result: (MOVDreg x)
++	for {
++		x := v_0
++		if x.Op != OpARM64MOVHUloadidx2 {
++			break
++		}
++		v.reset(OpARM64MOVDreg)
++		v.AddArg(x)
++		return true
++	}
++	// match: (MOVHUreg x:(MOVBUreg _))
++	// result: (MOVDreg x)
++	for {
++		x := v_0
++		if x.Op != OpARM64MOVBUreg {
++			break
++		}
++		v.reset(OpARM64MOVDreg)
++		v.AddArg(x)
++		return true
++	}
++	// match: (MOVHUreg x:(MOVHUreg _))
++	// result: (MOVDreg x)
++	for {
++		x := v_0
++		if x.Op != OpARM64MOVHUreg {
++			break
++		}
++		v.reset(OpARM64MOVDreg)
++		v.AddArg(x)
++		return true
++	}
++	return false
++}
++func rewriteValueARM64latelower_OpARM64MOVHreg(v *Value) bool {
++	v_0 := v.Args[0]
++	// match: (MOVHreg x:(MOVBload _ _))
++	// result: (MOVDreg x)
++	for {
++		x := v_0
++		if x.Op != OpARM64MOVBload {
++			break
++		}
++		v.reset(OpARM64MOVDreg)
++		v.AddArg(x)
++		return true
++	}
++	// match: (MOVHreg x:(MOVBUload _ _))
++	// result: (MOVDreg x)
++	for {
++		x := v_0
++		if x.Op != OpARM64MOVBUload {
++			break
++		}
++		v.reset(OpARM64MOVDreg)
++		v.AddArg(x)
++		return true
++	}
++	// match: (MOVHreg x:(MOVHload _ _))
++	// result: (MOVDreg x)
++	for {
++		x := v_0
++		if x.Op != OpARM64MOVHload {
++			break
++		}
++		v.reset(OpARM64MOVDreg)
++		v.AddArg(x)
++		return true
++	}
++	// match: (MOVHreg x:(MOVBloadidx _ _ _))
++	// result: (MOVDreg x)
++	for {
++		x := v_0
++		if x.Op != OpARM64MOVBloadidx {
++			break
++		}
++		v.reset(OpARM64MOVDreg)
++		v.AddArg(x)
++		return true
++	}
++	// match: (MOVHreg x:(MOVBUloadidx _ _ _))
++	// result: (MOVDreg x)
++	for {
++		x := v_0
++		if x.Op != OpARM64MOVBUloadidx {
++			break
++		}
++		v.reset(OpARM64MOVDreg)
++		v.AddArg(x)
++		return true
++	}
++	// match: (MOVHreg x:(MOVHloadidx _ _ _))
++	// result: (MOVDreg x)
++	for {
++		x := v_0
++		if x.Op != OpARM64MOVHloadidx {
++			break
++		}
++		v.reset(OpARM64MOVDreg)
++		v.AddArg(x)
++		return true
++	}
++	// match: (MOVHreg x:(MOVHloadidx2 _ _ _))
++	// result: (MOVDreg x)
++	for {
++		x := v_0
++		if x.Op != OpARM64MOVHloadidx2 {
++			break
++		}
++		v.reset(OpARM64MOVDreg)
++		v.AddArg(x)
++		return true
++	}
++	// match: (MOVHreg x:(MOVBreg _))
++	// result: (MOVDreg x)
++	for {
++		x := v_0
++		if x.Op != OpARM64MOVBreg {
++			break
++		}
++		v.reset(OpARM64MOVDreg)
++		v.AddArg(x)
++		return true
++	}
++	// match: (MOVHreg x:(MOVBUreg _))
++	// result: (MOVDreg x)
++	for {
++		x := v_0
++		if x.Op != OpARM64MOVBUreg {
++			break
++		}
++		v.reset(OpARM64MOVDreg)
++		v.AddArg(x)
++		return true
++	}
++	// match: (MOVHreg x:(MOVHreg _))
++	// result: (MOVDreg x)
++	for {
++		x := v_0
++		if x.Op != OpARM64MOVHreg {
++			break
++		}
++		v.reset(OpARM64MOVDreg)
++		v.AddArg(x)
++		return true
++	}
++	return false
++}
++func rewriteValueARM64latelower_OpARM64MOVWUreg(v *Value) bool {
++	v_0 := v.Args[0]
++	// match: (MOVWUreg x)
++	// cond: zeroUpper32Bits(x, 3)
++	// result: x
++	for {
++		x := v_0
++		if !(zeroUpper32Bits(x, 3)) {
++			break
++		}
++		v.copyOf(x)
++		return true
++	}
++	// match: (MOVWUreg x:(MOVBUload _ _))
++	// result: (MOVDreg x)
++	for {
++		x := v_0
++		if x.Op != OpARM64MOVBUload {
++			break
++		}
++		v.reset(OpARM64MOVDreg)
++		v.AddArg(x)
++		return true
++	}
++	// match: (MOVWUreg x:(MOVHUload _ _))
++	// result: (MOVDreg x)
++	for {
++		x := v_0
++		if x.Op != OpARM64MOVHUload {
++			break
++		}
++		v.reset(OpARM64MOVDreg)
++		v.AddArg(x)
++		return true
++	}
++	// match: (MOVWUreg x:(MOVWUload _ _))
++	// result: (MOVDreg x)
++	for {
++		x := v_0
++		if x.Op != OpARM64MOVWUload {
++			break
++		}
++		v.reset(OpARM64MOVDreg)
++		v.AddArg(x)
++		return true
++	}
++	// match: (MOVWUreg x:(MOVBUloadidx _ _ _))
++	// result: (MOVDreg x)
++	for {
++		x := v_0
++		if x.Op != OpARM64MOVBUloadidx {
++			break
++		}
++		v.reset(OpARM64MOVDreg)
++		v.AddArg(x)
++		return true
++	}
++	// match: (MOVWUreg x:(MOVHUloadidx _ _ _))
++	// result: (MOVDreg x)
++	for {
++		x := v_0
++		if x.Op != OpARM64MOVHUloadidx {
++			break
++		}
++		v.reset(OpARM64MOVDreg)
++		v.AddArg(x)
++		return true
++	}
++	// match: (MOVWUreg x:(MOVWUloadidx _ _ _))
++	// result: (MOVDreg x)
++	for {
++		x := v_0
++		if x.Op != OpARM64MOVWUloadidx {
++			break
++		}
++		v.reset(OpARM64MOVDreg)
++		v.AddArg(x)
++		return true
++	}
++	// match: (MOVWUreg x:(MOVHUloadidx2 _ _ _))
++	// result: (MOVDreg x)
++	for {
++		x := v_0
++		if x.Op != OpARM64MOVHUloadidx2 {
++			break
++		}
++		v.reset(OpARM64MOVDreg)
++		v.AddArg(x)
++		return true
++	}
++	// match: (MOVWUreg x:(MOVWUloadidx4 _ _ _))
++	// result: (MOVDreg x)
++	for {
++		x := v_0
++		if x.Op != OpARM64MOVWUloadidx4 {
++			break
++		}
++		v.reset(OpARM64MOVDreg)
++		v.AddArg(x)
++		return true
++	}
++	// match: (MOVWUreg x:(MOVBUreg _))
++	// result: (MOVDreg x)
++	for {
++		x := v_0
++		if x.Op != OpARM64MOVBUreg {
++			break
++		}
++		v.reset(OpARM64MOVDreg)
++		v.AddArg(x)
++		return true
++	}
++	// match: (MOVWUreg x:(MOVHUreg _))
++	// result: (MOVDreg x)
++	for {
++		x := v_0
++		if x.Op != OpARM64MOVHUreg {
++			break
++		}
++		v.reset(OpARM64MOVDreg)
++		v.AddArg(x)
++		return true
++	}
++	// match: (MOVWUreg x:(MOVWUreg _))
++	// result: (MOVDreg x)
++	for {
++		x := v_0
++		if x.Op != OpARM64MOVWUreg {
++			break
++		}
++		v.reset(OpARM64MOVDreg)
++		v.AddArg(x)
++		return true
++	}
++	return false
++}
++func rewriteValueARM64latelower_OpARM64MOVWreg(v *Value) bool {
++	v_0 := v.Args[0]
++	// match: (MOVWreg x:(MOVBload _ _))
++	// result: (MOVDreg x)
++	for {
++		x := v_0
++		if x.Op != OpARM64MOVBload {
++			break
++		}
++		v.reset(OpARM64MOVDreg)
++		v.AddArg(x)
++		return true
++	}
++	// match: (MOVWreg x:(MOVBUload _ _))
++	// result: (MOVDreg x)
++	for {
++		x := v_0
++		if x.Op != OpARM64MOVBUload {
++			break
++		}
++		v.reset(OpARM64MOVDreg)
++		v.AddArg(x)
++		return true
++	}
++	// match: (MOVWreg x:(MOVHload _ _))
++	// result: (MOVDreg x)
++	for {
++		x := v_0
++		if x.Op != OpARM64MOVHload {
++			break
++		}
++		v.reset(OpARM64MOVDreg)
++		v.AddArg(x)
++		return true
++	}
++	// match: (MOVWreg x:(MOVHUload _ _))
++	// result: (MOVDreg x)
++	for {
++		x := v_0
++		if x.Op != OpARM64MOVHUload {
++			break
++		}
++		v.reset(OpARM64MOVDreg)
++		v.AddArg(x)
++		return true
++	}
++	// match: (MOVWreg x:(MOVWload _ _))
++	// result: (MOVDreg x)
++	for {
++		x := v_0
++		if x.Op != OpARM64MOVWload {
++			break
++		}
++		v.reset(OpARM64MOVDreg)
++		v.AddArg(x)
++		return true
++	}
++	// match: (MOVWreg x:(MOVBloadidx _ _ _))
++	// result: (MOVDreg x)
++	for {
++		x := v_0
++		if x.Op != OpARM64MOVBloadidx {
++			break
++		}
++		v.reset(OpARM64MOVDreg)
++		v.AddArg(x)
++		return true
++	}
++	// match: (MOVWreg x:(MOVBUloadidx _ _ _))
++	// result: (MOVDreg x)
++	for {
++		x := v_0
++		if x.Op != OpARM64MOVBUloadidx {
++			break
++		}
++		v.reset(OpARM64MOVDreg)
++		v.AddArg(x)
++		return true
++	}
++	// match: (MOVWreg x:(MOVHloadidx _ _ _))
++	// result: (MOVDreg x)
++	for {
++		x := v_0
++		if x.Op != OpARM64MOVHloadidx {
++			break
++		}
++		v.reset(OpARM64MOVDreg)
++		v.AddArg(x)
++		return true
++	}
++	// match: (MOVWreg x:(MOVHUloadidx _ _ _))
++	// result: (MOVDreg x)
++	for {
++		x := v_0
++		if x.Op != OpARM64MOVHUloadidx {
++			break
++		}
++		v.reset(OpARM64MOVDreg)
++		v.AddArg(x)
++		return true
++	}
++	// match: (MOVWreg x:(MOVWloadidx _ _ _))
++	// result: (MOVDreg x)
++	for {
++		x := v_0
++		if x.Op != OpARM64MOVWloadidx {
++			break
++		}
++		v.reset(OpARM64MOVDreg)
++		v.AddArg(x)
++		return true
++	}
++	// match: (MOVWreg x:(MOVHloadidx2 _ _ _))
++	// result: (MOVDreg x)
++	for {
++		x := v_0
++		if x.Op != OpARM64MOVHloadidx2 {
++			break
++		}
++		v.reset(OpARM64MOVDreg)
++		v.AddArg(x)
++		return true
++	}
++	// match: (MOVWreg x:(MOVHUloadidx2 _ _ _))
++	// result: (MOVDreg x)
++	for {
++		x := v_0
++		if x.Op != OpARM64MOVHUloadidx2 {
++			break
++		}
++		v.reset(OpARM64MOVDreg)
++		v.AddArg(x)
++		return true
++	}
++	// match: (MOVWreg x:(MOVWloadidx4 _ _ _))
++	// result: (MOVDreg x)
++	for {
++		x := v_0
++		if x.Op != OpARM64MOVWloadidx4 {
++			break
++		}
++		v.reset(OpARM64MOVDreg)
++		v.AddArg(x)
++		return true
++	}
++	// match: (MOVWreg x:(MOVBreg _))
++	// result: (MOVDreg x)
++	for {
++		x := v_0
++		if x.Op != OpARM64MOVBreg {
++			break
++		}
++		v.reset(OpARM64MOVDreg)
++		v.AddArg(x)
++		return true
++	}
++	// match: (MOVWreg x:(MOVBUreg _))
++	// result: (MOVDreg x)
++	for {
++		x := v_0
++		if x.Op != OpARM64MOVBUreg {
++			break
++		}
++		v.reset(OpARM64MOVDreg)
++		v.AddArg(x)
++		return true
++	}
++	// match: (MOVWreg x:(MOVHreg _))
++	// result: (MOVDreg x)
++	for {
++		x := v_0
++		if x.Op != OpARM64MOVHreg {
++			break
++		}
++		v.reset(OpARM64MOVDreg)
++		v.AddArg(x)
++		return true
++	}
++	// match: (MOVWreg x:(MOVWreg _))
++	// result: (MOVDreg x)
++	for {
++		x := v_0
++		if x.Op != OpARM64MOVWreg {
++			break
++		}
++		v.reset(OpARM64MOVDreg)
++		v.AddArg(x)
++		return true
++	}
++	return false
++}
+ func rewriteValueARM64latelower_OpARM64ORconst(v *Value) bool {
+ 	v_0 := v.Args[0]
+ 	b := v.Block
+diff --git a/test/fixedbugs/issue66066.go b/test/fixedbugs/issue66066.go
+new file mode 100644
+index 0000000000..a674503b47
+--- /dev/null
++++ b/test/fixedbugs/issue66066.go
+@@ -0,0 +1,41 @@
++// run
++
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "fmt"
++
++func main() {
++	testMod()
++	testMul()
++}
++
++//go:noinline
++func mod3(x uint32) uint64 {
++	return uint64(x % 3)
++}
++
++func testMod() {
++	got := mod3(1<<32 - 1)
++	want := uint64((1<<32 - 1) % 3)
++	if got != want {
++		fmt.Printf("testMod: got %x want %x\n", got, want)
++	}
++
++}
++
++//go:noinline
++func mul3(a uint32) uint64 {
++	return uint64(a * 3)
++}
++
++func testMul() {
++	got := mul3(1<<32 - 1)
++	want := uint64((1<<32-1)*3 - 2<<32)
++	if got != want {
++		fmt.Printf("testMul: got %x want %x\n", got, want)
++	}
++}

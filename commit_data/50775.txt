@@ -13,7 +13,51 @@ Date:   Tue Nov 9 14:56:39 2021 -0500
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/api_test.go |  2 +-
  src/go/types/typexpr.go  | 12 +++++++-----
  2 files changed, 8 insertions(+), 6 deletions(-)
+
+diff --git a/src/go/types/api_test.go b/src/go/types/api_test.go
+index 807bffbff6..3e10be5985 100644
+--- a/src/go/types/api_test.go
++++ b/src/go/types/api_test.go
+@@ -342,7 +342,7 @@ func TestTypesInfo(t *testing.T) {
+ 		{broken + `x2; func _() { var a, b string; type x struct {f string}; z := &x{f: a; f: b;}}`, `b`, `string`},
+ 		{broken + `x3; var x = panic("");`, `panic`, `func(interface{})`},
+ 		{`package x4; func _() { panic("") }`, `panic`, `func(interface{})`},
+-		{broken + `x5; func _() { var x map[string][...]int; x = map[string][...]int{"": {1,2,3}} }`, `x`, `map[string][-1]int`},
++		{broken + `x5; func _() { var x map[string][...]int; x = map[string][...]int{"": {1,2,3}} }`, `x`, `map[string]invalid type`},
+ 
+ 		// parameterized functions
+ 		{genericPkg + `p0; func f[T any](T) {}; var _ = f[int]`, `f`, `func[T interface{}](T)`},
+diff --git a/src/go/types/typexpr.go b/src/go/types/typexpr.go
+index e1d942a5c6..cc2bd62209 100644
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@ -271,18 +271,20 @@ func (check *Checker) typInternal(e0 ast.Expr, def *Named) (T Type) {
+ 		return check.definedType(e.X, def)
+ 
+ 	case *ast.ArrayType:
+-		if e.Len != nil {
+-			typ := new(Array)
++		if e.Len == nil {
++			typ := new(Slice)
+ 			def.setUnderlying(typ)
+-			typ.len = check.arrayLength(e.Len)
+ 			typ.elem = check.varType(e.Elt)
+ 			return typ
+ 		}
+ 
+-		typ := new(Slice)
++		typ := new(Array)
+ 		def.setUnderlying(typ)
++		typ.len = check.arrayLength(e.Len)
+ 		typ.elem = check.varType(e.Elt)
+-		return typ
++		if typ.len >= 0 {
++			return typ
++		}
+ 
+ 	case *ast.Ellipsis:
+ 		// dots are handled explicitly where they are legal

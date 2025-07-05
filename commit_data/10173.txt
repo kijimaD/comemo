@@ -33,8 +33,57 @@ Date:   Wed Nov 2 11:47:05 2011 +1100
     R=nigeltao
     CC=golang-dev
     https://golang.org/cl/5320063
-
+---
  src/pkg/html/node.go       |  2 ++
  src/pkg/html/parse.go      | 11 +++++++----
  src/pkg/html/parse_test.go |  2 +-
  3 files changed, 10 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/html/node.go b/src/pkg/html/node.go
+index 4ecfd6ca23..5ca6035c11 100644
+--- a/src/pkg/html/node.go
++++ b/src/pkg/html/node.go
+@@ -135,6 +135,8 @@ func (s *nodeStack) remove(n *Node) {
+ 	*s = (*s)[:j]
+ }
+ 
++// TODO(nigeltao): forTag no longer used. Should it be deleted?
++
+ // forTag returns the top-most element node with the given tag.
+ func (s *nodeStack) forTag(tag string) *Node {
+ 	for i := len(*s) - 1; i >= 0; i-- {
+diff --git a/src/pkg/html/parse.go b/src/pkg/html/parse.go
+index 2538ea9811..54f7e2e8a5 100644
+--- a/src/pkg/html/parse.go
++++ b/src/pkg/html/parse.go
+@@ -553,10 +553,13 @@ func inBodyIM(p *parser) (insertionMode, bool) {
+ 			}
+ 			p.addElement(p.tok.Data, p.tok.Attr)
+ 		case "a":
+-			if n := p.afe.forTag("a"); n != nil {
+-				p.inBodyEndTagFormatting("a")
+-				p.oe.remove(n)
+-				p.afe.remove(n)
++			for i := len(p.afe) - 1; i >= 0 && p.afe[i].Type != scopeMarkerNode; i-- {
++				if n := p.afe[i]; n.Type == ElementNode && n.Data == "a" {
++					p.inBodyEndTagFormatting("a")
++					p.oe.remove(n)
++					p.afe.remove(n)
++					break
++				}
+ 			}
+ 			p.reconstructActiveFormattingElements()
+ 			p.addFormattingElement(p.tok.Data, p.tok.Attr)
+diff --git a/src/pkg/html/parse_test.go b/src/pkg/html/parse_test.go
+index 067eb26d04..b9572fa123 100644
+--- a/src/pkg/html/parse_test.go
++++ b/src/pkg/html/parse_test.go
+@@ -132,7 +132,7 @@ func TestParser(t *testing.T) {
+ 		rc := make(chan io.Reader)
+ 		go readDat(filename, rc)
+ 		// TODO(nigeltao): Process all test cases, not just a subset.
+-		for i := 0; i < 78; i++ {
++		for i := 0; i < 80; i++ {
+ 			// Parse the #data section.
+ 			b, err := ioutil.ReadAll(<-rc)
+ 			if err != nil {

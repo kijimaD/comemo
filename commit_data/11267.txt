@@ -10,6 +10,25 @@ Date:   Thu Jan 19 10:19:33 2012 -0800
     R=golang-dev
     CC=golang-dev
     https://golang.org/cl/5554061
-
+---
  src/pkg/testing/example.go | 7 -------
  1 file changed, 7 deletions(-)
+
+diff --git a/src/pkg/testing/example.go b/src/pkg/testing/example.go
+index fdeda137e7..7f8ff2d054 100644
+--- a/src/pkg/testing/example.go
++++ b/src/pkg/testing/example.go
+@@ -25,13 +25,6 @@ func RunExamples(examples []InternalExample) (ok bool) {
+ 	var eg InternalExample
+ 
+ 	stdout, stderr := os.Stdout, os.Stderr
+-	defer func() {
+-		os.Stdout, os.Stderr = stdout, stderr
+-		if e := recover(); e != nil {
+-			fmt.Printf("--- FAIL: %s\npanic: %v\n", eg.Name, e)
+-			os.Exit(1)
+-		}
+-	}()
+ 
+ 	for _, eg = range examples {
+ 		if *chatty {

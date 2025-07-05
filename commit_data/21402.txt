@@ -9,10 +9,78 @@ Date:   Wed Dec 31 20:55:47 2014 -0500
     Change-Id: Ic9b02c641ab84e4f6d8149de71b9eb495e3343b2
     Reviewed-on: https://go-review.googlesource.com/2233
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-
+---
  src/runtime/defs_windows.go       | 1 +
  src/runtime/defs_windows_386.go   | 1 +
  src/runtime/defs_windows_amd64.go | 1 +
  src/runtime/os2_plan9.go          | 2 ++
  src/runtime/sigqueue.go           | 9 +++++++--
  5 files changed, 12 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/defs_windows.go b/src/runtime/defs_windows.go
+index 7ce6797414..5dfb83a7cf 100644
+--- a/src/runtime/defs_windows.go
++++ b/src/runtime/defs_windows.go
+@@ -41,6 +41,7 @@ const (
+ 	DUPLICATE_SAME_ACCESS   = C.DUPLICATE_SAME_ACCESS
+ 	THREAD_PRIORITY_HIGHEST = C.THREAD_PRIORITY_HIGHEST
+ 
++	SIGPROF          = 0 // dummy value for badsignal
+ 	SIGINT           = C.SIGINT
+ 	CTRL_C_EVENT     = C.CTRL_C_EVENT
+ 	CTRL_BREAK_EVENT = C.CTRL_BREAK_EVENT
+diff --git a/src/runtime/defs_windows_386.go b/src/runtime/defs_windows_386.go
+index abec2d839f..450a371769 100644
+--- a/src/runtime/defs_windows_386.go
++++ b/src/runtime/defs_windows_386.go
+@@ -15,6 +15,7 @@ const (
+ 	_DUPLICATE_SAME_ACCESS   = 0x2
+ 	_THREAD_PRIORITY_HIGHEST = 0x2
+ 
++	_SIGPROF          = 0 // dummy value for badsignal
+ 	_SIGINT           = 0x2
+ 	_CTRL_C_EVENT     = 0x0
+ 	_CTRL_BREAK_EVENT = 0x1
+diff --git a/src/runtime/defs_windows_amd64.go b/src/runtime/defs_windows_amd64.go
+index 81b13597b7..ed28576aac 100644
+--- a/src/runtime/defs_windows_amd64.go
++++ b/src/runtime/defs_windows_amd64.go
+@@ -15,6 +15,7 @@ const (
+ 	_DUPLICATE_SAME_ACCESS   = 0x2
+ 	_THREAD_PRIORITY_HIGHEST = 0x2
+ 
++	_SIGPROF          = 0 // dummy value for badsignal
+ 	_SIGINT           = 0x2
+ 	_CTRL_C_EVENT     = 0x0
+ 	_CTRL_BREAK_EVENT = 0x1
+diff --git a/src/runtime/os2_plan9.go b/src/runtime/os2_plan9.go
+index f64f4c8dab..ca9cee767f 100644
+--- a/src/runtime/os2_plan9.go
++++ b/src/runtime/os2_plan9.go
+@@ -69,4 +69,6 @@ const (
+ 	_SIGINTDIV = 4
+ 	_SIGFLOAT  = 5
+ 	_SIGTRAP   = 6
++	// dummy value defined for badsignal
++	_SIGPROF   = 0
+ )
+diff --git a/src/runtime/sigqueue.go b/src/runtime/sigqueue.go
+index a760790396..543651076d 100644
+--- a/src/runtime/sigqueue.go
++++ b/src/runtime/sigqueue.go
+@@ -160,8 +160,13 @@ func badsignal(sig uintptr) {
+ 	// call to cgocallback below will bring down the whole process.
+ 	// It's better to miss a few SIGPROF signals than to abort in this case.
+ 	// See http://golang.org/issue/9456.
+-	if sig == _SIGPROF && needextram != 0 {
+-		return
++	switch GOOS {
++	case "windows", "plan9":
++		// no actual SIGPROF is defined, nothing to do
++	default:
++		if sig == _SIGPROF && needextram != 0 {
++			return
++		}
+ 	}
+ 	cgocallback(unsafe.Pointer(funcPC(sigsend)), noescape(unsafe.Pointer(&sig)), unsafe.Sizeof(sig))
+ }

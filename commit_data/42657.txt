@@ -9,6 +9,24 @@ Date:   Wed Jan 29 17:39:26 2020 -0700
     Change-Id: I538ea0dfa947b53d5c4a7135c1aec912b0357083
     Reviewed-on: https://go-review.googlesource.com/c/go/+/217121
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  doc/go1.14.html | 5 ++---
  1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/doc/go1.14.html b/doc/go1.14.html
+index 26644cca59..d850c1ca9a 100644
+--- a/doc/go1.14.html
++++ b/doc/go1.14.html
+@@ -304,10 +304,9 @@ appropriately.)
+   graphic characters and spaces.
+ </p>
+ 
+-<h4 id="go.mod">Testing</h4>
+-<!-- golang.org/issue/24929 -->
++<h4 id="go-test">Testing</h4>
+ 
+-<p>
++<p><!-- golang.org/issue/24929 -->
+   <code>go test -v</code> now streams <code>t.Log</code> output as it happens,
+   rather than at the end of all tests.
+ </p>

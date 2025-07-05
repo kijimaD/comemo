@@ -7,6 +7,20 @@ Date:   Wed Sep 14 11:14:03 2011 -0400
     R=golang-dev
     CC=golang-dev
     https://golang.org/cl/5020045
-
+---
  src/pkg/image/jpeg/writer_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/image/jpeg/writer_test.go b/src/pkg/image/jpeg/writer_test.go
+index 7aec70f016..44c045ed05 100644
+--- a/src/pkg/image/jpeg/writer_test.go
++++ b/src/pkg/image/jpeg/writer_test.go
+@@ -90,7 +90,7 @@ func TestWriter(t *testing.T) {
+ 
+ func BenchmarkEncodeRGBOpaque(b *testing.B) {
+ 	b.StopTimer()
+-	img := image.NewRGBA(640, 480)
++	img := image.NewRGBA(image.Rect(0, 0, 640, 480))
+ 	// Set all pixels to 0xFF alpha to force opaque mode.
+ 	bo := img.Bounds()
+ 	rnd := rand.New(rand.NewSource(123))

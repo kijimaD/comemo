@@ -13,7 +13,44 @@ Date:   Thu Dec 10 10:11:15 2015 -0800
     Reviewed-by: Russ Cox <rsc@golang.org>
     Reviewed-by: Nodir Turakulov <nodir@google.com>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/httptest/recorder.go      |  3 +++
  src/net/http/httptest/recorder_test.go | 11 +++++++++++
  2 files changed, 14 insertions(+)
+
+diff --git a/src/net/http/httptest/recorder.go b/src/net/http/httptest/recorder.go
+index c813cf5021..7c51af1867 100644
+--- a/src/net/http/httptest/recorder.go
++++ b/src/net/http/httptest/recorder.go
+@@ -65,6 +65,9 @@ func (rw *ResponseRecorder) writeHeader(b []byte, str string) {
+ 		if b == nil {
+ 			b = []byte(str)
+ 		}
++		if rw.HeaderMap == nil {
++			rw.HeaderMap = make(http.Header)
++		}
+ 		rw.HeaderMap.Set("Content-Type", http.DetectContentType(b))
+ 	}
+ 
+diff --git a/src/net/http/httptest/recorder_test.go b/src/net/http/httptest/recorder_test.go
+index a5a1725fa9..c29b6d4cf9 100644
+--- a/src/net/http/httptest/recorder_test.go
++++ b/src/net/http/httptest/recorder_test.go
+@@ -119,6 +119,17 @@ func TestRecorder(t *testing.T) {
+ 			},
+ 			check(hasHeader("Content-Type", "some/type")),
+ 		},
++		{
++			"Content-Type detection doesn't crash if HeaderMap is nil",
++			func(w http.ResponseWriter, r *http.Request) {
++				// Act as if the user wrote new(httptest.ResponseRecorder)
++				// rather than using NewRecorder (which initializes
++				// HeaderMap)
++				w.(*ResponseRecorder).HeaderMap = nil
++				io.WriteString(w, "<html>")
++			},
++			check(hasHeader("Content-Type", "text/html; charset=utf-8")),
++		},
+ 	}
+ 	r, _ := http.NewRequest("GET", "http://foo.com/", nil)
+ 	for _, tt := range tests {

@@ -15,6 +15,19 @@ Date:   Wed Mar 11 17:17:57 2020 -0700
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/go_test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 66354f7ff5..53027b7ccb 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -1044,6 +1044,7 @@ func TestGetGitDefaultBranch(t *testing.T) {
+ func TestAccidentalGitCheckout(t *testing.T) {
+ 	testenv.MustHaveExternalNetwork(t)
+ 	testenv.MustHaveExecPath(t, "git")
++	testenv.MustHaveExecPath(t, "svn")
+ 
+ 	tg := testgo(t)
+ 	defer tg.cleanup()

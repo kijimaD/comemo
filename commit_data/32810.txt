@@ -9,6 +9,22 @@ Date:   Sat Jun 3 21:36:51 2017 +0200
     Change-Id: Ifaaf454e0e89fdf4309118c2e2e6ac0d0a43c39d
     Reviewed-on: https://go-review.googlesource.com/44711
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/encoding/json/decode.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/encoding/json/decode.go b/src/encoding/json/decode.go
+index 41d0aefbeb..710c835547 100644
+--- a/src/encoding/json/decode.go
++++ b/src/encoding/json/decode.go
+@@ -79,7 +79,9 @@ import (
+ // or if a JSON number overflows the target type, Unmarshal
+ // skips that field and completes the unmarshaling as best it can.
+ // If no more serious errors are encountered, Unmarshal returns
+-// an UnmarshalTypeError describing the earliest such error.
++// an UnmarshalTypeError describing the earliest such error. In any
++// case, it's not guaranteed that all the remaining fields following
++// the problematic one will be unmarshaled into the target object.
+ //
+ // The JSON null value unmarshals into an interface, map, pointer, or slice
+ // by setting that Go value to nil. Because null is often used in JSON to mean

@@ -9,6 +9,21 @@ Date:   Mon Nov 4 16:33:31 2019 -0800
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/io/ioutil/ioutil_test.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/io/ioutil/ioutil_test.go b/src/io/ioutil/ioutil_test.go
+index 4945c65445..ef3c6d7975 100644
+--- a/src/io/ioutil/ioutil_test.go
++++ b/src/io/ioutil/ioutil_test.go
+@@ -72,6 +72,9 @@ func TestReadOnlyWriteFile(t *testing.T) {
+ 
+ 	// We don't want to use TempFile directly, since that opens a file for us as 0600.
+ 	tempDir, err := TempDir("", t.Name())
++	if err != nil {
++		t.Fatalf("TempDir %s: %v", t.Name(), err)
++	}
+ 	defer os.RemoveAll(tempDir)
+ 	filename := filepath.Join(tempDir, "blurp.txt")
+ 

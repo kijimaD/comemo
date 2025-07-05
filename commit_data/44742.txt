@@ -10,6 +10,19 @@ Date:   Tue Aug 25 11:30:32 2020 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/250497
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
-
+---
  src/crypto/x509/x509.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/crypto/x509/x509.go b/src/crypto/x509/x509.go
+index 8ce57fb1ec..49ac059a0e 100644
+--- a/src/crypto/x509/x509.go
++++ b/src/crypto/x509/x509.go
+@@ -14,7 +14,6 @@ import (
+ 	"crypto/elliptic"
+ 	"crypto/rsa"
+ 	"crypto/sha1"
+-	_ "crypto/sha1"
+ 	_ "crypto/sha256"
+ 	_ "crypto/sha512"
+ 	"crypto/x509/pkix"

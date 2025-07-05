@@ -12,7 +12,75 @@ Date:   Tue Mar 8 22:13:20 2016 -0600
     Run-TryBot: Todd Neal <tolchz@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/func.go      | 16 ++++++++++++++++
  src/cmd/compile/internal/ssa/func_test.go | 22 ++++++++++++++++++++++
  2 files changed, 38 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/func.go b/src/cmd/compile/internal/ssa/func.go
+index e3e4b08af1..19b825a120 100644
+--- a/src/cmd/compile/internal/ssa/func.go
++++ b/src/cmd/compile/internal/ssa/func.go
+@@ -116,6 +116,19 @@ func (f *Func) freeValue(v *Value) {
+ 	}
+ 	// Clear everything but ID (which we reuse).
+ 	id := v.ID
++
++	// Zero argument values might be cached, so remove them there.
++	nArgs := opcodeTable[v.Op].argLen
++	if nArgs == 0 {
++		vv := f.constants[v.AuxInt]
++		for i, cv := range vv {
++			if v == cv {
++				vv[i] = vv[len(vv)-1]
++				f.constants[v.AuxInt] = vv[0 : len(vv)-1]
++				break
++			}
++		}
++	}
+ 	*v = Value{}
+ 	v.ID = id
+ 	v.argstorage[0] = f.freeValues
+@@ -280,6 +293,9 @@ func (f *Func) constVal(line int32, op Op, t Type, c int64, setAux bool) *Value
+ 	vv := f.constants[c]
+ 	for _, v := range vv {
+ 		if v.Op == op && v.Type.Equal(t) {
++			if setAux && v.AuxInt != c {
++				panic(fmt.Sprintf("cached const %s should have AuxInt of %d", v.LongString(), c))
++			}
+ 			return v
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/ssa/func_test.go b/src/cmd/compile/internal/ssa/func_test.go
+index fa6a1a8751..4fef782afc 100644
+--- a/src/cmd/compile/internal/ssa/func_test.go
++++ b/src/cmd/compile/internal/ssa/func_test.go
+@@ -421,6 +421,28 @@ func TestEquiv(t *testing.T) {
+ 	}
+ }
+ 
++// TestConstCache ensures that the cache will not return
++// reused free'd values with a non-matching AuxInt
++func TestConstCache(t *testing.T) {
++	f := Fun(testConfig(t), "entry",
++		Bloc("entry",
++			Valu("mem", OpInitMem, TypeMem, 0, nil),
++			Exit("mem")))
++	v1 := f.f.ConstBool(0, TypeBool, false)
++	v2 := f.f.ConstBool(0, TypeBool, true)
++	f.f.freeValue(v1)
++	f.f.freeValue(v2)
++	v3 := f.f.ConstBool(0, TypeBool, false)
++	v4 := f.f.ConstBool(0, TypeBool, true)
++	if v3.AuxInt != 0 {
++		t.Errorf("expected %s to have auxint of 0\n", v3.LongString())
++	}
++	if v4.AuxInt != 1 {
++		t.Errorf("expected %s to have auxint of 1\n", v4.LongString())
++	}
++
++}
++
+ // opcodeMap returns a map from opcode to the number of times that opcode
+ // appears in the function.
+ func opcodeMap(f *Func) map[Op]int {

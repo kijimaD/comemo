@@ -16,7 +16,53 @@ Date:   Mon Apr 3 11:50:54 2017 -0400
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/ARM64.rules |  3 +++
  src/cmd/compile/internal/ssa/rewriteARM64.go | 20 ++++++++++++++++++++
  2 files changed, 23 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64.rules b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+index 41661082c7..a4d651604b 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+@@ -1190,6 +1190,9 @@
+ ( ORshiftRL <t> [c] (SLLconst x [32-c]) (MOVWUreg x)) && c < 32 && t.Size() == 4 -> (RORWconst [   c] x)
+ (XORshiftRL <t> [c] (SLLconst x [32-c]) (MOVWUreg x)) && c < 32 && t.Size() == 4 -> (RORWconst [   c] x)
+ 
++// Replace SRL-of-SLL with ROR-of-SLL to avoid hardware bug.
++(SRLconst [c] y:(SLLconst [c] _)) && c <= 8 -> (RORconst [c] y)
++
+ // do combined loads
+ // little endian loads
+ // b[0] | b[1]<<8 -> load 16-bit
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM64.go b/src/cmd/compile/internal/ssa/rewriteARM64.go
+index d276cbcf10..e7436e72f4 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM64.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM64.go
+@@ -8094,6 +8094,26 @@ func rewriteValueARM64_OpARM64SRLconst(v *Value) bool {
+ 		v.AuxInt = int64(uint64(d) >> uint64(c))
+ 		return true
+ 	}
++	// match: (SRLconst [c] y:(SLLconst [c] _))
++	// cond: c <= 8
++	// result: (RORconst [c] y)
++	for {
++		c := v.AuxInt
++		y := v.Args[0]
++		if y.Op != OpARM64SLLconst {
++			break
++		}
++		if y.AuxInt != c {
++			break
++		}
++		if !(c <= 8) {
++			break
++		}
++		v.reset(OpARM64RORconst)
++		v.AuxInt = c
++		v.AddArg(y)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueARM64_OpARM64SUB(v *Value) bool {

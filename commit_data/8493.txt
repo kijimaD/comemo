@@ -7,6 +7,29 @@ Date:   Wed May 25 13:20:50 2011 -0400
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/4529087
-
+---
  src/quietgcc.bash | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/quietgcc.bash b/src/quietgcc.bash
+index e29ee4f642..c99305edad 100755
+--- a/src/quietgcc.bash
++++ b/src/quietgcc.bash
+@@ -4,7 +4,7 @@
+ # license that can be found in the LICENSE file.
+ 
+ # The master for this file is $GOROOT/src/quietgcc.bash
+-# Changes made to $GOBIN/quietgcc will be overridden.
++# Changes made to $GOBIN/quietgcc will be overwritten.
+ 
+ # Gcc output that we don't care to see.
+ ignore=': error: .Each undeclared identifier'
+@@ -32,7 +32,7 @@ case "$(uname -m -p)-$GOHOSTARCH" in
+ esac
+ 
+ # Run gcc, save error status, redisplay output without noise, exit with gcc status.
+-tmp=/tmp/qcc.$$.$USER.out
++tmp=${TMPDIR:-/tmp}/quietgcc.$$.$USER.out
+ $gcc -Wall -Wno-sign-compare -Wno-missing-braces \
+ 	-Wno-parentheses -Wno-unknown-pragmas -Wno-switch -Wno-comment \
+ 	-Werror \

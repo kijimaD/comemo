@@ -11,8 +11,104 @@ Date:   Thu Mar 10 15:50:49 2016 -0800
     Reviewed-on: https://go-review.googlesource.com/20552
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/dcl.go         | 35 +++++++++++++++---------------
  src/cmd/compile/internal/gc/go.go          |  1 -
  src/cmd/compile/internal/gc/sizeof_test.go |  2 +-
  3 files changed, 18 insertions(+), 20 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index 8c9906cc16..e1209ff8ec 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -795,19 +795,23 @@ func structfield(n *Node) *Type {
+ 	return f
+ }
+ 
+-var uniqgen uint32
+-
+-func checkdupfields(t *Type, what string) {
++// checkdupfields emits errors for duplicately named fields or methods in
++// a list of struct or interface types.
++func checkdupfields(what string, ts ...*Type) {
+ 	lno := lineno
+ 
+-	for ; t != nil; t = t.Down {
+-		if t.Sym != nil && t.Nname != nil && !isblank(t.Nname) {
+-			if t.Sym.Uniqgen == uniqgen {
+-				lineno = t.Nname.Lineno
+-				Yyerror("duplicate %s %s", what, t.Sym.Name)
+-			} else {
+-				t.Sym.Uniqgen = uniqgen
++	seen := make(map[*Sym]bool)
++	for _, t := range ts {
++		for f, it := IterFields(t); f != nil; f = it.Next() {
++			if f.Sym == nil || f.Nname == nil || isblank(f.Nname) {
++				continue
++			}
++			if seen[f.Sym] {
++				lineno = f.Nname.Lineno
++				Yyerror("duplicate %s %s", what, f.Sym.Name)
++				continue
+ 			}
++			seen[f.Sym] = true
+ 		}
+ 	}
+ 
+@@ -839,8 +843,7 @@ func tostruct0(t *Type, l []*Node) {
+ 		}
+ 	}
+ 
+-	uniqgen++
+-	checkdupfields(t.Type, "field")
++	checkdupfields("field", t)
+ 
+ 	if !t.Broke {
+ 		checkwidth(t)
+@@ -980,8 +983,7 @@ func tointerface0(t *Type, l []*Node) *Type {
+ 		}
+ 	}
+ 
+-	uniqgen++
+-	checkdupfields(t.Type, "method")
++	checkdupfields("method", t)
+ 	t = sortinter(t)
+ 	checkwidth(t)
+ 
+@@ -1156,10 +1158,7 @@ func functype0(t *Type, this *Node, in, out []*Node) {
+ 	*t.ResultsP() = tofunargs(out)
+ 	*t.ParamsP() = tofunargs(in)
+ 
+-	uniqgen++
+-	checkdupfields(t.Recvs().Type, "argument")
+-	checkdupfields(t.Results().Type, "argument")
+-	checkdupfields(t.Params().Type, "argument")
++	checkdupfields("argument", t.Recvs(), t.Results(), t.Params())
+ 
+ 	if t.Recvs().Broke || t.Results().Broke || t.Params().Broke {
+ 		t.Broke = true
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index 29b4b5471a..3d221e6049 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -68,7 +68,6 @@ type Pkg struct {
+ 
+ type Sym struct {
+ 	Flags     SymFlags
+-	Uniqgen   uint32
+ 	Link      *Sym
+ 	Importdef *Pkg   // where imported definition was found
+ 	Linkname  string // link name
+diff --git a/src/cmd/compile/internal/gc/sizeof_test.go b/src/cmd/compile/internal/gc/sizeof_test.go
+index 199b5ce3c6..489dfaa6f8 100644
+--- a/src/cmd/compile/internal/gc/sizeof_test.go
++++ b/src/cmd/compile/internal/gc/sizeof_test.go
+@@ -26,7 +26,7 @@ func TestSizeof(t *testing.T) {
+ 		{Func{}, 104, 184},
+ 		{Name{}, 52, 80},
+ 		{Node{}, 92, 144},
+-		{Sym{}, 64, 112},
++		{Sym{}, 60, 112},
+ 		{Type{}, 144, 240},
+ 	}
+ 

@@ -22,8 +22,108 @@ Date:   Fri Mar 18 16:34:11 2016 +0100
     Reviewed-by: Austin Clements <austin@google.com>
     Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/export_test.go | 32 ++++++++++++++++++++++++++++++++
  src/runtime/proc.go        | 15 +++++++++++++--
  src/runtime/proc_test.go   | 18 ++++++++++++++++++
  3 files changed, 63 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index fd33c9c3c8..199a049431 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -117,6 +117,38 @@ func RunSchedLocalQueueStealTest() {
+ 	}
+ }
+ 
++func RunSchedLocalQueueEmptyTest(iters int) {
++	// Test that runq is not spuriously reported as empty.
++	// Runq emptiness affects scheduling decisions and spurious emptiness
++	// can lead to underutilization (both runnable Gs and idle Ps coexist
++	// for arbitrary long time).
++	done := make(chan bool, 1)
++	p := new(p)
++	gs := make([]g, 2)
++	ready := new(uint32)
++	for i := 0; i < iters; i++ {
++		*ready = 0
++		next0 := (i & 1) == 0
++		next1 := (i & 2) == 0
++		runqput(p, &gs[0], next0)
++		go func() {
++			for atomic.Xadd(ready, 1); atomic.Load(ready) != 2; {
++			}
++			if runqempty(p) {
++				println("next:", next0, next1)
++				throw("queue is empty")
++			}
++			done <- true
++		}()
++		for atomic.Xadd(ready, 1); atomic.Load(ready) != 2; {
++		}
++		runqput(p, &gs[1], next1)
++		runqget(p)
++		<-done
++		runqget(p)
++	}
++}
++
+ var StringHash = stringHash
+ var BytesHash = bytesHash
+ var Int32Hash = int32Hash
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index ee732e3cf7..e03059080d 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -3921,9 +3921,20 @@ func pidleget() *p {
+ }
+ 
+ // runqempty returns true if _p_ has no Gs on its local run queue.
+-// Note that this test is generally racy.
++// It never returns true spuriously.
+ func runqempty(_p_ *p) bool {
+-	return _p_.runqhead == _p_.runqtail && _p_.runnext == 0
++	// Defend against a race where 1) _p_ has G1 in runqnext but runqhead == runqtail,
++	// 2) runqput on _p_ kicks G1 to the runq, 3) runqget on _p_ empties runqnext.
++	// Simply observing that runqhead == runqtail and then observing that runqnext == nil
++	// does not mean the queue is empty.
++	for {
++		head := atomic.Load(&_p_.runqhead)
++		tail := atomic.Load(&_p_.runqtail)
++		runnext := atomic.Loaduintptr((*uintptr)(unsafe.Pointer(&_p_.runnext)))
++		if tail == atomic.Load(&_p_.runqtail) {
++			return head == tail && runnext == 0
++		}
++	}
+ }
+ 
+ // To shake out latent assumptions about scheduling order,
+diff --git a/src/runtime/proc_test.go b/src/runtime/proc_test.go
+index b1d7f75870..8994121071 100644
+--- a/src/runtime/proc_test.go
++++ b/src/runtime/proc_test.go
+@@ -553,6 +553,24 @@ func TestSchedLocalQueueSteal(t *testing.T) {
+ 	runtime.RunSchedLocalQueueStealTest()
+ }
+ 
++func TestSchedLocalQueueEmpty(t *testing.T) {
++	if runtime.NumCPU() == 1 {
++		// Takes too long and does not trigger the race.
++		t.Skip("skipping on uniprocessor")
++	}
++	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(4))
++
++	// If runtime triggers a forced GC during this test then it will deadlock,
++	// since the goroutines can't be stopped/preempted during spin wait.
++	defer debug.SetGCPercent(debug.SetGCPercent(-1))
++
++	iters := int(1e5)
++	if testing.Short() {
++		iters = 1e2
++	}
++	runtime.RunSchedLocalQueueEmptyTest(iters)
++}
++
+ func benchmarkStackGrowth(b *testing.B, rec int) {
+ 	b.RunParallel(func(pb *testing.PB) {
+ 		for pb.Next() {

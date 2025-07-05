@@ -9,7 +9,57 @@ Date:   Thu Dec 26 11:27:18 2013 -0800
     R=golang-codereviews, gobot, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/40410043
-
+---
  src/pkg/database/sql/sql.go      |  4 ++--
  src/pkg/database/sql/sql_test.go | 23 +++++++++++++++++++++++
  2 files changed, 25 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/database/sql/sql.go b/src/pkg/database/sql/sql.go
+index 41527c8db1..a0bd051628 100644
+--- a/src/pkg/database/sql/sql.go
++++ b/src/pkg/database/sql/sql.go
+@@ -620,8 +620,8 @@ func (db *DB) conn() (*driverConn, error) {
+ 	}
+ 
+ 	// If db.maxOpen > 0 and the number of open connections is over the limit
+-	// or there are no free connection, then make a request and wait.
+-	if db.maxOpen > 0 && (db.numOpen >= db.maxOpen || db.freeConn.Len() == 0) {
++	// and there are no free connection, make a request and wait.
++	if db.maxOpen > 0 && db.numOpen >= db.maxOpen && db.freeConn.Len() == 0 {
+ 		// Make the connRequest channel. It's buffered so that the
+ 		// connectionOpener doesn't block while waiting for the req to be read.
+ 		ch := make(chan interface{}, 1)
+diff --git a/src/pkg/database/sql/sql_test.go b/src/pkg/database/sql/sql_test.go
+index aac36f87d3..a0a20df6f8 100644
+--- a/src/pkg/database/sql/sql_test.go
++++ b/src/pkg/database/sql/sql_test.go
+@@ -1033,6 +1033,29 @@ func TestMaxOpenConns(t *testing.T) {
+ 	}
+ }
+ 
++func TestSingleOpenConn(t *testing.T) {
++	db := newTestDB(t, "people")
++	defer closeDB(t, db)
++
++	db.SetMaxOpenConns(1)
++
++	rows, err := db.Query("SELECT|people|name|")
++	if err != nil {
++		t.Fatal(err)
++	}
++	if err = rows.Close(); err != nil {
++		t.Fatal(err)
++	}
++	// shouldn't deadlock
++	rows, err = db.Query("SELECT|people|name|")
++	if err != nil {
++		t.Fatal(err)
++	}
++	if err = rows.Close(); err != nil {
++		t.Fatal(err)
++	}
++}
++
+ // golang.org/issue/5323
+ func TestStmtCloseDeps(t *testing.T) {
+ 	if testing.Short() {

@@ -32,8 +32,135 @@ Date:   Sat Apr 22 18:59:11 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/ssa/func.go    | 13 +++++++++----
  src/cmd/compile/internal/ssa/html.go    | 18 +++++++++---------
  src/cmd/compile/internal/ssa/rewrite.go |  3 ++-
  3 files changed, 20 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/func.go b/src/cmd/compile/internal/ssa/func.go
+index 5093d0e7fc..64f67b4633 100644
+--- a/src/cmd/compile/internal/ssa/func.go
++++ b/src/cmd/compile/internal/ssa/func.go
+@@ -8,11 +8,17 @@ import (
+ 	"cmd/internal/src"
+ 	"crypto/sha1"
+ 	"fmt"
++	"io"
+ 	"math"
+ 	"os"
+ 	"strings"
+ )
+ 
++type writeSyncer interface {
++	io.Writer
++	Sync() error
++}
++
+ // A Func represents a Go func declaration (or function literal) and its body.
+ // This package compiles each Func independently.
+ // Funcs are single-use; a new Func must be created for every compiled function.
+@@ -30,7 +36,7 @@ type Func struct {
+ 
+ 	// Given an environment variable used for debug hash match,
+ 	// what file (if any) receives the yes/no logging?
+-	logfiles   map[string]*os.File
++	logfiles   map[string]writeSyncer
+ 	HTMLWriter *HTMLWriter // html writer, for debugging
+ 	DebugTest  bool        // default true unless $GOSSAHASH != ""; as a debugging aid, make new code conditional on this and use GOSSAHASH to binary search for failing cases
+ 
+@@ -590,7 +596,7 @@ func (f *Func) DebugHashMatch(evname, name string) bool {
+ 
+ func (f *Func) logDebugHashMatch(evname, name string) {
+ 	if f.logfiles == nil {
+-		f.logfiles = make(map[string]*os.File)
++		f.logfiles = make(map[string]writeSyncer)
+ 	}
+ 	file := f.logfiles[evname]
+ 	if file == nil {
+@@ -604,8 +610,7 @@ func (f *Func) logDebugHashMatch(evname, name string) {
+ 		}
+ 		f.logfiles[evname] = file
+ 	}
+-	s := fmt.Sprintf("%s triggered %s\n", evname, name)
+-	file.WriteString(s)
++	fmt.Fprintf(file, "%s triggered %s\n", evname, name)
+ 	file.Sync()
+ }
+ 
+diff --git a/src/cmd/compile/internal/ssa/html.go b/src/cmd/compile/internal/ssa/html.go
+index 28538245d5..e98c5dc460 100644
+--- a/src/cmd/compile/internal/ssa/html.go
++++ b/src/cmd/compile/internal/ssa/html.go
+@@ -15,7 +15,7 @@ import (
+ 
+ type HTMLWriter struct {
+ 	Logger
+-	*os.File
++	w io.WriteCloser
+ }
+ 
+ func NewHTMLWriter(path string, logger Logger, funcname string) *HTMLWriter {
+@@ -23,7 +23,7 @@ func NewHTMLWriter(path string, logger Logger, funcname string) *HTMLWriter {
+ 	if err != nil {
+ 		logger.Fatalf(src.NoXPos, "%v", err)
+ 	}
+-	html := HTMLWriter{File: out, Logger: logger}
++	html := HTMLWriter{w: out, Logger: logger}
+ 	html.start(funcname)
+ 	return &html
+ }
+@@ -299,11 +299,11 @@ func (w *HTMLWriter) Close() {
+ 	if w == nil {
+ 		return
+ 	}
+-	w.WriteString("</tr>")
+-	w.WriteString("</table>")
+-	w.WriteString("</body>")
+-	w.WriteString("</html>")
+-	w.File.Close()
++	io.WriteString(w.w, "</tr>")
++	io.WriteString(w.w, "</table>")
++	io.WriteString(w.w, "</body>")
++	io.WriteString(w.w, "</html>")
++	w.w.Close()
+ }
+ 
+ // WriteFunc writes f in a column headed by title.
+@@ -328,13 +328,13 @@ func (w *HTMLWriter) WriteColumn(title string, html string) {
+ }
+ 
+ func (w *HTMLWriter) Printf(msg string, v ...interface{}) {
+-	if _, err := fmt.Fprintf(w.File, msg, v...); err != nil {
++	if _, err := fmt.Fprintf(w.w, msg, v...); err != nil {
+ 		w.Fatalf(src.NoXPos, "%v", err)
+ 	}
+ }
+ 
+ func (w *HTMLWriter) WriteString(s string) {
+-	if _, err := w.File.WriteString(s); err != nil {
++	if _, err := io.WriteString(w.w, s); err != nil {
+ 		w.Fatalf(src.NoXPos, "%v", err)
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index 5dce8affdb..68f3a675a6 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -7,6 +7,7 @@ package ssa
+ import (
+ 	"cmd/internal/obj"
+ 	"fmt"
++	"io"
+ 	"math"
+ 	"os"
+ 	"path/filepath"
+@@ -561,7 +562,7 @@ func logRule(s string) {
+ 	}
+ }
+ 
+-var ruleFile *os.File
++var ruleFile io.Writer
+ 
+ func min(x, y int64) int64 {
+ 	if x < y {

@@ -26,6 +26,21 @@ Date:   Tue Aug 3 15:49:01 2021 -0700
     Trust: Josh Bleecher Snyder <josharian@gmail.com>
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/go/build/deps_test.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 3c3819f3b3..07fbc8b023 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -657,6 +657,9 @@ func findImports(pkg string) ([]string, error) {
+ 		if err != nil {
+ 			return nil, fmt.Errorf("reading %v: %v", name, err)
+ 		}
++		if info.parsed.Name.Name == "main" {
++			continue
++		}
+ 		if bytes.Contains(info.header, buildIgnore) {
+ 			continue
+ 		}

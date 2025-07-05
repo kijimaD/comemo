@@ -7,7 +7,89 @@ Date:   Wed Aug 31 08:27:00 2011 +1000
     R=golang-dev, rsc, bradfitz, nigeltao
     CC=golang-dev
     https://golang.org/cl/4956046
-
+---
  src/pkg/image/image.go      | 14 ++++++++++++++
  src/pkg/image/png/writer.go | 24 ++++++++++++++++++------
  2 files changed, 32 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/image/image.go b/src/pkg/image/image.go
+index 11def94354..a01cda864e 100644
+--- a/src/pkg/image/image.go
++++ b/src/pkg/image/image.go
+@@ -24,6 +24,17 @@ type Image interface {
+ 	At(x, y int) Color
+ }
+ 
++// PalettedImage is an image whose colors may come from a limited palette.
++// If m is a PalettedImage and m.ColorModel() returns a PalettedColorModel p,
++// then m.At(x, y) should be equivalent to p[m.ColorIndexAt(x, y)]. If m's
++// color model is not a PalettedColorModel, then ColorIndexAt's behavior is
++// undefined.
++type PalettedImage interface {
++	// ColorIndexAt returns the palette index of the pixel at (x, y).
++	ColorIndexAt(x, y int) uint8
++	Image
++}
++
+ // RGBA is an in-memory image of RGBAColor values.
+ type RGBA struct {
+ 	// Pix holds the image's pixels, in R, G, B, A order. The pixel at
+@@ -741,6 +752,9 @@ func (p PalettedColorModel) Index(c Color) int {
+ 		dr, dg, db := diff(cr, vr), diff(cg, vg), diff(cb, vb)
+ 		ssd := (dr * dr) + (dg * dg) + (db * db)
+ 		if ssd < bestSSD {
++			if ssd == 0 {
++				return i
++			}
+ 			ret, bestSSD = i, ssd
+ 		}
+ 	}
+diff --git a/src/pkg/image/png/writer.go b/src/pkg/image/png/writer.go
+index 55ca97e062..f9556a0f90 100644
+--- a/src/pkg/image/png/writer.go
++++ b/src/pkg/image/png/writer.go
+@@ -336,9 +336,16 @@ func writeImage(w io.Writer, m image.Image, cb int) os.Error {
+ 				}
+ 			}
+ 		case cbP8:
+-			paletted := m.(*image.Paletted)
+-			offset := (y - b.Min.Y) * paletted.Stride
+-			copy(cr[0][1:], paletted.Pix[offset:offset+b.Dx()])
++			if p, _ := m.(*image.Paletted); p != nil {
++				offset := (y - b.Min.Y) * p.Stride
++				copy(cr[0][1:], p.Pix[offset:offset+b.Dx()])
++			} else {
++				pi := m.(image.PalettedImage)
++				for x := b.Min.X; x < b.Max.X; x++ {
++					cr[0][i] = pi.ColorIndexAt(x, y)
++					i += 1
++				}
++			}
+ 		case cbTCA8:
+ 			// Convert from image.Image (which is alpha-premultiplied) to PNG's non-alpha-premultiplied.
+ 			for x := b.Min.X; x < b.Max.X; x++ {
+@@ -432,7 +439,12 @@ func Encode(w io.Writer, m image.Image) os.Error {
+ 	var e encoder
+ 	e.w = w
+ 	e.m = m
+-	pal, _ := m.(*image.Paletted)
++
++	var pal image.PalettedColorModel
++	// cbP8 encoding needs PalettedImage's ColorIndexAt method.
++	if _, ok := m.(image.PalettedImage); ok {
++		pal, _ = m.ColorModel().(image.PalettedColorModel)
++	}
+ 	if pal != nil {
+ 		e.cb = cbP8
+ 	} else {
+@@ -459,8 +471,8 @@ func Encode(w io.Writer, m image.Image) os.Error {
+ 	_, e.err = io.WriteString(w, pngHeader)
+ 	e.writeIHDR()
+ 	if pal != nil {
+-		e.writePLTE(pal.Palette)
+-		e.maybeWritetRNS(pal.Palette)
++		e.writePLTE(pal)
++		e.maybeWritetRNS(pal)
+ 	}
+ 	e.writeIDATs()
+ 	e.writeIEND()

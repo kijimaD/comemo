@@ -15,7 +15,45 @@ Date:   Tue Feb 6 18:00:13 2018 -0500
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/vet/all/whitelist/arm.txt | 3 ---
  src/runtime/asm_arm.s             | 4 ----
  2 files changed, 7 deletions(-)
+
+diff --git a/src/cmd/vet/all/whitelist/arm.txt b/src/cmd/vet/all/whitelist/arm.txt
+index 839346c2d4..770008c9f0 100644
+--- a/src/cmd/vet/all/whitelist/arm.txt
++++ b/src/cmd/vet/all/whitelist/arm.txt
+@@ -2,9 +2,6 @@
+ 
+ runtime/asm_ARCHSUFF.s: [GOARCH] cannot check cross-package assembly function: Compare is in package bytes
+ 
+-// reflect trampolines intentionally omit arg size. Same for morestack.
+-runtime/asm_arm.s: [arm] morestack: use of 4(R13) points beyond argument frame
+-
+ // Intentionally missing declarations.
+ runtime/asm_arm.s: [arm] emptyfunc: function emptyfunc missing Go declaration
+ runtime/asm_arm.s: [arm] abort: function abort missing Go declaration
+diff --git a/src/runtime/asm_arm.s b/src/runtime/asm_arm.s
+index bca0840506..d10c370a7d 100644
+--- a/src/runtime/asm_arm.s
++++ b/src/runtime/asm_arm.s
+@@ -370,10 +370,7 @@ noswitch:
+  */
+ 
+ // Called during function prolog when more stack is needed.
+-// R1 frame size
+ // R3 prolog's LR
+-// NB. we do not save R0 because we've forced 5c to pass all arguments
+-// on the stack.
+ // using NOFRAME means do not save LR on stack.
+ //
+ // The traceback routines see morestack on a g0 as being
+@@ -407,7 +404,6 @@ TEXT runtime·morestack(SB),NOSPLIT|NOFRAME,$0-0
+ 	// Set m->morebuf to f's caller.
+ 	MOVW	R3, (m_morebuf+gobuf_pc)(R8)	// f's caller's PC
+ 	MOVW	R13, (m_morebuf+gobuf_sp)(R8)	// f's caller's SP
+-	MOVW	$4(R13), R3			// f's argument pointer
+ 	MOVW	g, (m_morebuf+gobuf_g)(R8)
+ 
+ 	// Call newstack on m->g0's stack.

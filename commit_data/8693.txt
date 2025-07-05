@@ -10,9 +10,171 @@ Date:   Sat Jun 11 00:03:02 2011 +0000
     R=golang-dev, gri, rsc
     CC=golang-dev
     https://golang.org/cl/4589047
-
+---
  src/pkg/fmt/doc.go      |  6 ++++--
  src/pkg/fmt/fmt_test.go |  9 +++++++++
  src/pkg/fmt/format.go   | 34 ++++++++++++++++++++++++++++++++--
  src/pkg/fmt/print.go    |  5 +++++
  4 files changed, 50 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/fmt/doc.go b/src/pkg/fmt/doc.go
+index 79fe5758c9..35a11e19fa 100644
+--- a/src/pkg/fmt/doc.go
++++ b/src/pkg/fmt/doc.go
+@@ -63,11 +63,13 @@
+ 	number of characters to output, truncating if necessary.
+ 
+ 	Other flags:
+-		+	always print a sign for numeric values
++		+	always print a sign for numeric values;
++			guarantee ASCII-only output for %q (%+q)
+ 		-	pad with spaces on the right rather than the left (left-justify the field)
+ 		#	alternate format: add leading 0 for octal (%#o), 0x for hex (%#x);
+ 			0X for hex (%#X); suppress 0x for %p (%#p);
+-			print a raw (backquoted) string if possible for %q (%#q)
++			print a raw (backquoted) string if possible for %q (%#q);
++			write e.g. U+0078 'x' if the character is printable for %U (%#U).
+ 		' '	(space) leave a space for elided sign in numbers (% d);
+ 			put spaces between bytes printing strings or slices in hex (% x, % X)
+ 		0	pad with leading zeros rather than spaces
+diff --git a/src/pkg/fmt/fmt_test.go b/src/pkg/fmt/fmt_test.go
+index 122b9516ba..3d255c3d1f 100644
+--- a/src/pkg/fmt/fmt_test.go
++++ b/src/pkg/fmt/fmt_test.go
+@@ -133,6 +133,7 @@ var fmttests = []struct {
+ 	{"%q", "\a\b\f\r\n\t\v", `"\a\b\f\r\n\t\v"`},
+ 	{"%q", "abc\xffdef", `"abc\xffdef"`},
+ 	{"%q", "\u263a", `"☺"`},
++	{"%+q", "\u263a", `"\u263a"`},
+ 	{"%q", "\U0010ffff", `"\U0010ffff"`},
+ 
+ 	// escaped characters
+@@ -145,6 +146,8 @@ var fmttests = []struct {
+ 	{"%q", uint64(0xFFFFFFFF), `%!q(uint64=4294967295)`},
+ 	{"%q", '"', `'"'`},
+ 	{"%q", '\'', `'\''`},
++	{"%q", "\u263a", `"☺"`},
++	{"%+q", "\u263a", `"\u263a"`},
+ 
+ 	// width
+ 	{"%5s", "abc", "  abc"},
+@@ -187,6 +190,12 @@ var fmttests = []struct {
+ 	{"%U", 0x12345, "U+12345"},
+ 	{"%10.6U", 0xABC, "  U+000ABC"},
+ 	{"%-10.6U", 0xABC, "U+000ABC  "},
++	{"%U", '\n', `U+000A`},
++	{"%#U", '\n', `U+000A`},
++	{"%U", 'x', `U+0078`},
++	{"%#U", 'x', `U+0078 'x'`},
++	{"%U", '\u263a', `U+263A`},
++	{"%#U", '\u263a', `U+263A '☺'`},
+ 
+ 	// floats
+ 	{"%+.3e", 0.0, "+0.000e+00"},
+diff --git a/src/pkg/fmt/format.go b/src/pkg/fmt/format.go
+index 5dcfb96774..bec55f75ba 100644
+--- a/src/pkg/fmt/format.go
++++ b/src/pkg/fmt/format.go
+@@ -7,6 +7,7 @@ package fmt
+ import (
+ 	"bytes"
+ 	"strconv"
++	"unicode"
+ 	"utf8"
+ )
+ 
+@@ -50,6 +51,7 @@ type fmt struct {
+ 	sharp       bool
+ 	space       bool
+ 	unicode     bool
++	uniQuote    bool // Use 'x'= prefix for %U if printable.
+ 	zero        bool
+ }
+ 
+@@ -63,6 +65,7 @@ func (f *fmt) clearflags() {
+ 	f.sharp = false
+ 	f.space = false
+ 	f.unicode = false
++	f.uniQuote = false
+ 	f.zero = false
+ }
+ 
+@@ -232,6 +235,24 @@ func (f *fmt) integer(a int64, base uint64, signedness bool, digits string) {
+ 		i--
+ 		buf[i] = ' '
+ 	}
++
++	// If we want a quoted char for %#U, move the data up to make room.
++	if f.unicode && f.uniQuote && a >= 0 && a <= unicode.MaxRune && unicode.IsPrint(int(a)) {
++		runeWidth := utf8.RuneLen(int(a))
++		width := 1 + 1 + runeWidth + 1 // space, quote, rune, quote
++		copy(buf[i-width:], buf[i:])   // guaranteed to have enough room.
++		i -= width
++		// Now put " 'x'" at the end.
++		j := len(buf) - width
++		buf[j] = ' '
++		j++
++		buf[j] = '\''
++		j++
++		utf8.EncodeRune(buf[j:], int(a))
++		j += runeWidth
++		buf[j] = '\''
++	}
++
+ 	f.pad(buf[i:])
+ }
+ 
+@@ -291,7 +312,11 @@ func (f *fmt) fmt_q(s string) {
+ 	if f.sharp && strconv.CanBackquote(s) {
+ 		quoted = "`" + s + "`"
+ 	} else {
+-		quoted = strconv.Quote(s)
++		if f.plus {
++			quoted = strconv.QuoteToASCII(s)
++		} else {
++			quoted = strconv.Quote(s)
++		}
+ 	}
+ 	f.padString(quoted)
+ }
+@@ -299,7 +324,12 @@ func (f *fmt) fmt_q(s string) {
+ // fmt_qc formats the integer as a single-quoted, escaped Go character constant.
+ // If the character is not valid Unicode, it will print '\ufffd'.
+ func (f *fmt) fmt_qc(c int64) {
+-	quoted := strconv.QuoteRune(int(c))
++	var quoted string
++	if f.plus {
++		quoted = strconv.QuoteRuneToASCII(int(c))
++	} else {
++		quoted = strconv.QuoteRune(int(c))
++	}
+ 	f.padString(quoted)
+ }
+ 
+diff --git a/src/pkg/fmt/print.go b/src/pkg/fmt/print.go
+index c18a8ea38d..2b2a719270 100644
+--- a/src/pkg/fmt/print.go
++++ b/src/pkg/fmt/print.go
+@@ -363,6 +363,8 @@ func (p *pp) fmt0x64(v uint64, leading0x bool) {
+ // temporarily turning on the unicode flag and tweaking the precision.
+ func (p *pp) fmtUnicode(v int64) {
+ 	precPresent := p.fmt.precPresent
++	sharp := p.fmt.sharp
++	p.fmt.sharp = false
+ 	prec := p.fmt.prec
+ 	if !precPresent {
+ 		// If prec is already set, leave it alone; otherwise 4 is minimum.
+@@ -370,10 +372,13 @@ func (p *pp) fmtUnicode(v int64) {
+ 		p.fmt.precPresent = true
+ 	}
+ 	p.fmt.unicode = true // turn on U+
++	p.fmt.uniQuote = sharp
+ 	p.fmt.integer(int64(v), 16, unsigned, udigits)
+ 	p.fmt.unicode = false
++	p.fmt.uniQuote = false
+ 	p.fmt.prec = prec
+ 	p.fmt.precPresent = precPresent
++	p.fmt.sharp = sharp
+ }
+ 
+ func (p *pp) fmtUint64(v uint64, verb int, goSyntax bool, value interface{}) {

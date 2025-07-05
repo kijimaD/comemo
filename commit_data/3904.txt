@@ -6,6 +6,19 @@ Date:   Sun Nov 8 15:04:30 2009 -0800
     
     R=r, rsc
     http://go/go-review/1025023
-
+---
  src/pkg/go/doc/doc.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/pkg/go/doc/doc.go b/src/pkg/go/doc/doc.go
+index d9d436ccbb..865f52ec46 100644
+--- a/src/pkg/go/doc/doc.go
++++ b/src/pkg/go/doc/doc.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// The doc package extracts source code documentation from a Go AST.
+ package doc
+ 
+ import (

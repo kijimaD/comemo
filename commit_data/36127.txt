@@ -30,7 +30,7 @@ Date:   Wed Apr 4 18:42:39 2018 -0700
     Change-Id: I9501c7a53dd70ef60e5c74603974e5ecc06e2003
     Reviewed-on: https://go-review.googlesource.com/104876
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/fmt_test.go              |   1 -
  src/cmd/compile/internal/gc/bimport.go   |   2 +-
  src/cmd/compile/internal/gc/closure.go   |  30 +--------
@@ -42,3 +42,332 @@ Date:   Wed Apr 4 18:42:39 2018 -0700
  src/cmd/compile/internal/gc/typecheck.go |  16 ++---
  test/alias2.go                           |   4 +-
  10 files changed, 66 insertions(+), 103 deletions(-)
+
+diff --git a/src/cmd/compile/fmt_test.go b/src/cmd/compile/fmt_test.go
+index c73c19af67..cb76ad5de2 100644
+--- a/src/cmd/compile/fmt_test.go
++++ b/src/cmd/compile/fmt_test.go
+@@ -581,7 +581,6 @@ var knownFormats = map[string]string{
+ 	"*cmd/compile/internal/types.Field %p":            "",
+ 	"*cmd/compile/internal/types.Field %v":            "",
+ 	"*cmd/compile/internal/types.Sym %+v":             "",
+-	"*cmd/compile/internal/types.Sym %-v":             "",
+ 	"*cmd/compile/internal/types.Sym %0S":             "",
+ 	"*cmd/compile/internal/types.Sym %S":              "",
+ 	"*cmd/compile/internal/types.Sym %p":              "",
+diff --git a/src/cmd/compile/internal/gc/bimport.go b/src/cmd/compile/internal/gc/bimport.go
+index 01e77ef859..4f1d8747b5 100644
+--- a/src/cmd/compile/internal/gc/bimport.go
++++ b/src/cmd/compile/internal/gc/bimport.go
+@@ -529,7 +529,7 @@ func (p *importer) typ() *types.Type {
+ 				continue
+ 			}
+ 
+-			n := newfuncnamel(mpos, methodname(sym, recv[0].Type))
++			n := newfuncnamel(mpos, methodSym(recv[0].Type, sym))
+ 			n.Type = mt
+ 			n.SetClass(PFUNC)
+ 			checkwidth(n.Type)
+diff --git a/src/cmd/compile/internal/gc/closure.go b/src/cmd/compile/internal/gc/closure.go
+index f760c36b96..db038bd6c0 100644
+--- a/src/cmd/compile/internal/gc/closure.go
++++ b/src/cmd/compile/internal/gc/closure.go
+@@ -421,37 +421,9 @@ func typecheckpartialcall(fn *Node, sym *types.Sym) {
+ 	fn.Type = xfunc.Type
+ }
+ 
+-var makepartialcall_gopkg *types.Pkg
+-
+ func makepartialcall(fn *Node, t0 *types.Type, meth *types.Sym) *Node {
+-	var p string
+-
+ 	rcvrtype := fn.Left.Type
+-	if exportname(meth.Name) {
+-		p = fmt.Sprintf("(%-S).%s-fm", rcvrtype, meth.Name)
+-	} else {
+-		p = fmt.Sprintf("(%-S).(%-v)-fm", rcvrtype, meth)
+-	}
+-	basetype := rcvrtype
+-	if rcvrtype.IsPtr() {
+-		basetype = basetype.Elem()
+-	}
+-	if !basetype.IsInterface() && basetype.Sym == nil {
+-		Fatalf("missing base type for %v", rcvrtype)
+-	}
+-
+-	var spkg *types.Pkg
+-	if basetype.Sym != nil {
+-		spkg = basetype.Sym.Pkg
+-	}
+-	if spkg == nil {
+-		if makepartialcall_gopkg == nil {
+-			makepartialcall_gopkg = types.NewPkg("go", "")
+-		}
+-		spkg = makepartialcall_gopkg
+-	}
+-
+-	sym := spkg.Lookup(p)
++	sym := methodSymSuffix(rcvrtype, meth, "-fm")
+ 
+ 	if sym.Uniq() {
+ 		return asNode(sym.Def)
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index d2ea5a602e..9a906f19a3 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -827,79 +827,63 @@ func functypefield0(t *types.Type, this *types.Field, in, out []*types.Field) {
+ 	}
+ }
+ 
+-var methodsym_toppkg *types.Pkg
++// methodSym returns the method symbol representing a method name
++// associated with a specific receiver type.
++//
++// Method symbols can be used to distinguish the same method appearing
++// in different method sets. For example, T.M and (*T).M have distinct
++// method symbols.
++func methodSym(recv *types.Type, msym *types.Sym) *types.Sym {
++	return methodSymSuffix(recv, msym, "")
++}
+ 
+-func methodsym(nsym *types.Sym, t0 *types.Type) *types.Sym {
+-	if t0 == nil {
+-		Fatalf("methodsym: nil receiver type")
++// methodSymSuffix is like methodsym, but allows attaching a
++// distinguisher suffix. To avoid collisions, the suffix must not
++// start with a letter, number, or period.
++func methodSymSuffix(recv *types.Type, msym *types.Sym, suffix string) *types.Sym {
++	if msym.IsBlank() {
++		Fatalf("blank method name")
+ 	}
+ 
+-	t := t0
+-	s := t.Sym
+-	if s == nil && t.IsPtr() {
+-		t = t.Elem()
+-		if t == nil {
+-			Fatalf("methodsym: ptrto nil")
++	rsym := recv.Sym
++	if recv.IsPtr() {
++		if rsym != nil {
++			Fatalf("declared pointer receiver type: %v", recv)
+ 		}
+-		s = t.Sym
++		rsym = recv.Elem().Sym
+ 	}
+ 
+-	// if t0 == *t and t0 has a sym,
+-	// we want to see *t, not t0, in the method name.
+-	if t != t0 && t0.Sym != nil {
+-		t0 = types.NewPtr(t)
+-	}
+-
+-	var spkg *types.Pkg
+-	if s != nil {
+-		spkg = s.Pkg
+-	}
+-	pkgprefix := ""
+-	if (spkg == nil || nsym.Pkg != spkg) && !exportname(nsym.Name) && nsym.Pkg.Prefix != `""` {
+-		pkgprefix = "." + nsym.Pkg.Prefix
+-	}
+-	var p string
+-	if t0.Sym == nil && t0.IsPtr() {
+-		p = fmt.Sprintf("(%-S)%s.%s", t0, pkgprefix, nsym.Name)
+-	} else {
+-		p = fmt.Sprintf("%-S%s.%s", t0, pkgprefix, nsym.Name)
++	// Find the package the receiver type appeared in. For
++	// anonymous receiver types (i.e., anonymous structs with
++	// embedded fields), use the "go" pseudo-package instead.
++	rpkg := gopkg
++	if rsym != nil {
++		rpkg = rsym.Pkg
+ 	}
+ 
+-	if spkg == nil {
+-		if methodsym_toppkg == nil {
+-			methodsym_toppkg = types.NewPkg("go", "")
+-		}
+-		spkg = methodsym_toppkg
+-	}
+-
+-	return spkg.Lookup(p)
+-}
+-
+-// methodname is a misnomer because this now returns a Sym, rather
+-// than an ONAME.
+-// TODO(mdempsky): Reconcile with methodsym.
+-func methodname(s *types.Sym, recv *types.Type) *types.Sym {
+-	star := false
++	var b bytes.Buffer
+ 	if recv.IsPtr() {
+-		star = true
+-		recv = recv.Elem()
+-	}
+-
+-	tsym := recv.Sym
+-	if tsym == nil || s.IsBlank() {
+-		return s
++		// The parentheses aren't really necessary, but
++		// they're pretty traditional at this point.
++		fmt.Fprintf(&b, "(%-S)", recv)
++	} else {
++		fmt.Fprintf(&b, "%-S", recv)
+ 	}
+ 
+-	var p string
+-	if star {
+-		p = fmt.Sprintf("(*%v).%v", tsym.Name, s)
+-	} else {
+-		p = fmt.Sprintf("%v.%v", tsym, s)
++	// A particular receiver type may have multiple non-exported
++	// methods with the same name. To disambiguate them, include a
++	// package qualifier for names that came from a different
++	// package than the receiver type.
++	if !exportname(msym.Name) && msym.Pkg != rpkg {
++		b.WriteString(".")
++		b.WriteString(msym.Pkg.Prefix)
+ 	}
+ 
+-	s = tsym.Pkg.Lookup(p)
++	b.WriteString(".")
++	b.WriteString(msym.Name)
++	b.WriteString(suffix)
+ 
+-	return s
++	return rpkg.LookupBytes(b.Bytes())
+ }
+ 
+ // Add a method, declared as a function.
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index d6db7acc59..ac52269f48 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -126,6 +126,9 @@ var unsafepkg *types.Pkg // package unsafe
+ var trackpkg *types.Pkg // fake package for field tracking
+ 
+ var mappkg *types.Pkg // fake package for map zero value
++
++var gopkg *types.Pkg // pseudo-package for method symbols on anonymous receiver types
++
+ var zerosize int64
+ 
+ var myimportpath string
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 6dd33a2944..52485b088c 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -170,6 +170,9 @@ func Main(archInit func(*Arch)) {
+ 	mappkg = types.NewPkg("go.map", "go.map")
+ 	mappkg.Prefix = "go.map"
+ 
++	// pseudo-package used for methods with anonymous receivers
++	gopkg = types.NewPkg("go", "")
++
+ 	Nacl = objabi.GOOS == "nacl"
+ 
+ 	flag.BoolVar(&compiling_runtime, "+", false, "compiling runtime")
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index 6375a996fe..f2d096116f 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -427,8 +427,8 @@ func methods(t *types.Type) []*Sig {
+ 			sig.pkg = method.Pkg
+ 		}
+ 
+-		sig.isym = methodsym(method, it)
+-		sig.tsym = methodsym(method, t)
++		sig.isym = methodSym(it, method)
++		sig.tsym = methodSym(t, method)
+ 		sig.type_ = methodfunc(f.Type, t)
+ 		sig.mtype = methodfunc(f.Type, nil)
+ 
+@@ -493,7 +493,7 @@ func imethods(t *types.Type) []*Sig {
+ 		// IfaceType.Method is not in the reflect data.
+ 		// Generate the method body, so that compiled
+ 		// code can refer to it.
+-		isym := methodsym(method, t)
++		isym := methodSym(t, method)
+ 		if !isym.Siggen() {
+ 			isym.SetSiggen(true)
+ 			genwrapper(t, f, isym)
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 9b8103f22e..4cc2c8ad39 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -1723,7 +1723,7 @@ func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym) {
+ 		as := nod(OAS, this.Left, nod(OCONVNOP, dot, nil))
+ 		as.Right.Type = rcvr
+ 		fn.Nbody.Append(as)
+-		fn.Nbody.Append(nodSym(ORETJMP, nil, methodsym(method.Sym, methodrcvr)))
++		fn.Nbody.Append(nodSym(ORETJMP, nil, methodSym(methodrcvr, method.Sym)))
+ 	} else {
+ 		fn.Func.SetWrapper(true) // ignore frame for panic+recover matching
+ 		call := nod(OCALL, dot, nil)
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 867979c2fe..ea6c4c8dff 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -2352,7 +2352,7 @@ func looktypedot(n *Node, t *types.Type, dostrcmp int) bool {
+ 			return false
+ 		}
+ 
+-		n.Sym = methodsym(n.Sym, t)
++		n.Sym = methodSym(t, n.Sym)
+ 		n.Xoffset = f1.Offset
+ 		n.Type = f1.Type
+ 		n.Op = ODOTINTER
+@@ -2378,7 +2378,7 @@ func looktypedot(n *Node, t *types.Type, dostrcmp int) bool {
+ 		return false
+ 	}
+ 
+-	n.Sym = methodsym(n.Sym, t)
++	n.Sym = methodSym(t, n.Sym)
+ 	n.Xoffset = f2.Offset
+ 	n.Type = f2.Type
+ 	n.Op = ODOTMETH
+@@ -2495,10 +2495,9 @@ func lookdot(n *Node, t *types.Type, dostrcmp int) *types.Field {
+ 			return nil
+ 		}
+ 
+-		n.Sym = methodsym(n.Sym, n.Left.Type)
++		n.Sym = methodSym(n.Left.Type, f2.Sym)
+ 		n.Xoffset = f2.Offset
+ 		n.Type = f2.Type
+-
+ 		n.Op = ODOTMETH
+ 
+ 		return f2
+@@ -3449,10 +3448,13 @@ func typecheckfunc(n *Node) {
+ 	t.FuncType().Nname = asTypesNode(n.Func.Nname)
+ 	rcvr := t.Recv()
+ 	if rcvr != nil && n.Func.Shortname != nil {
+-		n.Func.Nname.Sym = methodname(n.Func.Shortname, rcvr.Type)
+-		declare(n.Func.Nname, PFUNC)
++		m := addmethod(n.Func.Shortname, t, true, n.Func.Pragma&Nointerface != 0)
++		if m == nil {
++			return
++		}
+ 
+-		addmethod(n.Func.Shortname, t, true, n.Func.Pragma&Nointerface != 0)
++		n.Func.Nname.Sym = methodSym(rcvr.Type, n.Func.Shortname)
++		declare(n.Func.Nname, PFUNC)
+ 	}
+ 
+ 	if Ctxt.Flag_dynlink && !inimport && n.Func.Nname != nil {
+diff --git a/test/alias2.go b/test/alias2.go
+index 32c3654995..7ea1b2908d 100644
+--- a/test/alias2.go
++++ b/test/alias2.go
+@@ -95,10 +95,10 @@ type _ = reflect.ValueOf // ERROR "reflect.ValueOf is not a type|expected type"
+ func (A1) m() {} // ERROR "cannot define new methods on non-local type int|may not define methods on non-local type"
+ func (A2) m() {} // ERROR "invalid receiver type"
+ func (A3) m() {} // ERROR "cannot define new methods on non-local type reflect.Value|may not define methods on non-local type"
+-func (A4) m() {} // ERROR "reflect.Value.m redeclared in this block" "cannot define new methods on non-local type reflect.Value|may not define methods on non-local type"
++func (A4) m() {} // ERROR "cannot define new methods on non-local type reflect.Value|may not define methods on non-local type"
+ 
+ type B1 = struct{}
+ 
+-func (B1) m() {} // ERROR "m redeclared in this block" "invalid receiver type"
++func (B1) m() {} // ERROR "invalid receiver type"
+ 
+ // TODO(gri) expand

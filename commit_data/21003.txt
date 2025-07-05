@@ -13,6 +13,20 @@ Date:   Wed Nov 5 15:14:47 2014 -0500
     R=rsc
     CC=golang-codereviews
     https://golang.org/cl/169110043
-
+---
  src/cmd/5g/reg.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/5g/reg.c b/src/cmd/5g/reg.c
+index 8e49a2d9c8..27d9d3e8be 100644
+--- a/src/cmd/5g/reg.c
++++ b/src/cmd/5g/reg.c
+@@ -199,7 +199,7 @@ regopt(Prog *firstp)
+ 		proginfo(&info, p);
+ 
+ 		// Avoid making variables for direct-called functions.
+-		if(p->as == ABL && p->to.type == D_EXTERN)
++		if(p->as == ABL && p->to.name == D_EXTERN)
+ 			continue;
+ 
+ 		bit = mkvar(r, &p->from);

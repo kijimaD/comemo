@@ -47,6 +47,28 @@ Date:   Wed Nov 1 11:36:55 2023 +0000
     Reviewed-by: Keith Randall <khr@golang.org>
     Auto-Submit: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/internal/bytealg/indexbyte_amd64.s | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/internal/bytealg/indexbyte_amd64.s b/src/internal/bytealg/indexbyte_amd64.s
+index 0f07121a8c..c097dc6b07 100644
+--- a/src/internal/bytealg/indexbyte_amd64.s
++++ b/src/internal/bytealg/indexbyte_amd64.s
+@@ -45,6 +45,7 @@ sse:
+ 	LEAQ	-16(SI)(BX*1), AX	// AX = address of last 16 bytes
+ 	JMP	sseloopentry
+ 
++	PCALIGN $16
+ sseloop:
+ 	// Move the next 16-byte chunk of the data into X1.
+ 	MOVOU	(DI), X1
+@@ -124,6 +125,8 @@ avx2:
+ 	MOVD AX, X0
+ 	LEAQ -32(SI)(BX*1), R11
+ 	VPBROADCASTB  X0, Y1
++
++	PCALIGN $32
+ avx2_loop:
+ 	VMOVDQU (DI), Y2
+ 	VPCMPEQB Y1, Y2, Y3

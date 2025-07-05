@@ -13,8 +13,122 @@ Date:   Wed Nov 10 16:58:45 2021 -0500
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/check.go | 17 +++++++++--------
  src/go/types/decl.go  | 16 ++++++++--------
  src/go/types/stmt.go  | 10 +++++-----
  3 files changed, 22 insertions(+), 21 deletions(-)
+
+diff --git a/src/go/types/check.go b/src/go/types/check.go
+index ba7d26455f..aef53b20de 100644
+--- a/src/go/types/check.go
++++ b/src/go/types/check.go
+@@ -41,8 +41,9 @@ type exprInfo struct {
+ 	val   constant.Value // constant value; or nil (if not a constant)
+ }
+ 
+-// A context represents the context within which an object is type-checked.
+-type context struct {
++// An environment represents the environment within which an object is
++// type-checked.
++type environment struct {
+ 	decl          *declInfo              // package-level declaration whose init expression/function body is checked
+ 	scope         *Scope                 // top-most scope for lookups
+ 	pos           token.Pos              // if valid, identifiers are looked up as if at position pos (used by Eval)
+@@ -55,9 +56,9 @@ type context struct {
+ 	hasCallOrRecv bool                   // set if an expression contains a function call or channel receive operation
+ }
+ 
+-// lookup looks up name in the current context and returns the matching object, or nil.
+-func (ctxt *context) lookup(name string) Object {
+-	_, obj := ctxt.scope.LookupParent(name, ctxt.pos)
++// lookup looks up name in the current environment and returns the matching object, or nil.
++func (env *environment) lookup(name string) Object {
++	_, obj := env.scope.LookupParent(name, env.pos)
+ 	return obj
+ }
+ 
+@@ -140,9 +141,9 @@ type Checker struct {
+ 	objPath  []Object              // path of object dependencies during type inference (for cycle reporting)
+ 	defTypes []*Named              // defined types created during type checking, for final validation.
+ 
+-	// context within which the current object is type-checked
+-	// (valid only for the duration of type-checking a specific object)
+-	context
++	// environment within which the current object is type-checked (valid only
++	// for the duration of type-checking a specific object)
++	environment
+ 
+ 	// debugging
+ 	indent int // indentation for tracing
+diff --git a/src/go/types/decl.go b/src/go/types/decl.go
+index 6adace3484..7e89e7be3a 100644
+--- a/src/go/types/decl.go
++++ b/src/go/types/decl.go
+@@ -50,7 +50,7 @@ func pathString(path []Object) string {
+ 	return s
+ }
+ 
+-// objDecl type-checks the declaration of obj in its respective (file) context.
++// objDecl type-checks the declaration of obj in its respective (file) environment.
+ // For the meaning of def, see Checker.definedType, in typexpr.go.
+ func (check *Checker) objDecl(obj Object, def *Named) {
+ 	if trace && obj.Type() == nil {
+@@ -177,11 +177,11 @@ func (check *Checker) objDecl(obj Object, def *Named) {
+ 		unreachable()
+ 	}
+ 
+-	// save/restore current context and setup object context
+-	defer func(ctxt context) {
+-		check.context = ctxt
+-	}(check.context)
+-	check.context = context{
++	// save/restore current environment and set up object environment
++	defer func(env environment) {
++		check.environment = env
++	}(check.environment)
++	check.environment = environment{
+ 		scope: d.file,
+ 	}
+ 
+@@ -239,7 +239,7 @@ loop:
+ 			// If we reach a generic type that is part of a cycle
+ 			// and we are in a type parameter list, we have a cycle
+ 			// through a type parameter list, which is invalid.
+-			if check.context.inTParamList && isGeneric(obj.typ) {
++			if check.environment.inTParamList && isGeneric(obj.typ) {
+ 				tparCycle = true
+ 				break loop
+ 			}
+@@ -697,7 +697,7 @@ func (check *Checker) collectTypeParams(dst **TypeParamList, list *ast.FieldList
+ 	// function closures may appear inside a type parameter list but they
+ 	// cannot be generic, and their bodies are processed in delayed and
+ 	// sequential fashion. Note that with each new declaration, we save
+-	// the existing context and restore it when done; thus inTPList is
++	// the existing environment and restore it when done; thus inTPList is
+ 	// true exactly only when we are in a specific type parameter list.
+ 	assert(!check.inTParamList)
+ 	check.inTParamList = true
+diff --git a/src/go/types/stmt.go b/src/go/types/stmt.go
+index 11032f44dd..c000d935d6 100644
+--- a/src/go/types/stmt.go
++++ b/src/go/types/stmt.go
+@@ -29,13 +29,13 @@ func (check *Checker) funcBody(decl *declInfo, name string, sig *Signature, body
+ 	sig.scope.pos = body.Pos()
+ 	sig.scope.end = body.End()
+ 
+-	// save/restore current context and setup function context
++	// save/restore current environment and set up function environment
+ 	// (and use 0 indentation at function start)
+-	defer func(ctxt context, indent int) {
+-		check.context = ctxt
++	defer func(env environment, indent int) {
++		check.environment = env
+ 		check.indent = indent
+-	}(check.context, check.indent)
+-	check.context = context{
++	}(check.environment, check.indent)
++	check.environment = environment{
+ 		decl:  decl,
+ 		scope: sig.scope,
+ 		iota:  iota,

@@ -10,7 +10,7 @@ Date:   Wed Apr 8 13:34:42 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/8639
     Reviewed-by: Dave Cheney <dave@cheney.net>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/5g/cgen.go          | 2 +-
  src/cmd/5g/galign.go        | 2 +-
  src/cmd/6g/cgen.go          | 2 +-
@@ -25,3 +25,173 @@ Date:   Wed Apr 8 13:34:42 2015 -0400
  src/cmd/internal/gc/go.go   | 2 +-
  src/runtime/mkduff.go       | 2 +-
  13 files changed, 13 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/5g/cgen.go b/src/cmd/5g/cgen.go
+index a79c55fd49..2e922391cb 100644
+--- a/src/cmd/5g/cgen.go
++++ b/src/cmd/5g/cgen.go
+@@ -75,7 +75,7 @@ func gencmp0(n *gc.Node, t *gc.Type, o int, likely int, to *obj.Prog) {
+ 	gc.Regfree(&n1)
+ }
+ 
+-func stackcopy(n, res *gc.Node, osrc, odst, w int64) {
++func blockcopy(n, res *gc.Node, osrc, odst, w int64) {
+ 	// determine alignment.
+ 	// want to avoid unaligned access, so have to use
+ 	// smaller operations for less aligned types.
+diff --git a/src/cmd/5g/galign.go b/src/cmd/5g/galign.go
+index 51c6e1e45a..3c8ba519eb 100644
+--- a/src/cmd/5g/galign.go
++++ b/src/cmd/5g/galign.go
+@@ -76,7 +76,7 @@ func main() {
+ 	gc.Thearch.Sameaddr = sameaddr
+ 	gc.Thearch.Smallindir = smallindir
+ 	gc.Thearch.Stackaddr = stackaddr
+-	gc.Thearch.Stackcopy = stackcopy
++	gc.Thearch.Blockcopy = blockcopy
+ 	gc.Thearch.Sudoaddable = sudoaddable
+ 	gc.Thearch.Sudoclean = sudoclean
+ 	gc.Thearch.Excludedregs = excludedregs
+diff --git a/src/cmd/6g/cgen.go b/src/cmd/6g/cgen.go
+index 4ed97fa589..23e2d1b57f 100644
+--- a/src/cmd/6g/cgen.go
++++ b/src/cmd/6g/cgen.go
+@@ -10,7 +10,7 @@ import (
+ 	"cmd/internal/obj/x86"
+ )
+ 
+-func stackcopy(n, ns *gc.Node, osrc, odst, w int64) {
++func blockcopy(n, ns *gc.Node, osrc, odst, w int64) {
+ 	var noddi gc.Node
+ 	gc.Nodreg(&noddi, gc.Types[gc.Tptr], x86.REG_DI)
+ 	var nodsi gc.Node
+diff --git a/src/cmd/6g/galign.go b/src/cmd/6g/galign.go
+index 5b41a670ec..0ca87537ff 100644
+--- a/src/cmd/6g/galign.go
++++ b/src/cmd/6g/galign.go
+@@ -111,7 +111,7 @@ func main() {
+ 	gc.Thearch.Sameaddr = sameaddr
+ 	gc.Thearch.Smallindir = smallindir
+ 	gc.Thearch.Stackaddr = stackaddr
+-	gc.Thearch.Stackcopy = stackcopy
++	gc.Thearch.Blockcopy = blockcopy
+ 	gc.Thearch.Sudoaddable = sudoaddable
+ 	gc.Thearch.Sudoclean = sudoclean
+ 	gc.Thearch.Excludedregs = excludedregs
+diff --git a/src/cmd/7g/cgen.go b/src/cmd/7g/cgen.go
+index 1d4f391d75..6f268b4185 100644
+--- a/src/cmd/7g/cgen.go
++++ b/src/cmd/7g/cgen.go
+@@ -10,7 +10,7 @@ import (
+ 	"cmd/internal/obj/arm64"
+ )
+ 
+-func stackcopy(n, res *gc.Node, osrc, odst, w int64) {
++func blockcopy(n, res *gc.Node, osrc, odst, w int64) {
+ 	// determine alignment.
+ 	// want to avoid unaligned access, so have to use
+ 	// smaller operations for less aligned types.
+diff --git a/src/cmd/7g/galign.go b/src/cmd/7g/galign.go
+index 3ad786a8fd..34b4ab6142 100644
+--- a/src/cmd/7g/galign.go
++++ b/src/cmd/7g/galign.go
+@@ -75,7 +75,7 @@ func main() {
+ 	gc.Thearch.Sameaddr = sameaddr
+ 	gc.Thearch.Smallindir = smallindir
+ 	gc.Thearch.Stackaddr = stackaddr
+-	gc.Thearch.Stackcopy = stackcopy
++	gc.Thearch.Blockcopy = blockcopy
+ 	gc.Thearch.Sudoaddable = sudoaddable
+ 	gc.Thearch.Sudoclean = sudoclean
+ 	gc.Thearch.Excludedregs = excludedregs
+diff --git a/src/cmd/8g/cgen.go b/src/cmd/8g/cgen.go
+index 0b93694f2c..dfbdafefe3 100644
+--- a/src/cmd/8g/cgen.go
++++ b/src/cmd/8g/cgen.go
+@@ -48,7 +48,7 @@ func igenindex(n *gc.Node, res *gc.Node, bounded bool) *obj.Prog {
+ 	return gc.Gbranch(x86.AJNE, nil, +1)
+ }
+ 
+-func stackcopy(n, res *gc.Node, osrc, odst, w int64) {
++func blockcopy(n, res *gc.Node, osrc, odst, w int64) {
+ 	var dst gc.Node
+ 	gc.Nodreg(&dst, gc.Types[gc.Tptr], x86.REG_DI)
+ 	var src gc.Node
+diff --git a/src/cmd/8g/galign.go b/src/cmd/8g/galign.go
+index 36328dc002..9eb1cf5d08 100644
+--- a/src/cmd/8g/galign.go
++++ b/src/cmd/8g/galign.go
+@@ -89,7 +89,7 @@ func main() {
+ 	gc.Thearch.Sameaddr = sameaddr
+ 	gc.Thearch.Smallindir = smallindir
+ 	gc.Thearch.Stackaddr = stackaddr
+-	gc.Thearch.Stackcopy = stackcopy
++	gc.Thearch.Blockcopy = blockcopy
+ 	gc.Thearch.Sudoaddable = sudoaddable
+ 	gc.Thearch.Sudoclean = sudoclean
+ 	gc.Thearch.Excludedregs = excludedregs
+diff --git a/src/cmd/9g/cgen.go b/src/cmd/9g/cgen.go
+index feadfeb9a9..5d24a6ff67 100644
+--- a/src/cmd/9g/cgen.go
++++ b/src/cmd/9g/cgen.go
+@@ -10,7 +10,7 @@ import (
+ 	"cmd/internal/obj/ppc64"
+ )
+ 
+-func stackcopy(n, res *gc.Node, osrc, odst, w int64) {
++func blockcopy(n, res *gc.Node, osrc, odst, w int64) {
+ 	// determine alignment.
+ 	// want to avoid unaligned access, so have to use
+ 	// smaller operations for less aligned types.
+diff --git a/src/cmd/9g/galign.go b/src/cmd/9g/galign.go
+index 4aa84f8b62..a2f4a0ef89 100644
+--- a/src/cmd/9g/galign.go
++++ b/src/cmd/9g/galign.go
+@@ -82,7 +82,7 @@ func main() {
+ 	gc.Thearch.Sameaddr = sameaddr
+ 	gc.Thearch.Smallindir = smallindir
+ 	gc.Thearch.Stackaddr = stackaddr
+-	gc.Thearch.Stackcopy = stackcopy
++	gc.Thearch.Blockcopy = blockcopy
+ 	gc.Thearch.Sudoaddable = sudoaddable
+ 	gc.Thearch.Sudoclean = sudoclean
+ 	gc.Thearch.Excludedregs = excludedregs
+diff --git a/src/cmd/internal/gc/cgen.go b/src/cmd/internal/gc/cgen.go
+index d24db5ff68..3fea97e0a6 100644
+--- a/src/cmd/internal/gc/cgen.go
++++ b/src/cmd/internal/gc/cgen.go
+@@ -2312,7 +2312,7 @@ func sgen_wb(n *Node, ns *Node, w int64, wb bool) {
+ 		return
+ 	}
+ 
+-	Thearch.Stackcopy(n, ns, osrc, odst, w)
++	Thearch.Blockcopy(n, ns, osrc, odst, w)
+ }
+ 
+ /*
+diff --git a/src/cmd/internal/gc/go.go b/src/cmd/internal/gc/go.go
+index d399ebbd36..2d85f58580 100644
+--- a/src/cmd/internal/gc/go.go
++++ b/src/cmd/internal/gc/go.go
+@@ -809,7 +809,7 @@ type Arch struct {
+ 	Sameaddr     func(*obj.Addr, *obj.Addr) bool
+ 	Smallindir   func(*obj.Addr, *obj.Addr) bool
+ 	Stackaddr    func(*obj.Addr) bool
+-	Stackcopy    func(*Node, *Node, int64, int64, int64)
++	Blockcopy    func(*Node, *Node, int64, int64, int64)
+ 	Sudoaddable  func(int, *Node, *obj.Addr) bool
+ 	Sudoclean    func()
+ 	Excludedregs func() uint64
+diff --git a/src/runtime/mkduff.go b/src/runtime/mkduff.go
+index c0e46f9f85..dc94cee5c7 100644
+--- a/src/runtime/mkduff.go
++++ b/src/runtime/mkduff.go
+@@ -15,7 +15,7 @@
+ // the routine to copy chunks of memory.
+ // Source and destination must not overlap.
+ // Do not change duffcopy without also
+-// changing stackcopy in cmd/?g/cgen.go.
++// changing blockcopy in cmd/?g/cgen.go.
+ 
+ // See the zero* and copy* generators below
+ // for architecture-specific comments.

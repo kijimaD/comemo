@@ -8,7 +8,7 @@ Date:   Thu May 21 21:19:07 2020 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/234895
     Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/link/internal/ld/asmb.go   | 33 ++++++++++++++++-----------------
  src/cmd/link/internal/ld/elf.go    |  4 ++--
  src/cmd/link/internal/ld/macho.go  |  6 +++---
@@ -17,3 +17,215 @@ Date:   Thu May 21 21:19:07 2020 -0400
  src/cmd/link/internal/ld/symtab.go |  4 ++--
  src/cmd/link/internal/ld/xcoff.go  |  2 +-
  7 files changed, 26 insertions(+), 29 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/asmb.go b/src/cmd/link/internal/ld/asmb.go
+index 1668dd11f6..825dd9a865 100644
+--- a/src/cmd/link/internal/ld/asmb.go
++++ b/src/cmd/link/internal/ld/asmb.go
+@@ -74,9 +74,10 @@ func asmb(ctxt *Link, ldr *loader.Loader) {
+ //  - writing out the code/data/dwarf Segments
+ //  - writing out the architecture specific pieces.
+ // This function handles the second part.
+-func asmb2(ctxt *Link) bool {
+-	if ctxt.IsWasm() {
+-		return false
++func asmb2(ctxt *Link) {
++	if thearch.Asmb2 != nil {
++		thearch.Asmb2(ctxt, ctxt.loader)
++		return
+ 	}
+ 
+ 	Symsize = 0
+@@ -84,14 +85,14 @@ func asmb2(ctxt *Link) bool {
+ 	Lcsize = 0
+ 
+ 	if ctxt.IsDarwin() {
+-		machlink := Domacholink(ctxt)
++		machlink := doMachoLink(ctxt)
+ 		if !*FlagS && ctxt.IsExternal() {
+ 			symo := int64(Segdwarf.Fileoff + uint64(Rnd(int64(Segdwarf.Filelen), int64(*FlagRound))) + uint64(machlink))
+ 			ctxt.Out.SeekSet(symo)
+-			Machoemitreloc(ctxt)
++			machoEmitReloc(ctxt)
+ 		}
+ 		ctxt.Out.SeekSet(0)
+-		Asmbmacho(ctxt)
++		asmbMacho(ctxt)
+ 	}
+ 
+ 	if ctxt.IsElf() {
+@@ -100,18 +101,18 @@ func asmb2(ctxt *Link) bool {
+ 			symo = int64(Segdwarf.Fileoff + Segdwarf.Filelen)
+ 			symo = Rnd(symo, int64(*FlagRound))
+ 			ctxt.Out.SeekSet(symo)
+-			Asmelfsym(ctxt)
++			asmElfSym(ctxt)
+ 			ctxt.Out.Write(Elfstrdat)
+ 			if ctxt.IsExternal() {
+-				Elfemitreloc(ctxt)
++				elfEmitReloc(ctxt)
+ 			}
+ 		}
+ 		ctxt.Out.SeekSet(0)
+-		Asmbelf(ctxt, symo)
++		asmbElf(ctxt, symo)
+ 	}
+ 
+ 	if ctxt.IsWindows() {
+-		Asmbpe(ctxt)
++		asmbPe(ctxt)
+ 	}
+ 
+ 	if ctxt.IsPlan9() {
+@@ -119,17 +120,17 @@ func asmb2(ctxt *Link) bool {
+ 			*FlagS = true
+ 			symo := int64(Segdata.Fileoff + Segdata.Filelen)
+ 			ctxt.Out.SeekSet(symo)
+-			Asmplan9sym(ctxt)
++			asmbPlan9Sym(ctxt)
+ 		}
+ 		ctxt.Out.SeekSet(0)
+-		WritePlan9Header(ctxt.Out, thearch.Plan9Magic, Entryvalue(ctxt), thearch.Plan9_64Bit)
++		writePlan9Header(ctxt.Out, thearch.Plan9Magic, Entryvalue(ctxt), thearch.Plan9_64Bit)
+ 	}
+ 
+ 	if ctxt.IsAIX() {
+ 		ctxt.Out.SeekSet(0)
+ 		fileoff := uint32(Segdwarf.Fileoff + Segdwarf.Filelen)
+ 		fileoff = uint32(Rnd(int64(fileoff), int64(*FlagRound)))
+-		Asmbxcoff(ctxt, int64(fileoff))
++		asmbXcoff(ctxt, int64(fileoff))
+ 	}
+ 
+ 	if *FlagC {
+@@ -140,12 +141,10 @@ func asmb2(ctxt *Link) bool {
+ 		fmt.Printf("lcsize=%d\n", Lcsize)
+ 		fmt.Printf("total=%d\n", Segtext.Filelen+Segdata.Length+uint64(Symsize)+uint64(Lcsize))
+ 	}
+-
+-	return true
+ }
+ 
+-// WritePlan9Header writes out the plan9 header at the present position in the OutBuf.
+-func WritePlan9Header(buf *OutBuf, magic uint32, entry int64, is64Bit bool) {
++// writePlan9Header writes out the plan9 header at the present position in the OutBuf.
++func writePlan9Header(buf *OutBuf, magic uint32, entry int64, is64Bit bool) {
+ 	if is64Bit {
+ 		magic |= 0x00008000
+ 	}
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index 6e75e6ffaf..8bf1259cfc 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -1398,7 +1398,7 @@ func elfrelocsect(ctxt *Link, sect *sym.Section, syms []loader.Sym) {
+ 	sect.Rellen = uint64(ctxt.Out.Offset()) - sect.Reloff
+ }
+ 
+-func Elfemitreloc(ctxt *Link) {
++func elfEmitReloc(ctxt *Link) {
+ 
+ 	for ctxt.Out.Offset()&7 != 0 {
+ 		ctxt.Out.Write8(0)
+@@ -1780,7 +1780,7 @@ func Asmbelfsetup() {
+ 	}
+ }
+ 
+-func Asmbelf(ctxt *Link, symo int64) {
++func asmbElf(ctxt *Link, symo int64) {
+ 
+ 	ldr := ctxt.loader
+ 	eh := getElfEhdr()
+diff --git a/src/cmd/link/internal/ld/macho.go b/src/cmd/link/internal/ld/macho.go
+index c66af8628a..61a56f35b7 100644
+--- a/src/cmd/link/internal/ld/macho.go
++++ b/src/cmd/link/internal/ld/macho.go
+@@ -574,7 +574,7 @@ func machoshbits(ctxt *Link, mseg *MachoSeg, sect *sym.Section, segname string)
+ 	}
+ }
+ 
+-func Asmbmacho(ctxt *Link) {
++func asmbMacho(ctxt *Link) {
+ 	/* apple MACH */
+ 	va := *FlagTextAddr - int64(HEADR)
+ 
+@@ -964,7 +964,7 @@ func machodysymtab(ctxt *Link) {
+ 	ml.data[17] = 0 /* nlocrel */
+ }
+ 
+-func Domacholink(ctxt *Link) int64 {
++func doMachoLink(ctxt *Link) int64 {
+ 	machosymtab(ctxt)
+ 
+ 	ldr := ctxt.loader
+@@ -1056,7 +1056,7 @@ func machorelocsect(ctxt *Link, ldr *loader.Loader, sect *sym.Section, syms []lo
+ 	sect.Rellen = uint64(ctxt.Out.Offset()) - sect.Reloff
+ }
+ 
+-func Machoemitreloc(ctxt *Link) {
++func machoEmitReloc(ctxt *Link) {
+ 	for ctxt.Out.Offset()&7 != 0 {
+ 		ctxt.Out.Write8(0)
+ 	}
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index 0c18d512d3..1c9f33d68f 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -321,9 +321,7 @@ func Main(arch *sys.Arch, theArch Arch) {
+ 	bench.Start("reloc")
+ 	ctxt.reloc()
+ 	bench.Start("Asmb2")
+-	if !asmb2(ctxt) {
+-		thearch.Asmb2(ctxt, ctxt.loader)
+-	}
++	asmb2(ctxt)
+ 
+ 	bench.Start("Munmap")
+ 	ctxt.Out.Close() // Close handles Munmapping if necessary.
+diff --git a/src/cmd/link/internal/ld/pe.go b/src/cmd/link/internal/ld/pe.go
+index 29395c94e3..f0211e12ac 100644
+--- a/src/cmd/link/internal/ld/pe.go
++++ b/src/cmd/link/internal/ld/pe.go
+@@ -1547,7 +1547,7 @@ func addpersrc(ctxt *Link) {
+ 	pefile.dataDirectory[pe.IMAGE_DIRECTORY_ENTRY_RESOURCE].Size = h.virtualSize
+ }
+ 
+-func Asmbpe(ctxt *Link) {
++func asmbPe(ctxt *Link) {
+ 	switch ctxt.Arch.Family {
+ 	default:
+ 		Exitf("unknown PE architecture: %v", ctxt.Arch.Family)
+diff --git a/src/cmd/link/internal/ld/symtab.go b/src/cmd/link/internal/ld/symtab.go
+index 61072cb0cf..dd943733c7 100644
+--- a/src/cmd/link/internal/ld/symtab.go
++++ b/src/cmd/link/internal/ld/symtab.go
+@@ -229,7 +229,7 @@ func genelfsym(ctxt *Link, elfbind int) {
+ 	}
+ }
+ 
+-func Asmelfsym(ctxt *Link) {
++func asmElfSym(ctxt *Link) {
+ 
+ 	// the first symbol entry is reserved
+ 	putelfsyment(ctxt.Out, 0, 0, 0, STB_LOCAL<<4|STT_NOTYPE, 0, 0)
+@@ -274,7 +274,7 @@ func putplan9sym(ctxt *Link, ldr *loader.Loader, s loader.Sym, char SymbolType)
+ 	Symsize += int32(l) + 1 + int32(len(name)) + 1
+ }
+ 
+-func Asmplan9sym(ctxt *Link) {
++func asmbPlan9Sym(ctxt *Link) {
+ 	ldr := ctxt.loader
+ 
+ 	// Add special runtime.text and runtime.etext symbols.
+diff --git a/src/cmd/link/internal/ld/xcoff.go b/src/cmd/link/internal/ld/xcoff.go
+index 05c2aa48c8..a116a1f460 100644
+--- a/src/cmd/link/internal/ld/xcoff.go
++++ b/src/cmd/link/internal/ld/xcoff.go
+@@ -1556,7 +1556,7 @@ func xcoffwrite(ctxt *Link) {
+ }
+ 
+ // Generate XCOFF assembly file
+-func Asmbxcoff(ctxt *Link, fileoff int64) {
++func asmbXcoff(ctxt *Link, fileoff int64) {
+ 	xfile.sectNameToScnum = make(map[string]int16)
+ 
+ 	// Add sections

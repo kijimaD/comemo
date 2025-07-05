@@ -22,6 +22,24 @@ Date:   Sat Apr 11 14:58:42 2015 +0200
     Change-Id: Ie0c36f97c4b5ebe27ff0ead360987c5b35f825e4
     Reviewed-on: https://go-review.googlesource.com/8800
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/syscall/pwd_plan9.go | 6 ++----
  1 file changed, 2 insertions(+), 4 deletions(-)
+
+diff --git a/src/syscall/pwd_plan9.go b/src/syscall/pwd_plan9.go
+index f8cafad92e..12486135f0 100644
+--- a/src/syscall/pwd_plan9.go
++++ b/src/syscall/pwd_plan9.go
+@@ -29,10 +29,8 @@ func fixwdLocked() {
+ 	if !wdSet {
+ 		return
+ 	}
+-	wd, err := getwd()
+-	if err != nil {
+-		return
+-	}
++	// always call chdir when getwd returns an error
++	wd, _ := getwd()
+ 	if wd == wdStr {
+ 		return
+ 	}

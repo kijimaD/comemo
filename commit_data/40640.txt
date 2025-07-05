@@ -21,8 +21,73 @@ Date:   Thu Jun 6 17:27:14 2019 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/compile/internal/gc/gsubr.go | 11 -----------
  src/cmd/compile/internal/gc/main.go  |  6 ------
  src/cmd/dist/build.go                |  7 -------
  3 files changed, 24 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/gsubr.go b/src/cmd/compile/internal/gc/gsubr.go
+index 827ccf3696..51c0fffc9e 100644
+--- a/src/cmd/compile/internal/gc/gsubr.go
++++ b/src/cmd/compile/internal/gc/gsubr.go
+@@ -234,17 +234,6 @@ func (f *Func) initLSym(hasBody bool) {
+ 			}
+ 		}
+ 
+-		if !needABIAlias && allABIs {
+-			// The compiler was asked to produce ABI
+-			// wrappers for everything.
+-			switch f.lsym.ABI() {
+-			case obj.ABI0:
+-				needABIAlias, aliasABI = true, obj.ABIInternal
+-			case obj.ABIInternal:
+-				needABIAlias, aliasABI = true, obj.ABI0
+-			}
+-		}
+-
+ 		if needABIAlias {
+ 			// These LSyms have the same name as the
+ 			// native function, so we create them directly
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 37e755306d..2a1fd8e4fa 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -259,7 +259,6 @@ func Main(archInit func(*Arch)) {
+ 	flag.StringVar(&goversion, "goversion", "", "required version of the runtime")
+ 	var symabisPath string
+ 	flag.StringVar(&symabisPath, "symabis", "", "read symbol ABIs from `file`")
+-	flag.BoolVar(&allABIs, "allabis", false, "generate ABI wrappers for all symbols (for bootstrap)")
+ 	flag.StringVar(&traceprofile, "traceprofile", "", "write an execution trace to `file`")
+ 	flag.StringVar(&blockprofile, "blockprofile", "", "write block profile to `file`")
+ 	flag.StringVar(&mutexprofile, "mutexprofile", "", "write mutex profile to `file`")
+@@ -849,11 +848,6 @@ func readImportCfg(file string) {
+ // name, where the local package prefix is always `"".`
+ var symabiDefs, symabiRefs map[string]obj.ABI
+ 
+-// allABIs indicates that all symbol definitions should have ABI
+-// wrappers. This is used during toolchain bootstrapping to avoid
+-// having to find cross-package references.
+-var allABIs bool
+-
+ // readSymABIs reads a symabis file that specifies definitions and
+ // references of text symbols by ABI.
+ //
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index 3df7f09abc..9e503117ae 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -866,13 +866,6 @@ func runInstall(dir string, ch chan struct{}) {
+ 	if symabis != "" {
+ 		compile = append(compile, "-symabis", symabis)
+ 	}
+-	if dir == "runtime" || dir == "runtime/internal/atomic" {
+-		// These packages define symbols referenced by
+-		// assembly in other packages. In cmd/go, we work out
+-		// the exact details. For bootstrapping, just tell the
+-		// compiler to generate ABI wrappers for everything.
+-		compile = append(compile, "-allabis")
+-	}
+ 	if goos == "android" {
+ 		compile = append(compile, "-shared")
+ 	}

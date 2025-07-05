@@ -7,6 +7,19 @@ Date:   Wed Jul 24 16:39:38 2013 -0700
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/11797043
-
+---
  CONTRIBUTORS | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index a3f7db4b20..3c6ed558f2 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -274,6 +274,7 @@ Ken Friedenbach <kenliz@cruzio.com>
+ Ken Rockot <ken@oz.gs> <ken.rockot@gmail.com>
+ Ken Thompson <ken@golang.org>
+ Kevin Ballard <kevin@sb.org>
++Kevin Klues <klueska@gmail.com> <klueska@google.com>
+ Kirklin McDonald <kirklin.mcdonald@gmail.com>
+ Kyle Consalus <consalus@gmail.com>
+ Kyle Lemons <kyle@kylelemons.net> <kevlar@google.com>

@@ -8,7 +8,7 @@ Date:   Wed Jun 30 13:52:34 2010 -0700
     R=rsc, brainman
     CC=golang-dev
     https://golang.org/cl/1686047
-
+---
  src/pkg/io/ioutil/tempfile.go           |  9 +++------
  src/pkg/io/ioutil/tempfile_test.go      | 16 ++++++++++------
  src/pkg/os/Makefile                     |  5 +++++
@@ -17,3 +17,200 @@ Date:   Wed Jun 30 13:52:34 2010 -0700
  src/pkg/syscall/syscall_windows.go      |  1 +
  src/pkg/syscall/zsyscall_windows_386.go | 12 ++++++++++++
  7 files changed, 79 insertions(+), 12 deletions(-)
+
+diff --git a/src/pkg/io/ioutil/tempfile.go b/src/pkg/io/ioutil/tempfile.go
+index 55fcf47026..114eca2b50 100644
+--- a/src/pkg/io/ioutil/tempfile.go
++++ b/src/pkg/io/ioutil/tempfile.go
+@@ -33,18 +33,15 @@ func nextSuffix() string {
+ // TempFile creates a new temporary file in the directory dir
+ // with a name beginning with prefix, opens the file for reading
+ // and writing, and returns the resulting *os.File.
+-// If dir is the empty string, TempFile uses the value of the
+-// environment variable $TMPDIR or, if that is empty,/tmp.
++// If dir is the empty string, TempFile uses the default directory
++// for temporary files (see os.TempDir).
+ // Multiple programs calling TempFile simultaneously
+ // will not choose the same file.  The caller can use f.Name()
+ // to find the name of the file.  It is the caller's responsibility to
+ // remove the file when no longer needed.
+ func TempFile(dir, prefix string) (f *os.File, err os.Error) {
+ 	if dir == "" {
+-		dir = os.Getenv("TMPDIR")
+-		if dir == "" {
+-			dir = "/tmp"
+-		}
++		dir = os.TempDir()
+ 	}
+ 
+ 	nconflict := 0
+diff --git a/src/pkg/io/ioutil/tempfile_test.go b/src/pkg/io/ioutil/tempfile_test.go
+index fbe45dc6dd..fe43f95668 100644
+--- a/src/pkg/io/ioutil/tempfile_test.go
++++ b/src/pkg/io/ioutil/tempfile_test.go
+@@ -7,6 +7,7 @@ package ioutil_test
+ import (
+ 	. "io/ioutil"
+ 	"os"
++	"regexp"
+ 	"testing"
+ )
+ 
+@@ -16,14 +17,17 @@ func TestTempFile(t *testing.T) {
+ 		t.Errorf("TempFile(`/_not_exists_`, `foo`) = %v, %v", f, err)
+ 	}
+ 
+-	f, err = TempFile("/tmp", "ioutil_test")
++	dir := os.TempDir()
++	f, err = TempFile(dir, "ioutil_test")
+ 	if f == nil || err != nil {
+-		t.Errorf("TempFile(`/tmp`, `ioutil_test`) = %v, %v", f, err)
++		t.Errorf("TempFile(dir, `ioutil_test`) = %v, %v", f, err)
+ 	}
+-	re := testing.MustCompile("^/tmp/ioutil_test[0-9]+$")
+-	if !re.MatchString(f.Name()) {
+-		t.Fatalf("TempFile(`/tmp`, `ioutil_test`) created bad name %s", f.Name())
++	if f != nil {
++		re := testing.MustCompile("^" + regexp.QuoteMeta(dir) + "/ioutil_test[0-9]+$")
++		if !re.MatchString(f.Name()) {
++			t.Errorf("TempFile(`"+dir+"`, `ioutil_test`) created bad name %s", f.Name())
++		}
++		os.Remove(f.Name())
+ 	}
+-	os.Remove(f.Name())
+ 	f.Close()
+ }
+diff --git a/src/pkg/os/Makefile b/src/pkg/os/Makefile
+index 71de949514..45954bbeb8 100644
+--- a/src/pkg/os/Makefile
++++ b/src/pkg/os/Makefile
+@@ -19,22 +19,27 @@ GOFILES=\
+ 	types.go\
+ 
+ GOFILES_freebsd=\
++	env_unix.go\
+ 	file_unix.go\
+ 	sys_bsd.go\
+ 
+ GOFILES_darwin=\
++	env_unix.go\
+ 	file_unix.go\
+ 	sys_bsd.go\
+ 
+ GOFILES_linux=\
++	env_unix.go\
+ 	file_unix.go\
+ 	sys_linux.go\
+ 
+ GOFILES_nacl=\
++	env_unix.go\
+ 	file_unix.go\
+ 	sys_nacl.go\
+ 
+ GOFILES_windows=\
++	env_windows.go\
+ 	file_windows.go\
+ 	sys_windows.go\
+ 
+diff --git a/src/pkg/os/env_unix.go b/src/pkg/os/env_unix.go
+new file mode 100755
+index 0000000000..0c13bda0e3
+--- /dev/null
++++ b/src/pkg/os/env_unix.go
+@@ -0,0 +1,19 @@
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Unix environment variables.
++
++package os
++
++// TempDir returns the default directory to use for temporary files.
++// On Unix-like systems, it uses the environment variable $TMPDIR
++// or, if that is empty, /tmp.
++// On Windows systems, it uses the Windows GetTempPath API.
++func TempDir() string {
++	dir := Getenv("TMPDIR")
++	if dir == "" {
++		dir = "/tmp"
++	}
++	return dir
++}
+diff --git a/src/pkg/os/env_windows.go b/src/pkg/os/env_windows.go
+new file mode 100755
+index 0000000000..7d5b007c93
+--- /dev/null
++++ b/src/pkg/os/env_windows.go
+@@ -0,0 +1,29 @@
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Windows environment variables.
++
++package os
++
++import (
++	"syscall"
++	"utf16"
++)
++
++func TempDir() string {
++	const pathSep = '\\'
++	dirw := make([]uint16, syscall.MAX_PATH)
++	n, _ := syscall.GetTempPath(uint32(len(dirw)), &dirw[0])
++	if n > uint32(len(dirw)) {
++		dirw = make([]uint16, n)
++		n, _ = syscall.GetTempPath(uint32(len(dirw)), &dirw[0])
++		if n > uint32(len(dirw)) {
++			n = 0
++		}
++	}
++	if n > 0 && dirw[n-1] == pathSep {
++		n--
++	}
++	return string(utf16.Decode(dirw[0:n]))
++}
+diff --git a/src/pkg/syscall/syscall_windows.go b/src/pkg/syscall/syscall_windows.go
+index 8b6789221b..86badb8e93 100644
+--- a/src/pkg/syscall/syscall_windows.go
++++ b/src/pkg/syscall/syscall_windows.go
+@@ -131,6 +131,7 @@ func getSysProcAddr(m uint32, pname string) uintptr {
+ //sys	GetTimeZoneInformation(tzi *Timezoneinformation) (rc uint32, errno int) [failretval=0xffffffff]
+ //sys	CreateIoCompletionPort(filehandle int32, cphandle int32, key uint32, threadcnt uint32) (handle int32, errno int)
+ //sys	GetQueuedCompletionStatus(cphandle int32, qty *uint32, key *uint32, overlapped **Overlapped, timeout uint32) (ok bool, errno int)
++//sys	GetTempPath(buflen uint32, buf *uint16) (n uint32, errno int) = GetTempPathW
+ 
+ // syscall interface implementation for other packages
+ 
+diff --git a/src/pkg/syscall/zsyscall_windows_386.go b/src/pkg/syscall/zsyscall_windows_386.go
+index 306de3031a..be5dd031c8 100644
+--- a/src/pkg/syscall/zsyscall_windows_386.go
++++ b/src/pkg/syscall/zsyscall_windows_386.go
+@@ -40,6 +40,7 @@ var (
+ 	procGetTimeZoneInformation     = getSysProcAddr(modkernel32, "GetTimeZoneInformation")
+ 	procCreateIoCompletionPort     = getSysProcAddr(modkernel32, "CreateIoCompletionPort")
+ 	procGetQueuedCompletionStatus  = getSysProcAddr(modkernel32, "GetQueuedCompletionStatus")
++	procGetTempPathW               = getSysProcAddr(modkernel32, "GetTempPathW")
+ 	procWSAStartup                 = getSysProcAddr(modwsock32, "WSAStartup")
+ 	procWSACleanup                 = getSysProcAddr(modwsock32, "WSACleanup")
+ 	procsocket                     = getSysProcAddr(modwsock32, "socket")
+@@ -375,6 +376,17 @@ func GetQueuedCompletionStatus(cphandle int32, qty *uint32, key *uint32, overlap
+ 	return
+ }
+ 
++func GetTempPath(buflen uint32, buf *uint16) (n uint32, errno int) {
++	r0, _, e1 := Syscall(procGetTempPathW, uintptr(buflen), uintptr(unsafe.Pointer(buf)), 0)
++	n = uint32(r0)
++	if n == 0 {
++		errno = int(e1)
++	} else {
++		errno = 0
++	}
++	return
++}
++
+ func WSAStartup(verreq uint32, data *WSAData) (sockerrno int) {
+ 	r0, _, _ := Syscall(procWSAStartup, uintptr(verreq), uintptr(unsafe.Pointer(data)), 0)
+ 	sockerrno = int(r0)

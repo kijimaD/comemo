@@ -26,6 +26,32 @@ Date:   Thu May 30 14:31:40 2024 -0700
     Auto-Submit: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Commit-Queue: Ian Lance Taylor <iant@golang.org>
-
+---
  src/internal/syscall/unix/at_sysnum_dragonfly.go | 10 +++++-----
  1 file changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/internal/syscall/unix/at_sysnum_dragonfly.go b/src/internal/syscall/unix/at_sysnum_dragonfly.go
+index 9ac1f919f1..a8164dcc8e 100644
+--- a/src/internal/syscall/unix/at_sysnum_dragonfly.go
++++ b/src/internal/syscall/unix/at_sysnum_dragonfly.go
+@@ -6,15 +6,15 @@ package unix
+ 
+ import "syscall"
+ 
+-const unlinkatTrap uintptr = syscall.SYS_UNLINKAT
+-const openatTrap uintptr = syscall.SYS_OPENAT
+-const fstatatTrap uintptr = syscall.SYS_FSTATAT
+-
+ const (
++	unlinkatTrap uintptr = syscall.SYS_UNLINKAT
++	openatTrap   uintptr = syscall.SYS_OPENAT
++	fstatatTrap  uintptr = syscall.SYS_FSTATAT
++
+ 	AT_EACCESS          = 0x4
+ 	AT_FDCWD            = 0xfffafdcd
+ 	AT_REMOVEDIR        = 0x2
+ 	AT_SYMLINK_NOFOLLOW = 0x1
+ 
+-	UTIME_OMIT = -0x1
++	UTIME_OMIT = -0x2
+ )

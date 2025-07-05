@@ -9,7 +9,96 @@ Date:   Wed Dec 14 16:37:54 2011 -0800
     R=golang-dev, dsymonds, r
     CC=golang-dev
     https://golang.org/cl/5486076
-
+---
  src/pkg/fmt/fmt_test.go | 34 ++++++++++++++++++++++++++++++++++
  src/pkg/fmt/print.go    |  7 +++++++
  2 files changed, 41 insertions(+)
+
+diff --git a/src/pkg/fmt/fmt_test.go b/src/pkg/fmt/fmt_test.go
+index 63c33380a2..d7fe296f09 100644
+--- a/src/pkg/fmt/fmt_test.go
++++ b/src/pkg/fmt/fmt_test.go
+@@ -813,3 +813,37 @@ func TestPanics(t *testing.T) {
+ 		}
+ 	}
+ }
++
++// Test that erroneous String routine doesn't cause fatal recursion.
++var recurCount = 0
++
++type Recur struct {
++	i      int
++	failed *bool
++}
++
++func (r Recur) String() string {
++	if recurCount++; recurCount > 10 {
++		*r.failed = true
++		return "FAIL"
++	}
++	// This will call badVerb. Before the fix, that would cause us to recur into
++	// this routine to print %!p(value). Now we don't call the user's method
++	// during an error.
++	return Sprintf("recur@%p value: %d", r, r.i)
++}
++
++func TestBadVerbRecursion(t *testing.T) {
++	failed := false
++	r := Recur{3, &failed}
++	Sprintf("recur@%p value: %d\n", &r, r.i)
++	if failed {
++		t.Error("fail with pointer")
++	}
++	failed = false
++	r = Recur{4, &failed}
++	Sprintf("recur@%p, value: %d\n", r, r.i)
++	if failed {
++		t.Error("fail with value")
++	}
++}
+diff --git a/src/pkg/fmt/print.go b/src/pkg/fmt/print.go
+index 8b15a82e77..9f157daaee 100644
+--- a/src/pkg/fmt/print.go
++++ b/src/pkg/fmt/print.go
+@@ -74,6 +74,7 @@ type GoStringer interface {
+ type pp struct {
+ 	n         int
+ 	panicking bool
++	erroring  bool // printing an error condition
+ 	buf       bytes.Buffer
+ 	// field holds the current item, as an interface{}.
+ 	field interface{}
+@@ -124,6 +125,7 @@ var ppFree = newCache(func() interface{} { return new(pp) })
+ func newPrinter() *pp {
+ 	p := ppFree.get().(*pp)
+ 	p.panicking = false
++	p.erroring = false
+ 	p.fmt.init(&p.buf)
+ 	return p
+ }
+@@ -299,6 +301,7 @@ func (p *pp) unknownType(v interface{}) {
+ }
+ 
+ func (p *pp) badVerb(verb rune) {
++	p.erroring = true
+ 	p.add('%')
+ 	p.add('!')
+ 	p.add(verb)
+@@ -316,6 +319,7 @@ func (p *pp) badVerb(verb rune) {
+ 		p.buf.Write(nilAngleBytes)
+ 	}
+ 	p.add(')')
++	p.erroring = false
+ }
+ 
+ func (p *pp) fmtBool(v bool, verb rune) {
+@@ -606,6 +610,9 @@ func (p *pp) catchPanic(field interface{}, verb rune) {
+ }
+ 
+ func (p *pp) handleMethods(verb rune, plus, goSyntax bool, depth int) (wasString, handled bool) {
++	if p.erroring {
++		return
++	}
+ 	// Is it a Formatter?
+ 	if formatter, ok := p.field.(Formatter); ok {
+ 		handled = true

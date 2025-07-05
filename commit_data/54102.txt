@@ -13,8 +13,51 @@ Date:   Mon Sep 19 10:50:11 2022 +0200
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-
+---
  src/cmd/go/internal/imports/build.go  | 3 +--
  src/cmd/go/internal/modindex/build.go | 3 +--
  src/go/build/build.go                 | 3 +--
  3 files changed, 3 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/go/internal/imports/build.go b/src/cmd/go/internal/imports/build.go
+index bbe08da6b3..be308ceeec 100644
+--- a/src/cmd/go/internal/imports/build.go
++++ b/src/cmd/go/internal/imports/build.go
+@@ -36,8 +36,7 @@ var (
+ 
+ 	goBuildComment = []byte("//go:build")
+ 
+-	errGoBuildWithoutBuild = errors.New("//go:build comment without // +build comment")
+-	errMultipleGoBuild     = errors.New("multiple //go:build comments")
++	errMultipleGoBuild = errors.New("multiple //go:build comments")
+ )
+ 
+ func isGoBuildComment(line []byte) bool {
+diff --git a/src/cmd/go/internal/modindex/build.go b/src/cmd/go/internal/modindex/build.go
+index d6d4ea371a..8903c156bb 100644
+--- a/src/cmd/go/internal/modindex/build.go
++++ b/src/cmd/go/internal/modindex/build.go
+@@ -558,8 +558,7 @@ var (
+ 
+ 	goBuildComment = []byte("//go:build")
+ 
+-	errGoBuildWithoutBuild = errors.New("//go:build comment without // +build comment")
+-	errMultipleGoBuild     = errors.New("multiple //go:build comments")
++	errMultipleGoBuild = errors.New("multiple //go:build comments")
+ )
+ 
+ func isGoBuildComment(line []byte) bool {
+diff --git a/src/go/build/build.go b/src/go/build/build.go
+index 4bc34086b3..36d9165125 100644
+--- a/src/go/build/build.go
++++ b/src/go/build/build.go
+@@ -1487,8 +1487,7 @@ var (
+ 
+ 	goBuildComment = []byte("//go:build")
+ 
+-	errGoBuildWithoutBuild = errors.New("//go:build comment without // +build comment")
+-	errMultipleGoBuild     = errors.New("multiple //go:build comments")
++	errMultipleGoBuild = errors.New("multiple //go:build comments")
+ )
+ 
+ func isGoBuildComment(line []byte) bool {

@@ -18,6 +18,20 @@ Date:   Fri Jan 20 10:36:19 2023 -0800
     Reviewed-by: Keith Randall <khr@google.com>
     Auto-Submit: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ssa/schedule.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/schedule.go b/src/cmd/compile/internal/ssa/schedule.go
+index a69e406df2..246376c767 100644
+--- a/src/cmd/compile/internal/ssa/schedule.go
++++ b/src/cmd/compile/internal/ssa/schedule.go
+@@ -135,7 +135,7 @@ func schedule(f *Func) {
+ 				if b != f.Entry {
+ 					f.Fatalf("%s appeared outside of entry block, b=%s", v.Op, b.String())
+ 				}
+-				score[v.ID] = ScoreArg
++				score[v.ID] = ScorePhi
+ 			case v.Op == OpArg:
+ 				// We want all the args as early as possible, for better debugging.
+ 				score[v.ID] = ScoreArg

@@ -9,6 +9,30 @@ Date:   Thu Dec 13 18:22:53 2018 +0000
     Change-Id: I03139a394fdf0540db07d6d1e38b3fa223b06d58
     Reviewed-on: https://go-review.googlesource.com/c/154059
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go1.12.html | 12 ++++++++++++
  1 file changed, 12 insertions(+)
+
+diff --git a/doc/go1.12.html b/doc/go1.12.html
+index d2fa217e59..817c1366ac 100644
+--- a/doc/go1.12.html
++++ b/doc/go1.12.html
+@@ -617,6 +617,18 @@ for {
+ 
+ <dl id="syscall/js"><dt><a href="/pkg/syscall/js/">syscall/js</a></dt>
+   <dd>
++    <p><!-- CL 153559 -->
++    <p>
++      The <code>Callback</code> type and <code>NewCallback</code> function have been renamed;
++      they are now called
++      <a href="/pkg/syscall/js/?GOOS=js&GOARCH=wasm#Func"><code>Func</code></a> and
++      <a href="/pkg/syscall/js/?GOOS=js&GOARCH=wasm#FuncOf"><code>FuncOf</code></a>, respectively.
++      This is a breaking change, but WebAssembly support is still experimental
++      and not yet subject to the
++      <a href="/doc/go1compat">Go 1 compatibility promise</a>. Any code using the
++      old name will need to be updated.
++    </p>
++
+     <p><!-- CL 141644 -->
+       TODO: <a href="https://golang.org/cl/141644">https://golang.org/cl/141644</a>: add Wrapper interface to support external Value wrapper types
+     </p>

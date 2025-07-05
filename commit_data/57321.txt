@@ -21,9 +21,146 @@ Date:   Fri May 26 13:33:45 2023 +0800
     Reviewed-by: Joel Sing <joel@sing.id.au>
     Run-TryBot: Keith Randall <khr@golang.org>
     Reviewed-by: Heschi Kreinick <heschi@google.com>
-
+---
  src/cmd/compile/internal/ssa/_gen/MIPS64.rules |  4 +++
  src/cmd/compile/internal/ssa/rewriteMIPS64.go  | 38 ++++++++++++++++++++++++++
  src/cmd/compile/internal/ssagen/ssa.go         |  2 +-
  test/codegen/mathbits.go                       |  6 ++++
  4 files changed, 49 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/_gen/MIPS64.rules b/src/cmd/compile/internal/ssa/_gen/MIPS64.rules
+index 5c07abc79b..cabc7c652d 100644
+--- a/src/cmd/compile/internal/ssa/_gen/MIPS64.rules
++++ b/src/cmd/compile/internal/ssa/_gen/MIPS64.rules
+@@ -42,6 +42,10 @@
+ (Select1 <t> (Add64carry x y c)) =>
+ 	(OR (SGTU <t> x s:(ADDV <t> x y)) (SGTU <t> s (ADDV <t> s c)))
+ 
++(Select0 <t> (Sub64borrow x y c)) => (SUBV (SUBV <t> x y) c)
++(Select1 <t> (Sub64borrow x y c)) =>
++	(OR (SGTU <t> s:(SUBV <t> x y) x) (SGTU <t> (SUBV <t> s c) s))
++
+ // math package intrinsics
+ (Abs ...) => (ABSD ...)
+ 
+diff --git a/src/cmd/compile/internal/ssa/rewriteMIPS64.go b/src/cmd/compile/internal/ssa/rewriteMIPS64.go
+index 4e7b51b351..764465d0b7 100644
+--- a/src/cmd/compile/internal/ssa/rewriteMIPS64.go
++++ b/src/cmd/compile/internal/ssa/rewriteMIPS64.go
+@@ -7353,6 +7353,22 @@ func rewriteValueMIPS64_OpSelect0(v *Value) bool {
+ 		v.AddArg2(v0, c)
+ 		return true
+ 	}
++	// match: (Select0 <t> (Sub64borrow x y c))
++	// result: (SUBV (SUBV <t> x y) c)
++	for {
++		t := v.Type
++		if v_0.Op != OpSub64borrow {
++			break
++		}
++		c := v_0.Args[2]
++		x := v_0.Args[0]
++		y := v_0.Args[1]
++		v.reset(OpMIPS64SUBV)
++		v0 := b.NewValue0(v.Pos, OpMIPS64SUBV, t)
++		v0.AddArg2(x, y)
++		v.AddArg2(v0, c)
++		return true
++	}
+ 	// match: (Select0 (DIVVU _ (MOVVconst [1])))
+ 	// result: (MOVVconst [0])
+ 	for {
+@@ -7487,6 +7503,28 @@ func rewriteValueMIPS64_OpSelect1(v *Value) bool {
+ 		v.AddArg2(v0, v2)
+ 		return true
+ 	}
++	// match: (Select1 <t> (Sub64borrow x y c))
++	// result: (OR (SGTU <t> s:(SUBV <t> x y) x) (SGTU <t> (SUBV <t> s c) s))
++	for {
++		t := v.Type
++		if v_0.Op != OpSub64borrow {
++			break
++		}
++		c := v_0.Args[2]
++		x := v_0.Args[0]
++		y := v_0.Args[1]
++		v.reset(OpMIPS64OR)
++		v0 := b.NewValue0(v.Pos, OpMIPS64SGTU, t)
++		s := b.NewValue0(v.Pos, OpMIPS64SUBV, t)
++		s.AddArg2(x, y)
++		v0.AddArg2(s, x)
++		v2 := b.NewValue0(v.Pos, OpMIPS64SGTU, t)
++		v3 := b.NewValue0(v.Pos, OpMIPS64SUBV, t)
++		v3.AddArg2(s, c)
++		v2.AddArg2(v3, s)
++		v.AddArg2(v0, v2)
++		return true
++	}
+ 	// match: (Select1 (MULVU x (MOVVconst [-1])))
+ 	// result: (NEGV x)
+ 	for {
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 09b20b726e..03f9958098 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -4849,7 +4849,7 @@ func InitTables() {
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue3(ssa.OpSub64borrow, types.NewTuple(types.Types[types.TUINT64], types.Types[types.TUINT64]), args[0], args[1], args[2])
+ 		},
+-		sys.AMD64, sys.ARM64, sys.PPC64, sys.S390X, sys.RISCV64, sys.Loong64)
++		sys.AMD64, sys.ARM64, sys.PPC64, sys.S390X, sys.RISCV64, sys.Loong64, sys.MIPS64)
+ 	alias("math/bits", "Sub", "math/bits", "Sub64", p8...)
+ 	addF("math/bits", "Div64",
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+diff --git a/test/codegen/mathbits.go b/test/codegen/mathbits.go
+index 85c7d24f7d..797aa23b67 100644
+--- a/test/codegen/mathbits.go
++++ b/test/codegen/mathbits.go
+@@ -636,6 +636,7 @@ func Sub(x, y, ci uint) (r, co uint) {
+ 	// loong64:"SUBV","SGTU"
+ 	// ppc64x:"SUBC", "SUBE", "SUBZE", "NEG"
+ 	// s390x:"SUBE"
++	// mips64:"SUBV","SGTU"
+ 	// riscv64: "SUB","SLTU"
+ 	return bits.Sub(x, y, ci)
+ }
+@@ -646,6 +647,7 @@ func SubC(x, ci uint) (r, co uint) {
+ 	// loong64:"SUBV","SGTU"
+ 	// ppc64x:"SUBC", "SUBE", "SUBZE", "NEG"
+ 	// s390x:"SUBE"
++	// mips64:"SUBV","SGTU"
+ 	// riscv64: "SUB","SLTU"
+ 	return bits.Sub(x, 7, ci)
+ }
+@@ -656,6 +658,7 @@ func SubZ(x, y uint) (r, co uint) {
+ 	// loong64:"SUBV","SGTU"
+ 	// ppc64x:"SUBC", -"SUBE", "SUBZE", "NEG"
+ 	// s390x:"SUBC"
++	// mips64:"SUBV","SGTU"
+ 	// riscv64: "SUB","SLTU"
+ 	return bits.Sub(x, y, 0)
+ }
+@@ -687,6 +690,7 @@ func Sub64(x, y, ci uint64) (r, co uint64) {
+ 	// loong64:"SUBV","SGTU"
+ 	// ppc64x:"SUBC", "SUBE", "SUBZE", "NEG"
+ 	// s390x:"SUBE"
++	// mips64:"SUBV","SGTU"
+ 	// riscv64: "SUB","SLTU"
+ 	return bits.Sub64(x, y, ci)
+ }
+@@ -697,6 +701,7 @@ func Sub64C(x, ci uint64) (r, co uint64) {
+ 	// loong64:"SUBV","SGTU"
+ 	// ppc64x:"SUBC", "SUBE", "SUBZE", "NEG"
+ 	// s390x:"SUBE"
++	// mips64:"SUBV","SGTU"
+ 	// riscv64: "SUB","SLTU"
+ 	return bits.Sub64(x, 7, ci)
+ }
+@@ -707,6 +712,7 @@ func Sub64Z(x, y uint64) (r, co uint64) {
+ 	// loong64:"SUBV","SGTU"
+ 	// ppc64x:"SUBC", -"SUBE", "SUBZE", "NEG"
+ 	// s390x:"SUBC"
++	// mips64:"SUBV","SGTU"
+ 	// riscv64: "SUB","SLTU"
+ 	return bits.Sub64(x, y, 0)
+ }

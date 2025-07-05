@@ -8,6 +8,22 @@ Date:   Tue Feb 6 12:00:13 2018 +0530
     Reviewed-on: https://go-review.googlesource.com/c/92295
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/encoding/pem/pem_test.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/encoding/pem/pem_test.go b/src/encoding/pem/pem_test.go
+index a1b5afac08..204611bda0 100644
+--- a/src/encoding/pem/pem_test.go
++++ b/src/encoding/pem/pem_test.go
+@@ -26,6 +26,10 @@ var getLineTests = []GetLineTest{
+ 	{"abc\r\nd", "abc", "d"},
+ 	{"\nabc", "", "abc"},
+ 	{"\r\nabc", "", "abc"},
++	{"abc\t \nd", "abc", "d"},
++	{"\t abc\nd", "\t abc", "d"},
++	{"abc\n\t d", "abc", "\t d"},
++	{"abc\nd\t ", "abc", "d\t "},
+ }
+ 
+ func TestGetLine(t *testing.T) {

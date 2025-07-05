@@ -9,6 +9,23 @@ Date:   Thu Dec 1 16:26:17 2016 +0000
     Change-Id: Ia13bb364783790fbd9f8b69ef268f8a4b71679cb
     Reviewed-on: https://go-review.googlesource.com/33767
     Reviewed-by: Chris Broadfoot <cbro@golang.org>
-
+---
  doc/go1.8.html | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go1.8.html b/doc/go1.8.html
+index 0c980b5434..96d325e34a 100644
+--- a/doc/go1.8.html
++++ b/doc/go1.8.html
+@@ -44,8 +44,9 @@ and <a href="#sort_slice">simplifies sorting slices</a>.
+ <h2 id="language">Changes to the language</h2>
+ 
+ <p>
+-  When explicitly converting a value from one struct type to another, as of Go 1. 8 the tags are ignored.
+-  Thus two structs that differ only in their tags may be converted from one to the other:
++  When explicitly converting a value from one struct type to another,
++  as of Go 1.8 the tags are ignored. Thus two structs that differ
++  only in their tags may be converted from one to the other:
+ </p>
+ 
+ <pre>

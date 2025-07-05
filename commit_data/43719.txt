@@ -18,9 +18,154 @@ Date:   Sat Apr 18 20:11:46 2020 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  doc/go1.15.html                          | 11 ++++++
  src/runtime/crash_cgo_test.go            | 18 ++++++++++
  src/runtime/signal_unix.go               | 10 ++++--
  src/runtime/testdata/testprogcgo/segv.go | 60 ++++++++++++++++++++++++++++++++
  4 files changed, 96 insertions(+), 3 deletions(-)
+
+diff --git a/doc/go1.15.html b/doc/go1.15.html
+index e2c90f5ad2..597eb591c0 100644
+--- a/doc/go1.15.html
++++ b/doc/go1.15.html
+@@ -198,6 +198,17 @@ TODO
+       <code>uint</code>, <code>uint8</code>, <code>uint16</code>, <code>uint32</code>, <code>uint64</code>, <code>uintptr</code>,
+       then the value will be printed, instead of just its address.
+     </p>
++
++    <p><!-- CL -->
++      On a Unix system, if the <code>kill</code> command
++      or <code>kill</code> system call is used to send
++      a <code>SIGSEGV</code>, <code>SIGBUS</code>,
++      or <code>SIGFPE</code> signal to a Go program, and if the signal
++      is not being handled via
++      <a href="/pkg/os/signal/#Notify"><code>os/signal.Notify</code></a>,
++      the Go program will now reliably crash with a stack trace.
++      In earlier releases the behavior was unpredictable.
++    </p>
+   </dd>
+ </dl>
+ 
+diff --git a/src/runtime/crash_cgo_test.go b/src/runtime/crash_cgo_test.go
+index a09ecd8e42..a4d0ebfcd6 100644
+--- a/src/runtime/crash_cgo_test.go
++++ b/src/runtime/crash_cgo_test.go
+@@ -555,3 +555,21 @@ func findTrace(text, top string) []string {
+ 	}
+ 	return nil
+ }
++
++func TestSegv(t *testing.T) {
++	switch runtime.GOOS {
++	case "plan9", "windows":
++		t.Skipf("no signals on %s", runtime.GOOS)
++	}
++
++	for _, test := range []string{"Segv", "SegvInCgo"} {
++		t.Run(test, func(t *testing.T) {
++			t.Parallel()
++			got := runTestProg(t, "testprogcgo", test)
++			t.Log(got)
++			if !strings.Contains(got, "SIGSEGV") {
++				t.Errorf("expected crash from signal")
++			}
++		})
++	}
++}
+diff --git a/src/runtime/signal_unix.go b/src/runtime/signal_unix.go
+index c33f88b046..f5d79e561c 100644
+--- a/src/runtime/signal_unix.go
++++ b/src/runtime/signal_unix.go
+@@ -546,10 +546,10 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
+ 	if sig < uint32(len(sigtable)) {
+ 		flags = sigtable[sig].flags
+ 	}
+-	if flags&_SigPanic != 0 && gp.throwsplit {
++	if c.sigcode() != _SI_USER && flags&_SigPanic != 0 && gp.throwsplit {
+ 		// We can't safely sigpanic because it may grow the
+ 		// stack. Abort in the signal handler instead.
+-		flags = (flags &^ _SigPanic) | _SigThrow
++		flags = _SigThrow
+ 	}
+ 	if isAbortPC(c.sigpc()) {
+ 		// On many architectures, the abort function just
+@@ -588,7 +588,11 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
+ 		dieFromSignal(sig)
+ 	}
+ 
+-	if flags&_SigThrow == 0 {
++	// _SigThrow means that we should exit now.
++	// If we get here with _SigPanic, it means that the signal
++	// was sent to us by a program (c.sigcode() == _SI_USER);
++	// in that case, if we didn't handle it in sigsend, we exit now.
++	if flags&(_SigThrow|_SigPanic) == 0 {
+ 		return
+ 	}
+ 
+diff --git a/src/runtime/testdata/testprogcgo/segv.go b/src/runtime/testdata/testprogcgo/segv.go
+new file mode 100644
+index 0000000000..77e75f276a
+--- /dev/null
++++ b/src/runtime/testdata/testprogcgo/segv.go
+@@ -0,0 +1,60 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !plan9,!windows
++
++package main
++
++// static void nop() {}
++import "C"
++
++import (
++	"sync"
++	"syscall"
++)
++
++func init() {
++	register("Segv", Segv)
++	register("SegvInCgo", SegvInCgo)
++}
++
++var Sum int
++
++func Segv() {
++	c := make(chan bool)
++	var wg sync.WaitGroup
++	wg.Add(1)
++	go func() {
++		defer wg.Done()
++		close(c)
++		for i := 0; i < 10000; i++ {
++			Sum += i
++		}
++	}()
++
++	<-c
++
++	syscall.Kill(syscall.Getpid(), syscall.SIGSEGV)
++
++	wg.Wait()
++}
++
++func SegvInCgo() {
++	c := make(chan bool)
++	var wg sync.WaitGroup
++	wg.Add(1)
++	go func() {
++		defer wg.Done()
++		close(c)
++		for i := 0; i < 10000; i++ {
++			C.nop()
++		}
++	}()
++
++	<-c
++
++	syscall.Kill(syscall.Getpid(), syscall.SIGSEGV)
++
++	wg.Wait()
++}

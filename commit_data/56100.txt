@@ -15,7 +15,59 @@ Date:   Fri Apr 7 18:41:10 2023 +0100
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Auto-Submit: Michael Pratt <mpratt@google.com>
-
+---
  src/reflect/value.go    |  6 ------
  src/runtime/mbarrier.go | 23 -----------------------
  2 files changed, 29 deletions(-)
+
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index 5efc333221..fb29769e87 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -3832,12 +3832,6 @@ func memmove(dst, src unsafe.Pointer, size uintptr)
+ //go:noescape
+ func typedmemmove(t *rtype, dst, src unsafe.Pointer)
+ 
+-// typedmemmovepartial is like typedmemmove but assumes that
+-// dst and src point off bytes into the value and only copies size bytes.
+-//
+-//go:noescape
+-func typedmemmovepartial(t *rtype, dst, src unsafe.Pointer, off, size uintptr)
+-
+ // typedmemclr zeros the value at ptr of type t.
+ //
+ //go:noescape
+diff --git a/src/runtime/mbarrier.go b/src/runtime/mbarrier.go
+index 6d2ff22930..e367d8f524 100644
+--- a/src/runtime/mbarrier.go
++++ b/src/runtime/mbarrier.go
+@@ -217,29 +217,6 @@ func reflectlite_typedmemmove(typ *_type, dst, src unsafe.Pointer) {
+ 	reflect_typedmemmove(typ, dst, src)
+ }
+ 
+-// reflect_typedmemmovepartial is like typedmemmove but assumes that
+-// dst and src point off bytes into the value and only copies size bytes.
+-// off must be a multiple of goarch.PtrSize.
+-//
+-//go:linkname reflect_typedmemmovepartial reflect.typedmemmovepartial
+-func reflect_typedmemmovepartial(typ *_type, dst, src unsafe.Pointer, off, size uintptr) {
+-	if writeBarrier.needed && typ.ptrdata > off && size >= goarch.PtrSize {
+-		if off&(goarch.PtrSize-1) != 0 {
+-			panic("reflect: internal error: misaligned offset")
+-		}
+-		pwsize := alignDown(size, goarch.PtrSize)
+-		if poff := typ.ptrdata - off; pwsize > poff {
+-			pwsize = poff
+-		}
+-		bulkBarrierPreWrite(uintptr(dst), uintptr(src), pwsize)
+-	}
+-
+-	memmove(dst, src, size)
+-	if goexperiment.CgoCheck2 {
+-		cgoCheckMemmove2(typ, dst, src, off, size)
+-	}
+-}
+-
+ // reflectcallmove is invoked by reflectcall to copy the return values
+ // out of the stack and into the heap, invoking the necessary write
+ // barriers. dst, src, and size describe the return value area to

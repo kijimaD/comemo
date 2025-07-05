@@ -21,7 +21,92 @@ Date:   Fri Feb 3 10:36:47 2017 +0100
     Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
     Reviewed-by: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/math/all_test.go | 30 ++++++++++++++++++++++++++++--
  src/math/exp_amd64.s |  7 ++++++-
  2 files changed, 34 insertions(+), 3 deletions(-)
+
+diff --git a/src/math/all_test.go b/src/math/all_test.go
+index 3d8cd7223d..3328904aa7 100644
+--- a/src/math/all_test.go
++++ b/src/math/all_test.go
+@@ -947,6 +947,11 @@ var vfexpSC = []float64{
+ 	2000,
+ 	Inf(1),
+ 	NaN(),
++	// smallest float64 that overflows Exp(x)
++	7.097827128933841e+02,
++	// Issue 18912
++	1.48852223e+09,
++	1.4885222e+09,
+ }
+ var expSC = []float64{
+ 	0,
+@@ -954,6 +959,27 @@ var expSC = []float64{
+ 	Inf(1),
+ 	Inf(1),
+ 	NaN(),
++	Inf(1),
++	Inf(1),
++	Inf(1),
++}
++
++var vfexp2SC = []float64{
++	Inf(-1),
++	-2000,
++	2000,
++	Inf(1),
++	NaN(),
++	// smallest float64 that overflows Exp2(x)
++	1024,
++}
++var exp2SC = []float64{
++	0,
++	0,
++	Inf(1),
++	Inf(1),
++	NaN(),
++	Inf(1),
+ }
+ 
+ var vfexpm1SC = []float64{
+@@ -2089,8 +2115,8 @@ func testExp2(t *testing.T, Exp2 func(float64) float64, name string) {
+ 			t.Errorf("%s(%g) = %g, want %g", name, vf[i], f, exp2[i])
+ 		}
+ 	}
+-	for i := 0; i < len(vfexpSC); i++ {
+-		if f := Exp2(vfexpSC[i]); !alike(expSC[i], f) {
++	for i := 0; i < len(vfexp2SC); i++ {
++		if f := Exp2(vfexp2SC[i]); !alike(exp2SC[i], f) {
+ 			t.Errorf("%s(%g) = %g, want %g", name, vfexpSC[i], f, expSC[i])
+ 		}
+ 	}
+diff --git a/src/math/exp_amd64.s b/src/math/exp_amd64.s
+index f63efecc41..96f01b78e7 100644
+--- a/src/math/exp_amd64.s
++++ b/src/math/exp_amd64.s
+@@ -31,10 +31,11 @@
+ #define T7 2.4801587301587301587e-5
+ #define PosInf 0x7FF0000000000000
+ #define NegInf 0xFFF0000000000000
++#define Overflow 7.09782712893384e+02
+ 
+ // func Exp(x float64) float64
+ TEXT ·Exp(SB),NOSPLIT,$0
+-// test bits for not-finite
++	// test bits for not-finite
+ 	MOVQ    x+0(FP), BX
+ 	MOVQ    $~(1<<63), AX // sign bit mask
+ 	MOVQ    BX, DX
+@@ -42,7 +43,11 @@ TEXT ·Exp(SB),NOSPLIT,$0
+ 	MOVQ    $PosInf, AX
+ 	CMPQ    AX, DX
+ 	JLE     notFinite
++	// check if argument will overflow
+ 	MOVQ    BX, X0
++	MOVSD   $Overflow, X1
++	COMISD  X1, X0
++	JA      overflow
+ 	MOVSD   $LOG2E, X1
+ 	MULSD   X0, X1
+ 	CVTSD2SL X1, BX // BX = exponent

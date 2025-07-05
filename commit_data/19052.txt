@@ -13,8 +13,71 @@ Date:   Tue Apr 8 06:14:19 2014 +0900
     R=golang-codereviews, iant
     CC=golang-codereviews
     https://golang.org/cl/84660046
-
+---
  src/pkg/net/interface.go    | 10 +++++-----
  src/pkg/net/ipsock_plan9.go |  4 ++--
  src/pkg/net/lookup_plan9.go |  4 ++--
  3 files changed, 9 insertions(+), 9 deletions(-)
+
+diff --git a/src/pkg/net/interface.go b/src/pkg/net/interface.go
+index 0713e9cd6a..2e9f1ebc67 100644
+--- a/src/pkg/net/interface.go
++++ b/src/pkg/net/interface.go
+@@ -7,11 +7,11 @@ package net
+ import "errors"
+ 
+ var (
+-	errInvalidInterface         = errors.New("net: invalid interface")
+-	errInvalidInterfaceIndex    = errors.New("net: invalid interface index")
+-	errInvalidInterfaceName     = errors.New("net: invalid interface name")
+-	errNoSuchInterface          = errors.New("net: no such interface")
+-	errNoSuchMulticastInterface = errors.New("net: no such multicast interface")
++	errInvalidInterface         = errors.New("invalid network interface")
++	errInvalidInterfaceIndex    = errors.New("invalid network interface index")
++	errInvalidInterfaceName     = errors.New("invalid network interface name")
++	errNoSuchInterface          = errors.New("no such network interface")
++	errNoSuchMulticastInterface = errors.New("no such multicast network interface")
+ )
+ 
+ // Interface represents a mapping between network interface name
+diff --git a/src/pkg/net/ipsock_plan9.go b/src/pkg/net/ipsock_plan9.go
+index 914ed50826..94ceea31b0 100644
+--- a/src/pkg/net/ipsock_plan9.go
++++ b/src/pkg/net/ipsock_plan9.go
+@@ -60,12 +60,12 @@ func parsePlan9Addr(s string) (ip IP, iport int, err error) {
+ 	if i >= 0 {
+ 		addr = ParseIP(s[:i])
+ 		if addr == nil {
+-			return nil, 0, errors.New("net: parsing IP failed")
++			return nil, 0, errors.New("parsing IP failed")
+ 		}
+ 	}
+ 	p, _, ok := dtoi(s[i+1:], 0)
+ 	if !ok {
+-		return nil, 0, errors.New("net: parsing port failed")
++		return nil, 0, errors.New("parsing port failed")
+ 	}
+ 	if p < 0 || p > 0xFFFF {
+ 		return nil, 0, &AddrError{"invalid port", string(p)}
+diff --git a/src/pkg/net/lookup_plan9.go b/src/pkg/net/lookup_plan9.go
+index 2ccd997c2c..b80ac10e0d 100644
+--- a/src/pkg/net/lookup_plan9.go
++++ b/src/pkg/net/lookup_plan9.go
+@@ -63,7 +63,7 @@ func queryCS1(net string, ip IP, port int) (clone, dest string, err error) {
+ 	}
+ 	f := getFields(lines[0])
+ 	if len(f) < 2 {
+-		return "", "", errors.New("net: bad response from ndb/cs")
++		return "", "", errors.New("bad response from ndb/cs")
+ 	}
+ 	clone, dest = f[0], f[1]
+ 	return
+@@ -199,7 +199,7 @@ func lookupCNAME(name string) (cname string, err error) {
+ 			return f[2] + ".", nil
+ 		}
+ 	}
+-	return "", errors.New("net: bad response from ndb/dns")
++	return "", errors.New("bad response from ndb/dns")
+ }
+ 
+ func lookupSRV(service, proto, name string) (cname string, addrs []*SRV, err error) {

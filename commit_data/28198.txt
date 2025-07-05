@@ -25,7 +25,7 @@ Date:   Wed May 4 14:26:46 2016 -0400
     Reviewed-by: David Chase <drchase@google.com>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ppc64/gsubr.go | 54 ++++++++++++++++-----------------
  src/cmd/compile/internal/ppc64/peep.go  |  2 ++
  src/cmd/compile/internal/ppc64/prog.go  |  2 ++
@@ -33,3 +33,178 @@ Date:   Wed May 4 14:26:46 2016 -0400
  src/cmd/internal/obj/ppc64/anames.go    |  2 ++
  src/cmd/internal/obj/ppc64/asm9.go      |  6 ++++
  6 files changed, 40 insertions(+), 28 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ppc64/gsubr.go b/src/cmd/compile/internal/ppc64/gsubr.go
+index 5949e718f5..cb93ae0d53 100644
+--- a/src/cmd/compile/internal/ppc64/gsubr.go
++++ b/src/cmd/compile/internal/ppc64/gsubr.go
+@@ -442,12 +442,8 @@ func gmove(f *gc.Node, t *gc.Node) {
+ 		return
+ 
+ 		//warn("gmove: convert int to float not implemented: %N -> %N\n", f, t);
+-	//return;
+-	// algorithm is:
+-	//	if small enough, use native int64 -> uint64 conversion.
+-	//	otherwise, halve (rounding to odd?), convert, and double.
+ 	/*
+-	 * integer to float
++	 * signed integer to float
+ 	 */
+ 	case gc.TINT32<<16 | gc.TFLOAT32,
+ 		gc.TINT32<<16 | gc.TFLOAT64,
+@@ -456,8 +452,29 @@ func gmove(f *gc.Node, t *gc.Node) {
+ 		gc.TINT16<<16 | gc.TFLOAT32,
+ 		gc.TINT16<<16 | gc.TFLOAT64,
+ 		gc.TINT8<<16 | gc.TFLOAT32,
+-		gc.TINT8<<16 | gc.TFLOAT64,
+-		gc.TUINT16<<16 | gc.TFLOAT32,
++		gc.TINT8<<16 | gc.TFLOAT64:
++		var r1 gc.Node
++		gc.Regalloc(&r1, gc.Types[gc.TINT64], nil)
++		gmove(f, &r1)
++		gc.Regalloc(&r2, gc.Types[gc.TFLOAT64], t)
++		p1 := gins(ppc64.AMOVD, &r1, nil)
++		p1.To.Type = obj.TYPE_MEM
++		p1.To.Reg = ppc64.REGSP
++		p1.To.Offset = -8
++		p1 = gins(ppc64.AFMOVD, nil, &r2)
++		p1.From.Type = obj.TYPE_MEM
++		p1.From.Reg = ppc64.REGSP
++		p1.From.Offset = -8
++		gins(ppc64.AFCFID, &r2, &r2)
++		gc.Regfree(&r1)
++		gmove(&r2, t)
++		gc.Regfree(&r2)
++		return
++
++	/*
++	 * unsigned integer to float
++	 */
++	case gc.TUINT16<<16 | gc.TFLOAT32,
+ 		gc.TUINT16<<16 | gc.TFLOAT64,
+ 		gc.TUINT8<<16 | gc.TFLOAT32,
+ 		gc.TUINT8<<16 | gc.TFLOAT64,
+@@ -465,22 +482,10 @@ func gmove(f *gc.Node, t *gc.Node) {
+ 		gc.TUINT32<<16 | gc.TFLOAT64,
+ 		gc.TUINT64<<16 | gc.TFLOAT32,
+ 		gc.TUINT64<<16 | gc.TFLOAT64:
+-		bignodes()
+ 
+ 		var r1 gc.Node
+-		gc.Regalloc(&r1, gc.Types[gc.TINT64], nil)
++		gc.Regalloc(&r1, gc.Types[gc.TUINT64], nil)
+ 		gmove(f, &r1)
+-		if ft == gc.TUINT64 {
+-			gc.Nodreg(&r2, gc.Types[gc.TUINT64], ppc64.REGTMP)
+-			gmove(&bigi, &r2)
+-			gins(ppc64.ACMPU, &r1, &r2)
+-			p1 := gc.Gbranch(optoas(gc.OLT, gc.Types[gc.TUINT64]), nil, +1)
+-			p2 := gins(ppc64.ASRD, nil, &r1)
+-			p2.From.Type = obj.TYPE_CONST
+-			p2.From.Offset = 1
+-			gc.Patch(p1, gc.Pc)
+-		}
+-
+ 		gc.Regalloc(&r2, gc.Types[gc.TFLOAT64], t)
+ 		p1 := gins(ppc64.AMOVD, &r1, nil)
+ 		p1.To.Type = obj.TYPE_MEM
+@@ -490,15 +495,8 @@ func gmove(f *gc.Node, t *gc.Node) {
+ 		p1.From.Type = obj.TYPE_MEM
+ 		p1.From.Reg = ppc64.REGSP
+ 		p1.From.Offset = -8
+-		gins(ppc64.AFCFID, &r2, &r2)
++		gins(ppc64.AFCFIDU, &r2, &r2)
+ 		gc.Regfree(&r1)
+-		if ft == gc.TUINT64 {
+-			p1 := gc.Gbranch(optoas(gc.OLT, gc.Types[gc.TUINT64]), nil, +1) // use CR0 here again
+-			gc.Nodreg(&r1, gc.Types[gc.TFLOAT64], ppc64.FREGTWO)
+-			gins(ppc64.AFMUL, &r1, &r2)
+-			gc.Patch(p1, gc.Pc)
+-		}
+-
+ 		gmove(&r2, t)
+ 		gc.Regfree(&r2)
+ 		return
+diff --git a/src/cmd/compile/internal/ppc64/peep.go b/src/cmd/compile/internal/ppc64/peep.go
+index 8adb4e039b..6efe0b7747 100644
+--- a/src/cmd/compile/internal/ppc64/peep.go
++++ b/src/cmd/compile/internal/ppc64/peep.go
+@@ -628,6 +628,8 @@ func copyu(p *obj.Prog, v *obj.Addr, s *obj.Addr) int {
+ 		ppc64.AFCTIDZ,
+ 		ppc64.AFCFID,
+ 		ppc64.AFCFIDCC,
++		ppc64.AFCFIDU,
++		ppc64.AFCFIDUCC,
+ 		ppc64.AFMOVS,
+ 		ppc64.AFMOVD,
+ 		ppc64.AFRSP,
+diff --git a/src/cmd/compile/internal/ppc64/prog.go b/src/cmd/compile/internal/ppc64/prog.go
+index cb0e93b0c5..e2d81ae6c5 100644
+--- a/src/cmd/compile/internal/ppc64/prog.go
++++ b/src/cmd/compile/internal/ppc64/prog.go
+@@ -71,6 +71,7 @@ var progtable = [ppc64.ALAST & obj.AMask]obj.ProgInfo{
+ 	ppc64.AFDIVS & obj.AMask:  {Flags: gc.SizeF | gc.LeftRead | gc.RegRead | gc.RightWrite},
+ 	ppc64.AFCTIDZ & obj.AMask: {Flags: gc.SizeF | gc.LeftRead | gc.RegRead | gc.RightWrite},
+ 	ppc64.AFCFID & obj.AMask:  {Flags: gc.SizeF | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	ppc64.AFCFIDU & obj.AMask: {Flags: gc.SizeF | gc.LeftRead | gc.RegRead | gc.RightWrite},
+ 	ppc64.AFCMPU & obj.AMask:  {Flags: gc.SizeD | gc.LeftRead | gc.RightRead},
+ 	ppc64.AFRSP & obj.AMask:   {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Conv},
+ 	ppc64.AFSQRT & obj.AMask:  {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite},
+@@ -206,6 +207,7 @@ func initvariants() {
+ 	initvariant(ppc64.AFADD, ppc64.AFADDCC)
+ 	initvariant(ppc64.AFADDS, ppc64.AFADDSCC)
+ 	initvariant(ppc64.AFCFID, ppc64.AFCFIDCC)
++	initvariant(ppc64.AFCFIDU, ppc64.AFCFIDUCC)
+ 	initvariant(ppc64.AFCTID, ppc64.AFCTIDCC)
+ 	initvariant(ppc64.AFCTIDZ, ppc64.AFCTIDZCC)
+ 	initvariant(ppc64.AFCTIW, ppc64.AFCTIWCC)
+diff --git a/src/cmd/internal/obj/ppc64/a.out.go b/src/cmd/internal/obj/ppc64/a.out.go
+index 5a1846c992..8cc984260e 100644
+--- a/src/cmd/internal/obj/ppc64/a.out.go
++++ b/src/cmd/internal/obj/ppc64/a.out.go
+@@ -480,6 +480,8 @@ const (
+ 	/* AFCFIW; AFCFIWCC */
+ 	AFCFID
+ 	AFCFIDCC
++	AFCFIDU
++	AFCFIDUCC
+ 	AFCTID
+ 	AFCTIDCC
+ 	AFCTIDZ
+diff --git a/src/cmd/internal/obj/ppc64/anames.go b/src/cmd/internal/obj/ppc64/anames.go
+index 1ae7a52015..868700f012 100644
+--- a/src/cmd/internal/obj/ppc64/anames.go
++++ b/src/cmd/internal/obj/ppc64/anames.go
+@@ -247,6 +247,8 @@ var Anames = []string{
+ 	"EXTSWCC",
+ 	"FCFID",
+ 	"FCFIDCC",
++	"FCFIDU",
++	"FCFIDUCC",
+ 	"FCTID",
+ 	"FCTIDCC",
+ 	"FCTIDZ",
+diff --git a/src/cmd/internal/obj/ppc64/asm9.go b/src/cmd/internal/obj/ppc64/asm9.go
+index 42d7a638a7..e847ec341f 100644
+--- a/src/cmd/internal/obj/ppc64/asm9.go
++++ b/src/cmd/internal/obj/ppc64/asm9.go
+@@ -1105,6 +1105,8 @@ func buildop(ctxt *obj.Link) {
+ 			opset(AFCTIDZCC, r0)
+ 			opset(AFCFID, r0)
+ 			opset(AFCFIDCC, r0)
++			opset(AFCFIDU, r0)
++			opset(AFCFIDUCC, r0)
+ 			opset(AFRES, r0)
+ 			opset(AFRESCC, r0)
+ 			opset(AFRSQRTE, r0)
+@@ -2716,6 +2718,10 @@ func oprrr(ctxt *obj.Link, a obj.As) uint32 {
+ 		return OPVCC(63, 846, 0, 0)
+ 	case AFCFIDCC:
+ 		return OPVCC(63, 846, 0, 1)
++	case AFCFIDU:
++		return OPVCC(63, 974, 0, 0)
++	case AFCFIDUCC:
++		return OPVCC(63, 974, 0, 1)
+ 	case AFCTIW:
+ 		return OPVCC(63, 14, 0, 0)
+ 	case AFCTIWCC:

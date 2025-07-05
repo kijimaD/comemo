@@ -19,8 +19,81 @@ Date:   Mon Oct 28 00:50:39 2019 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/PPC64Ops.go | 2 ++
  src/cmd/compile/internal/ssa/opGen.go        | 2 ++
  src/cmd/internal/obj/ppc64/obj9.go           | 7 +++++++
  3 files changed, 11 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64Ops.go b/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
+index b72563b53c..f6d072346d 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
+@@ -447,6 +447,7 @@ func init() {
+ 			clobberFlags:   true,
+ 			typ:            "Mem",
+ 			faultOnNilArg0: true,
++			unsafePoint:    true,
+ 		},
+ 		// R31 is temp register
+ 		// Loop code:
+@@ -493,6 +494,7 @@ func init() {
+ 			typ:            "Mem",
+ 			faultOnNilArg0: true,
+ 			faultOnNilArg1: true,
++			unsafePoint:    true,
+ 		},
+ 
+ 		{name: "LoweredAtomicStore8", argLength: 3, reg: gpstore, typ: "Mem", aux: "Int64", faultOnNilArg0: true, hasSideEffects: true},
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index b5b2c1d406..047a2a5573 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -24566,6 +24566,7 @@ var opcodeTable = [...]opInfo{
+ 		argLen:         2,
+ 		clobberFlags:   true,
+ 		faultOnNilArg0: true,
++		unsafePoint:    true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 8}, // R3
+@@ -24580,6 +24581,7 @@ var opcodeTable = [...]opInfo{
+ 		clobberFlags:   true,
+ 		faultOnNilArg0: true,
+ 		faultOnNilArg1: true,
++		unsafePoint:    true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 8},  // R3
+diff --git a/src/cmd/internal/obj/ppc64/obj9.go b/src/cmd/internal/obj/ppc64/obj9.go
+index 2a4f005592..266c982549 100644
+--- a/src/cmd/internal/obj/ppc64/obj9.go
++++ b/src/cmd/internal/obj/ppc64/obj9.go
+@@ -702,6 +702,8 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 					// Store link register before decrementing SP, so if a signal comes
+ 					// during the execution of the function prologue, the traceback
+ 					// code will not see a half-updated stack frame.
++					// This sequence is not async preemptible, as if we open a frame
++					// at the current SP, it will clobber the saved LR.
+ 					q = obj.Appendp(q, c.newprog)
+ 					q.As = AMOVD
+ 					q.Pos = p.Pos
+@@ -710,6 +712,8 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 					q.To.Type = obj.TYPE_REG
+ 					q.To.Reg = REG_R29 // REGTMP may be used to synthesize large offset in the next instruction
+ 
++					q = c.ctxt.StartUnsafePoint(q, c.newprog)
++
+ 					q = obj.Appendp(q, c.newprog)
+ 					q.As = AMOVD
+ 					q.Pos = p.Pos
+@@ -727,6 +731,9 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 					q.To.Type = obj.TYPE_REG
+ 					q.To.Reg = REGSP
+ 					q.Spadj = +autosize
++
++					q = c.ctxt.EndUnsafePoint(q, c.newprog, -1)
++
+ 				}
+ 			} else if c.cursym.Func.Text.Mark&LEAF == 0 {
+ 				// A very few functions that do not return to their caller

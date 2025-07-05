@@ -22,7 +22,7 @@ Date:   Thu Dec 14 11:59:33 2017 +0100
     Change-Id: I84da1ec61a6b8625443699a63cde556b6442ad41
     Reviewed-on: https://go-review.googlesource.com/84484
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  api/except.txt                          | 16 ++++++++++++++++
  src/syscall/mkall.sh                    |  6 ++++++
  src/syscall/syscall_dragonfly.go        |  1 +
@@ -58,3 +58,711 @@ Date:   Thu Dec 14 11:59:33 2017 +0100
  src/syscall/ztypes_openbsd_amd64.go     |  4 ++++
  src/syscall/ztypes_openbsd_arm.go       |  4 ++++
  34 files changed, 292 insertions(+), 20 deletions(-)
+
+diff --git a/api/except.txt b/api/except.txt
+index f8cd0faf64..ea4fa0eb9d 100644
+--- a/api/except.txt
++++ b/api/except.txt
+@@ -15,25 +15,30 @@ pkg syscall (darwin-amd64-cgo), func Fchflags(string, int) error
+ pkg syscall (freebsd-386), const AF_MAX = 38
+ pkg syscall (freebsd-386), const DLT_MATCHING_MAX = 242
+ pkg syscall (freebsd-386), const ELAST = 94
++pkg syscall (freebsd-386), const ImplementsGetwd = false
+ pkg syscall (freebsd-386), const O_CLOEXEC = 0
+ pkg syscall (freebsd-386), func Fchflags(string, int) error
+ pkg syscall (freebsd-386-cgo), const AF_MAX = 38
+ pkg syscall (freebsd-386-cgo), const DLT_MATCHING_MAX = 242
+ pkg syscall (freebsd-386-cgo), const ELAST = 94
++pkg syscall (freebsd-386-cgo), const ImplementsGetwd = false
+ pkg syscall (freebsd-386-cgo), const O_CLOEXEC = 0
+ pkg syscall (freebsd-amd64), const AF_MAX = 38
+ pkg syscall (freebsd-amd64), const DLT_MATCHING_MAX = 242
+ pkg syscall (freebsd-amd64), const ELAST = 94
++pkg syscall (freebsd-amd64), const ImplementsGetwd = false
+ pkg syscall (freebsd-amd64), const O_CLOEXEC = 0
+ pkg syscall (freebsd-amd64), func Fchflags(string, int) error
+ pkg syscall (freebsd-amd64-cgo), const AF_MAX = 38
+ pkg syscall (freebsd-amd64-cgo), const DLT_MATCHING_MAX = 242
+ pkg syscall (freebsd-amd64-cgo), const ELAST = 94
++pkg syscall (freebsd-amd64-cgo), const ImplementsGetwd = false
+ pkg syscall (freebsd-amd64-cgo), const O_CLOEXEC = 0
+ pkg syscall (freebsd-arm), const AF_MAX = 38
+ pkg syscall (freebsd-arm), const BIOCGRTIMEOUT = 1074545262
+ pkg syscall (freebsd-arm), const BIOCSRTIMEOUT = 2148287085
+ pkg syscall (freebsd-arm), const ELAST = 94
++pkg syscall (freebsd-arm), const ImplementsGetwd = false
+ pkg syscall (freebsd-arm), const O_CLOEXEC = 0
+ pkg syscall (freebsd-arm), const SIOCAIFADDR = 2151967019
+ pkg syscall (freebsd-arm), const SIOCGIFSTATUS = 3274991931
+@@ -65,6 +70,7 @@ pkg syscall (freebsd-arm-cgo), const AF_MAX = 38
+ pkg syscall (freebsd-arm-cgo), const BIOCGRTIMEOUT = 1074545262
+ pkg syscall (freebsd-arm-cgo), const BIOCSRTIMEOUT = 2148287085
+ pkg syscall (freebsd-arm-cgo), const ELAST = 94
++pkg syscall (freebsd-arm-cgo), const ImplementsGetwd = false
+ pkg syscall (freebsd-arm-cgo), const O_CLOEXEC = 0
+ pkg syscall (freebsd-arm-cgo), const SIOCAIFADDR = 2151967019
+ pkg syscall (freebsd-arm-cgo), const SIOCGIFSTATUS = 3274991931
+@@ -98,6 +104,12 @@ pkg syscall (linux-amd64), type Cmsghdr struct, X__cmsg_data [0]uint8
+ pkg syscall (linux-amd64-cgo), type Cmsghdr struct, X__cmsg_data [0]uint8
+ pkg syscall (linux-arm), type Cmsghdr struct, X__cmsg_data [0]uint8
+ pkg syscall (linux-arm-cgo), type Cmsghdr struct, X__cmsg_data [0]uint8
++pkg syscall (netbsd-386), const ImplementsGetwd = false
++pkg syscall (netbsd-386-cgo), const ImplementsGetwd = false
++pkg syscall (netbsd-amd64), const ImplementsGetwd = false
++pkg syscall (netbsd-amd64-cgo), const ImplementsGetwd = false
++pkg syscall (netbsd-arm), const ImplementsGetwd = false
++pkg syscall (netbsd-arm-cgo), const ImplementsGetwd = false
+ pkg syscall (netbsd-arm), const SizeofIfData = 132
+ pkg syscall (netbsd-arm), func Fchflags(string, int) error
+ pkg syscall (netbsd-arm), type IfMsghdr struct, Pad_cgo_1 [4]uint8
+@@ -106,6 +118,7 @@ pkg syscall (netbsd-arm-cgo), func Fchflags(string, int) error
+ pkg syscall (netbsd-arm-cgo), type IfMsghdr struct, Pad_cgo_1 [4]uint8
+ pkg syscall (openbsd-386), const BIOCGRTIMEOUT = 1074283118
+ pkg syscall (openbsd-386), const BIOCSRTIMEOUT = 2148024941
++pkg syscall (openbsd-386), const ImplementsGetwd = false
+ pkg syscall (openbsd-386), const RTF_FMASK = 63496
+ pkg syscall (openbsd-386), const RTM_VERSION = 4
+ pkg syscall (openbsd-386), const SIOCBRDGDADDR = 2150132039
+@@ -158,6 +171,7 @@ pkg syscall (openbsd-386), type Timespec struct, Sec int32
+ pkg syscall (openbsd-386), type Timeval struct, Sec int32
+ pkg syscall (openbsd-386-cgo), const BIOCGRTIMEOUT = 1074283118
+ pkg syscall (openbsd-386-cgo), const BIOCSRTIMEOUT = 2148024941
++pkg syscall (openbsd-386-cgo), const ImplementsGetwd = false
+ pkg syscall (openbsd-386-cgo), const RTF_FMASK = 63496
+ pkg syscall (openbsd-386-cgo), const RTM_VERSION = 4
+ pkg syscall (openbsd-386-cgo), const SIOCBRDGDADDR = 2150132039
+@@ -220,6 +234,7 @@ pkg syscall (openbsd-amd64), const EFER_NXE = 2048
+ pkg syscall (openbsd-amd64), const EFER_NXE ideal-int
+ pkg syscall (openbsd-amd64), const EFER_SCE = 1
+ pkg syscall (openbsd-amd64), const EFER_SCE ideal-int
++pkg syscall (openbsd-amd64), const ImplementsGetwd = false
+ pkg syscall (openbsd-amd64), const PMC5_PIPELINE_FLUSH = 21
+ pkg syscall (openbsd-amd64), const PMC5_PIPELINE_FLUSH ideal-int
+ pkg syscall (openbsd-amd64), const RTF_FMASK = 63496
+@@ -282,6 +297,7 @@ pkg syscall (openbsd-amd64-cgo), const EFER_NXE = 2048
+ pkg syscall (openbsd-amd64-cgo), const EFER_NXE ideal-int
+ pkg syscall (openbsd-amd64-cgo), const EFER_SCE = 1
+ pkg syscall (openbsd-amd64-cgo), const EFER_SCE ideal-int
++pkg syscall (openbsd-amd64-cgo), const ImplementsGetwd = false
+ pkg syscall (openbsd-amd64-cgo), const PMC5_PIPELINE_FLUSH = 21
+ pkg syscall (openbsd-amd64-cgo), const PMC5_PIPELINE_FLUSH ideal-int
+ pkg syscall (openbsd-amd64-cgo), const RTF_FMASK = 63496
+diff --git a/src/syscall/mkall.sh b/src/syscall/mkall.sh
+index 4e68fb26fc..cd0783e876 100755
+--- a/src/syscall/mkall.sh
++++ b/src/syscall/mkall.sh
+@@ -234,6 +234,12 @@ netbsd_amd64)
+ 	mksysnum="curl -s 'http://cvsweb.netbsd.org/bsdweb.cgi/~checkout~/src/sys/kern/syscalls.master' | ./mksysnum_netbsd.pl"
+ 	mktypes="GOARCH=$GOARCH go tool cgo -godefs"
+ 	;;
++netbsd_arm)
++	mkerrors="$mkerrors -m32"
++	mksyscall="./mksyscall.pl -l32 -netbsd -arm"
++	mksysnum="curl -s 'http://cvsweb.netbsd.org/bsdweb.cgi/~checkout~/src/sys/kern/syscalls.master' | ./mksysnum_netbsd.pl"
++	mktypes="GOARCH=$GOARCH go tool cgo -godefs"
++	;;
+ openbsd_386)
+ 	mkerrors="$mkerrors -m32"
+ 	mksyscall="./mksyscall.pl -l32 -openbsd"
+diff --git a/src/syscall/syscall_dragonfly.go b/src/syscall/syscall_dragonfly.go
+index fead9d9b48..82741e4969 100644
+--- a/src/syscall/syscall_dragonfly.go
++++ b/src/syscall/syscall_dragonfly.go
+@@ -216,6 +216,7 @@ func setattrlistTimes(path string, times []Timespec) error {
+ //sys	writelen(fd int, buf *byte, nbuf int) (n int, err error) = SYS_WRITE
+ //sys	accept4(fd int, rsa *RawSockaddrAny, addrlen *_Socklen, flags int) (nfd int, err error)
+ //sys	utimensat(dirfd int, path string, times *[2]Timespec, flag int) (err error)
++//sys	getcwd(buf []byte) (n int, err error) = SYS___GETCWD
+ 
+ /*
+  * Unimplemented
+diff --git a/src/syscall/syscall_freebsd.go b/src/syscall/syscall_freebsd.go
+index 5fb9655e5a..c7cd6ae637 100644
+--- a/src/syscall/syscall_freebsd.go
++++ b/src/syscall/syscall_freebsd.go
+@@ -220,6 +220,7 @@ func setattrlistTimes(path string, times []Timespec) error {
+ //sys	writelen(fd int, buf *byte, nbuf int) (n int, err error) = SYS_WRITE
+ //sys	accept4(fd int, rsa *RawSockaddrAny, addrlen *_Socklen, flags int) (nfd int, err error)
+ //sys	utimensat(dirfd int, path string, times *[2]Timespec, flag int) (err error)
++//sys	getcwd(buf []byte) (n int, err error) = SYS___GETCWD
+ 
+ /*
+  * Unimplemented
+diff --git a/src/syscall/syscall_getwd_bsd.go b/src/syscall/syscall_getwd_bsd.go
+new file mode 100644
+index 0000000000..b14367936e
+--- /dev/null
++++ b/src/syscall/syscall_getwd_bsd.go
+@@ -0,0 +1,22 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build dragonfly freebsd netbsd openbsd
++
++package syscall
++
++const ImplementsGetwd = true
++
++func Getwd() (string, error) {
++	var buf [pathMax]byte
++	_, err := getcwd(buf[:])
++	if err != nil {
++		return "", err
++	}
++	n := clen(buf[:])
++	if n < 1 {
++		return "", EINVAL
++	}
++	return string(buf[:n]), nil
++}
+diff --git a/src/syscall/syscall_netbsd.go b/src/syscall/syscall_netbsd.go
+index c645b139b1..d9eddc18cf 100644
+--- a/src/syscall/syscall_netbsd.go
++++ b/src/syscall/syscall_netbsd.go
+@@ -207,6 +207,7 @@ func setattrlistTimes(path string, times []Timespec) error {
+ //sys	readlen(fd int, buf *byte, nbuf int) (n int, err error) = SYS_READ
+ //sys	writelen(fd int, buf *byte, nbuf int) (n int, err error) = SYS_WRITE
+ //sys	utimensat(dirfd int, path string, times *[2]Timespec, flag int) (err error)
++//sys	getcwd(buf []byte) (n int, err error) = SYS___GETCWD
+ 
+ /*
+  * Unimplemented
+diff --git a/src/syscall/syscall_no_getwd.go b/src/syscall/syscall_no_getwd.go
+deleted file mode 100644
+index 0080c5ca0f..0000000000
+--- a/src/syscall/syscall_no_getwd.go
++++ /dev/null
+@@ -1,11 +0,0 @@
+-// Copyright 2013 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build dragonfly freebsd netbsd openbsd
+-
+-package syscall
+-
+-const ImplementsGetwd = false
+-
+-func Getwd() (string, error) { return "", ENOTSUP }
+diff --git a/src/syscall/syscall_openbsd.go b/src/syscall/syscall_openbsd.go
+index a43d88bf7a..ac87441723 100644
+--- a/src/syscall/syscall_openbsd.go
++++ b/src/syscall/syscall_openbsd.go
+@@ -188,6 +188,7 @@ func setattrlistTimes(path string, times []Timespec) error {
+ //sys	readlen(fd int, buf *byte, nbuf int) (n int, err error) = SYS_READ
+ //sys	writelen(fd int, buf *byte, nbuf int) (n int, err error) = SYS_WRITE
+ //sys	utimensat(dirfd int, path string, times *[2]Timespec, flag int) (err error)
++//sys	getcwd(buf []byte) (n int, err error) = SYS___GETCWD
+ 
+ /*
+  * Unimplemented
+diff --git a/src/syscall/syscall_solaris.go b/src/syscall/syscall_solaris.go
+index 73ac12759c..425f5122de 100644
+--- a/src/syscall/syscall_solaris.go
++++ b/src/syscall/syscall_solaris.go
+@@ -29,15 +29,6 @@ type SockaddrDatalink struct {
+ 	raw    RawSockaddrDatalink
+ }
+ 
+-func clen(n []byte) int {
+-	for i := 0; i < len(n); i++ {
+-		if n[i] == 0 {
+-			return i
+-		}
+-	}
+-	return len(n)
+-}
+-
+ func direntIno(buf []byte) (uint64, bool) {
+ 	return readInt(buf, unsafe.Offsetof(Dirent{}.Ino), unsafe.Sizeof(Dirent{}.Ino))
+ }
+diff --git a/src/syscall/syscall_unix.go b/src/syscall/syscall_unix.go
+index 442f558ffa..a634748273 100644
+--- a/src/syscall/syscall_unix.go
++++ b/src/syscall/syscall_unix.go
+@@ -31,6 +31,16 @@ func Syscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
+ func RawSyscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
+ func RawSyscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
+ 
++// clen returns the index of the first NULL byte in n or len(n) if n contains no NULL byte.
++func clen(n []byte) int {
++	for i := 0; i < len(n); i++ {
++		if n[i] == 0 {
++			return i
++		}
++	}
++	return len(n)
++}
++
+ // Mmap manager, for use by operating system-specific implementations.
+ 
+ type mmapper struct {
+diff --git a/src/syscall/types_dragonfly.go b/src/syscall/types_dragonfly.go
+index 5728d6762f..0c060d932e 100644
+--- a/src/syscall/types_dragonfly.go
++++ b/src/syscall/types_dragonfly.go
+@@ -125,6 +125,12 @@ type Dirent C.struct_dirent
+ 
+ type Fsid C.struct_fsid
+ 
++// File system limits
++
++const (
++	pathMax = C.PATH_MAX
++)
++
+ // Sockets
+ 
+ type RawSockaddrInet4 C.struct_sockaddr_in
+diff --git a/src/syscall/types_freebsd.go b/src/syscall/types_freebsd.go
+index 6f8670a429..020045bf84 100644
+--- a/src/syscall/types_freebsd.go
++++ b/src/syscall/types_freebsd.go
+@@ -210,6 +210,12 @@ type Dirent C.struct_dirent
+ 
+ type Fsid C.struct_fsid
+ 
++// File system limits
++
++const (
++	pathMax = C.PATH_MAX
++)
++
+ // Sockets
+ 
+ type RawSockaddrInet4 C.struct_sockaddr_in
+diff --git a/src/syscall/types_netbsd.go b/src/syscall/types_netbsd.go
+index 37c5fa9834..c3497564d9 100644
+--- a/src/syscall/types_netbsd.go
++++ b/src/syscall/types_netbsd.go
+@@ -110,6 +110,12 @@ type Dirent C.struct_dirent
+ 
+ type Fsid C.fsid_t
+ 
++// File system limits
++
++const (
++	pathMax = C.PATH_MAX
++)
++
+ // Sockets
+ 
+ type RawSockaddrInet4 C.struct_sockaddr_in
+diff --git a/src/syscall/types_openbsd.go b/src/syscall/types_openbsd.go
+index 29d6feb006..93456c31a0 100644
+--- a/src/syscall/types_openbsd.go
++++ b/src/syscall/types_openbsd.go
+@@ -126,6 +126,12 @@ type Dirent C.struct_dirent
+ 
+ type Fsid C.fsid_t
+ 
++// File system limits
++
++const (
++	pathMax = C.PATH_MAX
++)
++
+ // Sockets
+ 
+ type RawSockaddrInet4 C.struct_sockaddr_in
+diff --git a/src/syscall/zsyscall_dragonfly_amd64.go b/src/syscall/zsyscall_dragonfly_amd64.go
+index 5eca951d04..6154acfa42 100644
+--- a/src/syscall/zsyscall_dragonfly_amd64.go
++++ b/src/syscall/zsyscall_dragonfly_amd64.go
+@@ -1306,3 +1306,20 @@ func utimensat(dirfd int, path string, times *[2]Timespec, flag int) (err error)
+ 	}
+ 	return
+ }
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func getcwd(buf []byte) (n int, err error) {
++	var _p0 unsafe.Pointer
++	if len(buf) > 0 {
++		_p0 = unsafe.Pointer(&buf[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
++	}
++	r0, _, e1 := Syscall(SYS___GETCWD, uintptr(_p0), uintptr(len(buf)), 0)
++	n = int(r0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
+diff --git a/src/syscall/zsyscall_freebsd_386.go b/src/syscall/zsyscall_freebsd_386.go
+index 4ada995e54..81bc754d51 100644
+--- a/src/syscall/zsyscall_freebsd_386.go
++++ b/src/syscall/zsyscall_freebsd_386.go
+@@ -1304,3 +1304,20 @@ func utimensat(dirfd int, path string, times *[2]Timespec, flag int) (err error)
+ 	}
+ 	return
+ }
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func getcwd(buf []byte) (n int, err error) {
++	var _p0 unsafe.Pointer
++	if len(buf) > 0 {
++		_p0 = unsafe.Pointer(&buf[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
++	}
++	r0, _, e1 := Syscall(SYS___GETCWD, uintptr(_p0), uintptr(len(buf)), 0)
++	n = int(r0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
+diff --git a/src/syscall/zsyscall_freebsd_amd64.go b/src/syscall/zsyscall_freebsd_amd64.go
+index 5bbc5c4f34..1061bb4e01 100644
+--- a/src/syscall/zsyscall_freebsd_amd64.go
++++ b/src/syscall/zsyscall_freebsd_amd64.go
+@@ -1304,3 +1304,20 @@ func utimensat(dirfd int, path string, times *[2]Timespec, flag int) (err error)
+ 	}
+ 	return
+ }
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func getcwd(buf []byte) (n int, err error) {
++	var _p0 unsafe.Pointer
++	if len(buf) > 0 {
++		_p0 = unsafe.Pointer(&buf[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
++	}
++	r0, _, e1 := Syscall(SYS___GETCWD, uintptr(_p0), uintptr(len(buf)), 0)
++	n = int(r0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
+diff --git a/src/syscall/zsyscall_freebsd_arm.go b/src/syscall/zsyscall_freebsd_arm.go
+index 011ac0e25a..1cec7f89f6 100644
+--- a/src/syscall/zsyscall_freebsd_arm.go
++++ b/src/syscall/zsyscall_freebsd_arm.go
+@@ -1304,3 +1304,20 @@ func utimensat(dirfd int, path string, times *[2]Timespec, flag int) (err error)
+ 	}
+ 	return
+ }
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func getcwd(buf []byte) (n int, err error) {
++	var _p0 unsafe.Pointer
++	if len(buf) > 0 {
++		_p0 = unsafe.Pointer(&buf[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
++	}
++	r0, _, e1 := Syscall(SYS___GETCWD, uintptr(_p0), uintptr(len(buf)), 0)
++	n = int(r0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
+diff --git a/src/syscall/zsyscall_netbsd_386.go b/src/syscall/zsyscall_netbsd_386.go
+index b6313d5e97..9102465948 100644
+--- a/src/syscall/zsyscall_netbsd_386.go
++++ b/src/syscall/zsyscall_netbsd_386.go
+@@ -1232,3 +1232,20 @@ func utimensat(dirfd int, path string, times *[2]Timespec, flag int) (err error)
+ 	}
+ 	return
+ }
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func getcwd(buf []byte) (n int, err error) {
++	var _p0 unsafe.Pointer
++	if len(buf) > 0 {
++		_p0 = unsafe.Pointer(&buf[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
++	}
++	r0, _, e1 := Syscall(SYS___GETCWD, uintptr(_p0), uintptr(len(buf)), 0)
++	n = int(r0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
+diff --git a/src/syscall/zsyscall_netbsd_amd64.go b/src/syscall/zsyscall_netbsd_amd64.go
+index 3455828e46..f4a46c19a2 100644
+--- a/src/syscall/zsyscall_netbsd_amd64.go
++++ b/src/syscall/zsyscall_netbsd_amd64.go
+@@ -1232,3 +1232,20 @@ func utimensat(dirfd int, path string, times *[2]Timespec, flag int) (err error)
+ 	}
+ 	return
+ }
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func getcwd(buf []byte) (n int, err error) {
++	var _p0 unsafe.Pointer
++	if len(buf) > 0 {
++		_p0 = unsafe.Pointer(&buf[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
++	}
++	r0, _, e1 := Syscall(SYS___GETCWD, uintptr(_p0), uintptr(len(buf)), 0)
++	n = int(r0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
+diff --git a/src/syscall/zsyscall_netbsd_arm.go b/src/syscall/zsyscall_netbsd_arm.go
+index 438cfdb619..b07e7775c1 100644
+--- a/src/syscall/zsyscall_netbsd_arm.go
++++ b/src/syscall/zsyscall_netbsd_arm.go
+@@ -1232,3 +1232,20 @@ func utimensat(dirfd int, path string, times *[2]Timespec, flag int) (err error)
+ 	}
+ 	return
+ }
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func getcwd(buf []byte) (n int, err error) {
++	var _p0 unsafe.Pointer
++	if len(buf) > 0 {
++		_p0 = unsafe.Pointer(&buf[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
++	}
++	r0, _, e1 := Syscall(SYS___GETCWD, uintptr(_p0), uintptr(len(buf)), 0)
++	n = int(r0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
+diff --git a/src/syscall/zsyscall_openbsd_386.go b/src/syscall/zsyscall_openbsd_386.go
+index af97f3a561..3a46b94fa2 100644
+--- a/src/syscall/zsyscall_openbsd_386.go
++++ b/src/syscall/zsyscall_openbsd_386.go
+@@ -1270,3 +1270,20 @@ func utimensat(dirfd int, path string, times *[2]Timespec, flag int) (err error)
+ 	}
+ 	return
+ }
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func getcwd(buf []byte) (n int, err error) {
++	var _p0 unsafe.Pointer
++	if len(buf) > 0 {
++		_p0 = unsafe.Pointer(&buf[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
++	}
++	r0, _, e1 := Syscall(SYS___GETCWD, uintptr(_p0), uintptr(len(buf)), 0)
++	n = int(r0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
+diff --git a/src/syscall/zsyscall_openbsd_amd64.go b/src/syscall/zsyscall_openbsd_amd64.go
+index 728ad6be98..6bca25140b 100644
+--- a/src/syscall/zsyscall_openbsd_amd64.go
++++ b/src/syscall/zsyscall_openbsd_amd64.go
+@@ -1270,3 +1270,20 @@ func utimensat(dirfd int, path string, times *[2]Timespec, flag int) (err error)
+ 	}
+ 	return
+ }
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func getcwd(buf []byte) (n int, err error) {
++	var _p0 unsafe.Pointer
++	if len(buf) > 0 {
++		_p0 = unsafe.Pointer(&buf[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
++	}
++	r0, _, e1 := Syscall(SYS___GETCWD, uintptr(_p0), uintptr(len(buf)), 0)
++	n = int(r0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
+diff --git a/src/syscall/zsyscall_openbsd_arm.go b/src/syscall/zsyscall_openbsd_arm.go
+index 9998a83d12..4ce317c1b0 100644
+--- a/src/syscall/zsyscall_openbsd_arm.go
++++ b/src/syscall/zsyscall_openbsd_arm.go
+@@ -1270,3 +1270,20 @@ func utimensat(dirfd int, path string, times *[2]Timespec, flag int) (err error)
+ 	}
+ 	return
+ }
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func getcwd(buf []byte) (n int, err error) {
++	var _p0 unsafe.Pointer
++	if len(buf) > 0 {
++		_p0 = unsafe.Pointer(&buf[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
++	}
++	r0, _, e1 := Syscall(SYS___GETCWD, uintptr(_p0), uintptr(len(buf)), 0)
++	n = int(r0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
+diff --git a/src/syscall/ztypes_dragonfly_amd64.go b/src/syscall/ztypes_dragonfly_amd64.go
+index dbbd29a63a..1cb8608228 100644
+--- a/src/syscall/ztypes_dragonfly_amd64.go
++++ b/src/syscall/ztypes_dragonfly_amd64.go
+@@ -143,6 +143,10 @@ type Fsid struct {
+ 	Val [2]int32
+ }
+ 
++const (
++	pathMax = 0x400
++)
++
+ type RawSockaddrInet4 struct {
+ 	Len    uint8
+ 	Family uint8
+diff --git a/src/syscall/ztypes_freebsd_386.go b/src/syscall/ztypes_freebsd_386.go
+index c23bacfe32..c9c58f9fe7 100644
+--- a/src/syscall/ztypes_freebsd_386.go
++++ b/src/syscall/ztypes_freebsd_386.go
+@@ -140,6 +140,10 @@ type Fsid struct {
+ 	Val [2]int32
+ }
+ 
++const (
++	pathMax = 0x400
++)
++
+ type RawSockaddrInet4 struct {
+ 	Len    uint8
+ 	Family uint8
+diff --git a/src/syscall/ztypes_freebsd_amd64.go b/src/syscall/ztypes_freebsd_amd64.go
+index 1e5822f66a..847527cdda 100644
+--- a/src/syscall/ztypes_freebsd_amd64.go
++++ b/src/syscall/ztypes_freebsd_amd64.go
+@@ -140,6 +140,10 @@ type Fsid struct {
+ 	Val [2]int32
+ }
+ 
++const (
++	pathMax = 0x400
++)
++
+ type RawSockaddrInet4 struct {
+ 	Len    uint8
+ 	Family uint8
+diff --git a/src/syscall/ztypes_freebsd_arm.go b/src/syscall/ztypes_freebsd_arm.go
+index f65a92916c..83108dd1c4 100644
+--- a/src/syscall/ztypes_freebsd_arm.go
++++ b/src/syscall/ztypes_freebsd_arm.go
+@@ -142,6 +142,10 @@ type Fsid struct {
+ 	Val [2]int32
+ }
+ 
++const (
++	pathMax = 0x400
++)
++
+ type RawSockaddrInet4 struct {
+ 	Len    uint8
+ 	Family uint8
+diff --git a/src/syscall/ztypes_netbsd_386.go b/src/syscall/ztypes_netbsd_386.go
+index c8afb98ea1..009c55d1f2 100644
+--- a/src/syscall/ztypes_netbsd_386.go
++++ b/src/syscall/ztypes_netbsd_386.go
+@@ -99,6 +99,10 @@ type Fsid struct {
+ 	X__fsid_val [2]int32
+ }
+ 
++const (
++	pathMax = 0x400
++)
++
+ type RawSockaddrInet4 struct {
+ 	Len    uint8
+ 	Family uint8
+diff --git a/src/syscall/ztypes_netbsd_amd64.go b/src/syscall/ztypes_netbsd_amd64.go
+index 9336fc107a..f807d984ec 100644
+--- a/src/syscall/ztypes_netbsd_amd64.go
++++ b/src/syscall/ztypes_netbsd_amd64.go
+@@ -103,6 +103,10 @@ type Fsid struct {
+ 	X__fsid_val [2]int32
+ }
+ 
++const (
++	pathMax = 0x400
++)
++
+ type RawSockaddrInet4 struct {
+ 	Len    uint8
+ 	Family uint8
+diff --git a/src/syscall/ztypes_netbsd_arm.go b/src/syscall/ztypes_netbsd_arm.go
+index 0e4fe4a812..119903f817 100644
+--- a/src/syscall/ztypes_netbsd_arm.go
++++ b/src/syscall/ztypes_netbsd_arm.go
+@@ -104,6 +104,10 @@ type Fsid struct {
+ 	X__fsid_val [2]int32
+ }
+ 
++const (
++	pathMax = 0x400
++)
++
+ type RawSockaddrInet4 struct {
+ 	Len    uint8
+ 	Family uint8
+diff --git a/src/syscall/ztypes_openbsd_386.go b/src/syscall/ztypes_openbsd_386.go
+index 05e79d85a4..04d53966f4 100644
+--- a/src/syscall/ztypes_openbsd_386.go
++++ b/src/syscall/ztypes_openbsd_386.go
+@@ -140,6 +140,10 @@ type Fsid struct {
+ 	Val [2]int32
+ }
+ 
++const (
++	pathMax = 0x400
++)
++
+ type RawSockaddrInet4 struct {
+ 	Len    uint8
+ 	Family uint8
+diff --git a/src/syscall/ztypes_openbsd_amd64.go b/src/syscall/ztypes_openbsd_amd64.go
+index 8bd169c510..aad787a3e4 100644
+--- a/src/syscall/ztypes_openbsd_amd64.go
++++ b/src/syscall/ztypes_openbsd_amd64.go
+@@ -142,6 +142,10 @@ type Fsid struct {
+ 	Val [2]int32
+ }
+ 
++const (
++	pathMax = 0x400
++)
++
+ type RawSockaddrInet4 struct {
+ 	Len    uint8
+ 	Family uint8
+diff --git a/src/syscall/ztypes_openbsd_arm.go b/src/syscall/ztypes_openbsd_arm.go
+index 0c30259f49..4383b68eae 100644
+--- a/src/syscall/ztypes_openbsd_arm.go
++++ b/src/syscall/ztypes_openbsd_arm.go
+@@ -140,6 +140,10 @@ type Fsid struct {
+ 	Val [2]int32
+ }
+ 
++const (
++	pathMax = 0x400
++)
++
+ type RawSockaddrInet4 struct {
+ 	Len    uint8
+ 	Family uint8

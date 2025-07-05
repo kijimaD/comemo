@@ -15,9 +15,53 @@ Date:   Thu Mar 4 14:40:50 2021 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/types/size.go | 2 +-
  test/fixedbugs/issue20245.go           | 2 +-
  test/fixedbugs/issue22921.go           | 2 +-
  test/fixedbugs/issue27938.go           | 2 +-
  4 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types/size.go b/src/cmd/compile/internal/types/size.go
+index 4c7378560c..ef23cdf5fe 100644
+--- a/src/cmd/compile/internal/types/size.go
++++ b/src/cmd/compile/internal/types/size.go
+@@ -100,7 +100,7 @@ func expandiface(t *Type) {
+ 	}
+ 
+ 	for _, m := range t.Methods().Slice() {
+-		if m.Sym != nil {
++		if m.Sym != nil || m.Type == nil {
+ 			continue
+ 		}
+ 
+diff --git a/test/fixedbugs/issue20245.go b/test/fixedbugs/issue20245.go
+index b07dbe20de..20258231d1 100644
+--- a/test/fixedbugs/issue20245.go
++++ b/test/fixedbugs/issue20245.go
+@@ -1,4 +1,4 @@
+-// errorcheck
++// errorcheck -d=panic
+ 
+ // Copyright 2017 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/issue22921.go b/test/fixedbugs/issue22921.go
+index 5336ba3410..cdd77fb24f 100644
+--- a/test/fixedbugs/issue22921.go
++++ b/test/fixedbugs/issue22921.go
+@@ -1,4 +1,4 @@
+-// errorcheck
++// errorcheck -d=panic
+ 
+ // Copyright 2020 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/issue27938.go b/test/fixedbugs/issue27938.go
+index ed974e642d..2589e1eff8 100644
+--- a/test/fixedbugs/issue27938.go
++++ b/test/fixedbugs/issue27938.go
+@@ -1,4 +1,4 @@
+-// errorcheck
++// errorcheck -d=panic
+ 
+ // Copyright 2018 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style

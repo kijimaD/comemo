@@ -19,7 +19,7 @@ Date:   Mon May 24 20:36:42 2021 -0700
     Run-TryBot: Dan Scales <danscales@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/importer/iimport.go  | 14 ++++++++++
  src/cmd/compile/internal/noder/types.go       | 19 ++++++++++---
  src/cmd/compile/internal/typecheck/iexport.go | 13 +++++++++
@@ -34,3 +34,414 @@ Date:   Mon May 24 20:36:42 2021 -0700
  test/typeparam/mincheck.dir/main.go           | 38 ++++++++++++++++++++++++++
  test/typeparam/mincheck.go                    |  7 +++++
  13 files changed, 182 insertions(+), 31 deletions(-)
+
+diff --git a/src/cmd/compile/internal/importer/iimport.go b/src/cmd/compile/internal/importer/iimport.go
+index 37e5113435..fd48bfc179 100644
+--- a/src/cmd/compile/internal/importer/iimport.go
++++ b/src/cmd/compile/internal/importer/iimport.go
+@@ -68,6 +68,7 @@ const (
+ 	interfaceType
+ 	typeParamType
+ 	instType
++	unionType
+ )
+ 
+ const io_SeekCurrent = 1 // io.SeekCurrent (not defined in Go 1.4)
+@@ -660,6 +661,19 @@ func (r *importReader) doType(base *types2.Named) types2.Type {
+ 		// we must always use the methods of the base (orig) type.
+ 		t := types2.Instantiate(pos, baseType, targs)
+ 		return t
++
++	case unionType:
++		if r.p.exportVersion < iexportVersionGenerics {
++			errorf("unexpected instantiation type")
++		}
++		nt := int(r.uint64())
++		terms := make([]types2.Type, nt)
++		tildes := make([]bool, nt)
++		for i := range terms {
++			terms[i] = r.typ()
++			tildes[i] = r.bool()
++		}
++		return types2.NewUnion(terms, tildes)
+ 	}
+ }
+ 
+diff --git a/src/cmd/compile/internal/noder/types.go b/src/cmd/compile/internal/noder/types.go
+index 16d664f538..c6e97d4206 100644
+--- a/src/cmd/compile/internal/noder/types.go
++++ b/src/cmd/compile/internal/noder/types.go
+@@ -187,6 +187,9 @@ func (g *irgen) typ0(typ types2.Type) *types.Type {
+ 		for i := range embeddeds {
+ 			// TODO(mdempsky): Get embedding position.
+ 			e := typ.EmbeddedType(i)
++
++			// With Go 1.18, an embedded element can be any type, not
++			// just an interface.
+ 			if t := types2.AsInterface(e); t != nil {
+ 				if t.IsComparable() {
+ 					// Ignore predefined type 'comparable', since it
+@@ -194,11 +197,9 @@ func (g *irgen) typ0(typ types2.Type) *types.Type {
+ 					// relevant methods.
+ 					continue
+ 				}
+-				embeddeds[j] = types.NewField(src.NoXPos, nil, g.typ1(e))
+-				j++
+ 			}
+-			// Ignore embedded non-interface types - they correspond
+-			// to type lists which we currently don't handle here.
++			embeddeds[j] = types.NewField(src.NoXPos, nil, g.typ1(e))
++			j++
+ 		}
+ 		embeddeds = embeddeds[:j]
+ 
+@@ -234,6 +235,16 @@ func (g *irgen) typ0(typ types2.Type) *types.Type {
+ 		tp.SetBound(bound)
+ 		return tp
+ 
++	case *types2.Union:
++		nt := typ.NumTerms()
++		tlist := make([]*types.Type, nt)
++		tildes := make([]bool, nt)
++		for i := range tlist {
++			term, _ := typ.Term(i)
++			tlist[i] = g.typ1(term)
++		}
++		return types.NewUnion(tlist, tildes)
++
+ 	case *types2.Tuple:
+ 		// Tuples are used for the type of a function call (i.e. the
+ 		// return value of the function).
+diff --git a/src/cmd/compile/internal/typecheck/iexport.go b/src/cmd/compile/internal/typecheck/iexport.go
+index 292bb2c409..ea8e751852 100644
+--- a/src/cmd/compile/internal/typecheck/iexport.go
++++ b/src/cmd/compile/internal/typecheck/iexport.go
+@@ -256,6 +256,7 @@ const (
+ 	interfaceType
+ 	typeParamType
+ 	instType
++	unionType
+ )
+ 
+ const (
+@@ -943,6 +944,18 @@ func (w *exportWriter) doTyp(t *types.Type) {
+ 			w.signature(f.Type)
+ 		}
+ 
++	case types.TUNION:
++		// TODO(danscales): possibly put out the tilde bools in more
++		// compact form.
++		w.startType(unionType)
++		nt := t.NumTerms()
++		w.uint64(uint64(nt))
++		for i := 0; i < nt; i++ {
++			t, b := t.Term(i)
++			w.typ(t)
++			w.bool(b)
++		}
++
+ 	default:
+ 		base.Fatalf("unexpected type: %v", t)
+ 	}
+diff --git a/src/cmd/compile/internal/typecheck/iimport.go b/src/cmd/compile/internal/typecheck/iimport.go
+index d5b549483d..3fb675f824 100644
+--- a/src/cmd/compile/internal/typecheck/iimport.go
++++ b/src/cmd/compile/internal/typecheck/iimport.go
+@@ -790,6 +790,19 @@ func (r *importReader) typ1() *types.Type {
+ 		baseType := r.typ()
+ 		t := Instantiate(pos, baseType, targs)
+ 		return t
++
++	case unionType:
++		if r.p.exportVersion < iexportVersionGenerics {
++			base.Fatalf("unexpected instantiation type")
++		}
++		nt := int(r.uint64())
++		terms := make([]*types.Type, nt)
++		tildes := make([]bool, nt)
++		for i := range terms {
++			terms[i] = r.typ()
++			tildes[i] = r.bool()
++		}
++		return types.NewUnion(terms, tildes)
+ 	}
+ }
+ 
+diff --git a/src/cmd/compile/internal/types/kind_string.go b/src/cmd/compile/internal/types/kind_string.go
+index ae24a58b92..3e6a8bc064 100644
+--- a/src/cmd/compile/internal/types/kind_string.go
++++ b/src/cmd/compile/internal/types/kind_string.go
+@@ -38,20 +38,21 @@ func _() {
+ 	_ = x[TSTRING-27]
+ 	_ = x[TUNSAFEPTR-28]
+ 	_ = x[TTYPEPARAM-29]
+-	_ = x[TIDEAL-30]
+-	_ = x[TNIL-31]
+-	_ = x[TBLANK-32]
+-	_ = x[TFUNCARGS-33]
+-	_ = x[TCHANARGS-34]
+-	_ = x[TSSA-35]
+-	_ = x[TTUPLE-36]
+-	_ = x[TRESULTS-37]
+-	_ = x[NTYPE-38]
++	_ = x[TUNION-30]
++	_ = x[TIDEAL-31]
++	_ = x[TNIL-32]
++	_ = x[TBLANK-33]
++	_ = x[TFUNCARGS-34]
++	_ = x[TCHANARGS-35]
++	_ = x[TSSA-36]
++	_ = x[TTUPLE-37]
++	_ = x[TRESULTS-38]
++	_ = x[NTYPE-39]
+ }
+ 
+-const _Kind_name = "xxxINT8UINT8INT16UINT16INT32UINT32INT64UINT64INTUINTUINTPTRCOMPLEX64COMPLEX128FLOAT32FLOAT64BOOLPTRFUNCSLICEARRAYSTRUCTCHANMAPINTERFORWANYSTRINGUNSAFEPTRTYPEPARAMIDEALNILBLANKFUNCARGSCHANARGSSSATUPLERESULTSNTYPE"
++const _Kind_name = "xxxINT8UINT8INT16UINT16INT32UINT32INT64UINT64INTUINTUINTPTRCOMPLEX64COMPLEX128FLOAT32FLOAT64BOOLPTRFUNCSLICEARRAYSTRUCTCHANMAPINTERFORWANYSTRINGUNSAFEPTRTYPEPARAMUNIONIDEALNILBLANKFUNCARGSCHANARGSSSATUPLERESULTSNTYPE"
+ 
+-var _Kind_index = [...]uint8{0, 3, 7, 12, 17, 23, 28, 34, 39, 45, 48, 52, 59, 68, 78, 85, 92, 96, 99, 103, 108, 113, 119, 123, 126, 131, 135, 138, 144, 153, 162, 167, 170, 175, 183, 191, 194, 199, 206, 211}
++var _Kind_index = [...]uint8{0, 3, 7, 12, 17, 23, 28, 34, 39, 45, 48, 52, 59, 68, 78, 85, 92, 96, 99, 103, 108, 113, 119, 123, 126, 131, 135, 138, 144, 153, 162, 167, 172, 175, 180, 188, 196, 199, 204, 211, 216}
+ 
+ func (i Kind) String() string {
+ 	if i >= Kind(len(_Kind_index)-1) {
+diff --git a/src/cmd/compile/internal/types/size.go b/src/cmd/compile/internal/types/size.go
+index f0e695ab96..7059eff398 100644
+--- a/src/cmd/compile/internal/types/size.go
++++ b/src/cmd/compile/internal/types/size.go
+@@ -104,8 +104,14 @@ func expandiface(t *Type) {
+ 			continue
+ 		}
+ 
++		if m.Type.IsUnion() {
++			continue
++		}
++
++		// Once we go to 1.18, then embedded types can be anything, but
++		// for now, just interfaces and unions.
+ 		if !m.Type.IsInterface() {
+-			base.ErrorfAt(m.Pos, "interface contains embedded non-interface %v", m.Type)
++			base.ErrorfAt(m.Pos, "interface contains embedded non-interface, non-union %v", m.Type)
+ 			m.SetBroke(true)
+ 			t.SetBroke(true)
+ 			// Add to fields so that error messages
+@@ -405,6 +411,12 @@ func CalcSize(t *Type) {
+ 		t.Align = uint8(PtrSize)
+ 		expandiface(t)
+ 
++	case TUNION:
++		// Always part of an interface for now, so size/align don't matter.
++		// Pretend a union is represented like an interface.
++		w = 2 * int64(PtrSize)
++		t.Align = uint8(PtrSize)
++
+ 	case TCHAN: // implemented as pointer
+ 		w = int64(PtrSize)
+ 
+diff --git a/src/cmd/compile/internal/types/type.go b/src/cmd/compile/internal/types/type.go
+index 3b0a9706f6..e7831121bf 100644
+--- a/src/cmd/compile/internal/types/type.go
++++ b/src/cmd/compile/internal/types/type.go
+@@ -73,6 +73,7 @@ const (
+ 	TSTRING
+ 	TUNSAFEPTR
+ 	TTYPEPARAM
++	TUNION
+ 
+ 	// pseudo-types for literals
+ 	TIDEAL // untyped numeric constants
+@@ -392,6 +393,12 @@ type Typeparam struct {
+ 	bound *Type
+ }
+ 
++// Union contains Type fields specific to union types.
++type Union struct {
++	terms  []*Type
++	tildes []bool // whether terms[i] is of form ~T
++}
++
+ // Ptr contains Type fields specific to pointer types.
+ type Ptr struct {
+ 	Elem *Type // element type
+@@ -574,6 +581,8 @@ func New(et Kind) *Type {
+ 		t.Extra = new(Results)
+ 	case TTYPEPARAM:
+ 		t.Extra = new(Typeparam)
++	case TUNION:
++		t.Extra = new(Union)
+ 	}
+ 	return t
+ }
+@@ -1453,6 +1462,10 @@ func (t *Type) IsInterface() bool {
+ 	return t.kind == TINTER
+ }
+ 
++func (t *Type) IsUnion() bool {
++	return t.kind == TUNION
++}
++
+ // IsEmptyInterface reports whether t is an empty interface type.
+ func (t *Type) IsEmptyInterface() bool {
+ 	return t.IsInterface() && t.AllMethods().Len() == 0
+@@ -1811,6 +1824,32 @@ func (t *Type) Bound() *Type {
+ 	return t.Extra.(*Typeparam).bound
+ }
+ 
++// NewUnion returns a new union with the specified set of terms (types). If
++// tildes[i] is true, then terms[i] represents ~T, rather than just T.
++func NewUnion(terms []*Type, tildes []bool) *Type {
++	t := New(TUNION)
++	if len(terms) != len(tildes) {
++		base.Fatalf("Mismatched terms and tildes for NewUnion")
++	}
++	t.Extra.(*Union).terms = terms
++	t.Extra.(*Union).tildes = tildes
++	return t
++}
++
++// NumTerms returns the number of terms in a union type.
++func (t *Type) NumTerms() int {
++	t.wantEtype(TUNION)
++	return len(t.Extra.(*Union).terms)
++}
++
++// Term returns ith term of a union type as (term, tilde). If tilde is true, term
++// represents ~T, rather than just T.
++func (t *Type) Term(i int) (*Type, bool) {
++	t.wantEtype(TUNION)
++	u := t.Extra.(*Union)
++	return u.terms[i], u.tildes[i]
++}
++
+ const BOGUS_FUNARG_OFFSET = -1000000000
+ 
+ func unzeroFieldOffsets(f []*Field) {
+diff --git a/src/cmd/compile/internal/types2/type.go b/src/cmd/compile/internal/types2/type.go
+index 79a8f3cd7f..2a93ca0388 100644
+--- a/src/cmd/compile/internal/types2/type.go
++++ b/src/cmd/compile/internal/types2/type.go
+@@ -368,9 +368,6 @@ func NewInterface(methods []*Func, embeddeds []*Named) *Interface {
+ }
+ 
+ // NewInterfaceType returns a new (incomplete) interface for the given methods and embedded types.
+-// Each embedded type must have an underlying type of interface type (this property is not
+-// verified for defined types, which may be in the process of being set up and which don't
+-// have a valid underlying type yet).
+ // NewInterfaceType takes ownership of the provided methods and may modify their types by setting
+ // missing receivers. To compute the method set of the interface, Complete must be called.
+ func NewInterfaceType(methods []*Func, embeddeds []Type) *Interface {
+@@ -386,16 +383,6 @@ func NewInterfaceType(methods []*Func, embeddeds []Type) *Interface {
+ 		}
+ 	}
+ 
+-	// All embedded types should be interfaces; however, defined types
+-	// may not yet be fully resolved. Only verify that non-defined types
+-	// are interfaces. This matches the behavior of the code before the
+-	// fix for #25301 (issue #25596).
+-	for _, t := range embeddeds {
+-		if _, ok := t.(*Named); !ok && !IsInterface(t) {
+-			panic("embedded type is not an interface")
+-		}
+-	}
+-
+ 	// sort for API stability
+ 	sortMethods(methods)
+ 	sortTypes(embeddeds)
+diff --git a/test/fixedbugs/bug195.go b/test/fixedbugs/bug195.go
+index 94f61fff7f..6d8578d6cb 100644
+--- a/test/fixedbugs/bug195.go
++++ b/test/fixedbugs/bug195.go
+@@ -1,4 +1,4 @@
+-// errorcheck
++// errorcheck -lang=go1.17
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/issue11614.go b/test/fixedbugs/issue11614.go
+index de15f9827f..6ea463b7fe 100644
+--- a/test/fixedbugs/issue11614.go
++++ b/test/fixedbugs/issue11614.go
+@@ -1,4 +1,4 @@
+-// errorcheck
++// errorcheck -lang=go1.17
+ 
+ // Copyright 2015 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/mincheck.dir/a.go b/test/typeparam/mincheck.dir/a.go
+new file mode 100644
+index 0000000000..f1844bba9d
+--- /dev/null
++++ b/test/typeparam/mincheck.dir/a.go
+@@ -0,0 +1,16 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++type Ordered interface {
++        type int, int64, float64
++}
++
++func Min[T Ordered](x, y T) T {
++        if x < y {
++                return x
++        }
++        return y
++}
+diff --git a/test/typeparam/mincheck.dir/main.go b/test/typeparam/mincheck.dir/main.go
+new file mode 100644
+index 0000000000..72d8effcc5
+--- /dev/null
++++ b/test/typeparam/mincheck.dir/main.go
+@@ -0,0 +1,38 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"a"
++	"fmt"
++)
++
++func main() {
++	const want = 2
++	if got := a.Min[int](2, 3); got != want {
++		panic(fmt.Sprintf("got %d, want %d", got, want))
++	}
++
++	if got := a.Min(2, 3); got != want {
++		panic(fmt.Sprintf("want %d, got %d", want, got))
++	}
++
++	if got := a.Min[float64](3.5, 2.0); got != want {
++		panic(fmt.Sprintf("got %d, want %d", got, want))
++	}
++
++	if got := a.Min(3.5, 2.0); got != want {
++		panic(fmt.Sprintf("got %d, want %d", got, want))
++	}
++
++	const want2 = "ay"
++	if got := a.Min[string]("bb", "ay"); got != want2 { // ERROR "string does not satisfy interface{int|int64|float64}"
++		panic(fmt.Sprintf("got %d, want %d", got, want2))
++	}
++
++	if got := a.Min("bb", "ay"); got != want2 { // ERROR "string does not satisfy interface{int|int64|float64}"
++		panic(fmt.Sprintf("got %d, want %d", got, want2))
++	}
++}
+diff --git a/test/typeparam/mincheck.go b/test/typeparam/mincheck.go
+new file mode 100644
+index 0000000000..32cf4b830d
+--- /dev/null
++++ b/test/typeparam/mincheck.go
+@@ -0,0 +1,7 @@
++// errorcheckdir -G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ignored

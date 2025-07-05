@@ -22,7 +22,7 @@ Date:   Mon Sep 24 14:58:34 2012 -0400
     R=iant, r, dave, remyoudompheng
     CC=golang-dev
     https://golang.org/cl/6551067
-
+---
  src/cmd/dist/goc2c.c         | 56 +++++++++++++++++++++++++++++++-------------
  src/pkg/reflect/value.go     | 16 ++++++-------
  src/pkg/runtime/alg.c        |  2 +-
@@ -44,3 +44,946 @@ Date:   Mon Sep 24 14:58:34 2012 -0400
  src/pkg/runtime/string.goc   | 34 +++++++++++++--------------
  src/pkg/runtime/symtab.c     |  2 +-
  20 files changed, 161 insertions(+), 112 deletions(-)
+
+diff --git a/src/cmd/dist/goc2c.c b/src/cmd/dist/goc2c.c
+index c64ede9589..cd14e6bc80 100644
+--- a/src/cmd/dist/goc2c.c
++++ b/src/cmd/dist/goc2c.c
+@@ -26,6 +26,11 @@ static char *input;
+ static Buf *output;
+ #define EOF -1
+ 
++enum
++{
++	use64bitint = 0,
++};
++
+ static int
+ xgetchar(void)
+ {
+@@ -86,13 +91,16 @@ static struct {
+ 	char *name;
+ 	int size;
+ } type_table[] = {
+-	/* variable sized first, for easy replacement */
+-	/* order matches enum above */
+-	/* default is 32-bit architecture sizes */
+-	{"bool",		1},
++	/* 
++	 * variable sized first, for easy replacement.
++	 * order matches enum above.
++	 * default is 32-bit architecture sizes.
++	 * spelling as in package runtime, so intgo/uintgo not int/uint.
++	 */
++	{"bool",	1},
+ 	{"float",	4},
+-	{"int",		4},
+-	{"uint",		4},
++	{"intgo",		4},
++	{"uintgo",	4},
+ 	{"uintptr",	4},
+ 	{"String",	8},
+ 	{"Slice",	12},
+@@ -101,12 +109,13 @@ static struct {
+ 	/* fixed size */
+ 	{"float32",	4},
+ 	{"float64",	8},
+-	{"byte",		1},
+-	{"int8",		1},
++	{"byte",	1},
++	{"int8",	1},
+ 	{"uint8",	1},
+ 	{"int16",	2},
+ 	{"uint16",	2},
+ 	{"int32",	4},
++	{"rune",	4},
+ 	{"uint32",	4},
+ 	{"int64",	8},
+ 	{"uint64",	8},
+@@ -328,7 +337,7 @@ read_type(void)
+ 	unsigned int len;
+ 
+ 	p = read_token_no_eof();
+-	if (*p != '*')
++	if (*p != '*' && !streq(p, "int") && !streq(p, "uint"))
+ 		return p;
+ 	op = p;
+ 	pointer_count = 0;
+@@ -337,13 +346,18 @@ read_type(void)
+ 		++p;
+ 	}
+ 	len = xstrlen(p);
+-	q = xmalloc(len + pointer_count + 1);
++	q = xmalloc(len + 2 + pointer_count + 1);
+ 	xmemmove(q, p, len);
+-	while (pointer_count > 0) {
+-		q[len] = '*';
+-		++len;
+-		--pointer_count;
++
++	// Turn int/uint into intgo/uintgo.
++	if((len == 3 && xmemcmp(q, "int", 3) == 0) || (len == 4 && xmemcmp(q, "uint", 4) == 0)) {
++		q[len++] = 'g';
++		q[len++] = 'o';
+ 	}
++
++	while (pointer_count-- > 0)
++		q[len++] = '*';
++	
+ 	q[len] = '\0';
+ 	xfree(op);
+ 	return q;
+@@ -713,15 +727,25 @@ goc2c(char *goc, char *c)
+ 	if(!gcc) {
+ 		if(streq(goarch, "amd64")) {
+ 			type_table[Uintptr].size = 8;
+-			type_table[String].size = 16;
+-			type_table[Slice].size = 8+4+4;
+ 			type_table[Eface].size = 8+8;
++			type_table[String].size = 16;
++			if(use64bitint) {
++				type_table[Int].size = 8;
++				type_table[Uint].size = 8;
++			}
++			type_table[Slice].size = 8+2*type_table[Int].size;
+ 			structround = 8;
+ 		} else {
++			// NOTE: These are set in the initializer,
++			// but they might have been changed by a
++			// previous invocation of goc2c, so we have
++			// to restore them.
+ 			type_table[Uintptr].size = 4;
+ 			type_table[String].size = 8;
+ 			type_table[Slice].size = 16;
+ 			type_table[Eface].size = 4+4;
++			type_table[Int].size = 4;
++			type_table[Uint].size = 4;
+ 			structround = 4;
+ 		}
+ 	}
+diff --git a/src/pkg/reflect/value.go b/src/pkg/reflect/value.go
+index 4d5e386776..45af13dd08 100644
+--- a/src/pkg/reflect/value.go
++++ b/src/pkg/reflect/value.go
+@@ -930,9 +930,9 @@ func (v Value) Len() int {
+ 		tt := (*arrayType)(unsafe.Pointer(v.typ))
+ 		return int(tt.len)
+ 	case Chan:
+-		return int(chanlen(v.iword()))
++		return chanlen(v.iword())
+ 	case Map:
+-		return int(maplen(v.iword()))
++		return maplen(v.iword())
+ 	case Slice:
+ 		// Slice is bigger than a word; assume flagIndir.
+ 		return (*SliceHeader)(v.val).Len
+@@ -989,7 +989,7 @@ func (v Value) MapKeys() []Value {
+ 	}
+ 
+ 	m := v.iword()
+-	mlen := int32(0)
++	mlen := int(0)
+ 	if m != nil {
+ 		mlen = maplen(m)
+ 	}
+@@ -1821,7 +1821,7 @@ func MakeChan(typ Type, buffer int) Value {
+ 	if typ.ChanDir() != BothDir {
+ 		panic("reflect.MakeChan: unidirectional channel type")
+ 	}
+-	ch := makechan(typ.runtimeType(), uint32(buffer))
++	ch := makechan(typ.runtimeType(), uint64(buffer))
+ 	return Value{typ.common(), unsafe.Pointer(ch), flag(Chan) << flagKindShift}
+ }
+ 
+@@ -2235,20 +2235,20 @@ func cvtI2I(v Value, typ Type) Value {
+ }
+ 
+ // implemented in ../pkg/runtime
+-func chancap(ch iword) int32
++func chancap(ch iword) int
+ func chanclose(ch iword)
+-func chanlen(ch iword) int32
++func chanlen(ch iword) int
+ func chanrecv(t *runtimeType, ch iword, nb bool) (val iword, selected, received bool)
+ func chansend(t *runtimeType, ch iword, val iword, nb bool) bool
+ 
+-func makechan(typ *runtimeType, size uint32) (ch iword)
++func makechan(typ *runtimeType, size uint64) (ch iword)
+ func makemap(t *runtimeType) (m iword)
+ func mapaccess(t *runtimeType, m iword, key iword) (val iword, ok bool)
+ func mapassign(t *runtimeType, m iword, key, val iword, ok bool)
+ func mapiterinit(t *runtimeType, m iword) *byte
+ func mapiterkey(it *byte) (key iword, ok bool)
+ func mapiternext(it *byte)
+-func maplen(m iword) int32
++func maplen(m iword) int
+ 
+ func call(fn, arg unsafe.Pointer, n uint32)
+ func ifaceE2I(t *runtimeType, src interface{}, dst unsafe.Pointer)
+diff --git a/src/pkg/runtime/alg.c b/src/pkg/runtime/alg.c
+index 4691b5c9c8..c7424bc262 100644
+--- a/src/pkg/runtime/alg.c
++++ b/src/pkg/runtime/alg.c
+@@ -316,7 +316,7 @@ runtime·strhash(uintptr *h, uintptr s, void *a)
+ void
+ runtime·strequal(bool *eq, uintptr s, void *a, void *b)
+ {
+-	int32 alen;
++	intgo alen;
+ 
+ 	USED(s);
+ 	alen = ((String*)a)->len;
+diff --git a/src/pkg/runtime/chan.c b/src/pkg/runtime/chan.c
+index f2e49c62e8..77ad4142ae 100644
+--- a/src/pkg/runtime/chan.c
++++ b/src/pkg/runtime/chan.c
+@@ -3,7 +3,9 @@
+ // license that can be found in the LICENSE file.
+ 
+ #include "runtime.h"
++#include "arch_GOARCH.h"
+ #include "type.h"
++#include "malloc.h"
+ 
+ #define	MAXALIGN	7
+ #define	NOSELGEN	1
+@@ -31,14 +33,14 @@ struct	WaitQ
+ 
+ struct	Hchan
+ {
+-	uint32	qcount;			// total data in the q
+-	uint32	dataqsiz;		// size of the circular q
++	uintgo	qcount;			// total data in the q
++	uintgo	dataqsiz;		// size of the circular q
+ 	uint16	elemsize;
+ 	bool	closed;
+ 	uint8	elemalign;
+ 	Alg*	elemalg;		// interface for element type
+-	uint32	sendx;			// send index
+-	uint32	recvx;			// receive index
++	uintgo	sendx;			// send index
++	uintgo	recvx;			// receive index
+ 	WaitQ	recvq;			// list of recv waiters
+ 	WaitQ	sendq;			// list of send waiters
+ 	Lock;
+@@ -84,12 +86,16 @@ Hchan*
+ runtime·makechan_c(ChanType *t, int64 hint)
+ {
+ 	Hchan *c;
+-	int32 n;
++	uintptr n;
+ 	Type *elem;
+ 
+ 	elem = t->elem;
+ 
+-	if(hint < 0 || (int32)hint != hint || (elem->size > 0 && hint > ((uintptr)-1) / elem->size))
++	// compiler checks this but be safe.
++	if(elem->size >= (1<<16))
++		runtime·throw("makechan: invalid channel element type");
++
++	if(hint < 0 || (intgo)hint != hint || (elem->size > 0 && hint > MaxMem / elem->size))
+ 		runtime·panicstring("makechan: size out of range");
+ 
+ 	// calculate rounded size of Hchan
+@@ -105,16 +111,16 @@ runtime·makechan_c(ChanType *t, int64 hint)
+ 	c->dataqsiz = hint;
+ 
+ 	if(debug)
+-		runtime·printf("makechan: chan=%p; elemsize=%D; elemalg=%p; elemalign=%d; dataqsiz=%d\n",
+-			c, (int64)elem->size, elem->alg, elem->align, c->dataqsiz);
++		runtime·printf("makechan: chan=%p; elemsize=%D; elemalg=%p; elemalign=%d; dataqsiz=%D\n",
++			c, (int64)elem->size, elem->alg, elem->align, (int64)c->dataqsiz);
+ 
+ 	return c;
+ }
+ 
+ // For reflect
+-//	func makechan(typ *ChanType, size uint32) (chan)
++//	func makechan(typ *ChanType, size uint64) (chan)
+ void
+-reflect·makechan(ChanType *t, uint32 size, Hchan *c)
++reflect·makechan(ChanType *t, uint64 size, Hchan *c)
+ {
+ 	c = runtime·makechan_c(t, size);
+ 	FLUSH(&c);
+@@ -1038,7 +1044,7 @@ enum SelectDir {
+ 
+ // func rselect(cases []runtimeSelect) (chosen int, word uintptr, recvOK bool)
+ void
+-reflect·rselect(Slice cases, int32 chosen, uintptr word, bool recvOK)
++reflect·rselect(Slice cases, intgo chosen, uintptr word, bool recvOK)
+ {
+ 	int32 i;
+ 	Select *sel;
+@@ -1091,7 +1097,7 @@ reflect·rselect(Slice cases, int32 chosen, uintptr word, bool recvOK)
+ 		}
+ 	}
+ 
+-	chosen = (int32)(uintptr)selectgo(&sel);
++	chosen = (intgo)(uintptr)selectgo(&sel);
+ 	if(rcase[chosen].dir == SelectRecv && rcase[chosen].typ->elem->size > sizeof(void*))
+ 		word = (uintptr)recvptr;
+ 
+@@ -1153,9 +1159,9 @@ reflect·chanclose(Hchan *c)
+ }
+ 
+ // For reflect
+-//	func chanlen(c chan) (len int32)
++//	func chanlen(c chan) (len int)
+ void
+-reflect·chanlen(Hchan *c, int32 len)
++reflect·chanlen(Hchan *c, intgo len)
+ {
+ 	if(c == nil)
+ 		len = 0;
+@@ -1165,9 +1171,9 @@ reflect·chanlen(Hchan *c, int32 len)
+ }
+ 
+ // For reflect
+-//	func chancap(c chan) (cap int32)
++//	func chancap(c chan) int
+ void
+-reflect·chancap(Hchan *c, int32 cap)
++reflect·chancap(Hchan *c, intgo cap)
+ {
+ 	if(c == nil)
+ 		cap = 0;
+diff --git a/src/pkg/runtime/cpuprof.c b/src/pkg/runtime/cpuprof.c
+index eded073320..1bb768085d 100644
+--- a/src/pkg/runtime/cpuprof.c
++++ b/src/pkg/runtime/cpuprof.c
+@@ -121,7 +121,7 @@ static void LostProfileData(void) {
+ // SetCPUProfileRate sets the CPU profiling rate.
+ // The user documentation is in debug.go.
+ void
+-runtime·SetCPUProfileRate(int32 hz)
++runtime·SetCPUProfileRate(intgo hz)
+ {
+ 	uintptr *p;
+ 	uintptr n;
+diff --git a/src/pkg/runtime/hashmap.c b/src/pkg/runtime/hashmap.c
+index e8965a68d5..dbb944c3fe 100644
+--- a/src/pkg/runtime/hashmap.c
++++ b/src/pkg/runtime/hashmap.c
+@@ -13,7 +13,7 @@
+ #define CanFreeKey (1<<3)	/* okay to free pointers to keys */
+ 
+ struct Hmap {	   /* a hash table; initialize with hash_init() */
+-	uint32 count;	  /* elements in table - must be first */
++	uintgo count;	  /* elements in table - must be first */
+ 	uint8 datasize;   /* amount of data to store in entry */
+ 	uint8 flag;
+ 	uint8 valoff;	/* offset of value in key+value data block */
+@@ -728,7 +728,6 @@ hash_keyptr(Hmap *h, void *p)
+ 
+ static	int32	debug	= 0;
+ 
+-// makemap(typ *Type, hint uint32) (hmap *map[any]any);
+ Hmap*
+ runtime·makemap_c(MapType *typ, int64 hint)
+ {
+@@ -1152,10 +1151,10 @@ reflect·mapiterkey(struct hash_iter *it, uintptr key, bool ok)
+ }
+ 
+ // For reflect:
+-//	func maplen(h map) (len int32)
++//	func maplen(h map) (len int)
+ // Like len(m) in the actual language, we treat the nil map as length 0.
+ void
+-reflect·maplen(Hmap *h, int32 len)
++reflect·maplen(Hmap *h, intgo len)
+ {
+ 	if(h == nil)
+ 		len = 0;
+diff --git a/src/pkg/runtime/iface.c b/src/pkg/runtime/iface.c
+index 8e0150d07b..a3c5f1b045 100644
+--- a/src/pkg/runtime/iface.c
++++ b/src/pkg/runtime/iface.c
+@@ -703,7 +703,7 @@ reflect·unsafe_New(Eface typ, void *ret)
+ }
+ 
+ void
+-reflect·unsafe_NewArray(Eface typ, uint32 n, void *ret)
++reflect·unsafe_NewArray(Eface typ, intgo n, void *ret)
+ {
+ 	uint64 size;
+ 	Type *t;
+diff --git a/src/pkg/runtime/malloc.goc b/src/pkg/runtime/malloc.goc
+index babe4d2f4c..294dad8f34 100644
+--- a/src/pkg/runtime/malloc.goc
++++ b/src/pkg/runtime/malloc.goc
+@@ -20,7 +20,7 @@ MHeap runtime·mheap;
+ 
+ extern MStats mstats;	// defined in extern.go
+ 
+-extern volatile int32 runtime·MemProfileRate;
++extern volatile intgo runtime·MemProfileRate;
+ 
+ // Allocate an object of at least size bytes.
+ // Small objects are allocated from the per-thread cache's free lists.
+@@ -28,7 +28,8 @@ extern volatile int32 runtime·MemProfileRate;
+ void*
+ runtime·mallocgc(uintptr size, uint32 flag, int32 dogc, int32 zeroed)
+ {
+-	int32 sizeclass, rate;
++	int32 sizeclass;
++	intgo rate;
+ 	MCache *c;
+ 	uintptr npages;
+ 	MSpan *s;
+@@ -226,7 +227,7 @@ runtime·mlookup(void *v, byte **base, uintptr *size, MSpan **sp)
+ MCache*
+ runtime·allocmcache(void)
+ {
+-	int32 rate;
++	intgo rate;
+ 	MCache *c;
+ 
+ 	runtime·lock(&runtime·mheap);
+@@ -507,7 +508,8 @@ func SetFinalizer(obj Eface, finalizer Eface) {
+ 	byte *base;
+ 	uintptr size;
+ 	FuncType *ft;
+-	int32 i, nret;
++	int32 i;
++	uintptr nret;
+ 	Type *t;
+ 
+ 	if(obj.type == nil) {
+diff --git a/src/pkg/runtime/malloc.h b/src/pkg/runtime/malloc.h
+index fee6e01789..c00bd4599f 100644
+--- a/src/pkg/runtime/malloc.h
++++ b/src/pkg/runtime/malloc.h
+@@ -128,6 +128,15 @@ enum
+ 	MaxGcproc = 8,
+ };
+ 
++// Maximum memory allocation size, a hint for callers.
++// This must be a #define instead of an enum because it
++// is so large.
++#ifdef _64BIT
++#define	MaxMem	(16ULL<<30)	/* 16 GB */
++#else
++#define	MaxMem	((uintptr)-1)
++#endif
++
+ // A generic linked list of blocks.  (Typically the block is bigger than sizeof(MLink).)
+ struct MLink
+ {
+@@ -418,5 +427,5 @@ int32	runtime·gcprocs(void);
+ void	runtime·helpgc(int32 nproc);
+ void	runtime·gchelper(void);
+ 
+-bool	runtime·getfinalizer(void *p, bool del, void (**fn)(void*), int32 *nret);
++bool	runtime·getfinalizer(void *p, bool del, void (**fn)(void*), uintptr *nret);
+ void	runtime·walkfintab(void (*fn)(void*));
+diff --git a/src/pkg/runtime/mfinal.c b/src/pkg/runtime/mfinal.c
+index 1fa5ea401d..ab450717ab 100644
+--- a/src/pkg/runtime/mfinal.c
++++ b/src/pkg/runtime/mfinal.c
+@@ -12,7 +12,7 @@ typedef struct Fin Fin;
+ struct Fin
+ {
+ 	void (*fn)(void*);
+-	int32 nret;
++	uintptr nret;
+ };
+ 
+ // Finalizer hash table.  Direct hash, linear scan, at most 3/4 full.
+@@ -42,7 +42,7 @@ static struct {
+ } fintab[TABSZ];
+ 
+ static void
+-addfintab(Fintab *t, void *k, void (*fn)(void*), int32 nret)
++addfintab(Fintab *t, void *k, void (*fn)(void*), uintptr nret)
+ {
+ 	int32 i, j;
+ 
+@@ -137,7 +137,7 @@ resizefintab(Fintab *tab)
+ }
+ 
+ bool
+-runtime·addfinalizer(void *p, void (*f)(void*), int32 nret)
++runtime·addfinalizer(void *p, void (*f)(void*), uintptr nret)
+ {
+ 	Fintab *tab;
+ 	byte *base;
+@@ -175,7 +175,7 @@ runtime·addfinalizer(void *p, void (*f)(void*), int32 nret)
+ // get finalizer; if del, delete finalizer.
+ // caller is responsible for updating RefHasFinalizer (special) bit.
+ bool
+-runtime·getfinalizer(void *p, bool del, void (**fn)(void*), int32 *nret)
++runtime·getfinalizer(void *p, bool del, void (**fn)(void*), uintptr *nret)
+ {
+ 	Fintab *tab;
+ 	bool res;
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index 91ed5088da..d94a722c7a 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -82,7 +82,7 @@ struct Finalizer
+ {
+ 	void (*fn)(void*);
+ 	void *arg;
+-	int32 nret;
++	uintptr nret;
+ };
+ 
+ typedef struct FinBlock FinBlock;
+@@ -633,7 +633,7 @@ static bool
+ handlespecial(byte *p, uintptr size)
+ {
+ 	void (*fn)(void*);
+-	int32 nret;
++	uintptr nret;
+ 	FinBlock *block;
+ 	Finalizer *f;
+ 
+diff --git a/src/pkg/runtime/mprof.goc b/src/pkg/runtime/mprof.goc
+index e9b13d2531..50aa0fe487 100644
+--- a/src/pkg/runtime/mprof.goc
++++ b/src/pkg/runtime/mprof.goc
+@@ -284,7 +284,7 @@ record(Record *r, Bucket *b)
+ 		r->stk[i] = 0;
+ }
+ 
+-func MemProfile(p Slice, include_inuse_zero bool) (n int32, ok bool) {
++func MemProfile(p Slice, include_inuse_zero bool) (n int, ok bool) {
+ 	Bucket *b;
+ 	Record *r;
+ 
+@@ -310,7 +310,7 @@ struct TRecord {
+ 	uintptr stk[32];
+ };
+ 
+-func ThreadCreateProfile(p Slice) (n int32, ok bool) {
++func ThreadCreateProfile(p Slice) (n int, ok bool) {
+ 	TRecord *r;
+ 	M *first, *m;
+ 	
+@@ -329,7 +329,7 @@ func ThreadCreateProfile(p Slice) (n int32, ok bool) {
+ 	}
+ }
+ 
+-func Stack(b Slice, all bool) (n int32) {
++func Stack(b Slice, all bool) (n int) {
+ 	byte *pc, *sp;
+ 	
+ 	sp = runtime·getcallersp(&b);
+@@ -372,7 +372,7 @@ saveg(byte *pc, byte *sp, G *g, TRecord *r)
+ 		r->stk[n] = 0;
+ }
+ 
+-func GoroutineProfile(b Slice) (n int32, ok bool) {
++func GoroutineProfile(b Slice) (n int, ok bool) {
+ 	byte *pc, *sp;
+ 	TRecord *r;
+ 	G *gp;
+diff --git a/src/pkg/runtime/print.c b/src/pkg/runtime/print.c
+index fe21f1691a..b642999a1d 100644
+--- a/src/pkg/runtime/print.c
++++ b/src/pkg/runtime/print.c
+@@ -343,7 +343,7 @@ runtime·printstring(String v)
+ 	extern uint32 runtime·maxstring;
+ 
+ 	if(v.len > runtime·maxstring) {
+-		gwrite("[invalid string]", 16);
++		gwrite("[string too long]", 17);
+ 		return;
+ 	}
+ 	if(v.len > 0)
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index d763d01b08..36a362e7e2 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -1451,7 +1451,7 @@ runtime·mid(uint32 ret)
+ }
+ 
+ void
+-runtime·NumGoroutine(int32 ret)
++runtime·NumGoroutine(intgo ret)
+ {
+ 	ret = runtime·sched.gcount;
+ 	FLUSH(&ret);
+diff --git a/src/pkg/runtime/runtime.c b/src/pkg/runtime/runtime.c
+index 8c1ee28bde..080343fb9e 100644
+--- a/src/pkg/runtime/runtime.c
++++ b/src/pkg/runtime/runtime.c
+@@ -290,7 +290,7 @@ runtime·check(void)
+ }
+ 
+ void
+-runtime·Caller(int32 skip, uintptr retpc, String retfile, int32 retline, bool retbool)
++runtime·Caller(intgo skip, uintptr retpc, String retfile, intgo retline, bool retbool)
+ {
+ 	Func *f, *g;
+ 	uintptr pc;
+@@ -327,7 +327,7 @@ runtime·Caller(int32 skip, uintptr retpc, String retfile, int32 retline, bool r
+ }
+ 
+ void
+-runtime·Callers(int32 skip, Slice pc, int32 retn)
++runtime·Callers(intgo skip, Slice pc, intgo retn)
+ {
+ 	// runtime.callers uses pc.array==nil as a signal
+ 	// to print a stack trace.  Pick off 0-length pc here
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 37427fb92d..a8639f499e 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -19,9 +19,13 @@ typedef	double			float64;
+ #ifdef _64BIT
+ typedef	uint64		uintptr;
+ typedef	int64		intptr;
++typedef	int32		intgo; // Go's int
++typedef	uint32		uintgo; // Go's uint
+ #else
+ typedef	uint32		uintptr;
+-typedef int32		intptr;
++typedef	int32		intptr;
++typedef	int32		intgo; // Go's int
++typedef	uint32		uintgo; // Go's uint
+ #endif
+ 
+ /*
+@@ -139,7 +143,7 @@ union	Note
+ struct String
+ {
+ 	byte*	str;
+-	int32	len;
++	intgo	len;
+ };
+ struct Iface
+ {
+@@ -165,8 +169,8 @@ struct Complex128
+ struct	Slice
+ {				// must not move anything
+ 	byte*	array;		// actual data
+-	uint32	len;		// number of elements
+-	uint32	cap;		// allocated number of elements
++	uintgo	len;		// number of elements
++	uintgo	cap;		// allocated number of elements
+ };
+ struct	Gobuf
+ {
+@@ -518,7 +522,8 @@ extern	int32	runtime·gcwaiting;		// gc is waiting to run
+ int8*	runtime·goos;
+ int32	runtime·ncpu;
+ extern	bool	runtime·iscgo;
+-extern  void (*runtime·sysargs)(int32, uint8**);
++extern 	void	(*runtime·sysargs)(int32, uint8**);
++extern	uint32	runtime·maxstring;
+ 
+ /*
+  * common functions and data
+@@ -554,8 +559,8 @@ void	runtime·memmove(void*, void*, uint32);
+ void*	runtime·mal(uintptr);
+ String	runtime·catstring(String, String);
+ String	runtime·gostring(byte*);
+-String  runtime·gostringn(byte*, int32);
+-Slice	runtime·gobytes(byte*, int32);
++String  runtime·gostringn(byte*, intgo);
++Slice	runtime·gobytes(byte*, intgo);
+ String	runtime·gostringnocopy(byte*);
+ String	runtime·gostringw(uint16*);
+ void	runtime·initsig(void);
+@@ -603,7 +608,7 @@ uintptr	runtime·ifacehash(Iface);
+ uintptr	runtime·efacehash(Eface);
+ void*	runtime·malloc(uintptr size);
+ void	runtime·free(void *v);
+-bool	runtime·addfinalizer(void*, void(*fn)(void*), int32);
++bool	runtime·addfinalizer(void*, void(*fn)(void*), uintptr);
+ void	runtime·runpanic(Panic*);
+ void*	runtime·getcallersp(void*);
+ int32	runtime·mcount(void);
+@@ -807,8 +812,6 @@ Hmap*	runtime·makemap_c(MapType*, int64);
+ Hchan*	runtime·makechan_c(ChanType*, int64);
+ void	runtime·chansend(ChanType*, Hchan*, byte*, bool*);
+ void	runtime·chanrecv(ChanType*, Hchan*, byte*, bool*, bool*);
+-int32	runtime·chanlen(Hchan*);
+-int32	runtime·chancap(Hchan*);
+ bool	runtime·showframe(Func*);
+ 
+ void	runtime·ifaceE2I(struct InterfaceType*, Eface, Iface*);
+diff --git a/src/pkg/runtime/runtime1.goc b/src/pkg/runtime/runtime1.goc
+index 667131c1ee..d2c38dfefb 100644
+--- a/src/pkg/runtime/runtime1.goc
++++ b/src/pkg/runtime/runtime1.goc
+@@ -5,10 +5,10 @@
+ package runtime
+ #include "runtime.h"
+ 
+-func GOMAXPROCS(n int32) (ret int32) {
++func GOMAXPROCS(n int) (ret int) {
+ 	ret = runtime·gomaxprocsfunc(n);
+ }
+ 
+-func NumCPU() (ret int32) {
++func NumCPU() (ret int) {
+ 	ret = runtime·ncpu;
+ }
+diff --git a/src/pkg/runtime/slice.c b/src/pkg/runtime/slice.c
+index 9cb1ccb788..d2cc1684ee 100644
+--- a/src/pkg/runtime/slice.c
++++ b/src/pkg/runtime/slice.c
+@@ -8,20 +8,21 @@
+ #include "typekind.h"
+ #include "malloc.h"
+ 
+-static	int32	debug	= 0;
++static	bool	debug	= 0;
+ 
+-static	void	makeslice1(SliceType*, int32, int32, Slice*);
+-static	void	growslice1(SliceType*, Slice, int32, Slice *);
+-	void	runtime·copy(Slice to, Slice fm, uintptr width, int32 ret);
++static	void	makeslice1(SliceType*, intgo, intgo, Slice*);
++static	void	growslice1(SliceType*, Slice, intgo, Slice *);
++	void	runtime·copy(Slice to, Slice fm, uintptr width, intgo ret);
+ 
+ // see also unsafe·NewArray
+ // makeslice(typ *Type, len, cap int64) (ary []any);
+ void
+ runtime·makeslice(SliceType *t, int64 len, int64 cap, Slice ret)
+ {
+-	if(len < 0 || (int32)len != len)
++	if(len < 0 || (intgo)len != len)
+ 		runtime·panicstring("makeslice: len out of range");
+-	if(cap < len || (int32)cap != cap || t->elem->size > 0 && cap > ((uintptr)-1) / t->elem->size)
++	
++	if(cap < len || (intgo)cap != cap || t->elem->size > 0 && cap > MaxMem / t->elem->size)
+ 		runtime·panicstring("makeslice: cap out of range");
+ 
+ 	makeslice1(t, len, cap, &ret);
+@@ -39,7 +40,7 @@ runtime·makeslice(SliceType *t, int64 len, int64 cap, Slice ret)
+ static uintptr zerobase;
+ 
+ static void
+-makeslice1(SliceType *t, int32 len, int32 cap, Slice *ret)
++makeslice1(SliceType *t, intgo len, intgo cap, Slice *ret)
+ {
+ 	uintptr size;
+ 
+@@ -60,7 +61,7 @@ makeslice1(SliceType *t, int32 len, int32 cap, Slice *ret)
+ void
+ runtime·appendslice(SliceType *t, Slice x, Slice y, Slice ret)
+ {
+-	int32 m;
++	intgo m;
+ 	uintptr w;
+ 
+ 	m = x.len+y.len;
+@@ -84,7 +85,7 @@ runtime·appendslice(SliceType *t, Slice x, Slice y, Slice ret)
+ void
+ runtime·appendstr(SliceType *t, Slice x, String y, Slice ret)
+ {
+-	int32 m;
++	intgo m;
+ 
+ 	m = x.len+y.len;
+ 
+@@ -113,7 +114,7 @@ runtime·growslice(SliceType *t, Slice old, int64 n, Slice ret)
+ 
+ 	cap = old.cap + n;
+ 
+-	if((int32)cap != cap || cap > ((uintptr)-1) / t->elem->size)
++	if((intgo)cap != cap || cap < old.cap || cap > MaxMem / t->elem->size)
+ 		runtime·panicstring("growslice: cap out of range");
+ 
+ 	growslice1(t, old, cap, &ret);
+@@ -129,12 +130,17 @@ runtime·growslice(SliceType *t, Slice old, int64 n, Slice ret)
+ }
+ 
+ static void
+-growslice1(SliceType *t, Slice x, int32 newcap, Slice *ret)
++growslice1(SliceType *t, Slice x, intgo newcap, Slice *ret)
+ {
+-	int32 m;
++	intgo m;
+ 
+ 	m = x.cap;
+-	if(m == 0)
++	
++	// Using newcap directly for m+m < newcap handles
++	// both the case where m == 0 and also the case where
++	// m+m/4 wraps around, in which case the loop
++	// below might never terminate.
++	if(m+m < newcap)
+ 		m = newcap;
+ 	else {
+ 		do {
+@@ -148,9 +154,9 @@ growslice1(SliceType *t, Slice x, int32 newcap, Slice *ret)
+ 	runtime·memmove(ret->array, x.array, ret->len * t->elem->size);
+ }
+ 
+-// copy(to any, fr any, wid uint32) int
++// copy(to any, fr any, wid uintptr) int
+ void
+-runtime·copy(Slice to, Slice fm, uintptr width, int32 ret)
++runtime·copy(Slice to, Slice fm, uintptr width, intgo ret)
+ {
+ 	if(fm.len == 0 || to.len == 0 || width == 0) {
+ 		ret = 0;
+@@ -184,7 +190,7 @@ out:
+ }
+ 
+ void
+-runtime·slicestringcopy(Slice to, String fm, int32 ret)
++runtime·slicestringcopy(Slice to, String fm, intgo ret)
+ {
+ 	if(fm.len == 0 || to.len == 0) {
+ 		ret = 0;
+diff --git a/src/pkg/runtime/string.goc b/src/pkg/runtime/string.goc
+index b72a1aa5e7..cafcdb6ced 100644
+--- a/src/pkg/runtime/string.goc
++++ b/src/pkg/runtime/string.goc
+@@ -33,10 +33,10 @@ runtime·findnullw(uint16 *s)
+ 	return l;
+ }
+ 
+-uint32 runtime·maxstring = 256;
++uint32 runtime·maxstring = 256; // a hint for print
+ 
+ static String
+-gostringsize(int32 l)
++gostringsize(intgo l)
+ {
+ 	String s;
+ 	uint32 ms;
+@@ -58,7 +58,7 @@ gostringsize(int32 l)
+ String
+ runtime·gostring(byte *str)
+ {
+-	int32 l;
++	intgo l;
+ 	String s;
+ 
+ 	l = runtime·findnull(str);
+@@ -68,7 +68,7 @@ runtime·gostring(byte *str)
+ }
+ 
+ String
+-runtime·gostringn(byte *str, int32 l)
++runtime·gostringn(byte *str, intgo l)
+ {
+ 	String s;
+ 
+@@ -78,7 +78,7 @@ runtime·gostringn(byte *str, int32 l)
+ }
+ 
+ Slice
+-runtime·gobytes(byte *p, int32 n)
++runtime·gobytes(byte *p, intgo n)
+ {
+ 	Slice sl;
+ 
+@@ -102,7 +102,7 @@ runtime·gostringnocopy(byte *str)
+ String
+ runtime·gostringw(uint16 *str)
+ {
+-	int32 n1, n2, i;
++	intgo n1, n2, i;
+ 	byte buf[8];
+ 	String s;
+ 
+@@ -139,9 +139,9 @@ runtime·catstring(String s1, String s2)
+ }
+ 
+ static String
+-concatstring(int32 n, String *s)
++concatstring(intgo n, String *s)
+ {
+-	int32 i, l, count;
++	intgo i, l, count;
+ 	String out;
+ 
+ 	l = 0;
+@@ -172,14 +172,14 @@ concatstring(int32 n, String *s)
+ #pragma textflag 7
+ // s1 is the first of n strings.
+ // the output string follows.
+-func concatstring(n int32, s1 String) {
++func concatstring(n int, s1 String) {
+ 	(&s1)[n] = concatstring(n, &s1);
+ }
+ 
+ static int32
+ cmpstring(String s1, String s2)
+ {
+-	uint32 i, l;
++	uintgo i, l;
+ 	byte c1, c2;
+ 
+ 	l = s1.len;
+@@ -200,12 +200,12 @@ cmpstring(String s1, String s2)
+ 	return 0;
+ }
+ 
+-func cmpstring(s1 String, s2 String) (v int32) {
++func cmpstring(s1 String, s2 String) (v int) {
+ 	v = cmpstring(s1, s2);
+ }
+ 
+ func eqstring(s1 String, s2 String) (v bool) {
+-	uint32 i, l;
++	uintgo i, l;
+ 
+ 	if(s1.len != s2.len) {
+ 		v = false;
+@@ -227,7 +227,7 @@ func eqstring(s1 String, s2 String) (v bool) {
+ int32
+ runtime·strcmp(byte *s1, byte *s2)
+ {
+-	uint32 i;
++	uintptr i;
+ 	byte c1, c2;
+ 
+ 	for(i=0;; i++) {
+@@ -283,7 +283,7 @@ func stringtoslicebyte(s String) (b Slice) {
+ }
+ 
+ func slicerunetostring(b Slice) (s String) {
+-	int32 siz1, siz2, i;
++	intgo siz1, siz2, i;
+ 	int32 *a;
+ 	byte dum[8];
+ 
+@@ -306,7 +306,7 @@ func slicerunetostring(b Slice) (s String) {
+ }
+ 
+ func stringtoslicerune(s String) (b Slice) {
+-	int32 n;
++	intgo n;
+ 	int32 dum, *r;
+ 	uint8 *p, *ep;
+ 
+@@ -334,7 +334,7 @@ enum
+ 	Runeself	= 0x80,
+ };
+ 
+-func stringiter(s String, k int32) (retk int32) {
++func stringiter(s String, k int) (retk int) {
+ 	int32 l;
+ 
+ 	if(k >= s.len) {
+@@ -355,7 +355,7 @@ func stringiter(s String, k int32) (retk int32) {
+ out:
+ }
+ 
+-func stringiter2(s String, k int32) (retk int32, retv int32) {
++func stringiter2(s String, k int) (retk int, retv int32) {
+ 	if(k >= s.len) {
+ 		// retk=0 is end of iteration
+ 		retk = 0;
+diff --git a/src/pkg/runtime/symtab.c b/src/pkg/runtime/symtab.c
+index 97d7a54e3c..74b0071476 100644
+--- a/src/pkg/runtime/symtab.c
++++ b/src/pkg/runtime/symtab.c
+@@ -411,7 +411,7 @@ runtime·funcline(Func *f, uintptr targetpc)
+ }
+ 
+ void
+-runtime·funcline_go(Func *f, uintptr targetpc, String retfile, int32 retline)
++runtime·funcline_go(Func *f, uintptr targetpc, String retfile, intgo retline)
+ {
+ 	retfile = f->src;
+ 	retline = runtime·funcline(f, targetpc);

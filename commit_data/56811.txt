@@ -87,6 +87,20 @@ Date:   Sun Sep 11 14:47:36 2022 +0200
     Reviewed-by: Martin Möhrmann <moehrmann@google.com>
     Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
     Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/cmd/compile/internal/amd64/ssa.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/amd64/ssa.go b/src/cmd/compile/internal/amd64/ssa.go
+index b9e6ba5e49..113875861c 100644
+--- a/src/cmd/compile/internal/amd64/ssa.go
++++ b/src/cmd/compile/internal/amd64/ssa.go
+@@ -1030,7 +1030,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p.From.Reg = v.Args[0].Reg()
+ 		ssagen.AddrAuto(&p.To, v)
+ 	case ssa.OpAMD64LoweredHasCPUFeature:
+-		p := s.Prog(x86.AMOVBQZX)
++		p := s.Prog(x86.AMOVBLZX)
+ 		p.From.Type = obj.TYPE_MEM
+ 		ssagen.AddAux(&p.From, v)
+ 		p.To.Type = obj.TYPE_REG

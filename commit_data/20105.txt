@@ -25,8 +25,111 @@ Date:   Fri Aug 15 15:19:02 2014 -0700
     R=golang-codereviews, iant
     CC=golang-codereviews
     https://golang.org/cl/128230046
-
+---
  src/cmd/dist/a.h     | 2 +-
  src/cmd/dist/build.c | 8 ++++++--
  src/cmd/dist/goc2c.c | 8 +++++---
  3 files changed, 12 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/dist/a.h b/src/cmd/dist/a.h
+index 6222e50604..2500f038c8 100644
+--- a/src/cmd/dist/a.h
++++ b/src/cmd/dist/a.h
+@@ -109,7 +109,7 @@ void	mkzexperiment(char*, char*);
+ void	mkzdefaultcc(char*, char*);
+ 
+ // goc2c.c
+-void	goc2c(char*, char*);
++void	goc2c(char*, char*, char*);
+ 
+ // main.c
+ extern int vflag;
+diff --git a/src/cmd/dist/build.c b/src/cmd/dist/build.c
+index 2e857559b8..11fecbfad6 100644
+--- a/src/cmd/dist/build.c
++++ b/src/cmd/dist/build.c
+@@ -640,7 +640,7 @@ install(char *dir)
+ {
+ 	char *name, *p, *elem, *prefix, *exe;
+ 	bool islib, ispkg, isgo, stale, ispackcmd;
+-	Buf b, b1, path;
++	Buf b, b1, path, final_path, final_name;
+ 	Vec compile, files, link, go, missing, clean, lib, extra;
+ 	Time ttarg, t;
+ 	int i, j, k, n, doclean, targ;
+@@ -655,6 +655,8 @@ install(char *dir)
+ 	binit(&b);
+ 	binit(&b1);
+ 	binit(&path);
++	binit(&final_path);
++	binit(&final_name);
+ 	vinit(&compile);
+ 	vinit(&files);
+ 	vinit(&link);
+@@ -667,6 +669,7 @@ install(char *dir)
+ 
+ 	// path = full path to dir.
+ 	bpathf(&path, "%s/src/%s", goroot, dir);
++	bpathf(&final_path, "%s/src/%s", goroot_final, dir);
+ 	name = lastelem(dir);
+ 
+ 	// For misc/prof, copy into the tool directory and we're done.
+@@ -939,9 +942,10 @@ install(char *dir)
+ 				continue;
+ 			// b = path/zp but with _goos_goarch.c instead of .goc
+ 			bprintf(&b, "%s%sz%s", bstr(&path), slash, lastelem(p));
++			bprintf(&final_name, "%s%s%s", bstr(&final_path), slash, lastelem(p));
+ 			b.len -= 4;
+ 			bwritef(&b, "_%s_%s.c", goos, goarch);
+-			goc2c(p, bstr(&b));
++			goc2c(p, bstr(&final_name), bstr(&b));
+ 			vadd(&files, bstr(&b));
+ 		}
+ 		vuniq(&files);
+diff --git a/src/cmd/dist/goc2c.c b/src/cmd/dist/goc2c.c
+index 38627657ec..a24fbfe204 100644
+--- a/src/cmd/dist/goc2c.c
++++ b/src/cmd/dist/goc2c.c
+@@ -66,6 +66,7 @@ static int gcc;
+ 
+ /* File and line number */
+ static const char *file;
++static const char *final_file;
+ static unsigned int lineno;
+ 
+ /* List of names and types.  */
+@@ -474,7 +475,7 @@ read_func_header(char **name, struct params **params, int *paramwid, struct para
+ 			if (lastline == lineno-1)
+ 				bwritef(output, "\n");
+ 			else
+-				bwritef(output, "\n#line %d \"%s\"\n", lineno, file);
++				bwritef(output, "\n#line %d \"%s\"\n", lineno, final_file);
+ 			lastline = lineno;
+ 		}
+ 		bwritef(output, "%s ", token);
+@@ -658,7 +659,7 @@ write_func_header(char *package, char *name,
+ 		write_gcc_func_header(package, name, params, rets);
+ 	else
+ 		write_6g_func_header(package, name, params, paramwid, rets);
+-	bwritef(output, "#line %d \"%s\"\n", lineno, file);
++	bwritef(output, "#line %d \"%s\"\n", lineno, final_file);
+ }
+ 
+ /* Write out a function trailer.  */
+@@ -772,7 +773,7 @@ process_file(void)
+ }
+ 
+ void
+-goc2c(char *goc, char *c)
++goc2c(char *goc, char *goc_final, char *c)
+ {
+ 	int i;
+ 	Buf in, out;
+@@ -781,6 +782,7 @@ goc2c(char *goc, char *c)
+ 	binit(&out);
+ 	
+ 	file = goc;
++	final_file = goc_final;
+ 	readfile(&in, goc);
+ 
+ 	// TODO: set gcc=1 when using gcc

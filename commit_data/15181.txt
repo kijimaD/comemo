@@ -7,6 +7,37 @@ Date:   Sat Feb 9 08:19:09 2013 +0800
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/7305065
-
+---
  src/pkg/log/syslog/syslog_test.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/pkg/log/syslog/syslog_test.go b/src/pkg/log/syslog/syslog_test.go
+index 51fbde2ae9..6d271c121c 100644
+--- a/src/pkg/log/syslog/syslog_test.go
++++ b/src/pkg/log/syslog/syslog_test.go
+@@ -110,6 +110,9 @@ func TestWithSimulated(t *testing.T) {
+ 	for _, tr := range transport {
+ 		done := make(chan string)
+ 		addr := startServer(tr, "", done)
++		if tr == "unix" || tr == "unixgram" {
++			defer os.Remove(addr)
++		}
+ 		s, err := Dial(tr, addr, LOG_INFO|LOG_USER, "syslog_test")
+ 		if err != nil {
+ 			t.Fatalf("Dial() failed: %v", err)
+@@ -127,6 +130,7 @@ func TestFlap(t *testing.T) {
+ 	net := "unix"
+ 	done := make(chan string)
+ 	addr := startServer(net, "", done)
++	defer os.Remove(addr)
+ 
+ 	s, err := Dial(net, addr, LOG_INFO|LOG_USER, "syslog_test")
+ 	if err != nil {
+@@ -278,6 +282,7 @@ func TestConcurrentReconnect(t *testing.T) {
+ 	net := "unix"
+ 	done := make(chan string)
+ 	addr := startServer(net, "", done)
++	defer os.Remove(addr)
+ 
+ 	// count all the messages arriving
+ 	count := make(chan int)

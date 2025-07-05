@@ -9,9 +9,111 @@ Date:   Thu Feb 23 14:44:06 2012 -0500
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/5693044
-
+---
  src/pkg/runtime/os_darwin.h        |  4 ++++
  src/pkg/runtime/sys_darwin_386.s   |  7 +++++++
  src/pkg/runtime/sys_darwin_amd64.s | 10 ++++++++++
  src/pkg/runtime/thread_darwin.c    | 12 +++++++++++-
  4 files changed, 32 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/os_darwin.h b/src/pkg/runtime/os_darwin.h
+index 0003b66c91..071a547177 100644
+--- a/src/pkg/runtime/os_darwin.h
++++ b/src/pkg/runtime/os_darwin.h
+@@ -20,6 +20,9 @@ uint32	runtime·mach_thread_self(void);
+ uint32	runtime·mach_thread_self(void);
+ int32	runtime·sysctl(uint32*, uint32, byte*, uintptr*, byte*, uintptr);
+ 
++typedef uint32 Sigset;
++void	runtime·sigprocmask(int32, Sigset*, Sigset*);
++
+ struct Sigaction;
+ void	runtime·sigaction(uintptr, struct Sigaction*, struct Sigaction*);
+ void	runtime·setsig(int32, void(*)(int32, Siginfo*, void*, G*), bool);
+@@ -35,3 +38,4 @@ void	runtime·raisesigpipe(void);
+ 
+ #define	NSIG 32
+ #define	SI_USER	0  /* empirically true, but not what headers say */
++#define	SIG_SETMASK 3
+diff --git a/src/pkg/runtime/sys_darwin_386.s b/src/pkg/runtime/sys_darwin_386.s
+index 24eac766aa..e235a8473d 100644
+--- a/src/pkg/runtime/sys_darwin_386.s
++++ b/src/pkg/runtime/sys_darwin_386.s
+@@ -106,6 +106,13 @@ TEXT runtime·nanotime(SB), 7, $32
+ 	MOVL	DX, 4(DI)
+ 	RET
+ 
++TEXT runtime·sigprocmask(SB),7,$0
++	MOVL	$48, AX
++	INT	$0x80
++	JAE	2(PC)
++	CALL	runtime·notok(SB)
++	RET
++
+ TEXT runtime·sigaction(SB),7,$0
+ 	MOVL	$46, AX
+ 	INT	$0x80
+diff --git a/src/pkg/runtime/sys_darwin_amd64.s b/src/pkg/runtime/sys_darwin_amd64.s
+index 9d2ecbe2a5..13882c8524 100644
+--- a/src/pkg/runtime/sys_darwin_amd64.s
++++ b/src/pkg/runtime/sys_darwin_amd64.s
+@@ -92,6 +92,16 @@ TEXT runtime·nanotime(SB), 7, $32
+ 	ADDQ	DX, AX
+ 	RET
+ 
++TEXT runtime·sigprocmask(SB),7,$0
++	MOVL	8(SP), DI
++	MOVQ	16(SP), SI
++	MOVQ	24(SP), DX
++	MOVL	$(0x2000000+48), AX	// syscall entry
++	SYSCALL
++	JCC	2(PC)
++	CALL	runtime·notok(SB)
++	RET
++
+ TEXT runtime·sigaction(SB),7,$0
+ 	MOVL	8(SP), DI		// arg 1 sig
+ 	MOVQ	16(SP), SI		// arg 2 act
+diff --git a/src/pkg/runtime/thread_darwin.c b/src/pkg/runtime/thread_darwin.c
+index 832c74beaf..42fb7702e8 100644
+--- a/src/pkg/runtime/thread_darwin.c
++++ b/src/pkg/runtime/thread_darwin.c
+@@ -9,6 +9,9 @@
+ 
+ extern SigTab runtime·sigtab[];
+ 
++static Sigset sigset_all = ~(Sigset)0;
++static Sigset sigset_none;
++
+ static void
+ unimplemented(int8 *name)
+ {
+@@ -70,13 +73,19 @@ void
+ runtime·newosproc(M *m, G *g, void *stk, void (*fn)(void))
+ {
+ 	int32 errno;
++	Sigset oset;
+ 
+ 	m->tls[0] = m->id;	// so 386 asm can find it
+ 	if(0){
+ 		runtime·printf("newosproc stk=%p m=%p g=%p fn=%p id=%d/%d ostk=%p\n",
+ 			stk, m, g, fn, m->id, m->tls[0], &m);
+ 	}
+-	if((errno = runtime·bsdthread_create(stk, m, g, fn)) < 0) {
++
++	runtime·sigprocmask(SIG_SETMASK, &sigset_all, &oset);
++	errno = runtime·bsdthread_create(stk, m, g, fn);
++	runtime·sigprocmask(SIG_SETMASK, &oset, nil);
++	
++	if(errno < 0) {
+ 		runtime·printf("runtime: failed to create new OS thread (have %d already; errno=%d)\n", runtime·mcount(), -errno);
+ 		runtime·throw("runtime.newosproc");
+ 	}
+@@ -89,6 +98,7 @@ runtime·minit(void)
+ 	// Initialize signal handling.
+ 	m->gsignal = runtime·malg(32*1024);	// OS X wants >=8K, Linux >=2K
+ 	runtime·signalstack(m->gsignal->stackguard - StackGuard, 32*1024);
++	runtime·sigprocmask(SIG_SETMASK, &sigset_none, nil);
+ }
+ 
+ // Mach IPC, to get at semaphores

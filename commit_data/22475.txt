@@ -7,6 +7,20 @@ Date:   Tue Mar 17 13:00:31 2015 +0900
     Change-Id: I367b5a837844e3bee1576c59497d37f5e67c761d
     Reviewed-on: https://go-review.googlesource.com/7674
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/cmd/yacc/doc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/yacc/doc.go b/src/cmd/yacc/doc.go
+index 7839dcfa9c..328d87b9da 100644
+--- a/src/cmd/yacc/doc.go
++++ b/src/cmd/yacc/doc.go
+@@ -20,7 +20,7 @@ written in C and documented at
+ Adepts of the original yacc will have no trouble adapting to this
+ form of the tool.
+ 
+-The directory $GOROOT/cmd/yacc/testdata/expr is a yacc program
++The directory $GOROOT/src/cmd/yacc/testdata/expr is a yacc program
+ for a very simple expression parser. See expr.y and main.go in that
+ directory for examples of how to write and build yacc programs.
+ 

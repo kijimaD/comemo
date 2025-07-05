@@ -7,6 +7,31 @@ Date:   Tue May 1 16:33:27 2018 +0300
     Change-Id: I573172384eaf32daaca5021a9a1874bf0f3d340f
     Reviewed-on: https://go-review.googlesource.com/110575
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/database/sql/sql.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/database/sql/sql.go b/src/database/sql/sql.go
+index d192dd95b8..1038bb659a 100644
+--- a/src/database/sql/sql.go
++++ b/src/database/sql/sql.go
+@@ -792,8 +792,8 @@ func (db *DB) maxIdleConnsLocked() int {
+ // SetMaxIdleConns sets the maximum number of connections in the idle
+ // connection pool.
+ //
+-// If MaxOpenConns is greater than 0 but less than the new MaxIdleConns
+-// then the new MaxIdleConns will be reduced to match the MaxOpenConns limit
++// If MaxOpenConns is greater than 0 but less than the new MaxIdleConns,
++// then the new MaxIdleConns will be reduced to match the MaxOpenConns limit.
+ //
+ // If n <= 0, no idle connections are retained.
+ func (db *DB) SetMaxIdleConns(n int) {
+@@ -825,7 +825,7 @@ func (db *DB) SetMaxIdleConns(n int) {
+ //
+ // If MaxIdleConns is greater than 0 and the new MaxOpenConns is less than
+ // MaxIdleConns, then MaxIdleConns will be reduced to match the new
+-// MaxOpenConns limit
++// MaxOpenConns limit.
+ //
+ // If n <= 0, then there is no limit on the number of open connections.
+ // The default is 0 (unlimited).

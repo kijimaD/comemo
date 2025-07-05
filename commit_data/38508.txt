@@ -9,6 +9,49 @@ Date:   Fri Nov 2 15:47:40 2018 +0000
     Change-Id: Ifca958b78e8c62fbc66515e693f528d799e8e84b
     Reviewed-on: https://go-review.googlesource.com/c/147039
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/env_posix.go | 25 ++++++++++++++++++++++++-
  1 file changed, 24 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/env_posix.go b/src/runtime/env_posix.go
+index a2daeb7f27..03208c7c10 100644
+--- a/src/runtime/env_posix.go
++++ b/src/runtime/env_posix.go
+@@ -14,13 +14,36 @@ func gogetenv(key string) string {
+ 		throw("getenv before env init")
+ 	}
+ 	for _, s := range env {
+-		if len(s) > len(key) && s[len(key)] == '=' && s[:len(key)] == key {
++		if len(s) > len(key) && s[len(key)] == '=' && envKeyEqual(s[:len(key)], key) {
+ 			return s[len(key)+1:]
+ 		}
+ 	}
+ 	return ""
+ }
+ 
++// envKeyEqual reports whether a == b, with ASCII-only case insensitivity
++// on Windows. The two strings must have the same length.
++func envKeyEqual(a, b string) bool {
++	if GOOS == "windows" { // case insensitive
++		for i := 0; i < len(a); i++ {
++			ca, cb := a[i], b[i]
++			if ca == cb || lowerASCII(ca) == lowerASCII(cb) {
++				continue
++			}
++			return false
++		}
++		return true
++	}
++	return a == b
++}
++
++func lowerASCII(c byte) byte {
++	if 'A' <= c && c <= 'Z' {
++		return c + ('a' - 'A')
++	}
++	return c
++}
++
+ var _cgo_setenv unsafe.Pointer   // pointer to C function
+ var _cgo_unsetenv unsafe.Pointer // pointer to C function
+ 

@@ -12,7 +12,109 @@ Date:   Tue Aug 8 09:51:22 2023 +0700
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/reflect/all_test.go | 36 ++++++++++++++++++++++++++++++++++++
  src/reflect/value.go    | 14 +++++++++++---
  2 files changed, 47 insertions(+), 3 deletions(-)
+
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index 6e5c7d12e2..daeabae933 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -8512,3 +8512,39 @@ func TestClear(t *testing.T) {
+ 		})
+ 	}
+ }
++
++func TestValuePointerAndUnsafePointer(t *testing.T) {
++	ptr := new(int)
++	ch := make(chan int)
++	m := make(map[int]int)
++	unsafePtr := unsafe.Pointer(ptr)
++	slice := make([]int, 1)
++	fn := func() {}
++	s := "foo"
++
++	tests := []struct {
++		name              string
++		val               Value
++		wantUnsafePointer unsafe.Pointer
++	}{
++		{"pointer", ValueOf(ptr), unsafe.Pointer(ptr)},
++		{"channel", ValueOf(ch), *(*unsafe.Pointer)(unsafe.Pointer(&ch))},
++		{"map", ValueOf(m), *(*unsafe.Pointer)(unsafe.Pointer(&m))},
++		{"unsafe.Pointer", ValueOf(unsafePtr), unsafePtr},
++		{"function", ValueOf(fn), **(**unsafe.Pointer)(unsafe.Pointer(&fn))},
++		{"slice", ValueOf(slice), unsafe.Pointer(unsafe.SliceData(slice))},
++		{"string", ValueOf(s), unsafe.Pointer(unsafe.StringData(s))},
++	}
++
++	for _, tc := range tests {
++		tc := tc
++		t.Run(tc.name, func(t *testing.T) {
++			if got := tc.val.Pointer(); got != uintptr(tc.wantUnsafePointer) {
++				t.Errorf("unexpected uintptr result, got %#x, want %#x", got, uintptr(tc.wantUnsafePointer))
++			}
++			if got := tc.val.UnsafePointer(); got != tc.wantUnsafePointer {
++				t.Errorf("unexpected unsafe.Pointer result, got %#x, want %#x", got, tc.wantUnsafePointer)
++			}
++		})
++	}
++}
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index 9cde9d0975..dd7021b104 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -2184,7 +2184,7 @@ func (v Value) OverflowUint(x uint64) bool {
+ // and make an exception.
+ 
+ // Pointer returns v's value as a uintptr.
+-// It panics if v's Kind is not [Chan], [Func], [Map], [Pointer], [Slice], or [UnsafePointer].
++// It panics if v's Kind is not [Chan], [Func], [Map], [Pointer], [Slice], [String], or [UnsafePointer].
+ //
+ // If v's Kind is [Func], the returned pointer is an underlying
+ // code pointer, but not necessarily enough to identify a
+@@ -2195,6 +2195,9 @@ func (v Value) OverflowUint(x uint64) bool {
+ // element of the slice. If the slice is nil the returned value
+ // is 0.  If the slice is empty but non-nil the return value is non-zero.
+ //
++// If v's Kind is [String], the returned pointer is to the first
++// element of the underlying bytes of string.
++//
+ // It's preferred to use uintptr(Value.UnsafePointer()) to get the equivalent result.
+ func (v Value) Pointer() uintptr {
+ 	// The compiler loses track as it converts to uintptr. Force escape.
+@@ -2232,9 +2235,10 @@ func (v Value) Pointer() uintptr {
+ 			p = *(*unsafe.Pointer)(p)
+ 		}
+ 		return uintptr(p)
+-
+ 	case Slice:
+ 		return uintptr((*unsafeheader.Slice)(v.ptr).Data)
++	case String:
++		return uintptr((*unsafeheader.String)(v.ptr).Data)
+ 	}
+ 	panic(&ValueError{"reflect.Value.Pointer", v.kind()})
+ }
+@@ -2779,6 +2783,9 @@ func (v Value) UnsafeAddr() uintptr {
+ // If v's Kind is [Slice], the returned pointer is to the first
+ // element of the slice. If the slice is nil the returned value
+ // is nil.  If the slice is empty but non-nil the return value is non-nil.
++//
++// If v's Kind is [String], the returned pointer is to the first
++// element of the underlying bytes of string.
+ func (v Value) UnsafePointer() unsafe.Pointer {
+ 	k := v.kind()
+ 	switch k {
+@@ -2812,9 +2819,10 @@ func (v Value) UnsafePointer() unsafe.Pointer {
+ 			p = *(*unsafe.Pointer)(p)
+ 		}
+ 		return p
+-
+ 	case Slice:
+ 		return (*unsafeheader.Slice)(v.ptr).Data
++	case String:
++		return (*unsafeheader.String)(v.ptr).Data
+ 	}
+ 	panic(&ValueError{"reflect.Value.UnsafePointer", v.kind()})
+ }

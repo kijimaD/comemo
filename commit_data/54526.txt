@@ -21,7 +21,7 @@ Date:   Fri Oct 21 22:22:12 2022 -0500
     Reviewed-by: David Chase <drchase@google.com>
     Auto-Submit: Richard Musiol <neelance@gmail.com>
     Reviewed-by: Richard Musiol <neelance@gmail.com>
-
+---
  src/cmd/compile/internal/ir/symtab.go        |   4 -
  src/cmd/compile/internal/ssa/_gen/Wasm.rules |  25 +----
  src/cmd/compile/internal/ssa/_gen/WasmOps.go |   4 +-
@@ -38,3 +38,639 @@ Date:   Fri Oct 21 22:22:12 2022 -0500
  src/runtime/sys_wasm.go                      |   4 -
  src/runtime/sys_wasm.s                       |  67 -------------
  15 files changed, 59 insertions(+), 347 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/symtab.go b/src/cmd/compile/internal/ir/symtab.go
+index 2c89e677b4..bde7a4cfe4 100644
+--- a/src/cmd/compile/internal/ir/symtab.go
++++ b/src/cmd/compile/internal/ir/symtab.go
+@@ -58,10 +58,6 @@ var Syms struct {
+ 	// Wasm
+ 	WasmDiv *obj.LSym
+ 	// Wasm
+-	WasmMove *obj.LSym
+-	// Wasm
+-	WasmZero *obj.LSym
+-	// Wasm
+ 	WasmTruncS *obj.LSym
+ 	// Wasm
+ 	WasmTruncU *obj.LSym
+diff --git a/src/cmd/compile/internal/ssa/_gen/Wasm.rules b/src/cmd/compile/internal/ssa/_gen/Wasm.rules
+index 9e683b116c..a9ed82e456 100644
+--- a/src/cmd/compile/internal/ssa/_gen/Wasm.rules
++++ b/src/cmd/compile/internal/ssa/_gen/Wasm.rules
+@@ -234,24 +234,9 @@
+ 	(I64Store [s-8] dst (I64Load [s-8] src mem)
+ 		(I64Store dst (I64Load src mem) mem))
+ 
+-// Adjust moves to be a multiple of 16 bytes.
+-(Move [s] dst src mem)
+-	&& s > 16 && s%16 != 0 && s%16 <= 8 =>
+-	(Move [s-s%16]
+-		(OffPtr <dst.Type> dst [s%16])
+-		(OffPtr <src.Type> src [s%16])
+-		(I64Store dst (I64Load src mem) mem))
+-(Move [s] dst src mem)
+-	&& s > 16 && s%16 != 0 && s%16 > 8 =>
+-	(Move [s-s%16]
+-		(OffPtr <dst.Type> dst [s%16])
+-		(OffPtr <src.Type> src [s%16])
+-		(I64Store [8] dst (I64Load [8] src mem)
+-			(I64Store dst (I64Load src mem) mem)))
+-
+ // Large copying uses helper.
+-(Move [s] dst src mem) && s%8 == 0 && logLargeCopy(v, s) =>
+-	(LoweredMove [s/8] dst src mem)
++(Move [s] dst src mem) && logLargeCopy(v, s) =>
++	(LoweredMove [s] dst src mem)
+ 
+ // Lowering Zero instructions
+ (Zero [0] _ mem) => mem
+@@ -274,7 +259,7 @@
+ 		(I64Store32 destptr (I64Const [0]) mem))
+ 
+ // Strip off any fractional word zeroing.
+-(Zero [s] destptr mem) && s%8 != 0 && s > 8 =>
++(Zero [s] destptr mem) && s%8 != 0 && s > 8 && s < 32 =>
+ 	(Zero [s-s%8] (OffPtr <destptr.Type> destptr [s%8])
+ 		(I64Store destptr (I64Const [0]) mem))
+ 
+@@ -293,8 +278,8 @@
+ 				(I64Store destptr (I64Const [0]) mem))))
+ 
+ // Large zeroing uses helper.
+-(Zero [s] destptr mem) && s%8 == 0 && s > 32 =>
+-	(LoweredZero [s/8] destptr mem)
++(Zero [s] destptr mem) =>
++	(LoweredZero [s] destptr mem)
+ 
+ // Lowering constants
+ (Const64 ...) => (I64Const ...)
+diff --git a/src/cmd/compile/internal/ssa/_gen/WasmOps.go b/src/cmd/compile/internal/ssa/_gen/WasmOps.go
+index 33529e729d..cd127b5f06 100644
+--- a/src/cmd/compile/internal/ssa/_gen/WasmOps.go
++++ b/src/cmd/compile/internal/ssa/_gen/WasmOps.go
+@@ -126,8 +126,8 @@ func init() {
+ 		{name: "LoweredInterCall", argLength: 2, reg: regInfo{inputs: []regMask{gp}, clobbers: callerSave}, aux: "CallOff", call: true},          // call fn by pointer. arg0=codeptr, arg1=mem, auxint=argsize, returns mem
+ 
+ 		{name: "LoweredAddr", argLength: 1, reg: gp11, aux: "SymOff", rematerializeable: true, symEffect: "Addr"}, // returns base+aux+auxint, arg0=base
+-		{name: "LoweredMove", argLength: 3, reg: regInfo{inputs: []regMask{gp, gp}}, aux: "Int64"},                // large move. arg0=dst, arg1=src, arg2=mem, auxint=len/8, returns mem
+-		{name: "LoweredZero", argLength: 2, reg: regInfo{inputs: []regMask{gp}}, aux: "Int64"},                    // large zeroing. arg0=start, arg1=mem, auxint=len/8, returns mem
++		{name: "LoweredMove", argLength: 3, reg: regInfo{inputs: []regMask{gp, gp}}, aux: "Int64"},                // large move. arg0=dst, arg1=src, arg2=mem, auxint=len, returns mem
++		{name: "LoweredZero", argLength: 2, reg: regInfo{inputs: []regMask{gp}}, aux: "Int64"},                    // large zeroing. arg0=start, arg1=mem, auxint=len, returns mem
+ 
+ 		{name: "LoweredGetClosurePtr", reg: gp01},                                                                          // returns wasm.REG_CTXT, the closure pointer
+ 		{name: "LoweredGetCallerPC", reg: gp01, rematerializeable: true},                                                   // returns the PC of the caller of the current function
+diff --git a/src/cmd/compile/internal/ssa/rewriteWasm.go b/src/cmd/compile/internal/ssa/rewriteWasm.go
+index 5b7f4a8e45..a5be7922a0 100644
+--- a/src/cmd/compile/internal/ssa/rewriteWasm.go
++++ b/src/cmd/compile/internal/ssa/rewriteWasm.go
+@@ -2141,76 +2141,18 @@ func rewriteValueWasm_OpMove(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Move [s] dst src mem)
+-	// cond: s > 16 && s%16 != 0 && s%16 <= 8
+-	// result: (Move [s-s%16] (OffPtr <dst.Type> dst [s%16]) (OffPtr <src.Type> src [s%16]) (I64Store dst (I64Load src mem) mem))
++	// cond: logLargeCopy(v, s)
++	// result: (LoweredMove [s] dst src mem)
+ 	for {
+ 		s := auxIntToInt64(v.AuxInt)
+ 		dst := v_0
+ 		src := v_1
+ 		mem := v_2
+-		if !(s > 16 && s%16 != 0 && s%16 <= 8) {
+-			break
+-		}
+-		v.reset(OpMove)
+-		v.AuxInt = int64ToAuxInt(s - s%16)
+-		v0 := b.NewValue0(v.Pos, OpOffPtr, dst.Type)
+-		v0.AuxInt = int64ToAuxInt(s % 16)
+-		v0.AddArg(dst)
+-		v1 := b.NewValue0(v.Pos, OpOffPtr, src.Type)
+-		v1.AuxInt = int64ToAuxInt(s % 16)
+-		v1.AddArg(src)
+-		v2 := b.NewValue0(v.Pos, OpWasmI64Store, types.TypeMem)
+-		v3 := b.NewValue0(v.Pos, OpWasmI64Load, typ.UInt64)
+-		v3.AddArg2(src, mem)
+-		v2.AddArg3(dst, v3, mem)
+-		v.AddArg3(v0, v1, v2)
+-		return true
+-	}
+-	// match: (Move [s] dst src mem)
+-	// cond: s > 16 && s%16 != 0 && s%16 > 8
+-	// result: (Move [s-s%16] (OffPtr <dst.Type> dst [s%16]) (OffPtr <src.Type> src [s%16]) (I64Store [8] dst (I64Load [8] src mem) (I64Store dst (I64Load src mem) mem)))
+-	for {
+-		s := auxIntToInt64(v.AuxInt)
+-		dst := v_0
+-		src := v_1
+-		mem := v_2
+-		if !(s > 16 && s%16 != 0 && s%16 > 8) {
+-			break
+-		}
+-		v.reset(OpMove)
+-		v.AuxInt = int64ToAuxInt(s - s%16)
+-		v0 := b.NewValue0(v.Pos, OpOffPtr, dst.Type)
+-		v0.AuxInt = int64ToAuxInt(s % 16)
+-		v0.AddArg(dst)
+-		v1 := b.NewValue0(v.Pos, OpOffPtr, src.Type)
+-		v1.AuxInt = int64ToAuxInt(s % 16)
+-		v1.AddArg(src)
+-		v2 := b.NewValue0(v.Pos, OpWasmI64Store, types.TypeMem)
+-		v2.AuxInt = int64ToAuxInt(8)
+-		v3 := b.NewValue0(v.Pos, OpWasmI64Load, typ.UInt64)
+-		v3.AuxInt = int64ToAuxInt(8)
+-		v3.AddArg2(src, mem)
+-		v4 := b.NewValue0(v.Pos, OpWasmI64Store, types.TypeMem)
+-		v5 := b.NewValue0(v.Pos, OpWasmI64Load, typ.UInt64)
+-		v5.AddArg2(src, mem)
+-		v4.AddArg3(dst, v5, mem)
+-		v2.AddArg3(dst, v3, v4)
+-		v.AddArg3(v0, v1, v2)
+-		return true
+-	}
+-	// match: (Move [s] dst src mem)
+-	// cond: s%8 == 0 && logLargeCopy(v, s)
+-	// result: (LoweredMove [s/8] dst src mem)
+-	for {
+-		s := auxIntToInt64(v.AuxInt)
+-		dst := v_0
+-		src := v_1
+-		mem := v_2
+-		if !(s%8 == 0 && logLargeCopy(v, s)) {
++		if !(logLargeCopy(v, s)) {
+ 			break
+ 		}
+ 		v.reset(OpWasmLoweredMove)
+-		v.AuxInt = int64ToAuxInt(s / 8)
++		v.AuxInt = int64ToAuxInt(s)
+ 		v.AddArg3(dst, src, mem)
+ 		return true
+ 	}
+@@ -4656,13 +4598,13 @@ func rewriteValueWasm_OpZero(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Zero [s] destptr mem)
+-	// cond: s%8 != 0 && s > 8
++	// cond: s%8 != 0 && s > 8 && s < 32
+ 	// result: (Zero [s-s%8] (OffPtr <destptr.Type> destptr [s%8]) (I64Store destptr (I64Const [0]) mem))
+ 	for {
+ 		s := auxIntToInt64(v.AuxInt)
+ 		destptr := v_0
+ 		mem := v_1
+-		if !(s%8 != 0 && s > 8) {
++		if !(s%8 != 0 && s > 8 && s < 32) {
+ 			break
+ 		}
+ 		v.reset(OpZero)
+@@ -4738,21 +4680,16 @@ func rewriteValueWasm_OpZero(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Zero [s] destptr mem)
+-	// cond: s%8 == 0 && s > 32
+-	// result: (LoweredZero [s/8] destptr mem)
++	// result: (LoweredZero [s] destptr mem)
+ 	for {
+ 		s := auxIntToInt64(v.AuxInt)
+ 		destptr := v_0
+ 		mem := v_1
+-		if !(s%8 == 0 && s > 32) {
+-			break
+-		}
+ 		v.reset(OpWasmLoweredZero)
+-		v.AuxInt = int64ToAuxInt(s / 8)
++		v.AuxInt = int64ToAuxInt(s)
+ 		v.AddArg2(destptr, mem)
+ 		return true
+ 	}
+-	return false
+ }
+ func rewriteValueWasm_OpZeroExt16to32(v *Value) bool {
+ 	v_0 := v.Args[0]
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 871530d7d5..7966cd4860 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -206,8 +206,6 @@ func InitConfig() {
+ 	}
+ 
+ 	// Wasm (all asm funcs with special ABIs)
+-	ir.Syms.WasmMove = typecheck.LookupRuntimeVar("wasmMove")
+-	ir.Syms.WasmZero = typecheck.LookupRuntimeVar("wasmZero")
+ 	ir.Syms.WasmDiv = typecheck.LookupRuntimeVar("wasmDiv")
+ 	ir.Syms.WasmTruncS = typecheck.LookupRuntimeVar("wasmTruncS")
+ 	ir.Syms.WasmTruncU = typecheck.LookupRuntimeVar("wasmTruncU")
+diff --git a/src/cmd/compile/internal/wasm/ssa.go b/src/cmd/compile/internal/wasm/ssa.go
+index 765051c944..27ba98c9cd 100644
+--- a/src/cmd/compile/internal/wasm/ssa.go
++++ b/src/cmd/compile/internal/wasm/ssa.go
+@@ -149,14 +149,13 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		getValue32(s, v.Args[0])
+ 		getValue32(s, v.Args[1])
+ 		i32Const(s, int32(v.AuxInt))
+-		p := s.Prog(wasm.ACall)
+-		p.To = obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_EXTERN, Sym: ir.Syms.WasmMove}
++		s.Prog(wasm.AMemoryCopy)
+ 
+ 	case ssa.OpWasmLoweredZero:
+ 		getValue32(s, v.Args[0])
++		i32Const(s, 0)
+ 		i32Const(s, int32(v.AuxInt))
+-		p := s.Prog(wasm.ACall)
+-		p.To = obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_EXTERN, Sym: ir.Syms.WasmZero}
++		s.Prog(wasm.AMemoryFill)
+ 
+ 	case ssa.OpWasmLoweredNilCheck:
+ 		getValue64(s, v.Args[0])
+diff --git a/src/cmd/internal/obj/wasm/a.out.go b/src/cmd/internal/obj/wasm/a.out.go
+index 72ecaa9286..83ce0a6738 100644
+--- a/src/cmd/internal/obj/wasm/a.out.go
++++ b/src/cmd/internal/obj/wasm/a.out.go
+@@ -231,6 +231,17 @@ const (
+ 	AI64TruncSatF64S
+ 	AI64TruncSatF64U
+ 
++	AMemoryInit
++	ADataDrop
++	AMemoryCopy
++	AMemoryFill
++	ATableInit
++	AElemDrop
++	ATableCopy
++	ATableGrow
++	ATableSize
++	ATableFill
++
+ 	ALast // Sentinel: End of low-level WebAssembly instructions.
+ 
+ 	ARESUMEPOINT
+diff --git a/src/cmd/internal/obj/wasm/anames.go b/src/cmd/internal/obj/wasm/anames.go
+index 94123849ee..c9bc15d270 100644
+--- a/src/cmd/internal/obj/wasm/anames.go
++++ b/src/cmd/internal/obj/wasm/anames.go
+@@ -195,6 +195,16 @@ var Anames = []string{
+ 	"I64TruncSatF32U",
+ 	"I64TruncSatF64S",
+ 	"I64TruncSatF64U",
++	"MemoryInit",
++	"DataDrop",
++	"MemoryCopy",
++	"MemoryFill",
++	"TableInit",
++	"ElemDrop",
++	"TableCopy",
++	"TableGrow",
++	"TableSize",
++	"TableFill",
+ 	"Last",
+ 	"RESUMEPOINT",
+ 	"CALLNORESUME",
+diff --git a/src/cmd/internal/obj/wasm/wasmobj.go b/src/cmd/internal/obj/wasm/wasmobj.go
+index 59b2e7bddc..9b0aabe919 100644
+--- a/src/cmd/internal/obj/wasm/wasmobj.go
++++ b/src/cmd/internal/obj/wasm/wasmobj.go
+@@ -799,8 +799,6 @@ var notUsePC_B = map[string]bool{
+ 	"wasm_export_resume":     true,
+ 	"wasm_export_getsp":      true,
+ 	"wasm_pc_f_loop":         true,
+-	"runtime.wasmMove":       true,
+-	"runtime.wasmZero":       true,
+ 	"runtime.wasmDiv":        true,
+ 	"runtime.wasmTruncS":     true,
+ 	"runtime.wasmTruncU":     true,
+@@ -844,7 +842,7 @@ func assemble(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
+ 	// Some functions use a special calling convention.
+ 	switch s.Name {
+ 	case "_rt0_wasm_js", "wasm_export_run", "wasm_export_resume", "wasm_export_getsp", "wasm_pc_f_loop",
+-		"runtime.wasmMove", "runtime.wasmZero", "runtime.wasmDiv", "runtime.wasmTruncS", "runtime.wasmTruncU", "memeqbody":
++		"runtime.wasmDiv", "runtime.wasmTruncS", "runtime.wasmTruncU", "memeqbody":
+ 		varDecls = []*varDecl{}
+ 		useAssemblyRegMap()
+ 	case "memchr", "memcmp":
+@@ -1088,7 +1086,11 @@ func assemble(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
+ 			writeUleb128(w, align(p.As))
+ 			writeUleb128(w, uint64(p.To.Offset))
+ 
+-		case ACurrentMemory, AGrowMemory:
++		case ACurrentMemory, AGrowMemory, AMemoryFill:
++			w.WriteByte(0x00)
++
++		case AMemoryCopy:
++			w.WriteByte(0x00)
+ 			w.WriteByte(0x00)
+ 
+ 		}
+diff --git a/src/cmd/link/internal/wasm/asm.go b/src/cmd/link/internal/wasm/asm.go
+index 0aa065f99d..99018c8079 100644
+--- a/src/cmd/link/internal/wasm/asm.go
++++ b/src/cmd/link/internal/wasm/asm.go
+@@ -60,8 +60,6 @@ var wasmFuncTypes = map[string]*wasmFuncType{
+ 	"wasm_export_resume":     {Params: []byte{}},                                         //
+ 	"wasm_export_getsp":      {Results: []byte{I32}},                                     // sp
+ 	"wasm_pc_f_loop":         {Params: []byte{}},                                         //
+-	"runtime.wasmMove":       {Params: []byte{I32, I32, I32}},                            // dst, src, len
+-	"runtime.wasmZero":       {Params: []byte{I32, I32}},                                 // ptr, len
+ 	"runtime.wasmDiv":        {Params: []byte{I64, I64}, Results: []byte{I64}},           // x, y -> x/y
+ 	"runtime.wasmTruncS":     {Params: []byte{F64}, Results: []byte{I64}},                // x -> int(x)
+ 	"runtime.wasmTruncU":     {Params: []byte{F64}, Results: []byte{I64}},                // x -> uint(x)
+diff --git a/src/runtime/asm_wasm.s b/src/runtime/asm_wasm.s
+index d885da6e70..e075c72598 100644
+--- a/src/runtime/asm_wasm.s
++++ b/src/runtime/asm_wasm.s
+@@ -320,10 +320,8 @@ TEXT NAME(SB), WRAPPER, $MAXSIZE-48; \
+ 		I64Load stackArgs+16(FP); \
+ 		I32WrapI64; \
+ 		I64Load stackArgsSize+24(FP); \
+-		I64Const $3; \
+-		I64ShrU; \
+ 		I32WrapI64; \
+-		Call runtime·wasmMove(SB); \
++		MemoryCopy; \
+ 	End; \
+ 	\
+ 	MOVD f+8(FP), CTXT; \
+diff --git a/src/runtime/memclr_wasm.s b/src/runtime/memclr_wasm.s
+index 5a053049f8..19d08ffbee 100644
+--- a/src/runtime/memclr_wasm.s
++++ b/src/runtime/memclr_wasm.s
+@@ -11,29 +11,10 @@ TEXT runtime·memclrNoHeapPointers(SB), NOSPLIT, $0-16
+ 	MOVD ptr+0(FP), R0
+ 	MOVD n+8(FP), R1
+ 
+-loop:
+-	Loop
+-		Get R1
+-		I64Eqz
+-		If
+-			RET
+-		End
+-
+-		Get R0
+-		I32WrapI64
+-		I64Const $0
+-		I64Store8 $0
+-
+-		Get R0
+-		I64Const $1
+-		I64Add
+-		Set R0
+-
+-		Get R1
+-		I64Const $1
+-		I64Sub
+-		Set R1
+-
+-		Br loop
+-	End
+-	UNDEF
++	Get R0
++	I32WrapI64
++	I32Const $0
++	Get R1
++	I32WrapI64
++	MemoryFill
++	RET
+diff --git a/src/runtime/memmove_wasm.s b/src/runtime/memmove_wasm.s
+index 8525fea35e..1be8487a99 100644
+--- a/src/runtime/memmove_wasm.s
++++ b/src/runtime/memmove_wasm.s
+@@ -13,142 +13,10 @@ TEXT runtime·memmove(SB), NOSPLIT, $0-24
+ 	MOVD n+16(FP), R2
+ 
+ 	Get R0
++	I32WrapI64
+ 	Get R1
+-	I64LtU
+-	If // forward
+-exit_forward_64:
+-		Block
+-loop_forward_64:
+-			Loop
+-				Get R2
+-				I64Const $8
+-				I64LtU
+-				BrIf exit_forward_64
+-
+-				MOVD 0(R1), 0(R0)
+-
+-				Get R0
+-				I64Const $8
+-				I64Add
+-				Set R0
+-
+-				Get R1
+-				I64Const $8
+-				I64Add
+-				Set R1
+-
+-				Get R2
+-				I64Const $8
+-				I64Sub
+-				Set R2
+-
+-				Br loop_forward_64
+-			End
+-		End
+-
+-loop_forward_8:
+-		Loop
+-			Get R2
+-			I64Eqz
+-			If
+-				RET
+-			End
+-
+-			Get R0
+-			I32WrapI64
+-			I64Load8U (R1)
+-			I64Store8 $0
+-
+-			Get R0
+-			I64Const $1
+-			I64Add
+-			Set R0
+-
+-			Get R1
+-			I64Const $1
+-			I64Add
+-			Set R1
+-
+-			Get R2
+-			I64Const $1
+-			I64Sub
+-			Set R2
+-
+-			Br loop_forward_8
+-		End
+-
+-	Else
+-		// backward
+-		Get R0
+-		Get R2
+-		I64Add
+-		Set R0
+-
+-		Get R1
+-		Get R2
+-		I64Add
+-		Set R1
+-
+-exit_backward_64:
+-		Block
+-loop_backward_64:
+-			Loop
+-				Get R2
+-				I64Const $8
+-				I64LtU
+-				BrIf exit_backward_64
+-
+-				Get R0
+-				I64Const $8
+-				I64Sub
+-				Set R0
+-
+-				Get R1
+-				I64Const $8
+-				I64Sub
+-				Set R1
+-
+-				Get R2
+-				I64Const $8
+-				I64Sub
+-				Set R2
+-
+-				MOVD 0(R1), 0(R0)
+-
+-				Br loop_backward_64
+-			End
+-		End
+-
+-loop_backward_8:
+-		Loop
+-			Get R2
+-			I64Eqz
+-			If
+-				RET
+-			End
+-
+-			Get R0
+-			I64Const $1
+-			I64Sub
+-			Set R0
+-
+-			Get R1
+-			I64Const $1
+-			I64Sub
+-			Set R1
+-
+-			Get R2
+-			I64Const $1
+-			I64Sub
+-			Set R2
+-
+-			Get R0
+-			I32WrapI64
+-			I64Load8U (R1)
+-			I64Store8 $0
+-
+-			Br loop_backward_8
+-		End
+-	End
+-
+-	UNDEF
++	I32WrapI64
++	Get R2
++	I32WrapI64
++	MemoryCopy
++	RET
+diff --git a/src/runtime/sys_wasm.go b/src/runtime/sys_wasm.go
+index e6e7f471ee..bf5756984a 100644
+--- a/src/runtime/sys_wasm.go
++++ b/src/runtime/sys_wasm.go
+@@ -16,10 +16,6 @@ type m0Stack struct {
+ 
+ var wasmStack m0Stack
+ 
+-func wasmMove()
+-
+-func wasmZero()
+-
+ func wasmDiv()
+ 
+ func wasmTruncS()
+diff --git a/src/runtime/sys_wasm.s b/src/runtime/sys_wasm.s
+index 164dd16ec9..f706e00ab2 100644
+--- a/src/runtime/sys_wasm.s
++++ b/src/runtime/sys_wasm.s
+@@ -4,73 +4,6 @@
+ 
+ #include "textflag.h"
+ 
+-TEXT runtime·wasmMove(SB), NOSPLIT, $0-0
+-loop:
+-	Loop
+-		// *dst = *src
+-		Get R0
+-		Get R1
+-		I64Load $0
+-		I64Store $0
+-
+-		// n--
+-		Get R2
+-		I32Const $1
+-		I32Sub
+-		Tee R2
+-
+-		// n == 0
+-		I32Eqz
+-		If
+-			Return
+-		End
+-
+-		// dst += 8
+-		Get R0
+-		I32Const $8
+-		I32Add
+-		Set R0
+-
+-		// src += 8
+-		Get R1
+-		I32Const $8
+-		I32Add
+-		Set R1
+-
+-		Br loop
+-	End
+-	UNDEF
+-
+-TEXT runtime·wasmZero(SB), NOSPLIT, $0-0
+-loop:
+-	Loop
+-		// *dst = 0
+-		Get R0
+-		I64Const $0
+-		I64Store $0
+-
+-		// n--
+-		Get R1
+-		I32Const $1
+-		I32Sub
+-		Tee R1
+-
+-		// n == 0
+-		I32Eqz
+-		If
+-			Return
+-		End
+-
+-		// dst += 8
+-		Get R0
+-		I32Const $8
+-		I32Add
+-		Set R0
+-
+-		Br loop
+-	End
+-	UNDEF
+-
+ TEXT runtime·wasmDiv(SB), NOSPLIT, $0-0
+ 	Get R0
+ 	I64Const $-0x8000000000000000

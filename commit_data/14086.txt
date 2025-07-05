@@ -9,7 +9,57 @@ Date:   Tue Oct 9 08:10:32 2012 +1100
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/6610068
-
+---
  src/pkg/net/url/url.go      |  8 ++++++--
  src/pkg/net/url/url_test.go | 11 +++++++++++
  2 files changed, 17 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/net/url/url.go b/src/pkg/net/url/url.go
+index 7b9289468b..d1fff89da7 100644
+--- a/src/pkg/net/url/url.go
++++ b/src/pkg/net/url/url.go
+@@ -521,12 +521,16 @@ func parseQuery(m Values, query string) (err error) {
+ 		}
+ 		key, err1 := QueryUnescape(key)
+ 		if err1 != nil {
+-			err = err1
++			if err == nil {
++				err = err1
++			}
+ 			continue
+ 		}
+ 		value, err1 = QueryUnescape(value)
+ 		if err1 != nil {
+-			err = err1
++			if err == nil {
++				err = err1
++			}
+ 			continue
+ 		}
+ 		m[key] = append(m[key], value)
+diff --git a/src/pkg/net/url/url_test.go b/src/pkg/net/url/url_test.go
+index 9ea8d7ecd1..64f1170027 100644
+--- a/src/pkg/net/url/url_test.go
++++ b/src/pkg/net/url/url_test.go
+@@ -7,6 +7,7 @@ package url
+ import (
+ 	"fmt"
+ 	"reflect"
++	"strings"
+ 	"testing"
+ )
+ 
+@@ -779,3 +780,13 @@ func TestRequestURI(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestParseFailure(t *testing.T) {
++	// Test that the first parse error is returned.
++	const url = "%gh&%ij"
++	_, err := ParseQuery(url)
++	errStr := fmt.Sprint(err)
++	if !strings.Contains(errStr, "%gh") {
++		t.Errorf(`ParseQuery(%q) returned error %q, want something containing %q"`, url, errStr, "%gh")
++	}
++}

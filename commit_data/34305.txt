@@ -14,6 +14,19 @@ Date:   Thu Sep 28 13:03:55 2017 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-
+---
  src/cmd/compile/internal/gc/noder.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index 774bef1064..f3f18cb918 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -1047,7 +1047,6 @@ func (p *noder) commClauses(clauses []*syntax.CommClause, rbrace src.Pos) []*Nod
+ 		if clause.Comm != nil {
+ 			n.List.Set1(p.stmt(clause.Comm))
+ 		}
+-		n.Xoffset = int64(types.Block)
+ 		n.Nbody.Set(p.stmts(clause.Body))
+ 		nodes = append(nodes, n)
+ 	}

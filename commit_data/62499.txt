@@ -16,6 +16,25 @@ Date:   Sun Mar 9 08:59:45 2025 -0400
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/cgo/internal/testsanitizers/cc_test.go | 7 ++++++-
  1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/cgo/internal/testsanitizers/cc_test.go b/src/cmd/cgo/internal/testsanitizers/cc_test.go
+index fa0105b11a..7233b6a775 100644
+--- a/src/cmd/cgo/internal/testsanitizers/cc_test.go
++++ b/src/cmd/cgo/internal/testsanitizers/cc_test.go
+@@ -266,7 +266,12 @@ func compilerSupportsLocation() bool {
+ 	}
+ 	switch compiler.name {
+ 	case "gcc":
+-		return compiler.major >= 10
++		// TODO(72752): the asan runtime support library
++		// (libasan.so.6) shipped with GCC 10 has problems digesting
++		// version 5 DWARF produced by the Go toolchain. Disable
++		// location checking if gcc is not sufficiently up to date in
++		// this case.
++		return compiler.major > 10
+ 	case "clang":
+ 		// TODO(65606): The clang toolchain on the LUCI builders is not built against
+ 		// zlib, the ASAN runtime can't actually symbolize its own stack trace. Once

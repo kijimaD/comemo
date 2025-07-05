@@ -17,7 +17,7 @@ Date:   Wed Mar 16 14:15:54 2016 -0700
     Reviewed-by: Austin Clements <austin@google.com>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/debug/dwarf/entry.go            | 120 ++++++++++++++++++++++++++++++++++++
  src/debug/dwarf/entry_test.go       | 101 ++++++++++++++++++++++++++++++
  src/debug/dwarf/testdata/ranges.c   |  25 ++++++++
@@ -26,3 +26,353 @@ Date:   Wed Mar 16 14:15:54 2016 -0700
  src/debug/macho/file.go             |   6 +-
  src/debug/pe/file.go                |   6 +-
  7 files changed, 254 insertions(+), 8 deletions(-)
+
+diff --git a/src/debug/dwarf/entry.go b/src/debug/dwarf/entry.go
+index 6f72005e72..80bf14cb22 100644
+--- a/src/debug/dwarf/entry.go
++++ b/src/debug/dwarf/entry.go
+@@ -636,3 +636,123 @@ func (r *Reader) clone() typeReader {
+ func (r *Reader) offset() Offset {
+ 	return r.b.off
+ }
++
++// SeekPC returns the Entry for the compilation unit that includes pc,
++// and positions the reader to read the children of that unit.  If pc
++// is not covered by any unit, SeekPC returns ErrUnknownPC and the
++// position of the reader is undefined.
++//
++// Because compilation units can describe multiple regions of the
++// executable, in the worst case SeekPC must search through all the
++// ranges in all the compilation units. Each call to SeekPC starts the
++// search at the compilation unit of the last call, so in general
++// looking up a series of PCs will be faster if they are sorted. If
++// the caller wishes to do repeated fast PC lookups, it should build
++// an appropriate index using the Ranges method.
++func (r *Reader) SeekPC(pc uint64) (*Entry, error) {
++	unit := r.unit
++	for i := 0; i < len(r.d.unit); i++ {
++		if unit >= len(r.d.unit) {
++			unit = 0
++		}
++		r.err = nil
++		r.lastChildren = false
++		r.unit = unit
++		u := &r.d.unit[unit]
++		r.b = makeBuf(r.d, u, "info", u.off, u.data)
++		e, err := r.Next()
++		if err != nil {
++			return nil, err
++		}
++		ranges, err := r.d.Ranges(e)
++		if err != nil {
++			return nil, err
++		}
++		for _, pcs := range ranges {
++			if pcs[0] <= pc && pc < pcs[1] {
++				return e, nil
++			}
++		}
++		unit++
++	}
++	return nil, ErrUnknownPC
++}
++
++// Ranges returns the PC ranges covered by e, a slice of [low,high) pairs.
++// Only some entry types, such as TagCompileUnit or TagSubprogram, have PC
++// ranges; for others, this will return nil with no error.
++func (d *Data) Ranges(e *Entry) ([][2]uint64, error) {
++	var ret [][2]uint64
++
++	low, lowOK := e.Val(AttrLowpc).(uint64)
++
++	var high uint64
++	var highOK bool
++	highField := e.AttrField(AttrHighpc)
++	if highField != nil {
++		switch highField.Class {
++		case ClassAddress:
++			high, highOK = highField.Val.(uint64)
++		case ClassConstant:
++			off, ok := highField.Val.(int64)
++			if ok {
++				high = low + uint64(off)
++				highOK = true
++			}
++		}
++	}
++
++	if lowOK && highOK {
++		ret = append(ret, [2]uint64{low, high})
++	}
++
++	ranges, rangesOK := e.Val(AttrRanges).(int64)
++	if rangesOK && d.ranges != nil {
++		// The initial base address is the lowpc attribute
++		// of the enclosing compilation unit.
++		// Although DWARF specifies the lowpc attribute,
++		// comments in gdb/dwarf2read.c say that some versions
++		// of GCC use the entrypc attribute, so we check that too.
++		var cu *Entry
++		if e.Tag == TagCompileUnit {
++			cu = e
++		} else {
++			i := d.offsetToUnit(e.Offset)
++			if i == -1 {
++				return nil, errors.New("no unit for entry")
++			}
++			u := &d.unit[i]
++			b := makeBuf(d, u, "info", u.off, u.data)
++			cu = b.entry(u.atable, u.base)
++			if b.err != nil {
++				return nil, b.err
++			}
++		}
++
++		var base uint64
++		if cuEntry, cuEntryOK := cu.Val(AttrEntrypc).(uint64); cuEntryOK {
++			base = cuEntry
++		} else if cuLow, cuLowOK := cu.Val(AttrLowpc).(uint64); cuLowOK {
++			base = cuLow
++		}
++
++		u := &d.unit[d.offsetToUnit(e.Offset)]
++		buf := makeBuf(d, u, "ranges", Offset(ranges), d.ranges[ranges:])
++		for len(buf.data) > 0 {
++			low = buf.addr()
++			high = buf.addr()
++
++			if low == 0 && high == 0 {
++				break
++			}
++
++			if low == ^uint64(0)>>uint((8-u.addrsize())*8) {
++				base = high
++			} else {
++				ret = append(ret, [2]uint64{base + low, base + high})
++			}
++		}
++	}
++
++	return ret, nil
++}
+diff --git a/src/debug/dwarf/entry_test.go b/src/debug/dwarf/entry_test.go
+index 8bd2d2a8ad..58a5d570be 100644
+--- a/src/debug/dwarf/entry_test.go
++++ b/src/debug/dwarf/entry_test.go
+@@ -6,6 +6,7 @@ package dwarf_test
+ 
+ import (
+ 	. "debug/dwarf"
++	"reflect"
+ 	"testing"
+ )
+ 
+@@ -34,3 +35,103 @@ func TestSplit(t *testing.T) {
+ 		t.Fatalf("bad class: have %s, want %s", f.Class, ClassUnknown)
+ 	}
+ }
++
++// wantRange maps from a PC to the ranges of the compilation unit
++// containing that PC.
++type wantRange struct {
++	pc     uint64
++	ranges [][2]uint64
++}
++
++func TestReaderSeek(t *testing.T) {
++	want := []wantRange{
++		{0x40059d, [][2]uint64{{0x40059d, 0x400601}}},
++		{0x400600, [][2]uint64{{0x40059d, 0x400601}}},
++		{0x400601, [][2]uint64{{0x400601, 0x400611}}},
++		{0x4005f0, [][2]uint64{{0x40059d, 0x400601}}}, // loop test
++		{0x10, nil},
++		{0x400611, nil},
++	}
++	testRanges(t, "testdata/line-gcc.elf", want)
++}
++
++func TestRangesSection(t *testing.T) {
++	want := []wantRange{
++		{0x400500, [][2]uint64{{0x400500, 0x400549}, {0x400400, 0x400408}}},
++		{0x400400, [][2]uint64{{0x400500, 0x400549}, {0x400400, 0x400408}}},
++		{0x400548, [][2]uint64{{0x400500, 0x400549}, {0x400400, 0x400408}}},
++		{0x400407, [][2]uint64{{0x400500, 0x400549}, {0x400400, 0x400408}}},
++		{0x400408, nil},
++		{0x400449, nil},
++		{0x4003ff, nil},
++	}
++	testRanges(t, "testdata/ranges.elf", want)
++}
++
++func testRanges(t *testing.T, name string, want []wantRange) {
++	d := elfData(t, name)
++	r := d.Reader()
++	for _, w := range want {
++		entry, err := r.SeekPC(w.pc)
++		if err != nil {
++			if w.ranges != nil {
++				t.Errorf("%s: missing Entry for %#x", name, w.pc)
++			}
++			if err != ErrUnknownPC {
++				t.Errorf("%s: expected ErrUnknownPC for %#x, got %v", name, w.pc, err)
++			}
++			continue
++		}
++
++		ranges, err := d.Ranges(entry)
++		if err != nil {
++			t.Errorf("%s: %v", name, err)
++			continue
++		}
++		if !reflect.DeepEqual(ranges, w.ranges) {
++			t.Errorf("%s: for %#x got %x, expected %x", name, w.pc, ranges, w.ranges)
++		}
++	}
++}
++
++func TestReaderRanges(t *testing.T) {
++	d := elfData(t, "testdata/line-gcc.elf")
++
++	subprograms := []struct {
++		name   string
++		ranges [][2]uint64
++	}{
++		{"f1", [][2]uint64{{0x40059d, 0x4005e7}}},
++		{"main", [][2]uint64{{0x4005e7, 0x400601}}},
++		{"f2", [][2]uint64{{0x400601, 0x400611}}},
++	}
++
++	r := d.Reader()
++	i := 0
++	for entry, err := r.Next(); entry != nil && err == nil; entry, err = r.Next() {
++		if entry.Tag != TagSubprogram {
++			continue
++		}
++
++		if i > len(subprograms) {
++			t.Fatalf("too many subprograms (expected at most %d)", i)
++		}
++
++		if got := entry.Val(AttrName).(string); got != subprograms[i].name {
++			t.Errorf("subprogram %d name is %s, expected %s", i, got, subprograms[i].name)
++		}
++		ranges, err := d.Ranges(entry)
++		if err != nil {
++			t.Errorf("subprogram %d: %v", i, err)
++			continue
++		}
++		if !reflect.DeepEqual(ranges, subprograms[i].ranges) {
++			t.Errorf("subprogram %d ranges are %x, expected %x", i, ranges, subprograms[i].ranges)
++		}
++		i++
++	}
++
++	if i < len(subprograms) {
++		t.Errorf("saw only %d subprograms, expected %d", i, len(subprograms))
++	}
++}
+diff --git a/src/debug/dwarf/testdata/ranges.c b/src/debug/dwarf/testdata/ranges.c
+new file mode 100644
+index 0000000000..2f208e591c
+--- /dev/null
++++ b/src/debug/dwarf/testdata/ranges.c
+@@ -0,0 +1,25 @@
++// gcc -g -O2 -freorder-blocks-and-partition
++
++const char *arr[10000];
++const char *hot = "hot";
++const char *cold = "cold";
++
++__attribute__((noinline))
++void fn(int path) {
++	int i;
++
++	if (path) {
++		for (i = 0; i < sizeof arr / sizeof arr[0]; i++) {
++			arr[i] = hot;
++		}
++	} else {
++		for (i = 0; i < sizeof arr / sizeof arr[0]; i++) {
++			arr[i] = cold;
++		}
++	}
++}
++
++int main(int argc, char *argv[]) {
++	fn(argc);
++	return 0;
++}
+diff --git a/src/debug/dwarf/testdata/ranges.elf b/src/debug/dwarf/testdata/ranges.elf
+new file mode 100755
+index 0000000000..7f54138cff
+Binary files /dev/null and b/src/debug/dwarf/testdata/ranges.elf differ
+diff --git a/src/debug/elf/file.go b/src/debug/elf/file.go
+index 17bf76b29e..72796d535f 100644
+--- a/src/debug/elf/file.go
++++ b/src/debug/elf/file.go
+@@ -958,7 +958,7 @@ func (f *File) DWARF() (*dwarf.Data, error) {
+ 	// There are many other DWARF sections, but these
+ 	// are the ones the debug/dwarf package uses.
+ 	// Don't bother loading others.
+-	var dat = map[string][]byte{"abbrev": nil, "info": nil, "str": nil, "line": nil}
++	var dat = map[string][]byte{"abbrev": nil, "info": nil, "str": nil, "line": nil, "ranges": nil}
+ 	for i, s := range f.Sections {
+ 		suffix := ""
+ 		switch {
+@@ -979,7 +979,7 @@ func (f *File) DWARF() (*dwarf.Data, error) {
+ 		dat[suffix] = b
+ 	}
+ 
+-	d, err := dwarf.New(dat["abbrev"], nil, nil, dat["info"], dat["line"], nil, nil, dat["str"])
++	d, err := dwarf.New(dat["abbrev"], nil, nil, dat["info"], dat["line"], nil, dat["ranges"], dat["str"])
+ 	if err != nil {
+ 		return nil, err
+ 	}
+diff --git a/src/debug/macho/file.go b/src/debug/macho/file.go
+index 063a6f5ff8..223346f10d 100644
+--- a/src/debug/macho/file.go
++++ b/src/debug/macho/file.go
+@@ -474,7 +474,7 @@ func (f *File) DWARF() (*dwarf.Data, error) {
+ 	// There are many other DWARF sections, but these
+ 	// are the ones the debug/dwarf package uses.
+ 	// Don't bother loading others.
+-	var names = [...]string{"abbrev", "info", "line", "str"}
++	var names = [...]string{"abbrev", "info", "line", "ranges", "str"}
+ 	var dat [len(names)][]byte
+ 	for i, name := range names {
+ 		name = "__debug_" + name
+@@ -489,8 +489,8 @@ func (f *File) DWARF() (*dwarf.Data, error) {
+ 		dat[i] = b
+ 	}
+ 
+-	abbrev, info, line, str := dat[0], dat[1], dat[2], dat[3]
+-	return dwarf.New(abbrev, nil, nil, info, line, nil, nil, str)
++	abbrev, info, line, ranges, str := dat[0], dat[1], dat[2], dat[3], dat[4]
++	return dwarf.New(abbrev, nil, nil, info, line, nil, ranges, str)
+ }
+ 
+ // ImportedSymbols returns the names of all symbols
+diff --git a/src/debug/pe/file.go b/src/debug/pe/file.go
+index 6adb039fd9..1acc368e1b 100644
+--- a/src/debug/pe/file.go
++++ b/src/debug/pe/file.go
+@@ -298,7 +298,7 @@ func (f *File) DWARF() (*dwarf.Data, error) {
+ 	// There are many other DWARF sections, but these
+ 	// are the ones the debug/dwarf package uses.
+ 	// Don't bother loading others.
+-	var names = [...]string{"abbrev", "info", "line", "str"}
++	var names = [...]string{"abbrev", "info", "line", "ranges", "str"}
+ 	var dat [len(names)][]byte
+ 	for i, name := range names {
+ 		name = ".debug_" + name
+@@ -316,8 +316,8 @@ func (f *File) DWARF() (*dwarf.Data, error) {
+ 		dat[i] = b
+ 	}
+ 
+-	abbrev, info, line, str := dat[0], dat[1], dat[2], dat[3]
+-	return dwarf.New(abbrev, nil, nil, info, line, nil, nil, str)
++	abbrev, info, line, ranges, str := dat[0], dat[1], dat[2], dat[3], dat[4]
++	return dwarf.New(abbrev, nil, nil, info, line, nil, ranges, str)
+ }
+ 
+ // ImportedSymbols returns the names of all symbols

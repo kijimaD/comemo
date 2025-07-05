@@ -8,6 +8,31 @@ Date:   Thu Aug 20 09:50:10 2015 +0200
     Reviewed-on: https://go-review.googlesource.com/13760
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
     Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
-
+---
  src/runtime/defs_linux_386.go | 9 +++++++++
  1 file changed, 9 insertions(+)
+
+diff --git a/src/runtime/defs_linux_386.go b/src/runtime/defs_linux_386.go
+index 7cf57c8452..44d2fd1d48 100644
+--- a/src/runtime/defs_linux_386.go
++++ b/src/runtime/defs_linux_386.go
+@@ -90,6 +90,10 @@ const (
+ 	_EPOLL_CTL_ADD = 0x1
+ 	_EPOLL_CTL_DEL = 0x2
+ 	_EPOLL_CTL_MOD = 0x3
++
++	_AF_UNIX    = 0x1
++	_F_SETFL    = 0x4
++	_SOCK_DGRAM = 0x2
+ )
+ 
+ type fpreg struct {
+@@ -218,3 +222,8 @@ type epollevent struct {
+ 	events uint32
+ 	data   [8]byte // to match amd64
+ }
++
++type sockaddr_un struct {
++	family uint16
++	path   [108]byte
++}

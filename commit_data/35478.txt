@@ -11,6 +11,20 @@ Date:   Thu Feb 15 16:12:24 2018 +0000
     GitHub-Pull-Request: golang/go#23851
     Reviewed-on: https://go-review.googlesource.com/94415
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/cgo/gcc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 2ebe906699..2fb9fec5de 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -2701,7 +2701,7 @@ func (c *typeConv) badJNI(dt *dwarf.TypedefType) bool {
+ }
+ 
+ // jniTypes maps from JNI types that we want to be uintptrs, to the underlying type to which
+-// they are mapped.  The base "jobject" maps to the empty string.
++// they are mapped. The base "jobject" maps to the empty string.
+ var jniTypes = map[string]string{
+ 	"jobject":       "",
+ 	"jclass":        "jobject",

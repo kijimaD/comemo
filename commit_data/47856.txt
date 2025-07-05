@@ -12,7 +12,100 @@ Date:   Tue Dec 22 19:22:14 2020 +0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/279461
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/mgc.go     |  4 ++++
  src/runtime/mgcmark.go | 37 ++++++++++++++++++-------------------
  2 files changed, 22 insertions(+), 19 deletions(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index f65402e94c..4750a74bc7 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -328,6 +328,10 @@ var work struct {
+ 	nFlushCacheRoots                               int
+ 	nDataRoots, nBSSRoots, nSpanRoots, nStackRoots int
+ 
++	// Base indexes of each root type. Set by gcMarkRootPrepare.
++	baseFlushCache                                    uint32
++	baseData, baseBSS, baseSpans, baseStacks, baseEnd uint32
++
+ 	// Each type of GC state transition is protected by a lock.
+ 	// Since multiple threads can simultaneously detect the state
+ 	// transition condition, any thread that detects a transition
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index b3c1e00ca5..45ccc806bd 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -106,6 +106,14 @@ func gcMarkRootPrepare() {
+ 
+ 	work.markrootNext = 0
+ 	work.markrootJobs = uint32(fixedRootCount + work.nFlushCacheRoots + work.nDataRoots + work.nBSSRoots + work.nSpanRoots + work.nStackRoots)
++
++	// Calculate base indexes of each root type
++	work.baseFlushCache = uint32(fixedRootCount)
++	work.baseData = work.baseFlushCache + uint32(work.nFlushCacheRoots)
++	work.baseBSS = work.baseData + uint32(work.nDataRoots)
++	work.baseSpans = work.baseBSS + uint32(work.nBSSRoots)
++	work.baseStacks = work.baseSpans + uint32(work.nSpanRoots)
++	work.baseEnd = work.baseStacks + uint32(work.nStackRoots)
+ }
+ 
+ // gcMarkRootCheck checks that all roots have been scanned. It is
+@@ -149,28 +157,19 @@ var oneptrmask = [...]uint8{1}
+ //
+ //go:nowritebarrier
+ func markroot(gcw *gcWork, i uint32) {
+-	// TODO(austin): This is a bit ridiculous. Compute and store
+-	// the bases in gcMarkRootPrepare instead of the counts.
+-	baseFlushCache := uint32(fixedRootCount)
+-	baseData := baseFlushCache + uint32(work.nFlushCacheRoots)
+-	baseBSS := baseData + uint32(work.nDataRoots)
+-	baseSpans := baseBSS + uint32(work.nBSSRoots)
+-	baseStacks := baseSpans + uint32(work.nSpanRoots)
+-	end := baseStacks + uint32(work.nStackRoots)
+-
+ 	// Note: if you add a case here, please also update heapdump.go:dumproots.
+ 	switch {
+-	case baseFlushCache <= i && i < baseData:
+-		flushmcache(int(i - baseFlushCache))
++	case work.baseFlushCache <= i && i < work.baseData:
++		flushmcache(int(i - work.baseFlushCache))
+ 
+-	case baseData <= i && i < baseBSS:
++	case work.baseData <= i && i < work.baseBSS:
+ 		for _, datap := range activeModules() {
+-			markrootBlock(datap.data, datap.edata-datap.data, datap.gcdatamask.bytedata, gcw, int(i-baseData))
++			markrootBlock(datap.data, datap.edata-datap.data, datap.gcdatamask.bytedata, gcw, int(i-work.baseData))
+ 		}
+ 
+-	case baseBSS <= i && i < baseSpans:
++	case work.baseBSS <= i && i < work.baseSpans:
+ 		for _, datap := range activeModules() {
+-			markrootBlock(datap.bss, datap.ebss-datap.bss, datap.gcbssmask.bytedata, gcw, int(i-baseBSS))
++			markrootBlock(datap.bss, datap.ebss-datap.bss, datap.gcbssmask.bytedata, gcw, int(i-work.baseBSS))
+ 		}
+ 
+ 	case i == fixedRootFinalizers:
+@@ -184,18 +183,18 @@ func markroot(gcw *gcWork, i uint32) {
+ 		// stackfree.
+ 		systemstack(markrootFreeGStacks)
+ 
+-	case baseSpans <= i && i < baseStacks:
++	case work.baseSpans <= i && i < work.baseStacks:
+ 		// mark mspan.specials
+-		markrootSpans(gcw, int(i-baseSpans))
++		markrootSpans(gcw, int(i-work.baseSpans))
+ 
+ 	default:
+ 		// the rest is scanning goroutine stacks
+ 		var gp *g
+-		if baseStacks <= i && i < end {
++		if work.baseStacks <= i && i < work.baseEnd {
+ 			// N.B. Atomic read of allglen in gcMarkRootPrepare
+ 			// acts as a barrier to ensure that allgs must be large
+ 			// enough to contain all relevant Gs.
+-			gp = allgs[i-baseStacks]
++			gp = allgs[i-work.baseStacks]
+ 		} else {
+ 			throw("markroot: bad index")
+ 		}

@@ -12,7 +12,7 @@ Date:   Sat Oct 1 17:24:35 2022 +0000
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Run-TryBot: hopehook <hopehook@golangcn.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/dwarfgen/dwarf.go | 2 +-
  src/cmd/go/internal/modload/load.go        | 2 +-
  src/cmd/go/internal/modload/query.go       | 2 +-
@@ -20,3 +20,82 @@ Date:   Sat Oct 1 17:24:35 2022 +0000
  src/cmd/internal/obj/ppc64/asm_test.go     | 2 +-
  src/cmd/link/internal/ld/data.go           | 2 +-
  6 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/dwarfgen/dwarf.go b/src/cmd/compile/internal/dwarfgen/dwarf.go
+index bdaa043396..179152f5bf 100644
+--- a/src/cmd/compile/internal/dwarfgen/dwarf.go
++++ b/src/cmd/compile/internal/dwarfgen/dwarf.go
+@@ -107,7 +107,7 @@ func Info(fnsym *obj.LSym, infosym *obj.LSym, curfn interface{}) ([]dwarf.Scope,
+ 	// the function symbol to insure that the type included in DWARF
+ 	// processing during linking.
+ 	typesyms := []*obj.LSym{}
+-	for t, _ := range fnsym.Func().Autot {
++	for t := range fnsym.Func().Autot {
+ 		typesyms = append(typesyms, t)
+ 	}
+ 	sort.Sort(obj.BySymName(typesyms))
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index fcd93ba94b..d92e2ba710 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -1105,7 +1105,7 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
+ 		}
+ 
+ 		toAdd := make([]module.Version, 0, len(modAddedBy))
+-		for m, _ := range modAddedBy {
++		for m := range modAddedBy {
+ 			toAdd = append(toAdd, m)
+ 		}
+ 		module.Sort(toAdd) // to make errors deterministic
+diff --git a/src/cmd/go/internal/modload/query.go b/src/cmd/go/internal/modload/query.go
+index c74c9b32e2..c3764b4413 100644
+--- a/src/cmd/go/internal/modload/query.go
++++ b/src/cmd/go/internal/modload/query.go
+@@ -1116,7 +1116,7 @@ func (rr *replacementRepo) Versions(prefix string) (*modfetch.Versions, error) {
+ 	for _, mm := range MainModules.Versions() {
+ 		if index := MainModules.Index(mm); index != nil && len(index.replace) > 0 {
+ 			path := rr.ModulePath()
+-			for m, _ := range index.replace {
++			for m := range index.replace {
+ 				if m.Path == path && strings.HasPrefix(m.Version, prefix) && m.Version != "" && !module.IsPseudoVersion(m.Version) {
+ 					versions = append(versions, m.Version)
+ 				}
+diff --git a/src/cmd/go/internal/workcmd/use.go b/src/cmd/go/internal/workcmd/use.go
+index 6da64b3f09..fcb4e9e5f1 100644
+--- a/src/cmd/go/internal/workcmd/use.go
++++ b/src/cmd/go/internal/workcmd/use.go
+@@ -149,7 +149,7 @@ func runUse(ctx context.Context, cmd *base.Command, args []string) {
+ 
+ 		// Remove entries for subdirectories that no longer exist.
+ 		// Because they don't exist, they will be skipped by Walk.
+-		for absDir, _ := range haveDirs {
++		for absDir := range haveDirs {
+ 			if str.HasFilePathPrefix(absDir, absArg) {
+ 				if _, ok := keepDirs[absDir]; !ok {
+ 					keepDirs[absDir] = "" // Mark for deletion.
+diff --git a/src/cmd/internal/obj/ppc64/asm_test.go b/src/cmd/internal/obj/ppc64/asm_test.go
+index aef442e485..ff18a5e461 100644
+--- a/src/cmd/internal/obj/ppc64/asm_test.go
++++ b/src/cmd/internal/obj/ppc64/asm_test.go
+@@ -547,7 +547,7 @@ func TestAddrClassifier(t *testing.T) {
+ 		case int:
+ 			expect = []int{tst.output.(int), tst.output.(int), tst.output.(int), tst.output.(int)}
+ 		}
+-		for i, _ := range ctxts {
++		for i := range ctxts {
+ 			if output := ctxts[i].aclass(&tst.arg); output != expect[i] {
+ 				t.Errorf("%s.aclass(%v) = %v, expected %v\n", name[i], tst.arg, DRconv(output), DRconv(expect[i]))
+ 			}
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 1848cd7a5e..0f2fd214a7 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -2732,7 +2732,7 @@ func (ctxt *Link) address() []*sym.Segment {
+ 		if gotAddr := ldr.SymValue(ctxt.GOT); gotAddr != 0 {
+ 			tocAddr = gotAddr + 0x8000
+ 		}
+-		for i, _ := range ctxt.DotTOC {
++		for i := range ctxt.DotTOC {
+ 			if i >= sym.SymVerABICount && i < sym.SymVerStatic { // these versions are not used currently
+ 				continue
+ 			}

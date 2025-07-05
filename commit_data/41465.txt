@@ -10,6 +10,43 @@ Date:   Tue Oct 1 11:10:22 2019 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/198484
     Run-TryBot: David Chase <drchase@google.com>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
-
+---
  src/cmd/compile/internal/ssa/prove.go | 7 ++++++-
  1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/prove.go b/src/cmd/compile/internal/ssa/prove.go
+index efa4453f75..4f9a4d53fb 100644
+--- a/src/cmd/compile/internal/ssa/prove.go
++++ b/src/cmd/compile/internal/ssa/prove.go
+@@ -5,6 +5,7 @@
+ package ssa
+ 
+ import (
++	"cmd/internal/src"
+ 	"fmt"
+ 	"math"
+ )
+@@ -1284,18 +1285,22 @@ func simplifyBlock(sdom SparseTree, ft *factsTable, b *Block) {
+ }
+ 
+ func removeBranch(b *Block, branch branch) {
++	c := b.Controls[0]
+ 	if b.Func.pass.debug > 0 {
+ 		verb := "Proved"
+ 		if branch == positive {
+ 			verb = "Disproved"
+ 		}
+-		c := b.Controls[0]
+ 		if b.Func.pass.debug > 1 {
+ 			b.Func.Warnl(b.Pos, "%s %s (%s)", verb, c.Op, c)
+ 		} else {
+ 			b.Func.Warnl(b.Pos, "%s %s", verb, c.Op)
+ 		}
+ 	}
++	if c != nil && c.Pos.IsStmt() == src.PosIsStmt && c.Pos.SameFileAndLine(b.Pos) {
++		// attempt to preserve statement marker.
++		b.Pos = b.Pos.WithIsStmt()
++	}
+ 	b.Kind = BlockFirst
+ 	b.ResetControls()
+ 	if branch == positive {

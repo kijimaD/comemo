@@ -9,6 +9,20 @@ Date:   Tue Sep 6 08:05:19 2016 -0400
     Change-Id: I586e7c2afba349281168df5e20d2fdcb697f6e37
     Reviewed-on: https://go-review.googlesource.com/28542
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/link/internal/ld/elf.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index 3e027c6a08..85935b67f9 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -2589,6 +2589,8 @@ elfobj:
+ 
+ 	if Linkmode == LinkExternal {
+ 		eh.type_ = ET_REL
++	} else if Buildmode == BuildmodePIE {
++		eh.type_ = ET_DYN
+ 	} else {
+ 		eh.type_ = ET_EXEC
+ 	}

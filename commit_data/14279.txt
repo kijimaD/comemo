@@ -9,6 +9,40 @@ Date:   Thu Nov 1 13:57:24 2012 -0400
     R=dave, minux.ma, rsc
     CC=golang-dev
     https://golang.org/cl/5536078
-
+---
  src/pkg/compress/flate/inflate.go | 8 ++++++--
  1 file changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/compress/flate/inflate.go b/src/pkg/compress/flate/inflate.go
+index c7ef5ff7e6..c5a54b998f 100644
+--- a/src/pkg/compress/flate/inflate.go
++++ b/src/pkg/compress/flate/inflate.go
+@@ -208,8 +208,8 @@ type decompressor struct {
+ 	h1, h2 huffmanDecoder
+ 
+ 	// Length arrays used to define Huffman codes.
+-	bits     [maxLit + maxDist]int
+-	codebits [numCodes]int
++	bits     *[maxLit + maxDist]int
++	codebits *[numCodes]int
+ 
+ 	// Output history, buffer.
+ 	hist  *[maxHist]byte
+@@ -692,6 +692,8 @@ func makeReader(r io.Reader) Reader {
+ // finished reading.
+ func NewReader(r io.Reader) io.ReadCloser {
+ 	var f decompressor
++	f.bits = new([maxLit + maxDist]int)
++	f.codebits = new([numCodes]int)
+ 	f.r = makeReader(r)
+ 	f.hist = new([maxHist]byte)
+ 	f.step = (*decompressor).nextBlock
+@@ -707,6 +709,8 @@ func NewReaderDict(r io.Reader, dict []byte) io.ReadCloser {
+ 	var f decompressor
+ 	f.r = makeReader(r)
+ 	f.hist = new([maxHist]byte)
++	f.bits = new([maxLit + maxDist]int)
++	f.codebits = new([numCodes]int)
+ 	f.step = (*decompressor).nextBlock
+ 	f.setDict(dict)
+ 	return &f

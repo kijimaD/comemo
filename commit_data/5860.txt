@@ -13,7 +13,320 @@ Date:   Wed Jul 21 10:07:22 2010 -0400
     R=rsc, r
     CC=golang-dev
     https://golang.org/cl/1875043
-
+---
  src/pkg/crypto/ocsp/ocsp.go      | 203 +++++++++++++++++++++++++++++++++++++++
  src/pkg/crypto/ocsp/ocsp_test.go |  97 +++++++++++++++++++
  2 files changed, 300 insertions(+)
+
+diff --git a/src/pkg/crypto/ocsp/ocsp.go b/src/pkg/crypto/ocsp/ocsp.go
+new file mode 100644
+index 0000000000..26ef065fda
+--- /dev/null
++++ b/src/pkg/crypto/ocsp/ocsp.go
+@@ -0,0 +1,203 @@
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This package parses OCSP responses as specified in RFC 2560. OCSP responses
++// are signed messages attesting to the validity of a certificate for a small
++// period of time. This is used to manage revocation for X.509 certificates.
++package ocsp
++
++import (
++	"asn1"
++	"crypto/rsa"
++	"crypto/sha1"
++	"crypto/x509"
++	"os"
++	"time"
++)
++
++var idPKIXOCSPBasic = asn1.ObjectIdentifier([]int{1, 3, 6, 1, 5, 5, 7, 48, 1, 1})
++var idSHA1WithRSA = asn1.ObjectIdentifier([]int{1, 2, 840, 113549, 1, 1, 5})
++
++// These are internal structures that reflect the ASN.1 structure of an OCSP
++// response. See RFC 2560, section 4.2.
++
++const (
++	ocspSuccess       = 0
++	ocspMalformed     = 1
++	ocspInternalError = 2
++	ocspTryLater      = 3
++	ocspSigRequired   = 4
++	ocspUnauthorized  = 5
++)
++
++type rdnSequence []relativeDistinguishedNameSET
++
++type relativeDistinguishedNameSET []attributeTypeAndValue
++
++type attributeTypeAndValue struct {
++	Type  asn1.ObjectIdentifier
++	Value interface{}
++}
++
++type algorithmIdentifier struct {
++	Algorithm asn1.ObjectIdentifier
++}
++
++type certID struct {
++	HashAlgorithm algorithmIdentifier
++	NameHash      []byte
++	IssuerKeyHash []byte
++	SerialNumber  asn1.RawValue
++}
++
++type responseASN1 struct {
++	Status   asn1.Enumerated
++	Response responseBytes "explicit,tag:0"
++}
++
++type responseBytes struct {
++	ResponseType asn1.ObjectIdentifier
++	Response     []byte
++}
++
++type basicResponse struct {
++	TBSResponseData    responseData
++	SignatureAlgorithm algorithmIdentifier
++	Signature          asn1.BitString
++	Certificates       []asn1.RawValue "explicit,tag:0,optional"
++}
++
++type responseData struct {
++	Raw           asn1.RawContent
++	Version       int         "optional,default:1,explicit,tag:0"
++	RequestorName rdnSequence "optional,explicit,tag:1"
++	KeyHash       []byte      "optional,explicit,tag:2"
++	ProducedAt    *time.Time
++	Responses     []singleResponse
++}
++
++type singleResponse struct {
++	CertID     certID
++	Good       asn1.Flag   "explicit,tag:0,optional"
++	Revoked    revokedInfo "explicit,tag:1,optional"
++	Unknown    asn1.Flag   "explicit,tag:2,optional"
++	ThisUpdate *time.Time
++	NextUpdate *time.Time "explicit,tag:0,optional"
++}
++
++type revokedInfo struct {
++	RevocationTime *time.Time
++	Reason         int "explicit,tag:0,optional"
++}
++
++// This is the exposed reflection of the internal OCSP structures.
++
++const (
++	// Good means that the certificate is valid.
++	Good = iota
++	// Revoked means that the certificate has been deliberately revoked.
++	Revoked = iota
++	// Unknown means that the OCSP responder doesn't know about the certificate.
++	Unknown = iota
++	// ServerFailed means that the OCSP responder failed to process the request.
++	ServerFailed = iota
++)
++
++// Response represents an OCSP response. See RFC 2560.
++type Response struct {
++	// Status is one of {Good, Revoked, Unknown, ServerFailed}
++	Status                                        int
++	SerialNumber                                  []byte
++	ProducedAt, ThisUpdate, NextUpdate, RevokedAt *time.Time
++	RevocationReason                              int
++	Certificate                                   *x509.Certificate
++}
++
++// ParseError results from an invalid OCSP response.
++type ParseError string
++
++func (p ParseError) String() string {
++	return string(p)
++}
++
++// ParseResponse parses an OCSP response in DER form. It only supports
++// responses for a single certificate and only those using RSA signatures.
++// Non-RSA responses will result in an x509.UnsupportedAlgorithmError.
++// Signature errors or parse failures will result in a ParseError.
++func ParseResponse(bytes []byte) (*Response, os.Error) {
++	var resp responseASN1
++	rest, err := asn1.Unmarshal(&resp, bytes)
++	if err != nil {
++		return nil, err
++	}
++	if len(rest) > 0 {
++		return nil, ParseError("trailing data in OCSP response")
++	}
++
++	ret := new(Response)
++	if resp.Status != ocspSuccess {
++		ret.Status = ServerFailed
++		return ret, nil
++	}
++
++	if !resp.Response.ResponseType.Equal(idPKIXOCSPBasic) {
++		return nil, ParseError("bad OCSP response type")
++	}
++
++	var basicResp basicResponse
++	rest, err = asn1.Unmarshal(&basicResp, resp.Response.Response)
++	if err != nil {
++		return nil, err
++	}
++
++	if len(basicResp.Certificates) != 1 {
++		return nil, ParseError("OCSP response contains bad number of certificates")
++	}
++
++	if len(basicResp.TBSResponseData.Responses) != 1 {
++		return nil, ParseError("OCSP response contains bad number of responses")
++	}
++
++	ret.Certificate, err = x509.ParseCertificate(basicResp.Certificates[0].FullBytes)
++	if err != nil {
++		return nil, err
++	}
++
++	if ret.Certificate.PublicKeyAlgorithm != x509.RSA || !basicResp.SignatureAlgorithm.Algorithm.Equal(idSHA1WithRSA) {
++		return nil, x509.UnsupportedAlgorithmError{}
++	}
++
++	h := sha1.New()
++	hashType := rsa.HashSHA1
++
++	pub := ret.Certificate.PublicKey.(*rsa.PublicKey)
++	h.Write(basicResp.TBSResponseData.Raw)
++	digest := h.Sum()
++	signature := basicResp.Signature.RightAlign()
++
++	if rsa.VerifyPKCS1v15(pub, hashType, digest, signature) != nil {
++		return nil, ParseError("bad OCSP signature")
++	}
++
++	r := basicResp.TBSResponseData.Responses[0]
++
++	ret.SerialNumber = r.CertID.SerialNumber.Bytes
++
++	switch {
++	case bool(r.Good):
++		ret.Status = Good
++	case bool(r.Unknown):
++		ret.Status = Unknown
++	default:
++		ret.Status = Revoked
++		ret.RevokedAt = r.Revoked.RevocationTime
++		ret.RevocationReason = r.Revoked.Reason
++	}
++
++	ret.ProducedAt = basicResp.TBSResponseData.ProducedAt
++	ret.ThisUpdate = r.ThisUpdate
++	ret.NextUpdate = r.NextUpdate
++
++	return ret, nil
++}
+diff --git a/src/pkg/crypto/ocsp/ocsp_test.go b/src/pkg/crypto/ocsp/ocsp_test.go
+new file mode 100644
+index 0000000000..f9889790f0
+--- /dev/null
++++ b/src/pkg/crypto/ocsp/ocsp_test.go
+@@ -0,0 +1,97 @@
++package ocsp
++
++import (
++	"bytes"
++	"encoding/hex"
++	"reflect"
++	"testing"
++	"time"
++)
++
++func TestOCSPDecode(t *testing.T) {
++	responseBytes, _ := hex.DecodeString(ocspResponseHex)
++	resp, err := ParseResponse(responseBytes)
++	if err != nil {
++		t.Error(err)
++	}
++
++	expected := Response{Status: 0, SerialNumber: []byte{0x1, 0xd0, 0xfa}, RevocationReason: 0, ThisUpdate: &time.Time{Year: 2010, Month: 7, Day: 7, Hour: 15, Minute: 1, Second: 5, Weekday: 0, ZoneOffset: 0, Zone: "UTC"}, NextUpdate: &time.Time{Year: 2010, Month: 7, Day: 7, Hour: 18, Minute: 35, Second: 17, Weekday: 0, ZoneOffset: 0, Zone: "UTC"}}
++
++	if !reflect.DeepEqual(resp.ThisUpdate, resp.ThisUpdate) {
++		t.Errorf("resp.ThisUpdate: got %d, want %d", resp.ThisUpdate, expected.ThisUpdate)
++	}
++
++	if !reflect.DeepEqual(resp.NextUpdate, resp.NextUpdate) {
++		t.Errorf("resp.NextUpdate: got %d, want %d", resp.NextUpdate, expected.NextUpdate)
++	}
++
++	if resp.Status != expected.Status {
++		t.Errorf("resp.Status: got %d, want %d", resp.Status, expected.Status)
++	}
++
++	if !bytes.Equal(resp.SerialNumber, expected.SerialNumber) {
++		t.Errorf("resp.SerialNumber: got %x, want %x", resp.SerialNumber, expected.SerialNumber)
++	}
++
++	if resp.RevocationReason != expected.RevocationReason {
++		t.Errorf("resp.RevocationReason: got %d, want %d", resp.RevocationReason, expected.RevocationReason)
++	}
++}
++
++// This OCSP response was taken from Thawte's public OCSP responder.
++// To recreate:
++//   $ openssl s_client -tls1 -showcerts -servername www.google.com -connect www.google.com:443
++// Copy and paste the first certificate into /tmp/cert.crt and the second into
++// /tmp/intermediate.crt
++//   $ openssl ocsp -issuer /tmp/intermediate.crt -cert /tmp/cert.crt -url http://ocsp.thawte.com -resp_text -respout /tmp/ocsp.der
++// Then hex encode the result:
++//   $ python -c 'print file("/tmp/ocsp.der", "r").read().encode("hex")'
++
++const ocspResponseHex = "308206bc0a0100a08206b5308206b106092b0601050507300101048206a23082069e3081" +
++	"c9a14e304c310b300906035504061302494c31163014060355040a130d5374617274436f" +
++	"6d204c74642e312530230603550403131c5374617274436f6d20436c6173732031204f43" +
++	"5350205369676e6572180f32303130303730373137333531375a30663064303c30090605" +
++	"2b0e03021a050004146568874f40750f016a3475625e1f5c93e5a26d580414eb4234d098" +
++	"b0ab9ff41b6b08f7cc642eef0e2c45020301d0fa8000180f323031303037303731353031" +
++	"30355aa011180f32303130303730373138333531375a300d06092a864886f70d01010505" +
++	"000382010100ab557ff070d1d7cebbb5f0ec91a15c3fed22eb2e1b8244f1b84545f013a4" +
++	"fb46214c5e3fbfbebb8a56acc2b9db19f68fd3c3201046b3824d5ba689f99864328710cb" +
++	"467195eb37d84f539e49f859316b32964dc3e47e36814ce94d6c56dd02733b1d0802f7ff" +
++	"4eebdbbd2927dcf580f16cbc290f91e81b53cb365e7223f1d6e20a88ea064104875e0145" +
++	"672b20fc14829d51ca122f5f5d77d3ad6c83889c55c7dc43680ba2fe3cef8b05dbcabdc0" +
++	"d3e09aaf9725597f8c858c2fa38c0d6aed2e6318194420dd1a1137445d13e1c97ab47896" +
++	"17a4e08925f46f867b72e3a4dc1f08cb870b2b0717f7207faa0ac512e628a029aba7457a" +
++	"e63dcf3281e2162d9349a08204ba308204b6308204b23082039aa003020102020101300d" +
++	"06092a864886f70d010105050030818c310b300906035504061302494c31163014060355" +
++	"040a130d5374617274436f6d204c74642e312b3029060355040b13225365637572652044" +
++	"69676974616c204365727469666963617465205369676e696e6731383036060355040313" +
++	"2f5374617274436f6d20436c6173732031205072696d61727920496e7465726d65646961" +
++	"746520536572766572204341301e170d3037313032353030323330365a170d3132313032" +
++	"333030323330365a304c310b300906035504061302494c31163014060355040a130d5374" +
++	"617274436f6d204c74642e312530230603550403131c5374617274436f6d20436c617373" +
++	"2031204f435350205369676e657230820122300d06092a864886f70d0101010500038201" +
++	"0f003082010a0282010100b9561b4c45318717178084e96e178df2255e18ed8d8ecc7c2b" +
++	"7b51a6c1c2e6bf0aa3603066f132fe10ae97b50e99fa24b83fc53dd2777496387d14e1c3" +
++	"a9b6a4933e2ac12413d085570a95b8147414a0bc007c7bcf222446ef7f1a156d7ea1c577" +
++	"fc5f0facdfd42eb0f5974990cb2f5cefebceef4d1bdc7ae5c1075c5a99a93171f2b0845b" +
++	"4ff0864e973fcfe32f9d7511ff87a3e943410c90a4493a306b6944359340a9ca96f02b66" +
++	"ce67f028df2980a6aaee8d5d5d452b8b0eb93f923cc1e23fcccbdbe7ffcb114d08fa7a6a" +
++	"3c404f825d1a0e715935cf623a8c7b59670014ed0622f6089a9447a7a19010f7fe58f841" +
++	"29a2765ea367824d1c3bb2fda308530203010001a382015c30820158300c0603551d1301" +
++	"01ff04023000300b0603551d0f0404030203a8301e0603551d250417301506082b060105" +
++	"0507030906092b0601050507300105301d0603551d0e0416041445e0a36695414c5dd449" +
++	"bc00e33cdcdbd2343e173081a80603551d230481a030819d8014eb4234d098b0ab9ff41b" +
++	"6b08f7cc642eef0e2c45a18181a47f307d310b300906035504061302494c311630140603" +
++	"55040a130d5374617274436f6d204c74642e312b3029060355040b132253656375726520" +
++	"4469676974616c204365727469666963617465205369676e696e67312930270603550403" +
++	"13205374617274436f6d2043657274696669636174696f6e20417574686f726974798201" +
++	"0a30230603551d12041c301a8618687474703a2f2f7777772e737461727473736c2e636f" +
++	"6d2f302c06096086480186f842010d041f161d5374617274436f6d205265766f63617469" +
++	"6f6e20417574686f72697479300d06092a864886f70d01010505000382010100182d2215" +
++	"8f0fc0291324fa8574c49bb8ff2835085adcbf7b7fc4191c397ab6951328253fffe1e5ec" +
++	"2a7da0d50fca1a404e6968481366939e666c0a6209073eca57973e2fefa9ed1718e8176f" +
++	"1d85527ff522c08db702e3b2b180f1cbff05d98128252cf0f450f7dd2772f4188047f19d" +
++	"c85317366f94bc52d60f453a550af58e308aaab00ced33040b62bf37f5b1ab2a4f7f0f80" +
++	"f763bf4d707bc8841d7ad9385ee2a4244469260b6f2bf085977af9074796048ecc2f9d48" +
++	"a1d24ce16e41a9941568fec5b42771e118f16c106a54ccc339a4b02166445a167902e75e" +
++	"6d8620b0825dcd18a069b90fd851d10fa8effd409deec02860d26d8d833f304b10669b42"

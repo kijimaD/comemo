@@ -15,10 +15,398 @@ Date:   Wed Jul 27 12:33:08 2016 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/arm/ssa.go        | 48 +++++++++++++++--------
  src/cmd/compile/internal/ssa/gen/ARM.rules | 26 ++++++-------
  src/cmd/compile/internal/ssa/gen/ARMOps.go | 51 ++++---------------------
  src/cmd/compile/internal/ssa/opGen.go      | 36 +++---------------
  src/cmd/compile/internal/ssa/rewriteARM.go | 61 +++++-------------------------
  5 files changed, 68 insertions(+), 154 deletions(-)
+
+diff --git a/src/cmd/compile/internal/arm/ssa.go b/src/cmd/compile/internal/arm/ssa.go
+index bdb3c36cf4..f16dc0f95f 100644
+--- a/src/cmd/compile/internal/arm/ssa.go
++++ b/src/cmd/compile/internal/arm/ssa.go
+@@ -797,7 +797,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 					}
+ 					return
+ 				}
+-			case ssa.OpARMDUFFZERO, ssa.OpARMLoweredZero, ssa.OpARMLoweredZeroU:
++			case ssa.OpARMDUFFZERO, ssa.OpARMLoweredZero:
+ 				// arg0 is ptr
+ 				if w.Args[0] == v.Args[0] {
+ 					if gc.Debug_checknil != 0 && int(v.Line) > 1 {
+@@ -805,7 +805,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 					}
+ 					return
+ 				}
+-			case ssa.OpARMDUFFCOPY, ssa.OpARMLoweredMove, ssa.OpARMLoweredMoveU:
++			case ssa.OpARMDUFFCOPY, ssa.OpARMLoweredMove:
+ 				// arg0 is dst ptr, arg1 is src ptr
+ 				if w.Args[0] == v.Args[0] || w.Args[1] == v.Args[0] {
+ 					if gc.Debug_checknil != 0 && int(v.Line) > 1 {
+@@ -835,15 +835,23 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		if gc.Debug_checknil != 0 && v.Line > 1 { // v.Line==1 in generated wrappers
+ 			gc.Warnl(v.Line, "generated nil check")
+ 		}
+-	case ssa.OpARMLoweredZero, ssa.OpARMLoweredZeroU:
++	case ssa.OpARMLoweredZero:
+ 		// MOVW.P	Rarg2, 4(R1)
+ 		// CMP	Rarg1, R1
+-		// BLT	-2(PC)
+-		// arg1 is the end of memory to zero
++		// BLE	-2(PC)
++		// arg1 is the address of the last element to zero
+ 		// arg2 is known to be zero
+-		var sz int64 = 4
+-		mov := arm.AMOVW
+-		if v.Op == ssa.OpARMLoweredZeroU { // unaligned
++		// auxint is alignment
++		var sz int64
++		var mov obj.As
++		switch {
++		case v.AuxInt%4 == 0:
++			sz = 4
++			mov = arm.AMOVW
++		case v.AuxInt%2 == 0:
++			sz = 2
++			mov = arm.AMOVH
++		default:
+ 			sz = 1
+ 			mov = arm.AMOVB
+ 		}
+@@ -858,18 +866,26 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p2.From.Type = obj.TYPE_REG
+ 		p2.From.Reg = gc.SSARegNum(v.Args[1])
+ 		p2.Reg = arm.REG_R1
+-		p3 := gc.Prog(arm.ABLT)
++		p3 := gc.Prog(arm.ABLE)
+ 		p3.To.Type = obj.TYPE_BRANCH
+ 		gc.Patch(p3, p)
+-	case ssa.OpARMLoweredMove, ssa.OpARMLoweredMoveU:
++	case ssa.OpARMLoweredMove:
+ 		// MOVW.P	4(R1), Rtmp
+ 		// MOVW.P	Rtmp, 4(R2)
+ 		// CMP	Rarg2, R1
+-		// BLT	-3(PC)
+-		// arg2 is the end of src
+-		var sz int64 = 4
+-		mov := arm.AMOVW
+-		if v.Op == ssa.OpARMLoweredMoveU { // unaligned
++		// BLE	-3(PC)
++		// arg2 is the address of the last element of src
++		// auxint is alignment
++		var sz int64
++		var mov obj.As
++		switch {
++		case v.AuxInt%4 == 0:
++			sz = 4
++			mov = arm.AMOVW
++		case v.AuxInt%2 == 0:
++			sz = 2
++			mov = arm.AMOVH
++		default:
+ 			sz = 1
+ 			mov = arm.AMOVB
+ 		}
+@@ -891,7 +907,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p3.From.Type = obj.TYPE_REG
+ 		p3.From.Reg = gc.SSARegNum(v.Args[2])
+ 		p3.Reg = arm.REG_R1
+-		p4 := gc.Prog(arm.ABLT)
++		p4 := gc.Prog(arm.ABLE)
+ 		p4.To.Type = obj.TYPE_BRANCH
+ 		gc.Patch(p4, p)
+ 	case ssa.OpVarDef:
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM.rules b/src/cmd/compile/internal/ssa/gen/ARM.rules
+index 17d151d824..54d7395d0c 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM.rules
+@@ -302,13 +302,12 @@
+ 
+ // Large zeroing uses a loop
+ (Zero [s] ptr mem)
+-	&& SizeAndAlign(s).Size()%4 == 0 && (SizeAndAlign(s).Size() > 512 || config.noDuffDevice)
+-	&& SizeAndAlign(s).Align()%4 == 0 ->
+-	(LoweredZero ptr (ADDconst <ptr.Type> ptr [SizeAndAlign(s).Size()]) (MOVWconst [0]) mem)
+-
+-// Unaligned zeroing uses a loop
+-(Zero [s] ptr mem) && SizeAndAlign(s).Size() > 4 && SizeAndAlign(s).Align()%4 != 0 ->
+-	(LoweredZeroU ptr (ADDconst <ptr.Type> ptr [SizeAndAlign(s).Size()]) (MOVWconst [0]) mem)
++	&& (SizeAndAlign(s).Size() > 512 || config.noDuffDevice) || SizeAndAlign(s).Align()%4 != 0 ->
++	(LoweredZero [SizeAndAlign(s).Align()]
++		ptr
++		(ADDconst <ptr.Type> ptr [SizeAndAlign(s).Size()-moveSize(SizeAndAlign(s).Align(), config)])
++		(MOVWconst [0])
++		mem)
+ 
+ // moves
+ (Move [s] _ _ mem) && SizeAndAlign(s).Size() == 0 -> mem
+@@ -343,13 +342,12 @@
+ 
+ // Large move uses a loop
+ (Move [s] dst src mem)
+-	&& SizeAndAlign(s).Size()%4 == 0 && (SizeAndAlign(s).Size() > 512 || config.noDuffDevice)
+-	&& SizeAndAlign(s).Align()%4 == 0 ->
+-	(LoweredMove dst src (ADDconst <src.Type> src [SizeAndAlign(s).Size()]) mem)
+-
+-// Unaligned move uses a loop
+-(Move [s] dst src mem) && SizeAndAlign(s).Size() > 4 && SizeAndAlign(s).Align()%4 != 0 ->
+-	(LoweredMoveU dst src (ADDconst <src.Type> src [SizeAndAlign(s).Size()]) mem)
++	&& (SizeAndAlign(s).Size() > 512 || config.noDuffDevice) || SizeAndAlign(s).Align()%4 != 0 ->
++	(LoweredMove [SizeAndAlign(s).Align()]
++		dst
++		src
++		(ADDconst <src.Type> src [SizeAndAlign(s).Size()-moveSize(SizeAndAlign(s).Align(), config)])
++		mem)
+ 
+ // calls
+ (StaticCall [argwid] {target} mem) -> (CALLstatic [argwid] {target} mem)
+diff --git a/src/cmd/compile/internal/ssa/gen/ARMOps.go b/src/cmd/compile/internal/ssa/gen/ARMOps.go
+index 85e1e2f941..865dc1034e 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARMOps.go
++++ b/src/cmd/compile/internal/ssa/gen/ARMOps.go
+@@ -415,17 +415,18 @@ func init() {
+ 			},
+ 		},
+ 
+-		// large zeroing (must be 4-byte aligned)
++		// large or unaligned zeroing
+ 		// arg0 = address of memory to zero (in R1, changed as side effect)
+-		// arg1 = address of the end of the memory to zero
++		// arg1 = address of the last element to zero
+ 		// arg2 = value to store (always zero)
+ 		// arg3 = mem
+ 		// returns mem
+ 		//	MOVW.P	Rarg2, 4(R1)
+ 		//	CMP	R1, Rarg1
+-		//	BLT	-2(PC)
++		//	BLE	-2(PC)
+ 		{
+ 			name:      "LoweredZero",
++			aux:       "Int64",
+ 			argLength: 4,
+ 			reg: regInfo{
+ 				inputs:   []regMask{buildReg("R1"), gp, gp},
+@@ -433,55 +434,19 @@ func init() {
+ 			},
+ 		},
+ 
+-		// large move (must be 4-byte aligned)
++		// large or unaligned move
+ 		// arg0 = address of dst memory (in R2, changed as side effect)
+ 		// arg1 = address of src memory (in R1, changed as side effect)
+-		// arg2 = address of the end of src memory
++		// arg2 = address of the last element of src
+ 		// arg3 = mem
+ 		// returns mem
+ 		//	MOVW.P	4(R1), Rtmp
+ 		//	MOVW.P	Rtmp, 4(R2)
+ 		//	CMP	R1, Rarg2
+-		//	BLT	-3(PC)
++		//	BLE	-3(PC)
+ 		{
+ 			name:      "LoweredMove",
+-			argLength: 4,
+-			reg: regInfo{
+-				inputs:   []regMask{buildReg("R2"), buildReg("R1"), gp},
+-				clobbers: buildReg("R1 R2 FLAGS"),
+-			},
+-		},
+-
+-		// unaligned zeroing
+-		// arg0 = address of memory to zero (in R1, changed as side effect)
+-		// arg1 = address of the end of the memory to zero
+-		// arg2 = value to store (always zero)
+-		// arg3 = mem
+-		// returns mem
+-		//	MOVB.P	Rarg2, 1(R1)
+-		//	CMP	R1, Rarg1
+-		//	BLT	-2(PC)
+-		{
+-			name:      "LoweredZeroU",
+-			argLength: 4,
+-			reg: regInfo{
+-				inputs:   []regMask{buildReg("R1"), gp, gp},
+-				clobbers: buildReg("R1 FLAGS"),
+-			},
+-		},
+-
+-		// unaligned move
+-		// arg0 = address of dst memory (in R2, changed as side effect)
+-		// arg1 = address of src memory (in R1, changed as side effect)
+-		// arg2 = address of the end of src memory
+-		// arg3 = mem
+-		// returns mem
+-		//	MOVB.P	1(R1), Rtmp
+-		//	MOVB.P	Rtmp, 1(R2)
+-		//	CMP	R1, Rarg2
+-		//	BLT	-3(PC)
+-		{
+-			name:      "LoweredMoveU",
++			aux:       "Int64",
+ 			argLength: 4,
+ 			reg: regInfo{
+ 				inputs:   []regMask{buildReg("R2"), buildReg("R1"), gp},
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 89a79ef1c0..d66515402d 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -786,8 +786,6 @@ const (
+ 	OpARMDUFFCOPY
+ 	OpARMLoweredZero
+ 	OpARMLoweredMove
+-	OpARMLoweredZeroU
+-	OpARMLoweredMoveU
+ 	OpARMLoweredGetClosurePtr
+ 	OpARMMOVWconvert
+ 	OpARMFlagEQ
+@@ -9879,32 +9877,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "LoweredZero",
+-		argLen: 4,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 2},    // R1
+-				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+-				{2, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+-			},
+-			clobbers: 4294967298, // R1 FLAGS
+-		},
+-	},
+-	{
+-		name:   "LoweredMove",
+-		argLen: 4,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 4},    // R2
+-				{1, 2},    // R1
+-				{2, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+-			},
+-			clobbers: 4294967302, // R1 R2 FLAGS
+-		},
+-	},
+-	{
+-		name:   "LoweredZeroU",
+-		argLen: 4,
++		name:    "LoweredZero",
++		auxType: auxInt64,
++		argLen:  4,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 2},    // R1
+@@ -9915,8 +9890,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "LoweredMoveU",
+-		argLen: 4,
++		name:    "LoweredMove",
++		auxType: auxInt64,
++		argLen:  4,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4},    // R2
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM.go b/src/cmd/compile/internal/ssa/rewriteARM.go
+index c391ffa436..eb000d7460 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM.go
+@@ -10696,43 +10696,23 @@ func rewriteValueARM_OpMove(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ 	// match: (Move [s] dst src mem)
+-	// cond: SizeAndAlign(s).Size()%4 == 0 && (SizeAndAlign(s).Size() > 512 || config.noDuffDevice) 	&& SizeAndAlign(s).Align()%4 == 0
+-	// result: (LoweredMove dst src (ADDconst <src.Type> src [SizeAndAlign(s).Size()]) mem)
++	// cond: (SizeAndAlign(s).Size() > 512 || config.noDuffDevice) || SizeAndAlign(s).Align()%4 != 0
++	// result: (LoweredMove [SizeAndAlign(s).Align()] 		dst 		src 		(ADDconst <src.Type> src [SizeAndAlign(s).Size()-moveSize(SizeAndAlign(s).Align(), config)]) 		mem)
+ 	for {
+ 		s := v.AuxInt
+ 		dst := v.Args[0]
+ 		src := v.Args[1]
+ 		mem := v.Args[2]
+-		if !(SizeAndAlign(s).Size()%4 == 0 && (SizeAndAlign(s).Size() > 512 || config.noDuffDevice) && SizeAndAlign(s).Align()%4 == 0) {
++		if !((SizeAndAlign(s).Size() > 512 || config.noDuffDevice) || SizeAndAlign(s).Align()%4 != 0) {
+ 			break
+ 		}
+ 		v.reset(OpARMLoweredMove)
++		v.AuxInt = SizeAndAlign(s).Align()
+ 		v.AddArg(dst)
+ 		v.AddArg(src)
+ 		v0 := b.NewValue0(v.Line, OpARMADDconst, src.Type)
+ 		v0.AddArg(src)
+-		v0.AuxInt = SizeAndAlign(s).Size()
+-		v.AddArg(v0)
+-		v.AddArg(mem)
+-		return true
+-	}
+-	// match: (Move [s] dst src mem)
+-	// cond: SizeAndAlign(s).Size() > 4 && SizeAndAlign(s).Align()%4 != 0
+-	// result: (LoweredMoveU dst src (ADDconst <src.Type> src [SizeAndAlign(s).Size()]) mem)
+-	for {
+-		s := v.AuxInt
+-		dst := v.Args[0]
+-		src := v.Args[1]
+-		mem := v.Args[2]
+-		if !(SizeAndAlign(s).Size() > 4 && SizeAndAlign(s).Align()%4 != 0) {
+-			break
+-		}
+-		v.reset(OpARMLoweredMoveU)
+-		v.AddArg(dst)
+-		v.AddArg(src)
+-		v0 := b.NewValue0(v.Line, OpARMADDconst, src.Type)
+-		v0.AddArg(src)
+-		v0.AuxInt = SizeAndAlign(s).Size()
++		v0.AuxInt = SizeAndAlign(s).Size() - moveSize(SizeAndAlign(s).Align(), config)
+ 		v.AddArg(v0)
+ 		v.AddArg(mem)
+ 		return true
+@@ -16763,42 +16743,21 @@ func rewriteValueARM_OpZero(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ 	// match: (Zero [s] ptr mem)
+-	// cond: SizeAndAlign(s).Size()%4 == 0 && (SizeAndAlign(s).Size() > 512 || config.noDuffDevice) 	&& SizeAndAlign(s).Align()%4 == 0
+-	// result: (LoweredZero ptr (ADDconst <ptr.Type> ptr [SizeAndAlign(s).Size()]) (MOVWconst [0]) mem)
++	// cond: (SizeAndAlign(s).Size() > 512 || config.noDuffDevice) || SizeAndAlign(s).Align()%4 != 0
++	// result: (LoweredZero [SizeAndAlign(s).Align()] 		ptr 		(ADDconst <ptr.Type> ptr [SizeAndAlign(s).Size()-moveSize(SizeAndAlign(s).Align(), config)]) 		(MOVWconst [0]) 		mem)
+ 	for {
+ 		s := v.AuxInt
+ 		ptr := v.Args[0]
+ 		mem := v.Args[1]
+-		if !(SizeAndAlign(s).Size()%4 == 0 && (SizeAndAlign(s).Size() > 512 || config.noDuffDevice) && SizeAndAlign(s).Align()%4 == 0) {
++		if !((SizeAndAlign(s).Size() > 512 || config.noDuffDevice) || SizeAndAlign(s).Align()%4 != 0) {
+ 			break
+ 		}
+ 		v.reset(OpARMLoweredZero)
++		v.AuxInt = SizeAndAlign(s).Align()
+ 		v.AddArg(ptr)
+ 		v0 := b.NewValue0(v.Line, OpARMADDconst, ptr.Type)
+ 		v0.AddArg(ptr)
+-		v0.AuxInt = SizeAndAlign(s).Size()
+-		v.AddArg(v0)
+-		v1 := b.NewValue0(v.Line, OpARMMOVWconst, config.fe.TypeUInt32())
+-		v1.AuxInt = 0
+-		v.AddArg(v1)
+-		v.AddArg(mem)
+-		return true
+-	}
+-	// match: (Zero [s] ptr mem)
+-	// cond: SizeAndAlign(s).Size() > 4 && SizeAndAlign(s).Align()%4 != 0
+-	// result: (LoweredZeroU ptr (ADDconst <ptr.Type> ptr [SizeAndAlign(s).Size()]) (MOVWconst [0]) mem)
+-	for {
+-		s := v.AuxInt
+-		ptr := v.Args[0]
+-		mem := v.Args[1]
+-		if !(SizeAndAlign(s).Size() > 4 && SizeAndAlign(s).Align()%4 != 0) {
+-			break
+-		}
+-		v.reset(OpARMLoweredZeroU)
+-		v.AddArg(ptr)
+-		v0 := b.NewValue0(v.Line, OpARMADDconst, ptr.Type)
+-		v0.AddArg(ptr)
+-		v0.AuxInt = SizeAndAlign(s).Size()
++		v0.AuxInt = SizeAndAlign(s).Size() - moveSize(SizeAndAlign(s).Align(), config)
+ 		v.AddArg(v0)
+ 		v1 := b.NewValue0(v.Line, OpARMMOVWconst, config.fe.TypeUInt32())
+ 		v1.AuxInt = 0

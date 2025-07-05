@@ -16,7 +16,7 @@ Date:   Mon Oct 1 18:24:43 2018 -0300
     Change-Id: I6e95bfbe976a2278bd17799df184a7fbc0e57829
     Reviewed-on: https://go-review.googlesource.com/138917
     Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-
+---
  src/cmd/compile/internal/gc/ssa.go           |  4 ++--
  src/cmd/compile/internal/ppc64/ssa.go        | 18 ++++++++++++++++++
  src/cmd/compile/internal/ssa/gen/PPC64.rules |  1 +
@@ -25,3 +25,170 @@ Date:   Mon Oct 1 18:24:43 2018 -0300
  src/cmd/compile/internal/ssa/rewritePPC64.go | 16 ++++++++++++++++
  test/codegen/mathbits.go                     |  2 ++
  7 files changed, 57 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 8df8023d18..eee3a71ba3 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -3435,12 +3435,12 @@ func init() {
+ 	addF("math/bits", "OnesCount",
+ 		makeOnesCountAMD64(ssa.OpPopCount64, ssa.OpPopCount32),
+ 		sys.AMD64)
+-	alias("math/bits", "Mul", "math/bits", "Mul64", sys.ArchAMD64, sys.ArchARM64)
++	alias("math/bits", "Mul", "math/bits", "Mul64", sys.ArchAMD64, sys.ArchARM64, sys.ArchPPC64)
+ 	addF("math/bits", "Mul64",
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue2(ssa.OpMul64uhilo, types.NewTuple(types.Types[TUINT64], types.Types[TUINT64]), args[0], args[1])
+ 		},
+-		sys.AMD64, sys.ARM64)
++		sys.AMD64, sys.ARM64, sys.PPC64)
+ 
+ 	/******** sync/atomic ********/
+ 
+diff --git a/src/cmd/compile/internal/ppc64/ssa.go b/src/cmd/compile/internal/ppc64/ssa.go
+index fd226a2e98..1325a6011d 100644
+--- a/src/cmd/compile/internal/ppc64/ssa.go
++++ b/src/cmd/compile/internal/ppc64/ssa.go
+@@ -153,6 +153,24 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 			p.To.Reg = y
+ 		}
+ 
++	case ssa.OpPPC64LoweredMuluhilo:
++		// MULHDU	Rarg1, Rarg0, Reg0
++		// MULLD	Rarg1, Rarg0, Reg1
++		r0 := v.Args[0].Reg()
++		r1 := v.Args[1].Reg()
++		p := s.Prog(ppc64.AMULHDU)
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = r1
++		p.Reg = r0
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = v.Reg0()
++		p1 := s.Prog(ppc64.AMULLD)
++		p1.From.Type = obj.TYPE_REG
++		p1.From.Reg = r1
++		p1.Reg = r0
++		p1.To.Type = obj.TYPE_REG
++		p1.To.Reg = v.Reg1()
++
+ 	case ssa.OpPPC64LoweredAtomicAnd8,
+ 		ssa.OpPPC64LoweredAtomicOr8:
+ 		// LWSYNC
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64.rules b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+index e9e3cbc5bb..cde3566b0b 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64.rules
++++ b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+@@ -25,6 +25,7 @@
+ 
+ (Mul64  x y) -> (MULLD  x y)
+ (Mul(32|16|8)  x y) -> (MULLW  x y)
++(Mul64uhilo x y) -> (LoweredMuluhilo x y)
+ 
+ (Div64  x y) -> (DIVD  x y)
+ (Div64u x y) -> (DIVDU x y)
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64Ops.go b/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
+index ce5d552375..12a5778343 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
+@@ -135,6 +135,7 @@ func init() {
+ 		gp01        = regInfo{inputs: nil, outputs: []regMask{gp}}
+ 		gp11        = regInfo{inputs: []regMask{gp | sp | sb}, outputs: []regMask{gp}}
+ 		gp21        = regInfo{inputs: []regMask{gp | sp | sb, gp | sp | sb}, outputs: []regMask{gp}}
++		gp22        = regInfo{inputs: []regMask{gp | sp | sb, gp | sp | sb}, outputs: []regMask{gp, gp}}
+ 		gp1cr       = regInfo{inputs: []regMask{gp | sp | sb}}
+ 		gp2cr       = regInfo{inputs: []regMask{gp | sp | sb, gp | sp | sb}}
+ 		crgp        = regInfo{inputs: nil, outputs: []regMask{gp}}
+@@ -170,6 +171,7 @@ func init() {
+ 		{name: "MULHW", argLength: 2, reg: gp21, asm: "MULHW", commutative: true},   // (arg0 * arg1) >> 32, signed
+ 		{name: "MULHDU", argLength: 2, reg: gp21, asm: "MULHDU", commutative: true}, // (arg0 * arg1) >> 64, unsigned
+ 		{name: "MULHWU", argLength: 2, reg: gp21, asm: "MULHWU", commutative: true}, // (arg0 * arg1) >> 32, unsigned
++		{name: "LoweredMuluhilo", argLength: 2, reg: gp22, resultNotInArgs: true},   // arg0 * arg1, returns (hi, lo)
+ 
+ 		{name: "FMUL", argLength: 2, reg: fp21, asm: "FMUL", commutative: true},   // arg0*arg1
+ 		{name: "FMULS", argLength: 2, reg: fp21, asm: "FMULS", commutative: true}, // arg0*arg1
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 5f5345ad5c..706e7fcc2f 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -1581,6 +1581,7 @@ const (
+ 	OpPPC64MULHW
+ 	OpPPC64MULHDU
+ 	OpPPC64MULHWU
++	OpPPC64LoweredMuluhilo
+ 	OpPPC64FMUL
+ 	OpPPC64FMULS
+ 	OpPPC64FMADD
+@@ -21029,6 +21030,21 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:            "LoweredMuluhilo",
++		argLen:          2,
++		resultNotInArgs: true,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{1, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []outputInfo{
++				{0, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{1, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
+ 	{
+ 		name:        "FMUL",
+ 		argLen:      2,
+diff --git a/src/cmd/compile/internal/ssa/rewritePPC64.go b/src/cmd/compile/internal/ssa/rewritePPC64.go
+index a53db286d4..a810b8583e 100644
+--- a/src/cmd/compile/internal/ssa/rewritePPC64.go
++++ b/src/cmd/compile/internal/ssa/rewritePPC64.go
+@@ -337,6 +337,8 @@ func rewriteValuePPC64(v *Value) bool {
+ 		return rewriteValuePPC64_OpMul64_0(v)
+ 	case OpMul64F:
+ 		return rewriteValuePPC64_OpMul64F_0(v)
++	case OpMul64uhilo:
++		return rewriteValuePPC64_OpMul64uhilo_0(v)
+ 	case OpMul8:
+ 		return rewriteValuePPC64_OpMul8_0(v)
+ 	case OpNeg16:
+@@ -4809,6 +4811,20 @@ func rewriteValuePPC64_OpMul64F_0(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValuePPC64_OpMul64uhilo_0(v *Value) bool {
++	// match: (Mul64uhilo x y)
++	// cond:
++	// result: (LoweredMuluhilo x y)
++	for {
++		_ = v.Args[1]
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpPPC64LoweredMuluhilo)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
+ func rewriteValuePPC64_OpMul8_0(v *Value) bool {
+ 	// match: (Mul8 x y)
+ 	// cond:
+diff --git a/test/codegen/mathbits.go b/test/codegen/mathbits.go
+index 834b08f101..9bb2254155 100644
+--- a/test/codegen/mathbits.go
++++ b/test/codegen/mathbits.go
+@@ -310,11 +310,13 @@ func IterateBits8(n uint8) int {
+ func Mul(x, y uint) (hi, lo uint) {
+ 	// amd64:"MULQ"
+ 	// arm64:"UMULH","MUL"
++	// ppc64: "MULHDU", "MULLD"
+ 	return bits.Mul(x, y)
+ }
+ 
+ func Mul64(x, y uint64) (hi, lo uint64) {
+ 	// amd64:"MULQ"
+ 	// arm64:"UMULH","MUL"
++	// ppc64: "MULHDU", "MULLD"
+ 	return bits.Mul64(x, y)
+ }

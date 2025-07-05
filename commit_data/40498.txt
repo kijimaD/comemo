@@ -13,6 +13,21 @@ Date:   Sun May 19 23:23:04 2019 +0000
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/internal/poll/writev.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/internal/poll/writev.go b/src/internal/poll/writev.go
+index a48a38be08..6050d1f642 100644
+--- a/src/internal/poll/writev.go
++++ b/src/internal/poll/writev.go
+@@ -64,6 +64,9 @@ func (fd *FD) Writev(v *[][]byte) (int64, error) {
+ 		TestHookDidWritev(int(wrote))
+ 		n += int64(wrote)
+ 		consume(v, int64(wrote))
++		for i := range iovecs {
++			iovecs[i] = syscall.Iovec{}
++		}
+ 		if err != nil {
+ 			if err.(syscall.Errno) == syscall.EAGAIN {
+ 				if err = fd.pd.waitWrite(fd.isFile); err == nil {

@@ -9,6 +9,21 @@ Date:   Fri Oct 11 15:55:50 2013 -0700
     R=golang-dev, minux.ma
     CC=golang-dev
     https://golang.org/cl/14502060
-
+---
  src/pkg/go/build/deps_test.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/pkg/go/build/deps_test.go b/src/pkg/go/build/deps_test.go
+index 4bb03d5400..dd162c7db7 100644
+--- a/src/pkg/go/build/deps_test.go
++++ b/src/pkg/go/build/deps_test.go
+@@ -392,6 +392,9 @@ func TestDependencies(t *testing.T) {
+ 				if allowedErrors[osPkg{ctxt.GOOS, pkg}] {
+ 					continue
+ 				}
++				if !ctxt.CgoEnabled && pkg == "runtime/cgo" {
++					continue
++				}
+ 				// Some of the combinations we try might not
+ 				// be reasonable (like arm,plan9,cgo), so ignore
+ 				// errors for the auto-generated combinations.

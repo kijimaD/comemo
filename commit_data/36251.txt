@@ -11,6 +11,43 @@ Date:   Sat Apr 14 00:46:03 2018 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/lookup_test.go | 15 ++++++++++++---
  1 file changed, 12 insertions(+), 3 deletions(-)
+
+diff --git a/src/net/lookup_test.go b/src/net/lookup_test.go
+index 7b69bae176..ab7306194f 100644
+--- a/src/net/lookup_test.go
++++ b/src/net/lookup_test.go
+@@ -154,6 +154,7 @@ var lookupGmailNSTests = []struct {
+ }
+ 
+ func TestLookupGmailNS(t *testing.T) {
++	t.Parallel()
+ 	if testenv.Builder() == "" {
+ 		testenv.MustHaveExternalNetwork(t)
+ 	}
+@@ -162,12 +163,20 @@ func TestLookupGmailNS(t *testing.T) {
+ 		t.Skip("IPv4 is required")
+ 	}
+ 
+-	defer dnsWaitGroup.Wait()
+-
+-	for _, tt := range lookupGmailNSTests {
++	attempts := 0
++	for i := 0; i < len(lookupGmailNSTests); i++ {
++		tt := lookupGmailNSTests[i]
+ 		nss, err := LookupNS(tt.name)
+ 		if err != nil {
+ 			testenv.SkipFlakyNet(t)
++			if attempts < len(backoffDuration) {
++				dur := backoffDuration[attempts]
++				t.Logf("backoff %v after failure %v\n", dur, err)
++				time.Sleep(dur)
++				attempts++
++				i--
++				continue
++			}
+ 			t.Fatal(err)
+ 		}
+ 		if len(nss) == 0 {

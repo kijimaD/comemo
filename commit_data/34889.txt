@@ -11,6 +11,24 @@ Date:   Wed Nov 22 21:58:57 2017 -0500
     Change-Id: I3f5909d2b2c180f9fa74d53df13e501826fd4316
     Reviewed-on: https://go-review.googlesource.com/79615
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/signal_unix.go | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/runtime/signal_unix.go b/src/runtime/signal_unix.go
+index a616d46bac..9dae058f2c 100644
+--- a/src/runtime/signal_unix.go
++++ b/src/runtime/signal_unix.go
+@@ -275,6 +275,12 @@ func sigpipe() {
+ // sigtrampgo is called from the signal handler function, sigtramp,
+ // written in assembly code.
+ // This is called by the signal handler, and the world may be stopped.
++//
++// It must be nosplit because getg() is still the G that was running
++// (if any) when the signal was delivered, but it's (usually) called
++// on the gsignal stack. Until this switches the G to gsignal, the
++// stack bounds check won't work.
++//
+ //go:nosplit
+ //go:nowritebarrierrec
+ func sigtrampgo(sig uint32, info *siginfo, ctx unsafe.Pointer) {

@@ -13,7 +13,60 @@ Date:   Wed May 22 10:26:49 2024 -0700
     Reviewed-by: Robert Griesemer <gri@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/check_test.go | 8 ++++----
  src/go/types/check_test.go                    | 8 ++++----
  2 files changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/check_test.go b/src/cmd/compile/internal/types2/check_test.go
+index 63f831aa92..8b7b5316f0 100644
+--- a/src/cmd/compile/internal/types2/check_test.go
++++ b/src/cmd/compile/internal/types2/check_test.go
+@@ -247,17 +247,17 @@ func testFilesImpl(t *testing.T, filenames []string, srcs [][]byte, colDelta uin
+ 					panic("unreachable")
+ 				}
+ 			}
+-			pattern, err := strconv.Unquote(strings.TrimSpace(pattern))
++			unquoted, err := strconv.Unquote(strings.TrimSpace(pattern))
+ 			if err != nil {
+-				t.Errorf("%s:%d:%d: %v", filename, line, want.Pos.Col(), err)
++				t.Errorf("%s:%d:%d: invalid ERROR pattern (cannot unquote %s)", filename, line, want.Pos.Col(), pattern)
+ 				continue
+ 			}
+ 			if substr {
+-				if !strings.Contains(gotMsg, pattern) {
++				if !strings.Contains(gotMsg, unquoted) {
+ 					continue
+ 				}
+ 			} else {
+-				rx, err := regexp.Compile(pattern)
++				rx, err := regexp.Compile(unquoted)
+ 				if err != nil {
+ 					t.Errorf("%s:%d:%d: %v", filename, line, want.Pos.Col(), err)
+ 					continue
+diff --git a/src/go/types/check_test.go b/src/go/types/check_test.go
+index 6ad7ef3a27..6c523b5d9c 100644
+--- a/src/go/types/check_test.go
++++ b/src/go/types/check_test.go
+@@ -262,17 +262,17 @@ func testFilesImpl(t *testing.T, filenames []string, srcs [][]byte, manual bool,
+ 					panic("unreachable")
+ 				}
+ 			}
+-			pattern, err := strconv.Unquote(strings.TrimSpace(pattern))
++			unquoted, err := strconv.Unquote(strings.TrimSpace(pattern))
+ 			if err != nil {
+-				t.Errorf("%s:%d:%d: %v", filename, line, want.col, err)
++				t.Errorf("%s:%d:%d: invalid ERROR pattern (cannot unquote %s)", filename, line, want.col, pattern)
+ 				continue
+ 			}
+ 			if substr {
+-				if !strings.Contains(gotMsg, pattern) {
++				if !strings.Contains(gotMsg, unquoted) {
+ 					continue
+ 				}
+ 			} else {
+-				rx, err := regexp.Compile(pattern)
++				rx, err := regexp.Compile(unquoted)
+ 				if err != nil {
+ 					t.Errorf("%s:%d:%d: %v", filename, line, want.col, err)
+ 					continue

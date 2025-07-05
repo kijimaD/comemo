@@ -7,7 +7,38 @@ Date:   Wed Jan 18 16:59:40 2012 +1100
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5556044
-
+---
  src/pkg/os/error_plan9.go | 4 ----
  src/pkg/os/error_posix.go | 4 ----
  2 files changed, 8 deletions(-)
+
+diff --git a/src/pkg/os/error_plan9.go b/src/pkg/os/error_plan9.go
+index 8f005efbe0..3c727b2ab3 100644
+--- a/src/pkg/os/error_plan9.go
++++ b/src/pkg/os/error_plan9.go
+@@ -17,10 +17,6 @@ type SyscallError struct {
+ 
+ func (e *SyscallError) Error() string { return e.Syscall + ": " + e.Err }
+ 
+-// Note: If the name of the function NewSyscallError changes,
+-// pkg/go/doc/doc.go should be adjusted since it hardwires
+-// this name in a heuristic.
+-
+ // NewSyscallError returns, as an error, a new SyscallError
+ // with the given system call name and error details.
+ // As a convenience, if err is nil, NewSyscallError returns nil.
+diff --git a/src/pkg/os/error_posix.go b/src/pkg/os/error_posix.go
+index ebbe436970..1a08627256 100644
+--- a/src/pkg/os/error_posix.go
++++ b/src/pkg/os/error_posix.go
+@@ -59,10 +59,6 @@ type SyscallError struct {
+ 
+ func (e *SyscallError) Error() string { return e.Syscall + ": " + e.Errno.Error() }
+ 
+-// Note: If the name of the function NewSyscallError changes,
+-// pkg/go/doc/doc.go should be adjusted since it hardwires
+-// this name in a heuristic.
+-
+ // NewSyscallError returns, as an error, a new SyscallError
+ // with the given system call name and error details.
+ // As a convenience, if err is nil, NewSyscallError returns nil.

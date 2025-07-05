@@ -15,6 +15,20 @@ Date:   Fri Nov 18 18:14:11 2016 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  misc/cgo/testcshared/test.bash | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/misc/cgo/testcshared/test.bash b/misc/cgo/testcshared/test.bash
+index e4bb7d33f9..052ee0e758 100755
+--- a/misc/cgo/testcshared/test.bash
++++ b/misc/cgo/testcshared/test.bash
+@@ -105,7 +105,7 @@ status=0
+ 
+ # test0: exported symbols in shared lib are accessible.
+ # TODO(iant): using _shared here shouldn't really be necessary.
+-$(go env CC) ${GOGCCFLAGS} -I ${installdir} -o testp main0.c libgo.$libext
++$(go env CC) ${GOGCCFLAGS} -I ${installdir} -o testp main0.c ./libgo.$libext
+ binpush testp
+ 
+ output=$(run LD_LIBRARY_PATH=. ./testp)

@@ -15,7 +15,7 @@ Date:   Mon Mar 26 06:56:39 2018 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/archive/tar/writer.go       |  3 +--
  src/cmd/cover/html.go           |  3 ++-
  src/expvar/expvar.go            |  4 +--
@@ -33,3 +33,624 @@ Date:   Mon Mar 26 06:56:39 2018 +0000
  src/testing/example.go          |  3 +--
  src/testing/testing.go          |  2 +-
  16 files changed, 56 insertions(+), 86 deletions(-)
+
+diff --git a/src/archive/tar/writer.go b/src/archive/tar/writer.go
+index d6f69314e0..e80498d03e 100644
+--- a/src/archive/tar/writer.go
++++ b/src/archive/tar/writer.go
+@@ -5,7 +5,6 @@
+ package tar
+ 
+ import (
+-	"bytes"
+ 	"fmt"
+ 	"io"
+ 	"path"
+@@ -176,7 +175,7 @@ func (tw *Writer) writePAXHeader(hdr *Header, paxHdrs map[string]string) error {
+ 		sort.Strings(keys)
+ 
+ 		// Write each record to a buffer.
+-		var buf bytes.Buffer
++		var buf strings.Builder
+ 		for _, k := range keys {
+ 			rec, err := formatPAXRecord(k, paxHdrs[k])
+ 			if err != nil {
+diff --git a/src/cmd/cover/html.go b/src/cmd/cover/html.go
+index 04dc76fd59..2179728216 100644
+--- a/src/cmd/cover/html.go
++++ b/src/cmd/cover/html.go
+@@ -15,6 +15,7 @@ import (
+ 	"math"
+ 	"os"
+ 	"path/filepath"
++	"strings"
+ )
+ 
+ // htmlOutput reads the profile data from profile and generates an HTML
+@@ -41,7 +42,7 @@ func htmlOutput(profile, outfile string) error {
+ 		if err != nil {
+ 			return fmt.Errorf("can't read %q: %v", fn, err)
+ 		}
+-		var buf bytes.Buffer
++		var buf strings.Builder
+ 		err = htmlGen(&buf, src, profile.Boundaries(src))
+ 		if err != nil {
+ 			return err
+diff --git a/src/expvar/expvar.go b/src/expvar/expvar.go
+index 8290e0bd72..174873a7d4 100644
+--- a/src/expvar/expvar.go
++++ b/src/expvar/expvar.go
+@@ -22,7 +22,6 @@
+ package expvar
+ 
+ import (
+-	"bytes"
+ 	"encoding/json"
+ 	"fmt"
+ 	"log"
+@@ -32,6 +31,7 @@ import (
+ 	"runtime"
+ 	"sort"
+ 	"strconv"
++	"strings"
+ 	"sync"
+ 	"sync/atomic"
+ )
+@@ -111,7 +111,7 @@ type KeyValue struct {
+ }
+ 
+ func (v *Map) String() string {
+-	var b bytes.Buffer
++	var b strings.Builder
+ 	fmt.Fprintf(&b, "{")
+ 	first := true
+ 	v.Do(func(kv KeyValue) {
+diff --git a/src/go/types/methodset.go b/src/go/types/methodset.go
+index 2a8b1c24f7..52048d4940 100644
+--- a/src/go/types/methodset.go
++++ b/src/go/types/methodset.go
+@@ -7,9 +7,9 @@
+ package types
+ 
+ import (
+-	"bytes"
+ 	"fmt"
+ 	"sort"
++	"strings"
+ )
+ 
+ // A MethodSet is an ordered set of concrete or abstract (interface) methods;
+@@ -24,7 +24,7 @@ func (s *MethodSet) String() string {
+ 		return "MethodSet {}"
+ 	}
+ 
+-	var buf bytes.Buffer
++	var buf strings.Builder
+ 	fmt.Fprintln(&buf, "MethodSet {")
+ 	for _, f := range s.list {
+ 		fmt.Fprintf(&buf, "\t%s\n", f)
+diff --git a/src/mime/encodedword.go b/src/mime/encodedword.go
+index 99eb432f54..d73c8f402c 100644
+--- a/src/mime/encodedword.go
++++ b/src/mime/encodedword.go
+@@ -11,7 +11,6 @@ import (
+ 	"fmt"
+ 	"io"
+ 	"strings"
+-	"sync"
+ 	"unicode"
+ 	"unicode/utf8"
+ )
+@@ -51,16 +50,15 @@ func needsEncoding(s string) bool {
+ 
+ // encodeWord encodes a string into an encoded-word.
+ func (e WordEncoder) encodeWord(charset, s string) string {
+-	buf := getBuffer()
+-	defer putBuffer(buf)
++	var buf strings.Builder
+ 
+-	e.openWord(buf, charset)
++	e.openWord(&buf, charset)
+ 	if e == BEncoding {
+-		e.bEncode(buf, charset, s)
++		e.bEncode(&buf, charset, s)
+ 	} else {
+-		e.qEncode(buf, charset, s)
++		e.qEncode(&buf, charset, s)
+ 	}
+-	closeWord(buf)
++	closeWord(&buf)
+ 
+ 	return buf.String()
+ }
+@@ -77,7 +75,7 @@ const (
+ var maxBase64Len = base64.StdEncoding.DecodedLen(maxContentLen)
+ 
+ // bEncode encodes s using base64 encoding and writes it to buf.
+-func (e WordEncoder) bEncode(buf *bytes.Buffer, charset, s string) {
++func (e WordEncoder) bEncode(buf *strings.Builder, charset, s string) {
+ 	w := base64.NewEncoder(base64.StdEncoding, buf)
+ 	// If the charset is not UTF-8 or if the content is short, do not bother
+ 	// splitting the encoded-word.
+@@ -109,7 +107,7 @@ func (e WordEncoder) bEncode(buf *bytes.Buffer, charset, s string) {
+ 
+ // qEncode encodes s using Q encoding and writes it to buf. It splits the
+ // encoded-words when necessary.
+-func (e WordEncoder) qEncode(buf *bytes.Buffer, charset, s string) {
++func (e WordEncoder) qEncode(buf *strings.Builder, charset, s string) {
+ 	// We only split encoded-words when the charset is UTF-8.
+ 	if !isUTF8(charset) {
+ 		writeQString(buf, s)
+@@ -139,7 +137,7 @@ func (e WordEncoder) qEncode(buf *bytes.Buffer, charset, s string) {
+ }
+ 
+ // writeQString encodes s using Q encoding and writes it to buf.
+-func writeQString(buf *bytes.Buffer, s string) {
++func writeQString(buf *strings.Builder, s string) {
+ 	for i := 0; i < len(s); i++ {
+ 		switch b := s[i]; {
+ 		case b == ' ':
+@@ -155,7 +153,7 @@ func writeQString(buf *bytes.Buffer, s string) {
+ }
+ 
+ // openWord writes the beginning of an encoded-word into buf.
+-func (e WordEncoder) openWord(buf *bytes.Buffer, charset string) {
++func (e WordEncoder) openWord(buf *strings.Builder, charset string) {
+ 	buf.WriteString("=?")
+ 	buf.WriteString(charset)
+ 	buf.WriteByte('?')
+@@ -164,12 +162,12 @@ func (e WordEncoder) openWord(buf *bytes.Buffer, charset string) {
+ }
+ 
+ // closeWord writes the end of an encoded-word into buf.
+-func closeWord(buf *bytes.Buffer) {
++func closeWord(buf *strings.Builder) {
+ 	buf.WriteString("?=")
+ }
+ 
+ // splitWord closes the current encoded-word and opens a new one.
+-func (e WordEncoder) splitWord(buf *bytes.Buffer, charset string) {
++func (e WordEncoder) splitWord(buf *strings.Builder, charset string) {
+ 	closeWord(buf)
+ 	buf.WriteByte(' ')
+ 	e.openWord(buf, charset)
+@@ -224,10 +222,9 @@ func (d *WordDecoder) Decode(word string) (string, error) {
+ 		return "", err
+ 	}
+ 
+-	buf := getBuffer()
+-	defer putBuffer(buf)
++	var buf strings.Builder
+ 
+-	if err := d.convert(buf, charset, content); err != nil {
++	if err := d.convert(&buf, charset, content); err != nil {
+ 		return "", err
+ 	}
+ 
+@@ -243,8 +240,7 @@ func (d *WordDecoder) DecodeHeader(header string) (string, error) {
+ 		return header, nil
+ 	}
+ 
+-	buf := getBuffer()
+-	defer putBuffer(buf)
++	var buf strings.Builder
+ 
+ 	buf.WriteString(header[:i])
+ 	header = header[i:]
+@@ -296,7 +292,7 @@ func (d *WordDecoder) DecodeHeader(header string) (string, error) {
+ 			buf.WriteString(header[:start])
+ 		}
+ 
+-		if err := d.convert(buf, charset, content); err != nil {
++		if err := d.convert(&buf, charset, content); err != nil {
+ 			return "", err
+ 		}
+ 
+@@ -322,7 +318,7 @@ func decode(encoding byte, text string) ([]byte, error) {
+ 	}
+ }
+ 
+-func (d *WordDecoder) convert(buf *bytes.Buffer, charset string, content []byte) error {
++func (d *WordDecoder) convert(buf *strings.Builder, charset string, content []byte) error {
+ 	switch {
+ 	case strings.EqualFold("utf-8", charset):
+ 		buf.Write(content)
+@@ -346,7 +342,7 @@ func (d *WordDecoder) convert(buf *bytes.Buffer, charset string, content []byte)
+ 		if err != nil {
+ 			return err
+ 		}
+-		if _, err = buf.ReadFrom(r); err != nil {
++		if _, err = io.Copy(buf, r); err != nil {
+ 			return err
+ 		}
+ 	}
+@@ -422,21 +418,3 @@ func fromHex(b byte) (byte, error) {
+ 	}
+ 	return 0, fmt.Errorf("mime: invalid hex byte %#02x", b)
+ }
+-
+-var bufPool = sync.Pool{
+-	New: func() interface{} {
+-		return new(bytes.Buffer)
+-	},
+-}
+-
+-func getBuffer() *bytes.Buffer {
+-	return bufPool.Get().(*bytes.Buffer)
+-}
+-
+-func putBuffer(buf *bytes.Buffer) {
+-	if buf.Len() > 1024 {
+-		return
+-	}
+-	buf.Reset()
+-	bufPool.Put(buf)
+-}
+diff --git a/src/mime/mediatype.go b/src/mime/mediatype.go
+index 426d417da2..ea2bbac189 100644
+--- a/src/mime/mediatype.go
++++ b/src/mime/mediatype.go
+@@ -5,7 +5,6 @@
+ package mime
+ 
+ import (
+-	"bytes"
+ 	"errors"
+ 	"fmt"
+ 	"sort"
+@@ -19,7 +18,7 @@ import (
+ // When any of the arguments result in a standard violation then
+ // FormatMediaType returns the empty string.
+ func FormatMediaType(t string, param map[string]string) string {
+-	var b bytes.Buffer
++	var b strings.Builder
+ 	if slash := strings.Index(t, "/"); slash == -1 {
+ 		if !isToken(t) {
+ 			return ""
+@@ -167,7 +166,7 @@ func ParseMediaType(v string) (mediatype string, params map[string]string, err e
+ 
+ 	// Stitch together any continuations or things with stars
+ 	// (i.e. RFC 2231 things with stars: "foo*0" or "foo*")
+-	var buf bytes.Buffer
++	var buf strings.Builder
+ 	for key, pieceMap := range continuation {
+ 		singlePartKey := key + "*"
+ 		if v, ok := pieceMap[singlePartKey]; ok {
+@@ -265,7 +264,7 @@ func consumeValue(v string) (value, rest string) {
+ 	}
+ 
+ 	// parse a quoted-string
+-	buffer := new(bytes.Buffer)
++	buffer := new(strings.Builder)
+ 	for i := 1; i < len(v); i++ {
+ 		r := v[i]
+ 		if r == '"' {
+diff --git a/src/net/http/cookie.go b/src/net/http/cookie.go
+index 38b1b3630e..3e80cb659a 100644
+--- a/src/net/http/cookie.go
++++ b/src/net/http/cookie.go
+@@ -5,7 +5,6 @@
+ package http
+ 
+ import (
+-	"bytes"
+ 	"log"
+ 	"net"
+ 	"strconv"
+@@ -143,7 +142,7 @@ func (c *Cookie) String() string {
+ 	if c == nil || !isCookieNameValid(c.Name) {
+ 		return ""
+ 	}
+-	var b bytes.Buffer
++	var b strings.Builder
+ 	b.WriteString(sanitizeCookieName(c.Name))
+ 	b.WriteRune('=')
+ 	b.WriteString(sanitizeCookieValue(c.Value))
+@@ -168,17 +167,14 @@ func (c *Cookie) String() string {
+ 			log.Printf("net/http: invalid Cookie.Domain %q; dropping domain attribute", c.Domain)
+ 		}
+ 	}
++	var buf [len(TimeFormat)]byte
+ 	if validCookieExpires(c.Expires) {
+ 		b.WriteString("; Expires=")
+-		b2 := b.Bytes()
+-		b.Reset()
+-		b.Write(c.Expires.UTC().AppendFormat(b2, TimeFormat))
++		b.Write(c.Expires.UTC().AppendFormat(buf[:0], TimeFormat))
+ 	}
+ 	if c.MaxAge > 0 {
+ 		b.WriteString("; Max-Age=")
+-		b2 := b.Bytes()
+-		b.Reset()
+-		b.Write(strconv.AppendInt(b2, int64(c.MaxAge), 10))
++		b.Write(strconv.AppendInt(buf[:0], int64(c.MaxAge), 10))
+ 	} else if c.MaxAge < 0 {
+ 		b.WriteString("; Max-Age=0")
+ 	}
+diff --git a/src/net/http/httptest/server.go b/src/net/http/httptest/server.go
+index 6075397a26..ebafc9999c 100644
+--- a/src/net/http/httptest/server.go
++++ b/src/net/http/httptest/server.go
+@@ -7,7 +7,6 @@
+ package httptest
+ 
+ import (
+-	"bytes"
+ 	"crypto/tls"
+ 	"crypto/x509"
+ 	"flag"
+@@ -17,6 +16,7 @@ import (
+ 	"net/http"
+ 	"net/http/internal"
+ 	"os"
++	"strings"
+ 	"sync"
+ 	"time"
+ )
+@@ -224,7 +224,7 @@ func (s *Server) Close() {
+ func (s *Server) logCloseHangDebugInfo() {
+ 	s.mu.Lock()
+ 	defer s.mu.Unlock()
+-	var buf bytes.Buffer
++	var buf strings.Builder
+ 	buf.WriteString("httptest.Server blocked in Close after 5 seconds, waiting for connections:\n")
+ 	for c, st := range s.conns {
+ 		fmt.Fprintf(&buf, "  %T %p %v in state %v\n", c, c, c.RemoteAddr(), st)
+diff --git a/src/net/mail/message.go b/src/net/mail/message.go
+index 4f3184f3e8..5912b90334 100644
+--- a/src/net/mail/message.go
++++ b/src/net/mail/message.go
+@@ -19,7 +19,6 @@ package mail
+ 
+ import (
+ 	"bufio"
+-	"bytes"
+ 	"errors"
+ 	"fmt"
+ 	"io"
+@@ -735,7 +734,7 @@ func isQtext(r rune) bool {
+ 
+ // quoteString renders a string as an RFC 5322 quoted-string.
+ func quoteString(s string) string {
+-	var buf bytes.Buffer
++	var buf strings.Builder
+ 	buf.WriteByte('"')
+ 	for _, r := range s {
+ 		if isQtext(r) || isWSP(r) {
+diff --git a/src/net/url/url.go b/src/net/url/url.go
+index cc6c5e26e4..4a815148bf 100644
+--- a/src/net/url/url.go
++++ b/src/net/url/url.go
+@@ -11,7 +11,6 @@ package url
+ // contain references to issue numbers with details.
+ 
+ import (
+-	"bytes"
+ 	"errors"
+ 	"fmt"
+ 	"sort"
+@@ -737,7 +736,7 @@ func validOptionalPort(port string) bool {
+ //	- if u.RawQuery is empty, ?query is omitted.
+ //	- if u.Fragment is empty, #fragment is omitted.
+ func (u *URL) String() string {
+-	var buf bytes.Buffer
++	var buf strings.Builder
+ 	if u.Scheme != "" {
+ 		buf.WriteString(u.Scheme)
+ 		buf.WriteByte(':')
+@@ -878,7 +877,7 @@ func (v Values) Encode() string {
+ 	if v == nil {
+ 		return ""
+ 	}
+-	var buf bytes.Buffer
++	var buf strings.Builder
+ 	keys := make([]string, 0, len(v))
+ 	for k := range v {
+ 		keys = append(keys, k)
+@@ -886,12 +885,13 @@ func (v Values) Encode() string {
+ 	sort.Strings(keys)
+ 	for _, k := range keys {
+ 		vs := v[k]
+-		prefix := QueryEscape(k) + "="
++		keyEscaped := QueryEscape(k)
+ 		for _, v := range vs {
+ 			if buf.Len() > 0 {
+ 				buf.WriteByte('&')
+ 			}
+-			buf.WriteString(prefix)
++			buf.WriteString(keyEscaped)
++			buf.WriteByte('=')
+ 			buf.WriteString(QueryEscape(v))
+ 		}
+ 	}
+diff --git a/src/regexp/onepass.go b/src/regexp/onepass.go
+index 3ceb461905..125be59a7d 100644
+--- a/src/regexp/onepass.go
++++ b/src/regexp/onepass.go
+@@ -5,9 +5,9 @@
+ package regexp
+ 
+ import (
+-	"bytes"
+ 	"regexp/syntax"
+ 	"sort"
++	"strings"
+ 	"unicode"
+ )
+ 
+@@ -54,7 +54,7 @@ func onePassPrefix(p *syntax.Prog) (prefix string, complete bool, pc uint32) {
+ 	}
+ 
+ 	// Have prefix; gather characters.
+-	var buf bytes.Buffer
++	var buf strings.Builder
+ 	for iop(i) == syntax.InstRune && len(i.Rune) == 1 && syntax.Flags(i.Arg)&syntax.FoldCase == 0 {
+ 		buf.WriteRune(i.Rune[0])
+ 		pc, i = i.Out, &p.Inst[i.Out]
+diff --git a/src/regexp/syntax/parse_test.go b/src/regexp/syntax/parse_test.go
+index dd6529f7c8..fe3d251761 100644
+--- a/src/regexp/syntax/parse_test.go
++++ b/src/regexp/syntax/parse_test.go
+@@ -5,8 +5,8 @@
+ package syntax
+ 
+ import (
+-	"bytes"
+ 	"fmt"
++	"strings"
+ 	"testing"
+ 	"unicode"
+ )
+@@ -282,7 +282,7 @@ func testParseDump(t *testing.T, tests []parseTest, flags Flags) {
+ // dump prints a string representation of the regexp showing
+ // the structure explicitly.
+ func dump(re *Regexp) string {
+-	var b bytes.Buffer
++	var b strings.Builder
+ 	dumpRegexp(&b, re)
+ 	return b.String()
+ }
+@@ -312,7 +312,7 @@ var opNames = []string{
+ // dumpRegexp writes an encoding of the syntax tree for the regexp re to b.
+ // It is used during testing to distinguish between parses that might print
+ // the same using re's String method.
+-func dumpRegexp(b *bytes.Buffer, re *Regexp) {
++func dumpRegexp(b *strings.Builder, re *Regexp) {
+ 	if int(re.Op) >= len(opNames) || opNames[re.Op] == "" {
+ 		fmt.Fprintf(b, "op%d", re.Op)
+ 	} else {
+diff --git a/src/regexp/syntax/prog.go b/src/regexp/syntax/prog.go
+index 36aa653b7f..49a06bbfad 100644
+--- a/src/regexp/syntax/prog.go
++++ b/src/regexp/syntax/prog.go
+@@ -5,8 +5,8 @@
+ package syntax
+ 
+ import (
+-	"bytes"
+ 	"strconv"
++	"strings"
+ 	"unicode"
+ )
+ 
+@@ -117,7 +117,7 @@ type Inst struct {
+ }
+ 
+ func (p *Prog) String() string {
+-	var b bytes.Buffer
++	var b strings.Builder
+ 	dumpProg(&b, p)
+ 	return b.String()
+ }
+@@ -153,7 +153,7 @@ func (p *Prog) Prefix() (prefix string, complete bool) {
+ 	}
+ 
+ 	// Have prefix; gather characters.
+-	var buf bytes.Buffer
++	var buf strings.Builder
+ 	for i.op() == InstRune && len(i.Rune) == 1 && Flags(i.Arg)&FoldCase == 0 {
+ 		buf.WriteRune(i.Rune[0])
+ 		i = p.skipNop(i.Out)
+@@ -267,18 +267,18 @@ func (i *Inst) MatchEmptyWidth(before rune, after rune) bool {
+ }
+ 
+ func (i *Inst) String() string {
+-	var b bytes.Buffer
++	var b strings.Builder
+ 	dumpInst(&b, i)
+ 	return b.String()
+ }
+ 
+-func bw(b *bytes.Buffer, args ...string) {
++func bw(b *strings.Builder, args ...string) {
+ 	for _, s := range args {
+ 		b.WriteString(s)
+ 	}
+ }
+ 
+-func dumpProg(b *bytes.Buffer, p *Prog) {
++func dumpProg(b *strings.Builder, p *Prog) {
+ 	for j := range p.Inst {
+ 		i := &p.Inst[j]
+ 		pc := strconv.Itoa(j)
+@@ -298,7 +298,7 @@ func u32(i uint32) string {
+ 	return strconv.FormatUint(uint64(i), 10)
+ }
+ 
+-func dumpInst(b *bytes.Buffer, i *Inst) {
++func dumpInst(b *strings.Builder, i *Inst) {
+ 	switch i.Op {
+ 	case InstAlt:
+ 		bw(b, "alt -> ", u32(i.Out), ", ", u32(i.Arg))
+diff --git a/src/regexp/syntax/regexp.go b/src/regexp/syntax/regexp.go
+index 7b703f22e2..a3f56f8c90 100644
+--- a/src/regexp/syntax/regexp.go
++++ b/src/regexp/syntax/regexp.go
+@@ -8,7 +8,6 @@ package syntax
+ // In this package, re is always a *Regexp and r is always a rune.
+ 
+ import (
+-	"bytes"
+ 	"strconv"
+ 	"strings"
+ 	"unicode"
+@@ -114,7 +113,7 @@ func (x *Regexp) Equal(y *Regexp) bool {
+ }
+ 
+ // writeRegexp writes the Perl syntax for the regular expression re to b.
+-func writeRegexp(b *bytes.Buffer, re *Regexp) {
++func writeRegexp(b *strings.Builder, re *Regexp) {
+ 	switch re.Op {
+ 	default:
+ 		b.WriteString("<invalid op" + strconv.Itoa(int(re.Op)) + ">")
+@@ -245,14 +244,14 @@ func writeRegexp(b *bytes.Buffer, re *Regexp) {
+ }
+ 
+ func (re *Regexp) String() string {
+-	var b bytes.Buffer
++	var b strings.Builder
+ 	writeRegexp(&b, re)
+ 	return b.String()
+ }
+ 
+ const meta = `\.+*?()|[]{}^$`
+ 
+-func escape(b *bytes.Buffer, r rune, force bool) {
++func escape(b *strings.Builder, r rune, force bool) {
+ 	if unicode.IsPrint(r) {
+ 		if strings.ContainsRune(meta, r) || force {
+ 			b.WriteRune('\\')
+diff --git a/src/testing/example.go b/src/testing/example.go
+index b9955500e6..f4beb76f5f 100644
+--- a/src/testing/example.go
++++ b/src/testing/example.go
+@@ -5,7 +5,6 @@
+ package testing
+ 
+ import (
+-	"bytes"
+ 	"fmt"
+ 	"io"
+ 	"os"
+@@ -72,7 +71,7 @@ func runExample(eg InternalExample) (ok bool) {
+ 	os.Stdout = w
+ 	outC := make(chan string)
+ 	go func() {
+-		var buf bytes.Buffer
++		var buf strings.Builder
+ 		_, err := io.Copy(&buf, r)
+ 		r.Close()
+ 		if err != nil {
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index 27d0de7728..7e936f0fca 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -376,7 +376,7 @@ func (c *common) decorate(s string) string {
+ 		file = "???"
+ 		line = 1
+ 	}
+-	buf := new(bytes.Buffer)
++	buf := new(strings.Builder)
+ 	// Every line is indented at least one tab.
+ 	buf.WriteByte('\t')
+ 	fmt.Fprintf(buf, "%s:%d: ", file, line)

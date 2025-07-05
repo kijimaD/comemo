@@ -8,7 +8,71 @@ Date:   Tue Aug 12 19:49:31 2014 -0400
     R=rsc, iant
     CC=golang-codereviews
     https://golang.org/cl/123290043
-
+---
  src/pkg/syscall/mkall.sh    | 19 +++++++++++++++++--
  src/pkg/syscall/mkerrors.sh |  1 +
  2 files changed, 18 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/syscall/mkall.sh b/src/pkg/syscall/mkall.sh
+index 886db133cb..ac1c20f036 100755
+--- a/src/pkg/syscall/mkall.sh
++++ b/src/pkg/syscall/mkall.sh
+@@ -107,6 +107,7 @@ case "$#" in
+ 	exit 2
+ esac
+ 
++GOOSARCH_in=syscall_$GOOSARCH.go
+ case "$GOOSARCH" in
+ _* | *_ | _)
+ 	echo 'undefined $GOOS_$GOARCH:' "$GOOSARCH" 1>&2
+@@ -176,6 +177,20 @@ linux_arm)
+ 	mksysnum="curl -s 'http://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/plain/arch/arm/include/uapi/asm/unistd.h' | ./mksysnum_linux.pl"
+ 	mktypes="GOARCH=$GOARCH go tool cgo -godefs"
+ 	;;
++linux_power64)
++	GOOSARCH_in=syscall_linux_power64x.go
++	unistd_h=/usr/include/asm/unistd.h
++	mkerrors="$mkerrors -m64"
++	mksysnum="./mksysnum_linux.pl $unistd_h"
++	mktypes="GOARCH=$GOARCH go tool cgo -godefs"
++	;;
++linux_power64le)
++	GOOSARCH_in=syscall_linux_power64x.go
++	unistd_h=/usr/include/powerpc64le-linux-gnu/asm/unistd.h
++	mkerrors="$mkerrors -m64"
++	mksysnum="./mksysnum_linux.pl $unistd_h"
++	mktypes="GOARCH=$GOARCH go tool cgo -godefs"
++	;;
+ nacl_386)
+ 	mkerrors=""
+ 	mksyscall="./mksyscall.pl -l32 -nacl"
+@@ -244,7 +259,7 @@ esac
+ 	case "$GOOS" in
+ 	windows)
+ 		echo "GOOS= GOARCH= go build mksyscall_windows.go"
+-		echo "./mksyscall_windows syscall_windows.go security_windows.go syscall_$GOOSARCH.go |gofmt >zsyscall_$GOOSARCH.go"
++		echo "./mksyscall_windows syscall_windows.go security_windows.go $GOOSARCH_in |gofmt >zsyscall_$GOOSARCH.go"
+ 		echo "rm -f ./mksyscall_windows"
+ 		;;
+ 	*)
+@@ -254,7 +269,7 @@ esac
+ 			syscall_goos="syscall_bsd.go $syscall_goos"
+ 			;;
+ 		esac
+-		if [ -n "$mksyscall" ]; then echo "$mksyscall $syscall_goos syscall_$GOOSARCH.go |gofmt >zsyscall_$GOOSARCH.go"; fi
++		if [ -n "$mksyscall" ]; then echo "$mksyscall $syscall_goos $GOOSARCH_in |gofmt >zsyscall_$GOOSARCH.go"; fi
+ 		;;
+ 	esac
+ 	if [ -n "$mksysctl" ]; then echo "$mksysctl |gofmt >$zsysctl"; fi
+diff --git a/src/pkg/syscall/mkerrors.sh b/src/pkg/syscall/mkerrors.sh
+index cf0afe0bdd..4711f307a8 100755
+--- a/src/pkg/syscall/mkerrors.sh
++++ b/src/pkg/syscall/mkerrors.sh
+@@ -242,6 +242,7 @@ ccflags="$@"
+ 		$2 ~ /^(SIGEV_|SIGSTKSZ|SIGRT(MIN|MAX))/ {next}
+ 		$2 ~ /^(SCM_SRCRT)$/ {next}
+ 		$2 ~ /^(MAP_FAILED)$/ {next}
++		$2 ~ /^ELF_.*$/ {next}	# <asm/elf.h> contains ELF_ARCH, etc.
+ 
+ 		$2 !~ /^ETH_/ &&
+ 		$2 !~ /^EPROC_/ &&

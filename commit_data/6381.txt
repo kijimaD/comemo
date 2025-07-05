@@ -11,6 +11,20 @@ Date:   Fri Sep 24 16:50:50 2010 -0400
     R=r
     CC=golang-dev
     https://golang.org/cl/2212043
-
+---
  src/pkg/net/iprawsock.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/iprawsock.go b/src/pkg/net/iprawsock.go
+index 92c299e4fc..241be15095 100644
+--- a/src/pkg/net/iprawsock.go
++++ b/src/pkg/net/iprawsock.go
+@@ -288,7 +288,7 @@ func readProtocols() {
+ func netProtoSplit(netProto string) (net string, proto int, err os.Error) {
+ 	onceReadProtocols.Do(readProtocols)
+ 	i := last(netProto, ':')
+-	if i+1 >= len(netProto) { // no colon
++	if i < 0 { // no colon
+ 		return "", 0, os.ErrorString("no IP protocol specified")
+ 	}
+ 	net = netProto[0:i]

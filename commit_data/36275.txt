@@ -12,6 +12,20 @@ Date:   Mon Apr 16 10:11:55 2018 -0700
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/os/user/getgrouplist_darwin.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/os/user/getgrouplist_darwin.go b/src/os/user/getgrouplist_darwin.go
+index 935c6de942..e8fe26c47f 100644
+--- a/src/os/user/getgrouplist_darwin.go
++++ b/src/os/user/getgrouplist_darwin.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build cgo,!osusergo
++
+ package user
+ 
+ /*

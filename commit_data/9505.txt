@@ -16,7 +16,73 @@ Date:   Fri Aug 26 12:27:33 2011 +0400
     R=golang-dev, dvyukov
     CC=golang-dev
     https://golang.org/cl/4965049
-
+---
  src/pkg/json/decode.go      | 12 +++++++++++-
  src/pkg/json/decode_test.go |  6 +++++-
  2 files changed, 16 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/json/decode.go b/src/pkg/json/decode.go
+index 4f6562bd55..6782c76c4e 100644
+--- a/src/pkg/json/decode.go
++++ b/src/pkg/json/decode.go
+@@ -486,7 +486,7 @@ func (d *decodeState) object(v reflect.Value) {
+ 			if isValidTag(key) {
+ 				for i := 0; i < sv.NumField(); i++ {
+ 					f = st.Field(i)
+-					if f.Tag.Get("json") == key {
++					if tagName(f.Tag.Get("json")) == key {
+ 						ok = true
+ 						break
+ 					}
+@@ -918,3 +918,13 @@ func unquoteBytes(s []byte) (t []byte, ok bool) {
+ 	}
+ 	return b[0:w], true
+ }
++
++// tagName extracts the field name part out of the "json" struct tag
++// value. The json struct tag format is an optional name, followed by
++// zero or more ",option" values.
++func tagName(v string) string {
++	if idx := strings.Index(v, ","); idx != -1 {
++		return v[:idx]
++	}
++	return v
++}
+diff --git a/src/pkg/json/decode_test.go b/src/pkg/json/decode_test.go
+index a855d60486..4c179de5d0 100644
+--- a/src/pkg/json/decode_test.go
++++ b/src/pkg/json/decode_test.go
+@@ -262,7 +262,8 @@ type All struct {
+ 	Float32 float32
+ 	Float64 float64
+ 
+-	Foo string `json:"bar"`
++	Foo  string `json:"bar"`
++	Foo2 string `json:"bar2,dummyopt"`
+ 
+ 	PBool    *bool
+ 	PInt     *int
+@@ -331,6 +332,7 @@ var allValue = All{
+ 	Float32: 14.1,
+ 	Float64: 15.1,
+ 	Foo:     "foo",
++	Foo2:    "foo2",
+ 	String:  "16",
+ 	Map: map[string]Small{
+ 		"17": {Tag: "tag17"},
+@@ -391,6 +393,7 @@ var allValueIndent = `{
+ 	"Float32": 14.1,
+ 	"Float64": 15.1,
+ 	"bar": "foo",
++	"bar2": "foo2",
+ 	"PBool": null,
+ 	"PInt": null,
+ 	"PInt8": null,
+@@ -481,6 +484,7 @@ var pallValueIndent = `{
+ 	"Float32": 0,
+ 	"Float64": 0,
+ 	"bar": "",
++	"bar2": "",
+ 	"PBool": true,
+ 	"PInt": 2,
+ 	"PInt8": 3,

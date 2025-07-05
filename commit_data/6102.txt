@@ -28,9 +28,92 @@ Date:   Thu Aug 26 13:32:40 2010 -0400
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1967047
-
+---
  src/cmd/gc/go.h           |  1 +
  src/cmd/gc/subr.c         | 10 +++++++---
  src/pkg/runtime/runtime.c | 19 +++++++++++++++++++
  src/pkg/runtime/runtime.h |  1 +
  4 files changed, 28 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 581a3eb37b..e87c4c9804 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -38,6 +38,7 @@ enum
+ 	ASTRING,
+ 	AINTER,
+ 	ANILINTER,
++	AMEMWORD,
+ 
+ 	BADWIDTH	= -1000000000,
+ 	MAXWIDTH        = 1<<30
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 1c0bf1a8cc..ec0b869fca 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -476,9 +476,13 @@ algtype(Type *t)
+ 	int a;
+ 
+ 	if(issimple[t->etype] || isptr[t->etype] || iscomplex[t->etype] ||
+-	   t->etype == TCHAN || t->etype == TFUNC || t->etype == TMAP)
+-		a = AMEM;	// just bytes (int, ptr, etc)
+-	else if(t->etype == TSTRING)
++		t->etype == TCHAN || t->etype == TFUNC || t->etype == TMAP) {
++		if (t->width == widthptr) {
++			a = AMEMWORD;
++		} else {
++			a = AMEM;	// just bytes (int, ptr, etc)
++		}
++	} else if(t->etype == TSTRING)
+ 		a = ASTRING;	// string
+ 	else if(isnilinter(t))
+ 		a = ANILINTER;	// nil interface
+diff --git a/src/pkg/runtime/runtime.c b/src/pkg/runtime/runtime.c
+index 25a6f26bdf..71eb8d6b56 100644
+--- a/src/pkg/runtime/runtime.c
++++ b/src/pkg/runtime/runtime.c
+@@ -361,6 +361,24 @@ memcopy(uint32 s, void *a, void *b)
+ 		ba[i] = bb[i];
+ }
+ 
++static uint32
++memwordequal(uint32 s, void *a, void *b)
++{
++	USED(s);
++	return *(uintptr*)(a) == *(uintptr*)(b);
++}
++
++static void
++memwordcopy(uint32 s, void *a, void *b)
++{
++	USED(s);
++	if (b == nil) {
++		*(uintptr*)(a) = 0;
++		return;
++	}
++	*(uintptr*)(a) = *(uintptr*)(b);
++}
++
+ static uintptr
+ strhash(uint32 s, String *a)
+ {
+@@ -451,6 +469,7 @@ algarray[] =
+ [ASTRING]	{ strhash, strequal, strprint, memcopy },
+ [AINTER]		{ interhash, interequal, interprint, memcopy },
+ [ANILINTER]	{ nilinterhash, nilinterequal, nilinterprint, memcopy },
++[AMEMWORD] { memhash, memwordequal, memprint, memwordcopy },
+ };
+ 
+ #pragma textflag 7
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 0e4adafb35..8d88716a45 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -307,6 +307,7 @@ enum
+ 	ASTRING,
+ 	AINTER,
+ 	ANILINTER,
++	AMEMWORD,
+ 	Amax
+ };
+ 

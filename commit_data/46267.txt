@@ -15,6 +15,20 @@ Date:   Thu Dec 17 15:17:14 2020 -0500
     Trust: Dmitri Shuralyov <dmitshur@golang.org>
     Trust: Katie Hockman <katie@golang.org>
     Reviewed-by: Katie Hockman <katie@golang.org>
-
+---
  api/go1.16.txt | 3 ---
  1 file changed, 3 deletions(-)
+
+diff --git a/api/go1.16.txt b/api/go1.16.txt
+index 2e04b3ba0a..16d9cb891b 100644
+--- a/api/go1.16.txt
++++ b/api/go1.16.txt
+@@ -1,8 +1,5 @@
+ pkg archive/zip, method (*ReadCloser) Open(string) (fs.File, error)
+ pkg archive/zip, method (*Reader) Open(string) (fs.File, error)
+-pkg crypto/tls, method (*CertificateRequestInfo) Context() context.Context
+-pkg crypto/tls, method (*ClientHelloInfo) Context() context.Context
+-pkg crypto/tls, method (*Conn) HandshakeContext(context.Context) error
+ pkg crypto/x509, method (SystemRootsError) Unwrap() error
+ pkg crypto/x509, type CertificateRequest struct, BasicConstraintsValid bool
+ pkg crypto/x509, type CertificateRequest struct, ExtKeyUsage []ExtKeyUsage

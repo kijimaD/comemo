@@ -9,6 +9,34 @@ Date:   Thu Sep 17 11:01:50 2009 -0700
     DELTA=4  (1 added, 1 deleted, 2 changed)
     OCL=34734
     CL=34734
-
+---
  doc/go_spec.html | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 301466bebb..14a43c2202 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1731,8 +1731,9 @@ A method declaration binds an identifier to a method,
+ which is a function with a <i>receiver</i>.
+ </p>
+ <pre class="ebnf">
+-MethodDecl = "func" Receiver identifier Signature [ Body ] .
++MethodDecl = "func" Receiver MethodName Signature [ Body ] .
+ Receiver = "(" [ identifier ] [ "*" ] TypeName ")" .
++MethodName = identifier .
+ </pre>
+ 
+ <p>
+@@ -2862,10 +2863,9 @@ with the same arguments as <code>M</code> prefixed by an additional
+ argument that is the receiver of the method.
+ </p>
+ 
+-<pre class="grammar">
++<pre class="ebnf">
+ MethodExpr    = ReceiverType "." MethodName .
+ ReceiverType  = TypeName | "(" "*" TypeName ")" .
+-MethodName    = identifier .
+ </pre>
+ 
+ <p>

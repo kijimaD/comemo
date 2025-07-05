@@ -15,6 +15,20 @@ Date:   Fri Jun 27 10:52:57 2025 +0000
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: Sean Liao <sean@liao.dev>
-
+---
  src/iter/iter.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/iter/iter.go b/src/iter/iter.go
+index 4d408e5e77..3eaeb9e1fd 100644
+--- a/src/iter/iter.go
++++ b/src/iter/iter.go
+@@ -180,7 +180,7 @@ with the extra operations and then provide an iterator over positions.
+ For example, a tree implementation might provide:
+ 
+ 	// Positions returns an iterator over positions in the sequence.
+-	func (t *Tree[V]) Positions() iter.Seq[*Pos]
++	func (t *Tree[V]) Positions() iter.Seq[*Pos[V]]
+ 
+ 	// A Pos represents a position in the sequence.
+ 	// It is only valid during the yield call it is passed to.

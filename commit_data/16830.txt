@@ -12,9 +12,83 @@ Date:   Fri Jul 19 19:36:15 2013 -0400
     R=golang-dev, bradfitz, dave
     CC=golang-dev
     https://golang.org/cl/11610044
-
+---
  src/cmd/dist/build.c | 6 ++++++
  src/cmd/dist/unix.c  | 2 ++
  src/cmd/go/build.go  | 4 +++-
  src/cmd/go/env.go    | 3 +++
  4 files changed, 14 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/dist/build.c b/src/cmd/dist/build.c
+index ba32d3e69b..f99aaa3c93 100644
+--- a/src/cmd/dist/build.c
++++ b/src/cmd/dist/build.c
+@@ -407,12 +407,16 @@ static char *proto_gccargs[] = {
+ 	// native Plan 9 compilers don't like non-standard prototypes
+ 	// so let gcc catch them.
+ 	"-Wstrict-prototypes",
++	"-Wextra",
++	"-Wunused",
++	"-Wuninitialized",
+ 	"-Wno-sign-compare",
+ 	"-Wno-missing-braces",
+ 	"-Wno-parentheses",
+ 	"-Wno-unknown-pragmas",
+ 	"-Wno-switch",
+ 	"-Wno-comment",
++	"-Wno-missing-field-initializers",
+ 	"-Werror",
+ 	"-fno-common",
+ 	"-ggdb",
+@@ -620,6 +624,8 @@ install(char *dir)
+ 		for(i=0; i<nelem(proto_gccargs); i++)
+ 			vadd(&gccargs, proto_gccargs[i]);
+ 		if(clang) {
++			// disable ASCII art in clang errors, if possible
++			vadd(&gccargs, "-fno-caret-diagnostics");
+ 			// clang is too smart about unused command-line arguments
+ 			vadd(&gccargs, "-Qunused-arguments");
+ 		}
+diff --git a/src/cmd/dist/unix.c b/src/cmd/dist/unix.c
+index 86948b0b2b..3ab40f1b51 100644
+--- a/src/cmd/dist/unix.c
++++ b/src/cmd/dist/unix.c
+@@ -656,6 +656,8 @@ main(int argc, char **argv)
+ 	setvbuf(stdout, nil, _IOLBF, 0);
+ 	setvbuf(stderr, nil, _IOLBF, 0);
+ 
++	setenv("TERM", "dumb", 1); // disable escape codes in clang errors
++
+ 	binit(&b);
+ 	
+ 	slash = "/";
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index dd015eeac6..0c9e561538 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -1811,8 +1811,10 @@ func (b *builder) ccompilerCmd(envvar, defcmd, objdir string) []string {
+ 		}
+ 	}
+ 
+-	// clang is too smart about command-line arguments
+ 	if strings.Contains(a[0], "clang") {
++		// disable ASCII art in clang errors, if possible
++		a = append(a, "-fno-caret-diagnostics")
++		// clang is too smart about command-line arguments
+ 		a = append(a, "-Qunused-arguments")
+ 	}
+ 
+diff --git a/src/cmd/go/env.go b/src/cmd/go/env.go
+index 00e03e9bda..539364af4e 100644
+--- a/src/cmd/go/env.go
++++ b/src/cmd/go/env.go
+@@ -45,6 +45,9 @@ func mkEnv() []envVar {
+ 		{"GORACE", os.Getenv("GORACE")},
+ 		{"GOROOT", goroot},
+ 		{"GOTOOLDIR", toolDir},
++
++		// disable escape codes in clang errors
++		{"TERM", "dumb"},
+ 	}
+ 
+ 	if goos != "plan9" {

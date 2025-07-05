@@ -9,9 +9,121 @@ Date:   Thu Aug 5 13:31:10 2010 +1000
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1864051
-
+---
  src/pkg/sync/Makefile     |  1 +
  src/pkg/sync/mutex.go     |  7 ++++---
  src/pkg/sync/once.go      | 32 ++++++++++++++++++++++++++++++++
  src/pkg/sync/once_test.go | 37 +++++++++++++++++++++++++++++++++++++
  4 files changed, 74 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/sync/Makefile b/src/pkg/sync/Makefile
+index 4b9a05816d..dc3a4b442d 100644
+--- a/src/pkg/sync/Makefile
++++ b/src/pkg/sync/Makefile
+@@ -7,6 +7,7 @@ include ../../Make.$(GOARCH)
+ TARG=sync
+ GOFILES=\
+ 	mutex.go\
++	once.go \
+ 	rwmutex.go\
+ 
+ # 386-specific object files
+diff --git a/src/pkg/sync/mutex.go b/src/pkg/sync/mutex.go
+index b170370bc1..9a2bb2bb4f 100644
+--- a/src/pkg/sync/mutex.go
++++ b/src/pkg/sync/mutex.go
+@@ -3,9 +3,10 @@
+ // license that can be found in the LICENSE file.
+ 
+ // The sync package provides basic synchronization primitives
+-// such as mutual exclusion locks.  These are intended for use
+-// by low-level library routines.  Higher-level synchronization
+-// is better done via channels and communication.
++// such as mutual exclusion locks.  Other than the Once type,
++// most are intended for use by low-level library routines.
++// Higher-level synchronization  is better done via channels
++// and communication.
+ package sync
+ 
+ import "runtime"
+diff --git a/src/pkg/sync/once.go b/src/pkg/sync/once.go
+new file mode 100644
+index 0000000000..298d8e85f1
+--- /dev/null
++++ b/src/pkg/sync/once.go
+@@ -0,0 +1,32 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package sync
++
++// Once is an object that will perform exactly one action.
++type Once struct {
++	m    Mutex
++	done bool
++}
++
++// Do calls the function f if and only if the method is being called for the
++// first time with this receiver.  In other words, given
++// 	var once Once
++// if once.Do(f) is called multiple times, only the first call will invoke f,
++// even if f has a different value in each invocation.  A new instance of
++// Once is required for each function to execute.
++//
++// Do is intended for initialization that must be run exactly once.  Since f
++// is niladic, it may be necessary to use a function literal to capture the
++// arguments to a function to be invoked by Do:
++// 	config.once.Do(func() { config.init(filename) })
++//
++func (o *Once) Do(f func()) {
++	o.m.Lock()
++	defer o.m.Unlock()
++	if !o.done {
++		o.done = true
++		f()
++	}
++}
+diff --git a/src/pkg/sync/once_test.go b/src/pkg/sync/once_test.go
+new file mode 100644
+index 0000000000..155954a49b
+--- /dev/null
++++ b/src/pkg/sync/once_test.go
+@@ -0,0 +1,37 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package sync_test
++
++import (
++	. "sync"
++	"testing"
++)
++
++type one int
++
++func (o *one) Increment() {
++	*o++
++}
++
++func run(once *Once, o *one, c chan bool) {
++	once.Do(func() { o.Increment() })
++	c <- true
++}
++
++func TestOnce(t *testing.T) {
++	o := new(one)
++	once := new(Once)
++	c := make(chan bool)
++	const N = 10
++	for i := 0; i < N; i++ {
++		go run(once, o, c)
++	}
++	for i := 0; i < N; i++ {
++		<-c
++	}
++	if *o != 1 {
++		t.Errorf("once failed: %d is not 1", *o)
++	}
++}

@@ -16,7 +16,69 @@ Date:   Wed Jun 17 18:05:16 2020 -0400
     Run-TryBot: Michael Matloob <matloob@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/trace/trace.go |  4 ++--
  src/cmd/go/internal/work/exec.go   | 13 +++++++++++--
  2 files changed, 13 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/internal/trace/trace.go b/src/cmd/go/internal/trace/trace.go
+index 32ce0408f5..24130d9d72 100644
+--- a/src/cmd/go/internal/trace/trace.go
++++ b/src/cmd/go/internal/trace/trace.go
+@@ -45,10 +45,10 @@ func StartSpan(ctx context.Context, name string) (context.Context, *Span) {
+ 	return ctx, childSpan
+ }
+ 
+-// Goroutine associates the context with a new Thread ID. The Chrome trace viewer associates each
++// StartGoroutine associates the context with a new Thread ID. The Chrome trace viewer associates each
+ // trace event with a thread, and doesn't expect events with the same thread id to happen at the
+ // same time.
+-func Goroutine(ctx context.Context) context.Context {
++func StartGoroutine(ctx context.Context) context.Context {
+ 	tc, ok := getTraceContext(ctx)
+ 	if !ok {
+ 		return ctx
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 3ea3293ae1..56a127f36f 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -115,13 +115,21 @@ func (b *Builder) Do(ctx context.Context, root *Action) {
+ 
+ 	// Handle runs a single action and takes care of triggering
+ 	// any actions that are runnable as a result.
+-	handle := func(a *Action) {
++	handle := func(ctx context.Context, a *Action) {
+ 		if a.json != nil {
+ 			a.json.TimeStart = time.Now()
+ 		}
+ 		var err error
+ 		if a.Func != nil && (!a.Failed || a.IgnoreFail) {
++			// TODO(matloob): Better action descriptions
++			desc := "Executing action "
++			if a.Package != nil {
++				desc += "(" + a.Mode + " " + a.Package.Desc() + ")"
++			}
++			ctx, span := trace.StartSpan(ctx, desc)
++			_ = ctx
+ 			err = a.Func(b, a)
++			span.Done()
+ 		}
+ 		if a.json != nil {
+ 			a.json.TimeDone = time.Now()
+@@ -169,6 +177,7 @@ func (b *Builder) Do(ctx context.Context, root *Action) {
+ 	for i := 0; i < par; i++ {
+ 		wg.Add(1)
+ 		go func() {
++			ctx := trace.StartGoroutine(ctx)
+ 			defer wg.Done()
+ 			for {
+ 				select {
+@@ -181,7 +190,7 @@ func (b *Builder) Do(ctx context.Context, root *Action) {
+ 					b.exec.Lock()
+ 					a := b.ready.pop()
+ 					b.exec.Unlock()
+-					handle(a)
++					handle(ctx, a)
+ 				case <-base.Interrupted:
+ 					base.SetExitStatus(1)
+ 					return

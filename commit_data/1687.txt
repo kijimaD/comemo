@@ -7,9 +7,88 @@ Date:   Mon Feb 16 17:44:05 2009 -0800
     R=ken
     OCL=25075
     CL=25075
-
+---
  src/cmd/gc/lex.c                   | 3 +++
  src/cmd/gc/walk.c                  | 7 ++++++-
  test/{bugs => fixedbugs}/bug123.go | 2 +-
  test/golden.out                    | 3 ---
  4 files changed, 10 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 78394b89b4..a0fb124f3f 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -1233,6 +1233,9 @@ lexinit(void)
+ 		s->otype = t;
+ 	}
+ 
++	/* for walk to use in error messages */
++	types[TFUNC] = functype(N, N, N);
++
+ 	/* pick up the backend typedefs */
+ 	belexinit(LBASETYPE);
+ 
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index f3a3bd6e55..7175f07709 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -373,9 +373,12 @@ loop:
+ 		if(n->type != T)
+ 			goto ret;
+ 
+-		walktype(n->left, Erv);
+ 		if(n->left == N)
+ 			goto ret;
++
++		walktype(n->left, Erv);
++		convlit(n->left, types[TFUNC]);
++
+ 		t = n->left->type;
+ 		if(t == T)
+ 			goto ret;
+@@ -472,6 +475,7 @@ loop:
+ 			if(cr == 1) {
+ 				// a,b,... = fn()
+ 				walktype(r, Erv);
++				convlit(r, types[TFUNC]);
+ 				l = ascompatet(n->op, &n->left, &r->type, 0);
+ 				if(l != N)
+ 					indir(n, list(r, reorder2(l)));
+@@ -3108,6 +3112,7 @@ multi:
+ 	case OCALLINTER:
+ 	case OCALL:
+ 		walktype(nr->left, Erv);
++		convlit(nr->left, types[TFUNC]);
+ 		t = nr->left->type;
+ 		if(t != T && t->etype == tptr)
+ 			t = t->type;
+diff --git a/test/bugs/bug123.go b/test/fixedbugs/bug123.go
+similarity index 87%
+rename from test/bugs/bug123.go
+rename to test/fixedbugs/bug123.go
+index 0576de37d6..f26a046369 100644
+--- a/test/bugs/bug123.go
++++ b/test/fixedbugs/bug123.go
+@@ -7,7 +7,7 @@
+ package main
+ const ( F = 1 )
+ func fn(i int) int {
+-  if i == F() {		// ERROR "function"
++  if i == F() {		// ERROR "func"
+     return 0
+   }
+   return 1
+diff --git a/test/golden.out b/test/golden.out
+index 89df568b89..e251a708fd 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -143,9 +143,6 @@ BUG: should compile
+ =========== bugs/bug122.go
+ BUG: compilation succeeds incorrectly
+ 
+-=========== bugs/bug123.go
+-BUG: errchk: command succeeded unexpectedly:  6g bugs/bug123.go
+-
+ =========== bugs/bug125.go
+ BUG: errchk: command succeeded unexpectedly:  6g bugs/bug125.go
+ 

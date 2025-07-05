@@ -14,6 +14,27 @@ Date:   Wed Jul 8 18:32:36 2020 -0400
     Run-TryBot: Than McIntosh <thanm@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/internal/obj/ppc64/obj9.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/cmd/internal/obj/ppc64/obj9.go b/src/cmd/internal/obj/ppc64/obj9.go
+index 7135488f9d..16881c634b 100644
+--- a/src/cmd/internal/obj/ppc64/obj9.go
++++ b/src/cmd/internal/obj/ppc64/obj9.go
+@@ -142,6 +142,7 @@ func (c *ctxt9) rewriteToUseTOC(p *obj.Prog) {
+ 		symtoc := c.ctxt.LookupInit("TOC."+sym.Name, func(s *obj.LSym) {
+ 			s.Type = objabi.SDATA
+ 			s.Set(obj.AttrDuplicateOK, true)
++			s.Set(obj.AttrStatic, true)
+ 			c.ctxt.Data = append(c.ctxt.Data, s)
+ 			s.WriteAddr(c.ctxt, 0, 8, sym, 0)
+ 		})
+@@ -223,6 +224,7 @@ func (c *ctxt9) rewriteToUseTOC(p *obj.Prog) {
+ 	symtoc := c.ctxt.LookupInit("TOC."+source.Sym.Name, func(s *obj.LSym) {
+ 		s.Type = objabi.SDATA
+ 		s.Set(obj.AttrDuplicateOK, true)
++		s.Set(obj.AttrStatic, true)
+ 		c.ctxt.Data = append(c.ctxt.Data, s)
+ 		s.WriteAddr(c.ctxt, 0, 8, source.Sym, 0)
+ 	})

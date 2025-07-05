@@ -11,10 +11,305 @@ Date:   Thu Oct 15 23:09:22 2009 -0700
     DELTA=581  (310 added, 271 deleted, 0 changed)
     OCL=35805
     CL=35823
-
+---
  src/pkg/math/Makefile                  |   3 +-
  src/pkg/math/bits.go                   | 105 +++++++++++++++++++++++++++++++++
  src/pkg/math/runtime.go                |  52 ----------------
  src/pkg/math/unsafe.go                 |  30 ++++++++++
  src/pkg/runtime/{float.cgo => float.c} |  45 --------------
  5 files changed, 137 insertions(+), 98 deletions(-)
+
+diff --git a/src/pkg/math/Makefile b/src/pkg/math/Makefile
+index bf8d99a608..74072503cf 100644
+--- a/src/pkg/math/Makefile
++++ b/src/pkg/math/Makefile
+@@ -16,6 +16,7 @@ ALLGOFILES=\
+ 	asin.go\
+ 	atan.go\
+ 	atan2.go\
++	bits.go\
+ 	const.go\
+ 	exp.go\
+ 	fabs.go\
+@@ -25,12 +26,12 @@ ALLGOFILES=\
+ 	log.go\
+ 	pow.go\
+ 	pow10.go\
+-	runtime.go\
+ 	sin.go\
+ 	sinh.go\
+ 	sqrt.go\
+ 	tan.go\
+ 	tanh.go\
++	unsafe.go\
+ 
+ NOGOFILES=\
+ 	$(subst _$(GOARCH).$O,.go,$(OFILES_$(GOARCH)))
+diff --git a/src/pkg/math/bits.go b/src/pkg/math/bits.go
+new file mode 100644
+index 0000000000..00071aa0a7
+--- /dev/null
++++ b/src/pkg/math/bits.go
+@@ -0,0 +1,105 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package math
++
++const (
++	uvnan = 0x7FF0000000000001;
++	uvinf = 0x7FF0000000000000;
++	uvneginf = 0xFFF0000000000000;
++	mask = 0x7FF;
++	shift = 64 - 11 - 1;
++	bias = 1022;
++)
++
++// Inf returns positive infinity if sign >= 0, negative infinity if sign < 0.
++func Inf(sign int) float64 {
++	var v uint64;
++	if sign >= 0 {
++		v = uvinf;
++	} else {
++		v = uvneginf;
++	}
++	return Float64frombits(v);
++}
++
++// NaN returns an IEEE 754 ``not-a-number'' value.
++func NaN() float64 {
++	return Float64frombits(uvnan);
++}
++
++// IsNaN returns whether f is an IEEE 754 ``not-a-number'' value.
++func IsNaN(f float64) (is bool) {
++	x := Float64bits(f);
++	return uint32(x>>shift) & mask == mask && x != uvinf && x != uvneginf;
++}
++
++// IsInf returns whether f is an infinity, according to sign.
++// If sign > 0, IsInf returns whether f is positive infinity.
++// If sign < 0, IsInf returns whether f is negative infinity.
++// If sign == 0, IsInf returns whether f is either infinity.
++func IsInf(f float64, sign int) bool {
++	x := Float64bits(f);
++	return sign >= 0 && x == uvinf || sign <= 0 && x == uvneginf;
++}
++
++// Frexp breaks f into a normalized fraction
++// and an integral power of two.
++// It returns frac and exp satisfying f == frac × 2<sup>exp</sup>,
++// with the absolute value of frac in the interval [½, 1).
++func Frexp(f float64) (frac float64, exp int) {
++	if f == 0 {
++		return;
++	}
++	x := Float64bits(f);
++	exp = int((x>>shift)&mask) - bias;
++	x &^= mask<<shift;
++	x |= bias<<shift;
++	frac = Float64frombits(x);
++	return;
++}
++
++// Ldexp is the inverse of Frexp.
++// It returns frac × 2<sup>exp</sup>.
++func Ldexp(frac float64, exp int) float64 {
++	x := Float64bits(frac);
++	exp += int(x>>shift) & mask;
++	if exp <= 0 {
++		return 0;	// underflow
++	}
++	if exp >= mask {	// overflow
++		if frac < 0 {
++			return Inf(-1);
++		}
++		return Inf(1);
++	}
++	x &^= mask<<shift;
++	x |= uint64(exp)<<shift;
++	return Float64frombits(x);
++}
++
++// Modf returns integer and fractional floating-point numbers
++// that sum to f.
++// Integer and frac have the same sign as f.
++func Modf(f float64) (int float64, frac float64) {
++	if f < 1 {
++		if f < 0 {
++			int, frac = Modf(-f);
++			return -int, -frac;
++		}
++		return 0, f;
++	}
++
++	x := Float64bits(f);
++	e := uint(x>>shift)&mask - bias;
++
++	// Keep the top 11+e bits, the integer part; clear the rest.
++	if e < 64-11 {
++		x &^= 1<<(64-11-e) - 1;
++	}
++	int = Float64frombits(x);
++	frac = f - int;
++	return;
++}
++
+diff --git a/src/pkg/math/runtime.go b/src/pkg/math/runtime.go
+deleted file mode 100644
+index 69d333825b..0000000000
+--- a/src/pkg/math/runtime.go
++++ /dev/null
+@@ -1,52 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package math
+-
+-// implemented in C, in ../../runtime
+-// perhaps one day the implementations will move here.
+-
+-// Float32bits returns the IEEE 754 binary representation of f.
+-func Float32bits(f float32) (b uint32)
+-
+-// Float32frombits returns the floating point number corresponding
+-// to the IEEE 754 binary representation b.
+-func Float32frombits(b uint32) (f float32)
+-
+-// Float64bits returns the IEEE 754 binary representation of f.
+-func Float64bits(f float64) (b uint64)
+-
+-// Float64frombits returns the floating point number corresponding
+-// the IEEE 754 binary representation b.
+-func Float64frombits(b uint64) (f float64)
+-
+-// Frexp breaks f into a normalized fraction
+-// and an integral power of two.
+-// It returns frac and exp satisfying f == frac × 2<sup>exp</sup>,
+-// with the absolute value of frac in the interval [½, 1).
+-func Frexp(f float64) (frac float64, exp int)
+-
+-// Inf returns positive infinity if sign >= 0, negative infinity if sign < 0.
+-func Inf(sign int32) (f float64)
+-
+-// IsInf returns whether f is an infinity, according to sign.
+-// If sign > 0, IsInf returns whether f is positive infinity.
+-// If sign < 0, IsInf returns whether f is negative infinity.
+-// If sign == 0, IsInf returns whether f is either infinity.
+-func IsInf(f float64, sign int) (is bool)
+-
+-// IsNaN returns whether f is an IEEE 754 ``not-a-number'' value.
+-func IsNaN(f float64) (is bool)
+-
+-// Ldexp is the inverse of Frexp.
+-// It returns frac × 2<sup>exp</sup>.
+-func Ldexp(frac float64, exp int) (f float64)
+-
+-// Modf returns integer and fractional floating-point numbers
+-// that sum to f.
+-// Integer and frac have the same sign as f.
+-func Modf(f float64) (integer float64, frac float64)
+-
+-// NaN returns an IEEE 754 ``not-a-number'' value.
+-func NaN() (f float64)
+diff --git a/src/pkg/math/unsafe.go b/src/pkg/math/unsafe.go
+new file mode 100644
+index 0000000000..cfc64634e1
+--- /dev/null
++++ b/src/pkg/math/unsafe.go
+@@ -0,0 +1,30 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package math
++
++import "unsafe"
++
++// Float32bits returns the IEEE 754 binary representation of f.
++func Float32bits(f float32) uint32 {
++	return *(*uint32)(unsafe.Pointer(&f));
++}
++
++// Float32frombits returns the floating point number corresponding
++// to the IEEE 754 binary representation b.
++func Float32frombits(b uint32) float32 {
++	return *(*float32)(unsafe.Pointer(&b));
++}
++
++// Float64bits returns the IEEE 754 binary representation of f.
++func Float64bits(f float64) uint64 {
++	return *(*uint64)(unsafe.Pointer(&f));
++}
++
++// Float64frombits returns the floating point number corresponding
++// the IEEE 754 binary representation b.
++func Float64frombits(b uint64) float64 {
++	return *(*float64)(unsafe.Pointer(&b));
++}
++
+diff --git a/src/pkg/runtime/float.cgo b/src/pkg/runtime/float.c
+similarity index 78%
+rename from src/pkg/runtime/float.cgo
+rename to src/pkg/runtime/float.c
+index 38114aa854..5122f359a7 100644
+--- a/src/pkg/runtime/float.cgo
++++ b/src/pkg/runtime/float.c
+@@ -2,7 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package math
+ #include "runtime.h"
+ 
+ static	uint64	uvnan		= 0x7FF0000000000001ULL;
+@@ -172,47 +171,3 @@ modf(float64 d, float64 *ip)
+ 	return d - dd;
+ }
+ 
+-func Frexp(f float64) (frac float64, exp int32) {
+-	frac = frexp(f, &exp);
+-}
+-
+-func Ldexp(frac float64, exp int32) (f float64) {
+-	f = ldexp(frac, exp);
+-}
+-
+-func Modf(f float64) (integer float64, frac float64) {
+-	frac = modf(f, &integer);
+-}
+-
+-func IsInf(f float64, sign int32) (is bool) {
+-	is = isInf(f, sign);
+-}
+-
+-func IsNaN(f float64) (is bool) {
+-	is = isNaN(f);
+-}
+-
+-func Inf(sign int32) (f float64) {
+-	f = Inf(sign);
+-}
+-
+-func NaN() (f float64) {
+-	f = NaN();
+-}
+-
+-func Float32bits(f float32) (b uint32) {
+-	b = float32tobits(f);
+-}
+-
+-func Float64bits(f float64) (b uint64) {
+-	b = float64tobits(f);
+-}
+-
+-func Float32frombits(b uint32) (f float32) {
+-	f = float32frombits(b);
+-}
+-
+-func Float64frombits(b uint64) (f float64) {
+-	f = float64frombits(b);
+-}
+-

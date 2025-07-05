@@ -11,7 +11,80 @@ Date:   Sat Sep 6 14:53:44 2014 -0400
     R=khr
     CC=golang-codereviews
     https://golang.org/cl/135560043
-
+---
  src/liblink/asm5.c |  6 ++++--
  src/liblink/obj5.c | 12 ++++--------
  2 files changed, 8 insertions(+), 10 deletions(-)
+
+diff --git a/src/liblink/asm5.c b/src/liblink/asm5.c
+index 46aa1c1e3b..65c4ca199a 100644
+--- a/src/liblink/asm5.c
++++ b/src/liblink/asm5.c
+@@ -309,6 +309,7 @@ static Optab	optab[] =
+ 	{ AUSEFIELD,	C_ADDR,	C_NONE,	C_NONE, 	 0, 0, 0 },
+ 	{ APCDATA,	C_LCON,	C_NONE,	C_LCON,		0, 0, 0 },
+ 	{ AFUNCDATA,	C_LCON,	C_NONE,	C_ADDR,	0, 0, 0 },
++	{ ANOP,		C_NONE,	C_NONE,	C_NONE,		0, 0, 0 },
+ 
+ 	{ ADUFFZERO,	C_NONE,	C_NONE,	C_SBRA,		 5, 4, 0 },  // same as ABL
+ 	{ ADUFFCOPY,	C_NONE,	C_NONE,	C_SBRA,		 5, 4, 0 },  // same as ABL
+@@ -686,7 +687,7 @@ span5(Link *ctxt, LSym *cursym)
+ 				continue;
+ 			}
+ 		}
+-		if(m == 0 && (p->as != AFUNCDATA && p->as != APCDATA && p->as != ADATABUNDLEEND)) {
++		if(m == 0 && (p->as != AFUNCDATA && p->as != APCDATA && p->as != ADATABUNDLEEND && p->as != ANOP)) {
+ 			ctxt->diag("zero-width instruction\n%P", p);
+ 			continue;
+ 		}
+@@ -765,7 +766,7 @@ span5(Link *ctxt, LSym *cursym)
+ 			}
+ 			if(m/4 > nelem(out))
+ 				ctxt->diag("instruction size too large: %d > %d", m/4, nelem(out));
+-			if(m == 0 && (p->as != AFUNCDATA && p->as != APCDATA && p->as != ADATABUNDLEEND)) {
++			if(m == 0 && (p->as != AFUNCDATA && p->as != APCDATA && p->as != ADATABUNDLEEND && p->as != ANOP)) {
+ 				if(p->as == ATEXT) {
+ 					ctxt->autosize = p->to.offset + 4;
+ 					continue;
+@@ -1479,6 +1480,7 @@ buildop(Link *ctxt)
+ 		case ACLZ:
+ 		case AFUNCDATA:
+ 		case APCDATA:
++		case ANOP:
+ 		case ADATABUNDLE:
+ 		case ADATABUNDLEEND:
+ 			break;
+diff --git a/src/liblink/obj5.c b/src/liblink/obj5.c
+index d7008a48c0..e8b81ec5ca 100644
+--- a/src/liblink/obj5.c
++++ b/src/liblink/obj5.c
+@@ -466,12 +466,10 @@ addstacksplit(Link *ctxt, LSym *cursym)
+ 				p->as = ACMP;
+ 				p->from.type = D_CONST;
+ 				p->from.offset = 0;
+-				p->to.type = D_REG;
+-				p->to.reg = 1;
++				p->reg = 1;
+ 			
+ 				p = appendp(ctxt, p);
+-				p->as = AB;
+-				p->scond = C_SCOND_EQ;
++				p->as = ABEQ;
+ 				p->to.type = D_BRANCH;
+ 				p1 = p;
+ 				
+@@ -495,12 +493,10 @@ addstacksplit(Link *ctxt, LSym *cursym)
+ 				p->as = ACMP;
+ 				p->from.type = D_REG;
+ 				p->from.offset = 2;
+-				p->to.type = D_REG;
+-				p->to.reg = 3;
++				p->reg = 3;
+ 
+ 				p = appendp(ctxt, p);
+-				p->as = AB;
+-				p->scond = C_SCOND_NE;
++				p->as = ABNE;
+ 				p->to.type = D_BRANCH;
+ 				p2 = p;
+ 			

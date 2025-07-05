@@ -9,7 +9,7 @@ Date:   Tue Sep 9 14:02:37 2014 -0400
     TBR=khr
     CC=golang-codereviews
     https://golang.org/cl/143720043
-
+---
  src/runtime/asm_386.s           |  2 +-
  src/runtime/asm_amd64p32.s      |  2 +-
  src/runtime/os_freebsd.c        |  4 ++--
@@ -20,3 +20,197 @@ Date:   Tue Sep 9 14:02:37 2014 -0400
  src/runtime/sys_windows_386.s   | 16 +++++++++++-----
  src/runtime/sys_windows_amd64.s | 16 +++++++++++-----
  9 files changed, 36 insertions(+), 19 deletions(-)
+
+diff --git a/src/runtime/asm_386.s b/src/runtime/asm_386.s
+index fc01b995b1..2376ab92ba 100644
+--- a/src/runtime/asm_386.s
++++ b/src/runtime/asm_386.s
+@@ -811,7 +811,7 @@ TEXT setg_gcc<>(SB), NOSPLIT, $0
+ 	MOVL	DX, g(AX)
+ 	RET
+ 
+-// check that SP is in range [g->stackbase, g->stackguard)
++// check that SP is in range [g->stack.lo, g->stack.hi)
+ TEXT runtime·stackcheck(SB), NOSPLIT, $0-0
+ 	get_tls(CX)
+ 	MOVL	g(CX), AX
+diff --git a/src/runtime/asm_amd64p32.s b/src/runtime/asm_amd64p32.s
+index 046eb1cd6f..5d82d84aa4 100644
+--- a/src/runtime/asm_amd64p32.s
++++ b/src/runtime/asm_amd64p32.s
+@@ -590,7 +590,7 @@ TEXT runtime·setg(SB), NOSPLIT, $0-4
+ 	MOVL	0, AX
+ 	RET
+ 
+-// check that SP is in range [g->stackbase, g->stackguard)
++// check that SP is in range [g->stack.lo, g->stack.hi)
+ TEXT runtime·stackcheck(SB), NOSPLIT, $0-0
+ 	get_tls(CX)
+ 	MOVL	g(CX), AX
+diff --git a/src/runtime/os_freebsd.c b/src/runtime/os_freebsd.c
+index cde6936de5..a513cb6044 100644
+--- a/src/runtime/os_freebsd.c
++++ b/src/runtime/os_freebsd.c
+@@ -153,8 +153,8 @@ runtime·newosproc(M *mp, void *stk)
+ 	
+ 	// NOTE(rsc): This code is confused. stackbase is the top of the stack
+ 	// and is equal to stk. However, it's working, so I'm not changing it.
+-	param.stack_base = (void*)mp->g0->stackbase;
+-	param.stack_size = (byte*)stk - (byte*)mp->g0->stackbase;
++	param.stack_base = (void*)mp->g0->stack.hi;
++	param.stack_size = (byte*)stk - (byte*)mp->g0->stack.hi;
+ 
+ 	param.child_tid = (void*)&mp->procid;
+ 	param.parent_tid = nil;
+diff --git a/src/runtime/os_solaris.c b/src/runtime/os_solaris.c
+index 4b382b731b..99c38d8be6 100644
+--- a/src/runtime/os_solaris.c
++++ b/src/runtime/os_solaris.c
+@@ -121,14 +121,17 @@ runtime·newosproc(M *mp, void *stk)
+ 	Sigset oset;
+ 	Pthread tid;
+ 	int32 ret;
++	uint64 size;
+ 
+ 	USED(stk);
+ 	if(runtime·pthread_attr_init(&attr) != 0)
+ 		runtime·throw("pthread_attr_init");
+ 	if(runtime·pthread_attr_setstack(&attr, 0, 0x200000) != 0)
+ 		runtime·throw("pthread_attr_setstack");
+-	if(runtime·pthread_attr_getstack(&attr, (void**)&mp->g0->stackbase, &mp->g0->stacksize) != 0)
++	size = 0;
++	if(runtime·pthread_attr_getstack(&attr, (void**)&mp->g0->stack.hi, &size) != 0)
+ 		runtime·throw("pthread_attr_getstack");	
++	mp->g0->stack.lo = mp->g0->stack.hi - size;
+ 	if(runtime·pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED) != 0)
+ 		runtime·throw("pthread_attr_setdetachstate");
+ 
+diff --git a/src/runtime/sys_plan9_386.s b/src/runtime/sys_plan9_386.s
+index 7432981813..1256347963 100644
+--- a/src/runtime/sys_plan9_386.s
++++ b/src/runtime/sys_plan9_386.s
+@@ -192,7 +192,7 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$0
+ 	// change stack
+ 	MOVL	g_m(BX), BX
+ 	MOVL	m_gsignal(BX), BP
+-	MOVL	g_stackbase(BP), BP
++	MOVL	(g_stack+stack_hi)(BP), BP
+ 	MOVL	BP, SP
+ 
+ 	// make room for args and g
+diff --git a/src/runtime/sys_plan9_amd64.s b/src/runtime/sys_plan9_amd64.s
+index 954c0c27bb..d0586a5ae9 100644
+--- a/src/runtime/sys_plan9_amd64.s
++++ b/src/runtime/sys_plan9_amd64.s
+@@ -190,7 +190,7 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$0
+ 	// change stack
+ 	MOVQ	g_m(BX), BX
+ 	MOVQ	m_gsignal(BX), R10
+-	MOVQ	g_stackbase(R10), BP
++	MOVQ	(g_stack+stack_hi)(R10), BP
+ 	MOVQ	BP, SP
+ 
+ 	// make room for args and g
+diff --git a/src/runtime/sys_solaris_amd64.s b/src/runtime/sys_solaris_amd64.s
+index 093315c4a4..0ebdab6ee2 100644
+--- a/src/runtime/sys_solaris_amd64.s
++++ b/src/runtime/sys_solaris_amd64.s
+@@ -129,10 +129,12 @@ TEXT runtime·tstart_sysvicall(SB),NOSPLIT,$0
+ 
+ 	// Layout new m scheduler stack on os stack.
+ 	MOVQ	SP, AX
+-	MOVQ	AX, g_stackbase(DX)
++	MOVQ	AX, (g_stack+stack_hi)(DX)
+ 	SUBQ	$(0x100000), AX		// stack size
+-	MOVQ	AX, g_stackguard(DX)
++	MOVQ	AX, (g_stack+stack_lo)(DX)
++	ADDQ	$const_StackGuard, AX
+ 	MOVQ	AX, g_stackguard0(DX)
++	MOVQ	AX, g_stackguard1(DX)
+ 
+ 	// Someday the convention will be D is always cleared.
+ 	CLD
+diff --git a/src/runtime/sys_windows_386.s b/src/runtime/sys_windows_386.s
+index fc19f5650a..ebcfdf4e0d 100644
+--- a/src/runtime/sys_windows_386.s
++++ b/src/runtime/sys_windows_386.s
+@@ -192,8 +192,11 @@ TEXT runtime·externalthreadhandler(SB),NOSPLIT,$0
+ 	LEAL	g_end(SP), BX
+ 	MOVL	BX, g_m(SP)
+ 	LEAL	-4096(SP), CX
+-	MOVL	CX, g_stackguard(SP)
+-	MOVL	DX, g_stackbase(SP)
++	MOVL	CX, (g_stack+stack_lo)(SP)
++	ADDL	$const_StackGuard, CX
++	MOVL	CX, g_stackguard0(SP)
++	MOVL	CX, g_stackguard1(SP)
++	MOVL	DX, (g_stack+stack_hi)(SP)
+ 
+ 	PUSHL	16(BP)			// arg for handler
+ 	CALL	8(BP)
+@@ -201,7 +204,7 @@ TEXT runtime·externalthreadhandler(SB),NOSPLIT,$0
+ 
+ 	get_tls(CX)
+ 	MOVL	g(CX), CX
+-	MOVL	g_stackbase(CX), SP
++	MOVL	(g_stack+stack_hi)(CX), SP
+ 	POPL	0x14(FS)
+ 	POPL	DI
+ 	POPL	SI
+@@ -293,9 +296,12 @@ TEXT runtime·tstart(SB),NOSPLIT,$0
+ 
+ 	// Layout new m scheduler stack on os stack.
+ 	MOVL	SP, AX
+-	MOVL	AX, g_stackbase(DX)
++	MOVL	AX, (g_stack+stack_hi)(DX)
+ 	SUBL	$(64*1024), AX		// stack size
+-	MOVL	AX, g_stackguard(DX)
++	MOVL	AX, (g_stack+stack_lo)(DX)
++	ADDL	$const_StackGuard, AX
++	MOVL	AX, g_stackguard0(DX)
++	MOVL	AX, g_stackguard1(DX)
+ 
+ 	// Set up tls.
+ 	LEAL	m_tls(CX), SI
+diff --git a/src/runtime/sys_windows_amd64.s b/src/runtime/sys_windows_amd64.s
+index 3d63a04de9..f701d157ed 100644
+--- a/src/runtime/sys_windows_amd64.s
++++ b/src/runtime/sys_windows_amd64.s
+@@ -229,8 +229,11 @@ TEXT runtime·externalthreadhandler(SB),NOSPLIT,$0
+ 	MOVQ	BX, g_m(SP)
+ 
+ 	LEAQ	-8192(SP), CX
+-	MOVQ	CX, g_stackguard(SP)
+-	MOVQ	DX, g_stackbase(SP)
++	MOVQ	CX, (g_stack+stack_lo)(SP)
++	ADDQ	$const_StackGuard, CX
++	MOVQ	CX, g_stackguard0(SP)
++	MOVQ	CX, g_stackguard1(SP)
++	MOVQ	DX, (g_stack+stack_hi)(SP)
+ 
+ 	PUSHQ	32(BP)			// arg for handler
+ 	CALL	16(BP)
+@@ -238,7 +241,7 @@ TEXT runtime·externalthreadhandler(SB),NOSPLIT,$0
+ 
+ 	get_tls(CX)
+ 	MOVQ	g(CX), CX
+-	MOVQ	g_stackbase(CX), SP
++	MOVQ	(g_stack+stack_hi)(CX), SP
+ 	POPQ	0x28(GS)
+ 	POPQ	DI
+ 	POPQ	SI
+@@ -334,9 +337,12 @@ TEXT runtime·tstart_stdcall(SB),NOSPLIT,$0
+ 
+ 	// Layout new m scheduler stack on os stack.
+ 	MOVQ	SP, AX
+-	MOVQ	AX, g_stackbase(DX)
++	MOVQ	AX, (g_stack+stack_hi)(DX)
+ 	SUBQ	$(64*1024), AX		// stack size
+-	MOVQ	AX, g_stackguard(DX)
++	MOVQ	AX, (g_stack+stack_lo)(DX)
++	ADDQ	$const_StackGuard, AX
++	MOVQ	AX, g_stackguard0(DX)
++	MOVQ	AX, g_stackguard1(DX)
+ 
+ 	// Set up tls.
+ 	LEAQ	m_tls(CX), SI

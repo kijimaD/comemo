@@ -14,7 +14,7 @@ Date:   Thu Feb 22 21:09:55 2024 +0000
     Reviewed-by: Carlos Amedee <carlos@golang.org>
     Reviewed-by: Robert Griesemer <gri@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/compile/internal/syntax/parser.go              |  4 +++-
  src/cmd/compile/internal/syntax/testdata/issue20789.go |  2 +-
  src/cmd/compile/internal/syntax/testdata/issue47704.go |  2 +-
@@ -24,3 +24,132 @@ Date:   Thu Feb 22 21:09:55 2024 +0000
  test/fixedbugs/issue20789.go                           |  2 +-
  test/fixedbugs/issue23664.go                           |  4 ++--
  8 files changed, 27 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/compile/internal/syntax/parser.go b/src/cmd/compile/internal/syntax/parser.go
+index 1569b5e987..f75f86587a 100644
+--- a/src/cmd/compile/internal/syntax/parser.go
++++ b/src/cmd/compile/internal/syntax/parser.go
+@@ -267,7 +267,9 @@ func (p *parser) syntaxErrorAt(pos Pos, msg string) {
+ 	// determine token string
+ 	var tok string
+ 	switch p.tok {
+-	case _Name, _Semi:
++	case _Name:
++		tok = "`" + p.lit + "'"
++	case _Semi:
+ 		tok = p.lit
+ 	case _Literal:
+ 		tok = "literal " + p.lit
+diff --git a/src/cmd/compile/internal/syntax/testdata/issue20789.go b/src/cmd/compile/internal/syntax/testdata/issue20789.go
+index 0d5988b9a6..8a6db6d2ee 100644
+--- a/src/cmd/compile/internal/syntax/testdata/issue20789.go
++++ b/src/cmd/compile/internal/syntax/testdata/issue20789.go
+@@ -6,4 +6,4 @@
+ // Line 9 must end in EOF for this test (no newline).
+ 
+ package e
+-func([<-chan<-[func /* ERROR unexpected u */ u){go
+\ No newline at end of file
++func([<-chan<-[func /* ERROR unexpected `u' */ u){go
+\ No newline at end of file
+diff --git a/src/cmd/compile/internal/syntax/testdata/issue47704.go b/src/cmd/compile/internal/syntax/testdata/issue47704.go
+index e4cdad148f..aab3790560 100644
+--- a/src/cmd/compile/internal/syntax/testdata/issue47704.go
++++ b/src/cmd/compile/internal/syntax/testdata/issue47704.go
+@@ -7,7 +7,7 @@ package p
+ func _() {
+ 	_ = m[] // ERROR expected operand
+ 	_ = m[x,]
+-	_ = m[x /* ERROR unexpected a */ a b c d]
++	_ = m[x /* ERROR unexpected `a' */ a b c d]
+ }
+ 
+ // test case from the issue
+diff --git a/src/cmd/compile/internal/syntax/testdata/issue49205.go b/src/cmd/compile/internal/syntax/testdata/issue49205.go
+index bbcc950c5c..9b6c769703 100644
+--- a/src/cmd/compile/internal/syntax/testdata/issue49205.go
++++ b/src/cmd/compile/internal/syntax/testdata/issue49205.go
+@@ -7,7 +7,7 @@ package p
+ // test case from issue
+ 
+ type _ interface{
+-	m /* ERROR unexpected int in interface type; possibly missing semicolon or newline or } */ int
++	m /* ERROR unexpected `int' in interface type; possibly missing semicolon or newline or } */ int
+ }
+ 
+ // other cases where the fix for this issue affects the error message
+@@ -16,12 +16,12 @@ const (
+ 	x int = 10 /* ERROR unexpected literal "foo" in grouped declaration; possibly missing semicolon or newline or \) */ "foo"
+ )
+ 
+-var _ = []int{1, 2, 3 /* ERROR unexpected int in composite literal; possibly missing comma or } */ int }
++var _ = []int{1, 2, 3 /* ERROR unexpected `int' in composite literal; possibly missing comma or } */ int }
+ 
+ type _ struct {
+ 	x y /* ERROR syntax error: unexpected comma in struct type; possibly missing semicolon or newline or } */ ,
+ }
+ 
+-func f(a, b c /* ERROR unexpected d in parameter list; possibly missing comma or \) */ d) {
+-	f(a, b, c /* ERROR unexpected d in argument list; possibly missing comma or \) */ d)
++func f(a, b c /* ERROR unexpected `d' in parameter list; possibly missing comma or \) */ d) {
++	f(a, b, c /* ERROR unexpected `d' in argument list; possibly missing comma or \) */ d)
+ }
+diff --git a/src/cmd/compile/internal/syntax/testdata/issue52391.go b/src/cmd/compile/internal/syntax/testdata/issue52391.go
+index f2098ceadb..42b71cc83a 100644
+--- a/src/cmd/compile/internal/syntax/testdata/issue52391.go
++++ b/src/cmd/compile/internal/syntax/testdata/issue52391.go
+@@ -13,5 +13,5 @@ type _ interface {
+ 	(int) | (string)
+ 	(int) | ~(string)
+ 	(/* ERROR unexpected ~ */ ~int)
+-	(int /* ERROR unexpected \| */ | /* ERROR unexpected string */ string /* ERROR unexpected \) */ )
++	(int /* ERROR unexpected \| */ | /* ERROR unexpected `string' */ string /* ERROR unexpected \) */ )
+ }
+diff --git a/src/cmd/compile/internal/syntax/testdata/issue65970.go b/src/cmd/compile/internal/syntax/testdata/issue65970.go
+new file mode 100644
+index 0000000000..07ffd12678
+--- /dev/null
++++ b/src/cmd/compile/internal/syntax/testdata/issue65970.go
+@@ -0,0 +1,14 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++import (
++	"fmt"
++)
++
++func f() {
++	int status // ERROR syntax error: unexpected `status' at end of statement
++	fmt.Println(status)
++}
+diff --git a/test/fixedbugs/issue20789.go b/test/fixedbugs/issue20789.go
+index 4e4eed42a7..cba1290957 100644
+--- a/test/fixedbugs/issue20789.go
++++ b/test/fixedbugs/issue20789.go
+@@ -10,4 +10,4 @@
+ // there yet, so put it here for now. See also #20800.)
+ 
+ package e
+-func([<-chan<-[func u){go // ERROR "unexpected u"
+\ No newline at end of file
++func([<-chan<-[func u){go // ERROR "unexpected `u'"
+\ No newline at end of file
+diff --git a/test/fixedbugs/issue23664.go b/test/fixedbugs/issue23664.go
+index 715654be70..fe171c27d0 100644
+--- a/test/fixedbugs/issue23664.go
++++ b/test/fixedbugs/issue23664.go
+@@ -9,9 +9,9 @@
+ package p
+ 
+ func f() {
+-	if f() true { // ERROR "unexpected true, expected {"
++	if f() true { // ERROR "unexpected `true', expected {"
+ 	}
+ 	
+-	switch f() true { // ERROR "unexpected true, expected {"
++	switch f() true { // ERROR "unexpected `true', expected {"
+ 	}
+ }

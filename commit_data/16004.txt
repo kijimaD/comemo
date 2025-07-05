@@ -11,6 +11,24 @@ Date:   Fri Mar 29 08:30:28 2013 -0700
     R=golang-dev, fullung
     CC=golang-dev
     https://golang.org/cl/8156044
-
+---
  src/pkg/net/http/z_last_test.go | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/http/z_last_test.go b/src/pkg/net/http/z_last_test.go
+index 5d97f9db65..bf5e3f188c 100644
+--- a/src/pkg/net/http/z_last_test.go
++++ b/src/pkg/net/http/z_last_test.go
+@@ -27,7 +27,11 @@ func interestingGoroutines() (gs []string) {
+ 			strings.Contains(stack, "created by net.startServer") ||
+ 			strings.Contains(stack, "created by testing.RunTests") ||
+ 			strings.Contains(stack, "closeWriteAndWait") ||
+-			strings.Contains(stack, "testing.Main(") {
++			strings.Contains(stack, "testing.Main(") ||
++			// These only show up with GOTRACEBACK=2; Issue 5005 (comment 28)
++			strings.Contains(stack, "runtime.goexit") ||
++			strings.Contains(stack, "created by runtime.gc") ||
++			strings.Contains(stack, "runtime.MHeap_Scavenger") {
+ 			continue
+ 		}
+ 		gs = append(gs, stack)

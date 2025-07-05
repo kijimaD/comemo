@@ -29,9 +29,207 @@ Date:   Mon Sep 19 19:52:31 2011 -0700
     R=nigeltao
     CC=golang-dev
     https://golang.org/cl/5078041
-
+---
  src/pkg/exp/template/html/error.go       |  13 ----
  src/pkg/exp/template/html/escape.go      |   9 ++-
  src/pkg/exp/template/html/escape_test.go | 105 ++++++++++++++++++++++++-------
  src/pkg/exp/template/html/html.go        |  10 +++
  4 files changed, 98 insertions(+), 39 deletions(-)
+
+diff --git a/src/pkg/exp/template/html/error.go b/src/pkg/exp/template/html/error.go
+index 5fa2357433..f06251d604 100644
+--- a/src/pkg/exp/template/html/error.go
++++ b/src/pkg/exp/template/html/error.go
+@@ -100,19 +100,6 @@ const (
+ 	// produce a valid JavaScript Program.
+ 	ErrEndContext
+ 
+-	// ErrInsideComment: "... appears inside a comment"
+-	// Example:
+-	//  <!-- {{.X}} -->
+-	//  <script>/* {{.X}} */</script>
+-	//  <style>/* {{.X}} */</style>
+-	//
+-	// Discussion:
+-	//  {{.X}} appears inside a comment. There is no escaping convention for
+-	//  comments. To use IE conditional comments, inject the  whole comment
+-	//  as an HTML, JS, or CSS value (see content.go).
+-	//  To comment out code, break the {{...}}.
+-	ErrInsideComment
+-
+ 	// ErrNoNames: "must specify names of top level templates"
+ 	// 
+ 	//   EscapeSet does not assume that all templates in a set produce HTML.
+diff --git a/src/pkg/exp/template/html/escape.go b/src/pkg/exp/template/html/escape.go
+index e307fc9ae4..b859751140 100644
+--- a/src/pkg/exp/template/html/escape.go
++++ b/src/pkg/exp/template/html/escape.go
+@@ -64,6 +64,7 @@ func EscapeSet(s *template.Set, names ...string) (*template.Set, os.Error) {
+ // funcMap maps command names to functions that render their inputs safe.
+ var funcMap = template.FuncMap{
+ 	"exp_template_html_attrescaper":     attrEscaper,
++	"exp_template_html_commentescaper":  commentEscaper,
+ 	"exp_template_html_cssescaper":      cssEscaper,
+ 	"exp_template_html_cssvaluefilter":  cssValueFilter,
+ 	"exp_template_html_htmlnamefilter":  htmlNameFilter,
+@@ -200,12 +201,10 @@ func (e *escaper) escapeAction(c context, n *parse.ActionNode) context {
+ 		s = append(s, "exp_template_html_htmlnamefilter")
+ 	default:
+ 		if isComment(c.state) {
+-			return context{
+-				state: stateError,
+-				err:   errorf(ErrInsideComment, n.Line, "%s appears inside a comment", n),
+-			}
++			s = append(s, "exp_template_html_commentescaper")
++		} else {
++			panic("unexpected state " + c.state.String())
+ 		}
+-		panic("unexpected state " + c.state.String())
+ 	}
+ 	switch c.delim {
+ 	case delimNone:
+diff --git a/src/pkg/exp/template/html/escape_test.go b/src/pkg/exp/template/html/escape_test.go
+index 47927e753e..594a9606d7 100644
+--- a/src/pkg/exp/template/html/escape_test.go
++++ b/src/pkg/exp/template/html/escape_test.go
+@@ -361,11 +361,94 @@ func TestEscape(t *testing.T) {
+ 			`<a style="border-image: url(/**/%27%22;://%20%5c), url(&quot;/**/%27%22;://%20%5c&quot;), url('/**/%27%22;://%20%5c'), 'http://www.example.com/?q=%2f%2a%2a%2f%27%22%3b%3a%2f%2f%20%5c''">`,
+ 		},
+ 		{
+-			"comment",
++			"HTML comment",
+ 			"<b>Hello, <!-- name of world -->{{.C}}</b>",
+ 			// TODO: Elide comment.
+ 			"<b>Hello, <!-- name of world -->&lt;Cincinatti&gt;</b>",
+ 		},
++		{
++			"Split HTML comment",
++			"<b>Hello, <!-- name of {{if .T}}city -->{{.C}}{{else}}world -->{{.W}}{{end}}</b>",
++			"<b>Hello, <!-- name of city -->&lt;Cincinatti&gt;</b>",
++		},
++		{
++			"JS line comment",
++			"<script>for (;;) { if (c()) break// foo not a label\n" +
++				"foo({{.T}});}</script>",
++			"<script>for (;;) { if (c()) break// foo not a label\n" +
++				"foo( true );}</script>",
++		},
++		{
++			"JS multiline block comment",
++			"<script>for (;;) { if (c()) break/* foo not a label\n" +
++				" */foo({{.T}});}</script>",
++			// Newline separates break from call. If newline
++			// removed, then break will consume label leaving
++			// code invalid.
++			"<script>for (;;) { if (c()) break/* foo not a label\n" +
++				" */foo( true );}</script>",
++		},
++		{
++			"JS single-line block comment",
++			"<script>for (;;) {\n" +
++				"if (c()) break/* foo a label */foo;" +
++				"x({{.T}});}</script>",
++			// Newline separates break from call. If newline
++			// removed, then break will consume label leaving
++			// code invalid.
++			"<script>for (;;) {\n" +
++				"if (c()) break/* foo a label */foo;" +
++				"x( true );}</script>",
++		},
++		{
++			"JS block comment flush with mathematical division",
++			"<script>var a/*b*//c\nd</script>",
++			"<script>var a/*b*//c\nd</script>",
++		},
++		{
++			"JS mixed comments",
++			"<script>var a/*b*///c\nd</script>",
++			"<script>var a/*b*///c\nd</script>",
++		},
++		{
++			"CSS comments",
++			"<style>p// paragraph\n" +
++				`{border: 1px/* color */{{"#00f"}}}</style>`,
++			"<style>p// paragraph\n" +
++				"{border: 1px/* color */#00f}</style>",
++		},
++		{
++			"JS attr block comment",
++			`<a onclick="f(&quot;&quot;); /* alert({{.H}}) */">`,
++			// Attribute comment tests should pass if the comments
++			// are successfully elided.
++			`<a onclick="f(&quot;&quot;); /* alert() */">`,
++		},
++		{
++			"JS attr line comment",
++			`<a onclick="// alert({{.G}})">`,
++			`<a onclick="// alert()">`,
++		},
++		{
++			"CSS attr block comment",
++			`<a style="/* color: {{.H}} */">`,
++			`<a style="/* color:  */">`,
++		},
++		{
++			"CSS attr line comment",
++			`<a style="// color: {{.G}}">`,
++			`<a style="// color: ">`,
++		},
++		{
++			"HTML substitution commented out",
++			"<p><!-- {{.H}} --></p>",
++			"<p><!--  --></p>",
++		},
++		{
++			"Comment ends flush with start",
++			"<!--{{.}}--><script>/*{{.}}*///{{.}}\n</script><style>/*{{.}}*///{{.}}\n</style><a onclick='/*{{.}}*///{{.}}' style='/*{{.}}*///{{.}}'>",
++			"<!----><script>/**///\n</script><style>/**///\n</style><a onclick='/**///' style='/**///'>",
++		},
+ 		{
+ 			"typed HTML in text",
+ 			`{{.W}}`,
+@@ -717,26 +800,6 @@ func TestErrors(t *testing.T) {
+ 			`<a onclick="/foo[\]/`,
+ 			`unfinished JS regexp charset: "foo[\\]/"`,
+ 		},
+-		{
+-			`<a onclick="/* alert({{.X}}) */">`,
+-			`z:1: (action: [(command: [F=[X]])]) appears inside a comment`,
+-		},
+-		{
+-			`<a onclick="// alert({{.X}})">`,
+-			`z:1: (action: [(command: [F=[X]])]) appears inside a comment`,
+-		},
+-		{
+-			`<a style="/* color: {{.X}} */">`,
+-			`z:1: (action: [(command: [F=[X]])]) appears inside a comment`,
+-		},
+-		{
+-			`<a style="// color: {{.X}}">`,
+-			`z:1: (action: [(command: [F=[X]])]) appears inside a comment`,
+-		},
+-		{
+-			"<!-- {{.H}} -->",
+-			"z:1: (action: [(command: [F=[H]])]) appears inside a comment",
+-		},
+ 		{
+ 			// It is ambiguous whether 1.5 should be 1\.5 or 1.5.
+ 			// Either `var x = 1/- 1.5 /i.test(x)`
+diff --git a/src/pkg/exp/template/html/html.go b/src/pkg/exp/template/html/html.go
+index 52472d193e..7b5fab0d93 100644
+--- a/src/pkg/exp/template/html/html.go
++++ b/src/pkg/exp/template/html/html.go
+@@ -224,3 +224,13 @@ func htmlNameFilter(args ...interface{}) string {
+ 	}
+ 	return s
+ }
++
++// commentEscaper returns the empty string regardless of input.
++// Comment content does not correspond to any parsed structure or
++// human-readable content, so the simplest and most secure policy is to drop
++// content interpolated into comments.
++// This approach is equally valid whether or not static comment content is
++// removed from the template.
++func commentEscaper(args ...interface{}) string {
++	return ""
++}

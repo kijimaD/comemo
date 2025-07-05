@@ -38,9 +38,181 @@ Date:   Thu May 30 09:46:56 2019 -0700
     Run-TryBot: Damien Neil <dneil@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/internal/test2json/testdata/panic.json | 19 ++++++
  src/cmd/internal/test2json/testdata/panic.test | 17 ++++++
  src/testing/panic_test.go                      | 83 ++++++++++++++++++++++++++
  src/testing/testing.go                         | 13 +++-
  4 files changed, 130 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/internal/test2json/testdata/panic.json b/src/cmd/internal/test2json/testdata/panic.json
+new file mode 100644
+index 0000000000..f99679c2e2
+--- /dev/null
++++ b/src/cmd/internal/test2json/testdata/panic.json
+@@ -0,0 +1,19 @@
++{"Action":"output","Test":"TestPanic","Output":"--- FAIL: TestPanic (0.00s)\n"}
++{"Action":"output","Test":"TestPanic","Output":"panic: oops [recovered]\n"}
++{"Action":"output","Test":"TestPanic","Output":"\tpanic: oops\n"}
++{"Action":"output","Test":"TestPanic","Output":"\n"}
++{"Action":"output","Test":"TestPanic","Output":"goroutine 7 [running]:\n"}
++{"Action":"output","Test":"TestPanic","Output":"testing.tRunner.func1(0xc000092100)\n"}
++{"Action":"output","Test":"TestPanic","Output":"\t/go/src/testing/testing.go:874 +0x3a3\n"}
++{"Action":"output","Test":"TestPanic","Output":"panic(0x1110ea0, 0x116aea0)\n"}
++{"Action":"output","Test":"TestPanic","Output":"\t/go/src/runtime/panic.go:679 +0x1b2\n"}
++{"Action":"output","Test":"TestPanic","Output":"command-line-arguments.TestPanic(0xc000092100)\n"}
++{"Action":"output","Test":"TestPanic","Output":"\ta_test.go:6 +0x39\n"}
++{"Action":"output","Test":"TestPanic","Output":"testing.tRunner(0xc000092100, 0x114f500)\n"}
++{"Action":"output","Test":"TestPanic","Output":"\tgo/src/testing/testing.go:909 +0xc9\n"}
++{"Action":"output","Test":"TestPanic","Output":"created by testing.(*T).Run\n"}
++{"Action":"output","Test":"TestPanic","Output":"\tgo/src/testing/testing.go:960 +0x350\n"}
++{"Action":"output","Test":"TestPanic","Output":"FAIL\tcommand-line-arguments\t0.042s\n"}
++{"Action":"fail","Test":"TestPanic"}
++{"Action":"output","Output":"FAIL\n"}
++{"Action":"fail"}
+diff --git a/src/cmd/internal/test2json/testdata/panic.test b/src/cmd/internal/test2json/testdata/panic.test
+new file mode 100644
+index 0000000000..517ebafeb5
+--- /dev/null
++++ b/src/cmd/internal/test2json/testdata/panic.test
+@@ -0,0 +1,17 @@
++--- FAIL: TestPanic (0.00s)
++panic: oops [recovered]
++	panic: oops
++
++goroutine 7 [running]:
++testing.tRunner.func1(0xc000092100)
++	/go/src/testing/testing.go:874 +0x3a3
++panic(0x1110ea0, 0x116aea0)
++	/go/src/runtime/panic.go:679 +0x1b2
++command-line-arguments.TestPanic(0xc000092100)
++	a_test.go:6 +0x39
++testing.tRunner(0xc000092100, 0x114f500)
++	go/src/testing/testing.go:909 +0xc9
++created by testing.(*T).Run
++	go/src/testing/testing.go:960 +0x350
++FAIL	command-line-arguments	0.042s
++FAIL
+diff --git a/src/testing/panic_test.go b/src/testing/panic_test.go
+new file mode 100644
+index 0000000000..3491510b81
+--- /dev/null
++++ b/src/testing/panic_test.go
+@@ -0,0 +1,83 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package testing_test
++
++import (
++	"flag"
++	"fmt"
++	"internal/testenv"
++	"os"
++	"os/exec"
++	"regexp"
++	"strings"
++	"testing"
++)
++
++var testPanicTest = flag.String("test_panic_test", "", "TestPanic: indicates which test should panic")
++
++func TestPanic(t *testing.T) {
++	testenv.MustHaveExec(t)
++
++	testCases := []struct {
++		desc  string
++		flags []string
++		want  string
++	}{{
++		desc:  "root test panics",
++		flags: []string{"-test_panic_test=TestPanicHelper"},
++		want: `
++--- FAIL: TestPanicHelper (N.NNs)
++    panic_test.go:NNN: TestPanicHelper
++`,
++	}, {
++		desc:  "subtest panics",
++		flags: []string{"-test_panic_test=TestPanicHelper/1"},
++		want: `
++--- FAIL: TestPanicHelper (N.NNs)
++    panic_test.go:NNN: TestPanicHelper
++    --- FAIL: TestPanicHelper/1 (N.NNs)
++        panic_test.go:NNN: TestPanicHelper/1
++`,
++	}}
++	for _, tc := range testCases {
++		t.Run(tc.desc, func(t *testing.T) {
++			cmd := exec.Command(os.Args[0], "-test.run=TestPanicHelper")
++			cmd.Args = append(cmd.Args, tc.flags...)
++			cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=1")
++			b, _ := cmd.CombinedOutput()
++			got := string(b)
++			want := strings.TrimSpace(tc.want)
++			re := makeRegexp(want)
++			if ok, err := regexp.MatchString(re, got); !ok || err != nil {
++				t.Errorf("output:\ngot:\n%s\nwant:\n%s", got, want)
++			}
++		})
++	}
++}
++
++func makeRegexp(s string) string {
++	s = regexp.QuoteMeta(s)
++	s = strings.ReplaceAll(s, ":NNN:", `:\d+:`)
++	s = strings.ReplaceAll(s, "N\\.NNs", `\d*\.\d*s`)
++	return s
++}
++
++func TestPanicHelper(t *testing.T) {
++	if os.Getenv("GO_WANT_HELPER_PROCESS") != "1" {
++		return
++	}
++	t.Log(t.Name())
++	if t.Name() == *testPanicTest {
++		panic("panic")
++	}
++	for i := 0; i < 3; i++ {
++		t.Run(fmt.Sprintf("%v", i), func(t *testing.T) {
++			t.Log(t.Name())
++			if t.Name() == *testPanicTest {
++				panic("panic")
++			}
++		})
++	}
++}
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index bbb10263c3..b9d4f2b5a5 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -860,7 +860,6 @@ func tRunner(t *T, fn func(t *T)) {
+ 			t.Errorf("race detected during execution of test")
+ 		}
+ 
+-		t.duration += time.Since(t.start)
+ 		// If the test panicked, print any test output before dying.
+ 		err := recover()
+ 		signal := true
+@@ -877,10 +876,20 @@ func tRunner(t *T, fn func(t *T)) {
+ 		}
+ 		if err != nil {
+ 			t.Fail()
+-			t.report()
++			// Flush the output log up to the root before dying.
++			t.mu.Lock()
++			root := &t.common
++			for ; root.parent != nil; root = root.parent {
++				root.duration += time.Since(root.start)
++				fmt.Fprintf(root.parent.w, "--- FAIL: %s (%s)\n", root.name, fmtDuration(root.duration))
++				root.parent.mu.Lock()
++				io.Copy(root.parent.w, bytes.NewReader(root.output))
++			}
+ 			panic(err)
+ 		}
+ 
++		t.duration += time.Since(t.start)
++
+ 		if len(t.sub) > 0 {
+ 			// Run parallel subtests.
+ 			// Decrease the running count for this test.

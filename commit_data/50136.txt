@@ -56,7 +56,7 @@ Date:   Mon Sep 27 14:27:20 2021 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/liveness/plive.go |  2 +-
  src/cmd/link/internal/ld/data.go           |  5 +++
  src/cmd/link/internal/ld/pcln.go           | 22 ++--------
@@ -66,3 +66,297 @@ Date:   Mon Sep 27 14:27:20 2021 -0700
  src/runtime/stack.go                       | 68 +++++++++++++++++++++---------
  src/runtime/symtab.go                      |  9 ++--
  8 files changed, 69 insertions(+), 60 deletions(-)
+
+diff --git a/src/cmd/compile/internal/liveness/plive.go b/src/cmd/compile/internal/liveness/plive.go
+index dc778a6fb9..e358155a34 100644
+--- a/src/cmd/compile/internal/liveness/plive.go
++++ b/src/cmd/compile/internal/liveness/plive.go
+@@ -1443,7 +1443,7 @@ func (lv *liveness) emitStackObjects() *obj.LSym {
+ 		}
+ 		off = objw.Uint32(x, off, uint32(sz))
+ 		off = objw.Uint32(x, off, uint32(ptrdata))
+-		off = objw.SymPtr(x, off, lsym, 0)
++		off = objw.SymPtrOff(x, off, lsym)
+ 	}
+ 
+ 	if base.Flag.Live != 0 {
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 8de0e0df1a..4f0ce23ce7 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -1367,6 +1367,11 @@ func (state *dodataState) makeRelroForSharedLib(target *Link) {
+ 					// the relro data.
+ 					isRelro = true
+ 				}
++			case sym.SGOFUNC:
++				// The only SGOFUNC symbols that contain relocations are .stkobj,
++				// and their relocations are of type objabi.R_ADDROFF,
++				// which always get resolved during linking.
++				isRelro = false
+ 			}
+ 			if isRelro {
+ 				state.setSymType(s, symnrelro)
+diff --git a/src/cmd/link/internal/ld/pcln.go b/src/cmd/link/internal/ld/pcln.go
+index b041174cfe..b5a66b8517 100644
+--- a/src/cmd/link/internal/ld/pcln.go
++++ b/src/cmd/link/internal/ld/pcln.go
+@@ -711,7 +711,7 @@ func writeFuncs(ctxt *Link, sb *loader.SymbolBuilder, funcs []loader.Sym, inlSym
+ 	ldr := ctxt.loader
+ 	deferReturnSym := ldr.Lookup("runtime.deferreturn", abiInternalVer)
+ 	gofunc := ldr.Lookup("go.func.*", 0)
+-	gofuncrel := ldr.Lookup("go.funcrel.*", 0)
++	gofuncBase := ldr.SymValue(gofunc)
+ 	textStart := ldr.SymValue(ldr.Lookup("runtime.text", 0))
+ 	funcdata := []loader.Sym{}
+ 	var pcsp, pcfile, pcline, pcinline loader.Sym
+@@ -813,24 +813,10 @@ func writeFuncs(ctxt *Link, sb *loader.SymbolBuilder, funcs []loader.Sym, inlSym
+ 				continue
+ 			}
+ 
+-			outer := ldr.OuterSym(fdsym)
+-			if outer == 0 {
+-				panic(fmt.Sprintf("no carrier sym for symbol %s (funcdata %s#%d)", ldr.SymName(fdsym), ldr.SymName(s), j))
++			if outer := ldr.OuterSym(fdsym); outer != gofunc {
++				panic(fmt.Sprintf("bad carrier sym for symbol %s (funcdata %s#%d), want go.func.* got %s", ldr.SymName(fdsym), ldr.SymName(s), j, ldr.SymName(outer)))
+ 			}
+-			rel := uint32(ldr.SymValue(fdsym) - ldr.SymValue(outer))
+-			// Record gofunc vs gofuncrel in bottom bit. See runtime/symtab.go:funcdata.
+-			// TODO: The only symbols that in gofuncrel are .stkobj symbols.
+-			// Remove those relocations, and simplify this.
+-			rel <<= 1
+-			switch outer {
+-			case gofunc:
+-			case gofuncrel:
+-				rel |= 1
+-			default:
+-				panic(fmt.Sprintf("expected symbol %s (funcdata %s#%d) to be placed in go.func.* or go.funcrel.*, got %s (%d)",
+-					ldr.SymName(fdsym), ldr.SymName(s), j, ldr.SymName(outer), outer))
+-			}
+-			sb.SetUint32(ctxt.Arch, int64(dataoff), rel)
++			sb.SetUint32(ctxt.Arch, int64(dataoff), uint32(ldr.SymValue(fdsym)-gofuncBase))
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/link/internal/ld/symtab.go b/src/cmd/link/internal/ld/symtab.go
+index c582e4908d..878d30b5f1 100644
+--- a/src/cmd/link/internal/ld/symtab.go
++++ b/src/cmd/link/internal/ld/symtab.go
+@@ -569,13 +569,8 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
+ 			strings.HasSuffix(name, ".args_stackmap"),
+ 			strings.HasSuffix(name, ".stkobj"):
+ 			ldr.SetAttrNotInSymbolTable(s, true)
+-			if ctxt.UseRelro() && strings.HasSuffix(name, ".stkobj") {
+-				symGroupType[s] = sym.SGOFUNCRELRO
+-				ldr.SetCarrierSym(s, symgofuncrel)
+-			} else {
+-				symGroupType[s] = sym.SGOFUNC
+-				ldr.SetCarrierSym(s, symgofunc)
+-			}
++			symGroupType[s] = sym.SGOFUNC
++			ldr.SetCarrierSym(s, symgofunc)
+ 			if ctxt.Debugvlog != 0 {
+ 				align := ldr.SymAlign(s)
+ 				liveness += (ldr.SymSize(s) + int64(align) - 1) &^ (int64(align) - 1)
+@@ -676,12 +671,8 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
+ 	moduledata.AddAddr(ctxt.Arch, ldr.Lookup("runtime.gcbss", 0))
+ 	moduledata.AddAddr(ctxt.Arch, ldr.Lookup("runtime.types", 0))
+ 	moduledata.AddAddr(ctxt.Arch, ldr.Lookup("runtime.etypes", 0))
++	moduledata.AddAddr(ctxt.Arch, ldr.Lookup("runtime.rodata", 0))
+ 	moduledata.AddAddr(ctxt.Arch, ldr.Lookup("go.func.*", 0))
+-	if gofuncrel := ldr.Lookup("go.funcrel.*", 0); gofuncrel != 0 {
+-		moduledata.AddAddr(ctxt.Arch, gofuncrel)
+-	} else {
+-		moduledata.AddUint(ctxt.Arch, 0)
+-	}
+ 
+ 	if ctxt.IsAIX() && ctxt.IsExternal() {
+ 		// Add R_XCOFFREF relocation to prevent ld's garbage collection of
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index eb5221443e..246907e538 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -803,7 +803,7 @@ func scanstack(gp *g, gcw *gcWork) {
+ 			println()
+ 			printunlock()
+ 		}
+-		gcdata := r.gcdata
++		gcdata := r.gcdata()
+ 		var s *mspan
+ 		if r.useGCProg() {
+ 			// This path is pretty unlikely, an object large enough
+@@ -923,7 +923,8 @@ func scanframeworker(frame *stkframe, state *stackScanState, gcw *gcWork) {
+ 		// varp is 0 for defers, where there are no locals.
+ 		// In that case, there can't be a pointer to its args, either.
+ 		// (And all args would be scanned above anyway.)
+-		for i, obj := range objs {
++		for i := range objs {
++			obj := &objs[i]
+ 			off := obj.off
+ 			base := frame.varp // locals base pointer
+ 			if off >= 0 {
+@@ -937,7 +938,7 @@ func scanframeworker(frame *stkframe, state *stackScanState, gcw *gcWork) {
+ 			if stackTraceDebug {
+ 				println("stkobj at", hex(ptr), "of size", obj.size)
+ 			}
+-			state.addObject(ptr, &objs[i])
++			state.addObject(ptr, obj)
+ 		}
+ 	}
+ }
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 2f619f93d3..aa2ba96c8f 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -687,6 +687,7 @@ func schedinit() {
+ 	modulesinit()   // provides activeModules
+ 	typelinksinit() // uses maps, activeModules
+ 	itabsinit()     // uses activeModules
++	stkobjinit()    // must run before GC starts
+ 
+ 	sigsave(&_g_.m.sigmask)
+ 	initSigmask = _g_.m.sigmask
+diff --git a/src/runtime/stack.go b/src/runtime/stack.go
+index 0946e6975a..efaa799022 100644
+--- a/src/runtime/stack.go
++++ b/src/runtime/stack.go
+@@ -691,7 +691,8 @@ func adjustframe(frame *stkframe, arg unsafe.Pointer) bool {
+ 	// Adjust pointers in all stack objects (whether they are live or not).
+ 	// See comments in mgcmark.go:scanframeworker.
+ 	if frame.varp != 0 {
+-		for _, obj := range objs {
++		for i := range objs {
++			obj := &objs[i]
+ 			off := obj.off
+ 			base := frame.varp // locals base pointer
+ 			if off >= 0 {
+@@ -705,7 +706,7 @@ func adjustframe(frame *stkframe, arg unsafe.Pointer) bool {
+ 				continue
+ 			}
+ 			ptrdata := obj.ptrdata()
+-			gcdata := obj.gcdata
++			gcdata := obj.gcdata()
+ 			var s *mspan
+ 			if obj.useGCProg() {
+ 				// See comments in mgcmark.go:scanstack
+@@ -1321,7 +1322,7 @@ func getStackMap(frame *stkframe, cache *pcvalueCache, debug bool) (locals, args
+ 		// We don't actually use argmap in this case, but we need to fake the stack object
+ 		// record for these frames which contain an internal/abi.RegArgs at a hard-coded offset.
+ 		// This offset matches the assembly code on amd64 and arm64.
+-		objs = methodValueCallFrameObjs
++		objs = methodValueCallFrameObjs[:]
+ 	} else {
+ 		p := funcdata(f, _FUNCDATA_StackObjects)
+ 		if p != nil {
+@@ -1340,23 +1341,33 @@ func getStackMap(frame *stkframe, cache *pcvalueCache, debug bool) (locals, args
+ 	return
+ }
+ 
+-var (
+-	abiRegArgsEface          interface{} = abi.RegArgs{}
+-	abiRegArgsType           *_type      = efaceOf(&abiRegArgsEface)._type
+-	methodValueCallFrameObjs             = []stackObjectRecord{
+-		{
+-			off:      -int32(alignUp(abiRegArgsType.size, 8)), // It's always the highest address local.
+-			size:     int32(abiRegArgsType.size),
+-			_ptrdata: int32(abiRegArgsType.ptrdata),
+-			gcdata:   abiRegArgsType.gcdata,
+-		},
+-	}
+-)
++var methodValueCallFrameObjs [1]stackObjectRecord // initialized in stackobjectinit
+ 
+-func init() {
++func stkobjinit() {
++	var abiRegArgsEface interface{} = abi.RegArgs{}
++	abiRegArgsType := efaceOf(&abiRegArgsEface)._type
+ 	if abiRegArgsType.kind&kindGCProg != 0 {
+ 		throw("abiRegArgsType needs GC Prog, update methodValueCallFrameObjs")
+ 	}
++	// Set methodValueCallFrameObjs[0].gcdataoff so that
++	// stackObjectRecord.gcdata() will work correctly with it.
++	ptr := uintptr(unsafe.Pointer(&methodValueCallFrameObjs[0]))
++	var mod *moduledata
++	for datap := &firstmoduledata; datap != nil; datap = datap.next {
++		if datap.gofunc <= ptr && ptr < datap.end {
++			mod = datap
++			break
++		}
++	}
++	if mod == nil {
++		throw("methodValueCallFrameObjs is not in a module")
++	}
++	methodValueCallFrameObjs[0] = stackObjectRecord{
++		off:       -int32(alignUp(abiRegArgsType.size, 8)), // It's always the highest address local.
++		size:      int32(abiRegArgsType.size),
++		_ptrdata:  int32(abiRegArgsType.ptrdata),
++		gcdataoff: uint32(uintptr(unsafe.Pointer(abiRegArgsType.gcdata)) - mod.rodata),
++	}
+ }
+ 
+ // A stackObjectRecord is generated by the compiler for each stack object in a stack frame.
+@@ -1365,10 +1376,10 @@ type stackObjectRecord struct {
+ 	// offset in frame
+ 	// if negative, offset from varp
+ 	// if non-negative, offset from argp
+-	off      int32
+-	size     int32
+-	_ptrdata int32 // ptrdata, or -ptrdata is GC prog is used
+-	gcdata   *byte // pointer map or GC prog of the type
++	off       int32
++	size      int32
++	_ptrdata  int32  // ptrdata, or -ptrdata is GC prog is used
++	gcdataoff uint32 // offset to gcdata from moduledata.rodata
+ }
+ 
+ func (r *stackObjectRecord) useGCProg() bool {
+@@ -1383,6 +1394,23 @@ func (r *stackObjectRecord) ptrdata() uintptr {
+ 	return uintptr(x)
+ }
+ 
++// gcdata returns pointer map or GC prog of the type.
++func (r *stackObjectRecord) gcdata() *byte {
++	ptr := uintptr(unsafe.Pointer(r))
++	var mod *moduledata
++	for datap := &firstmoduledata; datap != nil; datap = datap.next {
++		if datap.gofunc <= ptr && ptr < datap.end {
++			mod = datap
++			break
++		}
++	}
++	// If you get a panic here due to a nil mod,
++	// you may have made a copy of a stackObjectRecord.
++	// You must use the original pointer.
++	res := mod.rodata + uintptr(r.gcdataoff)
++	return (*byte)(unsafe.Pointer(res))
++}
++
+ // This is exported as ABI0 via linkname so obj can call it.
+ //
+ //go:nosplit
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index 8f7b439dc5..cbfe604f1b 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -427,7 +427,8 @@ type moduledata struct {
+ 	noptrbss, enoptrbss   uintptr
+ 	end, gcdata, gcbss    uintptr
+ 	types, etypes         uintptr
+-	gofunc, gofuncrel     uintptr // go.func.*, go.funcrel.*
++	rodata                uintptr
++	gofunc                uintptr // go.func.*
+ 
+ 	textsectmap []textsect
+ 	typelinks   []int32 // offsets from types
+@@ -1092,11 +1093,7 @@ func funcdata(f funcInfo, i uint8) unsafe.Pointer {
+ 	if off == ^uint32(0) {
+ 		return nil
+ 	}
+-	base := f.datap.gofunc
+-	if off&1 != 0 {
+-		base = f.datap.gofuncrel
+-	}
+-	return unsafe.Pointer(base + uintptr(off>>1))
++	return unsafe.Pointer(f.datap.gofunc + uintptr(off))
+ }
+ 
+ // step advances to the next pc, value pair in the encoded table.

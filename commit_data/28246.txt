@@ -7,6 +7,26 @@ Date:   Fri May 6 18:33:39 2016 +0000
     Change-Id: Ifd707a4bbfcb1721655b4fce2045f3b043e66818
     Reviewed-on: https://go-review.googlesource.com/22859
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/net/url/url.go | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/url/url.go b/src/net/url/url.go
+index d9c8c49e94..30e9277937 100644
+--- a/src/net/url/url.go
++++ b/src/net/url/url.go
+@@ -3,9 +3,13 @@
+ // license that can be found in the LICENSE file.
+ 
+ // Package url parses URLs and implements query escaping.
+-// See RFC 3986.
+ package url
+ 
++// See RFC 3986. This package generally follows RFC 3986, except where
++// it deviates for compatibility reasons. When sending changes, first
++// search old issues for history on decisions. Unit tests should also
++// contain references to issue numbers with details.
++
+ import (
+ 	"bytes"
+ 	"errors"

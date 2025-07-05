@@ -23,7 +23,61 @@ Date:   Wed Mar 11 17:02:50 2020 -0700
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/cover/cover.go                             |  5 ++++
  .../go/testdata/script/cover_blank_func_decl.txt   | 31 ++++++++++++++++++++++
  2 files changed, 36 insertions(+)
+
+diff --git a/src/cmd/cover/cover.go b/src/cmd/cover/cover.go
+index e04c8834bd..360f9aeb06 100644
+--- a/src/cmd/cover/cover.go
++++ b/src/cmd/cover/cover.go
+@@ -293,6 +293,11 @@ func (f *File) Visit(node ast.Node) ast.Visitor {
+ 			ast.Walk(f, n.Assign)
+ 			return nil
+ 		}
++	case *ast.FuncDecl:
++		// Don't annotate functions with blank names - they cannot be executed.
++		if n.Name.Name == "_" {
++			return nil
++		}
+ 	}
+ 	return f
+ }
+diff --git a/src/cmd/go/testdata/script/cover_blank_func_decl.txt b/src/cmd/go/testdata/script/cover_blank_func_decl.txt
+new file mode 100644
+index 0000000000..6fac4f87ea
+--- /dev/null
++++ b/src/cmd/go/testdata/script/cover_blank_func_decl.txt
+@@ -0,0 +1,31 @@
++[short] skip
++go test -cover ./coverblank
++stdout 'coverage: 100.0% of statements'
++
++
++-- coverblank/a.go --
++package coverblank
++
++func _() {
++	println("unreachable")
++}
++
++type X int
++
++func (x X) Print() {
++	println(x)
++}
++
++func (x X) _() {
++	println("unreachable")
++}
++
++-- coverblank/a_test.go --
++package coverblank
++
++import "testing"
++
++func TestX(t *testing.T) {
++	var x X
++	x.Print()
++}

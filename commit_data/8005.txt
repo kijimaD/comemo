@@ -11,7 +11,7 @@ Date:   Wed Apr 6 17:52:02 2011 -0400
     R=r, eds, niemeyer
     CC=golang-dev
     https://golang.org/cl/4369044
-
+---
  .hgignore                                 |  2 +
  src/pkg/syscall/asm_darwin_386.s          | 30 ++++++++++++++
  src/pkg/syscall/mkall.sh                  |  7 ++++
@@ -35,3 +35,742 @@ Date:   Wed Apr 6 17:52:02 2011 -0400
  src/pkg/syscall/zsyscall_linux_amd64.go   | 17 ++++++++
  src/pkg/syscall/zsyscall_linux_arm.go     | 17 ++++++++
  22 files changed, 343 insertions(+), 16 deletions(-)
+
+diff --git a/.hgignore b/.hgignore
+index 4ac2a3af70..dd4fb5a045 100644
+--- a/.hgignore
++++ b/.hgignore
+@@ -21,6 +21,8 @@ _cgo_*
+ _obj
+ _test
+ _testmain.go
++build.out
++test.out
+ y.tab.[ch]
+ doc/htmlgen
+ doc/codelab/wiki/*.bin
+diff --git a/src/pkg/syscall/asm_darwin_386.s b/src/pkg/syscall/asm_darwin_386.s
+index 9e89b89e4c..20cd809c73 100644
+--- a/src/pkg/syscall/asm_darwin_386.s
++++ b/src/pkg/syscall/asm_darwin_386.s
+@@ -61,6 +61,36 @@ ok6:
+ 	CALL	runtime·exitsyscall(SB)
+ 	RET
+ 
++TEXT	·Syscall9(SB),7,$0
++	CALL	runtime·entersyscall(SB)
++	MOVL	4(SP), AX	// syscall entry
++	// slide args down on top of system call number
++	LEAL		8(SP), SI
++	LEAL		4(SP), DI
++	CLD
++	MOVSL
++	MOVSL
++	MOVSL
++	MOVSL
++	MOVSL
++	MOVSL
++	MOVSL
++	MOVSL
++	MOVSL
++	INT	$0x80
++	JAE	ok9
++	MOVL	$-1, 44(SP)	// r1
++	MOVL	$-1, 48(SP)	// r2
++	MOVL	AX, 52(SP)		// errno
++	CALL	runtime·exitsyscall(SB)
++	RET
++ok9:
++	MOVL	AX, 44(SP)	// r1
++	MOVL	DX, 48(SP)	// r2
++	MOVL	$0, 52(SP)	// errno
++	CALL	runtime·exitsyscall(SB)
++	RET
++
+ TEXT ·RawSyscall(SB),7,$0
+ 	MOVL	4(SP), AX	// syscall entry
+ 	// slide args down on top of system call number
+diff --git a/src/pkg/syscall/mkall.sh b/src/pkg/syscall/mkall.sh
+index f0a13d9c87..a2e6c5d710 100755
+--- a/src/pkg/syscall/mkall.sh
++++ b/src/pkg/syscall/mkall.sh
+@@ -81,6 +81,13 @@ mkerrors="./mkerrors.sh"
+ run="sh"
+ 
+ case "$1" in
++-syscalls)
++	for i in zsyscall*go
++	do
++		sed 1q $i | sed 's;^// ;;' | sh | gofmt >_$i && mv _$i $i
++	done
++	exit 0
++	;;
+ -n)
+ 	run="cat"
+ 	shift
+diff --git a/src/pkg/syscall/mkerrors.sh b/src/pkg/syscall/mkerrors.sh
+index 9bb359fc0c..68a16842a7 100755
+--- a/src/pkg/syscall/mkerrors.sh
++++ b/src/pkg/syscall/mkerrors.sh
+@@ -45,6 +45,7 @@ includes_Darwin='
+ #include <sys/socket.h>
+ #include <sys/sockio.h>
+ #include <sys/sysctl.h>
++#include <sys/mman.h>
+ #include <sys/wait.h>
+ #include <net/if.h>
+ #include <net/route.h>
+diff --git a/src/pkg/syscall/mksyscall.pl b/src/pkg/syscall/mksyscall.pl
+index 068a5e697d..ecf4abdd44 100755
+--- a/src/pkg/syscall/mksyscall.pl
++++ b/src/pkg/syscall/mksyscall.pl
+@@ -143,6 +143,11 @@ while(<>) {
+ 		while(@args < 6) {
+ 			push @args, "0";
+ 		}
++	} elsif(@args <= 9) {
++		$asm .= "9";
++		while(@args < 9) {
++			push @args, "0";
++		}
+ 	} else {
+ 		print STDERR "$ARGV:$.: too many arguments to system call\n";
+ 	}
+@@ -204,7 +209,7 @@ while(<>) {
+ 	if ($plan9 && $ret[2] eq "e1") {
+ 		$text .= "\terr = nil\n";
+ 		$text .= "\tif int(r0) == -1 {\n";
+-		$text .= "\t\t err = NewError(e1)\n";
++		$text .= "\t\terr = NewError(e1)\n";
+ 		$text .= "\t}\n";
+ 	}
+ 
+diff --git a/src/pkg/syscall/mksyscall_windows.pl b/src/pkg/syscall/mksyscall_windows.pl
+index 4557a3ae7b..d92ac3d283 100755
+--- a/src/pkg/syscall/mksyscall_windows.pl
++++ b/src/pkg/syscall/mksyscall_windows.pl
+@@ -119,7 +119,14 @@ while(<>) {
+ 	$vars .= sprintf "\t%s = getSysProcAddr(%s, \"%s\")\n", $sysvarname, $modvname, $sysname;
+ 
+ 	# Go function header.
+-	$text .= sprintf "func %s(%s) (%s) {\n", $func, join(', ', @in), join(', ', @out);
++	my $out = join(', ', @out);
++	if($out ne "") {
++		$out = " ($out)";
++	}
++	if($text ne "") {
++		$text .= "\n"
++	}
++	$text .= sprintf "func %s(%s)%s {\n", $func, join(', ', @in), $out;
+ 
+ 	# Prepare arguments to Syscall.
+ 	my @args = ();
+@@ -232,6 +239,7 @@ while(<>) {
+ 				$failexpr = "$name $failcond";
+ 			}
+ 		}
++		$failexpr =~ s/(=)([0-9A-Za-z\-+])/\1 \2/;  # gofmt compatible
+ 		if($name eq "errno") {
+ 			# Set errno to "last error" only if returned value indicate failure
+ 			$body .= "\tif $failexpr {\n";
+@@ -259,7 +267,7 @@ while(<>) {
+ 	}
+ 
+ 	$text .= "\treturn\n";
+-	$text .= "}\n\n";
++	$text .= "}\n";
+ }
+ 
+ if($errors) {
+diff --git a/src/pkg/syscall/syscall.go b/src/pkg/syscall/syscall.go
+index 96975376f0..2a9ffd4afb 100644
+--- a/src/pkg/syscall/syscall.go
++++ b/src/pkg/syscall/syscall.go
+@@ -13,6 +13,11 @@
+ // errno is an operating system error number describing the failure.
+ package syscall
+ 
++import (
++	"sync"
++	"unsafe"
++)
++
+ // StringByteSlice returns a NUL-terminated slice of bytes
+ // containing the text of s.
+ func StringByteSlice(s string) []byte {
+@@ -28,3 +33,63 @@ func StringBytePtr(s string) *byte { return &StringByteSlice(s)[0] }
+ // Single-word zero for use when we need a valid pointer to 0 bytes.
+ // See mksyscall.sh.
+ var _zero uintptr
++
++// Mmap manager, for use by operating system-specific implementations.
++
++type mmapper struct {
++	sync.Mutex
++	active map[*byte][]byte // active mappings; key is last byte in mapping
++	mmap   func(addr, length uintptr, prot, flags, fd int, offset int64) (uintptr, int)
++	munmap func(addr uintptr, length uintptr) int
++}
++
++func (m *mmapper) Mmap(fd int, offset int64, length int, prot int, flags int) (data []byte, errno int) {
++	if length <= 0 {
++		return nil, EINVAL
++	}
++
++	// Map the requested memory.
++	addr, errno := m.mmap(0, uintptr(length), prot, flags, fd, offset)
++	if errno != 0 {
++		return nil, errno
++	}
++
++	// Slice memory layout
++	var sl = struct {
++		addr uintptr
++		len  int
++		cap  int
++	}{addr, length, length}
++
++	// Use unsafe to turn sl into a []byte.
++	b := *(*[]byte)(unsafe.Pointer(&sl))
++
++	// Register mapping in m and return it.
++	p := &b[cap(b)-1]
++	m.Lock()
++	defer m.Unlock()
++	m.active[p] = b
++	return b, 0
++}
++
++func (m *mmapper) Munmap(data []byte) (errno int) {
++	if len(data) == 0 || len(data) != cap(data) {
++		return EINVAL
++	}
++
++	// Find the base of the mapping.
++	p := &data[cap(data)-1]
++	m.Lock()
++	defer m.Unlock()
++	b := m.active[p]
++	if b == nil || &b[0] != &data[0] {
++		return EINVAL
++	}
++
++	// Unmap the memory and update m.
++	if errno := m.munmap(uintptr(unsafe.Pointer(&b[0])), uintptr(len(b))); errno != 0 {
++		return errno
++	}
++	m.active[p] = nil, false
++	return 0
++}
+diff --git a/src/pkg/syscall/syscall_bsd.go b/src/pkg/syscall/syscall_bsd.go
+index 27edb55e32..95ec1a66fd 100644
+--- a/src/pkg/syscall/syscall_bsd.go
++++ b/src/pkg/syscall/syscall_bsd.go
+@@ -598,5 +598,21 @@ func Sendmsg(fd int, p, oob []byte, to Sockaddr, flags int) (errno int) {
+ //	Madvise(addr *byte, len int, behav int) (errno int)
+ //	Mprotect(addr *byte, len int, prot int) (errno int)
+ //	Msync(addr *byte, len int, flags int) (errno int)
+-//	Munmap(addr *byte, len int) (errno int)
+ //	Ptrace(req int, pid int, addr uintptr, data int) (ret uintptr, errno int)
++
++//sys	mmap(addr uintptr, length uintptr, prot int, flag int, fd int, pos int64) (ret uintptr, errno int)
++//sys	munmap(addr uintptr, length uintptr) (errno int)
++
++var mapper = &mmapper{
++	active: make(map[*byte][]byte),
++	mmap:   mmap,
++	munmap: munmap,
++}
++
++func Mmap(fd int, offset int64, length int, prot int, flags int) (data []byte, errno int) {
++	return mapper.Mmap(fd, offset, length, prot, flags)
++}
++
++func Munmap(b []byte) (errno int) {
++	return mapper.Munmap(b)
++}
+diff --git a/src/pkg/syscall/syscall_darwin_386.go b/src/pkg/syscall/syscall_darwin_386.go
+index dd8e37a296..5101ba6c78 100644
+--- a/src/pkg/syscall/syscall_darwin_386.go
++++ b/src/pkg/syscall/syscall_darwin_386.go
+@@ -39,3 +39,5 @@ func SetKevent(k *Kevent_t, fd, mode, flags int) {
+ 	k.Filter = int16(mode)
+ 	k.Flags = uint16(flags)
+ }
++
++func Syscall9(num, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2, err uintptr) // sic
+diff --git a/src/pkg/syscall/syscall_linux.go b/src/pkg/syscall/syscall_linux.go
+index c0ea7faeb9..6986ab9f73 100644
+--- a/src/pkg/syscall/syscall_linux.go
++++ b/src/pkg/syscall/syscall_linux.go
+@@ -797,6 +797,23 @@ func ParseDirent(buf []byte, max int, names []string) (consumed int, count int,
+ //sys	read(fd int, p *byte, np int) (n int, errno int)
+ //sys	write(fd int, p *byte, np int) (n int, errno int)
+ 
++// mmap varies by architecutre; see syscall_linux_*.go.
++//sys	munmap(addr uintptr, length uintptr) (errno int)
++
++var mapper = &mmapper{
++	active: make(map[*byte][]byte),
++	mmap:   mmap,
++	munmap: munmap,
++}
++
++func Mmap(fd int, offset int64, length int, prot int, flags int) (data []byte, errno int) {
++	return mapper.Mmap(fd, offset, length, prot, flags)
++}
++
++func Munmap(b []byte) (errno int) {
++	return mapper.Munmap(b)
++}
++
+ /*
+  * Unimplemented
+  */
+diff --git a/src/pkg/syscall/syscall_linux_386.go b/src/pkg/syscall/syscall_linux_386.go
+index eaf2fa4da0..2b6bdebf8e 100644
+--- a/src/pkg/syscall/syscall_linux_386.go
++++ b/src/pkg/syscall/syscall_linux_386.go
+@@ -56,6 +56,16 @@ func NsecToTimeval(nsec int64) (tv Timeval) {
+ //sysnb	setgroups(n int, list *_Gid_t) (errno int) = SYS_SETGROUPS32
+ //sys	Select(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (n int, errno int) = SYS__NEWSELECT
+ 
++//sys	mmap2(addr uintptr, length uintptr, prot int, flags int, fd int, pageOffset uintptr) (xaddr uintptr, errno int)
++
++func mmap(addr uintptr, length uintptr, prot int, flags int, fd int, offset int64) (xaddr uintptr, errno int) {
++	page := uintptr(offset / 4096)
++	if offset != int64(page)*4096 {
++		return 0, EINVAL
++	}
++	return mmap2(addr, length, prot, flags, fd, page)
++}
++
+ // Underlying system call writes to newoffset via pointer.
+ // Implemented in assembly to avoid allocation.
+ func Seek(fd int, offset int64, whence int) (newoffset int64, errno int)
+diff --git a/src/pkg/syscall/syscall_linux_amd64.go b/src/pkg/syscall/syscall_linux_amd64.go
+index 2acae3cb46..f2a4acfe9f 100644
+--- a/src/pkg/syscall/syscall_linux_amd64.go
++++ b/src/pkg/syscall/syscall_linux_amd64.go
+@@ -50,6 +50,7 @@ package syscall
+ //sys	sendto(s int, buf []byte, flags int, to uintptr, addrlen _Socklen) (errno int)
+ //sys	recvmsg(s int, msg *Msghdr, flags int) (n int, errno int)
+ //sys	sendmsg(s int, msg *Msghdr, flags int) (errno int)
++//sys	mmap(addr uintptr, length uintptr, prot int, flags int, fd int, offset int64) (xaddr uintptr, errno int)
+ 
+ func Getpagesize() int { return 4096 }
+ 
+diff --git a/src/pkg/syscall/syscall_linux_arm.go b/src/pkg/syscall/syscall_linux_arm.go
+index e5920d7baf..6472c4db54 100644
+--- a/src/pkg/syscall/syscall_linux_arm.go
++++ b/src/pkg/syscall/syscall_linux_arm.go
+@@ -98,6 +98,16 @@ func Seek(fd int, offset int64, whence int) (newoffset int64, errno int)
+ //sysnb	Gettimeofday(tv *Timeval) (errno int)
+ //sysnb	Time(t *Time_t) (tt Time_t, errno int)
+ 
++//sys	mmap2(addr uintptr, length uintptr, prot int, flags int, fd int, pageOffset uintptr) (xaddr uintptr, errno int)
++
++func mmap(addr uintptr, length uintptr, prot int, flags int, fd int, offset int64) (xaddr uintptr, errno int) {
++	page := uintptr(offset / 4096)
++	if offset != int64(page)*4096 {
++		return 0, EINVAL
++	}
++	return mmap2(addr, length, prot, flags, fd, page)
++}
++
+ // TODO(kaib): add support for tracing
+ func (r *PtraceRegs) PC() uint64 { return 0 }
+ 
+diff --git a/src/pkg/syscall/zerrors_darwin_386.go b/src/pkg/syscall/zerrors_darwin_386.go
+index 52b9862282..48f563f445 100644
+--- a/src/pkg/syscall/zerrors_darwin_386.go
++++ b/src/pkg/syscall/zerrors_darwin_386.go
+@@ -196,7 +196,6 @@ const (
+ 	F_GETLK                     = 0x7
+ 	F_GETOWN                    = 0x5
+ 	F_GETPATH                   = 0x32
+-	F_GETPROTECTIONCLASS        = 0x3e
+ 	F_GLOBAL_NOCACHE            = 0x37
+ 	F_LOG2PHYS                  = 0x31
+ 	F_MARKDEPENDENCY            = 0x3c
+@@ -213,7 +212,6 @@ const (
+ 	F_SETLK                     = 0x8
+ 	F_SETLKW                    = 0x9
+ 	F_SETOWN                    = 0x6
+-	F_SETPROTECTIONCLASS        = 0x3f
+ 	F_SETSIZE                   = 0x2b
+ 	F_THAW_FS                   = 0x36
+ 	F_UNLCK                     = 0x2
+@@ -461,6 +459,20 @@ const (
+ 	IP_TOS                      = 0x3
+ 	IP_TRAFFIC_MGT_BACKGROUND   = 0x41
+ 	IP_TTL                      = 0x4
++	MAP_ANON                    = 0x1000
++	MAP_COPY                    = 0x2
++	MAP_FILE                    = 0
++	MAP_FIXED                   = 0x10
++	MAP_HASSEMAPHORE            = 0x200
++	MAP_NOCACHE                 = 0x400
++	MAP_NOEXTEND                = 0x100
++	MAP_NORESERVE               = 0x40
++	MAP_PRIVATE                 = 0x2
++	MAP_RENAME                  = 0x20
++	MAP_RESERVED0080            = 0x80
++	MAP_SHARED                  = 0x1
++	MCL_CURRENT                 = 0x1
++	MCL_FUTURE                  = 0x2
+ 	MSG_CTRUNC                  = 0x20
+ 	MSG_DONTROUTE               = 0x4
+ 	MSG_DONTWAIT                = 0x80
+@@ -477,6 +489,11 @@ const (
+ 	MSG_TRUNC                   = 0x10
+ 	MSG_WAITALL                 = 0x40
+ 	MSG_WAITSTREAM              = 0x200
++	MS_ASYNC                    = 0x1
++	MS_DEACTIVATE               = 0x8
++	MS_INVALIDATE               = 0x2
++	MS_KILLPAGES                = 0x4
++	MS_SYNC                     = 0x10
+ 	NAME_MAX                    = 0xff
+ 	NET_RT_DUMP                 = 0x1
+ 	NET_RT_DUMP2                = 0x7
+@@ -509,6 +526,10 @@ const (
+ 	O_SYNC                      = 0x80
+ 	O_TRUNC                     = 0x400
+ 	O_WRONLY                    = 0x1
++	PROT_EXEC                   = 0x4
++	PROT_NONE                   = 0
++	PROT_READ                   = 0x1
++	PROT_WRITE                  = 0x2
+ 	RTAX_AUTHOR                 = 0x6
+ 	RTAX_BRD                    = 0x7
+ 	RTAX_DST                    = 0
+@@ -535,7 +556,6 @@ const (
+ 	RTF_DYNAMIC                 = 0x10
+ 	RTF_GATEWAY                 = 0x2
+ 	RTF_HOST                    = 0x4
+-	RTF_IFREF                   = 0x4000000
+ 	RTF_IFSCOPE                 = 0x1000000
+ 	RTF_LLINFO                  = 0x400
+ 	RTF_LOCAL                   = 0x200000
+@@ -629,7 +649,6 @@ const (
+ 	SIOCDIFADDR                 = 0x80206919
+ 	SIOCDIFPHYADDR              = 0x80206941
+ 	SIOCDLIFADDR                = 0x8118691f
+-	SIOCGDRVSPEC                = 0xc01c697b
+ 	SIOCGETSGCNT                = 0xc014721c
+ 	SIOCGETVIFCNT               = 0xc014721b
+ 	SIOCGETVLAN                 = 0xc020697f
+@@ -661,10 +680,8 @@ const (
+ 	SIOCGLOWAT                  = 0x40047303
+ 	SIOCGPGRP                   = 0x40047309
+ 	SIOCIFCREATE                = 0xc0206978
+-	SIOCIFCREATE2               = 0xc020697a
+ 	SIOCIFDESTROY               = 0x80206979
+ 	SIOCRSLVMULTI               = 0xc008693b
+-	SIOCSDRVSPEC                = 0x801c697b
+ 	SIOCSETVLAN                 = 0x8020697e
+ 	SIOCSHIWAT                  = 0x80047300
+ 	SIOCSIFADDR                 = 0x8020690c
+diff --git a/src/pkg/syscall/zerrors_darwin_amd64.go b/src/pkg/syscall/zerrors_darwin_amd64.go
+index 4e7a174eae..840ea13ceb 100644
+--- a/src/pkg/syscall/zerrors_darwin_amd64.go
++++ b/src/pkg/syscall/zerrors_darwin_amd64.go
+@@ -196,7 +196,6 @@ const (
+ 	F_GETLK                     = 0x7
+ 	F_GETOWN                    = 0x5
+ 	F_GETPATH                   = 0x32
+-	F_GETPROTECTIONCLASS        = 0x3e
+ 	F_GLOBAL_NOCACHE            = 0x37
+ 	F_LOG2PHYS                  = 0x31
+ 	F_MARKDEPENDENCY            = 0x3c
+@@ -213,7 +212,6 @@ const (
+ 	F_SETLK                     = 0x8
+ 	F_SETLKW                    = 0x9
+ 	F_SETOWN                    = 0x6
+-	F_SETPROTECTIONCLASS        = 0x3f
+ 	F_SETSIZE                   = 0x2b
+ 	F_THAW_FS                   = 0x36
+ 	F_UNLCK                     = 0x2
+@@ -461,6 +459,20 @@ const (
+ 	IP_TOS                      = 0x3
+ 	IP_TRAFFIC_MGT_BACKGROUND   = 0x41
+ 	IP_TTL                      = 0x4
++	MAP_ANON                    = 0x1000
++	MAP_COPY                    = 0x2
++	MAP_FILE                    = 0
++	MAP_FIXED                   = 0x10
++	MAP_HASSEMAPHORE            = 0x200
++	MAP_NOCACHE                 = 0x400
++	MAP_NOEXTEND                = 0x100
++	MAP_NORESERVE               = 0x40
++	MAP_PRIVATE                 = 0x2
++	MAP_RENAME                  = 0x20
++	MAP_RESERVED0080            = 0x80
++	MAP_SHARED                  = 0x1
++	MCL_CURRENT                 = 0x1
++	MCL_FUTURE                  = 0x2
+ 	MSG_CTRUNC                  = 0x20
+ 	MSG_DONTROUTE               = 0x4
+ 	MSG_DONTWAIT                = 0x80
+@@ -477,6 +489,11 @@ const (
+ 	MSG_TRUNC                   = 0x10
+ 	MSG_WAITALL                 = 0x40
+ 	MSG_WAITSTREAM              = 0x200
++	MS_ASYNC                    = 0x1
++	MS_DEACTIVATE               = 0x8
++	MS_INVALIDATE               = 0x2
++	MS_KILLPAGES                = 0x4
++	MS_SYNC                     = 0x10
+ 	NAME_MAX                    = 0xff
+ 	NET_RT_DUMP                 = 0x1
+ 	NET_RT_DUMP2                = 0x7
+@@ -509,6 +526,10 @@ const (
+ 	O_SYNC                      = 0x80
+ 	O_TRUNC                     = 0x400
+ 	O_WRONLY                    = 0x1
++	PROT_EXEC                   = 0x4
++	PROT_NONE                   = 0
++	PROT_READ                   = 0x1
++	PROT_WRITE                  = 0x2
+ 	RTAX_AUTHOR                 = 0x6
+ 	RTAX_BRD                    = 0x7
+ 	RTAX_DST                    = 0
+@@ -535,7 +556,6 @@ const (
+ 	RTF_DYNAMIC                 = 0x10
+ 	RTF_GATEWAY                 = 0x2
+ 	RTF_HOST                    = 0x4
+-	RTF_IFREF                   = 0x4000000
+ 	RTF_IFSCOPE                 = 0x1000000
+ 	RTF_LLINFO                  = 0x400
+ 	RTF_LOCAL                   = 0x200000
+@@ -629,7 +649,6 @@ const (
+ 	SIOCDIFADDR                 = 0x80206919
+ 	SIOCDIFPHYADDR              = 0x80206941
+ 	SIOCDLIFADDR                = 0x8118691f
+-	SIOCGDRVSPEC                = 0xc028697b
+ 	SIOCGETSGCNT                = 0xc014721c
+ 	SIOCGETVIFCNT               = 0xc014721b
+ 	SIOCGETVLAN                 = 0xc020697f
+@@ -661,10 +680,8 @@ const (
+ 	SIOCGLOWAT                  = 0x40047303
+ 	SIOCGPGRP                   = 0x40047309
+ 	SIOCIFCREATE                = 0xc0206978
+-	SIOCIFCREATE2               = 0xc020697a
+ 	SIOCIFDESTROY               = 0x80206979
+ 	SIOCRSLVMULTI               = 0xc010693b
+-	SIOCSDRVSPEC                = 0x8028697b
+ 	SIOCSETVLAN                 = 0x8020697e
+ 	SIOCSHIWAT                  = 0x80047300
+ 	SIOCSIFADDR                 = 0x8020690c
+diff --git a/src/pkg/syscall/zsyscall_darwin_386.go b/src/pkg/syscall/zsyscall_darwin_386.go
+index 956c7f5480..2f5b2703b7 100644
+--- a/src/pkg/syscall/zsyscall_darwin_386.go
++++ b/src/pkg/syscall/zsyscall_darwin_386.go
+@@ -202,6 +202,23 @@ func fcntl(fd int, cmd int, arg int) (val int, errno int) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func mmap(addr uintptr, length uintptr, prot int, flag int, fd int, pos int64) (ret uintptr, errno int) {
++	r0, _, e1 := Syscall9(SYS_MMAP, uintptr(addr), uintptr(length), uintptr(prot), uintptr(flag), uintptr(fd), uintptr(pos), uintptr(pos>>32), 0, 0)
++	ret = uintptr(r0)
++	errno = int(e1)
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func munmap(addr uintptr, length uintptr) (errno int) {
++	_, _, e1 := Syscall(SYS_MUNMAP, uintptr(addr), uintptr(length), 0)
++	errno = int(e1)
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func kill(pid int, signum int, posix int) (errno int) {
+ 	_, _, e1 := Syscall(SYS_KILL, uintptr(pid), uintptr(signum), uintptr(posix))
+ 	errno = int(e1)
+diff --git a/src/pkg/syscall/zsyscall_darwin_amd64.go b/src/pkg/syscall/zsyscall_darwin_amd64.go
+index f9baf9f247..995c710b46 100644
+--- a/src/pkg/syscall/zsyscall_darwin_amd64.go
++++ b/src/pkg/syscall/zsyscall_darwin_amd64.go
+@@ -202,6 +202,23 @@ func fcntl(fd int, cmd int, arg int) (val int, errno int) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func mmap(addr uintptr, length uintptr, prot int, flag int, fd int, pos int64) (ret uintptr, errno int) {
++	r0, _, e1 := Syscall6(SYS_MMAP, uintptr(addr), uintptr(length), uintptr(prot), uintptr(flag), uintptr(fd), uintptr(pos))
++	ret = uintptr(r0)
++	errno = int(e1)
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func munmap(addr uintptr, length uintptr) (errno int) {
++	_, _, e1 := Syscall(SYS_MUNMAP, uintptr(addr), uintptr(length), 0)
++	errno = int(e1)
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func kill(pid int, signum int, posix int) (errno int) {
+ 	_, _, e1 := Syscall(SYS_KILL, uintptr(pid), uintptr(signum), uintptr(posix))
+ 	errno = int(e1)
+diff --git a/src/pkg/syscall/zsyscall_freebsd_386.go b/src/pkg/syscall/zsyscall_freebsd_386.go
+index 20eb24817c..0ffb9a4b9f 100644
+--- a/src/pkg/syscall/zsyscall_freebsd_386.go
++++ b/src/pkg/syscall/zsyscall_freebsd_386.go
+@@ -202,6 +202,23 @@ func fcntl(fd int, cmd int, arg int) (val int, errno int) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func mmap(addr uintptr, length uintptr, prot int, flag int, fd int, pos int64) (ret uintptr, errno int) {
++	r0, _, e1 := Syscall9(SYS_MMAP, uintptr(addr), uintptr(length), uintptr(prot), uintptr(flag), uintptr(fd), uintptr(pos), uintptr(pos>>32), 0, 0)
++	ret = uintptr(r0)
++	errno = int(e1)
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func munmap(addr uintptr, length uintptr) (errno int) {
++	_, _, e1 := Syscall(SYS_MUNMAP, uintptr(addr), uintptr(length), 0)
++	errno = int(e1)
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func Access(path string, mode uint32) (errno int) {
+ 	_, _, e1 := Syscall(SYS_ACCESS, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(mode), 0)
+ 	errno = int(e1)
+diff --git a/src/pkg/syscall/zsyscall_freebsd_amd64.go b/src/pkg/syscall/zsyscall_freebsd_amd64.go
+index bdcfdabf70..38a06ae3b0 100644
+--- a/src/pkg/syscall/zsyscall_freebsd_amd64.go
++++ b/src/pkg/syscall/zsyscall_freebsd_amd64.go
+@@ -202,6 +202,23 @@ func fcntl(fd int, cmd int, arg int) (val int, errno int) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func mmap(addr uintptr, length uintptr, prot int, flag int, fd int, pos int64) (ret uintptr, errno int) {
++	r0, _, e1 := Syscall6(SYS_MMAP, uintptr(addr), uintptr(length), uintptr(prot), uintptr(flag), uintptr(fd), uintptr(pos))
++	ret = uintptr(r0)
++	errno = int(e1)
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func munmap(addr uintptr, length uintptr) (errno int) {
++	_, _, e1 := Syscall(SYS_MUNMAP, uintptr(addr), uintptr(length), 0)
++	errno = int(e1)
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func Access(path string, mode uint32) (errno int) {
+ 	_, _, e1 := Syscall(SYS_ACCESS, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(mode), 0)
+ 	errno = int(e1)
+diff --git a/src/pkg/syscall/zsyscall_linux_386.go b/src/pkg/syscall/zsyscall_linux_386.go
+index e66b00135a..83f3bade13 100644
+--- a/src/pkg/syscall/zsyscall_linux_386.go
++++ b/src/pkg/syscall/zsyscall_linux_386.go
+@@ -765,6 +765,14 @@ func write(fd int, p *byte, np int) (n int, errno int) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func munmap(addr uintptr, length uintptr) (errno int) {
++	_, _, e1 := Syscall(SYS_MUNMAP, uintptr(addr), uintptr(length), 0)
++	errno = int(e1)
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func Chown(path string, uid int, gid int) (errno int) {
+ 	_, _, e1 := Syscall(SYS_CHOWN32, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(uid), uintptr(gid))
+ 	errno = int(e1)
+@@ -1006,6 +1014,15 @@ func Select(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (n int, err
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func mmap2(addr uintptr, length uintptr, prot int, flags int, fd int, pageOffset uintptr) (xaddr uintptr, errno int) {
++	r0, _, e1 := Syscall6(SYS_MMAP2, uintptr(addr), uintptr(length), uintptr(prot), uintptr(flags), uintptr(fd), uintptr(pageOffset))
++	xaddr = uintptr(r0)
++	errno = int(e1)
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func Gettimeofday(tv *Timeval) (errno int) {
+ 	_, _, e1 := RawSyscall(SYS_GETTIMEOFDAY, uintptr(unsafe.Pointer(tv)), 0, 0)
+ 	errno = int(e1)
+diff --git a/src/pkg/syscall/zsyscall_linux_amd64.go b/src/pkg/syscall/zsyscall_linux_amd64.go
+index 82e98a99ad..c054349c63 100644
+--- a/src/pkg/syscall/zsyscall_linux_amd64.go
++++ b/src/pkg/syscall/zsyscall_linux_amd64.go
+@@ -765,6 +765,14 @@ func write(fd int, p *byte, np int) (n int, errno int) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func munmap(addr uintptr, length uintptr) (errno int) {
++	_, _, e1 := Syscall(SYS_MUNMAP, uintptr(addr), uintptr(length), 0)
++	errno = int(e1)
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func Chown(path string, uid int, gid int) (errno int) {
+ 	_, _, e1 := Syscall(SYS_CHOWN, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(uid), uintptr(gid))
+ 	errno = int(e1)
+@@ -1164,3 +1172,12 @@ func sendmsg(s int, msg *Msghdr, flags int) (errno int) {
+ 	errno = int(e1)
+ 	return
+ }
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func mmap(addr uintptr, length uintptr, prot int, flags int, fd int, offset int64) (xaddr uintptr, errno int) {
++	r0, _, e1 := Syscall6(SYS_MMAP, uintptr(addr), uintptr(length), uintptr(prot), uintptr(flags), uintptr(fd), uintptr(offset))
++	xaddr = uintptr(r0)
++	errno = int(e1)
++	return
++}
+diff --git a/src/pkg/syscall/zsyscall_linux_arm.go b/src/pkg/syscall/zsyscall_linux_arm.go
+index 9a1f086fef..49d164a3c8 100644
+--- a/src/pkg/syscall/zsyscall_linux_arm.go
++++ b/src/pkg/syscall/zsyscall_linux_arm.go
+@@ -765,6 +765,14 @@ func write(fd int, p *byte, np int) (n int, errno int) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func munmap(addr uintptr, length uintptr) (errno int) {
++	_, _, e1 := Syscall(SYS_MUNMAP, uintptr(addr), uintptr(length), 0)
++	errno = int(e1)
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, errno int) {
+ 	r0, _, e1 := Syscall(SYS_ACCEPT, uintptr(s), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)))
+ 	fd = int(r0)
+@@ -1118,3 +1126,12 @@ func Time(t *Time_t) (tt Time_t, errno int) {
+ 	errno = int(e1)
+ 	return
+ }
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func mmap2(addr uintptr, length uintptr, prot int, flags int, fd int, pageOffset uintptr) (xaddr uintptr, errno int) {
++	r0, _, e1 := Syscall6(SYS_MMAP2, uintptr(addr), uintptr(length), uintptr(prot), uintptr(flags), uintptr(fd), uintptr(pageOffset))
++	xaddr = uintptr(r0)
++	errno = int(e1)
++	return
++}

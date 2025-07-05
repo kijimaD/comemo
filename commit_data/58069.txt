@@ -13,10 +13,153 @@ Date:   Sat Sep 23 18:30:57 2023 +0100
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Tim King <taking@google.com>
     Reviewed-by: Tim King <taking@google.com>
-
+---
  src/cmd/go/internal/test/flagdefs.go               |  1 +
  .../x/tools/go/analysis/passes/defers/defers.go    | 61 ++++++++++++++++++++++
  .../x/tools/go/analysis/passes/defers/doc.go       | 25 +++++++++
  src/cmd/vendor/modules.txt                         |  1 +
  src/cmd/vet/main.go                                |  2 +
  5 files changed, 90 insertions(+)
+
+diff --git a/src/cmd/go/internal/test/flagdefs.go b/src/cmd/go/internal/test/flagdefs.go
+index 947c27ef05..12d506862d 100644
+--- a/src/cmd/go/internal/test/flagdefs.go
++++ b/src/cmd/go/internal/test/flagdefs.go
+@@ -50,6 +50,7 @@ var passAnalyzersToVet = map[string]bool{
+ 	"cgocall":          true,
+ 	"composites":       true,
+ 	"copylocks":        true,
++	"defers":           true,
+ 	"directive":        true,
+ 	"errorsas":         true,
+ 	"framepointer":     true,
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/defers/defers.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/defers/defers.go
+new file mode 100644
+index 0000000000..ed2a122f2b
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/defers/defers.go
+@@ -0,0 +1,61 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package defers
++
++import (
++	_ "embed"
++	"go/ast"
++	"go/types"
++
++	"golang.org/x/tools/go/analysis"
++	"golang.org/x/tools/go/analysis/passes/inspect"
++	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
++	"golang.org/x/tools/go/ast/inspector"
++	"golang.org/x/tools/go/types/typeutil"
++)
++
++//go:embed doc.go
++var doc string
++
++// Analyzer is the defers analyzer.
++var Analyzer = &analysis.Analyzer{
++	Name:     "defers",
++	Requires: []*analysis.Analyzer{inspect.Analyzer},
++	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/defers",
++	Doc:      analysisutil.MustExtractDoc(doc, "defers"),
++	Run:      run,
++}
++
++func run(pass *analysis.Pass) (interface{}, error) {
++	if !analysisutil.Imports(pass.Pkg, "time") {
++		return nil, nil
++	}
++
++	checkDeferCall := func(node ast.Node) bool {
++		switch v := node.(type) {
++		case *ast.CallExpr:
++			fn, ok := typeutil.Callee(pass.TypesInfo, v).(*types.Func)
++			if ok && fn.Name() == "Since" && fn.Pkg().Path() == "time" {
++				pass.Reportf(v.Pos(), "call to time.Since is not deferred")
++			}
++		case *ast.FuncLit:
++			return false // prune
++		}
++		return true
++	}
++
++	inspect := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
++
++	nodeFilter := []ast.Node{
++		(*ast.DeferStmt)(nil),
++	}
++
++	inspect.Preorder(nodeFilter, func(n ast.Node) {
++		d := n.(*ast.DeferStmt)
++		ast.Inspect(d.Call, checkDeferCall)
++	})
++
++	return nil, nil
++}
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/defers/doc.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/defers/doc.go
+new file mode 100644
+index 0000000000..bdb1351628
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/defers/doc.go
+@@ -0,0 +1,25 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package defers defines an Analyzer that checks for common mistakes in defer
++// statements.
++//
++// # Analyzer defers
++//
++// defers: report common mistakes in defer statements
++//
++// The defers analyzer reports a diagnostic when a defer statement would
++// result in a non-deferred call to time.Since, as experience has shown
++// that this is nearly always a mistake.
++//
++// For example:
++//
++//	start := time.Now()
++//	...
++//	defer recordLatency(time.Since(start)) // error: call to time.Since is not deferred
++//
++// The correct code is:
++//
++//	defer func() { recordLatency(time.Since(start)) }()
++package defers
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index 380a05bf63..a2b1e248be 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -61,6 +61,7 @@ golang.org/x/tools/go/analysis/passes/cgocall
+ golang.org/x/tools/go/analysis/passes/composite
+ golang.org/x/tools/go/analysis/passes/copylock
+ golang.org/x/tools/go/analysis/passes/ctrlflow
++golang.org/x/tools/go/analysis/passes/defers
+ golang.org/x/tools/go/analysis/passes/directive
+ golang.org/x/tools/go/analysis/passes/errorsas
+ golang.org/x/tools/go/analysis/passes/framepointer
+diff --git a/src/cmd/vet/main.go b/src/cmd/vet/main.go
+index a90758f823..2290b95033 100644
+--- a/src/cmd/vet/main.go
++++ b/src/cmd/vet/main.go
+@@ -17,6 +17,7 @@ import (
+ 	"golang.org/x/tools/go/analysis/passes/cgocall"
+ 	"golang.org/x/tools/go/analysis/passes/composite"
+ 	"golang.org/x/tools/go/analysis/passes/copylock"
++	"golang.org/x/tools/go/analysis/passes/defers"
+ 	"golang.org/x/tools/go/analysis/passes/directive"
+ 	"golang.org/x/tools/go/analysis/passes/errorsas"
+ 	"golang.org/x/tools/go/analysis/passes/framepointer"
+@@ -53,6 +54,7 @@ func main() {
+ 		cgocall.Analyzer,
+ 		composite.Analyzer,
+ 		copylock.Analyzer,
++		defers.Analyzer,
+ 		directive.Analyzer,
+ 		errorsas.Analyzer,
+ 		framepointer.Analyzer,

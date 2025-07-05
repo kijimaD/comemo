@@ -16,6 +16,20 @@ Date:   Thu Dec 28 09:49:45 2023 +0000
     Reviewed-by: Jorropo <jorropo.pgm@gmail.com>
     Run-TryBot: qiulaidongfeng <2645477756@qq.com>
     Run-TryBot: Jorropo <jorropo.pgm@gmail.com>
-
+---
  src/reflect/type.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index a35898547a..89c5015530 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -1914,7 +1914,7 @@ func needKeyUpdate(t *abi.Type) bool {
+ 	case Float32, Float64, Complex64, Complex128, Interface, String:
+ 		// Float keys can be updated from +0 to -0.
+ 		// String keys can be updated to use a smaller backing store.
+-		// Interfaces might have floats of strings in them.
++		// Interfaces might have floats or strings in them.
+ 		return true
+ 	case Array:
+ 		tt := (*arrayType)(unsafe.Pointer(t))

@@ -11,8 +11,71 @@ Date:   Mon Jun 15 18:35:04 2009 -0700
     DELTA=162  (103 added, 32 deleted, 27 changed)
     OCL=30125
     CL=30319
-
+---
  src/pkg/reflect/all_test.go  |  7 +++++++
  src/pkg/reflect/deepequal.go |  6 ++++++
  src/pkg/reflect/value.go     | 11 +++++++----
  3 files changed, 20 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/reflect/all_test.go b/src/pkg/reflect/all_test.go
+index 903b0f5260..987acd48e5 100644
+--- a/src/pkg/reflect/all_test.go
++++ b/src/pkg/reflect/all_test.go
+@@ -611,3 +611,10 @@ func TestInterfaceEditing(t *testing.T) {
+ 		t.Errorf("Set(234) changed i to %d", i.(int));
+ 	}
+ }
++
++func TestNilPtrValueSub(t *testing.T) {
++	var pi *int;
++	if pv := NewValue(pi).(PtrValue); pv.Sub() != nil {
++		t.Error("NewValue((*int)(nil)).(PtrValue).Sub() != nil");
++	}
++}
+diff --git a/src/pkg/reflect/deepequal.go b/src/pkg/reflect/deepequal.go
+index 57b52485f7..5c3cd4a825 100644
+--- a/src/pkg/reflect/deepequal.go
++++ b/src/pkg/reflect/deepequal.go
+@@ -12,6 +12,12 @@ import "reflect"
+ // comparisons that have already been seen, which allows short circuiting on
+ // recursive types.
+ func deepValueEqual(v1, v2 Value, visited map[Addr]Addr) bool {
++	if v1 == nil {
++		return v2 == nil
++	}
++	if v2 == nil {
++		return false
++	}
+ 	if v1.Kind() != v2.Kind() {
+ 		return false;
+ 	}
+diff --git a/src/pkg/reflect/value.go b/src/pkg/reflect/value.go
+index d4783d5467..5c39583829 100644
+--- a/src/pkg/reflect/value.go
++++ b/src/pkg/reflect/value.go
+@@ -512,7 +512,14 @@ func (v *ptrValueStruct) Get() Addr {
+ 	return *(*Addr)(v.addr)
+ }
+ 
++func (v *ptrValueStruct) IsNil() bool {
++	return uintptr(*(*Addr)(v.addr)) == 0
++}
++
+ func (v *ptrValueStruct) Sub() Value {
++	if v.IsNil() {
++		return nil
++	}
+ 	return newValueAddr(v.typ.(PtrType).Sub(), v.Get());
+ }
+ 
+@@ -526,10 +533,6 @@ func (v *ptrValueStruct) SetSub(subv Value) {
+ 	*(*Addr)(v.addr) = subv.Addr();
+ }
+ 
+-func (v *ptrValueStruct) IsNil() bool {
+-	return uintptr(*(*Addr)(v.addr)) == 0
+-}
+-
+ func ptrCreator(typ Type, addr Addr) Value {
+ 	return &ptrValueStruct{ commonValue{PtrKind, typ, addr} };
+ }

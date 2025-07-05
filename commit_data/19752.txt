@@ -10,7 +10,7 @@ Date:   Wed Jul 16 16:29:51 2014 -0700
     R=golang-codereviews, dave
     CC=golang-codereviews
     https://golang.org/cl/112290043
-
+---
  src/cmd/cgo/out.go                          |  2 +-
  src/pkg/bufio/bufio_test.go                 |  2 +-
  src/pkg/database/sql/sql.go                 |  2 +-
@@ -28,3 +28,307 @@ Date:   Wed Jul 16 16:29:51 2014 -0700
  src/pkg/runtime/string_test.go              |  4 ++--
  src/pkg/unicode/utf8/utf8.go                |  2 +-
  16 files changed, 27 insertions(+), 27 deletions(-)
+
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index 76c7247af0..c6c27c4dbf 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -1016,7 +1016,7 @@ func forFieldList(fl *ast.FieldList, fn func(int, ast.Expr)) {
+ 			fn(i, r.Type)
+ 			i++
+ 		} else {
+-			for _ = range r.Names {
++			for range r.Names {
+ 				fn(i, r.Type)
+ 				i++
+ 			}
+diff --git a/src/pkg/bufio/bufio_test.go b/src/pkg/bufio/bufio_test.go
+index 76d3c8eade..be43a80023 100644
+--- a/src/pkg/bufio/bufio_test.go
++++ b/src/pkg/bufio/bufio_test.go
+@@ -438,7 +438,7 @@ func TestUnreadRuneError(t *testing.T) {
+ 	if err != nil {
+ 		t.Error("unexpected error on ReadRune (2):", err)
+ 	}
+-	for _ = range buf {
++	for range buf {
+ 		_, err = r.ReadByte()
+ 		if err != nil {
+ 			t.Error("unexpected error on ReadByte (2):", err)
+diff --git a/src/pkg/database/sql/sql.go b/src/pkg/database/sql/sql.go
+index 765b80c60a..690fc80d68 100644
+--- a/src/pkg/database/sql/sql.go
++++ b/src/pkg/database/sql/sql.go
+@@ -580,7 +580,7 @@ func (db *DB) maybeOpenNewConnections() {
+ 
+ // Runs in a separate goroutine, opens new connections when requested.
+ func (db *DB) connectionOpener() {
+-	for _ = range db.openerCh {
++	for range db.openerCh {
+ 		db.openNewConnection()
+ 	}
+ }
+diff --git a/src/pkg/database/sql/sql_test.go b/src/pkg/database/sql/sql_test.go
+index 7971f14917..71c81d6f76 100644
+--- a/src/pkg/database/sql/sql_test.go
++++ b/src/pkg/database/sql/sql_test.go
+@@ -1708,7 +1708,7 @@ func doConcurrentTest(t testing.TB, ct concurrentTest) {
+ 
+ 	for i := 0; i < maxProcs*2; i++ {
+ 		go func() {
+-			for _ = range reqs {
++			for range reqs {
+ 				err := ct.test(t)
+ 				if err != nil {
+ 					wg.Done()
+@@ -1750,7 +1750,7 @@ func manyConcurrentQueries(t testing.TB) {
+ 
+ 	for i := 0; i < maxProcs*2; i++ {
+ 		go func() {
+-			for _ = range reqs {
++			for range reqs {
+ 				rows, err := stmt.Query()
+ 				if err != nil {
+ 					t.Errorf("error on query:  %v", err)
+diff --git a/src/pkg/go/printer/printer_test.go b/src/pkg/go/printer/printer_test.go
+index 306928a69a..9cab1bee35 100644
+--- a/src/pkg/go/printer/printer_test.go
++++ b/src/pkg/go/printer/printer_test.go
+@@ -357,7 +357,7 @@ func idents(f *ast.File) <-chan *ast.Ident {
+ // identCount returns the number of identifiers found in f.
+ func identCount(f *ast.File) int {
+ 	n := 0
+-	for _ = range idents(f) {
++	for range idents(f) {
+ 		n++
+ 	}
+ 	return n
+diff --git a/src/pkg/log/syslog/syslog_test.go b/src/pkg/log/syslog/syslog_test.go
+index 24a460f6d9..6a863fed31 100644
+--- a/src/pkg/log/syslog/syslog_test.go
++++ b/src/pkg/log/syslog/syslog_test.go
+@@ -314,7 +314,7 @@ func TestConcurrentReconnect(t *testing.T) {
+ 	count := make(chan int)
+ 	go func() {
+ 		ct := 0
+-		for _ = range done {
++		for range done {
+ 			ct++
+ 			// we are looking for 500 out of 1000 events
+ 			// here because lots of log messages are lost
+diff --git a/src/pkg/net/dial_test.go b/src/pkg/net/dial_test.go
+index f9260fd281..c5c3236ccf 100644
+--- a/src/pkg/net/dial_test.go
++++ b/src/pkg/net/dial_test.go
+@@ -488,7 +488,7 @@ func TestDialDualStackLocalhost(t *testing.T) {
+ 	}
+ 
+ 	d := &Dialer{DualStack: true}
+-	for _ = range dss.lns {
++	for range dss.lns {
+ 		if c, err := d.Dial("tcp", "localhost:"+dss.port); err != nil {
+ 			t.Errorf("Dial failed: %v", err)
+ 		} else {
+diff --git a/src/pkg/os/exec/exec.go b/src/pkg/os/exec/exec.go
+index a70ed0d20c..4aded41716 100644
+--- a/src/pkg/os/exec/exec.go
++++ b/src/pkg/os/exec/exec.go
+@@ -358,7 +358,7 @@ func (c *Cmd) Wait() error {
+ 	c.ProcessState = state
+ 
+ 	var copyError error
+-	for _ = range c.goroutine {
++	for range c.goroutine {
+ 		if err := <-c.errch; err != nil && copyError == nil {
+ 			copyError = err
+ 		}
+diff --git a/src/pkg/runtime/malloc_test.go b/src/pkg/runtime/malloc_test.go
+index 128ec098cb..ce2456296a 100644
+--- a/src/pkg/runtime/malloc_test.go
++++ b/src/pkg/runtime/malloc_test.go
+@@ -100,7 +100,7 @@ func BenchmarkGoroutineBlocking(b *testing.B) {
+ 
+ func BenchmarkGoroutineForRange(b *testing.B) {
+ 	read := func(ch chan struct{}) {
+-		for _ = range ch {
++		for range ch {
+ 		}
+ 	}
+ 	benchHelper(b, *n, read)
+diff --git a/src/pkg/runtime/map_test.go b/src/pkg/runtime/map_test.go
+index e4e8383493..8bedc05689 100644
+--- a/src/pkg/runtime/map_test.go
++++ b/src/pkg/runtime/map_test.go
+@@ -253,7 +253,7 @@ func testConcurrentReadsAfterGrowth(t *testing.T, useReflect bool) {
+ 			for nr := 0; nr < numReader; nr++ {
+ 				go func() {
+ 					defer wg.Done()
+-					for _ = range m {
++					for range m {
+ 					}
+ 				}()
+ 				go func() {
+diff --git a/src/pkg/runtime/mapspeed_test.go b/src/pkg/runtime/mapspeed_test.go
+index e44db5f101..119eb3f39c 100644
+--- a/src/pkg/runtime/mapspeed_test.go
++++ b/src/pkg/runtime/mapspeed_test.go
+@@ -241,7 +241,7 @@ func BenchmarkMapIter(b *testing.B) {
+ 	}
+ 	b.ResetTimer()
+ 	for i := 0; i < b.N; i++ {
+-		for _ = range m {
++		for range m {
+ 		}
+ 	}
+ }
+@@ -250,7 +250,7 @@ func BenchmarkMapIterEmpty(b *testing.B) {
+ 	m := make(map[int]bool)
+ 	b.ResetTimer()
+ 	for i := 0; i < b.N; i++ {
+-		for _ = range m {
++		for range m {
+ 		}
+ 	}
+ }
+diff --git a/src/pkg/runtime/race/testdata/chan_test.go b/src/pkg/runtime/race/testdata/chan_test.go
+index 4a3d5290f2..eabd81f40c 100644
+--- a/src/pkg/runtime/race/testdata/chan_test.go
++++ b/src/pkg/runtime/race/testdata/chan_test.go
+@@ -88,7 +88,7 @@ func TestNoRaceChanAsyncCloseRecv3(t *testing.T) {
+ 		v = 1
+ 		close(c)
+ 	}()
+-	for _ = range c {
++	for range c {
+ 	}
+ 	v = 2
+ }
+@@ -127,7 +127,7 @@ func TestNoRaceChanSyncCloseRecv3(t *testing.T) {
+ 		v = 1
+ 		close(c)
+ 	}()
+-	for _ = range c {
++	for range c {
+ 	}
+ 	v = 2
+ }
+diff --git a/src/pkg/runtime/race/testdata/map_test.go b/src/pkg/runtime/race/testdata/map_test.go
+index 98e2a5f105..0a3a9f12a9 100644
+--- a/src/pkg/runtime/race/testdata/map_test.go
++++ b/src/pkg/runtime/race/testdata/map_test.go
+@@ -57,7 +57,7 @@ func TestRaceMapRange(t *testing.T) {
+ 	m := make(map[int]int)
+ 	ch := make(chan bool, 1)
+ 	go func() {
+-		for _ = range m {
++		for range m {
+ 		}
+ 		ch <- true
+ 	}()
+@@ -69,7 +69,7 @@ func TestRaceMapRange2(t *testing.T) {
+ 	m := make(map[int]int)
+ 	ch := make(chan bool, 1)
+ 	go func() {
+-		for _ = range m {
++		for range m {
+ 		}
+ 		ch <- true
+ 	}()
+@@ -85,11 +85,11 @@ func TestNoRaceMapRangeRange(t *testing.T) {
+ 	m[0] = 0
+ 	ch := make(chan bool, 1)
+ 	go func() {
+-		for _ = range m {
++		for range m {
+ 		}
+ 		ch <- true
+ 	}()
+-	for _ = range m {
++	for range m {
+ 	}
+ 	<-ch
+ }
+diff --git a/src/pkg/runtime/race/testdata/slice_test.go b/src/pkg/runtime/race/testdata/slice_test.go
+index c85df5e3d6..5702d1ac85 100644
+--- a/src/pkg/runtime/race/testdata/slice_test.go
++++ b/src/pkg/runtime/race/testdata/slice_test.go
+@@ -198,7 +198,7 @@ func TestNoRaceStructSlicesRangeWrite(t *testing.T) {
+ 	s.a = make([]int, 10)
+ 	s.b = make([]int, 10)
+ 	go func() {
+-		for _ = range s.a {
++		for range s.a {
+ 		}
+ 		ch <- true
+ 	}()
+@@ -240,7 +240,7 @@ func TestNoRaceSliceRangeWrite(t *testing.T) {
+ 		s[3] = 3
+ 		c <- true
+ 	}()
+-	for _ = range s {
++	for range s {
+ 	}
+ 	<-c
+ }
+@@ -252,7 +252,7 @@ func TestRaceSliceRangeAppend(t *testing.T) {
+ 		s = append(s, 3)
+ 		c <- true
+ 	}()
+-	for _ = range s {
++	for range s {
+ 	}
+ 	<-c
+ }
+@@ -264,7 +264,7 @@ func TestNoRaceSliceRangeAppend(t *testing.T) {
+ 		_ = append(s, 3)
+ 		c <- true
+ 	}()
+-	for _ = range s {
++	for range s {
+ 	}
+ 	<-c
+ }
+@@ -295,7 +295,7 @@ func TestRaceSliceVarRange(t *testing.T) {
+ 	c := make(chan bool, 1)
+ 	s := make([]int, 10)
+ 	go func() {
+-		for _ = range s {
++		for range s {
+ 		}
+ 		c <- true
+ 	}()
+diff --git a/src/pkg/runtime/string_test.go b/src/pkg/runtime/string_test.go
+index 73ac95e018..e7ac51a5f0 100644
+--- a/src/pkg/runtime/string_test.go
++++ b/src/pkg/runtime/string_test.go
+@@ -85,7 +85,7 @@ func BenchmarkRuneIterate(b *testing.B) {
+ 	}
+ 	s := string(bytes)
+ 	for i := 0; i < b.N; i++ {
+-		for _ = range s {
++		for range s {
+ 		}
+ 	}
+ }
+@@ -97,7 +97,7 @@ func BenchmarkRuneIterate2(b *testing.B) {
+ 	}
+ 	s := string(bytes)
+ 	for i := 0; i < b.N; i++ {
+-		for _ = range s {
++		for range s {
+ 		}
+ 	}
+ }
+diff --git a/src/pkg/unicode/utf8/utf8.go b/src/pkg/unicode/utf8/utf8.go
+index 0dc859a041..253295ad35 100644
+--- a/src/pkg/unicode/utf8/utf8.go
++++ b/src/pkg/unicode/utf8/utf8.go
+@@ -372,7 +372,7 @@ func RuneCount(p []byte) int {
+ 
+ // RuneCountInString is like RuneCount but its input is a string.
+ func RuneCountInString(s string) (n int) {
+-	for _ = range s {
++	for range s {
+ 		n++
+ 	}
+ 	return

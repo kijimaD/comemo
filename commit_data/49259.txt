@@ -42,7 +42,43 @@ Date:   Wed Aug 4 08:54:09 2021 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/runtime/panic.go    | 10 ++++++++++
  src/runtime/runtime2.go |  2 +-
  2 files changed, 11 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/panic.go b/src/runtime/panic.go
+index 48b1b5dd9d..e4bdceb32f 100644
+--- a/src/runtime/panic.go
++++ b/src/runtime/panic.go
+@@ -338,7 +338,17 @@ func newdefer() *_defer {
+ 
+ // Free the given defer.
+ // The defer cannot be used after this call.
++//
++// This is nosplit because the incoming defer is in a perilous state.
++// It's not on any defer list, so stack copying won't adjust stack
++// pointers in it (namely, d.link). Hence, if we were to copy the
++// stack, d could then contain a stale pointer.
++//
++//go:nosplit
+ func freedefer(d *_defer) {
++	d.link = nil
++	// After this point we can copy the stack.
++
+ 	if d._panic != nil {
+ 		freedeferpanic()
+ 	}
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index b5e4b3dec8..c5e2501991 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -957,7 +957,7 @@ type _defer struct {
+ 	pc        uintptr // pc at time of defer
+ 	fn        func()  // can be nil for open-coded defers
+ 	_panic    *_panic // panic that is running defer
+-	link      *_defer
++	link      *_defer // next defer on G; can point to either heap or stack!
+ 
+ 	// If openDefer is true, the fields below record values about the stack
+ 	// frame and associated function that has the open-coded defer(s). sp

@@ -9,6 +9,20 @@ Date:   Sun Jun 14 19:48:45 2015 -0700
     Change-Id: Iad1f4894c2258909484eaf975b08e0f47a82788e
     Reviewed-on: https://go-review.googlesource.com/11098
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/syscall/syscall_windows.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/syscall/syscall_windows.go b/src/syscall/syscall_windows.go
+index feb329f530..225946c03d 100644
+--- a/src/syscall/syscall_windows.go
++++ b/src/syscall/syscall_windows.go
+@@ -107,7 +107,7 @@ func (e Errno) Timeout() bool {
+ 	return e == EAGAIN || e == EWOULDBLOCK || e == ETIMEDOUT
+ }
+ 
+-// Implemented in asm_windows.s
++// Implemented in runtime/syscall_windows.go.
+ func compileCallback(fn interface{}, cleanstack bool) uintptr
+ 
+ // Converts a Go function to a function pointer conforming

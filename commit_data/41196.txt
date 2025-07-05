@@ -18,6 +18,26 @@ Date:   Fri Aug 9 17:31:23 2019 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/module/module.go | 7 ++++++-
  1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/module/module.go b/src/cmd/go/internal/module/module.go
+index a1a3ccfe8a..3d1ad27628 100644
+--- a/src/cmd/go/internal/module/module.go
++++ b/src/cmd/go/internal/module/module.go
+@@ -50,8 +50,13 @@ type ModuleError struct {
+ 	Err     error
+ }
+ 
+-// VersionError returns a ModuleError derived from a Version and error.
++// VersionError returns a ModuleError derived from a Version and error,
++// or err itself if it is already such an error.
+ func VersionError(v Version, err error) error {
++	var mErr *ModuleError
++	if errors.As(err, &mErr) && mErr.Path == v.Path && mErr.Version == v.Version {
++		return err
++	}
+ 	return &ModuleError{
+ 		Path:    v.Path,
+ 		Version: v.Version,

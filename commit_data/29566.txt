@@ -15,7 +15,7 @@ Date:   Fri Sep 23 17:54:51 2016 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/runtime/os3_solaris.go      | 29 ++++------------------
  src/runtime/os_darwin.go        | 27 +++------------------
  src/runtime/os_dragonfly.go     | 29 ++++------------------
@@ -40,3 +40,692 @@ Date:   Fri Sep 23 17:54:51 2016 -0700
  src/runtime/sys_openbsd_amd64.s |  4 ++--
  src/runtime/sys_openbsd_arm.s   |  4 ++--
  23 files changed, 134 insertions(+), 209 deletions(-)
+
+diff --git a/src/runtime/os3_solaris.go b/src/runtime/os3_solaris.go
+index 03a6c1a16d..d8390d6b1e 100644
+--- a/src/runtime/os3_solaris.go
++++ b/src/runtime/os3_solaris.go
+@@ -204,21 +204,6 @@ func mpreinit(mp *m) {
+ 
+ func miniterrno()
+ 
+-//go:nosplit
+-func msigsave(mp *m) {
+-	sigprocmask(_SIG_SETMASK, nil, &mp.sigmask)
+-}
+-
+-//go:nosplit
+-func msigrestore(sigmask sigset) {
+-	sigprocmask(_SIG_SETMASK, &sigmask, nil)
+-}
+-
+-//go:nosplit
+-func sigblock() {
+-	sigprocmask(_SIG_SETMASK, &sigset_all, nil)
+-}
+-
+ // Called to initialize a new m (including the bootstrap m).
+ // Called on the new thread, cannot allocate memory.
+ func minit() {
+@@ -348,16 +333,10 @@ func signalstack(s *stack) {
+ 
+ //go:nosplit
+ //go:nowritebarrierrec
+-func updatesigmask(m sigmask) {
+-	var mask sigset
+-	copy(mask.__sigbits[:], m[:])
+-	sigprocmask(_SIG_SETMASK, &mask, nil)
+-}
+-
+-func unblocksig(sig int32) {
+-	var mask sigset
+-	mask.__sigbits[(sig-1)/32] |= 1 << ((uint32(sig) - 1) & 31)
+-	sigprocmask(_SIG_UNBLOCK, &mask, nil)
++func sigmaskToSigset(m sigmask) sigset {
++	var set sigset
++	copy(set.__sigbits[:], m[:])
++	return set
+ }
+ 
+ //go:nosplit
+diff --git a/src/runtime/os_darwin.go b/src/runtime/os_darwin.go
+index ddbd0dfd9a..5e71dabecd 100644
+--- a/src/runtime/os_darwin.go
++++ b/src/runtime/os_darwin.go
+@@ -173,21 +173,6 @@ func mpreinit(mp *m) {
+ 	mp.gsignal.m = mp
+ }
+ 
+-//go:nosplit
+-func msigsave(mp *m) {
+-	sigprocmask(_SIG_SETMASK, nil, &mp.sigmask)
+-}
+-
+-//go:nosplit
+-func msigrestore(sigmask sigset) {
+-	sigprocmask(_SIG_SETMASK, &sigmask, nil)
+-}
+-
+-//go:nosplit
+-func sigblock() {
+-	sigprocmask(_SIG_SETMASK, &sigset_all, nil)
+-}
+-
+ // Called to initialize a new m (including the bootstrap m).
+ // Called on the new thread, cannot allocate memory.
+ func minit() {
+@@ -515,7 +500,7 @@ const (
+ )
+ 
+ //go:noescape
+-func sigprocmask(how uint32, new, old *sigset)
++func sigprocmask(how int32, new, old *sigset)
+ 
+ //go:noescape
+ func sigaction(mode uint32, new *sigactiont, old *usigactiont)
+@@ -593,12 +578,6 @@ func signalstack(s *stack) {
+ 
+ //go:nosplit
+ //go:nowritebarrierrec
+-func updatesigmask(m sigmask) {
+-	s := sigset(m[0])
+-	sigprocmask(_SIG_SETMASK, &s, nil)
+-}
+-
+-func unblocksig(sig int32) {
+-	mask := sigset(1) << (uint32(sig) - 1)
+-	sigprocmask(_SIG_UNBLOCK, &mask, nil)
++func sigmaskToSigset(m sigmask) sigset {
++	return sigset(m[0])
+ }
+diff --git a/src/runtime/os_dragonfly.go b/src/runtime/os_dragonfly.go
+index 65f98a97f6..c71a4b9392 100644
+--- a/src/runtime/os_dragonfly.go
++++ b/src/runtime/os_dragonfly.go
+@@ -177,21 +177,6 @@ func mpreinit(mp *m) {
+ 	mp.gsignal.m = mp
+ }
+ 
+-//go:nosplit
+-func msigsave(mp *m) {
+-	sigprocmask(_SIG_SETMASK, nil, &mp.sigmask)
+-}
+-
+-//go:nosplit
+-func msigrestore(sigmask sigset) {
+-	sigprocmask(_SIG_SETMASK, &sigmask, nil)
+-}
+-
+-//go:nosplit
+-func sigblock() {
+-	sigprocmask(_SIG_SETMASK, &sigset_all, nil)
+-}
+-
+ // Called to initialize a new m (including the bootstrap m).
+ // Called on the new thread, cannot allocate memory.
+ func minit() {
+@@ -322,14 +307,8 @@ func signalstack(s *stack) {
+ 
+ //go:nosplit
+ //go:nowritebarrierrec
+-func updatesigmask(m sigmask) {
+-	var mask sigset
+-	copy(mask.__bits[:], m[:])
+-	sigprocmask(_SIG_SETMASK, &mask, nil)
+-}
+-
+-func unblocksig(sig int32) {
+-	var mask sigset
+-	mask.__bits[(sig-1)/32] |= 1 << ((uint32(sig) - 1) & 31)
+-	sigprocmask(_SIG_UNBLOCK, &mask, nil)
++func sigmaskToSigset(m sigmask) sigset {
++	var set sigset
++	copy(set.__bits[:], m[:])
++	return set
+ }
+diff --git a/src/runtime/os_freebsd.go b/src/runtime/os_freebsd.go
+index 30eaedf5c8..f35cdf3e9b 100644
+--- a/src/runtime/os_freebsd.go
++++ b/src/runtime/os_freebsd.go
+@@ -164,21 +164,6 @@ func mpreinit(mp *m) {
+ 	mp.gsignal.m = mp
+ }
+ 
+-//go:nosplit
+-func msigsave(mp *m) {
+-	sigprocmask(_SIG_SETMASK, nil, &mp.sigmask)
+-}
+-
+-//go:nosplit
+-func msigrestore(sigmask sigset) {
+-	sigprocmask(_SIG_SETMASK, &sigmask, nil)
+-}
+-
+-//go:nosplit
+-func sigblock() {
+-	sigprocmask(_SIG_SETMASK, &sigset_all, nil)
+-}
+-
+ // Called to initialize a new m (including the bootstrap m).
+ // Called on the new thread, cannot allocate memory.
+ func minit() {
+@@ -312,14 +297,8 @@ func signalstack(s *stack) {
+ 
+ //go:nosplit
+ //go:nowritebarrierrec
+-func updatesigmask(m [(_NSIG + 31) / 32]uint32) {
+-	var mask sigset
+-	copy(mask.__bits[:], m[:])
+-	sigprocmask(_SIG_SETMASK, &mask, nil)
+-}
+-
+-func unblocksig(sig int32) {
+-	var mask sigset
+-	mask.__bits[(sig-1)/32] |= 1 << ((uint32(sig) - 1) & 31)
+-	sigprocmask(_SIG_UNBLOCK, &mask, nil)
++func sigmaskToSigset(m sigmask) sigset {
++	var set sigset
++	copy(set.__bits[:], m[:])
++	return set
+ }
+diff --git a/src/runtime/os_linux.go b/src/runtime/os_linux.go
+index 910455833f..7b3ce71fea 100644
+--- a/src/runtime/os_linux.go
++++ b/src/runtime/os_linux.go
+@@ -148,9 +148,9 @@ func newosproc(mp *m, stk unsafe.Pointer) {
+ 	// Disable signals during clone, so that the new thread starts
+ 	// with signals disabled. It will enable them in minit.
+ 	var oset sigset
+-	rtsigprocmask(_SIG_SETMASK, &sigset_all, &oset, int32(unsafe.Sizeof(oset)))
++	sigprocmask(_SIG_SETMASK, &sigset_all, &oset)
+ 	ret := clone(cloneFlags, stk, unsafe.Pointer(mp), unsafe.Pointer(mp.g0), unsafe.Pointer(funcPC(mstart)))
+-	rtsigprocmask(_SIG_SETMASK, &oset, nil, int32(unsafe.Sizeof(oset)))
++	sigprocmask(_SIG_SETMASK, &oset, nil)
+ 
+ 	if ret < 0 {
+ 		print("runtime: failed to create new OS thread (have ", mcount(), " already; errno=", -ret, ")\n")
+@@ -252,22 +252,6 @@ func mpreinit(mp *m) {
+ 	mp.gsignal.m = mp
+ }
+ 
+-//go:nosplit
+-func msigsave(mp *m) {
+-	smask := &mp.sigmask
+-	rtsigprocmask(_SIG_SETMASK, nil, smask, int32(unsafe.Sizeof(*smask)))
+-}
+-
+-//go:nosplit
+-func msigrestore(sigmask sigset) {
+-	rtsigprocmask(_SIG_SETMASK, &sigmask, nil, int32(unsafe.Sizeof(sigmask)))
+-}
+-
+-//go:nosplit
+-func sigblock() {
+-	rtsigprocmask(_SIG_SETMASK, &sigset_all, nil, int32(unsafe.Sizeof(sigset_all)))
+-}
+-
+ func gettid() uint32
+ 
+ // Called to initialize a new m (including the bootstrap m).
+@@ -302,7 +286,7 @@ func minit() {
+ 			sigdelset(&nmask, i)
+ 		}
+ 	}
+-	rtsigprocmask(_SIG_SETMASK, &nmask, nil, int32(unsafe.Sizeof(nmask)))
++	sigprocmask(_SIG_SETMASK, &nmask, nil)
+ }
+ 
+ // Called from dropm to undo the effect of an minit.
+@@ -363,7 +347,13 @@ func sigaltstack(new, old *sigaltstackt)
+ func setitimer(mode int32, new, old *itimerval)
+ 
+ //go:noescape
+-func rtsigprocmask(sig uint32, new, old *sigset, size int32)
++func rtsigprocmask(how int32, new, old *sigset, size int32)
++
++//go:nosplit
++//go:nowritebarrierrec
++func sigprocmask(how int32, new, old *sigset) {
++	rtsigprocmask(how, new, old, int32(unsafe.Sizeof(*new)))
++}
+ 
+ //go:noescape
+ func getrlimit(kind int32, limit unsafe.Pointer) int32
+@@ -441,17 +431,3 @@ func signalstack(s *stack) {
+ 	}
+ 	sigaltstack(&st, nil)
+ }
+-
+-//go:nosplit
+-//go:nowritebarrierrec
+-func updatesigmask(m sigmask) {
+-	var mask sigset
+-	sigcopyset(&mask, m)
+-	rtsigprocmask(_SIG_SETMASK, &mask, nil, int32(unsafe.Sizeof(mask)))
+-}
+-
+-func unblocksig(sig int32) {
+-	var mask sigset
+-	sigaddset(&mask, int(sig))
+-	rtsigprocmask(_SIG_UNBLOCK, &mask, nil, int32(unsafe.Sizeof(mask)))
+-}
+diff --git a/src/runtime/os_linux_generic.go b/src/runtime/os_linux_generic.go
+index a16d140776..636e248463 100644
+--- a/src/runtime/os_linux_generic.go
++++ b/src/runtime/os_linux_generic.go
+@@ -43,6 +43,10 @@ func sigfillset(mask *uint64) {
+ 	*mask = ^uint64(0)
+ }
+ 
+-func sigcopyset(mask *sigset, m sigmask) {
+-	copy((*mask)[:], m[:])
++//go:nosplit
++//go:nowritebarrierrec
++func sigmaskToSigset(m sigmask) sigset {
++	var set sigset
++	copy(set[:], m[:])
++	return set
+ }
+diff --git a/src/runtime/os_linux_mips64x.go b/src/runtime/os_linux_mips64x.go
+index dcc9763678..8fbeb3dc8d 100644
+--- a/src/runtime/os_linux_mips64x.go
++++ b/src/runtime/os_linux_mips64x.go
+@@ -59,6 +59,10 @@ func sigfillset(mask *[2]uint64) {
+ 	(*mask)[0], (*mask)[1] = ^uint64(0), ^uint64(0)
+ }
+ 
+-func sigcopyset(mask *sigset, m sigmask) {
+-	(*mask)[0] = uint64(m[0]) | uint64(m[1])<<32
++//go:nosplit
++//go:nowritebarrierrec
++func sigmaskToSigset(m sigmask) sigset {
++	var set sigset
++	set[0] = uint64(m[0]) | uint64(m[1])<<32
++	return set
+ }
+diff --git a/src/runtime/os_linux_s390x.go b/src/runtime/os_linux_s390x.go
+index e659dff716..0fb48c0310 100644
+--- a/src/runtime/os_linux_s390x.go
++++ b/src/runtime/os_linux_s390x.go
+@@ -41,6 +41,8 @@ func sigfillset(mask *uint64) {
+ 	*mask = ^uint64(0)
+ }
+ 
+-func sigcopyset(mask *sigset, m sigmask) {
+-	*mask = sigset(uint64(m[0]) | uint64(m[1])<<32)
++//go:nosplit
++//go:nowritebarrierrec
++func sigmaskToSigset(m sigmask) sigset {
++	return sigset(uint64(m[0]) | uint64(m[1])<<32)
+ }
+diff --git a/src/runtime/os_netbsd.go b/src/runtime/os_netbsd.go
+index 3e94c3b74e..3a93d49ae0 100644
+--- a/src/runtime/os_netbsd.go
++++ b/src/runtime/os_netbsd.go
+@@ -38,7 +38,7 @@ func sigaction(sig int32, new, old *sigactiont)
+ func sigaltstack(new, old *sigaltstackt)
+ 
+ //go:noescape
+-func sigprocmask(mode int32, new, old *sigset)
++func sigprocmask(how int32, new, old *sigset)
+ 
+ //go:noescape
+ func sysctl(mib *uint32, miblen uint32, out *byte, size *uintptr, dst *byte, ndst uintptr) int32
+@@ -222,21 +222,6 @@ func mpreinit(mp *m) {
+ 	mp.gsignal.m = mp
+ }
+ 
+-//go:nosplit
+-func msigsave(mp *m) {
+-	sigprocmask(_SIG_SETMASK, nil, &mp.sigmask)
+-}
+-
+-//go:nosplit
+-func msigrestore(sigmask sigset) {
+-	sigprocmask(_SIG_SETMASK, &sigmask, nil)
+-}
+-
+-//go:nosplit
+-func sigblock() {
+-	sigprocmask(_SIG_SETMASK, &sigset_all, nil)
+-}
+-
+ // Called to initialize a new m (including the bootstrap m).
+ // Called on the new thread, cannot allocate memory.
+ func minit() {
+@@ -333,14 +318,8 @@ func signalstack(s *stack) {
+ 
+ //go:nosplit
+ //go:nowritebarrierrec
+-func updatesigmask(m sigmask) {
+-	var mask sigset
+-	copy(mask.__bits[:], m[:])
+-	sigprocmask(_SIG_SETMASK, &mask, nil)
+-}
+-
+-func unblocksig(sig int32) {
+-	var mask sigset
+-	mask.__bits[(sig-1)/32] |= 1 << ((uint32(sig) - 1) & 31)
+-	sigprocmask(_SIG_UNBLOCK, &mask, nil)
++func sigmaskToSigset(m sigmask) sigset {
++	var set sigset
++	copy(set.__bits[:], m[:])
++	return set
+ }
+diff --git a/src/runtime/os_openbsd.go b/src/runtime/os_openbsd.go
+index c2b3b97f9e..375c100aec 100644
+--- a/src/runtime/os_openbsd.go
++++ b/src/runtime/os_openbsd.go
+@@ -23,7 +23,20 @@ func sigaction(sig int32, new, old *sigactiont)
+ func sigaltstack(new, old *stackt)
+ 
+ //go:noescape
+-func sigprocmask(mode int32, new sigset) sigset
++func obsdsigprocmask(how int32, new sigset) sigset
++
++//go:nosplit
++//go:nowritebarrierrec
++func sigprocmask(how int32, new, old *sigset) {
++	n := sigset(0)
++	if new != nil {
++		n = *new
++	}
++	r := obsdsigprocmask(how, n)
++	if old != nil {
++		*old = r
++	}
++}
+ 
+ //go:noescape
+ func sysctl(mib *uint32, miblen uint32, out *byte, size *uintptr, dst *byte, ndst uintptr) int32
+@@ -57,10 +70,7 @@ const (
+ 
+ type sigset uint32
+ 
+-const (
+-	sigset_none = sigset(0)
+-	sigset_all  = ^sigset(0)
+-)
++var sigset_all = ^sigset(0)
+ 
+ // From OpenBSD's <sys/sysctl.h>
+ const (
+@@ -160,9 +170,10 @@ func newosproc(mp *m, stk unsafe.Pointer) {
+ 		tf_stack: uintptr(stk),
+ 	}
+ 
+-	oset := sigprocmask(_SIG_SETMASK, sigset_all)
++	var oset sigset
++	sigprocmask(_SIG_SETMASK, &sigset_all, &oset)
+ 	ret := tfork(&param, unsafe.Sizeof(param), mp, mp.g0, funcPC(mstart))
+-	sigprocmask(_SIG_SETMASK, oset)
++	sigprocmask(_SIG_SETMASK, &oset, nil)
+ 
+ 	if ret < 0 {
+ 		print("runtime: failed to create new OS thread (have ", mcount()-1, " already; errno=", -ret, ")\n")
+@@ -199,21 +210,6 @@ func mpreinit(mp *m) {
+ 	mp.gsignal.m = mp
+ }
+ 
+-//go:nosplit
+-func msigsave(mp *m) {
+-	mp.sigmask = sigprocmask(_SIG_BLOCK, 0)
+-}
+-
+-//go:nosplit
+-func msigrestore(sigmask sigset) {
+-	sigprocmask(_SIG_SETMASK, sigmask)
+-}
+-
+-//go:nosplit
+-func sigblock() {
+-	sigprocmask(_SIG_SETMASK, sigset_all)
+-}
+-
+ // Called to initialize a new m (including the bootstrap m).
+ // Called on the new thread, can not allocate memory.
+ func minit() {
+@@ -246,7 +242,7 @@ func minit() {
+ 			nmask &^= 1 << (uint32(i) - 1)
+ 		}
+ 	}
+-	sigprocmask(_SIG_SETMASK, nmask)
++	sigprocmask(_SIG_SETMASK, &nmask, nil)
+ }
+ 
+ // Called from dropm to undo the effect of an minit.
+@@ -317,11 +313,6 @@ func signalstack(s *stack) {
+ 
+ //go:nosplit
+ //go:nowritebarrierrec
+-func updatesigmask(m sigmask) {
+-	sigprocmask(_SIG_SETMASK, sigset(m[0]))
+-}
+-
+-func unblocksig(sig int32) {
+-	mask := sigset(1) << (uint32(sig) - 1)
+-	sigprocmask(_SIG_UNBLOCK, mask)
++func sigmaskToSigset(m sigmask) sigset {
++	return sigset(m[0])
+ }
+diff --git a/src/runtime/signal_unix.go b/src/runtime/signal_unix.go
+index 983e5a3df7..b457c5e265 100644
+--- a/src/runtime/signal_unix.go
++++ b/src/runtime/signal_unix.go
+@@ -420,3 +420,56 @@ func sigfwdgo(sig uint32, info *siginfo, ctx unsafe.Pointer) bool {
+ 	}
+ 	return true
+ }
++
++// msigsave saves the current thread's signal mask into mp.sigmask.
++// This is used to preserve the non-Go signal mask when a non-Go
++// thread calls a Go function.
++// This is nosplit and nowritebarrierrec because it is called by needm
++// which may be called on a non-Go thread with no g available.
++//go:nosplit
++//go:nowritebarrierrec
++func msigsave(mp *m) {
++	sigprocmask(_SIG_SETMASK, nil, &mp.sigmask)
++}
++
++// msigrestore sets the current thread's signal mask to sigmask.
++// This is used to restore the non-Go signal mask when a non-Go thread
++// calls a Go function.
++// This is nosplit and nowritebarrierrec because it is called by dropm
++// after g has been cleared.
++//go:nosplit
++//go:nowritebarrierrec
++func msigrestore(sigmask sigset) {
++	sigprocmask(_SIG_SETMASK, &sigmask, nil)
++}
++
++// sigblock blocks all signals in the current thread's signal mask.
++// This is used to block signals while setting up and tearing down g
++// when a non-Go thread calls a Go function.
++// The OS-specific code is expected to define sigset_all.
++// This is nosplit and nowritebarrierrec because it is called by needm
++// which may be called on a non-Go thread with no g available.
++//go:nosplit
++//go:nowritebarrierrec
++func sigblock() {
++	sigprocmask(_SIG_SETMASK, &sigset_all, nil)
++}
++
++// updatesigmask sets the current thread's signal mask to m.
++// This is nosplit and nowritebarrierrec because it is called from
++// dieFromSignal, which can be called by sigfwdgo while running in the
++// signal handler, on the signal stack, with no g available.
++//go:nosplit
++//go:nowritebarrierrec
++func updatesigmask(m sigmask) {
++	set := sigmaskToSigset(m)
++	sigprocmask(_SIG_SETMASK, &set, nil)
++}
++
++// unblocksig removes sig from the current thread's signal mask.
++func unblocksig(sig int32) {
++	var m sigmask
++	m[(sig-1)/32] |= 1 << ((uint32(sig) - 1) & 31)
++	set := sigmaskToSigset(m)
++	sigprocmask(_SIG_UNBLOCK, &set, nil)
++}
+diff --git a/src/runtime/sys_linux_386.s b/src/runtime/sys_linux_386.s
+index 8b41275bd0..131207b880 100644
+--- a/src/runtime/sys_linux_386.s
++++ b/src/runtime/sys_linux_386.s
+@@ -191,7 +191,7 @@ TEXT runtime·nanotime(SB), NOSPLIT, $32
+ 
+ TEXT runtime·rtsigprocmask(SB),NOSPLIT,$0
+ 	MOVL	$175, AX		// syscall entry
+-	MOVL	sig+0(FP), BX
++	MOVL	how+0(FP), BX
+ 	MOVL	new+4(FP), CX
+ 	MOVL	old+8(FP), DX
+ 	MOVL	size+12(FP), SI
+diff --git a/src/runtime/sys_linux_amd64.s b/src/runtime/sys_linux_amd64.s
+index 830441ed78..cb04f03144 100644
+--- a/src/runtime/sys_linux_amd64.s
++++ b/src/runtime/sys_linux_amd64.s
+@@ -197,7 +197,7 @@ fallback:
+ 	RET
+ 
+ TEXT runtime·rtsigprocmask(SB),NOSPLIT,$0-28
+-	MOVL	sig+0(FP), DI
++	MOVL	how+0(FP), DI
+ 	MOVQ	new+8(FP), SI
+ 	MOVQ	old+16(FP), DX
+ 	MOVL	size+24(FP), R10
+diff --git a/src/runtime/sys_linux_arm.s b/src/runtime/sys_linux_arm.s
+index ede558c5b7..666b879f02 100644
+--- a/src/runtime/sys_linux_arm.s
++++ b/src/runtime/sys_linux_arm.s
+@@ -365,7 +365,7 @@ TEXT runtime·cgoSigtramp(SB),NOSPLIT,$0
+ 	B	(R11)
+ 
+ TEXT runtime·rtsigprocmask(SB),NOSPLIT,$0
+-	MOVW	sig+0(FP), R0
++	MOVW	how+0(FP), R0
+ 	MOVW	new+4(FP), R1
+ 	MOVW	old+8(FP), R2
+ 	MOVW	size+12(FP), R3
+diff --git a/src/runtime/sys_linux_arm64.s b/src/runtime/sys_linux_arm64.s
+index 52c51f6579..3bf2e97972 100644
+--- a/src/runtime/sys_linux_arm64.s
++++ b/src/runtime/sys_linux_arm64.s
+@@ -212,7 +212,7 @@ TEXT runtime·nanotime(SB),NOSPLIT,$24-8
+ 	RET
+ 
+ TEXT runtime·rtsigprocmask(SB),NOSPLIT,$-8-28
+-	MOVW	sig+0(FP), R0
++	MOVW	how+0(FP), R0
+ 	MOVD	new+8(FP), R1
+ 	MOVD	old+16(FP), R2
+ 	MOVW	size+24(FP), R3
+diff --git a/src/runtime/sys_linux_mips64x.s b/src/runtime/sys_linux_mips64x.s
+index c9e03a24ce..031a089214 100644
+--- a/src/runtime/sys_linux_mips64x.s
++++ b/src/runtime/sys_linux_mips64x.s
+@@ -204,7 +204,7 @@ TEXT runtime·nanotime(SB),NOSPLIT,$16
+ 	RET
+ 
+ TEXT runtime·rtsigprocmask(SB),NOSPLIT,$-8-28
+-	MOVW	sig+0(FP), R4
++	MOVW	how+0(FP), R4
+ 	MOVV	new+8(FP), R5
+ 	MOVV	old+16(FP), R6
+ 	MOVW	size+24(FP), R7
+diff --git a/src/runtime/sys_linux_ppc64x.s b/src/runtime/sys_linux_ppc64x.s
+index 0afd333b36..a40fe3bc00 100644
+--- a/src/runtime/sys_linux_ppc64x.s
++++ b/src/runtime/sys_linux_ppc64x.s
+@@ -183,7 +183,7 @@ TEXT runtime·nanotime(SB),NOSPLIT,$16
+ 	RET
+ 
+ TEXT runtime·rtsigprocmask(SB),NOSPLIT|NOFRAME,$0-28
+-	MOVW	sig+0(FP), R3
++	MOVW	how+0(FP), R3
+ 	MOVD	new+8(FP), R4
+ 	MOVD	old+16(FP), R5
+ 	MOVW	size+24(FP), R6
+diff --git a/src/runtime/sys_linux_s390x.s b/src/runtime/sys_linux_s390x.s
+index 4922f6158f..b7037a8a6c 100644
+--- a/src/runtime/sys_linux_s390x.s
++++ b/src/runtime/sys_linux_s390x.s
+@@ -195,7 +195,7 @@ TEXT runtime·nanotime(SB),NOSPLIT,$16
+ 	RET
+ 
+ TEXT runtime·rtsigprocmask(SB),NOSPLIT|NOFRAME,$0-28
+-	MOVW	sig+0(FP), R2
++	MOVW	how+0(FP), R2
+ 	MOVD	new+8(FP), R3
+ 	MOVD	old+16(FP), R4
+ 	MOVW	size+24(FP), R5
+diff --git a/src/runtime/sys_netbsd_amd64.s b/src/runtime/sys_netbsd_amd64.s
+index 8c3dca264e..80e00e1401 100644
+--- a/src/runtime/sys_netbsd_amd64.s
++++ b/src/runtime/sys_netbsd_amd64.s
+@@ -207,7 +207,7 @@ TEXT runtime·getcontext(SB),NOSPLIT,$-8
+ 	RET
+ 
+ TEXT runtime·sigprocmask(SB),NOSPLIT,$0
+-	MOVL	mode+0(FP), DI		// arg 1 - how
++	MOVL	how+0(FP), DI		// arg 1 - how
+ 	MOVQ	new+8(FP), SI		// arg 2 - set
+ 	MOVQ	old+16(FP), DX		// arg 3 - oset
+ 	MOVL	$293, AX		// sys_sigprocmask
+diff --git a/src/runtime/sys_netbsd_arm.s b/src/runtime/sys_netbsd_arm.s
+index 3d3b65ffa9..a8914c11cb 100644
+--- a/src/runtime/sys_netbsd_arm.s
++++ b/src/runtime/sys_netbsd_arm.s
+@@ -181,7 +181,7 @@ TEXT runtime·getcontext(SB),NOSPLIT,$-4
+ 	RET
+ 
+ TEXT runtime·sigprocmask(SB),NOSPLIT,$0
+-	MOVW mode+0(FP), R0	// arg 1 - how
++	MOVW how+0(FP), R0	// arg 1 - how
+ 	MOVW new+4(FP), R1	// arg 2 - set
+ 	MOVW old+8(FP), R2	// arg 3 - oset
+ 	SWI $0xa00125	// sys_sigprocmask
+diff --git a/src/runtime/sys_openbsd_386.s b/src/runtime/sys_openbsd_386.s
+index 2bb818f456..664bcc87f7 100644
+--- a/src/runtime/sys_openbsd_386.s
++++ b/src/runtime/sys_openbsd_386.s
+@@ -187,7 +187,7 @@ TEXT runtime·sigaction(SB),NOSPLIT,$-4
+ 	MOVL	$0xf1, 0xf1		// crash
+ 	RET
+ 
+-TEXT runtime·sigprocmask(SB),NOSPLIT,$-4
++TEXT runtime·obsdsigprocmask(SB),NOSPLIT,$-4
+ 	MOVL	$48, AX			// sys_sigprocmask
+ 	INT	$0x80
+ 	JAE	2(PC)
+diff --git a/src/runtime/sys_openbsd_amd64.s b/src/runtime/sys_openbsd_amd64.s
+index 944188cda2..5aad7f00a5 100644
+--- a/src/runtime/sys_openbsd_amd64.s
++++ b/src/runtime/sys_openbsd_amd64.s
+@@ -218,8 +218,8 @@ TEXT runtime·sigaction(SB),NOSPLIT,$-8
+ 	MOVL	$0xf1, 0xf1		// crash
+ 	RET
+ 
+-TEXT runtime·sigprocmask(SB),NOSPLIT,$0
+-	MOVL	mode+0(FP), DI		// arg 1 - how
++TEXT runtime·obsdsigprocmask(SB),NOSPLIT,$0
++	MOVL	how+0(FP), DI		// arg 1 - how
+ 	MOVL	new+4(FP), SI		// arg 2 - set
+ 	MOVL	$48, AX			// sys_sigprocmask
+ 	SYSCALL
+diff --git a/src/runtime/sys_openbsd_arm.s b/src/runtime/sys_openbsd_arm.s
+index 7815ca6541..e0f775d0eb 100644
+--- a/src/runtime/sys_openbsd_arm.s
++++ b/src/runtime/sys_openbsd_arm.s
+@@ -198,8 +198,8 @@ TEXT runtime·sigaction(SB),NOSPLIT,$0
+ 	MOVW.CS	R8, (R8)
+ 	RET
+ 
+-TEXT runtime·sigprocmask(SB),NOSPLIT,$0
+-	MOVW	mode+0(FP), R0		// arg 1 - mode
++TEXT runtime·obsdsigprocmask(SB),NOSPLIT,$0
++	MOVW	how+0(FP), R0		// arg 1 - mode
+ 	MOVW	new+4(FP), R1		// arg 2 - new
+ 	MOVW	$48, R12		// sys_sigprocmask
+ 	SWI	$0

@@ -17,9 +17,154 @@ Date:   Thu May 31 16:38:18 2018 -0500
     Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/AMD64.rules |  2 ++
  src/cmd/compile/internal/ssa/rewrite.go      | 48 ++++++++++++++++++++++++++++
  src/cmd/compile/internal/ssa/rewriteAMD64.go | 26 +++++++++++++++
  test/codegen/issue25378.go                   | 22 +++++++++++++
  4 files changed, 98 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index db6bbfb060..bf3a116045 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -988,6 +988,8 @@
+ (MOVLQZX x:(MOVQload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVLload <v.Type> [off] {sym} ptr mem)
+ 
+ (MOVLQZX x) && zeroUpper32Bits(x,3) -> x
++(MOVWQZX x) && zeroUpper48Bits(x,3) -> x
++(MOVBQZX x) && zeroUpper56Bits(x,3) -> x
+ 
+ (MOVBQZX x:(MOVBloadidx1 [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVBloadidx1 <v.Type> [off] {sym} ptr idx mem)
+ (MOVWQZX x:(MOVWloadidx1 [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVWloadidx1 <v.Type> [off] {sym} ptr idx mem)
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index e7d1b5c767..2a72b0006f 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -894,6 +894,54 @@ func zeroUpper32Bits(x *Value, depth int) bool {
+ 	return false
+ }
+ 
++// zeroUpper48Bits is similar to zeroUpper32Bits, but for upper 48 bits
++func zeroUpper48Bits(x *Value, depth int) bool {
++	switch x.Op {
++	case OpAMD64MOVWQZX, OpAMD64MOVWload, OpAMD64MOVWloadidx1, OpAMD64MOVWloadidx2:
++		return true
++	case OpArg:
++		return x.Type.Width == 2
++	case OpPhi, OpSelect0, OpSelect1:
++		// Phis can use each-other as an arguments, instead of tracking visited values,
++		// just limit recursion depth.
++		if depth <= 0 {
++			return false
++		}
++		for i := range x.Args {
++			if !zeroUpper48Bits(x.Args[i], depth-1) {
++				return false
++			}
++		}
++		return true
++
++	}
++	return false
++}
++
++// zeroUpper56Bits is similar to zeroUpper32Bits, but for upper 56 bits
++func zeroUpper56Bits(x *Value, depth int) bool {
++	switch x.Op {
++	case OpAMD64MOVBQZX, OpAMD64MOVBload, OpAMD64MOVBloadidx1:
++		return true
++	case OpArg:
++		return x.Type.Width == 1
++	case OpPhi, OpSelect0, OpSelect1:
++		// Phis can use each-other as an arguments, instead of tracking visited values,
++		// just limit recursion depth.
++		if depth <= 0 {
++			return false
++		}
++		for i := range x.Args {
++			if !zeroUpper56Bits(x.Args[i], depth-1) {
++				return false
++			}
++		}
++		return true
++
++	}
++	return false
++}
++
+ // isInlinableMemmove reports whether the given arch performs a Move of the given size
+ // faster than memmove. It will only return true if replacing the memmove with a Move is
+ // safe, either because Move is small or because the arguments are disjoint.
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 950b926cc1..4ffd6b5d18 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -10270,6 +10270,19 @@ func rewriteValueAMD64_OpAMD64MOVBQZX_0(v *Value) bool {
+ 		v0.AddArg(mem)
+ 		return true
+ 	}
++	// match: (MOVBQZX x)
++	// cond: zeroUpper56Bits(x,3)
++	// result: x
++	for {
++		x := v.Args[0]
++		if !(zeroUpper56Bits(x, 3)) {
++			break
++		}
++		v.reset(OpCopy)
++		v.Type = x.Type
++		v.AddArg(x)
++		return true
++	}
+ 	// match: (MOVBQZX x:(MOVBloadidx1 [off] {sym} ptr idx mem))
+ 	// cond: x.Uses == 1 && clobber(x)
+ 	// result: @x.Block (MOVBloadidx1 <v.Type> [off] {sym} ptr idx mem)
+@@ -18893,6 +18906,19 @@ func rewriteValueAMD64_OpAMD64MOVWQZX_0(v *Value) bool {
+ 		v0.AddArg(mem)
+ 		return true
+ 	}
++	// match: (MOVWQZX x)
++	// cond: zeroUpper48Bits(x,3)
++	// result: x
++	for {
++		x := v.Args[0]
++		if !(zeroUpper48Bits(x, 3)) {
++			break
++		}
++		v.reset(OpCopy)
++		v.Type = x.Type
++		v.AddArg(x)
++		return true
++	}
+ 	// match: (MOVWQZX x:(MOVWloadidx1 [off] {sym} ptr idx mem))
+ 	// cond: x.Uses == 1 && clobber(x)
+ 	// result: @x.Block (MOVWloadidx1 <v.Type> [off] {sym} ptr idx mem)
+diff --git a/test/codegen/issue25378.go b/test/codegen/issue25378.go
+new file mode 100644
+index 0000000000..14aa2c30f2
+--- /dev/null
++++ b/test/codegen/issue25378.go
+@@ -0,0 +1,22 @@
++// asmcheck
++
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package codegen
++
++var wsp = [256]bool{
++	' ':  true,
++	'\t': true,
++	'\n': true,
++	'\r': true,
++}
++
++func zeroExtArgByte(ch byte) bool {
++	return wsp[ch] // amd64:-"MOVBLZX\t..,.."
++}
++
++func zeroExtArgUint16(ch uint16) bool {
++	return wsp[ch] // amd64:-"MOVWLZX\t..,.."
++}

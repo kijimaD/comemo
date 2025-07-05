@@ -18,7 +18,7 @@ Date:   Mon Dec 7 17:15:44 2020 -0800
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
     Trust: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/fmtmap_test.go                |  3 ++
  src/cmd/compile/internal/gc/ssa.go            | 22 +++++++-------
  src/cmd/compile/internal/ir/mini.go           |  3 +-
@@ -40,3 +40,538 @@ Date:   Mon Dec 7 17:15:44 2020 -0800
  src/cmd/internal/obj/s390x/condition_code.go  |  2 ++
  src/cmd/internal/obj/s390x/rotate.go          |  2 ++
  20 files changed, 79 insertions(+), 56 deletions(-)
+
+diff --git a/src/cmd/compile/fmtmap_test.go b/src/cmd/compile/fmtmap_test.go
+index 756320285c..e62b9613e1 100644
+--- a/src/cmd/compile/fmtmap_test.go
++++ b/src/cmd/compile/fmtmap_test.go
+@@ -43,6 +43,9 @@ var knownFormats = map[string]string{
+ 	"cmd/compile/internal/ir.Nodes %+v":            "",
+ 	"cmd/compile/internal/ir.Nodes %.v":            "",
+ 	"cmd/compile/internal/ir.Op %+v":               "",
++	"cmd/compile/internal/ssa.Aux %#v":             "",
++	"cmd/compile/internal/ssa.Aux %q":              "",
++	"cmd/compile/internal/ssa.Aux %s":              "",
+ 	"cmd/compile/internal/ssa.BranchPrediction %d": "",
+ 	"cmd/compile/internal/ssa.ID %d":               "",
+ 	"cmd/compile/internal/ssa.LocalSlot %s":        "",
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index add50c35d7..95650328b1 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -772,7 +772,7 @@ func (s *state) newValue0(op ssa.Op, t *types.Type) *ssa.Value {
+ }
+ 
+ // newValue0A adds a new value with no arguments and an aux value to the current block.
+-func (s *state) newValue0A(op ssa.Op, t *types.Type, aux interface{}) *ssa.Value {
++func (s *state) newValue0A(op ssa.Op, t *types.Type, aux ssa.Aux) *ssa.Value {
+ 	return s.curBlock.NewValue0A(s.peekPos(), op, t, aux)
+ }
+ 
+@@ -787,14 +787,14 @@ func (s *state) newValue1(op ssa.Op, t *types.Type, arg *ssa.Value) *ssa.Value {
+ }
+ 
+ // newValue1A adds a new value with one argument and an aux value to the current block.
+-func (s *state) newValue1A(op ssa.Op, t *types.Type, aux interface{}, arg *ssa.Value) *ssa.Value {
++func (s *state) newValue1A(op ssa.Op, t *types.Type, aux ssa.Aux, arg *ssa.Value) *ssa.Value {
+ 	return s.curBlock.NewValue1A(s.peekPos(), op, t, aux, arg)
+ }
+ 
+ // newValue1Apos adds a new value with one argument and an aux value to the current block.
+ // isStmt determines whether the created values may be a statement or not
+ // (i.e., false means never, yes means maybe).
+-func (s *state) newValue1Apos(op ssa.Op, t *types.Type, aux interface{}, arg *ssa.Value, isStmt bool) *ssa.Value {
++func (s *state) newValue1Apos(op ssa.Op, t *types.Type, aux ssa.Aux, arg *ssa.Value, isStmt bool) *ssa.Value {
+ 	if isStmt {
+ 		return s.curBlock.NewValue1A(s.peekPos(), op, t, aux, arg)
+ 	}
+@@ -812,14 +812,14 @@ func (s *state) newValue2(op ssa.Op, t *types.Type, arg0, arg1 *ssa.Value) *ssa.
+ }
+ 
+ // newValue2A adds a new value with two arguments and an aux value to the current block.
+-func (s *state) newValue2A(op ssa.Op, t *types.Type, aux interface{}, arg0, arg1 *ssa.Value) *ssa.Value {
++func (s *state) newValue2A(op ssa.Op, t *types.Type, aux ssa.Aux, arg0, arg1 *ssa.Value) *ssa.Value {
+ 	return s.curBlock.NewValue2A(s.peekPos(), op, t, aux, arg0, arg1)
+ }
+ 
+ // newValue2Apos adds a new value with two arguments and an aux value to the current block.
+ // isStmt determines whether the created values may be a statement or not
+ // (i.e., false means never, yes means maybe).
+-func (s *state) newValue2Apos(op ssa.Op, t *types.Type, aux interface{}, arg0, arg1 *ssa.Value, isStmt bool) *ssa.Value {
++func (s *state) newValue2Apos(op ssa.Op, t *types.Type, aux ssa.Aux, arg0, arg1 *ssa.Value, isStmt bool) *ssa.Value {
+ 	if isStmt {
+ 		return s.curBlock.NewValue2A(s.peekPos(), op, t, aux, arg0, arg1)
+ 	}
+@@ -842,14 +842,14 @@ func (s *state) newValue3I(op ssa.Op, t *types.Type, aux int64, arg0, arg1, arg2
+ }
+ 
+ // newValue3A adds a new value with three arguments and an aux value to the current block.
+-func (s *state) newValue3A(op ssa.Op, t *types.Type, aux interface{}, arg0, arg1, arg2 *ssa.Value) *ssa.Value {
++func (s *state) newValue3A(op ssa.Op, t *types.Type, aux ssa.Aux, arg0, arg1, arg2 *ssa.Value) *ssa.Value {
+ 	return s.curBlock.NewValue3A(s.peekPos(), op, t, aux, arg0, arg1, arg2)
+ }
+ 
+ // newValue3Apos adds a new value with three arguments and an aux value to the current block.
+ // isStmt determines whether the created values may be a statement or not
+ // (i.e., false means never, yes means maybe).
+-func (s *state) newValue3Apos(op ssa.Op, t *types.Type, aux interface{}, arg0, arg1, arg2 *ssa.Value, isStmt bool) *ssa.Value {
++func (s *state) newValue3Apos(op ssa.Op, t *types.Type, aux ssa.Aux, arg0, arg1, arg2 *ssa.Value, isStmt bool) *ssa.Value {
+ 	if isStmt {
+ 		return s.curBlock.NewValue3A(s.peekPos(), op, t, aux, arg0, arg1, arg2)
+ 	}
+@@ -872,7 +872,7 @@ func (s *state) entryNewValue0(op ssa.Op, t *types.Type) *ssa.Value {
+ }
+ 
+ // entryNewValue0A adds a new value with no arguments and an aux value to the entry block.
+-func (s *state) entryNewValue0A(op ssa.Op, t *types.Type, aux interface{}) *ssa.Value {
++func (s *state) entryNewValue0A(op ssa.Op, t *types.Type, aux ssa.Aux) *ssa.Value {
+ 	return s.f.Entry.NewValue0A(src.NoXPos, op, t, aux)
+ }
+ 
+@@ -887,7 +887,7 @@ func (s *state) entryNewValue1I(op ssa.Op, t *types.Type, auxint int64, arg *ssa
+ }
+ 
+ // entryNewValue1A adds a new value with one argument and an aux value to the entry block.
+-func (s *state) entryNewValue1A(op ssa.Op, t *types.Type, aux interface{}, arg *ssa.Value) *ssa.Value {
++func (s *state) entryNewValue1A(op ssa.Op, t *types.Type, aux ssa.Aux, arg *ssa.Value) *ssa.Value {
+ 	return s.f.Entry.NewValue1A(src.NoXPos, op, t, aux, arg)
+ }
+ 
+@@ -897,7 +897,7 @@ func (s *state) entryNewValue2(op ssa.Op, t *types.Type, arg0, arg1 *ssa.Value)
+ }
+ 
+ // entryNewValue2A adds a new value with two arguments and an aux value to the entry block.
+-func (s *state) entryNewValue2A(op ssa.Op, t *types.Type, aux interface{}, arg0, arg1 *ssa.Value) *ssa.Value {
++func (s *state) entryNewValue2A(op ssa.Op, t *types.Type, aux ssa.Aux, arg0, arg1 *ssa.Value) *ssa.Value {
+ 	return s.f.Entry.NewValue2A(src.NoXPos, op, t, aux, arg0, arg1)
+ }
+ 
+@@ -2060,7 +2060,7 @@ func (s *state) expr(n ir.Node) *ssa.Value {
+ 			if i == "" {
+ 				return s.constEmptyString(n.Type())
+ 			}
+-			return s.entryNewValue0A(ssa.OpConstString, n.Type(), i)
++			return s.entryNewValue0A(ssa.OpConstString, n.Type(), ssa.StringToAux(i))
+ 		case constant.Bool:
+ 			return s.constBool(constant.BoolVal(u))
+ 		case constant.Float:
+diff --git a/src/cmd/compile/internal/ir/mini.go b/src/cmd/compile/internal/ir/mini.go
+index 612e7d62c3..edb3b197da 100644
+--- a/src/cmd/compile/internal/ir/mini.go
++++ b/src/cmd/compile/internal/ir/mini.go
+@@ -198,5 +198,6 @@ func (n *miniNode) MarkReadonly()             { panic(n.no("MarkReadonly")) }
+ func (n *miniNode) TChanDir() types.ChanDir   { panic(n.no("TChanDir")) }
+ func (n *miniNode) SetTChanDir(types.ChanDir) { panic(n.no("SetTChanDir")) }
+ 
+-// TODO: Delete when CanBeAnSSASym is removed from Node itself.
++// TODO: Delete when these are removed from Node itself.
+ func (*miniNode) CanBeAnSSASym() {}
++func (*miniNode) CanBeAnSSAAux() {}
+diff --git a/src/cmd/compile/internal/ir/node.go b/src/cmd/compile/internal/ir/node.go
+index ba7eaae1b9..b878b00546 100644
+--- a/src/cmd/compile/internal/ir/node.go
++++ b/src/cmd/compile/internal/ir/node.go
+@@ -113,6 +113,7 @@ type Node interface {
+ 	// Only for SSA and should be removed when SSA starts
+ 	// using a more specific type than Node.
+ 	CanBeAnSSASym()
++	CanBeAnSSAAux()
+ }
+ 
+ // Line returns n's position as a string. If n has been inlined,
+diff --git a/src/cmd/compile/internal/ssa/block.go b/src/cmd/compile/internal/ssa/block.go
+index 519ac214ca..937c757b21 100644
+--- a/src/cmd/compile/internal/ssa/block.go
++++ b/src/cmd/compile/internal/ssa/block.go
+@@ -52,7 +52,7 @@ type Block struct {
+ 	Controls [2]*Value
+ 
+ 	// Auxiliary info for the block. Its value depends on the Kind.
+-	Aux    interface{}
++	Aux    Aux
+ 	AuxInt int64
+ 
+ 	// The unordered set of Values that define the operation of this block.
+diff --git a/src/cmd/compile/internal/ssa/check.go b/src/cmd/compile/internal/ssa/check.go
+index 5f5dfc328a..4d57eef556 100644
+--- a/src/cmd/compile/internal/ssa/check.go
++++ b/src/cmd/compile/internal/ssa/check.go
+@@ -161,7 +161,7 @@ func checkFunc(f *Func) {
+ 					f.Fatalf("value %v has an AuxInt that encodes a NaN", v)
+ 				}
+ 			case auxString:
+-				if _, ok := v.Aux.(string); !ok {
++				if _, ok := v.Aux.(stringAux); !ok {
+ 					f.Fatalf("value %v has Aux type %T, want string", v, v.Aux)
+ 				}
+ 				canHaveAux = true
+diff --git a/src/cmd/compile/internal/ssa/cse.go b/src/cmd/compile/internal/ssa/cse.go
+index 3b4f2be37e..f78527410c 100644
+--- a/src/cmd/compile/internal/ssa/cse.go
++++ b/src/cmd/compile/internal/ssa/cse.go
+@@ -275,7 +275,7 @@ func lt2Cmp(isLt bool) types.Cmp {
+ 	return types.CMPgt
+ }
+ 
+-type auxmap map[interface{}]int32
++type auxmap map[Aux]int32
+ 
+ func cmpVal(v, w *Value, auxIDs auxmap) types.Cmp {
+ 	// Try to order these comparison by cost (cheaper first)
+diff --git a/src/cmd/compile/internal/ssa/cse_test.go b/src/cmd/compile/internal/ssa/cse_test.go
+index 9e76645f54..8052016f3a 100644
+--- a/src/cmd/compile/internal/ssa/cse_test.go
++++ b/src/cmd/compile/internal/ssa/cse_test.go
+@@ -14,6 +14,8 @@ type tstAux struct {
+ 	s string
+ }
+ 
++func (*tstAux) CanBeAnSSAAux() {}
++
+ // This tests for a bug found when partitioning, but not sorting by the Aux value.
+ func TestCSEAuxPartitionBug(t *testing.T) {
+ 	c := testConfig(t)
+diff --git a/src/cmd/compile/internal/ssa/debug.go b/src/cmd/compile/internal/ssa/debug.go
+index 0d660361b1..44e91270fa 100644
+--- a/src/cmd/compile/internal/ssa/debug.go
++++ b/src/cmd/compile/internal/ssa/debug.go
+@@ -143,13 +143,13 @@ func (loc VarLoc) absent() bool {
+ var BlockStart = &Value{
+ 	ID:  -10000,
+ 	Op:  OpInvalid,
+-	Aux: "BlockStart",
++	Aux: StringToAux("BlockStart"),
+ }
+ 
+ var BlockEnd = &Value{
+ 	ID:  -20000,
+ 	Op:  OpInvalid,
+-	Aux: "BlockEnd",
++	Aux: StringToAux("BlockEnd"),
+ }
+ 
+ // RegisterSet is a bitmap of registers, indexed by Register.num.
+diff --git a/src/cmd/compile/internal/ssa/func.go b/src/cmd/compile/internal/ssa/func.go
+index e6f899a2c7..e6c4798a78 100644
+--- a/src/cmd/compile/internal/ssa/func.go
++++ b/src/cmd/compile/internal/ssa/func.go
+@@ -377,13 +377,7 @@ func (b *Block) NewValue0I(pos src.XPos, op Op, t *types.Type, auxint int64) *Va
+ }
+ 
+ // NewValue returns a new value in the block with no arguments and an aux value.
+-func (b *Block) NewValue0A(pos src.XPos, op Op, t *types.Type, aux interface{}) *Value {
+-	if _, ok := aux.(int64); ok {
+-		// Disallow int64 aux values. They should be in the auxint field instead.
+-		// Maybe we want to allow this at some point, but for now we disallow it
+-		// to prevent errors like using NewValue1A instead of NewValue1I.
+-		b.Fatalf("aux field has int64 type op=%s type=%s aux=%v", op, t, aux)
+-	}
++func (b *Block) NewValue0A(pos src.XPos, op Op, t *types.Type, aux Aux) *Value {
+ 	v := b.Func.newValue(op, t, b, pos)
+ 	v.AuxInt = 0
+ 	v.Aux = aux
+@@ -392,7 +386,7 @@ func (b *Block) NewValue0A(pos src.XPos, op Op, t *types.Type, aux interface{})
+ }
+ 
+ // NewValue returns a new value in the block with no arguments and both an auxint and aux values.
+-func (b *Block) NewValue0IA(pos src.XPos, op Op, t *types.Type, auxint int64, aux interface{}) *Value {
++func (b *Block) NewValue0IA(pos src.XPos, op Op, t *types.Type, auxint int64, aux Aux) *Value {
+ 	v := b.Func.newValue(op, t, b, pos)
+ 	v.AuxInt = auxint
+ 	v.Aux = aux
+@@ -421,7 +415,7 @@ func (b *Block) NewValue1I(pos src.XPos, op Op, t *types.Type, auxint int64, arg
+ }
+ 
+ // NewValue1A returns a new value in the block with one argument and an aux value.
+-func (b *Block) NewValue1A(pos src.XPos, op Op, t *types.Type, aux interface{}, arg *Value) *Value {
++func (b *Block) NewValue1A(pos src.XPos, op Op, t *types.Type, aux Aux, arg *Value) *Value {
+ 	v := b.Func.newValue(op, t, b, pos)
+ 	v.AuxInt = 0
+ 	v.Aux = aux
+@@ -432,7 +426,7 @@ func (b *Block) NewValue1A(pos src.XPos, op Op, t *types.Type, aux interface{},
+ }
+ 
+ // NewValue1IA returns a new value in the block with one argument and both an auxint and aux values.
+-func (b *Block) NewValue1IA(pos src.XPos, op Op, t *types.Type, auxint int64, aux interface{}, arg *Value) *Value {
++func (b *Block) NewValue1IA(pos src.XPos, op Op, t *types.Type, auxint int64, aux Aux, arg *Value) *Value {
+ 	v := b.Func.newValue(op, t, b, pos)
+ 	v.AuxInt = auxint
+ 	v.Aux = aux
+@@ -455,7 +449,7 @@ func (b *Block) NewValue2(pos src.XPos, op Op, t *types.Type, arg0, arg1 *Value)
+ }
+ 
+ // NewValue2A returns a new value in the block with two arguments and one aux values.
+-func (b *Block) NewValue2A(pos src.XPos, op Op, t *types.Type, aux interface{}, arg0, arg1 *Value) *Value {
++func (b *Block) NewValue2A(pos src.XPos, op Op, t *types.Type, aux Aux, arg0, arg1 *Value) *Value {
+ 	v := b.Func.newValue(op, t, b, pos)
+ 	v.AuxInt = 0
+ 	v.Aux = aux
+@@ -480,7 +474,7 @@ func (b *Block) NewValue2I(pos src.XPos, op Op, t *types.Type, auxint int64, arg
+ }
+ 
+ // NewValue2IA returns a new value in the block with two arguments and both an auxint and aux values.
+-func (b *Block) NewValue2IA(pos src.XPos, op Op, t *types.Type, auxint int64, aux interface{}, arg0, arg1 *Value) *Value {
++func (b *Block) NewValue2IA(pos src.XPos, op Op, t *types.Type, auxint int64, aux Aux, arg0, arg1 *Value) *Value {
+ 	v := b.Func.newValue(op, t, b, pos)
+ 	v.AuxInt = auxint
+ 	v.Aux = aux
+@@ -521,7 +515,7 @@ func (b *Block) NewValue3I(pos src.XPos, op Op, t *types.Type, auxint int64, arg
+ }
+ 
+ // NewValue3A returns a new value in the block with three argument and an aux value.
+-func (b *Block) NewValue3A(pos src.XPos, op Op, t *types.Type, aux interface{}, arg0, arg1, arg2 *Value) *Value {
++func (b *Block) NewValue3A(pos src.XPos, op Op, t *types.Type, aux Aux, arg0, arg1, arg2 *Value) *Value {
+ 	v := b.Func.newValue(op, t, b, pos)
+ 	v.AuxInt = 0
+ 	v.Aux = aux
+@@ -633,7 +627,7 @@ func (f *Func) ConstNil(t *types.Type) *Value {
+ }
+ func (f *Func) ConstEmptyString(t *types.Type) *Value {
+ 	v := f.constVal(OpConstString, t, constEmptyStringMagic, false)
+-	v.Aux = ""
++	v.Aux = StringToAux("")
+ 	return v
+ }
+ func (f *Func) ConstOffPtrSP(t *types.Type, c int64, sp *Value) *Value {
+diff --git a/src/cmd/compile/internal/ssa/func_test.go b/src/cmd/compile/internal/ssa/func_test.go
+index 568c6436f5..276c444b9a 100644
+--- a/src/cmd/compile/internal/ssa/func_test.go
++++ b/src/cmd/compile/internal/ssa/func_test.go
+@@ -232,7 +232,7 @@ func Bloc(name string, entries ...interface{}) bloc {
+ }
+ 
+ // Valu defines a value in a block.
+-func Valu(name string, op Op, t *types.Type, auxint int64, aux interface{}, args ...string) valu {
++func Valu(name string, op Op, t *types.Type, auxint int64, aux Aux, args ...string) valu {
+ 	return valu{name, op, t, auxint, aux, args}
+ }
+ 
+@@ -277,7 +277,7 @@ type valu struct {
+ 	op     Op
+ 	t      *types.Type
+ 	auxint int64
+-	aux    interface{}
++	aux    Aux
+ 	args   []string
+ }
+ 
+@@ -402,12 +402,12 @@ func TestEquiv(t *testing.T) {
+ 			cfg.Fun("entry",
+ 				Bloc("entry",
+ 					Valu("mem", OpInitMem, types.TypeMem, 0, nil),
+-					Valu("a", OpConst64, cfg.config.Types.Int64, 0, 14),
++					Valu("a", OpConstString, cfg.config.Types.String, 0, StringToAux("foo")),
+ 					Exit("mem"))),
+ 			cfg.Fun("entry",
+ 				Bloc("entry",
+ 					Valu("mem", OpInitMem, types.TypeMem, 0, nil),
+-					Valu("a", OpConst64, cfg.config.Types.Int64, 0, 26),
++					Valu("a", OpConstString, cfg.config.Types.String, 0, StringToAux("bar")),
+ 					Exit("mem"))),
+ 		},
+ 		// value args different
+diff --git a/src/cmd/compile/internal/ssa/nilcheck_test.go b/src/cmd/compile/internal/ssa/nilcheck_test.go
+index 16d94614d8..2e32afe2a6 100644
+--- a/src/cmd/compile/internal/ssa/nilcheck_test.go
++++ b/src/cmd/compile/internal/ssa/nilcheck_test.go
+@@ -212,7 +212,7 @@ func TestNilcheckPhi(t *testing.T) {
+ 			Valu("mem", OpInitMem, types.TypeMem, 0, nil),
+ 			Valu("sb", OpSB, c.config.Types.Uintptr, 0, nil),
+ 			Valu("sp", OpSP, c.config.Types.Uintptr, 0, nil),
+-			Valu("baddr", OpLocalAddr, c.config.Types.Bool, 0, "b", "sp", "mem"),
++			Valu("baddr", OpLocalAddr, c.config.Types.Bool, 0, StringToAux("b"), "sp", "mem"),
+ 			Valu("bool1", OpLoad, c.config.Types.Bool, 0, nil, "baddr", "mem"),
+ 			If("bool1", "b1", "b2")),
+ 		Bloc("b1",
+diff --git a/src/cmd/compile/internal/ssa/op.go b/src/cmd/compile/internal/ssa/op.go
+index 6f029a421e..97726a6f95 100644
+--- a/src/cmd/compile/internal/ssa/op.go
++++ b/src/cmd/compile/internal/ssa/op.go
+@@ -197,6 +197,8 @@ func ClosureAuxCall(args []Param, results []Param) *AuxCall {
+ 	return &AuxCall{Fn: nil, args: args, results: results}
+ }
+ 
++func (*AuxCall) CanBeAnSSAAux() {}
++
+ const (
+ 	auxNone         auxType = iota
+ 	auxBool                 // auxInt is 0/1 for false/true
+@@ -248,6 +250,7 @@ const (
+ type Sym interface {
+ 	String() string
+ 	CanBeAnSSASym()
++	CanBeAnSSAAux()
+ }
+ 
+ // A ValAndOff is used by the several opcodes. It holds
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index 24efd38fb7..9abfe0938b 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -678,43 +678,53 @@ func opToAuxInt(o Op) int64 {
+ 	return int64(o)
+ }
+ 
+-func auxToString(i interface{}) string {
+-	return i.(string)
++// Aux is an interface to hold miscellaneous data in Blocks and Values.
++type Aux interface {
++	CanBeAnSSAAux()
+ }
+-func auxToSym(i interface{}) Sym {
++
++// stringAux wraps string values for use in Aux.
++type stringAux string
++
++func (stringAux) CanBeAnSSAAux() {}
++
++func auxToString(i Aux) string {
++	return string(i.(stringAux))
++}
++func auxToSym(i Aux) Sym {
+ 	// TODO: kind of a hack - allows nil interface through
+ 	s, _ := i.(Sym)
+ 	return s
+ }
+-func auxToType(i interface{}) *types.Type {
++func auxToType(i Aux) *types.Type {
+ 	return i.(*types.Type)
+ }
+-func auxToCall(i interface{}) *AuxCall {
++func auxToCall(i Aux) *AuxCall {
+ 	return i.(*AuxCall)
+ }
+-func auxToS390xCCMask(i interface{}) s390x.CCMask {
++func auxToS390xCCMask(i Aux) s390x.CCMask {
+ 	return i.(s390x.CCMask)
+ }
+-func auxToS390xRotateParams(i interface{}) s390x.RotateParams {
++func auxToS390xRotateParams(i Aux) s390x.RotateParams {
+ 	return i.(s390x.RotateParams)
+ }
+ 
+-func stringToAux(s string) interface{} {
+-	return s
++func StringToAux(s string) Aux {
++	return stringAux(s)
+ }
+-func symToAux(s Sym) interface{} {
++func symToAux(s Sym) Aux {
+ 	return s
+ }
+-func callToAux(s *AuxCall) interface{} {
++func callToAux(s *AuxCall) Aux {
+ 	return s
+ }
+-func typeToAux(t *types.Type) interface{} {
++func typeToAux(t *types.Type) Aux {
+ 	return t
+ }
+-func s390xCCMaskToAux(c s390x.CCMask) interface{} {
++func s390xCCMaskToAux(c s390x.CCMask) Aux {
+ 	return c
+ }
+-func s390xRotateParamsToAux(r s390x.RotateParams) interface{} {
++func s390xRotateParamsToAux(r s390x.RotateParams) Aux {
+ 	return r
+ }
+ 
+@@ -725,7 +735,7 @@ func uaddOvf(a, b int64) bool {
+ 
+ // de-virtualize an InterCall
+ // 'sym' is the symbol for the itab
+-func devirt(v *Value, aux interface{}, sym Sym, offset int64) *AuxCall {
++func devirt(v *Value, aux Aux, sym Sym, offset int64) *AuxCall {
+ 	f := v.Block.Func
+ 	n, ok := sym.(*obj.LSym)
+ 	if !ok {
+@@ -748,7 +758,7 @@ func devirt(v *Value, aux interface{}, sym Sym, offset int64) *AuxCall {
+ 
+ // de-virtualize an InterLECall
+ // 'sym' is the symbol for the itab
+-func devirtLESym(v *Value, aux interface{}, sym Sym, offset int64) *obj.LSym {
++func devirtLESym(v *Value, aux Aux, sym Sym, offset int64) *obj.LSym {
+ 	n, ok := sym.(*obj.LSym)
+ 	if !ok {
+ 		return nil
+diff --git a/src/cmd/compile/internal/ssa/value.go b/src/cmd/compile/internal/ssa/value.go
+index edc43aaae7..993c5a580f 100644
+--- a/src/cmd/compile/internal/ssa/value.go
++++ b/src/cmd/compile/internal/ssa/value.go
+@@ -36,7 +36,7 @@ type Value struct {
+ 	// Users of AuxInt which interpret AuxInt as unsigned (e.g. shifts) must be careful.
+ 	// Use Value.AuxUnsigned to get the zero-extended value of AuxInt.
+ 	AuxInt int64
+-	Aux    interface{}
++	Aux    Aux
+ 
+ 	// Arguments of this value
+ 	Args []*Value
+@@ -492,3 +492,6 @@ func (v *Value) removeable() bool {
+ 	}
+ 	return true
+ }
++
++// TODO(mdempsky): Shouldn't be necessary; see discussion at golang.org/cl/275756
++func (*Value) CanBeAnSSAAux() {}
+diff --git a/src/cmd/compile/internal/ssa/zcse.go b/src/cmd/compile/internal/ssa/zcse.go
+index ec38b7d1ba..e08272c345 100644
+--- a/src/cmd/compile/internal/ssa/zcse.go
++++ b/src/cmd/compile/internal/ssa/zcse.go
+@@ -57,7 +57,7 @@ func zcse(f *Func) {
+ type vkey struct {
+ 	op Op
+ 	ai int64       // aux int
+-	ax interface{} // aux
++	ax Aux         // aux
+ 	t  *types.Type // type
+ }
+ 
+diff --git a/src/cmd/compile/internal/types/type.go b/src/cmd/compile/internal/types/type.go
+index c5807af199..e968a799e3 100644
+--- a/src/cmd/compile/internal/types/type.go
++++ b/src/cmd/compile/internal/types/type.go
+@@ -164,6 +164,8 @@ type Type struct {
+ 	flags bitset8
+ }
+ 
++func (*Type) CanBeAnSSAAux() {}
++
+ const (
+ 	typeNotInHeap  = 1 << iota // type cannot be heap allocated
+ 	typeBroke                  // broken type definition
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index 8c8ff587ff..eaebfaf4b6 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -723,8 +723,8 @@ func (s *LSym) String() string {
+ }
+ 
+ // The compiler needs *LSym to be assignable to cmd/compile/internal/ssa.Sym.
+-func (s *LSym) CanBeAnSSASym() {
+-}
++func (*LSym) CanBeAnSSASym() {}
++func (*LSym) CanBeAnSSAAux() {}
+ 
+ type Pcln struct {
+ 	// Aux symbols for pcln
+diff --git a/src/cmd/internal/obj/s390x/condition_code.go b/src/cmd/internal/obj/s390x/condition_code.go
+index 764fc5bc6a..f498fd6f77 100644
+--- a/src/cmd/internal/obj/s390x/condition_code.go
++++ b/src/cmd/internal/obj/s390x/condition_code.go
+@@ -124,3 +124,5 @@ func (c CCMask) String() string {
+ 	// invalid
+ 	return fmt.Sprintf("Invalid (%#x)", c)
+ }
++
++func (CCMask) CanBeAnSSAAux() {}
+diff --git a/src/cmd/internal/obj/s390x/rotate.go b/src/cmd/internal/obj/s390x/rotate.go
+index 7dbc45e648..c999880492 100644
+--- a/src/cmd/internal/obj/s390x/rotate.go
++++ b/src/cmd/internal/obj/s390x/rotate.go
+@@ -113,3 +113,5 @@ func (r RotateParams) OutMerge(mask uint64) *RotateParams {
+ func (r RotateParams) InMerge(mask uint64) *RotateParams {
+ 	return r.OutMerge(bits.RotateLeft64(mask, int(r.Amount)))
+ }
++
++func (RotateParams) CanBeAnSSAAux() {}

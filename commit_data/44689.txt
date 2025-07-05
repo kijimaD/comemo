@@ -9,6 +9,20 @@ Date:   Wed Aug 19 14:42:11 2020 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/dist/buildtool.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/dist/buildtool.go b/src/cmd/dist/buildtool.go
+index 0b50f66c32..79eab24d29 100644
+--- a/src/cmd/dist/buildtool.go
++++ b/src/cmd/dist/buildtool.go
+@@ -113,7 +113,7 @@ var ignorePrefixes = []string{
+ 
+ // File suffixes that use build tags introduced since Go 1.4.
+ // These must not be copied into the bootstrap build directory.
+-// Also igonore test files.
++// Also ignore test files.
+ var ignoreSuffixes = []string{
+ 	"_arm64.s",
+ 	"_arm64.go",

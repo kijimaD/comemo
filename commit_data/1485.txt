@@ -8,7 +8,7 @@ Date:   Thu Jan 15 16:16:42 2009 -0800
     DELTA=462  (9 added, 33 deleted, 420 changed)
     OCL=22879
     CL=22885
-
+---
  src/lib/fmt/format.go        |   8 +--
  src/lib/math/Makefile        |  11 +--
  src/lib/math/atan.go         |  50 +++++++-------
@@ -27,3 +27,1705 @@ Date:   Thu Jan 15 16:16:42 2009 -0800
  src/lib/strconv/itoa_test.go |  68 +++++++++----------
  src/lib/strconv/quote.go     |  13 ++--
  17 files changed, 422 insertions(+), 419 deletions(-)
+
+diff --git a/src/lib/fmt/format.go b/src/lib/fmt/format.go
+index 9363754f9b..2be64f5f8d 100644
+--- a/src/lib/fmt/format.go
++++ b/src/lib/fmt/format.go
+@@ -464,28 +464,28 @@ func (f *Fmt) Fmt_fb32(a float32) *Fmt {
+ 
+ // float
+ func (x *Fmt) f(a float) *Fmt {
+-	if strconv.floatsize == 32 {
++	if strconv.FloatSize == 32 {
+ 		return x.Fmt_f32(float32(a))
+ 	}
+ 	return x.Fmt_f64(float64(a))
+ }
+ 
+ func (x *Fmt) e(a float) *Fmt {
+-	if strconv.floatsize == 32 {
++	if strconv.FloatSize == 32 {
+ 		return x.Fmt_e32(float32(a))
+ 	}
+ 	return x.Fmt_e64(float64(a))
+ }
+ 
+ func (x *Fmt) g(a float) *Fmt {
+-	if strconv.floatsize == 32 {
++	if strconv.FloatSize == 32 {
+ 		return x.Fmt_g32(float32(a))
+ 	}
+ 	return x.Fmt_g64(float64(a))
+ }
+ 
+ func (x *Fmt) fb(a float) *Fmt {
+-	if strconv.floatsize == 32 {
++	if strconv.FloatSize == 32 {
+ 		return x.Fmt_fb32(float32(a))
+ 	}
+ 	return x.Fmt_fb64(float64(a))
+diff --git a/src/lib/math/Makefile b/src/lib/math/Makefile
+index 672d17fac6..ef31b174a9 100644
+--- a/src/lib/math/Makefile
++++ b/src/lib/math/Makefile
+@@ -38,33 +38,34 @@ O1=\
+ 	floor.$O\
+ 	fmod.$O\
+ 	hypot.$O\
+-	log.$O\
+ 	pow10.$O\
+ 	sin.$O\
+ 	sqrt.$O\
+ 	tan.$O\
++	const.$O\
+ 
+ O2=\
+ 	asin.$O\
+ 	atan2.$O\
+-	pow.$O\
++	log.$O\
+ 	sinh.$O\
+ 
+ O3=\
++	pow.$O\
+ 	tanh.$O\
+ 
+ math.a: a1 a2 a3
+ 
+ a1:	$(O1)
+-	$(AR) grc math.a atan.$O exp.$O fabs.$O floor.$O fmod.$O hypot.$O log.$O pow10.$O sin.$O sqrt.$O tan.$O
++	$(AR) grc math.a atan.$O exp.$O fabs.$O floor.$O fmod.$O hypot.$O pow10.$O sin.$O sqrt.$O tan.$O const.$O
+ 	rm -f $(O1)
+ 
+ a2:	$(O2)
+-	$(AR) grc math.a asin.$O atan2.$O pow.$O sinh.$O
++	$(AR) grc math.a asin.$O atan2.$O log.$O sinh.$O
+ 	rm -f $(O2)
+ 
+ a3:	$(O3)
+-	$(AR) grc math.a tanh.$O
++	$(AR) grc math.a pow.$O tanh.$O
+ 	rm -f $(O3)
+ 
+ newpkg: clean
+diff --git a/src/lib/math/atan.go b/src/lib/math/atan.go
+index 43990fe40f..f2fd7ed339 100644
+--- a/src/lib/math/atan.go
++++ b/src/lib/math/atan.go
+@@ -15,30 +15,30 @@ package math
+ 
+ const
+ (
+-	p4	= .161536412982230228262e2;
+-	p3	= .26842548195503973794141e3;
+-	p2	= .11530293515404850115428136e4;
+-	p1	= .178040631643319697105464587e4;
+-	p0	= .89678597403663861959987488e3;
+-	q4	= .5895697050844462222791e2;
+-	q3	= .536265374031215315104235e3;
+-	q2	= .16667838148816337184521798e4;
+-	q1	= .207933497444540981287275926e4;
+-	q0	= .89678597403663861962481162e3;
+-	pio2	= .15707963267948966192313216e1;
+-	pio4	= .7853981633974483096156608e0;
+-	sq2p1	= .2414213562373095048802e1;		// sqrt(2)+1
+-	sq2m1	= .414213562373095048802e0;		// sqrt(2)-1
++	ap4	= .161536412982230228262e2;
++	ap3	= .26842548195503973794141e3;
++	ap2	= .11530293515404850115428136e4;
++	ap1	= .178040631643319697105464587e4;
++	ap0	= .89678597403663861959987488e3;
++	aq4	= .5895697050844462222791e2;
++	aq3	= .536265374031215315104235e3;
++	aq2	= .16667838148816337184521798e4;
++	aq1	= .207933497444540981287275926e4;
++	aq0	= .89678597403663861962481162e3;
++	apio2	= .15707963267948966192313216e1;
++	apio4	= .7853981633974483096156608e0;
++	asq2p1	= .2414213562373095048802e1;		// sqrt(2)+1
++	asq2m1	= .414213562373095048802e0;		// sqrt(2)-1
+ )
+ 
+ /*
+  *	xatan evaluates a series valid in the
+  *	range [-0.414...,+0.414...]. (tan(pi/8))
+  */
+-func Xatan(arg float64) float64 {
++func xatan(arg float64) float64 {
+ 	argsq := arg*arg;
+-	value := ((((p4*argsq + p3)*argsq + p2)*argsq + p1)*argsq + p0);
+-	value = value/(((((argsq + q4)*argsq + q3)*argsq + q2)*argsq + q1)*argsq + q0);
++	value := ((((ap4*argsq + ap3)*argsq + ap2)*argsq + ap1)*argsq + ap0);
++	value = value/(((((argsq + aq4)*argsq + aq3)*argsq + aq2)*argsq + aq1)*argsq + aq0);
+ 	return value*arg;
+ }
+ 
+@@ -46,14 +46,14 @@ func Xatan(arg float64) float64 {
+  *	satan reduces its argument (known to be positive)
+  *	to the range [0,0.414...] and calls xatan.
+  */
+-func Satan(arg float64) float64 {
+-	if arg < sq2m1 {
+-		return Xatan(arg);
++func satan(arg float64) float64 {
++	if arg < asq2m1 {
++		return xatan(arg);
+ 	}
+-	if arg > sq2p1 {
+-		return pio2 - Xatan(1/arg);
++	if arg > asq2p1 {
++		return apio2 - xatan(1/arg);
+ 	}
+-	return pio4 + Xatan((arg-1)/(arg+1));
++	return apio4 + xatan((arg-1)/(arg+1));
+ }
+ 
+ /*
+@@ -62,7 +62,7 @@ func Satan(arg float64) float64 {
+  */
+ export func Atan(arg float64) float64 {
+ 	if arg > 0 {
+-		return Satan(arg);
++		return satan(arg);
+ 	}
+-	return -Satan(-arg);
++	return -satan(-arg);
+ }
+diff --git a/src/lib/math/const.go b/src/lib/math/const.go
+new file mode 100644
+index 0000000000..a1c5f8e1a5
+--- /dev/null
++++ b/src/lib/math/const.go
+@@ -0,0 +1,9 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package math
++
++export const (
++	Sqrt2 = 1.41421356237309504880168872420969808;
++)
+diff --git a/src/lib/math/log.go b/src/lib/math/log.go
+index c0cfebf8bc..9c54858b46 100644
+--- a/src/lib/math/log.go
++++ b/src/lib/math/log.go
+@@ -4,6 +4,8 @@
+ 
+ package math
+ 
++import "math"
++
+ // The original C code, the long comment, and the constants
+ // below are from FreeBSD's /usr/src/lib/msun/src/e_log.c
+ // and came with this notice.  The go code is a simpler
+@@ -35,11 +37,11 @@ package math
+ //	of this polynomial approximation is bounded by 2**-58.45. In
+ //	other words,
+ //		        2      4      6      8      10      12      14
+-//	    R(z) ~ Lg1*s +Lg2*s +Lg3*s +Lg4*s +Lg5*s  +Lg6*s  +Lg7*s
+-//  	(the values of Lg1 to Lg7 are listed in the program)
++//	    R(z) ~ lg1*s +lg2*s +lg3*s +lg4*s +lg5*s  +lg6*s  +lg7*s
++//  	(the values of lg1 to lg7 are listed in the program)
+ //	and
+ //	    |      2          14          |     -58.45
+-//	    | Lg1*s +...+Lg7*s    -  R(z) | <= 2
++//	    | lg1*s +...+lg7*s    -  R(z) | <= 2
+ //	    |                             |
+ //	Note that 2s = f - s*f = f - hfsq + s*hfsq, where hfsq = f*f/2.
+ //	In order to guarantee error in log below 1ulp, we compute log
+@@ -69,20 +71,15 @@ package math
+ // to produce the hexadecimal values shown.
+ 
+ const (
+-	Ln2Hi = 6.93147180369123816490e-01;	/* 3fe62e42 fee00000 */
+-	Ln2Lo = 1.90821492927058770002e-10;	/* 3dea39ef 35793c76 */
+-	Lg1 = 6.666666666666735130e-01;  /* 3FE55555 55555593 */
+-	Lg2 = 3.999999999940941908e-01;  /* 3FD99999 9997FA04 */
+-	Lg3 = 2.857142874366239149e-01;  /* 3FD24924 94229359 */
+-	Lg4 = 2.222219843214978396e-01;  /* 3FCC71C5 1D8E78AF */
+-	Lg5 = 1.818357216161805012e-01;  /* 3FC74664 96CB03DE */
+-	Lg6 = 1.531383769920937332e-01;  /* 3FC39A09 D078C69F */
+-	Lg7 = 1.479819860511658591e-01;  /* 3FC2F112 DF3E5244 */
+-
+-	Two54 = 1<<54;				// 2^54
+-	TwoM20 = 1.0/(1<<20);		// 2^-20
+-	TwoM1022 = 2.2250738585072014e-308;	// 2^-1022
+-	Sqrt2 = 1.41421356237309504880168872420969808;
++	ln2Hi = 6.93147180369123816490e-01;	/* 3fe62e42 fee00000 */
++	ln2Lo = 1.90821492927058770002e-10;	/* 3dea39ef 35793c76 */
++	lg1 = 6.666666666666735130e-01;  /* 3FE55555 55555593 */
++	lg2 = 3.999999999940941908e-01;  /* 3FD99999 9997FA04 */
++	lg3 = 2.857142874366239149e-01;  /* 3FD24924 94229359 */
++	lg4 = 2.222219843214978396e-01;  /* 3FCC71C5 1D8E78AF */
++	lg5 = 1.818357216161805012e-01;  /* 3FC74664 96CB03DE */
++	lg6 = 1.531383769920937332e-01;  /* 3FC39A09 D078C69F */
++	lg7 = 1.479819860511658591e-01;  /* 3FC2F112 DF3E5244 */
+ )
+ 
+ export func Log(x float64) float64 {
+@@ -109,11 +106,11 @@ export func Log(x float64) float64 {
+ 	s := f/(2+f);
+ 	s2 := s*s;
+ 	s4 := s2*s2;
+-	t1 := s2*(Lg1 + s4*(Lg3 + s4*(Lg5 + s4*Lg7)));
+-	t2 := s4*(Lg2 + s4*(Lg4 + s4*Lg6));
++	t1 := s2*(lg1 + s4*(lg3 + s4*(lg5 + s4*lg7)));
++	t2 := s4*(lg2 + s4*(lg4 + s4*lg6));
+ 	R :=  t1 + t2;
+ 	hfsq := 0.5*f*f;
+-	return k*Ln2Hi - ((hfsq-(s*(hfsq+R)+k*Ln2Lo)) - f);
++	return k*ln2Hi - ((hfsq-(s*(hfsq+R)+k*ln2Lo)) - f);
+ }
+ 
+ const
+diff --git a/src/lib/math/sin.go b/src/lib/math/sin.go
+index 57de55913b..077506b30b 100644
+--- a/src/lib/math/sin.go
++++ b/src/lib/math/sin.go
+@@ -9,32 +9,32 @@ package math
+ */
+ const
+ (
+-	p0	=  .1357884097877375669092680e8;
+-	p1	= -.4942908100902844161158627e7;
+-	p2	=  .4401030535375266501944918e6;
+-	p3	= -.1384727249982452873054457e5;
+-	p4	=  .1459688406665768722226959e3;
+-	q0	=  .8644558652922534429915149e7;
+-	q1	=  .4081792252343299749395779e6;
+-	q2	=  .9463096101538208180571257e4;
+-	q3	=  .1326534908786136358911494e3;
++	sp0	=  .1357884097877375669092680e8;
++	sp1	= -.4942908100902844161158627e7;
++	sp2	=  .4401030535375266501944918e6;
++	sp3	= -.1384727249982452873054457e5;
++	sp4	=  .1459688406665768722226959e3;
++	sq0	=  .8644558652922534429915149e7;
++	sq1	=  .4081792252343299749395779e6;
++	sq2	=  .9463096101538208180571257e4;
++	sq3	=  .1326534908786136358911494e3;
+ 
+-        piu2	=  .6366197723675813430755350e0;	// 2/pi
++	spiu2	=  .6366197723675813430755350e0;	// 2/pi
+ )
+ 
+-func Sinus(arg float64, quad int) float64 {
++func sinus(arg float64, quad int) float64 {
+ 	x := arg;
+ 	if(x < 0) {
+ 		x = -x;
+ 		quad = quad+2;
+ 	}
+-	x = x * piu2;	/* underflow? */
++	x = x * spiu2;	/* underflow? */
+ 	var y float64;
+ 	if x > 32764 {
+ 		var e float64;
+ 		e, y = sys.modf(x);
+ 		e = e + float64(quad);
+-		temp1, f := sys.modf(0.25*e);
++		temsp1, f := sys.modf(0.25*e);
+ 		quad = int(e - 4*f);
+ 	} else {
+ 		k := int32(x);
+@@ -50,18 +50,18 @@ func Sinus(arg float64, quad int) float64 {
+ 	}
+ 
+ 	ysq := y*y;
+-	temp1 := ((((p4*ysq+p3)*ysq+p2)*ysq+p1)*ysq+p0)*y;
+-	temp2 := ((((ysq+q3)*ysq+q2)*ysq+q1)*ysq+q0);
+-	return temp1/temp2;
++	temsp1 := ((((sp4*ysq+sp3)*ysq+sp2)*ysq+sp1)*ysq+sp0)*y;
++	temsp2 := ((((ysq+sq3)*ysq+sq2)*ysq+sq1)*ysq+sq0);
++	return temsp1/temsp2;
+ }
+ 
+ export func Cos(arg float64) float64 {
+ 	if arg < 0 {
+ 		arg = -arg;
+ 	}
+-	return Sinus(arg, 1);
++	return sinus(arg, 1);
+ }
+ 
+ export func Sin(arg float64) float64 {
+-	return Sinus(arg, 0);
++	return sinus(arg, 0);
+ }
+diff --git a/src/lib/math/sinh.go b/src/lib/math/sinh.go
+index e1fde0ac27..622467ed7d 100644
+--- a/src/lib/math/sinh.go
++++ b/src/lib/math/sinh.go
+@@ -22,13 +22,13 @@ import "math"
+ 
+ const
+ (
+-	p0	= -0.6307673640497716991184787251e+6;
+-	p1	= -0.8991272022039509355398013511e+5;
+-	p2	= -0.2894211355989563807284660366e+4;
+-	p3	= -0.2630563213397497062819489e+2;
+-	q0	= -0.6307673640497716991212077277e+6;
+-	q1	=  0.1521517378790019070696485176e+5;
+-	q2	= -0.173678953558233699533450911e+3;
++	shp0	= -0.6307673640497716991184787251e+6;
++	shp1	= -0.8991272022039509355398013511e+5;
++	shp2	= -0.2894211355989563807284660366e+4;
++	shp3	= -0.2630563213397497062819489e+2;
++	shq0	= -0.6307673640497716991212077277e+6;
++	shq1	=  0.1521517378790019070696485176e+5;
++	shq2	= -0.173678953558233699533450911e+3;
+ )
+ 
+ export func Sinh(arg float64) float64 {
+@@ -48,8 +48,8 @@ export func Sinh(arg float64) float64 {
+ 
+ 	default:
+ 		argsq := arg*arg;
+-		temp = (((p3*argsq+p2)*argsq+p1)*argsq+p0)*arg;
+-		temp = temp/(((argsq+q2)*argsq+q1)*argsq+q0);
++		temp = (((shp3*argsq+shp2)*argsq+shp1)*argsq+shp0)*arg;
++		temp = temp/(((argsq+shq2)*argsq+shq1)*argsq+shq0);
+ 	}
+ 
+ 	if sign {
+diff --git a/src/lib/reflect/tostring.go b/src/lib/reflect/tostring.go
+index eb5dc20c51..2c9853af6a 100644
+--- a/src/lib/reflect/tostring.go
++++ b/src/lib/reflect/tostring.go
+@@ -153,7 +153,7 @@ func ValueToString(val Value) string {
+ 	case Uint64Kind:
+ 		return integer(int64(val.(Uint64Value).Get()));
+ 	case FloatKind:
+-		if strconv.floatsize == 32 {
++		if strconv.FloatSize == 32 {
+ 			return strconv.ftoa32(float32(val.(FloatValue).Get()), 'g', -1);
+ 		} else {
+ 			return strconv.ftoa64(float64(val.(FloatValue).Get()), 'g', -1);
+diff --git a/src/lib/reflect/type.go b/src/lib/reflect/type.go
+index 8653ef6eb5..ac8b0fc4d4 100644
+--- a/src/lib/reflect/type.go
++++ b/src/lib/reflect/type.go
+@@ -59,22 +59,22 @@ export type Type interface {
+ }
+ 
+ // Fields and methods common to all types
+-type Common struct {
++type commonType struct {
+ 	kind	int;
+ 	str	string;
+ 	name	string;
+ 	size	int;
+ }
+ 
+-func (c *Common) Kind() int {
++func (c *commonType) Kind() int {
+ 	return c.kind
+ }
+ 
+-func (c *Common) Name() string {
++func (c *commonType) Name() string {
+ 	return c.name
+ }
+ 
+-func (c *Common) String() string {
++func (c *commonType) String() string {
+ 	// If there is a name, show that instead of its expansion.
+ 	// This is important for reflection: a named type
+ 	// might have methods that the unnamed type does not.
+@@ -84,18 +84,18 @@ func (c *Common) String() string {
+ 	return c.str
+ }
+ 
+-func (c *Common) Size() int {
++func (c *commonType) Size() int {
+ 	return c.size
+ }
+ 
+ // -- Basic
+ 
+ type BasicType struct {
+-	Common
++	commonType
+ }
+ 
+ func NewBasicType(name string, kind int, size int) Type {
+-	return &BasicType{ Common{kind, name, name, size} }
++	return &BasicType{ commonType{kind, name, name, size} }
+ }
+ 
+ // Prebuilt basic types
+@@ -147,12 +147,12 @@ export type PtrType interface {
+ }
+ 
+ type PtrTypeStruct struct {
+-	Common;
++	commonType;
+ 	sub	*StubType;
+ }
+ 
+ func NewPtrTypeStruct(name, typestring string, sub *StubType) *PtrTypeStruct {
+-	return &PtrTypeStruct{ Common{PtrKind, typestring, name, ptrsize}, sub}
++	return &PtrTypeStruct{ commonType{PtrKind, typestring, name, ptrsize}, sub}
+ }
+ 
+ func (t *PtrTypeStruct) Sub() Type {
+@@ -168,14 +168,14 @@ export type ArrayType interface {
+ }
+ 
+ type ArrayTypeStruct struct {
+-	Common;
++	commonType;
+ 	elem	*StubType;
+ 	open	bool;	// otherwise fixed size
+ 	len	int;
+ }
+ 
+ func NewArrayTypeStruct(name, typestring string, open bool, len int, elem *StubType) *ArrayTypeStruct {
+-	return &ArrayTypeStruct{ Common{ArrayKind, typestring, name, 0}, elem, open, len}
++	return &ArrayTypeStruct{ commonType{ArrayKind, typestring, name, 0}, elem, open, len}
+ }
+ 
+ func (t *ArrayTypeStruct) Size() int {
+@@ -206,13 +206,13 @@ export type MapType interface {
+ }
+ 
+ type MapTypeStruct struct {
+-	Common;
++	commonType;
+ 	key	*StubType;
+ 	elem	*StubType;
+ }
+ 
+ func NewMapTypeStruct(name, typestring string, key, elem *StubType) *MapTypeStruct {
+-	return &MapTypeStruct{ Common{MapKind, typestring, name, ptrsize}, key, elem}
++	return &MapTypeStruct{ commonType{MapKind, typestring, name, ptrsize}, key, elem}
+ }
+ 
+ func (t *MapTypeStruct) Key() Type {
+@@ -237,13 +237,13 @@ export const (	// channel direction
+ )
+ 
+ type ChanTypeStruct struct {
+-	Common;
++	commonType;
+ 	elem	*StubType;
+ 	dir	int;
+ }
+ 
+ func NewChanTypeStruct(name, typestring string, dir int, elem *StubType) *ChanTypeStruct {
+-	return &ChanTypeStruct{ Common{ChanKind, typestring, name, ptrsize}, elem, dir}
++	return &ChanTypeStruct{ commonType{ChanKind, typestring, name, ptrsize}, elem, dir}
+ }
+ 
+ func (t *ChanTypeStruct) Dir() int {
+@@ -270,12 +270,12 @@ type Field struct {
+ }
+ 
+ type StructTypeStruct struct {
+-	Common;
++	commonType;
+ 	field	[]Field;
+ }
+ 
+ func NewStructTypeStruct(name, typestring string, field []Field) *StructTypeStruct {
+-	return &StructTypeStruct{ Common{StructKind, typestring, name, 0}, field}
++	return &StructTypeStruct{ commonType{StructKind, typestring, name, 0}, field}
+ }
+ 
+ // TODO: not portable; depends on 6g
+@@ -322,12 +322,12 @@ export type InterfaceType interface {
+ }
+ 
+ type InterfaceTypeStruct struct {
+-	Common;
++	commonType;
+ 	field	[]Field;
+ }
+ 
+ func NewInterfaceTypeStruct(name, typestring string, field []Field) *InterfaceTypeStruct {
+-	return &InterfaceTypeStruct{ Common{InterfaceKind, typestring, name, interfacesize}, field }
++	return &InterfaceTypeStruct{ commonType{InterfaceKind, typestring, name, interfacesize}, field }
+ }
+ 
+ func (t *InterfaceTypeStruct) Field(i int) (name string, typ Type, tag string, offset int) {
+@@ -348,13 +348,13 @@ export type FuncType interface {
+ }
+ 
+ type FuncTypeStruct struct {
+-	Common;
++	commonType;
+ 	in	*StructTypeStruct;
+ 	out	*StructTypeStruct;
+ }
+ 
+ func NewFuncTypeStruct(name, typestring string, in, out *StructTypeStruct) *FuncTypeStruct {
+-	return &FuncTypeStruct{ Common{FuncKind, typestring, name, 0}, in, out }
++	return &FuncTypeStruct{ commonType{FuncKind, typestring, name, 0}, in, out }
+ }
+ 
+ func (t *FuncTypeStruct) Size() int {
+diff --git a/src/lib/reflect/value.go b/src/lib/reflect/value.go
+index 1327e8f671..2adf430dad 100644
+--- a/src/lib/reflect/value.go
++++ b/src/lib/reflect/value.go
+@@ -25,27 +25,27 @@ export type Value interface {
+ 	Interface()	interface {};
+ }
+ 
+-// Common fields and functionality for all values
++// commonValue fields and functionality for all values
+ 
+-type Common struct {
++type commonValue struct {
+ 	kind	int;
+ 	typ	Type;
+ 	addr	Addr;
+ }
+ 
+-func (c *Common) Kind() int {
++func (c *commonValue) Kind() int {
+ 	return c.kind
+ }
+ 
+-func (c *Common) Type() Type {
++func (c *commonValue) Type() Type {
+ 	return c.typ
+ }
+ 
+-func (c *Common) Addr() Addr {
++func (c *commonValue) Addr() Addr {
+ 	return c.addr
+ }
+ 
+-func (c *Common) Interface() interface {} {
++func (c *commonValue) Interface() interface {} {
+ 	var i interface {};
+ 	if c.typ.Size() > 8 {	// TODO(rsc): how do we know it is 8?
+ 		i = sys.unreflect(c.addr.(uintptr).(uint64), c.typ.String(), true);
+@@ -72,11 +72,11 @@ export type MissingValue interface {
+ }
+ 
+ type MissingValueStruct struct {
+-	Common
++	commonValue
+ }
+ 
+ func MissingCreator(typ Type, addr Addr) Value {
+-	return &MissingValueStruct{ Common{MissingKind, typ, addr} }
++	return &MissingValueStruct{ commonValue{MissingKind, typ, addr} }
+ }
+ 
+ // -- Int
+@@ -89,11 +89,11 @@ export type IntValue interface {
+ }
+ 
+ type IntValueStruct struct {
+-	Common
++	commonValue
+ }
+ 
+ func IntCreator(typ Type, addr Addr) Value {
+-	return &IntValueStruct{ Common{IntKind, typ, addr} }
++	return &IntValueStruct{ commonValue{IntKind, typ, addr} }
+ }
+ 
+ func (v *IntValueStruct) Get() int {
+@@ -114,11 +114,11 @@ export type Int8Value interface {
+ }
+ 
+ type Int8ValueStruct struct {
+-	Common
++	commonValue
+ }
+ 
+ func Int8Creator(typ Type, addr Addr) Value {
+-	return &Int8ValueStruct{ Common{Int8Kind, typ, addr} }
++	return &Int8ValueStruct{ commonValue{Int8Kind, typ, addr} }
+ }
+ 
+ func (v *Int8ValueStruct) Get() int8 {
+@@ -139,11 +139,11 @@ export type Int16Value interface {
+ }
+ 
+ type Int16ValueStruct struct {
+-	Common
++	commonValue
+ }
+ 
+ func Int16Creator(typ Type, addr Addr) Value {
+-	return &Int16ValueStruct{ Common{Int16Kind, typ, addr} }
++	return &Int16ValueStruct{ commonValue{Int16Kind, typ, addr} }
+ }
+ 
+ func (v *Int16ValueStruct) Get() int16 {
+@@ -164,11 +164,11 @@ export type Int32Value interface {
+ }
+ 
+ type Int32ValueStruct struct {
+-	Common
++	commonValue
+ }
+ 
+ func Int32Creator(typ Type, addr Addr) Value {
+-	return &Int32ValueStruct{ Common{Int32Kind, typ, addr} }
++	return &Int32ValueStruct{ commonValue{Int32Kind, typ, addr} }
+ }
+ 
+ func (v *Int32ValueStruct) Get() int32 {
+@@ -189,11 +189,11 @@ export type Int64Value interface {
+ }
+ 
+ type Int64ValueStruct struct {
+-	Common
++	commonValue
+ }
+ 
+ func Int64Creator(typ Type, addr Addr) Value {
+-	return &Int64ValueStruct{ Common{Int64Kind, typ, addr} }
++	return &Int64ValueStruct{ commonValue{Int64Kind, typ, addr} }
+ }
+ 
+ func (v *Int64ValueStruct) Get() int64 {
+@@ -214,11 +214,11 @@ export type UintValue interface {
+ }
+ 
+ type UintValueStruct struct {
+-	Common
++	commonValue
+ }
+ 
+ func UintCreator(typ Type, addr Addr) Value {
+-	return &UintValueStruct{ Common{UintKind, typ, addr} }
++	return &UintValueStruct{ commonValue{UintKind, typ, addr} }
+ }
+ 
+ func (v *UintValueStruct) Get() uint {
+@@ -239,11 +239,11 @@ export type Uint8Value interface {
+ }
+ 
+ type Uint8ValueStruct struct {
+-	Common
++	commonValue
+ }
+ 
+ func Uint8Creator(typ Type, addr Addr) Value {
+-	return &Uint8ValueStruct{ Common{Uint8Kind, typ, addr} }
++	return &Uint8ValueStruct{ commonValue{Uint8Kind, typ, addr} }
+ }
+ 
+ func (v *Uint8ValueStruct) Get() uint8 {
+@@ -264,11 +264,11 @@ export type Uint16Value interface {
+ }
+ 
+ type Uint16ValueStruct struct {
+-	Common
++	commonValue
+ }
+ 
+ func Uint16Creator(typ Type, addr Addr) Value {
+-	return &Uint16ValueStruct{ Common{Uint16Kind, typ, addr} }
++	return &Uint16ValueStruct{ commonValue{Uint16Kind, typ, addr} }
+ }
+ 
+ func (v *Uint16ValueStruct) Get() uint16 {
+@@ -289,11 +289,11 @@ export type Uint32Value interface {
+ }
+ 
+ type Uint32ValueStruct struct {
+-	Common
++	commonValue
+ }
+ 
+ func Uint32Creator(typ Type, addr Addr) Value {
+-	return &Uint32ValueStruct{ Common{Uint32Kind, typ, addr} }
++	return &Uint32ValueStruct{ commonValue{Uint32Kind, typ, addr} }
+ }
+ 
+ func (v *Uint32ValueStruct) Get() uint32 {
+@@ -314,11 +314,11 @@ export type Uint64Value interface {
+ }
+ 
+ type Uint64ValueStruct struct {
+-	Common
++	commonValue
+ }
+ 
+ func Uint64Creator(typ Type, addr Addr) Value {
+-	return &Uint64ValueStruct{ Common{Uint64Kind, typ, addr} }
++	return &Uint64ValueStruct{ commonValue{Uint64Kind, typ, addr} }
+ }
+ 
+ func (v *Uint64ValueStruct) Get() uint64 {
+@@ -339,11 +339,11 @@ export type UintptrValue interface {
+ }
+ 
+ type UintptrValueStruct struct {
+-	Common
++	commonValue
+ }
+ 
+ func UintptrCreator(typ Type, addr Addr) Value {
+-	return &UintptrValueStruct{ Common{UintptrKind, typ, addr} }
++	return &UintptrValueStruct{ commonValue{UintptrKind, typ, addr} }
+ }
+ 
+ func (v *UintptrValueStruct) Get() uintptr {
+@@ -364,11 +364,11 @@ export type FloatValue interface {
+ }
+ 
+ type FloatValueStruct struct {
+-	Common
++	commonValue
+ }
+ 
+ func FloatCreator(typ Type, addr Addr) Value {
+-	return &FloatValueStruct{ Common{FloatKind, typ, addr} }
++	return &FloatValueStruct{ commonValue{FloatKind, typ, addr} }
+ }
+ 
+ func (v *FloatValueStruct) Get() float {
+@@ -389,11 +389,11 @@ export type Float32Value interface {
+ }
+ 
+ type Float32ValueStruct struct {
+-	Common
++	commonValue
+ }
+ 
+ func Float32Creator(typ Type, addr Addr) Value {
+-	return &Float32ValueStruct{ Common{Float32Kind, typ, addr} }
++	return &Float32ValueStruct{ commonValue{Float32Kind, typ, addr} }
+ }
+ 
+ func (v *Float32ValueStruct) Get() float32 {
+@@ -414,11 +414,11 @@ export type Float64Value interface {
+ }
+ 
+ type Float64ValueStruct struct {
+-	Common
++	commonValue
+ }
+ 
+ func Float64Creator(typ Type, addr Addr) Value {
+-	return &Float64ValueStruct{ Common{Float64Kind, typ, addr} }
++	return &Float64ValueStruct{ commonValue{Float64Kind, typ, addr} }
+ }
+ 
+ func (v *Float64ValueStruct) Get() float64 {
+@@ -439,11 +439,11 @@ export type Float80Value interface {
+ }
+ 
+ type Float80ValueStruct struct {
+-	Common
++	commonValue
+ }
+ 
+ func Float80Creator(typ Type, addr Addr) Value {
+-	return &Float80ValueStruct{ Common{Float80Kind, typ, addr} }
++	return &Float80ValueStruct{ commonValue{Float80Kind, typ, addr} }
+ }
+ 
+ /*
+@@ -467,11 +467,11 @@ export type StringValue interface {
+ }
+ 
+ type StringValueStruct struct {
+-	Common
++	commonValue
+ }
+ 
+ func StringCreator(typ Type, addr Addr) Value {
+-	return &StringValueStruct{ Common{StringKind, typ, addr} }
++	return &StringValueStruct{ commonValue{StringKind, typ, addr} }
+ }
+ 
+ func (v *StringValueStruct) Get() string {
+@@ -492,11 +492,11 @@ export type BoolValue interface {
+ }
+ 
+ type BoolValueStruct struct {
+-	Common
++	commonValue
+ }
+ 
+ func BoolCreator(typ Type, addr Addr) Value {
+-	return &BoolValueStruct{ Common{BoolKind, typ, addr} }
++	return &BoolValueStruct{ commonValue{BoolKind, typ, addr} }
+ }
+ 
+ func (v *BoolValueStruct) Get() bool {
+@@ -518,7 +518,7 @@ export type PtrValue interface {
+ }
+ 
+ type PtrValueStruct struct {
+-	Common
++	commonValue
+ }
+ 
+ func (v *PtrValueStruct) Get() Addr {
+@@ -540,7 +540,7 @@ func (v *PtrValueStruct) SetSub(subv Value) {
+ }
+ 
+ func PtrCreator(typ Type, addr Addr) Value {
+-	return &PtrValueStruct{ Common{PtrKind, typ, addr} };
++	return &PtrValueStruct{ commonValue{PtrKind, typ, addr} };
+ }
+ 
+ // -- Array
+@@ -570,7 +570,7 @@ type RuntimeArray struct {
+ }
+ 
+ type OpenArrayValueStruct struct {
+-	Common;
++	commonValue;
+ 	elemtype	Type;
+ 	elemsize	int;
+ 	array *RuntimeArray;
+@@ -601,7 +601,7 @@ func (v *OpenArrayValueStruct) Elem(i int) Value {
+ }
+ 
+ type FixedArrayValueStruct struct {
+-	Common;
++	commonValue;
+ 	elemtype	Type;
+ 	elemsize	int;
+ 	len	int;
+@@ -660,11 +660,11 @@ export type MapValue interface {
+ }
+ 
+ type MapValueStruct struct {
+-	Common
++	commonValue
+ }
+ 
+ func MapCreator(typ Type, addr Addr) Value {
+-	return &MapValueStruct{ Common{MapKind, typ, addr} }
++	return &MapValueStruct{ commonValue{MapKind, typ, addr} }
+ }
+ 
+ func (v *MapValueStruct) Len() int {
+@@ -684,11 +684,11 @@ export type ChanValue interface {
+ }
+ 
+ type ChanValueStruct struct {
+-	Common
++	commonValue
+ }
+ 
+ func ChanCreator(typ Type, addr Addr) Value {
+-	return &ChanValueStruct{ Common{ChanKind, typ, addr} }
++	return &ChanValueStruct{ commonValue{ChanKind, typ, addr} }
+ }
+ 
+ // -- Struct
+@@ -701,7 +701,7 @@ export type StructValue interface {
+ }
+ 
+ type StructValueStruct struct {
+-	Common;
++	commonValue;
+ 	field	[]Value;
+ }
+ 
+@@ -716,7 +716,7 @@ func (v *StructValueStruct) Field(i int) Value {
+ func StructCreator(typ Type, addr Addr) Value {
+ 	t := typ.(StructType);
+ 	nfield := t.Len();
+-	v := &StructValueStruct{ Common{StructKind, typ, addr}, make([]Value, nfield) };
++	v := &StructValueStruct{ commonValue{StructKind, typ, addr}, make([]Value, nfield) };
+ 	for i := 0; i < nfield; i++ {
+ 		name, ftype, str, offset := t.Field(i);
+ 		addr_uint := uintptr(addr) + uintptr(offset);
+@@ -735,7 +735,7 @@ export type InterfaceValue interface {
+ }
+ 
+ type InterfaceValueStruct struct {
+-	Common
++	commonValue
+ }
+ 
+ func (v *InterfaceValueStruct) Get() interface{} {
+@@ -743,7 +743,7 @@ func (v *InterfaceValueStruct) Get() interface{} {
+ }
+ 
+ func InterfaceCreator(typ Type, addr Addr) Value {
+-	return &InterfaceValueStruct{ Common{InterfaceKind, typ, addr} }
++	return &InterfaceValueStruct{ commonValue{InterfaceKind, typ, addr} }
+ }
+ 
+ // -- Func
+@@ -754,11 +754,11 @@ export type FuncValue interface {
+ }
+ 
+ type FuncValueStruct struct {
+-	Common
++	commonValue
+ }
+ 
+ func FuncCreator(typ Type, addr Addr) Value {
+-	return &FuncValueStruct{ Common{FuncKind, typ, addr} }
++	return &FuncValueStruct{ commonValue{FuncKind, typ, addr} }
+ }
+ 
+ var creator = map[int] Creator {
+diff --git a/src/lib/strconv/atof.go b/src/lib/strconv/atof.go
+index 8869e2032c..de2464a8a3 100644
+--- a/src/lib/strconv/atof.go
++++ b/src/lib/strconv/atof.go
+@@ -355,7 +355,7 @@ export func atof32(s string) (f float32, err *os.Error) {
+ }
+ 
+ export func atof(s string) (f float, err *os.Error) {
+-	if floatsize == 32 {
++	if FloatSize == 32 {
+ 		f1, err1 := atof32(s);
+ 		return float(f1), err1;
+ 	}
+diff --git a/src/lib/strconv/atof_test.go b/src/lib/strconv/atof_test.go
+index ab4fcd1462..5292b3d0df 100644
+--- a/src/lib/strconv/atof_test.go
++++ b/src/lib/strconv/atof_test.go
+@@ -10,92 +10,92 @@ import (
+ 	"testing"
+ )
+ 
+-type Test struct {
++type AtofTest struct {
+ 	in string;
+ 	out string;
+ 	err *os.Error;
+ }
+ 
+-var tests = []Test {
+-	Test{ "", "0", os.EINVAL },
+-	Test{ "1", "1", nil },
+-	Test{ "+1", "1", nil },
+-	Test{ "1x", "0", os.EINVAL },
+-	Test{ "1.1.", "0", os.EINVAL },
+-	Test{ "1e23", "1e+23", nil },
+-	Test{ "100000000000000000000000", "1e+23", nil },
+-	Test{ "1e-100", "1e-100", nil },
+-	Test{ "123456700", "1.234567e+08", nil },
+-	Test{ "99999999999999974834176", "9.999999999999997e+22", nil },
+-	Test{ "100000000000000000000001", "1.0000000000000001e+23", nil },
+-	Test{ "100000000000000008388608", "1.0000000000000001e+23", nil },
+-	Test{ "100000000000000016777215", "1.0000000000000001e+23", nil },
+-	Test{ "100000000000000016777216", "1.0000000000000003e+23", nil },
+-	Test{ "-1", "-1", nil },
+-	Test{ "-0", "-0", nil },
+-	Test{ "1e-20", "1e-20", nil },
+-	Test{ "625e-3", "0.625", nil },
++var atoftests = []AtofTest {
++	AtofTest{ "", "0", os.EINVAL },
++	AtofTest{ "1", "1", nil },
++	AtofTest{ "+1", "1", nil },
++	AtofTest{ "1x", "0", os.EINVAL },
++	AtofTest{ "1.1.", "0", os.EINVAL },
++	AtofTest{ "1e23", "1e+23", nil },
++	AtofTest{ "100000000000000000000000", "1e+23", nil },
++	AtofTest{ "1e-100", "1e-100", nil },
++	AtofTest{ "123456700", "1.234567e+08", nil },
++	AtofTest{ "99999999999999974834176", "9.999999999999997e+22", nil },
++	AtofTest{ "100000000000000000000001", "1.0000000000000001e+23", nil },
++	AtofTest{ "100000000000000008388608", "1.0000000000000001e+23", nil },
++	AtofTest{ "100000000000000016777215", "1.0000000000000001e+23", nil },
++	AtofTest{ "100000000000000016777216", "1.0000000000000003e+23", nil },
++	AtofTest{ "-1", "-1", nil },
++	AtofTest{ "-0", "-0", nil },
++	AtofTest{ "1e-20", "1e-20", nil },
++	AtofTest{ "625e-3", "0.625", nil },
+ 
+ 	// largest float64
+-	Test{ "1.7976931348623157e308", "1.7976931348623157e+308", nil },
+-	Test{ "-1.7976931348623157e308", "-1.7976931348623157e+308", nil },
++	AtofTest{ "1.7976931348623157e308", "1.7976931348623157e+308", nil },
++	AtofTest{ "-1.7976931348623157e308", "-1.7976931348623157e+308", nil },
+ 	// next float64 - too large
+-	Test{ "1.7976931348623159e308", "+Inf", os.ERANGE },
+-	Test{ "-1.7976931348623159e308", "-Inf", os.ERANGE },
++	AtofTest{ "1.7976931348623159e308", "+Inf", os.ERANGE },
++	AtofTest{ "-1.7976931348623159e308", "-Inf", os.ERANGE },
+ 	// the border is ...158079
+ 	// borderline - okay
+-	Test{ "1.7976931348623158e308", "1.7976931348623157e+308", nil },
+-	Test{ "-1.7976931348623158e308", "-1.7976931348623157e+308", nil },
++	AtofTest{ "1.7976931348623158e308", "1.7976931348623157e+308", nil },
++	AtofTest{ "-1.7976931348623158e308", "-1.7976931348623157e+308", nil },
+ 	// borderline - too large
+-	Test{ "1.797693134862315808e308", "+Inf", os.ERANGE },
+-	Test{ "-1.797693134862315808e308", "-Inf", os.ERANGE },
++	AtofTest{ "1.797693134862315808e308", "+Inf", os.ERANGE },
++	AtofTest{ "-1.797693134862315808e308", "-Inf", os.ERANGE },
+ 
+ 	// a little too large
+-	Test{ "1e308", "1e+308", nil },
+-	Test{ "2e308", "+Inf", os.ERANGE },
+-	Test{ "1e309", "+Inf", os.ERANGE },
++	AtofTest{ "1e308", "1e+308", nil },
++	AtofTest{ "2e308", "+Inf", os.ERANGE },
++	AtofTest{ "1e309", "+Inf", os.ERANGE },
+ 
+ 	// way too large
+-	Test{ "1e310", "+Inf", os.ERANGE },
+-	Test{ "-1e310", "-Inf", os.ERANGE },
+-	Test{ "1e400", "+Inf", os.ERANGE },
+-	Test{ "-1e400", "-Inf", os.ERANGE },
+-	Test{ "1e400000", "+Inf", os.ERANGE },
+-	Test{ "-1e400000", "-Inf", os.ERANGE },
++	AtofTest{ "1e310", "+Inf", os.ERANGE },
++	AtofTest{ "-1e310", "-Inf", os.ERANGE },
++	AtofTest{ "1e400", "+Inf", os.ERANGE },
++	AtofTest{ "-1e400", "-Inf", os.ERANGE },
++	AtofTest{ "1e400000", "+Inf", os.ERANGE },
++	AtofTest{ "-1e400000", "-Inf", os.ERANGE },
+ 
+ 	// denormalized
+-	Test{ "1e-305", "1e-305", nil },
+-	Test{ "1e-306", "1e-306", nil },
+-	Test{ "1e-307", "1e-307", nil },
+-	Test{ "1e-308", "1e-308", nil },
+-	Test{ "1e-309", "1e-309", nil },
+-	Test{ "1e-310", "1e-310", nil },
+-	Test{ "1e-322", "1e-322", nil },
++	AtofTest{ "1e-305", "1e-305", nil },
++	AtofTest{ "1e-306", "1e-306", nil },
++	AtofTest{ "1e-307", "1e-307", nil },
++	AtofTest{ "1e-308", "1e-308", nil },
++	AtofTest{ "1e-309", "1e-309", nil },
++	AtofTest{ "1e-310", "1e-310", nil },
++	AtofTest{ "1e-322", "1e-322", nil },
+ 	// smallest denormal
+-	Test{ "5e-324", "5e-324", nil },
++	AtofTest{ "5e-324", "5e-324", nil },
+ 	// too small
+-	Test{ "4e-324", "0", nil },
++	AtofTest{ "4e-324", "0", nil },
+ 	// way too small
+-	Test{ "1e-350", "0", nil },
+-	Test{ "1e-400000", "0", nil },
++	AtofTest{ "1e-350", "0", nil },
++	AtofTest{ "1e-400000", "0", nil },
+ 
+ 	// try to overflow exponent
+-	Test{ "1e-4294967296", "0", nil },
+-	Test{ "1e+4294967296", "+Inf", os.ERANGE },
+-	Test{ "1e-18446744073709551616", "0", nil },
+-	Test{ "1e+18446744073709551616", "+Inf", os.ERANGE },
++	AtofTest{ "1e-4294967296", "0", nil },
++	AtofTest{ "1e+4294967296", "+Inf", os.ERANGE },
++	AtofTest{ "1e-18446744073709551616", "0", nil },
++	AtofTest{ "1e+18446744073709551616", "+Inf", os.ERANGE },
+ 
+ 	// Parse errors
+-	Test{ "1e", "0", os.EINVAL },
+-	Test{ "1e-", "0", os.EINVAL },
+-	Test{ ".e-1", "0", os.EINVAL },
++	AtofTest{ "1e", "0", os.EINVAL },
++	AtofTest{ "1e-", "0", os.EINVAL },
++	AtofTest{ ".e-1", "0", os.EINVAL },
+ }
+ 
+ func XTestAtof(t *testing.T, opt bool) {
+ 	oldopt := strconv.optimize;
+ 	strconv.optimize = opt;
+-	for i := 0; i < len(tests); i++ {
+-		test := &tests[i];
++	for i := 0; i < len(atoftests); i++ {
++		test := &atoftests[i];
+ 		out, err := strconv.atof64(test.in);
+ 		outs := strconv.ftoa64(out, 'g', -1);
+ 		if outs != test.out || err != test.err {
+@@ -112,7 +112,7 @@ func XTestAtof(t *testing.T, opt bool) {
+ 			}
+ 		}
+ 
+-		if floatsize == 64 || float64(float32(out)) == out {
++		if FloatSize == 64 || float64(float32(out)) == out {
+ 			outf, err := strconv.atof(test.in);
+ 			outs := strconv.ftoa(outf, 'g', -1);
+ 			if outs != test.out || err != test.err {
+diff --git a/src/lib/strconv/atoi_test.go b/src/lib/strconv/atoi_test.go
+index 166c2e4332..a071b7435c 100644
+--- a/src/lib/strconv/atoi_test.go
++++ b/src/lib/strconv/atoi_test.go
+@@ -10,102 +10,102 @@ import (
+ 	"testing"
+ )
+ 
+-type Uint64Test struct {
++type Atoui64Test struct {
+ 	in string;
+ 	out uint64;
+ 	err *os.Error;
+ }
+ 
+-var uint64tests = []Uint64Test {
+-	Uint64Test{ "", 0, os.EINVAL },
+-	Uint64Test{ "0", 0, nil },
+-	Uint64Test{ "1", 1, nil },
+-	Uint64Test{ "12345", 12345, nil },
+-	Uint64Test{ "012345", 0, os.EINVAL },
+-	Uint64Test{ "12345x", 0, os.EINVAL },
+-	Uint64Test{ "98765432100", 98765432100, nil },
+-	Uint64Test{ "18446744073709551615", 1<<64-1, nil },
+-	Uint64Test{ "18446744073709551616", 1<<64-1, os.ERANGE },
+-	Uint64Test{ "18446744073709551620", 1<<64-1, os.ERANGE },
++var atoui64tests = []Atoui64Test {
++	Atoui64Test{ "", 0, os.EINVAL },
++	Atoui64Test{ "0", 0, nil },
++	Atoui64Test{ "1", 1, nil },
++	Atoui64Test{ "12345", 12345, nil },
++	Atoui64Test{ "012345", 0, os.EINVAL },
++	Atoui64Test{ "12345x", 0, os.EINVAL },
++	Atoui64Test{ "98765432100", 98765432100, nil },
++	Atoui64Test{ "18446744073709551615", 1<<64-1, nil },
++	Atoui64Test{ "18446744073709551616", 1<<64-1, os.ERANGE },
++	Atoui64Test{ "18446744073709551620", 1<<64-1, os.ERANGE },
+ }
+ 
+-type Int64Test struct {
++type Atoi64Test struct {
+ 	in string;
+ 	out int64;
+ 	err *os.Error;
+ }
+ 
+-var int64tests = []Int64Test {
+-	Int64Test{ "", 0, os.EINVAL },
+-	Int64Test{ "0", 0, nil },
+-	Int64Test{ "-0", 0, nil },
+-	Int64Test{ "1", 1, nil },
+-	Int64Test{ "-1", -1, nil },
+-	Int64Test{ "12345", 12345, nil },
+-	Int64Test{ "-12345", -12345, nil },
+-	Int64Test{ "012345", 0, os.EINVAL },
+-	Int64Test{ "-012345", 0, os.EINVAL },
+-	Int64Test{ "12345x", 0, os.EINVAL },
+-	Int64Test{ "-12345x", 0, os.EINVAL },
+-	Int64Test{ "98765432100", 98765432100, nil },
+-	Int64Test{ "-98765432100", -98765432100, nil },
+-	Int64Test{ "9223372036854775807", 1<<63-1, nil },
+-	Int64Test{ "-9223372036854775807", -(1<<63-1), nil },
+-	Int64Test{ "9223372036854775808", 1<<63-1, os.ERANGE },
+-	Int64Test{ "-9223372036854775808", -1<<63, nil },
+-	Int64Test{ "9223372036854775809", 1<<63-1, os.ERANGE },
+-	Int64Test{ "-9223372036854775809", -1<<63, os.ERANGE },
++var atoi64test = []Atoi64Test {
++	Atoi64Test{ "", 0, os.EINVAL },
++	Atoi64Test{ "0", 0, nil },
++	Atoi64Test{ "-0", 0, nil },
++	Atoi64Test{ "1", 1, nil },
++	Atoi64Test{ "-1", -1, nil },
++	Atoi64Test{ "12345", 12345, nil },
++	Atoi64Test{ "-12345", -12345, nil },
++	Atoi64Test{ "012345", 0, os.EINVAL },
++	Atoi64Test{ "-012345", 0, os.EINVAL },
++	Atoi64Test{ "12345x", 0, os.EINVAL },
++	Atoi64Test{ "-12345x", 0, os.EINVAL },
++	Atoi64Test{ "98765432100", 98765432100, nil },
++	Atoi64Test{ "-98765432100", -98765432100, nil },
++	Atoi64Test{ "9223372036854775807", 1<<63-1, nil },
++	Atoi64Test{ "-9223372036854775807", -(1<<63-1), nil },
++	Atoi64Test{ "9223372036854775808", 1<<63-1, os.ERANGE },
++	Atoi64Test{ "-9223372036854775808", -1<<63, nil },
++	Atoi64Test{ "9223372036854775809", 1<<63-1, os.ERANGE },
++	Atoi64Test{ "-9223372036854775809", -1<<63, os.ERANGE },
+ }
+ 
+-type Uint32Test struct {
++type Atoui32Test struct {
+ 	in string;
+ 	out uint32;
+ 	err *os.Error;
+ }
+ 
+-var uint32tests = []Uint32Test {
+-	Uint32Test{ "", 0, os.EINVAL },
+-	Uint32Test{ "0", 0, nil },
+-	Uint32Test{ "1", 1, nil },
+-	Uint32Test{ "12345", 12345, nil },
+-	Uint32Test{ "012345", 0, os.EINVAL },
+-	Uint32Test{ "12345x", 0, os.EINVAL },
+-	Uint32Test{ "987654321", 987654321, nil },
+-	Uint32Test{ "4294967295", 1<<32-1, nil },
+-	Uint32Test{ "4294967296", 1<<32-1, os.ERANGE },
++var atoui32tests = []Atoui32Test {
++	Atoui32Test{ "", 0, os.EINVAL },
++	Atoui32Test{ "0", 0, nil },
++	Atoui32Test{ "1", 1, nil },
++	Atoui32Test{ "12345", 12345, nil },
++	Atoui32Test{ "012345", 0, os.EINVAL },
++	Atoui32Test{ "12345x", 0, os.EINVAL },
++	Atoui32Test{ "987654321", 987654321, nil },
++	Atoui32Test{ "4294967295", 1<<32-1, nil },
++	Atoui32Test{ "4294967296", 1<<32-1, os.ERANGE },
+ }
+ 
+-type Int32Test struct {
++type Atoi32Test struct {
+ 	in string;
+ 	out int32;
+ 	err *os.Error;
+ }
+ 
+-var int32tests = []Int32Test {
+-	Int32Test{ "", 0, os.EINVAL },
+-	Int32Test{ "0", 0, nil },
+-	Int32Test{ "-0", 0, nil },
+-	Int32Test{ "1", 1, nil },
+-	Int32Test{ "-1", -1, nil },
+-	Int32Test{ "12345", 12345, nil },
+-	Int32Test{ "-12345", -12345, nil },
+-	Int32Test{ "012345", 0, os.EINVAL },
+-	Int32Test{ "-012345", 0, os.EINVAL },
+-	Int32Test{ "12345x", 0, os.EINVAL },
+-	Int32Test{ "-12345x", 0, os.EINVAL },
+-	Int32Test{ "987654321", 987654321, nil },
+-	Int32Test{ "-987654321", -987654321, nil },
+-	Int32Test{ "2147483647", 1<<31-1, nil },
+-	Int32Test{ "-2147483647", -(1<<31-1), nil },
+-	Int32Test{ "2147483648", 1<<31-1, os.ERANGE },
+-	Int32Test{ "-2147483648", -1<<31, nil },
+-	Int32Test{ "2147483649", 1<<31-1, os.ERANGE },
+-	Int32Test{ "-2147483649", -1<<31, os.ERANGE },
++var atoi32tests = []Atoi32Test {
++	Atoi32Test{ "", 0, os.EINVAL },
++	Atoi32Test{ "0", 0, nil },
++	Atoi32Test{ "-0", 0, nil },
++	Atoi32Test{ "1", 1, nil },
++	Atoi32Test{ "-1", -1, nil },
++	Atoi32Test{ "12345", 12345, nil },
++	Atoi32Test{ "-12345", -12345, nil },
++	Atoi32Test{ "012345", 0, os.EINVAL },
++	Atoi32Test{ "-012345", 0, os.EINVAL },
++	Atoi32Test{ "12345x", 0, os.EINVAL },
++	Atoi32Test{ "-12345x", 0, os.EINVAL },
++	Atoi32Test{ "987654321", 987654321, nil },
++	Atoi32Test{ "-987654321", -987654321, nil },
++	Atoi32Test{ "2147483647", 1<<31-1, nil },
++	Atoi32Test{ "-2147483647", -(1<<31-1), nil },
++	Atoi32Test{ "2147483648", 1<<31-1, os.ERANGE },
++	Atoi32Test{ "-2147483648", -1<<31, nil },
++	Atoi32Test{ "2147483649", 1<<31-1, os.ERANGE },
++	Atoi32Test{ "-2147483649", -1<<31, os.ERANGE },
+ }
+ 
+ export func TestAtoui64(t *testing.T) {
+-	for i := 0; i < len(uint64tests); i++ {
+-		test := &uint64tests[i];
++	for i := 0; i < len(atoui64tests); i++ {
++		test := &atoui64tests[i];
+ 		out, err := strconv.atoui64(test.in);
+ 		if test.out != out || test.err != err {
+ 			t.Errorf("strconv.atoui64(%v) = %v, %v want %v, %v\n",
+@@ -115,8 +115,8 @@ export func TestAtoui64(t *testing.T) {
+ }
+ 
+ export func TestAtoi64(t *testing.T) {
+-	for i := 0; i < len(int64tests); i++ {
+-		test := &int64tests[i];
++	for i := 0; i < len(atoi64test); i++ {
++		test := &atoi64test[i];
+ 		out, err := strconv.atoi64(test.in);
+ 		if test.out != out || test.err != err {
+ 			t.Errorf("strconv.atoi64(%v) = %v, %v want %v, %v\n",
+@@ -136,8 +136,8 @@ func IntSize1() uint {
+ export func TestAtoui(t *testing.T) {
+ 	switch IntSize1() {
+ 	case 32:
+-		for i := 0; i < len(uint32tests); i++ {
+-			test := &uint32tests[i];
++		for i := 0; i < len(atoui32tests); i++ {
++			test := &atoui32tests[i];
+ 			out, err := strconv.atoui(test.in);
+ 			if test.out != uint32(out) || test.err != err {
+ 				t.Errorf("strconv.atoui(%v) = %v, %v want %v, %v\n",
+@@ -145,8 +145,8 @@ export func TestAtoui(t *testing.T) {
+ 			}
+ 		}
+ 	case 64:
+-		for i := 0; i < len(uint64tests); i++ {
+-			test := &uint64tests[i];
++		for i := 0; i < len(atoui64tests); i++ {
++			test := &atoui64tests[i];
+ 			out, err := strconv.atoui(test.in);
+ 			if test.out != uint64(out) || test.err != err {
+ 				t.Errorf("strconv.atoui(%v) = %v, %v want %v, %v\n",
+@@ -159,8 +159,8 @@ export func TestAtoui(t *testing.T) {
+ export func TestAtoi(t *testing.T) {
+ 	switch IntSize1() {
+ 	case 32:
+-		for i := 0; i < len(int32tests); i++ {
+-			test := &int32tests[i];
++		for i := 0; i < len(atoi32tests); i++ {
++			test := &atoi32tests[i];
+ 			out, err := strconv.atoi(test.in);
+ 			if test.out != int32(out) || test.err != err {
+ 				t.Errorf("strconv.atoi(%v) = %v, %v want %v, %v\n",
+@@ -168,8 +168,8 @@ export func TestAtoi(t *testing.T) {
+ 			}
+ 		}
+ 	case 64:
+-		for i := 0; i < len(int64tests); i++ {
+-			test := &int64tests[i];
++		for i := 0; i < len(atoi64test); i++ {
++			test := &atoi64test[i];
+ 			out, err := strconv.atoi(test.in);
+ 			if test.out != int64(out) || test.err != err {
+ 				t.Errorf("strconv.atoi(%v) = %v, %v want %v, %v\n",
+diff --git a/src/lib/strconv/ftoa.go b/src/lib/strconv/ftoa.go
+index b99d9d593e..a0f5efcd08 100644
+--- a/src/lib/strconv/ftoa.go
++++ b/src/lib/strconv/ftoa.go
+@@ -28,7 +28,7 @@ func GenericFtoa(bits uint64, fmt byte, prec int, flt *FloatInfo) string
+ func Max(a, b int) int
+ func RoundShortest(d *Decimal, mant uint64, exp int, flt *FloatInfo)
+ 
+-func FloatSize() int {
++func floatsize() int {
+ 	// Figure out whether float is float32 or float64.
+ 	// 1e-35 is representable in both, but 1e-70
+ 	// is too small for a float32.
+@@ -38,7 +38,7 @@ func FloatSize() int {
+ 	}
+ 	return 64;
+ }
+-export var floatsize = FloatSize()
++export var FloatSize = floatsize()
+ 
+ export func ftoa32(f float32, fmt byte, prec int) string {
+ 	return GenericFtoa(uint64(sys.float32bits(f)), fmt, prec, &float32info);
+@@ -49,7 +49,7 @@ export func ftoa64(f float64, fmt byte, prec int) string {
+ }
+ 
+ export func ftoa(f float, fmt byte, prec int) string {
+-	if floatsize == 32 {
++	if FloatSize == 32 {
+ 		return ftoa32(float32(f), fmt, prec);
+ 	}
+ 	return ftoa64(float64(f), fmt, prec);
+diff --git a/src/lib/strconv/ftoa_test.go b/src/lib/strconv/ftoa_test.go
+index 6b90ff2f32..8dbe7f3c29 100644
+--- a/src/lib/strconv/ftoa_test.go
++++ b/src/lib/strconv/ftoa_test.go
+@@ -9,7 +9,7 @@ import (
+ 	"testing"
+ )
+ 
+-type Test struct {
++type FtoaTest struct {
+ 	f float64;
+ 	fmt byte;
+ 	prec int;
+@@ -23,88 +23,87 @@ const (
+ 	Above1e23 = 100000000000000008388608;
+ )
+ 
+-// TODO: Should be able to call this tests but it conflicts with testatof.go
+-var ftests = []Test {
+-	Test{ 1, 'e', 5, "1.00000e+00" },
+-	Test{ 1, 'f', 5, "1.00000" },
+-	Test{ 1, 'g', 5, "1" },
+-	Test{ 1, 'g', -1, "1" },
+-	Test{ 20, 'g', -1, "20" },
+-	Test{ 1234567.8, 'g', -1, "1.2345678e+06" },
+-	Test{ 200000, 'g', -1, "200000" },
+-	Test{ 2000000, 'g', -1, "2e+06" },
+-
+-	Test{ 0, 'e', 5, "0.00000e+00" },
+-	Test{ 0, 'f', 5, "0.00000" },
+-	Test{ 0, 'g', 5, "0" },
+-	Test{ 0, 'g', -1, "0" },
+-
+-	Test{ -1, 'e', 5, "-1.00000e+00" },
+-	Test{ -1, 'f', 5, "-1.00000" },
+-	Test{ -1, 'g', 5, "-1" },
+-	Test{ -1, 'g', -1, "-1" },
+-
+-	Test{ 12, 'e', 5, "1.20000e+01" },
+-	Test{ 12, 'f', 5, "12.00000" },
+-	Test{ 12, 'g', 5, "12" },
+-	Test{ 12, 'g', -1, "12" },
+-
+-	Test{ 123456700, 'e', 5, "1.23457e+08" },
+-	Test{ 123456700, 'f', 5, "123456700.00000" },
+-	Test{ 123456700, 'g', 5, "1.2346e+08" },
+-	Test{ 123456700, 'g', -1, "1.234567e+08" },
+-
+-	Test{ 1.2345e6, 'e', 5, "1.23450e+06" },
+-	Test{ 1.2345e6, 'f', 5, "1234500.00000" },
+-	Test{ 1.2345e6, 'g', 5, "1.2345e+06" },
+-
+-	Test{ 1e23, 'e', 17, "9.99999999999999916e+22" },
+-	Test{ 1e23, 'f', 17, "99999999999999991611392.00000000000000000" },
+-	Test{ 1e23, 'g', 17, "9.9999999999999992e+22" },
+-
+-	Test{ 1e23, 'e', -1, "1e+23" },
+-	Test{ 1e23, 'f', -1, "100000000000000000000000" },
+-	Test{ 1e23, 'g', -1, "1e+23" },
+-
+-	Test{ Below1e23, 'e', 17, "9.99999999999999748e+22" },
+-	Test{ Below1e23, 'f', 17, "99999999999999974834176.00000000000000000" },
+-	Test{ Below1e23, 'g', 17, "9.9999999999999975e+22" },
+-
+-	Test{ Below1e23, 'e', -1, "9.999999999999997e+22" },
+-	Test{ Below1e23, 'f', -1, "99999999999999970000000" },
+-	Test{ Below1e23, 'g', -1, "9.999999999999997e+22" },
+-
+-	Test{ Above1e23, 'e', 17, "1.00000000000000008e+23" },
+-	Test{ Above1e23, 'f', 17, "100000000000000008388608.00000000000000000" },
+-	Test{ Above1e23, 'g', 17, "1.0000000000000001e+23" },
+-
+-	Test{ Above1e23, 'e', -1, "1.0000000000000001e+23" },
+-	Test{ Above1e23, 'f', -1, "100000000000000010000000" },
+-	Test{ Above1e23, 'g', -1, "1.0000000000000001e+23" },
+-
+-	Test{ fdiv(5e-304, 1e20), 'g', -1, "5e-324" },
+-	Test{ fdiv(-5e-304, 1e20), 'g', -1, "-5e-324" },
+-
+-	Test{ 32, 'g', -1, "32" },
+-	Test{ 32, 'g', 0, "3e+01" },
+-
+-	Test{ 100, 'x', -1, "%x" },
+-
+-	Test{ sys.NaN(), 'g', -1, "NaN" },
+-	Test{ -sys.NaN(), 'g', -1, "NaN" },
+-	Test{ sys.Inf(0), 'g', -1, "+Inf" },
+-	Test{ sys.Inf(-1), 'g', -1,  "-Inf" },
+-	Test{ -sys.Inf(0), 'g', -1, "-Inf" },
+-
+-	Test{ -1, 'b', -1, "-4503599627370496p-52" },
++var ftoatests = []FtoaTest {
++	FtoaTest{ 1, 'e', 5, "1.00000e+00" },
++	FtoaTest{ 1, 'f', 5, "1.00000" },
++	FtoaTest{ 1, 'g', 5, "1" },
++	FtoaTest{ 1, 'g', -1, "1" },
++	FtoaTest{ 20, 'g', -1, "20" },
++	FtoaTest{ 1234567.8, 'g', -1, "1.2345678e+06" },
++	FtoaTest{ 200000, 'g', -1, "200000" },
++	FtoaTest{ 2000000, 'g', -1, "2e+06" },
++
++	FtoaTest{ 0, 'e', 5, "0.00000e+00" },
++	FtoaTest{ 0, 'f', 5, "0.00000" },
++	FtoaTest{ 0, 'g', 5, "0" },
++	FtoaTest{ 0, 'g', -1, "0" },
++
++	FtoaTest{ -1, 'e', 5, "-1.00000e+00" },
++	FtoaTest{ -1, 'f', 5, "-1.00000" },
++	FtoaTest{ -1, 'g', 5, "-1" },
++	FtoaTest{ -1, 'g', -1, "-1" },
++
++	FtoaTest{ 12, 'e', 5, "1.20000e+01" },
++	FtoaTest{ 12, 'f', 5, "12.00000" },
++	FtoaTest{ 12, 'g', 5, "12" },
++	FtoaTest{ 12, 'g', -1, "12" },
++
++	FtoaTest{ 123456700, 'e', 5, "1.23457e+08" },
++	FtoaTest{ 123456700, 'f', 5, "123456700.00000" },
++	FtoaTest{ 123456700, 'g', 5, "1.2346e+08" },
++	FtoaTest{ 123456700, 'g', -1, "1.234567e+08" },
++
++	FtoaTest{ 1.2345e6, 'e', 5, "1.23450e+06" },
++	FtoaTest{ 1.2345e6, 'f', 5, "1234500.00000" },
++	FtoaTest{ 1.2345e6, 'g', 5, "1.2345e+06" },
++
++	FtoaTest{ 1e23, 'e', 17, "9.99999999999999916e+22" },
++	FtoaTest{ 1e23, 'f', 17, "99999999999999991611392.00000000000000000" },
++	FtoaTest{ 1e23, 'g', 17, "9.9999999999999992e+22" },
++
++	FtoaTest{ 1e23, 'e', -1, "1e+23" },
++	FtoaTest{ 1e23, 'f', -1, "100000000000000000000000" },
++	FtoaTest{ 1e23, 'g', -1, "1e+23" },
++
++	FtoaTest{ Below1e23, 'e', 17, "9.99999999999999748e+22" },
++	FtoaTest{ Below1e23, 'f', 17, "99999999999999974834176.00000000000000000" },
++	FtoaTest{ Below1e23, 'g', 17, "9.9999999999999975e+22" },
++
++	FtoaTest{ Below1e23, 'e', -1, "9.999999999999997e+22" },
++	FtoaTest{ Below1e23, 'f', -1, "99999999999999970000000" },
++	FtoaTest{ Below1e23, 'g', -1, "9.999999999999997e+22" },
++
++	FtoaTest{ Above1e23, 'e', 17, "1.00000000000000008e+23" },
++	FtoaTest{ Above1e23, 'f', 17, "100000000000000008388608.00000000000000000" },
++	FtoaTest{ Above1e23, 'g', 17, "1.0000000000000001e+23" },
++
++	FtoaTest{ Above1e23, 'e', -1, "1.0000000000000001e+23" },
++	FtoaTest{ Above1e23, 'f', -1, "100000000000000010000000" },
++	FtoaTest{ Above1e23, 'g', -1, "1.0000000000000001e+23" },
++
++	FtoaTest{ fdiv(5e-304, 1e20), 'g', -1, "5e-324" },
++	FtoaTest{ fdiv(-5e-304, 1e20), 'g', -1, "-5e-324" },
++
++	FtoaTest{ 32, 'g', -1, "32" },
++	FtoaTest{ 32, 'g', 0, "3e+01" },
++
++	FtoaTest{ 100, 'x', -1, "%x" },
++
++	FtoaTest{ sys.NaN(), 'g', -1, "NaN" },
++	FtoaTest{ -sys.NaN(), 'g', -1, "NaN" },
++	FtoaTest{ sys.Inf(0), 'g', -1, "+Inf" },
++	FtoaTest{ sys.Inf(-1), 'g', -1,  "-Inf" },
++	FtoaTest{ -sys.Inf(0), 'g', -1, "-Inf" },
++
++	FtoaTest{ -1, 'b', -1, "-4503599627370496p-52" },
+ }
+ 
+ export func TestFtoa(t *testing.T) {
+-	if strconv.floatsize != 32 {
+-		panic("floatsize: ", strconv.floatsize);
++	if strconv.FloatSize != 32 {
++		panic("floatsize: ", strconv.FloatSize);
+ 	}
+-	for i := 0; i < len(ftests); i++ {
+-		test := &ftests[i];
++	for i := 0; i < len(ftoatests); i++ {
++		test := &ftoatests[i];
+ 		s := strconv.ftoa64(test.f, test.fmt, test.prec);
+ 		if s != test.s {
+ 			t.Error("test", test.f, string(test.fmt), test.prec, "want", test.s, "got", s);
+diff --git a/src/lib/strconv/itoa_test.go b/src/lib/strconv/itoa_test.go
+index 89a97339e3..880aff4a96 100644
+--- a/src/lib/strconv/itoa_test.go
++++ b/src/lib/strconv/itoa_test.go
+@@ -11,40 +11,38 @@ import (
+ 	"testing";
+ )
+ 
+-type Int64Test struct {
++type Itoa64Test struct {
+ 	in int64;
+ 	out string;
+ }
+ 
+-// TODO: should be called int64tests
+-
+-var xint64tests = []Int64Test {
+-	Int64Test{ 0, "0" },
+-	Int64Test{ 1, "1" },
+-	Int64Test{ -1, "-1" },
+-	Int64Test{ 12345678, "12345678" },
+-	Int64Test{ -987654321, "-987654321" },
+-	Int64Test{ 1<<31-1, "2147483647" },
+-	Int64Test{ -1<<31+1, "-2147483647" },
+-	Int64Test{ 1<<31, "2147483648" },
+-	Int64Test{ -1<<31, "-2147483648" },
+-	Int64Test{ 1<<31+1, "2147483649" },
+-	Int64Test{ -1<<31-1, "-2147483649" },
+-	Int64Test{ 1<<32-1, "4294967295" },
+-	Int64Test{ -1<<32+1, "-4294967295" },
+-	Int64Test{ 1<<32, "4294967296" },
+-	Int64Test{ -1<<32, "-4294967296" },
+-	Int64Test{ 1<<32+1, "4294967297" },
+-	Int64Test{ -1<<32-1, "-4294967297" },
+-	Int64Test{ 1<<50, "1125899906842624" },
+-	Int64Test{ 1<<63-1, "9223372036854775807" },
+-	Int64Test{ -1<<63+1, "-9223372036854775807" },
+-	Int64Test{ -1<<63, "-9223372036854775808" },
++var itoa64tests = []Itoa64Test {
++	Itoa64Test{ 0, "0" },
++	Itoa64Test{ 1, "1" },
++	Itoa64Test{ -1, "-1" },
++	Itoa64Test{ 12345678, "12345678" },
++	Itoa64Test{ -987654321, "-987654321" },
++	Itoa64Test{ 1<<31-1, "2147483647" },
++	Itoa64Test{ -1<<31+1, "-2147483647" },
++	Itoa64Test{ 1<<31, "2147483648" },
++	Itoa64Test{ -1<<31, "-2147483648" },
++	Itoa64Test{ 1<<31+1, "2147483649" },
++	Itoa64Test{ -1<<31-1, "-2147483649" },
++	Itoa64Test{ 1<<32-1, "4294967295" },
++	Itoa64Test{ -1<<32+1, "-4294967295" },
++	Itoa64Test{ 1<<32, "4294967296" },
++	Itoa64Test{ -1<<32, "-4294967296" },
++	Itoa64Test{ 1<<32+1, "4294967297" },
++	Itoa64Test{ -1<<32-1, "-4294967297" },
++	Itoa64Test{ 1<<50, "1125899906842624" },
++	Itoa64Test{ 1<<63-1, "9223372036854775807" },
++	Itoa64Test{ -1<<63+1, "-9223372036854775807" },
++	Itoa64Test{ -1<<63, "-9223372036854775808" },
+ }
+ 
+ export func TestItoa(t *testing.T) {
+-	for i := 0; i < len(xint64tests); i++ {
+-		test := xint64tests[i];
++	for i := 0; i < len(itoa64tests); i++ {
++		test := itoa64tests[i];
+ 		s := strconv.itoa64(test.in);
+ 		if s != test.out {
+ 			t.Error("strconv.itoa64(%v) = %v want %v\n",
+@@ -61,17 +59,17 @@ export func TestItoa(t *testing.T) {
+ }
+ 
+ // TODO: Use once there is a strconv.uitoa
+-type Uint64Test struct {
++type Uitoa64Test struct {
+ 	in uint64;
+ 	out string;
+ }
+ 
+-// TODO: should be able to call this uint64tests.
+-var xuint64tests = []Uint64Test {
+-	Uint64Test{ 1<<63-1, "9223372036854775807" },
+-	Uint64Test{ 1<<63, "9223372036854775808" },
+-	Uint64Test{ 1<<63+1, "9223372036854775809" },
+-	Uint64Test{ 1<<64-2, "18446744073709551614" },
+-	Uint64Test{ 1<<64-1, "18446744073709551615" },
++// TODO: should be able to call this atoui64tests.
++var uitoa64tests = []Uitoa64Test {
++	Uitoa64Test{ 1<<63-1, "9223372036854775807" },
++	Uitoa64Test{ 1<<63, "9223372036854775808" },
++	Uitoa64Test{ 1<<63+1, "9223372036854775809" },
++	Uitoa64Test{ 1<<64-2, "18446744073709551614" },
++	Uitoa64Test{ 1<<64-1, "18446744073709551615" },
+ }
+ 
+diff --git a/src/lib/strconv/quote.go b/src/lib/strconv/quote.go
+index 36fa195104..9875450528 100644
+--- a/src/lib/strconv/quote.go
++++ b/src/lib/strconv/quote.go
+@@ -8,8 +8,7 @@ import (
+ 	"utf8";
+ )
+ 
+-const ldigits = "0123456789abcdef"
+-const udigits = "0123456789ABCDEF"
++const lowerhex = "0123456789abcdef"
+ 
+ export func Quote(s string) string {
+ 	t := `"`;
+@@ -37,7 +36,7 @@ export func Quote(s string) string {
+ 			t += `\v`;
+ 
+ 		case s[i] < utf8.RuneSelf:
+-			t += `\x` + string(ldigits[s[i]>>4]) + string(ldigits[s[i]&0xF]);
++			t += `\x` + string(lowerhex[s[i]>>4]) + string(lowerhex[s[i]&0xF]);
+ 
+ 		case utf8.FullRuneInString(s, i):
+ 			r, size := utf8.DecodeRuneInString(s, i);
+@@ -48,20 +47,20 @@ export func Quote(s string) string {
+ 			if r < 0x10000 {
+ 				t += `\u`;
+ 				for j:=uint(0); j<4; j++ {
+-					t += string(ldigits[(r>>(12-4*j))&0xF]);
++					t += string(lowerhex[(r>>(12-4*j))&0xF]);
+ 				}
+ 			} else {
+ 				t += `\U`;
+ 				for j:=uint(0); j<8; j++ {
+-					t += string(ldigits[(r>>(28-4*j))&0xF]);
++					t += string(lowerhex[(r>>(28-4*j))&0xF]);
+ 				}
+ 			}
+ 
+ 		default:
+ 		EscX:
+ 			t += `\x`;
+-			t += string(ldigits[s[i]>>4]);
+-			t += string(ldigits[s[i]&0xF]);
++			t += string(lowerhex[s[i]>>4]);
++			t += string(lowerhex[s[i]&0xF]);
+ 		}
+ 	}
+ 	t += `"`;

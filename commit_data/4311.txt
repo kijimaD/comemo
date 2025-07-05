@@ -8,6 +8,26 @@ Date:   Thu Dec 3 19:33:23 2009 -0800
     
     R=rsc
     https://golang.org/cl/165045
-
+---
  src/pkg/crypto/rsa/rsa.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/crypto/rsa/rsa.go b/src/pkg/crypto/rsa/rsa.go
+index 0576bb6a76..e47b02060f 100644
+--- a/src/pkg/crypto/rsa/rsa.go
++++ b/src/pkg/crypto/rsa/rsa.go
+@@ -159,12 +159,12 @@ func GenerateKey(rand io.Reader, bits int) (priv *PrivateKey, err os.Error) {
+ 	for {
+ 		p, err := randomSafePrime(rand, bits/2);
+ 		if err != nil {
+-			return
++			return nil, err
+ 		}
+ 
+ 		q, err := randomSafePrime(rand, bits/2);
+ 		if err != nil {
+-			return
++			return nil, err
+ 		}
+ 
+ 		if p.Cmp(q) == 0 {

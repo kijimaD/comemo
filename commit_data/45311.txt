@@ -27,10 +27,118 @@ Date:   Mon Oct 19 13:09:55 2020 -0700
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/closure.go |  6 ++++++
  src/cmd/compile/internal/gc/iexport.go |  9 +++++++--
  src/cmd/compile/internal/gc/iimport.go |  2 +-
  src/cmd/compile/internal/gc/inl.go     |  6 ++++--
  test/inline.go                         | 17 +++++++++++++++++
  5 files changed, 35 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/closure.go b/src/cmd/compile/internal/gc/closure.go
+index 250be38e5b..5d1012111f 100644
+--- a/src/cmd/compile/internal/gc/closure.go
++++ b/src/cmd/compile/internal/gc/closure.go
+@@ -434,6 +434,8 @@ func typecheckpartialcall(fn *Node, sym *types.Sym) {
+ 	fn.Type = xfunc.Type
+ }
+ 
++// makepartialcall returns a DCLFUNC node representing the wrapper function (*-fm) needed
++// for partial calls.
+ func makepartialcall(fn *Node, t0 *types.Type, meth *types.Sym) *Node {
+ 	rcvrtype := fn.Left.Type
+ 	sym := methodSymSuffix(rcvrtype, meth, "-fm")
+@@ -500,6 +502,10 @@ func makepartialcall(fn *Node, t0 *types.Type, meth *types.Sym) *Node {
+ 	funcbody()
+ 
+ 	xfunc = typecheck(xfunc, ctxStmt)
++	// Need to typecheck the body of the just-generated wrapper.
++	// typecheckslice() requires that Curfn is set when processing an ORETURN.
++	Curfn = xfunc
++	typecheckslice(xfunc.Nbody.Slice(), ctxStmt)
+ 	sym.Def = asTypesNode(xfunc)
+ 	xtop = append(xtop, xfunc)
+ 	Curfn = savecurfn
+diff --git a/src/cmd/compile/internal/gc/iexport.go b/src/cmd/compile/internal/gc/iexport.go
+index df08a4a6c2..9bc1f64600 100644
+--- a/src/cmd/compile/internal/gc/iexport.go
++++ b/src/cmd/compile/internal/gc/iexport.go
+@@ -1266,8 +1266,13 @@ func (w *exportWriter) expr(n *Node) {
+ 	// case OSTRUCTKEY:
+ 	//	unreachable - handled in case OSTRUCTLIT by elemList
+ 
+-	// case OCALLPART:
+-	//	unimplemented - handled by default case
++	case OCALLPART:
++		// An OCALLPART is an OXDOT before type checking.
++		w.op(OXDOT)
++		w.pos(n.Pos)
++		w.expr(n.Left)
++		// Right node should be ONAME
++		w.selector(n.Right.Sym)
+ 
+ 	case OXDOT, ODOT, ODOTPTR, ODOTINTER, ODOTMETH:
+ 		w.op(OXDOT)
+diff --git a/src/cmd/compile/internal/gc/iimport.go b/src/cmd/compile/internal/gc/iimport.go
+index 5f107eeec7..107e96cc6a 100644
+--- a/src/cmd/compile/internal/gc/iimport.go
++++ b/src/cmd/compile/internal/gc/iimport.go
+@@ -866,7 +866,7 @@ func (r *importReader) node() *Node {
+ 	//	unreachable - handled in case OSTRUCTLIT by elemList
+ 
+ 	// case OCALLPART:
+-	//	unimplemented
++	//	unreachable - mapped to case OXDOT below by exporter
+ 
+ 	// case OXDOT, ODOT, ODOTPTR, ODOTINTER, ODOTMETH:
+ 	// 	unreachable - mapped to case OXDOT below by exporter
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index ba12cf40b5..55a14d378e 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -374,8 +374,10 @@ func (v *hairyVisitor) visit(n *Node) bool {
+ 		v.reason = "call to recover"
+ 		return true
+ 
++	case OCALLPART:
++		// OCALLPART is inlineable, but no extra cost to the budget
++
+ 	case OCLOSURE,
+-		OCALLPART,
+ 		ORANGE,
+ 		OSELECT,
+ 		OTYPESW,
+@@ -454,7 +456,7 @@ func inlcopy(n *Node) *Node {
+ 	}
+ 
+ 	m := n.copy()
+-	if m.Func != nil {
++	if n.Op != OCALLPART && m.Func != nil {
+ 		Fatalf("unexpected Func: %v", m)
+ 	}
+ 	m.Left = inlcopy(n.Left)
+diff --git a/test/inline.go b/test/inline.go
+index 0e41873de4..9b75bc5065 100644
+--- a/test/inline.go
++++ b/test/inline.go
+@@ -229,3 +229,20 @@ Loop:
+ 		}
+ 	}
+ }
++
++// Issue #18493 - make sure we can do inlining of functions with a method value
++type T1 struct{}
++
++func (a T1) meth(val int) int { // ERROR "can inline T1.meth" "inlining call to T1.meth"
++	return val + 5
++}
++
++func getMeth(t1 T1) func(int) int { // ERROR "can inline getMeth"
++	return t1.meth // ERROR "t1.meth escapes to heap"
++}
++
++func ii() { // ERROR "can inline ii"
++	var t1 T1
++	f := getMeth(t1) // ERROR "inlining call to getMeth" "t1.meth does not escape"
++	_ = f(3)
++}

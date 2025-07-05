@@ -9,7 +9,60 @@ Date:   Thu Jun 18 14:45:38 2015 +1000
     Change-Id: Id772c4364c47776d6afe86b0939b9c6281e85edc
     Reviewed-on: https://go-review.googlesource.com/11227
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/compress/lzw/writer.go      | 13 ++++++++++---
  src/compress/lzw/writer_test.go | 10 ++++++++++
  2 files changed, 20 insertions(+), 3 deletions(-)
+
+diff --git a/src/compress/lzw/writer.go b/src/compress/lzw/writer.go
+index e9314fc474..7367c29651 100644
+--- a/src/compress/lzw/writer.go
++++ b/src/compress/lzw/writer.go
+@@ -138,16 +138,23 @@ func (e *encoder) Write(p []byte) (n int, err error) {
+ 	if len(p) == 0 {
+ 		return 0, nil
+ 	}
++	if maxLit := uint8(1<<e.litWidth - 1); maxLit != 0xff {
++		for _, x := range p {
++			if x > maxLit {
++				e.err = errors.New("lzw: input byte too large for the litWidth")
++				return 0, e.err
++			}
++		}
++	}
+ 	n = len(p)
+-	litMask := uint32(1<<e.litWidth - 1)
+ 	code := e.savedCode
+ 	if code == invalidCode {
+ 		// The first code sent is always a literal code.
+-		code, p = uint32(p[0])&litMask, p[1:]
++		code, p = uint32(p[0]), p[1:]
+ 	}
+ loop:
+ 	for _, x := range p {
+-		literal := uint32(x) & litMask
++		literal := uint32(x)
+ 		key := code<<8 | literal
+ 		// If there is a hash table hit for this key then we continue the loop
+ 		// and do not emit a code yet.
+diff --git a/src/compress/lzw/writer_test.go b/src/compress/lzw/writer_test.go
+index 3e4e6de211..c20d058f8d 100644
+--- a/src/compress/lzw/writer_test.go
++++ b/src/compress/lzw/writer_test.go
+@@ -104,6 +104,16 @@ func TestWriterReturnValues(t *testing.T) {
+ 	}
+ }
+ 
++func TestSmallLitWidth(t *testing.T) {
++	w := NewWriter(ioutil.Discard, LSB, 2)
++	if _, err := w.Write([]byte{0x03}); err != nil {
++		t.Fatalf("write a byte < 1<<2: %v", err)
++	}
++	if _, err := w.Write([]byte{0x04}); err == nil {
++		t.Fatal("write a byte >= 1<<2: got nil error, want non-nil")
++	}
++}
++
+ func benchmarkEncoder(b *testing.B, n int) {
+ 	b.StopTimer()
+ 	b.SetBytes(int64(n))

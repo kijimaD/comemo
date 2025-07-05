@@ -15,6 +15,26 @@ Date:   Thu May 2 03:12:12 2019 -0400
     Run-TryBot: Elias Naur <mail@eliasnaur.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/dial_test.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/net/dial_test.go b/src/net/dial_test.go
+index 3646ab9815..1bf96fd3ce 100644
+--- a/src/net/dial_test.go
++++ b/src/net/dial_test.go
+@@ -973,11 +973,11 @@ func TestDialerControl(t *testing.T) {
+ }
+ 
+ // mustHaveExternalNetwork is like testenv.MustHaveExternalNetwork
+-// except that it won't skip testing on non-iOS builders.
++// except that it won't skip testing on non-mobile builders.
+ func mustHaveExternalNetwork(t *testing.T) {
+ 	t.Helper()
+-	ios := runtime.GOOS == "darwin" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64")
+-	if testenv.Builder() == "" || ios {
++	mobile := runtime.GOOS == "android" || runtime.GOOS == "darwin" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64")
++	if testenv.Builder() == "" || mobile {
+ 		testenv.MustHaveExternalNetwork(t)
+ 	}
+ }

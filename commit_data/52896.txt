@@ -19,8 +19,173 @@ Date:   Fri Jun 3 14:30:04 2022 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/noder/codes.go  |  3 ++-
  src/cmd/compile/internal/noder/reader.go | 37 ++++++++++++++++++++----------
  src/cmd/compile/internal/noder/writer.go | 39 +++++++++++++++++++++++++-------
  3 files changed, 58 insertions(+), 21 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/codes.go b/src/cmd/compile/internal/noder/codes.go
+index 581eb8344f..59c8ec8121 100644
+--- a/src/cmd/compile/internal/noder/codes.go
++++ b/src/cmd/compile/internal/noder/codes.go
+@@ -39,7 +39,6 @@ func (c codeExpr) Value() int                 { return int(c) }
+ // TODO(mdempsky): Split expr into addr, for lvalues.
+ const (
+ 	exprConst  codeExpr = iota
+-	exprType            // type expression
+ 	exprLocal           // local variable
+ 	exprGlobal          // global variable or function
+ 	exprCompLit
+@@ -52,6 +51,8 @@ const (
+ 	exprBinaryOp
+ 	exprCall
+ 	exprConvert
++	exprNew
++	exprMake
+ )
+ 
+ type codeAssign int
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index 3cd6ec5668..e8401c5775 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -1567,9 +1567,6 @@ func (r *reader) expr() (res ir.Node) {
+ 		// TODO(mdempsky): Handle builtins directly in exprCall, like method calls?
+ 		return typecheck.Callee(r.obj())
+ 
+-	case exprType:
+-		return r.exprType(false)
+-
+ 	case exprConst:
+ 		pos := r.pos()
+ 		typ := r.typ()
+@@ -1585,18 +1582,23 @@ func (r *reader) expr() (res ir.Node) {
+ 		return r.funcLit()
+ 
+ 	case exprSelector:
+-		x := r.expr()
++		var x ir.Node
++		if r.Bool() { // MethodExpr
++			x = r.exprType(false)
++
++			// Method expression with derived receiver type.
++			if x.Op() == ir.ODYNAMICTYPE {
++				// TODO(mdempsky): Handle with runtime dictionary lookup.
++				n := ir.TypeNode(x.Type())
++				n.SetTypecheck(1)
++				x = n
++			}
++		} else { // FieldVal, MethodVal
++			x = r.expr()
++		}
+ 		pos := r.pos()
+ 		_, sym := r.selector()
+ 
+-		// Method expression with derived receiver type.
+-		if x.Op() == ir.ODYNAMICTYPE {
+-			// TODO(mdempsky): Handle with runtime dictionary lookup.
+-			n := ir.TypeNode(x.Type())
+-			n.SetTypecheck(1)
+-			x = n
+-		}
+-
+ 		n := typecheck.Expr(ir.NewSelectorExpr(pos, ir.OXDOT, x, sym)).(*ir.SelectorExpr)
+ 		if n.Op() == ir.OMETHVALUE {
+ 			wrapper := methodValueWrapper{
+@@ -1679,6 +1681,17 @@ func (r *reader) expr() (res ir.Node) {
+ 		dots := r.Bool()
+ 		return typecheck.Call(pos, fun, args, dots)
+ 
++	case exprMake:
++		pos := r.pos()
++		typ := r.exprType(false)
++		extra := r.exprs()
++		return typecheck.Expr(ir.NewCallExpr(pos, ir.OMAKE, nil, append([]ir.Node{typ}, extra...)))
++
++	case exprNew:
++		pos := r.pos()
++		typ := r.exprType(false)
++		return typecheck.Expr(ir.NewUnaryExpr(pos, ir.ONEW, typ))
++
+ 	case exprConvert:
+ 		typ := r.typ()
+ 		pos := r.pos()
+diff --git a/src/cmd/compile/internal/noder/writer.go b/src/cmd/compile/internal/noder/writer.go
+index 2b22046de1..4d133e033e 100644
+--- a/src/cmd/compile/internal/noder/writer.go
++++ b/src/cmd/compile/internal/noder/writer.go
+@@ -619,6 +619,8 @@ func (w *writer) doObj(wext *writer, obj types2.Object) pkgbits.CodeObj {
+ }
+ 
+ // typExpr writes the type represented by the given expression.
++//
++// TODO(mdempsky): Document how this differs from exprType.
+ func (w *writer) typExpr(expr syntax.Expr) {
+ 	tv, ok := w.p.info.Types[expr]
+ 	assert(ok)
+@@ -1228,9 +1230,7 @@ func (w *writer) expr(expr syntax.Expr) {
+ 		}
+ 
+ 		if tv.IsType() {
+-			w.Code(exprType)
+-			w.exprType(nil, expr, false)
+-			return
++			w.p.fatalf(expr, "unexpected type expression %v", syntax.String(expr))
+ 		}
+ 
+ 		if tv.Value != nil {
+@@ -1280,7 +1280,11 @@ func (w *writer) expr(expr syntax.Expr) {
+ 		assert(ok)
+ 
+ 		w.Code(exprSelector)
+-		w.expr(expr.X)
++		if w.Bool(sel.Kind() == types2.MethodExpr) {
++			w.exprType(nil, expr.X, false)
++		} else {
++			w.expr(expr.X)
++		}
+ 		w.pos(expr)
+ 		w.selector(sel.Obj())
+ 
+@@ -1339,6 +1343,29 @@ func (w *writer) expr(expr syntax.Expr) {
+ 			break
+ 		}
+ 
++		if name, ok := unparen(expr.Fun).(*syntax.Name); ok && tv.IsBuiltin() {
++			switch name.Value {
++			case "make":
++				assert(len(expr.ArgList) >= 1)
++				assert(!expr.HasDots)
++
++				w.Code(exprMake)
++				w.pos(expr)
++				w.exprType(nil, expr.ArgList[0], false)
++				w.exprs(expr.ArgList[1:])
++				return
++
++			case "new":
++				assert(len(expr.ArgList) == 1)
++				assert(!expr.HasDots)
++
++				w.Code(exprNew)
++				w.pos(expr)
++				w.exprType(nil, expr.ArgList[0], false)
++				return
++			}
++		}
++
+ 		writeFunExpr := func() {
+ 			if selector, ok := unparen(expr.Fun).(*syntax.SelectorExpr); ok {
+ 				if sel, ok := w.p.info.Selections[selector]; ok && sel.Kind() == types2.MethodVal {
+@@ -1438,10 +1465,6 @@ func (w *writer) exprList(expr syntax.Expr) {
+ }
+ 
+ func (w *writer) exprs(exprs []syntax.Expr) {
+-	if len(exprs) == 0 {
+-		assert(exprs == nil)
+-	}
+-
+ 	w.Sync(pkgbits.SyncExprs)
+ 	w.Len(len(exprs))
+ 	for _, expr := range exprs {

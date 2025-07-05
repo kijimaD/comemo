@@ -20,7 +20,7 @@ Date:   Thu Mar 23 08:14:39 2023 +0000
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/cmd/covdata/argsmerge.go                 | 7 +++++--
  src/cmd/go/internal/modfetch/codehost/svn.go | 3 ++-
  src/cmd/go/internal/modfetch/codehost/vcs.go | 4 ++--
@@ -29,3 +29,157 @@ Date:   Thu Mar 23 08:14:39 2023 +0000
  src/net/http/triv.go                         | 2 +-
  src/runtime/coverage/emit.go                 | 5 +++--
  7 files changed, 17 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/covdata/argsmerge.go b/src/cmd/covdata/argsmerge.go
+index 8815a4a838..f591e3abd4 100644
+--- a/src/cmd/covdata/argsmerge.go
++++ b/src/cmd/covdata/argsmerge.go
+@@ -4,7 +4,10 @@
+ 
+ package main
+ 
+-import "fmt"
++import (
++	"fmt"
++	"strconv"
++)
+ 
+ type argvalues struct {
+ 	osargs []string
+@@ -49,7 +52,7 @@ func (a *argstate) Merge(state argvalues) {
+ func (a *argstate) ArgsSummary() map[string]string {
+ 	m := make(map[string]string)
+ 	if len(a.state.osargs) != 0 {
+-		m["argc"] = fmt.Sprintf("%d", len(a.state.osargs))
++		m["argc"] = strconv.Itoa(len(a.state.osargs))
+ 		for k, a := range a.state.osargs {
+ 			m[fmt.Sprintf("argv%d", k)] = a
+ 		}
+diff --git a/src/cmd/go/internal/modfetch/codehost/svn.go b/src/cmd/go/internal/modfetch/codehost/svn.go
+index 6ec9e59c9c..bcb4126304 100644
+--- a/src/cmd/go/internal/modfetch/codehost/svn.go
++++ b/src/cmd/go/internal/modfetch/codehost/svn.go
+@@ -12,6 +12,7 @@ import (
+ 	"os"
+ 	"path"
+ 	"path/filepath"
++	"strconv"
+ 	"time"
+ )
+ 
+@@ -32,7 +33,7 @@ func svnParseStat(rev, out string) (*RevInfo, error) {
+ 	}
+ 
+ 	info := &RevInfo{
+-		Name:    fmt.Sprintf("%d", log.Logentry.Revision),
++		Name:    strconv.FormatInt(log.Logentry.Revision, 10),
+ 		Short:   fmt.Sprintf("%012d", log.Logentry.Revision),
+ 		Time:    t.UTC(),
+ 		Version: rev,
+diff --git a/src/cmd/go/internal/modfetch/codehost/vcs.go b/src/cmd/go/internal/modfetch/codehost/vcs.go
+index afca04e96a..0a1124b1a9 100644
+--- a/src/cmd/go/internal/modfetch/codehost/vcs.go
++++ b/src/cmd/go/internal/modfetch/codehost/vcs.go
+@@ -488,7 +488,7 @@ func (d *deleteCloser) Close() error {
+ }
+ 
+ func hgParseStat(rev, out string) (*RevInfo, error) {
+-	f := strings.Fields(string(out))
++	f := strings.Fields(out)
+ 	if len(f) < 3 {
+ 		return nil, vcsErrorf("unexpected response from hg log: %q", out)
+ 	}
+@@ -567,7 +567,7 @@ func bzrParseStat(rev, out string) (*RevInfo, error) {
+ 	}
+ 
+ 	info := &RevInfo{
+-		Name:    fmt.Sprintf("%d", revno),
++		Name:    strconv.FormatInt(revno, 10),
+ 		Short:   fmt.Sprintf("%012d", revno),
+ 		Time:    tm,
+ 		Version: rev,
+diff --git a/src/go/token/position.go b/src/go/token/position.go
+index c9dba9e79a..a644382886 100644
+--- a/src/go/token/position.go
++++ b/src/go/token/position.go
+@@ -7,6 +7,7 @@ package token
+ import (
+ 	"fmt"
+ 	"sort"
++	"strconv"
+ 	"sync"
+ 	"sync/atomic"
+ )
+@@ -41,7 +42,7 @@ func (pos Position) String() string {
+ 		if s != "" {
+ 			s += ":"
+ 		}
+-		s += fmt.Sprintf("%d", pos.Line)
++		s += strconv.Itoa(pos.Line)
+ 		if pos.Column != 0 {
+ 			s += fmt.Sprintf(":%d", pos.Column)
+ 		}
+diff --git a/src/internal/buildcfg/cfg.go b/src/internal/buildcfg/cfg.go
+index a0736aaf74..b97b9c1b53 100644
+--- a/src/internal/buildcfg/cfg.go
++++ b/src/internal/buildcfg/cfg.go
+@@ -16,6 +16,7 @@ import (
+ 	"os"
+ 	"path/filepath"
+ 	"runtime"
++	"strconv"
+ 	"strings"
+ )
+ 
+@@ -181,7 +182,7 @@ func GOGOARCH() (name, value string) {
+ 	case "amd64":
+ 		return "GOAMD64", fmt.Sprintf("v%d", GOAMD64)
+ 	case "arm":
+-		return "GOARM", fmt.Sprintf("%d", GOARM)
++		return "GOARM", strconv.Itoa(GOARM)
+ 	case "mips", "mipsle":
+ 		return "GOMIPS", GOMIPS
+ 	case "mips64", "mips64le":
+diff --git a/src/net/http/triv.go b/src/net/http/triv.go
+index 32edbbb344..f614922c24 100644
+--- a/src/net/http/triv.go
++++ b/src/net/http/triv.go
+@@ -39,7 +39,7 @@ type Counter struct {
+ func (ctr *Counter) String() string {
+ 	ctr.mu.Lock()
+ 	defer ctr.mu.Unlock()
+-	return fmt.Sprintf("%d", ctr.n)
++	return strconv.Itoa(ctr.n)
+ }
+ 
+ func (ctr *Counter) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+diff --git a/src/runtime/coverage/emit.go b/src/runtime/coverage/emit.go
+index 300ff2caca..0f77ce287b 100644
+--- a/src/runtime/coverage/emit.go
++++ b/src/runtime/coverage/emit.go
+@@ -16,6 +16,7 @@ import (
+ 	"path/filepath"
+ 	"reflect"
+ 	"runtime"
++	"strconv"
+ 	"sync/atomic"
+ 	"time"
+ 	"unsafe"
+@@ -357,7 +358,7 @@ func (s *emitState) openMetaFile(metaHash [16]byte, metaLen uint64) error {
+ 	fi, err := os.Stat(s.mfname)
+ 	if err != nil || fi.Size() != int64(metaLen) {
+ 		// We need a new meta-file.
+-		tname := "tmp." + fn + fmt.Sprintf("%d", time.Now().UnixNano())
++		tname := "tmp." + fn + strconv.FormatInt(time.Now().UnixNano(), 10)
+ 		s.mftmp = filepath.Join(s.outdir, tname)
+ 		s.mf, err = os.Create(s.mftmp)
+ 		if err != nil {
+@@ -613,7 +614,7 @@ func (s *emitState) VisitFuncs(f encodecounter.CounterVisitorFn) error {
+ // is also used to capture GOOS + GOARCH values as well.
+ func captureOsArgs() map[string]string {
+ 	m := make(map[string]string)
+-	m["argc"] = fmt.Sprintf("%d", len(os.Args))
++	m["argc"] = strconv.Itoa(len(os.Args))
+ 	for k, a := range os.Args {
+ 		m[fmt.Sprintf("argv%d", k)] = a
+ 	}

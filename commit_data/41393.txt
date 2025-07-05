@@ -18,6 +18,44 @@ Date:   Sat Aug 24 20:42:41 2019 +0900
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/math/rand/rand.go | 13 +++++++++----
  1 file changed, 9 insertions(+), 4 deletions(-)
+
+diff --git a/src/math/rand/rand.go b/src/math/rand/rand.go
+index 6e5eb4ba6a..3e44613663 100644
+--- a/src/math/rand/rand.go
++++ b/src/math/rand/rand.go
+@@ -261,15 +261,20 @@ func (r *Rand) Read(p []byte) (n int, err error) {
+ 	if lk, ok := r.src.(*lockedSource); ok {
+ 		return lk.read(p, &r.readVal, &r.readPos)
+ 	}
+-	return read(p, r.Int63, &r.readVal, &r.readPos)
++	return read(p, r.src, &r.readVal, &r.readPos)
+ }
+ 
+-func read(p []byte, int63 func() int64, readVal *int64, readPos *int8) (n int, err error) {
++func read(p []byte, src Source, readVal *int64, readPos *int8) (n int, err error) {
+ 	pos := *readPos
+ 	val := *readVal
++	rng, _ := src.(*rngSource)
+ 	for n = 0; n < len(p); n++ {
+ 		if pos == 0 {
+-			val = int63()
++			if rng != nil {
++				val = rng.Int63()
++			} else {
++				val = src.Int63()
++			}
+ 			pos = 7
+ 		}
+ 		p[n] = byte(val)
+@@ -410,7 +415,7 @@ func (r *lockedSource) seedPos(seed int64, readPos *int8) {
+ // read implements Read for a lockedSource without a race condition.
+ func (r *lockedSource) read(p []byte, readVal *int64, readPos *int8) (n int, err error) {
+ 	r.lk.Lock()
+-	n, err = read(p, r.src.Int63, readVal, readPos)
++	n, err = read(p, r.src, readVal, readPos)
+ 	r.lk.Unlock()
+ 	return
+ }

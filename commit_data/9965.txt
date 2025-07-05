@@ -9,7 +9,7 @@ Date:   Thu Oct 13 15:41:48 2011 -0700
     R=rsc, r
     CC=golang-dev
     https://golang.org/cl/5266042
-
+---
  src/cmd/gotype/gotype.go                      | 2 +-
  src/pkg/Makefile                              | 2 +-
  src/pkg/{go => exp}/types/Makefile            | 2 +-
@@ -24,3 +24,99 @@ Date:   Thu Oct 13 15:41:48 2011 -0700
  src/pkg/{go => exp}/types/types.go            | 0
  src/pkg/{go => exp}/types/universe.go         | 0
  13 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/gotype/gotype.go b/src/cmd/gotype/gotype.go
+index e5e9417ff1..9199213007 100644
+--- a/src/cmd/gotype/gotype.go
++++ b/src/cmd/gotype/gotype.go
+@@ -5,13 +5,13 @@
+ package main
+ 
+ import (
++	"exp/types"
+ 	"flag"
+ 	"fmt"
+ 	"go/ast"
+ 	"go/parser"
+ 	"go/scanner"
+ 	"go/token"
+-	"go/types"
+ 	"io/ioutil"
+ 	"os"
+ 	"path/filepath"
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index ae5859ab44..d823d2f3be 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -85,6 +85,7 @@ DIRS=\
+ 	exp/sql\
+ 	exp/sql/driver\
+ 	exp/template/html\
++	exp/types\
+ 	expvar\
+ 	flag\
+ 	fmt\
+@@ -95,7 +96,6 @@ DIRS=\
+ 	go/printer\
+ 	go/scanner\
+ 	go/token\
+-	go/types\
+ 	gob\
+ 	hash\
+ 	hash/adler32\
+diff --git a/src/pkg/go/types/Makefile b/src/pkg/exp/types/Makefile
+similarity index 95%
+rename from src/pkg/go/types/Makefile
+rename to src/pkg/exp/types/Makefile
+index d21ebc128f..e8fec9f3ef 100644
+--- a/src/pkg/go/types/Makefile
++++ b/src/pkg/exp/types/Makefile
+@@ -4,7 +4,7 @@
+ 
+ include ../../../Make.inc
+ 
+-TARG=go/types
++TARG=exp/types
+ GOFILES=\
+ 	check.go\
+ 	const.go\
+diff --git a/src/pkg/go/types/check.go b/src/pkg/exp/types/check.go
+similarity index 100%
+rename from src/pkg/go/types/check.go
+rename to src/pkg/exp/types/check.go
+diff --git a/src/pkg/go/types/check_test.go b/src/pkg/exp/types/check_test.go
+similarity index 100%
+rename from src/pkg/go/types/check_test.go
+rename to src/pkg/exp/types/check_test.go
+diff --git a/src/pkg/go/types/const.go b/src/pkg/exp/types/const.go
+similarity index 100%
+rename from src/pkg/go/types/const.go
+rename to src/pkg/exp/types/const.go
+diff --git a/src/pkg/go/types/exportdata.go b/src/pkg/exp/types/exportdata.go
+similarity index 100%
+rename from src/pkg/go/types/exportdata.go
+rename to src/pkg/exp/types/exportdata.go
+diff --git a/src/pkg/go/types/gcimporter.go b/src/pkg/exp/types/gcimporter.go
+similarity index 100%
+rename from src/pkg/go/types/gcimporter.go
+rename to src/pkg/exp/types/gcimporter.go
+diff --git a/src/pkg/go/types/gcimporter_test.go b/src/pkg/exp/types/gcimporter_test.go
+similarity index 100%
+rename from src/pkg/go/types/gcimporter_test.go
+rename to src/pkg/exp/types/gcimporter_test.go
+diff --git a/src/pkg/go/types/testdata/exports.go b/src/pkg/exp/types/testdata/exports.go
+similarity index 100%
+rename from src/pkg/go/types/testdata/exports.go
+rename to src/pkg/exp/types/testdata/exports.go
+diff --git a/src/pkg/go/types/testdata/test0.src b/src/pkg/exp/types/testdata/test0.src
+similarity index 100%
+rename from src/pkg/go/types/testdata/test0.src
+rename to src/pkg/exp/types/testdata/test0.src
+diff --git a/src/pkg/go/types/types.go b/src/pkg/exp/types/types.go
+similarity index 100%
+rename from src/pkg/go/types/types.go
+rename to src/pkg/exp/types/types.go
+diff --git a/src/pkg/go/types/universe.go b/src/pkg/exp/types/universe.go
+similarity index 100%
+rename from src/pkg/go/types/universe.go
+rename to src/pkg/exp/types/universe.go

@@ -19,6 +19,19 @@ Date:   Mon Jul 11 14:59:03 2016 -0600
     Reviewed-on: https://go-review.googlesource.com/24846
     Reviewed-by: Andrew Gerrand <adg@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/regexp/exec_test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/regexp/exec_test.go b/src/regexp/exec_test.go
+index 69f187e38a..576862860a 100644
+--- a/src/regexp/exec_test.go
++++ b/src/regexp/exec_test.go
+@@ -682,6 +682,7 @@ var benchData = []struct{ name, re string }{
+ 	{"Medium", "[XYZ]ABCDEFGHIJKLMNOPQRSTUVWXYZ$"},
+ 	{"Hard", "[ -~]*ABCDEFGHIJKLMNOPQRSTUVWXYZ$"},
+ 	{"Hard1", "ABCD|CDEF|EFGH|GHIJ|IJKL|KLMN|MNOP|OPQR|QRST|STUV|UVWX|WXYZ"},
++	{"Fanout", "(?:[\\x{80}-\\x{10FFFF}]?){100}[\\x{80}-\\x{10FFFF}]"},
+ }
+ 
+ var benchSizes = []struct {

@@ -23,7 +23,127 @@ Date:   Tue Sep 15 14:14:44 2015 -0700
     Reviewed-on: https://go-review.googlesource.com/14599
     Reviewed-by: Andrew Gerrand <adg@golang.org>
     Reviewed-by: roger peppe <rogpeppe@gmail.com>
-
+---
  src/bufio/scan.go      | 45 ++++++++++++++++++++++++++++++++++++++++-----
  src/bufio/scan_test.go | 16 ++++++++++++++++
  2 files changed, 56 insertions(+), 5 deletions(-)
+
+diff --git a/src/bufio/scan.go b/src/bufio/scan.go
+index 7a349fa8fa..4f06f9764f 100644
+--- a/src/bufio/scan.go
++++ b/src/bufio/scan.go
+@@ -37,6 +37,7 @@ type Scanner struct {
+ 	end          int       // End of data in buf.
+ 	err          error     // Sticky error.
+ 	empties      int       // Count of successive empty tokens.
++	scanCalled   bool      // Scan has been called; buffer is in use.
+ }
+ 
+ // SplitFunc is the signature of the split function used to tokenize the
+@@ -65,10 +66,13 @@ var (
+ )
+ 
+ const (
+-	// MaxScanTokenSize is the maximum size used to buffer a token.
++	// MaxScanTokenSize is the maximum size used to buffer a token
++	// unless the user provides an explicit buffer with Scan.Buffer.
+ 	// The actual maximum token size may be smaller as the buffer
+ 	// may need to include, for instance, a newline.
+ 	MaxScanTokenSize = 64 * 1024
++
++	startBufSize = 4096 // Size of initial allocation for buffer.
+ )
+ 
+ // NewScanner returns a new Scanner to read from r.
+@@ -78,7 +82,6 @@ func NewScanner(r io.Reader) *Scanner {
+ 		r:            r,
+ 		split:        ScanLines,
+ 		maxTokenSize: MaxScanTokenSize,
+-		buf:          make([]byte, 4096), // Plausible starting size; needn't be large.
+ 	}
+ }
+ 
+@@ -112,6 +115,7 @@ func (s *Scanner) Text() string {
+ // Scan panics if the split function returns 100 empty tokens without
+ // advancing the input. This is a common error mode for scanners.
+ func (s *Scanner) Scan() bool {
++	s.scanCalled = true
+ 	// Loop until we have a token.
+ 	for {
+ 		// See if we can get a token with what we already have.
+@@ -162,7 +166,10 @@ func (s *Scanner) Scan() bool {
+ 				s.setErr(ErrTooLong)
+ 				return false
+ 			}
+-			newSize := len(s.buf) * 2
++			newSize := len(s.buf) * 2 // See protection against overflow in Buffer.
++			if newSize == 0 {
++				newSize = startBufSize
++			}
+ 			if newSize > s.maxTokenSize {
+ 				newSize = s.maxTokenSize
+ 			}
+@@ -217,9 +224,37 @@ func (s *Scanner) setErr(err error) {
+ 	}
+ }
+ 
+-// Split sets the split function for the Scanner. If called, it must be
+-// called before Scan. The default split function is ScanLines.
++// Buffer sets the initial buffer to use when scanning and the maximum
++// size of buffer that may be allocated during scanning. The maximum
++// token size is the larger of max and cap(buf). If max <= cap(buf),
++// Scan will use this buffer only and do no allocation.
++//
++// By default, Scan uses an internal buffer and sets the
++// maximum token size to MaxScanTokenSize.
++//
++// Buffer panics if it is called after scanning has started.
++func (s *Scanner) Buffer(buf []byte, max int) {
++	if s.scanCalled {
++		panic("Buffer called after Scan")
++	}
++	s.buf = buf[0:cap(buf)]
++	// Guarantee no overflow: we multiply len(s.buf) by two in Scan,
++	// but only if it exceeds maxTokenSize.
++	const maxInt = int(^uint(0) >> 1)
++	if max > maxInt {
++		max = maxInt
++	}
++	s.maxTokenSize = max
++}
++
++// Split sets the split function for the Scanner.
++// The default split function is ScanLines.
++//
++// Split panics if it is called after scanning has started.
+ func (s *Scanner) Split(split SplitFunc) {
++	if s.scanCalled {
++		panic("Split called after Scan")
++	}
+ 	s.split = split
+ }
+ 
+diff --git a/src/bufio/scan_test.go b/src/bufio/scan_test.go
+index eea87cbf7b..ac65de9c44 100644
+--- a/src/bufio/scan_test.go
++++ b/src/bufio/scan_test.go
+@@ -522,3 +522,19 @@ func TestEmptyLinesOK(t *testing.T) {
+ 		t.Fatalf("stopped with %d left to process", c)
+ 	}
+ }
++
++// Make sure we can read a huge token if a big enough buffer is provided.
++func TestHugeBuffer(t *testing.T) {
++	text := strings.Repeat("x", 2*MaxScanTokenSize)
++	s := NewScanner(strings.NewReader(text + "\n"))
++	s.Buffer(make([]byte, 100), 3*MaxScanTokenSize)
++	for s.Scan() {
++		token := s.Text()
++		if token != text {
++			t.Errorf("scan got incorrect token of length %d", len(token))
++		}
++	}
++	if s.Err() != nil {
++		t.Fatal("after scan:", s.Err())
++	}
++}

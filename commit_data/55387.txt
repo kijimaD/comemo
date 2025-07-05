@@ -12,6 +12,28 @@ Date:   Fri Mar 27 17:16:26 2020 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Bryan Mills <bcmills@google.com>
     Reviewed-by: Damien Neil <dneil@google.com>
-
+---
  src/net/http/serve_test.go | 10 +++-------
  1 file changed, 3 insertions(+), 7 deletions(-)
+
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index eac527b94f..e11de66077 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -1444,13 +1444,9 @@ func testTLSHandshakeTimeout(t *testing.T, mode testMode) {
+ 		t.Errorf("Read = %d, %v; want an error and no bytes", n, err)
+ 	}
+ 
+-	select {
+-	case v := <-errc:
+-		if !strings.Contains(v, "timeout") && !strings.Contains(v, "TLS handshake") {
+-			t.Errorf("expected a TLS handshake timeout error; got %q", v)
+-		}
+-	case <-time.After(5 * time.Second):
+-		t.Errorf("timeout waiting for logged error")
++	v := <-errc
++	if !strings.Contains(v, "timeout") && !strings.Contains(v, "TLS handshake") {
++		t.Errorf("expected a TLS handshake timeout error; got %q", v)
+ 	}
+ }
+ 

@@ -11,7 +11,7 @@ Date:   Fri Sep 15 11:38:24 2017 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/link/internal/amd64/asm.go  | 5 +----
  src/cmd/link/internal/arm/asm.go    | 5 +----
  src/cmd/link/internal/arm64/asm.go  | 5 +----
@@ -21,3 +21,146 @@ Date:   Fri Sep 15 11:38:24 2017 -0700
  src/cmd/link/internal/ppc64/asm.go  | 5 +----
  src/cmd/link/internal/x86/asm.go    | 5 +----
  8 files changed, 10 insertions(+), 35 deletions(-)
+
+diff --git a/src/cmd/link/internal/amd64/asm.go b/src/cmd/link/internal/amd64/asm.go
+index 20ef5956a9..0660a6d3bf 100644
+--- a/src/cmd/link/internal/amd64/asm.go
++++ b/src/cmd/link/internal/amd64/asm.go
+@@ -781,10 +781,7 @@ func asmb(ctxt *ld.Link) {
+ 			sym := ctxt.Syms.Lookup("pclntab", 0)
+ 			if sym != nil {
+ 				ld.Lcsize = int32(len(sym.P))
+-				for i := 0; int32(i) < ld.Lcsize; i++ {
+-					ld.Cput(sym.P[i])
+-				}
+-
++				ld.Cwrite(sym.P)
+ 				ld.Cflush()
+ 			}
+ 
+diff --git a/src/cmd/link/internal/arm/asm.go b/src/cmd/link/internal/arm/asm.go
+index c27672da7d..2c959b0e96 100644
+--- a/src/cmd/link/internal/arm/asm.go
++++ b/src/cmd/link/internal/arm/asm.go
+@@ -829,10 +829,7 @@ func asmb(ctxt *ld.Link) {
+ 			sym := ctxt.Syms.Lookup("pclntab", 0)
+ 			if sym != nil {
+ 				ld.Lcsize = int32(len(sym.P))
+-				for i := 0; int32(i) < ld.Lcsize; i++ {
+-					ld.Cput(sym.P[i])
+-				}
+-
++				ld.Cwrite(sym.P)
+ 				ld.Cflush()
+ 			}
+ 
+diff --git a/src/cmd/link/internal/arm64/asm.go b/src/cmd/link/internal/arm64/asm.go
+index bb0bf267f0..5955f2cd6b 100644
+--- a/src/cmd/link/internal/arm64/asm.go
++++ b/src/cmd/link/internal/arm64/asm.go
+@@ -465,10 +465,7 @@ func asmb(ctxt *ld.Link) {
+ 			sym := ctxt.Syms.Lookup("pclntab", 0)
+ 			if sym != nil {
+ 				ld.Lcsize = int32(len(sym.P))
+-				for i := 0; int32(i) < ld.Lcsize; i++ {
+-					ld.Cput(sym.P[i])
+-				}
+-
++				ld.Cwrite(sym.P)
+ 				ld.Cflush()
+ 			}
+ 
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index cd364f0576..0edf76ec5a 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -1120,9 +1120,7 @@ func getElfEhdr() *ElfEhdr {
+ }
+ 
+ func elf64writehdr() uint32 {
+-	for i := 0; i < EI_NIDENT; i++ {
+-		Cput(ehdr.ident[i])
+-	}
++	Cwrite(ehdr.ident[:])
+ 	Thearch.Wput(ehdr.type_)
+ 	Thearch.Wput(ehdr.machine)
+ 	Thearch.Lput(ehdr.version)
+@@ -1140,9 +1138,7 @@ func elf64writehdr() uint32 {
+ }
+ 
+ func elf32writehdr() uint32 {
+-	for i := 0; i < EI_NIDENT; i++ {
+-		Cput(ehdr.ident[i])
+-	}
++	Cwrite(ehdr.ident[:])
+ 	Thearch.Wput(ehdr.type_)
+ 	Thearch.Wput(ehdr.machine)
+ 	Thearch.Lput(ehdr.version)
+diff --git a/src/cmd/link/internal/ld/symtab.go b/src/cmd/link/internal/ld/symtab.go
+index ca97cb23cf..9812fe6053 100644
+--- a/src/cmd/link/internal/ld/symtab.go
++++ b/src/cmd/link/internal/ld/symtab.go
+@@ -233,13 +233,10 @@ func putplan9sym(ctxt *Link, x *Symbol, s string, typ SymbolType, addr int64, go
+ 		Lputb(uint32(addr))
+ 		Cput(uint8(t + 0x80)) /* 0x80 is variable length */
+ 
+-		var i int
+-		for i = 0; i < len(s); i++ {
+-			Cput(s[i])
+-		}
++		Cwritestring(s)
+ 		Cput(0)
+ 
+-		Symsize += int32(l) + 1 + int32(i) + 1
++		Symsize += int32(l) + 1 + int32(len(s)) + 1
+ 
+ 	default:
+ 		return
+diff --git a/src/cmd/link/internal/mips64/asm.go b/src/cmd/link/internal/mips64/asm.go
+index d1baef612f..c3100331e8 100644
+--- a/src/cmd/link/internal/mips64/asm.go
++++ b/src/cmd/link/internal/mips64/asm.go
+@@ -258,10 +258,7 @@ func asmb(ctxt *ld.Link) {
+ 			sym := ctxt.Syms.Lookup("pclntab", 0)
+ 			if sym != nil {
+ 				ld.Lcsize = int32(len(sym.P))
+-				for i := 0; int32(i) < ld.Lcsize; i++ {
+-					ld.Cput(sym.P[i])
+-				}
+-
++				ld.Cwrite(sym.P)
+ 				ld.Cflush()
+ 			}
+ 		}
+diff --git a/src/cmd/link/internal/ppc64/asm.go b/src/cmd/link/internal/ppc64/asm.go
+index 2f0947aff8..4bec2172df 100644
+--- a/src/cmd/link/internal/ppc64/asm.go
++++ b/src/cmd/link/internal/ppc64/asm.go
+@@ -987,10 +987,7 @@ func asmb(ctxt *ld.Link) {
+ 			sym := ctxt.Syms.Lookup("pclntab", 0)
+ 			if sym != nil {
+ 				ld.Lcsize = int32(len(sym.P))
+-				for i := 0; int32(i) < ld.Lcsize; i++ {
+-					ld.Cput(sym.P[i])
+-				}
+-
++				ld.Cwrite(sym.P)
+ 				ld.Cflush()
+ 			}
+ 		}
+diff --git a/src/cmd/link/internal/x86/asm.go b/src/cmd/link/internal/x86/asm.go
+index 069ee4702e..bfdee795a4 100644
+--- a/src/cmd/link/internal/x86/asm.go
++++ b/src/cmd/link/internal/x86/asm.go
+@@ -709,10 +709,7 @@ func asmb(ctxt *ld.Link) {
+ 			sym := ctxt.Syms.Lookup("pclntab", 0)
+ 			if sym != nil {
+ 				ld.Lcsize = int32(len(sym.P))
+-				for i := 0; int32(i) < ld.Lcsize; i++ {
+-					ld.Cput(sym.P[i])
+-				}
+-
++				ld.Cwrite(sym.P)
+ 				ld.Cflush()
+ 			}
+ 

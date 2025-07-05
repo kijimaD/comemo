@@ -19,7 +19,7 @@ Date:   Tue May 29 13:39:54 2012 +1000
     R=nigeltao, rsc
     CC=golang-dev
     https://golang.org/cl/6247056
-
+---
  src/pkg/exp/html/parse.go                  | 41 +++++++++++++++++++++++++++++-
  src/pkg/exp/html/parse_test.go             | 27 +++++++++++++++-----
  src/pkg/exp/html/testlogs/isindex.dat.log  |  2 +-
@@ -27,3 +27,169 @@ Date:   Tue May 29 13:39:54 2012 +1000
  src/pkg/exp/html/testlogs/tests23.dat.log  |  8 +++---
  src/pkg/exp/html/testlogs/webkit01.dat.log |  2 +-
  6 files changed, 69 insertions(+), 17 deletions(-)
+
+diff --git a/src/pkg/exp/html/parse.go b/src/pkg/exp/html/parse.go
+index fe5f295b76..e1bfcd9aa5 100644
+--- a/src/pkg/exp/html/parse.go
++++ b/src/pkg/exp/html/parse.go
+@@ -288,8 +288,47 @@ func (p *parser) addElement(tag string, attr []Attribute) {
+ // Section 12.2.3.3.
+ func (p *parser) addFormattingElement(tag string, attr []Attribute) {
+ 	p.addElement(tag, attr)
++
++	// Implement the Noah's Ark clause, but with three per family instead of two.
++	identicalElements := 0
++findIdenticalElements:
++	for i := len(p.afe) - 1; i >= 0; i-- {
++		n := p.afe[i]
++		if n.Type == scopeMarkerNode {
++			break
++		}
++		if n.Type != ElementNode {
++			continue
++		}
++		if n.Namespace != "" {
++			continue
++		}
++		if n.Data != tag {
++			continue
++		}
++		if len(n.Attr) != len(attr) {
++			continue
++		}
++	compareAttributes:
++		for _, a := range n.Attr {
++			for _, b := range attr {
++				if a.Key == b.Key && a.Namespace == b.Namespace && a.Val == b.Val {
++					// Found a match for this attribute, continue with the next attribute.
++					continue compareAttributes
++				}
++			}
++			// If we get here, there is no attribute that matches a.
++			// Therefore the element is not identical to the new one.
++			continue findIdenticalElements
++		}
++
++		identicalElements++
++		if identicalElements >= 3 {
++			p.afe.remove(n)
++		}
++	}
++
+ 	p.afe = append(p.afe, p.top())
+-	// TODO.
+ }
+ 
+ // Section 12.2.3.3.
+diff --git a/src/pkg/exp/html/parse_test.go b/src/pkg/exp/html/parse_test.go
+index f5e96f15a8..1304f011eb 100644
+--- a/src/pkg/exp/html/parse_test.go
++++ b/src/pkg/exp/html/parse_test.go
+@@ -13,6 +13,7 @@ import (
+ 	"io"
+ 	"os"
+ 	"path/filepath"
++	"sort"
+ 	"strings"
+ 	"testing"
+ )
+@@ -104,6 +105,23 @@ func dumpIndent(w io.Writer, level int) {
+ 	}
+ }
+ 
++type sortedAttributes []Attribute
++
++func (a sortedAttributes) Len() int {
++	return len(a)
++}
++
++func (a sortedAttributes) Less(i, j int) bool {
++	if a[i].Namespace != a[j].Namespace {
++		return a[i].Namespace < a[j].Namespace
++	}
++	return a[i].Key < a[j].Key
++}
++
++func (a sortedAttributes) Swap(i, j int) {
++	a[i], a[j] = a[j], a[i]
++}
++
+ func dumpLevel(w io.Writer, n *Node, level int) error {
+ 	dumpIndent(w, level)
+ 	switch n.Type {
+@@ -117,13 +135,8 @@ func dumpLevel(w io.Writer, n *Node, level int) error {
+ 		} else {
+ 			fmt.Fprintf(w, "<%s>", n.Data)
+ 		}
+-		attr := n.Attr
+-		if len(attr) == 2 && attr[0].Namespace == "xml" && attr[1].Namespace == "xlink" {
+-			// Some of the test cases in tests10.dat change the order of adjusted
+-			// foreign attributes, but that behavior is not in the spec, and could
+-			// simply be an implementation detail of html5lib's python map ordering.
+-			attr[0], attr[1] = attr[1], attr[0]
+-		}
++		attr := sortedAttributes(n.Attr)
++		sort.Sort(attr)
+ 		for _, a := range attr {
+ 			io.WriteString(w, "\n")
+ 			dumpIndent(w, level+1)
+diff --git a/src/pkg/exp/html/testlogs/isindex.dat.log b/src/pkg/exp/html/testlogs/isindex.dat.log
+index cd2ba3c250..110068c54a 100644
+--- a/src/pkg/exp/html/testlogs/isindex.dat.log
++++ b/src/pkg/exp/html/testlogs/isindex.dat.log
+@@ -1,3 +1,3 @@
+ PASS "<isindex>"
+-FAIL "<isindex name=\"A\" action=\"B\" prompt=\"C\" foo=\"D\">"
++PASS "<isindex name=\"A\" action=\"B\" prompt=\"C\" foo=\"D\">"
+ PASS "<form><isindex>"
+diff --git a/src/pkg/exp/html/testlogs/tests19.dat.log b/src/pkg/exp/html/testlogs/tests19.dat.log
+index 888ceaa165..61afadd73d 100644
+--- a/src/pkg/exp/html/testlogs/tests19.dat.log
++++ b/src/pkg/exp/html/testlogs/tests19.dat.log
+@@ -34,8 +34,8 @@ PASS "<!doctype html><p><math><mn><p><h1>"
+ PASS "<!doctype html><p><math><ms><p><h1>"
+ PASS "<!doctype html><p><math><mtext><p><h1>"
+ PASS "<!doctype html><frameset></noframes>"
+-FAIL "<!doctype html><html c=d><body></html><html a=b>"
+-FAIL "<!doctype html><html c=d><frameset></frameset></html><html a=b>"
++PASS "<!doctype html><html c=d><body></html><html a=b>"
++PASS "<!doctype html><html c=d><frameset></frameset></html><html a=b>"
+ PASS "<!doctype html><html><frameset></frameset></html><!--foo-->"
+ PASS "<!doctype html><html><frameset></frameset></html>  "
+ PASS "<!doctype html><html><frameset></frameset></html>abc"
+@@ -83,7 +83,7 @@ PASS "<!doctype html><p><math></p>a"
+ PASS "<!doctype html><p><math><mn><span></p>a"
+ PASS "<!doctype html><math></html>"
+ PASS "<!doctype html><meta charset=\"ascii\">"
+-FAIL "<!doctype html><meta http-equiv=\"content-type\" content=\"text/html;charset=ascii\">"
++PASS "<!doctype html><meta http-equiv=\"content-type\" content=\"text/html;charset=ascii\">"
+ PASS "<!doctype html><head><!--aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa--><meta charset=\"utf8\">"
+ PASS "<!doctype html><html a=b><head></head><html c=d>"
+ PASS "<!doctype html><image/>"
+diff --git a/src/pkg/exp/html/testlogs/tests23.dat.log b/src/pkg/exp/html/testlogs/tests23.dat.log
+index 3fcac7b188..5eab83062e 100644
+--- a/src/pkg/exp/html/testlogs/tests23.dat.log
++++ b/src/pkg/exp/html/testlogs/tests23.dat.log
+@@ -1,5 +1,5 @@
+-FAIL "<p><font size=4><font color=red><font size=4><font size=4><font size=4><font size=4><font size=4><font color=red><p>X"
+-FAIL "<p><font size=4><font size=4><font size=4><font size=4><p>X"
+-FAIL "<p><font size=4><font size=4><font size=4><font size=\"5\"><font size=4><p>X"
+-FAIL "<p><font size=4 id=a><font size=4 id=b><font size=4><font size=4><p>X"
++PASS "<p><font size=4><font color=red><font size=4><font size=4><font size=4><font size=4><font size=4><font color=red><p>X"
++PASS "<p><font size=4><font size=4><font size=4><font size=4><p>X"
++PASS "<p><font size=4><font size=4><font size=4><font size=\"5\"><font size=4><p>X"
++PASS "<p><font size=4 id=a><font size=4 id=b><font size=4><font size=4><p>X"
+ PASS "<p><b id=a><b id=a><b id=a><b><object><b id=a><b id=a>X</object><p>Y"
+diff --git a/src/pkg/exp/html/testlogs/webkit01.dat.log b/src/pkg/exp/html/testlogs/webkit01.dat.log
+index 78c5f68e50..08ee7c2763 100644
+--- a/src/pkg/exp/html/testlogs/webkit01.dat.log
++++ b/src/pkg/exp/html/testlogs/webkit01.dat.log
+@@ -11,7 +11,7 @@ PASS "<foo></foo bar=\"baz\"><potato></potato quack=\"duck\">"
+ PASS "</ tttt>"
+ PASS "<div FOO ><img><img></div>"
+ PASS "<p>Test</p<p>Test2</p>"
+-FAIL "<rdar://problem/6869687>"
++PASS "<rdar://problem/6869687>"
+ PASS "<A>test< /A>"
+ PASS "&lt;"
+ PASS "<body foo='bar'><body foo='baz' yo='mama'>"

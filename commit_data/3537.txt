@@ -8,7 +8,7 @@ Date:   Wed Oct 14 17:16:21 2009 -0700
     DELTA=3706  (1857 added, 1849 deleted, 0 changed)
     OCL=35731
     CL=35741
-
+---
  src/all-nacl.bash                            | 8 ++++++++
  {usr/rsc => src/pkg/exp}/nacl/av/Makefile    | 2 +-
  {usr/rsc => src/pkg/exp}/nacl/av/av.go       | 4 ++--
@@ -19,3 +19,106 @@ Date:   Wed Oct 14 17:16:21 2009 -0700
  {usr/rsc => src/pkg/exp}/nacl/srpc/msg.go    | 0
  {usr/rsc => src/pkg/exp}/nacl/srpc/server.go | 0
  9 files changed, 13 insertions(+), 5 deletions(-)
+
+diff --git a/src/all-nacl.bash b/src/all-nacl.bash
+index 6a1a206c11..9270b5d20c 100644
+--- a/src/all-nacl.bash
++++ b/src/all-nacl.bash
+@@ -14,6 +14,14 @@ xcd() {
+ 	builtin cd $1
+ }
+ 
++(xcd pkg/exp/nacl/srpc
++make install
++) || exit $?
++
++(xcd pkg/exp/nacl/av
++make install
++) || exit $?
++
+ (xcd ../test
+ ./run-nacl
+ ) || exit $?
+diff --git a/usr/rsc/nacl/av/Makefile b/src/pkg/exp/nacl/av/Makefile
+similarity index 94%
+rename from usr/rsc/nacl/av/Makefile
+rename to src/pkg/exp/nacl/av/Makefile
+index 523a9fff19..743658b25b 100644
+--- a/usr/rsc/nacl/av/Makefile
++++ b/src/pkg/exp/nacl/av/Makefile
+@@ -4,7 +4,7 @@
+ 
+ include $(GOROOT)/src/Make.$(GOARCH)
+ 
+-TARG=nacl/av
++TARG=exp/nacl/av
+ GOFILES=\
+ 	av.go\
+ 	event.go\
+diff --git a/usr/rsc/nacl/av/av.go b/src/pkg/exp/nacl/av/av.go
+similarity index 99%
+rename from usr/rsc/nacl/av/av.go
+rename to src/pkg/exp/nacl/av/av.go
+index 0accf46126..9adc582fd4 100644
+--- a/usr/rsc/nacl/av/av.go
++++ b/src/pkg/exp/nacl/av/av.go
+@@ -13,9 +13,9 @@ package av
+ 
+ import (
+ 	"bytes";
+-	"draw";
++	"exp/draw";
++	"exp/nacl/srpc";
+ 	"log";
+-	"nacl/srpc";
+ 	"os";
+ 	"syscall";
+ 	"unsafe";
+diff --git a/usr/rsc/nacl/av/event.go b/src/pkg/exp/nacl/av/event.go
+similarity index 99%
+rename from usr/rsc/nacl/av/event.go
+rename to src/pkg/exp/nacl/av/event.go
+index 62ecbc6e60..32b73badc0 100644
+--- a/usr/rsc/nacl/av/event.go
++++ b/src/pkg/exp/nacl/av/event.go
+@@ -12,7 +12,7 @@ package av
+ import (
+ 	"bytes";
+ 	"debug/binary";
+-	"draw";
++	"exp/draw";
+ 	"log";
+ 	"os";
+ 	"time";
+diff --git a/usr/rsc/nacl/av/image.go b/src/pkg/exp/nacl/av/image.go
+similarity index 100%
+rename from usr/rsc/nacl/av/image.go
+rename to src/pkg/exp/nacl/av/image.go
+diff --git a/usr/rsc/nacl/srpc/Makefile b/src/pkg/exp/nacl/srpc/Makefile
+similarity index 93%
+rename from usr/rsc/nacl/srpc/Makefile
+rename to src/pkg/exp/nacl/srpc/Makefile
+index 9014d2c3a8..d30ae7d13d 100644
+--- a/usr/rsc/nacl/srpc/Makefile
++++ b/src/pkg/exp/nacl/srpc/Makefile
+@@ -4,7 +4,7 @@
+ 
+ include $(GOROOT)/src/Make.$(GOARCH)
+ 
+-TARG=nacl/srpc
++TARG=exp/nacl/srpc
+ GOFILES=\
+ 	client.go\
+ 	msg.go\
+diff --git a/usr/rsc/nacl/srpc/client.go b/src/pkg/exp/nacl/srpc/client.go
+similarity index 100%
+rename from usr/rsc/nacl/srpc/client.go
+rename to src/pkg/exp/nacl/srpc/client.go
+diff --git a/usr/rsc/nacl/srpc/msg.go b/src/pkg/exp/nacl/srpc/msg.go
+similarity index 100%
+rename from usr/rsc/nacl/srpc/msg.go
+rename to src/pkg/exp/nacl/srpc/msg.go
+diff --git a/usr/rsc/nacl/srpc/server.go b/src/pkg/exp/nacl/srpc/server.go
+similarity index 100%
+rename from usr/rsc/nacl/srpc/server.go
+rename to src/pkg/exp/nacl/srpc/server.go

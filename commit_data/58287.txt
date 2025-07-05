@@ -15,6 +15,22 @@ Date:   Sun Oct 22 17:30:37 2023 +0900
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Damien Neil <dneil@google.com>
-
+---
  src/net/http/request.go | 4 ----
  1 file changed, 4 deletions(-)
+
+diff --git a/src/net/http/request.go b/src/net/http/request.go
+index b66e6853f6..ed2cdac136 100644
+--- a/src/net/http/request.go
++++ b/src/net/http/request.go
+@@ -111,10 +111,6 @@ var reqWriteExcludeHeader = map[string]bool{
+ type Request struct {
+ 	// Method specifies the HTTP method (GET, POST, PUT, etc.).
+ 	// For client requests, an empty string means GET.
+-	//
+-	// Go's HTTP client does not support sending a request with
+-	// the CONNECT method. See the documentation on Transport for
+-	// details.
+ 	Method string
+ 
+ 	// URL specifies either the URI being requested (for server

@@ -18,6 +18,27 @@ Date:   Tue May 29 00:42:10 2018 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/image/decode_example_test.go | 9 +++++++++
  1 file changed, 9 insertions(+)
+
+diff --git a/src/image/decode_example_test.go b/src/image/decode_example_test.go
+index 81fa0378e1..526c03f3c1 100644
+--- a/src/image/decode_example_test.go
++++ b/src/image/decode_example_test.go
+@@ -21,6 +21,15 @@ import (
+ 	_ "image/jpeg"
+ )
+ 
++func Example_decodeConfig() {
++	reader := base64.NewDecoder(base64.StdEncoding, strings.NewReader(data))
++	config, format, err := image.DecodeConfig(reader)
++	if err != nil {
++		log.Fatal(err)
++	}
++	fmt.Println("Width:", config.Width, "Height:", config.Height, "Format:", format)
++}
++
+ func Example() {
+ 	// Decode the JPEG data. If reading from file, create a reader with
+ 	//

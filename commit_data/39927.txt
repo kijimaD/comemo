@@ -29,6 +29,26 @@ Date:   Tue Apr 2 14:14:51 2019 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/runtime/internal/atomic/atomic_wasm.go | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/internal/atomic/atomic_wasm.go b/src/runtime/internal/atomic/atomic_wasm.go
+index 71288e9003..9c2193fa1b 100644
+--- a/src/runtime/internal/atomic/atomic_wasm.go
++++ b/src/runtime/internal/atomic/atomic_wasm.go
+@@ -123,10 +123,13 @@ func Store64(ptr *uint64, val uint64) {
+ 	*ptr = val
+ }
+ 
++//go:notinheap
++type noWB struct{}
++
+ //go:noinline
+ //go:nosplit
+ func StorepNoWB(ptr unsafe.Pointer, val unsafe.Pointer) {
+-	*(*uintptr)(ptr) = uintptr(val)
++	*(**noWB)(ptr) = (*noWB)(val)
+ }
+ 
+ //go:nosplit

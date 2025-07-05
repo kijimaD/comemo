@@ -17,6 +17,34 @@ Date:   Fri Oct 29 17:35:30 2021 -0700
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Trust: Michael Pratt <mpratt@google.com>
     Trust: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/pprof/pprof_test.go | 9 +++++++++
  1 file changed, 9 insertions(+)
+
+diff --git a/src/runtime/pprof/pprof_test.go b/src/runtime/pprof/pprof_test.go
+index 06e0274e9a..417d5034a6 100644
+--- a/src/runtime/pprof/pprof_test.go
++++ b/src/runtime/pprof/pprof_test.go
+@@ -20,6 +20,7 @@ import (
+ 	"os/exec"
+ 	"regexp"
+ 	"runtime"
++	"runtime/debug"
+ 	"strings"
+ 	"sync"
+ 	"sync/atomic"
+@@ -133,6 +134,14 @@ func TestCPUProfileMultithreadMagnitude(t *testing.T) {
+ 
+ 	parallelism := runtime.GOMAXPROCS(0)
+ 
++	// This test compares the process's total CPU time against the CPU
++	// profiler's view of time spent in direct execution of user code.
++	// Background work, especially from the garbage collector, adds noise to
++	// that measurement. Disable automatic triggering of the GC, and then
++	// request a complete GC cycle (up through sweep termination).
++	defer debug.SetGCPercent(debug.SetGCPercent(-1))
++	runtime.GC()
++
+ 	var cpuTime1, cpuTimeN time.Duration
+ 	p := testCPUProfile(t, stackContains, []string{"runtime/pprof.cpuHog1", "runtime/pprof.cpuHog3"}, avoidFunctions(), func(dur time.Duration) {
+ 		cpuTime1 = diffCPUTime(t, func() {

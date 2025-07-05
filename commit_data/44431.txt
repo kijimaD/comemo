@@ -19,7 +19,59 @@ Date:   Tue Jun 30 16:51:27 2020 -0400
     Reviewed-by: Than McIntosh <thanm@google.com>
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/link/internal/ld/fallocate_test.go | 15 +++++++++++++++
  src/cmd/link/internal/ld/outbuf_darwin.go  |  7 +++++--
  2 files changed, 20 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/fallocate_test.go b/src/cmd/link/internal/ld/fallocate_test.go
+index a064bea23d..51f5fcdd9f 100644
+--- a/src/cmd/link/internal/ld/fallocate_test.go
++++ b/src/cmd/link/internal/ld/fallocate_test.go
+@@ -28,6 +28,21 @@ func TestFallocate(t *testing.T) {
+ 	}
+ 	defer out.Close()
+ 
++	// Try fallocate first.
++	for {
++		err = out.fallocate(1 << 10)
++		if err == syscall.EOPNOTSUPP { // The underlying file system may not support fallocate
++			t.Skip("fallocate is not supported")
++		}
++		if err == syscall.EINTR {
++			continue // try again
++		}
++		if err != nil {
++			t.Fatalf("fallocate failed: %v", err)
++		}
++		break
++	}
++
+ 	// Mmap 1 MiB initially, and grow to 2 and 3 MiB.
+ 	// Check if the file size and disk usage is expected.
+ 	for _, sz := range []int64{1 << 20, 2 << 20, 3 << 20} {
+diff --git a/src/cmd/link/internal/ld/outbuf_darwin.go b/src/cmd/link/internal/ld/outbuf_darwin.go
+index 9a74ba875e..d7e3372230 100644
+--- a/src/cmd/link/internal/ld/outbuf_darwin.go
++++ b/src/cmd/link/internal/ld/outbuf_darwin.go
+@@ -14,7 +14,10 @@ func (out *OutBuf) fallocate(size uint64) error {
+ 	if err != nil {
+ 		return err
+ 	}
+-	cursize := uint64(stat.Size())
++	// F_PEOFPOSMODE allocates from the end of the file, so we want the size difference.
++	// Apparently, it uses the end of the allocation, instead of the logical end of the
++	// the file.
++	cursize := uint64(stat.Sys().(*syscall.Stat_t).Blocks * 512) // allocated size
+ 	if size <= cursize {
+ 		return nil
+ 	}
+@@ -23,7 +26,7 @@ func (out *OutBuf) fallocate(size uint64) error {
+ 		Flags:   syscall.F_ALLOCATEALL,
+ 		Posmode: syscall.F_PEOFPOSMODE,
+ 		Offset:  0,
+-		Length:  int64(size - cursize), // F_PEOFPOSMODE allocates from the end of the file, so we want the size difference here
++		Length:  int64(size - cursize),
+ 	}
+ 
+ 	_, _, errno := syscall.Syscall(syscall.SYS_FCNTL, uintptr(out.f.Fd()), syscall.F_PREALLOCATE, uintptr(unsafe.Pointer(store)))

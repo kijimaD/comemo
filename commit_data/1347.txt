@@ -10,8 +10,120 @@ Date:   Mon Dec 15 15:07:35 2008 -0800
     R=r
     OCL=21215
     CL=21215
-
+---
  src/cmd/6g/cgen.c       | 15 +++++++++++----
  src/cmd/6g/gen.c        | 33 +++++++++++++++++----------------
  src/runtime/rt0_amd64.s |  1 +
  3 files changed, 29 insertions(+), 20 deletions(-)
+
+diff --git a/src/cmd/6g/cgen.c b/src/cmd/6g/cgen.c
+index 29e61c661a..6997c52b23 100644
+--- a/src/cmd/6g/cgen.c
++++ b/src/cmd/6g/cgen.c
+@@ -874,22 +874,29 @@ sgen(Node *n, Node *ns, int32 w)
+ 			gins(AREP, N, N);	// repeat
+ 			gins(AMOVSQ, N, N);	// MOVQ *(SI)-,*(DI)-
+ 		}
+-		// for future optimization
+ 		// we leave with the flag clear
+ 		gins(ACLD, N, N);
+ 	} else {
+ 		// normal direction
+-		gins(ACLD, N, N);		// clear direction flag
+-		if(q > 0) {
++		if(q >= 4) {
+ 			gconreg(AMOVQ, q, D_CX);
+ 			gins(AREP, N, N);	// repeat
+ 			gins(AMOVSQ, N, N);	// MOVQ *(SI)+,*(DI)+
++		} else
++		while(q > 0) {
++			gins(AMOVSQ, N, N);	// MOVQ *(SI)+,*(DI)+
++			q--;
+ 		}
+ 
+-		if(c > 0) {
++		if(c >= 4) {
+ 			gconreg(AMOVQ, c, D_CX);
+ 			gins(AREP, N, N);	// repeat
+ 			gins(AMOVSB, N, N);	// MOVB *(SI)+,*(DI)+
++		
++		} else
++		while(c > 0) {
++			gins(AMOVSB, N, N);	// MOVB *(SI)+,*(DI)+
++			c--;
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/6g/gen.c b/src/cmd/6g/gen.c
+index 3b6a5e4d44..0f625c649b 100644
+--- a/src/cmd/6g/gen.c
++++ b/src/cmd/6g/gen.c
+@@ -1037,7 +1037,7 @@ cgen_as(Node *nl, Node *nr, int op)
+ {
+ 	Node nc, n1;
+ 	Type *tl;
+-	uint32 w, c;
++	uint32 w, c, q;
+ 	int iszer;
+ 
+ 	if(nl == N)
+@@ -1058,31 +1058,32 @@ cgen_as(Node *nl, Node *nr, int op)
+ 			if(debug['g'])
+ 				dump("\nclearfat", nl);
+ 
+-			if(nl->type->width < 0)
+-				fatal("clearfat %T %lld", nl->type, nl->type->width);
+ 			w = nl->type->width;
++			c = w % 8;	// bytes
++			q = w / 8;	// quads
+ 
+-			if(w > 0)
+-				gconreg(AMOVQ, 0, D_AX);
++			gconreg(AMOVQ, 0, D_AX);
++			nodreg(&n1, types[tptr], D_DI);
++			agen(nl, &n1);
+ 
+-			if(w > 0) {
+-				nodreg(&n1, types[tptr], D_DI);
+-				agen(nl, &n1);
+-				gins(ACLD, N, N);	// clear direction flag
+-			}
+-
+-			c = w / 8;
+-			if(c > 0) {
+-				gconreg(AMOVQ, c, D_CX);
++			if(q >= 4) {
++				gconreg(AMOVQ, q, D_CX);
+ 				gins(AREP, N, N);	// repeat
+ 				gins(ASTOSQ, N, N);	// STOQ AL,*(DI)+
++			} else
++			while(q > 0) {
++				gins(ASTOSQ, N, N);	// STOQ AL,*(DI)+
++				q--;
+ 			}
+ 
+-			c = w % 8;
+-			if(c > 0) {
++			if(c >= 4) {
+ 				gconreg(AMOVQ, c, D_CX);
+ 				gins(AREP, N, N);	// repeat
+ 				gins(ASTOSB, N, N);	// STOB AL,*(DI)+
++			} else
++			while(c > 0) {
++				gins(ASTOSB, N, N);	// STOB AL,*(DI)+
++				c--;
+ 			}
+ 			goto ret;
+ 		}
+diff --git a/src/runtime/rt0_amd64.s b/src/runtime/rt0_amd64.s
+index 73e9251210..61a768f7e2 100644
+--- a/src/runtime/rt0_amd64.s
++++ b/src/runtime/rt0_amd64.s
+@@ -26,6 +26,7 @@ TEXT	_rt0_amd64(SB),7,$-8
+ 	MOVQ	AX, 0(R15)		// 0(R15) is stack limit (w 104b guard)
+ 	MOVQ	SP, 8(R15)		// 8(R15) is base
+ 
++	CLD				// convention is D is always left cleared
+ 	CALL	check(SB)
+ 
+ 	MOVL	16(SP), AX		// copy argc

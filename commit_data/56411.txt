@@ -21,10 +21,300 @@ Date:   Wed May 3 01:08:10 2023 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/base/hashdebug.go       | 71 ++++++++++++------------
  src/cmd/compile/internal/base/hashdebug_test.go  | 36 ++++++------
  src/cmd/compile/internal/loopvar/loopvar_test.go |  2 +-
  src/cmd/compile/internal/ssa/fmahash_test.go     |  2 +-
  src/cmd/dist/buildtool.go                        |  1 +
  5 files changed, 57 insertions(+), 55 deletions(-)
+
+diff --git a/src/cmd/compile/internal/base/hashdebug.go b/src/cmd/compile/internal/base/hashdebug.go
+index 6276abe4fd..64dad979f9 100644
+--- a/src/cmd/compile/internal/base/hashdebug.go
++++ b/src/cmd/compile/internal/base/hashdebug.go
+@@ -10,6 +10,7 @@ import (
+ 	"cmd/internal/obj"
+ 	"cmd/internal/src"
+ 	"fmt"
++	"internal/bisect"
+ 	"io"
+ 	"os"
+ 	"path/filepath"
+@@ -40,7 +41,7 @@ type HashDebug struct {
+ 	bytesTmp         bytes.Buffer
+ 	matches          []hashAndMask // A hash matches if one of these matches.
+ 	excludes         []hashAndMask // explicitly excluded hash suffixes
+-	yes, no          bool
++	bisect           *bisect.Matcher
+ 	fileSuffixOnly   bool // for Pos hashes, remove the directory prefix.
+ 	inlineSuffixOnly bool // for Pos hashes, remove all but the most inline position.
+ }
+@@ -173,12 +174,12 @@ func NewHashDebug(ev, s string, file writeSyncer) *HashDebug {
+ 	}
+ 
+ 	hd := &HashDebug{name: ev, logfile: file}
+-	switch s[0] {
+-	case 'y', 'Y':
+-		hd.yes = true
+-		return hd
+-	case 'n', 'N':
+-		hd.no = true
++	if !strings.Contains(s, "/") {
++		m, err := bisect.New(s)
++		if err != nil {
++			Fatalf("%s: %v", ev, err)
++		}
++		hd.bisect = m
+ 		return hd
+ 	}
+ 	ss := strings.Split(s, "/")
+@@ -292,23 +293,16 @@ func (d *HashDebug) DebugHashMatchParam(pkgAndName string, param uint64) bool {
+ 	if d == nil {
+ 		return true
+ 	}
+-	if d.no {
+-		return false
+-	}
+-
+-	if d.yes {
+-		d.logDebugHashMatch(d.name, pkgAndName, "y", param)
+-		return true
+-	}
+ 
+ 	hash := hashOf(pkgAndName, param)
+-
+-	// Return false for explicitly excluded hashes
+-	if d.excluded(hash) {
+-		return false
++	if d.bisect != nil {
++		if d.bisect.ShouldReport(hash) {
++			d.logDebugHashMatch(d.name, pkgAndName, hash, param)
++		}
++		return d.bisect.ShouldEnable(hash)
+ 	}
+ 	if m := d.match(hash); m != nil {
+-		d.logDebugHashMatch(m.name, pkgAndName, hashString(hash), param)
++		d.logDebugHashMatch(m.name, pkgAndName, hash, param)
+ 		return true
+ 	}
+ 	return false
+@@ -316,41 +310,39 @@ func (d *HashDebug) DebugHashMatchParam(pkgAndName string, param uint64) bool {
+ 
+ // DebugHashMatchPos is similar to DebugHashMatchParam, but for hash computation
+ // it uses the source position including all inlining information instead of
+-// package name and path. The output trigger string is prefixed with "POS=" so
+-// that tools processing the output can reliably tell the difference. The mutex
+-// locking is also more frequent and more granular.
++// package name and path. The mutex locking is more frequent and more granular.
+ // Note that the default answer for no environment variable (d == nil)
+ // is "yes", do the thing.
+ func (d *HashDebug) DebugHashMatchPos(pos src.XPos) bool {
+ 	if d == nil {
+ 		return true
+ 	}
+-	if d.no {
+-		return false
+-	}
+ 	// Written this way to make inlining likely.
+ 	return d.debugHashMatchPos(Ctxt, pos)
+ }
+ 
+ func (d *HashDebug) debugHashMatchPos(ctxt *obj.Link, pos src.XPos) bool {
++	// TODO: When we remove the old d.match code, we can use
++	// d.bisect.Hash instead of the locked buffer, and we can
++	// use d.bisect.Visible to decide whether to format a string.
+ 	d.mu.Lock()
+ 	defer d.mu.Unlock()
+ 
+ 	b := d.bytesForPos(ctxt, pos)
+-
+-	if d.yes {
+-		d.logDebugHashMatchLocked(d.name, string(b), "y", 0)
+-		return true
+-	}
+-
+ 	hash := hashOfBytes(b, 0)
++	if d.bisect != nil {
++		if d.bisect.ShouldReport(hash) {
++			d.logDebugHashMatchLocked(d.name, string(b), hash, 0)
++		}
++		return d.bisect.ShouldEnable(hash)
++	}
+ 
+ 	// Return false for explicitly excluded hashes
+ 	if d.excluded(hash) {
+ 		return false
+ 	}
+ 	if m := d.match(hash); m != nil {
+-		d.logDebugHashMatchLocked(m.name, "POS="+string(b), hashString(hash), 0)
++		d.logDebugHashMatchLocked(m.name, string(b), hash, 0)
+ 		return true
+ 	}
+ 	return false
+@@ -381,13 +373,13 @@ func (d *HashDebug) bytesForPos(ctxt *obj.Link, pos src.XPos) []byte {
+ 	return b.Bytes()
+ }
+ 
+-func (d *HashDebug) logDebugHashMatch(varname, name, hstr string, param uint64) {
++func (d *HashDebug) logDebugHashMatch(varname, name string, hash, param uint64) {
+ 	d.mu.Lock()
+ 	defer d.mu.Unlock()
+-	d.logDebugHashMatchLocked(varname, name, hstr, param)
++	d.logDebugHashMatchLocked(varname, name, hash, param)
+ }
+ 
+-func (d *HashDebug) logDebugHashMatchLocked(varname, name, hstr string, param uint64) {
++func (d *HashDebug) logDebugHashMatchLocked(varname, name string, hash, param uint64) {
+ 	file := d.logfile
+ 	if file == nil {
+ 		if tmpfile := os.Getenv("GSHS_LOGFILE"); tmpfile != "" {
+@@ -403,6 +395,7 @@ func (d *HashDebug) logDebugHashMatchLocked(varname, name, hstr string, param ui
+ 		}
+ 		d.logfile = file
+ 	}
++	hstr := hashString(hash)
+ 	if len(hstr) > 24 {
+ 		hstr = hstr[len(hstr)-24:]
+ 	}
+@@ -412,5 +405,11 @@ func (d *HashDebug) logDebugHashMatchLocked(varname, name, hstr string, param ui
+ 	} else {
+ 		fmt.Fprintf(file, "%s triggered %s:%d %s\n", varname, name, param, hstr)
+ 	}
++	// Print new bisect version too.
++	if param == 0 {
++		fmt.Fprintf(file, "%s %s\n", name, bisect.Marker(hash))
++	} else {
++		fmt.Fprintf(file, "%s:%d %s\n", name, param, bisect.Marker(hash))
++	}
+ 	file.Sync()
+ }
+diff --git a/src/cmd/compile/internal/base/hashdebug_test.go b/src/cmd/compile/internal/base/hashdebug_test.go
+index b74169f895..0b83712532 100644
+--- a/src/cmd/compile/internal/base/hashdebug_test.go
++++ b/src/cmd/compile/internal/base/hashdebug_test.go
+@@ -11,28 +11,22 @@ import (
+ )
+ 
+ func TestHashDebugGossahashY(t *testing.T) {
+-	hd := NewHashDebug("GOSSAHASH", "y", nil)
++	hd := NewHashDebug("GOSSAHASH", "y", new(bufferWithSync))
+ 	if hd == nil {
+ 		t.Errorf("NewHashDebug should not return nil for GOSSASHASH=y")
+ 	}
+-	if !hd.yes {
+-		t.Errorf("NewHashDebug should return hd.yes==true for GOSSASHASH=y")
+-	}
+-	if hd.no {
+-		t.Errorf("NewHashDebug should not return hd.no==true for GOSSASHASH=y")
++	if !hd.DebugHashMatch("anything") {
++		t.Errorf("NewHashDebug should return yes for everything for GOSSASHASH=y")
+ 	}
+ }
+ 
+ func TestHashDebugGossahashN(t *testing.T) {
+-	hd := NewHashDebug("GOSSAHASH", "n", nil)
++	hd := NewHashDebug("GOSSAHASH", "n", new(bufferWithSync))
+ 	if hd == nil {
+ 		t.Errorf("NewHashDebug should not return nil for GOSSASHASH=n")
+ 	}
+-	if !hd.no {
+-		t.Errorf("NewHashDebug should return hd.no==true GOSSASHASH=n")
+-	}
+-	if hd.yes {
+-		t.Errorf("NewHashDebug should not return hd.yes==true for GOSSASHASH=n")
++	if hd.DebugHashMatch("anything") {
++		t.Errorf("NewHashDebug should return no for everything for GOSSASHASH=n")
+ 	}
+ }
+ 
+@@ -73,6 +67,7 @@ func TestHashMatch(t *testing.T) {
+ 		t.Errorf("GOSSAHASH=0011 should have matched for 'bar'")
+ 	}
+ 	wantPrefix(t, msg, "GOSSAHASH triggered bar ")
++	wantContains(t, msg, "\nbar [bisect-match ")
+ }
+ 
+ func TestHashMatchParam(t *testing.T) {
+@@ -85,6 +80,7 @@ func TestHashMatchParam(t *testing.T) {
+ 		t.Errorf("GOSSAHASH=1010 should have matched for 'bar', 1")
+ 	}
+ 	wantPrefix(t, msg, "GOSSAHASH triggered bar:1 ")
++	wantContains(t, msg, "\nbar:1 [bisect-match ")
+ }
+ 
+ func TestYMatch(t *testing.T) {
+@@ -96,7 +92,8 @@ func TestYMatch(t *testing.T) {
+ 	if !check {
+ 		t.Errorf("GOSSAHASH=y should have matched for 'bar'")
+ 	}
+-	wantPrefix(t, msg, "GOSSAHASH triggered bar y")
++	wantPrefix(t, msg, "GOSSAHASH triggered bar 110101000010000100000011")
++	wantContains(t, msg, "\nbar [bisect-match ")
+ }
+ 
+ func TestNMatch(t *testing.T) {
+@@ -108,9 +105,8 @@ func TestNMatch(t *testing.T) {
+ 	if check {
+ 		t.Errorf("GOSSAHASH=n should NOT have matched for 'bar'")
+ 	}
+-	if msg != "" {
+-		t.Errorf("Message should have been empty, instead %s", msg)
+-	}
++	wantPrefix(t, msg, "GOSSAHASH triggered bar 110101000010000100000011")
++	wantContains(t, msg, "\nbar [bisect-match ")
+ }
+ 
+ func TestHashNoMatch(t *testing.T) {
+@@ -159,6 +155,12 @@ func (ws *bufferWithSync) String() string {
+ 
+ func wantPrefix(t *testing.T, got, want string) {
+ 	if !strings.HasPrefix(got, want) {
+-		t.Errorf("Want %s, got %s", want, got)
++		t.Errorf("want prefix %q, got:\n%s", want, got)
++	}
++}
++
++func wantContains(t *testing.T, got, want string) {
++	if !strings.Contains(got, want) {
++		t.Errorf("want contains %q, got:\n%s", want, got)
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/loopvar/loopvar_test.go b/src/cmd/compile/internal/loopvar/loopvar_test.go
+index 729c240ef5..22ff15ee8b 100644
+--- a/src/cmd/compile/internal/loopvar/loopvar_test.go
++++ b/src/cmd/compile/internal/loopvar/loopvar_test.go
+@@ -193,7 +193,7 @@ func TestLoopVarHashes(t *testing.T) {
+ 	m := f("000100000010011111101100")
+ 	t.Logf(m)
+ 
+-	mCount := strings.Count(m, "loopvarhash triggered POS=main.go:27:6")
++	mCount := strings.Count(m, "loopvarhash triggered main.go:27:6")
+ 	otherCount := strings.Count(m, "loopvarhash")
+ 	if mCount < 1 {
+ 		t.Errorf("Did not see expected value of m compile")
+diff --git a/src/cmd/compile/internal/ssa/fmahash_test.go b/src/cmd/compile/internal/ssa/fmahash_test.go
+index 7ebc8a4884..dfa1aa1147 100644
+--- a/src/cmd/compile/internal/ssa/fmahash_test.go
++++ b/src/cmd/compile/internal/ssa/fmahash_test.go
+@@ -44,7 +44,7 @@ func TestFmaHash(t *testing.T) {
+ 		t.Error(e)
+ 	}
+ 	s := string(b) // Looking for "GOFMAHASH triggered main.main:24"
+-	re := "fmahash(0?) triggered POS=.*fma.go:29:..;.*fma.go:18:.."
++	re := "fmahash(0?) triggered .*fma.go:29:..;.*fma.go:18:.."
+ 	match := regexp.MustCompile(re)
+ 	if !match.MatchString(s) {
+ 		t.Errorf("Expected to match '%s' with \n-----\n%s-----", re, s)
+diff --git a/src/cmd/dist/buildtool.go b/src/cmd/dist/buildtool.go
+index 815f944fe2..bb36c07663 100644
+--- a/src/cmd/dist/buildtool.go
++++ b/src/cmd/dist/buildtool.go
+@@ -63,6 +63,7 @@ var bootstrapDirs = []string{
+ 	"go/constant",
+ 	"internal/abi",
+ 	"internal/coverage",
++	"internal/bisect",
+ 	"internal/buildcfg",
+ 	"internal/goarch",
+ 	"internal/godebugs",

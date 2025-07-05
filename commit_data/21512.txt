@@ -16,10 +16,153 @@ Date:   Fri Jan 9 14:00:40 2015 -0500
     Change-Id: I2bc6f30c21b795264edf7dbb6bd7354b050673ab
     Reviewed-on: https://go-review.googlesource.com/2603
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  api/next.txt            |  2 --
  src/runtime/extern.go   |  6 ++++++
  src/runtime/malloc.go   |  8 --------
  src/runtime/mgc.go      | 24 +++++++-----------------
  src/runtime/runtime1.go |  5 +++++
  5 files changed, 18 insertions(+), 27 deletions(-)
+
+diff --git a/api/next.txt b/api/next.txt
+index b94bda13e2..eb21e80c27 100644
+--- a/api/next.txt
++++ b/api/next.txt
+@@ -247,5 +247,3 @@ pkg runtime (openbsd-amd64-cgo), const EWOULDBLOCK = 35
+ pkg runtime (openbsd-amd64-cgo), const EWOULDBLOCK ideal-int
+ pkg runtime (openbsd-amd64-cgo), const HW_NCPU = 3
+ pkg runtime (openbsd-amd64-cgo), const HW_NCPU ideal-int
+-pkg runtime, func GCcheckmarkdisable()
+-pkg runtime, func GCcheckmarkenable()
+diff --git a/src/runtime/extern.go b/src/runtime/extern.go
+index f295b9b12c..58acbb3788 100644
+--- a/src/runtime/extern.go
++++ b/src/runtime/extern.go
+@@ -66,6 +66,12 @@ a comma-separated list of name=val pairs. Supported names are:
+ 	problem with allocfreetrace=1 in order to understand the type
+ 	of the badly updated word.
+ 
++	gccheckmark: setting gccheckmark=1 enables verification of the
++	garbage collector's concurrent mark phase by performing a
++	second mark pass while the world is stopped.  If the second
++	pass finds a reachable object that was not found by concurrent
++	mark, the garbage collector will panic.
++
+ The GOMAXPROCS variable limits the number of operating system threads that
+ can execute user-level Go code simultaneously. There is no limit to the number of threads
+ that can be blocked in system calls on behalf of Go code; those do not count against
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index bc14d2222d..fa59ce41e4 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -611,14 +611,6 @@ func gcwork(force int32) {
+ 	}
+ }
+ 
+-func GCcheckmarkenable() {
+-	systemstack(gccheckmarkenable_m)
+-}
+-
+-func GCcheckmarkdisable() {
+-	systemstack(gccheckmarkdisable_m)
+-}
+-
+ // gctimes records the time in nanoseconds of each phase of the concurrent GC.
+ type gctimes struct {
+ 	sweepterm     int64 // stw
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 4d0900a41c..6d2470d39a 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -236,10 +236,7 @@ func have_cgo_allocate() bool {
+ // When marking an object if the bool checkmark is true one uses the above
+ // encoding, otherwise one uses the bitMarked bit in the lower two bits
+ // of the nibble.
+-var (
+-	checkmark         = false
+-	gccheckmarkenable = true
+-)
++var checkmark = false
+ 
+ // inheap reports whether b is a pointer into a (potentially dead) heap object.
+ // It returns false for pointers into stack spans.
+@@ -559,7 +556,7 @@ func scanobject(b, n uintptr, ptrmask *uint8, wbuf *workbuf) *workbuf {
+ 			continue
+ 		}
+ 
+-		if mheap_.shadow_enabled && debug.wbshadow >= 2 && gccheckmarkenable && checkmark {
++		if mheap_.shadow_enabled && debug.wbshadow >= 2 && debug.gccheckmark > 0 && checkmark {
+ 			checkwbshadow((*uintptr)(unsafe.Pointer(b + i)))
+ 		}
+ 
+@@ -1856,7 +1853,7 @@ func clearcheckmarkbits() {
+ // bitMarked bit that is not set then we throw.
+ //go:nowritebarrier
+ func gccheckmark_m(startTime int64, eagersweep bool) {
+-	if !gccheckmarkenable {
++	if debug.gccheckmark == 0 {
+ 		return
+ 	}
+ 
+@@ -1869,16 +1866,6 @@ func gccheckmark_m(startTime int64, eagersweep bool) {
+ 	gc_m(startTime, eagersweep) // turns off checkmark + calls clearcheckmarkbits
+ }
+ 
+-//go:nowritebarrier
+-func gccheckmarkenable_m() {
+-	gccheckmarkenable = true
+-}
+-
+-//go:nowritebarrier
+-func gccheckmarkdisable_m() {
+-	gccheckmarkenable = false
+-}
+-
+ //go:nowritebarrier
+ func finishsweep_m() {
+ 	// The world is stopped so we should be able to complete the sweeps
+@@ -1987,6 +1974,9 @@ func gc(start_time int64, eagersweep bool) {
+ 	}
+ 
+ 	if !checkmark {
++		// TODO(austin) This is a noop beceause we should
++		// already have swept everything to the current
++		// sweepgen.
+ 		finishsweep_m() // skip during checkmark debug phase.
+ 	}
+ 
+@@ -2107,7 +2097,7 @@ func gc(start_time int64, eagersweep bool) {
+ 		sysFree(unsafe.Pointer(&work.spans[0]), uintptr(len(work.spans))*unsafe.Sizeof(work.spans[0]), &memstats.other_sys)
+ 	}
+ 
+-	if gccheckmarkenable {
++	if debug.gccheckmark > 0 {
+ 		if !checkmark {
+ 			// first half of two-pass; don't set up sweep
+ 			unlock(&mheap_.lock)
+diff --git a/src/runtime/runtime1.go b/src/runtime/runtime1.go
+index e6510a8aa3..6056a8dd7e 100644
+--- a/src/runtime/runtime1.go
++++ b/src/runtime/runtime1.go
+@@ -317,6 +317,7 @@ var debug struct {
+ 	scheddetail    int32
+ 	schedtrace     int32
+ 	wbshadow       int32
++	gccheckmark    int32
+ }
+ 
+ var dbgvars = []dbgVar{
+@@ -329,9 +330,13 @@ var dbgvars = []dbgVar{
+ 	{"scheddetail", &debug.scheddetail},
+ 	{"schedtrace", &debug.schedtrace},
+ 	{"wbshadow", &debug.wbshadow},
++	{"gccheckmark", &debug.gccheckmark},
+ }
+ 
+ func parsedebugvars() {
++	// gccheckmark is enabled by default for the 1.5 dev cycle
++	debug.gccheckmark = 1
++
+ 	for p := gogetenv("GODEBUG"); p != ""; {
+ 		field := ""
+ 		i := index(p, ",")

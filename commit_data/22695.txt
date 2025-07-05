@@ -11,8 +11,101 @@ Date:   Wed Apr 1 13:47:35 2015 -0400
     Change-Id: Ica85372b8dd45f7621909b325d5ac713a9b0d015
     Reviewed-on: https://go-review.googlesource.com/8350
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/mgc.go      | 32 +++++++++++++++++++++++++-------
  src/runtime/proc1.go    |  7 +++++++
  src/runtime/runtime2.go |  3 +++
  3 files changed, 35 insertions(+), 7 deletions(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 057f897415..d8e80f5eab 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -215,6 +215,10 @@ var work struct {
+ 
+ 	// Copy of mheap.allspans for marker or sweeper.
+ 	spans []*mspan
++
++	// totaltime is the CPU nanoseconds spent in GC since the
++	// program started if debug.gctrace > 0.
++	totaltime int64
+ }
+ 
+ // GC runs a garbage collection.
+@@ -470,23 +474,37 @@ func gc(mode int) {
+ 
+ 	memstats.numgc++
+ 	if debug.gctrace > 0 {
+-		// TODO(austin): Cumulative utilization %
+ 		// TODO(austin): Marked heap size at end
+ 		tEnd := nanotime()
++
++		// Update work.totaltime
++		sweepTermCpu := int64(stwprocs) * (tScan - tSweepTerm)
++		scanCpu := tInstallWB - tScan
++		installWBCpu := int64(stwprocs) * (tMark - tInstallWB)
++		markCpu := tMarkTerm - tMark
++		markTermCpu := int64(stwprocs) * (tEnd - tMarkTerm)
++		cycleCpu := sweepTermCpu + scanCpu + installWBCpu + markCpu + markTermCpu
++		work.totaltime += cycleCpu
++
++		// Compute overall utilization
++		totalCpu := sched.totaltime + (tEnd-sched.procresizetime)*int64(gomaxprocs)
++		util := work.totaltime * 100 / totalCpu
++
+ 		var sbuf [24]byte
+ 		printlock()
+ 		print("gc #", memstats.numgc,
+-			" @", string(itoaDiv(sbuf[:], uint64(tEnd-runtimeInitTime)/1e6, 3)), "s: ",
++			" @", string(itoaDiv(sbuf[:], uint64(tEnd-runtimeInitTime)/1e6, 3)), "s ",
++			util, "%: ",
+ 			(tScan-tSweepTerm)/1e6,
+ 			"+", (tInstallWB-tScan)/1e6,
+ 			"+", (tMark-tInstallWB)/1e6,
+ 			"+", (tMarkTerm-tMark)/1e6,
+ 			"+", (tEnd-tMarkTerm)/1e6, " ms clock, ",
+-			int64(stwprocs)*(tScan-tSweepTerm)/1e6,
+-			"+", (tInstallWB-tScan)/1e6,
+-			"+", int64(stwprocs)*(tMark-tInstallWB)/1e6,
+-			"+", (tMarkTerm-tMark)/1e6, "+",
+-			int64(stwprocs)*(tEnd-tMarkTerm)/1e6, " ms cpu, ",
++			sweepTermCpu/1e6,
++			"+", scanCpu/1e6,
++			"+", installWBCpu/1e6,
++			"+", markCpu/1e6,
++			"+", markTermCpu/1e6, " ms cpu, ",
+ 			heap0>>20, "->", heap1>>20, " MB, ",
+ 			maxprocs, " P")
+ 		if mode != gcBackgroundMode {
+diff --git a/src/runtime/proc1.go b/src/runtime/proc1.go
+index 7fa519dd70..b8ea36c5ba 100644
+--- a/src/runtime/proc1.go
++++ b/src/runtime/proc1.go
+@@ -2478,6 +2478,13 @@ func procresize(nprocs int32) *p {
+ 		traceGomaxprocs(nprocs)
+ 	}
+ 
++	// update statistics
++	now := nanotime()
++	if sched.procresizetime != 0 {
++		sched.totaltime += int64(old) * (now - sched.procresizetime)
++	}
++	sched.procresizetime = now
++
+ 	// initialize new P's
+ 	for i := int32(0); i < nprocs; i++ {
+ 		pp := allp[i]
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 0d3e542882..6a2c52143f 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -421,6 +421,9 @@ type schedt struct {
+ 	lastpoll   uint64
+ 
+ 	profilehz int32 // cpu profiling rate
++
++	procresizetime int64 // nanotime() of last change to gomaxprocs
++	totaltime      int64 // ∫gomaxprocs dt up to procresizetime
+ }
+ 
+ // The m->locked word holds two pieces of state counting active calls to LockOSThread/lockOSThread.

@@ -9,7 +9,129 @@ Date:   Fri Jan 8 17:17:53 2016 +0000
     Change-Id: I9bc089e9f2296805ef055b98e8c86ba73af30226
     Reviewed-on: https://go-review.googlesource.com/18439
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/net/ip_test.go | 45 ---------------------------------------------
  src/net/lookup.go  | 21 ---------------------
  2 files changed, 66 deletions(-)
+
+diff --git a/src/net/ip_test.go b/src/net/ip_test.go
+index 69ef5a1ae5..3d95a73c09 100644
+--- a/src/net/ip_test.go
++++ b/src/net/ip_test.go
+@@ -540,48 +540,3 @@ func TestIPAddrScope(t *testing.T) {
+ 		}
+ 	}
+ }
+-
+-func TestLookupBadName(t *testing.T) {
+-	// Check that we get the same error for invalid names regardless of lookup algorithm.
+-
+-	mode := ""
+-	check := func(fn string, err error) {
+-		if e, ok := err.(*DNSError); !ok || e.Err != "invalid domain name" {
+-			t.Errorf("%s: %s(\"!!!.local\") = %T(%v), want DNSError(invalid domain name)", mode, fn, err, err)
+-		}
+-	}
+-
+-	for i, fn := range []func() func(){forceGoDNS, forceCgoDNS} {
+-		fixup := fn()
+-		if fixup == nil {
+-			continue
+-		}
+-		mode = "netgo"
+-		if i == 1 {
+-			mode = "netcgo"
+-		}
+-
+-		_, err := LookupHost("!!!.local")
+-		check("LookupHost", err)
+-
+-		_, err = LookupIP("!!!.local")
+-		check("LookupIP", err)
+-
+-		_, err = LookupCNAME("!!!.local")
+-		check("LookupCNAME", err)
+-
+-		_, _, err = LookupSRV("x", "tcp", "!!!.local")
+-		check("LookupSRV", err)
+-
+-		_, err = LookupMX("!!!.local")
+-		check("LookupMX", err)
+-
+-		_, err = LookupNS("!!!.local")
+-		check("LookupNS", err)
+-
+-		_, err = LookupTXT("!!!.local")
+-		check("LookupTXT", err)
+-
+-		fixup()
+-	}
+-}
+diff --git a/src/net/lookup.go b/src/net/lookup.go
+index b5d77e02ea..7aa111ba92 100644
+--- a/src/net/lookup.go
++++ b/src/net/lookup.go
+@@ -33,9 +33,6 @@ func LookupHost(host string) (addrs []string, err error) {
+ 	if ip := ParseIP(host); ip != nil {
+ 		return []string{host}, nil
+ 	}
+-	if !isDomainName(host) {
+-		return nil, &DNSError{Err: "invalid domain name", Name: host}
+-	}
+ 	return lookupHost(host)
+ }
+ 
+@@ -50,9 +47,6 @@ func LookupIP(host string) (ips []IP, err error) {
+ 	if ip := ParseIP(host); ip != nil {
+ 		return []IP{ip}, nil
+ 	}
+-	if !isDomainName(host) {
+-		return nil, &DNSError{Err: "invalid domain name", Name: host}
+-	}
+ 	addrs, err := lookupIPMerge(host)
+ 	if err != nil {
+ 		return
+@@ -152,9 +146,6 @@ func LookupPort(network, service string) (port int, err error) {
+ // LookupHost or LookupIP directly; both take care of resolving
+ // the canonical name as part of the lookup.
+ func LookupCNAME(name string) (cname string, err error) {
+-	if !isDomainName(name) {
+-		return "", &DNSError{Err: "invalid domain name", Name: name}
+-	}
+ 	return lookupCNAME(name)
+ }
+ 
+@@ -168,33 +159,21 @@ func LookupCNAME(name string) (cname string, err error) {
+ // publishing SRV records under non-standard names, if both service
+ // and proto are empty strings, LookupSRV looks up name directly.
+ func LookupSRV(service, proto, name string) (cname string, addrs []*SRV, err error) {
+-	if !isDomainName(name) {
+-		return "", nil, &DNSError{Err: "invalid domain name", Name: name}
+-	}
+ 	return lookupSRV(service, proto, name)
+ }
+ 
+ // LookupMX returns the DNS MX records for the given domain name sorted by preference.
+ func LookupMX(name string) (mxs []*MX, err error) {
+-	if !isDomainName(name) {
+-		return nil, &DNSError{Err: "invalid domain name", Name: name}
+-	}
+ 	return lookupMX(name)
+ }
+ 
+ // LookupNS returns the DNS NS records for the given domain name.
+ func LookupNS(name string) (nss []*NS, err error) {
+-	if !isDomainName(name) {
+-		return nil, &DNSError{Err: "invalid domain name", Name: name}
+-	}
+ 	return lookupNS(name)
+ }
+ 
+ // LookupTXT returns the DNS TXT records for the given domain name.
+ func LookupTXT(name string) (txts []string, err error) {
+-	if !isDomainName(name) {
+-		return nil, &DNSError{Err: "invalid domain name", Name: name}
+-	}
+ 	return lookupTXT(name)
+ }
+ 

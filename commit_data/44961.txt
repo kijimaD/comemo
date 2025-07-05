@@ -12,7 +12,52 @@ Date:   Fri Sep 18 08:33:44 2020 -0400
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/load/pkg.go     | 9 ++++++---
  src/cmd/go/internal/modload/init.go | 1 -
  2 files changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index d06e65737d..077fdf25d3 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -420,13 +420,16 @@ type ImportPathError interface {
+ 	ImportPath() string
+ }
+ 
++var (
++	_ ImportPathError = (*importError)(nil)
++	_ ImportPathError = (*modload.ImportMissingError)(nil)
++)
++
+ type importError struct {
+ 	importPath string
+ 	err        error // created with fmt.Errorf
+ }
+ 
+-var _ ImportPathError = (*importError)(nil)
+-
+ func ImportErrorf(path, format string, args ...interface{}) ImportPathError {
+ 	err := &importError{importPath: path, err: fmt.Errorf(format, args...)}
+ 	if errStr := err.Error(); !strings.Contains(errStr, path) {
+@@ -882,7 +885,7 @@ var preloadWorkerCount = runtime.GOMAXPROCS(0)
+ // because of global mutable state that cannot safely be read and written
+ // concurrently. In particular, packageDataCache may be cleared by "go get"
+ // in GOPATH mode, and modload.loaded (accessed via modload.Lookup) may be
+-// modified by modload.ImportPaths (modload.ImportPaths).
++// modified by modload.ImportPaths.
+ type preload struct {
+ 	cancel chan struct{}
+ 	sema   chan struct{}
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index 2c95fa4263..7a62436e35 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -209,7 +209,6 @@ func Init() {
+ 	}
+ 
+ 	cfg.ModulesEnabled = true
+-	// load.ModDirImportPath = DirImportPath
+ 
+ 	if modRoot == "" {
+ 		// We're in module mode, but not inside a module.

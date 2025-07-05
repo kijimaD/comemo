@@ -14,6 +14,31 @@ Date:   Thu Aug 24 15:05:53 2017 +0200
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  doc/go_spec.html | 7 ++++---
  1 file changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 184b6960f4..6c0dc8bbd5 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1,6 +1,6 @@
+ <!--{
+ 	"Title": "The Go Programming Language Specification",
+-	"Subtitle": "Version of August 14, 2017",
++	"Subtitle": "Version of August 25, 2017",
+ 	"Path": "/ref/spec"
+ }-->
+ 
+@@ -4820,8 +4820,9 @@ in the TypeSwitchGuard.
+ </p>
+ 
+ <p>
+-The type in a case may be <a href="#Predeclared_identifiers"><code>nil</code></a>;
+-that case is used when the expression in the TypeSwitchGuard
++Instead of a type, a case may use the predeclared identifier
++<a href="#Predeclared_identifiers"><code>nil</code></a>;
++that case is selected when the expression in the TypeSwitchGuard
+ is a <code>nil</code> interface value.
+ There may be at most one <code>nil</code> case.
+ </p>

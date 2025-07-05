@@ -13,7 +13,7 @@ Date:   Thu Dec 6 09:21:30 2012 -0800
     R=rsc, rogpeppe
     CC=golang-dev
     https://golang.org/cl/6846131
-
+---
  src/pkg/exp/types/check.go            |   7 +-
  src/pkg/exp/types/const.go            |   2 +-
  src/pkg/exp/types/expr.go             | 166 ++++++++++++++++++-----
@@ -26,3 +26,998 @@ Date:   Thu Dec 6 09:21:30 2012 -0800
  src/pkg/exp/types/universe.go         |   8 +-
  src/pkg/go/parser/parser.go           |   2 +-
  11 files changed, 592 insertions(+), 96 deletions(-)
+
+diff --git a/src/pkg/exp/types/check.go b/src/pkg/exp/types/check.go
+index 07c16d58e9..af2d0c64d1 100644
+--- a/src/pkg/exp/types/check.go
++++ b/src/pkg/exp/types/check.go
+@@ -188,10 +188,13 @@ func (check *checker) object(obj *ast.Object, cycleOk bool) {
+ 
+ 	case ast.Fun:
+ 		fdecl := obj.Decl.(*ast.FuncDecl)
+-		check.collectParams(fdecl.Recv) // ensure method base is type-checked
++		check.collectParams(fdecl.Recv, false) // ensure method base is type-checked
+ 		ftyp := check.typ(fdecl.Type, cycleOk).(*Signature)
+ 		obj.Type = ftyp
+-		check.function(ftyp, fdecl.Body)
++		// functions implemented elsewhere (say in assembly) have no body
++		if fdecl.Body != nil {
++			check.function(ftyp, fdecl.Body)
++		}
+ 
+ 	default:
+ 		panic("unreachable")
+diff --git a/src/pkg/exp/types/const.go b/src/pkg/exp/types/const.go
+index 5501040777..c678e4749b 100644
+--- a/src/pkg/exp/types/const.go
++++ b/src/pkg/exp/types/const.go
+@@ -278,7 +278,7 @@ func isRepresentableConst(x interface{}, as BasicKind) bool {
+ 		return as == String || as == UntypedString
+ 
+ 	case nilType:
+-		return as == UntypedNil
++		return as == UntypedNil || as == UnsafePointer
+ 
+ 	default:
+ 		unreachable()
+diff --git a/src/pkg/exp/types/expr.go b/src/pkg/exp/types/expr.go
+index e2e7b6deb6..e1f627b98f 100644
+--- a/src/pkg/exp/types/expr.go
++++ b/src/pkg/exp/types/expr.go
+@@ -12,20 +12,36 @@ import (
+ 	"strconv"
+ )
+ 
+-// TODO(gri)
++// TODO(gri) Cleanups
+ // - don't print error messages referring to invalid types (they are likely spurious errors)
+ // - simplify invalid handling: maybe just use Typ[Invalid] as marker, get rid of invalid Mode for values?
+ // - rethink error handling: should all callers check if x.mode == valid after making a call?
++// - at the moment, iota is passed around almost everywhere - in many places we know it cannot be used
+ 
+-func (check *checker) collectParams(list *ast.FieldList) (params ObjList, isVariadic bool) {
++// TODO(gri) API issues
++// - clients need access to result type information (tuples)
++// - clients need access to constant values
++// - clients need access to built-in type information
++
++// TODO(gri) Bugs
++// - expression hints are (correctly) used untyped for composite literal components, but also
++//   in possibly overlapping use as hints for shift expressions - investigate
++
++func (check *checker) collectParams(list *ast.FieldList, variadicOk bool) (params ObjList, isVariadic bool) {
+ 	if list == nil {
+ 		return
+ 	}
+-	for _, field := range list.List {
++	var last *ast.Object
++	for i, field := range list.List {
+ 		ftype := field.Type
+-		if t, ok := ftype.(*ast.Ellipsis); ok {
++		if t, _ := ftype.(*ast.Ellipsis); t != nil {
+ 			ftype = t.Elt
+-			isVariadic = true
++			if variadicOk && i == len(list.List)-1 {
++				isVariadic = true
++			} else {
++				check.invalidAST(field.Pos(), "... not permitted")
++				// ok to continue
++			}
+ 		}
+ 		// the parser ensures that f.Tag is nil and we don't
+ 		// care if a constructed AST contains a non-nil tag
+@@ -36,14 +52,26 @@ func (check *checker) collectParams(list *ast.FieldList) (params ObjList, isVari
+ 				obj := name.Obj
+ 				obj.Type = typ
+ 				params = append(params, obj)
++				last = obj
+ 			}
+ 		} else {
+ 			// anonymous parameter
+ 			obj := ast.NewObj(ast.Var, "")
+ 			obj.Type = typ
+ 			params = append(params, obj)
++			last = obj
+ 		}
+ 	}
++	// For a variadic function, change the last parameter's object type
++	// from T to []T (this is the type used inside the function), but
++	// keep a copy of the object with the original type T in the params
++	// list (this is the externally visible type).
++	if isVariadic {
++		// if isVariadic is set, last must exist and len(params) > 0
++		copy := *last
++		last.Type = &Slice{Elt: last.Type.(Type)}
++		params[len(params)-1] = &copy
++	}
+ 	return
+ }
+ 
+@@ -118,9 +146,9 @@ func (check *checker) collectFields(list *ast.FieldList, cycleOk bool) (fields [
+ 			// anonymous field
+ 			switch t := deref(typ).(type) {
+ 			case *Basic:
+-				fields = append(fields, &StructField{t.Name, t, tag, true})
++				fields = append(fields, &StructField{t.Name, typ, tag, true})
+ 			case *NamedType:
+-				fields = append(fields, &StructField{t.Obj.Name, t, tag, true})
++				fields = append(fields, &StructField{t.Obj.Name, typ, tag, true})
+ 			default:
+ 				if typ != Typ[Invalid] {
+ 					check.invalidAST(f.Type.Pos(), "anonymous field type %s must be named", typ)
+@@ -198,7 +226,7 @@ func (check *checker) unary(x *operand, op token.Token) {
+ 		}
+ 		// Typed constants must be representable in
+ 		// their type after each constant operation.
+-		check.isRepresentable(x, x.typ.(*Basic))
++		check.isRepresentable(x, underlying(x.typ).(*Basic))
+ 		return
+ 	}
+ 
+@@ -526,7 +554,30 @@ func (check *checker) indexedElts(elts []ast.Expr, typ Type, length int64, iota
+ 	return max
+ }
+ 
+-func (check *checker) callRecord(x *operand) {
++func (check *checker) argument(sig *Signature, i int, arg ast.Expr) {
++	var par *ast.Object
++	if n := len(sig.Params); i < n {
++		par = sig.Params[i]
++	} else if sig.IsVariadic {
++		par = sig.Params[n-1]
++	} else {
++		check.errorf(arg.Pos(), "too many arguments")
++		return
++	}
++
++	// TODO(gri) deal with ... last argument
++	var z, x operand
++	z.mode = variable
++	z.expr = nil            // TODO(gri) can we do better here?
++	z.typ = par.Type.(Type) // TODO(gri) should become something like checkObj(&z, ...) eventually
++	check.expr(&x, arg, z.typ, -1)
++	if x.mode == invalid {
++		return // ignore this argument
++	}
++	check.assignOperand(&z, &x)
++}
++
++func (check *checker) recordType(x *operand) {
+ 	if x.mode != invalid {
+ 		check.mapf(x.expr, x.typ)
+ 	}
+@@ -545,7 +596,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
+ 	}
+ 
+ 	if check.mapf != nil {
+-		defer check.callRecord(x)
++		defer check.recordType(x)
+ 	}
+ 
+ 	switch e := e.(type) {
+@@ -856,6 +907,14 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
+ 			}
+ 			x.typ = typ.Elt
+ 
++		case *Pointer:
++			if typ, _ := underlying(typ.Base).(*Array); typ != nil {
++				valid = true
++				length = typ.Len
++				x.mode = variable
++				x.typ = typ.Elt
++			}
++
+ 		case *Slice:
+ 			valid = true
+ 			x.mode = variable
+@@ -870,6 +929,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
+ 			}
+ 			x.mode = valueok
+ 			x.typ = typ.Elt
++			x.expr = e
+ 			return
+ 		}
+ 
+@@ -915,6 +975,14 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
+ 			}
+ 			x.typ = &Slice{Elt: typ.Elt}
+ 
++		case *Pointer:
++			if typ, _ := underlying(typ.Base).(*Array); typ != nil {
++				valid = true
++				length = typ.Len + 1 // +1 for slice
++				x.mode = variable
++				x.typ = &Slice{Elt: typ.Elt}
++			}
++
+ 		case *Slice:
+ 			valid = true
+ 			x.mode = variable
+@@ -945,14 +1013,36 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
+ 
+ 	case *ast.TypeAssertExpr:
+ 		check.expr(x, e.X, hint, iota)
+-		if _, ok := underlying(x.typ).(*Interface); !ok {
+-			check.invalidOp(e.X.Pos(), "non-interface type %s in type assertion", x.typ)
++		if x.mode == invalid {
++			goto Error
++		}
++		var T *Interface
++		if T, _ = underlying(x.typ).(*Interface); T == nil {
++			check.invalidOp(x.pos(), "%s is not an interface", x)
++			goto Error
++		}
++		// x.(type) expressions are handled explicitly in type switches
++		if e.Type == nil {
++			check.errorf(e.Pos(), "use of .(type) outside type switch")
++			goto Error
++		}
++		typ := check.typ(e.Type, false)
++		if typ == Typ[Invalid] {
++			goto Error
++		}
++		if method, wrongType := missingMethod(typ, T); method != nil {
++			var msg string
++			if wrongType {
++				msg = "%s cannot have dynamic type %s (wrong type for method %s)"
++			} else {
++				msg = "%s cannot have dynamic type %s (missing method %s)"
++			}
++			check.errorf(e.Type.Pos(), msg, x, typ, method.Name)
+ 			// ok to continue
+ 		}
+-		// TODO(gri) some type asserts are compile-time decidable
+ 		x.mode = valueok
+ 		x.expr = e
+-		x.typ = check.typ(e.Type, false)
++		x.typ = typ
+ 
+ 	case *ast.CallExpr:
+ 		check.exprOrType(x, e.Fun, nil, iota, false)
+@@ -962,21 +1052,11 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
+ 			check.conversion(x, e, x.typ, iota)
+ 		} else if sig, ok := underlying(x.typ).(*Signature); ok {
+ 			// check parameters
+-			// TODO(gri) complete this
+-			// - deal with various forms of calls
+-			// - handle variadic calls
+-			if len(sig.Params) == len(e.Args) {
+-				var z, x operand
+-				z.mode = variable
+-				for i, arg := range e.Args {
+-					z.expr = nil                      // TODO(gri) can we do better here?
+-					z.typ = sig.Params[i].Type.(Type) // TODO(gri) should become something like checkObj(&z, ...) eventually
+-					check.expr(&x, arg, z.typ, iota)
+-					if x.mode == invalid {
+-						goto Error
+-					}
+-					check.assignOperand(&z, &x)
+-				}
++			// TODO(gri)
++			// - deal with single multi-valued function arguments: f(g())
++			// - variadic functions only partially addressed
++			for i, arg := range e.Args {
++				check.argument(sig, i, arg)
+ 			}
+ 
+ 			// determine result
+@@ -1061,8 +1141,8 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
+ 		x.typ = &Struct{Fields: check.collectFields(e.Fields, cycleOk)}
+ 
+ 	case *ast.FuncType:
+-		params, isVariadic := check.collectParams(e.Params)
+-		results, _ := check.collectParams(e.Results)
++		params, isVariadic := check.collectParams(e.Params, true)
++		results, _ := check.collectParams(e.Results, false)
+ 		x.mode = typexpr
+ 		x.typ = &Signature{Recv: nil, Params: params, Results: results, IsVariadic: isVariadic}
+ 
+@@ -1114,10 +1194,7 @@ func (check *checker) expr(x *operand, e ast.Expr, hint Type, iota int) {
+ 	}
+ }
+ 
+-// expr is like rawExpr but reports an error if e doesn't represents a type.
+-// It returns e's type, or Typ[Invalid] if an error occured.
+-//
+-func (check *checker) typ(e ast.Expr, cycleOk bool) Type {
++func (check *checker) rawTyp(e ast.Expr, cycleOk, nilOk bool) Type {
+ 	var x operand
+ 	check.rawExpr(&x, e, nil, -1, cycleOk)
+ 	switch x.mode {
+@@ -1127,8 +1204,27 @@ func (check *checker) typ(e ast.Expr, cycleOk bool) Type {
+ 		check.errorf(x.pos(), "%s used as type", &x)
+ 	case typexpr:
+ 		return x.typ
++	case constant:
++		if nilOk && x.isNil() {
++			return nil
++		}
++		fallthrough
+ 	default:
+ 		check.errorf(x.pos(), "%s is not a type", &x)
+ 	}
+ 	return Typ[Invalid]
+ }
++
++// typOrNil is like rawExpr but reports an error if e doesn't represents a type or the predeclared value nil.
++// It returns e's type, nil, or Typ[Invalid] if an error occured.
++//
++func (check *checker) typOrNil(e ast.Expr, cycleOk bool) Type {
++	return check.rawTyp(e, cycleOk, true)
++}
++
++// typ is like rawExpr but reports an error if e doesn't represents a type.
++// It returns e's type, or Typ[Invalid] if an error occured.
++//
++func (check *checker) typ(e ast.Expr, cycleOk bool) Type {
++	return check.rawTyp(e, cycleOk, false)
++}
+diff --git a/src/pkg/exp/types/operand.go b/src/pkg/exp/types/operand.go
+index 35c5fe3d51..1a5e5172a8 100644
+--- a/src/pkg/exp/types/operand.go
++++ b/src/pkg/exp/types/operand.go
+@@ -119,25 +119,6 @@ func (x *operand) setConst(tok token.Token, lit string) {
+ 	}
+ }
+ 
+-// implements reports whether x implements interface T.
+-func (x *operand) implements(T *Interface) bool {
+-	if x.mode == invalid {
+-		return true // avoid spurious errors
+-	}
+-
+-	// x implements T if it implements all methods of T.
+-	// TODO(gri): distinguish pointer and non-pointer receivers
+-	for _, m := range T.Methods {
+-		mode, typ := lookupField(x.typ, m.Name)
+-		if mode == invalid || !isIdentical(typ, m.Type.(Type)) {
+-			// TODO(gri) should report which method is missing
+-			return false
+-		}
+-	}
+-
+-	return true
+-}
+-
+ // isNil reports whether x is the predeclared nil constant.
+ func (x *operand) isNil() bool {
+ 	return x.mode == constant && x.val == nilConst
+@@ -170,8 +151,10 @@ func (x *operand) isAssignable(T Type) bool {
+ 	}
+ 
+ 	// T is an interface type and x implements T
+-	if Ti, ok := Tu.(*Interface); ok && x.implements(Ti) {
+-		return true
++	if Ti, ok := Tu.(*Interface); ok {
++		if m, _ := missingMethod(x.typ, Ti); m == nil {
++			return true
++		}
+ 	}
+ 
+ 	// x is a bidirectional channel value, T is a channel
+diff --git a/src/pkg/exp/types/predicates.go b/src/pkg/exp/types/predicates.go
+index 503027e2d9..2c1a99192a 100644
+--- a/src/pkg/exp/types/predicates.go
++++ b/src/pkg/exp/types/predicates.go
+@@ -6,6 +6,8 @@
+ 
+ package types
+ 
++import "go/ast"
++
+ func isNamed(typ Type) bool {
+ 	if _, ok := typ.(*Basic); ok {
+ 		return ok
+@@ -247,3 +249,34 @@ func defaultType(typ Type) Type {
+ 	}
+ 	return typ
+ }
++
++// missingMethod returns (nil, false) if typ implements T, otherwise
++// it returns the first missing method required by T and whether it
++// is missing or simply has the wrong type.
++//
++func missingMethod(typ Type, T *Interface) (method *ast.Object, wrongType bool) {
++	// TODO(gri): distinguish pointer and non-pointer receivers
++	// an interface type implements T if it has no methods with conflicting signatures
++	// Note: This is stronger than the current spec. Should the spec require this?
++	if ityp, _ := underlying(typ).(*Interface); ityp != nil {
++		for _, m := range T.Methods {
++			mode, sig := lookupField(ityp, m.Name) // TODO(gri) no need to go via lookupField
++			if mode != invalid && !isIdentical(sig, m.Type.(Type)) {
++				return m, true
++			}
++		}
++		return
++	}
++
++	// a concrete type implements T if it implements all methods of T.
++	for _, m := range T.Methods {
++		mode, sig := lookupField(typ, m.Name)
++		if mode == invalid {
++			return m, false
++		}
++		if !isIdentical(sig, m.Type.(Type)) {
++			return m, true
++		}
++	}
++	return
++}
+diff --git a/src/pkg/exp/types/stmt.go b/src/pkg/exp/types/stmt.go
+index dc172c35bc..e2c6448deb 100644
+--- a/src/pkg/exp/types/stmt.go
++++ b/src/pkg/exp/types/stmt.go
+@@ -27,8 +27,8 @@ func (check *checker) assignOperand(z, x *operand) {
+ 	}
+ }
+ 
+-// assign1to1 typechecks a single assignment of the form lhs := rhs (if rhs != nil),
+-// or lhs := x (if rhs == nil). If decl is set, the lhs operand must be an identifier.
++// assign1to1 typechecks a single assignment of the form lhs = rhs (if rhs != nil),
++// or lhs = x (if rhs == nil). If decl is set, the lhs operand must be an identifier.
+ // If its type is not set, it is deduced from the type or value of x. If lhs has a
+ // type it is used as a hint when evaluating rhs, if present.
+ //
+@@ -226,19 +226,36 @@ func (check *checker) stmtList(list []ast.Stmt) {
+ 	}
+ }
+ 
+-func (check *checker) call(c ast.Expr) {
+-	call, _ := c.(*ast.CallExpr)
+-	if call == nil {
+-		// For go/defer, the parser makes sure that we have a function call,
+-		// so if we don't, the AST was created incorrectly elsewhere.
+-		// TODO(gri) consider removing the checks from the parser.
+-		check.invalidAST(c.Pos(), "%s is not a function call", c)
+-		return
+-	}
++func (check *checker) call(call *ast.CallExpr) {
+ 	var x operand
+ 	check.rawExpr(&x, call, nil, -1, false) // don't check if value is used
+-	// TODO(gri) If a builtin is called, the builtin must be valid in statement
+-	//           context. However, the spec doesn't say that explicitly.
++	// TODO(gri) If a builtin is called, the builtin must be valid in statement context.
++}
++
++func (check *checker) multipleDefaults(list []ast.Stmt) {
++	var first ast.Stmt
++	for _, s := range list {
++		var d ast.Stmt
++		switch c := s.(type) {
++		case *ast.CaseClause:
++			if len(c.List) == 0 {
++				d = s
++			}
++		case *ast.CommClause:
++			if c.Comm == nil {
++				d = s
++			}
++		default:
++			check.invalidAST(s.Pos(), "case/communication clause expected")
++		}
++		if d != nil {
++			if first != nil {
++				check.errorf(d.Pos(), "multiple defaults (first at %s)", first.Pos())
++			} else {
++				first = d
++			}
++		}
++	}
+ }
+ 
+ // stmt typechecks statement s.
+@@ -280,7 +297,7 @@ func (check *checker) stmt(s ast.Stmt) {
+ 		}
+ 		check.rawExpr(&x, s.X, nil, -1, false)
+ 		if x.mode == typexpr {
+-			check.errorf(x.pos(), "%s is not an expression", x)
++			check.errorf(x.pos(), "%s is not an expression", &x)
+ 		}
+ 
+ 	case *ast.SendStmt:
+@@ -418,31 +435,122 @@ func (check *checker) stmt(s ast.Stmt) {
+ 			x.typ = Typ[UntypedBool]
+ 			x.val = true
+ 		}
++
++		check.multipleDefaults(s.Body.List)
+ 		for _, s := range s.Body.List {
+-			if clause, ok := s.(*ast.CaseClause); ok {
+-				for _, expr := range clause.List {
+-					var y operand
+-					check.expr(&y, expr, nil, -1)
+-					// TODO(gri) x and y must be comparable
+-				}
+-				check.stmtList(clause.Body)
+-			} else {
+-				check.errorf(s.Pos(), "invalid AST: case clause expected")
++			clause, _ := s.(*ast.CaseClause)
++			if clause == nil {
++				continue // error reported before
+ 			}
++			for _, expr := range clause.List {
++				var y operand
++				check.expr(&y, expr, nil, -1)
++				// TODO(gri) x and y must be comparable
++			}
++			check.stmtList(clause.Body)
+ 		}
+ 
+ 	case *ast.TypeSwitchStmt:
+-		unimplemented()
++		check.optionalStmt(s.Init)
++
++		// A type switch guard must be of the form:
++		//
++		//     TypeSwitchGuard = [ identifier ":=" ] PrimaryExpr "." "(" "type" ")" .
++		//
++		// The parser is checking syntactic correctness;
++		// remaining syntactic errors are considered AST errors here.
++		// TODO(gri) better factoring of error handling (invalid ASTs)
++		//
++		var lhs *ast.Object // lhs identifier object or nil
++		var rhs ast.Expr
++		switch guard := s.Assign.(type) {
++		case *ast.ExprStmt:
++			rhs = guard.X
++		case *ast.AssignStmt:
++			if len(guard.Lhs) != 1 || guard.Tok != token.DEFINE || len(guard.Rhs) != 1 {
++				check.invalidAST(s.Pos(), "incorrect form of type switch guard")
++				return
++			}
++			ident, _ := guard.Lhs[0].(*ast.Ident)
++			if ident == nil {
++				check.invalidAST(s.Pos(), "incorrect form of type switch guard")
++				return
++			}
++			lhs = ident.Obj
++			rhs = guard.Rhs[0]
++		default:
++			check.invalidAST(s.Pos(), "incorrect form of type switch guard")
++			return
++		}
++
++		// rhs must be of the form: expr.(type) and expr must be an interface
++		expr, _ := rhs.(*ast.TypeAssertExpr)
++		if expr == nil || expr.Type != nil {
++			check.invalidAST(s.Pos(), "incorrect form of type switch guard")
++			return
++		}
++		var x operand
++		check.expr(&x, expr.X, nil, -1)
++		if x.mode == invalid {
++			return
++		}
++		var T *Interface
++		if T, _ = underlying(x.typ).(*Interface); T == nil {
++			check.errorf(x.pos(), "%s is not an interface", &x)
++			return
++		}
++
++		check.multipleDefaults(s.Body.List)
++		for _, s := range s.Body.List {
++			clause, _ := s.(*ast.CaseClause)
++			if clause == nil {
++				continue // error reported before
++			}
++			// Check each type in this type switch case.
++			var typ Type
++			for _, expr := range clause.List {
++				typ = check.typOrNil(expr, false)
++				if typ != nil && typ != Typ[Invalid] {
++					if method, wrongType := missingMethod(typ, T); method != nil {
++						var msg string
++						if wrongType {
++							msg = "%s cannot have dynamic type %s (wrong type for method %s)"
++						} else {
++							msg = "%s cannot have dynamic type %s (missing method %s)"
++						}
++						check.errorf(expr.Pos(), msg, &x, typ, method.Name)
++						// ok to continue
++					}
++				}
++			}
++			// If lhs exists, set its type for each clause.
++			if lhs != nil {
++				// In clauses with a case listing exactly one type, the variable has that type;
++				// otherwise, the variable has the type of the expression in the TypeSwitchGuard.
++				if len(clause.List) != 1 || typ == nil {
++					typ = x.typ
++				}
++				lhs.Type = typ
++			}
++			check.stmtList(clause.Body)
++		}
++
++		// There is only one object (lhs) associated with a lhs identifier, but that object
++		// assumes different types for different clauses. Set it to nil when we are done so
++		// that the type cannot be used by mistake.
++		if lhs != nil {
++			lhs.Type = nil
++		}
+ 
+ 	case *ast.SelectStmt:
++		check.multipleDefaults(s.Body.List)
+ 		for _, s := range s.Body.List {
+-			c, ok := s.(*ast.CommClause)
+-			if !ok {
+-				check.invalidAST(s.Pos(), "communication clause expected")
+-				continue
++			clause, _ := s.(*ast.CommClause)
++			if clause == nil {
++				continue // error reported before
+ 			}
+-			check.optionalStmt(c.Comm) // TODO(gri) check correctness of c.Comm (must be Send/RecvStmt)
+-			check.stmtList(c.Body)
++			check.optionalStmt(clause.Comm) // TODO(gri) check correctness of c.Comm (must be Send/RecvStmt)
++			check.stmtList(clause.Body)
+ 		}
+ 
+ 	case *ast.ForStmt:
+@@ -458,7 +566,79 @@ func (check *checker) stmt(s ast.Stmt) {
+ 		check.stmt(s.Body)
+ 
+ 	case *ast.RangeStmt:
+-		unimplemented()
++		// check expression to iterate over
++		decl := s.Tok == token.DEFINE
++		var x operand
++		check.expr(&x, s.X, nil, -1)
++		if x.mode == invalid {
++			// if we don't have a declaration, we can still check the loop's body
++			if !decl {
++				check.stmt(s.Body)
++			}
++			return
++		}
++
++		// determine key/value types
++		var key, val Type
++		switch typ := underlying(x.typ).(type) {
++		case *Basic:
++			if isString(typ) {
++				key = Typ[UntypedInt]
++				val = Typ[UntypedRune]
++			}
++		case *Array:
++			key = Typ[UntypedInt]
++			val = typ.Elt
++		case *Slice:
++			key = Typ[UntypedInt]
++			val = typ.Elt
++		case *Pointer:
++			if typ, _ := underlying(typ.Base).(*Array); typ != nil {
++				key = Typ[UntypedInt]
++				val = typ.Elt
++			}
++		case *Map:
++			key = typ.Key
++			val = typ.Elt
++		case *Chan:
++			key = typ.Elt
++			if typ.Dir&ast.RECV == 0 {
++				check.errorf(x.pos(), "cannot range over send-only channel %s", &x)
++				// ok to continue
++			}
++			if s.Value != nil {
++				check.errorf(s.Value.Pos(), "iteration over %s permits only one iteration variable", &x)
++				// ok to continue
++			}
++		}
++
++		if key == nil {
++			check.errorf(x.pos(), "cannot range over %s", &x)
++			// if we don't have a declaration, we can still check the loop's body
++			if !decl {
++				check.stmt(s.Body)
++			}
++			return
++		}
++
++		// check assignment to/declaration of iteration variables
++		// TODO(gri) The error messages/positions are not great here,
++		//           they refer to the expression in the range clause.
++		//           Should give better messages w/o too much code
++		//           duplication (assignment checking).
++		if s.Key != nil {
++			x.typ = key
++			check.assign1to1(s.Key, nil, &x, decl, -1)
++		} else {
++			check.invalidAST(s.Pos(), "range clause requires index iteration variable")
++			// ok to continue
++		}
++		if s.Value != nil {
++			x.typ = val
++			check.assign1to1(s.Value, nil, &x, decl, -1)
++		}
++
++		check.stmt(s.Body)
+ 
+ 	default:
+ 		check.errorf(s.Pos(), "invalid statement")
+diff --git a/src/pkg/exp/types/testdata/decls1.src b/src/pkg/exp/types/testdata/decls1.src
+index 16da045ef2..be927091c1 100644
+--- a/src/pkg/exp/types/testdata/decls1.src
++++ b/src/pkg/exp/types/testdata/decls1.src
+@@ -73,7 +73,7 @@ var (
+ 
+ // Various more complex expressions
+ var (
+-	u1 = x /* ERROR "non-interface type" */ .(int)
++	u1 = x /* ERROR "not an interface" */ .(int)
+ 	u2 = iface.([]int)
+ 	u3 = iface.(a /* ERROR "not a type" */ )
+ 	u4, ok = iface.(int)
+diff --git a/src/pkg/exp/types/testdata/expr3.src b/src/pkg/exp/types/testdata/expr3.src
+index 816f21e472..a5ea4d2b82 100644
+--- a/src/pkg/exp/types/testdata/expr3.src
++++ b/src/pkg/exp/types/testdata/expr3.src
+@@ -75,6 +75,17 @@ func indexes() {
+ 	_ = a[: 11 /* ERROR "index .* out of bounds" */ ]
+ 	_ = a[: 1 /* ERROR "stupid index" */ <<100]
+ 
++	pa := &a
++	_ = pa[9]
++	_ = pa[10 /* ERROR "index .* out of bounds" */ ]
++	_ = pa[1 /* ERROR "stupid index" */ <<100]
++	_ = pa[10:]
++	_ = pa[:10]
++	_ = pa[10:10]
++	_ = pa[11 /* ERROR "index .* out of bounds" */ :]
++	_ = pa[: 11 /* ERROR "index .* out of bounds" */ ]
++	_ = pa[: 1 /* ERROR "stupid index" */ <<100]
++
+ 	var b [0]int
+ 	_ = b[0 /* ERROR "index .* out of bounds" */ ]
+ 	_ = b[:]
+@@ -206,6 +217,15 @@ func array_literals() {
+ 
+ 	a4 := [...]complex128{0, 1, 2, 1<<10-2: -1i, 1i, 400: 10, 12, 14}
+ 	assert(len(a4) == 1024)
++
++	// from the spec
++	type Point struct { x, y float32 }
++	_ = [...]Point{Point{1.5, -3.5}, Point{0, 0}}
++	_ = [...]Point{{1.5, -3.5}, {0, 0}}
++	_ = [][]int{[]int{1, 2, 3}, []int{4, 5}}
++	_ = [][]int{{1, 2, 3}, {4, 5}}
++	_ = [...]*Point{&Point{1.5, -3.5}, &Point{0, 0}}
++	_ = [...]*Point{{1.5, -3.5}, {0, 0}}
+ }
+ 
+ func slice_literals() {
+@@ -236,4 +256,33 @@ func map_literals() {
+ 	_ = M0{1 /* ERROR "cannot use .* as string key" */ : 2}
+ 	_ = M0{"foo": "bar" /* ERROR "cannot use .* as int value" */ }
+ 	_ = M0{"foo": 1, "bar": 2, "foo" /* ERROR "duplicate key" */ : 3 }
+-}
+\ No newline at end of file
++}
++
++type I interface {
++	m()
++}
++
++type I2 interface {
++	m(int)
++}
++
++type T1 struct{}
++type T2 struct{}
++
++func (T2) m(int) {}
++
++func type_asserts() {
++	var x int
++	_ = x /* ERROR "not an interface" */ .(int)
++
++	var e interface{}
++	var ok bool
++	x, ok = e.(int)
++
++	var t I
++	_ = t /* ERROR "use of .* outside type switch" */ .(type)
++	_ = t.(T)
++	_ = t.(T1 /* ERROR "missing method m" */ )
++	_ = t.(T2 /* ERROR "wrong type for method m" */ )
++	_ = t.(I2 /* ERROR "wrong type for method m" */ )
++}
+diff --git a/src/pkg/exp/types/testdata/stmt0.src b/src/pkg/exp/types/testdata/stmt0.src
+index e13e3280f1..d3cc3acce4 100644
+--- a/src/pkg/exp/types/testdata/stmt0.src
++++ b/src/pkg/exp/types/testdata/stmt0.src
+@@ -71,6 +71,10 @@ func _selects() {
+ 		x = t
+ 	case <-sc /* ERROR "cannot receive from send-only channel" */ :
+ 	}
++	select {
++	default:
++	default /* ERROR "multiple defaults" */ :
++	}
+ }
+ 
+ func _gos() {
+@@ -88,3 +92,149 @@ func _defers() {
+ 	defer close(c)
+ 	defer len(c) // TODO(gri) this should not be legal
+ }
++
++func _switches() {
++	var x int
++
++	switch x {
++	default:
++	default /* ERROR "multiple defaults" */ :
++	}
++
++	// TODO(gri) more tests
++}
++
++type I interface {
++	m()
++}
++
++type I2 interface {
++	m(int)
++}
++
++type T struct{}
++type T1 struct{}
++type T2 struct{}
++
++func (T) m() {}
++func (T2) m(int) {}
++
++func _typeswitches() {
++	var i int
++	var x interface{}
++
++	switch x.(type) {}
++	switch (x /* ERROR "outside type switch" */ .(type)) {}
++
++	switch x.(type) {
++	default:
++	default /* ERROR "multiple defaults" */ :
++	}
++
++	switch x := x.(type) {}
++
++	switch x := x.(type) {
++	case int:
++		var y int = x
++	}
++
++	switch x := i /* ERROR "not an interface" */ .(type) {}
++
++	switch t := x.(type) {
++	case nil:
++		var v bool = t /* ERROR "cannot assign" */
++	case int:
++		var v int = t
++	case float32, complex64:
++		var v float32 = t /* ERROR "cannot assign" */
++	default:
++		var v float32 = t /* ERROR "cannot assign" */
++	}
++
++	var t I
++	switch t.(type) {
++	case T:
++	case T1 /* ERROR "missing method m" */ :
++	case T2 /* ERROR "wrong type for method m" */ :
++	case I2 /* ERROR "wrong type for method m" */ :
++	}
++}
++
++func _rangeloops() {
++	var (
++		x int
++		a [10]float32
++		b []string
++		p *[10]complex128
++		pp **[10]complex128
++		s string
++		m map[int]bool
++		c chan int
++		sc chan<- int
++		rc <-chan int
++	)
++
++	for _ = range x /* ERROR "cannot range over" */ {}
++	for i := range x /* ERROR "cannot range over" */ {}
++
++	for i := range a {
++		var ii int
++		ii = i
++	}
++	for i, x := range a {
++		var ii int
++		ii = i
++		var xx float64
++		xx = x /* ERROR "cannot assign" */
++	}
++	var ii int
++	var xx float32
++	for ii, xx := range a {}
++
++	for i := range b {
++		var ii int
++		ii = i
++	}
++	for i, x := range b {
++		var ii int
++		ii = i
++		var xx string
++		xx = x
++	}
++
++	for i := range s {
++		var ii int
++		ii = i
++	}
++	for i, x := range s {
++		var ii int
++		ii = i
++		var xx rune
++		xx = x
++	}
++
++	for _, x := range p {
++		var xx complex128
++		xx = x
++	}
++
++	for _, x := range pp /* ERROR "cannot range over" */ {}
++
++	for k := range m {
++		var kk int32
++		kk = k /* ERROR "cannot assign" */
++	}
++	for k, v := range m {
++		var kk int
++		kk = k
++		if v {}
++	}
++
++	for _, _ /* ERROR "only one iteration variable" */ = range c {}
++	for e := range c {
++		var ee int
++		ee = e
++	}
++	for _ = range sc /* ERROR "cannot range over send-only channel" */ {}
++	for _ = range rc {}
++}
+\ No newline at end of file
+diff --git a/src/pkg/exp/types/universe.go b/src/pkg/exp/types/universe.go
+index bb8b6a2bda..0fbaa3329d 100644
+--- a/src/pkg/exp/types/universe.go
++++ b/src/pkg/exp/types/universe.go
+@@ -116,10 +116,12 @@ func init() {
+ 
+ 	// error type
+ 	{
++		res := ast.NewObj(ast.Var, "")
++		res.Type = Typ[String]
++		err := ast.NewObj(ast.Fun, "Error")
++		err.Type = &Signature{Results: ObjList{res}}
+ 		obj := def(ast.Typ, "error")
+-		// TODO(gri) set up correct interface type
+-		typ := &NamedType{Underlying: &Interface{}, Obj: obj}
+-		obj.Type = typ
++		obj.Type = &NamedType{Underlying: &Interface{Methods: ObjList{err}}, Obj: obj}
+ 	}
+ 
+ 	// predeclared constants
+diff --git a/src/pkg/go/parser/parser.go b/src/pkg/go/parser/parser.go
+index a0655b9489..00757e0d75 100644
+--- a/src/pkg/go/parser/parser.go
++++ b/src/pkg/go/parser/parser.go
+@@ -1803,7 +1803,7 @@ func (p *parser) parseSwitchStmt() ast.Stmt {
+ 				//
+ 				//	switch t := 0; t := x.(T) { ... }
+ 				//
+-				// (this code is not valid Go because the first t will
++				// (this code is not valid Go because the first t
+ 				// cannot be accessed and thus is never used, the extra
+ 				// scope is needed for the correct error message).
+ 				//

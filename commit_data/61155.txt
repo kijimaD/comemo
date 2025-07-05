@@ -14,7 +14,7 @@ Date:   Mon Oct 7 20:53:01 2024 +0000
     Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/cmd/compile/internal/arm64/ssa.go              | 27 ++++++++++----
  src/cmd/compile/internal/ssa/_gen/ARM64.rules      |  4 +-
  src/cmd/compile/internal/ssa/_gen/ARM64Ops.go      |  2 +
@@ -27,3 +27,294 @@ Date:   Mon Oct 7 20:53:01 2024 +0000
  src/internal/runtime/atomic/atomic_arm64.s         | 24 ++++++++++++
  src/internal/runtime/atomic/xchg8_test.go          |  2 +-
  11 files changed, 106 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/compile/internal/arm64/ssa.go b/src/cmd/compile/internal/arm64/ssa.go
+index 900e7016a3..e2c4873192 100644
+--- a/src/cmd/compile/internal/arm64/ssa.go
++++ b/src/cmd/compile/internal/arm64/ssa.go
+@@ -578,15 +578,22 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg()
+ 	case ssa.OpARM64LoweredAtomicExchange64,
+-		ssa.OpARM64LoweredAtomicExchange32:
++		ssa.OpARM64LoweredAtomicExchange32,
++		ssa.OpARM64LoweredAtomicExchange8:
+ 		// LDAXR	(Rarg0), Rout
+ 		// STLXR	Rarg1, (Rarg0), Rtmp
+ 		// CBNZ		Rtmp, -2(PC)
+-		ld := arm64.ALDAXR
+-		st := arm64.ASTLXR
+-		if v.Op == ssa.OpARM64LoweredAtomicExchange32 {
++		var ld, st obj.As
++		switch v.Op {
++		case ssa.OpARM64LoweredAtomicExchange8:
++			ld = arm64.ALDAXRB
++			st = arm64.ASTLXRB
++		case ssa.OpARM64LoweredAtomicExchange32:
+ 			ld = arm64.ALDAXRW
+ 			st = arm64.ASTLXRW
++		case ssa.OpARM64LoweredAtomicExchange64:
++			ld = arm64.ALDAXR
++			st = arm64.ASTLXR
+ 		}
+ 		r0 := v.Args[0].Reg()
+ 		r1 := v.Args[1].Reg()
+@@ -608,10 +615,16 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p2.To.Type = obj.TYPE_BRANCH
+ 		p2.To.SetTarget(p)
+ 	case ssa.OpARM64LoweredAtomicExchange64Variant,
+-		ssa.OpARM64LoweredAtomicExchange32Variant:
+-		swap := arm64.ASWPALD
+-		if v.Op == ssa.OpARM64LoweredAtomicExchange32Variant {
++		ssa.OpARM64LoweredAtomicExchange32Variant,
++		ssa.OpARM64LoweredAtomicExchange8Variant:
++		var swap obj.As
++		switch v.Op {
++		case ssa.OpARM64LoweredAtomicExchange8Variant:
++			swap = arm64.ASWPALB
++		case ssa.OpARM64LoweredAtomicExchange32Variant:
+ 			swap = arm64.ASWPALW
++		case ssa.OpARM64LoweredAtomicExchange64Variant:
++			swap = arm64.ASWPALD
+ 		}
+ 		r0 := v.Args[0].Reg()
+ 		r1 := v.Args[1].Reg()
+diff --git a/src/cmd/compile/internal/ssa/_gen/ARM64.rules b/src/cmd/compile/internal/ssa/_gen/ARM64.rules
+index 9064b515f7..29dc258d9e 100644
+--- a/src/cmd/compile/internal/ssa/_gen/ARM64.rules
++++ b/src/cmd/compile/internal/ssa/_gen/ARM64.rules
+@@ -571,12 +571,12 @@
+ (AtomicStore64      ...) => (STLR  ...)
+ (AtomicStorePtrNoWB ...) => (STLR  ...)
+ 
+-(AtomicExchange(32|64)       ...) => (LoweredAtomicExchange(32|64) ...)
++(AtomicExchange(8|32|64)       ...) => (LoweredAtomicExchange(8|32|64) ...)
+ (AtomicAdd(32|64)            ...) => (LoweredAtomicAdd(32|64)      ...)
+ (AtomicCompareAndSwap(32|64) ...) => (LoweredAtomicCas(32|64)      ...)
+ 
+ (AtomicAdd(32|64)Variant            ...) => (LoweredAtomicAdd(32|64)Variant      ...)
+-(AtomicExchange(32|64)Variant       ...) => (LoweredAtomicExchange(32|64)Variant ...)
++(AtomicExchange(8|32|64)Variant       ...) => (LoweredAtomicExchange(8|32|64)Variant ...)
+ (AtomicCompareAndSwap(32|64)Variant ...) => (LoweredAtomicCas(32|64)Variant      ...)
+ 
+ // Return old contents.
+diff --git a/src/cmd/compile/internal/ssa/_gen/ARM64Ops.go b/src/cmd/compile/internal/ssa/_gen/ARM64Ops.go
+index d7fecf502d..c9cb62cd17 100644
+--- a/src/cmd/compile/internal/ssa/_gen/ARM64Ops.go
++++ b/src/cmd/compile/internal/ssa/_gen/ARM64Ops.go
+@@ -651,12 +651,14 @@ func init() {
+ 		// CBNZ		Rtmp, -2(PC)
+ 		{name: "LoweredAtomicExchange64", argLength: 3, reg: gpxchg, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true, unsafePoint: true},
+ 		{name: "LoweredAtomicExchange32", argLength: 3, reg: gpxchg, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true, unsafePoint: true},
++		{name: "LoweredAtomicExchange8", argLength: 3, reg: gpxchg, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true, unsafePoint: true},
+ 
+ 		// atomic exchange variant.
+ 		// store arg1 to arg0. arg2=mem. returns <old content of *arg0, memory>. auxint must be zero.
+ 		// SWPALD	Rarg1, (Rarg0), Rout
+ 		{name: "LoweredAtomicExchange64Variant", argLength: 3, reg: gpxchg, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true},
+ 		{name: "LoweredAtomicExchange32Variant", argLength: 3, reg: gpxchg, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true},
++		{name: "LoweredAtomicExchange8Variant", argLength: 3, reg: gpxchg, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true, unsafePoint: true},
+ 
+ 		// atomic add.
+ 		// *arg0 += arg1. arg2=mem. returns <new content of *arg0, memory>. auxint must be zero.
+diff --git a/src/cmd/compile/internal/ssa/_gen/genericOps.go b/src/cmd/compile/internal/ssa/_gen/genericOps.go
+index 86bcef9980..ceaff221d7 100644
+--- a/src/cmd/compile/internal/ssa/_gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/_gen/genericOps.go
+@@ -635,6 +635,7 @@ var genericOps = []opData{
+ 	// These are not currently used on any other platform.
+ 	{name: "AtomicAdd32Variant", argLength: 3, typ: "(UInt32,Mem)", hasSideEffects: true},          // Do *arg0 += arg1.  arg2=memory.  Returns sum and new memory.
+ 	{name: "AtomicAdd64Variant", argLength: 3, typ: "(UInt64,Mem)", hasSideEffects: true},          // Do *arg0 += arg1.  arg2=memory.  Returns sum and new memory.
++	{name: "AtomicExchange8Variant", argLength: 3, typ: "(UInt8,Mem)", hasSideEffects: true},       // Store arg1 to *arg0.  arg2=memory.  Returns old contents of *arg0 and new memory.
+ 	{name: "AtomicExchange32Variant", argLength: 3, typ: "(UInt32,Mem)", hasSideEffects: true},     // Store arg1 to *arg0.  arg2=memory.  Returns old contents of *arg0 and new memory.
+ 	{name: "AtomicExchange64Variant", argLength: 3, typ: "(UInt64,Mem)", hasSideEffects: true},     // Store arg1 to *arg0.  arg2=memory.  Returns old contents of *arg0 and new memory.
+ 	{name: "AtomicCompareAndSwap32Variant", argLength: 4, typ: "(Bool,Mem)", hasSideEffects: true}, // if *arg0==arg1, then set *arg0=arg2.  Returns true if store happens and new memory.
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index fbc9ae7ea5..8642d39e8b 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -1712,8 +1712,10 @@ const (
+ 	OpARM64STLRW
+ 	OpARM64LoweredAtomicExchange64
+ 	OpARM64LoweredAtomicExchange32
++	OpARM64LoweredAtomicExchange8
+ 	OpARM64LoweredAtomicExchange64Variant
+ 	OpARM64LoweredAtomicExchange32Variant
++	OpARM64LoweredAtomicExchange8Variant
+ 	OpARM64LoweredAtomicAdd64
+ 	OpARM64LoweredAtomicAdd32
+ 	OpARM64LoweredAtomicAdd64Variant
+@@ -3270,6 +3272,7 @@ const (
+ 	OpAtomicOr8value
+ 	OpAtomicAdd32Variant
+ 	OpAtomicAdd64Variant
++	OpAtomicExchange8Variant
+ 	OpAtomicExchange32Variant
+ 	OpAtomicExchange64Variant
+ 	OpAtomicCompareAndSwap32Variant
+@@ -22987,6 +22990,23 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:            "LoweredAtomicExchange8",
++		argLen:          3,
++		resultNotInArgs: true,
++		faultOnNilArg0:  true,
++		hasSideEffects:  true,
++		unsafePoint:     true,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 805044223},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
++				{0, 9223372038733561855}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30 SP SB
++			},
++			outputs: []outputInfo{
++				{0, 670826495}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
++			},
++		},
++	},
+ 	{
+ 		name:            "LoweredAtomicExchange64Variant",
+ 		argLen:          3,
+@@ -23019,6 +23039,23 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:            "LoweredAtomicExchange8Variant",
++		argLen:          3,
++		resultNotInArgs: true,
++		faultOnNilArg0:  true,
++		hasSideEffects:  true,
++		unsafePoint:     true,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 805044223},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
++				{0, 9223372038733561855}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30 SP SB
++			},
++			outputs: []outputInfo{
++				{0, 670826495}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
++			},
++		},
++	},
+ 	{
+ 		name:            "LoweredAtomicAdd64",
+ 		argLen:          3,
+@@ -41281,6 +41318,12 @@ var opcodeTable = [...]opInfo{
+ 		hasSideEffects: true,
+ 		generic:        true,
+ 	},
++	{
++		name:           "AtomicExchange8Variant",
++		argLen:         3,
++		hasSideEffects: true,
++		generic:        true,
++	},
+ 	{
+ 		name:           "AtomicExchange32Variant",
+ 		argLen:         3,
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM64.go b/src/cmd/compile/internal/ssa/rewriteARM64.go
+index 571046b5b8..edb17cedf3 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM64.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM64.go
+@@ -513,6 +513,12 @@ func rewriteValueARM64(v *Value) bool {
+ 	case OpAtomicExchange64Variant:
+ 		v.Op = OpARM64LoweredAtomicExchange64Variant
+ 		return true
++	case OpAtomicExchange8:
++		v.Op = OpARM64LoweredAtomicExchange8
++		return true
++	case OpAtomicExchange8Variant:
++		v.Op = OpARM64LoweredAtomicExchange8Variant
++		return true
+ 	case OpAtomicLoad32:
+ 		v.Op = OpARM64LDARW
+ 		return true
+diff --git a/src/cmd/compile/internal/ssagen/intrinsics.go b/src/cmd/compile/internal/ssagen/intrinsics.go
+index 20581803d9..df5862f718 100644
+--- a/src/cmd/compile/internal/ssagen/intrinsics.go
++++ b/src/cmd/compile/internal/ssagen/intrinsics.go
+@@ -373,6 +373,9 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
+ 			s.vars[n] = s.newValue1(ssa.OpSelect0, types.Types[typ], v)
+ 		}
+ 	}
++	addF("internal/runtime/atomic", "Xchg8",
++		makeAtomicGuardedIntrinsicARM64(ssa.OpAtomicExchange8, ssa.OpAtomicExchange8Variant, types.TUINT8, atomicEmitterARM64),
++		sys.ARM64)
+ 	addF("internal/runtime/atomic", "Xchg",
+ 		makeAtomicGuardedIntrinsicARM64(ssa.OpAtomicExchange32, ssa.OpAtomicExchange32Variant, types.TUINT32, atomicEmitterARM64),
+ 		sys.ARM64)
+diff --git a/src/cmd/compile/internal/ssagen/intrinsics_test.go b/src/cmd/compile/internal/ssagen/intrinsics_test.go
+index 579f346f49..60f11c980f 100644
+--- a/src/cmd/compile/internal/ssagen/intrinsics_test.go
++++ b/src/cmd/compile/internal/ssagen/intrinsics_test.go
+@@ -249,6 +249,7 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
+ 	{"arm64", "internal/runtime/atomic", "Xaddint32"}:          struct{}{},
+ 	{"arm64", "internal/runtime/atomic", "Xaddint64"}:          struct{}{},
+ 	{"arm64", "internal/runtime/atomic", "Xadduintptr"}:        struct{}{},
++	{"arm64", "internal/runtime/atomic", "Xchg8"}:              struct{}{},
+ 	{"arm64", "internal/runtime/atomic", "Xchg"}:               struct{}{},
+ 	{"arm64", "internal/runtime/atomic", "Xchg64"}:             struct{}{},
+ 	{"arm64", "internal/runtime/atomic", "Xchgint32"}:          struct{}{},
+diff --git a/src/internal/runtime/atomic/atomic_arm64.go b/src/internal/runtime/atomic/atomic_arm64.go
+index c4c56ae895..f4aef19388 100644
+--- a/src/internal/runtime/atomic/atomic_arm64.go
++++ b/src/internal/runtime/atomic/atomic_arm64.go
+@@ -24,6 +24,9 @@ func Xadd64(ptr *uint64, delta int64) uint64
+ //go:noescape
+ func Xadduintptr(ptr *uintptr, delta uintptr) uintptr
+ 
++//go:noescape
++func Xchg8(ptr *uint8, new uint8) uint8
++
+ //go:noescape
+ func Xchg(ptr *uint32, new uint32) uint32
+ 
+diff --git a/src/internal/runtime/atomic/atomic_arm64.s b/src/internal/runtime/atomic/atomic_arm64.s
+index ede56538b8..09f3b53c5c 100644
+--- a/src/internal/runtime/atomic/atomic_arm64.s
++++ b/src/internal/runtime/atomic/atomic_arm64.s
+@@ -120,6 +120,30 @@ TEXT ·Store64(SB), NOSPLIT, $0-16
+ 	STLR	R1, (R0)
+ 	RET
+ 
++// uint8 Xchg(ptr *uint8, new uint8)
++// Atomically:
++//	old := *ptr;
++//	*ptr = new;
++//	return old;
++TEXT ·Xchg8(SB), NOSPLIT, $0-17
++	MOVD	ptr+0(FP), R0
++	MOVB	new+8(FP), R1
++#ifndef GOARM64_LSE
++	MOVBU	internal∕cpu·ARM64+const_offsetARM64HasATOMICS(SB), R4
++	CBZ 	R4, load_store_loop
++#endif
++	SWPALB	R1, (R0), R2
++	MOVB	R2, ret+16(FP)
++	RET
++#ifndef GOARM64_LSE
++load_store_loop:
++	LDAXRB	(R0), R2
++	STLXRB	R1, (R0), R3
++	CBNZ	R3, load_store_loop
++	MOVB	R2, ret+16(FP)
++	RET
++#endif
++
+ // uint32 Xchg(ptr *uint32, new uint32)
+ // Atomically:
+ //	old := *ptr;
+diff --git a/src/internal/runtime/atomic/xchg8_test.go b/src/internal/runtime/atomic/xchg8_test.go
+index b0b39c2dd7..a04fcfc4bd 100644
+--- a/src/internal/runtime/atomic/xchg8_test.go
++++ b/src/internal/runtime/atomic/xchg8_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build amd64 || ppc64 || ppc64le
++//go:build amd64 || arm64 || ppc64 || ppc64le
+ 
+ package atomic_test
+ 

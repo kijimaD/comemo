@@ -9,6 +9,20 @@ Date:   Mon Jan 18 17:55:06 2016 -0500
     Run-TryBot: Minux Ma <minux@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/malloc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index d4487eed6d..18001bf85e 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -455,7 +455,7 @@ func (h *mheap) sysAlloc(n uintptr) unsafe.Pointer {
+ 	}
+ 
+ 	if p < h.arena_start || uintptr(p)+p_size-h.arena_start >= _MaxArena32 {
+-		print("runtime: memory allocated by OS (", p, ") not in usable range [", hex(h.arena_start), ",", hex(h.arena_start+_MaxArena32), ")\n")
++		print("runtime: memory allocated by OS (", hex(p), ") not in usable range [", hex(h.arena_start), ",", hex(h.arena_start+_MaxArena32), ")\n")
+ 		sysFree(unsafe.Pointer(p), p_size, &memstats.heap_sys)
+ 		return nil
+ 	}

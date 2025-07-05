@@ -7,6 +7,20 @@ Date:   Sat Feb 16 14:32:04 2013 +1100
     R=rsc, dvyukov
     CC=golang-dev
     https://golang.org/cl/7312103
-
+---
  src/pkg/runtime/race.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/race.c b/src/pkg/runtime/race.c
+index 5fa67bc5bb..8f611cb2d8 100644
+--- a/src/pkg/runtime/race.c
++++ b/src/pkg/runtime/race.c
+@@ -36,7 +36,7 @@ static bool onstack(uintptr argp);
+ uintptr
+ runtime·raceinit(void)
+ {
+-	uintptr sz, racectx;
++	uintptr racectx;
+ 
+ 	m->racecall = true;
+ 	runtime∕race·Initialize(&racectx);

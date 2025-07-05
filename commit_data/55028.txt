@@ -13,10 +13,109 @@ Date:   Mon Dec 5 16:17:56 2022 -0800
     Run-TryBot: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/call.go             |  6 +++++-
  src/go/types/call.go                                |  6 +++++-
  src/internal/types/testdata/check/expr3.go          |  4 ++--
  src/internal/types/testdata/check/methodsets.go     |  4 ++--
  src/internal/types/testdata/fixedbugs/issue53358.go | 19 +++++++++++++++++++
  5 files changed, 33 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/call.go b/src/cmd/compile/internal/types2/call.go
+index ffff11ea6e..50343bf77a 100644
+--- a/src/cmd/compile/internal/types2/call.go
++++ b/src/cmd/compile/internal/types2/call.go
+@@ -573,7 +573,11 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr, def *Named) {
+ 		}
+ 
+ 		if indirect {
+-			check.errorf(e.Sel, InvalidMethodExpr, "cannot call pointer method %s on %s", sel, x.typ)
++			if x.mode == typexpr {
++				check.errorf(e.Sel, InvalidMethodExpr, "invalid method expression %s.%s (needs pointer receiver (*%s).%s)", x.typ, sel, x.typ, sel)
++			} else {
++				check.errorf(e.Sel, InvalidMethodExpr, "cannot call pointer method %s on %s", sel, x.typ)
++			}
+ 			goto Error
+ 		}
+ 
+diff --git a/src/go/types/call.go b/src/go/types/call.go
+index 7a9329613d..5558244f1b 100644
+--- a/src/go/types/call.go
++++ b/src/go/types/call.go
+@@ -577,7 +577,11 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr, def *Named) {
+ 		}
+ 
+ 		if indirect {
+-			check.errorf(e.Sel, InvalidMethodExpr, "cannot call pointer method %s on %s", sel, x.typ)
++			if x.mode == typexpr {
++				check.errorf(e.Sel, InvalidMethodExpr, "invalid method expression %s.%s (needs pointer receiver (*%s).%s)", x.typ, sel, x.typ, sel)
++			} else {
++				check.errorf(e.Sel, InvalidMethodExpr, "cannot call pointer method %s on %s", sel, x.typ)
++			}
+ 			goto Error
+ 		}
+ 
+diff --git a/src/internal/types/testdata/check/expr3.go b/src/internal/types/testdata/check/expr3.go
+index 2ca39866fc..2da59841c6 100644
+--- a/src/internal/types/testdata/check/expr3.go
++++ b/src/internal/types/testdata/check/expr3.go
+@@ -157,10 +157,10 @@ func (*T) m() {}
+ func method_expressions() {
+ 	_ = T.a /* ERROR "no field or method" */
+ 	_ = T.x /* ERROR "has no method" */
+-	_ = T.m /* ERROR "cannot call pointer method m on T" */
++	_ = T.m /* ERROR "invalid method expression T\.m \(needs pointer receiver \(\*T\)\.m\)" */
+ 	_ = (*T).m
+ 
+-	var f func(*T) = T.m /* ERROR "cannot call pointer method m on T" */
++	var f func(*T) = T.m /* ERROR "invalid method expression T\.m \(needs pointer receiver \(\*T\)\.m\)" */
+ 	var g func(*T) = (*T).m
+ 	_, _ = f, g
+ 
+diff --git a/src/internal/types/testdata/check/methodsets.go b/src/internal/types/testdata/check/methodsets.go
+index b0eb14cf50..d145bc09f5 100644
+--- a/src/internal/types/testdata/check/methodsets.go
++++ b/src/internal/types/testdata/check/methodsets.go
+@@ -29,7 +29,7 @@ type T3 struct {
+ func _() {
+ 	var (
+ 		_ func(T0) = T0.v0
+-		_ = T0.p0 /* ERROR "cannot call pointer method p0 on T0" */
++		_ = T0.p0 /* ERROR invalid method expression T0\.p0 \(needs pointer receiver \(\*T0\)\.p0\) */
+ 
+ 		_ func (*T0) = (*T0).v0
+ 		_ func (*T0) = (*T0).p0
+@@ -40,7 +40,7 @@ func _() {
+ 		_ func(T2) = T2.p2
+ 
+ 		_ func(T3) = T3.v0
+-		_ func(T3) = T3.p0 /* ERROR "cannot call pointer method p0 on T3" */
++		_ func(T3) = T3.p0 /* ERROR invalid method expression T3\.p0 \(needs pointer receiver \(\*T3\)\.p0\) */
+ 		_ func(T3) = T3.v1
+ 		_ func(T3) = T3.p1
+ 		_ func(T3) = T3.v2
+diff --git a/src/internal/types/testdata/fixedbugs/issue53358.go b/src/internal/types/testdata/fixedbugs/issue53358.go
+new file mode 100644
+index 0000000000..774136f4f7
+--- /dev/null
++++ b/src/internal/types/testdata/fixedbugs/issue53358.go
+@@ -0,0 +1,19 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type A struct{}
++
++func (*A) m() int { return 0 }
++
++var _ = A.m /* ERROR invalid method expression A\.m \(needs pointer receiver \(\*A\)\.m\) */ ()
++var _ = (*A).m(nil)
++
++type B struct{ A }
++
++var _ = B.m // ERROR invalid method expression B\.m \(needs pointer receiver \(\*B\)\.m\)
++var _ = (*B).m
++
++var _ = struct{ A }.m // ERROR invalid method expression struct{A}\.m \(needs pointer receiver \(\*struct{A}\)\.m\)

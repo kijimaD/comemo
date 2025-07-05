@@ -12,9 +12,196 @@ Date:   Wed Apr 13 13:59:59 2011 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4368063
-
+---
  src/cmd/gofmt/gofmt_test.go            | 81 ++++++++++++++++++++++++++++++++++
  src/cmd/gofmt/testdata/rewrite1.golden |  8 ++++
  src/cmd/gofmt/testdata/rewrite1.input  |  8 ++++
  src/cmd/gofmt/testdata/test.sh         | 65 ---------------------------
  4 files changed, 97 insertions(+), 65 deletions(-)
+
+diff --git a/src/cmd/gofmt/gofmt_test.go b/src/cmd/gofmt/gofmt_test.go
+new file mode 100644
+index 0000000000..4ec94e2933
+--- /dev/null
++++ b/src/cmd/gofmt/gofmt_test.go
+@@ -0,0 +1,81 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"bytes"
++	"io/ioutil"
++	"path/filepath"
++	"strings"
++	"testing"
++)
++
++
++func runTest(t *testing.T, dirname, in, out, flags string) {
++	in = filepath.Join(dirname, in)
++	out = filepath.Join(dirname, out)
++
++	// process flags
++	*simplifyAST = false
++	*rewriteRule = ""
++	for _, flag := range strings.Split(flags, " ", -1) {
++		elts := strings.Split(flag, "=", 2)
++		name := elts[0]
++		value := ""
++		if len(elts) == 2 {
++			value = elts[1]
++		}
++		switch name {
++		case "":
++			// no flags
++		case "-r":
++			*rewriteRule = value
++		case "-s":
++			*simplifyAST = true
++		default:
++			t.Errorf("unrecognized flag name: %s", name)
++		}
++	}
++
++	initParserMode()
++	initPrinterMode()
++	initRewrite()
++
++	var buf bytes.Buffer
++	err := processFile(in, nil, &buf)
++	if err != nil {
++		t.Error(err)
++		return
++	}
++
++	expected, err := ioutil.ReadFile(out)
++	if err != nil {
++		t.Error(err)
++		return
++	}
++
++	if got := buf.Bytes(); bytes.Compare(got, expected) != 0 {
++		t.Errorf("(gofmt %s) != %s (see %s.gofmt)", in, out, in)
++		ioutil.WriteFile(in+".gofmt", got, 0666)
++	}
++}
++
++
++// TODO(gri) Add more test cases!
++var tests = []struct {
++	dirname, in, out, flags string
++}{
++	{".", "gofmt.go", "gofmt.go", ""},
++	{".", "gofmt_test.go", "gofmt_test.go", ""},
++	{"testdata", "composites.input", "composites.golden", "-s"},
++	{"testdata", "rewrite1.input", "rewrite1.golden", "-r=Foo->Bar"},
++}
++
++
++func TestRewrite(t *testing.T) {
++	for _, test := range tests {
++		runTest(t, test.dirname, test.in, test.out, test.flags)
++	}
++}
+diff --git a/src/cmd/gofmt/testdata/rewrite1.golden b/src/cmd/gofmt/testdata/rewrite1.golden
+new file mode 100644
+index 0000000000..3f909ff4ad
+--- /dev/null
++++ b/src/cmd/gofmt/testdata/rewrite1.golden
+@@ -0,0 +1,8 @@
++package main
++
++type Bar int
++
++func main() {
++	var a Bar
++	println(a)
++}
+diff --git a/src/cmd/gofmt/testdata/rewrite1.input b/src/cmd/gofmt/testdata/rewrite1.input
+new file mode 100644
+index 0000000000..1f10e3601c
+--- /dev/null
++++ b/src/cmd/gofmt/testdata/rewrite1.input
+@@ -0,0 +1,8 @@
++package main
++
++type Foo int
++
++func main() {
++	var a Foo
++	println(a)
++}
+diff --git a/src/cmd/gofmt/testdata/test.sh b/src/cmd/gofmt/testdata/test.sh
+deleted file mode 100755
+index a1d5d823eb..0000000000
+--- a/src/cmd/gofmt/testdata/test.sh
++++ /dev/null
+@@ -1,65 +0,0 @@
+-#!/usr/bin/env bash
+-# Copyright 2010 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-CMD="../gofmt"
+-TMP=test_tmp.go
+-COUNT=0
+-
+-
+-cleanup() {
+-	rm -f $TMP
+-}
+-
+-
+-error() {
+-	echo $1
+-	exit 1
+-}
+-
+-
+-count() {
+-	#echo $1
+-	let COUNT=$COUNT+1
+-	let M=$COUNT%10
+-	if [ $M == 0 ]; then
+-		echo -n "."
+-	fi
+-}
+-
+-
+-test() {
+-	count $1
+-
+-	# compare against .golden file
+-	cleanup
+-	$CMD -s $1 > $TMP
+-	cmp -s $TMP $2
+-	if [ $? != 0 ]; then
+-		diff $TMP $2
+-		error "Error: simplified $1 does not match $2"
+-	fi
+-
+-	# make sure .golden is idempotent
+-	cleanup
+-	$CMD -s $2 > $TMP
+-	cmp -s $TMP $2
+-	if [ $? != 0 ]; then
+-		diff $TMP $2
+-		error "Error: $2 is not idempotent"
+-	fi
+-}
+-
+-
+-runtests() {
+-	smoketest=../../../pkg/go/parser/parser.go
+-	test $smoketest $smoketest
+-	test composites.input composites.golden
+-	# add more test cases here
+-}
+-
+-
+-runtests
+-cleanup
+-echo "PASSED ($COUNT tests)"

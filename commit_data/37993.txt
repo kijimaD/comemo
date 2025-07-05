@@ -28,7 +28,7 @@ Date:   Thu Sep 20 15:22:33 2018 -0700
     Change-Id: Idaadeb5c4b9a027daabd46a2361348f7a93f2b00
     Reviewed-on: https://go-review.googlesource.com/136540
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/const.go     |  7 +++----
  src/cmd/compile/internal/gc/order.go     | 12 ++++--------
  src/cmd/compile/internal/gc/sinit.go     | 12 ++++--------
@@ -36,3 +36,206 @@ Date:   Thu Sep 20 15:22:33 2018 -0700
  src/cmd/compile/internal/gc/typecheck.go |  8 --------
  src/cmd/compile/internal/gc/walk.go      |  2 +-
  6 files changed, 41 insertions(+), 33 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/const.go b/src/cmd/compile/internal/gc/const.go
+index 3466472aa7..02d51678be 100644
+--- a/src/cmd/compile/internal/gc/const.go
++++ b/src/cmd/compile/internal/gc/const.go
+@@ -234,7 +234,7 @@ func convlit1(n *Node, t *types.Type, explicit bool, reuse canReuseNode) *Node {
+ 	if n.Op == OLITERAL && !reuse {
+ 		// Can't always set n.Type directly on OLITERAL nodes.
+ 		// See discussion on CL 20813.
+-		n = n.copy()
++		n = n.rawcopy()
+ 		reuse = true
+ 	}
+ 
+@@ -1200,8 +1200,7 @@ func setconst(n *Node, v Val) {
+ 	// Ensure n.Orig still points to a semantically-equivalent
+ 	// expression after we rewrite n into a constant.
+ 	if n.Orig == n {
+-		n.Orig = n.copy()
+-		n.Orig.Orig = n.Orig
++		n.Orig = n.sepcopy()
+ 	}
+ 
+ 	*n = Node{
+@@ -1331,7 +1330,7 @@ func defaultlitreuse(n *Node, t *types.Type, reuse canReuseNode) *Node {
+ 	}
+ 
+ 	if n.Op == OLITERAL && !reuse {
+-		n = n.copy()
++		n = n.rawcopy()
+ 		reuse = true
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/order.go b/src/cmd/compile/internal/gc/order.go
+index dce68a6c17..1e22ecfcdf 100644
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@ -109,8 +109,7 @@ func (o *Order) cheapExpr(n *Node) *Node {
+ 		if l == n.Left {
+ 			return n
+ 		}
+-		a := n.copy()
+-		a.Orig = a
++		a := n.sepcopy()
+ 		a.Left = l
+ 		return typecheck(a, Erv)
+ 	}
+@@ -135,8 +134,7 @@ func (o *Order) safeExpr(n *Node) *Node {
+ 		if l == n.Left {
+ 			return n
+ 		}
+-		a := n.copy()
+-		a.Orig = a
++		a := n.sepcopy()
+ 		a.Left = l
+ 		return typecheck(a, Erv)
+ 
+@@ -145,8 +143,7 @@ func (o *Order) safeExpr(n *Node) *Node {
+ 		if l == n.Left {
+ 			return n
+ 		}
+-		a := n.copy()
+-		a.Orig = a
++		a := n.sepcopy()
+ 		a.Left = l
+ 		return typecheck(a, Erv)
+ 
+@@ -161,8 +158,7 @@ func (o *Order) safeExpr(n *Node) *Node {
+ 		if l == n.Left && r == n.Right {
+ 			return n
+ 		}
+-		a := n.copy()
+-		a.Orig = a
++		a := n.sepcopy()
+ 		a.Left = l
+ 		a.Right = r
+ 		return typecheck(a, Erv)
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index c6455c3693..f76b02828f 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -349,15 +349,13 @@ func staticcopy(l *Node, r *Node, out *[]*Node) bool {
+ 				gdata(n, e.Expr, int(n.Type.Width))
+ 				continue
+ 			}
+-			ll := n.copy()
+-			ll.Orig = ll // completely separate copy
++			ll := n.sepcopy()
+ 			if staticassign(ll, e.Expr, out) {
+ 				continue
+ 			}
+ 			// Requires computation, but we're
+ 			// copying someone else's computation.
+-			rr := orig.copy()
+-			rr.Orig = rr // completely separate copy
++			rr := orig.sepcopy()
+ 			rr.Type = ll.Type
+ 			rr.Xoffset += e.Xoffset
+ 			setlineno(rr)
+@@ -453,8 +451,7 @@ func staticassign(l *Node, r *Node, out *[]*Node) bool {
+ 				continue
+ 			}
+ 			setlineno(e.Expr)
+-			a := n.copy()
+-			a.Orig = a // completely separate copy
++			a := n.sepcopy()
+ 			if !staticassign(a, e.Expr, out) {
+ 				*out = append(*out, nod(OAS, a, e.Expr))
+ 			}
+@@ -518,8 +515,7 @@ func staticassign(l *Node, r *Node, out *[]*Node) bool {
+ 			// Copy val directly into n.
+ 			n.Type = val.Type
+ 			setlineno(val)
+-			a := n.copy()
+-			a.Orig = a
++			a := n.sepcopy()
+ 			if !staticassign(a, val, out) {
+ 				*out = append(*out, nod(OAS, a, val))
+ 			}
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 61a3b2385d..7e450e2e66 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -364,9 +364,35 @@ func nodSym(op Op, left *Node, sym *types.Sym) *Node {
+ 	return n
+ }
+ 
++// rawcopy returns a shallow copy of n.
++// Note: copy or sepcopy (rather than rawcopy) is usually the
++//       correct choice (see comment with Node.copy, below).
++func (n *Node) rawcopy() *Node {
++	copy := *n
++	return &copy
++}
++
++// sepcopy returns a separate shallow copy of n, with the copy's
++// Orig pointing to itself.
++func (n *Node) sepcopy() *Node {
++	copy := *n
++	copy.Orig = &copy
++	return &copy
++}
++
++// copy returns shallow copy of n and adjusts the copy's Orig if
++// necessary: In general, if n.Orig points to itself, the copy's
++// Orig should point to itself as well. Otherwise, if n is modified,
++// the copy's Orig node appears modified, too, and then doesn't
++// represent the original node anymore.
++// (This caused the wrong complit Op to be used when printing error
++// messages; see issues #26855, #27765).
+ func (n *Node) copy() *Node {
+-	n2 := *n
+-	return &n2
++	copy := *n
++	if n.Orig == n {
++		copy.Orig = &copy
++	}
++	return &copy
+ }
+ 
+ // methcmp sorts methods by symbol.
+@@ -412,8 +438,7 @@ func treecopy(n *Node, pos src.XPos) *Node {
+ 
+ 	switch n.Op {
+ 	default:
+-		m := n.copy()
+-		m.Orig = m
++		m := n.sepcopy()
+ 		m.Left = treecopy(n.Left, pos)
+ 		m.Right = treecopy(n.Right, pos)
+ 		m.List.Set(listtreecopy(n.List.Slice(), pos))
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 6b4673dbdc..69dced00ac 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -2923,14 +2923,6 @@ func typecheckcomplit(n *Node) *Node {
+ 
+ 	// Save original node (including n.Right)
+ 	norig := n.copy()
+-	// If n.Orig points to itself, norig.Orig must point to itself, too.
+-	// Otherwise, because n.Op is changed below, n.Orig's Op is changed
+-	// as well because it (and the copy norig) still point to the original
+-	// node n. This caused the wrong complit Op to be used when printing
+-	// error messages (issue #26855).
+-	if n.Orig == n {
+-		norig.Orig = norig
+-	}
+ 
+ 	setlineno(n.Right)
+ 	n.Right = typecheck(n.Right, Etype|Ecomplit)
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 0b382bbbf0..1b1d36b61d 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -4052,7 +4052,7 @@ func wrapCall(n *Node, init *Nodes) *Node {
+ // The result of substArgTypes MUST be assigned back to old, e.g.
+ // 	n.Left = substArgTypes(n.Left, t1, t2)
+ func substArgTypes(old *Node, types_ ...*types.Type) *Node {
+-	n := old.copy() // make shallow copy
++	n := old.copy()
+ 
+ 	for _, t := range types_ {
+ 		dowidth(t)

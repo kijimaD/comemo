@@ -7,6 +7,44 @@ Date:   Sat Apr 13 10:27:35 2019 -0400
     Change-Id: Ie0171f48aaf48d8399ef578f95352445741d83a9
     Reviewed-on: https://go-review.googlesource.com/c/go/+/171773
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/runtime2.go | 11 +++++------
  1 file changed, 5 insertions(+), 6 deletions(-)
+
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 8d749f3d7c..6d4633821b 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -434,7 +434,6 @@ type m struct {
+ 	profilehz     int32
+ 	spinning      bool // m is out of work and is actively looking for work
+ 	blocked       bool // m is blocked on a note
+-	inwb          bool // m is executing a write barrier
+ 	newSigstack   bool // minit on C thread called sigaltstack
+ 	printlock     int8
+ 	incgo         bool   // m is executing a cgo call
+@@ -481,8 +480,6 @@ type m struct {
+ }
+ 
+ type p struct {
+-	lock mutex
+-
+ 	id          int32
+ 	status      uint32 // one of pidle/prunning/...
+ 	link        puintptr
+@@ -536,10 +533,12 @@ type p struct {
+ 
+ 	palloc persistentAlloc // per-P to avoid mutex
+ 
++	_ uint32 // Alignment for atomic fields below
++
+ 	// Per-P GC state
+-	gcAssistTime         int64 // Nanoseconds in assistAlloc
+-	gcFractionalMarkTime int64 // Nanoseconds in fractional mark worker
+-	gcBgMarkWorker       guintptr
++	gcAssistTime         int64    // Nanoseconds in assistAlloc
++	gcFractionalMarkTime int64    // Nanoseconds in fractional mark worker (atomic)
++	gcBgMarkWorker       guintptr // (atomic)
+ 	gcMarkWorkerMode     gcMarkWorkerMode
+ 
+ 	// gcMarkWorkerStartTime is the nanotime() at which this mark

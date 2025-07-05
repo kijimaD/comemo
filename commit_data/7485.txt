@@ -31,7 +31,119 @@ Date:   Wed Feb 16 15:07:13 2011 -0500
     R=adg, rsc
     CC=golang-dev
     https://golang.org/cl/4066044
-
+---
  src/pkg/net/multicast_test.go | 56 +++++++++++++++++++++++++++++++++++++++++++
  src/pkg/net/udpsock.go        | 41 +++++++++++++++++++++++++++++++
  2 files changed, 97 insertions(+)
+
+diff --git a/src/pkg/net/multicast_test.go b/src/pkg/net/multicast_test.go
+new file mode 100644
+index 0000000000..0c9a0355e6
+--- /dev/null
++++ b/src/pkg/net/multicast_test.go
+@@ -0,0 +1,56 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package net
++
++import (
++	"testing"
++)
++
++func TestMulticastJoinAndLeave(t *testing.T) {
++	addr := &UDPAddr{
++		IP:   IPv4zero,
++		Port: 0,
++	}
++	// open a UDPConn
++	conn, err := ListenUDP("udp4", addr)
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer conn.Close()
++
++	// try to join group
++	mcast := IPv4(224, 0, 0, 251)
++	err = conn.JoinGroup(mcast)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	// try to leave group
++	err = conn.LeaveGroup(mcast)
++	if err != nil {
++		t.Fatal(err)
++	}
++}
++
++func TestJoinFailureWithIPv6Address(t *testing.T) {
++	addr := &UDPAddr{
++		IP:   IPv4zero,
++		Port: 0,
++	}
++
++	// open a UDPConn
++	conn, err := ListenUDP("udp4", addr)
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer conn.Close()
++	// try to join group
++	mcast := ParseIP("ff02::1")
++	err = conn.JoinGroup(mcast)
++	if err == nil {
++		t.Fatal("JoinGroup succeeded, should fail")
++	}
++	t.Logf("%s", err)
++}
+diff --git a/src/pkg/net/udpsock.go b/src/pkg/net/udpsock.go
+index 0270954c17..f9274493e6 100644
+--- a/src/pkg/net/udpsock.go
++++ b/src/pkg/net/udpsock.go
+@@ -279,3 +279,44 @@ func (c *UDPConn) BindToDevice(device string) os.Error {
+ // It is the caller's responsibility to close f when finished.
+ // Closing c does not affect f, and closing f does not affect c.
+ func (c *UDPConn) File() (f *os.File, err os.Error) { return c.fd.dup() }
++
++var errInvalidMulticast = os.ErrorString("invalid IPv4 multicast address")
++
++// JoinGroup joins the IPv4 multicast group named by addr.
++// The UDPConn must use the "udp4" network.
++func (c *UDPConn) JoinGroup(addr IP) os.Error {
++	if !c.ok() {
++		return os.EINVAL
++	}
++	ip := addr.To4()
++	if ip == nil {
++		return &OpError{"joingroup", "udp", &IPAddr{ip}, errInvalidMulticast}
++	}
++	mreq := &syscall.IpMreq{
++		Multiaddr: [4]byte{ip[0], ip[1], ip[2], ip[3]},
++	}
++	err := os.NewSyscallError("setsockopt", syscall.SetsockoptIpMreq(c.fd.sysfd, syscall.IPPROTO_IP, syscall.IP_ADD_MEMBERSHIP, mreq))
++	if err != nil {
++		return &OpError{"joingroup", "udp", &IPAddr{ip}, err}
++	}
++	return nil
++}
++
++// LeaveGroup exits the IPv4 multicast group named by addr.
++func (c *UDPConn) LeaveGroup(addr IP) os.Error {
++	if !c.ok() {
++		return os.EINVAL
++	}
++	ip := addr.To4()
++	if ip == nil {
++		return &OpError{"leavegroup", "udp", &IPAddr{ip}, errInvalidMulticast}
++	}
++	mreq := &syscall.IpMreq{
++		Multiaddr: [4]byte{ip[0], ip[1], ip[2], ip[3]},
++	}
++	err := os.NewSyscallError("setsockopt", syscall.SetsockoptIpMreq(c.fd.sysfd, syscall.IPPROTO_IP, syscall.IP_DROP_MEMBERSHIP, mreq))
++	if err != nil {
++		return &OpError{"leavegroup", "udp", &IPAddr{ip}, err}
++	}
++	return nil
++}

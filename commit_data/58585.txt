@@ -17,7 +17,7 @@ Date:   Fri Oct 27 08:58:16 2023 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/537977
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/inline/inlheur/analyze.go |  15 ++-
  .../inline/inlheur/analyze_func_callsites.go       | 144 ++++++++++++---------
  .../internal/inline/inlheur/analyze_func_params.go |  16 ++-
@@ -26,3 +26,945 @@ Date:   Fri Oct 27 08:58:16 2023 -0400
  .../inline/inlheur/score_callresult_uses.go        |   6 +-
  src/cmd/compile/internal/inline/inlheur/scoring.go |  40 +++---
  7 files changed, 287 insertions(+), 185 deletions(-)
+
+diff --git a/src/cmd/compile/internal/inline/inlheur/analyze.go b/src/cmd/compile/internal/inline/inlheur/analyze.go
+index 6c3db92afe..93073b9851 100644
+--- a/src/cmd/compile/internal/inline/inlheur/analyze.go
++++ b/src/cmd/compile/internal/inline/inlheur/analyze.go
+@@ -98,12 +98,13 @@ func AnalyzeFunc(fn *ir.Func, canInline func(*ir.Func), budgetForFunc func(*ir.F
+ 	// inlinable; if it is over the default hairyness limit and it
+ 	// doesn't have any interesting properties, then we don't want
+ 	// the overhead of writing out its inline body.
++	nameFinder := newNameFinder(fn)
+ 	for i := len(funcs) - 1; i >= 0; i-- {
+ 		f := funcs[i]
+ 		if f.OClosure != nil && !f.InlinabilityChecked() {
+ 			canInline(f)
+ 		}
+-		funcProps := analyzeFunc(f, inlineMaxBudget)
++		funcProps := analyzeFunc(f, inlineMaxBudget, nameFinder)
+ 		revisitInlinability(f, funcProps, budgetForFunc)
+ 		if f.Inl != nil {
+ 			f.Inl.Properties = funcProps.SerializeToString()
+@@ -122,11 +123,11 @@ func TearDown() {
+ 	scoreCallsCache.csl = nil
+ }
+ 
+-func analyzeFunc(fn *ir.Func, inlineMaxBudget int) *FuncProps {
++func analyzeFunc(fn *ir.Func, inlineMaxBudget int, nf *nameFinder) *FuncProps {
+ 	if funcInlHeur, ok := fpmap[fn]; ok {
+ 		return funcInlHeur.props
+ 	}
+-	funcProps, fcstab := computeFuncProps(fn, inlineMaxBudget)
++	funcProps, fcstab := computeFuncProps(fn, inlineMaxBudget, nf)
+ 	file, line := fnFileLine(fn)
+ 	entry := fnInlHeur{
+ 		fname: fn.Sym().Name,
+@@ -163,7 +164,7 @@ func revisitInlinability(fn *ir.Func, funcProps *FuncProps, budgetForFunc func(*
+ // computeFuncProps examines the Go function 'fn' and computes for it
+ // a function "properties" object, to be used to drive inlining
+ // heuristics. See comments on the FuncProps type for more info.
+-func computeFuncProps(fn *ir.Func, inlineMaxBudget int) (*FuncProps, CallSiteTab) {
++func computeFuncProps(fn *ir.Func, inlineMaxBudget int, nf *nameFinder) (*FuncProps, CallSiteTab) {
+ 	if debugTrace&debugTraceFuncs != 0 {
+ 		fmt.Fprintf(os.Stderr, "=-= starting analysis of func %v:\n%+v\n",
+ 			fn, fn)
+@@ -171,13 +172,13 @@ func computeFuncProps(fn *ir.Func, inlineMaxBudget int) (*FuncProps, CallSiteTab
+ 	funcProps := new(FuncProps)
+ 	ffa := makeFuncFlagsAnalyzer(fn)
+ 	analyzers := []propAnalyzer{ffa}
+-	analyzers = addResultsAnalyzer(fn, analyzers, funcProps, inlineMaxBudget)
+-	analyzers = addParamsAnalyzer(fn, analyzers, funcProps)
++	analyzers = addResultsAnalyzer(fn, analyzers, funcProps, inlineMaxBudget, nf)
++	analyzers = addParamsAnalyzer(fn, analyzers, funcProps, nf)
+ 	runAnalyzersOnFunction(fn, analyzers)
+ 	for _, a := range analyzers {
+ 		a.setResults(funcProps)
+ 	}
+-	cstab := computeCallSiteTable(fn, fn.Body, nil, ffa.panicPathTable(), 0)
++	cstab := computeCallSiteTable(fn, fn.Body, nil, ffa.panicPathTable(), 0, nf)
+ 	return funcProps, cstab
+ }
+ 
+diff --git a/src/cmd/compile/internal/inline/inlheur/analyze_func_callsites.go b/src/cmd/compile/internal/inline/inlheur/analyze_func_callsites.go
+index 3e285d5181..36ebe18b82 100644
+--- a/src/cmd/compile/internal/inline/inlheur/analyze_func_callsites.go
++++ b/src/cmd/compile/internal/inline/inlheur/analyze_func_callsites.go
+@@ -14,23 +14,37 @@ import (
+ )
+ 
+ type callSiteAnalyzer struct {
++	fn *ir.Func
++	*nameFinder
++}
++
++type callSiteTableBuilder struct {
++	fn *ir.Func
++	*nameFinder
+ 	cstab    CallSiteTab
+-	fn       *ir.Func
+ 	ptab     map[ir.Node]pstate
+ 	nstack   []ir.Node
+ 	loopNest int
+ 	isInit   bool
+ }
+ 
+-func makeCallSiteAnalyzer(fn *ir.Func, cstab CallSiteTab, ptab map[ir.Node]pstate, loopNestingLevel int) *callSiteAnalyzer {
+-	isInit := fn.IsPackageInit() || strings.HasPrefix(fn.Sym().Name, "init.")
++func makeCallSiteAnalyzer(fn *ir.Func) *callSiteAnalyzer {
+ 	return &callSiteAnalyzer{
+-		fn:       fn,
+-		cstab:    cstab,
+-		ptab:     ptab,
+-		isInit:   isInit,
+-		loopNest: loopNestingLevel,
+-		nstack:   []ir.Node{fn},
++		fn:         fn,
++		nameFinder: newNameFinder(fn),
++	}
++}
++
++func makeCallSiteTableBuilder(fn *ir.Func, cstab CallSiteTab, ptab map[ir.Node]pstate, loopNestingLevel int, nf *nameFinder) *callSiteTableBuilder {
++	isInit := fn.IsPackageInit() || strings.HasPrefix(fn.Sym().Name, "init.")
++	return &callSiteTableBuilder{
++		fn:         fn,
++		cstab:      cstab,
++		ptab:       ptab,
++		isInit:     isInit,
++		loopNest:   loopNestingLevel,
++		nstack:     []ir.Node{fn},
++		nameFinder: nf,
+ 	}
+ }
+ 
+@@ -39,22 +53,22 @@ func makeCallSiteAnalyzer(fn *ir.Func, cstab CallSiteTab, ptab map[ir.Node]pstat
+ // specific subtree within the AST for a function. The main intended
+ // use cases are for 'region' to be either A) an entire function body,
+ // or B) an inlined call expression.
+-func computeCallSiteTable(fn *ir.Func, region ir.Nodes, cstab CallSiteTab, ptab map[ir.Node]pstate, loopNestingLevel int) CallSiteTab {
+-	csa := makeCallSiteAnalyzer(fn, cstab, ptab, loopNestingLevel)
++func computeCallSiteTable(fn *ir.Func, region ir.Nodes, cstab CallSiteTab, ptab map[ir.Node]pstate, loopNestingLevel int, nf *nameFinder) CallSiteTab {
++	cstb := makeCallSiteTableBuilder(fn, cstab, ptab, loopNestingLevel, nf)
+ 	var doNode func(ir.Node) bool
+ 	doNode = func(n ir.Node) bool {
+-		csa.nodeVisitPre(n)
++		cstb.nodeVisitPre(n)
+ 		ir.DoChildren(n, doNode)
+-		csa.nodeVisitPost(n)
++		cstb.nodeVisitPost(n)
+ 		return false
+ 	}
+ 	for _, n := range region {
+ 		doNode(n)
+ 	}
+-	return csa.cstab
++	return cstb.cstab
+ }
+ 
+-func (csa *callSiteAnalyzer) flagsForNode(call *ir.CallExpr) CSPropBits {
++func (cstb *callSiteTableBuilder) flagsForNode(call *ir.CallExpr) CSPropBits {
+ 	var r CSPropBits
+ 
+ 	if debugTrace&debugTraceCalls != 0 {
+@@ -63,21 +77,21 @@ func (csa *callSiteAnalyzer) flagsForNode(call *ir.CallExpr) CSPropBits {
+ 	}
+ 
+ 	// Set a bit if this call is within a loop.
+-	if csa.loopNest > 0 {
++	if cstb.loopNest > 0 {
+ 		r |= CallSiteInLoop
+ 	}
+ 
+ 	// Set a bit if the call is within an init function (either
+ 	// compiler-generated or user-written).
+-	if csa.isInit {
++	if cstb.isInit {
+ 		r |= CallSiteInInitFunc
+ 	}
+ 
+ 	// Decide whether to apply the panic path heuristic. Hack: don't
+ 	// apply this heuristic in the function "main.main" (mostly just
+ 	// to avoid annoying users).
+-	if !isMainMain(csa.fn) {
+-		r = csa.determinePanicPathBits(call, r)
++	if !isMainMain(cstb.fn) {
++		r = cstb.determinePanicPathBits(call, r)
+ 	}
+ 
+ 	return r
+@@ -88,15 +102,15 @@ func (csa *callSiteAnalyzer) flagsForNode(call *ir.CallExpr) CSPropBits {
+ // panic/exit. Do this by walking back up the node stack to see if we
+ // can find either A) an enclosing panic, or B) a statement node that
+ // we've determined leads to a panic/exit.
+-func (csa *callSiteAnalyzer) determinePanicPathBits(call ir.Node, r CSPropBits) CSPropBits {
+-	csa.nstack = append(csa.nstack, call)
++func (cstb *callSiteTableBuilder) determinePanicPathBits(call ir.Node, r CSPropBits) CSPropBits {
++	cstb.nstack = append(cstb.nstack, call)
+ 	defer func() {
+-		csa.nstack = csa.nstack[:len(csa.nstack)-1]
++		cstb.nstack = cstb.nstack[:len(cstb.nstack)-1]
+ 	}()
+ 
+-	for ri := range csa.nstack[:len(csa.nstack)-1] {
+-		i := len(csa.nstack) - ri - 1
+-		n := csa.nstack[i]
++	for ri := range cstb.nstack[:len(cstb.nstack)-1] {
++		i := len(cstb.nstack) - ri - 1
++		n := cstb.nstack[i]
+ 		_, isCallExpr := n.(*ir.CallExpr)
+ 		_, isStmt := n.(ir.Stmt)
+ 		if isCallExpr {
+@@ -104,7 +118,7 @@ func (csa *callSiteAnalyzer) determinePanicPathBits(call ir.Node, r CSPropBits)
+ 		}
+ 
+ 		if debugTrace&debugTraceCalls != 0 {
+-			ps, inps := csa.ptab[n]
++			ps, inps := cstb.ptab[n]
+ 			fmt.Fprintf(os.Stderr, "=-= callpar %d op=%s ps=%s inptab=%v stmt=%v\n", i, n.Op().String(), ps.String(), inps, isStmt)
+ 		}
+ 
+@@ -112,7 +126,7 @@ func (csa *callSiteAnalyzer) determinePanicPathBits(call ir.Node, r CSPropBits)
+ 			r |= CallSiteOnPanicPath
+ 			break
+ 		}
+-		if v, ok := csa.ptab[n]; ok {
++		if v, ok := cstb.ptab[n]; ok {
+ 			if v == psCallsPanic {
+ 				r |= CallSiteOnPanicPath
+ 				break
+@@ -126,16 +140,15 @@ func (csa *callSiteAnalyzer) determinePanicPathBits(call ir.Node, r CSPropBits)
+ }
+ 
+ // propsForArg returns property bits for a given call argument expression arg.
+-func (csa *callSiteAnalyzer) propsForArg(arg ir.Node) ActualExprPropBits {
+-	_, islit := isLiteral(arg)
+-	if islit {
++func (cstb *callSiteTableBuilder) propsForArg(arg ir.Node) ActualExprPropBits {
++	if cval := cstb.constValue(arg); cval != nil {
+ 		return ActualExprConstant
+ 	}
+-	if isConcreteConvIface(arg) {
++	if cstb.isConcreteConvIface(arg) {
+ 		return ActualExprIsConcreteConvIface
+ 	}
+-	fname, isfunc, _ := isFuncName(arg)
+-	if isfunc {
++	fname := cstb.funcName(arg)
++	if fname != nil {
+ 		if fn := fname.Func; fn != nil && typecheck.HaveInlineBody(fn) {
+ 			return ActualExprIsInlinableFunc
+ 		}
+@@ -149,11 +162,11 @@ func (csa *callSiteAnalyzer) propsForArg(arg ir.Node) ActualExprPropBits {
+ // expression; these will be stored in the CallSite object for a given
+ // call and then consulted when scoring. If no arg has any interesting
+ // properties we try to save some space and return a nil slice.
+-func (csa *callSiteAnalyzer) argPropsForCall(ce *ir.CallExpr) []ActualExprPropBits {
++func (cstb *callSiteTableBuilder) argPropsForCall(ce *ir.CallExpr) []ActualExprPropBits {
+ 	rv := make([]ActualExprPropBits, len(ce.Args))
+ 	somethingInteresting := false
+ 	for idx := range ce.Args {
+-		argProp := csa.propsForArg(ce.Args[idx])
++		argProp := cstb.propsForArg(ce.Args[idx])
+ 		somethingInteresting = somethingInteresting || (argProp != 0)
+ 		rv[idx] = argProp
+ 	}
+@@ -163,9 +176,9 @@ func (csa *callSiteAnalyzer) argPropsForCall(ce *ir.CallExpr) []ActualExprPropBi
+ 	return rv
+ }
+ 
+-func (csa *callSiteAnalyzer) addCallSite(callee *ir.Func, call *ir.CallExpr) {
+-	flags := csa.flagsForNode(call)
+-	argProps := csa.argPropsForCall(call)
++func (cstb *callSiteTableBuilder) addCallSite(callee *ir.Func, call *ir.CallExpr) {
++	flags := cstb.flagsForNode(call)
++	argProps := cstb.argPropsForCall(call)
+ 	if debugTrace&debugTraceCalls != 0 {
+ 		fmt.Fprintf(os.Stderr, "=-= props %+v for call %v\n", argProps, call)
+ 	}
+@@ -173,12 +186,12 @@ func (csa *callSiteAnalyzer) addCallSite(callee *ir.Func, call *ir.CallExpr) {
+ 	cs := &CallSite{
+ 		Call:     call,
+ 		Callee:   callee,
+-		Assign:   csa.containingAssignment(call),
++		Assign:   cstb.containingAssignment(call),
+ 		ArgProps: argProps,
+ 		Flags:    flags,
+-		ID:       uint(len(csa.cstab)),
++		ID:       uint(len(cstb.cstab)),
+ 	}
+-	if _, ok := csa.cstab[call]; ok {
++	if _, ok := cstb.cstab[call]; ok {
+ 		fmt.Fprintf(os.Stderr, "*** cstab duplicate entry at: %s\n",
+ 			fmtFullPos(call.Pos()))
+ 		fmt.Fprintf(os.Stderr, "*** call: %+v\n", call)
+@@ -189,38 +202,38 @@ func (csa *callSiteAnalyzer) addCallSite(callee *ir.Func, call *ir.CallExpr) {
+ 	// on heuristics.
+ 	cs.Score = int(callee.Inl.Cost)
+ 
+-	if csa.cstab == nil {
+-		csa.cstab = make(CallSiteTab)
++	if cstb.cstab == nil {
++		cstb.cstab = make(CallSiteTab)
+ 	}
+-	csa.cstab[call] = cs
++	cstb.cstab[call] = cs
+ 	if debugTrace&debugTraceCalls != 0 {
+ 		fmt.Fprintf(os.Stderr, "=-= added callsite: caller=%v callee=%v n=%s\n",
+-			csa.fn, callee, fmtFullPos(call.Pos()))
++			cstb.fn, callee, fmtFullPos(call.Pos()))
+ 	}
+ }
+ 
+-func (csa *callSiteAnalyzer) nodeVisitPre(n ir.Node) {
++func (cstb *callSiteTableBuilder) nodeVisitPre(n ir.Node) {
+ 	switch n.Op() {
+ 	case ir.ORANGE, ir.OFOR:
+ 		if !hasTopLevelLoopBodyReturnOrBreak(loopBody(n)) {
+-			csa.loopNest++
++			cstb.loopNest++
+ 		}
+ 	case ir.OCALLFUNC:
+ 		ce := n.(*ir.CallExpr)
+ 		callee := pgo.DirectCallee(ce.Fun)
+ 		if callee != nil && callee.Inl != nil {
+-			csa.addCallSite(callee, ce)
++			cstb.addCallSite(callee, ce)
+ 		}
+ 	}
+-	csa.nstack = append(csa.nstack, n)
++	cstb.nstack = append(cstb.nstack, n)
+ }
+ 
+-func (csa *callSiteAnalyzer) nodeVisitPost(n ir.Node) {
+-	csa.nstack = csa.nstack[:len(csa.nstack)-1]
++func (cstb *callSiteTableBuilder) nodeVisitPost(n ir.Node) {
++	cstb.nstack = cstb.nstack[:len(cstb.nstack)-1]
+ 	switch n.Op() {
+ 	case ir.ORANGE, ir.OFOR:
+ 		if !hasTopLevelLoopBodyReturnOrBreak(loopBody(n)) {
+-			csa.loopNest--
++			cstb.loopNest--
+ 		}
+ 	}
+ }
+@@ -281,8 +294,8 @@ func hasTopLevelLoopBodyReturnOrBreak(loopBody ir.Nodes) bool {
+ // call to a pair of auto-temps, then the second one assigning the
+ // auto-temps to the user-visible vars. This helper will return the
+ // second (outer) of these two.
+-func (csa *callSiteAnalyzer) containingAssignment(n ir.Node) ir.Node {
+-	parent := csa.nstack[len(csa.nstack)-1]
++func (cstb *callSiteTableBuilder) containingAssignment(n ir.Node) ir.Node {
++	parent := cstb.nstack[len(cstb.nstack)-1]
+ 
+ 	// assignsOnlyAutoTemps returns TRUE of the specified OAS2FUNC
+ 	// node assigns only auto-temps.
+@@ -315,12 +328,12 @@ func (csa *callSiteAnalyzer) containingAssignment(n ir.Node) ir.Node {
+ 		// OAS1({x,y},OCONVNOP(OAS2FUNC({auto1,auto2},OCALLFUNC(bar))))
+ 		//
+ 		if assignsOnlyAutoTemps(parent) {
+-			par2 := csa.nstack[len(csa.nstack)-2]
++			par2 := cstb.nstack[len(cstb.nstack)-2]
+ 			if par2.Op() == ir.OAS2 {
+ 				return par2
+ 			}
+ 			if par2.Op() == ir.OCONVNOP {
+-				par3 := csa.nstack[len(csa.nstack)-3]
++				par3 := cstb.nstack[len(cstb.nstack)-3]
+ 				if par3.Op() == ir.OAS2 {
+ 					return par3
+ 				}
+@@ -378,18 +391,23 @@ func UpdateCallsiteTable(callerfn *ir.Func, n *ir.CallExpr, ic *ir.InlinedCallEx
+ 		loopNestLevel = 1
+ 	}
+ 	ptab := map[ir.Node]pstate{ic: icp}
+-	icstab := computeCallSiteTable(callerfn, ic.Body, nil, ptab, loopNestLevel)
++	nf := newNameFinder(nil)
++	icstab := computeCallSiteTable(callerfn, ic.Body, nil, ptab, loopNestLevel, nf)
+ 
+ 	// Record parent callsite. This is primarily for debug output.
+ 	for _, cs := range icstab {
+ 		cs.parent = oldcs
+ 	}
+ 
+-	// Score the calls in the inlined body. Note the setting of "doCallResults"
+-	// to false here: at the moment there isn't any easy way to localize
+-	// or region-ize the work done by "rescoreBasedOnCallResultUses", which
+-	// currently does a walk over the entire function to look for uses
+-	// of a given set of results.
++	// Score the calls in the inlined body. Note the setting of
++	// "doCallResults" to false here: at the moment there isn't any
++	// easy way to localize or region-ize the work done by
++	// "rescoreBasedOnCallResultUses", which currently does a walk
++	// over the entire function to look for uses of a given set of
++	// results. Similarly we're passing nil to makeCallSiteAnalyzer,
++	// so as to run name finding without the use of static value &
++	// friends.
++	csa := makeCallSiteAnalyzer(nil)
+ 	const doCallResults = false
+-	scoreCallsRegion(callerfn, ic.Body, icstab, doCallResults, ic)
++	csa.scoreCallsRegion(callerfn, ic.Body, icstab, doCallResults, ic)
+ }
+diff --git a/src/cmd/compile/internal/inline/inlheur/analyze_func_params.go b/src/cmd/compile/internal/inline/inlheur/analyze_func_params.go
+index 0ce0af43a2..5e61485532 100644
+--- a/src/cmd/compile/internal/inline/inlheur/analyze_func_params.go
++++ b/src/cmd/compile/internal/inline/inlheur/analyze_func_params.go
+@@ -19,6 +19,7 @@ type paramsAnalyzer struct {
+ 	params []*ir.Name
+ 	top    []bool
+ 	*condLevelTracker
++	*nameFinder
+ }
+ 
+ // getParams returns an *ir.Name slice containing all params for the
+@@ -34,8 +35,8 @@ func getParams(fn *ir.Func) []*ir.Name {
+ // new list. If the function in question doesn't have any interesting
+ // parameters then the analyzer list is returned unchanged, and the
+ // params flags in "fp" are updated accordingly.
+-func addParamsAnalyzer(fn *ir.Func, analyzers []propAnalyzer, fp *FuncProps) []propAnalyzer {
+-	pa, props := makeParamsAnalyzer(fn)
++func addParamsAnalyzer(fn *ir.Func, analyzers []propAnalyzer, fp *FuncProps, nf *nameFinder) []propAnalyzer {
++	pa, props := makeParamsAnalyzer(fn, nf)
+ 	if pa != nil {
+ 		analyzers = append(analyzers, pa)
+ 	} else {
+@@ -48,7 +49,7 @@ func addParamsAnalyzer(fn *ir.Func, analyzers []propAnalyzer, fp *FuncProps) []p
+ // of function fn. If the function doesn't have any interesting
+ // params, a nil helper is returned along with a set of default param
+ // flags for the func.
+-func makeParamsAnalyzer(fn *ir.Func) (*paramsAnalyzer, []ParamPropBits) {
++func makeParamsAnalyzer(fn *ir.Func, nf *nameFinder) (*paramsAnalyzer, []ParamPropBits) {
+ 	params := getParams(fn) // includes receiver if applicable
+ 	if len(params) == 0 {
+ 		return nil, nil
+@@ -98,6 +99,7 @@ func makeParamsAnalyzer(fn *ir.Func) (*paramsAnalyzer, []ParamPropBits) {
+ 		params:           params,
+ 		top:              top,
+ 		condLevelTracker: new(condLevelTracker),
++		nameFinder:       nf,
+ 	}
+ 	return pa, nil
+ }
+@@ -162,7 +164,7 @@ func (pa *paramsAnalyzer) callCheckParams(ce *ir.CallExpr) {
+ 			return
+ 		}
+ 		sel := ce.Fun.(*ir.SelectorExpr)
+-		r := ir.StaticValue(sel.X)
++		r := pa.staticValue(sel.X)
+ 		if r.Op() != ir.ONAME {
+ 			return
+ 		}
+@@ -193,8 +195,8 @@ func (pa *paramsAnalyzer) callCheckParams(ce *ir.CallExpr) {
+ 					return name == p, false
+ 				})
+ 		} else {
+-			cname, isFunc, _ := isFuncName(called)
+-			if isFunc {
++			cname := pa.funcName(called)
++			if cname != nil {
+ 				pa.deriveFlagsFromCallee(ce, cname.Func)
+ 			}
+ 		}
+@@ -238,7 +240,7 @@ func (pa *paramsAnalyzer) deriveFlagsFromCallee(ce *ir.CallExpr, callee *ir.Func
+ 		}
+ 		// See if one of the caller's parameters is flowing unmodified
+ 		// into this actual expression.
+-		r := ir.StaticValue(arg)
++		r := pa.staticValue(arg)
+ 		if r.Op() != ir.ONAME {
+ 			return
+ 		}
+diff --git a/src/cmd/compile/internal/inline/inlheur/analyze_func_returns.go b/src/cmd/compile/internal/inline/inlheur/analyze_func_returns.go
+index 58b0f54697..2aaa68d1b7 100644
+--- a/src/cmd/compile/internal/inline/inlheur/analyze_func_returns.go
++++ b/src/cmd/compile/internal/inline/inlheur/analyze_func_returns.go
+@@ -20,6 +20,7 @@ type resultsAnalyzer struct {
+ 	props           []ResultPropBits
+ 	values          []resultVal
+ 	inlineMaxBudget int
++	*nameFinder
+ }
+ 
+ // resultVal captures information about a specific result returned from
+@@ -28,7 +29,7 @@ type resultsAnalyzer struct {
+ // the same function, etc. This container stores info on a the specific
+ // scenarios we're looking for.
+ type resultVal struct {
+-	lit     constant.Value
++	cval    constant.Value
+ 	fn      *ir.Name
+ 	fnClo   bool
+ 	top     bool
+@@ -40,8 +41,8 @@ type resultVal struct {
+ // new list. If the function in question doesn't have any returns (or
+ // any interesting returns) then the analyzer list is left as is, and
+ // the result flags in "fp" are updated accordingly.
+-func addResultsAnalyzer(fn *ir.Func, analyzers []propAnalyzer, fp *FuncProps, inlineMaxBudget int) []propAnalyzer {
+-	ra, props := makeResultsAnalyzer(fn, inlineMaxBudget)
++func addResultsAnalyzer(fn *ir.Func, analyzers []propAnalyzer, fp *FuncProps, inlineMaxBudget int, nf *nameFinder) []propAnalyzer {
++	ra, props := makeResultsAnalyzer(fn, inlineMaxBudget, nf)
+ 	if ra != nil {
+ 		analyzers = append(analyzers, ra)
+ 	} else {
+@@ -54,7 +55,7 @@ func addResultsAnalyzer(fn *ir.Func, analyzers []propAnalyzer, fp *FuncProps, in
+ // in function fn. If the function doesn't have any interesting
+ // results, a nil helper is returned along with a set of default
+ // result flags for the func.
+-func makeResultsAnalyzer(fn *ir.Func, inlineMaxBudget int) (*resultsAnalyzer, []ResultPropBits) {
++func makeResultsAnalyzer(fn *ir.Func, inlineMaxBudget int, nf *nameFinder) (*resultsAnalyzer, []ResultPropBits) {
+ 	results := fn.Type().Results()
+ 	if len(results) == 0 {
+ 		return nil, nil
+@@ -84,6 +85,7 @@ func makeResultsAnalyzer(fn *ir.Func, inlineMaxBudget int) (*resultsAnalyzer, []
+ 		props:           props,
+ 		values:          vals,
+ 		inlineMaxBudget: inlineMaxBudget,
++		nameFinder:      nf,
+ 	}
+ 	return ra, nil
+ }
+@@ -143,29 +145,6 @@ func (ra *resultsAnalyzer) nodeVisitPost(n ir.Node) {
+ 	}
+ }
+ 
+-// isFuncName returns the *ir.Name for the func or method
+-// corresponding to node 'n', along with a boolean indicating success,
+-// and another boolean indicating whether the func is closure.
+-func isFuncName(n ir.Node) (*ir.Name, bool, bool) {
+-	sv := ir.StaticValue(n)
+-	if sv.Op() == ir.ONAME {
+-		name := sv.(*ir.Name)
+-		if name.Sym() != nil && name.Class == ir.PFUNC {
+-			return name, true, false
+-		}
+-	}
+-	if sv.Op() == ir.OCLOSURE {
+-		cloex := sv.(*ir.ClosureExpr)
+-		return cloex.Func.Nname, true, true
+-	}
+-	if sv.Op() == ir.OMETHEXPR {
+-		if mn := ir.MethodExprName(sv); mn != nil {
+-			return mn, true, false
+-		}
+-	}
+-	return nil, false, false
+-}
+-
+ // analyzeResult examines the expression 'n' being returned as the
+ // 'ii'th argument in some return statement to see whether has
+ // interesting characteristics (for example, returns a constant), then
+@@ -173,18 +152,22 @@ func isFuncName(n ir.Node) (*ir.Name, bool, bool) {
+ // previous result (for the given return slot) that we've already
+ // processed.
+ func (ra *resultsAnalyzer) analyzeResult(ii int, n ir.Node) {
+-	isAllocMem := isAllocatedMem(n)
+-	isConcConvItf := isConcreteConvIface(n)
+-	lit, isConst := isLiteral(n)
+-	rfunc, isFunc, isClo := isFuncName(n)
++	isAllocMem := ra.isAllocatedMem(n)
++	isConcConvItf := ra.isConcreteConvIface(n)
++	constVal := ra.constValue(n)
++	isConst := (constVal != nil)
++	isNil := ra.isNil(n)
++	rfunc := ra.funcName(n)
++	isFunc := (rfunc != nil)
++	isClo := (rfunc != nil && rfunc.Func.OClosure != nil)
+ 	curp := ra.props[ii]
+-	dprops, isDerivedFromCall := deriveReturnFlagsFromCallee(n)
++	dprops, isDerivedFromCall := ra.deriveReturnFlagsFromCallee(n)
+ 	newp := ResultNoInfo
+-	var newlit constant.Value
++	var newcval constant.Value
+ 	var newfunc *ir.Name
+ 
+ 	if debugTrace&debugTraceResults != 0 {
+-		fmt.Fprintf(os.Stderr, "=-= %v: analyzeResult n=%s ismem=%v isconcconv=%v isconst=%v isfunc=%v isclo=%v\n", ir.Line(n), n.Op().String(), isAllocMem, isConcConvItf, isConst, isFunc, isClo)
++		fmt.Fprintf(os.Stderr, "=-= %v: analyzeResult n=%s ismem=%v isconcconv=%v isconst=%v isnil=%v isfunc=%v isclo=%v\n", ir.Line(n), n.Op().String(), isAllocMem, isConcConvItf, isConst, isNil, isFunc, isClo)
+ 	}
+ 
+ 	if ra.values[ii].top {
+@@ -201,7 +184,10 @@ func (ra *resultsAnalyzer) analyzeResult(ii int, n ir.Node) {
+ 			newfunc = rfunc
+ 		case isConst:
+ 			newp = ResultAlwaysSameConstant
+-			newlit = lit
++			newcval = constVal
++		case isNil:
++			newp = ResultAlwaysSameConstant
++			newcval = nil
+ 		case isDerivedFromCall:
+ 			newp = dprops
+ 			ra.values[ii].derived = true
+@@ -214,17 +200,20 @@ func (ra *resultsAnalyzer) analyzeResult(ii int, n ir.Node) {
+ 			// the previous returns.
+ 			switch curp {
+ 			case ResultIsAllocatedMem:
+-				if isAllocatedMem(n) {
++				if isAllocMem {
+ 					newp = ResultIsAllocatedMem
+ 				}
+ 			case ResultIsConcreteTypeConvertedToInterface:
+-				if isConcreteConvIface(n) {
++				if isConcConvItf {
+ 					newp = ResultIsConcreteTypeConvertedToInterface
+ 				}
+ 			case ResultAlwaysSameConstant:
+-				if isConst && isSameLiteral(lit, ra.values[ii].lit) {
++				if isNil && ra.values[ii].cval == nil {
++					newp = ResultAlwaysSameConstant
++					newcval = nil
++				} else if isConst && constant.Compare(constVal, token.EQL, ra.values[ii].cval) {
+ 					newp = ResultAlwaysSameConstant
+-					newlit = lit
++					newcval = constVal
+ 				}
+ 			case ResultAlwaysSameFunc:
+ 				if isFunc && isSameFuncName(rfunc, ra.values[ii].fn) {
+@@ -236,7 +225,7 @@ func (ra *resultsAnalyzer) analyzeResult(ii int, n ir.Node) {
+ 	}
+ 	ra.values[ii].fn = newfunc
+ 	ra.values[ii].fnClo = isClo
+-	ra.values[ii].lit = newlit
++	ra.values[ii].cval = newcval
+ 	ra.props[ii] = newp
+ 
+ 	if debugTrace&debugTraceResults != 0 {
+@@ -245,15 +234,6 @@ func (ra *resultsAnalyzer) analyzeResult(ii int, n ir.Node) {
+ 	}
+ }
+ 
+-func isAllocatedMem(n ir.Node) bool {
+-	sv := ir.StaticValue(n)
+-	switch sv.Op() {
+-	case ir.OMAKESLICE, ir.ONEW, ir.OPTRLIT, ir.OSLICELIT:
+-		return true
+-	}
+-	return false
+-}
+-
+ // deriveReturnFlagsFromCallee tries to set properties for a given
+ // return result where we're returning call expression; return value
+ // is a return property value and a boolean indicating whether the
+@@ -270,7 +250,7 @@ func isAllocatedMem(n ir.Node) bool {
+ // set foo's return property to that of bar. In the case of "two", however,
+ // even though each return path returns a constant, we don't know
+ // whether the constants are identical, hence we need to be conservative.
+-func deriveReturnFlagsFromCallee(n ir.Node) (ResultPropBits, bool) {
++func (ra *resultsAnalyzer) deriveReturnFlagsFromCallee(n ir.Node) (ResultPropBits, bool) {
+ 	if n.Op() != ir.OCALLFUNC {
+ 		return 0, false
+ 	}
+@@ -282,8 +262,8 @@ func deriveReturnFlagsFromCallee(n ir.Node) (ResultPropBits, bool) {
+ 	if called.Op() != ir.ONAME {
+ 		return 0, false
+ 	}
+-	cname, isFunc, _ := isFuncName(called)
+-	if !isFunc {
++	cname := ra.funcName(called)
++	if cname == nil {
+ 		return 0, false
+ 	}
+ 	calleeProps := propsForFunc(cname.Func)
+@@ -295,41 +275,3 @@ func deriveReturnFlagsFromCallee(n ir.Node) (ResultPropBits, bool) {
+ 	}
+ 	return calleeProps.ResultFlags[0], true
+ }
+-
+-func isLiteral(n ir.Node) (constant.Value, bool) {
+-	sv := ir.StaticValue(n)
+-	switch sv.Op() {
+-	case ir.ONIL:
+-		return nil, true
+-	case ir.OLITERAL:
+-		return sv.Val(), true
+-	}
+-	return nil, false
+-}
+-
+-// isSameLiteral checks to see if 'v1' and 'v2' correspond to the same
+-// literal value, or if they are both nil.
+-func isSameLiteral(v1, v2 constant.Value) bool {
+-	if v1 == nil && v2 == nil {
+-		return true
+-	}
+-	if v1 == nil || v2 == nil {
+-		return false
+-	}
+-	return constant.Compare(v1, token.EQL, v2)
+-}
+-
+-func isConcreteConvIface(n ir.Node) bool {
+-	sv := ir.StaticValue(n)
+-	if sv.Op() != ir.OCONVIFACE {
+-		return false
+-	}
+-	return !sv.(*ir.ConvExpr).X.Type().IsInterface()
+-}
+-
+-func isSameFuncName(v1, v2 *ir.Name) bool {
+-	// NB: there are a few corner cases where pointer equality
+-	// doesn't work here, but this should be good enough for
+-	// our purposes here.
+-	return v1 == v2
+-}
+diff --git a/src/cmd/compile/internal/inline/inlheur/names.go b/src/cmd/compile/internal/inline/inlheur/names.go
+new file mode 100644
+index 0000000000..022385087b
+--- /dev/null
++++ b/src/cmd/compile/internal/inline/inlheur/names.go
+@@ -0,0 +1,129 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package inlheur
++
++import (
++	"cmd/compile/internal/ir"
++	"go/constant"
++)
++
++// nameFinder provides a set of "isXXX" query methods for clients to
++// ask whether a given AST node corresponds to a function, a constant
++// value, and so on. These methods use an underlying ir.ReassignOracle
++// to return more precise results in cases where an "interesting"
++// value is assigned to a singly-defined local temp. Example:
++//
++//	const q = 101
++//	fq := func() int { return q }
++//	copyOfConstant := q
++//	copyOfFunc := f
++//	interestingCall(copyOfConstant, copyOfFunc)
++//
++// A name finder query method invoked on the arguments being passed to
++// "interestingCall" will be able detect that 'copyOfConstant' always
++// evaluates to a constant (even though it is in fact a PAUTO local
++// variable). A given nameFinder can also operate without using
++// ir.ReassignOracle (in cases where it is not practical to look
++// at the entire function); in such cases queries will still work
++// for explicit constant values and functions.
++type nameFinder struct {
++	ro *ir.ReassignOracle
++}
++
++// newNameFinder returns a new nameFinder object with a reassignment
++// oracle initialized based on the function fn, or if fn is nil,
++// without an underlying ReassignOracle.
++func newNameFinder(fn *ir.Func) *nameFinder {
++	var ro *ir.ReassignOracle
++	if fn != nil {
++		ro = &ir.ReassignOracle{}
++		ro.Init(fn)
++	}
++	return &nameFinder{ro: ro}
++}
++
++// funcName returns the *ir.Name for the func or method
++// corresponding to node 'n', or nil if n can't be proven
++// to contain a function value.
++func (nf *nameFinder) funcName(n ir.Node) *ir.Name {
++	sv := n
++	if nf.ro != nil {
++		sv = nf.ro.StaticValue(n)
++	}
++	if name := ir.StaticCalleeName(sv); name != nil {
++		return name
++	}
++	return nil
++}
++
++// isAllocatedMem returns true if node n corresponds to a memory
++// allocation expression (make, new, or equivalent).
++func (nf *nameFinder) isAllocatedMem(n ir.Node) bool {
++	sv := n
++	if nf.ro != nil {
++		sv = nf.ro.StaticValue(n)
++	}
++	switch sv.Op() {
++	case ir.OMAKESLICE, ir.ONEW, ir.OPTRLIT, ir.OSLICELIT:
++		return true
++	}
++	return false
++}
++
++// constValue returns the underlying constant.Value for an AST node n
++// if n is itself a constant value/expr, or if n is a singly assigned
++// local containing constant expr/value (or nil not constant).
++func (nf *nameFinder) constValue(n ir.Node) constant.Value {
++	sv := n
++	if nf.ro != nil {
++		sv = nf.ro.StaticValue(n)
++	}
++	if sv.Op() == ir.OLITERAL {
++		return sv.Val()
++	}
++	return nil
++}
++
++// isNil returns whether n is nil (or singly
++// assigned local containing nil).
++func (nf *nameFinder) isNil(n ir.Node) bool {
++	sv := n
++	if nf.ro != nil {
++		sv = nf.ro.StaticValue(n)
++	}
++	return sv.Op() == ir.ONIL
++}
++
++func (nf *nameFinder) staticValue(n ir.Node) ir.Node {
++	if nf.ro == nil {
++		return n
++	}
++	return nf.ro.StaticValue(n)
++}
++
++func (nf *nameFinder) reassigned(n *ir.Name) bool {
++	if nf.ro == nil {
++		return true
++	}
++	return nf.ro.Reassigned(n)
++}
++
++func (nf *nameFinder) isConcreteConvIface(n ir.Node) bool {
++	sv := n
++	if nf.ro != nil {
++		sv = nf.ro.StaticValue(n)
++	}
++	if sv.Op() != ir.OCONVIFACE {
++		return false
++	}
++	return !sv.(*ir.ConvExpr).X.Type().IsInterface()
++}
++
++func isSameFuncName(v1, v2 *ir.Name) bool {
++	// NB: there are a few corner cases where pointer equality
++	// doesn't work here, but this should be good enough for
++	// our purposes here.
++	return v1 == v2
++}
+diff --git a/src/cmd/compile/internal/inline/inlheur/score_callresult_uses.go b/src/cmd/compile/internal/inline/inlheur/score_callresult_uses.go
+index 1d31f09ac0..b95ea37d59 100644
+--- a/src/cmd/compile/internal/inline/inlheur/score_callresult_uses.go
++++ b/src/cmd/compile/internal/inline/inlheur/score_callresult_uses.go
+@@ -46,7 +46,7 @@ type resultUseAnalyzer struct {
+ // rescoreBasedOnCallResultUses examines how call results are used,
+ // and tries to update the scores of calls based on how their results
+ // are used in the function.
+-func rescoreBasedOnCallResultUses(fn *ir.Func, resultNameTab map[*ir.Name]resultPropAndCS, cstab CallSiteTab) {
++func (csa *callSiteAnalyzer) rescoreBasedOnCallResultUses(fn *ir.Func, resultNameTab map[*ir.Name]resultPropAndCS, cstab CallSiteTab) {
+ 	enableDebugTraceIfEnv()
+ 	rua := &resultUseAnalyzer{
+ 		resultNameTab:    resultNameTab,
+@@ -65,7 +65,7 @@ func rescoreBasedOnCallResultUses(fn *ir.Func, resultNameTab map[*ir.Name]result
+ 	disableDebugTrace()
+ }
+ 
+-func examineCallResults(cs *CallSite, resultNameTab map[*ir.Name]resultPropAndCS) map[*ir.Name]resultPropAndCS {
++func (csa *callSiteAnalyzer) examineCallResults(cs *CallSite, resultNameTab map[*ir.Name]resultPropAndCS) map[*ir.Name]resultPropAndCS {
+ 	if debugTrace&debugTraceScoring != 0 {
+ 		fmt.Fprintf(os.Stderr, "=-= examining call results for %q\n",
+ 			EncodeCallSiteKey(cs))
+@@ -103,7 +103,7 @@ func examineCallResults(cs *CallSite, resultNameTab map[*ir.Name]resultPropAndCS
+ 		if rprop&interesting == 0 {
+ 			continue
+ 		}
+-		if ir.Reassigned(n) {
++		if csa.nameFinder.reassigned(n) {
+ 			continue
+ 		}
+ 		if resultNameTab == nil {
+diff --git a/src/cmd/compile/internal/inline/inlheur/scoring.go b/src/cmd/compile/internal/inline/inlheur/scoring.go
+index 2b210fce8e..efbca79ae3 100644
+--- a/src/cmd/compile/internal/inline/inlheur/scoring.go
++++ b/src/cmd/compile/internal/inline/inlheur/scoring.go
+@@ -182,13 +182,14 @@ func mustToMay(x scoreAdjustTyp) scoreAdjustTyp {
+ 	return 0
+ }
+ 
+-// computeCallSiteScore takes a given call site whose ir node is 'call' and
+-// callee function is 'callee' and with previously computed call site
+-// properties 'csflags', then computes a score for the callsite that
+-// combines the size cost of the callee with heuristics based on
+-// previously parameter and function properties, then stores the score
+-// and the adjustment mask in the appropriate fields in 'cs'
+-func (cs *CallSite) computeCallSiteScore(calleeProps *FuncProps) {
++// computeCallSiteScore takes a given call site whose ir node is
++// 'call' and callee function is 'callee' and with previously computed
++// call site properties 'csflags', then computes a score for the
++// callsite that combines the size cost of the callee with heuristics
++// based on previously computed argument and function properties,
++// then stores the score and the adjustment mask in the appropriate
++// fields in 'cs'
++func (cs *CallSite) computeCallSiteScore(csa *callSiteAnalyzer, calleeProps *FuncProps) {
+ 	callee := cs.Callee
+ 	csflags := cs.Flags
+ 	call := cs.Call
+@@ -438,8 +439,13 @@ type scoreCallsCacheType struct {
+ // after foo has been analyzed, but it's conceivable that CanInline
+ // might visit bar before foo for this SCC.
+ func ScoreCalls(fn *ir.Func) {
++	if len(fn.Body) == 0 {
++		return
++	}
+ 	enableDebugTraceIfEnv()
+ 
++	nameFinder := newNameFinder(fn)
++
+ 	if debugTrace&debugTraceScoring != 0 {
+ 		fmt.Fprintf(os.Stderr, "=-= ScoreCalls(%v)\n", ir.FuncName(fn))
+ 	}
+@@ -461,21 +467,25 @@ func ScoreCalls(fn *ir.Func) {
+ 			fmt.Fprintf(os.Stderr, "=-= building cstab for non-inl func %s\n",
+ 				ir.FuncName(fn))
+ 		}
+-		cstab = computeCallSiteTable(fn, fn.Body, scoreCallsCache.tab, nil, 0)
++		cstab = computeCallSiteTable(fn, fn.Body, scoreCallsCache.tab, nil, 0,
++			nameFinder)
+ 	}
+ 
++	csa := makeCallSiteAnalyzer(fn)
+ 	const doCallResults = true
+-	scoreCallsRegion(fn, fn.Body, cstab, doCallResults, nil)
++	csa.scoreCallsRegion(fn, fn.Body, cstab, doCallResults, nil)
++
++	disableDebugTrace()
+ }
+ 
+ // scoreCallsRegion assigns numeric scores to each of the callsites in
+ // region 'region' within function 'fn'. This can be called on
+ // an entire function, or with 'region' set to a chunk of
+ // code corresponding to an inlined call.
+-func scoreCallsRegion(fn *ir.Func, region ir.Nodes, cstab CallSiteTab, doCallResults bool, ic *ir.InlinedCallExpr) {
++func (csa *callSiteAnalyzer) scoreCallsRegion(fn *ir.Func, region ir.Nodes, cstab CallSiteTab, doCallResults bool, ic *ir.InlinedCallExpr) {
+ 	if debugTrace&debugTraceScoring != 0 {
+-		fmt.Fprintf(os.Stderr, "=-= scoreCallsRegion(%v, %s)\n",
+-			ir.FuncName(fn), region[0].Op().String())
++		fmt.Fprintf(os.Stderr, "=-= scoreCallsRegion(%v, %s) len(cstab)=%d\n",
++			ir.FuncName(fn), region[0].Op().String(), len(cstab))
+ 	}
+ 
+ 	// Sort callsites to avoid any surprises with non deterministic
+@@ -510,13 +520,13 @@ func scoreCallsRegion(fn *ir.Func, region ir.Nodes, cstab CallSiteTab, doCallRes
+ 				continue
+ 			}
+ 		}
+-		cs.computeCallSiteScore(cprops)
++		cs.computeCallSiteScore(csa, cprops)
+ 
+ 		if doCallResults {
+ 			if debugTrace&debugTraceScoring != 0 {
+ 				fmt.Fprintf(os.Stderr, "=-= examineCallResults at %s: flags=%d score=%d funcInlHeur=%v deser=%v\n", fmtFullPos(cs.Call.Pos()), cs.Flags, cs.Score, fihcprops, desercprops)
+ 			}
+-			resultNameTab = examineCallResults(cs, resultNameTab)
++			resultNameTab = csa.examineCallResults(cs, resultNameTab)
+ 		}
+ 
+ 		if debugTrace&debugTraceScoring != 0 {
+@@ -525,7 +535,7 @@ func scoreCallsRegion(fn *ir.Func, region ir.Nodes, cstab CallSiteTab, doCallRes
+ 	}
+ 
+ 	if resultNameTab != nil {
+-		rescoreBasedOnCallResultUses(fn, resultNameTab, cstab)
++		csa.rescoreBasedOnCallResultUses(fn, resultNameTab, cstab)
+ 	}
+ 
+ 	disableDebugTrace()

@@ -19,9 +19,211 @@ Date:   Mon Apr 19 17:18:54 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/api_test.go       |   7 +++
  src/go/types/lookup.go         |   2 +
  src/go/types/methodset.go      |  15 ++++--
  src/go/types/methodset_test.go | 109 +++++++++++++++++++++++++++++++++++++++++
  4 files changed, 129 insertions(+), 4 deletions(-)
+
+diff --git a/src/go/types/api_test.go b/src/go/types/api_test.go
+index a8e29d3fda..6998fc0a0d 100644
+--- a/src/go/types/api_test.go
++++ b/src/go/types/api_test.go
+@@ -21,6 +21,11 @@ import (
+ 	. "go/types"
+ )
+ 
++// pkgFor parses and type checks the package specified by path and source,
++// populating info if provided.
++//
++// If source begins with "package generic_" and type parameters are enabled,
++// generic code is permitted.
+ func pkgFor(path, source string, info *Info) (*Package, error) {
+ 	fset := token.NewFileSet()
+ 	mode := modeForSource(source)
+@@ -1213,6 +1218,8 @@ func TestLookupFieldOrMethod(t *testing.T) {
+ 	// Test cases assume a lookup of the form a.f or x.f, where a stands for an
+ 	// addressable value, and x for a non-addressable value (even though a variable
+ 	// for ease of test case writing).
++	//
++	// Should be kept in sync with TestMethodSet.
+ 	var tests = []struct {
+ 		src      string
+ 		found    bool
+diff --git a/src/go/types/lookup.go b/src/go/types/lookup.go
+index 3691b1ecaa..9c7bfd4bb9 100644
+--- a/src/go/types/lookup.go
++++ b/src/go/types/lookup.go
+@@ -142,6 +142,8 @@ func (check *Checker) rawLookupFieldOrMethod(T Type, addressable bool, pkg *Pack
+ 
+ 				// continue with underlying type, but only if it's not a type parameter
+ 				// TODO(gri) is this what we want to do for type parameters? (spec question)
++				// TODO(#45639) the error message produced as a result of skipping an
++				//              underlying type parameter should be improved.
+ 				typ = named.under()
+ 				if asTypeParam(typ) != nil {
+ 					continue
+diff --git a/src/go/types/methodset.go b/src/go/types/methodset.go
+index c44009f1a5..ae8011a2ee 100644
+--- a/src/go/types/methodset.go
++++ b/src/go/types/methodset.go
+@@ -63,7 +63,7 @@ func (s *MethodSet) Lookup(pkg *Package, name string) *Selection {
+ var emptyMethodSet MethodSet
+ 
+ // Note: NewMethodSet is intended for external use only as it
+-//       requires interfaces to be complete. If may be used
++//       requires interfaces to be complete. It may be used
+ //       internally if LookupFieldOrMethod completed the same
+ //       interfaces beforehand.
+ 
+@@ -73,8 +73,8 @@ func NewMethodSet(T Type) *MethodSet {
+ 	// WARNING: The code in this function is extremely subtle - do not modify casually!
+ 	//          This function and lookupFieldOrMethod should be kept in sync.
+ 
+-	// TODO(gri) This code is out-of-sync with the lookup code at this point.
+-	//           Need to update.
++	// TODO(rfindley) confirm that this code is in sync with lookupFieldOrMethod
++	//                with respect to type params.
+ 
+ 	// method set up to the current depth, allocated lazily
+ 	var base methodSet
+@@ -127,8 +127,12 @@ func NewMethodSet(T Type) *MethodSet {
+ 
+ 				mset = mset.add(named.methods, e.index, e.indirect, e.multiples)
+ 
+-				// continue with underlying type
++				// continue with underlying type, but only if it's not a type parameter
++				// TODO(rFindley): should this use named.under()? Can there be a difference?
+ 				typ = named.underlying
++				if _, ok := typ.(*_TypeParam); ok {
++					continue
++				}
+ 			}
+ 
+ 			switch t := typ.(type) {
+@@ -154,6 +158,9 @@ func NewMethodSet(T Type) *MethodSet {
+ 
+ 			case *Interface:
+ 				mset = mset.add(t.allMethods, e.index, true, e.multiples)
++
++			case *_TypeParam:
++				mset = mset.add(t.Bound().allMethods, e.index, true, e.multiples)
+ 			}
+ 		}
+ 
+diff --git a/src/go/types/methodset_test.go b/src/go/types/methodset_test.go
+new file mode 100644
+index 0000000000..4a373fa2c4
+--- /dev/null
++++ b/src/go/types/methodset_test.go
+@@ -0,0 +1,109 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package types_test
++
++import (
++	"testing"
++
++	"go/internal/typeparams"
++	. "go/types"
++)
++
++func TestNewMethodSet(t *testing.T) {
++	type method struct {
++		name     string
++		index    []int
++		indirect bool
++	}
++
++	// Tests are expressed src -> methods, for simplifying the composite literal.
++	// Should be kept in sync with TestLookupFieldOrMethod.
++	tests := map[string][]method{
++		// Named types
++		"var a T; type T struct{}; func (T) f() {}":   {{"f", []int{0}, false}},
++		"var a *T; type T struct{}; func (T) f() {}":  {{"f", []int{0}, true}},
++		"var a T; type T struct{}; func (*T) f() {}":  {},
++		"var a *T; type T struct{}; func (*T) f() {}": {{"f", []int{0}, true}},
++
++		// Interfaces
++		"var a T; type T interface{ f() }":                           {{"f", []int{0}, true}},
++		"var a T1; type ( T1 T2; T2 interface{ f() } )":              {{"f", []int{0}, true}},
++		"var a T1; type ( T1 interface{ T2 }; T2 interface{ f() } )": {{"f", []int{0}, true}},
++
++		// Embedding
++		"var a struct{ E }; type E interface{ f() }":            {{"f", []int{0, 0}, true}},
++		"var a *struct{ E }; type E interface{ f() }":           {{"f", []int{0, 0}, true}},
++		"var a struct{ E }; type E struct{}; func (E) f() {}":   {{"f", []int{0, 0}, false}},
++		"var a struct{ *E }; type E struct{}; func (E) f() {}":  {{"f", []int{0, 0}, true}},
++		"var a struct{ E }; type E struct{}; func (*E) f() {}":  {},
++		"var a struct{ *E }; type E struct{}; func (*E) f() {}": {{"f", []int{0, 0}, true}},
++
++		// collisions
++		"var a struct{ E1; *E2 }; type ( E1 interface{ f() }; E2 struct{ f int })":            {},
++		"var a struct{ E1; *E2 }; type ( E1 struct{ f int }; E2 struct{} ); func (E2) f() {}": {},
++	}
++
++	genericTests := map[string][]method{
++		// By convention, look up a in the scope of "g"
++		"type C interface{ f() }; func g[T C](a T){}":                       {{"f", []int{0}, true}},
++		"type C interface{ f() }; func g[T C]() { var a T; _ = a }":         {{"f", []int{0}, true}},
++		"type C interface{ f() }; func g[T C]() { var a struct{T}; _ = a }": {{"f", []int{0, 0}, true}},
++
++		// Issue #45639.
++		"type C interface{ f() }; func g[T C]() { type Y T; var a Y; _ = a }": {},
++	}
++
++	check := func(src string, methods []method, generic bool) {
++		pkgName := "p"
++		if generic {
++			// The generic_ prefix causes pkgFor to allow generic code.
++			pkgName = "generic_p"
++		}
++		pkg, err := pkgFor("test", "package "+pkgName+";"+src, nil)
++		if err != nil {
++			t.Errorf("%s: incorrect test case: %s", src, err)
++			return
++		}
++
++		scope := pkg.Scope()
++		if generic {
++			fn := pkg.Scope().Lookup("g").(*Func)
++			scope = fn.Scope()
++		}
++		obj := scope.Lookup("a")
++		if obj == nil {
++			t.Errorf("%s: incorrect test case - no object a", src)
++			return
++		}
++
++		ms := NewMethodSet(obj.Type())
++		if got, want := ms.Len(), len(methods); got != want {
++			t.Errorf("%s: got %d methods, want %d", src, got, want)
++			return
++		}
++		for i, m := range methods {
++			sel := ms.At(i)
++			if got, want := sel.Obj().Name(), m.name; got != want {
++				t.Errorf("%s [method %d]: got name = %q at, want %q", src, i, got, want)
++			}
++			if got, want := sel.Index(), m.index; !sameSlice(got, want) {
++				t.Errorf("%s [method %d]: got index = %v, want %v", src, i, got, want)
++			}
++			if got, want := sel.Indirect(), m.indirect; got != want {
++				t.Errorf("%s [method %d]: got indirect = %v, want %v", src, i, got, want)
++			}
++		}
++	}
++
++	for src, methods := range tests {
++		check(src, methods, false)
++	}
++
++	if typeparams.Enabled {
++		for src, methods := range genericTests {
++			check(src, methods, true)
++		}
++	}
++}

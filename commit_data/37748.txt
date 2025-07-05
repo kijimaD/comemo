@@ -18,7 +18,7 @@ Date:   Fri Aug 24 17:07:20 2018 +0200
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/internal/cpu/cpu.go          | 7 ++++++-
  src/internal/cpu/cpu_arm.go      | 2 +-
  src/internal/cpu/cpu_arm64.go    | 2 +-
@@ -31,3 +31,137 @@ Date:   Fri Aug 24 17:07:20 2018 +0200
  src/internal/cpu/cpu_wasm.go     | 2 +-
  src/internal/cpu/cpu_x86.go      | 2 +-
  11 files changed, 16 insertions(+), 11 deletions(-)
+
+diff --git a/src/internal/cpu/cpu.go b/src/internal/cpu/cpu.go
+index 2b5db91fe2..5363f11b90 100644
+--- a/src/internal/cpu/cpu.go
++++ b/src/internal/cpu/cpu.go
+@@ -12,7 +12,12 @@ package cpu
+ var DebugOptions bool
+ 
+ // CacheLinePad is used to pad structs to avoid false sharing.
+-type CacheLinePad struct{ _ [CacheLineSize]byte }
++type CacheLinePad struct{ _ [CacheLinePadSize]byte }
++
++// CacheLineSize is the CPU's assumed cache line size.
++// There is currently no runtime detection of the real cache line size
++// so we use the constant per GOARCH CacheLinePadSize as an approximation.
++var CacheLineSize = CacheLinePadSize
+ 
+ var X86 x86
+ 
+diff --git a/src/internal/cpu/cpu_arm.go b/src/internal/cpu/cpu_arm.go
+index b9baa44fea..6a5b30580c 100644
+--- a/src/internal/cpu/cpu_arm.go
++++ b/src/internal/cpu/cpu_arm.go
+@@ -4,7 +4,7 @@
+ 
+ package cpu
+ 
+-const CacheLineSize = 32
++const CacheLinePadSize = 32
+ 
+ // arm doesn't have a 'cpuid' equivalent, so we rely on HWCAP/HWCAP2.
+ // These are linknamed in runtime/os_(linux|freebsd)_arm.go and are
+diff --git a/src/internal/cpu/cpu_arm64.go b/src/internal/cpu/cpu_arm64.go
+index 77b617e49f..ad930af005 100644
+--- a/src/internal/cpu/cpu_arm64.go
++++ b/src/internal/cpu/cpu_arm64.go
+@@ -4,7 +4,7 @@
+ 
+ package cpu
+ 
+-const CacheLineSize = 64
++const CacheLinePadSize = 64
+ 
+ // arm64 doesn't have a 'cpuid' equivalent, so we rely on HWCAP/HWCAP2.
+ // These are initialized by archauxv in runtime/os_linux_arm64.go.
+diff --git a/src/internal/cpu/cpu_mips.go b/src/internal/cpu/cpu_mips.go
+index 078a6c3b80..0f821e44e7 100644
+--- a/src/internal/cpu/cpu_mips.go
++++ b/src/internal/cpu/cpu_mips.go
+@@ -4,4 +4,4 @@
+ 
+ package cpu
+ 
+-const CacheLineSize = 32
++const CacheLinePadSize = 32
+diff --git a/src/internal/cpu/cpu_mips64.go b/src/internal/cpu/cpu_mips64.go
+index 078a6c3b80..0f821e44e7 100644
+--- a/src/internal/cpu/cpu_mips64.go
++++ b/src/internal/cpu/cpu_mips64.go
+@@ -4,4 +4,4 @@
+ 
+ package cpu
+ 
+-const CacheLineSize = 32
++const CacheLinePadSize = 32
+diff --git a/src/internal/cpu/cpu_mips64le.go b/src/internal/cpu/cpu_mips64le.go
+index 078a6c3b80..0f821e44e7 100644
+--- a/src/internal/cpu/cpu_mips64le.go
++++ b/src/internal/cpu/cpu_mips64le.go
+@@ -4,4 +4,4 @@
+ 
+ package cpu
+ 
+-const CacheLineSize = 32
++const CacheLinePadSize = 32
+diff --git a/src/internal/cpu/cpu_mipsle.go b/src/internal/cpu/cpu_mipsle.go
+index 078a6c3b80..0f821e44e7 100644
+--- a/src/internal/cpu/cpu_mipsle.go
++++ b/src/internal/cpu/cpu_mipsle.go
+@@ -4,4 +4,4 @@
+ 
+ package cpu
+ 
+-const CacheLineSize = 32
++const CacheLinePadSize = 32
+diff --git a/src/internal/cpu/cpu_ppc64x.go b/src/internal/cpu/cpu_ppc64x.go
+index d3f02efa7f..0195e663c6 100644
+--- a/src/internal/cpu/cpu_ppc64x.go
++++ b/src/internal/cpu/cpu_ppc64x.go
+@@ -6,7 +6,7 @@
+ 
+ package cpu
+ 
+-const CacheLineSize = 128
++const CacheLinePadSize = 128
+ 
+ // ppc64x doesn't have a 'cpuid' equivalent, so we rely on HWCAP/HWCAP2.
+ // These are initialized by archauxv in runtime/os_linux_ppc64x.go.
+diff --git a/src/internal/cpu/cpu_s390x.go b/src/internal/cpu/cpu_s390x.go
+index 0a12922045..23484b2950 100644
+--- a/src/internal/cpu/cpu_s390x.go
++++ b/src/internal/cpu/cpu_s390x.go
+@@ -4,7 +4,7 @@
+ 
+ package cpu
+ 
+-const CacheLineSize = 256
++const CacheLinePadSize = 256
+ 
+ // bitIsSet reports whether the bit at index is set. The bit index
+ // is in big endian order, so bit index 0 is the leftmost bit.
+diff --git a/src/internal/cpu/cpu_wasm.go b/src/internal/cpu/cpu_wasm.go
+index 1107a7ad6f..b459738770 100644
+--- a/src/internal/cpu/cpu_wasm.go
++++ b/src/internal/cpu/cpu_wasm.go
+@@ -4,4 +4,4 @@
+ 
+ package cpu
+ 
+-const CacheLineSize = 64
++const CacheLinePadSize = 64
+diff --git a/src/internal/cpu/cpu_x86.go b/src/internal/cpu/cpu_x86.go
+index 7d9d3aaf76..0b00779a90 100644
+--- a/src/internal/cpu/cpu_x86.go
++++ b/src/internal/cpu/cpu_x86.go
+@@ -6,7 +6,7 @@
+ 
+ package cpu
+ 
+-const CacheLineSize = 64
++const CacheLinePadSize = 64
+ 
+ // cpuid is implemented in cpu_x86.s.
+ func cpuid(eaxArg, ecxArg uint32) (eax, ebx, ecx, edx uint32)

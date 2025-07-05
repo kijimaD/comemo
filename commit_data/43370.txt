@@ -12,6 +12,23 @@ Date:   Mon Mar 30 09:17:22 2020 -0400
     Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/link/internal/loader/loader.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index f3487c0ce7..f01264839b 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -2364,6 +2364,11 @@ func (l *Loader) migrateAttributes(src Sym, dst *sym.Symbol) {
+ 	if got, ok := l.got[src]; ok {
+ 		dst.SetGot(got)
+ 	}
++
++	// Copy dynid
++	if dynid, ok := l.dynid[src]; ok {
++		dst.Dynid = dynid
++	}
+ }
+ 
+ // CreateExtSym creates a new external symbol with the specified name

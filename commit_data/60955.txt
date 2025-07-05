@@ -18,6 +18,33 @@ Date:   Fri Sep 6 13:42:49 2024 +0000
     Reviewed-by: DING HU <huzuzong123@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/go/internal/work/init.go | 8 ++++++--
  1 file changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/internal/work/init.go b/src/cmd/go/internal/work/init.go
+index 7d0921f0cc..175912bb85 100644
+--- a/src/cmd/go/internal/work/init.go
++++ b/src/cmd/go/internal/work/init.go
+@@ -357,7 +357,9 @@ func compilerVersion() (version, error) {
+ 		compiler.err = func() error {
+ 			compiler.name = "unknown"
+ 			cc := os.Getenv("CC")
+-			out, err := exec.Command(cc, "--version").Output()
++			cmd := exec.Command(cc, "--version")
++			cmd.Env = append(cmd.Environ(), "LANG=C")
++			out, err := cmd.Output()
+ 			if err != nil {
+ 				// Compiler does not support "--version" flag: not Clang or GCC.
+ 				return err
+@@ -366,7 +368,9 @@ func compilerVersion() (version, error) {
+ 			var match [][]byte
+ 			if bytes.HasPrefix(out, []byte("gcc")) {
+ 				compiler.name = "gcc"
+-				out, err := exec.Command(cc, "-v").CombinedOutput()
++				cmd := exec.Command(cc, "-v")
++				cmd.Env = append(cmd.Environ(), "LANG=C")
++				out, err := cmd.CombinedOutput()
+ 				if err != nil {
+ 					// gcc, but does not support gcc's "-v" flag?!
+ 					return err

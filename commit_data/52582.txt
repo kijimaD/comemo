@@ -17,7 +17,7 @@ Date:   Thu May 5 17:22:17 2022 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/base/debug.go |  1 +
  src/cmd/compile/internal/base/flag.go  |  1 +
  src/cmd/internal/goobj/objfile.go      |  1 +
@@ -25,3 +25,123 @@ Date:   Thu May 5 17:22:17 2022 -0400
  src/cmd/internal/obj/objfile.go        | 17 ++++++++++++-----
  src/cmd/internal/obj/objfile_test.go   | 22 ++++++++++++++++++++++
  6 files changed, 38 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/base/debug.go b/src/cmd/compile/internal/base/debug.go
+index 80b2ff5bd6..f1d020f342 100644
+--- a/src/cmd/compile/internal/base/debug.go
++++ b/src/cmd/compile/internal/base/debug.go
+@@ -31,6 +31,7 @@ type DebugFlags struct {
+ 	LocationLists        int    `help:"print information about DWARF location list creation"`
+ 	Nil                  int    `help:"print information about nil checks"`
+ 	NoOpenDefer          int    `help:"disable open-coded defers"`
++	NoRefName            int    `help:"do not include referenced symbol names in object file"`
+ 	PCTab                string `help:"print named pc-value table\nOne of: pctospadj, pctofile, pctoline, pctoinline, pctopcdata"`
+ 	Panic                int    `help:"show all compiler panics"`
+ 	Slice                int    `help:"print information about slice compilation"`
+diff --git a/src/cmd/compile/internal/base/flag.go b/src/cmd/compile/internal/base/flag.go
+index 49e004cf18..4de0df21cb 100644
+--- a/src/cmd/compile/internal/base/flag.go
++++ b/src/cmd/compile/internal/base/flag.go
+@@ -192,6 +192,7 @@ func ParseFlags() {
+ 	Ctxt.Flag_optimize = Flag.N == 0
+ 	Ctxt.Debugasm = int(Flag.S)
+ 	Ctxt.Flag_maymorestack = Debug.MayMoreStack
++	Ctxt.Flag_noRefName = Debug.NoRefName != 0
+ 
+ 	if flag.NArg() < 1 {
+ 		usage()
+diff --git a/src/cmd/internal/goobj/objfile.go b/src/cmd/internal/goobj/objfile.go
+index 1b676b3677..665fa41475 100644
+--- a/src/cmd/internal/goobj/objfile.go
++++ b/src/cmd/internal/goobj/objfile.go
+@@ -177,6 +177,7 @@ const (
+ 	PkgIdxHashed                        // Hashed (content-addressable) symbols
+ 	PkgIdxBuiltin                       // Predefined runtime symbols (ex: runtime.newobject)
+ 	PkgIdxSelf                          // Symbols defined in the current package
++	PkgIdxSpecial  = PkgIdxSelf         // Indices above it has special meanings
+ 	PkgIdxInvalid  = 0
+ 	// The index of other referenced packages starts from 1.
+ )
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index 8a50b2e4fe..58aeb87c4f 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -899,6 +899,7 @@ type Link struct {
+ 	Flag_linkshared    bool
+ 	Flag_optimize      bool
+ 	Flag_locationlists bool
++	Flag_noRefName     bool   // do not include referenced symbol names in object file
+ 	Retpoline          bool   // emit use of retpoline stubs for indirect jmp/call
+ 	Flag_maymorestack  string // If not "", call this function before stack checks
+ 	Bso                *bufio.Writer
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index 2caff62702..d31afda703 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -269,17 +269,21 @@ func (w *writer) StringTable() {
+ 		w.AddString(pkg)
+ 	}
+ 	w.ctxt.traverseSyms(traverseAll, func(s *LSym) {
++		// Don't put names of builtins into the string table (to save
++		// space).
++		if s.PkgIdx == goobj.PkgIdxBuiltin {
++			return
++		}
+ 		// TODO: this includes references of indexed symbols from other packages,
+ 		// for which the linker doesn't need the name. Consider moving them to
+ 		// a separate block (for tools only).
++		if w.ctxt.Flag_noRefName && s.PkgIdx < goobj.PkgIdxSpecial {
++			// Don't include them if Flag_noRefName
++			return
++		}
+ 		if w.pkgpath != "" {
+ 			s.Name = strings.Replace(s.Name, "\"\".", w.pkgpath+".", -1)
+ 		}
+-		// Don't put names of builtins into the string table (to save
+-		// space).
+-		if s.PkgIdx == goobj.PkgIdxBuiltin {
+-			return
+-		}
+ 		w.AddString(s.Name)
+ 	})
+ 
+@@ -625,6 +629,9 @@ func (w *writer) refFlags() {
+ // Emits names of referenced indexed symbols, used by tools (objdump, nm)
+ // only.
+ func (w *writer) refNames() {
++	if w.ctxt.Flag_noRefName {
++		return
++	}
+ 	seen := make(map[*LSym]bool)
+ 	w.ctxt.traverseSyms(traverseRefs, func(rs *LSym) { // only traverse refs, not auxs, as tools don't need auxs
+ 		switch rs.PkgIdx {
+diff --git a/src/cmd/internal/obj/objfile_test.go b/src/cmd/internal/obj/objfile_test.go
+index f5a4016eec..91e96e435d 100644
+--- a/src/cmd/internal/obj/objfile_test.go
++++ b/src/cmd/internal/obj/objfile_test.go
+@@ -121,3 +121,25 @@ func TestSymbolTooLarge(t *testing.T) { // Issue 42054
+ 		t.Errorf("unexpected error message: want: %q, got: %s", want, out)
+ 	}
+ }
++
++func TestNoRefName(t *testing.T) {
++	// Test that the norefname flag works.
++	testenv.MustHaveGoBuild(t)
++
++	tmpdir := t.TempDir()
++
++	src := filepath.Join(tmpdir, "x.go")
++	err := ioutil.WriteFile(src, []byte("package main; import \"fmt\"; func main() { fmt.Println(123) }\n"), 0666)
++	if err != nil {
++		t.Fatalf("failed to write source file: %v\n", err)
++	}
++	exe := filepath.Join(tmpdir, "x.exe")
++
++	// Build the fmt package with norefname. Not rebuilding all packages to save time.
++	// Also testing that norefname and non-norefname packages can link together.
++	cmd := exec.Command(testenv.GoToolPath(t), "build", "-gcflags=fmt=-d=norefname", "-o", exe, src)
++	out, err := cmd.CombinedOutput()
++	if err != nil {
++		t.Fatalf("build failed: %v, output:\n%s", err, out)
++	}
++}

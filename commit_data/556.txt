@@ -7,10 +7,122 @@ Date:   Mon Sep 1 14:37:32 2008 -0700
     R=r
     OCL=14702
     CL=14702
-
+---
  src/cmd/6g/align.c   | 13 +++++--------
  src/cmd/gc/go.y      |  2 ++
  src/lib/math/pow.go  |  2 +-
  src/lib/math/sqrt.go |  6 ++++--
  src/lib/math/tan.go  |  2 +-
  5 files changed, 13 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/6g/align.c b/src/cmd/6g/align.c
+index cab2a93c11..31f06b0f7c 100644
+--- a/src/cmd/6g/align.c
++++ b/src/cmd/6g/align.c
+@@ -102,10 +102,10 @@ dowidth(Type *t)
+ {
+ 	uint32 w;
+ 
+-	w = 0;
+ 	if(t == T)
+ 		return;
+ 
++	w = 0;
+ 	switch(t->etype) {
+ 	default:
+ 		fatal("dowidth: unknown type: %E", t->etype);
+@@ -123,13 +123,13 @@ dowidth(Type *t)
+ 	case TINT32:
+ 	case TUINT32:
+ 	case TFLOAT32:
+-	case TPTR32:
++	case TPTR32:		// note lack of recursion
+ 		w = 4;
+ 		break;
+ 	case TINT64:
+ 	case TUINT64:
+ 	case TFLOAT64:
+-	case TPTR64:
++	case TPTR64:		// note lack of recursion
+ 		w = 8;
+ 		break;
+ 	case TFLOAT80:
+@@ -158,12 +158,9 @@ dowidth(Type *t)
+ 		w = wptr;
+ 		break;
+ 	case TARRAY:
+-		if(t->bound < 0)
+-			fatal("width of a dynamic array");
+-		if(t->type == T)
+-			break;
+ 		dowidth(t->type);
+-		w = t->bound * t->type->width;
++		if(t->bound >= 0 && t->type != T)
++			w = t->bound * t->type->width;
+ 		break;
+ 
+ 	case TSTRUCT:
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index a59ab80116..aa8c16df3c 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -943,6 +943,7 @@ Atype:
+ |	Afntypeh
+ |	'*' Atype
+ 	{
++		dowidth($2);
+ 		$$ = ptrto($2);
+ 	}
+ 
+@@ -966,6 +967,7 @@ Btype:
+ |	Bfntypeh
+ |	'*' Btype
+ 	{
++		dowidth($2);
+ 		$$ = ptrto($2);
+ 	}
+ |	'*' lname
+diff --git a/src/lib/math/pow.go b/src/lib/math/pow.go
+index ad7de595ed..8adb72132a 100644
+--- a/src/lib/math/pow.go
++++ b/src/lib/math/pow.go
+@@ -29,7 +29,7 @@ pow(arg1,arg2 float64) float64
+ 
+ 		temp = floor(arg2);
+ 		if temp != arg2 {
+-			panic sys.NaN();
++			panic(sys.NaN());
+ 		}
+ 
+ 		l = long(temp);
+diff --git a/src/lib/math/sqrt.go b/src/lib/math/sqrt.go
+index 8fe6ef2f01..76b499e880 100644
+--- a/src/lib/math/sqrt.go
++++ b/src/lib/math/sqrt.go
+@@ -49,9 +49,11 @@ sqrt(arg float64) float64
+ 		exp = exp + 60;
+ 	}
+ 	if exp >= 0 {
+-		temp = temp * float64(1 << (exp/2));
++		exp = 1 << uint(exp/2);
++		temp = temp * float64(exp);
+ 	} else {
+-		temp = temp / float64(1 << (-exp/2));
++		exp = 1 << uint(-exp/2);
++		temp = temp / float64(exp);
+ 	}
+ 
+ 	for i=0; i<=4; i=i+1 {
+diff --git a/src/lib/math/tan.go b/src/lib/math/tan.go
+index 5d9d5685a7..9def4d9cf3 100644
+--- a/src/lib/math/tan.go
++++ b/src/lib/math/tan.go
+@@ -60,7 +60,7 @@ tan(arg float64) float64
+ 
+ 	if flag {
+ 		if(temp == 0) {
+-			panic sys.NaN();
++			panic(sys.NaN());
+ 		}
+ 		temp = 1/temp;
+ 	}

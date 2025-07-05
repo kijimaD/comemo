@@ -17,7 +17,46 @@ Date:   Sun Aug 28 23:29:34 2011 -0400
     TBR=lvd
     CC=golang-dev
     https://golang.org/cl/4964047
-
+---
  src/cmd/gc/esc.c | 6 +++++-
  test/escape2.go  | 6 ++++++
  2 files changed, 11 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/esc.c b/src/cmd/gc/esc.c
+index 3a28a8ba73..8664dc606a 100644
+--- a/src/cmd/gc/esc.c
++++ b/src/cmd/gc/esc.c
+@@ -505,7 +505,7 @@ esccall(Node *n)
+ 		}
+ 	}
+ 			
+-	if(fn && fn->op == ONAME && fn->class == PFUNC && fn->ntype) {
++	if(fn && fn->op == ONAME && fn->class == PFUNC && fn->defn && fn->defn->nbody && fn->ntype) {
+ 		// Local function.  Incorporate into flow graph.
+ 
+ 		// Receiver.
+@@ -696,6 +696,10 @@ esctag(Node *func)
+ {
+ 	Node *savefn;
+ 	NodeList *ll;
++	
++	// External functions must be assumed unsafe.
++	if(func->nbody == nil)
++		return;
+ 
+ 	savefn = curfn;
+ 	curfn = func;
+diff --git a/test/escape2.go b/test/escape2.go
+index 24a88f751e..0b78624b6c 100644
+--- a/test/escape2.go
++++ b/test/escape2.go
+@@ -774,3 +774,9 @@ func foo118(unknown func(*int)) {  // ERROR "unknown does not escape"
+ 	x := 1 // ERROR "moved to heap: NAME-x"
+ 	unknown(&x) // ERROR "&x escapes to heap"
+ }
++
++func external(*int)
++
++func foo119(x *int) {  // ERROR "leaking param: NAME-x"
++	external(x)
++}

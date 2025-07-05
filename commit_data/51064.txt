@@ -13,6 +13,17 @@ Date:   Thu Dec 2 16:01:09 2021 +0100
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Roland Shoemaker <roland@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  misc/ios/clangwrap.sh | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/misc/ios/clangwrap.sh b/misc/ios/clangwrap.sh
+index dca3fcc904..8f7b439315 100755
+--- a/misc/ios/clangwrap.sh
++++ b/misc/ios/clangwrap.sh
+@@ -17,4 +17,4 @@ export IPHONEOS_DEPLOYMENT_TARGET=5.1
+ # cmd/cgo doesn't support llvm-gcc-4.2, so we have to use clang.
+ CLANG=`xcrun --sdk $SDK --find clang`
+ 
+-exec "$CLANG" -arch $CLANGARCH -isysroot "$SDK_PATH" -m${PLATFORM}-version-min=10.0 "$@"
++exec "$CLANG" -arch $CLANGARCH -isysroot "$SDK_PATH" -m${PLATFORM}-version-min=12.0 "$@"

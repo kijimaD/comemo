@@ -6,6 +6,39 @@ Date:   Sun Nov 8 18:19:06 2009 -0800
     
     R=rsc
     http://go/go-review/1026027
-
+---
  src/cmd/godoc/godoc.go | 19 +++++++++++++------
  1 file changed, 13 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index 02e5119f01..30f92b674e 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -137,14 +137,21 @@ func htmlEscape(s string) string {
+ 
+ 
+ func firstSentence(s string) string {
+-	i := strings.Index(s, ". ");
+-	if i < 0 {
+-		i = strings.Index(s, ".");
+-		if i < 0 {
+-			i = len(s)-1;	// compensate for i+1 below
++	// find first period followed by whitespace, or just the first period
++	i := -1;
++	for j, ch := range s {
++		if ch == '.' {
++			i = j+1;	// include period
++			if i < len(s) && s[i] <= ' ' {
++				break;
++			}
+ 		}
+ 	}
+-	return s[0 : i+1];	// include ".", if any
++	if i < 0 {
++		// no period found, use the enire string
++		i = len(s);
++	}
++	return s[0:i];
+ }
+ 
+ 

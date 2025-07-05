@@ -7,6 +7,26 @@ Date:   Mon Aug 6 16:24:08 2012 -0400
     R=golang-dev, rsc
     CC=golang-dev, r, yarikos
     https://golang.org/cl/6454104
-
+---
  src/pkg/syscall/exec_plan9.go | 8 +++-----
  1 file changed, 3 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/syscall/exec_plan9.go b/src/pkg/syscall/exec_plan9.go
+index 427f961306..75eaad612a 100644
+--- a/src/pkg/syscall/exec_plan9.go
++++ b/src/pkg/syscall/exec_plan9.go
+@@ -419,11 +419,9 @@ func forkExec(argv0 string, argv []string, attr *ProcAttr) (pid int, err error)
+ 			if err != nil {
+ 				return 0, err
+ 			}
+-			envvalue, err := BytePtrFromString(v[i+1:])
+-			if err != nil {
+-				return 0, err
+-			}
+-			envvParsed = append(envvParsed, envItem{envname, envvalue, len(v) - i})
++			envvalue := make([]byte, len(v)-i)
++			copy(envvalue, v[i+1:])
++			envvParsed = append(envvParsed, envItem{envname, &envvalue[0], len(v) - i})
+ 		}
+ 	}
+ 

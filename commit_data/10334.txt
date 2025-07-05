@@ -10,6 +10,19 @@ Date:   Thu Nov 10 11:42:01 2011 -0800
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5374048
-
+---
  src/pkg/runtime/openbsd/thread.c | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/pkg/runtime/openbsd/thread.c b/src/pkg/runtime/openbsd/thread.c
+index fd8cbfd033..995a46edd6 100644
+--- a/src/pkg/runtime/openbsd/thread.c
++++ b/src/pkg/runtime/openbsd/thread.c
+@@ -79,6 +79,7 @@ runtime·semasleep(int64 ns)
+ 			if(ns < 0)
+ 				runtime·thrsleep(&m->waitsemacount, 0, nil, &m->waitsemalock);
+ 			else {
++				ns += runtime·nanotime();
+ 				ts.tv_sec = ns/1000000000LL;
+ 				ts.tv_nsec = ns%1000000000LL;
+ 				runtime·thrsleep(&m->waitsemacount, CLOCK_REALTIME, &ts, &m->waitsemalock);

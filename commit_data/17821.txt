@@ -15,7 +15,38 @@ Date:   Fri Oct 18 15:56:07 2013 -0400
     R=golang-dev, r
     CC=golang-dev, khr
     https://golang.org/cl/15110044
-
+---
  src/cmd/gc/fmt.c     | 7 +++++++
  src/cmd/gc/reflect.c | 1 +
  2 files changed, 8 insertions(+)
+
+diff --git a/src/cmd/gc/fmt.c b/src/cmd/gc/fmt.c
+index c525a56cbe..9cd3448701 100644
+--- a/src/cmd/gc/fmt.c
++++ b/src/cmd/gc/fmt.c
+@@ -700,6 +700,13 @@ typefmt(Fmt *fp, Type *t)
+ 		return 0;
+ 
+ 	case TSTRUCT:
++		// Format the bucket struct for map[x]y as map.bucket[x]y.
++		// This avoids a recursive print that generates very long names.
++		if(t->hmap != T) {
++			t = t->hmap;
++			return fmtprint(fp, "map.bucket[%T]%T", t->down, t->type);
++		}
++
+ 		if(t->funarg) {
+ 			fmtstrcpy(fp, "(");
+ 			if(fmtmode == FTypeId || fmtmode == FErr) {	// no argument names on function signature, and no "noescape" tags
+diff --git a/src/cmd/gc/reflect.c b/src/cmd/gc/reflect.c
+index ea66eb94b2..0a8aa8d7a6 100644
+--- a/src/cmd/gc/reflect.c
++++ b/src/cmd/gc/reflect.c
+@@ -229,6 +229,7 @@ hmap(Type *t)
+ 	h->width = offset;
+ 	h->local = t->local;
+ 	t->hmap = h;
++	h->hmap = t;
+ 	return h;
+ }
+ 

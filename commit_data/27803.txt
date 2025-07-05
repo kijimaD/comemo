@@ -15,7 +15,7 @@ Date:   Wed Apr 13 11:22:42 2016 -0400
     Reviewed-on: https://go-review.googlesource.com/21994
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  src/runtime/atomic_pointer.go                 | 4 ++--
  src/runtime/hashmap.go                        | 4 ++--
  src/runtime/internal/atomic/asm_386.s         | 2 +-
@@ -32,3 +32,199 @@ Date:   Wed Apr 13 11:22:42 2016 -0400
  src/runtime/internal/atomic/atomic_ppc64x.go  | 2 +-
  src/runtime/internal/atomic/atomic_s390x.go   | 2 +-
  15 files changed, 20 insertions(+), 17 deletions(-)
+
+diff --git a/src/runtime/atomic_pointer.go b/src/runtime/atomic_pointer.go
+index d54f1d6eef..e9f5d03b2b 100644
+--- a/src/runtime/atomic_pointer.go
++++ b/src/runtime/atomic_pointer.go
+@@ -20,7 +20,7 @@ import (
+ //
+ //go:nosplit
+ func atomicstorep(ptr unsafe.Pointer, new unsafe.Pointer) {
+-	atomic.Storep1(noescape(ptr), new)
++	atomic.StorepNoWB(noescape(ptr), new)
+ 	writebarrierptr_nostore((*uintptr)(ptr), uintptr(new))
+ }
+ 
+@@ -44,7 +44,7 @@ func sync_atomic_StoreUintptr(ptr *uintptr, new uintptr)
+ //go:nosplit
+ func sync_atomic_StorePointer(ptr *unsafe.Pointer, new unsafe.Pointer) {
+ 	sync_atomic_StoreUintptr((*uintptr)(unsafe.Pointer(ptr)), uintptr(new))
+-	atomic.Storep1(noescape(unsafe.Pointer(ptr)), new)
++	atomic.StorepNoWB(noescape(unsafe.Pointer(ptr)), new)
+ 	writebarrierptr_nostore((*uintptr)(unsafe.Pointer(ptr)), uintptr(new))
+ }
+ 
+diff --git a/src/runtime/hashmap.go b/src/runtime/hashmap.go
+index d549ce4194..4f5d03d983 100644
+--- a/src/runtime/hashmap.go
++++ b/src/runtime/hashmap.go
+@@ -1075,8 +1075,8 @@ func mapzero(t *_type) {
+ 				throw("map element too large")
+ 			}
+ 		}
+-		atomic.Storep1(unsafe.Pointer(&zeroptr), persistentalloc(cursize, 64, &memstats.other_sys))
+-		atomic.Storep1(unsafe.Pointer(&zerosize), unsafe.Pointer(zerosize))
++		atomic.StorepNoWB(unsafe.Pointer(&zeroptr), persistentalloc(cursize, 64, &memstats.other_sys))
++		atomic.StorepNoWB(unsafe.Pointer(&zerosize), unsafe.Pointer(zerosize))
+ 	}
+ 	unlock(&zerolock)
+ }
+diff --git a/src/runtime/internal/atomic/asm_386.s b/src/runtime/internal/atomic/asm_386.s
+index ce84fd83d1..ebecd0b4cb 100644
+--- a/src/runtime/internal/atomic/asm_386.s
++++ b/src/runtime/internal/atomic/asm_386.s
+@@ -102,7 +102,7 @@ TEXT runtime∕internal∕atomic·Xchguintptr(SB), NOSPLIT, $0-12
+ 	JMP	runtime∕internal∕atomic·Xchg(SB)
+ 
+ 
+-TEXT runtime∕internal∕atomic·Storep1(SB), NOSPLIT, $0-8
++TEXT runtime∕internal∕atomic·StorepNoWB(SB), NOSPLIT, $0-8
+ 	MOVL	ptr+0(FP), BX
+ 	MOVL	val+4(FP), AX
+ 	XCHGL	AX, 0(BX)
+diff --git a/src/runtime/internal/atomic/asm_amd64.s b/src/runtime/internal/atomic/asm_amd64.s
+index 7463fec4a1..94d4ac2698 100644
+--- a/src/runtime/internal/atomic/asm_amd64.s
++++ b/src/runtime/internal/atomic/asm_amd64.s
+@@ -115,7 +115,7 @@ TEXT runtime∕internal∕atomic·Xchg64(SB), NOSPLIT, $0-24
+ TEXT runtime∕internal∕atomic·Xchguintptr(SB), NOSPLIT, $0-24
+ 	JMP	runtime∕internal∕atomic·Xchg64(SB)
+ 
+-TEXT runtime∕internal∕atomic·Storep1(SB), NOSPLIT, $0-16
++TEXT runtime∕internal∕atomic·StorepNoWB(SB), NOSPLIT, $0-16
+ 	MOVQ	ptr+0(FP), BX
+ 	MOVQ	val+8(FP), AX
+ 	XCHGQ	AX, 0(BX)
+diff --git a/src/runtime/internal/atomic/asm_amd64p32.s b/src/runtime/internal/atomic/asm_amd64p32.s
+index f1e2c3aca6..74c79d08fd 100644
+--- a/src/runtime/internal/atomic/asm_amd64p32.s
++++ b/src/runtime/internal/atomic/asm_amd64p32.s
+@@ -115,7 +115,7 @@ TEXT runtime∕internal∕atomic·Xchg64(SB), NOSPLIT, $0-24
+ TEXT runtime∕internal∕atomic·Xchguintptr(SB), NOSPLIT, $0-12
+ 	JMP	runtime∕internal∕atomic·Xchg(SB)
+ 
+-TEXT runtime∕internal∕atomic·Storep1(SB), NOSPLIT, $0-8
++TEXT runtime∕internal∕atomic·StorepNoWB(SB), NOSPLIT, $0-8
+ 	MOVL	ptr+0(FP), BX
+ 	MOVL	val+4(FP), AX
+ 	XCHGL	AX, 0(BX)
+diff --git a/src/runtime/internal/atomic/asm_mips64x.s b/src/runtime/internal/atomic/asm_mips64x.s
+index a454f284ab..d0f5c7bdd3 100644
+--- a/src/runtime/internal/atomic/asm_mips64x.s
++++ b/src/runtime/internal/atomic/asm_mips64x.s
+@@ -155,7 +155,7 @@ TEXT ·Xchg64(SB), NOSPLIT, $0-24
+ TEXT ·Xchguintptr(SB), NOSPLIT, $0-24
+ 	JMP	·Xchg64(SB)
+ 
+-TEXT ·Storep1(SB), NOSPLIT, $0-16
++TEXT ·StorepNoWB(SB), NOSPLIT, $0-16
+ 	JMP	·Store64(SB)
+ 
+ TEXT ·Store(SB), NOSPLIT, $0-12
+diff --git a/src/runtime/internal/atomic/asm_ppc64x.s b/src/runtime/internal/atomic/asm_ppc64x.s
+index 45a48b6203..4a776787a2 100644
+--- a/src/runtime/internal/atomic/asm_ppc64x.s
++++ b/src/runtime/internal/atomic/asm_ppc64x.s
+@@ -150,7 +150,7 @@ TEXT runtime∕internal∕atomic·Xchguintptr(SB), NOSPLIT, $0-24
+ 	BR	runtime∕internal∕atomic·Xchg64(SB)
+ 
+ 
+-TEXT runtime∕internal∕atomic·Storep1(SB), NOSPLIT, $0-16
++TEXT runtime∕internal∕atomic·StorepNoWB(SB), NOSPLIT, $0-16
+ 	BR	runtime∕internal∕atomic·Store64(SB)
+ 
+ TEXT runtime∕internal∕atomic·Store(SB), NOSPLIT, $0-12
+diff --git a/src/runtime/internal/atomic/atomic_386.go b/src/runtime/internal/atomic/atomic_386.go
+index f4c50b0be1..23a8479515 100644
+--- a/src/runtime/internal/atomic/atomic_386.go
++++ b/src/runtime/internal/atomic/atomic_386.go
+@@ -73,4 +73,4 @@ func Store(ptr *uint32, val uint32)
+ func Store64(ptr *uint64, val uint64)
+ 
+ // NO go:noescape annotation; see atomic_pointer.go.
+-func Storep1(ptr unsafe.Pointer, val unsafe.Pointer)
++func StorepNoWB(ptr unsafe.Pointer, val unsafe.Pointer)
+diff --git a/src/runtime/internal/atomic/atomic_amd64x.go b/src/runtime/internal/atomic/atomic_amd64x.go
+index bd40fb3ea2..54851d30f4 100644
+--- a/src/runtime/internal/atomic/atomic_amd64x.go
++++ b/src/runtime/internal/atomic/atomic_amd64x.go
+@@ -61,5 +61,8 @@ func Store(ptr *uint32, val uint32)
+ //go:noescape
+ func Store64(ptr *uint64, val uint64)
+ 
++// StorepNoWB performs *ptr = val atomically and without a write
++// barrier.
++//
+ // NO go:noescape annotation; see atomic_pointer.go.
+-func Storep1(ptr unsafe.Pointer, val unsafe.Pointer)
++func StorepNoWB(ptr unsafe.Pointer, val unsafe.Pointer)
+diff --git a/src/runtime/internal/atomic/atomic_arm.go b/src/runtime/internal/atomic/atomic_arm.go
+index c361aef382..244237df4d 100644
+--- a/src/runtime/internal/atomic/atomic_arm.go
++++ b/src/runtime/internal/atomic/atomic_arm.go
+@@ -85,7 +85,7 @@ func Loadp(addr unsafe.Pointer) unsafe.Pointer {
+ }
+ 
+ //go:nosplit
+-func Storep1(addr unsafe.Pointer, v unsafe.Pointer) {
++func StorepNoWB(addr unsafe.Pointer, v unsafe.Pointer) {
+ 	for {
+ 		old := *(*unsafe.Pointer)(addr)
+ 		if Casp1((*unsafe.Pointer)(addr), old, v) {
+diff --git a/src/runtime/internal/atomic/atomic_arm64.go b/src/runtime/internal/atomic/atomic_arm64.go
+index 6b32346656..dc82c3396d 100644
+--- a/src/runtime/internal/atomic/atomic_arm64.go
++++ b/src/runtime/internal/atomic/atomic_arm64.go
+@@ -77,4 +77,4 @@ func Store(ptr *uint32, val uint32)
+ func Store64(ptr *uint64, val uint64)
+ 
+ // NO go:noescape annotation; see atomic_pointer.go.
+-func Storep1(ptr unsafe.Pointer, val unsafe.Pointer)
++func StorepNoWB(ptr unsafe.Pointer, val unsafe.Pointer)
+diff --git a/src/runtime/internal/atomic/atomic_arm64.s b/src/runtime/internal/atomic/atomic_arm64.s
+index 7b1b0efaf6..eb32f378aa 100644
+--- a/src/runtime/internal/atomic/atomic_arm64.s
++++ b/src/runtime/internal/atomic/atomic_arm64.s
+@@ -25,7 +25,7 @@ TEXT ·Loadp(SB),NOSPLIT,$-8-16
+ 	MOVD	R0, ret+8(FP)
+ 	RET
+ 
+-TEXT runtime∕internal∕atomic·Storep1(SB), NOSPLIT, $0-16
++TEXT runtime∕internal∕atomic·StorepNoWB(SB), NOSPLIT, $0-16
+ 	B	runtime∕internal∕atomic·Store64(SB)
+ 
+ TEXT runtime∕internal∕atomic·Store(SB), NOSPLIT, $0-12
+diff --git a/src/runtime/internal/atomic/atomic_mips64x.go b/src/runtime/internal/atomic/atomic_mips64x.go
+index 8094db58a0..d06ea4809a 100644
+--- a/src/runtime/internal/atomic/atomic_mips64x.go
++++ b/src/runtime/internal/atomic/atomic_mips64x.go
+@@ -53,4 +53,4 @@ func Store(ptr *uint32, val uint32)
+ func Store64(ptr *uint64, val uint64)
+ 
+ // NO go:noescape annotation; see atomic_pointer.go.
+-func Storep1(ptr unsafe.Pointer, val unsafe.Pointer)
++func StorepNoWB(ptr unsafe.Pointer, val unsafe.Pointer)
+diff --git a/src/runtime/internal/atomic/atomic_ppc64x.go b/src/runtime/internal/atomic/atomic_ppc64x.go
+index bf82b82643..72c98eb0c5 100644
+--- a/src/runtime/internal/atomic/atomic_ppc64x.go
++++ b/src/runtime/internal/atomic/atomic_ppc64x.go
+@@ -53,4 +53,4 @@ func Store(ptr *uint32, val uint32)
+ func Store64(ptr *uint64, val uint64)
+ 
+ // NO go:noescape annotation; see atomic_pointer.go.
+-func Storep1(ptr unsafe.Pointer, val unsafe.Pointer)
++func StorepNoWB(ptr unsafe.Pointer, val unsafe.Pointer)
+diff --git a/src/runtime/internal/atomic/atomic_s390x.go b/src/runtime/internal/atomic/atomic_s390x.go
+index b6d3d84bdf..9343853485 100644
+--- a/src/runtime/internal/atomic/atomic_s390x.go
++++ b/src/runtime/internal/atomic/atomic_s390x.go
+@@ -39,7 +39,7 @@ func Store64(ptr *uint64, val uint64) {
+ // NO go:noescape annotation; see atomic_pointer.go.
+ //go:noinline
+ //go:nosplit
+-func Storep1(ptr unsafe.Pointer, val unsafe.Pointer) {
++func StorepNoWB(ptr unsafe.Pointer, val unsafe.Pointer) {
+ 	*(*uintptr)(ptr) = uintptr(val)
+ }
+ 

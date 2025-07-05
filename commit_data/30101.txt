@@ -9,10 +9,70 @@ Date:   Tue Oct 25 06:46:26 2016 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/vet/all/whitelist/all.txt          | 4 ++++
  src/cmd/vet/all/whitelist/arm64.txt        | 1 +
  src/cmd/vet/all/whitelist/darwin_386.txt   | 6 ------
  src/cmd/vet/all/whitelist/darwin_arm.txt   | 1 +
  src/cmd/vet/all/whitelist/darwin_arm64.txt | 1 +
  5 files changed, 7 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/vet/all/whitelist/all.txt b/src/cmd/vet/all/whitelist/all.txt
+index 4cbb790cbd..aeedb0d979 100644
+--- a/src/cmd/vet/all/whitelist/all.txt
++++ b/src/cmd/vet/all/whitelist/all.txt
+@@ -1,5 +1,9 @@
+ // Non-platform-specific vet whitelist. See readme.txt for details.
+ 
++// Issue 17580 (remove when fixed)
++cmd/go/go_test.go: +build comment must appear before package clause and be followed by a blank line
++
++
+ // Real problems that we can't fix.
+ 
+ // This is a bad WriteTo signature. Errors are being ignored!
+diff --git a/src/cmd/vet/all/whitelist/arm64.txt b/src/cmd/vet/all/whitelist/arm64.txt
+index 69842b057f..8a3c891a70 100644
+--- a/src/cmd/vet/all/whitelist/arm64.txt
++++ b/src/cmd/vet/all/whitelist/arm64.txt
+@@ -12,5 +12,6 @@ reflect/asm_arm64.s: [arm64] methodValueCall: use of 16(RSP) points beyond argum
+ runtime/asm_arm64.s: [arm64] abort: function abort missing Go declaration
+ runtime/asm_arm64.s: [arm64] addmoduledata: function addmoduledata missing Go declaration
+ runtime/duff_arm64.s: [arm64] duffzero: function duffzero missing Go declaration
++runtime/duff_arm64.s: [arm64] duffcopy: function duffcopy missing Go declaration
+ runtime/tls_arm64.s: [arm64] load_g: function load_g missing Go declaration
+ runtime/tls_arm64.s: [arm64] save_g: function save_g missing Go declaration
+diff --git a/src/cmd/vet/all/whitelist/darwin_386.txt b/src/cmd/vet/all/whitelist/darwin_386.txt
+index 77bc5752b3..c5c51d0e3a 100644
+--- a/src/cmd/vet/all/whitelist/darwin_386.txt
++++ b/src/cmd/vet/all/whitelist/darwin_386.txt
+@@ -1,11 +1,5 @@
+ // darwin/386-specific vet whitelist. See readme.txt for details.
+ 
+-// False positives due to comments in assembly.
+-// To be removed. See CL 27154.
+-
+-runtime/sys_darwin_386.s: [386] sigreturn: 16(SP) should be ctx+0(FP)
+-runtime/sys_darwin_386.s: [386] sigreturn: 20(SP) should be infostyle+4(FP)
+-
+ // Ok
+ 
+ runtime/sys_darwin_386.s: [386] now: function now missing Go declaration
+diff --git a/src/cmd/vet/all/whitelist/darwin_arm.txt b/src/cmd/vet/all/whitelist/darwin_arm.txt
+index e319cc5cb8..0e619be462 100644
+--- a/src/cmd/vet/all/whitelist/darwin_arm.txt
++++ b/src/cmd/vet/all/whitelist/darwin_arm.txt
+@@ -9,3 +9,4 @@ runtime/sys_darwin_arm.s: [arm] sigfwd: use of unnamed argument 0(FP); offset 0
+ // Ok.
+ 
+ runtime/sys_darwin_arm.s: [arm] bsdthread_start: function bsdthread_start missing Go declaration
++runtime/asm_arm.s: [arm] sigreturn: function sigreturn missing Go declaration
+diff --git a/src/cmd/vet/all/whitelist/darwin_arm64.txt b/src/cmd/vet/all/whitelist/darwin_arm64.txt
+index 7120f7935e..080a4caafa 100644
+--- a/src/cmd/vet/all/whitelist/darwin_arm64.txt
++++ b/src/cmd/vet/all/whitelist/darwin_arm64.txt
+@@ -11,3 +11,4 @@ runtime/cgo/signal_darwin_arm64.s: [arm64] panicmem: use of 16(RSP) points beyon
+ runtime/cgo/signal_darwin_arm64.s: [arm64] panicmem: use of 8(RSP) points beyond argument frame
+ runtime/cgo/signal_darwin_arm64.s: [arm64] panicmem: use of 16(RSP) points beyond argument frame
+ runtime/cgo/signal_darwin_arm64.s: [arm64] panicmem: use of 16(RSP) points beyond argument frame
++runtime/asm_arm64.s: [arm64] sigreturn: function sigreturn missing Go declaration

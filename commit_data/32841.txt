@@ -7,6 +7,23 @@ Date:   Wed Jun 7 20:19:15 2017 +0100
     Change-Id: Ib5efe172c55ff624b6771c2f02c466e35ba6cc50
     Reviewed-on: https://go-review.googlesource.com/45090
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/fmt/doc.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/fmt/doc.go b/src/fmt/doc.go
+index 4b668f38db..014ba06948 100644
+--- a/src/fmt/doc.go
++++ b/src/fmt/doc.go
+@@ -192,9 +192,9 @@
+ 	For example,
+ 		fmt.Sprintf("%[2]d %[1]d\n", 11, 22)
+ 	will yield "22 11", while
+-		fmt.Sprintf("%[3]*.[2]*[1]f", 12.0, 2, 6),
++		fmt.Sprintf("%[3]*.[2]*[1]f", 12.0, 2, 6)
+ 	equivalent to
+-		fmt.Sprintf("%6.2f", 12.0),
++		fmt.Sprintf("%6.2f", 12.0)
+ 	will yield " 12.00". Because an explicit index affects subsequent verbs,
+ 	this notation can be used to print the same values multiple times
+ 	by resetting the index for the first argument to be repeated:

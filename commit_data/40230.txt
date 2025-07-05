@@ -12,7 +12,7 @@ Date:   Sat Apr 27 12:15:42 2019 +0200
     Reviewed-on: https://go-review.googlesource.com/c/go/+/174200
     Run-TryBot: Elias Naur <mail@eliasnaur.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/link/internal/ld/macho.go   | 2 +-
  src/syscall/syscall_darwin.go       | 8 ++++----
  src/syscall/zsyscall_darwin_386.s   | 4 ++--
@@ -20,3 +20,104 @@ Date:   Sat Apr 27 12:15:42 2019 +0200
  src/syscall/zsyscall_darwin_arm.s   | 4 ++--
  src/syscall/zsyscall_darwin_arm64.s | 4 ++--
  6 files changed, 13 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/macho.go b/src/cmd/link/internal/ld/macho.go
+index 98c4d3d3a5..1c54d59295 100644
+--- a/src/cmd/link/internal/ld/macho.go
++++ b/src/cmd/link/internal/ld/macho.go
+@@ -798,7 +798,7 @@ func machogenasmsym(ctxt *Link) {
+ 					case "386":
+ 						s.SetExtname(n + "$INODE64$UNIX2003")
+ 					}
+-				case "readdir_r":
++				case "readdir_r", "getfsstat":
+ 					switch objabi.GOARCH {
+ 					case "amd64", "386":
+ 						s.SetExtname(n + "$INODE64")
+diff --git a/src/syscall/syscall_darwin.go b/src/syscall/syscall_darwin.go
+index 7fc96f8937..e7a0967d36 100644
+--- a/src/syscall/syscall_darwin.go
++++ b/src/syscall/syscall_darwin.go
+@@ -188,7 +188,7 @@ func Getfsstat(buf []Statfs_t, flags int) (n int, err error) {
+ 		_p0 = unsafe.Pointer(&buf[0])
+ 		bufsize = unsafe.Sizeof(Statfs_t{}) * uintptr(len(buf))
+ 	}
+-	r0, _, e1 := syscall(funcPC(libc_getfsstat64_trampoline), uintptr(_p0), bufsize, uintptr(flags))
++	r0, _, e1 := syscall(funcPC(libc_getfsstat_trampoline), uintptr(_p0), bufsize, uintptr(flags))
+ 	n = int(r0)
+ 	if e1 != 0 {
+ 		err = e1
+@@ -196,10 +196,10 @@ func Getfsstat(buf []Statfs_t, flags int) (n int, err error) {
+ 	return
+ }
+ 
+-func libc_getfsstat64_trampoline()
++func libc_getfsstat_trampoline()
+ 
+-//go:linkname libc_getfsstat64 libc_getfsstat64
+-//go:cgo_import_dynamic libc_getfsstat64 getfsstat64 "/usr/lib/libSystem.B.dylib"
++//go:linkname libc_getfsstat libc_getfsstat
++//go:cgo_import_dynamic libc_getfsstat getfsstat "/usr/lib/libSystem.B.dylib"
+ 
+ func setattrlistTimes(path string, times []Timespec) error {
+ 	_p0, err := BytePtrFromString(path)
+diff --git a/src/syscall/zsyscall_darwin_386.s b/src/syscall/zsyscall_darwin_386.s
+index ba52e93fe9..a50c3ef4df 100644
+--- a/src/syscall/zsyscall_darwin_386.s
++++ b/src/syscall/zsyscall_darwin_386.s
+@@ -3,8 +3,8 @@
+ #include "textflag.h"
+ TEXT ·libc_getattrlist_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_getattrlist(SB)
+-TEXT ·libc_getfsstat64_trampoline(SB),NOSPLIT,$0-0
+-	JMP	libc_getfsstat64(SB)
++TEXT ·libc_getfsstat_trampoline(SB),NOSPLIT,$0-0
++	JMP	libc_getfsstat(SB)
+ TEXT ·libc_setattrlist_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_setattrlist(SB)
+ TEXT ·libc_fdopendir_trampoline(SB),NOSPLIT,$0-0
+diff --git a/src/syscall/zsyscall_darwin_amd64.s b/src/syscall/zsyscall_darwin_amd64.s
+index 32c9e11456..626cd752db 100644
+--- a/src/syscall/zsyscall_darwin_amd64.s
++++ b/src/syscall/zsyscall_darwin_amd64.s
+@@ -3,8 +3,8 @@
+ #include "textflag.h"
+ TEXT ·libc_getattrlist_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_getattrlist(SB)
+-TEXT ·libc_getfsstat64_trampoline(SB),NOSPLIT,$0-0
+-	JMP	libc_getfsstat64(SB)
++TEXT ·libc_getfsstat_trampoline(SB),NOSPLIT,$0-0
++	JMP	libc_getfsstat(SB)
+ TEXT ·libc_setattrlist_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_setattrlist(SB)
+ TEXT ·libc_fdopendir_trampoline(SB),NOSPLIT,$0-0
+diff --git a/src/syscall/zsyscall_darwin_arm.s b/src/syscall/zsyscall_darwin_arm.s
+index fc1a184003..0963413266 100644
+--- a/src/syscall/zsyscall_darwin_arm.s
++++ b/src/syscall/zsyscall_darwin_arm.s
+@@ -3,8 +3,8 @@
+ #include "textflag.h"
+ TEXT ·libc_getattrlist_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_getattrlist(SB)
+-TEXT ·libc_getfsstat64_trampoline(SB),NOSPLIT,$0-0
+-	JMP	libc_getfsstat64(SB)
++TEXT ·libc_getfsstat_trampoline(SB),NOSPLIT,$0-0
++	JMP	libc_getfsstat(SB)
+ TEXT ·libc_setattrlist_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_setattrlist(SB)
+ TEXT ·libc_fdopendir_trampoline(SB),NOSPLIT,$0-0
+diff --git a/src/syscall/zsyscall_darwin_arm64.s b/src/syscall/zsyscall_darwin_arm64.s
+index 4df76084bc..23ddc8f53c 100644
+--- a/src/syscall/zsyscall_darwin_arm64.s
++++ b/src/syscall/zsyscall_darwin_arm64.s
+@@ -3,8 +3,8 @@
+ #include "textflag.h"
+ TEXT ·libc_getattrlist_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_getattrlist(SB)
+-TEXT ·libc_getfsstat64_trampoline(SB),NOSPLIT,$0-0
+-	JMP	libc_getfsstat64(SB)
++TEXT ·libc_getfsstat_trampoline(SB),NOSPLIT,$0-0
++	JMP	libc_getfsstat(SB)
+ TEXT ·libc_setattrlist_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_setattrlist(SB)
+ TEXT ·libc_fdopendir_trampoline(SB),NOSPLIT,$0-0

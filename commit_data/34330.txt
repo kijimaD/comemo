@@ -9,6 +9,20 @@ Date:   Tue Oct 17 23:11:54 2017 -0300
     Change-Id: I016e5f2b8624a6ebaf11a693a0f6d94d7b0d3f92
     Reviewed-on: https://go-review.googlesource.com/71550
     Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
-
+---
  src/database/sql/sql.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/database/sql/sql.go b/src/database/sql/sql.go
+index 17910904f6..49d352fbf5 100644
+--- a/src/database/sql/sql.go
++++ b/src/database/sql/sql.go
+@@ -285,7 +285,7 @@ type Scanner interface {
+ // Example usage:
+ //
+ //   var outArg string
+-//   _, err := db.ExecContext(ctx, "ProcName", sql.Named("Arg1", Out{Dest: &outArg}))
++//   _, err := db.ExecContext(ctx, "ProcName", sql.Named("Arg1", sql.Out{Dest: &outArg}))
+ type Out struct {
+ 	_Named_Fields_Required struct{}
+ 

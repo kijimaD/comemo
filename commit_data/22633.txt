@@ -15,6 +15,23 @@ Date:   Fri Mar 27 07:31:31 2015 +1100
     Change-Id: I618bffe556eb518011e7ba5cdce1eb0ff536350e
     Reviewed-on: https://go-review.googlesource.com/8152
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/io/pipe.go | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/io/pipe.go b/src/io/pipe.go
+index f65354a7f2..179515e78d 100644
+--- a/src/io/pipe.go
++++ b/src/io/pipe.go
+@@ -168,7 +168,10 @@ func (w *PipeWriter) Close() error {
+ }
+ 
+ // CloseWithError closes the writer; subsequent reads from the
+-// read half of the pipe will return no bytes and the error err.
++// read half of the pipe will return no bytes and the error err,
++// or EOF if err is nil.
++//
++// CloseWithError always returns nil.
+ func (w *PipeWriter) CloseWithError(err error) error {
+ 	w.p.wclose(err)
+ 	return nil

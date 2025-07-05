@@ -7,6 +7,28 @@ Date:   Thu Aug 26 20:21:34 2010 -0400
     R=iant
     CC=golang-dev
     https://golang.org/cl/2033041
-
+---
  src/Make.pkg | 10 ++++++++++
  1 file changed, 10 insertions(+)
+
+diff --git a/src/Make.pkg b/src/Make.pkg
+index 1f5f2823b9..4c464497a0 100644
+--- a/src/Make.pkg
++++ b/src/Make.pkg
+@@ -8,6 +8,16 @@ testpackage: _test/$(TARG).a
+ 
+ include $(QUOTED_GOROOT)/src/Make.common
+ 
++# The quietgcc wrapper is for our own source code
++# while building the libraries, not arbitrary source code
++# as encountered by cgo.
++ifeq ($(HOST_CC),quietgcc)
++HOST_CC:=gcc
++endif
++ifeq ($(HOST_LD),quietgcc)
++HOST_LD:=gcc
++endif
++
+ # GNU Make 3.80 has a bug in lastword
+ # elem=$(lastword $(subst /, ,$(TARG)))
+ TARG_words=$(subst /, ,$(TARG))

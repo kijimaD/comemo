@@ -9,8 +9,59 @@ Date:   Sun Nov 8 15:57:25 2009 -0800
     R=gri, rsc
     CC=go-dev
     http://go/go-review/1026026
-
+---
  src/pkg/malloc/malloc.go |  3 +++
  src/pkg/net/net.go       |  3 +++
  src/pkg/reflect/type.go  | 11 +++++++++++
  3 files changed, 17 insertions(+)
+
+diff --git a/src/pkg/malloc/malloc.go b/src/pkg/malloc/malloc.go
+index 838b92f5f2..66708a680e 100644
+--- a/src/pkg/malloc/malloc.go
++++ b/src/pkg/malloc/malloc.go
+@@ -6,6 +6,9 @@
+ // The actual functions are written in C
+ // and part of the runtime library.
+ 
++// The malloc package exposes statistics and other low-level details about
++// the run-time memory allocator and collector.  It is intended for debugging
++// purposes only; other uses are discouraged.
+ package malloc
+ 
+ type Stats struct {
+diff --git a/src/pkg/net/net.go b/src/pkg/net/net.go
+index d649756ed5..cc5e27ea04 100644
+--- a/src/pkg/net/net.go
++++ b/src/pkg/net/net.go
+@@ -2,6 +2,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// The net package provides a portable interface to Unix
++// networks sockets, including TCP/IP, UDP, domain name
++// resolution, and Unix domain sockets.
+ package net
+ 
+ // TODO(rsc):
+diff --git a/src/pkg/reflect/type.go b/src/pkg/reflect/type.go
+index 02eb549e8d..e14892d580 100644
+--- a/src/pkg/reflect/type.go
++++ b/src/pkg/reflect/type.go
+@@ -2,6 +2,17 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// The reflect package implements run-time reflection, allowing a program to
++// manipulate objects with arbitrary types.  The typical use is to take a
++// value with static type interface{} and extract its dynamic type
++// information by calling Typeof(), which returns an object with interface
++// type Type.  That contains a pointer to a struct of type *StructType,
++// *IntType, etc. representing the details of the underlying type.  A type
++// switch or type assertion can reveal which.
++//
++// A call to NewValue creates a Value representing the run-time data; it
++// contains a *StructValue, *IntValue, etc.  MakeZero takes a Type and
++// returns a Value representing a zero value for that type.
+ package reflect
+ 
+ import (

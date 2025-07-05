@@ -12,10 +12,145 @@ Date:   Wed Apr 24 14:59:18 2019 +0000
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ingo Oeser <nightlyone@googlemail.com>
     Reviewed-by: Benny Siegert <bsiegert@gmail.com>
-
+---
  src/net/http/client.go                |  4 ++--
  src/net/http/header.go                | 15 +++++++++++----
  src/net/http/httptest/recorder.go     | 14 ++------------
  src/net/http/httputil/reverseproxy.go | 12 +-----------
  src/net/http/server.go                |  4 ++--
  5 files changed, 18 insertions(+), 31 deletions(-)
+
+diff --git a/src/net/http/client.go b/src/net/http/client.go
+index aa54806c45..6de1b48531 100644
+--- a/src/net/http/client.go
++++ b/src/net/http/client.go
+@@ -238,7 +238,7 @@ func send(ireq *Request, rt RoundTripper, deadline time.Time) (resp *Response, d
+ 		username := u.Username()
+ 		password, _ := u.Password()
+ 		forkReq()
+-		req.Header = ireq.Header.clone()
++		req.Header = ireq.Header.Clone()
+ 		req.Header.Set("Authorization", "Basic "+basicAuth(username, password))
+ 	}
+ 
+@@ -668,7 +668,7 @@ func (c *Client) makeHeadersCopier(ireq *Request) func(*Request) {
+ 	// The headers to copy are from the very initial request.
+ 	// We use a closured callback to keep a reference to these original headers.
+ 	var (
+-		ireqhdr  = ireq.Header.clone()
++		ireqhdr  = ireq.Header.Clone()
+ 		icookies map[string][]*Cookie
+ 	)
+ 	if c.Jar != nil && ireq.Header.Get("Cookie") != "" {
+diff --git a/src/net/http/header.go b/src/net/http/header.go
+index b699e7ef8f..1e1ed981ec 100644
+--- a/src/net/http/header.go
++++ b/src/net/http/header.go
+@@ -78,12 +78,19 @@ func (h Header) write(w io.Writer, trace *httptrace.ClientTrace) error {
+ 	return h.writeSubset(w, nil, trace)
+ }
+ 
+-func (h Header) clone() Header {
++// Clone returns a copy of h.
++func (h Header) Clone() Header {
++	// Find total number of values.
++	nv := 0
++	for _, vv := range h {
++		nv += len(vv)
++	}
++	sv := make([]string, nv) // shared backing array for headers' values
+ 	h2 := make(Header, len(h))
+ 	for k, vv := range h {
+-		vv2 := make([]string, len(vv))
+-		copy(vv2, vv)
+-		h2[k] = vv2
++		n := copy(sv, vv)
++		h2[k] = sv[:n:n]
++		sv = sv[n:]
+ 	}
+ 	return h2
+ }
+diff --git a/src/net/http/httptest/recorder.go b/src/net/http/httptest/recorder.go
+index 59c98adfe8..f2350f0a8d 100644
+--- a/src/net/http/httptest/recorder.go
++++ b/src/net/http/httptest/recorder.go
+@@ -127,17 +127,7 @@ func (rw *ResponseRecorder) WriteHeader(code int) {
+ 	if rw.HeaderMap == nil {
+ 		rw.HeaderMap = make(http.Header)
+ 	}
+-	rw.snapHeader = cloneHeader(rw.HeaderMap)
+-}
+-
+-func cloneHeader(h http.Header) http.Header {
+-	h2 := make(http.Header, len(h))
+-	for k, vv := range h {
+-		vv2 := make([]string, len(vv))
+-		copy(vv2, vv)
+-		h2[k] = vv2
+-	}
+-	return h2
++	rw.snapHeader = rw.HeaderMap.Clone()
+ }
+ 
+ // Flush sets rw.Flushed to true.
+@@ -168,7 +158,7 @@ func (rw *ResponseRecorder) Result() *http.Response {
+ 		return rw.result
+ 	}
+ 	if rw.snapHeader == nil {
+-		rw.snapHeader = cloneHeader(rw.HeaderMap)
++		rw.snapHeader = rw.HeaderMap.Clone()
+ 	}
+ 	res := &http.Response{
+ 		Proto:      "HTTP/1.1",
+diff --git a/src/net/http/httputil/reverseproxy.go b/src/net/http/httputil/reverseproxy.go
+index 0e0731b08f..3c522b2af4 100644
+--- a/src/net/http/httputil/reverseproxy.go
++++ b/src/net/http/httputil/reverseproxy.go
+@@ -132,16 +132,6 @@ func copyHeader(dst, src http.Header) {
+ 	}
+ }
+ 
+-func cloneHeader(h http.Header) http.Header {
+-	h2 := make(http.Header, len(h))
+-	for k, vv := range h {
+-		vv2 := make([]string, len(vv))
+-		copy(vv2, vv)
+-		h2[k] = vv2
+-	}
+-	return h2
+-}
+-
+ // Hop-by-hop headers. These are removed when sent to the backend.
+ // As of RFC 7230, hop-by-hop headers are required to appear in the
+ // Connection header field. These are the headers defined by the
+@@ -211,7 +201,7 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+ 		outreq.Body = nil // Issue 16036: nil Body for http.Transport retries
+ 	}
+ 
+-	outreq.Header = cloneHeader(req.Header)
++	outreq.Header = req.Header.Clone()
+ 
+ 	p.Director(outreq)
+ 	outreq.Close = false
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index bc6d93bce0..722b709e85 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -1058,7 +1058,7 @@ func (w *response) Header() Header {
+ 		// Accessing the header between logically writing it
+ 		// and physically writing it means we need to allocate
+ 		// a clone to snapshot the logically written state.
+-		w.cw.header = w.handlerHeader.clone()
++		w.cw.header = w.handlerHeader.Clone()
+ 	}
+ 	w.calledHeader = true
+ 	return w.handlerHeader
+@@ -1127,7 +1127,7 @@ func (w *response) WriteHeader(code int) {
+ 	w.status = code
+ 
+ 	if w.calledHeader && w.cw.header == nil {
+-		w.cw.header = w.handlerHeader.clone()
++		w.cw.header = w.handlerHeader.Clone()
+ 	}
+ 
+ 	if cl := w.handlerHeader.get("Content-Length"); cl != "" {

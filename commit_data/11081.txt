@@ -11,7 +11,7 @@ Date:   Tue Jan 10 11:19:22 2012 +0100
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5484058
-
+---
  src/cmd/5g/cgen.c           | 13 ++++++++-----
  src/cmd/5g/gg.h             |  2 +-
  src/cmd/6g/cgen.c           |  6 +++---
@@ -23,3 +23,216 @@ Date:   Tue Jan 10 11:19:22 2012 +0100
  test/fixedbugs/bug385_32.go | 14 ++++++++++++++
  test/fixedbugs/bug385_64.go | 15 +++++++++++++++
  10 files changed, 54 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/5g/cgen.c b/src/cmd/5g/cgen.c
+index b0a6040033..8865027dca 100644
+--- a/src/cmd/5g/cgen.c
++++ b/src/cmd/5g/cgen.c
+@@ -1193,7 +1193,7 @@ stkof(Node *n)
+  * NB: character copy assumed little endian architecture
+  */
+ void
+-sgen(Node *n, Node *res, int32 w)
++sgen(Node *n, Node *res, int64 w)
+ {
+ 	Node dst, src, tmp, nend;
+ 	int32 c, odst, osrc;
+@@ -1201,14 +1201,17 @@ sgen(Node *n, Node *res, int32 w)
+ 	Prog *p, *ploop;
+ 
+ 	if(debug['g']) {
+-		print("\nsgen w=%d\n", w);
++		print("\nsgen w=%lld\n", w);
+ 		dump("r", n);
+ 		dump("res", res);
+ 	}
+-	if(w < 0)
+-		fatal("sgen copy %d", w);
++
+ 	if(n->ullman >= UINF && res->ullman >= UINF)
+ 		fatal("sgen UINF");
++
++	if(w < 0 || (int32)w != w)
++		fatal("sgen copy %lld", w);
++
+ 	if(n->type == T)
+ 		fatal("sgen: missing type");
+ 
+@@ -1240,7 +1243,7 @@ sgen(Node *n, Node *res, int32 w)
+ 		break;
+ 	}
+ 	if(w%align)
+-		fatal("sgen: unaligned size %d (align=%d) for %T", w, align, n->type);
++		fatal("sgen: unaligned size %lld (align=%d) for %T", w, align, n->type);
+ 	c = w / align;
+ 
+ 	// offset on the stack
+diff --git a/src/cmd/5g/gg.h b/src/cmd/5g/gg.h
+index 757ac20b2e..7dbf3beecd 100644
+--- a/src/cmd/5g/gg.h
++++ b/src/cmd/5g/gg.h
+@@ -94,7 +94,7 @@ void	igen(Node*, Node*, Node*);
+ void agenr(Node *n, Node *a, Node *res);
+ vlong	fieldoffset(Type*, Node*);
+ void	bgen(Node*, int, Prog*);
+-void	sgen(Node*, Node*, int32);
++void	sgen(Node*, Node*, int64);
+ void	gmove(Node*, Node*);
+ Prog*	gins(int, Node*, Node*);
+ int	samaddr(Node*, Node*);
+diff --git a/src/cmd/6g/cgen.c b/src/cmd/6g/cgen.c
+index 308915f64d..fd84932314 100644
+--- a/src/cmd/6g/cgen.c
++++ b/src/cmd/6g/cgen.c
+@@ -1023,13 +1023,13 @@ stkof(Node *n)
+  *	memmove(&ns, &n, w);
+  */
+ void
+-sgen(Node *n, Node *ns, int32 w)
++sgen(Node *n, Node *ns, int64 w)
+ {
+ 	Node nodl, nodr, oldl, oldr, cx, oldcx, tmp;
+ 	int32 c, q, odst, osrc;
+ 
+ 	if(debug['g']) {
+-		print("\nsgen w=%d\n", w);
++		print("\nsgen w=%lld\n", w);
+ 		dump("r", n);
+ 		dump("res", ns);
+ 	}
+@@ -1038,7 +1038,7 @@ sgen(Node *n, Node *ns, int32 w)
+ 		fatal("sgen UINF");
+ 
+ 	if(w < 0)
+-		fatal("sgen copy %d", w);
++		fatal("sgen copy %lld", w);
+ 
+ 	if(w == 16)
+ 		if(componentgen(n, ns))
+diff --git a/src/cmd/6g/gg.h b/src/cmd/6g/gg.h
+index 0930ebd608..47a540082b 100644
+--- a/src/cmd/6g/gg.h
++++ b/src/cmd/6g/gg.h
+@@ -87,7 +87,7 @@ void	agen(Node*, Node*);
+ void	igen(Node*, Node*, Node*);
+ vlong	fieldoffset(Type*, Node*);
+ void	bgen(Node*, int, Prog*);
+-void	sgen(Node*, Node*, int32);
++void	sgen(Node*, Node*, int64);
+ void	gmove(Node*, Node*);
+ Prog*	gins(int, Node*, Node*);
+ int	samaddr(Node*, Node*);
+diff --git a/src/cmd/8g/cgen.c b/src/cmd/8g/cgen.c
+index cf1eacde57..7dd3a7bb12 100644
+--- a/src/cmd/8g/cgen.c
++++ b/src/cmd/8g/cgen.c
+@@ -1130,21 +1130,21 @@ stkof(Node *n)
+  *	memmove(&res, &n, w);
+  */
+ void
+-sgen(Node *n, Node *res, int32 w)
++sgen(Node *n, Node *res, int64 w)
+ {
+ 	Node dst, src, tdst, tsrc;
+ 	int32 c, q, odst, osrc;
+ 
+ 	if(debug['g']) {
+-		print("\nsgen w=%d\n", w);
++		print("\nsgen w=%ld\n", w);
+ 		dump("r", n);
+ 		dump("res", res);
+ 	}
+ 	if(n->ullman >= UINF && res->ullman >= UINF)
+ 		fatal("sgen UINF");
+ 
+-	if(w < 0)
+-		fatal("sgen copy %d", w);
++	if(w < 0 || (int32)w != w)
++		fatal("sgen copy %lld", w);
+ 
+ 	if(w == 0) {
+ 		// evaluate side effects only.
+diff --git a/src/cmd/8g/gg.h b/src/cmd/8g/gg.h
+index 021a943377..0a4f0ad2d0 100644
+--- a/src/cmd/8g/gg.h
++++ b/src/cmd/8g/gg.h
+@@ -99,7 +99,7 @@ void	agenr(Node *n, Node *a, Node *res);
+ void	igen(Node*, Node*, Node*);
+ vlong	fieldoffset(Type*, Node*);
+ void	bgen(Node*, int, Prog*);
+-void	sgen(Node*, Node*, int32);
++void	sgen(Node*, Node*, int64);
+ void	gmove(Node*, Node*);
+ Prog*	gins(int, Node*, Node*);
+ int	samaddr(Node*, Node*);
+diff --git a/src/cmd/gc/align.c b/src/cmd/gc/align.c
+index 623006f806..6982bbe560 100644
+--- a/src/cmd/gc/align.c
++++ b/src/cmd/gc/align.c
+@@ -285,6 +285,9 @@ dowidth(Type *t)
+ 		break;
+ 	}
+ 
++	if(widthptr == 4 && w != (int32)w)
++		yyerror("type %T too large", t);
++
+ 	t->width = w;
+ 	if(t->align == 0) {
+ 		if(w > 8 || (w&(w-1)) != 0)
+diff --git a/src/cmd/gc/pgen.c b/src/cmd/gc/pgen.c
+index 3c2237a2ae..a54f097825 100644
+--- a/src/cmd/gc/pgen.c
++++ b/src/cmd/gc/pgen.c
+@@ -119,6 +119,10 @@ compile(Node *fn)
+ 	if(0)
+ 		print("allocauto: %lld to %lld\n", oldstksize, (vlong)stksize);
+ 
++	setlineno(curfn);
++	if(stksize+maxarg > (1ULL<<31))
++		yyerror("stack frame too large (>2GB)");
++
+ 	defframe(ptxt);
+ 
+ 	if(0)
+diff --git a/test/fixedbugs/bug385_32.go b/test/fixedbugs/bug385_32.go
+new file mode 100644
+index 0000000000..a009f664e0
+--- /dev/null
++++ b/test/fixedbugs/bug385_32.go
+@@ -0,0 +1,14 @@
++// [ $O == 6 ] || errchk $G -e $D/$F.go
++
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 2444
++
++package main
++func main() {
++	var arr [1000200030]int   // ERROR "type .* too large"
++	arr_bkup := arr
++	_ = arr_bkup
++}
+\ No newline at end of file
+diff --git a/test/fixedbugs/bug385_64.go b/test/fixedbugs/bug385_64.go
+new file mode 100644
+index 0000000000..701be0d09a
+--- /dev/null
++++ b/test/fixedbugs/bug385_64.go
+@@ -0,0 +1,15 @@
++// [ $O != 6 ]  || errchk $G -e $D/$F.go
++
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 2444
++
++package main
++func main() {  // ERROR "stack frame too large"
++	var arr [1000200030]int
++	arr_bkup := arr
++	_ = arr_bkup
++}
++

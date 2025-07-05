@@ -7,6 +7,22 @@ Date:   Thu Jun 25 15:15:44 2009 -0700
     TBR=r
     OCL=30757
     CL=30757
-
+---
  src/pkg/reflect/all_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/reflect/all_test.go b/src/pkg/reflect/all_test.go
+index 84f52ab86f..9cfc7e2688 100644
+--- a/src/pkg/reflect/all_test.go
++++ b/src/pkg/reflect/all_test.go
+@@ -284,8 +284,8 @@ func TestAll(tt *testing.T) {	// TODO(r): wrap up better
+ 	v1 := NewZeroValue(t1);
+ 	if v1 == nil { panic("V1 is nil"); }
+ 	v1.(PtrValue).SetSub(v);
+-	a := v1.Interface().(*[]int32);
+-	println(&a, len(a), cap(a));
++	a := *v1.Interface().(*[]int32);
++	println(a, len(a), cap(a));
+ 	for i := 0; i < len(a); i++ {
+ 		v.Elem(i).(Int32Value).Set(int32(i));
+ 	}

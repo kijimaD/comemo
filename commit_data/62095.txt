@@ -14,9 +14,70 @@ Date:   Sun Dec 1 20:06:26 2024 +0000
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/cmd/fix/cftype.go       | 4 ++--
  src/encoding/gob/decoder.go | 2 +-
  src/encoding/gob/encode.go  | 2 +-
  src/encoding/xml/read.go    | 2 +-
  4 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/fix/cftype.go b/src/cmd/fix/cftype.go
+index d4fcc4485e..04ece9fe5b 100644
+--- a/src/cmd/fix/cftype.go
++++ b/src/cmd/fix/cftype.go
+@@ -67,14 +67,14 @@ func typefix(f *ast.File, badType func(string) bool) bool {
+ 				return
+ 			}
+ 			v := reflect.ValueOf(n)
+-			if v.Type().Kind() != reflect.Pointer {
++			if v.Kind() != reflect.Pointer {
+ 				return
+ 			}
+ 			if v.IsNil() {
+ 				return
+ 			}
+ 			v = v.Elem()
+-			if v.Type().Kind() != reflect.Struct {
++			if v.Kind() != reflect.Struct {
+ 				return
+ 			}
+ 			for i := 0; i < v.NumField(); i++ {
+diff --git a/src/encoding/gob/decoder.go b/src/encoding/gob/decoder.go
+index eae307838e..c35398d105 100644
+--- a/src/encoding/gob/decoder.go
++++ b/src/encoding/gob/decoder.go
+@@ -199,7 +199,7 @@ func (dec *Decoder) Decode(e any) error {
+ 	value := reflect.ValueOf(e)
+ 	// If e represents a value as opposed to a pointer, the answer won't
+ 	// get back to the caller. Make sure it's a pointer.
+-	if value.Type().Kind() != reflect.Pointer {
++	if value.Kind() != reflect.Pointer {
+ 		dec.err = errors.New("gob: attempt to decode into a non-pointer")
+ 		return dec.err
+ 	}
+diff --git a/src/encoding/gob/encode.go b/src/encoding/gob/encode.go
+index 5f4d2539fa..ed3494218c 100644
+--- a/src/encoding/gob/encode.go
++++ b/src/encoding/gob/encode.go
+@@ -662,7 +662,7 @@ func (enc *Encoder) encode(b *encBuffer, value reflect.Value, ut *userTypeInfo)
+ 	for i := 0; i < indir; i++ {
+ 		value = reflect.Indirect(value)
+ 	}
+-	if ut.externalEnc == 0 && value.Type().Kind() == reflect.Struct {
++	if ut.externalEnc == 0 && value.Kind() == reflect.Struct {
+ 		enc.encodeStruct(b, engine, value)
+ 	} else {
+ 		enc.encodeSingle(b, engine, value)
+diff --git a/src/encoding/xml/read.go b/src/encoding/xml/read.go
+index 3cc4968c76..af25c20f06 100644
+--- a/src/encoding/xml/read.go
++++ b/src/encoding/xml/read.go
+@@ -280,7 +280,7 @@ func (d *Decoder) unmarshalAttr(val reflect.Value, attr Attr) error {
+ 		}
+ 	}
+ 
+-	if val.Type().Kind() == reflect.Slice && val.Type().Elem().Kind() != reflect.Uint8 {
++	if val.Kind() == reflect.Slice && val.Type().Elem().Kind() != reflect.Uint8 {
+ 		// Slice of element values.
+ 		// Grow slice.
+ 		n := val.Len()

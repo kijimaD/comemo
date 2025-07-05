@@ -14,6 +14,23 @@ Date:   Mon Aug 14 10:51:57 2023 -0400
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/go/testdata/script/gotoolchain_net.txt | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/cmd/go/testdata/script/gotoolchain_net.txt b/src/cmd/go/testdata/script/gotoolchain_net.txt
+index 35f6696454..1d6473c6f9 100644
+--- a/src/cmd/go/testdata/script/gotoolchain_net.txt
++++ b/src/cmd/go/testdata/script/gotoolchain_net.txt
+@@ -1,6 +1,11 @@
+ # This test only checks that basic network lookups work.
+ # The full test of toolchain version selection is in gotoolchain.txt.
+ 
++# This test is sensitive to "new" Go experiments, so
++# update the environment to remove any existing GOEXPERIMENT
++# setting, see #62016 for more on this. 
++env GOEXPERIMENT=''
++
+ env TESTGO_VERSION=go1.21actual
+ 
+ # GOTOOLCHAIN from network, does not exist

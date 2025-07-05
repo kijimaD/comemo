@@ -13,6 +13,23 @@ Date:   Thu Jan 6 15:25:01 2022 -0500
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Fannie Zhang <Fannie.Zhang@arm.com>
-
+---
  src/runtime/asan.go | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/asan.go b/src/runtime/asan.go
+index 26656cd975..5f1e6370d2 100644
+--- a/src/runtime/asan.go
++++ b/src/runtime/asan.go
+@@ -26,8 +26,9 @@ func ASanWrite(addr unsafe.Pointer, len int) {
+ // Private interface for the runtime.
+ const asanenabled = true
+ 
+-// Mark asan(read, write) as NOSPLIT, because they may run
+-// on stacks that cannot grow. See issue #50391.
++// asan{read,write} are nosplit because they may be called between
++// fork and exec, when the stack must not grow. See issue #50391.
++
+ //go:nosplit
+ func asanread(addr unsafe.Pointer, sz uintptr) {
+ 	sp := getcallersp()

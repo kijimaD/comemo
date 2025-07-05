@@ -15,8 +15,80 @@ Date:   Fri Feb 9 10:18:38 2024 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/562557
     Reviewed-by: Damien Neil <dneil@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/net/http/serve_test.go  | 16 ++++++++++++++++
  src/net/http/server.go      |  4 ++--
  src/net/http/server_test.go | 18 ++++++++++++++++++
  3 files changed, 36 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index f633bf0799..301a9fdc4b 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -597,6 +597,22 @@ func TestServeWithSlashRedirectForHostPatterns(t *testing.T) {
+ 	}
+ }
+ 
++// Test that we don't attempt trailing-slash redirect on a path that already has
++// a trailing slash.
++// See issue #65624.
++func TestMuxNoSlashRedirectWithTrailingSlash(t *testing.T) {
++	mux := NewServeMux()
++	mux.HandleFunc("/{x}/", func(w ResponseWriter, r *Request) {
++		fmt.Fprintln(w, "ok")
++	})
++	w := httptest.NewRecorder()
++	req, _ := NewRequest("GET", "/", nil)
++	mux.ServeHTTP(w, req)
++	if g, w := w.Code, 404; g != w {
++		t.Errorf("got %d, want %d", g, w)
++	}
++}
++
+ func TestShouldRedirectConcurrency(t *testing.T) { run(t, testShouldRedirectConcurrency) }
+ func testShouldRedirectConcurrency(t *testing.T, mode testMode) {
+ 	mux := NewServeMux()
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index d42fdc6322..0ba88d1119 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -2577,8 +2577,8 @@ func (mux *ServeMux) matchOrRedirect(host, method, path string, u *url.URL) (_ *
+ 
+ 	n, matches := mux.tree.match(host, method, path)
+ 	// If we have an exact match, or we were asked not to try trailing-slash redirection,
+-	// then we're done.
+-	if !exactMatch(n, path) && u != nil {
++	// or the URL already has a trailing slash, then we're done.
++	if !exactMatch(n, path) && u != nil && !strings.HasSuffix(path, "/") {
+ 		// If there is an exact match with a trailing slash, then redirect.
+ 		path += "/"
+ 		n2, _ := mux.tree.match(host, method, path)
+diff --git a/src/net/http/server_test.go b/src/net/http/server_test.go
+index e81e3bb6b0..f4aafc853b 100644
+--- a/src/net/http/server_test.go
++++ b/src/net/http/server_test.go
+@@ -250,6 +250,24 @@ func TestEscapedPathsAndPatterns(t *testing.T) {
+ 	t.Run("1.21", func(t *testing.T) { run(t, true) })
+ }
+ 
++func TestCleanPath(t *testing.T) {
++	for _, test := range []struct {
++		in, want string
++	}{
++		{"//", "/"},
++		{"/x", "/x"},
++		{"//x", "/x"},
++		{"x//", "/x/"},
++		{"a//b/////c", "/a/b/c"},
++		{"/foo/../bar/./..//baz", "/baz"},
++	} {
++		got := cleanPath(test.in)
++		if got != test.want {
++			t.Errorf("%s: got %q, want %q", test.in, got, test.want)
++		}
++	}
++}
++
+ func BenchmarkServerMatch(b *testing.B) {
+ 	fn := func(w ResponseWriter, r *Request) {
+ 		fmt.Fprintf(w, "OK")

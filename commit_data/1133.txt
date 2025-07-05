@@ -7,8 +7,104 @@ Date:   Fri Nov 14 17:31:29 2008 -0800
     R=ken
     OCL=19299
     CL=19299
-
+---
  src/cmd/gc/export.c | 18 +++++++++++-------
  src/cmd/gc/go.h     |  1 +
  src/cmd/gc/subr.c   |  2 +-
  3 files changed, 13 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/gc/export.c b/src/cmd/gc/export.c
+index 41d3fc4143..66a568cc4a 100644
+--- a/src/cmd/gc/export.c
++++ b/src/cmd/gc/export.c
+@@ -270,7 +270,7 @@ pkgsym(char *name, char *pkg, int lexical)
+  * return the sym for ss, which should match lexical
+  */
+ Sym*
+-importsym(Node *ss, int lexical)
++importsym(int export, Node *ss, int lexical)
+ {
+ 	Sym *s;
+ 
+@@ -282,7 +282,12 @@ importsym(Node *ss, int lexical)
+ 	s = pkgsym(ss->sym->name, ss->psym->name, lexical);
+ 	/* TODO botch - need some diagnostic checking for the following assignment */
+ 	s->opackage = ss->osym->name;
+-	s->export = 1;
++	if(export) {
++		if(s->export != export && s->export != 0)
++			yyerror("export/package mismatch: %S", s);
++		s->export = export;
++	}
++	s->imported = 1;
+ 	return s;
+ }
+ 
+@@ -303,7 +308,7 @@ pkgtype(char *name, char *pkg)
+ 	n->psym = lookup(pkg);
+ 	n->osym = n->psym;
+ 	renamepkg(n);
+-	s = importsym(n, LATYPE);
++	s = importsym(0, n, LATYPE);
+ 
+ 	if(s->otype == T) {
+ 		t = typ(TFORW);
+@@ -332,14 +337,13 @@ importconst(int export, Node *ss, Type *t, Val *v)
+ 	n->val = *v;
+ 	n->type = t;
+ 
+-	s = importsym(ss, LNAME);
++	s = importsym(export, ss, LNAME);
+ 	if(s->oconst != N) {
+ 		// TODO: check if already the same.
+ 		return;
+ 	}
+ 
+ 	dodclconst(newname(s), n);
+-	s->export = export;
+ 
+ 	if(debug['e'])
+ 		print("import const %S\n", s);
+@@ -353,7 +357,7 @@ importvar(int export, Node *ss, Type *t)
+ 	if(export == 2 && !mypackage(ss))
+ 		return;
+ 
+-	s = importsym(ss, LNAME);
++	s = importsym(export, ss, LNAME);
+ 	if(s->oname != N) {
+ 		if(eqtype(t, s->oname->type, 0))
+ 			return;
+@@ -373,7 +377,7 @@ importtype(int export, Node *ss, Type *t)
+ {
+ 	Sym *s;
+ 
+-	s = importsym(ss, LATYPE);
++	s = importsym(export, ss, LATYPE);
+ 	if(s->otype != T) {
+ 		if(eqtype(t, s->otype, 0))
+ 			return;
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index cc842bc94f..e26d38946a 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -209,6 +209,7 @@ struct	Sym
+ 	uchar	undef;		// a diagnostic has been generated
+ 	uchar	export;		// marked as export
+ 	uchar	exported;	// exported
++	uchar	imported;	// imported
+ 	uchar	sym;		// huffman encoding in object file
+ 	uchar	local;		// created in this file
+ 	uchar	uniq;		// imbedded field name first found
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 2e81078857..e1bdde5f58 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -982,7 +982,7 @@ Tpretty(Fmt *fp, Type *t)
+ 			else
+ 				fmtprint(fp, "%lS", s);
+ 			if(strcmp(s->opackage, package) == 0)
+-			if(s->otype != t || !s->export) {
++			if(s->otype != t || (!s->export && !s->imported)) {
+ 				fmtprint(fp, "·%s", filename);
+ 				if(t->vargen)
+ 					fmtprint(fp, "·%d", t->vargen);

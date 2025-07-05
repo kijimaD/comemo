@@ -7,8 +7,88 @@ Date:   Mon May 2 13:35:28 2011 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4428078
-
+---
  src/pkg/runtime/cgo/Makefile | 14 ++++++++------
  src/pkg/runtime/cgo/setenv.c | 16 ++++++++++++++++
  src/pkg/runtime/cgo/util.c   | 11 -----------
  3 files changed, 24 insertions(+), 17 deletions(-)
+
+diff --git a/src/pkg/runtime/cgo/Makefile b/src/pkg/runtime/cgo/Makefile
+index 768fe80ace..f26da2c518 100644
+--- a/src/pkg/runtime/cgo/Makefile
++++ b/src/pkg/runtime/cgo/Makefile
+@@ -28,18 +28,20 @@ CGO_OFILES=\
+ 	$(GOOS)_$(GOARCH).o\
+ 	util.o\
+ 
+-OFILES=\
+-	iscgo.$O\
+-	callbacks.$O\
+-	_cgo_import.$O\
+-	$(CGO_OFILES)\
+-
+ ifeq ($(GOOS),windows)
+ CGO_LDFLAGS=-lm -mthreads
+ else
+ CGO_LDFLAGS=-lpthread
++CGO_OFILES+=setenv.o\
++
+ endif
+ 
++OFILES=\
++	iscgo.$O\
++	callbacks.$O\
++	_cgo_import.$O\
++	$(CGO_OFILES)\
++
+ ifeq ($(GOOS),freebsd)
+ OFILES+=\
+ 	freebsd.$O\
+diff --git a/src/pkg/runtime/cgo/setenv.c b/src/pkg/runtime/cgo/setenv.c
+new file mode 100644
+index 0000000000..c911b8392b
+--- /dev/null
++++ b/src/pkg/runtime/cgo/setenv.c
+@@ -0,0 +1,16 @@
++// Copyright 20111 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "libcgo.h"
++
++#include <stdlib.h>
++
++/* Stub for calling setenv */
++static void
++xlibcgo_setenv(char **arg)
++{
++	setenv(arg[0], arg[1], 1);
++}
++
++void (*libcgo_setenv)(char**) = xlibcgo_setenv;
+diff --git a/src/pkg/runtime/cgo/util.c b/src/pkg/runtime/cgo/util.c
+index ba6e0ca9c3..0eff19aa6d 100644
+--- a/src/pkg/runtime/cgo/util.c
++++ b/src/pkg/runtime/cgo/util.c
+@@ -4,8 +4,6 @@
+ 
+ #include "libcgo.h"
+ 
+-#include <stdlib.h>
+-
+ /* Stub for calling malloc from Go */
+ static void
+ x_cgo_malloc(void *p)
+@@ -51,12 +49,3 @@ xlibcgo_thread_start(ThreadStart *arg)
+ }
+ 
+ void (*libcgo_thread_start)(ThreadStart*) = xlibcgo_thread_start;
+-
+-/* Stub for calling setenv */
+-static void
+-xlibcgo_setenv(char **arg)
+-{
+-	setenv(arg[0], arg[1], 1);
+-}
+-
+-void (*libcgo_setenv)(char**) = xlibcgo_setenv;

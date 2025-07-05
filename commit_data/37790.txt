@@ -13,7 +13,108 @@ Date:   Fri Jul 6 12:45:03 2018 -0400
     Reviewed-on: https://go-review.googlesource.com/122482
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/link/internal/ld/data.go | 15 +++++++++-
  src/cmd/link/internal/ld/lib.go  | 63 ++++++++++++++++++++++++++--------------
  2 files changed, 55 insertions(+), 23 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 4b7680d1da..3070fdbb35 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -111,7 +111,20 @@ func trampoline(ctxt *Link, s *sym.Symbol) {
+ 
+ }
+ 
+-// resolve relocations in s.
++// relocsym resolve relocations in "s". The main loop walks through
++// the list of relocations attached to "s" and resolves them where
++// applicable. Relocations are often architecture-specific, requiring
++// calls into the 'archreloc' and/or 'archrelocvariant' functions for
++// the architecture. When external linking is in effect, it may not be
++// possible to completely resolve the address/offset for a symbol, in
++// which case the goal is to lay the groundwork for turning a given
++// relocation into an external reloc (to be applied by the external
++// linker). For more on how relocations work in general, see
++//
++//  "Linkers and Loaders", by John R. Levine (Morgan Kaufmann, 1999), ch. 7
++//
++// This is a performance-critical function for the linker; be careful
++// to avoid introducing unnecessary allocations in the main loop.
+ func relocsym(ctxt *Link, s *sym.Symbol) {
+ 	for ri := int32(0); ri < int32(len(s.R)); ri++ {
+ 		r := &s.R[ri]
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 6b578d7096..bfb9d9b772 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -91,28 +91,47 @@ import (
+ // THE SOFTWARE.
+ 
+ type Arch struct {
+-	Funcalign        int
+-	Maxalign         int
+-	Minalign         int
+-	Dwarfregsp       int
+-	Dwarfreglr       int
+-	Linuxdynld       string
+-	Freebsddynld     string
+-	Netbsddynld      string
+-	Openbsddynld     string
+-	Dragonflydynld   string
+-	Solarisdynld     string
+-	Adddynrel        func(*Link, *sym.Symbol, *sym.Reloc) bool
+-	Archinit         func(*Link)
+-	Archreloc        func(*Link, *sym.Reloc, *sym.Symbol, int64) (int64, bool)
+-	Archrelocvariant func(*Link, *sym.Reloc, *sym.Symbol, int64) int64
+-	Trampoline       func(*Link, *sym.Reloc, *sym.Symbol)
+-	Asmb             func(*Link)
+-	Elfreloc1        func(*Link, *sym.Reloc, int64) bool
+-	Elfsetupplt      func(*Link)
+-	Gentext          func(*Link)
+-	Machoreloc1      func(*sys.Arch, *OutBuf, *sym.Symbol, *sym.Reloc, int64) bool
+-	PEreloc1         func(*sys.Arch, *OutBuf, *sym.Symbol, *sym.Reloc, int64) bool
++	Funcalign      int
++	Maxalign       int
++	Minalign       int
++	Dwarfregsp     int
++	Dwarfreglr     int
++	Linuxdynld     string
++	Freebsddynld   string
++	Netbsddynld    string
++	Openbsddynld   string
++	Dragonflydynld string
++	Solarisdynld   string
++	Adddynrel      func(*Link, *sym.Symbol, *sym.Reloc) bool
++	Archinit       func(*Link)
++	// Archreloc is an arch-specific hook that assists in
++	// relocation processing (invoked by 'relocsym'); it handles
++	// target-specific relocation tasks. Here "rel" is the current
++	// relocation being examined, "sym" is the symbol containing the
++	// chunk of data to which the relocation applies, and "off" is the
++	// contents of the to-be-relocated data item (from sym.P). Return
++	// value is the appropriately relocated value (to be written back
++	// to the same spot in sym.P) and a boolean indicating
++	// success/failure (a failing value indicates a fatal error).
++	Archreloc func(link *Link, rel *sym.Reloc, sym *sym.Symbol,
++		offset int64) (relocatedOffset int64, success bool)
++	// Archrelocvariant is a second arch-specific hook used for
++	// relocation processing; it handles relocations where r.Type is
++	// insufficient to describe the relocation (r.Variant !=
++	// sym.RV_NONE). Here "rel" is the relocation being applied, "sym"
++	// is the symbol containing the chunk of data to which the
++	// relocation applies, and "off" is the contents of the
++	// to-be-relocated data item (from sym.P). Return is an updated
++	// offset value.
++	Archrelocvariant func(link *Link, rel *sym.Reloc, sym *sym.Symbol,
++		offset int64) (relocatedOffset int64)
++	Trampoline  func(*Link, *sym.Reloc, *sym.Symbol)
++	Asmb        func(*Link)
++	Elfreloc1   func(*Link, *sym.Reloc, int64) bool
++	Elfsetupplt func(*Link)
++	Gentext     func(*Link)
++	Machoreloc1 func(*sys.Arch, *OutBuf, *sym.Symbol, *sym.Reloc, int64) bool
++	PEreloc1    func(*sys.Arch, *OutBuf, *sym.Symbol, *sym.Reloc, int64) bool
+ 
+ 	// TLSIEtoLE converts a TLS Initial Executable relocation to
+ 	// a TLS Local Executable relocation.

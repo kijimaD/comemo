@@ -12,7 +12,42 @@ Date:   Wed May 21 18:50:39 2025 +0000
     Auto-Submit: Junyang Shao <shaojunyang@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/compile/internal/ssa/memcombine.go | 2 +-
  test/codegen/issue72832.go                 | 9 +++++++++
  2 files changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/memcombine.go b/src/cmd/compile/internal/ssa/memcombine.go
+index 416f5540a7..b8fcd39495 100644
+--- a/src/cmd/compile/internal/ssa/memcombine.go
++++ b/src/cmd/compile/internal/ssa/memcombine.go
+@@ -581,7 +581,7 @@ func combineStores(root *Value) {
+ 			mask := int64(1)<<(8*a[i].size) - 1
+ 			s := 8 * (a[i].offset - a[0].offset)
+ 			if root.Block.Func.Config.BigEndian {
+-				s = aTotalSize*8 - a[i].size - s
++				s = (aTotalSize-a[i].size)*8 - s
+ 			}
+ 			c |= (a[i].store.Args[1].AuxInt & mask) << s
+ 		}
+diff --git a/test/codegen/issue72832.go b/test/codegen/issue72832.go
+index a7f6ca8c5c..392b41b173 100644
+--- a/test/codegen/issue72832.go
++++ b/test/codegen/issue72832.go
+@@ -35,7 +35,16 @@ type tile3 struct {
+ 
+ func store_shifted(t *tile3, x uint32) {
+ 	// amd64:`MOVL`
++	// ppc64:`MOVHBR`
+ 	t.a = uint8(x)
+ 	t.b = uint8(x >> 8)
+ 	t.c = uint16(x >> 16)
+ }
++
++func store_const(t *tile3) {
++	// 0x00030201
++	// amd64:`MOVL\s\$197121`
++	// 0x01020003
++	// ppc64:`MOVD\s\$16908291`
++	t.a, t.b, t.c = 1, 2, 3
++}

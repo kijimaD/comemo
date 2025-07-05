@@ -15,8 +15,99 @@ Date:   Fri Mar 13 17:02:31 2020 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/internal/ld/lib.go      | 16 +++++++++++++---
  src/cmd/link/internal/ppc64/asm.go   | 18 +++++++++++++++++-
  src/cmd/link/internal/sym/symbols.go |  5 +++++
  3 files changed, 35 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index d7d52a579b..c7cbbddcba 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -101,7 +101,8 @@ type LookupFn func(name string, version int) *sym.Symbol
+ // we keep a subset for relocation application.
+ type ArchSyms struct {
+ 	TOC    *sym.Symbol
+-	DotTOC *sym.Symbol
++	DotTOC []*sym.Symbol // for each version
++
+ 	GOT    *sym.Symbol
+ 	PLT    *sym.Symbol
+ 	GOTPLT *sym.Symbol
+@@ -117,8 +118,6 @@ type ArchSyms struct {
+ // setArchSyms sets up the ArchSyms structure, and must be called before
+ // relocations are applied.
+ func (ctxt *Link) setArchSyms() {
+-	ctxt.TOC = ctxt.Syms.Lookup("TOC", 0)
+-	ctxt.DotTOC = ctxt.Syms.Lookup(".TOC.", 0)
+ 	ctxt.GOT = ctxt.Syms.Lookup(".got", 0)
+ 	ctxt.PLT = ctxt.Syms.Lookup(".plt", 0)
+ 	ctxt.GOTPLT = ctxt.Syms.Lookup(".got.plt", 0)
+@@ -126,6 +125,17 @@ func (ctxt *Link) setArchSyms() {
+ 	ctxt.Dynamic = ctxt.Syms.Lookup(".dynamic", 0)
+ 	ctxt.DynSym = ctxt.Syms.Lookup(".dynsym", 0)
+ 	ctxt.DynStr = ctxt.Syms.Lookup(".dynstr", 0)
++
++	if ctxt.IsAIX() {
++		ctxt.TOC = ctxt.Syms.Lookup("TOC", 0)
++		ctxt.DotTOC = make([]*sym.Symbol, ctxt.Syms.MaxVersion()+1)
++		for i := 0; i <= ctxt.Syms.MaxVersion(); i++ {
++			if i >= 2 && i < sym.SymVerStatic { // these versions are not used currently
++				continue
++			}
++			ctxt.DotTOC[i] = ctxt.Syms.Lookup(".TOC.", i)
++		}
++	}
+ }
+ 
+ type Arch struct {
+diff --git a/src/cmd/link/internal/ppc64/asm.go b/src/cmd/link/internal/ppc64/asm.go
+index d0993e3267..d3ebafc603 100644
+--- a/src/cmd/link/internal/ppc64/asm.go
++++ b/src/cmd/link/internal/ppc64/asm.go
+@@ -513,6 +513,22 @@ func machoreloc1(arch *sys.Arch, out *ld.OutBuf, s *sym.Symbol, r *sym.Reloc, se
+ 	return false
+ }
+ 
++// Return the value of .TOC. for symbol s
++func symtoc(syms *ld.ArchSyms, s *sym.Symbol) int64 {
++	v := s.Version
++	if s.Outer != nil {
++		v = s.Outer.Version
++	}
++
++	toc := syms.DotTOC[v]
++	if toc == nil {
++		ld.Errorf(s, "TOC-relative relocation in object without .TOC.")
++		return 0
++	}
++
++	return toc.Value
++}
++
+ // archreloctoc relocates a TOC relative symbol.
+ // If the symbol pointed by this TOC relative symbol is in .data or .bss, the
+ // default load instruction can be changed to an addi instruction and the
+@@ -825,7 +841,7 @@ func archreloc(target *ld.Target, syms *ld.ArchSyms, r *sym.Reloc, s *sym.Symbol
+ 		}
+ 		return val | int64(uint32(t)&^0xfc000003), true
+ 	case objabi.R_POWER_TOC: // S + A - .TOC.
+-		return ld.Symaddr(r.Sym) + r.Add - syms.DotTOC.Value, true
++		return ld.Symaddr(r.Sym) + r.Add - symtoc(syms, s), true
+ 
+ 	case objabi.R_POWER_TLS_LE:
+ 		// The thread pointer points 0x7000 bytes after the start of the
+diff --git a/src/cmd/link/internal/sym/symbols.go b/src/cmd/link/internal/sym/symbols.go
+index e64779da9c..10e4ac5f54 100644
+--- a/src/cmd/link/internal/sym/symbols.go
++++ b/src/cmd/link/internal/sym/symbols.go
+@@ -62,3 +62,8 @@ func (syms *Symbols) IncVersion() int {
+ 	syms.versions++
+ 	return syms.versions - 1
+ }
++
++// returns the maximum version number
++func (syms *Symbols) MaxVersion() int {
++	return syms.versions
++}

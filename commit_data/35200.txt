@@ -14,7 +14,96 @@ Date:   Wed Dec 13 22:38:18 2017 -0800
     Change-Id: Ic00d5e01c97ef09a4e49407009cf71b0d07f5c0e
     Reviewed-on: https://go-review.googlesource.com/83920
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/html/template/escape.go      | 32 ++++++++++++++++++++++++--------
  src/html/template/escape_test.go | 28 ++++++++++++++++++++++++++++
  2 files changed, 52 insertions(+), 8 deletions(-)
+
+diff --git a/src/html/template/escape.go b/src/html/template/escape.go
+index 1241fa7713..5963194be6 100644
+--- a/src/html/template/escape.go
++++ b/src/html/template/escape.go
+@@ -283,9 +283,22 @@ func ensurePipelineContains(p *parse.PipeNode, s []string) {
+ 	}
+ 	// Rewrite the pipeline, creating the escapers in s at the end of the pipeline.
+ 	newCmds := make([]*parse.CommandNode, pipelineLen, pipelineLen+len(s))
+-	copy(newCmds, p.Cmds)
++	insertedIdents := make(map[string]bool)
++	for i := 0; i < pipelineLen; i++ {
++		cmd := p.Cmds[i]
++		newCmds[i] = cmd
++		if idNode, ok := cmd.Args[0].(*parse.IdentifierNode); ok {
++			insertedIdents[normalizeEscFn(idNode.Ident)] = true
++		}
++	}
+ 	for _, name := range s {
+-		newCmds = appendCmd(newCmds, newIdentCmd(name, p.Position()))
++		if !insertedIdents[normalizeEscFn(name)] {
++			// When two templates share an underlying parse tree via the use of
++			// AddParseTree and one template is executed after the other, this check
++			// ensures that escapers that were already inserted into the pipeline on
++			// the first escaping pass do not get inserted again.
++			newCmds = appendCmd(newCmds, newIdentCmd(name, p.Position()))
++		}
+ 	}
+ 	p.Cmds = newCmds
+ }
+@@ -320,13 +333,16 @@ var equivEscapers = map[string]string{
+ 
+ // escFnsEq reports whether the two escaping functions are equivalent.
+ func escFnsEq(a, b string) bool {
+-	if e := equivEscapers[a]; e != "" {
+-		a = e
+-	}
+-	if e := equivEscapers[b]; e != "" {
+-		b = e
++	return normalizeEscFn(a) == normalizeEscFn(b)
++}
++
++// normalizeEscFn(a) is equal to normalizeEscFn(b) for any pair of names of
++// escaper functions a and b that are equivalent.
++func normalizeEscFn(e string) string {
++	if norm := equivEscapers[e]; norm != "" {
++		return norm
+ 	}
+-	return a == b
++	return e
+ }
+ 
+ // redundantFuncs[a][b] implies that funcMap[b](funcMap[a](x)) == funcMap[a](x)
+diff --git a/src/html/template/escape_test.go b/src/html/template/escape_test.go
+index 96684793bd..55f808ccba 100644
+--- a/src/html/template/escape_test.go
++++ b/src/html/template/escape_test.go
+@@ -1918,3 +1918,31 @@ func TestOrphanedTemplate(t *testing.T) {
+ 		t.Fatalf("t2 rendered %q, want %q", got, want)
+ 	}
+ }
++
++// Covers issue 21844.
++func TestAliasedParseTreeDoesNotOverescape(t *testing.T) {
++	const (
++		tmplText = `{{.}}`
++		data     = `<baz>`
++		want     = `&lt;baz&gt;`
++	)
++	// Templates "foo" and "bar" both alias the same underlying parse tree.
++	tpl := Must(New("foo").Parse(tmplText))
++	if _, err := tpl.AddParseTree("bar", tpl.Tree); err != nil {
++		t.Fatalf("AddParseTree error: %v", err)
++	}
++	var b1, b2 bytes.Buffer
++	if err := tpl.ExecuteTemplate(&b1, "foo", data); err != nil {
++		t.Fatalf(`ExecuteTemplate failed for "foo": %v`, err)
++	}
++	if err := tpl.ExecuteTemplate(&b2, "bar", data); err != nil {
++		t.Fatalf(`ExecuteTemplate failed for "foo": %v`, err)
++	}
++	got1, got2 := b1.String(), b2.String()
++	if got1 != want {
++		t.Fatalf(`Template "foo" rendered %q, want %q`, got1, want)
++	}
++	if got1 != got2 {
++		t.Fatalf(`Template "foo" and "bar" rendered %q and %q respectively, expected equal values`, got1, got2)
++	}
++}

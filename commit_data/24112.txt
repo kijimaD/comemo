@@ -33,7 +33,7 @@ Date:   Thu Jul 9 21:24:12 2015 -0600
     Reviewed-on: https://go-review.googlesource.com/12004
     Reviewed-by: Todd Neal <todd@tneal.org>
     Reviewed-by: Michael Matloob <michaelmatloob@gmail.com>
-
+---
  src/cmd/compile/internal/ssa/check.go          | 13 +++++++++
  src/cmd/compile/internal/ssa/compile.go        |  1 +
  src/cmd/compile/internal/ssa/deadcode.go       |  8 ++++--
@@ -42,3 +42,173 @@ Date:   Thu Jul 9 21:24:12 2015 -0600
  src/cmd/compile/internal/ssa/opGen.go          |  2 ++
  src/cmd/compile/internal/ssa/rewrite.go        |  3 ++
  7 files changed, 64 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/check.go b/src/cmd/compile/internal/ssa/check.go
+index a27e1bc653..4fe59e08d1 100644
+--- a/src/cmd/compile/internal/ssa/check.go
++++ b/src/cmd/compile/internal/ssa/check.go
+@@ -59,6 +59,19 @@ func checkFunc(f *Func) {
+ 			if !b.Control.Type.IsMemory() {
+ 				f.Fatalf("exit block %s has non-memory control value %s", b, b.Control.LongString())
+ 			}
++		case BlockDead:
++			if len(b.Succs) != 0 {
++				f.Fatalf("dead block %s has successors", b)
++			}
++			if len(b.Preds) != 0 {
++				f.Fatalf("dead block %s has predecessors", b)
++			}
++			if len(b.Values) != 0 {
++				f.Fatalf("dead block %s has values", b)
++			}
++			if b.Control != nil {
++				f.Fatalf("dead block %s has a control value", b)
++			}
+ 		case BlockPlain:
+ 			if len(b.Succs) != 1 {
+ 				f.Fatalf("plain block %s len(Succs)==%d, want 1", b, len(b.Succs))
+diff --git a/src/cmd/compile/internal/ssa/compile.go b/src/cmd/compile/internal/ssa/compile.go
+index b02c10a745..4a6c2a9404 100644
+--- a/src/cmd/compile/internal/ssa/compile.go
++++ b/src/cmd/compile/internal/ssa/compile.go
+@@ -51,6 +51,7 @@ var passes = [...]pass{
+ 	{"phielim", phielim},
+ 	{"copyelim", copyelim},
+ 	{"opt", opt},
++	{"opt deadcode", deadcode}, // remove any blocks orphaned during opt
+ 	{"generic cse", cse},
+ 	{"nilcheckelim", nilcheckelim},
+ 	{"generic deadcode", deadcode},
+diff --git a/src/cmd/compile/internal/ssa/deadcode.go b/src/cmd/compile/internal/ssa/deadcode.go
+index a5d0fe0f34..2be7b8ebaf 100644
+--- a/src/cmd/compile/internal/ssa/deadcode.go
++++ b/src/cmd/compile/internal/ssa/deadcode.go
+@@ -96,7 +96,7 @@ func deadcode(f *Func) {
+ 	// TODO: save dead Values and Blocks for reuse?  Or should we just let GC handle it?
+ }
+ 
+-// There was an edge b->c.  It has been removed from b's successors.
++// There was an edge b->c.  c has been removed from b's successors.
+ // Fix up c to handle that fact.
+ func (f *Func) removePredecessor(b, c *Block) {
+ 	work := [][2]*Block{{b, c}}
+@@ -105,8 +105,6 @@ func (f *Func) removePredecessor(b, c *Block) {
+ 		b, c := work[0][0], work[0][1]
+ 		work = work[1:]
+ 
+-		n := len(c.Preds) - 1
+-
+ 		// find index of b in c's predecessor list
+ 		var i int
+ 		for j, p := range c.Preds {
+@@ -116,6 +114,7 @@ func (f *Func) removePredecessor(b, c *Block) {
+ 			}
+ 		}
+ 
++		n := len(c.Preds) - 1
+ 		c.Preds[i] = c.Preds[n]
+ 		c.Preds[n] = nil // aid GC
+ 		c.Preds = c.Preds[:n]
+@@ -143,6 +142,9 @@ func (f *Func) removePredecessor(b, c *Block) {
+ 			for _, succ := range c.Succs {
+ 				work = append(work, [2]*Block{c, succ})
+ 			}
++			c.Succs = nil
++			c.Kind = BlockDead
++			c.Control = nil
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/ssa/deadcode_test.go b/src/cmd/compile/internal/ssa/deadcode_test.go
+index ff9e6800da..c63b8e4106 100644
+--- a/src/cmd/compile/internal/ssa/deadcode_test.go
++++ b/src/cmd/compile/internal/ssa/deadcode_test.go
+@@ -93,3 +93,42 @@ func TestNeverTaken(t *testing.T) {
+ 	}
+ 
+ }
++
++func TestNestedDeadBlocks(t *testing.T) {
++	c := NewConfig("amd64", DummyFrontend{t})
++	fun := Fun(c, "entry",
++		Bloc("entry",
++			Valu("mem", OpArg, TypeMem, 0, ".mem"),
++			Valu("cond", OpConst, TypeBool, 0, false),
++			If("cond", "b2", "b4")),
++		Bloc("b2",
++			If("cond", "b3", "b4")),
++		Bloc("b3",
++			If("cond", "b3", "b4")),
++		Bloc("b4",
++			If("cond", "b3", "exit")),
++		Bloc("exit",
++			Exit("mem")))
++
++	CheckFunc(fun.f)
++	Opt(fun.f)
++	CheckFunc(fun.f)
++	Deadcode(fun.f)
++	CheckFunc(fun.f)
++	if fun.blocks["entry"].Kind != BlockPlain {
++		t.Errorf("if(false) not simplified")
++	}
++	for _, b := range fun.f.Blocks {
++		if b == fun.blocks["b2"] {
++			t.Errorf("b2 block still present")
++		}
++		if b == fun.blocks["b3"] {
++			t.Errorf("b3 block still present")
++		}
++		for _, v := range b.Values {
++			if v == fun.values["cond"] {
++				t.Errorf("constant condition still present")
++			}
++		}
++	}
++}
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index a6e6c93fc5..c410cc4f02 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -105,6 +105,7 @@ var genericOps = []opData{
+ 
+ var genericBlocks = []blockData{
+ 	{name: "Exit"},  // no successors.  There should only be 1 of these.
++	{name: "Dead"},  // no successors; determined to be dead but not yet removed
+ 	{name: "Plain"}, // a single successor
+ 	{name: "If"},    // 2 successors, if control goto Succs[0] else goto Succs[1]
+ 	{name: "Call"},  // 2 successors, normal return and panic
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index a6fb0b06e2..3769cfeb86 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -19,6 +19,7 @@ const (
+ 	BlockAMD64UGE
+ 
+ 	BlockExit
++	BlockDead
+ 	BlockPlain
+ 	BlockIf
+ 	BlockCall
+@@ -39,6 +40,7 @@ var blockString = [...]string{
+ 	BlockAMD64UGE: "UGE",
+ 
+ 	BlockExit:  "Exit",
++	BlockDead:  "Dead",
+ 	BlockPlain: "Plain",
+ 	BlockIf:    "If",
+ 	BlockCall:  "Call",
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index b2c45969e4..306fe1274e 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -23,6 +23,9 @@ func applyRewrite(f *Func, rb func(*Block) bool, rv func(*Value, *Config) bool)
+ 	for {
+ 		change := false
+ 		for _, b := range f.Blocks {
++			if b.Kind == BlockDead {
++				continue
++			}
+ 			if b.Control != nil && b.Control.Op == OpCopy {
+ 				for b.Control.Op == OpCopy {
+ 					b.Control = b.Control.Args[0]

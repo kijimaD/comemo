@@ -10,6 +10,28 @@ Date:   Sat Aug 30 14:18:41 2014 -0400
     R=golang-codereviews, r, khr
     CC=dvyukov, golang-codereviews, iant, khr
     https://golang.org/cl/136020043
-
+---
  src/pkg/runtime/panic.go | 8 ++++++--
  1 file changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/runtime/panic.go b/src/pkg/runtime/panic.go
+index ac0c6b77ee..9b95f49673 100644
+--- a/src/pkg/runtime/panic.go
++++ b/src/pkg/runtime/panic.go
+@@ -4,10 +4,14 @@
+ 
+ package runtime
+ 
++var indexError = error(errorString("index out of range"))
++
+ func panicindex() {
+-	panic(errorString("index out of range"))
++	panic(indexError)
+ }
+ 
++var sliceError = error(errorString("slice bounds out of range"))
++
+ func panicslice() {
+-	panic(errorString("slice bounds out of range"))
++	panic(sliceError)
+ }

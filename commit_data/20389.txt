@@ -14,7 +14,7 @@ Date:   Thu Sep 4 15:53:45 2014 -0400
     R=golang-codereviews, iant
     CC=dvyukov, golang-codereviews, khr, r
     https://golang.org/cl/140240044
-
+---
  src/pkg/runtime/cgocall.go     |   4 +-
  src/pkg/runtime/os_darwin.c    |   1 +
  src/pkg/runtime/os_dragonfly.c |  24 +++++++-
@@ -35,3 +35,1038 @@ Date:   Thu Sep 4 15:53:45 2014 -0400
  src/pkg/runtime/string.go      |   6 +-
  src/pkg/runtime/stubs.go       |  31 -----------
  19 files changed, 274 insertions(+), 220 deletions(-)
+
+diff --git a/src/pkg/runtime/cgocall.go b/src/pkg/runtime/cgocall.go
+index d44b832dfa..1037c5dc21 100644
+--- a/src/pkg/runtime/cgocall.go
++++ b/src/pkg/runtime/cgocall.go
+@@ -101,7 +101,7 @@ func cgocall_errno(fn, arg unsafe.Pointer) int32 {
+ 
+ 	// Create an extra M for callbacks on threads not created by Go on first cgo call.
+ 	if needextram == 1 && cas(&needextram, 1, 0) {
+-		newextram()
++		onM(newextram)
+ 	}
+ 
+ 	/*
+@@ -188,7 +188,7 @@ func cgocallbackg1() {
+ 	gp := getg()
+ 	if gp.m.needextram {
+ 		gp.m.needextram = false
+-		newextram()
++		onM(newextram)
+ 	}
+ 
+ 	// Add entry to defer stack in case of panic.
+diff --git a/src/pkg/runtime/os_darwin.c b/src/pkg/runtime/os_darwin.c
+index d3890eee52..466591877d 100644
+--- a/src/pkg/runtime/os_darwin.c
++++ b/src/pkg/runtime/os_darwin.c
+@@ -71,6 +71,7 @@ runtime·osinit(void)
+ 		runtime·ncpu = out;
+ }
+ 
++#pragma textflag NOSPLIT
+ void
+ runtime·get_random_data(byte **rnd, int32 *rnd_len)
+ {
+diff --git a/src/pkg/runtime/os_dragonfly.c b/src/pkg/runtime/os_dragonfly.c
+index a2a88e4c80..f93c02ce1c 100644
+--- a/src/pkg/runtime/os_dragonfly.c
++++ b/src/pkg/runtime/os_dragonfly.c
+@@ -72,19 +72,40 @@ runtime·futexsleep(uint32 *addr, uint32 val, int64 ns)
+ 	*(int32*)0x1005 = 0x1005;
+ }
+ 
++static void badfutexwakeup(void);
++
++#pragma textflag NOSPLIT
+ void
+ runtime·futexwakeup(uint32 *addr, uint32 cnt)
+ {
+ 	int32 ret;
++	void (*fn)(void);
+ 
+ 	ret = runtime·sys_umtx_wakeup(addr, cnt);
+ 	if(ret >= 0)
+ 		return;
+ 
+-	runtime·printf("umtx_wake addr=%p ret=%d\n", addr, ret);
++	g->m->ptrarg[0] = addr;
++	g->m->scalararg[0] = ret;
++	fn = badfutexwakeup;
++	if(g == g->m->gsignal)
++		fn();
++	else
++		runtime·onM(&fn);
+ 	*(int32*)0x1006 = 0x1006;
+ }
+ 
++static void
++badfutexwakeup(void)
++{
++	void *addr;
++	int32 ret;
++	
++	addr = g->m->ptrarg[0];
++	ret = g->m->scalararg[0];
++	runtime·printf("umtx_wake addr=%p ret=%d\n", addr, ret);
++}
++
+ void runtime·lwp_start(void*);
+ 
+ void
+@@ -119,6 +140,7 @@ runtime·osinit(void)
+ 	runtime·ncpu = getncpu();
+ }
+ 
++#pragma textflag NOSPLIT
+ void
+ runtime·get_random_data(byte **rnd, int32 *rnd_len)
+ {
+diff --git a/src/pkg/runtime/os_freebsd.c b/src/pkg/runtime/os_freebsd.c
+index ae959d90bb..ab1edcd93f 100644
+--- a/src/pkg/runtime/os_freebsd.c
++++ b/src/pkg/runtime/os_freebsd.c
+@@ -73,19 +73,40 @@ fail:
+ 	*(int32*)0x1005 = 0x1005;
+ }
+ 
++static void badfutexwakeup(void);
++
++#pragma textflag NOSPLIT
+ void
+ runtime·futexwakeup(uint32 *addr, uint32 cnt)
+ {
+ 	int32 ret;
++	void (*fn)(void);
+ 
+ 	ret = runtime·sys_umtx_op(addr, UMTX_OP_WAKE_PRIVATE, cnt, nil, nil);
+ 	if(ret >= 0)
+ 		return;
+ 
+-	runtime·printf("umtx_wake addr=%p ret=%d\n", addr, ret);
++	g->m->ptrarg[0] = addr;
++	g->m->scalararg[0] = ret;
++	fn = badfutexwakeup;
++	if(g == g->m->gsignal)
++		fn();
++	else
++		runtime·onM(&fn);
+ 	*(int32*)0x1006 = 0x1006;
+ }
+ 
++static void
++badfutexwakeup(void)
++{
++	void *addr;
++	int32 ret;
++	
++	addr = g->m->ptrarg[0];
++	ret = g->m->scalararg[0];
++	runtime·printf("umtx_wake addr=%p ret=%d\n", addr, ret);
++}
++
+ void runtime·thr_start(void*);
+ 
+ void
+@@ -127,6 +148,7 @@ runtime·osinit(void)
+ 	runtime·ncpu = getncpu();
+ }
+ 
++#pragma textflag NOSPLIT
+ void
+ runtime·get_random_data(byte **rnd, int32 *rnd_len)
+ {
+diff --git a/src/pkg/runtime/os_linux.c b/src/pkg/runtime/os_linux.c
+index 34521cc86a..7ab4858d9a 100644
+--- a/src/pkg/runtime/os_linux.c
++++ b/src/pkg/runtime/os_linux.c
+@@ -55,24 +55,44 @@ runtime·futexsleep(uint32 *addr, uint32 val, int64 ns)
+ 	runtime·futex(addr, FUTEX_WAIT, val, &ts, nil, 0);
+ }
+ 
++static void badfutexwakeup(void);
++
+ // If any procs are sleeping on addr, wake up at most cnt.
++#pragma textflag NOSPLIT
+ void
+ runtime·futexwakeup(uint32 *addr, uint32 cnt)
+ {
+ 	int64 ret;
++	void (*fn)(void);
+ 
+ 	ret = runtime·futex(addr, FUTEX_WAKE, cnt, nil, nil, 0);
+-
+ 	if(ret >= 0)
+ 		return;
+ 
+ 	// I don't know that futex wakeup can return
+ 	// EAGAIN or EINTR, but if it does, it would be
+ 	// safe to loop and call futex again.
+-	runtime·printf("futexwakeup addr=%p returned %D\n", addr, ret);
++	g->m->ptrarg[0] = addr;
++	g->m->scalararg[0] = (int32)ret; // truncated but fine
++	fn = badfutexwakeup;
++	if(g == g->m->gsignal)
++		fn();
++	else
++		runtime·onM(&fn);
+ 	*(int32*)0x1006 = 0x1006;
+ }
+ 
++static void
++badfutexwakeup(void)
++{
++	void *addr;
++	int64 ret;
++	
++	addr = g->m->ptrarg[0];
++	ret = (int32)g->m->scalararg[0];
++	runtime·printf("futexwakeup addr=%p returned %D\n", addr, ret);
++}
++
+ extern runtime·sched_getaffinity(uintptr pid, uintptr len, uintptr *buf);
+ static int32
+ getproccount(void)
+@@ -162,6 +182,7 @@ runtime·osinit(void)
+ byte*	runtime·startup_random_data;
+ uint32	runtime·startup_random_data_len;
+ 
++#pragma textflag NOSPLIT
+ void
+ runtime·get_random_data(byte **rnd, int32 *rnd_len)
+ {
+diff --git a/src/pkg/runtime/os_nacl.c b/src/pkg/runtime/os_nacl.c
+index f859dd0d35..fba32e5687 100644
+--- a/src/pkg/runtime/os_nacl.c
++++ b/src/pkg/runtime/os_nacl.c
+@@ -65,6 +65,7 @@ runtime·crash(void)
+ 	*(int32*)0 = 0;
+ }
+ 
++#pragma textflag NOSPLIT
+ void
+ runtime·get_random_data(byte **rnd, int32 *rnd_len)
+ {
+@@ -112,8 +113,8 @@ runtime·newosproc(M *mp, void *stk)
+ 	}
+ }
+ 
+-uintptr
+-runtime·semacreate(void)
++static void
++semacreate(void)
+ {
+ 	int32 mu, cond;
+ 	
+@@ -128,14 +129,32 @@ runtime·semacreate(void)
+ 		runtime·throw("semacreate");
+ 	}
+ 	g->m->waitsemalock = mu;
+-	return cond; // assigned to m->waitsema
++	g->m->scalararg[0] = cond; // assigned to m->waitsema
+ }
+ 
+ #pragma textflag NOSPLIT
+-int32
+-runtime·semasleep(int64 ns)
++uint32
++runtime·semacreate(void)
++{
++	void (*fn)(void);
++	uint32 x;
++	
++	fn = semacreate;
++	runtime·onM(&fn);
++	x = g->m->scalararg[0];
++	g->m->scalararg[0] = 0;
++	return x;
++}
++
++static void
++semasleep(void)
+ {
+ 	int32 ret;
++	int64 ns;
++	
++	ns = (int64)(uint32)g->m->scalararg[0] | (int64)(uint32)g->m->scalararg[1]<<32;
++	g->m->scalararg[0] = 0;
++	g->m->scalararg[1] = 0;
+ 	
+ 	ret = runtime·nacl_mutex_lock(g->m->waitsemalock);
+ 	if(ret < 0) {
+@@ -145,7 +164,8 @@ runtime·semasleep(int64 ns)
+ 	if(g->m->waitsemacount > 0) {
+ 		g->m->waitsemacount = 0;
+ 		runtime·nacl_mutex_unlock(g->m->waitsemalock);
+-		return 0;
++		g->m->scalararg[0] = 0;
++		return;
+ 	}
+ 
+ 	while(g->m->waitsemacount == 0) {
+@@ -163,7 +183,8 @@ runtime·semasleep(int64 ns)
+ 			ret = runtime·nacl_cond_timed_wait_abs(g->m->waitsema, g->m->waitsemalock, &ts);
+ 			if(ret == -ETIMEDOUT) {
+ 				runtime·nacl_mutex_unlock(g->m->waitsemalock);
+-				return -1;
++				g->m->scalararg[0] = -1;
++				return;
+ 			}
+ 			if(ret < 0) {
+ 				//runtime·printf("nacl_cond_timed_wait_abs: error %d\n", -ret);
+@@ -174,14 +195,34 @@ runtime·semasleep(int64 ns)
+ 			
+ 	g->m->waitsemacount = 0;
+ 	runtime·nacl_mutex_unlock(g->m->waitsemalock);
+-	return 0;
++	g->m->scalararg[0] = 0;
+ }
+ 
+-void
+-runtime·semawakeup(M *mp)
++#pragma textflag NOSPLIT
++int32
++runtime·semasleep(int64 ns)
++{
++	int32 r;
++	void (*fn)(void);
++
++	g->m->scalararg[0] = (uint32)ns;
++	g->m->scalararg[1] = (uint32)(ns>>32);
++	fn = semasleep;
++	runtime·onM(&fn);
++	r = g->m->scalararg[0];
++	g->m->scalararg[0] = 0;
++	return r;
++}
++
++static void
++semawakeup(void)
+ {
+ 	int32 ret;
++	M *mp;
+ 	
++	mp = g->m->ptrarg[0];
++	g->m->ptrarg[0] = nil;
++
+ 	ret = runtime·nacl_mutex_lock(mp->waitsemalock);
+ 	if(ret < 0) {
+ 		//runtime·printf("nacl_mutex_lock: error %d\n", -ret);
+@@ -196,6 +237,17 @@ runtime·semawakeup(M *mp)
+ 	runtime·nacl_mutex_unlock(mp->waitsemalock);
+ }
+ 
++#pragma textflag NOSPLIT
++void
++runtime·semawakeup(M *mp)
++{
++	void (*fn)(void);
++
++	g->m->ptrarg[0] = mp;
++	fn = semawakeup;
++	runtime·onM(&fn);
++}
++
+ uintptr
+ runtime·memlimit(void)
+ {
+diff --git a/src/pkg/runtime/os_netbsd.c b/src/pkg/runtime/os_netbsd.c
+index 8567146ed4..29ea0cb427 100644
+--- a/src/pkg/runtime/os_netbsd.c
++++ b/src/pkg/runtime/os_netbsd.c
+@@ -185,6 +185,7 @@ runtime·osinit(void)
+ 	runtime·ncpu = getncpu();
+ }
+ 
++#pragma textflag NOSPLIT
+ void
+ runtime·get_random_data(byte **rnd, int32 *rnd_len)
+ {
+diff --git a/src/pkg/runtime/os_openbsd.c b/src/pkg/runtime/os_openbsd.c
+index dbd12a1282..728cb88c4c 100644
+--- a/src/pkg/runtime/os_openbsd.c
++++ b/src/pkg/runtime/os_openbsd.c
+@@ -164,6 +164,7 @@ runtime·osinit(void)
+ 	runtime·ncpu = getncpu();
+ }
+ 
++#pragma textflag NOSPLIT
+ void
+ runtime·get_random_data(byte **rnd, int32 *rnd_len)
+ {
+diff --git a/src/pkg/runtime/os_plan9.c b/src/pkg/runtime/os_plan9.c
+index fad5b2717f..efff24ea09 100644
+--- a/src/pkg/runtime/os_plan9.c
++++ b/src/pkg/runtime/os_plan9.c
+@@ -100,6 +100,7 @@ runtime·crash(void)
+ 	*(int32*)0 = 0;
+ }
+ 
++#pragma textflag NOSPLIT
+ void
+ runtime·get_random_data(byte **rnd, int32 *rnd_len)
+ {
+diff --git a/src/pkg/runtime/os_solaris.c b/src/pkg/runtime/os_solaris.c
+index d064384e84..c7ec3f212f 100644
+--- a/src/pkg/runtime/os_solaris.c
++++ b/src/pkg/runtime/os_solaris.c
+@@ -143,6 +143,7 @@ runtime·newosproc(M *mp, void *stk)
+ 	}
+ }
+ 
++#pragma textflag NOSPLIT
+ void
+ runtime·get_random_data(byte **rnd, int32 *rnd_len)
+ {
+diff --git a/src/pkg/runtime/os_windows.c b/src/pkg/runtime/os_windows.c
+index 0e53d8a31c..9bf6ecbc64 100644
+--- a/src/pkg/runtime/os_windows.c
++++ b/src/pkg/runtime/os_windows.c
+@@ -109,6 +109,7 @@ runtime·osinit(void)
+ 	}
+ }
+ 
++#pragma textflag NOSPLIT
+ void
+ runtime·get_random_data(byte **rnd, int32 *rnd_len)
+ {
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 45ae1bc2a8..0c72e4bd06 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -2534,6 +2534,7 @@ lockOSThread(void)
+ 	g->lockedm = g->m;
+ }
+ 
++#pragma textflag NOSPLIT
+ void
+ runtime·LockOSThread(void)
+ {
+@@ -2541,6 +2542,7 @@ runtime·LockOSThread(void)
+ 	lockOSThread();
+ }
+ 
++#pragma textflag NOSPLIT
+ void
+ runtime·lockOSThread(void)
+ {
+@@ -2562,6 +2564,7 @@ unlockOSThread(void)
+ 	g->lockedm = nil;
+ }
+ 
++#pragma textflag NOSPLIT
+ void
+ runtime·UnlockOSThread(void)
+ {
+@@ -2569,15 +2572,28 @@ runtime·UnlockOSThread(void)
+ 	unlockOSThread();
+ }
+ 
++static void badunlockOSThread(void);
++
++#pragma textflag NOSPLIT
+ void
+ runtime·unlockOSThread(void)
+ {
+-	if(g->m->locked < LockInternal)
+-		runtime·throw("runtime: internal error: misuse of lockOSThread/unlockOSThread");
++	void (*fn)(void);
++
++	if(g->m->locked < LockInternal) {
++		fn = badunlockOSThread;
++		runtime·onM(&fn);
++	}
+ 	g->m->locked -= LockInternal;
+ 	unlockOSThread();
+ }
+ 
++static void
++badunlockOSThread(void)
++{
++	runtime·throw("runtime: internal error: misuse of lockOSThread/unlockOSThread");
++}
++
+ bool
+ runtime·lockedOSThread(void)
+ {
+diff --git a/src/pkg/runtime/race.c b/src/pkg/runtime/race.c
+index d5e77c7568..125309510b 100644
+--- a/src/pkg/runtime/race.c
++++ b/src/pkg/runtime/race.c
+@@ -80,6 +80,7 @@ void runtime·racesymbolizethunk(void*);
+ void runtime·racecall(void(*f)(void), ...);
+ 
+ // checks if the address has shadow (i.e. heap or data/bss)
++#pragma textflag NOSPLIT
+ static bool
+ isvalidaddr(uintptr addr)
+ {
+@@ -90,6 +91,7 @@ isvalidaddr(uintptr addr)
+ 	return false;
+ }
+ 
++#pragma textflag NOSPLIT
+ uintptr
+ runtime·raceinit(void)
+ {
+@@ -106,12 +108,14 @@ runtime·raceinit(void)
+ 	return racectx;
+ }
+ 
++#pragma textflag NOSPLIT
+ void
+ runtime·racefini(void)
+ {
+ 	runtime·racecall(__tsan_fini);
+ }
+ 
++#pragma textflag NOSPLIT
+ void
+ runtime·racemapshadow(void *addr, uintptr size)
+ {
+@@ -129,6 +133,7 @@ runtime·racemalloc(void *p, uintptr sz)
+ 	runtime·racecall(__tsan_malloc, p, sz);
+ }
+ 
++#pragma textflag NOSPLIT
+ uintptr
+ runtime·racegostart(void *pc)
+ {
+@@ -144,12 +149,14 @@ runtime·racegostart(void *pc)
+ 	return racectx;
+ }
+ 
++#pragma textflag NOSPLIT
+ void
+ runtime·racegoend(void)
+ {
+ 	runtime·racecall(__tsan_go_end, g->racectx);
+ }
+ 
++#pragma textflag NOSPLIT
+ void
+ runtime·racewriterangepc(void *addr, uintptr sz, void *callpc, void *pc)
+ {
+@@ -165,6 +172,7 @@ runtime·racewriterangepc(void *addr, uintptr sz, void *callpc, void *pc)
+ 		runtime·racefuncexit();
+ }
+ 
++#pragma textflag NOSPLIT
+ void
+ runtime·racereadrangepc(void *addr, uintptr sz, void *callpc, void *pc)
+ {
+@@ -180,6 +188,7 @@ runtime·racereadrangepc(void *addr, uintptr sz, void *callpc, void *pc)
+ 		runtime·racefuncexit();
+ }
+ 
++#pragma textflag NOSPLIT
+ void
+ runtime·racewriteobjectpc(void *addr, Type *t, void *callpc, void *pc)
+ {
+@@ -192,6 +201,7 @@ runtime·racewriteobjectpc(void *addr, Type *t, void *callpc, void *pc)
+ 		runtime·racewritepc(addr, callpc, pc);
+ }
+ 
++#pragma textflag NOSPLIT
+ void
+ runtime·racereadobjectpc(void *addr, Type *t, void *callpc, void *pc)
+ {
+@@ -204,12 +214,14 @@ runtime·racereadobjectpc(void *addr, Type *t, void *callpc, void *pc)
+ 		runtime·racereadpc(addr, callpc, pc);
+ }
+ 
++#pragma textflag NOSPLIT
+ void
+ runtime·raceacquire(void *addr)
+ {
+ 	runtime·raceacquireg(g, addr);
+ }
+ 
++#pragma textflag NOSPLIT
+ void
+ runtime·raceacquireg(G *gp, void *addr)
+ {
+@@ -218,6 +230,7 @@ runtime·raceacquireg(G *gp, void *addr)
+ 	runtime·racecall(__tsan_acquire, gp->racectx, addr);
+ }
+ 
++#pragma textflag NOSPLIT
+ void
+ runtime·racerelease(void *addr)
+ {
+@@ -226,6 +239,7 @@ runtime·racerelease(void *addr)
+ 	runtime·racereleaseg(g, addr);
+ }
+ 
++#pragma textflag NOSPLIT
+ void
+ runtime·racereleaseg(G *gp, void *addr)
+ {
+@@ -234,12 +248,14 @@ runtime·racereleaseg(G *gp, void *addr)
+ 	runtime·racecall(__tsan_release, gp->racectx, addr);
+ }
+ 
++#pragma textflag NOSPLIT
+ void
+ runtime·racereleasemerge(void *addr)
+ {
+ 	runtime·racereleasemergeg(g, addr);
+ }
+ 
++#pragma textflag NOSPLIT
+ void
+ runtime·racereleasemergeg(G *gp, void *addr)
+ {
+@@ -248,6 +264,7 @@ runtime·racereleasemergeg(G *gp, void *addr)
+ 	runtime·racecall(__tsan_release_merge, gp->racectx, addr);
+ }
+ 
++#pragma textflag NOSPLIT
+ void
+ runtime·racefingo(void)
+ {
+@@ -255,6 +272,7 @@ runtime·racefingo(void)
+ }
+ 
+ // func RaceAcquire(addr unsafe.Pointer)
++#pragma textflag NOSPLIT
+ void
+ runtime·RaceAcquire(void *addr)
+ {
+@@ -262,6 +280,7 @@ runtime·RaceAcquire(void *addr)
+ }
+ 
+ // func RaceRelease(addr unsafe.Pointer)
++#pragma textflag NOSPLIT
+ void
+ runtime·RaceRelease(void *addr)
+ {
+@@ -269,6 +288,7 @@ runtime·RaceRelease(void *addr)
+ }
+ 
+ // func RaceReleaseMerge(addr unsafe.Pointer)
++#pragma textflag NOSPLIT
+ void
+ runtime·RaceReleaseMerge(void *addr)
+ {
+@@ -276,6 +296,7 @@ runtime·RaceReleaseMerge(void *addr)
+ }
+ 
+ // func RaceDisable()
++#pragma textflag NOSPLIT
+ void
+ runtime·RaceDisable(void)
+ {
+@@ -284,43 +305,10 @@ runtime·RaceDisable(void)
+ }
+ 
+ // func RaceEnable()
++#pragma textflag NOSPLIT
+ void
+ runtime·RaceEnable(void)
+ {
+ 	if(--g->raceignore == 0)
+ 		runtime·racecall(__tsan_go_ignore_sync_end, g->racectx);
+ }
+-
+-typedef struct SymbolizeContext SymbolizeContext;
+-struct SymbolizeContext
+-{
+-	uintptr	pc;
+-	int8*	func;
+-	int8*	file;
+-	uintptr	line;
+-	uintptr	off;
+-	uintptr	res;
+-};
+-
+-// Callback from C into Go, runs on g0.
+-void
+-runtime·racesymbolize(SymbolizeContext *ctx)
+-{
+-	Func *f;
+-	String file;
+-
+-	f = runtime·findfunc(ctx->pc);
+-	if(f == nil) {
+-		ctx->func = "??";
+-		ctx->file = "-";
+-		ctx->line = 0;
+-		ctx->off = ctx->pc;
+-		ctx->res = 1;
+-		return;
+-	}
+-	ctx->func = runtime·funcname(f);
+-	ctx->line = runtime·funcline(f, ctx->pc, &file);
+-	ctx->file = (int8*)file.str;  // assume zero-terminated
+-	ctx->off = ctx->pc - f->entry;
+-	ctx->res = 1;
+-}
+diff --git a/src/pkg/runtime/race.go b/src/pkg/runtime/race.go
+index df8493e35c..c7573517dc 100644
+--- a/src/pkg/runtime/race.go
++++ b/src/pkg/runtime/race.go
+@@ -38,7 +38,7 @@ func raceReadObjectPC(t *_type, addr unsafe.Pointer, callerpc, pc uintptr) {
+ 	if kind == kindArray || kind == kindStruct {
+ 		// for composite objects we have to read every address
+ 		// because a write might happen to any subobject.
+-		racereadrangepc(addr, int(t.size), callerpc, pc)
++		racereadrangepc(addr, t.size, callerpc, pc)
+ 	} else {
+ 		// for non-composite objects we can read just the start
+ 		// address, as any write must write the first byte.
+@@ -51,10 +51,75 @@ func raceWriteObjectPC(t *_type, addr unsafe.Pointer, callerpc, pc uintptr) {
+ 	if kind == kindArray || kind == kindStruct {
+ 		// for composite objects we have to write every address
+ 		// because a write might happen to any subobject.
+-		racewriterangepc(addr, int(t.size), callerpc, pc)
++		racewriterangepc(addr, t.size, callerpc, pc)
+ 	} else {
+ 		// for non-composite objects we can write just the start
+ 		// address, as any write must write the first byte.
+ 		racewritepc(addr, callerpc, pc)
+ 	}
+ }
++
++//go:noescape
++func racereadpc(addr unsafe.Pointer, callpc, pc uintptr)
++
++//go:noescape
++func racewritepc(addr unsafe.Pointer, callpc, pc uintptr)
++
++//go:noescape
++func racereadrangepc(addr unsafe.Pointer, len uintptr, callpc, pc uintptr)
++
++//go:noescape
++func racewriterangepc(addr unsafe.Pointer, len uintptr, callpc, pc uintptr)
++
++//go:noescape
++func raceacquire(addr unsafe.Pointer)
++
++//go:noescape
++func racerelease(addr unsafe.Pointer)
++
++//go:noescape
++func raceacquireg(gp *g, addr unsafe.Pointer)
++
++//go:noescape
++func racereleaseg(gp *g, addr unsafe.Pointer)
++
++func racefingo()
++
++//go:noescape
++func racemalloc(p unsafe.Pointer, size uintptr)
++
++//go:noescape
++func racereleasemerge(addr unsafe.Pointer)
++
++type symbolizeContext struct {
++	pc   uintptr
++	fn   *byte
++	file *byte
++	line uintptr
++	off  uintptr
++	res  uintptr
++}
++
++var qq = [...]byte{'?', '?', 0}
++var dash = [...]byte{'-', 0}
++
++// Callback from C into Go, runs on g0.
++func racesymbolize(ctx *symbolizeContext) {
++	f := findfunc(ctx.pc)
++	if f == nil {
++		ctx.fn = &qq[0]
++		ctx.file = &dash[0]
++		ctx.line = 0
++		ctx.off = ctx.pc
++		ctx.res = 1
++		return
++	}
++
++	ctx.fn = funcname(f)
++	var file string
++	ctx.line = uintptr(funcline(f, ctx.pc, &file))
++	ctx.file = &bytes(file)[0] // assume NUL-terminated
++	ctx.off = ctx.pc - f.entry
++	ctx.res = 1
++	return
++}
+diff --git a/src/pkg/runtime/race0.c b/src/pkg/runtime/race0.c
+deleted file mode 100644
+index eddb0be79f..0000000000
+--- a/src/pkg/runtime/race0.c
++++ /dev/null
+@@ -1,124 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Stub implementation of the race detector API.
+-// +build !race
+-
+-#include "runtime.h"
+-
+-uintptr
+-runtime·raceinit(void)
+-{
+-	return 0;
+-}
+-
+-void
+-runtime·racefini(void)
+-{
+-}
+-
+-
+-void
+-runtime·racemapshadow(void *addr, uintptr size)
+-{
+-	USED(addr);
+-	USED(size);
+-}
+-
+-void
+-runtime·racewritepc(void *addr, void *callpc, void *pc)
+-{
+-	USED(addr);
+-	USED(callpc);
+-	USED(pc);
+-}
+-
+-void
+-runtime·racereadpc(void *addr, void *callpc, void *pc)
+-{
+-	USED(addr);
+-	USED(callpc);
+-	USED(pc);
+-}
+-
+-void
+-runtime·racewriterangepc(void *addr, uintptr sz, void *callpc, void *pc)
+-{
+-	USED(addr);
+-	USED(sz);
+-	USED(callpc);
+-	USED(pc);
+-}
+-
+-void
+-runtime·racereadrangepc(void *addr, uintptr sz, void *callpc, void *pc)
+-{
+-	USED(addr);
+-	USED(sz);
+-	USED(callpc);
+-	USED(pc);
+-}
+-
+-void
+-runtime·raceacquire(void *addr)
+-{
+-	USED(addr);
+-}
+-
+-void
+-runtime·raceacquireg(G *gp, void *addr)
+-{
+-	USED(gp);
+-	USED(addr);
+-}
+-
+-void
+-runtime·racerelease(void *addr)
+-{
+-	USED(addr);
+-}
+-
+-void
+-runtime·racereleaseg(G *gp, void *addr)
+-{
+-	USED(gp);
+-	USED(addr);
+-}
+-
+-void
+-runtime·racereleasemerge(void *addr)
+-{
+-	USED(addr);
+-}
+-
+-void
+-runtime·racereleasemergeg(G *gp, void *addr)
+-{
+-	USED(gp);
+-	USED(addr);
+-}
+-
+-void
+-runtime·racefingo(void)
+-{
+-}
+-
+-void
+-runtime·racemalloc(void *p, uintptr sz)
+-{
+-	USED(p);
+-	USED(sz);
+-}
+-
+-uintptr
+-runtime·racegostart(void *pc)
+-{
+-	USED(pc);
+-	return 0;
+-}
+-
+-void
+-runtime·racegoend(void)
+-{
+-}
+diff --git a/src/pkg/runtime/race0.go b/src/pkg/runtime/race0.go
+index 2e67ae6a50..5d90cc859a 100644
+--- a/src/pkg/runtime/race0.go
++++ b/src/pkg/runtime/race0.go
+@@ -14,7 +14,24 @@ import (
+ 
+ const raceenabled = false
+ 
+-func raceReadObjectPC(t *_type, addr unsafe.Pointer, callerpc, pc uintptr) {
+-}
+-func raceWriteObjectPC(t *_type, addr unsafe.Pointer, callerpc, pc uintptr) {
+-}
++// Because raceenabled is false, none of these functions should be called.
++
++func raceReadObjectPC(t *_type, addr unsafe.Pointer, callerpc, pc uintptr)  { gothrow("race") }
++func raceWriteObjectPC(t *_type, addr unsafe.Pointer, callerpc, pc uintptr) { gothrow("race") }
++func raceinit()                                                             { gothrow("race") }
++func racefini()                                                             { gothrow("race") }
++func racemapshadow(addr unsafe.Pointer, size uintptr)                       { gothrow("race") }
++func racewritepc(addr unsafe.Pointer, callerpc, pc uintptr)                 { gothrow("race") }
++func racereadpc(addr unsafe.Pointer, callerpc, pc uintptr)                  { gothrow("race") }
++func racereadrangepc(addr unsafe.Pointer, sz, callerpc, pc uintptr)         { gothrow("race") }
++func racewriterangepc(addr unsafe.Pointer, sz, callerpc, pc uintptr)        { gothrow("race") }
++func raceacquire(addr unsafe.Pointer)                                       { gothrow("race") }
++func raceacquireg(gp *g, addr unsafe.Pointer)                               { gothrow("race") }
++func racerelease(addr unsafe.Pointer)                                       { gothrow("race") }
++func racereleaseg(gp *g, addr unsafe.Pointer)                               { gothrow("race") }
++func racereleasemerge(addr unsafe.Pointer)                                  { gothrow("race") }
++func racereleasemergeg(gp *g, addr unsafe.Pointer)                          { gothrow("race") }
++func racefingo()                                                            { gothrow("race") }
++func racemalloc(p unsafe.Pointer, sz uintptr)                               { gothrow("race") }
++func racegostart(pc uintptr) uintptr                                        { gothrow("race"); return 0 }
++func racegoend()                                                            { gothrow("race") }
+diff --git a/src/pkg/runtime/slice.go b/src/pkg/runtime/slice.go
+index 68a225a509..3b88927c64 100644
+--- a/src/pkg/runtime/slice.go
++++ b/src/pkg/runtime/slice.go
+@@ -48,7 +48,7 @@ func growslice(t *slicetype, old sliceStruct, n int64) sliceStruct {
+ 
+ 	if raceenabled {
+ 		callerpc := getcallerpc(unsafe.Pointer(&t))
+-		racereadrangepc(old.array, old.len*int(t.elem.size), callerpc, funcPC(growslice))
++		racereadrangepc(old.array, uintptr(old.len*int(t.elem.size)), callerpc, funcPC(growslice))
+ 	}
+ 
+ 	et := t.elem
+@@ -104,8 +104,8 @@ func slicecopy(to sliceStruct, fm sliceStruct, width uintptr) int {
+ 	if raceenabled {
+ 		callerpc := getcallerpc(unsafe.Pointer(&to))
+ 		pc := funcPC(slicecopy)
+-		racewriterangepc(to.array, n*int(width), callerpc, pc)
+-		racereadrangepc(fm.array, n*int(width), callerpc, pc)
++		racewriterangepc(to.array, uintptr(n*int(width)), callerpc, pc)
++		racereadrangepc(fm.array, uintptr(n*int(width)), callerpc, pc)
+ 	}
+ 
+ 	size := uintptr(n) * width
+@@ -131,7 +131,7 @@ func slicestringcopy(to []byte, fm string) int {
+ 	if raceenabled {
+ 		callerpc := getcallerpc(unsafe.Pointer(&to))
+ 		pc := funcPC(slicestringcopy)
+-		racewriterangepc(unsafe.Pointer(&to[0]), n, callerpc, pc)
++		racewriterangepc(unsafe.Pointer(&to[0]), uintptr(n), callerpc, pc)
+ 	}
+ 
+ 	memmove(unsafe.Pointer(&to[0]), unsafe.Pointer((*stringStruct)(unsafe.Pointer(&fm)).str), uintptr(n))
+diff --git a/src/pkg/runtime/string.go b/src/pkg/runtime/string.go
+index 91f33db118..da3160449f 100644
+--- a/src/pkg/runtime/string.go
++++ b/src/pkg/runtime/string.go
+@@ -62,7 +62,7 @@ func concatstring5(a [5]string) string {
+ func slicebytetostring(b []byte) string {
+ 	if raceenabled && len(b) > 0 {
+ 		racereadrangepc(unsafe.Pointer(&b[0]),
+-			len(b),
++			uintptr(len(b)),
+ 			getcallerpc(unsafe.Pointer(&b)),
+ 			funcPC(slicebytetostring))
+ 	}
+@@ -82,7 +82,7 @@ func slicebytetostringtmp(b []byte) string {
+ 
+ 	if raceenabled && len(b) > 0 {
+ 		racereadrangepc(unsafe.Pointer(&b[0]),
+-			len(b),
++			uintptr(len(b)),
+ 			getcallerpc(unsafe.Pointer(&b)),
+ 			funcPC(slicebytetostringtmp))
+ 	}
+@@ -119,7 +119,7 @@ func stringtoslicerune(s string) []rune {
+ func slicerunetostring(a []rune) string {
+ 	if raceenabled && len(a) > 0 {
+ 		racereadrangepc(unsafe.Pointer(&a[0]),
+-			len(a)*int(unsafe.Sizeof(a[0])),
++			uintptr(len(a))*unsafe.Sizeof(a[0]),
+ 			getcallerpc(unsafe.Pointer(&a)),
+ 			funcPC(slicerunetostring))
+ 	}
+diff --git a/src/pkg/runtime/stubs.go b/src/pkg/runtime/stubs.go
+index 558963376d..7d59b5c19b 100644
+--- a/src/pkg/runtime/stubs.go
++++ b/src/pkg/runtime/stubs.go
+@@ -14,35 +14,6 @@ import "unsafe"
+ const ptrSize = 4 << (^uintptr(0) >> 63) // unsafe.Sizeof(uintptr(0)) but an ideal const
+ const regSize = 4 << (^uintreg(0) >> 63) // unsafe.Sizeof(uintreg(0)) but an ideal const
+ 
+-//go:noescape
+-func racereadpc(addr unsafe.Pointer, callpc, pc uintptr)
+-
+-//go:noescape
+-func racewritepc(addr unsafe.Pointer, callpc, pc uintptr)
+-
+-//go:noescape
+-func racereadrangepc(addr unsafe.Pointer, len int, callpc, pc uintptr)
+-
+-//go:noescape
+-func racewriterangepc(addr unsafe.Pointer, len int, callpc, pc uintptr)
+-
+-//go:noescape
+-func raceacquire(addr unsafe.Pointer)
+-
+-//go:noescape
+-func racerelease(addr unsafe.Pointer)
+-
+-//go:noescape
+-func racereleasemerge(addr unsafe.Pointer)
+-
+-//go:noescape
+-func raceacquireg(gp *g, addr unsafe.Pointer)
+-
+-//go:noescape
+-func racereleaseg(gp *g, addr unsafe.Pointer)
+-
+-func racefingo()
+-
+ // Should be a built-in for unsafe.Pointer?
+ //go:nosplit
+ func add(p unsafe.Pointer, x uintptr) unsafe.Pointer {
+@@ -135,8 +106,6 @@ func goexit_m()
+ //go:noescape
+ func memclr(ptr unsafe.Pointer, n uintptr)
+ 
+-func racemalloc(p unsafe.Pointer, size uintptr)
+-
+ // memmove copies n bytes from "from" to "to".
+ // in memmove_*.s
+ //go:noescape

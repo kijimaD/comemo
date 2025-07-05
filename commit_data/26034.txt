@@ -9,6 +9,22 @@ Date:   Thu Dec 10 19:38:14 2015 -0800
     Change-Id: I110dc45bfe5f1377fe3453070eccde283b5cc161
     Reviewed-on: https://go-review.googlesource.com/17716
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/cgo/out.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index 8aca64a874..3c292e7898 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -1420,8 +1420,8 @@ typedef GoUintGOINTBITS GoUint;
+ typedef __SIZE_TYPE__ GoUintptr;
+ typedef float GoFloat32;
+ typedef double GoFloat64;
+-typedef __complex float GoComplex64;
+-typedef __complex double GoComplex128;
++typedef float _Complex GoComplex64;
++typedef double _Complex GoComplex128;
+ 
+ /*
+   static assertion to make sure the file is being used on architecture

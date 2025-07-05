@@ -25,6 +25,20 @@ Date:   Fri May 30 16:16:27 2025 -0400
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Matloob <matloob@google.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/cmd/go/internal/cfg/cfg.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/cmd/go/internal/cfg/cfg.go b/src/cmd/go/internal/cfg/cfg.go
+index d583447cf6..a4edd854f1 100644
+--- a/src/cmd/go/internal/cfg/cfg.go
++++ b/src/cmd/go/internal/cfg/cfg.go
+@@ -227,6 +227,8 @@ func ForceHost() {
+ 	// Recompute the build context using Goos and Goarch to
+ 	// set the correct value for ctx.CgoEnabled.
+ 	BuildContext = defaultContext()
++	// Call SetGOROOT to properly set the GOROOT on the new context.
++	SetGOROOT(Getenv("GOROOT"), false)
+ 	// Recompute experiments: the settings determined depend on GOOS and GOARCH.
+ 	// This will also update the BuildContext's tool tags to include the new
+ 	// experiment tags.

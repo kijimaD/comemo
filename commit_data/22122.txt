@@ -11,6 +11,19 @@ Date:   Tue Feb 24 16:06:08 2015 -0800
     Change-Id: I8a8eedaac5226b1d8018dc56de6b2d41bd82a642
     Reviewed-on: https://go-review.googlesource.com/5862
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  doc/go1.5.txt | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/doc/go1.5.txt b/doc/go1.5.txt
+index f70359d9d4..e944e46c96 100644
+--- a/doc/go1.5.txt
++++ b/doc/go1.5.txt
+@@ -11,6 +11,7 @@ bufio: add Reader.Discard (https://golang.org/cl/2260)
+ crypto/cipher: clarify what will happen if len(src) != len(dst) for the Stream interface. (https://golang.org/cl/1754)
+ crypto/elliptic: add Name field to CurveParams struct (https://golang.org/cl/2133)
+ crypto/tls: change default minimum version to TLS 1.0. (https://golang.org/cl/1791)
++crypto/x509: wildcards are now only accepted as the first label (https://golang.org/cl/5691)
+ encoding/base64: add unpadded encodings (https://golang.org/cl/1511)
+ go/ast: add Implicit field to ast.EmptyStmt; changed meaning of ast.EmptyStmt.Semicolon position (https://golang.org/cl/5720)
+ log: add SetOutput functions (https://golang.org/cl/2686, https://golang.org/cl/3023)

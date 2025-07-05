@@ -23,9 +23,198 @@ Date:   Thu Jun 24 11:01:49 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/check_test.go             | 15 ++++---
  src/go/types/errors.go                 |  2 +-
  src/go/types/issues_test.go            | 72 ++++++++++++++++++++++------------
  src/go/types/testdata/check/issues.src |  4 +-
  4 files changed, 59 insertions(+), 34 deletions(-)
+
+diff --git a/src/go/types/check_test.go b/src/go/types/check_test.go
+index 5a3e57ba44..c85a8e46fb 100644
+--- a/src/go/types/check_test.go
++++ b/src/go/types/check_test.go
+@@ -202,7 +202,7 @@ func asGoVersion(s string) string {
+ 	return ""
+ }
+ 
+-func checkFiles(t *testing.T, sizes Sizes, goVersion string, filenames []string, srcs [][]byte, manual bool) {
++func checkFiles(t *testing.T, sizes Sizes, goVersion string, filenames []string, srcs [][]byte, manual bool, imp Importer) {
+ 	if len(filenames) == 0 {
+ 		t.Fatal("no source files")
+ 	}
+@@ -252,7 +252,10 @@ func checkFiles(t *testing.T, sizes Sizes, goVersion string, filenames []string,
+ 		}
+ 	}
+ 
+-	conf.Importer = importer.Default()
++	conf.Importer = imp
++	if imp == nil {
++		conf.Importer = importer.Default()
++	}
+ 	conf.Error = func(err error) {
+ 		if *haltOnError {
+ 			defer panic(err)
+@@ -322,7 +325,7 @@ func TestManual(t *testing.T) {
+ func TestLongConstants(t *testing.T) {
+ 	format := "package longconst\n\nconst _ = %s\nconst _ = %s // ERROR excessively long constant"
+ 	src := fmt.Sprintf(format, strings.Repeat("1", 9999), strings.Repeat("1", 10001))
+-	checkFiles(t, nil, "", []string{"longconst.go"}, [][]byte{[]byte(src)}, false)
++	checkFiles(t, nil, "", []string{"longconst.go"}, [][]byte{[]byte(src)}, false, nil)
+ }
+ 
+ // TestIndexRepresentability tests that constant index operands must
+@@ -330,7 +333,7 @@ func TestLongConstants(t *testing.T) {
+ // represent larger values.
+ func TestIndexRepresentability(t *testing.T) {
+ 	const src = "package index\n\nvar s []byte\nvar _ = s[int64 /* ERROR \"int64\\(1\\) << 40 \\(.*\\) overflows int\" */ (1) << 40]"
+-	checkFiles(t, &StdSizes{4, 4}, "", []string{"index.go"}, [][]byte{[]byte(src)}, false)
++	checkFiles(t, &StdSizes{4, 4}, "", []string{"index.go"}, [][]byte{[]byte(src)}, false, nil)
+ }
+ 
+ func TestIssue46453(t *testing.T) {
+@@ -338,7 +341,7 @@ func TestIssue46453(t *testing.T) {
+ 		t.Skip("type params are enabled")
+ 	}
+ 	const src = "package p\ntype _ comparable // ERROR \"undeclared name: comparable\""
+-	checkFiles(t, nil, "", []string{"issue46453.go"}, [][]byte{[]byte(src)}, false)
++	checkFiles(t, nil, "", []string{"issue46453.go"}, [][]byte{[]byte(src)}, false, nil)
+ }
+ 
+ func TestCheck(t *testing.T)     { DefPredeclaredTestFuncs(); testDir(t, "check") }
+@@ -388,5 +391,5 @@ func testPkg(t *testing.T, filenames []string, goVersion string, manual bool) {
+ 		}
+ 		srcs[i] = src
+ 	}
+-	checkFiles(t, nil, goVersion, filenames, srcs, manual)
++	checkFiles(t, nil, goVersion, filenames, srcs, manual, nil)
+ }
+diff --git a/src/go/types/errors.go b/src/go/types/errors.go
+index 19e9ae8d44..2263106417 100644
+--- a/src/go/types/errors.go
++++ b/src/go/types/errors.go
+@@ -31,7 +31,7 @@ func (check *Checker) qualifier(pkg *Package) string {
+ 		if check.pkgPathMap == nil {
+ 			check.pkgPathMap = make(map[string]map[string]bool)
+ 			check.seenPkgMap = make(map[*Package]bool)
+-			check.markImports(pkg)
++			check.markImports(check.pkg)
+ 		}
+ 		// If the same package name was used by multiple packages, display the full path.
+ 		if len(check.pkgPathMap[pkg.name]) > 1 {
+diff --git a/src/go/types/issues_test.go b/src/go/types/issues_test.go
+index 44926919ef..519e199536 100644
+--- a/src/go/types/issues_test.go
++++ b/src/go/types/issues_test.go
+@@ -577,42 +577,64 @@ func TestIssue44515(t *testing.T) {
+ }
+ 
+ func TestIssue43124(t *testing.T) {
+-	// TODO(rFindley) enhance the testdata tests to be able to express this type
+-	//                of setup.
++	// TODO(rFindley) move this to testdata by enhancing support for importing.
+ 
+ 	// All involved packages have the same name (template). Error messages should
+ 	// disambiguate between text/template and html/template by printing the full
+ 	// path.
+ 	const (
+ 		asrc = `package a; import "text/template"; func F(template.Template) {}; func G(int) {}`
+-		bsrc = `package b; import ("a"; "html/template"); func _() { a.F(template.Template{}) }`
+-		csrc = `package c; import ("a"; "html/template"); func _() { a.G(template.Template{}) }`
++		bsrc = `
++package b
++
++import (
++	"a"
++	"html/template"
++)
++
++func _() {
++	// Packages should be fully qualified when there is ambiguity within the
++	// error string itself.
++	a.F(template /* ERROR cannot use.*html/template.* as .*text/template */ .Template{})
++}
++`
++		csrc = `
++package c
++
++import (
++	"a"
++	"fmt"
++	"html/template"
++)
++
++// Issue #46905: make sure template is not the first package qualified.
++var _ fmt.Stringer = 1 // ERROR cannot use 1.*as fmt\.Stringer
++
++// Packages should be fully qualified when there is ambiguity in reachable
++// packages. In this case both a (and for that matter html/template) import
++// text/template.
++func _() { a.G(template /* ERROR cannot use .*html/template.*Template */ .Template{}) }
++`
++
++		tsrc = `
++package template
++
++import "text/template"
++
++type T int
++
++// Verify that the current package name also causes disambiguation.
++var _ T = template /* ERROR cannot use.*text/template.* as T value */.Template{}
++`
+ 	)
+ 
+ 	a, err := pkgFor("a", asrc, nil)
+ 	if err != nil {
+ 		t.Fatalf("package a failed to typecheck: %v", err)
+ 	}
+-	conf := Config{Importer: importHelper{pkg: a, fallback: importer.Default()}}
+-
+-	// Packages should be fully qualified when there is ambiguity within the
+-	// error string itself.
+-	bast := mustParse(t, bsrc)
+-	_, err = conf.Check(bast.Name.Name, fset, []*ast.File{bast}, nil)
+-	if err == nil {
+-		t.Fatal("package b had no errors")
+-	}
+-	if !strings.Contains(err.Error(), "text/template") || !strings.Contains(err.Error(), "html/template") {
+-		t.Errorf("type checking error for b does not disambiguate package template: %q", err)
+-	}
++	imp := importHelper{pkg: a, fallback: importer.Default()}
+ 
+-	// ...and also when there is any ambiguity in reachable packages.
+-	cast := mustParse(t, csrc)
+-	_, err = conf.Check(cast.Name.Name, fset, []*ast.File{cast}, nil)
+-	if err == nil {
+-		t.Fatal("package c had no errors")
+-	}
+-	if !strings.Contains(err.Error(), "html/template") {
+-		t.Errorf("type checking error for c does not disambiguate package template: %q", err)
+-	}
++	checkFiles(t, nil, "", []string{"b.go"}, [][]byte{[]byte(bsrc)}, false, imp)
++	checkFiles(t, nil, "", []string{"c.go"}, [][]byte{[]byte(csrc)}, false, imp)
++	checkFiles(t, nil, "", []string{"t.go"}, [][]byte{[]byte(tsrc)}, false, imp)
+ }
+diff --git a/src/go/types/testdata/check/issues.src b/src/go/types/testdata/check/issues.src
+index e2ac06759b..74d185cbc3 100644
+--- a/src/go/types/testdata/check/issues.src
++++ b/src/go/types/testdata/check/issues.src
+@@ -332,7 +332,7 @@ func issue28281g() (... /* ERROR can only use ... with final parameter */ TT)
+ func issue26234a(f *syn.File) {
+ 	// The error message below should refer to the actual package name (syntax)
+ 	// not the local package name (syn).
+-	f.foo /* ERROR f.foo undefined \(type \*syntax.File has no field or method foo\) */
++	f.foo /* ERROR f\.foo undefined \(type \*syntax\.File has no field or method foo\) */
+ }
+ 
+ type T struct {
+@@ -361,7 +361,7 @@ func issue35895() {
+ 
+ 	// Because both t1 and t2 have the same global package name (template),
+ 	// qualify packages with full path name in this case.
+-	var _ t1.Template = t2 /* ERROR cannot use .* \(value of type "html/template".Template\) as "text/template".Template */ .Template{}
++	var _ t1.Template = t2 /* ERROR cannot use .* \(value of type .html/template.\.Template\) as .text/template.\.Template */ .Template{}
+ }
+ 
+ func issue42989(s uint) {

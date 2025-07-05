@@ -9,6 +9,38 @@ Date:   Thu Apr 29 14:06:27 2010 +1000
     R=adg
     CC=golang-dev
     https://golang.org/cl/965045
-
+---
  doc/codelab/wiki/index.html | 9 ++++++---
  1 file changed, 6 insertions(+), 3 deletions(-)
+
+diff --git a/doc/codelab/wiki/index.html b/doc/codelab/wiki/index.html
+index b8ae920584..898ea01d17 100644
+--- a/doc/codelab/wiki/index.html
++++ b/doc/codelab/wiki/index.html
+@@ -58,13 +58,15 @@ package main
+ import (
+ 	"fmt"
+ 	"io/ioutil"
++	"os"
+ )
+ </pre>
+ 
+ <p>
+-Both <code>fmt</code> and <code>ioutil</code> are built-in packages that 
+-we'll be using. Later, as we implement additional functionality, we will add 
+-more packages to this <code>import</code> declaration.
++We import the <code>fmt</code>, <code>ioutil</code> and <code>os</code>
++packages from the Go standard library. Later, as we implement additional
++functionality, we will add more packages to this <code>import</code>
++declaration.
+ </p>
+ 
+ <h2>Data Structures</h2>
+@@ -304,6 +306,7 @@ import (
+ 	"fmt"
+ 	<b>"http"</b>
+ 	"io/ioutil"
++	"os"
+ )
+ </pre>
+ 

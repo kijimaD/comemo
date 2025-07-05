@@ -16,7 +16,36 @@ Date:   Thu Mar 29 15:04:58 2018 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/dial_unix_test.go | 5 +++--
  src/net/fd_unix.go        | 2 +-
  2 files changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/src/net/dial_unix_test.go b/src/net/dial_unix_test.go
+index 4705254728..0adc10d0bd 100644
+--- a/src/net/dial_unix_test.go
++++ b/src/net/dial_unix_test.go
+@@ -102,7 +102,8 @@ func TestDialContextCancelRace(t *testing.T) {
+ 	if !ok || oe.Op != "dial" {
+ 		t.Fatalf("Dial error = %#v; want dial *OpError", err)
+ 	}
+-	if oe.Err != ctx.Err() {
+-		t.Errorf("DialContext = (%v, %v); want OpError with error %v", c, err, ctx.Err())
++
++	if oe.Err != errCanceled {
++		t.Errorf("DialContext = (%v, %v); want OpError with error %v", c, err, errCanceled)
+ 	}
+ }
+diff --git a/src/net/fd_unix.go b/src/net/fd_unix.go
+index dd3c1ed882..efe2e184af 100644
+--- a/src/net/fd_unix.go
++++ b/src/net/fd_unix.go
+@@ -121,7 +121,7 @@ func (fd *netFD) connect(ctx context.Context, la, ra syscall.Sockaddr) (rsa sysc
+ 				// == nil). Because we've now poisoned the connection
+ 				// by making it unwritable, don't return a successful
+ 				// dial. This was issue 16523.
+-				ret = ctxErr
++				ret = mapErr(ctxErr)
+ 				fd.Close() // prevent a leak
+ 			}
+ 		}()

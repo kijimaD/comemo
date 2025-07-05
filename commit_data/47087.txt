@@ -10,7 +10,37 @@ Date:   Tue Feb 23 11:48:15 2021 -0500
     Trust: Robert Findley <rfindley@google.com>
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/go/types/conversions.go | 2 +-
  src/go/types/issues_test.go | 4 ++--
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/go/types/conversions.go b/src/go/types/conversions.go
+index 69463f0ca6..d93ff465bb 100644
+--- a/src/go/types/conversions.go
++++ b/src/go/types/conversions.go
+@@ -142,7 +142,7 @@ func isUintptr(typ Type) bool {
+ }
+ 
+ func isUnsafePointer(typ Type) bool {
+-	// TODO(gri): Is this asBasic() instead of typ.(*Basic) correct?
++	// TODO(gri): Is this asBasic(typ) instead of typ.(*Basic) correct?
+ 	//            (The former calls under(), while the latter doesn't.)
+ 	//            The spec does not say so, but gc claims it is. See also
+ 	//            issue 6326.
+diff --git a/src/go/types/issues_test.go b/src/go/types/issues_test.go
+index 9ed2934c74..a773a362c7 100644
+--- a/src/go/types/issues_test.go
++++ b/src/go/types/issues_test.go
+@@ -385,9 +385,9 @@ func TestIssue28005(t *testing.T) {
+ 			}
+ 		}
+ 		if obj == nil {
+-			t.Fatal("interface not found")
++			t.Fatal("object X not found")
+ 		}
+-		iface := obj.Type().Underlying().(*Interface) // I must be an interface
++		iface := obj.Type().Underlying().(*Interface) // object X must be an interface
+ 
+ 		// Each iface method m is embedded; and m's receiver base type name
+ 		// must match the method's name per the choice in the source file.

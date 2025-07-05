@@ -11,10 +11,76 @@ Date:   Fri Aug 30 19:27:55 2019 +0000
     GitHub-Pull-Request: golang/go#33797
     Reviewed-on: https://go-review.googlesource.com/c/go/+/191497
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-
+---
  src/syscall/syscall_js.go      | 2 +-
  src/syscall/syscall_nacl.go    | 2 +-
  src/syscall/syscall_plan9.go   | 2 +-
  src/syscall/syscall_unix.go    | 2 +-
  src/syscall/syscall_windows.go | 2 +-
  5 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/syscall/syscall_js.go b/src/syscall/syscall_js.go
+index 24fbd51189..987dd4a796 100644
+--- a/src/syscall/syscall_js.go
++++ b/src/syscall/syscall_js.go
+@@ -45,7 +45,7 @@ const PathMax = 256
+ //		err = errno
+ //	}
+ //
+-// Errno values can be tested against error values from the the os package
++// Errno values can be tested against error values from the os package
+ // using errors.Is. For example:
+ //
+ //	_, _, err := syscall.Syscall(...)
+diff --git a/src/syscall/syscall_nacl.go b/src/syscall/syscall_nacl.go
+index efc986a6f4..c784d372a1 100644
+--- a/src/syscall/syscall_nacl.go
++++ b/src/syscall/syscall_nacl.go
+@@ -52,7 +52,7 @@ const PathMax = 256
+ //		err = errno
+ //	}
+ //
+-// Errno values can be tested against error values from the the os package
++// Errno values can be tested against error values from the os package
+ // using errors.Is. For example:
+ //
+ //	_, _, err := syscall.Syscall(...)
+diff --git a/src/syscall/syscall_plan9.go b/src/syscall/syscall_plan9.go
+index 52a9d2aabe..d4e679c92a 100644
+--- a/src/syscall/syscall_plan9.go
++++ b/src/syscall/syscall_plan9.go
+@@ -21,7 +21,7 @@ const bitSize16 = 2
+ 
+ // ErrorString implements Error's String method by returning itself.
+ //
+-// ErrorString values can be tested against error values from the the os package
++// ErrorString values can be tested against error values from the os package
+ // using errors.Is. For example:
+ //
+ //	_, _, err := syscall.Syscall(...)
+diff --git a/src/syscall/syscall_unix.go b/src/syscall/syscall_unix.go
+index 4a6305e4c5..1d0be94305 100644
+--- a/src/syscall/syscall_unix.go
++++ b/src/syscall/syscall_unix.go
+@@ -108,7 +108,7 @@ func (m *mmapper) Munmap(data []byte) (err error) {
+ //		err = errno
+ //	}
+ //
+-// Errno values can be tested against error values from the the os package
++// Errno values can be tested against error values from the os package
+ // using errors.Is. For example:
+ //
+ //	_, _, err := syscall.Syscall(...)
+diff --git a/src/syscall/syscall_windows.go b/src/syscall/syscall_windows.go
+index cfa9d9c5d0..e4d78d66ad 100644
+--- a/src/syscall/syscall_windows.go
++++ b/src/syscall/syscall_windows.go
+@@ -78,7 +78,7 @@ func UTF16PtrFromString(s string) (*uint16, error) {
+ 
+ // Errno is the Windows error number.
+ //
+-// Errno values can be tested against error values from the the os package
++// Errno values can be tested against error values from the os package
+ // using errors.Is. For example:
+ //
+ //	_, _, err := syscall.Syscall(...)

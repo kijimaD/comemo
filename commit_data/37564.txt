@@ -11,7 +11,47 @@ Date:   Fri Aug 17 23:08:24 2018 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/internal/modcmd/tidy.go      | 3 ++-
  src/cmd/go/testdata/script/mod_tidy.txt | 7 +++++++
  2 files changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/modcmd/tidy.go b/src/cmd/go/internal/modcmd/tidy.go
+index 54f47e764f..f2063a9ea6 100644
+--- a/src/cmd/go/internal/modcmd/tidy.go
++++ b/src/cmd/go/internal/modcmd/tidy.go
+@@ -44,10 +44,11 @@ func runTidy(cmd *base.Command, args []string) {
+ 
+ 	// LoadALL adds missing modules.
+ 	// Remove unused modules.
+-	used := map[module.Version]bool{modload.Target: true}
++	used := make(map[module.Version]bool)
+ 	for _, pkg := range modload.LoadALL() {
+ 		used[modload.PackageModule(pkg)] = true
+ 	}
++	used[modload.Target] = true // note: LoadALL initializes Target
+ 
+ 	inGoMod := make(map[string]bool)
+ 	for _, r := range modload.ModFile().Require {
+diff --git a/src/cmd/go/testdata/script/mod_tidy.txt b/src/cmd/go/testdata/script/mod_tidy.txt
+index 86434af7f3..449aa073a7 100644
+--- a/src/cmd/go/testdata/script/mod_tidy.txt
++++ b/src/cmd/go/testdata/script/mod_tidy.txt
+@@ -10,6 +10,10 @@ go list -m all
+ stdout '^w.1 v1.2.0'
+ stdout '^z.1 v1.2.0'
+ 
++# empty tidy should not crash
++cd triv
++go mod tidy
++
+ -- go.mod --
+ module m
+ 
+@@ -55,3 +59,6 @@ module z
+ 
+ -- z/sub/sub.go --
+ package sub
++
++-- triv/go.mod --
++module triv

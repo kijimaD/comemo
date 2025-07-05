@@ -16,10 +16,114 @@ Date:   Mon Feb 15 17:37:04 2016 -0500
     Reviewed-by: Rick Hudson <rlh@golang.org>
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/select.go | 1 +
  src/runtime/chan.go                   | 4 ++++
  src/runtime/proc.go                   | 3 +++
  src/runtime/runtime2.go               | 5 +++--
  src/runtime/select.go                 | 2 ++
  5 files changed, 13 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/select.go b/src/cmd/compile/internal/gc/select.go
+index 3ee21b70e8..f4445823b5 100644
+--- a/src/cmd/compile/internal/gc/select.go
++++ b/src/cmd/compile/internal/gc/select.go
+@@ -331,6 +331,7 @@ func selecttype(size int32) *Type {
+ 	sudog.List.Append(Nod(ODCLFIELD, newname(Lookup("releasetime")), typenod(Types[TUINT64])))
+ 	sudog.List.Append(Nod(ODCLFIELD, newname(Lookup("ticket")), typenod(Types[TUINT32])))
+ 	sudog.List.Append(Nod(ODCLFIELD, newname(Lookup("waitlink")), typenod(Ptrto(Types[TUINT8]))))
++	sudog.List.Append(Nod(ODCLFIELD, newname(Lookup("c")), typenod(Ptrto(Types[TUINT8]))))
+ 	typecheck(&sudog, Etype)
+ 	sudog.Type.Noalg = true
+ 	sudog.Type.Local = true
+diff --git a/src/runtime/chan.go b/src/runtime/chan.go
+index 85cbe5a5a7..cc64d30a68 100644
+--- a/src/runtime/chan.go
++++ b/src/runtime/chan.go
+@@ -209,6 +209,7 @@ func chansend(t *chantype, c *hchan, ep unsafe.Pointer, block bool, callerpc uin
+ 	mysg.waitlink = nil
+ 	mysg.g = gp
+ 	mysg.selectdone = nil
++	mysg.c = c
+ 	gp.waiting = mysg
+ 	gp.param = nil
+ 	c.sendq.enqueue(mysg)
+@@ -229,6 +230,7 @@ func chansend(t *chantype, c *hchan, ep unsafe.Pointer, block bool, callerpc uin
+ 	if mysg.releasetime > 0 {
+ 		blockevent(mysg.releasetime-t0, 2)
+ 	}
++	mysg.c = nil
+ 	releaseSudog(mysg)
+ 	return true
+ }
+@@ -469,6 +471,7 @@ func chanrecv(t *chantype, c *hchan, ep unsafe.Pointer, block bool) (selected, r
+ 	gp.waiting = mysg
+ 	mysg.g = gp
+ 	mysg.selectdone = nil
++	mysg.c = c
+ 	gp.param = nil
+ 	c.recvq.enqueue(mysg)
+ 	goparkunlock(&c.lock, "chan receive", traceEvGoBlockRecv, 3)
+@@ -483,6 +486,7 @@ func chanrecv(t *chantype, c *hchan, ep unsafe.Pointer, block bool) (selected, r
+ 	}
+ 	closed := gp.param == nil
+ 	gp.param = nil
++	mysg.c = nil
+ 	releaseSudog(mysg)
+ 	return true, !closed
+ }
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 758a0a898c..aea1f0d18c 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -329,6 +329,9 @@ func releaseSudog(s *sudog) {
+ 	if s.waitlink != nil {
+ 		throw("runtime: sudog with non-nil waitlink")
+ 	}
++	if s.c != nil {
++		throw("runtime: sudog with non-nil c")
++	}
+ 	gp := getg()
+ 	if gp.param != nil {
+ 		throw("runtime: releaseSudog with non-nil gp.param")
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 3ac8f196c5..ac437def26 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -215,13 +215,14 @@ type gobuf struct {
+ // selecttype.
+ type sudog struct {
+ 	g           *g
+-	selectdone  *uint32
++	selectdone  *uint32 // CAS to 1 to win select race (may point to stack)
+ 	next        *sudog
+ 	prev        *sudog
+-	elem        unsafe.Pointer // data element
++	elem        unsafe.Pointer // data element (may point to stack)
+ 	releasetime int64
+ 	ticket      uint32
+ 	waitlink    *sudog // g.waiting list
++	c           *hchan // channel
+ }
+ 
+ type gcstats struct {
+diff --git a/src/runtime/select.go b/src/runtime/select.go
+index ddc3d81638..fff8afa9ff 100644
+--- a/src/runtime/select.go
++++ b/src/runtime/select.go
+@@ -385,6 +385,7 @@ loop:
+ 			sg.releasetime = -1
+ 		}
+ 		sg.waitlink = gp.waiting
++		sg.c = c
+ 		gp.waiting = sg
+ 
+ 		switch cas.kind {
+@@ -416,6 +417,7 @@ loop:
+ 	for sg1 := gp.waiting; sg1 != nil; sg1 = sg1.waitlink {
+ 		sg1.selectdone = nil
+ 		sg1.elem = nil
++		sg1.c = nil
+ 	}
+ 	gp.waiting = nil
+ 	for i := int(sel.ncase) - 1; i >= 0; i-- {

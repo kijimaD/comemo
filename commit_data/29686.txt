@@ -10,10 +10,201 @@ Date:   Tue Sep 27 19:54:05 2016 +0900
     Reviewed-on: https://go-review.googlesource.com/29892
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
-
+---
  src/go/build/deps_test.go    |   2 +-
  src/net/interface.go         |  10 ++--
  src/net/interface_solaris.go | 107 +++++++++++++++++++++++++++++++++++++++++++
  src/net/interface_stub.go    |   2 +-
  src/net/interface_test.go    |  11 ++++-
  5 files changed, 125 insertions(+), 7 deletions(-)
+
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index bcd599af85..8b382ec395 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -298,7 +298,7 @@ var pkgDeps = map[string][]string{
+ 		"context", "math/rand", "os", "sort", "syscall", "time",
+ 		"internal/nettrace",
+ 		"internal/syscall/windows", "internal/singleflight", "internal/race",
+-		"golang_org/x/net/route",
++		"golang_org/x/net/lif", "golang_org/x/net/route",
+ 	},
+ 
+ 	// NET enables use of basic network-related packages.
+diff --git a/src/net/interface.go b/src/net/interface.go
+index 295ab2dc92..61ee0ce7c3 100644
+--- a/src/net/interface.go
++++ b/src/net/interface.go
+@@ -10,10 +10,10 @@ import (
+ 	"time"
+ )
+ 
+-// BUG(mikio): On NaCl, Plan9 and Solaris, methods and functions
+-// related to Interface are not implemented.
++// BUG(mikio): On NaCl and Plan9, methods and functions related to
++// Interface are not implemented.
+ 
+-// BUG(mikio): On DragonFly BSD, NetBSD and OpenBSD, the
++// BUG(mikio): On DragonFly BSD, NetBSD, OpenBSD and Solaris, the
+ // MulticastAddrs method of Interface is not implemented.
+ 
+ var (
+@@ -117,6 +117,10 @@ func InterfaceAddrs() ([]Addr, error) {
+ }
+ 
+ // InterfaceByIndex returns the interface specified by index.
++//
++// On Solaris, it returns one of the logical network interfaces
++// sharing the logical data link; for more precision use
++// InterfaceByName.
+ func InterfaceByIndex(index int) (*Interface, error) {
+ 	if index <= 0 {
+ 		return nil, &OpError{Op: "route", Net: "ip+net", Source: nil, Addr: nil, Err: errInvalidInterfaceIndex}
+diff --git a/src/net/interface_solaris.go b/src/net/interface_solaris.go
+new file mode 100644
+index 0000000000..dc8ffbfcb8
+--- /dev/null
++++ b/src/net/interface_solaris.go
+@@ -0,0 +1,107 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package net
++
++import (
++	"syscall"
++
++	"golang_org/x/net/lif"
++)
++
++// If the ifindex is zero, interfaceTable returns mappings of all
++// network interfaces. Otherwise it returns a mapping of a specific
++// interface.
++func interfaceTable(ifindex int) ([]Interface, error) {
++	lls, err := lif.Links(syscall.AF_UNSPEC, "")
++	if err != nil {
++		return nil, err
++	}
++	var ift []Interface
++	for _, ll := range lls {
++		if ifindex != 0 && ifindex != ll.Index {
++			continue
++		}
++		ifi := Interface{Index: ll.Index, MTU: ll.MTU, Name: ll.Name, Flags: linkFlags(ll.Flags)}
++		if len(ll.Addr) > 0 {
++			ifi.HardwareAddr = HardwareAddr(ll.Addr)
++		}
++		ift = append(ift, ifi)
++	}
++	return ift, nil
++}
++
++const (
++	sysIFF_UP          = 0x1
++	sysIFF_BROADCAST   = 0x2
++	sysIFF_DEBUG       = 0x4
++	sysIFF_LOOPBACK    = 0x8
++	sysIFF_POINTOPOINT = 0x10
++	sysIFF_NOTRAILERS  = 0x20
++	sysIFF_RUNNING     = 0x40
++	sysIFF_NOARP       = 0x80
++	sysIFF_PROMISC     = 0x100
++	sysIFF_ALLMULTI    = 0x200
++	sysIFF_INTELLIGENT = 0x400
++	sysIFF_MULTICAST   = 0x800
++	sysIFF_MULTI_BCAST = 0x1000
++	sysIFF_UNNUMBERED  = 0x2000
++	sysIFF_PRIVATE     = 0x8000
++)
++
++func linkFlags(rawFlags int) Flags {
++	var f Flags
++	if rawFlags&sysIFF_UP != 0 {
++		f |= FlagUp
++	}
++	if rawFlags&sysIFF_BROADCAST != 0 {
++		f |= FlagBroadcast
++	}
++	if rawFlags&sysIFF_LOOPBACK != 0 {
++		f |= FlagLoopback
++	}
++	if rawFlags&sysIFF_POINTOPOINT != 0 {
++		f |= FlagPointToPoint
++	}
++	if rawFlags&sysIFF_MULTICAST != 0 {
++		f |= FlagMulticast
++	}
++	return f
++}
++
++// If the ifi is nil, interfaceAddrTable returns addresses for all
++// network interfaces. Otherwise it returns addresses for a specific
++// interface.
++func interfaceAddrTable(ifi *Interface) ([]Addr, error) {
++	var name string
++	if ifi != nil {
++		name = ifi.Name
++	}
++	as, err := lif.Addrs(syscall.AF_UNSPEC, name)
++	if err != nil {
++		return nil, err
++	}
++	var ifat []Addr
++	for _, a := range as {
++		var ip IP
++		var mask IPMask
++		switch a := a.(type) {
++		case *lif.Inet4Addr:
++			ip = IPv4(a.IP[0], a.IP[1], a.IP[2], a.IP[3])
++			mask = CIDRMask(a.PrefixLen, 8*IPv4len)
++		case *lif.Inet6Addr:
++			ip = make(IP, IPv6len)
++			copy(ip, a.IP[:])
++			mask = CIDRMask(a.PrefixLen, 8*IPv6len)
++		}
++		ifat = append(ifat, &IPNet{IP: ip, Mask: mask})
++	}
++	return ifat, nil
++}
++
++// interfaceMulticastAddrTable returns addresses for a specific
++// interface.
++func interfaceMulticastAddrTable(ifi *Interface) ([]Addr, error) {
++	return nil, nil
++}
+diff --git a/src/net/interface_stub.go b/src/net/interface_stub.go
+index f64174c62e..a4eff53298 100644
+--- a/src/net/interface_stub.go
++++ b/src/net/interface_stub.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build nacl plan9 solaris
++// +build nacl plan9
+ 
+ package net
+ 
+diff --git a/src/net/interface_test.go b/src/net/interface_test.go
+index 4c695b902a..38a2ca4656 100644
+--- a/src/net/interface_test.go
++++ b/src/net/interface_test.go
+@@ -58,8 +58,15 @@ func TestInterfaces(t *testing.T) {
+ 		if err != nil {
+ 			t.Fatal(err)
+ 		}
+-		if !reflect.DeepEqual(ifxi, &ifi) {
+-			t.Errorf("got %v; want %v", ifxi, ifi)
++		switch runtime.GOOS {
++		case "solaris":
++			if ifxi.Index != ifi.Index {
++				t.Errorf("got %v; want %v", ifxi, ifi)
++			}
++		default:
++			if !reflect.DeepEqual(ifxi, &ifi) {
++				t.Errorf("got %v; want %v", ifxi, ifi)
++			}
+ 		}
+ 		ifxn, err := InterfaceByName(ifi.Name)
+ 		if err != nil {

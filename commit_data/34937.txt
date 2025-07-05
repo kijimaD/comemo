@@ -15,6 +15,20 @@ Date:   Wed Nov 29 15:58:43 2017 -0500
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/internal/objfile/disasm.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/internal/objfile/disasm.go b/src/cmd/internal/objfile/disasm.go
+index c486016d6c..6ddf8d6cd7 100644
+--- a/src/cmd/internal/objfile/disasm.go
++++ b/src/cmd/internal/objfile/disasm.go
+@@ -292,7 +292,7 @@ func (d *Disasm) Decode(start, end uint64, relocs []Reloc, f func(pc, size uint6
+ 	}
+ }
+ 
+-type lookupFunc func(addr uint64) (sym string, base uint64)
++type lookupFunc = func(addr uint64) (sym string, base uint64)
+ type disasmFunc func(code []byte, pc uint64, lookup lookupFunc, ord binary.ByteOrder) (text string, size int)
+ 
+ func disasm_386(code []byte, pc uint64, lookup lookupFunc, _ binary.ByteOrder) (string, int) {

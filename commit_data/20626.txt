@@ -11,7 +11,101 @@ Date:   Thu Sep 25 10:21:52 2014 +1000
     R=dr.volker.dobler
     CC=bradfitz, golang-codereviews
     https://golang.org/cl/148890043
-
+---
  src/net/http/cookie.go      | 10 +++++-----
  src/net/http/cookie_test.go | 32 ++++++++++++++++++++++++++++++++
  2 files changed, 37 insertions(+), 5 deletions(-)
+
+diff --git a/src/net/http/cookie.go b/src/net/http/cookie.go
+index dc60ba87f5..a0d0fdbbd0 100644
+--- a/src/net/http/cookie.go
++++ b/src/net/http/cookie.go
+@@ -56,7 +56,7 @@ func readSetCookies(h Header) []*Cookie {
+ 		if !isCookieNameValid(name) {
+ 			continue
+ 		}
+-		value, success := parseCookieValue(value)
++		value, success := parseCookieValue(value, true)
+ 		if !success {
+ 			continue
+ 		}
+@@ -76,7 +76,7 @@ func readSetCookies(h Header) []*Cookie {
+ 				attr, val = attr[:j], attr[j+1:]
+ 			}
+ 			lowerAttr := strings.ToLower(attr)
+-			val, success = parseCookieValue(val)
++			val, success = parseCookieValue(val, false)
+ 			if !success {
+ 				c.Unparsed = append(c.Unparsed, parts[i])
+ 				continue
+@@ -205,7 +205,7 @@ func readCookies(h Header, filter string) []*Cookie {
+ 			if filter != "" && filter != name {
+ 				continue
+ 			}
+-			val, success := parseCookieValue(val)
++			val, success := parseCookieValue(val, true)
+ 			if !success {
+ 				continue
+ 			}
+@@ -345,9 +345,9 @@ func sanitizeOrWarn(fieldName string, valid func(byte) bool, v string) string {
+ 	return string(buf)
+ }
+ 
+-func parseCookieValue(raw string) (string, bool) {
++func parseCookieValue(raw string, allowDoubleQuote bool) (string, bool) {
+ 	// Strip the quotes, if present.
+-	if len(raw) > 1 && raw[0] == '"' && raw[len(raw)-1] == '"' {
++	if allowDoubleQuote && len(raw) > 1 && raw[0] == '"' && raw[len(raw)-1] == '"' {
+ 		raw = raw[1 : len(raw)-1]
+ 	}
+ 	for i := 0; i < len(raw); i++ {
+diff --git a/src/net/http/cookie_test.go b/src/net/http/cookie_test.go
+index f78f37299f..98dc2fade0 100644
+--- a/src/net/http/cookie_test.go
++++ b/src/net/http/cookie_test.go
+@@ -313,6 +313,14 @@ var readCookiesTests = []struct {
+ 			{Name: "c2", Value: "v2"},
+ 		},
+ 	},
++	{
++		Header{"Cookie": {`Cookie-1="v$1"; c2="v2"`}},
++		"",
++		[]*Cookie{
++			{Name: "Cookie-1", Value: "v$1"},
++			{Name: "c2", Value: "v2"},
++		},
++	},
+ }
+ 
+ func TestReadCookies(t *testing.T) {
+@@ -327,6 +335,30 @@ func TestReadCookies(t *testing.T) {
+ 	}
+ }
+ 
++func TestSetCookieDoubleQuotes(t *testing.T) {
++	res := &Response{Header: Header{}}
++	res.Header.Add("Set-Cookie", `quoted0=none; max-age=30`)
++	res.Header.Add("Set-Cookie", `quoted1="cookieValue"; max-age=31`)
++	res.Header.Add("Set-Cookie", `quoted2=cookieAV; max-age="32"`)
++	res.Header.Add("Set-Cookie", `quoted3="both"; max-age="33"`)
++	got := res.Cookies()
++	want := []*Cookie{
++		{Name: "quoted0", Value: "none", MaxAge: 30},
++		{Name: "quoted1", Value: "cookieValue", MaxAge: 31},
++		{Name: "quoted2", Value: "cookieAV"},
++		{Name: "quoted3", Value: "both"},
++	}
++	if len(got) != len(want) {
++		t.Fatal("got %d cookies, want %d", len(got), len(want))
++	}
++	for i, w := range want {
++		g := got[i]
++		if g.Name != w.Name || g.Value != w.Value || g.MaxAge != w.MaxAge {
++			t.Errorf("cookie #%d:\ngot  %v\nwant %v", i, g, w)
++		}
++	}
++}
++
+ func TestCookieSanitizeValue(t *testing.T) {
+ 	defer log.SetOutput(os.Stderr)
+ 	var logbuf bytes.Buffer

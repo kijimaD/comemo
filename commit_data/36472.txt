@@ -75,7 +75,7 @@ Date:   Sun Apr 29 16:29:43 2018 +0200
     Run-TryBot: Elias Naur <elias.naur@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/os_nacl.go          |  1 +
  src/runtime/os_plan9.go         |  1 +
  src/runtime/panic.go            | 59 ++++++++++++++++++++++++++++--------
@@ -83,3 +83,232 @@ Date:   Sun Apr 29 16:29:43 2018 +0200
  src/runtime/signal_unix.go      |  1 +
  src/runtime/signal_windows.go   |  1 +
  6 files changed, 116 insertions(+), 13 deletions(-)
+
+diff --git a/src/runtime/os_nacl.go b/src/runtime/os_nacl.go
+index e2c3ef5e3d..23ab03b953 100644
+--- a/src/runtime/os_nacl.go
++++ b/src/runtime/os_nacl.go
+@@ -131,6 +131,7 @@ func signame(sig uint32) string {
+ 	return sigtable[sig].name
+ }
+ 
++//go:nosplit
+ func crash() {
+ 	*(*int32)(nil) = 0
+ }
+diff --git a/src/runtime/os_plan9.go b/src/runtime/os_plan9.go
+index 7d557eb943..9f41c5ac83 100644
+--- a/src/runtime/os_plan9.go
++++ b/src/runtime/os_plan9.go
+@@ -296,6 +296,7 @@ func osinit() {
+ 	notify(unsafe.Pointer(funcPC(sigtramp)))
+ }
+ 
++//go:nosplit
+ func crash() {
+ 	notify(nil)
+ 	*(*int)(nil) = 0
+diff --git a/src/runtime/panic.go b/src/runtime/panic.go
+index 3abcf9045b..9ba7e1063f 100644
+--- a/src/runtime/panic.go
++++ b/src/runtime/panic.go
+@@ -586,7 +586,7 @@ func throw(s string) {
+ 	if gp.m.throwing == 0 {
+ 		gp.m.throwing = 1
+ 	}
+-	fatalpanic(nil)
++	fatalthrow()
+ 	*(*int)(nil) = 0 // not reached
+ }
+ 
+@@ -627,18 +627,43 @@ func recovery(gp *g) {
+ 	gogo(&gp.sched)
+ }
+ 
+-// fatalpanic implements an unrecoverable panic. It freezes the
+-// system, prints panic messages if msgs != nil, prints stack traces
+-// starting from its caller, and terminates the process.
++// fatalthrow implements an unrecoverable runtime throw. It freezes the
++// system, prints stack traces starting from its caller, and terminates the
++// process.
+ //
+-// If msgs != nil, it also decrements runningPanicDefers once main is
+-// blocked from exiting.
++//go:nosplit
++func fatalthrow() {
++	pc := getcallerpc()
++	sp := getcallersp()
++	gp := getg()
++	// Switch to the system stack to avoid any stack growth, which
++	// may make things worse if the runtime is in a bad state.
++	systemstack(func() {
++		startpanic_m()
++
++		if dopanic_m(gp, pc, sp) {
++			// crash uses a decent amount of nosplit stack and we're already
++			// low on stack in throw, so crash on the system stack (unlike
++			// fatalpanic).
++			crash()
++		}
++
++		exit(2)
++	})
++
++	*(*int)(nil) = 0 // not reached
++}
++
++// fatalpanic implements an unrecoverable panic. It is like fatalthrow, except
++// that if msgs != nil, fatalpanic also prints panic messages and decrements
++// runningPanicDefers once main is blocked from exiting.
+ //
+ //go:nosplit
+ func fatalpanic(msgs *_panic) {
+ 	pc := getcallerpc()
+ 	sp := getcallersp()
+ 	gp := getg()
++	var docrash bool
+ 	// Switch to the system stack to avoid any stack growth, which
+ 	// may make things worse if the runtime is in a bad state.
+ 	systemstack(func() {
+@@ -654,8 +679,20 @@ func fatalpanic(msgs *_panic) {
+ 			printpanics(msgs)
+ 		}
+ 
+-		dopanic_m(gp, pc, sp) // should never return
++		docrash = dopanic_m(gp, pc, sp)
+ 	})
++
++	if docrash {
++		// By crashing outside the above systemstack call, debuggers
++		// will not be confused when generating a backtrace.
++		// Function crash is marked nosplit to avoid stack growth.
++		crash()
++	}
++
++	systemstack(func() {
++		exit(2)
++	})
++
+ 	*(*int)(nil) = 0 // not reached
+ }
+ 
+@@ -713,7 +750,7 @@ func startpanic_m() bool {
+ var didothers bool
+ var deadlock mutex
+ 
+-func dopanic_m(gp *g, pc, sp uintptr) {
++func dopanic_m(gp *g, pc, sp uintptr) bool {
+ 	if gp.sig != 0 {
+ 		signame := signame(gp.sig)
+ 		if signame != "" {
+@@ -754,11 +791,7 @@ func dopanic_m(gp *g, pc, sp uintptr) {
+ 		lock(&deadlock)
+ 	}
+ 
+-	if docrash {
+-		crash()
+-	}
+-
+-	exit(2)
++	return docrash
+ }
+ 
+ // canpanic returns false if a signal should throw instead of
+diff --git a/src/runtime/runtime-gdb_test.go b/src/runtime/runtime-gdb_test.go
+index cae12e8af2..a6dfd64abc 100644
+--- a/src/runtime/runtime-gdb_test.go
++++ b/src/runtime/runtime-gdb_test.go
+@@ -478,3 +478,69 @@ func TestGdbConst(t *testing.T) {
+ 		t.Fatalf("output mismatch")
+ 	}
+ }
++
++const panicSource = `
++package main
++
++import "runtime/debug"
++
++func main() {
++	debug.SetTraceback("crash")
++	crash()
++}
++
++func crash() {
++	panic("panic!")
++}
++`
++
++// TestGdbPanic tests that gdb can unwind the stack correctly
++// from SIGABRTs from Go panics.
++func TestGdbPanic(t *testing.T) {
++	checkGdbEnvironment(t)
++	t.Parallel()
++	checkGdbVersion(t)
++
++	dir, err := ioutil.TempDir("", "go-build")
++	if err != nil {
++		t.Fatalf("failed to create temp directory: %v", err)
++	}
++	defer os.RemoveAll(dir)
++
++	// Build the source code.
++	src := filepath.Join(dir, "main.go")
++	err = ioutil.WriteFile(src, []byte(panicSource), 0644)
++	if err != nil {
++		t.Fatalf("failed to create file: %v", err)
++	}
++	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", "a.exe")
++	cmd.Dir = dir
++	out, err := testenv.CleanCmdEnv(cmd).CombinedOutput()
++	if err != nil {
++		t.Fatalf("building source %v\n%s", err, out)
++	}
++
++	// Execute gdb commands.
++	args := []string{"-nx", "-batch",
++		"-iex", "add-auto-load-safe-path " + filepath.Join(runtime.GOROOT(), "src", "runtime"),
++		"-ex", "set startup-with-shell off",
++		"-ex", "run",
++		"-ex", "backtrace",
++		filepath.Join(dir, "a.exe"),
++	}
++	got, _ := exec.Command("gdb", args...).CombinedOutput()
++
++	// Check that the backtrace matches the source code.
++	bt := []string{
++		`crash`,
++		`main`,
++	}
++	for _, name := range bt {
++		s := fmt.Sprintf("#.* .* in main\\.%v", name)
++		re := regexp.MustCompile(s)
++		if found := re.Find(got) != nil; !found {
++			t.Errorf("could not find '%v' in backtrace", s)
++			t.Fatalf("gdb output:\n%v", string(got))
++		}
++	}
++}
+diff --git a/src/runtime/signal_unix.go b/src/runtime/signal_unix.go
+index 4981c1f615..8bc73b7a23 100644
+--- a/src/runtime/signal_unix.go
++++ b/src/runtime/signal_unix.go
+@@ -509,6 +509,7 @@ func raisebadsignal(sig uint32, c *sigctxt) {
+ 	setsig(sig, funcPC(sighandler))
+ }
+ 
++//go:nosplit
+ func crash() {
+ 	if GOOS == "darwin" {
+ 		// OS X core dumps are linear dumps of the mapped memory,
+diff --git a/src/runtime/signal_windows.go b/src/runtime/signal_windows.go
+index ad08019fc1..500b02880d 100644
+--- a/src/runtime/signal_windows.go
++++ b/src/runtime/signal_windows.go
+@@ -224,6 +224,7 @@ func signame(sig uint32) string {
+ 	return ""
+ }
+ 
++//go:nosplit
+ func crash() {
+ 	// TODO: This routine should do whatever is needed
+ 	// to make the Windows program abort/crash as it

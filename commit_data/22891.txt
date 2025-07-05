@@ -7,6 +7,21 @@ Date:   Mon Apr 13 14:40:09 2015 -0700
     Change-Id: I392cedc49847c8ea0daa38024fca97a289d805af
     Reviewed-on: https://go-review.googlesource.com/8890
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  doc/go1.5.txt | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/doc/go1.5.txt b/doc/go1.5.txt
+index f053339292..d0259f15a5 100644
+--- a/doc/go1.5.txt
++++ b/doc/go1.5.txt
+@@ -27,7 +27,8 @@ crypto/tls: change default minimum version to TLS 1.0. (https://golang.org/cl/17
+ crypto/x509: wildcards are now only accepted as the first label (https://golang.org/cl/5691)
+ database/sql: add Stats (https://golang.org/cl/7950)
+ encoding/base64: add unpadded encodings (https://golang.org/cl/1511)
+-flag: new nicer format for PrintDefaults (https://go-review.googlesource.com/7330)
++flag: new nicer format for PrintDefaults (https://golang.org/cl/7330)
++fmt: empty slices now print nothing with %x (bug fix) (https://golang.org/cl/8864)
+ go/ast: add Implicit field to ast.EmptyStmt; changed meaning of ast.EmptyStmt.Semicolon position (https://golang.org/cl/5720)
+ log: add SetOutput functions (https://golang.org/cl/2686, https://golang.org/cl/3023)
+ log: add LUTC flag (https://golang.org/cl/8761)

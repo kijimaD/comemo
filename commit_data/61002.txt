@@ -44,10 +44,200 @@ Date:   Thu Sep 12 22:52:56 2024 +0800
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Keith Randall <khr@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/reflect/map_noswiss.go | 14 +++++++-------
  src/reflect/map_swiss.go   | 14 +++++++-------
  src/reflect/value.go       |  6 ------
  src/runtime/map_noswiss.go |  4 ++--
  test/escape_reflect.go     |  4 ++--
  5 files changed, 18 insertions(+), 24 deletions(-)
+
+diff --git a/src/reflect/map_noswiss.go b/src/reflect/map_noswiss.go
+index 5af50ac779..81d7b6222a 100644
+--- a/src/reflect/map_noswiss.go
++++ b/src/reflect/map_noswiss.go
+@@ -223,7 +223,7 @@ func (v Value) MapKeys() []Value {
+ 	a := make([]Value, mlen)
+ 	var i int
+ 	for i = 0; i < len(a); i++ {
+-		key := mapiterkey(&it)
++		key := it.key
+ 		if key == nil {
+ 			// Someone deleted an entry from the map since we
+ 			// called maplen above. It's a data race, but nothing
+@@ -274,7 +274,7 @@ func (iter *MapIter) Key() Value {
+ 	if !iter.hiter.initialized() {
+ 		panic("MapIter.Key called before Next")
+ 	}
+-	iterkey := mapiterkey(&iter.hiter)
++	iterkey := iter.hiter.key
+ 	if iterkey == nil {
+ 		panic("MapIter.Key called on exhausted iterator")
+ 	}
+@@ -292,7 +292,7 @@ func (v Value) SetIterKey(iter *MapIter) {
+ 	if !iter.hiter.initialized() {
+ 		panic("reflect: Value.SetIterKey called before Next")
+ 	}
+-	iterkey := mapiterkey(&iter.hiter)
++	iterkey := iter.hiter.key
+ 	if iterkey == nil {
+ 		panic("reflect: Value.SetIterKey called on exhausted iterator")
+ 	}
+@@ -317,7 +317,7 @@ func (iter *MapIter) Value() Value {
+ 	if !iter.hiter.initialized() {
+ 		panic("MapIter.Value called before Next")
+ 	}
+-	iterelem := mapiterelem(&iter.hiter)
++	iterelem := iter.hiter.elem
+ 	if iterelem == nil {
+ 		panic("MapIter.Value called on exhausted iterator")
+ 	}
+@@ -335,7 +335,7 @@ func (v Value) SetIterValue(iter *MapIter) {
+ 	if !iter.hiter.initialized() {
+ 		panic("reflect: Value.SetIterValue called before Next")
+ 	}
+-	iterelem := mapiterelem(&iter.hiter)
++	iterelem := iter.hiter.elem
+ 	if iterelem == nil {
+ 		panic("reflect: Value.SetIterValue called on exhausted iterator")
+ 	}
+@@ -365,12 +365,12 @@ func (iter *MapIter) Next() bool {
+ 	if !iter.hiter.initialized() {
+ 		mapiterinit(iter.m.typ(), iter.m.pointer(), &iter.hiter)
+ 	} else {
+-		if mapiterkey(&iter.hiter) == nil {
++		if iter.hiter.key == nil {
+ 			panic("MapIter.Next called on exhausted iterator")
+ 		}
+ 		mapiternext(&iter.hiter)
+ 	}
+-	return mapiterkey(&iter.hiter) != nil
++	return iter.hiter.key != nil
+ }
+ 
+ // Reset modifies iter to iterate over v.
+diff --git a/src/reflect/map_swiss.go b/src/reflect/map_swiss.go
+index 4607b6f0f3..8978b377c7 100644
+--- a/src/reflect/map_swiss.go
++++ b/src/reflect/map_swiss.go
+@@ -224,7 +224,7 @@ func (v Value) MapKeys() []Value {
+ 	a := make([]Value, mlen)
+ 	var i int
+ 	for i = 0; i < len(a); i++ {
+-		key := mapiterkey(&it)
++		key := it.key
+ 		if key == nil {
+ 			// Someone deleted an entry from the map since we
+ 			// called maplen above. It's a data race, but nothing
+@@ -275,7 +275,7 @@ func (iter *MapIter) Key() Value {
+ 	if !iter.hiter.initialized() {
+ 		panic("MapIter.Key called before Next")
+ 	}
+-	iterkey := mapiterkey(&iter.hiter)
++	iterkey := iter.hiter.key
+ 	if iterkey == nil {
+ 		panic("MapIter.Key called on exhausted iterator")
+ 	}
+@@ -293,7 +293,7 @@ func (v Value) SetIterKey(iter *MapIter) {
+ 	if !iter.hiter.initialized() {
+ 		panic("reflect: Value.SetIterKey called before Next")
+ 	}
+-	iterkey := mapiterkey(&iter.hiter)
++	iterkey := iter.hiter.key
+ 	if iterkey == nil {
+ 		panic("reflect: Value.SetIterKey called on exhausted iterator")
+ 	}
+@@ -318,7 +318,7 @@ func (iter *MapIter) Value() Value {
+ 	if !iter.hiter.initialized() {
+ 		panic("MapIter.Value called before Next")
+ 	}
+-	iterelem := mapiterelem(&iter.hiter)
++	iterelem := iter.hiter.elem
+ 	if iterelem == nil {
+ 		panic("MapIter.Value called on exhausted iterator")
+ 	}
+@@ -336,7 +336,7 @@ func (v Value) SetIterValue(iter *MapIter) {
+ 	if !iter.hiter.initialized() {
+ 		panic("reflect: Value.SetIterValue called before Next")
+ 	}
+-	iterelem := mapiterelem(&iter.hiter)
++	iterelem := iter.hiter.elem
+ 	if iterelem == nil {
+ 		panic("reflect: Value.SetIterValue called on exhausted iterator")
+ 	}
+@@ -366,12 +366,12 @@ func (iter *MapIter) Next() bool {
+ 	if !iter.hiter.initialized() {
+ 		mapiterinit(iter.m.typ(), iter.m.pointer(), &iter.hiter)
+ 	} else {
+-		if mapiterkey(&iter.hiter) == nil {
++		if iter.hiter.key == nil {
+ 			panic("MapIter.Next called on exhausted iterator")
+ 		}
+ 		mapiternext(&iter.hiter)
+ 	}
+-	return mapiterkey(&iter.hiter) != nil
++	return iter.hiter.key != nil
+ }
+ 
+ // Reset modifies iter to iterate over v.
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index 7bac530b5b..e02002ff33 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -3596,12 +3596,6 @@ func mapdelete_faststr(t *abi.Type, m unsafe.Pointer, key string)
+ //go:noescape
+ func mapiterinit(t *abi.Type, m unsafe.Pointer, it *hiter)
+ 
+-//go:noescape
+-func mapiterkey(it *hiter) (key unsafe.Pointer)
+-
+-//go:noescape
+-func mapiterelem(it *hiter) (elem unsafe.Pointer)
+-
+ //go:noescape
+ func mapiternext(it *hiter)
+ 
+diff --git a/src/runtime/map_noswiss.go b/src/runtime/map_noswiss.go
+index 44a93089ef..d7b8a5fe11 100644
+--- a/src/runtime/map_noswiss.go
++++ b/src/runtime/map_noswiss.go
+@@ -1528,7 +1528,7 @@ func reflect_mapiternext(it *hiter) {
+ 	mapiternext(it)
+ }
+ 
+-// reflect_mapiterkey is for package reflect,
++// reflect_mapiterkey was for package reflect,
+ // but widely used packages access it using linkname.
+ // Notable members of the hall of shame include:
+ //   - github.com/goccy/go-json
+@@ -1542,7 +1542,7 @@ func reflect_mapiterkey(it *hiter) unsafe.Pointer {
+ 	return it.key
+ }
+ 
+-// reflect_mapiterelem is for package reflect,
++// reflect_mapiterelem was for package reflect,
+ // but widely used packages access it using linkname.
+ // Notable members of the hall of shame include:
+ //   - github.com/goccy/go-json
+diff --git a/test/escape_reflect.go b/test/escape_reflect.go
+index 99fbada9a9..e50323702e 100644
+--- a/test/escape_reflect.go
++++ b/test/escape_reflect.go
+@@ -423,7 +423,7 @@ func mapdelete(m map[string]string, k string) { // ERROR "m does not escape" "le
+ }
+ 
+ // Unfortunate: v doesn't need to leak.
+-func setiterkey1(v reflect.Value, it *reflect.MapIter) { // ERROR "leaking param: v$" "it does not escape"
++func setiterkey1(v reflect.Value, it *reflect.MapIter) { // ERROR "leaking param: v$" "leaking param content: it$"
+ 	v.SetIterKey(it)
+ }
+ 
+@@ -434,7 +434,7 @@ func setiterkey2(v reflect.Value, m map[string]string) { // ERROR "leaking param
+ }
+ 
+ // Unfortunate: v doesn't need to leak.
+-func setitervalue1(v reflect.Value, it *reflect.MapIter) { // ERROR "leaking param: v$" "it does not escape"
++func setitervalue1(v reflect.Value, it *reflect.MapIter) { // ERROR "leaking param: v$" "leaking param content: it$"
+ 	v.SetIterValue(it)
+ }
+ 

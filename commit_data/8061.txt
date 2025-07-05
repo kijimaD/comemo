@@ -11,6 +11,43 @@ Date:   Wed Apr 13 11:55:41 2011 +1000
     R=golang-dev, dsymonds, niemeyer
     CC=golang-dev
     https://golang.org/cl/4382053
-
+---
  misc/vim/ftplugin/go/fmt.vim | 30 ++++++++++++++++++++++++++++++
  1 file changed, 30 insertions(+)
+
+diff --git a/misc/vim/ftplugin/go/fmt.vim b/misc/vim/ftplugin/go/fmt.vim
+new file mode 100644
+index 0000000000..18a2156f5f
+--- /dev/null
++++ b/misc/vim/ftplugin/go/fmt.vim
+@@ -0,0 +1,30 @@
++" Copyright 2011 The Go Authors. All rights reserved.
++" Use of this source code is governed by a BSD-style
++" license that can be found in the LICENSE file.
++"
++" fmt.vim: Vim command to format Go files with gofmt.
++"
++" This filetype plugin add a new commands for go buffers:
++"
++"   :Fmt
++"
++"       Filter the current Go buffer through gofmt.
++"       It tries to preserve cursor position and avoids
++"       replacing the buffer with stderr output.
++"
++
++command! Fmt call s:GoFormat()
++
++function! s:GoFormat()
++    let view = winsaveview()
++    %!gofmt
++    if v:shell_error
++        %| " output errors returned by gofmt
++           " TODO(dchest): perhaps, errors should go to quickfix
++        undo
++	echohl Error | echomsg "Gofmt returned error" | echohl None
++    endif
++    call winrestview(view)
++endfunction
++
++" vim:ts=4:sw=4:et

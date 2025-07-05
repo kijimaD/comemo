@@ -7,6 +7,23 @@ Date:   Thu Jan 31 07:53:18 2013 -0800
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/7228067
-
+---
  src/pkg/os/exec_posix.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/os/exec_posix.go b/src/pkg/os/exec_posix.go
+index 2ced4d673b..f7b10f3c69 100644
+--- a/src/pkg/os/exec_posix.go
++++ b/src/pkg/os/exec_posix.go
+@@ -118,9 +118,9 @@ func (p *ProcessState) String() string {
+ 	case status.Exited():
+ 		res = "exit status " + itod(status.ExitStatus())
+ 	case status.Signaled():
+-		res = "signal " + itod(int(status.Signal()))
++		res = "signal: " + status.Signal().String()
+ 	case status.Stopped():
+-		res = "stop signal " + itod(int(status.StopSignal()))
++		res = "stop signal: " + status.StopSignal().String()
+ 		if status.StopSignal() == syscall.SIGTRAP && status.TrapCause() != 0 {
+ 			res += " (trap " + itod(status.TrapCause()) + ")"
+ 		}

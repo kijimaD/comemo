@@ -15,10 +15,85 @@ Date:   Fri Mar 28 18:04:16 2025 -0400
     Commit-Queue: Alan Donovan <adonovan@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     Auto-Submit: Alan Donovan <adonovan@google.com>
-
+---
  doc/next/3-tools.md                  | 9 +++++++++
  src/cmd/go/internal/test/flagdefs.go | 1 +
  src/cmd/vet/doc.go                   | 1 +
  src/cmd/vet/main.go                  | 3 ++-
  src/cmd/vet/vet_test.go              | 2 +-
  5 files changed, 14 insertions(+), 2 deletions(-)
+
+diff --git a/doc/next/3-tools.md b/doc/next/3-tools.md
+index 977c89670c..886852b784 100644
+--- a/doc/next/3-tools.md
++++ b/doc/next/3-tools.md
+@@ -24,3 +24,12 @@ specifying the command's current version.
+ 
+ ### Cgo {#cgo}
+ 
++### Vet {#vet}
++
++<!-- go.dev/issue/18022 -->
++
++The `go vet` command now includes the
++[waitgroup](https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/waitgroup)
++analyzer, which reports misplaced calls to [sync.WaitGroup.Add].
++
++
+diff --git a/src/cmd/go/internal/test/flagdefs.go b/src/cmd/go/internal/test/flagdefs.go
+index 0292c19d82..372142467b 100644
+--- a/src/cmd/go/internal/test/flagdefs.go
++++ b/src/cmd/go/internal/test/flagdefs.go
+@@ -77,4 +77,5 @@ var passAnalyzersToVet = map[string]bool{
+ 	"unreachable":      true,
+ 	"unsafeptr":        true,
+ 	"unusedresult":     true,
++	"waitgroup":        true,
+ }
+diff --git a/src/cmd/vet/doc.go b/src/cmd/vet/doc.go
+index 5b2fa3d72f..8e72c252ed 100644
+--- a/src/cmd/vet/doc.go
++++ b/src/cmd/vet/doc.go
+@@ -59,6 +59,7 @@ To list the available checks, run "go tool vet help":
+ 	unreachable      check for unreachable code
+ 	unsafeptr        check for invalid conversions of uintptr to unsafe.Pointer
+ 	unusedresult     check for unused results of calls to some functions
++	waitgroup        check for misuses of sync.WaitGroup
+ 
+ For details and flags of a particular check, such as printf, run "go tool vet help printf".
+ 
+diff --git a/src/cmd/vet/main.go b/src/cmd/vet/main.go
+index efb6916015..c9d611f927 100644
+--- a/src/cmd/vet/main.go
++++ b/src/cmd/vet/main.go
+@@ -44,7 +44,7 @@ import (
+ 	"golang.org/x/tools/go/analysis/passes/unreachable"
+ 	"golang.org/x/tools/go/analysis/passes/unsafeptr"
+ 	"golang.org/x/tools/go/analysis/passes/unusedresult"
+-	_ "golang.org/x/tools/go/analysis/passes/waitgroup" // vendoring placeholder
++	"golang.org/x/tools/go/analysis/passes/waitgroup"
+ )
+ 
+ func main() {
+@@ -86,6 +86,7 @@ func main() {
+ 		unreachable.Analyzer,
+ 		unsafeptr.Analyzer,
+ 		unusedresult.Analyzer,
++		waitgroup.Analyzer,
+ 	)
+ 
+ 	// It's possible that unitchecker will exit early. In
+diff --git a/src/cmd/vet/vet_test.go b/src/cmd/vet/vet_test.go
+index 3860895a0a..2f89784dfc 100644
+--- a/src/cmd/vet/vet_test.go
++++ b/src/cmd/vet/vet_test.go
+@@ -70,8 +70,8 @@ func TestVet(t *testing.T) {
+ 		"unmarshal",
+ 		"unsafeptr",
+ 		"unused",
++		"waitgroup",
+ 	} {
+-		pkg := pkg
+ 		t.Run(pkg, func(t *testing.T) {
+ 			t.Parallel()
+ 

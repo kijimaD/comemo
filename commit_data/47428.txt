@@ -13,8 +13,91 @@ Date:   Wed Mar 17 11:17:02 2021 +0100
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  .../rand/{rand_openbsd.go => rand_getentropy.go}   |  7 +++--
  src/internal/syscall/unix/asm_darwin.s             |  8 ++++++
  src/internal/syscall/unix/getentropy_darwin.go     | 32 ++++++++++++++++++++++
  3 files changed, 45 insertions(+), 2 deletions(-)
+
+diff --git a/src/crypto/rand/rand_openbsd.go b/src/crypto/rand/rand_getentropy.go
+similarity index 79%
+rename from src/crypto/rand/rand_openbsd.go
+rename to src/crypto/rand/rand_getentropy.go
+index 9cc39f72d1..f82018a495 100644
+--- a/src/crypto/rand/rand_openbsd.go
++++ b/src/crypto/rand/rand_getentropy.go
+@@ -2,6 +2,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build darwin || openbsd
++// +build darwin openbsd
++
+ package rand
+ 
+ import (
+@@ -9,10 +12,10 @@ import (
+ )
+ 
+ func init() {
+-	altGetRandom = getRandomOpenBSD
++	altGetRandom = getEntropy
+ }
+ 
+-func getRandomOpenBSD(p []byte) (ok bool) {
++func getEntropy(p []byte) (ok bool) {
+ 	// getentropy(2) returns a maximum of 256 bytes per call
+ 	for i := 0; i < len(p); i += 256 {
+ 		end := i + 256
+diff --git a/src/internal/syscall/unix/asm_darwin.s b/src/internal/syscall/unix/asm_darwin.s
+new file mode 100644
+index 0000000000..8fbdc1d866
+--- /dev/null
++++ b/src/internal/syscall/unix/asm_darwin.s
+@@ -0,0 +1,8 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "textflag.h"
++
++TEXT ·libc_getentropy_trampoline(SB),NOSPLIT,$0-0
++	JMP	libc_getentropy(SB)
+diff --git a/src/internal/syscall/unix/getentropy_darwin.go b/src/internal/syscall/unix/getentropy_darwin.go
+new file mode 100644
+index 0000000000..6da6f84d95
+--- /dev/null
++++ b/src/internal/syscall/unix/getentropy_darwin.go
+@@ -0,0 +1,32 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package unix
++
++import (
++	"syscall"
++	"unsafe"
++)
++
++//go:cgo_import_dynamic libc_getentropy getentropy "/usr/lib/libSystem.B.dylib"
++
++func libc_getentropy_trampoline()
++
++// GetEntropy calls the macOS getentropy system call.
++func GetEntropy(p []byte) error {
++	_, _, errno := syscall_syscall(funcPC(libc_getentropy_trampoline),
++		uintptr(unsafe.Pointer(&p[0])),
++		uintptr(len(p)),
++		0)
++	if errno != 0 {
++		return errno
++	}
++	return nil
++}
++
++//go:linkname syscall_syscall syscall.syscall
++func syscall_syscall(fn, a1, a2, a3 uintptr) (r1, r2 uintptr, err syscall.Errno)
++
++//go:linkname funcPC runtime.funcPC
++func funcPC(f interface{}) uintptr

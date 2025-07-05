@@ -9,8 +9,49 @@ Date:   Thu Oct 5 10:50:37 2017 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/internal/dwarf/dwarf.go   | 1 -
  src/cmd/internal/obj/objfile.go   | 3 ---
  src/cmd/link/internal/ld/dwarf.go | 3 ---
  3 files changed, 7 deletions(-)
+
+diff --git a/src/cmd/internal/dwarf/dwarf.go b/src/cmd/internal/dwarf/dwarf.go
+index b3fa2f674f..d6a68fc7e0 100644
+--- a/src/cmd/internal/dwarf/dwarf.go
++++ b/src/cmd/internal/dwarf/dwarf.go
+@@ -118,7 +118,6 @@ type Context interface {
+ 	AddAddress(s Sym, t interface{}, ofs int64)
+ 	AddSectionOffset(s Sym, size int, t interface{}, ofs int64)
+ 	AddString(s Sym, v string)
+-	SymValue(s Sym) int64
+ }
+ 
+ // AppendUleb128 appends v to b using DWARF's unsigned LEB128 encoding.
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index f868e5dd1b..04178bd479 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -443,9 +443,6 @@ func (c dwCtxt) AddString(s dwarf.Sym, v string) {
+ 	ls.WriteString(c.Link, ls.Size, len(v), v)
+ 	ls.WriteInt(c.Link, ls.Size, 1, 0)
+ }
+-func (c dwCtxt) SymValue(s dwarf.Sym) int64 {
+-	return 0
+-}
+ func (c dwCtxt) AddAddress(s dwarf.Sym, data interface{}, value int64) {
+ 	ls := s.(*LSym)
+ 	size := c.PtrSize()
+diff --git a/src/cmd/link/internal/ld/dwarf.go b/src/cmd/link/internal/ld/dwarf.go
+index 069d1dfc3f..a0b302bb6b 100644
+--- a/src/cmd/link/internal/ld/dwarf.go
++++ b/src/cmd/link/internal/ld/dwarf.go
+@@ -42,9 +42,6 @@ func (c dwctxt) AddBytes(s dwarf.Sym, b []byte) {
+ func (c dwctxt) AddString(s dwarf.Sym, v string) {
+ 	Addstring(s.(*sym.Symbol), v)
+ }
+-func (c dwctxt) SymValue(s dwarf.Sym) int64 {
+-	return s.(*sym.Symbol).Value
+-}
+ 
+ func (c dwctxt) AddAddress(s dwarf.Sym, data interface{}, value int64) {
+ 	if value != 0 {

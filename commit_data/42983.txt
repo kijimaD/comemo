@@ -17,7 +17,7 @@ Date:   Mon Feb 17 17:47:34 2020 -0800
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/ssa/check.go        |  2 +-
  src/cmd/compile/internal/ssa/gen/ARM64Ops.go | 12 +++++-----
  src/cmd/compile/internal/ssa/gen/rulegen.go  |  2 +-
@@ -25,3 +25,177 @@ Date:   Mon Feb 17 17:47:34 2020 -0800
  src/cmd/compile/internal/ssa/opGen.go        | 12 +++++-----
  src/cmd/compile/internal/ssa/value.go        |  4 ++++
  6 files changed, 36 insertions(+), 31 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/check.go b/src/cmd/compile/internal/ssa/check.go
+index 4e258fe82b..a6746805f7 100644
+--- a/src/cmd/compile/internal/ssa/check.go
++++ b/src/cmd/compile/internal/ssa/check.go
+@@ -141,7 +141,7 @@ func checkFunc(f *Func) {
+ 					f.Fatalf("bad int32 AuxInt value for %v", v)
+ 				}
+ 				canHaveAuxInt = true
+-			case auxInt64, auxFloat64:
++			case auxInt64, auxFloat64, auxARM64BitField:
+ 				canHaveAuxInt = true
+ 			case auxInt128:
+ 				// AuxInt must be zero, so leave canHaveAuxInt set to false.
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64Ops.go b/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
+index 51a610fc76..4e18fb0f76 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
+@@ -338,17 +338,17 @@ func init() {
+ 		// bitfield ops
+ 		// for all bitfield ops lsb is auxInt>>8, width is auxInt&0xff
+ 		// insert low width bits of arg1 into the result starting at bit lsb, copy other bits from arg0
+-		{name: "BFI", argLength: 2, reg: gp21nog, asm: "BFI", aux: "Int64", resultInArg0: true},
++		{name: "BFI", argLength: 2, reg: gp21nog, asm: "BFI", aux: "ARM64BitField", resultInArg0: true},
+ 		// extract width bits of arg1 starting at bit lsb and insert at low end of result, copy other bits from arg0
+-		{name: "BFXIL", argLength: 2, reg: gp21nog, asm: "BFXIL", aux: "Int64", resultInArg0: true},
++		{name: "BFXIL", argLength: 2, reg: gp21nog, asm: "BFXIL", aux: "ARM64BitField", resultInArg0: true},
+ 		// insert low width bits of arg0 into the result starting at bit lsb, bits to the left of the inserted bit field are set to the high/sign bit of the inserted bit field, bits to the right are zeroed
+-		{name: "SBFIZ", argLength: 1, reg: gp11, asm: "SBFIZ", aux: "Int64"},
++		{name: "SBFIZ", argLength: 1, reg: gp11, asm: "SBFIZ", aux: "ARM64BitField"},
+ 		// extract width bits of arg0 starting at bit lsb and insert at low end of result, remaining high bits are set to the high/sign bit of the extracted bitfield
+-		{name: "SBFX", argLength: 1, reg: gp11, asm: "SBFX", aux: "Int64"},
++		{name: "SBFX", argLength: 1, reg: gp11, asm: "SBFX", aux: "ARM64BitField"},
+ 		// insert low width bits of arg0 into the result starting at bit lsb, bits to the left and right of the inserted bit field are zeroed
+-		{name: "UBFIZ", argLength: 1, reg: gp11, asm: "UBFIZ", aux: "Int64"},
++		{name: "UBFIZ", argLength: 1, reg: gp11, asm: "UBFIZ", aux: "ARM64BitField"},
+ 		// extract width bits of arg0 starting at bit lsb and insert at low end of result, remaining high bits are zeroed
+-		{name: "UBFX", argLength: 1, reg: gp11, asm: "UBFX", aux: "Int64"},
++		{name: "UBFX", argLength: 1, reg: gp11, asm: "UBFX", aux: "ARM64BitField"},
+ 
+ 		// moves
+ 		{name: "MOVDconst", argLength: 0, reg: gp01, aux: "Int64", asm: "MOVD", typ: "UInt64", rematerializeable: true},      // 32 low bits of auxint
+diff --git a/src/cmd/compile/internal/ssa/gen/rulegen.go b/src/cmd/compile/internal/ssa/gen/rulegen.go
+index 4f404af8e7..2a10f2fa25 100644
+--- a/src/cmd/compile/internal/ssa/gen/rulegen.go
++++ b/src/cmd/compile/internal/ssa/gen/rulegen.go
+@@ -1298,7 +1298,7 @@ func parseValue(val string, arch arch, loc string) (op opData, oparch, typ, auxi
+ 
+ func opHasAuxInt(op opData) bool {
+ 	switch op.aux {
+-	case "Bool", "Int8", "Int16", "Int32", "Int64", "Int128", "Float32", "Float64", "SymOff", "SymValAndOff", "TypSize":
++	case "Bool", "Int8", "Int16", "Int32", "Int64", "Int128", "Float32", "Float64", "SymOff", "SymValAndOff", "TypSize", "ARM64BitField":
+ 		return true
+ 	}
+ 	return false
+diff --git a/src/cmd/compile/internal/ssa/op.go b/src/cmd/compile/internal/ssa/op.go
+index ec9e7863a0..c32f5c730e 100644
+--- a/src/cmd/compile/internal/ssa/op.go
++++ b/src/cmd/compile/internal/ssa/op.go
+@@ -68,23 +68,24 @@ type regInfo struct {
+ type auxType int8
+ 
+ const (
+-	auxNone         auxType = iota
+-	auxBool                 // auxInt is 0/1 for false/true
+-	auxInt8                 // auxInt is an 8-bit integer
+-	auxInt16                // auxInt is a 16-bit integer
+-	auxInt32                // auxInt is a 32-bit integer
+-	auxInt64                // auxInt is a 64-bit integer
+-	auxInt128               // auxInt represents a 128-bit integer.  Always 0.
+-	auxFloat32              // auxInt is a float32 (encoded with math.Float64bits)
+-	auxFloat64              // auxInt is a float64 (encoded with math.Float64bits)
+-	auxString               // aux is a string
+-	auxSym                  // aux is a symbol (a *gc.Node for locals or an *obj.LSym for globals)
+-	auxSymOff               // aux is a symbol, auxInt is an offset
+-	auxSymValAndOff         // aux is a symbol, auxInt is a ValAndOff
+-	auxTyp                  // aux is a type
+-	auxTypSize              // aux is a type, auxInt is a size, must have Aux.(Type).Size() == AuxInt
+-	auxCCop                 // aux is a ssa.Op that represents a flags-to-bool conversion (e.g. LessThan)
+-	auxArchSpecific         // aux type is specific to a particular backend (see the relevant op for the actual type)
++	auxNone          auxType = iota
++	auxBool                  // auxInt is 0/1 for false/true
++	auxInt8                  // auxInt is an 8-bit integer
++	auxInt16                 // auxInt is a 16-bit integer
++	auxInt32                 // auxInt is a 32-bit integer
++	auxInt64                 // auxInt is a 64-bit integer
++	auxInt128                // auxInt represents a 128-bit integer.  Always 0.
++	auxFloat32               // auxInt is a float32 (encoded with math.Float64bits)
++	auxFloat64               // auxInt is a float64 (encoded with math.Float64bits)
++	auxString                // aux is a string
++	auxSym                   // aux is a symbol (a *gc.Node for locals or an *obj.LSym for globals)
++	auxSymOff                // aux is a symbol, auxInt is an offset
++	auxSymValAndOff          // aux is a symbol, auxInt is a ValAndOff
++	auxTyp                   // aux is a type
++	auxTypSize               // aux is a type, auxInt is a size, must have Aux.(Type).Size() == AuxInt
++	auxCCop                  // aux is a ssa.Op that represents a flags-to-bool conversion (e.g. LessThan)
++	auxARM64BitField         // aux is an arm64 bitfield lsb and width packed into auxint
++	auxArchSpecific          // aux type is specific to a particular backend (see the relevant op for the actual type)
+ )
+ 
+ // A SymEffect describes the effect that an SSA Value has on the variable
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index b951065e7c..1111316d9b 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -17359,7 +17359,7 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name:         "BFI",
+-		auxType:      auxInt64,
++		auxType:      auxARM64BitField,
+ 		argLen:       2,
+ 		resultInArg0: true,
+ 		asm:          arm64.ABFI,
+@@ -17375,7 +17375,7 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name:         "BFXIL",
+-		auxType:      auxInt64,
++		auxType:      auxARM64BitField,
+ 		argLen:       2,
+ 		resultInArg0: true,
+ 		asm:          arm64.ABFXIL,
+@@ -17391,7 +17391,7 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name:    "SBFIZ",
+-		auxType: auxInt64,
++		auxType: auxARM64BitField,
+ 		argLen:  1,
+ 		asm:     arm64.ASBFIZ,
+ 		reg: regInfo{
+@@ -17405,7 +17405,7 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name:    "SBFX",
+-		auxType: auxInt64,
++		auxType: auxARM64BitField,
+ 		argLen:  1,
+ 		asm:     arm64.ASBFX,
+ 		reg: regInfo{
+@@ -17419,7 +17419,7 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name:    "UBFIZ",
+-		auxType: auxInt64,
++		auxType: auxARM64BitField,
+ 		argLen:  1,
+ 		asm:     arm64.AUBFIZ,
+ 		reg: regInfo{
+@@ -17433,7 +17433,7 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name:    "UBFX",
+-		auxType: auxInt64,
++		auxType: auxARM64BitField,
+ 		argLen:  1,
+ 		asm:     arm64.AUBFX,
+ 		reg: regInfo{
+diff --git a/src/cmd/compile/internal/ssa/value.go b/src/cmd/compile/internal/ssa/value.go
+index c08eba3d44..b877220211 100644
+--- a/src/cmd/compile/internal/ssa/value.go
++++ b/src/cmd/compile/internal/ssa/value.go
+@@ -175,6 +175,10 @@ func (v *Value) auxString() string {
+ 		return fmt.Sprintf(" [%d]", v.AuxInt32())
+ 	case auxInt64, auxInt128:
+ 		return fmt.Sprintf(" [%d]", v.AuxInt)
++	case auxARM64BitField:
++		lsb := getARM64BFlsb(v.AuxInt)
++		width := getARM64BFwidth(v.AuxInt)
++		return fmt.Sprintf(" [lsb=%d,width=%d]", lsb, width)
+ 	case auxFloat32, auxFloat64:
+ 		return fmt.Sprintf(" [%g]", v.AuxFloat())
+ 	case auxString:

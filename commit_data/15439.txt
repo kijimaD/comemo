@@ -13,10 +13,173 @@ Date:   Mon Feb 25 20:43:35 2013 -0800
     R=adonovan, r
     CC=golang-dev
     https://golang.org/cl/7379052
-
+---
  src/pkg/go/types/expr.go             |  7 +++++--
  src/pkg/go/types/objects.go          | 23 ++++++++++++++++++++---
  src/pkg/go/types/resolve.go          | 27 +++++++++++++++++++++++----
  src/pkg/go/types/testdata/decls0.src | 10 ++++++++++
  src/pkg/go/types/testdata/decls1.src |  2 +-
  5 files changed, 59 insertions(+), 10 deletions(-)
+
+diff --git a/src/pkg/go/types/expr.go b/src/pkg/go/types/expr.go
+index 9d43a887bf..c1eddda77b 100644
+--- a/src/pkg/go/types/expr.go
++++ b/src/pkg/go/types/expr.go
+@@ -900,8 +900,11 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
+ 		if ident, ok := e.X.(*ast.Ident); ok {
+ 			if pkg, ok := check.lookup(ident).(*Package); ok {
+ 				exp := pkg.Scope.Lookup(sel)
+-				if exp == nil {
+-					check.errorf(e.Sel.Pos(), "cannot refer to unexported %s", sel)
++				// gcimported package scopes contain non-exported
++				// objects such as types used in partially exported
++				// objects - do not accept them
++				if exp == nil || !ast.IsExported(exp.GetName()) {
++					check.errorf(e.Pos(), "cannot refer to unexported %s", e)
+ 					goto Error
+ 				}
+ 				check.register(e.Sel, exp)
+diff --git a/src/pkg/go/types/objects.go b/src/pkg/go/types/objects.go
+index a3f86a9908..c2f4675216 100644
+--- a/src/pkg/go/types/objects.go
++++ b/src/pkg/go/types/objects.go
+@@ -89,7 +89,13 @@ func (obj *TypeName) GetType() Type { return obj.Type }
+ func (obj *Var) GetType() Type      { return obj.Type }
+ func (obj *Func) GetType() Type     { return obj.Type }
+ 
+-func (obj *Package) GetPos() token.Pos { return obj.spec.Pos() }
++func (obj *Package) GetPos() token.Pos {
++	if obj.spec != nil {
++		return obj.spec.Pos()
++	}
++	return token.NoPos
++}
++
+ func (obj *Const) GetPos() token.Pos {
+ 	for _, n := range obj.spec.Names {
+ 		if n.Name == obj.Name {
+@@ -98,7 +104,13 @@ func (obj *Const) GetPos() token.Pos {
+ 	}
+ 	return token.NoPos
+ }
+-func (obj *TypeName) GetPos() token.Pos { return obj.spec.Pos() }
++func (obj *TypeName) GetPos() token.Pos {
++	if obj.spec != nil {
++		return obj.spec.Pos()
++	}
++	return token.NoPos
++}
++
+ func (obj *Var) GetPos() token.Pos {
+ 	switch d := obj.decl.(type) {
+ 	case *ast.Field:
+@@ -122,7 +134,12 @@ func (obj *Var) GetPos() token.Pos {
+ 	}
+ 	return token.NoPos
+ }
+-func (obj *Func) GetPos() token.Pos { return obj.decl.Name.Pos() }
++func (obj *Func) GetPos() token.Pos {
++	if obj.decl != nil && obj.decl.Name != nil {
++		return obj.decl.Name.Pos()
++	}
++	return token.NoPos
++}
+ 
+ func (*Package) anObject()  {}
+ func (*Const) anObject()    {}
+diff --git a/src/pkg/go/types/resolve.go b/src/pkg/go/types/resolve.go
+index 703a9c36b5..43db60708f 100644
+--- a/src/pkg/go/types/resolve.go
++++ b/src/pkg/go/types/resolve.go
+@@ -11,7 +11,7 @@ import (
+ 	"strconv"
+ )
+ 
+-func (check *checker) declareObj(scope, altScope *Scope, obj Object) {
++func (check *checker) declareObj(scope, altScope *Scope, obj Object, dotImport token.Pos) {
+ 	alt := scope.Insert(obj)
+ 	if alt == nil && altScope != nil {
+ 		// see if there is a conflicting declaration in altScope
+@@ -19,8 +19,22 @@ func (check *checker) declareObj(scope, altScope *Scope, obj Object) {
+ 	}
+ 	if alt != nil {
+ 		prevDecl := ""
++
++		// for dot-imports, local declarations are declared first - swap messages
++		if dotImport.IsValid() {
++			if pos := alt.GetPos(); pos.IsValid() {
++				check.errorf(pos, fmt.Sprintf("%s redeclared in this block by dot-import at %s",
++					obj.GetName(), check.fset.Position(dotImport)))
++				return
++			}
++
++			// get by w/o other position
++			check.errorf(dotImport, fmt.Sprintf("dot-import redeclares %s", obj.GetName()))
++			return
++		}
++
+ 		if pos := alt.GetPos(); pos.IsValid() {
+-			prevDecl = fmt.Sprintf("\n\tprevious declaration at %s", check.fset.Position(pos))
++			prevDecl = fmt.Sprintf("\n\tother declaration at %s", check.fset.Position(pos))
+ 		}
+ 		check.errorf(obj.GetPos(), fmt.Sprintf("%s redeclared in this block%s", obj.GetName(), prevDecl))
+ 	}
+@@ -137,7 +151,12 @@ func (check *checker) resolve(importer Importer) (methods []*ast.FuncDecl) {
+ 			if name == "." {
+ 				// merge imported scope with file scope
+ 				for _, obj := range imp.Scope.Entries {
+-					check.declareObj(fileScope, pkg.Scope, obj)
++					// gcimported package scopes contain non-exported
++					// objects such as types used in partially exported
++					// objects - do not accept them
++					if ast.IsExported(obj.GetName()) {
++						check.declareObj(fileScope, pkg.Scope, obj, spec.Pos())
++					}
+ 				}
+ 				// TODO(gri) consider registering the "." identifier
+ 				// if we have Context.Ident callbacks for say blank
+@@ -149,7 +168,7 @@ func (check *checker) resolve(importer Importer) (methods []*ast.FuncDecl) {
+ 				// a new object instead; the Decl field is different
+ 				// for different files)
+ 				obj := &Package{Name: name, Scope: imp.Scope, spec: spec}
+-				check.declareObj(fileScope, pkg.Scope, obj)
++				check.declareObj(fileScope, pkg.Scope, obj, token.NoPos)
+ 			}
+ 		}
+ 
+diff --git a/src/pkg/go/types/testdata/decls0.src b/src/pkg/go/types/testdata/decls0.src
+index 33d4b38014..f0115bd9d5 100644
+--- a/src/pkg/go/types/testdata/decls0.src
++++ b/src/pkg/go/types/testdata/decls0.src
+@@ -11,8 +11,18 @@ import (
+ 	// we can have multiple blank imports (was bug)
+ 	_ "math"
+ 	_ "net/rpc"
++	// reflect defines a type "flag" which shows up in the gc export data
++	"reflect"
++	. "reflect"
+ )
+ 
++// reflect.flag must not be visible in this package
++type flag int
++type _ reflect /* ERROR "cannot refer to unexported" */ .flag
++
++// dot-imported exported objects may conflict with local objects
++type Value /* ERROR "redeclared in this block by dot-import" */ struct{}
++
+ const pi = 3.1415
+ 
+ type (
+diff --git a/src/pkg/go/types/testdata/decls1.src b/src/pkg/go/types/testdata/decls1.src
+index dd63ba9809..f59d676e2e 100644
+--- a/src/pkg/go/types/testdata/decls1.src
++++ b/src/pkg/go/types/testdata/decls1.src
+@@ -64,7 +64,7 @@ var (
+ 	t13 int = a /* ERROR "shifted operand" */ << d
+ 	t14 int = i << j /* ERROR "must be unsigned" */ 
+ 	t15 math /* ERROR "not in selector" */
+-	t16 math.xxx /* ERROR "unexported" */
++	t16 math /* ERROR "unexported" */ .xxx
+ 	t17 math /* ERROR "not a type" */ .Pi
+ 	t18 float64 = math.Pi * 10.0
+ 	t19 int = t1 /* ERROR "cannot call" */ ()

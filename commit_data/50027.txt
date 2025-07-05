@@ -15,7 +15,58 @@ Date:   Mon Sep 27 13:52:53 2021 -0400
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/internal/goobj/objfile.go |  2 --
  src/cmd/internal/obj/objfile.go   | 19 -------------------
  2 files changed, 21 deletions(-)
+
+diff --git a/src/cmd/internal/goobj/objfile.go b/src/cmd/internal/goobj/objfile.go
+index 20bf0eba89..fc6dbb8af6 100644
+--- a/src/cmd/internal/goobj/objfile.go
++++ b/src/cmd/internal/goobj/objfile.go
+@@ -100,7 +100,6 @@ import (
+ //    }
+ //
+ //    Data   [...]byte
+-//    Pcdata [...]byte
+ //
+ //    // blocks only used by tools (objdump, nm)
+ //
+@@ -204,7 +203,6 @@ const (
+ 	BlkReloc
+ 	BlkAux
+ 	BlkData
+-	BlkPcdata
+ 	BlkRefName
+ 	BlkEnd
+ 	NBlk
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index 8a094df91a..3e5cf0e243 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -193,25 +193,6 @@ func WriteObjFile(ctxt *Link, b *bio.Writer) {
+ 		}
+ 	}
+ 
+-	// Pcdata
+-	h.Offsets[goobj.BlkPcdata] = w.Offset()
+-	for _, s := range ctxt.Text { // iteration order must match genFuncInfoSyms
+-		// Because of the phase order, it's possible that we try to write an invalid
+-		// object file, and the Pcln variables haven't been filled in. As such, we
+-		// need to check that Pcsp exists, and assume the other pcln variables exist
+-		// as well. Tests like test/fixedbugs/issue22200.go demonstrate this issue.
+-		if fn := s.Func(); fn != nil && fn.Pcln.Pcsp != nil {
+-			pc := &fn.Pcln
+-			w.Bytes(pc.Pcsp.P)
+-			w.Bytes(pc.Pcfile.P)
+-			w.Bytes(pc.Pcline.P)
+-			w.Bytes(pc.Pcinline.P)
+-			for i := range pc.Pcdata {
+-				w.Bytes(pc.Pcdata[i].P)
+-			}
+-		}
+-	}
+-
+ 	// Blocks used only by tools (objdump, nm).
+ 
+ 	// Referenced symbol names from other packages

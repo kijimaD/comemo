@@ -9,9 +9,123 @@ Date:   Tue Dec 17 16:55:06 2013 -0800
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/23310043
-
+---
  src/cmd/gc/builtin.c    |  4 ++--
  src/cmd/gc/runtime.go   |  4 ++--
  src/cmd/gc/walk.c       | 15 ++++++++++++++-
  src/pkg/runtime/iface.c | 31 ++++++++++---------------------
  4 files changed, 28 insertions(+), 26 deletions(-)
+
+diff --git a/src/cmd/gc/builtin.c b/src/cmd/gc/builtin.c
+index f88659ee00..1b0297d7ca 100644
+--- a/src/cmd/gc/builtin.c
++++ b/src/cmd/gc/builtin.c
+@@ -42,8 +42,8 @@ char *runtimeimport =
+ 	"func @\"\".typ2Itab (@\"\".typ·2 *byte, @\"\".typ2·3 *byte, @\"\".cache·4 **byte) (@\"\".ret·1 *byte)\n"
+ 	"func @\"\".convI2E (@\"\".elem·2 any) (@\"\".ret·1 any)\n"
+ 	"func @\"\".convI2I (@\"\".typ·2 *byte, @\"\".elem·3 any) (@\"\".ret·1 any)\n"
+-	"func @\"\".convT2E (@\"\".typ·2 *byte, @\"\".elem·3 any) (@\"\".ret·1 any)\n"
+-	"func @\"\".convT2I (@\"\".typ·2 *byte, @\"\".typ2·3 *byte, @\"\".cache·4 **byte, @\"\".elem·5 any) (@\"\".ret·1 any)\n"
++	"func @\"\".convT2E (@\"\".typ·2 *byte, @\"\".elem·3 *any) (@\"\".ret·1 any)\n"
++	"func @\"\".convT2I (@\"\".typ·2 *byte, @\"\".typ2·3 *byte, @\"\".cache·4 **byte, @\"\".elem·5 *any) (@\"\".ret·1 any)\n"
+ 	"func @\"\".assertE2E (@\"\".typ·2 *byte, @\"\".iface·3 any) (@\"\".ret·1 any)\n"
+ 	"func @\"\".assertE2E2 (@\"\".typ·3 *byte, @\"\".iface·4 any) (@\"\".ret·1 any, @\"\".ok·2 bool)\n"
+ 	"func @\"\".assertE2I (@\"\".typ·2 *byte, @\"\".iface·3 any) (@\"\".ret·1 any)\n"
+diff --git a/src/cmd/gc/runtime.go b/src/cmd/gc/runtime.go
+index 662eb8251f..852a545a91 100644
+--- a/src/cmd/gc/runtime.go
++++ b/src/cmd/gc/runtime.go
+@@ -58,8 +58,8 @@ func slicestringcopy(to any, fr any) int
+ func typ2Itab(typ *byte, typ2 *byte, cache **byte) (ret *byte)
+ func convI2E(elem any) (ret any)
+ func convI2I(typ *byte, elem any) (ret any)
+-func convT2E(typ *byte, elem any) (ret any)
+-func convT2I(typ *byte, typ2 *byte, cache **byte, elem any) (ret any)
++func convT2E(typ *byte, elem *any) (ret any)
++func convT2I(typ *byte, typ2 *byte, cache **byte, elem *any) (ret any)
+ 
+ // interface type assertions  x.(T)
+ func assertE2E(typ *byte, iface any) (ret any)
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 590909f234..d28495d0b7 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -898,7 +898,20 @@ walkexpr(Node **np, NodeList **init)
+ 				goto ret;
+ 			}
+ 		}
+-		ll = list(ll, n->left);
++		if(isinter(n->left->type)) {
++			ll = list(ll, n->left);
++		} else {
++			// regular types are passed by reference to avoid C vararg calls
++			if(islvalue(n->left)) {
++				ll = list(ll, nod(OADDR, n->left, N));
++			} else {
++				var = temp(n->left->type);
++				n1 = nod(OAS, var, n->left);
++				typecheck(&n1, Etop);
++				*init = list(*init, n1);
++				ll = list(ll, nod(OADDR, var, N));
++			}
++		}
+ 		argtype(fn, n->left->type);
+ 		argtype(fn, n->type);
+ 		dowidth(fn->type);
+diff --git a/src/pkg/runtime/iface.c b/src/pkg/runtime/iface.c
+index ecbdcc7077..723d8ebd1d 100644
+--- a/src/pkg/runtime/iface.c
++++ b/src/pkg/runtime/iface.c
+@@ -183,42 +183,31 @@ runtime·typ2Itab(Type *t, InterfaceType *inter, Itab **cache, Itab *ret)
+ 	FLUSH(&ret);
+ }
+ 
+-// func convT2I(typ *byte, typ2 *byte, cache **byte, elem any) (ret any)
++// func convT2I(typ *byte, typ2 *byte, cache **byte, elem *any) (ret any)
+ #pragma textflag NOSPLIT
+ void
+-runtime·convT2I(Type *t, InterfaceType *inter, Itab **cache, ...)
++runtime·convT2I(Type *t, InterfaceType *inter, Itab **cache, byte *elem, Iface ret)
+ {
+-	byte *elem;
+-	Iface *ret;
+ 	Itab *tab;
+-	int32 wid;
+ 
+-	elem = (byte*)(&cache+1);
+-	wid = t->size;
+-	ret = (Iface*)(elem + ROUND(wid, Structrnd));
+ 	tab = runtime·atomicloadp(cache);
+ 	if(!tab) {
+ 		tab = itab(inter, t, 0);
+ 		runtime·atomicstorep(cache, tab);
+ 	}
+-	ret->tab = tab;
+-	copyin(t, elem, &ret->data);
++	ret.tab = tab;
++	copyin(t, elem, &ret.data);
++	FLUSH(&ret);
+ }
+ 
+-// func convT2E(typ *byte, elem any) (ret any)
++// func convT2E(typ *byte, elem *any) (ret any)
+ #pragma textflag NOSPLIT
+ void
+-runtime·convT2E(Type *t, ...)
++runtime·convT2E(Type *t, byte *elem, Eface ret)
+ {
+-	byte *elem;
+-	Eface *ret;
+-	int32 wid;
+-
+-	elem = (byte*)(&t+1);
+-	wid = t->size;
+-	ret = (Eface*)(elem + ROUND(wid, Structrnd));
+-	ret->type = t;
+-	copyin(t, elem, &ret->data);
++	ret.type = t;
++	copyin(t, elem, &ret.data);
++	FLUSH(&ret);
+ }
+ 
+ static void assertI2Tret(Type *t, Iface i, byte *ret);

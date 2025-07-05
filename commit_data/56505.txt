@@ -40,6 +40,119 @@ Date:   Thu May 11 11:54:28 2023 +0000
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/net/hosts.go | 79 ++++++++++++++++++++++++++++++--------------------------
  1 file changed, 43 insertions(+), 36 deletions(-)
+
+diff --git a/src/net/hosts.go b/src/net/hosts.go
+index 8b954188bf..56e6674144 100644
+--- a/src/net/hosts.go
++++ b/src/net/hosts.go
+@@ -5,7 +5,9 @@
+ package net
+ 
+ import (
++	"errors"
+ 	"internal/bytealg"
++	"io/fs"
+ 	"net/netip"
+ 	"sync"
+ 	"time"
+@@ -63,48 +65,54 @@ func readHosts() {
+ 	hs := make(map[string]byName)
+ 	is := make(map[string][]string)
+ 
+-	var file *file
+-	if file, _ = open(hp); file == nil {
+-		return
+-	}
+-	for line, ok := file.readLine(); ok; line, ok = file.readLine() {
+-		if i := bytealg.IndexByteString(line, '#'); i >= 0 {
+-			// Discard comments.
+-			line = line[0:i]
+-		}
+-		f := getFields(line)
+-		if len(f) < 2 {
+-			continue
+-		}
+-		addr := parseLiteralIP(f[0])
+-		if addr == "" {
+-			continue
++	file, err := open(hp)
++	if err != nil {
++		if !errors.Is(err, fs.ErrNotExist) && !errors.Is(err, fs.ErrPermission) {
++			return
+ 		}
++	}
+ 
+-		var canonical string
+-		for i := 1; i < len(f); i++ {
+-			name := absDomainName(f[i])
+-			h := []byte(f[i])
+-			lowerASCIIBytes(h)
+-			key := absDomainName(string(h))
+-
+-			if i == 1 {
+-				canonical = key
++	if file != nil {
++		defer file.close()
++		for line, ok := file.readLine(); ok; line, ok = file.readLine() {
++			if i := bytealg.IndexByteString(line, '#'); i >= 0 {
++				// Discard comments.
++				line = line[0:i]
++			}
++			f := getFields(line)
++			if len(f) < 2 {
++				continue
++			}
++			addr := parseLiteralIP(f[0])
++			if addr == "" {
++				continue
+ 			}
+ 
+-			is[addr] = append(is[addr], name)
++			var canonical string
++			for i := 1; i < len(f); i++ {
++				name := absDomainName(f[i])
++				h := []byte(f[i])
++				lowerASCIIBytes(h)
++				key := absDomainName(string(h))
+ 
+-			if v, ok := hs[key]; ok {
+-				hs[key] = byName{
+-					addrs:         append(v.addrs, addr),
+-					canonicalName: v.canonicalName,
++				if i == 1 {
++					canonical = key
+ 				}
+-				continue
+-			}
+ 
+-			hs[key] = byName{
+-				addrs:         []string{addr},
+-				canonicalName: canonical,
++				is[addr] = append(is[addr], name)
++
++				if v, ok := hs[key]; ok {
++					hs[key] = byName{
++						addrs:         append(v.addrs, addr),
++						canonicalName: v.canonicalName,
++					}
++					continue
++				}
++
++				hs[key] = byName{
++					addrs:         []string{addr},
++					canonicalName: canonical,
++				}
+ 			}
+ 		}
+ 	}
+@@ -115,7 +123,6 @@ func readHosts() {
+ 	hosts.byAddr = is
+ 	hosts.mtime = mtime
+ 	hosts.size = size
+-	file.close()
+ }
+ 
+ // lookupStaticHost looks up the addresses and the canonical name for the given host from /etc/hosts.

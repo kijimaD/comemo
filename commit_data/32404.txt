@@ -14,10 +14,221 @@ Date:   Fri Apr 21 19:16:15 2017 -0700
     Reviewed-on: https://go-review.googlesource.com/41491
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/reflect.go    |  4 ++--
  src/cmd/compile/internal/gc/ssa.go        | 21 +++++----------------
  src/cmd/compile/internal/gc/universe.go   | 14 ++++----------
  src/cmd/compile/internal/ssa/decompose.go | 16 ++++++----------
  src/cmd/compile/internal/ssa/opt.go       |  2 +-
  5 files changed, 18 insertions(+), 39 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index 80404df126..6db48a4fb9 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -1185,7 +1185,7 @@ ok:
+ 		}
+ 		ot = dgopkgpath(lsym, ot, tpkg)
+ 
+-		ot = dsymptr(lsym, ot, lsym, ot+Widthptr+2*Widthptr+uncommonSize(t))
++		ot = dsymptr(lsym, ot, lsym, ot+3*Widthptr+uncommonSize(t))
+ 		ot = duintptr(lsym, ot, uint64(n))
+ 		ot = duintptr(lsym, ot, uint64(n))
+ 		dataAdd := imethodSize() * n
+@@ -1277,7 +1277,7 @@ ok:
+ 			}
+ 		}
+ 		ot = dgopkgpath(lsym, ot, pkg)
+-		ot = dsymptr(lsym, ot, lsym, ot+Widthptr+2*Widthptr+uncommonSize(t))
++		ot = dsymptr(lsym, ot, lsym, ot+3*Widthptr+uncommonSize(t))
+ 		ot = duintptr(lsym, ot, uint64(n))
+ 		ot = duintptr(lsym, ot, uint64(n))
+ 
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index a56c25bef9..356a61e711 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -1602,12 +1602,12 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 
+ 		if ft.IsFloat() || tt.IsFloat() {
+ 			conv, ok := fpConvOpToSSA[twoTypes{s.concreteEtype(ft), s.concreteEtype(tt)}]
+-			if s.config.PtrSize == 4 && thearch.LinkArch.Name != "amd64p32" && thearch.LinkArch.Family != sys.MIPS {
++			if s.config.RegSize == 4 && thearch.LinkArch.Family != sys.MIPS {
+ 				if conv1, ok1 := fpConvOpToSSA32[twoTypes{s.concreteEtype(ft), s.concreteEtype(tt)}]; ok1 {
+ 					conv = conv1
+ 				}
+ 			}
+-			if thearch.LinkArch.Name == "arm64" {
++			if thearch.LinkArch.Family == sys.ARM64 {
+ 				if conv1, ok1 := uint64fpConvOpToSSA[twoTypes{s.concreteEtype(ft), s.concreteEtype(tt)}]; ok1 {
+ 					conv = conv1
+ 				}
+@@ -2494,17 +2494,10 @@ func init() {
+ 	intrinsics = map[intrinsicKey]intrinsicBuilder{}
+ 
+ 	var all []*sys.Arch
+-	var i4 []*sys.Arch
+-	var i8 []*sys.Arch
+ 	var p4 []*sys.Arch
+ 	var p8 []*sys.Arch
+ 	for _, a := range sys.Archs {
+ 		all = append(all, a)
+-		if a.PtrSize == 4 {
+-			i4 = append(i4, a)
+-		} else {
+-			i8 = append(i8, a)
+-		}
+ 		if a.PtrSize == 4 {
+ 			p4 = append(p4, a)
+ 		} else {
+@@ -2689,8 +2682,8 @@ func init() {
+ 
+ 	alias("runtime/internal/atomic", "Loadint64", "runtime/internal/atomic", "Load64", all...)
+ 	alias("runtime/internal/atomic", "Xaddint64", "runtime/internal/atomic", "Xadd64", all...)
+-	alias("runtime/internal/atomic", "Loaduint", "runtime/internal/atomic", "Load", i4...)
+-	alias("runtime/internal/atomic", "Loaduint", "runtime/internal/atomic", "Load64", i8...)
++	alias("runtime/internal/atomic", "Loaduint", "runtime/internal/atomic", "Load", p4...)
++	alias("runtime/internal/atomic", "Loaduint", "runtime/internal/atomic", "Load64", p8...)
+ 	alias("runtime/internal/atomic", "Loaduintptr", "runtime/internal/atomic", "Load", p4...)
+ 	alias("runtime/internal/atomic", "Loaduintptr", "runtime/internal/atomic", "Load64", p8...)
+ 	alias("runtime/internal/atomic", "Storeuintptr", "runtime/internal/atomic", "Store", p4...)
+@@ -3476,11 +3469,7 @@ func (s *state) rtcall(fn *obj.LSym, returns bool, results []*types.Type, args .
+ 		s.vars[&memVar] = s.newValue3A(ssa.OpStore, ssa.TypeMem, t, ptr, arg, s.mem())
+ 		off += size
+ 	}
+-	off = Rnd(off, int64(Widthptr))
+-	if thearch.LinkArch.Name == "amd64p32" {
+-		// amd64p32 wants 8-byte alignment of the start of the return values.
+-		off = Rnd(off, 8)
+-	}
++	off = Rnd(off, int64(Widthreg))
+ 
+ 	// Issue call
+ 	call := s.newValue1A(ssa.OpStaticCall, ssa.TypeMem, fn, s.mem())
+diff --git a/src/cmd/compile/internal/gc/universe.go b/src/cmd/compile/internal/gc/universe.go
+index 1a6dcf487d..7a098c7800 100644
+--- a/src/cmd/compile/internal/gc/universe.go
++++ b/src/cmd/compile/internal/gc/universe.go
+@@ -36,13 +36,12 @@ var basicTypes = [...]struct {
+ var typedefs = [...]struct {
+ 	name     string
+ 	etype    types.EType
+-	width    *int
+ 	sameas32 types.EType
+ 	sameas64 types.EType
+ }{
+-	{"int", TINT, &Widthptr, TINT32, TINT64},
+-	{"uint", TUINT, &Widthptr, TUINT32, TUINT64},
+-	{"uintptr", TUINTPTR, &Widthptr, TUINT32, TUINT64},
++	{"int", TINT, TINT32, TINT64},
++	{"uint", TUINT, TUINT32, TUINT64},
++	{"uintptr", TUINTPTR, TUINT32, TUINT64},
+ }
+ 
+ var builtinFuncs = [...]struct {
+@@ -276,7 +275,6 @@ func typeinit() {
+ 
+ 	// binary
+ 	okfor[OADD] = okforadd[:]
+-
+ 	okfor[OAND] = okforand[:]
+ 	okfor[OANDAND] = okforbool[:]
+ 	okfor[OANDNOT] = okforand[:]
+@@ -298,19 +296,16 @@ func typeinit() {
+ 
+ 	// unary
+ 	okfor[OCOM] = okforand[:]
+-
+ 	okfor[OMINUS] = okforarith[:]
+ 	okfor[ONOT] = okforbool[:]
+ 	okfor[OPLUS] = okforarith[:]
+ 
+ 	// special
+ 	okfor[OCAP] = okforcap[:]
+-
+ 	okfor[OLEN] = okforlen[:]
+ 
+ 	// comparison
+ 	iscmp[OLT] = true
+-
+ 	iscmp[OGT] = true
+ 	iscmp[OGE] = true
+ 	iscmp[OLE] = true
+@@ -353,7 +348,6 @@ func typeinit() {
+ 
+ 	// simple aliases
+ 	simtype[TMAP] = types.Tptr
+-
+ 	simtype[TCHAN] = types.Tptr
+ 	simtype[TFUNC] = types.Tptr
+ 	simtype[TUNSAFEPTR] = types.Tptr
+@@ -424,7 +418,7 @@ func lexinit1() {
+ 		s1 := builtinpkg.Lookup(s.name)
+ 
+ 		sameas := s.sameas32
+-		if *s.width == 8 {
++		if Widthptr == 8 {
+ 			sameas = s.sameas64
+ 		}
+ 
+diff --git a/src/cmd/compile/internal/ssa/decompose.go b/src/cmd/compile/internal/ssa/decompose.go
+index b629a64e15..beb89e3314 100644
+--- a/src/cmd/compile/internal/ssa/decompose.go
++++ b/src/cmd/compile/internal/ssa/decompose.go
+@@ -25,7 +25,7 @@ func decomposeBuiltIn(f *Func) {
+ 	for _, name := range f.Names {
+ 		t := name.Type
+ 		switch {
+-		case t.IsInteger() && t.Size() == 8 && f.Config.PtrSize == 4:
++		case t.IsInteger() && t.Size() > f.Config.RegSize:
+ 			var elemType Type
+ 			if t.IsSigned() {
+ 				elemType = f.Config.Types.Int32
+@@ -95,8 +95,8 @@ func decomposeBuiltIn(f *Func) {
+ 			}
+ 			delete(f.NamedValues, name)
+ 		case t.IsFloat():
+-			// floats are never decomposed, even ones bigger than PtrSize
+-		case t.Size() > f.Config.PtrSize:
++			// floats are never decomposed, even ones bigger than RegSize
++		case t.Size() > f.Config.RegSize:
+ 			f.Fatalf("undecomposed named type %v %v", name, t)
+ 		default:
+ 			newNames = append(newNames, name)
+@@ -107,11 +107,7 @@ func decomposeBuiltIn(f *Func) {
+ 
+ func decomposeBuiltInPhi(v *Value) {
+ 	switch {
+-	case v.Type.IsInteger() && v.Type.Size() == 8 && v.Block.Func.Config.PtrSize == 4:
+-		if v.Block.Func.Config.arch == "amd64p32" {
+-			// Even though ints are 32 bits, we have 64-bit ops.
+-			break
+-		}
++	case v.Type.IsInteger() && v.Type.Size() > v.Block.Func.Config.RegSize:
+ 		decomposeInt64Phi(v)
+ 	case v.Type.IsComplex():
+ 		decomposeComplexPhi(v)
+@@ -122,8 +118,8 @@ func decomposeBuiltInPhi(v *Value) {
+ 	case v.Type.IsInterface():
+ 		decomposeInterfacePhi(v)
+ 	case v.Type.IsFloat():
+-		// floats are never decomposed, even ones bigger than PtrSize
+-	case v.Type.Size() > v.Block.Func.Config.PtrSize:
++		// floats are never decomposed, even ones bigger than RegSize
++	case v.Type.Size() > v.Block.Func.Config.RegSize:
+ 		v.Fatalf("undecomposed type %s", v.Type)
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/ssa/opt.go b/src/cmd/compile/internal/ssa/opt.go
+index 7703d8b704..670b535a33 100644
+--- a/src/cmd/compile/internal/ssa/opt.go
++++ b/src/cmd/compile/internal/ssa/opt.go
+@@ -11,7 +11,7 @@ func opt(f *Func) {
+ 
+ func dec(f *Func) {
+ 	applyRewrite(f, rewriteBlockdec, rewriteValuedec)
+-	if f.Config.PtrSize == 4 && f.Config.arch != "amd64p32" {
++	if f.Config.RegSize == 4 {
+ 		applyRewrite(f, rewriteBlockdec64, rewriteValuedec64)
+ 	}
+ }

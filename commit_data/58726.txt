@@ -15,6 +15,37 @@ Date:   Tue Dec 5 15:15:06 2023 -0500
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Auto-Submit: Than McIntosh <thanm@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  doc/go1.22.html | 19 +++++++++++++++++++
  1 file changed, 19 insertions(+)
+
+diff --git a/doc/go1.22.html b/doc/go1.22.html
+index 05c7cc090c..64afa898af 100644
+--- a/doc/go1.22.html
++++ b/doc/go1.22.html
+@@ -53,6 +53,25 @@ Do not send CLs removing the interior tags from such phrases.
+   <!-- cmd/go: remove conversion of legacy pre-module dependency configs -->
+ </p>
+ 
++<!-- CL 495447 -->
++<p>
++`go` `test` `-cover` now prints coverage summaries for covered
++packages that do not have their own test files. Prior to Go 1.22 a
++`go` `test` `-cover` run for such a package would report
++</p>
++
++<p>
++  <code>?     mymod/mypack    [no test files]</code>
++</p>
++
++<p>
++  and now with Go 1.22, functions in the package are treated as uncovered:
++</p>
++
++<p>
++  <code>mymod/mypack    coverage: 0.0% of statements</code>
++</p>
++
+ <h3 id="cgo">Cgo</h3>
+ 
+ <!-- https://go.dev/issue/56378 -->

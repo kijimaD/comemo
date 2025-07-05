@@ -19,6 +19,34 @@ Date:   Wed Nov 13 21:01:01 2019 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/206959
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/signal_unix.go | 11 +++++++++++
  1 file changed, 11 insertions(+)
+
+diff --git a/src/runtime/signal_unix.go b/src/runtime/signal_unix.go
+index 35e641286b..f42de36acc 100644
+--- a/src/runtime/signal_unix.go
++++ b/src/runtime/signal_unix.go
+@@ -861,11 +861,22 @@ func signalDuringFork(sig uint32) {
+ 	throw("signal received during fork")
+ }
+ 
++var badginsignalMsg = "fatal: bad g in signal handler\n"
++
+ // This runs on a foreign stack, without an m or a g. No stack split.
+ //go:nosplit
+ //go:norace
+ //go:nowritebarrierrec
+ func badsignal(sig uintptr, c *sigctxt) {
++	if !iscgo && !cgoHasExtraM {
++		// There is no extra M. needm will not be able to grab
++		// an M. Instead of hanging, just crash.
++		// Cannot call split-stack function as there is no G.
++		s := stringStructOf(&badginsignalMsg)
++		write(2, s.str, int32(s.len))
++		exit(2)
++		*(*uintptr)(unsafe.Pointer(uintptr(123))) = 2
++	}
+ 	needm(0)
+ 	if !sigsend(uint32(sig)) {
+ 		// A foreign thread received the signal sig, and the

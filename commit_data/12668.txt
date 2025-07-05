@@ -9,6 +9,26 @@ Date:   Fri Mar 16 12:05:09 2012 -0400
     R=golang-dev, bsiegert, rsc, iant
     CC=golang-dev
     https://golang.org/cl/5822050
-
+---
  src/cmd/go/build.go | 8 ++++++++
  1 file changed, 8 insertions(+)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 3246b02f35..67b682ecb7 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -1403,6 +1403,14 @@ func (b *builder) gccCmd(objdir string) []string {
+ 			a = append(a, "-pthread")
+ 		}
+ 	}
++
++	// On OS X, some of the compilers behave as if -fno-common
++	// is always set, and the Mach-O linker in 6l/8l assumes this.
++	// See http://golang.org/issue/3253.
++	if goos == "darwin" {
++		a = append(a, "-fno-common")
++	}
++
+ 	return a
+ }
+ 

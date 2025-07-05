@@ -15,7 +15,65 @@ Date:   Thu Oct 24 14:36:57 2019 +0300
     Reviewed-on: https://go-review.googlesource.com/c/go/+/203118
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/modload/import.go             | 11 +++++++++++
  src/cmd/go/testdata/script/mod_replace_import.txt | 20 ++++++++++++++++++++
  2 files changed, 31 insertions(+)
+
+diff --git a/src/cmd/go/internal/modload/import.go b/src/cmd/go/internal/modload/import.go
+index 8a18da37d5..a01ef62d55 100644
+--- a/src/cmd/go/internal/modload/import.go
++++ b/src/cmd/go/internal/modload/import.go
+@@ -237,6 +237,17 @@ func Import(path string) (m module.Version, dir string, err error) {
+ 				return m, "", &ImportMissingError{Path: path, Module: m}
+ 			}
+ 		}
++		if len(mods) > 0 && module.CheckPath(path) != nil {
++			// The package path is not valid to fetch remotely,
++			// so it can only exist if in a replaced module,
++			// and we know from the above loop that it is not.
++			return module.Version{}, "", &PackageNotInModuleError{
++				Mod:         mods[0],
++				Query:       "latest",
++				Pattern:     path,
++				Replacement: Replacement(mods[0]),
++			}
++		}
+ 	}
+ 
+ 	candidates, err := QueryPackage(path, "latest", Allowed)
+diff --git a/src/cmd/go/testdata/script/mod_replace_import.txt b/src/cmd/go/testdata/script/mod_replace_import.txt
+index 0da753a1a7..941ef61d35 100644
+--- a/src/cmd/go/testdata/script/mod_replace_import.txt
++++ b/src/cmd/go/testdata/script/mod_replace_import.txt
+@@ -23,6 +23,13 @@ stdout 'example.com/y v0.0.0-00010101000000-000000000000 => ./y'
+ stdout 'example.com/x/v3 v3.0.0-00010101000000-000000000000 => ./v3'
+ stdout 'example.com/v v1.12.0 => ./v12'
+ 
++# The go command should print an informative error when the matched
++# module does not contain a package.
++cd fail
++! go list all
++stdout 'localhost.fail'
++stderr '^can.t load package: m.go:3:8: module w@latest found \(v0.0.0-00010101000000-000000000000, replaced by ../w\), but does not contain package w$'
++
+ -- go.mod --
+ module example.com/m
+ 
+@@ -107,3 +114,16 @@ package v
+ module v.localhost
+ -- v/v.go --
+ package v
++
++-- fail/m.go --
++package main
++
++import _ "w"
++
++func main() {}
++
++-- fail/go.mod --
++module localhost.fail
++
++replace w => ../w
++

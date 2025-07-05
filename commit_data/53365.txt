@@ -16,8 +16,191 @@ Date:   Wed Jul 13 14:27:45 2022 -0400
     Run-TryBot: David Chase <drchase@google.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ssa/debug_lines_test.go | 46 +++++++++++++++---------
  src/cmd/compile/internal/ssa/testdata/b53456.go  | 19 ++++++++++
  src/cmd/compile/internal/walk/order.go           | 24 ++++++++-----
  3 files changed, 64 insertions(+), 25 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/debug_lines_test.go b/src/cmd/compile/internal/ssa/debug_lines_test.go
+index 1b564055d3..2451e2487b 100644
+--- a/src/cmd/compile/internal/ssa/debug_lines_test.go
++++ b/src/cmd/compile/internal/ssa/debug_lines_test.go
+@@ -45,28 +45,40 @@ func testGoArch() string {
+ 	return *testGoArchFlag
+ }
+ 
++func hasRegisterAbi() bool {
++	switch testGoArch() {
++	case "amd64", "arm64", "ppc64le", "riscv":
++		return true
++	}
++	return false
++}
++
++func unixOnly(t *testing.T) {
++	if runtime.GOOS != "linux" && runtime.GOOS != "darwin" { // in particular, it could be windows.
++		t.Skip("this test depends on creating a file with a wonky name, only works for sure on Linux and Darwin")
++	}
++}
++
++// testDebugLinesDefault removes the first wanted statement on architectures that are not (yet) register ABI.
++func testDebugLinesDefault(t *testing.T, gcflags, file, function string, wantStmts []int, ignoreRepeats bool) {
++	unixOnly(t)
++	if !hasRegisterAbi() {
++		wantStmts = wantStmts[1:]
++	}
++	testDebugLines(t, gcflags, file, function, wantStmts, ignoreRepeats)
++}
++
+ func TestDebugLinesSayHi(t *testing.T) {
+ 	// This test is potentially fragile, the goal is that debugging should step properly through "sayhi"
+ 	// If the blocks are reordered in a way that changes the statement order but execution flows correctly,
+ 	// then rearrange the expected numbers.  Register abi and not-register-abi also have different sequences,
+ 	// at least for now.
+ 
+-	switch testGoArch() {
+-	case "arm64", "amd64": // register ABI
+-		testDebugLines(t, "-N -l", "sayhi.go", "sayhi", []int{8, 9, 10, 11}, false)
+-
+-	case "arm", "386": // probably not register ABI for a while
+-		testDebugLines(t, "-N -l", "sayhi.go", "sayhi", []int{9, 10, 11}, false)
+-
+-	default: // expect ppc64le and riscv will pick up register ABI soonish, not sure about others
+-		t.Skip("skipped for many architectures, also changes w/ register ABI")
+-	}
++	testDebugLinesDefault(t, "-N -l", "sayhi.go", "sayhi", []int{8, 9, 10, 11}, false)
+ }
+ 
+ func TestDebugLinesPushback(t *testing.T) {
+-	if runtime.GOOS != "linux" && runtime.GOOS != "darwin" { // in particular, it could be windows.
+-		t.Skip("this test depends on creating a file with a wonky name, only works for sure on Linux and Darwin")
+-	}
++	unixOnly(t)
+ 
+ 	switch testGoArch() {
+ 	default:
+@@ -83,9 +95,7 @@ func TestDebugLinesPushback(t *testing.T) {
+ }
+ 
+ func TestDebugLinesConvert(t *testing.T) {
+-	if runtime.GOOS != "linux" && runtime.GOOS != "darwin" { // in particular, it could be windows.
+-		t.Skip("this test depends on creating a file with a wonky name, only works for sure on Linux and Darwin")
+-	}
++	unixOnly(t)
+ 
+ 	switch testGoArch() {
+ 	default:
+@@ -111,6 +121,10 @@ func TestInlineLines(t *testing.T) {
+ 	testInlineStack(t, "inline-dump.go", "f", want)
+ }
+ 
++func TestDebugLines_53456(t *testing.T) {
++	testDebugLinesDefault(t, "-N -l", "b53456.go", "(*T).Inc", []int{15, 16, 17, 18}, true)
++}
++
+ func compileAndDump(t *testing.T, file, function, moreGCFlags string) []byte {
+ 	testenv.MustHaveGoBuild(t)
+ 
+diff --git a/src/cmd/compile/internal/ssa/testdata/b53456.go b/src/cmd/compile/internal/ssa/testdata/b53456.go
+new file mode 100644
+index 0000000000..8104d3ed47
+--- /dev/null
++++ b/src/cmd/compile/internal/ssa/testdata/b53456.go
+@@ -0,0 +1,19 @@
++package main
++
++type T struct {
++	m map[int]int
++}
++
++func main() {
++	t := T{
++		m: make(map[int]int),
++	}
++	t.Inc(5)
++	t.Inc(7)
++}
++
++func (s *T) Inc(key int) {
++	v := s.m[key] // break, line 16
++	v++
++	s.m[key] = v // also here
++}
+diff --git a/src/cmd/compile/internal/walk/order.go b/src/cmd/compile/internal/walk/order.go
+index 91a2f73cc6..a1a3047c81 100644
+--- a/src/cmd/compile/internal/walk/order.go
++++ b/src/cmd/compile/internal/walk/order.go
+@@ -261,7 +261,13 @@ func (o *orderState) addrTemp(n ir.Node) ir.Node {
+ 
+ // mapKeyTemp prepares n to be a key in a map runtime call and returns n.
+ // It should only be used for map runtime calls which have *_fast* versions.
+-func (o *orderState) mapKeyTemp(t *types.Type, n ir.Node) ir.Node {
++// The first parameter is the position of n's containing node, for use in case
++// that n's position is not unique (e.g., if n is an ONAME).
++func (o *orderState) mapKeyTemp(outerPos src.XPos, t *types.Type, n ir.Node) ir.Node {
++	pos := outerPos
++	if ir.HasUniquePos(n) {
++		pos = n.Pos()
++	}
+ 	// Most map calls need to take the address of the key.
+ 	// Exception: map*_fast* calls. See golang.org/issue/19015.
+ 	alg := mapfast(t)
+@@ -285,7 +291,7 @@ func (o *orderState) mapKeyTemp(t *types.Type, n ir.Node) ir.Node {
+ 		return n
+ 	case nt.Kind() == kt.Kind(), nt.IsPtrShaped() && kt.IsPtrShaped():
+ 		// can directly convert (e.g. named type to underlying type, or one pointer to another)
+-		return typecheck.Expr(ir.NewConvExpr(n.Pos(), ir.OCONVNOP, kt, n))
++		return typecheck.Expr(ir.NewConvExpr(pos, ir.OCONVNOP, kt, n))
+ 	case nt.IsInteger() && kt.IsInteger():
+ 		// can directly convert (e.g. int32 to uint32)
+ 		if n.Op() == ir.OLITERAL && nt.IsSigned() {
+@@ -294,7 +300,7 @@ func (o *orderState) mapKeyTemp(t *types.Type, n ir.Node) ir.Node {
+ 			n.SetType(kt)
+ 			return n
+ 		}
+-		return typecheck.Expr(ir.NewConvExpr(n.Pos(), ir.OCONV, kt, n))
++		return typecheck.Expr(ir.NewConvExpr(pos, ir.OCONV, kt, n))
+ 	default:
+ 		// Unsafe cast through memory.
+ 		// We'll need to do a load with type kt. Create a temporary of type kt to
+@@ -305,9 +311,9 @@ func (o *orderState) mapKeyTemp(t *types.Type, n ir.Node) ir.Node {
+ 		tmp := o.newTemp(kt, true)
+ 		// *(*nt)(&tmp) = n
+ 		var e ir.Node = typecheck.NodAddr(tmp)
+-		e = ir.NewConvExpr(n.Pos(), ir.OCONVNOP, nt.PtrTo(), e)
+-		e = ir.NewStarExpr(n.Pos(), e)
+-		o.append(ir.NewAssignStmt(base.Pos, e, n))
++		e = ir.NewConvExpr(pos, ir.OCONVNOP, nt.PtrTo(), e)
++		e = ir.NewStarExpr(pos, e)
++		o.append(ir.NewAssignStmt(pos, e, n))
+ 		return tmp
+ 	}
+ }
+@@ -733,7 +739,7 @@ func (o *orderState) stmt(n ir.Node) {
+ 			r.Index = o.expr(r.Index, nil)
+ 			// See similar conversion for OINDEXMAP below.
+ 			_ = mapKeyReplaceStrConv(r.Index)
+-			r.Index = o.mapKeyTemp(r.X.Type(), r.Index)
++			r.Index = o.mapKeyTemp(r.Pos(), r.X.Type(), r.Index)
+ 		default:
+ 			base.Fatalf("order.stmt: %v", r.Op())
+ 		}
+@@ -813,7 +819,7 @@ func (o *orderState) stmt(n ir.Node) {
+ 		t := o.markTemp()
+ 		n.Args[0] = o.expr(n.Args[0], nil)
+ 		n.Args[1] = o.expr(n.Args[1], nil)
+-		n.Args[1] = o.mapKeyTemp(n.Args[0].Type(), n.Args[1])
++		n.Args[1] = o.mapKeyTemp(n.Pos(), n.Args[0].Type(), n.Args[1])
+ 		o.out = append(o.out, n)
+ 		o.cleanTemp(t)
+ 
+@@ -1193,7 +1199,7 @@ func (o *orderState) expr1(n, lhs ir.Node) ir.Node {
+ 		}
+ 
+ 		// key must be addressable
+-		n.Index = o.mapKeyTemp(n.X.Type(), n.Index)
++		n.Index = o.mapKeyTemp(n.Pos(), n.X.Type(), n.Index)
+ 		if needCopy {
+ 			return o.copyExpr(n)
+ 		}

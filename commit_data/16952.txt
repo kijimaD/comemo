@@ -12,6 +12,26 @@ Date:   Wed Jul 31 22:03:59 2013 +0400
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/12182043
-
+---
  src/pkg/runtime/lock_futex.c | 7 ++++++-
  1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/lock_futex.c b/src/pkg/runtime/lock_futex.c
+index 3f8d632363..bb40b92559 100644
+--- a/src/pkg/runtime/lock_futex.c
++++ b/src/pkg/runtime/lock_futex.c
+@@ -118,8 +118,13 @@ runtime·noteclear(Note *n)
+ void
+ runtime·notewakeup(Note *n)
+ {
+-	if(runtime·xchg((uint32*)&n->key, 1))
++	uint32 old;
++
++	old = runtime·xchg((uint32*)&n->key, 1);
++	if(old != 0) {
++		runtime·printf("notewakeup - double wakeup (%d)\n", old);
+ 		runtime·throw("notewakeup - double wakeup");
++	}
+ 	runtime·futexwakeup((uint32*)&n->key, 1);
+ }
+ 

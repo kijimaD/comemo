@@ -11,8 +11,91 @@ Date:   Wed Sep 3 20:47:30 2014 +0400
     R=golang-codereviews, mdempsky, khr
     CC=golang-codereviews, rsc
     https://golang.org/cl/137070043
-
+---
  src/pkg/runtime/cpuprof.go | 10 +++-------
  src/pkg/runtime/proc.c     |  8 +++++---
  src/pkg/runtime/race.c     | 10 ++++++++++
  3 files changed, 18 insertions(+), 10 deletions(-)
+
+diff --git a/src/pkg/runtime/cpuprof.go b/src/pkg/runtime/cpuprof.go
+index b397eafbe0..4325d7e1c3 100644
+--- a/src/pkg/runtime/cpuprof.go
++++ b/src/pkg/runtime/cpuprof.go
+@@ -239,9 +239,7 @@ Assoc:
+ 	// Reuse the newly evicted entry.
+ 	e.depth = uintptr(len(pc))
+ 	e.count = 1
+-	for i := range pc {
+-		e.stack[i] = pc[i]
+-	}
++	copy(e.stack[:], pc)
+ }
+ 
+ // evict copies the given entry's data into the log, so that
+@@ -266,10 +264,8 @@ func (p *cpuProfile) evict(e *cpuprofEntry) bool {
+ 	q++
+ 	log[q] = d
+ 	q++
+-	for i := uintptr(0); i < d; i++ {
+-		log[q] = e.stack[i]
+-		q++
+-	}
++	copy(log[q:], e.stack[:d])
++	q += d
+ 	p.nlog = q
+ 	e.count = 0
+ 	return true
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 53d3d23d1e..b159215d1b 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -214,7 +214,11 @@ void
+ runtime·main(void)
+ {
+ 	Defer d;
+-	
++
++	// Racectx of m0->g0 is used only as the parent of the main goroutine.
++	// It must not be used for anything else.
++	g->m->g0->racectx = 0;
++
+ 	// Max stack size is 1 GB on 64-bit, 250 MB on 32-bit.
+ 	// Using decimal instead of binary GB and MB because
+ 	// they look nicer in the stack overflow failure message.
+@@ -1166,8 +1170,6 @@ newm(void(*fn)(void), P *p)
+ 	mp = runtime·allocm(p);
+ 	mp->nextp = p;
+ 	mp->mstartfn = fn;
+-	if(raceenabled)
+-		mp->g0->racectx = runtime·racegostart(newm);
+ 
+ 	if(runtime·iscgo) {
+ 		CgoThreadStart ts;
+diff --git a/src/pkg/runtime/race.c b/src/pkg/runtime/race.c
+index a773addb07..d5e77c7568 100644
+--- a/src/pkg/runtime/race.c
++++ b/src/pkg/runtime/race.c
+@@ -153,6 +153,11 @@ runtime·racegoend(void)
+ void
+ runtime·racewriterangepc(void *addr, uintptr sz, void *callpc, void *pc)
+ {
++	if(g != g->m->curg) {
++		// The call is coming from manual instrumentation of Go code running on g0/gsignal.
++		// Not interesting.
++		return;
++	}
+ 	if(callpc != nil)
+ 		runtime·racefuncenter(callpc);
+ 	runtime·racewriterangepc1(addr, sz, pc);
+@@ -163,6 +168,11 @@ runtime·racewriterangepc(void *addr, uintptr sz, void *callpc, void *pc)
+ void
+ runtime·racereadrangepc(void *addr, uintptr sz, void *callpc, void *pc)
+ {
++	if(g != g->m->curg) {
++		// The call is coming from manual instrumentation of Go code running on g0/gsignal.
++		// Not interesting.
++		return;
++	}
+ 	if(callpc != nil)
+ 		runtime·racefuncenter(callpc);
+ 	runtime·racereadrangepc1(addr, sz, pc);

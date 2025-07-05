@@ -12,8 +12,290 @@ Date:   Thu Mar 10 17:52:57 2016 -0600
     Reviewed-by: Keith Randall <khr@golang.org>
     Run-TryBot: Todd Neal <todd@tneal.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ssa/TODO          |  1 +
  src/cmd/compile/internal/ssa/regalloc.go   | 47 ++++++++++++++++--------------
  src/cmd/compile/internal/ssa/stackalloc.go | 16 +++++-----
  3 files changed, 33 insertions(+), 31 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/TODO b/src/cmd/compile/internal/ssa/TODO
+index 84e18039c7..e081856bd3 100644
+--- a/src/cmd/compile/internal/ssa/TODO
++++ b/src/cmd/compile/internal/ssa/TODO
+@@ -45,3 +45,4 @@ Future/other
+ - Should we get rid of named types in favor of underlying types during SSA generation?
+ - Should we introduce a new type equality routine that is less strict than the frontend's?
+ - Infrastructure for enabling/disabling/configuring passes
++- Modify logging for at least pass=1, to be Warnl compatible
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index 0063dc1188..4c6a3a4d6c 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -99,8 +99,11 @@ import (
+ 	"unsafe"
+ )
+ 
+-const regDebug = false // TODO: compiler flag
+-const logSpills = false
++const (
++	logSpills = iota
++	regDebug
++	stackDebug
++)
+ 
+ // distance is a measure of how far into the future values are used.
+ // distance is measured in units of instructions.
+@@ -292,7 +295,7 @@ func (s *regAllocState) freeReg(r register) {
+ 	}
+ 
+ 	// Mark r as unused.
+-	if regDebug {
++	if s.f.pass.debug > regDebug {
+ 		fmt.Printf("freeReg %s (dump %s/%s)\n", registers[r].Name(), v, s.regs[r].c)
+ 	}
+ 	s.regs[r] = regState{}
+@@ -322,7 +325,7 @@ func (s *regAllocState) setOrig(c *Value, v *Value) {
+ // assignReg assigns register r to hold c, a copy of v.
+ // r must be unused.
+ func (s *regAllocState) assignReg(r register, v *Value, c *Value) {
+-	if regDebug {
++	if s.f.pass.debug > regDebug {
+ 		fmt.Printf("assignReg %s %s/%s\n", registers[r].Name(), v, c)
+ 	}
+ 	if s.regs[r].v != nil {
+@@ -446,7 +449,7 @@ func (s *regAllocState) allocValToReg(v *Value, mask regMask, nospill bool, line
+ 		switch {
+ 		// Load v from its spill location.
+ 		case vi.spill != nil:
+-			if logSpills {
++			if s.f.pass.debug > logSpills {
+ 				fmt.Println("regalloc: load spill")
+ 			}
+ 			c = s.curBlock.NewValue1(line, OpLoadReg, v.Type, vi.spill)
+@@ -613,7 +616,7 @@ func (s *regAllocState) regalloc(f *Func) {
+ 				liveSet.add(a.ID)
+ 			}
+ 		}
+-		if regDebug {
++		if s.f.pass.debug > regDebug {
+ 			fmt.Printf("uses for %s:%s\n", s.f.Name, b)
+ 			for i := range s.values {
+ 				vi := &s.values[i]
+@@ -679,7 +682,7 @@ func (s *regAllocState) regalloc(f *Func) {
+ 			p := b.Preds[idx]
+ 			s.setState(s.endRegs[p.ID])
+ 
+-			if regDebug {
++			if s.f.pass.debug > regDebug {
+ 				fmt.Printf("starting merge block %s with end state of %s:\n", b, p)
+ 				for _, x := range s.endRegs[p.ID] {
+ 					fmt.Printf("  %s: orig:%s cache:%s\n", registers[x.r].Name(), x.v, x.c)
+@@ -778,7 +781,7 @@ func (s *regAllocState) regalloc(f *Func) {
+ 			}
+ 			s.startRegs[b.ID] = regList
+ 
+-			if regDebug {
++			if s.f.pass.debug > regDebug {
+ 				fmt.Printf("after phis\n")
+ 				for _, x := range s.startRegs[b.ID] {
+ 					fmt.Printf("  %s: v%d\n", registers[x.r].Name(), x.vid)
+@@ -854,7 +857,7 @@ func (s *regAllocState) regalloc(f *Func) {
+ 
+ 		// Process all the non-phi values.
+ 		for _, v := range oldSched {
+-			if regDebug {
++			if s.f.pass.debug > regDebug {
+ 				fmt.Printf("  processing %s\n", v.LongString())
+ 			}
+ 			if v.Op == OpPhi {
+@@ -958,7 +961,7 @@ func (s *regAllocState) regalloc(f *Func) {
+ 
+ 		// Load control value into reg.
+ 		if v := b.Control; v != nil && s.values[v.ID].needReg {
+-			if regDebug {
++			if s.f.pass.debug > regDebug {
+ 				fmt.Printf("  processing control %s\n", v.LongString())
+ 			}
+ 			// TODO: regspec for block control values, instead of using
+@@ -1098,7 +1101,7 @@ func (s *regAllocState) regalloc(f *Func) {
+ 	for i := range s.values {
+ 		vi := s.values[i]
+ 		if vi.spillUsed {
+-			if logSpills {
++			if s.f.pass.debug > logSpills {
+ 				fmt.Println("regalloc: spilled value")
+ 			}
+ 			continue
+@@ -1138,7 +1141,7 @@ func (s *regAllocState) shuffle(stacklive [][]ID) {
+ 	e.s = s
+ 	e.cache = map[ID][]*Value{}
+ 	e.contents = map[Location]contentRecord{}
+-	if regDebug {
++	if s.f.pass.debug > regDebug {
+ 		fmt.Printf("shuffle %s\n", s.f.Name)
+ 		fmt.Println(s.f.String())
+ 	}
+@@ -1190,7 +1193,7 @@ type dstRecord struct {
+ 
+ // setup initializes the edge state for shuffling.
+ func (e *edgeState) setup(idx int, srcReg []endReg, dstReg []startReg, stacklive []ID) {
+-	if regDebug {
++	if e.s.f.pass.debug > regDebug {
+ 		fmt.Printf("edge %s->%s\n", e.p, e.b)
+ 	}
+ 
+@@ -1235,7 +1238,7 @@ func (e *edgeState) setup(idx int, srcReg []endReg, dstReg []startReg, stacklive
+ 	}
+ 	e.destinations = dsts
+ 
+-	if regDebug {
++	if e.s.f.pass.debug > regDebug {
+ 		for _, vid := range e.cachedVals {
+ 			a := e.cache[vid]
+ 			for _, c := range a {
+@@ -1298,7 +1301,7 @@ func (e *edgeState) process() {
+ 		vid := e.contents[loc].vid
+ 		c := e.contents[loc].c
+ 		r := e.findRegFor(c.Type)
+-		if regDebug {
++		if e.s.f.pass.debug > regDebug {
+ 			fmt.Printf("breaking cycle with v%d in %s:%s\n", vid, loc.Name(), c)
+ 		}
+ 		if _, isReg := loc.(*Register); isReg {
+@@ -1337,13 +1340,13 @@ func (e *edgeState) processDest(loc Location, vid ID, splice **Value) bool {
+ 	v := e.s.orig[vid]
+ 	var c *Value
+ 	var src Location
+-	if regDebug {
++	if e.s.f.pass.debug > regDebug {
+ 		fmt.Printf("moving v%d to %s\n", vid, loc.Name())
+ 		fmt.Printf("sources of v%d:", vid)
+ 	}
+ 	for _, w := range e.cache[vid] {
+ 		h := e.s.f.getHome(w.ID)
+-		if regDebug {
++		if e.s.f.pass.debug > regDebug {
+ 			fmt.Printf(" %s:%s", h.Name(), w)
+ 		}
+ 		_, isreg := h.(*Register)
+@@ -1352,7 +1355,7 @@ func (e *edgeState) processDest(loc Location, vid ID, splice **Value) bool {
+ 			src = h
+ 		}
+ 	}
+-	if regDebug {
++	if e.s.f.pass.debug > regDebug {
+ 		if src != nil {
+ 			fmt.Printf(" [use %s]\n", src.Name())
+ 		} else {
+@@ -1445,7 +1448,7 @@ func (e *edgeState) set(loc Location, vid ID, c *Value, final bool) {
+ 			}
+ 		}
+ 	}
+-	if regDebug {
++	if e.s.f.pass.debug > regDebug {
+ 		fmt.Printf("%s\n", c.LongString())
+ 		fmt.Printf("v%d now available in %s:%s\n", vid, loc.Name(), c)
+ 	}
+@@ -1470,7 +1473,7 @@ func (e *edgeState) erase(loc Location) {
+ 	a := e.cache[vid]
+ 	for i, c := range a {
+ 		if e.s.f.getHome(c.ID) == loc {
+-			if regDebug {
++			if e.s.f.pass.debug > regDebug {
+ 				fmt.Printf("v%d no longer available in %s:%s\n", vid, loc.Name(), c)
+ 			}
+ 			a[i], a = a[len(a)-1], a[:len(a)-1]
+@@ -1534,7 +1537,7 @@ func (e *edgeState) findRegFor(typ Type) Location {
+ 			if r, ok := e.s.f.getHome(c.ID).(*Register); ok && m>>uint(r.Num)&1 != 0 {
+ 				x := e.p.NewValue1(c.Line, OpStoreReg, c.Type, c)
+ 				e.set(t, vid, x, false)
+-				if regDebug {
++				if e.s.f.pass.debug > regDebug {
+ 					fmt.Printf("  SPILL %s->%s %s\n", r.Name(), t.Name(), x.LongString())
+ 				}
+ 				// r will now be overwritten by the caller. At some point
+@@ -1703,7 +1706,7 @@ func (s *regAllocState) computeLive() {
+ 			break
+ 		}
+ 	}
+-	if regDebug {
++	if f.pass.debug > regDebug {
+ 		fmt.Println("live values at end of each block")
+ 		for _, b := range f.Blocks {
+ 			fmt.Printf("  %s:", b)
+diff --git a/src/cmd/compile/internal/ssa/stackalloc.go b/src/cmd/compile/internal/ssa/stackalloc.go
+index ef8a5846b0..b4d964c87f 100644
+--- a/src/cmd/compile/internal/ssa/stackalloc.go
++++ b/src/cmd/compile/internal/ssa/stackalloc.go
+@@ -8,8 +8,6 @@ package ssa
+ 
+ import "fmt"
+ 
+-const stackDebug = false // TODO: compiler flag
+-
+ type stackAllocState struct {
+ 	f         *Func
+ 	values    []stackValState
+@@ -27,7 +25,7 @@ type stackValState struct {
+ // all Values that did not get a register.
+ // Returns a map from block ID to the stack values live at the end of that block.
+ func stackalloc(f *Func, spillLive [][]ID) [][]ID {
+-	if stackDebug {
++	if f.pass.debug > stackDebug {
+ 		fmt.Println("before stackalloc")
+ 		fmt.Println(f.String())
+ 	}
+@@ -46,7 +44,7 @@ func (s *stackAllocState) init(f *Func, spillLive [][]ID) {
+ 		for _, v := range b.Values {
+ 			s.values[v.ID].typ = v.Type
+ 			s.values[v.ID].needSlot = !v.Type.IsMemory() && !v.Type.IsVoid() && !v.Type.IsFlags() && f.getHome(v.ID) == nil && !v.rematerializeable()
+-			if stackDebug && s.values[v.ID].needSlot {
++			if f.pass.debug > stackDebug && s.values[v.ID].needSlot {
+ 				fmt.Printf("%s needs a stack slot\n", v)
+ 			}
+ 			if v.Op == OpStoreReg {
+@@ -83,7 +81,7 @@ func (s *stackAllocState) stackalloc() {
+ 			continue
+ 		}
+ 		loc := LocalSlot{v.Aux.(GCNode), v.Type, v.AuxInt}
+-		if stackDebug {
++		if f.pass.debug > stackDebug {
+ 			fmt.Printf("stackalloc %s to %s\n", v, loc.Name())
+ 		}
+ 		f.setHome(v, loc)
+@@ -131,7 +129,7 @@ func (s *stackAllocState) stackalloc() {
+ 						goto noname
+ 					}
+ 				}
+-				if stackDebug {
++				if f.pass.debug > stackDebug {
+ 					fmt.Printf("stackalloc %s to %s\n", v, name.Name())
+ 				}
+ 				f.setHome(v, name)
+@@ -165,7 +163,7 @@ func (s *stackAllocState) stackalloc() {
+ 			}
+ 			// Use the stack variable at that index for v.
+ 			loc := locs[i]
+-			if stackDebug {
++			if f.pass.debug > stackDebug {
+ 				fmt.Printf("stackalloc %s to %s\n", v, loc.Name())
+ 			}
+ 			f.setHome(v, loc)
+@@ -249,7 +247,7 @@ func (s *stackAllocState) computeLive(spillLive [][]ID) {
+ 			break
+ 		}
+ 	}
+-	if stackDebug {
++	if s.f.pass.debug > stackDebug {
+ 		for _, b := range s.f.Blocks {
+ 			fmt.Printf("stacklive %s %v\n", b, s.live[b.ID])
+ 		}
+@@ -307,7 +305,7 @@ func (s *stackAllocState) buildInterferenceGraph() {
+ 			}
+ 		}
+ 	}
+-	if stackDebug {
++	if f.pass.debug > stackDebug {
+ 		for vid, i := range s.interfere {
+ 			if len(i) > 0 {
+ 				fmt.Printf("v%d interferes with", vid)

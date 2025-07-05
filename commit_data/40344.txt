@@ -7,6 +7,24 @@ Date:   Mon May 6 15:59:07 2019 -0400
     Change-Id: Icca4495f727e3921b717a4bbb441cd832d321d46
     Reviewed-on: https://go-review.googlesource.com/c/go/+/175439
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/devel/release.html | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/doc/devel/release.html b/doc/devel/release.html
+index 1d0b535197..e3677912bc 100644
+--- a/doc/devel/release.html
++++ b/doc/devel/release.html
+@@ -141,6 +141,12 @@ when linking programs that used cgo.
+ Only Linux users who hit this issue need to update.
+ </p>
+ 
++<p>
++go1.11.10 (released 2019/05/06) includes fixes to the runtime and the linker.
++See the <a href="https://github.com/golang/go/issues?q=milestone%3AGo1.11.10">Go
++1.11.10 milestone</a> on our issue tracker for details.
++</p>
++
+ <h2 id="go1.10">go1.10 (released 2018/02/16)</h2>
+ 
+ <p>

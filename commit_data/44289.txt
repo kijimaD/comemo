@@ -11,6 +11,23 @@ Date:   Fri Jun 5 09:52:35 2020 -0700
     Change-Id: Iae662d677d31c44a7560399ef6771f520c1f7663
     Reviewed-on: https://go-review.googlesource.com/c/go/+/236682
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  doc/go1.15.html | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/doc/go1.15.html b/doc/go1.15.html
+index 0c345f22e2..a863b96d22 100644
+--- a/doc/go1.15.html
++++ b/doc/go1.15.html
+@@ -328,7 +328,10 @@ TODO
+ <dl id="debug/pe"><dt><a href="/pkg/debug/pe/">debug/pe</a></dt>
+   <dd>
+     <p><!-- CL 222637 -->
+-      TODO: <a href="https://golang.org/cl/222637">https://golang.org/cl/222637</a>: copy some consts from cmd/link/internal/ld
++      The package now defines the
++      <code>IMAGE_FILE</code>, <code>IMAGE_SUBSYSTEM</code>,
++      and <code>IMAGE_DLLCHARACTERISTICS</code> constants used by the
++      PE file format.
+     </p>
+   </dd>
+ </dl><!-- debug/pe -->

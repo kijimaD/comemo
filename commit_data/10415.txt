@@ -18,7 +18,40 @@ Date:   Wed Nov 16 19:25:55 2011 +1100
     R=nigeltao
     CC=golang-dev
     https://golang.org/cl/5393045
-
+---
  src/pkg/html/parse.go      | 8 +++++++-
  src/pkg/html/parse_test.go | 2 +-
  2 files changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/html/parse.go b/src/pkg/html/parse.go
+index 2c15d2d31e..ca3907cc02 100644
+--- a/src/pkg/html/parse.go
++++ b/src/pkg/html/parse.go
+@@ -1226,7 +1226,13 @@ func inSelectIM(p *parser) bool {
+ 			}
+ 			p.addElement(p.tok.Data, p.tok.Attr)
+ 		case "optgroup":
+-			// TODO.
++			if p.top().Data == "option" {
++				p.oe.pop()
++			}
++			if p.top().Data == "optgroup" {
++				p.oe.pop()
++			}
++			p.addElement(p.tok.Data, p.tok.Attr)
+ 		case "select":
+ 			endSelect = true
+ 		case "input", "keygen", "textarea":
+diff --git a/src/pkg/html/parse_test.go b/src/pkg/html/parse_test.go
+index 3837f34b19..01d1facc1a 100644
+--- a/src/pkg/html/parse_test.go
++++ b/src/pkg/html/parse_test.go
+@@ -134,7 +134,7 @@ func TestParser(t *testing.T) {
+ 	}{
+ 		// TODO(nigeltao): Process all the test cases from all the .dat files.
+ 		{"tests1.dat", -1},
+-		{"tests2.dat", 34},
++		{"tests2.dat", 35},
+ 		{"tests3.dat", 0},
+ 	}
+ 	for _, tf := range testFiles {

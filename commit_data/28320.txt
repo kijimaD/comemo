@@ -13,7 +13,7 @@ Date:   Sat Apr 23 22:36:41 2016 +0900
     Change-Id: I41cfb5443aeecac4c71e843c09eb8c1d4b7413ea
     Reviewed-on: https://go-review.googlesource.com/22450
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/vendor/golang.org/x/net/route/address.go       | 269 ++++++++++++++
  .../golang.org/x/net/route/address_darwin_test.go  |  63 ++++
  src/vendor/golang.org/x/net/route/address_test.go  | 103 ++++++
@@ -53,3 +53,3894 @@ Date:   Sat Apr 23 22:36:41 2016 +0900
  src/vendor/golang.org/x/net/route/zsys_netbsd.go   |  91 +++++
  src/vendor/golang.org/x/net/route/zsys_openbsd.go  |  80 +++++
  38 files changed, 3662 insertions(+)
+
+diff --git a/src/vendor/golang.org/x/net/route/address.go b/src/vendor/golang.org/x/net/route/address.go
+new file mode 100644
+index 0000000000..206a8371d4
+--- /dev/null
++++ b/src/vendor/golang.org/x/net/route/address.go
+@@ -0,0 +1,269 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build darwin dragonfly freebsd netbsd openbsd
++
++package route
++
++import "runtime"
++
++// An Addr represents an address associated with packet routing.
++type Addr interface {
++	// Family returns an address family.
++	Family() int
++}
++
++// A LinkAddr represents a link-layer address.
++type LinkAddr struct {
++	Index int    // interface index when attached
++	Name  string // interface name when attached
++	Addr  []byte // link-layer address when attached
++}
++
++// Family implements the Family method of Addr interface.
++func (a *LinkAddr) Family() int { return sysAF_LINK }
++
++func parseLinkAddr(b []byte) (Addr, error) {
++	if len(b) < 8 {
++		return nil, errInvalidAddr
++	}
++	_, a, err := parseKernelLinkAddr(sysAF_LINK, b[4:])
++	if err != nil {
++		return nil, err
++	}
++	a.(*LinkAddr).Index = int(nativeEndian.Uint16(b[2:4]))
++	return a, nil
++}
++
++// parseKernelLinkAddr parses b as a link-layer address in
++// conventional BSD kernel form.
++func parseKernelLinkAddr(_ int, b []byte) (int, Addr, error) {
++	// The encoding looks like the following:
++	// +----------------------------+
++	// | Type             (1 octet) |
++	// +----------------------------+
++	// | Name length      (1 octet) |
++	// +----------------------------+
++	// | Address length   (1 octet) |
++	// +----------------------------+
++	// | Selector length  (1 octet) |
++	// +----------------------------+
++	// | Data            (variable) |
++	// +----------------------------+
++	//
++	// On some platforms, all-bit-one of length field means "don't
++	// care".
++	nlen, alen, slen := int(b[1]), int(b[2]), int(b[3])
++	if nlen == 0xff {
++		nlen = 0
++	}
++	if alen == 0xff {
++		alen = 0
++	}
++	if slen == 0xff {
++		slen = 0
++	}
++	l := 4 + nlen + alen + slen
++	if len(b) < l {
++		return 0, nil, errInvalidAddr
++	}
++	data := b[4:]
++	var name string
++	var addr []byte
++	if nlen > 0 {
++		name = string(data[:nlen])
++		data = data[nlen:]
++	}
++	if alen > 0 {
++		addr = data[:alen]
++		data = data[alen:]
++	}
++	return l, &LinkAddr{Name: name, Addr: addr}, nil
++}
++
++// An Inet4Addr represents an internet address for IPv4.
++type Inet4Addr struct {
++	IP [4]byte // IP address
++}
++
++// Family implements the Family method of Addr interface.
++func (a *Inet4Addr) Family() int { return sysAF_INET }
++
++// An Inet6Addr represents an internet address for IPv6.
++type Inet6Addr struct {
++	IP     [16]byte // IP address
++	ZoneID int      // zone identifier
++}
++
++// Family implements the Family method of Addr interface.
++func (a *Inet6Addr) Family() int { return sysAF_INET6 }
++
++// parseInetAddr parses b as an internet address for IPv4 or IPv6.
++func parseInetAddr(af int, b []byte) (Addr, error) {
++	switch af {
++	case sysAF_INET:
++		if len(b) < 16 {
++			return nil, errInvalidAddr
++		}
++		a := &Inet4Addr{}
++		copy(a.IP[:], b[4:8])
++		return a, nil
++	case sysAF_INET6:
++		if len(b) < 28 {
++			return nil, errInvalidAddr
++		}
++		a := &Inet6Addr{ZoneID: int(nativeEndian.Uint32(b[24:28]))}
++		copy(a.IP[:], b[8:24])
++		if a.IP[0] == 0xfe && a.IP[1]&0xc0 == 0x80 || a.IP[0] == 0xff && (a.IP[1]&0x0f == 0x01 || a.IP[1]&0x0f == 0x02) {
++			// KAME based IPv6 protocol stack usually
++			// embeds the interface index in the
++			// interface-local or link-local address as
++			// the kernel-internal form.
++			id := int(bigEndian.Uint16(a.IP[2:4]))
++			if id != 0 {
++				a.ZoneID = id
++				a.IP[2], a.IP[3] = 0, 0
++			}
++		}
++		return a, nil
++	default:
++		return nil, errInvalidAddr
++	}
++}
++
++// parseKernelInetAddr parses b as an internet address in conventional
++// BSD kernel form.
++func parseKernelInetAddr(af int, b []byte) (int, Addr, error) {
++	// The encoding looks similar to the NLRI encoding.
++	// +----------------------------+
++	// | Length           (1 octet) |
++	// +----------------------------+
++	// | Address prefix  (variable) |
++	// +----------------------------+
++	//
++	// The differences between the kernel form and the NLRI
++	// encoding are:
++	//
++	// - The length field of the kernel form indicates the prefix
++	//   length in bytes, not in bits
++	//
++	// - In the kernel form, zero value of the length field
++	//   doesn't mean 0.0.0.0/0 or ::/0
++	//
++	// - The kernel form appends leading bytes to the prefix field
++	//   to make the <length, prefix> tuple to be conformed with
++	//   the routing message boundary
++	l := int(b[0])
++	if runtime.GOOS == "darwin" {
++		// On Darwn, an address in the kernel form is also
++		// used as a message filler.
++		if l == 0 || len(b) > roundup(l) {
++			l = roundup(l)
++		}
++	} else {
++		l = roundup(l)
++	}
++	if len(b) < l {
++		return 0, nil, errInvalidAddr
++	}
++	// Don't reorder case expressions.
++	// The case expressions for IPv6 must come first.
++	const (
++		off4 = 4 // offset of in_addr
++		off6 = 8 // offset of in6_addr
++	)
++	switch {
++	case b[0] == 28: // size of sockaddr_in6
++		a := &Inet6Addr{}
++		copy(a.IP[:], b[off6:off6+16])
++		return int(b[0]), a, nil
++	case af == sysAF_INET6:
++		a := &Inet6Addr{}
++		if l-1 < off6 {
++			copy(a.IP[:], b[1:l])
++		} else {
++			copy(a.IP[:], b[l-off6:l])
++		}
++		return int(b[0]), a, nil
++	case b[0] == 16: // size of sockaddr_in
++		a := &Inet4Addr{}
++		copy(a.IP[:], b[off4:off4+4])
++		return int(b[0]), a, nil
++	default: // an old fashion, AF_UNSPEC or unknown means AF_INET
++		a := &Inet4Addr{}
++		if l-1 < off4 {
++			copy(a.IP[:], b[1:l])
++		} else {
++			copy(a.IP[:], b[l-off4:l])
++		}
++		return int(b[0]), a, nil
++	}
++}
++
++// A DefaultAddr represents an address of various operating
++// system-specific features.
++type DefaultAddr struct {
++	af  int
++	Raw []byte // raw format of address
++}
++
++// Family implements the Family method of Addr interface.
++func (a *DefaultAddr) Family() int { return a.af }
++
++func parseDefaultAddr(b []byte) (Addr, error) {
++	if len(b) < 2 || len(b) < int(b[0]) {
++		return nil, errInvalidAddr
++	}
++	a := &DefaultAddr{af: int(b[1]), Raw: b[:b[0]]}
++	return a, nil
++}
++
++func parseAddrs(attrs uint, fn func(int, []byte) (int, Addr, error), b []byte) ([]Addr, error) {
++	var as [sysRTAX_MAX]Addr
++	af := int(sysAF_UNSPEC)
++	for i := uint(0); i < sysRTAX_MAX && len(b) >= roundup(0); i++ {
++		if attrs&(1<<i) == 0 {
++			continue
++		}
++		if i <= sysRTAX_BRD {
++			switch b[1] {
++			case sysAF_LINK:
++				a, err := parseLinkAddr(b)
++				if err != nil {
++					return nil, err
++				}
++				as[i] = a
++				b = b[roundup(int(b[0])):]
++			case sysAF_INET, sysAF_INET6:
++				af = int(b[1])
++				a, err := parseInetAddr(af, b)
++				if err != nil {
++					return nil, err
++				}
++				as[i] = a
++				b = b[roundup(int(b[0])):]
++			default:
++				l, a, err := fn(af, b)
++				if err != nil {
++					return nil, err
++				}
++				as[i] = a
++				ll := roundup(l)
++				if len(b) < ll {
++					b = b[l:]
++				} else {
++					b = b[ll:]
++				}
++			}
++		} else {
++			a, err := parseDefaultAddr(b)
++			if err != nil {
++				return nil, err
++			}
++			as[i] = a
++			b = b[roundup(int(b[0])):]
++		}
++	}
++	return as[:], nil
++}
+diff --git a/src/vendor/golang.org/x/net/route/address_darwin_test.go b/src/vendor/golang.org/x/net/route/address_darwin_test.go
+new file mode 100644
+index 0000000000..b86bd3df1f
+--- /dev/null
++++ b/src/vendor/golang.org/x/net/route/address_darwin_test.go
+@@ -0,0 +1,63 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package route
++
++import (
++	"reflect"
++	"testing"
++)
++
++type parseAddrsOnDarwinTest struct {
++	attrs uint
++	fn    func(int, []byte) (int, Addr, error)
++	b     []byte
++	as    []Addr
++}
++
++var parseAddrsOnDarwinLittleEndianTests = []parseAddrsOnDarwinTest{
++	{
++		sysRTA_DST | sysRTA_GATEWAY | sysRTA_NETMASK,
++		parseKernelInetAddr,
++		[]byte{
++			0x10, 0x2, 0x0, 0x0, 0xc0, 0xa8, 0x56, 0x0,
++			0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
++
++			0x14, 0x12, 0x4, 0x0, 0x6, 0x0, 0x0, 0x0,
++			0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
++			0x0, 0x0, 0x0, 0x0,
++
++			0x7, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
++		},
++		[]Addr{
++			&Inet4Addr{IP: [4]byte{192, 168, 86, 0}},
++			&LinkAddr{Index: 4},
++			&Inet4Addr{IP: [4]byte{255, 255, 255, 255}},
++			nil,
++			nil,
++			nil,
++			nil,
++			nil,
++		},
++	},
++}
++
++func TestParseAddrsOnDarwin(t *testing.T) {
++	tests := parseAddrsOnDarwinLittleEndianTests
++	if nativeEndian != littleEndian {
++		t.Skip("no test for non-little endian machine yet")
++	}
++
++	for i, tt := range tests {
++		as, err := parseAddrs(tt.attrs, tt.fn, tt.b)
++		if err != nil {
++			t.Error(i, err)
++			continue
++		}
++		if !reflect.DeepEqual(as, tt.as) {
++			t.Errorf("#%d: got %+v; want %+v", i, as, tt.as)
++			continue
++		}
++	}
++}
+diff --git a/src/vendor/golang.org/x/net/route/address_test.go b/src/vendor/golang.org/x/net/route/address_test.go
+new file mode 100644
+index 0000000000..2005ef7c20
+--- /dev/null
++++ b/src/vendor/golang.org/x/net/route/address_test.go
+@@ -0,0 +1,103 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build darwin dragonfly freebsd netbsd openbsd
++
++package route
++
++import (
++	"reflect"
++	"testing"
++)
++
++type parseAddrsTest struct {
++	attrs uint
++	fn    func(int, []byte) (int, Addr, error)
++	b     []byte
++	as    []Addr
++}
++
++var parseAddrsLittleEndianTests = []parseAddrsTest{
++	{
++		sysRTA_DST | sysRTA_GATEWAY | sysRTA_NETMASK | sysRTA_BRD,
++		parseKernelInetAddr,
++		[]byte{
++			0x38, 0x12, 0x0, 0x0, 0xff, 0xff, 0xff, 0x0,
++			0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
++			0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
++			0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
++			0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
++			0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
++			0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
++
++			0x38, 0x12, 0x2, 0x0, 0x6, 0x3, 0x6, 0x0,
++			0x65, 0x6d, 0x31, 0x0, 0xc, 0x29, 0x66, 0x2c,
++			0xdc, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
++			0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
++			0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
++			0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
++			0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
++
++			0x10, 0x2, 0x0, 0x0, 0xac, 0x10, 0xdc, 0xb4,
++			0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
++
++			0x10, 0x2, 0x0, 0x0, 0xac, 0x10, 0xdc, 0xff,
++			0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
++		},
++		[]Addr{
++			&LinkAddr{Index: 0},
++			&LinkAddr{Index: 2, Name: "em1", Addr: []byte{0x00, 0x0c, 0x29, 0x66, 0x2c, 0xdc}},
++			&Inet4Addr{IP: [4]byte{172, 16, 220, 180}},
++			nil,
++			nil,
++			nil,
++			nil,
++			&Inet4Addr{IP: [4]byte{172, 16, 220, 255}},
++		},
++	},
++	{
++		sysRTA_NETMASK | sysRTA_IFP | sysRTA_IFA,
++		parseKernelInetAddr,
++		[]byte{
++			0x7, 0x0, 0x0, 0x0, 0xff, 0xff, 0xff, 0x0,
++
++			0x18, 0x12, 0xa, 0x0, 0x87, 0x8, 0x0, 0x0,
++			0x76, 0x6c, 0x61, 0x6e, 0x35, 0x36, 0x38, 0x32,
++			0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
++
++			0x10, 0x2, 0x0, 0x0, 0xa9, 0xfe, 0x0, 0x1,
++			0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
++		},
++		[]Addr{
++			nil,
++			nil,
++			&Inet4Addr{IP: [4]byte{255, 255, 255, 0}},
++			nil,
++			&LinkAddr{Index: 10, Name: "vlan5682"},
++			&Inet4Addr{IP: [4]byte{169, 254, 0, 1}},
++			nil,
++			nil,
++		},
++	},
++}
++
++func TestParseAddrs(t *testing.T) {
++	tests := parseAddrsLittleEndianTests
++	if nativeEndian != littleEndian {
++		t.Skip("no test for non-little endian machine yet")
++	}
++
++	for i, tt := range tests {
++		as, err := parseAddrs(tt.attrs, tt.fn, tt.b)
++		if err != nil {
++			t.Error(i, err)
++			continue
++		}
++		as = as[:8] // the list varies between operating systems
++		if !reflect.DeepEqual(as, tt.as) {
++			t.Errorf("#%d: got %+v; want %+v", i, as, tt.as)
++			continue
++		}
++	}
++}
+diff --git a/src/vendor/golang.org/x/net/route/binary.go b/src/vendor/golang.org/x/net/route/binary.go
+new file mode 100644
+index 0000000000..4c561631b9
+--- /dev/null
++++ b/src/vendor/golang.org/x/net/route/binary.go
+@@ -0,0 +1,90 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build darwin dragonfly freebsd netbsd openbsd
++
++package route
++
++// This file contains duplicates of encoding/binary package.
++//
++// This package is supposed to be used by the net package of standard
++// library. Therefore a package set used in the package must be the
++// same as net package.
++
++var (
++	littleEndian binaryLittleEndian
++	bigEndian    binaryBigEndian
++)
++
++type binaryByteOrder interface {
++	Uint16([]byte) uint16
++	Uint32([]byte) uint32
++	PutUint16([]byte, uint16)
++	PutUint32([]byte, uint32)
++	Uint64([]byte) uint64
++}
++
++type binaryLittleEndian struct{}
++
++func (binaryLittleEndian) Uint16(b []byte) uint16 {
++	_ = b[1] // bounds check hint to compiler; see golang.org/issue/14808
++	return uint16(b[0]) | uint16(b[1])<<8
++}
++
++func (binaryLittleEndian) PutUint16(b []byte, v uint16) {
++	_ = b[1] // early bounds check to guarantee safety of writes below
++	b[0] = byte(v)
++	b[1] = byte(v >> 8)
++}
++
++func (binaryLittleEndian) Uint32(b []byte) uint32 {
++	_ = b[3] // bounds check hint to compiler; see golang.org/issue/14808
++	return uint32(b[0]) | uint32(b[1])<<8 | uint32(b[2])<<16 | uint32(b[3])<<24
++}
++
++func (binaryLittleEndian) PutUint32(b []byte, v uint32) {
++	_ = b[3] // early bounds check to guarantee safety of writes below
++	b[0] = byte(v)
++	b[1] = byte(v >> 8)
++	b[2] = byte(v >> 16)
++	b[3] = byte(v >> 24)
++}
++
++func (binaryLittleEndian) Uint64(b []byte) uint64 {
++	_ = b[7] // bounds check hint to compiler; see golang.org/issue/14808
++	return uint64(b[0]) | uint64(b[1])<<8 | uint64(b[2])<<16 | uint64(b[3])<<24 |
++		uint64(b[4])<<32 | uint64(b[5])<<40 | uint64(b[6])<<48 | uint64(b[7])<<56
++}
++
++type binaryBigEndian struct{}
++
++func (binaryBigEndian) Uint16(b []byte) uint16 {
++	_ = b[1] // bounds check hint to compiler; see golang.org/issue/14808
++	return uint16(b[1]) | uint16(b[0])<<8
++}
++
++func (binaryBigEndian) PutUint16(b []byte, v uint16) {
++	_ = b[1] // early bounds check to guarantee safety of writes below
++	b[0] = byte(v >> 8)
++	b[1] = byte(v)
++}
++
++func (binaryBigEndian) Uint32(b []byte) uint32 {
++	_ = b[3] // bounds check hint to compiler; see golang.org/issue/14808
++	return uint32(b[3]) | uint32(b[2])<<8 | uint32(b[1])<<16 | uint32(b[0])<<24
++}
++
++func (binaryBigEndian) PutUint32(b []byte, v uint32) {
++	_ = b[3] // early bounds check to guarantee safety of writes below
++	b[0] = byte(v >> 24)
++	b[1] = byte(v >> 16)
++	b[2] = byte(v >> 8)
++	b[3] = byte(v)
++}
++
++func (binaryBigEndian) Uint64(b []byte) uint64 {
++	_ = b[7] // bounds check hint to compiler; see golang.org/issue/14808
++	return uint64(b[7]) | uint64(b[6])<<8 | uint64(b[5])<<16 | uint64(b[4])<<24 |
++		uint64(b[3])<<32 | uint64(b[2])<<40 | uint64(b[1])<<48 | uint64(b[0])<<56
++}
+diff --git a/src/vendor/golang.org/x/net/route/defs_darwin.go b/src/vendor/golang.org/x/net/route/defs_darwin.go
+new file mode 100644
+index 0000000000..f452ad14ce
+--- /dev/null
++++ b/src/vendor/golang.org/x/net/route/defs_darwin.go
+@@ -0,0 +1,106 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build ignore
++
++package route
++
++/*
++#include <sys/socket.h>
++#include <sys/sysctl.h>
++
++#include <net/if.h>
++#include <net/if_dl.h>
++#include <net/route.h>
++*/
++import "C"
++
++const (
++	sysAF_UNSPEC = C.AF_UNSPEC
++	sysAF_INET   = C.AF_INET
++	sysAF_ROUTE  = C.AF_ROUTE
++	sysAF_LINK   = C.AF_LINK
++	sysAF_INET6  = C.AF_INET6
++
++	sysNET_RT_DUMP    = C.NET_RT_DUMP
++	sysNET_RT_FLAGS   = C.NET_RT_FLAGS
++	sysNET_RT_IFLIST  = C.NET_RT_IFLIST
++	sysNET_RT_STAT    = C.NET_RT_STAT
++	sysNET_RT_TRASH   = C.NET_RT_TRASH
++	sysNET_RT_IFLIST2 = C.NET_RT_IFLIST2
++	sysNET_RT_DUMP2   = C.NET_RT_DUMP2
++	sysNET_RT_MAXID   = C.NET_RT_MAXID
++)
++
++const (
++	sysCTL_MAXNAME = C.CTL_MAXNAME
++
++	sysCTL_UNSPEC  = C.CTL_UNSPEC
++	sysCTL_KERN    = C.CTL_KERN
++	sysCTL_VM      = C.CTL_VM
++	sysCTL_VFS     = C.CTL_VFS
++	sysCTL_NET     = C.CTL_NET
++	sysCTL_DEBUG   = C.CTL_DEBUG
++	sysCTL_HW      = C.CTL_HW
++	sysCTL_MACHDEP = C.CTL_MACHDEP
++	sysCTL_USER    = C.CTL_USER
++	sysCTL_MAXID   = C.CTL_MAXID
++)
++
++const (
++	sysRTM_VERSION = C.RTM_VERSION
++
++	sysRTM_ADD       = C.RTM_ADD
++	sysRTM_DELETE    = C.RTM_DELETE
++	sysRTM_CHANGE    = C.RTM_CHANGE
++	sysRTM_GET       = C.RTM_GET
++	sysRTM_LOSING    = C.RTM_LOSING
++	sysRTM_REDIRECT  = C.RTM_REDIRECT
++	sysRTM_MISS      = C.RTM_MISS
++	sysRTM_LOCK      = C.RTM_LOCK
++	sysRTM_OLDADD    = C.RTM_OLDADD
++	sysRTM_OLDDEL    = C.RTM_OLDDEL
++	sysRTM_RESOLVE   = C.RTM_RESOLVE
++	sysRTM_NEWADDR   = C.RTM_NEWADDR
++	sysRTM_DELADDR   = C.RTM_DELADDR
++	sysRTM_IFINFO    = C.RTM_IFINFO
++	sysRTM_NEWMADDR  = C.RTM_NEWMADDR
++	sysRTM_DELMADDR  = C.RTM_DELMADDR
++	sysRTM_IFINFO2   = C.RTM_IFINFO2
++	sysRTM_NEWMADDR2 = C.RTM_NEWMADDR2
++	sysRTM_GET2      = C.RTM_GET2
++
++	sysRTA_DST     = C.RTA_DST
++	sysRTA_GATEWAY = C.RTA_GATEWAY
++	sysRTA_NETMASK = C.RTA_NETMASK
++	sysRTA_GENMASK = C.RTA_GENMASK
++	sysRTA_IFP     = C.RTA_IFP
++	sysRTA_IFA     = C.RTA_IFA
++	sysRTA_AUTHOR  = C.RTA_AUTHOR
++	sysRTA_BRD     = C.RTA_BRD
++
++	sysRTAX_DST     = C.RTAX_DST
++	sysRTAX_GATEWAY = C.RTAX_GATEWAY
++	sysRTAX_NETMASK = C.RTAX_NETMASK
++	sysRTAX_GENMASK = C.RTAX_GENMASK
++	sysRTAX_IFP     = C.RTAX_IFP
++	sysRTAX_IFA     = C.RTAX_IFA
++	sysRTAX_AUTHOR  = C.RTAX_AUTHOR
++	sysRTAX_BRD     = C.RTAX_BRD
++	sysRTAX_MAX     = C.RTAX_MAX
++)
++
++const (
++	sizeofIfMsghdrDarwin15    = C.sizeof_struct_if_msghdr
++	sizeofIfaMsghdrDarwin15   = C.sizeof_struct_ifa_msghdr
++	sizeofIfmaMsghdrDarwin15  = C.sizeof_struct_ifma_msghdr
++	sizeofIfMsghdr2Darwin15   = C.sizeof_struct_if_msghdr2
++	sizeofIfmaMsghdr2Darwin15 = C.sizeof_struct_ifma_msghdr2
++	sizeofIfDataDarwin15      = C.sizeof_struct_if_data
++	sizeofIfData64Darwin15    = C.sizeof_struct_if_data64
++
++	sizeofRtMsghdrDarwin15  = C.sizeof_struct_rt_msghdr
++	sizeofRtMsghdr2Darwin15 = C.sizeof_struct_rt_msghdr2
++	sizeofRtMetricsDarwin15 = C.sizeof_struct_rt_metrics
++)
+diff --git a/src/vendor/golang.org/x/net/route/defs_dragonfly.go b/src/vendor/golang.org/x/net/route/defs_dragonfly.go
+new file mode 100644
+index 0000000000..c737751d76
+--- /dev/null
++++ b/src/vendor/golang.org/x/net/route/defs_dragonfly.go
+@@ -0,0 +1,105 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build ignore
++
++package route
++
++/*
++#include <sys/socket.h>
++#include <sys/sysctl.h>
++
++#include <net/if.h>
++#include <net/if_dl.h>
++#include <net/route.h>
++*/
++import "C"
++
++const (
++	sysAF_UNSPEC = C.AF_UNSPEC
++	sysAF_INET   = C.AF_INET
++	sysAF_ROUTE  = C.AF_ROUTE
++	sysAF_LINK   = C.AF_LINK
++	sysAF_INET6  = C.AF_INET6
++
++	sysNET_RT_DUMP   = C.NET_RT_DUMP
++	sysNET_RT_FLAGS  = C.NET_RT_FLAGS
++	sysNET_RT_IFLIST = C.NET_RT_IFLIST
++	sysNET_RT_MAXID  = C.NET_RT_MAXID
++)
++
++const (
++	sysCTL_MAXNAME = C.CTL_MAXNAME
++
++	sysCTL_UNSPEC   = C.CTL_UNSPEC
++	sysCTL_KERN     = C.CTL_KERN
++	sysCTL_VM       = C.CTL_VM
++	sysCTL_VFS      = C.CTL_VFS
++	sysCTL_NET      = C.CTL_NET
++	sysCTL_DEBUG    = C.CTL_DEBUG
++	sysCTL_HW       = C.CTL_HW
++	sysCTL_MACHDEP  = C.CTL_MACHDEP
++	sysCTL_USER     = C.CTL_USER
++	sysCTL_P1003_1B = C.CTL_P1003_1B
++	sysCTL_LWKT     = C.CTL_LWKT
++	sysCTL_MAXID    = C.CTL_MAXID
++)
++
++const (
++	sysRTM_VERSION = C.RTM_VERSION
++
++	sysRTM_ADD        = C.RTM_ADD
++	sysRTM_DELETE     = C.RTM_DELETE
++	sysRTM_CHANGE     = C.RTM_CHANGE
++	sysRTM_GET        = C.RTM_GET
++	sysRTM_LOSING     = C.RTM_LOSING
++	sysRTM_REDIRECT   = C.RTM_REDIRECT
++	sysRTM_MISS       = C.RTM_MISS
++	sysRTM_LOCK       = C.RTM_LOCK
++	sysRTM_OLDADD     = C.RTM_OLDADD
++	sysRTM_OLDDEL     = C.RTM_OLDDEL
++	sysRTM_RESOLVE    = C.RTM_RESOLVE
++	sysRTM_NEWADDR    = C.RTM_NEWADDR
++	sysRTM_DELADDR    = C.RTM_DELADDR
++	sysRTM_IFINFO     = C.RTM_IFINFO
++	sysRTM_NEWMADDR   = C.RTM_NEWMADDR
++	sysRTM_DELMADDR   = C.RTM_DELMADDR
++	sysRTM_IFANNOUNCE = C.RTM_IFANNOUNCE
++	sysRTM_IEEE80211  = C.RTM_IEEE80211
++
++	sysRTA_DST     = C.RTA_DST
++	sysRTA_GATEWAY = C.RTA_GATEWAY
++	sysRTA_NETMASK = C.RTA_NETMASK
++	sysRTA_GENMASK = C.RTA_GENMASK
++	sysRTA_IFP     = C.RTA_IFP
++	sysRTA_IFA     = C.RTA_IFA
++	sysRTA_AUTHOR  = C.RTA_AUTHOR
++	sysRTA_BRD     = C.RTA_BRD
++	sysRTA_MPLS1   = C.RTA_MPLS1
++	sysRTA_MPLS2   = C.RTA_MPLS2
++	sysRTA_MPLS3   = C.RTA_MPLS3
++
++	sysRTAX_DST     = C.RTAX_DST
++	sysRTAX_GATEWAY = C.RTAX_GATEWAY
++	sysRTAX_NETMASK = C.RTAX_NETMASK
++	sysRTAX_GENMASK = C.RTAX_GENMASK
++	sysRTAX_IFP     = C.RTAX_IFP
++	sysRTAX_IFA     = C.RTAX_IFA
++	sysRTAX_AUTHOR  = C.RTAX_AUTHOR
++	sysRTAX_BRD     = C.RTAX_BRD
++	sysRTAX_MPLS1   = C.RTAX_MPLS1
++	sysRTAX_MPLS2   = C.RTAX_MPLS2
++	sysRTAX_MPLS3   = C.RTAX_MPLS3
++	sysRTAX_MAX     = C.RTAX_MAX
++)
++
++const (
++	sizeofIfMsghdrDragonFlyBSD4         = C.sizeof_struct_if_msghdr
++	sizeofIfaMsghdrDragonFlyBSD4        = C.sizeof_struct_ifa_msghdr
++	sizeofIfmaMsghdrDragonFlyBSD4       = C.sizeof_struct_ifma_msghdr
++	sizeofIfAnnouncemsghdrDragonFlyBSD4 = C.sizeof_struct_if_announcemsghdr
++
++	sizeofRtMsghdrDragonFlyBSD4  = C.sizeof_struct_rt_msghdr
++	sizeofRtMetricsDragonFlyBSD4 = C.sizeof_struct_rt_metrics
++)
+diff --git a/src/vendor/golang.org/x/net/route/defs_freebsd.go b/src/vendor/golang.org/x/net/route/defs_freebsd.go
+new file mode 100644
+index 0000000000..8f834e81db
+--- /dev/null
++++ b/src/vendor/golang.org/x/net/route/defs_freebsd.go
+@@ -0,0 +1,329 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build ignore
++
++package route
++
++/*
++#include <sys/socket.h>
++#include <sys/sysctl.h>
++
++#include <net/if.h>
++#include <net/if_dl.h>
++#include <net/route.h>
++
++struct if_data_freebsd7 {
++	u_char ifi_type;
++	u_char ifi_physical;
++	u_char ifi_addrlen;
++	u_char ifi_hdrlen;
++	u_char ifi_link_state;
++	u_char ifi_spare_char1;
++	u_char ifi_spare_char2;
++	u_char ifi_datalen;
++	u_long ifi_mtu;
++	u_long ifi_metric;
++	u_long ifi_baudrate;
++	u_long ifi_ipackets;
++	u_long ifi_ierrors;
++	u_long ifi_opackets;
++	u_long ifi_oerrors;
++	u_long ifi_collisions;
++	u_long ifi_ibytes;
++	u_long ifi_obytes;
++	u_long ifi_imcasts;
++	u_long ifi_omcasts;
++	u_long ifi_iqdrops;
++	u_long ifi_noproto;
++	u_long ifi_hwassist;
++	time_t __ifi_epoch;
++	struct timeval __ifi_lastchange;
++};
++
++struct if_data_freebsd8 {
++	u_char ifi_type;
++	u_char ifi_physical;
++	u_char ifi_addrlen;
++	u_char ifi_hdrlen;
++	u_char ifi_link_state;
++	u_char ifi_spare_char1;
++	u_char ifi_spare_char2;
++	u_char ifi_datalen;
++	u_long ifi_mtu;
++	u_long ifi_metric;
++	u_long ifi_baudrate;
++	u_long ifi_ipackets;
++	u_long ifi_ierrors;
++	u_long ifi_opackets;
++	u_long ifi_oerrors;
++	u_long ifi_collisions;
++	u_long ifi_ibytes;
++	u_long ifi_obytes;
++	u_long ifi_imcasts;
++	u_long ifi_omcasts;
++	u_long ifi_iqdrops;
++	u_long ifi_noproto;
++	u_long ifi_hwassist;
++	time_t __ifi_epoch;
++	struct timeval __ifi_lastchange;
++};
++
++struct if_data_freebsd9 {
++	u_char ifi_type;
++	u_char ifi_physical;
++	u_char ifi_addrlen;
++	u_char ifi_hdrlen;
++	u_char ifi_link_state;
++	u_char ifi_spare_char1;
++	u_char ifi_spare_char2;
++	u_char ifi_datalen;
++	u_long ifi_mtu;
++	u_long ifi_metric;
++	u_long ifi_baudrate;
++	u_long ifi_ipackets;
++	u_long ifi_ierrors;
++	u_long ifi_opackets;
++	u_long ifi_oerrors;
++	u_long ifi_collisions;
++	u_long ifi_ibytes;
++	u_long ifi_obytes;
++	u_long ifi_imcasts;
++	u_long ifi_omcasts;
++	u_long ifi_iqdrops;
++	u_long ifi_noproto;
++	u_long ifi_hwassist;
++	time_t __ifi_epoch;
++	struct timeval __ifi_lastchange;
++};
++
++struct if_data_freebsd10 {
++	u_char ifi_type;
++	u_char ifi_physical;
++	u_char ifi_addrlen;
++	u_char ifi_hdrlen;
++	u_char ifi_link_state;
++	u_char ifi_vhid;
++	u_char ifi_baudrate_pf;
++	u_char ifi_datalen;
++	u_long ifi_mtu;
++	u_long ifi_metric;
++	u_long ifi_baudrate;
++	u_long ifi_ipackets;
++	u_long ifi_ierrors;
++	u_long ifi_opackets;
++	u_long ifi_oerrors;
++	u_long ifi_collisions;
++	u_long ifi_ibytes;
++	u_long ifi_obytes;
++	u_long ifi_imcasts;
++	u_long ifi_omcasts;
++	u_long ifi_iqdrops;
++	u_long ifi_noproto;
++	uint64_t ifi_hwassist;
++	time_t __ifi_epoch;
++	struct timeval __ifi_lastchange;
++};
++
++struct if_data_freebsd11 {
++	uint8_t ifi_type;
++	uint8_t ifi_physical;
++	uint8_t ifi_addrlen;
++	uint8_t ifi_hdrlen;
++	uint8_t ifi_link_state;
++	uint8_t ifi_vhid;
++	uint16_t ifi_datalen;
++	uint32_t ifi_mtu;
++	uint32_t ifi_metric;
++	uint64_t ifi_baudrate;
++	uint64_t ifi_ipackets;
++	uint64_t ifi_ierrors;
++	uint64_t ifi_opackets;
++	uint64_t ifi_oerrors;
++	uint64_t ifi_collisions;
++	uint64_t ifi_ibytes;
++	uint64_t ifi_obytes;
++	uint64_t ifi_imcasts;
++	uint64_t ifi_omcasts;
++	uint64_t ifi_iqdrops;
++	uint64_t ifi_oqdrops;
++	uint64_t ifi_noproto;
++	uint64_t ifi_hwassist;
++	union {
++		time_t tt;
++		uint64_t ph;
++	} __ifi_epoch;
++	union {
++		struct timeval tv;
++		struct {
++			uint64_t ph1;
++			uint64_t ph2;
++		} ph;
++	} __ifi_lastchange;
++};
++
++struct if_msghdr_freebsd7 {
++	u_short ifm_msglen;
++	u_char ifm_version;
++	u_char ifm_type;
++	int ifm_addrs;
++	int ifm_flags;
++	u_short ifm_index;
++	struct if_data_freebsd7 ifm_data;
++};
++
++struct if_msghdr_freebsd8 {
++	u_short ifm_msglen;
++	u_char ifm_version;
++	u_char ifm_type;
++	int ifm_addrs;
++	int ifm_flags;
++	u_short ifm_index;
++	struct if_data_freebsd8 ifm_data;
++};
++
++struct if_msghdr_freebsd9 {
++	u_short ifm_msglen;
++	u_char ifm_version;
++	u_char ifm_type;
++	int ifm_addrs;
++	int ifm_flags;
++	u_short ifm_index;
++	struct if_data_freebsd9 ifm_data;
++};
++
++struct if_msghdr_freebsd10 {
++	u_short ifm_msglen;
++	u_char ifm_version;
++	u_char ifm_type;
++	int ifm_addrs;
++	int ifm_flags;
++	u_short ifm_index;
++	struct if_data_freebsd10 ifm_data;
++};
++
++struct if_msghdr_freebsd11 {
++	u_short ifm_msglen;
++	u_char ifm_version;
++	u_char ifm_type;
++	int ifm_addrs;
++	int ifm_flags;
++	u_short ifm_index;
++	struct if_data_freebsd11 ifm_data;
++};
++*/
++import "C"
++
++const (
++	sysAF_UNSPEC = C.AF_UNSPEC
++	sysAF_INET   = C.AF_INET
++	sysAF_ROUTE  = C.AF_ROUTE
++	sysAF_LINK   = C.AF_LINK
++	sysAF_INET6  = C.AF_INET6
++
++	sysNET_RT_DUMP     = C.NET_RT_DUMP
++	sysNET_RT_FLAGS    = C.NET_RT_FLAGS
++	sysNET_RT_IFLIST   = C.NET_RT_IFLIST
++	sysNET_RT_IFMALIST = C.NET_RT_IFMALIST
++	sysNET_RT_IFLISTL  = C.NET_RT_IFLISTL
++)
++
++const (
++	sysCTL_MAXNAME = C.CTL_MAXNAME
++
++	sysCTL_UNSPEC   = C.CTL_UNSPEC
++	sysCTL_KERN     = C.CTL_KERN
++	sysCTL_VM       = C.CTL_VM
++	sysCTL_VFS      = C.CTL_VFS
++	sysCTL_NET      = C.CTL_NET
++	sysCTL_DEBUG    = C.CTL_DEBUG
++	sysCTL_HW       = C.CTL_HW
++	sysCTL_MACHDEP  = C.CTL_MACHDEP
++	sysCTL_USER     = C.CTL_USER
++	sysCTL_P1003_1B = C.CTL_P1003_1B
++)
++
++const (
++	sysRTM_VERSION = C.RTM_VERSION
++
++	sysRTM_ADD        = C.RTM_ADD
++	sysRTM_DELETE     = C.RTM_DELETE
++	sysRTM_CHANGE     = C.RTM_CHANGE
++	sysRTM_GET        = C.RTM_GET
++	sysRTM_LOSING     = C.RTM_LOSING
++	sysRTM_REDIRECT   = C.RTM_REDIRECT
++	sysRTM_MISS       = C.RTM_MISS
++	sysRTM_LOCK       = C.RTM_LOCK
++	sysRTM_RESOLVE    = C.RTM_RESOLVE
++	sysRTM_NEWADDR    = C.RTM_NEWADDR
++	sysRTM_DELADDR    = C.RTM_DELADDR
++	sysRTM_IFINFO     = C.RTM_IFINFO
++	sysRTM_NEWMADDR   = C.RTM_NEWMADDR
++	sysRTM_DELMADDR   = C.RTM_DELMADDR
++	sysRTM_IFANNOUNCE = C.RTM_IFANNOUNCE
++	sysRTM_IEEE80211  = C.RTM_IEEE80211
++
++	sysRTA_DST     = C.RTA_DST
++	sysRTA_GATEWAY = C.RTA_GATEWAY
++	sysRTA_NETMASK = C.RTA_NETMASK
++	sysRTA_GENMASK = C.RTA_GENMASK
++	sysRTA_IFP     = C.RTA_IFP
++	sysRTA_IFA     = C.RTA_IFA
++	sysRTA_AUTHOR  = C.RTA_AUTHOR
++	sysRTA_BRD     = C.RTA_BRD
++
++	sysRTAX_DST     = C.RTAX_DST
++	sysRTAX_GATEWAY = C.RTAX_GATEWAY
++	sysRTAX_NETMASK = C.RTAX_NETMASK
++	sysRTAX_GENMASK = C.RTAX_GENMASK
++	sysRTAX_IFP     = C.RTAX_IFP
++	sysRTAX_IFA     = C.RTAX_IFA
++	sysRTAX_AUTHOR  = C.RTAX_AUTHOR
++	sysRTAX_BRD     = C.RTAX_BRD
++	sysRTAX_MAX     = C.RTAX_MAX
++)
++
++const (
++	sizeofIfMsghdrlFreeBSD10        = C.sizeof_struct_if_msghdrl
++	sizeofIfaMsghdrFreeBSD10        = C.sizeof_struct_ifa_msghdr
++	sizeofIfaMsghdrlFreeBSD10       = C.sizeof_struct_ifa_msghdrl
++	sizeofIfmaMsghdrFreeBSD10       = C.sizeof_struct_ifma_msghdr
++	sizeofIfAnnouncemsghdrFreeBSD10 = C.sizeof_struct_if_announcemsghdr
++
++	sizeofRtMsghdrFreeBSD10  = C.sizeof_struct_rt_msghdr
++	sizeofRtMetricsFreeBSD10 = C.sizeof_struct_rt_metrics
++
++	sizeofIfMsghdrFreeBSD7  = C.sizeof_struct_if_msghdr_freebsd7
++	sizeofIfMsghdrFreeBSD8  = C.sizeof_struct_if_msghdr_freebsd8
++	sizeofIfMsghdrFreeBSD9  = C.sizeof_struct_if_msghdr_freebsd9
++	sizeofIfMsghdrFreeBSD10 = C.sizeof_struct_if_msghdr_freebsd10
++	sizeofIfMsghdrFreeBSD11 = C.sizeof_struct_if_msghdr_freebsd11
++
++	sizeofIfDataFreeBSD7  = C.sizeof_struct_if_data_freebsd7
++	sizeofIfDataFreeBSD8  = C.sizeof_struct_if_data_freebsd8
++	sizeofIfDataFreeBSD9  = C.sizeof_struct_if_data_freebsd9
++	sizeofIfDataFreeBSD10 = C.sizeof_struct_if_data_freebsd10
++	sizeofIfDataFreeBSD11 = C.sizeof_struct_if_data_freebsd11
++
++	sizeofIfMsghdrlFreeBSD10Emu        = C.sizeof_struct_if_msghdrl
++	sizeofIfaMsghdrFreeBSD10Emu        = C.sizeof_struct_ifa_msghdr
++	sizeofIfaMsghdrlFreeBSD10Emu       = C.sizeof_struct_ifa_msghdrl
++	sizeofIfmaMsghdrFreeBSD10Emu       = C.sizeof_struct_ifma_msghdr
++	sizeofIfAnnouncemsghdrFreeBSD10Emu = C.sizeof_struct_if_announcemsghdr
++
++	sizeofRtMsghdrFreeBSD10Emu  = C.sizeof_struct_rt_msghdr
++	sizeofRtMetricsFreeBSD10Emu = C.sizeof_struct_rt_metrics
++
++	sizeofIfMsghdrFreeBSD7Emu  = C.sizeof_struct_if_msghdr_freebsd7
++	sizeofIfMsghdrFreeBSD8Emu  = C.sizeof_struct_if_msghdr_freebsd8
++	sizeofIfMsghdrFreeBSD9Emu  = C.sizeof_struct_if_msghdr_freebsd9
++	sizeofIfMsghdrFreeBSD10Emu = C.sizeof_struct_if_msghdr_freebsd10
++	sizeofIfMsghdrFreeBSD11Emu = C.sizeof_struct_if_msghdr_freebsd11
++
++	sizeofIfDataFreeBSD7Emu  = C.sizeof_struct_if_data_freebsd7
++	sizeofIfDataFreeBSD8Emu  = C.sizeof_struct_if_data_freebsd8
++	sizeofIfDataFreeBSD9Emu  = C.sizeof_struct_if_data_freebsd9
++	sizeofIfDataFreeBSD10Emu = C.sizeof_struct_if_data_freebsd10
++	sizeofIfDataFreeBSD11Emu = C.sizeof_struct_if_data_freebsd11
++)
+diff --git a/src/vendor/golang.org/x/net/route/defs_netbsd.go b/src/vendor/golang.org/x/net/route/defs_netbsd.go
+new file mode 100644
+index 0000000000..b18d85e016
+--- /dev/null
++++ b/src/vendor/golang.org/x/net/route/defs_netbsd.go
+@@ -0,0 +1,104 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build ignore
++
++package route
++
++/*
++#include <sys/socket.h>
++#include <sys/sysctl.h>
++
++#include <net/if.h>
++#include <net/if_dl.h>
++#include <net/route.h>
++*/
++import "C"
++
++const (
++	sysAF_UNSPEC = C.AF_UNSPEC
++	sysAF_INET   = C.AF_INET
++	sysAF_ROUTE  = C.AF_ROUTE
++	sysAF_LINK   = C.AF_LINK
++	sysAF_INET6  = C.AF_INET6
++
++	sysNET_RT_DUMP   = C.NET_RT_DUMP
++	sysNET_RT_FLAGS  = C.NET_RT_FLAGS
++	sysNET_RT_IFLIST = C.NET_RT_IFLIST
++	sysNET_RT_MAXID  = C.NET_RT_MAXID
++)
++
++const (
++	sysCTL_MAXNAME = C.CTL_MAXNAME
++
++	sysCTL_UNSPEC   = C.CTL_UNSPEC
++	sysCTL_KERN     = C.CTL_KERN
++	sysCTL_VM       = C.CTL_VM
++	sysCTL_VFS      = C.CTL_VFS
++	sysCTL_NET      = C.CTL_NET
++	sysCTL_DEBUG    = C.CTL_DEBUG
++	sysCTL_HW       = C.CTL_HW
++	sysCTL_MACHDEP  = C.CTL_MACHDEP
++	sysCTL_USER     = C.CTL_USER
++	sysCTL_DDB      = C.CTL_DDB
++	sysCTL_PROC     = C.CTL_PROC
++	sysCTL_VENDOR   = C.CTL_VENDOR
++	sysCTL_EMUL     = C.CTL_EMUL
++	sysCTL_SECURITY = C.CTL_SECURITY
++	sysCTL_MAXID    = C.CTL_MAXID
++)
++
++const (
++	sysRTM_VERSION = C.RTM_VERSION
++
++	sysRTM_ADD        = C.RTM_ADD
++	sysRTM_DELETE     = C.RTM_DELETE
++	sysRTM_CHANGE     = C.RTM_CHANGE
++	sysRTM_GET        = C.RTM_GET
++	sysRTM_LOSING     = C.RTM_LOSING
++	sysRTM_REDIRECT   = C.RTM_REDIRECT
++	sysRTM_MISS       = C.RTM_MISS
++	sysRTM_LOCK       = C.RTM_LOCK
++	sysRTM_OLDADD     = C.RTM_OLDADD
++	sysRTM_OLDDEL     = C.RTM_OLDDEL
++	sysRTM_RESOLVE    = C.RTM_RESOLVE
++	sysRTM_NEWADDR    = C.RTM_NEWADDR
++	sysRTM_DELADDR    = C.RTM_DELADDR
++	sysRTM_IFANNOUNCE = C.RTM_IFANNOUNCE
++	sysRTM_IEEE80211  = C.RTM_IEEE80211
++	sysRTM_SETGATE    = C.RTM_SETGATE
++	sysRTM_LLINFO_UPD = C.RTM_LLINFO_UPD
++	sysRTM_IFINFO     = C.RTM_IFINFO
++	sysRTM_CHGADDR    = C.RTM_CHGADDR
++
++	sysRTA_DST     = C.RTA_DST
++	sysRTA_GATEWAY = C.RTA_GATEWAY
++	sysRTA_NETMASK = C.RTA_NETMASK
++	sysRTA_GENMASK = C.RTA_GENMASK
++	sysRTA_IFP     = C.RTA_IFP
++	sysRTA_IFA     = C.RTA_IFA
++	sysRTA_AUTHOR  = C.RTA_AUTHOR
++	sysRTA_BRD     = C.RTA_BRD
++	sysRTA_TAG     = C.RTA_TAG
++
++	sysRTAX_DST     = C.RTAX_DST
++	sysRTAX_GATEWAY = C.RTAX_GATEWAY
++	sysRTAX_NETMASK = C.RTAX_NETMASK
++	sysRTAX_GENMASK = C.RTAX_GENMASK
++	sysRTAX_IFP     = C.RTAX_IFP
++	sysRTAX_IFA     = C.RTAX_IFA
++	sysRTAX_AUTHOR  = C.RTAX_AUTHOR
++	sysRTAX_BRD     = C.RTAX_BRD
++	sysRTAX_TAG     = C.RTAX_TAG
++	sysRTAX_MAX     = C.RTAX_MAX
++)
++
++const (
++	sizeofIfMsghdrNetBSD7         = C.sizeof_struct_if_msghdr
++	sizeofIfaMsghdrNetBSD7        = C.sizeof_struct_ifa_msghdr
++	sizeofIfAnnouncemsghdrNetBSD7 = C.sizeof_struct_if_announcemsghdr
++
++	sizeofRtMsghdrNetBSD7  = C.sizeof_struct_rt_msghdr
++	sizeofRtMetricsNetBSD7 = C.sizeof_struct_rt_metrics
++)
+diff --git a/src/vendor/golang.org/x/net/route/defs_openbsd.go b/src/vendor/golang.org/x/net/route/defs_openbsd.go
+new file mode 100644
+index 0000000000..5df7a43bc3
+--- /dev/null
++++ b/src/vendor/golang.org/x/net/route/defs_openbsd.go
+@@ -0,0 +1,93 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build ignore
++
++package route
++
++/*
++#include <sys/socket.h>
++#include <sys/sysctl.h>
++
++#include <net/if.h>
++#include <net/if_dl.h>
++#include <net/route.h>
++*/
++import "C"
++
++const (
++	sysAF_UNSPEC = C.AF_UNSPEC
++	sysAF_INET   = C.AF_INET
++	sysAF_ROUTE  = C.AF_ROUTE
++	sysAF_LINK   = C.AF_LINK
++	sysAF_INET6  = C.AF_INET6
++
++	sysNET_RT_DUMP    = C.NET_RT_DUMP
++	sysNET_RT_FLAGS   = C.NET_RT_FLAGS
++	sysNET_RT_IFLIST  = C.NET_RT_IFLIST
++	sysNET_RT_STATS   = C.NET_RT_STATS
++	sysNET_RT_TABLE   = C.NET_RT_TABLE
++	sysNET_RT_IFNAMES = C.NET_RT_IFNAMES
++	sysNET_RT_MAXID   = C.NET_RT_MAXID
++)
++
++const (
++	sysCTL_MAXNAME = C.CTL_MAXNAME
++
++	sysCTL_UNSPEC  = C.CTL_UNSPEC
++	sysCTL_KERN    = C.CTL_KERN
++	sysCTL_VM      = C.CTL_VM
++	sysCTL_FS      = C.CTL_FS
++	sysCTL_NET     = C.CTL_NET
++	sysCTL_DEBUG   = C.CTL_DEBUG
++	sysCTL_HW      = C.CTL_HW
++	sysCTL_MACHDEP = C.CTL_MACHDEP
++	sysCTL_DDB     = C.CTL_DDB
++	sysCTL_VFS     = C.CTL_VFS
++	sysCTL_MAXID   = C.CTL_MAXID
++)
++
++const (
++	sysRTM_VERSION = C.RTM_VERSION
++
++	sysRTM_ADD        = C.RTM_ADD
++	sysRTM_DELETE     = C.RTM_DELETE
++	sysRTM_CHANGE     = C.RTM_CHANGE
++	sysRTM_GET        = C.RTM_GET
++	sysRTM_LOSING     = C.RTM_LOSING
++	sysRTM_REDIRECT   = C.RTM_REDIRECT
++	sysRTM_MISS       = C.RTM_MISS
++	sysRTM_LOCK       = C.RTM_LOCK
++	sysRTM_RESOLVE    = C.RTM_RESOLVE
++	sysRTM_NEWADDR    = C.RTM_NEWADDR
++	sysRTM_DELADDR    = C.RTM_DELADDR
++	sysRTM_IFINFO     = C.RTM_IFINFO
++	sysRTM_IFANNOUNCE = C.RTM_IFANNOUNCE
++	sysRTM_DESYNC     = C.RTM_DESYNC
++
++	sysRTA_DST     = C.RTA_DST
++	sysRTA_GATEWAY = C.RTA_GATEWAY
++	sysRTA_NETMASK = C.RTA_NETMASK
++	sysRTA_GENMASK = C.RTA_GENMASK
++	sysRTA_IFP     = C.RTA_IFP
++	sysRTA_IFA     = C.RTA_IFA
++	sysRTA_AUTHOR  = C.RTA_AUTHOR
++	sysRTA_BRD     = C.RTA_BRD
++	sysRTA_SRC     = C.RTA_SRC
++	sysRTA_SRCMASK = C.RTA_SRCMASK
++	sysRTA_LABEL   = C.RTA_LABEL
++
++	sysRTAX_DST     = C.RTAX_DST
++	sysRTAX_GATEWAY = C.RTAX_GATEWAY
++	sysRTAX_NETMASK = C.RTAX_NETMASK
++	sysRTAX_GENMASK = C.RTAX_GENMASK
++	sysRTAX_IFP     = C.RTAX_IFP
++	sysRTAX_IFA     = C.RTAX_IFA
++	sysRTAX_AUTHOR  = C.RTAX_AUTHOR
++	sysRTAX_BRD     = C.RTAX_BRD
++	sysRTAX_SRC     = C.RTAX_SRC
++	sysRTAX_SRCMASK = C.RTAX_SRCMASK
++	sysRTAX_LABEL   = C.RTAX_LABEL
++	sysRTAX_MAX     = C.RTAX_MAX
++)
+diff --git a/src/vendor/golang.org/x/net/route/interface.go b/src/vendor/golang.org/x/net/route/interface.go
+new file mode 100644
+index 0000000000..854906d9c4
+--- /dev/null
++++ b/src/vendor/golang.org/x/net/route/interface.go
+@@ -0,0 +1,64 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build darwin dragonfly freebsd netbsd openbsd
++
++package route
++
++// An InterfaceMessage represents an interface message.
++type InterfaceMessage struct {
++	Version int    // message version
++	Type    int    // message type
++	Flags   int    // interface flags
++	Index   int    // interface index
++	Name    string // interface name
++	Addrs   []Addr // addresses
++
++	extOff int    // offset of header extension
++	raw    []byte // raw message
++}
++
++// An InterfaceAddrMessage represents an interface address message.
++type InterfaceAddrMessage struct {
++	Version int    // message version
++	Type    int    // message type
++	Flags   int    // interface flags
++	Index   int    // interface index
++	Addrs   []Addr // addresses
++
++	raw []byte // raw message
++}
++
++// Sys implements the Sys method of Message interface.
++func (m *InterfaceAddrMessage) Sys() []Sys { return nil }
++
++// An InterfaceMulticastAddrMessage represents an interface multicast
++// address message.
++type InterfaceMulticastAddrMessage struct {
++	Version int    // message version
++	Type    int    // messsage type
++	Flags   int    // interface flags
++	Index   int    // interface index
++	Addrs   []Addr // addresses
++
++	raw []byte // raw message
++}
++
++// Sys implements the Sys method of Message interface.
++func (m *InterfaceMulticastAddrMessage) Sys() []Sys { return nil }
++
++// An InterfaceAnnounceMessage represents an interface announcement
++// message.
++type InterfaceAnnounceMessage struct {
++	Version int    // message version
++	Type    int    // message type
++	Index   int    // interface index
++	Name    string // interface name
++	What    int    // what type of announcement
++
++	raw []byte // raw message
++}
++
++// Sys implements the Sys method of Message interface.
++func (m *InterfaceAnnounceMessage) Sys() []Sys { return nil }
+diff --git a/src/vendor/golang.org/x/net/route/interface_announce.go b/src/vendor/golang.org/x/net/route/interface_announce.go
+new file mode 100644
+index 0000000000..520d657b57
+--- /dev/null
++++ b/src/vendor/golang.org/x/net/route/interface_announce.go
+@@ -0,0 +1,32 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build dragonfly freebsd netbsd
++
++package route
++
++func (w *wireFormat) parseInterfaceAnnounceMessage(_ RIBType, b []byte) (Message, error) {
++	if len(b) < w.bodyOff {
++		return nil, errMessageTooShort
++	}
++	l := int(nativeEndian.Uint16(b[:2]))
++	if len(b) < l {
++		return nil, errInvalidMessage
++	}
++	m := &InterfaceAnnounceMessage{
++		Version: int(b[2]),
++		Type:    int(b[3]),
++		Index:   int(nativeEndian.Uint16(b[4:6])),
++		What:    int(nativeEndian.Uint16(b[22:24])),
++		raw:     b[:l],
++	}
++	for i := 0; i < 16; i++ {
++		if b[6+i] != 0 {
++			continue
++		}
++		m.Name = string(b[6 : 6+i])
++		break
++	}
++	return m, nil
++}
+diff --git a/src/vendor/golang.org/x/net/route/interface_classic.go b/src/vendor/golang.org/x/net/route/interface_classic.go
+new file mode 100644
+index 0000000000..ac4e7a6805
+--- /dev/null
++++ b/src/vendor/golang.org/x/net/route/interface_classic.go
+@@ -0,0 +1,66 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build darwin dragonfly netbsd
++
++package route
++
++import "runtime"
++
++func (w *wireFormat) parseInterfaceMessage(_ RIBType, b []byte) (Message, error) {
++	if len(b) < w.bodyOff {
++		return nil, errMessageTooShort
++	}
++	l := int(nativeEndian.Uint16(b[:2]))
++	if len(b) < l {
++		return nil, errInvalidMessage
++	}
++	attrs := uint(nativeEndian.Uint32(b[4:8]))
++	if attrs&sysRTA_IFP == 0 {
++		return nil, nil
++	}
++	m := &InterfaceMessage{
++		Version: int(b[2]),
++		Type:    int(b[3]),
++		Addrs:   make([]Addr, sysRTAX_MAX),
++		Flags:   int(nativeEndian.Uint32(b[8:12])),
++		Index:   int(nativeEndian.Uint16(b[12:14])),
++		extOff:  w.extOff,
++		raw:     b[:l],
++	}
++	a, err := parseLinkAddr(b[w.bodyOff:])
++	if err != nil {
++		return nil, err
++	}
++	m.Addrs[sysRTAX_IFP] = a
++	m.Name = a.(*LinkAddr).Name
++	return m, nil
++}
++
++func (w *wireFormat) parseInterfaceAddrMessage(_ RIBType, b []byte) (Message, error) {
++	if len(b) < w.bodyOff {
++		return nil, errMessageTooShort
++	}
++	l := int(nativeEndian.Uint16(b[:2]))
++	if len(b) < l {
++		return nil, errInvalidMessage
++	}
++	m := &InterfaceAddrMessage{
++		Version: int(b[2]),
++		Type:    int(b[3]),
++		Flags:   int(nativeEndian.Uint32(b[8:12])),
++		raw:     b[:l],
++	}
++	if runtime.GOOS == "netbsd" {
++		m.Index = int(nativeEndian.Uint16(b[16:18]))
++	} else {
++		m.Index = int(nativeEndian.Uint16(b[12:14]))
++	}
++	var err error
++	m.Addrs, err = parseAddrs(uint(nativeEndian.Uint32(b[4:8])), parseKernelInetAddr, b[w.bodyOff:])
++	if err != nil {
++		return nil, err
++	}
++	return m, nil
++}
+diff --git a/src/vendor/golang.org/x/net/route/interface_freebsd.go b/src/vendor/golang.org/x/net/route/interface_freebsd.go
+new file mode 100644
+index 0000000000..c83053915d
+--- /dev/null
++++ b/src/vendor/golang.org/x/net/route/interface_freebsd.go
+@@ -0,0 +1,78 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package route
++
++func (w *wireFormat) parseInterfaceMessage(typ RIBType, b []byte) (Message, error) {
++	var extOff, bodyOff int
++	if typ == sysNET_RT_IFLISTL {
++		if len(b) < 20 {
++			return nil, errMessageTooShort
++		}
++		extOff = int(nativeEndian.Uint16(b[18:20]))
++		bodyOff = int(nativeEndian.Uint16(b[16:18]))
++	} else {
++		if len(b) < w.bodyOff {
++			return nil, errMessageTooShort
++		}
++		extOff = w.extOff
++		bodyOff = w.bodyOff
++	}
++	l := int(nativeEndian.Uint16(b[:2]))
++	if len(b) < l {
++		return nil, errInvalidMessage
++	}
++	attrs := uint(nativeEndian.Uint32(b[4:8]))
++	if attrs&sysRTA_IFP == 0 {
++		return nil, nil
++	}
++	m := &InterfaceMessage{
++		Version: int(b[2]),
++		Type:    int(b[3]),
++		Flags:   int(nativeEndian.Uint32(b[8:12])),
++		Index:   int(nativeEndian.Uint16(b[12:14])),
++		Addrs:   make([]Addr, sysRTAX_MAX),
++		extOff:  extOff,
++		raw:     b[:l],
++	}
++	a, err := parseLinkAddr(b[bodyOff:])
++	if err != nil {
++		return nil, err
++	}
++	m.Addrs[sysRTAX_IFP] = a
++	m.Name = a.(*LinkAddr).Name
++	return m, nil
++}
++
++func (w *wireFormat) parseInterfaceAddrMessage(typ RIBType, b []byte) (Message, error) {
++	var bodyOff int
++	if typ == sysNET_RT_IFLISTL {
++		if len(b) < 24 {
++			return nil, errMessageTooShort
++		}
++		bodyOff = int(nativeEndian.Uint16(b[16:18]))
++	} else {
++		if len(b) < w.bodyOff {
++			return nil, errMessageTooShort
++		}
++		bodyOff = w.bodyOff
++	}
++	l := int(nativeEndian.Uint16(b[:2]))
++	if len(b) < l {
++		return nil, errInvalidMessage
++	}
++	m := &InterfaceAddrMessage{
++		Version: int(b[2]),
++		Type:    int(b[3]),
++		Flags:   int(nativeEndian.Uint32(b[8:12])),
++		Index:   int(nativeEndian.Uint16(b[12:14])),
++		raw:     b[:l],
++	}
++	var err error
++	m.Addrs, err = parseAddrs(uint(nativeEndian.Uint32(b[4:8])), parseKernelInetAddr, b[bodyOff:])
++	if err != nil {
++		return nil, err
++	}
++	return m, nil
++}
+diff --git a/src/vendor/golang.org/x/net/route/interface_multicast.go b/src/vendor/golang.org/x/net/route/interface_multicast.go
+new file mode 100644
+index 0000000000..1e99a9cc64
+--- /dev/null
++++ b/src/vendor/golang.org/x/net/route/interface_multicast.go
+@@ -0,0 +1,30 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build darwin dragonfly freebsd
++
++package route
++
++func (w *wireFormat) parseInterfaceMulticastAddrMessage(_ RIBType, b []byte) (Message, error) {
++	if len(b) < w.bodyOff {
++		return nil, errMessageTooShort
++	}
++	l := int(nativeEndian.Uint16(b[:2]))
++	if len(b) < l {
++		return nil, errInvalidMessage
++	}
++	m := &InterfaceMulticastAddrMessage{
++		Version: int(b[2]),
++		Type:    int(b[3]),
++		Flags:   int(nativeEndian.Uint32(b[8:12])),
++		Index:   int(nativeEndian.Uint16(b[12:14])),
++		raw:     b[:l],
++	}
++	var err error
++	m.Addrs, err = parseAddrs(uint(nativeEndian.Uint32(b[4:8])), parseKernelInetAddr, b[w.bodyOff:])
++	if err != nil {
++		return nil, err
++	}
++	return m, nil
++}
+diff --git a/src/vendor/golang.org/x/net/route/interface_openbsd.go b/src/vendor/golang.org/x/net/route/interface_openbsd.go
+new file mode 100644
+index 0000000000..24451d8ca1
+--- /dev/null
++++ b/src/vendor/golang.org/x/net/route/interface_openbsd.go
+@@ -0,0 +1,83 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package route
++
++func (*wireFormat) parseInterfaceMessage(_ RIBType, b []byte) (Message, error) {
++	if len(b) < 32 {
++		return nil, errMessageTooShort
++	}
++	l := int(nativeEndian.Uint16(b[:2]))
++	if len(b) < l {
++		return nil, errInvalidMessage
++	}
++	attrs := uint(nativeEndian.Uint32(b[12:16]))
++	if attrs&sysRTA_IFP == 0 {
++		return nil, nil
++	}
++	m := &InterfaceMessage{
++		Version: int(b[2]),
++		Type:    int(b[3]),
++		Flags:   int(nativeEndian.Uint32(b[16:20])),
++		Index:   int(nativeEndian.Uint16(b[6:8])),
++		Addrs:   make([]Addr, sysRTAX_MAX),
++		raw:     b[:l],
++	}
++	a, err := parseLinkAddr(b[int(nativeEndian.Uint16(b[4:6])):])
++	if err != nil {
++		return nil, err
++	}
++	m.Addrs[sysRTAX_IFP] = a
++	m.Name = a.(*LinkAddr).Name
++	return m, nil
++}
++
++func (*wireFormat) parseInterfaceAddrMessage(_ RIBType, b []byte) (Message, error) {
++	if len(b) < 24 {
++		return nil, errMessageTooShort
++	}
++	l := int(nativeEndian.Uint16(b[:2]))
++	if len(b) < l {
++		return nil, errInvalidMessage
++	}
++	bodyOff := int(nativeEndian.Uint16(b[4:6]))
++	m := &InterfaceAddrMessage{
++		Version: int(b[2]),
++		Type:    int(b[3]),
++		Flags:   int(nativeEndian.Uint32(b[12:16])),
++		Index:   int(nativeEndian.Uint16(b[6:8])),
++		raw:     b[:l],
++	}
++	var err error
++	m.Addrs, err = parseAddrs(uint(nativeEndian.Uint32(b[12:16])), parseKernelInetAddr, b[bodyOff:])
++	if err != nil {
++		return nil, err
++	}
++	return m, nil
++}
++
++func (*wireFormat) parseInterfaceAnnounceMessage(_ RIBType, b []byte) (Message, error) {
++	if len(b) < 26 {
++		return nil, errMessageTooShort
++	}
++	l := int(nativeEndian.Uint16(b[:2]))
++	if len(b) < l {
++		return nil, errInvalidMessage
++	}
++	m := &InterfaceAnnounceMessage{
++		Version: int(b[2]),
++		Type:    int(b[3]),
++		Index:   int(nativeEndian.Uint16(b[6:8])),
++		What:    int(nativeEndian.Uint16(b[8:10])),
++		raw:     b[:l],
++	}
++	for i := 0; i < 16; i++ {
++		if b[10+i] != 0 {
++			continue
++		}
++		m.Name = string(b[10 : 10+i])
++		break
++	}
++	return m, nil
++}
+diff --git a/src/vendor/golang.org/x/net/route/message.go b/src/vendor/golang.org/x/net/route/message.go
+new file mode 100644
+index 0000000000..27cbf6b77a
+--- /dev/null
++++ b/src/vendor/golang.org/x/net/route/message.go
+@@ -0,0 +1,70 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build darwin dragonfly freebsd netbsd openbsd
++
++package route
++
++// A Message represents a routing message.
++//
++// Note: This interface will be changed to support Marshal method in
++// future version.
++type Message interface {
++	// Sys returns operating system-specific information.
++	Sys() []Sys
++}
++
++// A Sys reprensents operating system-specific information.
++type Sys interface {
++	// SysType returns a type of operating system-specific
++	// information.
++	SysType() SysType
++}
++
++// A SysType represents a type of operating system-specific
++// information.
++type SysType int
++
++const (
++	SysMetrics SysType = iota
++	SysStats
++)
++
++// ParseRIB parses b as a routing information base and returns a list
++// of routing messages.
++func ParseRIB(typ RIBType, b []byte) ([]Message, error) {
++	if !typ.parseable() {
++		return nil, errUnsupportedMessage
++	}
++	var msgs []Message
++	nmsgs, nskips := 0, 0
++	for len(b) > 4 {
++		nmsgs++
++		l := int(nativeEndian.Uint16(b[:2]))
++		if b[2] != sysRTM_VERSION {
++			b = b[l:]
++			continue
++		}
++		mtyp := int(b[3])
++		if fn, ok := parseFns[mtyp]; !ok {
++			nskips++
++		} else {
++			m, err := fn(typ, b)
++			if err != nil {
++				return nil, err
++			}
++			if m == nil {
++				nskips++
++			} else {
++				msgs = append(msgs, m)
++			}
++		}
++		b = b[l:]
++	}
++	// We failed to parse any of the messages - version mismatch?
++	if nmsgs != len(msgs)+nskips {
++		return nil, errMessageMismatch
++	}
++	return msgs, nil
++}
+diff --git a/src/vendor/golang.org/x/net/route/message_darwin_test.go b/src/vendor/golang.org/x/net/route/message_darwin_test.go
+new file mode 100644
+index 0000000000..3fdd12df55
+--- /dev/null
++++ b/src/vendor/golang.org/x/net/route/message_darwin_test.go
+@@ -0,0 +1,27 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package route
++
++import "testing"
++
++func TestFetchAndParseRIBOnDarwin(t *testing.T) {
++	for _, af := range []int{sysAF_UNSPEC, sysAF_INET, sysAF_INET6} {
++		for _, typ := range []RIBType{sysNET_RT_FLAGS, sysNET_RT_DUMP2, sysNET_RT_IFLIST2} {
++			ms, err := fetchAndParseRIB(af, typ)
++			if err != nil {
++				t.Error(err)
++				continue
++			}
++			ss, err := msgs(ms).validate()
++			if err != nil {
++				t.Errorf("%v %d %v", addrFamily(af), typ, err)
++				continue
++			}
++			for _, s := range ss {
++				t.Log(s)
++			}
++		}
++	}
++}
+diff --git a/src/vendor/golang.org/x/net/route/message_freebsd_test.go b/src/vendor/golang.org/x/net/route/message_freebsd_test.go
+new file mode 100644
+index 0000000000..6d03d000a8
+--- /dev/null
++++ b/src/vendor/golang.org/x/net/route/message_freebsd_test.go
+@@ -0,0 +1,106 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package route
++
++import (
++	"testing"
++	"time"
++	"unsafe"
++)
++
++func TestFetchAndParseRIBOnFreeBSD(t *testing.T) {
++	for _, af := range []int{sysAF_UNSPEC, sysAF_INET, sysAF_INET6} {
++		for _, typ := range []RIBType{sysNET_RT_IFMALIST} {
++			ms, err := fetchAndParseRIB(af, typ)
++			if err != nil {
++				t.Error(err)
++				continue
++			}
++			ss, err := msgs(ms).validate()
++			if err != nil {
++				t.Errorf("%v %d %v", addrFamily(af), typ, err)
++				continue
++			}
++			for _, s := range ss {
++				t.Log(s)
++			}
++		}
++	}
++}
++
++func TestFetchAndParseRIBOnFreeBSD10AndAbove(t *testing.T) {
++	if _, err := FetchRIB(sysAF_UNSPEC, sysNET_RT_IFLISTL, 0); err != nil {
++		t.Skip("NET_RT_LISTL not supported")
++	}
++	var p uintptr
++	if kernelAlign != int(unsafe.Sizeof(p)) {
++		t.Skip("NET_RT_LIST vs. NET_RT_LISTL doesn't work for 386 emulation on amd64")
++	}
++
++	var tests = [2]struct {
++		typ  RIBType
++		b    []byte
++		msgs []Message
++		ss   []string
++	}{
++		{typ: sysNET_RT_IFLIST},
++		{typ: sysNET_RT_IFLISTL},
++	}
++	for _, af := range []int{sysAF_UNSPEC, sysAF_INET, sysAF_INET6} {
++		var lastErr error
++		for i := 0; i < 3; i++ {
++			for j := range tests {
++				var err error
++				if tests[j].b, err = FetchRIB(af, tests[j].typ, 0); err != nil {
++					lastErr = err
++					time.Sleep(10 * time.Millisecond)
++				}
++			}
++			if lastErr == nil {
++				break
++			}
++		}
++		if lastErr != nil {
++			t.Error(af, lastErr)
++			continue
++		}
++		for i := range tests {
++			var err error
++			if tests[i].msgs, err = ParseRIB(tests[i].typ, tests[i].b); err != nil {
++				lastErr = err
++				t.Error(af, err)
++			}
++		}
++		if lastErr != nil {
++			continue
++		}
++		for i := range tests {
++			var err error
++			tests[i].ss, err = msgs(tests[i].msgs).validate()
++			if err != nil {
++				lastErr = err
++				t.Error(af, err)
++			}
++			for _, s := range tests[i].ss {
++				t.Log(s)
++			}
++		}
++		if lastErr != nil {
++			continue
++		}
++		for i := len(tests) - 1; i > 0; i-- {
++			if len(tests[i].ss) != len(tests[i-1].ss) {
++				t.Errorf("got %v; want %v", tests[i].ss, tests[i-1].ss)
++				continue
++			}
++			for j, s1 := range tests[i].ss {
++				s0 := tests[i-1].ss[j]
++				if s1 != s0 {
++					t.Errorf("got %s; want %s", s1, s0)
++				}
++			}
++		}
++	}
++}
+diff --git a/src/vendor/golang.org/x/net/route/message_test.go b/src/vendor/golang.org/x/net/route/message_test.go
+new file mode 100644
+index 0000000000..a1263d8f25
+--- /dev/null
++++ b/src/vendor/golang.org/x/net/route/message_test.go
+@@ -0,0 +1,95 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build darwin dragonfly freebsd netbsd openbsd
++
++package route
++
++import (
++	"os"
++	"syscall"
++	"testing"
++	"time"
++)
++
++func TestFetchAndParseRIB(t *testing.T) {
++	for _, af := range []int{sysAF_UNSPEC, sysAF_INET, sysAF_INET6} {
++		for _, typ := range []RIBType{sysNET_RT_DUMP, sysNET_RT_IFLIST} {
++			ms, err := fetchAndParseRIB(af, typ)
++			if err != nil {
++				t.Error(err)
++				continue
++			}
++			ss, err := msgs(ms).validate()
++			if err != nil {
++				t.Errorf("%v %d %v", addrFamily(af), typ, err)
++				continue
++			}
++			for _, s := range ss {
++				t.Log(s)
++			}
++		}
++	}
++}
++
++func TestMonitorAndParseRIB(t *testing.T) {
++	if testing.Short() || os.Getuid() != 0 {
++		t.Skip("must be root")
++	}
++
++	// We suppose that using an IPv4 link-local address and the
++	// dot1Q ID for Token Ring and FDDI doesn't harm anyone.
++	pv := &propVirtual{addr: "169.254.0.1", mask: "255.255.255.0"}
++	if err := pv.configure(1002); err != nil {
++		t.Skip(err)
++	}
++	if err := pv.setup(); err != nil {
++		t.Skip(err)
++	}
++	pv.teardown()
++
++	s, err := syscall.Socket(syscall.AF_ROUTE, syscall.SOCK_RAW, syscall.AF_UNSPEC)
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer syscall.Close(s)
++
++	go func() {
++		b := make([]byte, os.Getpagesize())
++		for {
++			n, err := syscall.Read(s, b)
++			if err != nil {
++				return
++			}
++			ms, err := ParseRIB(0, b[:n])
++			if err != nil {
++				t.Error(err)
++				return
++			}
++			ss, err := msgs(ms).validate()
++			if err != nil {
++				t.Error(err)
++				return
++			}
++			for _, s := range ss {
++				t.Log(s)
++			}
++		}
++	}()
++
++	for _, vid := range []int{1002, 1003, 1004, 1005} {
++		pv := &propVirtual{addr: "169.254.0.1", mask: "255.255.255.0"}
++		if err := pv.configure(vid); err != nil {
++			t.Fatal(err)
++		}
++		if err := pv.setup(); err != nil {
++			t.Fatal(err)
++		}
++		time.Sleep(200 * time.Millisecond)
++		if err := pv.teardown(); err != nil {
++			t.Fatal(err)
++		}
++		time.Sleep(200 * time.Millisecond)
++	}
++}
+diff --git a/src/vendor/golang.org/x/net/route/route.go b/src/vendor/golang.org/x/net/route/route.go
+new file mode 100644
+index 0000000000..c986e29ebc
+--- /dev/null
++++ b/src/vendor/golang.org/x/net/route/route.go
+@@ -0,0 +1,74 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build darwin dragonfly freebsd netbsd openbsd
++
++// Package route provides basic functions for the manipulation of
++// packet routing facilities on BSD variants.
++//
++// The package supports any version of Darwin, any version of
++// DragonFly BSD, FreeBSD 7 through 11, NetBSD 6 and above, and
++// OpenBSD 5.6 and above.
++package route
++
++import (
++	"errors"
++	"os"
++	"syscall"
++)
++
++var (
++	errUnsupportedMessage = errors.New("unsupported message")
++	errMessageMismatch    = errors.New("message mismatch")
++	errMessageTooShort    = errors.New("message too short")
++	errInvalidMessage     = errors.New("invalid message")
++	errInvalidAddr        = errors.New("invalid address")
++)
++
++// A RouteMessage represents a message conveying an address prefix, a
++// nexthop address and an output interface.
++type RouteMessage struct {
++	Version int    // message version
++	Type    int    // message type
++	Flags   int    // route flags
++	Index   int    // interface index when atatched
++	Addrs   []Addr // addresses
++
++	extOff int    // offset of header extension
++	raw    []byte // raw message
++}
++
++// A RIBType reprensents a type of routing information base.
++type RIBType int
++
++const (
++	RIBTypeRoute     RIBType = syscall.NET_RT_DUMP
++	RIBTypeInterface RIBType = syscall.NET_RT_IFLIST
++)
++
++// FetchRIB fetches a routing information base from the operating
++// system.
++//
++// The provided af must be an address family.
++//
++// The provided arg must be a RIBType-specific argument.
++// When RIBType is related to routes, arg might be a set of route
++// flags. When RIBType is related to network interfaces, arg might be
++// an interface index or a set of interface flags. In most cases, zero
++// means a wildcard.
++func FetchRIB(af int, typ RIBType, arg int) ([]byte, error) {
++	mib := [6]int32{sysCTL_NET, sysAF_ROUTE, 0, int32(af), int32(typ), int32(arg)}
++	n := uintptr(0)
++	if err := sysctl(mib[:], nil, &n, nil, 0); err != nil {
++		return nil, os.NewSyscallError("sysctl", err)
++	}
++	if n == 0 {
++		return nil, nil
++	}
++	b := make([]byte, n)
++	if err := sysctl(mib[:], &b[0], &n, nil, 0); err != nil {
++		return nil, os.NewSyscallError("sysctl", err)
++	}
++	return b[:n], nil
++}
+diff --git a/src/vendor/golang.org/x/net/route/route_classic.go b/src/vendor/golang.org/x/net/route/route_classic.go
+new file mode 100644
+index 0000000000..d333c6aa52
+--- /dev/null
++++ b/src/vendor/golang.org/x/net/route/route_classic.go
+@@ -0,0 +1,31 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build darwin dragonfly freebsd netbsd
++
++package route
++
++func (w *wireFormat) parseRouteMessage(typ RIBType, b []byte) (Message, error) {
++	if len(b) < w.bodyOff {
++		return nil, errMessageTooShort
++	}
++	l := int(nativeEndian.Uint16(b[:2]))
++	if len(b) < l {
++		return nil, errInvalidMessage
++	}
++	m := &RouteMessage{
++		Version: int(b[2]),
++		Type:    int(b[3]),
++		Flags:   int(nativeEndian.Uint32(b[8:12])),
++		Index:   int(nativeEndian.Uint16(b[4:6])),
++		extOff:  w.extOff,
++		raw:     b[:l],
++	}
++	var err error
++	m.Addrs, err = parseAddrs(uint(nativeEndian.Uint32(b[12:16])), parseKernelInetAddr, b[w.bodyOff:])
++	if err != nil {
++		return nil, err
++	}
++	return m, nil
++}
+diff --git a/src/vendor/golang.org/x/net/route/route_openbsd.go b/src/vendor/golang.org/x/net/route/route_openbsd.go
+new file mode 100644
+index 0000000000..b07862f04d
+--- /dev/null
++++ b/src/vendor/golang.org/x/net/route/route_openbsd.go
+@@ -0,0 +1,28 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package route
++
++func (*wireFormat) parseRouteMessage(_ RIBType, b []byte) (Message, error) {
++	if len(b) < 40 {
++		return nil, errMessageTooShort
++	}
++	l := int(nativeEndian.Uint16(b[:2]))
++	if len(b) < l {
++		return nil, errInvalidMessage
++	}
++	m := &RouteMessage{
++		Version: int(b[2]),
++		Type:    int(b[3]),
++		Flags:   int(nativeEndian.Uint32(b[16:20])),
++		Index:   int(nativeEndian.Uint16(b[6:8])),
++		raw:     b[:l],
++	}
++	as, err := parseAddrs(uint(nativeEndian.Uint32(b[12:16])), parseKernelInetAddr, b[int(nativeEndian.Uint16(b[4:6])):])
++	if err != nil {
++		return nil, err
++	}
++	m.Addrs = as
++	return m, nil
++}
+diff --git a/src/vendor/golang.org/x/net/route/route_test.go b/src/vendor/golang.org/x/net/route/route_test.go
+new file mode 100644
+index 0000000000..99f57b712d
+--- /dev/null
++++ b/src/vendor/golang.org/x/net/route/route_test.go
+@@ -0,0 +1,385 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build darwin dragonfly freebsd netbsd openbsd
++
++package route
++
++import (
++	"fmt"
++	"os/exec"
++	"runtime"
++	"time"
++)
++
++func (m *RouteMessage) String() string {
++	return fmt.Sprintf("%s", addrAttrs(nativeEndian.Uint32(m.raw[12:16])))
++}
++
++func (m *InterfaceMessage) String() string {
++	var attrs addrAttrs
++	if runtime.GOOS == "openbsd" {
++		attrs = addrAttrs(nativeEndian.Uint32(m.raw[12:16]))
++	} else {
++		attrs = addrAttrs(nativeEndian.Uint32(m.raw[4:8]))
++	}
++	return fmt.Sprintf("%s", attrs)
++}
++
++func (m *InterfaceAddrMessage) String() string {
++	var attrs addrAttrs
++	if runtime.GOOS == "openbsd" {
++		attrs = addrAttrs(nativeEndian.Uint32(m.raw[12:16]))
++	} else {
++		attrs = addrAttrs(nativeEndian.Uint32(m.raw[4:8]))
++	}
++	return fmt.Sprintf("%s", attrs)
++}
++
++func (m *InterfaceMulticastAddrMessage) String() string {
++	return fmt.Sprintf("%s", addrAttrs(nativeEndian.Uint32(m.raw[4:8])))
++}
++
++func (m *InterfaceAnnounceMessage) String() string {
++	what := "<nil>"
++	switch m.What {
++	case 0:
++		what = "arrival"
++	case 1:
++		what = "departure"
++	}
++	return fmt.Sprintf("(%d %s %s)", m.Index, m.Name, what)
++}
++
++func (m *InterfaceMetrics) String() string {
++	return fmt.Sprintf("(type=%d mtu=%d)", m.Type, m.MTU)
++}
++
++func (m *RouteMetrics) String() string {
++	return fmt.Sprintf("(pmtu=%d)", m.PathMTU)
++}
++
++type addrAttrs uint
++
++var addrAttrNames = [...]string{
++	"dst",
++	"gateway",
++	"netmask",
++	"genmask",
++	"ifp",
++	"ifa",
++	"author",
++	"brd",
++	"df:mpls1-n:tag-o:src", // mpls1 for dragonfly, tag for netbsd, src for openbsd
++	"df:mpls2-o:srcmask",   // mpls2 for dragonfly, srcmask for openbsd
++	"df:mpls3-o:label",     // mpls3 for dragonfly, label for openbsd
++}
++
++func (attrs addrAttrs) String() string {
++	var s string
++	for i, name := range addrAttrNames {
++		if attrs&(1<<uint(i)) != 0 {
++			if s != "" {
++				s += "|"
++			}
++			s += name
++		}
++	}
++	if s == "" {
++		return "<nil>"
++	}
++	return s
++}
++
++type msgs []Message
++
++func (ms msgs) validate() ([]string, error) {
++	var ss []string
++	for _, m := range ms {
++		switch m := m.(type) {
++		case *RouteMessage:
++			if err := addrs(m.Addrs).match(addrAttrs(nativeEndian.Uint32(m.raw[12:16]))); err != nil {
++				return nil, err
++			}
++			sys := m.Sys()
++			if sys == nil {
++				return nil, fmt.Errorf("no sys for %s", m.String())
++			}
++			ss = append(ss, m.String()+" "+syss(sys).String()+" "+addrs(m.Addrs).String())
++		case *InterfaceMessage:
++			var attrs addrAttrs
++			if runtime.GOOS == "openbsd" {
++				attrs = addrAttrs(nativeEndian.Uint32(m.raw[12:16]))
++			} else {
++				attrs = addrAttrs(nativeEndian.Uint32(m.raw[4:8]))
++			}
++			if err := addrs(m.Addrs).match(attrs); err != nil {
++				return nil, err
++			}
++			sys := m.Sys()
++			if sys == nil {
++				return nil, fmt.Errorf("no sys for %s", m.String())
++			}
++			ss = append(ss, m.String()+" "+syss(sys).String()+" "+addrs(m.Addrs).String())
++		case *InterfaceAddrMessage:
++			var attrs addrAttrs
++			if runtime.GOOS == "openbsd" {
++				attrs = addrAttrs(nativeEndian.Uint32(m.raw[12:16]))
++			} else {
++				attrs = addrAttrs(nativeEndian.Uint32(m.raw[4:8]))
++			}
++			if err := addrs(m.Addrs).match(attrs); err != nil {
++				return nil, err
++			}
++			ss = append(ss, m.String()+" "+addrs(m.Addrs).String())
++		case *InterfaceMulticastAddrMessage:
++			if err := addrs(m.Addrs).match(addrAttrs(nativeEndian.Uint32(m.raw[4:8]))); err != nil {
++				return nil, err
++			}
++			ss = append(ss, m.String()+" "+addrs(m.Addrs).String())
++		case *InterfaceAnnounceMessage:
++			ss = append(ss, m.String())
++		default:
++			ss = append(ss, fmt.Sprintf("%+v", m))
++		}
++	}
++	return ss, nil
++}
++
++type syss []Sys
++
++func (sys syss) String() string {
++	var s string
++	for _, sy := range sys {
++		switch sy := sy.(type) {
++		case *InterfaceMetrics:
++			if len(s) > 0 {
++				s += " "
++			}
++			s += sy.String()
++		case *RouteMetrics:
++			if len(s) > 0 {
++				s += " "
++			}
++			s += sy.String()
++		}
++	}
++	return s
++}
++
++type addrFamily int
++
++func (af addrFamily) String() string {
++	switch af {
++	case sysAF_UNSPEC:
++		return "unspec"
++	case sysAF_LINK:
++		return "link"
++	case sysAF_INET:
++		return "inet4"
++	case sysAF_INET6:
++		return "inet6"
++	default:
++		return fmt.Sprintf("%d", af)
++	}
++}
++
++const hexDigit = "0123456789abcdef"
++
++type llAddr []byte
++
++func (a llAddr) String() string {
++	if len(a) == 0 {
++		return ""
++	}
++	buf := make([]byte, 0, len(a)*3-1)
++	for i, b := range a {
++		if i > 0 {
++			buf = append(buf, ':')
++		}
++		buf = append(buf, hexDigit[b>>4])
++		buf = append(buf, hexDigit[b&0xF])
++	}
++	return string(buf)
++}
++
++type ipAddr []byte
++
++func (a ipAddr) String() string {
++	if len(a) == 0 {
++		return "<nil>"
++	}
++	if len(a) == 4 {
++		return fmt.Sprintf("%d.%d.%d.%d", a[0], a[1], a[2], a[3])
++	}
++	if len(a) == 16 {
++		return fmt.Sprintf("%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x", a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7], a[8], a[9], a[10], a[11], a[12], a[13], a[14], a[15])
++	}
++	s := make([]byte, len(a)*2)
++	for i, tn := range a {
++		s[i*2], s[i*2+1] = hexDigit[tn>>4], hexDigit[tn&0xf]
++	}
++	return string(s)
++}
++
++func (a *LinkAddr) String() string {
++	name := a.Name
++	if name == "" {
++		name = "<nil>"
++	}
++	lla := llAddr(a.Addr).String()
++	if lla == "" {
++		lla = "<nil>"
++	}
++	return fmt.Sprintf("(%v %d %s %s)", addrFamily(a.Family()), a.Index, name, lla)
++}
++
++func (a Inet4Addr) String() string {
++	return fmt.Sprintf("(%v %v)", addrFamily(a.Family()), ipAddr(a.IP[:]))
++}
++
++func (a *Inet6Addr) String() string {
++	return fmt.Sprintf("(%v %v %d)", addrFamily(a.Family()), ipAddr(a.IP[:]), a.ZoneID)
++}
++
++func (a *DefaultAddr) String() string {
++	return fmt.Sprintf("(%v %s)", addrFamily(a.Family()), ipAddr(a.Raw[2:]).String())
++}
++
++type addrs []Addr
++
++func (as addrs) String() string {
++	var s string
++	for _, a := range as {
++		if a == nil {
++			continue
++		}
++		if len(s) > 0 {
++			s += " "
++		}
++		switch a := a.(type) {
++		case *LinkAddr:
++			s += a.String()
++		case *Inet4Addr:
++			s += a.String()
++		case *Inet6Addr:
++			s += a.String()
++		case *DefaultAddr:
++			s += a.String()
++		}
++	}
++	if s == "" {
++		return "<nil>"
++	}
++	return s
++}
++
++func (as addrs) match(attrs addrAttrs) error {
++	var ts addrAttrs
++	af := sysAF_UNSPEC
++	for i := range as {
++		if as[i] != nil {
++			ts |= 1 << uint(i)
++		}
++		switch as[i].(type) {
++		case *Inet4Addr:
++			if af == sysAF_UNSPEC {
++				af = sysAF_INET
++			}
++			if af != sysAF_INET {
++				return fmt.Errorf("got %v; want %v", addrs(as), addrFamily(af))
++			}
++		case *Inet6Addr:
++			if af == sysAF_UNSPEC {
++				af = sysAF_INET6
++			}
++			if af != sysAF_INET6 {
++				return fmt.Errorf("got %v; want %v", addrs(as), addrFamily(af))
++			}
++		}
++	}
++	if ts != attrs && ts > attrs {
++		return fmt.Errorf("%v not included in %v", ts, attrs)
++	}
++	return nil
++}
++
++func fetchAndParseRIB(af int, typ RIBType) ([]Message, error) {
++	var err error
++	var b []byte
++	for i := 0; i < 3; i++ {
++		if b, err = FetchRIB(af, typ, 0); err != nil {
++			time.Sleep(10 * time.Millisecond)
++			continue
++		}
++		break
++	}
++	if err != nil {
++		return nil, fmt.Errorf("%v %d %v", addrFamily(af), typ, err)
++	}
++	ms, err := ParseRIB(typ, b)
++	if err != nil {
++		return nil, fmt.Errorf("%v %d %v", addrFamily(af), typ, err)
++	}
++	return ms, nil
++}
++
++type propVirtual struct {
++	name         string
++	addr, mask   string
++	setupCmds    []*exec.Cmd
++	teardownCmds []*exec.Cmd
++}
++
++func (ti *propVirtual) setup() error {
++	for _, cmd := range ti.setupCmds {
++		if err := cmd.Run(); err != nil {
++			ti.teardown()
++			return err
++		}
++	}
++	return nil
++}
++
++func (ti *propVirtual) teardown() error {
++	for _, cmd := range ti.teardownCmds {
++		if err := cmd.Run(); err != nil {
++			return err
++		}
++	}
++	return nil
++}
++
++func (ti *propVirtual) configure(suffix int) error {
++	if runtime.GOOS == "openbsd" {
++		ti.name = fmt.Sprintf("vether%d", suffix)
++	} else {
++		ti.name = fmt.Sprintf("vlan%d", suffix)
++	}
++	xname, err := exec.LookPath("ifconfig")
++	if err != nil {
++		return err
++	}
++	ti.setupCmds = append(ti.setupCmds, &exec.Cmd{
++		Path: xname,
++		Args: []string{"ifconfig", ti.name, "create"},
++	})
++	if runtime.GOOS == "netbsd" {
++		// NetBSD requires an underlying dot1Q-capable network
++		// interface.
++		ti.setupCmds = append(ti.setupCmds, &exec.Cmd{
++			Path: xname,
++			Args: []string{"ifconfig", ti.name, "vlan", fmt.Sprintf("%d", suffix&0xfff), "vlanif", "wm0"},
++		})
++	}
++	ti.setupCmds = append(ti.setupCmds, &exec.Cmd{
++		Path: xname,
++		Args: []string{"ifconfig", ti.name, "inet", ti.addr, "netmask", ti.mask},
++	})
++	ti.teardownCmds = append(ti.teardownCmds, &exec.Cmd{
++		Path: xname,
++		Args: []string{"ifconfig", ti.name, "destroy"},
++	})
++	return nil
++}
+diff --git a/src/vendor/golang.org/x/net/route/sys.go b/src/vendor/golang.org/x/net/route/sys.go
+new file mode 100644
+index 0000000000..80ca83ae13
+--- /dev/null
++++ b/src/vendor/golang.org/x/net/route/sys.go
+@@ -0,0 +1,40 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build darwin dragonfly freebsd netbsd openbsd
++
++package route
++
++import "unsafe"
++
++var (
++	nativeEndian binaryByteOrder
++	kernelAlign  int
++	parseFns     map[int]parseFn
++)
++
++func init() {
++	i := uint32(1)
++	b := (*[4]byte)(unsafe.Pointer(&i))
++	if b[0] == 1 {
++		nativeEndian = littleEndian
++	} else {
++		nativeEndian = bigEndian
++	}
++	kernelAlign, parseFns = probeRoutingStack()
++}
++
++func roundup(l int) int {
++	if l == 0 {
++		return kernelAlign
++	}
++	return (l + kernelAlign - 1) & ^(kernelAlign - 1)
++}
++
++type parseFn func(RIBType, []byte) (Message, error)
++
++type wireFormat struct {
++	extOff  int // offset of header extension
++	bodyOff int // offset of message body
++}
+diff --git a/src/vendor/golang.org/x/net/route/sys_darwin.go b/src/vendor/golang.org/x/net/route/sys_darwin.go
+new file mode 100644
+index 0000000000..fff3a0fd1d
+--- /dev/null
++++ b/src/vendor/golang.org/x/net/route/sys_darwin.go
+@@ -0,0 +1,80 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package route
++
++func (typ RIBType) parseable() bool {
++	switch typ {
++	case sysNET_RT_STAT, sysNET_RT_TRASH:
++		return false
++	default:
++		return true
++	}
++}
++
++// A RouteMetrics represents route metrics.
++type RouteMetrics struct {
++	PathMTU int // path maximum transmission unit
++}
++
++// SysType implements the SysType method of Sys interface.
++func (rmx *RouteMetrics) SysType() SysType { return SysMetrics }
++
++// Sys implements the Sys method of Message interface.
++func (m *RouteMessage) Sys() []Sys {
++	return []Sys{
++		&RouteMetrics{
++			PathMTU: int(nativeEndian.Uint32(m.raw[m.extOff+4 : m.extOff+8])),
++		},
++	}
++}
++
++// A InterfaceMetrics represents interface metrics.
++type InterfaceMetrics struct {
++	Type int // interface type
++	MTU  int // maximum transmission unit
++}
++
++// SysType implements the SysType method of Sys interface.
++func (imx *InterfaceMetrics) SysType() SysType { return SysMetrics }
++
++// Sys implements the Sys method of Message interface.
++func (m *InterfaceMessage) Sys() []Sys {
++	return []Sys{
++		&InterfaceMetrics{
++			Type: int(m.raw[m.extOff]),
++			MTU:  int(nativeEndian.Uint32(m.raw[m.extOff+8 : m.extOff+12])),
++		},
++	}
++}
++
++func probeRoutingStack() (int, map[int]parseFn) {
++	rtm := &wireFormat{extOff: 36, bodyOff: sizeofRtMsghdrDarwin15}
++	rtm2 := &wireFormat{extOff: 36, bodyOff: sizeofRtMsghdr2Darwin15}
++	ifm := &wireFormat{extOff: 16, bodyOff: sizeofIfMsghdrDarwin15}
++	ifm2 := &wireFormat{extOff: 32, bodyOff: sizeofIfMsghdr2Darwin15}
++	ifam := &wireFormat{extOff: sizeofIfaMsghdrDarwin15, bodyOff: sizeofIfaMsghdrDarwin15}
++	ifmam := &wireFormat{extOff: sizeofIfmaMsghdrDarwin15, bodyOff: sizeofIfmaMsghdrDarwin15}
++	ifmam2 := &wireFormat{extOff: sizeofIfmaMsghdr2Darwin15, bodyOff: sizeofIfmaMsghdr2Darwin15}
++	// Darwin kernels require 32-bit aligned access to routing facilities.
++	return 4, map[int]parseFn{
++		sysRTM_ADD:       rtm.parseRouteMessage,
++		sysRTM_DELETE:    rtm.parseRouteMessage,
++		sysRTM_CHANGE:    rtm.parseRouteMessage,
++		sysRTM_GET:       rtm.parseRouteMessage,
++		sysRTM_LOSING:    rtm.parseRouteMessage,
++		sysRTM_REDIRECT:  rtm.parseRouteMessage,
++		sysRTM_MISS:      rtm.parseRouteMessage,
++		sysRTM_LOCK:      rtm.parseRouteMessage,
++		sysRTM_RESOLVE:   rtm.parseRouteMessage,
++		sysRTM_NEWADDR:   ifam.parseInterfaceAddrMessage,
++		sysRTM_DELADDR:   ifam.parseInterfaceAddrMessage,
++		sysRTM_IFINFO:    ifm.parseInterfaceMessage,
++		sysRTM_NEWMADDR:  ifmam.parseInterfaceMulticastAddrMessage,
++		sysRTM_DELMADDR:  ifmam.parseInterfaceMulticastAddrMessage,
++		sysRTM_IFINFO2:   ifm2.parseInterfaceMessage,
++		sysRTM_NEWMADDR2: ifmam2.parseInterfaceMulticastAddrMessage,
++		sysRTM_GET2:      rtm2.parseRouteMessage,
++	}
++}
+diff --git a/src/vendor/golang.org/x/net/route/sys_dragonfly.go b/src/vendor/golang.org/x/net/route/sys_dragonfly.go
+new file mode 100644
+index 0000000000..da848b3d07
+--- /dev/null
++++ b/src/vendor/golang.org/x/net/route/sys_dragonfly.go
+@@ -0,0 +1,71 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package route
++
++import "unsafe"
++
++func (typ RIBType) parseable() bool { return true }
++
++// A RouteMetrics represents route metrics.
++type RouteMetrics struct {
++	PathMTU int // path maximum transmission unit
++}
++
++// SysType implements the SysType method of Sys interface.
++func (rmx *RouteMetrics) SysType() SysType { return SysMetrics }
++
++// Sys implements the Sys method of Message interface.
++func (m *RouteMessage) Sys() []Sys {
++	return []Sys{
++		&RouteMetrics{
++			PathMTU: int(nativeEndian.Uint64(m.raw[m.extOff+8 : m.extOff+16])),
++		},
++	}
++}
++
++// A InterfaceMetrics represents interface metrics.
++type InterfaceMetrics struct {
++	Type int // interface type
++	MTU  int // maximum transmission unit
++}
++
++// SysType implements the SysType method of Sys interface.
++func (imx *InterfaceMetrics) SysType() SysType { return SysMetrics }
++
++// Sys implements the Sys method of Message interface.
++func (m *InterfaceMessage) Sys() []Sys {
++	return []Sys{
++		&InterfaceMetrics{
++			Type: int(m.raw[m.extOff]),
++			MTU:  int(nativeEndian.Uint32(m.raw[m.extOff+8 : m.extOff+12])),
++		},
++	}
++}
++
++func probeRoutingStack() (int, map[int]parseFn) {
++	var p uintptr
++	rtm := &wireFormat{extOff: 40, bodyOff: sizeofRtMsghdrDragonFlyBSD4}
++	ifm := &wireFormat{extOff: 16, bodyOff: sizeofIfMsghdrDragonFlyBSD4}
++	ifam := &wireFormat{extOff: sizeofIfaMsghdrDragonFlyBSD4, bodyOff: sizeofIfaMsghdrDragonFlyBSD4}
++	ifmam := &wireFormat{extOff: sizeofIfmaMsghdrDragonFlyBSD4, bodyOff: sizeofIfmaMsghdrDragonFlyBSD4}
++	ifanm := &wireFormat{extOff: sizeofIfAnnouncemsghdrDragonFlyBSD4, bodyOff: sizeofIfAnnouncemsghdrDragonFlyBSD4}
++	return int(unsafe.Sizeof(p)), map[int]parseFn{
++		sysRTM_ADD:        rtm.parseRouteMessage,
++		sysRTM_DELETE:     rtm.parseRouteMessage,
++		sysRTM_CHANGE:     rtm.parseRouteMessage,
++		sysRTM_GET:        rtm.parseRouteMessage,
++		sysRTM_LOSING:     rtm.parseRouteMessage,
++		sysRTM_REDIRECT:   rtm.parseRouteMessage,
++		sysRTM_MISS:       rtm.parseRouteMessage,
++		sysRTM_LOCK:       rtm.parseRouteMessage,
++		sysRTM_RESOLVE:    rtm.parseRouteMessage,
++		sysRTM_NEWADDR:    ifam.parseInterfaceAddrMessage,
++		sysRTM_DELADDR:    ifam.parseInterfaceAddrMessage,
++		sysRTM_IFINFO:     ifm.parseInterfaceMessage,
++		sysRTM_NEWMADDR:   ifmam.parseInterfaceMulticastAddrMessage,
++		sysRTM_DELMADDR:   ifmam.parseInterfaceMulticastAddrMessage,
++		sysRTM_IFANNOUNCE: ifanm.parseInterfaceAnnounceMessage,
++	}
++}
+diff --git a/src/vendor/golang.org/x/net/route/sys_freebsd.go b/src/vendor/golang.org/x/net/route/sys_freebsd.go
+new file mode 100644
+index 0000000000..7b05c1a5a0
+--- /dev/null
++++ b/src/vendor/golang.org/x/net/route/sys_freebsd.go
+@@ -0,0 +1,150 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package route
++
++import (
++	"syscall"
++	"unsafe"
++)
++
++func (typ RIBType) parseable() bool { return true }
++
++// A RouteMetrics represents route metrics.
++type RouteMetrics struct {
++	PathMTU int // path maximum transmission unit
++}
++
++// SysType implements the SysType method of Sys interface.
++func (rmx *RouteMetrics) SysType() SysType { return SysMetrics }
++
++// Sys implements the Sys method of Message interface.
++func (m *RouteMessage) Sys() []Sys {
++	if kernelAlign == 8 {
++		return []Sys{
++			&RouteMetrics{
++				PathMTU: int(nativeEndian.Uint64(m.raw[m.extOff+8 : m.extOff+16])),
++			},
++		}
++	}
++	return []Sys{
++		&RouteMetrics{
++			PathMTU: int(nativeEndian.Uint32(m.raw[m.extOff+4 : m.extOff+8])),
++		},
++	}
++}
++
++// A InterfaceMetrics represents interface metrics.
++type InterfaceMetrics struct {
++	Type int // interface type
++	MTU  int // maximum transmission unit
++}
++
++// SysType implements the SysType method of Sys interface.
++func (imx *InterfaceMetrics) SysType() SysType { return SysMetrics }
++
++// Sys implements the Sys method of Message interface.
++func (m *InterfaceMessage) Sys() []Sys {
++	return []Sys{
++		&InterfaceMetrics{
++			Type: int(m.raw[m.extOff]),
++			MTU:  int(nativeEndian.Uint32(m.raw[m.extOff+8 : m.extOff+12])),
++		},
++	}
++}
++
++func probeRoutingStack() (int, map[int]parseFn) {
++	var p uintptr
++	wordSize := int(unsafe.Sizeof(p))
++	align := int(unsafe.Sizeof(p))
++	// In the case of kern.supported_archs="amd64 i386", we need
++	// to know the underlying kernel's architecture because the
++	// alignment for routing facilities are set at the build time
++	// of the kernel.
++	conf, _ := syscall.Sysctl("kern.conftxt")
++	for i, j := 0, 0; j < len(conf); j++ {
++		if conf[j] != '\n' {
++			continue
++		}
++		s := conf[i:j]
++		i = j + 1
++		if len(s) > len("machine") && s[:len("machine")] == "machine" {
++			s = s[len("machine"):]
++			for k := 0; k < len(s); k++ {
++				if s[k] == ' ' || s[k] == '\t' {
++					s = s[1:]
++				}
++				break
++			}
++			if s == "amd64" {
++				align = 8
++			}
++			break
++		}
++	}
++	var rtm, ifm, ifam, ifmam, ifanm *wireFormat
++	if align != wordSize { // 386 emulation on amd64
++		rtm = &wireFormat{extOff: sizeofRtMsghdrFreeBSD10Emu - sizeofRtMetricsFreeBSD10Emu, bodyOff: sizeofRtMsghdrFreeBSD10Emu}
++		ifm = &wireFormat{extOff: 16}
++		ifam = &wireFormat{extOff: sizeofIfaMsghdrFreeBSD10Emu, bodyOff: sizeofIfaMsghdrFreeBSD10Emu}
++		ifmam = &wireFormat{extOff: sizeofIfmaMsghdrFreeBSD10Emu, bodyOff: sizeofIfmaMsghdrFreeBSD10Emu}
++		ifanm = &wireFormat{extOff: sizeofIfAnnouncemsghdrFreeBSD10Emu, bodyOff: sizeofIfAnnouncemsghdrFreeBSD10Emu}
++	} else {
++		rtm = &wireFormat{extOff: sizeofRtMsghdrFreeBSD10 - sizeofRtMetricsFreeBSD10, bodyOff: sizeofRtMsghdrFreeBSD10}
++		ifm = &wireFormat{extOff: 16}
++		ifam = &wireFormat{extOff: sizeofIfaMsghdrFreeBSD10, bodyOff: sizeofIfaMsghdrFreeBSD10}
++		ifmam = &wireFormat{extOff: sizeofIfmaMsghdrFreeBSD10, bodyOff: sizeofIfmaMsghdrFreeBSD10}
++		ifanm = &wireFormat{extOff: sizeofIfAnnouncemsghdrFreeBSD10, bodyOff: sizeofIfAnnouncemsghdrFreeBSD10}
++	}
++	rel, _ := syscall.SysctlUint32("kern.osreldate")
++	switch {
++	case rel < 800000:
++		if align != wordSize { // 386 emulation on amd64
++			ifm.bodyOff = sizeofIfMsghdrFreeBSD7Emu
++		} else {
++			ifm.bodyOff = sizeofIfMsghdrFreeBSD7
++		}
++	case 800000 <= rel && rel < 900000:
++		if align != wordSize { // 386 emulation on amd64
++			ifm.bodyOff = sizeofIfMsghdrFreeBSD8Emu
++		} else {
++			ifm.bodyOff = sizeofIfMsghdrFreeBSD8
++		}
++	case 900000 <= rel && rel < 1000000:
++		if align != wordSize { // 386 emulation on amd64
++			ifm.bodyOff = sizeofIfMsghdrFreeBSD9Emu
++		} else {
++			ifm.bodyOff = sizeofIfMsghdrFreeBSD9
++		}
++	case 1000000 <= rel && rel < 1100000:
++		if align != wordSize { // 386 emulation on amd64
++			ifm.bodyOff = sizeofIfMsghdrFreeBSD10Emu
++		} else {
++			ifm.bodyOff = sizeofIfMsghdrFreeBSD10
++		}
++	default:
++		if align != wordSize { // 386 emulation on amd64
++			ifm.bodyOff = sizeofIfMsghdrFreeBSD11Emu
++		} else {
++			ifm.bodyOff = sizeofIfMsghdrFreeBSD11
++		}
++	}
++	return align, map[int]parseFn{
++		sysRTM_ADD:        rtm.parseRouteMessage,
++		sysRTM_DELETE:     rtm.parseRouteMessage,
++		sysRTM_CHANGE:     rtm.parseRouteMessage,
++		sysRTM_GET:        rtm.parseRouteMessage,
++		sysRTM_LOSING:     rtm.parseRouteMessage,
++		sysRTM_REDIRECT:   rtm.parseRouteMessage,
++		sysRTM_MISS:       rtm.parseRouteMessage,
++		sysRTM_LOCK:       rtm.parseRouteMessage,
++		sysRTM_RESOLVE:    rtm.parseRouteMessage,
++		sysRTM_NEWADDR:    ifam.parseInterfaceAddrMessage,
++		sysRTM_DELADDR:    ifam.parseInterfaceAddrMessage,
++		sysRTM_IFINFO:     ifm.parseInterfaceMessage,
++		sysRTM_NEWMADDR:   ifmam.parseInterfaceMulticastAddrMessage,
++		sysRTM_DELMADDR:   ifmam.parseInterfaceMulticastAddrMessage,
++		sysRTM_IFANNOUNCE: ifanm.parseInterfaceAnnounceMessage,
++	}
++}
+diff --git a/src/vendor/golang.org/x/net/route/sys_netbsd.go b/src/vendor/golang.org/x/net/route/sys_netbsd.go
+new file mode 100644
+index 0000000000..4d8076b518
+--- /dev/null
++++ b/src/vendor/golang.org/x/net/route/sys_netbsd.go
+@@ -0,0 +1,67 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package route
++
++func (typ RIBType) parseable() bool { return true }
++
++// A RouteMetrics represents route metrics.
++type RouteMetrics struct {
++	PathMTU int // path maximum transmission unit
++}
++
++// SysType implements the SysType method of Sys interface.
++func (rmx *RouteMetrics) SysType() SysType { return SysMetrics }
++
++// Sys implements the Sys method of Message interface.
++func (m *RouteMessage) Sys() []Sys {
++	return []Sys{
++		&RouteMetrics{
++			PathMTU: int(nativeEndian.Uint64(m.raw[m.extOff+8 : m.extOff+16])),
++		},
++	}
++}
++
++// A InterfaceMetrics represents interface metrics.
++type InterfaceMetrics struct {
++	Type int // interface type
++	MTU  int // maximum transmission unit
++}
++
++// SysType implements the SysType method of Sys interface.
++func (imx *InterfaceMetrics) SysType() SysType { return SysMetrics }
++
++// Sys implements the Sys method of Message interface.
++func (m *InterfaceMessage) Sys() []Sys {
++	return []Sys{
++		&InterfaceMetrics{
++			Type: int(m.raw[m.extOff]),
++			MTU:  int(nativeEndian.Uint32(m.raw[m.extOff+8 : m.extOff+12])),
++		},
++	}
++}
++
++func probeRoutingStack() (int, map[int]parseFn) {
++	rtm := &wireFormat{extOff: 40, bodyOff: sizeofRtMsghdrNetBSD7}
++	ifm := &wireFormat{extOff: 16, bodyOff: sizeofIfMsghdrNetBSD7}
++	ifam := &wireFormat{extOff: sizeofIfaMsghdrNetBSD7, bodyOff: sizeofIfaMsghdrNetBSD7}
++	ifanm := &wireFormat{extOff: sizeofIfAnnouncemsghdrNetBSD7, bodyOff: sizeofIfAnnouncemsghdrNetBSD7}
++	// NetBSD 6 and above kernels require 64-bit aligned access to
++	// routing facilities.
++	return 8, map[int]parseFn{
++		sysRTM_ADD:        rtm.parseRouteMessage,
++		sysRTM_DELETE:     rtm.parseRouteMessage,
++		sysRTM_CHANGE:     rtm.parseRouteMessage,
++		sysRTM_GET:        rtm.parseRouteMessage,
++		sysRTM_LOSING:     rtm.parseRouteMessage,
++		sysRTM_REDIRECT:   rtm.parseRouteMessage,
++		sysRTM_MISS:       rtm.parseRouteMessage,
++		sysRTM_LOCK:       rtm.parseRouteMessage,
++		sysRTM_RESOLVE:    rtm.parseRouteMessage,
++		sysRTM_NEWADDR:    ifam.parseInterfaceAddrMessage,
++		sysRTM_DELADDR:    ifam.parseInterfaceAddrMessage,
++		sysRTM_IFANNOUNCE: ifanm.parseInterfaceAnnounceMessage,
++		sysRTM_IFINFO:     ifm.parseInterfaceMessage,
++	}
++}
+diff --git a/src/vendor/golang.org/x/net/route/sys_openbsd.go b/src/vendor/golang.org/x/net/route/sys_openbsd.go
+new file mode 100644
+index 0000000000..26d0438696
+--- /dev/null
++++ b/src/vendor/golang.org/x/net/route/sys_openbsd.go
+@@ -0,0 +1,72 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package route
++
++import "unsafe"
++
++func (typ RIBType) parseable() bool {
++	switch typ {
++	case sysNET_RT_STATS, sysNET_RT_TABLE:
++		return false
++	default:
++		return true
++	}
++}
++
++// A RouteMetrics represents route metrics.
++type RouteMetrics struct {
++	PathMTU int // path maximum transmission unit
++}
++
++// SysType implements the SysType method of Sys interface.
++func (rmx *RouteMetrics) SysType() SysType { return SysMetrics }
++
++// Sys implements the Sys method of Message interface.
++func (m *RouteMessage) Sys() []Sys {
++	return []Sys{
++		&RouteMetrics{
++			PathMTU: int(nativeEndian.Uint32(m.raw[60:64])),
++		},
++	}
++}
++
++// A InterfaceMetrics represents interface metrics.
++type InterfaceMetrics struct {
++	Type int // interface type
++	MTU  int // maximum transmission unit
++}
++
++// SysType implements the SysType method of Sys interface.
++func (imx *InterfaceMetrics) SysType() SysType { return SysMetrics }
++
++// Sys implements the Sys method of Message interface.
++func (m *InterfaceMessage) Sys() []Sys {
++	return []Sys{
++		&InterfaceMetrics{
++			Type: int(m.raw[24]),
++			MTU:  int(nativeEndian.Uint32(m.raw[28:32])),
++		},
++	}
++}
++
++func probeRoutingStack() (int, map[int]parseFn) {
++	var p uintptr
++	nooff := &wireFormat{extOff: -1, bodyOff: -1}
++	return int(unsafe.Sizeof(p)), map[int]parseFn{
++		sysRTM_ADD:        nooff.parseRouteMessage,
++		sysRTM_DELETE:     nooff.parseRouteMessage,
++		sysRTM_CHANGE:     nooff.parseRouteMessage,
++		sysRTM_GET:        nooff.parseRouteMessage,
++		sysRTM_LOSING:     nooff.parseRouteMessage,
++		sysRTM_REDIRECT:   nooff.parseRouteMessage,
++		sysRTM_MISS:       nooff.parseRouteMessage,
++		sysRTM_LOCK:       nooff.parseRouteMessage,
++		sysRTM_RESOLVE:    nooff.parseRouteMessage,
++		sysRTM_NEWADDR:    nooff.parseInterfaceAddrMessage,
++		sysRTM_DELADDR:    nooff.parseInterfaceAddrMessage,
++		sysRTM_IFINFO:     nooff.parseInterfaceMessage,
++		sysRTM_IFANNOUNCE: nooff.parseInterfaceAnnounceMessage,
++	}
++}
+diff --git a/src/vendor/golang.org/x/net/route/syscall.go b/src/vendor/golang.org/x/net/route/syscall.go
+new file mode 100644
+index 0000000000..d136325a30
+--- /dev/null
++++ b/src/vendor/golang.org/x/net/route/syscall.go
+@@ -0,0 +1,33 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build darwin dragonfly freebsd netbsd openbsd
++
++package route
++
++import (
++	"syscall"
++	"unsafe"
++)
++
++// TODO: replace with runtime.KeepAlive when available
++//go:noescape
++func keepAlive(p unsafe.Pointer)
++
++var zero uintptr
++
++func sysctl(mib []int32, old *byte, oldlen *uintptr, new *byte, newlen uintptr) error {
++	var p unsafe.Pointer
++	if len(mib) > 0 {
++		p = unsafe.Pointer(&mib[0])
++	} else {
++		p = unsafe.Pointer(&zero)
++	}
++	_, _, errno := syscall.Syscall6(syscall.SYS___SYSCTL, uintptr(p), uintptr(len(mib)), uintptr(unsafe.Pointer(old)), uintptr(unsafe.Pointer(oldlen)), uintptr(unsafe.Pointer(new)), uintptr(newlen))
++	keepAlive(p)
++	if errno != 0 {
++		return error(errno)
++	}
++	return nil
++}
+diff --git a/src/vendor/golang.org/x/net/route/syscall.s b/src/vendor/golang.org/x/net/route/syscall.s
+new file mode 100644
+index 0000000000..fa6297f0aa
+--- /dev/null
++++ b/src/vendor/golang.org/x/net/route/syscall.s
+@@ -0,0 +1,8 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "textflag.h"
++
++TEXT ·keepAlive(SB),NOSPLIT,$0
++	RET
+diff --git a/src/vendor/golang.org/x/net/route/zsys_darwin.go b/src/vendor/golang.org/x/net/route/zsys_darwin.go
+new file mode 100644
+index 0000000000..265b81cd50
+--- /dev/null
++++ b/src/vendor/golang.org/x/net/route/zsys_darwin.go
+@@ -0,0 +1,93 @@
++// Created by cgo -godefs - DO NOT EDIT
++// cgo -godefs defs_darwin.go
++
++package route
++
++const (
++	sysAF_UNSPEC = 0x0
++	sysAF_INET   = 0x2
++	sysAF_ROUTE  = 0x11
++	sysAF_LINK   = 0x12
++	sysAF_INET6  = 0x1e
++
++	sysNET_RT_DUMP    = 0x1
++	sysNET_RT_FLAGS   = 0x2
++	sysNET_RT_IFLIST  = 0x3
++	sysNET_RT_STAT    = 0x4
++	sysNET_RT_TRASH   = 0x5
++	sysNET_RT_IFLIST2 = 0x6
++	sysNET_RT_DUMP2   = 0x7
++	sysNET_RT_MAXID   = 0xa
++)
++
++const (
++	sysCTL_MAXNAME = 0xc
++
++	sysCTL_UNSPEC  = 0x0
++	sysCTL_KERN    = 0x1
++	sysCTL_VM      = 0x2
++	sysCTL_VFS     = 0x3
++	sysCTL_NET     = 0x4
++	sysCTL_DEBUG   = 0x5
++	sysCTL_HW      = 0x6
++	sysCTL_MACHDEP = 0x7
++	sysCTL_USER    = 0x8
++	sysCTL_MAXID   = 0x9
++)
++
++const (
++	sysRTM_VERSION = 0x5
++
++	sysRTM_ADD       = 0x1
++	sysRTM_DELETE    = 0x2
++	sysRTM_CHANGE    = 0x3
++	sysRTM_GET       = 0x4
++	sysRTM_LOSING    = 0x5
++	sysRTM_REDIRECT  = 0x6
++	sysRTM_MISS      = 0x7
++	sysRTM_LOCK      = 0x8
++	sysRTM_OLDADD    = 0x9
++	sysRTM_OLDDEL    = 0xa
++	sysRTM_RESOLVE   = 0xb
++	sysRTM_NEWADDR   = 0xc
++	sysRTM_DELADDR   = 0xd
++	sysRTM_IFINFO    = 0xe
++	sysRTM_NEWMADDR  = 0xf
++	sysRTM_DELMADDR  = 0x10
++	sysRTM_IFINFO2   = 0x12
++	sysRTM_NEWMADDR2 = 0x13
++	sysRTM_GET2      = 0x14
++
++	sysRTA_DST     = 0x1
++	sysRTA_GATEWAY = 0x2
++	sysRTA_NETMASK = 0x4
++	sysRTA_GENMASK = 0x8
++	sysRTA_IFP     = 0x10
++	sysRTA_IFA     = 0x20
++	sysRTA_AUTHOR  = 0x40
++	sysRTA_BRD     = 0x80
++
++	sysRTAX_DST     = 0x0
++	sysRTAX_GATEWAY = 0x1
++	sysRTAX_NETMASK = 0x2
++	sysRTAX_GENMASK = 0x3
++	sysRTAX_IFP     = 0x4
++	sysRTAX_IFA     = 0x5
++	sysRTAX_AUTHOR  = 0x6
++	sysRTAX_BRD     = 0x7
++	sysRTAX_MAX     = 0x8
++)
++
++const (
++	sizeofIfMsghdrDarwin15    = 0x70
++	sizeofIfaMsghdrDarwin15   = 0x14
++	sizeofIfmaMsghdrDarwin15  = 0x10
++	sizeofIfMsghdr2Darwin15   = 0xa0
++	sizeofIfmaMsghdr2Darwin15 = 0x14
++	sizeofIfDataDarwin15      = 0x60
++	sizeofIfData64Darwin15    = 0x80
++
++	sizeofRtMsghdrDarwin15  = 0x5c
++	sizeofRtMsghdr2Darwin15 = 0x5c
++	sizeofRtMetricsDarwin15 = 0x38
++)
+diff --git a/src/vendor/golang.org/x/net/route/zsys_dragonfly.go b/src/vendor/golang.org/x/net/route/zsys_dragonfly.go
+new file mode 100644
+index 0000000000..dd36dece0f
+--- /dev/null
++++ b/src/vendor/golang.org/x/net/route/zsys_dragonfly.go
+@@ -0,0 +1,92 @@
++// Created by cgo -godefs - DO NOT EDIT
++// cgo -godefs defs_dragonfly.go
++
++package route
++
++const (
++	sysAF_UNSPEC = 0x0
++	sysAF_INET   = 0x2
++	sysAF_ROUTE  = 0x11
++	sysAF_LINK   = 0x12
++	sysAF_INET6  = 0x1c
++
++	sysNET_RT_DUMP   = 0x1
++	sysNET_RT_FLAGS  = 0x2
++	sysNET_RT_IFLIST = 0x3
++	sysNET_RT_MAXID  = 0x4
++)
++
++const (
++	sysCTL_MAXNAME = 0xc
++
++	sysCTL_UNSPEC   = 0x0
++	sysCTL_KERN     = 0x1
++	sysCTL_VM       = 0x2
++	sysCTL_VFS      = 0x3
++	sysCTL_NET      = 0x4
++	sysCTL_DEBUG    = 0x5
++	sysCTL_HW       = 0x6
++	sysCTL_MACHDEP  = 0x7
++	sysCTL_USER     = 0x8
++	sysCTL_P1003_1B = 0x9
++	sysCTL_LWKT     = 0xa
++	sysCTL_MAXID    = 0xb
++)
++
++const (
++	sysRTM_VERSION = 0x6
++
++	sysRTM_ADD        = 0x1
++	sysRTM_DELETE     = 0x2
++	sysRTM_CHANGE     = 0x3
++	sysRTM_GET        = 0x4
++	sysRTM_LOSING     = 0x5
++	sysRTM_REDIRECT   = 0x6
++	sysRTM_MISS       = 0x7
++	sysRTM_LOCK       = 0x8
++	sysRTM_OLDADD     = 0x9
++	sysRTM_OLDDEL     = 0xa
++	sysRTM_RESOLVE    = 0xb
++	sysRTM_NEWADDR    = 0xc
++	sysRTM_DELADDR    = 0xd
++	sysRTM_IFINFO     = 0xe
++	sysRTM_NEWMADDR   = 0xf
++	sysRTM_DELMADDR   = 0x10
++	sysRTM_IFANNOUNCE = 0x11
++	sysRTM_IEEE80211  = 0x12
++
++	sysRTA_DST     = 0x1
++	sysRTA_GATEWAY = 0x2
++	sysRTA_NETMASK = 0x4
++	sysRTA_GENMASK = 0x8
++	sysRTA_IFP     = 0x10
++	sysRTA_IFA     = 0x20
++	sysRTA_AUTHOR  = 0x40
++	sysRTA_BRD     = 0x80
++	sysRTA_MPLS1   = 0x100
++	sysRTA_MPLS2   = 0x200
++	sysRTA_MPLS3   = 0x400
++
++	sysRTAX_DST     = 0x0
++	sysRTAX_GATEWAY = 0x1
++	sysRTAX_NETMASK = 0x2
++	sysRTAX_GENMASK = 0x3
++	sysRTAX_IFP     = 0x4
++	sysRTAX_IFA     = 0x5
++	sysRTAX_AUTHOR  = 0x6
++	sysRTAX_BRD     = 0x7
++	sysRTAX_MPLS1   = 0x8
++	sysRTAX_MPLS2   = 0x9
++	sysRTAX_MPLS3   = 0xa
++	sysRTAX_MAX     = 0xb
++)
++
++const (
++	sizeofIfMsghdrDragonFlyBSD4         = 0xb0
++	sizeofIfaMsghdrDragonFlyBSD4        = 0x14
++	sizeofIfmaMsghdrDragonFlyBSD4       = 0x10
++	sizeofIfAnnouncemsghdrDragonFlyBSD4 = 0x18
++
++	sizeofRtMsghdrDragonFlyBSD4  = 0x98
++	sizeofRtMetricsDragonFlyBSD4 = 0x70
++)
+diff --git a/src/vendor/golang.org/x/net/route/zsys_freebsd_386.go b/src/vendor/golang.org/x/net/route/zsys_freebsd_386.go
+new file mode 100644
+index 0000000000..9bac2e3900
+--- /dev/null
++++ b/src/vendor/golang.org/x/net/route/zsys_freebsd_386.go
+@@ -0,0 +1,120 @@
++// Created by cgo -godefs - DO NOT EDIT
++// cgo -godefs defs_freebsd.go
++
++package route
++
++const (
++	sysAF_UNSPEC = 0x0
++	sysAF_INET   = 0x2
++	sysAF_ROUTE  = 0x11
++	sysAF_LINK   = 0x12
++	sysAF_INET6  = 0x1c
++
++	sysNET_RT_DUMP     = 0x1
++	sysNET_RT_FLAGS    = 0x2
++	sysNET_RT_IFLIST   = 0x3
++	sysNET_RT_IFMALIST = 0x4
++	sysNET_RT_IFLISTL  = 0x5
++)
++
++const (
++	sysCTL_MAXNAME = 0x18
++
++	sysCTL_UNSPEC   = 0x0
++	sysCTL_KERN     = 0x1
++	sysCTL_VM       = 0x2
++	sysCTL_VFS      = 0x3
++	sysCTL_NET      = 0x4
++	sysCTL_DEBUG    = 0x5
++	sysCTL_HW       = 0x6
++	sysCTL_MACHDEP  = 0x7
++	sysCTL_USER     = 0x8
++	sysCTL_P1003_1B = 0x9
++)
++
++const (
++	sysRTM_VERSION = 0x5
++
++	sysRTM_ADD        = 0x1
++	sysRTM_DELETE     = 0x2
++	sysRTM_CHANGE     = 0x3
++	sysRTM_GET        = 0x4
++	sysRTM_LOSING     = 0x5
++	sysRTM_REDIRECT   = 0x6
++	sysRTM_MISS       = 0x7
++	sysRTM_LOCK       = 0x8
++	sysRTM_RESOLVE    = 0xb
++	sysRTM_NEWADDR    = 0xc
++	sysRTM_DELADDR    = 0xd
++	sysRTM_IFINFO     = 0xe
++	sysRTM_NEWMADDR   = 0xf
++	sysRTM_DELMADDR   = 0x10
++	sysRTM_IFANNOUNCE = 0x11
++	sysRTM_IEEE80211  = 0x12
++
++	sysRTA_DST     = 0x1
++	sysRTA_GATEWAY = 0x2
++	sysRTA_NETMASK = 0x4
++	sysRTA_GENMASK = 0x8
++	sysRTA_IFP     = 0x10
++	sysRTA_IFA     = 0x20
++	sysRTA_AUTHOR  = 0x40
++	sysRTA_BRD     = 0x80
++
++	sysRTAX_DST     = 0x0
++	sysRTAX_GATEWAY = 0x1
++	sysRTAX_NETMASK = 0x2
++	sysRTAX_GENMASK = 0x3
++	sysRTAX_IFP     = 0x4
++	sysRTAX_IFA     = 0x5
++	sysRTAX_AUTHOR  = 0x6
++	sysRTAX_BRD     = 0x7
++	sysRTAX_MAX     = 0x8
++)
++
++const (
++	sizeofIfMsghdrlFreeBSD10        = 0x68
++	sizeofIfaMsghdrFreeBSD10        = 0x14
++	sizeofIfaMsghdrlFreeBSD10       = 0x6c
++	sizeofIfmaMsghdrFreeBSD10       = 0x10
++	sizeofIfAnnouncemsghdrFreeBSD10 = 0x18
++
++	sizeofRtMsghdrFreeBSD10  = 0x5c
++	sizeofRtMetricsFreeBSD10 = 0x38
++
++	sizeofIfMsghdrFreeBSD7  = 0x60
++	sizeofIfMsghdrFreeBSD8  = 0x60
++	sizeofIfMsghdrFreeBSD9  = 0x60
++	sizeofIfMsghdrFreeBSD10 = 0x64
++	sizeofIfMsghdrFreeBSD11 = 0xa8
++
++	sizeofIfDataFreeBSD7  = 0x50
++	sizeofIfDataFreeBSD8  = 0x50
++	sizeofIfDataFreeBSD9  = 0x50
++	sizeofIfDataFreeBSD10 = 0x54
++	sizeofIfDataFreeBSD11 = 0x98
++
++	// MODIFIED BY HAND FOR 386 EMULATION ON AMD64
++	// 386 EMULATION USES THE UNDERLYING RAW DATA LAYOUT
++
++	sizeofIfMsghdrlFreeBSD10Emu        = 0xb0
++	sizeofIfaMsghdrFreeBSD10Emu        = 0x14
++	sizeofIfaMsghdrlFreeBSD10Emu       = 0xb0
++	sizeofIfmaMsghdrFreeBSD10Emu       = 0x10
++	sizeofIfAnnouncemsghdrFreeBSD10Emu = 0x18
++
++	sizeofRtMsghdrFreeBSD10Emu  = 0x98
++	sizeofRtMetricsFreeBSD10Emu = 0x70
++
++	sizeofIfMsghdrFreeBSD7Emu  = 0xa8
++	sizeofIfMsghdrFreeBSD8Emu  = 0xa8
++	sizeofIfMsghdrFreeBSD9Emu  = 0xa8
++	sizeofIfMsghdrFreeBSD10Emu = 0xa8
++	sizeofIfMsghdrFreeBSD11Emu = 0xa8
++
++	sizeofIfDataFreeBSD7Emu  = 0x98
++	sizeofIfDataFreeBSD8Emu  = 0x98
++	sizeofIfDataFreeBSD9Emu  = 0x98
++	sizeofIfDataFreeBSD10Emu = 0x98
++	sizeofIfDataFreeBSD11Emu = 0x98
++)
+diff --git a/src/vendor/golang.org/x/net/route/zsys_freebsd_amd64.go b/src/vendor/golang.org/x/net/route/zsys_freebsd_amd64.go
+new file mode 100644
+index 0000000000..b1920d7ac1
+--- /dev/null
++++ b/src/vendor/golang.org/x/net/route/zsys_freebsd_amd64.go
+@@ -0,0 +1,117 @@
++// Created by cgo -godefs - DO NOT EDIT
++// cgo -godefs defs_freebsd.go
++
++package route
++
++const (
++	sysAF_UNSPEC = 0x0
++	sysAF_INET   = 0x2
++	sysAF_ROUTE  = 0x11
++	sysAF_LINK   = 0x12
++	sysAF_INET6  = 0x1c
++
++	sysNET_RT_DUMP     = 0x1
++	sysNET_RT_FLAGS    = 0x2
++	sysNET_RT_IFLIST   = 0x3
++	sysNET_RT_IFMALIST = 0x4
++	sysNET_RT_IFLISTL  = 0x5
++)
++
++const (
++	sysCTL_MAXNAME = 0x18
++
++	sysCTL_UNSPEC   = 0x0
++	sysCTL_KERN     = 0x1
++	sysCTL_VM       = 0x2
++	sysCTL_VFS      = 0x3
++	sysCTL_NET      = 0x4
++	sysCTL_DEBUG    = 0x5
++	sysCTL_HW       = 0x6
++	sysCTL_MACHDEP  = 0x7
++	sysCTL_USER     = 0x8
++	sysCTL_P1003_1B = 0x9
++)
++
++const (
++	sysRTM_VERSION = 0x5
++
++	sysRTM_ADD        = 0x1
++	sysRTM_DELETE     = 0x2
++	sysRTM_CHANGE     = 0x3
++	sysRTM_GET        = 0x4
++	sysRTM_LOSING     = 0x5
++	sysRTM_REDIRECT   = 0x6
++	sysRTM_MISS       = 0x7
++	sysRTM_LOCK       = 0x8
++	sysRTM_RESOLVE    = 0xb
++	sysRTM_NEWADDR    = 0xc
++	sysRTM_DELADDR    = 0xd
++	sysRTM_IFINFO     = 0xe
++	sysRTM_NEWMADDR   = 0xf
++	sysRTM_DELMADDR   = 0x10
++	sysRTM_IFANNOUNCE = 0x11
++	sysRTM_IEEE80211  = 0x12
++
++	sysRTA_DST     = 0x1
++	sysRTA_GATEWAY = 0x2
++	sysRTA_NETMASK = 0x4
++	sysRTA_GENMASK = 0x8
++	sysRTA_IFP     = 0x10
++	sysRTA_IFA     = 0x20
++	sysRTA_AUTHOR  = 0x40
++	sysRTA_BRD     = 0x80
++
++	sysRTAX_DST     = 0x0
++	sysRTAX_GATEWAY = 0x1
++	sysRTAX_NETMASK = 0x2
++	sysRTAX_GENMASK = 0x3
++	sysRTAX_IFP     = 0x4
++	sysRTAX_IFA     = 0x5
++	sysRTAX_AUTHOR  = 0x6
++	sysRTAX_BRD     = 0x7
++	sysRTAX_MAX     = 0x8
++)
++
++const (
++	sizeofIfMsghdrlFreeBSD10        = 0xb0
++	sizeofIfaMsghdrFreeBSD10        = 0x14
++	sizeofIfaMsghdrlFreeBSD10       = 0xb0
++	sizeofIfmaMsghdrFreeBSD10       = 0x10
++	sizeofIfAnnouncemsghdrFreeBSD10 = 0x18
++
++	sizeofRtMsghdrFreeBSD10  = 0x98
++	sizeofRtMetricsFreeBSD10 = 0x70
++
++	sizeofIfMsghdrFreeBSD7  = 0xa8
++	sizeofIfMsghdrFreeBSD8  = 0xa8
++	sizeofIfMsghdrFreeBSD9  = 0xa8
++	sizeofIfMsghdrFreeBSD10 = 0xa8
++	sizeofIfMsghdrFreeBSD11 = 0xa8
++
++	sizeofIfDataFreeBSD7  = 0x98
++	sizeofIfDataFreeBSD8  = 0x98
++	sizeofIfDataFreeBSD9  = 0x98
++	sizeofIfDataFreeBSD10 = 0x98
++	sizeofIfDataFreeBSD11 = 0x98
++
++	sizeofIfMsghdrlFreeBSD10Emu        = 0xb0
++	sizeofIfaMsghdrFreeBSD10Emu        = 0x14
++	sizeofIfaMsghdrlFreeBSD10Emu       = 0xb0
++	sizeofIfmaMsghdrFreeBSD10Emu       = 0x10
++	sizeofIfAnnouncemsghdrFreeBSD10Emu = 0x18
++
++	sizeofRtMsghdrFreeBSD10Emu  = 0x98
++	sizeofRtMetricsFreeBSD10Emu = 0x70
++
++	sizeofIfMsghdrFreeBSD7Emu  = 0xa8
++	sizeofIfMsghdrFreeBSD8Emu  = 0xa8
++	sizeofIfMsghdrFreeBSD9Emu  = 0xa8
++	sizeofIfMsghdrFreeBSD10Emu = 0xa8
++	sizeofIfMsghdrFreeBSD11Emu = 0xa8
++
++	sizeofIfDataFreeBSD7Emu  = 0x98
++	sizeofIfDataFreeBSD8Emu  = 0x98
++	sizeofIfDataFreeBSD9Emu  = 0x98
++	sizeofIfDataFreeBSD10Emu = 0x98
++	sizeofIfDataFreeBSD11Emu = 0x98
++)
+diff --git a/src/vendor/golang.org/x/net/route/zsys_freebsd_arm.go b/src/vendor/golang.org/x/net/route/zsys_freebsd_arm.go
+new file mode 100644
+index 0000000000..a034d6fcbf
+--- /dev/null
++++ b/src/vendor/golang.org/x/net/route/zsys_freebsd_arm.go
+@@ -0,0 +1,117 @@
++// Created by cgo -godefs - DO NOT EDIT
++// cgo -godefs defs_freebsd.go
++
++package route
++
++const (
++	sysAF_UNSPEC = 0x0
++	sysAF_INET   = 0x2
++	sysAF_ROUTE  = 0x11
++	sysAF_LINK   = 0x12
++	sysAF_INET6  = 0x1c
++
++	sysNET_RT_DUMP     = 0x1
++	sysNET_RT_FLAGS    = 0x2
++	sysNET_RT_IFLIST   = 0x3
++	sysNET_RT_IFMALIST = 0x4
++	sysNET_RT_IFLISTL  = 0x5
++)
++
++const (
++	sysCTL_MAXNAME = 0x18
++
++	sysCTL_UNSPEC   = 0x0
++	sysCTL_KERN     = 0x1
++	sysCTL_VM       = 0x2
++	sysCTL_VFS      = 0x3
++	sysCTL_NET      = 0x4
++	sysCTL_DEBUG    = 0x5
++	sysCTL_HW       = 0x6
++	sysCTL_MACHDEP  = 0x7
++	sysCTL_USER     = 0x8
++	sysCTL_P1003_1B = 0x9
++)
++
++const (
++	sysRTM_VERSION = 0x5
++
++	sysRTM_ADD        = 0x1
++	sysRTM_DELETE     = 0x2
++	sysRTM_CHANGE     = 0x3
++	sysRTM_GET        = 0x4
++	sysRTM_LOSING     = 0x5
++	sysRTM_REDIRECT   = 0x6
++	sysRTM_MISS       = 0x7
++	sysRTM_LOCK       = 0x8
++	sysRTM_RESOLVE    = 0xb
++	sysRTM_NEWADDR    = 0xc
++	sysRTM_DELADDR    = 0xd
++	sysRTM_IFINFO     = 0xe
++	sysRTM_NEWMADDR   = 0xf
++	sysRTM_DELMADDR   = 0x10
++	sysRTM_IFANNOUNCE = 0x11
++	sysRTM_IEEE80211  = 0x12
++
++	sysRTA_DST     = 0x1
++	sysRTA_GATEWAY = 0x2
++	sysRTA_NETMASK = 0x4
++	sysRTA_GENMASK = 0x8
++	sysRTA_IFP     = 0x10
++	sysRTA_IFA     = 0x20
++	sysRTA_AUTHOR  = 0x40
++	sysRTA_BRD     = 0x80
++
++	sysRTAX_DST     = 0x0
++	sysRTAX_GATEWAY = 0x1
++	sysRTAX_NETMASK = 0x2
++	sysRTAX_GENMASK = 0x3
++	sysRTAX_IFP     = 0x4
++	sysRTAX_IFA     = 0x5
++	sysRTAX_AUTHOR  = 0x6
++	sysRTAX_BRD     = 0x7
++	sysRTAX_MAX     = 0x8
++)
++
++const (
++	sizeofIfMsghdrlFreeBSD10        = 0x68
++	sizeofIfaMsghdrFreeBSD10        = 0x14
++	sizeofIfaMsghdrlFreeBSD10       = 0x6c
++	sizeofIfmaMsghdrFreeBSD10       = 0x10
++	sizeofIfAnnouncemsghdrFreeBSD10 = 0x18
++
++	sizeofRtMsghdrFreeBSD10  = 0x5c
++	sizeofRtMetricsFreeBSD10 = 0x38
++
++	sizeofIfMsghdrFreeBSD7  = 0x70
++	sizeofIfMsghdrFreeBSD8  = 0x70
++	sizeofIfMsghdrFreeBSD9  = 0x70
++	sizeofIfMsghdrFreeBSD10 = 0x70
++	sizeofIfMsghdrFreeBSD11 = 0xa8
++
++	sizeofIfDataFreeBSD7  = 0x60
++	sizeofIfDataFreeBSD8  = 0x60
++	sizeofIfDataFreeBSD9  = 0x60
++	sizeofIfDataFreeBSD10 = 0x60
++	sizeofIfDataFreeBSD11 = 0x98
++
++	sizeofIfMsghdrlFreeBSD10Emu        = 0x68
++	sizeofIfaMsghdrFreeBSD10Emu        = 0x14
++	sizeofIfaMsghdrlFreeBSD10Emu       = 0x6c
++	sizeofIfmaMsghdrFreeBSD10Emu       = 0x10
++	sizeofIfAnnouncemsghdrFreeBSD10Emu = 0x18
++
++	sizeofRtMsghdrFreeBSD10Emu  = 0x5c
++	sizeofRtMetricsFreeBSD10Emu = 0x38
++
++	sizeofIfMsghdrFreeBSD7Emu  = 0x70
++	sizeofIfMsghdrFreeBSD8Emu  = 0x70
++	sizeofIfMsghdrFreeBSD9Emu  = 0x70
++	sizeofIfMsghdrFreeBSD10Emu = 0x70
++	sizeofIfMsghdrFreeBSD11Emu = 0xa8
++
++	sizeofIfDataFreeBSD7Emu  = 0x60
++	sizeofIfDataFreeBSD8Emu  = 0x60
++	sizeofIfDataFreeBSD9Emu  = 0x60
++	sizeofIfDataFreeBSD10Emu = 0x60
++	sizeofIfDataFreeBSD11Emu = 0x98
++)
+diff --git a/src/vendor/golang.org/x/net/route/zsys_netbsd.go b/src/vendor/golang.org/x/net/route/zsys_netbsd.go
+new file mode 100644
+index 0000000000..aa4aad1613
+--- /dev/null
++++ b/src/vendor/golang.org/x/net/route/zsys_netbsd.go
+@@ -0,0 +1,91 @@
++// Created by cgo -godefs - DO NOT EDIT
++// cgo -godefs defs_netbsd.go
++
++package route
++
++const (
++	sysAF_UNSPEC = 0x0
++	sysAF_INET   = 0x2
++	sysAF_ROUTE  = 0x22
++	sysAF_LINK   = 0x12
++	sysAF_INET6  = 0x18
++
++	sysNET_RT_DUMP   = 0x1
++	sysNET_RT_FLAGS  = 0x2
++	sysNET_RT_IFLIST = 0x5
++	sysNET_RT_MAXID  = 0x6
++)
++
++const (
++	sysCTL_MAXNAME = 0xc
++
++	sysCTL_UNSPEC   = 0x0
++	sysCTL_KERN     = 0x1
++	sysCTL_VM       = 0x2
++	sysCTL_VFS      = 0x3
++	sysCTL_NET      = 0x4
++	sysCTL_DEBUG    = 0x5
++	sysCTL_HW       = 0x6
++	sysCTL_MACHDEP  = 0x7
++	sysCTL_USER     = 0x8
++	sysCTL_DDB      = 0x9
++	sysCTL_PROC     = 0xa
++	sysCTL_VENDOR   = 0xb
++	sysCTL_EMUL     = 0xc
++	sysCTL_SECURITY = 0xd
++	sysCTL_MAXID    = 0xe
++)
++
++const (
++	sysRTM_VERSION = 0x4
++
++	sysRTM_ADD        = 0x1
++	sysRTM_DELETE     = 0x2
++	sysRTM_CHANGE     = 0x3
++	sysRTM_GET        = 0x4
++	sysRTM_LOSING     = 0x5
++	sysRTM_REDIRECT   = 0x6
++	sysRTM_MISS       = 0x7
++	sysRTM_LOCK       = 0x8
++	sysRTM_OLDADD     = 0x9
++	sysRTM_OLDDEL     = 0xa
++	sysRTM_RESOLVE    = 0xb
++	sysRTM_NEWADDR    = 0xc
++	sysRTM_DELADDR    = 0xd
++	sysRTM_IFANNOUNCE = 0x10
++	sysRTM_IEEE80211  = 0x11
++	sysRTM_SETGATE    = 0x12
++	sysRTM_LLINFO_UPD = 0x13
++	sysRTM_IFINFO     = 0x14
++	sysRTM_CHGADDR    = 0x15
++
++	sysRTA_DST     = 0x1
++	sysRTA_GATEWAY = 0x2
++	sysRTA_NETMASK = 0x4
++	sysRTA_GENMASK = 0x8
++	sysRTA_IFP     = 0x10
++	sysRTA_IFA     = 0x20
++	sysRTA_AUTHOR  = 0x40
++	sysRTA_BRD     = 0x80
++	sysRTA_TAG     = 0x100
++
++	sysRTAX_DST     = 0x0
++	sysRTAX_GATEWAY = 0x1
++	sysRTAX_NETMASK = 0x2
++	sysRTAX_GENMASK = 0x3
++	sysRTAX_IFP     = 0x4
++	sysRTAX_IFA     = 0x5
++	sysRTAX_AUTHOR  = 0x6
++	sysRTAX_BRD     = 0x7
++	sysRTAX_TAG     = 0x8
++	sysRTAX_MAX     = 0x9
++)
++
++const (
++	sizeofIfMsghdrNetBSD7         = 0x98
++	sizeofIfaMsghdrNetBSD7        = 0x18
++	sizeofIfAnnouncemsghdrNetBSD7 = 0x18
++
++	sizeofRtMsghdrNetBSD7  = 0x78
++	sizeofRtMetricsNetBSD7 = 0x50
++)
+diff --git a/src/vendor/golang.org/x/net/route/zsys_openbsd.go b/src/vendor/golang.org/x/net/route/zsys_openbsd.go
+new file mode 100644
+index 0000000000..4fadc4e8fa
+--- /dev/null
++++ b/src/vendor/golang.org/x/net/route/zsys_openbsd.go
+@@ -0,0 +1,80 @@
++// Created by cgo -godefs - DO NOT EDIT
++// cgo -godefs defs_openbsd.go
++
++package route
++
++const (
++	sysAF_UNSPEC = 0x0
++	sysAF_INET   = 0x2
++	sysAF_ROUTE  = 0x11
++	sysAF_LINK   = 0x12
++	sysAF_INET6  = 0x18
++
++	sysNET_RT_DUMP    = 0x1
++	sysNET_RT_FLAGS   = 0x2
++	sysNET_RT_IFLIST  = 0x3
++	sysNET_RT_STATS   = 0x4
++	sysNET_RT_TABLE   = 0x5
++	sysNET_RT_IFNAMES = 0x6
++	sysNET_RT_MAXID   = 0x7
++)
++
++const (
++	sysCTL_MAXNAME = 0xc
++
++	sysCTL_UNSPEC  = 0x0
++	sysCTL_KERN    = 0x1
++	sysCTL_VM      = 0x2
++	sysCTL_FS      = 0x3
++	sysCTL_NET     = 0x4
++	sysCTL_DEBUG   = 0x5
++	sysCTL_HW      = 0x6
++	sysCTL_MACHDEP = 0x7
++	sysCTL_DDB     = 0x9
++	sysCTL_VFS     = 0xa
++	sysCTL_MAXID   = 0xb
++)
++
++const (
++	sysRTM_VERSION = 0x5
++
++	sysRTM_ADD        = 0x1
++	sysRTM_DELETE     = 0x2
++	sysRTM_CHANGE     = 0x3
++	sysRTM_GET        = 0x4
++	sysRTM_LOSING     = 0x5
++	sysRTM_REDIRECT   = 0x6
++	sysRTM_MISS       = 0x7
++	sysRTM_LOCK       = 0x8
++	sysRTM_RESOLVE    = 0xb
++	sysRTM_NEWADDR    = 0xc
++	sysRTM_DELADDR    = 0xd
++	sysRTM_IFINFO     = 0xe
++	sysRTM_IFANNOUNCE = 0xf
++	sysRTM_DESYNC     = 0x10
++
++	sysRTA_DST     = 0x1
++	sysRTA_GATEWAY = 0x2
++	sysRTA_NETMASK = 0x4
++	sysRTA_GENMASK = 0x8
++	sysRTA_IFP     = 0x10
++	sysRTA_IFA     = 0x20
++	sysRTA_AUTHOR  = 0x40
++	sysRTA_BRD     = 0x80
++	sysRTA_SRC     = 0x100
++	sysRTA_SRCMASK = 0x200
++	sysRTA_LABEL   = 0x400
++
++	sysRTAX_DST     = 0x0
++	sysRTAX_GATEWAY = 0x1
++	sysRTAX_NETMASK = 0x2
++	sysRTAX_GENMASK = 0x3
++	sysRTAX_IFP     = 0x4
++	sysRTAX_IFA     = 0x5
++	sysRTAX_AUTHOR  = 0x6
++	sysRTAX_BRD     = 0x7
++	sysRTAX_SRC     = 0x8
++	sysRTAX_SRCMASK = 0x9
++	sysRTAX_LABEL   = 0xa
++	sysRTAX_MAX     = 0xb
++)

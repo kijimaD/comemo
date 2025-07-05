@@ -9,7 +9,75 @@ Date:   Tue Jan 8 17:23:46 2013 +1100
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/7062052
-
+---
  src/pkg/net/http/cgi/child.go      | 12 ++++++++++--
  src/pkg/net/http/cgi/child_test.go | 24 +++++++++++++++++++++++-
  2 files changed, 33 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/net/http/cgi/child.go b/src/pkg/net/http/cgi/child.go
+index 1ba7bec5fc..100b8b7776 100644
+--- a/src/pkg/net/http/cgi/child.go
++++ b/src/pkg/net/http/cgi/child.go
+@@ -91,10 +91,19 @@ func RequestFromMap(params map[string]string) (*http.Request, error) {
+ 
+ 	// TODO: cookies.  parsing them isn't exported, though.
+ 
++	uriStr := params["REQUEST_URI"]
++	if uriStr == "" {
++		// Fallback to SCRIPT_NAME, PATH_INFO and QUERY_STRING.
++		uriStr = params["SCRIPT_NAME"] + params["PATH_INFO"]
++		s := params["QUERY_STRING"]
++		if s != "" {
++			uriStr += "?" + s
++		}
++	}
+ 	if r.Host != "" {
+ 		// Hostname is provided, so we can reasonably construct a URL,
+ 		// even if we have to assume 'http' for the scheme.
+-		rawurl := "http://" + r.Host + params["REQUEST_URI"]
++		rawurl := "http://" + r.Host + uriStr
+ 		url, err := url.Parse(rawurl)
+ 		if err != nil {
+ 			return nil, errors.New("cgi: failed to parse host and REQUEST_URI into a URL: " + rawurl)
+@@ -104,7 +113,6 @@ func RequestFromMap(params map[string]string) (*http.Request, error) {
+ 	// Fallback logic if we don't have a Host header or the URL
+ 	// failed to parse
+ 	if r.URL == nil {
+-		uriStr := params["REQUEST_URI"]
+ 		url, err := url.Parse(uriStr)
+ 		if err != nil {
+ 			return nil, errors.New("cgi: failed to parse REQUEST_URI into a URL: " + uriStr)
+diff --git a/src/pkg/net/http/cgi/child_test.go b/src/pkg/net/http/cgi/child_test.go
+index ec53ab851b..74e068014b 100644
+--- a/src/pkg/net/http/cgi/child_test.go
++++ b/src/pkg/net/http/cgi/child_test.go
+@@ -82,6 +82,28 @@ func TestRequestWithoutHost(t *testing.T) {
+ 		t.Fatalf("unexpected nil URL")
+ 	}
+ 	if g, e := req.URL.String(), "/path?a=b"; e != g {
+-		t.Errorf("expected URL %q; got %q", e, g)
++		t.Errorf("URL = %q; want %q", g, e)
++	}
++}
++
++func TestRequestWithoutRequestURI(t *testing.T) {
++	env := map[string]string{
++		"SERVER_PROTOCOL": "HTTP/1.1",
++		"HTTP_HOST":       "example.com",
++		"REQUEST_METHOD":  "GET",
++		"SCRIPT_NAME":     "/dir/scriptname",
++		"PATH_INFO":       "/p1/p2",
++		"QUERY_STRING":    "a=1&b=2",
++		"CONTENT_LENGTH":  "123",
++	}
++	req, err := RequestFromMap(env)
++	if err != nil {
++		t.Fatalf("RequestFromMap: %v", err)
++	}
++	if req.URL == nil {
++		t.Fatalf("unexpected nil URL")
++	}
++	if g, e := req.URL.String(), "http://example.com/dir/scriptname/p1/p2?a=1&b=2"; e != g {
++		t.Errorf("URL = %q; want %q", g, e)
+ 	}
+ }

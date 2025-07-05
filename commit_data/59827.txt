@@ -16,7 +16,7 @@ Date:   Wed Apr 24 10:24:05 2024 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/581517
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/go/build/deps_test.go                                   | 4 ++--
  src/internal/{safefilepath => filepathlite}/path.go         | 4 ++--
  src/internal/{safefilepath => filepathlite}/path_plan9.go   | 2 +-
@@ -27,3 +27,190 @@ Date:   Wed Apr 24 10:24:05 2024 -0700
  src/path/filepath/path.go                                   | 4 ++--
  src/path/filepath/path_windows.go                           | 4 ++--
  9 files changed, 16 insertions(+), 16 deletions(-)
+
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index a3ba8092be..14880d9ef1 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -174,7 +174,7 @@ var depsRules = `
+ 	io/fs
+ 	< internal/testlog
+ 	< internal/poll
+-	< internal/safefilepath
++	< internal/filepathlite
+ 	< os
+ 	< os/signal;
+ 
+@@ -183,7 +183,7 @@ var depsRules = `
+ 
+ 	unicode, fmt !< net, os, os/signal;
+ 
+-	os/signal, internal/safefilepath, STR
++	os/signal, internal/filepathlite, STR
+ 	< path/filepath
+ 	< io/ioutil;
+ 
+diff --git a/src/internal/safefilepath/path.go b/src/internal/filepathlite/path.go
+similarity index 86%
+rename from src/internal/safefilepath/path.go
+rename to src/internal/filepathlite/path.go
+index c2cc6ce5d4..b452987b6b 100644
+--- a/src/internal/safefilepath/path.go
++++ b/src/internal/filepathlite/path.go
+@@ -2,8 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Package safefilepath manipulates operating-system file paths.
+-package safefilepath
++// Package filepathlite manipulates operating-system file paths.
++package filepathlite
+ 
+ import (
+ 	"errors"
+diff --git a/src/internal/safefilepath/path_plan9.go b/src/internal/filepathlite/path_plan9.go
+similarity index 94%
+rename from src/internal/safefilepath/path_plan9.go
+rename to src/internal/filepathlite/path_plan9.go
+index 55627c5102..91a95ddb06 100644
+--- a/src/internal/safefilepath/path_plan9.go
++++ b/src/internal/filepathlite/path_plan9.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package safefilepath
++package filepathlite
+ 
+ import "internal/bytealg"
+ 
+diff --git a/src/internal/safefilepath/path_unix.go b/src/internal/filepathlite/path_unix.go
+similarity index 94%
+rename from src/internal/safefilepath/path_unix.go
+rename to src/internal/filepathlite/path_unix.go
+index 873d0935ec..edad20817f 100644
+--- a/src/internal/safefilepath/path_unix.go
++++ b/src/internal/filepathlite/path_unix.go
+@@ -4,7 +4,7 @@
+ 
+ //go:build unix || (js && wasm) || wasip1
+ 
+-package safefilepath
++package filepathlite
+ 
+ import "internal/bytealg"
+ 
+diff --git a/src/internal/safefilepath/path_windows.go b/src/internal/filepathlite/path_windows.go
+similarity index 99%
+rename from src/internal/safefilepath/path_windows.go
+rename to src/internal/filepathlite/path_windows.go
+index b626196f11..3d7290b14c 100644
+--- a/src/internal/safefilepath/path_windows.go
++++ b/src/internal/filepathlite/path_windows.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package safefilepath
++package filepathlite
+ 
+ import (
+ 	"internal/bytealg"
+diff --git a/src/os/dir.go b/src/os/dir.go
+index dcc18e1814..d75ac17193 100644
+--- a/src/os/dir.go
++++ b/src/os/dir.go
+@@ -5,7 +5,7 @@
+ package os
+ 
+ import (
+-	"internal/safefilepath"
++	"internal/filepathlite"
+ 	"io"
+ 	"io/fs"
+ 	"sort"
+@@ -146,7 +146,7 @@ func CopyFS(dir string, fsys fs.FS) error {
+ 			return err
+ 		}
+ 
+-		fpath, err := safefilepath.Localize(path)
++		fpath, err := filepathlite.Localize(path)
+ 		if err != nil {
+ 			return err
+ 		}
+@@ -157,7 +157,7 @@ func CopyFS(dir string, fsys fs.FS) error {
+ 
+ 		// TODO(panjf2000): handle symlinks with the help of fs.ReadLinkFS
+ 		// 		once https://go.dev/issue/49580 is done.
+-		//		we also need safefilepath.IsLocal from https://go.dev/cl/564295.
++		//		we also need filepathlite.IsLocal from https://go.dev/cl/564295.
+ 		if !d.Type().IsRegular() {
+ 			return &PathError{Op: "CopyFS", Path: path, Err: ErrInvalid}
+ 		}
+diff --git a/src/os/file.go b/src/os/file.go
+index ec8ad70660..c3ee31583e 100644
+--- a/src/os/file.go
++++ b/src/os/file.go
+@@ -45,8 +45,8 @@ package os
+ 
+ import (
+ 	"errors"
++	"internal/filepathlite"
+ 	"internal/poll"
+-	"internal/safefilepath"
+ 	"internal/testlog"
+ 	"io"
+ 	"io/fs"
+@@ -766,7 +766,7 @@ func (dir dirFS) join(name string) (string, error) {
+ 	if dir == "" {
+ 		return "", errors.New("os: DirFS with empty root")
+ 	}
+-	name, err := safefilepath.Localize(name)
++	name, err := filepathlite.Localize(name)
+ 	if err != nil {
+ 		return "", ErrInvalid
+ 	}
+diff --git a/src/path/filepath/path.go b/src/path/filepath/path.go
+index 6c8a0aa8b3..cd70c2b318 100644
+--- a/src/path/filepath/path.go
++++ b/src/path/filepath/path.go
+@@ -13,7 +13,7 @@ package filepath
+ 
+ import (
+ 	"errors"
+-	"internal/safefilepath"
++	"internal/filepathlite"
+ 	"io/fs"
+ 	"os"
+ 	"slices"
+@@ -221,7 +221,7 @@ func unixIsLocal(path string) bool {
+ //
+ // The path returned by Localize will always be local, as reported by IsLocal.
+ func Localize(path string) (string, error) {
+-	return safefilepath.Localize(path)
++	return filepathlite.Localize(path)
+ }
+ 
+ // ToSlash returns the result of replacing each separator character
+diff --git a/src/path/filepath/path_windows.go b/src/path/filepath/path_windows.go
+index 6adb7d4bc4..44037c45ac 100644
+--- a/src/path/filepath/path_windows.go
++++ b/src/path/filepath/path_windows.go
+@@ -5,7 +5,7 @@
+ package filepath
+ 
+ import (
+-	"internal/safefilepath"
++	"internal/filepathlite"
+ 	"os"
+ 	"strings"
+ 	"syscall"
+@@ -42,7 +42,7 @@ func isLocal(path string) bool {
+ 		if part == "." || part == ".." {
+ 			hasDots = true
+ 		}
+-		if safefilepath.IsReservedName(part) {
++		if filepathlite.IsReservedName(part) {
+ 			return false
+ 		}
+ 	}

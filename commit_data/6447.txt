@@ -7,6 +7,19 @@ Date:   Mon Oct 4 14:56:44 2010 +1100
     R=rsc, r2
     CC=golang-dev
     https://golang.org/cl/2332042
-
+---
  .hgignore | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/.hgignore b/.hgignore
+index 54b54366df..40ee75054d 100644
+--- a/.hgignore
++++ b/.hgignore
+@@ -14,6 +14,7 @@ syntax:glob
+ core
+ _obj
+ _test
++_testmain.go
+ y.tab.[ch]
+ doc/htmlgen
+ src/Make.inc

@@ -26,7 +26,7 @@ Date:   Fri Oct 28 20:09:02 2016 -0700
     Reviewed-by: Russ Cox <rsc@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  api/except.txt                       | 6 ++++++
  src/syscall/ztypes_linux_386.go      | 7 +++----
  src/syscall/ztypes_linux_amd64.go    | 7 +++----
@@ -37,3 +37,165 @@ Date:   Fri Oct 28 20:09:02 2016 -0700
  src/syscall/ztypes_linux_ppc64.go    | 7 +++----
  src/syscall/ztypes_linux_ppc64le.go  | 7 +++----
  9 files changed, 30 insertions(+), 32 deletions(-)
+
+diff --git a/api/except.txt b/api/except.txt
+index 93302ec819..cd5d8e0df5 100644
+--- a/api/except.txt
++++ b/api/except.txt
+@@ -19,6 +19,12 @@ pkg syscall (darwin-386), const ImplementsGetwd = false
+ pkg syscall (darwin-386-cgo), const ImplementsGetwd = false
+ pkg syscall (darwin-amd64), const ImplementsGetwd = false
+ pkg syscall (darwin-amd64-cgo), const ImplementsGetwd = false
++pkg syscall (linux-386), type Cmsghdr struct, X__cmsg_data [0]uint8
++pkg syscall (linux-386-cgo), type Cmsghdr struct, X__cmsg_data [0]uint8
++pkg syscall (linux-amd64), type Cmsghdr struct, X__cmsg_data [0]uint8
++pkg syscall (linux-amd64-cgo), type Cmsghdr struct, X__cmsg_data [0]uint8
++pkg syscall (linux-arm), type Cmsghdr struct, X__cmsg_data [0]uint8
++pkg syscall (linux-arm-cgo), type Cmsghdr struct, X__cmsg_data [0]uint8
+ pkg syscall (openbsd-386), const BIOCGRTIMEOUT = 1074283118
+ pkg syscall (openbsd-386), const BIOCSRTIMEOUT = 2148024941
+ pkg syscall (openbsd-386), const RTF_FMASK = 63496
+diff --git a/src/syscall/ztypes_linux_386.go b/src/syscall/ztypes_linux_386.go
+index dd198cb394..a73c91770f 100644
+--- a/src/syscall/ztypes_linux_386.go
++++ b/src/syscall/ztypes_linux_386.go
+@@ -238,10 +238,9 @@ type Msghdr struct {
+ }
+ 
+ type Cmsghdr struct {
+-	Len          uint32
+-	Level        int32
+-	Type         int32
+-	X__cmsg_data [0]uint8
++	Len   uint32
++	Level int32
++	Type  int32
+ }
+ 
+ type Inet4Pktinfo struct {
+diff --git a/src/syscall/ztypes_linux_amd64.go b/src/syscall/ztypes_linux_amd64.go
+index a39489e4e5..4cbd5d899d 100644
+--- a/src/syscall/ztypes_linux_amd64.go
++++ b/src/syscall/ztypes_linux_amd64.go
+@@ -242,10 +242,9 @@ type Msghdr struct {
+ }
+ 
+ type Cmsghdr struct {
+-	Len          uint64
+-	Level        int32
+-	Type         int32
+-	X__cmsg_data [0]uint8
++	Len   uint64
++	Level int32
++	Type  int32
+ }
+ 
+ type Inet4Pktinfo struct {
+diff --git a/src/syscall/ztypes_linux_arm.go b/src/syscall/ztypes_linux_arm.go
+index f446e41be0..16aa014ada 100644
+--- a/src/syscall/ztypes_linux_arm.go
++++ b/src/syscall/ztypes_linux_arm.go
+@@ -242,10 +242,9 @@ type Msghdr struct {
+ }
+ 
+ type Cmsghdr struct {
+-	Len          uint32
+-	Level        int32
+-	Type         int32
+-	X__cmsg_data [0]uint8
++	Len   uint32
++	Level int32
++	Type  int32
+ }
+ 
+ type Inet4Pktinfo struct {
+diff --git a/src/syscall/ztypes_linux_arm64.go b/src/syscall/ztypes_linux_arm64.go
+index dcb1178dc4..e5d669cdba 100644
+--- a/src/syscall/ztypes_linux_arm64.go
++++ b/src/syscall/ztypes_linux_arm64.go
+@@ -243,10 +243,9 @@ type Msghdr struct {
+ }
+ 
+ type Cmsghdr struct {
+-	Len          uint64
+-	Level        int32
+-	Type         int32
+-	X__cmsg_data [0]uint8
++	Len   uint64
++	Level int32
++	Type  int32
+ }
+ 
+ type Inet4Pktinfo struct {
+diff --git a/src/syscall/ztypes_linux_mips64.go b/src/syscall/ztypes_linux_mips64.go
+index 909308617e..925afb9d1c 100644
+--- a/src/syscall/ztypes_linux_mips64.go
++++ b/src/syscall/ztypes_linux_mips64.go
+@@ -244,10 +244,9 @@ type Msghdr struct {
+ }
+ 
+ type Cmsghdr struct {
+-	Len          uint64
+-	Level        int32
+-	Type         int32
+-	X__cmsg_data [0]uint8
++	Len   uint64
++	Level int32
++	Type  int32
+ }
+ 
+ type Inet4Pktinfo struct {
+diff --git a/src/syscall/ztypes_linux_mips64le.go b/src/syscall/ztypes_linux_mips64le.go
+index 909308617e..925afb9d1c 100644
+--- a/src/syscall/ztypes_linux_mips64le.go
++++ b/src/syscall/ztypes_linux_mips64le.go
+@@ -244,10 +244,9 @@ type Msghdr struct {
+ }
+ 
+ type Cmsghdr struct {
+-	Len          uint64
+-	Level        int32
+-	Type         int32
+-	X__cmsg_data [0]uint8
++	Len   uint64
++	Level int32
++	Type  int32
+ }
+ 
+ type Inet4Pktinfo struct {
+diff --git a/src/syscall/ztypes_linux_ppc64.go b/src/syscall/ztypes_linux_ppc64.go
+index 915ca95190..de817f50af 100644
+--- a/src/syscall/ztypes_linux_ppc64.go
++++ b/src/syscall/ztypes_linux_ppc64.go
+@@ -244,10 +244,9 @@ type Msghdr struct {
+ }
+ 
+ type Cmsghdr struct {
+-	Len          uint64
+-	Level        int32
+-	Type         int32
+-	X__cmsg_data [0]uint8
++	Len   uint64
++	Level int32
++	Type  int32
+ }
+ 
+ type Inet4Pktinfo struct {
+diff --git a/src/syscall/ztypes_linux_ppc64le.go b/src/syscall/ztypes_linux_ppc64le.go
+index a1180553ec..e75d8e3925 100644
+--- a/src/syscall/ztypes_linux_ppc64le.go
++++ b/src/syscall/ztypes_linux_ppc64le.go
+@@ -244,10 +244,9 @@ type Msghdr struct {
+ }
+ 
+ type Cmsghdr struct {
+-	Len          uint64
+-	Level        int32
+-	Type         int32
+-	X__cmsg_data [0]uint8
++	Len   uint64
++	Level int32
++	Type  int32
+ }
+ 
+ type Inet4Pktinfo struct {

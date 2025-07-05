@@ -14,7 +14,60 @@ Date:   Mon Sep 7 11:11:14 2015 +1000
     Run-TryBot: Dave Cheney <dave@cheney.net>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/gen.go | 6 +++---
  src/cmd/compile/internal/gc/go.go  | 3 ++-
  2 files changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/gen.go b/src/cmd/compile/internal/gc/gen.go
+index 355210b87a..22d8a1ebae 100644
+--- a/src/cmd/compile/internal/gc/gen.go
++++ b/src/cmd/compile/internal/gc/gen.go
+@@ -729,7 +729,7 @@ func gen(n *Node) {
+ 				break
+ 			}
+ 
+-			lab.Used = 1
++			lab.Used = true
+ 			if lab.Breakpc == nil {
+ 				Yyerror("invalid break label %v", n.Left.Sym)
+ 				break
+@@ -754,7 +754,7 @@ func gen(n *Node) {
+ 				break
+ 			}
+ 
+-			lab.Used = 1
++			lab.Used = true
+ 			if lab.Continpc == nil {
+ 				Yyerror("invalid continue label %v", n.Left.Sym)
+ 				break
+@@ -994,7 +994,7 @@ func checklabels() {
+ 			continue
+ 		}
+ 
+-		if lab.Use == nil && lab.Used == 0 {
++		if lab.Use == nil && !lab.Used {
+ 			yyerrorl(int(lab.Def.Lineno), "label %v defined and not used", lab.Sym)
+ 			continue
+ 		}
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index 8c7328fa4b..91838ffdda 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -217,7 +217,6 @@ type Type struct {
+ }
+ 
+ type Label struct {
+-	Used uint8
+ 	Sym  *Sym
+ 	Def  *Node
+ 	Use  []*Node
+@@ -228,6 +227,8 @@ type Label struct {
+ 	Labelpc  *obj.Prog // pointer to code
+ 	Breakpc  *obj.Prog // pointer to code
+ 	Continpc *obj.Prog // pointer to code
++
++	Used bool
+ }
+ 
+ type InitEntry struct {

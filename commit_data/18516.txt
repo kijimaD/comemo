@@ -14,6 +14,30 @@ Date:   Fri Feb 14 12:20:21 2014 +0900
     R=rsc, dave
     CC=golang-codereviews
     https://golang.org/cl/63600043
-
+---
  src/pkg/net/z_last_test.go | 7 +++++--
  1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/net/z_last_test.go b/src/pkg/net/z_last_test.go
+index bb00f110fe..4f6a54a560 100644
+--- a/src/pkg/net/z_last_test.go
++++ b/src/pkg/net/z_last_test.go
+@@ -5,13 +5,16 @@
+ package net
+ 
+ import (
++	"flag"
+ 	"fmt"
+ 	"testing"
+ )
+ 
++var testDNSFlood = flag.Bool("dnsflood", false, "whether to test dns query flooding")
++
+ func TestDNSThreadLimit(t *testing.T) {
+-	if testing.Short() || !*testExternal {
+-		t.Skip("skipping test to avoid external network")
++	if !*testDNSFlood {
++		t.Skip("test disabled; use -dnsflood to enable")
+ 	}
+ 
+ 	const N = 10000

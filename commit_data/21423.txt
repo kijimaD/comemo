@@ -10,7 +10,63 @@ Date:   Mon Jan 5 13:50:09 2015 +1100
     Change-Id: Icb626561522e336a3220e10f456c95330ae7db9e
     Reviewed-on: https://go-review.googlesource.com/2209
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/image/ycbcr.go      | 11 +++++++----
  src/image/ycbcr_test.go | 24 ++++++++++++++++++++++++
  2 files changed, 31 insertions(+), 4 deletions(-)
+
+diff --git a/src/image/ycbcr.go b/src/image/ycbcr.go
+index 7c773f2f0a..0126060d00 100644
+--- a/src/image/ycbcr.go
++++ b/src/image/ycbcr.go
+@@ -144,11 +144,14 @@ func NewYCbCr(r Rectangle, subsampleRatio YCbCrSubsampleRatio) *YCbCr {
+ 		cw = w
+ 		ch = h
+ 	}
+-	b := make([]byte, w*h+2*cw*ch)
++	i0 := w*h + 0*cw*ch
++	i1 := w*h + 1*cw*ch
++	i2 := w*h + 2*cw*ch
++	b := make([]byte, i2)
+ 	return &YCbCr{
+-		Y:              b[:w*h],
+-		Cb:             b[w*h+0*cw*ch : w*h+1*cw*ch],
+-		Cr:             b[w*h+1*cw*ch : w*h+2*cw*ch],
++		Y:              b[:i0:i0],
++		Cb:             b[i0:i1:i1],
++		Cr:             b[i1:i2:i2],
+ 		SubsampleRatio: subsampleRatio,
+ 		YStride:        w,
+ 		CStride:        cw,
+diff --git a/src/image/ycbcr_test.go b/src/image/ycbcr_test.go
+index a5f4482654..5ab4fc3fea 100644
+--- a/src/image/ycbcr_test.go
++++ b/src/image/ycbcr_test.go
+@@ -105,3 +105,27 @@ func testYCbCr(t *testing.T, r Rectangle, subsampleRatio YCbCrSubsampleRatio, de
+ 		}
+ 	}
+ }
++
++func TestYCbCrSlicesDontOverlap(t *testing.T) {
++	m := NewYCbCr(Rect(0, 0, 8, 8), YCbCrSubsampleRatio420)
++	names := []string{"Y", "Cb", "Cr"}
++	slices := [][]byte{
++		m.Y[:cap(m.Y)],
++		m.Cb[:cap(m.Cb)],
++		m.Cr[:cap(m.Cr)],
++	}
++	for i, slice := range slices {
++		want := uint8(10 + i)
++		for j := range slice {
++			slice[j] = want
++		}
++	}
++	for i, slice := range slices {
++		want := uint8(10 + i)
++		for j, got := range slice {
++			if got != want {
++				t.Fatalf("m.%s[%d]: got %d, want %d", names[i], j, got, want)
++			}
++		}
++	}
++}

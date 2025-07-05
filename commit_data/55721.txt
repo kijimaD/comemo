@@ -23,9 +23,166 @@ Date:   Wed Mar 1 15:17:35 2023 -0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Damien Neil <dneil@google.com>
     Reviewed-by: Roland Shoemaker <roland@golang.org>
-
+---
  api/next/57786.txt                      |  1 +
  src/net/http/responsecontroller.go      | 25 +++++++++++++++++
  src/net/http/responsecontroller_test.go | 48 +++++++++++++++++++++++++++++++++
  src/net/http/server.go                  | 25 +++++++++++------
  4 files changed, 91 insertions(+), 8 deletions(-)
+
+diff --git a/api/next/57786.txt b/api/next/57786.txt
+new file mode 100644
+index 0000000000..358a731d1a
+--- /dev/null
++++ b/api/next/57786.txt
+@@ -0,0 +1 @@
++pkg net/http, method (*ResponseController) EnableFullDuplex() error #57786
+diff --git a/src/net/http/responsecontroller.go b/src/net/http/responsecontroller.go
+index 018bdc00eb..92276ffaf2 100644
+--- a/src/net/http/responsecontroller.go
++++ b/src/net/http/responsecontroller.go
+@@ -31,6 +31,7 @@ type ResponseController struct {
+ //	Hijack() (net.Conn, *bufio.ReadWriter, error)
+ //	SetReadDeadline(deadline time.Time) error
+ //	SetWriteDeadline(deadline time.Time) error
++//	EnableFullDuplex() error
+ //
+ // If the ResponseWriter does not support a method, ResponseController returns
+ // an error matching ErrNotSupported.
+@@ -115,6 +116,30 @@ func (c *ResponseController) SetWriteDeadline(deadline time.Time) error {
+ 	}
+ }
+ 
++// EnableFullDuplex indicates that the request handler will interleave reads from Request.Body
++// with writes to the ResponseWriter.
++//
++// For HTTP/1 requests, the Go HTTP server by default consumes any unread portion of
++// the request body before beginning to write the response, preventing handlers from
++// concurrently reading from the request and writing the response.
++// Calling EnableFullDuplex disables this behavior and permits handlers to continue to read
++// from the request while concurrently writing the response.
++//
++// For HTTP/2 requests, the Go HTTP server always permits concurrent reads and responses.
++func (c *ResponseController) EnableFullDuplex() error {
++	rw := c.rw
++	for {
++		switch t := rw.(type) {
++		case interface{ EnableFullDuplex() error }:
++			return t.EnableFullDuplex()
++		case rwUnwrapper:
++			rw = t.Unwrap()
++		default:
++			return errNotSupported()
++		}
++	}
++}
++
+ // errNotSupported returns an error that Is ErrNotSupported,
+ // but is not == to it.
+ func errNotSupported() error {
+diff --git a/src/net/http/responsecontroller_test.go b/src/net/http/responsecontroller_test.go
+index 0dca7332b7..ee8b55a89f 100644
+--- a/src/net/http/responsecontroller_test.go
++++ b/src/net/http/responsecontroller_test.go
+@@ -263,3 +263,51 @@ func testWrappedResponseController(t *testing.T, mode testMode) {
+ 	io.Copy(io.Discard, res.Body)
+ 	defer res.Body.Close()
+ }
++
++func TestResponseControllerEnableFullDuplex(t *testing.T) {
++	run(t, testResponseControllerEnableFullDuplex)
++}
++func testResponseControllerEnableFullDuplex(t *testing.T, mode testMode) {
++	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, req *Request) {
++		ctl := NewResponseController(w)
++		if err := ctl.EnableFullDuplex(); err != nil {
++			// TODO: Drop test for HTTP/2 when x/net is updated to support
++			// EnableFullDuplex. Since HTTP/2 supports full duplex by default,
++			// the rest of the test is fine; it's just the EnableFullDuplex call
++			// that fails.
++			if mode != http2Mode {
++				t.Errorf("ctl.EnableFullDuplex() = %v, want nil", err)
++			}
++		}
++		w.WriteHeader(200)
++		ctl.Flush()
++		for {
++			var buf [1]byte
++			n, err := req.Body.Read(buf[:])
++			if n != 1 || err != nil {
++				break
++			}
++			w.Write(buf[:])
++			ctl.Flush()
++		}
++	}))
++	pr, pw := io.Pipe()
++	res, err := cst.c.Post(cst.ts.URL, "text/apocryphal", pr)
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer res.Body.Close()
++	for i := byte(0); i < 10; i++ {
++		if _, err := pw.Write([]byte{i}); err != nil {
++			t.Fatalf("Write: %v", err)
++		}
++		var buf [1]byte
++		if n, err := res.Body.Read(buf[:]); n != 1 || err != nil {
++			t.Fatalf("Read: %v, %v", n, err)
++		}
++		if buf[0] != i {
++			t.Fatalf("read byte %v, want %v", buf[0], i)
++		}
++	}
++	pw.Close()
++}
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index 1b3b2f2e3a..9bd381ff48 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -460,6 +460,10 @@ type response struct {
+ 	// Content-Length.
+ 	closeAfterReply bool
+ 
++	// When fullDuplex is false (the default), we consume any remaining
++	// request body before starting to write a response.
++	fullDuplex bool
++
+ 	// requestBodyLimitHit is set by requestTooLarge when
+ 	// maxBytesReader hits its max size. It is checked in
+ 	// WriteHeader, to make sure we don't consume the
+@@ -497,6 +501,11 @@ func (c *response) SetWriteDeadline(deadline time.Time) error {
+ 	return c.conn.rwc.SetWriteDeadline(deadline)
+ }
+ 
++func (c *response) EnableFullDuplex() error {
++	c.fullDuplex = true
++	return nil
++}
++
+ // TrailerPrefix is a magic prefix for ResponseWriter.Header map keys
+ // that, if present, signals that the map entry is actually for
+ // the response trailers, and not the response headers. The prefix
+@@ -1354,14 +1363,14 @@ func (cw *chunkWriter) writeHeader(p []byte) {
+ 		w.closeAfterReply = true
+ 	}
+ 
+-	// Per RFC 2616, we should consume the request body before
+-	// replying, if the handler hasn't already done so. But we
+-	// don't want to do an unbounded amount of reading here for
+-	// DoS reasons, so we only try up to a threshold.
+-	// TODO(bradfitz): where does RFC 2616 say that? See Issue 15527
+-	// about HTTP/1.x Handlers concurrently reading and writing, like
+-	// HTTP/2 handlers can do. Maybe this code should be relaxed?
+-	if w.req.ContentLength != 0 && !w.closeAfterReply {
++	// We do this by default because there are a number of clients that
++	// send a full request before starting to read the response, and they
++	// can deadlock if we start writing the response with unconsumed body
++	// remaining. See Issue 15527 for some history.
++	//
++	// If full duplex mode has been enabled with ResponseController.EnableFullDuplex,
++	// then leave the request body alone.
++	if w.req.ContentLength != 0 && !w.closeAfterReply && !w.fullDuplex {
+ 		var discard, tooBig bool
+ 
+ 		switch bdy := w.req.Body.(type) {

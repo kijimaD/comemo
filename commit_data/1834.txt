@@ -14,8 +14,846 @@ Date:   Mon Mar 16 20:29:31 2009 -0700
     R=r
     OCL=26371
     CL=26371
-
+---
  usr/gri/pretty/ast.go     |  98 ++++++++++++-------
  usr/gri/pretty/parser.go  | 244 ++++++++++++++++++++++++++--------------------
  usr/gri/pretty/printer.go | 116 ++++++++++++++++++++--
  3 files changed, 308 insertions(+), 150 deletions(-)
+
+diff --git a/usr/gri/pretty/ast.go b/usr/gri/pretty/ast.go
+index e3b033a6f0..5cc5308f11 100644
+--- a/usr/gri/pretty/ast.go
++++ b/usr/gri/pretty/ast.go
+@@ -273,37 +273,6 @@ func (x *MapType) Visit(v ExprVisitor) { v.DoMapType(x); }
+ func (x *ChannelType) Visit(v ExprVisitor) { v.DoChannelType(x); }
+ 
+ 
+-
+-// Length of a comma-separated expression list.
+-func ExprLen(x Expr) int {
+-	if x == nil {
+-		return 0;
+-	}
+-	n := 1;
+-	for {
+-		if p, ok := x.(*BinaryExpr); ok && p.Tok == token.COMMA {
+-			n++;
+-			x = p.Y;
+-		} else {
+-			break;
+-		}
+-	}
+-	return n;
+-}
+-
+-
+-func ExprAt(x Expr, i int) Expr {
+-	for j := 0; j < i; j++ {
+-		assert(x.(*BinaryExpr).Tok == token.COMMA);
+-		x = x.(*BinaryExpr).Y;
+-	}
+-	if t, is_binary := x.(*BinaryExpr); is_binary && t.Tok == token.COMMA {
+-		x = t.X;
+-	}
+-	return x;
+-}
+-
+-
+ // ----------------------------------------------------------------------------
+ // Blocks
+ //
+@@ -357,6 +326,24 @@ type (
+ 		Expr Expr;
+ 	};
+ 
++	AssignmentStat struct {
++		Loc scanner.Location;  // location of Tok
++		Tok int;  // assignment token
++		Lhs, Rhs Expr;
++	};
++
++	TupleAssignStat struct {
++		Loc scanner.Location;  // location of Tok
++		Tok int;  // assignment token
++		Lhs, Rhs []Expr;
++	};
++
++	IncDecStat struct {
++		Loc scanner.Location;  // location of '++' or '--'
++		Tok int;  // token.INC or token.DEC
++		Expr Expr;
++	};
++
+ 	CompositeStat struct {
+ 		Body *Block;
+ 	};
+@@ -369,6 +356,13 @@ type (
+ 		Else Stat;
+ 	};
+ 	
++	RangeClause struct {  // appears only as Init stat in a ForStat
++		Loc scanner.Location;  // location of "=" or ":="
++		Tok int;  // token.ASSIGN or token.DEFINE
++		Lhs []Expr;
++		Rhs Expr;
++	};
++
+ 	ForStat struct {
+ 		Loc scanner.Location;  // location of "for"
+ 		Init Stat;
+@@ -377,9 +371,15 @@ type (
+ 		Body *Block;
+ 	};
+ 
++	TypeSwitchClause struct {  // appears only as Init stat in a SwitchStat
++		Loc scanner.Location;  // location of ":="
++		Lhs *Ident;
++		Rhs Expr;
++	};
++
+ 	CaseClause struct {
+-		Loc scanner.Location;  // position for "case" or "default"
+-		Expr Expr;  // nil means default case
++		Loc scanner.Location;  // location of "case" or "default"
++		Values []Expr;  // nil means default case
+ 		Body *Block;
+ 	};
+ 
+@@ -389,7 +389,14 @@ type (
+ 		Tag Expr;
+ 		Body *Block;
+ 	};
+-	
++
++	CommClause struct {
++		Loc scanner.Location;  // location of "case" or "default"
++		Tok int;  // token.ASSIGN, token.DEFINE (valid only if Lhs != nil)
++		Lhs, Rhs Expr;  // Rhs == nil means default case
++		Body *Block;
++	};
++
+ 	SelectStat struct {
+ 		Loc scanner.Location;  // location of "select"
+ 		Body *Block;
+@@ -401,6 +408,11 @@ type (
+ 		Label *Ident;  // if any, or nil
+ 	};
+ 	
++	ReturnStat struct {
++		Loc scanner.Location;  // location of "return"
++		Results []Expr;
++	};
++	
+ 	EmptyStat struct {
+ 		Loc scanner.Location;  // location of ";"
+ 	};
+@@ -412,13 +424,20 @@ type StatVisitor interface {
+ 	DoLabeledStat(s *LabeledStat);
+ 	DoDeclarationStat(s *DeclarationStat);
+ 	DoExpressionStat(s *ExpressionStat);
++	DoAssignmentStat(s *AssignmentStat);
++	DoTupleAssignStat(s *TupleAssignStat);
++	DoIncDecStat(s *IncDecStat);
+ 	DoCompositeStat(s *CompositeStat);
+ 	DoIfStat(s *IfStat);
++	DoRangeClause(s *RangeClause);
+ 	DoForStat(s *ForStat);
++	DoTypeSwitchClause(s *TypeSwitchClause);
+ 	DoCaseClause(s *CaseClause);
+ 	DoSwitchStat(s *SwitchStat);
++	DoCommClause(s *CommClause);
+ 	DoSelectStat(s *SelectStat);
+ 	DoControlFlowStat(s *ControlFlowStat);
++	DoReturnStat(s *ReturnStat);
+ 	DoEmptyStat(s *EmptyStat);
+ }
+ 
+@@ -427,13 +446,20 @@ func (s *BadStat) Visit(v StatVisitor) { v.DoBadStat(s); }
+ func (s *LabeledStat) Visit(v StatVisitor) { v.DoLabeledStat(s); }
+ func (s *DeclarationStat) Visit(v StatVisitor) { v.DoDeclarationStat(s); }
+ func (s *ExpressionStat) Visit(v StatVisitor) { v.DoExpressionStat(s); }
++func (s *AssignmentStat) Visit(v StatVisitor) { v.DoAssignmentStat(s); }
++func (s *TupleAssignStat) Visit(v StatVisitor) { v.DoTupleAssignStat(s); }
++func (s *IncDecStat) Visit(v StatVisitor) { v.DoIncDecStat(s); }
+ func (s *CompositeStat) Visit(v StatVisitor) { v.DoCompositeStat(s); }
+ func (s *IfStat) Visit(v StatVisitor) { v.DoIfStat(s); }
++func (s *RangeClause) Visit(v StatVisitor) { v.DoRangeClause(s); }
+ func (s *ForStat) Visit(v StatVisitor) { v.DoForStat(s); }
++func (s *TypeSwitchClause) Visit(v StatVisitor) { v.DoTypeSwitchClause(s); }
+ func (s *CaseClause) Visit(v StatVisitor) { v.DoCaseClause(s); }
+ func (s *SwitchStat) Visit(v StatVisitor) { v.DoSwitchStat(s); }
++func (s *CommClause) Visit(v StatVisitor) { v.DoCommClause(s); }
+ func (s *SelectStat) Visit(v StatVisitor) { v.DoSelectStat(s); }
+ func (s *ControlFlowStat) Visit(v StatVisitor) { v.DoControlFlowStat(s); }
++func (s *ReturnStat) Visit(v StatVisitor) { v.DoReturnStat(s); }
+ func (s *EmptyStat) Visit(v StatVisitor) { v.DoEmptyStat(s); }
+ 
+ 
+@@ -461,7 +487,7 @@ type (
+ 		Loc scanner.Location;  // if > 0: position of "const"
+ 		Names []*Ident;
+ 		Typ Expr;
+-		Vals Expr;
++		Values []Expr;
+ 		Comment CommentGroup;
+ 	};
+ 	
+@@ -476,7 +502,7 @@ type (
+ 		Loc scanner.Location;  // if > 0: position of "var"
+ 		Names []*Ident;
+ 		Typ Expr;
+-		Vals Expr;
++		Values []Expr;
+ 		Comment CommentGroup;
+ 	};
+ 
+diff --git a/usr/gri/pretty/parser.go b/usr/gri/pretty/parser.go
+index dd50e00068..5bfa8bfe51 100644
+--- a/usr/gri/pretty/parser.go
++++ b/usr/gri/pretty/parser.go
+@@ -224,53 +224,48 @@ func (P *Parser) parseIdent() *ast.Ident {
+ }
+ 
+ 
+-func (P *Parser) parseIdentList(x ast.Expr) ast.Expr {
++func (P *Parser) parseIdentList(x ast.Expr) []*ast.Ident {
+ 	if P.trace {
+ 		defer un(trace(P, "IdentList"));
+ 	}
+ 
+-	var last *ast.BinaryExpr;
++	list := vector.New(0);
+ 	if x == nil {
+ 		x = P.parseIdent();
+ 	}
++	list.Push(x);
+ 	for P.tok == token.COMMA {
+-		loc := P.loc;
+ 		P.next();
+-		y := P.parseIdent();
+-		if last == nil {
+-			last = &ast.BinaryExpr{loc, token.COMMA, x, y};
+-			x = last;
+-		} else {
+-			last.Y = &ast.BinaryExpr{loc, token.COMMA, last.Y, y};
+-			last = last.Y.(*ast.BinaryExpr);
+-		}
++		list.Push(P.parseIdent());
+ 	}
+ 
+-	return x;
++	// convert vector
++	idents := make([]*ast.Ident, list.Len());
++	for i := 0; i < list.Len(); i++ {
++		idents[i] = list.At(i).(*ast.Ident);
++	}
++	return idents;
+ }
+ 
+ 
+-func (P *Parser) parseIdentList2(x ast.Expr) []*ast.Ident {
++func (P *Parser) parseExpressionList() []ast.Expr {
+ 	if P.trace {
+-		defer un(trace(P, "IdentList"));
++		defer un(trace(P, "ExpressionList"));
+ 	}
+ 
+ 	list := vector.New(0);
+-	if x == nil {
+-		x = P.parseIdent();
+-	}
+-	list.Push(x);
++	list.Push(P.parseExpression(1));  // TODO should use a const instead of 1
+ 	for P.tok == token.COMMA {
+ 		P.next();
+-		list.Push(P.parseIdent());
++		list.Push(P.parseExpression(1));  // TODO should use a const instead of 1
+ 	}
+ 
+ 	// convert vector
+-	idents := make([]*ast.Ident, list.Len());
++	exprs := make([]ast.Expr, list.Len());
+ 	for i := 0; i < list.Len(); i++ {
+-		idents[i] = list.At(i).(*ast.Ident);
++		exprs[i] = list.At(i).(ast.Expr);
+ 	}
+-	return idents;
++	return exprs;
+ }
+ 
+ 
+@@ -434,7 +429,7 @@ func (P *Parser) parseParameterList(ellipsis_ok bool) []*ast.Field {
+ 
+ 		for P.tok == token.COMMA {
+ 			P.next();
+-			idents := P.parseIdentList2(nil);
++			idents := P.parseIdentList(nil);
+ 			typ := P.parseParameterType();
+ 			list.Push(&ast.Field{idents, typ, nil, nil});
+ 		}
+@@ -536,7 +531,7 @@ func (P *Parser) parseMethodSpec() *ast.Field {
+ 	x := P.parseQualifiedIdent();
+ 	if tmp, is_ident := x.(*ast.Ident); is_ident && (P.tok == token.COMMA || P.tok == token.LPAREN) {
+ 		// method(s)
+-		idents = P.parseIdentList2(x);
++		idents = P.parseIdentList(x);
+ 		typ = &ast.FunctionType{noloc, P.parseSignature()};
+ 	} else {
+ 		// embedded interface
+@@ -786,28 +781,6 @@ func (P *Parser) parseBlock(tok int) *ast.Block {
+ // ----------------------------------------------------------------------------
+ // Expressions
+ 
+-func (P *Parser) parseExpressionList() ast.Expr {
+-	if P.trace {
+-		defer un(trace(P, "ExpressionList"));
+-	}
+-
+-	x := P.parseExpression(1);
+-	for first := true; P.tok == token.COMMA; {
+-		loc := P.loc;
+-		P.next();
+-		y := P.parseExpression(1);
+-		if first {
+-			x = &ast.BinaryExpr{loc, token.COMMA, x, y};
+-			first = false;
+-		} else {
+-			x.(*ast.BinaryExpr).Y = &ast.BinaryExpr{loc, token.COMMA, x.(*ast.BinaryExpr).Y, y};
+-		}
+-	}
+-
+-	return x;
+-}
+-
+-
+ func (P *Parser) parseFunctionLit() ast.Expr {
+ 	if P.trace {
+ 		defer un(trace(P, "FunctionLit"));
+@@ -1085,30 +1058,33 @@ func (P *Parser) parseExpression(prec int) ast.Expr {
+ // ----------------------------------------------------------------------------
+ // Statements
+ 
++
+ const /* mode */ (
+ 	label_ok = 1 << iota;
+ 	range_ok;
+ )
+ 
++
+ func (P *Parser) parseSimpleStat(mode int) ast.Stat {
+ 	if P.trace {
+ 		defer un(trace(P, "SimpleStat"));
+ 	}
+ 
++	loc := P.loc;
+ 	x := P.parseExpressionList();
+ 
+ 	switch P.tok {
+ 	case token.COLON:
+ 		// labeled statement
+ 		loc := P.loc;
+-		P.next();  // consume ":"
++		P.expect(token.COLON);
+ 		P.opt_semi = true;
+-		if mode & label_ok != 0 && ast.ExprLen(x) == 1 {
+-			if label, is_ident := x.(*ast.Ident); is_ident {
++		if mode & label_ok != 0 && len(x) == 1 {
++			if label, is_ident := x[0].(*ast.Ident); is_ident {
+ 				return &ast.LabeledStat{loc, label, P.parseStatement()};
+ 			}
+ 		}
+-		P.error(x.Loc(), "illegal label declaration");
++		P.error(loc, "illegal label declaration");
+ 		return nil;
+ 
+ 	case
+@@ -1116,39 +1092,49 @@ func (P *Parser) parseSimpleStat(mode int) ast.Stat {
+ 		token.SUB_ASSIGN, token.MUL_ASSIGN, token.QUO_ASSIGN,
+ 		token.REM_ASSIGN, token.AND_ASSIGN, token.OR_ASSIGN,
+ 		token.XOR_ASSIGN, token.SHL_ASSIGN, token.SHR_ASSIGN:
+-		// declaration/assignment
++		// assignment statement or range clause
+ 		loc, tok := P.loc, P.tok;
+ 		P.next();
+-		var y ast.Expr;
+ 		if mode & range_ok != 0 && P.tok == token.RANGE {
+-			range_loc := P.loc;
++			// range clause
+ 			P.next();
+-			y = &ast.UnaryExpr{range_loc, token.RANGE, P.parseExpression(1)};
++			if len(x) != 1 && len(x) != 2 {
++				P.error(loc, "expected 1 or 2 expressions on lhs of range clause");
++			}
+ 			if tok != token.DEFINE && tok != token.ASSIGN {
+ 				P.error(loc, "expected '=' or ':=', found '" + token.TokenString(tok) + "'");
+ 			}
++			y := P.parseExpression(1);
++			return &ast.RangeClause{loc, tok, x, y};
+ 		} else {
+-			y = P.parseExpressionList();
+-			if xl, yl := ast.ExprLen(x), ast.ExprLen(y); xl > 1 && yl > 1 && xl != yl {
+-				P.error(x.Loc(), "arity of lhs doesn't match rhs");
++			// assignment statement
++			y := P.parseExpressionList();
++			xl, yl := len(x), len(y);
++			if xl > 1 && yl > 1 && xl != yl {
++				P.error(loc, "arity of lhs doesn't match rhs");  // TODO use better loc for error
++			}
++			if xl == 1 && yl == 1 {
++				// common case - use smaller node
++				return &ast.AssignmentStat{loc, tok, x[0], y[0]};
++			} else {
++				// general case
++				return &ast.TupleAssignStat{loc, tok, x, y};
+ 			}
+ 		}
+-		// TODO changed ILLEGAL -> NONE
+-		return &ast.ExpressionStat{x.Loc(), token.ILLEGAL, &ast.BinaryExpr{loc, tok, x, y}};
+ 
+ 	default:
+-		if ast.ExprLen(x) != 1 {
+-			P.error(x.Loc(), "only one expression allowed");
++		if len(x) != 1 {
++			P.error(loc, "only one expression allowed");
+ 		}
+ 
+ 		if P.tok == token.INC || P.tok == token.DEC {
+-			s := &ast.ExpressionStat{P.loc, P.tok, x};
++			s := &ast.IncDecStat{P.loc, P.tok, x[0]};
+ 			P.next();  // consume "++" or "--"
+ 			return s;
+ 		}
+ 
+-		// TODO changed ILLEGAL -> NONE
+-		return &ast.ExpressionStat{x.Loc(), token.ILLEGAL, x};
++		// TODO change ILLEGAL -> NONE
++		return &ast.ExpressionStat{loc, token.ILLEGAL, x[0]};
+ 	}
+ 
+ 	unreachable();
+@@ -1167,19 +1153,19 @@ func (P *Parser) parseInvocationStat(keyword int) *ast.ExpressionStat {
+ }
+ 
+ 
+-func (P *Parser) parseReturnStat() *ast.ExpressionStat {
++func (P *Parser) parseReturnStat() *ast.ReturnStat {
+ 	if P.trace {
+ 		defer un(trace(P, "ReturnStat"));
+ 	}
+ 
+ 	loc := P.loc;
+ 	P.expect(token.RETURN);
+-	var x ast.Expr;
++	var x []ast.Expr;
+ 	if P.tok != token.SEMICOLON && P.tok != token.RBRACE {
+ 		x = P.parseExpressionList();
+ 	}
+ 
+-	return &ast.ExpressionStat{loc, token.RETURN, x};
++	return &ast.ReturnStat{loc, x};
+ }
+ 
+ 
+@@ -1206,34 +1192,37 @@ func (P *Parser) parseControlClause(isForStat bool) (init ast.Stat, expr ast.Exp
+ 	if P.tok != token.LBRACE {
+ 		prev_lev := P.expr_lev;
+ 		P.expr_lev = -1;
++
+ 		if P.tok != token.SEMICOLON {
+ 			mode := 0;
+ 			if isForStat {
+ 				mode = range_ok;
+ 			}
+ 			init = P.parseSimpleStat(mode);
+-			// TODO check for range clause and exit if found
+ 		}
+-		if P.tok == token.SEMICOLON {
+-			P.next();
+-			if P.tok != token.SEMICOLON && P.tok != token.LBRACE {
+-				expr = P.parseExpression(1);
+-			}
+-			if isForStat {
+-				P.expect(token.SEMICOLON);
+-				if P.tok != token.LBRACE {
+-					post = P.parseSimpleStat(0);
++		if dummy, is_range := init.(*ast.RangeClause); !is_range {
++			if P.tok == token.SEMICOLON {
++				P.next();
++				if P.tok != token.SEMICOLON && P.tok != token.LBRACE {
++					expr = P.parseExpression(1);
+ 				}
+-			}
+-		} else {
+-			if init != nil {  // guard in case of errors
+-				if s, is_expr_stat := init.(*ast.ExpressionStat); is_expr_stat {
+-					expr, init = s.Expr, nil;
+-				} else {
+-					P.error(noloc, "illegal control clause");
++				if isForStat {
++					P.expect(token.SEMICOLON);
++					if P.tok != token.LBRACE {
++						post = P.parseSimpleStat(0);
++					}
++				}
++			} else {
++				if init != nil {  // guard in case of errors
++					if s, is_expr_stat := init.(*ast.ExpressionStat); is_expr_stat {
++						expr, init = s.Expr, nil;
++					} else {
++						P.error(noloc, "illegal control clause");
++					}
+ 				}
+ 			}
+ 		}
++
+ 		P.expr_lev = prev_lev;
+ 	}
+ 
+@@ -1274,6 +1263,29 @@ func (P *Parser) parseForStat() *ast.ForStat {
+ }
+ 
+ 
++func (P *Parser) asIdent(x ast.Expr) *ast.Ident {
++	if name, ok := x.(*ast.Ident); ok {
++		return name;
++	}
++	P.error(x.Loc(), "identifier expected");
++	return &ast.Ident{noloc, "BAD"};
++}
++
++
++func (P *Parser) isTypeSwitch(init ast.Stat) (lhs *ast.Ident, rhs ast.Expr) {
++	if assign, ok := init.(*ast.AssignmentStat); ok {
++		if guard, ok := assign.Rhs.(*ast.TypeGuard); ok {
++			if tmp, ok := guard.Typ.(*ast.TypeType); ok {
++				// we appear to have a type switch
++				// TODO various error checks
++				return P.asIdent(assign.Lhs), guard.X;
++			}
++		}
++	}
++	return nil, nil;
++}
++
++
+ func (P *Parser) parseCaseClause() *ast.CaseClause {
+ 	if P.trace {
+ 		defer un(trace(P, "CaseClause"));
+@@ -1281,15 +1293,15 @@ func (P *Parser) parseCaseClause() *ast.CaseClause {
+ 
+ 	// SwitchCase
+ 	loc := P.loc;
+-	var expr ast.Expr;
++	var x []ast.Expr;
+ 	if P.tok == token.CASE {
+ 		P.next();
+-		expr = P.parseExpressionList();
++		x = P.parseExpressionList();
+ 	} else {
+ 		P.expect(token.DEFAULT);
+ 	}
+ 
+-	return &ast.CaseClause{loc, expr, P.parseBlock(token.COLON)};
++	return &ast.CaseClause{loc, x, P.parseBlock(token.COLON)};
+ }
+ 
+ 
+@@ -1310,37 +1322,53 @@ func (P *Parser) parseSwitchStat() *ast.SwitchStat {
+ 	P.expect(token.RBRACE);
+ 	P.opt_semi = true;
+ 
++	if lhs, rhs := P.isTypeSwitch(init); lhs != nil {
++		if tag != nil {
++			P.error(loc, "illegal type switch clause");
++		}
++		// TODO fix location
++		init = &ast.TypeSwitchClause{loc, lhs, rhs};
++	}
++
+ 	return &ast.SwitchStat{loc, init, tag, body};
+ }
+ 
+ 
+-func (P *Parser) parseCommClause() *ast.CaseClause {
++func (P *Parser) parseCommClause() *ast.CommClause {
+ 	if P.trace {
+ 		defer un(trace(P, "CommClause"));
+ 	}
+ 
+ 	// CommCase
+ 	loc := P.loc;
+-	var expr ast.Expr;
++	var tok int;
++	var lhs, rhs ast.Expr;
+ 	if P.tok == token.CASE {
+ 		P.next();
+-		x := P.parseExpression(1);
+-		if P.tok == token.ASSIGN || P.tok == token.DEFINE {
+-			loc, tok := P.loc, P.tok;
+-			P.next();
+-			if P.tok == token.ARROW {
+-				y := P.parseExpression(1);
+-				x = &ast.BinaryExpr{loc, tok, x, y};
+-			} else {
+-				P.expect(token.ARROW);  // use expect() error handling
++		if P.tok == token.ARROW {
++			// RecvExpr without assignment
++			rhs = P.parseExpression(1);
++		} else {
++			// SendExpr or RecvExpr
++			rhs = P.parseExpression(1);
++			if P.tok == token.ASSIGN || P.tok == token.DEFINE {
++				// RecvExpr with assignment
++				tok = P.tok;
++				P.next();
++				lhs = rhs;
++				if P.tok == token.ARROW {
++					rhs = P.parseExpression(1);
++				} else {
++					P.expect(token.ARROW);  // use expect() error handling
++				}
+ 			}
++			// else SendExpr
+ 		}
+-		expr = x;
+ 	} else {
+ 		P.expect(token.DEFAULT);
+ 	}
+ 
+-	return &ast.CaseClause{loc, expr, P.parseBlock(token.COLON)};
++	return &ast.CommClause{loc, tok, lhs, rhs, P.parseBlock(token.COLON)};
+ }
+ 
+ 
+@@ -1437,15 +1465,15 @@ func (P *Parser) parseConstSpec(loc scanner.Location, comment ast.CommentGroup)
+ 		defer un(trace(P, "ConstSpec"));
+ 	}
+ 
+-	idents := P.parseIdentList2(nil);
++	names := P.parseIdentList(nil);
+ 	typ := P.tryType();
+-	var vals ast.Expr;
++	var values []ast.Expr;
+ 	if typ != nil || P.tok == token.ASSIGN {
+ 		P.expect(token.ASSIGN);
+-		vals = P.parseExpressionList();
++		values = P.parseExpressionList();
+ 	}
+ 
+-	return &ast.ConstDecl{loc, idents, typ, vals, comment};
++	return &ast.ConstDecl{loc, names, typ, values, comment};
+ }
+ 
+ 
+@@ -1466,15 +1494,15 @@ func (P *Parser) parseVarSpec(loc scanner.Location, comment ast.CommentGroup) *a
+ 		defer un(trace(P, "VarSpec"));
+ 	}
+ 
+-	idents := P.parseIdentList2(nil);
++	names := P.parseIdentList(nil);
+ 	typ := P.tryType();
+-	var vals ast.Expr;
++	var values []ast.Expr;
+ 	if typ == nil || P.tok == token.ASSIGN {
+ 		P.expect(token.ASSIGN);
+-		vals = P.parseExpressionList();
++		values = P.parseExpressionList();
+ 	}
+ 
+-	return &ast.VarDecl{loc, idents, typ, vals, comment};
++	return &ast.VarDecl{loc, names, typ, values, comment};
+ }
+ 
+ 
+diff --git a/usr/gri/pretty/printer.go b/usr/gri/pretty/printer.go
+index 9b54a7b4b9..39e65cfabe 100644
+--- a/usr/gri/pretty/printer.go
++++ b/usr/gri/pretty/printer.go
+@@ -463,6 +463,18 @@ func (P *Printer) Idents(list []*ast.Ident, full bool) int {
+ }
+ 
+ 
++func (P *Printer) Exprs(list []ast.Expr) {
++	for i, x := range list {
++		if i > 0 {
++			P.Token(noloc, token.COMMA);
++			P.separator = blank;
++			P.state = inside_list;
++		}
++		P.Expr(x);
++	}
++}
++
++
+ func (P *Printer) Parameters(list []*ast.Field) {
+ 	P.Token(noloc, token.LPAREN);
+ 	if len(list) > 0 {
+@@ -856,6 +868,30 @@ func (P *Printer) DoExpressionStat(s *ast.ExpressionStat) {
+ }
+ 
+ 
++func (P *Printer) DoAssignmentStat(s *ast.AssignmentStat) {
++	P.Expr(s.Lhs);
++	P.separator = blank;
++	P.Token(s.Loc, s.Tok);
++	P.separator = blank;
++	P.Expr(s.Rhs);
++}
++
++
++func (P *Printer) DoTupleAssignStat(s *ast.TupleAssignStat) {
++	P.Exprs(s.Lhs);
++	P.separator = blank;
++	P.Token(s.Loc, s.Tok);
++	P.separator = blank;
++	P.Exprs(s.Rhs);
++}
++
++
++func (P *Printer) DoIncDecStat(s *ast.IncDecStat) {
++	P.Expr(s.Expr);
++	P.Token(s.Loc, s.Tok);
++}
++
++
+ func (P *Printer) DoCompositeStat(s *ast.CompositeStat) {
+ 	P.Block(s.Body, true);
+ }
+@@ -868,6 +904,12 @@ func (P *Printer) ControlClause(isForStat bool, init ast.Stat, expr ast.Expr, po
+ 		if expr != nil {
+ 			P.Expr(expr);
+ 		}
++	} else if range_clause, ok := init.(*ast.RangeClause); ok {
++		// range clause
++		P.Stat(range_clause);
++	} else if typeswitch_clause, ok := init.(*ast.TypeSwitchClause); ok {
++		// type switch clause
++		P.Stat(typeswitch_clause);
+ 	} else {
+ 		// all semicolons required
+ 		// (they are not separators, print them explicitly)
+@@ -906,6 +948,17 @@ func (P *Printer) DoIfStat(s *ast.IfStat) {
+ }
+ 
+ 
++func (P *Printer) DoRangeClause(s *ast.RangeClause) {
++	P.Exprs(s.Lhs);
++	P.separator = blank;
++	P.Token(s.Loc, s.Tok);
++	P.separator = blank;
++	P.Token(noloc, token.RANGE);
++	P.separator = blank;
++	P.Expr(s.Rhs);
++}
++
++
+ func (P *Printer) DoForStat(s *ast.ForStat) {
+ 	P.Token(s.Loc, token.FOR);
+ 	P.ControlClause(true, s.Init, s.Cond, s.Post);
+@@ -913,11 +966,24 @@ func (P *Printer) DoForStat(s *ast.ForStat) {
+ }
+ 
+ 
++func (P *Printer) DoTypeSwitchClause(s *ast.TypeSwitchClause) {
++	P.Expr(s.Lhs);
++	P.separator = blank;
++	P.Token(s.Loc, token.DEFINE);
++	P.separator = blank;
++	P.Expr(s.Rhs);
++	P.Token(s.Loc, token.PERIOD);
++	P.Token(s.Loc, token.LPAREN);
++	P.Token(s.Loc, token.TYPE);
++	P.Token(s.Loc, token.RPAREN);
++}
++
++
+ func (P *Printer) DoCaseClause(s *ast.CaseClause) {
+-	if s.Expr != nil {
++	if s.Values != nil {
+ 		P.Token(s.Loc, token.CASE);
+ 		P.separator = blank;
+-		P.Expr(s.Expr);
++		P.Exprs(s.Values);
+ 	} else {
+ 		P.Token(s.Loc, token.DEFAULT);
+ 	}
+@@ -938,6 +1004,37 @@ func (P *Printer) DoSwitchStat(s *ast.SwitchStat) {
+ }
+ 
+ 
++func (P *Printer) DoTypeSwitchStat(s *ast.SwitchStat) {
++	P.Token(s.Loc, token.SWITCH);
++	P.ControlClause(false, s.Init, s.Tag, nil);
++	P.Block(s.Body, false);
++}
++
++
++func (P *Printer) DoCommClause(s *ast.CommClause) {
++	if s.Rhs != nil {
++		P.Token(s.Loc, token.CASE);
++		P.separator = blank;
++		if s.Lhs != nil {
++			P.Expr(s.Lhs);
++			P.separator = blank;
++			P.Token(noloc, s.Tok);
++			P.separator = blank;
++		}
++		P.Expr(s.Rhs);
++	} else {
++		P.Token(s.Loc, token.DEFAULT);
++	}
++	// TODO: try to use P.Block instead
++	// P.Block(s.Body, true);
++	P.Token(s.Body.Loc, token.COLON);
++	P.indentation++;
++	P.StatementList(s.Body.List);
++	P.indentation--;
++	P.newlines = 1;
++}
++
++
+ func (P *Printer) DoSelectStat(s *ast.SelectStat) {
+ 	P.Token(s.Loc, token.SELECT);
+ 	P.separator = blank;
+@@ -954,6 +1051,13 @@ func (P *Printer) DoControlFlowStat(s *ast.ControlFlowStat) {
+ }
+ 
+ 
++func (P *Printer) DoReturnStat(s *ast.ReturnStat) {
++	P.Token(s.Loc, token.RETURN);
++	P.separator = blank;
++	P.Exprs(s.Results);
++}
++
++
+ func (P *Printer) DoEmptyStat(s *ast.EmptyStat) {
+ 	P.String(s.Loc, "");
+ }
+@@ -999,11 +1103,11 @@ func (P *Printer) DoConstDecl(d *ast.ConstDecl) {
+ 		P.separator = blank;  // TODO switch to tab? (indentation problem with structs)
+ 		P.Expr(d.Typ);
+ 	}
+-	if d.Vals != nil {
++	if d.Values != nil {
+ 		P.separator = tab;
+ 		P.Token(noloc, token.ASSIGN);
+ 		P.separator = blank;
+-		P.Expr(d.Vals);
++		P.Exprs(d.Values);
+ 	}
+ 	P.newlines = 2;
+ }
+@@ -1032,11 +1136,11 @@ func (P *Printer) DoVarDecl(d *ast.VarDecl) {
+ 		P.Expr(d.Typ);
+ 		//P.separator = P.Type(d.Typ);
+ 	}
+-	if d.Vals != nil {
++	if d.Values != nil {
+ 		P.separator = tab;
+ 		P.Token(noloc, token.ASSIGN);
+ 		P.separator = blank;
+-		P.Expr(d.Vals);
++		P.Exprs(d.Values);
+ 	}
+ 	P.newlines = 2;
+ }

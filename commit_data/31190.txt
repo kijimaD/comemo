@@ -11,7 +11,89 @@ Date:   Fri Feb 3 14:45:26 2017 -0800
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/sinit.go | 39 +++++++++---------------------------
  src/cmd/compile/internal/gc/ssa.go   |  7 ++++---
  2 files changed, 14 insertions(+), 32 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index 29819e92b2..756c31d954 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -1349,22 +1349,7 @@ func isvaluelit(n *Node) bool {
+ 	return n.Op == OARRAYLIT || n.Op == OSTRUCTLIT
+ }
+ 
+-// gen_as_init attempts to emit static data for n and reports whether it succeeded.
+-// If reportOnly is true, it does not emit static data and does not modify the AST.
+-func gen_as_init(n *Node, reportOnly bool) bool {
+-	success := genAsInitNoCheck(n, reportOnly)
+-	if !success && n.IsStatic {
+-		Dump("\ngen_as_init", n)
+-		Fatalf("gen_as_init couldn't generate static data")
+-	}
+-	return success
+-}
+-
+-func genAsInitNoCheck(n *Node, reportOnly bool) bool {
+-	if !n.IsStatic {
+-		return false
+-	}
+-
++func genAsInitNoCheck(n *Node) bool {
+ 	nr := n.Right
+ 	nl := n.Left
+ 	if nr == nil {
+@@ -1412,25 +1397,21 @@ func genAsInitNoCheck(n *Node, reportOnly bool) bool {
+ 			return false
+ 		}
+ 
+-		if !reportOnly {
+-			nam.Xoffset += int64(array_array)
+-			gdata(&nam, ptr, Widthptr)
++		nam.Xoffset += int64(array_array)
++		gdata(&nam, ptr, Widthptr)
+ 
+-			nam.Xoffset += int64(array_nel) - int64(array_array)
+-			var nod1 Node
+-			Nodconst(&nod1, Types[TINT], nr.Type.NumElem())
+-			gdata(&nam, &nod1, Widthint)
++		nam.Xoffset += int64(array_nel) - int64(array_array)
++		var nod1 Node
++		Nodconst(&nod1, Types[TINT], nr.Type.NumElem())
++		gdata(&nam, &nod1, Widthint)
+ 
+-			nam.Xoffset += int64(array_cap) - int64(array_nel)
+-			gdata(&nam, &nod1, Widthint)
+-		}
++		nam.Xoffset += int64(array_cap) - int64(array_nel)
++		gdata(&nam, &nod1, Widthint)
+ 
+ 		return true
+ 
+ 	case OLITERAL:
+-		if !reportOnly {
+-			gdata(&nam, nr, int(nr.Type.Width))
+-		}
++		gdata(&nam, nr, int(nr.Type.Width))
+ 		return true
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index a1060d9a2b..42ca491fbb 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -643,9 +643,10 @@ func (s *state) stmt(n *Node) {
+ 
+ 	case OAS, OASWB:
+ 		// Generate static data rather than code, if possible.
+-		if gen_as_init(n, true) {
+-			if !gen_as_init(n, false) {
+-				Fatalf("non-static data marked as static: %v\n\n", n)
++		if n.IsStatic {
++			if !genAsInitNoCheck(n) {
++				Dump("\ngen_as_init", n)
++				Fatalf("gen_as_init couldn't generate static data")
+ 			}
+ 			return
+ 		}

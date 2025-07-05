@@ -11,6 +11,20 @@ Date:   Fri Feb 23 22:44:10 2018 +0900
     Change-Id: I5b0e5c2229d1c30937c7216247f4533effb81ce7
     Reviewed-on: https://go-review.googlesource.com/96675
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/gc_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/gc_test.go b/src/runtime/gc_test.go
+index 1b1db25b17..561061e3d8 100644
+--- a/src/runtime/gc_test.go
++++ b/src/runtime/gc_test.go
+@@ -43,7 +43,7 @@ func TestGcDeepNesting(t *testing.T) {
+ 	}
+ }
+ 
+-func TestGcHashmapIndirection(t *testing.T) {
++func TestGcMapIndirection(t *testing.T) {
+ 	defer debug.SetGCPercent(debug.SetGCPercent(1))
+ 	runtime.GC()
+ 	type T struct {

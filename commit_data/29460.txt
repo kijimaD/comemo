@@ -9,7 +9,7 @@ Date:   Thu Sep 15 16:37:17 2016 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Dave Cheney <dave@cheney.net>
-
+---
  src/cmd/compile/internal/amd64/galign.go  | 12 ++----------
  src/cmd/compile/internal/arm/galign.go    |  4 ----
  src/cmd/compile/internal/arm64/galign.go  |  4 ----
@@ -20,3 +20,196 @@ Date:   Thu Sep 15 16:37:17 2016 -0700
  src/cmd/compile/internal/s390x/galign.go  |  4 ----
  src/cmd/compile/internal/x86/galign.go    |  4 ----
  9 files changed, 5 insertions(+), 39 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/galign.go b/src/cmd/compile/internal/amd64/galign.go
+index 364509292f..cd15864c2b 100644
+--- a/src/cmd/compile/internal/amd64/galign.go
++++ b/src/cmd/compile/internal/amd64/galign.go
+@@ -10,26 +10,18 @@ import (
+ 	"cmd/internal/obj/x86"
+ )
+ 
+-var (
+-	leaptr = x86.ALEAQ
+-)
+-
+-func betypeinit() {
+-	if obj.GOARCH == "amd64p32" {
+-		leaptr = x86.ALEAL
+-	}
+-}
++var leaptr = x86.ALEAQ
+ 
+ func Main() {
+ 	gc.Thearch.LinkArch = &x86.Linkamd64
+ 	if obj.GOARCH == "amd64p32" {
+ 		gc.Thearch.LinkArch = &x86.Linkamd64p32
++		leaptr = x86.ALEAL
+ 	}
+ 	gc.Thearch.REGSP = x86.REGSP
+ 	gc.Thearch.REGCTXT = x86.REGCTXT
+ 	gc.Thearch.MAXWIDTH = 1 << 50
+ 
+-	gc.Thearch.Betypeinit = betypeinit
+ 	gc.Thearch.Defframe = defframe
+ 	gc.Thearch.Proginfo = proginfo
+ 
+diff --git a/src/cmd/compile/internal/arm/galign.go b/src/cmd/compile/internal/arm/galign.go
+index db124f7a81..e16ca42ebc 100644
+--- a/src/cmd/compile/internal/arm/galign.go
++++ b/src/cmd/compile/internal/arm/galign.go
+@@ -10,16 +10,12 @@ import (
+ 	"cmd/internal/obj/arm"
+ )
+ 
+-func betypeinit() {
+-}
+-
+ func Main() {
+ 	gc.Thearch.LinkArch = &arm.Linkarm
+ 	gc.Thearch.REGSP = arm.REGSP
+ 	gc.Thearch.REGCTXT = arm.REGCTXT
+ 	gc.Thearch.MAXWIDTH = (1 << 32) - 1
+ 
+-	gc.Thearch.Betypeinit = betypeinit
+ 	gc.Thearch.Defframe = defframe
+ 	gc.Thearch.Proginfo = proginfo
+ 
+diff --git a/src/cmd/compile/internal/arm64/galign.go b/src/cmd/compile/internal/arm64/galign.go
+index 27600579fa..f93684cc85 100644
+--- a/src/cmd/compile/internal/arm64/galign.go
++++ b/src/cmd/compile/internal/arm64/galign.go
+@@ -10,16 +10,12 @@ import (
+ 	"cmd/internal/obj/arm64"
+ )
+ 
+-func betypeinit() {
+-}
+-
+ func Main() {
+ 	gc.Thearch.LinkArch = &arm64.Linkarm64
+ 	gc.Thearch.REGSP = arm64.REGSP
+ 	gc.Thearch.REGCTXT = arm64.REGCTXT
+ 	gc.Thearch.MAXWIDTH = 1 << 50
+ 
+-	gc.Thearch.Betypeinit = betypeinit
+ 	gc.Thearch.Defframe = defframe
+ 	gc.Thearch.Proginfo = proginfo
+ 
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index b44ad19e0d..154b2792d3 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -359,10 +359,9 @@ type Arch struct {
+ 	REGCTXT  int
+ 	MAXWIDTH int64
+ 
+-	Betypeinit func()
+-	Defframe   func(*obj.Prog)
+-	Proginfo   func(*obj.Prog) // fills in Prog.Info
+-	Use387     bool            // should 8g use 387 FP instructions instead of sse2.
++	Defframe func(*obj.Prog)
++	Proginfo func(*obj.Prog) // fills in Prog.Info
++	Use387   bool            // should 8g use 387 FP instructions instead of sse2.
+ 
+ 	// SSARegToReg maps ssa register numbers to obj register numbers.
+ 	SSARegToReg []int16
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 079ff9c57d..5179f68f4a 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -291,7 +291,6 @@ func Main() {
+ 		Debug['l'] = 1 - Debug['l']
+ 	}
+ 
+-	Thearch.Betypeinit()
+ 	Widthint = Thearch.LinkArch.IntSize
+ 	Widthptr = Thearch.LinkArch.PtrSize
+ 	Widthreg = Thearch.LinkArch.RegSize
+diff --git a/src/cmd/compile/internal/mips64/galign.go b/src/cmd/compile/internal/mips64/galign.go
+index a7ea66df0c..6371ac0a44 100644
+--- a/src/cmd/compile/internal/mips64/galign.go
++++ b/src/cmd/compile/internal/mips64/galign.go
+@@ -11,9 +11,6 @@ import (
+ 	"cmd/internal/obj/mips"
+ )
+ 
+-func betypeinit() {
+-}
+-
+ func Main() {
+ 	gc.Thearch.LinkArch = &mips.Linkmips64
+ 	if obj.GOARCH == "mips64le" {
+@@ -23,7 +20,6 @@ func Main() {
+ 	gc.Thearch.REGCTXT = mips.REGCTXT
+ 	gc.Thearch.MAXWIDTH = 1 << 50
+ 
+-	gc.Thearch.Betypeinit = betypeinit
+ 	gc.Thearch.Defframe = defframe
+ 	gc.Thearch.Proginfo = proginfo
+ 
+diff --git a/src/cmd/compile/internal/ppc64/galign.go b/src/cmd/compile/internal/ppc64/galign.go
+index 1bbac5c868..461aa31518 100644
+--- a/src/cmd/compile/internal/ppc64/galign.go
++++ b/src/cmd/compile/internal/ppc64/galign.go
+@@ -10,9 +10,6 @@ import (
+ 	"cmd/internal/obj/ppc64"
+ )
+ 
+-func betypeinit() {
+-}
+-
+ func Main() {
+ 	gc.Thearch.LinkArch = &ppc64.Linkppc64
+ 	if obj.GOARCH == "ppc64le" {
+@@ -22,7 +19,6 @@ func Main() {
+ 	gc.Thearch.REGCTXT = ppc64.REGCTXT
+ 	gc.Thearch.MAXWIDTH = 1 << 50
+ 
+-	gc.Thearch.Betypeinit = betypeinit
+ 	gc.Thearch.Defframe = defframe
+ 	gc.Thearch.Proginfo = proginfo
+ 
+diff --git a/src/cmd/compile/internal/s390x/galign.go b/src/cmd/compile/internal/s390x/galign.go
+index 5cf4434550..2d4757511a 100644
+--- a/src/cmd/compile/internal/s390x/galign.go
++++ b/src/cmd/compile/internal/s390x/galign.go
+@@ -9,16 +9,12 @@ import (
+ 	"cmd/internal/obj/s390x"
+ )
+ 
+-func betypeinit() {
+-}
+-
+ func Main() {
+ 	gc.Thearch.LinkArch = &s390x.Links390x
+ 	gc.Thearch.REGSP = s390x.REGSP
+ 	gc.Thearch.REGCTXT = s390x.REGCTXT
+ 	gc.Thearch.MAXWIDTH = 1 << 50
+ 
+-	gc.Thearch.Betypeinit = betypeinit
+ 	gc.Thearch.Defframe = defframe
+ 	gc.Thearch.Proginfo = proginfo
+ 
+diff --git a/src/cmd/compile/internal/x86/galign.go b/src/cmd/compile/internal/x86/galign.go
+index 9c014678c1..83ef330aac 100644
+--- a/src/cmd/compile/internal/x86/galign.go
++++ b/src/cmd/compile/internal/x86/galign.go
+@@ -12,9 +12,6 @@ import (
+ 	"os"
+ )
+ 
+-func betypeinit() {
+-}
+-
+ func Main() {
+ 	gc.Thearch.LinkArch = &x86.Link386
+ 	gc.Thearch.REGSP = x86.REGSP
+@@ -29,7 +26,6 @@ func Main() {
+ 	}
+ 	gc.Thearch.MAXWIDTH = (1 << 32) - 1
+ 
+-	gc.Thearch.Betypeinit = betypeinit
+ 	gc.Thearch.Defframe = defframe
+ 	gc.Thearch.Proginfo = proginfo
+ 

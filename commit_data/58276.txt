@@ -18,8 +18,51 @@ Date:   Tue Oct 17 21:59:17 2023 +0000
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/syscall/syscall_linux.go   | 3 ++-
  src/syscall/syscall_solaris.go | 3 ++-
  src/syscall/syscall_windows.go | 3 ++-
  3 files changed, 6 insertions(+), 3 deletions(-)
+
+diff --git a/src/syscall/syscall_linux.go b/src/syscall/syscall_linux.go
+index ad72a1d018..96ad4fbe3f 100644
+--- a/src/syscall/syscall_linux.go
++++ b/src/syscall/syscall_linux.go
+@@ -554,7 +554,8 @@ func (sa *SockaddrUnix) sockaddr() (unsafe.Pointer, _Socklen, error) {
+ 	if n > 0 {
+ 		sl += _Socklen(n) + 1
+ 	}
+-	if sa.raw.Path[0] == '@' {
++	if sa.raw.Path[0] == '@' || (sa.raw.Path[0] == 0 && sl > 3) {
++		// Check sl > 3 so we don't change unnamed socket behavior.
+ 		sa.raw.Path[0] = 0
+ 		// Don't count trailing NUL for abstract address.
+ 		sl--
+diff --git a/src/syscall/syscall_solaris.go b/src/syscall/syscall_solaris.go
+index 243794940e..28d3727db6 100644
+--- a/src/syscall/syscall_solaris.go
++++ b/src/syscall/syscall_solaris.go
+@@ -131,7 +131,8 @@ func (sa *SockaddrUnix) sockaddr() (unsafe.Pointer, _Socklen, error) {
+ 	if n > 0 {
+ 		sl += _Socklen(n) + 1
+ 	}
+-	if sa.raw.Path[0] == '@' {
++	if sa.raw.Path[0] == '@' || (sa.raw.Path[0] == 0 && sl > 3) {
++		// Check sl > 3 so we don't change unnamed socket behavior.
+ 		sa.raw.Path[0] = 0
+ 		// Don't count trailing NUL for abstract address.
+ 		sl--
+diff --git a/src/syscall/syscall_windows.go b/src/syscall/syscall_windows.go
+index 8229e252d9..33876c7fe0 100644
+--- a/src/syscall/syscall_windows.go
++++ b/src/syscall/syscall_windows.go
+@@ -862,7 +862,8 @@ func (sa *SockaddrUnix) sockaddr() (unsafe.Pointer, int32, error) {
+ 	if n > 0 {
+ 		sl += int32(n) + 1
+ 	}
+-	if sa.raw.Path[0] == '@' {
++	if sa.raw.Path[0] == '@' || (sa.raw.Path[0] == 0 && sl > 3) {
++		// Check sl > 3 so we don't change unnamed socket behavior.
+ 		sa.raw.Path[0] = 0
+ 		// Don't count trailing NUL for abstract address.
+ 		sl--

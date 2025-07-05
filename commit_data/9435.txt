@@ -7,6 +7,22 @@ Date:   Mon Aug 22 14:07:27 2011 +1000
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/4921045
-
+---
  src/cmd/gc/lex.c | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 29b6d27ffc..e876412a0d 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -400,8 +400,8 @@ findpkg(Strlit *name)
+ 	}
+ 
+ 	// local imports should be canonicalized already.
+-	// don't want to see "container/../container/vector"
+-	// as different from "container/vector".
++	// don't want to see "encoding/../encoding/base64"
++	// as different from "encoding/base64".
+ 	q = mal(name->len+1);
+ 	memmove(q, name->s, name->len);
+ 	q[name->len] = '\0';

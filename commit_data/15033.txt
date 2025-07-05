@@ -13,8 +13,125 @@ Date:   Wed Jan 30 09:01:31 2013 -0800
     R=golang-dev, dvyukov, rsc, minux.ma
     CC=dave, golang-dev, remyoudompheng
     https://golang.org/cl/7135063
-
+---
  src/pkg/runtime/mprof.goc | 49 ++++++++++++++++++++++++++++++++++++++++++-----
  src/pkg/runtime/proc.c    |  1 +
  src/pkg/runtime/runtime.h |  1 +
  3 files changed, 46 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/runtime/mprof.goc b/src/pkg/runtime/mprof.goc
+index 7a245b537d..0a821cc241 100644
+--- a/src/pkg/runtime/mprof.goc
++++ b/src/pkg/runtime/mprof.goc
+@@ -13,7 +13,41 @@ package runtime
+ #include "type.h"
+ 
+ // NOTE(rsc): Everything here could use cas if contention became an issue.
+-static Lock proflock;
++static Lock proflock, alloclock;
++
++// All memory allocations are local and do not escape outside of the profiler.
++// The profiler is forbidden from referring to garbage-collected memory.
++
++static byte *pool;        // memory allocation pool
++static uintptr poolfree;  // number of bytes left in the pool
++enum {
++	Chunk = 32*PageSize,  // initial size of the pool
++};
++
++// Memory allocation local to this file.
++// There is no way to return the allocated memory back to the OS.
++static void*
++allocate(uintptr size)
++{
++	void *v;
++
++	if(size == 0)
++		return nil;
++
++	if(size >= Chunk/2)
++		return runtime·SysAlloc(size);
++
++	runtime·lock(&alloclock);
++	if(size > poolfree) {
++		pool = runtime·SysAlloc(Chunk);
++		poolfree = Chunk;
++	}
++	v = pool;
++	pool += size;
++	poolfree -= size;
++	runtime·unlock(&alloclock);
++	return v;
++}
+ 
+ enum { MProf, BProf };  // profile types
+ 
+@@ -88,7 +122,7 @@ stkbucket(int32 typ, uintptr *stk, int32 nstk, bool alloc)
+ 	if(!alloc)
+ 		return nil;
+ 
+-	b = runtime·mallocgc(sizeof *b + nstk*sizeof stk[0], FlagNoProfiling, 0, 1);
++	b = allocate(sizeof *b + nstk*sizeof stk[0]);
+ 	bucketmem += sizeof *b + nstk*sizeof stk[0];
+ 	runtime·memmove(b->stk, stk, nstk*sizeof stk[0]);
+ 	b->typ = typ;
+@@ -157,7 +191,7 @@ struct AddrEntry
+ 	Bucket *b;
+ };
+ 
+-static AddrHash *addrhash[1<<AddrHashBits];
++static AddrHash **addrhash;	// points to (AddrHash*)[1<<AddrHashBits]
+ static AddrEntry *addrfree;
+ static uintptr addrmem;
+ 
+@@ -184,7 +218,7 @@ setaddrbucket(uintptr addr, Bucket *b)
+ 		if(ah->addr == (addr>>AddrHashShift))
+ 			goto found;
+ 
+-	ah = runtime·mallocgc(sizeof *ah, FlagNoProfiling, 0, 1);
++	ah = allocate(sizeof *ah);
+ 	addrmem += sizeof *ah;
+ 	ah->next = addrhash[h];
+ 	ah->addr = addr>>AddrHashShift;
+@@ -192,7 +226,7 @@ setaddrbucket(uintptr addr, Bucket *b)
+ 
+ found:
+ 	if((e = addrfree) == nil) {
+-		e = runtime·mallocgc(64*sizeof *e, FlagNoProfiling, 0, 0);
++		e = allocate(64*sizeof *e);
+ 		addrmem += 64*sizeof *e;
+ 		for(i=0; i+1<64; i++)
+ 			e[i].next = &e[i+1];
+@@ -487,3 +521,8 @@ func GoroutineProfile(b Slice) (n int, ok bool) {
+ 	}
+ }
+ 
++void
++runtime·mprofinit(void)
++{
++	addrhash = allocate((1<<AddrHashBits)*sizeof *addrhash);
++}
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 9b143b92f3..b589235c1f 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -190,6 +190,7 @@ runtime·schedinit(void)
+ 	byte *p;
+ 
+ 	m->nomemprof++;
++	runtime·mprofinit();
+ 	runtime·mallocinit();
+ 	mcommoninit(m);
+ 
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 187a827a02..3e99b75bea 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -657,6 +657,7 @@ void	runtime·stackfree(void*, uintptr);
+ MCache*	runtime·allocmcache(void);
+ void	runtime·freemcache(MCache*);
+ void	runtime·mallocinit(void);
++void	runtime·mprofinit(void);
+ bool	runtime·ifaceeq_c(Iface, Iface);
+ bool	runtime·efaceeq_c(Eface, Eface);
+ uintptr	runtime·ifacehash(Iface, uintptr);

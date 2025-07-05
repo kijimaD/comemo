@@ -12,6 +12,20 @@ Date:   Thu Jun 30 19:38:10 2022 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: David Chase <drchase@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/reflectdata/helpers.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/reflectdata/helpers.go b/src/cmd/compile/internal/reflectdata/helpers.go
+index 03d1ae3dc2..81bb18788f 100644
+--- a/src/cmd/compile/internal/reflectdata/helpers.go
++++ b/src/cmd/compile/internal/reflectdata/helpers.go
+@@ -113,7 +113,7 @@ func ConvIfaceTypeWord(pos src.XPos, n *ir.ConvExpr) ir.Node {
+ 		return concreteRType(pos, src) // direct eface construction
+ 	}
+ 	if !src.IsInterface() {
+-		return ITabAddr(src, dst) // direct iface construction
++		return ITabAddrAt(pos, src, dst) // direct iface construction
+ 	}
+ 	return TypePtrAt(pos, dst) // convI2I
+ }

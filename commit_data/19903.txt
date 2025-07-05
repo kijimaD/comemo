@@ -8,6 +8,20 @@ Date:   Tue Aug 5 21:38:41 2014 -0700
     R=golang-codereviews, gobot, rsc
     CC=golang-codereviews
     https://golang.org/cl/118480046
-
+---
  src/liblink/asm6.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/liblink/asm6.c b/src/liblink/asm6.c
+index 3fc3e01286..fa329777d0 100644
+--- a/src/liblink/asm6.c
++++ b/src/liblink/asm6.c
+@@ -1072,7 +1072,7 @@ static Optab optab[] =
+ 	{ AMOVBLSX,	ymb_rl,	Pm, {0xbe} },
+ 	{ AMOVBLZX,	ymb_rl,	Pm, {0xb6} },
+ 	{ AMOVBQSX,	ymb_rl,	Pw, {0x0f,0xbe} },
+-	{ AMOVBQZX,	ymb_rl,	Pw, {0x0f,0xb6} },
++	{ AMOVBQZX,	ymb_rl,	Pm, {0xb6} },
+ 	{ AMOVBWSX,	ymb_rl,	Pq, {0xbe} },
+ 	{ AMOVBWZX,	ymb_rl,	Pq, {0xb6} },
+ 	{ AMOVO,	yxmov,	Pe, {0x6f,0x7f} },

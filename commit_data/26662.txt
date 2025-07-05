@@ -9,7 +9,75 @@ Date:   Fri Feb 19 23:01:10 2016 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/go.go  |  7 -------
  src/cmd/compile/internal/gc/lex.go | 19 +++++++------------
  2 files changed, 7 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index 13a28c8720..9b55eb8848 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -397,11 +397,6 @@ type Dlist struct {
+ 	field *Type
+ }
+ 
+-type Idir struct {
+-	link *Idir
+-	dir  string
+-}
+-
+ // argument passing to/from
+ // smagic and umagic
+ type Magic struct {
+@@ -519,8 +514,6 @@ var Tptr EType // either TPTR32 or TPTR64
+ 
+ var myimportpath string
+ 
+-var idirs *Idir
+-
+ var localimport string
+ 
+ var asmhdr string
+diff --git a/src/cmd/compile/internal/gc/lex.go b/src/cmd/compile/internal/gc/lex.go
+index 66cc01862d..08545df953 100644
+--- a/src/cmd/compile/internal/gc/lex.go
++++ b/src/cmd/compile/internal/gc/lex.go
+@@ -561,17 +561,12 @@ func skiptopkgdef(b *obj.Biobuf) bool {
+ 	return true
+ }
+ 
+-func addidir(dir string) {
+-	if dir == "" {
+-		return
+-	}
++var idirs []string
+ 
+-	var pp **Idir
+-	for pp = &idirs; *pp != nil; pp = &(*pp).link {
++func addidir(dir string) {
++	if dir != "" {
++		idirs = append(idirs, dir)
+ 	}
+-	*pp = new(Idir)
+-	(*pp).link = nil
+-	(*pp).dir = dir
+ }
+ 
+ // is this path a local name?  begins with ./ or ../ or /
+@@ -610,12 +605,12 @@ func findpkg(name string) (file string, ok bool) {
+ 		return "", false
+ 	}
+ 
+-	for p := idirs; p != nil; p = p.link {
+-		file = fmt.Sprintf("%s/%s.a", p.dir, name)
++	for _, dir := range idirs {
++		file = fmt.Sprintf("%s/%s.a", dir, name)
+ 		if _, err := os.Stat(file); err == nil {
+ 			return file, true
+ 		}
+-		file = fmt.Sprintf("%s/%s.o", p.dir, name)
++		file = fmt.Sprintf("%s/%s.o", dir, name)
+ 		if _, err := os.Stat(file); err == nil {
+ 			return file, true
+ 		}

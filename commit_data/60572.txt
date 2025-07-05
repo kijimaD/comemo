@@ -46,8 +46,106 @@ Date:   Tue Apr 23 17:01:28 2024 +0800
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/compile/internal/loong64/ssa.go      |  8 ++++++--
  src/internal/runtime/atomic/atomic_loong64.s | 16 ++++------------
  src/internal/runtime/atomic/bench_test.go    |  8 ++++++++
  3 files changed, 18 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/compile/internal/loong64/ssa.go b/src/cmd/compile/internal/loong64/ssa.go
+index 1b1fdfdc71..7cdf5637f2 100644
+--- a/src/cmd/compile/internal/loong64/ssa.go
++++ b/src/cmd/compile/internal/loong64/ssa.go
+@@ -468,6 +468,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p.To.Sym = ssagen.BoundsCheckFunc[v.AuxInt]
+ 		s.UseArgs(16) // space used in callee args area by assembly stubs
+ 	case ssa.OpLOONG64LoweredAtomicLoad8, ssa.OpLOONG64LoweredAtomicLoad32, ssa.OpLOONG64LoweredAtomicLoad64:
++		// MOVB	(Rarg0), Rout
++		// DBAR	0x14
+ 		as := loong64.AMOVV
+ 		switch v.Op {
+ 		case ssa.OpLOONG64LoweredAtomicLoad8:
+@@ -475,13 +477,15 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		case ssa.OpLOONG64LoweredAtomicLoad32:
+ 			as = loong64.AMOVW
+ 		}
+-		s.Prog(loong64.ADBAR)
+ 		p := s.Prog(as)
+ 		p.From.Type = obj.TYPE_MEM
+ 		p.From.Reg = v.Args[0].Reg()
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg0()
+-		s.Prog(loong64.ADBAR)
++		p1 := s.Prog(loong64.ADBAR)
++		p1.From.Type = obj.TYPE_CONST
++		p1.From.Offset = 0x14
++
+ 	case ssa.OpLOONG64LoweredAtomicStore8, ssa.OpLOONG64LoweredAtomicStore32, ssa.OpLOONG64LoweredAtomicStore64:
+ 		as := loong64.AMOVV
+ 		switch v.Op {
+diff --git a/src/internal/runtime/atomic/atomic_loong64.s b/src/internal/runtime/atomic/atomic_loong64.s
+index 1812cb95fd..9bed8654c8 100644
+--- a/src/internal/runtime/atomic/atomic_loong64.s
++++ b/src/internal/runtime/atomic/atomic_loong64.s
+@@ -319,38 +319,30 @@ TEXT ·Oruintptr(SB), NOSPLIT, $0-24
+ // uint32 internal∕runtime∕atomic·Load(uint32 volatile* ptr)
+ TEXT ·Load(SB),NOSPLIT|NOFRAME,$0-12
+ 	MOVV	ptr+0(FP), R19
+-	DBAR
+ 	MOVWU	0(R19), R19
+-	DBAR
++	DBAR	$0x14	// LoadAcquire barrier
+ 	MOVW	R19, ret+8(FP)
+ 	RET
+ 
+ // uint8 internal∕runtime∕atomic·Load8(uint8 volatile* ptr)
+ TEXT ·Load8(SB),NOSPLIT|NOFRAME,$0-9
+ 	MOVV	ptr+0(FP), R19
+-	DBAR
+ 	MOVBU	0(R19), R19
+-	DBAR
++	DBAR	$0x14
+ 	MOVB	R19, ret+8(FP)
+ 	RET
+ 
+ // uint64 internal∕runtime∕atomic·Load64(uint64 volatile* ptr)
+ TEXT ·Load64(SB),NOSPLIT|NOFRAME,$0-16
+ 	MOVV	ptr+0(FP), R19
+-	DBAR
+ 	MOVV	0(R19), R19
+-	DBAR
++	DBAR	$0x14
+ 	MOVV	R19, ret+8(FP)
+ 	RET
+ 
+ // void *internal∕runtime∕atomic·Loadp(void *volatile *ptr)
+ TEXT ·Loadp(SB),NOSPLIT|NOFRAME,$0-16
+-	MOVV	ptr+0(FP), R19
+-	DBAR
+-	MOVV	0(R19), R19
+-	DBAR
+-	MOVV	R19, ret+8(FP)
+-	RET
++	JMP     ·Load64(SB)
+ 
+ // uint32 internal∕runtime∕atomic·LoadAcq(uint32 volatile* ptr)
+ TEXT ·LoadAcq(SB),NOSPLIT|NOFRAME,$0-12
+diff --git a/src/internal/runtime/atomic/bench_test.go b/src/internal/runtime/atomic/bench_test.go
+index 798431cf72..6e3f14cbe4 100644
+--- a/src/internal/runtime/atomic/bench_test.go
++++ b/src/internal/runtime/atomic/bench_test.go
+@@ -43,6 +43,14 @@ func BenchmarkAtomicStore(b *testing.B) {
+ 	}
+ }
+ 
++func BenchmarkAtomicLoad8(b *testing.B) {
++	var x uint8
++	sink = &x
++	for i := 0; i < b.N; i++ {
++		atomic.Load8(&x)
++	}
++}
++
+ func BenchmarkAnd8(b *testing.B) {
+ 	var x [512]uint8 // give byte its own cache line
+ 	sink = &x

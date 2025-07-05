@@ -18,7 +18,7 @@ Date:   Thu Nov 11 16:02:35 2021 -0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/importer/iimport.go       |  3 +--
  src/cmd/compile/internal/types2/builtins.go        |  6 +++---
  src/cmd/compile/internal/types2/call.go            |  2 +-
@@ -35,3 +35,326 @@ Date:   Thu Nov 11 16:02:35 2021 -0800
  src/cmd/compile/internal/types2/typexpr.go         |  2 +-
  src/cmd/compile/internal/types2/union.go           | 17 ++++++++---------
  15 files changed, 34 insertions(+), 60 deletions(-)
+
+diff --git a/src/cmd/compile/internal/importer/iimport.go b/src/cmd/compile/internal/importer/iimport.go
+index d04ef5c34d..1aa3b7b6a8 100644
+--- a/src/cmd/compile/internal/importer/iimport.go
++++ b/src/cmd/compile/internal/importer/iimport.go
+@@ -706,8 +706,7 @@ func (r *importReader) tparamList() []*types2.TypeParam {
+ 	}
+ 	xs := make([]*types2.TypeParam, n)
+ 	for i := range xs {
+-		typ := r.typ()
+-		xs[i] = types2.AsTypeParam(typ)
++		xs[i] = r.typ().(*types2.TypeParam)
+ 	}
+ 	return xs
+ }
+diff --git a/src/cmd/compile/internal/types2/builtins.go b/src/cmd/compile/internal/types2/builtins.go
+index 2bc084038f..99fe440340 100644
+--- a/src/cmd/compile/internal/types2/builtins.go
++++ b/src/cmd/compile/internal/types2/builtins.go
+@@ -293,7 +293,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 		// the argument types must be of floating-point type
+ 		// (applyTypeFunc never calls f with a type parameter)
+ 		f := func(typ Type) Type {
+-			assert(asTypeParam(typ) == nil)
++			assert(!isTypeParam(typ))
+ 			if t, _ := under(typ).(*Basic); t != nil {
+ 				switch t.kind {
+ 				case Float32:
+@@ -436,7 +436,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 		// the argument must be of complex type
+ 		// (applyTypeFunc never calls f with a type parameter)
+ 		f := func(typ Type) Type {
+-			assert(asTypeParam(typ) == nil)
++			assert(!isTypeParam(typ))
+ 			if t, _ := under(typ).(*Basic); t != nil {
+ 				switch t.kind {
+ 				case Complex64:
+@@ -813,7 +813,7 @@ func hasVarSize(t Type) bool {
+ // applyTypeFunc returns nil.
+ // If x is not a type parameter, the result is f(x).
+ func (check *Checker) applyTypeFunc(f func(Type) Type, x Type) Type {
+-	if tp := asTypeParam(x); tp != nil {
++	if tp, _ := x.(*TypeParam); tp != nil {
+ 		// Test if t satisfies the requirements for the argument
+ 		// type and collect possible result types at the same time.
+ 		var terms []*Term
+diff --git a/src/cmd/compile/internal/types2/call.go b/src/cmd/compile/internal/types2/call.go
+index 0540feaa78..b778d54b32 100644
+--- a/src/cmd/compile/internal/types2/call.go
++++ b/src/cmd/compile/internal/types2/call.go
+@@ -528,7 +528,7 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr) {
+ 			check.errorf(e.Sel, "cannot call pointer method %s on %s", sel, x.typ)
+ 		default:
+ 			var why string
+-			if tpar := asTypeParam(x.typ); tpar != nil {
++			if tpar, _ := x.typ.(*TypeParam); tpar != nil {
+ 				// Type parameter bounds don't specify fields, so don't mention "field".
+ 				if tname := tpar.iface().obj; tname != nil {
+ 					why = check.sprintf("interface %s has no method %s", tname.name, sel)
+diff --git a/src/cmd/compile/internal/types2/compilersupport.go b/src/cmd/compile/internal/types2/compilersupport.go
+index 31112d4e41..b35e752b8f 100644
+--- a/src/cmd/compile/internal/types2/compilersupport.go
++++ b/src/cmd/compile/internal/types2/compilersupport.go
+@@ -19,12 +19,6 @@ func AsSignature(t Type) *Signature {
+ 	return u
+ }
+ 
+-// If t is a type parameter, AsTypeParam returns that type, otherwise it returns nil.
+-func AsTypeParam(t Type) *TypeParam {
+-	u, _ := t.Underlying().(*TypeParam)
+-	return u
+-}
+-
+ // If typ is a type parameter, structuralType returns the single underlying
+ // type of all types in the corresponding type constraint if it exists, or
+ // nil otherwise. If the type set contains only unrestricted and restricted
+diff --git a/src/cmd/compile/internal/types2/conversions.go b/src/cmd/compile/internal/types2/conversions.go
+index 7f93e2467f..968ac4d39f 100644
+--- a/src/cmd/compile/internal/types2/conversions.go
++++ b/src/cmd/compile/internal/types2/conversions.go
+@@ -48,7 +48,7 @@ func (check *Checker) conversion(x *operand, T Type) {
+ 		// If T's type set is empty, or if it doesn't
+ 		// have specific types, constant x cannot be
+ 		// converted.
+-		ok = under(T).(*TypeParam).underIs(func(u Type) bool {
++		ok = T.(*TypeParam).underIs(func(u Type) bool {
+ 			// t is nil if there are no specific type terms
+ 			if u == nil {
+ 				cause = check.sprintf("%s does not contain specific types", T)
+@@ -194,8 +194,8 @@ func (x *operand) convertibleTo(check *Checker, T Type, cause *string) bool {
+ 	}
+ 
+ 	// optimization: if we don't have type parameters, we're done
+-	Vp, _ := Vu.(*TypeParam)
+-	Tp, _ := Tu.(*TypeParam)
++	Vp, _ := V.(*TypeParam)
++	Tp, _ := T.(*TypeParam)
+ 	if Vp == nil && Tp == nil {
+ 		return false
+ 	}
+diff --git a/src/cmd/compile/internal/types2/decl.go b/src/cmd/compile/internal/types2/decl.go
+index 9b643fac99..bab90fbd9a 100644
+--- a/src/cmd/compile/internal/types2/decl.go
++++ b/src/cmd/compile/internal/types2/decl.go
+@@ -616,10 +616,11 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *syntax.TypeDecl, def *Named
+ 	}
+ 
+ 	// Disallow a lone type parameter as the RHS of a type declaration (issue #45639).
+-	// We can look directly at named.underlying because even if it is still a *Named
+-	// type (underlying not fully resolved yet) it cannot become a type parameter due
+-	// to this very restriction.
+-	if tpar, _ := named.underlying.(*TypeParam); tpar != nil {
++	// We don't need this restriction anymore if we make the underlying type of a type
++	// parameter its constraint interface: if the RHS is a lone type parameter, we will
++	// use its underlying type (like we do for any RHS in a type declaration), and its
++	// underlying type is an interface and the type declaration is well defined.
++	if isTypeParam(rhs) {
+ 		check.error(tdecl.Type, "cannot use a type parameter as RHS in type declaration")
+ 		named.underlying = Typ[Invalid]
+ 	}
+@@ -671,7 +672,7 @@ func (check *Checker) collectTypeParams(dst **TypeParamList, list []*syntax.Fiel
+ 
+ 	check.later(func() {
+ 		for i, bound := range bounds {
+-			if _, ok := under(bound).(*TypeParam); ok {
++			if isTypeParam(bound) {
+ 				check.error(posers[i], "cannot use a type parameter as constraint")
+ 			}
+ 		}
+diff --git a/src/cmd/compile/internal/types2/expr.go b/src/cmd/compile/internal/types2/expr.go
+index 0b3fe23e80..17096ee418 100644
+--- a/src/cmd/compile/internal/types2/expr.go
++++ b/src/cmd/compile/internal/types2/expr.go
+@@ -160,11 +160,10 @@ var op2str2 = [...]string{
+ // If typ is a type parameter, underIs returns the result of typ.underIs(f).
+ // Otherwise, underIs returns the result of f(under(typ)).
+ func underIs(typ Type, f func(Type) bool) bool {
+-	u := under(typ)
+-	if tpar, _ := u.(*TypeParam); tpar != nil {
++	if tpar, _ := typ.(*TypeParam); tpar != nil {
+ 		return tpar.underIs(f)
+ 	}
+-	return f(u)
++	return f(under(typ))
+ }
+ 
+ func (check *Checker) unary(x *operand, e *syntax.Operation) {
+diff --git a/src/cmd/compile/internal/types2/instantiate.go b/src/cmd/compile/internal/types2/instantiate.go
+index f814619bb0..582d1e4763 100644
+--- a/src/cmd/compile/internal/types2/instantiate.go
++++ b/src/cmd/compile/internal/types2/instantiate.go
+@@ -143,7 +143,7 @@ func (check *Checker) satisfies(pos syntax.Pos, targ Type, tpar *TypeParam, smap
+ 
+ 	// A type argument that is a type parameter with an empty type set satisfies any constraint.
+ 	// (The empty set is a subset of any set.)
+-	if targ := asTypeParam(targ); targ != nil && targ.iface().typeSet().IsEmpty() {
++	if targ, _ := targ.(*TypeParam); targ != nil && targ.iface().typeSet().IsEmpty() {
+ 		return nil
+ 	}
+ 
+@@ -172,7 +172,7 @@ func (check *Checker) satisfies(pos syntax.Pos, targ Type, tpar *TypeParam, smap
+ 	// if iface is comparable, targ must be comparable
+ 	// TODO(gri) the error messages needs to be better, here
+ 	if iface.IsComparable() && !Comparable(targ) {
+-		if tpar := asTypeParam(targ); tpar != nil && tpar.iface().typeSet().IsAll() {
++		if tpar, _ := targ.(*TypeParam); tpar != nil && tpar.iface().typeSet().IsAll() {
+ 			return errorf("%s has no constraints", targ)
+ 		}
+ 		return errorf("%s does not satisfy comparable", targ)
+@@ -184,7 +184,7 @@ func (check *Checker) satisfies(pos syntax.Pos, targ Type, tpar *TypeParam, smap
+ 		// If the type argument is a pointer to a type parameter, the type argument's
+ 		// method set is empty.
+ 		// TODO(gri) is this what we want? (spec question)
+-		if base, isPtr := deref(targ); isPtr && asTypeParam(base) != nil {
++		if base, isPtr := deref(targ); isPtr && isTypeParam(base) {
+ 			return errorf("%s has no methods", targ)
+ 		}
+ 		if m, wrong := check.missingMethod(targ, iface, true); m != nil {
+@@ -212,7 +212,7 @@ func (check *Checker) satisfies(pos syntax.Pos, targ Type, tpar *TypeParam, smap
+ 	// If targ is itself a type parameter, each of its possible types must be in the set
+ 	// of iface types (i.e., the targ type set must be a subset of the iface type set).
+ 	// Type arguments with empty type sets were already excluded above.
+-	if targ := asTypeParam(targ); targ != nil {
++	if targ, _ := targ.(*TypeParam); targ != nil {
+ 		targBound := targ.iface()
+ 		if !targBound.typeSet().subsetOf(iface.typeSet()) {
+ 			// TODO(gri) report which type is missing
+diff --git a/src/cmd/compile/internal/types2/lookup.go b/src/cmd/compile/internal/types2/lookup.go
+index 0612400590..5da51a23ab 100644
+--- a/src/cmd/compile/internal/types2/lookup.go
++++ b/src/cmd/compile/internal/types2/lookup.go
+@@ -134,12 +134,8 @@ func lookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
+ 					continue // we can't have a matching field or interface method
+ 				}
+ 
+-				// continue with underlying type, but only if it's not a type parameter
+-				// TODO(gri) is this what we want to do for type parameters? (spec question)
++				// continue with underlying type
+ 				typ = named.under()
+-				if asTypeParam(typ) != nil {
+-					continue
+-				}
+ 			}
+ 
+ 			tpar = nil
+diff --git a/src/cmd/compile/internal/types2/operand.go b/src/cmd/compile/internal/types2/operand.go
+index 2f85802701..762a7543a9 100644
+--- a/src/cmd/compile/internal/types2/operand.go
++++ b/src/cmd/compile/internal/types2/operand.go
+@@ -183,7 +183,7 @@ func operandString(x *operand, qf Qualifier) string {
+ 			}
+ 			buf.WriteString(intro)
+ 			WriteType(&buf, x.typ, qf)
+-			if tpar := asTypeParam(x.typ); tpar != nil {
++			if tpar, _ := x.typ.(*TypeParam); tpar != nil {
+ 				buf.WriteString(" constrained by ")
+ 				WriteType(&buf, tpar.bound, qf) // do not compute interface type sets here
+ 			}
+@@ -256,8 +256,8 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) (bool, er
+ 
+ 	Vu := under(V)
+ 	Tu := under(T)
+-	Vp, _ := Vu.(*TypeParam)
+-	Tp, _ := Tu.(*TypeParam)
++	Vp, _ := V.(*TypeParam)
++	Tp, _ := T.(*TypeParam)
+ 
+ 	// x is an untyped value representable by a value of type T.
+ 	if isUntyped(Vu) {
+diff --git a/src/cmd/compile/internal/types2/predicates.go b/src/cmd/compile/internal/types2/predicates.go
+index f1fd33c5de..5cb1c33814 100644
+--- a/src/cmd/compile/internal/types2/predicates.go
++++ b/src/cmd/compile/internal/types2/predicates.go
+@@ -90,7 +90,7 @@ func IsInterface(t Type) bool {
+ 
+ // isTypeParam reports whether t is a type parameter.
+ func isTypeParam(t Type) bool {
+-	_, ok := under(t).(*TypeParam)
++	_, ok := t.(*TypeParam)
+ 	return ok
+ }
+ 
+diff --git a/src/cmd/compile/internal/types2/type.go b/src/cmd/compile/internal/types2/type.go
+index c8c0f36e5c..24d44442e9 100644
+--- a/src/cmd/compile/internal/types2/type.go
++++ b/src/cmd/compile/internal/types2/type.go
+@@ -88,9 +88,3 @@ func asNamed(t Type) *Named {
+ 	}
+ 	return e
+ }
+-
+-// If t is a type parameter, asTypeParam returns that type, otherwise it returns nil.
+-func asTypeParam(t Type) *TypeParam {
+-	u, _ := under(t).(*TypeParam)
+-	return u
+-}
+diff --git a/src/cmd/compile/internal/types2/typeset.go b/src/cmd/compile/internal/types2/typeset.go
+index c37a20e73e..882f387c3c 100644
+--- a/src/cmd/compile/internal/types2/typeset.go
++++ b/src/cmd/compile/internal/types2/typeset.go
+@@ -291,10 +291,6 @@ func computeInterfaceTypeSet(check *Checker, pos syntax.Pos, ityp *Interface) *_
+ 				continue // ignore invalid unions
+ 			}
+ 			terms = tset.terms
+-		case *TypeParam:
+-			// Embedding stand-alone type parameters is not permitted.
+-			// Union parsing reports a (delayed) error, so we can ignore this entry.
+-			continue
+ 		default:
+ 			if u == Typ[Invalid] {
+ 				continue
+@@ -372,10 +368,6 @@ func computeUnionTypeSet(check *Checker, pos syntax.Pos, utyp *Union) *_TypeSet
+ 		switch u := under(t.typ).(type) {
+ 		case *Interface:
+ 			terms = computeInterfaceTypeSet(check, pos, u).terms
+-		case *TypeParam:
+-			// A stand-alone type parameters is not permitted as union term.
+-			// Union parsing reports a (delayed) error, so we can ignore this entry.
+-			continue
+ 		default:
+ 			if t.typ == Typ[Invalid] {
+ 				continue
+diff --git a/src/cmd/compile/internal/types2/typexpr.go b/src/cmd/compile/internal/types2/typexpr.go
+index 82c029cfd6..a2585179ee 100644
+--- a/src/cmd/compile/internal/types2/typexpr.go
++++ b/src/cmd/compile/internal/types2/typexpr.go
+@@ -356,7 +356,7 @@ func (check *Checker) typInternal(e0 syntax.Expr, def *Named) (T Type) {
+ 		check.later(func() {
+ 			if !Comparable(typ.key) {
+ 				var why string
+-				if asTypeParam(typ.key) != nil {
++				if isTypeParam(typ.key) {
+ 					why = " (missing comparable constraint)"
+ 				}
+ 				check.errorf(e.Key, "invalid map key type %s%s", typ.key, why)
+diff --git a/src/cmd/compile/internal/types2/union.go b/src/cmd/compile/internal/types2/union.go
+index 5379bde02c..2304b30280 100644
+--- a/src/cmd/compile/internal/types2/union.go
++++ b/src/cmd/compile/internal/types2/union.go
+@@ -115,15 +115,14 @@ func parseTilde(check *Checker, x syntax.Expr) (tilde bool, typ Type) {
+ 	}
+ 	typ = check.typ(x)
+ 	// Embedding stand-alone type parameters is not permitted (issue #47127).
+-	// Do this check later because it requires computation of the underlying type (see also issue #46461).
+-	// Note: If an underlying type cannot be a type parameter, the call to
+-	//       under() will not be needed and then we don't need to delay this
+-	//       check to later and could return Typ[Invalid] instead.
+-	check.later(func() {
+-		if _, ok := under(typ).(*TypeParam); ok {
+-			check.error(x, "cannot embed a type parameter")
+-		}
+-	})
++	// We don't need this restriction anymore if we make the underlying type of a type
++	// parameter its constraint interface: if we embed a lone type parameter, we will
++	// simply use its underlying type (like we do for other named, embedded interfaces),
++	// and since the underlying type is an interface the embedding is well defined.
++	if isTypeParam(typ) {
++		check.error(x, "cannot embed a type parameter")
++		typ = Typ[Invalid]
++	}
+ 	return
+ }
+ 

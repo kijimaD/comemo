@@ -19,8 +19,209 @@ Date:   Thu Feb 16 19:53:08 2017 -0500
     Run-TryBot: Michael Munday <munday@ca.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/testdata/loadstore.go | 108 ++++++++++++++++++++++
  src/cmd/compile/internal/ssa/gen/S390X.rules      |   6 +-
  src/cmd/compile/internal/ssa/rewriteS390X.go      |  12 +--
  3 files changed, 117 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/testdata/loadstore.go b/src/cmd/compile/internal/gc/testdata/loadstore.go
+index 4d67864a6d..dcb61d4b7e 100644
+--- a/src/cmd/compile/internal/gc/testdata/loadstore.go
++++ b/src/cmd/compile/internal/gc/testdata/loadstore.go
+@@ -102,12 +102,120 @@ func testDeadStorePanic() {
+ 	}
+ }
+ 
++//go:noinline
++func loadHitStore8(x int8, p *int8) int32 {
++	x *= x           // try to trash high bits (arch-dependent)
++	*p = x           // store
++	return int32(*p) // load and cast
++}
++
++//go:noinline
++func loadHitStoreU8(x uint8, p *uint8) uint32 {
++	x *= x            // try to trash high bits (arch-dependent)
++	*p = x            // store
++	return uint32(*p) // load and cast
++}
++
++//go:noinline
++func loadHitStore16(x int16, p *int16) int32 {
++	x *= x           // try to trash high bits (arch-dependent)
++	*p = x           // store
++	return int32(*p) // load and cast
++}
++
++//go:noinline
++func loadHitStoreU16(x uint16, p *uint16) uint32 {
++	x *= x            // try to trash high bits (arch-dependent)
++	*p = x            // store
++	return uint32(*p) // load and cast
++}
++
++//go:noinline
++func loadHitStore32(x int32, p *int32) int64 {
++	x *= x           // try to trash high bits (arch-dependent)
++	*p = x           // store
++	return int64(*p) // load and cast
++}
++
++//go:noinline
++func loadHitStoreU32(x uint32, p *uint32) uint64 {
++	x *= x            // try to trash high bits (arch-dependent)
++	*p = x            // store
++	return uint64(*p) // load and cast
++}
++
++func testLoadHitStore() {
++	// Test that sign/zero extensions are kept when a load-hit-store
++	// is replaced by a register-register move.
++	{
++		var in int8 = (1 << 6) + 1
++		var p int8
++		got := loadHitStore8(in, &p)
++		want := int32(in * in)
++		if got != want {
++			fmt.Println("testLoadHitStore (int8) failed. want =", want, ", got =", got)
++			failed = true
++		}
++	}
++	{
++		var in uint8 = (1 << 6) + 1
++		var p uint8
++		got := loadHitStoreU8(in, &p)
++		want := uint32(in * in)
++		if got != want {
++			fmt.Println("testLoadHitStore (uint8) failed. want =", want, ", got =", got)
++			failed = true
++		}
++	}
++	{
++		var in int16 = (1 << 10) + 1
++		var p int16
++		got := loadHitStore16(in, &p)
++		want := int32(in * in)
++		if got != want {
++			fmt.Println("testLoadHitStore (int16) failed. want =", want, ", got =", got)
++			failed = true
++		}
++	}
++	{
++		var in uint16 = (1 << 10) + 1
++		var p uint16
++		got := loadHitStoreU16(in, &p)
++		want := uint32(in * in)
++		if got != want {
++			fmt.Println("testLoadHitStore (uint16) failed. want =", want, ", got =", got)
++			failed = true
++		}
++	}
++	{
++		var in int32 = (1 << 30) + 1
++		var p int32
++		got := loadHitStore32(in, &p)
++		want := int64(in * in)
++		if got != want {
++			fmt.Println("testLoadHitStore (int32) failed. want =", want, ", got =", got)
++			failed = true
++		}
++	}
++	{
++		var in uint32 = (1 << 30) + 1
++		var p uint32
++		got := loadHitStoreU32(in, &p)
++		want := uint64(in * in)
++		if got != want {
++			fmt.Println("testLoadHitStore (uint32) failed. want =", want, ", got =", got)
++			failed = true
++		}
++	}
++}
++
+ func main() {
+ 
+ 	testLoadStoreOrder()
+ 	testStoreSize()
+ 	testExtStore()
+ 	testDeadStorePanic()
++	testLoadHitStore()
+ 
+ 	if failed {
+ 		panic("failed")
+diff --git a/src/cmd/compile/internal/ssa/gen/S390X.rules b/src/cmd/compile/internal/ssa/gen/S390X.rules
+index c2bbc3dee0..814c560f8f 100644
+--- a/src/cmd/compile/internal/ssa/gen/S390X.rules
++++ b/src/cmd/compile/internal/ssa/gen/S390X.rules
+@@ -703,9 +703,9 @@
+ (MOVWZreg x:(MOVWZloadidx [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVWZloadidx <v.Type> [off] {sym} ptr idx mem)
+ 
+ // replace load from same location as preceding store with copy
+-(MOVBZload [off] {sym} ptr (MOVBstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> (MOVDreg x)
+-(MOVHZload [off] {sym} ptr (MOVHstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> (MOVDreg x)
+-(MOVWZload [off] {sym} ptr (MOVWstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> (MOVDreg x)
++(MOVBZload [off] {sym} ptr (MOVBstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> (MOVBZreg x)
++(MOVHZload [off] {sym} ptr (MOVHstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> (MOVHZreg x)
++(MOVWZload [off] {sym} ptr (MOVWstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> (MOVWZreg x)
+ (MOVDload [off] {sym} ptr (MOVDstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> (MOVDreg x)
+ 
+ // Don't extend before storing
+diff --git a/src/cmd/compile/internal/ssa/rewriteS390X.go b/src/cmd/compile/internal/ssa/rewriteS390X.go
+index 5ee0ee62eb..2a5b0fc535 100644
+--- a/src/cmd/compile/internal/ssa/rewriteS390X.go
++++ b/src/cmd/compile/internal/ssa/rewriteS390X.go
+@@ -7904,7 +7904,7 @@ func rewriteValueS390X_OpS390XMOVBZload(v *Value, config *Config) bool {
+ 	_ = b
+ 	// match: (MOVBZload [off] {sym} ptr (MOVBstore [off2] {sym2} ptr2 x _))
+ 	// cond: sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)
+-	// result: (MOVDreg x)
++	// result: (MOVBZreg x)
+ 	for {
+ 		off := v.AuxInt
+ 		sym := v.Aux
+@@ -7920,7 +7920,7 @@ func rewriteValueS390X_OpS390XMOVBZload(v *Value, config *Config) bool {
+ 		if !(sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)) {
+ 			break
+ 		}
+-		v.reset(OpS390XMOVDreg)
++		v.reset(OpS390XMOVBZreg)
+ 		v.AddArg(x)
+ 		return true
+ 	}
+@@ -11662,7 +11662,7 @@ func rewriteValueS390X_OpS390XMOVHZload(v *Value, config *Config) bool {
+ 	_ = b
+ 	// match: (MOVHZload [off] {sym} ptr (MOVHstore [off2] {sym2} ptr2 x _))
+ 	// cond: sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)
+-	// result: (MOVDreg x)
++	// result: (MOVHZreg x)
+ 	for {
+ 		off := v.AuxInt
+ 		sym := v.Aux
+@@ -11678,7 +11678,7 @@ func rewriteValueS390X_OpS390XMOVHZload(v *Value, config *Config) bool {
+ 		if !(sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)) {
+ 			break
+ 		}
+-		v.reset(OpS390XMOVDreg)
++		v.reset(OpS390XMOVHZreg)
+ 		v.AddArg(x)
+ 		return true
+ 	}
+@@ -13047,7 +13047,7 @@ func rewriteValueS390X_OpS390XMOVWZload(v *Value, config *Config) bool {
+ 	_ = b
+ 	// match: (MOVWZload [off] {sym} ptr (MOVWstore [off2] {sym2} ptr2 x _))
+ 	// cond: sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)
+-	// result: (MOVDreg x)
++	// result: (MOVWZreg x)
+ 	for {
+ 		off := v.AuxInt
+ 		sym := v.Aux
+@@ -13063,7 +13063,7 @@ func rewriteValueS390X_OpS390XMOVWZload(v *Value, config *Config) bool {
+ 		if !(sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)) {
+ 			break
+ 		}
+-		v.reset(OpS390XMOVDreg)
++		v.reset(OpS390XMOVWZreg)
+ 		v.AddArg(x)
+ 		return true
+ 	}
